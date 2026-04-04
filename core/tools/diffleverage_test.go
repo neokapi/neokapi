@@ -10,6 +10,7 @@ import (
 )
 
 func TestDiffLeverageTool(t *testing.T) {
+	t.Parallel()
 	cfg := &tools.DiffLeverageConfig{
 		TargetLocale:  model.LocaleFrench,
 		PreviousTexts: map[string]tools.PreviousBlock{},
@@ -22,6 +23,7 @@ func TestDiffLeverageTool(t *testing.T) {
 }
 
 func TestDiffLeverageUnchangedSource(t *testing.T) {
+	t.Parallel()
 	cfg := &tools.DiffLeverageConfig{
 		TargetLocale: model.LocaleFrench,
 		PreviousTexts: map[string]tools.PreviousBlock{
@@ -41,6 +43,7 @@ func TestDiffLeverageUnchangedSource(t *testing.T) {
 }
 
 func TestDiffLeverageModifiedSource(t *testing.T) {
+	t.Parallel()
 	cfg := &tools.DiffLeverageConfig{
 		TargetLocale: model.LocaleFrench,
 		PreviousTexts: map[string]tools.PreviousBlock{
@@ -60,6 +63,7 @@ func TestDiffLeverageModifiedSource(t *testing.T) {
 }
 
 func TestDiffLeverageNewBlock(t *testing.T) {
+	t.Parallel()
 	cfg := &tools.DiffLeverageConfig{
 		TargetLocale: model.LocaleFrench,
 		PreviousTexts: map[string]tools.PreviousBlock{
@@ -79,6 +83,7 @@ func TestDiffLeverageNewBlock(t *testing.T) {
 }
 
 func TestDiffLeverageFuzzyMatch(t *testing.T) {
+	t.Parallel()
 	cfg := &tools.DiffLeverageConfig{
 		TargetLocale: model.LocaleFrench,
 		PreviousTexts: map[string]tools.PreviousBlock{
@@ -103,6 +108,7 @@ func TestDiffLeverageFuzzyMatch(t *testing.T) {
 }
 
 func TestDiffLeverageFuzzyMatchBelowThreshold(t *testing.T) {
+	t.Parallel()
 	cfg := &tools.DiffLeverageConfig{
 		TargetLocale: model.LocaleFrench,
 		PreviousTexts: map[string]tools.PreviousBlock{
@@ -125,6 +131,7 @@ func TestDiffLeverageFuzzyMatchBelowThreshold(t *testing.T) {
 }
 
 func TestDiffLeverageSkipsNonTranslatable(t *testing.T) {
+	t.Parallel()
 	cfg := &tools.DiffLeverageConfig{
 		TargetLocale: model.LocaleFrench,
 		PreviousTexts: map[string]tools.PreviousBlock{
@@ -145,6 +152,7 @@ func TestDiffLeverageSkipsNonTranslatable(t *testing.T) {
 }
 
 func TestDiffLeverageCaseInsensitive(t *testing.T) {
+	t.Parallel()
 	cfg := &tools.DiffLeverageConfig{
 		TargetLocale: model.LocaleFrench,
 		PreviousTexts: map[string]tools.PreviousBlock{
@@ -164,6 +172,7 @@ func TestDiffLeverageCaseInsensitive(t *testing.T) {
 }
 
 func TestDiffLeverageConfigValidation(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name    string
 		cfg     tools.DiffLeverageConfig
@@ -193,6 +202,7 @@ func TestDiffLeverageConfigValidation(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			err := tt.cfg.Validate()
 			if tt.wantErr {
 				require.Error(t, err)
@@ -205,6 +215,7 @@ func TestDiffLeverageConfigValidation(t *testing.T) {
 }
 
 func TestDiffLeverageConfigReset(t *testing.T) {
+	t.Parallel()
 	cfg := &tools.DiffLeverageConfig{
 		TargetLocale:  model.LocaleFrench,
 		PreviousTexts: map[string]tools.PreviousBlock{"tu1": {}},

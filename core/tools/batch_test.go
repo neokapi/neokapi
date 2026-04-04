@@ -10,6 +10,7 @@ import (
 )
 
 func TestBatchTool_CollectsBlocks(t *testing.T) {
+	t.Parallel()
 	bt := NewBatchTool(&BatchConfig{Size: 3})
 
 	in := make(chan *model.Part, 10)
@@ -37,6 +38,7 @@ func TestBatchTool_CollectsBlocks(t *testing.T) {
 }
 
 func TestBatchTool_NonBlocksPassThrough(t *testing.T) {
+	t.Parallel()
 	bt := NewBatchTool(&BatchConfig{Size: 10})
 
 	in := make(chan *model.Part, 10)
@@ -70,6 +72,7 @@ func TestBatchTool_NonBlocksPassThrough(t *testing.T) {
 }
 
 func TestBatchTool_EmptyStream(t *testing.T) {
+	t.Parallel()
 	bt := NewBatchTool(&BatchConfig{Size: 5})
 
 	in := make(chan *model.Part)
@@ -88,6 +91,7 @@ func TestBatchTool_EmptyStream(t *testing.T) {
 }
 
 func TestBatchTool_CancelContext(t *testing.T) {
+	t.Parallel()
 	bt := NewBatchTool(&BatchConfig{Size: 100})
 
 	in := make(chan *model.Part, 1)
@@ -103,6 +107,7 @@ func TestBatchTool_CancelContext(t *testing.T) {
 }
 
 func TestBatchConfig_Validate(t *testing.T) {
+	t.Parallel()
 	cfg := &BatchConfig{Size: 0}
 	require.Error(t, cfg.Validate())
 

@@ -11,6 +11,7 @@ import (
 )
 
 func TestStreamingWordCountCollector_SingleDocument(t *testing.T) {
+	t.Parallel()
 	wc := tools.NewStreamingWordCountCollector()
 
 	// Set document context.
@@ -50,6 +51,7 @@ func TestStreamingWordCountCollector_SingleDocument(t *testing.T) {
 }
 
 func TestStreamingWordCountCollector_MultipleDocuments(t *testing.T) {
+	t.Parallel()
 	wc := tools.NewStreamingWordCountCollector()
 
 	for _, uri := range []string{"a.html", "b.html"} {
@@ -75,6 +77,7 @@ func TestStreamingWordCountCollector_MultipleDocuments(t *testing.T) {
 }
 
 func TestStreamingWordCountCollector_WithTappingTool(t *testing.T) {
+	t.Parallel()
 	// End-to-end: WordCountTool + TappingTool + StreamingWordCountCollector.
 	wc := tools.NewStreamingWordCountCollector()
 
@@ -128,6 +131,7 @@ func TestStreamingWordCountCollector_WithTappingTool(t *testing.T) {
 }
 
 func TestStreamingWordCountCollector_SkipsNonTranslatable(t *testing.T) {
+	t.Parallel()
 	wc := tools.NewStreamingWordCountCollector()
 
 	item := &flow.Item{
@@ -150,6 +154,7 @@ func TestStreamingWordCountCollector_SkipsNonTranslatable(t *testing.T) {
 
 // Ensure StreamingWordCountCollector implements flow.StreamingCollector.
 func TestStreamingWordCountCollector_Interface(t *testing.T) {
+	t.Parallel()
 	var _ flow.StreamingCollector = tools.NewStreamingWordCountCollector()
 	var _ flow.Collector = tools.NewStreamingWordCountCollector()
 

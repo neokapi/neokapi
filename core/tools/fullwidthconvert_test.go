@@ -10,6 +10,7 @@ import (
 )
 
 func TestFullWidthConvertToHalf(t *testing.T) {
+	t.Parallel()
 	cfg := &tools.FullWidthConvertConfig{
 		Mode:         tools.FullWidthToHalf,
 		ApplyTarget:  true,
@@ -32,6 +33,7 @@ func TestFullWidthConvertToHalf(t *testing.T) {
 }
 
 func TestFullWidthConvertToFull(t *testing.T) {
+	t.Parallel()
 	cfg := &tools.FullWidthConvertConfig{
 		Mode:         tools.FullWidthToFull,
 		ApplyTarget:  true,
@@ -49,6 +51,7 @@ func TestFullWidthConvertToFull(t *testing.T) {
 }
 
 func TestFullWidthConvertMixedText(t *testing.T) {
+	t.Parallel()
 	cfg := &tools.FullWidthConvertConfig{
 		Mode:         tools.FullWidthToHalf,
 		ApplyTarget:  true,
@@ -67,6 +70,7 @@ func TestFullWidthConvertMixedText(t *testing.T) {
 }
 
 func TestFullWidthConvertCJKUnchanged(t *testing.T) {
+	t.Parallel()
 	cfg := &tools.FullWidthConvertConfig{
 		Mode:         tools.FullWidthToHalf,
 		ApplyTarget:  true,
@@ -85,6 +89,7 @@ func TestFullWidthConvertCJKUnchanged(t *testing.T) {
 }
 
 func TestFullWidthConvertSpaceMapping(t *testing.T) {
+	t.Parallel()
 	cfg := &tools.FullWidthConvertConfig{
 		Mode:         tools.FullWidthToFull,
 		ApplyTarget:  true,
@@ -103,6 +108,7 @@ func TestFullWidthConvertSpaceMapping(t *testing.T) {
 }
 
 func TestFullWidthConvertIdeographicSpaceToHalf(t *testing.T) {
+	t.Parallel()
 	cfg := &tools.FullWidthConvertConfig{
 		Mode:         tools.FullWidthToHalf,
 		ApplyTarget:  true,
@@ -120,6 +126,7 @@ func TestFullWidthConvertIdeographicSpaceToHalf(t *testing.T) {
 }
 
 func TestFullWidthConvertApplySource(t *testing.T) {
+	t.Parallel()
 	cfg := &tools.FullWidthConvertConfig{
 		Mode:        tools.FullWidthToHalf,
 		ApplySource: true,
@@ -136,6 +143,7 @@ func TestFullWidthConvertApplySource(t *testing.T) {
 }
 
 func TestFullWidthConvertSkipsNonTranslatable(t *testing.T) {
+	t.Parallel()
 	cfg := &tools.FullWidthConvertConfig{
 		Mode:         tools.FullWidthToHalf,
 		ApplyTarget:  true,
@@ -155,6 +163,7 @@ func TestFullWidthConvertSkipsNonTranslatable(t *testing.T) {
 }
 
 func TestFullWidthConvertConfigValidation(t *testing.T) {
+	t.Parallel()
 	cfg := &tools.FullWidthConvertConfig{Mode: "invalid"}
 	err := cfg.Validate()
 	require.Error(t, err)

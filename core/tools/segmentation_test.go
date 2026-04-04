@@ -10,6 +10,7 @@ import (
 )
 
 func TestSegmentationTool(t *testing.T) {
+	t.Parallel()
 	cfg := &tools.SegmentationConfig{}
 	tl := tools.NewSegmentationTool(cfg)
 
@@ -18,6 +19,7 @@ func TestSegmentationTool(t *testing.T) {
 }
 
 func TestSegmentationToolSingleSentence(t *testing.T) {
+	t.Parallel()
 	cfg := &tools.SegmentationConfig{}
 	tl := tools.NewSegmentationTool(cfg)
 
@@ -31,6 +33,7 @@ func TestSegmentationToolSingleSentence(t *testing.T) {
 }
 
 func TestSegmentationToolMultipleSentences(t *testing.T) {
+	t.Parallel()
 	cfg := &tools.SegmentationConfig{}
 	tl := tools.NewSegmentationTool(cfg)
 
@@ -46,6 +49,7 @@ func TestSegmentationToolMultipleSentences(t *testing.T) {
 }
 
 func TestSegmentationToolExclamationQuestion(t *testing.T) {
+	t.Parallel()
 	cfg := &tools.SegmentationConfig{}
 	tl := tools.NewSegmentationTool(cfg)
 
@@ -60,6 +64,7 @@ func TestSegmentationToolExclamationQuestion(t *testing.T) {
 }
 
 func TestSegmentationToolEmptyText(t *testing.T) {
+	t.Parallel()
 	cfg := &tools.SegmentationConfig{}
 	tl := tools.NewSegmentationTool(cfg)
 
@@ -72,6 +77,7 @@ func TestSegmentationToolEmptyText(t *testing.T) {
 }
 
 func TestSegmentationToolSkipsNonTranslatable(t *testing.T) {
+	t.Parallel()
 	cfg := &tools.SegmentationConfig{}
 	tl := tools.NewSegmentationTool(cfg)
 
@@ -86,6 +92,7 @@ func TestSegmentationToolSkipsNonTranslatable(t *testing.T) {
 }
 
 func TestSegmentationToolCustomRules(t *testing.T) {
+	t.Parallel()
 	cfg := &tools.SegmentationConfig{
 		Rules: []tools.SegmentationRule{
 			{BeforeBreak: `;`, AfterBreak: `\s`, IsBreak: true},
@@ -102,6 +109,7 @@ func TestSegmentationToolCustomRules(t *testing.T) {
 }
 
 func TestSegmentationConfigValidation(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name    string
 		cfg     tools.SegmentationConfig
@@ -154,6 +162,7 @@ func TestSegmentationConfigValidation(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			err := tt.cfg.Validate()
 			if tt.wantErr {
 				require.Error(t, err)

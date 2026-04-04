@@ -10,6 +10,7 @@ import (
 )
 
 func TestPropertiesSetTool(t *testing.T) {
+	t.Parallel()
 	cfg := &tools.PropertiesSetConfig{
 		Properties: map[string]string{
 			"domain":   "legal",
@@ -32,6 +33,7 @@ func TestPropertiesSetTool(t *testing.T) {
 }
 
 func TestPropertiesSetToolOverwriteTrue(t *testing.T) {
+	t.Parallel()
 	cfg := &tools.PropertiesSetConfig{
 		Properties: map[string]string{
 			"domain": "medical",
@@ -51,6 +53,7 @@ func TestPropertiesSetToolOverwriteTrue(t *testing.T) {
 }
 
 func TestPropertiesSetToolOverwriteFalse(t *testing.T) {
+	t.Parallel()
 	cfg := &tools.PropertiesSetConfig{
 		Properties: map[string]string{
 			"domain":   "medical",
@@ -74,6 +77,7 @@ func TestPropertiesSetToolOverwriteFalse(t *testing.T) {
 }
 
 func TestPropertiesSetToolSkipsNonTranslatable(t *testing.T) {
+	t.Parallel()
 	cfg := &tools.PropertiesSetConfig{
 		Properties: map[string]string{
 			"domain": "legal",
@@ -94,6 +98,7 @@ func TestPropertiesSetToolSkipsNonTranslatable(t *testing.T) {
 }
 
 func TestPropertiesSetToolOnlyTranslatableFalse(t *testing.T) {
+	t.Parallel()
 	cfg := &tools.PropertiesSetConfig{
 		Properties: map[string]string{
 			"domain": "legal",
@@ -113,6 +118,7 @@ func TestPropertiesSetToolOnlyTranslatableFalse(t *testing.T) {
 }
 
 func TestPropertiesSetConfigValidation(t *testing.T) {
+	t.Parallel()
 	cfg := &tools.PropertiesSetConfig{
 		Properties: nil,
 	}

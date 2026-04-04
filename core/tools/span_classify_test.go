@@ -9,6 +9,7 @@ import (
 )
 
 func TestSpanClassifyFromData(t *testing.T) {
+	t.Parallel()
 	// Create a block with code:markup spans that have HTML in Data.
 	block := model.NewBlock("1", "")
 	frag := &model.Fragment{
@@ -38,6 +39,7 @@ func TestSpanClassifyFromData(t *testing.T) {
 }
 
 func TestSpanClassifyFromSubType(t *testing.T) {
+	t.Parallel()
 	block := model.NewBlock("1", "")
 	frag := &model.Fragment{
 		CodedText: "\uE001text\uE002",
@@ -61,6 +63,7 @@ func TestSpanClassifyFromSubType(t *testing.T) {
 }
 
 func TestSpanClassifyBreakPlaceholder(t *testing.T) {
+	t.Parallel()
 	block := model.NewBlock("1", "")
 	frag := &model.Fragment{
 		CodedText: "line one\uE003line two",
@@ -84,6 +87,7 @@ func TestSpanClassifyBreakPlaceholder(t *testing.T) {
 }
 
 func TestSpanClassifyUnknownType(t *testing.T) {
+	t.Parallel()
 	block := model.NewBlock("1", "")
 	frag := &model.Fragment{
 		CodedText: "\uE001content\uE002",
@@ -108,6 +112,7 @@ func TestSpanClassifyUnknownType(t *testing.T) {
 }
 
 func TestSpanClassifySkipsNonMarkup(t *testing.T) {
+	t.Parallel()
 	block := model.NewBlock("1", "")
 	frag := &model.Fragment{
 		CodedText: "\uE001Hello\uE002",
@@ -132,6 +137,7 @@ func TestSpanClassifySkipsNonMarkup(t *testing.T) {
 }
 
 func TestSpanClassifyTargetFragments(t *testing.T) {
+	t.Parallel()
 	block := model.NewBlock("1", "")
 	block.Source = []*model.Segment{{Content: model.NewFragment("Hello")}}
 	block.Targets = map[model.LocaleID][]*model.Segment{
@@ -157,6 +163,7 @@ func TestSpanClassifyTargetFragments(t *testing.T) {
 }
 
 func TestExtractTagName(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		data string
 		want string

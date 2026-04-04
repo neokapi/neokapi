@@ -30,6 +30,7 @@ require (
 	github.com/wailsapp/wails/v3 v3.0.0-alpha.74
 	github.com/wneessen/go-mail v0.7.2
 	github.com/zalando/go-keyring v0.2.6
+	go.uber.org/goleak v1.3.0
 	golang.org/x/net v0.49.0
 	golang.org/x/oauth2 v0.35.0
 	golang.org/x/sync v0.19.0

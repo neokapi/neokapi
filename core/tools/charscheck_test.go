@@ -11,6 +11,7 @@ import (
 )
 
 func TestCharsCheckToolForbiddenChars(t *testing.T) {
+	t.Parallel()
 	cfg := &tools.CharsCheckConfig{
 		TargetLocale:   model.LocaleFrench,
 		ForbiddenChars: "{}[]",
@@ -41,6 +42,7 @@ func TestCharsCheckToolForbiddenChars(t *testing.T) {
 }
 
 func TestCharsCheckToolRequiredCharsMissing(t *testing.T) {
+	t.Parallel()
 	cfg := &tools.CharsCheckConfig{
 		TargetLocale:   model.LocaleFrench,
 		RequiredChars:  ".!",
@@ -66,6 +68,7 @@ func TestCharsCheckToolRequiredCharsMissing(t *testing.T) {
 }
 
 func TestCharsCheckToolMojibakeDetection(t *testing.T) {
+	t.Parallel()
 	cfg := tools.NewCharsCheckConfig(model.LocaleFrench)
 	tl := tools.NewCharsCheckTool(cfg)
 
@@ -93,6 +96,7 @@ func TestCharsCheckToolMojibakeDetection(t *testing.T) {
 }
 
 func TestCharsCheckToolReplacementChar(t *testing.T) {
+	t.Parallel()
 	cfg := tools.NewCharsCheckConfig(model.LocaleFrench)
 	tl := tools.NewCharsCheckTool(cfg)
 
@@ -119,6 +123,7 @@ func TestCharsCheckToolReplacementChar(t *testing.T) {
 }
 
 func TestCharsCheckToolControlChars(t *testing.T) {
+	t.Parallel()
 	cfg := tools.NewCharsCheckConfig(model.LocaleFrench)
 	tl := tools.NewCharsCheckTool(cfg)
 
@@ -145,6 +150,7 @@ func TestCharsCheckToolControlChars(t *testing.T) {
 }
 
 func TestCharsCheckToolAllowedControlChars(t *testing.T) {
+	t.Parallel()
 	cfg := tools.NewCharsCheckConfig(model.LocaleFrench)
 	tl := tools.NewCharsCheckTool(cfg)
 
@@ -160,6 +166,7 @@ func TestCharsCheckToolAllowedControlChars(t *testing.T) {
 }
 
 func TestCharsCheckToolCleanTextPasses(t *testing.T) {
+	t.Parallel()
 	cfg := &tools.CharsCheckConfig{
 		TargetLocale:   model.LocaleFrench,
 		ForbiddenChars: "{}[]",
@@ -179,6 +186,7 @@ func TestCharsCheckToolCleanTextPasses(t *testing.T) {
 }
 
 func TestCharsCheckToolSkipsNonTranslatable(t *testing.T) {
+	t.Parallel()
 	cfg := tools.NewCharsCheckConfig(model.LocaleFrench)
 	tl := tools.NewCharsCheckTool(cfg)
 
@@ -194,6 +202,7 @@ func TestCharsCheckToolSkipsNonTranslatable(t *testing.T) {
 }
 
 func TestCharsCheckToolNoTarget(t *testing.T) {
+	t.Parallel()
 	cfg := tools.NewCharsCheckConfig(model.LocaleFrench)
 	tl := tools.NewCharsCheckTool(cfg)
 
@@ -207,6 +216,7 @@ func TestCharsCheckToolNoTarget(t *testing.T) {
 }
 
 func TestCharsCheckConfigValidation(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name    string
 		cfg     tools.CharsCheckConfig
@@ -227,6 +237,7 @@ func TestCharsCheckConfigValidation(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			err := tt.cfg.Validate()
 			if tt.wantErr {
 				require.Error(t, err)
