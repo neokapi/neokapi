@@ -225,7 +225,7 @@ func run() error {
 
 	// Validate that DatabaseURL is a PostgreSQL connection string.
 	if cfg.DatabaseURL != "" && !strings.HasPrefix(cfg.DatabaseURL, "postgres://") && !strings.HasPrefix(cfg.DatabaseURL, "postgresql://") {
-		return fmt.Errorf("invalid -database-url: must start with postgres:// or postgresql://")
+		return errors.New("invalid -database-url: must start with postgres:// or postgresql://")
 	}
 
 	srv := server.NewServer(cfg)
