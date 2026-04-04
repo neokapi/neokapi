@@ -304,7 +304,7 @@ func BenchmarkMemory_Plaintext(b *testing.B) {
 	content := generatePlaintext(10000)
 	b.ReportAllocs()
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		reader := plaintext.NewReader()
 		store, err := format.NewSkeletonStore()
 		if err != nil {
@@ -325,7 +325,7 @@ func BenchmarkMemory_HTML(b *testing.B) {
 	content := generateHTML(5000)
 	b.ReportAllocs()
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		reader := htmlfmt.NewReader()
 		store, err := format.NewSkeletonStore()
 		if err != nil {
@@ -346,7 +346,7 @@ func BenchmarkMemory_JSON(b *testing.B) {
 	content := generateJSON(10000)
 	b.ReportAllocs()
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		reader := jsonfmt.NewReader()
 		store, err := format.NewSkeletonStore()
 		if err != nil {
@@ -367,7 +367,7 @@ func BenchmarkMemory_XML(b *testing.B) {
 	content := generateXML(10000)
 	b.ReportAllocs()
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		reader := xmlfmt.NewReader()
 		store, err := format.NewSkeletonStore()
 		if err != nil {
@@ -388,7 +388,7 @@ func BenchmarkMemory_YAML(b *testing.B) {
 	content := generateYAML(10000)
 	b.ReportAllocs()
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		reader := yaml.NewReader()
 		store, err := format.NewSkeletonStore()
 		if err != nil {
@@ -409,7 +409,7 @@ func BenchmarkMemory_ODF(b *testing.B) {
 	data := generateODF(2000)
 	b.ReportAllocs()
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		reader := odf.NewReader()
 		store, err := format.NewSkeletonStore()
 		if err != nil {
@@ -430,7 +430,7 @@ func BenchmarkMemory_EPUB(b *testing.B) {
 	data := generateEPUB(10, 200)
 	b.ReportAllocs()
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		reader := epub.NewReader()
 		store, err := format.NewSkeletonStore()
 		if err != nil {
@@ -451,7 +451,7 @@ func BenchmarkMemory_OpenXML(b *testing.B) {
 	data := generateOpenXMLDocx(2000)
 	b.ReportAllocs()
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		reader := openxml.NewReader()
 		store, err := format.NewSkeletonStore()
 		if err != nil {
