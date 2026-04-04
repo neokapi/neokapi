@@ -16,11 +16,20 @@ import (
 // A value of 0 means unlimited.
 const DefaultMaxEntries = 0
 
+// normalizedEntry caches the pre-computed normalized text forms for a TMEntry,
+// avoiding repeated NormalizeText calls during lookup scans.
+type normalizedEntry struct {
+	entry      TMEntry
+	plainNorm  string // NormalizeText(entry.SourceText())
+	structNorm string // NormalizeText(entry.SourceStructural())
+	genNorm    string // NormalizeText(entry.SourceGeneralized())
+}
+
 // InMemoryTM is a thread-safe, in-memory implementation of TranslationMemory
 // with content-aware tiered matching (generalized → structural → plain).
 type InMemoryTM struct {
 	mu         sync.RWMutex
-	entries    []TMEntry
+	entries    []normalizedEntry
 	byID       map[string]int // maps entry ID to index in entries slice
 	maxEntries int            // 0 = unlimited
 }
@@ -60,9 +69,16 @@ func (tm *InMemoryTM) Add(entry TMEntry) error {
 		return errors.New("entry source Fragment is required")
 	}
 
+	ne := normalizedEntry{
+		entry:      entry,
+		plainNorm:  NormalizeText(entry.SourceText()),
+		structNorm: NormalizeText(entry.SourceStructural()),
+		genNorm:    NormalizeText(entry.SourceGeneralized()),
+	}
+
 	if _, exists := tm.byID[entry.ID]; exists {
 		idx := tm.byID[entry.ID]
-		tm.entries[idx] = entry
+		tm.entries[idx] = ne
 		return nil
 	}
 
@@ -72,7 +88,7 @@ func (tm *InMemoryTM) Add(entry TMEntry) error {
 	}
 
 	tm.byID[entry.ID] = len(tm.entries)
-	tm.entries = append(tm.entries, entry)
+	tm.entries = append(tm.entries, ne)
 	return nil
 }
 
@@ -82,7 +98,7 @@ func (tm *InMemoryTM) evictOldest() {
 		return
 	}
 	oldest := tm.entries[0]
-	delete(tm.byID, oldest.ID)
+	delete(tm.byID, oldest.entry.ID)
 
 	// Shift entries and update index map.
 	copy(tm.entries, tm.entries[1:])
@@ -138,6 +154,8 @@ func (tm *InMemoryTM) LookupText(source string, sourceLocale, targetLocale model
 }
 
 // tieredLookup performs the 6-tier matching pipeline.
+// It uses pre-computed normalized text from normalizedEntry to avoid
+// calling NormalizeText on every stored entry during each lookup.
 func (tm *InMemoryTM) tieredLookup(plainKey, structKey, generalKey string, entityAnnotations []*model.EntityAnnotation, sourceLocale, targetLocale model.LocaleID, opts LookupOptions) []TMMatch {
 	var matches []TMMatch
 	seen := make(map[string]bool) // track entry IDs to avoid duplicates
@@ -146,16 +164,17 @@ func (tm *InMemoryTM) tieredLookup(plainKey, structKey, generalKey string, entit
 
 	// Tier 1: generalized exact
 	if modeEnabled[MatchModeGeneralized] {
-		for _, entry := range tm.entries {
-			if !matchesLocale(entry, sourceLocale, targetLocale) {
+		for i := range tm.entries {
+			ne := &tm.entries[i]
+			if !matchesLocale(ne.entry, sourceLocale, targetLocale) {
 				continue
 			}
-			if NormalizeText(entry.SourceGeneralized()) == generalKey {
-				if !seen[entry.ID] {
-					seen[entry.ID] = true
-					adaptations := ComputeEntityAdaptations(entry, entityAnnotations)
+			if ne.genNorm == generalKey {
+				if !seen[ne.entry.ID] {
+					seen[ne.entry.ID] = true
+					adaptations := ComputeEntityAdaptations(ne.entry, entityAnnotations)
 					matches = append(matches, TMMatch{
-						Entry:             entry,
+						Entry:             ne.entry,
 						Score:             1.0,
 						MatchType:         MatchGeneralizedExact,
 						EntityAdaptations: adaptations,
@@ -167,14 +186,15 @@ func (tm *InMemoryTM) tieredLookup(plainKey, structKey, generalKey string, entit
 
 	// Tier 2: structural exact
 	if modeEnabled[MatchModeStructural] {
-		for _, entry := range tm.entries {
-			if !matchesLocale(entry, sourceLocale, targetLocale) || seen[entry.ID] {
+		for i := range tm.entries {
+			ne := &tm.entries[i]
+			if !matchesLocale(ne.entry, sourceLocale, targetLocale) || seen[ne.entry.ID] {
 				continue
 			}
-			if NormalizeText(entry.SourceStructural()) == structKey {
-				seen[entry.ID] = true
+			if ne.structNorm == structKey {
+				seen[ne.entry.ID] = true
 				matches = append(matches, TMMatch{
-					Entry:     entry,
+					Entry:     ne.entry,
 					Score:     1.0,
 					MatchType: MatchStructuralExact,
 				})
@@ -184,14 +204,15 @@ func (tm *InMemoryTM) tieredLookup(plainKey, structKey, generalKey string, entit
 
 	// Tier 3: plain exact
 	if modeEnabled[MatchModePlain] {
-		for _, entry := range tm.entries {
-			if !matchesLocale(entry, sourceLocale, targetLocale) || seen[entry.ID] {
+		for i := range tm.entries {
+			ne := &tm.entries[i]
+			if !matchesLocale(ne.entry, sourceLocale, targetLocale) || seen[ne.entry.ID] {
 				continue
 			}
-			if NormalizeText(entry.SourceText()) == plainKey {
-				seen[entry.ID] = true
+			if ne.plainNorm == plainKey {
+				seen[ne.entry.ID] = true
 				matches = append(matches, TMMatch{
-					Entry:     entry,
+					Entry:     ne.entry,
 					Score:     1.0,
 					MatchType: MatchExact,
 				})
@@ -206,16 +227,17 @@ func (tm *InMemoryTM) tieredLookup(plainKey, structKey, generalKey string, entit
 
 	// Tier 4: generalized fuzzy
 	if modeEnabled[MatchModeGeneralized] {
-		for _, entry := range tm.entries {
-			if !matchesLocale(entry, sourceLocale, targetLocale) || seen[entry.ID] {
+		for i := range tm.entries {
+			ne := &tm.entries[i]
+			if !matchesLocale(ne.entry, sourceLocale, targetLocale) || seen[ne.entry.ID] {
 				continue
 			}
-			score := LevenshteinRatio(generalKey, NormalizeText(entry.SourceGeneralized()))
+			score := LevenshteinRatio(generalKey, ne.genNorm)
 			if score >= opts.MinScore {
-				seen[entry.ID] = true
-				adaptations := ComputeEntityAdaptations(entry, entityAnnotations)
+				seen[ne.entry.ID] = true
+				adaptations := ComputeEntityAdaptations(ne.entry, entityAnnotations)
 				matches = append(matches, TMMatch{
-					Entry:             entry,
+					Entry:             ne.entry,
 					Score:             score,
 					MatchType:         MatchGeneralizedFuzzy,
 					EntityAdaptations: adaptations,
@@ -226,15 +248,16 @@ func (tm *InMemoryTM) tieredLookup(plainKey, structKey, generalKey string, entit
 
 	// Tier 5: structural fuzzy
 	if modeEnabled[MatchModeStructural] {
-		for _, entry := range tm.entries {
-			if !matchesLocale(entry, sourceLocale, targetLocale) || seen[entry.ID] {
+		for i := range tm.entries {
+			ne := &tm.entries[i]
+			if !matchesLocale(ne.entry, sourceLocale, targetLocale) || seen[ne.entry.ID] {
 				continue
 			}
-			score := LevenshteinRatio(structKey, NormalizeText(entry.SourceStructural()))
+			score := LevenshteinRatio(structKey, ne.structNorm)
 			if score >= opts.MinScore {
-				seen[entry.ID] = true
+				seen[ne.entry.ID] = true
 				matches = append(matches, TMMatch{
-					Entry:     entry,
+					Entry:     ne.entry,
 					Score:     score,
 					MatchType: MatchStructuralFuzzy,
 				})
@@ -244,15 +267,16 @@ func (tm *InMemoryTM) tieredLookup(plainKey, structKey, generalKey string, entit
 
 	// Tier 6: plain fuzzy
 	if modeEnabled[MatchModePlain] {
-		for _, entry := range tm.entries {
-			if !matchesLocale(entry, sourceLocale, targetLocale) || seen[entry.ID] {
+		for i := range tm.entries {
+			ne := &tm.entries[i]
+			if !matchesLocale(ne.entry, sourceLocale, targetLocale) || seen[ne.entry.ID] {
 				continue
 			}
-			score := LevenshteinRatio(plainKey, NormalizeText(entry.SourceText()))
+			score := LevenshteinRatio(plainKey, ne.plainNorm)
 			if score >= opts.MinScore {
-				seen[entry.ID] = true
+				seen[ne.entry.ID] = true
 				matches = append(matches, TMMatch{
-					Entry:     entry,
+					Entry:     ne.entry,
 					Score:     score,
 					MatchType: MatchFuzzy,
 				})
@@ -286,7 +310,7 @@ func (tm *InMemoryTM) Delete(id string) error {
 	lastIdx := len(tm.entries) - 1
 	if idx != lastIdx {
 		tm.entries[idx] = tm.entries[lastIdx]
-		tm.byID[tm.entries[idx].ID] = idx
+		tm.byID[tm.entries[idx].entry.ID] = idx
 	}
 	tm.entries = tm.entries[:lastIdx]
 	delete(tm.byID, id)
@@ -311,7 +335,9 @@ func (tm *InMemoryTM) Entries() []TMEntry {
 	tm.mu.RLock()
 	defer tm.mu.RUnlock()
 	out := make([]TMEntry, len(tm.entries))
-	copy(out, tm.entries)
+	for i, ne := range tm.entries {
+		out[i] = ne.entry
+	}
 	return out
 }
 
@@ -323,21 +349,21 @@ func (tm *InMemoryTM) SearchEntries(query, sourceLocale, targetLocale string, of
 	lowerQuery := strings.ToLower(query)
 	var matched []TMEntry
 
-	for _, entry := range tm.entries {
-		if sourceLocale != "" && string(entry.SourceLocale) != sourceLocale {
+	for _, ne := range tm.entries {
+		if sourceLocale != "" && string(ne.entry.SourceLocale) != sourceLocale {
 			continue
 		}
-		if targetLocale != "" && string(entry.TargetLocale) != targetLocale {
+		if targetLocale != "" && string(ne.entry.TargetLocale) != targetLocale {
 			continue
 		}
 		if query != "" {
-			srcText := strings.ToLower(entry.SourceText())
-			tgtText := strings.ToLower(entry.TargetText())
+			srcText := strings.ToLower(ne.entry.SourceText())
+			tgtText := strings.ToLower(ne.entry.TargetText())
 			if !strings.Contains(srcText, lowerQuery) && !strings.Contains(tgtText, lowerQuery) {
 				continue
 			}
 		}
-		matched = append(matched, entry)
+		matched = append(matched, ne.entry)
 	}
 
 	total := len(matched)
@@ -357,7 +383,7 @@ func (tm *InMemoryTM) GetEntry(id string) (TMEntry, bool) {
 	if !exists {
 		return TMEntry{}, false
 	}
-	return tm.entries[idx], true
+	return tm.entries[idx].entry, true
 }
 
 // --- helpers ---
@@ -478,7 +504,67 @@ func ComputeEntityAdaptations(entry TMEntry, currentEntities []*model.EntityAnno
 // diacritics → precomposed forms, Arabic tashkeel).
 func NormalizeText(s string) string {
 	s = norm.NFC.String(s)
-	s = strings.TrimSpace(s)
-	fields := strings.Fields(s)
-	return strings.Join(fields, " ")
+
+	// Fast path: if the string contains no whitespace anomalies, return as-is.
+	// This avoids allocation for the common case of already-clean text.
+	if !needsWhitespaceNormalization(s) {
+		return s
+	}
+
+	// Single-pass: trim leading/trailing whitespace and collapse internal
+	// runs of whitespace to a single space, avoiding the two extra
+	// allocations from strings.Fields + strings.Join.
+	var b strings.Builder
+	b.Grow(len(s))
+	inSpace := true // treat leading whitespace as a run to skip
+	for _, r := range s {
+		if isWhitespace(r) {
+			inSpace = true
+		} else {
+			if inSpace && b.Len() > 0 {
+				b.WriteByte(' ')
+			}
+			inSpace = false
+			b.WriteRune(r)
+		}
+	}
+	return b.String()
+}
+
+// needsWhitespaceNormalization reports whether s has leading/trailing whitespace,
+// consecutive whitespace, or non-space whitespace characters.
+func needsWhitespaceNormalization(s string) bool {
+	if len(s) == 0 {
+		return false
+	}
+	if isWhitespace(rune(s[0])) || isWhitespace(rune(s[len(s)-1])) {
+		return true
+	}
+	prev := false
+	for _, r := range s {
+		ws := isWhitespace(r)
+		if ws && prev {
+			return true // consecutive whitespace
+		}
+		if ws && r != ' ' {
+			return true // tab, newline, etc.
+		}
+		prev = ws
+	}
+	return false
+}
+
+// isWhitespace reports whether r is a Unicode whitespace character,
+// matching the same set as strings.Fields / unicode.IsSpace.
+func isWhitespace(r rune) bool {
+	// Common ASCII cases first for speed.
+	switch r {
+	case ' ', '\t', '\n', '\r', '\v', '\f':
+		return true
+	case '\u0085', '\u00A0', '\u1680',
+		'\u2000', '\u2001', '\u2002', '\u2003', '\u2004', '\u2005', '\u2006', '\u2007', '\u2008', '\u2009', '\u200A',
+		'\u2028', '\u2029', '\u202F', '\u205F', '\u3000':
+		return true
+	}
+	return false
 }
