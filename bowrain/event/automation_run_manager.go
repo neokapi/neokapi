@@ -20,8 +20,9 @@ type AutomationRunManager struct {
 	store    *bstore.AutomationRunStore
 	executor StepAwareExecutor
 
-	mu        sync.Mutex
-	eventRuns map[string]string // event.ID → run.ID (active window)
+	mu          sync.Mutex
+	eventRuns   map[string]string      // event.ID → run.ID (active window)
+	cleanTimers map[string]*time.Timer // event.ID → cleanup timer
 }
 
 // NewAutomationRunManager creates a manager that tracks automation runs.
@@ -30,7 +31,18 @@ func NewAutomationRunManager(store *bstore.AutomationRunStore, executor StepAwar
 	return &AutomationRunManager{
 		store:     store,
 		executor:  executor,
-		eventRuns: make(map[string]string),
+		eventRuns:   make(map[string]string),
+		cleanTimers: make(map[string]*time.Timer),
+	}
+}
+
+// Stop cancels all pending cleanup timers. Call during shutdown.
+func (m *AutomationRunManager) Stop() {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	for evID, t := range m.cleanTimers {
+		t.Stop()
+		delete(m.cleanTimers, evID)
 	}
 }
 
@@ -130,12 +142,14 @@ func (m *AutomationRunManager) getOrCreateRun(ctx context.Context, ev platev.Eve
 	m.eventRuns[ev.ID] = run.ID
 
 	// Clean up the mapping after a debounce window (events arrive in quick succession).
-	go func() {
-		time.Sleep(5 * time.Second)
+	// Use time.AfterFunc instead of a goroutine+sleep to allow cancellation on shutdown.
+	evID := ev.ID
+	m.cleanTimers[evID] = time.AfterFunc(5*time.Second, func() {
 		m.mu.Lock()
-		delete(m.eventRuns, ev.ID)
+		delete(m.eventRuns, evID)
+		delete(m.cleanTimers, evID)
 		m.mu.Unlock()
-	}()
+	})
 
 	return run.ID
 }
