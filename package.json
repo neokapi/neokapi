@@ -13,8 +13,7 @@
     "bowrain/apps/ctrl",
     "bowrain/apps/pulse",
     "bowrain/apps/keycloak-theme",
-    "bowrain/apps/bowrain/frontend",
-    "bowrain/apps/mobile"
+    "bowrain/apps/bowrain/frontend"
   ],
   "devDependencies": {
     "jsdom": "^29.0.1",

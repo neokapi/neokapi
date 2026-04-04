@@ -201,7 +201,6 @@ neokapi/
 │   │   ├── web/           # SaaS web UI
 │   │   ├── ctrl/          # Admin control panel
 │   │   ├── pulse/         # Real-time dashboard
-│   │   ├── mobile/        # Mobile app
 │   │   └── keycloak-theme/ # Custom Keycloak theme
 │   ├── packages/ui/       # @neokapi/ui (AGPL)
 │   ├── storybook/         # Bowrain Storybook config (port 6006, aggregates Kapi + Bowrain stories)
