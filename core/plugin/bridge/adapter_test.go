@@ -35,12 +35,12 @@ func TestBridgeFormatReaderSignature(t *testing.T) {
 func TestBridgeFormatReaderOpenAndRead(t *testing.T) {
 	srv := &mockBridgeServer{
 		processReadParts: []*pb.PartMessage{
-			{PartType: 0, Layer: &pb.LayerMessage{Id: "doc1", Name: "test.html", Format: "html"}},
-			{PartType: 4, Block: &pb.BlockMessage{
+			{PartType: int32(model.PartLayerStart), Layer: &pb.LayerMessage{Id: "doc1", Name: "test.html", Format: "html"}},
+			{PartType: int32(model.PartBlock), Block: &pb.BlockMessage{
 				Id: "tu1", Translatable: true,
 				Source: []*pb.SegmentMessage{{Id: "s1", Content: &pb.FragmentMessage{CodedText: "Hello"}}},
 			}},
-			{PartType: 1, Layer: &pb.LayerMessage{Id: "doc1"}},
+			{PartType: int32(model.PartLayerEnd), Layer: &pb.LayerMessage{Id: "doc1"}},
 		},
 	}
 	b := newTestBridge(t, srv)
@@ -92,12 +92,12 @@ func TestBridgeFormatReaderOpenAndRead(t *testing.T) {
 func TestBridgeProcessorExecute(t *testing.T) {
 	srv := &mockBridgeServer{
 		processReadParts: []*pb.PartMessage{
-			{PartType: 0, Layer: &pb.LayerMessage{Id: "doc1"}},
-			{PartType: 4, Block: &pb.BlockMessage{
+			{PartType: int32(model.PartLayerStart), Layer: &pb.LayerMessage{Id: "doc1"}},
+			{PartType: int32(model.PartBlock), Block: &pb.BlockMessage{
 				Id: "tu1", Translatable: true,
 				Source: []*pb.SegmentMessage{{Id: "s1", Content: &pb.FragmentMessage{CodedText: "Hello"}}},
 			}},
-			{PartType: 1, Layer: &pb.LayerMessage{Id: "doc1"}},
+			{PartType: int32(model.PartLayerEnd), Layer: &pb.LayerMessage{Id: "doc1"}},
 		},
 		processOutput: []byte("output-bytes"),
 	}
