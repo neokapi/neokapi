@@ -46,10 +46,11 @@ func ExitCode(_ *cobra.Command, err error) int {
 // cleanup functions are called before exiting (regardless of success/failure).
 func Run(cmd *cobra.Command, cleanup ...func()) {
 	ctx, stop := SignalContext(context.Background())
-	defer stop()
 
 	cmd.SetContext(ctx)
 	err := cmd.ExecuteContext(ctx)
+
+	stop()
 
 	for _, fn := range cleanup {
 		fn()
