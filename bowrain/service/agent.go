@@ -8,9 +8,9 @@ import (
 	"time"
 
 	"github.com/neokapi/neokapi/bowrain/billing"
-	"github.com/neokapi/neokapi/core/id"
 	platagent "github.com/neokapi/neokapi/bowrain/core/agent"
 	platev "github.com/neokapi/neokapi/bowrain/core/event"
+	"github.com/neokapi/neokapi/core/id"
 )
 
 // AgentEnqueuer enqueues agent job messages. Matches the jobs.Queue.Enqueue signature.

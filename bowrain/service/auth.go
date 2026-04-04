@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -31,7 +32,7 @@ func NewAuthService(store auth.AuthStore, jwtSecret string) *AuthService {
 // If oidcSub is provided and the existing user lacks one, it is backfilled.
 func (s *AuthService) GetOrCreateUser(ctx context.Context, email, name, avatarURL, oidcSub string) (*platauth.User, error) {
 	if email == "" {
-		return nil, fmt.Errorf("email is required")
+		return nil, errors.New("email is required")
 	}
 	u, err := s.store.GetUserByEmail(ctx, email)
 	if err == nil {
@@ -105,16 +106,16 @@ func (s *AuthService) GenerateToken(user *platauth.User, expiry time.Duration) (
 // CreateWorkspaceWithOwner creates a workspace and adds the user as owner.
 func (s *AuthService) CreateWorkspaceWithOwner(ctx context.Context, w *platauth.Workspace, ownerID string) error {
 	if w == nil {
-		return fmt.Errorf("workspace is required")
+		return errors.New("workspace is required")
 	}
 	if w.Name == "" {
-		return fmt.Errorf("workspace name is required")
+		return errors.New("workspace name is required")
 	}
 	if w.Slug == "" {
-		return fmt.Errorf("workspace slug is required")
+		return errors.New("workspace slug is required")
 	}
 	if ownerID == "" {
-		return fmt.Errorf("owner ID is required")
+		return errors.New("owner ID is required")
 	}
 	if err := s.store.CreateWorkspace(ctx, w); err != nil {
 		return fmt.Errorf("create workspace: %w", err)
@@ -139,10 +140,10 @@ func (s *AuthService) Store() auth.AuthStore {
 // Returns the plaintext claim token (caller must persist it).
 func (s *AuthService) CreateAnonymousProject(ctx context.Context, name, sourceLoc string, targetLocs []string) (projectID, claimToken string, err error) {
 	if name == "" {
-		return "", "", fmt.Errorf("project name is required")
+		return "", "", errors.New("project name is required")
 	}
 	if sourceLoc == "" {
-		return "", "", fmt.Errorf("source locale is required")
+		return "", "", errors.New("source locale is required")
 	}
 	projectID = id.New()
 
@@ -174,11 +175,11 @@ func (s *AuthService) ClaimProject(ctx context.Context, userID, claimToken strin
 
 	unclaimed, err := s.store.GetUnclaimedByToken(ctx, tokenHash)
 	if err != nil {
-		return "", "", fmt.Errorf("invalid claim token")
+		return "", "", errors.New("invalid claim token")
 	}
 
 	if time.Now().After(unclaimed.ExpiresAt) {
-		return "", "", fmt.Errorf("claim token expired")
+		return "", "", errors.New("claim token expired")
 	}
 
 	// Find user's personal workspace.
@@ -195,7 +196,7 @@ func (s *AuthService) ClaimProject(ctx context.Context, userID, claimToken strin
 		}
 	}
 	if personalWS == nil {
-		return "", "", fmt.Errorf("no personal workspace found")
+		return "", "", errors.New("no personal workspace found")
 	}
 
 	// Delete unclaimed record (project will be associated by the caller).
@@ -209,10 +210,10 @@ func (s *AuthService) ClaimProject(ctx context.Context, userID, claimToken strin
 // CreateInvite creates a workspace invitation.
 func (s *AuthService) CreateInvite(ctx context.Context, workspaceID, createdBy string, role platauth.Role, email string, maxUses int, ttl time.Duration) (*platauth.Invite, error) {
 	if workspaceID == "" {
-		return nil, fmt.Errorf("workspace ID is required")
+		return nil, errors.New("workspace ID is required")
 	}
 	if createdBy == "" {
-		return nil, fmt.Errorf("creator ID is required")
+		return nil, errors.New("creator ID is required")
 	}
 	codeBytes := make([]byte, 16)
 	if _, err := rand.Read(codeBytes); err != nil {
@@ -239,13 +240,13 @@ func (s *AuthService) CreateInvite(ctx context.Context, workspaceID, createdBy s
 // scopesJSON is a JSON array of scope strings (e.g. `["*"]`, `["translate:fr,de"]`).
 func (s *AuthService) CreateAPIToken(ctx context.Context, userID, workspaceID, name, scopesJSON string, expiresAt *time.Time) (*platauth.APIToken, string, error) {
 	if userID == "" {
-		return nil, "", fmt.Errorf("user ID is required")
+		return nil, "", errors.New("user ID is required")
 	}
 	if workspaceID == "" {
-		return nil, "", fmt.Errorf("workspace ID is required")
+		return nil, "", errors.New("workspace ID is required")
 	}
 	if name == "" {
-		return nil, "", fmt.Errorf("token name is required")
+		return nil, "", errors.New("token name is required")
 	}
 	tokenBytes := make([]byte, 32)
 	if _, err := rand.Read(tokenBytes); err != nil {
@@ -279,11 +280,11 @@ func (s *AuthService) ValidateAPIToken(ctx context.Context, plaintext string) (*
 
 	token, err := s.store.GetAPITokenByHash(ctx, tokenHash)
 	if err != nil {
-		return nil, fmt.Errorf("invalid api token")
+		return nil, errors.New("invalid api token")
 	}
 
 	if token.ExpiresAt != nil && time.Now().After(*token.ExpiresAt) {
-		return nil, fmt.Errorf("api token expired")
+		return nil, errors.New("api token expired")
 	}
 
 	// Fire-and-forget last-used update.
@@ -298,15 +299,15 @@ func (s *AuthService) ValidateAPIToken(ctx context.Context, plaintext string) (*
 func (s *AuthService) AcceptInvite(ctx context.Context, code, userID string) error {
 	inv, err := s.store.GetInviteByCode(ctx, code)
 	if err != nil {
-		return fmt.Errorf("invalid invite code")
+		return errors.New("invalid invite code")
 	}
 
 	if time.Now().After(inv.ExpiresAt) {
-		return fmt.Errorf("invite expired")
+		return errors.New("invite expired")
 	}
 
 	if inv.MaxUses > 0 && inv.UseCount >= inv.MaxUses {
-		return fmt.Errorf("invite has been fully used")
+		return errors.New("invite has been fully used")
 	}
 
 	// If the user is already a member, treat as success (idempotent).

@@ -7,12 +7,12 @@ import (
 	"strings"
 	"time"
 
+	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
+	platev "github.com/neokapi/neokapi/bowrain/core/event"
 	"github.com/neokapi/neokapi/bowrain/event"
 	"github.com/neokapi/neokapi/bowrain/jobs"
 	bstore "github.com/neokapi/neokapi/bowrain/store"
 	"github.com/neokapi/neokapi/core/id"
-	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
-	platev "github.com/neokapi/neokapi/bowrain/core/event"
 )
 
 // registerDefaultAutomations registers the built-in automation rules.

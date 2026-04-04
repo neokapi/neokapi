@@ -10,12 +10,12 @@ import (
 	"time"
 
 	"github.com/labstack/echo/v4"
+	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
+	"github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/core/id"
 	"github.com/neokapi/neokapi/core/locale"
 	"github.com/neokapi/neokapi/core/model"
-	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
-	"github.com/neokapi/neokapi/bowrain/core/store"
-	"github.com/neokapi/neokapi/providers/ai"
+	aiprovider "github.com/neokapi/neokapi/providers/ai"
 	"github.com/neokapi/neokapi/sievepen"
 	"github.com/neokapi/neokapi/termbase"
 )

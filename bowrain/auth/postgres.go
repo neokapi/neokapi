@@ -3,13 +3,14 @@ package auth
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"time"
 
+	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	"github.com/neokapi/neokapi/bowrain/storage"
 	"github.com/neokapi/neokapi/core/id"
-	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 )
 
 // PostgresAuthStore implements AuthStore using PostgreSQL.
@@ -292,7 +293,7 @@ func (s *PostgresAuthStore) RemoveMember(ctx context.Context, workspaceID, userI
 	}
 	n, _ := res.RowsAffected()
 	if n == 0 {
-		return fmt.Errorf("membership not found")
+		return errors.New("membership not found")
 	}
 	return nil
 }
@@ -309,7 +310,7 @@ func (s *PostgresAuthStore) UpdateRole(ctx context.Context, workspaceID, userID 
 	}
 	n, _ := res.RowsAffected()
 	if n == 0 {
-		return fmt.Errorf("membership not found")
+		return errors.New("membership not found")
 	}
 	return nil
 }
@@ -497,7 +498,7 @@ func (s *PostgresAuthStore) ValidateRefreshTokenByHash(ctx context.Context, toke
 		if _, err := s.db.ExecContext(ctx, `DELETE FROM refresh_tokens WHERE id = $1`, id); err != nil {
 			log.Printf("WARNING: failed to delete expired refresh token %s: %v", id, err)
 		}
-		return "", fmt.Errorf("refresh token expired")
+		return "", errors.New("refresh token expired")
 	}
 
 	// Single-use: delete after successful validation (token rotation).
@@ -668,7 +669,7 @@ func (s *PostgresAuthStore) UpdateRoleTemplate(ctx context.Context, rt *platauth
 	}
 	n, _ := res.RowsAffected()
 	if n == 0 {
-		return fmt.Errorf("role template not found")
+		return errors.New("role template not found")
 	}
 	return nil
 }
@@ -682,7 +683,7 @@ func (s *PostgresAuthStore) DeleteRoleTemplate(ctx context.Context, workspaceID,
 	}
 	n, _ := res.RowsAffected()
 	if n == 0 {
-		return fmt.Errorf("role template not found or is builtin")
+		return errors.New("role template not found or is builtin")
 	}
 	return nil
 }
@@ -762,7 +763,7 @@ func (s *PostgresAuthStore) UpdateProjectMember(ctx context.Context, pm *plataut
 	}
 	n, _ := res.RowsAffected()
 	if n == 0 {
-		return fmt.Errorf("project membership not found")
+		return errors.New("project membership not found")
 	}
 	return nil
 }
@@ -776,7 +777,7 @@ func (s *PostgresAuthStore) RemoveProjectMember(ctx context.Context, projectID, 
 	}
 	n, _ := res.RowsAffected()
 	if n == 0 {
-		return fmt.Errorf("project membership not found")
+		return errors.New("project membership not found")
 	}
 	return nil
 }

@@ -3,14 +3,15 @@ package jobs
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log"
 	"strings"
 
-	"github.com/neokapi/neokapi/core/model"
 	platev "github.com/neokapi/neokapi/bowrain/core/event"
 	"github.com/neokapi/neokapi/bowrain/core/store"
+	"github.com/neokapi/neokapi/core/model"
 	"google.golang.org/protobuf/proto"
 
 	pb "github.com/neokapi/neokapi/bowrain/proto/v1"
@@ -47,7 +48,7 @@ func processSyncPushJob(ctx context.Context, deps *WorkerDeps, job *TranslationJ
 
 	if deps.BlobStore == nil {
 		_ = deps.JobStore.UpdateJobStatus(ctx, job.ID, StatusFailed, "blob store not configured")
-		return fmt.Errorf("blob store not configured")
+		return errors.New("blob store not configured")
 	}
 
 	emitLog(deps, job.StepID, "info", "Processing sync push",

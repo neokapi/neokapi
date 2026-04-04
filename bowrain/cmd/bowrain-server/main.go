@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"log"
@@ -245,7 +246,7 @@ func main() {
 
 	addr := fmt.Sprintf("%s:%d", cfg.Host, cfg.Port)
 	go func() {
-		if err := srv.Start(addr); err != nil && err != http.ErrServerClosed {
+		if err := srv.Start(addr); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			slog.Error("server failed", "error", err)
 			os.Exit(1)
 		}

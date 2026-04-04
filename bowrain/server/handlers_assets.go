@@ -8,8 +8,8 @@ import (
 	"github.com/labstack/echo/v4"
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 
-	corestorage "github.com/neokapi/neokapi/core/storage"
 	"github.com/neokapi/neokapi/bowrain/core/store"
+	corestorage "github.com/neokapi/neokapi/core/storage"
 )
 
 // ---------------------------------------------------------------------------

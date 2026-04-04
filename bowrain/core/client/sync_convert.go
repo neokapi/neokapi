@@ -3,8 +3,8 @@ package client
 import (
 	"encoding/json"
 
-	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/bowrain/core/store"
+	"github.com/neokapi/neokapi/core/model"
 )
 
 // StoredBlockToSyncBlock converts a StoredBlock to the JSON wire type.

@@ -2,8 +2,10 @@ package sievepen
 
 import (
 	"cmp"
+	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"slices"
@@ -99,10 +101,10 @@ func (tm *PostgresTM) Add(entry fw.TMEntry) error {
 // AddWithStream inserts or updates a translation memory entry associated with a stream.
 func (tm *PostgresTM) AddWithStream(entry fw.TMEntry, stream string) error {
 	if entry.ID == "" {
-		return fmt.Errorf("entry ID is required")
+		return errors.New("entry ID is required")
 	}
 	if entry.Source == nil {
-		return fmt.Errorf("entry source Fragment is required")
+		return errors.New("entry source Fragment is required")
 	}
 
 	now := time.Now()
@@ -130,7 +132,7 @@ func (tm *PostgresTM) AddWithStream(entry fw.TMEntry, stream string) error {
 		propertiesJSON, _ = json.Marshal(entry.Properties)
 	}
 
-	_, err = tm.db.Exec(`
+	_, err = tm.db.ExecContext(context.Background(), `
 		INSERT INTO tm_entries (id, workspace_id, stream, source_coded, target_coded,
 			source_plain, source_struct, source_general,
 			source_locale, target_locale,
@@ -326,7 +328,7 @@ func (tm *PostgresTM) queryExact(column, value string, sourceLocale, targetLocal
 		WHERE workspace_id = $1 AND %s = $2 AND source_locale = $3 AND target_locale = $4
 	`, column)
 
-	rows, err := tm.db.Query(query, tm.workspaceID, value, string(sourceLocale), string(targetLocale))
+	rows, err := tm.db.QueryContext(context.Background(), query, tm.workspaceID, value, string(sourceLocale), string(targetLocale))
 	if err != nil {
 		return nil, fmt.Errorf("query exact: %w", err)
 	}
@@ -351,7 +353,7 @@ func (tm *PostgresTM) queryFuzzyCandidates(plainKey, structKey, generalKey strin
 func (tm *PostgresTM) queryTrigramCandidates(plainKey, structKey, generalKey string, sourceLocale, targetLocale model.LocaleID) ([]fw.TMEntry, error) {
 	// Use pg_trgm similarity operator (%) on all three key columns.
 	// Set a low threshold to maximize recall; final scoring is done in Go.
-	rows, err := tm.db.Query(`
+	rows, err := tm.db.QueryContext(context.Background(), `
 		SELECT DISTINCT ON (id) id, source_coded, target_coded, source_locale, target_locale,
 			entities, properties, created_at, updated_at
 		FROM tm_entries
@@ -377,7 +379,7 @@ func (tm *PostgresTM) queryLengthFiltered(plainKey string, sourceLocale, targetL
 		minLen = 0
 	}
 
-	rows, err := tm.db.Query(`
+	rows, err := tm.db.QueryContext(context.Background(), `
 		SELECT id, source_coded, target_coded, source_locale, target_locale,
 			entities, properties, created_at, updated_at
 		FROM tm_entries
@@ -395,7 +397,7 @@ func (tm *PostgresTM) queryLengthFiltered(plainKey string, sourceLocale, targetL
 
 // Delete removes an entry by ID.
 func (tm *PostgresTM) Delete(id string) error {
-	result, err := tm.db.Exec("DELETE FROM tm_entries WHERE workspace_id = $1 AND id = $2", tm.workspaceID, id)
+	result, err := tm.db.ExecContext(context.Background(), "DELETE FROM tm_entries WHERE workspace_id = $1 AND id = $2", tm.workspaceID, id)
 	if err != nil {
 		return fmt.Errorf("delete entry: %w", err)
 	}
@@ -412,7 +414,7 @@ func (tm *PostgresTM) Delete(id string) error {
 // Count returns the total number of entries for this workspace.
 func (tm *PostgresTM) Count() int {
 	var count int
-	if err := tm.db.QueryRow("SELECT COUNT(*) FROM tm_entries WHERE workspace_id = $1", tm.workspaceID).Scan(&count); err != nil {
+	if err := tm.db.QueryRowContext(context.Background(), "SELECT COUNT(*) FROM tm_entries WHERE workspace_id = $1", tm.workspaceID).Scan(&count); err != nil {
 		log.Printf("WARNING: TM count query failed (workspace %s): %v", tm.workspaceID, err)
 		return 0
 	}
@@ -455,7 +457,7 @@ func (tm *PostgresTM) searchTSVector(query, sourceLocale, targetLocale string, o
 	var total int
 	countArgs := make([]any, len(args))
 	copy(countArgs, args)
-	if err := tm.db.QueryRow("SELECT COUNT(*) FROM tm_entries WHERE "+where, countArgs...).Scan(&total); err != nil {
+	if err := tm.db.QueryRowContext(context.Background(), "SELECT COUNT(*) FROM tm_entries WHERE "+where, countArgs...).Scan(&total); err != nil {
 		return nil, 0, err
 	}
 
@@ -465,7 +467,7 @@ func (tm *PostgresTM) searchTSVector(query, sourceLocale, targetLocale string, o
 		ORDER BY ts_rank(search_tsv, plainto_tsquery('simple', $2)) DESC
 		LIMIT $%d OFFSET $%d`, where, argN, argN+1)
 	args = append(args, limit, offset)
-	rows, err := tm.db.Query(q, args...)
+	rows, err := tm.db.QueryContext(context.Background(), q, args...)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -500,13 +502,13 @@ func (tm *PostgresTM) pgSearchLike(query, sourceLocale, targetLocale string, off
 	var total int
 	countArgs := make([]any, len(args))
 	copy(countArgs, args)
-	_ = tm.db.QueryRow("SELECT COUNT(*) FROM tm_entries WHERE "+where, countArgs...).Scan(&total)
+	_ = tm.db.QueryRowContext(context.Background(), "SELECT COUNT(*) FROM tm_entries WHERE "+where, countArgs...).Scan(&total)
 
 	q := fmt.Sprintf(`SELECT id, source_coded, target_coded, source_locale, target_locale,
 		entities, properties, created_at, updated_at
 		FROM tm_entries WHERE %s ORDER BY updated_at DESC LIMIT $%d OFFSET $%d`, where, argN, argN+1)
 	args = append(args, limit, offset)
-	rows, err := tm.db.Query(q, args...)
+	rows, err := tm.db.QueryContext(context.Background(), q, args...)
 	if err != nil {
 		return nil, total
 	}
@@ -561,7 +563,7 @@ func (tm *PostgresTM) searchTSVectorForStream(query, sourceLocale, targetLocale,
 	var total int
 	countArgs := make([]any, len(args))
 	copy(countArgs, args)
-	if err := tm.db.QueryRow("SELECT COUNT(*) FROM tm_entries WHERE "+where, countArgs...).Scan(&total); err != nil {
+	if err := tm.db.QueryRowContext(context.Background(), "SELECT COUNT(*) FROM tm_entries WHERE "+where, countArgs...).Scan(&total); err != nil {
 		return nil, 0, err
 	}
 
@@ -581,7 +583,7 @@ func (tm *PostgresTM) searchTSVectorForStream(query, sourceLocale, targetLocale,
 		ORDER BY %s, ts_rank(search_tsv, plainto_tsquery('simple', $2)) DESC
 		LIMIT $%d OFFSET $%d`, where, caseExpr.String(), argN, argN+1)
 	args = append(args, limit, offset)
-	rows, err := tm.db.Query(q, args...)
+	rows, err := tm.db.QueryContext(context.Background(), q, args...)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -628,7 +630,7 @@ func (tm *PostgresTM) pgSearchLikeForStream(query, sourceLocale, targetLocale, s
 	var total int
 	countArgs := make([]any, len(args))
 	copy(countArgs, args)
-	_ = tm.db.QueryRow("SELECT COUNT(*) FROM tm_entries WHERE "+where, countArgs...).Scan(&total)
+	_ = tm.db.QueryRowContext(context.Background(), "SELECT COUNT(*) FROM tm_entries WHERE "+where, countArgs...).Scan(&total)
 
 	// Build CASE expression for stream priority ordering.
 	var caseExpr strings.Builder
@@ -644,7 +646,7 @@ func (tm *PostgresTM) pgSearchLikeForStream(query, sourceLocale, targetLocale, s
 		entities, properties, created_at, updated_at
 		FROM tm_entries WHERE %s ORDER BY %s, updated_at DESC LIMIT $%d OFFSET $%d`, where, caseExpr.String(), argN, argN+1)
 	args = append(args, limit, offset)
-	rows, err := tm.db.Query(q, args...)
+	rows, err := tm.db.QueryContext(context.Background(), q, args...)
 	if err != nil {
 		return nil, total
 	}
@@ -656,7 +658,7 @@ func (tm *PostgresTM) pgSearchLikeForStream(query, sourceLocale, targetLocale, s
 
 // GetEntry fetches a single entry by ID.
 func (tm *PostgresTM) GetEntry(id string) (fw.TMEntry, bool) {
-	rows, err := tm.db.Query(`
+	rows, err := tm.db.QueryContext(context.Background(), `
 		SELECT id, source_coded, target_coded, source_locale, target_locale,
 			entities, properties, created_at, updated_at
 		FROM tm_entries WHERE workspace_id = $1 AND id = $2
@@ -675,7 +677,7 @@ func (tm *PostgresTM) GetEntry(id string) (fw.TMEntry, bool) {
 
 // Entries returns all entries for this workspace.
 func (tm *PostgresTM) Entries() []fw.TMEntry {
-	rows, err := tm.db.Query(`
+	rows, err := tm.db.QueryContext(context.Background(), `
 		SELECT id, source_coded, target_coded, source_locale, target_locale,
 			entities, properties, created_at, updated_at
 		FROM tm_entries WHERE workspace_id = $1 ORDER BY id

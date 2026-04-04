@@ -1,6 +1,7 @@
 package server
 
 import (
+	"errors"
 	"fmt"
 	"regexp"
 	"strings"
@@ -73,16 +74,16 @@ var reservedProjectSlugs = map[string]bool{
 // ValidateSlug checks that a slug meets format requirements.
 func ValidateSlug(slug string) error {
 	if len(slug) < 2 {
-		return fmt.Errorf("slug must be at least 2 characters")
+		return errors.New("slug must be at least 2 characters")
 	}
 	if len(slug) > 64 {
-		return fmt.Errorf("slug must be at most 64 characters")
+		return errors.New("slug must be at most 64 characters")
 	}
 	if strings.Contains(slug, "--") {
-		return fmt.Errorf("slug must not contain consecutive hyphens")
+		return errors.New("slug must not contain consecutive hyphens")
 	}
 	if !slugPattern.MatchString(slug) {
-		return fmt.Errorf("slug must contain only lowercase alphanumeric characters and hyphens, and must not start or end with a hyphen")
+		return errors.New("slug must contain only lowercase alphanumeric characters and hyphens, and must not start or end with a hyphen")
 	}
 	return nil
 }

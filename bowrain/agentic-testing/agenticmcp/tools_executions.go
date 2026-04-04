@@ -2,6 +2,7 @@ package agenticmcp
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
@@ -35,7 +36,7 @@ type listAgentExecutionsOutput struct {
 
 func (s *Server) handleListAgentExecutions(ctx context.Context, req *mcp.CallToolRequest, input listAgentExecutionsInput) (*mcp.CallToolResult, listAgentExecutionsOutput, error) {
 	if s.execStore == nil {
-		return nil, listAgentExecutionsOutput{}, fmt.Errorf("execution store not configured")
+		return nil, listAgentExecutionsOutput{}, errors.New("execution store not configured")
 	}
 
 	limit := input.Limit
@@ -71,7 +72,7 @@ type listAgentEventsOutput struct {
 
 func (s *Server) handleListAgentEvents(ctx context.Context, req *mcp.CallToolRequest, input listAgentEventsInput) (*mcp.CallToolResult, listAgentEventsOutput, error) {
 	if s.execStore == nil {
-		return nil, listAgentEventsOutput{}, fmt.Errorf("execution store not configured")
+		return nil, listAgentEventsOutput{}, errors.New("execution store not configured")
 	}
 
 	limit := input.Limit

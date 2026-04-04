@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -625,10 +626,14 @@ func interpolateParams(query string, params map[string]any) (string, error) {
 		switch val := v.(type) {
 		case string:
 			replacement = fmt.Sprintf("'%s'", escCypher(val))
-		case int, int64, float64:
-			replacement = fmt.Sprintf("%v", val)
+		case int:
+			replacement = strconv.Itoa(val)
+		case int64:
+			replacement = strconv.FormatInt(val, 10)
+		case float64:
+			replacement = strconv.FormatFloat(val, 'f', -1, 64)
 		case bool:
-			replacement = fmt.Sprintf("%v", val)
+			replacement = strconv.FormatBool(val)
 		default:
 			b, _ := json.Marshal(val)
 			replacement = fmt.Sprintf("'%s'", escCypher(string(b)))

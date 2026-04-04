@@ -104,7 +104,7 @@ func TestPreSignedURLsNotSupported(t *testing.T) {
 	ctx := context.Background()
 
 	_, err = s.GenerateUploadURL(ctx, "key", storage.SignOptions{})
-	assert.ErrorIs(t, err, storage.ErrNotSupported)
+	require.ErrorIs(t, err, storage.ErrNotSupported)
 
 	_, err = s.GenerateDownloadURL(ctx, "key", storage.SignOptions{})
 	assert.ErrorIs(t, err, storage.ErrNotSupported)

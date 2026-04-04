@@ -8,9 +8,9 @@ import (
 	"testing"
 
 	bragent "github.com/neokapi/neokapi/bowrain/agent"
-	"github.com/neokapi/neokapi/bowrain/service"
 	platagent "github.com/neokapi/neokapi/bowrain/core/agent"
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
+	"github.com/neokapi/neokapi/bowrain/service"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

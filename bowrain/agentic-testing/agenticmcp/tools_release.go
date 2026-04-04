@@ -2,7 +2,9 @@ package agenticmcp
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
@@ -37,7 +39,7 @@ type walkReleaseOutput struct {
 
 func (s *Server) handleWalkRelease(ctx context.Context, req *mcp.CallToolRequest, input walkReleaseInput) (*mcp.CallToolResult, walkReleaseOutput, error) {
 	if s.walker == nil {
-		return nil, walkReleaseOutput{}, fmt.Errorf("release walker not configured")
+		return nil, walkReleaseOutput{}, errors.New("release walker not configured")
 	}
 
 	result, err := s.walker.WalkRelease(ctx, input.WorkspaceSlug, input.ProjectID, input.Tag)
@@ -76,7 +78,7 @@ type onboardProjectOutput struct {
 
 func (s *Server) handleOnboardProject(ctx context.Context, req *mcp.CallToolRequest, input onboardProjectInput) (*mcp.CallToolResult, onboardProjectOutput, error) {
 	if s.fleetRepo == nil {
-		return nil, onboardProjectOutput{}, fmt.Errorf("fleet repo not configured")
+		return nil, onboardProjectOutput{}, errors.New("fleet repo not configured")
 	}
 
 	// Generate workspace slug from project name.
@@ -100,7 +102,7 @@ func (s *Server) handleOnboardProject(ctx context.Context, req *mcp.CallToolRequ
 	_, err = s.fleetRepo.CommitFile(ctx,
 		fmt.Sprintf("workspaces/%s/status.yaml", slug),
 		statusContent,
-		fmt.Sprintf("onboard: initial status for %s", input.Name),
+		"onboard: initial status for "+input.Name,
 	)
 	if err != nil {
 		return nil, onboardProjectOutput{}, fmt.Errorf("commit status: %w", err)
@@ -131,7 +133,8 @@ func generateSlug(name string) string {
 
 // generatePlanYAML creates a plan.yaml from onboarding input.
 func generatePlanYAML(input onboardProjectInput) string {
-	plan := fmt.Sprintf(`upstream:
+	var b strings.Builder
+	fmt.Fprintf(&b, `upstream:
   repo: %s
 
 project:
@@ -140,20 +143,21 @@ project:
   target_languages:`, input.UpstreamRepo, input.Name, input.SourceLanguage)
 
 	for _, lang := range input.TargetLanguages {
-		plan += fmt.Sprintf("\n    - %s", lang)
+		b.WriteString("\n    - ")
+		b.WriteString(lang)
 	}
 
-	plan += "\n\ncontent:\n  paths:"
+	b.WriteString("\n\ncontent:\n  paths:")
 	for _, cp := range input.ContentPaths {
-		plan += fmt.Sprintf("\n    - path: %q\n      format: %s", cp.Path, cp.Format)
+		fmt.Fprintf(&b, "\n    - path: %q\n      format: %s", cp.Path, cp.Format)
 	}
 
-	plan += `
+	b.WriteString(`
 
 release_strategy:
   mode: accelerated-then-realtime
   start_tag: null
   end_tag: latest
-`
-	return plan
+`)
+	return b.String()
 }

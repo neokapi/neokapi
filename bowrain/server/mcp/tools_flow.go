@@ -2,13 +2,14 @@ package mcp
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
+	"github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/core/flow"
 	"github.com/neokapi/neokapi/core/model"
-	"github.com/neokapi/neokapi/bowrain/core/store"
 )
 
 // registerFlowTools registers flow execution MCP tools.
@@ -69,10 +70,10 @@ type runFlowOutput struct {
 
 func (s *MCPServer) handleRunFlow(ctx context.Context, req *mcp.CallToolRequest, input runFlowInput) (*mcp.CallToolResult, runFlowOutput, error) {
 	if input.FlowName == "" {
-		return nil, runFlowOutput{}, fmt.Errorf("flow_name is required")
+		return nil, runFlowOutput{}, errors.New("flow_name is required")
 	}
 	if input.ProjectID == "" {
-		return nil, runFlowOutput{}, fmt.Errorf("project_id is required")
+		return nil, runFlowOutput{}, errors.New("project_id is required")
 	}
 
 	// Find the flow definition.
@@ -88,7 +89,7 @@ func (s *MCPServer) handleRunFlow(ctx context.Context, req *mcp.CallToolRequest,
 	}
 
 	if s.toolReg == nil {
-		return nil, runFlowOutput{}, fmt.Errorf("tool registry not configured")
+		return nil, runFlowOutput{}, errors.New("tool registry not configured")
 	}
 
 	stream := input.Stream

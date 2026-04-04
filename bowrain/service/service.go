@@ -3,9 +3,9 @@
 package service
 
 import (
-	"github.com/neokapi/neokapi/core/registry"
 	"github.com/neokapi/neokapi/bowrain/core/connector"
 	"github.com/neokapi/neokapi/bowrain/core/store"
+	"github.com/neokapi/neokapi/core/registry"
 )
 
 // Services aggregates all service dependencies.

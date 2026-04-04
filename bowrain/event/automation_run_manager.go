@@ -6,9 +6,9 @@ import (
 	"sync"
 	"time"
 
+	platev "github.com/neokapi/neokapi/bowrain/core/event"
 	bstore "github.com/neokapi/neokapi/bowrain/store"
 	"github.com/neokapi/neokapi/core/id"
-	platev "github.com/neokapi/neokapi/bowrain/core/event"
 )
 
 // StepAwareExecutor is an action executor that receives the step ID for tracking.
@@ -29,8 +29,8 @@ type AutomationRunManager struct {
 // If store is nil, the manager passes through to the executor without tracking.
 func NewAutomationRunManager(store *bstore.AutomationRunStore, executor StepAwareExecutor) *AutomationRunManager {
 	return &AutomationRunManager{
-		store:     store,
-		executor:  executor,
+		store:       store,
+		executor:    executor,
 		eventRuns:   make(map[string]string),
 		cleanTimers: make(map[string]*time.Timer),
 	}

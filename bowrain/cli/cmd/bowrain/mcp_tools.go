@@ -6,12 +6,12 @@ import (
 	"path/filepath"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
+	"github.com/neokapi/neokapi/bowrain/core/connector"
+	"github.com/neokapi/neokapi/bowrain/core/project"
 	"github.com/neokapi/neokapi/cli"
 	clioutput "github.com/neokapi/neokapi/cli/output"
 	"github.com/neokapi/neokapi/core/locale"
 	"github.com/neokapi/neokapi/core/model"
-	"github.com/neokapi/neokapi/bowrain/core/connector"
-	"github.com/neokapi/neokapi/bowrain/core/project"
 )
 
 // registerBowrainTools registers all Bowrain CLI MCP tools on the given server.

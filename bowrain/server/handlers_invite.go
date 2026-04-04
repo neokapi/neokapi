@@ -7,8 +7,8 @@ import (
 	"time"
 
 	"github.com/labstack/echo/v4"
-	"github.com/neokapi/neokapi/bowrain/mailer"
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
+	"github.com/neokapi/neokapi/bowrain/mailer"
 )
 
 // InviteRequest is the request body for creating an invitation.

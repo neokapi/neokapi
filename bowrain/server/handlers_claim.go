@@ -7,8 +7,8 @@ import (
 	"net/http"
 
 	"github.com/labstack/echo/v4"
-	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/bowrain/core/store"
+	"github.com/neokapi/neokapi/core/model"
 )
 
 // AnonymousProjectRequest is the request body for creating an anonymous project.

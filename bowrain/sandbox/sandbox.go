@@ -7,6 +7,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -94,8 +95,8 @@ func New(cfg Config) *DockerSandbox {
 		sockPath := host[7:]
 		client = &http.Client{
 			Transport: &http.Transport{
-				DialContext: func(_ context.Context, _, _ string) (net.Conn, error) {
-					return net.DialTimeout("unix", sockPath, 5*time.Second)
+				DialContext: func(ctx context.Context, _, _ string) (net.Conn, error) {
+					return (&net.Dialer{Timeout: 5 * time.Second}).DialContext(ctx, "unix", sockPath)
 				},
 			},
 		}
@@ -116,7 +117,7 @@ func New(cfg Config) *DockerSandbox {
 // Execute runs code in an isolated Docker container and returns the result.
 func (d *DockerSandbox) Execute(ctx context.Context, req mcpserver.SandboxRequest) (*mcpserver.SandboxResult, error) {
 	if req.Code == "" {
-		return nil, fmt.Errorf("sandbox: code is required")
+		return nil, errors.New("sandbox: code is required")
 	}
 
 	image, ok := languageImages[req.Language]

@@ -8,9 +8,9 @@ import (
 	"fmt"
 	"time"
 
+	platagent "github.com/neokapi/neokapi/bowrain/core/agent"
 	"github.com/neokapi/neokapi/bowrain/storage"
 	"github.com/neokapi/neokapi/core/id"
-	platagent "github.com/neokapi/neokapi/bowrain/core/agent"
 )
 
 // PostgresStore implements AgentStore using PostgreSQL.

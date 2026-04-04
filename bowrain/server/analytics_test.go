@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/neokapi/neokapi/bowrain/analytics"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -61,5 +60,5 @@ func TestTrackEvent_NilProperties(t *testing.T) {
 
 	s := &Server{PostHogClient: client}
 	s.trackEvent("user-1", "test_event", nil)
-	assert.True(t, true) // reached without panic
+	// If we reached here without a panic, the test passes.
 }

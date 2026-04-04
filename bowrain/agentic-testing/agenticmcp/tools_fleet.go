@@ -2,6 +2,7 @@ package agenticmcp
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
@@ -68,7 +69,7 @@ type globalStats struct {
 
 func (s *Server) handleGetFleetSummary(ctx context.Context, req *mcp.CallToolRequest, input getFleetSummaryInput) (*mcp.CallToolResult, fleetSummaryOutput, error) {
 	if s.fleetRepo == nil {
-		return nil, fleetSummaryOutput{}, fmt.Errorf("fleet repo not configured")
+		return nil, fleetSummaryOutput{}, errors.New("fleet repo not configured")
 	}
 
 	workspaces, err := s.fleetRepo.ListWorkspaces(ctx)
@@ -177,7 +178,7 @@ type agentHistory struct {
 
 func (s *Server) handleGetWorkspaceStatus(ctx context.Context, req *mcp.CallToolRequest, input getWorkspaceStatusInput) (*mcp.CallToolResult, workspaceStatusOutput, error) {
 	if s.fleetRepo == nil {
-		return nil, workspaceStatusOutput{}, fmt.Errorf("fleet repo not configured")
+		return nil, workspaceStatusOutput{}, errors.New("fleet repo not configured")
 	}
 
 	plan, err := s.fleetRepo.GetWorkspacePlan(ctx, input.WorkspaceSlug)
@@ -233,7 +234,7 @@ type workspaceMeta struct {
 
 func (s *Server) handleListWorkspaces(ctx context.Context, req *mcp.CallToolRequest, input listWorkspacesInput) (*mcp.CallToolResult, listWorkspacesOutput, error) {
 	if s.fleetRepo == nil {
-		return nil, listWorkspacesOutput{}, fmt.Errorf("fleet repo not configured")
+		return nil, listWorkspacesOutput{}, errors.New("fleet repo not configured")
 	}
 
 	workspaces, err := s.fleetRepo.ListWorkspaces(ctx)

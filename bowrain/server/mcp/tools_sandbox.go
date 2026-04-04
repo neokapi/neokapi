@@ -2,6 +2,7 @@ package mcp
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	sdkmcp "github.com/modelcontextprotocol/go-sdk/mcp"
@@ -30,10 +31,10 @@ type executeScriptOutput struct {
 
 func (s *MCPServer) handleExecuteScript(ctx context.Context, req *sdkmcp.CallToolRequest, input executeScriptInput) (*sdkmcp.CallToolResult, executeScriptOutput, error) {
 	if s.sandbox == nil {
-		return nil, executeScriptOutput{}, fmt.Errorf("sandbox executor not configured")
+		return nil, executeScriptOutput{}, errors.New("sandbox executor not configured")
 	}
 	if input.Code == "" {
-		return nil, executeScriptOutput{}, fmt.Errorf("code is required")
+		return nil, executeScriptOutput{}, errors.New("code is required")
 	}
 
 	validLangs := map[string]bool{"python": true, "bash": true, "node": true}

@@ -1,6 +1,7 @@
 package server
 
 import (
+	"errors"
 	"fmt"
 	"log"
 
@@ -61,10 +62,10 @@ func (s *Server) buildAgentPool() *service.AgentPool {
 // for SSE relay. The worker handles container lifecycle.
 func (s *Server) setupAgentQueue(cfg ServerConfig) error {
 	if cfg.ServiceBusConnection == "" {
-		return fmt.Errorf("BOWRAIN_SERVICE_BUS_CONNECTION is required for queue mode")
+		return errors.New("BOWRAIN_SERVICE_BUS_CONNECTION is required for queue mode")
 	}
 	if cfg.RedisURL == "" {
-		return fmt.Errorf("BOWRAIN_REDIS_URL is required for queue mode")
+		return errors.New("BOWRAIN_REDIS_URL is required for queue mode")
 	}
 
 	// Service Bus sender for bravo-jobs queue.

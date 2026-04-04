@@ -2,6 +2,7 @@ package graph
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -233,7 +234,7 @@ func parseValidity(props map[string]string) *coreg.Validity {
 func splitPathElements(body string) ([]string, error) {
 	body = strings.TrimSpace(body)
 	if len(body) < 2 || body[0] != '[' || body[len(body)-1] != ']' {
-		return nil, fmt.Errorf("path must be enclosed in brackets")
+		return nil, errors.New("path must be enclosed in brackets")
 	}
 	body = body[1 : len(body)-1]
 

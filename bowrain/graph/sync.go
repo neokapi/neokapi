@@ -5,8 +5,8 @@ import (
 	"log"
 	"time"
 
-	coreg "github.com/neokapi/neokapi/core/graph"
 	platev "github.com/neokapi/neokapi/bowrain/core/event"
+	coreg "github.com/neokapi/neokapi/core/graph"
 )
 
 // GraphSyncer syncs relational entity changes to graph nodes via event bus.

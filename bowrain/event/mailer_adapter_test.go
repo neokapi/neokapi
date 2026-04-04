@@ -8,9 +8,9 @@ import (
 	"time"
 
 	bauth "github.com/neokapi/neokapi/bowrain/auth"
+	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	"github.com/neokapi/neokapi/bowrain/mailer"
 	bstore "github.com/neokapi/neokapi/bowrain/store"
-	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

@@ -5,11 +5,11 @@ import (
 	"path/filepath"
 
 	"github.com/neokapi/neokapi/bowrain/cli/cmd/bowrain/output"
+	"github.com/neokapi/neokapi/bowrain/core/project"
 	"github.com/neokapi/neokapi/cli"
 	cliconfig "github.com/neokapi/neokapi/cli/config"
 	clioutput "github.com/neokapi/neokapi/cli/output"
 	"github.com/neokapi/neokapi/core/preset"
-	"github.com/neokapi/neokapi/bowrain/core/project"
 	"github.com/spf13/cobra"
 )
 
