@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"log"
+	"log/slog"
 	"time"
 
 	"github.com/neokapi/neokapi/bowrain/auth"
@@ -61,9 +62,9 @@ func seedServiceToken(dbURL, dbAuth, azureClientID, workspaceSlug string) {
 		if err := store.CreateUser(ctx, user); err != nil {
 			log.Fatalf("seed-service-token: create user: %v", err)
 		}
-		log.Printf("Created service user %s (%s)", user.Email, user.ID)
+		slog.Info("created service user", "user_id", user.ID)
 	} else {
-		log.Printf("Service user already exists: %s (%s)", user.Email, user.ID)
+		slog.Info("service user already exists", "user_id", user.ID)
 	}
 
 	// 2. Look up the workspace.
@@ -79,15 +80,15 @@ func seedServiceToken(dbURL, dbAuth, azureClientID, workspaceSlug string) {
 			if err := store.AddMember(ctx, ws.ID, user.ID, platauth.RoleMember); err != nil {
 				log.Fatalf("seed-service-token: upgrade member: %v", err)
 			}
-			log.Printf("Upgraded service user to member in workspace %s", workspaceSlug)
+			slog.Info("upgraded service user to member", "workspace", workspaceSlug)
 		} else {
-			log.Printf("Service user already a member of workspace %s", workspaceSlug)
+			slog.Info("service user already a member", "workspace", workspaceSlug)
 		}
 	} else {
 		if err := store.AddMember(ctx, ws.ID, user.ID, platauth.RoleMember); err != nil {
 			log.Fatalf("seed-service-token: add member: %v", err)
 		}
-		log.Printf("Added service user to workspace %s as member", workspaceSlug)
+		slog.Info("added service user to workspace", "workspace", workspaceSlug)
 	}
 
 	// 4. Delete any existing token for this service account (rotate).
@@ -96,7 +97,7 @@ func seedServiceToken(dbURL, dbAuth, azureClientID, workspaceSlug string) {
 		for _, t := range tokens {
 			if t.UserID == user.ID && t.Name == serviceTokenName {
 				_ = store.DeleteAPIToken(ctx, t.ID)
-				log.Printf("Rotated existing service token %s", t.ID)
+				slog.Info("rotated existing service token", "token_id", t.ID)
 			}
 		}
 	}
