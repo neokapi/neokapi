@@ -123,8 +123,8 @@ jobs:
         working-directory: apps/kapi-desktop/frontend
         run: vp test
 
-      - name: Build Kapi Desktop Storybook
-        working-directory: apps/kapi-desktop/frontend
+      - name: Build Kapi Storybook
+        working-directory: storybook
         run: vpx storybook build -o storybook-static
 
       - name: Set up Go
