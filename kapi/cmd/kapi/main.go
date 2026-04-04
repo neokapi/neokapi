@@ -1,11 +1,7 @@
 package main
 
-import "os"
+import "github.com/neokapi/neokapi/cli"
 
 func main() {
-	err := rootCmd.Execute()
-	app.Shutdown()
-	if err != nil {
-		os.Exit(1)
-	}
+	cli.Run(rootCmd, app.Shutdown)
 }
