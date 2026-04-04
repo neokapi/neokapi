@@ -1327,7 +1327,7 @@ func TestReadContextCancellation(t *testing.T) {
 func TestReadLargeDocument(t *testing.T) {
 	t.Parallel()
 	var sb strings.Builder
-	for i := 0; i < 100; i++ {
+	for i := range 100 {
 		sb.WriteString(fmt.Sprintf("key%d: value %d\n", i, i))
 	}
 

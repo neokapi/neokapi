@@ -83,7 +83,7 @@ func TestActivityStore_Pagination(t *testing.T) {
 	ctx := t.Context()
 
 	// Create 5 activities with staggered timestamps.
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		a := &Activity{
 			WorkspaceID: "ws-1",
 			ProjectID:   "proj-1",

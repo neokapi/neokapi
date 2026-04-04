@@ -26,7 +26,7 @@ func TestCompressDecompress_Large(t *testing.T) {
 
 	// Create repetitive data (simulates translation blocks).
 	var original []byte
-	for i := 0; i < 1000; i++ {
+	for range 1000 {
 		original = append(original, []byte(`{"id":"block-id","source_text":"Click on last point or press Escape or Enter to finish","translatable":true,"properties":{"context":"toolbar"}},`)...)
 	}
 
@@ -45,7 +45,7 @@ func TestPoolReuse(t *testing.T) {
 	pool := NewPool(nil)
 
 	// Multiple compress/decompress cycles should work (pool reuse).
-	for i := 0; i < 10; i++ {
+	for range 10 {
 		data := []byte("test data iteration")
 		compressed := pool.Compress(data)
 		decompressed, err := pool.Decompress(compressed)

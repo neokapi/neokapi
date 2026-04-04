@@ -96,7 +96,7 @@ func TestSyncPull_Pagination(t *testing.T) {
 
 	// Push 5 blocks.
 	var items []pushBlockItem
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		items = append(items, pushBlockItem{
 			ID:       fmt.Sprintf("b%d", i),
 			Text:     fmt.Sprintf("text %d", i),

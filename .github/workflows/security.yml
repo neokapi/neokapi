@@ -1,0 +1,36 @@
+name: Security
+
+on:
+  schedule:
+    - cron: '0 3 * * 1' # Monday 3 AM UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  govulncheck:
+    name: govulncheck (${{ matrix.module }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        module:
+          - '.'
+          - cli
+          - kapi
+          - apps/kapi-desktop
+          - bowrain/core
+          - bowrain/cli
+          - bowrain
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version: stable
+
+      - name: Run govulncheck
+        run: |
+          go install golang.org/x/vuln/cmd/govulncheck@latest
+          cd ${{ matrix.module }} && govulncheck ./...

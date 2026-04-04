@@ -486,11 +486,11 @@ func parseHexRune(hex string) (rune, bool) {
 		r <<= 4
 		switch {
 		case c >= '0' && c <= '9':
-			r |= rune(c - '0')
+			r |= c - '0'
 		case c >= 'a' && c <= 'f':
-			r |= rune(c-'a') + 10
+			r |= c - 'a' + 10
 		case c >= 'A' && c <= 'F':
-			r |= rune(c-'A') + 10
+			r |= c - 'A' + 10
 		default:
 			return 0, false
 		}

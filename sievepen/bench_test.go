@@ -30,7 +30,7 @@ func BenchmarkSQLiteTM_LookupExact(b *testing.B) {
 		"Please wait while the file is being uploaded",
 		"The session has expired, please log in again",
 	}
-	for i := 0; i < 100; i++ {
+	for i := range 100 {
 		base := sentences[i%len(sentences)]
 		err := tm.Add(sievepen.TMEntry{
 			ID:           fmt.Sprintf("entry-%d", i),
@@ -74,7 +74,7 @@ func BenchmarkTMMatch(b *testing.B) {
 		"Please wait while the file is being uploaded",
 		"The session has expired, please log in again",
 	}
-	for i := 0; i < 100; i++ {
+	for i := range 100 {
 		base := sentences[i%len(sentences)]
 		err := tm.Add(sievepen.TMEntry{
 			ID:           fmt.Sprintf("entry-%d", i),

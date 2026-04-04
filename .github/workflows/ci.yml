@@ -136,26 +136,30 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev
 
       - name: Run Kapi Desktop Go backend tests
-        working-directory: apps/kapi-desktop
-        run: go test ./backend/... -count=1 -timeout 60s
+        run: make kapi-desktop-test
 
   # ── Go tests (parallel per module) ────────────────────────────────────────
   test-framework:
-    name: Test (framework)
+    name: Test (framework, Go ${{ matrix.go-version }})
     runs-on: ubuntu-latest
     needs: changes
     if: needs.changes.outputs.framework == 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        go-version: ["1.26.0", "stable"]
     steps:
       - uses: actions/checkout@v6
       - uses: ./.github/actions/setup-go-modules
+        with:
+          go-version: ${{ matrix.go-version }}
 
       - name: Install go-junit-report
         run: go install github.com/jstemmer/go-junit-report/v2@latest
 
       - name: Run framework tests
         id: run-tests
-        working-directory: .
-        run: go test -race -coverprofile=framework.out -covermode=atomic -json ./... > test-results-framework.json
+        run: make test-framework
         continue-on-error: true
 
       - name: Convert to JUnit XML
@@ -167,7 +171,7 @@ jobs:
         if: always()
         continue-on-error: true
         with:
-          name: Framework Tests
+          name: Framework Tests (Go ${{ matrix.go-version }})
           path: junit-framework.xml
           reporter: java-junit
 
@@ -177,14 +181,14 @@ jobs:
 
       - name: Upload coverage
         uses: actions/upload-artifact@v7
-        if: always()
+        if: always() && matrix.go-version == '1.26.0'
         with:
           name: coverage-framework
-          path: framework.out
+          path: coverage/framework.out
 
       - name: Upload native test results
         uses: actions/upload-artifact@v7
-        if: always()
+        if: always() && matrix.go-version == '1.26.0'
         with:
           name: test-results-native
           path: test-results-framework.json
@@ -204,7 +208,7 @@ jobs:
 
       - name: Run platform tests
         id: run-tests
-        run: cd bowrain/core && go test -race -coverprofile=platform.out -covermode=atomic -json ./... > ../test-results-platform.json
+        run: make test-platform
         continue-on-error: true
 
       - name: Convert to JUnit XML
@@ -229,7 +233,7 @@ jobs:
         if: always()
         with:
           name: coverage-platform
-          path: bowrain/core/platform.out
+          path: coverage/platform.out
           retention-days: 1
 
   test-cli:
@@ -246,7 +250,7 @@ jobs:
 
       - name: Run cli tests
         id: run-tests
-        run: cd cli && go test -race -coverprofile=cli.out -covermode=atomic -json ./... > ../test-results-cli.json
+        run: make test-cli
         continue-on-error: true
 
       - name: Convert to JUnit XML
@@ -271,7 +275,7 @@ jobs:
         if: always()
         with:
           name: coverage-cli
-          path: cli/cli.out
+          path: coverage/cli.out
           retention-days: 1
 
   test-kapi:
@@ -288,7 +292,7 @@ jobs:
 
       - name: Run kapi tests
         id: run-tests
-        run: cd kapi && go test -race -coverprofile=kapi.out -covermode=atomic -json ./... > ../test-results-kapi.json
+        run: make test-kapi
         continue-on-error: true
 
       - name: Convert to JUnit XML
@@ -313,7 +317,7 @@ jobs:
         if: always()
         with:
           name: coverage-kapi
-          path: kapi/kapi.out
+          path: coverage/kapi.out
           retention-days: 1
 
   test-bowrain-cli:
@@ -330,7 +334,7 @@ jobs:
 
       - name: Run Bowrain CLI tests
         id: run-tests
-        run: cd bowrain/cli && go test -race -coverprofile=bowrain-cli.out -covermode=atomic -json ./... > ../test-results-bowrain-cli.json
+        run: make test-bowrain-cli
         continue-on-error: true
 
       - name: Convert to JUnit XML
@@ -355,7 +359,7 @@ jobs:
         if: always()
         with:
           name: coverage-bowrain-cli
-          path: bowrain/cli/bowrain-cli.out
+          path: coverage/bowrain-cli.out
           retention-days: 1
 
   test-bowrain:
@@ -372,15 +376,12 @@ jobs:
 
       - name: Run bowrain tests
         id: run-tests
-        run: |
-          cd bowrain
-          # shellcheck disable=SC2046
-          go test -race -coverprofile=bowrain.out -covermode=atomic -json $(go list ./... | grep -v '/apps/bowrain') > ../test-results-bowrain.json
+        run: make test-bowrain
         continue-on-error: true
 
       - name: Convert to JUnit XML
         if: always()
-        run: go-junit-report -in test-results-bowrain.json -out junit-bowrain.xml
+        run: go-junit-report -in bowrain/test-results-bowrain.json -out junit-bowrain.xml
 
       - name: Report test results
         uses: dorny/test-reporter@v3
@@ -400,7 +401,7 @@ jobs:
         if: always()
         with:
           name: coverage-bowrain
-          path: bowrain/bowrain.out
+          path: coverage/bowrain.out
           retention-days: 1
 
   # ── Merge coverage from all test jobs ─────────────────────────────────────
@@ -554,6 +555,27 @@ jobs:
 
       - name: Lint workflow files
         run: ./actionlint
+
+  # ── go mod tidy drift check ──────────────────────────────────────────────
+  tidy-check:
+    name: Tidy Check
+    runs-on: ubuntu-latest
+    needs: changes
+    if: needs.changes.outputs.any_go == 'true'
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/setup-go-modules
+
+      - name: Check go.mod tidiness
+        run: |
+          for dir in . cli kapi apps/kapi-desktop bowrain/core bowrain/cli bowrain; do
+            echo "Checking $dir..."
+            (cd "$dir" && go mod tidy)
+          done
+          if ! git diff --exit-code -- '**go.mod' '**go.sum'; then
+            echo "::error::go.mod/go.sum files are not tidy. Run 'make deps' locally."
+            exit 1
+          fi
 
   # ── Build (runs in parallel with test/lint) ───────────────────────────────
   build:

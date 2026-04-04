@@ -1762,7 +1762,7 @@ func TestMixedInlineCodes(t *testing.T) {
 func TestLargeTMX(t *testing.T) {
 	// Generate a TMX with many TUs to test performance
 	var body strings.Builder
-	for i := 0; i < 100; i++ {
+	for i := range 100 {
 		body.WriteString(fmt.Sprintf(`    <tu tuid="tu%d">
       <tuv xml:lang="en"><seg>Entry %d</seg></tuv>
       <tuv xml:lang="fr"><seg>Entree %d</seg></tuv>

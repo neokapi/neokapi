@@ -10,6 +10,11 @@ linters:
     - gocritic
     - perfsprint
     - testifylint
+    - unconvert
+    - usestdlibvars
+    - reassign
+    - copyloopvar
+    - intrange
   settings:
     staticcheck:
       checks:

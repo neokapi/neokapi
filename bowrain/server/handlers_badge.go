@@ -9,7 +9,6 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/core/locale"
-	"github.com/neokapi/neokapi/core/model"
 )
 
 // BadgeResponse is a shields.io endpoint-compatible JSON response.
@@ -66,7 +65,7 @@ func (s *Server) HandleProjectBadge(c echo.Context) error {
 func localeBadge(p *store.Project) BadgeResponse {
 	locales := make([]string, len(p.TargetLanguages))
 	for i, l := range p.TargetLanguages {
-		locales[i] = locale.DisplayName(model.LocaleID(l))
+		locales[i] = locale.DisplayName(l)
 	}
 	srcName := locale.DisplayName(p.DefaultSourceLanguage)
 	msg := fmt.Sprintf("%s → %s", srcName, strings.Join(locales, ", "))
@@ -134,7 +133,7 @@ func (s *Server) progressBadge(c echo.Context, p *store.Project) BadgeResponse {
 		if pct < 100 {
 			allComplete = false
 		}
-		localeParts = append(localeParts, fmt.Sprintf("%s %d%%", locale.DisplayName(model.LocaleID(loc)), pct))
+		localeParts = append(localeParts, fmt.Sprintf("%s %d%%", locale.DisplayName(loc), pct))
 	}
 
 	color := "yellow"

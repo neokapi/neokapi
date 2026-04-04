@@ -541,7 +541,7 @@ func TestBlockProperties(t *testing.T) {
 func TestContextCancellation(t *testing.T) {
 	// Build a large document so the reader has plenty of work to do
 	stories := make(map[string]string)
-	for i := 0; i < 20; i++ {
+	for i := range 20 {
 		stories[fmt.Sprintf("Story_u%d.xml", i)] = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <idPkg:Story xmlns:idPkg="http://ns.adobe.com/AdobeInDesign/idml/1.0/packaging">
   <Story Self="u1">

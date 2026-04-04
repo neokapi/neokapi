@@ -450,7 +450,7 @@ func TestAITranslateBatchSplitsIntoBatches(t *testing.T) {
 	in := make(chan *model.Part, 10)
 	out := make(chan *model.Part, 10)
 
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		in <- &model.Part{Type: model.PartBlock, Resource: model.NewBlock(fmt.Sprintf("tu%d", i), fmt.Sprintf("Text %d", i))}
 	}
 	close(in)

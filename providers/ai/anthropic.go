@@ -84,7 +84,7 @@ func (p *AnthropicProvider) Chat(ctx context.Context, messages []Message) (*Chat
 		return nil, fmt.Errorf("anthropic: marshal request: %w", err)
 	}
 
-	httpReq, err := http.NewRequestWithContext(ctx, "POST", p.config.BaseURL+"/v1/messages", bytes.NewReader(jsonBody))
+	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, p.config.BaseURL+"/v1/messages", bytes.NewReader(jsonBody))
 	if err != nil {
 		return nil, fmt.Errorf("anthropic: create request: %w", err)
 	}
@@ -158,7 +158,7 @@ func (p *AnthropicProvider) ChatStructured(ctx context.Context, messages []Messa
 		return nil, fmt.Errorf("anthropic: marshal request: %w", err)
 	}
 
-	httpReq, err := http.NewRequestWithContext(ctx, "POST", p.config.BaseURL+"/v1/messages", bytes.NewReader(jsonBody))
+	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, p.config.BaseURL+"/v1/messages", bytes.NewReader(jsonBody))
 	if err != nil {
 		return nil, fmt.Errorf("anthropic: create request: %w", err)
 	}

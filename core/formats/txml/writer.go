@@ -246,7 +246,7 @@ func (w *Writer) writeBlock(part *model.Part) error {
 // xmlEscape escapes XML special characters.
 func xmlEscape(s string) string {
 	var buf []byte
-	for i := 0; i < len(s); i++ {
+	for i := range len(s) {
 		switch s[i] {
 		case '&':
 			buf = append(buf, []byte("&amp;")...)

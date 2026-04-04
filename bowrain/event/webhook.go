@@ -47,7 +47,7 @@ func (w *WebhookDelivery) Deliver(event platev.Event) error {
 	signature := w.sign(payload)
 
 	var lastErr error
-	for attempt := 0; attempt < w.retries; attempt++ {
+	for attempt := range w.retries {
 		if attempt > 0 {
 			// Exponential backoff: 1s, 2s, 4s...
 			time.Sleep(time.Duration(1<<uint(attempt-1)) * time.Second)

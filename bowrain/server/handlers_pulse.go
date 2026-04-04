@@ -535,7 +535,7 @@ func (s *Server) buildProjectSummary(ctx context.Context, p *store.Project) stor
 	for i, l := range p.TargetLanguages {
 		code := string(l)
 		targets[i] = code
-		targetNames[code] = locale.DisplayName(model.LocaleID(l))
+		targetNames[code] = locale.DisplayName(l)
 	}
 
 	summary := store.PulseProjectSummary{

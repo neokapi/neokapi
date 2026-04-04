@@ -172,7 +172,7 @@ func matchDoublestar(pattern, name string) bool {
 		// Pattern like "**/foo" or "**/*.json".
 		// Match suffix against every possible tail of the path.
 		segments := strings.Split(name, "/")
-		for i := 0; i < len(segments); i++ {
+		for i := range segments {
 			tail := strings.Join(segments[i:], "/")
 			if matchGlob(suffix, tail) {
 				return true
@@ -195,7 +195,7 @@ func matchDoublestar(pattern, name string) bool {
 	rest := strings.TrimPrefix(name, prefix+"/")
 	// Try matching suffix against every possible tail.
 	segments := strings.Split(rest, "/")
-	for i := 0; i < len(segments); i++ {
+	for i := range segments {
 		tail := strings.Join(segments[i:], "/")
 		if matchGlob(suffix, tail) {
 			return true
