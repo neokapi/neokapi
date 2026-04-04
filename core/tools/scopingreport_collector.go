@@ -78,7 +78,7 @@ func NewScopingCollector() *ScopingCollector {
 
 // Collect reads scoping category and word count properties from block parts
 // and aggregates them.
-func (sc *ScopingCollector) Collect(_ context.Context, item *flow.FlowItem, parts []*model.Part) error {
+func (sc *ScopingCollector) Collect(_ context.Context, item *flow.Item, parts []*model.Part) error {
 	// Local accumulators to minimize lock time.
 	localCats := make(map[string]*ScopingCategory)
 

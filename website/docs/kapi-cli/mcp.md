@@ -216,7 +216,7 @@ Shorthand for `run_flow` with `pseudo-translate`.
 
 ## How It Works
 
-Kapi MCP uses the same infrastructure as the CLI commands — `FormatRegistry` for format detection, `FlowExecutor` for pipeline orchestration, and the same built-in tools. The MCP server simply exposes these as typed, discoverable tools over the [Model Context Protocol](https://modelcontextprotocol.io/) stdio transport.
+Kapi MCP uses the same infrastructure as the CLI commands — `FormatRegistry` for format detection, `Executor` for pipeline orchestration, and the same built-in tools. The MCP server simply exposes these as typed, discoverable tools over the [Model Context Protocol](https://modelcontextprotocol.io/) stdio transport.
 
 No server process, ports, or authentication needed. Your AI tool launches `kapi mcp` as a child process, communicates over stdin/stdout, and shuts it down when the session ends.
 

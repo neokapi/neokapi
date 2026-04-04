@@ -17,7 +17,7 @@ import (
 
 func setupAgentTestServer(t *testing.T) *Server {
 	t.Helper()
-	cfg := DefaultServerConfig()
+	cfg := DefaultConfig()
 	cfg.JWTSecret = "test-secret"
 	srv := NewServer(cfg)
 	initTestStores(t, srv)
@@ -345,7 +345,7 @@ func TestHandleSendBravoMessage_SSEStream(t *testing.T) {
 }
 
 func TestHandleAgentNotConfigured(t *testing.T) {
-	cfg := DefaultServerConfig()
+	cfg := DefaultConfig()
 	srv := NewServer(cfg)
 	e := srv.GetEcho()
 

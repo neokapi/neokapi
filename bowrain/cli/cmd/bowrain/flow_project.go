@@ -63,7 +63,7 @@ func runProjectFlow(cmd *cobra.Command, proj *project.Project, flowName string, 
 		tools = append(tools, t)
 	}
 
-	// Build FlowItems from step inputs or CLI args.
+	// Build Items from step inputs or CLI args.
 	var inputPaths []string
 	for _, step := range flowDef.Steps {
 		if step.Input != "" {
@@ -74,13 +74,13 @@ func runProjectFlow(cmd *cobra.Command, proj *project.Project, flowName string, 
 		inputPaths = args
 	}
 
-	var items []*flow.FlowItem
+	var items []*flow.Item
 	for _, p := range inputPaths {
 		f, err := os.Open(p)
 		if err != nil {
 			return fmt.Errorf("open input %q: %w", p, err)
 		}
-		items = append(items, &flow.FlowItem{
+		items = append(items, &flow.Item{
 			Input: &model.RawDocument{
 				URI:    p,
 				Reader: f,
@@ -94,7 +94,7 @@ func runProjectFlow(cmd *cobra.Command, proj *project.Project, flowName string, 
 		Tools: tools,
 	}
 
-	executor := flow.NewFlowExecutor(flow.WithFailFast(true))
+	executor := flow.NewExecutor(flow.WithFailFast(true))
 	fmt.Fprintf(cmd.OutOrStdout(), "Executing flow: %s (%d steps, %d items)\n", flowDef.Name, len(tools), len(items))
 	if err := executor.Execute(cmd.Context(), fl, items); err != nil {
 		return fmt.Errorf("flow execution failed: %w", err)

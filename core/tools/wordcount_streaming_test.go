@@ -14,7 +14,7 @@ func TestStreamingWordCountCollector_SingleDocument(t *testing.T) {
 	wc := tools.NewStreamingWordCountCollector()
 
 	// Set document context.
-	item := &flow.FlowItem{
+	item := &flow.Item{
 		Input: &model.RawDocument{URI: "doc1.html"},
 	}
 	err := wc.Collect(t.Context(), item, nil)
@@ -53,7 +53,7 @@ func TestStreamingWordCountCollector_MultipleDocuments(t *testing.T) {
 	wc := tools.NewStreamingWordCountCollector()
 
 	for _, uri := range []string{"a.html", "b.html"} {
-		item := &flow.FlowItem{
+		item := &flow.Item{
 			Input: &model.RawDocument{URI: uri},
 		}
 		err := wc.Collect(t.Context(), item, nil)
@@ -79,7 +79,7 @@ func TestStreamingWordCountCollector_WithTappingTool(t *testing.T) {
 	wc := tools.NewStreamingWordCountCollector()
 
 	// Set document context.
-	item := &flow.FlowItem{
+	item := &flow.Item{
 		Input: &model.RawDocument{URI: "test.json"},
 	}
 	err := wc.Collect(t.Context(), item, nil)
@@ -130,7 +130,7 @@ func TestStreamingWordCountCollector_WithTappingTool(t *testing.T) {
 func TestStreamingWordCountCollector_SkipsNonTranslatable(t *testing.T) {
 	wc := tools.NewStreamingWordCountCollector()
 
-	item := &flow.FlowItem{
+	item := &flow.Item{
 		Input: &model.RawDocument{URI: "doc.html"},
 	}
 	err := wc.Collect(t.Context(), item, nil)

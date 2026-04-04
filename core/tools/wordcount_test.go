@@ -93,7 +93,7 @@ func TestWordCountToolAllLocales(t *testing.T) {
 func TestWordCountCollector(t *testing.T) {
 	wc := tools.NewWordCountCollector()
 
-	item := &flow.FlowItem{
+	item := &flow.Item{
 		Input:        &model.RawDocument{URI: "doc1.html"},
 		TargetLocale: model.LocaleFrench,
 	}
@@ -134,7 +134,7 @@ func TestWordCountCollectorMultipleDocuments(t *testing.T) {
 	wc := tools.NewWordCountCollector()
 
 	for _, uri := range []string{"a.html", "b.html", "c.html"} {
-		item := &flow.FlowItem{
+		item := &flow.Item{
 			Input:        &model.RawDocument{URI: uri},
 			TargetLocale: model.LocaleFrench,
 		}
@@ -162,7 +162,7 @@ func TestWordCountCollectorMultipleDocuments(t *testing.T) {
 func TestWordCountCollectorSkipsNonBlocks(t *testing.T) {
 	wc := tools.NewWordCountCollector()
 
-	item := &flow.FlowItem{
+	item := &flow.Item{
 		Input: &model.RawDocument{URI: "doc.html"},
 	}
 
@@ -187,7 +187,7 @@ func TestWordCountCollectorSkipsNonBlocks(t *testing.T) {
 func TestWordCountCollectorSkipsNonTranslatable(t *testing.T) {
 	wc := tools.NewWordCountCollector()
 
-	item := &flow.FlowItem{
+	item := &flow.Item{
 		Input: &model.RawDocument{URI: "doc.html"},
 	}
 
@@ -212,7 +212,7 @@ func TestWordCountCollectorSkipsNonTranslatable(t *testing.T) {
 func TestWordCountCollectorPerLocaleProperties(t *testing.T) {
 	wc := tools.NewWordCountCollector()
 
-	item := &flow.FlowItem{
+	item := &flow.Item{
 		Input: &model.RawDocument{URI: "doc.html"},
 	}
 

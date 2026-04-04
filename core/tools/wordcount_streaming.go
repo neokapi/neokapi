@@ -79,7 +79,7 @@ func (wc *StreamingWordCountCollector) Observe(part *model.Part) {
 
 // Collect sets the document context for subsequent Observe() calls.
 // The parts parameter is ignored since counting happens inline via Observe().
-func (wc *StreamingWordCountCollector) Collect(_ context.Context, item *flow.FlowItem, _ []*model.Part) error {
+func (wc *StreamingWordCountCollector) Collect(_ context.Context, item *flow.Item, _ []*model.Part) error {
 	wc.mu.Lock()
 	defer wc.mu.Unlock()
 	wc.currentURI = item.Input.URI

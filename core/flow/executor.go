@@ -10,13 +10,18 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
-// FlowExecutor orchestrates the execution of a Flow across batch items.
-type FlowExecutor interface {
+// Executor orchestrates the execution of a Flow across batch items.
+type Executor interface {
 	// Execute runs the Flow over the given batch items.
-	Execute(ctx context.Context, f *Flow, items []*FlowItem) error
+	Execute(ctx context.Context, f *Flow, items []*Item) error
 }
 
-// ExecutorConfig holds configuration for the DefaultFlowExecutor.
+// FlowExecutor is a deprecated alias for [Executor].
+//
+// Deprecated: Use [Executor] instead.
+type FlowExecutor = Executor
+
+// ExecutorConfig holds configuration for the DefaultExecutor.
 type ExecutorConfig struct {
 	MaxConcurrency int         // 0 = runtime.NumCPU(); 1 = sequential
 	ChannelSize    int         // default 64
@@ -24,7 +29,7 @@ type ExecutorConfig struct {
 	Collectors     []Collector // aggregators fed after each document completes
 }
 
-// ExecutorOption is a functional option for configuring a DefaultFlowExecutor.
+// ExecutorOption is a functional option for configuring a DefaultExecutor.
 type ExecutorOption func(*ExecutorConfig)
 
 // WithMaxConcurrency sets the maximum number of documents processed in parallel.
@@ -59,14 +64,19 @@ func WithCollectors(c ...Collector) ExecutorOption {
 	}
 }
 
-// DefaultFlowExecutor runs tools concurrently using goroutines and channels.
-type DefaultFlowExecutor struct {
+// DefaultExecutor runs tools concurrently using goroutines and channels.
+type DefaultExecutor struct {
 	config ExecutorConfig
 }
 
-// NewFlowExecutor creates a new DefaultFlowExecutor with the given options.
+// DefaultFlowExecutor is a deprecated alias for [DefaultExecutor].
+//
+// Deprecated: Use [DefaultExecutor] instead.
+type DefaultFlowExecutor = DefaultExecutor
+
+// NewExecutor creates a new DefaultExecutor with the given options.
 // With no options, it behaves sequentially with channel size 64 and fail-fast enabled.
-func NewFlowExecutor(opts ...ExecutorOption) *DefaultFlowExecutor {
+func NewExecutor(opts ...ExecutorOption) *DefaultExecutor {
 	cfg := ExecutorConfig{
 		MaxConcurrency: 1,
 		ChannelSize:    64,
@@ -75,20 +85,27 @@ func NewFlowExecutor(opts ...ExecutorOption) *DefaultFlowExecutor {
 	for _, opt := range opts {
 		opt(&cfg)
 	}
-	return &DefaultFlowExecutor{config: cfg}
+	return &DefaultExecutor{config: cfg}
+}
+
+// NewFlowExecutor is a deprecated alias for [NewExecutor].
+//
+// Deprecated: Use [NewExecutor] instead.
+func NewFlowExecutor(opts ...ExecutorOption) *DefaultExecutor {
+	return NewExecutor(opts...)
 }
 
 // SetChannelSize configures the buffer size for inter-tool channels.
-func (e *DefaultFlowExecutor) SetChannelSize(size int) {
+func (e *DefaultExecutor) SetChannelSize(size int) {
 	if size > 0 {
 		e.config.ChannelSize = size
 	}
 }
 
-// Execute processes FlowItems through the tool chain.
+// Execute processes Items through the tool chain.
 // When MaxConcurrency > 1 (or 0 for NumCPU), items are processed
 // in parallel using a semaphore-bounded fan-out pattern.
-func (e *DefaultFlowExecutor) Execute(ctx context.Context, f *Flow, items []*FlowItem) error {
+func (e *DefaultExecutor) Execute(ctx context.Context, f *Flow, items []*Item) error {
 	maxConc := e.config.MaxConcurrency
 	if maxConc == 0 {
 		maxConc = runtime.NumCPU()
@@ -134,9 +151,9 @@ func (e *DefaultFlowExecutor) Execute(ctx context.Context, f *Flow, items []*Flo
 	return g.Wait()
 }
 
-// processItemCollect processes a single FlowItem through the tool chain
+// processItemCollect processes a single Item through the tool chain
 // and returns the collected output parts.
-func (e *DefaultFlowExecutor) processItemCollect(ctx context.Context, f *Flow, item *FlowItem) ([]*model.Part, error) {
+func (e *DefaultExecutor) processItemCollect(ctx context.Context, f *Flow, item *Item) ([]*model.Part, error) {
 	tools, err := e.resolveTools(f)
 	if err != nil {
 		return nil, fmt.Errorf("resolve tools: %w", err)
@@ -203,7 +220,7 @@ func (e *DefaultFlowExecutor) processItemCollect(ctx context.Context, f *Flow, i
 // resolveTools returns the tools to use for processing.
 // For parallel execution (multiple documents), it creates fresh instances
 // via ToolFactories. For single/sequential, it uses f.Tools directly.
-func (e *DefaultFlowExecutor) resolveTools(f *Flow) ([]tool.Tool, error) {
+func (e *DefaultExecutor) resolveTools(f *Flow) ([]tool.Tool, error) {
 	if len(f.ToolFactories) > 0 {
 		tools := make([]tool.Tool, len(f.ToolFactories))
 		for i, factory := range f.ToolFactories {
@@ -219,7 +236,7 @@ func (e *DefaultFlowExecutor) resolveTools(f *Flow) ([]tool.Tool, error) {
 }
 
 // feedCollectors passes output parts to all registered collectors.
-func (e *DefaultFlowExecutor) feedCollectors(ctx context.Context, item *FlowItem, parts []*model.Part) error {
+func (e *DefaultExecutor) feedCollectors(ctx context.Context, item *Item, parts []*model.Part) error {
 	for _, c := range e.config.Collectors {
 		if err := c.Collect(ctx, item, parts); err != nil {
 			return err
@@ -231,7 +248,7 @@ func (e *DefaultFlowExecutor) feedCollectors(ctx context.Context, item *FlowItem
 // ExecuteWithChannels sets up the tool chain and returns the input channel.
 // The caller feeds Parts into the input channel and receives them from the output channel.
 // The caller must close the input channel when done.
-func (e *DefaultFlowExecutor) ExecuteWithChannels(ctx context.Context, f *Flow) (in chan<- *model.Part, out <-chan *model.Part, wait func() error) {
+func (e *DefaultExecutor) ExecuteWithChannels(ctx context.Context, f *Flow) (in chan<- *model.Part, out <-chan *model.Part, wait func() error) {
 	if len(f.Tools) == 0 {
 		ch := make(chan *model.Part, e.config.ChannelSize)
 		return ch, ch, func() error { return nil }

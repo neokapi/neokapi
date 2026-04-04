@@ -10,8 +10,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func newDetector() *format.FormatDetector {
-	d := format.NewFormatDetector()
+func newDetector() *format.Detector {
+	d := format.NewDetector()
 	d.Register("html", format.FormatSignature{
 		MIMETypes:  []string{"text/html", "application/xhtml+xml"},
 		Extensions: []string{".html", ".htm", ".xhtml"},
@@ -202,7 +202,7 @@ func TestDetectReaderSeekReset(t *testing.T) {
 // --- Priority tests ---
 
 func TestDefaultPriorityIsBuiltIn(t *testing.T) {
-	d := format.NewFormatDetector()
+	d := format.NewDetector()
 	d.Register("html", format.FormatSignature{
 		MIMETypes:  []string{"text/html"},
 		Extensions: []string{".html"},
@@ -211,7 +211,7 @@ func TestDefaultPriorityIsBuiltIn(t *testing.T) {
 }
 
 func TestSetPriority(t *testing.T) {
-	d := format.NewFormatDetector()
+	d := format.NewDetector()
 	d.Register("html", format.FormatSignature{
 		MIMETypes: []string{"text/html"},
 	})
@@ -220,12 +220,12 @@ func TestSetPriority(t *testing.T) {
 }
 
 func TestPriorityUnregisteredFormatIsZero(t *testing.T) {
-	d := format.NewFormatDetector()
+	d := format.NewDetector()
 	assert.Equal(t, 0, d.Priority("nonexistent"))
 }
 
 func TestDetectByMIMEPriority(t *testing.T) {
-	d := format.NewFormatDetector()
+	d := format.NewDetector()
 	// Two formats claim the same MIME type.
 	d.Register("html", format.FormatSignature{
 		MIMETypes: []string{"text/html"},
@@ -243,7 +243,7 @@ func TestDetectByMIMEPriority(t *testing.T) {
 }
 
 func TestDetectByMIMEPriorityOverride(t *testing.T) {
-	d := format.NewFormatDetector()
+	d := format.NewDetector()
 	d.Register("html", format.FormatSignature{
 		MIMETypes: []string{"text/html"},
 	})
@@ -262,7 +262,7 @@ func TestDetectByMIMEPriorityOverride(t *testing.T) {
 }
 
 func TestDetectByExtensionPriority(t *testing.T) {
-	d := format.NewFormatDetector()
+	d := format.NewDetector()
 	d.Register("html", format.FormatSignature{
 		Extensions: []string{".html", ".htm"},
 	})
@@ -277,7 +277,7 @@ func TestDetectByExtensionPriority(t *testing.T) {
 }
 
 func TestDetectByExtensionPriorityOverride(t *testing.T) {
-	d := format.NewFormatDetector()
+	d := format.NewDetector()
 	d.Register("html", format.FormatSignature{
 		Extensions: []string{".html"},
 	})
@@ -293,7 +293,7 @@ func TestDetectByExtensionPriorityOverride(t *testing.T) {
 }
 
 func TestDetectByContentMagicBytesPriority(t *testing.T) {
-	d := format.NewFormatDetector()
+	d := format.NewDetector()
 	d.Register("html", format.FormatSignature{
 		MagicBytes: [][]byte{[]byte("<html")},
 	})
@@ -313,7 +313,7 @@ func TestDetectByContentSniffPriority(t *testing.T) {
 		trimmed := bytes.TrimSpace(data)
 		return len(trimmed) > 0 && (trimmed[0] == '{' || trimmed[0] == '[')
 	}
-	d := format.NewFormatDetector()
+	d := format.NewDetector()
 	d.Register("json", format.FormatSignature{
 		Sniff: jsonSniff,
 	})
@@ -329,7 +329,7 @@ func TestDetectByContentSniffPriority(t *testing.T) {
 }
 
 func TestDetectCascadeWithPriority(t *testing.T) {
-	d := format.NewFormatDetector()
+	d := format.NewDetector()
 	d.Register("html", format.FormatSignature{
 		MIMETypes:  []string{"text/html"},
 		Extensions: []string{".html"},
@@ -363,7 +363,7 @@ func TestDetectCascadeWithPriority(t *testing.T) {
 
 func TestDetectByExtensionUniqueFormatsUnaffectedByPriority(t *testing.T) {
 	// When only one format matches, priority doesn't matter.
-	d := format.NewFormatDetector()
+	d := format.NewDetector()
 	d.Register("csv", format.FormatSignature{
 		Extensions: []string{".csv"},
 	})

@@ -15,7 +15,7 @@ migrating existing Okapi filters. Parent AD:
 | Filter | DataFormat (Reader/Writer) |
 | Step | Tool |
 | Pipeline | Flow |
-| PipelineDriver | FlowExecutor |
+| PipelineDriver | Executor |
 | Event | Part |
 | TextUnit | Block |
 | TextFragment | Fragment |

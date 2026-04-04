@@ -38,7 +38,7 @@ neokapi/                              ── Framework Module Tests ──
 │   └── skeleton_test.go             # Per-block skeleton reconstruction
 ├── flow/
 │   ├── executor_test.go             # Flow execution, goroutine wiring, error propagation
-│   └── builder_test.go              # FlowBuilder API
+│   └── builder_test.go              # Builder API
 ├── tool/
 │   └── base_test.go                 # BaseTool dispatch, pass-through behavior
 │
@@ -534,8 +534,8 @@ func TestFlowExecution(t *testing.T) {
         AddTool(uppercaseTool).
         Build()
 
-    executor := flow.NewFlowExecutor(reg)
-    items := []*flow.FlowItem{{
+    executor := flow.NewExecutor(reg)
+    items := []*flow.Item{{
         Input:        testutil.RawDocFromString("Hello world", "en"),
         OutputPath:   "/dev/null",
         TargetLocale: model.LocaleFrench,
@@ -601,8 +601,8 @@ func TestEndToEndHTML(t *testing.T) {
         Build()
 
     // 3. Execute
-    executor := flow.NewFlowExecutor(reg)
-    err = executor.Execute(ctx, f, []*flow.FlowItem{{
+    executor := flow.NewExecutor(reg)
+    err = executor.Execute(ctx, f, []*flow.Item{{
         Input:        testutil.RawDocFromFile("testdata/sample.html", "en"),
         OutputPath:   "testdata/output/sample_en.html",
         TargetLocale: model.LocaleEnglish,
@@ -692,7 +692,7 @@ func BenchmarkFlowThroughput(b *testing.B) {
         AddTool(tools.NewWordCountTool()).
         Build()
 
-    executor := flow.NewFlowExecutor(reg)
+    executor := flow.NewExecutor(reg)
 
     b.ResetTimer()
     for i := 0; i < b.N; i++ {

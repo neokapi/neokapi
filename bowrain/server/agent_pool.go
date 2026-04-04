@@ -60,7 +60,7 @@ func (s *Server) buildAgentPool() *service.AgentPool {
 // setupAgentQueue configures queue-based agent orchestration.
 // The API server enqueues jobs to Service Bus and subscribes to Redis pub/sub
 // for SSE relay. The worker handles container lifecycle.
-func (s *Server) setupAgentQueue(cfg ServerConfig) error {
+func (s *Server) setupAgentQueue(cfg Config) error {
 	if cfg.ServiceBusConnection == "" {
 		return errors.New("BOWRAIN_SERVICE_BUS_CONNECTION is required for queue mode")
 	}
@@ -91,7 +91,7 @@ func (s *Server) setupAgentQueue(cfg ServerConfig) error {
 
 // mcpEndpointForAgent returns the MCP endpoint URL that agent containers
 // should use to call back to this server.
-func (cfg ServerConfig) mcpEndpointForAgent() string {
+func (cfg Config) mcpEndpointForAgent() string {
 	host := cfg.Host
 	if host == "" || host == "0.0.0.0" {
 		host = "host.docker.internal" // Docker for Mac/Windows

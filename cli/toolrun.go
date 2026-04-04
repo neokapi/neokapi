@@ -310,7 +310,7 @@ func (a *App) processOneFile(ctx context.Context, cfg ToolRunConfig, filePath st
 		if sc, ok := collector.(flow.StreamingCollector); ok {
 			streamingCollector = sc
 			// Set document context before processing.
-			item := &flow.FlowItem{
+			item := &flow.Item{
 				Input:        doc,
 				TargetLocale: model.LocaleID(cfg.TargetLang),
 			}
@@ -345,7 +345,7 @@ func (a *App) processOneFile(ctx context.Context, cfg ToolRunConfig, filePath st
 	fb.AddTool(t)
 	f := fb.Build()
 
-	executor := flow.NewFlowExecutor()
+	executor := flow.NewExecutor()
 	inCh, outCh, wait := executor.ExecuteWithChannels(ctx, f)
 
 	go func() {
@@ -448,7 +448,7 @@ func (a *App) processOneFile(ctx context.Context, cfg ToolRunConfig, filePath st
 
 	// Feed collector — skip if streaming collector already observed inline.
 	if collector != nil && streamingCollector == nil {
-		item := &flow.FlowItem{
+		item := &flow.Item{
 			Input:        doc,
 			TargetLocale: model.LocaleID(cfg.TargetLang),
 		}

@@ -15,7 +15,7 @@ import (
 
 func setupDigestTestServer(t *testing.T) *Server {
 	t.Helper()
-	cfg := DefaultServerConfig()
+	cfg := DefaultConfig()
 	cfg.JWTSecret = "test-secret"
 	srv := NewServer(cfg)
 	initTestStores(t, srv)
@@ -51,7 +51,7 @@ func TestHandleGetDigestSettings_Default(t *testing.T) {
 }
 
 func TestHandleGetDigestSettings_NilStore(t *testing.T) {
-	cfg := DefaultServerConfig()
+	cfg := DefaultConfig()
 	srv := NewServer(cfg)
 	initTestStores(t, srv)
 	// DigestStore is nil by default.
@@ -144,7 +144,7 @@ func TestHandleUpdateDigestSettings_Off(t *testing.T) {
 }
 
 func TestHandleUpdateDigestSettings_NilStore(t *testing.T) {
-	cfg := DefaultServerConfig()
+	cfg := DefaultConfig()
 	srv := NewServer(cfg)
 	initTestStores(t, srv)
 	// DigestStore is nil by default.

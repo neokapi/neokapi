@@ -20,7 +20,7 @@ const bufSize = 1024 * 1024
 func setupGRPC(t *testing.T) pb.NeokapiServiceClient {
 	t.Helper()
 
-	cfg := DefaultServerConfig()
+	cfg := DefaultConfig()
 
 	srv := NewServer(cfg)
 	initTestStores(t, srv)

@@ -10,7 +10,7 @@ import (
 )
 
 // initBlobStore initializes the BlobStore based on server config.
-func (s *Server) initBlobStore(cfg ServerConfig) {
+func (s *Server) initBlobStore(cfg Config) {
 	backend := cfg.BlobBackend
 	if backend == "" {
 		backend = os.Getenv("BLOB_STORAGE_BACKEND")
@@ -30,7 +30,7 @@ func (s *Server) initBlobStore(cfg ServerConfig) {
 	}
 }
 
-func (s *Server) initAzureBlobStore(cfg ServerConfig) {
+func (s *Server) initAzureBlobStore(cfg Config) {
 	accountURL := cfg.AzureStorageAccountURL
 	if accountURL == "" {
 		accountURL = os.Getenv("AZURE_STORAGE_ACCOUNT_URL")
@@ -75,7 +75,7 @@ func (s *Server) initAzureBlobStore(cfg ServerConfig) {
 	slog.Warn("azure blob storage configured but no account URL or connection string provided")
 }
 
-func (s *Server) initLocalBlobStore(cfg ServerConfig) {
+func (s *Server) initLocalBlobStore(cfg Config) {
 	dir := cfg.BlobStorageLocalDir
 	if dir == "" {
 		dir = os.Getenv("BLOB_STORAGE_LOCAL_DIR")

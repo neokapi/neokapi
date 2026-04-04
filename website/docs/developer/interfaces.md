@@ -312,20 +312,20 @@ type Flow struct {
     ToolFactories []ToolFactory  // for parallel: fresh tool chain per document
 }
 
-// FlowExecutor orchestrates execution of a Flow across batch items.
-type FlowExecutor interface {
-    Execute(ctx context.Context, f *Flow, items []*FlowItem) error
+// Executor orchestrates execution of a Flow across batch items.
+type Executor interface {
+    Execute(ctx context.Context, f *Flow, items []*Item) error
 }
 
-// FlowItem represents a single document to process.
-type FlowItem struct {
+// Item represents a single document to process.
+type Item struct {
     Input          *model.RawDocument
     OutputPath     string
     OutputEncoding string
     TargetLocale   model.LocaleID
 }
 
-// ExecutorConfig holds configuration for the DefaultFlowExecutor.
+// ExecutorConfig holds configuration for the DefaultExecutor.
 type ExecutorConfig struct {
     MaxConcurrency int         // 0 = runtime.NumCPU(); 1 = sequential
     ChannelSize    int         // default 64
@@ -333,7 +333,7 @@ type ExecutorConfig struct {
     Collectors     []Collector
 }
 
-// FlowBuilder provides a fluent API for constructing Flows.
+// Builder provides a fluent API for constructing Flows.
 fb := flow.NewFlow("translate-html").
     AddTool(tool.NewSegmentationTool()).
     AddTool(tool.NewLeveragingTool(tm)).
@@ -402,7 +402,7 @@ type FormatRegistry struct {
 func (r *FormatRegistry) RegisterReader(name string, factory FormatReaderFactory)
 func (r *FormatRegistry) RegisterWriter(name string, factory FormatWriterFactory)
 func (r *FormatRegistry) NewReader(name string) (format.DataFormatReader, error)
-func (r *FormatRegistry) Detector() *format.FormatDetector
+func (r *FormatRegistry) Detector() *format.Detector
 
 // ToolRegistry manages available Tools.
 type ToolRegistry struct {

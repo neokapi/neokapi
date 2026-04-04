@@ -411,7 +411,7 @@ func TestBravoEndToEnd_UsageTracking(t *testing.T) {
 // TestBravoEndToEnd_AgentNotConfigured verifies endpoints behave correctly
 // when the agent service is not initialized.
 func TestBravoEndToEnd_AgentNotConfigured(t *testing.T) {
-	cfg := DefaultServerConfig()
+	cfg := DefaultConfig()
 	srv := NewServer(cfg)
 	e := srv.GetEcho()
 

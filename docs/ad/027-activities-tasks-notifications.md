@@ -19,7 +19,7 @@ The existing infrastructure provides strong foundations:
 - **Translation jobs** (`platform/jobs/`) — async job lifecycle with progress tracking, queued via ChannelQueue, NATS, or Azure Service Bus
 - **Review queue** (`platform/store/review_queue.go`) — term candidates and entity reviews with assignment, batch decisions, and split support
 - **Collaborative editing** (`platform/server/ws_collab.go`) — Yjs-based real-time co-editing with presence
-- **Redis** — session store for multi-instance deployments; connection already configured in `ServerConfig`
+- **Redis** — session store for multi-instance deployments; connection already configured in `Config`
 
 What's missing is the connective tissue: a unified **activity feed** showing what happened across a project, a **task system** for assigning and tracking human work, **notification preferences** so users control what reaches them, and **multi-channel delivery** spanning web, desktop, mobile push, and email digests.
 
@@ -602,7 +602,7 @@ When the dispatcher creates a notification:
 2. All server instances subscribed to that channel receive it
 3. Each instance checks if the user has local WebSocket connections and delivers
 
-This reuses the existing Redis connection from `ServerConfig.RedisURL`. When Redis is not configured, the system falls back to local-only delivery (single-instance mode).
+This reuses the existing Redis connection from `Config.RedisURL`. When Redis is not configured, the system falls back to local-only delivery (single-instance mode).
 
 ### Real-Time Updates for Activities and Tasks
 

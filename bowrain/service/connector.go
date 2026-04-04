@@ -26,7 +26,7 @@ func NewConnectorService(s store.ContentStore, reg *connector.Registry) *Connect
 }
 
 // ListConnectorTypes returns available connector types.
-func (s *ConnectorService) ListConnectorTypes() []connector.ConnectorInfo {
+func (s *ConnectorService) ListConnectorTypes() []connector.Info {
 	return s.connectorReg.List()
 }
 

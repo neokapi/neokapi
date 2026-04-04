@@ -25,7 +25,7 @@ neokapi/
 │   └── skeleton_test.go            # Skeleton reconstruction
 ├── flow/
 │   ├── executor_test.go            # Flow execution, error propagation
-│   └── builder_test.go             # FlowBuilder API
+│   └── builder_test.go             # Builder API
 │   └── tool/
 │       └── base_test.go            # BaseTool dispatch, pass-through
 │
@@ -121,7 +121,7 @@ func TestFlowExecution(t *testing.T) {
     })
 
     f := flow.NewFlow("test").AddTool(uppercaseTool).Build()
-    executor := flow.NewFlowExecutor(reg)
+    executor := flow.NewExecutor(reg)
     err := executor.Execute(ctx, f, items)
     require.NoError(t, err)
 }
