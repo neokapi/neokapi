@@ -16,9 +16,10 @@ import (
 var app = &cli.App{}
 
 var rootCmd = &cobra.Command{
-	Use:          "bowrain",
-	Short:        "Manage localization projects",
-	SilenceUsage: true,
+	Use:           "bowrain",
+	Short:         "Manage localization projects",
+	SilenceUsage:  true,
+	SilenceErrors: true,
 	Long: `bowrain manages localization projects, syncing content with Bowrain Server.
 
 Initialize a .bowrain/ project in your repository, then push/pull translations,
@@ -44,6 +45,7 @@ run quality checks, and manage terminology.`,
 
 func init() {
 	app.AddPersistentFlags(rootCmd)
+	app.AddCommandGroups(rootCmd)
 
 	// Primary commands.
 	rootCmd.AddCommand(app.NewRunCmd(cli.RunCmdOptions{
@@ -67,6 +69,7 @@ func init() {
 	rootCmd.AddCommand(app.NewTermbaseCmd())
 	rootCmd.AddCommand(app.NewTMCmd())
 	rootCmd.AddCommand(app.NewVersionCmd("bowrain"))
+	rootCmd.AddCommand(app.NewCompletionCmd())
 
 	// Top-level tool commands (declarative opt-in via BuiltinToolCommands).
 	for _, cmd := range app.NewToolCommands() {
