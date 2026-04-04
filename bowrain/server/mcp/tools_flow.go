@@ -125,7 +125,10 @@ func (s *MCPServer) handleRunFlow(ctx context.Context, req *mcp.CallToolRequest,
 		}
 		builder.AddTool(t)
 	}
-	f := builder.Build()
+	f, err := builder.Build()
+	if err != nil {
+		return nil, runFlowOutput{}, fmt.Errorf("build flow: %w", err)
+	}
 
 	// Build flow items from blocks.
 	items := make([]*flow.Item, 0, len(blocks))

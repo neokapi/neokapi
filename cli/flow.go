@@ -246,7 +246,10 @@ func (a *App) runSingleFile(ctx context.Context, cmd *cobra.Command, flowName, i
 	for _, t := range flowTools {
 		fb.AddTool(t)
 	}
-	f2 := fb.Build()
+	f2, err := fb.Build()
+	if err != nil {
+		return fmt.Errorf("build flow: %w", err)
+	}
 
 	executor := flow.NewExecutor()
 	inCh, outCh, wait := executor.ExecuteWithChannels(ctx, f2)
@@ -597,7 +600,12 @@ func (a *App) processFlowFileBridge(ctx context.Context, cmd *cobra.Command,
 		for _, t := range flowTools {
 			fb.AddTool(t)
 		}
-		f := fb.Build()
+		f, ferr := fb.Build()
+		if ferr != nil {
+			out := make(chan *model.Part)
+			close(out)
+			return out
+		}
 
 		executor := flow.NewExecutor()
 		inCh, outCh, wait := executor.ExecuteWithChannels(ctx, f)
@@ -705,7 +713,10 @@ func (a *App) processFlowFileNative(ctx context.Context, cmd *cobra.Command, flo
 	for _, t := range flowTools {
 		fb.AddTool(t)
 	}
-	f := fb.Build()
+	f, err := fb.Build()
+	if err != nil {
+		return nil, fmt.Errorf("build flow: %w", err)
+	}
 
 	executor := flow.NewExecutor()
 	inCh, outCh, wait := executor.ExecuteWithChannels(ctx, f)
