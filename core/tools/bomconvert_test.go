@@ -10,6 +10,7 @@ import (
 )
 
 func TestBOMConvertToolAddBOM(t *testing.T) {
+	t.Parallel()
 	cfg := &tools.BOMConvertConfig{AddBOM: true}
 	tl := tools.NewBOMConvertTool(cfg)
 
@@ -24,6 +25,7 @@ func TestBOMConvertToolAddBOM(t *testing.T) {
 }
 
 func TestBOMConvertToolRemoveBOM(t *testing.T) {
+	t.Parallel()
 	cfg := &tools.BOMConvertConfig{AddBOM: false}
 	tl := tools.NewBOMConvertTool(cfg)
 
@@ -36,6 +38,7 @@ func TestBOMConvertToolRemoveBOM(t *testing.T) {
 }
 
 func TestBOMConvertToolAlreadyHasBOM(t *testing.T) {
+	t.Parallel()
 	cfg := &tools.BOMConvertConfig{AddBOM: true}
 	tl := tools.NewBOMConvertTool(cfg)
 
@@ -48,6 +51,7 @@ func TestBOMConvertToolAlreadyHasBOM(t *testing.T) {
 }
 
 func TestBOMConvertToolAlreadyNoBOM(t *testing.T) {
+	t.Parallel()
 	cfg := &tools.BOMConvertConfig{AddBOM: false}
 	tl := tools.NewBOMConvertTool(cfg)
 
@@ -60,17 +64,20 @@ func TestBOMConvertToolAlreadyNoBOM(t *testing.T) {
 }
 
 func TestBOMConvertConfigToolName(t *testing.T) {
+	t.Parallel()
 	cfg := &tools.BOMConvertConfig{}
 	assert.Equal(t, "bom-convert", cfg.ToolName())
 }
 
 func TestBOMConvertConfigReset(t *testing.T) {
+	t.Parallel()
 	cfg := &tools.BOMConvertConfig{AddBOM: true}
 	cfg.Reset()
 	assert.False(t, cfg.AddBOM)
 }
 
 func TestBOMConvertConfigValidate(t *testing.T) {
+	t.Parallel()
 	cfg := &tools.BOMConvertConfig{}
 	require.NoError(t, cfg.Validate())
 }

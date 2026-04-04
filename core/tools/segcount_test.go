@@ -9,6 +9,7 @@ import (
 )
 
 func TestSegCountTool(t *testing.T) {
+	t.Parallel()
 	cfg := &tools.SegCountConfig{Locale: model.LocaleFrench}
 	tl := tools.NewSegCountTool(cfg)
 
@@ -25,6 +26,7 @@ func TestSegCountTool(t *testing.T) {
 }
 
 func TestSegCountToolSourceOnly(t *testing.T) {
+	t.Parallel()
 	cfg := &tools.SegCountConfig{}
 	tl := tools.NewSegCountTool(cfg)
 

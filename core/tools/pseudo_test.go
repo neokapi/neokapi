@@ -30,6 +30,7 @@ func processPart(t *testing.T, tl interface {
 }
 
 func TestPseudoTranslateTool(t *testing.T) {
+	t.Parallel()
 	cfg := &tools.PseudoConfig{
 		ExpansionPercent: 0,
 		Prefix:           "[",
@@ -62,6 +63,7 @@ func TestPseudoTranslateTool(t *testing.T) {
 }
 
 func TestPseudoTranslateToolWithExpansion(t *testing.T) {
+	t.Parallel()
 	cfg := &tools.PseudoConfig{
 		ExpansionPercent: 50,
 		Prefix:           "[",
@@ -84,6 +86,7 @@ func TestPseudoTranslateToolWithExpansion(t *testing.T) {
 }
 
 func TestPseudoTranslateToolSkipsNonTranslatable(t *testing.T) {
+	t.Parallel()
 	cfg := &tools.PseudoConfig{
 		TargetLocale: "qps",
 		Prefix:       "[",
@@ -101,6 +104,7 @@ func TestPseudoTranslateToolSkipsNonTranslatable(t *testing.T) {
 }
 
 func TestPseudoTranslateToolCustomPrefixSuffix(t *testing.T) {
+	t.Parallel()
 	cfg := &tools.PseudoConfig{
 		Prefix:       "<<",
 		Suffix:       ">>",
@@ -121,6 +125,7 @@ func TestPseudoTranslateToolCustomPrefixSuffix(t *testing.T) {
 }
 
 func TestPseudoTranslateToolPreservesSpans(t *testing.T) {
+	t.Parallel()
 	cfg := &tools.PseudoConfig{
 		Prefix:       "[",
 		Suffix:       "]",
@@ -174,6 +179,7 @@ func TestPseudoTranslateToolPreservesSpans(t *testing.T) {
 }
 
 func TestPseudoTranslateToolSpansWithExpansion(t *testing.T) {
+	t.Parallel()
 	cfg := &tools.PseudoConfig{
 		ExpansionPercent: 50,
 		Prefix:           "[",
@@ -212,6 +218,7 @@ func TestPseudoTranslateToolSpansWithExpansion(t *testing.T) {
 }
 
 func TestPseudoConfigValidation(t *testing.T) {
+	t.Parallel()
 	cfg := &tools.PseudoConfig{ExpansionPercent: -1, TargetLocale: "qps"}
 	err := cfg.Validate()
 	require.Error(t, err)

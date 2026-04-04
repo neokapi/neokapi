@@ -10,6 +10,7 @@ import (
 )
 
 func TestParse_YAML(t *testing.T) {
+	t.Parallel()
 	data := []byte(`apiVersion: v1
 kind: HtmlFormatConfig
 metadata:
@@ -30,6 +31,7 @@ spec:
 }
 
 func TestParse_JSON(t *testing.T) {
+	t.Parallel()
 	data := []byte(`{
 		"apiVersion": "v1",
 		"kind": "JsonFormatConfig",
@@ -45,6 +47,7 @@ func TestParse_JSON(t *testing.T) {
 }
 
 func TestParse_MissingAPIVersion(t *testing.T) {
+	t.Parallel()
 	data := []byte(`kind: HtmlFormatConfig
 spec: {}
 `)
@@ -54,6 +57,7 @@ spec: {}
 }
 
 func TestParse_MissingKind(t *testing.T) {
+	t.Parallel()
 	data := []byte(`apiVersion: v1
 spec: {}
 `)
@@ -63,6 +67,7 @@ spec: {}
 }
 
 func TestParse_InvalidAPIVersion(t *testing.T) {
+	t.Parallel()
 	data := []byte(`apiVersion: invalid
 kind: HtmlFormatConfig
 spec: {}
@@ -72,6 +77,7 @@ spec: {}
 }
 
 func TestParse_InvalidKind(t *testing.T) {
+	t.Parallel()
 	data := []byte(`apiVersion: v1
 kind: UnknownThing
 spec: {}
@@ -82,6 +88,7 @@ spec: {}
 }
 
 func TestParse_FlowDefinition(t *testing.T) {
+	t.Parallel()
 	data := []byte(`apiVersion: v1
 kind: FlowDefinition
 metadata:
@@ -95,6 +102,7 @@ spec:
 }
 
 func TestParse_ProjectConfig(t *testing.T) {
+	t.Parallel()
 	data := []byte(`apiVersion: v1
 kind: ProjectConfig
 metadata:
@@ -109,6 +117,7 @@ spec:
 }
 
 func TestParse_FormatPreset(t *testing.T) {
+	t.Parallel()
 	data := []byte(`apiVersion: v1
 kind: FormatPreset
 metadata:
@@ -122,6 +131,7 @@ spec:
 }
 
 func TestParse_MetadataLabelsAndAnnotations(t *testing.T) {
+	t.Parallel()
 	data := []byte(`apiVersion: v1
 kind: HtmlFormatConfig
 metadata:
@@ -141,6 +151,7 @@ spec: {}
 }
 
 func TestParse_OkapiKind(t *testing.T) {
+	t.Parallel()
 	data := []byte(`apiVersion: v1
 kind: OkfHtmlFilterConfig
 metadata:
@@ -154,6 +165,7 @@ spec:
 }
 
 func TestLoad_YAML(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	path := filepath.Join(dir, "test.yaml")
 	err := os.WriteFile(path, []byte(`apiVersion: v1
@@ -173,6 +185,7 @@ spec:
 }
 
 func TestLoad_JSON(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	path := filepath.Join(dir, "test.json")
 	err := os.WriteFile(path, []byte(`{
@@ -190,16 +203,19 @@ func TestLoad_JSON(t *testing.T) {
 }
 
 func TestLoad_FileNotFound(t *testing.T) {
+	t.Parallel()
 	_, err := Load("/nonexistent/path.yaml")
 	require.Error(t, err)
 }
 
 func TestParse_InvalidYAML(t *testing.T) {
+	t.Parallel()
 	_, err := Parse([]byte(":::invalid:::"), ".yaml")
 	require.Error(t, err)
 }
 
 func TestParse_InvalidJSON(t *testing.T) {
+	t.Parallel()
 	_, err := Parse([]byte("{invalid}"), ".json")
 	require.Error(t, err)
 }

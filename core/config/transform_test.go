@@ -9,6 +9,7 @@ import (
 )
 
 func TestTransformRegistry_Basic(t *testing.T) {
+	t.Parallel()
 	reg := NewTransformRegistry()
 	from := OkapiFilterConfigKind("html")
 	to := FormatConfigKind("html")
@@ -37,6 +38,7 @@ func TestTransformRegistry_Basic(t *testing.T) {
 }
 
 func TestTransformRegistry_NotFound(t *testing.T) {
+	t.Parallel()
 	reg := NewTransformRegistry()
 	from := OkapiFilterConfigKind("html")
 	to := FormatConfigKind("html")
@@ -55,6 +57,7 @@ func TestTransformRegistry_NotFound(t *testing.T) {
 }
 
 func TestTransformRegistry_Has(t *testing.T) {
+	t.Parallel()
 	reg := NewTransformRegistry()
 	from := OkapiFilterConfigKind("html")
 	to := FormatConfigKind("html")
@@ -68,6 +71,7 @@ func TestTransformRegistry_Has(t *testing.T) {
 }
 
 func TestTransformRegistry_TransformError(t *testing.T) {
+	t.Parallel()
 	reg := NewTransformRegistry()
 	from := OkapiFilterConfigKind("html")
 	to := FormatConfigKind("html")
@@ -81,6 +85,7 @@ func TestTransformRegistry_TransformError(t *testing.T) {
 }
 
 func TestRegistry_Basic(t *testing.T) {
+	t.Parallel()
 	reg := NewRegistry()
 	htmlKind := FormatConfigKind("html")
 	reg.Register(htmlKind, SpecDecoderFunc(func(spec map[string]any) (any, error) {
@@ -101,6 +106,7 @@ func TestRegistry_Basic(t *testing.T) {
 }
 
 func TestRegistry_NotFound(t *testing.T) {
+	t.Parallel()
 	reg := NewRegistry()
 	env := &Envelope{APIVersion: "v1", Kind: FormatConfigKind("html"), Spec: map[string]any{}}
 	_, err := reg.Decode(env)

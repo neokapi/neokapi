@@ -10,6 +10,7 @@ import (
 )
 
 func TestLayerProcessor_PassThrough(t *testing.T) {
+	t.Parallel()
 	// Without any pipelines, all parts pass through unchanged
 	lp := NewLayerProcessorTool(&LayerProcessorConfig{})
 
@@ -31,6 +32,7 @@ func TestLayerProcessor_PassThrough(t *testing.T) {
 }
 
 func TestLayerProcessor_ChildLayerNoMatch(t *testing.T) {
+	t.Parallel()
 	// Child layer with format that has no pipeline — passes through unchanged
 	lp := NewLayerProcessorTool(&LayerProcessorConfig{
 		Pipelines: map[string][]tool.Tool{
@@ -60,6 +62,7 @@ func TestLayerProcessor_ChildLayerNoMatch(t *testing.T) {
 }
 
 func TestLayerProcessor_ChildLayerWithPipeline(t *testing.T) {
+	t.Parallel()
 	// Child layer with format that has a pipeline — parts are processed
 	upperTool := NewCaseTransformTool(&CaseTransformConfig{Mode: CaseUpper, ApplySource: true})
 
@@ -97,6 +100,7 @@ func TestLayerProcessor_ChildLayerWithPipeline(t *testing.T) {
 }
 
 func TestLayerProcessor_MultiplePipelines(t *testing.T) {
+	t.Parallel()
 	// Different pipelines for different formats
 	upperTool := NewCaseTransformTool(&CaseTransformConfig{Mode: CaseUpper, ApplySource: true})
 	pseudoTool := NewPseudoTranslateTool(&PseudoConfig{Prefix: "[", Suffix: "]", TargetLocale: "qps"})
@@ -146,6 +150,7 @@ func TestLayerProcessor_MultiplePipelines(t *testing.T) {
 }
 
 func TestLayerProcessor_ToolChain(t *testing.T) {
+	t.Parallel()
 	// Multiple tools in a single pipeline (uppercase then search-replace)
 	upperTool := NewCaseTransformTool(&CaseTransformConfig{Mode: CaseUpper, ApplySource: true})
 	searchReplace := NewSearchReplaceTool(&SearchReplaceConfig{

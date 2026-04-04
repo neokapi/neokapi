@@ -10,6 +10,7 @@ import (
 )
 
 func TestCreateTargetTool(t *testing.T) {
+	t.Parallel()
 	cfg := &tools.CreateTargetConfig{
 		TargetLocale: model.LocaleFrench,
 	}
@@ -27,6 +28,7 @@ func TestCreateTargetTool(t *testing.T) {
 }
 
 func TestCreateTargetToolCopySource(t *testing.T) {
+	t.Parallel()
 	cfg := &tools.CreateTargetConfig{
 		TargetLocale: model.LocaleFrench,
 		CopySource:   true,
@@ -43,6 +45,7 @@ func TestCreateTargetToolCopySource(t *testing.T) {
 }
 
 func TestCreateTargetToolSkipsExisting(t *testing.T) {
+	t.Parallel()
 	cfg := &tools.CreateTargetConfig{
 		TargetLocale: model.LocaleFrench,
 		CopySource:   true,
@@ -60,6 +63,7 @@ func TestCreateTargetToolSkipsExisting(t *testing.T) {
 }
 
 func TestCreateTargetToolOverwrite(t *testing.T) {
+	t.Parallel()
 	cfg := &tools.CreateTargetConfig{
 		TargetLocale: model.LocaleFrench,
 		CopySource:   true,
@@ -78,6 +82,7 @@ func TestCreateTargetToolOverwrite(t *testing.T) {
 }
 
 func TestCreateTargetToolSkipsNonTranslatable(t *testing.T) {
+	t.Parallel()
 	cfg := &tools.CreateTargetConfig{
 		TargetLocale: model.LocaleFrench,
 	}
@@ -93,6 +98,7 @@ func TestCreateTargetToolSkipsNonTranslatable(t *testing.T) {
 }
 
 func TestCreateTargetToolPassesThroughNonBlock(t *testing.T) {
+	t.Parallel()
 	cfg := &tools.CreateTargetConfig{
 		TargetLocale: model.LocaleFrench,
 	}
@@ -107,6 +113,7 @@ func TestCreateTargetToolPassesThroughNonBlock(t *testing.T) {
 }
 
 func TestCreateTargetConfigValidation(t *testing.T) {
+	t.Parallel()
 	cfg := &tools.CreateTargetConfig{}
 	err := cfg.Validate()
 	require.Error(t, err)

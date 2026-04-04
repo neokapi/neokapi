@@ -22,6 +22,7 @@ func (m *mockProfileResolver) ResolveProfile(_ context.Context, _ brand.ResolveC
 }
 
 func TestBrandVocabCheckForbiddenTerms(t *testing.T) {
+	t.Parallel()
 	profile := &brand.VoiceProfile{
 		ID: "test-profile",
 		Vocabulary: brand.VocabularyRules{
@@ -64,6 +65,7 @@ func TestBrandVocabCheckForbiddenTerms(t *testing.T) {
 }
 
 func TestBrandVocabCheckCompetitorTerms(t *testing.T) {
+	t.Parallel()
 	profile := &brand.VoiceProfile{
 		Vocabulary: brand.VocabularyRules{
 			CompetitorTerms: []brand.TermRule{
@@ -102,6 +104,7 @@ func TestBrandVocabCheckCompetitorTerms(t *testing.T) {
 }
 
 func TestBrandVocabCheckPreferredTermSuggestion(t *testing.T) {
+	t.Parallel()
 	profile := &brand.VoiceProfile{
 		Vocabulary: brand.VocabularyRules{
 			ForbiddenTerms: []brand.TermRule{
@@ -135,6 +138,7 @@ func TestBrandVocabCheckPreferredTermSuggestion(t *testing.T) {
 }
 
 func TestBrandVocabCheckNoViolations(t *testing.T) {
+	t.Parallel()
 	profile := &brand.VoiceProfile{
 		Vocabulary: brand.VocabularyRules{
 			ForbiddenTerms: []brand.TermRule{
@@ -166,6 +170,7 @@ func TestBrandVocabCheckNoViolations(t *testing.T) {
 }
 
 func TestBrandVocabCheckSkipsEmptyText(t *testing.T) {
+	t.Parallel()
 	profile := &brand.VoiceProfile{
 		Vocabulary: brand.VocabularyRules{
 			ForbiddenTerms: []brand.TermRule{
@@ -193,6 +198,7 @@ func TestBrandVocabCheckSkipsEmptyText(t *testing.T) {
 }
 
 func TestBrandVocabCheckCaseInsensitive(t *testing.T) {
+	t.Parallel()
 	profile := &brand.VoiceProfile{
 		Vocabulary: brand.VocabularyRules{
 			ForbiddenTerms: []brand.TermRule{
@@ -225,6 +231,7 @@ func TestBrandVocabCheckCaseInsensitive(t *testing.T) {
 }
 
 func TestBrandVocabCheckWithResolver(t *testing.T) {
+	t.Parallel()
 	profile := &brand.VoiceProfile{
 		ID: "resolved-vocab",
 		Vocabulary: brand.VocabularyRules{
@@ -261,6 +268,7 @@ func TestBrandVocabCheckWithResolver(t *testing.T) {
 }
 
 func TestBrandVocabCheckWithResolverNilProfile(t *testing.T) {
+	t.Parallel()
 	resolver := &mockProfileResolver{profile: nil}
 	rc := brand.ResolveContext{}
 
@@ -285,6 +293,7 @@ func TestBrandVocabCheckWithResolverNilProfile(t *testing.T) {
 }
 
 func TestBrandVocabCheckAddsAnnotation(t *testing.T) {
+	t.Parallel()
 	profile := &brand.VoiceProfile{
 		ID: "voice-1",
 		Vocabulary: brand.VocabularyRules{

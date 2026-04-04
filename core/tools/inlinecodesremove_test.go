@@ -10,6 +10,7 @@ import (
 )
 
 func TestInlineCodesRemoveToolTarget(t *testing.T) {
+	t.Parallel()
 	cfg := &tools.InlineCodesRemoveConfig{
 		ApplyTarget:  true,
 		TargetLocale: model.LocaleFrench,
@@ -48,6 +49,7 @@ func TestInlineCodesRemoveToolTarget(t *testing.T) {
 }
 
 func TestInlineCodesRemoveToolSource(t *testing.T) {
+	t.Parallel()
 	cfg := &tools.InlineCodesRemoveConfig{
 		ApplySource: true,
 		ApplyTarget: false,
@@ -79,6 +81,7 @@ func TestInlineCodesRemoveToolSource(t *testing.T) {
 }
 
 func TestInlineCodesRemoveToolFragmentWithSpansBecomesPlainText(t *testing.T) {
+	t.Parallel()
 	cfg := &tools.InlineCodesRemoveConfig{
 		ApplySource: true,
 		ApplyTarget: false,
@@ -115,6 +118,7 @@ func TestInlineCodesRemoveToolFragmentWithSpansBecomesPlainText(t *testing.T) {
 }
 
 func TestInlineCodesRemoveToolSkipsNonTranslatable(t *testing.T) {
+	t.Parallel()
 	cfg := &tools.InlineCodesRemoveConfig{
 		ApplySource: true,
 		ApplyTarget: false,
@@ -145,6 +149,7 @@ func TestInlineCodesRemoveToolSkipsNonTranslatable(t *testing.T) {
 }
 
 func TestInlineCodesRemoveConfigValidation(t *testing.T) {
+	t.Parallel()
 	cfg := &tools.InlineCodesRemoveConfig{
 		ApplyTarget:  true,
 		TargetLocale: "",

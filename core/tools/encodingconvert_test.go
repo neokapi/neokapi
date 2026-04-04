@@ -10,6 +10,7 @@ import (
 )
 
 func TestEncodingConvertSetsProperty(t *testing.T) {
+	t.Parallel()
 	cfg := &tools.EncodingConvertConfig{
 		TargetEncoding: "iso-8859-1",
 		ApplyTarget:    true,
@@ -31,6 +32,7 @@ func TestEncodingConvertSetsProperty(t *testing.T) {
 }
 
 func TestEncodingConvertRoundtrip(t *testing.T) {
+	t.Parallel()
 	cfg := &tools.EncodingConvertConfig{
 		TargetEncoding: "iso-8859-1",
 		ApplyTarget:    true,
@@ -50,6 +52,7 @@ func TestEncodingConvertRoundtrip(t *testing.T) {
 }
 
 func TestEncodingConvertApplySource(t *testing.T) {
+	t.Parallel()
 	cfg := &tools.EncodingConvertConfig{
 		TargetEncoding: "us-ascii",
 		ApplySource:    true,
@@ -68,6 +71,7 @@ func TestEncodingConvertApplySource(t *testing.T) {
 }
 
 func TestEncodingConvertSkipsNonTranslatable(t *testing.T) {
+	t.Parallel()
 	cfg := &tools.EncodingConvertConfig{
 		TargetEncoding: "iso-8859-1",
 		ApplyTarget:    true,
@@ -88,6 +92,7 @@ func TestEncodingConvertSkipsNonTranslatable(t *testing.T) {
 }
 
 func TestEncodingConvertConfigValidation(t *testing.T) {
+	t.Parallel()
 	// Missing TargetEncoding.
 	cfg := &tools.EncodingConvertConfig{}
 	err := cfg.Validate()
@@ -114,6 +119,7 @@ func TestEncodingConvertConfigValidation(t *testing.T) {
 }
 
 func TestEncodingConvertConfigReset(t *testing.T) {
+	t.Parallel()
 	cfg := &tools.EncodingConvertConfig{
 		TargetEncoding: "shift-jis",
 		ApplySource:    true,
@@ -129,6 +135,7 @@ func TestEncodingConvertConfigReset(t *testing.T) {
 }
 
 func TestEncodingConvertSkipsNoTarget(t *testing.T) {
+	t.Parallel()
 	cfg := &tools.EncodingConvertConfig{
 		TargetEncoding: "iso-8859-1",
 		ApplyTarget:    true,

@@ -10,6 +10,7 @@ import (
 )
 
 func TestURIConvertDecode(t *testing.T) {
+	t.Parallel()
 	cfg := &tools.URIConvertConfig{
 		Mode:         tools.URIDecode,
 		ApplyTarget:  true,
@@ -31,6 +32,7 @@ func TestURIConvertDecode(t *testing.T) {
 }
 
 func TestURIConvertEncode(t *testing.T) {
+	t.Parallel()
 	cfg := &tools.URIConvertConfig{
 		Mode:         tools.URIEncode,
 		ApplyTarget:  true,
@@ -48,6 +50,7 @@ func TestURIConvertEncode(t *testing.T) {
 }
 
 func TestURIConvertAlreadyEncoded(t *testing.T) {
+	t.Parallel()
 	cfg := &tools.URIConvertConfig{
 		Mode:         tools.URIEncode,
 		ApplyTarget:  true,
@@ -66,6 +69,7 @@ func TestURIConvertAlreadyEncoded(t *testing.T) {
 }
 
 func TestURIConvertSpecialCharacters(t *testing.T) {
+	t.Parallel()
 	cfg := &tools.URIConvertConfig{
 		Mode:         tools.URIEncode,
 		ApplyTarget:  true,
@@ -86,6 +90,7 @@ func TestURIConvertSpecialCharacters(t *testing.T) {
 }
 
 func TestURIConvertDecodeSpecialCharacters(t *testing.T) {
+	t.Parallel()
 	cfg := &tools.URIConvertConfig{
 		Mode:         tools.URIDecode,
 		ApplyTarget:  true,
@@ -103,6 +108,7 @@ func TestURIConvertDecodeSpecialCharacters(t *testing.T) {
 }
 
 func TestURIConvertApplySource(t *testing.T) {
+	t.Parallel()
 	cfg := &tools.URIConvertConfig{
 		Mode:        tools.URIDecode,
 		ApplySource: true,
@@ -119,6 +125,7 @@ func TestURIConvertApplySource(t *testing.T) {
 }
 
 func TestURIConvertSkipsNonTranslatable(t *testing.T) {
+	t.Parallel()
 	cfg := &tools.URIConvertConfig{
 		Mode:         tools.URIDecode,
 		ApplyTarget:  true,
@@ -138,6 +145,7 @@ func TestURIConvertSkipsNonTranslatable(t *testing.T) {
 }
 
 func TestURIConvertConfigValidation(t *testing.T) {
+	t.Parallel()
 	cfg := &tools.URIConvertConfig{Mode: "invalid"}
 	err := cfg.Validate()
 	require.Error(t, err)

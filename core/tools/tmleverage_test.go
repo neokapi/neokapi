@@ -40,6 +40,7 @@ func (m *mockTMProvider) LookupFuzzy(source string, _, _ model.LocaleID, thresho
 }
 
 func TestTMLeverageTool(t *testing.T) {
+	t.Parallel()
 	cfg := &tools.TMLeverageConfig{
 		TargetLocale:   model.LocaleFrench,
 		SourceLocale:   model.LocaleEnglish,
@@ -53,6 +54,7 @@ func TestTMLeverageTool(t *testing.T) {
 }
 
 func TestTMLeverageToolExactMatch(t *testing.T) {
+	t.Parallel()
 	provider := &mockTMProvider{
 		exact: map[string]string{
 			"Hello world": "Bonjour le monde",
@@ -77,6 +79,7 @@ func TestTMLeverageToolExactMatch(t *testing.T) {
 }
 
 func TestTMLeverageToolFuzzyMatch(t *testing.T) {
+	t.Parallel()
 	provider := &mockTMProvider{
 		fuzzy: map[string]fuzzyMatch{
 			"Hello world": {translation: "Bonjour monde", score: 85},
@@ -101,6 +104,7 @@ func TestTMLeverageToolFuzzyMatch(t *testing.T) {
 }
 
 func TestTMLeverageToolNoMatch(t *testing.T) {
+	t.Parallel()
 	provider := &mockTMProvider{}
 	cfg := &tools.TMLeverageConfig{
 		TargetLocale:   model.LocaleFrench,
@@ -121,6 +125,7 @@ func TestTMLeverageToolNoMatch(t *testing.T) {
 }
 
 func TestTMLeverageToolExactOverFuzzy(t *testing.T) {
+	t.Parallel()
 	provider := &mockTMProvider{
 		exact: map[string]string{
 			"Hello world": "Bonjour le monde",
@@ -149,6 +154,7 @@ func TestTMLeverageToolExactOverFuzzy(t *testing.T) {
 }
 
 func TestTMLeverageToolNullProvider(t *testing.T) {
+	t.Parallel()
 	cfg := &tools.TMLeverageConfig{
 		TargetLocale:   model.LocaleFrench,
 		SourceLocale:   model.LocaleEnglish,
@@ -166,6 +172,7 @@ func TestTMLeverageToolNullProvider(t *testing.T) {
 }
 
 func TestTMLeverageToolSkipsNonTranslatable(t *testing.T) {
+	t.Parallel()
 	provider := &mockTMProvider{
 		exact: map[string]string{
 			"Hello world": "Bonjour le monde",
@@ -189,6 +196,7 @@ func TestTMLeverageToolSkipsNonTranslatable(t *testing.T) {
 }
 
 func TestTMLeverageToolEmptySource(t *testing.T) {
+	t.Parallel()
 	provider := &mockTMProvider{
 		exact: map[string]string{
 			"": "something",
@@ -211,6 +219,7 @@ func TestTMLeverageToolEmptySource(t *testing.T) {
 }
 
 func TestTMLeverageConfigValidation(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name    string
 		cfg     tools.TMLeverageConfig
@@ -247,6 +256,7 @@ func TestTMLeverageConfigValidation(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			err := tt.cfg.Validate()
 			if tt.wantErr {
 				require.Error(t, err)

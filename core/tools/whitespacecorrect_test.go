@@ -10,6 +10,7 @@ import (
 )
 
 func TestWhitespaceCorrectNormalizeSpaces(t *testing.T) {
+	t.Parallel()
 	cfg := &tools.WhitespaceCorrectConfig{
 		TargetLocale:          model.LocaleFrench,
 		NormalizeSpaces:       true,
@@ -29,6 +30,7 @@ func TestWhitespaceCorrectNormalizeSpaces(t *testing.T) {
 }
 
 func TestWhitespaceCorrectTrimLeading(t *testing.T) {
+	t.Parallel()
 	cfg := &tools.WhitespaceCorrectConfig{
 		TargetLocale:          model.LocaleFrench,
 		TrimLeading:           true,
@@ -46,6 +48,7 @@ func TestWhitespaceCorrectTrimLeading(t *testing.T) {
 }
 
 func TestWhitespaceCorrectTrimTrailing(t *testing.T) {
+	t.Parallel()
 	cfg := &tools.WhitespaceCorrectConfig{
 		TargetLocale:          model.LocaleFrench,
 		TrimTrailing:          true,
@@ -63,6 +66,7 @@ func TestWhitespaceCorrectTrimTrailing(t *testing.T) {
 }
 
 func TestWhitespaceCorrectMatchSourceWhitespace(t *testing.T) {
+	t.Parallel()
 	cfg := &tools.WhitespaceCorrectConfig{
 		TargetLocale:          model.LocaleFrench,
 		MatchSourceWhitespace: true,
@@ -80,6 +84,7 @@ func TestWhitespaceCorrectMatchSourceWhitespace(t *testing.T) {
 }
 
 func TestWhitespaceCorrectRemoveZeroWidthChars(t *testing.T) {
+	t.Parallel()
 	cfg := &tools.WhitespaceCorrectConfig{
 		TargetLocale:          model.LocaleFrench,
 		RemoveZeroWidthChars:  true,
@@ -98,6 +103,7 @@ func TestWhitespaceCorrectRemoveZeroWidthChars(t *testing.T) {
 }
 
 func TestWhitespaceCorrectSkipsNonTranslatable(t *testing.T) {
+	t.Parallel()
 	cfg := &tools.WhitespaceCorrectConfig{
 		TargetLocale:    model.LocaleFrench,
 		NormalizeSpaces: true,
@@ -116,6 +122,7 @@ func TestWhitespaceCorrectSkipsNonTranslatable(t *testing.T) {
 }
 
 func TestWhitespaceCorrectSkipsNoTarget(t *testing.T) {
+	t.Parallel()
 	cfg := &tools.WhitespaceCorrectConfig{
 		TargetLocale:    model.LocaleFrench,
 		NormalizeSpaces: true,
@@ -132,6 +139,7 @@ func TestWhitespaceCorrectSkipsNoTarget(t *testing.T) {
 }
 
 func TestWhitespaceCorrectCombined(t *testing.T) {
+	t.Parallel()
 	cfg := &tools.WhitespaceCorrectConfig{
 		TargetLocale:          model.LocaleFrench,
 		NormalizeSpaces:       true,
@@ -153,6 +161,7 @@ func TestWhitespaceCorrectCombined(t *testing.T) {
 }
 
 func TestWhitespaceCorrectConfigValidation(t *testing.T) {
+	t.Parallel()
 	cfg := &tools.WhitespaceCorrectConfig{}
 	err := cfg.Validate()
 	require.Error(t, err)
@@ -164,6 +173,7 @@ func TestWhitespaceCorrectConfigValidation(t *testing.T) {
 }
 
 func TestWhitespaceCorrectConfigReset(t *testing.T) {
+	t.Parallel()
 	cfg := &tools.WhitespaceCorrectConfig{
 		TargetLocale:    model.LocaleFrench,
 		NormalizeSpaces: false,

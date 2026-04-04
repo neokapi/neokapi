@@ -11,6 +11,7 @@ import (
 )
 
 func TestPatternCheckTool(t *testing.T) {
+	t.Parallel()
 	cfg := &tools.PatternCheckConfig{
 		TargetLocale: model.LocaleFrench,
 		Patterns: []tools.PatternRule{
@@ -24,6 +25,7 @@ func TestPatternCheckTool(t *testing.T) {
 }
 
 func TestPatternCheckPlaceholderPreserved(t *testing.T) {
+	t.Parallel()
 	cfg := &tools.PatternCheckConfig{
 		TargetLocale: model.LocaleFrench,
 		Patterns: []tools.PatternRule{
@@ -43,6 +45,7 @@ func TestPatternCheckPlaceholderPreserved(t *testing.T) {
 }
 
 func TestPatternCheckPlaceholderMissing(t *testing.T) {
+	t.Parallel()
 	cfg := &tools.PatternCheckConfig{
 		TargetLocale: model.LocaleFrench,
 		Patterns: []tools.PatternRule{
@@ -71,6 +74,7 @@ func TestPatternCheckPlaceholderMissing(t *testing.T) {
 }
 
 func TestPatternCheckForbiddenPattern(t *testing.T) {
+	t.Parallel()
 	cfg := &tools.PatternCheckConfig{
 		TargetLocale: model.LocaleFrench,
 		Patterns: []tools.PatternRule{
@@ -97,6 +101,7 @@ func TestPatternCheckForbiddenPattern(t *testing.T) {
 }
 
 func TestPatternCheckNoPatternsPass(t *testing.T) {
+	t.Parallel()
 	cfg := &tools.PatternCheckConfig{
 		TargetLocale: model.LocaleFrench,
 		Patterns:     nil,
@@ -114,6 +119,7 @@ func TestPatternCheckNoPatternsPass(t *testing.T) {
 }
 
 func TestPatternCheckNoTarget(t *testing.T) {
+	t.Parallel()
 	cfg := &tools.PatternCheckConfig{
 		TargetLocale: model.LocaleFrench,
 		Patterns: []tools.PatternRule{
@@ -132,6 +138,7 @@ func TestPatternCheckNoTarget(t *testing.T) {
 }
 
 func TestPatternCheckSkipsNonTranslatable(t *testing.T) {
+	t.Parallel()
 	cfg := &tools.PatternCheckConfig{
 		TargetLocale: model.LocaleFrench,
 		Patterns: []tools.PatternRule{
@@ -151,6 +158,7 @@ func TestPatternCheckSkipsNonTranslatable(t *testing.T) {
 }
 
 func TestPatternCheckConfigValidation(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name    string
 		cfg     tools.PatternCheckConfig
@@ -205,6 +213,7 @@ func TestPatternCheckConfigValidation(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			err := tt.cfg.Validate()
 			if tt.wantErr {
 				require.Error(t, err)
@@ -217,6 +226,7 @@ func TestPatternCheckConfigValidation(t *testing.T) {
 }
 
 func TestPatternCheckForbiddenPatternNotPresent(t *testing.T) {
+	t.Parallel()
 	cfg := &tools.PatternCheckConfig{
 		TargetLocale: model.LocaleFrench,
 		Patterns: []tools.PatternRule{
