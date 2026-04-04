@@ -20,6 +20,8 @@ bowrain/apps/bowrain/frontend/dist/
 
 # Bowrain desktop app (not needed for server)
 bowrain/apps/bowrain/
+# Allow package.json for npm workspace resolution in Docker builds
+!bowrain/apps/bowrain/frontend/package.json
 
 # Website / docs
 website/
