@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"cmp"
 	"context"
-	"fmt"
 	"slices"
 	"strconv"
 	"strings"
@@ -36,12 +35,12 @@ func newTokenReaderState(r *Reader, store *format.SkeletonStore) *tokenReaderSta
 
 func (s *tokenReaderState) nextBlockID() string {
 	s.blockCounter++
-	return fmt.Sprintf("tu%d", s.blockCounter)
+	return "tu" + strconv.Itoa(s.blockCounter)
 }
 
 func (s *tokenReaderState) nextDataID() string {
 	s.dataCounter++
-	return fmt.Sprintf("d%d", s.dataCounter)
+	return "d" + strconv.Itoa(s.dataCounter)
 }
 
 // run processes HTML content with the tokenizer, writing skeleton data and
