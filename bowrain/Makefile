@@ -321,49 +321,49 @@ test-e2e-dev: ## Run cloud e2e tests against the dev environment
 # ── Test ─────────────────────────────────────────────────────────────────────
 
 test: ## Run all platform tests
-	cd core && $(GOTEST) ./... -count=1
-	cd cli && $(GOTEST) ./... -count=1
-	$(GOTEST) ./... -count=1
+	cd core && $(GOTEST) -shuffle=on ./... -count=1
+	cd cli && $(GOTEST) -shuffle=on ./... -count=1
+	$(GOTEST) -shuffle=on ./... -count=1
 
 test-fast: ## Run all platform tests with caching
-	cd core && $(GOTEST) ./...
-	cd cli && $(GOTEST) ./...
-	$(GOTEST) ./...
+	cd core && $(GOTEST) -shuffle=on ./...
+	cd cli && $(GOTEST) -shuffle=on ./...
+	$(GOTEST) -shuffle=on ./...
 
 test-unit: ## Run platform unit tests only
-	cd core && $(GOTEST) ./... -count=1 -short
-	cd cli && $(GOTEST) ./... -count=1 -short
-	$(GOTEST) ./... -count=1 -short
+	cd core && $(GOTEST) -shuffle=on ./... -count=1 -short
+	cd cli && $(GOTEST) -shuffle=on ./... -count=1 -short
+	$(GOTEST) -shuffle=on ./... -count=1 -short
 
 test-race: ## Run platform tests with race detector
-	cd core && $(GOTEST) ./... -count=1 -race
-	cd cli && $(GOTEST) ./... -count=1 -race
-	$(GOTEST) ./... -count=1 -race
+	cd core && $(GOTEST) -shuffle=on ./... -count=1 -race
+	cd cli && $(GOTEST) -shuffle=on ./... -count=1 -race
+	$(GOTEST) -shuffle=on ./... -count=1 -race
 
 test-verbose: ## Run platform tests with verbose output
-	cd core && $(GOTEST) ./... -count=1 -v
-	cd cli && $(GOTEST) ./... -count=1 -v
-	$(GOTEST) ./... -count=1 -v
+	cd core && $(GOTEST) -shuffle=on ./... -count=1 -v
+	cd cli && $(GOTEST) -shuffle=on ./... -count=1 -v
+	$(GOTEST) -shuffle=on ./... -count=1 -v
 
 test-integration: ## Run platform integration tests
-	$(GOTEST) ./... -count=1 -tags=integration -run Integration
+	$(GOTEST) -shuffle=on ./... -count=1 -tags=integration -run Integration
 
 test-platform: ## Run platform core module tests only
-	cd core && $(GOTEST) ./... -count=1
+	cd core && $(GOTEST) -shuffle=on ./... -count=1
 
 test-bowrain-cli: ## Run Bowrain CLI tests only
-	cd cli && $(GOTEST) ./... -count=1
+	cd cli && $(GOTEST) -shuffle=on ./... -count=1
 
 test-bowrain: ## Run bowrain module tests only
-	$(GOTEST) ./... -count=1
+	$(GOTEST) -shuffle=on ./... -count=1
 
 # ── Coverage ─────────────────────────────────────────────────────────────────
 
 cover: ## Run platform tests with coverage
 	@mkdir -p $(COVER_DIR)
-	cd core && $(GOTEST) ./... -count=1 -coverprofile=$(COVER_DIR)/platform.out -covermode=atomic
-	cd cli && $(GOTEST) ./... -count=1 -coverprofile=$(COVER_DIR)/bowrain-cli.out -covermode=atomic
-	$(GOTEST) ./... -count=1 -coverprofile=$(COVER_DIR)/bowrain.out -covermode=atomic
+	cd core && $(GOTEST) -shuffle=on ./... -count=1 -coverprofile=$(COVER_DIR)/platform.out -covermode=atomic
+	cd cli && $(GOTEST) -shuffle=on ./... -count=1 -coverprofile=$(COVER_DIR)/bowrain-cli.out -covermode=atomic
+	$(GOTEST) -shuffle=on ./... -count=1 -coverprofile=$(COVER_DIR)/bowrain.out -covermode=atomic
 
 # ── Code Quality ─────────────────────────────────────────────────────────────
 

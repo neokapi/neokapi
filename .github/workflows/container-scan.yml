@@ -1,0 +1,37 @@
+name: Container Scan
+
+on:
+  schedule:
+    - cron: '0 4 * * 1' # Monday 4 AM UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: read
+
+jobs:
+  trivy:
+    name: Scan ${{ matrix.image }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        image:
+          - ghcr.io/neokapi/bowrain-server:latest
+          - ghcr.io/neokapi/bowrain-worker:latest
+          - ghcr.io/neokapi/bowrain-web:latest
+          - ghcr.io/neokapi/bowrain-keycloak:latest
+    steps:
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ matrix.image }}
+          severity: CRITICAL,HIGH
+          exit-code: 1

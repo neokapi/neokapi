@@ -76,38 +76,46 @@ lint: ## Run golangci-lint (all modules)
 
 check: fmt vet lint ## Run all code quality checks
 
+check-framework: _fw-fmt _fw-vet _fw-lint ## Framework-only quality checks
+
+check-bowrain: ## Bowrain-only quality checks
+	@$(MAKE) -C bowrain check
+
 test-parallel: ## Run all tests in parallel
 	@$(MAKE) --no-print-directory _fw-test & $(MAKE) -C bowrain test & wait
 
 # ── Framework test/quality internals ────────────────────────────────────────
 
+_fw-fmt:
+	$(GOFMT) -w -s core/ cli/ kapi/ sievepen/ termbase/ providers/
+
 _fw-test:
-	$(GOTEST) ./... -count=1
-	cd cli && $(GOTEST) ./... -count=1
-	cd kapi && $(GOTEST) ./... -count=1
+	$(GOTEST) -shuffle=on ./... -count=1
+	cd cli && $(GOTEST) -shuffle=on ./... -count=1
+	cd kapi && $(GOTEST) -shuffle=on ./... -count=1
 
 _fw-test-fast:
-	$(GOTEST) ./...
-	cd cli && $(GOTEST) ./...
-	cd kapi && $(GOTEST) ./...
+	$(GOTEST) -shuffle=on ./...
+	cd cli && $(GOTEST) -shuffle=on ./...
+	cd kapi && $(GOTEST) -shuffle=on ./...
 
 _fw-test-unit:
-	$(GOTEST) ./... -count=1 -short
-	cd cli && $(GOTEST) ./... -count=1 -short
-	cd kapi && $(GOTEST) ./... -count=1 -short
+	$(GOTEST) -shuffle=on ./... -count=1 -short
+	cd cli && $(GOTEST) -shuffle=on ./... -count=1 -short
+	cd kapi && $(GOTEST) -shuffle=on ./... -count=1 -short
 
 _fw-test-race:
-	$(GOTEST) ./... -count=1 -race
-	cd cli && $(GOTEST) ./... -count=1 -race
-	cd kapi && $(GOTEST) ./... -count=1 -race
+	$(GOTEST) -shuffle=on ./... -count=1 -race
+	cd cli && $(GOTEST) -shuffle=on ./... -count=1 -race
+	cd kapi && $(GOTEST) -shuffle=on ./... -count=1 -race
 
 _fw-test-verbose:
-	$(GOTEST) ./... -count=1 -v
-	cd cli && $(GOTEST) ./... -count=1 -v
-	cd kapi && $(GOTEST) ./... -count=1 -v
+	$(GOTEST) -shuffle=on ./... -count=1 -v
+	cd cli && $(GOTEST) -shuffle=on ./... -count=1 -v
+	cd kapi && $(GOTEST) -shuffle=on ./... -count=1 -v
 
 _fw-test-integration:
-	$(GOTEST) ./... -count=1 -tags=integration -run Integration
+	$(GOTEST) -shuffle=on ./... -count=1 -tags=integration -run Integration
 
 _fw-vet:
 	$(GOVET) ./...
@@ -194,7 +202,7 @@ kapi-desktop-dev: kapi-desktop-frontend-deps ## Run Kapi Desktop in dev mode (ho
 	cd $(KAPI_DESKTOP_DIR) && wails3 dev
 
 kapi-desktop-test: ## Run Kapi Desktop Go backend tests
-	cd $(KAPI_DESKTOP_DIR) && $(GO) test ./backend/... -count=1
+	cd $(KAPI_DESKTOP_DIR) && $(GO) test -race -shuffle=on ./backend/... -count=1
 
 kapi-desktop-frontend-deps: ## Install Kapi Desktop frontend dependencies
 	cd $(KAPI_DESKTOP_DIR)/frontend && vp install
@@ -236,9 +244,9 @@ install: ## Install kapi CLI to GOPATH/bin
 
 cover: ## Run tests with coverage (merged report)
 	@mkdir -p $(COVER_DIR)
-	$(GOTEST) ./... -count=1 -coverprofile=$(COVER_DIR)/framework.out -covermode=atomic
-	cd cli && $(GOTEST) ./... -count=1 -coverprofile=$(COVER_DIR)/cli.out -covermode=atomic
-	cd kapi && $(GOTEST) ./... -count=1 -coverprofile=$(COVER_DIR)/kapi.out -covermode=atomic
+	$(GOTEST) -shuffle=on ./... -count=1 -coverprofile=$(COVER_DIR)/framework.out -covermode=atomic
+	cd cli && $(GOTEST) -shuffle=on ./... -count=1 -coverprofile=$(COVER_DIR)/cli.out -covermode=atomic
+	cd kapi && $(GOTEST) -shuffle=on ./... -count=1 -coverprofile=$(COVER_DIR)/kapi.out -covermode=atomic
 	@$(MAKE) -C bowrain cover
 	cat $(COVER_DIR)/framework.out > $(COVER_DIR)/coverage.out
 	tail -n +2 $(COVER_DIR)/cli.out >> $(COVER_DIR)/coverage.out
@@ -431,7 +439,7 @@ help: ## Show this help
 	@echo ""
 
 .PHONY: all help $(BOTH_TARGETS) test test-fast test-unit test-race test-verbose test-integration \
-        fmt vet lint check test-parallel \
+        fmt vet lint check check-framework check-bowrain test-parallel \
         test-framework test-cli test-kapi test-platform test-bowrain-cli test-bowrain \
         verify-isolation \
         build build-all build-server build-worker build-bowrain-cli build-bowrain build-headless \
@@ -450,5 +458,5 @@ help: ## Show this help
         fetch-okapi-surefire generate-test-comparison generate-format-docs generate-test-stubs \
         docs-deps docs-dev docs-build docs-serve \
         tools setup-remote gha-lint clean \
-        _fw-test _fw-test-fast _fw-test-unit _fw-test-race _fw-test-verbose _fw-test-integration \
+        _fw-fmt _fw-test _fw-test-fast _fw-test-unit _fw-test-race _fw-test-verbose _fw-test-integration \
         _fw-vet _fw-lint _fw-proto _fw-deps _fw-deps-update

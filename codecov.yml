@@ -1,0 +1,22 @@
+coverage:
+  status:
+    project:
+      default:
+        target: auto
+        threshold: 2%
+    patch:
+      default:
+        target: 60%
+
+ignore:
+  - "**/*_test.go"
+  - "**/testdata/**"
+  - "**/testutil/**"
+  - "scripts/**"
+  - "bench/**"
+  - "e2e/**"
+  - "website/**"
+  - "examples/**"
+  - "bowrain/apps/**"
+  - "apps/kapi-desktop/**"
+  - "packages/**"

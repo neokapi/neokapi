@@ -85,7 +85,7 @@ func TestGetChanges_Pagination(t *testing.T) {
 	p := createTestProject(t, s)
 
 	// Create 5 blocks.
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		b := model.NewBlock("b"+string(rune('0'+i)), "text")
 		require.NoError(t, s.StoreBlocks(ctx, p.ID, "", []*model.Block{b}))
 	}
@@ -139,7 +139,7 @@ func TestCompactChangeLog(t *testing.T) {
 	p := createTestProject(t, s)
 
 	// Create and modify a block several times.
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		b := model.NewBlock("b1", "version "+string(rune('0'+i)))
 		require.NoError(t, s.StoreBlocks(ctx, p.ID, "", []*model.Block{b}))
 	}

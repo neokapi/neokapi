@@ -68,7 +68,7 @@ func TestMultipleSubscribers(t *testing.T) {
 	count := 0
 	var mu sync.Mutex
 
-	for i := 0; i < 5; i++ {
+	for range 5 {
 		bus.Subscribe(platev.EventBlockCreated, func(e platev.Event) {
 			mu.Lock()
 			count++

@@ -21,7 +21,7 @@ func TestSyncGetBlocks_Pagination(t *testing.T) {
 
 	// Push 5 blocks.
 	var items []pushBlockItem
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		items = append(items, pushBlockItem{
 			ID:       fmt.Sprintf("b%d", i),
 			Text:     fmt.Sprintf("text-%d", i),
@@ -76,7 +76,7 @@ func TestSyncPush_RateLimiting(t *testing.T) {
 
 	successes := 0
 	rateLimited := 0
-	for i := 0; i < 5; i++ {
+	for range 5 {
 		req := httptest.NewRequest(http.MethodPost, "/api/v1/projects/"+pid+"/sync/main/push/commit", strings.NewReader(body))
 		req.Header.Set("Content-Type", "application/json")
 		req.Header.Set("Authorization", authHeader)

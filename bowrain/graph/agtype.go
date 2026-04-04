@@ -241,7 +241,7 @@ func splitPathElements(body string) ([]string, error) {
 	var elements []string
 	depth := 0
 	start := 0
-	for i := 0; i < len(body); i++ {
+	for i := range len(body) {
 		switch body[i] {
 		case '{':
 			depth++

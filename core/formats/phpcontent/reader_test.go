@@ -931,7 +931,7 @@ func TestDoubleExtraction(t *testing.T) {
 	ctx := t.Context()
 
 	// Run extraction twice to verify consistency
-	for run := 0; run < 2; run++ {
+	for run := range 2 {
 		reader := phpcontent.NewReader()
 		f, err := os.Open("testdata/simple.php")
 		require.NoError(t, err)

@@ -248,7 +248,7 @@ func TestConcurrentAccess(t *testing.T) {
 
 	// Store blocks concurrently.
 	done := make(chan error, 10)
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		go func(i int) {
 			b := model.NewBlock(
 				fmt.Sprintf("concurrent-%d", i),
@@ -258,7 +258,7 @@ func TestConcurrentAccess(t *testing.T) {
 		}(i)
 	}
 
-	for i := 0; i < 10; i++ {
+	for range 10 {
 		require.NoError(t, <-done)
 	}
 

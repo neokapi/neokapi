@@ -100,7 +100,7 @@ func NewEncodingDetectTool(cfg *EncodingDetectConfig) *tool.BaseTool {
 
 // isASCIIOnly returns true if all bytes in the string are in the ASCII range.
 func isASCIIOnly(s string) bool {
-	for i := 0; i < len(s); i++ {
+	for i := range len(s) {
 		if s[i] > 127 {
 			return false
 		}

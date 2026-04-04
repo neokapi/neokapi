@@ -86,7 +86,7 @@ func (p *OpenAIProvider) Chat(ctx context.Context, messages []Message) (*ChatRes
 		return nil, fmt.Errorf("openai: marshal request: %w", err)
 	}
 
-	httpReq, err := http.NewRequestWithContext(ctx, "POST", p.config.BaseURL+"/v1/chat/completions", bytes.NewReader(jsonBody))
+	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, p.config.BaseURL+"/v1/chat/completions", bytes.NewReader(jsonBody))
 	if err != nil {
 		return nil, fmt.Errorf("openai: create request: %w", err)
 	}
@@ -153,7 +153,7 @@ func (p *OpenAIProvider) ChatStructured(ctx context.Context, messages []Message,
 		return nil, fmt.Errorf("openai: marshal request: %w", err)
 	}
 
-	httpReq, err := http.NewRequestWithContext(ctx, "POST", p.config.BaseURL+"/v1/chat/completions", bytes.NewReader(jsonBody))
+	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, p.config.BaseURL+"/v1/chat/completions", bytes.NewReader(jsonBody))
 	if err != nil {
 		return nil, fmt.Errorf("openai: create request: %w", err)
 	}
