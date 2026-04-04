@@ -8,6 +8,8 @@ import (
 )
 
 func TestWeekStart(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name string
 		in   time.Time
@@ -67,6 +69,7 @@ func TestWeekStart(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			got := WeekStart(tt.in)
 			assert.Equal(t, tt.want, got)
 			assert.Equal(t, time.Monday, got.Weekday())
@@ -75,6 +78,8 @@ func TestWeekStart(t *testing.T) {
 }
 
 func TestWeekEnd(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name string
 		in   time.Time
@@ -99,6 +104,7 @@ func TestWeekEnd(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			got := WeekEnd(tt.in)
 			assert.Equal(t, tt.want, got)
 			assert.Equal(t, time.Monday, got.Weekday())
@@ -107,6 +113,8 @@ func TestWeekEnd(t *testing.T) {
 }
 
 func TestWeekStartEndConsistency(t *testing.T) {
+	t.Parallel()
+
 	// Week end should always be exactly 7 days after week start.
 	dates := []time.Time{
 		time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC),
@@ -123,12 +131,14 @@ func TestWeekStartEndConsistency(t *testing.T) {
 }
 
 func TestContainerTimeCredits(t *testing.T) {
+	t.Parallel()
 	assert.Equal(t, int64(10), ContainerTimeCredits(1*time.Second))
 	assert.Equal(t, int64(600), ContainerTimeCredits(60*time.Second))
 	assert.Equal(t, int64(10), ContainerTimeCredits(500*time.Millisecond)) // rounds up to 1s minimum
 }
 
 func TestTokensToCredits(t *testing.T) {
+	t.Parallel()
 	assert.Equal(t, int64(100), TokensToCredits(100))
 	assert.Equal(t, int64(0), TokensToCredits(0))
 	assert.Equal(t, int64(50000), TokensToCredits(50000))

@@ -85,12 +85,11 @@ func TestProgressTracker_DetectsMilestone(t *testing.T) {
 		Data:      map[string]string{"stream": "main"},
 	})
 
-	time.Sleep(200 * time.Millisecond)
-
 	// At 100%, milestones 25, 50, 75, 100 should all fire → 4 notifications
 	// (dispatcher also creates its own notification for EventPushCompleted, so +1 = 5).
-	count := sender.count()
-	assert.GreaterOrEqual(t, count, 4, "expected at least 4 milestone notifications, got %d", count)
+	require.Eventually(t, func() bool {
+		return sender.count() >= 4
+	}, 2*time.Second, 10*time.Millisecond)
 }
 
 func TestProgressTracker_NoDuplicate(t *testing.T) {
@@ -118,8 +117,12 @@ func TestProgressTracker_NoDuplicate(t *testing.T) {
 		Data:      map[string]string{"stream": "main"},
 	})
 
-	time.Sleep(200 * time.Millisecond)
+	require.Eventually(t, func() bool {
+		return sender.count() >= 1
+	}, 2*time.Second, 10*time.Millisecond)
 
+	// Wait for all first-event notifications to settle.
+	time.Sleep(100 * time.Millisecond)
 	firstCount := sender.count()
 
 	bus.Publish(platev.Event{
@@ -129,8 +132,12 @@ func TestProgressTracker_NoDuplicate(t *testing.T) {
 		Data:      map[string]string{"stream": "main"},
 	})
 
-	time.Sleep(200 * time.Millisecond)
+	require.Eventually(t, func() bool {
+		return sender.count() > firstCount
+	}, 2*time.Second, 10*time.Millisecond)
 
+	// Wait for all second-event notifications to settle.
+	time.Sleep(100 * time.Millisecond)
 	secondCount := sender.count()
 
 	// The dispatcher creates a new notification for each EventPushCompleted (content available),
@@ -164,10 +171,10 @@ func TestProgressTracker_IgnoresNonBatchEvents(t *testing.T) {
 		Data:      map[string]string{"stream": "main"},
 	})
 
-	time.Sleep(200 * time.Millisecond)
-
 	// EventBlockUpdated is not mapped by the notification dispatcher either,
-	// so no notifications at all.
+	// so no notifications at all. Give bus time to deliver.
+	time.Sleep(50 * time.Millisecond)
+
 	assert.Equal(t, 0, sender.count(), "non-batch events should not trigger progress checks or notifications")
 }
 
@@ -195,9 +202,9 @@ func TestProgressTracker_IgnoresNoProjectID(t *testing.T) {
 		Data:  map[string]string{"stream": "main"},
 	})
 
-	time.Sleep(200 * time.Millisecond)
-
 	// The dispatcher also won't resolve targets without a ProjectID (targetFn is keyed on it),
-	// so no notifications should be created.
+	// so no notifications should be created. Give bus time to deliver.
+	time.Sleep(50 * time.Millisecond)
+
 	assert.Equal(t, 0, sender.count(), "events without ProjectID should be ignored")
 }

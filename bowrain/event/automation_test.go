@@ -7,6 +7,7 @@ import (
 
 	platev "github.com/neokapi/neokapi/bowrain/core/event"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestAutomationRuleMatching(t *testing.T) {
@@ -33,10 +34,13 @@ func TestAutomationRuleMatching(t *testing.T) {
 	bus.Publish(platev.Event{Type: platev.EventBlockCreated})
 	bus.Publish(platev.Event{Type: platev.EventBlockUpdated}) // Should not trigger
 
-	time.Sleep(100 * time.Millisecond)
+	require.Eventually(t, func() bool {
+		mu.Lock()
+		defer mu.Unlock()
+		return len(executed) == 1
+	}, 2*time.Second, 10*time.Millisecond)
 
 	mu.Lock()
-	assert.Len(t, executed, 1)
 	assert.Equal(t, "flow", executed[0])
 	mu.Unlock()
 }
@@ -68,11 +72,11 @@ func TestAutomationConditionEvaluation(t *testing.T) {
 	bus.Publish(platev.Event{Type: platev.EventBlockUpdated, Data: map[string]string{"priority": "low"}})
 	bus.Publish(platev.Event{Type: platev.EventBlockUpdated, Data: map[string]string{"priority": "high"}})
 
-	time.Sleep(100 * time.Millisecond)
-
-	mu.Lock()
-	assert.Equal(t, 1, triggered)
-	mu.Unlock()
+	require.Eventually(t, func() bool {
+		mu.Lock()
+		defer mu.Unlock()
+		return triggered == 1
+	}, 2*time.Second, 10*time.Millisecond)
 }
 
 func TestAutomationLoopPrevention(t *testing.T) {
@@ -103,7 +107,15 @@ func TestAutomationLoopPrevention(t *testing.T) {
 	})
 
 	bus.Publish(platev.Event{Type: platev.EventBlockUpdated})
-	time.Sleep(500 * time.Millisecond)
+
+	require.Eventually(t, func() bool {
+		mu.Lock()
+		defer mu.Unlock()
+		return count >= 1
+	}, 2*time.Second, 10*time.Millisecond)
+
+	// Give time for any additional chain iterations to settle.
+	time.Sleep(100 * time.Millisecond)
 
 	mu.Lock()
 	assert.LessOrEqual(t, count, 3, "loop should be broken at max chain depth")
@@ -133,7 +145,9 @@ func TestAutomationPause(t *testing.T) {
 
 	engine.Pause()
 	bus.Publish(platev.Event{Type: platev.EventBlockCreated})
-	time.Sleep(100 * time.Millisecond)
+
+	// Paused engine should not execute actions. Give the bus time to deliver.
+	time.Sleep(50 * time.Millisecond)
 
 	mu.Lock()
 	assert.Equal(t, 0, count)
@@ -141,11 +155,12 @@ func TestAutomationPause(t *testing.T) {
 
 	engine.Resume()
 	bus.Publish(platev.Event{Type: platev.EventBlockCreated})
-	time.Sleep(100 * time.Millisecond)
 
-	mu.Lock()
-	assert.Equal(t, 1, count)
-	mu.Unlock()
+	require.Eventually(t, func() bool {
+		mu.Lock()
+		defer mu.Unlock()
+		return count == 1
+	}, 2*time.Second, 10*time.Millisecond)
 }
 
 func TestBrandVoiceEventTypes(t *testing.T) {
@@ -212,10 +227,13 @@ func TestAutomationBrandVoiceRule(t *testing.T) {
 	bus.Publish(platev.Event{Type: platev.EventBrandVoiceGateFailed})   // Should trigger
 	bus.Publish(platev.Event{Type: platev.EventBrandVoiceGatePassed})   // Should not trigger
 
-	time.Sleep(100 * time.Millisecond)
+	require.Eventually(t, func() bool {
+		mu.Lock()
+		defer mu.Unlock()
+		return len(executed) == 1
+	}, 2*time.Second, 10*time.Millisecond)
 
 	mu.Lock()
-	assert.Len(t, executed, 1)
 	assert.Equal(t, platev.EventBrandVoiceGateFailed, executed[0])
 	mu.Unlock()
 }
