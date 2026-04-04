@@ -74,7 +74,7 @@ type ServerConfig struct {
 
 	// External services
 	ServiceBusConnection string // Azure Service Bus connection string for job queue
-	NATSUrl              string // NATS server URL for job queue (e.g. nats://localhost:4222)
+	NATSURL              string // NATS server URL for job queue (e.g. nats://localhost:4222)
 	RedisURL             string // Redis connection string for caching and session state
 	RedisPassword        string // Redis password (overrides any password in RedisURL)
 

@@ -25,7 +25,7 @@ func ProtoToAnnotation(e *pb.AnnotationEntry) model.Annotation {
 	a, ok := model.NewAnnotation(e.Type)
 	if !ok {
 		return &model.GenericAnnotation{
-			Type_:  e.Type,
+			Kind:   e.Type,
 			Fields: jsonToMap(e.Data),
 		}
 	}
@@ -111,7 +111,7 @@ func populateAnnotation(typeName string, a model.Annotation, m map[string]any) m
 	default:
 		// Unknown type — wrap as GenericAnnotation.
 		return &model.GenericAnnotation{
-			Type_:  typeName,
+			Kind:   typeName,
 			Fields: m,
 		}
 	}

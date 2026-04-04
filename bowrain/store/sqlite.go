@@ -1154,8 +1154,8 @@ func deserializeAnnotations(jsonStr string) map[string]model.Annotation {
 		default:
 			var ga model.GenericAnnotation
 			if err := json.Unmarshal(payload, &ga); err == nil {
-				if ga.Type_ == "" {
-					ga.Type_ = wrapper.Type
+				if ga.Kind == "" {
+					ga.Kind = wrapper.Type
 				}
 				result[key] = &ga
 			}
