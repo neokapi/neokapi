@@ -40,9 +40,9 @@ func (n *NoteAnnotation) AnnotationType() string { return "note" }
 // Used for ITS metadata, custom annotations, and any annotation type
 // that doesn't have a dedicated struct.
 type GenericAnnotation struct {
-	Type_  string         `json:"type,omitempty"`   // The annotation type name
+	Kind   string         `json:"type,omitempty"`   // The annotation type name
 	Fields map[string]any `json:"fields,omitempty"` // Arbitrary key-value payload
 }
 
 // AnnotationType returns the type identifier for this annotation.
-func (g *GenericAnnotation) AnnotationType() string { return g.Type_ }
+func (g *GenericAnnotation) AnnotationType() string { return g.Kind }

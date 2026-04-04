@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestGetFormat(t *testing.T) {
+func TestResolveFormat(t *testing.T) {
 	tests := []struct {
 		name     string
 		jsonFlag bool
@@ -44,7 +44,7 @@ func TestGetFormat(t *testing.T) {
 				require.NoError(t, cmd.Flags().Set("output-format", tt.format))
 			}
 
-			got := GetFormat(cmd)
+			got := ResolveFormat(cmd)
 			assert.Equal(t, tt.want, got)
 		})
 	}

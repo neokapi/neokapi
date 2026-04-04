@@ -29,7 +29,7 @@ Use --mime or --ext to filter by MIME type or file extension.`,
 			if fmtMime != "" || fmtExt != "" {
 				infos = filterFormats(infos, fmtMime, fmtExt)
 				if len(infos) == 0 {
-					if output.GetFormat(cmd) == output.FormatJSON {
+					if output.ResolveFormat(cmd) == output.FormatJSON {
 						return output.Print(cmd, output.FormatsListOutput{})
 					}
 					fmt.Println("No formats found matching the given criteria.")

@@ -49,9 +49,15 @@ func AddPersistentFlags(cmd *cobra.Command) {
 	cmd.PersistentFlags().String("output-format", "", "Output format: json, text")
 }
 
-// GetFormat resolves the output format from command flags.
+// Format resolves the output format from command flags.
 // Precedence: --json > --text > --output-format > default (text)
-func GetFormat(cmd *cobra.Command) Format {
+//
+// Deprecated: GetFormat is an alias for Format kept for backward compatibility.
+func GetFormat(cmd *cobra.Command) Format { return ResolveFormat(cmd) }
+
+// ResolveFormat resolves the output format from command flags.
+// Precedence: --json > --text > --output-format > default (text)
+func ResolveFormat(cmd *cobra.Command) Format {
 	if jsonFlag, _ := cmd.Flags().GetBool("json"); jsonFlag {
 		return FormatJSON
 	}
@@ -71,7 +77,7 @@ func GetFormat(cmd *cobra.Command) Format {
 
 // Print outputs data in the format specified by command flags.
 func Print(cmd *cobra.Command, data any) error {
-	return PrintTo(os.Stdout, GetFormat(cmd), data)
+	return PrintTo(os.Stdout, ResolveFormat(cmd), data)
 }
 
 // PrintTo outputs data in the specified format to the given writer.
@@ -115,7 +121,7 @@ type Error struct {
 
 // PrintError outputs an error in the appropriate format.
 func PrintError(cmd *cobra.Command, err error, code string) {
-	format := GetFormat(cmd)
+	format := ResolveFormat(cmd)
 	if format == FormatJSON {
 		e := Error{Error: err.Error(), Code: code}
 		_ = printJSON(os.Stderr, e)
