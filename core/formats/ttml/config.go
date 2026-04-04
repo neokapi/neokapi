@@ -1,49 +1,32 @@
 package ttml
 
-import (
-	"errors"
-	"fmt"
-)
-
-// toInt converts a value to int, handling JSON number types.
-func toInt(val any) (int, bool) {
-	switch v := val.(type) {
-	case int:
-		return v, true
-	case float64:
-		return int(v), true
-	case int64:
-		return int(v), true
-	default:
-		return 0, false
-	}
-}
+import "github.com/neokapi/neokapi/core/format"
 
 // Config holds configuration for the TTML subtitle format.
 type Config struct {
 	// MergeAdjacentCaptions merges adjacent <p> elements whose text ends with
 	// trailing punctuation (comma, semicolon) into a single block.
-	MergeAdjacentCaptions bool
+	MergeAdjacentCaptions bool `json:"mergeAdjacentCaptions"`
 
 	// EscapeBR controls <br/> handling. When true (default), <br/> elements
 	// are removed and surrounding text is joined with a space. When false,
 	// <br/> is preserved as literal text in the extracted content.
-	EscapeBR bool
+	EscapeBR bool `json:"escapeBR"`
 
 	// MaxCharsPerLine sets the maximum characters per line in output.
 	// 0 means no limit.
-	MaxCharsPerLine int
+	MaxCharsPerLine int `json:"maxCharsPerLine"`
 
 	// MaxLinesPerCaption sets the maximum lines per caption in output.
 	// 0 means no limit.
-	MaxLinesPerCaption int
+	MaxLinesPerCaption int `json:"maxLinesPerCaption"`
 
 	// CJKCharsPerLine sets the maximum characters per line for CJK languages.
 	// 0 means no limit (falls back to MaxCharsPerLine).
-	CJKCharsPerLine int
+	CJKCharsPerLine int `json:"cjkCharsPerLine"`
 
 	// SplitWords allows splitting words to enforce the character limit per line.
-	SplitWords bool
+	SplitWords bool `json:"splitWords"`
 }
 
 // FormatName returns the format this config applies to.
@@ -64,47 +47,5 @@ func (c *Config) Validate() error { return nil }
 
 // ApplyMap applies configuration values from a map.
 func (c *Config) ApplyMap(values map[string]any) error {
-	for key, val := range values {
-		switch key {
-		case "mergeAdjacentCaptions":
-			b, ok := val.(bool)
-			if !ok {
-				return errors.New("mergeAdjacentCaptions: expected bool")
-			}
-			c.MergeAdjacentCaptions = b
-		case "escapeBR":
-			b, ok := val.(bool)
-			if !ok {
-				return errors.New("escapeBR: expected bool")
-			}
-			c.EscapeBR = b
-		case "maxCharsPerLine":
-			n, ok := toInt(val)
-			if !ok {
-				return fmt.Errorf("maxCharsPerLine: expected integer, got %T", val)
-			}
-			c.MaxCharsPerLine = n
-		case "maxLinesPerCaption":
-			n, ok := toInt(val)
-			if !ok {
-				return fmt.Errorf("maxLinesPerCaption: expected integer, got %T", val)
-			}
-			c.MaxLinesPerCaption = n
-		case "cjkCharsPerLine":
-			n, ok := toInt(val)
-			if !ok {
-				return fmt.Errorf("cjkCharsPerLine: expected integer, got %T", val)
-			}
-			c.CJKCharsPerLine = n
-		case "splitWords":
-			b, ok := val.(bool)
-			if !ok {
-				return errors.New("splitWords: expected bool")
-			}
-			c.SplitWords = b
-		default:
-			return fmt.Errorf("ttml: unknown parameter: %s", key)
-		}
-	}
-	return nil
+	return format.ApplyMapViaJSON(c, values)
 }

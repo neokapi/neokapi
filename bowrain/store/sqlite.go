@@ -101,17 +101,7 @@ func (s *SQLiteStore) ListProjects(ctx context.Context) ([]*platstore.Project, e
 	if err != nil {
 		return nil, fmt.Errorf("list projects: %w", err)
 	}
-	defer rows.Close()
-
-	result := make([]*platstore.Project, 0)
-	for rows.Next() {
-		p, err := scanProjectRow(rows)
-		if err != nil {
-			return nil, err
-		}
-		result = append(result, p)
-	}
-	return result, rows.Err()
+	return storage.ScanRows(rows, scanProject)
 }
 
 func (s *SQLiteStore) UpdateProject(ctx context.Context, p *platstore.Project) error {
@@ -190,16 +180,7 @@ func (s *SQLiteStore) ListArchivedProjects(ctx context.Context, workspaceID stri
 	if err != nil {
 		return nil, fmt.Errorf("list archived projects: %w", err)
 	}
-	defer rows.Close()
-	result := make([]*platstore.Project, 0)
-	for rows.Next() {
-		p, err := scanProjectRow(rows)
-		if err != nil {
-			return nil, err
-		}
-		result = append(result, p)
-	}
-	return result, rows.Err()
+	return storage.ScanRows(rows, scanProject)
 }
 
 // ---------------------------------------------------------------------------
@@ -266,17 +247,7 @@ func (s *SQLiteStore) ListCollections(ctx context.Context, projectID, stream str
 	if err != nil {
 		return nil, fmt.Errorf("list collections: %w", err)
 	}
-	defer rows.Close()
-
-	var result []*platstore.Collection
-	for rows.Next() {
-		c, err := scanCollection(rows)
-		if err != nil {
-			return nil, err
-		}
-		result = append(result, c)
-	}
-	return result, rows.Err()
+	return storage.ScanRows(rows, scanCollection)
 }
 
 func (s *SQLiteStore) UpdateCollection(ctx context.Context, c *platstore.Collection) error {
@@ -416,17 +387,7 @@ func (s *SQLiteStore) ListItems(ctx context.Context, projectID, stream string) (
 	if err != nil {
 		return nil, fmt.Errorf("list items: %w", err)
 	}
-	defer rows.Close()
-
-	var result []*platstore.Item
-	for rows.Next() {
-		item, err := scanItem(rows)
-		if err != nil {
-			return nil, err
-		}
-		result = append(result, item)
-	}
-	return result, rows.Err()
+	return storage.ScanRows(rows, scanItem)
 }
 
 func (s *SQLiteStore) DeleteItem(ctx context.Context, projectID, stream, itemName string) error {
@@ -743,17 +704,7 @@ func (s *SQLiteStore) GetBlocks(ctx context.Context, query platstore.BlockQuery)
 	if err != nil {
 		return nil, fmt.Errorf("query blocks: %w", err)
 	}
-	defer rows.Close()
-
-	var result []*platstore.StoredBlock
-	for rows.Next() {
-		sb, err := scanStoredBlockRow(rows)
-		if err != nil {
-			return nil, err
-		}
-		result = append(result, sb)
-	}
-	return result, rows.Err()
+	return storage.ScanRows(rows, scanStoredBlock)
 }
 
 func (s *SQLiteStore) GetBlockStats(ctx context.Context, projectID, stream string) ([]platstore.BlockStatRow, error) {
@@ -905,19 +856,15 @@ func (s *SQLiteStore) ListVersions(ctx context.Context, projectID, stream string
 	if err != nil {
 		return nil, fmt.Errorf("list versions: %w", err)
 	}
-	defer rows.Close()
-
-	var result []*platstore.Version
-	for rows.Next() {
+	return storage.ScanRows(rows, func(row scanner) (*platstore.Version, error) {
 		var v platstore.Version
 		var createdStr string
-		if err := rows.Scan(&v.ID, &v.ProjectID, &v.Label, &v.Description, &v.BlockCount, &createdStr); err != nil {
+		if err := row.Scan(&v.ID, &v.ProjectID, &v.Label, &v.Description, &v.BlockCount, &createdStr); err != nil {
 			return nil, fmt.Errorf("scan version: %w", err)
 		}
 		v.CreatedAt, _ = time.Parse(time.RFC3339, createdStr)
-		result = append(result, &v)
-	}
-	return result, rows.Err()
+		return &v, nil
+	})
 }
 
 func (s *SQLiteStore) Diff(ctx context.Context, fromVersionID, toVersionID string) (*platstore.VersionDiff, error) {
@@ -1008,9 +955,9 @@ func splitLocales(s string) []model.LocaleID {
 	return locales
 }
 
-type scanner interface {
-	Scan(dest ...any) error
-}
+// scanner is an alias for storage.Scanner, the interface shared by *sql.Row
+// and *sql.Rows. Used by the scanX helper functions.
+type scanner = storage.Scanner
 
 func scanProject(row scanner) (*platstore.Project, error) {
 	var p platstore.Project
@@ -1040,9 +987,6 @@ func scanProject(row scanner) (*platstore.Project, error) {
 	return &p, nil
 }
 
-func scanProjectRow(rows *sql.Rows) (*platstore.Project, error) {
-	return scanProject(rows)
-}
 
 func scanStoredBlock(row scanner) (*platstore.StoredBlock, error) {
 	var sb platstore.StoredBlock
@@ -1076,9 +1020,6 @@ func scanStoredBlock(row scanner) (*platstore.StoredBlock, error) {
 	return &sb, nil
 }
 
-func scanStoredBlockRow(rows *sql.Rows) (*platstore.StoredBlock, error) {
-	return scanStoredBlock(rows)
-}
 
 // annotationWrapper wraps an Annotation with a type discriminator for JSON storage.
 type annotationWrapper struct {
@@ -1263,17 +1204,7 @@ func (s *SQLiteStore) ListAssets(ctx context.Context, projectID, stream, itemNam
 	if err != nil {
 		return nil, fmt.Errorf("list assets: %w", err)
 	}
-	defer rows.Close()
-
-	var result []*platstore.Asset
-	for rows.Next() {
-		a, err := scanAsset(rows)
-		if err != nil {
-			return nil, err
-		}
-		result = append(result, a)
-	}
-	return result, rows.Err()
+	return storage.ScanRows(rows, scanAsset)
 }
 
 func (s *SQLiteStore) DeleteAsset(ctx context.Context, projectID, stream, assetID string) error {
@@ -1301,10 +1232,8 @@ func (s *SQLiteStore) DeleteAsset(ctx context.Context, projectID, stream, assetI
 	return tx.Commit()
 }
 
-// scanner is the interface shared by *sql.Row and *sql.Rows.
-type assetScanner interface {
-	Scan(dest ...any) error
-}
+// assetScanner is an alias for scanner (storage.Scanner).
+type assetScanner = scanner
 
 func scanAsset(row assetScanner) (*platstore.Asset, error) {
 	var a platstore.Asset
@@ -1399,17 +1328,7 @@ func (s *SQLiteStore) ListAssetVariants(ctx context.Context, _, assetID string) 
 	if err != nil {
 		return nil, fmt.Errorf("list asset variants: %w", err)
 	}
-	defer rows.Close()
-
-	var result []*platstore.AssetVariant
-	for rows.Next() {
-		v, err := scanAssetVariant(rows)
-		if err != nil {
-			return nil, err
-		}
-		result = append(result, v)
-	}
-	return result, rows.Err()
+	return storage.ScanRows(rows, scanAssetVariant)
 }
 
 func scanAssetVariant(row assetScanner) (*platstore.AssetVariant, error) {

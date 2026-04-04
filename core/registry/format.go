@@ -314,7 +314,9 @@ func (r *FormatRegistry) findReader(name string) FormatReaderFactory {
 		return factory
 	}
 	if !strings.Contains(name, "@") {
-		return r.findLatestReader(name)
+		if f, ok := findLatest(r.readers, name); ok {
+			return f
+		}
 	}
 	return nil
 }
@@ -327,47 +329,33 @@ func (r *FormatRegistry) findWriter(name string) FormatWriterFactory {
 		return factory
 	}
 	if !strings.Contains(name, "@") {
-		return r.findLatestWriter(name)
+		if f, ok := findLatest(r.writers, name); ok {
+			return f
+		}
 	}
 	return nil
 }
 
-// findLatestReader scans the readers map for entries matching "name@version"
-// and returns the factory for the highest semantic version.
-func (r *FormatRegistry) findLatestReader(name string) FormatReaderFactory {
+// findLatest scans a map for entries matching "prefix@version" and returns the
+// value for the highest semantic version. This generic helper collapses the
+// previously separate findLatestReader and findLatestWriter functions.
+func findLatest[F any](m map[string]F, name string) (F, bool) {
 	prefix := name + "@"
 	var bestVersion string
-	var bestFactory FormatReaderFactory
-	for key, factory := range r.readers {
+	var bestFactory F
+	var found bool
+	for key, factory := range m {
 		if !strings.HasPrefix(key, prefix) {
 			continue
 		}
 		version := key[len(prefix):]
-		if bestFactory == nil || compareSemver(version, bestVersion) > 0 {
+		if !found || compareSemver(version, bestVersion) > 0 {
 			bestVersion = version
 			bestFactory = factory
+			found = true
 		}
 	}
-	return bestFactory
-}
-
-// findLatestWriter scans the writers map for entries matching "name@version"
-// and returns the factory for the highest semantic version.
-func (r *FormatRegistry) findLatestWriter(name string) FormatWriterFactory {
-	prefix := name + "@"
-	var bestVersion string
-	var bestFactory FormatWriterFactory
-	for key, factory := range r.writers {
-		if !strings.HasPrefix(key, prefix) {
-			continue
-		}
-		version := key[len(prefix):]
-		if bestFactory == nil || compareSemver(version, bestVersion) > 0 {
-			bestVersion = version
-			bestFactory = factory
-		}
-	}
-	return bestFactory
+	return bestFactory, found
 }
 
 // compareSemver compares two semantic version strings (major.minor.patch).
