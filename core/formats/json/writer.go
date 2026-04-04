@@ -473,7 +473,7 @@ func setNestedPath(root *orderedMap, path string, value any) {
 		if idx, isIndex := parseIndex(part); isIndex {
 			arr, ok := current.(*[]any)
 			if !ok {
-				a := make([]any, 0)
+				var a []any
 				arr = &a
 			}
 			for len(*arr) <= idx {
@@ -485,7 +485,7 @@ func setNestedPath(root *orderedMap, path string, value any) {
 				if (*arr)[idx] == nil {
 					nextPart := parts[i+1]
 					if _, nextIsIndex := parseIndex(nextPart); nextIsIndex {
-						a := make([]any, 0)
+						var a []any
 						(*arr)[idx] = &a
 					} else {
 						(*arr)[idx] = newOrderedMap()
@@ -505,7 +505,7 @@ func setNestedPath(root *orderedMap, path string, value any) {
 				if !exists {
 					nextPart := parts[i+1]
 					if _, nextIsIndex := parseIndex(nextPart); nextIsIndex {
-						a := make([]any, 0)
+						var a []any
 						obj.set(part, &a)
 						current = &a
 					} else {

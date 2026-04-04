@@ -752,8 +752,8 @@ func (g *EditorGRPCServer) buildEditorProjectInfo(ctx context.Context, proj *sto
 }
 
 func storedBlockToProto(sb *store.StoredBlock, targetLocales []string) *pb.BlockInfo {
-	targets := make(map[string]string)
-	targetsCoded := make(map[string]string)
+	targets := make(map[string]string, len(targetLocales))
+	targetsCoded := make(map[string]string, len(targetLocales))
 	for _, locale := range targetLocales {
 		if t := sb.Block.TargetText(model.LocaleID(locale)); t != "" {
 			targets[locale] = t
@@ -765,7 +765,7 @@ func storedBlockToProto(sb *store.StoredBlock, targetLocales []string) *pb.Block
 		}
 	}
 
-	props := make(map[string]string)
+	props := make(map[string]string, len(sb.Block.Properties))
 	for k, v := range sb.Block.Properties {
 		props[k] = v
 	}
