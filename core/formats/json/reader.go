@@ -10,6 +10,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"unsafe"
 
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/model"
@@ -150,9 +151,13 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 		MimeType:   "application/json",
 		Properties: make(map[string]string),
 	}
-	// Store original JSON for non-skeleton roundtrip
+	// Store original JSON for non-skeleton roundtrip.
+	// Use unsafe.String to share the backing array with the content []byte,
+	// avoiding a full copy of the file content. This is safe because content
+	// is not modified after this point — only passed to newScanner which
+	// reads but never writes to it.
 	if r.skeletonStore == nil {
-		layer.Properties["json.original"] = string(content)
+		layer.Properties["json.original"] = unsafe.String(unsafe.SliceData(content), len(content))
 	}
 	if !r.emit(ctx, ch, &model.Part{Type: model.PartLayerStart, Resource: layer}) {
 		return
