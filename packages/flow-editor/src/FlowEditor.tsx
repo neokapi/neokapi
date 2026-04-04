@@ -3,13 +3,17 @@ import {
   ReactFlow,
   Background,
   BackgroundVariant,
+  Panel,
   useNodesState,
   useEdgesState,
   type NodeTypes,
+  type EdgeTypes,
   type Node,
+  type ReactFlowInstance,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
-import { Play, X, GitBranch, Zap, Eye } from "lucide-react";
+import { Play, X, GitBranch, Zap, Eye, ArrowDownUp, ArrowLeftRight } from "lucide-react";
+import { DotEdge } from "./edges/DotEdge";
 
 import type { FlowEditorProps, FlowSpec, FlowStep, ToolInfo, ComponentSchema } from "./types";
 import { ReaderNode } from "./nodes/ReaderNode";
@@ -18,7 +22,7 @@ import { ToolNode } from "./nodes/ToolNode";
 import { ToolPalette } from "./ToolPalette";
 import { FlowTemplateLibrary } from "./FlowTemplateLibrary";
 import { cn, SchemaForm, Button, Badge, ScrollArea, PanelHeader } from "@neokapi/ui-primitives";
-import { stepsToGraph, graphToSteps } from "./conversion";
+import { stepsToGraph, graphToSteps, type LayoutDirection } from "./conversion";
 import { getCategoryStyle } from "./category";
 import { suggestParallelGroups, type ParallelSuggestion } from "./parallelChecker";
 import { TraceTimeline } from "./TraceTimeline";
@@ -30,6 +34,10 @@ const nodeTypes: NodeTypes = {
   reader: ReaderNode,
   writer: WriterNode,
   tool: ToolNode,
+};
+
+const edgeTypes: EdgeTypes = {
+  dot: DotEdge,
 };
 
 // ---------------------------------------------------------------------------
@@ -176,7 +184,10 @@ function StepConfigPanel({
   }, []);
 
   return (
-    <div className="w-[280px] flex flex-col border-l border-border bg-background overflow-hidden">
+    <div
+      className="flex flex-col border-l border-border bg-background overflow-hidden"
+      style={{ width: 280, minWidth: 280, maxWidth: 280 }}
+    >
       {/* Header */}
       <div className="px-3 py-2.5 border-b border-border flex flex-col gap-1.5">
         <div className="flex items-center gap-1.5">
@@ -265,6 +276,7 @@ function StepConfigPanel({
               values={localConfig}
               onChange={handleLocalChange}
               compact
+              hideHeader
               paramDocs={doc?.parameters}
             />
           ) : (
@@ -322,6 +334,7 @@ export function FlowEditor({
   const showTemplates = !readOnly && !dismissedTemplates && flow.steps.length === 0;
   const [inspectingNodeId, setInspectingNodeId] = useState<string | null>(null);
   const [showPreview, setShowPreview] = useState(false);
+  const [layoutDirection, setLayoutDirection] = useState<LayoutDirection>("vertical");
 
   // Build tool lookup map for enriching nodes with category/description
   const toolMap = useMemo(() => {
@@ -353,7 +366,10 @@ export function FlowEditor({
   }, [flow.steps]);
 
   // eslint-disable-next-line react-hooks/exhaustive-deps -- intentionally keyed on topology, not flow
-  const initial = useMemo(() => stepsToGraph(flow, toolMap), [topologyKey, toolMap]);
+  const initial = useMemo(
+    () => stepsToGraph(flow, toolMap, layoutDirection),
+    [topologyKey, toolMap, layoutDirection],
+  );
 
   // Compute per-node trace stats for execution state overlay.
   const nodeStats = useMemo(
@@ -371,6 +387,9 @@ export function FlowEditor({
 
   // Ref for remove handler -- breaks circular dependency with enrichedNodes.
   const removeNodeRef = useRef<(nodeId: string) => void>(() => {});
+
+  // React Flow instance — used to fit view after adding tools.
+  const reactFlowRef = useRef<ReactFlowInstance | null>(null);
 
   // Enrich nodes with execution state and remove handler.
   const enrichedNodes = useMemo(() => {
@@ -445,6 +464,10 @@ export function FlowEditor({
       onChange(updated);
       // Auto-select the new tool so the config panel opens immediately.
       setSelectedNodeId(`tool-${newIndex}`);
+      // Fit the entire graph into view so the new node is visible.
+      requestAnimationFrame(() => {
+        reactFlowRef.current?.fitView({ padding: 0.3, duration: 300 });
+      });
     },
     [flow, onChange, readOnly],
   );
@@ -538,9 +561,9 @@ export function FlowEditor({
 
   // Sync graph changes back to steps format on drag end.
   const handleNodeDragStop = useCallback(() => {
-    const updated = graphToSteps(nodes);
+    const updated = graphToSteps(nodes, layoutDirection);
     onChange(updated);
-  }, [nodes, onChange]);
+  }, [nodes, onChange, layoutDirection]);
 
   // Connection validation -- only allow connecting compatible port types.
   const isValidConnection = useCallback(
@@ -626,8 +649,12 @@ export function FlowEditor({
               onNodeClick={handleNodeClick}
               onPaneClick={handlePaneClick}
               onNodeDragStop={handleNodeDragStop}
+              onInit={(instance) => {
+                reactFlowRef.current = instance;
+              }}
               isValidConnection={isValidConnection}
               nodeTypes={nodeTypes}
+              edgeTypes={edgeTypes}
               nodesDraggable={!readOnly}
               nodesConnectable={!readOnly}
               fitView
@@ -635,7 +662,6 @@ export function FlowEditor({
               proOptions={{ hideAttribution: true }}
               defaultEdgeOptions={{
                 style: { stroke: "var(--muted-foreground)", strokeWidth: 2 },
-                animated: false,
               }}
             >
               <Background
@@ -644,6 +670,26 @@ export function FlowEditor({
                 size={1}
                 color="var(--border)"
               />
+              <Panel position="bottom-left">
+                <Button
+                  variant="outline"
+                  size="icon-xs"
+                  onClick={() => {
+                    setLayoutDirection((d) => (d === "vertical" ? "horizontal" : "vertical"));
+                  }}
+                  title={
+                    layoutDirection === "vertical"
+                      ? "Switch to horizontal layout"
+                      : "Switch to vertical layout"
+                  }
+                >
+                  {layoutDirection === "vertical" ? (
+                    <ArrowLeftRight size={12} />
+                  ) : (
+                    <ArrowDownUp size={12} />
+                  )}
+                </Button>
+              </Panel>
             </ReactFlow>
           </div>
         )}

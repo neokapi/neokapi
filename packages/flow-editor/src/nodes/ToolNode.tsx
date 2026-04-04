@@ -60,6 +60,7 @@ export function ToolNode({ data, selected }: NodeProps) {
   const partCount = data.partCount as number | undefined;
   const inputs = data.inputs as string[] | undefined;
   const outputs = data.outputs as string[] | undefined;
+  const vertical = data.layoutDirection === "vertical";
   const retryConfig = data.retryConfig as Record<string, unknown> | undefined;
   const onRemove = data.onRemove as (() => void) | undefined;
 
@@ -87,13 +88,13 @@ export function ToolNode({ data, selected }: NodeProps) {
       <div className="flex-1 px-3 py-2 relative">
         <Handle
           type="target"
-          position={Position.Left}
+          position={vertical ? Position.Top : Position.Left}
           style={{
             width: 10,
             height: 10,
             background: style.color,
             border: "2px solid var(--card)",
-            left: -9,
+            ...(vertical ? { top: -9 } : { left: -9 }),
           }}
         />
 
@@ -118,13 +119,6 @@ export function ToolNode({ data, selected }: NodeProps) {
         <div className="text-[13px] font-semibold text-foreground leading-tight">
           {String(data.label || data.toolName || "")}
         </div>
-
-        {/* Description */}
-        {!!data.description && (
-          <div className="text-[10px] text-muted-foreground mt-0.5 leading-tight truncate max-w-[160px]">
-            {String(data.description)}
-          </div>
-        )}
 
         {/* Port type indicators */}
         {(inputs?.length || outputs?.length) && (
@@ -153,13 +147,13 @@ export function ToolNode({ data, selected }: NodeProps) {
 
         <Handle
           type="source"
-          position={Position.Right}
+          position={vertical ? Position.Bottom : Position.Right}
           style={{
             width: 10,
             height: 10,
             background: style.color,
             border: "2px solid var(--card)",
-            right: -9,
+            ...(vertical ? { bottom: -9 } : { right: -9 }),
           }}
         />
       </div>

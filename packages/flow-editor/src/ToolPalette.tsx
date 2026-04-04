@@ -1,12 +1,6 @@
 import { useState, useMemo } from "react";
 import { Search, ChevronDown, ChevronRight, GripVertical } from "lucide-react";
-import {
-  Button,
-  InputGroup,
-  InputGroupAddon,
-  InputGroupInput,
-  ScrollArea,
-} from "@neokapi/ui-primitives";
+import { InputGroup, InputGroupAddon, InputGroupInput, ScrollArea } from "@neokapi/ui-primitives";
 import type { ToolInfo } from "./types";
 import { ALL_CATEGORIES } from "./category";
 
@@ -56,7 +50,10 @@ export function ToolPalette({ tools, onAddTool }: ToolPaletteProps) {
   };
 
   return (
-    <div className="flex w-60 flex-col overflow-hidden border-r border-border bg-background">
+    <div
+      className="flex flex-col overflow-hidden border-r border-border bg-background"
+      style={{ width: 240, minWidth: 240, maxWidth: 240 }}
+    >
       {/* Search */}
       <PaletteSearchBar value={search} onChange={setSearch} />
 
@@ -72,17 +69,17 @@ export function ToolPalette({ tools, onAddTool }: ToolPaletteProps) {
             return (
               <div key={cat.id}>
                 {/* Category header */}
-                <Button
-                  variant="ghost"
+                <button
+                  type="button"
                   onClick={() => toggle(cat.id)}
-                  className="flex w-full items-center gap-1.5 px-2.5 py-1.5 text-left h-auto rounded-none"
+                  className="flex w-full items-center gap-1.5 px-2.5 py-1.5 text-left hover:bg-muted transition-colors"
                 >
                   {isCollapsed ? (
-                    <ChevronRight size={12} className="text-muted-foreground" />
+                    <ChevronRight size={12} className="shrink-0 text-muted-foreground" />
                   ) : (
-                    <ChevronDown size={12} className="text-muted-foreground" />
+                    <ChevronDown size={12} className="shrink-0 text-muted-foreground" />
                   )}
-                  <Icon size={13} style={{ color: cat.color }} />
+                  <Icon size={13} className="shrink-0" style={{ color: cat.color }} />
                   <span
                     className="text-[11px] font-semibold tracking-wide"
                     style={{ color: cat.text }}
@@ -90,7 +87,7 @@ export function ToolPalette({ tools, onAddTool }: ToolPaletteProps) {
                     {cat.label}
                   </span>
                   <span className="ml-auto text-[10px] text-muted-foreground">{items.length}</span>
-                </Button>
+                </button>
 
                 {/* Tool items */}
                 {!isCollapsed && (
@@ -158,20 +155,18 @@ function PaletteItem({
   const displayName = tool.display_name || tool.name;
 
   return (
-    <Button
-      variant="ghost"
+    <button
+      type="button"
       draggable
       onDragStart={onDragStart}
       onClick={onAdd}
-      className="flex w-full items-start gap-1.5 py-1.5 pl-5 pr-2.5 text-left h-auto rounded-none cursor-grab"
+      className="flex w-full items-start gap-1.5 py-1.5 pl-5 pr-2.5 text-left cursor-grab hover:bg-muted transition-colors"
       title={tool.description}
     >
       <GripVertical size={11} className="mt-0.5 shrink-0 text-border" />
       <div className="min-w-0 flex-1">
-        <div className="truncate text-[11.5px] font-medium text-foreground">{displayName}</div>
-        <div className="truncate text-[10px] leading-tight text-muted-foreground">
-          {tool.description}
-        </div>
+        <div className="text-[11.5px] font-medium text-foreground">{displayName}</div>
+        <div className="text-[10px] leading-tight text-muted-foreground">{tool.description}</div>
         {tool.tags && tool.tags.length > 0 && (
           <div className="mt-0.5 flex flex-wrap gap-0.5">
             {tool.tags.slice(0, 3).map((tag) => (
@@ -189,6 +184,6 @@ function PaletteItem({
           </div>
         )}
       </div>
-    </Button>
+    </button>
   );
 }

@@ -52,7 +52,7 @@ export function ProjectSetupPage({ tabID, onDone }: ProjectSetupPageProps) {
               variant="outline"
               onClick={() => handleSelect(t.id)}
               disabled={applying !== null}
-              className="group flex w-full h-auto items-start gap-4 rounded-xl p-5 text-left hover:border-primary/30 hover:bg-accent/30"
+              className="group flex w-full h-auto whitespace-normal items-start gap-4 rounded-xl p-5 text-left hover:border-primary/30 hover:bg-accent/30"
             >
               <div className="flex shrink-0 items-center gap-1.5 pt-0.5 text-primary">
                 {t.icon}

@@ -42,7 +42,7 @@ export function HomePage({ project, displayName, onRunFlow, onNavigate }: HomePa
         <Button
           variant="outline"
           onClick={() => onNavigate("content")}
-          className="h-auto rounded-lg p-4 text-left flex-col items-start hover:border-primary/30 hover:bg-accent/30"
+          className="h-auto whitespace-normal rounded-lg p-4 text-left flex-col items-start hover:border-primary/30 hover:bg-accent/30"
         >
           <div className="mb-1 text-sm font-medium">Content</div>
           <div className="text-xs text-muted-foreground font-normal">
@@ -54,7 +54,7 @@ export function HomePage({ project, displayName, onRunFlow, onNavigate }: HomePa
         <Button
           variant="outline"
           onClick={() => onNavigate("flows")}
-          className="h-auto rounded-lg p-4 text-left flex-col items-start hover:border-primary/30 hover:bg-accent/30"
+          className="h-auto whitespace-normal rounded-lg p-4 text-left flex-col items-start hover:border-primary/30 hover:bg-accent/30"
         >
           <div className="mb-1 text-sm font-medium">Flows</div>
           <div className="text-xs text-muted-foreground font-normal">
@@ -66,7 +66,7 @@ export function HomePage({ project, displayName, onRunFlow, onNavigate }: HomePa
         <Button
           variant="outline"
           onClick={() => onNavigate("tools")}
-          className="h-auto rounded-lg p-4 text-left flex-col items-start hover:border-primary/30 hover:bg-accent/30"
+          className="h-auto whitespace-normal rounded-lg p-4 text-left flex-col items-start hover:border-primary/30 hover:bg-accent/30"
         >
           <div className="mb-1 text-sm font-medium">Tools</div>
           <div className="text-xs text-muted-foreground font-normal">
@@ -87,7 +87,7 @@ export function HomePage({ project, displayName, onRunFlow, onNavigate }: HomePa
               const spec = project.flows?.[name];
               if (!spec) return null;
               return (
-                <Card key={name} className="flex items-center gap-3 p-3">
+                <Card key={name} className="flex flex-row items-center gap-3 p-3">
                   <div className="flex-1">
                     <div className="text-sm font-medium">{name}</div>
                     <div className="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground">

@@ -159,6 +159,7 @@ func main() {
 	})
 
 	if err := app.Run(); err != nil {
-		log.Fatal(err)
+		slog.Error("application failed", "error", err)
+		os.Exit(1)
 	}
 }

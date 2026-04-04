@@ -36,7 +36,7 @@ export function FlowTemplateLibrary({ onSelect, onDismiss }: FlowTemplateLibrary
   }, []);
 
   return (
-    <div className="mx-auto flex max-w-3xl flex-col items-center gap-6 px-6 py-10">
+    <div className="flex flex-1 flex-col gap-6 p-6">
       <div className="text-center">
         <h2 className="m-0 text-lg font-bold text-foreground">Start from a template</h2>
         <p className="mt-2 mb-0 text-sm text-muted-foreground">
@@ -77,10 +77,13 @@ export function FlowTemplateLibrary({ onSelect, onDismiss }: FlowTemplateLibrary
       </div>
 
       {/* Divider */}
-      <div className="w-full border-t border-dashed border-border" />
+      <div className="border-t border-dashed border-border" />
 
-      {/* Template cards */}
-      <div className="grid w-full grid-cols-2 gap-3">
+      {/* Template cards — auto-fill grid adapts to available width */}
+      <div
+        className="grid w-full gap-3"
+        style={{ gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))" }}
+      >
         {filtered.map((tmpl, index) => (
           <TemplateCard
             key={tmpl.id}
@@ -93,9 +96,11 @@ export function FlowTemplateLibrary({ onSelect, onDismiss }: FlowTemplateLibrary
 
       {/* Empty canvas option */}
       {onDismiss && (
-        <Button variant="outline" size="sm" onClick={onDismiss}>
-          Start with empty canvas
-        </Button>
+        <div className="text-center">
+          <Button variant="outline" size="sm" onClick={onDismiss}>
+            Start with empty canvas
+          </Button>
+        </div>
       )}
     </div>
   );

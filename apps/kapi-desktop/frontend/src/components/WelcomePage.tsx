@@ -270,7 +270,7 @@ export function WelcomePage({ onOpen, onNew, onSettings }: WelcomePageProps) {
                   key={item.title}
                   variant="outline"
                   onClick={handleNew}
-                  className="group h-auto rounded-xl p-4 text-left flex-col items-start hover:border-primary/30 hover:bg-accent/30"
+                  className="group h-auto whitespace-normal rounded-xl p-4 text-left flex-col items-start hover:border-primary/30 hover:bg-accent/30"
                   aria-label={item.title}
                 >
                   <div className="mb-2 flex items-center gap-2.5">

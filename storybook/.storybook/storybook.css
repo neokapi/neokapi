@@ -1,0 +1,10 @@
+/*
+ * Kapi Storybook CSS entry point.
+ * Imports the kapi-desktop theme and adds @source directives so Tailwind
+ * can detect utility classes across all packages included in this Storybook.
+ */
+@import "../../apps/kapi-desktop/frontend/src/index.css";
+
+@source "../../packages/ui/src";
+@source "../../packages/flow-editor/src";
+@source "../../apps/kapi-desktop/frontend/src";

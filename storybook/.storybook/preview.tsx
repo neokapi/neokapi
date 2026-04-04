@@ -1,5 +1,14 @@
 import { createPreview } from "@neokapi/storybook-config/preview";
-import "../../apps/kapi-desktop/frontend/src/index.css";
+import { ErrorProvider } from "../../apps/kapi-desktop/frontend/src/components/ErrorBanner";
+import "./storybook.css";
+
+function KapiProviders(Story: React.ComponentType) {
+  return (
+    <ErrorProvider>
+      <Story />
+    </ErrorProvider>
+  );
+}
 
 const preview = createPreview({
   layout: "fullscreen",
@@ -14,6 +23,7 @@ const preview = createPreview({
     "Components",
     "Interactions",
   ],
+  decorators: [KapiProviders],
 });
 
 export default preview;

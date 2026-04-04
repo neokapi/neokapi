@@ -177,7 +177,7 @@ function FormatBrowser() {
             key={f.name}
             variant="outline"
             onClick={() => setSelected(f)}
-            className="h-auto rounded-lg p-3 text-left flex-col items-start hover:border-primary/30 hover:bg-primary/5"
+            className="h-auto whitespace-normal rounded-lg p-3 text-left flex-col items-start hover:border-primary/30 hover:bg-primary/5"
           >
             <div className="flex items-center justify-between">
               <span className="text-sm font-medium">{f.displayName}</span>

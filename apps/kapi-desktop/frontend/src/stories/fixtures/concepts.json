@@ -32,15 +32,30 @@
     "examples": [
       {
         "description": "Extract only when translate=yes",
-        "value": ["translate", "EQUALS", "yes"]
+        "value": [
+          "translate",
+          "EQUALS",
+          "yes"
+        ]
       },
       {
         "description": "Skip file/hidden input types",
-        "value": ["type", "NOT_EQUALS", ["file", "hidden"]]
+        "value": [
+          "type",
+          "NOT_EQUALS",
+          [
+            "file",
+            "hidden"
+          ]
+        ]
       },
       {
         "description": "Match data- attributes via regex",
-        "value": ["data-i18n", "MATCHES", ".*"]
+        "value": [
+          "data-i18n",
+          "MATCHES",
+          ".*"
+        ]
       }
     ]
   },
@@ -52,10 +67,29 @@
     "wikiRef": "Inline_Codes_Simplifier_Step",
     "description": "Rules for simplifying inline code representation. Uses a custom grammar: 'if FIELD OPERATOR VALUE [and|or ...]; ...'",
     "grammar": {
-      "fields": ["DATA", "OUTER_DATA", "ORIGINAL_ID", "TYPE", "TAG_TYPE"],
-      "flags": ["ADDABLE", "DELETABLE", "CLONEABLE"],
-      "operators": ["=", "!=", "~", "!~"],
-      "tagTypes": ["OPENING", "CLOSING", "STANDALONE"]
+      "fields": [
+        "DATA",
+        "OUTER_DATA",
+        "ORIGINAL_ID",
+        "TYPE",
+        "TAG_TYPE"
+      ],
+      "flags": [
+        "ADDABLE",
+        "DELETABLE",
+        "CLONEABLE"
+      ],
+      "operators": [
+        "=",
+        "!=",
+        "~",
+        "!~"
+      ],
+      "tagTypes": [
+        "OPENING",
+        "CLOSING",
+        "STANDALONE"
+      ]
     }
   }
 }

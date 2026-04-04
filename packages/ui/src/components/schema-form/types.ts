@@ -131,4 +131,6 @@ export interface SchemaFormProps {
   /** Context for path resolution (project dir, output dir). */
   resourceContext?: { projectDir: string; outputDir: string };
   readOnly?: boolean;
+  /** Hide the schema title/description header (useful when the parent already shows it). */
+  hideHeader?: boolean;
 }

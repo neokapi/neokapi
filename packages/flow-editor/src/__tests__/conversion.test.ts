@@ -33,19 +33,33 @@ describe("stepsToGraph", () => {
     expect(nodes).toHaveLength(5); // reader + 3 tools + writer
     expect(edges).toHaveLength(4); // reader→t0, t0→t1, t1→t2, t2→writer
 
-    expect(edges[0]).toEqual({ id: "e-reader-tool-0", source: "reader", target: "tool-0" });
-    expect(edges[1]).toEqual({ id: "e-tool-0-tool-1", source: "tool-0", target: "tool-1" });
-    expect(edges[2]).toEqual({ id: "e-tool-1-tool-2", source: "tool-1", target: "tool-2" });
-    expect(edges[3]).toEqual({ id: "e-tool-2-writer", source: "tool-2", target: "writer" });
+    expect(edges[0]).toMatchObject({ id: "e-reader-tool-0", source: "reader", target: "tool-0" });
+    expect(edges[1]).toMatchObject({ id: "e-tool-0-tool-1", source: "tool-0", target: "tool-1" });
+    expect(edges[2]).toMatchObject({ id: "e-tool-1-tool-2", source: "tool-1", target: "tool-2" });
+    expect(edges[3]).toMatchObject({ id: "e-tool-2-writer", source: "tool-2", target: "writer" });
   });
 
-  it("auto-layouts nodes left to right", () => {
-    const { nodes } = stepsToGraph({
-      steps: [{ tool: "a" }, { tool: "b" }],
-    });
+  it("auto-layouts nodes left to right in horizontal mode", () => {
+    const { nodes } = stepsToGraph(
+      { steps: [{ tool: "a" }, { tool: "b" }] },
+      undefined,
+      "horizontal",
+    );
 
     for (let i = 1; i < nodes.length; i++) {
       expect(nodes[i].position.x).toBeGreaterThan(nodes[i - 1].position.x);
+    }
+  });
+
+  it("auto-layouts nodes top to bottom in vertical mode", () => {
+    const { nodes } = stepsToGraph(
+      { steps: [{ tool: "a" }, { tool: "b" }] },
+      undefined,
+      "vertical",
+    );
+
+    for (let i = 1; i < nodes.length; i++) {
+      expect(nodes[i].position.y).toBeGreaterThan(nodes[i - 1].position.y);
     }
   });
 
@@ -106,12 +120,26 @@ describe("stepsToGraph", () => {
 });
 
 describe("graphToSteps", () => {
-  it("extracts tool nodes sorted by x position", () => {
+  it("extracts tool nodes in correct order (vertical)", () => {
     const { nodes } = stepsToGraph({
       steps: [{ tool: "a" }, { tool: "b" }, { tool: "c" }],
     });
 
     const result = graphToSteps(nodes);
+    expect(result.steps).toHaveLength(3);
+    expect(result.steps[0].tool).toBe("a");
+    expect(result.steps[1].tool).toBe("b");
+    expect(result.steps[2].tool).toBe("c");
+  });
+
+  it("extracts tool nodes in correct order (horizontal)", () => {
+    const { nodes } = stepsToGraph(
+      { steps: [{ tool: "a" }, { tool: "b" }, { tool: "c" }] },
+      undefined,
+      "horizontal",
+    );
+
+    const result = graphToSteps(nodes, "horizontal");
     expect(result.steps).toHaveLength(3);
     expect(result.steps[0].tool).toBe("a");
     expect(result.steps[1].tool).toBe("b");
