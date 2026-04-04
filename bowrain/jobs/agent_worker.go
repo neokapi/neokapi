@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
+	"log/slog"
 	"time"
 
 	"github.com/neokapi/neokapi/bowrain/billing"
@@ -28,20 +28,20 @@ type AgentWorkerDeps struct {
 // It dequeues agent job messages, spawns containers, streams responses,
 // and publishes SSE events to Redis for the API server to relay.
 func RunAgentWorker(ctx context.Context, deps *AgentWorkerDeps) error {
-	log.Println("Agent worker started")
+	slog.Info("Agent worker started")
 	for {
 		rawMsg, ack, _, err := deps.Queue.Dequeue(ctx)
 		if err != nil {
 			if ctx.Err() != nil {
 				return ctx.Err()
 			}
-			log.Printf("Agent worker: dequeue error: %v", err)
+			slog.Info("Agent worker: dequeue error", "error", err)
 			sleepCtx(ctx, 2*time.Second)
 			continue
 		}
 
 		if err := processAgentJob(ctx, deps, rawMsg); err != nil {
-			log.Printf("Agent worker: job failed: %v", err)
+			slog.Info("Agent worker: job failed", "error", err)
 			// Publish error to Redis so the client sees it.
 			convID := extractConversationID(rawMsg)
 			errData, _ := json.Marshal(service.ErrorData{Error: err.Error()})
@@ -60,7 +60,7 @@ func processAgentJob(ctx context.Context, deps *AgentWorkerDeps, rawMessage stri
 		return fmt.Errorf("unmarshal agent job: %w", err)
 	}
 
-	log.Printf("Agent worker: processing conversation=%s user=%s mode=%s", job.ConversationID, job.UserID, job.Mode)
+	slog.Info("agent worker: processing", "conversation_id", job.ConversationID, "user_id", job.UserID, "mode", job.Mode)
 
 	// Create a proper Bowrain JWT for MCP authentication.
 	// The MCP server validates these using the same JWT secret as the REST API.

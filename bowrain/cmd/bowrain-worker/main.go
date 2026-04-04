@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
+	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
@@ -37,14 +37,17 @@ func main() {
 
 	dbURL := os.Getenv("BOWRAIN_DATABASE_URL")
 	if dbURL == "" {
-		log.Fatal("BOWRAIN_DATABASE_URL is required (must be a postgres:// URL)")
+		slog.Error("BOWRAIN_DATABASE_URL is required (must be a postgres:// URL)")
+		os.Exit(1)
 	}
 	if !strings.HasPrefix(dbURL, "postgres://") && !strings.HasPrefix(dbURL, "postgresql://") {
-		log.Fatal("BOWRAIN_DATABASE_URL must start with postgres:// or postgresql://")
+		slog.Error("BOWRAIN_DATABASE_URL must start with postgres:// or postgresql://")
+		os.Exit(1)
 	}
 
 	if err := runWorker(dbURL); err != nil {
-		log.Fatalf("Worker: %v", err)
+		slog.Error("worker failed", "error", err)
+		os.Exit(1)
 	}
 }
 
@@ -129,13 +132,13 @@ func runWorker(dbURL string) error {
 			bs, err := blobazure.NewWithConnectionString(connStr, container)
 			if err == nil {
 				blobStore = bs
-				log.Printf("Using Azure Blob Storage for push processing")
+				slog.Info("using Azure Blob Storage for push processing")
 			}
 		} else {
 			bs, err := blobazure.New(azureStorageURL, container)
 			if err == nil {
 				blobStore = bs
-				log.Printf("Using Azure Blob Storage (managed identity) for push processing")
+				slog.Info("using Azure Blob Storage (managed identity) for push processing")
 			}
 		}
 	}
@@ -144,7 +147,7 @@ func runWorker(dbURL string) error {
 		if bs, err := bloblocal.New(localDir); err == nil {
 			blobStore = bs
 		}
-		log.Printf("Using local blob storage for push processing")
+		slog.Info("using local blob storage for push processing")
 	}
 	translationDeps.BlobStore = blobStore
 
@@ -152,18 +155,18 @@ func runWorker(dbURL string) error {
 	if serviceBusConn != "" {
 		bus, err := bowevent.NewServiceBusEventBus(serviceBusConn)
 		if err != nil {
-			log.Printf("WARNING: failed to create Service Bus event bus for worker: %v", err)
+			slog.Warn("failed to create Service Bus event bus for worker", "error", err)
 		} else {
 			translationDeps.EventBus = bus
-			log.Printf("Worker event bus: Azure Service Bus")
+			slog.Info("worker event bus configured", "backend", "azure_service_bus")
 		}
 	} else if natsURL != "" {
 		bus, err := bowevent.NewNATSEventBus(natsURL)
 		if err != nil {
-			log.Printf("WARNING: failed to create NATS event bus for worker: %v", err)
+			slog.Warn("failed to create NATS event bus for worker", "error", err)
 		} else {
 			translationDeps.EventBus = bus
-			log.Printf("Worker event bus: NATS JetStream")
+			slog.Info("worker event bus configured", "backend", "nats_jetstream")
 		}
 	}
 
@@ -191,7 +194,7 @@ func runWorker(dbURL string) error {
 			<-ctx.Done()
 			srv.Close()
 		}()
-		log.Printf("Health endpoint listening on :%s", healthPort)
+		slog.Info("health endpoint listening", "port", healthPort)
 		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			return fmt.Errorf("health server: %w", err)
 		}
@@ -200,7 +203,7 @@ func runWorker(dbURL string) error {
 
 	// Translation worker.
 	g.Go(func() error {
-		log.Println("Starting translation worker...")
+		slog.Info("starting translation worker")
 		return jobs.RunWorkerWithDeps(ctx, translationDeps)
 	})
 
@@ -223,7 +226,7 @@ func runWorker(dbURL string) error {
 		})
 	}
 
-	log.Println("Starting bowrain worker...")
+	slog.Info("starting bowrain worker")
 	if err := g.Wait(); err != nil && ctx.Err() == nil {
 		return err
 	}
@@ -292,7 +295,7 @@ func buildAgentWorkerDeps(ctx context.Context, pgdb *storage.PgDB, serviceBusCon
 		RegistryPassword: os.Getenv("BOWRAIN_AGENT_REGISTRY_PASSWORD"),
 	})
 
-	log.Printf("Agent pool initialized (runtime=aca)")
+	slog.Info("agent pool initialized", "runtime", "aca")
 
 	cleanup := func() {
 		agentQueue.Close()

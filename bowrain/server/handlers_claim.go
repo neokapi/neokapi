@@ -3,7 +3,7 @@ package server
 import (
 	"context"
 	"fmt"
-	"log"
+	"log/slog"
 	"net/http"
 
 	"github.com/labstack/echo/v4"
@@ -157,6 +157,6 @@ func (s *Server) sendClaimEmail(ctx context.Context, email, projectID, claimToke
 </html>`, projectID, claimURL, claimURL, claimURL)
 
 	if err := s.EmailSender.Send(ctx, email, subject, body); err != nil {
-		log.Printf("failed to send claim email to %s: %v", email, err)
+		slog.Info("failed to send claim email to", "id", email, "error", err)
 	}
 }

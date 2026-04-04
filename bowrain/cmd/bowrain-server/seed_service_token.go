@@ -7,8 +7,8 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"log"
 	"log/slog"
+	"os"
 	"time"
 
 	"github.com/neokapi/neokapi/bowrain/auth"
@@ -27,7 +27,8 @@ const (
 // rotates the token. The plaintext token is printed to stdout.
 func seedServiceToken(dbURL, dbAuth, azureClientID, workspaceSlug string) {
 	if err := runSeedServiceToken(dbURL, dbAuth, azureClientID, workspaceSlug); err != nil {
-		log.Fatalf("seed-service-token: %v", err)
+		slog.Error("seed-service-token failed", "error", err)
+		os.Exit(1)
 	}
 }
 

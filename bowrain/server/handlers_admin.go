@@ -2,7 +2,7 @@ package server
 
 import (
 	"fmt"
-	"log"
+	"log/slog"
 	"net/http"
 	"strconv"
 	"strings"
@@ -344,7 +344,7 @@ func (s *Server) HandleAdminUpdatePlan(c echo.Context) error {
 	if s.AuthStore != nil {
 		syncer := &planSyncAdapter{authStore: s.AuthStore}
 		if err := syncer.SyncWorkspacePlan(ctx, wsID, req.Plan, ""); err != nil {
-			log.Printf("admin: failed to sync plan for workspace %s: %v", wsID, err)
+			slog.Info("admin: failed to sync plan for workspace", "id", wsID, "error", err)
 		}
 	}
 

@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log"
+	"log/slog"
 	"slices"
 	"strings"
 	"time"
@@ -601,7 +601,7 @@ func (tb *SQLiteTermBase) searchLikeForStream(query, sourceLocale, targetLocale,
 func (tb *SQLiteTermBase) Count() int {
 	var count int
 	if err := tb.db.QueryRow("SELECT COUNT(*) FROM tb_concepts").Scan(&count); err != nil {
-		log.Printf("WARNING: termbase count query failed: %v", err)
+		slog.Warn("termbase count query failed", "error", err)
 		return 0
 	}
 	return count

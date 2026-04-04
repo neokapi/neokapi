@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log"
+	"log/slog"
 	"slices"
 	"strings"
 	"time"
@@ -572,7 +572,7 @@ func (tb *PostgresTermBase) pgSearchLikeForStream(query, sourceLocale, targetLoc
 func (tb *PostgresTermBase) Count() int {
 	var count int
 	if err := tb.db.QueryRow("SELECT COUNT(*) FROM tb_concepts WHERE workspace_id = $1", tb.workspaceID).Scan(&count); err != nil {
-		log.Printf("WARNING: termbase count query failed (workspace %s): %v", tb.workspaceID, err)
+		slog.Warn("termbase count query failed", "workspace", tb.workspaceID, "error", err)
 		return 0
 	}
 	return count

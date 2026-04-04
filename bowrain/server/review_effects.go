@@ -3,7 +3,7 @@ package server
 import (
 	"context"
 	"encoding/json"
-	"log"
+	"log/slog"
 	"time"
 
 	bstore "github.com/neokapi/neokapi/bowrain/store"
@@ -52,7 +52,7 @@ func (s *Server) processRejection(ctx context.Context, item *bstore.ReviewItem) 
 	}
 
 	if err := s.ReviewQueueStore.AddRejectedTerm(ctx, item.ProjectID, data.Text, item.Locale); err != nil {
-		log.Printf("review-effects: failed to add rejected term %q: %v", data.Text, err)
+		slog.Info("review-effects: failed to add rejected term", "id", data.Text, "error", err)
 	}
 }
 
@@ -64,7 +64,7 @@ func (s *Server) approveTermCandidate(ctx context.Context, item *bstore.ReviewIt
 
 	var candidate model.TermCandidateAnnotation
 	if err := json.Unmarshal(item.Data, &candidate); err != nil {
-		log.Printf("review-effects: failed to unmarshal term candidate: %v", err)
+		slog.Info("review-effects: failed to unmarshal term candidate", "error", err)
 		return
 	}
 
@@ -111,11 +111,11 @@ func (s *Server) approveTermCandidate(ctx context.Context, item *bstore.ReviewIt
 
 	tb, tbErr := s.wsStores.getTB(wsSlug)
 	if tbErr != nil {
-		log.Printf("review-effects: failed to init termbase for %q: %v", wsSlug, tbErr)
+		slog.Error("review-effects: failed to init termbase", "workspace", wsSlug, "error", tbErr)
 		return
 	}
 	if err := tb.AddConcept(concept); err != nil {
-		log.Printf("review-effects: failed to add concept for %q: %v", candidate.Text, err)
+		slog.Info("review-effects: failed to add concept for", "id", candidate.Text, "error", err)
 		return
 	}
 
@@ -133,7 +133,7 @@ func (s *Server) approveEntity(ctx context.Context, item *bstore.ReviewItem) {
 
 	var entity model.EntityAnnotation
 	if err := json.Unmarshal(item.Data, &entity); err != nil {
-		log.Printf("review-effects: failed to unmarshal entity: %v", err)
+		slog.Info("review-effects: failed to unmarshal entity", "error", err)
 		return
 	}
 

@@ -2,7 +2,7 @@ package event
 
 import (
 	"context"
-	"log"
+	"log/slog"
 	"sync"
 	"time"
 
@@ -216,7 +216,7 @@ func (t *PushCompletionTracker) checkJobs(ctx context.Context, pushID string) (t
 	if t.jobStore != nil {
 		tjobs, err := t.jobStore.ListJobsByPushID(ctx, pushID)
 		if err != nil {
-			log.Printf("push-tracker: failed to list translation jobs for %s: %v", pushID, err)
+			slog.Info("push-tracker: failed to list translation jobs for", "id", pushID, "error", err)
 			return translationStatus, extractionStatus, false
 		}
 		if len(tjobs) > 0 {
@@ -231,7 +231,7 @@ func (t *PushCompletionTracker) checkJobs(ctx context.Context, pushID string) (t
 	if t.extractStore != nil {
 		ejobs, err := t.extractStore.ListByPushID(ctx, pushID)
 		if err != nil {
-			log.Printf("push-tracker: failed to list extraction jobs for %s: %v", pushID, err)
+			slog.Info("push-tracker: failed to list extraction jobs for", "id", pushID, "error", err)
 			return translationStatus, extractionStatus, false
 		}
 		if len(ejobs) > 0 {

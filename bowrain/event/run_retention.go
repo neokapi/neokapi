@@ -2,7 +2,7 @@ package event
 
 import (
 	"context"
-	"log"
+	"log/slog"
 	"time"
 
 	bstore "github.com/neokapi/neokapi/bowrain/store"
@@ -44,9 +44,9 @@ func (c *RunRetentionCleaner) loop() {
 		case <-ticker.C:
 			n, err := c.store.DeleteRunsOlderThan(context.Background(), c.maxAge)
 			if err != nil {
-				log.Printf("run-retention: cleanup error: %v", err)
+				slog.Info("run-retention: cleanup error", "error", err)
 			} else if n > 0 {
-				log.Printf("run-retention: deleted %d old runs", n)
+				slog.Info("run-retention: deleted old runs", "count", n)
 			}
 		}
 	}

@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
+	"log/slog"
 	"strings"
 	"sync"
 	"time"
@@ -168,7 +168,7 @@ func (s *QueueSink) handleEvent(ev platev.Event) {
 
 	data, err := json.Marshal(msg)
 	if err != nil {
-		log.Printf("WARNING: queue sink: marshal event %s: %v", ev.ID, err)
+		slog.Warn("queue sink: marshal event", "id", ev.ID, "error", err)
 		return
 	}
 
@@ -176,7 +176,7 @@ func (s *QueueSink) handleEvent(ev platev.Event) {
 	defer cancel()
 
 	if err := s.publisher.PublishMessage(ctx, queue, data); err != nil {
-		log.Printf("WARNING: queue sink: publish event %s to %s: %v", ev.ID, queue, err)
+		slog.Warn("queue sink: publish failed", "event_id", ev.ID, "queue", queue, "error", err)
 	}
 }
 

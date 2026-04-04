@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
+	"log/slog"
 	"time"
 
 	"github.com/stripe/stripe-go/v82"
@@ -62,7 +62,7 @@ func (h *WebhookHandler) syncPlan(ctx context.Context, workspaceID string, plan 
 		return
 	}
 	if err := h.planSyncer.SyncWorkspacePlan(ctx, workspaceID, string(plan), customerID); err != nil {
-		log.Printf("failed to sync workspace plan for %s: %v", workspaceID, err)
+		slog.Info("failed to sync workspace plan for", "id", workspaceID, "error", err)
 	}
 }
 
@@ -87,7 +87,7 @@ func (h *WebhookHandler) HandleWebhook(payload []byte, signature string) error {
 	case "invoice.payment_failed":
 		return h.handlePaymentFailed(ctx, event)
 	default:
-		log.Printf("unhandled stripe event type: %s", event.Type)
+		slog.Info("unhandled stripe event type:", "value", event.Type)
 	}
 	return nil
 }
@@ -100,7 +100,7 @@ func (h *WebhookHandler) handleCheckoutCompleted(ctx context.Context, event stri
 
 	workspaceID := sess.Metadata["workspace_id"]
 	if workspaceID == "" {
-		log.Printf("checkout.session.completed: no workspace_id in metadata")
+		slog.Info("checkout.session.completed: no workspace_id in metadata")
 		return nil
 	}
 
@@ -156,7 +156,7 @@ func (h *WebhookHandler) handleSubscriptionUpdated(ctx context.Context, event st
 	// Look up existing subscription by stripe customer ID.
 	workspaceID := stripeSub.Metadata["workspace_id"]
 	if workspaceID == "" {
-		log.Printf("subscription.updated: no workspace_id in metadata for sub %s", stripeSub.ID)
+		slog.Info("subscription.updated: no workspace_id in metadata for sub", "value", stripeSub.ID)
 		return nil
 	}
 
@@ -216,7 +216,7 @@ func (h *WebhookHandler) handleSubscriptionDeleted(ctx context.Context, event st
 
 	workspaceID := stripeSub.Metadata["workspace_id"]
 	if workspaceID == "" {
-		log.Printf("subscription.deleted: no workspace_id in metadata for sub %s", stripeSub.ID)
+		slog.Info("subscription.deleted: no workspace_id in metadata for sub", "value", stripeSub.ID)
 		return nil
 	}
 
@@ -262,7 +262,7 @@ func (h *WebhookHandler) handleInvoicePaid(ctx context.Context, event stripe.Eve
 		}
 	}
 	if workspaceID == "" {
-		log.Printf("invoice.paid: no workspace_id for invoice %s", inv.ID)
+		slog.Info("invoice.paid: no workspace_id for invoice", "value", inv.ID)
 		return nil
 	}
 
@@ -284,7 +284,7 @@ func (h *WebhookHandler) handlePaymentFailed(ctx context.Context, event stripe.E
 		workspaceID = inv.Parent.SubscriptionDetails.Metadata["workspace_id"]
 	}
 	if workspaceID == "" {
-		log.Printf("invoice.payment_failed: no workspace_id for invoice %s", inv.ID)
+		slog.Info("invoice.payment_failed: no workspace_id for invoice", "value", inv.ID)
 		return nil
 	}
 
@@ -293,7 +293,7 @@ func (h *WebhookHandler) handlePaymentFailed(ctx context.Context, event stripe.E
 	if err == nil && existing != nil {
 		existing.Status = "past_due"
 		if err := h.store.UpsertSubscription(ctx, existing); err != nil {
-			log.Printf("failed to set past_due for workspace %s: %v", workspaceID, err)
+			slog.Info("failed to set past_due for workspace", "id", workspaceID, "error", err)
 		}
 	}
 
