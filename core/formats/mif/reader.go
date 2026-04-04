@@ -470,10 +470,10 @@ func parseMIF(content string) []*mifStatement {
 			// Check if this is a single-line statement (ends with >).
 			if strings.HasSuffix(trimmed, ">") && !strings.HasSuffix(trimmed, " >") {
 				inner := trimmed[1 : len(trimmed)-1] // remove < and >
-				parts := strings.SplitN(inner, " ", 2)
-				stmt.tag = parts[0]
-				if len(parts) > 1 {
-					stmt.value = unquoteMIF(parts[1])
+				tag, after, hasVal := strings.Cut(inner, " ")
+				stmt.tag = tag
+				if hasVal {
+					stmt.value = unquoteMIF(after)
 				}
 				if len(stack) > 0 {
 					parent := stack[len(stack)-1]
@@ -521,11 +521,10 @@ func parseTagLine(line string) (string, string) {
 	line = strings.TrimSuffix(line, ">")
 	line = strings.TrimSpace(line)
 
-	parts := strings.SplitN(line, " ", 2)
-	tag := parts[0]
+	tag, after, hasVal := strings.Cut(line, " ")
 	var value string
-	if len(parts) > 1 {
-		value = unquoteMIF(strings.TrimSpace(parts[1]))
+	if hasVal {
+		value = unquoteMIF(strings.TrimSpace(after))
 	}
 	return tag, value
 }

@@ -1,7 +1,7 @@
 package preset
 
 import (
-	"sort"
+	"slices"
 	"sync"
 )
 
@@ -54,7 +54,7 @@ func (r *PresetRegistry) ListFormatPresets(format string) []*FormatPreset {
 	for name := range m {
 		names = append(names, name)
 	}
-	sort.Strings(names)
+	slices.Sort(names)
 	result := make([]*FormatPreset, len(names))
 	for i, name := range names {
 		result[i] = m[name]
@@ -70,7 +70,7 @@ func (r *PresetRegistry) FormatNames() []string {
 	for name := range r.formatPresets {
 		names = append(names, name)
 	}
-	sort.Strings(names)
+	slices.Sort(names)
 	return names
 }
 
@@ -99,7 +99,7 @@ func (r *PresetRegistry) ListFrameworkPresets() []*FrameworkPreset {
 	for name := range r.frameworkPresets {
 		names = append(names, name)
 	}
-	sort.Strings(names)
+	slices.Sort(names)
 	result := make([]*FrameworkPreset, len(names))
 	for i, name := range names {
 		result[i] = r.frameworkPresets[name]

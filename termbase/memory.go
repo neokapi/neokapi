@@ -1,9 +1,9 @@
 package termbase
 
 import (
+	"cmp"
 	"fmt"
 	"slices"
-	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -210,8 +210,8 @@ func (tb *InMemoryTermBase) Lookup(sourceText string, opts LookupOptions) []Term
 	}
 
 	// Sort by score descending.
-	sort.Slice(matches, func(i, j int) bool {
-		return matches[i].Score > matches[j].Score
+	slices.SortFunc(matches, func(a, b TermMatch) int {
+		return cmp.Compare(b.Score, a.Score)
 	})
 
 	return matches
@@ -275,12 +275,12 @@ func (tb *InMemoryTermBase) LookupAll(sourceText string, opts LookupOptions) []T
 	}
 
 	// Sort by position in text.
-	sort.Slice(matches, func(i, j int) bool {
-		if matches[i].Position.Start != matches[j].Position.Start {
-			return matches[i].Position.Start < matches[j].Position.Start
+	slices.SortFunc(matches, func(a, b TermMatch) int {
+		if c := cmp.Compare(a.Position.Start, b.Position.Start); c != 0 {
+			return c
 		}
 		// Longer matches first for overlapping terms.
-		return matches[i].Position.End > matches[j].Position.End
+		return cmp.Compare(b.Position.End, a.Position.End)
 	})
 
 	return matches

@@ -1,9 +1,10 @@
 package server
 
 import (
+	"cmp"
 	"context"
 	"net/http"
-	"sort"
+	"slices"
 	"time"
 
 	"github.com/labstack/echo/v4"
@@ -266,13 +267,13 @@ func (s *Server) HandleInfo(c echo.Context) error {
 			HasWriter: s.FormatRegistry.HasWriter(name),
 		})
 	}
-	sort.Slice(formats, func(i, j int) bool {
-		return formats[i].Name < formats[j].Name
+	slices.SortFunc(formats, func(a, b FormatInfo) int {
+		return cmp.Compare(a.Name, b.Name)
 	})
 
 	// Tools.
 	toolNames := s.ToolRegistry.Names()
-	sort.Strings(toolNames)
+	slices.Sort(toolNames)
 	tools := make([]ToolInfo, len(toolNames))
 	for i, name := range toolNames {
 		tools[i] = ToolInfo{Name: name}
@@ -325,8 +326,8 @@ func (s *Server) HandleListFormats(c echo.Context) error {
 	}
 
 	// Sort for deterministic output.
-	sort.Slice(formatList, func(i, j int) bool {
-		return formatList[i].Name < formatList[j].Name
+	slices.SortFunc(formatList, func(a, b FormatInfo) int {
+		return cmp.Compare(a.Name, b.Name)
 	})
 
 	return c.JSON(http.StatusOK, formatList)
@@ -335,7 +336,7 @@ func (s *Server) HandleListFormats(c echo.Context) error {
 // HandleListTools lists all registered tools.
 func (s *Server) HandleListTools(c echo.Context) error {
 	names := s.ToolRegistry.Names()
-	sort.Strings(names)
+	slices.Sort(names)
 
 	tools := make([]ToolInfo, len(names))
 	for i, name := range names {

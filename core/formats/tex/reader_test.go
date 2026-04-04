@@ -416,7 +416,7 @@ func TestCancel(t *testing.T) {
 	// Create large input
 	var sb strings.Builder
 	sb.WriteString(`\begin{document}` + "\n")
-	for i := 0; i < 1000; i++ {
+	for range 1000 {
 		sb.WriteString("Paragraph text for cancellation testing.\n\n")
 	}
 	sb.WriteString(`\end{document}`)
@@ -442,7 +442,7 @@ func TestCancel(t *testing.T) {
 
 func TestSynchronization(t *testing.T) {
 	var wg sync.WaitGroup
-	for i := 0; i < 10; i++ {
+	for range 10 {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()

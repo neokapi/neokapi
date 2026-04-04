@@ -424,7 +424,7 @@ func (w *Writer) writeJSON(buf *strings.Builder, value any, indent int) {
 }
 
 func (w *Writer) writeIndent(buf *strings.Builder, level int) {
-	for i := 0; i < level; i++ {
+	for range level {
 		buf.WriteString("  ")
 	}
 }

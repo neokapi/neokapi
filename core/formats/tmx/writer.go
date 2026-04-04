@@ -99,16 +99,16 @@ func (w *Writer) writeFromSkeleton() error {
 		case format.SkeletonRef:
 			// Ref ID is "tuIdx:lang" where tuIdx is 0-based
 			refID := string(entry.Data)
-			parts := strings.SplitN(refID, ":", 2)
-			if len(parts) != 2 {
+			idxStr, refSuffix, ok := strings.Cut(refID, ":")
+			if !ok {
 				continue
 			}
-			tuIdx, err := strconv.Atoi(parts[0])
+			tuIdx, err := strconv.Atoi(idxStr)
 			if err != nil || tuIdx < 0 || tuIdx >= len(w.blocks) {
 				continue
 			}
 			block := w.blocks[tuIdx]
-			lang := parts[1]
+			lang := refSuffix
 
 			// Determine the text for this TUV
 			var text string

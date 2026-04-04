@@ -282,7 +282,7 @@ func parseSurefire(dir string) map[string]*FilterResult {
 
 	for _, path := range matches {
 		rel, _ := filepath.Rel(dir, path)
-		filter := strings.SplitN(rel, string(filepath.Separator), 2)[0]
+		filter, _, _ := strings.Cut(rel, string(filepath.Separator))
 
 		raw, err := os.ReadFile(path)
 		if err != nil {
@@ -892,11 +892,11 @@ func merge(
 			}
 
 			// Sort test cases by class then method
-			sort.Slice(testCases, func(i, j int) bool {
-				if testCases[i].JavaClass != testCases[j].JavaClass {
-					return testCases[i].JavaClass < testCases[j].JavaClass
+			slices.SortFunc(testCases, func(a, b TestCaseMatch) int {
+				if c := cmp.Compare(a.JavaClass, b.JavaClass); c != 0 {
+					return c
 				}
-				return testCases[i].JavaMethod < testCases[j].JavaMethod
+				return cmp.Compare(a.JavaMethod, b.JavaMethod)
 			})
 
 			fc.TestCases = testCases
@@ -928,13 +928,16 @@ func merge(
 	}
 
 	// Sort: filters with both sides first, then alphabetically
-	sort.Slice(filters, func(i, j int) bool {
-		bi := filters[i].Okapi != nil && (filters[i].Bridge != nil || filters[i].Native != nil)
-		bj := filters[j].Okapi != nil && (filters[j].Bridge != nil || filters[j].Native != nil)
-		if bi != bj {
-			return bi
+	slices.SortFunc(filters, func(a, b FilterComparison) int {
+		ba := a.Okapi != nil && (a.Bridge != nil || a.Native != nil)
+		bb := b.Okapi != nil && (b.Bridge != nil || b.Native != nil)
+		if ba != bb {
+			if ba {
+				return -1
+			}
+			return 1
 		}
-		return filters[i].FilterName < filters[j].FilterName
+		return cmp.Compare(a.FilterName, b.FilterName)
 	})
 
 	// Overall coverage (excluding ignored and Java-side skipped tests from denominator)

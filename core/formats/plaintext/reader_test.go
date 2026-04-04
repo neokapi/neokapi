@@ -389,7 +389,7 @@ func TestRead_LoadParams(t *testing.T) {
 func TestRead_Synchronization(t *testing.T) {
 	// Tests concurrent access to separate reader instances (safe concurrency).
 	var wg sync.WaitGroup
-	for i := 0; i < 10; i++ {
+	for range 10 {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()

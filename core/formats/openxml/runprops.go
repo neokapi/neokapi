@@ -3,7 +3,7 @@ package openxml
 import (
 	"encoding/xml"
 	"fmt"
-	"sort"
+	"slices"
 	"strings"
 
 	"github.com/neokapi/neokapi/core/model"
@@ -223,7 +223,7 @@ func parseRunProps(d *xml.Decoder, aggressive bool) (runProps, error) {
 		case xml.EndElement:
 			// End of rPr
 			if len(otherParts) > 0 {
-				sort.Strings(otherParts)
+				slices.Sort(otherParts)
 				props.otherXML = strings.Join(otherParts, "")
 			}
 			return props, nil

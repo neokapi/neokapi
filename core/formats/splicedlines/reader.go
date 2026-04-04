@@ -142,7 +142,7 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 		// Store the continuation line endings so the writer can reconstruct
 		if numLines > 1 {
 			var endings []string
-			for i := 0; i < numLines-1; i++ {
+			for i := range numLines - 1 {
 				endings = append(endings, accumulated[i].lineEnding)
 			}
 			block.Properties["continuation-endings"] = strings.Join(endings, "|")

@@ -132,16 +132,16 @@ func (w *Writer) writeFromSkeleton() error {
 		case format.SkeletonRef:
 			refID := string(entry.Data)
 			// Ref ID is "segIdx:elemType" where segIdx is 0-based
-			parts := strings.SplitN(refID, ":", 2)
-			if len(parts) != 2 {
+			idxStr, refSuffix, ok := strings.Cut(refID, ":")
+			if !ok {
 				continue
 			}
-			segIdx, err := strconv.Atoi(parts[0])
+			segIdx, err := strconv.Atoi(idxStr)
 			if err != nil || segIdx < 0 || segIdx >= len(w.blocks) {
 				continue
 			}
 			block := w.blocks[segIdx]
-			elemType := parts[1]
+			elemType := refSuffix
 
 			var text string
 			if elemType == "source" {

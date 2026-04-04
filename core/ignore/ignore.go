@@ -157,12 +157,7 @@ func matchGlob(pattern, name string) bool {
 // matchDoublestar handles patterns containing **.
 func matchDoublestar(pattern, name string) bool {
 	// Split pattern on ** and try all possible segment combinations.
-	parts := strings.SplitN(pattern, "**", 2)
-	prefix := parts[0]
-	suffix := ""
-	if len(parts) > 1 {
-		suffix = parts[1]
-	}
+	prefix, suffix, _ := strings.Cut(pattern, "**")
 
 	// Remove leading/trailing slashes from ** boundaries.
 	prefix = strings.TrimSuffix(prefix, "/")

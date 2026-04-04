@@ -6,7 +6,6 @@ import (
 	"io"
 	"maps"
 	"slices"
-	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -68,7 +67,7 @@ func (s *WordCountSummary) FormatTable(w io.Writer) {
 	for uri := range s.Documents {
 		uris = append(uris, uri)
 	}
-	sort.Strings(uris)
+	slices.Sort(uris)
 
 	// Data rows.
 	for _, uri := range uris {

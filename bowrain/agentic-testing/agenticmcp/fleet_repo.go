@@ -325,10 +325,9 @@ func (r *GitFleetRepo) ReadAgentFileInfo(ctx context.Context, workspace, agent, 
 	cmd := exec.CommandContext(ctx, "git", "-C", dir, "log", "-1", "--format=%an|%aI", "--", relPath)
 	out, err := cmd.CombinedOutput()
 	if err == nil {
-		parts := strings.SplitN(strings.TrimSpace(string(out)), "|", 2)
-		if len(parts) == 2 {
-			info.LastAuthor = parts[0]
-			info.LastDate = parts[1]
+		if author, date, ok := strings.Cut(strings.TrimSpace(string(out)), "|"); ok {
+			info.LastAuthor = author
+			info.LastDate = date
 		}
 	}
 

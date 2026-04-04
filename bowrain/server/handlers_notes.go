@@ -139,7 +139,7 @@ func parseMentions(text string) []string {
 
 // extractAuthor pulls the user name from the auth context if available.
 func extractAuthor(c echo.Context) string {
-	if claims, ok := c.Get("user_claims").(map[string]interface{}); ok {
+	if claims, ok := c.Get("user_claims").(map[string]any); ok {
 		if name, ok := claims["name"].(string); ok {
 			return name
 		}

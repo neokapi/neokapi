@@ -133,11 +133,11 @@ func (w *GitReleaseWalker) ensureFork(ctx context.Context, plan *WorkspacePlan) 
 		cacheDir = filepath.Join(os.TempDir(), "agentic-forks")
 	}
 	// Use the fork name as directory (e.g., "agentic-excalidraw").
-	parts := strings.SplitN(forkGH, "/", 2)
-	if len(parts) != 2 {
+	_, forkName, ok := strings.Cut(forkGH, "/")
+	if !ok {
 		return "", fmt.Errorf("invalid fork repo %q (expected owner/name)", forkGH)
 	}
-	forkDir := filepath.Join(cacheDir, parts[1])
+	forkDir := filepath.Join(cacheDir, forkName)
 
 	forkURL := w.githubURL(forkGH)
 	upstreamURL := w.githubURL(upstreamGH)

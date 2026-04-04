@@ -330,11 +330,11 @@ func TestBravoEndToEnd_MultipleConversations(t *testing.T) {
 	ctx := httptest.NewRequest(http.MethodGet, "/", nil).Context()
 
 	// Create conversations for two different users.
-	for i := 0; i < 5; i++ {
+	for range 5 {
 		_, err := srv.AgentService.CreateConversation(ctx, wsID, "alice", "", "Alice chat")
 		require.NoError(t, err)
 	}
-	for i := 0; i < 3; i++ {
+	for range 3 {
 		_, err := srv.AgentService.CreateConversation(ctx, wsID, "bob", "", "Bob chat")
 		require.NoError(t, err)
 	}

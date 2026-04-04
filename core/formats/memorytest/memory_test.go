@@ -31,7 +31,7 @@ import (
 // generatePlaintext creates a plain text document with the given number of lines.
 func generatePlaintext(lines int) string {
 	var b strings.Builder
-	for i := 0; i < lines; i++ {
+	for i := range lines {
 		fmt.Fprintf(&b, "This is line number %d with some representative content for testing memory usage.\n", i+1)
 	}
 	return b.String()
@@ -41,7 +41,7 @@ func generatePlaintext(lines int) string {
 func generateHTML(paragraphs int) string {
 	var b strings.Builder
 	b.WriteString("<!DOCTYPE html><html><head><title>Memory Test</title></head><body>\n")
-	for i := 0; i < paragraphs; i++ {
+	for i := range paragraphs {
 		fmt.Fprintf(&b, "<p>Paragraph %d: This paragraph has <strong>bold text</strong> and <em>italic text</em> and a <a href=\"#link%d\">hyperlink</a> to test inline spans.</p>\n", i+1, i+1)
 	}
 	b.WriteString("</body></html>")
@@ -52,7 +52,7 @@ func generateHTML(paragraphs int) string {
 func generateJSON(entries int) string {
 	var b strings.Builder
 	b.WriteString("{\n")
-	for i := 0; i < entries; i++ {
+	for i := range entries {
 		if i > 0 {
 			b.WriteString(",\n")
 		}
@@ -66,7 +66,7 @@ func generateJSON(entries int) string {
 func generateXML(elements int) string {
 	var b strings.Builder
 	b.WriteString(`<?xml version="1.0" encoding="UTF-8"?>` + "\n<resources>\n")
-	for i := 0; i < elements; i++ {
+	for i := range elements {
 		fmt.Fprintf(&b, `  <string name="key_%d">This is translatable string number %d with realistic content.</string>`+"\n", i+1, i+1)
 	}
 	b.WriteString("</resources>")
@@ -76,7 +76,7 @@ func generateXML(elements int) string {
 // generateYAML creates a YAML document with the given number of key-value pairs.
 func generateYAML(entries int) string {
 	var b strings.Builder
-	for i := 0; i < entries; i++ {
+	for i := range entries {
 		fmt.Fprintf(&b, "key_%d: \"This is translatable string number %d with realistic content for testing.\"\n", i+1, i+1)
 	}
 	return b.String()
@@ -91,7 +91,7 @@ func generateODF(paragraphs int) []byte {
   xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0"
   xmlns:table="urn:oasis:names:tc:opendocument:xmlns:table:1.0">
 <office:body><office:text>`)
-	for i := 0; i < paragraphs; i++ {
+	for i := range paragraphs {
 		fmt.Fprintf(&contentXML, `<text:p>Paragraph %d: This is a test paragraph with enough content to be realistic for memory testing.</text:p>`, i+1)
 	}
 	contentXML.WriteString(`</office:text></office:body></office:document-content>`)
@@ -176,7 +176,7 @@ func generateEPUB(chapters, paragraphsPerChapter int) []byte {
 // generateOpenXMLDocx creates a minimal DOCX ZIP archive with the given number of paragraphs.
 func generateOpenXMLDocx(paragraphs int) []byte {
 	var bodyXML strings.Builder
-	for i := 0; i < paragraphs; i++ {
+	for i := range paragraphs {
 		fmt.Fprintf(&bodyXML, `<w:p><w:r><w:t>Paragraph %d: This is a test paragraph with enough content to be realistic for memory testing purposes.</w:t></w:r></w:p>`, i+1)
 	}
 

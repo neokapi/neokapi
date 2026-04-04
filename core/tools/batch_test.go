@@ -16,7 +16,7 @@ func TestBatchTool_CollectsBlocks(t *testing.T) {
 	out := make(chan *model.Part, 10)
 
 	// Send 5 blocks
-	for i := 0; i < 5; i++ {
+	for range 5 {
 		in <- &model.Part{
 			Type:     model.PartBlock,
 			Resource: &model.Block{},

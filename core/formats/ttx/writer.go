@@ -121,15 +121,15 @@ func (w *Writer) writeFromSkeleton() error {
 		case format.SkeletonRef:
 			refID := string(entry.Data)
 			// Ref ID is "tuIdx:tuvIdx"
-			parts := strings.SplitN(refID, ":", 2)
-			if len(parts) != 2 {
+			idxStr, refSuffix, ok := strings.Cut(refID, ":")
+			if !ok {
 				continue
 			}
-			tuIdx, err := strconv.Atoi(parts[0])
+			tuIdx, err := strconv.Atoi(idxStr)
 			if err != nil || tuIdx < 0 || tuIdx >= len(w.blocks) {
 				continue
 			}
-			tuvIdx, err := strconv.Atoi(parts[1])
+			tuvIdx, err := strconv.Atoi(refSuffix)
 			if err != nil {
 				continue
 			}
