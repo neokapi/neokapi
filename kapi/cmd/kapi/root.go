@@ -9,9 +9,10 @@ import (
 var app = &cli.App{}
 
 var rootCmd = &cobra.Command{
-	Use:          "kapi",
-	Short:        "A localization and translation toolkit",
-	SilenceUsage: true,
+	Use:           "kapi",
+	Short:         "A localization and translation toolkit",
+	SilenceUsage:  true,
+	SilenceErrors: true,
 	Long: `kapi helps you manage multilingual content — convert document formats,
 translate with AI, and run quality checks across a wide range of file types.`,
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
@@ -42,6 +43,7 @@ func init() {
 	rootCmd.AddCommand(app.NewTermbaseCmd())
 	rootCmd.AddCommand(app.NewTMCmd())
 	rootCmd.AddCommand(app.NewVersionCmd("kapi"))
+	rootCmd.AddCommand(app.NewCompletionCmd())
 
 	// Top-level tool commands (declarative opt-in via BuiltinToolCommands).
 	for _, cmd := range app.NewToolCommands() {
