@@ -267,7 +267,7 @@ function ToolBrowser() {
                 key={t.name}
                 variant="outline"
                 onClick={() => setSelected(t)}
-                className="w-full h-auto rounded-lg p-3 text-left flex-col items-start hover:border-primary/30 hover:bg-primary/5"
+                className="w-full h-auto whitespace-normal rounded-lg p-3 text-left flex-col items-start hover:border-primary/30 hover:bg-primary/5"
               >
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">

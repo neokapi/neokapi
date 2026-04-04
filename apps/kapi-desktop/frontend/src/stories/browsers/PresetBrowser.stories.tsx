@@ -164,7 +164,7 @@ function PresetBrowser() {
                 key={presetId}
                 variant="outline"
                 onClick={() => setSelectedPreset({ formatId: selectedFormat, presetId, values })}
-                className="w-full h-auto rounded-lg p-3 text-left hover:border-primary/30 hover:bg-primary/5"
+                className="w-full h-auto whitespace-normal rounded-lg p-3 text-left hover:border-primary/30 hover:bg-primary/5"
               >
                 <div className="flex items-center justify-between">
                   <code className="text-sm font-medium">{presetId}</code>
@@ -209,7 +209,7 @@ function PresetBrowser() {
               key={formatId}
               variant="outline"
               onClick={() => setSelectedFormat(formatId)}
-              className="w-full h-auto rounded-lg p-3 text-left hover:border-primary/30 hover:bg-primary/5"
+              className="w-full h-auto whitespace-normal rounded-lg p-3 text-left hover:border-primary/30 hover:bg-primary/5"
             >
               <div className="flex items-center justify-between">
                 <code className="text-sm font-medium">{formatId}</code>

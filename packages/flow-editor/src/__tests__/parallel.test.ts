@@ -16,7 +16,7 @@ describe("stepsToGraph with parallel branches", () => {
       ],
     };
 
-    const { nodes } = stepsToGraph(spec);
+    const { nodes } = stepsToGraph(spec, undefined, "horizontal");
 
     // reader + ai-translate + ai-qa + tm-leverage + merge-results + writer = 6 nodes
     expect(nodes).toHaveLength(6);
@@ -115,7 +115,7 @@ describe("stepsToGraph with parallel branches", () => {
       ],
     };
 
-    const { nodes } = stepsToGraph(spec);
+    const { nodes } = stepsToGraph(spec, undefined, "horizontal");
     const qaNode = nodes.find((n) => n.data.toolName === "qa")!;
     expect(qaNode.data.label).toBe("Quality Check");
     expect(qaNode.data.config).toEqual({ strict: true });
@@ -135,8 +135,8 @@ describe("graphToSteps with parallel branches", () => {
       ],
     };
 
-    const { nodes } = stepsToGraph(spec);
-    const result = graphToSteps(nodes);
+    const { nodes } = stepsToGraph(spec, undefined, "horizontal");
+    const result = graphToSteps(nodes, "horizontal");
 
     expect(result.steps).toHaveLength(3);
     expect(result.steps[0].tool).toBe("translate");

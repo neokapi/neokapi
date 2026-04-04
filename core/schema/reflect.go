@@ -10,7 +10,7 @@ import (
 // It inspects exported fields and maps Go types to JSON Schema types.
 // Fields with `schema` struct tags get additional metadata:
 //
-//	schema:"description=...,default=...,min=...,max=...,enum=a|b|c,widget=...,group=..."
+//	schema:"title=...,description=...,default=...,min=...,max=...,enum=a|b|c,widget=...,group=..."
 //
 // Interface and function fields are skipped.
 func FromStruct(cfg any, meta ToolMeta) *ComponentSchema {
@@ -250,7 +250,7 @@ func goTypeToSchemaType(t reflect.Type) string {
 }
 
 // applyTag parses a schema struct tag and applies values to the property.
-// Format: schema:"description=...,default=...,min=...,max=...,enum=a|b|c,widget=..."
+// Format: schema:"title=...,description=...,default=...,min=...,max=...,enum=a|b|c,widget=..."
 func applyTag(prop *PropertySchema, tag string) {
 	for _, part := range strings.Split(tag, ",") {
 		key, val, ok := strings.Cut(part, "=")
@@ -260,6 +260,8 @@ func applyTag(prop *PropertySchema, tag string) {
 		key = strings.TrimSpace(key)
 		val = strings.TrimSpace(val)
 		switch key {
+		case "title":
+			prop.Title = val
 		case "description":
 			prop.Description = val
 		case "widget":

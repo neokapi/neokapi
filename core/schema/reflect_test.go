@@ -57,7 +57,7 @@ func TestFromStruct_SimpleTypes(t *testing.T) {
 }
 
 type taggedConfig struct {
-	Mode      string `schema:"description=Processing mode,enum=upper|lower|title,default=lower"`
+	Mode      string `schema:"title=Transformation Mode,description=Processing mode,enum=upper|lower|title,default=lower"`
 	Expansion int    `schema:"description=Text expansion percentage,min=0,max=200,default=0"`
 	Secret    string `schema:"widget=password"`
 }
@@ -66,6 +66,7 @@ func TestFromStruct_SchemaTags(t *testing.T) {
 	s := FromStruct(&taggedConfig{}, ToolMeta{ID: "tagged"})
 
 	mode := s.Properties["mode"]
+	assert.Equal(t, "Transformation Mode", mode.Title)
 	assert.Equal(t, "Processing mode", mode.Description)
 	require.Len(t, mode.Options, 3)
 	assert.Equal(t, "upper", mode.Options[0].Value)

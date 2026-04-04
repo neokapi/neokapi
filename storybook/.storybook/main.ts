@@ -6,10 +6,11 @@ const config = createMainConfig(
       "../../packages/ui/src/**/*.stories.@(ts|tsx)",
       "../../packages/flow-editor/src/**/*.stories.@(ts|tsx)",
       "../../apps/kapi-desktop/frontend/src/**/*.stories.@(ts|tsx)",
-      "../../kapi/apps/kapi-web/src/**/*.stories.@(ts|tsx)",
     ],
   },
   import.meta,
 );
+
+config.staticDirs = ["../../apps/kapi-desktop/frontend/public"];
 
 export default config;

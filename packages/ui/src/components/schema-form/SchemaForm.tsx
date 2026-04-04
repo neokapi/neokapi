@@ -13,6 +13,7 @@ export function SchemaForm({
   presetValues,
   paramDocs,
   readOnly,
+  hideHeader = false,
 }: SchemaFormProps) {
   const { properties, groups, ungrouped } = useMemo(() => {
     const props = schema.properties || {};
@@ -131,7 +132,7 @@ export function SchemaForm({
   return (
     <div className="flex flex-col">
       {/* Format/tool header */}
-      {(schema.title || formatMeta || toolMeta) && (
+      {!hideHeader && (schema.title || formatMeta || toolMeta) && (
         <div className="pb-3 mb-3 border-b border-border/40">
           {schema.title && (
             <h3 className="text-sm font-semibold text-foreground">{schema.title}</h3>

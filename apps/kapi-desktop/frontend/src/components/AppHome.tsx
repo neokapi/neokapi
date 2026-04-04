@@ -56,7 +56,7 @@ export function AppHome({
             <Button
               variant="outline"
               onClick={() => onCreateSampleProject("kapimart")}
-              className="h-auto rounded-lg border-primary/20 bg-primary/5 p-4 text-left flex-col items-start hover:border-primary/40 hover:bg-primary/10"
+              className="h-auto whitespace-normal rounded-lg border-primary/20 bg-primary/5 p-4 text-left flex-col items-start hover:border-primary/40 hover:bg-primary/10"
             >
               <div className="text-sm font-medium">KapiMart</div>
               <p className="mt-1 text-xs text-muted-foreground font-normal">
@@ -67,7 +67,7 @@ export function AppHome({
             <Button
               variant="outline"
               onClick={() => onCreateSampleProject("okapimart")}
-              className="h-auto rounded-lg border-primary/20 bg-primary/5 p-4 text-left flex-col items-start hover:border-primary/40 hover:bg-primary/10"
+              className="h-auto whitespace-normal rounded-lg border-primary/20 bg-primary/5 p-4 text-left flex-col items-start hover:border-primary/40 hover:bg-primary/10"
             >
               <div className="text-sm font-medium">OkapiMart</div>
               <p className="mt-1 text-xs text-muted-foreground font-normal">
@@ -84,7 +84,7 @@ export function AppHome({
         <Button
           variant="outline"
           onClick={onNewProject}
-          className="h-auto rounded-lg p-4 text-left flex-col items-start hover:border-primary/30 hover:bg-accent/30"
+          className="h-auto whitespace-normal rounded-lg p-4 text-left flex-col items-start hover:border-primary/30 hover:bg-accent/30"
         >
           <FolderKanban size={18} className="mb-2 text-primary" />
           <div className="text-sm font-medium">New Project</div>
@@ -93,7 +93,7 @@ export function AppHome({
         <Button
           variant="outline"
           onClick={onOpenProject}
-          className="h-auto rounded-lg p-4 text-left flex-col items-start hover:border-primary/30 hover:bg-accent/30"
+          className="h-auto whitespace-normal rounded-lg p-4 text-left flex-col items-start hover:border-primary/30 hover:bg-accent/30"
         >
           <FolderOpen size={18} className="mb-2 text-primary" />
           <div className="text-sm font-medium">Open a Project</div>
@@ -104,7 +104,7 @@ export function AppHome({
         <Button
           variant="outline"
           onClick={() => onNavigate("flows")}
-          className="h-auto rounded-lg p-4 text-left flex-col items-start hover:border-primary/30 hover:bg-accent/30"
+          className="h-auto whitespace-normal rounded-lg p-4 text-left flex-col items-start hover:border-primary/30 hover:bg-accent/30"
         >
           <Workflow size={18} className="mb-2 text-primary" />
           <div className="text-sm font-medium">Design a Flow</div>
@@ -113,7 +113,7 @@ export function AppHome({
         <Button
           variant="outline"
           onClick={() => onNavigate("tools")}
-          className="h-auto rounded-lg p-4 text-left flex-col items-start hover:border-primary/30 hover:bg-accent/30"
+          className="h-auto whitespace-normal rounded-lg p-4 text-left flex-col items-start hover:border-primary/30 hover:bg-accent/30"
         >
           <Wrench size={18} className="mb-2 text-primary" />
           <div className="text-sm font-medium">Run a Tool</div>

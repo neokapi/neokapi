@@ -1,48 +1,86 @@
 // Conversion between FlowSpec (steps format) and React Flow graph (nodes + edges).
 // Supports both sequential and parallel (fan-out/merge) topologies.
+// Layout direction is configurable: horizontal (left-to-right) or vertical (top-to-bottom).
 
-import type { Node, Edge } from "@xyflow/react";
+import { MarkerType, type Node, type Edge } from "@xyflow/react";
 import type { FlowSpec, FlowStep, ToolInfo } from "./types";
 
-const NODE_WIDTH = 200;
+export type LayoutDirection = "horizontal" | "vertical";
+
+const NODE_SIZE = 200; // primary axis node size estimate
 const NODE_GAP = 60;
-const Y_CENTER = 100;
+const CENTER = 200; // cross-axis center
 const BRANCH_GAP = 80;
+
+const EDGE_MARKER = {
+  type: MarkerType.Arrow,
+  width: 16,
+  height: 16,
+  color: "var(--muted-foreground)",
+};
+
+/** Format part types into a short edge label, e.g. "Block" or "Block · Data". */
+function partLabel(types?: string[]): string | undefined {
+  if (!types || types.length === 0) return undefined;
+  return types.map((t) => t.charAt(0).toUpperCase() + t.slice(1)).join(" · ");
+}
+
+function makeEdge(source: string, target: string, label?: string): Edge {
+  return {
+    id: `e-${source}-${target}`,
+    source,
+    target,
+    type: "dot",
+    markerEnd: EDGE_MARKER,
+    ...(label && {
+      label,
+      labelStyle: { fontSize: 9, fontWeight: 500, fill: "var(--muted-foreground)" },
+      labelBgStyle: { fill: "var(--background)", fillOpacity: 0.8 },
+      labelBgPadding: [4, 2] as [number, number],
+      labelBgBorderRadius: 3,
+    }),
+  };
+}
 
 /**
  * Convert a steps-based FlowSpec into React Flow nodes and edges with auto-layout.
  *
- * Sequential steps produce a linear chain: reader → tool1 → tool2 → writer
+ * Sequential steps produce a chain: reader → tool1 → tool2 → writer
  * Parallel steps produce fan-out/merge: prev → [branchA, branchB] → next
  */
 export function stepsToGraph(
   spec: FlowSpec,
   toolMap?: Map<string, ToolInfo>,
+  direction: LayoutDirection = "vertical",
 ): { nodes: Node[]; edges: Edge[] } {
   const nodes: Node[] = [];
   const edges: Edge[] = [];
+  const isVertical = direction === "vertical";
 
-  let x = 0;
+  let primary = 0; // x for horizontal, y for vertical
   let toolCounter = 0;
+
+  const pos = (main: number, cross: number) =>
+    isVertical ? { x: cross, y: main } : { x: main, y: cross };
 
   // Reader node
   nodes.push({
     id: "reader",
     type: "reader",
-    position: { x, y: Y_CENTER },
+    position: pos(primary, CENTER),
     data: { label: "Input", formatName: "auto" },
   });
-  x += NODE_WIDTH + NODE_GAP;
+  primary += NODE_SIZE + NODE_GAP;
 
   let prevIds = ["reader"];
 
   for (const step of spec.steps) {
     if (step.parallel && step.parallel.length > 0) {
-      // Fan-out: create parallel branch nodes
+      // Fan-out: create parallel branch nodes spread along cross-axis
       const branchIds: string[] = [];
       const branchCount = step.parallel.length;
-      const totalHeight = (branchCount - 1) * (60 + BRANCH_GAP);
-      const startY = Y_CENTER - totalHeight / 2;
+      const totalCross = (branchCount - 1) * (NODE_SIZE + BRANCH_GAP);
+      const startCross = CENTER - totalCross / 2;
 
       for (let b = 0; b < branchCount; b++) {
         const branch = step.parallel[b];
@@ -52,7 +90,7 @@ export function stepsToGraph(
         nodes.push({
           id,
           type: "tool",
-          position: { x, y: startY + b * (60 + BRANCH_GAP) },
+          position: pos(primary, startCross + b * (NODE_SIZE + BRANCH_GAP)),
           data: {
             label: branch.label || info?.display_name || branch.tool,
             toolName: branch.tool,
@@ -65,20 +103,16 @@ export function stepsToGraph(
           },
         });
 
-        // Edges from all previous nodes to this branch
         for (const prev of prevIds) {
-          edges.push({
-            id: `e-${prev}-${id}`,
-            source: prev,
-            target: id,
-          });
+          const prevNode = nodes.find((n) => n.id === prev);
+          edges.push(makeEdge(prev, id, partLabel(prevNode?.data.outputs as string[] | undefined)));
         }
 
         branchIds.push(id);
       }
 
       prevIds = branchIds;
-      x += NODE_WIDTH + NODE_GAP;
+      primary += NODE_SIZE + NODE_GAP;
     } else {
       // Sequential step
       const id = `tool-${toolCounter++}`;
@@ -87,7 +121,7 @@ export function stepsToGraph(
       nodes.push({
         id,
         type: "tool",
-        position: { x, y: Y_CENTER },
+        position: pos(primary, CENTER),
         data: {
           label: step.label || info?.display_name || step.tool,
           toolName: step.tool,
@@ -100,15 +134,12 @@ export function stepsToGraph(
       });
 
       for (const prev of prevIds) {
-        edges.push({
-          id: `e-${prev}-${id}`,
-          source: prev,
-          target: id,
-        });
+        const prevNode = nodes.find((n) => n.id === prev);
+        edges.push(makeEdge(prev, id, partLabel(prevNode?.data.outputs as string[] | undefined)));
       }
 
       prevIds = [id];
-      x += NODE_WIDTH + NODE_GAP;
+      primary += NODE_SIZE + NODE_GAP;
     }
   }
 
@@ -116,15 +147,17 @@ export function stepsToGraph(
   nodes.push({
     id: "writer",
     type: "writer",
-    position: { x, y: Y_CENTER },
+    position: pos(primary, CENTER),
     data: { label: "Output", formatName: "auto" },
   });
   for (const prev of prevIds) {
-    edges.push({
-      id: `e-${prev}-writer`,
-      source: prev,
-      target: "writer",
-    });
+    const prevNode = nodes.find((n) => n.id === prev);
+    edges.push(makeEdge(prev, "writer", partLabel(prevNode?.data.outputs as string[] | undefined)));
+  }
+
+  // Inject layout direction into all nodes so handles render correctly.
+  for (const node of nodes) {
+    node.data.layoutDirection = direction;
   }
 
   return { nodes, edges };
@@ -133,22 +166,24 @@ export function stepsToGraph(
 /**
  * Convert React Flow graph back to a FlowSpec (steps format).
  *
- * Groups nodes at the same X position — if multiple tool nodes share
- * an X position they form a parallel step; otherwise they're sequential.
+ * Groups nodes at the same primary-axis position — if multiple tool nodes
+ * share that position they form a parallel step; otherwise they're sequential.
  */
-export function graphToSteps(nodes: Node[]): FlowSpec {
-  const toolNodes = nodes
-    .filter((n) => n.type === "tool")
-    .sort((a, b) => a.position.x - b.position.x);
+export function graphToSteps(nodes: Node[], direction: LayoutDirection = "vertical"): FlowSpec {
+  const isVertical = direction === "vertical";
+  const primary = (n: Node) => (isVertical ? n.position.y : n.position.x);
+  const cross = (n: Node) => (isVertical ? n.position.x : n.position.y);
+
+  const toolNodes = nodes.filter((n) => n.type === "tool").sort((a, b) => primary(a) - primary(b));
 
   if (toolNodes.length === 0) return { steps: [] };
 
-  // Group by X position (with tolerance for layout jitter).
+  // Group by primary-axis position (with tolerance for layout jitter).
   const groups: Node[][] = [];
   let currentGroup: Node[] = [toolNodes[0]];
 
   for (let i = 1; i < toolNodes.length; i++) {
-    if (Math.abs(toolNodes[i].position.x - currentGroup[0].position.x) < NODE_WIDTH / 2) {
+    if (Math.abs(primary(toolNodes[i]) - primary(currentGroup[0])) < NODE_SIZE / 2) {
       currentGroup.push(toolNodes[i]);
     } else {
       groups.push(currentGroup);
@@ -168,9 +203,9 @@ export function graphToSteps(nodes: Node[]): FlowSpec {
         label: n.data.label as string | undefined,
       });
     } else {
-      // Multiple nodes at the same X = parallel step.
-      // Sort by Y for stable ordering.
-      group.sort((a, b) => a.position.y - b.position.y);
+      // Multiple nodes at the same primary position = parallel step.
+      // Sort by cross-axis for stable ordering.
+      group.sort((a, b) => cross(a) - cross(b));
       steps.push({
         tool: "",
         parallel: group.map((n) => ({

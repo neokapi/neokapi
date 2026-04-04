@@ -6,8 +6,13 @@
       "has_reader": true,
       "has_writer": true,
       "source": "built-in",
-      "extensions": [".zip"],
-      "mime_types": ["application/zip", "application/x-zip-compressed"]
+      "extensions": [
+        ".zip"
+      ],
+      "mime_types": [
+        "application/zip",
+        "application/x-zip-compressed"
+      ]
     },
     {
       "name": "csv",
@@ -15,8 +20,12 @@
       "has_reader": true,
       "has_writer": true,
       "source": "built-in",
-      "extensions": [".csv"],
-      "mime_types": ["text/csv"]
+      "extensions": [
+        ".csv"
+      ],
+      "mime_types": [
+        "text/csv"
+      ]
     },
     {
       "name": "doxygen",
@@ -24,8 +33,17 @@
       "has_reader": true,
       "has_writer": true,
       "source": "built-in",
-      "extensions": [".c", ".cpp", ".h", ".java", ".m", ".py"],
-      "mime_types": ["text/x-doxygen-txt"]
+      "extensions": [
+        ".c",
+        ".cpp",
+        ".h",
+        ".java",
+        ".m",
+        ".py"
+      ],
+      "mime_types": [
+        "text/x-doxygen-txt"
+      ]
     },
     {
       "name": "dtd",
@@ -33,8 +51,12 @@
       "has_reader": true,
       "has_writer": true,
       "source": "built-in",
-      "extensions": [".dtd"],
-      "mime_types": ["application/xml-dtd"]
+      "extensions": [
+        ".dtd"
+      ],
+      "mime_types": [
+        "application/xml-dtd"
+      ]
     },
     {
       "name": "epub",
@@ -42,8 +64,12 @@
       "has_reader": true,
       "has_writer": true,
       "source": "built-in",
-      "extensions": [".epub"],
-      "mime_types": ["application/epub+zip"]
+      "extensions": [
+        ".epub"
+      ],
+      "mime_types": [
+        "application/epub+zip"
+      ]
     },
     {
       "name": "fixedwidth",
@@ -51,7 +77,10 @@
       "has_reader": true,
       "has_writer": true,
       "source": "built-in",
-      "extensions": [".dat", ".fixed"]
+      "extensions": [
+        ".dat",
+        ".fixed"
+      ]
     },
     {
       "name": "html",
@@ -59,8 +88,15 @@
       "has_reader": true,
       "has_writer": true,
       "source": "built-in",
-      "extensions": [".html", ".htm", ".xhtml"],
-      "mime_types": ["text/html", "application/xhtml+xml"]
+      "extensions": [
+        ".html",
+        ".htm",
+        ".xhtml"
+      ],
+      "mime_types": [
+        "text/html",
+        "application/xhtml+xml"
+      ]
     },
     {
       "name": "icml",
@@ -68,8 +104,13 @@
       "has_reader": true,
       "has_writer": true,
       "source": "built-in",
-      "extensions": [".icml", ".wcml"],
-      "mime_types": ["application/x-icml+xml"]
+      "extensions": [
+        ".icml",
+        ".wcml"
+      ],
+      "mime_types": [
+        "application/x-icml+xml"
+      ]
     },
     {
       "name": "idml",
@@ -77,8 +118,12 @@
       "has_reader": true,
       "has_writer": true,
       "source": "built-in",
-      "extensions": [".idml"],
-      "mime_types": ["application/vnd.adobe.indesign-idml-package"]
+      "extensions": [
+        ".idml"
+      ],
+      "mime_types": [
+        "application/vnd.adobe.indesign-idml-package"
+      ]
     },
     {
       "name": "json",
@@ -86,8 +131,12 @@
       "has_reader": true,
       "has_writer": true,
       "source": "built-in",
-      "extensions": [".json"],
-      "mime_types": ["application/json"]
+      "extensions": [
+        ".json"
+      ],
+      "mime_types": [
+        "application/json"
+      ]
     },
     {
       "name": "markdown",
@@ -95,8 +144,14 @@
       "has_reader": true,
       "has_writer": true,
       "source": "built-in",
-      "extensions": [".md", ".markdown"],
-      "mime_types": ["text/markdown", "text/x-markdown"]
+      "extensions": [
+        ".md",
+        ".markdown"
+      ],
+      "mime_types": [
+        "text/markdown",
+        "text/x-markdown"
+      ]
     },
     {
       "name": "messageformat",
@@ -104,8 +159,13 @@
       "has_reader": true,
       "has_writer": true,
       "source": "built-in",
-      "extensions": [".mf", ".messageformat"],
-      "mime_types": ["text/x-messageformat"]
+      "extensions": [
+        ".mf",
+        ".messageformat"
+      ],
+      "mime_types": [
+        "text/x-messageformat"
+      ]
     },
     {
       "name": "mif",
@@ -113,8 +173,13 @@
       "has_reader": true,
       "has_writer": true,
       "source": "built-in",
-      "extensions": [".mif"],
-      "mime_types": ["application/x-mif", "application/vnd.mif"]
+      "extensions": [
+        ".mif"
+      ],
+      "mime_types": [
+        "application/x-mif",
+        "application/vnd.mif"
+      ]
     },
     {
       "name": "mosestext",
@@ -122,7 +187,9 @@
       "has_reader": true,
       "has_writer": true,
       "source": "built-in",
-      "mime_types": ["text/x-mosestext"]
+      "mime_types": [
+        "text/x-mosestext"
+      ]
     },
     {
       "name": "odf",
@@ -130,7 +197,13 @@
       "has_reader": true,
       "has_writer": true,
       "source": "built-in",
-      "extensions": [".odt", ".ods", ".odp", ".odg", ".odf"],
+      "extensions": [
+        ".odt",
+        ".ods",
+        ".odp",
+        ".odg",
+        ".odf"
+      ],
       "mime_types": [
         "application/vnd.oasis.opendocument.text",
         "application/vnd.oasis.opendocument.spreadsheet",
@@ -176,8 +249,12 @@
       "has_reader": true,
       "has_writer": true,
       "source": "built-in",
-      "extensions": [".pdf"],
-      "mime_types": ["application/pdf"]
+      "extensions": [
+        ".pdf"
+      ],
+      "mime_types": [
+        "application/pdf"
+      ]
     },
     {
       "name": "phpcontent",
@@ -185,8 +262,13 @@
       "has_reader": true,
       "has_writer": true,
       "source": "built-in",
-      "extensions": [".php", ".phpcnt"],
-      "mime_types": ["application/x-php"]
+      "extensions": [
+        ".php",
+        ".phpcnt"
+      ],
+      "mime_types": [
+        "application/x-php"
+      ]
     },
     {
       "name": "plaintext",
@@ -194,8 +276,13 @@
       "has_reader": true,
       "has_writer": true,
       "source": "built-in",
-      "extensions": [".txt", ".text"],
-      "mime_types": ["text/plain"]
+      "extensions": [
+        ".txt",
+        ".text"
+      ],
+      "mime_types": [
+        "text/plain"
+      ]
     },
     {
       "name": "po",
@@ -203,8 +290,13 @@
       "has_reader": true,
       "has_writer": true,
       "source": "built-in",
-      "extensions": [".po", ".pot"],
-      "mime_types": ["text/x-gettext-translation"]
+      "extensions": [
+        ".po",
+        ".pot"
+      ],
+      "mime_types": [
+        "text/x-gettext-translation"
+      ]
     },
     {
       "name": "properties",
@@ -212,8 +304,12 @@
       "has_reader": true,
       "has_writer": true,
       "source": "built-in",
-      "extensions": [".properties"],
-      "mime_types": ["text/x-java-properties"]
+      "extensions": [
+        ".properties"
+      ],
+      "mime_types": [
+        "text/x-java-properties"
+      ]
     },
     {
       "name": "regex",
@@ -221,8 +317,15 @@
       "has_reader": true,
       "has_writer": true,
       "source": "built-in",
-      "extensions": [".strings", ".ini", ".info", ".rls"],
-      "mime_types": ["text/x-regex"]
+      "extensions": [
+        ".strings",
+        ".ini",
+        ".info",
+        ".rls"
+      ],
+      "mime_types": [
+        "text/x-regex"
+      ]
     },
     {
       "name": "rtf",
@@ -230,8 +333,13 @@
       "has_reader": true,
       "has_writer": true,
       "source": "built-in",
-      "extensions": [".rtf"],
-      "mime_types": ["application/rtf", "text/rtf"]
+      "extensions": [
+        ".rtf"
+      ],
+      "mime_types": [
+        "application/rtf",
+        "text/rtf"
+      ]
     },
     {
       "name": "splicedlines",
@@ -246,8 +354,13 @@
       "has_reader": true,
       "has_writer": true,
       "source": "built-in",
-      "extensions": [".srt"],
-      "mime_types": ["application/x-subrip", "text/srt"]
+      "extensions": [
+        ".srt"
+      ],
+      "mime_types": [
+        "application/x-subrip",
+        "text/srt"
+      ]
     },
     {
       "name": "tex",
@@ -255,8 +368,14 @@
       "has_reader": true,
       "has_writer": true,
       "source": "built-in",
-      "extensions": [".tex", ".latex"],
-      "mime_types": ["application/x-tex", "text/x-tex"]
+      "extensions": [
+        ".tex",
+        ".latex"
+      ],
+      "mime_types": [
+        "application/x-tex",
+        "text/x-tex"
+      ]
     },
     {
       "name": "tmx",
@@ -264,8 +383,12 @@
       "has_reader": true,
       "has_writer": true,
       "source": "built-in",
-      "extensions": [".tmx"],
-      "mime_types": ["application/x-tmx+xml"]
+      "extensions": [
+        ".tmx"
+      ],
+      "mime_types": [
+        "application/x-tmx+xml"
+      ]
     },
     {
       "name": "transtable",
@@ -273,8 +396,13 @@
       "has_reader": true,
       "has_writer": true,
       "source": "built-in",
-      "extensions": [".tab", ".tsv"],
-      "mime_types": ["text/tab-separated-values"]
+      "extensions": [
+        ".tab",
+        ".tsv"
+      ],
+      "mime_types": [
+        "text/tab-separated-values"
+      ]
     },
     {
       "name": "ts",
@@ -282,7 +410,10 @@
       "has_reader": true,
       "has_writer": true,
       "source": "built-in",
-      "mime_types": ["application/x-ts", "application/x-linguist"]
+      "mime_types": [
+        "application/x-ts",
+        "application/x-linguist"
+      ]
     },
     {
       "name": "tsv",
@@ -290,8 +421,12 @@
       "has_reader": true,
       "has_writer": true,
       "source": "built-in",
-      "extensions": [".tsv"],
-      "mime_types": ["text/tab-separated-values"]
+      "extensions": [
+        ".tsv"
+      ],
+      "mime_types": [
+        "text/tab-separated-values"
+      ]
     },
     {
       "name": "ttml",
@@ -299,8 +434,13 @@
       "has_reader": true,
       "has_writer": true,
       "source": "built-in",
-      "extensions": [".ttml", ".dfxp"],
-      "mime_types": ["application/ttml+xml"]
+      "extensions": [
+        ".ttml",
+        ".dfxp"
+      ],
+      "mime_types": [
+        "application/ttml+xml"
+      ]
     },
     {
       "name": "ttx",
@@ -308,8 +448,12 @@
       "has_reader": true,
       "has_writer": true,
       "source": "built-in",
-      "extensions": [".ttx"],
-      "mime_types": ["application/x-ttx+xml"]
+      "extensions": [
+        ".ttx"
+      ],
+      "mime_types": [
+        "application/x-ttx+xml"
+      ]
     },
     {
       "name": "txml",
@@ -317,8 +461,12 @@
       "has_reader": true,
       "has_writer": true,
       "source": "built-in",
-      "extensions": [".txml"],
-      "mime_types": ["application/x-txml+xml"]
+      "extensions": [
+        ".txml"
+      ],
+      "mime_types": [
+        "application/x-txml+xml"
+      ]
     },
     {
       "name": "versifiedtext",
@@ -326,7 +474,9 @@
       "has_reader": true,
       "has_writer": true,
       "source": "built-in",
-      "extensions": [".ver"]
+      "extensions": [
+        ".ver"
+      ]
     },
     {
       "name": "vignette",
@@ -334,8 +484,13 @@
       "has_reader": true,
       "has_writer": true,
       "source": "built-in",
-      "extensions": [".Rmd", ".Rnw"],
-      "mime_types": ["text/x-r-markdown"]
+      "extensions": [
+        ".Rmd",
+        ".Rnw"
+      ],
+      "mime_types": [
+        "text/x-r-markdown"
+      ]
     },
     {
       "name": "vtt",
@@ -343,8 +498,12 @@
       "has_reader": true,
       "has_writer": true,
       "source": "built-in",
-      "extensions": [".vtt"],
-      "mime_types": ["text/vtt"]
+      "extensions": [
+        ".vtt"
+      ],
+      "mime_types": [
+        "text/vtt"
+      ]
     },
     {
       "name": "wiki",
@@ -352,8 +511,13 @@
       "has_reader": true,
       "has_writer": true,
       "source": "built-in",
-      "extensions": [".wiki", ".mediawiki"],
-      "mime_types": ["text/x-wiki"]
+      "extensions": [
+        ".wiki",
+        ".mediawiki"
+      ],
+      "mime_types": [
+        "text/x-wiki"
+      ]
     },
     {
       "name": "xliff",
@@ -361,8 +525,14 @@
       "has_reader": true,
       "has_writer": true,
       "source": "built-in",
-      "extensions": [".xlf", ".xliff"],
-      "mime_types": ["application/xliff+xml", "application/x-xliff+xml"]
+      "extensions": [
+        ".xlf",
+        ".xliff"
+      ],
+      "mime_types": [
+        "application/xliff+xml",
+        "application/x-xliff+xml"
+      ]
     },
     {
       "name": "xliff2",
@@ -370,8 +540,13 @@
       "has_reader": true,
       "has_writer": true,
       "source": "built-in",
-      "extensions": [".xlf", ".xliff"],
-      "mime_types": ["application/xliff+xml"]
+      "extensions": [
+        ".xlf",
+        ".xliff"
+      ],
+      "mime_types": [
+        "application/xliff+xml"
+      ]
     },
     {
       "name": "xml",
@@ -379,8 +554,13 @@
       "has_reader": true,
       "has_writer": true,
       "source": "built-in",
-      "extensions": [".xml"],
-      "mime_types": ["text/xml", "application/xml"]
+      "extensions": [
+        ".xml"
+      ],
+      "mime_types": [
+        "text/xml",
+        "application/xml"
+      ]
     },
     {
       "name": "yaml",
@@ -388,8 +568,15 @@
       "has_reader": true,
       "has_writer": true,
       "source": "built-in",
-      "extensions": [".yaml", ".yml"],
-      "mime_types": ["application/yaml", "text/yaml", "application/x-yaml"]
+      "extensions": [
+        ".yaml",
+        ".yml"
+      ],
+      "mime_types": [
+        "application/yaml",
+        "text/yaml",
+        "application/x-yaml"
+      ]
     }
   ],
   "bridge": [
