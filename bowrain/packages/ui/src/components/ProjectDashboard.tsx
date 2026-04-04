@@ -1,18 +1,19 @@
+import {
+  Badge,
+  Button,
+  Card,
+  CardContent,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@neokapi/ui-primitives";
 import { useState } from "react";
 import type { ProjectInfo } from "../types/api";
 import { useLocales } from "../hooks/useLocales";
 import { ProjectFormDialog } from "./ProjectFormDialog";
 import type { ProjectFormData } from "./ProjectFormDialog";
-import { Button } from "@neokapi/ui-primitives/components/ui/button";
-import { Card, CardContent } from "@neokapi/ui-primitives/components/ui/card";
-import { Badge } from "@neokapi/ui-primitives/components/ui/badge";
-import {
-  DropdownMenu,
-  DropdownMenuTrigger,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-} from "@neokapi/ui-primitives/components/ui/dropdown-menu";
 import {
   FolderOpen,
   ArrowRight,

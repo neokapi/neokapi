@@ -70,7 +70,7 @@ export function ProblemsPanel({ issues, loading, onNavigateToBlock, onClose }: P
             <div className="flex items-center gap-1 text-xs text-muted-foreground">
               <AlertTriangle className="w-3 h-3 text-destructive" />
               <span>{errorCount}</span>
-              <Info className="w-3 h-3 text-amber-500 ml-1" />
+              <Info className="w-3 h-3 text-warning ml-1" />
               <span>{warningCount}</span>
             </div>
           )}
@@ -153,7 +153,7 @@ export function ProblemsPanel({ issues, loading, onNavigateToBlock, onClose }: P
                         Error
                       </span>
                     ) : (
-                      <span className="inline-flex items-center gap-1 text-xs text-amber-600 dark:text-amber-400">
+                      <span className="inline-flex items-center gap-1 text-xs text-warning dark:text-warning">
                         <Info className="w-3 h-3" />
                         Warning
                       </span>

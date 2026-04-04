@@ -1,6 +1,6 @@
+import { Button } from "@neokapi/ui-primitives";
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { fn } from "storybook/test";
-import { Button } from "@neokapi/ui-primitives/components/ui/button";
 
 const meta: Meta<typeof Button> = {
   title: "Foundations/Button",

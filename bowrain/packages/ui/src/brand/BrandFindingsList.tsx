@@ -1,6 +1,5 @@
+import { Badge, cn } from "@neokapi/ui-primitives";
 import type { BrandVoiceFinding, BrandSeverity } from "./types";
-import { Badge } from "@neokapi/ui-primitives/components/ui/badge";
-import { cn } from "@neokapi/ui-primitives";
 
 interface BrandFindingsListProps {
   findings: BrandVoiceFinding[];
@@ -9,9 +8,9 @@ interface BrandFindingsListProps {
 
 const severityStyles: Record<BrandSeverity, string> = {
   neutral: "bg-muted text-muted-foreground",
-  minor: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/40 dark:text-yellow-300",
-  major: "bg-orange-100 text-orange-800 dark:bg-orange-900/40 dark:text-orange-300",
-  critical: "bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300",
+  minor: "bg-warning/10 text-warning dark:bg-warning/20 dark:text-warning",
+  major: "bg-warning/10 text-warning dark:bg-warning/20 dark:text-warning",
+  critical: "bg-destructive/10 text-destructive dark:bg-destructive/20 dark:text-destructive",
 };
 
 export function BrandFindingsList({ findings, className }: BrandFindingsListProps) {

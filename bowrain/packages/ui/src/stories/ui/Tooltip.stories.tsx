@@ -1,11 +1,11 @@
-import type { Meta, StoryObj } from "@storybook/react-vite";
 import {
+  Button,
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
-} from "@neokapi/ui-primitives/components/ui/tooltip";
-import { Button } from "@neokapi/ui-primitives/components/ui/button";
+} from "@neokapi/ui-primitives";
+import type { Meta, StoryObj } from "@storybook/react-vite";
 
 const meta: Meta<typeof Tooltip> = {
   title: "Foundations/Tooltip",

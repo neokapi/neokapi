@@ -1,6 +1,5 @@
+import { Button, useIsMobile } from "@neokapi/ui-primitives";
 import { useState, useEffect, useCallback } from "react";
-import { useIsMobile } from "@neokapi/ui-primitives";
-import { Button } from "@neokapi/ui-primitives/components/ui/button";
 import { X, Monitor } from "./icons";
 
 interface OpenInDesktopProps {

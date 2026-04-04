@@ -1,7 +1,5 @@
+import { Button, Card, CardContent, cn } from "@neokapi/ui-primitives";
 import type { BillingPlan } from "../../types/api";
-import { cn } from "@neokapi/ui-primitives";
-import { Button } from "@neokapi/ui-primitives/components/ui/button";
-import { Card, CardContent } from "@neokapi/ui-primitives/components/ui/card";
 import { ArrowUpRight } from "lucide-react";
 
 export interface UpgradePromptProps {

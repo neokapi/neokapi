@@ -1,5 +1,5 @@
+import { Separator } from "@neokapi/ui-primitives";
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { Separator } from "@neokapi/ui-primitives/components/ui/separator";
 
 const meta: Meta<typeof Separator> = {
   title: "Foundations/Separator",

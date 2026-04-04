@@ -1,21 +1,22 @@
+import {
+  Alert,
+  AlertDescription,
+  Badge,
+  Button,
+  Card,
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  Input,
+  Label,
+  Textarea,
+} from "@neokapi/ui-primitives";
 import { useState, useEffect, useCallback } from "react";
 import type { RoleTemplate, Workspace, PermissionName } from "../types/api";
 import { ALL_PERMISSIONS, PERMISSION_LABELS } from "../types/api";
 import { useApi } from "../context/ApiContext";
-import { Button } from "@neokapi/ui-primitives/components/ui/button";
-import { Input } from "@neokapi/ui-primitives/components/ui/input";
-import { Label } from "@neokapi/ui-primitives/components/ui/label";
-import { Badge } from "@neokapi/ui-primitives/components/ui/badge";
-import { Card } from "@neokapi/ui-primitives/components/ui/card";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@neokapi/ui-primitives/components/ui/dialog";
-import { Alert, AlertDescription } from "@neokapi/ui-primitives/components/ui/alert";
-import { Textarea } from "@neokapi/ui-primitives/components/ui/textarea";
 import { Shield, Pencil, Trash2, Plus } from "./icons";
 
 interface RoleTemplateManagerProps {

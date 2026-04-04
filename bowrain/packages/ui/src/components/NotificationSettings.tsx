@@ -1,21 +1,19 @@
-import * as React from "react";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@neokapi/ui-primitives/components/ui/card";
-import { Label } from "@neokapi/ui-primitives/components/ui/label";
-import { Switch } from "@neokapi/ui-primitives/components/ui/switch";
-import {
+  Input,
+  Label,
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@neokapi/ui-primitives/components/ui/select";
-import { Input } from "@neokapi/ui-primitives/components/ui/input";
+  Switch,
+} from "@neokapi/ui-primitives";
+import * as React from "react";
 import { Bell, Clock, Globe } from "./icons";
 
 /** Digest settings as returned from the API. */

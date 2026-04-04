@@ -1,6 +1,6 @@
+import { Badge } from "@neokapi/ui-primitives";
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import type { BillingPlan } from "../../types/api";
-import { Badge } from "@neokapi/ui-primitives/components/ui/badge";
 import { SubscriptionBadge } from "../../components/billing/SubscriptionBadge";
 
 type UpsellSignal =
@@ -25,19 +25,19 @@ interface UpsellOpportunity {
 const signalBadge: Record<UpsellSignal, { label: string; className: string }> = {
   credit_exhaustion: {
     label: "Credit Exhaustion",
-    className: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400",
+    className: "bg-destructive/10 text-destructive dark:bg-destructive/20 dark:text-destructive",
   },
   seat_pressure: {
     label: "Seat Pressure",
-    className: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400",
+    className: "bg-warning/10 text-warning dark:bg-warning/20 dark:text-warning",
   },
   feature_gate_hits: {
     label: "Feature Gate Hits",
-    className: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400",
+    className: "bg-info/10 text-info dark:bg-info/20 dark:text-info",
   },
   high_usage: {
     label: "High Usage",
-    className: "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400",
+    className: "bg-warning/10 text-warning dark:bg-warning/20 dark:text-warning",
   },
   trial_expiring: {
     label: "Trial Expiring",

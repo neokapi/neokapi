@@ -1,19 +1,17 @@
-import type { Workspace } from "../types/api";
-import { WorkspaceIcon } from "./WorkspaceIcon";
-import { Plus } from "./icons";
 import {
   DropdownMenu,
-  DropdownMenuTrigger,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
-} from "@neokapi/ui-primitives/components/ui/dropdown-menu";
-import {
+  DropdownMenuTrigger,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-} from "@neokapi/ui-primitives/components/ui/sidebar";
+} from "@neokapi/ui-primitives";
+import type { Workspace } from "../types/api";
+import { WorkspaceIcon } from "./WorkspaceIcon";
+import { Plus } from "./icons";
 
 interface WorkspaceSwitcherProps {
   workspaces: Workspace[];

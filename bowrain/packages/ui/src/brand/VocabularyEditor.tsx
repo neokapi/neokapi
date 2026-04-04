@@ -1,8 +1,6 @@
+import { Button, Input, Label } from "@neokapi/ui-primitives";
 import { useCallback } from "react";
 import type { VocabularyRules, TermRule } from "./types";
-import { Button } from "@neokapi/ui-primitives/components/ui/button";
-import { Input } from "@neokapi/ui-primitives/components/ui/input";
-import { Label } from "@neokapi/ui-primitives/components/ui/label";
 import { Plus, Trash2 } from "../components/icons";
 
 interface VocabularyEditorProps {

@@ -1,3 +1,16 @@
 {
-  "ignorePatterns": ["apps/bowrain/frontend/bindings/**"]
+  "ignorePatterns": ["apps/bowrain/frontend/bindings/**"],
+  "rules": {
+    "no-restricted-imports": [
+      "error",
+      {
+        "patterns": [
+          {
+            "group": ["@neokapi/ui-primitives/components/*"],
+            "message": "Import from \"@neokapi/ui-primitives\" barrel instead of deep component paths."
+          }
+        ]
+      }
+    ]
+  }
 }

@@ -1,22 +1,20 @@
-import { useState, useEffect } from "react";
-import type { StreamInfo, StreamVisibility } from "../types/api";
-import { Button } from "@neokapi/ui-primitives/components/ui/button";
-import { Input } from "@neokapi/ui-primitives/components/ui/input";
-import { Label } from "@neokapi/ui-primitives/components/ui/label";
 import {
-  Select,
-  SelectTrigger,
-  SelectValue,
-  SelectContent,
-  SelectItem,
-} from "@neokapi/ui-primitives/components/ui/select";
-import {
+  Button,
   Dialog,
   DialogContent,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogFooter,
-} from "@neokapi/ui-primitives/components/ui/dialog";
+  Input,
+  Label,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@neokapi/ui-primitives";
+import { useState, useEffect } from "react";
+import type { StreamInfo, StreamVisibility } from "../types/api";
 
 export interface StreamEditDialogProps {
   stream: StreamInfo | null;

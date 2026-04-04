@@ -1,14 +1,8 @@
+import { Card, CardContent, CardHeader, CardTitle, cn } from "@neokapi/ui-primitives";
 import { useState, useMemo } from "react";
 import type { ItemTranslationStats } from "../types/api";
 import { LanguageLabel } from "./LanguageLabel";
 import { FormattedFileName } from "./FormattedFileName";
-import {
-  Card,
-  CardHeader,
-  CardTitle,
-  CardContent,
-} from "@neokapi/ui-primitives/components/ui/card";
-import { cn } from "@neokapi/ui-primitives";
 
 interface FileProgressTableProps {
   itemStats: ItemTranslationStats[];
@@ -20,9 +14,9 @@ type SortField = "name" | "words" | "completion";
 type SortDir = "asc" | "desc";
 
 function completionBarColor(pct: number): string {
-  if (pct >= 90) return "bg-green-500";
-  if (pct >= 50) return "bg-yellow-500";
-  if (pct > 0) return "bg-orange-500";
+  if (pct >= 90) return "bg-success";
+  if (pct >= 50) return "bg-warning";
+  if (pct > 0) return "bg-warning";
   return "bg-muted";
 }
 

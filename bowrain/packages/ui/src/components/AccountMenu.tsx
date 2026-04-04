@@ -1,14 +1,14 @@
-import type { User } from "../types/api";
-import { cn } from "@neokapi/ui-primitives";
-import { LogOut, Settings } from "./icons";
 import {
   DropdownMenu,
-  DropdownMenuTrigger,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuSeparator,
   DropdownMenuLabel,
-} from "@neokapi/ui-primitives/components/ui/dropdown-menu";
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+  cn,
+} from "@neokapi/ui-primitives";
+import type { User } from "../types/api";
+import { LogOut, Settings } from "./icons";
 
 type AvatarStatus = "online" | "offline" | "away" | "busy";
 
@@ -53,9 +53,9 @@ function StatusDot({ status }: { status: AvatarStatus }) {
       data-testid="connection-status"
       className={cn(
         "absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-background",
-        status === "online" && "bg-green-500",
-        status === "away" && "bg-amber-500",
-        status === "busy" && "bg-red-500",
+        status === "online" && "bg-success",
+        status === "away" && "bg-warning",
+        status === "busy" && "bg-destructive",
         status === "offline" && "bg-muted-foreground/40",
       )}
     />

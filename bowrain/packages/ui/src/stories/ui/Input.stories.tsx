@@ -1,6 +1,5 @@
+import { Input, Label } from "@neokapi/ui-primitives";
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { Input } from "@neokapi/ui-primitives/components/ui/input";
-import { Label } from "@neokapi/ui-primitives/components/ui/label";
 
 const meta: Meta<typeof Input> = {
   title: "Foundations/Input",

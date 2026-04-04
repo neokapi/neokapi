@@ -97,8 +97,8 @@ export function CreditLedger({ entries, className }: CreditLedgerProps) {
                   className={cn(
                     "py-2 pr-4 text-right font-mono text-xs font-medium",
                     entry.amount > 0
-                      ? "text-green-600 dark:text-green-400"
-                      : "text-red-600 dark:text-red-400",
+                      ? "text-success dark:text-success"
+                      : "text-destructive dark:text-destructive",
                   )}
                 >
                   {entry.amount > 0 ? "+" : "-"}

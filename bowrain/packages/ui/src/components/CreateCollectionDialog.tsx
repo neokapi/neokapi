@@ -1,15 +1,15 @@
-import { useState, useEffect } from "react";
-import type { CollectionKind, CollectionInfo } from "../types/api";
-import { Button } from "@neokapi/ui-primitives/components/ui/button";
-import { Input } from "@neokapi/ui-primitives/components/ui/input";
-import { Label } from "@neokapi/ui-primitives/components/ui/label";
 import {
+  Button,
   Dialog,
   DialogContent,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogFooter,
-} from "@neokapi/ui-primitives/components/ui/dialog";
+  Input,
+  Label,
+} from "@neokapi/ui-primitives";
+import { useState, useEffect } from "react";
+import type { CollectionKind, CollectionInfo } from "../types/api";
 import { Upload, Plug } from "./icons";
 
 export interface CreateCollectionDialogProps {

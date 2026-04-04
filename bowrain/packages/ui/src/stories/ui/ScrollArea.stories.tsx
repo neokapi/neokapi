@@ -1,6 +1,5 @@
+import { ScrollArea, ScrollBar, Separator } from "@neokapi/ui-primitives";
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { ScrollArea, ScrollBar } from "@neokapi/ui-primitives/components/ui/scroll-area";
-import { Separator } from "@neokapi/ui-primitives/components/ui/separator";
 
 const meta: Meta<typeof ScrollArea> = {
   title: "Foundations/ScrollArea",

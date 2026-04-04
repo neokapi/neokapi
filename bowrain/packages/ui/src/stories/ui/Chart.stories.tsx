@@ -1,13 +1,13 @@
-import type { Meta, StoryObj } from "@storybook/react-vite";
-import { Bar, BarChart, XAxis, YAxis } from "recharts";
 import {
   ChartContainer,
-  ChartTooltip,
-  ChartTooltipContent,
   ChartLegend,
   ChartLegendContent,
+  ChartTooltip,
+  ChartTooltipContent,
   type ChartConfig,
-} from "@neokapi/ui-primitives/components/ui/chart";
+} from "@neokapi/ui-primitives";
+import type { Meta, StoryObj } from "@storybook/react-vite";
+import { Bar, BarChart, XAxis, YAxis } from "recharts";
 
 const meta: Meta<typeof ChartContainer> = {
   title: "Foundations/Chart",

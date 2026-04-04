@@ -1,3 +1,4 @@
+import { Badge, Button, Card, cn } from "@neokapi/ui-primitives";
 import { useState, useEffect, useCallback } from "react";
 import { useApi } from "../context/ApiContext";
 import { useWorkspace } from "../context/WorkspaceContext";
@@ -8,10 +9,6 @@ import type {
   RunStatus,
   StepStatus,
 } from "../types/api";
-import { Card } from "@neokapi/ui-primitives/components/ui/card";
-import { Badge } from "@neokapi/ui-primitives/components/ui/badge";
-import { Button } from "@neokapi/ui-primitives/components/ui/button";
-import { cn } from "@neokapi/ui-primitives";
 
 // ---------------------------------------------------------------------------
 // Status helpers
@@ -19,10 +16,10 @@ import { cn } from "@neokapi/ui-primitives";
 
 const runStatusColor: Record<RunStatus, string> = {
   pending: "bg-muted text-muted-foreground",
-  running: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200",
-  completed: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200",
-  failed: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200",
-  partial: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200",
+  running: "bg-info/10 text-info dark:bg-info/20 dark:text-info",
+  completed: "bg-success/10 text-success dark:bg-success/20 dark:text-success",
+  failed: "bg-destructive/10 text-destructive dark:bg-destructive/20 dark:text-destructive",
+  partial: "bg-warning/10 text-warning dark:bg-warning/20 dark:text-warning",
 };
 
 const stepStatusIcon: Record<StepStatus, string> = {
@@ -35,9 +32,9 @@ const stepStatusIcon: Record<StepStatus, string> = {
 
 const stepStatusColor: Record<StepStatus, string> = {
   pending: "text-muted-foreground",
-  running: "text-blue-500 animate-pulse",
-  completed: "text-green-500",
-  failed: "text-red-500",
+  running: "text-info animate-pulse",
+  completed: "text-success",
+  failed: "text-destructive",
   skipped: "text-muted-foreground",
 };
 
@@ -282,7 +279,7 @@ export function AutomationRunsPage({ projectId }: AutomationRunsPageProps) {
                   {step.total_jobs > 0 && step.status === "running" && (
                     <div className="mt-2 h-1.5 bg-muted rounded-full overflow-hidden">
                       <div
-                        className="h-full bg-blue-500 rounded-full transition-all"
+                        className="h-full bg-info rounded-full transition-all"
                         style={{
                           width: `${Math.round((step.done_jobs / step.total_jobs) * 100)}%`,
                         }}
@@ -307,8 +304,8 @@ export function AutomationRunsPage({ projectId }: AutomationRunsPageProps) {
                       <span
                         className={cn(
                           "shrink-0 w-[40px]",
-                          log.level === "error" && "text-red-500",
-                          log.level === "warn" && "text-yellow-500",
+                          log.level === "error" && "text-destructive",
+                          log.level === "warn" && "text-warning",
                           log.level === "info" && "text-muted-foreground",
                         )}
                       >

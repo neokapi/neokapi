@@ -1,11 +1,5 @@
+import { Card, CardContent, CardHeader, CardTitle, cn } from "@neokapi/ui-primitives";
 import type { CollectionTranslationStats } from "../types/api";
-import {
-  Card,
-  CardHeader,
-  CardTitle,
-  CardContent,
-} from "@neokapi/ui-primitives/components/ui/card";
-import { cn } from "@neokapi/ui-primitives";
 
 interface CollectionHeatmapProps {
   collectionStats: CollectionTranslationStats[];
@@ -13,9 +7,9 @@ interface CollectionHeatmapProps {
 }
 
 function completionColor(pct: number): string {
-  if (pct >= 90) return "bg-green-500/20 text-green-700 dark:text-green-400";
-  if (pct >= 50) return "bg-yellow-500/20 text-yellow-700 dark:text-yellow-400";
-  if (pct > 0) return "bg-orange-500/20 text-orange-700 dark:text-orange-400";
+  if (pct >= 90) return "bg-success/20 text-success dark:text-success";
+  if (pct >= 50) return "bg-warning/20 text-warning dark:text-warning";
+  if (pct > 0) return "bg-warning/20 text-warning dark:text-warning";
   return "bg-muted text-muted-foreground";
 }
 

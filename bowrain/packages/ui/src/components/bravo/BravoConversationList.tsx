@@ -22,7 +22,7 @@ function timeAgo(dateStr: string): string {
 }
 
 function statusDot(status: BravoConversation["status"]): string {
-  if (status === "active") return "bg-green-500";
+  if (status === "active") return "bg-success";
   if (status === "completed") return "bg-muted-foreground";
   return "bg-destructive";
 }

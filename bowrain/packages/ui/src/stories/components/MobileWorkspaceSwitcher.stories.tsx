@@ -1,7 +1,7 @@
+import { SidebarProvider } from "@neokapi/ui-primitives";
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { fn } from "storybook/test";
 import { MobileWorkspaceSwitcher } from "../../components/MobileWorkspaceSwitcher";
-import { SidebarProvider } from "@neokapi/ui-primitives/components/ui/sidebar";
 import { sampleWorkspace, personalWorkspace } from "./fixtures";
 
 const meta: Meta<typeof MobileWorkspaceSwitcher> = {

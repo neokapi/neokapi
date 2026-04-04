@@ -1,3 +1,4 @@
+import { SidebarProvider, TooltipProvider } from "@neokapi/ui-primitives";
 import { describe, it, expect, vi } from "vite-plus/test";
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -602,8 +603,6 @@ describe("FilterBar", () => {
 // ---------------------------------------------------------------------------
 
 import { WorkspaceSwitcher } from "../components/WorkspaceSwitcher";
-import { SidebarProvider } from "@neokapi/ui-primitives/components/ui/sidebar";
-import { TooltipProvider } from "@neokapi/ui-primitives/components/ui/tooltip";
 import type { Workspace } from "../types/api";
 
 function makeWorkspace(overrides: Partial<Workspace> = {}): Workspace {

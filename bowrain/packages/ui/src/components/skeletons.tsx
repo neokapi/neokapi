@@ -1,5 +1,4 @@
-import { Skeleton } from "@neokapi/ui-primitives/components/ui/skeleton";
-import { Card } from "@neokapi/ui-primitives/components/ui/card";
+import { Card, Skeleton } from "@neokapi/ui-primitives";
 
 // ---------------------------------------------------------------------------
 // Page-level skeleton components for instant navigation feedback

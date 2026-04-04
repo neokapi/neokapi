@@ -1,10 +1,8 @@
+import { Badge, Button, Card } from "@neokapi/ui-primitives";
 import { useState, useMemo, useCallback } from "react";
 import type { AuditEntry, ProjectInfo } from "../types/api";
 import type { FilterToken, FilterField, FilterPreset } from "./FilterBar";
 import { FilterBar } from "./FilterBar";
-import { Card } from "@neokapi/ui-primitives/components/ui/card";
-import { Button } from "@neokapi/ui-primitives/components/ui/button";
-import { Badge } from "@neokapi/ui-primitives/components/ui/badge";
 import {
   ChevronDown,
   ChevronUp,

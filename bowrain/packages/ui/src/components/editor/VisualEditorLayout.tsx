@@ -1,3 +1,4 @@
+import { Button, Tabs, TabsList, TabsTrigger, cn } from "@neokapi/ui-primitives";
 import { useState, useCallback, useEffect, useRef } from "react";
 import type {
   ProjectInfo,
@@ -17,9 +18,6 @@ import { VisualEditorCard } from "./VisualEditorCard";
 import { TermSidebar } from "./TermSidebar";
 import { ProblemsPanel } from "./ProblemsPanel";
 import { useVisualEditorKeyboard } from "./useVisualEditorKeyboard";
-import { Tabs, TabsList, TabsTrigger } from "@neokapi/ui-primitives/components/ui/tabs";
-import { Button } from "@neokapi/ui-primitives/components/ui/button";
-import { cn } from "@neokapi/ui-primitives";
 import { AlertTriangle } from "../icons";
 
 // ---------------------------------------------------------------------------

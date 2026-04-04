@@ -15,20 +15,20 @@ interface NotificationCenterProps {
 function typeColor(type: string): string {
   switch (type) {
     case "review.assigned":
-      return "text-blue-500";
+      return "text-info";
     case "review.completed":
-      return "text-green-500";
+      return "text-success";
     case "extraction.completed":
       return "text-purple-500";
     case "task.assigned":
     case "content.ready":
-      return "text-blue-500";
+      return "text-info";
     case "content.available":
       return "text-teal-500";
     case "quality.gate.failed":
-      return "text-red-500";
+      return "text-destructive";
     case "flow.failed":
-      return "text-red-500";
+      return "text-destructive";
     default:
       return "text-muted-foreground";
   }

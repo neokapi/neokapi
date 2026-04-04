@@ -1,4 +1,3 @@
-import type { Meta, StoryObj } from "@storybook/react-vite";
 import {
   Select,
   SelectContent,
@@ -7,7 +6,8 @@ import {
   SelectLabel,
   SelectTrigger,
   SelectValue,
-} from "@neokapi/ui-primitives/components/ui/select";
+} from "@neokapi/ui-primitives";
+import type { Meta, StoryObj } from "@storybook/react-vite";
 
 const meta: Meta<typeof Select> = {
   title: "Foundations/Select",

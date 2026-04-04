@@ -1,5 +1,18 @@
 "use client";
 
+import {
+  Avatar,
+  AvatarFallback,
+  AvatarImage,
+  Dialog,
+  DialogContent,
+  DialogTitle,
+  DialogTrigger,
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+  cn,
+} from "@neokapi/ui-primitives";
 import { PropsWithChildren, useEffect, useState, type FC } from "react";
 import { XIcon, PlusIcon, FileText } from "lucide-react";
 import {
@@ -10,20 +23,7 @@ import {
   useAui,
 } from "@assistant-ui/react";
 import { useShallow } from "zustand/shallow";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@neokapi/ui-primitives/components/ui/tooltip";
-import {
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogTrigger,
-} from "@neokapi/ui-primitives/components/ui/dialog";
-import { Avatar, AvatarImage, AvatarFallback } from "@neokapi/ui-primitives/components/ui/avatar";
 import { TooltipIconButton } from "./tooltip-icon-button";
-import { cn } from "@neokapi/ui-primitives";
 
 const useFileSrc = (file: File | undefined) => {
   const [src, setSrc] = useState<string | undefined>(undefined);

@@ -1,10 +1,6 @@
+import { Button, Card, Input, Label, Switch } from "@neokapi/ui-primitives";
 import { useState, useCallback } from "react";
 import type { VoiceProfile, ToneProfile, StyleRules, VocabularyRules, VoiceExample } from "./types";
-import { Button } from "@neokapi/ui-primitives/components/ui/button";
-import { Input } from "@neokapi/ui-primitives/components/ui/input";
-import { Label } from "@neokapi/ui-primitives/components/ui/label";
-import { Card } from "@neokapi/ui-primitives/components/ui/card";
-import { Switch } from "@neokapi/ui-primitives/components/ui/switch";
 import { ArrowLeft, Check } from "../components/icons";
 import { defaultTone, defaultStyle, defaultVocabulary } from "./defaults";
 import { ToneSpectrumSelector } from "./ToneSpectrumSelector";
