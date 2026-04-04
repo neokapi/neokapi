@@ -65,7 +65,7 @@ func (d *FlowDefinition) Validate() error {
 	if d.Name == "" {
 		return ErrFlowNameRequired
 	}
-	nodeIDs := make(map[string]bool)
+	nodeIDs := make(map[string]bool, len(d.Nodes))
 	for _, n := range d.Nodes {
 		if n.ID == "" {
 			return ErrNodeIDRequired
@@ -94,8 +94,8 @@ func (d *FlowDefinition) Validate() error {
 // TopologicalOrder returns node IDs in execution order following edges from
 // sources to sinks. Returns an error if a cycle is detected.
 func (d *FlowDefinition) TopologicalOrder() ([]string, error) {
-	adj := make(map[string][]string)
-	inDeg := make(map[string]int)
+	adj := make(map[string][]string, len(d.Nodes))
+	inDeg := make(map[string]int, len(d.Nodes))
 	for _, n := range d.Nodes {
 		inDeg[n.ID] = 0
 	}
@@ -103,13 +103,13 @@ func (d *FlowDefinition) TopologicalOrder() ([]string, error) {
 		adj[e.Source] = append(adj[e.Source], e.Target)
 		inDeg[e.Target]++
 	}
-	var queue []string
+	queue := make([]string, 0, len(d.Nodes))
 	for _, n := range d.Nodes {
 		if inDeg[n.ID] == 0 {
 			queue = append(queue, n.ID)
 		}
 	}
-	var order []string
+	order := make([]string, 0, len(d.Nodes))
 	for len(queue) > 0 {
 		id := queue[0]
 		queue = queue[1:]
@@ -133,7 +133,7 @@ func (d *FlowDefinition) ToolNodeNames() ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	nodeMap := make(map[string]*FlowNode)
+	nodeMap := make(map[string]*FlowNode, len(d.Nodes))
 	for i := range d.Nodes {
 		nodeMap[d.Nodes[i].ID] = &d.Nodes[i]
 	}

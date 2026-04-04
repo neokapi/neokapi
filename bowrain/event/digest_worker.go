@@ -3,7 +3,7 @@ package event
 import (
 	"context"
 	"fmt"
-	"log"
+	"log/slog"
 	"strings"
 	"time"
 
@@ -80,13 +80,13 @@ func (w *DigestWorker) tick() {
 
 	users, err := w.digestStore.ListUsersWithFrequency(ctx, w.frequency)
 	if err != nil {
-		log.Printf("WARNING: digest worker (%s) failed to list users: %v", w.frequency, err)
+		slog.Warn("digest worker failed to list users", "frequency", w.frequency, "error", err)
 		return
 	}
 
 	for _, ds := range users {
 		if err := w.sendDigestForUser(ctx, ds); err != nil {
-			log.Printf("WARNING: digest worker (%s) failed for user %s: %v", w.frequency, ds.UserID, err)
+			slog.Warn("digest worker failed for user", "frequency", w.frequency, "user_id", ds.UserID, "error", err)
 		}
 	}
 }
@@ -145,8 +145,8 @@ type categoryGroup struct {
 }
 
 func groupByCategory(notifications []bstore.Notification) []categoryGroup {
-	order := make([]string, 0)
-	groups := make(map[string][]bstore.Notification)
+	var order []string
+	groups := make(map[string][]bstore.Notification, 8)
 	for _, n := range notifications {
 		cat := n.Category
 		if cat == "" {

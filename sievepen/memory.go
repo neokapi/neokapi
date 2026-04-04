@@ -39,7 +39,6 @@ func WithMaxEntries(max int) InMemoryTMOption {
 // NewInMemoryTM creates a new empty in-memory translation memory.
 func NewInMemoryTM(opts ...InMemoryTMOption) *InMemoryTM {
 	tm := &InMemoryTM{
-		entries:    make([]TMEntry, 0),
 		byID:       make(map[string]int),
 		maxEntries: DefaultMaxEntries,
 	}

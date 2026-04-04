@@ -1,7 +1,6 @@
 package model
 
 import (
-	"fmt"
 	"regexp"
 	"strconv"
 	"strings"
@@ -51,11 +50,17 @@ func (f *Fragment) PlaceholderText() string {
 			span := f.Spans[spanIdx]
 			switch span.SpanType {
 			case SpanOpening:
-				buf.WriteString(fmt.Sprintf(`<x id="%s"/>`, span.ID))
+				buf.WriteString(`<x id="`)
+				buf.WriteString(span.ID)
+				buf.WriteString(`"/>`)
 			case SpanClosing:
-				buf.WriteString(fmt.Sprintf(`<x id="/%s"/>`, span.ID))
+				buf.WriteString(`<x id="/`)
+				buf.WriteString(span.ID)
+				buf.WriteString(`"/>`)
 			case SpanPlaceholder:
-				buf.WriteString(fmt.Sprintf(`<x id="%s/"/>`, span.ID))
+				buf.WriteString(`<x id="`)
+				buf.WriteString(span.ID)
+				buf.WriteString(`/"/>`)
 			}
 			spanIdx++
 		} else {
@@ -77,7 +82,7 @@ func ParsePlaceholderText(text string, sourceSpans []*Span) *Fragment {
 		id       string
 		spanType SpanType
 	}
-	lookup := make(map[spanKey]*Span)
+	lookup := make(map[spanKey]*Span, len(sourceSpans))
 	for _, s := range sourceSpans {
 		lookup[spanKey{s.ID, s.SpanType}] = s
 	}
@@ -238,11 +243,12 @@ func isSelfClosingTag(tag string) bool {
 
 // buildHTMLToTypeMap creates a reverse map from HTML tag names to semantic types.
 func buildHTMLToTypeMap(reg *VocabularyRegistry) map[string]string {
-	m := make(map[string]string)
 	if reg == nil {
-		return m
+		return make(map[string]string)
 	}
-	for _, typeName := range reg.AllTypes() {
+	allTypes := reg.AllTypes()
+	m := make(map[string]string, len(allTypes))
+	for _, typeName := range allTypes {
 		info := reg.Lookup(typeName)
 		if info == nil {
 			continue
