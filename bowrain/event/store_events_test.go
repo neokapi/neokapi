@@ -46,11 +46,14 @@ func TestEventEmittingStoreProject(t *testing.T) {
 
 	require.NoError(t, es.DeleteProject(ctx, p.ID))
 
-	time.Sleep(50 * time.Millisecond)
+	require.Eventually(t, func() bool {
+		mu.Lock()
+		defer mu.Unlock()
+		return len(events) == 3
+	}, 2*time.Second, 10*time.Millisecond)
 
 	mu.Lock()
 	defer mu.Unlock()
-	assert.Len(t, events, 3)
 	assert.Equal(t, platev.EventProjectCreated, events[0].Type)
 	assert.Equal(t, platev.EventProjectUpdated, events[1].Type)
 	assert.Equal(t, platev.EventProjectDeleted, events[2].Type)
@@ -81,11 +84,15 @@ func TestEventEmittingStoreBlocks(t *testing.T) {
 
 	require.NoError(t, es.DeleteBlock(ctx, p.ID, "main", "b1"))
 
-	time.Sleep(50 * time.Millisecond)
+	require.Eventually(t, func() bool {
+		mu.Lock()
+		defer mu.Unlock()
+		return len(events) == 3
+	}, 2*time.Second, 10*time.Millisecond)
 
 	mu.Lock()
 	defer mu.Unlock()
-	assert.Len(t, events, 3) // 2 updates + 1 delete
+	// 2 updates + 1 delete
 }
 
 func TestEventEmittingStoreVersion(t *testing.T) {
@@ -107,10 +114,13 @@ func TestEventEmittingStoreVersion(t *testing.T) {
 	_, err := es.CreateVersion(ctx, p.ID, "main", "v1", "First")
 	require.NoError(t, err)
 
-	time.Sleep(50 * time.Millisecond)
+	require.Eventually(t, func() bool {
+		mu.Lock()
+		defer mu.Unlock()
+		return received.Type == platev.EventVersionCreated
+	}, 2*time.Second, 10*time.Millisecond)
 
 	mu.Lock()
 	defer mu.Unlock()
-	assert.Equal(t, platev.EventVersionCreated, received.Type)
 	assert.Equal(t, "v1", received.Data["label"])
 }
