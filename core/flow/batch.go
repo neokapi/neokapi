@@ -132,7 +132,7 @@ func (b *BatchExecutor) Execute(ctx context.Context, toolFactories []ToolFactory
 		if b.config.FailFast {
 			select {
 			case <-ctx.Done():
-				break
+				return results, g.Wait()
 			default:
 			}
 		}
@@ -222,14 +222,14 @@ func (b *BatchExecutor) processFile(ctx context.Context, toolFactories []ToolFac
 
 	// Feed input parts.
 	go func() {
+		defer close(channels[0])
 		for _, p := range file.Parts {
 			select {
 			case channels[0] <- p:
 			case <-ctx.Done():
-				break
+				return
 			}
 		}
-		close(channels[0])
 	}()
 
 	// Collect output.
