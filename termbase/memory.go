@@ -42,7 +42,6 @@ func WithMaxConcepts(max int) InMemoryTermBaseOption {
 // NewInMemoryTermBase creates a new empty in-memory termbase.
 func NewInMemoryTermBase(opts ...InMemoryTermBaseOption) *InMemoryTermBase {
 	tb := &InMemoryTermBase{
-		concepts:    make([]Concept, 0),
 		byID:        make(map[string]int),
 		maxConcepts: DefaultMaxConcepts,
 	}
