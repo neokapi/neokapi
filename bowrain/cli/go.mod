@@ -3,7 +3,7 @@ module github.com/neokapi/neokapi/bowrain/cli
 go 1.26.0
 
 require (
-	github.com/charmbracelet/huh v0.8.0
+	github.com/charmbracelet/huh v1.0.0
 	github.com/modelcontextprotocol/go-sdk v1.4.1
 	github.com/neokapi/neokapi v0.0.0
 	github.com/neokapi/neokapi/bowrain/core v0.0.0
