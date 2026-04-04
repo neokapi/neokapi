@@ -138,10 +138,33 @@ export {
   useSidebar,
 } from "./components/ui/sidebar";
 export { Skeleton } from "./components/ui/skeleton";
+export { Toaster } from "./components/ui/sonner";
 export { Switch } from "./components/ui/switch";
+export {
+  Table,
+  TableHeader,
+  TableBody,
+  TableFooter,
+  TableHead,
+  TableRow,
+  TableCell,
+  TableCaption,
+} from "./components/ui/table";
 export { Tabs, TabsList, TabsTrigger, TabsContent } from "./components/ui/tabs";
 export { Textarea } from "./components/ui/textarea";
+export { Toggle, toggleVariants } from "./components/ui/toggle";
+export { ToggleGroup, ToggleGroupItem } from "./components/ui/toggle-group";
 export { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from "./components/ui/tooltip";
+export {
+  Breadcrumb,
+  BreadcrumbList,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+  BreadcrumbEllipsis,
+} from "./components/ui/breadcrumb";
+export { Progress } from "./components/ui/progress";
 
 // Code editor (CodeMirror 6)
 export { CodeInput, type CodeInputProps, type CodeLanguage } from "./components/ui/code-input";
