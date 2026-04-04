@@ -1,7 +1,6 @@
 package tools
 
 import (
-	"context"
 	"testing"
 
 	"github.com/neokapi/neokapi/core/model"
@@ -185,7 +184,7 @@ func TestLayerProcessor_ToolChain(t *testing.T) {
 // processAll sends parts through a tool and collects the output.
 func processAll(t *testing.T, tl tool.Tool, parts []*model.Part) []*model.Part {
 	t.Helper()
-	ctx := context.Background()
+	ctx := t.Context()
 
 	inCh := make(chan *model.Part, len(parts))
 	for _, p := range parts {

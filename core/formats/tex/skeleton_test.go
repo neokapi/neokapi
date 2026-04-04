@@ -2,7 +2,6 @@ package tex_test
 
 import (
 	"bytes"
-	"context"
 	"testing"
 
 	"github.com/neokapi/neokapi/core/format"
@@ -15,7 +14,7 @@ import (
 
 func snippetRoundtripWithSkeleton(t *testing.T, input string) string {
 	t.Helper()
-	ctx := context.Background()
+	ctx := t.Context()
 
 	reader := tex.NewReader()
 	writer := tex.NewWriter()
@@ -97,7 +96,7 @@ func TestSkeletonStore_WithTranslation(t *testing.T) {
 	input := `\section{Introduction}
 
 Hello world`
-	ctx := context.Background()
+	ctx := t.Context()
 	locale := model.LocaleID("fr")
 
 	reader := tex.NewReader()

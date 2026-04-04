@@ -456,7 +456,7 @@ func TestExtract_HandleInvalidCodeTypes(t *testing.T) {
 		Reader:       io.NopCloser(bytes.NewReader([]byte(xliff2))),
 	}
 
-	ctx := context.Background()
+	ctx := t.Context()
 	openErr := reader.Open(ctx, doc)
 	if openErr != nil {
 		// Schema validation rejects it at open time.
@@ -499,7 +499,7 @@ func TestExtract_InvalidTargetXlf(t *testing.T) {
 		Reader:       io.NopCloser(bytes.NewReader(content)),
 	}
 
-	ctx := context.Background()
+	ctx := t.Context()
 	require.NoError(t, reader.Open(ctx, doc))
 	t.Cleanup(func() { _ = reader.Close() })
 

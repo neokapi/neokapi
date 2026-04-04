@@ -426,7 +426,7 @@ func (r *Reader) readContentSkeleton(ctx context.Context, ch chan<- model.PartRe
 		// Parse raw cells from this line to preserve exact quoting.
 		rawCells := splitRawCells(rawLine.text, r.cfg.Separator)
 
-		for colIdx := 0; colIdx < len(rawCells); colIdx++ {
+		for colIdx := range len(rawCells) {
 			rc := rawCells[colIdx]
 
 			// Write delimiter before cell (except first column).

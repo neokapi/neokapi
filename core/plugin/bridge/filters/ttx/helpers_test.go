@@ -71,7 +71,7 @@ func readTTXBytes(t *testing.T, pool *bridge.BridgeRegistry, cfg bridge.BridgeCo
 		Reader:       io.NopCloser(bytes.NewReader(content)),
 	}
 
-	ctx := context.Background()
+	ctx := t.Context()
 	require.NoError(t, reader.Open(ctx, doc))
 
 	var parts []*model.Part

@@ -19,7 +19,7 @@ func processMultipleParts(t *testing.T, tl interface {
 		in <- p
 	}
 	close(in)
-	err := tl.Process(context.Background(), in, out)
+	err := tl.Process(t.Context(), in, out)
 	close(out)
 	require.NoError(t, err)
 	var results []*model.Part

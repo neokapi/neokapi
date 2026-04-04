@@ -3,7 +3,6 @@ package vtt_test
 
 import (
 	"bytes"
-	"context"
 	"strings"
 	"testing"
 
@@ -21,7 +20,7 @@ import (
 // readVTT parses a VTT snippet with the native reader and returns collected parts.
 func readVTT(t *testing.T, snippet string) []*model.Part {
 	t.Helper()
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := vtt.NewReader()
 	err := reader.Open(ctx, testutil.RawDocFromString(snippet, model.LocaleEnglish))
 	require.NoError(t, err)
@@ -38,7 +37,7 @@ func readVTTBlocks(t *testing.T, snippet string) []*model.Block {
 // roundtripVTT performs a read-then-write roundtrip and returns the output string.
 func roundtripVTT(t *testing.T, snippet string) string {
 	t.Helper()
-	ctx := context.Background()
+	ctx := t.Context()
 	parts := readVTT(t, snippet)
 
 	var buf bytes.Buffer
@@ -70,7 +69,7 @@ func findBlockContaining(blocks []*model.Block, substr string) *model.Block {
 
 // okapi: VTTFilterTest#testSimple
 func TestReadSimpleVTT(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := vtt.NewReader()
 	input := "WEBVTT\n\n00:00:01.000 --> 00:00:04.000\nHello world\n\n00:00:05.000 --> 00:00:08.000\nSecond subtitle\n"
 	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
@@ -568,7 +567,7 @@ func TestRoundTrip_DoubleExtraction(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestReadVTTWithCueIDs(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := vtt.NewReader()
 	input := "WEBVTT\n\nintro\n00:00:01.000 --> 00:00:04.000\nHello world\n\nmain\n00:00:05.000 --> 00:00:08.000\nSecond subtitle\n"
 	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
@@ -585,7 +584,7 @@ func TestReadVTTWithCueIDs(t *testing.T) {
 }
 
 func TestReadLayerStartEnd(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := vtt.NewReader()
 	input := "WEBVTT\n\n00:00:01.000 --> 00:00:04.000\nHello\n"
 	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
@@ -616,14 +615,14 @@ func TestReaderMetadata(t *testing.T) {
 }
 
 func TestReadNilDocument(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := vtt.NewReader()
 	err := reader.Open(ctx, nil)
 	require.Error(t, err)
 }
 
 func TestReadEmpty(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := vtt.NewReader()
 	err := reader.Open(ctx, testutil.RawDocFromString("WEBVTT\n", model.LocaleEnglish))
 	require.NoError(t, err)
@@ -636,7 +635,7 @@ func TestReadEmpty(t *testing.T) {
 }
 
 func TestVTTHeaderAsData(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := vtt.NewReader()
 	input := "WEBVTT\n\n00:00:01.000 --> 00:00:04.000\nHello\n"
 	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
@@ -659,7 +658,7 @@ func TestVTTHeaderAsData(t *testing.T) {
 }
 
 func TestRoundTrip(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	input := "WEBVTT\n\n00:00:01.000 --> 00:00:04.000\nHello world\n\n00:00:05.000 --> 00:00:08.000\nSecond subtitle\n"
 
@@ -690,7 +689,7 @@ func TestRoundTrip(t *testing.T) {
 }
 
 func TestRoundTripWithCueIDs(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	input := "WEBVTT\n\nintro\n00:00:01.000 --> 00:00:04.000\nHello world\n"
 
@@ -719,7 +718,7 @@ func TestRoundTripWithCueIDs(t *testing.T) {
 }
 
 func TestRoundTripWithTargetLocale(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	input := "WEBVTT\n\n00:00:01.000 --> 00:00:04.000\nHello\n\n00:00:05.000 --> 00:00:08.000\nWorld\n"
 

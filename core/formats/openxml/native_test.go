@@ -1,7 +1,6 @@
 package openxml
 
 import (
-	"context"
 	"os"
 	"path/filepath"
 	"testing"
@@ -465,11 +464,11 @@ func readFile(t *testing.T, path string) []*model.Part {
 
 	reader := NewReader()
 	doc := testutil.RawDocFromReader(f, path, model.LocaleEnglish)
-	err = reader.Open(context.Background(), doc)
+	err = reader.Open(t.Context(), doc)
 	require.NoError(t, err)
 	defer reader.Close()
 
-	return testutil.CollectParts(t, reader.Read(context.Background()))
+	return testutil.CollectParts(t, reader.Read(t.Context()))
 }
 
 // readFileWithConfig reads an OpenXML file using a custom configuration.
@@ -481,11 +480,11 @@ func readFileWithConfig(t *testing.T, path string, configure func(*Config)) []*m
 	reader := NewReader()
 	configure(reader.cfg)
 	doc := testutil.RawDocFromReader(f, path, model.LocaleEnglish)
-	err = reader.Open(context.Background(), doc)
+	err = reader.Open(t.Context(), doc)
 	require.NoError(t, err)
 	defer reader.Close()
 
-	return testutil.CollectParts(t, reader.Read(context.Background()))
+	return testutil.CollectParts(t, reader.Read(t.Context()))
 }
 
 // --- DOCX tests mirroring Okapi extraction tests ---
@@ -997,11 +996,11 @@ func TestNative_PptxComments(t *testing.T) {
 	reader := NewReader()
 	reader.cfg.TranslateComments = true
 	doc := testutil.RawDocFromReader(f, path, model.LocaleEnglish)
-	err = reader.Open(context.Background(), doc)
+	err = reader.Open(t.Context(), doc)
 	require.NoError(t, err)
 	defer reader.Close()
 
-	parts := testutil.CollectParts(t, reader.Read(context.Background()))
+	parts := testutil.CollectParts(t, reader.Read(t.Context()))
 	blocks := translatableBlocks(parts)
 	require.NotEmpty(t, blocks, "PPTX with comments should produce blocks")
 }

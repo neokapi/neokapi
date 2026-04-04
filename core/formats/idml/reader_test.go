@@ -56,7 +56,7 @@ func createIDML(t *testing.T, stories map[string]string) []byte {
 // readIDMLBytes reads an IDML from raw bytes and returns parts.
 func readIDMLBytes(t *testing.T, data []byte) []*model.Part {
 	t.Helper()
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := NewReader()
 	doc := &model.RawDocument{
 		URI:          "test.idml",
@@ -75,7 +75,7 @@ func readIDMLBytes(t *testing.T, data []byte) []*model.Part {
 // readIDMLBytesWithConfig reads an IDML from raw bytes with a custom config.
 func readIDMLBytesWithConfig(t *testing.T, data []byte, cfg *Config) []*model.Part {
 	t.Helper()
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := NewReader()
 	reader.cfg = cfg
 	reader.Cfg = cfg
@@ -555,7 +555,7 @@ func TestContextCancellation(t *testing.T) {
 	}
 	data := createIDML(t, stories)
 
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(t.Context())
 	cancel() // Cancel immediately
 
 	reader := NewReader()
@@ -583,7 +583,7 @@ func TestContextCancellation(t *testing.T) {
 }
 
 func TestNilDocument(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := NewReader()
 	err := reader.Open(ctx, nil)
 	require.Error(t, err)
@@ -591,7 +591,7 @@ func TestNilDocument(t *testing.T) {
 }
 
 func TestInvalidZIPError(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := NewReader()
 	doc := &model.RawDocument{
 		URI:          "test.idml",
@@ -635,7 +635,7 @@ func TestRoundTrip(t *testing.T) {
 		"Story_u1.xml": storyXML,
 	})
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	// Create skeleton store for roundtrip
 	skelStore, err := format.NewSkeletonStore()
@@ -707,7 +707,7 @@ func TestRoundTripWithTranslation(t *testing.T) {
 </idPkg:Story>`,
 	})
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	// Create skeleton store
 	skelStore, err := format.NewSkeletonStore()
@@ -766,7 +766,7 @@ func TestRoundTripWithTranslation(t *testing.T) {
 }
 
 func TestWriterRequiresOriginalContent(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	writer := NewWriter()
 	var buf bytes.Buffer
 	err := writer.SetOutputWriter(&buf)

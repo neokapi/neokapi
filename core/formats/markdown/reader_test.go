@@ -2,7 +2,6 @@ package markdown_test
 
 import (
 	"bytes"
-	"context"
 	"testing"
 
 	"github.com/neokapi/neokapi/core/format"
@@ -18,7 +17,7 @@ import (
 // readBlocks reads markdown input and returns the extracted blocks.
 func readBlocks(t *testing.T, input string) []*model.Block {
 	t.Helper()
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := markdown.NewReader()
 	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
 	require.NoError(t, err)
@@ -29,7 +28,7 @@ func readBlocks(t *testing.T, input string) []*model.Block {
 // readParts reads markdown input and returns all parts.
 func readParts(t *testing.T, input string) []*model.Part {
 	t.Helper()
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := markdown.NewReader()
 	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
 	require.NoError(t, err)
@@ -40,7 +39,7 @@ func readParts(t *testing.T, input string) []*model.Part {
 // readBlocksWithConfig reads markdown input with a custom config modifier.
 func readBlocksWithConfig(t *testing.T, input string, configure func(*markdown.Config)) []*model.Block {
 	t.Helper()
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := markdown.NewReader()
 	configure(reader.MarkdownConfig())
 	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
@@ -52,7 +51,7 @@ func readBlocksWithConfig(t *testing.T, input string, configure func(*markdown.C
 // readPartsWithConfig reads markdown input with a custom config modifier.
 func readPartsWithConfig(t *testing.T, input string, configure func(*markdown.Config)) []*model.Part {
 	t.Helper()
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := markdown.NewReader()
 	configure(reader.MarkdownConfig())
 	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
@@ -64,7 +63,7 @@ func readPartsWithConfig(t *testing.T, input string, configure func(*markdown.Co
 // roundtrip reads then writes markdown, returning the output.
 func roundtrip(t *testing.T, input string) string {
 	t.Helper()
-	ctx := context.Background()
+	ctx := t.Context()
 
 	reader := markdown.NewReader()
 	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
@@ -89,7 +88,7 @@ func roundtrip(t *testing.T, input string) string {
 // roundtripWithSkeletonConfig reads then writes using a skeleton store with custom config.
 func roundtripWithSkeletonConfig(t *testing.T, input string, configure func(*markdown.Config)) string {
 	t.Helper()
-	ctx := context.Background()
+	ctx := t.Context()
 
 	reader := markdown.NewReader()
 	configure(reader.MarkdownConfig())
@@ -121,7 +120,7 @@ func roundtripWithSkeletonConfig(t *testing.T, input string, configure func(*mar
 // roundtripWithSkeleton reads then writes using a skeleton store.
 func roundtripWithSkeleton(t *testing.T, input string) string {
 	t.Helper()
-	ctx := context.Background()
+	ctx := t.Context()
 
 	reader := markdown.NewReader()
 	writer := markdown.NewWriter()
@@ -239,7 +238,7 @@ func TestReaderMetadata(t *testing.T) {
 }
 
 func TestReadNilDocument(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := markdown.NewReader()
 	err := reader.Open(ctx, nil)
 	require.Error(t, err)
@@ -264,7 +263,7 @@ func TestRoundTrip(t *testing.T) {
 }
 
 func TestRoundTripWithTargetLocale(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	reader := markdown.NewReader()
 	err := reader.Open(ctx, testutil.RawDocFromString("# Hello\n\nWorld", model.LocaleEnglish))
@@ -348,7 +347,7 @@ func TestSkeletonRoundtrip_ByteExact(t *testing.T) {
 
 func TestSkeletonRoundtrip_WithTranslation(t *testing.T) {
 	input := "# Hello\n\nWorld\n"
-	ctx := context.Background()
+	ctx := t.Context()
 	locale := model.LocaleID("fr")
 
 	reader := markdown.NewReader()

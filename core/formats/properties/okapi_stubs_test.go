@@ -2,7 +2,6 @@ package properties_test
 
 import (
 	"bytes"
-	"context"
 	"testing"
 
 	"github.com/neokapi/neokapi/core/formats/properties"
@@ -28,7 +27,7 @@ func TestRead_DefaultInfo(t *testing.T) {
 // okapi: PropertiesFilterTest#testStartDocument
 func TestRead_StartDocument(t *testing.T) {
 	// Verifies that the first part emitted is a PartLayerStart with correct format.
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := properties.NewReader()
 	err := reader.Open(ctx, testutil.RawDocFromString("key=value", model.LocaleEnglish))
 	require.NoError(t, err)
@@ -47,7 +46,7 @@ func TestRead_StartDocument(t *testing.T) {
 // okapi: PropertiesFilterTest#testLineBreaks_CR
 func TestRead_LineBreaksCr(t *testing.T) {
 	// Verifies that CR-only line breaks produce separate entries.
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := properties.NewReader()
 	input := "Key1=Text1\rKey2=Text2"
 	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
@@ -64,7 +63,7 @@ func TestRead_LineBreaksCr(t *testing.T) {
 // okapi: PropertiesFilterTest#testineBreaks_CRLF
 func TestRead_LineBreaksCrlf(t *testing.T) {
 	// Verifies that CRLF line breaks produce separate entries.
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := properties.NewReader()
 	input := "Key1=Text1\r\nKey2=Text2"
 	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
@@ -82,7 +81,7 @@ func TestRead_LineBreaksCrlf(t *testing.T) {
 // okapi: PropertiesFilterTest#testLineBreaks_LF
 func TestRead_LineBreaksLf(t *testing.T) {
 	// Verifies that LF line breaks produce separate entries, including blanks.
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := properties.NewReader()
 	input := "Key1=Text1\n\n\nKey2=Text2"
 	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
@@ -113,7 +112,7 @@ func TestRead_LineBreaksLf(t *testing.T) {
 // okapi: PropertiesFilterTest#testSpecialCharsInKey
 func TestRead_SpecialCharsInKey(t *testing.T) {
 	// Verifies that escaped special characters in keys are preserved.
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := properties.NewReader()
 	// Key is "Key \:\\" (escaped space, colon, backslash) with colon separator
 	input := "Key\\ \\:\\\\:Text1"
@@ -143,7 +142,7 @@ func TestRoundTrip_DoubleExtraction(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			ctx := context.Background()
+			ctx := t.Context()
 
 			// First extraction
 			reader1 := properties.NewReader()
@@ -187,7 +186,7 @@ func TestRoundTrip_DoubleExtraction(t *testing.T) {
 // okapi: PropertiesFilterTest#testHtmlOutput
 func TestRead_HtmlOutput(t *testing.T) {
 	// Without a subfilter, HTML-like content is treated as plain text.
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := properties.NewReader()
 	input := "Key1=<b>Text with &amp;=amp test</b>"
 	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
@@ -218,7 +217,7 @@ func TestRead_HtmlOutput(t *testing.T) {
 // okapi: PropertiesFilterTest#testJavaEscapeChars
 func TestRead_JavaEscapeChars(t *testing.T) {
 	// With useJavaEscapes, \: \= \# \! are decoded to their literal characters.
-	ctx := context.Background()
+	ctx := t.Context()
 
 	reader := properties.NewReader()
 	err := reader.Config().ApplyMap(map[string]any{"useJavaEscapes": true})
@@ -236,7 +235,7 @@ func TestRead_JavaEscapeChars(t *testing.T) {
 // okapi: PropertiesFilterTest#testIdGeneration_defaultConfig
 func TestRead_IdGenerationDefaultConfig(t *testing.T) {
 	// Verifies that block IDs are unique and based on a counter.
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := properties.NewReader()
 	input := "key1=value1\nkey2=value2\nkey3=value3"
 	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
@@ -262,7 +261,7 @@ func TestRead_IdGenerationDefaultConfig(t *testing.T) {
 func TestRead_MessagePlaceholders(t *testing.T) {
 	// The native reader treats {0}, {1} etc. as plain text (no inline code spans).
 	// Java message format placeholder detection is not implemented in the native reader.
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := properties.NewReader()
 	input := "Key1={1}Text1{2}"
 	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
@@ -278,7 +277,7 @@ func TestRead_MessagePlaceholders(t *testing.T) {
 // okapi: PropertiesFilterTest#testMessagePlaceholdersEscaped
 func TestRead_MessagePlaceholdersEscaped(t *testing.T) {
 	// Escaped message placeholders (''{0}'') are treated as plain text.
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := properties.NewReader()
 	input := "Key1=''{0}''Text1''{2}''"
 	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
@@ -296,7 +295,7 @@ func TestRead_MessagePlaceholdersEscaped(t *testing.T) {
 // okapi: PropertiesFilterTest#testEscapes (extended)
 func TestRead_EscapeSequences(t *testing.T) {
 	// Verifies that standard Java property escape sequences are decoded.
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := properties.NewReader()
 	input := "key=Text\\n=lf, \\t=tab, \\r=cr, \\\\=bs"
 	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
@@ -314,7 +313,7 @@ func TestRead_EscapeSequences(t *testing.T) {
 
 func TestRoundTrip_EscapeSequences(t *testing.T) {
 	// Verifies escape sequences survive roundtrip: read → write → compare.
-	ctx := context.Background()
+	ctx := t.Context()
 	input := "key=Text\\n=lf, \\t=tab, \\r=cr, \\\\=bs"
 
 	reader := properties.NewReader()

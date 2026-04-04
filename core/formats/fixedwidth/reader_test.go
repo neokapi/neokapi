@@ -22,7 +22,7 @@ func readFW(t *testing.T, input string, cols []fixedwidth.ColumnDef) []*model.Pa
 
 func readFWWithConfig(t *testing.T, input string, cols []fixedwidth.ColumnDef, cfgFn func(*fixedwidth.Config)) []*model.Part {
 	t.Helper()
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := fixedwidth.NewReader()
 	cfg := reader.Config().(*fixedwidth.Config)
 	cfg.Columns = cols
@@ -50,7 +50,7 @@ func roundTripFW(t *testing.T, input string, cols []fixedwidth.ColumnDef, cfgFn 
 
 func roundTripFWLocale(t *testing.T, input string, cols []fixedwidth.ColumnDef, locale model.LocaleID, cfgFn func(*fixedwidth.Config)) string {
 	t.Helper()
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := fixedwidth.NewReader()
 	cfg := reader.Config().(*fixedwidth.Config)
 	cfg.Columns = cols
@@ -142,7 +142,7 @@ func TestFW_Signature(t *testing.T) {
 }
 
 func TestFW_NilDocument(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := fixedwidth.NewReader()
 	err := reader.Open(ctx, nil)
 	require.Error(t, err)
@@ -396,7 +396,7 @@ func TestFW_RoundTripWithHeader(t *testing.T) {
 }
 
 func TestFW_RoundTripWithTranslation(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	input := "id001Hello World    \n"
 
 	reader := fixedwidth.NewReader()
@@ -479,7 +479,7 @@ func TestFW_AllNonTranslatable(t *testing.T) {
 }
 
 func TestFW_ContextCancellation(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(t.Context())
 	cancel() // cancel immediately
 
 	reader := fixedwidth.NewReader()

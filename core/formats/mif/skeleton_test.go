@@ -2,7 +2,6 @@ package mif_test
 
 import (
 	"bytes"
-	"context"
 	"os"
 	"testing"
 
@@ -16,7 +15,7 @@ import (
 
 func snippetRoundtripWithSkeleton(t *testing.T, input string) string {
 	t.Helper()
-	ctx := context.Background()
+	ctx := t.Context()
 
 	reader := mif.NewReader()
 	writer := mif.NewWriter()
@@ -103,7 +102,7 @@ func TestSkeletonStore_WithTranslation(t *testing.T) {
  >
 >
 `
-	ctx := context.Background()
+	ctx := t.Context()
 
 	reader := mif.NewReader()
 	writer := mif.NewWriter()

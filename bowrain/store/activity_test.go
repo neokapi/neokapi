@@ -1,7 +1,6 @@
 package store
 
 import (
-	"context"
 	"testing"
 	"time"
 
@@ -19,7 +18,7 @@ func newTestActivityStore(t *testing.T) *ActivityStore {
 
 func TestActivityStore_CreateAndList(t *testing.T) {
 	store := newTestActivityStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	t.Run("create activity", func(t *testing.T) {
 		a := &Activity{
@@ -81,7 +80,7 @@ func TestActivityStore_CreateAndList(t *testing.T) {
 
 func TestActivityStore_Pagination(t *testing.T) {
 	store := newTestActivityStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	// Create 5 activities with staggered timestamps.
 	for i := 0; i < 5; i++ {
@@ -111,7 +110,7 @@ func TestActivityStore_Pagination(t *testing.T) {
 
 func TestActivityStore_NilData(t *testing.T) {
 	store := newTestActivityStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	a := &Activity{
 		WorkspaceID: "ws-1",

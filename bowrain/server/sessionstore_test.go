@@ -1,7 +1,6 @@
 package server
 
 import (
-	"context"
 	"os"
 	"testing"
 	"time"
@@ -32,7 +31,7 @@ func TestRedisSessionStore(t *testing.T) {
 
 // runSessionStoreTests exercises the SessionStateStore contract.
 func runSessionStoreTests(t *testing.T, store SessionStateStore) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	t.Run("set and get", func(t *testing.T) {
 		require.NoError(t, store.Set(ctx, "test:key1", []byte("value1"), 1*time.Minute))

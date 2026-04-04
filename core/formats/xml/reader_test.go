@@ -19,7 +19,6 @@ package xml_test
 
 import (
 	"bytes"
-	"context"
 	"strings"
 	"testing"
 
@@ -37,7 +36,7 @@ import (
 
 // okapi: XmlSnippetsTest#testPWithInlines
 func TestReadSimpleXML(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := xmlfmt.NewReader()
 	input := `<?xml version="1.0"?><root><message>Hello World</message></root>`
 	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
@@ -52,7 +51,7 @@ func TestReadSimpleXML(t *testing.T) {
 }
 
 func TestReadMultipleElements(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := xmlfmt.NewReader()
 	input := `<?xml version="1.0"?><resources><string>Title</string><string>Description</string></resources>`
 	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
@@ -67,7 +66,7 @@ func TestReadMultipleElements(t *testing.T) {
 }
 
 func TestReadNestedXML(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := xmlfmt.NewReader()
 	input := `<?xml version="1.0"?><root><section><title>Section Title</title></section></root>`
 	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
@@ -82,7 +81,7 @@ func TestReadNestedXML(t *testing.T) {
 }
 
 func TestReadLayerStartEnd(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := xmlfmt.NewReader()
 	input := `<?xml version="1.0"?><root><msg>Test</msg></root>`
 	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
@@ -101,7 +100,7 @@ func TestReadLayerStartEnd(t *testing.T) {
 
 // okapi: XmlStreamConfigurationTest#defaultConfiguration
 func TestReadWithTranslatableConfig(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := xmlfmt.NewReader()
 
 	cfg := &xmlfmt.Config{
@@ -138,7 +137,7 @@ func TestReaderMetadata(t *testing.T) {
 }
 
 func TestReadEmpty(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := xmlfmt.NewReader()
 	input := `<?xml version="1.0"?><root></root>`
 	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
@@ -150,7 +149,7 @@ func TestReadEmpty(t *testing.T) {
 }
 
 func TestReadNilDocument(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := xmlfmt.NewReader()
 	err := reader.Open(ctx, nil)
 	require.Error(t, err)
@@ -1659,7 +1658,7 @@ func TestConfig_Reset(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestReopen(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	input := `<?xml version="1.0" encoding="UTF-8"?><root><text>Hello</text></root>`
 
 	reader := xmlfmt.NewReader()
@@ -2152,7 +2151,7 @@ func TestDita_ReconstructFile(t *testing.T) {
 
 // okapi: DitaExtractionComparisionTest#testOpenTwice
 func TestDita_OpenTwice(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	input := `<?xml version="1.0" encoding="UTF-8"?>
 <topic id="readme"><title>Title</title><body><p>Body</p></body></topic>`
 
@@ -2271,7 +2270,7 @@ func TestPropertyXml_ReconstructFile(t *testing.T) {
 
 // okapi: PropertyXmlExtractionComparisionTest#testOpenTwice
 func TestPropertyXml_OpenTwice(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	input := `<?xml version="1.0" encoding="UTF-8"?>
 <properties><entry key="test">Test value</entry></properties>`
 
@@ -2330,7 +2329,7 @@ func TestRoundTrip_Integration(t *testing.T) {
 // roundtripXML reads and writes XML, returning the output string.
 func roundtripXML(t *testing.T, input string, cfg *xmlfmt.Config) string {
 	t.Helper()
-	ctx := context.Background()
+	ctx := t.Context()
 
 	reader := xmlfmt.NewReader()
 	if cfg != nil {
@@ -2369,7 +2368,7 @@ func readXML(t *testing.T, input string, params map[string]any) []*model.Part {
 // readXMLWithConfig parses XML with a specific Config.
 func readXMLWithConfig(t *testing.T, input string, cfg *xmlfmt.Config) []*model.Part {
 	t.Helper()
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := xmlfmt.NewReader()
 	if cfg != nil {
 		require.NoError(t, reader.SetConfig(cfg))

@@ -1,7 +1,6 @@
 package store
 
 import (
-	"context"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -38,7 +37,7 @@ func TestPreferenceStore_DefaultPreferences(t *testing.T) {
 
 func TestPreferenceStore_UpsertAndGet(t *testing.T) {
 	store := newTestPreferenceStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	t.Run("upsert new preference", func(t *testing.T) {
 		pref := NotificationPreference{
@@ -84,7 +83,7 @@ func TestPreferenceStore_UpsertAndGet(t *testing.T) {
 
 func TestPreferenceStore_ListMergesDefaults(t *testing.T) {
 	store := newTestPreferenceStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	// Upsert only one category.
 	pref := NotificationPreference{
@@ -116,7 +115,7 @@ func TestPreferenceStore_ListMergesDefaults(t *testing.T) {
 
 func TestPreferenceStore_BulkUpsert(t *testing.T) {
 	store := newTestPreferenceStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	prefs := []NotificationPreference{
 		{UserID: "user-1", WorkspaceID: "ws-1", Category: CategoryTask, Web: true, Email: true},
@@ -141,7 +140,7 @@ func TestPreferenceStore_BulkUpsert(t *testing.T) {
 
 func TestPreferenceStore_GetNonexistent_ReturnsDefault(t *testing.T) {
 	store := newTestPreferenceStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	got, err := store.Get(ctx, "user-1", "ws-1", CategoryTask)
 	require.NoError(t, err) // Get returns a default when no explicit preference exists.

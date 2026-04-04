@@ -2,7 +2,6 @@ package phpcontent_test
 
 import (
 	"bytes"
-	"context"
 	"os"
 	"testing"
 
@@ -17,7 +16,7 @@ import (
 
 // okapi: PHPContentFilterTest#testSingleQuotedString
 func TestSingleQuotedString(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := phpcontent.NewReader()
 	input := `<?php $text = 'Hello world';`
 	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
@@ -31,7 +30,7 @@ func TestSingleQuotedString(t *testing.T) {
 
 // okapi: PHPContentFilterTest#testDoubleQuotedString
 func TestDoubleQuotedString(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := phpcontent.NewReader()
 	input := `<?php $text = "Hello world";`
 	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
@@ -45,7 +44,7 @@ func TestDoubleQuotedString(t *testing.T) {
 
 // okapi: PHPContentFilterTest#testHeredocString
 func TestHeredocString(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := phpcontent.NewReader()
 	input := "<?php $text = <<<EOT\nHello heredoc\nEOT;\n"
 	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
@@ -59,7 +58,7 @@ func TestHeredocString(t *testing.T) {
 
 // okapi: PHPContentFilterTest#testQuotedHeredocString
 func TestQuotedHeredocString(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := phpcontent.NewReader()
 	input := "<?php $text = <<<\"EOT\"\nHello quoted heredoc\nEOT;\n"
 	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
@@ -73,7 +72,7 @@ func TestQuotedHeredocString(t *testing.T) {
 
 // okapi: PHPContentFilterTest#testQuotedNowdocString
 func TestNowdocString(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := phpcontent.NewReader()
 	input := "<?php $text = <<<'EOT'\nHello nowdoc\nEOT;\n"
 	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
@@ -87,7 +86,7 @@ func TestNowdocString(t *testing.T) {
 
 // okapi: PHPContentFilterTest#testSemiColumnHeredocString
 func TestSemicolonHeredocString(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := phpcontent.NewReader()
 	input := "<?php $text = <<<EOT\nHello\nEOT;\n"
 	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
@@ -101,7 +100,7 @@ func TestSemicolonHeredocString(t *testing.T) {
 
 // okapi: PHPContentFilterTest#testMultipleLinesHeredocString
 func TestMultiLineHeredocString(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := phpcontent.NewReader()
 	input := "<?php $text = <<<EOT\nLine one\nLine two\nLine three\nEOT;\n"
 	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
@@ -115,7 +114,7 @@ func TestMultiLineHeredocString(t *testing.T) {
 
 // okapi: PHPContentFilterTest#testEmptyHeredocStringAndOutput
 func TestEmptyHeredocString(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := phpcontent.NewReader()
 	input := "<?php $text = <<<EOT\nEOT;\n"
 	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
@@ -129,7 +128,7 @@ func TestEmptyHeredocString(t *testing.T) {
 
 // okapi: PHPContentFilterTest#testWhiteHeredocStringAndOutput
 func TestWhitespaceHeredocString(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := phpcontent.NewReader()
 	input := "<?php $text = <<<EOT\n   \nEOT;\n"
 	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
@@ -145,7 +144,7 @@ func TestWhitespaceHeredocString(t *testing.T) {
 
 // okapi: PHPContentFilterTest#testConcatSQStrings
 func TestConcatSingleQuotedStrings(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := phpcontent.NewReader()
 	input := `<?php $text = 'Hello ' . 'World';`
 	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
@@ -159,7 +158,7 @@ func TestConcatSingleQuotedStrings(t *testing.T) {
 
 // okapi: PHPContentFilterTest#testConcatDQStringsWithCodesAndVariable
 func TestConcatDQStringsWithCodesAndVariable(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := phpcontent.NewReader()
 	input := `<?php $text = "Hello $name" . " welcome";`
 	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
@@ -177,7 +176,7 @@ func TestConcatDQStringsWithCodesAndVariable(t *testing.T) {
 
 // okapi: PHPContentFilterTest#testConcatMultipleStrings
 func TestConcatMultipleStrings(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := phpcontent.NewReader()
 	input := `<?php $text = 'One' . ' Two' . ' Three';`
 	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
@@ -191,7 +190,7 @@ func TestConcatMultipleStrings(t *testing.T) {
 
 // okapi: PHPContentFilterTest#testConcatSGAndDQStrings
 func TestConcatMixedQuoteStrings(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := phpcontent.NewReader()
 	input := `<?php $text = 'Hello ' . "World";`
 	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
@@ -205,7 +204,7 @@ func TestConcatMixedQuoteStrings(t *testing.T) {
 
 // okapi: PHPContentFilterTest#testConcatWithVariable
 func TestConcatWithVariable(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := phpcontent.NewReader()
 	// Variable-only concatenation parts should break the concatenation
 	input := `<?php $text = 'Hello';`
@@ -220,7 +219,7 @@ func TestConcatWithVariable(t *testing.T) {
 
 // okapi: PHPContentFilterTest#testConcatWithEndings
 func TestConcatWithEndings(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := phpcontent.NewReader()
 	input := `<?php $text = 'Line1' . 'Line2';`
 	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
@@ -234,7 +233,7 @@ func TestConcatWithEndings(t *testing.T) {
 
 // okapi: PHPContentFilterTest#testCommaCaseWithConcat
 func TestCommaCaseWithConcat(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := phpcontent.NewReader()
 	input := `<?php $arr = array('Hello' . ' World', 'Goodbye');`
 	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
@@ -251,7 +250,7 @@ func TestCommaCaseWithConcat(t *testing.T) {
 
 // okapi: PHPContentFilterTest#testEntryWithCodes
 func TestEntryWithCodes(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := phpcontent.NewReader()
 	input := `<?php $text = "Click <a href='test'>here</a> now";`
 	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
@@ -268,7 +267,7 @@ func TestEntryWithCodes(t *testing.T) {
 
 // okapi: PHPContentFilterTest#testSimpleHTMLCodes
 func TestSimpleHTMLCodes(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := phpcontent.NewReader()
 	input := `<?php $text = "This is <b>bold</b> text";`
 	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
@@ -291,7 +290,7 @@ func TestSimpleHTMLCodes(t *testing.T) {
 
 // okapi: PHPContentFilterTest#testParitalStartingHTMLCodes
 func TestPartialStartingHTMLCodes(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := phpcontent.NewReader()
 	input := `<?php $text = "<b>Bold text";`
 	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
@@ -308,7 +307,7 @@ func TestPartialStartingHTMLCodes(t *testing.T) {
 
 // okapi: PHPContentFilterTest#testParitalClosingHTMLCodes
 func TestPartialClosingHTMLCodes(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := phpcontent.NewReader()
 	input := `<?php $text = "Bold text</b>";`
 	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
@@ -322,7 +321,7 @@ func TestPartialClosingHTMLCodes(t *testing.T) {
 
 // okapi: PHPContentFilterTest#testSpecialHTMLCodes
 func TestSpecialHTMLCodes(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := phpcontent.NewReader()
 	input := `<?php $text = "Line<br/>break";`
 	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
@@ -341,7 +340,7 @@ func TestSpecialHTMLCodes(t *testing.T) {
 
 // okapi: PHPContentFilterTest#testEscapeCodes
 func TestEscapeCodes(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := phpcontent.NewReader()
 	input := `<?php $text = "Hello\nWorld";`
 	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
@@ -358,7 +357,7 @@ func TestEscapeCodes(t *testing.T) {
 
 // okapi: PHPContentFilterTest#testLinefeedCodes
 func TestLinefeedCodes(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := phpcontent.NewReader()
 	input := `<?php $text = "Line1\nLine2\nLine3";`
 	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
@@ -376,7 +375,7 @@ func TestLinefeedCodes(t *testing.T) {
 
 // okapi: PHPContentFilterTest#testOutputLinefeedCodes
 func TestOutputLinefeedCodes(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := phpcontent.NewReader()
 	input := `<?php $text = "Line1\nLine2";`
 	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
@@ -403,7 +402,7 @@ func TestOutputLinefeedCodes(t *testing.T) {
 
 // okapi: PHPContentFilterTest#testVariableCodes
 func TestVariableCodes(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := phpcontent.NewReader()
 	input := `<?php $text = "Hello $name, welcome to $app";`
 	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
@@ -426,7 +425,7 @@ func TestVariableCodes(t *testing.T) {
 
 // okapi: PHPContentFilterTest#testCommentsSingleLine
 func TestCommentsSingleLine(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := phpcontent.NewReader()
 	input := "<?php\n// This is a comment\n$text = 'Hello';"
 	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
@@ -455,7 +454,7 @@ func TestCommentsSingleLine(t *testing.T) {
 
 // okapi: PHPContentFilterTest#testCommentsMultiline
 func TestCommentsMultiline(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := phpcontent.NewReader()
 	input := "<?php\n/* Multi\nline\ncomment */\n$text = 'Hello';"
 	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
@@ -471,7 +470,7 @@ func TestCommentsMultiline(t *testing.T) {
 
 // okapi: PHPContentFilterTest#testEmptyComment
 func TestEmptyComment(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := phpcontent.NewReader()
 	input := "<?php\n//\n$text = 'Hello';"
 	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
@@ -485,7 +484,7 @@ func TestEmptyComment(t *testing.T) {
 
 // okapi: PHPContentFilterTest#testCommentsWithApos
 func TestCommentsWithApostrophe(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := phpcontent.NewReader()
 	input := "<?php\n// It's a test\n$text = 'Hello';"
 	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
@@ -501,7 +500,7 @@ func TestCommentsWithApostrophe(t *testing.T) {
 
 // okapi: PHPContentFilterTest#testSkipDirective
 func TestSkipDirective(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := phpcontent.NewReader()
 	input := "<?php\n//_skip_\n$text = 'Skip this';\n$other = 'Keep this';"
 	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
@@ -515,7 +514,7 @@ func TestSkipDirective(t *testing.T) {
 
 // okapi: PHPContentFilterTest#testSkipDirectiveOnConcat
 func TestSkipDirectiveOnConcat(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := phpcontent.NewReader()
 	input := "<?php\n//_skip_\n$text = 'Skip' . ' this';\n$other = 'Keep';"
 	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
@@ -529,7 +528,7 @@ func TestSkipDirectiveOnConcat(t *testing.T) {
 
 // okapi: PHPContentFilterTest#testTextInBSkipDirective
 func TestTextInBSkipDirective(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := phpcontent.NewReader()
 	input := "<?php\n//_bskip_\n$a = 'Skip1';\n$b = 'Skip2';\n//_eskip_\n$c = 'Keep';"
 	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
@@ -543,7 +542,7 @@ func TestTextInBSkipDirective(t *testing.T) {
 
 // okapi: PHPContentFilterTest#testESkipDirective
 func TestESkipDirective(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := phpcontent.NewReader()
 	input := "<?php\n//_bskip_\n$a = 'Skip';\n//_eskip_\n$b = 'Keep';"
 	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
@@ -557,7 +556,7 @@ func TestESkipDirective(t *testing.T) {
 
 // okapi: PHPContentFilterTest#testDirectiveInMultilineComment
 func TestDirectiveInMultilineComment(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := phpcontent.NewReader()
 	input := "<?php\n/* _bskip_ */\n$a = 'Skip';\n/* _eskip_ */\n$b = 'Keep';"
 	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
@@ -571,7 +570,7 @@ func TestDirectiveInMultilineComment(t *testing.T) {
 
 // okapi: PHPContentFilterTest#testBTextDirective
 func TestBTextDirective(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := phpcontent.NewReader()
 	input := "<?php\n//_btext_\n$a = 'Keep this';\n//_etext_\n$b = 'And this';"
 	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
@@ -586,7 +585,7 @@ func TestBTextDirective(t *testing.T) {
 
 // okapi: PHPContentFilterTest#testETextDirective
 func TestETextDirective(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := phpcontent.NewReader()
 	input := "<?php\n//_btext_\n$a = 'Extract';\n//_etext_\n"
 	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
@@ -600,7 +599,7 @@ func TestETextDirective(t *testing.T) {
 
 // okapi: PHPContentFilterTest#testSkipOutsideDirective
 func TestSkipOutsideDirective(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := phpcontent.NewReader()
 	input := "<?php\n$a = 'Before';\n//_bskip_\n$b = 'Skip';\n//_eskip_\n$c = 'After';"
 	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
@@ -615,7 +614,7 @@ func TestSkipOutsideDirective(t *testing.T) {
 
 // okapi: PHPContentFilterTest#testDisabledDirectives
 func TestDisabledDirectives(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := phpcontent.NewReader()
 	// Disable directives via config
 	cfg := reader.Config()
@@ -634,7 +633,7 @@ func TestDisabledDirectives(t *testing.T) {
 
 // okapi: PHPContentFilterTest#testDirectiveScope
 func TestDirectiveScope(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := phpcontent.NewReader()
 	input := "<?php\n//_bskip_\n$a = 'Skip1';\n$b = 'Skip2';\n//_eskip_\n$c = 'Keep1';\n$d = 'Keep2';"
 	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
@@ -651,7 +650,7 @@ func TestDirectiveScope(t *testing.T) {
 
 // okapi: PHPContentFilterTest#testSQIndex
 func TestSingleQuotedArrayIndex(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := phpcontent.NewReader()
 	input := `<?php $arr['greeting'] = 'Hello';`
 	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
@@ -667,7 +666,7 @@ func TestSingleQuotedArrayIndex(t *testing.T) {
 
 // okapi: PHPContentFilterTest#testDQIndex
 func TestDoubleQuotedArrayIndex(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := phpcontent.NewReader()
 	input := `<?php $arr["greeting"] = "Hello";`
 	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
@@ -682,7 +681,7 @@ func TestDoubleQuotedArrayIndex(t *testing.T) {
 
 // okapi: PHPContentFilterTest#testnoStringIndex
 func TestNoStringIndex(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := phpcontent.NewReader()
 	input := `<?php $arr[0] = 'Hello';`
 	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
@@ -698,7 +697,7 @@ func TestNoStringIndex(t *testing.T) {
 
 // okapi: PHPContentFilterTest#testHeredocIndex
 func TestHeredocArrayIndex(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := phpcontent.NewReader()
 	input := "<?php $arr['key'] = <<<EOT\nHeredoc value\nEOT;\n"
 	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
@@ -713,7 +712,7 @@ func TestHeredocArrayIndex(t *testing.T) {
 
 // okapi: PHPContentFilterTest#testQuotedHeredocIndex
 func TestQuotedHeredocArrayIndex(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := phpcontent.NewReader()
 	input := "<?php $arr['key'] = <<<\"EOT\"\nQuoted heredoc value\nEOT;\n"
 	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
@@ -728,7 +727,7 @@ func TestQuotedHeredocArrayIndex(t *testing.T) {
 
 // okapi: PHPContentFilterTest#testNowdocIndex
 func TestNowdocArrayIndex(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := phpcontent.NewReader()
 	input := "<?php $arr['key'] = <<<'EOT'\nNowdoc value\nEOT;\n"
 	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
@@ -743,7 +742,7 @@ func TestNowdocArrayIndex(t *testing.T) {
 
 // okapi: PHPContentFilterTest#testOutputArrayKeys
 func TestOutputArrayKeys(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := phpcontent.NewReader()
 	input := `<?php $arr['greeting'] = 'Hello';`
 	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
@@ -770,7 +769,7 @@ func TestOutputArrayKeys(t *testing.T) {
 
 // okapi: PHPContentFilterTest#testEntityReferences
 func TestEntityReferences(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := phpcontent.NewReader()
 	input := `<?php $text = "Hello &amp; World";`
 	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
@@ -785,7 +784,7 @@ func TestEntityReferences(t *testing.T) {
 
 // okapi: PHPContentFilterTest#testReferencesLooklike
 func TestReferencesLooklike(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := phpcontent.NewReader()
 	input := `<?php $text = "Price is $5 & up";`
 	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
@@ -800,7 +799,7 @@ func TestReferencesLooklike(t *testing.T) {
 
 // okapi: PHPContentFilterTest#testFilteringOfHtmlLikeTags
 func TestFilteringOfHtmlLikeTags(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := phpcontent.NewReader()
 	input := `<?php $text = "Use <em>emphasis</em> here";`
 	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
@@ -819,7 +818,7 @@ func TestFilteringOfHtmlLikeTags(t *testing.T) {
 
 // okapi: PHPContentFilterTest#testOutputSimple
 func TestOutputSimple(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := phpcontent.NewReader()
 	input := `<?php $text = 'Hello world';`
 	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
@@ -844,7 +843,7 @@ func TestOutputSimple(t *testing.T) {
 
 // okapi: PHPContentFilterTest#testOutputWithNoStrings
 func TestOutputWithNoStrings(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := phpcontent.NewReader()
 	input := "<?php\n$x = 42;\n"
 	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
@@ -859,7 +858,7 @@ func TestOutputWithNoStrings(t *testing.T) {
 
 // okapi: PHPContentFilterTest#testOutputHeredoc
 func TestOutputHeredoc(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := phpcontent.NewReader()
 	input := "<?php $text = <<<EOT\nHello heredoc\nEOT;\n"
 	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
@@ -884,7 +883,7 @@ func TestOutputHeredoc(t *testing.T) {
 
 // okapi: PHPContentFilterTest#testOutputMix
 func TestOutputMix(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := phpcontent.NewReader()
 	input := "<?php\n$a = 'Single';\n$b = \"Double\";\n$c = <<<EOT\nHeredoc\nEOT;\n"
 	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
@@ -914,7 +913,7 @@ func TestOutputMix(t *testing.T) {
 
 // okapi: PHPContentFilterTest#testLineBreakType
 func TestLineBreakType(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := phpcontent.NewReader()
 	input := "<?php $text = 'Hello';\r\n$text2 = 'World';\r\n"
 	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
@@ -929,7 +928,7 @@ func TestLineBreakType(t *testing.T) {
 
 // okapi: PHPContentFilterTest#testDoubleExtraction
 func TestDoubleExtraction(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	// Run extraction twice to verify consistency
 	for run := 0; run < 2; run++ {
@@ -949,7 +948,7 @@ func TestDoubleExtraction(t *testing.T) {
 // --- Layer bookends ---
 
 func TestLayerStartEnd(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := phpcontent.NewReader()
 	input := `<?php $text = 'Hello';`
 	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
@@ -982,14 +981,14 @@ func TestReaderSignature(t *testing.T) {
 }
 
 func TestReaderNilDocument(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := phpcontent.NewReader()
 	err := reader.Open(ctx, nil)
 	require.Error(t, err)
 }
 
 func TestReadEmpty(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := phpcontent.NewReader()
 	err := reader.Open(ctx, testutil.RawDocFromString("", model.LocaleEnglish))
 	require.NoError(t, err)
@@ -1003,7 +1002,7 @@ func TestReadEmpty(t *testing.T) {
 // --- Roundtrip with translation ---
 
 func TestRoundTripWithTargetLocale(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := phpcontent.NewReader()
 	input := `<?php $text = 'Hello';`
 	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
@@ -1040,7 +1039,7 @@ func TestRoundTripWithTargetLocale(t *testing.T) {
 // --- File-based roundtrip ---
 
 func TestFileRoundTrip(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	f, err := os.Open("testdata/simple.php")
 	require.NoError(t, err)
@@ -1071,7 +1070,7 @@ func TestFileRoundTrip(t *testing.T) {
 // --- Escape sequence handling in single-quoted strings ---
 
 func TestSingleQuotedEscapes(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := phpcontent.NewReader()
 	input := `<?php $text = 'It\'s a test';`
 	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
@@ -1084,7 +1083,7 @@ func TestSingleQuotedEscapes(t *testing.T) {
 }
 
 func TestSingleQuotedBackslash(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := phpcontent.NewReader()
 	input := `<?php $text = 'Path: C:\\Windows';`
 	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))

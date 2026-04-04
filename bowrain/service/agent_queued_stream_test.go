@@ -58,7 +58,7 @@ func TestQueuedStream_EnqueuePayloadFormat(t *testing.T) {
 	require.NoError(t, err)
 
 	mq := &mockQueue{}
-	require.NoError(t, mq.Enqueue(context.Background(), string(payload)))
+	require.NoError(t, mq.Enqueue(t.Context(), string(payload)))
 
 	got := mq.lastPayload()
 	require.NotEmpty(t, got)
@@ -179,7 +179,7 @@ func TestQueuedStream_RoutingDecision_LocalFallback(t *testing.T) {
 	t.Cleanup(func() { store.Close() })
 
 	svc := NewAgentService(store, nil)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	conv, err := svc.CreateConversation(ctx, "ws1", "user1", "", "Chat")
 	require.NoError(t, err)
@@ -205,7 +205,7 @@ func TestQueuedStream_RoutingDecision_QueueWithoutPubSub(t *testing.T) {
 
 	svc := NewAgentService(store, nil)
 	svc.queue = &mockQueue{} // queue set but no pubsub
-	ctx := context.Background()
+	ctx := t.Context()
 
 	conv, err := svc.CreateConversation(ctx, "ws1", "user1", "", "Chat")
 	require.NoError(t, err)
@@ -225,7 +225,7 @@ func TestQueuedStream_RoutingDecision_QueueWithoutPubSub(t *testing.T) {
 func TestQueuedStream_EnqueueError(t *testing.T) {
 	mq := &mockQueue{err: assert.AnError}
 
-	err := mq.Enqueue(context.Background(), "anything")
+	err := mq.Enqueue(t.Context(), "anything")
 	require.Error(t, err)
 	assert.Equal(t, assert.AnError, err)
 }
@@ -239,7 +239,7 @@ func TestQueuedStream_UserMessagePersistedBeforeEnqueue(t *testing.T) {
 	t.Cleanup(func() { store.Close() })
 
 	svc := NewAgentService(store, nil)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	conv, err := svc.CreateConversation(ctx, "ws1", "user1", "", "Chat")
 	require.NoError(t, err)
@@ -259,7 +259,7 @@ func TestQueuedStream_UserMessagePersistedBeforeEnqueue(t *testing.T) {
 // similar to the real sendQueuedStream loop, using plain channels.
 func TestQueuedStream_EventChannelRelay(t *testing.T) {
 	events := make(chan SSEEvent, 10)
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	ctx, cancel := context.WithTimeout(t.Context(), 2*time.Second)
 	defer cancel()
 
 	// Feed events.
@@ -306,7 +306,7 @@ done:
 // during the relay loop stops processing.
 func TestQueuedStream_ContextCancelDuringRelay(t *testing.T) {
 	events := make(chan SSEEvent, 10)
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(t.Context())
 
 	// Send one event then cancel.
 	go func() {

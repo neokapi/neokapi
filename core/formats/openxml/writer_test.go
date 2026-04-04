@@ -3,7 +3,6 @@ package openxml
 import (
 	"archive/zip"
 	"bytes"
-	"context"
 	"os"
 	"testing"
 
@@ -23,9 +22,9 @@ func TestWriterBasic(t *testing.T) {
 
 	reader := NewReader()
 	doc := testutil.RawDocFromReader(f, "testdata/simple.docx", model.LocaleEnglish)
-	err = reader.Open(context.Background(), doc)
+	err = reader.Open(t.Context(), doc)
 	require.NoError(t, err)
-	parts := testutil.CollectParts(t, reader.Read(context.Background()))
+	parts := testutil.CollectParts(t, reader.Read(t.Context()))
 	reader.Close()
 
 	// Write
@@ -36,7 +35,7 @@ func TestWriterBasic(t *testing.T) {
 	require.NoError(t, err)
 
 	ch := testutil.PartsToChannel(parts)
-	err = writer.Write(context.Background(), ch)
+	err = writer.Write(t.Context(), ch)
 	require.NoError(t, err)
 	writer.Close()
 
@@ -55,7 +54,7 @@ func TestWriterNilOriginal(t *testing.T) {
 	ch := make(chan *model.Part)
 	close(ch)
 
-	err = writer.Write(context.Background(), ch)
+	err = writer.Write(t.Context(), ch)
 	require.Error(t, err, "should error without original content")
 }
 
@@ -71,8 +70,8 @@ func TestWriterMediaReplacement(t *testing.T) {
 
 	reader := NewReader()
 	doc := testutil.RawDocFromReader(f, "test.docx", model.LocaleEnglish)
-	require.NoError(t, reader.Open(context.Background(), doc))
-	parts := testutil.CollectParts(t, reader.Read(context.Background()))
+	require.NoError(t, reader.Open(t.Context(), doc))
+	parts := testutil.CollectParts(t, reader.Read(t.Context()))
 	reader.Close()
 
 	// Write with a media replacement.
@@ -84,7 +83,7 @@ func TestWriterMediaReplacement(t *testing.T) {
 	require.NoError(t, writer.SetOutputWriter(&buf))
 
 	ch := testutil.PartsToChannel(parts)
-	require.NoError(t, writer.Write(context.Background(), ch))
+	require.NoError(t, writer.Write(t.Context(), ch))
 	writer.Close()
 
 	// Verify the output ZIP contains the replacement.

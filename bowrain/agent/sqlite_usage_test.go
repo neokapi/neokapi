@@ -1,7 +1,6 @@
 package agent
 
 import (
-	"context"
 	"testing"
 	"time"
 
@@ -16,7 +15,7 @@ func TestSQLiteStoreRecordUsage(t *testing.T) {
 	require.NoError(t, err)
 	defer store.Close()
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	// Record token usage.
 	rec := &platagent.UsageRecord{
@@ -47,7 +46,7 @@ func TestSQLiteStoreGetUsageSummary(t *testing.T) {
 	require.NoError(t, err)
 	defer store.Close()
 
-	ctx := context.Background()
+	ctx := t.Context()
 	now := time.Now().UTC()
 
 	// Insert some usage records.
@@ -89,7 +88,7 @@ func TestSQLiteStoreMessageTokenFields(t *testing.T) {
 	require.NoError(t, err)
 	defer store.Close()
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	conv := &platagent.Conversation{WorkspaceID: "ws1", UserID: "user1"}
 	require.NoError(t, store.CreateConversation(ctx, conv))

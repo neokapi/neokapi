@@ -2,7 +2,6 @@ package xliff2_test
 
 import (
 	"bytes"
-	"context"
 	"testing"
 
 	"github.com/neokapi/neokapi/core/formats/xliff2"
@@ -41,7 +40,7 @@ const sampleXLIFF2 = `<?xml version="1.0" encoding="UTF-8"?>
 
 // okapi: XLIFF2FilterTest#testSimple
 func TestReadXLIFF2(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := xliff2.NewReader()
 	err := reader.Open(ctx, testutil.RawDocFromString(sampleXLIFF2, model.LocaleEnglish))
 	require.NoError(t, err)
@@ -56,7 +55,7 @@ func TestReadXLIFF2(t *testing.T) {
 }
 
 func TestReadXLIFF2Targets(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := xliff2.NewReader()
 	err := reader.Open(ctx, testutil.RawDocFromString(sampleXLIFF2, model.LocaleEnglish))
 	require.NoError(t, err)
@@ -71,7 +70,7 @@ func TestReadXLIFF2Targets(t *testing.T) {
 }
 
 func TestReadXLIFF2UnitIDs(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := xliff2.NewReader()
 	err := reader.Open(ctx, testutil.RawDocFromString(sampleXLIFF2, model.LocaleEnglish))
 	require.NoError(t, err)
@@ -87,7 +86,7 @@ func TestReadXLIFF2UnitIDs(t *testing.T) {
 
 // okapi: XLIFF2FilterTest#testSimpleMeta
 func TestReadXLIFF2Notes(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := xliff2.NewReader()
 	err := reader.Open(ctx, testutil.RawDocFromString(sampleXLIFF2, model.LocaleEnglish))
 	require.NoError(t, err)
@@ -99,7 +98,7 @@ func TestReadXLIFF2Notes(t *testing.T) {
 }
 
 func TestReadXLIFF2LayerStartEnd(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := xliff2.NewReader()
 	err := reader.Open(ctx, testutil.RawDocFromString(sampleXLIFF2, model.LocaleEnglish))
 	require.NoError(t, err)
@@ -112,7 +111,7 @@ func TestReadXLIFF2LayerStartEnd(t *testing.T) {
 }
 
 func TestWriteXLIFF2(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := xliff2.NewReader()
 	err := reader.Open(ctx, testutil.RawDocFromString(sampleXLIFF2, model.LocaleEnglish))
 	require.NoError(t, err)
@@ -151,7 +150,7 @@ func TestReaderMetadata(t *testing.T) {
 }
 
 func TestReadNilDocument(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := xliff2.NewReader()
 	err := reader.Open(ctx, nil)
 	require.Error(t, err)

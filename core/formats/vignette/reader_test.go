@@ -15,7 +15,7 @@ import (
 
 // okapi: VignetteFilterTest#testPlainText
 func TestPlainText(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := vignette.NewReader()
 	input := "This is plain text."
 	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
@@ -30,7 +30,7 @@ func TestPlainText(t *testing.T) {
 
 // okapi: VignetteFilterTest#testYAMLFrontMatter
 func TestYAMLFrontMatter(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := vignette.NewReader()
 	input := "---\ntitle: \"Test\"\n---\nHello world."
 	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
@@ -58,7 +58,7 @@ func TestYAMLFrontMatter(t *testing.T) {
 
 // okapi: VignetteFilterTest#testRmdCodeChunk
 func TestRmdCodeChunk(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := vignette.NewReader()
 	input := "Before code.\n```{r setup}\nlibrary(ggplot2)\n```\nAfter code."
 	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
@@ -74,7 +74,7 @@ func TestRmdCodeChunk(t *testing.T) {
 
 // okapi: VignetteFilterTest#testRnwCodeChunk
 func TestRnwCodeChunk(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := vignette.NewReader()
 	input := "Before code.\n<<setup>>=\nlibrary(ggplot2)\n@\nAfter code."
 	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
@@ -90,7 +90,7 @@ func TestRnwCodeChunk(t *testing.T) {
 
 // okapi: VignetteFilterTest#testCodeChunkWithOptions
 func TestCodeChunkWithOptions(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := vignette.NewReader()
 	input := "Text.\n```{r plot, echo=FALSE, fig.width=10}\nplot(data)\n```\nMore text."
 	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
@@ -106,7 +106,7 @@ func TestCodeChunkWithOptions(t *testing.T) {
 
 // okapi: VignetteFilterTest#testRnwWithOptions
 func TestRnwCodeChunkWithOptions(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := vignette.NewReader()
 	input := "Text.\n<<plot, echo=FALSE>>=\nplot(data)\n@\nMore text."
 	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
@@ -122,7 +122,7 @@ func TestRnwCodeChunkWithOptions(t *testing.T) {
 
 // okapi: VignetteFilterTest#testMultipleCodeChunks
 func TestMultipleCodeChunks(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := vignette.NewReader()
 	input := "Para 1.\n```{r}\ncode1()\n```\nPara 2.\n```{r}\ncode2()\n```\nPara 3."
 	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
@@ -139,7 +139,7 @@ func TestMultipleCodeChunks(t *testing.T) {
 
 // okapi: VignetteFilterTest#testCodeContentAsData
 func TestCodeContentAsData(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := vignette.NewReader()
 	input := "```{r}\nx <- 1\ny <- 2\n```"
 	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
@@ -164,7 +164,7 @@ func TestCodeContentAsData(t *testing.T) {
 }
 
 func TestReadEmpty(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := vignette.NewReader()
 	err := reader.Open(ctx, testutil.RawDocFromString("", model.LocaleEnglish))
 	require.NoError(t, err)
@@ -177,14 +177,14 @@ func TestReadEmpty(t *testing.T) {
 }
 
 func TestReadNilDocument(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := vignette.NewReader()
 	err := reader.Open(ctx, nil)
 	require.Error(t, err)
 }
 
 func TestReadLayerStartEnd(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := vignette.NewReader()
 	input := "Hello"
 	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
@@ -243,7 +243,7 @@ func TestConfigApplyMapEmpty(t *testing.T) {
 }
 
 func TestRoundTripRmd(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	f, err := os.Open("testdata/simple.Rmd")
 	require.NoError(t, err)
@@ -273,7 +273,7 @@ func TestRoundTripRmd(t *testing.T) {
 }
 
 func TestRoundTripRnw(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	f, err := os.Open("testdata/simple.Rnw")
 	require.NoError(t, err)
@@ -301,7 +301,7 @@ func TestRoundTripRnw(t *testing.T) {
 }
 
 func TestRoundTripWithTargetLocale(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	input := "Hello world.\n```{r}\ncode()\n```\nGoodbye world."
 	reader := vignette.NewReader()
@@ -340,7 +340,7 @@ func TestRoundTripWithTargetLocale(t *testing.T) {
 }
 
 func TestContextCancellation(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(t.Context())
 	cancel()
 
 	reader := vignette.NewReader()
@@ -357,7 +357,7 @@ func TestContextCancellation(t *testing.T) {
 }
 
 func TestWriterContextCancellation(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(t.Context())
 
 	var buf bytes.Buffer
 	writer := vignette.NewWriter()
@@ -373,7 +373,7 @@ func TestWriterContextCancellation(t *testing.T) {
 
 // okapi: VignetteFilterTest#testMultiLineText
 func TestMultiLineTextBlock(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := vignette.NewReader()
 	input := "Line one.\nLine two.\nLine three."
 	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
@@ -388,7 +388,7 @@ func TestMultiLineTextBlock(t *testing.T) {
 
 // okapi: VignetteFilterTest#testYAMLNotAtStart
 func TestYAMLNotAtStart(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := vignette.NewReader()
 	// --- not at line 1 should be treated as text, not YAML
 	input := "Some text.\n---\ntitle: test\n---"
@@ -406,7 +406,7 @@ func TestYAMLNotAtStart(t *testing.T) {
 
 // okapi: VignetteFilterTest#testOnlyCode
 func TestOnlyCode(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := vignette.NewReader()
 	input := "```{r}\nx <- 1\n```"
 	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
@@ -420,7 +420,7 @@ func TestOnlyCode(t *testing.T) {
 
 // okapi: VignetteFilterTest#testOnlyYAML
 func TestOnlyYAML(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := vignette.NewReader()
 	input := "---\ntitle: Test\nauthor: Author\n---"
 	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))

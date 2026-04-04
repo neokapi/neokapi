@@ -108,17 +108,15 @@ func TestPresenceStoreConcurrent(t *testing.T) {
 	ps := newPresenceStore()
 
 	var wg sync.WaitGroup
-	for i := 0; i < 100; i++ {
-		wg.Add(1)
-		go func(n int) {
-			defer wg.Done()
-			uid := fmt.Sprintf("u%d", n)
+	for i := range 100 {
+		wg.Go(func() {
+			uid := fmt.Sprintf("u%d", i)
 			ps.Update("proj-1", &presenceEntry{UserID: uid, UserName: uid})
 			ps.List("proj-1")
-			if n%2 == 0 {
+			if i%2 == 0 {
 				ps.Remove("proj-1", uid)
 			}
-		}(i)
+		})
 	}
 	wg.Wait()
 

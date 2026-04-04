@@ -1,7 +1,6 @@
 package service
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -129,7 +128,7 @@ func TestDockerRuntimeSpawnAndHealth(t *testing.T) {
 		baseURL: srv.URL,
 	}
 
-	ctx := context.Background()
+	ctx := t.Context()
 	container, err := rt.Spawn(ctx, ContainerConfig{
 		Image:          "ghcr.io/neokapi/bravo-agent:latest",
 		ConversationID: "conv-123",
@@ -179,7 +178,7 @@ func TestDockerRuntimeStop(t *testing.T) {
 		baseURL: srv.URL,
 	}
 
-	ctx := context.Background()
+	ctx := t.Context()
 	container, err := rt.Spawn(ctx, ContainerConfig{
 		Image:          "ghcr.io/neokapi/bravo-agent:latest",
 		ConversationID: "conv-stop",
@@ -205,7 +204,7 @@ func TestDockerRuntimeHealthNotFound(t *testing.T) {
 		baseURL: srv.URL,
 	}
 
-	healthy, err := rt.Health(context.Background(), "nonexistent")
+	healthy, err := rt.Health(t.Context(), "nonexistent")
 	require.NoError(t, err)
 	assert.False(t, healthy)
 }

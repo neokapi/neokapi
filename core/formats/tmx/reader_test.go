@@ -46,7 +46,7 @@ import (
 // readTMX parses a TMX string and returns all parts.
 func readTMX(t *testing.T, input string) []*model.Part {
 	t.Helper()
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := tmx.NewReader()
 	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
 	require.NoError(t, err)
@@ -63,7 +63,7 @@ func readTMXBlocks(t *testing.T, input string) []*model.Block {
 // readTMXAllowError parses a TMX string and returns parts and any error.
 func readTMXAllowError(t *testing.T, input string) ([]*model.Part, error) {
 	t.Helper()
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := tmx.NewReader()
 	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
 	if err != nil {
@@ -84,7 +84,7 @@ func readTMXAllowError(t *testing.T, input string) ([]*model.Part, error) {
 // readTMXFile reads a TMX test data file and returns blocks.
 func readTMXFile(t *testing.T, path string) []*model.Block {
 	t.Helper()
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := tmx.NewReader()
 	f, err := os.Open(path)
 	require.NoError(t, err)
@@ -97,7 +97,7 @@ func readTMXFile(t *testing.T, path string) []*model.Block {
 // roundTrip reads TMX, writes it, then reads the output again.
 func roundTrip(t *testing.T, input string) (string, []*model.Block) {
 	t.Helper()
-	ctx := context.Background()
+	ctx := t.Context()
 
 	// Read
 	reader := tmx.NewReader()
@@ -1028,7 +1028,7 @@ func TestInputStream(t *testing.T) {
 
 // okapi: TmxFilterTest#testCancel (adapted: tests context cancellation)
 func TestCancel(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(t.Context())
 	reader := tmx.NewReader()
 	input := wrapTMX(`
     <tu>
@@ -1305,7 +1305,7 @@ func TestParametersReset(t *testing.T) {
 
 // okapi: RoundTripTmxIT#tmxFiles (roundtrip with testdata/simple.tmx)
 func TestRoundTrip_SimpleFile(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	f, err := os.Open("testdata/simple.tmx")
 	require.NoError(t, err)
@@ -1413,7 +1413,7 @@ func TestEmptyBody(t *testing.T) {
 }
 
 func TestNilDocument(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := tmx.NewReader()
 	err := reader.Open(ctx, nil)
 	require.Error(t, err)
@@ -1787,7 +1787,7 @@ func TestNonAsciiLanguageCodes(t *testing.T) {
     </tu>
   </body>
 </tmx>`
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := tmx.NewReader()
 	err := reader.Open(ctx, testutil.RawDocFromString(input, "zh-CN"))
 	require.NoError(t, err)
@@ -1839,7 +1839,7 @@ func TestHeaderMetadataComplete(t *testing.T) {
 }
 
 func TestContextCancellation(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(t.Context())
 	cancel() // cancel immediately
 
 	reader := tmx.NewReader()
@@ -1860,7 +1860,7 @@ func TestContextCancellation(t *testing.T) {
 }
 
 func TestWriterNilOutput(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	writer := tmx.NewWriter()
 	// Don't set output — should not panic
 	ch := make(chan *model.Part)

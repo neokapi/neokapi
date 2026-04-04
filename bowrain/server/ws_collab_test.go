@@ -111,7 +111,7 @@ func TestCollabWebSocket_RelayMessages(t *testing.T) {
 
 	wsURL := "ws" + srv.URL[4:] // http -> ws
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
 	defer cancel()
 
 	// Connect two clients to the same room.

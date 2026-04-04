@@ -1,7 +1,6 @@
 package store
 
 import (
-	"context"
 	"testing"
 	"time"
 
@@ -19,7 +18,7 @@ func newTestTaskStore(t *testing.T) *TaskStore {
 
 func TestTaskStore_CRUD(t *testing.T) {
 	store := newTestTaskStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	t.Run("create and get", func(t *testing.T) {
 		task := &Task{
@@ -85,7 +84,7 @@ func TestTaskStore_CRUD(t *testing.T) {
 
 func TestTaskStore_Lifecycle(t *testing.T) {
 	store := newTestTaskStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	task := &Task{
 		WorkspaceID: "ws-1",
@@ -131,7 +130,7 @@ func TestTaskStore_Lifecycle(t *testing.T) {
 
 func TestTaskStore_Cancel(t *testing.T) {
 	store := newTestTaskStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	task := &Task{
 		WorkspaceID: "ws-1",
@@ -152,7 +151,7 @@ func TestTaskStore_Cancel(t *testing.T) {
 
 func TestTaskStore_ListFilters(t *testing.T) {
 	store := newTestTaskStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	// Create tasks with different attributes.
 	tasks := []*Task{
@@ -199,7 +198,7 @@ func TestTaskStore_ListFilters(t *testing.T) {
 
 func TestTaskStore_DueAt(t *testing.T) {
 	store := newTestTaskStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	due := time.Now().UTC().Add(24 * time.Hour)
 	task := &Task{
@@ -220,7 +219,7 @@ func TestTaskStore_DueAt(t *testing.T) {
 
 func TestTaskStore_DueBeforeFilter(t *testing.T) {
 	store := newTestTaskStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	now := time.Now().UTC()
 	dueIn12h := now.Add(12 * time.Hour)
@@ -272,7 +271,7 @@ func TestTaskStore_DueBeforeFilter(t *testing.T) {
 
 func TestTaskStore_DueBeforeFilter_IncludesExactMatch(t *testing.T) {
 	store := newTestTaskStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	due := time.Now().UTC().Add(24 * time.Hour)
 	task := &Task{

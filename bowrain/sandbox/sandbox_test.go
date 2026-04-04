@@ -1,7 +1,6 @@
 package sandbox
 
 import (
-	"context"
 	"encoding/binary"
 	"encoding/json"
 	"io"
@@ -184,7 +183,7 @@ func TestDockerSandboxExecutePython(t *testing.T) {
 	defer srv.Close()
 
 	sb := newTestSandbox(srv)
-	result, err := sb.Execute(context.Background(), mcpserver.SandboxRequest{
+	result, err := sb.Execute(t.Context(), mcpserver.SandboxRequest{
 		Language: "python",
 		Code:     `print("Hello from Python")`,
 		Env:      map[string]string{"MY_VAR": "test_value"},
@@ -244,7 +243,7 @@ func TestDockerSandboxExecutePythonContainerConfig(t *testing.T) {
 	defer srv.Close()
 
 	sb := newTestSandbox(srv)
-	result, err := sb.Execute(context.Background(), mcpserver.SandboxRequest{
+	result, err := sb.Execute(t.Context(), mcpserver.SandboxRequest{
 		Language: "python",
 		Code:     `print("ok")`,
 		Env:      map[string]string{"MY_VAR": "hello"},
@@ -274,7 +273,7 @@ func TestDockerSandboxExecuteBash(t *testing.T) {
 	defer srv.Close()
 
 	sb := newTestSandbox(srv)
-	result, err := sb.Execute(context.Background(), mcpserver.SandboxRequest{
+	result, err := sb.Execute(t.Context(), mcpserver.SandboxRequest{
 		Language: "bash",
 		Code:     `echo "hello world"`,
 	})
@@ -292,7 +291,7 @@ func TestDockerSandboxExecuteNode(t *testing.T) {
 	defer srv.Close()
 
 	sb := newTestSandbox(srv)
-	result, err := sb.Execute(context.Background(), mcpserver.SandboxRequest{
+	result, err := sb.Execute(t.Context(), mcpserver.SandboxRequest{
 		Language: "node",
 		Code:     `console.log(JSON.stringify({result: 42}))`,
 	})
@@ -307,7 +306,7 @@ func TestDockerSandboxUnsupportedLanguage(t *testing.T) {
 	defer srv.Close()
 
 	sb := newTestSandbox(srv)
-	_, err := sb.Execute(context.Background(), mcpserver.SandboxRequest{
+	_, err := sb.Execute(t.Context(), mcpserver.SandboxRequest{
 		Language: "ruby",
 		Code:     `puts "hello"`,
 	})
@@ -322,7 +321,7 @@ func TestDockerSandboxEmptyCode(t *testing.T) {
 	defer srv.Close()
 
 	sb := newTestSandbox(srv)
-	_, err := sb.Execute(context.Background(), mcpserver.SandboxRequest{
+	_, err := sb.Execute(t.Context(), mcpserver.SandboxRequest{
 		Language: "python",
 		Code:     "",
 	})
@@ -343,7 +342,7 @@ func TestDockerSandboxTimeout(t *testing.T) {
 		cfg:     Config{Timeout: 200 * time.Millisecond, MemoryMB: 64},
 	}
 
-	_, err := sb.Execute(context.Background(), mcpserver.SandboxRequest{
+	_, err := sb.Execute(t.Context(), mcpserver.SandboxRequest{
 		Language: "python",
 		Code:     `import time; time.sleep(60)`,
 	})
@@ -361,7 +360,7 @@ func TestDockerSandboxWithStderr(t *testing.T) {
 	defer srv.Close()
 
 	sb := newTestSandbox(srv)
-	result, err := sb.Execute(context.Background(), mcpserver.SandboxRequest{
+	result, err := sb.Execute(t.Context(), mcpserver.SandboxRequest{
 		Language: "bash",
 		Code:     `echo output; echo "warning: something" >&2; exit 1`,
 	})
@@ -408,7 +407,7 @@ func TestDockerSandboxWithFiles(t *testing.T) {
 	defer srv.Close()
 
 	sb := newTestSandbox(srv)
-	result, err := sb.Execute(context.Background(), mcpserver.SandboxRequest{
+	result, err := sb.Execute(t.Context(), mcpserver.SandboxRequest{
 		Language: "python",
 		Code:     `print("processed")`,
 		Files: map[string][]byte{

@@ -1,7 +1,6 @@
 package project
 
 import (
-	"context"
 	"encoding/json"
 	"io"
 	"net/http"
@@ -235,7 +234,7 @@ func TestSourceConnector_Push(t *testing.T) {
 	require.NoError(t, err)
 	defer conn.Close()
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	// First push should send all blocks.
 	result, err := conn.Push(ctx, connector.PushOptions{})
@@ -260,7 +259,7 @@ func TestSourceConnector_Push_DryRun(t *testing.T) {
 	require.NoError(t, err)
 	defer conn.Close()
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	// Dry run should not actually push.
 	result, err := conn.Push(ctx, connector.PushOptions{DryRun: true})
@@ -277,7 +276,7 @@ func TestSourceConnector_Push_Force(t *testing.T) {
 	require.NoError(t, err)
 	defer conn.Close()
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	// Push all blocks first.
 	_, err = conn.Push(ctx, connector.PushOptions{})
@@ -299,7 +298,7 @@ func TestSourceConnector_Pull(t *testing.T) {
 	require.NoError(t, err)
 	defer conn.Close()
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	result, err := conn.Pull(ctx, connector.PullOptions{})
 	require.NoError(t, err)
@@ -314,7 +313,7 @@ func TestSourceConnector_Status(t *testing.T) {
 	require.NoError(t, err)
 	defer conn.Close()
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	// Before any sync: all local blocks should be pending push.
 	status, err := conn.Status(ctx)
@@ -339,7 +338,7 @@ func TestSourceConnector_SyncCachePersistence(t *testing.T) {
 	// Push with first connector instance.
 	conn, err := NewSourceConnector(proj, formatReg)
 	require.NoError(t, err)
-	_, err = conn.Push(context.Background(), connector.PushOptions{})
+	_, err = conn.Push(t.Context(), connector.PushOptions{})
 	require.NoError(t, err)
 	require.NoError(t, conn.Close())
 
@@ -349,7 +348,7 @@ func TestSourceConnector_SyncCachePersistence(t *testing.T) {
 	defer conn2.Close()
 
 	// Should not re-push since cache persisted.
-	result, err := conn2.Push(context.Background(), connector.PushOptions{})
+	result, err := conn2.Push(t.Context(), connector.PushOptions{})
 	require.NoError(t, err)
 	assert.Equal(t, 0, result.BlocksPushed, "blocks already cached from previous push")
 	assert.Equal(t, 1, mock.pushCalls, "only the original push call")
@@ -371,7 +370,7 @@ func TestSourceConnector_Push_MultipleFiles(t *testing.T) {
 	require.NoError(t, err)
 	defer conn.Close()
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	result, err := conn.Push(ctx, connector.PushOptions{})
 	require.NoError(t, err)
@@ -407,7 +406,7 @@ func TestSourceConnector_Pull_WriteBack(t *testing.T) {
 	require.NoError(t, err)
 	defer conn.Close()
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	result, err := conn.Pull(ctx, connector.PullOptions{
 		Locales: []model.LocaleID{"fr"},
@@ -444,7 +443,7 @@ func TestSourceConnector_Pull_WriteBack_DryRun(t *testing.T) {
 	require.NoError(t, err)
 	defer conn.Close()
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	result, err := conn.Pull(ctx, connector.PullOptions{
 		Locales: []model.LocaleID{"fr"},
@@ -472,7 +471,7 @@ func TestSourceConnector_Pull_NoLocales(t *testing.T) {
 	require.NoError(t, err)
 	defer conn.Close()
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	// Pull without specifying locales should not write files.
 	result, err := conn.Pull(ctx, connector.PullOptions{})
@@ -496,7 +495,7 @@ func TestSourceConnector_Pull_TargetPathTemplate(t *testing.T) {
 	require.NoError(t, err)
 	defer conn.Close()
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	result, err := conn.Pull(ctx, connector.PullOptions{
 		Locales: []model.LocaleID{"fr"},
@@ -598,7 +597,7 @@ func TestSourceConnector_ScanRespectsExcludes(t *testing.T) {
 	require.NoError(t, err)
 	defer conn.Close()
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	// Push should only see the non-excluded file.
 	result, err := conn.Push(ctx, connector.PushOptions{})
@@ -648,7 +647,7 @@ func TestSourceConnector_PerEntryLanguageOverride(t *testing.T) {
 	defer conn.Close()
 
 	// Push should pick up files from both content entries.
-	result, err := conn.Push(context.Background(), connector.PushOptions{})
+	result, err := conn.Push(t.Context(), connector.PushOptions{})
 	require.NoError(t, err)
 	assert.Equal(t, 2, result.FilesScanned, "should scan files from both source languages")
 	assert.Equal(t, 2, result.BlocksPushed, "should push blocks from both files")
@@ -697,7 +696,7 @@ func TestSourceConnector_CollectionInPush(t *testing.T) {
 	require.NoError(t, err)
 	defer conn.Close()
 
-	_, err = conn.Push(context.Background(), connector.PushOptions{})
+	_, err = conn.Push(t.Context(), connector.PushOptions{})
 	require.NoError(t, err)
 
 	// Verify that items from both collections were pushed.
@@ -763,7 +762,7 @@ func TestSourceConnector_ServerTargetLanguagesFallback(t *testing.T) {
 	defer conn.Close()
 
 	// Pull should resolve target locales from server metadata.
-	result, err := conn.Pull(context.Background(), connector.PullOptions{})
+	result, err := conn.Pull(t.Context(), connector.PullOptions{})
 	require.NoError(t, err)
 	assert.Equal(t, 2, result.LocalesCount, "should use server's fr+de target locales")
 

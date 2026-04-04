@@ -68,7 +68,7 @@ func TestReaderSignature(t *testing.T) {
 }
 
 func TestReadNilDocument(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := regex.NewReader()
 	err := reader.Open(ctx, nil)
 	require.Error(t, err)
@@ -76,7 +76,7 @@ func TestReadNilDocument(t *testing.T) {
 
 // okapi: RegexFilterTest#testStartDocument
 func TestLayerStartEnd(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := regex.NewReader()
 
 	cfg := reader.Config().(*regex.Config)
@@ -99,7 +99,7 @@ func TestLayerStartEnd(t *testing.T) {
 }
 
 func TestReadEmpty(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := regex.NewReader()
 
 	cfg := reader.Config().(*regex.Config)
@@ -115,7 +115,7 @@ func TestReadEmpty(t *testing.T) {
 }
 
 func TestReadNoRules(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := regex.NewReader()
 
 	input := "Some content"
@@ -136,7 +136,7 @@ func TestReadNoRules(t *testing.T) {
 
 // okapi: RegexFilterTest#testSimpleRule
 func TestMacStringsSimple(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := regex.NewReader()
 
 	cfg := reader.Config().(*regex.Config)
@@ -156,7 +156,7 @@ func TestMacStringsSimple(t *testing.T) {
 
 // okapi: RegexFilterTest#testConfigurations
 func TestMacStringsMultiple(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := regex.NewReader()
 
 	cfg := reader.Config().(*regex.Config)
@@ -177,7 +177,7 @@ func TestMacStringsMultiple(t *testing.T) {
 
 // okapi: RegexFilterTest#testConfigurations (macStrings from file)
 func TestMacStringsFile(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := regex.NewReader()
 
 	cfg := reader.Config().(*regex.Config)
@@ -200,7 +200,7 @@ func TestMacStringsFile(t *testing.T) {
 
 // okapi: RegexFilterTest#testSemicolonInData
 func TestMacStringsSemicolonInValue(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := regex.NewReader()
 
 	cfg := reader.Config().(*regex.Config)
@@ -222,7 +222,7 @@ func TestMacStringsSemicolonInValue(t *testing.T) {
 
 // okapi: RegexFilterTest#testIDAndText
 func TestIDAndText(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := regex.NewReader()
 
 	cfg := reader.Config().(*regex.Config)
@@ -250,7 +250,7 @@ func TestIDAndText(t *testing.T) {
 
 // okapi: RegexFilterTest#testNameExtraction
 func TestNameExtraction(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := regex.NewReader()
 
 	cfg := reader.Config().(*regex.Config)
@@ -282,7 +282,7 @@ func TestNameExtraction(t *testing.T) {
 
 // okapi: RegexFilterTest#testNoteExtraction
 func TestNoteExtraction(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := regex.NewReader()
 
 	cfg := reader.Config().(*regex.Config)
@@ -308,7 +308,7 @@ func TestNoteExtraction(t *testing.T) {
 
 // okapi: RegexFilterTest#testBackslashEscapeHandling
 func TestBackslashEscape(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := regex.NewReader()
 
 	cfg := reader.Config().(*regex.Config)
@@ -333,7 +333,7 @@ func TestBackslashEscape(t *testing.T) {
 
 // okapi: RegexFilterTest#testBackslashEscapeHandling
 func TestBackslashEscapeNewlineTab(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := regex.NewReader()
 
 	cfg := reader.Config().(*regex.Config)
@@ -359,7 +359,7 @@ func TestBackslashEscapeNewlineTab(t *testing.T) {
 
 // okapi: RegexFilterTest#testEscapeDoubleChar
 func TestDoubleCharEscape(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := regex.NewReader()
 
 	cfg := reader.Config().(*regex.Config)
@@ -386,7 +386,7 @@ func TestDoubleCharEscape(t *testing.T) {
 
 // okapi: RegexFilterTest#testEscapeDoubleCharNoEscape
 func TestNoEscape(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := regex.NewReader()
 
 	cfg := reader.Config().(*regex.Config)
@@ -414,7 +414,7 @@ func TestNoEscape(t *testing.T) {
 
 // okapi: RegexFilterTest#testConfigurations (INI)
 func TestINIFormat(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := regex.NewReader()
 
 	cfg := reader.Config().(*regex.Config)
@@ -436,7 +436,7 @@ func TestINIFormat(t *testing.T) {
 
 // okapi: RegexFilterTest#testConfigurations (INI file)
 func TestINIFile(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := regex.NewReader()
 
 	cfg := reader.Config().(*regex.Config)
@@ -461,7 +461,7 @@ func TestINIFile(t *testing.T) {
 
 // okapi: RegexFilterTest#testEmptyLines
 func TestNonMatchingContentAsData(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := regex.NewReader()
 
 	cfg := reader.Config().(*regex.Config)
@@ -496,7 +496,7 @@ func TestNonMatchingContentAsData(t *testing.T) {
 // --- Multiple Rules Tests ---
 
 func TestMultipleRules(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := regex.NewReader()
 
 	cfg := reader.Config().(*regex.Config)
@@ -533,7 +533,7 @@ func TestMultipleRules(t *testing.T) {
 
 // okapi: RegexFilterTest#testConfigurations (SymbianRLS)
 func TestSymbianRLS(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := regex.NewReader()
 
 	cfg := reader.Config().(*regex.Config)
@@ -564,7 +564,7 @@ func TestSymbianRLS(t *testing.T) {
 
 // okapi: RegexFilterTest#testConfigurations (StringInfo)
 func TestStringInfo(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := regex.NewReader()
 
 	cfg := reader.Config().(*regex.Config)
@@ -595,7 +595,7 @@ func TestStringInfo(t *testing.T) {
 
 // okapi: RegexFilterTest#testSimpleRule (roundtrip)
 func TestRoundTrip(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	input := "\"key1\" = \"Hello\";\n\"key2\" = \"World\";\n"
 
@@ -631,7 +631,7 @@ func TestRoundTrip(t *testing.T) {
 
 // okapi: RegexFilterTest#testConfigurations (roundtrip with translation)
 func TestRoundTripWithTranslation(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	input := "\"key1\" = \"Hello\";\n\"key2\" = \"World\";\n"
 
@@ -679,7 +679,7 @@ func TestRoundTripWithTranslation(t *testing.T) {
 
 // okapi: RegexFilterTest#testConfigurations (INI roundtrip)
 func TestRoundTripINI(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	input := "key1=Hello\nkey2=World\n"
 
@@ -710,7 +710,7 @@ func TestRoundTripINI(t *testing.T) {
 
 // okapi: RegexFilterTest#testBackslashEscapeHandling (roundtrip)
 func TestRoundTripBackslashEscape(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	input := "\"Hello \\\"World\\\"\"\n"
 
@@ -821,7 +821,7 @@ func TestConfigReset(t *testing.T) {
 // --- Context Cancellation Test ---
 
 func TestContextCancellation(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(t.Context())
 	cancel() // Cancel immediately
 
 	reader := regex.NewReader()

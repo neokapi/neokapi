@@ -1,7 +1,6 @@
 package store
 
 import (
-	"context"
 	"fmt"
 	"testing"
 
@@ -27,7 +26,7 @@ func createTestProject(t *testing.T, s *SQLiteStore) *platstore.Project {
 		TargetLanguages:       []model.LocaleID{model.LocaleFrench, model.LocaleGerman},
 		Properties:            map[string]string{"client": "acme"},
 	}
-	require.NoError(t, s.CreateProject(context.Background(), p))
+	require.NoError(t, s.CreateProject(t.Context(), p))
 	return p
 }
 
@@ -37,7 +36,7 @@ func createTestProject(t *testing.T, s *SQLiteStore) *platstore.Project {
 
 func TestProjectCRUD(t *testing.T) {
 	s := newTestStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	t.Run("create and get", func(t *testing.T) {
 		p := createTestProject(t, s)
@@ -87,7 +86,7 @@ func TestProjectCRUD(t *testing.T) {
 
 func TestBlockStorage(t *testing.T) {
 	s := newTestStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 	p := createTestProject(t, s)
 
 	t.Run("store and get", func(t *testing.T) {
@@ -178,7 +177,7 @@ func TestBlockStorage(t *testing.T) {
 
 func TestVersioning(t *testing.T) {
 	s := newTestStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 	p := createTestProject(t, s)
 
 	// Store initial blocks.
@@ -244,7 +243,7 @@ func TestVersioning(t *testing.T) {
 
 func TestConcurrentAccess(t *testing.T) {
 	s := newTestStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 	p := createTestProject(t, s)
 
 	// Store blocks concurrently.
@@ -274,7 +273,7 @@ func TestConcurrentAccess(t *testing.T) {
 
 func TestItemCRUD(t *testing.T) {
 	s := newTestStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 	p := createTestProject(t, s)
 
 	t.Run("store and get", func(t *testing.T) {
@@ -347,7 +346,7 @@ func TestItemCRUD(t *testing.T) {
 
 func TestItemPreviewHTML(t *testing.T) {
 	s := newTestStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 	p := createTestProject(t, s)
 
 	t.Run("store and retrieve PreviewHTML", func(t *testing.T) {
@@ -398,7 +397,7 @@ func TestItemPreviewHTML(t *testing.T) {
 
 func TestBlockItemAssociation(t *testing.T) {
 	s := newTestStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 	p := createTestProject(t, s)
 
 	// Store an item.
@@ -458,7 +457,7 @@ func TestBlockItemAssociation(t *testing.T) {
 
 func TestBlockIDUniqueness(t *testing.T) {
 	s := newTestStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 	p := createTestProject(t, s)
 
 	// Two items with blocks that have the same format-reader IDs.
@@ -517,7 +516,7 @@ func TestBlockIDUniqueness(t *testing.T) {
 
 func TestGetBlockStats(t *testing.T) {
 	s := newTestStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 	p := createTestProject(t, s)
 
 	// Create two items.
@@ -705,7 +704,7 @@ func TestExtractTargetLocales(t *testing.T) {
 
 func TestAssetCRUD(t *testing.T) {
 	s := newTestStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 	p := createTestProject(t, s)
 
 	// Store asset.
@@ -754,7 +753,7 @@ func TestAssetCRUD(t *testing.T) {
 
 func TestAssetVariantCRUD(t *testing.T) {
 	s := newTestStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 	p := createTestProject(t, s)
 
 	// Create asset first.
@@ -801,7 +800,7 @@ func TestAssetVariantCRUD(t *testing.T) {
 
 func TestAssetDedup(t *testing.T) {
 	s := newTestStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 	p := createTestProject(t, s)
 
 	// Store same blob_key twice — should upsert (dedup).
@@ -828,7 +827,7 @@ func TestAssetDedup(t *testing.T) {
 
 func TestAssetCascadeDelete(t *testing.T) {
 	s := newTestStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 	p := createTestProject(t, s)
 
 	// Create asset with variant.
@@ -850,7 +849,7 @@ func TestAssetCascadeDelete(t *testing.T) {
 
 func TestAssetChangeLog(t *testing.T) {
 	s := newTestStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 	p := createTestProject(t, s)
 
 	// Store asset — should log "asset_added".
@@ -898,7 +897,7 @@ func TestAssetChangeLog(t *testing.T) {
 
 func TestDefaultStream_FirstPush(t *testing.T) {
 	s := newTestStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	p := createTestProject(t, s)
 	assert.Empty(t, p.DefaultStream, "new project should have empty default stream")
@@ -928,7 +927,7 @@ func TestDefaultStream_FirstPush(t *testing.T) {
 
 func TestDefaultStream_SubsequentPush(t *testing.T) {
 	s := newTestStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	p := createTestProject(t, s)
 
@@ -944,7 +943,7 @@ func TestDefaultStream_SubsequentPush(t *testing.T) {
 
 func TestDefaultStream_Migration(t *testing.T) {
 	s := newTestStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	// Create project and push items to "main" — migration backfill should set default_stream to "main".
 	p := createTestProject(t, s)
@@ -963,7 +962,7 @@ func TestDefaultStream_Migration(t *testing.T) {
 
 func TestDefaultStream_ListProjects(t *testing.T) {
 	s := newTestStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	p := createTestProject(t, s)
 	p.DefaultStream = "develop"

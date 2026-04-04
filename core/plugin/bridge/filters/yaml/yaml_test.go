@@ -645,7 +645,7 @@ func TestExtract_TimestampTagYaml(t *testing.T) {
 		Reader:       io.NopCloser(bytes.NewReader(content)),
 	}
 
-	ctx := context.Background()
+	ctx := t.Context()
 	openErr := reader.Open(ctx, doc)
 	if openErr != nil {
 		assert.Contains(t, openErr.Error(), "timestamp",

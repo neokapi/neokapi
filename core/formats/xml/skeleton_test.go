@@ -2,7 +2,6 @@ package xml_test
 
 import (
 	"bytes"
-	"context"
 	"testing"
 
 	"github.com/neokapi/neokapi/core/format"
@@ -15,7 +14,7 @@ import (
 
 func xmlSkeletonRoundtrip(t *testing.T, input string) string {
 	t.Helper()
-	ctx := context.Background()
+	ctx := t.Context()
 
 	reader := xmlfmt.NewReader()
 	writer := xmlfmt.NewWriter()
@@ -175,7 +174,7 @@ func TestSkeletonStore_WithTranslation(t *testing.T) {
   <greeting>Hello</greeting>
   <farewell>Goodbye</farewell>
 </root>`
-	ctx := context.Background()
+	ctx := t.Context()
 	locale := model.LocaleID("fr")
 
 	reader := xmlfmt.NewReader()
@@ -225,7 +224,7 @@ func TestSkeletonStore_TranslationWithEntities(t *testing.T) {
 <root>
   <message>Cats &amp; Dogs</message>
 </root>`
-	ctx := context.Background()
+	ctx := t.Context()
 	locale := model.LocaleID("fr")
 
 	reader := xmlfmt.NewReader()
@@ -268,7 +267,7 @@ func TestSkeletonStore_TranslationWithEntities(t *testing.T) {
 }
 
 func TestSkeletonStore_TranslatableAttributes(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	locale := model.LocaleID("fr")
 
 	reader := xmlfmt.NewReader()
@@ -358,7 +357,7 @@ func TestSkeletonStore_TranslatableAttributes(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestSkeletonStore_ByteExact_MixedContent(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	reader := xmlfmt.NewReader()
 	writer := xmlfmt.NewWriter()

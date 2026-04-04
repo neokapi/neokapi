@@ -2,7 +2,6 @@ package rtf_test
 
 import (
 	"bytes"
-	"context"
 	"os"
 	"testing"
 
@@ -16,7 +15,7 @@ import (
 
 func snippetRoundtripWithSkeleton(t *testing.T, input string) string {
 	t.Helper()
-	ctx := context.Background()
+	ctx := t.Context()
 
 	reader := rtf.NewReader()
 	writer := rtf.NewWriter()
@@ -64,7 +63,7 @@ func TestSkeletonStore_ByteExact_SimpleFile(t *testing.T) {
 
 func TestSkeletonStore_WithTranslation(t *testing.T) {
 	input := "{\\rtf1\\ansi\\deff0\n\\pard Hello\\par\n}\n"
-	ctx := context.Background()
+	ctx := t.Context()
 
 	reader := rtf.NewReader()
 	writer := rtf.NewWriter()

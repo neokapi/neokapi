@@ -2,7 +2,6 @@ package versifiedtext_test
 
 import (
 	"bytes"
-	"context"
 	"testing"
 
 	"github.com/neokapi/neokapi/core/format"
@@ -15,7 +14,7 @@ import (
 
 func versifiedSkeletonRoundtrip(t *testing.T, input string) string {
 	t.Helper()
-	ctx := context.Background()
+	ctx := t.Context()
 
 	reader := versifiedtext.NewReader()
 	writer := versifiedtext.NewWriter()
@@ -129,7 +128,7 @@ func TestSkeletonStore_ByteExact_CRLFStanzaBreak(t *testing.T) {
 
 func TestSkeletonStore_WithTranslation(t *testing.T) {
 	input := "\\v1 Hello\n\\v2 World"
-	ctx := context.Background()
+	ctx := t.Context()
 	locale := model.LocaleID("fr")
 
 	reader := versifiedtext.NewReader()
@@ -172,7 +171,7 @@ func TestSkeletonStore_WithTranslation(t *testing.T) {
 
 func TestSkeletonStore_WithTranslation_CRLF(t *testing.T) {
 	input := "\\v1 Hello\r\n\\v2 World"
-	ctx := context.Background()
+	ctx := t.Context()
 	locale := model.LocaleID("de")
 
 	reader := versifiedtext.NewReader()
@@ -215,7 +214,7 @@ func TestSkeletonStore_WithTranslation_CRLF(t *testing.T) {
 
 func TestSkeletonStore_WithTranslation_NonVerse(t *testing.T) {
 	input := "Title line\n\\v1 Hello"
-	ctx := context.Background()
+	ctx := t.Context()
 	locale := model.LocaleID("fr")
 
 	reader := versifiedtext.NewReader()

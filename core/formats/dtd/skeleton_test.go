@@ -2,7 +2,6 @@ package dtd_test
 
 import (
 	"bytes"
-	"context"
 	"os"
 	"testing"
 
@@ -16,7 +15,7 @@ import (
 
 func snippetRoundtripWithSkeleton(t *testing.T, input string) string {
 	t.Helper()
-	ctx := context.Background()
+	ctx := t.Context()
 
 	reader := dtd.NewReader()
 	writer := dtd.NewWriter()
@@ -127,7 +126,7 @@ func TestSkeletonStore_ByteExact_SimpleFile(t *testing.T) {
 
 func TestSkeletonStore_WithTranslation(t *testing.T) {
 	input := "<!ENTITY greeting \"Hello\">\n<!ENTITY farewell \"Goodbye\">\n"
-	ctx := context.Background()
+	ctx := t.Context()
 	locale := model.LocaleID("fr")
 
 	reader := dtd.NewReader()
@@ -170,7 +169,7 @@ func TestSkeletonStore_WithTranslation(t *testing.T) {
 
 func TestSkeletonStore_WithTranslation_Escaping(t *testing.T) {
 	input := "<!ENTITY greeting \"Hello\">\n"
-	ctx := context.Background()
+	ctx := t.Context()
 	locale := model.LocaleID("fr")
 
 	reader := dtd.NewReader()

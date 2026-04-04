@@ -18,7 +18,7 @@ import (
 // helper: read a string with default (MediaWiki) config and return parts
 func readString(t *testing.T, reader *wiki.Reader, content string) []*model.Part {
 	t.Helper()
-	ctx := context.Background()
+	ctx := t.Context()
 	err := reader.Open(ctx, testutil.RawDocFromString(content, model.LocaleEnglish))
 	require.NoError(t, err)
 	parts := testutil.CollectParts(t, reader.Read(ctx))
@@ -44,7 +44,7 @@ func newDokuWikiReader(t *testing.T) *wiki.Reader {
 // helper: roundtrip a snippet
 func roundtrip(t *testing.T, input string) string {
 	t.Helper()
-	ctx := context.Background()
+	ctx := t.Context()
 
 	reader := wiki.NewReader()
 	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
@@ -226,7 +226,7 @@ func TestExtract_ComplexSeparatingWhitespace(t *testing.T) {
 // okapi: WikiFilterTest#testDoubleExtraction
 func TestExtract_DoubleExtraction(t *testing.T) {
 	input := "== Title ==\nSome text.\n\nAnother paragraph."
-	ctx := context.Background()
+	ctx := t.Context()
 
 	// First extraction
 	reader1 := wiki.NewReader()
@@ -352,7 +352,7 @@ func TestExtract_MultipleHeadingLevels(t *testing.T) {
 
 // okapi: WikiFilterTest#testMultipleLines (full-file extraction: simple.wiki)
 func TestExtract_SimpleWikiFile(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	f, err := os.Open("testdata/simple.wiki")
 	require.NoError(t, err)
 
@@ -382,7 +382,7 @@ func TestExtract_SimpleWikiFile(t *testing.T) {
 
 // okapi: WikiFilterTest#testMultipleLines (full-file extraction: mediawiki.wiki)
 func TestExtract_MediawikiFile(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	f, err := os.Open("testdata/mediawiki.wiki")
 	require.NoError(t, err)
 
@@ -408,7 +408,7 @@ func TestExtract_MediawikiFile(t *testing.T) {
 
 // okapi: WikiFilterTest#testDoubleExtraction (full-file: dokuwiki.txt)
 func TestExtract_DokuWikiFile(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	f, err := os.Open("testdata/dokuwiki.txt")
 	require.NoError(t, err)
 
@@ -529,7 +529,7 @@ func TestRoundTrip_WikiFiles(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			ctx := context.Background()
+			ctx := t.Context()
 			f, err := os.Open(tt.file)
 			require.NoError(t, err)
 
@@ -555,7 +555,7 @@ func TestRoundTrip_WikiFiles(t *testing.T) {
 
 // okapi: RoundTripWikiIT#testWikiFiles (*.txt DokuWiki files)
 func TestRoundTrip_DokuWikiTxtFiles(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	f, err := os.Open("testdata/dokuwiki.txt")
 	require.NoError(t, err)
 
@@ -626,14 +626,14 @@ func TestRead_EmptyInput(t *testing.T) {
 }
 
 func TestRead_NilDocument(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := wiki.NewReader()
 	err := reader.Open(ctx, nil)
 	require.Error(t, err)
 }
 
 func TestRead_Cancel(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
 
 	reader := wiki.NewReader()
@@ -668,10 +668,8 @@ func TestRead_Cancel(t *testing.T) {
 func TestRead_Synchronization(t *testing.T) {
 	var wg sync.WaitGroup
 	for range 10 {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			ctx := context.Background()
+		wg.Go(func() {
+			ctx := t.Context()
 			reader := wiki.NewReader()
 			err := reader.Open(ctx, testutil.RawDocFromString("== Title ==\nHello", model.LocaleEnglish))
 			if err != nil {
@@ -684,13 +682,13 @@ func TestRead_Synchronization(t *testing.T) {
 			if len(blocks) < 1 {
 				t.Errorf("expected at least 1 block, got %d", len(blocks))
 			}
-		}()
+		})
 	}
 	wg.Wait()
 }
 
 func TestRoundTrip_WithTargetLocale(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	reader := wiki.NewReader()
 	err := reader.Open(ctx, testutil.RawDocFromString("== Title ==\nHello world.", model.LocaleEnglish))

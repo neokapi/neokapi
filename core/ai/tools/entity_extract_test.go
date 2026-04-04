@@ -103,7 +103,7 @@ func TestAIEntityExtractTool_LLMOnly(t *testing.T) {
 		Locale: "en-US",
 	})
 
-	ctx := context.Background()
+	ctx := t.Context()
 	in := make(chan *model.Part, 1)
 	out := make(chan *model.Part, 1)
 
@@ -171,7 +171,7 @@ func TestAIEntityExtractTool_WithNER(t *testing.T) {
 		Locale: "en-US",
 	})
 
-	ctx := context.Background()
+	ctx := t.Context()
 	in := make(chan *model.Part, 1)
 	out := make(chan *model.Part, 1)
 
@@ -224,7 +224,7 @@ func TestAIEntityExtractTool_SkipsKnownTerms(t *testing.T) {
 		KnownTerms: []string{"Dashboard"}, // Already in termbase.
 	})
 
-	ctx := context.Background()
+	ctx := t.Context()
 	in := make(chan *model.Part, 1)
 	out := make(chan *model.Part, 1)
 
@@ -252,7 +252,7 @@ func TestAIEntityExtractTool_SkipsEmptyBlocks(t *testing.T) {
 		Locale: "en-US",
 	})
 
-	ctx := context.Background()
+	ctx := t.Context()
 	in := make(chan *model.Part, 2)
 	out := make(chan *model.Part, 2)
 
@@ -282,7 +282,7 @@ func TestAIEntityExtractTool_PassesThroughNonBlocks(t *testing.T) {
 		Locale: "en-US",
 	})
 
-	ctx := context.Background()
+	ctx := t.Context()
 	in := make(chan *model.Part, 5)
 	out := make(chan *model.Part, 5)
 
@@ -327,7 +327,7 @@ func TestAIEntityExtractTool_BatchMode(t *testing.T) {
 		Concurrency: 2,
 	})
 
-	ctx := context.Background()
+	ctx := t.Context()
 	in := make(chan *model.Part, 5)
 	out := make(chan *model.Part, 5)
 

@@ -35,7 +35,7 @@ func FromStruct(cfg any, meta ToolMeta) *ComponentSchema {
 	groups := make(map[string]*ParameterGroup)
 	var groupOrder []string
 
-	for i := 0; i < t.NumField(); i++ {
+	for i := range t.NumField() {
 		field := t.Field(i)
 		if !field.IsExported() {
 			continue
@@ -165,7 +165,7 @@ func fieldToProperty(field reflect.StructField, val reflect.Value) *PropertySche
 // structProperties generates PropertySchema entries for a nested struct.
 func structProperties(t reflect.Type) map[string]PropertySchema {
 	props := make(map[string]PropertySchema)
-	for i := 0; i < t.NumField(); i++ {
+	for i := range t.NumField() {
 		f := t.Field(i)
 		if !f.IsExported() {
 			continue

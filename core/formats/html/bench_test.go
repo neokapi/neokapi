@@ -1,7 +1,6 @@
 package html_test
 
 import (
-	"context"
 	"testing"
 
 	htmlfmt "github.com/neokapi/neokapi/core/formats/html"
@@ -44,7 +43,7 @@ func BenchmarkHTMLTokenizer(b *testing.B) {
 </body>
 </html>`
 
-	ctx := context.Background()
+	ctx := b.Context()
 
 	b.ResetTimer()
 	for b.Loop() {

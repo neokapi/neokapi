@@ -2,7 +2,6 @@ package formats_test
 
 import (
 	"bytes"
-	"context"
 	"strings"
 	"testing"
 
@@ -146,7 +145,7 @@ func TestFormatDetection(t *testing.T) {
 }
 
 func TestEndToEndPlaintextRoundTrip(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reg := registry.NewFormatRegistry()
 	formats.RegisterAll(reg)
 
@@ -175,7 +174,7 @@ func TestEndToEndPlaintextRoundTrip(t *testing.T) {
 }
 
 func TestEndToEndPropertiesRoundTrip(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reg := registry.NewFormatRegistry()
 	formats.RegisterAll(reg)
 
@@ -204,7 +203,7 @@ func TestEndToEndPropertiesRoundTrip(t *testing.T) {
 }
 
 func TestEndToEndWithTranslation(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reg := registry.NewFormatRegistry()
 	formats.RegisterAll(reg)
 
@@ -246,7 +245,7 @@ func TestEndToEndWithTranslation(t *testing.T) {
 }
 
 func TestEndToEndFlowPipeline(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reg := registry.NewFormatRegistry()
 	formats.RegisterAll(reg)
 
@@ -309,7 +308,7 @@ func TestEndToEndFlowPipeline(t *testing.T) {
 }
 
 func TestEndToEndMultiFormatRead(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reg := registry.NewFormatRegistry()
 	formats.RegisterAll(reg)
 

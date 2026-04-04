@@ -99,7 +99,7 @@ func TestMailerAdapter_SendImmediate(t *testing.T) {
 		LinkURL:  "https://app.bowrain.cloud/ws/acme/quality",
 	}
 
-	err := adapter.SendImmediate(context.Background(), "user-1", notification)
+	err := adapter.SendImmediate(t.Context(), "user-1", notification)
 	if err != nil {
 		t.Skipf("notification template not built: %v", err)
 	}
@@ -133,7 +133,7 @@ func TestMailerAdapter_SendImmediate_NoEmail(t *testing.T) {
 		Priority: "normal",
 	}
 
-	err := adapter.SendImmediate(context.Background(), "user-1", notification)
+	err := adapter.SendImmediate(t.Context(), "user-1", notification)
 	require.NoError(t, err)
 	assert.Equal(t, 0, sender.count())
 }
@@ -154,7 +154,7 @@ func TestMailerAdapter_SendImmediate_UserNotFound(t *testing.T) {
 		Category: string(bstore.CategorySystem),
 	}
 
-	err := adapter.SendImmediate(context.Background(), "user-unknown", notification)
+	err := adapter.SendImmediate(t.Context(), "user-unknown", notification)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "resolve user user-unknown")
 }
@@ -195,7 +195,7 @@ func TestMailerAdapter_ActionLabel(t *testing.T) {
 				LinkURL:  "https://example.com/action",
 			}
 
-			err := adapter.SendImmediate(context.Background(), "user-1", notification)
+			err := adapter.SendImmediate(t.Context(), "user-1", notification)
 			if err != nil {
 				t.Skipf("notification template not built: %v", err)
 			}

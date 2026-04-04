@@ -123,7 +123,7 @@ func setupTestMCPServer(t *testing.T) (*httptest.Server, *memBrandStore) {
 	t.Helper()
 
 	store := &memBrandStore{}
-	_ = store.CreateProfile(context.Background(), testProfile())
+	_ = store.CreateProfile(t.Context(), testProfile())
 
 	ms, err := NewMCPServer(store, Config{}) // no auth for testing
 	require.NoError(t, err)
@@ -145,7 +145,7 @@ func TestMCPServerInitialize(t *testing.T) {
 		HTTPClient: ts.Client(),
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
 	defer cancel()
 
 	session, err := client.Connect(ctx, transport, nil)
@@ -165,7 +165,7 @@ func TestMCPServerListTools(t *testing.T) {
 		HTTPClient: ts.Client(),
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
 	defer cancel()
 
 	session, err := client.Connect(ctx, transport, nil)
@@ -200,7 +200,7 @@ func TestMCPServerListPrompts(t *testing.T) {
 		HTTPClient: ts.Client(),
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
 	defer cancel()
 
 	session, err := client.Connect(ctx, transport, nil)
@@ -232,7 +232,7 @@ func TestMCPServerListResources(t *testing.T) {
 		HTTPClient: ts.Client(),
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
 	defer cancel()
 
 	session, err := client.Connect(ctx, transport, nil)

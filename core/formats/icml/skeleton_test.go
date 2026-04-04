@@ -2,7 +2,6 @@ package icml_test
 
 import (
 	"bytes"
-	"context"
 	"os"
 	"testing"
 
@@ -16,7 +15,7 @@ import (
 
 func icmlSkeletonRoundtrip(t *testing.T, input string) string {
 	t.Helper()
-	ctx := context.Background()
+	ctx := t.Context()
 
 	reader := icml.NewReader()
 	writer := icml.NewWriter()
@@ -175,7 +174,7 @@ func TestSkeletonStore_WithTranslation(t *testing.T) {
     </ParagraphStyleRange>
   </Story>
 </Document>`
-	ctx := context.Background()
+	ctx := t.Context()
 	locale := model.LocaleID("fr")
 
 	reader := icml.NewReader()
@@ -241,7 +240,7 @@ func TestSkeletonStore_TranslationWithEntities(t *testing.T) {
     </ParagraphStyleRange>
   </Story>
 </Document>`
-	ctx := context.Background()
+	ctx := t.Context()
 	locale := model.LocaleID("fr")
 
 	reader := icml.NewReader()

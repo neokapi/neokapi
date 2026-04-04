@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"os"
 	"path/filepath"
 	"testing"
@@ -70,7 +69,7 @@ func TestHandleDetectFormat(t *testing.T) {
 
 func TestHandleExtractContent(t *testing.T) {
 	a := testApp()
-	ctx := context.Background()
+	ctx := t.Context()
 
 	// Use the JSON testdata fixture.
 	fixturePath := filepath.Join("..", "..", "..", "core", "formats", "json", "testdata", "simple.json")
@@ -99,7 +98,7 @@ func TestHandleExtractContent(t *testing.T) {
 
 func TestHandleWordCount(t *testing.T) {
 	a := testApp()
-	ctx := context.Background()
+	ctx := t.Context()
 
 	fixturePath := filepath.Join("..", "..", "..", "core", "formats", "json", "testdata", "simple.json")
 	if _, err := os.Stat(fixturePath); os.IsNotExist(err) {
@@ -149,7 +148,7 @@ func TestHandleListTools(t *testing.T) {
 
 func TestHandlePseudoTranslate(t *testing.T) {
 	a := testApp()
-	ctx := context.Background()
+	ctx := t.Context()
 
 	fixturePath := filepath.Join("..", "..", "..", "core", "formats", "json", "testdata", "simple.json")
 	if _, err := os.Stat(fixturePath); os.IsNotExist(err) {
@@ -177,7 +176,7 @@ func TestHandlePseudoTranslate(t *testing.T) {
 
 func TestHandleRunFlow(t *testing.T) {
 	a := testApp()
-	ctx := context.Background()
+	ctx := t.Context()
 
 	fixturePath := filepath.Join("..", "..", "..", "core", "formats", "json", "testdata", "simple.json")
 	if _, err := os.Stat(fixturePath); os.IsNotExist(err) {
@@ -204,7 +203,7 @@ func TestHandleRunFlow(t *testing.T) {
 
 func TestHandleRunFlowUnknown(t *testing.T) {
 	a := testApp()
-	ctx := context.Background()
+	ctx := t.Context()
 
 	fixturePath := filepath.Join("..", "..", "..", "core", "formats", "json", "testdata", "simple.json")
 	if _, err := os.Stat(fixturePath); os.IsNotExist(err) {

@@ -1,7 +1,6 @@
 package azure
 
 import (
-	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -64,7 +63,7 @@ func TestProvider_DetectEntities(t *testing.T) {
 	p, err := New(ner.Config{Endpoint: server.URL, APIKey: "test-key"})
 	require.NoError(t, err)
 
-	resp, err := p.DetectEntities(context.Background(), ner.Request{
+	resp, err := p.DetectEntities(t.Context(), ner.Request{
 		Text:   "John Smith ordered on March 15, 2026 for $49.99",
 		Locale: "en-US",
 	})
@@ -112,7 +111,7 @@ func TestProvider_DetectEntitiesBatch(t *testing.T) {
 		{Text: "Hallo Welt", Locale: "de"},
 	}
 
-	responses, err := p.DetectEntitiesBatch(context.Background(), reqs)
+	responses, err := p.DetectEntitiesBatch(t.Context(), reqs)
 	require.NoError(t, err)
 	require.Len(t, responses, 3)
 

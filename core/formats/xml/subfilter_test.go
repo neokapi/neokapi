@@ -104,7 +104,7 @@ func TestXMLSubfilter_ReadHTMLInElement(t *testing.T) {
 		Reader:       io.NopCloser(bytes.NewReader([]byte(input))),
 	}
 
-	ctx := context.Background()
+	ctx := t.Context()
 	require.NoError(t, reader.Open(ctx, doc))
 
 	var parts []*model.Part
@@ -157,7 +157,7 @@ func TestXMLSubfilter_NoMatchPassesThrough(t *testing.T) {
 		Reader:       io.NopCloser(bytes.NewReader([]byte(input))),
 	}
 
-	ctx := context.Background()
+	ctx := t.Context()
 	require.NoError(t, reader.Open(ctx, doc))
 
 	var blocks []*model.Block
@@ -193,7 +193,7 @@ func TestXMLSubfilter_WildcardPattern(t *testing.T) {
 		Reader:       io.NopCloser(bytes.NewReader([]byte(input))),
 	}
 
-	ctx := context.Background()
+	ctx := t.Context()
 	require.NoError(t, reader.Open(ctx, doc))
 
 	var childLayers []*model.Layer
@@ -230,7 +230,7 @@ func TestXMLSubfilter_Roundtrip(t *testing.T) {
 		Reader:       io.NopCloser(bytes.NewReader([]byte(input))),
 	}
 
-	ctx := context.Background()
+	ctx := t.Context()
 	require.NoError(t, reader.Open(ctx, doc))
 
 	var parts []*model.Part

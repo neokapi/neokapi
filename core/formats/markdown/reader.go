@@ -794,7 +794,7 @@ func (r *Reader) extractListItemText(item *ast.ListItem, source []byte) string {
 func (r *Reader) extractRawLines(node ast.Node, source []byte) string {
 	var buf strings.Builder
 	lines := node.Lines()
-	for i := 0; i < lines.Len(); i++ {
+	for i := range lines.Len() {
 		line := lines.At(i)
 		buf.Write(line.Value(source))
 	}
@@ -1045,7 +1045,7 @@ func (r *Reader) buildRawHTMLSpan(frag *model.Fragment, n *ast.RawHTML, source [
 	id := strconv.Itoa(*spanCounter)
 
 	var htmlContent strings.Builder
-	for i := 0; i < n.Segments.Len(); i++ {
+	for i := range n.Segments.Len() {
 		seg := n.Segments.At(i)
 		htmlContent.Write(seg.Value(source))
 	}

@@ -2,7 +2,6 @@ package plaintext_test
 
 import (
 	"bytes"
-	"context"
 	"testing"
 
 	"github.com/neokapi/neokapi/core/format"
@@ -20,7 +19,7 @@ func snippetRoundtripWithSkeleton(t *testing.T, input string) string {
 
 func snippetRoundtripWithSkeletonMode(t *testing.T, input string, segmentByLine bool) string {
 	t.Helper()
-	ctx := context.Background()
+	ctx := t.Context()
 
 	reader := plaintext.NewReader()
 	if !segmentByLine {
@@ -88,7 +87,7 @@ func TestSkeletonStore_ByteExact_NoTrailingNewline(t *testing.T) {
 
 func TestSkeletonStore_WithTranslation(t *testing.T) {
 	input := "Hello World\nGoodbye"
-	ctx := context.Background()
+	ctx := t.Context()
 	locale := model.LocaleID("fr")
 
 	reader := plaintext.NewReader()
@@ -160,7 +159,7 @@ func TestSkeletonStore_ByteExact_MultipleEmptyLinesCRLF(t *testing.T) {
 
 func TestSkeletonStore_WithTranslation_CRLF(t *testing.T) {
 	input := "Hello\r\nWorld"
-	ctx := context.Background()
+	ctx := t.Context()
 	locale := model.LocaleID("de")
 
 	reader := plaintext.NewReader()

@@ -15,7 +15,7 @@ import (
 
 // okapi: VersifiedTextFilterTest#testSingleVerse
 func TestSingleVerse(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := versifiedtext.NewReader()
 	input := "\\v1 In the beginning was the Word."
 	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
@@ -32,7 +32,7 @@ func TestSingleVerse(t *testing.T) {
 
 // okapi: VersifiedTextFilterTest#testMultipleVerses
 func TestMultipleVerses(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := versifiedtext.NewReader()
 	input := "\\v1 First verse.\n\\v2 Second verse."
 	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
@@ -50,7 +50,7 @@ func TestMultipleVerses(t *testing.T) {
 
 // okapi: VersifiedTextFilterTest#testVerseWithSpace
 func TestVerseWithSpace(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := versifiedtext.NewReader()
 	input := "\\v 1 Text after spaced marker."
 	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
@@ -66,7 +66,7 @@ func TestVerseWithSpace(t *testing.T) {
 
 // okapi: VersifiedTextFilterTest#testNumericVerseMarker
 func TestNumericVerseMarker(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := versifiedtext.NewReader()
 	input := "1. In the beginning."
 	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
@@ -82,7 +82,7 @@ func TestNumericVerseMarker(t *testing.T) {
 
 // okapi: VersifiedTextFilterTest#testNumericSpaceMarker
 func TestNumericSpaceMarker(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := versifiedtext.NewReader()
 	input := "3 Some text here."
 	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
@@ -98,7 +98,7 @@ func TestNumericSpaceMarker(t *testing.T) {
 
 // okapi: VersifiedTextFilterTest#testStanzaBreak
 func TestStanzaBreak(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := versifiedtext.NewReader()
 	input := "\\v1 First verse.\n\n\\v2 Second verse."
 	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
@@ -121,7 +121,7 @@ func TestStanzaBreak(t *testing.T) {
 
 // okapi: VersifiedTextFilterTest#testNonVerseLine
 func TestNonVerseLine(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := versifiedtext.NewReader()
 	input := "A line without verse marker."
 	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
@@ -136,7 +136,7 @@ func TestNonVerseLine(t *testing.T) {
 }
 
 func TestReadEmpty(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := versifiedtext.NewReader()
 	err := reader.Open(ctx, testutil.RawDocFromString("", model.LocaleEnglish))
 	require.NoError(t, err)
@@ -149,14 +149,14 @@ func TestReadEmpty(t *testing.T) {
 }
 
 func TestReadNilDocument(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := versifiedtext.NewReader()
 	err := reader.Open(ctx, nil)
 	require.Error(t, err)
 }
 
 func TestReadLayerStartEnd(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := versifiedtext.NewReader()
 	input := "\\v1 Hello"
 	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
@@ -214,7 +214,7 @@ func TestConfigApplyMapEmpty(t *testing.T) {
 }
 
 func TestRoundTrip(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	f, err := os.Open("testdata/simple.ver")
 	require.NoError(t, err)
@@ -243,7 +243,7 @@ func TestRoundTrip(t *testing.T) {
 }
 
 func TestRoundTripWithTargetLocale(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	input := "\\v1 Hello\n\\v2 World"
 	reader := versifiedtext.NewReader()
@@ -283,7 +283,7 @@ func TestRoundTripWithTargetLocale(t *testing.T) {
 }
 
 func TestContextCancellation(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(t.Context())
 	cancel()
 
 	reader := versifiedtext.NewReader()
@@ -300,7 +300,7 @@ func TestContextCancellation(t *testing.T) {
 }
 
 func TestWriterContextCancellation(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(t.Context())
 
 	var buf bytes.Buffer
 	writer := versifiedtext.NewWriter()
@@ -316,7 +316,7 @@ func TestWriterContextCancellation(t *testing.T) {
 
 // okapi: VersifiedTextFilterTest#testMixedContent
 func TestMixedContent(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := versifiedtext.NewReader()
 	input := "Title of the poem\n\\v1 First verse.\n\\v2 Second verse.\n\nPlain line in stanza two."
 	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
@@ -334,7 +334,7 @@ func TestMixedContent(t *testing.T) {
 
 // okapi: VersifiedTextFilterTest#testMultiDigitVerse
 func TestMultiDigitVerse(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := versifiedtext.NewReader()
 	input := "\\v12 Verse twelve."
 	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
@@ -350,7 +350,7 @@ func TestMultiDigitVerse(t *testing.T) {
 
 // okapi: VersifiedTextFilterTest#testMultipleStanzas
 func TestMultipleStanzas(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := versifiedtext.NewReader()
 	input := "\\v1 First\n\\v2 Second\n\n\\v3 Third\n\\v4 Fourth"
 	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))

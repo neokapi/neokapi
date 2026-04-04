@@ -3,7 +3,6 @@ package xliff_test
 
 import (
 	"bytes"
-	"context"
 	"strings"
 	"testing"
 
@@ -55,7 +54,7 @@ func wrapXLIFFDatatype(body, datatype string) string {
 // readXLIFF reads XLIFF content and returns parts.
 func readXLIFF(t *testing.T, content string) []*model.Part {
 	t.Helper()
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := xliff.NewReader()
 	err := reader.Open(ctx, testutil.RawDocFromString(content, model.LocaleEnglish))
 	require.NoError(t, err)
@@ -92,7 +91,7 @@ func roundtrip(t *testing.T, content string) string {
 	writer.SetLocale(model.LocaleFrench)
 
 	ch := testutil.PartsToChannel(parts)
-	err = writer.Write(context.Background(), ch)
+	err = writer.Write(t.Context(), ch)
 	require.NoError(t, err)
 
 	return buf.String()
@@ -132,7 +131,7 @@ const sampleXLIFF = `<?xml version="1.0" encoding="UTF-8"?>
 // okapi: XLIFFFilterTest#testSimpleTransUnit
 func TestReadXLIFF(t *testing.T) {
 	t.Parallel()
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := xliff.NewReader()
 	err := reader.Open(ctx, testutil.RawDocFromString(sampleXLIFF, model.LocaleEnglish))
 	require.NoError(t, err)
@@ -149,7 +148,7 @@ func TestReadXLIFF(t *testing.T) {
 // okapi: XLIFFFilterTest#testSegmentedTarget
 func TestReadXLIFFTargets(t *testing.T) {
 	t.Parallel()
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := xliff.NewReader()
 	err := reader.Open(ctx, testutil.RawDocFromString(sampleXLIFF, model.LocaleEnglish))
 	require.NoError(t, err)
@@ -169,7 +168,7 @@ func TestReadXLIFFTargets(t *testing.T) {
 // okapi: XLIFFFilterTest#testStartDocument
 func TestReadXLIFFLayerStart(t *testing.T) {
 	t.Parallel()
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := xliff.NewReader()
 	err := reader.Open(ctx, testutil.RawDocFromString(sampleXLIFF, model.LocaleEnglish))
 	require.NoError(t, err)
@@ -184,7 +183,7 @@ func TestReadXLIFFLayerStart(t *testing.T) {
 
 func TestReadXLIFFBlockIDs(t *testing.T) {
 	t.Parallel()
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := xliff.NewReader()
 	err := reader.Open(ctx, testutil.RawDocFromString(sampleXLIFF, model.LocaleEnglish))
 	require.NoError(t, err)
@@ -199,7 +198,7 @@ func TestReadXLIFFBlockIDs(t *testing.T) {
 
 func TestWriteXLIFF(t *testing.T) {
 	t.Parallel()
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := xliff.NewReader()
 	err := reader.Open(ctx, testutil.RawDocFromString(sampleXLIFF, model.LocaleEnglish))
 	require.NoError(t, err)
@@ -241,7 +240,7 @@ func TestReaderMetadata(t *testing.T) {
 
 func TestReadNilDocument(t *testing.T) {
 	t.Parallel()
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := xliff.NewReader()
 	err := reader.Open(ctx, nil)
 	require.Error(t, err)
@@ -2407,7 +2406,7 @@ func TestWriter_LocaleOverride(t *testing.T) {
 	writer.SetLocale("de")
 
 	ch := testutil.PartsToChannel(parts)
-	err = writer.Write(context.Background(), ch)
+	err = writer.Write(t.Context(), ch)
 	require.NoError(t, err)
 
 	out := buf.String()

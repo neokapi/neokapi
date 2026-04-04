@@ -268,7 +268,7 @@ func TestResolveProfileFromContext(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			profile, err := ResolveProfileFromContext(context.Background(), tt.rc, store)
+			profile, err := ResolveProfileFromContext(t.Context(), tt.rc, store)
 			require.NoError(t, err)
 
 			if tt.wantNil {
@@ -291,7 +291,7 @@ func TestStoreProfileResolver(t *testing.T) {
 	}
 	resolver := &StoreProfileResolver{Store: store}
 
-	profile, err := resolver.ResolveProfile(context.Background(), ResolveContext{
+	profile, err := resolver.ResolveProfile(t.Context(), ResolveContext{
 		ExplicitProfileID: "test-id",
 	})
 	require.NoError(t, err)

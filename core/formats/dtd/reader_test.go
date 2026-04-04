@@ -2,7 +2,6 @@ package dtd_test
 
 import (
 	"bytes"
-	"context"
 	"os"
 	"testing"
 
@@ -25,7 +24,7 @@ func blockByName(blocks []*model.Block, name string) *model.Block {
 
 // okapi: DTDFilterTest#testDefaultInfo
 func TestDefaultInfo(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := dtd.NewReader()
 	err := reader.Open(ctx, testutil.RawDocFromString(`<!ENTITY greeting "Hello world">`, model.LocaleEnglish))
 	require.NoError(t, err)
@@ -39,7 +38,7 @@ func TestDefaultInfo(t *testing.T) {
 
 // okapi: DTDFilterTest#testStartDocument
 func TestStartDocument(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := dtd.NewReader()
 	err := reader.Open(ctx, testutil.RawDocFromString(`<!ENTITY greeting "Hello world">`, model.LocaleEnglish))
 	require.NoError(t, err)
@@ -56,7 +55,7 @@ func TestStartDocument(t *testing.T) {
 
 // okapi: DTDFilterTest#testSimpleEntry
 func TestSimpleEntry(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := dtd.NewReader()
 	err := reader.Open(ctx, testutil.RawDocFromString("<!--Comment-->\n<!ENTITY entry1 \"Text1\"><!ENTITY test2 \"text2\">", model.LocaleEnglish))
 	require.NoError(t, err)
@@ -86,7 +85,7 @@ func TestSimpleEntry(t *testing.T) {
 
 // okapi: DTDFilterTest#testLineBreaks
 func TestLineBreaks(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := dtd.NewReader()
 	err := reader.Open(ctx, testutil.RawDocFromString("<!--Comment-->\r<!ENTITY entry1 \"Text1\">\r", model.LocaleEnglish))
 	require.NoError(t, err)
@@ -99,7 +98,7 @@ func TestLineBreaks(t *testing.T) {
 
 // okapi: DTDFilterTest#testEntryWithEnitties
 func TestEntryWithEntities(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := dtd.NewReader()
 	err := reader.Open(ctx, testutil.RawDocFromString(`<!ENTITY entry1 "&ent1;=ent1, %pent1;=pent1">`, model.LocaleEnglish))
 	require.NoError(t, err)
@@ -118,7 +117,7 @@ func TestEntryWithEntities(t *testing.T) {
 
 // okapi: DTDFilterTest#testEntryWithNCRs
 func TestEntryWithNCRs(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := dtd.NewReader()
 	err := reader.Open(ctx, testutil.RawDocFromString(`<!ENTITY entry1 "&#xe3;, &#xE3;, &#227;">`, model.LocaleEnglish))
 	require.NoError(t, err)
@@ -132,7 +131,7 @@ func TestEntryWithNCRs(t *testing.T) {
 }
 
 func TestMultipleEntities(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := dtd.NewReader()
 	snippet := "<!ENTITY greeting \"Hello\">\n<!ENTITY farewell \"Goodbye\">\n<!ENTITY thanks \"Thank you\">"
 	err := reader.Open(ctx, testutil.RawDocFromString(snippet, model.LocaleEnglish))
@@ -149,7 +148,7 @@ func TestMultipleEntities(t *testing.T) {
 }
 
 func TestEntityWithAmpEscape(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := dtd.NewReader()
 	err := reader.Open(ctx, testutil.RawDocFromString(`<!ENTITY test1 "Text of &amp;test1;">`, model.LocaleEnglish))
 	require.NoError(t, err)
@@ -164,7 +163,7 @@ func TestEntityWithAmpEscape(t *testing.T) {
 }
 
 func TestEmptyEntity(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := dtd.NewReader()
 	err := reader.Open(ctx, testutil.RawDocFromString(`<!ENTITY empty "">`, model.LocaleEnglish))
 	require.NoError(t, err)
@@ -177,7 +176,7 @@ func TestEmptyEntity(t *testing.T) {
 }
 
 func TestBlockIDs(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := dtd.NewReader()
 	snippet := "<!ENTITY first \"First\">\n<!ENTITY second \"Second\">\n<!ENTITY third \"Third\">"
 	err := reader.Open(ctx, testutil.RawDocFromString(snippet, model.LocaleEnglish))
@@ -196,7 +195,7 @@ func TestBlockIDs(t *testing.T) {
 }
 
 func TestLayerStructure(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := dtd.NewReader()
 	err := reader.Open(ctx, testutil.RawDocFromString(`<!ENTITY greeting "Hello">`, model.LocaleEnglish))
 	require.NoError(t, err)
@@ -209,7 +208,7 @@ func TestLayerStructure(t *testing.T) {
 }
 
 func TestEntityNames(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := dtd.NewReader()
 	snippet := "<!ENTITY fileMenu.label \"File\">\n<!ENTITY editMenu.label \"Edit\">"
 	err := reader.Open(ctx, testutil.RawDocFromString(snippet, model.LocaleEnglish))
@@ -229,7 +228,7 @@ func TestEntityNames(t *testing.T) {
 }
 
 func TestCommentAttachment(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := dtd.NewReader()
 	snippet := "<!--This is a comment-->\n<!ENTITY greeting \"Hello\">"
 	err := reader.Open(ctx, testutil.RawDocFromString(snippet, model.LocaleEnglish))
@@ -252,7 +251,7 @@ func TestCommentAttachment(t *testing.T) {
 }
 
 func TestUnicodeContent(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := dtd.NewReader()
 	snippet := "<!ENTITY jp \"\xe3\x81\x93\xe3\x82\x93\xe3\x81\xab\xe3\x81\xa1\xe3\x81\xaf\">\n<!ENTITY accented \"H\xc3\xa9llo w\xc3\xb6rld\">"
 	err := reader.Open(ctx, testutil.RawDocFromString(snippet, model.LocaleEnglish))
@@ -267,7 +266,7 @@ func TestUnicodeContent(t *testing.T) {
 }
 
 func TestNonEntityDeclarations(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := dtd.NewReader()
 	// Test02.dtd-like content: only ELEMENT/ATTLIST, no ENTITY values.
 	snippet := `<!ELEMENT TS (defaultcodec?,context*)>
@@ -300,14 +299,14 @@ func TestReaderMetadata(t *testing.T) {
 }
 
 func TestReadNilDocument(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := dtd.NewReader()
 	err := reader.Open(ctx, nil)
 	require.Error(t, err)
 }
 
 func TestReadEmpty(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := dtd.NewReader()
 	err := reader.Open(ctx, testutil.RawDocFromString("", model.LocaleEnglish))
 	require.NoError(t, err)
@@ -319,7 +318,7 @@ func TestReadEmpty(t *testing.T) {
 }
 
 func TestSingleQuotedEntity(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := dtd.NewReader()
 	err := reader.Open(ctx, testutil.RawDocFromString("<!ENTITY greeting 'Hello world'>", model.LocaleEnglish))
 	require.NoError(t, err)
@@ -334,7 +333,7 @@ func TestSingleQuotedEntity(t *testing.T) {
 // --- Full-file extraction tests ---
 
 func TestFullFile_Simple(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	f, err := os.Open("testdata/simple.dtd")
 	require.NoError(t, err)
@@ -353,7 +352,7 @@ func TestFullFile_Simple(t *testing.T) {
 }
 
 func TestFullFile_Complex(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	f, err := os.Open("testdata/complex.dtd")
 	require.NoError(t, err)
@@ -400,7 +399,7 @@ func TestFullFile_Complex(t *testing.T) {
 
 // okapi: DTDFilterTest (roundtrip - simple entity)
 func TestSnippetRoundtrip_SimpleEntity(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	reader := dtd.NewReader()
 	err := reader.Open(ctx, testutil.RawDocFromString(`<!ENTITY greeting "Hello world">`, model.LocaleEnglish))
@@ -428,7 +427,7 @@ func TestSnippetRoundtrip_SimpleEntity(t *testing.T) {
 
 // okapi: DTDFilterTest (roundtrip - multiple entities)
 func TestSnippetRoundtrip_MultipleEntities(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	reader := dtd.NewReader()
 	err := reader.Open(ctx, testutil.RawDocFromString("<!ENTITY first \"Hello\">\n<!ENTITY second \"World\">\n", model.LocaleEnglish))
@@ -455,7 +454,7 @@ func TestSnippetRoundtrip_MultipleEntities(t *testing.T) {
 
 // okapi: DTDFilterTest (roundtrip - entity with comment)
 func TestSnippetRoundtrip_EntityWithComment(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	reader := dtd.NewReader()
 	err := reader.Open(ctx, testutil.RawDocFromString("<!--A comment-->\n<!ENTITY entry1 \"Text1\">\n", model.LocaleEnglish))
@@ -482,7 +481,7 @@ func TestSnippetRoundtrip_EntityWithComment(t *testing.T) {
 
 // okapi: DTDFilterTest (roundtrip - NCRs)
 func TestSnippetRoundtrip_NCRs(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	reader := dtd.NewReader()
 	err := reader.Open(ctx, testutil.RawDocFromString(`<!ENTITY entry1 "&#xe3;, &#xE3;, &#227;">`, model.LocaleEnglish))
@@ -510,7 +509,7 @@ func TestSnippetRoundtrip_NCRs(t *testing.T) {
 
 // okapi: DTDFilterTest (roundtrip - entities)
 func TestSnippetRoundtrip_Entities(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	reader := dtd.NewReader()
 	err := reader.Open(ctx, testutil.RawDocFromString(`<!ENTITY entry1 "&ent1;=ent1, %pent1;=pent1">`, model.LocaleEnglish))
@@ -536,7 +535,7 @@ func TestSnippetRoundtrip_Entities(t *testing.T) {
 }
 
 func TestRoundTripWithTargetLocale(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	input := "<!ENTITY greeting \"Hello\">\n<!ENTITY farewell \"World\">\n"
 
@@ -577,7 +576,7 @@ func TestRoundTripWithTargetLocale(t *testing.T) {
 }
 
 func TestRoundTripFile_Simple(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	f, err := os.Open("testdata/simple.dtd")
 	require.NoError(t, err)

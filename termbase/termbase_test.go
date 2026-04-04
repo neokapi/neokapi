@@ -562,7 +562,7 @@ func processBlock(t *testing.T, tl interface {
 	in <- &model.Part{Type: model.PartBlock, Resource: block}
 	close(in)
 
-	err := tl.Process(context.Background(), in, out)
+	err := tl.Process(t.Context(), in, out)
 	require.NoError(t, err)
 
 	result := <-out

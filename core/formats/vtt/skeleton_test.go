@@ -2,7 +2,6 @@ package vtt_test
 
 import (
 	"bytes"
-	"context"
 	"testing"
 
 	"github.com/neokapi/neokapi/core/format"
@@ -15,7 +14,7 @@ import (
 
 func snippetRoundtripWithSkeleton(t *testing.T, input string) string {
 	t.Helper()
-	ctx := context.Background()
+	ctx := t.Context()
 
 	reader := vtt.NewReader()
 	writer := vtt.NewWriter()
@@ -103,7 +102,7 @@ func TestSkeletonStore_ByteExact_ThreeCues(t *testing.T) {
 
 func TestSkeletonStore_WithTranslation(t *testing.T) {
 	input := "WEBVTT\n\n00:00:01.000 --> 00:00:04.000\nHello\n\n00:00:05.000 --> 00:00:08.000\nWorld\n"
-	ctx := context.Background()
+	ctx := t.Context()
 	locale := model.LocaleID("fr")
 
 	reader := vtt.NewReader()
@@ -146,7 +145,7 @@ func TestSkeletonStore_WithTranslation(t *testing.T) {
 
 func TestSkeletonStore_WithTranslation_CRLF(t *testing.T) {
 	input := "WEBVTT\r\n\r\n00:00:01.000 --> 00:00:04.000\r\nHello\r\n\r\n00:00:05.000 --> 00:00:08.000\r\nWorld\r\n"
-	ctx := context.Background()
+	ctx := t.Context()
 	locale := model.LocaleID("de")
 
 	reader := vtt.NewReader()

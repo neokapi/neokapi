@@ -51,7 +51,7 @@ func TestUsageHooks_DeductTokens(t *testing.T) {
 		Store: store,
 	}
 
-	ctx := context.Background()
+	ctx := t.Context()
 	h.DeductTokens(ctx, "ws-1", 500, "ai_translation", "job-42")
 
 	assert.Equal(t, 1, store.deductCalls)
@@ -63,14 +63,14 @@ func TestUsageHooks_DeductTokens(t *testing.T) {
 func TestUsageHooks_DeductTokens_NilReceiver(t *testing.T) {
 	var h *UsageHooks
 	require.NotPanics(t, func() {
-		h.DeductTokens(context.Background(), "ws-1", 100, "op", "ref")
+		h.DeductTokens(t.Context(), "ws-1", 100, "op", "ref")
 	})
 }
 
 func TestUsageHooks_DeductTokens_NilStore(t *testing.T) {
 	h := &UsageHooks{Store: nil}
 	require.NotPanics(t, func() {
-		h.DeductTokens(context.Background(), "ws-1", 100, "op", "ref")
+		h.DeductTokens(t.Context(), "ws-1", 100, "op", "ref")
 	})
 }
 
@@ -83,7 +83,7 @@ func TestUsageHooks_DeductContainerTime(t *testing.T) {
 	}
 
 	dur := 30 * time.Second
-	ctx := context.Background()
+	ctx := t.Context()
 	h.DeductContainerTime(ctx, "ws-2", dur, "run-99")
 
 	assert.Equal(t, 1, store.deductCalls)
@@ -95,7 +95,7 @@ func TestUsageHooks_DeductContainerTime(t *testing.T) {
 func TestUsageHooks_DeductContainerTime_NilReceiver(t *testing.T) {
 	var h *UsageHooks
 	require.NotPanics(t, func() {
-		h.DeductContainerTime(context.Background(), "ws-1", 5*time.Second, "ref")
+		h.DeductContainerTime(t.Context(), "ws-1", 5*time.Second, "ref")
 	})
 }
 
@@ -119,7 +119,7 @@ func TestUsageHooks_CheckCreditThresholds_Warning(t *testing.T) {
 		},
 	}
 
-	h.DeductTokens(context.Background(), "ws-warn", 10, "ai_translation", "ref-1")
+	h.DeductTokens(t.Context(), "ws-warn", 10, "ai_translation", "ref-1")
 
 	assert.Equal(t, 1, sender.sendCalls)
 	assert.Equal(t, "owner@example.com", sender.lastTo)
@@ -142,7 +142,7 @@ func TestUsageHooks_CheckCreditThresholds_Exhausted(t *testing.T) {
 		},
 	}
 
-	h.DeductTokens(context.Background(), "ws-exhausted", 10, "ai_translation", "ref-2")
+	h.DeductTokens(t.Context(), "ws-exhausted", 10, "ai_translation", "ref-2")
 
 	assert.Equal(t, 1, sender.sendCalls)
 	assert.Equal(t, "exhausted@example.com", sender.lastTo)
@@ -159,7 +159,7 @@ func TestUsageHooks_CheckCreditThresholds_NoNotifier(t *testing.T) {
 	}
 
 	require.NotPanics(t, func() {
-		h.DeductTokens(context.Background(), "ws-1", 10, "op", "ref")
+		h.DeductTokens(t.Context(), "ws-1", 10, "op", "ref")
 	})
 	// DeductCredits should still have been called.
 	assert.Equal(t, 1, store.deductCalls)
@@ -175,9 +175,9 @@ func TestUsageHooks_ReportMeter_NilStripe(t *testing.T) {
 	}
 
 	require.NotPanics(t, func() {
-		h.DeductTokens(context.Background(), "ws-1", 100, "ai_translation", "ref")
+		h.DeductTokens(t.Context(), "ws-1", 100, "ai_translation", "ref")
 	})
 	require.NotPanics(t, func() {
-		h.DeductContainerTime(context.Background(), "ws-1", 10*time.Second, "ref")
+		h.DeductContainerTime(t.Context(), "ws-1", 10*time.Second, "ref")
 	})
 }

@@ -1,7 +1,6 @@
 package event
 
 import (
-	"context"
 	"sync"
 	"testing"
 	"time"
@@ -28,7 +27,7 @@ func newTestEventStore(t *testing.T) (*EventEmittingStore, *ChannelEventBus) {
 
 func TestEventEmittingStoreProject(t *testing.T) {
 	es, bus := newTestEventStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	var events []platev.Event
 	var mu sync.Mutex
@@ -61,7 +60,7 @@ func TestEventEmittingStoreProject(t *testing.T) {
 
 func TestEventEmittingStoreBlocks(t *testing.T) {
 	es, bus := newTestEventStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	var events []platev.Event
 	var mu sync.Mutex
@@ -97,7 +96,7 @@ func TestEventEmittingStoreBlocks(t *testing.T) {
 
 func TestEventEmittingStoreVersion(t *testing.T) {
 	es, bus := newTestEventStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	var received platev.Event
 	var mu sync.Mutex

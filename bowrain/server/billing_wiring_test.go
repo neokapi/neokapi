@@ -95,7 +95,7 @@ func TestPlanSyncAdapter_SyncWorkspacePlan(t *testing.T) {
 	}
 
 	adapter := &planSyncAdapter{authStore: store}
-	err := adapter.SyncWorkspacePlan(context.Background(), "ws-1", "pro", "cus_123")
+	err := adapter.SyncWorkspacePlan(t.Context(), "ws-1", "pro", "cus_123")
 	require.NoError(t, err)
 
 	updated := store.workspaces["ws-1"]
@@ -112,7 +112,7 @@ func TestPlanSyncAdapter_SyncWorkspacePlan_PreservesExistingCustomerID(t *testin
 	}
 
 	adapter := &planSyncAdapter{authStore: store}
-	err := adapter.SyncWorkspacePlan(context.Background(), "ws-1", "enterprise", "")
+	err := adapter.SyncWorkspacePlan(t.Context(), "ws-1", "enterprise", "")
 	require.NoError(t, err)
 
 	updated := store.workspaces["ws-1"]
@@ -124,7 +124,7 @@ func TestPlanSyncAdapter_SyncWorkspacePlan_WorkspaceNotFound(t *testing.T) {
 	store := newMockAuthStoreForBilling()
 
 	adapter := &planSyncAdapter{authStore: store}
-	err := adapter.SyncWorkspacePlan(context.Background(), "ws-missing", "pro", "cus_123")
+	err := adapter.SyncWorkspacePlan(t.Context(), "ws-missing", "pro", "cus_123")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "ws-missing")
 }
@@ -143,7 +143,7 @@ func TestOwnerEmailResolver_FindsOwner(t *testing.T) {
 	store.users["u-owner"] = &platauth.User{ID: "u-owner", Email: "owner@example.com"}
 
 	resolver := &ownerEmailResolver{authStore: store}
-	email := resolver.GetOwnerEmail(context.Background(), "ws-1")
+	email := resolver.GetOwnerEmail(t.Context(), "ws-1")
 	assert.Equal(t, "owner@example.com", email)
 }
 
@@ -155,7 +155,7 @@ func TestOwnerEmailResolver_NoOwner(t *testing.T) {
 	}
 
 	resolver := &ownerEmailResolver{authStore: store}
-	email := resolver.GetOwnerEmail(context.Background(), "ws-1")
+	email := resolver.GetOwnerEmail(t.Context(), "ws-1")
 	assert.Equal(t, "", email)
 }
 
@@ -164,6 +164,6 @@ func TestOwnerEmailResolver_ListMembersError(t *testing.T) {
 	store.listMembersErr = errors.New("db connection lost")
 
 	resolver := &ownerEmailResolver{authStore: store}
-	email := resolver.GetOwnerEmail(context.Background(), "ws-1")
+	email := resolver.GetOwnerEmail(t.Context(), "ws-1")
 	assert.Equal(t, "", email)
 }

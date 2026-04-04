@@ -1,7 +1,6 @@
 package localblob
 
 import (
-	"context"
 	"testing"
 
 	"github.com/neokapi/neokapi/core/storage"
@@ -14,7 +13,7 @@ func TestUploadAndDownload(t *testing.T) {
 	s, err := New(dir)
 	require.NoError(t, err)
 
-	ctx := context.Background()
+	ctx := t.Context()
 	data := []byte("hello blob storage")
 
 	ref, err := s.Upload(ctx, data, storage.UploadOptions{ContentType: "text/plain"})
@@ -38,7 +37,7 @@ func TestDedup(t *testing.T) {
 	s, err := New(dir)
 	require.NoError(t, err)
 
-	ctx := context.Background()
+	ctx := t.Context()
 	data := []byte("dedup test data")
 
 	ref1, err := s.Upload(ctx, data, storage.UploadOptions{})
@@ -55,7 +54,7 @@ func TestExists(t *testing.T) {
 	s, err := New(dir)
 	require.NoError(t, err)
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	exists, err := s.Exists(ctx, "nonexistent")
 	require.NoError(t, err)
@@ -74,7 +73,7 @@ func TestDelete(t *testing.T) {
 	s, err := New(dir)
 	require.NoError(t, err)
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	ref, err := s.Upload(ctx, []byte("delete me"), storage.UploadOptions{})
 	require.NoError(t, err)
@@ -92,7 +91,7 @@ func TestDownloadNotFound(t *testing.T) {
 	s, err := New(dir)
 	require.NoError(t, err)
 
-	_, err = s.Download(context.Background(), "nonexistent")
+	_, err = s.Download(t.Context(), "nonexistent")
 	assert.ErrorIs(t, err, storage.ErrBlobNotFound)
 }
 
@@ -101,7 +100,7 @@ func TestPreSignedURLsNotSupported(t *testing.T) {
 	s, err := New(dir)
 	require.NoError(t, err)
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	_, err = s.GenerateUploadURL(ctx, "key", storage.SignOptions{})
 	require.ErrorIs(t, err, storage.ErrNotSupported)

@@ -2,7 +2,6 @@ package regex_test
 
 import (
 	"bytes"
-	"context"
 	"testing"
 
 	"github.com/neokapi/neokapi/core/format"
@@ -15,7 +14,7 @@ import (
 
 func snippetRoundtripWithSkeleton(t *testing.T, input string, rules []regex.Rule) string {
 	t.Helper()
-	ctx := context.Background()
+	ctx := t.Context()
 
 	reader := regex.NewReader()
 	cfg := reader.Config().(*regex.Config)
@@ -104,7 +103,7 @@ func TestSkeletonStore_WithTranslation(t *testing.T) {
 	input := `"greeting" = "Hello";
 "farewell" = "Goodbye";
 `
-	ctx := context.Background()
+	ctx := t.Context()
 	locale := model.LocaleID("fr")
 
 	reader := regex.NewReader()

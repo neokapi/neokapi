@@ -69,7 +69,7 @@ func TestIntegrationReadHTML(t *testing.T) {
 		Reader:       io.NopCloser(bytes.NewReader(htmlContent)),
 	}
 
-	ctx := context.Background()
+	ctx := t.Context()
 	require.NoError(t, reader.Open(ctx, doc))
 
 	var parts []*model.Part

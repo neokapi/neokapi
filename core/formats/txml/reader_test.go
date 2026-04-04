@@ -2,7 +2,6 @@ package txml_test
 
 import (
 	"bytes"
-	"context"
 	"testing"
 
 	"github.com/neokapi/neokapi/core/formats/txml"
@@ -49,7 +48,7 @@ const inlineTagsTXML = `<?xml version="1.0" encoding="utf-8"?>
 
 // okapi: TXMLFilterTest#testSimpleEntry — extracts source and target from TXML segments.
 func TestReadSimpleTXML(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := txml.NewReader()
 	err := reader.Open(ctx, testutil.RawDocFromString(simpleTXML, model.LocaleEnglish))
 	require.NoError(t, err)
@@ -67,7 +66,7 @@ func TestReadSimpleTXML(t *testing.T) {
 
 // okapi: TXMLFilterTest#testSegType — segment type attribute is preserved as block property.
 func TestReadSegType(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := txml.NewReader()
 	err := reader.Open(ctx, testutil.RawDocFromString(simpleTXML, model.LocaleEnglish))
 	require.NoError(t, err)
@@ -81,7 +80,7 @@ func TestReadSegType(t *testing.T) {
 
 // okapi: TXMLFilterTest#testSourceOnly — segment with only source (no target) is extracted correctly.
 func TestReadSourceOnly(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := txml.NewReader()
 	err := reader.Open(ctx, testutil.RawDocFromString(sourceOnlyTXML, model.LocaleEnglish))
 	require.NoError(t, err)
@@ -95,7 +94,7 @@ func TestReadSourceOnly(t *testing.T) {
 
 // okapi: TXMLFilterTest#testInlineTags — inline <ph> placeholders are processed within text content.
 func TestReadInlineTags(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := txml.NewReader()
 	err := reader.Open(ctx, testutil.RawDocFromString(inlineTagsTXML, model.LocaleEnglish))
 	require.NoError(t, err)
@@ -109,7 +108,7 @@ func TestReadInlineTags(t *testing.T) {
 
 // okapi: TXMLFilterTest#testStartDocument — verifies LayerStart/LayerEnd wraps TXML content with locale info.
 func TestReadLayerStartEnd(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := txml.NewReader()
 	err := reader.Open(ctx, testutil.RawDocFromString(simpleTXML, model.LocaleEnglish))
 	require.NoError(t, err)
@@ -145,14 +144,14 @@ func TestReaderMetadata(t *testing.T) {
 }
 
 func TestReadNilDocument(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := txml.NewReader()
 	err := reader.Open(ctx, nil)
 	require.Error(t, err)
 }
 
 func TestReadEmpty(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := txml.NewReader()
 	err := reader.Open(ctx, testutil.RawDocFromString("", model.LocaleEnglish))
 	require.NoError(t, err)
@@ -166,7 +165,7 @@ func TestReadEmpty(t *testing.T) {
 
 // okapi: TXMLFilterTest#testDoubleExtraction — roundtrip read/write preserves TXML content.
 func TestRoundTrip(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	reader := txml.NewReader()
 	err := reader.Open(ctx, testutil.RawDocFromString(simpleTXML, model.LocaleEnglish))
@@ -195,7 +194,7 @@ func TestRoundTrip(t *testing.T) {
 }
 
 func TestRoundTripWithNewTarget(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	reader := txml.NewReader()
 	err := reader.Open(ctx, testutil.RawDocFromString(sourceOnlyTXML, model.LocaleEnglish))
