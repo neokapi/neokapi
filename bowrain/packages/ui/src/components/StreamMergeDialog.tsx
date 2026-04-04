@@ -1,14 +1,14 @@
-import type { StreamMergeResult } from "../types/api";
-import { Button } from "@neokapi/ui-primitives/components/ui/button";
-import { Plus, ArrowRight, Trash2, Check } from "./icons";
 import {
+  Button,
   Dialog,
   DialogContent,
+  DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogFooter,
-  DialogDescription,
-} from "@neokapi/ui-primitives/components/ui/dialog";
+} from "@neokapi/ui-primitives";
+import type { StreamMergeResult } from "../types/api";
+import { Plus, ArrowRight, Trash2, Check } from "./icons";
 
 export interface StreamMergeDialogProps {
   /** Dry-run merge result with block counts. */
@@ -90,19 +90,19 @@ export function StreamMergeDialog({
                 icon={Plus}
                 label="Blocks added"
                 count={result.added_blocks}
-                color="text-emerald-600 dark:text-emerald-400"
+                color="text-success dark:text-success"
               />
               <StatRow
                 icon={ArrowRight}
                 label="Blocks modified"
                 count={result.modified_blocks}
-                color="text-amber-600 dark:text-amber-400"
+                color="text-warning dark:text-warning"
               />
               <StatRow
                 icon={Trash2}
                 label="Blocks removed"
                 count={result.removed_blocks}
-                color="text-red-600 dark:text-red-400"
+                color="text-destructive dark:text-destructive"
               />
             </div>
           )}

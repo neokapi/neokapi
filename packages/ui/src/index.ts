@@ -22,7 +22,7 @@ export {
 
 // shadcn/ui primitives
 export { Alert, AlertTitle, AlertDescription } from "./components/ui/alert";
-export { Avatar, AvatarImage, AvatarFallback } from "./components/ui/avatar";
+export { Avatar, AvatarImage, AvatarFallback, AvatarBadge, AvatarGroup, AvatarGroupCount } from "./components/ui/avatar";
 export { Button, buttonVariants } from "./components/ui/button";
 export {
   Card,
@@ -95,6 +95,9 @@ export {
   PopoverTrigger,
   PopoverContent,
   PopoverAnchor,
+  PopoverHeader,
+  PopoverTitle,
+  PopoverDescription,
 } from "./components/ui/popover";
 export { ScrollArea, ScrollBar } from "./components/ui/scroll-area";
 export {
@@ -103,6 +106,8 @@ export {
   SelectValue,
   SelectContent,
   SelectItem,
+  SelectGroup,
+  SelectLabel,
 } from "./components/ui/select";
 export { Separator } from "./components/ui/separator";
 export {
@@ -127,6 +132,7 @@ export {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarProvider,
+  SidebarFooter,
   SidebarSeparator,
   SidebarTrigger,
   useSidebar,

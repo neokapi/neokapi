@@ -1,8 +1,8 @@
+import { Card } from "@neokapi/ui-primitives";
 import { useState, useEffect, useCallback } from "react";
 import { X, Plus } from "lucide-react";
 import { useApi } from "../context/ApiContext";
 import { useLocales } from "../hooks/useLocales";
-import { Card } from "@neokapi/ui-primitives/components/ui/card";
 import { LocaleSelect } from "./LocaleSelect";
 import type { Workspace } from "../types/api";
 

@@ -1,14 +1,14 @@
-import type { Meta, StoryObj } from "@storybook/react-vite";
 import {
   Command,
-  CommandInput,
-  CommandList,
   CommandEmpty,
   CommandGroup,
+  CommandInput,
   CommandItem,
+  CommandList,
   CommandSeparator,
   CommandShortcut,
-} from "@neokapi/ui-primitives/components/ui/command";
+} from "@neokapi/ui-primitives";
+import type { Meta, StoryObj } from "@storybook/react-vite";
 
 const meta: Meta<typeof Command> = {
   title: "Foundations/Command",

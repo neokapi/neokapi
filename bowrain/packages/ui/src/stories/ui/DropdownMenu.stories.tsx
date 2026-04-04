@@ -1,16 +1,16 @@
-import type { Meta, StoryObj } from "@storybook/react-vite";
 import {
+  Button,
   DropdownMenu,
-  DropdownMenuTrigger,
+  DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuGroup,
-  DropdownMenuLabel,
   DropdownMenuItem,
+  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuShortcut,
-  DropdownMenuCheckboxItem,
-} from "@neokapi/ui-primitives/components/ui/dropdown-menu";
-import { Button } from "@neokapi/ui-primitives/components/ui/button";
+  DropdownMenuTrigger,
+} from "@neokapi/ui-primitives";
+import type { Meta, StoryObj } from "@storybook/react-vite";
 
 const meta: Meta<typeof DropdownMenu> = {
   title: "Foundations/DropdownMenu",

@@ -1,3 +1,14 @@
+import {
+  Button,
+  Card,
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  Input,
+  Label,
+} from "@neokapi/ui-primitives";
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { useTMApi } from "../../hooks/useTMApi";
 import { useLocales } from "../../hooks/useLocales";
@@ -5,17 +16,6 @@ import { useSetBreadcrumb } from "../../context/BreadcrumbContext";
 import type { TMEntryInfo } from "../../types/api";
 import type { FilterToken, FilterField, FilterPreset } from "../FilterBar";
 import { FilterBar } from "../FilterBar";
-import { Button } from "@neokapi/ui-primitives/components/ui/button";
-import { Input } from "@neokapi/ui-primitives/components/ui/input";
-import { Label } from "@neokapi/ui-primitives/components/ui/label";
-import { Card } from "@neokapi/ui-primitives/components/ui/card";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@neokapi/ui-primitives/components/ui/dialog";
 import { LocaleSelect } from "../LocaleSelect";
 import { ArrowLeft } from "../icons";
 
@@ -357,7 +357,7 @@ export function TMExplorer({ sourceLocale, targetLocales, projects, onBack }: TM
                       </td>
                       <td className="px-4 py-2.5 text-sm text-muted-foreground">
                         {entry.project_id ? (
-                          <span className="text-[11px] px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-600 dark:text-blue-400">
+                          <span className="text-[11px] px-1.5 py-0.5 rounded bg-info/10 text-info dark:text-info">
                             Project
                           </span>
                         ) : (

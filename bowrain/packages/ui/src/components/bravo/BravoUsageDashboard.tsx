@@ -112,13 +112,13 @@ export function BravoUsageDashboard({ usage, onDateRangeChange }: BravoUsageDash
           label="Input tokens"
           value={usage.total_input_tokens}
           total={totalTokens}
-          color="bg-blue-500"
+          color="bg-info"
         />
         <TokenBar
           label="Output tokens"
           value={usage.total_output_tokens}
           total={totalTokens}
-          color="bg-green-500"
+          color="bg-success"
         />
       </div>
     </div>

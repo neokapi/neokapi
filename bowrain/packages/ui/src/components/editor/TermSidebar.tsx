@@ -1,8 +1,6 @@
+import { Badge, Button, cn } from "@neokapi/ui-primitives";
 import { ArrowRight, Plus, BookOpen } from "lucide-react";
 import { BlockTermMatch } from "../../types/api";
-import { Badge } from "@neokapi/ui-primitives/components/ui/badge";
-import { Button } from "@neokapi/ui-primitives/components/ui/button";
-import { cn } from "@neokapi/ui-primitives";
 import type { VisualEditorMode } from "./visual-editor-types";
 
 export interface TermSidebarProps {
@@ -15,10 +13,10 @@ export interface TermSidebarProps {
 
 function termStatusClass(status: string): string {
   const colors: Record<string, string> = {
-    preferred: "text-green-500 bg-green-500/[0.08]",
-    approved: "text-blue-500 bg-blue-500/[0.08]",
-    admitted: "text-orange-600 bg-orange-600/[0.08]",
-    deprecated: "text-red-500 bg-red-500/[0.08]",
+    preferred: "text-success bg-success/[0.08]",
+    approved: "text-info bg-info/[0.08]",
+    admitted: "text-warning bg-warning/[0.08]",
+    deprecated: "text-destructive bg-destructive/[0.08]",
   };
   return colors[status] || "text-muted-foreground bg-muted";
 }
@@ -125,7 +123,7 @@ export function TermSidebar({
               </span>
             )}
             {m.project_id && (
-              <span className="inline-block mt-0.5 text-[10px] px-1 py-px rounded bg-blue-500/10 text-blue-600 dark:text-blue-400 ml-1">
+              <span className="inline-block mt-0.5 text-[10px] px-1 py-px rounded bg-info/10 text-info dark:text-info ml-1">
                 project
               </span>
             )}

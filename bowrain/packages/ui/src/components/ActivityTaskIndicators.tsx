@@ -1,8 +1,7 @@
+import { Badge, cn } from "@neokapi/ui-primitives";
 import { useState, useEffect, useRef, useCallback } from "react";
 import type { ActivityInfo, TaskInfo } from "../types/api";
 import { Clock, CircleCheck } from "./icons";
-import { Badge } from "@neokapi/ui-primitives/components/ui/badge";
-import { cn } from "@neokapi/ui-primitives";
 
 // ---------------------------------------------------------------------------
 // Shared helpers
@@ -59,8 +58,8 @@ function DotIndicator() {
 function activityColor(type: string): string {
   if (type.includes("failed") || type.includes("drift")) return "bg-destructive";
   if (type.includes("completed") || type.includes("passed") || type.includes("merged"))
-    return "bg-green-500";
-  if (type.includes("created")) return "bg-blue-500";
+    return "bg-success";
+  if (type.includes("created")) return "bg-info";
   return "bg-muted-foreground";
 }
 
@@ -164,9 +163,9 @@ export function ActivityIndicator({
 
 const priorityColors: Record<string, string> = {
   low: "bg-muted text-muted-foreground",
-  normal: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200",
-  high: "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200",
-  urgent: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200",
+  normal: "bg-info/10 text-info dark:bg-info/20 dark:text-info",
+  high: "bg-warning/10 text-warning dark:bg-warning/20 dark:text-warning",
+  urgent: "bg-destructive/10 text-destructive dark:bg-destructive/20 dark:text-destructive",
 };
 
 export interface TaskIndicatorProps {
@@ -268,7 +267,7 @@ export function TaskIndicator({
 
                     {isActive && onCompleteTask && (
                       <button
-                        className="text-[10px] px-1.5 py-0.5 rounded bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 hover:opacity-80 transition-opacity shrink-0 mt-0.5"
+                        className="text-[10px] px-1.5 py-0.5 rounded bg-success/10 text-success dark:bg-success/20 dark:text-success hover:opacity-80 transition-opacity shrink-0 mt-0.5"
                         onClick={(e) => {
                           e.stopPropagation();
                           onCompleteTask(t.id);

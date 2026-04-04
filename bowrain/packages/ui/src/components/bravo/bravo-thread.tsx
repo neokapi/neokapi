@@ -6,6 +6,7 @@
  * the bravo-specific tool UI.
  */
 
+import { Button, cn } from "@neokapi/ui-primitives";
 import { type FC } from "react";
 import {
   ActionBarPrimitive,
@@ -40,8 +41,6 @@ import {
   ComposerAttachments,
   UserMessageAttachments,
 } from "../assistant-ui/attachment";
-import { Button } from "@neokapi/ui-primitives/components/ui/button";
-import { cn } from "@neokapi/ui-primitives";
 import { BravoColdStart } from "./BravoColdStart";
 
 // ---------------------------------------------------------------------------
@@ -229,7 +228,7 @@ const BravoAssistantMessage: FC = () => {
 const MessageError: FC = () => {
   return (
     <MessagePrimitive.Error>
-      <ErrorPrimitive.Root className="aui-message-error-root mt-2 rounded-md border border-destructive bg-destructive/10 p-3 text-destructive text-sm dark:bg-destructive/5 dark:text-red-200">
+      <ErrorPrimitive.Root className="aui-message-error-root mt-2 rounded-md border border-destructive bg-destructive/10 p-3 text-destructive text-sm dark:bg-destructive/5 dark:text-destructive">
         <ErrorPrimitive.Message className="aui-message-error-message line-clamp-2" />
       </ErrorPrimitive.Root>
     </MessagePrimitive.Error>

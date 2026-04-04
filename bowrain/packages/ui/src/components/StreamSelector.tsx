@@ -1,3 +1,10 @@
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@neokapi/ui-primitives";
 import type { StreamInfo, StreamVisibility } from "../types/api";
 import {
   ChevronDown,
@@ -11,13 +18,6 @@ import {
   Archive,
   Pencil,
 } from "./icons";
-import {
-  DropdownMenu,
-  DropdownMenuTrigger,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-} from "@neokapi/ui-primitives/components/ui/dropdown-menu";
 
 export interface StreamSelectorProps {
   streams: StreamInfo[];
@@ -32,9 +32,9 @@ export interface StreamSelectorProps {
 }
 
 const visibilityColor: Record<StreamVisibility, string> = {
-  public: "bg-emerald-500",
-  private: "bg-red-500",
-  shared: "bg-blue-500",
+  public: "bg-success",
+  private: "bg-destructive",
+  shared: "bg-info",
 };
 
 const visibilityLabel: Record<StreamVisibility, string> = {
@@ -119,7 +119,7 @@ export function StreamSelector({
                 onClick={() => onDiffStream(activeStream.name)}
                 className="flex items-center gap-2"
               >
-                <GitPullRequest className="w-4 h-4 text-blue-500" />
+                <GitPullRequest className="w-4 h-4 text-info" />
                 <span className="text-sm">Compare with {activeStream.parent || "main"}</span>
               </DropdownMenuItem>
             )}
@@ -128,7 +128,7 @@ export function StreamSelector({
                 onClick={() => onMergeStream(activeStream.name)}
                 className="flex items-center gap-2"
               >
-                <GitMerge className="w-4 h-4 text-emerald-500" />
+                <GitMerge className="w-4 h-4 text-success" />
                 <span className="text-sm">Merge into {activeStream.parent || "main"}</span>
               </DropdownMenuItem>
             )}

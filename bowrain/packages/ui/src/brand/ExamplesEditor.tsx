@@ -1,8 +1,6 @@
+import { Button, Input, Label } from "@neokapi/ui-primitives";
 import { useCallback } from "react";
 import type { VoiceExample } from "./types";
-import { Button } from "@neokapi/ui-primitives/components/ui/button";
-import { Input } from "@neokapi/ui-primitives/components/ui/input";
-import { Label } from "@neokapi/ui-primitives/components/ui/label";
 import { Plus, Trash2 } from "../components/icons";
 
 interface ExamplesEditorProps {
@@ -73,7 +71,7 @@ export function ExamplesEditor({ examples, onChange }: ExamplesEditorProps) {
               />
             </div>
             <div className="space-y-1">
-              <Label className="text-xs text-emerald-500">After</Label>
+              <Label className="text-xs text-success">After</Label>
               <Input
                 value={ex.after}
                 onChange={(e: React.ChangeEvent<HTMLInputElement>) =>

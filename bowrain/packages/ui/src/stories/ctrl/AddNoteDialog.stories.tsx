@@ -1,14 +1,14 @@
-import { useState } from "react";
-import type { Meta, StoryObj } from "@storybook/react-vite";
-import { Button } from "@neokapi/ui-primitives/components/ui/button";
 import {
+  Button,
   Dialog,
   DialogContent,
-  DialogHeader,
-  DialogTitle,
   DialogDescription,
   DialogFooter,
-} from "@neokapi/ui-primitives/components/ui/dialog";
+  DialogHeader,
+  DialogTitle,
+} from "@neokapi/ui-primitives";
+import { useState } from "react";
+import type { Meta, StoryObj } from "@storybook/react-vite";
 
 interface AddNoteDialogProps {
   open: boolean;

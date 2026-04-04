@@ -1,3 +1,20 @@
+import {
+  Badge,
+  Button,
+  Card,
+  Input,
+  Label,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  Switch,
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@neokapi/ui-primitives";
 import { useState, useCallback } from "react";
 import type {
   VoiceProfile,
@@ -8,25 +25,6 @@ import type {
   Pattern,
   VoiceExample,
 } from "./types";
-import { Button } from "@neokapi/ui-primitives/components/ui/button";
-import { Input } from "@neokapi/ui-primitives/components/ui/input";
-import { Label } from "@neokapi/ui-primitives/components/ui/label";
-import { Badge } from "@neokapi/ui-primitives/components/ui/badge";
-import { Card } from "@neokapi/ui-primitives/components/ui/card";
-import { Switch } from "@neokapi/ui-primitives/components/ui/switch";
-import {
-  Select,
-  SelectTrigger,
-  SelectValue,
-  SelectContent,
-  SelectItem,
-} from "@neokapi/ui-primitives/components/ui/select";
-import {
-  Tabs,
-  TabsList,
-  TabsTrigger,
-  TabsContent,
-} from "@neokapi/ui-primitives/components/ui/tabs";
 import { Plus, Trash2, ArrowLeft, X } from "../components/icons";
 
 interface BrandProfileEditorProps {

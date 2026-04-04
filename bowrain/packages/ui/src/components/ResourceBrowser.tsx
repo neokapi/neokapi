@@ -1,23 +1,21 @@
+import {
+  Button,
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  Input,
+  Label,
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+  cn,
+} from "@neokapi/ui-primitives";
 import * as React from "react";
 import { DatabaseIcon, FileIcon, SearchIcon } from "lucide-react";
 
-import { cn } from "@neokapi/ui-primitives";
-import { Input } from "@neokapi/ui-primitives/components/ui/input";
-import { Button } from "@neokapi/ui-primitives/components/ui/button";
-import { Label } from "@neokapi/ui-primitives/components/ui/label";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@neokapi/ui-primitives/components/ui/dialog";
-import {
-  Tabs,
-  TabsList,
-  TabsTrigger,
-  TabsContent,
-} from "@neokapi/ui-primitives/components/ui/tabs";
 import type { ResourceKind } from "./ResourcePicker";
 
 export interface ResourceInfo {

@@ -1,7 +1,6 @@
+import { Badge, cn } from "@neokapi/ui-primitives";
 import { useState } from "react";
 import type { TaskInfo, CreateTaskRequest, TaskStatus, TaskPriority } from "../types/api";
-import { cn } from "@neokapi/ui-primitives";
-import { Badge } from "@neokapi/ui-primitives/components/ui/badge";
 
 export interface TaskBoardProps {
   tasks: TaskInfo[];
@@ -16,9 +15,9 @@ export interface TaskBoardProps {
 
 const priorityColors: Record<TaskPriority, string> = {
   low: "bg-muted text-muted-foreground",
-  normal: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200",
-  high: "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200",
-  urgent: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200",
+  normal: "bg-info/10 text-info dark:bg-info/20 dark:text-info",
+  high: "bg-warning/10 text-warning dark:bg-warning/20 dark:text-warning",
+  urgent: "bg-destructive/10 text-destructive dark:bg-destructive/20 dark:text-destructive",
 };
 
 const statusLabels: Record<TaskStatus, string> = {
@@ -109,7 +108,7 @@ function TaskCard({
           {onComplete && (
             <button
               type="button"
-              className="text-[11px] px-2 py-0.5 rounded bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 hover:opacity-80 transition-opacity"
+              className="text-[11px] px-2 py-0.5 rounded bg-success/10 text-success dark:bg-success/20 dark:text-success hover:opacity-80 transition-opacity"
               onClick={(e) => {
                 e.stopPropagation();
                 onComplete();

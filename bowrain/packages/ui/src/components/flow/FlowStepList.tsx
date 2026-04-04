@@ -1,8 +1,7 @@
+import { Badge, cn } from "@neokapi/ui-primitives";
 import * as React from "react";
 import { ChevronDownIcon, ChevronRightIcon, GripVerticalIcon } from "lucide-react";
 
-import { cn } from "@neokapi/ui-primitives";
-import { Badge } from "@neokapi/ui-primitives/components/ui/badge";
 import { SchemaForm, type ComponentSchema } from "@neokapi/ui-primitives";
 import type { ResourceOption } from "../ResourcePicker";
 

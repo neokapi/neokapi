@@ -1,10 +1,10 @@
-import type { Meta, StoryObj } from "@storybook/react-vite";
 import {
+  Button,
   Collapsible,
-  CollapsibleTrigger,
   CollapsibleContent,
-} from "@neokapi/ui-primitives/components/ui/collapsible";
-import { Button } from "@neokapi/ui-primitives/components/ui/button";
+  CollapsibleTrigger,
+} from "@neokapi/ui-primitives";
+import type { Meta, StoryObj } from "@storybook/react-vite";
 
 const meta: Meta<typeof Collapsible> = {
   title: "Foundations/Collapsible",

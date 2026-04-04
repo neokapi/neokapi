@@ -1,12 +1,12 @@
-import type { Meta, StoryObj } from "@storybook/react-vite";
 import {
   Avatar,
-  AvatarImage,
-  AvatarFallback,
   AvatarBadge,
+  AvatarFallback,
   AvatarGroup,
   AvatarGroupCount,
-} from "@neokapi/ui-primitives/components/ui/avatar";
+  AvatarImage,
+} from "@neokapi/ui-primitives";
+import type { Meta, StoryObj } from "@storybook/react-vite";
 
 const meta: Meta<typeof Avatar> = {
   title: "Foundations/Avatar",

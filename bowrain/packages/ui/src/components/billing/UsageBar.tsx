@@ -30,10 +30,10 @@ export function UsageBar({ creditsUsed, creditsTotal, weekEnd, className }: Usag
 
   const barColor =
     pct > 80
-      ? "bg-red-500 dark:bg-red-400"
+      ? "bg-destructive dark:bg-destructive"
       : pct > 60
-        ? "bg-yellow-500 dark:bg-yellow-400"
-        : "bg-green-500 dark:bg-green-400";
+        ? "bg-warning dark:bg-warning"
+        : "bg-success dark:bg-success";
 
   return (
     <div className={cn("space-y-1.5", className)}>

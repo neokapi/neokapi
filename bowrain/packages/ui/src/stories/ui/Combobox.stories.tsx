@@ -1,12 +1,12 @@
-import type { Meta, StoryObj } from "@storybook/react-vite";
 import {
   Combobox,
-  ComboboxInput,
   ComboboxContent,
-  ComboboxList,
-  ComboboxItem,
   ComboboxEmpty,
-} from "@neokapi/ui-primitives/components/ui/combobox";
+  ComboboxInput,
+  ComboboxItem,
+  ComboboxList,
+} from "@neokapi/ui-primitives";
+import type { Meta, StoryObj } from "@storybook/react-vite";
 
 const meta: Meta = {
   title: "Foundations/Combobox",

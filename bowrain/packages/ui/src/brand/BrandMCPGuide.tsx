@@ -1,18 +1,16 @@
-import { useState, useCallback } from "react";
 import {
+  Badge,
+  Button,
   Card,
+  CardContent,
   CardHeader,
   CardTitle,
-  CardContent,
-} from "@neokapi/ui-primitives/components/ui/card";
-import { Button } from "@neokapi/ui-primitives/components/ui/button";
-import { Badge } from "@neokapi/ui-primitives/components/ui/badge";
-import {
   Tabs,
+  TabsContent,
   TabsList,
   TabsTrigger,
-  TabsContent,
-} from "@neokapi/ui-primitives/components/ui/tabs";
+} from "@neokapi/ui-primitives";
+import { useState, useCallback } from "react";
 import { Copy, Check } from "../components/icons";
 
 interface BrandMCPGuideProps {

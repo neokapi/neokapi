@@ -1,3 +1,14 @@
+import {
+  Alert,
+  AlertDescription,
+  Button,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  cn,
+} from "@neokapi/ui-primitives";
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import type {
   ProjectInfo,
@@ -26,16 +37,6 @@ import { EntityMarkPopover } from "./editor/EntityMarkPopover";
 import { VisualEditorLayout } from "./editor/VisualEditorLayout";
 import { DocumentPreview } from "./editor/DocumentPreview";
 import type { VisualEditorMode, PreviewContentMode } from "./editor/visual-editor-types";
-import { Button } from "@neokapi/ui-primitives/components/ui/button";
-import {
-  Select,
-  SelectTrigger,
-  SelectValue,
-  SelectContent,
-  SelectItem,
-} from "@neokapi/ui-primitives/components/ui/select";
-import { Alert, AlertDescription } from "@neokapi/ui-primitives/components/ui/alert";
-import { cn } from "@neokapi/ui-primitives";
 import { ArrowLeft, ArrowRight, ArrowUp, ArrowDown, AlertTriangle } from "./icons";
 
 interface TranslationEditorProps {
@@ -75,37 +76,37 @@ function getBlockStatus(block: BlockInfo, locale: string): BlockStatus {
 
 const statusDotClass: Record<BlockStatus, string> = {
   "not-started": "bg-transparent",
-  draft: "bg-amber-500",
-  translated: "bg-blue-500",
-  reviewed: "bg-green-500",
+  draft: "bg-warning",
+  translated: "bg-info",
+  reviewed: "bg-success",
 };
 
 const statusBorderClass: Record<BlockStatus, string> = {
   "not-started": "border-l-transparent",
-  draft: "border-l-amber-500",
-  translated: "border-l-blue-500",
-  reviewed: "border-l-green-500",
+  draft: "border-l-warning",
+  translated: "border-l-info",
+  reviewed: "border-l-success",
 };
 
 const statusBadgeClass: Record<BlockStatus, string> = {
   "not-started": "bg-muted-foreground text-white",
-  draft: "bg-amber-500 text-white",
-  translated: "bg-blue-500 text-white",
-  reviewed: "bg-green-500 text-white",
+  draft: "bg-warning text-white",
+  translated: "bg-info text-white",
+  reviewed: "bg-success text-white",
 };
 
 function tmScoreClass(score: number): string {
-  if (score >= 1.0) return "text-green-500 bg-green-500/[0.12]";
-  if (score >= 0.9) return "text-blue-500 bg-blue-500/[0.12]";
-  return "text-amber-500 bg-amber-500/[0.12]";
+  if (score >= 1.0) return "text-success bg-success/[0.12]";
+  if (score >= 0.9) return "text-info bg-info/[0.12]";
+  return "text-warning bg-warning/[0.12]";
 }
 
 function termStatusClass(status: string): string {
   const colors: Record<string, string> = {
-    preferred: "text-green-500 bg-green-500/[0.08]",
-    approved: "text-blue-500 bg-blue-500/[0.08]",
-    admitted: "text-orange-600 bg-orange-600/[0.08]",
-    deprecated: "text-red-500 bg-red-500/[0.08]",
+    preferred: "text-success bg-success/[0.08]",
+    approved: "text-info bg-info/[0.08]",
+    admitted: "text-warning bg-warning/[0.08]",
+    deprecated: "text-destructive bg-destructive/[0.08]",
   };
   return colors[status] || "text-muted-foreground bg-muted";
 }
@@ -1060,7 +1061,7 @@ export function TranslationEditor({
       {statusCounts.reviewed > 0 && (
         <div
           data-testid="progress-reviewed"
-          className="bg-green-500 opacity-40"
+          className="bg-success opacity-40"
           style={{
             width: `${(statusCounts.reviewed / Math.max(translatableBlocks.length, 1)) * 100}%`,
           }}
@@ -1069,7 +1070,7 @@ export function TranslationEditor({
       {statusCounts.translated > 0 && (
         <div
           data-testid="progress-translated"
-          className="bg-blue-500 opacity-40"
+          className="bg-info opacity-40"
           style={{
             width: `${(statusCounts.translated / Math.max(translatableBlocks.length, 1)) * 100}%`,
           }}
@@ -1078,7 +1079,7 @@ export function TranslationEditor({
       {statusCounts.draft > 0 && (
         <div
           data-testid="progress-draft"
-          className="bg-amber-500 opacity-40"
+          className="bg-warning opacity-40"
           style={{
             width: `${(statusCounts.draft / Math.max(translatableBlocks.length, 1)) * 100}%`,
           }}
@@ -1361,7 +1362,7 @@ export function TranslationEditor({
         </Alert>
       )}
       {message && (
-        <Alert className="mb-2 border-green-200 text-green-800 dark:border-green-800 dark:text-green-400">
+        <Alert className="mb-2 border-success/25 text-success dark:border-success/40 dark:text-success">
           <AlertDescription>{message}</AlertDescription>
         </Alert>
       )}
@@ -1414,7 +1415,7 @@ export function TranslationEditor({
                     key={i}
                     className={cn(
                       "p-2 bg-muted rounded-md mb-1.5 border border-border",
-                      appliedTMIndex === i && "border-green-500 bg-green-500/5",
+                      appliedTMIndex === i && "border-success bg-success/5",
                     )}
                     data-testid={`tm-match-${i}`}
                   >
@@ -1435,8 +1436,8 @@ export function TranslationEditor({
                           className={cn(
                             "text-[10px] px-1 py-px rounded ml-1",
                             m.project_id === project.id
-                              ? "text-green-600 dark:text-green-400 bg-green-500/10"
-                              : "text-blue-600 dark:text-blue-400 bg-blue-500/10",
+                              ? "text-success dark:text-success bg-success/10"
+                              : "text-info dark:text-info bg-info/10",
                           )}
                         >
                           {m.project_id === project.id ? "same project" : "cross-project"}
@@ -1450,7 +1451,7 @@ export function TranslationEditor({
                       className={cn(
                         "mt-1.5 text-[11px] h-6 px-2",
                         appliedTMIndex === i &&
-                          "bg-green-500 hover:bg-green-500 opacity-80 cursor-default",
+                          "bg-success hover:bg-success opacity-80 cursor-default",
                       )}
                       onClick={() => {
                         const block = filteredBlocks[selectedIndex];
@@ -1565,7 +1566,7 @@ export function TranslationEditor({
                         <div className="flex items-center gap-1.5 mb-1">
                           <span className="text-[13px] font-semibold">{e.text}</span>
                           {e.dnt && (
-                            <span className="text-[10px] font-semibold px-1.5 py-px rounded bg-red-500/10 text-red-500">
+                            <span className="text-[10px] font-semibold px-1.5 py-px rounded bg-destructive/10 text-destructive">
                               DNT
                             </span>
                           )}
@@ -1666,7 +1667,7 @@ function RowTagWarning({
       data-testid="tag-warning"
       className={cn(
         "ml-1 cursor-help inline-flex",
-        validation.errors.length > 0 ? "text-red-600" : "text-amber-700",
+        validation.errors.length > 0 ? "text-destructive" : "text-warning",
       )}
     >
       <AlertTriangle className="w-3.5 h-3.5" />

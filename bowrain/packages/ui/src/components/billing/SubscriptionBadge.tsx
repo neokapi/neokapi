@@ -9,15 +9,15 @@ export interface SubscriptionBadgeProps {
 
 const planColors: Record<BillingPlan, string> = {
   free: "bg-muted text-muted-foreground",
-  pro: "bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300",
+  pro: "bg-info/10 text-info dark:bg-info/20 dark:text-info",
   team: "bg-purple-100 text-purple-800 dark:bg-purple-900/40 dark:text-purple-300",
-  enterprise: "bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300",
+  enterprise: "bg-warning/10 text-warning dark:bg-warning/20 dark:text-warning",
 };
 
 const statusColors: Record<BillingStatus, string> = {
-  active: "bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300",
-  trialing: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/40 dark:text-yellow-300",
-  past_due: "bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300",
+  active: "bg-success/10 text-success dark:bg-success/20 dark:text-success",
+  trialing: "bg-warning/10 text-warning dark:bg-warning/20 dark:text-warning",
+  past_due: "bg-destructive/10 text-destructive dark:bg-destructive/20 dark:text-destructive",
   canceled: "bg-muted text-muted-foreground",
 };
 

@@ -58,14 +58,14 @@ function constraintBadges(
   if (!info.constraints.deletable) {
     badges.push({
       label: "Required",
-      color: "text-red-500 bg-red-500/10 border-red-500/25",
+      color: "text-destructive bg-destructive/10 border-destructive/25",
       description: "Must be present in the translation",
     });
   }
   if (!info.constraints.cloneable) {
     badges.push({
       label: "No duplicates",
-      color: "text-amber-600 bg-amber-500/10 border-amber-500/25",
+      color: "text-warning bg-warning/10 border-warning/25",
       description: "Cannot be duplicated in the translation",
     });
   }

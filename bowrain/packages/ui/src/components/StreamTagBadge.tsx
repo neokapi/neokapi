@@ -9,11 +9,11 @@ export interface StreamTagBadgeProps {
 
 const kindConfig: Record<StreamTagKind, { label: string; color: string; bg: string }> = {
   merge: { label: "Merge", color: "text-purple-600 dark:text-purple-400", bg: "bg-purple-500/10" },
-  release: { label: "Release", color: "text-blue-600 dark:text-blue-400", bg: "bg-blue-500/10" },
+  release: { label: "Release", color: "text-info dark:text-info", bg: "bg-info/10" },
   milestone: {
     label: "Milestone",
-    color: "text-emerald-600 dark:text-emerald-400",
-    bg: "bg-emerald-500/10",
+    color: "text-success dark:text-success",
+    bg: "bg-success/10",
   },
   custom: { label: "Tag", color: "text-gray-600 dark:text-gray-400", bg: "bg-gray-500/10" },
 };

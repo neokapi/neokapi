@@ -1,9 +1,6 @@
+import { CodeFinderEditor, type CodeFinderRulesValue } from "@neokapi/ui-primitives";
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { useState } from "react";
-import {
-  CodeFinderEditor,
-  type CodeFinderRulesValue,
-} from "@neokapi/ui-primitives/components/ui/code-finder-editor";
 
 function Wrapper(props: {
   initial?: CodeFinderRulesValue;

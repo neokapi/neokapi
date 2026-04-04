@@ -1,5 +1,6 @@
 "use client";
 
+import { Collapsible, CollapsibleContent, CollapsibleTrigger, cn } from "@neokapi/ui-primitives";
 import { memo, useCallback, useRef, useState } from "react";
 import { AlertCircleIcon, CheckIcon, ChevronDownIcon, LoaderIcon, XCircleIcon } from "lucide-react";
 import {
@@ -7,12 +8,6 @@ import {
   type ToolCallMessagePartStatus,
   type ToolCallMessagePartComponent,
 } from "@assistant-ui/react";
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@neokapi/ui-primitives/components/ui/collapsible";
-import { cn } from "@neokapi/ui-primitives";
 
 const ANIMATION_DURATION = 200;
 

@@ -42,7 +42,7 @@ export function PresenceAvatars({ users, currentUserId, maxVisible = 5 }: Presen
             <span>{user.name.charAt(0).toUpperCase()}</span>
           )}
           {/* Green online indicator dot */}
-          <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-background bg-emerald-500" />
+          <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-background bg-success" />
         </div>
       ))}
       {overflow > 0 && (

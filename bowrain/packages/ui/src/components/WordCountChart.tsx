@@ -1,16 +1,14 @@
-import { Bar, BarChart, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from "recharts";
-import type { LocaleTranslationStats } from "../types/api";
 import {
   Card,
+  CardContent,
   CardHeader,
   CardTitle,
-  CardContent,
-} from "@neokapi/ui-primitives/components/ui/card";
-import {
   ChartContainer,
   ChartLegendContent,
   type ChartConfig,
-} from "@neokapi/ui-primitives/components/ui/chart";
+} from "@neokapi/ui-primitives";
+import { Bar, BarChart, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from "recharts";
+import type { LocaleTranslationStats } from "../types/api";
 
 interface WordCountChartProps {
   localeStats: LocaleTranslationStats[];
