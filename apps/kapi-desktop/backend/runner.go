@@ -210,7 +210,7 @@ func (a *App) PreviewFlow(tabID, flowName, sampleText, sourceLang, targetLang st
 	}
 	f, err := fb.Build()
 	if err != nil {
-		return fmt.Errorf("build flow: %w", err)
+		return nil, fmt.Errorf("build flow: %w", err)
 	}
 
 	executor := flow.NewExecutor()
@@ -321,7 +321,20 @@ func (a *App) executeFlow(ctx context.Context, flowName string, tools []tool.Too
 		}
 		f, err := fb.Build()
 		if err != nil {
-			return fmt.Errorf("build flow: %w", err)
+			recorder.Record("error", "build", "", map[string]any{
+				"error": err.Error(),
+			})
+			a.emitEvent("flow:event", RunEvent{
+				Type:    "error",
+				FlowID:  flowName,
+				Message: fmt.Sprintf("build flow: %v", err),
+			})
+			a.runState.mu.Lock()
+			a.runState.state = RunStateError
+			a.runState.mu.Unlock()
+			close(stopStreaming)
+			streamWg.Wait()
+			return
 		}
 
 		executor := flow.NewExecutor()
