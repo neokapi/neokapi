@@ -119,15 +119,15 @@ func (c *QACheckConfig) Reset() {
 
 	// Length
 	c.CheckMaxCharLength = true
-	c.MaxCharLengthBreak = 20
-	c.MaxCharLengthAbove = 200
-	c.MaxCharLengthBelow = 350
+	c.MaxCharLengthBreak = DefaultLengthBreak
+	c.MaxCharLengthAbove = DefaultMaxPctLongText
+	c.MaxCharLengthBelow = DefaultMaxPctShortText
 	c.CheckMinCharLength = true
-	c.MinCharLengthBreak = 20
-	c.MinCharLengthAbove = 45
-	c.MinCharLengthBelow = 30
+	c.MinCharLengthBreak = DefaultLengthBreak
+	c.MinCharLengthAbove = DefaultMinPctLongText
+	c.MinCharLengthBelow = DefaultMinPctShortText
 	c.CheckAbsoluteMaxCharLength = false
-	c.AbsoluteMaxCharLength = 255
+	c.AbsoluteMaxCharLength = DefaultAbsoluteMaxChars
 }
 
 // Validate checks configuration validity.

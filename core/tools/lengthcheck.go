@@ -16,6 +16,17 @@ const (
 	PropLengthCheckIssues = "length-check-issues" // JSON array of issues
 )
 
+// Default length-ratio thresholds shared between length-check and qa-check.
+// These mirror the Okapi Framework bridge length-checker defaults.
+const (
+	DefaultLengthBreak        = 20  // character count dividing "short" from "long" text
+	DefaultMaxPctLongText     = 200 // max target/source % for long text
+	DefaultMaxPctShortText    = 350 // max target/source % for short text
+	DefaultMinPctLongText     = 45  // min target/source % for long text
+	DefaultMinPctShortText    = 30  // min target/source % for short text
+	DefaultAbsoluteMaxChars   = 255 // absolute max character count
+)
+
 // LengthCheckConfig holds configuration for the length check tool.
 type LengthCheckConfig struct {
 	TargetLocale model.LocaleID `json:"targetLocale,omitempty" schema:"-"`
@@ -51,13 +62,13 @@ func (c *LengthCheckConfig) Reset() {
 	c.MaxPercentage = 0
 	c.MinPercentage = 0
 	c.CheckMaxCharLength = true
-	c.MaxCharLengthBreak = 20
-	c.MaxCharLengthAbove = 200
-	c.MaxCharLengthBelow = 350
+	c.MaxCharLengthBreak = DefaultLengthBreak
+	c.MaxCharLengthAbove = DefaultMaxPctLongText
+	c.MaxCharLengthBelow = DefaultMaxPctShortText
 	c.CheckMinCharLength = true
-	c.MinCharLengthBreak = 20
-	c.MinCharLengthAbove = 45
-	c.MinCharLengthBelow = 30
+	c.MinCharLengthBreak = DefaultLengthBreak
+	c.MinCharLengthAbove = DefaultMinPctLongText
+	c.MinCharLengthBelow = DefaultMinPctShortText
 }
 
 // Validate checks configuration validity.
