@@ -5,7 +5,7 @@ package pgtest
 
 import (
 	"context"
-	"fmt"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -21,7 +21,6 @@ var (
 	sharedMu      sync.Mutex
 	sharedDB      *storage.PgDB
 	sharedConnStr string
-	sharedCleanup func()
 	schemaCounter int
 )
 
@@ -49,15 +48,15 @@ func NewTestDB(t *testing.T) *storage.PgDB {
 		}
 		sharedDB = db
 		sharedConnStr = connStr
-		sharedCleanup = cleanup
+		// cleanup is intentionally not called — the container lives for the entire test binary.
+		// Docker will clean it up via Ryuk (testcontainers' resource reaper).
 	}
 	schemaCounter++
-	schemaName := fmt.Sprintf("test_%s_%d", sanitize(t.Name()), schemaCounter)
+	schemaName := "test_" + sanitize(t.Name()) + "_" + strconv.Itoa(schemaCounter)
 	sharedMu.Unlock()
 
 	// Create an isolated schema for this test.
-	_, err := sharedDB.Exec(fmt.Sprintf("CREATE SCHEMA %s", schemaName))
-	if err != nil {
+	if _, err := sharedDB.Exec("CREATE SCHEMA " + schemaName); err != nil {
 		t.Fatalf("create test schema: %v", err)
 	}
 
@@ -70,8 +69,7 @@ func NewTestDB(t *testing.T) *storage.PgDB {
 
 	t.Cleanup(func() {
 		db.Close()
-		// Drop the schema to clean up.
-		sharedDB.Exec(fmt.Sprintf("DROP SCHEMA %s CASCADE", schemaName))
+		_, _ = sharedDB.Exec("DROP SCHEMA " + schemaName + " CASCADE")
 	})
 
 	return db
@@ -94,17 +92,17 @@ func startContainer(t *testing.T) (string, func(), error) {
 		),
 	)
 	if err != nil {
-		return "", nil, fmt.Errorf("start postgres container: %w", err)
+		return "", nil, err
 	}
 
 	connStr, err := container.ConnectionString(ctx, "sslmode=disable")
 	if err != nil {
-		container.Terminate(ctx)
-		return "", nil, fmt.Errorf("get connection string: %w", err)
+		_ = container.Terminate(ctx)
+		return "", nil, err
 	}
 
 	cleanup := func() {
-		container.Terminate(context.Background())
+		_ = container.Terminate(context.Background())
 	}
 	return connStr, cleanup, nil
 }

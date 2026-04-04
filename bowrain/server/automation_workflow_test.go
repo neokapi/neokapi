@@ -34,7 +34,7 @@ func newWorkflowTestServer(t *testing.T) (*Server, string, string) {
 	srv.EventBus = bus
 
 	pgStore := srv.ContentStore.(*bstore.PostgresStore)
-	srv.TaskStore = bstore.NewTaskStore(pgStore.SqlDB())
+	srv.TaskStore = bstore.NewTaskStore(pgStore.SQLDB())
 
 	// Create user and workspace.
 	user := &platauth.User{ID: "admin-1", Email: "admin@test.com", Name: "Admin"}

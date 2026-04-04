@@ -41,8 +41,8 @@ func NewPostgresStoreFromDB(db *storage.PgDB) (*PostgresStore, error) {
 	return &PostgresStore{db: db}, nil
 }
 
-// SqlDB returns the underlying *sql.DB for sharing with subsystem stores.
-func (s *PostgresStore) SqlDB() *sql.DB {
+// SQLDB returns the underlying *sql.DB for sharing with subsystem stores.
+func (s *PostgresStore) SQLDB() *sql.DB {
 	return s.db.DB
 }
 
