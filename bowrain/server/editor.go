@@ -1410,7 +1410,10 @@ func dashboardCacheKey(workspaceID, projectID, stream string) string {
 func (s *Server) invalidateDashboardCache(workspaceID, projectID string) {
 	// Delete all stream variants for this project by iterating the cache.
 	s.dashboardCache.Range(func(key, _ any) bool {
-		k := key.(string)
+		k, ok := key.(string)
+		if !ok {
+			return true
+		}
 		prefix := workspaceID + ":" + projectID + ":"
 		if strings.HasPrefix(k, prefix) {
 			s.dashboardCache.Delete(key)

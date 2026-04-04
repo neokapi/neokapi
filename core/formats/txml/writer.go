@@ -81,7 +81,10 @@ func (w *Writer) Write(ctx context.Context, parts <-chan *model.Part) error {
 				return nil
 			}
 			if part.Type == model.PartLayerStart {
-				layer := part.Resource.(*model.Layer)
+				layer, ok := part.Resource.(*model.Layer)
+				if !ok {
+					continue
+				}
 				w.sourceLocale = string(layer.Locale)
 				if tl, ok := layer.Properties["target-locale"]; ok {
 					w.targetLocale = tl
