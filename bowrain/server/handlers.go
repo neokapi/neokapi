@@ -175,7 +175,7 @@ func (s *Server) checkQueue() ComponentStatus {
 	case interface{ Healthy() bool }:
 		// Use type name for known types.
 	}
-	if s.Config.NATSUrl != "" {
+	if s.Config.NATSURL != "" {
 		queueType = "nats"
 	} else if s.Config.ServiceBusConnection != "" {
 		queueType = "servicebus"

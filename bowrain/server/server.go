@@ -236,8 +236,8 @@ func createEventBus(cfg ServerConfig) platev.EventBus {
 		slog.Info("event bus configured", "backend", "azure-service-bus")
 		return bus
 	}
-	if cfg.NATSUrl != "" {
-		bus, err := event.NewNATSEventBus(cfg.NATSUrl)
+	if cfg.NATSURL != "" {
+		bus, err := event.NewNATSEventBus(cfg.NATSURL)
 		if err != nil {
 			slog.Warn("failed to create NATS event bus, falling back to in-memory", "error", err)
 			return event.NewChannelEventBus()
@@ -349,8 +349,8 @@ func NewServer(cfg ServerConfig) *Server {
 		} else {
 			s.JobQueue = q
 		}
-	case cfg.NATSUrl != "":
-		q, err := jobs.NewNATSQueue(cfg.NATSUrl)
+	case cfg.NATSURL != "":
+		q, err := jobs.NewNATSQueue(cfg.NATSURL)
 		if err != nil {
 			slog.Warn("failed to connect to NATS queue", "error", err)
 		} else {

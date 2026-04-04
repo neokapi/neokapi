@@ -209,7 +209,7 @@ func (p *parser) parseArgument(depth int) (node, error) {
 		return p.parsePluralOrSelect(argName, argType, depth)
 
 	case "choice":
-		return node{}, fmt.Errorf("CHOICE format is deprecated and is not supported")
+		return node{}, fmt.Errorf("choice format is deprecated and is not supported")
 
 	default:
 		// Simple typed argument: {name, type} or {name, type, style}

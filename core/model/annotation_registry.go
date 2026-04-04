@@ -14,7 +14,7 @@ func init() {
 	// Register built-in annotation types.
 	RegisterAnnotation("alt-translation", func() Annotation { return &AltTranslation{} })
 	RegisterAnnotation("note", func() Annotation { return &NoteAnnotation{} })
-	RegisterAnnotation("generic", func() Annotation { return &GenericAnnotation{Type_: "generic"} })
+	RegisterAnnotation("generic", func() Annotation { return &GenericAnnotation{Kind: "generic"} })
 	RegisterAnnotation("entity", func() Annotation { return &EntityAnnotation{} })
 	RegisterAnnotation("term", func() Annotation { return &TermAnnotation{} })
 	RegisterAnnotation("term-candidate", func() Annotation { return &TermCandidateAnnotation{} })

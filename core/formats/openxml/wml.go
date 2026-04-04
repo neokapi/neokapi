@@ -665,7 +665,7 @@ func (p *wmlParser) buildBlock(id string, runs []textRun, partPath string) *mode
 		fonts := collectFonts(runs)
 		if fonts != "" {
 			block.Annotations["fonts"] = &model.GenericAnnotation{
-				Type_:  "fonts",
+				Kind:   "fonts",
 				Fields: map[string]any{"names": fonts},
 			}
 		}
