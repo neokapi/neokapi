@@ -64,7 +64,7 @@ func (s *Server) HandleCreateInvite(c echo.Context) error {
 	if inv.Email != "" && s.Mailer != nil {
 		baseURL := requestBaseURL(c)
 		wsSlug := c.Param("ws")
-		go s.sendInviteEmail(context.Background(), inv, baseURL, wsSlug)
+		go s.sendInviteEmail(context.WithoutCancel(ctx), inv, baseURL, wsSlug)
 	}
 
 	return c.JSON(http.StatusCreated, inv)

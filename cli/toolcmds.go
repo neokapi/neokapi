@@ -1,7 +1,6 @@
 package cli
 
 import (
-	"context"
 	"fmt"
 	"os"
 
@@ -408,7 +407,7 @@ func (a *App) NewToolCommands() []*cobra.Command {
 					}
 				}
 
-				return a.RunToolOnFiles(context.Background(), rc)
+				return a.RunToolOnFiles(cmd.Context(), rc)
 			},
 		}
 		a.AddProcessingFlags(cmd)

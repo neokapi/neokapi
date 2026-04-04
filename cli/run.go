@@ -1,7 +1,6 @@
 package cli
 
 import (
-	"context"
 	"fmt"
 	"path/filepath"
 
@@ -58,7 +57,7 @@ Use -p to run a flow from a .kapi project file:
 
 			// Built-in composed flow — run directly.
 			if builtinComposedFlowNames[flowName] {
-				return a.RunFlow(context.Background(), cmd, flowName, flowOpts)
+				return a.RunFlow(cmd.Context(), cmd, flowName, flowOpts)
 			}
 
 			// Try fallback (e.g. project flows from .bowrain/flows/).
@@ -94,7 +93,7 @@ func (a *App) runFromProject(cmd *cobra.Command, flowName, projectPath string, o
 
 	// Check if it's a built-in flow first (project can reference built-in flows).
 	if builtinComposedFlowNames[flowName] {
-		return a.RunFlow(context.Background(), cmd, flowName, FlowCmdOptions{
+		return a.RunFlow(cmd.Context(), cmd, flowName, FlowCmdOptions{
 			FallbackRunE: opts.FallbackRunE,
 		})
 	}
@@ -122,5 +121,5 @@ func (a *App) runFromProject(cmd *cobra.Command, flowName, projectPath string, o
 		TargetLocale: a.TargetLang,
 	}
 
-	return a.runProjectSteps(context.Background(), cmd, flowName, spec, &rCtx)
+	return a.runProjectSteps(cmd.Context(), cmd, flowName, spec, &rCtx)
 }
