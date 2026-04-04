@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"time"
 
@@ -247,7 +248,7 @@ func (s *SQLiteStore) GetAgentConfig(ctx context.Context, workspaceID string) (*
 	var enabled, codeExec int
 	var allowedJSON, deniedJSON, approvalJSON string
 	err := row.Scan(&cfg.WorkspaceID, &enabled, &allowedJSON, &deniedJSON, &approvalJSON, &codeExec, &cfg.MaxConcurrent)
-	if err == sql.ErrNoRows {
+	if errors.Is(err, sql.ErrNoRows) {
 		return defaultConfig(workspaceID), nil
 	}
 	if err != nil {

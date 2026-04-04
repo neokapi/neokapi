@@ -377,6 +377,9 @@ func (tb *SQLiteTermBase) searchFTS5(query, sourceLocale, targetLocale string, o
 		}
 		ids = append(ids, id)
 	}
+	if err := rows.Err(); err != nil {
+		return nil, 0, err
+	}
 
 	var concepts []Concept
 	for _, id := range ids {
@@ -427,6 +430,9 @@ func (tb *SQLiteTermBase) searchLike(query, sourceLocale, targetLocale string, o
 			continue
 		}
 		ids = append(ids, id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, total
 	}
 
 	var concepts []Concept
@@ -506,6 +512,9 @@ func (tb *SQLiteTermBase) searchFTS5ForStream(query, sourceLocale, targetLocale,
 		}
 		ids = append(ids, id)
 	}
+	if err := rows.Err(); err != nil {
+		return nil, 0, err
+	}
 
 	var concepts []Concept
 	for _, id := range ids {
@@ -574,6 +583,9 @@ func (tb *SQLiteTermBase) searchLikeForStream(query, sourceLocale, targetLocale,
 		}
 		ids = append(ids, id)
 	}
+	if err := rows.Err(); err != nil {
+		return nil, total
+	}
 
 	var concepts []Concept
 	for _, id := range ids {
@@ -609,6 +621,9 @@ func (tb *SQLiteTermBase) Concepts() []Concept {
 			continue
 		}
 		ids = append(ids, id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil
 	}
 
 	var concepts []Concept
@@ -668,6 +683,9 @@ func (tb *SQLiteTermBase) scanConcept(id string) (Concept, error) {
 		t.Status = model.TermStatus(status)
 		t.CompetitorTerm = competitorInt != 0
 		c.Terms = append(c.Terms, t)
+	}
+	if err := rows.Err(); err != nil {
+		return c, fmt.Errorf("iterate terms: %w", err)
 	}
 
 	return c, nil
@@ -986,6 +1004,9 @@ func (tb *SQLiteTermBase) queryTermsByLocale(locale model.LocaleID, domains []st
 				CompetitorTerm: competitorInt != 0,
 			},
 		})
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
 	}
 	return results, nil
 }

@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"time"
 
@@ -146,7 +147,7 @@ func (s *SQLiteBrandStore) GetProfile(ctx context.Context, id string) (*corebran
 			&toneJSON, &styleJSON, &vocabJSON, &examplesJSON,
 			&localesJSON, &channelsJSON, &p.Version,
 			&createdStr, &updatedStr, &p.CreatedBy)
-	if err == sql.ErrNoRows {
+	if errors.Is(err, sql.ErrNoRows) {
 		return nil, fmt.Errorf("profile not found: %s", id)
 	}
 	if err != nil {
@@ -236,6 +237,10 @@ func (s *SQLiteBrandStore) ListProfiles(ctx context.Context, workspaceID string)
 		}
 		ids = append(ids, id)
 	}
+	if err := rows.Err(); err != nil {
+		rows.Close()
+		return nil, fmt.Errorf("iterate profiles: %w", err)
+	}
 	rows.Close()
 
 	var profiles []*corebrand.VoiceProfile
@@ -288,6 +293,9 @@ func (s *SQLiteBrandStore) GetScores(ctx context.Context, projectID, locale stri
 		sc.CheckedAt, _ = time.Parse(time.RFC3339, checkedStr)
 		scores = append(scores, &sc)
 	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate scores: %w", err)
+	}
 	return scores, nil
 }
 
@@ -309,6 +317,9 @@ func (s *SQLiteBrandStore) GetScoreTrends(ctx context.Context, projectID string,
 			continue
 		}
 		trends = append(trends, &t)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate trends: %w", err)
 	}
 	return trends, nil
 }
@@ -351,6 +362,9 @@ func (s *SQLiteBrandStore) GetSuggestedRules(ctx context.Context, workspaceID st
 		r.Dimension = corebrand.Dimension(dim)
 		rules = append(rules, &r)
 	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate rules: %w", err)
+	}
 	return rules, nil
 }
 
@@ -374,6 +388,9 @@ func (s *SQLiteBrandStore) ListProfileVersions(ctx context.Context, profileID st
 		v.CreatedAt, _ = time.Parse(time.RFC3339, createdStr)
 		versions = append(versions, &v)
 	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate versions: %w", err)
+	}
 	return versions, nil
 }
 
@@ -384,7 +401,7 @@ func (s *SQLiteBrandStore) GetProfileVersion(ctx context.Context, profileID stri
 		`SELECT profile_id, version, snapshot, note, created_by, created_at
 		 FROM brand_profile_versions WHERE profile_id = ? AND version = ?`, profileID, version).
 		Scan(&v.ProfileID, &v.Version, &snapshotJSON, &v.Note, &v.CreatedBy, &createdStr)
-	if err == sql.ErrNoRows {
+	if errors.Is(err, sql.ErrNoRows) {
 		return nil, fmt.Errorf("profile version not found: %s v%d", profileID, version)
 	}
 	if err != nil {
@@ -400,7 +417,7 @@ func (s *SQLiteBrandStore) GetProfileAtTag(ctx context.Context, profileID, tagNa
 	err := s.db.QueryRowContext(ctx,
 		`SELECT version FROM brand_profile_tags WHERE profile_id = ? AND name = ?`, profileID, tagName).
 		Scan(&version)
-	if err == sql.ErrNoRows {
+	if errors.Is(err, sql.ErrNoRows) {
 		return nil, fmt.Errorf("profile tag not found: %s/%s", profileID, tagName)
 	}
 	if err != nil {
@@ -448,6 +465,9 @@ func (s *SQLiteBrandStore) ListProfileTags(ctx context.Context, profileID string
 		t.CreatedAt, _ = time.Parse(time.RFC3339, createdStr)
 		tags = append(tags, &t)
 	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate tags: %w", err)
+	}
 	return tags, nil
 }
 
@@ -486,6 +506,9 @@ func (s *SQLiteBrandStore) GetScoresByStream(ctx context.Context, projectID, str
 		_ = json.Unmarshal([]byte(findingsJSON), &sc.Findings)
 		sc.CheckedAt, _ = time.Parse(time.RFC3339, checkedStr)
 		scores = append(scores, &sc)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate scores: %w", err)
 	}
 	return scores, nil
 }

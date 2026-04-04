@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"time"
 
@@ -444,7 +445,7 @@ func scanStreamTagPg(row scanner) (*platstore.StreamTag, error) {
 	err := row.Scan(&tag.ID, &tag.ProjectID, &tag.Stream, &tag.Name,
 		&kindStr, &tag.Cursor, &metaStr, &tag.CreatedBy, &tag.CreatedAt)
 	if err != nil {
-		if err == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) {
 			return nil, fmt.Errorf("stream tag not found")
 		}
 		return nil, fmt.Errorf("scan stream tag: %w", err)
