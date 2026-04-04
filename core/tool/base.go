@@ -153,3 +153,6 @@ func (b *BaseTool) handleGroupEnd(part *model.Part) (*model.Part, error) {
 	}
 	return part, nil
 }
+
+// Verify BaseTool implements Tool at compile time.
+var _ Tool = (*BaseTool)(nil)

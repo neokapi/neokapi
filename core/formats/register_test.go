@@ -273,9 +273,10 @@ func TestEndToEndFlowPipeline(t *testing.T) {
 	}
 
 	// Build and execute a flow
-	f := flow.NewFlow("test-pipeline").
+	f, err := flow.NewFlow("test-pipeline").
 		AddTool(uppercaseTool).
 		Build()
+	require.NoError(t, err)
 
 	executor := flow.NewExecutor()
 	inCh, outCh, wait := executor.ExecuteWithChannels(ctx, f)

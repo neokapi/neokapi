@@ -9,6 +9,9 @@ import (
 	"github.com/neokapi/neokapi/core/id"
 )
 
+// Verify ChannelEventBus implements EventBus at compile time.
+var _ platev.EventBus = (*ChannelEventBus)(nil)
+
 // ChannelEventBus is an in-process, channel-based EventBus implementation.
 // Each subscriber gets its own goroutine and buffered channel.
 type ChannelEventBus struct {

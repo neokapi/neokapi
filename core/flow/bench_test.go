@@ -16,7 +16,7 @@ func BenchmarkExecutor_SingleTool(b *testing.B) {
 	b.ReportAllocs()
 
 	for b.Loop() {
-		f := flow.NewFlow("bench-single").
+		f, _ := flow.NewFlow("bench-single").
 			AddTool(&tool.BaseTool{ToolName: "passthrough"}).
 			Build()
 
@@ -50,7 +50,7 @@ func BenchmarkExecutor_ToolChain(b *testing.B) {
 	b.ReportAllocs()
 
 	for b.Loop() {
-		f := flow.NewFlow("bench-chain").
+		f, _ := flow.NewFlow("bench-chain").
 			AddTool(&tool.BaseTool{ToolName: "tool1"}).
 			AddTool(&tool.BaseTool{ToolName: "tool2"}).
 			AddTool(&tool.BaseTool{ToolName: "tool3"}).

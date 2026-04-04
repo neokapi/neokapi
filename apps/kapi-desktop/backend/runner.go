@@ -208,7 +208,10 @@ func (a *App) PreviewFlow(tabID, flowName, sampleText, sourceLang, targetLang st
 	for _, t := range tracedTools {
 		fb.AddTool(t)
 	}
-	f := fb.Build()
+	f, err := fb.Build()
+	if err != nil {
+		return nil, fmt.Errorf("build flow: %w", err)
+	}
 
 	executor := flow.NewExecutor()
 	item := &flow.Item{
@@ -316,7 +319,23 @@ func (a *App) executeFlow(ctx context.Context, flowName string, tools []tool.Too
 		for _, t := range tracedTools {
 			fb.AddTool(t)
 		}
-		f := fb.Build()
+		f, err := fb.Build()
+		if err != nil {
+			recorder.Record("error", "build", "", map[string]any{
+				"error": err.Error(),
+			})
+			a.emitEvent("flow:event", RunEvent{
+				Type:    "error",
+				FlowID:  flowName,
+				Message: fmt.Sprintf("build flow: %v", err),
+			})
+			a.runState.mu.Lock()
+			a.runState.state = RunStateError
+			a.runState.mu.Unlock()
+			close(stopStreaming)
+			streamWg.Wait()
+			return
+		}
 
 		executor := flow.NewExecutor()
 		item := &flow.Item{
