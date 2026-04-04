@@ -71,6 +71,7 @@ type AgentPool struct {
 
 	mu         sync.Mutex
 	containers map[string]*AgentContainer // conversationID → container
+	pending    map[string]int             // workspaceID → count of spawns in progress
 }
 
 // AgentPoolConfig holds configuration for the agent pool.
@@ -118,6 +119,7 @@ func NewAgentPool(cfg AgentPoolConfig) *AgentPool {
 		registryUsername: cfg.RegistryUsername,
 		registryPassword: cfg.RegistryPassword,
 		containers:       make(map[string]*AgentContainer),
+		pending:          make(map[string]int),
 	}
 }
 
@@ -140,7 +142,7 @@ func (p *AgentPool) Acquire(ctx context.Context, cfg ContainerConfig) (*AgentCon
 		p.mu.Unlock()
 	}
 
-	// Check workspace concurrency limit.
+	// Check workspace concurrency limit and reserve a pending slot atomically.
 	p.mu.Lock()
 	count := 0
 	for _, c := range p.containers {
@@ -148,10 +150,12 @@ func (p *AgentPool) Acquire(ctx context.Context, cfg ContainerConfig) (*AgentCon
 			count++
 		}
 	}
+	count += p.pending[cfg.WorkspaceID]
 	if count >= p.maxPerWorkspace {
 		p.mu.Unlock()
 		return nil, fmt.Errorf("workspace %s has reached max concurrent agents (%d)", cfg.WorkspaceID, p.maxPerWorkspace)
 	}
+	p.pending[cfg.WorkspaceID]++
 	p.mu.Unlock()
 
 	// Fill in pool-level defaults.
@@ -187,11 +191,13 @@ func (p *AgentPool) Acquire(ctx context.Context, cfg ContainerConfig) (*AgentCon
 	}
 
 	container, err := p.runtime.Spawn(ctx, cfg)
-	if err != nil {
-		return nil, fmt.Errorf("spawn agent container: %w", err)
-	}
 
 	p.mu.Lock()
+	p.pending[cfg.WorkspaceID]--
+	if err != nil {
+		p.mu.Unlock()
+		return nil, fmt.Errorf("spawn agent container: %w", err)
+	}
 	p.containers[cfg.ConversationID] = container
 	p.mu.Unlock()
 

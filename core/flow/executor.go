@@ -117,7 +117,7 @@ func (e *DefaultFlowExecutor) Execute(ctx context.Context, f *Flow, items []*Flo
 			// Check context before acquiring semaphore to fail fast.
 			select {
 			case <-ctx.Done():
-				break
+				return g.Wait()
 			default:
 			}
 		}
