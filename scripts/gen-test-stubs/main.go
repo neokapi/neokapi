@@ -5,6 +5,7 @@
 package main
 
 import (
+	"cmp"
 	"encoding/xml"
 	"flag"
 	"fmt"
@@ -12,7 +13,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
-	"sort"
+	"slices"
 	"strings"
 	"unicode"
 )
@@ -304,11 +305,11 @@ func parseSurefireDir(dir string) ([]javaTest, error) {
 	}
 
 	// Sort by class then method for stable output
-	sort.Slice(result, func(i, j int) bool {
-		if result[i].ClassName != result[j].ClassName {
-			return result[i].ClassName < result[j].ClassName
+	slices.SortFunc(result, func(a, b javaTest) int {
+		if c := cmp.Compare(a.ClassName, b.ClassName); c != 0 {
+			return c
 		}
-		return result[i].Method < result[j].Method
+		return cmp.Compare(a.Method, b.Method)
 	})
 
 	return result, nil

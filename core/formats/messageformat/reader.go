@@ -317,24 +317,21 @@ func findBranchNodes(nodes []node, path string) []node {
 		return nodes
 	}
 
-	parts := strings.SplitN(path, ".", 2)
-	if len(parts) < 2 {
+	argName, rest, ok := strings.Cut(path, ".")
+	if !ok {
 		return nodes
 	}
-	argName := parts[0]
-	rest := parts[1]
 
 	for _, n := range nodes {
 		if (n.typ == nodePlural || n.typ == nodeSelect || n.typ == nodeSelectOrd) && n.argName == argName {
 			// Find the branch
-			branchParts := strings.SplitN(rest, ".", 2)
-			keyword := branchParts[0]
+			keyword, subRest, hasMore := strings.Cut(rest, ".")
 			for _, br := range n.branches {
 				if br.keyword == keyword {
-					if len(branchParts) == 1 {
+					if !hasMore {
 						return br.body
 					}
-					return findBranchNodes(br.body, branchParts[1])
+					return findBranchNodes(br.body, subRest)
 				}
 			}
 		}

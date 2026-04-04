@@ -78,10 +78,10 @@ func newDockerTestServer(t *testing.T) (*httptest.Server, *dockerTestState) {
 				http.Error(w, "no such container", http.StatusNotFound)
 				return
 			}
-			resp := map[string]interface{}{
+			resp := map[string]any{
 				"State": map[string]bool{"Running": c.running},
-				"NetworkSettings": map[string]interface{}{
-					"Ports": map[string]interface{}{
+				"NetworkSettings": map[string]any{
+					"Ports": map[string]any{
 						"42617/tcp": []map[string]string{
 							{"HostIp": "0.0.0.0", "HostPort": "54321"},
 						},
@@ -156,9 +156,8 @@ func TestDockerRuntimeSpawnAndHealth(t *testing.T) {
 	// Verify env vars were passed.
 	envMap := make(map[string]string)
 	for _, e := range tc.env {
-		parts := strings.SplitN(e, "=", 2)
-		if len(parts) == 2 {
-			envMap[parts[0]] = parts[1]
+		if key, val, ok := strings.Cut(e, "="); ok {
+			envMap[key] = val
 		}
 	}
 	assert.Equal(t, "anthropic", envMap["BRAVO_MODEL_PROVIDER"])

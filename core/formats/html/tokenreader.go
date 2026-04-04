@@ -2,9 +2,10 @@ package html
 
 import (
 	"bytes"
+	"cmp"
 	"context"
 	"fmt"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -1037,8 +1038,8 @@ func (s *tokenReaderState) writeMultiAttrRefSkeleton(raw []byte, attrs []transAt
 	}
 
 	// Sort by offset (ascending).
-	sort.Slice(repls, func(i, j int) bool {
-		return repls[i].offset < repls[j].offset
+	slices.SortFunc(repls, func(a, b replacement) int {
+		return cmp.Compare(a.offset, b.offset)
 	})
 
 	pos := 0

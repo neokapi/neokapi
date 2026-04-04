@@ -1,7 +1,7 @@
 package auth
 
 import (
-	"sort"
+	"slices"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -39,7 +39,7 @@ func TestScopeParseScope_Languages(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, ScopeTranslate, got.Action)
 	assert.Equal(t, PermViewContent|PermTranslate, got.Permissions)
-	sort.Strings(got.Languages)
+	slices.Sort(got.Languages)
 	assert.Equal(t, []string{"de", "fr"}, got.Languages)
 	assert.Empty(t, got.ProjectID)
 }
@@ -59,7 +59,7 @@ func TestScopeParseScope_ProjectScopedWithLanguages(t *testing.T) {
 	assert.Equal(t, ScopeTranslate, got.Action)
 	assert.Equal(t, PermViewContent|PermTranslate, got.Permissions)
 	assert.Equal(t, "proj-123", got.ProjectID)
-	sort.Strings(got.Languages)
+	slices.Sort(got.Languages)
 	assert.Equal(t, []string{"de", "fr"}, got.Languages)
 }
 
@@ -102,7 +102,7 @@ func TestScopeParseScopes_Union(t *testing.T) {
 func TestScopeParseScopes_LanguageIntersection(t *testing.T) {
 	result, err := ParseScopes(`["translate:fr,de,es", "translate:fr,de"]`)
 	require.NoError(t, err)
-	sort.Strings(result.Languages)
+	slices.Sort(result.Languages)
 	assert.Equal(t, []string{"de", "fr"}, result.Languages)
 }
 
@@ -122,7 +122,7 @@ func TestScopeParseScopes_NoLanguageConstraintIfAnyUnconstrained(t *testing.T) {
 func TestScopeParseScopes_ProjectIDs(t *testing.T) {
 	result, err := ParseScopes(`["project:proj-1:read", "project:proj-2:translate"]`)
 	require.NoError(t, err)
-	sort.Strings(result.ProjectIDs)
+	slices.Sort(result.ProjectIDs)
 	assert.Equal(t, []string{"proj-1", "proj-2"}, result.ProjectIDs)
 	assert.Equal(t, PermViewContent|PermTranslate, result.Permissions)
 }

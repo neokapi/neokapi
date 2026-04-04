@@ -3,7 +3,7 @@ package httputil
 import (
 	"crypto/tls"
 	"math"
-	"math/rand"
+	"math/rand/v2"
 	"net/http"
 	"strconv"
 	"time"
@@ -94,6 +94,6 @@ func (t *retryTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 // backoff returns an exponential backoff duration with jitter.
 func backoff(attempt int) time.Duration {
 	base := time.Duration(math.Pow(2, float64(attempt))) * 500 * time.Millisecond
-	jitter := time.Duration(rand.Int63n(int64(base / 2)))
+	jitter := time.Duration(rand.Int64N(int64(base / 2)))
 	return base + jitter
 }

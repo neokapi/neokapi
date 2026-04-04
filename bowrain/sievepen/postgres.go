@@ -1,11 +1,12 @@
 package sievepen
 
 import (
+	"cmp"
 	"database/sql"
 	"encoding/json"
 	"fmt"
 	"log"
-	"sort"
+	"slices"
 	"strings"
 	"time"
 
@@ -305,13 +306,13 @@ func (tm *PostgresTM) tieredLookup(plainKey, structKey, generalKey string, entit
 		}
 	}
 
-	sort.Slice(matches, func(i, j int) bool {
-		pi := fw.MatchTypePriority(matches[i].MatchType)
-		pj := fw.MatchTypePriority(matches[j].MatchType)
-		if pi != pj {
-			return pi < pj
+	slices.SortFunc(matches, func(a, b fw.TMMatch) int {
+		pa := fw.MatchTypePriority(a.MatchType)
+		pb := fw.MatchTypePriority(b.MatchType)
+		if c := cmp.Compare(pa, pb); c != 0 {
+			return c
 		}
-		return matches[i].Score > matches[j].Score
+		return cmp.Compare(b.Score, a.Score)
 	})
 
 	return fw.LimitResults(matches, opts.MaxResults), nil

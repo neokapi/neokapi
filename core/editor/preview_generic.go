@@ -61,11 +61,10 @@ func BuildPreviewFromBlockIndex(blockIndexJSON string) string {
 	body.WriteString(`<div style="font-family: monospace; font-size: 13px;">`)
 
 	for _, ref := range index.DocumentOrder {
-		parts := strings.SplitN(ref, ":", 2)
-		if len(parts) != 2 {
+		kind, id, ok := strings.Cut(ref, ":")
+		if !ok {
 			continue
 		}
-		kind, id := parts[0], parts[1]
 
 		switch kind {
 		case "block":

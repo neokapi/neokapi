@@ -1,10 +1,11 @@
 package termbase
 
 import (
+	"cmp"
 	"encoding/json"
 	"fmt"
 	"log"
-	"sort"
+	"slices"
 	"strings"
 	"time"
 
@@ -208,8 +209,8 @@ func (tb *PostgresTermBase) Lookup(sourceText string, opts fw.LookupOptions) []f
 		matches = append(matches, tb.queryFuzzyTerms(normalizedSource, opts)...)
 	}
 
-	sort.Slice(matches, func(i, j int) bool {
-		return matches[i].Score > matches[j].Score
+	slices.SortFunc(matches, func(a, b fw.TermMatch) int {
+		return cmp.Compare(b.Score, a.Score)
 	})
 
 	return matches
@@ -256,11 +257,11 @@ func (tb *PostgresTermBase) LookupAll(sourceText string, opts fw.LookupOptions) 
 		}
 	}
 
-	sort.Slice(matches, func(i, j int) bool {
-		if matches[i].Position.Start != matches[j].Position.Start {
-			return matches[i].Position.Start < matches[j].Position.Start
+	slices.SortFunc(matches, func(a, b fw.TermMatch) int {
+		if c := cmp.Compare(a.Position.Start, b.Position.Start); c != 0 {
+			return c
 		}
-		return matches[i].Position.End > matches[j].Position.End
+		return cmp.Compare(b.Position.End, a.Position.End)
 	})
 
 	return matches

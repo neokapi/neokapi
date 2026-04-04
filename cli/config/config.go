@@ -142,7 +142,7 @@ func (c *AppConfig) Registries() []RegistryEntry {
 	return []RegistryEntry{{Name: "default", URL: url}}
 }
 
-// parseRegistryEntries converts Viper's raw interface{} into []RegistryEntry.
+// parseRegistryEntries converts Viper's raw any into []RegistryEntry.
 // Handles both []any (from YAML) and []map[string]any (from Set).
 func parseRegistryEntries(raw any) []RegistryEntry {
 	switch v := raw.(type) {
@@ -183,7 +183,7 @@ func registryEntryFromMap(m map[string]any) (RegistryEntry, bool) {
 	return e, true
 }
 
-// parseStringSlice converts an interface{} to []string.
+// parseStringSlice converts an any to []string.
 func parseStringSlice(raw any) []string {
 	switch v := raw.(type) {
 	case []any:

@@ -79,12 +79,7 @@ func newMockDockerServer(t *testing.T, opts ...mockOpt) (*httptest.Server, *mock
 	mux.HandleFunc("/v1.43/containers/", func(w http.ResponseWriter, r *http.Request) {
 		// Parse: /v1.43/containers/{id}/{action}
 		path := strings.TrimPrefix(r.URL.Path, "/v1.43/containers/")
-		parts := strings.SplitN(path, "/", 2)
-		containerID := parts[0]
-		action := ""
-		if len(parts) > 1 {
-			action = parts[1]
-		}
+		containerID, action, _ := strings.Cut(path, "/")
 
 		switch {
 		case action == "start" && r.Method == http.MethodPost:
@@ -228,11 +223,7 @@ func TestDockerSandboxExecutePythonContainerConfig(t *testing.T) {
 	})
 	mux.HandleFunc("/v1.43/containers/", func(w http.ResponseWriter, r *http.Request) {
 		path := strings.TrimPrefix(r.URL.Path, "/v1.43/containers/")
-		parts := strings.SplitN(path, "/", 2)
-		action := ""
-		if len(parts) > 1 {
-			action = parts[1]
-		}
+		_, action, _ := strings.Cut(path, "/")
 		switch {
 		case action == "start":
 			w.WriteHeader(http.StatusNoContent)
@@ -392,11 +383,7 @@ func TestDockerSandboxWithFiles(t *testing.T) {
 	})
 	mux.HandleFunc("/v1.43/containers/", func(w http.ResponseWriter, r *http.Request) {
 		path := strings.TrimPrefix(r.URL.Path, "/v1.43/containers/")
-		parts := strings.SplitN(path, "/", 2)
-		action := ""
-		if len(parts) > 1 {
-			action = parts[1]
-		}
+		_, action, _ := strings.Cut(path, "/")
 		switch {
 		case action == "archive" && r.Method == http.MethodPut:
 			archiveCalled = true

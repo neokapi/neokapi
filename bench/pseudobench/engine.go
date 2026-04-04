@@ -414,9 +414,8 @@ func detectVersion(binPath string) string {
 		for _, line := range strings.Split(out, "\n") {
 			line = strings.TrimSpace(line)
 			if strings.Contains(line, `"version"`) {
-				parts := strings.SplitN(line, ":", 2)
-				if len(parts) == 2 {
-					v := strings.TrimSpace(parts[1])
+				if _, after, ok := strings.Cut(line, ":"); ok {
+					v := strings.TrimSpace(after)
 					v = strings.Trim(v, `",`)
 					if v != "" {
 						return v

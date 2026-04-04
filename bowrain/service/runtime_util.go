@@ -7,7 +7,7 @@ import (
 )
 
 // readJSON decodes a JSON response body into dst.
-func readJSON(r io.Reader, dst interface{}) error {
+func readJSON(r io.Reader, dst any) error {
 	return json.NewDecoder(r).Decode(dst)
 }
 

@@ -2,23 +2,24 @@ package project
 
 import (
 	"bytes"
+	"cmp"
 	"context"
 	"fmt"
 	"net/http"
 	"os"
 	"path/filepath"
-	"sort"
+	"slices"
 	"strings"
 	"time"
 
 	"github.com/bmatcuk/doublestar/v4"
+	apiclient "github.com/neokapi/neokapi/bowrain/core/client"
+	"github.com/neokapi/neokapi/bowrain/core/config"
+	"github.com/neokapi/neokapi/bowrain/core/connector"
 	"github.com/neokapi/neokapi/core/editor"
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/registry"
-	apiclient "github.com/neokapi/neokapi/bowrain/core/client"
-	"github.com/neokapi/neokapi/bowrain/core/config"
-	"github.com/neokapi/neokapi/bowrain/core/connector"
 )
 
 // BowrainSourceConnector implements connector.SourceConnector for local bowrain-cli projects.
@@ -164,8 +165,8 @@ func (c *BowrainSourceConnector) ListFiles(ctx context.Context, paths []string) 
 		})
 	}
 
-	sort.Slice(files, func(i, j int) bool {
-		return files[i].Path < files[j].Path
+	slices.SortFunc(files, func(a, b FileInfo) int {
+		return cmp.Compare(a.Path, b.Path)
 	})
 	return files, nil
 }

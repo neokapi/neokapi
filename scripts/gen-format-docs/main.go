@@ -5,10 +5,11 @@
 package main
 
 import (
+	"cmp"
 	"encoding/json"
 	"fmt"
 	"os"
-	"sort"
+	"slices"
 
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/format/schema"
@@ -114,8 +115,8 @@ func main() {
 		docs = append(docs, doc)
 	}
 
-	sort.Slice(docs, func(i, j int) bool {
-		return docs[i].ID < docs[j].ID
+	slices.SortFunc(docs, func(a, b FormatDoc) int {
+		return cmp.Compare(a.ID, b.ID)
 	})
 
 	output := OutputDoc{Formats: docs}

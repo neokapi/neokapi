@@ -6,7 +6,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
-	"sort"
+	"slices"
 
 	pb "github.com/neokapi/neokapi/bowrain/proto/v1"
 	"github.com/neokapi/neokapi/core/model"
@@ -199,7 +199,7 @@ func ComputeItemHash(blockHashes map[string]string) string {
 	for id := range blockHashes {
 		ids = append(ids, id)
 	}
-	sort.Strings(ids)
+	slices.Sort(ids)
 
 	h := sha256.New()
 	for _, id := range ids {
@@ -215,7 +215,7 @@ func ComputeRootHash(itemHashes map[string]string) string {
 	for name := range itemHashes {
 		names = append(names, name)
 	}
-	sort.Strings(names)
+	slices.Sort(names)
 
 	h := sha256.New()
 	for _, name := range names {
