@@ -127,6 +127,6 @@ func TestStreamFromGateway_ServerError(t *testing.T) {
 
 	var buf bytes.Buffer
 	_, err = svc.streamFromGateway(ctx, container, conv.ID, "user1", "Hello", "ask", nil, NewSSEWriter(&buf))
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "500")
 }

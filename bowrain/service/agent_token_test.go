@@ -39,7 +39,7 @@ func TestAgentTokenValidateExpired(t *testing.T) {
 	require.NoError(t, err)
 
 	_, err = store.Validate(token.Token)
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "expired")
 }
 
@@ -65,9 +65,9 @@ func TestAgentTokenRevokeForConversation(t *testing.T) {
 	store.RevokeForConversation("conv-1")
 
 	_, err := store.Validate(t1.Token)
-	assert.Error(t, err)
+	require.Error(t, err)
 	_, err = store.Validate(t2.Token)
-	assert.Error(t, err)
+	require.Error(t, err)
 
 	// conv-2 token should still be valid.
 	_, err = store.Validate(t3.Token)

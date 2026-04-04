@@ -48,8 +48,8 @@ func NewDockerRuntime(cfg DockerRuntimeConfig) *DockerRuntime {
 		sockPath := host[7:]
 		client = &http.Client{
 			Transport: &http.Transport{
-				DialContext: func(_ context.Context, _, _ string) (net.Conn, error) {
-					return net.DialTimeout("unix", sockPath, 5*time.Second)
+				DialContext: func(ctx context.Context, _, _ string) (net.Conn, error) {
+					return (&net.Dialer{Timeout: 5 * time.Second}).DialContext(ctx, "unix", sockPath)
 				},
 			},
 			Timeout: 30 * time.Second,

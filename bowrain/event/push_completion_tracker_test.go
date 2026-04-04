@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/neokapi/neokapi/bowrain/jobs"
 	platev "github.com/neokapi/neokapi/bowrain/core/event"
+	"github.com/neokapi/neokapi/bowrain/jobs"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

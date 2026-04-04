@@ -26,7 +26,7 @@ func TestMockStore_SubscriptionRoundtrip(t *testing.T) {
 
 	// GetSubscription returns nil for mock.
 	sub, err := store.GetSubscription(ctx, "ws-1")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Nil(t, sub)
 }
 
@@ -52,9 +52,9 @@ func TestMockStore_CheckCredits(t *testing.T) {
 			store := &mockBillingStore{remaining: tt.remaining, err: tt.err}
 			remaining, err := store.CheckCredits(context.Background(), "ws-1")
 			if tt.wantErr {
-				assert.Error(t, err)
+				require.Error(t, err)
 			} else {
-				assert.NoError(t, err)
+				require.NoError(t, err)
 				assert.Equal(t, tt.remaining, remaining)
 			}
 		})

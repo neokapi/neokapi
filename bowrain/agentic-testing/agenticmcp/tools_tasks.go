@@ -3,6 +3,7 @@ package agenticmcp
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -54,7 +55,7 @@ type listMyTasksOutput struct {
 
 func (s *Server) handleListMyTasks(ctx context.Context, req *mcp.CallToolRequest, input listMyTasksInput) (*mcp.CallToolResult, listMyTasksOutput, error) {
 	if s.bowrainURL == "" {
-		return nil, listMyTasksOutput{}, fmt.Errorf("bowrain API not configured")
+		return nil, listMyTasksOutput{}, errors.New("bowrain API not configured")
 	}
 
 	status := input.Status
@@ -91,7 +92,7 @@ type claimTaskOutput struct {
 
 func (s *Server) handleClaimTask(ctx context.Context, req *mcp.CallToolRequest, input claimTaskInput) (*mcp.CallToolResult, claimTaskOutput, error) {
 	if s.bowrainURL == "" {
-		return nil, claimTaskOutput{}, fmt.Errorf("bowrain API not configured")
+		return nil, claimTaskOutput{}, errors.New("bowrain API not configured")
 	}
 
 	path := fmt.Sprintf("/api/v1/workspaces/%s/tasks/%s/assign", input.WorkspaceSlug, input.TaskID)
@@ -116,7 +117,7 @@ type completeTaskOutput struct {
 
 func (s *Server) handleCompleteTask(ctx context.Context, req *mcp.CallToolRequest, input completeTaskInput) (*mcp.CallToolResult, completeTaskOutput, error) {
 	if s.bowrainURL == "" {
-		return nil, completeTaskOutput{}, fmt.Errorf("bowrain API not configured")
+		return nil, completeTaskOutput{}, errors.New("bowrain API not configured")
 	}
 
 	path := fmt.Sprintf("/api/v1/workspaces/%s/tasks/%s/complete", input.WorkspaceSlug, input.TaskID)

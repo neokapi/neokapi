@@ -5,8 +5,8 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/neokapi/neokapi/bowrain/mailer"
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
+	"github.com/neokapi/neokapi/bowrain/mailer"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

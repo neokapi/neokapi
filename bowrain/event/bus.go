@@ -5,8 +5,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/neokapi/neokapi/core/id"
 	platev "github.com/neokapi/neokapi/bowrain/core/event"
+	"github.com/neokapi/neokapi/core/id"
 )
 
 // ChannelEventBus is an in-process, channel-based EventBus implementation.

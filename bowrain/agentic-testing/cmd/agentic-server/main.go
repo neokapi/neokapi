@@ -15,6 +15,12 @@ import (
 )
 
 func main() {
+	if err := run(); err != nil {
+		log.Fatal(err)
+	}
+}
+
+func run() error {
 	cfg := config{
 		Port: 8080,
 	}
@@ -96,7 +102,7 @@ func main() {
 			pgDB, err = storage.OpenPostgres(cfg.DatabaseURL)
 		}
 		if err != nil {
-			log.Fatalf("Failed to connect to PostgreSQL: %v", err)
+			return fmt.Errorf("failed to connect to PostgreSQL: %w", err)
 		}
 		defer pgDB.Close()
 	}
@@ -124,7 +130,7 @@ func main() {
 
 	mcpServer, err := agenticmcp.NewServer(mcpCfg, mcpOpts...)
 	if err != nil {
-		log.Fatalf("Failed to create MCP server: %v", err)
+		return fmt.Errorf("failed to create MCP server: %w", err)
 	}
 
 	mux := http.NewServeMux()
@@ -144,8 +150,9 @@ func main() {
 	addr := fmt.Sprintf(":%d", cfg.Port)
 	log.Printf("Agentic Testing server listening on %s", addr)
 	if err := http.ListenAndServe(addr, mux); err != nil {
-		log.Fatalf("Server failed: %v", err)
+		return fmt.Errorf("server failed: %w", err)
 	}
+	return nil
 }
 
 type config struct {

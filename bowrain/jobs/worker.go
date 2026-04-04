@@ -2,19 +2,21 @@ package jobs
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
+	"strconv"
 	"time"
 
 	"github.com/neokapi/neokapi/bowrain/billing"
+	platev "github.com/neokapi/neokapi/bowrain/core/event"
+	"github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/bowrain/credentials"
 	"github.com/neokapi/neokapi/core/ai/tools"
 	"github.com/neokapi/neokapi/core/model"
 	corestorage "github.com/neokapi/neokapi/core/storage"
 	"github.com/neokapi/neokapi/core/tool"
-	platev "github.com/neokapi/neokapi/bowrain/core/event"
-	"github.com/neokapi/neokapi/bowrain/core/store"
-	"github.com/neokapi/neokapi/providers/ai"
+	aiprovider "github.com/neokapi/neokapi/providers/ai"
 	"golang.org/x/time/rate"
 )
 
@@ -148,7 +150,7 @@ func processJobWithDeps(ctx context.Context, deps *WorkerDeps, jobID string) err
 	if err := executeTranslationWithDeps(ctx, deps, job); err != nil {
 		_ = deps.JobStore.UpdateJobStatus(ctx, jobID, StatusFailed, err.Error())
 		emitLog(deps, job.StepID, "error",
-			fmt.Sprintf("Translation failed: %s", err.Error()),
+			"Translation failed: "+err.Error(),
 			map[string]string{"item": job.ItemName, "locale": job.TargetLocale})
 		return err
 	}
@@ -162,7 +164,7 @@ func processJobWithDeps(ctx context.Context, deps *WorkerDeps, jobID string) err
 		fmt.Sprintf("Completed %s for %s — %d blocks, %d tokens",
 			job.ItemName, job.TargetLocale, job.DoneBlocks, job.TokensUsed),
 		map[string]string{"item": job.ItemName, "locale": job.TargetLocale,
-			"blocks": fmt.Sprintf("%d", job.DoneBlocks), "tokens": fmt.Sprintf("%d", job.TokensUsed)})
+			"blocks": strconv.Itoa(job.DoneBlocks), "tokens": strconv.Itoa(job.TokensUsed)})
 
 	return nil
 }
@@ -210,9 +212,9 @@ func executeTranslationWithDeps(ctx context.Context, deps *WorkerDeps, job *Tran
 	}
 
 	translateTool := tools.NewAITranslateTool(prov, tools.AITranslateConfig{
-		SourceLocale: proj.DefaultSourceLanguage,
-		TargetLocale: model.LocaleID(job.TargetLocale),
-		BatchSize:    batchSz,
+		SourceLocale:     proj.DefaultSourceLanguage,
+		TargetLocale:     model.LocaleID(job.TargetLocale),
+		BatchSize:        batchSz,
 		BatchConcurrency: concurrency,
 	})
 
@@ -283,7 +285,7 @@ func executeTranslationWithDeps(ctx context.Context, deps *WorkerDeps, job *Tran
 
 		emitLog(deps, job.StepID, "info",
 			fmt.Sprintf("Translated blocks %d-%d of %d (%d tokens)", i+1, end, totalBlocks, chunkTokens),
-			map[string]string{"done": fmt.Sprintf("%d", end), "total": fmt.Sprintf("%d", totalBlocks)})
+			map[string]string{"done": strconv.Itoa(end), "total": strconv.Itoa(totalBlocks)})
 	}
 
 	// Update total token usage on the job.
@@ -304,7 +306,7 @@ func executeTranslationWithDeps(ctx context.Context, deps *WorkerDeps, job *Tran
 func resolveProvider(ctx context.Context, deps *WorkerDeps, job *TranslationJob) (aiprovider.LLMProvider, *rate.Limiter, error) {
 	if job.IsPlatformProvider() {
 		if deps.Platform == nil {
-			return nil, nil, fmt.Errorf("platform provider not configured (set BOWRAIN_OPENAI_ENDPOINT)")
+			return nil, nil, errors.New("platform provider not configured (set BOWRAIN_OPENAI_ENDPOINT)")
 		}
 		deployment := job.Model
 		if deployment == "" {

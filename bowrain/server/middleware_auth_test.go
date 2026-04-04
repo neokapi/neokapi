@@ -37,7 +37,7 @@ func TestAuthMiddleware(t *testing.T) {
 			return c.NoContent(http.StatusOK)
 		})
 		err := handler(c)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, "user-1", userID)
 	})
 
@@ -124,7 +124,7 @@ func TestAuthMiddleware_APIToken(t *testing.T) {
 			return c.NoContent(http.StatusOK)
 		})
 		err := handler(c)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, user.ID, userID)
 		assert.Equal(t, apiToken.ID, tokenID)
 	})
@@ -232,7 +232,7 @@ func TestProjectAccessMiddleware(t *testing.T) {
 			return c.NoContent(http.StatusOK)
 		})
 		err := handler(c)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, http.StatusOK, rec.Code)
 		// Translator template: PermViewContent | PermTranslate
 		assert.True(t, perms.Has(platauth.PermViewContent))
@@ -258,7 +258,7 @@ func TestProjectAccessMiddleware(t *testing.T) {
 			return c.NoContent(http.StatusOK)
 		})
 		err := handler(c)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, platauth.PermAll, perms)
 	})
 
@@ -279,7 +279,7 @@ func TestProjectAccessMiddleware(t *testing.T) {
 			return c.NoContent(http.StatusOK)
 		})
 		err := handler(c)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		// Member fallback: PermViewContent | PermTranslate | PermManageFiles | PermRunFlows
 		expected := platauth.DefaultPermissionsForRole(platauth.RoleMember)
 		assert.Equal(t, expected.Permissions, perms)
@@ -300,7 +300,7 @@ func TestProjectAccessMiddleware(t *testing.T) {
 			return c.NoContent(http.StatusOK)
 		})
 		err := handler(c)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.True(t, called)
 	})
 }
@@ -316,7 +316,7 @@ func TestRequirePermission(t *testing.T) {
 		c.Set("project_permissions", platauth.PermViewContent|platauth.PermTranslate)
 
 		err := s.requirePermission(c, platauth.PermTranslate)
-		assert.Nil(t, err)
+		assert.NoError(t, err)
 	})
 
 	t.Run("missing permission", func(t *testing.T) {
@@ -327,7 +327,7 @@ func TestRequirePermission(t *testing.T) {
 		c.Set("project_permissions", platauth.PermViewContent)
 
 		err := s.requirePermission(c, platauth.PermManageProject)
-		assert.NoError(t, err) // echo writes to response, returns nil
+		require.NoError(t, err) // echo writes to response, returns nil
 		assert.Equal(t, http.StatusForbidden, rec.Code)
 	})
 
@@ -340,7 +340,7 @@ func TestRequirePermission(t *testing.T) {
 		// When project_permissions is not set (legacy routes without
 		// ProjectAccessMiddleware), the check is skipped.
 		err := s.requirePermission(c, platauth.PermViewContent)
-		assert.Nil(t, err)
+		assert.NoError(t, err)
 	})
 }
 
@@ -356,7 +356,7 @@ func TestRequireLanguagePermission(t *testing.T) {
 		c.Set("project_languages", []string{"fr", "de"})
 
 		err := s.requireLanguagePermission(c, platauth.PermTranslate, "fr")
-		assert.Nil(t, err)
+		assert.NoError(t, err)
 	})
 
 	t.Run("disallowed language", func(t *testing.T) {
@@ -368,7 +368,7 @@ func TestRequireLanguagePermission(t *testing.T) {
 		c.Set("project_languages", []string{"fr", "de"})
 
 		err := s.requireLanguagePermission(c, platauth.PermTranslate, "ja")
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, http.StatusForbidden, rec.Code)
 	})
 
@@ -381,7 +381,7 @@ func TestRequireLanguagePermission(t *testing.T) {
 		c.Set("project_languages", []string{})
 
 		err := s.requireLanguagePermission(c, platauth.PermTranslate, "ja")
-		assert.Nil(t, err)
+		assert.NoError(t, err)
 	})
 }
 

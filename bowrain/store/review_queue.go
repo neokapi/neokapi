@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -343,7 +344,7 @@ func (s *ReviewQueueStore) SplitItem(ctx context.Context, itemID string, occurre
 	}
 
 	if len(split) == 0 || len(keep) == 0 {
-		return nil, fmt.Errorf("split must leave occurrences on both items")
+		return nil, errors.New("split must leave occurrences on both items")
 	}
 
 	// Update original.

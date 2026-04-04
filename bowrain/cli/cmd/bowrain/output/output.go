@@ -17,9 +17,9 @@ const (
 )
 
 // Re-export shared functions so bowrain commands can use output.Print etc.
-func AddFlags(cmd *cobra.Command)                           { shared.AddFlags(cmd) }
-func AddPersistentFlags(cmd *cobra.Command)                 { shared.AddPersistentFlags(cmd) }
-func ResolveFormat(cmd *cobra.Command) Format               { return shared.ResolveFormat(cmd) }
+func AddFlags(cmd *cobra.Command)             { shared.AddFlags(cmd) }
+func AddPersistentFlags(cmd *cobra.Command)   { shared.AddPersistentFlags(cmd) }
+func ResolveFormat(cmd *cobra.Command) Format { return shared.ResolveFormat(cmd) }
 
 // Deprecated: GetFormat is an alias for ResolveFormat.
 func GetFormat(cmd *cobra.Command) Format                   { return shared.ResolveFormat(cmd) }

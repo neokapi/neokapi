@@ -5,14 +5,15 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"log"
 	"log/slog"
 	"time"
 
 	"github.com/neokapi/neokapi/bowrain/auth"
-	"github.com/neokapi/neokapi/bowrain/storage"
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
+	"github.com/neokapi/neokapi/bowrain/storage"
 )
 
 const (
@@ -25,11 +26,17 @@ const (
 // workspace, and creates an API token. It is idempotent — running it again
 // rotates the token. The plaintext token is printed to stdout.
 func seedServiceToken(dbURL, dbAuth, azureClientID, workspaceSlug string) {
+	if err := runSeedServiceToken(dbURL, dbAuth, azureClientID, workspaceSlug); err != nil {
+		log.Fatalf("seed-service-token: %v", err)
+	}
+}
+
+func runSeedServiceToken(dbURL, dbAuth, azureClientID, workspaceSlug string) error {
 	if dbURL == "" {
-		log.Fatal("seed-service-token: DATABASE_URL is required")
+		return errors.New("DATABASE_URL is required")
 	}
 	if workspaceSlug == "" {
-		log.Fatal("seed-service-token: WORKSPACE is required (set BOWRAIN_SERVICE_WORKSPACE)")
+		return errors.New("WORKSPACE is required (set BOWRAIN_SERVICE_WORKSPACE)")
 	}
 
 	var db *storage.PgDB
@@ -40,7 +47,7 @@ func seedServiceToken(dbURL, dbAuth, azureClientID, workspaceSlug string) {
 		db, err = storage.OpenPostgres(dbURL)
 	}
 	if err != nil {
-		log.Fatalf("seed-service-token: open database: %v", err)
+		return fmt.Errorf("open database: %w", err)
 	}
 	defer db.Close()
 
@@ -49,7 +56,7 @@ func seedServiceToken(dbURL, dbAuth, azureClientID, workspaceSlug string) {
 
 	store, err := auth.NewPostgresAuthStoreFromDB(db)
 	if err != nil {
-		log.Fatalf("seed-service-token: init auth store: %v", err)
+		return fmt.Errorf("init auth store: %w", err)
 	}
 
 	// 1. Find or create the service user.
@@ -60,7 +67,7 @@ func seedServiceToken(dbURL, dbAuth, azureClientID, workspaceSlug string) {
 			Name:  serviceUserName,
 		}
 		if err := store.CreateUser(ctx, user); err != nil {
-			log.Fatalf("seed-service-token: create user: %v", err)
+			return fmt.Errorf("create user: %w", err)
 		}
 		slog.Info("created service user", "user_id", user.ID)
 	} else {
@@ -70,7 +77,7 @@ func seedServiceToken(dbURL, dbAuth, azureClientID, workspaceSlug string) {
 	// 2. Look up the workspace.
 	ws, err := store.GetWorkspaceBySlug(ctx, workspaceSlug)
 	if err != nil {
-		log.Fatalf("seed-service-token: workspace %q not found: %v", workspaceSlug, err)
+		return fmt.Errorf("workspace %q not found: %w", workspaceSlug, err)
 	}
 
 	// 3. Ensure membership with member role (remove + re-add to fix stale viewer role).
@@ -78,7 +85,7 @@ func seedServiceToken(dbURL, dbAuth, azureClientID, workspaceSlug string) {
 		if m.Role != platauth.RoleMember {
 			_ = store.RemoveMember(ctx, ws.ID, user.ID)
 			if err := store.AddMember(ctx, ws.ID, user.ID, platauth.RoleMember); err != nil {
-				log.Fatalf("seed-service-token: upgrade member: %v", err)
+				return fmt.Errorf("upgrade member: %w", err)
 			}
 			slog.Info("upgraded service user to member", "workspace", workspaceSlug)
 		} else {
@@ -86,7 +93,7 @@ func seedServiceToken(dbURL, dbAuth, azureClientID, workspaceSlug string) {
 		}
 	} else {
 		if err := store.AddMember(ctx, ws.ID, user.ID, platauth.RoleMember); err != nil {
-			log.Fatalf("seed-service-token: add member: %v", err)
+			return fmt.Errorf("add member: %w", err)
 		}
 		slog.Info("added service user to workspace", "workspace", workspaceSlug)
 	}
@@ -105,7 +112,7 @@ func seedServiceToken(dbURL, dbAuth, azureClientID, workspaceSlug string) {
 	// 5. Create new API token.
 	tokenBytes := make([]byte, 32)
 	if _, err := rand.Read(tokenBytes); err != nil {
-		log.Fatalf("seed-service-token: generate token: %v", err)
+		return fmt.Errorf("generate token: %w", err)
 	}
 	plaintext := "bwt_" + hex.EncodeToString(tokenBytes)
 	hash := sha256.Sum256([]byte(plaintext))
@@ -119,8 +126,9 @@ func seedServiceToken(dbURL, dbAuth, azureClientID, workspaceSlug string) {
 		Scopes:      `["*"]`,
 	}
 	if err := store.CreateAPIToken(ctx, apiToken, tokenHash); err != nil {
-		log.Fatalf("seed-service-token: create token: %v", err)
+		return fmt.Errorf("create token: %w", err)
 	}
 
 	fmt.Println(plaintext)
+	return nil
 }

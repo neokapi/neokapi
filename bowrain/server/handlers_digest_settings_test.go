@@ -116,8 +116,8 @@ func TestHandleUpdateDigestSettings_InvalidFrequency(t *testing.T) {
 	err := srv.HandleUpdateDigestSettings(c)
 	require.Error(t, err)
 
-	he, ok := err.(*echo.HTTPError)
-	require.True(t, ok)
+	var he *echo.HTTPError
+	require.ErrorAs(t, err, &he)
 	assert.Equal(t, http.StatusBadRequest, he.Code)
 }
 
@@ -162,8 +162,8 @@ func TestHandleUpdateDigestSettings_NilStore(t *testing.T) {
 	err := srv.HandleUpdateDigestSettings(c)
 	require.Error(t, err)
 
-	he, ok := err.(*echo.HTTPError)
-	require.True(t, ok)
+	var he *echo.HTTPError
+	require.ErrorAs(t, err, &he)
 	assert.Equal(t, http.StatusServiceUnavailable, he.Code)
 }
 

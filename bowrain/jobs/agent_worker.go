@@ -8,9 +8,9 @@ import (
 	"time"
 
 	"github.com/neokapi/neokapi/bowrain/billing"
-	"github.com/neokapi/neokapi/bowrain/service"
 	platagent "github.com/neokapi/neokapi/bowrain/core/agent"
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
+	"github.com/neokapi/neokapi/bowrain/service"
 )
 
 // AgentWorkerDeps holds dependencies for the agent job worker.

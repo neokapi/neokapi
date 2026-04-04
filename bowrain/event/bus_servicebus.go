@@ -8,8 +8,8 @@ import (
 	"time"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/messaging/azservicebus"
-	"github.com/neokapi/neokapi/core/id"
 	platev "github.com/neokapi/neokapi/bowrain/core/event"
+	"github.com/neokapi/neokapi/core/id"
 )
 
 // ServiceBusEventBus implements EventBus using Azure Service Bus topics.

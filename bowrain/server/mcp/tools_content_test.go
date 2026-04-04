@@ -4,10 +4,10 @@ import (
 	"context"
 	"testing"
 
+	"github.com/neokapi/neokapi/bowrain/core/store"
 	bstore "github.com/neokapi/neokapi/bowrain/store"
 	corebrand "github.com/neokapi/neokapi/core/brand"
 	"github.com/neokapi/neokapi/core/model"
-	"github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -50,7 +50,7 @@ func TestHandleCreateProject_MissingName(t *testing.T) {
 	_, _, err := ms.handleCreateProject(ctx, nil, createProjectInput{
 		SourceLanguage: "en-US",
 	})
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "name is required")
 }
 
@@ -133,7 +133,7 @@ func TestHandleSandboxExecuteScript_InvalidLanguage(t *testing.T) {
 		Language: "ruby",
 		Code:     "puts 'hi'",
 	})
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "unsupported language")
 }
 
@@ -146,7 +146,7 @@ func TestHandleSandboxNotConfigured(t *testing.T) {
 		Language: "python",
 		Code:     "print('hi')",
 	})
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "sandbox executor not configured")
 }
 

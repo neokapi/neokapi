@@ -5,8 +5,8 @@ import (
 	"log"
 	"time"
 
-	bstore "github.com/neokapi/neokapi/bowrain/store"
 	platev "github.com/neokapi/neokapi/bowrain/core/event"
+	bstore "github.com/neokapi/neokapi/bowrain/store"
 )
 
 // NotificationTarget resolves which user IDs should be notified for a project event.

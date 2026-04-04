@@ -5,17 +5,18 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"log"
 	"strings"
 	"time"
 
 	"github.com/neokapi/neokapi/bowrain/auth"
+	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
+	platstore "github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/bowrain/storage"
 	"github.com/neokapi/neokapi/bowrain/store"
 	"github.com/neokapi/neokapi/core/model"
-	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
-	platstore "github.com/neokapi/neokapi/bowrain/core/store"
 )
 
 // seedProject creates a project in a workspace and a dedicated CI push token.
@@ -26,20 +27,26 @@ import (
 //	project_id=<id>
 //	push_token=bwt_<hex>
 func seedProject(cfg seedProjectConfig) {
+	if err := runSeedProject(cfg); err != nil {
+		log.Fatalf("seed-project: %v", err)
+	}
+}
+
+func runSeedProject(cfg seedProjectConfig) error {
 	if cfg.DatabaseURL == "" {
-		log.Fatal("seed-project: BOWRAIN_DATABASE_URL is required")
+		return errors.New("BOWRAIN_DATABASE_URL is required")
 	}
 	if cfg.WorkspaceSlug == "" {
-		log.Fatal("seed-project: BOWRAIN_SERVICE_WORKSPACE is required")
+		return errors.New("BOWRAIN_SERVICE_WORKSPACE is required")
 	}
 	if cfg.ProjectName == "" {
-		log.Fatal("seed-project: BOWRAIN_PROJECT_NAME is required")
+		return errors.New("BOWRAIN_PROJECT_NAME is required")
 	}
 	if cfg.SourceLanguage == "" {
-		log.Fatal("seed-project: BOWRAIN_SOURCE_LANGUAGE is required")
+		return errors.New("BOWRAIN_SOURCE_LANGUAGE is required")
 	}
 	if cfg.TargetLanguages == "" {
-		log.Fatal("seed-project: BOWRAIN_TARGET_LANGUAGES is required")
+		return errors.New("BOWRAIN_TARGET_LANGUAGES is required")
 	}
 
 	var db *storage.PgDB
@@ -50,7 +57,7 @@ func seedProject(cfg seedProjectConfig) {
 		db, err = storage.OpenPostgres(cfg.DatabaseURL)
 	}
 	if err != nil {
-		log.Fatalf("seed-project: open database: %v", err)
+		return fmt.Errorf("open database: %w", err)
 	}
 	defer db.Close()
 
@@ -59,28 +66,31 @@ func seedProject(cfg seedProjectConfig) {
 
 	authStore, err := auth.NewPostgresAuthStoreFromDB(db)
 	if err != nil {
-		log.Fatalf("seed-project: init auth store: %v", err)
+		return fmt.Errorf("init auth store: %w", err)
 	}
 	contentStore, err := store.NewPostgresStoreFromDB(db)
 	if err != nil {
-		log.Fatalf("seed-project: init content store: %v", err)
+		return fmt.Errorf("init content store: %w", err)
 	}
 
 	// 1. Find the service user.
 	user, err := authStore.GetUserByEmail(ctx, serviceUserEmail)
 	if err != nil {
-		log.Fatalf("seed-project: service user not found — run seed-service-token first: %v", err)
+		return fmt.Errorf("service user not found — run seed-service-token first: %w", err)
 	}
 
 	// 2. Look up the workspace.
 	ws, err := authStore.GetWorkspaceBySlug(ctx, cfg.WorkspaceSlug)
 	if err != nil {
-		log.Fatalf("seed-project: workspace %q not found: %v", cfg.WorkspaceSlug, err)
+		return fmt.Errorf("workspace %q not found: %w", cfg.WorkspaceSlug, err)
 	}
 
 	// 3. Find or create the project.
 	targets := parseTargetLanguages(cfg.TargetLanguages)
-	projectID := findOrCreateProject(ctx, contentStore, ws.ID, cfg.ProjectName, cfg.SourceLanguage, targets)
+	projectID, err := findOrCreateProject(ctx, contentStore, ws.ID, cfg.ProjectName, cfg.SourceLanguage, targets)
+	if err != nil {
+		return err
+	}
 
 	// 4. Create a dedicated CI push token (rotate if exists).
 	pushTokenName := "ci-push"
@@ -96,7 +106,7 @@ func seedProject(cfg seedProjectConfig) {
 
 	tokenBytes := make([]byte, 32)
 	if _, err := rand.Read(tokenBytes); err != nil {
-		log.Fatalf("seed-project: generate token: %v", err)
+		return fmt.Errorf("generate token: %w", err)
 	}
 	plaintext := "bwt_" + hex.EncodeToString(tokenBytes)
 	hash := sha256.Sum256([]byte(plaintext))
@@ -110,21 +120,22 @@ func seedProject(cfg seedProjectConfig) {
 		Scopes:      `["*"]`,
 	}
 	if err := authStore.CreateAPIToken(ctx, apiToken, tokenHash); err != nil {
-		log.Fatalf("seed-project: create push token: %v", err)
+		return fmt.Errorf("create push token: %w", err)
 	}
 
 	fmt.Printf("project_id=%s\n", projectID)
 	fmt.Printf("push_token=%s\n", plaintext)
+	return nil
 }
 
-func findOrCreateProject(ctx context.Context, s *store.PostgresStore, workspaceID, name, sourceLang string, targets []model.LocaleID) string {
+func findOrCreateProject(ctx context.Context, s *store.PostgresStore, workspaceID, name, sourceLang string, targets []model.LocaleID) (string, error) {
 	// Check if project already exists.
 	projects, err := s.ListProjects(ctx)
 	if err == nil {
 		for _, p := range projects {
 			if p.WorkspaceID == workspaceID && p.Name == name {
 				log.Printf("Project already exists: %s (%s)", p.Name, p.ID)
-				return p.ID
+				return p.ID, nil
 			}
 		}
 	}
@@ -136,10 +147,10 @@ func findOrCreateProject(ctx context.Context, s *store.PostgresStore, workspaceI
 		WorkspaceID:           workspaceID,
 	}
 	if err := s.CreateProject(ctx, p); err != nil {
-		log.Fatalf("seed-project: create project: %v", err)
+		return "", fmt.Errorf("create project: %w", err)
 	}
 	log.Printf("Created project %s (%s) in workspace %s", p.Name, p.ID, workspaceID)
-	return p.ID
+	return p.ID, nil
 }
 
 func parseTargetLanguages(csv string) []model.LocaleID {

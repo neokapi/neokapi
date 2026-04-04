@@ -83,7 +83,7 @@ func TestWebhookDeliveryFailure(t *testing.T) {
 	wh := NewWebhookDelivery(WebhookConfig{URL: srv.URL, Secret: "s"})
 
 	err := wh.Deliver(platev.Event{Type: platev.EventBlockCreated})
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "failed after")
 }
 

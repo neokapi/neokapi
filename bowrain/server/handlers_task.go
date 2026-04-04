@@ -6,9 +6,9 @@ import (
 	"time"
 
 	"github.com/labstack/echo/v4"
+	platev "github.com/neokapi/neokapi/bowrain/core/event"
 	"github.com/neokapi/neokapi/bowrain/event"
 	bstore "github.com/neokapi/neokapi/bowrain/store"
-	platev "github.com/neokapi/neokapi/bowrain/core/event"
 )
 
 // HandleListTasks returns tasks for a workspace, optionally filtered.

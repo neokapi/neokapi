@@ -2,6 +2,7 @@ package jobs
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -98,7 +99,7 @@ func (q *NATSQueue) Dequeue(ctx context.Context) (string, func(), func(), error)
 	if ctx.Err() != nil {
 		return "", nil, nil, ctx.Err()
 	}
-	return "", nil, nil, fmt.Errorf("no messages available")
+	return "", nil, nil, errors.New("no messages available")
 }
 
 func (q *NATSQueue) Healthy() bool {

@@ -8,8 +8,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/neokapi/neokapi/core/id"
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
+	"github.com/neokapi/neokapi/core/id"
 )
 
 // ---------------------------------------------------------------------------
@@ -18,7 +18,7 @@ import (
 
 func (s *PostgresStore) CreateStream(ctx context.Context, st *platstore.Stream) error {
 	if st.Name == "" {
-		return fmt.Errorf("stream name cannot be empty")
+		return errors.New("stream name cannot be empty")
 	}
 	// "main" can now be created explicitly (e.g. during project setup).
 	if st.Visibility == "" {
@@ -114,7 +114,7 @@ func (s *PostgresStore) UpdateStream(ctx context.Context, st *platstore.Stream) 
 
 func (s *PostgresStore) DeleteStream(ctx context.Context, projectID, name string) error {
 	if name == "main" {
-		return fmt.Errorf("cannot delete the main stream")
+		return errors.New("cannot delete the main stream")
 	}
 	res, err := s.db.ExecContext(ctx,
 		`DELETE FROM streams WHERE project_id=$1 AND name=$2`, projectID, name)
@@ -446,7 +446,7 @@ func scanStreamTagPg(row scanner) (*platstore.StreamTag, error) {
 		&kindStr, &tag.Cursor, &metaStr, &tag.CreatedBy, &tag.CreatedAt)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, fmt.Errorf("stream tag not found")
+			return nil, errors.New("stream tag not found")
 		}
 		return nil, fmt.Errorf("scan stream tag: %w", err)
 	}

@@ -2,6 +2,7 @@ package mcp
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
@@ -42,10 +43,10 @@ type termResult struct {
 
 func (s *MCPServer) handleTermSearch(ctx context.Context, req *mcp.CallToolRequest, input termSearchInput) (*mcp.CallToolResult, termSearchOutput, error) {
 	if s.tbResolver == nil {
-		return nil, termSearchOutput{}, fmt.Errorf("terminology base not configured")
+		return nil, termSearchOutput{}, errors.New("terminology base not configured")
 	}
 	if input.Query == "" {
-		return nil, termSearchOutput{}, fmt.Errorf("query is required")
+		return nil, termSearchOutput{}, errors.New("query is required")
 	}
 
 	tb, err := s.tbResolver.GetTB(input.WorkspaceID)
@@ -93,7 +94,7 @@ type termAddOutput struct {
 
 func (s *MCPServer) handleTermAdd(ctx context.Context, req *mcp.CallToolRequest, input termAddInput) (*mcp.CallToolResult, termAddOutput, error) {
 	if s.tbResolver == nil {
-		return nil, termAddOutput{}, fmt.Errorf("terminology base not configured")
+		return nil, termAddOutput{}, errors.New("terminology base not configured")
 	}
 	if len(input.Terms) == 0 {
 		return nil, termAddOutput{Added: 0}, nil

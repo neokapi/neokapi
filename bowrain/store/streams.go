@@ -8,8 +8,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/neokapi/neokapi/core/id"
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
+	"github.com/neokapi/neokapi/core/id"
 )
 
 // ---------------------------------------------------------------------------
@@ -20,7 +20,7 @@ import (
 // is automatically set to the parent's latest cursor position.
 func (s *SQLiteStore) CreateStream(ctx context.Context, st *platstore.Stream) error {
 	if st.Name == "" {
-		return fmt.Errorf("stream name cannot be empty")
+		return errors.New("stream name cannot be empty")
 	}
 	// "main" can now be created explicitly (e.g. during project setup).
 	if st.Visibility == "" {
@@ -142,7 +142,7 @@ func (s *SQLiteStore) UpdateStream(ctx context.Context, st *platstore.Stream) er
 // DeleteStream removes a stream and its associated data.
 func (s *SQLiteStore) DeleteStream(ctx context.Context, projectID, name string) error {
 	if name == "main" {
-		return fmt.Errorf("cannot delete the main stream")
+		return errors.New("cannot delete the main stream")
 	}
 
 	res, err := s.db.ExecContext(ctx,
@@ -520,7 +520,7 @@ func scanStreamTag(row scanner) (*platstore.StreamTag, error) {
 		&kindStr, &tag.Cursor, &metaStr, &tag.CreatedBy, &createdStr)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, fmt.Errorf("stream tag not found")
+			return nil, errors.New("stream tag not found")
 		}
 		return nil, fmt.Errorf("scan stream tag: %w", err)
 	}

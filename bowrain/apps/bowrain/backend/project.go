@@ -11,9 +11,9 @@ import (
 	"time"
 	"unicode"
 
+	"github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/core/editor"
 	"github.com/neokapi/neokapi/core/model"
-	"github.com/neokapi/neokapi/bowrain/core/store"
 )
 
 // ProjectInfo describes a translation project exposed to the frontend.

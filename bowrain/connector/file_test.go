@@ -6,9 +6,9 @@ import (
 	"path/filepath"
 	"testing"
 
+	platconn "github.com/neokapi/neokapi/bowrain/core/connector"
 	"github.com/neokapi/neokapi/core/formats"
 	"github.com/neokapi/neokapi/core/registry"
-	platconn "github.com/neokapi/neokapi/bowrain/core/connector"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -95,6 +95,6 @@ func TestFileConnectorStatus(t *testing.T) {
 func TestFileConnectorConfigure(t *testing.T) {
 	c := setupFileConnector(t, ".")
 	err := c.Configure(map[string]string{"path": "/tmp"})
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, "/tmp", c.basePath)
 }

@@ -38,13 +38,13 @@ func TestAgenticEventJSON(t *testing.T) {
 }
 
 func TestAgenticEventTypes(t *testing.T) {
-	assert.Equal(t, AgenticEventType("exec.started"), EventExecStarted)
-	assert.Equal(t, AgenticEventType("exec.completed"), EventExecCompleted)
-	assert.Equal(t, AgenticEventType("exec.failed"), EventExecFailed)
-	assert.Equal(t, AgenticEventType("exec.progress"), EventExecProgress)
-	assert.Equal(t, AgenticEventType("exec.tool_call"), EventExecToolCall)
-	assert.Equal(t, AgenticEventType("agent.observation"), EventObservation)
-	assert.Equal(t, AgenticEventType("agent.suggestion"), EventSuggestion)
+	assert.Equal(t, EventExecStarted, AgenticEventType("exec.started"))
+	assert.Equal(t, EventExecCompleted, AgenticEventType("exec.completed"))
+	assert.Equal(t, EventExecFailed, AgenticEventType("exec.failed"))
+	assert.Equal(t, EventExecProgress, AgenticEventType("exec.progress"))
+	assert.Equal(t, EventExecToolCall, AgenticEventType("exec.tool_call"))
+	assert.Equal(t, EventObservation, AgenticEventType("agent.observation"))
+	assert.Equal(t, EventSuggestion, AgenticEventType("agent.suggestion"))
 }
 
 func TestIntFromData(t *testing.T) {

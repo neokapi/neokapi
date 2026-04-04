@@ -35,7 +35,7 @@ func newTestExtractionStorePg(t *testing.T) *PgExtractionJobStore {
 	require.NoError(t, err)
 	t.Cleanup(func() {
 		// Clean up test data.
-		_, _ = db.Exec("DELETE FROM extraction_jobs")
+		_, _ = db.ExecContext(context.Background(), "DELETE FROM extraction_jobs")
 		db.Close()
 	})
 	store, err := NewPgExtractionJobStore(db)
