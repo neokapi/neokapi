@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/set"
 	"github.com/neokapi/neokapi/core/tool"
 )
 
@@ -53,12 +54,11 @@ func NewRemoveTargetTool(cfg *RemoveTargetConfig) *tool.BaseTool {
 
 		// When filtering by IDs, only remove targets for listed text unit IDs.
 		if conf.FilterByIDs && conf.TextUnitIDs != "" {
-			ids := strings.Split(conf.TextUnitIDs, ",")
-			idSet := make(map[string]bool, len(ids))
-			for _, id := range ids {
-				idSet[strings.TrimSpace(id)] = true
+			idSet := set.New[string]()
+			for _, id := range strings.Split(conf.TextUnitIDs, ",") {
+				idSet.Add(strings.TrimSpace(id))
 			}
-			if !idSet[block.ID] {
+			if !idSet.Contains(block.ID) {
 				return part, nil
 			}
 		}

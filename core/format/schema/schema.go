@@ -10,6 +10,7 @@ import (
 
 	"github.com/neokapi/neokapi/core/preset"
 	coreschema "github.com/neokapi/neokapi/core/schema"
+	"github.com/neokapi/neokapi/core/set"
 )
 
 // Re-export shared types from core/schema for convenience.
@@ -288,12 +289,12 @@ func (r *SchemaRegistry) AllSchemas() map[string]*FormatSchema {
 
 // FormatIDSet returns a snapshot of all registered format IDs as a set.
 // Used to diff before/after schema loading.
-func (r *SchemaRegistry) FormatIDSet() map[string]struct{} {
+func (r *SchemaRegistry) FormatIDSet() set.Set[string] {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
-	s := make(map[string]struct{}, len(r.schemas))
+	s := set.New[string]()
 	for id := range r.schemas {
-		s[id] = struct{}{}
+		s.Add(id)
 	}
 	return s
 }
