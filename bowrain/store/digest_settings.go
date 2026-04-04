@@ -3,6 +3,7 @@ package store
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"time"
 )
 
@@ -72,7 +73,7 @@ func (s *DigestStore) GetSettings(ctx context.Context, userID, workspaceID strin
 		`SELECT user_id, workspace_id, frequency, quiet_start, quiet_end, timezone
 		 FROM digest_settings WHERE user_id = ? AND workspace_id = ?`),
 		userID, workspaceID).Scan(&ds.UserID, &ds.WorkspaceID, &freq, &ds.QuietStart, &ds.QuietEnd, &ds.Timezone)
-	if err == sql.ErrNoRows {
+	if errors.Is(err, sql.ErrNoRows) {
 		return DefaultDigestSettings(userID, workspaceID), nil
 	}
 	if err != nil {
@@ -125,7 +126,7 @@ func (s *DigestStore) GetState(ctx context.Context, userID, workspaceID, frequen
 		`SELECT user_id, workspace_id, frequency, last_sent_at
 		 FROM digest_state WHERE user_id = ? AND workspace_id = ? AND frequency = ?`),
 		userID, workspaceID, frequency).Scan(&ds.UserID, &ds.WorkspaceID, &ds.Frequency, &lastSent)
-	if err == sql.ErrNoRows {
+	if errors.Is(err, sql.ErrNoRows) {
 		return &DigestState{
 			UserID:      userID,
 			WorkspaceID: workspaceID,

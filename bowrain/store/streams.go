@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"time"
 
@@ -229,7 +230,7 @@ func (s *SQLiteStore) MergeStream(ctx context.Context, projectID, streamName str
 			`SELECT targets_json FROM blocks WHERE project_id = ? AND id = ?`,
 			projectID, blockID).Scan(&targetsJSON)
 		if err != nil {
-			if err == sql.ErrNoRows {
+			if errors.Is(err, sql.ErrNoRows) {
 				continue
 			}
 			return nil, fmt.Errorf("get block targets: %w", err)
@@ -518,7 +519,7 @@ func scanStreamTag(row scanner) (*platstore.StreamTag, error) {
 	err := row.Scan(&tag.ID, &tag.ProjectID, &tag.Stream, &tag.Name,
 		&kindStr, &tag.Cursor, &metaStr, &tag.CreatedBy, &createdStr)
 	if err != nil {
-		if err == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) {
 			return nil, fmt.Errorf("stream tag not found")
 		}
 		return nil, fmt.Errorf("scan stream tag: %w", err)

@@ -3,7 +3,9 @@ package graph
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"regexp"
 	"strings"
 	"time"
 
@@ -12,6 +14,9 @@ import (
 
 	coreg "github.com/neokapi/neokapi/core/graph"
 )
+
+// validIdentifier matches safe Cypher identifiers (labels, property keys, aliases).
+var validIdentifier = regexp.MustCompile(`^[a-zA-Z_][a-zA-Z0-9_]*$`)
 
 const graphName = "bowrain_graph"
 
@@ -45,17 +50,24 @@ func (s *AGEGraphStore) EnsureGraph(ctx context.Context) error {
 // --------------------------------------------------------------------------
 
 func (s *AGEGraphStore) CreateNode(ctx context.Context, node *coreg.Node) error {
+	if err := validateIdentifier(node.Label); err != nil {
+		return fmt.Errorf("create node: invalid label: %w", err)
+	}
+
 	now := time.Now().UTC()
 	node.CreatedAt = now
 	node.UpdatedAt = now
 
-	propsJSON := marshalProps(node.Properties, node.ID, now, now)
+	propsJSON, err := marshalProps(node.Properties, node.ID, now, now)
+	if err != nil {
+		return fmt.Errorf("create node: %w", err)
+	}
 	query := fmt.Sprintf(
 		`SELECT * FROM ag_catalog.cypher('%s', $$
 			CREATE (n:%s %s) RETURN n
 		$$) as (v agtype)`, graphName, node.Label, propsJSON)
 
-	_, err := s.pool.Exec(ctx, query)
+	_, err = s.pool.Exec(ctx, query)
 	if err != nil {
 		return fmt.Errorf("create node: %w", err)
 	}
@@ -71,7 +83,7 @@ func (s *AGEGraphStore) GetNode(ctx context.Context, id string) (*coreg.Node, er
 	var raw string
 	err := s.pool.QueryRow(ctx, query).Scan(&raw)
 	if err != nil {
-		if err == pgx.ErrNoRows {
+		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, coreg.ErrNodeNotFound
 		}
 		return nil, fmt.Errorf("get node: %w", err)
@@ -82,7 +94,10 @@ func (s *AGEGraphStore) GetNode(ctx context.Context, id string) (*coreg.Node, er
 func (s *AGEGraphStore) UpdateNode(ctx context.Context, node *coreg.Node) error {
 	node.UpdatedAt = time.Now().UTC()
 
-	sets := buildSetClauses("n", node.Properties)
+	sets, err := buildSetClauses("n", node.Properties)
+	if err != nil {
+		return fmt.Errorf("update node: %w", err)
+	}
 	sets = append(sets, fmt.Sprintf("n.updated_at = '%s'", formatTime(node.UpdatedAt)))
 
 	query := fmt.Sprintf(
@@ -91,9 +106,9 @@ func (s *AGEGraphStore) UpdateNode(ctx context.Context, node *coreg.Node) error 
 		$$) as (v agtype)`, graphName, escCypher(node.ID), strings.Join(sets, ", "))
 
 	var raw string
-	err := s.pool.QueryRow(ctx, query).Scan(&raw)
+	err = s.pool.QueryRow(ctx, query).Scan(&raw)
 	if err != nil {
-		if err == pgx.ErrNoRows {
+		if errors.Is(err, pgx.ErrNoRows) {
 			return coreg.ErrNodeNotFound
 		}
 		return fmt.Errorf("update node: %w", err)
@@ -119,7 +134,10 @@ func (s *AGEGraphStore) DeleteNode(ctx context.Context, id string) error {
 // --------------------------------------------------------------------------
 
 func (s *AGEGraphStore) FindNodes(ctx context.Context, label string, properties map[string]string) ([]*coreg.Node, error) {
-	where := buildWhereClauses("n", properties)
+	where, err := buildWhereClauses("n", properties)
+	if err != nil {
+		return nil, fmt.Errorf("find nodes: %w", err)
+	}
 	whereClause := ""
 	if len(where) > 0 {
 		whereClause = "WHERE " + strings.Join(where, " AND ")
@@ -127,6 +145,9 @@ func (s *AGEGraphStore) FindNodes(ctx context.Context, label string, properties 
 
 	matchLabel := ""
 	if label != "" {
+		if err := validateIdentifier(label); err != nil {
+			return nil, fmt.Errorf("find nodes: invalid label: %w", err)
+		}
 		matchLabel = ":" + label
 	}
 
@@ -155,6 +176,10 @@ func (s *AGEGraphStore) FindNodesScoped(ctx context.Context, label string, prope
 // --------------------------------------------------------------------------
 
 func (s *AGEGraphStore) CreateEdge(ctx context.Context, edge *coreg.Edge) error {
+	if err := validateIdentifier(edge.Label); err != nil {
+		return fmt.Errorf("create edge: invalid label: %w", err)
+	}
+
 	now := time.Now().UTC()
 	edge.CreatedAt = now
 	edge.UpdatedAt = now
@@ -182,7 +207,10 @@ func (s *AGEGraphStore) CreateEdge(ctx context.Context, edge *coreg.Edge) error 
 		}
 	}
 
-	propsLiteral := buildPropsLiteral(props)
+	propsLiteral, err := buildPropsLiteral(props)
+	if err != nil {
+		return fmt.Errorf("create edge: %w", err)
+	}
 
 	query := fmt.Sprintf(
 		`SELECT * FROM ag_catalog.cypher('%s', $$
@@ -191,7 +219,7 @@ func (s *AGEGraphStore) CreateEdge(ctx context.Context, edge *coreg.Edge) error 
 		$$) as (e agtype)`, graphName, escCypher(edge.Source), escCypher(edge.Target),
 		edge.Label, propsLiteral)
 
-	_, err := s.pool.Exec(ctx, query)
+	_, err = s.pool.Exec(ctx, query)
 	if err != nil {
 		return fmt.Errorf("create edge: %w", err)
 	}
@@ -207,7 +235,7 @@ func (s *AGEGraphStore) GetEdge(ctx context.Context, id string) (*coreg.Edge, er
 	var raw string
 	err := s.pool.QueryRow(ctx, query).Scan(&raw)
 	if err != nil {
-		if err == pgx.ErrNoRows {
+		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, coreg.ErrEdgeNotFound
 		}
 		return nil, fmt.Errorf("get edge: %w", err)
@@ -218,7 +246,10 @@ func (s *AGEGraphStore) GetEdge(ctx context.Context, id string) (*coreg.Edge, er
 func (s *AGEGraphStore) UpdateEdge(ctx context.Context, edge *coreg.Edge) error {
 	edge.UpdatedAt = time.Now().UTC()
 
-	sets := buildSetClauses("r", edge.Properties)
+	sets, err := buildSetClauses("r", edge.Properties)
+	if err != nil {
+		return fmt.Errorf("update edge: %w", err)
+	}
 	sets = append(sets, fmt.Sprintf("r.updated_at = '%s'", formatTime(edge.UpdatedAt)))
 
 	if edge.Validity != nil {
@@ -240,9 +271,9 @@ func (s *AGEGraphStore) UpdateEdge(ctx context.Context, edge *coreg.Edge) error 
 		$$) as (e agtype)`, graphName, escCypher(edge.ID), strings.Join(sets, ", "))
 
 	var raw string
-	err := s.pool.QueryRow(ctx, query).Scan(&raw)
+	err = s.pool.QueryRow(ctx, query).Scan(&raw)
 	if err != nil {
-		if err == pgx.ErrNoRows {
+		if errors.Is(err, pgx.ErrNoRows) {
 			return coreg.ErrEdgeNotFound
 		}
 		return fmt.Errorf("update edge: %w", err)
@@ -268,7 +299,10 @@ func (s *AGEGraphStore) DeleteEdge(ctx context.Context, id string) error {
 // --------------------------------------------------------------------------
 
 func (s *AGEGraphStore) FindEdges(ctx context.Context, label string, properties map[string]string) ([]*coreg.Edge, error) {
-	where := buildWhereClauses("r", properties)
+	where, err := buildWhereClauses("r", properties)
+	if err != nil {
+		return nil, fmt.Errorf("find edges: %w", err)
+	}
 	whereClause := ""
 	if len(where) > 0 {
 		whereClause = "WHERE " + strings.Join(where, " AND ")
@@ -276,6 +310,9 @@ func (s *AGEGraphStore) FindEdges(ctx context.Context, label string, properties 
 
 	matchLabel := ""
 	if label != "" {
+		if err := validateIdentifier(label); err != nil {
+			return nil, fmt.Errorf("find edges: invalid label: %w", err)
+		}
 		matchLabel = ":" + label
 	}
 
@@ -292,7 +329,10 @@ func (s *AGEGraphStore) FindEdges(ctx context.Context, label string, properties 
 // --------------------------------------------------------------------------
 
 func (s *AGEGraphStore) Neighbors(ctx context.Context, nodeID string, direction coreg.Direction, labels ...string) ([]*coreg.Node, error) {
-	pattern := directionPattern("r", direction, labels)
+	pattern, err := directionPattern("r", direction, labels)
+	if err != nil {
+		return nil, fmt.Errorf("neighbors: %w", err)
+	}
 	query := fmt.Sprintf(
 		`SELECT * FROM ag_catalog.cypher('%s', $$
 			MATCH (n {id: '%s'})%s(m) RETURN m
@@ -302,7 +342,10 @@ func (s *AGEGraphStore) Neighbors(ctx context.Context, nodeID string, direction 
 }
 
 func (s *AGEGraphStore) NeighborsScoped(ctx context.Context, nodeID string, direction coreg.Direction, scope coreg.Scope, labels ...string) ([]*coreg.Node, error) {
-	pattern := directionPattern("r", direction, labels)
+	pattern, err := directionPattern("r", direction, labels)
+	if err != nil {
+		return nil, fmt.Errorf("neighbors scoped: %w", err)
+	}
 
 	// Build scope WHERE clauses on the relationship.
 	var where []string
@@ -331,7 +374,10 @@ func (s *AGEGraphStore) NeighborsScoped(ctx context.Context, nodeID string, dire
 }
 
 func (s *AGEGraphStore) EdgesOf(ctx context.Context, nodeID string, direction coreg.Direction, labels ...string) ([]*coreg.Edge, error) {
-	pattern := directionPattern("r", direction, labels)
+	pattern, err := directionPattern("r", direction, labels)
+	if err != nil {
+		return nil, fmt.Errorf("edges of: %w", err)
+	}
 	query := fmt.Sprintf(
 		`SELECT * FROM ag_catalog.cypher('%s', $$
 			MATCH (n {id: '%s'})%s(m) RETURN r
@@ -354,7 +400,7 @@ func (s *AGEGraphStore) ShortestPath(ctx context.Context, fromID, toID string, m
 	var raw string
 	err := s.pool.QueryRow(ctx, query).Scan(&raw)
 	if err != nil {
-		if err == pgx.ErrNoRows {
+		if errors.Is(err, pgx.ErrNoRows) {
 			return &coreg.Path{}, nil
 		}
 		return nil, fmt.Errorf("shortest path: %w", err)
@@ -389,7 +435,10 @@ func (s *AGEGraphStore) BulkCreateEdges(ctx context.Context, edges []*coreg.Edge
 // --------------------------------------------------------------------------
 
 func (s *AGEGraphStore) CypherQuery(ctx context.Context, query string, params map[string]any) ([]*coreg.Node, error) {
-	cypher := interpolateParams(query, params)
+	cypher, err := interpolateParams(query, params)
+	if err != nil {
+		return nil, fmt.Errorf("cypher query: %w", err)
+	}
 	q := fmt.Sprintf(
 		`SELECT * FROM ag_catalog.cypher('%s', $$ %s $$) as (v agtype)`,
 		graphName, cypher)
@@ -398,12 +447,15 @@ func (s *AGEGraphStore) CypherQuery(ctx context.Context, query string, params ma
 }
 
 func (s *AGEGraphStore) CypherExec(ctx context.Context, query string, params map[string]any) error {
-	cypher := interpolateParams(query, params)
+	cypher, err := interpolateParams(query, params)
+	if err != nil {
+		return fmt.Errorf("cypher exec: %w", err)
+	}
 	q := fmt.Sprintf(
 		`SELECT * FROM ag_catalog.cypher('%s', $$ %s $$) as (v agtype)`,
 		graphName, cypher)
 
-	_, err := s.pool.Exec(ctx, q)
+	_, err = s.pool.Exec(ctx, q)
 	if err != nil {
 		return fmt.Errorf("cypher exec: %w", err)
 	}
@@ -467,13 +519,27 @@ func (s *AGEGraphStore) queryEdges(ctx context.Context, query string) ([]*coreg.
 	return edges, rows.Err()
 }
 
-// escCypher escapes single quotes in Cypher string literals.
+// escCypher escapes characters in Cypher string literals to prevent injection.
+// It handles single quotes, backslashes, and null bytes.
 func escCypher(s string) string {
-	return strings.ReplaceAll(s, "'", "\\'")
+	s = strings.ReplaceAll(s, `\`, `\\`)
+	s = strings.ReplaceAll(s, "'", "\\'")
+	s = strings.ReplaceAll(s, "\x00", "")
+	return s
+}
+
+// validateIdentifier checks that a string is a safe Cypher identifier
+// (label, property key, or alias). Returns an error if it contains
+// characters that could enable injection.
+func validateIdentifier(name string) error {
+	if !validIdentifier.MatchString(name) {
+		return fmt.Errorf("invalid Cypher identifier: %q", name)
+	}
+	return nil
 }
 
 // marshalProps builds a Cypher properties literal for node creation.
-func marshalProps(props map[string]string, id string, createdAt, updatedAt time.Time) string {
+func marshalProps(props map[string]string, id string, createdAt, updatedAt time.Time) (string, error) {
 	all := make(map[string]string, len(props)+3)
 	for k, v := range props {
 		all[k] = v
@@ -485,56 +551,73 @@ func marshalProps(props map[string]string, id string, createdAt, updatedAt time.
 }
 
 // buildPropsLiteral builds a Cypher map literal: {key: 'value', ...}
-func buildPropsLiteral(props map[string]string) string {
+func buildPropsLiteral(props map[string]string) (string, error) {
 	if len(props) == 0 {
-		return "{}"
+		return "{}", nil
 	}
 	parts := make([]string, 0, len(props))
 	for k, v := range props {
+		if err := validateIdentifier(k); err != nil {
+			return "", fmt.Errorf("property key: %w", err)
+		}
 		parts = append(parts, fmt.Sprintf("%s: '%s'", k, escCypher(v)))
 	}
-	return "{" + strings.Join(parts, ", ") + "}"
+	return "{" + strings.Join(parts, ", ") + "}", nil
 }
 
 // buildSetClauses builds SET expressions for Cypher updates.
-func buildSetClauses(alias string, props map[string]string) []string {
+func buildSetClauses(alias string, props map[string]string) ([]string, error) {
 	sets := make([]string, 0, len(props))
 	for k, v := range props {
+		if err := validateIdentifier(k); err != nil {
+			return nil, fmt.Errorf("property key: %w", err)
+		}
 		sets = append(sets, fmt.Sprintf("%s.%s = '%s'", alias, k, escCypher(v)))
 	}
-	return sets
+	return sets, nil
 }
 
 // buildWhereClauses builds WHERE conditions for property matching.
-func buildWhereClauses(alias string, props map[string]string) []string {
+func buildWhereClauses(alias string, props map[string]string) ([]string, error) {
 	clauses := make([]string, 0, len(props))
 	for k, v := range props {
+		if err := validateIdentifier(k); err != nil {
+			return nil, fmt.Errorf("property key: %w", err)
+		}
 		clauses = append(clauses, fmt.Sprintf("%s.%s = '%s'", alias, k, escCypher(v)))
 	}
-	return clauses
+	return clauses, nil
 }
 
 // directionPattern builds a Cypher relationship pattern based on direction.
-func directionPattern(alias string, dir coreg.Direction, labels []string) string {
+func directionPattern(alias string, dir coreg.Direction, labels []string) (string, error) {
 	labelStr := ""
 	if len(labels) > 0 {
+		for _, l := range labels {
+			if err := validateIdentifier(l); err != nil {
+				return "", fmt.Errorf("edge label: %w", err)
+			}
+		}
 		labelStr = ":" + strings.Join(labels, "|")
 	}
 
 	rel := fmt.Sprintf("[%s%s]", alias, labelStr)
 	switch dir {
 	case coreg.Outgoing:
-		return "-" + rel + "->"
+		return "-" + rel + "->", nil
 	case coreg.Incoming:
-		return "<-" + rel + "-"
+		return "<-" + rel + "-", nil
 	default: // Both
-		return "-" + rel + "-"
+		return "-" + rel + "-", nil
 	}
 }
 
 // interpolateParams does simple string substitution of $key with Cypher-escaped values.
-func interpolateParams(query string, params map[string]any) string {
+func interpolateParams(query string, params map[string]any) (string, error) {
 	for k, v := range params {
+		if err := validateIdentifier(k); err != nil {
+			return "", fmt.Errorf("param key: %w", err)
+		}
 		var replacement string
 		switch val := v.(type) {
 		case string:
@@ -549,5 +632,5 @@ func interpolateParams(query string, params map[string]any) string {
 		}
 		query = strings.ReplaceAll(query, "$"+k, replacement)
 	}
-	return query
+	return query, nil
 }

@@ -3,6 +3,7 @@ package jobs
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"time"
 
@@ -118,7 +119,7 @@ func (s *PgQuotaStore) CheckQuota(ctx context.Context, workspaceSlug string) (in
 	err := s.db.QueryRowContext(ctx,
 		`SELECT monthly_limit FROM ai_quotas WHERE workspace_slug = $1`,
 		workspaceSlug).Scan(&limit)
-	if err == sql.ErrNoRows {
+	if errors.Is(err, sql.ErrNoRows) {
 		limit = DefaultMonthlyQuota
 	} else if err != nil {
 		return 0, fmt.Errorf("get quota: %w", err)
@@ -156,7 +157,7 @@ func (s *PgQuotaStore) GetUsageSummary(ctx context.Context, workspaceSlug string
 	err := s.db.QueryRowContext(ctx,
 		`SELECT monthly_limit FROM ai_quotas WHERE workspace_slug = $1`,
 		workspaceSlug).Scan(&limit)
-	if err == sql.ErrNoRows {
+	if errors.Is(err, sql.ErrNoRows) {
 		limit = DefaultMonthlyQuota
 	} else if err != nil {
 		return nil, fmt.Errorf("get quota: %w", err)

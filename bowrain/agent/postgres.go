@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"time"
 
@@ -230,7 +231,7 @@ func (s *PostgresStore) GetAgentConfig(ctx context.Context, workspaceID string) 
 	var cfg platagent.AgentConfig
 	var allowedJSON, deniedJSON, approvalJSON []byte
 	err := row.Scan(&cfg.WorkspaceID, &cfg.Enabled, &allowedJSON, &deniedJSON, &approvalJSON, &cfg.CodeExecEnabled, &cfg.MaxConcurrent)
-	if err == sql.ErrNoRows {
+	if errors.Is(err, sql.ErrNoRows) {
 		return defaultConfig(workspaceID), nil
 	}
 	if err != nil {
