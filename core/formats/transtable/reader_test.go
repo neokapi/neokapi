@@ -8,7 +8,7 @@ import (
 
 	"github.com/neokapi/neokapi/core/formats/transtable"
 	"github.com/neokapi/neokapi/core/model"
-	"github.com/neokapi/neokapi/core/testutil"
+	"github.com/neokapi/neokapi/core/internal/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

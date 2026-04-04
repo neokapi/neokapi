@@ -35,20 +35,22 @@ func main() {
 		os.Getenv("BOWRAIN_LOG_LEVEL"),
 	)
 
-	dbURL := os.Getenv("BOWRAIN_DATABASE_URL")
-	if dbURL == "" {
-		slog.Error("BOWRAIN_DATABASE_URL is required (must be a postgres:// URL)")
-		os.Exit(1)
-	}
-	if !strings.HasPrefix(dbURL, "postgres://") && !strings.HasPrefix(dbURL, "postgresql://") {
-		slog.Error("BOWRAIN_DATABASE_URL must start with postgres:// or postgresql://")
-		os.Exit(1)
-	}
-
-	if err := runWorker(dbURL); err != nil {
+	if err := run(); err != nil {
 		slog.Error("worker failed", "error", err)
 		os.Exit(1)
 	}
+}
+
+func run() error {
+	dbURL := os.Getenv("BOWRAIN_DATABASE_URL")
+	if dbURL == "" {
+		return errors.New("BOWRAIN_DATABASE_URL is required (must be a postgres:// URL)")
+	}
+	if !strings.HasPrefix(dbURL, "postgres://") && !strings.HasPrefix(dbURL, "postgresql://") {
+		return errors.New("BOWRAIN_DATABASE_URL must start with postgres:// or postgresql://")
+	}
+
+	return runWorker(dbURL)
 }
 
 func runWorker(dbURL string) error {

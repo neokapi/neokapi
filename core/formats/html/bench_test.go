@@ -5,7 +5,7 @@ import (
 
 	htmlfmt "github.com/neokapi/neokapi/core/formats/html"
 	"github.com/neokapi/neokapi/core/model"
-	"github.com/neokapi/neokapi/core/testutil"
+	"github.com/neokapi/neokapi/core/internal/testutil"
 )
 
 func drainParts(ch <-chan model.PartResult) {
