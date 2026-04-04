@@ -122,7 +122,7 @@ func main() {
 		cfg.ServiceBusConnection = envSB
 	}
 	if envNATS := os.Getenv("BOWRAIN_NATS_URL"); envNATS != "" {
-		cfg.NATSUrl = envNATS
+		cfg.NATSURL = envNATS
 	}
 	if envRedis := os.Getenv("BOWRAIN_REDIS_URL"); envRedis != "" {
 		cfg.RedisURL = envRedis

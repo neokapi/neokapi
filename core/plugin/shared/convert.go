@@ -25,13 +25,13 @@ func DTOToAnnotation(d AnnotationDTO) model.Annotation {
 	if !ok {
 		// Fall back to generic annotation.
 		return &model.GenericAnnotation{
-			Type_:  d.Type,
+			Kind:   d.Type,
 			Fields: jsonToMap(d.Data),
 		}
 	}
 	if err := json.Unmarshal(d.Data, a); err != nil {
 		return &model.GenericAnnotation{
-			Type_:  d.Type,
+			Kind:   d.Type,
 			Fields: jsonToMap(d.Data),
 		}
 	}

@@ -323,7 +323,7 @@ func (a *App) listInstalledPlugins(cmd *cobra.Command) error {
 			Plugins: []output.PluginInfo{},
 			Total:   0,
 		}
-		if output.GetFormat(cmd) == output.FormatJSON {
+		if output.ResolveFormat(cmd) == output.FormatJSON {
 			return output.Print(cmd, out)
 		}
 		fmt.Fprintf(os.Stderr, "No plugins installed.\n")
