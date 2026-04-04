@@ -4,16 +4,17 @@ import (
 	"testing"
 	"time"
 
+	"github.com/neokapi/neokapi/bowrain/testutil/pgtest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 func newTestActivityStore(t *testing.T) *ActivityStore {
 	t.Helper()
-	s, err := NewSQLiteStore(":memory:")
+	db := pgtest.NewTestDB(t)
+	_, err := NewPostgresStoreFromDB(db)
 	require.NoError(t, err)
-	t.Cleanup(func() { s.Close() })
-	return NewActivityStore(s.DB())
+	return NewActivityStore(db.DB)
 }
 
 func TestActivityStore_CreateAndList(t *testing.T) {

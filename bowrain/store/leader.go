@@ -16,7 +16,6 @@ import (
 // Only the lease holder should run singleton components (trackers, automation engine, cleanup).
 type LeaderElector struct {
 	db       *sql.DB
-	dialect  Dialect
 	name     string        // lease name (e.g., "bowrain-server")
 	holderID string        // unique ID for this instance
 	ttl      time.Duration // lease duration
@@ -29,10 +28,9 @@ type LeaderElector struct {
 
 // NewLeaderElector creates an elector for the given lease name.
 // ttl is how long the lease is valid; interval is how often to renew.
-func NewLeaderElector(db *sql.DB, dialect Dialect, name string, ttl, interval time.Duration) *LeaderElector {
+func NewLeaderElector(db *sql.DB, name string, ttl, interval time.Duration) *LeaderElector {
 	return &LeaderElector{
 		db:       db,
-		dialect:  dialect,
 		name:     name,
 		holderID: id.New(),
 		ttl:      ttl,
@@ -90,9 +88,10 @@ func (e *LeaderElector) tryAcquireOrRenew() {
 	now := time.Now().UTC().Format(time.RFC3339)
 
 	// Step 1: Try to take over if the lease is expired or we already hold it.
-	updateQ := Rebind(e.dialect, `UPDATE leader_leases SET holder_id = ?, expires_at = ?
-		WHERE name = ? AND (expires_at < ? OR holder_id = ?)`)
-	res, err := e.db.ExecContext(ctx, updateQ, e.holderID, expiresAt, e.name, now, e.holderID)
+	res, err := e.db.ExecContext(ctx,
+		`UPDATE leader_leases SET holder_id = $1, expires_at = $2
+		 WHERE name = $3 AND (expires_at < $4 OR holder_id = $5)`,
+		e.holderID, expiresAt, e.name, now, e.holderID)
 	if err != nil {
 		slog.Info("leader: renew failed", "error", err)
 		e.leader.Store(false)
@@ -105,11 +104,9 @@ func (e *LeaderElector) tryAcquireOrRenew() {
 	}
 
 	// Step 2: No existing lease to update — try to insert.
-	insertQ := Rebind(e.dialect, `INSERT OR IGNORE INTO leader_leases (name, holder_id, expires_at) VALUES (?, ?, ?)`)
-	if e.dialect == DialectPostgres {
-		insertQ = `INSERT INTO leader_leases (name, holder_id, expires_at) VALUES ($1, $2, $3) ON CONFLICT (name) DO NOTHING`
-	}
-	res, err = e.db.ExecContext(ctx, insertQ, e.name, e.holderID, expiresAt)
+	res, err = e.db.ExecContext(ctx,
+		`INSERT INTO leader_leases (name, holder_id, expires_at) VALUES ($1, $2, $3) ON CONFLICT (name) DO NOTHING`,
+		e.name, e.holderID, expiresAt)
 	if err != nil {
 		slog.Info("leader: acquire failed", "error", err)
 		e.leader.Store(false)
@@ -146,8 +143,9 @@ func (e *LeaderElector) release() {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	q := Rebind(e.dialect, `DELETE FROM leader_leases WHERE name = ? AND holder_id = ?`)
-	_, err := e.db.ExecContext(ctx, q, e.name, e.holderID)
+	_, err := e.db.ExecContext(ctx,
+		`DELETE FROM leader_leases WHERE name = $1 AND holder_id = $2`,
+		e.name, e.holderID)
 	if err != nil {
 		slog.Info("leader: release failed", "error", err)
 	} else {

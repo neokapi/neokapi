@@ -13,26 +13,26 @@ import (
 	"github.com/neokapi/neokapi/core/id"
 )
 
-// PostgresStore implements AgentStore using PostgreSQL.
-type PostgresStore struct {
+// Store implements AgentStore using PostgreSQL.
+type Store struct {
 	db *sql.DB
 }
 
-// NewPostgresStore creates a PostgreSQL-backed AgentStore from a shared PgDB.
-func NewPostgresStore(pgDB *storage.PgDB) (*PostgresStore, error) {
-	if err := storage.MigratePostgresNS(pgDB, "agent_schema_migrations", postgresMigrations); err != nil {
+// NewStore creates a PostgreSQL-backed AgentStore from a shared PgDB.
+func NewStore(pgDB *storage.PgDB) (*Store, error) {
+	if err := storage.MigratePostgresNS(pgDB, "agent_schema_migrations", migrations); err != nil {
 		return nil, fmt.Errorf("migrate agent schema: %w", err)
 	}
-	return &PostgresStore{db: pgDB.DB}, nil
+	return &Store{db: pgDB.DB}, nil
 }
 
-func (s *PostgresStore) Close() error { return nil } // shared DB; don't close
+func (s *Store) Close() error { return nil } // shared DB; don't close
 
 // ---------------------------------------------------------------------------
 // Conversations
 // ---------------------------------------------------------------------------
 
-func (s *PostgresStore) CreateConversation(ctx context.Context, conv *platagent.Conversation) error {
+func (s *Store) CreateConversation(ctx context.Context, conv *platagent.Conversation) error {
 	if conv.ID == "" {
 		conv.ID = id.New()
 	}
@@ -50,14 +50,14 @@ func (s *PostgresStore) CreateConversation(ctx context.Context, conv *platagent.
 	return err
 }
 
-func (s *PostgresStore) GetConversation(ctx context.Context, convID string) (*platagent.Conversation, error) {
+func (s *Store) GetConversation(ctx context.Context, convID string) (*platagent.Conversation, error) {
 	row := s.db.QueryRowContext(ctx,
 		`SELECT id, workspace_id, user_id, project_id, title, status, created_at, updated_at
 		 FROM agent_conversations WHERE id = $1`, convID)
-	return scanConversationPg(row)
+	return scanConversation(row)
 }
 
-func (s *PostgresStore) ListConversations(ctx context.Context, workspaceID, userID string, limit, offset int) ([]*platagent.Conversation, int, error) {
+func (s *Store) ListConversations(ctx context.Context, workspaceID, userID string, limit, offset int) ([]*platagent.Conversation, int, error) {
 	if limit <= 0 {
 		limit = 20
 	}
@@ -83,7 +83,7 @@ func (s *PostgresStore) ListConversations(ctx context.Context, workspaceID, user
 
 	var convs []*platagent.Conversation
 	for rows.Next() {
-		c, err := scanConversationPgRows(rows)
+		c, err := scanConversationRows(rows)
 		if err != nil {
 			return nil, 0, err
 		}
@@ -92,7 +92,7 @@ func (s *PostgresStore) ListConversations(ctx context.Context, workspaceID, user
 	return convs, total, rows.Err()
 }
 
-func (s *PostgresStore) UpdateConversation(ctx context.Context, conv *platagent.Conversation) error {
+func (s *Store) UpdateConversation(ctx context.Context, conv *platagent.Conversation) error {
 	conv.UpdatedAt = time.Now().UTC()
 	_, err := s.db.ExecContext(ctx,
 		`UPDATE agent_conversations SET title = $1, status = $2, project_id = $3, updated_at = $4 WHERE id = $5`,
@@ -100,7 +100,7 @@ func (s *PostgresStore) UpdateConversation(ctx context.Context, conv *platagent.
 	return err
 }
 
-func (s *PostgresStore) DeleteConversation(ctx context.Context, convID string) error {
+func (s *Store) DeleteConversation(ctx context.Context, convID string) error {
 	_, err := s.db.ExecContext(ctx, `DELETE FROM agent_conversations WHERE id = $1`, convID)
 	return err
 }
@@ -109,7 +109,7 @@ func (s *PostgresStore) DeleteConversation(ctx context.Context, convID string) e
 // Messages
 // ---------------------------------------------------------------------------
 
-func (s *PostgresStore) AddMessage(ctx context.Context, msg *platagent.Message) error {
+func (s *Store) AddMessage(ctx context.Context, msg *platagent.Message) error {
 	if msg.ID == "" {
 		msg.ID = id.New()
 	}
@@ -123,7 +123,7 @@ func (s *PostgresStore) AddMessage(ctx context.Context, msg *platagent.Message) 
 	return err
 }
 
-func (s *PostgresStore) ListMessages(ctx context.Context, conversationID string, limit, offset int) ([]*platagent.Message, error) {
+func (s *Store) ListMessages(ctx context.Context, conversationID string, limit, offset int) ([]*platagent.Message, error) {
 	if limit <= 0 {
 		limit = 50
 	}
@@ -159,7 +159,7 @@ func (s *PostgresStore) ListMessages(ctx context.Context, conversationID string,
 	return msgs, rows.Err()
 }
 
-func (s *PostgresStore) listToolCalls(ctx context.Context, messageID string) ([]platagent.ToolCall, error) {
+func (s *Store) listToolCalls(ctx context.Context, messageID string) ([]platagent.ToolCall, error) {
 	rows, err := s.db.QueryContext(ctx,
 		`SELECT id, message_id, tool_name, input, output, status, duration, error
 		 FROM agent_tool_calls WHERE message_id = $1`, messageID)
@@ -188,7 +188,7 @@ func (s *PostgresStore) listToolCalls(ctx context.Context, messageID string) ([]
 // Tool Calls
 // ---------------------------------------------------------------------------
 
-func (s *PostgresStore) AddToolCall(ctx context.Context, tc *platagent.ToolCall) error {
+func (s *Store) AddToolCall(ctx context.Context, tc *platagent.ToolCall) error {
 	if tc.ID == "" {
 		tc.ID = id.New()
 	}
@@ -208,7 +208,7 @@ func (s *PostgresStore) AddToolCall(ctx context.Context, tc *platagent.ToolCall)
 	return err
 }
 
-func (s *PostgresStore) UpdateToolCall(ctx context.Context, tc *platagent.ToolCall) error {
+func (s *Store) UpdateToolCall(ctx context.Context, tc *platagent.ToolCall) error {
 	output := tc.Output
 	if len(output) == 0 {
 		output = json.RawMessage("{}")
@@ -223,7 +223,7 @@ func (s *PostgresStore) UpdateToolCall(ctx context.Context, tc *platagent.ToolCa
 // Config
 // ---------------------------------------------------------------------------
 
-func (s *PostgresStore) GetAgentConfig(ctx context.Context, workspaceID string) (*platagent.AgentConfig, error) {
+func (s *Store) GetAgentConfig(ctx context.Context, workspaceID string) (*platagent.AgentConfig, error) {
 	row := s.db.QueryRowContext(ctx,
 		`SELECT workspace_id, enabled, allowed_tools, denied_tools, require_approval, code_exec_enabled, max_concurrent
 		 FROM agent_config WHERE workspace_id = $1`, workspaceID)
@@ -243,7 +243,7 @@ func (s *PostgresStore) GetAgentConfig(ctx context.Context, workspaceID string) 
 	return &cfg, nil
 }
 
-func (s *PostgresStore) SaveAgentConfig(ctx context.Context, cfg *platagent.AgentConfig) error {
+func (s *Store) SaveAgentConfig(ctx context.Context, cfg *platagent.AgentConfig) error {
 	allowedJSON, _ := json.Marshal(cfg.AllowedTools)
 	deniedJSON, _ := json.Marshal(cfg.DeniedTools)
 	approvalJSON, _ := json.Marshal(cfg.RequireApproval)
@@ -266,7 +266,7 @@ func (s *PostgresStore) SaveAgentConfig(ctx context.Context, cfg *platagent.Agen
 // Usage metering
 // ---------------------------------------------------------------------------
 
-func (s *PostgresStore) RecordUsage(ctx context.Context, rec *platagent.UsageRecord) error {
+func (s *Store) RecordUsage(ctx context.Context, rec *platagent.UsageRecord) error {
 	if rec.ID == "" {
 		rec.ID = id.New()
 	}
@@ -280,7 +280,7 @@ func (s *PostgresStore) RecordUsage(ctx context.Context, rec *platagent.UsageRec
 	return err
 }
 
-func (s *PostgresStore) GetUsageSummary(ctx context.Context, workspaceID string, from, to time.Time) (*platagent.UsageSummary, error) {
+func (s *Store) GetUsageSummary(ctx context.Context, workspaceID string, from, to time.Time) (*platagent.UsageSummary, error) {
 	row := s.db.QueryRowContext(ctx,
 		`SELECT
 			COALESCE(SUM(input_tokens), 0),
@@ -304,7 +304,15 @@ func (s *PostgresStore) GetUsageSummary(ctx context.Context, workspaceID string,
 // Helpers
 // ---------------------------------------------------------------------------
 
-func scanConversationPg(row *sql.Row) (*platagent.Conversation, error) {
+func defaultConfig(workspaceID string) *platagent.AgentConfig {
+	return &platagent.AgentConfig{
+		WorkspaceID:   workspaceID,
+		Enabled:       false,
+		MaxConcurrent: 3,
+	}
+}
+
+func scanConversation(row *sql.Row) (*platagent.Conversation, error) {
 	var c platagent.Conversation
 	err := row.Scan(&c.ID, &c.WorkspaceID, &c.UserID, &c.ProjectID, &c.Title, &c.Status, &c.CreatedAt, &c.UpdatedAt)
 	if err != nil {
@@ -313,7 +321,7 @@ func scanConversationPg(row *sql.Row) (*platagent.Conversation, error) {
 	return &c, nil
 }
 
-func scanConversationPgRows(rows *sql.Rows) (*platagent.Conversation, error) {
+func scanConversationRows(rows *sql.Rows) (*platagent.Conversation, error) {
 	var c platagent.Conversation
 	err := rows.Scan(&c.ID, &c.WorkspaceID, &c.UserID, &c.ProjectID, &c.Title, &c.Status, &c.CreatedAt, &c.UpdatedAt)
 	if err != nil {

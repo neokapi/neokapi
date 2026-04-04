@@ -11,6 +11,7 @@ import (
 	platagent "github.com/neokapi/neokapi/bowrain/core/agent"
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	"github.com/neokapi/neokapi/bowrain/service"
+	"github.com/neokapi/neokapi/bowrain/testutil/pgtest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -22,9 +23,9 @@ func setupAgentTestServer(t *testing.T) *Server {
 	srv := NewServer(cfg)
 	initTestStores(t, srv)
 
-	agentStore, err := bragent.NewSQLiteStore(":memory:")
+	pgdb := pgtest.NewTestDB(t)
+	agentStore, err := bragent.NewStore(pgdb)
 	require.NoError(t, err)
-	t.Cleanup(func() { agentStore.Close() })
 	srv.AgentStore = agentStore
 	srv.AgentService = service.NewAgentService(agentStore, nil)
 

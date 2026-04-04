@@ -44,31 +44,21 @@ func DefaultPreferences(userID, workspaceID string) []NotificationPreference {
 
 // PreferenceStore persists notification preferences.
 type PreferenceStore struct {
-	db      *sql.DB
-	dialect Dialect
+	db *sql.DB
 }
 
-// NewPreferenceStore creates a SQLite-backed preference store.
+// NewPreferenceStore creates a PostgreSQL-backed preference store.
 func NewPreferenceStore(db *sql.DB) *PreferenceStore {
-	return &PreferenceStore{db: db, dialect: DialectSQLite}
-}
-
-// NewPostgresPreferenceStore creates a PostgreSQL-backed preference store.
-func NewPostgresPreferenceStore(db *sql.DB) *PreferenceStore {
-	return &PreferenceStore{db: db, dialect: DialectPostgres}
-}
-
-func (s *PreferenceStore) q(query string) string {
-	return Rebind(s.dialect, query)
+	return &PreferenceStore{db: db}
 }
 
 // List returns all notification preferences for a user in a workspace.
 // Returns defaults for categories not explicitly configured.
 func (s *PreferenceStore) List(ctx context.Context, userID, workspaceID string) ([]NotificationPreference, error) {
-	rows, err := s.db.QueryContext(ctx, s.q(
+	rows, err := s.db.QueryContext(ctx,
 		`SELECT user_id, workspace_id, category, channel_web, channel_email, channel_push, channel_desktop
 		 FROM notification_preferences
-		 WHERE user_id = ? AND workspace_id = ?`),
+		 WHERE user_id = $1 AND workspace_id = $2`,
 		userID, workspaceID)
 	if err != nil {
 		return nil, err
@@ -123,28 +113,15 @@ func (s *PreferenceStore) Get(ctx context.Context, userID, workspaceID string, c
 	return &NotificationPreference{UserID: userID, WorkspaceID: workspaceID, Category: category, Web: true, Desktop: true}, nil
 }
 
-// boolParam returns a value suitable for the current dialect.
-// PostgreSQL requires native bools; SQLite works with 0/1 integers.
-func (s *PreferenceStore) boolParam(b bool) any {
-	if s.dialect == DialectPostgres {
-		return b
-	}
-	if b {
-		return 1
-	}
-	return 0
-}
-
 // Upsert saves a notification preference, creating or updating as needed.
 func (s *PreferenceStore) Upsert(ctx context.Context, p *NotificationPreference) error {
-	_, err := s.db.ExecContext(ctx, s.q(
+	_, err := s.db.ExecContext(ctx,
 		`INSERT INTO notification_preferences (user_id, workspace_id, category, channel_web, channel_email, channel_push, channel_desktop)
-		 VALUES (?, ?, ?, ?, ?, ?, ?)
+		 VALUES ($1, $2, $3, $4, $5, $6, $7)
 		 ON CONFLICT (user_id, workspace_id, category)
-		 DO UPDATE SET channel_web = ?, channel_email = ?, channel_push = ?, channel_desktop = ?`),
+		 DO UPDATE SET channel_web = $4, channel_email = $5, channel_push = $6, channel_desktop = $7`,
 		p.UserID, p.WorkspaceID, string(p.Category),
-		s.boolParam(p.Web), s.boolParam(p.Email), s.boolParam(p.Push), s.boolParam(p.Desktop),
-		s.boolParam(p.Web), s.boolParam(p.Email), s.boolParam(p.Push), s.boolParam(p.Desktop))
+		p.Web, p.Email, p.Push, p.Desktop)
 	return err
 }
 
@@ -157,14 +134,13 @@ func (s *PreferenceStore) BulkUpsert(ctx context.Context, prefs []NotificationPr
 	defer func() { _ = tx.Rollback() }()
 
 	for _, p := range prefs {
-		_, err := tx.ExecContext(ctx, s.q(
+		_, err := tx.ExecContext(ctx,
 			`INSERT INTO notification_preferences (user_id, workspace_id, category, channel_web, channel_email, channel_push, channel_desktop)
-			 VALUES (?, ?, ?, ?, ?, ?, ?)
+			 VALUES ($1, $2, $3, $4, $5, $6, $7)
 			 ON CONFLICT (user_id, workspace_id, category)
-			 DO UPDATE SET channel_web = ?, channel_email = ?, channel_push = ?, channel_desktop = ?`),
+			 DO UPDATE SET channel_web = $4, channel_email = $5, channel_push = $6, channel_desktop = $7`,
 			p.UserID, p.WorkspaceID, string(p.Category),
-			s.boolParam(p.Web), s.boolParam(p.Email), s.boolParam(p.Push), s.boolParam(p.Desktop),
-			s.boolParam(p.Web), s.boolParam(p.Email), s.boolParam(p.Push), s.boolParam(p.Desktop))
+			p.Web, p.Email, p.Push, p.Desktop)
 		if err != nil {
 			return err
 		}

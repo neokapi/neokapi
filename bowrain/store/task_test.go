@@ -4,16 +4,17 @@ import (
 	"testing"
 	"time"
 
+	"github.com/neokapi/neokapi/bowrain/testutil/pgtest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 func newTestTaskStore(t *testing.T) *TaskStore {
 	t.Helper()
-	s, err := NewSQLiteStore(":memory:")
+	db := pgtest.NewTestDB(t)
+	_, err := NewPostgresStoreFromDB(db)
 	require.NoError(t, err)
-	t.Cleanup(func() { s.Close() })
-	return NewTaskStore(s.DB())
+	return NewTaskStore(db.DB)
 }
 
 func TestTaskStore_CRUD(t *testing.T) {

@@ -8,14 +8,15 @@ import (
 	"testing"
 
 	bragent "github.com/neokapi/neokapi/bowrain/agent"
+	"github.com/neokapi/neokapi/bowrain/testutil/pgtest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 func TestStreamFromGateway_CapturesUsage(t *testing.T) {
-	store, err := bragent.NewSQLiteStore(":memory:")
+	pgdb := pgtest.NewTestDB(t)
+	store, err := bragent.NewStore(pgdb)
 	require.NoError(t, err)
-	t.Cleanup(func() { store.Close() })
 
 	svc := NewAgentService(store, nil)
 	ctx := t.Context()

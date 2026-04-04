@@ -82,22 +82,12 @@ type Notification struct {
 
 // NotificationStore persists user notifications.
 type NotificationStore struct {
-	db      *sql.DB
-	dialect Dialect
+	db *sql.DB
 }
 
-// NewNotificationStore creates a notification store sharing the given database (SQLite).
+// NewNotificationStore creates a notification store backed by PostgreSQL.
 func NewNotificationStore(db *sql.DB) *NotificationStore {
-	return &NotificationStore{db: db, dialect: DialectSQLite}
-}
-
-// NewPostgresNotificationStore creates a notification store backed by PostgreSQL.
-func NewPostgresNotificationStore(db *sql.DB) *NotificationStore {
-	return &NotificationStore{db: db, dialect: DialectPostgres}
-}
-
-func (s *NotificationStore) q(query string) string {
-	return Rebind(s.dialect, query)
+	return &NotificationStore{db: db}
 }
 
 // Create inserts a new notification.
@@ -109,11 +99,11 @@ func (s *NotificationStore) Create(ctx context.Context, n *Notification) error {
 		n.CreatedAt = time.Now().UTC()
 	}
 
-	_, err := s.db.ExecContext(ctx, s.q(
+	_, err := s.db.ExecContext(ctx,
 		`INSERT INTO notifications (id, user_id, type, title, body, project_id, link_url, read, created_at, category, group_key, actor_id, actor_name, task_id, priority)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`),
+		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)`,
 		n.ID, n.UserID, string(n.Type), n.Title, n.Body,
-		n.ProjectID, n.LinkURL, 0, n.CreatedAt.UTC().Format(time.RFC3339),
+		n.ProjectID, n.LinkURL, 0, n.CreatedAt.UTC().Format(time.RFC3339Nano),
 		n.Category, n.GroupKey, n.ActorID, n.ActorName, n.TaskID, n.Priority)
 	return err
 }
@@ -124,7 +114,7 @@ func (s *NotificationStore) List(ctx context.Context, userID string, limit int, 
 		limit = 50
 	}
 
-	where := "user_id = ?"
+	where := "user_id = $1"
 	args := []any{userID}
 	if unreadOnly {
 		where += " AND read = 0"
@@ -132,10 +122,10 @@ func (s *NotificationStore) List(ctx context.Context, userID string, limit int, 
 
 	query := fmt.Sprintf(
 		`SELECT id, user_id, type, title, body, project_id, link_url, read, created_at, category, group_key, actor_id, actor_name, task_id, priority
-		 FROM notifications WHERE %s ORDER BY created_at DESC LIMIT ?`, where)
+		 FROM notifications WHERE %s ORDER BY created_at DESC LIMIT $2`, where)
 	args = append(args, limit)
 
-	rows, err := s.db.QueryContext(ctx, s.q(query), args...)
+	rows, err := s.db.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -160,23 +150,23 @@ func (s *NotificationStore) List(ctx context.Context, userID string, limit int, 
 // UnreadCount returns the number of unread notifications for a user.
 func (s *NotificationStore) UnreadCount(ctx context.Context, userID string) (int, error) {
 	var count int
-	err := s.db.QueryRowContext(ctx, s.q(
-		`SELECT COUNT(*) FROM notifications WHERE user_id = ? AND read = 0`), userID).Scan(&count)
+	err := s.db.QueryRowContext(ctx,
+		`SELECT COUNT(*) FROM notifications WHERE user_id = $1 AND read = 0`, userID).Scan(&count)
 	return count, err
 }
 
 // MarkRead marks a single notification as read.
 func (s *NotificationStore) MarkRead(ctx context.Context, notificationID, userID string) error {
-	_, err := s.db.ExecContext(ctx, s.q(
-		`UPDATE notifications SET read = 1 WHERE id = ? AND user_id = ?`),
+	_, err := s.db.ExecContext(ctx,
+		`UPDATE notifications SET read = 1 WHERE id = $1 AND user_id = $2`,
 		notificationID, userID)
 	return err
 }
 
 // MarkAllRead marks all notifications as read for a user.
 func (s *NotificationStore) MarkAllRead(ctx context.Context, userID string) error {
-	_, err := s.db.ExecContext(ctx, s.q(
-		`UPDATE notifications SET read = 1 WHERE user_id = ? AND read = 0`), userID)
+	_, err := s.db.ExecContext(ctx,
+		`UPDATE notifications SET read = 1 WHERE user_id = $1 AND read = 0`, userID)
 	return err
 }
 
@@ -185,8 +175,8 @@ func (s *NotificationStore) MarkReadByGroupKey(ctx context.Context, groupKey str
 	if groupKey == "" {
 		return nil
 	}
-	_, err := s.db.ExecContext(ctx, s.q(
-		`UPDATE notifications SET read = 1 WHERE group_key = ? AND read = 0`),
+	_, err := s.db.ExecContext(ctx,
+		`UPDATE notifications SET read = 1 WHERE group_key = $1 AND read = 0`,
 		groupKey)
 	return err
 }
@@ -194,8 +184,8 @@ func (s *NotificationStore) MarkReadByGroupKey(ctx context.Context, groupKey str
 // ListUnreadSince returns unread notifications for a user created after the given time.
 func (s *NotificationStore) ListUnreadSince(ctx context.Context, userID string, since time.Time) ([]Notification, error) {
 	query := `SELECT id, user_id, type, title, body, project_id, link_url, read, created_at, category, group_key, actor_id, actor_name, task_id, priority
-		 FROM notifications WHERE user_id = ? AND read = 0 AND created_at > ? ORDER BY created_at DESC`
-	rows, err := s.db.QueryContext(ctx, s.q(query), userID, since.UTC().Format(time.RFC3339))
+		 FROM notifications WHERE user_id = $1 AND read = 0 AND created_at > $2 ORDER BY created_at DESC`
+	rows, err := s.db.QueryContext(ctx, query, userID, since.UTC().Format(time.RFC3339Nano))
 	if err != nil {
 		return nil, err
 	}
@@ -219,8 +209,8 @@ func (s *NotificationStore) ListUnreadSince(ctx context.Context, userID string, 
 
 // Delete removes a notification.
 func (s *NotificationStore) Delete(ctx context.Context, notificationID, userID string) error {
-	_, err := s.db.ExecContext(ctx, s.q(
-		`DELETE FROM notifications WHERE id = ? AND user_id = ?`),
+	_, err := s.db.ExecContext(ctx,
+		`DELETE FROM notifications WHERE id = $1 AND user_id = $2`,
 		notificationID, userID)
 	return err
 }

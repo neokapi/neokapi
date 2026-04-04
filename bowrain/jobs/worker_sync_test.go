@@ -4,10 +4,12 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"os"
 	"testing"
 
 	"github.com/neokapi/neokapi/bowrain/core/store"
 	pb "github.com/neokapi/neokapi/bowrain/proto/v1"
+	"github.com/neokapi/neokapi/bowrain/storage"
 	bloblocal "github.com/neokapi/neokapi/bowrain/storage/localblob"
 	bstore "github.com/neokapi/neokapi/bowrain/store"
 	bowsync "github.com/neokapi/neokapi/bowrain/sync"
@@ -18,11 +20,22 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-// newTestWorkerDeps creates WorkerDeps with in-memory SQLite stores and local blob storage.
+// newTestWorkerDeps creates WorkerDeps with PostgreSQL stores and local blob storage.
 func newTestWorkerDeps(t *testing.T) *WorkerDeps {
 	t.Helper()
-	js := newTestSQLiteStore(t)
-	cs, err := bstore.NewSQLiteStore(":memory:")
+	dbURL := os.Getenv("BOWRAIN_TEST_DATABASE_URL")
+	if dbURL == "" {
+		t.Skip("BOWRAIN_TEST_DATABASE_URL not set")
+	}
+	db, err := storage.OpenPostgres(dbURL)
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		_, _ = db.ExecContext(t.Context(), "DELETE FROM translation_jobs")
+		db.Close()
+	})
+	js, err := NewJobStore(db)
+	require.NoError(t, err)
+	cs, err := bstore.NewPostgresStoreFromDB(db)
 	require.NoError(t, err)
 	bs, err := bloblocal.New(t.TempDir())
 	require.NoError(t, err)

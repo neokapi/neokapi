@@ -129,7 +129,7 @@ func (s *Server) HandleGetBillingModelUsage(c echo.Context) error {
 		}
 	}
 
-	pgStore, ok := s.QuotaStore.(*jobs.PgQuotaStore)
+	pgStore, ok := s.QuotaStore.(*jobs.QuotaStoreDB)
 	if !ok {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "model usage not available"})
 	}

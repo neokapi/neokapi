@@ -3,16 +3,17 @@ package store
 import (
 	"testing"
 
+	"github.com/neokapi/neokapi/bowrain/testutil/pgtest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 func newTestPreferenceStore(t *testing.T) *PreferenceStore {
 	t.Helper()
-	s, err := NewSQLiteStore(":memory:")
+	db := pgtest.NewTestDB(t)
+	_, err := NewPostgresStoreFromDB(db)
 	require.NoError(t, err)
-	t.Cleanup(func() { s.Close() })
-	return NewPreferenceStore(s.DB())
+	return NewPreferenceStore(db.DB)
 }
 
 func TestPreferenceStore_DefaultPreferences(t *testing.T) {

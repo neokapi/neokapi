@@ -1,15 +1,34 @@
 package jobs
 
 import (
+	"os"
 	"testing"
 
+	"github.com/neokapi/neokapi/bowrain/storage"
 	"github.com/neokapi/neokapi/core/id"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
+func newTestJobStore(t *testing.T) JobStore {
+	t.Helper()
+	dbURL := os.Getenv("BOWRAIN_TEST_DATABASE_URL")
+	if dbURL == "" {
+		t.Skip("BOWRAIN_TEST_DATABASE_URL not set")
+	}
+	db, err := storage.OpenPostgres(dbURL)
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		_, _ = db.ExecContext(t.Context(), "DELETE FROM translation_jobs")
+		db.Close()
+	})
+	store, err := NewJobStore(db)
+	require.NoError(t, err)
+	return store
+}
+
 func TestClaimJob_OnlyOneWins(t *testing.T) {
-	store := newTestSQLiteStore(t)
+	store := newTestJobStore(t)
 	ctx := t.Context()
 
 	job := &TranslationJob{
@@ -39,7 +58,7 @@ func TestClaimJob_OnlyOneWins(t *testing.T) {
 }
 
 func TestClaimJob_SkipsNonQueued(t *testing.T) {
-	store := newTestSQLiteStore(t)
+	store := newTestJobStore(t)
 	ctx := t.Context()
 
 	job := &TranslationJob{

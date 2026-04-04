@@ -5,20 +5,21 @@ import (
 	"testing"
 
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
+	"github.com/neokapi/neokapi/bowrain/testutil/pgtest"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-func newTestStore(t *testing.T) *SQLiteStore {
+func newTestStore(t *testing.T) *PostgresStore {
 	t.Helper()
-	s, err := NewSQLiteStore(":memory:")
+	db := pgtest.NewTestDB(t)
+	s, err := NewPostgresStoreFromDB(db)
 	require.NoError(t, err)
-	t.Cleanup(func() { s.Close() })
 	return s
 }
 
-func createTestProject(t *testing.T, s *SQLiteStore) *platstore.Project {
+func createTestProject(t *testing.T, s *PostgresStore) *platstore.Project {
 	t.Helper()
 	p := &platstore.Project{
 		Name:                  "Test Project",
@@ -950,7 +951,7 @@ func TestDefaultStream_Migration(t *testing.T) {
 	item := &platstore.Item{Name: "test.json", Format: "json", ItemType: "file"}
 	require.NoError(t, s.StoreItem(ctx, p.ID, "main", item))
 
-	// The migration backfill already ran during NewSQLiteStore, but since we just created the project
+	// The migration backfill already ran during NewPostgresStoreFromDB, but since we just created the project
 	// after migration, verify the field can be set manually.
 	p.DefaultStream = "main"
 	require.NoError(t, s.UpdateProject(ctx, p))

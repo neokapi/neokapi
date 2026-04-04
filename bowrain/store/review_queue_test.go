@@ -8,20 +8,21 @@ import (
 	"github.com/stretchr/testify/require"
 
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
+	"github.com/neokapi/neokapi/bowrain/testutil/pgtest"
 	"github.com/neokapi/neokapi/core/model"
 )
 
-func newTestReviewStore(t *testing.T) (*ReviewQueueStore, *SQLiteStore) {
+func newTestReviewStore(t *testing.T) (*ReviewQueueStore, *PostgresStore) {
 	t.Helper()
-	s, err := NewSQLiteStore(":memory:")
+	db := pgtest.NewTestDB(t)
+	s, err := NewPostgresStoreFromDB(db)
 	require.NoError(t, err)
-	t.Cleanup(func() { s.Close() })
 
-	rq := NewReviewQueueStore(s.DB())
+	rq := NewReviewQueueStore(db.DB)
 	return rq, s
 }
 
-func createReviewProject(t *testing.T, s *SQLiteStore) *platstore.Project {
+func createReviewProject(t *testing.T, s *PostgresStore) *platstore.Project {
 	t.Helper()
 	p := &platstore.Project{
 		Name:                  "Test Project",

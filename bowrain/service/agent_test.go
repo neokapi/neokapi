@@ -10,6 +10,7 @@ import (
 
 	bragent "github.com/neokapi/neokapi/bowrain/agent"
 	platagent "github.com/neokapi/neokapi/bowrain/core/agent"
+	"github.com/neokapi/neokapi/bowrain/testutil/pgtest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -58,9 +59,9 @@ func (r *gatewayMockRuntime) Spawn(ctx context.Context, cfg ContainerConfig) (*A
 
 func newTestAgentStore(t *testing.T) platagent.AgentStore {
 	t.Helper()
-	s, err := bragent.NewSQLiteStore(":memory:")
+	pgdb := pgtest.NewTestDB(t)
+	s, err := bragent.NewStore(pgdb)
 	require.NoError(t, err)
-	t.Cleanup(func() { s.Close() })
 	return s
 }
 

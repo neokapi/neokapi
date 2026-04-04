@@ -8,6 +8,7 @@ import (
 
 	platev "github.com/neokapi/neokapi/bowrain/core/event"
 	bstore "github.com/neokapi/neokapi/bowrain/store"
+	"github.com/neokapi/neokapi/bowrain/testutil/pgtest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -31,10 +32,10 @@ func (m *mockSender) count() int {
 
 func newTestNotifStore(t *testing.T) *bstore.NotificationStore {
 	t.Helper()
-	s, err := bstore.NewSQLiteStore(":memory:")
+	db := pgtest.NewTestDB(t)
+	_, err := bstore.NewPostgresStoreFromDB(db)
 	require.NoError(t, err)
-	t.Cleanup(func() { s.Close() })
-	return bstore.NewNotificationStore(s.DB())
+	return bstore.NewNotificationStore(db.DB)
 }
 
 func TestNotificationDispatcher_FlowFailed(t *testing.T) {
@@ -133,12 +134,12 @@ func TestNotificationDispatcher_PreferencesOptOut(t *testing.T) {
 	bus := NewChannelEventBus()
 	defer bus.Close()
 
-	s, err := bstore.NewSQLiteStore(":memory:")
+	db := pgtest.NewTestDB(t)
+	_, err := bstore.NewPostgresStoreFromDB(db)
 	require.NoError(t, err)
-	defer s.Close()
 
-	notifStore := bstore.NewNotificationStore(s.DB())
-	prefStore := bstore.NewPreferenceStore(s.DB())
+	notifStore := bstore.NewNotificationStore(db.DB)
+	prefStore := bstore.NewPreferenceStore(db.DB)
 	sender := &mockSender{}
 
 	ctx := t.Context()

@@ -19,20 +19,49 @@ type ExtractionJobStore interface {
 	ClaimExtractionJob(ctx context.Context, id string) (bool, error)
 }
 
-// SQLiteExtractionJobStore implements ExtractionJobStore using SQLite.
-// It shares the same database as SQLiteJobStore — the extraction_jobs table
-// is created by migration 4 in sqliteJobMigrations.
-type SQLiteExtractionJobStore struct {
-	db *storage.DB
+var extractionMigrations = []storage.Migration{
+	{
+		Version:     1,
+		Description: "create extraction_jobs table",
+		SQL: `
+			CREATE TABLE IF NOT EXISTS extraction_jobs (
+				id             TEXT PRIMARY KEY,
+				workspace_slug TEXT NOT NULL,
+				project_id     TEXT NOT NULL,
+				item_name      TEXT NOT NULL,
+				locale         TEXT NOT NULL DEFAULT '',
+				push_id        TEXT NOT NULL DEFAULT '',
+				step_id        TEXT NOT NULL DEFAULT '',
+				model          TEXT NOT NULL DEFAULT '',
+				status         TEXT NOT NULL DEFAULT 'queued',
+				total_blocks   INTEGER NOT NULL DEFAULT 0,
+				done_blocks    INTEGER NOT NULL DEFAULT 0,
+				items_created  INTEGER NOT NULL DEFAULT 0,
+				error          TEXT NOT NULL DEFAULT '',
+				created_at     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+				updated_at     TIMESTAMPTZ NOT NULL DEFAULT NOW()
+			);
+			CREATE INDEX IF NOT EXISTS idx_extraction_jobs_project ON extraction_jobs(project_id);
+			CREATE INDEX IF NOT EXISTS idx_extraction_jobs_status ON extraction_jobs(status);
+			CREATE INDEX IF NOT EXISTS idx_extraction_jobs_push_id ON extraction_jobs(push_id);
+		`,
+	},
 }
 
-// NewSQLiteExtractionJobStore creates a SQLite-backed ExtractionJobStore.
-// The DB must have been initialized via NewSQLiteJobStore (which runs all job migrations).
-func NewSQLiteExtractionJobStore(db *storage.DB) *SQLiteExtractionJobStore {
-	return &SQLiteExtractionJobStore{db: db}
+// extractionJobStore implements ExtractionJobStore using PostgreSQL.
+type extractionJobStore struct {
+	db *storage.PgDB
 }
 
-func (s *SQLiteExtractionJobStore) CreateExtractionJob(ctx context.Context, job *ExtractionJob) error {
+// NewExtractionJobStore creates a PostgreSQL-backed ExtractionJobStore.
+func NewExtractionJobStore(db *storage.PgDB) (ExtractionJobStore, error) {
+	if err := storage.MigratePostgresNS(db, "extraction_schema_migrations", extractionMigrations); err != nil {
+		return nil, fmt.Errorf("migrate extraction schema: %w", err)
+	}
+	return &extractionJobStore{db: db}, nil
+}
+
+func (s *extractionJobStore) CreateExtractionJob(ctx context.Context, job *ExtractionJob) error {
 	now := time.Now().UTC()
 	job.CreatedAt = now
 	job.UpdatedAt = now
@@ -44,41 +73,38 @@ func (s *SQLiteExtractionJobStore) CreateExtractionJob(ctx context.Context, job 
 		`INSERT INTO extraction_jobs
 			(id, workspace_slug, project_id, item_name, locale, push_id, step_id, model,
 			 status, total_blocks, done_blocks, items_created, error, created_at, updated_at)
-		 VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+		 VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)`,
 		job.ID, job.WorkspaceSlug, job.ProjectID, job.ItemName, job.Locale,
 		job.PushID, job.StepID, job.Model, string(job.Status), job.TotalBlocks,
-		job.DoneBlocks, job.ItemsCreated, job.Error,
-		now.Format(time.RFC3339), now.Format(time.RFC3339))
+		job.DoneBlocks, job.ItemsCreated, job.Error, now, now)
 	if err != nil {
 		return fmt.Errorf("insert extraction job: %w", err)
 	}
 	return nil
 }
 
-func (s *SQLiteExtractionJobStore) GetExtractionJob(ctx context.Context, id string) (*ExtractionJob, error) {
+func (s *extractionJobStore) GetExtractionJob(ctx context.Context, id string) (*ExtractionJob, error) {
 	row := s.db.QueryRowContext(ctx,
 		`SELECT id, workspace_slug, project_id, item_name, locale, push_id, step_id, model,
 				status, total_blocks, done_blocks, items_created, error, created_at, updated_at
-		 FROM extraction_jobs WHERE id = ?`, id)
+		 FROM extraction_jobs WHERE id = $1`, id)
 
 	var j ExtractionJob
-	var status, createdAt, updatedAt string
+	var status string
 	err := row.Scan(
 		&j.ID, &j.WorkspaceSlug, &j.ProjectID, &j.ItemName, &j.Locale,
 		&j.PushID, &j.StepID, &j.Model, &status, &j.TotalBlocks, &j.DoneBlocks,
-		&j.ItemsCreated, &j.Error, &createdAt, &updatedAt)
+		&j.ItemsCreated, &j.Error, &j.CreatedAt, &j.UpdatedAt)
 	if err != nil {
 		return nil, fmt.Errorf("scan extraction job: %w", err)
 	}
 	j.Status = ExtractionJobStatus(status)
-	j.CreatedAt, _ = time.Parse(time.RFC3339, createdAt)
-	j.UpdatedAt, _ = time.Parse(time.RFC3339, updatedAt)
 	return &j, nil
 }
 
-func (s *SQLiteExtractionJobStore) UpdateExtractionJobStatus(ctx context.Context, id string, status ExtractionJobStatus, errMsg string) error {
+func (s *extractionJobStore) UpdateExtractionJobStatus(ctx context.Context, id string, status ExtractionJobStatus, errMsg string) error {
 	_, err := s.db.ExecContext(ctx,
-		`UPDATE extraction_jobs SET status = ?, error = ?, updated_at = datetime('now') WHERE id = ?`,
+		`UPDATE extraction_jobs SET status = $1, error = $2, updated_at = NOW() WHERE id = $3`,
 		string(status), errMsg, id)
 	if err != nil {
 		return fmt.Errorf("update extraction job status: %w", err)
@@ -86,9 +112,9 @@ func (s *SQLiteExtractionJobStore) UpdateExtractionJobStatus(ctx context.Context
 	return nil
 }
 
-func (s *SQLiteExtractionJobStore) UpdateExtractionJobProgress(ctx context.Context, id string, doneBlocks, totalBlocks, itemsCreated int) error {
+func (s *extractionJobStore) UpdateExtractionJobProgress(ctx context.Context, id string, doneBlocks, totalBlocks, itemsCreated int) error {
 	_, err := s.db.ExecContext(ctx,
-		`UPDATE extraction_jobs SET done_blocks = ?, total_blocks = ?, items_created = ?, updated_at = datetime('now') WHERE id = ?`,
+		`UPDATE extraction_jobs SET done_blocks = $1, total_blocks = $2, items_created = $3, updated_at = NOW() WHERE id = $4`,
 		doneBlocks, totalBlocks, itemsCreated, id)
 	if err != nil {
 		return fmt.Errorf("update extraction job progress: %w", err)
@@ -96,10 +122,10 @@ func (s *SQLiteExtractionJobStore) UpdateExtractionJobProgress(ctx context.Conte
 	return nil
 }
 
-func (s *SQLiteExtractionJobStore) ClaimExtractionJob(ctx context.Context, id string) (bool, error) {
+func (s *extractionJobStore) ClaimExtractionJob(ctx context.Context, id string) (bool, error) {
 	res, err := s.db.ExecContext(ctx,
-		`UPDATE extraction_jobs SET status = 'processing', updated_at = datetime('now')
-		 WHERE id = ? AND status = 'queued'`, id)
+		`UPDATE extraction_jobs SET status = 'processing', updated_at = NOW()
+		 WHERE id = $1 AND status = 'queued'`, id)
 	if err != nil {
 		return false, fmt.Errorf("claim extraction job: %w", err)
 	}
@@ -107,11 +133,11 @@ func (s *SQLiteExtractionJobStore) ClaimExtractionJob(ctx context.Context, id st
 	return n == 1, nil
 }
 
-func (s *SQLiteExtractionJobStore) ListByPushID(ctx context.Context, pushID string) ([]*ExtractionJob, error) {
+func (s *extractionJobStore) ListByPushID(ctx context.Context, pushID string) ([]*ExtractionJob, error) {
 	rows, err := s.db.QueryContext(ctx,
 		`SELECT id, workspace_slug, project_id, item_name, locale, push_id, step_id, model,
 				status, total_blocks, done_blocks, items_created, error, created_at, updated_at
-		 FROM extraction_jobs WHERE push_id = ? ORDER BY created_at`, pushID)
+		 FROM extraction_jobs WHERE push_id = $1 ORDER BY created_at`, pushID)
 	if err != nil {
 		return nil, fmt.Errorf("list extraction jobs by push: %w", err)
 	}
@@ -120,16 +146,14 @@ func (s *SQLiteExtractionJobStore) ListByPushID(ctx context.Context, pushID stri
 	var result []*ExtractionJob
 	for rows.Next() {
 		var j ExtractionJob
-		var status, createdAt, updatedAt string
+		var status string
 		if err := rows.Scan(
 			&j.ID, &j.WorkspaceSlug, &j.ProjectID, &j.ItemName, &j.Locale,
 			&j.PushID, &j.StepID, &j.Model, &status, &j.TotalBlocks, &j.DoneBlocks,
-			&j.ItemsCreated, &j.Error, &createdAt, &updatedAt); err != nil {
+			&j.ItemsCreated, &j.Error, &j.CreatedAt, &j.UpdatedAt); err != nil {
 			return nil, fmt.Errorf("scan extraction job: %w", err)
 		}
 		j.Status = ExtractionJobStatus(status)
-		j.CreatedAt, _ = time.Parse(time.RFC3339, createdAt)
-		j.UpdatedAt, _ = time.Parse(time.RFC3339, updatedAt)
 		result = append(result, &j)
 	}
 	return result, rows.Err()

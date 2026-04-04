@@ -8,6 +8,7 @@ import (
 	platev "github.com/neokapi/neokapi/bowrain/core/event"
 	"github.com/neokapi/neokapi/bowrain/core/store"
 	bstore "github.com/neokapi/neokapi/bowrain/store"
+	"github.com/neokapi/neokapi/bowrain/testutil/pgtest"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -38,11 +39,11 @@ func newProgressTestSetup(t *testing.T, cs store.ContentStore) (*ChannelEventBus
 	bus := NewChannelEventBus()
 	t.Cleanup(func() { bus.Close() })
 
-	s, err := bstore.NewSQLiteStore(":memory:")
+	db := pgtest.NewTestDB(t)
+	_, err := bstore.NewPostgresStoreFromDB(db)
 	require.NoError(t, err)
-	t.Cleanup(func() { s.Close() })
 
-	notifStore := bstore.NewNotificationStore(s.DB())
+	notifStore := bstore.NewNotificationStore(db.DB)
 	sender := &mockSender{}
 
 	targetFn := func(ctx context.Context, projectID, excludeActorID string) ([]string, error) {

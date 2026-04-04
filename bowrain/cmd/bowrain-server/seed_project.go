@@ -66,7 +66,7 @@ func runSeedProject(cfg seedProjectConfig) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	authStore, err := auth.NewPostgresAuthStoreFromDB(db)
+	authStore, err := auth.NewAuthStoreFromDB(db)
 	if err != nil {
 		return fmt.Errorf("init auth store: %w", err)
 	}

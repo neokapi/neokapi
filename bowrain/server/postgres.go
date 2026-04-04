@@ -57,18 +57,18 @@ func initPostgresStores(db *storage.PgDB) (*pgStores, error) {
 		return nil, fmt.Errorf("init PostgreSQL content store: %w", err)
 	}
 
-	as, err := auth.NewPostgresAuthStoreFromDB(db)
+	as, err := auth.NewAuthStoreFromDB(db)
 	if err != nil {
 		cs.Close()
 		return nil, fmt.Errorf("init PostgreSQL auth store: %w", err)
 	}
 
-	js, err := jobs.NewPgJobStore(db)
+	js, err := jobs.NewJobStore(db)
 	if err != nil {
 		return nil, fmt.Errorf("init PostgreSQL job store: %w", err)
 	}
 
-	qs, err := jobs.NewPgQuotaStore(db)
+	qs, err := jobs.NewQuotaStore(db)
 	if err != nil {
 		return nil, fmt.Errorf("init PostgreSQL quota store: %w", err)
 	}
@@ -78,7 +78,7 @@ func initPostgresStores(db *storage.PgDB) (*pgStores, error) {
 		slog.Warn("failed to init brand store (brand voice features disabled)", "error", err)
 	}
 
-	es, err := jobs.NewPgExtractionJobStore(db)
+	es, err := jobs.NewExtractionJobStore(db)
 	if err != nil {
 		return nil, fmt.Errorf("init PostgreSQL extraction job store: %w", err)
 	}
@@ -92,7 +92,7 @@ func initPostgresStores(db *storage.PgDB) (*pgStores, error) {
 	}
 
 	// Initialize agent store (AD-028).
-	ags, err := bragent.NewPostgresStore(db)
+	ags, err := bragent.NewStore(db)
 	if err != nil {
 		slog.Warn("failed to init agent store (agent features disabled)", "error", err)
 	} else {
