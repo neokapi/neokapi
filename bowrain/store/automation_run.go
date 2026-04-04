@@ -360,7 +360,9 @@ func (s *AutomationRunStore) ListLogs(ctx context.Context, stepID string, limit 
 		}
 		l.Timestamp, _ = parseTime(tsStr)
 		if dataJSON != "" && dataJSON != "{}" {
-			_ = json.Unmarshal([]byte(dataJSON), &l.Data)
+			if err := json.Unmarshal([]byte(dataJSON), &l.Data); err != nil {
+				return nil, fmt.Errorf("unmarshal log data for %s: %w", l.ID, err)
+			}
 		}
 		result = append(result, l)
 	}
@@ -476,7 +478,9 @@ func scanRun(row scannable) (*AutomationRun, error) {
 		}
 	}
 	if triggerData != "" && triggerData != "{}" {
-		_ = json.Unmarshal([]byte(triggerData), &r.TriggerData)
+		if err := json.Unmarshal([]byte(triggerData), &r.TriggerData); err != nil {
+			return nil, fmt.Errorf("unmarshal trigger data for run %s: %w", r.ID, err)
+		}
 	}
 	return &r, nil
 }
@@ -501,13 +505,19 @@ func scanStep(row scannable) (*AutomationStep, error) {
 		}
 	}
 	if config != "" && config != "{}" {
-		_ = json.Unmarshal([]byte(config), &step.Config)
+		if err := json.Unmarshal([]byte(config), &step.Config); err != nil {
+			return nil, fmt.Errorf("unmarshal step config for %s: %w", step.ID, err)
+		}
 	}
 	if jobIDs != "" && jobIDs != "[]" {
-		_ = json.Unmarshal([]byte(jobIDs), &step.JobIDs)
+		if err := json.Unmarshal([]byte(jobIDs), &step.JobIDs); err != nil {
+			return nil, fmt.Errorf("unmarshal step job IDs for %s: %w", step.ID, err)
+		}
 	}
 	if taskIDs != "" && taskIDs != "[]" {
-		_ = json.Unmarshal([]byte(taskIDs), &step.TaskIDs)
+		if err := json.Unmarshal([]byte(taskIDs), &step.TaskIDs); err != nil {
+			return nil, fmt.Errorf("unmarshal step task IDs for %s: %w", step.ID, err)
+		}
 	}
 	return &step, nil
 }

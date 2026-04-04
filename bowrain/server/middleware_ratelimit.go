@@ -1,6 +1,7 @@
 package server
 
 import (
+	"log/slog"
 	"net/http"
 	"sync"
 	"time"
@@ -52,6 +53,11 @@ func RateLimitSyncPush(perMinute int, burst int) echo.MiddlewareFunc {
 
 	// Periodic cleanup to prevent memory growth.
 	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				slog.Error("recovered panic in rate limiter cleanup", "panic", r)
+			}
+		}()
 		ticker := time.NewTicker(1 * time.Hour)
 		defer ticker.Stop()
 		for range ticker.C {
