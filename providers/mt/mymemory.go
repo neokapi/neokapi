@@ -81,7 +81,7 @@ func (p *MyMemoryProvider) Translate(ctx context.Context, req TranslateRequest) 
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("API returned status %d: %s", resp.StatusCode, string(respBody))
+		return nil, fmt.Errorf("api returned status %d: %s", resp.StatusCode, string(respBody))
 	}
 
 	var result myMemoryResponse
@@ -90,7 +90,7 @@ func (p *MyMemoryProvider) Translate(ctx context.Context, req TranslateRequest) 
 	}
 
 	if result.ResponseStatus != 200 {
-		return nil, fmt.Errorf("API response status %d", result.ResponseStatus)
+		return nil, fmt.Errorf("api response status %d", result.ResponseStatus)
 	}
 
 	return &TranslateResponse{

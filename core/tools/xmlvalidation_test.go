@@ -53,7 +53,7 @@ func TestXMLValidationConfigValidation(t *testing.T) {
 	cfg := &tools.XMLValidationConfig{CheckTarget: true}
 	err := cfg.Validate()
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "Locale")
+	assert.Contains(t, err.Error(), "locale")
 
 	cfg.Locale = model.LocaleFrench
 	err = cfg.Validate()

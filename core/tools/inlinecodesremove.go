@@ -31,10 +31,10 @@ func (c *InlineCodesRemoveConfig) Reset() {
 // Validate checks configuration validity.
 func (c *InlineCodesRemoveConfig) Validate() error {
 	if c.ApplyTarget && c.TargetLocale == "" {
-		return fmt.Errorf("InlineCodesRemoveConfig: TargetLocale is required when ApplyTarget is true")
+		return fmt.Errorf("inline-codes-remove: target locale is required when ApplyTarget is true")
 	}
 	if !c.ApplySource && !c.ApplyTarget {
-		return fmt.Errorf("InlineCodesRemoveConfig: at least one of ApplySource or ApplyTarget must be true")
+		return fmt.Errorf("inline-codes-remove: at least one of ApplySource or ApplyTarget must be true")
 	}
 	return nil
 }

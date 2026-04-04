@@ -103,7 +103,7 @@ func (b *JavaBridge) Start() error {
 		return nil
 	}
 
-	b.cmd = exec.Command(b.cfg.Command, b.cfg.Args...)
+	b.cmd = exec.Command(b.cfg.Command, b.cfg.Args...) //nolint:noctx // long-lived subprocess managed by bridge lifecycle, not a single request
 	setPdeathsig(b.cmd)
 
 	// Generate a Unix socket path for IPC (empty on Windows → JVM uses TCP).
@@ -143,7 +143,7 @@ func (b *JavaBridge) Start() error {
 			if err := scanner.Err(); err != nil {
 				addrCh <- addrResult{err: fmt.Errorf("reading address: %w", err)}
 			} else {
-				addrCh <- addrResult{err: fmt.Errorf("JVM closed stdout before sending address")}
+				addrCh <- addrResult{err: fmt.Errorf("jvm closed stdout before sending address")}
 			}
 			return
 		}
@@ -163,12 +163,12 @@ func (b *JavaBridge) Start() error {
 		addr = result.addr
 	case <-time.After(b.cfg.StartupTimeout):
 		_ = b.cmd.Process.Kill()
-		return fmt.Errorf("JVM startup timed out after %s", b.cfg.StartupTimeout)
+		return fmt.Errorf("jvm startup timed out after %s", b.cfg.StartupTimeout)
 	}
 
 	if addr == "" {
 		_ = b.cmd.Process.Kill()
-		return fmt.Errorf("JVM sent empty address")
+		return fmt.Errorf("jvm sent empty address")
 	}
 
 	b.logger.Printf("[bridge] connecting to %s", addr)
