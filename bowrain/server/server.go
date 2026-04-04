@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"fmt"
+	"io"
 	"log/slog"
 	"net/http"
 	"net/url"
@@ -1203,20 +1204,101 @@ func (s *Server) Start(addr string) error {
 	return srv.ListenAndServe()
 }
 
-// Shutdown gracefully shuts down the server, draining in-flight requests.
-// It stops accepting new connections, waits for existing requests to complete
-// (up to the context deadline), then shuts down gRPC if configured.
+// Shutdown gracefully shuts down the server and all background resources.
+// The shutdown proceeds in four phases:
+//  1. Stop accepting new work (HTTP + gRPC listeners)
+//  2. Stop background workers (digest, deadline, progress, etc.)
+//  3. Close event infrastructure (automation engine, audit logger, event bus)
+//  4. Close data connections (stores, queues, analytics)
 func (s *Server) Shutdown(ctx context.Context) error {
+	var firstErr error
+	collectErr := func(name string, err error) {
+		if err != nil {
+			slog.Error("shutdown error", "component", name, "error", err)
+			if firstErr == nil {
+				firstErr = fmt.Errorf("%s: %w", name, err)
+			}
+		}
+	}
+
+	// Phase 1: stop accepting new connections.
+	slog.Info("shutdown phase 1: stopping listeners")
 	if s.GRPCServer != nil {
 		s.GRPCServer.GracefulStop()
 	}
 	if s.httpServer != nil {
-		return s.httpServer.Shutdown(ctx)
+		collectErr("http-server", s.httpServer.Shutdown(ctx))
+	} else if s.Echo != nil {
+		collectErr("echo", s.Echo.Shutdown(ctx))
 	}
-	if s.Echo != nil {
-		return s.Echo.Shutdown(ctx)
+
+	// Phase 2: stop background workers. These are safe to call on nil receivers
+	// because each worker's Close checks internal state.
+	slog.Info("shutdown phase 2: stopping background workers")
+	if s.DailyDigestWorker != nil {
+		s.DailyDigestWorker.Close()
 	}
-	return nil
+	if s.WeeklyDigestWorker != nil {
+		s.WeeklyDigestWorker.Close()
+	}
+	if s.deadlineChecker != nil {
+		s.deadlineChecker.Close()
+	}
+	if s.progressTracker != nil {
+		s.progressTracker.Close()
+	}
+	if s.pushCompletionTracker != nil {
+		s.pushCompletionTracker.Close()
+	}
+	if s.stepCompletionTracker != nil {
+		s.stepCompletionTracker.Close()
+	}
+	if s.ActivityRecorder != nil {
+		s.ActivityRecorder.Close()
+	}
+	if s.NotificationDispatcher != nil {
+		s.NotificationDispatcher.Close()
+	}
+
+	// Phase 3: close event infrastructure. Order matters — stop consumers
+	// before closing the bus so in-flight events can drain.
+	slog.Info("shutdown phase 3: closing event infrastructure")
+	if s.AutomationEngine != nil {
+		s.AutomationEngine.Close()
+	}
+	if s.AuditLogger != nil {
+		s.AuditLogger.Close()
+	}
+	if s.graphSyncer != nil {
+		s.graphSyncer.Close()
+	}
+	if s.EventBus != nil {
+		s.EventBus.Close()
+	}
+
+	// Phase 4: close data connections and external clients.
+	slog.Info("shutdown phase 4: closing data connections")
+	if s.JobQueue != nil {
+		collectErr("job-queue", s.JobQueue.Close())
+	}
+	if s.ExtractionQueue != nil {
+		collectErr("extraction-queue", s.ExtractionQueue.Close())
+	}
+	if s.PostHogClient != nil {
+		collectErr("posthog", s.PostHogClient.Close())
+	}
+	// Close Redis session store if the implementation supports it.
+	if c, ok := s.SessionStore.(io.Closer); ok {
+		collectErr("session-store", c.Close())
+	}
+	if s.ContentStore != nil {
+		collectErr("content-store", s.ContentStore.Close())
+	}
+	if s.AuthStore != nil {
+		collectErr("auth-store", s.AuthStore.Close())
+	}
+
+	return firstErr
 }
 
 // GetEcho returns the underlying Echo instance. Useful for testing.
