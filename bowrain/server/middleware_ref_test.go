@@ -13,7 +13,7 @@ import (
 
 func TestRefResolutionMiddleware_NoRefParam(t *testing.T) {
 	e := echo.New()
-	srv := NewServer(DefaultServerConfig())
+	srv := NewServer(DefaultConfig())
 	initTestStores(t, srv)
 
 	called := false
@@ -35,7 +35,7 @@ func TestRefResolutionMiddleware_NoRefParam(t *testing.T) {
 
 func TestRefResolutionMiddleware_MainDefault(t *testing.T) {
 	e := echo.New()
-	srv := NewServer(DefaultServerConfig())
+	srv := NewServer(DefaultConfig())
 	initTestStores(t, srv)
 
 	var resolved *ResolvedRef

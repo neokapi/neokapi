@@ -51,7 +51,7 @@ import (
 
 // Server is the REST API server for neokapi.
 type Server struct {
-	Config         ServerConfig
+	Config         Config
 	FormatRegistry *registry.FormatRegistry
 	ToolRegistry   *registry.ToolRegistry
 	ConnectorReg   *platconn.Registry
@@ -228,7 +228,7 @@ type Server struct {
 
 // NewServer creates a new Server with the given configuration.
 // createEventBus selects the event bus backend based on configuration (AD-036).
-func createEventBus(cfg ServerConfig) platev.EventBus {
+func createEventBus(cfg Config) platev.EventBus {
 	if cfg.ServiceBusConnection != "" {
 		bus, err := event.NewServiceBusEventBus(cfg.ServiceBusConnection)
 		if err != nil {
@@ -251,7 +251,7 @@ func createEventBus(cfg ServerConfig) platev.EventBus {
 	return event.NewChannelEventBus()
 }
 
-func NewServer(cfg ServerConfig) *Server {
+func NewServer(cfg Config) *Server {
 	formatReg := registry.NewFormatRegistry()
 	formats.RegisterAll(formatReg)
 

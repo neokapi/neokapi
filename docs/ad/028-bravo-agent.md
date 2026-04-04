@@ -13,7 +13,7 @@ The platform already has strong foundations for agent integration:
 
 - **MCP server** (`platform/server/mcp/`) — Streamable HTTP transport with OAuth 2.1 bearer token validation, currently exposing brand voice tools, resources, and prompts
 - **Event bus** (`platform/core/event/`) — typed events with causation tracking, automation engine that evaluates rules on events
-- **Tool and flow system** (`core/tool/`, `core/flow/`) — channel-based streaming pipeline with FlowExecutor, tool registry with 15+ built-in tools
+- **Tool and flow system** (`core/tool/`, `core/flow/`) — channel-based streaming pipeline with Executor, tool registry with 15+ built-in tools
 - **AI infrastructure** (`core/ai/`) — LLMProvider interface with Anthropic, OpenAI, Azure OpenAI, Ollama backends
 - **Workspace access control** — role-based (owner/admin/member/viewer) with API token and JWT authentication
 - **Real-time infrastructure** — WebSocket hubs for collaboration and notifications, SSE capability via Echo

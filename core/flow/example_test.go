@@ -34,10 +34,10 @@ func ExampleNewFlow() {
 	// 1
 }
 
-func ExampleNewFlowExecutor() {
+func ExampleNewExecutor() {
 	// Create an executor that processes documents sequentially
 	// with a channel buffer of 32 and fail-fast enabled.
-	executor := flow.NewFlowExecutor(
+	executor := flow.NewExecutor(
 		flow.WithMaxConcurrency(1),
 		flow.WithChannelSize(32),
 		flow.WithFailFast(true),

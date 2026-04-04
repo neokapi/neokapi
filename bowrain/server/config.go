@@ -1,12 +1,12 @@
 // Package server provides the REST and gRPC API server for Bowrain.
 package server
 
-// ServerConfig holds configuration for the REST API server.
+// Config holds configuration for the REST API server.
 //
 // Auth behavior is determined by JWTSecret: when set, the server enables
 // authentication, OIDC login, and workspace management. When empty (e.g.
 // in tests), routes are registered without auth middleware.
-type ServerConfig struct {
+type Config struct {
 	// Port is the HTTP port to listen on.
 	Port int
 
@@ -120,10 +120,22 @@ type ServerConfig struct {
 	AdminOIDCClientSecret string
 }
 
-// DefaultServerConfig returns a ServerConfig with sensible defaults.
-func DefaultServerConfig() ServerConfig {
-	return ServerConfig{
+// ServerConfig is a deprecated alias for [Config].
+//
+// Deprecated: Use [Config] instead.
+type ServerConfig = Config
+
+// DefaultConfig returns a Config with sensible defaults.
+func DefaultConfig() Config {
+	return Config{
 		Port: 8080,
 		Host: "0.0.0.0",
 	}
+}
+
+// DefaultServerConfig is a deprecated alias for [DefaultConfig].
+//
+// Deprecated: Use [DefaultConfig] instead.
+func DefaultServerConfig() Config {
+	return DefaultConfig()
 }

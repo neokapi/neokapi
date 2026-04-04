@@ -23,7 +23,7 @@ type EmailSenderI = mailer.EmailSenderI
 // initMailer builds the email sender and mailer from the server config.
 // Priority: Resend API key > SMTP. If neither is configured, email features
 // are disabled (Server.Mailer stays nil).
-func (s *Server) initMailer(cfg ServerConfig) {
+func (s *Server) initMailer(cfg Config) {
 	var sender mailer.EmailSenderI
 
 	switch {

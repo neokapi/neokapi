@@ -21,7 +21,7 @@ import (
 // and a project with members assigned to specific locales.
 func newWorkflowTestServer(t *testing.T) (*Server, string, string) {
 	t.Helper()
-	cfg := DefaultServerConfig()
+	cfg := DefaultConfig()
 	cfg.JWTSecret = "test-workflow"
 	srv := NewServer(cfg)
 	initTestStores(t, srv)

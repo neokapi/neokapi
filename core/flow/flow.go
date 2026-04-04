@@ -16,8 +16,8 @@ type Flow struct {
 	ToolFactories []ToolFactory // for parallel: creates fresh tool chain per document
 }
 
-// FlowItem represents a single document to process in a batch.
-type FlowItem struct {
+// Item represents a single document to process in a batch.
+type Item struct {
 	Input          *model.RawDocument
 	OutputPath     string
 	OutputEncoding string
@@ -27,3 +27,8 @@ type FlowItem struct {
 	// store-backed persistence when a projectID is provided.
 	OutputBlocks []*model.Block
 }
+
+// FlowItem is a deprecated alias for [Item].
+//
+// Deprecated: Use [Item] instead.
+type FlowItem = Item

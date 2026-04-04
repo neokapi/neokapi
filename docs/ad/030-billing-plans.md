@@ -765,7 +765,7 @@ github.com/posthog/posthog-go
 | `platform/core/auth/types.go` | Add `Plan` and `StripeCustomerID` fields to `Workspace` |
 | `platform/auth/postgres.go` | Add migration for `plan`, `stripe_customer_id` columns on workspaces |
 | `platform/auth/sqlite.go` | Same migration for SQLite |
-| `platform/server/config.go` | Add `BillingConfig` and `AdminConfig` (admin OIDC) fields to `ServerConfig` |
+| `platform/server/config.go` | Add `BillingConfig` and `AdminConfig` (admin OIDC) fields to `Config` |
 | `platform/server/server.go` | Add `BillingStore` to Server struct, register billing routes + admin routes + webhook endpoint, wire `PlanGuard`/`QuotaGuard` on protected routes, wire `AdminGuard` on `/api/admin/*` routes, initialize admin OIDC verifier |
 | `platform/server/handlers_billing.go` | New file: customer self-service billing handlers (get plan, usage, checkout, portal, invoices) |
 | `platform/server/handlers_admin.go` | New file: admin API handlers (list workspaces, user search, plan overrides, grant credits, feature overrides, metrics, notes, upsells) |

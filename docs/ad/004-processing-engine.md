@@ -41,9 +41,9 @@ Data carries structural markup, Layers group nested content, and Media
 holds binary assets. Tools declare which resource types they handle; the
 rest pass through unchanged.
 
-### FlowExecutor
+### Executor
 
-`FlowExecutor` orchestrates tool chains using the goroutine-per-tool model:
+`Executor` orchestrates tool chains using the goroutine-per-tool model:
 
 - Each tool in the chain runs in its own goroutine
 - Buffered channels (configurable size) connect adjacent tools
@@ -55,7 +55,7 @@ rest pass through unchanged.
 Configuration uses the functional options pattern:
 
 ```go
-executor := flow.NewFlowExecutor(
+executor := flow.NewExecutor(
     flow.WithMaxConcurrency(8),
     flow.WithChannelSize(128),
     flow.WithCollectors(wordCounter, qaReport),
@@ -137,7 +137,7 @@ Four independent concurrency layers compose without interference:
 |-------|-------|---------|-------|
 | ParallelBlockTool | Blocks within one tool | N goroutines per tool | Strict Part order |
 | BatchExecutor | Multiple files | FileConcurrency semaphore | File order preserved |
-| FlowExecutor | Multiple documents | MaxConcurrency semaphore | Document order preserved |
+| Executor | Multiple documents | MaxConcurrency semaphore | Document order preserved |
 | TappingTool | Observation | Inline (no extra goroutine) | Sequential |
 
 ### Collectors and Streaming Collectors

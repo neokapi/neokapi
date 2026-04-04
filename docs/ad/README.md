@@ -26,7 +26,7 @@ are separated into [Implementation Notes](/docs/notes/index).
 
 | AD | Title | Scope |
 |----|-------|-------|
-| [004](004-processing-engine.md) | Processing Engine | Channel-based streaming, FlowExecutor, flow definitions |
+| [004](004-processing-engine.md) | Processing Engine | Channel-based streaming, Executor, flow definitions |
 | [005](005-connector-system.md) | Connector System | Bidirectional connectors, FileConnector, format system |
 
 ## Layer 3: Extension Mechanisms

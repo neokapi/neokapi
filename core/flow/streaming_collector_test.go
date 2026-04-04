@@ -21,7 +21,7 @@ func (c *testStreamingCollector) Observe(part *model.Part) {
 	c.observed.Add(1)
 }
 
-func (c *testStreamingCollector) Collect(_ context.Context, _ *flow.FlowItem, _ []*model.Part) error {
+func (c *testStreamingCollector) Collect(_ context.Context, _ *flow.Item, _ []*model.Part) error {
 	return nil
 }
 

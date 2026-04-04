@@ -65,7 +65,7 @@ neokapi/
 │   ├── model/                       # Part, Block, Layer, Fragment, Span, Data, Media
 │   ├── format/                      # DataFormatReader/Writer interfaces, detection
 │   ├── tool/                        # Tool interface, BaseTool dispatch
-│   ├── flow/                        # FlowExecutor, FlowBuilder, FlowDefinition
+│   ├── flow/                        # Executor, Builder, FlowDefinition
 │   ├── registry/                    # FormatRegistry, ToolRegistry
 │   ├── encoding/                    # Text encoding utilities
 │   ├── locale/                      # BCP-47 locale handling
@@ -214,7 +214,7 @@ DataFormatReader.Read(ctx) -> chan PartResult
 | Filter                     | DataFormat (Reader/Writer)  |
 | Step                       | Tool                       |
 | Pipeline                   | Flow                       |
-| PipelineDriver             | FlowExecutor               |
+| PipelineDriver             | Executor               |
 | Event                      | Part                       |
 | TextUnit                   | Block                      |
 | TextFragment               | Fragment                   |
@@ -244,8 +244,8 @@ type Tool interface {
 }
 
 // Flow execution
-type FlowExecutor interface {
-    Execute(ctx context.Context, items []FlowItem) error
+type Executor interface {
+    Execute(ctx context.Context, items []Item) error
 }
 
 // AI providers

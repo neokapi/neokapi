@@ -14,7 +14,7 @@ import (
 
 func setupTestServerWithStores(t *testing.T) *Server {
 	t.Helper()
-	cfg := DefaultServerConfig()
+	cfg := DefaultConfig()
 	cfg.JWTSecret = "test-secret"
 	srv := NewServer(cfg)
 	initTestStores(t, srv)

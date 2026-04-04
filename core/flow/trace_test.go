@@ -217,7 +217,7 @@ func TestTracingTool(t *testing.T) {
 		assert.Equal(t, "does nothing", traced.Description())
 
 		f := flow.NewFlow("test").AddTool(traced).Build()
-		executor := flow.NewFlowExecutor()
+		executor := flow.NewExecutor()
 		ctx := t.Context()
 
 		in, out, wait := executor.ExecuteWithChannels(ctx, f)
@@ -281,7 +281,7 @@ func TestTracingTool(t *testing.T) {
 		traced := flow.NewTracingTool(inner, "upper-node", rec)
 
 		f := flow.NewFlow("test").AddTool(traced).Build()
-		executor := flow.NewFlowExecutor()
+		executor := flow.NewExecutor()
 		ctx := t.Context()
 
 		in, out, wait := executor.ExecuteWithChannels(ctx, f)
@@ -319,7 +319,7 @@ func TestTracingTool(t *testing.T) {
 		tool2 := flow.NewTracingTool(&tool.BaseTool{ToolName: "step2"}, "node-2", rec)
 
 		f := flow.NewFlow("multi").AddTool(tool1).AddTool(tool2).Build()
-		executor := flow.NewFlowExecutor()
+		executor := flow.NewExecutor()
 		ctx := t.Context()
 
 		in, out, wait := executor.ExecuteWithChannels(ctx, f)

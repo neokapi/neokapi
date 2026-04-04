@@ -241,7 +241,7 @@ type countCollector struct {
 	count atomic.Int32
 }
 
-func (c *countCollector) Collect(_ context.Context, _ *flow.FlowItem, parts []*model.Part) error {
+func (c *countCollector) Collect(_ context.Context, _ *flow.Item, parts []*model.Part) error {
 	c.count.Add(int32(len(parts)))
 	return nil
 }

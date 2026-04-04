@@ -71,7 +71,7 @@ If you're familiar with the Okapi Framework, here's how concepts map:
 | Filter | DataFormat (Reader/Writer) |
 | Step | Tool |
 | Pipeline | Flow |
-| PipelineDriver | FlowExecutor |
+| PipelineDriver | Executor |
 | Event | Part |
 | TextUnit | Block |
 | TextFragment | Fragment |
