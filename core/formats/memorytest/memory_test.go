@@ -4,6 +4,7 @@ import (
 	"archive/zip"
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"runtime"
@@ -737,7 +738,7 @@ func TestZIPFormats_SkeletonStore_ProducesEntries(t *testing.T) {
 			entryCount := 0
 			for {
 				_, err := store.Next()
-				if err == io.EOF {
+				if errors.Is(err, io.EOF) {
 					break
 				}
 				require.NoError(t, err)

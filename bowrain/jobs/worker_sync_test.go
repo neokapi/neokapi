@@ -7,13 +7,13 @@ import (
 	"encoding/json"
 	"testing"
 
+	"github.com/neokapi/neokapi/bowrain/core/store"
 	pb "github.com/neokapi/neokapi/bowrain/proto/v1"
 	bloblocal "github.com/neokapi/neokapi/bowrain/storage/localblob"
 	bstore "github.com/neokapi/neokapi/bowrain/store"
 	bowsync "github.com/neokapi/neokapi/bowrain/sync"
 	"github.com/neokapi/neokapi/core/model"
 	corestorage "github.com/neokapi/neokapi/core/storage"
-	"github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/proto"
@@ -164,7 +164,7 @@ func TestProcessSyncPush_ConflictDetection(t *testing.T) {
 	require.NoError(t, deps.JobStore.CreateJob(ctx, job))
 
 	err = ProcessSyncPushJobForTest(ctx, deps, job.ID)
-	assert.Error(t, err, "should fail with conflict")
+	require.Error(t, err, "should fail with conflict")
 	assert.Contains(t, err.Error(), "conflict on block")
 
 	// Now push with correct expected_hash → should succeed.

@@ -153,7 +153,7 @@ func TestReadNilDocument(t *testing.T) {
 	ctx := context.Background()
 	reader := xmlfmt.NewReader()
 	err := reader.Open(ctx, nil)
-	assert.Error(t, err)
+	require.Error(t, err)
 }
 
 // ---------------------------------------------------------------------------
@@ -1537,7 +1537,7 @@ func TestConfig_Validate(t *testing.T) {
 			{Pattern: "", Format: "html"},
 		},
 	}
-	assert.Error(t, cfg.Validate())
+	require.Error(t, cfg.Validate())
 }
 
 func TestConfig_Validate_EmptyFormat(t *testing.T) {
@@ -1546,7 +1546,7 @@ func TestConfig_Validate_EmptyFormat(t *testing.T) {
 			{Pattern: "root.body", Format: ""},
 		},
 	}
-	assert.Error(t, cfg.Validate())
+	require.Error(t, cfg.Validate())
 }
 
 func TestConfig_Validate_OK(t *testing.T) {
@@ -1555,7 +1555,7 @@ func TestConfig_Validate_OK(t *testing.T) {
 			{Pattern: "root.body", Format: "html"},
 		},
 	}
-	assert.NoError(t, cfg.Validate())
+	require.NoError(t, cfg.Validate())
 }
 
 func TestConfig_ApplyMap_TranslatableElements(t *testing.T) {

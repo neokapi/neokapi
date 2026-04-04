@@ -3,6 +3,7 @@ package ttml
 import (
 	"context"
 	"encoding/xml"
+	"errors"
 	"fmt"
 	"io"
 	"strings"
@@ -97,7 +98,7 @@ done:
 func (w *Writer) writeFromSkeletonStore(blocks map[string]*model.Block) error {
 	for {
 		entry, err := w.skeletonStore.Next()
-		if err == io.EOF {
+		if errors.Is(err, io.EOF) {
 			break
 		}
 		if err != nil {

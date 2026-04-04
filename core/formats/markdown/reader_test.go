@@ -242,7 +242,7 @@ func TestReadNilDocument(t *testing.T) {
 	ctx := context.Background()
 	reader := markdown.NewReader()
 	err := reader.Open(ctx, nil)
-	assert.Error(t, err)
+	require.Error(t, err)
 }
 
 // okapi: MarkdownFilterTest#testEventsFromEmptyInput
@@ -778,7 +778,7 @@ func TestRead_CRLF(t *testing.T) {
 func TestRead_CloseWithoutInput(t *testing.T) {
 	reader := markdown.NewReader()
 	err := reader.Close()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 }
 
 // --- HTML Inline ---
@@ -889,7 +889,7 @@ func TestConfig_ApplyMap(t *testing.T) {
 func TestConfig_ApplyMapUnknown(t *testing.T) {
 	cfg := &markdown.Config{}
 	err := cfg.ApplyMap(map[string]any{"unknownKey": true})
-	assert.Error(t, err)
+	require.Error(t, err)
 }
 
 func TestConfig_Reset(t *testing.T) {

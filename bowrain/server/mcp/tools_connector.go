@@ -2,6 +2,7 @@ package mcp
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
@@ -38,13 +39,13 @@ type connectorPullOutput struct {
 
 func (s *MCPServer) handleConnectorPull(ctx context.Context, req *mcp.CallToolRequest, input connectorPullInput) (*mcp.CallToolResult, connectorPullOutput, error) {
 	if s.connResolver == nil {
-		return nil, connectorPullOutput{}, fmt.Errorf("connectors not configured")
+		return nil, connectorPullOutput{}, errors.New("connectors not configured")
 	}
 	if input.ConnectorID == "" {
-		return nil, connectorPullOutput{}, fmt.Errorf("connector_id is required")
+		return nil, connectorPullOutput{}, errors.New("connector_id is required")
 	}
 	if input.ProjectID == "" {
-		return nil, connectorPullOutput{}, fmt.Errorf("project_id is required")
+		return nil, connectorPullOutput{}, errors.New("project_id is required")
 	}
 
 	items, err := s.connResolver.Fetch(ctx, input.ConnectorID, input.ProjectID, connector.FetchOptions{})
@@ -68,13 +69,13 @@ type connectorPushOutput struct {
 
 func (s *MCPServer) handleConnectorPush(ctx context.Context, req *mcp.CallToolRequest, input connectorPushInput) (*mcp.CallToolResult, connectorPushOutput, error) {
 	if s.connResolver == nil {
-		return nil, connectorPushOutput{}, fmt.Errorf("connectors not configured")
+		return nil, connectorPushOutput{}, errors.New("connectors not configured")
 	}
 	if input.ConnectorID == "" {
-		return nil, connectorPushOutput{}, fmt.Errorf("connector_id is required")
+		return nil, connectorPushOutput{}, errors.New("connector_id is required")
 	}
 	if input.ProjectID == "" {
-		return nil, connectorPushOutput{}, fmt.Errorf("project_id is required")
+		return nil, connectorPushOutput{}, errors.New("project_id is required")
 	}
 
 	if err := s.connResolver.Publish(ctx, input.ConnectorID, input.ProjectID, connector.PublishOptions{}); err != nil {
@@ -98,10 +99,10 @@ type connectorStatusOutput struct {
 
 func (s *MCPServer) handleConnectorStatus(ctx context.Context, req *mcp.CallToolRequest, input connectorStatusInput) (*mcp.CallToolResult, connectorStatusOutput, error) {
 	if s.connResolver == nil {
-		return nil, connectorStatusOutput{}, fmt.Errorf("connectors not configured")
+		return nil, connectorStatusOutput{}, errors.New("connectors not configured")
 	}
 	if input.ConnectorID == "" {
-		return nil, connectorStatusOutput{}, fmt.Errorf("connector_id is required")
+		return nil, connectorStatusOutput{}, errors.New("connector_id is required")
 	}
 
 	status, err := s.connResolver.ConnectorStatus(ctx, input.ConnectorID)

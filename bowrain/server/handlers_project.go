@@ -5,10 +5,10 @@ import (
 	"strings"
 
 	"github.com/labstack/echo/v4"
-	"github.com/neokapi/neokapi/core/model"
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	platev "github.com/neokapi/neokapi/bowrain/core/event"
 	"github.com/neokapi/neokapi/bowrain/core/store"
+	"github.com/neokapi/neokapi/core/model"
 )
 
 // ProjectRequest is the request body for creating/updating a project.

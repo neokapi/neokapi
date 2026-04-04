@@ -5,9 +5,9 @@ import (
 	"fmt"
 
 	"github.com/neokapi/neokapi/bowrain/cli/cmd/bowrain/output"
-	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/bowrain/core/connector"
 	"github.com/neokapi/neokapi/bowrain/core/project"
+	"github.com/neokapi/neokapi/core/model"
 	"github.com/spf13/cobra"
 )
 

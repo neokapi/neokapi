@@ -97,7 +97,7 @@ func TestMigrate_InvalidTableName(t *testing.T) {
 	defer db.Close()
 
 	err = storage.Migrate(db, "Robert'; DROP TABLE--", nil)
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "invalid migration table name")
 }
 

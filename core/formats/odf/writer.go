@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/xml"
+	"errors"
 	"fmt"
 	"io"
 	"strings"
@@ -72,7 +73,7 @@ func (w *Writer) Write(ctx context.Context, parts <-chan *model.Part) error {
 	}
 
 	if w.originalContent == nil {
-		return fmt.Errorf("odf: writer requires original content for reconstruction")
+		return errors.New("odf: writer requires original content for reconstruction")
 	}
 
 	// Open original ZIP
@@ -122,7 +123,7 @@ func (w *Writer) writeFromSkeleton(origZR *zip.Reader, zw *zip.Writer,
 
 	for {
 		entry, err := w.skeletonStore.Next()
-		if err == io.EOF {
+		if errors.Is(err, io.EOF) {
 			break
 		}
 		if err != nil {
@@ -307,7 +308,7 @@ func (w *Writer) replaceContent(data []byte, blocks map[string]*model.Block) ([]
 
 	for {
 		tok, err := d.Token()
-		if err == io.EOF {
+		if errors.Is(err, io.EOF) {
 			break
 		}
 		if err != nil {

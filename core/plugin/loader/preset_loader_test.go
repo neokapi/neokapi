@@ -63,5 +63,5 @@ framework_presets:
 func TestLoadPresetsFromFileNotFound(t *testing.T) {
 	reg := preset.NewPresetRegistry()
 	err := LoadPresetsFromFile("/nonexistent/presets.yaml", reg, "test")
-	assert.Error(t, err)
+	require.Error(t, err)
 }

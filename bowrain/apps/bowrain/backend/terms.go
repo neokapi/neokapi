@@ -9,9 +9,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/core/id"
 	"github.com/neokapi/neokapi/core/model"
-	"github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/termbase"
 )
 

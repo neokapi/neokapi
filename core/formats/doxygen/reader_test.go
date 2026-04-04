@@ -550,7 +550,7 @@ func TestReadNilDocument(t *testing.T) {
 	ctx := context.Background()
 	reader := doxygen.NewReader()
 	err := reader.Open(ctx, nil)
-	assert.Error(t, err)
+	require.Error(t, err)
 }
 
 func TestReadEmpty(t *testing.T) {
@@ -671,10 +671,10 @@ func TestExtract_TrailingQtComment(t *testing.T) {
 func TestConfig(t *testing.T) {
 	cfg := &doxygen.Config{}
 	assert.Equal(t, "doxygen", cfg.FormatName())
-	assert.NoError(t, cfg.Validate())
+	require.NoError(t, cfg.Validate())
 	cfg.Reset()
-	assert.NoError(t, cfg.ApplyMap(nil))
-	assert.Error(t, cfg.ApplyMap(map[string]any{"unknown": true}))
+	require.NoError(t, cfg.ApplyMap(nil))
+	require.Error(t, cfg.ApplyMap(map[string]any{"unknown": true}))
 
 	s := cfg.Schema()
 	assert.Equal(t, "Doxygen Comments", s.Title)

@@ -6,6 +6,7 @@ import (
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/tools"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestSearchReplaceTool(t *testing.T) {
@@ -87,7 +88,7 @@ func TestSearchReplaceConfigValidation(t *testing.T) {
 		},
 	}
 	err := cfg.Validate()
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "empty search")
 
 	// Invalid regex.
@@ -97,7 +98,7 @@ func TestSearchReplaceConfigValidation(t *testing.T) {
 		},
 	}
 	err = cfg.Validate()
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "invalid regex")
 
 	// Valid config.
@@ -108,7 +109,7 @@ func TestSearchReplaceConfigValidation(t *testing.T) {
 		},
 	}
 	err = cfg.Validate()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 }
 
 func TestSearchReplaceToolNoPairs(t *testing.T) {

@@ -190,7 +190,7 @@ func TestInvalidRole(t *testing.T) {
 	require.NoError(t, s.CreateWorkspace(ctx, w))
 
 	err := s.AddMember(ctx, w.ID, u.ID, platauth.Role("superadmin"))
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "invalid role")
 }
 
@@ -254,7 +254,7 @@ func TestValidateRefreshTokenExpired(t *testing.T) {
 	require.NoError(t, err)
 
 	_, err = s.ValidateRefreshTokenByHash(ctx, tokenHash)
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "expired")
 }
 
@@ -295,9 +295,9 @@ func TestRevokeUserRefreshTokens(t *testing.T) {
 
 	// Both tokens should be revoked.
 	_, err = s.ValidateRefreshTokenByHash(ctx, "hash1")
-	assert.Error(t, err)
+	require.Error(t, err)
 	_, err = s.ValidateRefreshTokenByHash(ctx, "hash2")
-	assert.Error(t, err)
+	require.Error(t, err)
 }
 
 func TestDeleteUserCascadesRefreshTokens(t *testing.T) {
@@ -406,7 +406,7 @@ func TestDeleteAPITokenNotFound(t *testing.T) {
 	ctx := context.Background()
 
 	err := s.DeleteAPIToken(ctx, "nonexistent-id")
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "not found")
 }
 
@@ -580,7 +580,7 @@ func TestRoleTemplateCRUD(t *testing.T) {
 	// Delete non-builtin succeeds.
 	require.NoError(t, s.DeleteRoleTemplate(ctx, w.ID, rt.ID))
 	_, err = s.GetRoleTemplate(ctx, w.ID, rt.ID)
-	assert.Error(t, err)
+	require.Error(t, err)
 
 	// Delete builtin fails — seed defaults first.
 	require.NoError(t, s.SeedDefaultRoleTemplates(ctx, w.ID))
@@ -595,7 +595,7 @@ func TestRoleTemplateCRUD(t *testing.T) {
 	}
 	require.NotEmpty(t, builtinID, "should have a builtin template")
 	err = s.DeleteRoleTemplate(ctx, w.ID, builtinID)
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "builtin")
 }
 
@@ -703,11 +703,11 @@ func TestProjectMemberCRUD(t *testing.T) {
 	// Remove member succeeds.
 	require.NoError(t, s.RemoveProjectMember(ctx, projectID, u.ID))
 	_, err = s.GetProjectMembership(ctx, projectID, u.ID)
-	assert.Error(t, err)
+	require.Error(t, err)
 
 	// Remove non-existent fails.
 	err = s.RemoveProjectMember(ctx, projectID, "nonexistent-user")
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "not found")
 }
 

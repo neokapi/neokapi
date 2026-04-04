@@ -134,10 +134,12 @@ func (s *SQLiteGraphStore) DeleteNode(ctx context.Context, id string) error {
 func (s *SQLiteGraphStore) FindNodes(ctx context.Context, label string, properties map[string]string) ([]*coreg.Node, error) {
 	where := "label = ?"
 	args := []any{label}
+	var whereSb137 strings.Builder
 	for k, v := range properties {
-		where += " AND json_extract(properties, ?) = ?"
+		whereSb137.WriteString(" AND json_extract(properties, ?) = ?")
 		args = append(args, "$."+k, v)
 	}
+	where += whereSb137.String()
 	return s.queryNodes(ctx, where, args)
 }
 
@@ -265,10 +267,12 @@ func (s *SQLiteGraphStore) DeleteEdge(ctx context.Context, id string) error {
 func (s *SQLiteGraphStore) FindEdges(ctx context.Context, label string, properties map[string]string) ([]*coreg.Edge, error) {
 	where := "label = ?"
 	args := []any{label}
+	var whereSb268 strings.Builder
 	for k, v := range properties {
-		where += " AND json_extract(properties, ?) = ?"
+		whereSb268.WriteString(" AND json_extract(properties, ?) = ?")
 		args = append(args, "$."+k, v)
 	}
+	where += whereSb268.String()
 	return s.queryEdges(ctx, where, args)
 }
 
@@ -282,7 +286,7 @@ func (s *SQLiteGraphStore) Neighbors(ctx context.Context, nodeID string, directi
 func (s *SQLiteGraphStore) NeighborsScoped(ctx context.Context, nodeID string, direction coreg.Direction, scope coreg.Scope, labels ...string) ([]*coreg.Node, error) {
 	where, args := s.neighborsWhere(nodeID, direction, labels)
 	rows, err := s.db.QueryContext(ctx,
-		fmt.Sprintf(`SELECT id, source, target, label, properties, valid_from, valid_to, tags, created_at, updated_at FROM graph_edges WHERE %s`, where),
+		"SELECT id, source, target, label, properties, valid_from, valid_to, tags, created_at, updated_at FROM graph_edges WHERE "+where,
 		args...)
 	if err != nil {
 		return nil, fmt.Errorf("query edges: %w", err)
@@ -391,7 +395,7 @@ func (s *SQLiteGraphStore) ShortestPath(ctx context.Context, fromID, toID string
 }
 
 func (s *SQLiteGraphStore) BulkCreateNodes(ctx context.Context, nodes []*coreg.Node) error {
-	tx, err := s.db.Begin()
+	tx, err := s.db.Begin() //nolint:noctx // batch graph operation
 	if err != nil {
 		return fmt.Errorf("begin transaction: %w", err)
 	}
@@ -422,7 +426,7 @@ func (s *SQLiteGraphStore) BulkCreateNodes(ctx context.Context, nodes []*coreg.N
 }
 
 func (s *SQLiteGraphStore) BulkCreateEdges(ctx context.Context, edges []*coreg.Edge) error {
-	tx, err := s.db.Begin()
+	tx, err := s.db.Begin() //nolint:noctx // batch graph operation
 	if err != nil {
 		return fmt.Errorf("begin transaction: %w", err)
 	}
@@ -514,7 +518,7 @@ func (s *SQLiteGraphStore) neighborsWhere(nodeID string, direction coreg.Directi
 
 func (s *SQLiteGraphStore) queryNodes(ctx context.Context, where string, args []any) ([]*coreg.Node, error) {
 	rows, err := s.db.QueryContext(ctx,
-		fmt.Sprintf(`SELECT id, label, properties, created_at, updated_at FROM graph_nodes WHERE %s`, where), args...)
+		"SELECT id, label, properties, created_at, updated_at FROM graph_nodes WHERE "+where, args...)
 	if err != nil {
 		return nil, fmt.Errorf("query nodes: %w", err)
 	}
@@ -540,7 +544,7 @@ func (s *SQLiteGraphStore) queryNodes(ctx context.Context, where string, args []
 
 func (s *SQLiteGraphStore) queryEdges(ctx context.Context, where string, args []any) ([]*coreg.Edge, error) {
 	rows, err := s.db.QueryContext(ctx,
-		fmt.Sprintf(`SELECT id, source, target, label, properties, valid_from, valid_to, tags, created_at, updated_at FROM graph_edges WHERE %s`, where), args...)
+		"SELECT id, source, target, label, properties, valid_from, valid_to, tags, created_at, updated_at FROM graph_edges WHERE "+where, args...)
 	if err != nil {
 		return nil, fmt.Errorf("query edges: %w", err)
 	}

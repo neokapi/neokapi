@@ -2,6 +2,7 @@ package sievepen
 
 import (
 	"encoding/xml"
+	"errors"
 	"fmt"
 	"io"
 
@@ -18,7 +19,7 @@ type EntryProvider interface {
 func ExportTMX(tm TranslationMemory, writer io.Writer, sourceLocale, targetLocale model.LocaleID) error {
 	provider, ok := tm.(EntryProvider)
 	if !ok {
-		return fmt.Errorf("TM does not support entry listing")
+		return errors.New("TM does not support entry listing")
 	}
 
 	var entries []TMEntry
@@ -71,7 +72,7 @@ func ExportTMX(tm TranslationMemory, writer io.Writer, sourceLocale, targetLocal
 		// Export entity mappings as TMX properties.
 		for _, em := range entry.Entities {
 			tu.Properties = append(tu.Properties, tmxProp{
-				Type:  fmt.Sprintf("entity:%s", em.PlaceholderID),
+				Type:  "entity:" + em.PlaceholderID,
 				Value: fmt.Sprintf("%s:%s", em.Type, em.SourceValue),
 			})
 		}

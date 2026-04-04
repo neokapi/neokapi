@@ -3,6 +3,7 @@ package json
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"strconv"
@@ -178,7 +179,7 @@ func (w *Writer) fallbackChildText(parts []*model.Part) string {
 func (w *Writer) writeFromSkeleton(store *format.SkeletonStore, blocks map[string]*model.Block, childLayerValues map[string]string) error {
 	for {
 		entry, err := store.Next()
-		if err == io.EOF {
+		if errors.Is(err, io.EOF) {
 			break
 		}
 		if err != nil {

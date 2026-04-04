@@ -107,7 +107,7 @@ func TestAgentPoolAcquireEnforcesLimit(t *testing.T) {
 	require.NoError(t, err)
 
 	_, err = pool.Acquire(ctx, ContainerConfig{ConversationID: "conv-3", WorkspaceID: "ws-1"})
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "max concurrent")
 }
 

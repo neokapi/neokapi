@@ -3,6 +3,7 @@ package agenticmcp
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -47,7 +48,7 @@ func (w *GitReleaseWalker) WalkRelease(ctx context.Context, workspaceSlug, proje
 	if projectID == "" {
 		projectName := plan.GetProjectName()
 		if projectName == "" {
-			return nil, fmt.Errorf("plan.yaml has no project name and no project_id was provided")
+			return nil, errors.New("plan.yaml has no project name and no project_id was provided")
 		}
 		proj, err := w.Bowrain.FindProjectByName(ctx, workspaceSlug, projectName)
 		if err != nil {
@@ -123,7 +124,7 @@ func (w *GitReleaseWalker) WalkRelease(ctx context.Context, workspaceSlug, proje
 func (w *GitReleaseWalker) ensureFork(ctx context.Context, plan *WorkspacePlan) (string, error) {
 	forkGH := plan.ForkRepo()
 	if forkGH == "" {
-		return "", fmt.Errorf("plan.yaml has no upstream.fork")
+		return "", errors.New("plan.yaml has no upstream.fork")
 	}
 	upstreamGH := plan.GetUpstreamRepo()
 
@@ -145,7 +146,7 @@ func (w *GitReleaseWalker) ensureFork(ctx context.Context, plan *WorkspacePlan) 
 	if _, err := os.Stat(filepath.Join(forkDir, ".git")); err == nil {
 		// Already cloned — fetch latest.
 		cmd := exec.CommandContext(ctx, "git", "-C", forkDir, "fetch", "--all", "--tags")
-		cmd.CombinedOutput() //nolint:errcheck
+		cmd.CombinedOutput() //nolint:errcheck // best-effort fetch; non-fatal if it fails
 		return forkDir, nil
 	}
 
@@ -177,7 +178,7 @@ func (w *GitReleaseWalker) ensureFork(ctx context.Context, plan *WorkspacePlan) 
 		{"config", "user.email", "walker@bowrain.cloud"},
 	} {
 		cmd = exec.CommandContext(ctx, "git", append([]string{"-C", forkDir}, cfg...)...)
-		cmd.CombinedOutput() //nolint:errcheck
+		cmd.CombinedOutput() //nolint:errcheck // best-effort git config; non-fatal if it fails
 	}
 
 	return forkDir, nil
@@ -198,7 +199,7 @@ func (w *GitReleaseWalker) githubURL(ownerName string) string {
 // nextTag returns the tag after current in the sequence.
 func nextTag(tags []string, current string) (string, error) {
 	if len(tags) == 0 {
-		return "", fmt.Errorf("no tags in release strategy")
+		return "", errors.New("no tags in release strategy")
 	}
 	if current == "" {
 		return tags[0], nil
@@ -215,7 +216,7 @@ func nextTag(tags []string, current string) (string, error) {
 func mergeUpstreamTag(ctx context.Context, forkDir, tag string) error {
 	cmds := [][]string{
 		{"fetch", "upstream", fmt.Sprintf("refs/tags/%s:refs/tags/%s", tag, tag)},
-		{"merge", tag, "--no-edit", "-m", fmt.Sprintf("Merge upstream %s", tag)},
+		{"merge", tag, "--no-edit", "-m", "Merge upstream " + tag},
 	}
 	for _, args := range cmds {
 		cmd := exec.CommandContext(ctx, "git", append([]string{"-C", forkDir}, args...)...)
@@ -228,7 +229,7 @@ func mergeUpstreamTag(ctx context.Context, forkDir, tag string) error {
 
 // discoverSourceFile finds the source locale file in the working tree using a glob pattern.
 func discoverSourceFile(forkDir, pattern string) (string, error) {
-	cmd := exec.Command("git", "-C", forkDir, "ls-files")
+	cmd := exec.CommandContext(context.Background(), "git", "-C", forkDir, "ls-files")
 	out, err := cmd.Output()
 	if err != nil {
 		return "", fmt.Errorf("git ls-files: %w", err)
@@ -292,7 +293,7 @@ func stripTargetFiles(ctx context.Context, forkDir, sourcePath string, targetLoc
 	}
 
 	cmd = exec.CommandContext(ctx, "git", "-C", forkDir, "commit", "-m",
-		fmt.Sprintf("strip target locales for %s", tag))
+		"strip target locales for "+tag)
 	if out, err := cmd.CombinedOutput(); err != nil {
 		return fmt.Errorf("git commit strip: %s: %w", string(out), err)
 	}

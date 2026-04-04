@@ -6,6 +6,7 @@ import (
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/tools"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestURIConvertDecode(t *testing.T) {
@@ -139,15 +140,15 @@ func TestURIConvertSkipsNonTranslatable(t *testing.T) {
 func TestURIConvertConfigValidation(t *testing.T) {
 	cfg := &tools.URIConvertConfig{Mode: "invalid"}
 	err := cfg.Validate()
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "invalid Mode")
 
 	cfg = &tools.URIConvertConfig{Mode: tools.URIDecode, ApplyTarget: true, TargetLocale: ""}
 	err = cfg.Validate()
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "TargetLocale")
 
 	cfg = &tools.URIConvertConfig{Mode: tools.URIEncode, ApplySource: true, ApplyTarget: false}
 	err = cfg.Validate()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 }

@@ -1,6 +1,9 @@
 package icml
 
-import "fmt"
+import (
+	"errors"
+	"fmt"
+)
 
 // Config holds configuration for the Adobe InCopy ICML format.
 type Config struct {
@@ -30,13 +33,13 @@ func (c *Config) ApplyMap(values map[string]any) error {
 		case "extractNotes":
 			b, ok := val.(bool)
 			if !ok {
-				return fmt.Errorf("extractNotes: expected bool")
+				return errors.New("extractNotes: expected bool")
 			}
 			c.ExtractNotes = b
 		case "newTuOnBr":
 			b, ok := val.(bool)
 			if !ok {
-				return fmt.Errorf("newTuOnBr: expected bool")
+				return errors.New("newTuOnBr: expected bool")
 			}
 			c.NewTUOnBr = b
 		default:

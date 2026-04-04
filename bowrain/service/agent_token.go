@@ -3,6 +3,7 @@ package service
 import (
 	"crypto/rand"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"sync"
 	"time"
@@ -67,14 +68,14 @@ func (s *AgentTokenStore) Validate(tokenStr string) (*AgentToken, error) {
 	s.mu.RUnlock()
 
 	if !ok {
-		return nil, fmt.Errorf("invalid agent token")
+		return nil, errors.New("invalid agent token")
 	}
 	if time.Now().After(token.ExpiresAt) {
 		// Expired — clean up.
 		s.mu.Lock()
 		delete(s.tokens, tokenStr)
 		s.mu.Unlock()
-		return nil, fmt.Errorf("agent token expired")
+		return nil, errors.New("agent token expired")
 	}
 	return token, nil
 }

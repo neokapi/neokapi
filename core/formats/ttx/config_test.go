@@ -18,7 +18,7 @@ func TestConfigDefaults(t *testing.T) {
 	assert.Equal(t, "ttx", cfg.FormatName())
 	assert.Equal(t, ttx.SegmentModeAuto, cfg.SegmentMode)
 	assert.False(t, cfg.EscapeGT)
-	assert.NoError(t, cfg.Validate())
+	require.NoError(t, cfg.Validate())
 }
 
 func TestConfigApplyMapAll(t *testing.T) {
@@ -46,20 +46,20 @@ func TestConfigApplyMapUnknown(t *testing.T) {
 	cfg := &ttx.Config{}
 	cfg.Reset()
 	err := cfg.ApplyMap(map[string]any{"unknown": "value"})
-	assert.Error(t, err)
+	require.Error(t, err)
 }
 
 func TestConfigApplyMapTypeMismatch(t *testing.T) {
 	cfg := &ttx.Config{}
 	cfg.Reset()
 	err := cfg.ApplyMap(map[string]any{"escapeGT": "notabool"})
-	assert.Error(t, err)
+	require.Error(t, err)
 }
 
 func TestConfigValidateInvalidSegmentMode(t *testing.T) {
 	cfg := &ttx.Config{SegmentMode: 5}
 	err := cfg.Validate()
-	assert.Error(t, err)
+	require.Error(t, err)
 }
 
 func TestConfigKind(t *testing.T) {

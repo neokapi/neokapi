@@ -3,6 +3,7 @@ package openxml
 import (
 	"bytes"
 	"encoding/xml"
+	"errors"
 	"fmt"
 	"io"
 	"strconv"
@@ -46,7 +47,7 @@ func (p *smlParser) parseSharedStringsPart(data []byte, partPath string, emitBlo
 
 	for {
 		tok, err := d.Token()
-		if err == io.EOF {
+		if errors.Is(err, io.EOF) {
 			break
 		}
 		if err != nil {
@@ -170,7 +171,7 @@ func (p *smlParser) parseWorksheet(data []byte, partPath string, emitBlock func(
 
 	for {
 		tok, err := d.Token()
-		if err == io.EOF {
+		if errors.Is(err, io.EOF) {
 			break
 		}
 		if err != nil {
@@ -407,7 +408,7 @@ func (p *smlParser) buildBlock(id string, runs []textRun, partPath string, siInd
 		Targets:      make(map[model.LocaleID][]*model.Segment),
 		Properties: map[string]string{
 			"partPath": partPath,
-			"siIndex":  fmt.Sprintf("%d", siIndex),
+			"siIndex":  strconv.Itoa(siIndex),
 		},
 		Annotations: make(map[string]model.Annotation),
 	}
@@ -422,7 +423,7 @@ func (p *smlParser) parseTable(data []byte, partPath string, emitBlock func(*mod
 
 	for {
 		tok, err := d.Token()
-		if err == io.EOF {
+		if errors.Is(err, io.EOF) {
 			break
 		}
 		if err != nil {

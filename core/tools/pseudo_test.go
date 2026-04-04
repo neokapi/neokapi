@@ -214,16 +214,16 @@ func TestPseudoTranslateToolSpansWithExpansion(t *testing.T) {
 func TestPseudoConfigValidation(t *testing.T) {
 	cfg := &tools.PseudoConfig{ExpansionPercent: -1, TargetLocale: "qps"}
 	err := cfg.Validate()
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "ExpansionPercent")
 
 	cfg.ExpansionPercent = 0
 	cfg.TargetLocale = ""
 	err = cfg.Validate()
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "TargetLocale")
 
 	cfg.TargetLocale = "qps"
 	err = cfg.Validate()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 }

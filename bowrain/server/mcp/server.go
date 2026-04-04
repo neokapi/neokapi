@@ -12,11 +12,11 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/modelcontextprotocol/go-sdk/oauthex"
 
-	corebrand "github.com/neokapi/neokapi/core/brand"
-	"github.com/neokapi/neokapi/core/registry"
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	"github.com/neokapi/neokapi/bowrain/core/connector"
 	"github.com/neokapi/neokapi/bowrain/core/store"
+	corebrand "github.com/neokapi/neokapi/core/brand"
+	"github.com/neokapi/neokapi/core/registry"
 	"github.com/neokapi/neokapi/sievepen"
 	"github.com/neokapi/neokapi/termbase"
 )
@@ -208,7 +208,7 @@ func keycloakTokenVerifier(jwtSecret string) auth.TokenVerifier {
 	return func(ctx context.Context, token string, req *http.Request) (*auth.TokenInfo, error) {
 		claims, err := platauth.ValidateToken(token, jwtSecret)
 		if err != nil {
-			return nil, fmt.Errorf("%w: %v", auth.ErrInvalidToken, err)
+			return nil, fmt.Errorf("%w: %w", auth.ErrInvalidToken, err)
 		}
 		return &auth.TokenInfo{
 			UserID:     claims.Subject,

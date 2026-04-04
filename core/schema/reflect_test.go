@@ -112,7 +112,7 @@ func TestFromStruct_NestedTypes(t *testing.T) {
 
 type withInterface struct {
 	Name     string
-	Provider interface{} //nolint:revive
+	Provider interface{} //nolint:revive // intentionally empty interface to test schema reflection skipping
 	Callback func() error
 }
 

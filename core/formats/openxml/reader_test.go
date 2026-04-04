@@ -331,7 +331,7 @@ func TestReaderLayerStructure(t *testing.T) {
 func TestReaderNilDocument(t *testing.T) {
 	reader := NewReader()
 	err := reader.Open(context.Background(), nil)
-	assert.Error(t, err)
+	require.Error(t, err)
 }
 
 func TestReaderConfig(t *testing.T) {
@@ -343,7 +343,7 @@ func TestReaderConfig(t *testing.T) {
 		"translateDocProperties": false,
 		"aggressiveCleanup":      false,
 	})
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	oxCfg := cfg.(*Config)
 	assert.False(t, oxCfg.TranslateDocProperties)
@@ -498,7 +498,7 @@ func TestReaderConfigUnknownKey(t *testing.T) {
 	cfg := &Config{}
 	cfg.Reset()
 	err := cfg.ApplyMap(map[string]any{"unknownKey": true})
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "unknown config key")
 }
 
@@ -529,7 +529,7 @@ func TestReaderConfigInvalidTypes(t *testing.T) {
 func TestReaderConfigValidate(t *testing.T) {
 	cfg := &Config{}
 	cfg.Reset()
-	assert.NoError(t, cfg.Validate())
+	require.NoError(t, cfg.Validate())
 }
 
 // okapi: OpenXMLConfigurationTest#defaultConfiguration

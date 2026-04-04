@@ -2,7 +2,7 @@ package aiprovider
 
 import (
 	"context"
-	"fmt"
+	"errors"
 
 	"github.com/neokapi/neokapi/core/model"
 )
@@ -165,7 +165,7 @@ type Config struct {
 // Validate checks that the config has required fields.
 func (c *Config) Validate() error {
 	if c.Model == "" {
-		return fmt.Errorf("model is required")
+		return errors.New("model is required")
 	}
 	return nil
 }

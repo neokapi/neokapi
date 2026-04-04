@@ -10,6 +10,7 @@
 package project
 
 import (
+	"errors"
 	"fmt"
 	"os"
 
@@ -96,7 +97,7 @@ func Save(path string, proj *KapiProject) error {
 // Validate checks that the project file is well-formed.
 func (p *KapiProject) Validate() error {
 	if p.Version == "" {
-		return fmt.Errorf("version is required")
+		return errors.New("version is required")
 	}
 	if p.Version != CurrentVersion {
 		return fmt.Errorf("unsupported version %q (expected %q)", p.Version, CurrentVersion)

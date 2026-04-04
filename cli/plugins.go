@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -226,7 +227,7 @@ func (a *App) NewPluginsCmd() *cobra.Command {
 				searchBundle || searchFormat || searchTool
 
 			if query == "" && !hasFilter {
-				return fmt.Errorf("provide a search query or use --type, --mime, --ext, --bundle, --format, or --tool flags")
+				return errors.New("provide a search query or use --type, --mime, --ext, --bundle, --format, or --tool flags")
 			}
 
 			regs := a.resolveRegistries(cmd)
@@ -291,7 +292,7 @@ func (a *App) NewPluginsCmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			dir := a.PluginLoader.Dir()
 			if dir == "" {
-				return fmt.Errorf("no plugin directory configured")
+				return errors.New("no plugin directory configured")
 			}
 			if err := plugincache.RebuildAndWrite(dir, nil); err != nil {
 				return fmt.Errorf("rebuilding plugin cache: %w", err)

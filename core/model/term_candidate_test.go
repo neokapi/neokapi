@@ -63,28 +63,28 @@ func TestEntityAnnotation_Source(t *testing.T) {
 }
 
 func TestExtractionSourceConstants(t *testing.T) {
-	assert.Equal(t, model.ExtractionSource("llm"), model.ExtractionSourceLLM)
-	assert.Equal(t, model.ExtractionSource("ner"), model.ExtractionSourceNER)
-	assert.Equal(t, model.ExtractionSource("manual"), model.ExtractionSourceManual)
+	assert.Equal(t, model.ExtractionSourceLLM, model.ExtractionSource("llm"))
+	assert.Equal(t, model.ExtractionSourceNER, model.ExtractionSource("ner"))
+	assert.Equal(t, model.ExtractionSourceManual, model.ExtractionSource("manual"))
 }
 
 func TestCandidateStatusConstants(t *testing.T) {
-	assert.Equal(t, model.CandidateStatus("pending"), model.CandidateStatusPending)
-	assert.Equal(t, model.CandidateStatus("approved"), model.CandidateStatusApproved)
-	assert.Equal(t, model.CandidateStatus("rejected"), model.CandidateStatusRejected)
+	assert.Equal(t, model.CandidateStatusPending, model.CandidateStatus("pending"))
+	assert.Equal(t, model.CandidateStatusApproved, model.CandidateStatus("approved"))
+	assert.Equal(t, model.CandidateStatusRejected, model.CandidateStatus("rejected"))
 }
 
 func TestTermCategoryConstants(t *testing.T) {
-	assert.Equal(t, model.TermCategory("brand"), model.TermCategoryBrand)
-	assert.Equal(t, model.TermCategory("technical"), model.TermCategoryTechnical)
-	assert.Equal(t, model.TermCategory("ui"), model.TermCategoryUI)
-	assert.Equal(t, model.TermCategory("legal"), model.TermCategoryLegal)
-	assert.Equal(t, model.TermCategory("marketing"), model.TermCategoryMarketing)
-	assert.Equal(t, model.TermCategory("general"), model.TermCategoryGeneral)
+	assert.Equal(t, model.TermCategoryBrand, model.TermCategory("brand"))
+	assert.Equal(t, model.TermCategoryTechnical, model.TermCategory("technical"))
+	assert.Equal(t, model.TermCategoryUI, model.TermCategory("ui"))
+	assert.Equal(t, model.TermCategoryLegal, model.TermCategory("legal"))
+	assert.Equal(t, model.TermCategoryMarketing, model.TermCategory("marketing"))
+	assert.Equal(t, model.TermCategoryGeneral, model.TermCategory("general"))
 }
 
 func TestTranslatabilityConstants(t *testing.T) {
-	assert.Equal(t, model.Translatability("dnt"), model.TranslatabilityDNT)
-	assert.Equal(t, model.Translatability("consistent"), model.TranslatabilityConsistent)
-	assert.Equal(t, model.Translatability("free"), model.TranslatabilityFree)
+	assert.Equal(t, model.TranslatabilityDNT, model.Translatability("dnt"))
+	assert.Equal(t, model.TranslatabilityConsistent, model.Translatability("consistent"))
+	assert.Equal(t, model.TranslatabilityFree, model.Translatability("free"))
 }

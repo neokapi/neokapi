@@ -7,9 +7,9 @@ import (
 
 	"github.com/labstack/echo/v4"
 	"github.com/neokapi/neokapi/bowrain/billing"
-	"github.com/neokapi/neokapi/core/model"
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	"github.com/neokapi/neokapi/bowrain/core/store"
+	"github.com/neokapi/neokapi/core/model"
 )
 
 // WorkspaceRequest is the request body for creating/updating a workspace.

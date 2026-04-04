@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -17,7 +18,6 @@ import (
 	"github.com/neokapi/neokapi/core/flow"
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/model"
-	"github.com/neokapi/neokapi/core/plugin/loader"
 	pluginreg "github.com/neokapi/neokapi/core/plugin/registry"
 	"github.com/neokapi/neokapi/core/preset"
 	"github.com/neokapi/neokapi/core/tool"
@@ -87,7 +87,7 @@ func (a *App) RunToolOnFiles(ctx context.Context, cfg ToolRunConfig) error {
 		return err
 	}
 	if len(files) == 0 {
-		return fmt.Errorf("no files to process")
+		return errors.New("no files to process")
 	}
 
 	concurrency := cfg.Concurrency
@@ -418,9 +418,9 @@ func (a *App) processOneFile(ctx context.Context, cfg ToolRunConfig, filePath st
 
 		// Prefer passing the file path over loading content bytes when the writer
 		// supports it. This avoids duplicating the file in memory for gRPC transfer.
-		if sps, ok := writer.(loader.SourcePathSetter); ok && filepath.IsAbs(filePath) {
+		if sps, ok := writer.(format.SourcePathSetter); ok && filepath.IsAbs(filePath) {
 			sps.SetSourcePath(filePath)
-		} else if ocs, ok := writer.(loader.OriginalContentSetter); ok {
+		} else if ocs, ok := writer.(format.OriginalContentSetter); ok {
 			ocs.SetOriginalContent(content)
 		}
 

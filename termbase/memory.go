@@ -2,6 +2,7 @@ package termbase
 
 import (
 	"cmp"
+	"errors"
 	"fmt"
 	"slices"
 	"strings"
@@ -57,7 +58,7 @@ func (tb *InMemoryTermBase) AddConcept(concept Concept) error {
 	defer tb.mu.Unlock()
 
 	if concept.ID == "" {
-		return fmt.Errorf("concept ID is required")
+		return errors.New("concept ID is required")
 	}
 
 	now := time.Now()

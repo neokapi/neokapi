@@ -661,6 +661,6 @@ func TestExtract_TimestampTagYaml(t *testing.T) {
 			break
 		}
 	}
-	assert.Error(t, readErr,
+	require.Error(t, readErr,
 		"no-children-1-pretty.yaml should fail due to unsupported YAML tags")
 }

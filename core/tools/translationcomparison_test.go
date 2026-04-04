@@ -6,6 +6,7 @@ import (
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/tools"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestTranslationComparisonIdentical(t *testing.T) {
@@ -124,17 +125,17 @@ func TestTranslationComparisonSkipsNonTranslatable(t *testing.T) {
 func TestTranslationComparisonConfigValidation(t *testing.T) {
 	cfg := &tools.TranslationComparisonConfig{}
 	err := cfg.Validate()
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "Locale1")
 
 	cfg.Locale1 = "fr-FR"
 	err = cfg.Validate()
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "Locale2")
 
 	cfg.Locale2 = "fr-CA"
 	err = cfg.Validate()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	assert.Equal(t, "translation-comparison", cfg.ToolName())
 

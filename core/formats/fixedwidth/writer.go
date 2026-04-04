@@ -2,6 +2,7 @@ package fixedwidth
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"strings"
@@ -99,7 +100,7 @@ done:
 func (w *Writer) writeFromSkeleton(blocks map[string]*model.Block) error {
 	for {
 		entry, err := w.skeletonStore.Next()
-		if err == io.EOF {
+		if errors.Is(err, io.EOF) {
 			break
 		}
 		if err != nil {
@@ -130,7 +131,7 @@ func (w *Writer) collectPart(part *model.Part) error {
 	case model.PartBlock:
 		block, ok := part.Resource.(*model.Block)
 		if !ok {
-			return fmt.Errorf("fixedwidth writer: expected Block resource")
+			return errors.New("fixedwidth writer: expected Block resource")
 		}
 
 		text := block.SourceText()
@@ -161,7 +162,7 @@ func (w *Writer) collectPart(part *model.Part) error {
 	case model.PartData:
 		data, ok := part.Resource.(*model.Data)
 		if !ok {
-			return fmt.Errorf("fixedwidth writer: expected Data resource")
+			return errors.New("fixedwidth writer: expected Data resource")
 		}
 		if data.Name == "header-row" {
 			w.headerRow = data.Properties["content"]

@@ -332,7 +332,7 @@ func TestAgentServiceSendMessageStream_PoolLimitError(t *testing.T) {
 	conv2, _ := svc.CreateConversation(ctx, "ws1", "user1", "", "Chat2")
 	var buf2 bytes.Buffer
 	err := svc.SendMessageStream(ctx, conv2.ID, "user1", "ws1", "member", "msg2", "ask", nil, NewSSEWriter(&buf2))
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "max concurrent")
 }
 

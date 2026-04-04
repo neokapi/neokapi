@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -25,7 +26,7 @@ type GoogleConfig struct {
 // Validate checks configuration validity.
 func (c *GoogleConfig) Validate() error {
 	if c.APIKey == "" {
-		return fmt.Errorf("google: APIKey is required")
+		return errors.New("google: APIKey is required")
 	}
 	return nil
 }
@@ -93,7 +94,7 @@ func (p *GoogleProvider) Translate(ctx context.Context, req TranslateRequest) (*
 	}
 
 	if len(result.Data.Translations) == 0 {
-		return nil, fmt.Errorf("no translations returned")
+		return nil, errors.New("no translations returned")
 	}
 
 	return &TranslateResponse{
@@ -125,10 +126,10 @@ func (c *GoogleToolConfig) Reset() {
 // Validate checks configuration validity.
 func (c *GoogleToolConfig) Validate() error {
 	if c.APIKey == "" {
-		return fmt.Errorf("google: APIKey is required")
+		return errors.New("google: APIKey is required")
 	}
 	if c.TargetLocale.IsEmpty() {
-		return fmt.Errorf("google: TargetLocale is required")
+		return errors.New("google: TargetLocale is required")
 	}
 	return nil
 }

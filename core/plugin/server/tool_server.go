@@ -2,7 +2,7 @@ package server
 
 import (
 	"context"
-	"fmt"
+	"errors"
 	"net/rpc"
 
 	goplugin "github.com/hashicorp/go-plugin"
@@ -75,5 +75,5 @@ func (p *ToolServerPlugin) Server(broker *goplugin.MuxBroker) (any, error) {
 
 // Client is not used on the server side.
 func (p *ToolServerPlugin) Client(broker *goplugin.MuxBroker, c *rpc.Client) (any, error) {
-	return nil, fmt.Errorf("ToolServerPlugin.Client should not be called on server side")
+	return nil, errors.New("ToolServerPlugin.Client should not be called on server side")
 }

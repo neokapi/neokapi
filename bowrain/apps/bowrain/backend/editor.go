@@ -7,9 +7,9 @@ import (
 	"os/exec"
 	"runtime"
 
+	"github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/tool"
-	"github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/sievepen"
 	"github.com/neokapi/neokapi/termbase"
 )

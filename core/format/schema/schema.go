@@ -8,8 +8,8 @@ import (
 	"strings"
 	"sync"
 
-	coreschema "github.com/neokapi/neokapi/core/schema"
 	"github.com/neokapi/neokapi/core/preset"
+	coreschema "github.com/neokapi/neokapi/core/schema"
 )
 
 // Re-export shared types from core/schema for convenience.
@@ -348,7 +348,7 @@ func (r *SchemaRegistry) ValidateParams(formatID string, params map[string]any) 
 			if suggestion != "" {
 				errors = append(errors, fmt.Sprintf("%s: unknown parameter (did you mean %q?)", paramName, suggestion))
 			} else {
-				errors = append(errors, fmt.Sprintf("%s: unknown parameter", paramName))
+				errors = append(errors, paramName+": unknown parameter")
 			}
 			continue
 		}

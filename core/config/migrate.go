@@ -1,6 +1,7 @@
 package config
 
 import (
+	"errors"
 	"fmt"
 	"sync"
 )
@@ -32,13 +33,13 @@ func NewMigrationRegistry() *MigrationRegistry {
 // Register adds a migration step for a kind.
 func (r *MigrationRegistry) Register(m Migration) error {
 	if m.Kind == "" {
-		return fmt.Errorf("migration kind is required")
+		return errors.New("migration kind is required")
 	}
 	if m.FromVersion < 1 {
-		return fmt.Errorf("migration fromVersion must be >= 1")
+		return errors.New("migration fromVersion must be >= 1")
 	}
 	if m.ToVersion <= m.FromVersion {
-		return fmt.Errorf("migration toVersion must be > fromVersion")
+		return errors.New("migration toVersion must be > fromVersion")
 	}
 
 	r.mu.Lock()

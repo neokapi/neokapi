@@ -33,7 +33,7 @@ func TestGeminiProviderChat(t *testing.T) {
 		assert.Equal(t, "test-key", r.URL.Query().Get("key"))
 
 		var req geminiRequest
-		require.NoError(t, json.NewDecoder(r.Body).Decode(&req))
+		assert.NoError(t, json.NewDecoder(r.Body).Decode(&req))
 		assert.Len(t, req.Contents, 1)
 		assert.Equal(t, "user", req.Contents[0].Role)
 
@@ -107,7 +107,7 @@ func TestGeminiProviderChatStructured(t *testing.T) {
 	t.Parallel()
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var req geminiRequest
-		require.NoError(t, json.NewDecoder(r.Body).Decode(&req))
+		assert.NoError(t, json.NewDecoder(r.Body).Decode(&req))
 		assert.Equal(t, "application/json", req.GenerationConfig.ResponseMIMEType)
 		assert.NotNil(t, req.GenerationConfig.ResponseSchema)
 
@@ -152,7 +152,7 @@ func TestGeminiProviderSystemMessage(t *testing.T) {
 	t.Parallel()
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var req geminiRequest
-		require.NoError(t, json.NewDecoder(r.Body).Decode(&req))
+		assert.NoError(t, json.NewDecoder(r.Body).Decode(&req))
 
 		// System message should be prepended to first user message.
 		assert.Len(t, req.Contents, 1)
@@ -223,11 +223,11 @@ func TestGeminiProviderDisablesThinking(t *testing.T) {
 	t.Parallel()
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var req geminiRequest
-		require.NoError(t, json.NewDecoder(r.Body).Decode(&req))
+		assert.NoError(t, json.NewDecoder(r.Body).Decode(&req))
 
 		// Verify thinking is disabled (budget = 0).
-		require.NotNil(t, req.GenerationConfig)
-		require.NotNil(t, req.GenerationConfig.ThinkingConfig)
+		assert.NotNil(t, req.GenerationConfig)
+		assert.NotNil(t, req.GenerationConfig.ThinkingConfig)
 		assert.Equal(t, 0, req.GenerationConfig.ThinkingConfig.ThinkingBudget)
 
 		resp := geminiResponse{
@@ -262,8 +262,8 @@ func TestGeminiProviderChatStream(t *testing.T) {
 		assert.Equal(t, "sse", r.URL.Query().Get("alt"))
 
 		var req geminiRequest
-		require.NoError(t, json.NewDecoder(r.Body).Decode(&req))
-		require.NotNil(t, req.GenerationConfig.ThinkingConfig)
+		assert.NoError(t, json.NewDecoder(r.Body).Decode(&req))
+		assert.NotNil(t, req.GenerationConfig.ThinkingConfig)
 		assert.True(t, req.GenerationConfig.ThinkingConfig.IncludeThoughts)
 
 		w.Header().Set("Content-Type", "text/event-stream")
@@ -387,5 +387,5 @@ func TestGeminiProviderImplementsStreamingInterface(t *testing.T) {
 func TestGeminiProviderClose(t *testing.T) {
 	t.Parallel()
 	p := NewGeminiProvider(Config{APIKey: "test-key"})
-	assert.NoError(t, p.Close())
+	require.NoError(t, p.Close())
 }

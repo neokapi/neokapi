@@ -176,7 +176,7 @@ func keycloakTokenVerifier(jwtSecret string) auth.TokenVerifier {
 	return func(ctx context.Context, token string, req *http.Request) (*auth.TokenInfo, error) {
 		claims, err := platauth.ValidateToken(token, jwtSecret)
 		if err != nil {
-			return nil, fmt.Errorf("%w: %v", auth.ErrInvalidToken, err)
+			return nil, fmt.Errorf("%w: %w", auth.ErrInvalidToken, err)
 		}
 		return &auth.TokenInfo{
 			UserID:     claims.Subject,

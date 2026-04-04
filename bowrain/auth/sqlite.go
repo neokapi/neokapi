@@ -3,13 +3,14 @@ package auth
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"time"
 
+	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	"github.com/neokapi/neokapi/bowrain/storage"
 	"github.com/neokapi/neokapi/core/id"
-	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 )
 
 var authMigrations = []storage.Migration{
@@ -486,7 +487,7 @@ func (s *SQLiteAuthStore) RemoveMember(ctx context.Context, workspaceID, userID 
 	}
 	n, _ := res.RowsAffected()
 	if n == 0 {
-		return fmt.Errorf("membership not found")
+		return errors.New("membership not found")
 	}
 	return nil
 }
@@ -503,7 +504,7 @@ func (s *SQLiteAuthStore) UpdateRole(ctx context.Context, workspaceID, userID st
 	}
 	n, _ := res.RowsAffected()
 	if n == 0 {
-		return fmt.Errorf("membership not found")
+		return errors.New("membership not found")
 	}
 	return nil
 }
@@ -791,7 +792,7 @@ func (s *SQLiteAuthStore) ValidateRefreshTokenByHash(ctx context.Context, tokenH
 		if _, err := s.db.ExecContext(ctx, `DELETE FROM refresh_tokens WHERE id = ?`, id); err != nil {
 			log.Printf("WARNING: failed to delete expired refresh token %s: %v", id, err)
 		}
-		return "", fmt.Errorf("refresh token expired")
+		return "", errors.New("refresh token expired")
 	}
 
 	// Single-use: delete after successful validation (token rotation).
@@ -999,7 +1000,7 @@ func (s *SQLiteAuthStore) UpdateRoleTemplate(ctx context.Context, rt *platauth.R
 	}
 	n, _ := res.RowsAffected()
 	if n == 0 {
-		return fmt.Errorf("role template not found")
+		return errors.New("role template not found")
 	}
 	return nil
 }
@@ -1013,7 +1014,7 @@ func (s *SQLiteAuthStore) DeleteRoleTemplate(ctx context.Context, workspaceID, r
 	}
 	n, _ := res.RowsAffected()
 	if n == 0 {
-		return fmt.Errorf("role template not found or is builtin")
+		return errors.New("role template not found or is builtin")
 	}
 	return nil
 }
@@ -1088,7 +1089,7 @@ func (s *SQLiteAuthStore) UpdateProjectMember(ctx context.Context, pm *platauth.
 	}
 	n, _ := res.RowsAffected()
 	if n == 0 {
-		return fmt.Errorf("project membership not found")
+		return errors.New("project membership not found")
 	}
 	return nil
 }
@@ -1102,7 +1103,7 @@ func (s *SQLiteAuthStore) RemoveProjectMember(ctx context.Context, projectID, us
 	}
 	n, _ := res.RowsAffected()
 	if n == 0 {
-		return fmt.Errorf("project membership not found")
+		return errors.New("project membership not found")
 	}
 	return nil
 }

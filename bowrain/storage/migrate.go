@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"context"
 	"fmt"
 )
 
@@ -15,8 +16,10 @@ type Migration struct {
 // It creates a migrations tracking table if it doesn't exist,
 // then applies any migrations whose version exceeds the current version.
 func Migrate(db *DB, migrations []Migration) error {
+	ctx := context.Background()
+
 	// Create migration tracking table.
-	if _, err := db.Exec(`
+	if _, err := db.ExecContext(ctx, `
 		CREATE TABLE IF NOT EXISTS schema_migrations (
 			version     INTEGER PRIMARY KEY,
 			description TEXT NOT NULL,
@@ -28,7 +31,7 @@ func Migrate(db *DB, migrations []Migration) error {
 
 	// Get current version.
 	var currentVersion int
-	err := db.QueryRow("SELECT COALESCE(MAX(version), 0) FROM schema_migrations").Scan(&currentVersion)
+	err := db.QueryRowContext(ctx, "SELECT COALESCE(MAX(version), 0) FROM schema_migrations").Scan(&currentVersion)
 	if err != nil {
 		return fmt.Errorf("get current version: %w", err)
 	}
@@ -39,17 +42,17 @@ func Migrate(db *DB, migrations []Migration) error {
 			continue
 		}
 
-		tx, err := db.Begin()
+		tx, err := db.BeginTx(ctx, nil)
 		if err != nil {
 			return fmt.Errorf("begin migration %d: %w", m.Version, err)
 		}
 
-		if _, err := tx.Exec(m.SQL); err != nil {
+		if _, err := tx.ExecContext(ctx, m.SQL); err != nil {
 			_ = tx.Rollback()
 			return fmt.Errorf("apply migration %d (%s): %w", m.Version, m.Description, err)
 		}
 
-		if _, err := tx.Exec(
+		if _, err := tx.ExecContext(ctx,
 			"INSERT INTO schema_migrations (version, description) VALUES (?, ?)",
 			m.Version, m.Description,
 		); err != nil {

@@ -25,7 +25,7 @@ func (m *mockSchemaValidator) ValidateParams(filterID string, params map[string]
 	var errors []string
 	for name := range params {
 		if _, ok := schema[name]; !ok {
-			errors = append(errors, fmt.Sprintf("%s: unknown parameter", name))
+			errors = append(errors, name+": unknown parameter")
 		}
 	}
 	if len(errors) > 0 {
@@ -107,7 +107,7 @@ func TestResolveFormatConfig_PresetNotFound(t *testing.T) {
 	resolver := NewConfigResolver(reg, nil)
 
 	_, err := resolver.ResolveFormatConfig("json", "nonexistent", nil, nil)
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "not found")
 }
 
@@ -131,7 +131,7 @@ func TestResolveFormatConfig_SchemaValidation(t *testing.T) {
 	_, err = resolver.ResolveFormatConfig("okf_html", "", nil, map[string]any{
 		"preservWhitespace": true,
 	})
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "unknown parameter")
 }
 
@@ -149,14 +149,14 @@ func TestValidatePreset(t *testing.T) {
 		Format: "okf_html",
 		Config: map[string]any{"assumeWellformed": true},
 	})
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	// Invalid preset (unknown param)
 	err = resolver.ValidatePreset(&FormatPreset{
 		Format: "okf_html",
 		Config: map[string]any{"badParam": true},
 	})
-	assert.Error(t, err)
+	require.Error(t, err)
 }
 
 func TestValidateAllPresets(t *testing.T) {
@@ -236,7 +236,7 @@ func TestLoadConfigFile_JSON(t *testing.T) {
 
 func TestLoadConfigFile_NotFound(t *testing.T) {
 	_, err := LoadConfigFile("/nonexistent/config.yaml")
-	assert.Error(t, err)
+	require.Error(t, err)
 }
 
 func TestLoadConfigFile_EnvelopedYAML(t *testing.T) {
@@ -302,7 +302,7 @@ spec: {}
 	require.NoError(t, err)
 
 	_, err = LoadConfigFile(path)
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "envelope")
 }
 

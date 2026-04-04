@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -19,12 +20,11 @@ import (
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/plugin/bridge"
-	"github.com/neokapi/neokapi/core/plugin/loader"
 	pluginreg "github.com/neokapi/neokapi/core/plugin/registry"
 	"github.com/neokapi/neokapi/core/preset"
 	"github.com/neokapi/neokapi/core/tool"
 	libtools "github.com/neokapi/neokapi/core/tools"
-	"github.com/neokapi/neokapi/providers/ai"
+	aiprovider "github.com/neokapi/neokapi/providers/ai"
 	sqltm "github.com/neokapi/neokapi/sievepen"
 	sqltb "github.com/neokapi/neokapi/termbase"
 	"github.com/spf13/cobra"
@@ -51,7 +51,7 @@ func (a *App) RunFlow(ctx context.Context, cmd *cobra.Command, flowName string, 
 			if flowName == "pseudo-translate" {
 				a.TargetLang = "qps"
 			} else {
-				return fmt.Errorf("--target-lang is required")
+				return errors.New("--target-lang is required")
 			}
 		}
 		outputFlag, _ := cmd.Flags().GetString("output")
@@ -65,7 +65,7 @@ func (a *App) RunFlow(ctx context.Context, cmd *cobra.Command, flowName string, 
 	if opts.FallbackRunE != nil {
 		return opts.FallbackRunE(cmd, flowName, []string{flowName})
 	}
-	return fmt.Errorf("--input (-i) is required")
+	return errors.New("--input (-i) is required")
 }
 
 // addFlowRunFlags registers the common flags for flow execution commands.
@@ -289,9 +289,9 @@ func (a *App) runSingleFile(ctx context.Context, cmd *cobra.Command, flowName, i
 
 	// Prefer passing the file path over loading content bytes when the writer
 	// supports it. This avoids duplicating the file in memory for gRPC transfer.
-	if sps, ok := writer.(loader.SourcePathSetter); ok && filepath.IsAbs(inputPath) {
+	if sps, ok := writer.(format.SourcePathSetter); ok && filepath.IsAbs(inputPath) {
 		sps.SetSourcePath(inputPath)
-	} else if ocs, ok := writer.(loader.OriginalContentSetter); ok {
+	} else if ocs, ok := writer.(format.OriginalContentSetter); ok {
 		ocs.SetOriginalContent(inputContent)
 	}
 
@@ -741,9 +741,9 @@ func (a *App) processFlowFileNative(ctx context.Context, cmd *cobra.Command, flo
 		return traceNodes, fmt.Errorf("set output: %w", err)
 	}
 
-	if sps, ok := writer.(loader.SourcePathSetter); ok && filepath.IsAbs(inputPath) {
+	if sps, ok := writer.(format.SourcePathSetter); ok && filepath.IsAbs(inputPath) {
 		sps.SetSourcePath(inputPath)
-	} else if ocs, ok := writer.(loader.OriginalContentSetter); ok {
+	} else if ocs, ok := writer.(format.OriginalContentSetter); ok {
 		ocs.SetOriginalContent(inputContent)
 	}
 
@@ -1005,7 +1005,7 @@ func (a *App) runProjectSteps(ctx context.Context, cmd *cobra.Command, flowName 
 	concurrency, _ := cmd.Flags().GetInt("concurrency")
 
 	if a.TargetLang == "" {
-		return fmt.Errorf("--target-lang is required")
+		return errors.New("--target-lang is required")
 	}
 
 	// Build tools from step definitions using the tool registry + BuiltinToolCommands.

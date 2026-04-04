@@ -258,7 +258,7 @@ func TestBridgeEnvelopeUnwrapParams(t *testing.T) {
 
 	// Bridge validates apiVersion format
 	_, err := ParseAPIVersion(filterParams["apiVersion"])
-	assert.NoError(t, err)
+	require.NoError(t, err)
 }
 
 // TestBridgeVersionsJsonKindConsistency verifies naming for all filters in

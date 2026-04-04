@@ -7,7 +7,7 @@ import (
 
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/tool"
-	"github.com/neokapi/neokapi/providers/mt"
+	mtprovider "github.com/neokapi/neokapi/providers/mt"
 )
 
 // MTTranslateTool translates Blocks using an MT provider.
@@ -36,8 +36,8 @@ func NewMTTranslateTool(p mtprovider.MTProvider, cfg MTTranslateConfig) *MTTrans
 		targetLocale: cfg.TargetLocale,
 		vocab:        vocab,
 	}
-	t.ToolName = fmt.Sprintf("%s-translate", p.Name())
-	t.ToolDescription = fmt.Sprintf("Translates Blocks using %s", p.Name())
+	t.ToolName = p.Name() + "-translate"
+	t.ToolDescription = "Translates Blocks using " + p.Name()
 	t.HandleBlockFn = t.handleBlock
 	return t
 }

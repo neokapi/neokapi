@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/xml"
+	"errors"
 	"fmt"
 	"io"
 	"strings"
@@ -168,7 +169,7 @@ func (w *Writer) fallbackChildText(parts []*model.Part) string {
 // writeFromSkeleton reconstructs translatable XHTML parts using the skeleton store.
 func (w *Writer) writeFromSkeleton(blocks map[string]*model.Block, childLayerValues map[string]string) error {
 	if w.originalContent == nil {
-		return fmt.Errorf("epub writer: original content required for reconstruction")
+		return errors.New("epub writer: original content required for reconstruction")
 	}
 
 	if err := w.skeletonStore.Flush(); err != nil {
@@ -182,7 +183,7 @@ func (w *Writer) writeFromSkeleton(blocks map[string]*model.Block, childLayerVal
 
 	for {
 		entry, err := w.skeletonStore.Next()
-		if err == io.EOF {
+		if errors.Is(err, io.EOF) {
 			break
 		}
 		if err != nil {
@@ -278,7 +279,7 @@ func (w *Writer) renderBlockText(block *model.Block) string {
 
 func (w *Writer) writeEPUB(parts []*model.Part, childLayerValues map[string]string) error {
 	if w.originalContent == nil {
-		return fmt.Errorf("epub writer: original content required for roundtrip")
+		return errors.New("epub writer: original content required for roundtrip")
 	}
 
 	// Build map of entry -> translated blocks

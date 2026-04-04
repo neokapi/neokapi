@@ -3,13 +3,14 @@ package connector
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
 	"time"
 
-	"github.com/neokapi/neokapi/core/model"
 	platconn "github.com/neokapi/neokapi/bowrain/core/connector"
+	"github.com/neokapi/neokapi/core/model"
 )
 
 // FigmaConnector integrates with the Figma API to fetch text content.
@@ -48,11 +49,11 @@ type figmaBBox struct {
 func NewFigmaConnector(config map[string]string) (*FigmaConnector, error) {
 	fileKey := config["file_key"]
 	if fileKey == "" {
-		return nil, fmt.Errorf("figma connector requires 'file_key' config")
+		return nil, errors.New("figma connector requires 'file_key' config")
 	}
 	token := config["token"]
 	if token == "" {
-		return nil, fmt.Errorf("figma connector requires 'token' config")
+		return nil, errors.New("figma connector requires 'token' config")
 	}
 
 	id := config["id"]
@@ -105,7 +106,7 @@ func (c *FigmaConnector) Fetch(ctx context.Context, opts platconn.FetchOptions) 
 func (c *FigmaConnector) Publish(ctx context.Context, items []*platconn.ContentItem, opts platconn.PublishOptions) error {
 	// Figma API doesn't support direct text updates in the general API.
 	// This would require the Figma Plugin API or Variables API.
-	return fmt.Errorf("figma publish not yet supported via REST API")
+	return errors.New("figma publish not yet supported via REST API")
 }
 
 func (c *FigmaConnector) List(ctx context.Context) ([]*platconn.ContentItem, error) {
@@ -129,7 +130,7 @@ func (c *FigmaConnector) Status(ctx context.Context) (*platconn.SyncStatus, erro
 }
 
 func (c *FigmaConnector) fetchFile(ctx context.Context) (*figmaFile, error) {
-	url := fmt.Sprintf("https://api.figma.com/v1/files/%s", c.fileKey)
+	url := "https://api.figma.com/v1/files/" + c.fileKey
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return nil, err

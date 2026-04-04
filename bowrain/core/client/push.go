@@ -100,7 +100,9 @@ func (c *BowrainClient) Push(ctx context.Context, blocksByItem map[string][]*mod
 
 	// 3. For each changed/new item, send block-level diff and collect needed blocks.
 	allNeeded := map[string]map[string]bool{} // item → set of needed block IDs
-	diffItems := append(initResp.ChangedItems, initResp.NewItems...)
+	diffItems := make([]string, 0, len(initResp.ChangedItems)+len(initResp.NewItems))
+	diffItems = append(diffItems, initResp.ChangedItems...)
+	diffItems = append(diffItems, initResp.NewItems...)
 	transport := "proxy"
 
 	for _, itemName := range diffItems {

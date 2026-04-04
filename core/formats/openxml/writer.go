@@ -4,6 +4,7 @@ import (
 	"archive/zip"
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"strings"
@@ -72,7 +73,7 @@ func (w *Writer) Write(ctx context.Context, parts <-chan *model.Part) error {
 	}
 
 	if w.originalContent == nil {
-		return fmt.Errorf("openxml: writer requires original content for reconstruction")
+		return errors.New("openxml: writer requires original content for reconstruction")
 	}
 
 	// Open original ZIP
@@ -125,7 +126,7 @@ func (w *Writer) writeFromSkeleton(origZR *zip.Reader, zw *zip.Writer, buf *byte
 
 	for {
 		entry, err := w.skeletonStore.Next()
-		if err == io.EOF {
+		if errors.Is(err, io.EOF) {
 			break
 		}
 		if err != nil {

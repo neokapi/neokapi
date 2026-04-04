@@ -56,7 +56,7 @@ func TestWriterNilOriginal(t *testing.T) {
 	close(ch)
 
 	err = writer.Write(context.Background(), ch)
-	assert.Error(t, err, "should error without original content")
+	require.Error(t, err, "should error without original content")
 }
 
 func TestWriterMediaReplacement(t *testing.T) {

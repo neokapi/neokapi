@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -12,17 +13,17 @@ import (
 
 	"github.com/Azure/azure-sdk-for-go/sdk/azidentity"
 	"github.com/neokapi/neokapi/bowrain/agent"
-	"github.com/neokapi/neokapi/bowrain/observe"
+	"github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/bowrain/credentials"
 	bowevent "github.com/neokapi/neokapi/bowrain/event"
 	"github.com/neokapi/neokapi/bowrain/jobs"
+	"github.com/neokapi/neokapi/bowrain/observe"
 	"github.com/neokapi/neokapi/bowrain/service"
 	"github.com/neokapi/neokapi/bowrain/storage"
 	blobazure "github.com/neokapi/neokapi/bowrain/storage/azureblob"
 	bloblocal "github.com/neokapi/neokapi/bowrain/storage/localblob"
 	bstore "github.com/neokapi/neokapi/bowrain/store"
 	corestorage "github.com/neokapi/neokapi/core/storage"
-	"github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/redis/go-redis/v9"
 	"golang.org/x/sync/errgroup"
 )
@@ -34,9 +35,6 @@ func main() {
 		os.Getenv("BOWRAIN_LOG_LEVEL"),
 	)
 
-	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
-	defer cancel()
-
 	dbURL := os.Getenv("BOWRAIN_DATABASE_URL")
 	if dbURL == "" {
 		log.Fatal("BOWRAIN_DATABASE_URL is required (must be a postgres:// URL)")
@@ -44,6 +42,15 @@ func main() {
 	if !strings.HasPrefix(dbURL, "postgres://") && !strings.HasPrefix(dbURL, "postgresql://") {
 		log.Fatal("BOWRAIN_DATABASE_URL must start with postgres:// or postgresql://")
 	}
+
+	if err := runWorker(dbURL); err != nil {
+		log.Fatalf("Worker: %v", err)
+	}
+}
+
+func runWorker(dbURL string) error {
+	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer cancel()
 
 	dbAuth := os.Getenv("BOWRAIN_DATABASE_AUTH")
 	azureClientID := os.Getenv("AZURE_CLIENT_ID")
@@ -65,24 +72,24 @@ func main() {
 		pgdb, err = storage.OpenPostgres(dbURL)
 	}
 	if err != nil {
-		log.Fatalf("Worker: open PostgreSQL: %v", err)
+		return fmt.Errorf("open PostgreSQL: %w", err)
 	}
 	defer pgdb.Close()
 
 	pgCS, err := bstore.NewPostgresStoreFromDB(pgdb)
 	if err != nil {
-		log.Fatalf("Worker: open PostgreSQL content store: %v", err)
+		return fmt.Errorf("open PostgreSQL content store: %w", err)
 	}
 	var cs store.ContentStore = pgCS
 
 	pgJS, err := jobs.NewPgJobStore(pgdb)
 	if err != nil {
-		log.Fatalf("Worker: open PostgreSQL job store: %v", err)
+		return fmt.Errorf("open PostgreSQL job store: %w", err)
 	}
 
 	pgQS, err := jobs.NewPgQuotaStore(pgdb)
 	if err != nil {
-		log.Fatalf("Worker: open PostgreSQL quota store: %v", err)
+		return fmt.Errorf("open PostgreSQL quota store: %w", err)
 	}
 
 	// Set up translation job queue.
@@ -91,12 +98,12 @@ func main() {
 	case serviceBusConn != "":
 		translationQueue, err = jobs.NewServiceBusQueue(serviceBusConn, "translation-jobs")
 		if err != nil {
-			log.Fatalf("Worker: connect to Service Bus (translation): %v", err)
+			return fmt.Errorf("connect to Service Bus (translation): %w", err)
 		}
 	case natsURL != "":
 		translationQueue, err = jobs.NewNATSQueue(natsURL)
 		if err != nil {
-			log.Fatalf("Worker: connect to NATS: %v", err)
+			return fmt.Errorf("connect to NATS: %w", err)
 		}
 	default:
 		translationQueue = jobs.NewChannelQueue(64)
@@ -185,7 +192,7 @@ func main() {
 			srv.Close()
 		}()
 		log.Printf("Health endpoint listening on :%s", healthPort)
-		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			return fmt.Errorf("health server: %w", err)
 		}
 		return nil
@@ -201,7 +208,7 @@ func main() {
 	if agentRuntime := os.Getenv("BOWRAIN_AGENT_RUNTIME"); agentRuntime == "aca" {
 		agentDeps, cleanup, err := buildAgentWorkerDeps(ctx, pgdb, serviceBusConn, azureClientID)
 		if err != nil {
-			log.Fatalf("Worker: init agent worker: %v", err)
+			return fmt.Errorf("init agent worker: %w", err)
 		}
 		defer cleanup()
 
@@ -218,8 +225,9 @@ func main() {
 
 	log.Println("Starting bowrain worker...")
 	if err := g.Wait(); err != nil && ctx.Err() == nil {
-		log.Fatalf("Worker failed: %v", err)
+		return err
 	}
+	return nil
 }
 
 // buildAgentWorkerDeps sets up the agent worker dependencies.
@@ -245,7 +253,7 @@ func buildAgentWorkerDeps(ctx context.Context, pgdb *storage.PgDB, serviceBusCon
 	redisURL := os.Getenv("BOWRAIN_REDIS_URL")
 	redisPassword := os.Getenv("BOWRAIN_REDIS_PASSWORD")
 	if redisURL == "" {
-		return nil, nil, fmt.Errorf("BOWRAIN_REDIS_URL is required for agent worker")
+		return nil, nil, errors.New("BOWRAIN_REDIS_URL is required for agent worker")
 	}
 	redisOpts, err := redis.ParseURL(redisURL)
 	if err != nil {
@@ -294,7 +302,7 @@ func buildAgentWorkerDeps(ctx context.Context, pgdb *storage.PgDB, serviceBusCon
 
 	jwtSecret := os.Getenv("BOWRAIN_JWT_SECRET")
 	if jwtSecret == "" {
-		return nil, nil, fmt.Errorf("BOWRAIN_JWT_SECRET is required for agent worker MCP auth")
+		return nil, nil, errors.New("BOWRAIN_JWT_SECRET is required for agent worker MCP auth")
 	}
 
 	return &jobs.AgentWorkerDeps{

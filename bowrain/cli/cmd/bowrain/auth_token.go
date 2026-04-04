@@ -1,7 +1,7 @@
 package main
 
 import (
-	"fmt"
+	"errors"
 
 	"github.com/neokapi/neokapi/bowrain/cli/cmd/bowrain/output"
 	"github.com/neokapi/neokapi/bowrain/core/client"
@@ -30,15 +30,15 @@ Requires a .bowrain/ project with a configured workspace.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		stored, err := loadAuth()
 		if err != nil {
-			return fmt.Errorf("not authenticated — run: bowrain auth login")
+			return errors.New("not authenticated — run: bowrain auth login")
 		}
 
 		proj, err := project.FindProject("")
 		if err != nil {
-			return fmt.Errorf("no .bowrain/ project found — run: bowrain init")
+			return errors.New("no .bowrain/ project found — run: bowrain init")
 		}
 		if !proj.Config.HasServer() || proj.Config.Workspace() == "" {
-			return fmt.Errorf("no workspace configured in .bowrain/config.yaml")
+			return errors.New("no workspace configured in .bowrain/config.yaml")
 		}
 
 		resp, err := client.CreateToken(stored.ServerURL, stored.AccessToken, proj.Config.Workspace(), tokenName, tokenExpireDays)
@@ -62,15 +62,15 @@ var authTokenListCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		stored, err := loadAuth()
 		if err != nil {
-			return fmt.Errorf("not authenticated — run: bowrain auth login")
+			return errors.New("not authenticated — run: bowrain auth login")
 		}
 
 		proj, err := project.FindProject("")
 		if err != nil {
-			return fmt.Errorf("no .bowrain/ project found — run: bowrain init")
+			return errors.New("no .bowrain/ project found — run: bowrain init")
 		}
 		if !proj.Config.HasServer() || proj.Config.Workspace() == "" {
-			return fmt.Errorf("no workspace configured in .bowrain/config.yaml")
+			return errors.New("no workspace configured in .bowrain/config.yaml")
 		}
 
 		tokens, err := client.ListTokens(stored.ServerURL, stored.AccessToken, proj.Config.Workspace())
@@ -101,15 +101,15 @@ var authTokenDeleteCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		stored, err := loadAuth()
 		if err != nil {
-			return fmt.Errorf("not authenticated — run: bowrain auth login")
+			return errors.New("not authenticated — run: bowrain auth login")
 		}
 
 		proj, err := project.FindProject("")
 		if err != nil {
-			return fmt.Errorf("no .bowrain/ project found — run: bowrain init")
+			return errors.New("no .bowrain/ project found — run: bowrain init")
 		}
 		if !proj.Config.HasServer() || proj.Config.Workspace() == "" {
-			return fmt.Errorf("no workspace configured in .bowrain/config.yaml")
+			return errors.New("no workspace configured in .bowrain/config.yaml")
 		}
 
 		tokenID := args[0]

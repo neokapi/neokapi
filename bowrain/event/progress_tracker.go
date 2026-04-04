@@ -7,9 +7,9 @@ import (
 	"sync"
 	"time"
 
-	bstore "github.com/neokapi/neokapi/bowrain/store"
 	platev "github.com/neokapi/neokapi/bowrain/core/event"
 	"github.com/neokapi/neokapi/bowrain/core/store"
+	bstore "github.com/neokapi/neokapi/bowrain/store"
 )
 
 // milestones are the percentage thresholds that trigger notifications.

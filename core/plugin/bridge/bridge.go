@@ -3,6 +3,7 @@ package bridge
 import (
 	"bufio"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -79,7 +80,7 @@ func (b *JavaBridge) Start() error {
 	defer b.mu.Unlock()
 
 	if b.running {
-		return fmt.Errorf("bridge already running")
+		return errors.New("bridge already running")
 	}
 
 	// External bridge mode: connect to a pre-started server.
@@ -143,7 +144,7 @@ func (b *JavaBridge) Start() error {
 			if err := scanner.Err(); err != nil {
 				addrCh <- addrResult{err: fmt.Errorf("reading address: %w", err)}
 			} else {
-				addrCh <- addrResult{err: fmt.Errorf("jvm closed stdout before sending address")}
+				addrCh <- addrResult{err: errors.New("jvm closed stdout before sending address")}
 			}
 			return
 		}
@@ -168,7 +169,7 @@ func (b *JavaBridge) Start() error {
 
 	if addr == "" {
 		_ = b.cmd.Process.Kill()
-		return fmt.Errorf("jvm sent empty address")
+		return errors.New("jvm sent empty address")
 	}
 
 	b.logger.Printf("[bridge] connecting to %s", addr)
@@ -299,7 +300,7 @@ func (b *JavaBridge) Process(ctx context.Context, params ProcessParams,
 	b.mu.RLock()
 	if !b.running {
 		b.mu.RUnlock()
-		return nil, fmt.Errorf("bridge not running")
+		return nil, errors.New("bridge not running")
 	}
 	client := b.client
 	b.mu.RUnlock()

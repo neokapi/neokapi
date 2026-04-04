@@ -2,17 +2,18 @@ package mcp
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
-	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/bowrain/core/store"
+	"github.com/neokapi/neokapi/core/model"
 )
 
 // registerContentTools registers project and content management MCP tools.
-func (s *MCPServer) registerContentTools() { //nolint:funlen
+func (s *MCPServer) registerContentTools() { //nolint:funlen // tool registration is inherently long
 	mcp.AddTool(s.server, &mcp.Tool{
 		Name:        "create_project",
 		Description: "Create a new project with source and target languages.",
@@ -320,10 +321,10 @@ type createProjectOutput struct {
 
 func (s *MCPServer) handleCreateProject(ctx context.Context, req *mcp.CallToolRequest, input createProjectInput) (*mcp.CallToolResult, createProjectOutput, error) {
 	if input.Name == "" {
-		return nil, createProjectOutput{}, fmt.Errorf("name is required")
+		return nil, createProjectOutput{}, errors.New("name is required")
 	}
 	if input.SourceLanguage == "" {
-		return nil, createProjectOutput{}, fmt.Errorf("source_language is required")
+		return nil, createProjectOutput{}, errors.New("source_language is required")
 	}
 	targets := make([]model.LocaleID, len(input.TargetLanguages))
 	for i, l := range input.TargetLanguages {
@@ -351,7 +352,7 @@ type updateProjectInput struct {
 
 func (s *MCPServer) handleUpdateProject(ctx context.Context, req *mcp.CallToolRequest, input updateProjectInput) (*mcp.CallToolResult, projectSummaryContent, error) {
 	if input.ProjectID == "" {
-		return nil, projectSummaryContent{}, fmt.Errorf("project_id is required")
+		return nil, projectSummaryContent{}, errors.New("project_id is required")
 	}
 	p, err := s.contentStore.GetProject(ctx, input.ProjectID)
 	if err != nil {
@@ -399,10 +400,10 @@ type updateBlockOutput struct {
 
 func (s *MCPServer) handleUpdateBlock(ctx context.Context, req *mcp.CallToolRequest, input updateBlockInput) (*mcp.CallToolResult, updateBlockOutput, error) {
 	if input.BlockID == "" {
-		return nil, updateBlockOutput{}, fmt.Errorf("block_id is required")
+		return nil, updateBlockOutput{}, errors.New("block_id is required")
 	}
 	if input.TargetLocale == "" {
-		return nil, updateBlockOutput{}, fmt.Errorf("target_locale is required")
+		return nil, updateBlockOutput{}, errors.New("target_locale is required")
 	}
 	projectID := s.resolveProjectID(ctx, input.ProjectID)
 	stream := input.Stream

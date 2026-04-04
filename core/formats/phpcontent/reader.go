@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"regexp"
@@ -56,7 +57,7 @@ func (r *Reader) Signature() format.FormatSignature {
 // Open opens a RawDocument for reading.
 func (r *Reader) Open(ctx context.Context, doc *model.RawDocument) error {
 	if doc == nil || doc.Reader == nil {
-		return fmt.Errorf("phpcontent: nil document or reader")
+		return errors.New("phpcontent: nil document or reader")
 	}
 	r.Doc = doc
 	return nil
@@ -200,7 +201,7 @@ func (r *Reader) tokenize(content string) []token {
 				i = n
 			} else {
 				comment = content[i : i+end]
-				i = i + end
+				i += end
 			}
 			tok := token{typ: tokComment, value: comment, startPos: start, endPos: i}
 			// Check for directives
@@ -235,7 +236,7 @@ func (r *Reader) tokenize(content string) []token {
 				i = n
 			} else {
 				comment = content[i : i+end]
-				i = i + end
+				i += end
 			}
 			tok := token{typ: tokComment, value: comment, startPos: start, endPos: i}
 			tok.directive = r.extractDirective(comment)

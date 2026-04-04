@@ -3,15 +3,17 @@ package connector
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
-	"github.com/neokapi/neokapi/core/model"
 	platconn "github.com/neokapi/neokapi/bowrain/core/connector"
+	"github.com/neokapi/neokapi/core/model"
 )
 
 // WordPressConnector integrates with WordPress sites via the REST API.
@@ -44,7 +46,7 @@ type wpContent struct {
 func NewWordPressConnector(config map[string]string) (*WordPressConnector, error) {
 	baseURL := config["url"]
 	if baseURL == "" {
-		return nil, fmt.Errorf("wordpress connector requires 'url' config")
+		return nil, errors.New("wordpress connector requires 'url' config")
 	}
 	baseURL = strings.TrimRight(baseURL, "/")
 
@@ -98,11 +100,11 @@ func (c *WordPressConnector) Fetch(ctx context.Context, opts platconn.FetchOptio
 		items = append(items, &platconn.ContentItem{
 			ID:          fmt.Sprintf("post-%d", post.ID),
 			Name:        post.Title.Rendered,
-			Path:        fmt.Sprintf("posts/%s", post.Slug),
+			Path:        "posts/" + post.Slug,
 			Format:      "html",
 			Blocks:      blocks,
 			LastChanged: modified,
-			Metadata:    map[string]string{"wp_id": fmt.Sprintf("%d", post.ID)},
+			Metadata:    map[string]string{"wp_id": strconv.Itoa(post.ID)},
 		})
 	}
 	return items, nil
@@ -170,7 +172,7 @@ func (c *WordPressConnector) Status(ctx context.Context) (*platconn.SyncStatus, 
 }
 
 func (c *WordPressConnector) fetchPosts(ctx context.Context) ([]wpPost, error) {
-	url := fmt.Sprintf("%s/wp-json/wp/v2/posts?per_page=100", c.baseURL)
+	url := c.baseURL + "/wp-json/wp/v2/posts?per_page=100"
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return nil, err

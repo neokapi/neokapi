@@ -2,6 +2,7 @@ package splicedlines
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"strings"
@@ -86,7 +87,7 @@ done:
 func (w *Writer) writeFromSkeleton(blocks map[string]*model.Block) error {
 	for {
 		entry, err := w.skeletonStore.Next()
-		if err == io.EOF {
+		if errors.Is(err, io.EOF) {
 			break
 		}
 		if err != nil {
@@ -154,7 +155,7 @@ func (w *Writer) writePart(part *model.Part) error {
 func (w *Writer) writeBlock(part *model.Part) error {
 	block, ok := part.Resource.(*model.Block)
 	if !ok {
-		return fmt.Errorf("splicedlines writer: expected Block resource")
+		return errors.New("splicedlines writer: expected Block resource")
 	}
 
 	text := block.SourceText()

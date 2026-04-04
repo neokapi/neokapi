@@ -111,7 +111,7 @@ func detectStreamFromCI() string {
 
 // detectStreamFromGit shells out to git to get the current branch name.
 func detectStreamFromGit() string {
-	out, err := exec.Command("git", "rev-parse", "--abbrev-ref", "HEAD").Output()
+	out, err := exec.Command("git", "rev-parse", "--abbrev-ref", "HEAD").Output() //nolint:noctx // one-shot git query, no request context
 	if err != nil {
 		return ""
 	}

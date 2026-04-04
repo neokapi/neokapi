@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -54,7 +55,7 @@ func ResolveResourcePath(cmd *cobra.Command, kind, defaultFilename string) (stri
 		flagCount++
 	}
 	if flagCount > 1 {
-		return "", fmt.Errorf("--name, --local, and --file are mutually exclusive")
+		return "", errors.New("--name, --local, and --file are mutually exclusive")
 	}
 
 	switch {
@@ -76,7 +77,7 @@ func ResolveResourcePath(cmd *cobra.Command, kind, defaultFilename string) (stri
 // Creates the parent directory on demand.
 func resolveNamedResource(kind, name string) (string, error) {
 	if name == "" {
-		return "", fmt.Errorf("resource name is required")
+		return "", errors.New("resource name is required")
 	}
 	if strings.ContainsAny(name, "/\\") {
 		return "", fmt.Errorf("resource name must not contain path separators: %q", name)

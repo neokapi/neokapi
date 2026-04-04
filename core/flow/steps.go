@@ -1,6 +1,9 @@
 package flow
 
-import "fmt"
+import (
+	"errors"
+	"fmt"
+)
 
 // FlowStep represents a single step in the human-authored steps format.
 // Steps are sequential by default. Use Parallel for fan-out branches.
@@ -24,7 +27,7 @@ type StepsSpec struct {
 // with fan-out for parallel blocks.
 func StepsToGraph(spec *StepsSpec) ([]FlowNode, []FlowEdge, error) {
 	if len(spec.Steps) == 0 {
-		return nil, nil, fmt.Errorf("flow has no steps")
+		return nil, nil, errors.New("flow has no steps")
 	}
 
 	inputFormat := spec.Input

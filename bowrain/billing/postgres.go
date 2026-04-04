@@ -3,6 +3,7 @@ package billing
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"time"
 
@@ -229,7 +230,7 @@ func (s *PgBillingStore) DeductCredits(ctx context.Context, workspaceID string, 
 	if err != nil {
 		return fmt.Errorf("begin tx: %w", err)
 	}
-	defer tx.Rollback() //nolint:errcheck
+	defer tx.Rollback() //nolint:errcheck // rollback is a no-op after commit
 
 	// Update allocation.
 	var allocID string
@@ -277,7 +278,7 @@ func (s *PgBillingStore) GrantCredits(ctx context.Context, workspaceID string, a
 	if err != nil {
 		return fmt.Errorf("begin tx: %w", err)
 	}
-	defer tx.Rollback() //nolint:errcheck
+	defer tx.Rollback() //nolint:errcheck // rollback is a no-op after commit
 
 	_, err = tx.ExecContext(ctx,
 		`INSERT INTO credit_allocations (id, workspace_id, credits_total, credits_used, week_start, week_end, source)
@@ -423,7 +424,7 @@ func (s *PgBillingStore) DeleteFeatureOverride(ctx context.Context, workspaceID 
 	}
 	n, _ := res.RowsAffected()
 	if n == 0 {
-		return fmt.Errorf("feature override not found")
+		return errors.New("feature override not found")
 	}
 	return nil
 }

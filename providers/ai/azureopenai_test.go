@@ -115,5 +115,5 @@ func TestAzureOpenAIProviderTokenAuth(t *testing.T) {
 func TestAzureOpenAIProviderClose(t *testing.T) {
 	t.Parallel()
 	p := NewAzureOpenAIProvider(Config{BaseURL: "https://test.openai.azure.com", Model: "gpt-4o"})
-	assert.NoError(t, p.Close())
+	require.NoError(t, p.Close())
 }

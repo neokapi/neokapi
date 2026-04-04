@@ -3,6 +3,7 @@ package dtd
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"strconv"
@@ -55,7 +56,7 @@ func (r *Reader) Signature() format.FormatSignature {
 // Open opens a RawDocument for reading.
 func (r *Reader) Open(ctx context.Context, doc *model.RawDocument) error {
 	if doc == nil || doc.Reader == nil {
-		return fmt.Errorf("dtd: nil document or reader")
+		return errors.New("dtd: nil document or reader")
 	}
 	r.Doc = doc
 	return nil

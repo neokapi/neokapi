@@ -1,6 +1,7 @@
 package messageformat
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 	"unicode/utf8"
@@ -36,7 +37,7 @@ type branch struct {
 }
 
 // errPrefix is the error prefix used to match the Okapi bridge's error messages.
-// nolint:staticcheck // Capitalized to match Okapi's error convention.
+// The capitalization matches Okapi Framework's convention.
 const errPrefix = "Error reading Message Format String"
 
 // parse parses an ICU MessageFormat pattern string into a list of nodes.
@@ -44,7 +45,7 @@ func parse(pattern string) ([]node, error) {
 	p := &parser{input: pattern}
 	nodes, err := p.parsePattern(0, false)
 	if err != nil {
-		return nil, fmt.Errorf("%s: %w", errPrefix, err) //nolint:staticcheck // Capitalized to match Okapi
+		return nil, fmt.Errorf("%s: %w", errPrefix, err)
 	}
 	return nodes, nil
 }
@@ -209,7 +210,7 @@ func (p *parser) parseArgument(depth int) (node, error) {
 		return p.parsePluralOrSelect(argName, argType, depth)
 
 	case "choice":
-		return node{}, fmt.Errorf("choice format is deprecated and is not supported")
+		return node{}, errors.New("choice format is deprecated and is not supported")
 
 	default:
 		// Simple typed argument: {name, type} or {name, type, style}

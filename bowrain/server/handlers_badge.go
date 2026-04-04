@@ -3,12 +3,13 @@ package server
 import (
 	"fmt"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/labstack/echo/v4"
+	"github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/core/locale"
 	"github.com/neokapi/neokapi/core/model"
-	"github.com/neokapi/neokapi/bowrain/core/store"
 )
 
 // BadgeResponse is a shields.io endpoint-compatible JSON response.
@@ -94,7 +95,7 @@ func (s *Server) blockBadge(c echo.Context, p *store.Project) BadgeResponse {
 	return BadgeResponse{
 		SchemaVersion: 1,
 		Label:         "blocks",
-		Message:       fmt.Sprintf("%d", len(blocks)),
+		Message:       strconv.Itoa(len(blocks)),
 		Color:         "blue",
 		CacheSeconds:  3600,
 	}

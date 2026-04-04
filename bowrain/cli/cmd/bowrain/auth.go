@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -37,7 +38,7 @@ Server URL is resolved from (first match wins):
 	RunE: func(cmd *cobra.Command, args []string) error {
 		serverURL := resolveServerURLFrom(authServerURL)
 		if serverURL == "" {
-			return fmt.Errorf("server URL not configured — set BOWRAIN_SERVER_URL or use --server")
+			return errors.New("server URL not configured — set BOWRAIN_SERVER_URL or use --server")
 		}
 		_, err := performLogin(cmd, serverURL)
 		return err
@@ -151,7 +152,7 @@ Requires authentication (run 'bowrain auth login' first).`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		stored, err := loadAuth()
 		if err != nil {
-			return fmt.Errorf("not authenticated — run: bowrain auth login")
+			return errors.New("not authenticated — run: bowrain auth login")
 		}
 
 		var claimToken string
@@ -161,11 +162,11 @@ Requires authentication (run 'bowrain auth login' first).`,
 			// Try to read from .bowrain/.sync-cache.
 			proj, err := project.FindProject("")
 			if err != nil {
-				return fmt.Errorf("no claim token provided and no .bowrain/ project found")
+				return errors.New("no claim token provided and no .bowrain/ project found")
 			}
 			cache := project.LoadSyncCache(proj.ConfigDir)
 			if cache.ClaimToken == "" {
-				return fmt.Errorf("no claim token in .bowrain/.sync-cache — provide token as argument")
+				return errors.New("no claim token in .bowrain/.sync-cache — provide token as argument")
 			}
 			claimToken = cache.ClaimToken
 		}
@@ -258,7 +259,7 @@ func loadAuth() (*config.StoredAuth, error) { return config.LoadAuth() }
 
 // fetchUserInfo calls /api/v1/auth/me to get user details from the server.
 func fetchUserInfo(serverURL, token string) (*config.StoredUser, error) {
-	req, err := http.NewRequest(http.MethodGet, serverURL+"/api/v1/auth/me", nil)
+	req, err := http.NewRequest(http.MethodGet, serverURL+"/api/v1/auth/me", nil) //nolint:noctx // CLI auth helper
 	if err != nil {
 		return nil, err
 	}

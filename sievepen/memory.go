@@ -2,6 +2,7 @@ package sievepen
 
 import (
 	"cmp"
+	"errors"
 	"fmt"
 	"slices"
 	"strings"
@@ -54,10 +55,10 @@ func (tm *InMemoryTM) Add(entry TMEntry) error {
 	defer tm.mu.Unlock()
 
 	if entry.ID == "" {
-		return fmt.Errorf("entry ID is required")
+		return errors.New("entry ID is required")
 	}
 	if entry.Source == nil {
-		return fmt.Errorf("entry source Fragment is required")
+		return errors.New("entry source Fragment is required")
 	}
 
 	if _, exists := tm.byID[entry.ID]; exists {

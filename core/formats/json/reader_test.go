@@ -171,7 +171,7 @@ func TestReadNilDocument(t *testing.T) {
 	ctx := context.Background()
 	reader := jsonfmt.NewReader()
 	err := reader.Open(ctx, nil)
-	assert.Error(t, err)
+	require.Error(t, err)
 }
 
 func TestReadInvalidJSON(t *testing.T) {
@@ -523,7 +523,7 @@ func TestConfigDefaults(t *testing.T) {
 	cfg.Reset()
 	assert.True(t, cfg.ExtractAllPairs)
 	assert.Equal(t, "json", cfg.FormatName())
-	assert.NoError(t, cfg.Validate())
+	require.NoError(t, cfg.Validate())
 }
 
 func TestRoundTripSourceOnly(t *testing.T) {

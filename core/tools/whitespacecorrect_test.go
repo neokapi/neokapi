@@ -160,7 +160,7 @@ func TestWhitespaceCorrectConfigValidation(t *testing.T) {
 
 	cfg.TargetLocale = model.LocaleFrench
 	err = cfg.Validate()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 }
 
 func TestWhitespaceCorrectConfigReset(t *testing.T) {

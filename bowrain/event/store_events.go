@@ -6,9 +6,9 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/neokapi/neokapi/core/model"
 	platev "github.com/neokapi/neokapi/bowrain/core/event"
 	"github.com/neokapi/neokapi/bowrain/core/store"
+	"github.com/neokapi/neokapi/core/model"
 )
 
 // EventEmittingStore wraps a ContentStore and emits events on mutations.

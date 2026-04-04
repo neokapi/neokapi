@@ -3,9 +3,11 @@ package regex
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/neokapi/neokapi/core/format"
@@ -57,7 +59,7 @@ func (r *Reader) Signature() format.FormatSignature {
 // Open opens a RawDocument for reading.
 func (r *Reader) Open(ctx context.Context, doc *model.RawDocument) error {
 	if doc == nil || doc.Reader == nil {
-		return fmt.Errorf("regex: nil document or reader")
+		return errors.New("regex: nil document or reader")
 	}
 	r.Doc = doc
 	return nil
@@ -220,7 +222,7 @@ func (r *Reader) extractWithRules(ctx context.Context, ch chan<- model.PartResul
 
 		// Store the full match for the writer to reconstruct
 		block.Properties["regex.fullMatch"] = m.fullMatch
-		block.Properties["regex.sourceGroup"] = fmt.Sprintf("%d", m.rule.SourceGroup)
+		block.Properties["regex.sourceGroup"] = strconv.Itoa(m.rule.SourceGroup)
 
 		if !r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block}) {
 			return

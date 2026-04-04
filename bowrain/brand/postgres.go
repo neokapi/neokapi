@@ -472,7 +472,7 @@ func scanProfile(row scanner) (*corebrand.VoiceProfile, error) {
 		&p.Version, &p.CreatedAt, &p.UpdatedAt, &p.CreatedBy)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, fmt.Errorf("brand profile not found")
+			return nil, errors.New("brand profile not found")
 		}
 		return nil, fmt.Errorf("scan brand profile: %w", err)
 	}

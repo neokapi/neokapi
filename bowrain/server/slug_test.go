@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestValidateSlug(t *testing.T) {
@@ -66,7 +67,7 @@ func TestValidateWorkspaceSlug(t *testing.T) {
 	// Reserved names.
 	for _, reserved := range []string{"auth", "admin", "health", "workspaces", "projects"} {
 		err := ValidateWorkspaceSlug(reserved)
-		assert.Error(t, err, "workspace slug %q should be reserved", reserved)
+		require.Error(t, err, "workspace slug %q should be reserved", reserved)
 		assert.Contains(t, err.Error(), "reserved")
 	}
 }
@@ -79,7 +80,7 @@ func TestValidateProjectSlug(t *testing.T) {
 	// Reserved names.
 	for _, reserved := range []string{"blocks", "items", "sync", "streams", "tags", "members", "settings"} {
 		err := ValidateProjectSlug(reserved)
-		assert.Error(t, err, "project slug %q should be reserved", reserved)
+		require.Error(t, err, "project slug %q should be reserved", reserved)
 		assert.Contains(t, err.Error(), "reserved")
 	}
 }

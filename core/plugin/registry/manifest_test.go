@@ -68,7 +68,7 @@ func TestFindLatestNotFound(t *testing.T) {
 	t.Parallel()
 	idx := &RegistryIndex{}
 	_, err := idx.FindLatest("okapi", "darwin/arm64")
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "not found")
 }
 
@@ -95,7 +95,7 @@ func TestFindExactVersionNotFound(t *testing.T) {
 	}
 
 	_, err := idx.FindExactVersion("okapi", "9.9.9", "darwin/arm64")
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "not found")
 }
 

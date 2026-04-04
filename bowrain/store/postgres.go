@@ -4,14 +4,15 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
 
+	platstore "github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/bowrain/storage"
 	"github.com/neokapi/neokapi/core/id"
 	"github.com/neokapi/neokapi/core/model"
-	platstore "github.com/neokapi/neokapi/bowrain/core/store"
 )
 
 // PostgresStore implements ContentStore using PostgreSQL.
@@ -299,7 +300,7 @@ func (s *PostgresStore) DeleteCollection(ctx context.Context, projectID, collect
 		return fmt.Errorf("get collection: %w", err)
 	}
 	if isDefault {
-		return fmt.Errorf("cannot delete the default collection")
+		return errors.New("cannot delete the default collection")
 	}
 
 	var defaultID string

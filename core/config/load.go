@@ -2,6 +2,7 @@ package config
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -37,10 +38,10 @@ func Parse(data []byte, ext string) (*Envelope, error) {
 	}
 
 	if probe.APIVersion == "" {
-		return nil, fmt.Errorf("config is missing required field \"apiVersion\"")
+		return nil, errors.New("config is missing required field \"apiVersion\"")
 	}
 	if probe.Kind == "" {
-		return nil, fmt.Errorf("config is missing required field \"kind\"")
+		return nil, errors.New("config is missing required field \"kind\"")
 	}
 
 	// Validate apiVersion format (v1, v2, etc.)

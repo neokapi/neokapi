@@ -8,8 +8,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/neokapi/neokapi/core/model"
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
+	"github.com/neokapi/neokapi/core/model"
 )
 
 func newTestReviewStore(t *testing.T) (*ReviewQueueStore, *SQLiteStore) {
@@ -144,7 +144,7 @@ func TestReviewQueueStore_Decide(t *testing.T) {
 		err := rq.Decide(ctx, item.ID, DecideRequest{
 			Decision: "reject", UserID: "user-2",
 		})
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Contains(t, err.Error(), "already decided")
 	})
 }
@@ -241,7 +241,7 @@ func TestReviewQueueStore_SplitItem_InvalidSplit(t *testing.T) {
 
 	// Can't split all occurrences (would leave original empty).
 	_, err := rq.SplitItem(ctx, item.ID, []string{"b1"})
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "both items")
 }
 

@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -307,7 +308,7 @@ func (s *SQLiteStore) DeleteCollection(ctx context.Context, projectID, collectio
 		return fmt.Errorf("get collection: %w", err)
 	}
 	if isDefault == 1 {
-		return fmt.Errorf("cannot delete the default collection")
+		return errors.New("cannot delete the default collection")
 	}
 
 	// Reassign items from this collection to the default collection.

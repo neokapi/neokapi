@@ -321,7 +321,7 @@ func partSummary(p *model.Part) string {
 		}
 	case model.PartLayerStart:
 		if l, ok := p.Resource.(*model.Layer); ok {
-			return fmt.Sprintf("id=%s", l.ID)
+			return "id=" + l.ID
 		}
 	}
 	return ""

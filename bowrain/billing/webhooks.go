@@ -143,7 +143,7 @@ func (h *WebhookHandler) handleCheckoutCompleted(ctx context.Context, event stri
 	return h.store.RecordBillingEvent(ctx, &BillingEvent{
 		WorkspaceID: workspaceID,
 		EventType:   "subscription_created",
-		Detail:      fmt.Sprintf("Checkout completed, customer=%s", sess.Customer.ID),
+		Detail:      "Checkout completed, customer=" + sess.Customer.ID,
 	})
 }
 

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -203,7 +204,7 @@ func (p *AnthropicProvider) ChatStructured(ctx context.Context, messages []Messa
 		}
 	}
 
-	return nil, fmt.Errorf("anthropic: no tool_use block in structured response")
+	return nil, errors.New("anthropic: no tool_use block in structured response")
 }
 
 func (p *AnthropicProvider) Close() error { return nil }

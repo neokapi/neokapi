@@ -2,6 +2,7 @@ package event
 
 import (
 	"bytes"
+	"context"
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/hex"
@@ -52,7 +53,7 @@ func (w *WebhookDelivery) Deliver(event platev.Event) error {
 			time.Sleep(time.Duration(1<<uint(attempt-1)) * time.Second)
 		}
 
-		req, err := http.NewRequest(http.MethodPost, w.config.URL, bytes.NewReader(payload))
+		req, err := http.NewRequestWithContext(context.Background(), http.MethodPost, w.config.URL, bytes.NewReader(payload))
 		if err != nil {
 			return fmt.Errorf("create request: %w", err)
 		}

@@ -99,13 +99,13 @@ func TestBatchTool_CancelContext(t *testing.T) {
 	in <- &model.Part{Type: model.PartBlock, Resource: &model.Block{}}
 
 	err := bt.Process(ctx, in, out)
-	assert.Error(t, err)
+	require.Error(t, err)
 }
 
 func TestBatchConfig_Validate(t *testing.T) {
 	cfg := &BatchConfig{Size: 0}
-	assert.Error(t, cfg.Validate())
+	require.Error(t, cfg.Validate())
 
 	cfg.Size = 1
-	assert.NoError(t, cfg.Validate())
+	require.NoError(t, cfg.Validate())
 }

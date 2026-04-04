@@ -366,7 +366,7 @@ func (tm *SQLiteTM) tieredLookup(plainKey, structKey, generalKey string, entityA
 }
 
 func (tm *SQLiteTM) queryExact(column, value string, sourceLocale, targetLocale model.LocaleID, opts LookupOptions) ([]TMEntry, error) {
-	where := fmt.Sprintf("%s = ? AND source_locale = ? AND target_locale = ?", column)
+	where := column + " = ? AND source_locale = ? AND target_locale = ?"
 	args := []any{value, string(sourceLocale), string(targetLocale)}
 
 	where, args = appendSQLiteProjectFilter(where, args, opts.ProjectID, opts.ProjectScope)
@@ -615,10 +615,7 @@ func (tm *SQLiteTM) searchFTS5(query, sourceLocale, targetLocale string, offset,
 		localeArgs = append(localeArgs, targetLocale)
 	}
 
-	countQ := fmt.Sprintf(`
-		SELECT COUNT(*) FROM tm_entries e
-		WHERE e.rowid IN (SELECT rowid FROM tm_search WHERE tm_search MATCH ?)
-		AND %s`, localeWhere)
+	countQ := "\n\t\tSELECT COUNT(*) FROM tm_entries e\n\t\tWHERE e.rowid IN (SELECT rowid FROM tm_search WHERE tm_search MATCH ?)\n\t\tAND " + localeWhere
 	countArgs := append([]any{query}, localeArgs...)
 	var total int
 	if err := tm.db.QueryRow(countQ, countArgs...).Scan(&total); err != nil {

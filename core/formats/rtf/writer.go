@@ -2,6 +2,7 @@ package rtf
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"strconv"
@@ -93,7 +94,7 @@ func (w *Writer) writeFromSkeleton() error {
 
 	for {
 		entry, err := w.skeletonStore.Next()
-		if err == io.EOF {
+		if errors.Is(err, io.EOF) {
 			break
 		}
 		if err != nil {
@@ -228,7 +229,7 @@ func (w *Writer) writeHeader() error {
 func (w *Writer) writeBlock(part *model.Part) error {
 	block, ok := part.Resource.(*model.Block)
 	if !ok {
-		return fmt.Errorf("rtf writer: expected Block resource")
+		return errors.New("rtf writer: expected Block resource")
 	}
 
 	text := block.SourceText()
@@ -249,7 +250,7 @@ func (w *Writer) writeBlock(part *model.Part) error {
 func (w *Writer) writeData(part *model.Part) error {
 	data, ok := part.Resource.(*model.Data)
 	if !ok {
-		return fmt.Errorf("rtf writer: expected Data resource")
+		return errors.New("rtf writer: expected Data resource")
 	}
 	raw := data.Properties["raw"]
 	if raw != "" {

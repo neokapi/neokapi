@@ -1,6 +1,7 @@
 package ttml
 
 import (
+	"errors"
 	"fmt"
 )
 
@@ -68,13 +69,13 @@ func (c *Config) ApplyMap(values map[string]any) error {
 		case "mergeAdjacentCaptions":
 			b, ok := val.(bool)
 			if !ok {
-				return fmt.Errorf("mergeAdjacentCaptions: expected bool")
+				return errors.New("mergeAdjacentCaptions: expected bool")
 			}
 			c.MergeAdjacentCaptions = b
 		case "escapeBR":
 			b, ok := val.(bool)
 			if !ok {
-				return fmt.Errorf("escapeBR: expected bool")
+				return errors.New("escapeBR: expected bool")
 			}
 			c.EscapeBR = b
 		case "maxCharsPerLine":
@@ -98,7 +99,7 @@ func (c *Config) ApplyMap(values map[string]any) error {
 		case "splitWords":
 			b, ok := val.(bool)
 			if !ok {
-				return fmt.Errorf("splitWords: expected bool")
+				return errors.New("splitWords: expected bool")
 			}
 			c.SplitWords = b
 		default:

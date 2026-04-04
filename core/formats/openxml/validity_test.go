@@ -7,6 +7,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/xml"
+	"errors"
 	"io"
 	"os"
 	"regexp"
@@ -271,7 +272,7 @@ func assertAllXMLWellFormed(t *testing.T, data []byte) {
 		d := xml.NewDecoder(bytes.NewReader(content))
 		for {
 			_, err := d.Token()
-			if err == io.EOF {
+			if errors.Is(err, io.EOF) {
 				break
 			}
 			assert.NoErrorf(t, err, "XML parse error in %s", f.Name)
@@ -374,7 +375,7 @@ func parseTableColumnNames(t *testing.T, zr *zip.Reader) []string {
 		d := xml.NewDecoder(bytes.NewReader(content))
 		for {
 			tok, err := d.Token()
-			if err == io.EOF {
+			if errors.Is(err, io.EOF) {
 				break
 			}
 			require.NoError(t, err)
@@ -412,7 +413,7 @@ func parseHeaderRowSharedStringRefs(t *testing.T, zr *zip.Reader, sheetPath stri
 
 	for {
 		tok, err := d.Token()
-		if err == io.EOF {
+		if errors.Is(err, io.EOF) {
 			break
 		}
 		require.NoError(t, err)

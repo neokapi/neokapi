@@ -2,6 +2,7 @@ package flow_test
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"sync/atomic"
@@ -124,7 +125,7 @@ func TestBatchExecutor_ErrorPropagation(t *testing.T) {
 			ToolName: "error-tool",
 			HandleBlockFn: func(part *model.Part) (*model.Part, error) {
 				if part.Resource.ResourceID() == "file2.json-b0" {
-					return nil, fmt.Errorf("intentional error")
+					return nil, errors.New("intentional error")
 				}
 				return part, nil
 			},
@@ -147,7 +148,7 @@ func TestBatchExecutor_ErrorPropagation(t *testing.T) {
 		[]flow.ToolFactory{factory},
 		files,
 	)
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "intentional error")
 }
 

@@ -2,6 +2,7 @@ package cli
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -181,7 +182,7 @@ func (a *App) newFormatsSchemaCmd() *cobra.Command {
 			filterID := args[0]
 
 			if a.SchemaReg == nil {
-				return fmt.Errorf("no schema registry available")
+				return errors.New("no schema registry available")
 			}
 
 			rawJSON, ok := a.SchemaReg.GetSchemaJSON(filterID)

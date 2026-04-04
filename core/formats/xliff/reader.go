@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/xml"
+	"errors"
 	"fmt"
 	"io"
 	"strconv"
@@ -60,7 +61,7 @@ func (r *Reader) Signature() format.FormatSignature {
 // Open opens a RawDocument for reading.
 func (r *Reader) Open(ctx context.Context, doc *model.RawDocument) error {
 	if doc == nil || doc.Reader == nil {
-		return fmt.Errorf("xliff: nil document or reader")
+		return errors.New("xliff: nil document or reader")
 	}
 	r.Doc = doc
 	return nil
@@ -128,7 +129,7 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 
 	for {
 		tok, err := decoder.Token()
-		if err == io.EOF {
+		if errors.Is(err, io.EOF) {
 			break
 		}
 		if err != nil {
@@ -165,7 +166,7 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 				targetLang := model.LocaleID(fi.targetLang)
 
 				layer := &model.Layer{
-					ID:             fmt.Sprintf("file-%s", fi.original),
+					ID:             "file-" + fi.original,
 					Name:           fi.original,
 					Format:         "xliff",
 					Locale:         sourceLang,
@@ -259,7 +260,7 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 						preserveWSStack = preserveWSStack[:len(preserveWSStack)-1]
 					}
 					layer := &model.Layer{
-						ID:   fmt.Sprintf("file-%s", currentFile.original),
+						ID:   "file-" + currentFile.original,
 						Name: currentFile.original,
 					}
 					r.emit(ctx, ch, &model.Part{Type: model.PartLayerEnd, Resource: layer})
@@ -537,19 +538,17 @@ func parseSegSource(decoder *xml.Decoder) []segment {
 				if mtype == "seg" {
 					buf.Reset()
 					currentSeg = &segment{mid: mid}
-				} else {
+				} else if currentSeg != nil {
 					// Non-seg mrk — write it as inline content
-					if currentSeg != nil {
-						buf.WriteString("<mrk")
-						for _, a := range t.Attr {
-							buf.WriteString(" ")
-							buf.WriteString(a.Name.Local)
-							buf.WriteString(`="`)
-							buf.WriteString(xmlEscapeAttr(a.Value))
-							buf.WriteString(`"`)
-						}
-						buf.WriteString(">")
+					buf.WriteString("<mrk")
+					for _, a := range t.Attr {
+						buf.WriteString(" ")
+						buf.WriteString(a.Name.Local)
+						buf.WriteString(`="`)
+						buf.WriteString(xmlEscapeAttr(a.Value))
+						buf.WriteString(`"`)
 					}
+					buf.WriteString(">")
 				}
 			} else if currentSeg != nil {
 				// Inline element within mrk: preserve as-is

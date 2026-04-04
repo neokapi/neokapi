@@ -1,7 +1,7 @@
 package config
 
 import (
-	"fmt"
+	"errors"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -42,7 +42,7 @@ func TestTransformRegistry_NotFound(t *testing.T) {
 	to := FormatConfigKind("html")
 
 	_, err := reg.Transform(from, to, map[string]any{})
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "no transforms registered from")
 
 	reg.Register(from, to, TransformerFunc(func(spec map[string]any) (map[string]any, error) {
@@ -50,7 +50,7 @@ func TestTransformRegistry_NotFound(t *testing.T) {
 	}))
 
 	_, err = reg.Transform(from, FormatConfigKind("json"), map[string]any{})
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "no transform registered from")
 }
 
@@ -72,11 +72,11 @@ func TestTransformRegistry_TransformError(t *testing.T) {
 	from := OkapiFilterConfigKind("html")
 	to := FormatConfigKind("html")
 	reg.Register(from, to, TransformerFunc(func(spec map[string]any) (map[string]any, error) {
-		return nil, fmt.Errorf("transform failed")
+		return nil, errors.New("transform failed")
 	}))
 
 	_, err := reg.Transform(from, to, map[string]any{})
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "transform failed")
 }
 
@@ -104,6 +104,6 @@ func TestRegistry_NotFound(t *testing.T) {
 	reg := NewRegistry()
 	env := &Envelope{APIVersion: "v1", Kind: FormatConfigKind("html"), Spec: map[string]any{}}
 	_, err := reg.Decode(env)
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "no decoder registered")
 }

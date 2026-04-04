@@ -174,7 +174,7 @@ func TestReadNilDocument(t *testing.T) {
 	ctx := context.Background()
 	reader := pdf.NewReader()
 	err := reader.Open(ctx, nil)
-	assert.Error(t, err)
+	require.Error(t, err)
 }
 
 func TestReadEmptyPDF(t *testing.T) {

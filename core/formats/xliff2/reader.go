@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/xml"
+	"errors"
 	"fmt"
 	"io"
 	"strings"
@@ -106,7 +107,7 @@ func (r *Reader) Signature() format.FormatSignature {
 // Open opens a RawDocument for reading.
 func (r *Reader) Open(ctx context.Context, doc *model.RawDocument) error {
 	if doc == nil || doc.Reader == nil {
-		return fmt.Errorf("xliff2: nil document or reader")
+		return errors.New("xliff2: nil document or reader")
 	}
 	r.Doc = doc
 	return nil
@@ -154,7 +155,7 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 
 	for _, file := range doc.Files {
 		layer := &model.Layer{
-			ID:             fmt.Sprintf("file-%s", file.ID),
+			ID:             "file-" + file.ID,
 			Name:           file.ID,
 			Format:         "xliff2",
 			Locale:         srcLang,
@@ -219,7 +220,7 @@ func (r *Reader) readContentStreaming(ctx context.Context, ch chan<- model.PartR
 
 	for {
 		tok, err := decoder.Token()
-		if err == io.EOF {
+		if errors.Is(err, io.EOF) {
 			break
 		}
 		if err != nil {
@@ -249,7 +250,7 @@ func (r *Reader) readContentStreaming(ctx context.Context, ch chan<- model.PartR
 					}
 				}
 				layer := &model.Layer{
-					ID:             fmt.Sprintf("file-%s", fileID),
+					ID:             "file-" + fileID,
 					Name:           fileID,
 					Format:         "xliff2",
 					Locale:         model.LocaleID(srcLang),
@@ -385,7 +386,7 @@ func (r *Reader) readContentStreaming(ctx context.Context, ch chan<- model.PartR
 			case "file":
 				if inFile {
 					layer := &model.Layer{
-						ID:   fmt.Sprintf("file-%s", fileID),
+						ID:   "file-" + fileID,
 						Name: fileID,
 					}
 					r.emit(ctx, ch, &model.Part{Type: model.PartLayerEnd, Resource: layer})

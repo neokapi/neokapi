@@ -2,6 +2,7 @@ package mcp
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
@@ -43,10 +44,10 @@ type tmMatch struct {
 
 func (s *MCPServer) handleTMSearch(ctx context.Context, req *mcp.CallToolRequest, input tmSearchInput) (*mcp.CallToolResult, tmSearchOutput, error) {
 	if s.tmResolver == nil {
-		return nil, tmSearchOutput{}, fmt.Errorf("translation memory not configured")
+		return nil, tmSearchOutput{}, errors.New("translation memory not configured")
 	}
 	if input.Text == "" {
-		return nil, tmSearchOutput{}, fmt.Errorf("text is required")
+		return nil, tmSearchOutput{}, errors.New("text is required")
 	}
 
 	tm, err := s.tmResolver.GetTM(input.WorkspaceID)
@@ -105,7 +106,7 @@ type tmImportOutput struct {
 
 func (s *MCPServer) handleTMImport(ctx context.Context, req *mcp.CallToolRequest, input tmImportInput) (*mcp.CallToolResult, tmImportOutput, error) {
 	if s.tmResolver == nil {
-		return nil, tmImportOutput{}, fmt.Errorf("translation memory not configured")
+		return nil, tmImportOutput{}, errors.New("translation memory not configured")
 	}
 	if len(input.Entries) == 0 {
 		return nil, tmImportOutput{Imported: 0}, nil

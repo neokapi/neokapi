@@ -23,6 +23,7 @@ func Migrate(db *DB, tableName string, migrations []Migration) error {
 		return fmt.Errorf("invalid migration table name: %q", tableName)
 	}
 
+	//nolint:noctx // startup migration
 	if _, err := db.Exec(fmt.Sprintf(`
 		CREATE TABLE IF NOT EXISTS %s (
 			version     INTEGER PRIMARY KEY,
@@ -34,7 +35,7 @@ func Migrate(db *DB, tableName string, migrations []Migration) error {
 	}
 
 	var currentVersion int
-	err := db.QueryRow(fmt.Sprintf("SELECT COALESCE(MAX(version), 0) FROM %s", tableName)).Scan(&currentVersion)
+	err := db.QueryRow("SELECT COALESCE(MAX(version), 0) FROM "+tableName).Scan(&currentVersion) //nolint:noctx // startup migration
 	if err != nil {
 		return fmt.Errorf("get current version: %w", err)
 	}
@@ -44,17 +45,17 @@ func Migrate(db *DB, tableName string, migrations []Migration) error {
 			continue
 		}
 
-		tx, err := db.Begin()
+		tx, err := db.Begin() //nolint:noctx // startup migration
 		if err != nil {
 			return fmt.Errorf("begin migration %d: %w", m.Version, err)
 		}
 
-		if _, err := tx.Exec(m.SQL); err != nil {
+		if _, err := tx.Exec(m.SQL); err != nil { //nolint:noctx // startup migration
 			_ = tx.Rollback()
 			return fmt.Errorf("apply migration %d (%s): %w", m.Version, m.Description, err)
 		}
 
-		if _, err := tx.Exec(
+		if _, err := tx.Exec( //nolint:noctx // startup migration
 			fmt.Sprintf("INSERT INTO %s (version, description) VALUES (?, ?)", tableName),
 			m.Version, m.Description,
 		); err != nil {

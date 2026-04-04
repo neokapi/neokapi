@@ -2,17 +2,18 @@ package server
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"strconv"
 	"time"
 
 	"github.com/labstack/echo/v4"
+	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
+	"github.com/neokapi/neokapi/bowrain/core/store"
 	bstore "github.com/neokapi/neokapi/bowrain/store"
 	"github.com/neokapi/neokapi/core/locale"
 	"github.com/neokapi/neokapi/core/model"
-	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
-	"github.com/neokapi/neokapi/bowrain/core/store"
 )
 
 // ---------------------------------------------------------------------------
@@ -438,7 +439,7 @@ func pulseProject(c echo.Context) *store.Project {
 // pulseVisibleProjects returns projects in the workspace that are public or unlisted.
 func (s *Server) pulseVisibleProjects(ctx context.Context, workspaceID string) ([]*store.Project, error) {
 	if s.ContentStore == nil {
-		return nil, fmt.Errorf("content store not available")
+		return nil, errors.New("content store not available")
 	}
 
 	allProjects, err := s.ContentStore.ListProjects(ctx)

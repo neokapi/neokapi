@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"errors"
 	"io"
 	"net"
 	"testing"
@@ -104,7 +105,7 @@ func TestGRPCBlocksAndVersions(t *testing.T) {
 	var blocks []*pb.BlockResponse
 	for {
 		resp, err := stream.Recv()
-		if err == io.EOF {
+		if errors.Is(err, io.EOF) {
 			break
 		}
 		require.NoError(t, err)
@@ -158,7 +159,7 @@ func TestGRPCFlowExecution(t *testing.T) {
 	var messages []*pb.FlowProgressResponse
 	for {
 		resp, err := stream.Recv()
-		if err == io.EOF {
+		if errors.Is(err, io.EOF) {
 			break
 		}
 		require.NoError(t, err)
@@ -184,6 +185,6 @@ func TestGRPCFlowExecutionInvalidConfig(t *testing.T) {
 	require.NoError(t, err)
 
 	_, err = stream.Recv()
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "at least one tool")
 }

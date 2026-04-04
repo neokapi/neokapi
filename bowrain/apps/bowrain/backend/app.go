@@ -8,6 +8,8 @@ import (
 	"sync"
 
 	"github.com/neokapi/neokapi/bowrain/connector"
+	platconn "github.com/neokapi/neokapi/bowrain/core/connector"
+	"github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/bowrain/event"
 	bstore "github.com/neokapi/neokapi/bowrain/store"
 	"github.com/neokapi/neokapi/core/formats"
@@ -17,8 +19,6 @@ import (
 	"github.com/neokapi/neokapi/core/registry"
 	libtools "github.com/neokapi/neokapi/core/tools"
 	"github.com/neokapi/neokapi/core/version"
-	platconn "github.com/neokapi/neokapi/bowrain/core/connector"
-	"github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/sievepen"
 	"github.com/neokapi/neokapi/termbase"
 	"github.com/wailsapp/wails/v3/pkg/application"

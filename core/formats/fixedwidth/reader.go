@@ -4,8 +4,10 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
+	"strconv"
 	"strings"
 
 	"github.com/neokapi/neokapi/core/format"
@@ -53,7 +55,7 @@ func (r *Reader) Signature() format.FormatSignature {
 // Open opens a RawDocument for reading.
 func (r *Reader) Open(ctx context.Context, doc *model.RawDocument) error {
 	if doc == nil || doc.Reader == nil {
-		return fmt.Errorf("fixedwidth: nil document or reader")
+		return errors.New("fixedwidth: nil document or reader")
 	}
 	r.Doc = doc
 	return nil
@@ -197,7 +199,7 @@ func (r *Reader) readContentSkeleton(ctx context.Context, ch chan<- model.PartRe
 					Properties: map[string]string{
 						"content": value,
 						"column":  col.Name,
-						"row":     fmt.Sprintf("%d", rowNum),
+						"row":     strconv.Itoa(rowNum),
 					},
 				}
 				if !r.emit(ctx, ch, &model.Part{Type: model.PartData, Resource: data}) {
@@ -220,9 +222,9 @@ func (r *Reader) readContentSkeleton(ctx context.Context, ch chan<- model.PartRe
 			block := model.NewBlock(blockID, value)
 			block.Name = fmt.Sprintf("%s.row%d", col.Name, rowNum)
 			block.Properties["column"] = col.Name
-			block.Properties["row"] = fmt.Sprintf("%d", rowNum)
-			block.Properties["start"] = fmt.Sprintf("%d", col.Start)
-			block.Properties["width"] = fmt.Sprintf("%d", col.Width)
+			block.Properties["row"] = strconv.Itoa(rowNum)
+			block.Properties["start"] = strconv.Itoa(col.Start)
+			block.Properties["width"] = strconv.Itoa(col.Width)
 			if !r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block}) {
 				return
 			}
@@ -288,7 +290,7 @@ func (r *Reader) readContentNormal(ctx context.Context, ch chan<- model.PartResu
 					Properties: map[string]string{
 						"content": value,
 						"column":  col.Name,
-						"row":     fmt.Sprintf("%d", rowNum),
+						"row":     strconv.Itoa(rowNum),
 					},
 				}
 				if !r.emit(ctx, ch, &model.Part{Type: model.PartData, Resource: data}) {
@@ -305,9 +307,9 @@ func (r *Reader) readContentNormal(ctx context.Context, ch chan<- model.PartResu
 			block := model.NewBlock(fmt.Sprintf("tu%d", blockCounter), value)
 			block.Name = fmt.Sprintf("%s.row%d", col.Name, rowNum)
 			block.Properties["column"] = col.Name
-			block.Properties["row"] = fmt.Sprintf("%d", rowNum)
-			block.Properties["start"] = fmt.Sprintf("%d", col.Start)
-			block.Properties["width"] = fmt.Sprintf("%d", col.Width)
+			block.Properties["row"] = strconv.Itoa(rowNum)
+			block.Properties["start"] = strconv.Itoa(col.Start)
+			block.Properties["width"] = strconv.Itoa(col.Width)
 			if !r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block}) {
 				return
 			}
