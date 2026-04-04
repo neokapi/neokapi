@@ -17,7 +17,7 @@ type TranslatePrompt struct {
 }
 
 // Build creates a system message and user message for translation.
-func (p *TranslatePrompt) Build(sourceText string) (system string, user string) {
+func (p *TranslatePrompt) Build(sourceText string) (string, string) {
 	var sysBuilder strings.Builder
 	sysBuilder.WriteString("You are a software localization specialist performing UI string translation. ")
 	sysBuilder.WriteString(fmt.Sprintf("Translate the following user interface text from %s to %s. ", p.SourceLocale, p.TargetLocale))
@@ -28,7 +28,7 @@ func (p *TranslatePrompt) Build(sourceText string) (system string, user string) 
 		sysBuilder.WriteString(fmt.Sprintf("The text is in %s format - preserve all formatting markers. ", p.Format))
 	}
 
-	system = sysBuilder.String()
+	system := sysBuilder.String()
 
 	var userBuilder strings.Builder
 	if p.Context != "" {
@@ -45,12 +45,11 @@ func (p *TranslatePrompt) Build(sourceText string) (system string, user string) 
 
 	userBuilder.WriteString("Translate:\n" + sourceText)
 
-	user = userBuilder.String()
-	return
+	return system, userBuilder.String()
 }
 
 // BuildBatch creates a prompt for batch translation of multiple segments.
-func (p *TranslatePrompt) BuildBatch(texts []string) (system string, user string) {
+func (p *TranslatePrompt) BuildBatch(texts []string) (string, string) {
 	var sysBuilder strings.Builder
 	sysBuilder.WriteString("You are a software localization specialist performing UI string translation. ")
 	sysBuilder.WriteString(fmt.Sprintf("Your task is to translate user interface strings from %s to %s. ", p.SourceLocale, p.TargetLocale))
@@ -59,7 +58,7 @@ func (p *TranslatePrompt) BuildBatch(texts []string) (system string, user string
 	sysBuilder.WriteString("Do not add numbering, bullets, or any other formatting. ")
 	sysBuilder.WriteString("Preserve any placeholders like {0}, %s, {{name}}, etc. ")
 
-	system = sysBuilder.String()
+	system := sysBuilder.String()
 
 	var userBuilder strings.Builder
 	if len(p.Glossary) > 0 {
@@ -76,6 +75,5 @@ func (p *TranslatePrompt) BuildBatch(texts []string) (system string, user string
 	}
 	userBuilder.WriteString("\nReturn one translation per line, without the [N] prefix.")
 
-	user = userBuilder.String()
-	return
+	return system, userBuilder.String()
 }

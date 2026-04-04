@@ -16,13 +16,13 @@ type QAPrompt struct {
 }
 
 // Build creates a prompt for QA checking a translation.
-func (p *QAPrompt) Build(sourceText, targetText string) (system string, user string) {
+func (p *QAPrompt) Build(sourceText, targetText string) (string, string) {
 	var sysBuilder strings.Builder
 	sysBuilder.WriteString("You are a translation quality assurance specialist. ")
 	sysBuilder.WriteString("Analyze translations and report issues in a structured format. ")
 	sysBuilder.WriteString("Be precise and constructive in your feedback. ")
 
-	system = sysBuilder.String()
+	system := sysBuilder.String()
 
 	var userBuilder strings.Builder
 	userBuilder.WriteString(fmt.Sprintf("Check the following %s → %s translation for issues.\n\n",
@@ -47,6 +47,5 @@ func (p *QAPrompt) Build(sourceText, targetText string) (system string, user str
 [{"type": "<check-type>", "severity": "<error|warning|info>", "description": "<issue>", "suggestion": "<fix>"}]
 If no issues, return: []`)
 
-	user = userBuilder.String()
-	return
+	return system, userBuilder.String()
 }
