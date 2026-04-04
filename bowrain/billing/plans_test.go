@@ -7,6 +7,8 @@ import (
 )
 
 func TestHasFeature(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name      string
 		plan      Plan
@@ -31,6 +33,7 @@ func TestHasFeature(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			got := HasFeature(tt.plan, tt.feature, tt.overrides)
 			assert.Equal(t, tt.want, got)
 		})
@@ -38,6 +41,8 @@ func TestHasFeature(t *testing.T) {
 }
 
 func TestMinimumPlanFor(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		feature Feature
 		want    Plan
@@ -52,6 +57,7 @@ func TestMinimumPlanFor(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(string(tt.feature), func(t *testing.T) {
+			t.Parallel()
 			got := MinimumPlanFor(tt.feature)
 			assert.Equal(t, tt.want, got)
 		})
@@ -59,11 +65,14 @@ func TestMinimumPlanFor(t *testing.T) {
 }
 
 func TestMinimumPlanFor_UnknownFeature(t *testing.T) {
+	t.Parallel()
 	got := MinimumPlanFor(Feature("nonexistent"))
 	assert.Equal(t, Plan(""), got)
 }
 
 func TestPlanLimits(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name      string
 		plan      Plan
@@ -82,6 +91,7 @@ func TestPlanLimits(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			got := GetLimit(tt.plan, tt.limitName)
 			assert.Equal(t, tt.want, got)
 		})
@@ -89,6 +99,8 @@ func TestPlanLimits(t *testing.T) {
 }
 
 func TestCreditsForPlan(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		plan Plan
 		want int64
@@ -101,6 +113,7 @@ func TestCreditsForPlan(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(string(tt.plan), func(t *testing.T) {
+			t.Parallel()
 			got := CreditsForPlan(tt.plan)
 			assert.Equal(t, tt.want, got)
 		})
@@ -108,11 +121,13 @@ func TestCreditsForPlan(t *testing.T) {
 }
 
 func TestCreditsForPlan_Unknown(t *testing.T) {
+	t.Parallel()
 	got := CreditsForPlan(Plan("unknown"))
 	assert.Equal(t, int64(50_000), got, "unknown plan should default to free credits")
 }
 
 func TestValidPlans(t *testing.T) {
+	t.Parallel()
 	assert.True(t, ValidPlans[PlanFree])
 	assert.True(t, ValidPlans[PlanPro])
 	assert.True(t, ValidPlans[PlanTeam])

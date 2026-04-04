@@ -9,6 +9,8 @@ import (
 )
 
 func TestGenerateAndValidateToken(t *testing.T) {
+	t.Parallel()
+
 	user := &User{ID: "user-1", Email: "test@example.com", Name: "Test User"}
 	secret := "test-secret-key-32-bytes-long!!!"
 
@@ -24,6 +26,8 @@ func TestGenerateAndValidateToken(t *testing.T) {
 }
 
 func TestValidateTokenWrongSecret(t *testing.T) {
+	t.Parallel()
+
 	user := &User{ID: "user-1", Email: "test@example.com", Name: "Test"}
 
 	token, err := GenerateToken(user, "secret-a", 1*time.Hour)
@@ -34,6 +38,8 @@ func TestValidateTokenWrongSecret(t *testing.T) {
 }
 
 func TestValidateTokenExpired(t *testing.T) {
+	t.Parallel()
+
 	user := &User{ID: "user-1", Email: "test@example.com", Name: "Test"}
 
 	token, err := GenerateToken(user, "secret", -1*time.Hour)
@@ -44,6 +50,8 @@ func TestValidateTokenExpired(t *testing.T) {
 }
 
 func TestGenerateRefreshToken(t *testing.T) {
+	t.Parallel()
+
 	token1, err := GenerateRefreshToken()
 	require.NoError(t, err)
 	assert.NotEmpty(t, token1)

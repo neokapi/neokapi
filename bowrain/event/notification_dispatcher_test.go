@@ -58,10 +58,9 @@ func TestNotificationDispatcher_FlowFailed(t *testing.T) {
 		Data:      map[string]string{"actor_name": "System", "workspace_slug": "ws-1"},
 	})
 
-	time.Sleep(100 * time.Millisecond)
-
-	// Both users should be notified.
-	assert.Equal(t, 2, sender.count())
+	require.Eventually(t, func() bool {
+		return sender.count() == 2
+	}, 2*time.Second, 10*time.Millisecond)
 
 	// Verify persisted.
 	notifs, err := notifStore.List(context.Background(), "user-1", 10, false)
@@ -99,9 +98,9 @@ func TestNotificationDispatcher_ExcludesActor(t *testing.T) {
 		Data:      map[string]string{"workspace_slug": "ws-1"},
 	})
 
-	time.Sleep(100 * time.Millisecond)
-
-	assert.Equal(t, 2, sender.count()) // user-2, user-3 (not user-1)
+	require.Eventually(t, func() bool {
+		return sender.count() == 2 // user-2, user-3 (not user-1)
+	}, 2*time.Second, 10*time.Millisecond)
 }
 
 func TestNotificationDispatcher_SkipsUnmappedEvents(t *testing.T) {
@@ -124,7 +123,8 @@ func TestNotificationDispatcher_SkipsUnmappedEvents(t *testing.T) {
 		Data:      map[string]string{"workspace_slug": "ws-1"},
 	})
 
-	time.Sleep(100 * time.Millisecond)
+	// Unmapped events should not produce notifications. Give bus time to deliver.
+	time.Sleep(50 * time.Millisecond)
 
 	assert.Equal(t, 0, sender.count())
 }
@@ -164,10 +164,9 @@ func TestNotificationDispatcher_PreferencesOptOut(t *testing.T) {
 		Data:      map[string]string{"workspace_slug": "ws-1"},
 	})
 
-	time.Sleep(100 * time.Millisecond)
-
-	// Only user-2 should be notified (user-1 opted out).
-	assert.Equal(t, 1, sender.count())
+	require.Eventually(t, func() bool {
+		return sender.count() == 1 // Only user-2 should be notified (user-1 opted out).
+	}, 2*time.Second, 10*time.Millisecond)
 }
 
 func TestNotificationDispatcher_DispatchTaskNotification(t *testing.T) {
@@ -234,9 +233,9 @@ func TestNotificationDispatcher_NewEventMappings(t *testing.T) {
 				Data:      map[string]string{"stream": "feature/test", "label": "v1.0", "workspace_slug": "ws-1"},
 			})
 
-			time.Sleep(100 * time.Millisecond)
-
-			assert.Equal(t, 1, sender.count())
+			require.Eventually(t, func() bool {
+				return sender.count() == 1
+			}, 2*time.Second, 10*time.Millisecond)
 
 			notifs, err := notifStore.List(context.Background(), "user-1", 10, false)
 			require.NoError(t, err)
@@ -355,12 +354,10 @@ func TestNotificationDispatcher_AutoMuteOnGatePass(t *testing.T) {
 		Data:      map[string]string{"gate_name": "terminology", "locale": "fr-FR", "workspace_slug": "ws-1"},
 	})
 
-	time.Sleep(100 * time.Millisecond)
-
-	// The gate-failed notification should now be marked as read.
-	unread, err = notifStore.UnreadCount(ctx, "user-1")
-	require.NoError(t, err)
-	assert.Equal(t, 0, unread)
+	require.Eventually(t, func() bool {
+		count, err := notifStore.UnreadCount(ctx, "user-1")
+		return err == nil && count == 0
+	}, 2*time.Second, 10*time.Millisecond)
 }
 
 func TestNotificationDispatcher_TaskNotificationSkipsNoAssignee(t *testing.T) {

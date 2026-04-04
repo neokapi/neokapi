@@ -38,12 +38,13 @@ func TestActivityRecorder_MapsEvents(t *testing.T) {
 		},
 	})
 
-	time.Sleep(100 * time.Millisecond)
-
 	ctx := context.Background()
-	result, err := store.List(ctx, bstore.ActivityQuery{WorkspaceID: "ws-1"})
-	require.NoError(t, err)
-	require.Len(t, result.Activities, 1)
+	var result *bstore.ActivityResult
+	require.Eventually(t, func() bool {
+		var err error
+		result, err = store.List(ctx, bstore.ActivityQuery{WorkspaceID: "ws-1"})
+		return err == nil && len(result.Activities) == 1
+	}, 2*time.Second, 10*time.Millisecond)
 
 	a := result.Activities[0]
 	assert.Equal(t, bstore.ActivityProjectCreated, a.Type)
@@ -67,7 +68,8 @@ func TestActivityRecorder_SkipsUnmappedEvents(t *testing.T) {
 		Data:      map[string]string{"workspace_slug": "ws-1"},
 	})
 
-	time.Sleep(100 * time.Millisecond)
+	// Unmapped events should not produce activities. Give the bus time to deliver.
+	time.Sleep(50 * time.Millisecond)
 
 	ctx := context.Background()
 	result, err := store.List(ctx, bstore.ActivityQuery{WorkspaceID: "ws-1"})
@@ -92,12 +94,11 @@ func TestActivityRecorder_MultipleEventTypes(t *testing.T) {
 		bus.Publish(ev)
 	}
 
-	time.Sleep(100 * time.Millisecond)
-
 	ctx := context.Background()
-	result, err := store.List(ctx, bstore.ActivityQuery{WorkspaceID: "ws-1"})
-	require.NoError(t, err)
-	assert.Len(t, result.Activities, 3)
+	require.Eventually(t, func() bool {
+		result, err := store.List(ctx, bstore.ActivityQuery{WorkspaceID: "ws-1"})
+		return err == nil && len(result.Activities) == 3
+	}, 2*time.Second, 10*time.Millisecond)
 }
 
 func TestActivityRecorder_Close(t *testing.T) {

@@ -26,10 +26,13 @@ func TestPublishSubscribe(t *testing.T) {
 	bus.Publish(platev.Event{Type: platev.EventBlockCreated, Source: "test"})
 	bus.Publish(platev.Event{Type: platev.EventBlockUpdated, Source: "test"}) // Should not be received
 
-	time.Sleep(50 * time.Millisecond) // Wait for async delivery
+	require.Eventually(t, func() bool {
+		mu.Lock()
+		defer mu.Unlock()
+		return len(received) == 1
+	}, 2*time.Second, 10*time.Millisecond)
 
 	mu.Lock()
-	assert.Len(t, received, 1)
 	assert.Equal(t, platev.EventBlockCreated, received[0].Type)
 	mu.Unlock()
 }
@@ -51,11 +54,11 @@ func TestSubscribeAll(t *testing.T) {
 	bus.Publish(platev.Event{Type: platev.EventBlockUpdated})
 	bus.Publish(platev.Event{Type: platev.EventProjectCreated})
 
-	time.Sleep(50 * time.Millisecond)
-
-	mu.Lock()
-	assert.Len(t, received, 3)
-	mu.Unlock()
+	require.Eventually(t, func() bool {
+		mu.Lock()
+		defer mu.Unlock()
+		return len(received) == 3
+	}, 2*time.Second, 10*time.Millisecond)
 }
 
 func TestMultipleSubscribers(t *testing.T) {
@@ -75,11 +78,11 @@ func TestMultipleSubscribers(t *testing.T) {
 
 	bus.Publish(platev.Event{Type: platev.EventBlockCreated})
 
-	time.Sleep(50 * time.Millisecond)
-
-	mu.Lock()
-	assert.Equal(t, 5, count)
-	mu.Unlock()
+	require.Eventually(t, func() bool {
+		mu.Lock()
+		defer mu.Unlock()
+		return count == 5
+	}, 2*time.Second, 10*time.Millisecond)
 }
 
 func TestUnsubscribe(t *testing.T) {
@@ -96,11 +99,19 @@ func TestUnsubscribe(t *testing.T) {
 	})
 
 	bus.Publish(platev.Event{Type: platev.EventBlockCreated})
-	time.Sleep(50 * time.Millisecond)
+
+	require.Eventually(t, func() bool {
+		mu.Lock()
+		defer mu.Unlock()
+		return count == 1
+	}, 2*time.Second, 10*time.Millisecond)
 
 	bus.Unsubscribe(sub)
 
 	bus.Publish(platev.Event{Type: platev.EventBlockCreated})
+
+	// After unsubscribe, count should remain 1. Give the bus time to
+	// process the event (if it were delivered, count would increase).
 	time.Sleep(50 * time.Millisecond)
 
 	mu.Lock()
@@ -130,10 +141,14 @@ func TestEventIDAndTimestamp(t *testing.T) {
 	})
 
 	bus.Publish(platev.Event{Type: platev.EventBlockCreated})
-	time.Sleep(50 * time.Millisecond)
+
+	require.Eventually(t, func() bool {
+		mu.Lock()
+		defer mu.Unlock()
+		return received.ID != ""
+	}, 2*time.Second, 10*time.Millisecond)
 
 	mu.Lock()
-	require.NotEmpty(t, received.ID)
 	assert.False(t, received.Timestamp.IsZero())
 	mu.Unlock()
 }
