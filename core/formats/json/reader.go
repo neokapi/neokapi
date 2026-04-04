@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -288,7 +289,7 @@ func (r *Reader) walkTokenArray(ctx context.Context, ch chan<- model.PartResult,
 			*pos++
 			*dataCounter++
 			data := &model.Data{
-				ID:   fmt.Sprintf("d%d", *dataCounter),
+				ID:   "d" + strconv.Itoa(*dataCounter),
 				Name: childPath,
 			}
 			r.emit(ctx, ch, &model.Part{Type: model.PartData, Resource: data})
@@ -339,7 +340,7 @@ func (r *Reader) handleStringValue(ctx context.Context, ch chan<- model.PartResu
 		r.skelToken(tok)
 		*dataCounter++
 		data := &model.Data{
-			ID:   fmt.Sprintf("d%d", *dataCounter),
+			ID:   "d" + strconv.Itoa(*dataCounter),
 			Name: path,
 		}
 		r.emit(ctx, ch, &model.Part{Type: model.PartData, Resource: data})
@@ -365,7 +366,7 @@ func (r *Reader) handleStringValue(ctx context.Context, ch chan<- model.PartResu
 
 	// Emit as a translatable block
 	*blockCounter++
-	blockID := fmt.Sprintf("tu%d", *blockCounter)
+	blockID := "tu" + strconv.Itoa(*blockCounter)
 	r.skelText(tok.prefix)
 	r.skelRef(blockID)
 
@@ -411,7 +412,7 @@ func (r *Reader) handleNonStringValue(ctx context.Context, ch chan<- model.PartR
 	r.skelToken(tok)
 	*dataCounter++
 	data := &model.Data{
-		ID:   fmt.Sprintf("d%d", *dataCounter),
+		ID:   "d" + strconv.Itoa(*dataCounter),
 		Name: path,
 	}
 	r.emit(ctx, ch, &model.Part{Type: model.PartData, Resource: data})
@@ -515,11 +516,9 @@ func (r *Reader) applyCodeFinder(block *model.Block) {
 		}
 
 		// Sort matches by start position
-		for i := 1; i < len(matches); i++ {
-			for j := i; j > 0 && matches[j].start < matches[j-1].start; j-- {
-				matches[j], matches[j-1] = matches[j-1], matches[j]
-			}
-		}
+		slices.SortFunc(matches, func(a, b matchRange) int {
+			return a.start - b.start
+		})
 
 		// Rebuild fragment with coded text markers
 		newFrag := &model.Fragment{}
@@ -530,7 +529,7 @@ func (r *Reader) applyCodeFinder(block *model.Block) {
 				newFrag.AppendText(text[lastEnd:m.start])
 			}
 			newFrag.AppendSpan(&model.Span{
-				ID:       fmt.Sprintf("c%d", spanID),
+				ID:       "c" + strconv.Itoa(spanID),
 				SpanType: model.SpanPlaceholder,
 				Type:     "code",
 				Data:     text[m.start:m.end],
@@ -562,14 +561,14 @@ func (r *Reader) emitSubfiltered(ctx context.Context, ch chan<- model.PartResult
 	if err != nil {
 		// Fall back to plain block if subfilter reader is unavailable
 		*blockCounter++
-		block := model.NewBlock(fmt.Sprintf("tu%d", *blockCounter), content)
+		block := model.NewBlock("tu" + strconv.Itoa(*blockCounter), content)
 		block.Name = path
 		r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block})
 		return
 	}
 
 	r.layerSeq++
-	childLayerID := fmt.Sprintf("sf%d", r.layerSeq)
+	childLayerID := "sf" + strconv.Itoa(r.layerSeq)
 
 	locale := r.Doc.SourceLocale
 	if locale.IsEmpty() {
