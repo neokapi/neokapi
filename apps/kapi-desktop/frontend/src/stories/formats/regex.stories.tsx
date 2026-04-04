@@ -68,7 +68,7 @@ function ConfigEditor({
 }
 
 const meta: Meta = {
-  title: "Formats & Tools/Formats/Regex Filter",
+  title: "Formats & Tools/Formats/Plain Text/Regex Filter",
   parameters: { layout: "padded" },
 };
 export default meta;

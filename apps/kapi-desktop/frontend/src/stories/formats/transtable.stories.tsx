@@ -68,7 +68,7 @@ function ConfigEditor({
 }
 
 const meta: Meta = {
-  title: "Formats & Tools/Formats/TransTable Filter",
+  title: "Formats & Tools/Formats/Data/TransTable Filter",
   parameters: { layout: "padded" },
 };
 export default meta;

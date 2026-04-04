@@ -4,6 +4,7 @@ import { CompletionRing } from "../../components/pulse";
 const meta: Meta<typeof CompletionRing> = {
   title: "Pulse/CompletionRing",
   component: CompletionRing,
+  tags: ["autodocs"],
   parameters: { layout: "centered" },
 };
 

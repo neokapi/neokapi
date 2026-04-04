@@ -64,7 +64,7 @@ function ToolConfig({ schemaName, source }: { schemaName: string; source: "built
 }
 
 const meta: Meta = {
-  title: "Formats & Tools/Tools/Id-Based Aligner",
+  title: "Formats & Tools/Tools/Alignment/Id-Based Aligner",
   parameters: { layout: "padded" },
 };
 export default meta;

@@ -64,7 +64,7 @@ function ToolConfig({ schemaName, source }: { schemaName: string; source: "built
 }
 
 const meta: Meta = {
-  title: "Formats & Tools/Tools/XML Analysis",
+  title: "Formats & Tools/Tools/Analysis/XML Analysis",
   parameters: { layout: "padded" },
 };
 export default meta;

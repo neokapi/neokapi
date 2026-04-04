@@ -64,7 +64,7 @@ function ToolConfig({ schemaName, source }: { schemaName: string; source: "built
 }
 
 const meta: Meta = {
-  title: "Formats & Tools/Tools/Tag Protect",
+  title: "Formats & Tools/Tools/Text Processing/Tag Protect",
   parameters: { layout: "padded" },
 };
 export default meta;

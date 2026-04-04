@@ -64,7 +64,7 @@ function ToolConfig({ schemaName, source }: { schemaName: string; source: "built
 }
 
 const meta: Meta = {
-  title: "Formats & Tools/Tools/Encoding Convert",
+  title: "Formats & Tools/Tools/Conversion/Encoding Convert",
   parameters: { layout: "padded" },
 };
 export default meta;

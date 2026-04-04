@@ -64,7 +64,7 @@ function ToolConfig({ schemaName, source }: { schemaName: string; source: "built
 }
 
 const meta: Meta = {
-  title: "Formats & Tools/Tools/Inline Codes Remove",
+  title: "Formats & Tools/Tools/Text Processing/Inline Codes Remove",
   parameters: { layout: "padded" },
 };
 export default meta;

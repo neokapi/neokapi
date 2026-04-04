@@ -68,7 +68,7 @@ function ConfigEditor({
 }
 
 const meta: Meta = {
-  title: "Formats & Tools/Formats/XML Stream Filter",
+  title: "Formats & Tools/Formats/Data/XML Stream Filter",
   parameters: { layout: "padded" },
 };
 export default meta;

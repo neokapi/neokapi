@@ -68,7 +68,7 @@ function ConfigEditor({
 }
 
 const meta: Meta = {
-  title: "Formats & Tools/Formats/XLIFF 1.2 and 2.0 Filter",
+  title: "Formats & Tools/Formats/Localization/XLIFF 1.2 and 2.0 Filter",
   parameters: { layout: "padded" },
 };
 export default meta;

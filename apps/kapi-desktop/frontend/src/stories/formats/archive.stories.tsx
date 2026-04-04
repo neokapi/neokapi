@@ -68,7 +68,7 @@ function ConfigEditor({
 }
 
 const meta: Meta = {
-  title: "Formats & Tools/Formats/Archive Filter",
+  title: "Formats & Tools/Formats/Other/Archive Filter",
   parameters: { layout: "padded" },
 };
 export default meta;

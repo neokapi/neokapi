@@ -64,7 +64,7 @@ function ToolConfig({ schemaName, source }: { schemaName: string; source: "built
 }
 
 const meta: Meta = {
-  title: "Formats & Tools/Tools/Cleanup",
+  title: "Formats & Tools/Tools/Text Processing/Cleanup",
   parameters: { layout: "padded" },
 };
 export default meta;

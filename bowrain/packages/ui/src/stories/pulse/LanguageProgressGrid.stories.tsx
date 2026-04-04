@@ -5,6 +5,7 @@ import { mockLanguages } from "./pulse-fixtures";
 const meta: Meta<typeof LanguageProgressGrid> = {
   title: "Pulse/LanguageProgressGrid",
   component: LanguageProgressGrid,
+  tags: ["autodocs"],
   parameters: { layout: "padded" },
 };
 

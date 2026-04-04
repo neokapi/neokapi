@@ -152,12 +152,12 @@ ui-check: ui-deps ## Lint, format-check, and typecheck shared UI
 
 storybook: ui-deps email-deps ## Launch Storybook dev server (port 6006)
 	@printf '\033]0;Storybook\007'
-	cd packages/ui && vpx storybook dev -p 6006
+	cd storybook && vpx storybook dev -p 6006
 
 storybook-dev: storybook ## Alias for storybook
 
 storybook-build: ui-deps email-deps ## Build Storybook static site
-	cd packages/ui && vpx storybook build -o storybook-static
+	cd storybook && vpx storybook build -o storybook-static
 
 # ── SaaS Web UI (bowrain-server) ───────────────────────────────────────────
 

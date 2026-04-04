@@ -68,7 +68,7 @@ function ConfigEditor({
 }
 
 const meta: Meta = {
-  title: "Formats & Tools/Formats/Multi-Parsers Filter",
+  title: "Formats & Tools/Formats/Other/Multi-Parsers Filter",
   parameters: { layout: "padded" },
 };
 export default meta;

@@ -64,7 +64,7 @@ function ToolConfig({ schemaName, source }: { schemaName: string; source: "built
 }
 
 const meta: Meta = {
-  title: "Formats & Tools/Tools/External Command",
+  title: "Formats & Tools/Tools/Other/External Command",
   parameters: { layout: "padded" },
 };
 export default meta;

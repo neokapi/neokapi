@@ -68,7 +68,7 @@ function ConfigEditor({
 }
 
 const meta: Meta = {
-  title: "Formats & Tools/Formats/PDF Filter",
+  title: "Formats & Tools/Formats/Document/PDF Filter",
   parameters: { layout: "padded" },
 };
 export default meta;

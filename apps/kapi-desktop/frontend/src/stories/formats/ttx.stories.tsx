@@ -68,7 +68,7 @@ function ConfigEditor({
 }
 
 const meta: Meta = {
-  title: "Formats & Tools/Formats/TTX Filter",
+  title: "Formats & Tools/Formats/Localization/TTX Filter",
   parameters: { layout: "padded" },
 };
 export default meta;

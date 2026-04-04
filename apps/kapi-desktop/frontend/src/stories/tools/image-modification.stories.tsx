@@ -64,7 +64,7 @@ function ToolConfig({ schemaName, source }: { schemaName: string; source: "built
 }
 
 const meta: Meta = {
-  title: "Formats & Tools/Tools/Image Modification",
+  title: "Formats & Tools/Tools/Other/Image Modification",
   parameters: { layout: "padded" },
 };
 export default meta;

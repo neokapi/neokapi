@@ -137,7 +137,7 @@ function CompareEditor({ nativeName, okapiName }: { nativeName: string; okapiNam
 }
 
 const meta: Meta = {
-  title: "Formats & Tools/Formats/WebVTT Subtitles",
+  title: "Formats & Tools/Formats/Subtitle/WebVTT Subtitles",
   parameters: { layout: "padded" },
 };
 export default meta;

@@ -68,7 +68,7 @@ function ConfigEditor({
 }
 
 const meta: Meta = {
-  title: "Formats & Tools/Formats/Vignette Filter",
+  title: "Formats & Tools/Formats/Document/Vignette Filter",
   parameters: { layout: "padded" },
 };
 export default meta;

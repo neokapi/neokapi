@@ -54,22 +54,27 @@ vp install              # Install all frontend workspace members (run at repo ro
 Run a single test: `go test ./core/flow/ -run TestExecutorCancellation -v`
 
 **Kapi:**
+
 ```bash
 make kapi-desktop-test              # Run Go backend tests
 make kapi-desktop-frontend-deps     # Install frontend dependencies
 make kapi-desktop-frontend-test     # Run frontend vitest tests
 make kapi-desktop-frontend-check    # Lint + format + typecheck
-make kapi-desktop-storybook         # Run Storybook on port 6007
-make kapi-desktop-storybook-build   # Build static Storybook
+make kapi-storybook                 # Run Kapi Storybook on port 6007
+make kapi-storybook-build           # Build Kapi Storybook static site
+make bowrain-storybook              # Run Bowrain Storybook on port 6006
+make bowrain-storybook-build        # Build Bowrain Storybook static site
 ```
 
 **Web UI (embedded in kapi serve):**
+
 ```bash
 make web-deps                                 # vp install for web UI
 make web-build                                # Build web UI → bowrain/apps/web/dist/
 ```
 
 **Bowrain (desktop GUI):**
+
 ```bash
 cd bowrain/apps/bowrain && wails3 build       # Build native macOS/Linux/Windows app
 cd bowrain/apps/bowrain && wails3 dev         # Dev mode with hot reload
@@ -78,6 +83,7 @@ make frontend-build                           # Production frontend build
 ```
 
 **Documentation site:**
+
 ```bash
 cd website && vp run start           # Dev server with hot reload
 cd website && vp run build           # Production build → website/build/
@@ -88,6 +94,7 @@ cd website && vp run build           # Production build → website/build/
 Always prefer `make` targets over raw `go build` / `go test` commands. The Makefile handles prerequisites (e.g. `make build` requires `make web-build` first for the embedded web UI) and places binaries in `bin/` rather than the repo root. Use direct `go test` only when targeting a specific package or test function.
 
 For the multi-module structure:
+
 - Framework packages build from the root: `go build ./...`
 - CLI packages: `cd cli && go build ./...`
 - Bowrain Core packages: `cd bowrain/core && go build ./...`
@@ -156,7 +163,7 @@ neokapi/
 │       ├── go.mod         # module github.com/neokapi/neokapi/kapi-desktop (framework + cli)
 │       ├── main.go        # Wails v3 entry point
 │       ├── backend/       # Go backend: project, flows, runner, credentials, plugins
-│       ├── frontend/      # React 19 + Vite + TailwindCSS + Storybook
+│       ├── frontend/      # React 19 + Vite + TailwindCSS
 │       └── build/         # Wails build config + platform-specific settings
 │
 │   ── Bowrain (ALL AGPL-3.0 CODE) ──────
@@ -197,6 +204,7 @@ neokapi/
 │   │   ├── mobile/        # Mobile app
 │   │   └── keycloak-theme/ # Custom Keycloak theme
 │   ├── packages/ui/       # @neokapi/ui (AGPL)
+│   ├── storybook/         # Bowrain Storybook config (port 6006, aggregates Kapi + Bowrain stories)
 │   ├── docker/            # Docker configurations
 │   ├── deploy/            # Deployment configs
 │   ├── e2e/               # End-to-end tests
@@ -207,9 +215,11 @@ neokapi/
 │   ── Shared Frontend (Apache-2.0) ─────
 ├── package.json           # Root npm workspace coordinating all frontend packages
 ├── .npmrc                 # install-strategy=hoisted (npm 11)
+├── storybook/             # Kapi Storybook config (port 6007, aggregates packages/ui + flow-editor + kapi-desktop)
 ├── packages/
 │   ├── ui/                # @neokapi/ui-primitives — shadcn/ui primitives consumed by kapi-desktop and bowrain apps
-│   └── flow-editor/       # @neokapi/flow-editor — shared React flow editor component library
+│   ├── flow-editor/       # @neokapi/flow-editor — shared React flow editor component library
+│   └── storybook-config/  # @neokapi/storybook-config — shared Storybook preview/main factories
 │
 │   ── Non-Go Assets ─────────────────────
 ├── docs/                  # Architecture decisions, implementation notes
@@ -236,6 +246,7 @@ my-app/
 ```
 
 **Key Bowrain CLI commands:**
+
 ```bash
 bowrain init                    # Create .bowrain/ project
 bowrain status                  # Show sync state (like git status)
@@ -248,6 +259,7 @@ bowrain serve                   # Start local dashboard (web UI)
 **All `bowrain` commands require a `.bowrain/` project.** The CLI searches upward from the current directory (like git) to find the project root.
 
 **Key kapi CLI commands (standalone, no project needed):**
+
 ```bash
 kapi ai-translate -i file.xliff --target-lang fr    # Translate with AI
 kapi pseudo-translate -i file.json --target-lang qps # Pseudo-translate for testing
@@ -260,6 +272,7 @@ kapi plugins list             # List installed plugins
 ```
 
 **Kapi with .kapi project files:**
+
 ```bash
 # Use a .kapi project file for saved workflow defaults
 kapi run translate -p myproject.kapi
@@ -269,6 +282,7 @@ kapi run translate-and-qa -p myproject.kapi --target-lang de
 `.kapi` files are portable YAML documents — see [AD-041](docs/ad/041-kapi-desktop.md). They work with both kapi CLI (`-p` flag) and Kapi (open/edit/save as documents).
 
 **Role Separation:**
+
 - **Kapi** = standalone file-processing tool, demonstrates neokapi's power as open-source toolchain
 - **Kapi** = GUI companion for kapi — visual flow editor, runner, plugin manager, credential vault
 - **Bowrain CLI** (`bowrain` binary) = project sync companion CLI, focuses on DX and project simplicity for Bowrain
@@ -309,17 +323,17 @@ The Part is the fundamental streaming unit, carrying a PartType discriminator an
 
 ### Terminology Mapping from Okapi
 
-| Okapi (Java) | neokapi (Go) |
-|---|---|
-| Filter | DataFormat (Reader/Writer) |
-| Step | Tool |
-| Pipeline | Flow |
-| PipelineDriver | Executor |
-| Event | Part |
-| TextUnit | Block |
-| TextFragment | Fragment |
-| Code | Span |
-| StartSubDocument/StartSubFilter | Child Layer |
+| Okapi (Java)                    | neokapi (Go)               |
+| ------------------------------- | -------------------------- |
+| Filter                          | DataFormat (Reader/Writer) |
+| Step                            | Tool                       |
+| Pipeline                        | Flow                       |
+| PipelineDriver                  | Executor                   |
+| Event                           | Part                       |
+| TextUnit                        | Block                      |
+| TextFragment                    | Fragment                   |
+| Code                            | Span                       |
+| StartSubDocument/StartSubFilter | Child Layer                |
 
 ## Implementing a New Format
 
@@ -356,6 +370,7 @@ There are four independent video recording pipelines:
 ### How to regenerate
 
 **Locally:**
+
 ```bash
 # 1. Bowrain screenshots + recordings (self-contained)
 make screenshots                 # screenshots → website/static/img/bowrain/{dark,light}/
@@ -382,11 +397,13 @@ make docs-assets                 # screenshots + recordings + cli-recordings
 ```
 
 **Fetching pre-built assets (no local regeneration needed):**
+
 ```bash
 make fetch-docs-assets           # downloads tarball from docs-assets GitHub release
 ```
 
 **In CI:**
+
 ```bash
 # Automated via GitHub Actions (.github/workflows/screenshots-recordings.yml)
 # - On-demand: workflow_dispatch

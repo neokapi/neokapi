@@ -68,7 +68,7 @@ function ConfigEditor({
 }
 
 const meta: Meta = {
-  title: "Formats & Tools/Formats/okf_plaintext_regex Filter",
+  title: "Formats & Tools/Formats/Plain Text/okf_plaintext_regex Filter",
   parameters: { layout: "padded" },
 };
 export default meta;

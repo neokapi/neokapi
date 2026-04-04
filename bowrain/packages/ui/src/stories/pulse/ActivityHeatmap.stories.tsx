@@ -5,6 +5,7 @@ import { mockHeatmapDays } from "./pulse-fixtures";
 const meta: Meta<typeof ActivityHeatmap> = {
   title: "Pulse/ActivityHeatmap",
   component: ActivityHeatmap,
+  tags: ["autodocs"],
 };
 
 export default meta;

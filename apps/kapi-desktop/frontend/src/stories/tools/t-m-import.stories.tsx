@@ -64,7 +64,7 @@ function ToolConfig({ schemaName, source }: { schemaName: string; source: "built
 }
 
 const meta: Meta = {
-  title: "Formats & Tools/Tools/TM Import",
+  title: "Formats & Tools/Tools/Translation/TM Import",
   parameters: { layout: "padded" },
 };
 export default meta;

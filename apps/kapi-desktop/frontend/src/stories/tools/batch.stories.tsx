@@ -64,7 +64,7 @@ function ToolConfig({ schemaName, source }: { schemaName: string; source: "built
 }
 
 const meta: Meta = {
-  title: "Formats & Tools/Tools/Batch Collector",
+  title: "Formats & Tools/Tools/Other/Batch Collector",
   parameters: { layout: "padded" },
 };
 export default meta;

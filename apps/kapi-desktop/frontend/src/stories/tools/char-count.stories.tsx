@@ -64,7 +64,7 @@ function ToolConfig({ schemaName, source }: { schemaName: string; source: "built
 }
 
 const meta: Meta = {
-  title: "Formats & Tools/Tools/Character Count",
+  title: "Formats & Tools/Tools/Analysis/Character Count",
   parameters: { layout: "padded" },
 };
 export default meta;

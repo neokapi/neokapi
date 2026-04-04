@@ -64,7 +64,7 @@ function ToolConfig({ schemaName, source }: { schemaName: string; source: "built
 }
 
 const meta: Meta = {
-  title: "Formats & Tools/Tools/Enrycher",
+  title: "Formats & Tools/Tools/Other/Enrycher",
   parameters: { layout: "padded" },
 };
 export default meta;

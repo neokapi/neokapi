@@ -68,7 +68,7 @@ function ConfigEditor({
 }
 
 const meta: Meta = {
-  title: "Formats & Tools/Formats/ODF-Content Filter",
+  title: "Formats & Tools/Formats/Document/ODF-Content Filter",
   parameters: { layout: "padded" },
 };
 export default meta;

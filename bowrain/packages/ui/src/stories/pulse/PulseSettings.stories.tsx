@@ -4,6 +4,7 @@ import { PulseSettings } from "../../components/pulse";
 const meta: Meta<typeof PulseSettings> = {
   title: "Pulse/PulseSettings",
   component: PulseSettings,
+  tags: ["autodocs"],
   parameters: { layout: "padded" },
   args: {
     workspaceSlug: "acme-corp",
