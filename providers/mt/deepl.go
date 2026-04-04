@@ -91,7 +91,7 @@ func (p *DeepLProvider) Translate(_ context.Context, req TranslateRequest) (*Tra
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("API returned status %d: %s", resp.StatusCode, string(respBody))
+		return nil, fmt.Errorf("api returned status %d: %s", resp.StatusCode, string(respBody))
 	}
 
 	var result deepLResponse
