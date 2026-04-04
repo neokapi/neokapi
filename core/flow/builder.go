@@ -1,6 +1,8 @@
 package flow
 
 import (
+	"errors"
+
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/tool"
 )
@@ -47,13 +49,20 @@ func (fb *Builder) AddItem(input *model.RawDocument, outputPath string, targetLo
 	return fb
 }
 
-// Build constructs the Flow.
-func (fb *Builder) Build() *Flow {
+// Build constructs the Flow, validating that the builder has a non-empty name
+// and at least one tool or tool factory.
+func (fb *Builder) Build() (*Flow, error) {
+	if fb.name == "" {
+		return nil, errors.New("flow name must not be empty")
+	}
+	if len(fb.tools) == 0 && len(fb.toolFactories) == 0 {
+		return nil, errors.New("flow must have at least one tool or tool factory")
+	}
 	return &Flow{
 		Name:          fb.name,
 		Tools:         fb.tools,
 		ToolFactories: fb.toolFactories,
-	}
+	}, nil
 }
 
 // Items returns the configured batch items.

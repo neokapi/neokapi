@@ -14,6 +14,7 @@ func TestPartTypeString(t *testing.T) {
 		pt   model.PartType
 		want string
 	}{
+		{model.PartTypeUnknown, "Unknown"},
 		{model.PartLayerStart, "LayerStart"},
 		{model.PartLayerEnd, "LayerEnd"},
 		{model.PartBlock, "Block"},
