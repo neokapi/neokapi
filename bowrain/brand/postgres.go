@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"time"
 
@@ -347,7 +348,7 @@ func (s *PostgresBrandStore) GetProfileVersion(ctx context.Context, profileID st
 		`SELECT profile_id, version, snapshot, note, created_by, created_at
 		 FROM brand_profile_versions WHERE profile_id = $1 AND version = $2`, profileID, version).
 		Scan(&v.ProfileID, &v.Version, &snapshotJSON, &v.Note, &v.CreatedBy, &v.CreatedAt)
-	if err == sql.ErrNoRows {
+	if errors.Is(err, sql.ErrNoRows) {
 		return nil, fmt.Errorf("profile version not found: %s v%d", profileID, version)
 	}
 	if err != nil {
@@ -362,7 +363,7 @@ func (s *PostgresBrandStore) GetProfileAtTag(ctx context.Context, profileID, tag
 	err := s.db.QueryRowContext(ctx,
 		`SELECT version FROM brand_profile_tags WHERE profile_id = $1 AND name = $2`, profileID, tagName).
 		Scan(&version)
-	if err == sql.ErrNoRows {
+	if errors.Is(err, sql.ErrNoRows) {
 		return nil, fmt.Errorf("profile tag not found: %s/%s", profileID, tagName)
 	}
 	if err != nil {
@@ -470,7 +471,7 @@ func scanProfile(row scanner) (*corebrand.VoiceProfile, error) {
 		&localesJSON, &channelsJSON,
 		&p.Version, &p.CreatedAt, &p.UpdatedAt, &p.CreatedBy)
 	if err != nil {
-		if err == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) {
 			return nil, fmt.Errorf("brand profile not found")
 		}
 		return nil, fmt.Errorf("scan brand profile: %w", err)

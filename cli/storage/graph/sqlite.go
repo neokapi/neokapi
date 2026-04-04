@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -87,7 +88,7 @@ func (s *SQLiteGraphStore) GetNode(ctx context.Context, id string) (*coreg.Node,
 	err := s.db.QueryRowContext(ctx,
 		`SELECT id, label, properties, created_at, updated_at FROM graph_nodes WHERE id = ?`, id).
 		Scan(&n.ID, &n.Label, &propsJSON, &createdStr, &updatedStr)
-	if err == sql.ErrNoRows {
+	if errors.Is(err, sql.ErrNoRows) {
 		return nil, coreg.ErrNodeNotFound
 	}
 	if err != nil {
@@ -301,6 +302,9 @@ func (s *SQLiteGraphStore) NeighborsScoped(ctx context.Context, nodeID string, d
 				nodeIDs[e.Source] = true
 			}
 		}
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate edges: %w", err)
 	}
 
 	var result []*coreg.Node
@@ -528,6 +532,9 @@ func (s *SQLiteGraphStore) queryNodes(ctx context.Context, where string, args []
 		n.UpdatedAt, _ = time.Parse(time.RFC3339, updatedStr)
 		nodes = append(nodes, &n)
 	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate nodes: %w", err)
+	}
 	return nodes, nil
 }
 
@@ -547,6 +554,9 @@ func (s *SQLiteGraphStore) queryEdges(ctx context.Context, where string, args []
 		}
 		edges = append(edges, e)
 	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate edges: %w", err)
+	}
 	return edges, nil
 }
 
@@ -556,7 +566,7 @@ func (s *SQLiteGraphStore) scanEdge(ctx context.Context, query string, args ...a
 	var propsJSON, tags, createdStr, updatedStr string
 	var validFrom, validTo *string
 	err := row.Scan(&e.ID, &e.Source, &e.Target, &e.Label, &propsJSON, &validFrom, &validTo, &tags, &createdStr, &updatedStr)
-	if err == sql.ErrNoRows {
+	if errors.Is(err, sql.ErrNoRows) {
 		return nil, coreg.ErrEdgeNotFound
 	}
 	if err != nil {

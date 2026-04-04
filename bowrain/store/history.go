@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"time"
 
@@ -120,7 +121,7 @@ func loadExistingTargets(ctx context.Context, tx *sql.Tx, projectID, _, blockID 
 	err := tx.QueryRowContext(ctx,
 		`SELECT targets_json FROM blocks WHERE project_id = ? AND id = ?`,
 		projectID, blockID).Scan(&targetsJSON)
-	if err == sql.ErrNoRows {
+	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil
 	}
 	if err != nil {

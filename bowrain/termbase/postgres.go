@@ -329,6 +329,9 @@ func (tb *PostgresTermBase) pgSearchTrgm(query, sourceLocale, targetLocale strin
 			concepts = append(concepts, c)
 		}
 	}
+	if err := rows.Err(); err != nil {
+		return nil, 0, err
+	}
 	return concepts, total, nil
 }
 
@@ -376,6 +379,9 @@ func (tb *PostgresTermBase) pgSearchLike(query, sourceLocale, targetLocale strin
 			continue
 		}
 		ids = append(ids, id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, total
 	}
 
 	var concepts []fw.Concept
@@ -467,6 +473,9 @@ func (tb *PostgresTermBase) pgSearchTrgmForStream(query, sourceLocale, targetLoc
 		}
 		ids = append(ids, id)
 	}
+	if err := rows.Err(); err != nil {
+		return nil, 0, err
+	}
 
 	var concepts []fw.Concept
 	for _, id := range ids {
@@ -544,6 +553,9 @@ func (tb *PostgresTermBase) pgSearchLikeForStream(query, sourceLocale, targetLoc
 		}
 		ids = append(ids, id)
 	}
+	if err := rows.Err(); err != nil {
+		return nil, total
+	}
 
 	var concepts []fw.Concept
 	for _, id := range ids {
@@ -579,6 +591,9 @@ func (tb *PostgresTermBase) Concepts() []fw.Concept {
 			continue
 		}
 		ids = append(ids, id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil
 	}
 
 	var concepts []fw.Concept
@@ -631,6 +646,9 @@ func (tb *PostgresTermBase) scanConcept(id string) (fw.Concept, error) {
 		t.Locale = model.LocaleID(locale)
 		t.Status = model.TermStatus(status)
 		c.Terms = append(c.Terms, t)
+	}
+	if err := rows.Err(); err != nil {
+		return c, fmt.Errorf("iterate terms: %w", err)
 	}
 
 	return c, nil
@@ -822,6 +840,9 @@ func (tb *PostgresTermBase) queryTermsByLocale(locale model.LocaleID, domains []
 				Note:         note,
 			},
 		})
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
 	}
 	return results, nil
 }
