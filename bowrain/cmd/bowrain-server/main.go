@@ -51,6 +51,13 @@ func main() {
 		}
 	}
 
+	if err := run(); err != nil {
+		slog.Error("server failed", "error", err)
+		os.Exit(1)
+	}
+}
+
+func run() error {
 	cfg := server.DefaultServerConfig()
 
 	flag.IntVar(&cfg.Port, "port", cfg.Port, "HTTP port to listen on")
@@ -218,8 +225,7 @@ func main() {
 
 	// Validate that DatabaseURL is a PostgreSQL connection string.
 	if cfg.DatabaseURL != "" && !strings.HasPrefix(cfg.DatabaseURL, "postgres://") && !strings.HasPrefix(cfg.DatabaseURL, "postgresql://") {
-		slog.Error("Invalid -database-url: must start with postgres:// or postgresql://")
-		os.Exit(1)
+		return fmt.Errorf("invalid -database-url: must start with postgres:// or postgresql://")
 	}
 
 	srv := server.NewServer(cfg)
@@ -245,14 +251,19 @@ func main() {
 	defer cancel()
 
 	addr := fmt.Sprintf("%s:%d", cfg.Host, cfg.Port)
+	errCh := make(chan error, 1)
 	go func() {
 		if err := srv.Start(addr); err != nil && !errors.Is(err, http.ErrServerClosed) {
-			slog.Error("server failed", "error", err)
-			os.Exit(1)
+			errCh <- err
 		}
 	}()
 
-	<-ctx.Done()
+	select {
+	case err := <-errCh:
+		return fmt.Errorf("server listen: %w", err)
+	case <-ctx.Done():
+	}
+
 	slog.Info("shutdown signal received, draining connections...")
 
 	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 30*time.Second)
@@ -261,7 +272,8 @@ func main() {
 		_ = pprofShutdown(shutdownCtx)
 	}
 	if err := srv.Shutdown(shutdownCtx); err != nil {
-		slog.Error("forced shutdown", "error", err)
+		return fmt.Errorf("forced shutdown: %w", err)
 	}
 	slog.Info("server stopped")
+	return nil
 }
