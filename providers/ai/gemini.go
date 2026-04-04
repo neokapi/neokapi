@@ -188,7 +188,7 @@ func (p *GeminiProvider) doStreamRequest(ctx context.Context, body geminiRequest
 	q.Set("alt", "sse")
 	u.RawQuery = q.Encode()
 
-	httpReq, err := http.NewRequestWithContext(ctx, "POST", u.String(), bytes.NewReader(jsonBody))
+	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, u.String(), bytes.NewReader(jsonBody))
 	if err != nil {
 		return nil, fmt.Errorf("gemini: create request: %w", err)
 	}
@@ -284,7 +284,7 @@ func (p *GeminiProvider) doRequest(ctx context.Context, body geminiRequest) (*ge
 	q.Set("key", p.config.APIKey)
 	u.RawQuery = q.Encode()
 
-	httpReq, err := http.NewRequestWithContext(ctx, "POST", u.String(), bytes.NewReader(jsonBody))
+	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, u.String(), bytes.NewReader(jsonBody))
 	if err != nil {
 		return nil, fmt.Errorf("gemini: create request: %w", err)
 	}

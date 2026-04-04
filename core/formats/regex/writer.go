@@ -147,7 +147,7 @@ func (w *Writer) escape(s string) string {
 func escapeBackslash(s string) string {
 	var buf strings.Builder
 	buf.Grow(len(s))
-	for i := 0; i < len(s); i++ {
+	for i := range len(s) {
 		switch s[i] {
 		case '\\':
 			buf.WriteString("\\\\")

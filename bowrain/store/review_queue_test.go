@@ -154,7 +154,7 @@ func TestReviewQueueStore_BatchDecide(t *testing.T) {
 	ctx := t.Context()
 
 	var ids []string
-	for i := 0; i < 5; i++ {
+	for range 5 {
 		item := &ReviewItem{
 			ProjectID: proj.ID, Type: ReviewItemEntityReview,
 			Data: json.RawMessage(`{"text":"entity"}`), Confidence: 0.9, Locale: "en-US",

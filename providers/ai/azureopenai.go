@@ -127,7 +127,7 @@ func (p *AzureOpenAIProvider) Chat(ctx context.Context, messages []Message) (*Ch
 	url := fmt.Sprintf("%s/openai/deployments/%s/chat/completions?api-version=%s",
 		endpoint, p.deployment, p.apiVersion)
 
-	httpReq, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewReader(jsonBody))
+	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(jsonBody))
 	if err != nil {
 		return nil, fmt.Errorf("azureopenai: create request: %w", err)
 	}
@@ -207,7 +207,7 @@ func (p *AzureOpenAIProvider) ChatStructured(ctx context.Context, messages []Mes
 	url := fmt.Sprintf("%s/openai/deployments/%s/chat/completions?api-version=%s",
 		endpoint, p.deployment, p.apiVersion)
 
-	httpReq, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewReader(jsonBody))
+	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(jsonBody))
 	if err != nil {
 		return nil, fmt.Errorf("azureopenai: create request: %w", err)
 	}

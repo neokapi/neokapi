@@ -113,7 +113,7 @@ func TestQueuedStream_SSERelaySimulation(t *testing.T) {
 	sse := NewSSEWriter(&buf)
 
 	for _, evt := range events {
-		err := sse.WriteEvent(evt.Event, json.RawMessage(evt.Data))
+		err := sse.WriteEvent(evt.Event, evt.Data)
 		require.NoError(t, err)
 
 		// Stop relaying after terminal events (matches sendQueuedStream logic).
@@ -143,7 +143,7 @@ func TestQueuedStream_SSERelayStopsOnError(t *testing.T) {
 	sse := NewSSEWriter(&buf)
 
 	for _, evt := range events {
-		_ = sse.WriteEvent(evt.Event, json.RawMessage(evt.Data))
+		_ = sse.WriteEvent(evt.Event, evt.Data)
 		if evt.Event == SSEMessageEnd || evt.Event == SSEError {
 			break
 		}
@@ -283,7 +283,7 @@ func TestQueuedStream_EventChannelRelay(t *testing.T) {
 			if !ok {
 				t.Fatal("channel closed unexpectedly")
 			}
-			_ = sse.WriteEvent(evt.Event, json.RawMessage(evt.Data))
+			_ = sse.WriteEvent(evt.Event, evt.Data)
 			if evt.Event == SSEMessageEnd || evt.Event == SSEError {
 				goto done
 			}
@@ -328,7 +328,7 @@ func TestQueuedStream_ContextCancelDuringRelay(t *testing.T) {
 			if !ok {
 				goto done
 			}
-			_ = sse.WriteEvent(evt.Event, json.RawMessage(evt.Data))
+			_ = sse.WriteEvent(evt.Event, evt.Data)
 			if evt.Event == SSEMessageEnd || evt.Event == SSEError {
 				goto done
 			}

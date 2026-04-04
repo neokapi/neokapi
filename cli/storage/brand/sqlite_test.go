@@ -171,7 +171,7 @@ func TestScoreTrends(t *testing.T) {
 	store := newTestStore(t)
 
 	now := time.Now()
-	for i := 0; i < 3; i++ {
+	for i := range 3 {
 		require.NoError(t, store.StoreScore(ctx, &corebrand.StoredScore{
 			ID:        fmt.Sprintf("s%d", i),
 			ProjectID: "proj1",
@@ -283,7 +283,7 @@ func TestGetScoresByStream(t *testing.T) {
 	store := newTestStore(t)
 
 	now := time.Now()
-	for i := 0; i < 3; i++ {
+	for i := range 3 {
 		require.NoError(t, store.StoreScore(ctx, &corebrand.StoredScore{
 			ID:             fmt.Sprintf("s%d", i),
 			ProjectID:      "proj1",
@@ -357,7 +357,7 @@ func TestCorrectionStorage(t *testing.T) {
 	}))
 
 	// Store multiple corrections with same original/corrected text
-	for i := 0; i < 3; i++ {
+	for i := range 3 {
 		require.NoError(t, store.StoreCorrection(ctx, &corebrand.Correction{
 			ID:            fmt.Sprintf("c%d", i),
 			ProfileID:     "p1",

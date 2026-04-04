@@ -100,7 +100,7 @@ func TestNotificationStore_MarkAllRead(t *testing.T) {
 	ns := newTestNotificationStore(t)
 	ctx := t.Context()
 
-	for i := 0; i < 5; i++ {
+	for range 5 {
 		require.NoError(t, ns.Create(ctx, &Notification{
 			UserID: "user-1", Type: NotificationGeneral, Title: "N",
 		}))

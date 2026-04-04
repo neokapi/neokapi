@@ -301,7 +301,7 @@ func TestQueueSinkConcurrentPublish(t *testing.T) {
 	defer sink.Close(bus)
 
 	const n = 50
-	for i := 0; i < n; i++ {
+	for range n {
 		bus.Publish(platev.Event{
 			Type:      platev.EventPushCompleted,
 			ProjectID: "proj-1",

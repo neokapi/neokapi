@@ -71,7 +71,7 @@ func (p *OllamaProvider) Chat(ctx context.Context, messages []Message) (*ChatRes
 		return nil, fmt.Errorf("ollama: marshal request: %w", err)
 	}
 
-	httpReq, err := http.NewRequestWithContext(ctx, "POST", p.config.BaseURL+"/api/chat", bytes.NewReader(jsonBody))
+	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, p.config.BaseURL+"/api/chat", bytes.NewReader(jsonBody))
 	if err != nil {
 		return nil, fmt.Errorf("ollama: create request: %w", err)
 	}
@@ -125,7 +125,7 @@ func (p *OllamaProvider) ChatStructured(ctx context.Context, messages []Message,
 		return nil, fmt.Errorf("ollama: marshal request: %w", err)
 	}
 
-	httpReq, err := http.NewRequestWithContext(ctx, "POST", p.config.BaseURL+"/api/chat", bytes.NewReader(jsonBody))
+	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, p.config.BaseURL+"/api/chat", bytes.NewReader(jsonBody))
 	if err != nil {
 		return nil, fmt.Errorf("ollama: create request: %w", err)
 	}

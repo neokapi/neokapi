@@ -137,7 +137,7 @@ func TestAgentPoolStopAll(t *testing.T) {
 	})
 	ctx := t.Context()
 
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		_, err := pool.Acquire(ctx, ContainerConfig{
 			ConversationID: fmt.Sprintf("conv-%d", i),
 			WorkspaceID:    "ws-1",

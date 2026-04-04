@@ -47,7 +47,7 @@ func TestSQLiteJobStore_ListJobs(t *testing.T) {
 	s := newTestSQLiteStore(t)
 	ctx := t.Context()
 
-	for i := 0; i < 3; i++ {
+	for range 3 {
 		require.NoError(t, s.CreateJob(ctx, &TranslationJob{
 			ID:            uuid.NewString(),
 			WorkspaceSlug: "ws-1",

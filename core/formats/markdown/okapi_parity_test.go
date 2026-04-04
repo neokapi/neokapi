@@ -1268,7 +1268,7 @@ func TestWrite_TbodyTdInTable(t *testing.T) {
 func TestWrite_TooManyTUs(t *testing.T) {
 	// Generate many text units and verify no errors.
 	var sb strings.Builder
-	for i := 0; i < 50; i++ {
+	for i := range 50 {
 		sb.WriteString("## Heading " + strings.Repeat("X", i+1) + "\n\n")
 		sb.WriteString("Paragraph " + strings.Repeat("Y", i+1) + ".\n\n")
 	}

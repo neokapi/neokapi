@@ -85,7 +85,7 @@ func StreamFromGateway(
 		}
 
 		// 404/502/503 are transient during container cold-start — retry.
-		if (resp.StatusCode == 404 || resp.StatusCode == 502 || resp.StatusCode == 503) && time.Now().Before(deadline) {
+		if (resp.StatusCode == http.StatusNotFound || resp.StatusCode == http.StatusBadGateway || resp.StatusCode == http.StatusServiceUnavailable) && time.Now().Before(deadline) {
 			slog.Info("gateway returned transient error, retrying", "status", resp.StatusCode)
 			if !sleepContext(ctx, backoff) {
 				return nil, ctx.Err()

@@ -23,7 +23,7 @@ func Rebind(dialect Dialect, query string) string {
 
 	var out []byte
 	n := 1
-	for i := 0; i < len(query); i++ {
+	for i := range len(query) {
 		if query[i] == '?' {
 			out = append(out, '$')
 			out = append(out, []byte(strconv.Itoa(n))...)

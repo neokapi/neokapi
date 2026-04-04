@@ -1,0 +1,127 @@
+version: 2
+updates:
+  # ── Framework Go modules (Apache-2.0) ──────────────────────────────────────
+  - package-ecosystem: gomod
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    labels: [dependencies, go, framework]
+    open-pull-requests-limit: 10
+    groups:
+      go-minor-patch:
+        update-types: [minor, patch]
+
+  - package-ecosystem: gomod
+    directory: /cli
+    schedule:
+      interval: weekly
+      day: monday
+    labels: [dependencies, go, framework]
+    open-pull-requests-limit: 5
+    groups:
+      go-minor-patch:
+        update-types: [minor, patch]
+
+  - package-ecosystem: gomod
+    directory: /kapi
+    schedule:
+      interval: weekly
+      day: monday
+    labels: [dependencies, go, framework]
+    open-pull-requests-limit: 5
+    groups:
+      go-minor-patch:
+        update-types: [minor, patch]
+
+  - package-ecosystem: gomod
+    directory: /apps/kapi-desktop
+    schedule:
+      interval: weekly
+      day: monday
+    labels: [dependencies, go, framework]
+    open-pull-requests-limit: 5
+    groups:
+      go-minor-patch:
+        update-types: [minor, patch]
+
+  # ── Bowrain Go modules (AGPL) ──────────────────────────────────────────────
+  - package-ecosystem: gomod
+    directory: /bowrain/core
+    schedule:
+      interval: weekly
+      day: monday
+    labels: [dependencies, go, bowrain]
+    open-pull-requests-limit: 5
+    groups:
+      go-minor-patch:
+        update-types: [minor, patch]
+
+  - package-ecosystem: gomod
+    directory: /bowrain/cli
+    schedule:
+      interval: weekly
+      day: monday
+    labels: [dependencies, go, bowrain]
+    open-pull-requests-limit: 5
+    groups:
+      go-minor-patch:
+        update-types: [minor, patch]
+
+  - package-ecosystem: gomod
+    directory: /bowrain
+    schedule:
+      interval: weekly
+      day: monday
+    labels: [dependencies, go, bowrain]
+    open-pull-requests-limit: 10
+    groups:
+      go-minor-patch:
+        update-types: [minor, patch]
+
+  # ── GitHub Actions ─────────────────────────────────────────────────────────
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    labels: [dependencies, ci]
+    groups:
+      actions:
+        patterns: ["*"]
+
+  # ── npm (root workspace covers all frontend packages) ──────────────────────
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    labels: [dependencies, npm]
+    open-pull-requests-limit: 10
+    groups:
+      npm-minor-patch:
+        update-types: [minor, patch]
+
+  # ── Docker base images ─────────────────────────────────────────────────────
+  - package-ecosystem: docker
+    directory: /bowrain/docker/bowrain-server
+    schedule:
+      interval: weekly
+    labels: [dependencies, docker, bowrain]
+
+  - package-ecosystem: docker
+    directory: /bowrain/docker/bowrain-worker
+    schedule:
+      interval: weekly
+    labels: [dependencies, docker, bowrain]
+
+  - package-ecosystem: docker
+    directory: /bowrain/docker/bowrain-web
+    schedule:
+      interval: weekly
+    labels: [dependencies, docker, bowrain]
+
+  - package-ecosystem: docker
+    directory: /bowrain/docker/keycloak
+    schedule:
+      interval: weekly
+    labels: [dependencies, docker, bowrain]

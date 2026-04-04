@@ -400,7 +400,7 @@ func (s *AgentService) sendQueuedStream(ctx context.Context, conversationID, use
 				return nil // channel closed
 			}
 			slog.DebugContext(ctx, "agent SSE relay event", "event", evt.Event, "conversation_id", conversationID)
-			_ = sse.WriteEvent(evt.Event, json.RawMessage(evt.Data))
+			_ = sse.WriteEvent(evt.Event, evt.Data)
 
 			// Terminal events: stop relaying.
 			if evt.Event == SSEMessageEnd || evt.Event == SSEError {
