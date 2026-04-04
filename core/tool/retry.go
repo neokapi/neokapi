@@ -64,10 +64,12 @@ func (t *RetryTool) Process(ctx context.Context, in <-chan *model.Part, out chan
 
 		for attempt := 0; attempt <= t.config.MaxRetries; attempt++ {
 			if attempt > 0 {
+				timer := time.NewTimer(backoff)
 				select {
 				case <-ctx.Done():
+					timer.Stop()
 					return nil, ctx.Err()
-				case <-time.After(backoff):
+				case <-timer.C:
 				}
 				backoff = time.Duration(float64(backoff) * t.config.BackoffFactor)
 			}
@@ -99,10 +101,12 @@ func (t *RetryTool) retryProcess(ctx context.Context, in <-chan *model.Part, out
 
 	for attempt := 0; attempt <= t.config.MaxRetries; attempt++ {
 		if attempt > 0 {
+			timer := time.NewTimer(backoff)
 			select {
 			case <-ctx.Done():
+				timer.Stop()
 				return ctx.Err()
-			case <-time.After(backoff):
+			case <-timer.C:
 			}
 			backoff = time.Duration(float64(backoff) * t.config.BackoffFactor)
 		}
