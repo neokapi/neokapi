@@ -118,6 +118,11 @@ jobs:
         env:
           SSH_DEPLOY_KEY: ${{ secrets.PAGES_DEPLOY_KEY }}
         run: |
+          if [ -z "$SSH_DEPLOY_KEY" ]; then
+            echo "No deploy key available (expected for Dependabot PRs), skipping"
+            exit 0
+          fi
+
           mkdir -p ~/.ssh
           echo "$SSH_DEPLOY_KEY" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
@@ -147,6 +152,7 @@ jobs:
           git push origin main
 
       - name: Comment PR with preview links
+        if: github.actor != 'dependabot[bot]'
         uses: actions/github-script@v8
         with:
           script: |
@@ -187,6 +193,11 @@ jobs:
         env:
           SSH_DEPLOY_KEY: ${{ secrets.PAGES_DEPLOY_KEY }}
         run: |
+          if [ -z "$SSH_DEPLOY_KEY" ]; then
+            echo "No deploy key available, skipping"
+            exit 0
+          fi
+
           mkdir -p ~/.ssh
           echo "$SSH_DEPLOY_KEY" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
