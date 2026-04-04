@@ -2,6 +2,7 @@ package tools
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 
@@ -34,11 +35,11 @@ func (c *ScriptConfig) Validate() error {
 	switch c.Source {
 	case "file", "File":
 		if c.ScriptFile == "" {
-			return fmt.Errorf("script: ScriptFile is required when source is 'file'")
+			return errors.New("script: ScriptFile is required when source is 'file'")
 		}
 	default: // "inline" or empty
 		if c.Code == "" {
-			return fmt.Errorf("script: Code is required when source is 'inline'")
+			return errors.New("script: Code is required when source is 'inline'")
 		}
 	}
 	return nil
@@ -62,7 +63,7 @@ func NewScriptFromConfig(config map[string]any, targetLang string) (tool.Tool, e
 		return nil, fmt.Errorf("script config: %w", err)
 	}
 	if cfg.Code == "" && cfg.ScriptFile == "" {
-		return nil, fmt.Errorf("either --code or --script-file is required")
+		return nil, errors.New("either --code or --script-file is required")
 	}
 	return NewScriptTool(&cfg), nil
 }

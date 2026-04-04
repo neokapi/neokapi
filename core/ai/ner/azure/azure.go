@@ -10,9 +10,11 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/neokapi/neokapi/core/ai/ner"
@@ -35,10 +37,10 @@ type Provider struct {
 // New creates a new Azure NER provider.
 func New(cfg ner.Config) (*Provider, error) {
 	if cfg.Endpoint == "" {
-		return nil, fmt.Errorf("azure ner: endpoint is required")
+		return nil, errors.New("azure ner: endpoint is required")
 	}
 	if cfg.APIKey == "" {
-		return nil, fmt.Errorf("azure ner: api_key is required")
+		return nil, errors.New("azure ner: api_key is required")
 	}
 	endpoint := strings.TrimRight(cfg.Endpoint, "/")
 	return &Provider{
@@ -102,7 +104,7 @@ func (p *Provider) doBatch(ctx context.Context, reqs []ner.Request) ([]ner.Respo
 			text = text[:maxDocChars]
 		}
 		docs[i] = document{
-			ID:       fmt.Sprintf("%d", i),
+			ID:       strconv.Itoa(i),
 			Language: localeToLanguage(req.Locale),
 			Text:     text,
 		}

@@ -120,23 +120,23 @@ func (a *AuditLogger) QueryAuditLog(ctx context.Context, q AuditQuery) ([]AuditE
 
 	if q.WorkspaceID != "" {
 		from = "audit_log a JOIN projects p ON a.project_id = p.id"
-		where = append(where, fmt.Sprintf("p.workspace_id = %s", ph()))
+		where = append(where, "p.workspace_id = "+ph())
 		args = append(args, q.WorkspaceID)
 	}
 	if q.ProjectID != "" {
-		where = append(where, fmt.Sprintf("a.project_id = %s", ph()))
+		where = append(where, "a.project_id = "+ph())
 		args = append(args, q.ProjectID)
 	}
 	if q.EventType != "" {
-		where = append(where, fmt.Sprintf("a.event_type LIKE %s", ph()))
+		where = append(where, "a.event_type LIKE "+ph())
 		args = append(args, q.EventType+"%")
 	}
 	if q.Actor != "" {
-		where = append(where, fmt.Sprintf("a.actor = %s", ph()))
+		where = append(where, "a.actor = "+ph())
 		args = append(args, q.Actor)
 	}
 	if q.Search != "" {
-		where = append(where, fmt.Sprintf("a.data::text ILIKE %s", ph()))
+		where = append(where, "a.data::text ILIKE "+ph())
 		args = append(args, "%"+q.Search+"%")
 	}
 

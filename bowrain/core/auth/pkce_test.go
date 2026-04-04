@@ -17,7 +17,7 @@ func TestGenerateCodeVerifier(t *testing.T) {
 
 	// Must be valid base64url.
 	_, err = base64.RawURLEncoding.DecodeString(v)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	// Two verifiers must be different.
 	v2, err := GenerateCodeVerifier()
@@ -34,5 +34,5 @@ func TestComputeCodeChallenge(t *testing.T) {
 
 	// Must be valid base64url.
 	_, err := base64.RawURLEncoding.DecodeString(challenge)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 }

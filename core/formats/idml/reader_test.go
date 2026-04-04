@@ -586,7 +586,7 @@ func TestNilDocument(t *testing.T) {
 	ctx := context.Background()
 	reader := NewReader()
 	err := reader.Open(ctx, nil)
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "nil document")
 }
 
@@ -776,7 +776,7 @@ func TestWriterRequiresOriginalContent(t *testing.T) {
 	close(ch)
 
 	err = writer.Write(ctx, ch)
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "requires original content")
 }
 
@@ -788,7 +788,7 @@ func TestConfig(t *testing.T) {
 	assert.True(t, cfg.ExtractNotes)
 	assert.True(t, cfg.SkipDiscretionaryHyphens)
 	assert.False(t, cfg.ExtractMasterSpreads)
-	assert.NoError(t, cfg.Validate())
+	require.NoError(t, cfg.Validate())
 
 	err := cfg.ApplyMap(map[string]any{
 		"extractNotes":             false,
@@ -801,7 +801,7 @@ func TestConfig(t *testing.T) {
 	assert.True(t, cfg.ExtractMasterSpreads)
 
 	err = cfg.ApplyMap(map[string]any{"unknownKey": true})
-	assert.Error(t, err)
+	require.Error(t, err)
 }
 
 func TestMultipleParagraphsInStory(t *testing.T) {

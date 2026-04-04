@@ -4,8 +4,10 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
+	"strconv"
 	"strings"
 
 	"github.com/neokapi/neokapi/core/format"
@@ -55,7 +57,7 @@ func (r *Reader) Signature() format.FormatSignature {
 // Open opens a RawDocument for reading.
 func (r *Reader) Open(ctx context.Context, doc *model.RawDocument) error {
 	if doc == nil || doc.Reader == nil {
-		return fmt.Errorf("transtable: nil document or reader")
+		return errors.New("transtable: nil document or reader")
 	}
 	r.Doc = doc
 	return nil
@@ -166,7 +168,7 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 		block := model.NewBlock(key, value)
 		block.Name = key
 		block.Properties["key"] = key
-		block.Properties["line"] = fmt.Sprintf("%d", lineNum)
+		block.Properties["line"] = strconv.Itoa(lineNum)
 		if !r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block}) {
 			return
 		}

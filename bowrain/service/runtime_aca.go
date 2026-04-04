@@ -4,9 +4,11 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
@@ -77,7 +79,7 @@ func (r *ACARuntime) Spawn(ctx context.Context, cfg ContainerConfig) (*AgentCont
 		{Name: "ZEROCLAW_PROVIDER", Value: cfg.ModelProvider},
 		{Name: "ZEROCLAW_MODEL", Value: cfg.ModelName},
 		{Name: "ZEROCLAW_API_KEY", SecretRef: "model-api-key"},
-		{Name: "ZEROCLAW_GATEWAY_PORT", Value: fmt.Sprintf("%d", gatewayPort)},
+		{Name: "ZEROCLAW_GATEWAY_PORT", Value: strconv.Itoa(gatewayPort)},
 		// Azure OpenAI requires the resource name to construct the endpoint URL.
 		{Name: "AZURE_OPENAI_RESOURCE", Value: cfg.ModelAPIBase},
 		// Bowrain MCP: endpoint + auth token for tool execution (rendered into config.toml via envsubst).
@@ -321,7 +323,7 @@ func (r *ACARuntime) pollFQDN(ctx context.Context, appName string) (string, erro
 		}
 	}
 
-	return "", fmt.Errorf("timeout waiting for Container App FQDN")
+	return "", errors.New("timeout waiting for Container App FQDN")
 }
 
 // sanitizeAppName ensures the name is valid for Azure Container Apps:

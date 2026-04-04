@@ -173,7 +173,7 @@ func configureAndPing(db *sql.DB, connStr string) (*PgDB, error) {
 	db.SetMaxIdleConns(5)
 	db.SetConnMaxLifetime(30 * time.Minute)
 
-	if err := db.Ping(); err != nil {
+	if err := db.PingContext(context.Background()); err != nil {
 		db.Close()
 		return nil, fmt.Errorf("ping postgres: %w", err)
 	}

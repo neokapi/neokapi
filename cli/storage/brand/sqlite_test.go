@@ -90,7 +90,7 @@ func TestProfileCRUD(t *testing.T) {
 	// Delete
 	require.NoError(t, store.DeleteProfile(ctx, "p1"))
 	_, err = store.GetProfile(ctx, "p1")
-	assert.Error(t, err)
+	require.Error(t, err)
 }
 
 func TestProfileNotFound(t *testing.T) {
@@ -98,9 +98,9 @@ func TestProfileNotFound(t *testing.T) {
 	store := newTestStore(t)
 
 	_, err := store.GetProfile(ctx, "nonexistent")
-	assert.Error(t, err)
+	require.Error(t, err)
 
-	assert.Error(t, store.DeleteProfile(ctx, "nonexistent"))
+	require.Error(t, store.DeleteProfile(ctx, "nonexistent"))
 }
 
 func TestListProfiles(t *testing.T) {
@@ -228,7 +228,7 @@ func TestProfileVersioning(t *testing.T) {
 
 	// Get nonexistent version.
 	_, err = store.GetProfileVersion(ctx, "p1", 99)
-	assert.Error(t, err)
+	require.Error(t, err)
 }
 
 func TestProfileTags(t *testing.T) {
@@ -267,7 +267,7 @@ func TestProfileTags(t *testing.T) {
 
 	// Get nonexistent tag.
 	_, err = store.GetProfileAtTag(ctx, "p1", "nonexistent")
-	assert.Error(t, err)
+	require.Error(t, err)
 
 	// Delete tag.
 	require.NoError(t, store.DeleteProfileTag(ctx, "p1", "v1-release"))
@@ -276,7 +276,7 @@ func TestProfileTags(t *testing.T) {
 	assert.Len(t, tags, 0)
 
 	// Delete nonexistent tag.
-	assert.Error(t, store.DeleteProfileTag(ctx, "p1", "nonexistent"))
+	require.Error(t, store.DeleteProfileTag(ctx, "p1", "nonexistent"))
 }
 
 func TestGetScoresByStream(t *testing.T) {

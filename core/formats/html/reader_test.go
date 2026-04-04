@@ -229,7 +229,7 @@ func TestReadNilDocument(t *testing.T) {
 	ctx := context.Background()
 	reader := htmlfmt.NewReader()
 	err := reader.Open(ctx, nil)
-	assert.Error(t, err)
+	require.Error(t, err)
 }
 
 func TestReaderMetadata(t *testing.T) {

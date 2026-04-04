@@ -2,10 +2,12 @@ package bridge
 
 import (
 	"crypto/sha256"
+	"errors"
 	"fmt"
 	"log"
 	"os"
 	"path/filepath"
+	"strconv"
 	"sync"
 	"time"
 )
@@ -120,7 +122,7 @@ func (r *BridgeRegistry) getOrCreate(cfg BridgeConfig) (*managedBridge, error) {
 	r.mu.Lock()
 	if r.closed {
 		r.mu.Unlock()
-		return nil, fmt.Errorf("bridge registry is shut down")
+		return nil, errors.New("bridge registry is shut down")
 	}
 
 	if mb, ok := r.bridges[key]; ok {
@@ -171,7 +173,7 @@ func (r *BridgeRegistry) getOrCreate(cfg BridgeConfig) (*managedBridge, error) {
 	if r.daemon && r.idleTimeout > 0 {
 		// Append idle timeout flag so the JVM stays alive after we disconnect.
 		startCfg.Args = append(append([]string{}, cfg.Args...), "--idle-timeout",
-			fmt.Sprintf("%d", int(r.idleTimeout.Seconds())))
+			strconv.Itoa(int(r.idleTimeout.Seconds())))
 	}
 
 	b := NewJavaBridge(startCfg, r.logger)

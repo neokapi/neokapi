@@ -6,6 +6,7 @@ import (
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/tools"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestTagProtectTool(t *testing.T) {
@@ -60,17 +61,17 @@ func TestTagProtectToolNoTags(t *testing.T) {
 func TestTagProtectConfigValidation(t *testing.T) {
 	cfg := &tools.TagProtectConfig{Patterns: []string{""}}
 	err := cfg.Validate()
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "empty")
 
 	cfg = &tools.TagProtectConfig{Patterns: []string{"[invalid"}}
 	err = cfg.Validate()
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "invalid")
 
 	cfg = &tools.TagProtectConfig{Patterns: []string{`<[^>]+>`}}
 	err = cfg.Validate()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 }
 
 func TestReplaceAndRestoreProtectedTags(t *testing.T) {

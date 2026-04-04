@@ -4,8 +4,10 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
+	"strconv"
 	"strings"
 
 	"github.com/neokapi/neokapi/core/format"
@@ -67,7 +69,7 @@ func (r *Reader) Signature() format.FormatSignature {
 // Open opens a RawDocument for reading.
 func (r *Reader) Open(ctx context.Context, doc *model.RawDocument) error {
 	if doc == nil || doc.Reader == nil {
-		return fmt.Errorf("messageformat: nil document or reader")
+		return errors.New("messageformat: nil document or reader")
 	}
 
 	r.parsedLines = nil
@@ -257,7 +259,7 @@ func (r *Reader) createBlock(id string, seg segment, pl parsedLine) *model.Block
 	if seg.path == "" {
 		block.Name = fmt.Sprintf("line.%d", pl.lineNum)
 	}
-	block.Properties["line"] = fmt.Sprintf("%d", pl.lineNum)
+	block.Properties["line"] = strconv.Itoa(pl.lineNum)
 	if seg.path != "" {
 		block.Properties["path"] = seg.path
 	}

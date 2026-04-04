@@ -1,8 +1,10 @@
 package termbase
 
 import (
+	"errors"
 	"fmt"
 	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/neokapi/neokapi/core/model"
@@ -29,7 +31,7 @@ func (c *TermLookupConfig) Reset() {
 // Validate checks configuration validity.
 func (c *TermLookupConfig) Validate() error {
 	if c.SourceLocale.IsEmpty() {
-		return fmt.Errorf("term-lookup: SourceLocale is required")
+		return errors.New("term-lookup: SourceLocale is required")
 	}
 	return nil
 }
@@ -115,7 +117,7 @@ func (t *TermLookupTool) handleBlock(part *model.Part) (*model.Part, error) {
 	if block.Properties == nil {
 		block.Properties = make(map[string]string)
 	}
-	block.Properties["term-count"] = fmt.Sprintf("%d", len(matches))
+	block.Properties["term-count"] = strconv.Itoa(len(matches))
 
 	return part, nil
 }
@@ -143,10 +145,10 @@ func (c *TermEnforceConfig) Reset() {
 // Validate checks configuration validity.
 func (c *TermEnforceConfig) Validate() error {
 	if c.SourceLocale.IsEmpty() {
-		return fmt.Errorf("term-enforce: SourceLocale is required")
+		return errors.New("term-enforce: SourceLocale is required")
 	}
 	if c.TargetLocale.IsEmpty() {
-		return fmt.Errorf("term-enforce: TargetLocale is required")
+		return errors.New("term-enforce: TargetLocale is required")
 	}
 	return nil
 }
@@ -290,7 +292,7 @@ func (t *TermEnforceTool) handleBlock(part *model.Part) (*model.Part, error) {
 		block.Properties["term-enforce-passed"] = "false"
 		block.Properties["term-enforce-errors"] = strings.Join(violations, "; ")
 	}
-	block.Properties["term-enforce-violations"] = fmt.Sprintf("%d", violationCount)
+	block.Properties["term-enforce-violations"] = strconv.Itoa(violationCount)
 
 	return part, nil
 }

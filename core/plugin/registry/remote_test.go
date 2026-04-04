@@ -7,12 +7,12 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
-	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strconv"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -154,7 +154,7 @@ func TestDownloadProgressCallback(t *testing.T) {
 		case "/":
 			serveJSON(t, w, index)
 		case "/download/prog":
-			w.Header().Set("Content-Length", fmt.Sprintf("%d", len(binaryContent)))
+			w.Header().Set("Content-Length", strconv.Itoa(len(binaryContent)))
 			serveBytes(t, w, binaryContent)
 		default:
 			http.NotFound(w, r)
@@ -259,13 +259,13 @@ func TestInstallPluginBridge(t *testing.T) {
 	// Verify extracted files exist in versioned directory.
 	versionDir := VersionedPluginDir(dir, "okapi-bridge", "1.0.0")
 	_, err = os.Stat(filepath.Join(versionDir, "neokapi-bridge-jar-with-dependencies.jar"))
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	_, err = os.Stat(filepath.Join(versionDir, "manifest.json"))
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	// Verify schemas subdirectory is preserved (not flattened).
 	_, err = os.Stat(filepath.Join(versionDir, "schemas", "okf_html.schema.json"))
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	// Version file should use the BUNDLED manifest (4 caps), not registry (1 cap).
 	vf, err := ReadVersionFile(dir, "okapi-bridge", "1.0.0")
@@ -902,7 +902,7 @@ func TestInstallPluginChecksumMismatch(t *testing.T) {
 
 	reg := NewRemoteRegistry(srv.URL, t.TempDir())
 	_, err := reg.InstallPlugin(PluginRef{Name: "bad-bridge"})
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "checksum mismatch")
 }
 
@@ -926,7 +926,7 @@ func TestRemovePluginSpecificVersion(t *testing.T) {
 
 	// 1.0.0 should be gone.
 	_, err = ReadVersionFile(dir, "okapi", "1.0.0")
-	assert.Error(t, err)
+	require.Error(t, err)
 
 	// 2.0.0 should still exist.
 	vf, err := ReadVersionFile(dir, "okapi", "2.0.0")
@@ -962,7 +962,7 @@ func TestRemovePluginNotInstalled(t *testing.T) {
 	reg := NewRemoteRegistry("http://unused", dir)
 
 	err := reg.RemovePlugin(PluginRef{Name: "nonexistent"})
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "not installed")
 }
 

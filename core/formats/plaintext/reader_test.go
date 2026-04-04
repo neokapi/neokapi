@@ -378,11 +378,11 @@ func TestRead_LoadParams(t *testing.T) {
 
 	// Unknown parameter should error.
 	err = cfg.ApplyMap(map[string]any{"unknownParam": "value"})
-	assert.Error(t, err)
+	require.Error(t, err)
 
 	// Wrong type should error.
 	err = cfg.ApplyMap(map[string]any{"segmentByLine": "not-a-bool"})
-	assert.Error(t, err)
+	require.Error(t, err)
 }
 
 // okapi: PlainTextFilterTest#testSynchronization
@@ -619,7 +619,7 @@ func TestRead_Parameters(t *testing.T) {
 	assert.False(t, cfg.SegmentByLine)
 
 	// Validate always passes for plaintext.
-	assert.NoError(t, cfg.Validate())
+	require.NoError(t, cfg.Validate())
 }
 
 // ---- SplicedLinesFilterTest (1 test relevant to native) ----
@@ -777,7 +777,7 @@ func TestReadNilDocument(t *testing.T) {
 	ctx := context.Background()
 	reader := plaintext.NewReader()
 	err := reader.Open(ctx, nil)
-	assert.Error(t, err)
+	require.Error(t, err)
 }
 
 // okapi: PlainTextFilterTest#testEvents (block ID uniqueness)

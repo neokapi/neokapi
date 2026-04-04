@@ -55,8 +55,9 @@ func TestEvaluateGatesBlocking(t *testing.T) {
 	}
 
 	results, err := EvaluateGates(gates, "proj-1")
-	assert.Error(t, err) // Blocking gate should cause error
-	assert.IsType(t, &GateError{}, err)
+	require.Error(t, err) // Blocking gate should cause error
+	var gateErr *GateError
+	require.ErrorAs(t, err, &gateErr)
 	assert.Len(t, results, 1) // Stopped at first blocking failure
 }
 

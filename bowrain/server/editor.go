@@ -3,6 +3,7 @@ package server
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"path/filepath"
@@ -14,6 +15,7 @@ import (
 	"github.com/labstack/echo/v4"
 
 	"github.com/neokapi/neokapi/bowrain/billing"
+	"github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/bowrain/credentials"
 	sqltm "github.com/neokapi/neokapi/bowrain/sievepen"
 	"github.com/neokapi/neokapi/bowrain/storage"
@@ -24,14 +26,13 @@ import (
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/registry"
 	"github.com/neokapi/neokapi/core/tool"
-	"github.com/neokapi/neokapi/bowrain/core/store"
-	"github.com/neokapi/neokapi/providers/ai"
+	aiprovider "github.com/neokapi/neokapi/providers/ai"
 	"github.com/neokapi/neokapi/sievepen"
 	"github.com/neokapi/neokapi/termbase"
 )
 
 var (
-	errNoPgDB = fmt.Errorf("PostgreSQL database not configured")
+	errNoPgDB = errors.New("PostgreSQL database not configured")
 )
 
 // ---------------------------------------------------------------------------
@@ -468,13 +469,13 @@ func projectParam(c echo.Context) string {
 // editorCreateProject creates a new project in the ContentStore.
 func editorCreateProject(ctx context.Context, cs store.ContentStore, ws, name, sourceLang string, targetLangs []string) (*ProjectInfoResponse, error) {
 	if name == "" {
-		return nil, fmt.Errorf("project name is required")
+		return nil, errors.New("project name is required")
 	}
 	if sourceLang == "" {
-		return nil, fmt.Errorf("source language is required")
+		return nil, errors.New("source language is required")
 	}
 	if len(targetLangs) == 0 {
-		return nil, fmt.Errorf("at least one target language is required")
+		return nil, errors.New("at least one target language is required")
 	}
 
 	locales := make([]model.LocaleID, len(targetLangs))
@@ -753,9 +754,9 @@ func editorAITranslate(ctx context.Context, cs store.ContentStore, projectID, st
 	}
 
 	translateTool := tools.NewAITranslateTool(prov, tools.AITranslateConfig{
-		SourceLocale: proj.DefaultSourceLanguage,
-		TargetLocale: model.LocaleID(req.TargetLocale),
-		BatchSize:    req.BatchSize,
+		SourceLocale:     proj.DefaultSourceLanguage,
+		TargetLocale:     model.LocaleID(req.TargetLocale),
+		BatchSize:        req.BatchSize,
 		BatchConcurrency: req.Concurrency,
 	})
 

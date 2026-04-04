@@ -3,6 +3,7 @@ package openxml
 import (
 	"archive/zip"
 	"encoding/xml"
+	"errors"
 	"fmt"
 	"io"
 	"slices"
@@ -87,7 +88,7 @@ func parseContainer(zr *zip.Reader, cfg *Config) (*containerInfo, error) {
 	// Detect document type from content types
 	info.docType = detectDocType(ctypes)
 	if info.docType == docTypeUnknown {
-		return nil, fmt.Errorf("openxml: unable to determine document type from [Content_Types].xml")
+		return nil, errors.New("openxml: unable to determine document type from [Content_Types].xml")
 	}
 
 	// Parse all .rels files
@@ -120,7 +121,7 @@ func parseContentTypes(zr *zip.Reader) ([]contentType, error) {
 		}
 	}
 	if ctFile == nil {
-		return nil, fmt.Errorf("missing [Content_Types].xml")
+		return nil, errors.New("missing [Content_Types].xml")
 	}
 
 	rc, err := ctFile.Open()
@@ -133,7 +134,7 @@ func parseContentTypes(zr *zip.Reader) ([]contentType, error) {
 	d := xml.NewDecoder(rc)
 	for {
 		tok, err := d.Token()
-		if err == io.EOF {
+		if errors.Is(err, io.EOF) {
 			break
 		}
 		if err != nil {
@@ -187,7 +188,7 @@ func parseRelationships(f *zip.File) ([]relationship, error) {
 	d := xml.NewDecoder(rc)
 	for {
 		tok, err := d.Token()
-		if err == io.EOF {
+		if errors.Is(err, io.EOF) {
 			break
 		}
 		if err != nil {
@@ -478,7 +479,7 @@ func parseSharedStrings(zr *zip.Reader) ([]string, error) {
 
 	for {
 		tok, err := d.Token()
-		if err == io.EOF {
+		if errors.Is(err, io.EOF) {
 			break
 		}
 		if err != nil {

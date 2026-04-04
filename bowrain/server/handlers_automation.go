@@ -5,10 +5,10 @@ import (
 	"strconv"
 
 	"github.com/labstack/echo/v4"
-	"github.com/neokapi/neokapi/bowrain/event"
-	"github.com/neokapi/neokapi/core/id"
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	platev "github.com/neokapi/neokapi/bowrain/core/event"
+	"github.com/neokapi/neokapi/bowrain/event"
+	"github.com/neokapi/neokapi/core/id"
 )
 
 // HandleListAutomationRules returns all automation rules for a project.

@@ -3,17 +3,19 @@ package jobs
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
+	"strconv"
 	"strings"
 	"time"
 
+	bstore "github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/bowrain/credentials"
 	"github.com/neokapi/neokapi/core/ai/ner"
 	"github.com/neokapi/neokapi/core/ai/tools"
 	"github.com/neokapi/neokapi/core/model"
-	bstore "github.com/neokapi/neokapi/bowrain/core/store"
-	"github.com/neokapi/neokapi/providers/ai"
+	aiprovider "github.com/neokapi/neokapi/providers/ai"
 	"golang.org/x/time/rate"
 )
 
@@ -101,13 +103,13 @@ func processExtractionJob(ctx context.Context, deps *ExtractionWorkerDeps, jobID
 	}
 
 	emitExtractionLog(deps, job.StepID, "info",
-		fmt.Sprintf("Extracting entities from %s", job.ItemName),
+		"Extracting entities from "+job.ItemName,
 		map[string]string{"item": job.ItemName, "locale": job.Locale})
 
 	if err := executeExtraction(ctx, deps, job); err != nil {
 		_ = deps.ExtractionJobStore.UpdateExtractionJobStatus(ctx, jobID, ExtractionStatusFailed, err.Error())
 		emitExtractionLog(deps, job.StepID, "error",
-			fmt.Sprintf("Extraction failed: %s", err.Error()),
+			"Extraction failed: "+err.Error(),
 			map[string]string{"item": job.ItemName})
 		return err
 	}
@@ -118,7 +120,7 @@ func processExtractionJob(ctx context.Context, deps *ExtractionWorkerDeps, jobID
 
 	emitExtractionLog(deps, job.StepID, "info",
 		fmt.Sprintf("Extraction completed: %s — %d review items created", job.ItemName, job.ItemsCreated),
-		map[string]string{"item": job.ItemName, "items_created": fmt.Sprintf("%d", job.ItemsCreated)})
+		map[string]string{"item": job.ItemName, "items_created": strconv.Itoa(job.ItemsCreated)})
 	return nil
 }
 
@@ -320,7 +322,7 @@ func resolveExtractionProvider(ctx context.Context, deps *ExtractionWorkerDeps, 
 
 	if providerConfigID == "" || providerConfigID == "platform" {
 		if deps.Platform == nil {
-			return nil, nil, fmt.Errorf("platform provider not configured (set BOWRAIN_OPENAI_ENDPOINT)")
+			return nil, nil, errors.New("platform provider not configured (set BOWRAIN_OPENAI_ENDPOINT)")
 		}
 		prov, err := NewPlatformProvider(*deps.Platform, modelName)
 		if err != nil {

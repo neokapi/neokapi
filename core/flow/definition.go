@@ -122,7 +122,7 @@ func (d *FlowDefinition) TopologicalOrder() ([]string, error) {
 		}
 	}
 	if len(order) != len(d.Nodes) {
-		return nil, fmt.Errorf("cycle detected in flow graph")
+		return nil, errors.New("cycle detected in flow graph")
 	}
 	return order, nil
 }
@@ -441,7 +441,7 @@ func parseStepsFromBare(data []byte) (*FlowDefinition, error) {
 		return nil, err
 	}
 	if len(spec.Steps) == 0 {
-		return nil, fmt.Errorf("no steps found")
+		return nil, errors.New("no steps found")
 	}
 
 	nodes, edges, err := StepsToGraph(&spec)

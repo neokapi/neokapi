@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/neokapi/neokapi/core/model"
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
+	"github.com/neokapi/neokapi/core/model"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -260,7 +260,7 @@ func TestConcurrentAccess(t *testing.T) {
 	}
 
 	for i := 0; i < 10; i++ {
-		assert.NoError(t, <-done)
+		require.NoError(t, <-done)
 	}
 
 	blocks, err := s.GetBlocks(ctx, platstore.BlockQuery{ProjectID: p.ID})

@@ -3,6 +3,7 @@ package termbase
 import (
 	"cmp"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"slices"
@@ -102,7 +103,7 @@ func (tb *PostgresTermBase) AddConcept(concept fw.Concept) error {
 // AddConceptWithStream inserts or updates a concept associated with a stream.
 func (tb *PostgresTermBase) AddConceptWithStream(concept fw.Concept, stream string) error {
 	if concept.ID == "" {
-		return fmt.Errorf("concept ID is required")
+		return errors.New("concept ID is required")
 	}
 
 	now := time.Now()
@@ -297,8 +298,8 @@ func (tb *PostgresTermBase) pgSearchTrgm(query, sourceLocale, targetLocale strin
 		argN++
 	}
 
-	countQ := fmt.Sprintf(`SELECT COUNT(DISTINCT t.concept_id)
-		FROM tb_terms t WHERE %s`, where)
+	countQ := `SELECT COUNT(DISTINCT t.concept_id)
+		FROM tb_terms t WHERE ` + where
 	countArgs := make([]any, len(args))
 	copy(countArgs, args)
 	var total int

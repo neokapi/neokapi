@@ -283,7 +283,7 @@ func TestReadNilDocument(t *testing.T) {
 	ctx := context.Background()
 	reader := properties.NewReader()
 	err := reader.Open(ctx, nil)
-	assert.Error(t, err)
+	require.Error(t, err)
 }
 
 func TestReadSimpleFile(t *testing.T) {

@@ -1,6 +1,9 @@
 package fixedwidth
 
-import "fmt"
+import (
+	"errors"
+	"fmt"
+)
 
 // ColumnDef defines a single column in a fixed-width file.
 type ColumnDef struct {
@@ -38,7 +41,7 @@ func (c *Config) Reset() {
 // Validate checks configuration validity.
 func (c *Config) Validate() error {
 	if len(c.Columns) == 0 {
-		return fmt.Errorf("fixedwidth: at least one column definition is required")
+		return errors.New("fixedwidth: at least one column definition is required")
 	}
 	for i, col := range c.Columns {
 		if col.Name == "" {

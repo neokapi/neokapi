@@ -190,7 +190,7 @@ func TestUpdateTarget(t *testing.T) {
 	assert.Equal(t, "Bonjour le monde", index.Blocks[0].Targets["fr"])
 
 	err = index.UpdateTarget("nonexistent", "fr", "test")
-	assert.Error(t, err)
+	require.Error(t, err)
 }
 
 func TestHTMLPreview(t *testing.T) {

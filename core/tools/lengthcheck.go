@@ -2,6 +2,7 @@ package tools
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 
 	"github.com/neokapi/neokapi/core/model"
@@ -62,19 +63,19 @@ func (c *LengthCheckConfig) Reset() {
 // Validate checks configuration validity.
 func (c *LengthCheckConfig) Validate() error {
 	if c.TargetLocale.IsEmpty() {
-		return fmt.Errorf("length-check: TargetLocale is required")
+		return errors.New("length-check: TargetLocale is required")
 	}
 	if c.MaxChars < 0 {
-		return fmt.Errorf("length-check: MaxChars must be non-negative")
+		return errors.New("length-check: MaxChars must be non-negative")
 	}
 	if c.MaxWords < 0 {
-		return fmt.Errorf("length-check: MaxWords must be non-negative")
+		return errors.New("length-check: MaxWords must be non-negative")
 	}
 	if c.MaxPercentage < 0 {
-		return fmt.Errorf("length-check: MaxPercentage must be non-negative")
+		return errors.New("length-check: MaxPercentage must be non-negative")
 	}
 	if c.MinPercentage < 0 {
-		return fmt.Errorf("length-check: MinPercentage must be non-negative")
+		return errors.New("length-check: MinPercentage must be non-negative")
 	}
 	return nil
 }

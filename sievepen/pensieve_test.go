@@ -132,7 +132,7 @@ func TestInMemoryTM_Delete(t *testing.T) {
 
 	// Deleting non-existent entry returns error.
 	err = tm.Delete("non-existent")
-	assert.Error(t, err)
+	require.Error(t, err)
 }
 
 func TestInMemoryTM_EmptyIDError(t *testing.T) {
@@ -143,7 +143,7 @@ func TestInMemoryTM_EmptyIDError(t *testing.T) {
 		SourceLocale: model.LocaleEnglish,
 		TargetLocale: model.LocaleFrench,
 	})
-	assert.Error(t, err)
+	require.Error(t, err)
 }
 
 func TestInMemoryTM_NilSourceError(t *testing.T) {
@@ -154,7 +154,7 @@ func TestInMemoryTM_NilSourceError(t *testing.T) {
 		SourceLocale: model.LocaleEnglish,
 		TargetLocale: model.LocaleFrench,
 	})
-	assert.Error(t, err)
+	require.Error(t, err)
 }
 
 func TestInMemoryTM_UpdateExisting(t *testing.T) {
@@ -502,7 +502,7 @@ func TestInMemoryTM_MaxResults(t *testing.T) {
 func TestInMemoryTM_Close(t *testing.T) {
 	tm := sievepen.NewInMemoryTM()
 	err := tm.Close()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 }
 
 func TestInMemoryTM_SearchEntries(t *testing.T) {
@@ -681,7 +681,7 @@ func TestInMemoryTM_InterfaceCompliance(t *testing.T) {
 	var _ sievepen.EntryProvider = tm
 
 	err := tm.Close()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 }
 
 // --- Okapi parity tests ---

@@ -1,6 +1,7 @@
 package tools
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 
@@ -41,7 +42,7 @@ func (c *TermCheckConfig) Reset() {
 // Validate checks configuration validity.
 func (c *TermCheckConfig) Validate() error {
 	if c.TargetLocale.IsEmpty() {
-		return fmt.Errorf("term-check: TargetLocale is required")
+		return errors.New("term-check: TargetLocale is required")
 	}
 	for i, entry := range c.Glossary {
 		if entry.Source == "" {

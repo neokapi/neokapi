@@ -80,7 +80,7 @@ func TestStreamLock(t *testing.T) {
 
 	t.Run("lock already locked stream fails", func(t *testing.T) {
 		err := s.LockStream(ctx, p.ID, "release/v1", "user-2")
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Contains(t, err.Error(), "already locked")
 	})
 

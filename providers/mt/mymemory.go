@@ -3,6 +3,7 @@ package mtprovider
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -18,7 +19,7 @@ const DefaultMyMemoryBaseURL = "https://api.mymemory.translated.net"
 // MyMemoryConfig holds configuration for the MyMemory provider.
 type MyMemoryConfig struct {
 	Email   string `schema:"description=Email address for higher API rate limits (optional)"` // Optional; provides higher rate limits when set
-	BaseURL string `schema:"description=API base URL override for testing"` // Override for testing
+	BaseURL string `schema:"description=API base URL override for testing"`                   // Override for testing
 }
 
 // Validate checks configuration validity.
@@ -48,10 +49,10 @@ func (p *MyMemoryProvider) Name() string { return "mymemory" }
 
 func (p *MyMemoryProvider) Translate(ctx context.Context, req TranslateRequest) (*TranslateResponse, error) {
 	if req.SourceLocale.IsEmpty() {
-		return nil, fmt.Errorf("mymemory: SourceLocale is required")
+		return nil, errors.New("mymemory: SourceLocale is required")
 	}
 	if req.TargetLocale.IsEmpty() {
-		return nil, fmt.Errorf("mymemory: TargetLocale is required")
+		return nil, errors.New("mymemory: TargetLocale is required")
 	}
 
 	langPair := fmt.Sprintf("%s|%s", string(req.SourceLocale), string(req.TargetLocale))
@@ -121,10 +122,10 @@ func (c *MyMemoryToolConfig) Reset() {
 // Validate checks configuration validity.
 func (c *MyMemoryToolConfig) Validate() error {
 	if c.SourceLocale.IsEmpty() {
-		return fmt.Errorf("mymemory: SourceLocale is required")
+		return errors.New("mymemory: SourceLocale is required")
 	}
 	if c.TargetLocale.IsEmpty() {
-		return fmt.Errorf("mymemory: TargetLocale is required")
+		return errors.New("mymemory: TargetLocale is required")
 	}
 	return nil
 }

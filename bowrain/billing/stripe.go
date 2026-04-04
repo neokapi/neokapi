@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"strconv"
 	"time"
 
 	"github.com/stripe/stripe-go/v82"
@@ -111,7 +112,7 @@ func (c *StripeClient) ReportMeterEvent(_ context.Context, customerID, eventName
 	params := &stripe.V2BillingMeterEventCreateParams{
 		EventName: stripe.String(eventName),
 		Payload: map[string]string{
-			"value":              fmt.Sprintf("%d", value),
+			"value":              strconv.FormatInt(value, 10),
 			"stripe_customer_id": customerID,
 		},
 	}
@@ -175,7 +176,7 @@ func (c *StripeClient) GetInvoices(_ context.Context, customerID string, limit i
 	params := &stripe.InvoiceListParams{
 		Customer: stripe.String(customerID),
 	}
-	params.Filters.AddFilter("limit", "", fmt.Sprintf("%d", limit))
+	params.Filters.AddFilter("limit", "", strconv.Itoa(limit))
 
 	iter := invoice.List(params)
 	var invoices []StripeInvoice

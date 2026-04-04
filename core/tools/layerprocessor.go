@@ -2,6 +2,7 @@ package tools
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/neokapi/neokapi/core/model"
@@ -27,7 +28,7 @@ func (c *LayerProcessorConfig) Validate() error { return nil }
 
 // ApplyMap is not supported for LayerProcessorConfig (configured programmatically).
 func (c *LayerProcessorConfig) ApplyMap(values map[string]any) error {
-	return fmt.Errorf("layer-processor: programmatic configuration only")
+	return errors.New("layer-processor: programmatic configuration only")
 }
 
 // NewLayerProcessorTool creates a LayerProcessor tool that applies format-specific

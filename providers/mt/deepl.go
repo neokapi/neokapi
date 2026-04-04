@@ -3,6 +3,7 @@ package mtprovider
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -29,13 +30,13 @@ const (
 type DeepLConfig struct {
 	APIKey    string `schema:"description=DeepL API authentication key,widget=password"`
 	Formality string `schema:"description=Formality level for translations,enum=default|more|less|prefer_more|prefer_less,default=default"` // "default", "more", "less", "prefer_more", "prefer_less"
-	BaseURL   string `schema:"description=API base URL override for testing"` // Override for testing
+	BaseURL   string `schema:"description=API base URL override for testing"`                                                               // Override for testing
 }
 
 // Validate checks configuration validity.
 func (c *DeepLConfig) Validate() error {
 	if c.APIKey == "" {
-		return fmt.Errorf("deepl: APIKey is required")
+		return errors.New("deepl: APIKey is required")
 	}
 	return nil
 }
@@ -60,7 +61,7 @@ func NewDeepLProvider(cfg DeepLConfig) *DeepLProvider {
 
 func (p *DeepLProvider) Name() string { return "deepl" }
 
-func (p *DeepLProvider) Translate(_ context.Context, req TranslateRequest) (*TranslateResponse, error) {
+func (p *DeepLProvider) Translate(ctx context.Context, req TranslateRequest) (*TranslateResponse, error) {
 	form := url.Values{}
 	form.Set("text", req.Source)
 	form.Set("target_lang", strings.ToUpper(string(req.TargetLocale)))
@@ -71,8 +72,8 @@ func (p *DeepLProvider) Translate(_ context.Context, req TranslateRequest) (*Tra
 		form.Set("formality", p.cfg.Formality)
 	}
 
-	apiURL := fmt.Sprintf("%s/v2/translate", p.cfg.baseURL())
-	httpReq, err := http.NewRequest(http.MethodPost, apiURL, strings.NewReader(form.Encode()))
+	apiURL := p.cfg.baseURL() + "/v2/translate"
+	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, apiURL, strings.NewReader(form.Encode()))
 	if err != nil {
 		return nil, fmt.Errorf("create request: %w", err)
 	}
@@ -100,7 +101,7 @@ func (p *DeepLProvider) Translate(_ context.Context, req TranslateRequest) (*Tra
 	}
 
 	if len(result.Translations) == 0 {
-		return nil, fmt.Errorf("no translations returned")
+		return nil, errors.New("no translations returned")
 	}
 
 	return &TranslateResponse{
@@ -132,10 +133,10 @@ func (c *DeepLToolConfig) Reset() {
 // Validate checks configuration validity.
 func (c *DeepLToolConfig) Validate() error {
 	if c.APIKey == "" {
-		return fmt.Errorf("deepl: APIKey is required")
+		return errors.New("deepl: APIKey is required")
 	}
 	if c.TargetLocale.IsEmpty() {
-		return fmt.Errorf("deepl: TargetLocale is required")
+		return errors.New("deepl: TargetLocale is required")
 	}
 	return nil
 }

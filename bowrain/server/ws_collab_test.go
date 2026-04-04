@@ -72,8 +72,8 @@ func TestCollabWebSocket_RequiresLocale(t *testing.T) {
 
 	err := s.HandleCollabWebSocket(c)
 	require.Error(t, err)
-	he, ok := err.(*echo.HTTPError)
-	require.True(t, ok)
+	var he *echo.HTTPError
+	require.ErrorAs(t, err, &he)
 	assert.Equal(t, http.StatusBadRequest, he.Code)
 }
 
@@ -89,8 +89,8 @@ func TestCollabWebSocket_RequiresAuth(t *testing.T) {
 
 	err := s.HandleCollabWebSocket(c)
 	require.Error(t, err)
-	he, ok := err.(*echo.HTTPError)
-	require.True(t, ok)
+	var he *echo.HTTPError
+	require.ErrorAs(t, err, &he)
 	assert.Equal(t, http.StatusUnauthorized, he.Code)
 }
 
@@ -118,22 +118,28 @@ func TestCollabWebSocket_RelayMessages(t *testing.T) {
 	headers1 := http.Header{}
 	headers1.Set("X-Test-User-ID", "user1")
 	headers1.Set("X-Test-User-Name", "Alice")
-	conn1, _, err := websocket.Dial(ctx, wsURL+"/ws/acme/proj1/file.html?locale=fr", &websocket.DialOptions{
+	conn1, resp1, err := websocket.Dial(ctx, wsURL+"/ws/acme/proj1/file.html?locale=fr", &websocket.DialOptions{
 		Subprotocols: []string{"yjs"},
 		HTTPHeader:   headers1,
 	})
 	require.NoError(t, err)
 	defer func() { _ = conn1.CloseNow() }()
+	if resp1 != nil && resp1.Body != nil {
+		defer resp1.Body.Close()
+	}
 
 	headers2 := http.Header{}
 	headers2.Set("X-Test-User-ID", "user2")
 	headers2.Set("X-Test-User-Name", "Bob")
-	conn2, _, err := websocket.Dial(ctx, wsURL+"/ws/acme/proj1/file.html?locale=fr", &websocket.DialOptions{
+	conn2, resp2, err := websocket.Dial(ctx, wsURL+"/ws/acme/proj1/file.html?locale=fr", &websocket.DialOptions{
 		Subprotocols: []string{"yjs"},
 		HTTPHeader:   headers2,
 	})
 	require.NoError(t, err)
 	defer func() { _ = conn2.CloseNow() }()
+	if resp2 != nil && resp2.Body != nil {
+		defer resp2.Body.Close()
+	}
 
 	// Give server time to register both clients.
 	time.Sleep(100 * time.Millisecond)

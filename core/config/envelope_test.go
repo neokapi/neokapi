@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestKind_IsValid(t *testing.T) {
@@ -70,10 +71,10 @@ func TestParseAPIVersion(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			got, err := ParseAPIVersion(tt.input)
 			if tt.wantErr {
-				assert.Error(t, err)
+				require.Error(t, err)
 				return
 			}
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			assert.Equal(t, tt.want, got)
 		})
 	}

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"os/exec"
 	"runtime"
@@ -24,22 +25,22 @@ func init() {
 func launchDesktopApp() error {
 	switch runtime.GOOS {
 	case "darwin":
-		return launchOrError(exec.Command("open", "-a", "Bowrain"))
+		return launchOrError(exec.Command("open", "-a", "Bowrain")) //nolint:noctx // launch desktop app
 	case "linux":
 		// Try common locations.
 		for _, name := range []string{"Bowrain", "bowrain"} {
 			if path, err := exec.LookPath(name); err == nil {
-				return launchOrError(exec.Command(path))
+				return launchOrError(exec.Command(path)) //nolint:noctx // launch desktop app
 			}
 		}
-		return fmt.Errorf("bowrain desktop app not found in PATH; install it from https://github.com/neokapi/neokapi/releases")
+		return errors.New("bowrain desktop app not found in PATH; install it from https://github.com/neokapi/neokapi/releases")
 	case "windows":
 		for _, name := range []string{"Bowrain.exe", "bowrain.exe"} {
 			if path, err := exec.LookPath(name); err == nil {
-				return launchOrError(exec.Command(path))
+				return launchOrError(exec.Command(path)) //nolint:noctx // launch desktop app
 			}
 		}
-		return fmt.Errorf("bowrain desktop app not found in PATH; install it from https://github.com/neokapi/neokapi/releases")
+		return errors.New("bowrain desktop app not found in PATH; install it from https://github.com/neokapi/neokapi/releases")
 	default:
 		return fmt.Errorf("unsupported platform %s; download Bowrain from https://github.com/neokapi/neokapi/releases", runtime.GOOS)
 	}

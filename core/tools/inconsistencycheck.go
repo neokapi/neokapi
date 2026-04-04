@@ -2,6 +2,7 @@ package tools
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -43,7 +44,7 @@ func (c *InconsistencyCheckConfig) Reset() {
 // Validate checks configuration validity.
 func (c *InconsistencyCheckConfig) Validate() error {
 	if c.TargetLocale.IsEmpty() {
-		return fmt.Errorf("inconsistency-check: TargetLocale is required")
+		return errors.New("inconsistency-check: TargetLocale is required")
 	}
 	return nil
 }

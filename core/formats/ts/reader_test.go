@@ -951,10 +951,10 @@ func TestSnippet_Config(t *testing.T) {
 	reader := ts.NewReader()
 	cfg := reader.Config()
 	assert.Equal(t, "ts", cfg.FormatName())
-	assert.NoError(t, cfg.Validate())
+	require.NoError(t, cfg.Validate())
 
 	err := cfg.(*ts.Config).ApplyMap(map[string]any{"bad": "value"})
-	assert.Error(t, err)
+	require.Error(t, err)
 }
 
 // TestSnippet_NilDocument verifies error on nil document.
@@ -962,7 +962,7 @@ func TestSnippet_NilDocument(t *testing.T) {
 	t.Parallel()
 	reader := ts.NewReader()
 	err := reader.Open(context.Background(), nil)
-	assert.Error(t, err)
+	require.Error(t, err)
 }
 
 // TestSnippet_Roundtrip verifies full roundtrip.
@@ -1174,7 +1174,7 @@ func TestWriter_EmptyOutput(t *testing.T) {
 	close(ch)
 
 	err := writer.Write(ctx, ch)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 }
 
 // TestSnippet_LayerProperties verifies the layer has correct format metadata.

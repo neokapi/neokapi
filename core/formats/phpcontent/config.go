@@ -1,10 +1,11 @@
 package phpcontent
 
 import (
+	"errors"
 	"fmt"
 
-	coreschema "github.com/neokapi/neokapi/core/schema"
 	"github.com/neokapi/neokapi/core/format/schema"
+	coreschema "github.com/neokapi/neokapi/core/schema"
 )
 
 // Config holds configuration for the PHP Content format.
@@ -37,13 +38,13 @@ func (c *Config) ApplyMap(values map[string]any) error {
 		case "useDirectives":
 			b, ok := val.(bool)
 			if !ok {
-				return fmt.Errorf("phpcontent: useDirectives must be a boolean")
+				return errors.New("phpcontent: useDirectives must be a boolean")
 			}
 			c.UseDirectives = b
 		case "extractOutsideDirectives":
 			b, ok := val.(bool)
 			if !ok {
-				return fmt.Errorf("phpcontent: extractOutsideDirectives must be a boolean")
+				return errors.New("phpcontent: extractOutsideDirectives must be a boolean")
 			}
 			c.ExtractOutsideDirectives = b
 		default:

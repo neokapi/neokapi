@@ -226,7 +226,7 @@ func TestQueuedStream_EnqueueError(t *testing.T) {
 	mq := &mockQueue{err: assert.AnError}
 
 	err := mq.Enqueue(context.Background(), "anything")
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Equal(t, assert.AnError, err)
 }
 
@@ -341,7 +341,7 @@ func TestQueuedStream_ContextCancelDuringRelay(t *testing.T) {
 	}
 done:
 
-	assert.ErrorIs(t, ctxErr, context.Canceled)
+	require.ErrorIs(t, ctxErr, context.Canceled)
 	output := buf.String()
 	assert.Contains(t, output, "event: message_start")
 	// message_end should NOT be present since we cancelled.

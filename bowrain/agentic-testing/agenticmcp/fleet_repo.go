@@ -49,7 +49,7 @@ func (r *GitFleetRepo) ensureClone(ctx context.Context) (string, error) {
 		if out, err := cmd.CombinedOutput(); err != nil {
 			// Non-fatal: fetch instead if ff-only fails.
 			cmd2 := exec.CommandContext(ctx, "git", "-C", dir, "fetch", "--all")
-			cmd2.CombinedOutput() //nolint:errcheck
+			cmd2.CombinedOutput() //nolint:errcheck // best-effort fetch fallback; non-fatal
 			_ = out
 		}
 		return dir, nil
@@ -158,7 +158,7 @@ func (r *GitFleetRepo) CommitFile(ctx context.Context, path, content, message st
 		{"config", "user.email", "agent-" + author + "@bowrain.cloud"},
 	} {
 		cmd := exec.CommandContext(ctx, "git", append([]string{"-C", dir}, cfg...)...)
-		cmd.CombinedOutput() //nolint:errcheck
+		cmd.CombinedOutput() //nolint:errcheck // best-effort git config; non-fatal if it fails
 	}
 
 	// Stage, commit, push.

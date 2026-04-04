@@ -1291,14 +1291,14 @@ func TestDoubleExtractionCompKit(t *testing.T) {
 func TestParameters(t *testing.T) {
 	cfg := tmx.Config{}
 	assert.Equal(t, "tmx", cfg.FormatName())
-	assert.NoError(t, cfg.Validate())
+	require.NoError(t, cfg.Validate())
 }
 
 // okapi: ParametersTest#testReset
 func TestParametersReset(t *testing.T) {
 	cfg := tmx.Config{}
 	cfg.Reset()
-	assert.NoError(t, cfg.Validate())
+	require.NoError(t, cfg.Validate())
 }
 
 // --- Roundtrip tests ---
@@ -1416,7 +1416,7 @@ func TestNilDocument(t *testing.T) {
 	ctx := context.Background()
 	reader := tmx.NewReader()
 	err := reader.Open(ctx, nil)
-	assert.Error(t, err)
+	require.Error(t, err)
 }
 
 func TestVersionDetection(t *testing.T) {
@@ -1722,11 +1722,11 @@ func TestConfigTransform(t *testing.T) {
 
 	// ApplyMap with empty should succeed
 	err := cfg.ApplyMap(map[string]any{})
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	// ApplyMap with unknown key should error
 	err = cfg.ApplyMap(map[string]any{"unknown": "value"})
-	assert.Error(t, err)
+	require.Error(t, err)
 }
 
 func TestSchemaMetadata(t *testing.T) {
@@ -1866,7 +1866,7 @@ func TestWriterNilOutput(t *testing.T) {
 	ch := make(chan *model.Part)
 	close(ch)
 	err := writer.Write(ctx, ch)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 }
 
 func TestMultipleTUsWithSameId(t *testing.T) {
@@ -1944,11 +1944,11 @@ func TestCloserMethod(t *testing.T) {
 	reader := tmx.NewReader()
 	// Close without Open should not panic
 	err := reader.Close()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 }
 
 func TestWriterClose(t *testing.T) {
 	writer := tmx.NewWriter()
 	err := writer.Close()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 }

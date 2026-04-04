@@ -705,7 +705,7 @@ func (tb *SQLiteTermBase) queryExactTerms(sourceText string, opts LookupOptions)
 		column = "t.text_lower"
 	}
 
-	where := fmt.Sprintf("%s = ? AND t.locale = ?", column)
+	where := column + " = ? AND t.locale = ?"
 	args := []any{searchText, string(opts.SourceLocale)}
 
 	needsJoin := false

@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"errors"
 	"fmt"
 	"path/filepath"
 
@@ -110,7 +111,7 @@ func (a *App) runFromProject(cmd *cobra.Command, flowName, projectPath string, o
 
 	inputPaths, _ := cmd.Flags().GetStringSlice("input")
 	if len(inputPaths) == 0 {
-		return fmt.Errorf("--input (-i) is required (content pattern resolution not yet implemented)")
+		return errors.New("--input (-i) is required (content pattern resolution not yet implemented)")
 	}
 
 	// Build resource context from project file location.

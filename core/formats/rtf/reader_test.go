@@ -210,7 +210,7 @@ func TestReadNilDocument(t *testing.T) {
 	ctx := context.Background()
 	reader := rtf.NewReader()
 	err := reader.Open(ctx, nil)
-	assert.Error(t, err)
+	require.Error(t, err)
 }
 
 func TestReadEmpty(t *testing.T) {
@@ -320,11 +320,11 @@ func TestRoundTripWithTargetLocale(t *testing.T) {
 func TestConfigApplyMap(t *testing.T) {
 	cfg := &rtf.Config{}
 	assert.Equal(t, "rtf", cfg.FormatName())
-	assert.NoError(t, cfg.Validate())
+	require.NoError(t, cfg.Validate())
 
 	err := cfg.ApplyMap(map[string]any{"unknown": "value"})
-	assert.Error(t, err)
+	require.Error(t, err)
 
 	err = cfg.ApplyMap(map[string]any{})
-	assert.NoError(t, err)
+	require.NoError(t, err)
 }

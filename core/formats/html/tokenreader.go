@@ -723,10 +723,8 @@ func (s *tokenReaderState) forwardScanForBlockChildren(remaining []byte, parentT
 				if inlineElements[a] && !selfClosingElements[a] {
 					depth++
 				}
-			} else {
-				if !selfClosingElements[a] {
-					depth++
-				}
+			} else if !selfClosingElements[a] {
+				depth++
 			}
 
 		case html.EndTagToken:

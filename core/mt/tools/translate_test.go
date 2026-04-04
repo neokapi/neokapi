@@ -2,12 +2,13 @@ package tools_test
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"testing"
 
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/mt/tools"
-	"github.com/neokapi/neokapi/providers/mt"
+	mtprovider "github.com/neokapi/neokapi/providers/mt"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -137,7 +138,7 @@ func TestMTTranslateToolPassesThroughNonBlock(t *testing.T) {
 func TestMTTranslateToolPropagatesProviderError(t *testing.T) {
 	mock := newMock("test-mt")
 	mock.translateFn = func(_ context.Context, _ mtprovider.TranslateRequest) (*mtprovider.TranslateResponse, error) {
-		return nil, fmt.Errorf("API rate limit exceeded")
+		return nil, errors.New("API rate limit exceeded")
 	}
 
 	tl := tools.NewMTTranslateTool(mock, tools.MTTranslateConfig{

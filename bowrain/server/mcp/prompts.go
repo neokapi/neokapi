@@ -78,7 +78,7 @@ func (s *MCPServer) handleWriteInVoice(ctx context.Context, req *mcp.GetPromptRe
 		contentTypeStr = contentType
 	}
 
-	systemPrompt := fmt.Sprintf("You are a brand voice writer. Follow the brand voice guide below exactly when writing content.\n\n%s", guide)
+	systemPrompt := "You are a brand voice writer. Follow the brand voice guide below exactly when writing content.\n\n" + guide
 	userPrompt := fmt.Sprintf("Write a %s about: %s\n\nFollow the brand voice guide precisely. Use the preferred vocabulary, avoid forbidden and competitor terms, and match the specified tone and style.", contentTypeStr, topic)
 
 	return &mcp.GetPromptResult{
@@ -104,7 +104,7 @@ func (s *MCPServer) handleRewriteInVoicePrompt(ctx context.Context, req *mcp.Get
 	resolved := resolveProfile(profile, locale, channel)
 	guide := formatVoiceGuide(resolved)
 
-	systemPrompt := fmt.Sprintf("You are a brand voice editor. Rewrite text to match the brand voice guide below. Preserve the original meaning while adjusting tone, style, and vocabulary.\n\n%s", guide)
+	systemPrompt := "You are a brand voice editor. Rewrite text to match the brand voice guide below. Preserve the original meaning while adjusting tone, style, and vocabulary.\n\n" + guide
 	userPrompt := fmt.Sprintf("Rewrite the following text to match the brand voice:\n\n%s\n\nProvide the rewritten text and a brief summary of changes made.", text)
 
 	return &mcp.GetPromptResult{
@@ -129,7 +129,7 @@ func (s *MCPServer) handleCheckDraft(ctx context.Context, req *mcp.GetPromptRequ
 	resolved := resolveProfile(profile, locale, "")
 	guide := formatVoiceGuide(resolved)
 
-	systemPrompt := fmt.Sprintf("You are a brand voice reviewer. Evaluate text against the brand voice guide below. Check for tone consistency, style rule compliance, vocabulary violations, and overall brand alignment.\n\n%s", guide)
+	systemPrompt := "You are a brand voice reviewer. Evaluate text against the brand voice guide below. Check for tone consistency, style rule compliance, vocabulary violations, and overall brand alignment.\n\n" + guide
 	userPrompt := fmt.Sprintf("Review the following draft against the brand voice guidelines:\n\n%s\n\nProvide:\n1. An overall compliance assessment (score 0-100)\n2. Specific findings grouped by dimension (tone, style, vocabulary, clarity, brand_compliance)\n3. Suggested corrections for each finding\n4. A revised version if changes are needed", draft)
 
 	return &mcp.GetPromptResult{

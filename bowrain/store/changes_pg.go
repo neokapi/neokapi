@@ -3,6 +3,7 @@ package store
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
@@ -31,7 +32,7 @@ func (s *PostgresStore) GetChanges(ctx context.Context, projectID, stream string
 				 WHERE project_id = $1 AND stream = $2 AND seq > $3
 				   AND (locale IS NULL OR locale IN (` + inClause + `))
 				 ORDER BY seq ASC
-				 LIMIT $` + fmt.Sprintf("%d", paramN)
+				 LIMIT $` + strconv.Itoa(paramN)
 		args = []any{projectID, stream, sinceCursor}
 		for _, loc := range locales {
 			args = append(args, loc)

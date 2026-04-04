@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"context"
 	"fmt"
 	"regexp"
 )
@@ -21,8 +22,10 @@ func MigratePostgresNS(db *PgDB, tableName string, migrations []Migration) error
 		return fmt.Errorf("invalid migration table name: %q", tableName)
 	}
 
+	ctx := context.Background()
+
 	// Create migration tracking table.
-	if _, err := db.Exec(fmt.Sprintf(`
+	if _, err := db.ExecContext(ctx, fmt.Sprintf(`
 		CREATE TABLE IF NOT EXISTS %s (
 			version     INTEGER PRIMARY KEY,
 			description TEXT NOT NULL,
@@ -34,7 +37,7 @@ func MigratePostgresNS(db *PgDB, tableName string, migrations []Migration) error
 
 	// Get current version.
 	var currentVersion int
-	err := db.QueryRow(fmt.Sprintf("SELECT COALESCE(MAX(version), 0) FROM %s", tableName)).Scan(&currentVersion)
+	err := db.QueryRowContext(ctx, "SELECT COALESCE(MAX(version), 0) FROM "+tableName).Scan(&currentVersion)
 	if err != nil {
 		return fmt.Errorf("get current version: %w", err)
 	}
@@ -45,17 +48,17 @@ func MigratePostgresNS(db *PgDB, tableName string, migrations []Migration) error
 			continue
 		}
 
-		tx, err := db.Begin()
+		tx, err := db.BeginTx(ctx, nil)
 		if err != nil {
 			return fmt.Errorf("begin migration %d: %w", m.Version, err)
 		}
 
-		if _, err := tx.Exec(m.SQL); err != nil {
+		if _, err := tx.ExecContext(ctx, m.SQL); err != nil {
 			_ = tx.Rollback()
 			return fmt.Errorf("apply migration %d (%s): %w", m.Version, m.Description, err)
 		}
 
-		if _, err := tx.Exec(
+		if _, err := tx.ExecContext(ctx,
 			fmt.Sprintf("INSERT INTO %s (version, description) VALUES ($1, $2)", tableName),
 			m.Version, m.Description,
 		); err != nil {

@@ -2,6 +2,7 @@ package bridge
 
 import (
 	"context"
+	"errors"
 	"io"
 	"log"
 	"net"
@@ -53,7 +54,7 @@ func (s *mockBridgeServer) Process(stream pb.BridgeService_ProcessServer) error 
 	// Drain processed parts from client until CloseSend.
 	for {
 		_, err := stream.Recv()
-		if err == io.EOF {
+		if errors.Is(err, io.EOF) {
 			break
 		}
 		if err != nil {
@@ -79,7 +80,7 @@ func (s *mockBridgeServer) Shutdown(_ context.Context, _ *pb.ShutdownRequest) (*
 // startMockServer starts a gRPC server with the mock service on a random port.
 func startMockServer(t *testing.T, srv *mockBridgeServer) (string, func()) {
 	t.Helper()
-	lis, err := net.Listen("tcp", "localhost:0")
+	lis, err := net.Listen("tcp", "localhost:0") //nolint:noctx // test helper
 	require.NoError(t, err)
 
 	s := grpc.NewServer()

@@ -43,7 +43,7 @@ func (p *TranslatePrompt) Build(sourceText string) (system string, user string) 
 		userBuilder.WriteString("\n")
 	}
 
-	userBuilder.WriteString(fmt.Sprintf("Translate:\n%s", sourceText))
+	userBuilder.WriteString("Translate:\n" + sourceText)
 
 	user = userBuilder.String()
 	return

@@ -5,10 +5,10 @@ import (
 	"net/http"
 
 	"github.com/labstack/echo/v4"
-	"github.com/neokapi/neokapi/core/model"
-	"github.com/neokapi/neokapi/core/tools"
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	"github.com/neokapi/neokapi/bowrain/core/store"
+	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/tools"
 )
 
 // QAIssueResponse is a single QA finding returned by the API.

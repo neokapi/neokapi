@@ -2,6 +2,7 @@ package tools
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"regexp"
 
@@ -42,7 +43,7 @@ func (c *PatternCheckConfig) Reset() {
 // Validate checks configuration validity.
 func (c *PatternCheckConfig) Validate() error {
 	if c.TargetLocale.IsEmpty() {
-		return fmt.Errorf("pattern-check: TargetLocale is required")
+		return errors.New("pattern-check: TargetLocale is required")
 	}
 	for i, rule := range c.Patterns {
 		if rule.Pattern == "" {

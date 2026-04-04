@@ -2,6 +2,7 @@ package connector
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -9,8 +10,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/neokapi/neokapi/core/registry"
 	platconn "github.com/neokapi/neokapi/bowrain/core/connector"
+	"github.com/neokapi/neokapi/core/registry"
 )
 
 // GitConnector fetches and publishes localization content from Git repositories.
@@ -32,7 +33,7 @@ type GitConnector struct {
 func NewGitConnector(formatReg *registry.FormatRegistry, config map[string]string) (*GitConnector, error) {
 	repoURL := config["repo"]
 	if repoURL == "" {
-		return nil, fmt.Errorf("git connector requires 'repo' config")
+		return nil, errors.New("git connector requires 'repo' config")
 	}
 	branch := config["branch"]
 	if branch == "" {
@@ -167,7 +168,7 @@ func (c *GitConnector) Publish(ctx context.Context, items []*platconn.ContentIte
 		// Attempt to undo the commit while keeping the working tree intact.
 		resetCmd := exec.CommandContext(ctx, "git", "-C", c.localPath, "reset", "--soft", "HEAD~1")
 		if resetOut, resetErr := resetCmd.CombinedOutput(); resetErr != nil {
-			return fmt.Errorf("git push: %s: %w (rollback also failed: %s: %v)", string(out), err, string(resetOut), resetErr)
+			return fmt.Errorf("git push: %s: %w (rollback also failed: %s: %w)", string(out), err, string(resetOut), resetErr)
 		}
 		return fmt.Errorf("git push (rolled back commit): %s: %w", string(out), err)
 	}

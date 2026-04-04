@@ -6,10 +6,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/neokapi/neokapi/bowrain/jobs"
-	bstore "github.com/neokapi/neokapi/bowrain/store"
 	platev "github.com/neokapi/neokapi/bowrain/core/event"
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
+	"github.com/neokapi/neokapi/bowrain/jobs"
+	bstore "github.com/neokapi/neokapi/bowrain/store"
 )
 
 // PushCompletionTracker monitors automation jobs triggered by pushes and

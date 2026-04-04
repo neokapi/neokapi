@@ -2,6 +2,7 @@ package flow_test
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"sync"
@@ -158,7 +159,7 @@ func TestFlowExecutorErrorPropagation(t *testing.T) {
 	errTool := &tool.BaseTool{
 		ToolName: "error-tool",
 		HandleBlockFn: func(part *model.Part) (*model.Part, error) {
-			return nil, fmt.Errorf("processing error")
+			return nil, errors.New("processing error")
 		},
 	}
 
@@ -186,7 +187,7 @@ func TestFlowExecutorErrorPropagation(t *testing.T) {
 	}
 
 	err := wait()
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "processing error")
 }
 
@@ -226,7 +227,7 @@ func TestFlowExecutorContextCancellation(t *testing.T) {
 	}
 
 	err := wait()
-	assert.Error(t, err)
+	require.Error(t, err)
 }
 
 func TestFlowExecutorNoTools(t *testing.T) {
@@ -441,7 +442,7 @@ func TestParallelExecutionErrorPropagation(t *testing.T) {
 				HandleBlockFn: func(part *model.Part) (*model.Part, error) {
 					n := callCount.Add(1)
 					if n == 1 {
-						return nil, fmt.Errorf("intentional error")
+						return nil, errors.New("intentional error")
 					}
 					return part, nil
 				},

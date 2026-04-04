@@ -135,6 +135,6 @@ func TestStripEmptyTargetLanguageFile(t *testing.T) {
 
 	t.Run("nonexistent file returns error", func(t *testing.T) {
 		_, _, err := stripEmptyTargetLanguageFile("/nonexistent/file.xlf")
-		assert.Error(t, err)
+		require.Error(t, err)
 	})
 }

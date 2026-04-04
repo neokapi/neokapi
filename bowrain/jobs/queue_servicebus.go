@@ -2,6 +2,7 @@ package jobs
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -63,7 +64,7 @@ func (q *ServiceBusQueue) Dequeue(ctx context.Context) (string, func(), func(), 
 		return "", nil, nil, fmt.Errorf("receive message: %w", err)
 	}
 	if len(messages) == 0 {
-		return "", nil, nil, fmt.Errorf("no messages available")
+		return "", nil, nil, errors.New("no messages available")
 	}
 
 	msg := messages[0]

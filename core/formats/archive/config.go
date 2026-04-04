@@ -1,6 +1,7 @@
 package archive
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/neokapi/neokapi/core/format"
@@ -43,13 +44,13 @@ func (c *Config) ApplyMap(values map[string]any) error {
 				for _, item := range v {
 					s, ok := item.(string)
 					if !ok {
-						return fmt.Errorf("archive: filePatterns items must be strings")
+						return errors.New("archive: filePatterns items must be strings")
 					}
 					patterns = append(patterns, s)
 				}
 				c.FilePatterns = patterns
 			default:
-				return fmt.Errorf("archive: filePatterns must be a string array")
+				return errors.New("archive: filePatterns must be a string array")
 			}
 		case "subfilterMappings":
 			sfs, err := parseSubfilterMappings(val)
@@ -79,7 +80,7 @@ func parseSubfilterMappings(val any) ([]format.SubfilterMapping, error) {
 		pattern, _ := m["pattern"].(string)
 		formatName, _ := m["format"].(string)
 		if pattern == "" || formatName == "" {
-			return nil, fmt.Errorf("subfilter mapping requires 'pattern' and 'format'")
+			return nil, errors.New("subfilter mapping requires 'pattern' and 'format'")
 		}
 		result = append(result, format.SubfilterMapping{Pattern: pattern, Format: formatName})
 	}

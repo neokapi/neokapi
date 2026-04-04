@@ -4,15 +4,16 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
 	"strings"
 	"time"
 
+	platconn "github.com/neokapi/neokapi/bowrain/core/connector"
 	"github.com/neokapi/neokapi/core/httputil"
 	"github.com/neokapi/neokapi/core/model"
-	platconn "github.com/neokapi/neokapi/bowrain/core/connector"
 )
 
 // HubSpotConnector integrates with HubSpot CMS for marketing content.
@@ -42,7 +43,7 @@ type hsPageList struct {
 func NewHubSpotConnector(config map[string]string) (*HubSpotConnector, error) {
 	apiKey := config["api_key"]
 	if apiKey == "" {
-		return nil, fmt.Errorf("hubspot connector requires 'api_key' config")
+		return nil, errors.New("hubspot connector requires 'api_key' config")
 	}
 
 	id := config["id"]
@@ -92,7 +93,7 @@ func (c *HubSpotConnector) Fetch(ctx context.Context, opts platconn.FetchOptions
 		items = append(items, &platconn.ContentItem{
 			ID:          page.ID,
 			Name:        page.Name,
-			Path:        fmt.Sprintf("pages/%s", page.Slug),
+			Path:        "pages/" + page.Slug,
 			Format:      "html",
 			Blocks:      blocks,
 			LastChanged: updated,
@@ -134,7 +135,7 @@ func (c *HubSpotConnector) Publish(ctx context.Context, items []*platconn.Conten
 			return fmt.Errorf("marshal update for page %s: %w", pageID, err)
 		}
 
-		url := fmt.Sprintf("https://api.hubapi.com/cms/v3/pages/site-pages/%s", pageID)
+		url := "https://api.hubapi.com/cms/v3/pages/site-pages/" + pageID
 		req, err := http.NewRequestWithContext(ctx, http.MethodPatch, url, bytes.NewReader(body))
 		if err != nil {
 			return fmt.Errorf("create request for page %s: %w", pageID, err)

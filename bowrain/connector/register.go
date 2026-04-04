@@ -1,8 +1,8 @@
 package connector
 
 import (
-	"github.com/neokapi/neokapi/core/registry"
 	platconn "github.com/neokapi/neokapi/bowrain/core/connector"
+	"github.com/neokapi/neokapi/core/registry"
 )
 
 // RegisterAll registers all built-in connectors with the given registry.

@@ -4,8 +4,8 @@ import (
 	"context"
 	"testing"
 
-	"github.com/neokapi/neokapi/core/model"
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
+	"github.com/neokapi/neokapi/core/model"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

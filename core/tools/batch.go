@@ -2,7 +2,7 @@ package tools
 
 import (
 	"context"
-	"fmt"
+	"errors"
 
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/tool"
@@ -22,7 +22,7 @@ func (c *BatchConfig) Reset() { c.Size = 10 }
 // Validate checks configuration validity.
 func (c *BatchConfig) Validate() error {
 	if c.Size < 1 {
-		return fmt.Errorf("batch: Size must be >= 1")
+		return errors.New("batch: Size must be >= 1")
 	}
 	return nil
 }

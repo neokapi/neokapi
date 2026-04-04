@@ -2,11 +2,12 @@ package service
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
+	"github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/core/flow"
 	"github.com/neokapi/neokapi/core/registry"
-	"github.com/neokapi/neokapi/bowrain/core/store"
 )
 
 // FlowService manages flow execution with optional store integration.
@@ -30,10 +31,10 @@ func NewFlowService(s store.ContentStore, formatReg *registry.FormatRegistry, to
 // are persisted to the store after successful execution.
 func (s *FlowService) ExecuteFlow(ctx context.Context, f *flow.Flow, items []*flow.FlowItem, projectID string) error {
 	if f == nil {
-		return fmt.Errorf("flow definition is required")
+		return errors.New("flow definition is required")
 	}
 	if len(items) == 0 {
-		return fmt.Errorf("at least one flow item is required")
+		return errors.New("at least one flow item is required")
 	}
 	opts := []flow.ExecutorOption{
 		flow.WithFailFast(true),

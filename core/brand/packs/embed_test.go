@@ -41,5 +41,5 @@ func TestLoadAll(t *testing.T) {
 
 func TestLoadInvalid(t *testing.T) {
 	_, err := Load("nonexistent")
-	assert.Error(t, err)
+	require.Error(t, err)
 }

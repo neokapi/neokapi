@@ -46,7 +46,7 @@ func TestPluginManagerDiscoverEmptyDir(t *testing.T) {
 	// Discovering in a non-existent directory should not error
 	// (filepath.Glob returns nil for no matches).
 	err := m.DiscoverAndRegister(t.TempDir(), reg)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, 0, m.PluginCount())
 }
 
@@ -61,7 +61,7 @@ func TestPluginManagerShutdownPlugin(t *testing.T) {
 	m := NewPluginManager(nil)
 	// ShutdownPlugin for a non-existent plugin should return error.
 	err := m.ShutdownPlugin("/nonexistent")
-	assert.Error(t, err)
+	require.Error(t, err)
 }
 
 func TestPluginManagerIsLoaded(t *testing.T) {

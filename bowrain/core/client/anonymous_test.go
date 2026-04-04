@@ -18,7 +18,7 @@ func TestCreateAnonymousProject(t *testing.T) {
 			assert.Equal(t, "application/json", r.Header.Get("Content-Type"))
 
 			var req map[string]any
-			require.NoError(t, json.NewDecoder(r.Body).Decode(&req))
+			assert.NoError(t, json.NewDecoder(r.Body).Decode(&req))
 			assert.Equal(t, "my-project", req["name"])
 			assert.Equal(t, "en", req["default_source_language"])
 			targets := req["target_languages"].([]any)
@@ -41,7 +41,7 @@ func TestCreateAnonymousProject(t *testing.T) {
 	t.Run("with email", func(t *testing.T) {
 		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			var req map[string]any
-			require.NoError(t, json.NewDecoder(r.Body).Decode(&req))
+			assert.NoError(t, json.NewDecoder(r.Body).Decode(&req))
 			assert.Equal(t, "user@example.com", req["email"])
 			assert.Equal(t, "my-project", req["name"])
 
@@ -61,7 +61,7 @@ func TestCreateAnonymousProject(t *testing.T) {
 	t.Run("empty targets", func(t *testing.T) {
 		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			var req map[string]any
-			require.NoError(t, json.NewDecoder(r.Body).Decode(&req))
+			assert.NoError(t, json.NewDecoder(r.Body).Decode(&req))
 			assert.Nil(t, req["target_languages"], "empty targets should not be sent")
 
 			w.WriteHeader(http.StatusCreated)
@@ -115,7 +115,7 @@ func TestCreateAuthenticatedProject(t *testing.T) {
 			assert.Equal(t, "Bearer my-token", r.Header.Get("Authorization"))
 
 			var req map[string]any
-			require.NoError(t, json.NewDecoder(r.Body).Decode(&req))
+			assert.NoError(t, json.NewDecoder(r.Body).Decode(&req))
 			assert.Equal(t, "my-project", req["name"])
 			assert.Equal(t, "en", req["default_source_language"])
 
@@ -136,7 +136,7 @@ func TestCreateAuthenticatedProject(t *testing.T) {
 	t.Run("with workspace", func(t *testing.T) {
 		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			var req map[string]any
-			require.NoError(t, json.NewDecoder(r.Body).Decode(&req))
+			assert.NoError(t, json.NewDecoder(r.Body).Decode(&req))
 			assert.Equal(t, "team-ws", req["workspace"])
 
 			w.WriteHeader(http.StatusCreated)
@@ -209,7 +209,7 @@ func TestCreateWorkspace(t *testing.T) {
 			assert.Equal(t, "Bearer my-token", r.Header.Get("Authorization"))
 
 			var req map[string]string
-			require.NoError(t, json.NewDecoder(r.Body).Decode(&req))
+			assert.NoError(t, json.NewDecoder(r.Body).Decode(&req))
 			assert.Equal(t, "My Team", req["name"])
 			assert.Equal(t, "my-team", req["slug"])
 

@@ -2,7 +2,7 @@ package jobs
 
 import (
 	"context"
-	"fmt"
+	"errors"
 	"sync"
 )
 
@@ -43,13 +43,13 @@ func (q *ChannelQueue) Enqueue(_ context.Context, jobID string) error {
 	q.mu.Lock()
 	defer q.mu.Unlock()
 	if q.closed {
-		return fmt.Errorf("queue is closed")
+		return errors.New("queue is closed")
 	}
 	select {
 	case q.ch <- jobID:
 		return nil
 	default:
-		return fmt.Errorf("queue is full")
+		return errors.New("queue is full")
 	}
 }
 
@@ -59,7 +59,7 @@ func (q *ChannelQueue) Dequeue(ctx context.Context) (string, func(), func(), err
 		return "", nil, nil, ctx.Err()
 	case jobID, ok := <-q.ch:
 		if !ok {
-			return "", nil, nil, fmt.Errorf("queue is closed")
+			return "", nil, nil, errors.New("queue is closed")
 		}
 		ack := func() {} // channel dequeue is already consuming
 		nack := func() {

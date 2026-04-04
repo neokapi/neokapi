@@ -2,6 +2,7 @@ package auth
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 )
@@ -70,7 +71,7 @@ func actionPermissions(action ScopeAction) Permission {
 func ParseScope(s string) (ResolvedScope, error) {
 	s = strings.TrimSpace(s)
 	if s == "" {
-		return ResolvedScope{}, fmt.Errorf("empty scope string")
+		return ResolvedScope{}, errors.New("empty scope string")
 	}
 
 	// Handle wildcard.
@@ -150,7 +151,7 @@ func ValidateScopes(scopesJSON string) error {
 		return fmt.Errorf("invalid scopes JSON: %w", err)
 	}
 	if len(scopes) == 0 {
-		return fmt.Errorf("empty scopes array")
+		return errors.New("empty scopes array")
 	}
 	for _, s := range scopes {
 		if _, err := ParseScope(s); err != nil {
@@ -169,7 +170,7 @@ func ParseScopes(scopesJSON string) (*ResolvedScopes, error) {
 	}
 
 	if len(scopes) == 0 {
-		return nil, fmt.Errorf("empty scopes array")
+		return nil, errors.New("empty scopes array")
 	}
 
 	result := &ResolvedScopes{}

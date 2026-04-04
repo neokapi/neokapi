@@ -3,6 +3,7 @@ package html
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -138,7 +139,7 @@ func (w *Writer) loadOriginalContent() ([]byte, error) {
 func (w *Writer) writeFromSkeleton(store *format.SkeletonStore, blocks map[string]*model.Block) error {
 	for {
 		entry, err := store.Next()
-		if err == io.EOF {
+		if errors.Is(err, io.EOF) {
 			break
 		}
 		if err != nil {

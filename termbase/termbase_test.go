@@ -82,7 +82,7 @@ func TestInMemoryTermBase_Delete(t *testing.T) {
 	assert.False(t, ok)
 
 	err = tb.DeleteConcept("nonexistent")
-	assert.Error(t, err)
+	require.Error(t, err)
 }
 
 func TestInMemoryTermBase_Update(t *testing.T) {
@@ -470,7 +470,7 @@ func TestInMemoryTermBase_MultiWordTermPrecedence(t *testing.T) {
 func TestInMemoryTermBase_InterfaceCompliance(t *testing.T) {
 	tb := termbase.NewInMemoryTermBase()
 	var _ termbase.TermBase = tb
-	assert.NoError(t, tb.Close())
+	require.NoError(t, tb.Close())
 }
 
 // --- CSV import/export tests ---

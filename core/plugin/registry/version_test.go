@@ -69,7 +69,7 @@ func TestReadVersionFileNotFound(t *testing.T) {
 	dir := t.TempDir()
 
 	_, err := ReadVersionFile(dir, "nonexistent", "1.0.0")
-	assert.Error(t, err)
+	require.Error(t, err)
 }
 
 func TestListInstalledVersions(t *testing.T) {
@@ -175,7 +175,7 @@ func TestLatestInstalledVersionNotFound(t *testing.T) {
 	dir := t.TempDir()
 
 	_, err := LatestInstalledVersion(dir, "nonexistent")
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "no installed versions")
 }
 

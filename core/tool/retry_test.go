@@ -2,7 +2,7 @@ package tool
 
 import (
 	"context"
-	"fmt"
+	"errors"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -43,7 +43,7 @@ func TestRetryTool_RetriesOnTransientError(t *testing.T) {
 		HandleBlockFn: func(part *model.Part) (*model.Part, error) {
 			n := attempts.Add(1)
 			if n < 3 {
-				return nil, fmt.Errorf("transient error")
+				return nil, errors.New("transient error")
 			}
 			return part, nil
 		},
@@ -71,7 +71,7 @@ func TestRetryTool_ExhaustsRetries(t *testing.T) {
 	inner := &BaseTool{
 		ToolName: "always-fails",
 		HandleBlockFn: func(part *model.Part) (*model.Part, error) {
-			return nil, fmt.Errorf("permanent error")
+			return nil, errors.New("permanent error")
 		},
 	}
 
@@ -101,7 +101,7 @@ func TestRetryTool_RespectsRetryableErrors(t *testing.T) {
 		ToolName: "selective-retry",
 		HandleBlockFn: func(part *model.Part) (*model.Part, error) {
 			attempts.Add(1)
-			return nil, fmt.Errorf("rate limit exceeded")
+			return nil, errors.New("rate limit exceeded")
 		},
 	}
 
@@ -133,7 +133,7 @@ func TestRetryTool_DoesNotRetryNonMatchingError(t *testing.T) {
 		ToolName: "non-retryable",
 		HandleBlockFn: func(part *model.Part) (*model.Part, error) {
 			attempts.Add(1)
-			return nil, fmt.Errorf("invalid config")
+			return nil, errors.New("invalid config")
 		},
 	}
 
@@ -161,7 +161,7 @@ func TestRetryTool_RespectsContextCancellation(t *testing.T) {
 	inner := &BaseTool{
 		ToolName: "slow-fail",
 		HandleBlockFn: func(part *model.Part) (*model.Part, error) {
-			return nil, fmt.Errorf("error")
+			return nil, errors.New("error")
 		},
 	}
 

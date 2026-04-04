@@ -15,7 +15,8 @@ import (
 
 func TestHealthEndpoint(t *testing.T) {
 	// Find a free port.
-	ln, err := net.Listen("tcp", ":0")
+	lc := net.ListenConfig{}
+	ln, err := lc.Listen(context.Background(), "tcp", ":0")
 	require.NoError(t, err)
 	port := ln.Addr().(*net.TCPAddr).Port
 	ln.Close()
@@ -40,7 +41,11 @@ func TestHealthEndpoint(t *testing.T) {
 	// Wait for server to start.
 	var resp *http.Response
 	for range 20 {
-		resp, err = http.Get(fmt.Sprintf("http://localhost:%d/healthz", port))
+		req, reqErr := http.NewRequestWithContext(ctx, http.MethodGet, fmt.Sprintf("http://localhost:%d/healthz", port), nil)
+		if reqErr != nil {
+			t.Fatalf("create request: %v", reqErr)
+		}
+		resp, err = http.DefaultClient.Do(req)
 		if err == nil {
 			break
 		}

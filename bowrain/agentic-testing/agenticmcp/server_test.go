@@ -240,7 +240,7 @@ func TestHandleGetFleetSummary_NoFleetRepo(t *testing.T) {
 	ctx := context.Background()
 
 	_, _, err := s.handleGetFleetSummary(ctx, nil, getFleetSummaryInput{})
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "fleet repo not configured")
 }
 
@@ -288,7 +288,7 @@ func TestHandleListAgentExecutions_NoStore(t *testing.T) {
 	ctx := context.Background()
 
 	_, _, err := s.handleListAgentExecutions(ctx, nil, listAgentExecutionsInput{})
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "execution store not configured")
 }
 
@@ -297,7 +297,7 @@ func TestHandleListAgentEvents_NoStore(t *testing.T) {
 	ctx := context.Background()
 
 	_, _, err := s.handleListAgentEvents(ctx, nil, listAgentEventsInput{})
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "execution store not configured")
 }
 

@@ -2,6 +2,7 @@ package agenticmcp
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
@@ -35,7 +36,7 @@ type fileFeedbackIssueOutput struct {
 
 func (s *Server) handleFileFeedbackIssue(ctx context.Context, req *mcp.CallToolRequest, input fileFeedbackIssueInput) (*mcp.CallToolResult, fileFeedbackIssueOutput, error) {
 	if s.issues == nil {
-		return nil, fileFeedbackIssueOutput{}, fmt.Errorf("issue tracker not configured")
+		return nil, fileFeedbackIssueOutput{}, errors.New("issue tracker not configured")
 	}
 
 	url, number, err := s.issues.FileIssue(ctx, input.Title, input.Body, input.Labels)
@@ -63,7 +64,7 @@ type commitMemoryOutput struct {
 
 func (s *Server) handleCommitMemory(ctx context.Context, req *mcp.CallToolRequest, input commitMemoryInput) (*mcp.CallToolResult, commitMemoryOutput, error) {
 	if s.fleetRepo == nil {
-		return nil, commitMemoryOutput{}, fmt.Errorf("fleet repo not configured")
+		return nil, commitMemoryOutput{}, errors.New("fleet repo not configured")
 	}
 
 	sha, err := s.fleetRepo.CommitFile(ctx, input.Path, input.Content, input.Message)
