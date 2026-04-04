@@ -1,7 +1,6 @@
 package store
 
 import (
-	"context"
 	"testing"
 	"time"
 
@@ -19,7 +18,7 @@ func newTestNotificationStore(t *testing.T) *NotificationStore {
 
 func TestNotificationStore_CreateAndList(t *testing.T) {
 	ns := newTestNotificationStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	require.NoError(t, ns.Create(ctx, &Notification{
 		UserID:    "user-1",
@@ -56,7 +55,7 @@ func TestNotificationStore_CreateAndList(t *testing.T) {
 
 func TestNotificationStore_UnreadCount(t *testing.T) {
 	ns := newTestNotificationStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	require.NoError(t, ns.Create(ctx, &Notification{
 		UserID: "user-1", Type: NotificationGeneral, Title: "A",
@@ -72,7 +71,7 @@ func TestNotificationStore_UnreadCount(t *testing.T) {
 
 func TestNotificationStore_MarkRead(t *testing.T) {
 	ns := newTestNotificationStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	n := &Notification{
 		UserID: "user-1", Type: NotificationGeneral, Title: "Test",
@@ -99,7 +98,7 @@ func TestNotificationStore_MarkRead(t *testing.T) {
 
 func TestNotificationStore_MarkAllRead(t *testing.T) {
 	ns := newTestNotificationStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	for i := 0; i < 5; i++ {
 		require.NoError(t, ns.Create(ctx, &Notification{
@@ -116,7 +115,7 @@ func TestNotificationStore_MarkAllRead(t *testing.T) {
 
 func TestNotificationStore_Delete(t *testing.T) {
 	ns := newTestNotificationStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	n := &Notification{
 		UserID: "user-1", Type: NotificationGeneral, Title: "Delete me",
@@ -132,7 +131,7 @@ func TestNotificationStore_Delete(t *testing.T) {
 
 func TestNotificationStore_MarkReadByGroupKey(t *testing.T) {
 	ns := newTestNotificationStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	// Create three notifications with the same group key.
 	for _, title := range []string{"A", "B", "C"} {
@@ -167,7 +166,7 @@ func TestNotificationStore_MarkReadByGroupKey(t *testing.T) {
 
 func TestNotificationStore_MarkReadByGroupKey_EmptyKey(t *testing.T) {
 	ns := newTestNotificationStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	require.NoError(t, ns.Create(ctx, &Notification{
 		UserID: "user-1", Type: NotificationGeneral, Title: "A",
@@ -183,7 +182,7 @@ func TestNotificationStore_MarkReadByGroupKey_EmptyKey(t *testing.T) {
 
 func TestNotificationStore_ListUnreadSince(t *testing.T) {
 	ns := newTestNotificationStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	t0 := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
 	t1 := t0.Add(1 * time.Hour)
@@ -215,7 +214,7 @@ func TestNotificationStore_ListUnreadSince(t *testing.T) {
 
 func TestNotificationStore_ListUnreadSince_SkipsRead(t *testing.T) {
 	ns := newTestNotificationStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	t0 := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
 

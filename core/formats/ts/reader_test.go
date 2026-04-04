@@ -11,7 +11,6 @@ package ts_test
 
 import (
 	"bytes"
-	"context"
 	"os"
 	"strings"
 	"testing"
@@ -28,7 +27,7 @@ import (
 // readTS parses a Qt TS string and returns all parts.
 func readTS(t *testing.T, input string) []*model.Part {
 	t.Helper()
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := ts.NewReader()
 	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
 	require.NoError(t, err)
@@ -87,7 +86,7 @@ func blockTexts(blocks []*model.Block) []string {
 // snippetRoundtrip reads then writes a TS snippet and returns the output string.
 func snippetRoundtrip(t *testing.T, snippet string) string {
 	t.Helper()
-	ctx := context.Background()
+	ctx := t.Context()
 
 	// Read
 	reader := ts.NewReader()
@@ -961,7 +960,7 @@ func TestSnippet_Config(t *testing.T) {
 func TestSnippet_NilDocument(t *testing.T) {
 	t.Parallel()
 	reader := ts.NewReader()
-	err := reader.Open(context.Background(), nil)
+	err := reader.Open(t.Context(), nil)
 	require.Error(t, err)
 }
 
@@ -1090,7 +1089,7 @@ func TestSnippet_ContextNameOnBlock(t *testing.T) {
 // TestReadTestdataFile_Simple verifies reading from testdata file.
 func TestReadTestdataFile_Simple(t *testing.T) {
 	t.Parallel()
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := ts.NewReader()
 
 	f, err := os.Open("testdata/simple.ts")
@@ -1113,7 +1112,7 @@ func TestReadTestdataFile_Simple(t *testing.T) {
 // TestReadTestdataFile_Bilingual verifies reading bilingual file with various states.
 func TestReadTestdataFile_Bilingual(t *testing.T) {
 	t.Parallel()
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := ts.NewReader()
 
 	f, err := os.Open("testdata/bilingual.ts")
@@ -1137,7 +1136,7 @@ func TestReadTestdataFile_Bilingual(t *testing.T) {
 // TestReadTestdataFile_Plurals verifies reading numerus forms from file.
 func TestReadTestdataFile_Plurals(t *testing.T) {
 	t.Parallel()
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := ts.NewReader()
 
 	f, err := os.Open("testdata/plurals.ts")
@@ -1167,7 +1166,7 @@ func TestWriter_NewWriter(t *testing.T) {
 // TestWriter_EmptyOutput verifies writing with nil output does not panic.
 func TestWriter_EmptyOutput(t *testing.T) {
 	t.Parallel()
-	ctx := context.Background()
+	ctx := t.Context()
 	writer := ts.NewWriter()
 
 	ch := make(chan *model.Part)

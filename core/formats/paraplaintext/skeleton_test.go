@@ -2,7 +2,6 @@ package paraplaintext_test
 
 import (
 	"bytes"
-	"context"
 	"testing"
 
 	"github.com/neokapi/neokapi/core/format"
@@ -15,7 +14,7 @@ import (
 
 func snippetRoundtripWithSkeleton(t *testing.T, input string) string {
 	t.Helper()
-	ctx := context.Background()
+	ctx := t.Context()
 
 	reader := paraplaintext.NewReader()
 	writer := paraplaintext.NewWriter()
@@ -91,7 +90,7 @@ func TestSkeletonStore_ByteExact_TrailingNewlineCRLF(t *testing.T) {
 
 func TestSkeletonStore_WithTranslation(t *testing.T) {
 	input := "Hello World\n\nGoodbye"
-	ctx := context.Background()
+	ctx := t.Context()
 	locale := model.LocaleID("fr")
 
 	reader := paraplaintext.NewReader()
@@ -133,7 +132,7 @@ func TestSkeletonStore_WithTranslation(t *testing.T) {
 
 func TestSkeletonStore_WithTranslation_CRLF(t *testing.T) {
 	input := "Hello\r\n\r\nWorld"
-	ctx := context.Background()
+	ctx := t.Context()
 	locale := model.LocaleID("de")
 
 	reader := paraplaintext.NewReader()

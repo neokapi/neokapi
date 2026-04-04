@@ -1,7 +1,6 @@
 package server
 
 import (
-	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -79,7 +78,7 @@ func TestHandleDeviceVerificationFormValues(t *testing.T) {
 	assert.Equal(t, "/device/authorized", rec2.Header().Get("Location"))
 
 	// Verify the entry was authorized with the correct email/name.
-	ctx := context.Background()
+	ctx := t.Context()
 	entry, err := sessionGet[deviceCodeEntry](ctx, srv.SessionStore, prefixDeviceCode, deviceCode)
 	if err == nil {
 		assert.True(t, entry.Authorized)
@@ -97,7 +96,7 @@ func TestHandleDeviceVerificationDefaultValues(t *testing.T) {
 	initTestStores(t, srv)
 
 	// Manually create a device code entry and user code index.
-	ctx := context.Background()
+	ctx := t.Context()
 	entry := &deviceCodeEntry{UserCode: "aaaa-bbbb"}
 	require.NoError(t, sessionSet(ctx, srv.SessionStore, prefixDeviceCode, "test-device-default", entry, authStateTTL))
 	require.NoError(t, srv.SessionStore.Set(ctx, prefixUserCode+"aaaa-bbbb", []byte("test-device-default"), authStateTTL))
@@ -158,7 +157,7 @@ func TestHandleDeviceVerificationOIDCRedirect(t *testing.T) {
 	initTestStores(t, srv)
 
 	// Create a pending device code entry with user code index.
-	ctx := context.Background()
+	ctx := t.Context()
 	entry := &deviceCodeEntry{
 		UserCode: "cccc-dddd",
 		ClientID: "kapi-cli",
@@ -245,7 +244,7 @@ func TestDeviceVerifyStatesCleanup(t *testing.T) {
 	srv := NewServer(cfg)
 	initTestStores(t, srv)
 
-	ctx := context.Background()
+	ctx := t.Context()
 	state := "test-device-cleanup"
 	verifyEntry := &deviceVerifyEntry{DeviceCode: "dev-code-123"}
 	require.NoError(t, sessionSet(ctx, srv.SessionStore, prefixDeviceVerify, state, verifyEntry, authStateTTL))
@@ -401,7 +400,7 @@ func TestDesktopAuthStatesCleanup(t *testing.T) {
 	srv := NewServer(cfg)
 	initTestStores(t, srv)
 
-	ctx := context.Background()
+	ctx := t.Context()
 	state := "test-cleanup-state"
 	desktopEntry := &desktopAuthEntry{
 		RedirectURI:   "http://127.0.0.1:54321/callback",
@@ -481,7 +480,7 @@ func TestWebFlowStateStoredAndConsumed(t *testing.T) {
 	require.NotEmpty(t, state, "redirect URL should have a state parameter")
 
 	// Verify state is stored in session store.
-	ctx := context.Background()
+	ctx := t.Context()
 	entry, err := sessionGet[webAuthEntry](ctx, srv.SessionStore, prefixWebAuth, state)
 	require.NoError(t, err, "state should be stored in session store")
 	assert.NotEmpty(t, entry.CodeVerifier)
@@ -589,7 +588,7 @@ func TestOIDCRedirectIncludesPKCEAndNonce(t *testing.T) {
 
 	t.Run("device flow", func(t *testing.T) {
 		// Set up a pending device code via session store.
-		ctx := context.Background()
+		ctx := t.Context()
 		entry := &deviceCodeEntry{
 			UserCode: "eeee-ffff",
 			ClientID: "kapi-cli",
@@ -655,7 +654,7 @@ func TestDesktopEntryHasPKCEAndNonce(t *testing.T) {
 	require.NotEmpty(t, state)
 
 	// Verify the stored entry has PKCE and nonce.
-	ctx := context.Background()
+	ctx := t.Context()
 	entry, err := sessionGet[desktopAuthEntry](ctx, srv.SessionStore, prefixDesktopAuth, state)
 	require.NoError(t, err)
 	assert.NotEmpty(t, entry.CodeVerifier, "desktop entry must have CodeVerifier")
@@ -690,7 +689,7 @@ func TestDeviceVerifyEntryHasPKCEAndNonce(t *testing.T) {
 	initTestStores(t, srv)
 
 	// Create a pending device code via session store.
-	ctx := context.Background()
+	ctx := t.Context()
 	entry := &deviceCodeEntry{
 		UserCode: "gggg-hhhh",
 		ClientID: "kapi-cli",
@@ -724,7 +723,7 @@ func TestMemorySessionStoreExpiry(t *testing.T) {
 	store := NewMemorySessionStore()
 	defer store.Close()
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	// Set a value with very short TTL.
 	require.NoError(t, store.Set(ctx, "test-key", []byte("value"), 1*time.Millisecond))

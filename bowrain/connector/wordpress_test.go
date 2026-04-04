@@ -1,7 +1,6 @@
 package connector
 
 import (
-	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -62,7 +61,7 @@ func TestWordPressFetch(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, platconn.CategoryCMS, c.Category())
 
-	items, err := c.Fetch(context.Background(), platconn.FetchOptions{})
+	items, err := c.Fetch(t.Context(), platconn.FetchOptions{})
 	require.NoError(t, err)
 	require.Len(t, items, 2)
 
@@ -80,10 +79,10 @@ func TestWordPressPublish(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	items, err := c.Fetch(context.Background(), platconn.FetchOptions{})
+	items, err := c.Fetch(t.Context(), platconn.FetchOptions{})
 	require.NoError(t, err)
 
-	err = c.Publish(context.Background(), items[:1], platconn.PublishOptions{})
+	err = c.Publish(t.Context(), items[:1], platconn.PublishOptions{})
 	require.NoError(t, err)
 }
 
@@ -96,7 +95,7 @@ func TestWordPressStatus(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	status, err := c.Status(context.Background())
+	status, err := c.Status(t.Context())
 	require.NoError(t, err)
 	assert.Equal(t, 2, status.ItemCount)
 }

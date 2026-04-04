@@ -27,7 +27,7 @@ func newParagraphReader(t *testing.T) *plaintext.Reader {
 // helper: read a string and return parts
 func readString(t *testing.T, reader *plaintext.Reader, content string) []*model.Part {
 	t.Helper()
-	ctx := context.Background()
+	ctx := t.Context()
 	err := reader.Open(ctx, testutil.RawDocFromString(content, model.LocaleEnglish))
 	require.NoError(t, err)
 	parts := testutil.CollectParts(t, reader.Read(ctx))
@@ -39,7 +39,7 @@ func readString(t *testing.T, reader *plaintext.Reader, content string) []*model
 
 // okapi: PlainTextFilterTest#testEmptyInput
 func TestReadEmpty(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := plaintext.NewReader()
 	err := reader.Open(ctx, testutil.RawDocFromString("", model.LocaleEnglish))
 	require.NoError(t, err)
@@ -83,7 +83,7 @@ func TestRead_Files(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			ctx := context.Background()
+			ctx := t.Context()
 			reader := plaintext.NewReader()
 			err := reader.Open(ctx, testutil.RawDocFromString(tt.input, model.LocaleEnglish))
 			require.NoError(t, err)
@@ -111,7 +111,7 @@ func TestRead_Files2(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			ctx := context.Background()
+			ctx := t.Context()
 			f, err := os.Open(tt.file)
 			require.NoError(t, err)
 			reader := plaintext.NewReader()
@@ -171,7 +171,7 @@ func TestRead_Skeleton3(t *testing.T) {
 
 // okapi: PlainTextFilterTest#testEvents
 func TestRead_Events(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := plaintext.NewReader()
 	err := reader.Open(ctx, testutil.RawDocFromString("Hello world\nSecond line\nThird line", model.LocaleEnglish))
 	require.NoError(t, err)
@@ -223,7 +223,7 @@ func TestRoundTrip_DoubleExtraction(t *testing.T) {
 			original, err := os.ReadFile(tt.file)
 			require.NoError(t, err)
 
-			ctx := context.Background()
+			ctx := t.Context()
 
 			// First extraction
 			f, err := os.Open(tt.file)
@@ -275,7 +275,7 @@ func TestRoundTrip_DoubleExtraction(t *testing.T) {
 // okapi: PlainTextFilterTest#testCancel
 func TestRead_Cancel(t *testing.T) {
 	// Tests that context cancellation stops reading.
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
 
 	reader := plaintext.NewReader()
@@ -390,10 +390,8 @@ func TestRead_Synchronization(t *testing.T) {
 	// Tests concurrent access to separate reader instances (safe concurrency).
 	var wg sync.WaitGroup
 	for range 10 {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			ctx := context.Background()
+		wg.Go(func() {
+			ctx := t.Context()
 			reader := plaintext.NewReader()
 			err := reader.Open(ctx, testutil.RawDocFromString("Hello\nWorld", model.LocaleEnglish))
 			if err != nil {
@@ -406,7 +404,7 @@ func TestRead_Synchronization(t *testing.T) {
 			if len(blocks) != 2 {
 				t.Errorf("expected 2 blocks, got %d", len(blocks))
 			}
-		}()
+		})
 	}
 	wg.Wait()
 }
@@ -415,7 +413,7 @@ func TestRead_Synchronization(t *testing.T) {
 
 // okapi: ParaPlainTextFilterTest#testCancel
 func TestPara_Cancel(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
 
 	reader := newParagraphReader(t)
@@ -627,7 +625,7 @@ func TestRead_Parameters(t *testing.T) {
 // okapi: SplicedLinesFilterTest#testCombinedLines
 func TestRead_CombinedLines(t *testing.T) {
 	// Tests reading of the multiline test file which has multiple paragraphs.
-	ctx := context.Background()
+	ctx := t.Context()
 	f, err := os.Open("testdata/multiline.txt")
 	require.NoError(t, err)
 
@@ -649,7 +647,7 @@ func TestRead_CombinedLines(t *testing.T) {
 // ---- Additional tests (no direct Java mapping) ----
 
 func TestReadUnicode(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := plaintext.NewReader()
 	err := reader.Open(ctx, testutil.RawDocFromString("Hello 世界\nBonjour le monde\nこんにちは世界", model.LocaleEnglish))
 	require.NoError(t, err)
@@ -664,7 +662,7 @@ func TestReadUnicode(t *testing.T) {
 }
 
 func TestReadLayerStartEnd(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := plaintext.NewReader()
 	err := reader.Open(ctx, testutil.RawDocFromString("Hello", model.LocaleEnglish))
 	require.NoError(t, err)
@@ -707,7 +705,7 @@ func TestRoundTrip(t *testing.T) {
 			original, err := os.ReadFile(tt.file)
 			require.NoError(t, err)
 
-			ctx := context.Background()
+			ctx := t.Context()
 
 			// Read
 			f, err := os.Open(tt.file)
@@ -737,7 +735,7 @@ func TestRoundTrip(t *testing.T) {
 }
 
 func TestRoundTripWithTargetLocale(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	reader := plaintext.NewReader()
 	err := reader.Open(ctx, testutil.RawDocFromString("Hello\nWorld", model.LocaleEnglish))
@@ -774,7 +772,7 @@ func TestRoundTripWithTargetLocale(t *testing.T) {
 }
 
 func TestReadNilDocument(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := plaintext.NewReader()
 	err := reader.Open(ctx, nil)
 	require.Error(t, err)
@@ -895,7 +893,7 @@ func TestRead_CRLineEndings(t *testing.T) {
 func TestRoundTrip_Native(t *testing.T) {
 	// Native roundtrip: read then write and verify blocks survive.
 	input := "Hello world\nThis is a test."
-	ctx := context.Background()
+	ctx := t.Context()
 
 	reader := plaintext.NewReader()
 	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
@@ -931,7 +929,7 @@ func TestRoundTrip_TestFiles(t *testing.T) {
 			original, err := os.ReadFile(tt.file)
 			require.NoError(t, err)
 
-			ctx := context.Background()
+			ctx := t.Context()
 			f, err := os.Open(tt.file)
 			require.NoError(t, err)
 
@@ -969,7 +967,7 @@ func TestRoundTrip_LineEndings(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			ctx := context.Background()
+			ctx := t.Context()
 			reader := plaintext.NewReader()
 			err := reader.Open(ctx, testutil.RawDocFromString(tt.input, model.LocaleEnglish))
 			require.NoError(t, err)
@@ -1003,7 +1001,7 @@ func TestRoundTrip_ParagraphMode(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			ctx := context.Background()
+			ctx := t.Context()
 			reader := newParagraphReader(t)
 			err := reader.Open(ctx, testutil.RawDocFromString(tt.input, model.LocaleEnglish))
 			require.NoError(t, err)

@@ -1,7 +1,6 @@
 package rtf_test
 
 import (
-	"context"
 	"testing"
 
 	"github.com/neokapi/neokapi/core/formats/rtf"
@@ -78,7 +77,7 @@ func TestConfigKind(t *testing.T) {
 }
 
 func TestExtractHeadersFootersEnabled(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := rtf.NewReader()
 
 	cfg := reader.Config().(*rtf.Config)
@@ -111,7 +110,7 @@ func TestExtractHeadersFootersEnabled(t *testing.T) {
 }
 
 func TestExtractHeadersFootersDisabled(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := rtf.NewReader()
 
 	// Default config: headers/footers disabled

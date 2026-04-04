@@ -3,7 +3,6 @@ package memorytest
 import (
 	"archive/zip"
 	"bytes"
-	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -311,7 +310,7 @@ func BenchmarkMemory_Plaintext(b *testing.B) {
 			b.Fatal(err)
 		}
 		reader.SetSkeletonStore(store)
-		ctx := context.Background()
+		ctx := b.Context()
 		if err := reader.Open(ctx, rawDocFromString(content, model.LocaleEnglish)); err != nil {
 			b.Fatal(err)
 		}
@@ -332,7 +331,7 @@ func BenchmarkMemory_HTML(b *testing.B) {
 			b.Fatal(err)
 		}
 		reader.SetSkeletonStore(store)
-		ctx := context.Background()
+		ctx := b.Context()
 		if err := reader.Open(ctx, rawDocFromString(content, model.LocaleEnglish)); err != nil {
 			b.Fatal(err)
 		}
@@ -353,7 +352,7 @@ func BenchmarkMemory_JSON(b *testing.B) {
 			b.Fatal(err)
 		}
 		reader.SetSkeletonStore(store)
-		ctx := context.Background()
+		ctx := b.Context()
 		if err := reader.Open(ctx, rawDocFromString(content, model.LocaleEnglish)); err != nil {
 			b.Fatal(err)
 		}
@@ -374,7 +373,7 @@ func BenchmarkMemory_XML(b *testing.B) {
 			b.Fatal(err)
 		}
 		reader.SetSkeletonStore(store)
-		ctx := context.Background()
+		ctx := b.Context()
 		if err := reader.Open(ctx, rawDocFromString(content, model.LocaleEnglish)); err != nil {
 			b.Fatal(err)
 		}
@@ -395,7 +394,7 @@ func BenchmarkMemory_YAML(b *testing.B) {
 			b.Fatal(err)
 		}
 		reader.SetSkeletonStore(store)
-		ctx := context.Background()
+		ctx := b.Context()
 		if err := reader.Open(ctx, rawDocFromString(content, model.LocaleEnglish)); err != nil {
 			b.Fatal(err)
 		}
@@ -416,7 +415,7 @@ func BenchmarkMemory_ODF(b *testing.B) {
 			b.Fatal(err)
 		}
 		reader.SetSkeletonStore(store)
-		ctx := context.Background()
+		ctx := b.Context()
 		if err := reader.Open(ctx, rawDocFromBytes(data, "test.odt", model.LocaleEnglish)); err != nil {
 			b.Fatal(err)
 		}
@@ -437,7 +436,7 @@ func BenchmarkMemory_EPUB(b *testing.B) {
 			b.Fatal(err)
 		}
 		reader.SetSkeletonStore(store)
-		ctx := context.Background()
+		ctx := b.Context()
 		if err := reader.Open(ctx, rawDocFromBytes(data, "test.epub", model.LocaleEnglish)); err != nil {
 			b.Fatal(err)
 		}
@@ -458,7 +457,7 @@ func BenchmarkMemory_OpenXML(b *testing.B) {
 			b.Fatal(err)
 		}
 		reader.SetSkeletonStore(store)
-		ctx := context.Background()
+		ctx := b.Context()
 		if err := reader.Open(ctx, rawDocFromBytes(data, "test.docx", model.LocaleEnglish)); err != nil {
 			b.Fatal(err)
 		}
@@ -480,7 +479,7 @@ func TestMemoryBound_Plaintext(t *testing.T) {
 		require.NoError(t, err)
 		defer store.Close()
 		reader.SetSkeletonStore(store)
-		ctx := context.Background()
+		ctx := t.Context()
 		require.NoError(t, reader.Open(ctx, rawDocFromString(content, model.LocaleEnglish)))
 		drainParts(t, reader.Read(ctx))
 		reader.Close()
@@ -504,7 +503,7 @@ func TestMemoryBound_HTML(t *testing.T) {
 		require.NoError(t, err)
 		defer store.Close()
 		reader.SetSkeletonStore(store)
-		ctx := context.Background()
+		ctx := t.Context()
 		require.NoError(t, reader.Open(ctx, rawDocFromString(content, model.LocaleEnglish)))
 		drainParts(t, reader.Read(ctx))
 		reader.Close()
@@ -525,7 +524,7 @@ func TestMemoryBound_JSON(t *testing.T) {
 		require.NoError(t, err)
 		defer store.Close()
 		reader.SetSkeletonStore(store)
-		ctx := context.Background()
+		ctx := t.Context()
 		require.NoError(t, reader.Open(ctx, rawDocFromString(content, model.LocaleEnglish)))
 		drainParts(t, reader.Read(ctx))
 		reader.Close()
@@ -545,7 +544,7 @@ func TestMemoryBound_XML(t *testing.T) {
 		require.NoError(t, err)
 		defer store.Close()
 		reader.SetSkeletonStore(store)
-		ctx := context.Background()
+		ctx := t.Context()
 		require.NoError(t, reader.Open(ctx, rawDocFromString(content, model.LocaleEnglish)))
 		drainParts(t, reader.Read(ctx))
 		reader.Close()
@@ -565,7 +564,7 @@ func TestMemoryBound_YAML(t *testing.T) {
 		require.NoError(t, err)
 		defer store.Close()
 		reader.SetSkeletonStore(store)
-		ctx := context.Background()
+		ctx := t.Context()
 		require.NoError(t, reader.Open(ctx, rawDocFromString(content, model.LocaleEnglish)))
 		drainParts(t, reader.Read(ctx))
 		reader.Close()
@@ -585,7 +584,7 @@ func TestMemoryBound_ODF(t *testing.T) {
 		require.NoError(t, err)
 		defer store.Close()
 		reader.SetSkeletonStore(store)
-		ctx := context.Background()
+		ctx := t.Context()
 		require.NoError(t, reader.Open(ctx, rawDocFromBytes(data, "test.odt", model.LocaleEnglish)))
 		drainParts(t, reader.Read(ctx))
 		reader.Close()
@@ -606,7 +605,7 @@ func TestMemoryBound_EPUB(t *testing.T) {
 		require.NoError(t, err)
 		defer store.Close()
 		reader.SetSkeletonStore(store)
-		ctx := context.Background()
+		ctx := t.Context()
 		require.NoError(t, reader.Open(ctx, rawDocFromBytes(data, "test.epub", model.LocaleEnglish)))
 		drainParts(t, reader.Read(ctx))
 		reader.Close()
@@ -627,7 +626,7 @@ func TestMemoryBound_OpenXML(t *testing.T) {
 		require.NoError(t, err)
 		defer store.Close()
 		reader.SetSkeletonStore(store)
-		ctx := context.Background()
+		ctx := t.Context()
 		require.NoError(t, reader.Open(ctx, rawDocFromBytes(data, "test.docx", model.LocaleEnglish)))
 		drainParts(t, reader.Read(ctx))
 		reader.Close()
@@ -653,7 +652,7 @@ func TestZIPTempFile_ODF_Cleanup(t *testing.T) {
 	defer store.Close()
 	reader.SetSkeletonStore(store)
 
-	ctx := context.Background()
+	ctx := t.Context()
 	require.NoError(t, reader.Open(ctx, rawDocFromBytes(data, "test.odt", model.LocaleEnglish)))
 	drainParts(t, reader.Read(ctx))
 
@@ -672,7 +671,7 @@ func TestZIPTempFile_EPUB_Cleanup(t *testing.T) {
 	defer store.Close()
 	reader.SetSkeletonStore(store)
 
-	ctx := context.Background()
+	ctx := t.Context()
 	require.NoError(t, reader.Open(ctx, rawDocFromBytes(data, "test.epub", model.LocaleEnglish)))
 	drainParts(t, reader.Read(ctx))
 
@@ -727,7 +726,7 @@ func TestZIPFormats_SkeletonStore_ProducesEntries(t *testing.T) {
 			defer store.Close()
 
 			emitter.SetSkeletonStore(store)
-			ctx := context.Background()
+			ctx := t.Context()
 			require.NoError(t, reader.Open(ctx, rawDocFromBytes(tc.data, tc.uri, model.LocaleEnglish)))
 			drainParts(t, reader.Read(ctx))
 			reader.Close()

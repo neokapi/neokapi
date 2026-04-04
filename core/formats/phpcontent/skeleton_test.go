@@ -2,7 +2,6 @@ package phpcontent_test
 
 import (
 	"bytes"
-	"context"
 	"testing"
 
 	"github.com/neokapi/neokapi/core/format"
@@ -15,7 +14,7 @@ import (
 
 func phpSkeletonRoundtrip(t *testing.T, input string) string {
 	t.Helper()
-	ctx := context.Background()
+	ctx := t.Context()
 
 	reader := phpcontent.NewReader()
 	writer := phpcontent.NewWriter()
@@ -97,7 +96,7 @@ func TestSkeletonStore_ByteExact_NoStrings(t *testing.T) {
 
 func TestSkeletonStore_WithTranslation(t *testing.T) {
 	input := "<?php\n$a = 'Hello';\n$b = 'World';\n"
-	ctx := context.Background()
+	ctx := t.Context()
 	locale := model.LocaleID("fr")
 
 	reader := phpcontent.NewReader()

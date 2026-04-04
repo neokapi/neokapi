@@ -1,7 +1,6 @@
 package mif_test
 
 import (
-	"context"
 	"testing"
 
 	"github.com/neokapi/neokapi/core/formats/mif"
@@ -99,7 +98,7 @@ func TestConfigKind(t *testing.T) {
 }
 
 func TestExtractMasterPagesDisabled(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := mif.NewReader()
 
 	// Apply config to disable master pages (they become skipped)
@@ -136,7 +135,7 @@ func TestExtractMasterPagesDisabled(t *testing.T) {
 }
 
 func TestExtractHardReturnsAsTextDisabled(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := mif.NewReader()
 
 	cfg := reader.Config().(*mif.Config)

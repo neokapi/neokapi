@@ -1,7 +1,6 @@
 package tools_test
 
 import (
-	"context"
 	"testing"
 
 	"github.com/neokapi/neokapi/core/flow"
@@ -18,7 +17,7 @@ func TestStreamingWordCountCollector_SingleDocument(t *testing.T) {
 	item := &flow.FlowItem{
 		Input: &model.RawDocument{URI: "doc1.html"},
 	}
-	err := wc.Collect(context.Background(), item, nil)
+	err := wc.Collect(t.Context(), item, nil)
 	require.NoError(t, err)
 
 	// Simulate observing parts inline.
@@ -57,7 +56,7 @@ func TestStreamingWordCountCollector_MultipleDocuments(t *testing.T) {
 		item := &flow.FlowItem{
 			Input: &model.RawDocument{URI: uri},
 		}
-		err := wc.Collect(context.Background(), item, nil)
+		err := wc.Collect(t.Context(), item, nil)
 		require.NoError(t, err)
 
 		block := model.NewBlock("tu1", "text")
@@ -83,7 +82,7 @@ func TestStreamingWordCountCollector_WithTappingTool(t *testing.T) {
 	item := &flow.FlowItem{
 		Input: &model.RawDocument{URI: "test.json"},
 	}
-	err := wc.Collect(context.Background(), item, nil)
+	err := wc.Collect(t.Context(), item, nil)
 	require.NoError(t, err)
 
 	// Create the word count tool, then wrap with TappingTool.
@@ -104,7 +103,7 @@ func TestStreamingWordCountCollector_WithTappingTool(t *testing.T) {
 	}
 	close(in)
 
-	err = tapped.Process(context.Background(), in, out)
+	err = tapped.Process(t.Context(), in, out)
 	require.NoError(t, err)
 	close(out)
 
@@ -134,7 +133,7 @@ func TestStreamingWordCountCollector_SkipsNonTranslatable(t *testing.T) {
 	item := &flow.FlowItem{
 		Input: &model.RawDocument{URI: "doc.html"},
 	}
-	err := wc.Collect(context.Background(), item, nil)
+	err := wc.Collect(t.Context(), item, nil)
 	require.NoError(t, err)
 
 	block := model.NewBlock("tu1", "Hello world")

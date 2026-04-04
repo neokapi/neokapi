@@ -1,7 +1,6 @@
 package billing
 
 import (
-	"context"
 	"testing"
 	"time"
 
@@ -22,7 +21,7 @@ func TestMockStore_SubscriptionRoundtrip(t *testing.T) {
 	// Verify the interface is satisfied.
 	var _ BillingStore = store
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	// GetSubscription returns nil for mock.
 	sub, err := store.GetSubscription(ctx, "ws-1")
@@ -50,7 +49,7 @@ func TestMockStore_CheckCredits(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			store := &mockBillingStore{remaining: tt.remaining, err: tt.err}
-			remaining, err := store.CheckCredits(context.Background(), "ws-1")
+			remaining, err := store.CheckCredits(t.Context(), "ws-1")
 			if tt.wantErr {
 				require.Error(t, err)
 			} else {

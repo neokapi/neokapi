@@ -1,7 +1,6 @@
 package graph
 
 import (
-	"context"
 	"testing"
 	"time"
 
@@ -22,7 +21,7 @@ func newTestStore(t *testing.T) *SQLiteGraphStore {
 }
 
 func TestNodeCRUD(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	store := newTestStore(t)
 
 	node := &coreg.Node{
@@ -58,7 +57,7 @@ func TestNodeCRUD(t *testing.T) {
 }
 
 func TestNodeNotFound(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	store := newTestStore(t)
 
 	_, err := store.GetNode(ctx, "nonexistent")
@@ -69,7 +68,7 @@ func TestNodeNotFound(t *testing.T) {
 }
 
 func TestEdgeCRUD(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	store := newTestStore(t)
 
 	// Create nodes first
@@ -117,7 +116,7 @@ func TestEdgeCRUD(t *testing.T) {
 }
 
 func TestEdgeNotFound(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	store := newTestStore(t)
 
 	_, err := store.GetEdge(ctx, "nonexistent")
@@ -127,7 +126,7 @@ func TestEdgeNotFound(t *testing.T) {
 }
 
 func TestFindNodes(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	store := newTestStore(t)
 
 	require.NoError(t, store.CreateNode(ctx, &coreg.Node{ID: "n1", Label: "Concept", Properties: map[string]string{"domain": "tech"}}))
@@ -147,7 +146,7 @@ func TestFindNodes(t *testing.T) {
 }
 
 func TestFindEdges(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	store := newTestStore(t)
 
 	require.NoError(t, store.CreateNode(ctx, &coreg.Node{ID: "a", Label: "C"}))
@@ -166,7 +165,7 @@ func TestFindEdges(t *testing.T) {
 }
 
 func TestNeighbors(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	store := newTestStore(t)
 
 	require.NoError(t, store.CreateNode(ctx, &coreg.Node{ID: "a", Label: "C"}))
@@ -200,7 +199,7 @@ func TestNeighbors(t *testing.T) {
 }
 
 func TestNeighborsScoped(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	store := newTestStore(t)
 
 	require.NoError(t, store.CreateNode(ctx, &coreg.Node{ID: "a", Label: "C"}))
@@ -235,7 +234,7 @@ func TestNeighborsScoped(t *testing.T) {
 }
 
 func TestEdgesOf(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	store := newTestStore(t)
 
 	require.NoError(t, store.CreateNode(ctx, &coreg.Node{ID: "a", Label: "C"}))
@@ -254,7 +253,7 @@ func TestEdgesOf(t *testing.T) {
 }
 
 func TestShortestPath(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	store := newTestStore(t)
 
 	// a -> b -> c
@@ -278,7 +277,7 @@ func TestShortestPath(t *testing.T) {
 }
 
 func TestBulkCreate(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	store := newTestStore(t)
 
 	nodes := []*coreg.Node{
@@ -308,7 +307,7 @@ func TestBulkCreate(t *testing.T) {
 }
 
 func TestCypherNotSupported(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	store := newTestStore(t)
 
 	_, err := store.CypherQuery(ctx, "MATCH (n) RETURN n", nil)
@@ -319,7 +318,7 @@ func TestCypherNotSupported(t *testing.T) {
 }
 
 func TestEdgeWithNilValidity(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	store := newTestStore(t)
 
 	require.NoError(t, store.CreateNode(ctx, &coreg.Node{ID: "a", Label: "C"}))

@@ -11,7 +11,7 @@ import (
 
 func TestChannelQueue_EnqueueDequeue(t *testing.T) {
 	q := NewChannelQueue(10)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	require.NoError(t, q.Enqueue(ctx, "job-1"))
 	require.NoError(t, q.Enqueue(ctx, "job-2"))
@@ -29,7 +29,7 @@ func TestChannelQueue_EnqueueDequeue(t *testing.T) {
 
 func TestChannelQueue_Nack(t *testing.T) {
 	q := NewChannelQueue(10)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	require.NoError(t, q.Enqueue(ctx, "job-retry"))
 
@@ -47,7 +47,7 @@ func TestChannelQueue_Nack(t *testing.T) {
 
 func TestChannelQueue_DequeueContextCancelled(t *testing.T) {
 	q := NewChannelQueue(10)
-	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
+	ctx, cancel := context.WithTimeout(t.Context(), 50*time.Millisecond)
 	defer cancel()
 
 	_, _, _, err := q.Dequeue(ctx)
@@ -58,6 +58,6 @@ func TestChannelQueue_Close(t *testing.T) {
 	q := NewChannelQueue(10)
 	require.NoError(t, q.Close())
 
-	err := q.Enqueue(context.Background(), "x")
+	err := q.Enqueue(t.Context(), "x")
 	assert.Error(t, err)
 }

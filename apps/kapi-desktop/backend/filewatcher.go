@@ -17,21 +17,28 @@ type fileWatcher struct {
 	app    *App
 	tabID  string
 	dir    string
-	stop   chan struct{}
-	once   sync.Once
+	stop    chan struct{}
+	stopFn  func()
 	ticker *time.Ticker
 	// snapshot of relative paths → modtime for change detection
 	snapshot map[string]time.Time
 }
 
 func newFileWatcher(app *App, tabID, dir string) *fileWatcher {
-	return &fileWatcher{
+	fw := &fileWatcher{
 		app:      app,
 		tabID:    tabID,
 		dir:      dir,
 		stop:     make(chan struct{}),
 		snapshot: make(map[string]time.Time),
 	}
+	fw.stopFn = sync.OnceFunc(func() {
+		close(fw.stop)
+		if fw.ticker != nil {
+			fw.ticker.Stop()
+		}
+	})
+	return fw
 }
 
 func (fw *fileWatcher) Start() {
@@ -42,12 +49,7 @@ func (fw *fileWatcher) Start() {
 }
 
 func (fw *fileWatcher) Stop() {
-	fw.once.Do(func() {
-		close(fw.stop)
-		if fw.ticker != nil {
-			fw.ticker.Stop()
-		}
-	})
+	fw.stopFn()
 }
 
 func (fw *fileWatcher) loop() {

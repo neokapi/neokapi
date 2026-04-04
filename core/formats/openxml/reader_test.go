@@ -2,7 +2,6 @@ package openxml
 
 import (
 	"archive/zip"
-	"context"
 	"os"
 	"testing"
 
@@ -19,7 +18,7 @@ func openTestDocx(t *testing.T, path string) *Reader {
 
 	reader := NewReader()
 	doc := testutil.RawDocFromReader(f, path, model.LocaleEnglish)
-	err = reader.Open(context.Background(), doc)
+	err = reader.Open(t.Context(), doc)
 	require.NoError(t, err)
 	return reader
 }
@@ -28,7 +27,7 @@ func readDocx(t *testing.T, path string) []*model.Part {
 	t.Helper()
 	reader := openTestDocx(t, path)
 	defer reader.Close()
-	return testutil.CollectParts(t, reader.Read(context.Background()))
+	return testutil.CollectParts(t, reader.Read(t.Context()))
 }
 
 func translatableBlocks(parts []*model.Part) []*model.Block {
@@ -287,11 +286,11 @@ func TestReadHeadersFootersDisabled(t *testing.T) {
 	reader := NewReader()
 	reader.cfg.TranslateHeadersFooters = false
 	doc := testutil.RawDocFromReader(f, "testdata/formatted.docx", model.LocaleEnglish)
-	err = reader.Open(context.Background(), doc)
+	err = reader.Open(t.Context(), doc)
 	require.NoError(t, err)
 	defer reader.Close()
 
-	parts := testutil.CollectParts(t, reader.Read(context.Background()))
+	parts := testutil.CollectParts(t, reader.Read(t.Context()))
 	blocks := translatableBlocks(parts)
 	texts := blockTexts(blocks)
 
@@ -330,7 +329,7 @@ func TestReaderLayerStructure(t *testing.T) {
 
 func TestReaderNilDocument(t *testing.T) {
 	reader := NewReader()
-	err := reader.Open(context.Background(), nil)
+	err := reader.Open(t.Context(), nil)
 	require.Error(t, err)
 }
 
@@ -582,10 +581,10 @@ func TestExtractMediaFromDocx(t *testing.T) {
 	require.NoError(t, reader.Config().ApplyMap(map[string]any{"extractMedia": true}))
 
 	doc := testutil.RawDocFromReader(docx, "test.docx", model.LocaleEnglish)
-	require.NoError(t, reader.Open(context.Background(), doc))
+	require.NoError(t, reader.Open(t.Context(), doc))
 	defer reader.Close()
 
-	parts := testutil.CollectParts(t, reader.Read(context.Background()))
+	parts := testutil.CollectParts(t, reader.Read(t.Context()))
 
 	// Find PartMedia parts.
 	var mediaParts []*model.Media
@@ -612,10 +611,10 @@ func TestExtractMediaDisabled(t *testing.T) {
 	reader := NewReader()
 	// ExtractMedia defaults to false.
 	doc := testutil.RawDocFromReader(docx, "test.docx", model.LocaleEnglish)
-	require.NoError(t, reader.Open(context.Background(), doc))
+	require.NoError(t, reader.Open(t.Context(), doc))
 	defer reader.Close()
 
-	parts := testutil.CollectParts(t, reader.Read(context.Background()))
+	parts := testutil.CollectParts(t, reader.Read(t.Context()))
 
 	for _, p := range parts {
 		assert.NotEqual(t, model.PartMedia, p.Type, "should not emit PartMedia when ExtractMedia is false")

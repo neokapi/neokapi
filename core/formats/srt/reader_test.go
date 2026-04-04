@@ -2,7 +2,6 @@ package srt_test
 
 import (
 	"bytes"
-	"context"
 	"os"
 	"testing"
 
@@ -14,7 +13,7 @@ import (
 )
 
 func TestReadSimpleSRT(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := srt.NewReader()
 	input := "1\n00:00:01,000 --> 00:00:04,000\nHello world\n\n2\n00:00:05,000 --> 00:00:08,000\nSecond subtitle\n"
 	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
@@ -32,7 +31,7 @@ func TestReadSimpleSRT(t *testing.T) {
 }
 
 func TestReadMultiLineSRT(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := srt.NewReader()
 	input := "1\n00:00:01,000 --> 00:00:04,000\nFirst line\nSecond line\n\n2\n00:00:05,000 --> 00:00:08,000\nAnother subtitle\n"
 	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
@@ -47,7 +46,7 @@ func TestReadMultiLineSRT(t *testing.T) {
 }
 
 func TestReadLayerStartEnd(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := srt.NewReader()
 	input := "1\n00:00:01,000 --> 00:00:04,000\nHello\n"
 	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
@@ -78,14 +77,14 @@ func TestReaderMetadata(t *testing.T) {
 }
 
 func TestReadNilDocument(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := srt.NewReader()
 	err := reader.Open(ctx, nil)
 	require.Error(t, err)
 }
 
 func TestReadEmpty(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := srt.NewReader()
 	err := reader.Open(ctx, testutil.RawDocFromString("", model.LocaleEnglish))
 	require.NoError(t, err)
@@ -98,7 +97,7 @@ func TestReadEmpty(t *testing.T) {
 }
 
 func TestSequenceNumberAsData(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := srt.NewReader()
 	input := "1\n00:00:01,000 --> 00:00:04,000\nHello\n"
 	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
@@ -120,7 +119,7 @@ func TestSequenceNumberAsData(t *testing.T) {
 }
 
 func TestRoundTrip(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	original, err := os.ReadFile("testdata/simple.srt")
 	require.NoError(t, err)
@@ -154,7 +153,7 @@ func TestRoundTrip(t *testing.T) {
 }
 
 func TestRoundTripWithTargetLocale(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	input := "1\n00:00:01,000 --> 00:00:04,000\nHello\n\n2\n00:00:05,000 --> 00:00:08,000\nWorld\n"
 

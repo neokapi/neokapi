@@ -1,7 +1,6 @@
 package server
 
 import (
-	"context"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -16,7 +15,7 @@ func TestRenderDocumentPreview_PreviewHTMLFallback(t *testing.T) {
 	e := srv.GetEcho()
 	authHeader := "Bearer " + token
 	pid := createProject(t, srv, token)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	// Preview routes are workspace-scoped: /api/v1/:ws/:pid/preview/main?item=...
 	// The test workspace slug is "test" (created by newTestServer).

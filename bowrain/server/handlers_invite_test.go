@@ -49,7 +49,7 @@ func TestSendInviteEmail(t *testing.T) {
 		Role:  platauth.RoleMember,
 	}
 
-	s.sendInviteEmail(context.Background(), inv, "https://app.bowrain.dev", "Acme Inc.")
+	s.sendInviteEmail(t.Context(), inv, "https://app.bowrain.dev", "Acme Inc.")
 
 	require.Len(t, mock.getSent(), 1)
 	email := mock.getSent()[0]

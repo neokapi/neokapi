@@ -3,7 +3,6 @@ package archive_test
 import (
 	"archive/zip"
 	"bytes"
-	"context"
 	"io"
 	"os"
 	"testing"
@@ -69,7 +68,7 @@ func writeTmpZip(t *testing.T, data []byte) string {
 // okapi: ArchiveFilterTest#testExtractXLIFFOnly — tests extraction of content from archive entries.
 // Native implementation extracts text entries directly rather than via sub-filters.
 func TestReadArchiveWithTextEntries(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	data := makeZip(t, map[string]string{
 		"hello.txt":  "Hello world\nSecond line",
 		"readme.txt": "Read me",
@@ -94,7 +93,7 @@ func TestReadArchiveWithTextEntries(t *testing.T) {
 
 // okapi: ArchiveFilterTest#testSubFilterOpen — verifies sub-document layer structure in archive.
 func TestReadArchiveLayerStructure(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	data := makeZip(t, map[string]string{
 		"doc.txt": "Some text",
 	})
@@ -133,7 +132,7 @@ func TestReadArchiveLayerStructure(t *testing.T) {
 
 // okapi: ArchiveFilterTest#testNoTUs — binary/unknown entries produce no translatable blocks.
 func TestReadArchiveBinaryAsData(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	data := makeZip(t, map[string]string{
 		"image.png": "binary data",
 	})
@@ -160,7 +159,7 @@ func TestReadArchiveBinaryAsData(t *testing.T) {
 
 // okapi: ArchiveFilterTest#testNoExtraction — file pattern filtering controls which entries are extracted.
 func TestReadArchiveWithFilePatterns(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	data := makeZip(t, map[string]string{
 		"readme.txt":  "Read me",
 		"config.json": `{"key":"value"}`,
@@ -184,7 +183,7 @@ func TestReadArchiveWithFilePatterns(t *testing.T) {
 }
 
 func TestReadNilDocument(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := archive.NewReader()
 	err := reader.Open(ctx, nil)
 	require.Error(t, err)
@@ -207,7 +206,7 @@ func TestReaderMetadata(t *testing.T) {
 
 // okapi: ArchiveFilterTest#testDoubelextraction — roundtrip read/write/re-read preserves content.
 func TestRoundTrip(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	entries := map[string]string{
 		"hello.txt": "Hello world\nGoodbye",
 		"image.png": "binary data",
@@ -247,7 +246,7 @@ func TestRoundTrip(t *testing.T) {
 }
 
 func TestRoundTripWithTranslation(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	data := makeZip(t, map[string]string{
 		"msg.txt": "Hello",
 	})
@@ -294,7 +293,7 @@ func TestRoundTripWithTranslation(t *testing.T) {
 }
 
 func TestSkeletonRoundTrip(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	names := []string{"hello.txt", "image.png"}
 	contents := map[string]string{
 		"hello.txt": "Hello world\nGoodbye",
@@ -372,7 +371,7 @@ func TestSkeletonRoundTrip(t *testing.T) {
 }
 
 func TestSkeletonTranslation(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	data := makeZip(t, map[string]string{
 		"msg.txt": "Hello\nWorld",
 	})
@@ -432,7 +431,7 @@ func TestSkeletonTranslation(t *testing.T) {
 }
 
 func TestReaderCleansTempFile(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	data := makeZip(t, map[string]string{
 		"doc.txt": "Content",
 	})

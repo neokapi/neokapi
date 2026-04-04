@@ -2,7 +2,6 @@ package icml_test
 
 import (
 	"bytes"
-	"context"
 	"os"
 	"testing"
 
@@ -17,7 +16,7 @@ import (
 // Verifies that multiple CharacterStyleRange Content elements within a
 // ParagraphStyleRange are concatenated into a single translation unit.
 func TestMultipleContentRanges(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := icml.NewReader()
 
 	f, err := os.Open("testdata/Test01.wcml")
@@ -38,7 +37,7 @@ func TestMultipleContentRanges(t *testing.T) {
 // okapi: ICMLFilterTest#toString_WhenBreak_ThenTranslationUnitIsEmpty
 // Verifies that <Br/> between ParagraphStyleRanges creates separate TUs.
 func TestBreakSeparation(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := icml.NewReader()
 
 	f, err := os.Open("testdata/Test01.wcml")
@@ -55,7 +54,7 @@ func TestBreakSeparation(t *testing.T) {
 // okapi: ICMLFilterTest#toString_WhenContentInTableCell_ThenSeparateTranslationUnit
 // Verifies that table cell content is extracted as separate translation units.
 func TestTableCellContent(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := icml.NewReader()
 
 	f, err := os.Open("testdata/table.icml")
@@ -81,7 +80,7 @@ func TestTableCellContent(t *testing.T) {
 // okapi: ICMLFilterTest#open_WhenSuccessfull_ThenReturnTrue
 // Verifies that the reader can open a valid ICML document.
 func TestOpenDocument(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := icml.NewReader()
 
 	f, err := os.Open("testdata/minimal.icml")
@@ -142,14 +141,14 @@ func TestReaderSignature(t *testing.T) {
 }
 
 func TestReadNilDocument(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := icml.NewReader()
 	err := reader.Open(ctx, nil)
 	require.Error(t, err)
 }
 
 func TestReadEmpty(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := icml.NewReader()
 	err := reader.Open(ctx, testutil.RawDocFromString("", model.LocaleEnglish))
 	require.NoError(t, err)
@@ -161,7 +160,7 @@ func TestReadEmpty(t *testing.T) {
 }
 
 func TestLayerStructure(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := icml.NewReader()
 
 	f, err := os.Open("testdata/minimal.icml")
@@ -181,7 +180,7 @@ func TestLayerStructure(t *testing.T) {
 }
 
 func TestSimpleExtraction(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := icml.NewReader()
 
 	f, err := os.Open("testdata/minimal.icml")
@@ -196,7 +195,7 @@ func TestSimpleExtraction(t *testing.T) {
 }
 
 func TestBlockIDs(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := icml.NewReader()
 
 	f, err := os.Open("testdata/Test01.wcml")
@@ -217,7 +216,7 @@ func TestBlockIDs(t *testing.T) {
 }
 
 func TestParagraphStylePreserved(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := icml.NewReader()
 
 	f, err := os.Open("testdata/Test01.wcml")
@@ -234,7 +233,7 @@ func TestParagraphStylePreserved(t *testing.T) {
 }
 
 func TestPropertiesElementSkipped(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := icml.NewReader()
 
 	input := `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
@@ -260,7 +259,7 @@ func TestPropertiesElementSkipped(t *testing.T) {
 }
 
 func TestNotesExcludedByDefault(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := icml.NewReader()
 
 	f, err := os.Open("testdata/notes.icml")
@@ -276,7 +275,7 @@ func TestNotesExcludedByDefault(t *testing.T) {
 }
 
 func TestInlineICMLContent(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := icml.NewReader()
 
 	input := `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
@@ -325,7 +324,7 @@ func TestConfigApplyMapWrongType(t *testing.T) {
 // okapi: RoundTripIcmlIT
 // Roundtrip test: read ICML, write back, verify content is preserved.
 func TestRoundTrip(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	f, err := os.Open("testdata/minimal.icml")
 	require.NoError(t, err)
@@ -356,7 +355,7 @@ func TestRoundTrip(t *testing.T) {
 // okapi: RoundTripIcmlIT (with translation)
 // Roundtrip test with target translation.
 func TestRoundTripWithTargetLocale(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	input := `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Document DOMVersion="8.0">
@@ -410,7 +409,7 @@ func TestRoundTripWithTargetLocale(t *testing.T) {
 
 // TestRoundTripWCML tests roundtrip with the Test01.wcml file.
 func TestRoundTripWCML(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	f, err := os.Open("testdata/Test01.wcml")
 	require.NoError(t, err)
@@ -441,7 +440,7 @@ func TestRoundTripWCML(t *testing.T) {
 
 // TestWriterMinimalICML verifies the writer can generate ICML without a skeleton.
 func TestWriterMinimalICML(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	block1 := model.NewBlock("tu1", "Hello world")
 	block2 := model.NewBlock("tu2", "Goodbye")

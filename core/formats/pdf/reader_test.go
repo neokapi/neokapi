@@ -2,7 +2,6 @@ package pdf_test
 
 import (
 	"bytes"
-	"context"
 	"io"
 	"testing"
 
@@ -85,7 +84,7 @@ func rawDocFromBytes(data []byte, sourceLocale model.LocaleID) *model.RawDocumen
 }
 
 func TestReadMinimalPDF(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := pdf.NewReader()
 	err := reader.Open(ctx, rawDocFromBytes([]byte(minimalPDF), model.LocaleEnglish))
 	require.NoError(t, err)
@@ -98,7 +97,7 @@ func TestReadMinimalPDF(t *testing.T) {
 }
 
 func TestReadTJArray(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := pdf.NewReader()
 	err := reader.Open(ctx, rawDocFromBytes([]byte(tjArrayPDF), model.LocaleEnglish))
 	require.NoError(t, err)
@@ -113,7 +112,7 @@ func TestReadTJArray(t *testing.T) {
 }
 
 func TestReadLayerStartEnd(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := pdf.NewReader()
 	err := reader.Open(ctx, rawDocFromBytes([]byte(minimalPDF), model.LocaleEnglish))
 	require.NoError(t, err)
@@ -131,7 +130,7 @@ func TestReadLayerStartEnd(t *testing.T) {
 }
 
 func TestPageLayers(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := pdf.NewReader()
 	err := reader.Open(ctx, rawDocFromBytes([]byte(minimalPDF), model.LocaleEnglish))
 	require.NoError(t, err)
@@ -171,14 +170,14 @@ func TestReaderMetadata(t *testing.T) {
 }
 
 func TestReadNilDocument(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := pdf.NewReader()
 	err := reader.Open(ctx, nil)
 	require.Error(t, err)
 }
 
 func TestReadEmptyPDF(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := pdf.NewReader()
 	err := reader.Open(ctx, rawDocFromBytes([]byte("%PDF-1.0\n%%EOF\n"), model.LocaleEnglish))
 	require.NoError(t, err)
@@ -191,7 +190,7 @@ func TestReadEmptyPDF(t *testing.T) {
 }
 
 func TestWriterOutputsPlainText(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	reader := pdf.NewReader()
 	err := reader.Open(ctx, rawDocFromBytes([]byte(minimalPDF), model.LocaleEnglish))

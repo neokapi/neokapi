@@ -120,7 +120,7 @@ func TestExtract_MissingFilter(t *testing.T) {
 		Reader:       io.NopCloser(bytes.NewReader(content)),
 	}
 
-	ctx := context.Background()
+	ctx := t.Context()
 	openErr := reader.Open(ctx, doc)
 	if openErr != nil {
 		// Error during open — expected for missing filter config.

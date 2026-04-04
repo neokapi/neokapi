@@ -186,7 +186,7 @@ func TestPulseProjectAccessMiddleware_PrivateProject(t *testing.T) {
 	srv := NewServer(cfg)
 	initTestStores(t, srv)
 
-	ctx := context.Background()
+	ctx := t.Context()
 	proj := &store.Project{
 		ID:                  "p-1",
 		Name:                "Private Project",
@@ -225,7 +225,7 @@ func TestPulseProjectAccessMiddleware_PublicProject(t *testing.T) {
 	srv := NewServer(cfg)
 	initTestStores(t, srv)
 
-	ctx := context.Background()
+	ctx := t.Context()
 	proj := &store.Project{
 		ID:                  "p-1",
 		Name:                "Public Project",
@@ -264,7 +264,7 @@ func TestPulseProjectAccessMiddleware_WrongWorkspace(t *testing.T) {
 	srv := NewServer(cfg)
 	initTestStores(t, srv)
 
-	ctx := context.Background()
+	ctx := t.Context()
 	proj := &store.Project{
 		ID:                  "p-1",
 		Name:                "Project",
@@ -341,7 +341,7 @@ func TestHandlePulseOverview_EmptyWorkspace(t *testing.T) {
 
 func TestHandlePulseOverview_WithProjects(t *testing.T) {
 	srv := newPulseTestServer(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	// Create one public and one private project.
 	require.NoError(t, srv.ContentStore.CreateProject(ctx, &store.Project{
@@ -374,7 +374,7 @@ func TestHandlePulseOverview_WithProjects(t *testing.T) {
 
 func TestHandlePulseProjects_FiltersPrivate(t *testing.T) {
 	srv := newPulseTestServer(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	require.NoError(t, srv.ContentStore.CreateProject(ctx, &store.Project{
 		ID: "p-1", Name: "Pub", WorkspaceID: "ws-1", DashboardVisibility: "public",
@@ -520,7 +520,7 @@ func TestHandlePulseFrontPage(t *testing.T) {
 
 func TestHandlePulseFrontPage_WithPublicWorkspace(t *testing.T) {
 	srv := newPulseTestServer(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	// Create a public workspace.
 	ws := &platauth.Workspace{

@@ -388,7 +388,7 @@ func (a *App) runMultipleFiles(ctx context.Context, cmd *cobra.Command, flowName
 		batchStart = time.Now()
 		// Lane allocator: goroutines acquire/release lane IDs.
 		lanes = make(chan int, concurrency)
-		for i := 0; i < concurrency; i++ {
+		for i := range concurrency {
 			lanes <- i
 		}
 	}

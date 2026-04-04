@@ -40,7 +40,7 @@ func TestNATSQueue_EnqueueDequeue(t *testing.T) {
 	require.NoError(t, err)
 	defer q.Close()
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	require.NoError(t, q.Enqueue(ctx, "job-1"))
 	require.NoError(t, q.Enqueue(ctx, "job-2"))
@@ -62,7 +62,7 @@ func TestNATSQueue_Nack(t *testing.T) {
 	require.NoError(t, err)
 	defer q.Close()
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	require.NoError(t, q.Enqueue(ctx, "job-retry"))
 
@@ -84,7 +84,7 @@ func TestNATSQueue_DequeueContextCancelled(t *testing.T) {
 	require.NoError(t, err)
 	defer q.Close()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
+	ctx, cancel := context.WithTimeout(t.Context(), 50*time.Millisecond)
 	defer cancel()
 
 	_, _, _, err = q.Dequeue(ctx)

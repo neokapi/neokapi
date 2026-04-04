@@ -2,7 +2,6 @@ package messageformat_test
 
 import (
 	"bytes"
-	"context"
 	"strings"
 	"testing"
 
@@ -15,7 +14,7 @@ import (
 
 func readParts(t *testing.T, input string) []*model.Part {
 	t.Helper()
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := messageformat.NewReader()
 	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
 	require.NoError(t, err)
@@ -291,7 +290,7 @@ func TestExtract_EmbeddedPluralNames(t *testing.T) {
 
 // okapi: MessageFormatFilterTest#testInvalid
 func TestExtract_Invalid(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := messageformat.NewReader()
 	err := reader.Open(ctx, testutil.RawDocFromString("{invalid, broken", model.LocaleEnglish))
 	require.Error(t, err, "invalid message format should produce an error")
@@ -485,7 +484,7 @@ func TestParser_FormattedMessage(t *testing.T) {
 
 // okapi: MessageFormatParserTest#testChoiceMessage
 func TestParser_ChoiceMessage(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := messageformat.NewReader()
 	input := "{0,choice,0#no files|1#one file|1<{0,number,integer} files}"
 	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
@@ -495,7 +494,7 @@ func TestParser_ChoiceMessage(t *testing.T) {
 
 // okapi: MessageFormatParserTest#testCountChoice
 func TestParser_CountChoice(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := messageformat.NewReader()
 	input := "{0,choice,0#zero|1#one|2#two}"
 	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
@@ -509,7 +508,7 @@ func TestParser_InvalidMessageFormat(t *testing.T) {
 	// as a valid ICU type. Our native parser is more lenient: {name, type} is syntactically
 	// valid MessageFormat (a typed argument reference), so we treat it as a placeholder.
 	// Instead, test with genuinely broken syntax (unmatched braces).
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := messageformat.NewReader()
 	err := reader.Open(ctx, testutil.RawDocFromString("{unterminated, plural,", model.LocaleEnglish))
 	require.Error(t, err, "invalid message format should produce an error")
@@ -581,7 +580,7 @@ func TestReaderMetadata(t *testing.T) {
 }
 
 func TestReadNilDocument(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := messageformat.NewReader()
 	err := reader.Open(ctx, nil)
 	require.Error(t, err)
@@ -594,7 +593,7 @@ func TestReadEmpty(t *testing.T) {
 }
 
 func TestRoundTrip(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	input := "Hello world"
 
 	reader := messageformat.NewReader()
@@ -619,7 +618,7 @@ func TestRoundTrip(t *testing.T) {
 }
 
 func TestRoundTripWithTargetLocale(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	input := "Hello world"
 
 	reader := messageformat.NewReader()

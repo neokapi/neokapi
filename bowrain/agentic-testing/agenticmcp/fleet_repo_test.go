@@ -1,7 +1,6 @@
 package agenticmcp
 
 import (
-	"context"
 	"os"
 	"path/filepath"
 	"testing"
@@ -43,7 +42,7 @@ mode: accelerated
 	require.NoError(t, os.MkdirAll(filepath.Join(dir, ".git"), 0o755))
 
 	repo := &GitFleetRepo{LocalDir: dir}
-	ctx := context.Background()
+	ctx := t.Context()
 
 	workspaces, err := repo.ListWorkspaces(ctx)
 	require.NoError(t, err)
@@ -94,7 +93,7 @@ content:
 	require.NoError(t, os.MkdirAll(filepath.Join(dir, ".git"), 0o755))
 
 	repo := &GitFleetRepo{LocalDir: dir}
-	ctx := context.Background()
+	ctx := t.Context()
 
 	plan, err := repo.GetWorkspacePlan(ctx, "test-l10n")
 	require.NoError(t, err)
@@ -116,7 +115,7 @@ func TestGitFleetRepo_GetWorkspacePlan_NotFound(t *testing.T) {
 	require.NoError(t, os.MkdirAll(filepath.Join(dir, "workspaces"), 0o755))
 
 	repo := &GitFleetRepo{LocalDir: dir}
-	ctx := context.Background()
+	ctx := t.Context()
 
 	_, err := repo.GetWorkspacePlan(ctx, "nonexistent")
 	assert.Error(t, err)
@@ -128,7 +127,7 @@ func TestGitFleetRepo_ListWorkspaces_Empty(t *testing.T) {
 	// No workspaces directory at all.
 
 	repo := &GitFleetRepo{LocalDir: dir}
-	ctx := context.Background()
+	ctx := t.Context()
 
 	workspaces, err := repo.ListWorkspaces(ctx)
 	require.NoError(t, err)
@@ -149,7 +148,7 @@ func TestGitFleetRepo_ListWorkspaces_SkipInvalidPlan(t *testing.T) {
 	require.NoError(t, os.MkdirAll(ws2, 0o755))
 
 	repo := &GitFleetRepo{LocalDir: dir}
-	ctx := context.Background()
+	ctx := t.Context()
 
 	workspaces, err := repo.ListWorkspaces(ctx)
 	require.NoError(t, err)

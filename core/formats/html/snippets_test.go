@@ -2,7 +2,6 @@ package html_test
 
 import (
 	"bytes"
-	"context"
 	"strings"
 	"testing"
 
@@ -17,7 +16,7 @@ import (
 
 func readHTML(t *testing.T, snippet string) []*model.Part {
 	t.Helper()
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := htmlfmt.NewReader()
 	err := reader.Open(ctx, testutil.RawDocFromString(snippet, model.LocaleEnglish))
 	require.NoError(t, err)
@@ -27,7 +26,7 @@ func readHTML(t *testing.T, snippet string) []*model.Part {
 
 func readHTMLWithConfig(t *testing.T, snippet string, params map[string]any) []*model.Part {
 	t.Helper()
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := htmlfmt.NewReader()
 	if params != nil {
 		err := reader.Config().ApplyMap(params)
@@ -93,7 +92,7 @@ func findDataPartWithProperty(parts []*model.Part, key string) *model.Data {
 
 func roundtrip(t *testing.T, snippet string) string {
 	t.Helper()
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := htmlfmt.NewReader()
 	err := reader.Open(ctx, testutil.RawDocFromString(snippet, model.LocaleEnglish))
 	require.NoError(t, err)

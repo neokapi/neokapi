@@ -41,7 +41,7 @@ func readPackageFileWithLocales(t *testing.T, relPath string, srcLocale, tgtLoca
 		Reader:       io.NopCloser(bytes.NewReader(content)),
 	}
 
-	ctx := context.Background()
+	ctx := t.Context()
 	require.NoError(t, reader.Open(ctx, doc))
 
 	var parts []*model.Part
@@ -73,7 +73,7 @@ func readPackageFileFromPath(t *testing.T, absPath string, srcLocale, tgtLocale 
 		Reader:       io.NopCloser(bytes.NewReader(content)),
 	}
 
-	ctx := context.Background()
+	ctx := t.Context()
 	require.NoError(t, reader.Open(ctx, doc))
 
 	var parts []*model.Part

@@ -2,7 +2,6 @@ package html_test
 
 import (
 	"bytes"
-	"context"
 	"strings"
 	"testing"
 
@@ -18,7 +17,7 @@ import (
 // re-reads the output, and compares the block texts match.
 func assertRoundtripPreserved(t *testing.T, input string) {
 	t.Helper()
-	ctx := context.Background()
+	ctx := t.Context()
 
 	// First read: extract parts from input.
 	reader1 := htmlfmt.NewReader()
@@ -183,7 +182,7 @@ func TestRoundtrip_ComplexDocument(t *testing.T) {
 
 func TestRoundtrip_WithTranslation(t *testing.T) {
 	input := `<html><body><p>Hello world</p></body></html>`
-	ctx := context.Background()
+	ctx := t.Context()
 	locale := model.LocaleID("fr")
 
 	// Read and set translations.
@@ -224,7 +223,7 @@ func TestRoundtrip_WithTranslation(t *testing.T) {
 
 func TestRoundtrip_TranslateAttribute(t *testing.T) {
 	input := `<html><body><p title="Original title">Text</p></body></html>`
-	ctx := context.Background()
+	ctx := t.Context()
 	locale := model.LocaleID("de")
 
 	reader := htmlfmt.NewReader()
@@ -268,7 +267,7 @@ func TestRoundtrip_TranslateAttribute(t *testing.T) {
 
 func TestRoundtrip_TranslateMetaContent(t *testing.T) {
 	input := `<html><head><meta name="description" content="Original description"></head><body><p>Body</p></body></html>`
-	ctx := context.Background()
+	ctx := t.Context()
 	locale := model.LocaleID("es")
 
 	reader := htmlfmt.NewReader()
@@ -306,7 +305,7 @@ func TestRoundtrip_TranslateMetaContent(t *testing.T) {
 
 func TestRoundtrip_NonTranslatableUnchanged(t *testing.T) {
 	input := `<html><body><script>var x=1;</script><p translate="no">Keep me</p><p>Translate me</p></body></html>`
-	ctx := context.Background()
+	ctx := t.Context()
 	locale := model.LocaleID("ja")
 
 	reader := htmlfmt.NewReader()
@@ -348,7 +347,7 @@ func TestRoundtrip_NonTranslatableUnchanged(t *testing.T) {
 
 func TestRoundtrip_FallbackWithoutOriginal(t *testing.T) {
 	input := `<html><body><p>Hello world</p></body></html>`
-	ctx := context.Background()
+	ctx := t.Context()
 
 	reader := htmlfmt.NewReader()
 	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
@@ -376,7 +375,7 @@ func TestRoundtrip_FallbackWithoutOriginal(t *testing.T) {
 // roundtripWithSkeleton performs a read/write roundtrip using the skeleton store.
 func roundtripWithSkeleton(t *testing.T, input string) string {
 	t.Helper()
-	ctx := context.Background()
+	ctx := t.Context()
 
 	reader := htmlfmt.NewReader()
 	writer := htmlfmt.NewWriter()
@@ -444,7 +443,7 @@ func TestSkeletonRoundtrip_ByteExact(t *testing.T) {
 
 func TestSkeletonRoundtrip_WithTranslation(t *testing.T) {
 	input := `<html><body><p>Hello world</p></body></html>`
-	ctx := context.Background()
+	ctx := t.Context()
 	locale := model.LocaleID("fr")
 
 	reader := htmlfmt.NewReader()
@@ -492,7 +491,7 @@ func TestSkeletonRoundtrip_WithTranslation(t *testing.T) {
 
 func TestSkeletonRoundtrip_TranslatableAttributes(t *testing.T) {
 	input := `<html><body><p title="Tooltip">Text</p><img src="pic.png" alt="Photo"></body></html>`
-	ctx := context.Background()
+	ctx := t.Context()
 	locale := model.LocaleID("de")
 
 	reader := htmlfmt.NewReader()
@@ -543,7 +542,7 @@ func TestSkeletonRoundtrip_TranslatableAttributes(t *testing.T) {
 
 func TestSkeletonRoundtrip_LangRewrittenToTargetLocale(t *testing.T) {
 	input := `<html lang="en"><body><p>Hello world</p></body></html>`
-	ctx := context.Background()
+	ctx := t.Context()
 	locale := model.LocaleID("fr")
 
 	reader := htmlfmt.NewReader()
@@ -597,7 +596,7 @@ func TestSkeletonRoundtrip_LangPreservedWithoutTargetLocale(t *testing.T) {
 func TestSkeletonRoundtrip_LangUnrelatedLocalePreserved(t *testing.T) {
 	// lang="de" should NOT be rewritten when source is "en" and target is "fr".
 	input := `<html lang="en"><body><p lang="de">German</p><p>English</p></body></html>`
-	ctx := context.Background()
+	ctx := t.Context()
 	locale := model.LocaleID("fr")
 
 	reader := htmlfmt.NewReader()

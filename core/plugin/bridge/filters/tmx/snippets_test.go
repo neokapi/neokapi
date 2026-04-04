@@ -120,7 +120,7 @@ func readTMXAllowError(t *testing.T, snippet string) ([]*model.Part, error) {
 		Reader:       io.NopCloser(bytes.NewReader([]byte(snippet))),
 	}
 
-	ctx := context.Background()
+	ctx := t.Context()
 	if err := reader.Open(ctx, doc); err != nil {
 		return nil, err
 	}
@@ -594,7 +594,7 @@ func TestPropAndNoteInStartDocument(t *testing.T) {
 		MimeType:     mimeType,
 		Reader:       io.NopCloser(bytes.NewReader(data)),
 	}
-	ctx := context.Background()
+	ctx := t.Context()
 	require.NoError(t, reader.Open(ctx, doc))
 
 	var parts []*model.Part

@@ -2,7 +2,6 @@ package txml_test
 
 import (
 	"bytes"
-	"context"
 	"testing"
 
 	"github.com/neokapi/neokapi/core/format"
@@ -15,7 +14,7 @@ import (
 
 func snippetRoundtripWithSkeleton(t *testing.T, input string) string {
 	t.Helper()
-	ctx := context.Background()
+	ctx := t.Context()
 
 	reader := txml.NewReader()
 	writer := txml.NewWriter()
@@ -104,7 +103,7 @@ func TestSkeletonStore_WithTranslation(t *testing.T) {
 </body>
 </txml>
 `
-	ctx := context.Background()
+	ctx := t.Context()
 
 	reader := txml.NewReader()
 	writer := txml.NewWriter()
@@ -163,7 +162,7 @@ func TestSkeletonStore_WithTranslation_Escaping(t *testing.T) {
 </body>
 </txml>
 `
-	ctx := context.Background()
+	ctx := t.Context()
 
 	reader := txml.NewReader()
 	writer := txml.NewWriter()

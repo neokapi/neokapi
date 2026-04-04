@@ -3,7 +3,6 @@ package epub_test
 import (
 	"archive/zip"
 	"bytes"
-	"context"
 	"io"
 	"strings"
 	"testing"
@@ -100,7 +99,7 @@ func rawDocFromBytes(data []byte, locale model.LocaleID) *model.RawDocument {
 
 // okapi: EpubFilterTests#testSimpleReadWrite — extracts text from EPUB chapters.
 func TestReadEPUBContent(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	data := makeEPUB(t)
 
 	reader := epub.NewReader()
@@ -120,7 +119,7 @@ func TestReadEPUBContent(t *testing.T) {
 
 // okapi: EpubFilterTests#testSimpleReadWrite — verifies sub-document layer structure per chapter.
 func TestReadEPUBLayerStructure(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	data := makeEPUB(t)
 
 	reader := epub.NewReader()
@@ -153,7 +152,7 @@ func TestReadEPUBLayerStructure(t *testing.T) {
 }
 
 func TestReadEPUBNonContentAsData(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	data := makeEPUB(t)
 
 	reader := epub.NewReader()
@@ -178,7 +177,7 @@ func TestReadEPUBNonContentAsData(t *testing.T) {
 
 // okapi: EpubFilterTests#testInformation — title elements are extracted as translatable content.
 func TestReadEPUBTitleExtraction(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	data := makeEPUB(t)
 
 	reader := epub.NewReader()
@@ -195,7 +194,7 @@ func TestReadEPUBTitleExtraction(t *testing.T) {
 }
 
 func TestReadNilDocument(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := epub.NewReader()
 	err := reader.Open(ctx, nil)
 	require.Error(t, err)
@@ -216,7 +215,7 @@ func TestReaderMetadata(t *testing.T) {
 }
 
 func TestRoundTrip(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	data := makeEPUB(t)
 
 	reader := epub.NewReader()
@@ -252,7 +251,7 @@ func TestRoundTrip(t *testing.T) {
 }
 
 func TestRoundTripWithTranslation(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	data := makeEPUB(t)
 
 	reader := epub.NewReader()
@@ -321,7 +320,7 @@ func TestConfigValidate(t *testing.T) {
 }
 
 func TestSkeletonRoundTrip(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	data := makeEPUB(t)
 
 	// Read with skeleton store
@@ -370,7 +369,7 @@ func TestSkeletonRoundTrip(t *testing.T) {
 }
 
 func TestSkeletonRoundTripWithTranslation(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	data := makeEPUB(t)
 
 	// Read with skeleton store

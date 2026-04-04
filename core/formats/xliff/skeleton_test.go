@@ -2,7 +2,6 @@ package xliff_test
 
 import (
 	"bytes"
-	"context"
 	"os"
 	"testing"
 
@@ -16,7 +15,7 @@ import (
 
 func snippetRoundtripWithSkeleton(t *testing.T, input string) string {
 	t.Helper()
-	ctx := context.Background()
+	ctx := t.Context()
 
 	reader := xliff.NewReader()
 	writer := xliff.NewWriter()
@@ -122,7 +121,7 @@ func TestSkeletonStore_WithTranslation(t *testing.T) {
     </body>
   </file>
 </xliff>`
-	ctx := context.Background()
+	ctx := t.Context()
 
 	reader := xliff.NewReader()
 	writer := xliff.NewWriter()
@@ -182,7 +181,7 @@ func TestSkeletonStore_WithTranslation_Escaping(t *testing.T) {
     </body>
   </file>
 </xliff>`
-	ctx := context.Background()
+	ctx := t.Context()
 
 	reader := xliff.NewReader()
 	writer := xliff.NewWriter()

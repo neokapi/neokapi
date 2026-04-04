@@ -79,7 +79,7 @@ func (f *fakeXMLWriter) Write(ctx context.Context, parts <-chan *model.Part) err
 }
 
 func TestSubfilter_ReadODTWithXMLReader(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	data := makeODFZip(mimeODT, simpleODTContent("Hello, World!", "Second paragraph"))
 
 	reader := odf.NewReader()
@@ -120,7 +120,7 @@ func TestSubfilter_ReadODTWithXMLReader(t *testing.T) {
 }
 
 func TestSubfilter_NoResolverFallsBack(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	data := makeODFZip(mimeODT, simpleODTContent("Hello", "World"))
 
 	reader := odf.NewReader()
@@ -138,7 +138,7 @@ func TestSubfilter_NoResolverFallsBack(t *testing.T) {
 }
 
 func TestSubfilter_WithStylesXML(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	contentXML := simpleODTContent("Content text")
 	stylesXML := `<?xml version="1.0" encoding="UTF-8"?>
 <office:document-styles
@@ -176,7 +176,7 @@ func TestSubfilter_WithStylesXML(t *testing.T) {
 }
 
 func TestSubfilter_Roundtrip(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	data := makeODFZip(mimeODT, simpleODTContent("Hello", "World"))
 	resolver := &testResolver{}
 

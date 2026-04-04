@@ -1,7 +1,6 @@
 package auth
 
 import (
-	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"testing"
@@ -22,7 +21,7 @@ func newTestStore(t *testing.T) *SQLiteAuthStore {
 
 func TestCreateAndGetUser(t *testing.T) {
 	s := newTestStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	u := &platauth.User{Email: "alice@example.com", Name: "Alice"}
 	require.NoError(t, s.CreateUser(ctx, u))
@@ -38,7 +37,7 @@ func TestCreateAndGetUser(t *testing.T) {
 
 func TestGetUserByEmail(t *testing.T) {
 	s := newTestStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	u := &platauth.User{Email: "bob@example.com", Name: "Bob"}
 	require.NoError(t, s.CreateUser(ctx, u))
@@ -50,7 +49,7 @@ func TestGetUserByEmail(t *testing.T) {
 
 func TestUpdateUser(t *testing.T) {
 	s := newTestStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	u := &platauth.User{Email: "carol@example.com", Name: "Carol"}
 	require.NoError(t, s.CreateUser(ctx, u))
@@ -67,7 +66,7 @@ func TestUpdateUser(t *testing.T) {
 
 func TestCreateAndGetWorkspace(t *testing.T) {
 	s := newTestStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	w := &platauth.Workspace{Name: "My Team", Slug: "my-team", Description: "Test workspace"}
 	require.NoError(t, s.CreateWorkspace(ctx, w))
@@ -81,7 +80,7 @@ func TestCreateAndGetWorkspace(t *testing.T) {
 
 func TestGetWorkspaceBySlug(t *testing.T) {
 	s := newTestStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	w := &platauth.Workspace{Name: "Acme Corp", Slug: "acme-corp"}
 	require.NoError(t, s.CreateWorkspace(ctx, w))
@@ -93,7 +92,7 @@ func TestGetWorkspaceBySlug(t *testing.T) {
 
 func TestUpdateWorkspace(t *testing.T) {
 	s := newTestStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	w := &platauth.Workspace{Name: "Old Name", Slug: "old-name"}
 	require.NoError(t, s.CreateWorkspace(ctx, w))
@@ -110,7 +109,7 @@ func TestUpdateWorkspace(t *testing.T) {
 
 func TestDeleteWorkspace(t *testing.T) {
 	s := newTestStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	w := &platauth.Workspace{Name: "Ephemeral", Slug: "ephemeral"}
 	require.NoError(t, s.CreateWorkspace(ctx, w))
@@ -123,7 +122,7 @@ func TestDeleteWorkspace(t *testing.T) {
 
 func TestMembership(t *testing.T) {
 	s := newTestStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	u := &platauth.User{Email: "dan@example.com", Name: "Dan"}
 	require.NoError(t, s.CreateUser(ctx, u))
@@ -160,7 +159,7 @@ func TestMembership(t *testing.T) {
 
 func TestListWorkspacesByUser(t *testing.T) {
 	s := newTestStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	u := &platauth.User{Email: "eve@example.com", Name: "Eve"}
 	require.NoError(t, s.CreateUser(ctx, u))
@@ -182,7 +181,7 @@ func TestListWorkspacesByUser(t *testing.T) {
 
 func TestInvalidRole(t *testing.T) {
 	s := newTestStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	u := &platauth.User{Email: "test@example.com", Name: "Test"}
 	require.NoError(t, s.CreateUser(ctx, u))
@@ -196,7 +195,7 @@ func TestInvalidRole(t *testing.T) {
 
 func TestDeleteWorkspaceCascadesMemberships(t *testing.T) {
 	s := newTestStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	u := &platauth.User{Email: "frank@example.com", Name: "Frank"}
 	require.NoError(t, s.CreateUser(ctx, u))
@@ -218,7 +217,7 @@ func TestDeleteWorkspaceCascadesMemberships(t *testing.T) {
 
 func TestStoreAndValidateRefreshToken(t *testing.T) {
 	s := newTestStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	u := &platauth.User{Email: "refresh@example.com", Name: "Refresh User"}
 	require.NoError(t, s.CreateUser(ctx, u))
@@ -242,7 +241,7 @@ func TestStoreAndValidateRefreshToken(t *testing.T) {
 
 func TestValidateRefreshTokenExpired(t *testing.T) {
 	s := newTestStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	u := &platauth.User{Email: "expired@example.com", Name: "Expired"}
 	require.NoError(t, s.CreateUser(ctx, u))
@@ -260,7 +259,7 @@ func TestValidateRefreshTokenExpired(t *testing.T) {
 
 func TestRevokeRefreshToken(t *testing.T) {
 	s := newTestStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	u := &platauth.User{Email: "revoke@example.com", Name: "Revoke"}
 	require.NoError(t, s.CreateUser(ctx, u))
@@ -280,7 +279,7 @@ func TestRevokeRefreshToken(t *testing.T) {
 
 func TestRevokeUserRefreshTokens(t *testing.T) {
 	s := newTestStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	u := &platauth.User{Email: "revokeall@example.com", Name: "RevokeAll"}
 	require.NoError(t, s.CreateUser(ctx, u))
@@ -302,7 +301,7 @@ func TestRevokeUserRefreshTokens(t *testing.T) {
 
 func TestDeleteUserCascadesRefreshTokens(t *testing.T) {
 	s := newTestStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	u := &platauth.User{Email: "cascade-rt@example.com", Name: "CascadeRT"}
 	require.NoError(t, s.CreateUser(ctx, u))
@@ -331,7 +330,7 @@ func makeTokenHash(plaintext string) string {
 
 func TestCreateAndGetAPIToken(t *testing.T) {
 	s := newTestStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	u := &platauth.User{Email: "token@example.com", Name: "Token User"}
 	require.NoError(t, s.CreateUser(ctx, u))
@@ -366,7 +365,7 @@ func TestCreateAndGetAPIToken(t *testing.T) {
 
 func TestListAPITokens(t *testing.T) {
 	s := newTestStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	u := &platauth.User{Email: "list-tok@example.com", Name: "List"}
 	require.NoError(t, s.CreateUser(ctx, u))
@@ -385,7 +384,7 @@ func TestListAPITokens(t *testing.T) {
 
 func TestDeleteAPIToken(t *testing.T) {
 	s := newTestStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	u := &platauth.User{Email: "del-tok@example.com", Name: "Del"}
 	require.NoError(t, s.CreateUser(ctx, u))
@@ -403,7 +402,7 @@ func TestDeleteAPIToken(t *testing.T) {
 
 func TestDeleteAPITokenNotFound(t *testing.T) {
 	s := newTestStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	err := s.DeleteAPIToken(ctx, "nonexistent-id")
 	require.Error(t, err)
@@ -412,7 +411,7 @@ func TestDeleteAPITokenNotFound(t *testing.T) {
 
 func TestUpdateAPITokenLastUsed(t *testing.T) {
 	s := newTestStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	u := &platauth.User{Email: "lastused@example.com", Name: "LastUsed"}
 	require.NoError(t, s.CreateUser(ctx, u))
@@ -431,7 +430,7 @@ func TestUpdateAPITokenLastUsed(t *testing.T) {
 
 func TestAPITokenWithExpiration(t *testing.T) {
 	s := newTestStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	u := &platauth.User{Email: "exp-tok@example.com", Name: "Exp"}
 	require.NoError(t, s.CreateUser(ctx, u))
@@ -456,7 +455,7 @@ func TestAPITokenWithExpiration(t *testing.T) {
 
 func TestDeleteUserCascadesAPITokens(t *testing.T) {
 	s := newTestStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	u := &platauth.User{Email: "cascade-at@example.com", Name: "CascadeAT"}
 	require.NoError(t, s.CreateUser(ctx, u))
@@ -478,7 +477,7 @@ func TestDeleteUserCascadesAPITokens(t *testing.T) {
 
 func TestDeleteWorkspaceCascadesAPITokens(t *testing.T) {
 	s := newTestStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	u := &platauth.User{Email: "cascade-ws@example.com", Name: "CascadeWS"}
 	require.NoError(t, s.CreateUser(ctx, u))
@@ -501,7 +500,7 @@ func TestDeleteWorkspaceCascadesAPITokens(t *testing.T) {
 
 func setupWorkspaceWithRoles(t *testing.T, s *SQLiteAuthStore) (workspaceID string, roles []*platauth.RoleTemplate) {
 	t.Helper()
-	ctx := context.Background()
+	ctx := t.Context()
 
 	w := &platauth.Workspace{Name: "Roles WS", Slug: "roles-ws"}
 	require.NoError(t, s.CreateWorkspace(ctx, w))
@@ -514,7 +513,7 @@ func setupWorkspaceWithRoles(t *testing.T, s *SQLiteAuthStore) (workspaceID stri
 
 func TestRoleTemplateCRUD(t *testing.T) {
 	s := newTestStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	w := &platauth.Workspace{Name: "RT CRUD", Slug: "rt-crud"}
 	require.NoError(t, s.CreateWorkspace(ctx, w))
@@ -601,7 +600,7 @@ func TestRoleTemplateCRUD(t *testing.T) {
 
 func TestSeedDefaultRoleTemplates(t *testing.T) {
 	s := newTestStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	w := &platauth.Workspace{Name: "Seed WS", Slug: "seed-ws"}
 	require.NoError(t, s.CreateWorkspace(ctx, w))
@@ -636,7 +635,7 @@ func TestSeedDefaultRoleTemplates(t *testing.T) {
 
 func TestProjectMemberCRUD(t *testing.T) {
 	s := newTestStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	wsID, roles := setupWorkspaceWithRoles(t, s)
 
@@ -713,7 +712,7 @@ func TestProjectMemberCRUD(t *testing.T) {
 
 func TestResolveProjectPermissions(t *testing.T) {
 	s := newTestStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	wsID, roles := setupWorkspaceWithRoles(t, s)
 
@@ -757,7 +756,7 @@ func TestResolveProjectPermissions(t *testing.T) {
 
 func TestProjectMemberLanguages(t *testing.T) {
 	s := newTestStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	wsID, roles := setupWorkspaceWithRoles(t, s)
 

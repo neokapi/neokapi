@@ -15,7 +15,7 @@ import (
 
 // okapi: ParagraphPlainTextFilterTest#testSingleParagraph
 func TestSingleParagraph(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := paraplaintext.NewReader()
 	input := "Hello world"
 	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
@@ -30,7 +30,7 @@ func TestSingleParagraph(t *testing.T) {
 
 // okapi: ParagraphPlainTextFilterTest#testMultipleParagraphs
 func TestMultipleParagraphs(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := paraplaintext.NewReader()
 	input := "First paragraph.\n\nSecond paragraph."
 	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
@@ -46,7 +46,7 @@ func TestMultipleParagraphs(t *testing.T) {
 
 // okapi: ParagraphPlainTextFilterTest#testMultiLineParagraph
 func TestMultiLineParagraph(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := paraplaintext.NewReader()
 	input := "Line one.\nLine two.\nLine three."
 	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
@@ -61,7 +61,7 @@ func TestMultiLineParagraph(t *testing.T) {
 
 // okapi: ParagraphPlainTextFilterTest#testThreeParagraphs
 func TestThreeParagraphs(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := paraplaintext.NewReader()
 	input := "First\n\nSecond\n\nThird"
 	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
@@ -77,7 +77,7 @@ func TestThreeParagraphs(t *testing.T) {
 }
 
 func TestReadEmpty(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := paraplaintext.NewReader()
 	err := reader.Open(ctx, testutil.RawDocFromString("", model.LocaleEnglish))
 	require.NoError(t, err)
@@ -90,14 +90,14 @@ func TestReadEmpty(t *testing.T) {
 }
 
 func TestReadNilDocument(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := paraplaintext.NewReader()
 	err := reader.Open(ctx, nil)
 	require.Error(t, err)
 }
 
 func TestReadLayerStartEnd(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := paraplaintext.NewReader()
 	input := "Hello"
 	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
@@ -157,7 +157,7 @@ func TestConfigApplyMapEmpty(t *testing.T) {
 
 // okapi: ParagraphPlainTextFilterTest#testPreserveNewlines
 func TestPreserveNewlinesInParagraph(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := paraplaintext.NewReader()
 	input := "Line 1\nLine 2\nLine 3\n\nNext paragraph"
 	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
@@ -172,7 +172,7 @@ func TestPreserveNewlinesInParagraph(t *testing.T) {
 }
 
 func TestParagraphSeparatorsAsData(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := paraplaintext.NewReader()
 	input := "First\n\nSecond"
 	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
@@ -191,7 +191,7 @@ func TestParagraphSeparatorsAsData(t *testing.T) {
 }
 
 func TestRoundTrip(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	f, err := os.Open("testdata/simple.txt")
 	require.NoError(t, err)
@@ -220,7 +220,7 @@ func TestRoundTrip(t *testing.T) {
 }
 
 func TestRoundTripWithTargetLocale(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	input := "First paragraph.\n\nSecond paragraph."
 	reader := paraplaintext.NewReader()
@@ -259,7 +259,7 @@ func TestRoundTripWithTargetLocale(t *testing.T) {
 }
 
 func TestContextCancellation(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(t.Context())
 	cancel()
 
 	reader := paraplaintext.NewReader()
@@ -276,7 +276,7 @@ func TestContextCancellation(t *testing.T) {
 }
 
 func TestWriterContextCancellation(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(t.Context())
 
 	var buf bytes.Buffer
 	writer := paraplaintext.NewWriter()
@@ -291,7 +291,7 @@ func TestWriterContextCancellation(t *testing.T) {
 }
 
 func TestBlockNaming(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := paraplaintext.NewReader()
 	input := "First\n\nSecond"
 	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
@@ -308,7 +308,7 @@ func TestBlockNaming(t *testing.T) {
 }
 
 func TestOnlyWhitespace(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := paraplaintext.NewReader()
 	input := "\n\n\n"
 	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))

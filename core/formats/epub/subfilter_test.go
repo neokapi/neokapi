@@ -79,7 +79,7 @@ func (f *fakeHTMLWriter) Write(ctx context.Context, parts <-chan *model.Part) er
 }
 
 func TestSubfilter_ReadEPUBWithHTMLReader(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	data := makeEPUB(t)
 
 	reader := epub.NewReader()
@@ -123,7 +123,7 @@ func TestSubfilter_ReadEPUBWithHTMLReader(t *testing.T) {
 }
 
 func TestSubfilter_NoResolverFallsBack(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	data := makeEPUB(t)
 
 	reader := epub.NewReader()
@@ -142,7 +142,7 @@ func TestSubfilter_NoResolverFallsBack(t *testing.T) {
 }
 
 func TestSubfilter_Roundtrip(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	data := makeEPUB(t)
 	resolver := &testResolver{}
 

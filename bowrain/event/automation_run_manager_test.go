@@ -1,7 +1,6 @@
 package event
 
 import (
-	"context"
 	"sync"
 	"testing"
 	"time"
@@ -22,14 +21,14 @@ func newTestRunStore(t *testing.T) *bstore.AutomationRunStore {
 
 	// Create a project for FK.
 	p := &platstore.Project{ID: "proj-1", Name: "Test", DefaultSourceLanguage: model.LocaleID("en")}
-	require.NoError(t, ss.CreateProject(context.Background(), p))
+	require.NoError(t, ss.CreateProject(t.Context(), p))
 
 	return bstore.NewAutomationRunStore(ss.DB())
 }
 
 func TestRunManager_CreatesRunAndStep(t *testing.T) {
 	store := newTestRunStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	var executed []string
 	var mu sync.Mutex
@@ -83,7 +82,7 @@ func TestRunManager_CreatesRunAndStep(t *testing.T) {
 
 func TestRunManager_GroupsSameEvent(t *testing.T) {
 	store := newTestRunStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	executor := func(action AutomationAction, ev platev.Event, stepID string) error {
 		return nil
@@ -128,7 +127,7 @@ func TestRunManager_NilStorePassesThrough(t *testing.T) {
 
 func TestRunManager_LogsOnSteps(t *testing.T) {
 	store := newTestRunStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	executor := func(action AutomationAction, ev platev.Event, stepID string) error {
 		return nil
@@ -155,7 +154,7 @@ func TestRunManager_LogsOnSteps(t *testing.T) {
 
 func TestRunManager_AsyncStepStaysRunning(t *testing.T) {
 	store := newTestRunStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	executor := func(action AutomationAction, ev platev.Event, stepID string) error {
 		return nil

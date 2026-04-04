@@ -158,7 +158,7 @@ func TestServerInitialize(t *testing.T) {
 		HTTPClient: ts.Client(),
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
 	defer cancel()
 
 	session, err := client.Connect(ctx, transport, nil)
@@ -180,7 +180,7 @@ func TestServerListTools(t *testing.T) {
 		HTTPClient: ts.Client(),
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
 	defer cancel()
 
 	session, err := client.Connect(ctx, transport, nil)
@@ -217,7 +217,7 @@ func TestServerListTools(t *testing.T) {
 
 func TestHandleGetFleetSummary(t *testing.T) {
 	s, _, _, _ := newFullTestServer(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	_, out, err := s.handleGetFleetSummary(ctx, nil, getFleetSummaryInput{})
 	require.NoError(t, err)
@@ -237,7 +237,7 @@ func TestHandleGetFleetSummary(t *testing.T) {
 
 func TestHandleGetFleetSummary_NoFleetRepo(t *testing.T) {
 	s := newTestServer(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	_, _, err := s.handleGetFleetSummary(ctx, nil, getFleetSummaryInput{})
 	require.Error(t, err)
@@ -246,7 +246,7 @@ func TestHandleGetFleetSummary_NoFleetRepo(t *testing.T) {
 
 func TestHandleGetWorkspaceStatus(t *testing.T) {
 	s, _, _, _ := newFullTestServer(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	_, out, err := s.handleGetWorkspaceStatus(ctx, nil, getWorkspaceStatusInput{
 		WorkspaceSlug: "excalidraw-l10n",
@@ -261,7 +261,7 @@ func TestHandleGetWorkspaceStatus(t *testing.T) {
 
 func TestHandleGetWorkspaceStatus_NotFound(t *testing.T) {
 	s, _, _, _ := newFullTestServer(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	_, _, err := s.handleGetWorkspaceStatus(ctx, nil, getWorkspaceStatusInput{
 		WorkspaceSlug: "nonexistent",
@@ -271,7 +271,7 @@ func TestHandleGetWorkspaceStatus_NotFound(t *testing.T) {
 
 func TestHandleListWorkspaces(t *testing.T) {
 	s, _, _, _ := newFullTestServer(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	_, out, err := s.handleListWorkspaces(ctx, nil, listWorkspacesInput{})
 	require.NoError(t, err)
@@ -285,7 +285,7 @@ func TestHandleListWorkspaces(t *testing.T) {
 
 func TestHandleListAgentExecutions_NoStore(t *testing.T) {
 	s := newTestServer(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	_, _, err := s.handleListAgentExecutions(ctx, nil, listAgentExecutionsInput{})
 	require.Error(t, err)
@@ -294,7 +294,7 @@ func TestHandleListAgentExecutions_NoStore(t *testing.T) {
 
 func TestHandleListAgentEvents_NoStore(t *testing.T) {
 	s := newTestServer(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	_, _, err := s.handleListAgentEvents(ctx, nil, listAgentEventsInput{})
 	require.Error(t, err)
@@ -303,7 +303,7 @@ func TestHandleListAgentEvents_NoStore(t *testing.T) {
 
 func TestHandleWalkRelease(t *testing.T) {
 	s, _, walker, _ := newFullTestServer(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	_, out, err := s.handleWalkRelease(ctx, nil, walkReleaseInput{
 		WorkspaceSlug: "excalidraw-l10n",
@@ -324,7 +324,7 @@ func TestHandleWalkRelease(t *testing.T) {
 
 func TestHandleWalkRelease_NoTag(t *testing.T) {
 	s, _, walker, _ := newFullTestServer(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	_, _, err := s.handleWalkRelease(ctx, nil, walkReleaseInput{
 		WorkspaceSlug: "excalidraw-l10n",
@@ -339,7 +339,7 @@ func TestHandleWalkRelease_NoTag(t *testing.T) {
 func TestHandleOnboardProject(t *testing.T) {
 	fleet := &mockFleetRepo{plans: map[string]*WorkspacePlan{}}
 	s := newTestServer(t, WithFleetRepo(fleet))
-	ctx := context.Background()
+	ctx := t.Context()
 
 	_, out, err := s.handleOnboardProject(ctx, nil, onboardProjectInput{
 		UpstreamRepo:    "excalidraw/excalidraw",
@@ -367,7 +367,7 @@ func TestHandleOnboardProject(t *testing.T) {
 
 func TestHandleFileFeedbackIssue(t *testing.T) {
 	s, _, _, issues := newFullTestServer(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	_, out, err := s.handleFileFeedbackIssue(ctx, nil, fileFeedbackIssueInput{
 		Title:  "MDX parser fails on custom components",
@@ -386,7 +386,7 @@ func TestHandleFileFeedbackIssue(t *testing.T) {
 func TestHandleCommitMemory(t *testing.T) {
 	fleet := &mockFleetRepo{plans: map[string]*WorkspacePlan{}}
 	s := newTestServer(t, WithFleetRepo(fleet))
-	ctx := context.Background()
+	ctx := t.Context()
 
 	_, out, err := s.handleCommitMemory(ctx, nil, commitMemoryInput{
 		Path:    "coordinator/memory/observation-01.md",

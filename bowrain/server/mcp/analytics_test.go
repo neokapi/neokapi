@@ -175,7 +175,7 @@ func TestAnalyticsMiddleware_OnlyTracksOnSuccess(t *testing.T) {
 	req := &mcp.ServerRequest[*mcp.ReadResourceParams]{
 		Params: &mcp.ReadResourceParams{URI: "brand://profiles/x"},
 	}
-	_, err := failHandler(context.Background(), "resources/read", req)
+	_, err := failHandler(t.Context(), "resources/read", req)
 	require.Error(t, err)
 	assert.Empty(t, tracker.events)
 }
@@ -196,7 +196,7 @@ func TestAnalyticsMiddleware_TracksOnSuccess(t *testing.T) {
 			TokenInfo: &auth.TokenInfo{UserID: "user-6"},
 		},
 	}
-	_, err := successHandler(context.Background(), "tools/call", req)
+	_, err := successHandler(t.Context(), "tools/call", req)
 	require.NoError(t, err)
 
 	got := tracker.lastEvent()
@@ -214,7 +214,7 @@ func TestAnalyticsMiddleware_IgnoresUnknownMethods(t *testing.T) {
 	})
 
 	req := &mcp.ServerRequest[*mcp.ListToolsParams]{}
-	_, err := handler(context.Background(), "tools/list", req)
+	_, err := handler(t.Context(), "tools/list", req)
 	require.NoError(t, err)
 	assert.Empty(t, tracker.events)
 }

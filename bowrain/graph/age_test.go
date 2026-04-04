@@ -26,7 +26,7 @@ func setupTestStore(t *testing.T) *AGEGraphStore {
 		t.Skip("AGE_TEST_DSN not set; skipping AGE integration test")
 	}
 
-	ctx := context.Background()
+	ctx := t.Context()
 	config, err := pgxpool.ParseConfig(connStr)
 	require.NoError(t, err)
 
@@ -44,7 +44,7 @@ func setupTestStore(t *testing.T) *AGEGraphStore {
 
 func TestAGENodeCRUD(t *testing.T) {
 	store := setupTestStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	node := &coreg.Node{
 		ID:         "test-node-1",
@@ -70,7 +70,7 @@ func TestAGENodeCRUD(t *testing.T) {
 
 func TestAGEEdgeCRUD(t *testing.T) {
 	store := setupTestStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	n1 := &coreg.Node{ID: "edge-test-n1", Label: "Concept", Properties: map[string]string{}}
 	n2 := &coreg.Node{ID: "edge-test-n2", Label: "Concept", Properties: map[string]string{}}
@@ -99,7 +99,7 @@ func TestAGEEdgeCRUD(t *testing.T) {
 
 func TestAGENeighbors(t *testing.T) {
 	store := setupTestStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	// Create a small graph: A -BROADER-> B -BROADER-> C
 	a := &coreg.Node{ID: "nb-a", Label: "Concept", Properties: map[string]string{"name": "A"}}
@@ -148,7 +148,7 @@ func TestAGENeighbors(t *testing.T) {
 
 func TestAGENeighborsScoped(t *testing.T) {
 	store := setupTestStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	n1 := &coreg.Node{ID: "sc-n1", Label: "Concept", Properties: map[string]string{}}
 	n2 := &coreg.Node{ID: "sc-n2", Label: "Concept", Properties: map[string]string{}}
@@ -197,7 +197,7 @@ func TestAGENeighborsScoped(t *testing.T) {
 
 func TestAGEBulkCreate(t *testing.T) {
 	store := setupTestStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	nodes := []*coreg.Node{
 		{ID: "bulk-n1", Label: "Term", Properties: map[string]string{"text": "hello"}},
@@ -235,7 +235,7 @@ func TestAGEBulkCreate(t *testing.T) {
 
 func TestAGEFindNodes(t *testing.T) {
 	store := setupTestStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	n1 := &coreg.Node{ID: "find-n1", Label: "Concept", Properties: map[string]string{"domain": "medical"}}
 	n2 := &coreg.Node{ID: "find-n2", Label: "Concept", Properties: map[string]string{"domain": "legal"}}
@@ -263,7 +263,7 @@ func TestAGEFindNodes(t *testing.T) {
 
 func TestAGEShortestPath(t *testing.T) {
 	store := setupTestStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	// A -> B -> C -> D
 	for _, id := range []string{"sp-a", "sp-b", "sp-c", "sp-d"} {
@@ -298,7 +298,7 @@ func TestAGEShortestPath(t *testing.T) {
 
 func TestAGECypherQuery(t *testing.T) {
 	store := setupTestStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	// Cypher escape hatch should work on AGE
 	n := &coreg.Node{ID: "cypher-n1", Label: "Concept", Properties: map[string]string{"name": "test"}}

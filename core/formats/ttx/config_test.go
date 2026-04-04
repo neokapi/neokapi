@@ -2,7 +2,6 @@ package ttx_test
 
 import (
 	"bytes"
-	"context"
 	"testing"
 
 	"github.com/neokapi/neokapi/core/formats/ttx"
@@ -69,7 +68,7 @@ func TestConfigKind(t *testing.T) {
 }
 
 func TestSegmentModeAll(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := ttx.NewReader()
 
 	cfg := reader.Config().(*ttx.Config)
@@ -112,7 +111,7 @@ More unsegmented text after
 }
 
 func TestSegmentModeExistingOnly(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := ttx.NewReader()
 
 	cfg := reader.Config().(*ttx.Config)
@@ -142,7 +141,7 @@ Some unsegmented text
 }
 
 func TestEscapeGTWriter(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	// Read a simple TTX to get parts
 	reader := ttx.NewReader()
@@ -183,7 +182,7 @@ func TestEscapeGTWriter(t *testing.T) {
 }
 
 func TestEscapeGTWriterEnabled(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	reader := ttx.NewReader()
 	input := `<?xml version="1.0" encoding="utf-8"?>

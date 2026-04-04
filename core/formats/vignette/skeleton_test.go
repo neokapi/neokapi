@@ -2,7 +2,6 @@ package vignette_test
 
 import (
 	"bytes"
-	"context"
 	"testing"
 
 	"github.com/neokapi/neokapi/core/format"
@@ -15,7 +14,7 @@ import (
 
 func vignetteSkeletonRoundtrip(t *testing.T, input string) string {
 	t.Helper()
-	ctx := context.Background()
+	ctx := t.Context()
 
 	reader := vignette.NewReader()
 	writer := vignette.NewWriter()
@@ -103,7 +102,7 @@ func TestSkeletonStore_ByteExact_OnlyCode(t *testing.T) {
 
 func TestSkeletonStore_WithTranslation(t *testing.T) {
 	input := "Hello world.\n```{r}\ncode()\n```\nGoodbye world."
-	ctx := context.Background()
+	ctx := t.Context()
 	locale := model.LocaleID("fr")
 
 	reader := vignette.NewReader()

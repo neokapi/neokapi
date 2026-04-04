@@ -2,7 +2,6 @@ package srt_test
 
 import (
 	"bytes"
-	"context"
 	"testing"
 
 	"github.com/neokapi/neokapi/core/format"
@@ -15,7 +14,7 @@ import (
 
 func srtSkeletonRoundtrip(t *testing.T, input string) string {
 	t.Helper()
-	ctx := context.Background()
+	ctx := t.Context()
 
 	reader := srt.NewReader()
 	writer := srt.NewWriter()
@@ -79,7 +78,7 @@ func TestSkeletonStore_ByteExact_ThreeEntries(t *testing.T) {
 
 func TestSkeletonStore_WithTranslation(t *testing.T) {
 	input := "1\n00:00:01,000 --> 00:00:04,000\nHello\n\n2\n00:00:05,000 --> 00:00:08,000\nGoodbye\n"
-	ctx := context.Background()
+	ctx := t.Context()
 	locale := model.LocaleID("fr")
 
 	reader := srt.NewReader()
@@ -122,7 +121,7 @@ func TestSkeletonStore_WithTranslation(t *testing.T) {
 
 func TestSkeletonStore_WithTranslation_CRLF(t *testing.T) {
 	input := "1\r\n00:00:01,000 --> 00:00:04,000\r\nHello\r\n\r\n2\r\n00:00:05,000 --> 00:00:08,000\r\nWorld\r\n"
-	ctx := context.Background()
+	ctx := t.Context()
 	locale := model.LocaleID("de")
 
 	reader := srt.NewReader()

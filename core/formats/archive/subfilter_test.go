@@ -81,7 +81,7 @@ func (f *fakeFormatWriter) Write(ctx context.Context, parts <-chan *model.Part) 
 }
 
 func TestSubfilter_ReadHTMLInArchive(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	data := makeZip(t, map[string]string{
 		"page.html":  "<p>Hello <b>World</b></p>",
 		"readme.txt": "Plain text",
@@ -136,7 +136,7 @@ func TestSubfilter_ReadHTMLInArchive(t *testing.T) {
 }
 
 func TestSubfilter_NoResolverFallsBack(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	data := makeZip(t, map[string]string{
 		"page.html": "Line one\nLine two",
 	})
@@ -156,7 +156,7 @@ func TestSubfilter_NoResolverFallsBack(t *testing.T) {
 }
 
 func TestSubfilter_CustomMappings(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	data := makeZip(t, map[string]string{
 		"data.custom": "custom content",
 		"readme.txt":  "plain text",
@@ -209,7 +209,7 @@ func TestSubfilter_CustomMappings(t *testing.T) {
 }
 
 func TestSubfilter_Roundtrip(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	data := makeZip(t, map[string]string{
 		"page.html": "<p>Hello World</p>",
 		"image.png": "binary data",

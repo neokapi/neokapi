@@ -2,7 +2,6 @@ package wiki_test
 
 import (
 	"bytes"
-	"context"
 	"testing"
 
 	"github.com/neokapi/neokapi/core/format"
@@ -15,7 +14,7 @@ import (
 
 func snippetRoundtripWithSkeleton(t *testing.T, input string) string {
 	t.Helper()
-	ctx := context.Background()
+	ctx := t.Context()
 
 	reader := wiki.NewReader()
 	writer := wiki.NewWriter()
@@ -85,7 +84,7 @@ func TestSkeletonStore_ByteExact_BlankLines(t *testing.T) {
 
 func TestSkeletonStore_WithTranslation(t *testing.T) {
 	input := "Hello World\n\nGoodbye\n"
-	ctx := context.Background()
+	ctx := t.Context()
 	locale := model.LocaleID("fr")
 
 	reader := wiki.NewReader()

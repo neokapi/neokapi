@@ -50,7 +50,7 @@ func setupGRPC(t *testing.T) pb.NeokapiServiceClient {
 
 func TestGRPCProjectCRUD(t *testing.T) {
 	client := setupGRPC(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	// Create project.
 	resp, err := client.CreateProject(ctx, &pb.CreateProjectRequest{
@@ -77,7 +77,7 @@ func TestGRPCProjectCRUD(t *testing.T) {
 
 func TestGRPCBlocksAndVersions(t *testing.T) {
 	client := setupGRPC(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	// Create project first.
 	proj, err := client.CreateProject(ctx, &pb.CreateProjectRequest{
@@ -131,7 +131,7 @@ func TestGRPCBlocksAndVersions(t *testing.T) {
 
 func TestGRPCFlowExecution(t *testing.T) {
 	client := setupGRPC(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	// Create a project with blocks first.
 	proj, err := client.CreateProject(ctx, &pb.CreateProjectRequest{
@@ -176,7 +176,7 @@ func TestGRPCFlowExecution(t *testing.T) {
 
 func TestGRPCFlowExecutionInvalidConfig(t *testing.T) {
 	client := setupGRPC(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	// Empty tools should return an error.
 	stream, err := client.ExecuteFlow(ctx, &pb.ExecuteFlowRequest{

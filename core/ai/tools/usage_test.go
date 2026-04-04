@@ -30,7 +30,7 @@ func TestTranslateToolAccumulatesUsage(t *testing.T) {
 	})
 
 	// Process two blocks.
-	ctx := context.Background()
+	ctx := t.Context()
 	in := make(chan *model.Part, 2)
 	out := make(chan *model.Part, 2)
 
@@ -60,7 +60,7 @@ func TestTranslateToolResetUsage(t *testing.T) {
 		TargetLocale: model.LocaleFrench,
 	})
 
-	ctx := context.Background()
+	ctx := t.Context()
 	in := make(chan *model.Part, 1)
 	out := make(chan *model.Part, 1)
 	in <- &model.Part{Type: model.PartBlock, Resource: model.NewBlock("tu1", "Hello")}
@@ -93,7 +93,7 @@ func TestTranslateToolBatchAccumulatesUsage(t *testing.T) {
 		BatchConcurrency:  2,
 	})
 
-	ctx := context.Background()
+	ctx := t.Context()
 	in := make(chan *model.Part, 3)
 	out := make(chan *model.Part, 3)
 	in <- &model.Part{Type: model.PartBlock, Resource: model.NewBlock("tu1", "Hello")}
@@ -127,7 +127,7 @@ func TestQAToolAccumulatesUsage(t *testing.T) {
 		TargetLocale: model.LocaleFrench,
 	})
 
-	ctx := context.Background()
+	ctx := t.Context()
 	in := make(chan *model.Part, 1)
 	out := make(chan *model.Part, 1)
 
@@ -160,7 +160,7 @@ func TestReviewToolAccumulatesUsage(t *testing.T) {
 		TargetLocale: model.LocaleFrench,
 	})
 
-	ctx := context.Background()
+	ctx := t.Context()
 	in := make(chan *model.Part, 1)
 	out := make(chan *model.Part, 1)
 
@@ -192,7 +192,7 @@ func TestTerminologyToolAccumulatesUsage(t *testing.T) {
 		Locale: model.LocaleEnglish,
 	})
 
-	ctx := context.Background()
+	ctx := t.Context()
 	in := make(chan *model.Part, 1)
 	out := make(chan *model.Part, 1)
 
@@ -243,7 +243,7 @@ func TestSkippedBlocksProduceZeroUsage(t *testing.T) {
 		TargetLocale: model.LocaleFrench,
 	})
 
-	ctx := context.Background()
+	ctx := t.Context()
 	in := make(chan *model.Part, 1)
 	out := make(chan *model.Part, 1)
 

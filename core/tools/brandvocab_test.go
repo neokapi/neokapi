@@ -33,7 +33,7 @@ func TestBrandVocabCheckForbiddenTerms(t *testing.T) {
 
 	tool := tools.NewBrandVocabCheckTool(profile, nil)
 
-	ctx := context.Background()
+	ctx := t.Context()
 	in := make(chan *model.Part, 1)
 	out := make(chan *model.Part, 1)
 
@@ -74,7 +74,7 @@ func TestBrandVocabCheckCompetitorTerms(t *testing.T) {
 
 	tool := tools.NewBrandVocabCheckTool(profile, nil)
 
-	ctx := context.Background()
+	ctx := t.Context()
 	in := make(chan *model.Part, 1)
 	out := make(chan *model.Part, 1)
 
@@ -112,7 +112,7 @@ func TestBrandVocabCheckPreferredTermSuggestion(t *testing.T) {
 
 	tool := tools.NewBrandVocabCheckTool(profile, nil)
 
-	ctx := context.Background()
+	ctx := t.Context()
 	in := make(chan *model.Part, 1)
 	out := make(chan *model.Part, 1)
 
@@ -148,7 +148,7 @@ func TestBrandVocabCheckNoViolations(t *testing.T) {
 
 	tool := tools.NewBrandVocabCheckTool(profile, nil)
 
-	ctx := context.Background()
+	ctx := t.Context()
 	in := make(chan *model.Part, 1)
 	out := make(chan *model.Part, 1)
 
@@ -176,7 +176,7 @@ func TestBrandVocabCheckSkipsEmptyText(t *testing.T) {
 
 	tool := tools.NewBrandVocabCheckTool(profile, nil)
 
-	ctx := context.Background()
+	ctx := t.Context()
 	in := make(chan *model.Part, 1)
 	out := make(chan *model.Part, 1)
 
@@ -203,7 +203,7 @@ func TestBrandVocabCheckCaseInsensitive(t *testing.T) {
 
 	tool := tools.NewBrandVocabCheckTool(profile, nil)
 
-	ctx := context.Background()
+	ctx := t.Context()
 	in := make(chan *model.Part, 1)
 	out := make(chan *model.Part, 1)
 
@@ -239,7 +239,7 @@ func TestBrandVocabCheckWithResolver(t *testing.T) {
 
 	tool := tools.NewBrandVocabCheckToolWithResolver(resolver, rc, nil)
 
-	ctx := context.Background()
+	ctx := t.Context()
 	in := make(chan *model.Part, 1)
 	out := make(chan *model.Part, 1)
 
@@ -266,7 +266,7 @@ func TestBrandVocabCheckWithResolverNilProfile(t *testing.T) {
 
 	tool := tools.NewBrandVocabCheckToolWithResolver(resolver, rc, nil)
 
-	ctx := context.Background()
+	ctx := t.Context()
 	in := make(chan *model.Part, 1)
 	out := make(chan *model.Part, 1)
 
@@ -296,7 +296,7 @@ func TestBrandVocabCheckAddsAnnotation(t *testing.T) {
 
 	tool := tools.NewBrandVocabCheckTool(profile, nil)
 
-	ctx := context.Background()
+	ctx := t.Context()
 	in := make(chan *model.Part, 1)
 	out := make(chan *model.Part, 1)
 

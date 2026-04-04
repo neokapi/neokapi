@@ -51,7 +51,7 @@ func (s *trialRecordingStore) GrantCredits(_ context.Context, workspaceID string
 
 func TestSetupTrial(t *testing.T) {
 	store := &trialRecordingStore{}
-	ctx := context.Background()
+	ctx := t.Context()
 
 	SetupTrial(ctx, store, "ws-trial")
 
@@ -70,7 +70,7 @@ func TestSetupTrial(t *testing.T) {
 
 func TestSetupTrial_CreditsAllocated(t *testing.T) {
 	store := &trialRecordingStore{}
-	ctx := context.Background()
+	ctx := t.Context()
 
 	SetupTrial(ctx, store, "ws-credits")
 
@@ -85,7 +85,7 @@ func TestSetupTrial_CreditsAllocated(t *testing.T) {
 
 func TestSetupTrial_EventRecorded(t *testing.T) {
 	store := &trialRecordingStore{}
-	ctx := context.Background()
+	ctx := t.Context()
 
 	SetupTrial(ctx, store, "ws-event")
 
@@ -100,6 +100,6 @@ func TestSetupTrial_EventRecorded(t *testing.T) {
 func TestSetupTrial_NilStore(t *testing.T) {
 	// Must not panic when store is nil.
 	assert.NotPanics(t, func() {
-		SetupTrial(context.Background(), nil, "ws-nil")
+		SetupTrial(t.Context(), nil, "ws-nil")
 	})
 }

@@ -2,7 +2,6 @@ package mif_test
 
 import (
 	"bytes"
-	"context"
 	"os"
 	"testing"
 
@@ -15,7 +14,7 @@ import (
 
 // okapi: ExtractionTest#testSimpleText — extracts simple text strings from MIF paragraphs.
 func TestReadSimpleMIF(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := mif.NewReader()
 	input := `<MIFFile 2015>
 <TextFlow
@@ -45,7 +44,7 @@ func TestReadSimpleMIF(t *testing.T) {
 }
 
 func TestReadMIFWithPgfTag(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := mif.NewReader()
 	input := `<MIFFile 2015>
 <TextFlow
@@ -69,7 +68,7 @@ func TestReadMIFWithPgfTag(t *testing.T) {
 
 // okapi: ExtractionTest#testNoTextEntry — non-translatable catalog entries are skipped.
 func TestReadMIFSkipsNonTranslatable(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := mif.NewReader()
 	input := `<MIFFile 2015>
 <FontCatalog
@@ -102,7 +101,7 @@ func TestReadMIFSkipsNonTranslatable(t *testing.T) {
 
 // okapi: ExtractionTest#testParagraphLinesProcessing — multiple ParaLine elements merge into one block.
 func TestReadMIFMultipleParaLines(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := mif.NewReader()
 	input := `<MIFFile 2015>
 <TextFlow
@@ -128,7 +127,7 @@ func TestReadMIFMultipleParaLines(t *testing.T) {
 
 // okapi: ExtractionTest#testTabs — verifies tab characters are preserved in extracted text.
 func TestReadMIFSpecialCharacters(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := mif.NewReader()
 	input := `<MIFFile 2015>
 <TextFlow
@@ -155,7 +154,7 @@ func TestReadMIFSpecialCharacters(t *testing.T) {
 
 // okapi: ExtractionTest#testStartDocument — verifies LayerStart/LayerEnd structure wraps MIF content.
 func TestReadLayerStartEnd(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := mif.NewReader()
 	input := `<MIFFile 2015>
 <TextFlow
@@ -199,14 +198,14 @@ func TestReaderMetadata(t *testing.T) {
 }
 
 func TestReadNilDocument(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := mif.NewReader()
 	err := reader.Open(ctx, nil)
 	require.Error(t, err)
 }
 
 func TestReadEmpty(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := mif.NewReader()
 	err := reader.Open(ctx, testutil.RawDocFromString("", model.LocaleEnglish))
 	require.NoError(t, err)
@@ -218,7 +217,7 @@ func TestReadEmpty(t *testing.T) {
 }
 
 func TestReadMIFVersionData(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := mif.NewReader()
 	input := `<MIFFile 2015>
 <TextFlow
@@ -251,7 +250,7 @@ func TestReadMIFVersionData(t *testing.T) {
 
 // okapi: RoundTripTest#roundTripsWithDifferentParameters — roundtrip read/write preserves MIF content.
 func TestRoundTrip(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	f, err := os.Open("testdata/simple.mif")
 	require.NoError(t, err)
@@ -281,7 +280,7 @@ func TestRoundTrip(t *testing.T) {
 }
 
 func TestRoundTripWithTargetLocale(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	input := `<MIFFile 2015>
 <TextFlow

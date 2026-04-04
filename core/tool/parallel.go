@@ -119,18 +119,14 @@ func (p *ParallelBlockTool) Process(ctx context.Context, in <-chan *model.Part, 
 						return
 					}
 
-					wg.Add(1)
-					go func() {
-						defer func() {
-							<-sem // release slot
-							wg.Done()
-						}()
+					wg.Go(func() {
+						defer func() { <-sem }() // release slot
 						result, err := baseTool.HandleBlockFn(part)
 						select {
 						case results <- sequencedPart{seq: currentSeq, part: result, err: err}:
 						case <-ctx.Done():
 						}
-					}()
+					})
 				} else {
 					// Non-Block: dispatch to inner tool's handler, then send result.
 					result, err := baseTool.dispatch(part)

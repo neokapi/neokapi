@@ -2,7 +2,6 @@ package po_test
 
 import (
 	"bytes"
-	"context"
 	"os"
 	"strings"
 	"testing"
@@ -18,7 +17,7 @@ import (
 
 func readDefault(t *testing.T, input string) []*model.Part {
 	t.Helper()
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := po.NewReader()
 	doc := testutil.RawDocFromString(input, model.LocaleEnglish)
 	doc.TargetLocale = model.LocaleFrench
@@ -46,7 +45,7 @@ func findDataByName(parts []*model.Part, name string) *model.Data {
 
 func roundTrip(t *testing.T, input string) string {
 	t.Helper()
-	ctx := context.Background()
+	ctx := t.Context()
 
 	reader := po.NewReader()
 	doc := testutil.RawDocFromString(input, model.LocaleEnglish)
@@ -197,7 +196,7 @@ func TestReadEscapeSequences(t *testing.T) {
 
 func TestReadEmpty(t *testing.T) {
 	t.Parallel()
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := po.NewReader()
 	err := reader.Open(ctx, testutil.RawDocFromString("", model.LocaleEnglish))
 	require.NoError(t, err)
@@ -239,7 +238,7 @@ func TestReaderMetadata(t *testing.T) {
 
 func TestReadNilDocument(t *testing.T) {
 	t.Parallel()
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := po.NewReader()
 	err := reader.Open(ctx, nil)
 	require.Error(t, err)
@@ -262,7 +261,7 @@ func TestReadMultipleEntries(t *testing.T) {
 
 func TestReadSimpleFile(t *testing.T) {
 	t.Parallel()
-	ctx := context.Background()
+	ctx := t.Context()
 
 	f, err := os.Open("testdata/simple.po")
 	require.NoError(t, err)
@@ -360,7 +359,7 @@ msgstr[1] "Plusieurs objets"
 
 func TestRoundTripWithTargetLocale(t *testing.T) {
 	t.Parallel()
-	ctx := context.Background()
+	ctx := t.Context()
 
 	// Read
 	reader := po.NewReader()
@@ -450,7 +449,7 @@ func TestRead_DefaultInfo(t *testing.T) {
 // okapi: POFilterTest#testDoubleExtraction
 func TestRoundTrip_DoubleExtraction(t *testing.T) {
 	t.Parallel()
-	ctx := context.Background()
+	ctx := t.Context()
 
 	input := "msgid \"Hello\"\nmsgstr \"Bonjour\"\n\nmsgid \"World\"\nmsgstr \"Monde\"\n"
 

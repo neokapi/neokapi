@@ -1,7 +1,6 @@
 package connector
 
 import (
-	"context"
 	"os"
 	"path/filepath"
 	"testing"
@@ -41,7 +40,7 @@ func TestFileConnectorList(t *testing.T) {
 	require.NoError(t, err)
 
 	c := setupFileConnector(t, dir)
-	items, err := c.List(context.Background())
+	items, err := c.List(t.Context())
 	require.NoError(t, err)
 	assert.Len(t, items, 1)
 	assert.Equal(t, "test.html", items[0].Name)
@@ -55,7 +54,7 @@ func TestFileConnectorFetch(t *testing.T) {
 	require.NoError(t, err)
 
 	c := setupFileConnector(t, dir)
-	items, err := c.Fetch(context.Background(), platconn.FetchOptions{
+	items, err := c.Fetch(t.Context(), platconn.FetchOptions{
 		Paths: []string{"test.html"},
 	})
 	require.NoError(t, err)
@@ -74,7 +73,7 @@ func TestFileConnectorFetchAll(t *testing.T) {
 	require.NoError(t, err)
 
 	c := setupFileConnector(t, dir)
-	items, err := c.Fetch(context.Background(), platconn.FetchOptions{})
+	items, err := c.Fetch(t.Context(), platconn.FetchOptions{})
 	require.NoError(t, err)
 	assert.Len(t, items, 2)
 }
@@ -86,7 +85,7 @@ func TestFileConnectorStatus(t *testing.T) {
 	require.NoError(t, err)
 
 	c := setupFileConnector(t, dir)
-	status, err := c.Status(context.Background())
+	status, err := c.Status(t.Context())
 	require.NoError(t, err)
 	assert.Equal(t, "test-file", status.ConnectorID)
 	assert.Equal(t, 1, status.ItemCount)

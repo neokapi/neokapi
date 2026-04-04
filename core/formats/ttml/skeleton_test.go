@@ -2,7 +2,6 @@ package ttml_test
 
 import (
 	"bytes"
-	"context"
 	"os"
 	"testing"
 
@@ -16,7 +15,7 @@ import (
 
 func snippetRoundtripWithSkeleton(t *testing.T, input string) string {
 	t.Helper()
-	ctx := context.Background()
+	ctx := t.Context()
 
 	reader := ttml.NewReader()
 	writer := ttml.NewWriter()
@@ -144,7 +143,7 @@ func TestSkeletonStore_WithTranslation(t *testing.T) {
     <p begin="00:00:05.000" end="00:00:08.000">World</p>
   </div></body>
 </tt>`
-	ctx := context.Background()
+	ctx := t.Context()
 	locale := model.LocaleID("fr")
 
 	reader := ttml.NewReader()
