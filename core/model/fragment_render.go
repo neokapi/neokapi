@@ -88,7 +88,7 @@ func ParsePlaceholderText(text string, sourceSpans []*Span) *Fragment {
 	for _, loc := range placeholderTagRe.FindAllStringSubmatchIndex(text, -1) {
 		// Append text before this match.
 		if loc[0] > lastEnd {
-			frag.CodedText += text[lastEnd:loc[0]]
+			frag.AppendText(text[lastEnd:loc[0]])
 		}
 
 		idStr := text[loc[2]:loc[3]]
@@ -124,7 +124,7 @@ func ParsePlaceholderText(text string, sourceSpans []*Span) *Fragment {
 
 	// Append remaining text.
 	if lastEnd < len(text) {
-		frag.CodedText += text[lastEnd:]
+		frag.AppendText(text[lastEnd:])
 	}
 
 	return frag
@@ -137,9 +137,9 @@ var semanticHTMLTagRe = regexp.MustCompile(`<(/?)(\w+)([^>]*?)(/?)>`)
 // tags back to source Spans by position. Restores Data from source.
 func ParseSemanticHTML(html string, sourceSpans []*Span, reg *VocabularyRegistry) *Fragment {
 	// Build a list of source spans indexed by position for sequential matching.
-	openingSpans := make([]*Span, 0)
-	closingSpans := make([]*Span, 0)
-	placeholderSpans := make([]*Span, 0)
+	openingSpans := make([]*Span, 0, len(sourceSpans))
+	closingSpans := make([]*Span, 0, len(sourceSpans))
+	placeholderSpans := make([]*Span, 0, len(sourceSpans)/2)
 
 	for _, s := range sourceSpans {
 		switch s.SpanType {
@@ -162,7 +162,7 @@ func ParseSemanticHTML(html string, sourceSpans []*Span, reg *VocabularyRegistry
 	for _, loc := range semanticHTMLTagRe.FindAllStringSubmatchIndex(html, -1) {
 		// Append text before this match.
 		if loc[0] > lastEnd {
-			frag.CodedText += html[lastEnd:loc[0]]
+			frag.AppendText(html[lastEnd:loc[0]])
 		}
 
 		isClosing := html[loc[2]:loc[3]] == "/"
@@ -216,7 +216,7 @@ func ParseSemanticHTML(html string, sourceSpans []*Span, reg *VocabularyRegistry
 
 	// Append remaining text.
 	if lastEnd < len(html) {
-		frag.CodedText += html[lastEnd:]
+		frag.AppendText(html[lastEnd:])
 	}
 
 	// Assign sequential IDs if not already set.

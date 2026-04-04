@@ -23,11 +23,28 @@ func isMarker(r rune) bool {
 type Fragment struct {
 	CodedText string  // Text with span markers (special Unicode chars)
 	Spans     []*Span // Inline markup elements
+
+	// builder accumulates text during construction to avoid O(n^2) string
+	// concatenation. After each mutation, CodedText is synced via String()
+	// which is O(1) in the standard library.
+	builder *strings.Builder
 }
 
 // NewFragment creates a Fragment from plain text (no spans).
 func NewFragment(text string) *Fragment {
 	return &Fragment{CodedText: text}
+}
+
+// ensureBuilder lazily initialises the internal builder, seeding it with any
+// content already present in CodedText (e.g. from direct field assignment or
+// NewFragment).
+func (f *Fragment) ensureBuilder() {
+	if f.builder == nil {
+		f.builder = &strings.Builder{}
+		if len(f.CodedText) > 0 {
+			f.builder.WriteString(f.CodedText)
+		}
+	}
 }
 
 // Text returns the plain text with all span markers stripped.
@@ -47,8 +64,12 @@ func (f *Fragment) HasSpans() bool {
 }
 
 // AppendText appends plain text to the Fragment.
+// Uses a strings.Builder internally for amortized O(1) growth instead of
+// O(n) per-append string concatenation.
 func (f *Fragment) AppendText(text string) {
-	f.CodedText += text
+	f.ensureBuilder()
+	f.builder.WriteString(text)
+	f.CodedText = f.builder.String()
 }
 
 // AppendSpan appends an inline span and its marker to the Fragment.
@@ -62,7 +83,9 @@ func (f *Fragment) AppendSpan(span *Span) {
 	case SpanPlaceholder:
 		marker = MarkerPlaceholder
 	}
-	f.CodedText += string(marker)
+	f.ensureBuilder()
+	f.builder.WriteRune(marker)
+	f.CodedText = f.builder.String()
 	f.Spans = append(f.Spans, span)
 }
 
