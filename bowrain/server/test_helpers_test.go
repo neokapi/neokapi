@@ -76,7 +76,7 @@ func drainPushQueue(t *testing.T, srv *Server) {
 	t.Helper()
 	for {
 		// Non-blocking dequeue with immediate timeout.
-		ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
+		ctx, cancel := context.WithTimeout(t.Context(), 50*time.Millisecond)
 		jobID, ack, _, err := srv.JobQueue.Dequeue(ctx)
 		cancel()
 		if err != nil || jobID == "" {
@@ -88,7 +88,7 @@ func drainPushQueue(t *testing.T, srv *Server) {
 			BlobStore:    srv.BlobStore,
 			Queue:        srv.JobQueue,
 		}
-		if err := jobs.ProcessSyncPushJobForTest(context.Background(), deps, jobID); err != nil {
+		if err := jobs.ProcessSyncPushJobForTest(t.Context(), deps, jobID); err != nil {
 			t.Logf("drainPushQueue: job %s failed: %v", jobID, err)
 		}
 		ack()

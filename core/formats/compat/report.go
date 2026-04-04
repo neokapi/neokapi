@@ -674,7 +674,7 @@ func writeSideBySideDiff(buf *bytes.Buffer, a, b, labelA, labelB string) {
 			if op.J2-op.J1 > maxLen {
 				maxLen = op.J2 - op.J1
 			}
-			for k := 0; k < maxLen; k++ {
+			for k := range maxLen {
 				var lineA, lineB string
 				var numA, numB int
 				if op.I1+k < op.I2 {

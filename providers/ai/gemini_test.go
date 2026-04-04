@@ -1,7 +1,6 @@
 package aiprovider
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -61,7 +60,7 @@ func TestGeminiProviderChat(t *testing.T) {
 		APIKey:  "test-key",
 	})
 
-	resp, err := p.Chat(context.Background(), []Message{
+	resp, err := p.Chat(t.Context(), []Message{
 		{Role: "user", Content: "Hi"},
 	})
 	require.NoError(t, err)
@@ -93,7 +92,7 @@ func TestGeminiProviderTranslate(t *testing.T) {
 		APIKey:  "test-key",
 	})
 
-	resp, err := p.Translate(context.Background(), TranslateRequest{
+	resp, err := p.Translate(t.Context(), TranslateRequest{
 		Source:         "Hello",
 		SourceLanguage: "en",
 		TargetLocale:   "fr",
@@ -141,7 +140,7 @@ func TestGeminiProviderChatStructured(t *testing.T) {
 		},
 	}
 
-	resp, err := p.ChatStructured(context.Background(), []Message{
+	resp, err := p.ChatStructured(t.Context(), []Message{
 		{Role: "user", Content: "Translate Hello to French"},
 	}, schema)
 	require.NoError(t, err)
@@ -179,7 +178,7 @@ func TestGeminiProviderSystemMessage(t *testing.T) {
 		APIKey:  "test-key",
 	})
 
-	_, err := p.Chat(context.Background(), []Message{
+	_, err := p.Chat(t.Context(), []Message{
 		{Role: "system", Content: "You are a translator"},
 		{Role: "user", Content: "Translate this"},
 	})
@@ -212,7 +211,7 @@ func TestGeminiProviderFiltersThinkingParts(t *testing.T) {
 		APIKey:  "test-key",
 	})
 
-	resp, err := p.Chat(context.Background(), []Message{
+	resp, err := p.Chat(t.Context(), []Message{
 		{Role: "user", Content: "Translate Hello world to French"},
 	})
 	require.NoError(t, err)
@@ -249,7 +248,7 @@ func TestGeminiProviderDisablesThinking(t *testing.T) {
 		APIKey:  "test-key",
 	})
 
-	_, err := p.Chat(context.Background(), []Message{
+	_, err := p.Chat(t.Context(), []Message{
 		{Role: "user", Content: "Hi"},
 	})
 	require.NoError(t, err)
@@ -310,7 +309,7 @@ func TestGeminiProviderChatStream(t *testing.T) {
 	})
 
 	var events []ChatStreamEvent
-	resp, err := p.ChatStream(context.Background(), []Message{
+	resp, err := p.ChatStream(t.Context(), []Message{
 		{Role: "user", Content: "Translate Hello to French"},
 	}, func(e ChatStreamEvent) {
 		events = append(events, e)
@@ -361,7 +360,7 @@ func TestGeminiProviderChatStreamMultipleContentChunks(t *testing.T) {
 	})
 
 	var contentEvents []string
-	resp, err := p.ChatStream(context.Background(), []Message{
+	resp, err := p.ChatStream(t.Context(), []Message{
 		{Role: "user", Content: "Hi"},
 	}, func(e ChatStreamEvent) {
 		if e.Type == StreamEventContent {

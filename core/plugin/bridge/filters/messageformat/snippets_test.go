@@ -117,12 +117,12 @@ func readMessageFormatExpectError(t *testing.T, snippet string) error {
 		MimeType:     mimeType,
 		Reader:       io.NopCloser(bytes.NewReader([]byte(snippet))),
 	}
-	err := reader.Open(context.Background(), doc)
+	err := reader.Open(t.Context(), doc)
 	if err != nil {
 		return err
 	}
 	// Open is lazy — errors may surface during Read.
-	for pr := range reader.Read(context.Background()) {
+	for pr := range reader.Read(t.Context()) {
 		if pr.Error != nil {
 			_ = reader.Close()
 			return pr.Error

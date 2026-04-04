@@ -217,7 +217,7 @@ func (w *Writer) flush() error {
 	// Write data rows
 	for rowNum := 1; rowNum <= w.maxRow; rowNum++ {
 		record := make([]string, numCols)
-		for colIdx := 0; colIdx < numCols; colIdx++ {
+		for colIdx := range numCols {
 			colName := fmt.Sprintf("col%d", colIdx)
 			if colIdx < len(w.headers) {
 				colName = w.headers[colIdx]

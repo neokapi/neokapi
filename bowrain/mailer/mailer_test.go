@@ -53,7 +53,7 @@ func TestSendInvite(t *testing.T) {
 		JoinURL:       "https://app.bowrain.cloud/join/abc123",
 	}
 
-	err = m.SendInvite(context.Background(), "user@example.com", data)
+	err = m.SendInvite(t.Context(), "user@example.com", data)
 	require.NoError(t, err)
 
 	msg := sender.last()
@@ -128,7 +128,7 @@ func TestSendCreditsWarning(t *testing.T) {
 		UpgradeURL:    "https://app.bowrain.cloud/billing/upgrade?ws=abc123",
 	}
 
-	err = m.SendCreditsWarning(context.Background(), "admin@example.com", data)
+	err = m.SendCreditsWarning(t.Context(), "admin@example.com", data)
 	require.NoError(t, err)
 
 	msg := sender.last()
@@ -209,7 +209,7 @@ func TestSendCreditsExhausted(t *testing.T) {
 		BuyCreditsURL: "https://app.bowrain.cloud/billing/credits?ws=abc123",
 	}
 
-	err = m.SendCreditsExhausted(context.Background(), "admin@example.com", data)
+	err = m.SendCreditsExhausted(t.Context(), "admin@example.com", data)
 	require.NoError(t, err)
 
 	msg := sender.last()
@@ -287,7 +287,7 @@ func TestSendPaymentFailed(t *testing.T) {
 		UpdatePaymentURL: "https://app.bowrain.cloud/billing/payment?ws=abc123",
 	}
 
-	err = m.SendPaymentFailed(context.Background(), "admin@example.com", data)
+	err = m.SendPaymentFailed(t.Context(), "admin@example.com", data)
 	require.NoError(t, err)
 
 	msg := sender.last()
@@ -360,7 +360,7 @@ func TestSendSubscriptionChanged(t *testing.T) {
 		BillingURL:    "https://app.bowrain.cloud/billing?ws=abc123",
 	}
 
-	err = m.SendSubscriptionChanged(context.Background(), "admin@example.com", data)
+	err = m.SendSubscriptionChanged(t.Context(), "admin@example.com", data)
 	require.NoError(t, err)
 
 	msg := sender.last()
@@ -427,7 +427,7 @@ func TestSendDigest(t *testing.T) {
 	require.NoError(t, err)
 
 	htmlBody := "<html><body><h1>Daily Digest</h1><p>3 new updates</p></body></html>"
-	err = m.SendDigest(context.Background(), "user@example.com", "Your daily digest — 3 updates", htmlBody)
+	err = m.SendDigest(t.Context(), "user@example.com", "Your daily digest — 3 updates", htmlBody)
 	require.NoError(t, err)
 
 	msg := sender.last()
@@ -456,7 +456,7 @@ func TestSendNotification(t *testing.T) {
 
 	// SendNotification uses the notification.html template. If the template
 	// hasn't been built (npm run build), we expect a template error. Skip in that case.
-	err = m.SendNotification(context.Background(), "user@example.com", data)
+	err = m.SendNotification(t.Context(), "user@example.com", data)
 	if err != nil {
 		t.Skipf("notification template not built: %v", err)
 	}

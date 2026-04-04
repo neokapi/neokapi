@@ -64,7 +64,7 @@ func TestAgentPoolAcquireSpawnsContainer(t *testing.T) {
 		MaxPerWorkspace: 3,
 	})
 
-	c, err := pool.Acquire(context.Background(), ContainerConfig{
+	c, err := pool.Acquire(t.Context(), ContainerConfig{
 		ConversationID: "conv-1",
 		WorkspaceID:    "ws-1",
 		UserID:         "user-1",
@@ -81,7 +81,7 @@ func TestAgentPoolAcquireReusesContainer(t *testing.T) {
 		Runtime:         rt,
 		MaxPerWorkspace: 3,
 	})
-	ctx := context.Background()
+	ctx := t.Context()
 
 	c1, err := pool.Acquire(ctx, ContainerConfig{ConversationID: "conv-1", WorkspaceID: "ws-1"})
 	require.NoError(t, err)
@@ -99,7 +99,7 @@ func TestAgentPoolAcquireEnforcesLimit(t *testing.T) {
 		Runtime:         rt,
 		MaxPerWorkspace: 2,
 	})
-	ctx := context.Background()
+	ctx := t.Context()
 
 	_, err := pool.Acquire(ctx, ContainerConfig{ConversationID: "conv-1", WorkspaceID: "ws-1"})
 	require.NoError(t, err)
@@ -117,7 +117,7 @@ func TestAgentPoolRelease(t *testing.T) {
 		Runtime:         rt,
 		MaxPerWorkspace: 3,
 	})
-	ctx := context.Background()
+	ctx := t.Context()
 
 	_, err := pool.Acquire(ctx, ContainerConfig{ConversationID: "conv-1", WorkspaceID: "ws-1"})
 	require.NoError(t, err)
@@ -135,7 +135,7 @@ func TestAgentPoolStopAll(t *testing.T) {
 		Runtime:         rt,
 		MaxPerWorkspace: 10,
 	})
-	ctx := context.Background()
+	ctx := t.Context()
 
 	for i := 0; i < 5; i++ {
 		_, err := pool.Acquire(ctx, ContainerConfig{
@@ -156,7 +156,7 @@ func TestAgentPoolGet(t *testing.T) {
 		Runtime:         rt,
 		MaxPerWorkspace: 3,
 	})
-	ctx := context.Background()
+	ctx := t.Context()
 
 	// Not found.
 	_, ok := pool.Get("conv-1")
@@ -177,7 +177,7 @@ func TestAgentPoolRespawnsUnhealthy(t *testing.T) {
 		Runtime:         rt,
 		MaxPerWorkspace: 3,
 	})
-	ctx := context.Background()
+	ctx := t.Context()
 
 	c1, err := pool.Acquire(ctx, ContainerConfig{ConversationID: "conv-1", WorkspaceID: "ws-1"})
 	require.NoError(t, err)
@@ -200,7 +200,7 @@ func TestAgentPoolCleanupIdle(t *testing.T) {
 		IdleTimeout:     1 * time.Millisecond, // Very short for testing.
 	})
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	// Spawn a container.
 	_, err := pool.Acquire(ctx, ContainerConfig{

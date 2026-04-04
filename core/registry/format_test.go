@@ -463,11 +463,9 @@ func TestOnMissConcurrentCallersBlock(t *testing.T) {
 	var wg sync.WaitGroup
 	errors := make([]error, 10)
 	for i := range 10 {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			_, errors[i] = reg.NewReader("okf_openxml")
-		}()
+		})
 	}
 	wg.Wait()
 

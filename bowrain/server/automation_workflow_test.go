@@ -1,7 +1,6 @@
 package server
 
 import (
-	"context"
 	"net/http"
 	"net/http/httptest"
 	"sync"
@@ -27,7 +26,7 @@ func newWorkflowTestServer(t *testing.T) (*Server, string, string) {
 	srv := NewServer(cfg)
 	initTestStores(t, srv)
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	// Create event bus + task store.
 	bus := event.NewChannelEventBus()
@@ -55,7 +54,7 @@ func newWorkflowTestServer(t *testing.T) (*Server, string, string) {
 // createWorkflowProject creates a project with workflow_enabled and target languages.
 func createWorkflowProject(t *testing.T, srv *Server, wsID string, props map[string]string) string {
 	t.Helper()
-	ctx := context.Background()
+	ctx := t.Context()
 
 	proj := &platstore.Project{
 		Name:                  "Workflow Test",
@@ -71,7 +70,7 @@ func createWorkflowProject(t *testing.T, srv *Server, wsID string, props map[str
 // addProjectMember adds a user as a project member with a given role and languages.
 func addProjectMember(t *testing.T, srv *Server, wsID, projectID, roleName string, languages []string) string {
 	t.Helper()
-	ctx := context.Background()
+	ctx := t.Context()
 
 	// Create user.
 	langSuffix := "all"
@@ -128,10 +127,10 @@ func TestCreateReviewTasks_FanOutPerLocale(t *testing.T) {
 			"items":   "en.json",
 		},
 	}
-	srv.createReviewTasks(context.Background(), action, ev, "")
+	srv.createReviewTasks(t.Context(), action, ev, "")
 
 	// Verify tasks were created.
-	ctx := context.Background()
+	ctx := t.Context()
 	res, err := srv.TaskStore.List(ctx, bstore.TaskQuery{
 		WorkspaceID: wsID,
 		ProjectID:   projID,
@@ -168,9 +167,9 @@ func TestCreateReviewTasks_TranslateMode(t *testing.T) {
 		ProjectID: projID,
 		Data:      map[string]string{"push_id": "p1", "items": "en.json"},
 	}
-	srv.createReviewTasks(context.Background(), action, ev, "")
+	srv.createReviewTasks(t.Context(), action, ev, "")
 
-	res, err := srv.TaskStore.List(context.Background(), bstore.TaskQuery{
+	res, err := srv.TaskStore.List(t.Context(), bstore.TaskQuery{
 		WorkspaceID: wsID,
 		ProjectID:   projID,
 	})
@@ -199,9 +198,9 @@ func TestCreateReviewTasks_SkipsWhenWorkflowDisabled(t *testing.T) {
 		ProjectID: projID,
 		Data:      map[string]string{"push_id": "p1", "items": "en.json"},
 	}
-	srv.createReviewTasks(context.Background(), action, ev, "")
+	srv.createReviewTasks(t.Context(), action, ev, "")
 
-	res, err := srv.TaskStore.List(context.Background(), bstore.TaskQuery{
+	res, err := srv.TaskStore.List(t.Context(), bstore.TaskQuery{
 		WorkspaceID: wsID,
 		ProjectID:   projID,
 	})
@@ -229,9 +228,9 @@ func TestCreateSourceReviewTask(t *testing.T) {
 			"workspace_slug": "test-ws",
 		},
 	}
-	srv.createSourceReviewTask(context.Background(), action, ev, "")
+	srv.createSourceReviewTask(t.Context(), action, ev, "")
 
-	res, err := srv.TaskStore.List(context.Background(), bstore.TaskQuery{
+	res, err := srv.TaskStore.List(t.Context(), bstore.TaskQuery{
 		WorkspaceID: wsID,
 		ProjectID:   projID,
 	})
@@ -252,7 +251,7 @@ func TestSourceReviewCompletionEmitsEvent(t *testing.T) {
 	})
 
 	// Create a source review task.
-	ctx := context.Background()
+	ctx := t.Context()
 	task := &bstore.Task{
 		WorkspaceID: wsID,
 		ProjectID:   projID,
@@ -300,7 +299,7 @@ func TestSourceReviewCompletionEmitsEvent(t *testing.T) {
 
 func TestFindMembersForLocale(t *testing.T) {
 	srv, _, wsID := newWorkflowTestServer(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	projID := createWorkflowProject(t, srv, wsID, map[string]string{
 		"workflow_enabled": "true",
@@ -354,7 +353,7 @@ func extractUserIDs(members []*platauth.ProjectMembership) []string {
 // EventPushAutomationsCompleted → automation engine → create_review_tasks → tasks created
 func TestWorkflowEndToEnd(t *testing.T) {
 	srv, _, wsID := newWorkflowTestServer(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	projID := createWorkflowProject(t, srv, wsID, map[string]string{
 		"workflow_enabled": "true",
@@ -422,7 +421,7 @@ func TestWorkflowEndToEnd(t *testing.T) {
 // EventSourceReviewCompleted → create_review_tasks → tasks created
 func TestWorkflowEndToEnd_SourceReviewGate(t *testing.T) {
 	srv, token, wsID := newWorkflowTestServer(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	projID := createWorkflowProject(t, srv, wsID, map[string]string{
 		"workflow_enabled": "true",
@@ -530,7 +529,7 @@ func TestWorkflowEndToEnd_SourceReviewGate(t *testing.T) {
 // TestWorkflowDeduplication verifies that duplicate tasks are not created.
 func TestWorkflowDeduplication(t *testing.T) {
 	srv, _, wsID := newWorkflowTestServer(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	projID := createWorkflowProject(t, srv, wsID, map[string]string{
 		"workflow_enabled": "true",

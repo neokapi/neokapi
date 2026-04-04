@@ -15,7 +15,7 @@ import (
 
 // okapi: SplicedLinesFilterTest#testSingleLine
 func TestSingleLine(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := splicedlines.NewReader()
 	input := "Hello world"
 	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
@@ -30,7 +30,7 @@ func TestSingleLine(t *testing.T) {
 
 // okapi: SplicedLinesFilterTest#testContinuationLine
 func TestContinuationLine(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := splicedlines.NewReader()
 	input := "Hello \\\nworld"
 	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
@@ -45,7 +45,7 @@ func TestContinuationLine(t *testing.T) {
 
 // okapi: SplicedLinesFilterTest#testMultipleContinuations
 func TestMultipleContinuations(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := splicedlines.NewReader()
 	input := "Line1 \\\nLine2 \\\nLine3"
 	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
@@ -60,7 +60,7 @@ func TestMultipleContinuations(t *testing.T) {
 
 // okapi: SplicedLinesFilterTest#testMixedLines
 func TestMixedLines(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := splicedlines.NewReader()
 	input := "Single line\nContinued \\\nline\nAnother single"
 	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
@@ -76,7 +76,7 @@ func TestMixedLines(t *testing.T) {
 }
 
 func TestReadEmpty(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := splicedlines.NewReader()
 	err := reader.Open(ctx, testutil.RawDocFromString("", model.LocaleEnglish))
 	require.NoError(t, err)
@@ -89,14 +89,14 @@ func TestReadEmpty(t *testing.T) {
 }
 
 func TestReadNilDocument(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := splicedlines.NewReader()
 	err := reader.Open(ctx, nil)
 	require.Error(t, err)
 }
 
 func TestReadLayerStartEnd(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := splicedlines.NewReader()
 	input := "Hello"
 	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
@@ -156,7 +156,7 @@ func TestConfigApplyMapEmpty(t *testing.T) {
 
 // okapi: SplicedLinesFilterTest#testTrailingBackslash
 func TestTrailingBackslashAtEnd(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := splicedlines.NewReader()
 	// File ends with a continuation line (no following line)
 	input := "Hello \\"
@@ -173,7 +173,7 @@ func TestTrailingBackslashAtEnd(t *testing.T) {
 
 // okapi: SplicedLinesFilterTest#testBackslashNotAtEnd
 func TestBackslashNotAtEnd(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := splicedlines.NewReader()
 	input := "Hello \\world"
 	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
@@ -188,7 +188,7 @@ func TestBackslashNotAtEnd(t *testing.T) {
 }
 
 func TestRoundTrip(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	f, err := os.Open("testdata/simple.txt")
 	require.NoError(t, err)
@@ -216,7 +216,7 @@ func TestRoundTrip(t *testing.T) {
 }
 
 func TestRoundTripWithTargetLocale(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	input := "Hello\nWorld \\\ncontinued"
 	reader := splicedlines.NewReader()
@@ -255,7 +255,7 @@ func TestRoundTripWithTargetLocale(t *testing.T) {
 }
 
 func TestContextCancellation(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(t.Context())
 	cancel()
 
 	reader := splicedlines.NewReader()
@@ -272,7 +272,7 @@ func TestContextCancellation(t *testing.T) {
 }
 
 func TestWriterContextCancellation(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(t.Context())
 
 	var buf bytes.Buffer
 	writer := splicedlines.NewWriter()
@@ -288,7 +288,7 @@ func TestWriterContextCancellation(t *testing.T) {
 
 // okapi: SplicedLinesFilterTest#testEmptyLines
 func TestEmptyLinesAsData(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := splicedlines.NewReader()
 	input := "Hello\n\nWorld"
 	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
@@ -312,7 +312,7 @@ func TestEmptyLinesAsData(t *testing.T) {
 }
 
 func TestMultipleBlocks(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := splicedlines.NewReader()
 	input := "Line1\nLine2\nLine3"
 	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
@@ -328,7 +328,7 @@ func TestMultipleBlocks(t *testing.T) {
 }
 
 func TestWriterContinuationOutput(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	// Create a block with newlines to test writer output
 	block := model.NewBlock("tu1", "Hello \nworld")

@@ -104,7 +104,7 @@ func TestSubfilter_ReadHTMLInJSON(t *testing.T) {
 		Reader:       io.NopCloser(bytes.NewReader([]byte(input))),
 	}
 
-	ctx := context.Background()
+	ctx := t.Context()
 	require.NoError(t, reader.Open(ctx, doc))
 
 	var parts []*model.Part
@@ -159,7 +159,7 @@ func TestSubfilter_NoMatchPassesThrough(t *testing.T) {
 		Reader:       io.NopCloser(bytes.NewReader([]byte(input))),
 	}
 
-	ctx := context.Background()
+	ctx := t.Context()
 	require.NoError(t, reader.Open(ctx, doc))
 
 	var blocks []*model.Block
@@ -196,7 +196,7 @@ func TestSubfilter_WildcardPattern(t *testing.T) {
 		Reader:       io.NopCloser(bytes.NewReader([]byte(input))),
 	}
 
-	ctx := context.Background()
+	ctx := t.Context()
 	require.NoError(t, reader.Open(ctx, doc))
 
 	var childLayers []*model.Layer
@@ -236,7 +236,7 @@ func TestSubfilter_Roundtrip(t *testing.T) {
 		Reader:       io.NopCloser(bytes.NewReader([]byte(input))),
 	}
 
-	ctx := context.Background()
+	ctx := t.Context()
 	require.NoError(t, reader.Open(ctx, doc))
 
 	var parts []*model.Part

@@ -1,7 +1,6 @@
 package server
 
 import (
-	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -54,7 +53,7 @@ func TestHandleListActivities_Empty(t *testing.T) {
 
 func TestHandleListActivities_WithData(t *testing.T) {
 	srv := setupTestServerWithStores(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	// Seed an activity.
 	a := &bstore.Activity{
@@ -145,7 +144,7 @@ func TestHandleCreateTask_ValidationErrors(t *testing.T) {
 
 func TestHandleGetTask(t *testing.T) {
 	srv := setupTestServerWithStores(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	task := &bstore.Task{
 		WorkspaceID: "demo",
@@ -174,7 +173,7 @@ func TestHandleGetTask(t *testing.T) {
 
 func TestHandleCompleteTask(t *testing.T) {
 	srv := setupTestServerWithStores(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	task := &bstore.Task{
 		WorkspaceID: "demo",
@@ -206,7 +205,7 @@ func TestHandleCompleteTask(t *testing.T) {
 
 func TestHandleCancelTask(t *testing.T) {
 	srv := setupTestServerWithStores(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	task := &bstore.Task{
 		WorkspaceID: "demo",

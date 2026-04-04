@@ -1,7 +1,6 @@
 package jobs
 
 import (
-	"context"
 	"testing"
 
 	"github.com/google/uuid"
@@ -23,7 +22,7 @@ func newTestSQLiteStore(t *testing.T) *SQLiteJobStore {
 
 func TestSQLiteJobStore_CreateAndGet(t *testing.T) {
 	s := newTestSQLiteStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	job := &TranslationJob{
 		ID:               uuid.NewString(),
@@ -46,7 +45,7 @@ func TestSQLiteJobStore_CreateAndGet(t *testing.T) {
 
 func TestSQLiteJobStore_ListJobs(t *testing.T) {
 	s := newTestSQLiteStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	for i := 0; i < 3; i++ {
 		require.NoError(t, s.CreateJob(ctx, &TranslationJob{
@@ -73,7 +72,7 @@ func TestSQLiteJobStore_ListJobs(t *testing.T) {
 
 func TestSQLiteJobStore_UpdateProgress(t *testing.T) {
 	s := newTestSQLiteStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	job := &TranslationJob{
 		ID:            uuid.NewString(),
@@ -95,7 +94,7 @@ func TestSQLiteJobStore_UpdateProgress(t *testing.T) {
 
 func TestSQLiteJobStore_UpdateStatus(t *testing.T) {
 	s := newTestSQLiteStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	job := &TranslationJob{
 		ID:            uuid.NewString(),
@@ -115,7 +114,7 @@ func TestSQLiteJobStore_UpdateStatus(t *testing.T) {
 
 func TestSQLiteJobStore_Delete(t *testing.T) {
 	s := newTestSQLiteStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	job := &TranslationJob{
 		ID:            uuid.NewString(),

@@ -1,7 +1,6 @@
 package sync
 
 import (
-	"context"
 	"testing"
 
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
@@ -21,7 +20,7 @@ func newTestDiffEngine(t *testing.T) (*DiffEngine, *bstore.SQLiteStore) {
 
 func seedProject(t *testing.T, cs platstore.ContentStore, projectID string) {
 	t.Helper()
-	ctx := context.Background()
+	ctx := t.Context()
 	require.NoError(t, cs.CreateProject(ctx, &platstore.Project{
 		ID:                    projectID,
 		Name:                  "Test",
@@ -31,7 +30,7 @@ func seedProject(t *testing.T, cs platstore.ContentStore, projectID string) {
 
 func seedBlocks(t *testing.T, cs platstore.ContentStore, projectID, itemName string, blocks []*model.Block) {
 	t.Helper()
-	ctx := context.Background()
+	ctx := t.Context()
 	require.NoError(t, cs.StoreBlocksForItem(ctx, projectID, "main", itemName, blocks))
 	require.NoError(t, cs.StoreItem(ctx, projectID, "main", &platstore.Item{
 		Name:     itemName,
@@ -42,7 +41,7 @@ func seedBlocks(t *testing.T, cs platstore.ContentStore, projectID, itemName str
 
 func TestDiffEngine_CompareItems_AllNew(t *testing.T) {
 	engine, cs := newTestDiffEngine(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	seedProject(t, cs, "proj-1")
 
@@ -62,7 +61,7 @@ func TestDiffEngine_CompareItems_AllNew(t *testing.T) {
 
 func TestDiffEngine_CompareItems_Unchanged(t *testing.T) {
 	engine, cs := newTestDiffEngine(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	seedProject(t, cs, "proj-1")
 
@@ -91,7 +90,7 @@ func TestDiffEngine_CompareItems_Unchanged(t *testing.T) {
 
 func TestDiffEngine_CompareItems_Changed(t *testing.T) {
 	engine, cs := newTestDiffEngine(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	seedProject(t, cs, "proj-1")
 
@@ -112,7 +111,7 @@ func TestDiffEngine_CompareItems_Changed(t *testing.T) {
 
 func TestDiffEngine_CompareItems_ServerHasExtra(t *testing.T) {
 	engine, cs := newTestDiffEngine(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	seedProject(t, cs, "proj-1")
 
@@ -129,7 +128,7 @@ func TestDiffEngine_CompareItems_ServerHasExtra(t *testing.T) {
 
 func TestDiffEngine_CompareBlocks(t *testing.T) {
 	engine, cs := newTestDiffEngine(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	seedProject(t, cs, "proj-1")
 
@@ -168,7 +167,7 @@ func TestDiffEngine_CompareBlocks(t *testing.T) {
 
 func TestDiffEngine_RootHashFastPath(t *testing.T) {
 	engine, cs := newTestDiffEngine(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	seedProject(t, cs, "proj-1")
 

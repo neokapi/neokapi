@@ -296,7 +296,7 @@ func TestExtract_EscapedG(t *testing.T) {
 		Reader:       io.NopCloser(bytes.NewReader([]byte(snippet))),
 	}
 
-	ctx := context.Background()
+	ctx := t.Context()
 	require.NoError(t, reader.Open(ctx, doc))
 
 	var gotError bool

@@ -1,7 +1,6 @@
 package event
 
 import (
-	"context"
 	"testing"
 	"time"
 
@@ -106,5 +105,5 @@ func TestRenderWeeklyDigest(t *testing.T) {
 func TestSendDigestForUserNoNotifications(t *testing.T) {
 	// Verify that sendDigestForUser returns nil when there are no unread notifications.
 	// This requires a real store, which we don't have here, so we just test the grouping.
-	_ = context.Background()
+	_ = t.Context()
 }

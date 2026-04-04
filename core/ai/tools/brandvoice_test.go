@@ -41,7 +41,7 @@ func TestBrandVoiceCheckToolFindings(t *testing.T) {
 
 	tool := tools.NewBrandVoiceCheckTool(mock, profile)
 
-	ctx := context.Background()
+	ctx := t.Context()
 	in := make(chan *model.Part, 1)
 	out := make(chan *model.Part, 1)
 
@@ -116,7 +116,7 @@ func TestBrandVoiceCheckToolPromptConstruction(t *testing.T) {
 
 	tool := tools.NewBrandVoiceCheckTool(mock, profile)
 
-	ctx := context.Background()
+	ctx := t.Context()
 	in := make(chan *model.Part, 1)
 	out := make(chan *model.Part, 1)
 
@@ -159,7 +159,7 @@ func TestBrandVoiceCheckToolScoreCalculation(t *testing.T) {
 	profile := &brand.VoiceProfile{ID: "score-test"}
 	tool := tools.NewBrandVoiceCheckTool(mock, profile)
 
-	ctx := context.Background()
+	ctx := t.Context()
 	in := make(chan *model.Part, 1)
 	out := make(chan *model.Part, 1)
 
@@ -188,7 +188,7 @@ func TestBrandVoiceCheckToolSkipsEmptyText(t *testing.T) {
 	profile := &brand.VoiceProfile{ID: "skip-test"}
 	tool := tools.NewBrandVoiceCheckTool(mock, profile)
 
-	ctx := context.Background()
+	ctx := t.Context()
 	in := make(chan *model.Part, 1)
 	out := make(chan *model.Part, 1)
 
@@ -215,7 +215,7 @@ func TestBrandVoiceCheckToolAddsAnnotation(t *testing.T) {
 	profile := &brand.VoiceProfile{ID: "ann-test"}
 	tool := tools.NewBrandVoiceCheckTool(mock, profile)
 
-	ctx := context.Background()
+	ctx := t.Context()
 	in := make(chan *model.Part, 1)
 	out := make(chan *model.Part, 1)
 
@@ -257,7 +257,7 @@ func TestBrandVoiceCheckToolWithResolver(t *testing.T) {
 
 	tool := tools.NewBrandVoiceCheckToolWithResolver(mock, resolver, rc)
 
-	ctx := context.Background()
+	ctx := t.Context()
 	in := make(chan *model.Part, 1)
 	out := make(chan *model.Part, 1)
 
@@ -293,7 +293,7 @@ func TestBrandVoiceCheckToolWithResolverNilProfile(t *testing.T) {
 
 	tool := tools.NewBrandVoiceCheckToolWithResolver(mock, resolver, rc)
 
-	ctx := context.Background()
+	ctx := t.Context()
 	in := make(chan *model.Part, 1)
 	out := make(chan *model.Part, 1)
 
@@ -327,7 +327,7 @@ func TestBrandVoiceCheckToolNoFindings(t *testing.T) {
 	profile := &brand.VoiceProfile{ID: "clean-test"}
 	tool := tools.NewBrandVoiceCheckTool(mock, profile)
 
-	ctx := context.Background()
+	ctx := t.Context()
 	in := make(chan *model.Part, 1)
 	out := make(chan *model.Part, 1)
 

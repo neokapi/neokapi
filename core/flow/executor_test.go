@@ -56,7 +56,7 @@ func TestFlowExecutorWithThreeMockTools(t *testing.T) {
 		Build()
 
 	executor := flow.NewFlowExecutor()
-	ctx := context.Background()
+	ctx := t.Context()
 
 	in, out, wait := executor.ExecuteWithChannels(ctx, f)
 
@@ -94,7 +94,7 @@ func TestFlowExecutorPreservesOrder(t *testing.T) {
 		Build()
 
 	executor := flow.NewFlowExecutor()
-	ctx := context.Background()
+	ctx := t.Context()
 
 	in, out, wait := executor.ExecuteWithChannels(ctx, f)
 
@@ -130,7 +130,7 @@ func TestFlowExecutorModification(t *testing.T) {
 		Build()
 
 	executor := flow.NewFlowExecutor()
-	ctx := context.Background()
+	ctx := t.Context()
 
 	in, out, wait := executor.ExecuteWithChannels(ctx, f)
 
@@ -170,7 +170,7 @@ func TestFlowExecutorErrorPropagation(t *testing.T) {
 		Build()
 
 	executor := flow.NewFlowExecutor()
-	ctx := context.Background()
+	ctx := t.Context()
 
 	in, out, wait := executor.ExecuteWithChannels(ctx, f)
 
@@ -192,7 +192,7 @@ func TestFlowExecutorErrorPropagation(t *testing.T) {
 }
 
 func TestFlowExecutorContextCancellation(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(t.Context())
 
 	// Tool that blocks until context is cancelled
 	blockingTool := &tool.BaseTool{
@@ -233,7 +233,7 @@ func TestFlowExecutorContextCancellation(t *testing.T) {
 func TestFlowExecutorNoTools(t *testing.T) {
 	f := flow.NewFlow("empty").Build()
 	executor := flow.NewFlowExecutor()
-	ctx := context.Background()
+	ctx := t.Context()
 
 	in, out, wait := executor.ExecuteWithChannels(ctx, f)
 
@@ -280,7 +280,7 @@ func TestFlowExecutorMixedPartTypes(t *testing.T) {
 
 	f := flow.NewFlow("mixed").AddTool(trackingTool).Build()
 	executor := flow.NewFlowExecutor()
-	ctx := context.Background()
+	ctx := t.Context()
 
 	in, out, wait := executor.ExecuteWithChannels(ctx, f)
 
@@ -371,7 +371,7 @@ func TestParallelExecutionMultipleDocuments(t *testing.T) {
 		}
 	}
 
-	err := executor.Execute(context.Background(), f, items)
+	err := executor.Execute(t.Context(), f, items)
 	require.NoError(t, err)
 
 	// Each document's tool chain gets an empty pipeline (processItemCollect closes input),
@@ -419,7 +419,7 @@ func TestParallelExecutionWithCollector(t *testing.T) {
 		{Input: &model.RawDocument{URI: "c.html"}},
 	}
 
-	err := executor.Execute(context.Background(), f, items)
+	err := executor.Execute(t.Context(), f, items)
 	require.NoError(t, err)
 
 	mu.Lock()
@@ -462,12 +462,12 @@ func TestParallelExecutionErrorPropagation(t *testing.T) {
 
 	// processItemCollect closes input immediately, so the tools get no blocks.
 	// This tests that the parallel path itself works without deadlock.
-	err := executor.Execute(context.Background(), f, items)
+	err := executor.Execute(t.Context(), f, items)
 	require.NoError(t, err)
 }
 
 func TestParallelExecutionContextCancellation(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(t.Context())
 
 	f := flow.NewFlow("cancel-parallel").
 		AddToolFactory(func() (tool.Tool, error) {
@@ -506,7 +506,7 @@ func TestSingleItemDirectTools(t *testing.T) {
 		{Input: &model.RawDocument{URI: "single.html"}},
 	}
 
-	err := executor.Execute(context.Background(), f, items)
+	err := executor.Execute(t.Context(), f, items)
 	require.NoError(t, err)
 	// processItemCollect closes input immediately, so no blocks are processed.
 	// Key test: no panic, no deadlock, direct tools path used.

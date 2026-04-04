@@ -18,7 +18,7 @@ import (
 
 func readYAML(t *testing.T, input string) []*model.Block {
 	t.Helper()
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := yamlfmt.NewReader()
 	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
 	require.NoError(t, err)
@@ -28,7 +28,7 @@ func readYAML(t *testing.T, input string) []*model.Block {
 
 func readYAMLParts(t *testing.T, input string) []*model.Part {
 	t.Helper()
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := yamlfmt.NewReader()
 	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
 	require.NoError(t, err)
@@ -38,7 +38,7 @@ func readYAMLParts(t *testing.T, input string) []*model.Part {
 
 func readYAMLWithConfig(t *testing.T, input string, params map[string]any) []*model.Block {
 	t.Helper()
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := yamlfmt.NewReader()
 	cfg := reader.Config()
 	require.NoError(t, cfg.ApplyMap(params))
@@ -756,7 +756,7 @@ func TestReaderMetadata(t *testing.T) {
 
 func TestReadNilDocument(t *testing.T) {
 	t.Parallel()
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := yamlfmt.NewReader()
 	err := reader.Open(ctx, nil)
 	require.Error(t, err)
@@ -1308,7 +1308,7 @@ nested:
 
 func TestReadContextCancellation(t *testing.T) {
 	t.Parallel()
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(t.Context())
 	cancel() // Cancel immediately
 
 	reader := yamlfmt.NewReader()

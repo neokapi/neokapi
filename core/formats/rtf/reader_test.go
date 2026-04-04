@@ -2,7 +2,6 @@ package rtf_test
 
 import (
 	"bytes"
-	"context"
 	"os"
 	"testing"
 
@@ -15,7 +14,7 @@ import (
 
 // okapi: RTFFilterTest#testSimpleTU — extracts translatable text from RTF paragraphs.
 func TestReadSimpleRTF(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := rtf.NewReader()
 	input := `{\rtf1\ansi\deff0
 \pard Hello world.\par
@@ -34,7 +33,7 @@ func TestReadSimpleRTF(t *testing.T) {
 
 // okapi: RtfSnippetsTest#testBold — bold formatting is processed as inline content.
 func TestReadRTFWithFormatting(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := rtf.NewReader()
 	input := `{\rtf1\ansi\deff0
 \pard Normal and \b bold\b0  text.\par
@@ -50,7 +49,7 @@ func TestReadRTFWithFormatting(t *testing.T) {
 }
 
 func TestReadRTFSkipsFontTable(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := rtf.NewReader()
 	input := `{\rtf1\ansi\deff0
 {\fonttbl{\f0 Times New Roman;}{\f1 Arial;}}
@@ -72,7 +71,7 @@ func TestReadRTFSkipsFontTable(t *testing.T) {
 }
 
 func TestReadRTFSkipsColorTable(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := rtf.NewReader()
 	input := `{\rtf1\ansi\deff0
 {\colortbl;\red255\green0\blue0;}
@@ -88,7 +87,7 @@ func TestReadRTFSkipsColorTable(t *testing.T) {
 }
 
 func TestReadRTFSkipsStylesheet(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := rtf.NewReader()
 	input := `{\rtf1\ansi\deff0
 {\stylesheet{\s0 Normal;}}
@@ -104,7 +103,7 @@ func TestReadRTFSkipsStylesheet(t *testing.T) {
 }
 
 func TestReadRTFUnicode(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := rtf.NewReader()
 	// \u233 is e with acute (U+00E9)
 	input := `{\rtf1\ansi\deff0
@@ -121,7 +120,7 @@ func TestReadRTFUnicode(t *testing.T) {
 }
 
 func TestReadRTFHexCharacter(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := rtf.NewReader()
 	// \'e9 is e with acute in Windows-1252
 	input := `{\rtf1\ansi\deff0
@@ -137,7 +136,7 @@ func TestReadRTFHexCharacter(t *testing.T) {
 }
 
 func TestReadRTFSpecialCharacters(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := rtf.NewReader()
 	input := `{\rtf1\ansi\deff0
 \pard Left\emdash Right.\par
@@ -154,7 +153,7 @@ func TestReadRTFSpecialCharacters(t *testing.T) {
 }
 
 func TestReadRTFEscapedCharacters(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := rtf.NewReader()
 	input := `{\rtf1\ansi\deff0
 \pard Curly \{ braces \} and backslash \\.\par
@@ -172,7 +171,7 @@ func TestReadRTFEscapedCharacters(t *testing.T) {
 
 // okapi: RtfEventTest#testStartDoc — verifies LayerStart/LayerEnd structure wraps RTF content.
 func TestReadLayerStartEnd(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := rtf.NewReader()
 	input := `{\rtf1\ansi\deff0
 \pard Hello.\par
@@ -207,14 +206,14 @@ func TestReaderMetadata(t *testing.T) {
 }
 
 func TestReadNilDocument(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := rtf.NewReader()
 	err := reader.Open(ctx, nil)
 	require.Error(t, err)
 }
 
 func TestReadEmpty(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := rtf.NewReader()
 	err := reader.Open(ctx, testutil.RawDocFromString("", model.LocaleEnglish))
 	require.NoError(t, err)
@@ -226,7 +225,7 @@ func TestReadEmpty(t *testing.T) {
 }
 
 func TestReadMultipleParagraphs(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := rtf.NewReader()
 	input := `{\rtf1\ansi\deff0
 \pard First paragraph.\par
@@ -246,7 +245,7 @@ func TestReadMultipleParagraphs(t *testing.T) {
 
 // okapi: ExtractionComparisionTest#testDoubleExtraction — roundtrip read/write preserves RTF content.
 func TestRoundTrip(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	f, err := os.Open("testdata/simple.rtf")
 	require.NoError(t, err)
@@ -275,7 +274,7 @@ func TestRoundTrip(t *testing.T) {
 }
 
 func TestRoundTripWithTargetLocale(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	input := `{\rtf1\ansi\deff0
 \pard Hello.\par

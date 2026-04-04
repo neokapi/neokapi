@@ -1,7 +1,6 @@
 package store
 
 import (
-	"context"
 	"testing"
 
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
@@ -20,7 +19,7 @@ func newTestAutomationRunStore(t *testing.T) (*AutomationRunStore, *SQLiteStore)
 
 func TestAutomationRunStore_RunLifecycle(t *testing.T) {
 	store, ss := newTestAutomationRunStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	createRunTestProject(t, ss)
 
@@ -54,7 +53,7 @@ func TestAutomationRunStore_RunLifecycle(t *testing.T) {
 
 func TestAutomationRunStore_StepLifecycle(t *testing.T) {
 	store, ss := newTestAutomationRunStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	createRunTestProject(t, ss)
 
@@ -99,7 +98,7 @@ func TestAutomationRunStore_StepLifecycle(t *testing.T) {
 
 func TestAutomationRunStore_Logs(t *testing.T) {
 	store, ss := newTestAutomationRunStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	createRunTestProject(t, ss)
 
@@ -134,5 +133,5 @@ func createRunTestProject(t *testing.T, ss *SQLiteStore) {
 		Name:                  "Test",
 		DefaultSourceLanguage: model.LocaleID("en"),
 	}
-	require.NoError(t, ss.CreateProject(context.Background(), p))
+	require.NoError(t, ss.CreateProject(t.Context(), p))
 }

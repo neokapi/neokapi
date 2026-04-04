@@ -1,7 +1,6 @@
 package server
 
 import (
-	"context"
 	"encoding/json"
 	"testing"
 
@@ -43,7 +42,7 @@ func TestProcessDecisionSideEffects_ApproveTermCandidate(t *testing.T) {
 		Locale:    "en-US",
 	}
 
-	s.processDecisionSideEffects(context.Background(), item, "test-ws")
+	s.processDecisionSideEffects(t.Context(), item, "test-ws")
 
 	// Verify term was added to termbase.
 	concepts := tb.Concepts()
@@ -88,7 +87,7 @@ func TestProcessDecisionSideEffects_ApproveTermDNT(t *testing.T) {
 		Locale:    "en-US",
 	}
 
-	s.processDecisionSideEffects(context.Background(), item, "ws")
+	s.processDecisionSideEffects(t.Context(), item, "ws")
 
 	// Verify term was added with Preferred status.
 	concepts := tb.Concepts()
@@ -96,7 +95,7 @@ func TestProcessDecisionSideEffects_ApproveTermDNT(t *testing.T) {
 	assert.Equal(t, model.TermPreferred, concepts[0].Terms[0].Status)
 
 	// Verify DNT entry was created.
-	entries, err := rqs.ListDNTEntries(context.Background(), "proj-1")
+	entries, err := rqs.ListDNTEntries(t.Context(), "proj-1")
 	require.NoError(t, err)
 	assert.Len(t, entries, 1)
 	assert.Equal(t, "Bowrain", entries[0].Text)
@@ -123,10 +122,10 @@ func TestProcessDecisionSideEffects_RejectTermCandidate(t *testing.T) {
 		Locale:    "en-US",
 	}
 
-	s.processDecisionSideEffects(context.Background(), item, "ws")
+	s.processDecisionSideEffects(t.Context(), item, "ws")
 
 	// Verify rejected term was recorded.
-	rejected, err := rqs.IsRejected(context.Background(), "proj-1", "Widget", "en-US")
+	rejected, err := rqs.IsRejected(t.Context(), "proj-1", "Widget", "en-US")
 	require.NoError(t, err)
 	assert.True(t, rejected)
 }
@@ -153,9 +152,9 @@ func TestProcessDecisionSideEffects_ApproveEntityDNT(t *testing.T) {
 		Locale:    "en-US",
 	}
 
-	s.processDecisionSideEffects(context.Background(), item, "ws")
+	s.processDecisionSideEffects(t.Context(), item, "ws")
 
-	entries, err := rqs.ListDNTEntries(context.Background(), "proj-1")
+	entries, err := rqs.ListDNTEntries(t.Context(), "proj-1")
 	require.NoError(t, err)
 	require.Len(t, entries, 1)
 	assert.Equal(t, "Acme Corp", entries[0].Text)

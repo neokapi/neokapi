@@ -27,7 +27,7 @@ func TestNotifyCreditsWarning(t *testing.T) {
 	sender := &mockSender{}
 	n := &BillingNotifier{Sender: sender}
 
-	ctx := context.Background()
+	ctx := t.Context()
 	n.NotifyCreditsWarning(ctx, "user@example.com", "ws-1", 800, 1000)
 
 	require.Len(t, sender.calls, 1)
@@ -52,14 +52,14 @@ func TestNotifyCreditsWarning(t *testing.T) {
 func TestNotifyCreditsWarning_NilReceiver(t *testing.T) {
 	var n *BillingNotifier
 	assert.NotPanics(t, func() {
-		n.NotifyCreditsWarning(context.Background(), "user@example.com", "ws-1", 800, 1000)
+		n.NotifyCreditsWarning(t.Context(), "user@example.com", "ws-1", 800, 1000)
 	})
 }
 
 func TestNotifyCreditsWarning_NilSender(t *testing.T) {
 	n := &BillingNotifier{Sender: nil}
 	assert.NotPanics(t, func() {
-		n.NotifyCreditsWarning(context.Background(), "user@example.com", "ws-1", 800, 1000)
+		n.NotifyCreditsWarning(t.Context(), "user@example.com", "ws-1", 800, 1000)
 	})
 }
 
@@ -67,7 +67,7 @@ func TestNotifyCreditsExhausted(t *testing.T) {
 	sender := &mockSender{}
 	n := &BillingNotifier{Sender: sender}
 
-	ctx := context.Background()
+	ctx := t.Context()
 	n.NotifyCreditsExhausted(ctx, "admin@example.com", "ws-2")
 
 	require.Len(t, sender.calls, 1)
@@ -88,7 +88,7 @@ func TestNotifyCreditsExhausted(t *testing.T) {
 func TestNotifyCreditsExhausted_NilReceiver(t *testing.T) {
 	var n *BillingNotifier
 	assert.NotPanics(t, func() {
-		n.NotifyCreditsExhausted(context.Background(), "user@example.com", "ws-1")
+		n.NotifyCreditsExhausted(t.Context(), "user@example.com", "ws-1")
 	})
 }
 
@@ -96,7 +96,7 @@ func TestNotifyPaymentFailed(t *testing.T) {
 	sender := &mockSender{}
 	n := &BillingNotifier{Sender: sender}
 
-	ctx := context.Background()
+	ctx := t.Context()
 	n.NotifyPaymentFailed(ctx, "billing@example.com", "ws-3")
 
 	require.Len(t, sender.calls, 1)
@@ -114,7 +114,7 @@ func TestNotifyPaymentFailed(t *testing.T) {
 func TestNotifyPaymentFailed_NilReceiver(t *testing.T) {
 	var n *BillingNotifier
 	assert.NotPanics(t, func() {
-		n.NotifyPaymentFailed(context.Background(), "user@example.com", "ws-1")
+		n.NotifyPaymentFailed(t.Context(), "user@example.com", "ws-1")
 	})
 }
 
@@ -122,7 +122,7 @@ func TestNotifySubscriptionChanged(t *testing.T) {
 	sender := &mockSender{}
 	n := &BillingNotifier{Sender: sender}
 
-	ctx := context.Background()
+	ctx := t.Context()
 	n.NotifySubscriptionChanged(ctx, "owner@example.com", "ws-4", PlanPro, "active")
 
 	require.Len(t, sender.calls, 1)
@@ -143,6 +143,6 @@ func TestNotifySubscriptionChanged(t *testing.T) {
 func TestNotifySubscriptionChanged_NilReceiver(t *testing.T) {
 	var n *BillingNotifier
 	assert.NotPanics(t, func() {
-		n.NotifySubscriptionChanged(context.Background(), "user@example.com", "ws-1", PlanFree, "active")
+		n.NotifySubscriptionChanged(t.Context(), "user@example.com", "ws-1", PlanFree, "active")
 	})
 }

@@ -28,7 +28,7 @@ func TestRetryTool_SucceedsWithoutRetry(t *testing.T) {
 	in <- &model.Part{Type: model.PartBlock, Resource: block}
 	close(in)
 
-	err := rt.Process(context.Background(), in, out)
+	err := rt.Process(t.Context(), in, out)
 	require.NoError(t, err)
 
 	result := <-out
@@ -62,7 +62,7 @@ func TestRetryTool_RetriesOnTransientError(t *testing.T) {
 	in <- &model.Part{Type: model.PartBlock, Resource: block}
 	close(in)
 
-	err := rt.Process(context.Background(), in, out)
+	err := rt.Process(t.Context(), in, out)
 	require.NoError(t, err)
 	assert.Equal(t, int32(3), attempts.Load())
 }
@@ -88,7 +88,7 @@ func TestRetryTool_ExhaustsRetries(t *testing.T) {
 	in <- &model.Part{Type: model.PartBlock, Resource: block}
 	close(in)
 
-	err := rt.Process(context.Background(), in, out)
+	err := rt.Process(t.Context(), in, out)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "after 2 retries")
 	assert.Contains(t, err.Error(), "permanent error")
@@ -120,7 +120,7 @@ func TestRetryTool_RespectsRetryableErrors(t *testing.T) {
 	in <- &model.Part{Type: model.PartBlock, Resource: block}
 	close(in)
 
-	err := rt.Process(context.Background(), in, out)
+	err := rt.Process(t.Context(), in, out)
 	require.Error(t, err)
 	// Should have attempted 1 + 2 retries = 3 attempts.
 	assert.Equal(t, int32(3), attempts.Load())
@@ -151,7 +151,7 @@ func TestRetryTool_DoesNotRetryNonMatchingError(t *testing.T) {
 	in <- &model.Part{Type: model.PartBlock, Resource: block}
 	close(in)
 
-	err := rt.Process(context.Background(), in, out)
+	err := rt.Process(t.Context(), in, out)
 	require.Error(t, err)
 	// Should only attempt once — error doesn't match retryable patterns.
 	assert.Equal(t, int32(1), attempts.Load())
@@ -165,7 +165,7 @@ func TestRetryTool_RespectsContextCancellation(t *testing.T) {
 		},
 	}
 
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(t.Context())
 	cancel() // Cancel immediately.
 
 	rt := NewRetryTool(inner, RetryConfig{

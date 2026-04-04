@@ -1,7 +1,6 @@
 package tools_test
 
 import (
-	"context"
 	"testing"
 
 	"github.com/neokapi/neokapi/core/model"
@@ -93,7 +92,7 @@ func TestExternalCommandToolTimeout(t *testing.T) {
 	in <- part
 	close(in)
 
-	err := tl.Process(context.Background(), in, out)
+	err := tl.Process(t.Context(), in, out)
 	close(out)
 	require.NoError(t, err) // Tool stores error in properties, doesn't return it.
 

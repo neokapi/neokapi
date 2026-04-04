@@ -2,7 +2,6 @@ package openxml
 
 import (
 	"bytes"
-	"context"
 	"os"
 	"path/filepath"
 	"strings"
@@ -81,9 +80,9 @@ func TestRoundtripWithTranslation(t *testing.T) {
 		Encoding:     "UTF-8",
 		Reader:       readCloserFromBytes(original),
 	}
-	err = reader.Open(context.Background(), doc)
+	err = reader.Open(t.Context(), doc)
 	require.NoError(t, err)
-	parts := testutil.CollectParts(t, reader.Read(context.Background()))
+	parts := testutil.CollectParts(t, reader.Read(t.Context()))
 	reader.Close()
 
 	// Set translations on all blocks
@@ -106,7 +105,7 @@ func TestRoundtripWithTranslation(t *testing.T) {
 	require.NoError(t, err)
 
 	ch := testutil.PartsToChannel(parts)
-	err = writer.Write(context.Background(), ch)
+	err = writer.Write(t.Context(), ch)
 	require.NoError(t, err)
 	writer.Close()
 
@@ -203,9 +202,9 @@ func assertSkeletonRoundtrip(t *testing.T, original []byte, uri string) {
 		Encoding:     "UTF-8",
 		Reader:       readCloserFromBytes(original),
 	}
-	err = reader.Open(context.Background(), doc)
+	err = reader.Open(t.Context(), doc)
 	require.NoError(t, err)
-	parts1 := testutil.CollectParts(t, reader.Read(context.Background()))
+	parts1 := testutil.CollectParts(t, reader.Read(t.Context()))
 	reader.Close()
 
 	blocks1 := translatableBlocks(parts1)
@@ -220,7 +219,7 @@ func assertSkeletonRoundtrip(t *testing.T, original []byte, uri string) {
 	require.NoError(t, err)
 
 	ch := testutil.PartsToChannel(parts1)
-	err = writer.Write(context.Background(), ch)
+	err = writer.Write(t.Context(), ch)
 	require.NoError(t, err)
 	writer.Close()
 
@@ -260,10 +259,10 @@ func readFromBytes(t *testing.T, data []byte) []*model.Part {
 		Encoding:     "UTF-8",
 		Reader:       readCloserFromBytes(data),
 	}
-	err := reader.Open(context.Background(), doc)
+	err := reader.Open(t.Context(), doc)
 	require.NoError(t, err)
 	defer reader.Close()
-	return testutil.CollectParts(t, reader.Read(context.Background()))
+	return testutil.CollectParts(t, reader.Read(t.Context()))
 }
 
 func writeFromParts(t *testing.T, parts []*model.Part, original []byte) []byte {
@@ -282,9 +281,9 @@ func writeFromParts(t *testing.T, parts []*model.Part, original []byte) []byte {
 		Encoding:     "UTF-8",
 		Reader:       readCloserFromBytes(original),
 	}
-	err = reader.Open(context.Background(), doc)
+	err = reader.Open(t.Context(), doc)
 	require.NoError(t, err)
-	readParts := testutil.CollectParts(t, reader.Read(context.Background()))
+	readParts := testutil.CollectParts(t, reader.Read(t.Context()))
 	reader.Close()
 
 	var buf bytes.Buffer
@@ -295,7 +294,7 @@ func writeFromParts(t *testing.T, parts []*model.Part, original []byte) []byte {
 	require.NoError(t, err)
 
 	ch := testutil.PartsToChannel(readParts)
-	err = writer.Write(context.Background(), ch)
+	err = writer.Write(t.Context(), ch)
 	require.NoError(t, err)
 	writer.Close()
 	return buf.Bytes()

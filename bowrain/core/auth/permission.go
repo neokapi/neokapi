@@ -62,7 +62,7 @@ var permNames = [permCount]string{
 // permLookup maps permission string names to their bitmask values.
 var permLookup = func() map[string]Permission {
 	m := make(map[string]Permission, permCount)
-	for i := 0; i < permCount; i++ {
+	for i := range permCount {
 		m[permNames[i]] = 1 << i
 	}
 	return m
@@ -71,7 +71,7 @@ var permLookup = func() map[string]Permission {
 // Strings returns the human-readable names of all set permission bits.
 func (p Permission) Strings() []string {
 	var out []string
-	for i := 0; i < permCount; i++ {
+	for i := range permCount {
 		if p&(1<<i) != 0 {
 			out = append(out, permNames[i])
 		}

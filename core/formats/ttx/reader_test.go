@@ -2,7 +2,6 @@ package ttx_test
 
 import (
 	"bytes"
-	"context"
 	"testing"
 
 	"github.com/neokapi/neokapi/core/formats/ttx"
@@ -52,7 +51,7 @@ const inlineTagsTTX = `<?xml version="1.0" encoding="utf-8"?>
 
 // okapi: TTXFilterTest#testBasicNoUT — extracts source and target from TTX translation units.
 func TestReadSimpleTTX(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := ttx.NewReader()
 	err := reader.Open(ctx, testutil.RawDocFromString(simpleTTX, model.LocaleEnglish))
 	require.NoError(t, err)
@@ -70,7 +69,7 @@ func TestReadSimpleTTX(t *testing.T) {
 
 // okapi: TTXFilterTest#testMatchPercent — MatchPercent attribute is extracted as block property.
 func TestReadMatchPercent(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := ttx.NewReader()
 	err := reader.Open(ctx, testutil.RawDocFromString(simpleTTX, model.LocaleEnglish))
 	require.NoError(t, err)
@@ -85,7 +84,7 @@ func TestReadMatchPercent(t *testing.T) {
 
 // okapi: TTXFilterTest#testSourceOnly — TU with only source (no target) is extracted correctly.
 func TestReadSourceOnly(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := ttx.NewReader()
 	err := reader.Open(ctx, testutil.RawDocFromString(sourceOnlyTTX, model.LocaleEnglish))
 	require.NoError(t, err)
@@ -99,7 +98,7 @@ func TestReadSourceOnly(t *testing.T) {
 
 // okapi: TTXFilterTest#testBasicWithUT — inline <ut> tags are processed within text content.
 func TestReadInlineTags(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := ttx.NewReader()
 	err := reader.Open(ctx, testutil.RawDocFromString(inlineTagsTTX, model.LocaleEnglish))
 	require.NoError(t, err)
@@ -113,7 +112,7 @@ func TestReadInlineTags(t *testing.T) {
 
 // okapi: TTXFilterTest#testStartDocument — verifies LayerStart/LayerEnd wraps TTX content.
 func TestReadLayerStartEnd(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := ttx.NewReader()
 	err := reader.Open(ctx, testutil.RawDocFromString(simpleTTX, model.LocaleEnglish))
 	require.NoError(t, err)
@@ -147,14 +146,14 @@ func TestReaderMetadata(t *testing.T) {
 }
 
 func TestReadNilDocument(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := ttx.NewReader()
 	err := reader.Open(ctx, nil)
 	require.Error(t, err)
 }
 
 func TestReadEmpty(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := ttx.NewReader()
 	err := reader.Open(ctx, testutil.RawDocFromString("", model.LocaleEnglish))
 	require.NoError(t, err)
@@ -168,7 +167,7 @@ func TestReadEmpty(t *testing.T) {
 
 // okapi: TTXFilterTest#testDoubleExtraction — roundtrip read/write preserves TTX content.
 func TestRoundTrip(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	reader := ttx.NewReader()
 	err := reader.Open(ctx, testutil.RawDocFromString(simpleTTX, model.LocaleEnglish))
@@ -195,7 +194,7 @@ func TestRoundTrip(t *testing.T) {
 }
 
 func TestRoundTripWithNewTarget(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	reader := ttx.NewReader()
 	err := reader.Open(ctx, testutil.RawDocFromString(sourceOnlyTTX, model.LocaleEnglish))

@@ -1,7 +1,6 @@
 package store
 
 import (
-	"context"
 	"encoding/json"
 	"testing"
 
@@ -30,14 +29,14 @@ func createReviewProject(t *testing.T, s *SQLiteStore) *platstore.Project {
 		TargetLanguages:       []model.LocaleID{model.LocaleFrench},
 		Properties:            map[string]string{},
 	}
-	require.NoError(t, s.CreateProject(context.Background(), p))
+	require.NoError(t, s.CreateProject(t.Context(), p))
 	return p
 }
 
 func TestReviewQueueStore_CreateAndGet(t *testing.T) {
 	rq, cs := newTestReviewStore(t)
 	proj := createReviewProject(t, cs)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	item := &ReviewItem{
 		ProjectID: proj.ID,
@@ -71,7 +70,7 @@ func TestReviewQueueStore_CreateAndGet(t *testing.T) {
 func TestReviewQueueStore_ListWithFilters(t *testing.T) {
 	rq, cs := newTestReviewStore(t)
 	proj := createReviewProject(t, cs)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	// Create mixed items.
 	items := []ReviewItem{
@@ -115,7 +114,7 @@ func TestReviewQueueStore_ListWithFilters(t *testing.T) {
 func TestReviewQueueStore_Decide(t *testing.T) {
 	rq, cs := newTestReviewStore(t)
 	proj := createReviewProject(t, cs)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	item := &ReviewItem{
 		ProjectID: proj.ID, Type: ReviewItemTermCandidate,
@@ -152,7 +151,7 @@ func TestReviewQueueStore_Decide(t *testing.T) {
 func TestReviewQueueStore_BatchDecide(t *testing.T) {
 	rq, cs := newTestReviewStore(t)
 	proj := createReviewProject(t, cs)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	var ids []string
 	for i := 0; i < 5; i++ {
@@ -179,7 +178,7 @@ func TestReviewQueueStore_BatchDecide(t *testing.T) {
 func TestReviewQueueStore_Assign(t *testing.T) {
 	rq, cs := newTestReviewStore(t)
 	proj := createReviewProject(t, cs)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	item := &ReviewItem{
 		ProjectID: proj.ID, Type: ReviewItemTermCandidate,
@@ -199,7 +198,7 @@ func TestReviewQueueStore_Assign(t *testing.T) {
 func TestReviewQueueStore_SplitItem(t *testing.T) {
 	rq, cs := newTestReviewStore(t)
 	proj := createReviewProject(t, cs)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	item := &ReviewItem{
 		ProjectID: proj.ID, Type: ReviewItemTermCandidate,
@@ -229,7 +228,7 @@ func TestReviewQueueStore_SplitItem(t *testing.T) {
 func TestReviewQueueStore_SplitItem_InvalidSplit(t *testing.T) {
 	rq, cs := newTestReviewStore(t)
 	proj := createReviewProject(t, cs)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	item := &ReviewItem{
 		ProjectID: proj.ID, Type: ReviewItemTermCandidate,
@@ -248,7 +247,7 @@ func TestReviewQueueStore_SplitItem_InvalidSplit(t *testing.T) {
 func TestReviewQueueStore_RejectedTerms(t *testing.T) {
 	rq, cs := newTestReviewStore(t)
 	proj := createReviewProject(t, cs)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	rejected, err := rq.IsRejected(ctx, proj.ID, "Dashboard", "en-US")
 	require.NoError(t, err)
@@ -267,7 +266,7 @@ func TestReviewQueueStore_RejectedTerms(t *testing.T) {
 func TestReviewQueueStore_DNTEntries(t *testing.T) {
 	rq, cs := newTestReviewStore(t)
 	proj := createReviewProject(t, cs)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	require.NoError(t, rq.AddDNTEntry(ctx, proj.ID, "Acme Corp", "entity:organization", "en-US", "llm"))
 	require.NoError(t, rq.AddDNTEntry(ctx, proj.ID, "March 15", "entity:date", "en-US", "ner"))

@@ -2,7 +2,6 @@ package txml_test
 
 import (
 	"bytes"
-	"context"
 	"testing"
 
 	"github.com/neokapi/neokapi/core/formats/txml"
@@ -52,7 +51,7 @@ func TestConfigKind(t *testing.T) {
 }
 
 func TestAllowEmptyOutputTargetEnabled(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	// Read a TXML with source-only segments
 	reader := txml.NewReader()
@@ -92,7 +91,7 @@ func TestAllowEmptyOutputTargetEnabled(t *testing.T) {
 }
 
 func TestAllowEmptyOutputTargetDisabled(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	reader := txml.NewReader()
 	input := `<?xml version="1.0" encoding="utf-8"?>
@@ -131,7 +130,7 @@ func TestAllowEmptyOutputTargetDisabled(t *testing.T) {
 }
 
 func TestAllowEmptyOutputTargetWithTranslation(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	reader := txml.NewReader()
 	input := `<?xml version="1.0" encoding="utf-8"?>

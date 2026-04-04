@@ -1,7 +1,6 @@
 package tools_test
 
 import (
-	"context"
 	"strings"
 	"testing"
 
@@ -113,7 +112,7 @@ func TestWordCountCollector(t *testing.T) {
 		{Type: model.PartLayerEnd, Resource: &model.Layer{ID: "doc1"}},
 	}
 
-	err := wc.Collect(context.Background(), item, parts)
+	err := wc.Collect(t.Context(), item, parts)
 	require.NoError(t, err)
 
 	result, err := wc.Result()
@@ -146,7 +145,7 @@ func TestWordCountCollectorMultipleDocuments(t *testing.T) {
 		parts := []*model.Part{
 			{Type: model.PartBlock, Resource: block},
 		}
-		err := wc.Collect(context.Background(), item, parts)
+		err := wc.Collect(t.Context(), item, parts)
 		require.NoError(t, err)
 	}
 
@@ -173,7 +172,7 @@ func TestWordCountCollectorSkipsNonBlocks(t *testing.T) {
 		{Type: model.PartLayerEnd, Resource: &model.Layer{ID: "doc1"}},
 	}
 
-	err := wc.Collect(context.Background(), item, parts)
+	err := wc.Collect(t.Context(), item, parts)
 	require.NoError(t, err)
 
 	result, err := wc.Result()
@@ -200,7 +199,7 @@ func TestWordCountCollectorSkipsNonTranslatable(t *testing.T) {
 		{Type: model.PartBlock, Resource: block},
 	}
 
-	err := wc.Collect(context.Background(), item, parts)
+	err := wc.Collect(t.Context(), item, parts)
 	require.NoError(t, err)
 
 	result, err := wc.Result()
@@ -226,7 +225,7 @@ func TestWordCountCollectorPerLocaleProperties(t *testing.T) {
 		{Type: model.PartBlock, Resource: block},
 	}
 
-	err := wc.Collect(context.Background(), item, parts)
+	err := wc.Collect(t.Context(), item, parts)
 	require.NoError(t, err)
 
 	result, err := wc.Result()

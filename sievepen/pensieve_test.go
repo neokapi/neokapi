@@ -2,7 +2,6 @@ package sievepen_test
 
 import (
 	"bytes"
-	"context"
 	"strings"
 	"testing"
 	"time"
@@ -295,7 +294,7 @@ func TestTMLeverageTool(t *testing.T) {
 	}
 	close(in)
 
-	ctx := context.Background()
+	ctx := t.Context()
 	err := leverageTool.Process(ctx, in, out)
 	close(out)
 	require.NoError(t, err)
@@ -351,7 +350,7 @@ func TestTMLeverageTool_FuzzyMatch(t *testing.T) {
 	}
 	close(in)
 
-	ctx := context.Background()
+	ctx := t.Context()
 	err := leverageTool.Process(ctx, in, out)
 	close(out)
 	require.NoError(t, err)

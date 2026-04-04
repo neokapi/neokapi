@@ -48,7 +48,7 @@ func TestAzureOpenAIProviderChat(t *testing.T) {
 		Model:   "gpt-4o",
 	})
 
-	resp, err := p.Chat(context.Background(), []Message{
+	resp, err := p.Chat(t.Context(), []Message{
 		{Role: "user", Content: "Hi"},
 	})
 	require.NoError(t, err)
@@ -74,7 +74,7 @@ func TestAzureOpenAIProviderTranslate(t *testing.T) {
 		Model:   "gpt-4o",
 	})
 
-	resp, err := p.Translate(context.Background(), TranslateRequest{
+	resp, err := p.Translate(t.Context(), TranslateRequest{
 		Source:         "Hello",
 		SourceLanguage: "en",
 		TargetLocale:   "fr",
@@ -105,7 +105,7 @@ func TestAzureOpenAIProviderTokenAuth(t *testing.T) {
 	}
 	p := NewAzureOpenAITokenProvider(srv.URL, "gpt-4o", tp)
 
-	resp, err := p.Chat(context.Background(), []Message{
+	resp, err := p.Chat(t.Context(), []Message{
 		{Role: "user", Content: "Translate Hello to Norwegian"},
 	})
 	require.NoError(t, err)

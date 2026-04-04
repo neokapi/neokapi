@@ -59,7 +59,7 @@ func TestParallelBlockTool_OrderPreserved(t *testing.T) {
 	}
 	close(in)
 
-	err := pt.Process(context.Background(), in, out)
+	err := pt.Process(t.Context(), in, out)
 	require.NoError(t, err)
 	close(out)
 
@@ -135,7 +135,7 @@ func TestParallelBlockTool_Concurrency(t *testing.T) {
 	}
 	close(in)
 
-	err := pt.Process(context.Background(), in, out)
+	err := pt.Process(t.Context(), in, out)
 	require.NoError(t, err)
 	close(out)
 
@@ -179,7 +179,7 @@ func TestParallelBlockTool_ErrorPropagation(t *testing.T) {
 	}
 	close(in)
 
-	err := pt.Process(context.Background(), in, out)
+	err := pt.Process(t.Context(), in, out)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "processing error on b3")
 }
@@ -195,7 +195,7 @@ func TestParallelBlockTool_Cancellation(t *testing.T) {
 
 	pt := tool.NewParallelBlockTool(inner, 2)
 
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(t.Context())
 
 	in := make(chan *model.Part, 10)
 	out := make(chan *model.Part, 10)
@@ -234,7 +234,7 @@ func TestParallelBlockTool_FallbackToSequential(t *testing.T) {
 	in <- makeBlock("b1", "hello")
 	close(in)
 
-	err := pt.Process(context.Background(), in, out)
+	err := pt.Process(t.Context(), in, out)
 	require.NoError(t, err)
 	close(out)
 
@@ -250,7 +250,7 @@ func TestParallelBlockTool_EmptyInput(t *testing.T) {
 	out := make(chan *model.Part, 1)
 	close(in)
 
-	err := pt.Process(context.Background(), in, out)
+	err := pt.Process(t.Context(), in, out)
 	require.NoError(t, err)
 	close(out)
 
@@ -285,7 +285,7 @@ func TestParallelBlockTool_NonBlockOnly(t *testing.T) {
 	}
 	close(in)
 
-	err := pt.Process(context.Background(), in, out)
+	err := pt.Process(t.Context(), in, out)
 	require.NoError(t, err)
 	close(out)
 

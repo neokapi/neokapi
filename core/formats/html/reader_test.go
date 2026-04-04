@@ -2,7 +2,6 @@ package html_test
 
 import (
 	"bytes"
-	"context"
 	"testing"
 
 	htmlfmt "github.com/neokapi/neokapi/core/formats/html"
@@ -14,7 +13,7 @@ import (
 
 // okapi: HtmlSnippetsTest#minimalCompleteHtml
 func TestReadSimpleHTML(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := htmlfmt.NewReader()
 	err := reader.Open(ctx, testutil.RawDocFromString(`<html><body><p>Hello world</p></body></html>`, model.LocaleEnglish))
 	require.NoError(t, err)
@@ -29,7 +28,7 @@ func TestReadSimpleHTML(t *testing.T) {
 
 // okapi: HtmlSnippetsTest#ITextUnitsInARowWithTwoHeaders
 func TestReadMultipleBlocks(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := htmlfmt.NewReader()
 	err := reader.Open(ctx, testutil.RawDocFromString(`<html><body><h1>Title</h1><p>Paragraph</p></body></html>`, model.LocaleEnglish))
 	require.NoError(t, err)
@@ -45,7 +44,7 @@ func TestReadMultipleBlocks(t *testing.T) {
 
 // okapi: HtmlSnippetsTest#testPWithInlines
 func TestReadInlineSpans(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := htmlfmt.NewReader()
 	err := reader.Open(ctx, testutil.RawDocFromString(`<html><body><p>Click <b>here</b> for info</p></body></html>`, model.LocaleEnglish))
 	require.NoError(t, err)
@@ -74,7 +73,7 @@ func TestReadInlineSpans(t *testing.T) {
 
 // okapi: HtmlSnippetsTest#testHref
 func TestReadLinkSpan(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := htmlfmt.NewReader()
 	err := reader.Open(ctx, testutil.RawDocFromString(`<html><body><p>Visit <a href="http://example.com">our site</a></p></body></html>`, model.LocaleEnglish))
 	require.NoError(t, err)
@@ -107,7 +106,7 @@ func TestReadLinkSpan(t *testing.T) {
 
 // okapi: HtmlSnippetsTest#paraWithBreak
 func TestReadPlaceholderSpan(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := htmlfmt.NewReader()
 	err := reader.Open(ctx, testutil.RawDocFromString(`<html><body><p>Line one<br/>Line two</p></body></html>`, model.LocaleEnglish))
 	require.NoError(t, err)
@@ -134,7 +133,7 @@ func TestReadPlaceholderSpan(t *testing.T) {
 
 // okapi: HtmlFullFileTest#testSkippedScriptandStyleElements
 func TestReadScriptNonTranslatable(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := htmlfmt.NewReader()
 	err := reader.Open(ctx, testutil.RawDocFromString(`<html><body><p>Hello</p><script>var x = 1;</script><p>World</p></body></html>`, model.LocaleEnglish))
 	require.NoError(t, err)
@@ -152,7 +151,7 @@ func TestReadScriptNonTranslatable(t *testing.T) {
 }
 
 func TestReadLayerStartEnd(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := htmlfmt.NewReader()
 	err := reader.Open(ctx, testutil.RawDocFromString(`<html><body><p>Test</p></body></html>`, model.LocaleEnglish))
 	require.NoError(t, err)
@@ -170,7 +169,7 @@ func TestReadLayerStartEnd(t *testing.T) {
 
 // okapi: HtmlConfigurationTest#defaultConfiguration
 func TestReadTitle(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := htmlfmt.NewReader()
 	err := reader.Open(ctx, testutil.RawDocFromString(`<html><head><title>Page Title</title></head><body><p>Content</p></body></html>`, model.LocaleEnglish))
 	require.NoError(t, err)
@@ -192,7 +191,7 @@ func TestReaderSignature(t *testing.T) {
 }
 
 func TestWriteBlockWithSkeleton(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := htmlfmt.NewReader()
 	err := reader.Open(ctx, testutil.RawDocFromString(`<html><body><p>Hello world</p></body></html>`, model.LocaleEnglish))
 	require.NoError(t, err)
@@ -226,7 +225,7 @@ func TestWriteBlockWithSkeleton(t *testing.T) {
 }
 
 func TestReadNilDocument(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := htmlfmt.NewReader()
 	err := reader.Open(ctx, nil)
 	require.Error(t, err)

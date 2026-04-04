@@ -161,7 +161,7 @@ func TestHandleCheckoutCompleted(t *testing.T) {
 		Data: &stripe.EventData{Raw: raw},
 	}
 
-	err = handler.handleCheckoutCompleted(context.Background(), event)
+	err = handler.handleCheckoutCompleted(t.Context(), event)
 	require.NoError(t, err)
 
 	require.Len(t, store.upsertedSubs, 1)
@@ -192,7 +192,7 @@ func TestHandleCheckoutCompleted_NoWorkspaceID(t *testing.T) {
 		Data: &stripe.EventData{Raw: raw},
 	}
 
-	err = handler.handleCheckoutCompleted(context.Background(), event)
+	err = handler.handleCheckoutCompleted(t.Context(), event)
 	require.NoError(t, err)
 	assert.Len(t, store.upsertedSubs, 0, "no subscription should be created without workspace_id")
 }
@@ -227,7 +227,7 @@ func TestHandleSubscriptionUpdated(t *testing.T) {
 		Data: &stripe.EventData{Raw: raw},
 	}
 
-	err = handler.handleSubscriptionUpdated(context.Background(), event)
+	err = handler.handleSubscriptionUpdated(t.Context(), event)
 	require.NoError(t, err)
 
 	require.Len(t, store.upsertedSubs, 1)
@@ -262,7 +262,7 @@ func TestHandleSubscriptionUpdated_NoWorkspaceID(t *testing.T) {
 		Data: &stripe.EventData{Raw: raw},
 	}
 
-	err = handler.handleSubscriptionUpdated(context.Background(), event)
+	err = handler.handleSubscriptionUpdated(t.Context(), event)
 	require.NoError(t, err)
 	assert.Len(t, store.upsertedSubs, 0)
 }
@@ -293,7 +293,7 @@ func TestHandleSubscriptionUpdated_MinSeatCount(t *testing.T) {
 		Data: &stripe.EventData{Raw: raw},
 	}
 
-	err = handler.handleSubscriptionUpdated(context.Background(), event)
+	err = handler.handleSubscriptionUpdated(t.Context(), event)
 	require.NoError(t, err)
 
 	require.Len(t, store.upsertedSubs, 1)
@@ -318,7 +318,7 @@ func TestHandleSubscriptionDeleted(t *testing.T) {
 		Data: &stripe.EventData{Raw: raw},
 	}
 
-	err = handler.handleSubscriptionDeleted(context.Background(), event)
+	err = handler.handleSubscriptionDeleted(t.Context(), event)
 	require.NoError(t, err)
 
 	require.Len(t, store.upsertedSubs, 1)
@@ -355,7 +355,7 @@ func TestHandleInvoicePaid(t *testing.T) {
 		Data: &stripe.EventData{Raw: raw},
 	}
 
-	err = handler.handleInvoicePaid(context.Background(), event)
+	err = handler.handleInvoicePaid(t.Context(), event)
 	require.NoError(t, err)
 
 	require.Len(t, store.recordedEvts, 1)
@@ -379,7 +379,7 @@ func TestHandleInvoicePaid_SkipsNonSubscription(t *testing.T) {
 		Data: &stripe.EventData{Raw: raw},
 	}
 
-	err = handler.handleInvoicePaid(context.Background(), event)
+	err = handler.handleInvoicePaid(t.Context(), event)
 	require.NoError(t, err)
 	assert.Len(t, store.recordedEvts, 0, "non-subscription invoice should be skipped")
 }
@@ -407,7 +407,7 @@ func TestHandlePaymentFailed(t *testing.T) {
 		Data: &stripe.EventData{Raw: raw},
 	}
 
-	err = handler.handlePaymentFailed(context.Background(), event)
+	err = handler.handlePaymentFailed(t.Context(), event)
 	require.NoError(t, err)
 
 	// Should update subscription to past_due.
@@ -435,7 +435,7 @@ func TestHandlePaymentFailed_NoWorkspaceID(t *testing.T) {
 		Data: &stripe.EventData{Raw: raw},
 	}
 
-	err = handler.handlePaymentFailed(context.Background(), event)
+	err = handler.handlePaymentFailed(t.Context(), event)
 	require.NoError(t, err)
 	assert.Len(t, store.recordedEvts, 0)
 }

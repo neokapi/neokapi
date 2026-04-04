@@ -2,7 +2,6 @@ package ttml_test
 
 import (
 	"bytes"
-	"context"
 	"os"
 	"testing"
 
@@ -17,7 +16,7 @@ import (
 // Verifies basic <p> element extraction: two subtitles with <br/> line breaks
 // produce two text units with <br/> removed (default escapeBR=true).
 func TestTextUnitExtraction(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := ttml.NewReader()
 	input := `<?xml version="1.0" encoding="UTF-8"?>
 <tt xml:lang="en" xmlns="http://www.w3.org/ns/ttml">
@@ -39,7 +38,7 @@ func TestTextUnitExtraction(t *testing.T) {
 // okapi: TTMLFilterTest#testProcessTextUnit (timing attributes)
 // Verifies that timing attributes are preserved as block properties.
 func TestTimingAttributes(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := ttml.NewReader()
 	input := `<?xml version="1.0" encoding="UTF-8"?>
 <tt xml:lang="en" xmlns="http://www.w3.org/ns/ttml">
@@ -60,7 +59,7 @@ func TestTimingAttributes(t *testing.T) {
 // okapi: TTMLFilterTest#testProcessTextUnit (br escape mode)
 // Verifies that <br/> elements are replaced with spaces in default escape mode.
 func TestBRDefaultEscapeMode(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := ttml.NewReader()
 	input := `<?xml version="1.0" encoding="UTF-8"?>
 <tt xml:lang="en" xmlns="http://www.w3.org/ns/ttml" xmlns:tts="http://www.w3.org/ns/ttml#styling">
@@ -82,7 +81,7 @@ func TestBRDefaultEscapeMode(t *testing.T) {
 // okapi: TTMLFilterTest#testProcessTextUnitNonEscapeBrMode
 // When escapeBR is disabled, <br/> tags are preserved as literal text.
 func TestNonEscapeBRMode(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := ttml.NewReader()
 	err := reader.Config().ApplyMap(map[string]any{
 		"escapeBR": false,
@@ -110,7 +109,7 @@ func TestNonEscapeBRMode(t *testing.T) {
 // When adjacent captions end with trailing punctuation (comma), the reader
 // merges them into a single text unit.
 func TestCaptionMerging(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := ttml.NewReader()
 	err := reader.Config().ApplyMap(map[string]any{
 		"mergeAdjacentCaptions": true,
@@ -140,7 +139,7 @@ func TestCaptionMerging(t *testing.T) {
 // okapi: TTMLFilterTest#testDontMergeCaptions
 // When mergeAdjacentCaptions is disabled, each <p> element produces a separate block.
 func TestDontMergeCaptions(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := ttml.NewReader()
 	// Default: mergeAdjacentCaptions = false
 
@@ -164,7 +163,7 @@ func TestDontMergeCaptions(t *testing.T) {
 // okapi: TTMLFilterTest#testQuoteCaptions
 // Verifies quote and punctuation handling.
 func TestQuoteCaptions(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := ttml.NewReader()
 
 	input := `<?xml version="1.0" encoding="UTF-8"?>
@@ -189,7 +188,7 @@ func TestQuoteCaptions(t *testing.T) {
 // okapi: TTMLFilterTest#testEmptyCaptions
 // Empty <p> elements are skipped (no block emitted for empty content).
 func TestEmptyCaptions(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := ttml.NewReader()
 
 	input := `<?xml version="1.0" encoding="UTF-8"?>
@@ -211,7 +210,7 @@ func TestEmptyCaptions(t *testing.T) {
 // okapi: TTMLFilterTest#testReadMaxCharMaxLine
 // Metadata elements are ignored; text extraction still works.
 func TestMaxCharMaxLine(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := ttml.NewReader()
 
 	input := `<?xml version="1.0" encoding="UTF-8"?>
@@ -240,7 +239,7 @@ func TestMaxCharMaxLine(t *testing.T) {
 // okapi: TTMLFilterTest (block IDs)
 // Verifies that each extracted block has a unique ID.
 func TestBlockIDs(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := ttml.NewReader()
 
 	input := `<?xml version="1.0" encoding="UTF-8"?>
@@ -269,7 +268,7 @@ func TestBlockIDs(t *testing.T) {
 // okapi: TTMLFilterTest (layer structure)
 // Verifies the part stream starts with LayerStart and ends with LayerEnd.
 func TestLayerStructure(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := ttml.NewReader()
 
 	input := `<?xml version="1.0" encoding="UTF-8"?>
@@ -295,7 +294,7 @@ func TestLayerStructure(t *testing.T) {
 // okapi: TTMLFilterTest (empty document)
 // Verifies that a TTML document with only empty subtitles does not crash.
 func TestEmptyDocument(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := ttml.NewReader()
 
 	input := `<?xml version="1.0" encoding="UTF-8"?>
@@ -330,14 +329,14 @@ func TestReaderMetadata(t *testing.T) {
 }
 
 func TestReadNilDocument(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := ttml.NewReader()
 	err := reader.Open(ctx, nil)
 	require.Error(t, err)
 }
 
 func TestReadEmpty(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := ttml.NewReader()
 	err := reader.Open(ctx, testutil.RawDocFromString("", model.LocaleEnglish))
 	require.NoError(t, err)
@@ -351,7 +350,7 @@ func TestReadEmpty(t *testing.T) {
 // okapi: TTMLFilterTest (inline span handling)
 // Verifies that text inside <span> elements is extracted correctly.
 func TestInlineSpanPassthrough(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := ttml.NewReader()
 
 	input := `<?xml version="1.0" encoding="UTF-8"?>
@@ -372,7 +371,7 @@ func TestInlineSpanPassthrough(t *testing.T) {
 // okapi: TTMLFilterTest (multiple divs)
 // Verifies extraction from multiple <div> elements.
 func TestMultipleDivs(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := ttml.NewReader()
 
 	input := `<?xml version="1.0" encoding="UTF-8"?>
@@ -399,7 +398,7 @@ func TestMultipleDivs(t *testing.T) {
 // okapi: TTMLFilterTest (xml:id as block name)
 // Verifies that the xml:id attribute is used as the block name.
 func TestXMLIDAsBlockName(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := ttml.NewReader()
 
 	input := `<?xml version="1.0" encoding="UTF-8"?>
@@ -420,7 +419,7 @@ func TestXMLIDAsBlockName(t *testing.T) {
 // okapi: RoundTripTtmlIT#ttmlFiles
 // Roundtrip test for a simple TTML file.
 func TestRoundTrip(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	f, err := os.Open("testdata/simple.ttml")
 	require.NoError(t, err)
@@ -453,7 +452,7 @@ func TestRoundTrip(t *testing.T) {
 // okapi: RoundTripTtmlIT (with target locale)
 // Roundtrip test that verifies target text is written when locale is set.
 func TestRoundTripWithTargetLocale(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	input := `<?xml version="1.0" encoding="UTF-8"?>
 <tt xml:lang="en" xmlns="http://www.w3.org/ns/ttml">
@@ -502,7 +501,7 @@ func TestRoundTripWithTargetLocale(t *testing.T) {
 // okapi: RoundTripTtmlIT (with_br roundtrip)
 // Roundtrip test for TTML with <br/> elements.
 func TestRoundTripWithBR(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	f, err := os.Open("testdata/with_br.ttml")
 	require.NoError(t, err)
@@ -532,7 +531,7 @@ func TestRoundTripWithBR(t *testing.T) {
 // okapi: RoundTripTtmlIT (complex roundtrip)
 // Roundtrip test for TTML with multiple divs and styling.
 func TestRoundTripComplex(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	f, err := os.Open("testdata/complex.ttml")
 	require.NoError(t, err)
@@ -601,7 +600,7 @@ func TestConfigApplyMapWrongType(t *testing.T) {
 // TestWriterMinimalTTML verifies that the writer can generate TTML from blocks
 // without a skeleton document.
 func TestWriterMinimalTTML(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	block1 := model.NewBlock("tu1", "Hello world")
 	block1.Properties["begin"] = "00:00:01.000"

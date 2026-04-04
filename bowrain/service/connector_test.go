@@ -61,7 +61,7 @@ func TestConnectorServiceAddRemove(t *testing.T) {
 
 func TestConnectorServiceFetch(t *testing.T) {
 	s := newTestStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	// Create a project.
 	p := &store.Project{Name: "Test", DefaultSourceLanguage: model.LocaleEnglish}
@@ -106,7 +106,7 @@ func TestConnectorServiceStatus(t *testing.T) {
 	svc := NewConnectorService(s, reg)
 	_, _ = svc.AddConnector("test", nil)
 
-	status, err := svc.ConnectorStatus(context.Background(), "test-1")
+	status, err := svc.ConnectorStatus(t.Context(), "test-1")
 	require.NoError(t, err)
 	assert.Equal(t, 2, status.ItemCount)
 }

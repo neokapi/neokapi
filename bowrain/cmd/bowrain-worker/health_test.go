@@ -16,12 +16,12 @@ import (
 func TestHealthEndpoint(t *testing.T) {
 	// Find a free port.
 	lc := net.ListenConfig{}
-	ln, err := lc.Listen(context.Background(), "tcp", ":0")
+	ln, err := lc.Listen(t.Context(), "tcp", ":0")
 	require.NoError(t, err)
 	port := ln.Addr().(*net.TCPAddr).Port
 	ln.Close()
 
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
 
 	mux := http.NewServeMux()

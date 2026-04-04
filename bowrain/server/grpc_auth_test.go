@@ -21,7 +21,7 @@ func TestExtractClaimsValid(t *testing.T) {
 	require.NoError(t, err)
 
 	md := metadata.Pairs("authorization", "Bearer "+token)
-	ctx := metadata.NewIncomingContext(context.Background(), md)
+	ctx := metadata.NewIncomingContext(t.Context(), md)
 
 	claims, err := extractClaims(ctx, testJWTSecret)
 	require.NoError(t, err)
@@ -31,7 +31,7 @@ func TestExtractClaimsValid(t *testing.T) {
 }
 
 func TestExtractClaimsMissingMetadata(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	_, err := extractClaims(ctx, testJWTSecret)
 	require.Error(t, err)
 	assert.Equal(t, codes.Unauthenticated, status.Code(err))
@@ -40,7 +40,7 @@ func TestExtractClaimsMissingMetadata(t *testing.T) {
 
 func TestExtractClaimsMissingAuthHeader(t *testing.T) {
 	md := metadata.Pairs("other-key", "value")
-	ctx := metadata.NewIncomingContext(context.Background(), md)
+	ctx := metadata.NewIncomingContext(t.Context(), md)
 
 	_, err := extractClaims(ctx, testJWTSecret)
 	require.Error(t, err)
@@ -50,7 +50,7 @@ func TestExtractClaimsMissingAuthHeader(t *testing.T) {
 
 func TestExtractClaimsInvalidFormat(t *testing.T) {
 	md := metadata.Pairs("authorization", "NotBearer abc123")
-	ctx := metadata.NewIncomingContext(context.Background(), md)
+	ctx := metadata.NewIncomingContext(t.Context(), md)
 
 	_, err := extractClaims(ctx, testJWTSecret)
 	require.Error(t, err)
@@ -60,7 +60,7 @@ func TestExtractClaimsInvalidFormat(t *testing.T) {
 
 func TestExtractClaimsInvalidToken(t *testing.T) {
 	md := metadata.Pairs("authorization", "Bearer invalid-jwt-token")
-	ctx := metadata.NewIncomingContext(context.Background(), md)
+	ctx := metadata.NewIncomingContext(t.Context(), md)
 
 	_, err := extractClaims(ctx, testJWTSecret)
 	require.Error(t, err)
@@ -74,7 +74,7 @@ func TestExtractClaimsWrongSecret(t *testing.T) {
 	require.NoError(t, err)
 
 	md := metadata.Pairs("authorization", "Bearer "+token)
-	ctx := metadata.NewIncomingContext(context.Background(), md)
+	ctx := metadata.NewIncomingContext(t.Context(), md)
 
 	_, err = extractClaims(ctx, "wrong-secret")
 	require.Error(t, err)
@@ -88,7 +88,7 @@ func TestExtractClaimsExpired(t *testing.T) {
 	require.NoError(t, err)
 
 	md := metadata.Pairs("authorization", "Bearer "+token)
-	ctx := metadata.NewIncomingContext(context.Background(), md)
+	ctx := metadata.NewIncomingContext(t.Context(), md)
 
 	_, err = extractClaims(ctx, testJWTSecret)
 	require.Error(t, err)
@@ -97,7 +97,7 @@ func TestExtractClaimsExpired(t *testing.T) {
 
 func TestGRPCUserFromContext(t *testing.T) {
 	claims := &platauth.Claims{Email: "alice@test.com", Name: "Alice"}
-	ctx := context.WithValue(context.Background(), grpcUserKey{}, claims)
+	ctx := context.WithValue(t.Context(), grpcUserKey{}, claims)
 
 	got, ok := GRPCUserFromContext(ctx)
 	require.True(t, ok)
@@ -105,7 +105,7 @@ func TestGRPCUserFromContext(t *testing.T) {
 }
 
 func TestGRPCUserFromContextMissing(t *testing.T) {
-	_, ok := GRPCUserFromContext(context.Background())
+	_, ok := GRPCUserFromContext(t.Context())
 	assert.False(t, ok)
 }
 
@@ -117,7 +117,7 @@ func TestUnaryInterceptorRejectsUnauthenticated(t *testing.T) {
 		return nil, nil
 	}
 
-	_, err := interceptor(context.Background(), nil, nil, handler)
+	_, err := interceptor(t.Context(), nil, nil, handler)
 	require.Error(t, err)
 	assert.Equal(t, codes.Unauthenticated, status.Code(err))
 }
@@ -130,7 +130,7 @@ func TestUnaryInterceptorPassesAuthenticated(t *testing.T) {
 	require.NoError(t, err)
 
 	md := metadata.Pairs("authorization", "Bearer "+token)
-	ctx := metadata.NewIncomingContext(context.Background(), md)
+	ctx := metadata.NewIncomingContext(t.Context(), md)
 
 	handlerCalled := false
 	handler := func(ctx context.Context, req any) (any, error) {

@@ -18,7 +18,7 @@ import (
 // helper: read a string and return all parts
 func readString(t *testing.T, input string) []*model.Part {
 	t.Helper()
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := tex.NewReader()
 	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
 	require.NoError(t, err)
@@ -364,7 +364,7 @@ func TestEmptyInput(t *testing.T) {
 
 func TestNilDocument(t *testing.T) {
 	reader := tex.NewReader()
-	err := reader.Open(context.Background(), nil)
+	err := reader.Open(t.Context(), nil)
 	require.Error(t, err)
 }
 
@@ -412,7 +412,7 @@ func TestConfig(t *testing.T) {
 }
 
 func TestCancel(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
 
 	// Create large input
@@ -445,10 +445,8 @@ func TestCancel(t *testing.T) {
 func TestSynchronization(t *testing.T) {
 	var wg sync.WaitGroup
 	for range 10 {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			ctx := context.Background()
+		wg.Go(func() {
+			ctx := t.Context()
 			reader := tex.NewReader()
 			err := reader.Open(ctx, testutil.RawDocFromString(
 				`\begin{document}`+"\n"+"Hello\n\nWorld\n"+`\end{document}`,
@@ -463,7 +461,7 @@ func TestSynchronization(t *testing.T) {
 			if len(blocks) < 2 {
 				t.Errorf("expected at least 2 blocks, got %d", len(blocks))
 			}
-		}()
+		})
 	}
 	wg.Wait()
 }
@@ -566,7 +564,7 @@ Text content.
 
 func roundtrip(t *testing.T, input string) string {
 	t.Helper()
-	ctx := context.Background()
+	ctx := t.Context()
 
 	reader := tex.NewReader()
 	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
@@ -665,7 +663,7 @@ func TestRoundTrip_Files(t *testing.T) {
 			original, err := os.ReadFile(tt.file)
 			require.NoError(t, err)
 
-			ctx := context.Background()
+			ctx := t.Context()
 			f, err := os.Open(tt.file)
 			require.NoError(t, err)
 
@@ -707,7 +705,7 @@ func TestRoundTrip_Files(t *testing.T) {
 
 // okapi: RoundTripTEXIT#testTargetLocale
 func TestRoundTrip_TargetLocale(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	input := `\begin{document}
 \section{Introduction}
 Hello world.
@@ -778,7 +776,7 @@ func TestWriter_NameAndClose(t *testing.T) {
 }
 
 func TestWriter_EmptyChannel(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	writer := tex.NewWriter()
 	var buf bytes.Buffer
 	err := writer.SetOutputWriter(&buf)

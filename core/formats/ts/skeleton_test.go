@@ -2,7 +2,6 @@ package ts_test
 
 import (
 	"bytes"
-	"context"
 	"os"
 	"testing"
 
@@ -16,7 +15,7 @@ import (
 
 func snippetRoundtripWithSkeleton(t *testing.T, input string) string {
 	t.Helper()
-	ctx := context.Background()
+	ctx := t.Context()
 
 	reader := ts.NewReader()
 	writer := ts.NewWriter()
@@ -158,7 +157,7 @@ func TestSkeletonStore_WithTranslation(t *testing.T) {
 </context>
 </TS>
 `
-	ctx := context.Background()
+	ctx := t.Context()
 	locale := model.LocaleID("fr")
 
 	reader := ts.NewReader()
@@ -222,7 +221,7 @@ func TestSkeletonStore_WithTranslation_Escaping(t *testing.T) {
 </context>
 </TS>
 `
-	ctx := context.Background()
+	ctx := t.Context()
 	locale := model.LocaleID("fr")
 
 	reader := ts.NewReader()

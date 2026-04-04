@@ -1,7 +1,6 @@
 package tools_test
 
 import (
-	"context"
 	"strings"
 	"testing"
 
@@ -109,7 +108,7 @@ func TestScopingCollector(t *testing.T) {
 		{Type: model.PartLayerEnd, Resource: &model.Layer{ID: "doc1"}},
 	}
 
-	err := sc.Collect(context.Background(), item, parts)
+	err := sc.Collect(t.Context(), item, parts)
 	require.NoError(t, err)
 
 	result, err := sc.Result()
@@ -141,7 +140,7 @@ func TestScopingCollectorMultipleDocuments(t *testing.T) {
 		parts := []*model.Part{
 			{Type: model.PartBlock, Resource: block},
 		}
-		err := sc.Collect(context.Background(), item, parts)
+		err := sc.Collect(t.Context(), item, parts)
 		require.NoError(t, err)
 	}
 
@@ -169,7 +168,7 @@ func TestScopingCollectorSkipsNonBlocks(t *testing.T) {
 		{Type: model.PartLayerEnd, Resource: &model.Layer{ID: "doc1"}},
 	}
 
-	err := sc.Collect(context.Background(), item, parts)
+	err := sc.Collect(t.Context(), item, parts)
 	require.NoError(t, err)
 
 	result, err := sc.Result()
@@ -197,7 +196,7 @@ func TestScopingCollectorSkipsNonTranslatable(t *testing.T) {
 		{Type: model.PartBlock, Resource: block},
 	}
 
-	err := sc.Collect(context.Background(), item, parts)
+	err := sc.Collect(t.Context(), item, parts)
 	require.NoError(t, err)
 
 	result, err := sc.Result()
@@ -246,7 +245,7 @@ func TestScopingCollectorDefaultCategoryWhenMissing(t *testing.T) {
 		{Type: model.PartBlock, Resource: block},
 	}
 
-	err := sc.Collect(context.Background(), item, parts)
+	err := sc.Collect(t.Context(), item, parts)
 	require.NoError(t, err)
 
 	result, err := sc.Result()

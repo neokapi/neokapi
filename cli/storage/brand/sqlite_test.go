@@ -1,7 +1,6 @@
 package brand
 
 import (
-	"context"
 	"fmt"
 	"testing"
 	"time"
@@ -56,7 +55,7 @@ func testProfile() *corebrand.VoiceProfile {
 }
 
 func TestProfileCRUD(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	store := newTestStore(t)
 
 	profile := testProfile()
@@ -94,7 +93,7 @@ func TestProfileCRUD(t *testing.T) {
 }
 
 func TestProfileNotFound(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	store := newTestStore(t)
 
 	_, err := store.GetProfile(ctx, "nonexistent")
@@ -104,7 +103,7 @@ func TestProfileNotFound(t *testing.T) {
 }
 
 func TestListProfiles(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	store := newTestStore(t)
 
 	p1 := testProfile()
@@ -131,7 +130,7 @@ func TestListProfiles(t *testing.T) {
 }
 
 func TestScoreStorage(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	store := newTestStore(t)
 
 	score := &corebrand.StoredScore{
@@ -168,7 +167,7 @@ func TestScoreStorage(t *testing.T) {
 }
 
 func TestScoreTrends(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	store := newTestStore(t)
 
 	now := time.Now()
@@ -190,7 +189,7 @@ func TestScoreTrends(t *testing.T) {
 }
 
 func TestProfileVersioning(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	store := newTestStore(t)
 
 	profile := testProfile()
@@ -232,7 +231,7 @@ func TestProfileVersioning(t *testing.T) {
 }
 
 func TestProfileTags(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	store := newTestStore(t)
 
 	profile := testProfile()
@@ -280,7 +279,7 @@ func TestProfileTags(t *testing.T) {
 }
 
 func TestGetScoresByStream(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	store := newTestStore(t)
 
 	now := time.Now()
@@ -326,7 +325,7 @@ func TestGetScoresByStream(t *testing.T) {
 }
 
 func TestScoreProfileVersion(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	store := newTestStore(t)
 
 	require.NoError(t, store.StoreScore(ctx, &corebrand.StoredScore{
@@ -348,7 +347,7 @@ func TestScoreProfileVersion(t *testing.T) {
 }
 
 func TestCorrectionStorage(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	store := newTestStore(t)
 
 	// Need a profile for the workspace join

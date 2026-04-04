@@ -253,7 +253,7 @@ func (s *Store) CommitUpload(ctx context.Context, uploadID string, totalChunks i
 	bName := blobName(uploadID)
 
 	blockIDs := make([]string, totalChunks)
-	for i := 0; i < totalChunks; i++ {
+	for i := range totalChunks {
 		blockID := fmt.Sprintf("%08d", i)
 		blockIDs[i] = hex.EncodeToString([]byte(blockID))
 	}
@@ -296,7 +296,7 @@ func (s *Store) GenerateChunkUploadURLs(ctx context.Context, uploadID string, ch
 	urls := make([]string, chunkCount)
 	bName := blobName(uploadID)
 
-	for i := 0; i < chunkCount; i++ {
+	for i := range chunkCount {
 		sasValues := sas.BlobSignatureValues{
 			Protocol:      sas.ProtocolHTTPS,
 			StartTime:     now,

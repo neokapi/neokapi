@@ -57,7 +57,7 @@ func TestTappingTool_ObservesAllParts(t *testing.T) {
 	}
 	close(in)
 
-	err := tapper.Process(context.Background(), in, out)
+	err := tapper.Process(t.Context(), in, out)
 	require.NoError(t, err)
 	close(out)
 
@@ -91,7 +91,7 @@ func TestTappingTool_DoesNotMutateParts(t *testing.T) {
 	in <- &model.Part{Type: model.PartBlock, Resource: model.NewBlock("b1", "test")}
 	close(in)
 
-	err := tapper.Process(context.Background(), in, out)
+	err := tapper.Process(t.Context(), in, out)
 	require.NoError(t, err)
 	close(out)
 
@@ -112,7 +112,7 @@ func TestTappingTool_EmptyInput(t *testing.T) {
 	out := make(chan *model.Part, 1)
 	close(in)
 
-	err := tapper.Process(context.Background(), in, out)
+	err := tapper.Process(t.Context(), in, out)
 	require.NoError(t, err)
 	close(out)
 

@@ -1,7 +1,6 @@
 package event
 
 import (
-	"context"
 	"testing"
 	"time"
 
@@ -38,7 +37,7 @@ func TestActivityRecorder_MapsEvents(t *testing.T) {
 		},
 	})
 
-	ctx := context.Background()
+	ctx := t.Context()
 	var result *bstore.ActivityResult
 	require.Eventually(t, func() bool {
 		var err error
@@ -71,7 +70,7 @@ func TestActivityRecorder_SkipsUnmappedEvents(t *testing.T) {
 	// Unmapped events should not produce activities. Give the bus time to deliver.
 	time.Sleep(50 * time.Millisecond)
 
-	ctx := context.Background()
+	ctx := t.Context()
 	result, err := store.List(ctx, bstore.ActivityQuery{WorkspaceID: "ws-1"})
 	require.NoError(t, err)
 	assert.Len(t, result.Activities, 0)
@@ -94,7 +93,7 @@ func TestActivityRecorder_MultipleEventTypes(t *testing.T) {
 		bus.Publish(ev)
 	}
 
-	ctx := context.Background()
+	ctx := t.Context()
 	require.Eventually(t, func() bool {
 		result, err := store.List(ctx, bstore.ActivityQuery{WorkspaceID: "ws-1"})
 		return err == nil && len(result.Activities) == 3
@@ -116,7 +115,7 @@ func TestActivityRecorder_Close(t *testing.T) {
 	})
 	time.Sleep(50 * time.Millisecond)
 
-	ctx := context.Background()
+	ctx := t.Context()
 	result, err := store.List(ctx, bstore.ActivityQuery{WorkspaceID: "ws-1"})
 	require.NoError(t, err)
 	assert.Len(t, result.Activities, 0)

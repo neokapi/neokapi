@@ -67,7 +67,7 @@ func newTestAgentStore(t *testing.T) platagent.AgentStore {
 func TestAgentServiceCreateConversation(t *testing.T) {
 	store := newTestAgentStore(t)
 	svc := NewAgentService(store, nil)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	conv, err := svc.CreateConversation(ctx, "ws1", "user1", "proj1", "Test chat")
 	require.NoError(t, err)
@@ -80,7 +80,7 @@ func TestAgentServiceCreateConversation(t *testing.T) {
 func TestAgentServiceCreateConversation_DefaultTitle(t *testing.T) {
 	store := newTestAgentStore(t)
 	svc := NewAgentService(store, nil)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	conv, err := svc.CreateConversation(ctx, "ws1", "user1", "", "")
 	require.NoError(t, err)
@@ -90,7 +90,7 @@ func TestAgentServiceCreateConversation_DefaultTitle(t *testing.T) {
 func TestAgentServiceListConversations(t *testing.T) {
 	store := newTestAgentStore(t)
 	svc := NewAgentService(store, nil)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	_, err := svc.CreateConversation(ctx, "ws1", "user1", "", "First")
 	require.NoError(t, err)
@@ -108,7 +108,7 @@ func TestAgentServiceListConversations(t *testing.T) {
 func TestAgentServiceDeleteConversation(t *testing.T) {
 	store := newTestAgentStore(t)
 	svc := NewAgentService(store, nil)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	conv, err := svc.CreateConversation(ctx, "ws1", "user1", "", "To delete")
 	require.NoError(t, err)
@@ -121,7 +121,7 @@ func TestAgentServiceDeleteConversation(t *testing.T) {
 func TestAgentServiceSendMessage(t *testing.T) {
 	store := newTestAgentStore(t)
 	svc := NewAgentService(store, nil)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	conv, err := svc.CreateConversation(ctx, "ws1", "user1", "", "Chat")
 	require.NoError(t, err)
@@ -143,7 +143,7 @@ func TestAgentServiceSendMessage(t *testing.T) {
 func TestAgentServiceCancelConversation(t *testing.T) {
 	store := newTestAgentStore(t)
 	svc := NewAgentService(store, nil)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	conv, err := svc.CreateConversation(ctx, "ws1", "user1", "", "Chat")
 	require.NoError(t, err)
@@ -158,7 +158,7 @@ func TestAgentServiceCancelConversation(t *testing.T) {
 func TestAgentServiceConfig(t *testing.T) {
 	store := newTestAgentStore(t)
 	svc := NewAgentService(store, nil)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	// Default config.
 	cfg, err := svc.GetConfig(ctx, "ws1")
@@ -181,7 +181,7 @@ func TestAgentServiceConfig(t *testing.T) {
 func TestAgentServiceListAvailableTools(t *testing.T) {
 	store := newTestAgentStore(t)
 	svc := NewAgentService(store, nil)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	// Agent disabled → no tools.
 	tools, err := svc.ListAvailableTools(ctx, "ws1", []string{"list_projects", "run_flow"})
@@ -206,7 +206,7 @@ func TestAgentServiceListAvailableTools(t *testing.T) {
 func TestAgentServiceApproveAndDenyToolCall(t *testing.T) {
 	store := newTestAgentStore(t)
 	svc := NewAgentService(store, nil)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	conv, err := svc.CreateConversation(ctx, "ws1", "user1", "", "Chat")
 	require.NoError(t, err)
@@ -253,7 +253,7 @@ func TestAgentServiceSetPoolAndTokenStore(t *testing.T) {
 	})
 	svc.SetPool(pool)
 	// Verify pool is set by acquiring a container.
-	c, err := pool.Acquire(context.Background(), ContainerConfig{
+	c, err := pool.Acquire(t.Context(), ContainerConfig{
 		ConversationID: "conv-1",
 		WorkspaceID:    "ws-1",
 	})
@@ -264,7 +264,7 @@ func TestAgentServiceSetPoolAndTokenStore(t *testing.T) {
 func TestAgentServiceSendMessageStream_LocalMode(t *testing.T) {
 	store := newTestAgentStore(t)
 	svc := NewAgentService(store, nil)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	conv, err := svc.CreateConversation(ctx, "ws1", "user1", "", "Chat")
 	require.NoError(t, err)
@@ -290,7 +290,7 @@ func TestAgentServiceSendMessageStream_LocalMode(t *testing.T) {
 func TestAgentServiceSendMessageStream_WithPool(t *testing.T) {
 	store := newTestAgentStore(t)
 	svc := NewAgentService(store, nil)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	gw := newMockGatewayServer(t)
 	pool := newPoolWithGateway(t, gw.URL, 3)
@@ -317,7 +317,7 @@ func TestAgentServiceSendMessageStream_WithPool(t *testing.T) {
 func TestAgentServiceSendMessageStream_PoolLimitError(t *testing.T) {
 	store := newTestAgentStore(t)
 	svc := NewAgentService(store, nil)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	gw := newMockGatewayServer(t)
 	pool := newPoolWithGateway(t, gw.URL, 1)
@@ -339,7 +339,7 @@ func TestAgentServiceSendMessageStream_PoolLimitError(t *testing.T) {
 func TestAgentServiceDeleteConversation_CleansUpPoolAndTokens(t *testing.T) {
 	store := newTestAgentStore(t)
 	svc := NewAgentService(store, nil)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	gw := newMockGatewayServer(t)
 	pool := newPoolWithGateway(t, gw.URL, 3)
@@ -365,7 +365,7 @@ func TestAgentServiceDeleteConversation_CleansUpPoolAndTokens(t *testing.T) {
 func TestAgentServiceCancelConversation_CleansUpPool(t *testing.T) {
 	store := newTestAgentStore(t)
 	svc := NewAgentService(store, nil)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	gw := newMockGatewayServer(t)
 	pool := newPoolWithGateway(t, gw.URL, 3)

@@ -2,7 +2,6 @@ package csv_test
 
 import (
 	"bytes"
-	"context"
 	"testing"
 
 	"github.com/neokapi/neokapi/core/format"
@@ -15,7 +14,7 @@ import (
 
 func skeletonRoundtrip(t *testing.T, input string, cfgFn func(*csvfmt.Config)) string {
 	t.Helper()
-	ctx := context.Background()
+	ctx := t.Context()
 
 	reader := csvfmt.NewReader()
 	if cfgFn != nil {
@@ -46,7 +45,7 @@ func skeletonRoundtrip(t *testing.T, input string, cfgFn func(*csvfmt.Config)) s
 
 func skeletonTSVRoundtrip(t *testing.T, input string) string {
 	t.Helper()
-	ctx := context.Background()
+	ctx := t.Context()
 
 	reader := csvfmt.NewTSVReader()
 	writer := csvfmt.NewTSVWriter()
@@ -161,7 +160,7 @@ func TestSkeletonStore_ByteExact_TSV_CRLF(t *testing.T) {
 func TestSkeletonStore_WithTranslation(t *testing.T) {
 	t.Parallel()
 	input := "key,text\ngreeting,Hello World\nfarewell,Goodbye"
-	ctx := context.Background()
+	ctx := t.Context()
 	locale := model.LocaleID("fr")
 
 	reader := csvfmt.NewReader()
@@ -204,7 +203,7 @@ func TestSkeletonStore_WithTranslation(t *testing.T) {
 func TestSkeletonStore_WithTranslation_QuotedField(t *testing.T) {
 	t.Parallel()
 	input := "key,text\ngreeting,\"Hello, World\"\nfarewell,Goodbye"
-	ctx := context.Background()
+	ctx := t.Context()
 	locale := model.LocaleID("fr")
 
 	reader := csvfmt.NewReader()
@@ -248,7 +247,7 @@ func TestSkeletonStore_WithTranslation_QuotedField(t *testing.T) {
 func TestSkeletonStore_WithTranslation_CRLF(t *testing.T) {
 	t.Parallel()
 	input := "key,text\r\ngreeting,Hello\r\nfarewell,Goodbye"
-	ctx := context.Background()
+	ctx := t.Context()
 	locale := model.LocaleID("de")
 
 	reader := csvfmt.NewReader()

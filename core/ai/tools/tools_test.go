@@ -30,7 +30,7 @@ func TestAITranslateToolSetsTarget(t *testing.T) {
 		TargetLocale: model.LocaleFrench,
 	})
 
-	ctx := context.Background()
+	ctx := t.Context()
 	in := make(chan *model.Part, 1)
 	out := make(chan *model.Part, 1)
 
@@ -55,7 +55,7 @@ func TestAITranslateToolSkipsNonTranslatable(t *testing.T) {
 		TargetLocale: model.LocaleFrench,
 	})
 
-	ctx := context.Background()
+	ctx := t.Context()
 	in := make(chan *model.Part, 1)
 	out := make(chan *model.Part, 1)
 
@@ -82,7 +82,7 @@ func TestAITranslateToolSkipsMatchedWhenConfigured(t *testing.T) {
 		SkipMatched:  true,
 	})
 
-	ctx := context.Background()
+	ctx := t.Context()
 	in := make(chan *model.Part, 1)
 	out := make(chan *model.Part, 1)
 
@@ -119,7 +119,7 @@ func TestAITranslateToolWithGlossary(t *testing.T) {
 		Glossary:     glossary,
 	})
 
-	ctx := context.Background()
+	ctx := t.Context()
 	in := make(chan *model.Part, 1)
 	out := make(chan *model.Part, 1)
 
@@ -142,7 +142,7 @@ func TestAITranslateToolSetsAnnotation(t *testing.T) {
 		TargetLocale: model.LocaleFrench,
 	})
 
-	ctx := context.Background()
+	ctx := t.Context()
 	in := make(chan *model.Part, 1)
 	out := make(chan *model.Part, 1)
 
@@ -171,7 +171,7 @@ func TestAITranslateToolInFlow(t *testing.T) {
 		TargetLocale: model.LocaleFrench,
 	})
 
-	ctx := context.Background()
+	ctx := t.Context()
 	in := make(chan *model.Part, 10)
 	out := make(chan *model.Part, 10)
 
@@ -220,7 +220,7 @@ func TestAIQACheckToolAddsProperties(t *testing.T) {
 		Checks:       []string{"fluency"},
 	})
 
-	ctx := context.Background()
+	ctx := t.Context()
 	in := make(chan *model.Part, 1)
 	out := make(chan *model.Part, 1)
 
@@ -253,7 +253,7 @@ func TestAIQACheckToolSkipsUntranslated(t *testing.T) {
 		TargetLocale: model.LocaleFrench,
 	})
 
-	ctx := context.Background()
+	ctx := t.Context()
 	in := make(chan *model.Part, 1)
 	out := make(chan *model.Part, 1)
 
@@ -283,7 +283,7 @@ func TestAITerminologyToolExtractsTerms(t *testing.T) {
 		Domain: "technology",
 	})
 
-	ctx := context.Background()
+	ctx := t.Context()
 	in := make(chan *model.Part, 1)
 	out := make(chan *model.Part, 1)
 
@@ -320,7 +320,7 @@ func TestAIReviewToolAddsReview(t *testing.T) {
 		TargetLocale: model.LocaleFrench,
 	})
 
-	ctx := context.Background()
+	ctx := t.Context()
 	in := make(chan *model.Part, 1)
 	out := make(chan *model.Part, 1)
 
@@ -346,7 +346,7 @@ func TestAIReviewToolSkipsUntranslated(t *testing.T) {
 		TargetLocale: model.LocaleFrench,
 	})
 
-	ctx := context.Background()
+	ctx := t.Context()
 	in := make(chan *model.Part, 1)
 	out := make(chan *model.Part, 1)
 
@@ -393,7 +393,7 @@ func TestAITranslateBatchMode(t *testing.T) {
 		BatchConcurrency:  2,
 	})
 
-	ctx := context.Background()
+	ctx := t.Context()
 	in := make(chan *model.Part, 10)
 	out := make(chan *model.Part, 10)
 
@@ -446,7 +446,7 @@ func TestAITranslateBatchSplitsIntoBatches(t *testing.T) {
 		BatchConcurrency:  3,
 	})
 
-	ctx := context.Background()
+	ctx := t.Context()
 	in := make(chan *model.Part, 10)
 	out := make(chan *model.Part, 10)
 
@@ -493,7 +493,7 @@ func TestAITranslateBatchPreservesNonBlockParts(t *testing.T) {
 		BatchConcurrency:  2,
 	})
 
-	ctx := context.Background()
+	ctx := t.Context()
 	in := make(chan *model.Part, 10)
 	out := make(chan *model.Part, 10)
 
@@ -538,7 +538,7 @@ func TestAITranslateBatchSkipsNonTranslatable(t *testing.T) {
 		BatchConcurrency:  1,
 	})
 
-	ctx := context.Background()
+	ctx := t.Context()
 	in := make(chan *model.Part, 10)
 	out := make(chan *model.Part, 10)
 
@@ -589,7 +589,7 @@ func TestAITranslateBatchStructuredSchema(t *testing.T) {
 		BatchConcurrency:  1,
 	})
 
-	ctx := context.Background()
+	ctx := t.Context()
 	in := make(chan *model.Part, 10)
 	out := make(chan *model.Part, 10)
 
@@ -612,7 +612,7 @@ func TestAITranslateBatchStructuredSchema(t *testing.T) {
 func TestProviderMockDefaultBehavior(t *testing.T) {
 	mock := aiprovider.NewMockProvider()
 
-	ctx := context.Background()
+	ctx := t.Context()
 	resp, err := mock.Translate(ctx, aiprovider.TranslateRequest{
 		Source:         "Hello",
 		SourceLanguage: model.LocaleEnglish,

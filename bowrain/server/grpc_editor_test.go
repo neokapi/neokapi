@@ -81,7 +81,7 @@ func setupBothClients(t *testing.T) (pb.EditorServiceClient, pb.NeokapiServiceCl
 
 func TestEditorGRPCGetBlocks(t *testing.T) {
 	editor, neokapi := setupBothClients(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	// Create a project with blocks via NeokapiService.
 	proj, err := neokapi.CreateProject(ctx, &pb.CreateProjectRequest{
@@ -122,7 +122,7 @@ func TestEditorGRPCGetBlocks(t *testing.T) {
 
 func TestEditorGRPCUpdateBlockTarget(t *testing.T) {
 	editor, neokapi := setupBothClients(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	// Setup project with block.
 	proj, err := neokapi.CreateProject(ctx, &pb.CreateProjectRequest{
@@ -159,7 +159,7 @@ func TestEditorGRPCUpdateBlockTarget(t *testing.T) {
 
 func TestEditorGRPCReviewBlock(t *testing.T) {
 	editor, neokapi := setupBothClients(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	proj, err := neokapi.CreateProject(ctx, &pb.CreateProjectRequest{
 		Name:          "Review Test",
@@ -204,7 +204,7 @@ func TestEditorGRPCReviewBlock(t *testing.T) {
 
 func TestEditorGRPCTMCRUD(t *testing.T) {
 	editor := setupEditorGRPC(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	ws := "test-ws"
 
@@ -265,7 +265,7 @@ func TestEditorGRPCTMCRUD(t *testing.T) {
 
 func TestEditorGRPCTermCRUD(t *testing.T) {
 	editor := setupEditorGRPC(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	ws := "test-ws"
 
@@ -331,7 +331,7 @@ func TestEditorGRPCTermCRUD(t *testing.T) {
 
 func TestEditorGRPCTermImportExport(t *testing.T) {
 	editor := setupEditorGRPC(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	ws := "test-ws"
 

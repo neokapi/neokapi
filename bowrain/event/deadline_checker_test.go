@@ -1,7 +1,6 @@
 package event
 
 import (
-	"context"
 	"testing"
 	"time"
 
@@ -35,7 +34,7 @@ func newTestDispatcher(t *testing.T) (*NotificationDispatcher, *bstore.Notificat
 func TestDeadlineChecker_Check(t *testing.T) {
 	taskStore := newTestTaskStore(t)
 	dispatcher, notifStore, sender := newTestDispatcher(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	// Create a task due within 24 hours (should trigger notification).
 	dueIn12h := time.Now().UTC().Add(12 * time.Hour)
@@ -94,7 +93,7 @@ func TestDeadlineChecker_Check(t *testing.T) {
 func TestDeadlineChecker_CheckInProgressTasks(t *testing.T) {
 	taskStore := newTestTaskStore(t)
 	dispatcher, notifStore, sender := newTestDispatcher(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	dueIn6h := time.Now().UTC().Add(6 * time.Hour)
 	err := taskStore.Create(ctx, &bstore.Task{
@@ -138,7 +137,7 @@ func TestDeadlineChecker_StartStop(t *testing.T) {
 func TestDeadlineChecker_SkipsTasksWithoutAssignee(t *testing.T) {
 	taskStore := newTestTaskStore(t)
 	dispatcher, notifStore, sender := newTestDispatcher(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	dueIn3h := time.Now().UTC().Add(3 * time.Hour)
 	err := taskStore.Create(ctx, &bstore.Task{
@@ -169,7 +168,7 @@ func TestDeadlineChecker_SkipsTasksWithoutAssignee(t *testing.T) {
 func TestDeadlineChecker_SkipsTasksWithoutDueAt(t *testing.T) {
 	taskStore := newTestTaskStore(t)
 	dispatcher, notifStore, sender := newTestDispatcher(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	err := taskStore.Create(ctx, &bstore.Task{
 		ID:          "task-no-due",

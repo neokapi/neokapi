@@ -1,7 +1,6 @@
 package store
 
 import (
-	"context"
 	"testing"
 
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
@@ -15,7 +14,7 @@ import (
 
 func TestStreamCRUD(t *testing.T) {
 	s := newTestStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 	p := createTestProject(t, s)
 
 	// Create "main" stream.
@@ -57,7 +56,7 @@ func TestStreamCRUD(t *testing.T) {
 
 func TestStreamLock(t *testing.T) {
 	s := newTestStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 	p := createTestProject(t, s)
 
 	require.NoError(t, s.CreateStream(ctx, &platstore.Stream{
@@ -112,7 +111,7 @@ func TestStreamLock(t *testing.T) {
 
 func TestStreamTagCRUD(t *testing.T) {
 	s := newTestStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 	p := createTestProject(t, s)
 
 	require.NoError(t, s.CreateStream(ctx, &platstore.Stream{
@@ -206,7 +205,7 @@ func TestStreamTagCRUD(t *testing.T) {
 
 func TestListProjectTags(t *testing.T) {
 	s := newTestStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 	p := createTestProject(t, s)
 
 	require.NoError(t, s.CreateStream(ctx, &platstore.Stream{
@@ -251,7 +250,7 @@ func TestListProjectTags(t *testing.T) {
 
 func TestStreamTagDefaultKind(t *testing.T) {
 	s := newTestStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 	p := createTestProject(t, s)
 
 	require.NoError(t, s.CreateStream(ctx, &platstore.Stream{
@@ -274,7 +273,7 @@ func TestStreamTagDefaultKind(t *testing.T) {
 
 func TestStreamTagNilMetadata(t *testing.T) {
 	s := newTestStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 	p := createTestProject(t, s)
 
 	require.NoError(t, s.CreateStream(ctx, &platstore.Stream{

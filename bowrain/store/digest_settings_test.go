@@ -1,7 +1,6 @@
 package store
 
 import (
-	"context"
 	"testing"
 	"time"
 
@@ -19,7 +18,7 @@ func newTestDigestStore(t *testing.T) *DigestStore {
 
 func TestDigestStore_GetSettings_DefaultsWhenEmpty(t *testing.T) {
 	store := newTestDigestStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	ds, err := store.GetSettings(ctx, "user-1", "ws-1")
 	require.NoError(t, err)
@@ -33,7 +32,7 @@ func TestDigestStore_GetSettings_DefaultsWhenEmpty(t *testing.T) {
 
 func TestDigestStore_UpsertSettings(t *testing.T) {
 	store := newTestDigestStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	t.Run("create new settings", func(t *testing.T) {
 		ds := &DigestSettings{
@@ -76,7 +75,7 @@ func TestDigestStore_UpsertSettings(t *testing.T) {
 
 func TestDigestStore_ListUsersWithFrequency(t *testing.T) {
 	store := newTestDigestStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	// Insert settings with different frequencies.
 	settings := []DigestSettings{
@@ -123,7 +122,7 @@ func TestDigestStore_ListUsersWithFrequency(t *testing.T) {
 
 func TestDigestStore_GetState_DefaultWhenEmpty(t *testing.T) {
 	store := newTestDigestStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	before := time.Now().UTC().Add(-24 * time.Hour)
 	state, err := store.GetState(ctx, "user-1", "ws-1", "daily")
@@ -138,7 +137,7 @@ func TestDigestStore_GetState_DefaultWhenEmpty(t *testing.T) {
 
 func TestDigestStore_UpdateState(t *testing.T) {
 	store := newTestDigestStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	t.Run("create state", func(t *testing.T) {
 		sentAt := time.Date(2026, 3, 25, 10, 0, 0, 0, time.UTC)

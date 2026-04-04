@@ -2,7 +2,6 @@ package mosestext_test
 
 import (
 	"bytes"
-	"context"
 	"os"
 	"testing"
 
@@ -19,7 +18,7 @@ import (
 
 // okapi: MosesTextFilterTest#testStartDocument
 func TestStartDocument(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := mosestext.NewReader()
 	err := reader.Open(ctx, testutil.RawDocFromString("Hello world\n", model.LocaleEnglish))
 	require.NoError(t, err)
@@ -39,7 +38,7 @@ func TestStartDocument(t *testing.T) {
 
 // okapi: MosesTextFilterTest#testLineBreaks_CR
 func TestLineBreaks_CR(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := mosestext.NewReader()
 	snippet := "Line 1\rLine 2\r"
 	err := reader.Open(ctx, testutil.RawDocFromString(snippet, model.LocaleEnglish))
@@ -56,7 +55,7 @@ func TestLineBreaks_CR(t *testing.T) {
 
 // okapi: MosesTextFilterTest#testLineBreaks_CRLF
 func TestLineBreaks_CRLF(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := mosestext.NewReader()
 	snippet := "Line 1\r\nLine 2\r\n"
 	err := reader.Open(ctx, testutil.RawDocFromString(snippet, model.LocaleEnglish))
@@ -73,7 +72,7 @@ func TestLineBreaks_CRLF(t *testing.T) {
 
 // okapi: MosesTextFilterTest#testLineBreaks_LF
 func TestLineBreaks_LF(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := mosestext.NewReader()
 	snippet := "Line 1\nLine 2\n"
 	err := reader.Open(ctx, testutil.RawDocFromString(snippet, model.LocaleEnglish))
@@ -90,7 +89,7 @@ func TestLineBreaks_LF(t *testing.T) {
 
 // okapi: MosesTextFilterTest#testEntry
 func TestEntry(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := mosestext.NewReader()
 	snippet := "Line 1\rLine 2"
 	err := reader.Open(ctx, testutil.RawDocFromString(snippet, model.LocaleEnglish))
@@ -104,7 +103,7 @@ func TestEntry(t *testing.T) {
 
 // okapi: MosesTextFilterTest#testEntries
 func TestEntries(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := mosestext.NewReader()
 	input := "Hello world\nSecond line\nThird line\n"
 	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
@@ -120,7 +119,7 @@ func TestEntries(t *testing.T) {
 
 // okapi: MosesTextFilterTest#testSpecialChars
 func TestSpecialChars(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := mosestext.NewReader()
 	snippet := "Line 1\rLine 2 with tab[\t] and more [<{|&/\\}>]"
 	err := reader.Open(ctx, testutil.RawDocFromString(snippet, model.LocaleEnglish))
@@ -138,7 +137,7 @@ func TestSpecialChars(t *testing.T) {
 
 // okapi: MosesTextFilterTest#testLiterals
 func TestLiterals(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := mosestext.NewReader()
 	// Moses text is a plain-text format; literal text is preserved as-is.
 	// (Entity decoding is a feature of the Okapi Java bridge XML parser, not the
@@ -161,7 +160,7 @@ func TestLiterals(t *testing.T) {
 
 // okapi: MosesTextFilterTest#testWhiteSpaces
 func TestWhiteSpaces(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := mosestext.NewReader()
 	snippet := "Text 1   .\rLine with   extra   spaces"
 	err := reader.Open(ctx, testutil.RawDocFromString(snippet, model.LocaleEnglish))
@@ -184,7 +183,7 @@ func TestWhiteSpaces(t *testing.T) {
 
 // okapi: MosesTextFilterTest#testEntry (layer structure)
 func TestLayerStructure(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := mosestext.NewReader()
 	err := reader.Open(ctx, testutil.RawDocFromString("Hello world", model.LocaleEnglish))
 	require.NoError(t, err)
@@ -204,7 +203,7 @@ func TestLayerStructure(t *testing.T) {
 
 // okapi: MosesTextFilterTest#testEntry (single line)
 func TestSingleLine(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := mosestext.NewReader()
 	err := reader.Open(ctx, testutil.RawDocFromString("Simple text", model.LocaleEnglish))
 	require.NoError(t, err)
@@ -217,7 +216,7 @@ func TestSingleLine(t *testing.T) {
 
 // okapi: MosesTextFilterTest#testEntry (block IDs)
 func TestBlockIDs(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := mosestext.NewReader()
 	err := reader.Open(ctx, testutil.RawDocFromString("Line A\nLine B\nLine C", model.LocaleEnglish))
 	require.NoError(t, err)
@@ -236,7 +235,7 @@ func TestBlockIDs(t *testing.T) {
 
 // okapi: MosesTextFilterTest#testEntry (segment structure)
 func TestSegmentIDs(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := mosestext.NewReader()
 	err := reader.Open(ctx, testutil.RawDocFromString("Hello world", model.LocaleEnglish))
 	require.NoError(t, err)
@@ -256,7 +255,7 @@ func TestSegmentIDs(t *testing.T) {
 
 // okapi: MosesTextFilterTest#testCode1 (no spans for plain text)
 func TestNoSpansForPlainText(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := mosestext.NewReader()
 	err := reader.Open(ctx, testutil.RawDocFromString("Simple plain text", model.LocaleEnglish))
 	require.NoError(t, err)
@@ -275,7 +274,7 @@ func TestNoSpansForPlainText(t *testing.T) {
 
 // okapi: MosesTextFilterTest#testWhiteSpaces (preserve whitespace flag)
 func TestPreserveWhitespace(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := mosestext.NewReader()
 	err := reader.Open(ctx, testutil.RawDocFromString("Text with   spaces", model.LocaleEnglish))
 	require.NoError(t, err)
@@ -306,14 +305,14 @@ func TestReaderMetadata(t *testing.T) {
 }
 
 func TestReadNilDocument(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := mosestext.NewReader()
 	err := reader.Open(ctx, nil)
 	require.Error(t, err)
 }
 
 func TestReadEmpty(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := mosestext.NewReader()
 	err := reader.Open(ctx, testutil.RawDocFromString("", model.LocaleEnglish))
 	require.NoError(t, err)
@@ -325,7 +324,7 @@ func TestReadEmpty(t *testing.T) {
 }
 
 func TestEmptyLinesAsData(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := mosestext.NewReader()
 	input := "Line 1\n\nLine 3\n"
 	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
@@ -351,7 +350,7 @@ func TestEmptyLinesAsData(t *testing.T) {
 
 // okapi: MosesTextFilterTest#testFromFile
 func TestFromFile(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	f, err := os.Open("testdata/simple.txt")
 	require.NoError(t, err)
@@ -369,7 +368,7 @@ func TestFromFile(t *testing.T) {
 
 // okapi: MosesTextFilterTest#testFromFile (multiline)
 func TestFromFileMultiline(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	f, err := os.Open("testdata/multiline.txt")
 	require.NoError(t, err)
@@ -403,7 +402,7 @@ func TestFromFileMultiline(t *testing.T) {
 
 // okapi: MosesTextFilterWriterTest#testSimpleOutputFromMosesText
 func TestWriterSimpleOutput(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	input := "Line 1\nLine 2\n"
 	reader := mosestext.NewReader()
@@ -430,7 +429,7 @@ func TestWriterSimpleOutput(t *testing.T) {
 
 // okapi: MosesTextFilterWriterTest#testMultilineOutputFromMosesText
 func TestWriterMultilineOutput(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	input := "Text 1.\nText 2\nText 3.\nText 4\n"
 	reader := mosestext.NewReader()
@@ -459,7 +458,7 @@ func TestWriterMultilineOutput(t *testing.T) {
 
 // okapi: MosesTextFilterTest#testDoubleExtraction (roundtrip)
 func TestRoundTrip(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	f, err := os.Open("testdata/simple.txt")
 	require.NoError(t, err)
@@ -487,7 +486,7 @@ func TestRoundTrip(t *testing.T) {
 }
 
 func TestRoundTripWithTargetLocale(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	input := "Hello\nWorld\n"
 	reader := mosestext.NewReader()
