@@ -16,23 +16,35 @@ const DefaultBuiltInPriority = 50
 // DefaultPluginPriority is the default priority for plugin-provided formats.
 const DefaultPluginPriority = 100
 
-// FormatDetector determines the data format of a document using multiple strategies.
-type FormatDetector struct {
+// Detector determines the data format of a document using multiple strategies.
+type Detector struct {
 	mu         sync.RWMutex
 	signatures map[string]FormatSignature // format name → signature
 	priorities map[string]int             // format name → priority (higher = preferred)
 }
 
-// NewFormatDetector creates a new FormatDetector.
-func NewFormatDetector() *FormatDetector {
-	return &FormatDetector{
+// FormatDetector is a deprecated alias for [Detector].
+//
+// Deprecated: Use [Detector] instead.
+type FormatDetector = Detector
+
+// NewDetector creates a new Detector.
+func NewDetector() *Detector {
+	return &Detector{
 		signatures: make(map[string]FormatSignature),
 		priorities: make(map[string]int),
 	}
 }
 
+// NewFormatDetector is a deprecated alias for [NewDetector].
+//
+// Deprecated: Use [NewDetector] instead.
+func NewFormatDetector() *Detector {
+	return NewDetector()
+}
+
 // Register adds a format signature for detection.
-func (d *FormatDetector) Register(name string, sig FormatSignature) {
+func (d *Detector) Register(name string, sig FormatSignature) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	d.signatures[name] = sig
@@ -43,21 +55,21 @@ func (d *FormatDetector) Register(name string, sig FormatSignature) {
 
 // SetPriority sets the detection priority for a named format. Higher values
 // are preferred when multiple formats match the same MIME type or extension.
-func (d *FormatDetector) SetPriority(name string, priority int) {
+func (d *Detector) SetPriority(name string, priority int) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	d.priorities[name] = priority
 }
 
 // Priority returns the priority for a named format, or 0 if not set.
-func (d *FormatDetector) Priority(name string) int {
+func (d *Detector) Priority(name string) int {
 	d.mu.RLock()
 	defer d.mu.RUnlock()
 	return d.priorities[name]
 }
 
 // Detect tries all strategies: explicit MIME → extension → content sniffing.
-func (d *FormatDetector) Detect(path string, reader io.ReadSeeker, mimeType string) (string, error) {
+func (d *Detector) Detect(path string, reader io.ReadSeeker, mimeType string) (string, error) {
 	// Try MIME type first
 	if mimeType != "" {
 		if name, err := d.DetectByMIME(mimeType); err == nil {
@@ -85,7 +97,7 @@ func (d *FormatDetector) Detect(path string, reader io.ReadSeeker, mimeType stri
 // DetectByMIME maps a MIME type to a registered format name. When multiple
 // formats match, the one with the highest priority is returned.
 // When priorities are equal, the lexicographically first name wins.
-func (d *FormatDetector) DetectByMIME(mimeType string) (string, error) {
+func (d *Detector) DetectByMIME(mimeType string) (string, error) {
 	d.mu.RLock()
 	defer d.mu.RUnlock()
 	mimeType = strings.ToLower(strings.TrimSpace(mimeType))
@@ -112,7 +124,7 @@ func (d *FormatDetector) DetectByMIME(mimeType string) (string, error) {
 // multiple formats match, the one with the highest priority is returned.
 // When priorities are equal, the lexicographically first name wins for
 // deterministic results (e.g. okf_xliff before okf_xliff2 for ".xlf").
-func (d *FormatDetector) DetectByExtension(ext string) (string, error) {
+func (d *Detector) DetectByExtension(ext string) (string, error) {
 	d.mu.RLock()
 	defer d.mu.RUnlock()
 	ext = strings.ToLower(ext)
@@ -140,7 +152,7 @@ func (d *FormatDetector) DetectByExtension(ext string) (string, error) {
 
 // DetectByContent reads the first bytes and matches against registered signatures.
 // When multiple formats match, the one with the highest priority is returned.
-func (d *FormatDetector) DetectByContent(reader io.ReadSeeker) (string, error) {
+func (d *Detector) DetectByContent(reader io.ReadSeeker) (string, error) {
 	buf := make([]byte, 512)
 	n, err := reader.Read(buf)
 	if err != nil && !errors.Is(err, io.EOF) {

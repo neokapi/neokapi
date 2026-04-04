@@ -59,7 +59,7 @@ func main() {
 }
 
 func run() error {
-	cfg := server.DefaultServerConfig()
+	cfg := server.DefaultConfig()
 
 	flag.IntVar(&cfg.Port, "port", cfg.Port, "HTTP port to listen on")
 	flag.StringVar(&cfg.Host, "host", cfg.Host, "Address to bind to")

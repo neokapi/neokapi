@@ -83,7 +83,7 @@ func TestScopingReportToolSkipsNonTranslatable(t *testing.T) {
 func TestScopingCollector(t *testing.T) {
 	sc := tools.NewScopingCollector()
 
-	item := &flow.FlowItem{
+	item := &flow.Item{
 		Input:        &model.RawDocument{URI: "doc1.html"},
 		TargetLocale: model.LocaleFrench,
 	}
@@ -130,7 +130,7 @@ func TestScopingCollectorMultipleDocuments(t *testing.T) {
 	sc := tools.NewScopingCollector()
 
 	for _, uri := range []string{"a.html", "b.html"} {
-		item := &flow.FlowItem{
+		item := &flow.Item{
 			Input: &model.RawDocument{URI: uri},
 		}
 		block := model.NewBlock("tu1", "text")
@@ -158,7 +158,7 @@ func TestScopingCollectorMultipleDocuments(t *testing.T) {
 func TestScopingCollectorSkipsNonBlocks(t *testing.T) {
 	sc := tools.NewScopingCollector()
 
-	item := &flow.FlowItem{
+	item := &flow.Item{
 		Input: &model.RawDocument{URI: "doc.html"},
 	}
 
@@ -183,7 +183,7 @@ func TestScopingCollectorSkipsNonBlocks(t *testing.T) {
 func TestScopingCollectorSkipsNonTranslatable(t *testing.T) {
 	sc := tools.NewScopingCollector()
 
-	item := &flow.FlowItem{
+	item := &flow.Item{
 		Input: &model.RawDocument{URI: "doc.html"},
 	}
 
@@ -233,7 +233,7 @@ func TestScopingSummaryFormatTable(t *testing.T) {
 func TestScopingCollectorDefaultCategoryWhenMissing(t *testing.T) {
 	sc := tools.NewScopingCollector()
 
-	item := &flow.FlowItem{
+	item := &flow.Item{
 		Input: &model.RawDocument{URI: "doc.html"},
 	}
 

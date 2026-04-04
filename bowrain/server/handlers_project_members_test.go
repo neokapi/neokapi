@@ -19,7 +19,7 @@ import (
 // workspace ID, and project ID.
 func newProjectMembersTestServer(t *testing.T) (*Server, string, string, string, string) {
 	t.Helper()
-	cfg := DefaultServerConfig()
+	cfg := DefaultConfig()
 	cfg.JWTSecret = "test-pm-secret"
 	srv := NewServer(cfg)
 	initTestStores(t, srv)

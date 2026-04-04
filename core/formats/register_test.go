@@ -277,7 +277,7 @@ func TestEndToEndFlowPipeline(t *testing.T) {
 		AddTool(uppercaseTool).
 		Build()
 
-	executor := flow.NewFlowExecutor()
+	executor := flow.NewExecutor()
 	inCh, outCh, wait := executor.ExecuteWithChannels(ctx, f)
 
 	// Feed parts

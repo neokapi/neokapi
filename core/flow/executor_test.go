@@ -46,7 +46,7 @@ func countingTool(name string, count *atomic.Int64) *tool.BaseTool {
 	}
 }
 
-func TestFlowExecutorWithThreeMockTools(t *testing.T) {
+func TestExecutorWithThreeMockTools(t *testing.T) {
 	var count1, count2, count3 atomic.Int64
 
 	f := flow.NewFlow("test").
@@ -55,7 +55,7 @@ func TestFlowExecutorWithThreeMockTools(t *testing.T) {
 		AddTool(countingTool("tool3", &count3)).
 		Build()
 
-	executor := flow.NewFlowExecutor()
+	executor := flow.NewExecutor()
 	ctx := t.Context()
 
 	in, out, wait := executor.ExecuteWithChannels(ctx, f)
@@ -87,13 +87,13 @@ func TestFlowExecutorWithThreeMockTools(t *testing.T) {
 	assert.Equal(t, int64(numParts), count3.Load())
 }
 
-func TestFlowExecutorPreservesOrder(t *testing.T) {
+func TestExecutorPreservesOrder(t *testing.T) {
 	f := flow.NewFlow("order-test").
 		AddTool(passThroughTool("tool1")).
 		AddTool(passThroughTool("tool2")).
 		Build()
 
-	executor := flow.NewFlowExecutor()
+	executor := flow.NewExecutor()
 	ctx := t.Context()
 
 	in, out, wait := executor.ExecuteWithChannels(ctx, f)
@@ -124,12 +124,12 @@ func TestFlowExecutorPreservesOrder(t *testing.T) {
 	}
 }
 
-func TestFlowExecutorModification(t *testing.T) {
+func TestExecutorModification(t *testing.T) {
 	f := flow.NewFlow("modify").
 		AddTool(uppercaseTool()).
 		Build()
 
-	executor := flow.NewFlowExecutor()
+	executor := flow.NewExecutor()
 	ctx := t.Context()
 
 	in, out, wait := executor.ExecuteWithChannels(ctx, f)
@@ -155,7 +155,7 @@ func TestFlowExecutorModification(t *testing.T) {
 	assert.Equal(t, "HELLO WORLD", block.TargetText(model.LocaleFrench))
 }
 
-func TestFlowExecutorErrorPropagation(t *testing.T) {
+func TestExecutorErrorPropagation(t *testing.T) {
 	errTool := &tool.BaseTool{
 		ToolName: "error-tool",
 		HandleBlockFn: func(part *model.Part) (*model.Part, error) {
@@ -169,7 +169,7 @@ func TestFlowExecutorErrorPropagation(t *testing.T) {
 		AddTool(passThroughTool("tool3")).
 		Build()
 
-	executor := flow.NewFlowExecutor()
+	executor := flow.NewExecutor()
 	ctx := t.Context()
 
 	in, out, wait := executor.ExecuteWithChannels(ctx, f)
@@ -207,7 +207,7 @@ func TestFlowExecutorContextCancellation(t *testing.T) {
 		AddTool(blockingTool).
 		Build()
 
-	executor := flow.NewFlowExecutor()
+	executor := flow.NewExecutor()
 
 	in, out, wait := executor.ExecuteWithChannels(ctx, f)
 
@@ -230,9 +230,9 @@ func TestFlowExecutorContextCancellation(t *testing.T) {
 	require.Error(t, err)
 }
 
-func TestFlowExecutorNoTools(t *testing.T) {
+func TestExecutorNoTools(t *testing.T) {
 	f := flow.NewFlow("empty").Build()
-	executor := flow.NewFlowExecutor()
+	executor := flow.NewExecutor()
 	ctx := t.Context()
 
 	in, out, wait := executor.ExecuteWithChannels(ctx, f)
@@ -255,7 +255,7 @@ func TestFlowExecutorNoTools(t *testing.T) {
 	assert.Len(t, results, 1)
 }
 
-func TestFlowExecutorMixedPartTypes(t *testing.T) {
+func TestExecutorMixedPartTypes(t *testing.T) {
 	var blockCount, dataCount, layerCount atomic.Int64
 
 	trackingTool := &tool.BaseTool{
@@ -279,7 +279,7 @@ func TestFlowExecutorMixedPartTypes(t *testing.T) {
 	}
 
 	f := flow.NewFlow("mixed").AddTool(trackingTool).Build()
-	executor := flow.NewFlowExecutor()
+	executor := flow.NewExecutor()
 	ctx := t.Context()
 
 	in, out, wait := executor.ExecuteWithChannels(ctx, f)
@@ -308,7 +308,7 @@ func TestFlowExecutorMixedPartTypes(t *testing.T) {
 	assert.Equal(t, int64(2), layerCount.Load())
 }
 
-func TestFlowBuilder(t *testing.T) {
+func TestBuilder(t *testing.T) {
 	f := flow.NewFlow("test-flow").
 		AddTool(passThroughTool("tool1")).
 		AddTool(passThroughTool("tool2")).
@@ -318,7 +318,7 @@ func TestFlowBuilder(t *testing.T) {
 	assert.Len(t, f.Tools, 2)
 }
 
-func TestFlowBuilderWithItems(t *testing.T) {
+func TestBuilderWithItems(t *testing.T) {
 	fb := flow.NewFlow("test-flow").
 		AddTool(passThroughTool("tool1")).
 		AddItem(&model.RawDocument{URI: "input.html"}, "output.html", model.LocaleFrench)
@@ -330,8 +330,8 @@ func TestFlowBuilderWithItems(t *testing.T) {
 	assert.Equal(t, model.LocaleFrench, items[0].TargetLocale)
 }
 
-func TestFlowExecutorSetChannelSize(t *testing.T) {
-	executor := flow.NewFlowExecutor()
+func TestExecutorSetChannelSize(t *testing.T) {
+	executor := flow.NewExecutor()
 	executor.SetChannelSize(128)
 	// Just verify it doesn't panic; internal channel size is not exposed
 }
@@ -359,14 +359,14 @@ func TestParallelExecutionMultipleDocuments(t *testing.T) {
 		AddToolFactory(uppercaseFactory).
 		Build()
 
-	executor := flow.NewFlowExecutor(
+	executor := flow.NewExecutor(
 		flow.WithMaxConcurrency(4),
 	)
 
 	numDocs := 10
-	items := make([]*flow.FlowItem, numDocs)
+	items := make([]*flow.Item, numDocs)
 	for i := range numDocs {
-		items[i] = &flow.FlowItem{
+		items[i] = &flow.Item{
 			Input: &model.RawDocument{URI: fmt.Sprintf("doc%d.html", i)},
 		}
 	}
@@ -389,7 +389,7 @@ func TestParallelExecutionWithCollector(t *testing.T) {
 	var entries []collectedEntry
 
 	collector := &mockCollector{
-		collectFn: func(ctx context.Context, item *flow.FlowItem, parts []*model.Part) error {
+		collectFn: func(ctx context.Context, item *flow.Item, parts []*model.Part) error {
 			mu.Lock()
 			defer mu.Unlock()
 			entries = append(entries, collectedEntry{uri: item.Input.URI, parts: len(parts)})
@@ -408,12 +408,12 @@ func TestParallelExecutionWithCollector(t *testing.T) {
 		}).
 		Build()
 
-	executor := flow.NewFlowExecutor(
+	executor := flow.NewExecutor(
 		flow.WithMaxConcurrency(2),
 		flow.WithCollectors(collector),
 	)
 
-	items := []*flow.FlowItem{
+	items := []*flow.Item{
 		{Input: &model.RawDocument{URI: "a.html"}},
 		{Input: &model.RawDocument{URI: "b.html"}},
 		{Input: &model.RawDocument{URI: "c.html"}},
@@ -450,12 +450,12 @@ func TestParallelExecutionErrorPropagation(t *testing.T) {
 		}).
 		Build()
 
-	executor := flow.NewFlowExecutor(
+	executor := flow.NewExecutor(
 		flow.WithMaxConcurrency(4),
 	)
 
 	// Create items that would trigger the error
-	items := []*flow.FlowItem{
+	items := []*flow.Item{
 		{Input: &model.RawDocument{URI: "err.html"}},
 		{Input: &model.RawDocument{URI: "ok.html"}},
 	}
@@ -475,11 +475,11 @@ func TestParallelExecutionContextCancellation(t *testing.T) {
 		}).
 		Build()
 
-	executor := flow.NewFlowExecutor(
+	executor := flow.NewExecutor(
 		flow.WithMaxConcurrency(2),
 	)
 
-	items := []*flow.FlowItem{
+	items := []*flow.Item{
 		{Input: &model.RawDocument{URI: "a.html"}},
 		{Input: &model.RawDocument{URI: "b.html"}},
 	}
@@ -500,9 +500,9 @@ func TestSingleItemDirectTools(t *testing.T) {
 		AddTool(countingTool("counter", &count)).
 		Build()
 
-	executor := flow.NewFlowExecutor() // default: sequential
+	executor := flow.NewExecutor() // default: sequential
 
-	items := []*flow.FlowItem{
+	items := []*flow.Item{
 		{Input: &model.RawDocument{URI: "single.html"}},
 	}
 
@@ -513,7 +513,7 @@ func TestSingleItemDirectTools(t *testing.T) {
 }
 
 func TestExecutorOptions(t *testing.T) {
-	executor := flow.NewFlowExecutor(
+	executor := flow.NewExecutor(
 		flow.WithMaxConcurrency(8),
 		flow.WithChannelSize(128),
 		flow.WithFailFast(false),
@@ -522,7 +522,7 @@ func TestExecutorOptions(t *testing.T) {
 	require.NotNil(t, executor)
 }
 
-func TestFlowBuilderWithToolFactory(t *testing.T) {
+func TestBuilderWithToolFactory(t *testing.T) {
 	f := flow.NewFlow("factory-test").
 		AddToolFactory(func() (tool.Tool, error) {
 			return passThroughTool("pass"), nil
@@ -539,11 +539,11 @@ func TestFlowBuilderWithToolFactory(t *testing.T) {
 
 // mockCollector is a test helper implementing flow.Collector.
 type mockCollector struct {
-	collectFn func(ctx context.Context, item *flow.FlowItem, parts []*model.Part) error
+	collectFn func(ctx context.Context, item *flow.Item, parts []*model.Part) error
 	resultFn  func() (flow.CollectorResult, error)
 }
 
-func (m *mockCollector) Collect(ctx context.Context, item *flow.FlowItem, parts []*model.Part) error {
+func (m *mockCollector) Collect(ctx context.Context, item *flow.Item, parts []*model.Part) error {
 	return m.collectFn(ctx, item, parts)
 }
 

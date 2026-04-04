@@ -129,7 +129,7 @@ Server-side connectors register into a `Registry`:
 ```go
 type Factory func(config map[string]string) (IntegrationConnector, error)
 
-type ConnectorInfo struct {
+type Info struct {
     Name     string
     Category Category
 }
@@ -137,12 +137,12 @@ type ConnectorInfo struct {
 type Registry struct {
     mu        sync.RWMutex
     factories map[string]Factory
-    infos     map[string]ConnectorInfo
+    infos     map[string]Info
 }
 
 func (r *Registry) Register(name string, category Category, factory Factory)
 func (r *Registry) NewConnector(name string, config map[string]string) (IntegrationConnector, error)
-func (r *Registry) List() []ConnectorInfo
+func (r *Registry) List() []Info
 ```
 
 Built-in connectors register via `init()`. Plugin connectors register at runtime via gRPC discovery ([AD-007](/docs/ad/007-plugin-system)). The bowrain CLI does not interact with the Registry -- it is a file-based tool that syncs with the server via API.

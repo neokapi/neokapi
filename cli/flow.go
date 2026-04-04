@@ -248,7 +248,7 @@ func (a *App) runSingleFile(ctx context.Context, cmd *cobra.Command, flowName, i
 	}
 	f2 := fb.Build()
 
-	executor := flow.NewFlowExecutor()
+	executor := flow.NewExecutor()
 	inCh, outCh, wait := executor.ExecuteWithChannels(ctx, f2)
 
 	go func() {
@@ -599,7 +599,7 @@ func (a *App) processFlowFileBridge(ctx context.Context, cmd *cobra.Command,
 		}
 		f := fb.Build()
 
-		executor := flow.NewFlowExecutor()
+		executor := flow.NewExecutor()
 		inCh, outCh, wait := executor.ExecuteWithChannels(ctx, f)
 
 		go func() {
@@ -707,7 +707,7 @@ func (a *App) processFlowFileNative(ctx context.Context, cmd *cobra.Command, flo
 	}
 	f := fb.Build()
 
-	executor := flow.NewFlowExecutor()
+	executor := flow.NewExecutor()
 	inCh, outCh, wait := executor.ExecuteWithChannels(ctx, f)
 
 	go func() {

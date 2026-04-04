@@ -249,7 +249,7 @@ func TestSyncPush_AutoSetsDefaultStream(t *testing.T) {
 }
 
 func TestStreamParamWithProject(t *testing.T) {
-	e := NewServer(DefaultServerConfig()).GetEcho()
+	e := NewServer(DefaultConfig()).GetEcho()
 
 	t.Run("URL param takes precedence", func(t *testing.T) {
 		req := httptest.NewRequest(http.MethodGet, "/test", nil)

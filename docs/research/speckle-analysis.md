@@ -160,7 +160,7 @@ Tools implement `Process(ctx, in <-chan *Part, out chan<- *Part)` — they recei
 
 ### 3.4 The Flow Executor
 
-`FlowExecutor` orchestrates tool chains with goroutines and channels. Each tool runs in its own goroutine with buffered channels providing backpressure.
+`Executor` orchestrates tool chains with goroutines and channels. Each tool runs in its own goroutine with buffered channels providing backpressure.
 
 ### 3.5 Connectors (Current)
 
@@ -181,7 +181,7 @@ HashiCorp go-plugin + gRPC for external format readers/writers and tools, includ
 | **Format reading** | Connector (lives in host app) | DataFormatReader (reads files) | **Significant** |
 | **Format writing** | Connector (writes to host app) | DataFormatWriter (writes files) | **Significant** |
 | **Conversion layer** | Kit converters (bidirectional) | Reader/Writer (tightly coupled) | Moderate |
-| **Processing** | Speckle Automate (serverless) | FlowExecutor (goroutine pipeline) | Moderate |
+| **Processing** | Speckle Automate (serverless) | Executor (goroutine pipeline) | Moderate |
 | **Persistence** | Transport layer (multi-backend) | None (streaming only) | **Significant** |
 | **Versioning** | Git-like object graph | None | **Significant** |
 | **Collaboration** | Real-time, multi-user | None | **Significant** |
@@ -314,7 +314,7 @@ Within a family, a shared **base converter** could handle common patterns (e.g.,
 
 **Speckle's insight**: Speckle Automate turns the data platform into a CI/CD system — functions trigger automatically on data changes, running quality checks, generating reports, and transforming data.
 
-**For Neokapi**: The FlowExecutor is a powerful pipeline engine, but it's invoked explicitly. There's no concept of automated triggers, quality gates, or continuous processing.
+**For Neokapi**: The Executor is a powerful pipeline engine, but it's invoked explicitly. There's no concept of automated triggers, quality gates, or continuous processing.
 
 **Recommendation**: Build on the existing Flow system to add **automation triggers**:
 

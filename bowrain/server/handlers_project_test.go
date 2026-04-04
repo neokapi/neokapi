@@ -16,7 +16,7 @@ import (
 
 func newTestServer(t *testing.T) (*Server, string) {
 	t.Helper()
-	cfg := DefaultServerConfig()
+	cfg := DefaultConfig()
 
 	cfg.JWTSecret = "test-secret"
 	s := NewServer(cfg)

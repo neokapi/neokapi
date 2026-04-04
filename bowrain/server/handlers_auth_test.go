@@ -16,7 +16,7 @@ import (
 )
 
 func TestDeviceAuthStartRespectsForwardedHeaders(t *testing.T) {
-	cfg := DefaultServerConfig()
+	cfg := DefaultConfig()
 
 	cfg.JWTSecret = "test-secret"
 	srv := NewServer(cfg)
@@ -40,7 +40,7 @@ func TestDeviceAuthStartRespectsForwardedHeaders(t *testing.T) {
 
 func TestHandleDeviceVerificationFormValues(t *testing.T) {
 	// No OIDC configured → uses direct authorization with form values.
-	cfg := DefaultServerConfig()
+	cfg := DefaultConfig()
 
 	cfg.JWTSecret = "test-secret"
 	srv := NewServer(cfg)
@@ -89,7 +89,7 @@ func TestHandleDeviceVerificationFormValues(t *testing.T) {
 
 func TestHandleDeviceVerificationDefaultValues(t *testing.T) {
 	// No OIDC configured, no email/name provided → defaults should be used.
-	cfg := DefaultServerConfig()
+	cfg := DefaultConfig()
 
 	cfg.JWTSecret = "test-secret"
 	srv := NewServer(cfg)
@@ -148,7 +148,7 @@ func TestHandleDeviceVerificationOIDCRedirect(t *testing.T) {
 		}
 	})
 
-	cfg := DefaultServerConfig()
+	cfg := DefaultConfig()
 
 	cfg.JWTSecret = "test-secret"
 	cfg.OIDCIssuerURL = mockOIDC.URL
@@ -201,7 +201,7 @@ func TestHandleDeviceVerificationOIDCRedirect(t *testing.T) {
 }
 
 func TestHandleDeviceAuthCallbackMissingParams(t *testing.T) {
-	cfg := DefaultServerConfig()
+	cfg := DefaultConfig()
 
 	cfg.JWTSecret = "test-secret"
 	srv := NewServer(cfg)
@@ -217,7 +217,7 @@ func TestHandleDeviceAuthCallbackMissingParams(t *testing.T) {
 }
 
 func TestHandleDeviceAuthCallbackInvalidState(t *testing.T) {
-	cfg := DefaultServerConfig()
+	cfg := DefaultConfig()
 
 	cfg.JWTSecret = "test-secret"
 	srv := NewServer(cfg)
@@ -238,7 +238,7 @@ func TestHandleDeviceAuthCallbackInvalidState(t *testing.T) {
 
 func TestDeviceVerifyStatesCleanup(t *testing.T) {
 	// Verify state entries are consumed after use (even on OIDC exchange failure).
-	cfg := DefaultServerConfig()
+	cfg := DefaultConfig()
 
 	cfg.JWTSecret = "test-secret"
 	srv := NewServer(cfg)
@@ -271,7 +271,7 @@ func TestDeviceVerifyStatesCleanup(t *testing.T) {
 // --- Desktop auth (PKCE) tests ---
 
 func TestHandleDesktopLoginMissingParams(t *testing.T) {
-	cfg := DefaultServerConfig()
+	cfg := DefaultConfig()
 
 	cfg.JWTSecret = "test-secret"
 	cfg.OIDCIssuerURL = "http://localhost:8180" // needed to pass OIDC check
@@ -289,7 +289,7 @@ func TestHandleDesktopLoginMissingParams(t *testing.T) {
 }
 
 func TestHandleDesktopLoginNonLocalhostRedirect(t *testing.T) {
-	cfg := DefaultServerConfig()
+	cfg := DefaultConfig()
 
 	cfg.JWTSecret = "test-secret"
 	cfg.OIDCIssuerURL = "http://localhost:8180"
@@ -312,7 +312,7 @@ func TestHandleDesktopLoginNonLocalhostRedirect(t *testing.T) {
 }
 
 func TestHandleDesktopLoginAcceptsBowrainScheme(t *testing.T) {
-	cfg := DefaultServerConfig()
+	cfg := DefaultConfig()
 
 	cfg.JWTSecret = "test-secret"
 	cfg.OIDCIssuerURL = "http://localhost:8180"
@@ -335,7 +335,7 @@ func TestHandleDesktopLoginAcceptsBowrainScheme(t *testing.T) {
 }
 
 func TestHandleDesktopLoginUnsupportedChallengeMethod(t *testing.T) {
-	cfg := DefaultServerConfig()
+	cfg := DefaultConfig()
 
 	cfg.JWTSecret = "test-secret"
 	cfg.OIDCIssuerURL = "http://localhost:8180"
@@ -357,7 +357,7 @@ func TestHandleDesktopLoginUnsupportedChallengeMethod(t *testing.T) {
 }
 
 func TestHandleDesktopCallbackMissingState(t *testing.T) {
-	cfg := DefaultServerConfig()
+	cfg := DefaultConfig()
 
 	cfg.JWTSecret = "test-secret"
 	srv := NewServer(cfg)
@@ -373,7 +373,7 @@ func TestHandleDesktopCallbackMissingState(t *testing.T) {
 }
 
 func TestHandleDesktopCallbackInvalidState(t *testing.T) {
-	cfg := DefaultServerConfig()
+	cfg := DefaultConfig()
 
 	cfg.JWTSecret = "test-secret"
 	srv := NewServer(cfg)
@@ -394,7 +394,7 @@ func TestHandleDesktopCallbackInvalidState(t *testing.T) {
 
 func TestDesktopAuthStatesCleanup(t *testing.T) {
 	// Verify that state entries are cleaned up after use.
-	cfg := DefaultServerConfig()
+	cfg := DefaultConfig()
 
 	cfg.JWTSecret = "test-secret"
 	srv := NewServer(cfg)
@@ -457,7 +457,7 @@ func TestWebFlowStateStoredAndConsumed(t *testing.T) {
 		}
 	})
 
-	cfg := DefaultServerConfig()
+	cfg := DefaultConfig()
 
 	cfg.JWTSecret = "test-secret"
 	cfg.OIDCIssuerURL = mockOIDC.URL
@@ -498,7 +498,7 @@ func TestWebFlowStateStoredAndConsumed(t *testing.T) {
 }
 
 func TestWebFlowCallbackWithoutState(t *testing.T) {
-	cfg := DefaultServerConfig()
+	cfg := DefaultConfig()
 
 	cfg.JWTSecret = "test-secret"
 	cfg.OIDCIssuerURL = "http://localhost:8180"
@@ -545,7 +545,7 @@ func TestOIDCRedirectIncludesPKCEAndNonce(t *testing.T) {
 		}
 	})
 
-	cfg := DefaultServerConfig()
+	cfg := DefaultConfig()
 
 	cfg.JWTSecret = "test-secret"
 	cfg.OIDCIssuerURL = mockOIDC.URL
@@ -629,7 +629,7 @@ func TestDesktopEntryHasPKCEAndNonce(t *testing.T) {
 	})
 	defer mockOIDC.Close()
 
-	cfg := DefaultServerConfig()
+	cfg := DefaultConfig()
 
 	cfg.JWTSecret = "test-secret"
 	cfg.OIDCIssuerURL = oidcURL
@@ -680,7 +680,7 @@ func TestDeviceVerifyEntryHasPKCEAndNonce(t *testing.T) {
 	})
 	defer mockOIDC.Close()
 
-	cfg := DefaultServerConfig()
+	cfg := DefaultConfig()
 
 	cfg.JWTSecret = "test-secret"
 	cfg.OIDCIssuerURL = oidcURL
@@ -824,7 +824,7 @@ func TestAuthMiddlewareNeitherHeaderNorCookie(t *testing.T) {
 }
 
 func TestLogoutClearsCookies(t *testing.T) {
-	cfg := DefaultServerConfig()
+	cfg := DefaultConfig()
 
 	cfg.JWTSecret = "test-secret"
 	srv := NewServer(cfg)

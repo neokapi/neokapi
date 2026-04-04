@@ -210,8 +210,8 @@ func (a *App) PreviewFlow(tabID, flowName, sampleText, sourceLang, targetLang st
 	}
 	f := fb.Build()
 
-	executor := flow.NewFlowExecutor()
-	item := &flow.FlowItem{
+	executor := flow.NewExecutor()
+	item := &flow.Item{
 		Input: &model.RawDocument{
 			URI:          tmpFile.Name(),
 			SourceLocale: model.LocaleID(sourceLang),
@@ -220,7 +220,7 @@ func (a *App) PreviewFlow(tabID, flowName, sampleText, sourceLang, targetLang st
 	}
 
 	ctx := context.Background()
-	if err := executor.Execute(ctx, f, []*flow.FlowItem{item}); err != nil {
+	if err := executor.Execute(ctx, f, []*flow.Item{item}); err != nil {
 		return nil, fmt.Errorf("preview: %w", err)
 	}
 
@@ -318,15 +318,15 @@ func (a *App) executeFlow(ctx context.Context, flowName string, tools []tool.Too
 		}
 		f := fb.Build()
 
-		executor := flow.NewFlowExecutor()
-		item := &flow.FlowItem{
+		executor := flow.NewExecutor()
+		item := &flow.Item{
 			Input: &model.RawDocument{
 				URI:          inputPath,
 				TargetLocale: model.LocaleID(targetLang),
 			},
 		}
 
-		if err := executor.Execute(ctx, f, []*flow.FlowItem{item}); err != nil {
+		if err := executor.Execute(ctx, f, []*flow.Item{item}); err != nil {
 			// Record error in trace.
 			recorder.Record("error", "executor", "", map[string]any{
 				"error": err.Error(),
