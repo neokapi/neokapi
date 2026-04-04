@@ -10,6 +10,7 @@ import (
 )
 
 func TestCharsListingTool(t *testing.T) {
+	t.Parallel()
 	cfg := &tools.CharsListingConfig{
 		IncludeSource: true,
 		IncludeTarget: false,
@@ -22,6 +23,7 @@ func TestCharsListingTool(t *testing.T) {
 }
 
 func TestCharsListingUniqueCount(t *testing.T) {
+	t.Parallel()
 	cfg := &tools.CharsListingConfig{
 		IncludeSource: true,
 		IncludeTarget: false,
@@ -46,6 +48,7 @@ func TestCharsListingUniqueCount(t *testing.T) {
 }
 
 func TestCharsListingSourceAndTarget(t *testing.T) {
+	t.Parallel()
 	cfg := &tools.CharsListingConfig{
 		IncludeSource: true,
 		IncludeTarget: true,
@@ -70,6 +73,7 @@ func TestCharsListingSourceAndTarget(t *testing.T) {
 }
 
 func TestCharsListingAccumulatesAcrossBlocks(t *testing.T) {
+	t.Parallel()
 	cfg := &tools.CharsListingConfig{
 		IncludeSource: true,
 		IncludeTarget: false,
@@ -103,6 +107,7 @@ func TestCharsListingAccumulatesAcrossBlocks(t *testing.T) {
 }
 
 func TestCharsListingSkipsNonTranslatable(t *testing.T) {
+	t.Parallel()
 	cfg := &tools.CharsListingConfig{
 		IncludeSource: true,
 		IncludeTarget: false,
@@ -124,6 +129,7 @@ func TestCharsListingSkipsNonTranslatable(t *testing.T) {
 }
 
 func TestCharsListingConfigValidation(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name    string
 		cfg     tools.CharsListingConfig
@@ -158,6 +164,7 @@ func TestCharsListingConfigValidation(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			err := tt.cfg.Validate()
 			if tt.wantErr {
 				require.Error(t, err)
@@ -170,6 +177,7 @@ func TestCharsListingConfigValidation(t *testing.T) {
 }
 
 func TestCharsListingConfigReset(t *testing.T) {
+	t.Parallel()
 	cfg := &tools.CharsListingConfig{
 		IncludeSource: false,
 		IncludeTarget: false,

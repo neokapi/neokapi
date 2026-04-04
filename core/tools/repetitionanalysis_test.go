@@ -10,12 +10,14 @@ import (
 )
 
 func TestRepetitionAnalysisToolName(t *testing.T) {
+	t.Parallel()
 	cfg := &tools.RepetitionAnalysisConfig{CaseSensitive: true}
 	tl := tools.NewRepetitionAnalysisTool(cfg)
 	assert.Equal(t, "repetition-analysis", tl.Name())
 }
 
 func TestRepetitionAnalysisAllUnique(t *testing.T) {
+	t.Parallel()
 	cfg := &tools.RepetitionAnalysisConfig{CaseSensitive: true}
 	tl := tools.NewRepetitionAnalysisTool(cfg)
 
@@ -48,6 +50,7 @@ func TestRepetitionAnalysisAllUnique(t *testing.T) {
 }
 
 func TestRepetitionAnalysisThreeIdentical(t *testing.T) {
+	t.Parallel()
 	cfg := &tools.RepetitionAnalysisConfig{CaseSensitive: true}
 	tl := tools.NewRepetitionAnalysisTool(cfg)
 
@@ -85,6 +88,7 @@ func TestRepetitionAnalysisThreeIdentical(t *testing.T) {
 }
 
 func TestRepetitionAnalysisCaseInsensitive(t *testing.T) {
+	t.Parallel()
 	cfg := &tools.RepetitionAnalysisConfig{CaseSensitive: false}
 	tl := tools.NewRepetitionAnalysisTool(cfg)
 
@@ -111,6 +115,7 @@ func TestRepetitionAnalysisCaseInsensitive(t *testing.T) {
 }
 
 func TestRepetitionAnalysisCaseSensitive(t *testing.T) {
+	t.Parallel()
 	cfg := &tools.RepetitionAnalysisConfig{CaseSensitive: true}
 	tl := tools.NewRepetitionAnalysisTool(cfg)
 
@@ -132,6 +137,7 @@ func TestRepetitionAnalysisCaseSensitive(t *testing.T) {
 }
 
 func TestRepetitionAnalysisSkipsNonTranslatable(t *testing.T) {
+	t.Parallel()
 	cfg := &tools.RepetitionAnalysisConfig{CaseSensitive: true}
 	tl := tools.NewRepetitionAnalysisTool(cfg)
 
@@ -150,6 +156,7 @@ func TestRepetitionAnalysisSkipsNonTranslatable(t *testing.T) {
 }
 
 func TestRepetitionAnalysisMixedUniqueAndRepeated(t *testing.T) {
+	t.Parallel()
 	cfg := &tools.RepetitionAnalysisConfig{CaseSensitive: true}
 	tl := tools.NewRepetitionAnalysisTool(cfg)
 
@@ -191,6 +198,7 @@ func TestRepetitionAnalysisMixedUniqueAndRepeated(t *testing.T) {
 }
 
 func TestRepetitionAnalysisPassesThroughNonBlocks(t *testing.T) {
+	t.Parallel()
 	cfg := &tools.RepetitionAnalysisConfig{CaseSensitive: true}
 	tl := tools.NewRepetitionAnalysisTool(cfg)
 
@@ -218,6 +226,7 @@ func TestRepetitionAnalysisPassesThroughNonBlocks(t *testing.T) {
 }
 
 func TestRepetitionAnalysisWhitespaceNormalization(t *testing.T) {
+	t.Parallel()
 	cfg := &tools.RepetitionAnalysisConfig{CaseSensitive: true}
 	tl := tools.NewRepetitionAnalysisTool(cfg)
 
@@ -239,17 +248,20 @@ func TestRepetitionAnalysisWhitespaceNormalization(t *testing.T) {
 }
 
 func TestRepetitionAnalysisConfigToolName(t *testing.T) {
+	t.Parallel()
 	cfg := &tools.RepetitionAnalysisConfig{}
 	assert.Equal(t, "repetition-analysis", cfg.ToolName())
 }
 
 func TestRepetitionAnalysisConfigReset(t *testing.T) {
+	t.Parallel()
 	cfg := &tools.RepetitionAnalysisConfig{CaseSensitive: false}
 	cfg.Reset()
 	assert.True(t, cfg.CaseSensitive, "Reset should set CaseSensitive to true")
 }
 
 func TestRepetitionAnalysisConfigValidate(t *testing.T) {
+	t.Parallel()
 	cfg := &tools.RepetitionAnalysisConfig{}
 	require.NoError(t, cfg.Validate())
 }

@@ -10,6 +10,7 @@ import (
 )
 
 func TestTermCheckToolPass(t *testing.T) {
+	t.Parallel()
 	cfg := &tools.TermCheckConfig{
 		Glossary: []tools.GlossaryEntry{
 			{Source: "Save", Target: "Sauvegarder"},
@@ -30,6 +31,7 @@ func TestTermCheckToolPass(t *testing.T) {
 }
 
 func TestTermCheckToolFail(t *testing.T) {
+	t.Parallel()
 	cfg := &tools.TermCheckConfig{
 		Glossary: []tools.GlossaryEntry{
 			{Source: "Save", Target: "Sauvegarder"},
@@ -49,6 +51,7 @@ func TestTermCheckToolFail(t *testing.T) {
 }
 
 func TestTermCheckToolCaseInsensitive(t *testing.T) {
+	t.Parallel()
 	cfg := &tools.TermCheckConfig{
 		Glossary: []tools.GlossaryEntry{
 			{Source: "save", Target: "sauvegarder"},
@@ -68,6 +71,7 @@ func TestTermCheckToolCaseInsensitive(t *testing.T) {
 }
 
 func TestTermCheckToolNoTarget(t *testing.T) {
+	t.Parallel()
 	cfg := &tools.TermCheckConfig{
 		Glossary: []tools.GlossaryEntry{
 			{Source: "Save", Target: "Sauvegarder"},
@@ -87,6 +91,7 @@ func TestTermCheckToolNoTarget(t *testing.T) {
 }
 
 func TestTermCheckConfigValidation(t *testing.T) {
+	t.Parallel()
 	cfg := &tools.TermCheckConfig{}
 	err := cfg.Validate()
 	require.Error(t, err)

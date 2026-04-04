@@ -37,6 +37,7 @@ func processAllParts(t *testing.T, tl interface {
 }
 
 func TestScriptPassThrough(t *testing.T) {
+	t.Parallel()
 	tl := tools.NewScriptTool(&tools.ScriptConfig{Code: "emit(part)"})
 
 	block := model.NewBlock("tu1", "Hello World")
@@ -48,6 +49,7 @@ func TestScriptPassThrough(t *testing.T) {
 }
 
 func TestScriptFilterByTextLength(t *testing.T) {
+	t.Parallel()
 	code := `
 		if (part.type === "block" && part.block.source[0].content.text.length > 5) {
 			emit(part);
@@ -71,6 +73,7 @@ func TestScriptFilterByTextLength(t *testing.T) {
 }
 
 func TestScriptModifyTargetText(t *testing.T) {
+	t.Parallel()
 	code := `
 		if (part.type === "block") {
 			part.block.targets["fr"] = [{content: {text: "Bonjour"}}];
@@ -88,6 +91,7 @@ func TestScriptModifyTargetText(t *testing.T) {
 }
 
 func TestScriptSkipDropsParts(t *testing.T) {
+	t.Parallel()
 	tl := tools.NewScriptTool(&tools.ScriptConfig{Code: "skip()"})
 
 	block := model.NewBlock("tu1", "Hello")
@@ -108,6 +112,7 @@ func TestScriptSkipDropsParts(t *testing.T) {
 }
 
 func TestScriptLog(t *testing.T) {
+	t.Parallel()
 	// Redirect stderr to capture log output.
 	oldStderr := os.Stderr
 	r, w, _ := os.Pipe()
@@ -128,6 +133,7 @@ func TestScriptLog(t *testing.T) {
 }
 
 func TestScriptEmptyPassesThrough(t *testing.T) {
+	t.Parallel()
 	tl := tools.NewScriptTool(&tools.ScriptConfig{Code: ""})
 
 	// Empty code + empty scriptfile should fail validation, but
@@ -148,6 +154,7 @@ func TestScriptEmptyPassesThrough(t *testing.T) {
 }
 
 func TestScriptInvalidCodeReturnsError(t *testing.T) {
+	t.Parallel()
 	tl := tools.NewScriptTool(&tools.ScriptConfig{Code: "this is not valid javascript %%% {"})
 
 	block := model.NewBlock("tu1", "Hello")
@@ -165,6 +172,7 @@ func TestScriptInvalidCodeReturnsError(t *testing.T) {
 }
 
 func TestScriptFile(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	scriptPath := filepath.Join(dir, "test.js")
 	err := os.WriteFile(scriptPath, []byte(`
@@ -186,6 +194,7 @@ func TestScriptFile(t *testing.T) {
 }
 
 func TestScriptDefaultPassThrough(t *testing.T) {
+	t.Parallel()
 	// Script that does not call emit or skip should pass through by default.
 	tl := tools.NewScriptTool(&tools.ScriptConfig{Code: "var x = 1;"})
 
@@ -198,6 +207,7 @@ func TestScriptDefaultPassThrough(t *testing.T) {
 }
 
 func TestScriptNonBlockPartTypes(t *testing.T) {
+	t.Parallel()
 	tl := tools.NewScriptTool(&tools.ScriptConfig{Code: `
 		if (part.type === "data") {
 			emit(part);
@@ -222,6 +232,7 @@ func TestScriptNonBlockPartTypes(t *testing.T) {
 }
 
 func TestScriptConfigValidation(t *testing.T) {
+	t.Parallel()
 	// Inline mode with no code: error.
 	cfg := &tools.ScriptConfig{Source: "inline"}
 	require.Error(t, cfg.Validate())

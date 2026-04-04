@@ -10,6 +10,7 @@ import (
 )
 
 func TestSearchReplaceTool(t *testing.T) {
+	t.Parallel()
 	cfg := &tools.SearchReplaceConfig{
 		Pairs: []tools.ReplacePair{
 			{Search: "Hello", Replace: "Hi"},
@@ -29,6 +30,7 @@ func TestSearchReplaceTool(t *testing.T) {
 }
 
 func TestSearchReplaceToolRegex(t *testing.T) {
+	t.Parallel()
 	cfg := &tools.SearchReplaceConfig{
 		Pairs: []tools.ReplacePair{
 			{Search: `\b\d{3}\b`, Replace: "XXX", IsRegex: true},
@@ -45,6 +47,7 @@ func TestSearchReplaceToolRegex(t *testing.T) {
 }
 
 func TestSearchReplaceToolTarget(t *testing.T) {
+	t.Parallel()
 	cfg := &tools.SearchReplaceConfig{
 		Pairs: []tools.ReplacePair{
 			{Search: "monde", Replace: "terre"},
@@ -64,6 +67,7 @@ func TestSearchReplaceToolTarget(t *testing.T) {
 }
 
 func TestSearchReplaceToolSkipsNonTranslatable(t *testing.T) {
+	t.Parallel()
 	cfg := &tools.SearchReplaceConfig{
 		Pairs: []tools.ReplacePair{
 			{Search: "Hello", Replace: "Hi"},
@@ -81,6 +85,7 @@ func TestSearchReplaceToolSkipsNonTranslatable(t *testing.T) {
 }
 
 func TestSearchReplaceConfigValidation(t *testing.T) {
+	t.Parallel()
 	// Empty search string.
 	cfg := &tools.SearchReplaceConfig{
 		Pairs: []tools.ReplacePair{
@@ -113,6 +118,7 @@ func TestSearchReplaceConfigValidation(t *testing.T) {
 }
 
 func TestSearchReplaceToolNoPairs(t *testing.T) {
+	t.Parallel()
 	cfg := &tools.SearchReplaceConfig{}
 	tl := tools.NewSearchReplaceTool(cfg)
 

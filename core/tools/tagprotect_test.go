@@ -10,6 +10,7 @@ import (
 )
 
 func TestTagProtectTool(t *testing.T) {
+	t.Parallel()
 	cfg := &tools.TagProtectConfig{}
 	tl := tools.NewTagProtectTool(cfg)
 
@@ -31,6 +32,7 @@ func TestTagProtectTool(t *testing.T) {
 }
 
 func TestTagProtectToolCustomPatterns(t *testing.T) {
+	t.Parallel()
 	cfg := &tools.TagProtectConfig{
 		Patterns: []string{`\[\[.*?\]\]`},
 	}
@@ -45,6 +47,7 @@ func TestTagProtectToolCustomPatterns(t *testing.T) {
 }
 
 func TestTagProtectToolNoTags(t *testing.T) {
+	t.Parallel()
 	cfg := &tools.TagProtectConfig{
 		Patterns: []string{`\[\[.*?\]\]`},
 	}
@@ -59,6 +62,7 @@ func TestTagProtectToolNoTags(t *testing.T) {
 }
 
 func TestTagProtectConfigValidation(t *testing.T) {
+	t.Parallel()
 	cfg := &tools.TagProtectConfig{Patterns: []string{""}}
 	err := cfg.Validate()
 	require.Error(t, err)
@@ -75,6 +79,7 @@ func TestTagProtectConfigValidation(t *testing.T) {
 }
 
 func TestReplaceAndRestoreProtectedTags(t *testing.T) {
+	t.Parallel()
 	tags := []tools.ProtectedTag{
 		{Text: "<b>", Offset: 6},
 		{Text: "</b>", Offset: 14},

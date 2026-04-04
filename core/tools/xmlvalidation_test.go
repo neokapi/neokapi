@@ -10,6 +10,7 @@ import (
 )
 
 func TestXMLValidationToolValid(t *testing.T) {
+	t.Parallel()
 	cfg := &tools.XMLValidationConfig{CheckSource: true, WrapRoot: true}
 	tl := tools.NewXMLValidationTool(cfg)
 
@@ -24,6 +25,7 @@ func TestXMLValidationToolValid(t *testing.T) {
 }
 
 func TestXMLValidationToolInvalid(t *testing.T) {
+	t.Parallel()
 	cfg := &tools.XMLValidationConfig{CheckSource: true, WrapRoot: true}
 	tl := tools.NewXMLValidationTool(cfg)
 
@@ -37,6 +39,7 @@ func TestXMLValidationToolInvalid(t *testing.T) {
 }
 
 func TestXMLValidationToolSkipsNonTranslatable(t *testing.T) {
+	t.Parallel()
 	cfg := &tools.XMLValidationConfig{CheckSource: true}
 	tl := tools.NewXMLValidationTool(cfg)
 
@@ -51,6 +54,7 @@ func TestXMLValidationToolSkipsNonTranslatable(t *testing.T) {
 }
 
 func TestXMLValidationConfigValidation(t *testing.T) {
+	t.Parallel()
 	cfg := &tools.XMLValidationConfig{CheckTarget: true}
 	err := cfg.Validate()
 	require.Error(t, err)

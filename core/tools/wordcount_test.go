@@ -12,6 +12,7 @@ import (
 )
 
 func TestWordCountTool(t *testing.T) {
+	t.Parallel()
 	cfg := &tools.WordCountConfig{}
 	tl := tools.NewWordCountTool(cfg)
 
@@ -28,6 +29,7 @@ func TestWordCountTool(t *testing.T) {
 }
 
 func TestWordCountToolSourceOnly(t *testing.T) {
+	t.Parallel()
 	cfg := &tools.WordCountConfig{}
 	tl := tools.NewWordCountTool(cfg)
 
@@ -45,6 +47,7 @@ func TestWordCountToolSourceOnly(t *testing.T) {
 }
 
 func TestWordCountToolEmptyText(t *testing.T) {
+	t.Parallel()
 	cfg := &tools.WordCountConfig{}
 	tl := tools.NewWordCountTool(cfg)
 
@@ -57,6 +60,7 @@ func TestWordCountToolEmptyText(t *testing.T) {
 }
 
 func TestWordCountToolSkipsNonTranslatable(t *testing.T) {
+	t.Parallel()
 	cfg := &tools.WordCountConfig{}
 	tl := tools.NewWordCountTool(cfg)
 
@@ -71,6 +75,7 @@ func TestWordCountToolSkipsNonTranslatable(t *testing.T) {
 }
 
 func TestWordCountToolAllLocales(t *testing.T) {
+	t.Parallel()
 	cfg := &tools.WordCountConfig{}
 	tl := tools.NewWordCountTool(cfg)
 
@@ -91,6 +96,7 @@ func TestWordCountToolAllLocales(t *testing.T) {
 // --- WordCountCollector Tests ---
 
 func TestWordCountCollector(t *testing.T) {
+	t.Parallel()
 	wc := tools.NewWordCountCollector()
 
 	item := &flow.Item{
@@ -131,6 +137,7 @@ func TestWordCountCollector(t *testing.T) {
 }
 
 func TestWordCountCollectorMultipleDocuments(t *testing.T) {
+	t.Parallel()
 	wc := tools.NewWordCountCollector()
 
 	for _, uri := range []string{"a.html", "b.html", "c.html"} {
@@ -160,6 +167,7 @@ func TestWordCountCollectorMultipleDocuments(t *testing.T) {
 }
 
 func TestWordCountCollectorSkipsNonBlocks(t *testing.T) {
+	t.Parallel()
 	wc := tools.NewWordCountCollector()
 
 	item := &flow.Item{
@@ -185,6 +193,7 @@ func TestWordCountCollectorSkipsNonBlocks(t *testing.T) {
 }
 
 func TestWordCountCollectorSkipsNonTranslatable(t *testing.T) {
+	t.Parallel()
 	wc := tools.NewWordCountCollector()
 
 	item := &flow.Item{
@@ -210,6 +219,7 @@ func TestWordCountCollectorSkipsNonTranslatable(t *testing.T) {
 }
 
 func TestWordCountCollectorPerLocaleProperties(t *testing.T) {
+	t.Parallel()
 	wc := tools.NewWordCountCollector()
 
 	item := &flow.Item{
@@ -243,6 +253,7 @@ func TestWordCountCollectorPerLocaleProperties(t *testing.T) {
 }
 
 func TestWordCountSummaryFormatTable(t *testing.T) {
+	t.Parallel()
 	summary := &tools.WordCountSummary{
 		TotalSourceWords: 10,
 		TotalTargetWords: map[model.LocaleID]int{

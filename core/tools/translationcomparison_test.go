@@ -10,6 +10,7 @@ import (
 )
 
 func TestTranslationComparisonIdentical(t *testing.T) {
+	t.Parallel()
 	cfg := &tools.TranslationComparisonConfig{
 		Locale1: "fr-FR",
 		Locale2: "fr-CA",
@@ -29,6 +30,7 @@ func TestTranslationComparisonIdentical(t *testing.T) {
 }
 
 func TestTranslationComparisonDifferent(t *testing.T) {
+	t.Parallel()
 	cfg := &tools.TranslationComparisonConfig{
 		Locale1: "fr-FR",
 		Locale2: "fr-CA",
@@ -49,6 +51,7 @@ func TestTranslationComparisonDifferent(t *testing.T) {
 }
 
 func TestTranslationComparisonMissingLocale1(t *testing.T) {
+	t.Parallel()
 	cfg := &tools.TranslationComparisonConfig{
 		Locale1: "fr-FR",
 		Locale2: "fr-CA",
@@ -67,6 +70,7 @@ func TestTranslationComparisonMissingLocale1(t *testing.T) {
 }
 
 func TestTranslationComparisonMissingLocale2(t *testing.T) {
+	t.Parallel()
 	cfg := &tools.TranslationComparisonConfig{
 		Locale1: "fr-FR",
 		Locale2: "fr-CA",
@@ -85,6 +89,7 @@ func TestTranslationComparisonMissingLocale2(t *testing.T) {
 }
 
 func TestTranslationComparisonMissingBoth(t *testing.T) {
+	t.Parallel()
 	cfg := &tools.TranslationComparisonConfig{
 		Locale1: "fr-FR",
 		Locale2: "fr-CA",
@@ -103,6 +108,7 @@ func TestTranslationComparisonMissingBoth(t *testing.T) {
 }
 
 func TestTranslationComparisonSkipsNonTranslatable(t *testing.T) {
+	t.Parallel()
 	cfg := &tools.TranslationComparisonConfig{
 		Locale1: "fr-FR",
 		Locale2: "fr-CA",
@@ -123,6 +129,7 @@ func TestTranslationComparisonSkipsNonTranslatable(t *testing.T) {
 }
 
 func TestTranslationComparisonConfigValidation(t *testing.T) {
+	t.Parallel()
 	cfg := &tools.TranslationComparisonConfig{}
 	err := cfg.Validate()
 	require.Error(t, err)

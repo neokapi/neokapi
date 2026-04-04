@@ -12,6 +12,7 @@ import (
 )
 
 func TestScopingReportToolRepetition(t *testing.T) {
+	t.Parallel()
 	cfg := &tools.ScopingReportConfig{}
 	tl := tools.NewScopingReportTool(cfg)
 
@@ -27,6 +28,7 @@ func TestScopingReportToolRepetition(t *testing.T) {
 }
 
 func TestScopingReportToolExactMatch(t *testing.T) {
+	t.Parallel()
 	cfg := &tools.ScopingReportConfig{}
 	tl := tools.NewScopingReportTool(cfg)
 
@@ -40,6 +42,7 @@ func TestScopingReportToolExactMatch(t *testing.T) {
 }
 
 func TestScopingReportToolFuzzyMatch(t *testing.T) {
+	t.Parallel()
 	cfg := &tools.ScopingReportConfig{}
 	tl := tools.NewScopingReportTool(cfg)
 
@@ -53,6 +56,7 @@ func TestScopingReportToolFuzzyMatch(t *testing.T) {
 }
 
 func TestScopingReportToolNew(t *testing.T) {
+	t.Parallel()
 	cfg := &tools.ScopingReportConfig{}
 	tl := tools.NewScopingReportTool(cfg)
 
@@ -65,6 +69,7 @@ func TestScopingReportToolNew(t *testing.T) {
 }
 
 func TestScopingReportToolSkipsNonTranslatable(t *testing.T) {
+	t.Parallel()
 	cfg := &tools.ScopingReportConfig{}
 	tl := tools.NewScopingReportTool(cfg)
 
@@ -81,6 +86,7 @@ func TestScopingReportToolSkipsNonTranslatable(t *testing.T) {
 // --- ScopingCollector Tests ---
 
 func TestScopingCollector(t *testing.T) {
+	t.Parallel()
 	sc := tools.NewScopingCollector()
 
 	item := &flow.Item{
@@ -127,6 +133,7 @@ func TestScopingCollector(t *testing.T) {
 }
 
 func TestScopingCollectorMultipleDocuments(t *testing.T) {
+	t.Parallel()
 	sc := tools.NewScopingCollector()
 
 	for _, uri := range []string{"a.html", "b.html"} {
@@ -156,6 +163,7 @@ func TestScopingCollectorMultipleDocuments(t *testing.T) {
 }
 
 func TestScopingCollectorSkipsNonBlocks(t *testing.T) {
+	t.Parallel()
 	sc := tools.NewScopingCollector()
 
 	item := &flow.Item{
@@ -181,6 +189,7 @@ func TestScopingCollectorSkipsNonBlocks(t *testing.T) {
 }
 
 func TestScopingCollectorSkipsNonTranslatable(t *testing.T) {
+	t.Parallel()
 	sc := tools.NewScopingCollector()
 
 	item := &flow.Item{
@@ -208,6 +217,7 @@ func TestScopingCollectorSkipsNonTranslatable(t *testing.T) {
 }
 
 func TestScopingSummaryFormatTable(t *testing.T) {
+	t.Parallel()
 	summary := &tools.ScopingSummary{
 		TotalWords:    15,
 		TotalBlocks:   5,
@@ -231,6 +241,7 @@ func TestScopingSummaryFormatTable(t *testing.T) {
 }
 
 func TestScopingCollectorDefaultCategoryWhenMissing(t *testing.T) {
+	t.Parallel()
 	sc := tools.NewScopingCollector()
 
 	item := &flow.Item{

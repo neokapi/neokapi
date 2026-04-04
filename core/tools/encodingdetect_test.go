@@ -9,6 +9,7 @@ import (
 )
 
 func TestEncodingDetectToolASCII(t *testing.T) {
+	t.Parallel()
 	cfg := &tools.EncodingDetectConfig{}
 	tl := tools.NewEncodingDetectTool(cfg)
 
@@ -25,6 +26,7 @@ func TestEncodingDetectToolASCII(t *testing.T) {
 }
 
 func TestEncodingDetectToolUTF8(t *testing.T) {
+	t.Parallel()
 	cfg := &tools.EncodingDetectConfig{}
 	tl := tools.NewEncodingDetectTool(cfg)
 
@@ -39,6 +41,7 @@ func TestEncodingDetectToolUTF8(t *testing.T) {
 }
 
 func TestEncodingDetectToolSkipsNonTranslatable(t *testing.T) {
+	t.Parallel()
 	cfg := &tools.EncodingDetectConfig{}
 	tl := tools.NewEncodingDetectTool(cfg)
 
