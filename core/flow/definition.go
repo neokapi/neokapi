@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/neokapi/neokapi/core/config"
+	"github.com/neokapi/neokapi/core/set"
 	"gopkg.in/yaml.v3"
 )
 
@@ -65,15 +66,15 @@ func (d *FlowDefinition) Validate() error {
 	if d.Name == "" {
 		return ErrFlowNameRequired
 	}
-	nodeIDs := make(map[string]bool, len(d.Nodes))
+	nodeIDs := set.New[string]()
 	for _, n := range d.Nodes {
 		if n.ID == "" {
 			return ErrNodeIDRequired
 		}
-		if nodeIDs[n.ID] {
+		if nodeIDs.Contains(n.ID) {
 			return fmt.Errorf("duplicate node id: %s", n.ID)
 		}
-		nodeIDs[n.ID] = true
+		nodeIDs.Add(n.ID)
 		switch n.Type {
 		case "tool", "reader", "writer":
 		default:
@@ -81,10 +82,10 @@ func (d *FlowDefinition) Validate() error {
 		}
 	}
 	for _, e := range d.Edges {
-		if !nodeIDs[e.Source] {
+		if !nodeIDs.Contains(e.Source) {
 			return fmt.Errorf("edge source %q not found in nodes", e.Source)
 		}
-		if !nodeIDs[e.Target] {
+		if !nodeIDs.Contains(e.Target) {
 			return fmt.Errorf("edge target %q not found in nodes", e.Target)
 		}
 	}

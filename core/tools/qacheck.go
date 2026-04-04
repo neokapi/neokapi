@@ -10,6 +10,7 @@ import (
 
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/schema"
+	"github.com/neokapi/neokapi/core/set"
 	"github.com/neokapi/neokapi/core/tool"
 )
 
@@ -520,12 +521,12 @@ func trailingWhitespace(s string) string {
 // Returns the first doubled word found, or "" if none.
 // Exceptions is a semicolon-separated list of words to allow.
 func findDoubledWord(text, exceptions string) string {
-	excSet := make(map[string]bool)
+	excSet := set.New[string]()
 	if exceptions != "" {
 		for _, w := range strings.Split(exceptions, ";") {
 			w = strings.TrimSpace(w)
 			if w != "" {
-				excSet[strings.ToLower(w)] = true
+				excSet.Add(strings.ToLower(w))
 			}
 		}
 	}
@@ -533,7 +534,7 @@ func findDoubledWord(text, exceptions string) string {
 	for i := 1; i < len(words); i++ {
 		prev := strings.ToLower(words[i-1])
 		curr := strings.ToLower(words[i])
-		if prev == curr && !excSet[curr] {
+		if prev == curr && !excSet.Contains(curr) {
 			return words[i]
 		}
 	}

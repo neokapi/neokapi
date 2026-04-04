@@ -1,6 +1,10 @@
 package wiki
 
-import "fmt"
+import (
+	"fmt"
+
+	"github.com/neokapi/neokapi/core/format"
+)
 
 // Variant identifies the wiki markup dialect.
 type Variant string
@@ -15,11 +19,11 @@ const (
 // Config holds configuration for the wiki format reader/writer.
 type Config struct {
 	// Variant selects the wiki markup dialect (mediawiki or dokuwiki).
-	Variant Variant
+	Variant Variant `json:"variant"`
 
 	// PreserveWhitespace preserves original whitespace in wiki markup
 	// instead of normalizing it during extraction.
-	PreserveWhitespace bool
+	PreserveWhitespace bool `json:"preserveWhitespace"`
 }
 
 // FormatName returns the format this config applies to.
@@ -43,23 +47,5 @@ func (c *Config) Validate() error {
 
 // ApplyMap applies configuration values from a map.
 func (c *Config) ApplyMap(values map[string]any) error {
-	for key, val := range values {
-		switch key {
-		case "variant":
-			s, ok := val.(string)
-			if !ok {
-				return fmt.Errorf("variant: expected string, got %T", val)
-			}
-			c.Variant = Variant(s)
-		case "preserveWhitespace":
-			b, ok := val.(bool)
-			if !ok {
-				return fmt.Errorf("preserveWhitespace: expected bool, got %T", val)
-			}
-			c.PreserveWhitespace = b
-		default:
-			return fmt.Errorf("wiki: unknown parameter: %s", key)
-		}
-	}
-	return nil
+	return format.ApplyMapViaJSON(c, values)
 }

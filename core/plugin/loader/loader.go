@@ -326,8 +326,8 @@ func (l *PluginLoader) scanFromDisk(fmtReg *registry.FormatRegistry) error {
 				}
 
 				var newFilterIDs []string
-				for id := range idsAfter {
-					if _, existed := idsBefore[id]; !existed {
+				for _, id := range idsAfter.Items() {
+					if !idsBefore.Contains(id) {
 						newFilterIDs = append(newFilterIDs, id)
 					}
 				}

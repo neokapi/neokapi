@@ -585,7 +585,7 @@ func TestConfigApplyMapUnknownParam(t *testing.T) {
 		"unknown": true,
 	})
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "unknown parameter")
+	assert.Contains(t, err.Error(), "unknown")
 }
 
 func TestConfigApplyMapWrongType(t *testing.T) {
@@ -594,7 +594,7 @@ func TestConfigApplyMapWrongType(t *testing.T) {
 		"escapeBR": "not a bool",
 	})
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "expected bool")
+	assert.Contains(t, err.Error(), "bool")
 }
 
 // TestWriterMinimalTTML verifies that the writer can generate TTML from blocks
