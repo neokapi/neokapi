@@ -170,6 +170,201 @@ func NewQACheckFromConfig(config map[string]any, targetLang string) (tool.Tool, 
 	return NewQACheckTool(cfg), nil
 }
 
+// qaCheckHandler holds the config reference and provides methods for each check category.
+type qaCheckHandler struct {
+	tool *tool.BaseTool
+}
+
+// checkTextIssues runs text-level checks: empty, whitespace, doubled words, same-as-source, corrupted chars.
+func (h *qaCheckHandler) checkTextIssues(conf *QACheckConfig, sourceText, targetText string) []QAIssue {
+	var issues []QAIssue
+
+	// Check: empty target (target segments exist but text is empty).
+	if conf.CheckEmptyTarget && targetText == "" && sourceText != "" {
+		issues = append(issues, QAIssue{
+			Type:     "empty-target",
+			Severity: QASeverityError,
+			Message:  "Target is empty but source has content",
+		})
+	}
+
+	// Check: empty source (non-empty target but empty source).
+	if conf.CheckEmptySource && sourceText == "" && targetText != "" {
+		issues = append(issues, QAIssue{
+			Type:     "empty-source",
+			Severity: QASeverityWarning,
+			Message:  "Target is not empty but source is empty",
+		})
+	}
+
+	// Check: leading whitespace mismatch.
+	if conf.CheckLeadingWhitespace && targetText != "" {
+		srcLeading := leadingWhitespace(sourceText)
+		tgtLeading := leadingWhitespace(targetText)
+		if srcLeading != tgtLeading {
+			issues = append(issues, QAIssue{
+				Type:     "leading-whitespace",
+				Severity: QASeverityWarning,
+				Message:  "Leading whitespace differs between source and target",
+			})
+		}
+	}
+
+	// Check: trailing whitespace mismatch.
+	if conf.CheckTrailingWhitespace && targetText != "" {
+		srcTrailing := trailingWhitespace(sourceText)
+		tgtTrailing := trailingWhitespace(targetText)
+		if srcTrailing != tgtTrailing {
+			issues = append(issues, QAIssue{
+				Type:     "trailing-whitespace",
+				Severity: QASeverityWarning,
+				Message:  "Trailing whitespace differs between source and target",
+			})
+		}
+	}
+
+	// Check: double spaces in target.
+	if conf.CheckDoubleSpaces && strings.Contains(targetText, "  ") {
+		issues = append(issues, QAIssue{
+			Type:     "double-spaces",
+			Severity: QASeverityWarning,
+			Message:  "Target contains double spaces",
+		})
+	}
+
+	// Check: doubled words in target.
+	if conf.CheckDoubledWord && targetText != "" {
+		if word := findDoubledWord(targetText, conf.DoubledWordExceptions); word != "" {
+			issues = append(issues, QAIssue{
+				Type:     "doubled-word",
+				Severity: QASeverityWarning,
+				Message:  fmt.Sprintf("Target contains doubled word: %q", word),
+			})
+		}
+	}
+
+	// Check: target same as source.
+	if conf.CheckTargetSameAsSource && targetText != "" && sourceText != "" && targetText == sourceText {
+		if containsWordChar(sourceText) {
+			if conf.TargetSameAsSourceWithNumbers || !isNumberOnly(sourceText) {
+				issues = append(issues, QAIssue{
+					Type:     "target-same-as-source",
+					Severity: QASeverityWarning,
+					Message:  "Target is identical to source",
+				})
+			}
+		}
+	}
+
+	// Check: corrupted characters.
+	if conf.CheckCorruptedCharacters && targetText != "" {
+		if hasCorruptedCharacters(targetText) {
+			issues = append(issues, QAIssue{
+				Type:     "corrupted-characters",
+				Severity: QASeverityWarning,
+				Message:  "Target may contain corrupted characters (encoding issue)",
+			})
+		}
+	}
+
+	return issues
+}
+
+// checkLengthIssues runs length-related checks: max ratio, min ratio, absolute max.
+func (h *qaCheckHandler) checkLengthIssues(conf *QACheckConfig, sourceText, targetText string) []QAIssue {
+	var issues []QAIssue
+
+	// Check: maximum character length ratio.
+	if conf.CheckMaxCharLength && targetText != "" && sourceText != "" {
+		srcLen := len([]rune(sourceText))
+		tgtLen := len([]rune(targetText))
+		if srcLen > 0 {
+			pct := (tgtLen * 100) / srcLen
+			maxPct := conf.MaxCharLengthBelow
+			if srcLen > conf.MaxCharLengthBreak {
+				maxPct = conf.MaxCharLengthAbove
+			}
+			if pct > maxPct {
+				issues = append(issues, QAIssue{
+					Type:     "max-length",
+					Severity: QASeverityWarning,
+					Message:  fmt.Sprintf("Target is %d%% of source length (max allowed: %d%%)", pct, maxPct),
+				})
+			}
+		}
+	}
+
+	// Check: minimum character length ratio.
+	if conf.CheckMinCharLength && targetText != "" && sourceText != "" {
+		srcLen := len([]rune(sourceText))
+		tgtLen := len([]rune(targetText))
+		if srcLen > 0 {
+			pct := (tgtLen * 100) / srcLen
+			minPct := conf.MinCharLengthBelow
+			if srcLen > conf.MinCharLengthBreak {
+				minPct = conf.MinCharLengthAbove
+			}
+			if pct < minPct {
+				issues = append(issues, QAIssue{
+					Type:     "min-length",
+					Severity: QASeverityWarning,
+					Message:  fmt.Sprintf("Target is %d%% of source length (min required: %d%%)", pct, minPct),
+				})
+			}
+		}
+	}
+
+	// Check: absolute maximum character length.
+	if conf.CheckAbsoluteMaxCharLength && targetText != "" {
+		tgtLen := len([]rune(targetText))
+		if tgtLen > conf.AbsoluteMaxCharLength {
+			issues = append(issues, QAIssue{
+				Type:     "absolute-max-length",
+				Severity: QASeverityWarning,
+				Message:  fmt.Sprintf("Target has %d characters (max allowed: %d)", tgtLen, conf.AbsoluteMaxCharLength),
+			})
+		}
+	}
+
+	return issues
+}
+
+// checkPatternAndCodeIssues runs pattern verification and inline code/span constraint checks.
+func (h *qaCheckHandler) checkPatternAndCodeIssues(conf *QACheckConfig, block *model.Block, sourceText, targetText string) []QAIssue {
+	var issues []QAIssue
+
+	// Check: pattern verification.
+	if conf.CheckPatterns && len(conf.Patterns) > 0 {
+		issues = append(issues, checkPatterns(sourceText, targetText, conf.Patterns)...)
+	}
+
+	// Check: inline code differences.
+	if conf.CheckCodeDifference {
+		sourceFrag := block.FirstFragment()
+		if sourceFrag != nil && sourceFrag.HasSpans() && block.HasTarget(conf.TargetLocale) {
+			targetSegs := block.Targets[conf.TargetLocale]
+			if len(targetSegs) > 0 {
+				targetFrag := targetSegs[0].Content
+				issues = append(issues, checkCodeDifferences(sourceFrag, targetFrag, conf.StrictCodeOrder)...)
+			}
+		}
+	}
+
+	// Check: span constraint violations.
+	if conf.CheckSpanConstraints {
+		sourceFrag := block.FirstFragment()
+		if sourceFrag != nil && sourceFrag.HasSpans() && block.HasTarget(conf.TargetLocale) {
+			targetSegs := block.Targets[conf.TargetLocale]
+			if len(targetSegs) > 0 {
+				targetFrag := targetSegs[0].Content
+				issues = append(issues, checkSpanConstraints(sourceFrag, targetFrag)...)
+			}
+		}
+	}
+
+	return issues
+}
+
 // NewQACheckTool creates a rule-based QA check tool.
 // It examines source and target text for common translation quality issues
 // and stores findings in Block.Properties["qa-issues"] as a JSON array.
@@ -179,6 +374,8 @@ func NewQACheckTool(cfg *QACheckConfig) *tool.BaseTool {
 		ToolDescription: "Performs rule-based quality checks on translations",
 		Cfg:             cfg,
 	}
+	h := &qaCheckHandler{tool: t}
+
 	t.HandleBlockFn = func(part *model.Part) (*model.Part, error) {
 		block, ok := part.Resource.(*model.Block)
 		if !ok {
@@ -199,14 +396,11 @@ func NewQACheckTool(cfg *QACheckConfig) *tool.BaseTool {
 		// If there is no target, check if empty target is an issue.
 		if !block.HasTarget(conf.TargetLocale) {
 			if conf.CheckEmptyTarget && sourceText != "" {
-				issues := []QAIssue{
-					{
-						Type:     "empty-target",
-						Severity: QASeverityError,
-						Message:  "Target is empty but source has content",
-					},
-				}
-				storeQAIssues(block, issues)
+				storeQAIssues(block, []QAIssue{{
+					Type:     "empty-target",
+					Severity: QASeverityError,
+					Message:  "Target is empty but source has content",
+				}})
 			}
 			return part, nil
 		}
@@ -214,177 +408,9 @@ func NewQACheckTool(cfg *QACheckConfig) *tool.BaseTool {
 		targetText := block.TargetText(conf.TargetLocale)
 
 		var issues []QAIssue
-
-		// Check: empty target (target segments exist but text is empty).
-		if conf.CheckEmptyTarget && targetText == "" && sourceText != "" {
-			issues = append(issues, QAIssue{
-				Type:     "empty-target",
-				Severity: QASeverityError,
-				Message:  "Target is empty but source has content",
-			})
-		}
-
-		// Check: empty source (non-empty target but empty source).
-		if conf.CheckEmptySource && sourceText == "" && targetText != "" {
-			issues = append(issues, QAIssue{
-				Type:     "empty-source",
-				Severity: QASeverityWarning,
-				Message:  "Target is not empty but source is empty",
-			})
-		}
-
-		// Check: leading whitespace mismatch.
-		if conf.CheckLeadingWhitespace && targetText != "" {
-			srcLeading := leadingWhitespace(sourceText)
-			tgtLeading := leadingWhitespace(targetText)
-			if srcLeading != tgtLeading {
-				issues = append(issues, QAIssue{
-					Type:     "leading-whitespace",
-					Severity: QASeverityWarning,
-					Message:  "Leading whitespace differs between source and target",
-				})
-			}
-		}
-
-		// Check: trailing whitespace mismatch.
-		if conf.CheckTrailingWhitespace && targetText != "" {
-			srcTrailing := trailingWhitespace(sourceText)
-			tgtTrailing := trailingWhitespace(targetText)
-			if srcTrailing != tgtTrailing {
-				issues = append(issues, QAIssue{
-					Type:     "trailing-whitespace",
-					Severity: QASeverityWarning,
-					Message:  "Trailing whitespace differs between source and target",
-				})
-			}
-		}
-
-		// Check: double spaces in target.
-		if conf.CheckDoubleSpaces && strings.Contains(targetText, "  ") {
-			issues = append(issues, QAIssue{
-				Type:     "double-spaces",
-				Severity: QASeverityWarning,
-				Message:  "Target contains double spaces",
-			})
-		}
-
-		// Check: doubled words in target.
-		if conf.CheckDoubledWord && targetText != "" {
-			if word := findDoubledWord(targetText, conf.DoubledWordExceptions); word != "" {
-				issues = append(issues, QAIssue{
-					Type:     "doubled-word",
-					Severity: QASeverityWarning,
-					Message:  fmt.Sprintf("Target contains doubled word: %q", word),
-				})
-			}
-		}
-
-		// Check: target same as source.
-		if conf.CheckTargetSameAsSource && targetText != "" && sourceText != "" && targetText == sourceText {
-			// Only flag if source contains at least one word character.
-			if containsWordChar(sourceText) {
-				// Skip number-only segments if configured.
-				if conf.TargetSameAsSourceWithNumbers || !isNumberOnly(sourceText) {
-					issues = append(issues, QAIssue{
-						Type:     "target-same-as-source",
-						Severity: QASeverityWarning,
-						Message:  "Target is identical to source",
-					})
-				}
-			}
-		}
-
-		// Check: corrupted characters.
-		if conf.CheckCorruptedCharacters && targetText != "" {
-			if hasCorruptedCharacters(targetText) {
-				issues = append(issues, QAIssue{
-					Type:     "corrupted-characters",
-					Severity: QASeverityWarning,
-					Message:  "Target may contain corrupted characters (encoding issue)",
-				})
-			}
-		}
-
-		// Check: maximum character length ratio.
-		if conf.CheckMaxCharLength && targetText != "" && sourceText != "" {
-			srcLen := len([]rune(sourceText))
-			tgtLen := len([]rune(targetText))
-			if srcLen > 0 {
-				pct := (tgtLen * 100) / srcLen
-				maxPct := conf.MaxCharLengthBelow
-				if srcLen > conf.MaxCharLengthBreak {
-					maxPct = conf.MaxCharLengthAbove
-				}
-				if pct > maxPct {
-					issues = append(issues, QAIssue{
-						Type:     "max-length",
-						Severity: QASeverityWarning,
-						Message:  fmt.Sprintf("Target is %d%% of source length (max allowed: %d%%)", pct, maxPct),
-					})
-				}
-			}
-		}
-
-		// Check: minimum character length ratio.
-		if conf.CheckMinCharLength && targetText != "" && sourceText != "" {
-			srcLen := len([]rune(sourceText))
-			tgtLen := len([]rune(targetText))
-			if srcLen > 0 {
-				pct := (tgtLen * 100) / srcLen
-				minPct := conf.MinCharLengthBelow
-				if srcLen > conf.MinCharLengthBreak {
-					minPct = conf.MinCharLengthAbove
-				}
-				if pct < minPct {
-					issues = append(issues, QAIssue{
-						Type:     "min-length",
-						Severity: QASeverityWarning,
-						Message:  fmt.Sprintf("Target is %d%% of source length (min required: %d%%)", pct, minPct),
-					})
-				}
-			}
-		}
-
-		// Check: absolute maximum character length.
-		if conf.CheckAbsoluteMaxCharLength && targetText != "" {
-			tgtLen := len([]rune(targetText))
-			if tgtLen > conf.AbsoluteMaxCharLength {
-				issues = append(issues, QAIssue{
-					Type:     "absolute-max-length",
-					Severity: QASeverityWarning,
-					Message:  fmt.Sprintf("Target has %d characters (max allowed: %d)", tgtLen, conf.AbsoluteMaxCharLength),
-				})
-			}
-		}
-
-		// Check: pattern verification.
-		if conf.CheckPatterns && len(conf.Patterns) > 0 {
-			issues = append(issues, checkPatterns(sourceText, targetText, conf.Patterns)...)
-		}
-
-		// Check: inline code differences.
-		if conf.CheckCodeDifference {
-			sourceFrag := block.FirstFragment()
-			if sourceFrag != nil && sourceFrag.HasSpans() && block.HasTarget(conf.TargetLocale) {
-				targetSegs := block.Targets[conf.TargetLocale]
-				if len(targetSegs) > 0 {
-					targetFrag := targetSegs[0].Content
-					issues = append(issues, checkCodeDifferences(sourceFrag, targetFrag, conf.StrictCodeOrder)...)
-				}
-			}
-		}
-
-		// Check: span constraint violations.
-		if conf.CheckSpanConstraints {
-			sourceFrag := block.FirstFragment()
-			if sourceFrag != nil && sourceFrag.HasSpans() && block.HasTarget(conf.TargetLocale) {
-				targetSegs := block.Targets[conf.TargetLocale]
-				if len(targetSegs) > 0 {
-					targetFrag := targetSegs[0].Content
-					issues = append(issues, checkSpanConstraints(sourceFrag, targetFrag)...)
-				}
-			}
-		}
+		issues = append(issues, h.checkTextIssues(conf, sourceText, targetText)...)
+		issues = append(issues, h.checkLengthIssues(conf, sourceText, targetText)...)
+		issues = append(issues, h.checkPatternAndCodeIssues(conf, block, sourceText, targetText)...)
 
 		storeQAIssues(block, issues)
 
