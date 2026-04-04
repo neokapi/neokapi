@@ -10,6 +10,7 @@ import (
 )
 
 func TestRemoveTargetTool(t *testing.T) {
+	t.Parallel()
 	cfg := &tools.RemoveTargetConfig{
 		TargetLocale: model.LocaleFrench,
 	}
@@ -31,6 +32,7 @@ func TestRemoveTargetTool(t *testing.T) {
 }
 
 func TestRemoveTargetToolAllLocales(t *testing.T) {
+	t.Parallel()
 	cfg := &tools.RemoveTargetConfig{
 		TargetLocale: "", // Empty means remove all.
 	}
@@ -49,6 +51,7 @@ func TestRemoveTargetToolAllLocales(t *testing.T) {
 }
 
 func TestRemoveTargetToolSkipsNonTranslatable(t *testing.T) {
+	t.Parallel()
 	cfg := &tools.RemoveTargetConfig{
 		TargetLocale: model.LocaleFrench,
 	}
@@ -66,6 +69,7 @@ func TestRemoveTargetToolSkipsNonTranslatable(t *testing.T) {
 }
 
 func TestRemoveTargetToolPassesThroughNonBlock(t *testing.T) {
+	t.Parallel()
 	cfg := &tools.RemoveTargetConfig{
 		TargetLocale: model.LocaleFrench,
 	}
@@ -80,6 +84,7 @@ func TestRemoveTargetToolPassesThroughNonBlock(t *testing.T) {
 }
 
 func TestRemoveTargetToolNoTarget(t *testing.T) {
+	t.Parallel()
 	cfg := &tools.RemoveTargetConfig{
 		TargetLocale: model.LocaleFrench,
 	}
@@ -95,6 +100,7 @@ func TestRemoveTargetToolNoTarget(t *testing.T) {
 }
 
 func TestRemoveTargetConfigValidation(t *testing.T) {
+	t.Parallel()
 	cfg := &tools.RemoveTargetConfig{}
 	err := cfg.Validate()
 	require.NoError(t, err) // No required fields.

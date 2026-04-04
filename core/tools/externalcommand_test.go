@@ -10,6 +10,7 @@ import (
 )
 
 func TestExternalCommandToolCatStdin(t *testing.T) {
+	t.Parallel()
 	cfg := &tools.ExternalCommandConfig{
 		Command:     "cat",
 		ApplySource: true,
@@ -31,6 +32,7 @@ func TestExternalCommandToolCatStdin(t *testing.T) {
 }
 
 func TestExternalCommandToolArgsPlaceholders(t *testing.T) {
+	t.Parallel()
 	cfg := &tools.ExternalCommandConfig{
 		Command:     "echo",
 		Args:        []string{"-n", "${source}"},
@@ -51,6 +53,7 @@ func TestExternalCommandToolArgsPlaceholders(t *testing.T) {
 }
 
 func TestExternalCommandToolTarget(t *testing.T) {
+	t.Parallel()
 	cfg := &tools.ExternalCommandConfig{
 		Command:      "tr",
 		Args:         []string{"a-z", "A-Z"},
@@ -74,6 +77,7 @@ func TestExternalCommandToolTarget(t *testing.T) {
 }
 
 func TestExternalCommandToolTimeout(t *testing.T) {
+	t.Parallel()
 	cfg := &tools.ExternalCommandConfig{
 		Command:     "sleep",
 		Args:        []string{"10"},
@@ -104,6 +108,7 @@ func TestExternalCommandToolTimeout(t *testing.T) {
 }
 
 func TestExternalCommandToolSkipsNonTranslatable(t *testing.T) {
+	t.Parallel()
 	cfg := &tools.ExternalCommandConfig{
 		Command:     "echo",
 		Args:        []string{"replaced"},
@@ -124,6 +129,7 @@ func TestExternalCommandToolSkipsNonTranslatable(t *testing.T) {
 }
 
 func TestExternalCommandToolExitCode(t *testing.T) {
+	t.Parallel()
 	cfg := &tools.ExternalCommandConfig{
 		Command:     "false", // Exits with code 1.
 		ApplySource: true,
@@ -142,6 +148,7 @@ func TestExternalCommandToolExitCode(t *testing.T) {
 }
 
 func TestExternalCommandConfigValidation(t *testing.T) {
+	t.Parallel()
 	// Empty command.
 	cfg := &tools.ExternalCommandConfig{}
 	err := cfg.Validate()
@@ -168,6 +175,7 @@ func TestExternalCommandConfigValidation(t *testing.T) {
 }
 
 func TestExternalCommandConfigReset(t *testing.T) {
+	t.Parallel()
 	cfg := &tools.ExternalCommandConfig{
 		Command:      "echo",
 		Args:         []string{"hello"},
@@ -189,6 +197,7 @@ func TestExternalCommandConfigReset(t *testing.T) {
 }
 
 func TestExternalCommandConfigToolName(t *testing.T) {
+	t.Parallel()
 	cfg := &tools.ExternalCommandConfig{}
 	assert.Equal(t, "external-command", cfg.ToolName())
 }

@@ -22,6 +22,7 @@ import (
 // Kind strings as okapi-bridge's FilterRegistry.toKind() for all bridge filters
 // that have corresponding neokapi native formats.
 func TestBridgeKindNaming(t *testing.T) {
+	t.Parallel()
 	// Map from Okapi filter ID suffix to the expected Kind from versions.json.
 	// These are the exact values produced by the bridge's toKind() method.
 	bridgeKinds := map[string]string{
@@ -40,6 +41,7 @@ func TestBridgeKindNaming(t *testing.T) {
 
 	for format, expectedKind := range bridgeKinds {
 		t.Run(format, func(t *testing.T) {
+			t.Parallel()
 			neokapiKind := OkapiFilterConfigKind(format)
 			assert.Equal(t, Kind(expectedKind), neokapiKind,
 				"neokapi OkapiFilterConfigKind(%q) must match bridge toKind(\"okf_%s\")", format, format)
@@ -50,6 +52,7 @@ func TestBridgeKindNaming(t *testing.T) {
 // TestBridgeAPIVersionFormat verifies that FormatAPIVersion produces the same
 // format as okapi-bridge's FilterRegistry.toApiVersion().
 func TestBridgeAPIVersionFormat(t *testing.T) {
+	t.Parallel()
 	assert.Equal(t, "v1", FormatAPIVersion(1))
 	assert.Equal(t, "v2", FormatAPIVersion(2))
 	assert.Equal(t, "v3", FormatAPIVersion(3))
@@ -66,6 +69,7 @@ func TestBridgeAPIVersionFormat(t *testing.T) {
 // TestBridgeEnvelopeParsing verifies that configs emitted in bridge envelope
 // format can be parsed by neokapi's config.Parse().
 func TestBridgeEnvelopeParsing(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name         string
 		yaml         string
@@ -121,6 +125,7 @@ spec:
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			env, err := Parse([]byte(tt.yaml), ".yaml")
 			require.NoError(t, err)
 			assert.Equal(t, tt.expectedKind, env.Kind)
@@ -134,6 +139,7 @@ spec:
 // TestBridgeEnvelopeJSON verifies JSON envelope parsing matches bridge output.
 // The bridge can emit configs as JSON (e.g., from schema generator).
 func TestBridgeEnvelopeJSON(t *testing.T) {
+	t.Parallel()
 	jsonData := []byte(`{
 		"apiVersion": "v1",
 		"kind": "OkfHtmlFilterConfig",
@@ -157,6 +163,7 @@ func TestBridgeEnvelopeJSON(t *testing.T) {
 // produces kinds that the bridge's resolveByKind() would accept.
 // Bridge validation: kind must start with "Okf" and end with "FilterConfig".
 func TestBridgeResolveByKindCompatibility(t *testing.T) {
+	t.Parallel()
 	formats := []string{
 		"html", "json", "xml", "yaml", "properties",
 		"po", "xmlstream", "openxml", "idml", "regex",
@@ -165,6 +172,7 @@ func TestBridgeResolveByKindCompatibility(t *testing.T) {
 
 	for _, format := range formats {
 		t.Run(format, func(t *testing.T) {
+			t.Parallel()
 			kind := OkapiFilterConfigKind(format)
 			s := string(kind)
 			// Bridge validates: starts with "Okf" and ends with "FilterConfig"
@@ -188,6 +196,7 @@ func TestBridgeResolveByKindCompatibility(t *testing.T) {
 // TestBridgeTransformPipeline verifies the full pipeline: bridge envelope →
 // parse → transform → native format config.
 func TestBridgeTransformPipeline(t *testing.T) {
+	t.Parallel()
 	reg := NewTransformRegistry()
 
 	// Register a mock Okf→native transform (like the real html/json ones)
@@ -241,6 +250,7 @@ spec:
 // in filter_params, it unwraps spec as the actual params. This test ensures
 // neokapi can construct such an envelope correctly.
 func TestBridgeEnvelopeUnwrapParams(t *testing.T) {
+	t.Parallel()
 	// Simulate what neokapi sends to the bridge as filter_params
 	kind := OkapiFilterConfigKind("html")
 	apiVersion := FormatAPIVersion(1)
@@ -268,6 +278,7 @@ func TestBridgeEnvelopeUnwrapParams(t *testing.T) {
 //
 // This test verifies both algorithms agree for various filter names.
 func TestBridgeVersionsJsonKindConsistency(t *testing.T) {
+	t.Parallel()
 	// These are real entries from versions.json in okapi-bridge v2.13.0
 	versionsEntries := []struct {
 		filterID   string // e.g., "okf_html"
@@ -292,6 +303,7 @@ func TestBridgeVersionsJsonKindConsistency(t *testing.T) {
 
 	for _, entry := range versionsEntries {
 		t.Run(entry.filterID, func(t *testing.T) {
+			t.Parallel()
 			// Strip "okf_" prefix to get the format name
 			format := strings.TrimPrefix(entry.filterID, "okf_")
 			neokapiKind := OkapiFilterConfigKind(format)
@@ -305,6 +317,7 @@ func TestBridgeVersionsJsonKindConsistency(t *testing.T) {
 // TestNativeKindNotConfusedWithBridgeKind verifies that native format kinds
 // (HtmlFormatConfig) are distinct from bridge filter kinds (OkfHtmlFilterConfig).
 func TestNativeKindNotConfusedWithBridgeKind(t *testing.T) {
+	t.Parallel()
 	formats := []string{"html", "json", "xml", "yaml"}
 	for _, f := range formats {
 		native := FormatConfigKind(f)

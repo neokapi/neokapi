@@ -11,6 +11,7 @@ import (
 )
 
 func TestQACheckTool(t *testing.T) {
+	t.Parallel()
 	cfg := tools.NewQACheckConfig(model.LocaleFrench)
 	tl := tools.NewQACheckTool(cfg)
 
@@ -19,6 +20,7 @@ func TestQACheckTool(t *testing.T) {
 }
 
 func TestQACheckToolPassingBlock(t *testing.T) {
+	t.Parallel()
 	cfg := tools.NewQACheckConfig(model.LocaleFrench)
 	tl := tools.NewQACheckTool(cfg)
 
@@ -33,6 +35,7 @@ func TestQACheckToolPassingBlock(t *testing.T) {
 }
 
 func TestQACheckToolEmptyTarget(t *testing.T) {
+	t.Parallel()
 	cfg := tools.NewQACheckConfig(model.LocaleFrench)
 	tl := tools.NewQACheckTool(cfg)
 
@@ -53,6 +56,7 @@ func TestQACheckToolEmptyTarget(t *testing.T) {
 }
 
 func TestQACheckToolLeadingWhitespace(t *testing.T) {
+	t.Parallel()
 	cfg := tools.NewQACheckConfig(model.LocaleFrench)
 	tl := tools.NewQACheckTool(cfg)
 
@@ -78,6 +82,7 @@ func TestQACheckToolLeadingWhitespace(t *testing.T) {
 }
 
 func TestQACheckToolTrailingWhitespace(t *testing.T) {
+	t.Parallel()
 	cfg := tools.NewQACheckConfig(model.LocaleFrench)
 	tl := tools.NewQACheckTool(cfg)
 
@@ -103,6 +108,7 @@ func TestQACheckToolTrailingWhitespace(t *testing.T) {
 }
 
 func TestQACheckToolDoubleSpaces(t *testing.T) {
+	t.Parallel()
 	cfg := tools.NewQACheckConfig(model.LocaleFrench)
 	tl := tools.NewQACheckTool(cfg)
 
@@ -128,6 +134,7 @@ func TestQACheckToolDoubleSpaces(t *testing.T) {
 }
 
 func TestQACheckToolTargetSameAsSource(t *testing.T) {
+	t.Parallel()
 	cfg := tools.NewQACheckConfig(model.LocaleFrench)
 	tl := tools.NewQACheckTool(cfg)
 
@@ -153,6 +160,7 @@ func TestQACheckToolTargetSameAsSource(t *testing.T) {
 }
 
 func TestQACheckToolMultipleIssues(t *testing.T) {
+	t.Parallel()
 	cfg := tools.NewQACheckConfig(model.LocaleFrench)
 	tl := tools.NewQACheckTool(cfg)
 
@@ -172,6 +180,7 @@ func TestQACheckToolMultipleIssues(t *testing.T) {
 }
 
 func TestQACheckToolSkipsNonTranslatable(t *testing.T) {
+	t.Parallel()
 	cfg := tools.NewQACheckConfig(model.LocaleFrench)
 	tl := tools.NewQACheckTool(cfg)
 
@@ -186,6 +195,7 @@ func TestQACheckToolSkipsNonTranslatable(t *testing.T) {
 }
 
 func TestQACheckToolDisabledChecks(t *testing.T) {
+	t.Parallel()
 	cfg := &tools.QACheckConfig{
 		TargetLocale:            model.LocaleFrench,
 		CheckLeadingWhitespace:  false,
@@ -207,6 +217,7 @@ func TestQACheckToolDisabledChecks(t *testing.T) {
 }
 
 func TestQACheckConfigValidation(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name    string
 		cfg     tools.QACheckConfig
@@ -227,6 +238,7 @@ func TestQACheckConfigValidation(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			err := tt.cfg.Validate()
 			if tt.wantErr {
 				require.Error(t, err)
@@ -239,6 +251,7 @@ func TestQACheckConfigValidation(t *testing.T) {
 }
 
 func TestQACheckToolNonDeletableSpanMissing(t *testing.T) {
+	t.Parallel()
 	cfg := tools.NewQACheckConfig(model.LocaleFrench)
 	tl := tools.NewQACheckTool(cfg)
 
@@ -278,6 +291,7 @@ func TestQACheckToolNonDeletableSpanMissing(t *testing.T) {
 }
 
 func TestQACheckToolNonCloneableSpanDuplicated(t *testing.T) {
+	t.Parallel()
 	cfg := tools.NewQACheckConfig(model.LocaleFrench)
 	tl := tools.NewQACheckTool(cfg)
 
@@ -322,6 +336,7 @@ func TestQACheckToolNonCloneableSpanDuplicated(t *testing.T) {
 }
 
 func TestQACheckToolDeletableSpanMissingNoConstraintError(t *testing.T) {
+	t.Parallel()
 	cfg := tools.NewQACheckConfig(model.LocaleFrench)
 	tl := tools.NewQACheckTool(cfg)
 
@@ -354,6 +369,7 @@ func TestQACheckToolDeletableSpanMissingNoConstraintError(t *testing.T) {
 }
 
 func TestQACheckToolSpanConstraintsDisabled(t *testing.T) {
+	t.Parallel()
 	cfg := tools.NewQACheckConfig(model.LocaleFrench)
 	cfg.CheckSpanConstraints = false
 	tl := tools.NewQACheckTool(cfg)
@@ -386,6 +402,7 @@ func TestQACheckToolSpanConstraintsDisabled(t *testing.T) {
 }
 
 func TestQACheckToolEmptyTargetText(t *testing.T) {
+	t.Parallel()
 	cfg := tools.NewQACheckConfig(model.LocaleFrench)
 	tl := tools.NewQACheckTool(cfg)
 

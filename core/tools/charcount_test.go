@@ -9,6 +9,7 @@ import (
 )
 
 func TestCharCountTool(t *testing.T) {
+	t.Parallel()
 	cfg := &tools.CharCountConfig{
 		Locale: model.LocaleFrench,
 	}
@@ -31,6 +32,7 @@ func TestCharCountTool(t *testing.T) {
 }
 
 func TestCharCountToolSourceOnly(t *testing.T) {
+	t.Parallel()
 	cfg := &tools.CharCountConfig{}
 	tl := tools.NewCharCountTool(cfg)
 
@@ -48,6 +50,7 @@ func TestCharCountToolSourceOnly(t *testing.T) {
 }
 
 func TestCharCountToolUnicode(t *testing.T) {
+	t.Parallel()
 	cfg := &tools.CharCountConfig{}
 	tl := tools.NewCharCountTool(cfg)
 
@@ -62,6 +65,7 @@ func TestCharCountToolUnicode(t *testing.T) {
 }
 
 func TestCharCountToolSkipsNonTranslatable(t *testing.T) {
+	t.Parallel()
 	cfg := &tools.CharCountConfig{}
 	tl := tools.NewCharCountTool(cfg)
 
@@ -76,6 +80,7 @@ func TestCharCountToolSkipsNonTranslatable(t *testing.T) {
 }
 
 func TestCharCountToolEmptyText(t *testing.T) {
+	t.Parallel()
 	cfg := &tools.CharCountConfig{}
 	tl := tools.NewCharCountTool(cfg)
 

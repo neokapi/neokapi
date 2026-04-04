@@ -8,6 +8,7 @@ import (
 )
 
 func TestKind_IsValid(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		kind Kind
 		want bool
@@ -23,12 +24,14 @@ func TestKind_IsValid(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(string(tt.kind), func(t *testing.T) {
+			t.Parallel()
 			assert.Equal(t, tt.want, tt.kind.IsValid())
 		})
 	}
 }
 
 func TestFormatConfigKind(t *testing.T) {
+	t.Parallel()
 	assert.Equal(t, Kind("HtmlFormatConfig"), FormatConfigKind("html"))
 	assert.Equal(t, Kind("JsonFormatConfig"), FormatConfigKind("json"))
 	assert.Equal(t, Kind("XmlFormatConfig"), FormatConfigKind("xml"))
@@ -37,12 +40,14 @@ func TestFormatConfigKind(t *testing.T) {
 }
 
 func TestOkapiFilterConfigKind(t *testing.T) {
+	t.Parallel()
 	assert.Equal(t, Kind("OkfHtmlFilterConfig"), OkapiFilterConfigKind("html"))
 	assert.Equal(t, Kind("OkfJsonFilterConfig"), OkapiFilterConfigKind("json"))
 	assert.Equal(t, Kind("OkfXmlFilterConfig"), OkapiFilterConfigKind("xml"))
 }
 
 func TestIsFormatConfigKind(t *testing.T) {
+	t.Parallel()
 	assert.True(t, IsFormatConfigKind(FormatConfigKind("html")))
 	assert.True(t, IsFormatConfigKind(OkapiFilterConfigKind("html")))
 	assert.False(t, IsFormatConfigKind(KindProjectConfig))
@@ -51,6 +56,7 @@ func TestIsFormatConfigKind(t *testing.T) {
 }
 
 func TestParseAPIVersion(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name    string
 		input   string
@@ -69,6 +75,7 @@ func TestParseAPIVersion(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			got, err := ParseAPIVersion(tt.input)
 			if tt.wantErr {
 				require.Error(t, err)
@@ -81,6 +88,7 @@ func TestParseAPIVersion(t *testing.T) {
 }
 
 func TestFormatAPIVersion(t *testing.T) {
+	t.Parallel()
 	assert.Equal(t, "v1", FormatAPIVersion(1))
 	assert.Equal(t, "v42", FormatAPIVersion(42))
 }

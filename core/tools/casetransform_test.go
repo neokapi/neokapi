@@ -10,6 +10,7 @@ import (
 )
 
 func TestCaseTransformToolUpper(t *testing.T) {
+	t.Parallel()
 	cfg := &tools.CaseTransformConfig{
 		Mode:        tools.CaseUpper,
 		ApplySource: true,
@@ -27,6 +28,7 @@ func TestCaseTransformToolUpper(t *testing.T) {
 }
 
 func TestCaseTransformToolLower(t *testing.T) {
+	t.Parallel()
 	cfg := &tools.CaseTransformConfig{
 		Mode:        tools.CaseLower,
 		ApplySource: true,
@@ -42,6 +44,7 @@ func TestCaseTransformToolLower(t *testing.T) {
 }
 
 func TestCaseTransformToolTarget(t *testing.T) {
+	t.Parallel()
 	cfg := &tools.CaseTransformConfig{
 		Mode:         tools.CaseUpper,
 		ApplySource:  false,
@@ -61,6 +64,7 @@ func TestCaseTransformToolTarget(t *testing.T) {
 }
 
 func TestCaseTransformConfigValidation(t *testing.T) {
+	t.Parallel()
 	cfg := &tools.CaseTransformConfig{Mode: "invalid"}
 	err := cfg.Validate()
 	require.Error(t, err)

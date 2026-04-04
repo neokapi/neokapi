@@ -9,6 +9,7 @@ import (
 )
 
 func TestMigrationRegistry_SingleStep(t *testing.T) {
+	t.Parallel()
 	reg := NewMigrationRegistry()
 	err := reg.Register(Migration{
 		Kind:        FormatConfigKind("html"),
@@ -45,6 +46,7 @@ func TestMigrationRegistry_SingleStep(t *testing.T) {
 }
 
 func TestMigrationRegistry_MultiStep(t *testing.T) {
+	t.Parallel()
 	reg := NewMigrationRegistry()
 	require.NoError(t, reg.Register(Migration{
 		Kind:        FormatConfigKind("json"),
@@ -80,6 +82,7 @@ func TestMigrationRegistry_MultiStep(t *testing.T) {
 }
 
 func TestMigrationRegistry_AlreadyLatest(t *testing.T) {
+	t.Parallel()
 	reg := NewMigrationRegistry()
 	require.NoError(t, reg.Register(Migration{
 		Kind:        FormatConfigKind("html"),
@@ -103,6 +106,7 @@ func TestMigrationRegistry_AlreadyLatest(t *testing.T) {
 }
 
 func TestMigrationRegistry_NoMigrations(t *testing.T) {
+	t.Parallel()
 	reg := NewMigrationRegistry()
 	env := &Envelope{
 		APIVersion: "v1",
@@ -114,6 +118,7 @@ func TestMigrationRegistry_NoMigrations(t *testing.T) {
 }
 
 func TestMigrationRegistry_NewerThanKnown(t *testing.T) {
+	t.Parallel()
 	reg := NewMigrationRegistry()
 	require.NoError(t, reg.Register(Migration{
 		Kind:        FormatConfigKind("html"),
@@ -135,6 +140,7 @@ func TestMigrationRegistry_NewerThanKnown(t *testing.T) {
 }
 
 func TestMigrationRegistry_MigrationError(t *testing.T) {
+	t.Parallel()
 	reg := NewMigrationRegistry()
 	require.NoError(t, reg.Register(Migration{
 		Kind:        FormatConfigKind("html"),
@@ -156,6 +162,7 @@ func TestMigrationRegistry_MigrationError(t *testing.T) {
 }
 
 func TestMigrationRegistry_RegisterErrors(t *testing.T) {
+	t.Parallel()
 	reg := NewMigrationRegistry()
 
 	err := reg.Register(Migration{
@@ -187,6 +194,7 @@ func TestMigrationRegistry_RegisterErrors(t *testing.T) {
 }
 
 func TestMigrationRegistry_LatestVersion(t *testing.T) {
+	t.Parallel()
 	reg := NewMigrationRegistry()
 	htmlKind := FormatConfigKind("html")
 	require.NoError(t, reg.Register(Migration{

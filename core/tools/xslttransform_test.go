@@ -10,6 +10,7 @@ import (
 )
 
 func TestXSLTTransformTool(t *testing.T) {
+	t.Parallel()
 	cfg := &tools.XSLTTransformConfig{
 		Rules: []tools.TransformRule{
 			{Pattern: `<b>(.*?)</b>`, Replace: `<strong>$1</strong>`},
@@ -28,6 +29,7 @@ func TestXSLTTransformTool(t *testing.T) {
 }
 
 func TestXSLTTransformToolMultipleRules(t *testing.T) {
+	t.Parallel()
 	cfg := &tools.XSLTTransformConfig{
 		Rules: []tools.TransformRule{
 			{Pattern: `<i>`, Replace: `<em>`},
@@ -45,6 +47,7 @@ func TestXSLTTransformToolMultipleRules(t *testing.T) {
 }
 
 func TestXSLTTransformConfigValidation(t *testing.T) {
+	t.Parallel()
 	cfg := &tools.XSLTTransformConfig{
 		Rules: []tools.TransformRule{
 			{Pattern: "", Replace: "x"},

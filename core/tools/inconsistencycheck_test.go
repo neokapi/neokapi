@@ -13,6 +13,7 @@ import (
 // processMultipleParts is defined in helpers_test.go
 
 func TestInconsistencyCheckToolName(t *testing.T) {
+	t.Parallel()
 	cfg := tools.NewInconsistencyCheckConfig(model.LocaleFrench)
 	tl := tools.NewInconsistencyCheckTool(cfg)
 
@@ -21,6 +22,7 @@ func TestInconsistencyCheckToolName(t *testing.T) {
 }
 
 func TestInconsistencyCheckConfig(t *testing.T) {
+	t.Parallel()
 	cfg := &tools.InconsistencyCheckConfig{}
 	assert.Equal(t, "inconsistency-check", cfg.ToolName())
 
@@ -39,6 +41,7 @@ func TestInconsistencyCheckConfig(t *testing.T) {
 }
 
 func TestInconsistencyCheckConsistent(t *testing.T) {
+	t.Parallel()
 	cfg := tools.NewInconsistencyCheckConfig(model.LocaleFrench)
 	tl := tools.NewInconsistencyCheckTool(cfg)
 
@@ -62,6 +65,7 @@ func TestInconsistencyCheckConsistent(t *testing.T) {
 }
 
 func TestInconsistencyCheckTargetInconsistency(t *testing.T) {
+	t.Parallel()
 	cfg := tools.NewInconsistencyCheckConfig(model.LocaleFrench)
 	tl := tools.NewInconsistencyCheckTool(cfg)
 
@@ -94,6 +98,7 @@ func TestInconsistencyCheckTargetInconsistency(t *testing.T) {
 }
 
 func TestInconsistencyCheckSourceInconsistency(t *testing.T) {
+	t.Parallel()
 	cfg := tools.NewInconsistencyCheckConfig(model.LocaleFrench)
 	cfg.CheckSourceInconsistency = true
 	cfg.CheckTargetInconsistency = false
@@ -128,6 +133,7 @@ func TestInconsistencyCheckSourceInconsistency(t *testing.T) {
 }
 
 func TestInconsistencyCheckCaseInsensitive(t *testing.T) {
+	t.Parallel()
 	cfg := tools.NewInconsistencyCheckConfig(model.LocaleFrench)
 	cfg.CaseSensitive = false
 	tl := tools.NewInconsistencyCheckTool(cfg)
@@ -152,6 +158,7 @@ func TestInconsistencyCheckCaseInsensitive(t *testing.T) {
 }
 
 func TestInconsistencyCheckNoTarget(t *testing.T) {
+	t.Parallel()
 	cfg := tools.NewInconsistencyCheckConfig(model.LocaleFrench)
 	tl := tools.NewInconsistencyCheckTool(cfg)
 
@@ -165,6 +172,7 @@ func TestInconsistencyCheckNoTarget(t *testing.T) {
 }
 
 func TestInconsistencyCheckNonTranslatable(t *testing.T) {
+	t.Parallel()
 	cfg := tools.NewInconsistencyCheckConfig(model.LocaleFrench)
 	tl := tools.NewInconsistencyCheckTool(cfg)
 

@@ -10,6 +10,7 @@ import (
 )
 
 func TestLineBreakConvertToolLF(t *testing.T) {
+	t.Parallel()
 	cfg := &tools.LineBreakConvertConfig{
 		Mode:        tools.LineBreakLF,
 		ApplySource: true,
@@ -30,6 +31,7 @@ func TestLineBreakConvertToolLF(t *testing.T) {
 }
 
 func TestLineBreakConvertToolCRLF(t *testing.T) {
+	t.Parallel()
 	cfg := &tools.LineBreakConvertConfig{
 		Mode:        tools.LineBreakCRLF,
 		ApplySource: true,
@@ -48,6 +50,7 @@ func TestLineBreakConvertToolCRLF(t *testing.T) {
 }
 
 func TestLineBreakConvertToolCR(t *testing.T) {
+	t.Parallel()
 	cfg := &tools.LineBreakConvertConfig{
 		Mode:        tools.LineBreakCR,
 		ApplySource: true,
@@ -64,6 +67,7 @@ func TestLineBreakConvertToolCR(t *testing.T) {
 }
 
 func TestLineBreakConvertToolMixedLineEndings(t *testing.T) {
+	t.Parallel()
 	cfg := &tools.LineBreakConvertConfig{
 		Mode:        tools.LineBreakLF,
 		ApplySource: true,
@@ -81,6 +85,7 @@ func TestLineBreakConvertToolMixedLineEndings(t *testing.T) {
 }
 
 func TestLineBreakConvertToolNoOpPlainText(t *testing.T) {
+	t.Parallel()
 	cfg := &tools.LineBreakConvertConfig{
 		Mode:        tools.LineBreakLF,
 		ApplySource: true,
@@ -97,6 +102,7 @@ func TestLineBreakConvertToolNoOpPlainText(t *testing.T) {
 }
 
 func TestLineBreakConvertToolSourceOnly(t *testing.T) {
+	t.Parallel()
 	cfg := &tools.LineBreakConvertConfig{
 		Mode:        tools.LineBreakLF,
 		ApplySource: true,
@@ -116,6 +122,7 @@ func TestLineBreakConvertToolSourceOnly(t *testing.T) {
 }
 
 func TestLineBreakConvertToolSkipsNonTranslatable(t *testing.T) {
+	t.Parallel()
 	cfg := &tools.LineBreakConvertConfig{
 		Mode:        tools.LineBreakLF,
 		ApplySource: true,
@@ -133,6 +140,7 @@ func TestLineBreakConvertToolSkipsNonTranslatable(t *testing.T) {
 }
 
 func TestLineBreakConvertConfigValidation(t *testing.T) {
+	t.Parallel()
 	cfg := &tools.LineBreakConvertConfig{Mode: "invalid"}
 	err := cfg.Validate()
 	require.Error(t, err)
@@ -144,6 +152,7 @@ func TestLineBreakConvertConfigValidation(t *testing.T) {
 }
 
 func TestLineBreakConvertConfigReset(t *testing.T) {
+	t.Parallel()
 	cfg := &tools.LineBreakConvertConfig{
 		Mode:        tools.LineBreakCRLF,
 		ApplySource: false,
@@ -156,6 +165,7 @@ func TestLineBreakConvertConfigReset(t *testing.T) {
 }
 
 func TestLineBreakConvertConfigToolName(t *testing.T) {
+	t.Parallel()
 	cfg := &tools.LineBreakConvertConfig{}
 	assert.Equal(t, "linebreak-convert", cfg.ToolName())
 }

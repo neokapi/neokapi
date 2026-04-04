@@ -11,6 +11,7 @@ import (
 )
 
 func TestLengthCheckToolMaxChars(t *testing.T) {
+	t.Parallel()
 	cfg := &tools.LengthCheckConfig{
 		TargetLocale: model.LocaleFrench,
 		MaxChars:     10,
@@ -39,6 +40,7 @@ func TestLengthCheckToolMaxChars(t *testing.T) {
 }
 
 func TestLengthCheckToolMaxWords(t *testing.T) {
+	t.Parallel()
 	cfg := &tools.LengthCheckConfig{
 		TargetLocale: model.LocaleFrench,
 		MaxWords:     2,
@@ -62,6 +64,7 @@ func TestLengthCheckToolMaxWords(t *testing.T) {
 }
 
 func TestLengthCheckToolMaxPercentage(t *testing.T) {
+	t.Parallel()
 	cfg := &tools.LengthCheckConfig{
 		TargetLocale:  model.LocaleFrench,
 		MaxPercentage: 150.0,
@@ -85,6 +88,7 @@ func TestLengthCheckToolMaxPercentage(t *testing.T) {
 }
 
 func TestLengthCheckToolMinPercentage(t *testing.T) {
+	t.Parallel()
 	cfg := &tools.LengthCheckConfig{
 		TargetLocale:  model.LocaleFrench,
 		MinPercentage: 50.0,
@@ -108,6 +112,7 @@ func TestLengthCheckToolMinPercentage(t *testing.T) {
 }
 
 func TestLengthCheckToolPass(t *testing.T) {
+	t.Parallel()
 	cfg := &tools.LengthCheckConfig{
 		TargetLocale:  model.LocaleFrench,
 		MaxChars:      50,
@@ -128,6 +133,7 @@ func TestLengthCheckToolPass(t *testing.T) {
 }
 
 func TestLengthCheckToolMultipleViolations(t *testing.T) {
+	t.Parallel()
 	cfg := &tools.LengthCheckConfig{
 		TargetLocale:  model.LocaleFrench,
 		MaxChars:      5,
@@ -151,6 +157,7 @@ func TestLengthCheckToolMultipleViolations(t *testing.T) {
 }
 
 func TestLengthCheckToolSkipsNonTranslatable(t *testing.T) {
+	t.Parallel()
 	cfg := &tools.LengthCheckConfig{
 		TargetLocale: model.LocaleFrench,
 		MaxChars:     5,
@@ -169,6 +176,7 @@ func TestLengthCheckToolSkipsNonTranslatable(t *testing.T) {
 }
 
 func TestLengthCheckToolNoTarget(t *testing.T) {
+	t.Parallel()
 	cfg := &tools.LengthCheckConfig{
 		TargetLocale: model.LocaleFrench,
 		MaxChars:     5,
@@ -186,6 +194,7 @@ func TestLengthCheckToolNoTarget(t *testing.T) {
 }
 
 func TestLengthCheckConfigValidation(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name    string
 		cfg     tools.LengthCheckConfig
@@ -230,6 +239,7 @@ func TestLengthCheckConfigValidation(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			err := tt.cfg.Validate()
 			if tt.wantErr {
 				require.Error(t, err)
