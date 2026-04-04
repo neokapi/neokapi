@@ -605,7 +605,8 @@ func extractLang(attrs []xml.Attr) string {
 }
 
 // extractInlineAttrs extracts common inline element attributes.
-func extractInlineAttrs(attrs []xml.Attr) (id, spanType string) {
+func extractInlineAttrs(attrs []xml.Attr) (string, string) {
+	var id, spanType string
 	for _, attr := range attrs {
 		switch attr.Name.Local {
 		case "i", "x":
@@ -616,7 +617,7 @@ func extractInlineAttrs(attrs []xml.Attr) (id, spanType string) {
 			spanType = attr.Value
 		}
 	}
-	return
+	return id, spanType
 }
 
 // buildBlock constructs a model.Block from parsed TU data.
