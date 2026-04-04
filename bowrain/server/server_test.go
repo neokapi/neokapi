@@ -12,7 +12,7 @@ import (
 )
 
 func TestHealthEndpoint(t *testing.T) {
-	srv := NewServer(DefaultServerConfig())
+	srv := NewServer(DefaultConfig())
 	e := srv.GetEcho()
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/health", nil)
@@ -29,7 +29,7 @@ func TestHealthEndpoint(t *testing.T) {
 }
 
 func TestInfoEndpoint(t *testing.T) {
-	srv := NewServer(DefaultServerConfig())
+	srv := NewServer(DefaultConfig())
 	e := srv.GetEcho()
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/info", nil)
@@ -51,7 +51,7 @@ func TestInfoEndpoint(t *testing.T) {
 }
 
 func TestInfoEndpointServerMode(t *testing.T) {
-	cfg := DefaultServerConfig()
+	cfg := DefaultConfig()
 	cfg.JWTSecret = "test-secret"
 	srv := NewServer(cfg)
 	e := srv.GetEcho()
@@ -69,7 +69,7 @@ func TestInfoEndpointServerMode(t *testing.T) {
 }
 
 func TestInfoEndpointContainsFormatsAndLocales(t *testing.T) {
-	srv := NewServer(DefaultServerConfig())
+	srv := NewServer(DefaultConfig())
 	e := srv.GetEcho()
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/info", nil)
@@ -99,8 +99,8 @@ func TestInfoEndpointContainsFormatsAndLocales(t *testing.T) {
 	assert.Greater(t, len(resp.Locales), 10, "should have many locales")
 }
 
-func TestDefaultServerConfig(t *testing.T) {
-	cfg := DefaultServerConfig()
+func TestDefaultConfig(t *testing.T) {
+	cfg := DefaultConfig()
 	assert.Equal(t, 8080, cfg.Port)
 	assert.Equal(t, "0.0.0.0", cfg.Host)
 	assert.Empty(t, cfg.DataDir)
@@ -160,7 +160,7 @@ func TestRequestBaseURL(t *testing.T) {
 }
 
 func TestNewServerCreatesRegistries(t *testing.T) {
-	srv := NewServer(DefaultServerConfig())
+	srv := NewServer(DefaultConfig())
 	assert.NotNil(t, srv.FormatRegistry)
 	assert.NotNil(t, srv.ToolRegistry)
 	// Verify formats were registered.

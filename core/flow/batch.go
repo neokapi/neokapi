@@ -153,7 +153,7 @@ func (b *BatchExecutor) Execute(ctx context.Context, toolFactories []ToolFactory
 
 			// Feed collectors.
 			if len(collectors) > 0 {
-				item := &FlowItem{
+				item := &Item{
 					Input: &model.RawDocument{
 						URI: file.URI,
 					},

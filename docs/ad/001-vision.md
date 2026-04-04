@@ -125,7 +125,7 @@ neokapi/                    ── Framework Module (open-source, Apache 2.0) �
     model/          content model types (Part, Block, Layer, Fragment, Span)
     format/         DataFormatReader/Writer interfaces, detection
     tool/           Tool interface, BaseTool dispatch
-    flow/           FlowExecutor, FlowBuilder, FlowDefinition
+    flow/           Executor, Builder, FlowDefinition
     registry/       FormatRegistry, ToolRegistry
     encoding/       text encoding utilities
     locale/         BCP-47 locale handling

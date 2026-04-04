@@ -466,22 +466,22 @@ type FormatSignature struct {
     Sniff      func([]byte) bool   // Custom content sniffing function (optional)
 }
 
-// FormatDetector determines the data format of a document using multiple strategies.
-type FormatDetector struct {
+// Detector determines the data format of a document using multiple strategies.
+type Detector struct {
     registry *FormatRegistry
 }
 
 // Detect tries all strategies: explicit MIME → extension → content sniffing.
-func (d *FormatDetector) Detect(path string, reader io.ReadSeeker, mimeType string) (string, error)
+func (d *Detector) Detect(path string, reader io.ReadSeeker, mimeType string) (string, error)
 
 // DetectByMIME maps a MIME type to a registered format name.
-func (d *FormatDetector) DetectByMIME(mimeType string) (string, error)
+func (d *Detector) DetectByMIME(mimeType string) (string, error)
 
 // DetectByExtension maps a file extension to a registered format name.
-func (d *FormatDetector) DetectByExtension(ext string) (string, error)
+func (d *Detector) DetectByExtension(ext string) (string, error)
 
 // DetectByContent reads the first N bytes and matches against registered signatures.
-func (d *FormatDetector) DetectByContent(reader io.ReadSeeker) (string, error)
+func (d *Detector) DetectByContent(reader io.ReadSeeker) (string, error)
 
 // DataFormatWriter reconstructs a document from Parts (Okapi: IFilterWriter).
 type DataFormatWriter interface {
@@ -714,14 +714,14 @@ type Flow struct {
     ToolFactories []ToolFactory  // for parallel: creates fresh tool chain per document
 }
 
-// FlowExecutor orchestrates the execution of a Flow across batch items.
-type FlowExecutor interface {
+// Executor orchestrates the execution of a Flow across batch items.
+type Executor interface {
     // Execute runs the Flow over the given batch items.
-    Execute(ctx context.Context, f *Flow, items []*FlowItem) error
+    Execute(ctx context.Context, f *Flow, items []*Item) error
 }
 
-// FlowItem represents a single document to process in a batch.
-type FlowItem struct {
+// Item represents a single document to process in a batch.
+type Item struct {
     Input          *model.RawDocument
     OutputPath     string
     OutputEncoding string
@@ -731,7 +731,7 @@ type FlowItem struct {
 // Collector accumulates results from processed documents.
 // Implementations must be safe for concurrent use.
 type Collector interface {
-    Collect(ctx context.Context, item *FlowItem, parts []*model.Part) error
+    Collect(ctx context.Context, item *Item, parts []*model.Part) error
     Result() (CollectorResult, error)
 }
 
@@ -740,7 +740,7 @@ type CollectorResult struct {
     Data interface{}
 }
 
-// ExecutorConfig holds configuration for the DefaultFlowExecutor.
+// ExecutorConfig holds configuration for the DefaultExecutor.
 type ExecutorConfig struct {
     MaxConcurrency int         // 0 = runtime.NumCPU(); 1 = sequential
     ChannelSize    int         // default 64
@@ -748,7 +748,7 @@ type ExecutorConfig struct {
     Collectors     []Collector
 }
 
-// ExecutorOption is a functional option for configuring a DefaultFlowExecutor.
+// ExecutorOption is a functional option for configuring a DefaultExecutor.
 type ExecutorOption func(*ExecutorConfig)
 
 func WithMaxConcurrency(n int) ExecutorOption { ... }
@@ -756,49 +756,49 @@ func WithChannelSize(n int) ExecutorOption    { ... }
 func WithFailFast(b bool) ExecutorOption      { ... }
 func WithCollectors(c ...Collector) ExecutorOption { ... }
 
-// DefaultFlowExecutor runs tools concurrently using goroutines and channels.
+// DefaultExecutor runs tools concurrently using goroutines and channels.
 // With MaxConcurrency > 1, documents are processed in parallel using
 // a semaphore-bounded fan-out pattern with errgroup.
-type DefaultFlowExecutor struct {
+type DefaultExecutor struct {
     config ExecutorConfig
 }
 
-func NewFlowExecutor(opts ...ExecutorOption) *DefaultFlowExecutor {
+func NewExecutor(opts ...ExecutorOption) *DefaultExecutor {
     // defaults: MaxConcurrency=1, ChannelSize=64, FailFast=true
 }
 
-// Execute processes FlowItems through the tool chain.
+// Execute processes Items through the tool chain.
 // When MaxConcurrency > 1 (or 0 for NumCPU), items are processed
 // in parallel using a semaphore-bounded fan-out pattern.
-func (e *DefaultFlowExecutor) Execute(ctx context.Context, f *Flow, items []*FlowItem) error
+func (e *DefaultExecutor) Execute(ctx context.Context, f *Flow, items []*Item) error
 ```
 
 ### Flow Builder
 
 ```go
-// FlowBuilder provides a fluent API for constructing Flows.
-type FlowBuilder struct {
+// Builder provides a fluent API for constructing Flows.
+type Builder struct {
     name  string
     tools []tool.Tool
-    items []*FlowItem
+    items []*Item
 }
 
-func NewFlow(name string) *FlowBuilder {
-    return &FlowBuilder{name: name}
+func NewFlow(name string) *Builder {
+    return &Builder{name: name}
 }
 
-func (fb *FlowBuilder) AddTool(t tool.Tool) *FlowBuilder {
+func (fb *Builder) AddTool(t tool.Tool) *Builder {
     fb.tools = append(fb.tools, t)
     return fb
 }
 
-func (fb *FlowBuilder) AddToolFactory(f ToolFactory) *FlowBuilder {
+func (fb *Builder) AddToolFactory(f ToolFactory) *Builder {
     fb.toolFactories = append(fb.toolFactories, f)
     return fb
 }
 
-func (fb *FlowBuilder) AddItem(input *model.RawDocument, outputPath string, targetLocale model.LocaleID) *FlowBuilder {
-    fb.items = append(fb.items, &FlowItem{
+func (fb *Builder) AddItem(input *model.RawDocument, outputPath string, targetLocale model.LocaleID) *Builder {
+    fb.items = append(fb.items, &Item{
         Input:        input,
         OutputPath:   outputPath,
         TargetLocale: targetLocale,
@@ -806,7 +806,7 @@ func (fb *FlowBuilder) AddItem(input *model.RawDocument, outputPath string, targ
     return fb
 }
 
-func (fb *FlowBuilder) Build() *Flow {
+func (fb *Builder) Build() *Flow {
     return &Flow{
         Name:  fb.name,
         Tools: fb.tools,
@@ -820,7 +820,7 @@ func (fb *FlowBuilder) Build() *Flow {
 //     AddTool(tool.NewAITranslationTool(llmClient)).
 //     Build()
 //
-// executor := flow.NewFlowExecutor()
+// executor := flow.NewExecutor()
 // executor.Execute(ctx, f, items)
 //
 // Usage (parallel, multiple documents with collector):
@@ -830,7 +830,7 @@ func (fb *FlowBuilder) Build() *Flow {
 //         return tools.NewWordCountTool(&tools.WordCountConfig{...}), nil
 //     }).Build()
 //
-// executor := flow.NewFlowExecutor(
+// executor := flow.NewExecutor(
 //     flow.WithMaxConcurrency(8),
 //     flow.WithCollectors(wc),
 // )
@@ -1077,9 +1077,9 @@ func (r *FormatRegistry) NewReader(name string) (format.DataFormatReader, error)
     return factory(), nil
 }
 
-// Detector returns a FormatDetector backed by this registry.
-func (r *FormatRegistry) Detector() *format.FormatDetector {
-    return &format.FormatDetector{Registry: r}
+// Detector returns a Detector backed by this registry.
+func (r *FormatRegistry) Detector() *format.Detector {
+    return &format.Detector{Registry: r}
 }
 
 // ToolRegistry manages available Tools.

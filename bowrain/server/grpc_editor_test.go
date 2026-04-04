@@ -16,7 +16,7 @@ import (
 func setupEditorGRPC(t *testing.T) pb.EditorServiceClient {
 	t.Helper()
 
-	cfg := DefaultServerConfig()
+	cfg := DefaultConfig()
 
 	srv := NewServer(cfg)
 	initTestStores(t, srv)
@@ -50,7 +50,7 @@ func setupEditorGRPC(t *testing.T) pb.EditorServiceClient {
 func setupBothClients(t *testing.T) (pb.EditorServiceClient, pb.NeokapiServiceClient) {
 	t.Helper()
 
-	cfg := DefaultServerConfig()
+	cfg := DefaultConfig()
 
 	srv := NewServer(cfg)
 	initTestStores(t, srv)

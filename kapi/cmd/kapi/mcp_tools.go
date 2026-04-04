@@ -521,7 +521,7 @@ func executeFlow(ctx context.Context, a *cli.App, flowName, inputPath, sourceLan
 	}
 	f := fb.Build()
 
-	executor := flow.NewFlowExecutor()
+	executor := flow.NewExecutor()
 	inCh, outCh, wait := executor.ExecuteWithChannels(ctx, f)
 
 	go func() {

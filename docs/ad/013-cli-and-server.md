@@ -38,7 +38,7 @@ The server binary (`bowrain/cmd/bowrain-server/`) provides remote access via two
 1. **Server mode** (bowrain-server with `JWTSecret` set) — Full OIDC authentication, workspaces, binds to `0.0.0.0`
 2. **Standalone mode** (bowrain-server with empty `JWTSecret`, or `bowrain serve`) — No authentication, binds to `localhost`
 
-Mode is determined by the `ServerConfig.JWTSecret` field: when set, the server enables authentication, OIDC login, and workspace management; when empty, routes are registered without auth middleware. The server reports its mode via `GET /api/v1/config` so the web UI can adapt.
+Mode is determined by the `Config.JWTSecret` field: when set, the server enables authentication, OIDC login, and workspace management; when empty, routes are registered without auth middleware. The server reports its mode via `GET /api/v1/config` so the web UI can adapt.
 
 The **REST API** (Echo v4) covers public health/config routes, auth routes (device flow, OIDC, desktop PKCE, refresh), workspace CRUD with members, project CRUD scoped to workspaces, content/block routes, sync routes for Bowrain CLI pull/push, KAZ export/import, connector management, and flow execution.
 

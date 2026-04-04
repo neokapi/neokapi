@@ -124,7 +124,7 @@ func NewWordCountCollector() *WordCountCollector {
 }
 
 // Collect reads word count properties from block parts and aggregates them.
-func (wc *WordCountCollector) Collect(_ context.Context, item *flow.FlowItem, parts []*model.Part) error {
+func (wc *WordCountCollector) Collect(_ context.Context, item *flow.Item, parts []*model.Part) error {
 	doc := DocumentWordCount{
 		URI:         item.Input.URI,
 		TargetWords: make(map[model.LocaleID]int),

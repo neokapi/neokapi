@@ -10,7 +10,7 @@ import (
 // Implementations must be safe for concurrent use.
 type Collector interface {
 	// Collect receives output parts from a single document.
-	Collect(ctx context.Context, item *FlowItem, parts []*model.Part) error
+	Collect(ctx context.Context, item *Item, parts []*model.Part) error
 	// Result returns the aggregated result after all documents complete.
 	Result() (CollectorResult, error)
 }

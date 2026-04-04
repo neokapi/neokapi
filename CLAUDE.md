@@ -116,7 +116,7 @@ neokapi/
 │   ├── model/             # Content model (Part, Block, Fragment, Span, Layer)
 │   ├── format/            # DataFormatReader/Writer interfaces
 │   ├── tool/              # Tool interface
-│   ├── flow/              # FlowExecutor, pipeline orchestration
+│   ├── flow/              # Executor, pipeline orchestration
 │   ├── registry/          # Format and tool registries
 │   ├── encoding/          # Character encoding detection/conversion
 │   ├── locale/            # BCP-47 locale utilities
@@ -302,7 +302,7 @@ The Part is the fundamental streaming unit, carrying a PartType discriminator an
 - `format.DataFormatReader` — `Open(ctx, doc)` then `Read(ctx) <-chan PartResult`
 - `format.DataFormatWriter` — `SetOutput(path)`, `Write(ctx, <-chan *Part)`
 - `tool.Tool` — `Process(ctx, in <-chan *Part, out chan<- *Part) error`
-- `flow.FlowExecutor` — orchestrates tool chains with goroutines and channels
+- `flow.Executor` — orchestrates tool chains with goroutines and channels
 - `registry.FormatRegistry` — factory registry for readers/writers with format detection
 - `aiprovider.LLMProvider` — interface for Anthropic, OpenAI, Azure OpenAI, Ollama, Gemini backends (`providers/ai/`)
 - `aiprovider.StreamingLLMProvider` — optional extension of LLMProvider with `ChatStream`/`ChatStructuredStream` for live thinking progress (streaming events: thinking, content, done)
@@ -314,7 +314,7 @@ The Part is the fundamental streaming unit, carrying a PartType discriminator an
 | Filter | DataFormat (Reader/Writer) |
 | Step | Tool |
 | Pipeline | Flow |
-| PipelineDriver | FlowExecutor |
+| PipelineDriver | Executor |
 | Event | Part |
 | TextUnit | Block |
 | TextFragment | Fragment |

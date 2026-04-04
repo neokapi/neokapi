@@ -128,9 +128,9 @@ func (s *MCPServer) handleRunFlow(ctx context.Context, req *mcp.CallToolRequest,
 	f := builder.Build()
 
 	// Build flow items from blocks.
-	items := make([]*flow.FlowItem, 0, len(blocks))
+	items := make([]*flow.Item, 0, len(blocks))
 	for _, sb := range blocks {
-		item := &flow.FlowItem{}
+		item := &flow.Item{}
 		item.OutputBlocks = append(item.OutputBlocks, sb.Block)
 		if input.TargetLocale != "" {
 			item.TargetLocale = model.LocaleID(input.TargetLocale)
@@ -139,7 +139,7 @@ func (s *MCPServer) handleRunFlow(ctx context.Context, req *mcp.CallToolRequest,
 	}
 
 	// Execute.
-	executor := flow.NewFlowExecutor(flow.WithFailFast(true))
+	executor := flow.NewExecutor(flow.WithFailFast(true))
 	if err := executor.Execute(ctx, f, items); err != nil {
 		return nil, runFlowOutput{}, fmt.Errorf("execute flow: %w", err)
 	}

@@ -37,7 +37,7 @@ type FormatRegistry struct {
 	readers  map[string]FormatReaderFactory
 	writers  map[string]FormatWriterFactory
 	infos    map[string]*FormatInfo
-	detector *format.FormatDetector
+	detector *format.Detector
 
 	// onMiss is called once when NewReader/NewWriter fails to find a format.
 	// It allows lazy-loading of plugin formats (e.g., starting bridge processes)
@@ -53,7 +53,7 @@ func NewFormatRegistry() *FormatRegistry {
 		readers:  make(map[string]FormatReaderFactory),
 		writers:  make(map[string]FormatWriterFactory),
 		infos:    make(map[string]*FormatInfo),
-		detector: format.NewFormatDetector(),
+		detector: format.NewDetector(),
 	}
 }
 
@@ -483,8 +483,8 @@ func (r *FormatRegistry) ResolveWriter(name string) (format.DataFormatWriter, er
 	return r.NewWriter(name)
 }
 
-// Detector returns the FormatDetector backed by this registry.
-func (r *FormatRegistry) Detector() *format.FormatDetector {
+// Detector returns the format Detector backed by this registry.
+func (r *FormatRegistry) Detector() *format.Detector {
 	return r.detector
 }
 

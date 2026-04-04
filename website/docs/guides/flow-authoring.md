@@ -108,7 +108,7 @@ The `StepsToGraph()` function transforms a `StepsSpec` into `FlowNode` and `Flow
 4. After a parallel block, subsequent steps connect from all branch endpoints (fan-in)
 5. A **writer** node is created from the `output` format (default: `auto`)
 
-The resulting graph is what the `FlowExecutor` runs -- each node becomes a goroutine connected by buffered channels.
+The resulting graph is what the `Executor` runs -- each node becomes a goroutine connected by buffered channels.
 
 ## Example flows
 
@@ -227,5 +227,5 @@ spec := &flow.StepsSpec{
 }
 
 nodes, edges, err := flow.StepsToGraph(spec)
-// Build and execute with FlowExecutor...
+// Build and execute with Executor...
 ```

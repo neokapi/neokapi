@@ -16,7 +16,7 @@ import (
 // newTokenTestServer creates a test server with auth configured.
 func newTokenTestServer(t *testing.T) (*Server, string, string) {
 	t.Helper()
-	cfg := DefaultServerConfig()
+	cfg := DefaultConfig()
 
 	cfg.JWTSecret = "test-token-secret"
 	srv := NewServer(cfg)

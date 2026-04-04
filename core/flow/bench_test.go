@@ -10,9 +10,9 @@ import (
 	"github.com/neokapi/neokapi/core/tool"
 )
 
-// BenchmarkFlowExecutor_SingleTool measures throughput of the flow executor
+// BenchmarkExecutor_SingleTool measures throughput of the flow executor
 // with a single passthrough tool processing 100 parts per iteration.
-func BenchmarkFlowExecutor_SingleTool(b *testing.B) {
+func BenchmarkExecutor_SingleTool(b *testing.B) {
 	b.ReportAllocs()
 
 	for b.Loop() {
@@ -20,7 +20,7 @@ func BenchmarkFlowExecutor_SingleTool(b *testing.B) {
 			AddTool(&tool.BaseTool{ToolName: "passthrough"}).
 			Build()
 
-		executor := flow.NewFlowExecutor()
+		executor := flow.NewExecutor()
 		ctx := context.Background()
 
 		in, out, wait := executor.ExecuteWithChannels(ctx, f)
@@ -44,9 +44,9 @@ func BenchmarkFlowExecutor_SingleTool(b *testing.B) {
 	}
 }
 
-// BenchmarkFlowExecutor_ToolChain measures throughput of the flow executor
+// BenchmarkExecutor_ToolChain measures throughput of the flow executor
 // with a 3-tool chain processing 100 parts per iteration.
-func BenchmarkFlowExecutor_ToolChain(b *testing.B) {
+func BenchmarkExecutor_ToolChain(b *testing.B) {
 	b.ReportAllocs()
 
 	for b.Loop() {
@@ -56,7 +56,7 @@ func BenchmarkFlowExecutor_ToolChain(b *testing.B) {
 			AddTool(&tool.BaseTool{ToolName: "tool3"}).
 			Build()
 
-		executor := flow.NewFlowExecutor()
+		executor := flow.NewExecutor()
 		ctx := context.Background()
 
 		in, out, wait := executor.ExecuteWithChannels(ctx, f)

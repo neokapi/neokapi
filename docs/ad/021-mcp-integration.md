@@ -43,7 +43,7 @@ Combining them would force agents to reason about when project context is needed
 | `list_flows` | List available processing flows | — |
 | `list_tools` | List available processing tools | — |
 
-Kapi tools reuse the same infrastructure as CLI commands: `FormatRegistry` for format detection and reader/writer creation, `FlowExecutor` for pipeline orchestration, and built-in tool constructors for flow chains.
+Kapi tools reuse the same infrastructure as CLI commands: `FormatRegistry` for format detection and reader/writer creation, `Executor` for pipeline orchestration, and built-in tool constructors for flow chains.
 
 ### Bowrain CLI MCP Tools
 
@@ -137,7 +137,7 @@ The cloud MCP server provides brand voice resources (profiles, vocabulary, examp
 
 - **Tool discovery is automatic** — agents call `tools/list` to see available tools with schemas, enabling self-directed workflows.
 
-- **No new dependencies beyond the MCP SDK** — tools reuse existing CLI infrastructure (FormatRegistry, FlowExecutor, project connectors).
+- **No new dependencies beyond the MCP SDK** — tools reuse existing CLI infrastructure (FormatRegistry, Executor, project connectors).
 
 - **Stdio transport is zero-config** — no ports, no auth tokens, no network exposure. The server runs as a child process of the MCP client.
 
