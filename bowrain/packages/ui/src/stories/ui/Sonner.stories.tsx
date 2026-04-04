@@ -22,10 +22,7 @@ type Story = StoryObj<typeof Toaster>;
 export const Default: Story = {
   render: () => (
     <div className="flex flex-wrap gap-2">
-      <Button
-        variant="outline"
-        onClick={() => toast.success("Translation saved")}
-      >
+      <Button variant="outline" onClick={() => toast.success("Translation saved")}>
         Save Translation
       </Button>
       <Button
@@ -40,10 +37,7 @@ export const Default: Story = {
       >
         Show Error
       </Button>
-      <Button
-        variant="outline"
-        onClick={() => toast.info("3 files queued for review")}
-      >
+      <Button variant="outline" onClick={() => toast.info("3 files queued for review")}>
         Show Info
       </Button>
     </div>
