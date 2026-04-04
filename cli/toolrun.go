@@ -343,7 +343,10 @@ func (a *App) processOneFile(ctx context.Context, cfg ToolRunConfig, filePath st
 
 	fb := flow.NewFlow(cfg.ToolName)
 	fb.AddTool(t)
-	f := fb.Build()
+	f, err := fb.Build()
+	if err != nil {
+		return fmt.Errorf("build flow: %w", err)
+	}
 
 	executor := flow.NewExecutor()
 	inCh, outCh, wait := executor.ExecuteWithChannels(ctx, f)

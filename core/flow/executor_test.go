@@ -49,11 +49,12 @@ func countingTool(name string, count *atomic.Int64) *tool.BaseTool {
 func TestExecutorWithThreeMockTools(t *testing.T) {
 	var count1, count2, count3 atomic.Int64
 
-	f := flow.NewFlow("test").
+	f, err := flow.NewFlow("test").
 		AddTool(countingTool("tool1", &count1)).
 		AddTool(countingTool("tool2", &count2)).
 		AddTool(countingTool("tool3", &count3)).
 		Build()
+	require.NoError(t, err)
 
 	executor := flow.NewExecutor()
 	ctx := t.Context()
@@ -78,7 +79,7 @@ func TestExecutorWithThreeMockTools(t *testing.T) {
 		results = append(results, p)
 	}
 
-	err := wait()
+	err = wait()
 	require.NoError(t, err)
 
 	assert.Len(t, results, numParts)
@@ -88,10 +89,11 @@ func TestExecutorWithThreeMockTools(t *testing.T) {
 }
 
 func TestExecutorPreservesOrder(t *testing.T) {
-	f := flow.NewFlow("order-test").
+	f, err := flow.NewFlow("order-test").
 		AddTool(passThroughTool("tool1")).
 		AddTool(passThroughTool("tool2")).
 		Build()
+	require.NoError(t, err)
 
 	executor := flow.NewExecutor()
 	ctx := t.Context()
@@ -114,7 +116,7 @@ func TestExecutorPreservesOrder(t *testing.T) {
 		results = append(results, p)
 	}
 
-	err := wait()
+	err = wait()
 	require.NoError(t, err)
 
 	assert.Len(t, results, numParts)
@@ -125,9 +127,10 @@ func TestExecutorPreservesOrder(t *testing.T) {
 }
 
 func TestExecutorModification(t *testing.T) {
-	f := flow.NewFlow("modify").
+	f, err := flow.NewFlow("modify").
 		AddTool(uppercaseTool()).
 		Build()
+	require.NoError(t, err)
 
 	executor := flow.NewExecutor()
 	ctx := t.Context()
@@ -147,7 +150,7 @@ func TestExecutorModification(t *testing.T) {
 		results = append(results, p)
 	}
 
-	err := wait()
+	err = wait()
 	require.NoError(t, err)
 
 	require.Len(t, results, 1)
@@ -163,11 +166,12 @@ func TestExecutorErrorPropagation(t *testing.T) {
 		},
 	}
 
-	f := flow.NewFlow("error-test").
+	f, err := flow.NewFlow("error-test").
 		AddTool(passThroughTool("tool1")).
 		AddTool(errTool).
 		AddTool(passThroughTool("tool3")).
 		Build()
+	require.NoError(t, err)
 
 	executor := flow.NewExecutor()
 	ctx := t.Context()
@@ -186,7 +190,7 @@ func TestExecutorErrorPropagation(t *testing.T) {
 	for range out {
 	}
 
-	err := wait()
+	err = wait()
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "processing error")
 }
@@ -203,9 +207,10 @@ func TestFlowExecutorContextCancellation(t *testing.T) {
 		},
 	}
 
-	f := flow.NewFlow("cancel-test").
+	f, err := flow.NewFlow("cancel-test").
 		AddTool(blockingTool).
 		Build()
+	require.NoError(t, err)
 
 	executor := flow.NewExecutor()
 
@@ -226,33 +231,21 @@ func TestFlowExecutorContextCancellation(t *testing.T) {
 	for range out {
 	}
 
-	err := wait()
+	err = wait()
 	require.Error(t, err)
 }
 
 func TestExecutorNoTools(t *testing.T) {
-	f := flow.NewFlow("empty").Build()
-	executor := flow.NewExecutor()
-	ctx := t.Context()
+	_, err := flow.NewFlow("empty").Build()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "at least one tool")
+}
 
-	in, out, wait := executor.ExecuteWithChannels(ctx, f)
-
-	go func() {
-		in <- &model.Part{
-			Type:     model.PartBlock,
-			Resource: model.NewBlock("tu1", "Hello"),
-		}
-		close(in)
-	}()
-
-	var results []*model.Part
-	for p := range out {
-		results = append(results, p)
-	}
-
-	err := wait()
-	require.NoError(t, err)
-	assert.Len(t, results, 1)
+func TestFlowBuilderEmptyName(t *testing.T) {
+	dummyTool := &tool.BaseTool{ToolName: "dummy"}
+	_, err := flow.NewFlow("").AddTool(dummyTool).Build()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "name must not be empty")
 }
 
 func TestExecutorMixedPartTypes(t *testing.T) {
@@ -278,7 +271,8 @@ func TestExecutorMixedPartTypes(t *testing.T) {
 		},
 	}
 
-	f := flow.NewFlow("mixed").AddTool(trackingTool).Build()
+	f, err := flow.NewFlow("mixed").AddTool(trackingTool).Build()
+	require.NoError(t, err)
 	executor := flow.NewExecutor()
 	ctx := t.Context()
 
@@ -299,7 +293,7 @@ func TestExecutorMixedPartTypes(t *testing.T) {
 		results = append(results, p)
 	}
 
-	err := wait()
+	err = wait()
 	require.NoError(t, err)
 
 	assert.Len(t, results, 6)
@@ -309,10 +303,11 @@ func TestExecutorMixedPartTypes(t *testing.T) {
 }
 
 func TestBuilder(t *testing.T) {
-	f := flow.NewFlow("test-flow").
+	f, err := flow.NewFlow("test-flow").
 		AddTool(passThroughTool("tool1")).
 		AddTool(passThroughTool("tool2")).
 		Build()
+	require.NoError(t, err)
 
 	assert.Equal(t, "test-flow", f.Name)
 	assert.Len(t, f.Tools, 2)
@@ -355,9 +350,10 @@ func TestParallelExecutionMultipleDocuments(t *testing.T) {
 		}, nil
 	}
 
-	f := flow.NewFlow("parallel-test").
+	f, err := flow.NewFlow("parallel-test").
 		AddToolFactory(uppercaseFactory).
 		Build()
+	require.NoError(t, err)
 
 	executor := flow.NewExecutor(
 		flow.WithMaxConcurrency(4),
@@ -371,7 +367,7 @@ func TestParallelExecutionMultipleDocuments(t *testing.T) {
 		}
 	}
 
-	err := executor.Execute(t.Context(), f, items)
+	err = executor.Execute(t.Context(), f, items)
 	require.NoError(t, err)
 
 	// Each document's tool chain gets an empty pipeline (processItemCollect closes input),
@@ -402,11 +398,12 @@ func TestParallelExecutionWithCollector(t *testing.T) {
 		},
 	}
 
-	f := flow.NewFlow("collector-test").
+	f, err := flow.NewFlow("collector-test").
 		AddToolFactory(func() (tool.Tool, error) {
 			return passThroughTool("pass"), nil
 		}).
 		Build()
+	require.NoError(t, err)
 
 	executor := flow.NewExecutor(
 		flow.WithMaxConcurrency(2),
@@ -419,7 +416,7 @@ func TestParallelExecutionWithCollector(t *testing.T) {
 		{Input: &model.RawDocument{URI: "c.html"}},
 	}
 
-	err := executor.Execute(t.Context(), f, items)
+	err = executor.Execute(t.Context(), f, items)
 	require.NoError(t, err)
 
 	mu.Lock()
@@ -435,7 +432,7 @@ func TestParallelExecutionWithCollector(t *testing.T) {
 func TestParallelExecutionErrorPropagation(t *testing.T) {
 	callCount := atomic.Int64{}
 
-	f := flow.NewFlow("error-parallel").
+	f, err := flow.NewFlow("error-parallel").
 		AddToolFactory(func() (tool.Tool, error) {
 			return &tool.BaseTool{
 				ToolName: "maybe-error",
@@ -449,6 +446,7 @@ func TestParallelExecutionErrorPropagation(t *testing.T) {
 			}, nil
 		}).
 		Build()
+		require.NoError(t, err)
 
 	executor := flow.NewExecutor(
 		flow.WithMaxConcurrency(4),
@@ -462,18 +460,19 @@ func TestParallelExecutionErrorPropagation(t *testing.T) {
 
 	// processItemCollect closes input immediately, so the tools get no blocks.
 	// This tests that the parallel path itself works without deadlock.
-	err := executor.Execute(t.Context(), f, items)
+	err = executor.Execute(t.Context(), f, items)
 	require.NoError(t, err)
 }
 
 func TestParallelExecutionContextCancellation(t *testing.T) {
 	ctx, cancel := context.WithCancel(t.Context())
 
-	f := flow.NewFlow("cancel-parallel").
+	f, err := flow.NewFlow("cancel-parallel").
 		AddToolFactory(func() (tool.Tool, error) {
 			return passThroughTool("pass"), nil
 		}).
 		Build()
+	require.NoError(t, err)
 
 	executor := flow.NewExecutor(
 		flow.WithMaxConcurrency(2),
@@ -487,7 +486,7 @@ func TestParallelExecutionContextCancellation(t *testing.T) {
 	// Cancel before execution
 	cancel()
 
-	err := executor.Execute(ctx, f, items)
+	err = executor.Execute(ctx, f, items)
 	// May or may not error depending on timing, but must not deadlock.
 	_ = err
 }
@@ -496,9 +495,10 @@ func TestSingleItemDirectTools(t *testing.T) {
 	// With a single item, Execute should use f.Tools directly (no factory needed).
 	var count atomic.Int64
 
-	f := flow.NewFlow("single").
+	f, err := flow.NewFlow("single").
 		AddTool(countingTool("counter", &count)).
 		Build()
+	require.NoError(t, err)
 
 	executor := flow.NewExecutor() // default: sequential
 
@@ -506,7 +506,7 @@ func TestSingleItemDirectTools(t *testing.T) {
 		{Input: &model.RawDocument{URI: "single.html"}},
 	}
 
-	err := executor.Execute(t.Context(), f, items)
+	err = executor.Execute(t.Context(), f, items)
 	require.NoError(t, err)
 	// processItemCollect closes input immediately, so no blocks are processed.
 	// Key test: no panic, no deadlock, direct tools path used.
@@ -523,7 +523,7 @@ func TestExecutorOptions(t *testing.T) {
 }
 
 func TestBuilderWithToolFactory(t *testing.T) {
-	f := flow.NewFlow("factory-test").
+	f, err := flow.NewFlow("factory-test").
 		AddToolFactory(func() (tool.Tool, error) {
 			return passThroughTool("pass"), nil
 		}).
@@ -531,6 +531,7 @@ func TestBuilderWithToolFactory(t *testing.T) {
 			return passThroughTool("pass2"), nil
 		}).
 		Build()
+	require.NoError(t, err)
 
 	assert.Equal(t, "factory-test", f.Name)
 	assert.Len(t, f.ToolFactories, 2)

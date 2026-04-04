@@ -4,24 +4,32 @@ package model
 type PartType int
 
 const (
-	PartLayerStart  PartType = iota // Start of a structural layer
-	PartLayerEnd                    // End of a structural layer
-	PartGroupStart                  // Start of a structural group within a layer
-	PartGroupEnd                    // End of a structural group
-	PartBlock                       // Translatable content
-	PartData                        // Non-translatable document structure
-	PartMedia                       // Binary/media content
-	_                               // reserved (was PartBatchStart)
-	_                               // reserved (was PartBatchEnd)
-	_                               // reserved (was PartBatchItemStart)
-	_                               // reserved (was PartBatchItemEnd)
-	PartRawDocument                 // Unprocessed document
-	PartCustom                      // Custom extension
+	// PartTypeUnknown is the zero value, ensuring uninitialized PartType fields
+	// are not silently treated as a valid type.
+	PartTypeUnknown PartType = 0
+
+	// Explicit integer values preserve wire compatibility (JSON plugin DTOs,
+	// protobuf PartMessage.part_type). Do NOT renumber existing constants.
+	PartLayerStart  PartType = 1  // Start of a structural layer
+	PartLayerEnd    PartType = 2  // End of a structural layer
+	PartGroupStart  PartType = 3  // Start of a structural group within a layer
+	PartGroupEnd    PartType = 4  // End of a structural group
+	PartBlock       PartType = 5  // Translatable content
+	PartData        PartType = 6  // Non-translatable document structure
+	PartMedia       PartType = 7  // Binary/media content
+	_               PartType = 8  // reserved (was PartBatchStart)
+	_               PartType = 9  // reserved (was PartBatchEnd)
+	_               PartType = 10 // reserved (was PartBatchItemStart)
+	_               PartType = 11 // reserved (was PartBatchItemEnd)
+	PartRawDocument PartType = 12 // Unprocessed document
+	PartCustom      PartType = 13 // Custom extension
 )
 
 // String returns the name of the PartType.
 func (pt PartType) String() string {
 	switch pt {
+	case PartTypeUnknown:
+		return "Unknown"
 	case PartLayerStart:
 		return "LayerStart"
 	case PartLayerEnd:

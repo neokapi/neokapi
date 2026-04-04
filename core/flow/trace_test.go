@@ -216,7 +216,8 @@ func TestTracingTool(t *testing.T) {
 		assert.Equal(t, "pass-through", traced.Name())
 		assert.Equal(t, "does nothing", traced.Description())
 
-		f := flow.NewFlow("test").AddTool(traced).Build()
+		f, err := flow.NewFlow("test").AddTool(traced).Build()
+		require.NoError(t, err)
 		executor := flow.NewExecutor()
 		ctx := t.Context()
 
@@ -237,7 +238,7 @@ func TestTracingTool(t *testing.T) {
 		for p := range out {
 			results = append(results, p)
 		}
-		err := wait()
+		err = wait()
 		require.NoError(t, err)
 
 		assert.Len(t, results, 3)
@@ -280,7 +281,8 @@ func TestTracingTool(t *testing.T) {
 		rec := flow.NewTraceRecorder()
 		traced := flow.NewTracingTool(inner, "upper-node", rec)
 
-		f := flow.NewFlow("test").AddTool(traced).Build()
+		f, err := flow.NewFlow("test").AddTool(traced).Build()
+		require.NoError(t, err)
 		executor := flow.NewExecutor()
 		ctx := t.Context()
 
@@ -298,7 +300,7 @@ func TestTracingTool(t *testing.T) {
 		for p := range out {
 			results = append(results, p)
 		}
-		err := wait()
+		err = wait()
 		require.NoError(t, err)
 
 		require.Len(t, results, 1)
@@ -318,7 +320,8 @@ func TestTracingTool(t *testing.T) {
 		tool1 := flow.NewTracingTool(&tool.BaseTool{ToolName: "step1"}, "node-1", rec)
 		tool2 := flow.NewTracingTool(&tool.BaseTool{ToolName: "step2"}, "node-2", rec)
 
-		f := flow.NewFlow("multi").AddTool(tool1).AddTool(tool2).Build()
+		f, err := flow.NewFlow("multi").AddTool(tool1).AddTool(tool2).Build()
+		require.NoError(t, err)
 		executor := flow.NewExecutor()
 		ctx := t.Context()
 
@@ -335,7 +338,7 @@ func TestTracingTool(t *testing.T) {
 		for p := range out {
 			results = append(results, p)
 		}
-		err := wait()
+		err = wait()
 		require.NoError(t, err)
 
 		assert.Len(t, results, 1)

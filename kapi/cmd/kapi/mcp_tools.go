@@ -519,7 +519,10 @@ func executeFlow(ctx context.Context, a *cli.App, flowName, inputPath, sourceLan
 	for _, t := range flowTools {
 		fb.AddTool(t)
 	}
-	f := fb.Build()
+	f, err := fb.Build()
+	if err != nil {
+		return "", fmt.Errorf("build flow: %w", err)
+	}
 
 	executor := flow.NewExecutor()
 	inCh, outCh, wait := executor.ExecuteWithChannels(ctx, f)

@@ -23,7 +23,7 @@ func exampleUppercaseTool() *tool.BaseTool {
 
 func ExampleNewFlow() {
 	// Build a flow with a single tool.
-	f := flow.NewFlow("uppercase-flow").
+	f, _ := flow.NewFlow("uppercase-flow").
 		AddTool(exampleUppercaseTool()).
 		Build()
 
