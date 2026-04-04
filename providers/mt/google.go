@@ -84,7 +84,7 @@ func (p *GoogleProvider) Translate(ctx context.Context, req TranslateRequest) (*
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("API returned status %d: %s", resp.StatusCode, string(respBody))
+		return nil, fmt.Errorf("api returned status %d: %s", resp.StatusCode, string(respBody))
 	}
 
 	var result googleTranslateResponse

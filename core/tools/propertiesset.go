@@ -27,7 +27,7 @@ func (c *PropertiesSetConfig) Reset() {
 // Validate checks configuration validity.
 func (c *PropertiesSetConfig) Validate() error {
 	if len(c.Properties) == 0 {
-		return fmt.Errorf("PropertiesSetConfig: Properties must not be empty")
+		return fmt.Errorf("properties-set: properties must not be empty")
 	}
 	return nil
 }

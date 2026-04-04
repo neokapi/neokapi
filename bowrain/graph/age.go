@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	coreg "github.com/neokapi/neokapi/core/graph"
@@ -37,10 +38,12 @@ func (s *AGEGraphStore) EnsureGraph(ctx context.Context) error {
 	_, err := s.pool.Exec(ctx, fmt.Sprintf(
 		`SELECT * FROM ag_catalog.create_graph('%s')`, graphName))
 	if err != nil {
-		// Ignore "already exists" errors.
-		if !strings.Contains(err.Error(), "already exists") {
-			return fmt.Errorf("create graph: %w", err)
+		// Ignore "duplicate object" (SQLSTATE 42710) — the graph already exists.
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) && pgErr.Code == "42710" {
+			return nil
 		}
+		return fmt.Errorf("create graph: %w", err)
 	}
 	return nil
 }
