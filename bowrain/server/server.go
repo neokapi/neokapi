@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -648,13 +649,13 @@ func (s *Server) SetupRoutes(e *echo.Echo) {
 	e.Use(observe.MetricsMiddleware())
 	e.Use(middleware.Recover())
 	e.Use(middleware.BodyLimit("50M"))
-	e.Use(middleware.CORS())
+	e.Use(middleware.CORSWithConfig(s.corsConfig()))
 
 	// Prometheus metrics endpoint (no auth).
 	e.GET("/metrics", echo.WrapHandler(promhttp.Handler()))
 
-	// pprof endpoints (behind BOWRAIN_PPROF_ENABLED env var).
-	observe.RegisterPprof(e)
+	// pprof endpoints are served on a separate localhost-only listener
+	// (see observe.StartPprofServer in main.go).
 
 	// API v1 routes
 	v1 := e.Group("/api/v1")
@@ -867,11 +868,19 @@ func serveSPAFile(c echo.Context, dir string) error {
 	if reqPath == "" {
 		reqPath = "index.html"
 	}
-	filePath := filepath.Join(dir, filepath.Clean(reqPath))
+	// Resolve both base and target to absolute paths to prevent path traversal.
+	baseDir, err := filepath.Abs(dir)
+	if err != nil {
+		return c.String(http.StatusNotFound, "not found")
+	}
+	filePath := filepath.Join(baseDir, filepath.Clean(reqPath))
+	if !strings.HasPrefix(filePath, baseDir+string(filepath.Separator)) && filePath != baseDir {
+		return c.String(http.StatusNotFound, "not found")
+	}
 	if info, err := os.Stat(filePath); err == nil && !info.IsDir() {
 		return c.File(filePath)
 	}
-	return c.File(filepath.Join(dir, "index.html"))
+	return c.File(filepath.Join(baseDir, "index.html"))
 }
 
 // registerWorkspaceContentRoutes registers all workspace-scoped content routes
@@ -1244,4 +1253,38 @@ func requestBaseURL(c echo.Context) string {
 		host = c.Request().Host
 	}
 	return fmt.Sprintf("%s://%s", c.Scheme(), host)
+}
+
+// corsConfig builds a CORS middleware configuration. When a fixed
+// OIDCPublicURL is configured (production), only that origin is allowed.
+// Otherwise, the middleware dynamically allows the request's own origin
+// (same-origin requests only).
+func (s *Server) corsConfig() middleware.CORSConfig {
+	cfg := middleware.CORSConfig{
+		AllowMethods: []string{http.MethodGet, http.MethodHead, http.MethodPut, http.MethodPatch, http.MethodPost, http.MethodDelete, http.MethodOptions},
+		AllowHeaders: []string{echo.HeaderOrigin, echo.HeaderContentType, echo.HeaderAccept, echo.HeaderAuthorization, "X-Requested-With"},
+	}
+
+	if s.Config.OIDCPublicURL != "" {
+		// Use the OIDC public URL's origin (scheme + host) as the allowed origin.
+		if u, err := url.Parse(s.Config.OIDCPublicURL); err == nil && u.Host != "" {
+			origin := u.Scheme + "://" + u.Host
+			cfg.AllowOrigins = []string{origin}
+			return cfg
+		}
+	}
+
+	// Dynamic: allow only requests whose Origin matches the server's own host.
+	cfg.AllowOriginFunc = func(origin string) (bool, error) {
+		u, err := url.Parse(origin)
+		if err != nil {
+			return false, nil
+		}
+		// Allow localhost origins in development.
+		if u.Hostname() == "localhost" || u.Hostname() == "127.0.0.1" {
+			return true, nil
+		}
+		return false, nil
+	}
+	return cfg
 }

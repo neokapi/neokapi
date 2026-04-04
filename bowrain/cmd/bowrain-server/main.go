@@ -236,6 +236,9 @@ func main() {
 	pb.RegisterEditorServiceServer(grpcSrv, server.NewEditorGRPCServer(srv))
 	srv.GRPCServer = grpcSrv
 
+	// Start pprof on a separate localhost-only listener (if enabled).
+	pprofShutdown := observe.StartPprofServer(context.Background())
+
 	// Graceful shutdown: start server in a goroutine, wait for signal.
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
@@ -253,6 +256,9 @@ func main() {
 
 	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer shutdownCancel()
+	if pprofShutdown != nil {
+		_ = pprofShutdown(shutdownCtx)
+	}
 	if err := srv.Shutdown(shutdownCtx); err != nil {
 		slog.Error("forced shutdown", "error", err)
 	}

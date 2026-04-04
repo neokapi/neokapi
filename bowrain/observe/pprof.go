@@ -1,35 +1,54 @@
 package observe
 
 import (
+	"context"
+	"fmt"
 	"log/slog"
+	"net"
 	"net/http"
 	"net/http/pprof"
 	"os"
-
-	"github.com/labstack/echo/v4"
+	"time"
 )
 
-// RegisterPprof conditionally registers /debug/pprof/* endpoints on the Echo
-// instance. Enabled only when BOWRAIN_PPROF_ENABLED=true.
+// StartPprofServer conditionally starts a separate HTTP server for /debug/pprof/*
+// endpoints. Enabled only when BOWRAIN_PPROF_ENABLED=true.
 //
-// Security: these endpoints expose runtime internals. In production, ensure
-// they are not reachable from external traffic (e.g. block /debug/* at the
-// reverse proxy).
-func RegisterPprof(e *echo.Echo) {
+// The server binds to localhost only (127.0.0.1:6060 by default) so it is never
+// reachable from external networks. Override the port with BOWRAIN_PPROF_PORT.
+//
+// Returns a shutdown function that should be called during graceful shutdown.
+// Returns nil if pprof is disabled.
+func StartPprofServer(ctx context.Context) (shutdown func(context.Context) error) {
 	if os.Getenv("BOWRAIN_PPROF_ENABLED") != "true" {
-		return
+		return nil
 	}
 
-	g := e.Group("/debug/pprof")
-	g.GET("/", echo.WrapHandler(http.HandlerFunc(pprof.Index)))
-	g.GET("/cmdline", echo.WrapHandler(http.HandlerFunc(pprof.Cmdline)))
-	g.GET("/profile", echo.WrapHandler(http.HandlerFunc(pprof.Profile)))
-	g.GET("/symbol", echo.WrapHandler(http.HandlerFunc(pprof.Symbol)))
-	g.GET("/trace", echo.WrapHandler(http.HandlerFunc(pprof.Trace)))
-	g.GET("/:name", func(c echo.Context) error {
-		pprof.Handler(c.Param("name")).ServeHTTP(c.Response(), c.Request())
-		return nil
-	})
+	port := os.Getenv("BOWRAIN_PPROF_PORT")
+	if port == "" {
+		port = "6060"
+	}
 
-	slog.Info("pprof endpoints enabled at /debug/pprof/")
+	mux := http.NewServeMux()
+	mux.HandleFunc("/debug/pprof/", pprof.Index)
+	mux.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
+	mux.HandleFunc("/debug/pprof/profile", pprof.Profile)
+	mux.HandleFunc("/debug/pprof/symbol", pprof.Symbol)
+	mux.HandleFunc("/debug/pprof/trace", pprof.Trace)
+
+	addr := net.JoinHostPort("127.0.0.1", port)
+	srv := &http.Server{
+		Addr:              addr,
+		Handler:           mux,
+		ReadHeaderTimeout: 10 * time.Second,
+	}
+
+	go func() {
+		slog.Info(fmt.Sprintf("pprof server listening on %s (localhost only)", addr))
+		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			slog.Error("pprof server error", "error", err)
+		}
+	}()
+
+	return srv.Shutdown
 }
