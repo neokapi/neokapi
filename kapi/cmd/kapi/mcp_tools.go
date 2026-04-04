@@ -231,7 +231,10 @@ func handleExtractContent(ctx context.Context, a *cli.App, input ExtractContentI
 			return nil, ExtractContentOutput{}, fmt.Errorf("read error: %w", result.Error)
 		}
 		if result.Part.Type == model.PartBlock {
-			blk := result.Part.Resource.(*model.Block)
+			blk, ok := result.Part.Resource.(*model.Block)
+			if !ok {
+				continue
+			}
 			if !blk.Translatable {
 				continue
 			}
@@ -304,7 +307,10 @@ func handleWordCount(ctx context.Context, a *cli.App, input WordCountInput) (*mc
 			return nil, WordCountOutput{}, fmt.Errorf("read error: %w", result.Error)
 		}
 		if result.Part.Type == model.PartBlock {
-			blk := result.Part.Resource.(*model.Block)
+			blk, ok := result.Part.Resource.(*model.Block)
+			if !ok {
+				continue
+			}
 			if !blk.Translatable {
 				continue
 			}

@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"log/slog"
 	"net/http"
 	"strings"
 	"time"
@@ -131,6 +132,11 @@ func handleAPIToken(c echo.Context, next echo.HandlerFunc, token string, authSto
 
 	// Fire-and-forget last-used update.
 	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				slog.Error("recovered panic in API token last-used update", "panic", r)
+			}
+		}()
 		_ = authStore.UpdateAPITokenLastUsed(context.Background(), apiToken.ID)
 	}()
 

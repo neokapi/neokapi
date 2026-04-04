@@ -101,7 +101,14 @@ func (b *ChannelEventBus) addSubscriber(sub *platev.Subscription) {
 	go func() {
 		defer close(s.done)
 		for ev := range s.ch {
-			sub.Handler(ev)
+			func() {
+				defer func() {
+					if r := recover(); r != nil {
+						log.Printf("ERROR: recovered panic in event handler %s: %v", sub.ID, r)
+					}
+				}()
+				sub.Handler(ev)
+			}()
 		}
 	}()
 

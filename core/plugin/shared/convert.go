@@ -29,7 +29,12 @@ func DTOToAnnotation(d AnnotationDTO) model.Annotation {
 			Fields: jsonToMap(d.Data),
 		}
 	}
-	_ = json.Unmarshal(d.Data, a)
+	if err := json.Unmarshal(d.Data, a); err != nil {
+		return &model.GenericAnnotation{
+			Type_:  d.Type,
+			Fields: jsonToMap(d.Data),
+		}
+	}
 	return a
 }
 
@@ -58,8 +63,13 @@ func DTOToAnnotations(dtos map[string]AnnotationDTO) map[string]model.Annotation
 }
 
 func jsonToMap(data []byte) map[string]any {
+	if len(data) == 0 {
+		return make(map[string]any)
+	}
 	var m map[string]any
-	_ = json.Unmarshal(data, &m)
+	if err := json.Unmarshal(data, &m); err != nil || m == nil {
+		return make(map[string]any)
+	}
 	return m
 }
 
