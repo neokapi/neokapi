@@ -12,5 +12,6 @@ type PropertySchema = schema.PropertySchema
 type SchemaRegistry = schema.SchemaRegistry
 
 // NewSchemaRegistry creates a new schema registry.
+//
 // Deprecated: Use schema.NewSchemaRegistry() directly.
 var NewSchemaRegistry = schema.NewSchemaRegistry

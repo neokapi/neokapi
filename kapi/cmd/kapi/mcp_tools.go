@@ -13,7 +13,6 @@ import (
 	"github.com/neokapi/neokapi/core/flow"
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/model"
-	"github.com/neokapi/neokapi/core/plugin/loader"
 	pluginreg "github.com/neokapi/neokapi/core/plugin/registry"
 	"github.com/neokapi/neokapi/core/preset"
 	"github.com/neokapi/neokapi/core/tool"
@@ -552,9 +551,9 @@ func executeFlow(ctx context.Context, a *cli.App, flowName, inputPath, sourceLan
 
 	// Prefer passing the file path over loading content bytes when the writer
 	// supports it. This avoids duplicating the file in memory for gRPC transfer.
-	if sps, ok := writer.(loader.SourcePathSetter); ok && filepath.IsAbs(inputPath) {
+	if sps, ok := writer.(format.SourcePathSetter); ok && filepath.IsAbs(inputPath) {
 		sps.SetSourcePath(inputPath)
-	} else if ocs, ok := writer.(loader.OriginalContentSetter); ok {
+	} else if ocs, ok := writer.(format.OriginalContentSetter); ok {
 		ocs.SetOriginalContent(inputContent)
 	}
 

@@ -18,7 +18,7 @@ func TestLoadBridgeStepTools_LoadsFromDirectory(t *testing.T) {
 	loader := &PluginLoader{}
 	bridgeReg := bridge.NewBridgeRegistry(1, 1, nil)
 
-	loader.loadBridgeStepTools(filepath.Join("testdata"), bridgeReg, bridge.BridgeConfig{}, toolReg, "test")
+	loader.loadBridgeStepTools("testdata", bridgeReg, bridge.BridgeConfig{}, toolReg, "test")
 
 	names := toolReg.Names()
 	assert.NotEmpty(t, names, "expected step tools to be registered")
@@ -32,7 +32,7 @@ func TestLoadBridgeStepTools_SchemaMetadata(t *testing.T) {
 	loader := &PluginLoader{}
 	bridgeReg := bridge.NewBridgeRegistry(1, 1, nil)
 
-	loader.loadBridgeStepTools(filepath.Join("testdata"), bridgeReg, bridge.BridgeConfig{}, toolReg, "test")
+	loader.loadBridgeStepTools("testdata", bridgeReg, bridge.BridgeConfig{}, toolReg, "test")
 
 	s := toolReg.GetSchema("search-and-replace")
 	require.NotNil(t, s)
@@ -51,7 +51,7 @@ func TestLoadBridgeStepTools_MapsOkapiNameToNeokapi(t *testing.T) {
 	loader := &PluginLoader{}
 	bridgeReg := bridge.NewBridgeRegistry(1, 1, nil)
 
-	loader.loadBridgeStepTools(filepath.Join("testdata"), bridgeReg, bridge.BridgeConfig{}, toolReg, "test")
+	loader.loadBridgeStepTools("testdata", bridgeReg, bridge.BridgeConfig{}, toolReg, "test")
 
 	// Schema preserves Okapi naming
 	s := toolReg.GetSchema("search-and-replace")
@@ -101,7 +101,7 @@ func TestLoadBridgeStepTools_ToolInfoMetadata(t *testing.T) {
 	loader := &PluginLoader{}
 	bridgeReg := bridge.NewBridgeRegistry(1, 1, nil)
 
-	loader.loadBridgeStepTools(filepath.Join("testdata"), bridgeReg, bridge.BridgeConfig{}, toolReg, "test")
+	loader.loadBridgeStepTools("testdata", bridgeReg, bridge.BridgeConfig{}, toolReg, "test")
 
 	infos := toolReg.ListWithSchemas()
 	var found *registry.ToolInfo

@@ -3,6 +3,7 @@ package format
 import (
 	"bufio"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -87,7 +88,7 @@ func (s *SkeletonStore) Flush() error {
 // Next reads the next skeleton entry. Returns io.EOF when done.
 func (s *SkeletonStore) Next() (SkeletonEntry, error) {
 	if s.reader == nil {
-		return SkeletonEntry{}, fmt.Errorf("skeleton store: must call Flush before reading")
+		return SkeletonEntry{}, errors.New("skeleton store: must call Flush before reading")
 	}
 	typByte, err := s.reader.ReadByte()
 	if err != nil {

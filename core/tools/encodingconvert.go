@@ -1,6 +1,7 @@
 package tools
 
 import (
+	"errors"
 	"fmt"
 	"html"
 	"regexp"
@@ -19,9 +20,9 @@ const PropEncodingTarget = "encoding-target"
 // EncodingConvertConfig holds configuration for the encoding conversion tool.
 type EncodingConvertConfig struct {
 	TargetEncoding string         `json:"targetEncoding,omitempty" schema:"title=Target Encoding,description=Target encoding name (e.g. utf-8 or iso-8859-1 or shift-jis)"` // Target encoding name (e.g., "utf-8", "iso-8859-1", "shift-jis")
-	ApplySource    bool           `json:"applySource,omitempty"    schema:"title=Apply to Source,description=Apply encoding conversion to source text"` // Apply to source (default: false)
-	ApplyTarget    bool           `json:"applyTarget,omitempty"    schema:"title=Apply to Target,description=Apply encoding conversion to target text,default=true"` // Apply to target (default: true)
-	TargetLocale   model.LocaleID `json:"targetLocale,omitempty"   schema:"title=Target Locale,description=Target locale for processing,showIfSet=ApplyTarget"` // Required when ApplyTarget is true
+	ApplySource    bool           `json:"applySource,omitempty"    schema:"title=Apply to Source,description=Apply encoding conversion to source text"`                     // Apply to source (default: false)
+	ApplyTarget    bool           `json:"applyTarget,omitempty"    schema:"title=Apply to Target,description=Apply encoding conversion to target text,default=true"`        // Apply to target (default: true)
+	TargetLocale   model.LocaleID `json:"targetLocale,omitempty"   schema:"title=Target Locale,description=Target locale for processing,showIfSet=ApplyTarget"`             // Required when ApplyTarget is true
 
 	// Unescape options control how escape sequences in input are decoded.
 	UnescapeNCR  bool `json:"unescapeNCR,omitempty"  schema:"title=Unescape Numeric Character References,description=Unescape numeric character references (e.g. &#xE1;) when reading input,default=true"`
@@ -52,13 +53,13 @@ func (c *EncodingConvertConfig) Reset() {
 // Validate checks configuration validity.
 func (c *EncodingConvertConfig) Validate() error {
 	if c.TargetEncoding == "" {
-		return fmt.Errorf("encoding-convert: TargetEncoding is required")
+		return errors.New("encoding-convert: TargetEncoding is required")
 	}
 	if _, err := ianaindex.IANA.Encoding(c.TargetEncoding); err != nil {
 		return fmt.Errorf("encoding-convert: unsupported encoding %q: %w", c.TargetEncoding, err)
 	}
 	if c.ApplyTarget && c.TargetLocale.IsEmpty() {
-		return fmt.Errorf("encoding-convert: TargetLocale required when ApplyTarget is true")
+		return errors.New("encoding-convert: TargetLocale required when ApplyTarget is true")
 	}
 	return nil
 }

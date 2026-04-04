@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -348,7 +349,7 @@ func messagesToGeminiContents(messages []Message) []geminiContent {
 
 func extractGeminiText(resp *geminiResponse) (string, error) {
 	if len(resp.Candidates) == 0 {
-		return "", fmt.Errorf("gemini: no candidates in response")
+		return "", errors.New("gemini: no candidates in response")
 	}
 
 	// Skip thinking parts (thought: true) — only collect actual output.
@@ -396,7 +397,7 @@ type geminiPart struct {
 }
 
 type geminiRequest struct {
-	Contents         []geminiContent          `json:"contents"`
+	Contents         []geminiContent         `json:"contents"`
 	GenerationConfig *geminiGenerationConfig `json:"generationConfig,omitempty"`
 }
 
@@ -413,8 +414,8 @@ type geminiGenerationConfig struct {
 }
 
 type geminiResponse struct {
-	Candidates    []geminiCandidate  `json:"candidates"`
-	ModelVersion  string             `json:"modelVersion"`
+	Candidates    []geminiCandidate   `json:"candidates"`
+	ModelVersion  string              `json:"modelVersion"`
 	UsageMetadata geminiUsageMetadata `json:"usageMetadata"`
 }
 

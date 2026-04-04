@@ -195,10 +195,10 @@ func TestDiffLeverageConfigValidation(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			err := tt.cfg.Validate()
 			if tt.wantErr {
-				assert.Error(t, err)
+				require.Error(t, err)
 				assert.Contains(t, err.Error(), tt.errMsg)
 			} else {
-				assert.NoError(t, err)
+				require.NoError(t, err)
 			}
 		})
 	}

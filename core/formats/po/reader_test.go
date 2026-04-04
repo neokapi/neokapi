@@ -242,7 +242,7 @@ func TestReadNilDocument(t *testing.T) {
 	ctx := context.Background()
 	reader := po.NewReader()
 	err := reader.Open(ctx, nil)
-	assert.Error(t, err)
+	require.Error(t, err)
 }
 
 func TestReadMultipleEntries(t *testing.T) {

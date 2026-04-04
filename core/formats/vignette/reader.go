@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"strings"
@@ -56,7 +57,7 @@ func (r *Reader) Signature() format.FormatSignature {
 // Open opens a RawDocument for reading.
 func (r *Reader) Open(ctx context.Context, doc *model.RawDocument) error {
 	if doc == nil || doc.Reader == nil {
-		return fmt.Errorf("vignette: nil document or reader")
+		return errors.New("vignette: nil document or reader")
 	}
 	r.Doc = doc
 	return nil

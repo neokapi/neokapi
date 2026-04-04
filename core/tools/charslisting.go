@@ -1,6 +1,7 @@
 package tools
 
 import (
+	"errors"
 	"fmt"
 	"strconv"
 
@@ -34,10 +35,10 @@ func (c *CharsListingConfig) Reset() {
 // Validate checks configuration validity.
 func (c *CharsListingConfig) Validate() error {
 	if !c.IncludeSource && !c.IncludeTarget {
-		return fmt.Errorf("chars-listing: at least one of IncludeSource or IncludeTarget must be true")
+		return errors.New("chars-listing: at least one of IncludeSource or IncludeTarget must be true")
 	}
 	if c.IncludeTarget && c.TargetLocale.IsEmpty() {
-		return fmt.Errorf("chars-listing: TargetLocale is required when IncludeTarget is true")
+		return errors.New("chars-listing: TargetLocale is required when IncludeTarget is true")
 	}
 	return nil
 }

@@ -6,6 +6,7 @@ import (
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/tools"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestXMLValidationToolValid(t *testing.T) {
@@ -52,10 +53,10 @@ func TestXMLValidationToolSkipsNonTranslatable(t *testing.T) {
 func TestXMLValidationConfigValidation(t *testing.T) {
 	cfg := &tools.XMLValidationConfig{CheckTarget: true}
 	err := cfg.Validate()
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "locale")
 
 	cfg.Locale = model.LocaleFrench
 	err = cfg.Validate()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 }

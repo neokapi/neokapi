@@ -145,7 +145,7 @@ func TestFW_NilDocument(t *testing.T) {
 	ctx := context.Background()
 	reader := fixedwidth.NewReader()
 	err := reader.Open(ctx, nil)
-	assert.Error(t, err)
+	require.Error(t, err)
 }
 
 func TestFW_EmptyInput(t *testing.T) {
@@ -271,7 +271,7 @@ func TestFW_ConfigFormatName(t *testing.T) {
 func TestFW_ConfigValidate_NoColumns(t *testing.T) {
 	cfg := &fixedwidth.Config{}
 	err := cfg.Validate()
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "at least one column")
 }
 
@@ -280,7 +280,7 @@ func TestFW_ConfigValidate_EmptyName(t *testing.T) {
 		Columns: []fixedwidth.ColumnDef{{Name: "", Start: 0, Width: 10}},
 	}
 	err := cfg.Validate()
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "name must not be empty")
 }
 
@@ -289,7 +289,7 @@ func TestFW_ConfigValidate_ZeroWidth(t *testing.T) {
 		Columns: []fixedwidth.ColumnDef{{Name: "col", Start: 0, Width: 0}},
 	}
 	err := cfg.Validate()
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "width must be positive")
 }
 
@@ -298,7 +298,7 @@ func TestFW_ConfigValidate_NegativeStart(t *testing.T) {
 		Columns: []fixedwidth.ColumnDef{{Name: "col", Start: -1, Width: 10}},
 	}
 	err := cfg.Validate()
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "start must not be negative")
 }
 
@@ -307,7 +307,7 @@ func TestFW_ConfigValidate_Valid(t *testing.T) {
 		Columns: []fixedwidth.ColumnDef{{Name: "col", Start: 0, Width: 10}},
 	}
 	err := cfg.Validate()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 }
 
 func TestFW_ConfigReset(t *testing.T) {
@@ -324,7 +324,7 @@ func TestFW_ConfigReset(t *testing.T) {
 func TestFW_ConfigApplyMap_UnknownParam(t *testing.T) {
 	cfg := &fixedwidth.Config{}
 	err := cfg.ApplyMap(map[string]any{"unknown": true})
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "unknown parameter")
 }
 

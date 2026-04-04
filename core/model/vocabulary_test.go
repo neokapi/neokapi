@@ -142,7 +142,7 @@ func TestVocabularyAllTypes(t *testing.T) {
 func TestVocabularyLoadInvalid(t *testing.T) {
 	reg := model.NewVocabularyRegistry()
 	err := reg.Load([]byte("not json"))
-	assert.Error(t, err)
+	require.Error(t, err)
 }
 
 func TestVocabularyChipLabels(t *testing.T) {

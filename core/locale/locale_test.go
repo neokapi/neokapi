@@ -31,7 +31,7 @@ func TestParse(t *testing.T) {
 			t.Parallel()
 			got, err := Parse(tt.input)
 			if tt.err {
-				assert.Error(t, err)
+				require.Error(t, err)
 			} else {
 				require.NoError(t, err)
 				assert.Equal(t, tt.want, string(got))

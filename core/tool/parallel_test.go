@@ -2,6 +2,7 @@ package tool_test
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sync/atomic"
 	"testing"
@@ -155,7 +156,7 @@ func TestParallelBlockTool_ErrorPropagation(t *testing.T) {
 		ToolName: "error-tool",
 		HandleBlockFn: func(part *model.Part) (*model.Part, error) {
 			if part.Resource.ResourceID() == "b3" {
-				return nil, fmt.Errorf("processing error on b3")
+				return nil, errors.New("processing error on b3")
 			}
 			return part, nil
 		},
@@ -179,7 +180,7 @@ func TestParallelBlockTool_ErrorPropagation(t *testing.T) {
 	close(in)
 
 	err := pt.Process(context.Background(), in, out)
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "processing error on b3")
 }
 
@@ -211,7 +212,7 @@ func TestParallelBlockTool_Cancellation(t *testing.T) {
 	}()
 
 	err := pt.Process(ctx, in, out)
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.ErrorIs(t, err, context.Canceled)
 }
 

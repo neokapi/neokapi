@@ -60,7 +60,7 @@ func applyPragmas(db *sql.DB) error {
 		"PRAGMA cache_size=-8000", // 8MB cache
 	}
 	for _, p := range pragmas {
-		if _, err := db.Exec(p); err != nil {
+		if _, err := db.Exec(p); err != nil { //nolint:noctx // startup pragmas
 			return fmt.Errorf("execute %s: %w", p, err)
 		}
 	}

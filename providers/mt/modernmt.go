@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -19,13 +20,13 @@ const DefaultModernMTBaseURL = "https://api.modernmt.com"
 type ModernMTConfig struct {
 	APIKey  string  `schema:"description=ModernMT API key,widget=password"`
 	Hints   []int64 `schema:"description=Optional memory IDs to bias translations"` // Optional memory IDs to bias translations
-	BaseURL string  `schema:"description=API base URL override for testing"` // Override for testing
+	BaseURL string  `schema:"description=API base URL override for testing"`        // Override for testing
 }
 
 // Validate checks configuration validity.
 func (c *ModernMTConfig) Validate() error {
 	if c.APIKey == "" {
-		return fmt.Errorf("modernmt: APIKey is required")
+		return errors.New("modernmt: APIKey is required")
 	}
 	return nil
 }
@@ -50,7 +51,7 @@ func NewModernMTProvider(cfg ModernMTConfig) *ModernMTProvider {
 
 func (p *ModernMTProvider) Name() string { return "modernmt" }
 
-func (p *ModernMTProvider) Translate(_ context.Context, req TranslateRequest) (*TranslateResponse, error) {
+func (p *ModernMTProvider) Translate(ctx context.Context, req TranslateRequest) (*TranslateResponse, error) {
 	reqBody := modernMTRequest{
 		Target: string(req.TargetLocale),
 		Q:      req.Source,
@@ -67,8 +68,8 @@ func (p *ModernMTProvider) Translate(_ context.Context, req TranslateRequest) (*
 		return nil, fmt.Errorf("marshal request: %w", err)
 	}
 
-	apiURL := fmt.Sprintf("%s/translate", p.cfg.baseURL())
-	httpReq, err := http.NewRequest(http.MethodPost, apiURL, bytes.NewReader(bodyBytes))
+	apiURL := p.cfg.baseURL() + "/translate"
+	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, apiURL, bytes.NewReader(bodyBytes))
 	if err != nil {
 		return nil, fmt.Errorf("create request: %w", err)
 	}
@@ -96,7 +97,7 @@ func (p *ModernMTProvider) Translate(_ context.Context, req TranslateRequest) (*
 	}
 
 	if result.Data.Translation == "" {
-		return nil, fmt.Errorf("no translation returned")
+		return nil, errors.New("no translation returned")
 	}
 
 	return &TranslateResponse{
@@ -128,10 +129,10 @@ func (c *ModernMTToolConfig) Reset() {
 // Validate checks configuration validity.
 func (c *ModernMTToolConfig) Validate() error {
 	if c.APIKey == "" {
-		return fmt.Errorf("modernmt: APIKey is required")
+		return errors.New("modernmt: APIKey is required")
 	}
 	if c.TargetLocale.IsEmpty() {
-		return fmt.Errorf("modernmt: TargetLocale is required")
+		return errors.New("modernmt: TargetLocale is required")
 	}
 	return nil
 }

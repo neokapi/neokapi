@@ -1,6 +1,7 @@
 package tools
 
 import (
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -44,10 +45,10 @@ func (c *DiffLeverageConfig) Reset() {
 // Validate checks configuration validity.
 func (c *DiffLeverageConfig) Validate() error {
 	if c.TargetLocale.IsEmpty() {
-		return fmt.Errorf("diff-leverage: TargetLocale is required")
+		return errors.New("diff-leverage: TargetLocale is required")
 	}
 	if c.PreviousTexts == nil {
-		return fmt.Errorf("diff-leverage: PreviousTexts is required")
+		return errors.New("diff-leverage: PreviousTexts is required")
 	}
 	return nil
 }

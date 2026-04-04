@@ -5,10 +5,12 @@ import (
 	"bytes"
 	"context"
 	"encoding/xml"
+	"errors"
 	"fmt"
 	"io"
 	"os"
 	"path"
+	"strconv"
 	"strings"
 
 	"github.com/neokapi/neokapi/core/format"
@@ -70,7 +72,7 @@ func (r *Reader) Signature() format.FormatSignature {
 // Content is written to a temp file instead of holding the entire ZIP in memory.
 func (r *Reader) Open(ctx context.Context, doc *model.RawDocument) error {
 	if doc == nil || doc.Reader == nil {
-		return fmt.Errorf("epub: nil document or reader")
+		return errors.New("epub: nil document or reader")
 	}
 	r.Doc = doc
 
@@ -288,7 +290,7 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 			Name: file.Name,
 			Properties: map[string]string{
 				"entry": file.Name,
-				"size":  fmt.Sprintf("%d", file.UncompressedSize64),
+				"size":  strconv.FormatUint(file.UncompressedSize64, 10),
 			},
 		}
 		if !r.emit(ctx, ch, &model.Part{Type: model.PartData, Resource: data}) {
@@ -302,7 +304,7 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 func (r *Reader) findOPF(fileMap map[string]*zip.File) (string, error) {
 	containerFile, ok := fileMap["META-INF/container.xml"]
 	if !ok {
-		return "", fmt.Errorf("epub: missing META-INF/container.xml")
+		return "", errors.New("epub: missing META-INF/container.xml")
 	}
 
 	data, err := r.readEntry(containerFile)
@@ -316,7 +318,7 @@ func (r *Reader) findOPF(fileMap map[string]*zip.File) (string, error) {
 	}
 
 	if len(cont.Rootfiles) == 0 {
-		return "", fmt.Errorf("epub: no rootfile in container.xml")
+		return "", errors.New("epub: no rootfile in container.xml")
 	}
 
 	return cont.Rootfiles[0].FullPath, nil

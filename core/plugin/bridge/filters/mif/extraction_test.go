@@ -459,7 +459,7 @@ func TestExtraction_DoesNotProcessUnsupportedVersions(t *testing.T) {
 		}
 		_ = reader.Close()
 	}
-	assert.Error(t, err, "unsupported MIF version should produce an error")
+	require.Error(t, err, "unsupported MIF version should produce an error")
 	if err != nil {
 		assert.Contains(t, err.Error(), "Unsupported", "error should mention unsupported version")
 	}

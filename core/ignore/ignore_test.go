@@ -114,7 +114,7 @@ func TestLoadFile(t *testing.T) {
 func TestLoadFileMissing(t *testing.T) {
 	m := New()
 	err := m.LoadFile("/nonexistent/.kapiignore")
-	assert.NoError(t, err, "missing file should not error")
+	require.NoError(t, err, "missing file should not error")
 }
 
 func TestLoadEnv(t *testing.T) {

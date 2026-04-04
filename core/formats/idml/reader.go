@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/xml"
+	"errors"
 	"fmt"
 	"io"
 	"slices"
@@ -60,7 +61,7 @@ func (r *Reader) Signature() format.FormatSignature {
 // Open opens a RawDocument for reading.
 func (r *Reader) Open(ctx context.Context, doc *model.RawDocument) error {
 	if doc == nil || doc.Reader == nil {
-		return fmt.Errorf("idml: nil document or reader")
+		return errors.New("idml: nil document or reader")
 	}
 	r.Doc = doc
 	return nil
@@ -99,7 +100,7 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 	// Find story files
 	storyFiles := r.findStoryFiles(zr)
 	if len(storyFiles) == 0 {
-		ch <- model.PartResult{Error: fmt.Errorf("idml: no story files found in archive")}
+		ch <- model.PartResult{Error: errors.New("idml: no story files found in archive")}
 		return
 	}
 
@@ -218,7 +219,7 @@ func (r *Reader) parseStory(ctx context.Context, ch chan<- model.PartResult,
 
 	for {
 		tok, err := d.Token()
-		if err == io.EOF {
+		if errors.Is(err, io.EOF) {
 			break
 		}
 		if err != nil {

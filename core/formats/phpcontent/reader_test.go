@@ -985,7 +985,7 @@ func TestReaderNilDocument(t *testing.T) {
 	ctx := context.Background()
 	reader := phpcontent.NewReader()
 	err := reader.Open(ctx, nil)
-	assert.Error(t, err)
+	require.Error(t, err)
 }
 
 func TestReadEmpty(t *testing.T) {

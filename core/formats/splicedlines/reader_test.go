@@ -92,7 +92,7 @@ func TestReadNilDocument(t *testing.T) {
 	ctx := context.Background()
 	reader := splicedlines.NewReader()
 	err := reader.Open(ctx, nil)
-	assert.Error(t, err)
+	require.Error(t, err)
 }
 
 func TestReadLayerStartEnd(t *testing.T) {
@@ -133,25 +133,25 @@ func TestConfigFormatName(t *testing.T) {
 
 func TestConfigValidate(t *testing.T) {
 	cfg := &splicedlines.Config{}
-	assert.NoError(t, cfg.Validate())
+	require.NoError(t, cfg.Validate())
 }
 
 func TestConfigReset(t *testing.T) {
 	cfg := &splicedlines.Config{}
 	cfg.Reset()
-	assert.NoError(t, cfg.Validate())
+	require.NoError(t, cfg.Validate())
 }
 
 func TestConfigApplyMapUnknown(t *testing.T) {
 	cfg := &splicedlines.Config{}
 	err := cfg.ApplyMap(map[string]any{"unknown": true})
-	assert.Error(t, err)
+	require.Error(t, err)
 }
 
 func TestConfigApplyMapEmpty(t *testing.T) {
 	cfg := &splicedlines.Config{}
 	err := cfg.ApplyMap(map[string]any{})
-	assert.NoError(t, err)
+	require.NoError(t, err)
 }
 
 // okapi: SplicedLinesFilterTest#testTrailingBackslash

@@ -2,6 +2,7 @@ package pdf
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/neokapi/neokapi/core/format"
@@ -55,7 +56,7 @@ func (w *Writer) writePart(part *model.Part) error {
 func (w *Writer) writeBlock(part *model.Part) error {
 	block, ok := part.Resource.(*model.Block)
 	if !ok {
-		return fmt.Errorf("pdf writer: expected Block resource")
+		return errors.New("pdf writer: expected Block resource")
 	}
 
 	text := block.SourceText()

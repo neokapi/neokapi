@@ -145,7 +145,7 @@ func TestReadNilDocument(t *testing.T) {
 	ctx := context.Background()
 	reader := icml.NewReader()
 	err := reader.Open(ctx, nil)
-	assert.Error(t, err)
+	require.Error(t, err)
 }
 
 func TestReadEmpty(t *testing.T) {
@@ -309,7 +309,7 @@ func TestConfigApplyMapUnknownParam(t *testing.T) {
 	err := cfg.ApplyMap(map[string]any{
 		"unknown": true,
 	})
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "unknown parameter")
 }
 
@@ -318,7 +318,7 @@ func TestConfigApplyMapWrongType(t *testing.T) {
 	err := cfg.ApplyMap(map[string]any{
 		"extractNotes": "not a bool",
 	})
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "expected bool")
 }
 

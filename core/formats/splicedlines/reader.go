@@ -4,8 +4,10 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
+	"strconv"
 	"strings"
 
 	"github.com/neokapi/neokapi/core/format"
@@ -53,7 +55,7 @@ func (r *Reader) Signature() format.FormatSignature {
 // Open opens a RawDocument for reading.
 func (r *Reader) Open(ctx context.Context, doc *model.RawDocument) error {
 	if doc == nil || doc.Reader == nil {
-		return fmt.Errorf("splicedlines: nil document or reader")
+		return errors.New("splicedlines: nil document or reader")
 	}
 	r.Doc = doc
 	return nil
@@ -137,7 +139,7 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 
 		block := model.NewBlock(blockIDStr, joined)
 		block.Name = fmt.Sprintf("block%d", blockID)
-		block.Properties["continued"] = fmt.Sprintf("%d", numLines)
+		block.Properties["continued"] = strconv.Itoa(numLines)
 
 		// Store the continuation line endings so the writer can reconstruct
 		if numLines > 1 {

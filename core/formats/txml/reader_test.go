@@ -148,7 +148,7 @@ func TestReadNilDocument(t *testing.T) {
 	ctx := context.Background()
 	reader := txml.NewReader()
 	err := reader.Open(ctx, nil)
-	assert.Error(t, err)
+	require.Error(t, err)
 }
 
 func TestReadEmpty(t *testing.T) {

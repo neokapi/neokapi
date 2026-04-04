@@ -2,6 +2,7 @@
 package tools
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 
@@ -88,10 +89,10 @@ func (c *PseudoConfig) Reset() {
 // Validate checks configuration validity.
 func (c *PseudoConfig) Validate() error {
 	if c.ExpansionPercent < 0 {
-		return fmt.Errorf("pseudo: ExpansionPercent must be >= 0")
+		return errors.New("pseudo: ExpansionPercent must be >= 0")
 	}
 	if c.TargetLocale.IsEmpty() {
-		return fmt.Errorf("pseudo: TargetLocale is required")
+		return errors.New("pseudo: TargetLocale is required")
 	}
 	return nil
 }

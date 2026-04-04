@@ -31,6 +31,7 @@ import (
 )
 
 // OriginalContentSetter is an alias for format.OriginalContentSetter.
+//
 // Deprecated: Use format.OriginalContentSetter directly.
 type OriginalContentSetter = format.OriginalContentSetter
 
@@ -44,6 +45,7 @@ var skipFilters = map[string]bool{
 }
 
 // SourcePathSetter is an alias for format.SourcePathSetter.
+//
 // Deprecated: Use format.SourcePathSetter directly.
 type SourcePathSetter = format.SourcePathSetter
 

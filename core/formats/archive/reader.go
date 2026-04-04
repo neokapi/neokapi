@@ -5,10 +5,12 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/neokapi/neokapi/core/format"
@@ -67,7 +69,7 @@ func (r *Reader) Signature() format.FormatSignature {
 // Open opens a RawDocument for reading.
 func (r *Reader) Open(ctx context.Context, doc *model.RawDocument) error {
 	if doc == nil || doc.Reader == nil {
-		return fmt.Errorf("archive: nil document or reader")
+		return errors.New("archive: nil document or reader")
 	}
 	r.Doc = doc
 
@@ -245,7 +247,7 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 				Name: file.Name,
 				Properties: map[string]string{
 					"entry": file.Name,
-					"size":  fmt.Sprintf("%d", file.UncompressedSize64),
+					"size":  strconv.FormatUint(file.UncompressedSize64, 10),
 				},
 			}
 			if !r.emit(ctx, ch, &model.Part{Type: model.PartData, Resource: data}) {
@@ -376,7 +378,7 @@ func (r *Reader) emitLineByLine(ctx context.Context, ch chan<- model.PartResult,
 	}
 
 	childLayer := &model.Layer{
-		ID:       fmt.Sprintf("fallback-%s", entryName),
+		ID:       "fallback-" + entryName,
 		Name:     entryName,
 		Format:   "archive",
 		Locale:   locale,

@@ -109,10 +109,10 @@ func TestCreateTargetToolPassesThroughNonBlock(t *testing.T) {
 func TestCreateTargetConfigValidation(t *testing.T) {
 	cfg := &tools.CreateTargetConfig{}
 	err := cfg.Validate()
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "TargetLocale")
 
 	cfg.TargetLocale = model.LocaleFrench
 	err = cfg.Validate()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 }

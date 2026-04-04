@@ -1,7 +1,7 @@
 package tools
 
 import (
-	"fmt"
+	"errors"
 	"strings"
 
 	"github.com/neokapi/neokapi/core/model"
@@ -18,12 +18,12 @@ const (
 
 // WhitespaceCorrectConfig holds configuration for the whitespace correction tool.
 type WhitespaceCorrectConfig struct {
-	TargetLocale          model.LocaleID `json:"targetLocale,omitempty"          schema:"title=Target Locale,description=Target locale for processing"` // Required
-	NormalizeSpaces       bool           `json:"normalizeSpaces,omitempty"       schema:"title=Normalize Spaces,description=Collapse multiple spaces to a single space,default=true"` // Collapse multiple spaces to single (default: true)
-	TrimLeading           bool           `json:"trimLeading,omitempty"           schema:"title=Trim Leading Whitespace,description=Remove leading whitespace from target text"` // Remove leading whitespace (default: false)
-	TrimTrailing          bool           `json:"trimTrailing,omitempty"          schema:"title=Trim Trailing Whitespace,description=Remove trailing whitespace from target text"` // Remove trailing whitespace (default: false)
+	TargetLocale          model.LocaleID `json:"targetLocale,omitempty"          schema:"title=Target Locale,description=Target locale for processing"`                                             // Required
+	NormalizeSpaces       bool           `json:"normalizeSpaces,omitempty"       schema:"title=Normalize Spaces,description=Collapse multiple spaces to a single space,default=true"`               // Collapse multiple spaces to single (default: true)
+	TrimLeading           bool           `json:"trimLeading,omitempty"           schema:"title=Trim Leading Whitespace,description=Remove leading whitespace from target text"`                     // Remove leading whitespace (default: false)
+	TrimTrailing          bool           `json:"trimTrailing,omitempty"          schema:"title=Trim Trailing Whitespace,description=Remove trailing whitespace from target text"`                   // Remove trailing whitespace (default: false)
 	MatchSourceWhitespace bool           `json:"matchSourceWhitespace,omitempty" schema:"title=Match Source Whitespace,description=Copy source leading/trailing whitespace to target,default=true"` // Copy source leading/trailing whitespace to target (default: true)
-	RemoveZeroWidthChars  bool           `json:"removeZeroWidthChars,omitempty"  schema:"title=Remove Zero-Width Characters,description=Remove zero-width spaces and joiners,default=true"` // Remove zero-width spaces/joiners (default: true)
+	RemoveZeroWidthChars  bool           `json:"removeZeroWidthChars,omitempty"  schema:"title=Remove Zero-Width Characters,description=Remove zero-width spaces and joiners,default=true"`         // Remove zero-width spaces/joiners (default: true)
 
 	// Punctuation-specific correction toggles (CJK full-width/ASCII conversion).
 	CorrectFullStop    bool `json:"correctFullStop,omitempty"    schema:"title=Full Stop,description=Correct whitespace after full stops (periods),default=true,group=punctuation"`
@@ -58,7 +58,7 @@ func (c *WhitespaceCorrectConfig) Reset() {
 // Validate checks configuration validity.
 func (c *WhitespaceCorrectConfig) Validate() error {
 	if c.TargetLocale.IsEmpty() {
-		return fmt.Errorf("whitespace-correct: TargetLocale is required")
+		return errors.New("whitespace-correct: TargetLocale is required")
 	}
 	return nil
 }
@@ -213,13 +213,15 @@ func isConfiguredWhitespace(r rune, conf *WhitespaceCorrectConfig) bool {
 func matchSourceWhitespace(source, target string) string {
 	// Extract leading whitespace from source.
 	sourceLeading := ""
+	var sourceLeadingSb216 strings.Builder
 	for _, r := range source {
 		if r == ' ' || r == '\t' || r == '\n' || r == '\r' {
-			sourceLeading += string(r)
+			sourceLeadingSb216.WriteString(string(r))
 		} else {
 			break
 		}
 	}
+	sourceLeading += sourceLeadingSb216.String()
 
 	// Extract trailing whitespace from source.
 	sourceTrailing := ""

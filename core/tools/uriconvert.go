@@ -1,6 +1,7 @@
 package tools
 
 import (
+	"errors"
 	"fmt"
 	"net/url"
 
@@ -19,9 +20,9 @@ const (
 // URIConvertConfig holds configuration for the URI conversion tool.
 type URIConvertConfig struct {
 	Mode         URIConvertMode `schema:"title=Conversion Direction,description=URI conversion direction,enum=encode|decode,default=decode"` // encode or decode (default: "decode")
-	ApplySource  bool           `schema:"title=Apply to Source,description=Apply to source text"` // Apply to source (default: false)
-	ApplyTarget  bool           `schema:"title=Apply to Target,description=Apply to target text,default=true"` // Apply to target (default: true)
-	TargetLocale model.LocaleID `schema:"title=Target Locale,description=Target locale for processing,showIfSet=ApplyTarget"` // Target locale to process (required when ApplyTarget)
+	ApplySource  bool           `schema:"title=Apply to Source,description=Apply to source text"`                                            // Apply to source (default: false)
+	ApplyTarget  bool           `schema:"title=Apply to Target,description=Apply to target text,default=true"`                               // Apply to target (default: true)
+	TargetLocale model.LocaleID `schema:"title=Target Locale,description=Target locale for processing,showIfSet=ApplyTarget"`                // Target locale to process (required when ApplyTarget)
 }
 
 // ToolName returns the tool name this config applies to.
@@ -43,7 +44,7 @@ func (c *URIConvertConfig) Validate() error {
 		return fmt.Errorf("uri-convert: invalid Mode %q (use encode or decode)", c.Mode)
 	}
 	if c.ApplyTarget && c.TargetLocale.IsEmpty() {
-		return fmt.Errorf("uri-convert: TargetLocale required when ApplyTarget is true")
+		return errors.New("uri-convert: TargetLocale required when ApplyTarget is true")
 	}
 	return nil
 }

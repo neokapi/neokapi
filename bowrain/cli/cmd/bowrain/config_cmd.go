@@ -1,12 +1,13 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"path/filepath"
 
 	"github.com/neokapi/neokapi/bowrain/cli/cmd/bowrain/output"
-	"github.com/neokapi/neokapi/cli/config"
 	"github.com/neokapi/neokapi/bowrain/core/project"
+	"github.com/neokapi/neokapi/cli/config"
 	"github.com/spf13/cobra"
 )
 
@@ -80,7 +81,7 @@ func runConfigGlobal(cmd *cobra.Command, args []string) error {
 func runConfigProject(cmd *cobra.Command, args []string) error {
 	proj, err := project.FindProject("")
 	if err != nil {
-		return fmt.Errorf("no .bowrain/ project found (run 'bowrain init' first, or use --global)")
+		return errors.New("no .bowrain/ project found (run 'bowrain init' first, or use --global)")
 	}
 
 	configPath := filepath.Join(proj.ConfigDir, project.ConfigFile)

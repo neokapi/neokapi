@@ -146,7 +146,7 @@ func TestExternalCommandConfigValidation(t *testing.T) {
 	// Empty command.
 	cfg := &tools.ExternalCommandConfig{}
 	err := cfg.Validate()
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "command must not be empty")
 
 	// ApplyTarget without locale.
@@ -155,7 +155,7 @@ func TestExternalCommandConfigValidation(t *testing.T) {
 		ApplyTarget: true,
 	}
 	err = cfg.Validate()
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "target locale is required")
 
 	// Valid config.
@@ -165,7 +165,7 @@ func TestExternalCommandConfigValidation(t *testing.T) {
 		TargetLocale: model.LocaleFrench,
 	}
 	err = cfg.Validate()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 }
 
 func TestExternalCommandConfigReset(t *testing.T) {

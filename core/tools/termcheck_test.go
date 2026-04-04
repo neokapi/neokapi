@@ -6,6 +6,7 @@ import (
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/tools"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestTermCheckToolPass(t *testing.T) {
@@ -88,21 +89,21 @@ func TestTermCheckToolNoTarget(t *testing.T) {
 func TestTermCheckConfigValidation(t *testing.T) {
 	cfg := &tools.TermCheckConfig{}
 	err := cfg.Validate()
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "TargetLocale")
 
 	cfg.TargetLocale = model.LocaleFrench
 	cfg.Glossary = []tools.GlossaryEntry{{Source: "", Target: "x"}}
 	err = cfg.Validate()
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "empty source")
 
 	cfg.Glossary = []tools.GlossaryEntry{{Source: "x", Target: ""}}
 	err = cfg.Validate()
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "empty target")
 
 	cfg.Glossary = []tools.GlossaryEntry{{Source: "Save", Target: "Sauvegarder"}}
 	err = cfg.Validate()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 }

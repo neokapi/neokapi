@@ -21,7 +21,7 @@ func TestLoadAllNonexistentDir(t *testing.T) {
 	l := NewPluginLoader("/nonexistent/plugin/dir", nil)
 	reg := registry.NewFormatRegistry()
 	err := l.LoadAll(reg, nil)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Empty(t, l.Plugins())
 }
 
@@ -30,7 +30,7 @@ func TestLoadAllEmptyDir(t *testing.T) {
 	l := NewPluginLoader(dir, nil)
 	reg := registry.NewFormatRegistry()
 	err := l.LoadAll(reg, nil)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Empty(t, l.Plugins())
 }
 
@@ -38,7 +38,7 @@ func TestLoadAllEmptyDirString(t *testing.T) {
 	l := NewPluginLoader("", nil)
 	reg := registry.NewFormatRegistry()
 	err := l.LoadAll(reg, nil)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Empty(t, l.Plugins())
 }
 
@@ -64,7 +64,7 @@ func TestLoadAllMissingManifestLogged(t *testing.T) {
 
 	// Should not return error — missing manifest is logged and skipped.
 	err := l.LoadAll(reg, nil)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 }
 
 func TestPluginsReturnsCorrectInfo(t *testing.T) {
@@ -130,14 +130,14 @@ func TestLoadAllNotADirectory(t *testing.T) {
 	l := NewPluginLoader(filePath, nil)
 	reg := registry.NewFormatRegistry()
 	err = l.LoadAll(reg, nil)
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "not a directory")
 }
 
 func TestScanMetadataEmptyDir(t *testing.T) {
 	l := NewPluginLoader("", nil)
 	err := l.ScanMetadata()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.True(t, l.scanned)
 	assert.Empty(t, l.Plugins())
 }
@@ -145,7 +145,7 @@ func TestScanMetadataEmptyDir(t *testing.T) {
 func TestScanMetadataNonexistentDir(t *testing.T) {
 	l := NewPluginLoader("/nonexistent/dir", nil)
 	err := l.ScanMetadata()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.True(t, l.scanned)
 	assert.Empty(t, l.Plugins())
 }
@@ -157,7 +157,7 @@ func TestScanMetadataNotADirectory(t *testing.T) {
 
 	l := NewPluginLoader(filePath, nil)
 	err := l.ScanMetadata()
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "not a directory")
 }
 

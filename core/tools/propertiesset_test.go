@@ -6,6 +6,7 @@ import (
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/tools"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestPropertiesSetTool(t *testing.T) {
@@ -116,14 +117,14 @@ func TestPropertiesSetConfigValidation(t *testing.T) {
 		Properties: nil,
 	}
 	err := cfg.Validate()
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "properties")
 
 	cfg.Properties = map[string]string{}
 	err = cfg.Validate()
-	assert.Error(t, err)
+	require.Error(t, err)
 
 	cfg.Properties = map[string]string{"key": "value"}
 	err = cfg.Validate()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 }

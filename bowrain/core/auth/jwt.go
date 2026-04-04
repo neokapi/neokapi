@@ -3,6 +3,7 @@ package auth
 import (
 	"crypto/rand"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"time"
 
@@ -49,7 +50,7 @@ func ValidateToken(tokenString, secret string) (*Claims, error) {
 	}
 	claims, ok := token.Claims.(*Claims)
 	if !ok || !token.Valid {
-		return nil, fmt.Errorf("invalid token claims")
+		return nil, errors.New("invalid token claims")
 	}
 	return claims, nil
 }

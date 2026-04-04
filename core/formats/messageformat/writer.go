@@ -2,6 +2,7 @@ package messageformat
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 
@@ -89,7 +90,7 @@ done:
 func (w *Writer) writeFromSkeleton(blocks map[string]*model.Block) error {
 	for {
 		entry, err := w.skeletonStore.Next()
-		if err == io.EOF {
+		if errors.Is(err, io.EOF) {
 			break
 		}
 		if err != nil {
@@ -124,7 +125,7 @@ func (w *Writer) writePart(part *model.Part) error {
 func (w *Writer) writeBlock(part *model.Part) error {
 	block, ok := part.Resource.(*model.Block)
 	if !ok {
-		return fmt.Errorf("messageformat writer: expected Block resource")
+		return errors.New("messageformat writer: expected Block resource")
 	}
 
 	text := w.getBlockText(block)

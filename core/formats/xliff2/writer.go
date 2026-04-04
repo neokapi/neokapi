@@ -3,6 +3,7 @@ package xliff2
 import (
 	"context"
 	"encoding/xml"
+	"errors"
 	"fmt"
 	"io"
 	"strconv"
@@ -83,7 +84,7 @@ func (w *Writer) writeFromSkeleton() error {
 
 	for {
 		entry, err := w.skeletonStore.Next()
-		if err == io.EOF {
+		if errors.Is(err, io.EOF) {
 			break
 		}
 		if err != nil {

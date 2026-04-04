@@ -2,6 +2,7 @@ package tools
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -20,12 +21,12 @@ const (
 
 // CharsCheckConfig holds configuration for the character check tool.
 type CharsCheckConfig struct {
-	TargetLocale      model.LocaleID `json:"targetLocale,omitempty"      schema:"-"`
-	ForbiddenChars    string         `json:"forbiddenChars,omitempty"    schema:"title=Forbidden Characters,description=Characters that should not appear in target text (e.g. {}[])"`
-	RequiredChars     string         `json:"requiredChars,omitempty"     schema:"title=Required Characters,description=Characters that must appear in target if present in source (e.g. punctuation)"`
-	CheckCorrupted    bool           `json:"checkCorrupted,omitempty"    schema:"title=Check Corrupted Characters,description=Check for common corruption patterns such as mojibake,default=true"`
-	CheckCharset      bool           `json:"checkCharset,omitempty"      schema:"title=Check Against Charset Encoding,description=Warn if a character is not included in the specified character set encoding"`
-	Charset           string         `json:"charset,omitempty"           schema:"title=Character Set Encoding,description=Name of the character set encoding to check against (e.g. ISO-8859-1),default=ISO-8859-1"`
+	TargetLocale   model.LocaleID `json:"targetLocale,omitempty"      schema:"-"`
+	ForbiddenChars string         `json:"forbiddenChars,omitempty"    schema:"title=Forbidden Characters,description=Characters that should not appear in target text (e.g. {}[])"`
+	RequiredChars  string         `json:"requiredChars,omitempty"     schema:"title=Required Characters,description=Characters that must appear in target if present in source (e.g. punctuation)"`
+	CheckCorrupted bool           `json:"checkCorrupted,omitempty"    schema:"title=Check Corrupted Characters,description=Check for common corruption patterns such as mojibake,default=true"`
+	CheckCharset   bool           `json:"checkCharset,omitempty"      schema:"title=Check Against Charset Encoding,description=Warn if a character is not included in the specified character set encoding"`
+	Charset        string         `json:"charset,omitempty"           schema:"title=Character Set Encoding,description=Name of the character set encoding to check against (e.g. ISO-8859-1),default=ISO-8859-1"`
 }
 
 // ToolName returns the tool name this config applies to.
@@ -44,7 +45,7 @@ func (c *CharsCheckConfig) Reset() {
 // Validate checks configuration validity.
 func (c *CharsCheckConfig) Validate() error {
 	if c.TargetLocale.IsEmpty() {
-		return fmt.Errorf("chars-check: TargetLocale is required")
+		return errors.New("chars-check: TargetLocale is required")
 	}
 	return nil
 }

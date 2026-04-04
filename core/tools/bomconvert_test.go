@@ -6,6 +6,7 @@ import (
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/tools"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestBOMConvertToolAddBOM(t *testing.T) {
@@ -71,5 +72,5 @@ func TestBOMConvertConfigReset(t *testing.T) {
 
 func TestBOMConvertConfigValidate(t *testing.T) {
 	cfg := &tools.BOMConvertConfig{}
-	assert.NoError(t, cfg.Validate())
+	require.NoError(t, cfg.Validate())
 }

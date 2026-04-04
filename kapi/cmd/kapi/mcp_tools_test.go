@@ -216,6 +216,6 @@ func TestHandleRunFlowUnknown(t *testing.T) {
 		Path:       fixturePath,
 		TargetLang: "fr",
 	})
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "unknown flow")
 }

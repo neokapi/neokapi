@@ -1,6 +1,7 @@
 package csv
 
 import (
+	"errors"
 	"fmt"
 	"regexp"
 )
@@ -60,7 +61,7 @@ func (c *Config) Reset() {
 // Validate checks configuration validity.
 func (c *Config) Validate() error {
 	if c.Separator == 0 {
-		return fmt.Errorf("csv: separator must not be zero")
+		return errors.New("csv: separator must not be zero")
 	}
 	return nil
 }

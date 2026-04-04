@@ -54,7 +54,7 @@ func TestNodeCRUD(t *testing.T) {
 	// Delete
 	require.NoError(t, store.DeleteNode(ctx, "n1"))
 	_, err = store.GetNode(ctx, "n1")
-	assert.ErrorIs(t, err, coreg.ErrNodeNotFound)
+	require.ErrorIs(t, err, coreg.ErrNodeNotFound)
 }
 
 func TestNodeNotFound(t *testing.T) {
@@ -62,10 +62,10 @@ func TestNodeNotFound(t *testing.T) {
 	store := newTestStore(t)
 
 	_, err := store.GetNode(ctx, "nonexistent")
-	assert.ErrorIs(t, err, coreg.ErrNodeNotFound)
+	require.ErrorIs(t, err, coreg.ErrNodeNotFound)
 
-	assert.ErrorIs(t, store.UpdateNode(ctx, &coreg.Node{ID: "nonexistent"}), coreg.ErrNodeNotFound)
-	assert.ErrorIs(t, store.DeleteNode(ctx, "nonexistent"), coreg.ErrNodeNotFound)
+	require.ErrorIs(t, store.UpdateNode(ctx, &coreg.Node{ID: "nonexistent"}), coreg.ErrNodeNotFound)
+	require.ErrorIs(t, store.DeleteNode(ctx, "nonexistent"), coreg.ErrNodeNotFound)
 }
 
 func TestEdgeCRUD(t *testing.T) {
@@ -113,7 +113,7 @@ func TestEdgeCRUD(t *testing.T) {
 	// Delete
 	require.NoError(t, store.DeleteEdge(ctx, "e1"))
 	_, err = store.GetEdge(ctx, "e1")
-	assert.ErrorIs(t, err, coreg.ErrEdgeNotFound)
+	require.ErrorIs(t, err, coreg.ErrEdgeNotFound)
 }
 
 func TestEdgeNotFound(t *testing.T) {
@@ -121,9 +121,9 @@ func TestEdgeNotFound(t *testing.T) {
 	store := newTestStore(t)
 
 	_, err := store.GetEdge(ctx, "nonexistent")
-	assert.ErrorIs(t, err, coreg.ErrEdgeNotFound)
+	require.ErrorIs(t, err, coreg.ErrEdgeNotFound)
 
-	assert.ErrorIs(t, store.DeleteEdge(ctx, "nonexistent"), coreg.ErrEdgeNotFound)
+	require.ErrorIs(t, store.DeleteEdge(ctx, "nonexistent"), coreg.ErrEdgeNotFound)
 }
 
 func TestFindNodes(t *testing.T) {
@@ -312,10 +312,10 @@ func TestCypherNotSupported(t *testing.T) {
 	store := newTestStore(t)
 
 	_, err := store.CypherQuery(ctx, "MATCH (n) RETURN n", nil)
-	assert.ErrorIs(t, err, coreg.ErrCypherNotSupported)
+	require.ErrorIs(t, err, coreg.ErrCypherNotSupported)
 
 	err = store.CypherExec(ctx, "CREATE (n:Foo)", nil)
-	assert.ErrorIs(t, err, coreg.ErrCypherNotSupported)
+	require.ErrorIs(t, err, coreg.ErrCypherNotSupported)
 }
 
 func TestEdgeWithNilValidity(t *testing.T) {

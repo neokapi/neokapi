@@ -1,6 +1,7 @@
 package tools
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 	"unicode"
@@ -52,10 +53,10 @@ func (c *TranslationComparisonConfig) Reset() {
 // Validate checks configuration validity.
 func (c *TranslationComparisonConfig) Validate() error {
 	if c.Locale1.IsEmpty() {
-		return fmt.Errorf("translation-comparison: Locale1 is required")
+		return errors.New("translation-comparison: Locale1 is required")
 	}
 	if c.Locale2.IsEmpty() {
-		return fmt.Errorf("translation-comparison: Locale2 is required")
+		return errors.New("translation-comparison: Locale2 is required")
 	}
 	return nil
 }

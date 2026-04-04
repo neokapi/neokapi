@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/xml"
+	"errors"
 	"fmt"
 	"io"
 	"path/filepath"
@@ -77,7 +78,7 @@ func (r *Reader) Signature() format.FormatSignature {
 // Open opens a RawDocument for reading.
 func (r *Reader) Open(ctx context.Context, doc *model.RawDocument) error {
 	if doc == nil || doc.Reader == nil {
-		return fmt.Errorf("xml: nil document or reader")
+		return errors.New("xml: nil document or reader")
 	}
 	r.Doc = doc
 	return nil
@@ -326,7 +327,7 @@ func (r *Reader) readContentCore(ctx context.Context, ch chan<- model.PartResult
 	for {
 		tokOffset := int(decoder.InputOffset())
 		tok, err := decoder.Token()
-		if err == io.EOF {
+		if errors.Is(err, io.EOF) {
 			break
 		}
 		if err != nil {
@@ -498,11 +499,9 @@ func (r *Reader) readContentCore(ctx context.Context, ch chan<- model.PartResult
 						})
 					}
 				}
-			} else {
+			} else if !frame.isExcluded {
 				// Flush accumulated text as a block
-				if !frame.isExcluded {
-					flushBlock(frame, path, endTagOffset)
-				}
+				flushBlock(frame, path, endTagOffset)
 			}
 
 		case xml.CharData:

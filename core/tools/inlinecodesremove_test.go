@@ -150,16 +150,16 @@ func TestInlineCodesRemoveConfigValidation(t *testing.T) {
 		TargetLocale: "",
 	}
 	err := cfg.Validate()
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "target locale")
 
 	cfg.ApplyTarget = false
 	cfg.ApplySource = false
 	err = cfg.Validate()
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "ApplySource")
 
 	cfg.ApplySource = true
 	err = cfg.Validate()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 }

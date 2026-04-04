@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"compress/flate"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"regexp"
@@ -47,7 +48,7 @@ func (r *Reader) Signature() format.FormatSignature {
 // Open opens a RawDocument for reading.
 func (r *Reader) Open(ctx context.Context, doc *model.RawDocument) error {
 	if doc == nil || doc.Reader == nil {
-		return fmt.Errorf("pdf: nil document or reader")
+		return errors.New("pdf: nil document or reader")
 	}
 	r.Doc = doc
 	return nil
@@ -321,10 +322,12 @@ func decodePDFString(s string) string {
 				if s[i] >= '0' && s[i] <= '7' {
 					octal := string(s[i])
 					i++
+					var octalSb324 strings.Builder
 					for j := 0; j < 2 && i < len(s) && s[i] >= '0' && s[i] <= '7'; j++ {
-						octal += string(s[i])
+						octalSb324.WriteString(string(s[i]))
 						i++
 					}
+					octal += octalSb324.String()
 					if val, err := strconv.ParseUint(octal, 8, 8); err == nil {
 						buf.WriteByte(byte(val))
 					}

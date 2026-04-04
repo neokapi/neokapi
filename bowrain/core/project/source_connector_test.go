@@ -10,11 +10,11 @@ import (
 	"path/filepath"
 	"testing"
 
+	apiclient "github.com/neokapi/neokapi/bowrain/core/client"
+	"github.com/neokapi/neokapi/bowrain/core/connector"
 	"github.com/neokapi/neokapi/core/formats"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/registry"
-	apiclient "github.com/neokapi/neokapi/bowrain/core/client"
-	"github.com/neokapi/neokapi/bowrain/core/connector"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -420,7 +420,7 @@ func TestSourceConnector_Pull_WriteBack(t *testing.T) {
 	// Verify the translated file was created.
 	targetPath := filepath.Join(proj.Root, "src", "locales", "fr.json")
 	_, err = os.Stat(targetPath)
-	assert.NoError(t, err, "translated file should exist at %s", targetPath)
+	require.NoError(t, err, "translated file should exist at %s", targetPath)
 
 	// Read and verify the translated file contains French text.
 	if err == nil {
@@ -507,7 +507,7 @@ func TestSourceConnector_Pull_TargetPathTemplate(t *testing.T) {
 	// Verify file was written to the template path.
 	targetPath := filepath.Join(proj.Root, "src", "locales", "fr.json")
 	_, err = os.Stat(targetPath)
-	assert.NoError(t, err, "translated file should exist at template path")
+	require.NoError(t, err, "translated file should exist at template path")
 }
 
 func TestSourceConnector_ResolveTargetPath(t *testing.T) {

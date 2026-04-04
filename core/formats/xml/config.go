@@ -1,6 +1,7 @@
 package xml
 
 import (
+	"errors"
 	"fmt"
 	"regexp"
 	"strings"
@@ -240,7 +241,7 @@ func (c *Config) Reset() {
 func (c *Config) Validate() error {
 	for _, sf := range c.Subfilters {
 		if sf.Pattern == "" {
-			return fmt.Errorf("xml: subfilter mapping has empty pattern")
+			return errors.New("xml: subfilter mapping has empty pattern")
 		}
 		if sf.Format == "" {
 			return fmt.Errorf("xml: subfilter mapping for %q has empty format", sf.Pattern)
@@ -409,7 +410,7 @@ func parseSubfilterMappings(val any) ([]format.SubfilterMapping, error) {
 		pattern, _ := m["pattern"].(string)
 		formatName, _ := m["format"].(string)
 		if pattern == "" || formatName == "" {
-			return nil, fmt.Errorf("subfilter mapping requires 'pattern' and 'format'")
+			return nil, errors.New("subfilter mapping requires 'pattern' and 'format'")
 		}
 		result = append(result, format.SubfilterMapping{Pattern: pattern, Format: formatName})
 	}

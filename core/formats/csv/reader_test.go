@@ -202,7 +202,7 @@ func TestReadNilDocument(t *testing.T) {
 	ctx := context.Background()
 	reader := csvfmt.NewReader()
 	err := reader.Open(ctx, nil)
-	assert.Error(t, err)
+	require.Error(t, err)
 }
 
 // --- Roundtrip Tests ---
@@ -674,10 +674,10 @@ func TestConfig_ApplyMap(t *testing.T) {
 func TestConfig_Validate(t *testing.T) {
 	t.Parallel()
 	cfg := &csvfmt.Config{Separator: 0}
-	assert.Error(t, cfg.Validate())
+	require.Error(t, cfg.Validate())
 
 	cfg.Separator = ','
-	assert.NoError(t, cfg.Validate())
+	require.NoError(t, cfg.Validate())
 }
 
 func TestConfig_Reset(t *testing.T) {
@@ -703,7 +703,7 @@ func TestConfig_ApplyMap_UnknownParam(t *testing.T) {
 	cfg := &csvfmt.Config{}
 	cfg.Reset()
 	err := cfg.ApplyMap(map[string]any{"unknownParam": "value"})
-	assert.Error(t, err)
+	require.Error(t, err)
 }
 
 func TestConfig_ApplyMap_InvalidTypes(t *testing.T) {
@@ -711,12 +711,12 @@ func TestConfig_ApplyMap_InvalidTypes(t *testing.T) {
 	cfg := &csvfmt.Config{}
 	cfg.Reset()
 
-	assert.Error(t, cfg.ApplyMap(map[string]any{"separator": 42}))
-	assert.Error(t, cfg.ApplyMap(map[string]any{"hasHeader": "yes"}))
-	assert.Error(t, cfg.ApplyMap(map[string]any{"translatableColumns": "not array"}))
-	assert.Error(t, cfg.ApplyMap(map[string]any{"trimValues": "yes"}))
-	assert.Error(t, cfg.ApplyMap(map[string]any{"valuesStartRow": "one"}))
-	assert.Error(t, cfg.ApplyMap(map[string]any{"columnNamesRow": "one"}))
+	require.Error(t, cfg.ApplyMap(map[string]any{"separator": 42}))
+	require.Error(t, cfg.ApplyMap(map[string]any{"hasHeader": "yes"}))
+	require.Error(t, cfg.ApplyMap(map[string]any{"translatableColumns": "not array"}))
+	require.Error(t, cfg.ApplyMap(map[string]any{"trimValues": "yes"}))
+	require.Error(t, cfg.ApplyMap(map[string]any{"valuesStartRow": "one"}))
+	require.Error(t, cfg.ApplyMap(map[string]any{"columnNamesRow": "one"}))
 }
 
 func TestConfig_ApplyMap_SeparatorLength(t *testing.T) {
@@ -724,7 +724,7 @@ func TestConfig_ApplyMap_SeparatorLength(t *testing.T) {
 	cfg := &csvfmt.Config{}
 	cfg.Reset()
 	err := cfg.ApplyMap(map[string]any{"separator": "ab"})
-	assert.Error(t, err)
+	require.Error(t, err)
 }
 
 // --- Skeleton / Roundtrip Tests ---

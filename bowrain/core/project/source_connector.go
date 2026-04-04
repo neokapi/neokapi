@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"cmp"
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"os"
@@ -42,7 +43,7 @@ type itemBlock struct {
 // NewSourceConnector creates a SourceConnector for the given project.
 func NewSourceConnector(project *Project, formatReg *registry.FormatRegistry) (*BowrainSourceConnector, error) {
 	if !project.Config.HasServer() {
-		return nil, fmt.Errorf("no server configuration in .bowrain/config.yaml")
+		return nil, errors.New("no server configuration in .bowrain/config.yaml")
 	}
 
 	serverURL := project.Config.ServerURL()
@@ -50,10 +51,10 @@ func NewSourceConnector(project *Project, formatReg *registry.FormatRegistry) (*
 	workspace := project.Config.Workspace()
 
 	if serverURL == "" {
-		return nil, fmt.Errorf("server URL not configured in .bowrain/config.yaml")
+		return nil, errors.New("server URL not configured in .bowrain/config.yaml")
 	}
 	if projectID == "" {
-		return nil, fmt.Errorf("server project_id not configured in .bowrain/config.yaml")
+		return nil, errors.New("server project_id not configured in .bowrain/config.yaml")
 	}
 
 	cache := LoadSyncCache(project.ConfigDir)
@@ -65,7 +66,7 @@ func NewSourceConnector(project *Project, formatReg *registry.FormatRegistry) (*
 	case workspace != "":
 		authInfo, err := config.LoadAuth()
 		if err != nil {
-			return nil, fmt.Errorf("workspace sync requires authentication: run 'bowrain auth login'")
+			return nil, errors.New("workspace sync requires authentication: run 'bowrain auth login'")
 		}
 		if authInfo.ServerURL != "" && authInfo.ServerURL != serverURL {
 			return nil, fmt.Errorf("auth token is for %s but project points to %s", authInfo.ServerURL, serverURL)
@@ -83,7 +84,7 @@ func NewSourceConnector(project *Project, formatReg *registry.FormatRegistry) (*
 		// This supports CI scenarios where auth is provided via environment variable.
 		authInfo, err := config.LoadAuth()
 		if err != nil {
-			return nil, fmt.Errorf("server config requires either workspace or claim_token, or set BOWRAIN_AUTH_TOKEN")
+			return nil, errors.New("server config requires either workspace or claim_token, or set BOWRAIN_AUTH_TOKEN")
 		}
 		// Detect claim tokens (clm_ prefix) and route them correctly.
 		if strings.HasPrefix(authInfo.AccessToken, "clm_") {
@@ -544,9 +545,11 @@ func (c *BowrainSourceConnector) Pull(ctx context.Context, opts connector.PullOp
 					if segs, ok := b.Targets[loc]; ok {
 						// Extract plain text from segments.
 						var text string
+						var textSb546 strings.Builder
 						for _, seg := range segs {
-							text += seg.Text
+							textSb546.WriteString(seg.Text)
 						}
+						text += textSb546.String()
 						if text != "" {
 							targetMap[b.ID] = text
 						}

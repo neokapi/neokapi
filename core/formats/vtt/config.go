@@ -1,6 +1,9 @@
 package vtt
 
-import "fmt"
+import (
+	"errors"
+	"fmt"
+)
 
 // Config holds configuration for the WebVTT subtitle format.
 type Config struct {
@@ -73,7 +76,7 @@ func (c *Config) ApplyMap(values map[string]any) error {
 		case "splitWords":
 			b, ok := val.(bool)
 			if !ok {
-				return fmt.Errorf("splitWords: expected bool")
+				return errors.New("splitWords: expected bool")
 			}
 			c.SplitWords = b
 		default:

@@ -2,6 +2,7 @@ package bridge
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/neokapi/neokapi/core/model"
@@ -93,7 +94,7 @@ func (t *BridgeStepTool) processWithBridge(
 	b.mu.RLock()
 	if !b.running {
 		b.mu.RUnlock()
-		return fmt.Errorf("bridge not running")
+		return errors.New("bridge not running")
 	}
 	client := b.client
 	b.mu.RUnlock()

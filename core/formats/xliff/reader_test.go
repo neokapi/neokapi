@@ -244,7 +244,7 @@ func TestReadNilDocument(t *testing.T) {
 	ctx := context.Background()
 	reader := xliff.NewReader()
 	err := reader.Open(ctx, nil)
-	assert.Error(t, err)
+	require.Error(t, err)
 }
 
 // --- Core extraction tests ---

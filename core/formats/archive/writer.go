@@ -5,6 +5,7 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -185,7 +186,7 @@ func (w *Writer) writeFromSkeleton(blocks map[string]*model.Block, childLayerVal
 
 	for {
 		entry, err := w.skeletonStore.Next()
-		if err == io.EOF {
+		if errors.Is(err, io.EOF) {
 			break
 		}
 		if err != nil {

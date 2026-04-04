@@ -27,7 +27,7 @@ func TestConfigDefaults(t *testing.T) {
 	assert.True(t, cfg.ExtractHardReturnsAsText)
 	assert.True(t, cfg.UseCodeFinder)
 	assert.NotEmpty(t, cfg.CodeFinderRules)
-	assert.NoError(t, cfg.Validate())
+	require.NoError(t, cfg.Validate())
 }
 
 func TestConfigApplyMapAllOptions(t *testing.T) {
@@ -68,14 +68,14 @@ func TestConfigApplyMapUnknown(t *testing.T) {
 	cfg := &mif.Config{}
 	cfg.Reset()
 	err := cfg.ApplyMap(map[string]any{"unknown": "value"})
-	assert.Error(t, err)
+	require.Error(t, err)
 }
 
 func TestConfigApplyMapTypeMismatch(t *testing.T) {
 	cfg := &mif.Config{}
 	cfg.Reset()
 	err := cfg.ApplyMap(map[string]any{"extractBodyPages": "notabool"})
-	assert.Error(t, err)
+	require.Error(t, err)
 }
 
 func TestConfigApplyMapCodeFinderRulesBridgeStyle(t *testing.T) {

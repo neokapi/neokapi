@@ -3,6 +3,7 @@ package auth
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -152,9 +153,9 @@ func (c *DeviceFlowClient) TryToken(ctx context.Context, deviceCode string) (*To
 			case "authorization_pending", "slow_down":
 				return nil, true, nil // keep polling
 			case "expired_token":
-				return nil, false, fmt.Errorf("device code expired — please restart the login flow")
+				return nil, false, errors.New("device code expired — please restart the login flow")
 			case "access_denied":
-				return nil, false, fmt.Errorf("authorization denied by user")
+				return nil, false, errors.New("authorization denied by user")
 			}
 		}
 		return nil, false, fmt.Errorf("token request failed (status %d): %s", resp.StatusCode, body)
