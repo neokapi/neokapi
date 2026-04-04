@@ -68,7 +68,7 @@ function ConfigEditor({
 }
 
 const meta: Meta = {
-  title: "Formats & Tools/Formats/XINI RainbowKit Filter",
+  title: "Formats & Tools/Formats/Data/XINI RainbowKit Filter",
   parameters: { layout: "padded" },
 };
 export default meta;

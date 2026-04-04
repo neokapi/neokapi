@@ -64,7 +64,7 @@ function ToolConfig({ schemaName, source }: { schemaName: string; source: "built
 }
 
 const meta: Meta = {
-  title: "Formats & Tools/Tools/Inline Codes Simplifier",
+  title: "Formats & Tools/Tools/Text Processing/Inline Codes Simplifier",
   parameters: { layout: "padded" },
 };
 export default meta;

@@ -5,6 +5,7 @@ import { mockProjects } from "./pulse-fixtures";
 const meta: Meta<typeof PulseProjectCard> = {
   title: "Pulse/PulseProjectCard",
   component: PulseProjectCard,
+  tags: ["autodocs"],
   parameters: { layout: "padded" },
 };
 

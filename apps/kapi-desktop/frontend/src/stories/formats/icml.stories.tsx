@@ -68,7 +68,7 @@ function ConfigEditor({
 }
 
 const meta: Meta = {
-  title: "Formats & Tools/Formats/ICML Filter",
+  title: "Formats & Tools/Formats/Document/ICML Filter",
   parameters: { layout: "padded" },
 };
 export default meta;

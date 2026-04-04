@@ -64,7 +64,7 @@ function ToolConfig({ schemaName, source }: { schemaName: string; source: "built
 }
 
 const meta: Meta = {
-  title: "Formats & Tools/Tools/URI Convert",
+  title: "Formats & Tools/Tools/Conversion/URI Convert",
   parameters: { layout: "padded" },
 };
 export default meta;

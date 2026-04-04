@@ -64,7 +64,7 @@ function ToolConfig({ schemaName, source }: { schemaName: string; source: "built
 }
 
 const meta: Meta = {
-  title: "Formats & Tools/Tools/Inline Codes Quality Check",
+  title: "Formats & Tools/Tools/Quality Assurance/Inline Codes Quality Check",
   parameters: { layout: "padded" },
 };
 export default meta;

@@ -4,6 +4,7 @@ import { PulseFilterBar } from "../../components/pulse";
 const meta: Meta<typeof PulseFilterBar> = {
   title: "Pulse/PulseFilterBar",
   component: PulseFilterBar,
+  tags: ["autodocs"],
   parameters: { layout: "padded" },
 };
 

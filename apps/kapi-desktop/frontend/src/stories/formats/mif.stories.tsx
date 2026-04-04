@@ -68,7 +68,7 @@ function ConfigEditor({
 }
 
 const meta: Meta = {
-  title: "Formats & Tools/Formats/MIF Filter",
+  title: "Formats & Tools/Formats/Document/MIF Filter",
   parameters: { layout: "padded" },
 };
 export default meta;

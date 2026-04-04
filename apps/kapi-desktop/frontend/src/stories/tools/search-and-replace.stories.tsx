@@ -64,7 +64,7 @@ function ToolConfig({ schemaName, source }: { schemaName: string; source: "built
 }
 
 const meta: Meta = {
-  title: "Formats & Tools/Tools/Search and Replace",
+  title: "Formats & Tools/Tools/Text Processing/Search and Replace",
   parameters: { layout: "padded" },
 };
 export default meta;

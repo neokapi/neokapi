@@ -64,7 +64,7 @@ function ToolConfig({ schemaName, source }: { schemaName: string; source: "built
 }
 
 const meta: Meta = {
-  title: "Formats & Tools/Tools/Id-Based Copy",
+  title: "Formats & Tools/Tools/Alignment/Id-Based Copy",
   parameters: { layout: "padded" },
 };
 export default meta;

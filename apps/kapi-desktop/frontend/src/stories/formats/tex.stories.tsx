@@ -68,7 +68,7 @@ function ConfigEditor({
 }
 
 const meta: Meta = {
-  title: "Formats & Tools/Formats/TEX Filter",
+  title: "Formats & Tools/Formats/Document/TEX Filter",
   parameters: { layout: "padded" },
 };
 export default meta;

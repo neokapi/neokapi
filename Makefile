@@ -295,11 +295,17 @@ flow-editor-check: flow-editor-deps ## Lint + format + typecheck flow-editor pac
 flow-editor-test: flow-editor-deps ## Run flow-editor tests
 	cd packages/flow-editor && vp test
 
-kapi-desktop-storybook: kapi-desktop-frontend-deps ## Run Kapi Desktop Storybook (port 6007)
-	cd $(KAPI_DESKTOP_DIR)/frontend && vp exec storybook dev -p 6007
+kapi-storybook: ## Run Kapi Storybook (port 6007)
+	cd storybook && vpx storybook dev -p 6007
 
-kapi-desktop-storybook-build: kapi-desktop-frontend-deps ## Build Kapi Desktop Storybook
-	cd $(KAPI_DESKTOP_DIR)/frontend && vp exec storybook build -o storybook-static
+kapi-storybook-build: ## Build Kapi Storybook
+	cd storybook && vpx storybook build -o storybook-static
+
+bowrain-storybook: ## Run Bowrain Storybook (port 6006)
+	$(MAKE) -C bowrain storybook
+
+bowrain-storybook-build: ## Build Bowrain Storybook
+	$(MAKE) -C bowrain storybook-build
 
 install: ## Install kapi CLI to GOPATH/bin
 	cd kapi && $(GO) install $(LDFLAGS) ./cmd/kapi
@@ -515,7 +521,7 @@ help: ## Show this help
         kapi-desktop-frontend-deps kapi-desktop-frontend-dev kapi-desktop-frontend-build \
         kapi-desktop-frontend-test kapi-desktop-frontend-check \
         flow-editor-deps flow-editor-check flow-editor-test \
-        kapi-desktop-storybook kapi-desktop-storybook-build \
+        kapi-storybook kapi-storybook-build bowrain-storybook bowrain-storybook-build \
         cover test-e2e test-e2e-kapi test-e2e-bowrain test-e2e-cloud test-e2e-dev \
         fetch-bridge-jar fetch-bridge-testdata test-bridge-filters test-bridge-pool test-bridge-json test-native-json \
         bench bench-build bench-generate bench-run bench-run-bridge bench-run-collection bench-run-all bench-versions \

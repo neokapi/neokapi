@@ -5,6 +5,7 @@ import { mockTerms } from "./pulse-fixtures";
 const meta: Meta<typeof TermExplorerPublic> = {
   title: "Pulse/TermExplorerPublic",
   component: TermExplorerPublic,
+  tags: ["autodocs"],
   parameters: { layout: "padded" },
 };
 

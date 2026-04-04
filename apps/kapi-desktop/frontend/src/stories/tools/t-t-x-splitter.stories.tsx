@@ -64,7 +64,7 @@ function ToolConfig({ schemaName, source }: { schemaName: string; source: "built
 }
 
 const meta: Meta = {
-  title: "Formats & Tools/Tools/TTX Splitter",
+  title: "Formats & Tools/Tools/XLIFF/TTX Splitter",
   parameters: { layout: "padded" },
 };
 export default meta;

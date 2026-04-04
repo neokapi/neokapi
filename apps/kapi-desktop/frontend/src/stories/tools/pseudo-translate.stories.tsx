@@ -64,7 +64,7 @@ function ToolConfig({ schemaName, source }: { schemaName: string; source: "built
 }
 
 const meta: Meta = {
-  title: "Formats & Tools/Tools/Pseudo Translate",
+  title: "Formats & Tools/Tools/Translation/Pseudo Translate",
   parameters: { layout: "padded" },
 };
 export default meta;

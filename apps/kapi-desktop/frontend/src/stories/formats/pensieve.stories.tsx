@@ -68,7 +68,7 @@ function ConfigEditor({
 }
 
 const meta: Meta = {
-  title: "Formats & Tools/Formats/Pensieve TM Filter",
+  title: "Formats & Tools/Formats/Other/Pensieve TM Filter",
   parameters: { layout: "padded" },
 };
 export default meta;

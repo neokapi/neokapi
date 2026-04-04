@@ -64,7 +64,7 @@ function ToolConfig({ schemaName, source }: { schemaName: string; source: "built
 }
 
 const meta: Meta = {
-  title: "Formats & Tools/Tools/Text Modification",
+  title: "Formats & Tools/Tools/Text Processing/Text Modification",
   parameters: { layout: "padded" },
 };
 export default meta;

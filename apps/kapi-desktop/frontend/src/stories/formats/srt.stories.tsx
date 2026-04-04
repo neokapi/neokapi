@@ -68,7 +68,7 @@ function ConfigEditor({
 }
 
 const meta: Meta = {
-  title: "Formats & Tools/Formats/SRT Subtitles",
+  title: "Formats & Tools/Formats/Subtitle/SRT Subtitles",
   parameters: { layout: "padded" },
 };
 export default meta;

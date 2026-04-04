@@ -68,7 +68,7 @@ function ConfigEditor({
 }
 
 const meta: Meta = {
-  title: "Formats & Tools/Formats/Trados-Tagged RTF Filter - READING ONLY Filter",
+  title: "Formats & Tools/Formats/Document/Trados-Tagged RTF Filter - READING ONLY Filter",
   parameters: { layout: "padded" },
 };
 export default meta;

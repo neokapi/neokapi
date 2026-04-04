@@ -123,8 +123,8 @@ jobs:
         working-directory: apps/kapi-desktop/frontend
         run: vp test
 
-      - name: Build Kapi Desktop Storybook
-        working-directory: apps/kapi-desktop/frontend
+      - name: Build Kapi Storybook
+        working-directory: storybook
         run: vpx storybook build -o storybook-static
 
       - name: Set up Go
@@ -381,7 +381,7 @@ jobs:
 
       - name: Convert to JUnit XML
         if: always()
-        run: go-junit-report -in bowrain/test-results-bowrain.json -out junit-bowrain.xml
+        run: go-junit-report -in test-results-bowrain.json -out junit-bowrain.xml
 
       - name: Report test results
         uses: dorny/test-reporter@v3

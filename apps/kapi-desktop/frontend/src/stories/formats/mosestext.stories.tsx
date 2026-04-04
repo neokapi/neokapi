@@ -68,7 +68,7 @@ function ConfigEditor({
 }
 
 const meta: Meta = {
-  title: "Formats & Tools/Formats/Moses Text Filter",
+  title: "Formats & Tools/Formats/Plain Text/Moses Text Filter",
   parameters: { layout: "padded" },
 };
 export default meta;

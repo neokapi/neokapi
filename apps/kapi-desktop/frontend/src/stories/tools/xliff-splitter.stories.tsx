@@ -64,7 +64,7 @@ function ToolConfig({ schemaName, source }: { schemaName: string; source: "built
 }
 
 const meta: Meta = {
-  title: "Formats & Tools/Tools/XLIFF Splitter",
+  title: "Formats & Tools/Tools/XLIFF/XLIFF Splitter",
   parameters: { layout: "padded" },
 };
 export default meta;

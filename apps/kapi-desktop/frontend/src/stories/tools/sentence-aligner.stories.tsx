@@ -64,7 +64,7 @@ function ToolConfig({ schemaName, source }: { schemaName: string; source: "built
 }
 
 const meta: Meta = {
-  title: "Formats & Tools/Tools/Sentence Alignment",
+  title: "Formats & Tools/Tools/Alignment/Sentence Alignment",
   parameters: { layout: "padded" },
 };
 export default meta;

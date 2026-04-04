@@ -68,7 +68,7 @@ function ConfigEditor({
 }
 
 const meta: Meta = {
-  title: "Formats & Tools/Formats/Table Filter",
+  title: "Formats & Tools/Formats/Data/Table Filter",
   parameters: { layout: "padded" },
 };
 export default meta;

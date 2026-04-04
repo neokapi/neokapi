@@ -64,7 +64,7 @@ function ToolConfig({ schemaName, source }: { schemaName: string; source: "built
 }
 
 const meta: Meta = {
-  title: "Formats & Tools/Tools/Line Break Convert",
+  title: "Formats & Tools/Tools/Conversion/Line Break Convert",
   parameters: { layout: "padded" },
 };
 export default meta;

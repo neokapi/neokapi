@@ -68,7 +68,7 @@ function ConfigEditor({
 }
 
 const meta: Meta = {
-  title: "Formats & Tools/Formats/CSV Format",
+  title: "Formats & Tools/Formats/Data/CSV Format",
   parameters: { layout: "padded" },
 };
 export default meta;

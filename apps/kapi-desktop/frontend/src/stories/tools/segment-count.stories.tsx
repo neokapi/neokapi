@@ -64,7 +64,7 @@ function ToolConfig({ schemaName, source }: { schemaName: string; source: "built
 }
 
 const meta: Meta = {
-  title: "Formats & Tools/Tools/Segment Count",
+  title: "Formats & Tools/Tools/Analysis/Segment Count",
   parameters: { layout: "padded" },
 };
 export default meta;

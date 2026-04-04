@@ -64,7 +64,7 @@ function ToolConfig({ schemaName, source }: { schemaName: string; source: "built
 }
 
 const meta: Meta = {
-  title: "Formats & Tools/Tools/Tokenization Step",
+  title: "Formats & Tools/Tools/Other/Tokenization Step",
   parameters: { layout: "padded" },
 };
 export default meta;

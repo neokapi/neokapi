@@ -64,7 +64,7 @@ function ToolConfig({ schemaName, source }: { schemaName: string; source: "built
 }
 
 const meta: Meta = {
-  title: "Formats & Tools/Tools/Full-Width Conversion",
+  title: "Formats & Tools/Tools/Conversion/Full-Width Conversion",
   parameters: { layout: "padded" },
 };
 export default meta;

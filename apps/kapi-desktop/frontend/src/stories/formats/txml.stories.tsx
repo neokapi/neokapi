@@ -68,7 +68,7 @@ function ConfigEditor({
 }
 
 const meta: Meta = {
-  title: "Formats & Tools/Formats/TXML Filter",
+  title: "Formats & Tools/Formats/Localization/TXML Filter",
   parameters: { layout: "padded" },
 };
 export default meta;

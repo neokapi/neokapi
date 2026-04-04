@@ -137,7 +137,7 @@ function CompareEditor({ nativeName, okapiName }: { nativeName: string; okapiNam
 }
 
 const meta: Meta = {
-  title: "Formats & Tools/Formats/TMX (Translation Memory eXchange)",
+  title: "Formats & Tools/Formats/Localization/TMX (Translation Memory eXchange)",
   parameters: { layout: "padded" },
 };
 export default meta;

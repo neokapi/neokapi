@@ -64,7 +64,7 @@ function ToolConfig({ schemaName, source }: { schemaName: string; source: "built
 }
 
 const meta: Meta = {
-  title: "Formats & Tools/Tools/XSL Transformation",
+  title: "Formats & Tools/Tools/Other/XSL Transformation",
   parameters: { layout: "padded" },
 };
 export default meta;

@@ -64,7 +64,7 @@ function ToolConfig({ schemaName, source }: { schemaName: string; source: "built
 }
 
 const meta: Meta = {
-  title: "Formats & Tools/Tools/Desegmentation",
+  title: "Formats & Tools/Tools/Segmentation/Desegmentation",
   parameters: { layout: "padded" },
 };
 export default meta;

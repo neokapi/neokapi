@@ -64,7 +64,7 @@ function ToolConfig({ schemaName, source }: { schemaName: string; source: "built
 }
 
 const meta: Meta = {
-  title: "Formats & Tools/Tools/Rainbow Translation Kit Creation",
+  title: "Formats & Tools/Tools/Other/Rainbow Translation Kit Creation",
   parameters: { layout: "padded" },
 };
 export default meta;

@@ -4,6 +4,7 @@ import { RisingStarBadge } from "../../components/pulse";
 const meta: Meta<typeof RisingStarBadge> = {
   title: "Pulse/RisingStarBadge",
   component: RisingStarBadge,
+  tags: ["autodocs"],
   parameters: { layout: "centered" },
 };
 

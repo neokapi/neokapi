@@ -137,7 +137,7 @@ function CompareEditor({ nativeName, okapiName }: { nativeName: string; okapiNam
 }
 
 const meta: Meta = {
-  title: "Formats & Tools/Formats/XLIFF 1.2",
+  title: "Formats & Tools/Formats/Localization/XLIFF 1.2",
   parameters: { layout: "padded" },
 };
 export default meta;
