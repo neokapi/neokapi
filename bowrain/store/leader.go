@@ -4,7 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"log"
+	"log/slog"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -94,7 +94,7 @@ func (e *LeaderElector) tryAcquireOrRenew() {
 		WHERE name = ? AND (expires_at < ? OR holder_id = ?)`)
 	res, err := e.db.ExecContext(ctx, updateQ, e.holderID, expiresAt, e.name, now, e.holderID)
 	if err != nil {
-		log.Printf("leader: renew failed: %v", err)
+		slog.Info("leader: renew failed", "error", err)
 		e.leader.Store(false)
 		return
 	}
@@ -111,7 +111,7 @@ func (e *LeaderElector) tryAcquireOrRenew() {
 	}
 	res, err = e.db.ExecContext(ctx, insertQ, e.name, e.holderID, expiresAt)
 	if err != nil {
-		log.Printf("leader: acquire failed: %v", err)
+		slog.Info("leader: acquire failed", "error", err)
 		e.leader.Store(false)
 		return
 	}
@@ -129,9 +129,9 @@ func (e *LeaderElector) setLeader(isLeader bool) {
 	wasLeader := e.leader.Load()
 	e.leader.Store(isLeader)
 	if isLeader && !wasLeader {
-		log.Printf("leader: acquired lease %q (holder=%s)", e.name, e.holderID)
+		slog.Info("leader: acquired lease", "lease", e.name, "holder", e.holderID)
 	} else if !isLeader && wasLeader {
-		log.Printf("leader: lost lease %q", e.name)
+		slog.Info("leader: lost lease", "lease", e.name)
 	}
 }
 
@@ -149,9 +149,9 @@ func (e *LeaderElector) release() {
 	q := Rebind(e.dialect, `DELETE FROM leader_leases WHERE name = ? AND holder_id = ?`)
 	_, err := e.db.ExecContext(ctx, q, e.name, e.holderID)
 	if err != nil {
-		log.Printf("leader: release failed: %v", err)
+		slog.Info("leader: release failed", "error", err)
 	} else {
-		log.Printf("leader: released lease %q", e.name)
+		slog.Info("leader: released lease", "lease", e.name)
 	}
 	e.leader.Store(false)
 }

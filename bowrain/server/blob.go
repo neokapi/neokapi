@@ -1,7 +1,7 @@
 package server
 
 import (
-	"log"
+	"log/slog"
 	"os"
 	"path/filepath"
 
@@ -25,7 +25,7 @@ func (s *Server) initBlobStore(cfg ServerConfig) {
 	case "local":
 		s.initLocalBlobStore(cfg)
 	default:
-		log.Printf("WARNING: unknown blob storage backend %q, falling back to local", backend)
+		slog.Warn("unknown blob storage backend, falling back to local", "backend", backend)
 		s.initLocalBlobStore(cfg)
 	}
 }
@@ -53,26 +53,26 @@ func (s *Server) initAzureBlobStore(cfg ServerConfig) {
 	if connStr != "" {
 		bs, err := azureblob.NewWithConnectionString(connStr, container)
 		if err != nil {
-			log.Printf("WARNING: failed to create Azure Blob Store from connection string: %v", err)
+			slog.Warn("failed to create Azure Blob Store from connection string", "error", err)
 			return
 		}
 		s.BlobStore = bs
-		log.Printf("Using Azure Blob Storage (connection string) container=%s", container)
+		slog.Info("using Azure Blob Storage (connection string)", "container", container)
 		return
 	}
 
 	if accountURL != "" {
 		bs, err := azureblob.New(accountURL, container)
 		if err != nil {
-			log.Printf("WARNING: failed to create Azure Blob Store: %v", err)
+			slog.Warn("failed to create Azure Blob Store", "error", err)
 			return
 		}
 		s.BlobStore = bs
-		log.Printf("Using Azure Blob Storage (Managed Identity) %s/%s", accountURL, container)
+		slog.Info("using Azure Blob Storage (managed identity)", "account_url", accountURL, "container", container)
 		return
 	}
 
-	log.Printf("WARNING: azure blob storage configured but no account URL or connection string provided")
+	slog.Warn("azure blob storage configured but no account URL or connection string provided")
 }
 
 func (s *Server) initLocalBlobStore(cfg ServerConfig) {
@@ -91,9 +91,9 @@ func (s *Server) initLocalBlobStore(cfg ServerConfig) {
 
 	bs, err := localblob.New(dir)
 	if err != nil {
-		log.Printf("WARNING: failed to create local blob store at %s: %v", dir, err)
+		slog.Warn("failed to create local blob store", "dir", dir, "error", err)
 		return
 	}
 	s.BlobStore = bs
-	log.Printf("Using local blob storage at %s", dir)
+	slog.Info("using local blob storage", "dir", dir)
 }

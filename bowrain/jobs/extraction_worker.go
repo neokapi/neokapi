@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log"
+	"log/slog"
 	"strconv"
 	"strings"
 	"time"
@@ -59,8 +59,8 @@ type ReviewQueueItem struct {
 
 // RunExtractionWorker runs the extraction worker loop. It blocks until ctx is cancelled.
 func RunExtractionWorker(ctx context.Context, deps *ExtractionWorkerDeps) error {
-	log.Println("extraction worker started")
-	defer log.Println("extraction worker stopped")
+	slog.Info("extraction worker started")
+	defer slog.Info("extraction worker stopped")
 
 	for {
 		select {
@@ -74,13 +74,13 @@ func RunExtractionWorker(ctx context.Context, deps *ExtractionWorkerDeps) error 
 			if ctx.Err() != nil {
 				return ctx.Err()
 			}
-			log.Printf("extraction dequeue error: %v", err)
+			slog.Info("extraction dequeue error", "error", err)
 			sleepCtx(ctx, 2*time.Second)
 			continue
 		}
 
 		if processErr := processExtractionJob(ctx, deps, jobID); processErr != nil {
-			log.Printf("extraction job %s failed: %v", jobID, processErr)
+			slog.Error("extraction job failed", "job_id", jobID, "error", processErr)
 		}
 		ack()
 	}
@@ -93,7 +93,7 @@ func processExtractionJob(ctx context.Context, deps *ExtractionWorkerDeps, jobID
 		return fmt.Errorf("claim extraction job: %w", err)
 	}
 	if !claimed {
-		log.Printf("extraction job %s already claimed by another worker, skipping", jobID)
+		slog.Info("extraction job already claimed, skipping", "job_id", jobID)
 		return nil
 	}
 
@@ -164,7 +164,7 @@ func executeExtraction(ctx context.Context, deps *ExtractionWorkerDeps, job *Ext
 	if deps.KnownTermsLoader != nil {
 		loaded, err := deps.KnownTermsLoader.LoadKnownTerms(ctx, job.ProjectID, string(locale))
 		if err != nil {
-			log.Printf("extraction: failed to load known terms for %s: %v", job.ProjectID, err)
+			slog.Info("extraction: failed to load known terms for", "id", job.ProjectID, "error", err)
 		} else {
 			knownTerms = loaded
 		}
@@ -201,12 +201,12 @@ func executeExtraction(ctx context.Context, deps *ExtractionWorkerDeps, job *Ext
 		// Create review queue items from annotations.
 		created, err := createReviewItemsFromParts(ctx, deps, job, outParts, string(locale))
 		if err != nil {
-			log.Printf("warning: create review items for chunk %d-%d: %v", i, end, err)
+			slog.Warn("create review items for chunk failed", "start", i, "end", end, "error", err)
 		}
 		itemsCreated += created
 
 		if err := deps.ExtractionJobStore.UpdateExtractionJobProgress(ctx, job.ID, end, totalBlocks, itemsCreated); err != nil {
-			log.Printf("warning: update extraction progress for %s: %v", job.ID, err)
+			slog.Info("warning: update extraction progress for", "id", job.ID, "error", err)
 		}
 	}
 
@@ -217,7 +217,7 @@ func executeExtraction(ctx context.Context, deps *ExtractionWorkerDeps, job *Ext
 		blocks := partsToBlocks(outParts)
 		if len(blocks) > 0 {
 			if storeErr := deps.ContentStore.StoreBlocksForItem(ctx, job.ProjectID, "main", job.ItemName, blocks); storeErr != nil {
-				log.Printf("warning: store annotated blocks: %v", storeErr)
+				slog.Warn("store annotated blocks failed", "error", storeErr)
 			}
 		}
 	}
@@ -267,7 +267,7 @@ func createReviewItemsFromParts(ctx context.Context, deps *ExtractionWorkerDeps,
 					Confidence:  a.Confidence,
 					Locale:      locale,
 				}); err != nil {
-					log.Printf("warning: create term candidate review item: %v", err)
+					slog.Info("warning: create term candidate review item", "error", err)
 					continue
 				}
 				created++
@@ -294,7 +294,7 @@ func createReviewItemsFromParts(ctx context.Context, deps *ExtractionWorkerDeps,
 					Confidence:  0.9, // entities from LLM/NER are high-confidence
 					Locale:      locale,
 				}); err != nil {
-					log.Printf("warning: create entity review item: %v", err)
+					slog.Info("warning: create entity review item", "error", err)
 					continue
 				}
 				created++

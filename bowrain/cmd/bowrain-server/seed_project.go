@@ -7,7 +7,8 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"log"
+	"log/slog"
+	"os"
 	"strings"
 	"time"
 
@@ -28,7 +29,8 @@ import (
 //	push_token=bwt_<hex>
 func seedProject(cfg seedProjectConfig) {
 	if err := runSeedProject(cfg); err != nil {
-		log.Fatalf("seed-project: %v", err)
+		slog.Error("seed-project failed", "error", err)
+		os.Exit(1)
 	}
 }
 
@@ -99,7 +101,7 @@ func runSeedProject(cfg seedProjectConfig) error {
 		for _, t := range tokens {
 			if t.UserID == user.ID && t.Name == pushTokenName {
 				_ = authStore.DeleteAPIToken(ctx, t.ID)
-				log.Printf("Rotated existing push token %s", t.ID)
+				slog.Info("rotated existing push token", "token_id", t.ID)
 			}
 		}
 	}
@@ -134,7 +136,7 @@ func findOrCreateProject(ctx context.Context, s *store.PostgresStore, workspaceI
 	if err == nil {
 		for _, p := range projects {
 			if p.WorkspaceID == workspaceID && p.Name == name {
-				log.Printf("Project already exists: %s (%s)", p.Name, p.ID)
+				slog.Info("project already exists", "name", p.Name, "id", p.ID)
 				return p.ID, nil
 			}
 		}
@@ -149,7 +151,7 @@ func findOrCreateProject(ctx context.Context, s *store.PostgresStore, workspaceI
 	if err := s.CreateProject(ctx, p); err != nil {
 		return "", fmt.Errorf("create project: %w", err)
 	}
-	log.Printf("Created project %s (%s) in workspace %s", p.Name, p.ID, workspaceID)
+	slog.Info("created project", "name", p.Name, "id", p.ID, "workspace", workspaceID)
 	return p.ID, nil
 }
 

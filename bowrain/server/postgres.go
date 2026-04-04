@@ -2,7 +2,7 @@ package server
 
 import (
 	"fmt"
-	"log"
+	"log/slog"
 
 	bragent "github.com/neokapi/neokapi/bowrain/agent"
 	"github.com/neokapi/neokapi/bowrain/auth"
@@ -75,7 +75,7 @@ func initPostgresStores(db *storage.PgDB) (*pgStores, error) {
 
 	bs, err := platbrand.NewPostgresBrandStore(db)
 	if err != nil {
-		log.Printf("WARNING: failed to init brand store: %v (brand voice features disabled)", err)
+		slog.Warn("failed to init brand store (brand voice features disabled)", "error", err)
 	}
 
 	es, err := jobs.NewPgExtractionJobStore(db)
@@ -94,7 +94,7 @@ func initPostgresStores(db *storage.PgDB) (*pgStores, error) {
 	// Initialize agent store (AD-028).
 	ags, err := bragent.NewPostgresStore(db)
 	if err != nil {
-		log.Printf("WARNING: failed to init agent store: %v (agent features disabled)", err)
+		slog.Warn("failed to init agent store (agent features disabled)", "error", err)
 	} else {
 		stores.Agent = ags
 	}
@@ -102,7 +102,7 @@ func initPostgresStores(db *storage.PgDB) (*pgStores, error) {
 	// Initialize billing store (AD-030).
 	bils, err := billing.NewPgBillingStore(db)
 	if err != nil {
-		log.Printf("WARNING: failed to init billing store: %v (billing features disabled)", err)
+		slog.Warn("failed to init billing store (billing features disabled)", "error", err)
 	} else {
 		stores.Billing = bils
 	}

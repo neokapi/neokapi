@@ -5,7 +5,6 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"log"
 	"log/slog"
 	"net/http"
 	"os"
@@ -219,7 +218,8 @@ func main() {
 
 	// Validate that DatabaseURL is a PostgreSQL connection string.
 	if cfg.DatabaseURL != "" && !strings.HasPrefix(cfg.DatabaseURL, "postgres://") && !strings.HasPrefix(cfg.DatabaseURL, "postgresql://") {
-		log.Fatalf("Invalid -database-url: must start with postgres:// or postgresql://")
+		slog.Error("Invalid -database-url: must start with postgres:// or postgresql://")
+		os.Exit(1)
 	}
 
 	srv := server.NewServer(cfg)

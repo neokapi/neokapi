@@ -2,7 +2,7 @@ package billing
 
 import (
 	"context"
-	"log"
+	"log/slog"
 	"time"
 )
 
@@ -28,7 +28,7 @@ func (h *UsageHooks) DeductTokens(ctx context.Context, workspaceID string, token
 
 	credits := TokensToCredits(tokens)
 	if err := h.Store.DeductCredits(ctx, workspaceID, credits, op, refID); err != nil {
-		log.Printf("billing: deduct credits for %s: %v", workspaceID, err)
+		slog.Info("billing: deduct credits for", "id", workspaceID, "error", err)
 	}
 
 	// Check credit thresholds for notifications.
@@ -45,7 +45,7 @@ func (h *UsageHooks) DeductContainerTime(ctx context.Context, workspaceID string
 
 	credits := ContainerTimeCredits(duration)
 	if err := h.Store.DeductCredits(ctx, workspaceID, credits, "bravo_container", refID); err != nil {
-		log.Printf("billing: deduct container credits for %s: %v", workspaceID, err)
+		slog.Info("billing: deduct container credits for", "id", workspaceID, "error", err)
 	}
 
 	h.reportMeter(workspaceID, "container_time_usage", int64(duration.Seconds()), "bravo_container")

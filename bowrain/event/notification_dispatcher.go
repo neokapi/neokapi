@@ -2,7 +2,7 @@ package event
 
 import (
 	"context"
-	"log"
+	"log/slog"
 	"time"
 
 	platev "github.com/neokapi/neokapi/bowrain/core/event"
@@ -102,7 +102,7 @@ func (d *NotificationDispatcher) handleEvent(ev platev.Event) {
 		var err error
 		userIDs, err = d.targetFn(ctx, ev.ProjectID, ev.Actor)
 		if err != nil {
-			log.Printf("WARNING: notification dispatcher failed to resolve targets for project %s: %v", ev.ProjectID, err)
+			slog.Warn("notification dispatcher failed to resolve targets for project", "id", ev.ProjectID, "error", err)
 			return
 		}
 	}
@@ -121,7 +121,7 @@ func (d *NotificationDispatcher) handleEvent(ev platev.Event) {
 		}
 
 		if err := d.store.Create(ctx, &notification); err != nil {
-			log.Printf("WARNING: notification dispatcher failed to persist notification for user %s: %v", userID, err)
+			slog.Warn("notification dispatcher failed to persist notification for user", "id", userID, "error", err)
 			continue
 		}
 
@@ -137,7 +137,7 @@ func (d *NotificationDispatcher) handleEvent(ev platev.Event) {
 		// Send immediate email for high-priority notifications.
 		if d.mailer != nil && notification.Priority == "high" {
 			if err := d.mailer.SendImmediate(ctx, userID, &notification); err != nil {
-				log.Printf("WARNING: failed to send immediate email for user %s: %v", userID, err)
+				slog.Warn("failed to send immediate email for user", "id", userID, "error", err)
 			}
 		}
 	}
@@ -223,7 +223,7 @@ func (d *NotificationDispatcher) handleAutoMute(ev platev.Event) {
 		groupKey := ev.Data["gate_name"] + ":" + ev.Data["locale"]
 		if groupKey != ":" {
 			if err := d.store.MarkReadByGroupKey(ctx, groupKey); err != nil {
-				log.Printf("WARNING: auto-mute failed for group key %s: %v", groupKey, err)
+				slog.Warn("auto-mute failed for group key", "id", groupKey, "error", err)
 			}
 		}
 	}
@@ -249,7 +249,7 @@ func (d *NotificationDispatcher) DispatchMention(ctx context.Context, mentionedU
 	}
 
 	if err := d.store.Create(ctx, n); err != nil {
-		log.Printf("WARNING: failed to create mention notification for user %s: %v", mentionedUserID, err)
+		slog.Warn("failed to create mention notification for user", "id", mentionedUserID, "error", err)
 		return
 	}
 
@@ -277,7 +277,7 @@ func (d *NotificationDispatcher) DispatchDeadlineApproaching(ctx context.Context
 	}
 
 	if err := d.store.Create(ctx, n); err != nil {
-		log.Printf("WARNING: failed to create deadline notification for user %s: %v", task.AssigneeID, err)
+		slog.Warn("failed to create deadline notification for user", "id", task.AssigneeID, "error", err)
 		return
 	}
 
@@ -288,7 +288,7 @@ func (d *NotificationDispatcher) DispatchDeadlineApproaching(ctx context.Context
 	// Deadline notifications are always high-priority — send immediate email.
 	if d.mailer != nil {
 		if err := d.mailer.SendImmediate(ctx, task.AssigneeID, n); err != nil {
-			log.Printf("WARNING: failed to send deadline email for user %s: %v", task.AssigneeID, err)
+			slog.Warn("failed to send deadline email for user", "id", task.AssigneeID, "error", err)
 		}
 	}
 }
@@ -312,7 +312,7 @@ func (d *NotificationDispatcher) DispatchTaskNotification(ctx context.Context, t
 	}
 
 	if err := d.store.Create(ctx, n); err != nil {
-		log.Printf("WARNING: failed to create task notification for user %s: %v", task.AssigneeID, err)
+		slog.Warn("failed to create task notification for user", "id", task.AssigneeID, "error", err)
 		return
 	}
 
@@ -334,7 +334,7 @@ func (d *NotificationDispatcher) DispatchToProject(ctx context.Context, projectI
 		var err error
 		userIDs, err = d.targetFn(ctx, projectID, excludeActorID)
 		if err != nil {
-			log.Printf("WARNING: failed to resolve targets for project %s: %v", projectID, err)
+			slog.Warn("failed to resolve targets for project", "id", projectID, "error", err)
 			return
 		}
 	}
@@ -343,7 +343,7 @@ func (d *NotificationDispatcher) DispatchToProject(ctx context.Context, projectI
 		n := prototype
 		n.UserID = userID
 		if err := d.store.Create(ctx, &n); err != nil {
-			log.Printf("WARNING: failed to create notification for user %s: %v", userID, err)
+			slog.Warn("failed to create notification for user", "id", userID, "error", err)
 			continue
 		}
 		if d.sender != nil {

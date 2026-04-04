@@ -2,7 +2,7 @@ package event
 
 import (
 	"context"
-	"log"
+	"log/slog"
 	"sync"
 	"time"
 
@@ -79,7 +79,7 @@ func (dc *DeadlineChecker) check() {
 		Limit:     200,
 	})
 	if err != nil {
-		log.Printf("WARNING: deadline checker failed to list tasks: %v", err)
+		slog.Warn("deadline checker failed to list tasks", "error", err)
 		return
 	}
 

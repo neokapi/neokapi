@@ -3,7 +3,7 @@ package server
 import (
 	"context"
 	"fmt"
-	"log"
+	"log/slog"
 	"net/http"
 	"sync"
 	"time"
@@ -91,7 +91,7 @@ func (room *collabRoom) broadcast(sender *collabClient, msg []byte) {
 		// Non-blocking write with timeout.
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		if err := client.conn.Write(ctx, websocket.MessageBinary, msg); err != nil {
-			log.Printf("collab: failed to write to client %s: %v", client.userID, err)
+			slog.Info("collab: failed to write to client", "id", client.userID, "error", err)
 		}
 		cancel()
 	}
@@ -146,11 +146,11 @@ func (s *Server) HandleCollabWebSocket(c echo.Context) error {
 	room.clients[client] = struct{}{}
 	room.mu.Unlock()
 
-	log.Printf("collab: user %s (%s) joined room %s", userID, userName, roomKey)
+	slog.Info("collab: user joined room", "user_id", userID, "name", userName, "room", roomKey)
 
 	defer func() {
 		s.collabHub.removeClient(client)
-		log.Printf("collab: user %s left room %s", userID, roomKey)
+		slog.Info("collab: user left room", "user_id", userID, "room", roomKey)
 	}()
 
 	// Read loop: relay incoming messages to all other clients in the room.

@@ -3,7 +3,7 @@ package billing
 import (
 	"context"
 	"fmt"
-	"log"
+	"log/slog"
 	"strconv"
 	"time"
 
@@ -129,7 +129,7 @@ func (c *StripeClient) ReportMeterEvent(_ context.Context, customerID, eventName
 	}
 
 	if _, err := c.sc.V2BillingMeterEvents.Create(context.Background(), params); err != nil {
-		log.Printf("stripe meter event error: %v", err)
+		slog.Info("stripe meter event error", "error", err)
 	}
 }
 

@@ -2,7 +2,7 @@ package graph
 
 import (
 	"context"
-	"log"
+	"log/slog"
 	"time"
 
 	platev "github.com/neokapi/neokapi/bowrain/core/event"
@@ -54,7 +54,7 @@ func (s *GraphSyncer) onBlockCreated(ctx context.Context, ev platev.Event) {
 	}
 
 	if err := s.store.CreateNode(ctx, node); err != nil {
-		log.Printf("graph sync: create node for block %s: %v", blockID, err)
+		slog.Info("graph sync: create node for block", "id", blockID, "error", err)
 	}
 }
 
@@ -74,7 +74,7 @@ func (s *GraphSyncer) onBlockUpdated(ctx context.Context, ev platev.Event) {
 	}
 
 	if err := s.store.UpdateNode(ctx, node); err != nil {
-		log.Printf("graph sync: update node for block %s: %v", blockID, err)
+		slog.Info("graph sync: update node for block", "id", blockID, "error", err)
 	}
 }
 
@@ -85,7 +85,7 @@ func (s *GraphSyncer) onBlockDeleted(ctx context.Context, ev platev.Event) {
 	}
 
 	if err := s.store.DeleteNode(ctx, blockID); err != nil {
-		log.Printf("graph sync: delete node for block %s: %v", blockID, err)
+		slog.Info("graph sync: delete node for block", "id", blockID, "error", err)
 	}
 }
 

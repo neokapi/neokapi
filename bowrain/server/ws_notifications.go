@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
+	"log/slog"
 	"net/http"
 	"sync"
 	"time"
@@ -77,7 +77,7 @@ func (h *notificationHub) notifyUser(userID string, notification *bstore.Notific
 	for _, c := range targets {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		if err := c.conn.Write(ctx, websocket.MessageText, msg); err != nil {
-			log.Printf("notification-ws: failed to write to user %s: %v", c.userID, err)
+			slog.Info("notification-ws: failed to write to user", "id", c.userID, "error", err)
 		}
 		cancel()
 	}
@@ -105,11 +105,11 @@ func (s *Server) HandleNotificationWebSocket(c echo.Context) error {
 	}
 
 	s.notificationHub.addClient(client)
-	log.Printf("notification-ws: user %s connected", userID)
+	slog.Info("notification-ws: user connected", "user_id", userID)
 
 	defer func() {
 		s.notificationHub.removeClient(client)
-		log.Printf("notification-ws: user %s disconnected", userID)
+		slog.Info("notification-ws: user disconnected", "user_id", userID)
 	}()
 
 	// Read loop: keep connection alive, handle pings.
