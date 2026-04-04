@@ -136,8 +136,7 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev
 
       - name: Run Kapi Desktop Go backend tests
-        working-directory: apps/kapi-desktop
-        run: go test -race -shuffle=on ./backend/... -count=1 -timeout 60s
+        run: make kapi-desktop-test
 
   # ── Go tests (parallel per module) ────────────────────────────────────────
   test-framework:
@@ -160,8 +159,7 @@ jobs:
 
       - name: Run framework tests
         id: run-tests
-        working-directory: .
-        run: go test -race -shuffle=on -coverprofile=framework.out -covermode=atomic -json ./... > test-results-framework.json
+        run: make test-framework
         continue-on-error: true
 
       - name: Convert to JUnit XML
@@ -186,7 +184,7 @@ jobs:
         if: always() && matrix.go-version == '1.26.0'
         with:
           name: coverage-framework
-          path: framework.out
+          path: coverage/framework.out
 
       - name: Upload native test results
         uses: actions/upload-artifact@v7
@@ -210,7 +208,7 @@ jobs:
 
       - name: Run platform tests
         id: run-tests
-        run: cd bowrain/core && go test -race -shuffle=on -coverprofile=platform.out -covermode=atomic -json ./... > ../test-results-platform.json
+        run: make test-platform
         continue-on-error: true
 
       - name: Convert to JUnit XML
@@ -235,7 +233,7 @@ jobs:
         if: always()
         with:
           name: coverage-platform
-          path: bowrain/core/platform.out
+          path: coverage/platform.out
           retention-days: 1
 
   test-cli:
@@ -252,7 +250,7 @@ jobs:
 
       - name: Run cli tests
         id: run-tests
-        run: cd cli && go test -race -shuffle=on -coverprofile=cli.out -covermode=atomic -json ./... > ../test-results-cli.json
+        run: make test-cli
         continue-on-error: true
 
       - name: Convert to JUnit XML
@@ -277,7 +275,7 @@ jobs:
         if: always()
         with:
           name: coverage-cli
-          path: cli/cli.out
+          path: coverage/cli.out
           retention-days: 1
 
   test-kapi:
@@ -294,7 +292,7 @@ jobs:
 
       - name: Run kapi tests
         id: run-tests
-        run: cd kapi && go test -race -shuffle=on -coverprofile=kapi.out -covermode=atomic -json ./... > ../test-results-kapi.json
+        run: make test-kapi
         continue-on-error: true
 
       - name: Convert to JUnit XML
@@ -319,7 +317,7 @@ jobs:
         if: always()
         with:
           name: coverage-kapi
-          path: kapi/kapi.out
+          path: coverage/kapi.out
           retention-days: 1
 
   test-bowrain-cli:
@@ -336,7 +334,7 @@ jobs:
 
       - name: Run Bowrain CLI tests
         id: run-tests
-        run: cd bowrain/cli && go test -race -shuffle=on -coverprofile=bowrain-cli.out -covermode=atomic -json ./... > ../test-results-bowrain-cli.json
+        run: make test-bowrain-cli
         continue-on-error: true
 
       - name: Convert to JUnit XML
@@ -361,7 +359,7 @@ jobs:
         if: always()
         with:
           name: coverage-bowrain-cli
-          path: bowrain/cli/bowrain-cli.out
+          path: coverage/bowrain-cli.out
           retention-days: 1
 
   test-bowrain:
@@ -378,15 +376,12 @@ jobs:
 
       - name: Run bowrain tests
         id: run-tests
-        run: |
-          cd bowrain
-          # shellcheck disable=SC2046
-          go test -race -shuffle=on -coverprofile=bowrain.out -covermode=atomic -json $(go list ./... | grep -v '/apps/bowrain') > ../test-results-bowrain.json
+        run: make test-bowrain
         continue-on-error: true
 
       - name: Convert to JUnit XML
         if: always()
-        run: go-junit-report -in test-results-bowrain.json -out junit-bowrain.xml
+        run: go-junit-report -in bowrain/test-results-bowrain.json -out junit-bowrain.xml
 
       - name: Report test results
         uses: dorny/test-reporter@v3
@@ -406,7 +401,7 @@ jobs:
         if: always()
         with:
           name: coverage-bowrain
-          path: bowrain/bowrain.out
+          path: coverage/bowrain.out
           retention-days: 1
 
   # ── Merge coverage from all test jobs ─────────────────────────────────────

@@ -46,6 +46,17 @@ GOLANGCI_LINT := $(shell which golangci-lint 2>/dev/null || { test -x "$$(go env
 PROTOC        := $(shell which protoc 2>/dev/null)
 PROTOC_GEN_GO := $(shell which protoc-gen-go 2>/dev/null)
 
+# ── CI auto-detection ────────────────────────────────────────────────────────
+ifdef CI
+  _RACE     := -race
+  _COVMODE  := -covermode=atomic
+else
+  _RACE     :=
+  _COVMODE  :=
+endif
+
+GOTEST_BASE := $(GOTEST) $(_RACE) -shuffle=on
+
 # Docker
 DOCKER_IMAGE          := ghcr.io/neokapi/bowrain-server
 DOCKER_WORKER_IMAGE   := ghcr.io/neokapi/bowrain-worker
@@ -321,49 +332,64 @@ test-e2e-dev: ## Run cloud e2e tests against the dev environment
 # ── Test ─────────────────────────────────────────────────────────────────────
 
 test: ## Run all platform tests
-	cd core && $(GOTEST) -shuffle=on ./... -count=1
-	cd cli && $(GOTEST) -shuffle=on ./... -count=1
-	$(GOTEST) -shuffle=on ./... -count=1
+	cd core && $(GOTEST_BASE) ./... -count=1
+	cd cli && $(GOTEST_BASE) ./... -count=1
+	$(GOTEST_BASE) ./... -count=1
 
 test-fast: ## Run all platform tests with caching
-	cd core && $(GOTEST) -shuffle=on ./...
-	cd cli && $(GOTEST) -shuffle=on ./...
-	$(GOTEST) -shuffle=on ./...
+	cd core && $(GOTEST_BASE) ./...
+	cd cli && $(GOTEST_BASE) ./...
+	$(GOTEST_BASE) ./...
 
 test-unit: ## Run platform unit tests only
-	cd core && $(GOTEST) -shuffle=on ./... -count=1 -short
-	cd cli && $(GOTEST) -shuffle=on ./... -count=1 -short
-	$(GOTEST) -shuffle=on ./... -count=1 -short
+	cd core && $(GOTEST_BASE) ./... -count=1 -short
+	cd cli && $(GOTEST_BASE) ./... -count=1 -short
+	$(GOTEST_BASE) ./... -count=1 -short
 
 test-race: ## Run platform tests with race detector
-	cd core && $(GOTEST) -shuffle=on ./... -count=1 -race
-	cd cli && $(GOTEST) -shuffle=on ./... -count=1 -race
-	$(GOTEST) -shuffle=on ./... -count=1 -race
+	cd core && $(GOTEST) -race -shuffle=on ./... -count=1
+	cd cli && $(GOTEST) -race -shuffle=on ./... -count=1
+	$(GOTEST) -race -shuffle=on ./... -count=1
 
 test-verbose: ## Run platform tests with verbose output
-	cd core && $(GOTEST) -shuffle=on ./... -count=1 -v
-	cd cli && $(GOTEST) -shuffle=on ./... -count=1 -v
-	$(GOTEST) -shuffle=on ./... -count=1 -v
+	cd core && $(GOTEST_BASE) ./... -count=1 -v
+	cd cli && $(GOTEST_BASE) ./... -count=1 -v
+	$(GOTEST_BASE) ./... -count=1 -v
 
 test-integration: ## Run platform integration tests
-	$(GOTEST) -shuffle=on ./... -count=1 -tags=integration -run Integration
+	$(GOTEST_BASE) ./... -count=1 -tags=integration -run Integration
 
 test-platform: ## Run platform core module tests only
-	cd core && $(GOTEST) -shuffle=on ./... -count=1
+	@mkdir -p $(COVER_DIR)
+ifdef CI
+	cd core && $(GOTEST_BASE) -coverprofile=$(COVER_DIR)/platform.out $(_COVMODE) -json ./... > ../test-results-platform.json
+else
+	cd core && $(GOTEST_BASE) ./... -count=1
+endif
 
 test-bowrain-cli: ## Run Bowrain CLI tests only
-	cd cli && $(GOTEST) -shuffle=on ./... -count=1
+	@mkdir -p $(COVER_DIR)
+ifdef CI
+	cd cli && $(GOTEST_BASE) -coverprofile=$(COVER_DIR)/bowrain-cli.out $(_COVMODE) -json ./... > ../test-results-bowrain-cli.json
+else
+	cd cli && $(GOTEST_BASE) ./... -count=1
+endif
 
 test-bowrain: ## Run bowrain module tests only
-	$(GOTEST) -shuffle=on ./... -count=1
+	@mkdir -p $(COVER_DIR)
+ifdef CI
+	$(GOTEST_BASE) -coverprofile=$(COVER_DIR)/bowrain.out $(_COVMODE) -json $$($(GO) list ./... | grep -v '/apps/bowrain') > ../test-results-bowrain.json
+else
+	$(GOTEST_BASE) ./... -count=1
+endif
 
 # ── Coverage ─────────────────────────────────────────────────────────────────
 
 cover: ## Run platform tests with coverage
 	@mkdir -p $(COVER_DIR)
-	cd core && $(GOTEST) -shuffle=on ./... -count=1 -coverprofile=$(COVER_DIR)/platform.out -covermode=atomic
-	cd cli && $(GOTEST) -shuffle=on ./... -count=1 -coverprofile=$(COVER_DIR)/bowrain-cli.out -covermode=atomic
-	$(GOTEST) -shuffle=on ./... -count=1 -coverprofile=$(COVER_DIR)/bowrain.out -covermode=atomic
+	cd core && $(GOTEST_BASE) -coverprofile=$(COVER_DIR)/platform.out $(_COVMODE) ./... -count=1
+	cd cli && $(GOTEST_BASE) -coverprofile=$(COVER_DIR)/bowrain-cli.out $(_COVMODE) ./... -count=1
+	$(GOTEST_BASE) -coverprofile=$(COVER_DIR)/bowrain.out $(_COVMODE) ./... -count=1
 
 # ── Code Quality ─────────────────────────────────────────────────────────────
 

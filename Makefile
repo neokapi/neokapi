@@ -6,6 +6,10 @@
 # Module-specific targets live in:
 #   make help              (this file)
 #   make -C bowrain help   (bowrain sub-Makefile)
+#
+# CI mode: GitHub Actions sets CI=true automatically. When CI is set,
+# per-module test targets add -race, -coverprofile, -covermode=atomic,
+# and -json output. Use `make ci-test-<module>` locally to reproduce.
 
 .DEFAULT_GOAL := help
 
@@ -27,6 +31,21 @@ BIN_DIR := $(ROOT_DIR)/bin
 COVER_DIR := coverage
 
 GOLANGCI_LINT := $(shell which golangci-lint 2>/dev/null || { test -x "$$(go env GOPATH)/bin/golangci-lint" && echo "$$(go env GOPATH)/bin/golangci-lint"; })
+
+# ── CI auto-detection ────────────────────────────────────────────────────────
+# GitHub Actions sets CI=true. When active, test targets add race detection,
+# coverage profiling, and JSON output for JUnit reporting.
+
+ifdef CI
+  _RACE     := -race
+  _COVMODE  := -covermode=atomic
+else
+  _RACE     :=
+  _COVMODE  :=
+endif
+
+# Base test command: always shuffles, adds race in CI
+GOTEST_BASE := $(GOTEST) $(_RACE) -shuffle=on
 
 # ── Forwarded targets ───────────────────────────────────────────────────────
 # Targets listed here run at root (framework) then forward to bowrain/Makefile.
@@ -90,32 +109,32 @@ _fw-fmt:
 	$(GOFMT) -w -s core/ cli/ kapi/ sievepen/ termbase/ providers/
 
 _fw-test:
-	$(GOTEST) -shuffle=on ./... -count=1
-	cd cli && $(GOTEST) -shuffle=on ./... -count=1
-	cd kapi && $(GOTEST) -shuffle=on ./... -count=1
+	$(GOTEST_BASE) ./... -count=1
+	cd cli && $(GOTEST_BASE) ./... -count=1
+	cd kapi && $(GOTEST_BASE) ./... -count=1
 
 _fw-test-fast:
-	$(GOTEST) -shuffle=on ./...
-	cd cli && $(GOTEST) -shuffle=on ./...
-	cd kapi && $(GOTEST) -shuffle=on ./...
+	$(GOTEST_BASE) ./...
+	cd cli && $(GOTEST_BASE) ./...
+	cd kapi && $(GOTEST_BASE) ./...
 
 _fw-test-unit:
-	$(GOTEST) -shuffle=on ./... -count=1 -short
-	cd cli && $(GOTEST) -shuffle=on ./... -count=1 -short
-	cd kapi && $(GOTEST) -shuffle=on ./... -count=1 -short
+	$(GOTEST_BASE) ./... -count=1 -short
+	cd cli && $(GOTEST_BASE) ./... -count=1 -short
+	cd kapi && $(GOTEST_BASE) ./... -count=1 -short
 
 _fw-test-race:
-	$(GOTEST) -shuffle=on ./... -count=1 -race
-	cd cli && $(GOTEST) -shuffle=on ./... -count=1 -race
-	cd kapi && $(GOTEST) -shuffle=on ./... -count=1 -race
+	$(GOTEST) -race -shuffle=on ./... -count=1
+	cd cli && $(GOTEST) -race -shuffle=on ./... -count=1
+	cd kapi && $(GOTEST) -race -shuffle=on ./... -count=1
 
 _fw-test-verbose:
-	$(GOTEST) -shuffle=on ./... -count=1 -v
-	cd cli && $(GOTEST) -shuffle=on ./... -count=1 -v
-	cd kapi && $(GOTEST) -shuffle=on ./... -count=1 -v
+	$(GOTEST_BASE) ./... -count=1 -v
+	cd cli && $(GOTEST_BASE) ./... -count=1 -v
+	cd kapi && $(GOTEST_BASE) ./... -count=1 -v
 
 _fw-test-integration:
-	$(GOTEST) -shuffle=on ./... -count=1 -tags=integration -run Integration
+	$(GOTEST_BASE) ./... -count=1 -tags=integration -run Integration
 
 _fw-vet:
 	$(GOVET) ./...
@@ -145,18 +164,63 @@ _fw-deps-update:
 	cd kapi && $(GO) get -u ./... && $(GO) mod tidy
 
 # ── Per-Module Test ─────────────────────────────────────────────────────────
+# These targets are CI-aware: when CI=true, they add -race, coverage, and
+# JSON output. Locally they run fast with -count=1 only.
+# Use `make ci-test-<module>` to reproduce CI behavior locally.
 
 test-framework: ## Run framework module tests only
-	$(GOTEST) ./... -count=1
+	@mkdir -p $(COVER_DIR)
+ifdef CI
+	$(GOTEST_BASE) -coverprofile=$(COVER_DIR)/framework.out $(_COVMODE) -json ./... > test-results-framework.json
+else
+	$(GOTEST_BASE) ./... -count=1
+endif
 
 test-cli: ## Run cli module tests only
-	cd cli && $(GOTEST) ./... -count=1
+	@mkdir -p $(COVER_DIR)
+ifdef CI
+	cd cli && $(GOTEST_BASE) -coverprofile=../$(COVER_DIR)/cli.out $(_COVMODE) -json ./... > ../test-results-cli.json
+else
+	cd cli && $(GOTEST_BASE) ./... -count=1
+endif
 
 test-kapi: ## Run kapi CLI tests only
-	cd kapi && $(GOTEST) ./... -count=1
+	@mkdir -p $(COVER_DIR)
+ifdef CI
+	cd kapi && $(GOTEST_BASE) -coverprofile=../$(COVER_DIR)/kapi.out $(_COVMODE) -json ./... > ../test-results-kapi.json
+else
+	cd kapi && $(GOTEST_BASE) ./... -count=1
+endif
 
 test-platform test-bowrain-cli test-bowrain: ## Run individual bowrain module tests
 	$(MAKE) -C bowrain $@
+
+# ── CI-equivalent targets (for local reproduction) ──────────────────────────
+
+ci-test-framework: ## Run framework tests with full CI flags locally
+	$(MAKE) CI=true test-framework
+
+ci-test-cli: ## Run cli tests with full CI flags locally
+	$(MAKE) CI=true test-cli
+
+ci-test-kapi: ## Run kapi tests with full CI flags locally
+	$(MAKE) CI=true test-kapi
+
+ci-test-platform: ## Run platform tests with full CI flags locally
+	$(MAKE) -C bowrain CI=true test-platform
+
+ci-test-bowrain-cli: ## Run Bowrain CLI tests with full CI flags locally
+	$(MAKE) -C bowrain CI=true test-bowrain-cli
+
+ci-test-bowrain: ## Run bowrain tests with full CI flags locally
+	$(MAKE) -C bowrain CI=true test-bowrain
+
+ci-test-kapi-desktop: ## Run Kapi Desktop tests with full CI flags locally
+	$(MAKE) CI=true kapi-desktop-test
+
+ci-test-all: ## Run all module tests with full CI flags locally
+	$(MAKE) CI=true test-framework test-cli test-kapi kapi-desktop-test
+	$(MAKE) -C bowrain CI=true test-platform test-bowrain-cli test-bowrain
 
 # ── Module Isolation ──────────────────────────────────────────────────────────
 
@@ -202,7 +266,7 @@ kapi-desktop-dev: kapi-desktop-frontend-deps ## Run Kapi Desktop in dev mode (ho
 	cd $(KAPI_DESKTOP_DIR) && wails3 dev
 
 kapi-desktop-test: ## Run Kapi Desktop Go backend tests
-	cd $(KAPI_DESKTOP_DIR) && $(GO) test -race -shuffle=on ./backend/... -count=1
+	cd $(KAPI_DESKTOP_DIR) && $(GOTEST_BASE) ./backend/... -count=1 -timeout 60s
 
 kapi-desktop-frontend-deps: ## Install Kapi Desktop frontend dependencies
 	cd $(KAPI_DESKTOP_DIR)/frontend && vp install
@@ -244,9 +308,9 @@ install: ## Install kapi CLI to GOPATH/bin
 
 cover: ## Run tests with coverage (merged report)
 	@mkdir -p $(COVER_DIR)
-	$(GOTEST) -shuffle=on ./... -count=1 -coverprofile=$(COVER_DIR)/framework.out -covermode=atomic
-	cd cli && $(GOTEST) -shuffle=on ./... -count=1 -coverprofile=$(COVER_DIR)/cli.out -covermode=atomic
-	cd kapi && $(GOTEST) -shuffle=on ./... -count=1 -coverprofile=$(COVER_DIR)/kapi.out -covermode=atomic
+	$(GOTEST_BASE) -coverprofile=$(COVER_DIR)/framework.out $(_COVMODE) ./... -count=1
+	cd cli && $(GOTEST_BASE) -coverprofile=../$(COVER_DIR)/cli.out $(_COVMODE) ./... -count=1
+	cd kapi && $(GOTEST_BASE) -coverprofile=../$(COVER_DIR)/kapi.out $(_COVMODE) ./... -count=1
 	@$(MAKE) -C bowrain cover
 	cat $(COVER_DIR)/framework.out > $(COVER_DIR)/coverage.out
 	tail -n +2 $(COVER_DIR)/cli.out >> $(COVER_DIR)/coverage.out
@@ -441,6 +505,8 @@ help: ## Show this help
 .PHONY: all help $(BOTH_TARGETS) test test-fast test-unit test-race test-verbose test-integration \
         fmt vet lint check check-framework check-bowrain test-parallel \
         test-framework test-cli test-kapi test-platform test-bowrain-cli test-bowrain \
+        ci-test-framework ci-test-cli ci-test-kapi ci-test-platform \
+        ci-test-bowrain-cli ci-test-bowrain ci-test-kapi-desktop ci-test-all \
         verify-isolation \
         build build-all build-server build-worker build-bowrain-cli build-bowrain build-headless \
         install install-bowrain-cli \
