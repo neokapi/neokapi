@@ -20,7 +20,7 @@ func processPart(t *testing.T, tl interface {
 	in <- part
 	close(in)
 
-	err := tl.Process(context.Background(), in, out)
+	err := tl.Process(t.Context(), in, out)
 	close(out)
 	require.NoError(t, err)
 

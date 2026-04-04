@@ -63,7 +63,7 @@ func TestHubSpotPull(t *testing.T) {
 		config:   map[string]string{},
 	}
 	// Override fetchPages to use the test server URL.
-	items, err := pullHubSpotFromURL(context.Background(), c, srv.URL+"/cms/v3/pages/site-pages")
+	items, err := pullHubSpotFromURL(t.Context(), c, srv.URL+"/cms/v3/pages/site-pages")
 	require.NoError(t, err)
 	require.Len(t, items, 2)
 

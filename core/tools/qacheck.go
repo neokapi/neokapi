@@ -650,7 +650,7 @@ func checkCodeDifferences(source, target *model.Fragment, strictOrder bool) []QA
 		if len(targetTypes) < minLen {
 			minLen = len(targetTypes)
 		}
-		for i := 0; i < minLen; i++ {
+		for i := range minLen {
 			if sourceTypes[i] != targetTypes[i] {
 				issues = append(issues, QAIssue{
 					Type:     "code-order",

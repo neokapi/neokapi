@@ -2,7 +2,6 @@ package properties_test
 
 import (
 	"bytes"
-	"context"
 	"testing"
 
 	"github.com/neokapi/neokapi/core/format"
@@ -15,7 +14,7 @@ import (
 
 func skelRoundtrip(t *testing.T, input string) string {
 	t.Helper()
-	ctx := context.Background()
+	ctx := t.Context()
 
 	reader := properties.NewReader()
 	writer := properties.NewWriter()
@@ -151,7 +150,7 @@ func TestSkeletonStore_ByteExact_SpacesAroundEquals(t *testing.T) {
 
 func TestSkeletonStore_WithTranslation(t *testing.T) {
 	input := "greeting=Hello\nfarewell=Goodbye"
-	ctx := context.Background()
+	ctx := t.Context()
 	locale := model.LocaleID("fr")
 
 	reader := properties.NewReader()
@@ -193,7 +192,7 @@ func TestSkeletonStore_WithTranslation(t *testing.T) {
 
 func TestSkeletonStore_WithTranslation_UnicodeOutput(t *testing.T) {
 	input := "key=Hello"
-	ctx := context.Background()
+	ctx := t.Context()
 	locale := model.LocaleID("ja")
 
 	reader := properties.NewReader()
@@ -231,7 +230,7 @@ func TestSkeletonStore_WithTranslation_UnicodeOutput(t *testing.T) {
 
 func TestSkeletonStore_WithTranslation_PreservesStructure(t *testing.T) {
 	input := "# Comment\n\ngreeting=Hello\n"
-	ctx := context.Background()
+	ctx := t.Context()
 	locale := model.LocaleID("de")
 
 	reader := properties.NewReader()

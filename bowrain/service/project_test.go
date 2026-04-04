@@ -1,7 +1,6 @@
 package service
 
 import (
-	"context"
 	"testing"
 
 	"github.com/neokapi/neokapi/bowrain/core/store"
@@ -22,7 +21,7 @@ func newTestStore(t *testing.T) *bstore.SQLiteStore {
 func TestProjectServiceCRUD(t *testing.T) {
 	s := newTestStore(t)
 	svc := NewProjectService(s)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	p := &store.Project{
 		Name:                  "Test",
@@ -50,7 +49,7 @@ func TestProjectServiceCRUD(t *testing.T) {
 func TestProjectServiceBlocks(t *testing.T) {
 	s := newTestStore(t)
 	svc := NewProjectService(s)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	p := &store.Project{Name: "Test", DefaultSourceLanguage: model.LocaleEnglish}
 	require.NoError(t, svc.CreateProject(ctx, p))
@@ -70,7 +69,7 @@ func TestProjectServiceBlocks(t *testing.T) {
 func TestProjectServiceVersioning(t *testing.T) {
 	s := newTestStore(t)
 	svc := NewProjectService(s)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	p := &store.Project{Name: "Test", DefaultSourceLanguage: model.LocaleEnglish}
 	require.NoError(t, svc.CreateProject(ctx, p))

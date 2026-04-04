@@ -1,7 +1,6 @@
 package jobs
 
 import (
-	"context"
 	"testing"
 
 	"github.com/neokapi/neokapi/core/id"
@@ -11,7 +10,7 @@ import (
 
 func TestClaimJob_OnlyOneWins(t *testing.T) {
 	store := newTestSQLiteStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	job := &TranslationJob{
 		ID:            id.New(),
@@ -41,7 +40,7 @@ func TestClaimJob_OnlyOneWins(t *testing.T) {
 
 func TestClaimJob_SkipsNonQueued(t *testing.T) {
 	store := newTestSQLiteStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	job := &TranslationJob{
 		ID:            id.New(),
@@ -64,7 +63,7 @@ func TestClaimJob_SkipsNonQueued(t *testing.T) {
 
 func TestClaimExtractionJob_OnlyOneWins(t *testing.T) {
 	store := newTestExtractionStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	job := &ExtractionJob{
 		ID:            id.New(),

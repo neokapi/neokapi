@@ -25,7 +25,7 @@ func processAllParts(t *testing.T, tl interface {
 	}
 	close(in)
 
-	err := tl.Process(context.Background(), in, out)
+	err := tl.Process(t.Context(), in, out)
 	close(out)
 	require.NoError(t, err)
 
@@ -98,7 +98,7 @@ func TestScriptSkipDropsParts(t *testing.T) {
 	in <- part
 	close(in)
 
-	err := tl.Process(context.Background(), in, out)
+	err := tl.Process(t.Context(), in, out)
 	close(out)
 	require.NoError(t, err)
 
@@ -158,7 +158,7 @@ func TestScriptInvalidCodeReturnsError(t *testing.T) {
 	in <- part
 	close(in)
 
-	err := tl.Process(context.Background(), in, out)
+	err := tl.Process(t.Context(), in, out)
 	close(out)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "compile error")

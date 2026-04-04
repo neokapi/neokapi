@@ -196,16 +196,16 @@ func (t *AIEntityExtractTool) processBatched(ctx context.Context, in <-chan *mod
 		case sem <- struct{}{}:
 		}
 
-		wg.Add(1)
-		go func(batch []extractionEntry, offset int) {
-			defer func() { <-sem; wg.Done() }()
+		offset := batchOffset
+		wg.Go(func() {
+			defer func() { <-sem }()
 			llmEntries := make([]extractionEntry, len(batch))
 			copy(llmEntries, batch)
 			result, err := t.extractWithLLM(ctx, llmEntries)
 			mu.Lock()
 			llmResults = append(llmResults, batchLLMResult{startIdx: offset, result: result, err: err})
 			mu.Unlock()
-		}(batch, batchOffset)
+		})
 		batchOffset += len(batch)
 	}
 	wg.Wait()

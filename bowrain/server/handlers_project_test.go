@@ -1,7 +1,6 @@
 package server
 
 import (
-	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -26,7 +25,7 @@ func newTestServer(t *testing.T) (*Server, string) {
 	require.NotNil(t, s.Services, "services should be initialized")
 	require.NotNil(t, s.AuthStore, "auth store should be initialized")
 
-	ctx := context.Background()
+	ctx := t.Context()
 	user := &platauth.User{ID: "test-user", Email: "test@example.com", Name: "Test"}
 	require.NoError(t, s.AuthStore.CreateUser(ctx, user))
 	ws := &platauth.Workspace{ID: "test-ws", Name: "Test", Slug: "test", Type: platauth.WorkspaceTypePersonal}

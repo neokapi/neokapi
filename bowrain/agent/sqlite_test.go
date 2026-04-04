@@ -1,7 +1,6 @@
 package agent
 
 import (
-	"context"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -15,7 +14,7 @@ func TestSQLiteStoreConversations(t *testing.T) {
 	require.NoError(t, err)
 	defer store.Close()
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	// Create conversation.
 	conv := &platagent.Conversation{
@@ -60,7 +59,7 @@ func TestSQLiteStoreMessages(t *testing.T) {
 	require.NoError(t, err)
 	defer store.Close()
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	conv := &platagent.Conversation{
 		WorkspaceID: "ws1",
@@ -97,7 +96,7 @@ func TestSQLiteStoreToolCalls(t *testing.T) {
 	require.NoError(t, err)
 	defer store.Close()
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	conv := &platagent.Conversation{WorkspaceID: "ws1", UserID: "user1"}
 	require.NoError(t, store.CreateConversation(ctx, conv))
@@ -133,7 +132,7 @@ func TestSQLiteStoreAgentConfig(t *testing.T) {
 	require.NoError(t, err)
 	defer store.Close()
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	// Get default config (no row exists).
 	cfg, err := store.GetAgentConfig(ctx, "ws1")

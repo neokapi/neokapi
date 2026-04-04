@@ -23,7 +23,7 @@ func readCSV(t *testing.T, input string) []*model.Part {
 
 func readCSVWithConfig(t *testing.T, input string, cfgFn func(*csvfmt.Config)) []*model.Part {
 	t.Helper()
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := csvfmt.NewReader()
 	if cfgFn != nil {
 		cfgFn(reader.Config().(*csvfmt.Config))
@@ -49,7 +49,7 @@ func roundTrip(t *testing.T, input string, cfgFn func(*csvfmt.Config)) string {
 
 func roundTripLocale(t *testing.T, input string, locale model.LocaleID, cfgFn func(*csvfmt.Config)) string {
 	t.Helper()
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := csvfmt.NewReader()
 	cfg := reader.Config().(*csvfmt.Config)
 	if cfgFn != nil {
@@ -199,7 +199,7 @@ func TestReaderMetadata(t *testing.T) {
 
 func TestReadNilDocument(t *testing.T) {
 	t.Parallel()
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := csvfmt.NewReader()
 	err := reader.Open(ctx, nil)
 	require.Error(t, err)
@@ -229,7 +229,7 @@ func TestRoundTrip(t *testing.T) {
 
 func TestRoundTripWithTargetLocale(t *testing.T) {
 	t.Parallel()
-	ctx := context.Background()
+	ctx := t.Context()
 	input := "name,description\nWidget,A useful widget\n"
 
 	reader := csvfmt.NewReader()
@@ -1727,7 +1727,7 @@ func TestTSV_MimeType(t *testing.T) {
 
 func TestCSV_ContextCancellation(t *testing.T) {
 	t.Parallel()
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(t.Context())
 	reader := csvfmt.NewReader()
 	err := reader.Open(ctx, testutil.RawDocFromString("a,b\n1,2\n3,4\n", model.LocaleEnglish))
 	require.NoError(t, err)

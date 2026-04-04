@@ -24,7 +24,7 @@ func TestBatchTool_CollectsBlocks(t *testing.T) {
 	}
 	close(in)
 
-	err := bt.Process(context.Background(), in, out)
+	err := bt.Process(t.Context(), in, out)
 	require.NoError(t, err)
 	close(out)
 
@@ -50,7 +50,7 @@ func TestBatchTool_NonBlocksPassThrough(t *testing.T) {
 	in <- &model.Part{Type: model.PartData}
 	close(in)
 
-	err := bt.Process(context.Background(), in, out)
+	err := bt.Process(t.Context(), in, out)
 	require.NoError(t, err)
 	close(out)
 
@@ -76,7 +76,7 @@ func TestBatchTool_EmptyStream(t *testing.T) {
 	out := make(chan *model.Part, 10)
 	close(in)
 
-	err := bt.Process(context.Background(), in, out)
+	err := bt.Process(t.Context(), in, out)
 	require.NoError(t, err)
 	close(out)
 
@@ -93,7 +93,7 @@ func TestBatchTool_CancelContext(t *testing.T) {
 	in := make(chan *model.Part, 1)
 	out := make(chan *model.Part, 1)
 
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(t.Context())
 	cancel() // Cancel immediately
 
 	in <- &model.Part{Type: model.PartBlock, Resource: &model.Block{}}

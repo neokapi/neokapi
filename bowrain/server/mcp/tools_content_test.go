@@ -31,7 +31,7 @@ func newTestMCPServerWithContent(t *testing.T) *MCPServer {
 
 func TestHandleCreateProject(t *testing.T) {
 	ms := newTestMCPServerWithContent(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	_, out, err := ms.handleCreateProject(ctx, nil, createProjectInput{
 		Name:            "My Project",
@@ -45,7 +45,7 @@ func TestHandleCreateProject(t *testing.T) {
 
 func TestHandleCreateProject_MissingName(t *testing.T) {
 	ms := newTestMCPServerWithContent(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	_, _, err := ms.handleCreateProject(ctx, nil, createProjectInput{
 		SourceLanguage: "en-US",
@@ -56,7 +56,7 @@ func TestHandleCreateProject_MissingName(t *testing.T) {
 
 func TestHandleUpdateProject(t *testing.T) {
 	ms := newTestMCPServerWithContent(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	// Create first.
 	p := &store.Project{
@@ -78,7 +78,7 @@ func TestHandleUpdateProject(t *testing.T) {
 
 func TestHandleUpdateBlock(t *testing.T) {
 	ms := newTestMCPServerWithContent(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	// Create a project and block.
 	p := &store.Project{
@@ -108,13 +108,13 @@ func TestHandleUpdateBlock(t *testing.T) {
 
 func TestHandleSandboxExecuteScript(t *testing.T) {
 	bs := &memBrandStore{}
-	_ = bs.CreateProfile(context.Background(), &corebrand.VoiceProfile{ID: "p1"})
+	_ = bs.CreateProfile(t.Context(), &corebrand.VoiceProfile{ID: "p1"})
 
 	sandbox := &mockSandbox{}
 	ms, err := NewMCPServerWithStore(bs, nil, Config{}, WithSandbox(sandbox))
 	require.NoError(t, err)
 
-	_, out, err := ms.handleExecuteScript(context.Background(), nil, executeScriptInput{
+	_, out, err := ms.handleExecuteScript(t.Context(), nil, executeScriptInput{
 		Language: "python",
 		Code:     "print('hello')",
 	})
@@ -129,7 +129,7 @@ func TestHandleSandboxExecuteScript_InvalidLanguage(t *testing.T) {
 	ms, err := NewMCPServerWithStore(bs, nil, Config{}, WithSandbox(sandbox))
 	require.NoError(t, err)
 
-	_, _, err = ms.handleExecuteScript(context.Background(), nil, executeScriptInput{
+	_, _, err = ms.handleExecuteScript(t.Context(), nil, executeScriptInput{
 		Language: "ruby",
 		Code:     "puts 'hi'",
 	})
@@ -142,7 +142,7 @@ func TestHandleSandboxNotConfigured(t *testing.T) {
 	ms, err := NewMCPServer(bs, Config{})
 	require.NoError(t, err)
 
-	_, _, err = ms.handleExecuteScript(context.Background(), nil, executeScriptInput{
+	_, _, err = ms.handleExecuteScript(t.Context(), nil, executeScriptInput{
 		Language: "python",
 		Code:     "print('hi')",
 	})

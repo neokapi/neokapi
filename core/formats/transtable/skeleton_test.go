@@ -2,7 +2,6 @@ package transtable_test
 
 import (
 	"bytes"
-	"context"
 	"testing"
 
 	"github.com/neokapi/neokapi/core/format"
@@ -15,7 +14,7 @@ import (
 
 func snippetRoundtripWithSkeleton(t *testing.T, input string) string {
 	t.Helper()
-	ctx := context.Background()
+	ctx := t.Context()
 
 	reader := transtable.NewReader()
 	writer := transtable.NewWriter()
@@ -97,7 +96,7 @@ func TestSkeletonStore_ByteExact_CRLFTrailingNewline(t *testing.T) {
 
 func TestSkeletonStore_WithTranslation(t *testing.T) {
 	input := "greeting\tHello World\nfarewell\tGoodbye"
-	ctx := context.Background()
+	ctx := t.Context()
 	locale := model.LocaleID("fr")
 
 	reader := transtable.NewReader()
@@ -139,7 +138,7 @@ func TestSkeletonStore_WithTranslation(t *testing.T) {
 
 func TestSkeletonStore_WithTranslation_CRLF(t *testing.T) {
 	input := "greeting\tHello\r\nfarewell\tWorld"
-	ctx := context.Background()
+	ctx := t.Context()
 	locale := model.LocaleID("de")
 
 	reader := transtable.NewReader()

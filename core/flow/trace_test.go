@@ -1,7 +1,6 @@
 package flow_test
 
 import (
-	"context"
 	"fmt"
 	"strings"
 	"testing"
@@ -219,7 +218,7 @@ func TestTracingTool(t *testing.T) {
 
 		f := flow.NewFlow("test").AddTool(traced).Build()
 		executor := flow.NewFlowExecutor()
-		ctx := context.Background()
+		ctx := t.Context()
 
 		in, out, wait := executor.ExecuteWithChannels(ctx, f)
 
@@ -283,7 +282,7 @@ func TestTracingTool(t *testing.T) {
 
 		f := flow.NewFlow("test").AddTool(traced).Build()
 		executor := flow.NewFlowExecutor()
-		ctx := context.Background()
+		ctx := t.Context()
 
 		in, out, wait := executor.ExecuteWithChannels(ctx, f)
 
@@ -321,7 +320,7 @@ func TestTracingTool(t *testing.T) {
 
 		f := flow.NewFlow("multi").AddTool(tool1).AddTool(tool2).Build()
 		executor := flow.NewFlowExecutor()
-		ctx := context.Background()
+		ctx := t.Context()
 
 		in, out, wait := executor.ExecuteWithChannels(ctx, f)
 

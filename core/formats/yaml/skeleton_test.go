@@ -2,7 +2,6 @@ package yaml_test
 
 import (
 	"bytes"
-	"context"
 	"testing"
 
 	"github.com/neokapi/neokapi/core/format"
@@ -16,7 +15,7 @@ import (
 // snippetRoundtripWithSkeleton does a read→skeleton→write roundtrip via SkeletonStore.
 func snippetRoundtripWithSkeleton(t *testing.T, input string) string {
 	t.Helper()
-	ctx := context.Background()
+	ctx := t.Context()
 
 	reader := yamlfmt.NewReader()
 	writer := yamlfmt.NewWriter()
@@ -107,7 +106,7 @@ func TestSkeletonStore_LiteralBlockChompStrip(t *testing.T) {
 func TestSkeletonStore_WithTranslation(t *testing.T) {
 	t.Parallel()
 	input := "greeting: Hello World\nfarewell: Goodbye\n"
-	ctx := context.Background()
+	ctx := t.Context()
 	locale := model.LocaleID("fr")
 
 	reader := yamlfmt.NewReader()
@@ -151,7 +150,7 @@ func TestSkeletonStore_WithTranslation(t *testing.T) {
 func TestSkeletonStore_WithTranslation_DoubleQuoted(t *testing.T) {
 	t.Parallel()
 	input := "greeting: \"Hello World\"\nfarewell: \"Goodbye\"\n"
-	ctx := context.Background()
+	ctx := t.Context()
 	locale := model.LocaleID("fr")
 
 	reader := yamlfmt.NewReader()
@@ -195,7 +194,7 @@ func TestSkeletonStore_WithTranslation_DoubleQuoted(t *testing.T) {
 func TestSkeletonStore_WithTranslation_Nested(t *testing.T) {
 	t.Parallel()
 	input := "parent:\n  child: Hello\n"
-	ctx := context.Background()
+	ctx := t.Context()
 	locale := model.LocaleID("de")
 
 	reader := yamlfmt.NewReader()

@@ -30,7 +30,7 @@ func TestAgentPoolFillsModelDefaults(t *testing.T) {
 		ModelAPIKey:   "sk-test-key",
 	})
 
-	_, err := pool.Acquire(context.Background(), ContainerConfig{
+	_, err := pool.Acquire(t.Context(), ContainerConfig{
 		ConversationID: "conv-model",
 		WorkspaceID:    "ws-1",
 		UserID:         "user-1",
@@ -55,7 +55,7 @@ func TestAgentPoolPerRequestModelOverridesDefaults(t *testing.T) {
 		ModelName:     "claude-sonnet-4-20250514",
 	})
 
-	_, err := pool.Acquire(context.Background(), ContainerConfig{
+	_, err := pool.Acquire(t.Context(), ContainerConfig{
 		ConversationID: "conv-override",
 		WorkspaceID:    "ws-1",
 		ModelProvider:  "azure-openai",

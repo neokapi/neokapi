@@ -2,7 +2,6 @@ package xliff2_test
 
 import (
 	"bytes"
-	"context"
 	"strings"
 	"testing"
 
@@ -16,7 +15,7 @@ import (
 // readNative is a test helper that parses an XLIFF 2.0 string and returns parts.
 func readNative(t *testing.T, input string) []*model.Part {
 	t.Helper()
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := xliff2.NewReader()
 	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
 	require.NoError(t, err)
@@ -33,7 +32,7 @@ func readNativeBlocks(t *testing.T, input string) []*model.Block {
 // roundtripNative reads and writes an XLIFF 2.0 string, returning the output.
 func roundtripNative(t *testing.T, input string) string {
 	t.Helper()
-	ctx := context.Background()
+	ctx := t.Context()
 
 	reader := xliff2.NewReader()
 	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))

@@ -386,9 +386,8 @@ func (t *AITranslateTool) processBatched(ctx context.Context, in <-chan *model.P
 		case sem <- struct{}{}:
 		}
 
-		wg.Add(1)
-		go func(batch []blockEntry) {
-			defer func() { <-sem; wg.Done() }()
+		wg.Go(func() {
+			defer func() { <-sem }()
 			if err := t.translateBatch(ctx, batch); err != nil {
 				mu.Lock()
 				if firstErr == nil {
@@ -396,7 +395,7 @@ func (t *AITranslateTool) processBatched(ctx context.Context, in <-chan *model.P
 				}
 				mu.Unlock()
 			}
-		}(batch)
+		})
 	}
 	wg.Wait()
 

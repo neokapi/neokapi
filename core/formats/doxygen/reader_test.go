@@ -2,7 +2,6 @@ package doxygen_test
 
 import (
 	"bytes"
-	"context"
 	"os"
 	"strings"
 	"testing"
@@ -20,7 +19,7 @@ import (
 
 func readDoxygen(t *testing.T, input string) []*model.Part {
 	t.Helper()
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := doxygen.NewReader()
 	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
 	require.NoError(t, err)
@@ -283,7 +282,7 @@ func TestExtract_PrefixSuffixTokenizer(t *testing.T) {
 
 func roundtrip(t *testing.T, input string) string {
 	t.Helper()
-	ctx := context.Background()
+	ctx := t.Context()
 
 	reader := doxygen.NewReader()
 	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
@@ -547,7 +546,7 @@ func TestReaderMetadata(t *testing.T) {
 }
 
 func TestReadNilDocument(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := doxygen.NewReader()
 	err := reader.Open(ctx, nil)
 	require.Error(t, err)
@@ -564,7 +563,7 @@ func TestReadEmpty(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestRoundTripWithTargetLocale(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	input := "/// Hello world\nint x;\n/// Goodbye world\n"
 
 	reader := doxygen.NewReader()

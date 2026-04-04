@@ -135,7 +135,7 @@ func (s *Store) CommitUpload(ctx context.Context, uploadID string, totalChunks i
 
 	// Assemble chunks into final blob.
 	var assembled []byte
-	for i := 0; i < totalChunks; i++ {
+	for i := range totalChunks {
 		path := filepath.Join(dir, fmt.Sprintf("chunk-%04d", i))
 		data, err := os.ReadFile(path)
 		if err != nil {

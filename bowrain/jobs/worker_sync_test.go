@@ -1,7 +1,6 @@
 package jobs
 
 import (
-	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -36,7 +35,7 @@ func newTestWorkerDeps(t *testing.T) *WorkerDeps {
 
 func TestProcessSyncPush_BasicBlocks(t *testing.T) {
 	deps := newTestWorkerDeps(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	projectID := "test-project"
 	_ = deps.ContentStore.CreateProject(ctx, &store.Project{ID: projectID, Name: "Test Project"})
@@ -106,7 +105,7 @@ func TestProcessSyncPush_BasicBlocks(t *testing.T) {
 
 func TestProcessSyncPush_ConflictDetection(t *testing.T) {
 	deps := newTestWorkerDeps(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	projectID := "conflict-project"
 	_ = deps.ContentStore.CreateProject(ctx, &store.Project{ID: projectID, Name: "Conflict Test"})
@@ -193,7 +192,7 @@ func TestProcessSyncPush_ConflictDetection(t *testing.T) {
 
 func TestProcessSyncPush_AutoCreateStream(t *testing.T) {
 	deps := newTestWorkerDeps(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	projectID := "stream-project"
 	_ = deps.ContentStore.CreateProject(ctx, &store.Project{ID: projectID, Name: "Stream Test"})
@@ -242,7 +241,7 @@ func TestProcessSyncPush_AutoCreateStream(t *testing.T) {
 
 func TestProcessSyncPush_ItemMetadata(t *testing.T) {
 	deps := newTestWorkerDeps(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	projectID := "meta-project"
 	_ = deps.ContentStore.CreateProject(ctx, &store.Project{ID: projectID, Name: "Meta Test"})

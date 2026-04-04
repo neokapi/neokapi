@@ -2,7 +2,6 @@ package po_test
 
 import (
 	"bytes"
-	"context"
 	"testing"
 
 	"github.com/neokapi/neokapi/core/format"
@@ -15,7 +14,7 @@ import (
 
 func skeletonRoundtrip(t *testing.T, input string) string {
 	t.Helper()
-	ctx := context.Background()
+	ctx := t.Context()
 
 	reader := po.NewReader()
 	writer := po.NewWriter()
@@ -113,7 +112,7 @@ msgstr[1] "Plusieurs objets"
 func TestSkeletonStore_WithTranslation(t *testing.T) {
 	t.Parallel()
 	input := "msgid \"Hello\"\nmsgstr \"Bonjour\"\n\nmsgid \"World\"\nmsgstr \"Monde\"\n"
-	ctx := context.Background()
+	ctx := t.Context()
 	locale := model.LocaleID("de")
 
 	reader := po.NewReader()
@@ -217,7 +216,7 @@ msgid_plural "Many items"
 msgstr[0] "Un objet"
 msgstr[1] "Plusieurs objets"
 `
-	ctx := context.Background()
+	ctx := t.Context()
 	locale := model.LocaleID("de")
 
 	reader := po.NewReader()

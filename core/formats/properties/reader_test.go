@@ -2,7 +2,6 @@ package properties_test
 
 import (
 	"bytes"
-	"context"
 	"os"
 	"testing"
 
@@ -15,7 +14,7 @@ import (
 
 // okapi: PropertiesFilterTest#testEntry
 func TestReadSimple(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := properties.NewReader()
 	err := reader.Open(ctx, testutil.RawDocFromString("app.title=Hello World", model.LocaleEnglish))
 	require.NoError(t, err)
@@ -30,7 +29,7 @@ func TestReadSimple(t *testing.T) {
 }
 
 func TestReadMultipleEntries(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := properties.NewReader()
 	input := "key1=value1\nkey2=value2\nkey3=value3"
 	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
@@ -51,7 +50,7 @@ func TestReadMultipleEntries(t *testing.T) {
 
 // okapi: PropertiesFilterTest#testKeySpecial
 func TestReadColonSeparator(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := properties.NewReader()
 	err := reader.Open(ctx, testutil.RawDocFromString("key:value", model.LocaleEnglish))
 	require.NoError(t, err)
@@ -66,7 +65,7 @@ func TestReadColonSeparator(t *testing.T) {
 }
 
 func TestReadSpaceSeparator(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := properties.NewReader()
 	err := reader.Open(ctx, testutil.RawDocFromString("key value", model.LocaleEnglish))
 	require.NoError(t, err)
@@ -81,7 +80,7 @@ func TestReadSpaceSeparator(t *testing.T) {
 
 // okapi: PropertiesFilterTest#testSplicedEntry
 func TestReadContinuationLine(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := properties.NewReader()
 	input := "key=hello \\\nworld"
 	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
@@ -96,7 +95,7 @@ func TestReadContinuationLine(t *testing.T) {
 }
 
 func TestReadContinuationMultipleLines(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := properties.NewReader()
 	input := "key=line1 \\\n    line2 \\\n    line3"
 	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
@@ -111,7 +110,7 @@ func TestReadContinuationMultipleLines(t *testing.T) {
 }
 
 func TestReadComments(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := properties.NewReader()
 	input := "# This is a comment\nkey=value"
 	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
@@ -141,7 +140,7 @@ func TestReadComments(t *testing.T) {
 }
 
 func TestReadExclamationComment(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := properties.NewReader()
 	input := "! This is also a comment\nkey=value"
 	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
@@ -166,7 +165,7 @@ func TestReadExclamationComment(t *testing.T) {
 
 // okapi: PropertiesFilterTest#testEscapes
 func TestReadUnicodeEscapes(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := properties.NewReader()
 	input := "greeting=\\u0048\\u0065\\u006C\\u006C\\u006F"
 	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
@@ -181,7 +180,7 @@ func TestReadUnicodeEscapes(t *testing.T) {
 
 // okapi: PropertiesFilterTest#testSpecialChars
 func TestReadJapaneseUnicodeEscapes(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := properties.NewReader()
 	input := "greeting=\\u3053\\u3093\\u306B\\u3061\\u306F"
 	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
@@ -195,7 +194,7 @@ func TestReadJapaneseUnicodeEscapes(t *testing.T) {
 }
 
 func TestReadBlankLines(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := properties.NewReader()
 	input := "key1=value1\n\nkey2=value2"
 	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
@@ -223,7 +222,7 @@ func TestReadBlankLines(t *testing.T) {
 }
 
 func TestReadEmpty(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := properties.NewReader()
 	err := reader.Open(ctx, testutil.RawDocFromString("", model.LocaleEnglish))
 	require.NoError(t, err)
@@ -236,7 +235,7 @@ func TestReadEmpty(t *testing.T) {
 }
 
 func TestReadEmptyValue(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := properties.NewReader()
 	err := reader.Open(ctx, testutil.RawDocFromString("key=", model.LocaleEnglish))
 	require.NoError(t, err)
@@ -250,7 +249,7 @@ func TestReadEmptyValue(t *testing.T) {
 }
 
 func TestReadLayerStartEnd(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := properties.NewReader()
 	err := reader.Open(ctx, testutil.RawDocFromString("key=value", model.LocaleEnglish))
 	require.NoError(t, err)
@@ -280,14 +279,14 @@ func TestReaderMetadata(t *testing.T) {
 }
 
 func TestReadNilDocument(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := properties.NewReader()
 	err := reader.Open(ctx, nil)
 	require.Error(t, err)
 }
 
 func TestReadSimpleFile(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	f, err := os.Open("testdata/simple.properties")
 	require.NoError(t, err)
@@ -310,7 +309,7 @@ func TestReadSimpleFile(t *testing.T) {
 }
 
 func TestRoundTrip(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	original, err := os.ReadFile("testdata/simple.properties")
 	require.NoError(t, err)
@@ -341,7 +340,7 @@ func TestRoundTrip(t *testing.T) {
 }
 
 func TestRoundTripWithTargetLocale(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	// Read
 	reader := properties.NewReader()
@@ -381,7 +380,7 @@ func TestRoundTripWithTargetLocale(t *testing.T) {
 }
 
 func TestRoundTripWithComments(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	input := "# A comment\nkey=value"
 
 	// Read
@@ -408,7 +407,7 @@ func TestRoundTripWithComments(t *testing.T) {
 }
 
 func TestRoundTripWithBlankLines(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	input := "key1=value1\n\nkey2=value2"
 
 	// Read
@@ -435,7 +434,7 @@ func TestRoundTripWithBlankLines(t *testing.T) {
 }
 
 func TestRoundTripColonSeparator(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	input := "key:value"
 
 	// Read
@@ -463,7 +462,7 @@ func TestRoundTripColonSeparator(t *testing.T) {
 
 // okapi: PropertiesFilterTest#testSpecialCharsOutput
 func TestWriteUnicodeEscapes(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	// Read simple ASCII
 	reader := properties.NewReader()
@@ -497,7 +496,7 @@ func TestWriteUnicodeEscapes(t *testing.T) {
 }
 
 func TestReadValueWithSpacesAroundEquals(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := properties.NewReader()
 	err := reader.Open(ctx, testutil.RawDocFromString("key = value with spaces", model.LocaleEnglish))
 	require.NoError(t, err)
@@ -511,7 +510,7 @@ func TestReadValueWithSpacesAroundEquals(t *testing.T) {
 }
 
 func TestReadKeyOnly(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := properties.NewReader()
 	err := reader.Open(ctx, testutil.RawDocFromString("keyonly", model.LocaleEnglish))
 	require.NoError(t, err)
@@ -525,7 +524,7 @@ func TestReadKeyOnly(t *testing.T) {
 }
 
 func TestReadMixedFormats(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := properties.NewReader()
 	input := "key1=value1\nkey2:value2\nkey3 value3"
 	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))

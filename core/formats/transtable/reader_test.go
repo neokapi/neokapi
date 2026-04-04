@@ -15,7 +15,7 @@ import (
 
 // okapi: TransTableFilterTest#testSimplePair
 func TestSimplePair(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := transtable.NewReader()
 	input := "greeting\tHello"
 	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
@@ -32,7 +32,7 @@ func TestSimplePair(t *testing.T) {
 
 // okapi: TransTableFilterTest#testMultiplePairs
 func TestMultiplePairs(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := transtable.NewReader()
 	input := "greeting\tHello\nfarewell\tGoodbye"
 	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
@@ -48,7 +48,7 @@ func TestMultiplePairs(t *testing.T) {
 
 // okapi: TransTableFilterTest#testCommentLine
 func TestCommentLine(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := transtable.NewReader()
 	input := "# This is a comment\ngreeting\tHello"
 	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
@@ -76,7 +76,7 @@ func TestCommentLine(t *testing.T) {
 
 // okapi: TransTableFilterTest#testEmptyLine
 func TestEmptyLine(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := transtable.NewReader()
 	input := "greeting\tHello\n\nfarewell\tGoodbye"
 	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
@@ -102,7 +102,7 @@ func TestEmptyLine(t *testing.T) {
 
 // okapi: TransTableFilterTest#testEmptyValue
 func TestEmptyValue(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := transtable.NewReader()
 	input := "greeting\t"
 	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
@@ -118,7 +118,7 @@ func TestEmptyValue(t *testing.T) {
 
 // okapi: TransTableFilterTest#testKeyOnly
 func TestKeyOnly(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := transtable.NewReader()
 	input := "greeting"
 	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
@@ -133,7 +133,7 @@ func TestKeyOnly(t *testing.T) {
 }
 
 func TestReadEmpty(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := transtable.NewReader()
 	err := reader.Open(ctx, testutil.RawDocFromString("", model.LocaleEnglish))
 	require.NoError(t, err)
@@ -146,7 +146,7 @@ func TestReadEmpty(t *testing.T) {
 }
 
 func TestReadNilDocument(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := transtable.NewReader()
 	err := reader.Open(ctx, nil)
 	require.Error(t, err)
@@ -154,7 +154,7 @@ func TestReadNilDocument(t *testing.T) {
 
 // okapi: TransTableFilterTest#testStartDocument — verifies LayerStart/LayerEnd wraps transtable content.
 func TestReadLayerStartEnd(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := transtable.NewReader()
 	input := "greeting\tHello"
 	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
@@ -213,7 +213,7 @@ func TestConfigApplyMapEmpty(t *testing.T) {
 }
 
 func TestRoundTrip(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	f, err := os.Open("testdata/simple.tab")
 	require.NoError(t, err)
@@ -243,7 +243,7 @@ func TestRoundTrip(t *testing.T) {
 }
 
 func TestRoundTripWithTargetLocale(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	input := "greeting\tHello\nfarewell\tGoodbye"
 	reader := transtable.NewReader()
@@ -283,7 +283,7 @@ func TestRoundTripWithTargetLocale(t *testing.T) {
 }
 
 func TestContextCancellation(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(t.Context())
 	cancel() // Cancel immediately
 
 	reader := transtable.NewReader()
@@ -302,7 +302,7 @@ func TestContextCancellation(t *testing.T) {
 
 // okapi: TransTableFilterTest#testTabInValue
 func TestTabInValue(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := transtable.NewReader()
 	input := "greeting\tHello\tWorld"
 	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
@@ -318,7 +318,7 @@ func TestTabInValue(t *testing.T) {
 
 // okapi: TransTableFilterTest#testWhitespaceKey
 func TestWhitespaceHandling(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := transtable.NewReader()
 	input := "  \n\t\n"
 	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
@@ -332,7 +332,7 @@ func TestWhitespaceHandling(t *testing.T) {
 }
 
 func TestLineNumbers(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := transtable.NewReader()
 	input := "a\t1\nb\t2\nc\t3"
 	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
@@ -348,7 +348,7 @@ func TestLineNumbers(t *testing.T) {
 }
 
 func TestBlockIDs(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := transtable.NewReader()
 	input := "a\t1\nb\t2"
 	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
@@ -364,7 +364,7 @@ func TestBlockIDs(t *testing.T) {
 }
 
 func TestMultipleComments(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := transtable.NewReader()
 	input := "# Comment 1\n# Comment 2\ngreeting\tHello"
 	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
@@ -389,7 +389,7 @@ func TestMultipleComments(t *testing.T) {
 }
 
 func TestWriterContextCancellation(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(t.Context())
 
 	var buf bytes.Buffer
 	writer := transtable.NewWriter()

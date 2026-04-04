@@ -2,7 +2,6 @@ package tmx_test
 
 import (
 	"bytes"
-	"context"
 	"os"
 	"testing"
 
@@ -16,7 +15,7 @@ import (
 
 func snippetRoundtripWithSkeleton(t *testing.T, input string) string {
 	t.Helper()
-	ctx := context.Background()
+	ctx := t.Context()
 
 	reader := tmx.NewReader()
 	writer := tmx.NewWriter()
@@ -131,7 +130,7 @@ func TestSkeletonStore_WithTranslation(t *testing.T) {
   </body>
 </tmx>
 `
-	ctx := context.Background()
+	ctx := t.Context()
 
 	reader := tmx.NewReader()
 	writer := tmx.NewWriter()
@@ -198,7 +197,7 @@ func TestSkeletonStore_WithTranslation_Escaping(t *testing.T) {
   </body>
 </tmx>
 `
-	ctx := context.Background()
+	ctx := t.Context()
 
 	reader := tmx.NewReader()
 	writer := tmx.NewWriter()

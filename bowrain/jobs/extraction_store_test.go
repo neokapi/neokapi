@@ -1,7 +1,6 @@
 package jobs
 
 import (
-	"context"
 	"os"
 	"testing"
 
@@ -35,7 +34,7 @@ func newTestExtractionStorePg(t *testing.T) *PgExtractionJobStore {
 	require.NoError(t, err)
 	t.Cleanup(func() {
 		// Clean up test data.
-		_, _ = db.ExecContext(context.Background(), "DELETE FROM extraction_jobs")
+		_, _ = db.ExecContext(t.Context(), "DELETE FROM extraction_jobs")
 		db.Close()
 	})
 	store, err := NewPgExtractionJobStore(db)
@@ -46,7 +45,7 @@ func newTestExtractionStorePg(t *testing.T) *PgExtractionJobStore {
 // extractionStoreTests runs the full test suite against any ExtractionJobStore.
 func extractionStoreTests(t *testing.T, store ExtractionJobStore) {
 	t.Run("CreateAndGet", func(t *testing.T) {
-		ctx := context.Background()
+		ctx := t.Context()
 		job := &ExtractionJob{
 			ID:            uuid.NewString(),
 			WorkspaceSlug: "test-ws",
@@ -76,7 +75,7 @@ func extractionStoreTests(t *testing.T, store ExtractionJobStore) {
 	})
 
 	t.Run("UpdateStatus", func(t *testing.T) {
-		ctx := context.Background()
+		ctx := t.Context()
 		job := &ExtractionJob{
 			ID:            uuid.NewString(),
 			WorkspaceSlug: "ws",
@@ -102,7 +101,7 @@ func extractionStoreTests(t *testing.T, store ExtractionJobStore) {
 	})
 
 	t.Run("ClaimJob", func(t *testing.T) {
-		ctx := context.Background()
+		ctx := t.Context()
 		job := &ExtractionJob{
 			ID:            uuid.NewString(),
 			WorkspaceSlug: "ws",
@@ -123,7 +122,7 @@ func extractionStoreTests(t *testing.T, store ExtractionJobStore) {
 	})
 
 	t.Run("ListByPushID", func(t *testing.T) {
-		ctx := context.Background()
+		ctx := t.Context()
 		pushA := "push-" + uuid.NewString()[:8]
 		pushB := "push-" + uuid.NewString()[:8]
 
@@ -157,7 +156,7 @@ func extractionStoreTests(t *testing.T, store ExtractionJobStore) {
 	})
 
 	t.Run("UpdateProgress", func(t *testing.T) {
-		ctx := context.Background()
+		ctx := t.Context()
 		job := &ExtractionJob{
 			ID:            uuid.NewString(),
 			WorkspaceSlug: "ws",

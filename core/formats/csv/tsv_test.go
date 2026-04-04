@@ -3,7 +3,6 @@ package csv_test
 
 import (
 	"bytes"
-	"context"
 	"testing"
 
 	csvfmt "github.com/neokapi/neokapi/core/formats/csv"
@@ -17,7 +16,7 @@ import (
 
 func readTSV(t *testing.T, input string) []*model.Part {
 	t.Helper()
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := csvfmt.NewTSVReader()
 	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
 	require.NoError(t, err)
@@ -32,7 +31,7 @@ func roundTripTSV(t *testing.T, input string) string {
 
 func roundTripTSVLocale(t *testing.T, input string, locale model.LocaleID) string {
 	t.Helper()
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := csvfmt.NewTSVReader()
 	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
 	require.NoError(t, err)
@@ -110,7 +109,7 @@ func TestTSV_EmptyInput(t *testing.T) {
 
 func TestTSV_NilDocument(t *testing.T) {
 	t.Parallel()
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := csvfmt.NewTSVReader()
 	err := reader.Open(ctx, nil)
 	require.Error(t, err)
@@ -138,7 +137,7 @@ func TestTSV_HeaderRow(t *testing.T) {
 
 func TestTSV_NoHeader(t *testing.T) {
 	t.Parallel()
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := csvfmt.NewTSVReader()
 	cfg := reader.Config().(*csvfmt.Config)
 	cfg.HasHeader = false
@@ -168,7 +167,7 @@ func TestTSV_MultipleColumns(t *testing.T) {
 func TestTSV_EmbeddedCommas(t *testing.T) {
 	t.Parallel()
 	// Tabs as separator means commas in values are fine without quoting
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := csvfmt.NewTSVReader()
 	cfg := reader.Config().(*csvfmt.Config)
 	cfg.HasHeader = false
@@ -188,7 +187,7 @@ func TestTSV_EmbeddedCommas(t *testing.T) {
 
 func TestTSV_TranslatableColumns(t *testing.T) {
 	t.Parallel()
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := csvfmt.NewTSVReader()
 	cfg := reader.Config().(*csvfmt.Config)
 	cfg.TranslatableColumns = []int{1}
@@ -206,7 +205,7 @@ func TestTSV_TranslatableColumns(t *testing.T) {
 
 func TestTSV_TrimValues(t *testing.T) {
 	t.Parallel()
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := csvfmt.NewTSVReader()
 	cfg := reader.Config().(*csvfmt.Config)
 	cfg.TrimValues = true
@@ -244,7 +243,7 @@ func TestTSV_RoundTrip(t *testing.T) {
 
 func TestTSV_RoundTripWithTranslation(t *testing.T) {
 	t.Parallel()
-	ctx := context.Background()
+	ctx := t.Context()
 	input := "key\tvalue\ngreeting\tHello\n"
 
 	reader := csvfmt.NewTSVReader()
@@ -281,7 +280,7 @@ func TestTSV_RoundTripWithTranslation(t *testing.T) {
 
 func TestTSV_KeyColumns(t *testing.T) {
 	t.Parallel()
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := csvfmt.NewTSVReader()
 	cfg := reader.Config().(*csvfmt.Config)
 	cfg.KeyColumns = []int{0}
@@ -300,7 +299,7 @@ func TestTSV_KeyColumns(t *testing.T) {
 
 func TestTSV_CommentColumns(t *testing.T) {
 	t.Parallel()
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := csvfmt.NewTSVReader()
 	cfg := reader.Config().(*csvfmt.Config)
 	cfg.CommentColumns = []int{2}

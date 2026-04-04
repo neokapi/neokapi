@@ -2,7 +2,6 @@ package json_test
 
 import (
 	"bytes"
-	"context"
 	"strings"
 	"testing"
 
@@ -23,7 +22,7 @@ func readJSON(t *testing.T, snippet string) []*model.Part {
 
 func readJSONWith(t *testing.T, snippet string, params map[string]any) []*model.Part {
 	t.Helper()
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := jsonfmt.NewReader()
 	if params != nil {
 		err := reader.Config().ApplyMap(params)
@@ -70,7 +69,7 @@ func findBlockContainingText(blocks []*model.Block, substr string) *model.Block 
 
 func snippetRoundtrip(t *testing.T, snippet string, params map[string]any) string {
 	t.Helper()
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := jsonfmt.NewReader()
 	if params != nil {
 		require.NoError(t, reader.Config().ApplyMap(params))
@@ -676,7 +675,7 @@ func TestSnippets_DoubleExtraction(t *testing.T) {
 	for _, tt := range inputs {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			ctx := context.Background()
+			ctx := t.Context()
 
 			// First extraction
 			reader1 := jsonfmt.NewReader()
@@ -1002,7 +1001,7 @@ func TestSnippets_DoubleExtractionOnPreviousFailure(t *testing.T) {
     "submit": "Submit Form"
   }
 }`
-	ctx := context.Background()
+	ctx := t.Context()
 
 	// First extraction
 	reader1 := jsonfmt.NewReader()
@@ -1048,7 +1047,7 @@ func TestSnippets_DoubleExtractionOnInvalid(t *testing.T) {
   /* Block comment */
   "key2": "value2"
 }`
-	ctx := context.Background()
+	ctx := t.Context()
 
 	// First extraction
 	reader1 := jsonfmt.NewReader()
@@ -1236,7 +1235,7 @@ func TestSnippets_ExactRoundtrip_MixedComments(t *testing.T) {
 func TestSnippets_SkeletonTranslation_UseFullKeyPath(t *testing.T) {
 	t.Parallel()
 	input := `{"parent": {"child": "Hello"}}`
-	ctx := context.Background()
+	ctx := t.Context()
 
 	reader := jsonfmt.NewReader()
 	require.NoError(t, reader.Config().ApplyMap(map[string]any{
@@ -1276,7 +1275,7 @@ func TestSnippets_SkeletonTranslation_UseFullKeyPath(t *testing.T) {
 func TestSnippets_SkeletonTranslation_IdRules(t *testing.T) {
 	t.Parallel()
 	input := `{"id": "msg-1", "text": "Hello"}`
-	ctx := context.Background()
+	ctx := t.Context()
 
 	reader := jsonfmt.NewReader()
 	require.NoError(t, reader.Config().ApplyMap(map[string]any{
@@ -1317,7 +1316,7 @@ func TestSnippets_SkeletonTranslation_IdRules(t *testing.T) {
 func TestSnippets_SkeletonTranslation_Exceptions(t *testing.T) {
 	t.Parallel()
 	input := `{"title": "Hello", "internal_id": "abc123"}`
-	ctx := context.Background()
+	ctx := t.Context()
 
 	reader := jsonfmt.NewReader()
 	require.NoError(t, reader.Config().ApplyMap(map[string]any{
@@ -1354,7 +1353,7 @@ func TestSnippets_SkeletonTranslation_Exceptions(t *testing.T) {
 func TestSnippets_SkeletonTranslation_NoteRules(t *testing.T) {
 	t.Parallel()
 	input := `{"note": "translator hint", "text": "Hello"}`
-	ctx := context.Background()
+	ctx := t.Context()
 
 	reader := jsonfmt.NewReader()
 	require.NoError(t, reader.Config().ApplyMap(map[string]any{
@@ -1388,7 +1387,7 @@ func TestSnippets_SkeletonTranslation_NoteRules(t *testing.T) {
 
 func snippetRoundtripWithSkeleton(t *testing.T, snippet string, params map[string]any) string {
 	t.Helper()
-	ctx := context.Background()
+	ctx := t.Context()
 
 	reader := jsonfmt.NewReader()
 	writer := jsonfmt.NewWriter()
@@ -1459,7 +1458,7 @@ func TestSkeletonStore_ByteExact(t *testing.T) {
 func TestSkeletonStore_WithTranslation(t *testing.T) {
 	t.Parallel()
 	input := `{"greeting": "Hello World", "farewell": "Goodbye"}`
-	ctx := context.Background()
+	ctx := t.Context()
 	locale := model.LocaleID("fr")
 
 	reader := jsonfmt.NewReader()
@@ -1503,7 +1502,7 @@ func TestSkeletonStore_WithTranslation(t *testing.T) {
 func TestSkeletonStore_WithTranslation_UseFullKeyPath(t *testing.T) {
 	t.Parallel()
 	input := `{"parent": {"child": "Hello"}}`
-	ctx := context.Background()
+	ctx := t.Context()
 	locale := model.LocaleID("de")
 
 	reader := jsonfmt.NewReader()
@@ -1547,7 +1546,7 @@ func TestSkeletonStore_WithTranslation_UseFullKeyPath(t *testing.T) {
 func TestSkeletonStore_WithTranslation_IdRules(t *testing.T) {
 	t.Parallel()
 	input := `{"id": "my-id", "text": "Hello"}`
-	ctx := context.Background()
+	ctx := t.Context()
 	locale := model.LocaleID("es")
 
 	reader := jsonfmt.NewReader()
@@ -1614,7 +1613,7 @@ func TestSkeletonStore_EscapeForwardSlashes(t *testing.T) {
 	t.Parallel()
 	// With escapeForwardSlashes=true (default), translated text should have \/
 	input := `{"url": "http://example.com"}`
-	ctx := context.Background()
+	ctx := t.Context()
 	locale := model.LocaleID("fr")
 
 	reader := jsonfmt.NewReader()

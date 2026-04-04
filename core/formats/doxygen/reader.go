@@ -325,7 +325,7 @@ func (r *Reader) skelLinesText(rLines []rawLine, start, count int) {
 	if r.skeletonStore == nil {
 		return
 	}
-	for j := 0; j < count; j++ {
+	for j := range count {
 		r.skelText(rLines[start+j].content + rLines[start+j].lineEnding)
 	}
 }

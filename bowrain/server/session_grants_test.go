@@ -1,7 +1,6 @@
 package server
 
 import (
-	"context"
 	"testing"
 	"time"
 
@@ -71,7 +70,7 @@ func TestCreateSessionGrantForMode(t *testing.T) {
 func TestSessionGrantRoundtrip(t *testing.T) {
 	store := NewMemorySessionStore()
 	defer store.Close()
-	ctx := context.Background()
+	ctx := t.Context()
 
 	grant := &platauth.SessionGrant{
 		SessionID:   "conv-abc",
@@ -109,7 +108,7 @@ func TestSessionGrantRoundtrip(t *testing.T) {
 func TestSessionGrantExpiry(t *testing.T) {
 	store := NewMemorySessionStore()
 	defer store.Close()
-	ctx := context.Background()
+	ctx := t.Context()
 
 	// Grant with past ExpiresAt should use defaultGrantTTL instead
 	grant := &platauth.SessionGrant{

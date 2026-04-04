@@ -2,7 +2,6 @@ package bridge
 
 import (
 	"bytes"
-	"context"
 	"io"
 	"log"
 	"testing"
@@ -68,7 +67,7 @@ func TestBridgeFormatReaderOpenAndRead(t *testing.T) {
 		Reader:       io.NopCloser(bytes.NewReader(htmlContent)),
 	}
 
-	ctx := context.Background()
+	ctx := t.Context()
 	require.NoError(t, reader.Open(ctx, doc))
 
 	var parts []*model.Part
@@ -118,7 +117,7 @@ func TestBridgeProcessorExecute(t *testing.T) {
 	processor := NewBridgeProcessor(registry, b.cfg, "net.sf.okapi.filters.html.HtmlFilter")
 
 	var captured []*model.Part
-	result, err := processor.Execute(context.Background(), ProcessExecuteParams{
+	result, err := processor.Execute(t.Context(), ProcessExecuteParams{
 		Content:      []byte("<html>Hello</html>"),
 		SourceLocale: "en",
 		TargetLocale: "fr",

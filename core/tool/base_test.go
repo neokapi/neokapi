@@ -34,7 +34,7 @@ func TestBaseToolPassThrough(t *testing.T) {
 	}
 	close(in)
 
-	ctx := context.Background()
+	ctx := t.Context()
 	err := bt.Process(ctx, in, out)
 	close(out)
 	require.NoError(t, err)
@@ -94,7 +94,7 @@ func TestBaseToolDispatch(t *testing.T) {
 	}
 	close(in)
 
-	ctx := context.Background()
+	ctx := t.Context()
 	err := bt.Process(ctx, in, out)
 	close(out)
 	require.NoError(t, err)
@@ -113,7 +113,7 @@ func TestBaseToolDispatch(t *testing.T) {
 func TestBaseToolContextCancellation(t *testing.T) {
 	bt := &tool.BaseTool{ToolName: "cancellable"}
 
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(t.Context())
 	in := make(chan *model.Part) // unbuffered, will block
 	out := make(chan *model.Part, 10)
 
@@ -140,7 +140,7 @@ func TestBaseToolErrorPropagation(t *testing.T) {
 	in <- &model.Part{Type: model.PartBlock, Resource: model.NewBlock("tu1", "Hello")}
 	close(in)
 
-	ctx := context.Background()
+	ctx := t.Context()
 	err := bt.Process(ctx, in, out)
 	require.Error(t, err)
 }
@@ -163,7 +163,7 @@ func TestBaseToolModifyBlock(t *testing.T) {
 	in <- &model.Part{Type: model.PartBlock, Resource: block}
 	close(in)
 
-	ctx := context.Background()
+	ctx := t.Context()
 	err := bt.Process(ctx, in, out)
 	close(out)
 	require.NoError(t, err)

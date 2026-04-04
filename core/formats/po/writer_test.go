@@ -2,7 +2,6 @@ package po_test
 
 import (
 	"bytes"
-	"context"
 	"testing"
 
 	"github.com/neokapi/neokapi/core/formats/po"
@@ -15,7 +14,7 @@ import (
 // writeFromParts is a helper that writes parts to a PO string.
 func writeFromParts(t *testing.T, parts []*model.Part, locale model.LocaleID) string { //nolint:unused // reserved for future writer tests
 	t.Helper()
-	ctx := context.Background()
+	ctx := t.Context()
 
 	var buf bytes.Buffer
 	writer := po.NewWriter()

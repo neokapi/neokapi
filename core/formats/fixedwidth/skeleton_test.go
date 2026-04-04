@@ -2,7 +2,6 @@ package fixedwidth_test
 
 import (
 	"bytes"
-	"context"
 	"testing"
 
 	"github.com/neokapi/neokapi/core/format"
@@ -15,7 +14,7 @@ import (
 
 func fwSkeletonRoundtrip(t *testing.T, input string, cols []fixedwidth.ColumnDef, cfgFn func(*fixedwidth.Config)) string {
 	t.Helper()
-	ctx := context.Background()
+	ctx := t.Context()
 
 	reader := fixedwidth.NewReader()
 	cfg := reader.Config().(*fixedwidth.Config)
@@ -108,7 +107,7 @@ func TestSkeletonStore_ByteExact_EmptyInput(t *testing.T) {
 
 func TestSkeletonStore_WithTranslation(t *testing.T) {
 	input := "id001Hello World    \n"
-	ctx := context.Background()
+	ctx := t.Context()
 	locale := model.LocaleID("fr")
 
 	reader := fixedwidth.NewReader()

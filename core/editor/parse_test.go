@@ -1,7 +1,6 @@
 package editor_test
 
 import (
-	"context"
 	"io"
 	"strings"
 	"testing"
@@ -26,7 +25,7 @@ func TestParseItem(t *testing.T) {
 		Reader:       io.NopCloser(strings.NewReader(htmlContent)),
 	}
 
-	result, err := editor.ParseItem(context.Background(), reader, doc, "en", "html", "test.html")
+	result, err := editor.ParseItem(t.Context(), reader, doc, "en", "html", "test.html")
 	require.NoError(t, err)
 
 	// Verify result has all expected fields populated

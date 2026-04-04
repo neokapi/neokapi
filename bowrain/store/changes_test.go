@@ -1,7 +1,6 @@
 package store
 
 import (
-	"context"
 	"database/sql"
 	"testing"
 	"time"
@@ -13,7 +12,7 @@ import (
 
 func TestGetChanges_SourceAdded(t *testing.T) {
 	s := newTestStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 	p := createTestProject(t, s)
 
 	// Store a new block → should log "source_added".
@@ -32,7 +31,7 @@ func TestGetChanges_SourceAdded(t *testing.T) {
 
 func TestGetChanges_SourceModified(t *testing.T) {
 	s := newTestStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 	p := createTestProject(t, s)
 
 	// Store initial block.
@@ -50,7 +49,7 @@ func TestGetChanges_SourceModified(t *testing.T) {
 
 func TestGetChanges_SourceRemoved(t *testing.T) {
 	s := newTestStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 	p := createTestProject(t, s)
 
 	require.NoError(t, s.StoreBlocks(ctx, p.ID, "", []*model.Block{model.NewBlock("b1", "Hello")}))
@@ -66,7 +65,7 @@ func TestGetChanges_SourceRemoved(t *testing.T) {
 
 func TestGetChanges_UnchangedBlockNotLogged(t *testing.T) {
 	s := newTestStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 	p := createTestProject(t, s)
 
 	b := model.NewBlock("b1", "Hello")
@@ -82,7 +81,7 @@ func TestGetChanges_UnchangedBlockNotLogged(t *testing.T) {
 
 func TestGetChanges_Pagination(t *testing.T) {
 	s := newTestStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 	p := createTestProject(t, s)
 
 	// Create 5 blocks.
@@ -106,7 +105,7 @@ func TestGetChanges_Pagination(t *testing.T) {
 
 func TestGetChanges_CursorReturnsEmptyWhenNoChanges(t *testing.T) {
 	s := newTestStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 	p := createTestProject(t, s)
 
 	cs, err := s.GetChanges(ctx, p.ID, "", 0, nil, 100)
@@ -118,7 +117,7 @@ func TestGetChanges_CursorReturnsEmptyWhenNoChanges(t *testing.T) {
 
 func TestLatestCursor(t *testing.T) {
 	s := newTestStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 	p := createTestProject(t, s)
 
 	// No changes yet.
@@ -136,7 +135,7 @@ func TestLatestCursor(t *testing.T) {
 
 func TestCompactChangeLog(t *testing.T) {
 	s := newTestStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 	p := createTestProject(t, s)
 
 	// Create and modify a block several times.
@@ -163,7 +162,7 @@ func TestCompactChangeLog(t *testing.T) {
 
 func TestGetChanges_MultiLocaleFilter(t *testing.T) {
 	s := newTestStore(t)
-	ctx := context.Background()
+	ctx := t.Context()
 	p := createTestProject(t, s)
 
 	// Store a block (creates a source_added entry with locale=NULL).

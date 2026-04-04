@@ -47,7 +47,7 @@ func processPart(t *testing.T, tl interface {
 	in <- part
 	close(in)
 
-	err := tl.Process(context.Background(), in, out)
+	err := tl.Process(t.Context(), in, out)
 	close(out)
 	require.NoError(t, err)
 
@@ -154,7 +154,7 @@ func TestMTTranslateToolPropagatesProviderError(t *testing.T) {
 	in <- part
 	close(in)
 
-	err := tl.Process(context.Background(), in, out)
+	err := tl.Process(t.Context(), in, out)
 	close(out)
 
 	require.Error(t, err)
@@ -183,7 +183,7 @@ func TestMTTranslateToolMultipleBlocks(t *testing.T) {
 	in <- &model.Part{Type: model.PartBlock, Resource: model.NewBlock("tu3", "Test")}
 	close(in)
 
-	err := tl.Process(context.Background(), in, out)
+	err := tl.Process(t.Context(), in, out)
 	close(out)
 	require.NoError(t, err)
 

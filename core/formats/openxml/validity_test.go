@@ -5,7 +5,6 @@ package openxml
 import (
 	"archive/zip"
 	"bytes"
-	"context"
 	"encoding/xml"
 	"errors"
 	"io"
@@ -183,9 +182,9 @@ func skeletonRoundtripBytes(t *testing.T, original []byte, uri string) []byte {
 		Encoding:     "UTF-8",
 		Reader:       readCloserFromBytes(original),
 	}
-	err = reader.Open(context.Background(), doc)
+	err = reader.Open(t.Context(), doc)
 	require.NoError(t, err)
-	parts := testutil.CollectParts(t, reader.Read(context.Background()))
+	parts := testutil.CollectParts(t, reader.Read(t.Context()))
 	reader.Close()
 
 	var buf bytes.Buffer
@@ -196,7 +195,7 @@ func skeletonRoundtripBytes(t *testing.T, original []byte, uri string) []byte {
 	require.NoError(t, err)
 
 	ch := testutil.PartsToChannel(parts)
-	err = writer.Write(context.Background(), ch)
+	err = writer.Write(t.Context(), ch)
 	require.NoError(t, err)
 	writer.Close()
 
@@ -220,9 +219,9 @@ func translateRoundtripBytes(t *testing.T, original []byte, uri string) []byte {
 		Encoding:     "UTF-8",
 		Reader:       readCloserFromBytes(original),
 	}
-	err = reader.Open(context.Background(), doc)
+	err = reader.Open(t.Context(), doc)
 	require.NoError(t, err)
-	parts := testutil.CollectParts(t, reader.Read(context.Background()))
+	parts := testutil.CollectParts(t, reader.Read(t.Context()))
 	reader.Close()
 
 	// Apply pseudo-translation to all blocks
@@ -244,7 +243,7 @@ func translateRoundtripBytes(t *testing.T, original []byte, uri string) []byte {
 	require.NoError(t, err)
 
 	ch := testutil.PartsToChannel(parts)
-	err = writer.Write(context.Background(), ch)
+	err = writer.Write(t.Context(), ch)
 	require.NoError(t, err)
 	writer.Close()
 

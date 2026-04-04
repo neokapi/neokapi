@@ -447,7 +447,7 @@ func TestExtraction_DoesNotProcessUnsupportedVersions(t *testing.T) {
 		Reader:       io.NopCloser(bytes.NewReader(unsupportedContent)),
 	}
 
-	ctx := context.Background()
+	ctx := t.Context()
 	err := reader.Open(ctx, doc)
 	if err == nil {
 		// Open is lazy — errors surface during Read.

@@ -2,7 +2,6 @@ package service
 
 import (
 	"bytes"
-	"context"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -19,7 +18,7 @@ func TestStreamFromGateway_CapturesUsage(t *testing.T) {
 	t.Cleanup(func() { store.Close() })
 
 	svc := NewAgentService(store, nil)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	conv, err := svc.CreateConversation(ctx, "ws1", "user1", "", "Chat")
 	require.NoError(t, err)

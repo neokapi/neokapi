@@ -1,7 +1,6 @@
 package localblob
 
 import (
-	"context"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -11,7 +10,7 @@ import (
 func TestChunkedUpload(t *testing.T) {
 	store, err := New(t.TempDir())
 	require.NoError(t, err)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	// Init upload.
 	uploadID, err := store.InitUpload(ctx, "test-upload")
@@ -33,7 +32,7 @@ func TestChunkedUpload(t *testing.T) {
 func TestChunkedUpload_Abort(t *testing.T) {
 	store, err := New(t.TempDir())
 	require.NoError(t, err)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	uploadID, err := store.InitUpload(ctx, "abort-test")
 	require.NoError(t, err)

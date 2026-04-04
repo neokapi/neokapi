@@ -53,7 +53,7 @@ func TestBatchExecutor_BasicExecution(t *testing.T) {
 	}
 
 	results, err := executor.Execute(
-		context.Background(),
+		t.Context(),
 		[]flow.ToolFactory{passthroughFactory},
 		files,
 	)
@@ -107,7 +107,7 @@ func TestBatchExecutor_Concurrency(t *testing.T) {
 	}
 
 	results, err := executor.Execute(
-		context.Background(),
+		t.Context(),
 		[]flow.ToolFactory{factory},
 		files,
 	)
@@ -144,7 +144,7 @@ func TestBatchExecutor_ErrorPropagation(t *testing.T) {
 	}
 
 	_, err := executor.Execute(
-		context.Background(),
+		t.Context(),
 		[]flow.ToolFactory{factory},
 		files,
 	)
@@ -167,7 +167,7 @@ func TestBatchExecutor_SharedResources(t *testing.T) {
 	files := []flow.BatchFile{makeBatchFile("file1.json", 1)}
 
 	_, err := executor.Execute(
-		context.Background(),
+		t.Context(),
 		[]flow.ToolFactory{passthroughFactory},
 		files,
 	)
@@ -188,7 +188,7 @@ func TestBatchExecutor_WithCollectors(t *testing.T) {
 	}
 
 	_, err := executor.Execute(
-		context.Background(),
+		t.Context(),
 		[]flow.ToolFactory{passthroughFactory},
 		files,
 		collector,
@@ -204,7 +204,7 @@ func TestBatchExecutor_EmptyFiles(t *testing.T) {
 	executor := flow.NewBatchExecutorWithOptions()
 
 	results, err := executor.Execute(
-		context.Background(),
+		t.Context(),
 		[]flow.ToolFactory{passthroughFactory},
 		nil,
 	)
@@ -218,7 +218,7 @@ func TestBatchExecutor_NoTools(t *testing.T) {
 	files := []flow.BatchFile{makeBatchFile("file1.json", 3)}
 
 	results, err := executor.Execute(
-		context.Background(),
+		t.Context(),
 		nil,
 		files,
 	)

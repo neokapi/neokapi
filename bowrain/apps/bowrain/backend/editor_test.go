@@ -1,7 +1,6 @@
 package backend
 
 import (
-	"context"
 	"path/filepath"
 	"testing"
 
@@ -218,7 +217,7 @@ func TestPseudoAccent(t *testing.T) {
 func TestComputeStats(t *testing.T) {
 	app, info, itemName := setupProjectWithFile(t)
 
-	ctx := context.Background()
+	ctx := t.Context()
 	storedBlocks, err := app.store.GetBlocks(ctx, store.BlockQuery{
 		ProjectID: info.ID,
 		ItemName:  itemName,

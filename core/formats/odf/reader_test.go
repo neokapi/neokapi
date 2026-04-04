@@ -3,7 +3,6 @@ package odf_test
 import (
 	"archive/zip"
 	"bytes"
-	"context"
 	"testing"
 
 	"github.com/neokapi/neokapi/core/format"
@@ -131,7 +130,7 @@ func simpleODPContent(slides []string) string {
 
 func openReader(t *testing.T, data []byte) *odf.Reader {
 	t.Helper()
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := odf.NewReader()
 	doc := testutil.RawDocFromReader(bytes.NewReader(data), "test.odt", model.LocaleEnglish)
 	err := reader.Open(ctx, doc)
@@ -143,7 +142,7 @@ func readParts(t *testing.T, data []byte) []*model.Part {
 	t.Helper()
 	reader := openReader(t, data)
 	defer reader.Close()
-	return testutil.CollectParts(t, reader.Read(context.Background()))
+	return testutil.CollectParts(t, reader.Read(t.Context()))
 }
 
 // --- Tests ---
@@ -167,7 +166,7 @@ func TestReaderSignature(t *testing.T) {
 }
 
 func TestReadNilDocument(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := odf.NewReader()
 	err := reader.Open(ctx, nil)
 	require.Error(t, err)
@@ -354,7 +353,7 @@ func TestReadWithStylesXML(t *testing.T) {
 }
 
 func TestReadInvalidZip(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	reader := odf.NewReader()
 	doc := testutil.RawDocFromReader(bytes.NewReader([]byte("not a zip file")), "test.odt", model.LocaleEnglish)
 	err := reader.Open(ctx, doc)
@@ -374,7 +373,7 @@ func TestReadInvalidZip(t *testing.T) {
 
 // okapi: OpenOfficeFilterTest#testDoubleExtraction — roundtrip read/write/re-read preserves ODF content.
 func TestRoundTrip(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	originalContent := simpleODTContent("Hello, World!", "Second paragraph")
 	data := makeODFZip(mimeODT, originalContent)
 
@@ -414,7 +413,7 @@ func TestRoundTrip(t *testing.T) {
 }
 
 func TestRoundTripWithTargetLocale(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	data := makeODFZip(mimeODT, simpleODTContent("Hello", "World"))
 
 	// Read
@@ -497,7 +496,7 @@ func TestReaderConfig(t *testing.T) {
 }
 
 func TestWriterNoOriginalContent(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	writer := odf.NewWriter()
 	var buf bytes.Buffer
 	err := writer.SetOutputWriter(&buf)
@@ -552,7 +551,7 @@ func TestWriterName(t *testing.T) {
 // --- Skeleton Store Tests ---
 
 func TestSkeletonRoundTrip(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	data := makeODFZip(mimeODT, simpleODTContent("Hello, World!", "Second paragraph"))
 
 	// Read with skeleton store
@@ -604,7 +603,7 @@ func TestSkeletonRoundTrip(t *testing.T) {
 }
 
 func TestSkeletonRoundTripWithTranslation(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	data := makeODFZip(mimeODT, simpleODTContent("Hello", "World"))
 
 	// Read with skeleton store
@@ -662,7 +661,7 @@ func TestSkeletonRoundTripWithTranslation(t *testing.T) {
 }
 
 func TestSkeletonRoundTripWithStyles(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	contentXML := simpleODTContent("Content text")
 	stylesXML := `<?xml version="1.0" encoding="UTF-8"?>
 <office:document-styles
@@ -720,7 +719,7 @@ func TestSkeletonRoundTripWithStyles(t *testing.T) {
 }
 
 func TestSkeletonRoundTripODS(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	cells := [][]string{
 		{"Name", "Value"},
 		{"Item A", "100"},
@@ -773,7 +772,7 @@ func TestSkeletonRoundTripODS(t *testing.T) {
 }
 
 func TestSkeletonRoundTripEmptyParagraphs(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	content := `<?xml version="1.0" encoding="UTF-8"?>
 <office:document-content
   xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0"
@@ -830,7 +829,7 @@ func TestSkeletonRoundTripEmptyParagraphs(t *testing.T) {
 }
 
 func TestTempFileCleanup(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	data := makeODFZip(mimeODT, simpleODTContent("Test"))
 
 	reader := odf.NewReader()

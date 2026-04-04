@@ -80,34 +80,28 @@ func TestHandleStore_ConcurrentAccess(t *testing.T) {
 
 	// Concurrent opens.
 	handles := make([]string, 50)
-	for i := 0; i < 50; i++ {
-		wg.Add(1)
-		go func(idx int) {
-			defer wg.Done()
-			handles[idx] = s.Open(&closerStub{})
-		}(i)
+	for i := range 50 {
+		wg.Go(func() {
+			handles[i] = s.Open(&closerStub{})
+		})
 	}
 	wg.Wait()
 	assert.Equal(t, 50, s.Count())
 
 	// Concurrent gets.
-	for i := 0; i < 50; i++ {
-		wg.Add(1)
-		go func(idx int) {
-			defer wg.Done()
-			_, ok := s.Get(handles[idx])
+	for i := range 50 {
+		wg.Go(func() {
+			_, ok := s.Get(handles[i])
 			assert.True(t, ok)
-		}(i)
+		})
 	}
 	wg.Wait()
 
 	// Concurrent closes.
-	for i := 0; i < 50; i++ {
-		wg.Add(1)
-		go func(idx int) {
-			defer wg.Done()
-			_ = s.Close(handles[idx])
-		}(i)
+	for i := range 50 {
+		wg.Go(func() {
+			_ = s.Close(handles[i])
+		})
 	}
 	wg.Wait()
 	assert.Equal(t, 0, s.Count())

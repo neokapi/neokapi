@@ -46,7 +46,7 @@ func openTestRedis(t *testing.T) *redis.Client {
 		t.Skipf("invalid Redis URL: %v", err)
 	}
 	client := redis.NewClient(opts)
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	ctx, cancel := context.WithTimeout(t.Context(), 2*time.Second)
 	defer cancel()
 	if err := client.Ping(ctx).Err(); err != nil {
 		t.Skipf("Redis not available: %v", err)
@@ -59,7 +59,7 @@ func openTestRedis(t *testing.T) *redis.Client {
 // and query executions and events.
 func TestIntegration_ExecutionStoreCRUD(t *testing.T) {
 	pgDB := openTestPostgres(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	store, err := agenticmcp.NewPostgresExecutionStore(pgDB)
 	require.NoError(t, err)
@@ -153,7 +153,7 @@ func TestIntegration_ExecutionStoreCRUD(t *testing.T) {
 func TestIntegration_SubscriberPipeline(t *testing.T) {
 	pgDB := openTestPostgres(t)
 	redisClient := openTestRedis(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	store, err := agenticmcp.NewPostgresExecutionStore(pgDB)
 	require.NoError(t, err)
@@ -276,7 +276,7 @@ func TestIntegration_SubscriberPipeline(t *testing.T) {
 func TestIntegration_EventHubWorkspaceFilter(t *testing.T) {
 	pgDB := openTestPostgres(t)
 	redisClient := openTestRedis(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	store, err := agenticmcp.NewPostgresExecutionStore(pgDB)
 	require.NoError(t, err)

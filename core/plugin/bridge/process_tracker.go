@@ -10,16 +10,22 @@ import (
 // processTracker keeps a registry of all bridge subprocesses started by this
 // Go process. On SIGINT/SIGTERM, it kills all tracked processes as a safety net
 // to prevent orphaned JVM subprocesses.
-var processTracker = &tracker{}
+var processTracker = newTracker()
+
+func newTracker() *tracker {
+	t := &tracker{}
+	t.initSignalOnce = sync.OnceFunc(t.startSignalHandler)
+	return t
+}
 
 type tracker struct {
-	mu        sync.Mutex
-	processes map[*os.Process]struct{}
-	once      sync.Once
+	mu             sync.Mutex
+	processes      map[*os.Process]struct{}
+	initSignalOnce func()
 }
 
 func (t *tracker) track(p *os.Process) {
-	t.once.Do(t.startSignalHandler)
+	t.initSignalOnce()
 
 	t.mu.Lock()
 	if t.processes == nil {

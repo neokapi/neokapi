@@ -63,7 +63,7 @@ func TestNotificationDispatcher_FlowFailed(t *testing.T) {
 	}, 2*time.Second, 10*time.Millisecond)
 
 	// Verify persisted.
-	notifs, err := notifStore.List(context.Background(), "user-1", 10, false)
+	notifs, err := notifStore.List(t.Context(), "user-1", 10, false)
 	require.NoError(t, err)
 	require.Len(t, notifs, 1)
 	assert.Equal(t, bstore.NotificationFlowFailed, notifs[0].Type)
@@ -141,7 +141,7 @@ func TestNotificationDispatcher_PreferencesOptOut(t *testing.T) {
 	prefStore := bstore.NewPreferenceStore(s.DB())
 	sender := &mockSender{}
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	// User-1 opts out of automation notifications.
 	require.NoError(t, prefStore.Upsert(ctx, &bstore.NotificationPreference{
@@ -188,7 +188,7 @@ func TestNotificationDispatcher_DispatchTaskNotification(t *testing.T) {
 		Priority:   bstore.TaskPriorityHigh,
 	}
 
-	ctx := context.Background()
+	ctx := t.Context()
 	d.DispatchTaskNotification(ctx, task, bstore.NotificationTaskAssigned, "Task assigned", "You have a new task")
 
 	assert.Equal(t, 1, sender.count())
@@ -237,7 +237,7 @@ func TestNotificationDispatcher_NewEventMappings(t *testing.T) {
 				return sender.count() == 1
 			}, 2*time.Second, 10*time.Millisecond)
 
-			notifs, err := notifStore.List(context.Background(), "user-1", 10, false)
+			notifs, err := notifStore.List(t.Context(), "user-1", 10, false)
 			require.NoError(t, err)
 			require.Len(t, notifs, 1)
 			assert.Equal(t, tt.wantType, notifs[0].Type)
@@ -256,7 +256,7 @@ func TestNotificationDispatcher_DispatchMention(t *testing.T) {
 	d := NewNotificationDispatcher(bus, notifStore, nil, sender, nil)
 	defer d.Close()
 
-	ctx := context.Background()
+	ctx := t.Context()
 	d.DispatchMention(ctx, "user-2", "user-1", "Alice", "Hey @user-2 check this", "proj-1", "/editor/block/123")
 
 	assert.Equal(t, 1, sender.count())
@@ -280,7 +280,7 @@ func TestNotificationDispatcher_DispatchMentionSkipsSelf(t *testing.T) {
 	defer d.Close()
 
 	// Should not create notification when mentioning yourself.
-	d.DispatchMention(context.Background(), "user-1", "user-1", "Alice", "note to @user-1", "proj-1", "")
+	d.DispatchMention(t.Context(), "user-1", "user-1", "Alice", "note to @user-1", "proj-1", "")
 
 	assert.Equal(t, 0, sender.count())
 }
@@ -302,11 +302,11 @@ func TestNotificationDispatcher_DispatchDeadlineApproaching(t *testing.T) {
 		Title:      "Translate homepage",
 	}
 
-	d.DispatchDeadlineApproaching(context.Background(), task)
+	d.DispatchDeadlineApproaching(t.Context(), task)
 
 	assert.Equal(t, 1, sender.count())
 
-	notifs, err := notifStore.List(context.Background(), "user-2", 10, false)
+	notifs, err := notifStore.List(t.Context(), "user-2", 10, false)
 	require.NoError(t, err)
 	require.Len(t, notifs, 1)
 	assert.Equal(t, bstore.NotificationDeadlineApproaching, notifs[0].Type)
@@ -328,7 +328,7 @@ func TestNotificationDispatcher_AutoMuteOnGatePass(t *testing.T) {
 	d := NewNotificationDispatcher(bus, notifStore, nil, sender, targetFn)
 	defer d.Close()
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	// First: create a gate-failed notification with a group key.
 	failedNotif := &bstore.Notification{
@@ -377,7 +377,7 @@ func TestNotificationDispatcher_TaskNotificationSkipsNoAssignee(t *testing.T) {
 		Title:     "Unassigned task",
 	}
 
-	d.DispatchTaskNotification(context.Background(), task, bstore.NotificationTaskAssigned, "Task assigned", "Body")
+	d.DispatchTaskNotification(t.Context(), task, bstore.NotificationTaskAssigned, "Task assigned", "Body")
 
 	assert.Equal(t, 0, sender.count())
 }

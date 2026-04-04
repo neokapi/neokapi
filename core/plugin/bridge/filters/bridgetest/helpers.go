@@ -24,41 +24,22 @@ import (
 // sharedBridge holds the singleton bridge registry used across all filter tests
 // within a single test binary invocation.
 var (
-	sharedOnce     sync.Once
+	initShared     func()
 	sharedRegistry *bridge.BridgeRegistry
 	sharedCfg      bridge.BridgeConfig
 	sharedErr      error
-	cleanupOnce    sync.Once
+	doCleanup      func()
 )
 
-// Run runs all tests and then cleans up the shared bridge registry. Use this from
-// TestMain in any package that calls SharedBridge:
-//
-//	func TestMain(m *testing.M) { os.Exit(bridgetest.Run(m)) }
-func Run(m *testing.M) int {
-	code := m.Run()
-	Cleanup()
-	return code
-}
-
-// Cleanup shuts down the shared bridge registry and kills any tracked bridge
-// subprocesses. Safe to call multiple times (idempotent via sync.Once).
-func Cleanup() {
-	cleanupOnce.Do(func() {
+func init() {
+	doCleanup = sync.OnceFunc(func() {
 		if sharedRegistry != nil {
 			sharedRegistry.Shutdown()
 		}
 		bridge.KillTrackedProcesses()
 	})
-}
 
-// SharedBridge returns a shared BridgeRegistry and BridgeConfig for integration tests.
-// It starts a single JVM process and reuses it across all tests in the binary.
-// If Java or the bridge JAR is unavailable, it fails the test.
-func SharedBridge(t *testing.T) (*bridge.BridgeRegistry, bridge.BridgeConfig) {
-	t.Helper()
-
-	sharedOnce.Do(func() {
+	initShared = sync.OnceFunc(func() {
 		// External bridge mode: connect to pre-started JVM(s).
 		if addrs := os.Getenv("NEOKAPI_BRIDGE_ADDRS"); addrs != "" {
 			addrList := strings.Split(addrs, ",")
@@ -113,6 +94,31 @@ func SharedBridge(t *testing.T) (*bridge.BridgeRegistry, bridge.BridgeConfig) {
 			return
 		}
 	})
+}
+
+// Run runs all tests and then cleans up the shared bridge registry. Use this from
+// TestMain in any package that calls SharedBridge:
+//
+//	func TestMain(m *testing.M) { os.Exit(bridgetest.Run(m)) }
+func Run(m *testing.M) int {
+	code := m.Run()
+	Cleanup()
+	return code
+}
+
+// Cleanup shuts down the shared bridge registry and kills any tracked bridge
+// subprocesses. Safe to call multiple times (idempotent via sync.OnceFunc).
+func Cleanup() {
+	doCleanup()
+}
+
+// SharedBridge returns a shared BridgeRegistry and BridgeConfig for integration tests.
+// It starts a single JVM process and reuses it across all tests in the binary.
+// If Java or the bridge JAR is unavailable, it fails the test.
+func SharedBridge(t *testing.T) (*bridge.BridgeRegistry, bridge.BridgeConfig) {
+	t.Helper()
+
+	initShared()
 
 	if sharedErr != nil {
 		t.Fatal(sharedErr.Error())
