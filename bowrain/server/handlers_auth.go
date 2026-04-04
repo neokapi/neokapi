@@ -875,13 +875,17 @@ func (s *Server) handleOIDCCodeExchange(c echo.Context, code, state string) erro
 	// Check for a return-path cookie (e.g. from /join/:code before OIDC redirect).
 	returnPath := "/"
 	if rp, err := c.Cookie("bowrain_return_path"); err == nil && rp.Value != "" {
-		returnPath = rp.Value
+		returnPath = sanitizeReturnPath(rp.Value)
 		// Clear the return-path cookie.
+		secure := c.Scheme() == "https"
 		c.SetCookie(&http.Cookie{
-			Name:   "bowrain_return_path",
-			Value:  "",
-			Path:   "/",
-			MaxAge: -1,
+			Name:     "bowrain_return_path",
+			Value:    "",
+			Path:     "/",
+			MaxAge:   -1,
+			HttpOnly: true,
+			Secure:   secure,
+			SameSite: http.SameSiteLaxMode,
 		})
 	}
 	return c.Redirect(http.StatusFound, returnPath)
@@ -1135,4 +1139,32 @@ func (s *Server) HandleBackChannelLogout(c echo.Context) error {
 	}
 
 	return c.NoContent(http.StatusOK)
+}
+
+// sanitizeReturnPath validates that a return path is a safe relative URL.
+// It rejects absolute URLs, protocol-relative URLs, and URLs containing
+// authority components that could be used for open redirect attacks.
+func sanitizeReturnPath(raw string) string {
+	if raw == "" {
+		return "/"
+	}
+	// Decode percent-encoded value (cookie may be URL-encoded by the browser).
+	decoded, err := url.QueryUnescape(raw)
+	if err != nil {
+		return "/"
+	}
+	// Must start with a single slash (relative to origin).
+	if !strings.HasPrefix(decoded, "/") {
+		return "/"
+	}
+	// Reject protocol-relative URLs (//evil.com) and paths with authority (@).
+	if strings.HasPrefix(decoded, "//") || strings.Contains(decoded, "@") {
+		return "/"
+	}
+	// Parse to reject any scheme or host that slipped through.
+	u, err := url.Parse(decoded)
+	if err != nil || u.Host != "" || u.Scheme != "" {
+		return "/"
+	}
+	return decoded
 }
