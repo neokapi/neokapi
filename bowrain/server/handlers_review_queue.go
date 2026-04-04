@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"encoding/json"
+	"log/slog"
 	"net/http"
 	"strconv"
 
@@ -222,6 +223,11 @@ func (s *Server) HandleBatchDecideReviewItems(c echo.Context) error {
 	// Process side effects for each decided item.
 	wsSlug, _ := c.Get("workspace_slug").(string)
 	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				slog.Error("recovered panic in review decision side effects", "panic", r)
+			}
+		}()
 		bgCtx := context.Background()
 		for _, id := range req.ItemIDs {
 			if item, getErr := s.ReviewQueueStore.GetItem(bgCtx, id); getErr == nil {
@@ -279,6 +285,11 @@ func (s *Server) HandleSyncReviewDecisions(c echo.Context) error {
 
 	// Process side effects for decided items.
 	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				slog.Error("recovered panic in sync review decision side effects", "panic", r)
+			}
+		}()
 		bgCtx := context.Background()
 		for _, id := range decidedIDs {
 			if item, getErr := s.ReviewQueueStore.GetItem(bgCtx, id); getErr == nil {

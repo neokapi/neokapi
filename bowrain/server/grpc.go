@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"time"
 
 	pb "github.com/neokapi/neokapi/bowrain/proto/v1"
@@ -260,6 +261,11 @@ func (g *GRPCServer) ExecuteFlow(req *pb.ExecuteFlowRequest, stream pb.NeokapiSe
 		currentTool := t
 		go func() {
 			defer close(nextOut)
+			defer func() {
+				if r := recover(); r != nil {
+					slog.Error("recovered panic in gRPC tool goroutine", "panic", r)
+				}
+			}()
 			_ = currentTool.Process(ctx, currentIn, nextOut)
 		}()
 		out = nextOut

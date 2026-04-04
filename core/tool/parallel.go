@@ -159,7 +159,10 @@ func (p *ParallelBlockTool) Process(ctx context.Context, in <-chan *model.Part, 
 
 		// Emit all consecutive parts starting from nextSeq.
 		for buf.Len() > 0 && buf[0].seq == nextSeq {
-			item := heap.Pop(&buf).(sequencedPart)
+			item, ok := heap.Pop(&buf).(sequencedPart)
+			if !ok {
+				continue
+			}
 			select {
 			case out <- item.part:
 			case <-ctx.Done():
@@ -171,7 +174,10 @@ func (p *ParallelBlockTool) Process(ctx context.Context, in <-chan *model.Part, 
 
 	// Drain any remaining items (shouldn't happen if everything is correct).
 	for buf.Len() > 0 {
-		item := heap.Pop(&buf).(sequencedPart)
+		item, ok := heap.Pop(&buf).(sequencedPart)
+		if !ok {
+			continue
+		}
 		if item.err != nil {
 			return item.err
 		}
