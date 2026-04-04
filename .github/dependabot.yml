@@ -44,6 +44,9 @@ updates:
     groups:
       go-minor-patch:
         update-types: [minor, patch]
+    ignore:
+      - dependency-name: github.com/wailsapp/wails/v3
+        versions: ["3.0.0-alpha.8.3"]
 
   # ── Bowrain Go modules (AGPL) ──────────────────────────────────────────────
   - package-ecosystem: gomod
@@ -78,6 +81,9 @@ updates:
     groups:
       go-minor-patch:
         update-types: [minor, patch]
+    ignore:
+      - dependency-name: github.com/wailsapp/wails/v3
+        versions: ["3.0.0-alpha.8.3"]
 
   # ── GitHub Actions ─────────────────────────────────────────────────────────
   - package-ecosystem: github-actions
