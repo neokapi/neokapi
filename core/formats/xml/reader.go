@@ -173,160 +173,461 @@ func (r *Reader) readContentSkeleton(ctx context.Context, ch chan<- model.PartRe
 	r.writeSkeletonEntries(content, contentRanges, attrRanges)
 }
 
-func (r *Reader) readContentCore(ctx context.Context, ch chan<- model.PartResult, content []byte, layer *model.Layer,
-	contentRanges *[]skelContentRange, attrRanges *[]skelAttrRange) {
+// xmlParseState holds the mutable state for streaming XML parsing in readContentCore.
+type xmlParseState struct {
+	reader        *Reader
+	ctx           context.Context
+	ch            chan<- model.PartResult
+	content       []byte
+	layer         *model.Layer
+	contentRanges *[]skelContentRange
+	attrRanges    *[]skelAttrRange
+	decoder       *xml.Decoder
+	blockCounter  int
+	dataCounter   int
+	spanCounter   int
+	stack         []*elementFrame
+	wsStack       []bool
+}
 
-	decoder := xml.NewDecoder(strings.NewReader(string(content)))
-	blockCounter := 0
-	dataCounter := 0
-	spanCounter := 0
-	var stack []*elementFrame
-	var wsStack []bool
-
-	// findTextFrame returns the nearest non-inline ancestor frame.
-	findTextFrame := func() *elementFrame {
-		for i := len(stack) - 1; i >= 0; i-- {
-			if !stack[i].isInline {
-				return stack[i]
-			}
+// findTextFrame returns the nearest non-inline ancestor frame.
+func (s *xmlParseState) findTextFrame() *elementFrame {
+	for i := len(s.stack) - 1; i >= 0; i-- {
+		if !s.stack[i].isInline {
+			return s.stack[i]
 		}
-		return nil
 	}
+	return nil
+}
 
-	// isInExcludedScope checks if any ancestor is excluded (but not inline+excluded).
-	isInExcludedScope := func() bool {
-		for _, f := range stack {
-			if f.isExcluded {
+// isInExcludedScope checks if any ancestor is excluded (but not inline+excluded).
+func (s *xmlParseState) isInExcludedScope() bool {
+	for _, f := range s.stack {
+		if f.isExcluded {
+			return true
+		}
+	}
+	return false
+}
+
+// elemPath builds the dot-separated path for the current element stack.
+func (s *xmlParseState) elemPath() string {
+	var parts []string
+	for _, f := range s.stack {
+		parts = append(parts, f.name)
+	}
+	return strings.Join(parts, ".")
+}
+
+// isTranslatable checks if the given frame's content is translatable.
+func (s *xmlParseState) isTranslatable(frame *elementFrame) bool {
+	cfg := s.reader.cfg
+	if cfg.ExcludeByDefault {
+		return cfg.isIncludedElement(frame.name, frame.attrs)
+	}
+	if cfg.isExcludedElement(frame.name, frame.attrs) {
+		return false
+	}
+	if len(cfg.TranslatableElements) > 0 {
+		for _, e := range cfg.TranslatableElements {
+			if e == frame.name {
 				return true
 			}
 		}
 		return false
 	}
+	return true
+}
 
-	// elemPath builds the path for the given stack (including the frames on it).
-	elemPath := func() string {
-		var parts []string
-		for _, f := range stack {
-			parts = append(parts, f.name)
-		}
-		return strings.Join(parts, ".")
+// flushBlock emits the accumulated text as a block or data part.
+// The frame has already been popped from stack, so we pass the path separately.
+// endTagOffset is the byte offset of the end tag (for skeleton tracking).
+func (s *xmlParseState) flushBlock(frame *elementFrame, path string, endTagOffset int) {
+	if frame == nil || frame.frag == nil {
+		return
 	}
 
-	// isTranslatable checks if the given frame's content is translatable.
-	isTranslatable := func(frame *elementFrame) bool {
-		if r.cfg.ExcludeByDefault {
-			return r.cfg.isIncludedElement(frame.name, frame.attrs)
+	var finalFrag *model.Fragment
+	if frame.preserveWS || s.contentRanges != nil {
+		// In skeleton mode, preserve whitespace as-is for byte-exact roundtrip.
+		// The skeleton ref covers the raw bytes, and XML-escaping the decoded
+		// text will reproduce the original encoding.
+		finalFrag = frame.frag
+	} else {
+		finalFrag = collapseFragmentWhitespace(frame.frag)
+	}
+
+	text := finalFrag.Text()
+	if text == "" && !finalFrag.HasSpans() {
+		return
+	}
+
+	if !s.isTranslatable(frame) {
+		// Emit as data part
+		s.dataCounter++
+		data := &model.Data{
+			ID:   "d" + strconv.Itoa(s.dataCounter),
+			Name: path,
 		}
-		if r.cfg.isExcludedElement(frame.name, frame.attrs) {
-			return false
+		s.reader.emit(s.ctx, s.ch, &model.Part{Type: model.PartData, Resource: data})
+		return
+	}
+
+	// Check for subfilter
+	if mapping := s.reader.matchSubfilter(path); mapping != nil && s.reader.resolver != nil {
+		s.reader.emitSubfiltered(s.ctx, s.ch, text, path, s.layer.ID, mapping, &s.blockCounter, &s.dataCounter)
+		frame.frag = nil
+		return
+	}
+
+	s.blockCounter++
+	blockID := "tu" + strconv.Itoa(s.blockCounter)
+	block := &model.Block{
+		ID:           blockID,
+		Translatable: true,
+		Source: []*model.Segment{{
+			ID:      "s1",
+			Content: finalFrag,
+		}},
+		Targets:     make(map[model.LocaleID][]*model.Segment),
+		Properties:  make(map[string]string),
+		Annotations: make(map[string]model.Annotation),
+	}
+
+	block.Name = path
+
+	// Set block name from ID attribute if available
+	idVal := s.reader.cfg.getIDAttribute(frame.name, frame.attrs)
+	if idVal != "" {
+		block.Name = idVal
+	}
+
+	// Set block type
+	block.Type = s.reader.cfg.getBlockType(frame.name)
+
+	// Set PreserveWhitespace
+	block.PreserveWhitespace = frame.preserveWS
+
+	// Set writable attributes as properties
+	writableAttrs := s.reader.cfg.getWritableAttributes(frame.name, frame.attrs)
+	for k, v := range writableAttrs {
+		block.Properties[k] = v
+	}
+
+	s.reader.emit(s.ctx, s.ch, &model.Part{Type: model.PartBlock, Resource: block})
+
+	// Track content range for skeleton
+	if s.contentRanges != nil && frame.contentByteStart > 0 && endTagOffset > 0 {
+		// Find the start of the end tag by searching backwards from endTagOffset
+		closeStart := findCloseTagStart(s.content, frame.contentByteStart, endTagOffset, frame.name)
+		if closeStart >= 0 {
+			*s.contentRanges = append(*s.contentRanges, skelContentRange{
+				blockID: blockID,
+				start:   frame.contentByteStart,
+				end:     closeStart,
+			})
 		}
-		if len(r.cfg.TranslatableElements) > 0 {
-			for _, e := range r.cfg.TranslatableElements {
-				if e == frame.name {
-					return true
+	}
+
+	frame.frag = nil
+}
+
+// emitTranslatableAttrs emits translatable attributes as blocks and tracks skeleton ranges.
+func (s *xmlParseState) emitTranslatableAttrs(elem xml.StartElement, tokOffset, contentStart int) {
+	for _, attr := range elem.Attr {
+		attrName := attr.Name.Local
+		if attr.Name.Space == "xml" {
+			attrName = "xml:" + attr.Name.Local
+		} else if attr.Name.Space != "" {
+			attrName = attr.Name.Space + ":" + attr.Name.Local
+		}
+		if s.reader.cfg.isTranslatableAttribute(elem.Name.Local, attrName, s.stack[len(s.stack)-1].attrs) {
+			s.blockCounter++
+			blockID := "tu" + strconv.Itoa(s.blockCounter)
+			block := model.NewBlock(blockID, attr.Value)
+			block.Name = s.elemPath() + "@" + attrName
+			block.Type = "attribute"
+			block.IsReferent = true
+			s.reader.emit(s.ctx, s.ch, &model.Part{Type: model.PartBlock, Resource: block})
+
+			// Track attribute range for skeleton
+			if s.attrRanges != nil {
+				attrStart, attrEnd := findAttrValueByteRange(s.content, tokOffset, contentStart, attrName, attr.Value)
+				if attrStart >= 0 {
+					*s.attrRanges = append(*s.attrRanges, skelAttrRange{
+						blockID: blockID,
+						start:   attrStart,
+						end:     attrEnd,
+					})
 				}
 			}
-			return false
 		}
-		return true
+	}
+}
+
+// handleStartElement processes an xml.StartElement token.
+func (s *xmlParseState) handleStartElement(t xml.StartElement, tokOffset int) {
+	attrs := make(map[string]string)
+	for _, attr := range t.Attr {
+		key := attr.Name.Local
+		if attr.Name.Space == "xml" || attr.Name.Space == "http://www.w3.org/XML/1998/namespace" {
+			key = "xml:" + attr.Name.Local
+		} else if attr.Name.Space != "" {
+			key = attr.Name.Space + ":" + attr.Name.Local
+		}
+		attrs[key] = attr.Value
 	}
 
-	// flushBlock emits the accumulated text as a block or data part.
-	// The frame has already been popped from stack, so we pass the path separately.
-	// endTagOffset is the byte offset of the end tag (for skeleton tracking).
-	flushBlock := func(frame *elementFrame, path string, endTagOffset int) {
-		if frame == nil || frame.frag == nil {
-			return
+	// Detect xml:lang
+	if lang, ok := attrs["xml:lang"]; ok {
+		s.dataCounter++
+		data := &model.Data{
+			ID:         "d" + strconv.Itoa(s.dataCounter),
+			Name:       t.Name.Local,
+			Properties: map[string]string{"language": lang},
 		}
+		s.reader.emit(s.ctx, s.ch, &model.Part{Type: model.PartData, Resource: data})
+	}
 
-		var finalFrag *model.Fragment
-		if frame.preserveWS || contentRanges != nil {
-			// In skeleton mode, preserve whitespace as-is for byte-exact roundtrip.
-			// The skeleton ref covers the raw bytes, and XML-escaping the decoded
-			// text will reproduce the original encoding.
-			finalFrag = frame.frag
-		} else {
-			finalFrag = collapseFragmentWhitespace(frame.frag)
-		}
+	isInline := s.reader.cfg.isInlineElement(t.Name.Local)
+	isExcluded := s.reader.cfg.isExcludedElement(t.Name.Local, attrs)
 
-		text := finalFrag.Text()
-		if text == "" && !finalFrag.HasSpans() {
-			return
-		}
+	// Check excludeByDefault
+	if s.reader.cfg.ExcludeByDefault && !s.reader.cfg.isIncludedElement(t.Name.Local, attrs) {
+		isExcluded = true
+	}
 
-		if !isTranslatable(frame) {
-			// Emit as data part
-			dataCounter++
-			data := &model.Data{
-				ID:   "d" + strconv.Itoa(dataCounter),
-				Name: path,
+	// An INCLUDE inside an excluded parent overrides
+	if s.isInExcludedScope() && s.reader.cfg.isIncludedElement(t.Name.Local, attrs) {
+		isExcluded = false
+	}
+
+	// Check xml:space
+	preserveWS := s.reader.cfg.shouldPreserveWhitespace(t.Name.Local)
+	if v, ok := attrs["xml:space"]; ok {
+		preserveWS = v == "preserve"
+	}
+	// Inherit from parent
+	if len(s.wsStack) > 0 && s.wsStack[len(s.wsStack)-1] {
+		preserveWS = true
+	}
+	s.wsStack = append(s.wsStack, preserveWS)
+
+	// Check if inline+excluded (content suppressed but element still inline)
+	inlineExcluded := isInline && s.reader.isInlineExcluded(t.Name.Local, attrs)
+
+	// Content starts right after the '>' of the start tag
+	contentStart := int(s.decoder.InputOffset())
+
+	frame := &elementFrame{
+		name:             t.Name.Local,
+		attrs:            attrs,
+		isInline:         isInline,
+		isExcluded:       isExcluded || inlineExcluded,
+		preserveWS:       preserveWS,
+		contentByteStart: contentStart,
+	}
+
+	if isInline {
+		// Mark parent inline elements as having content
+		for i := len(s.stack) - 1; i >= 0; i-- {
+			if s.stack[i].isInline {
+				s.stack[i].hasContent = true
+			} else {
+				break
 			}
-			r.emit(ctx, ch, &model.Part{Type: model.PartData, Resource: data})
-			return
 		}
-
-		// Check for subfilter
-		if mapping := r.matchSubfilter(path); mapping != nil && r.resolver != nil {
-			r.emitSubfiltered(ctx, ch, text, path, layer.ID, mapping, &blockCounter, &dataCounter)
-			frame.frag = nil
-			return
+		// For inline elements, add opening span to parent's fragment
+		parent := s.findTextFrame()
+		if parent != nil && parent.frag != nil && !parent.isExcluded {
+			s.spanCounter++
+			parent.frag.AppendSpan(&model.Span{
+				SpanType: model.SpanOpening,
+				ID:       strconv.Itoa(s.spanCounter),
+				Data:     buildStartTag(t),
+				Type:     "fmt:" + t.Name.Local,
+			})
+			frame.spanID = s.spanCounter
 		}
+	} else {
+		// Start a new text accumulator for this block element
+		frame.frag = model.NewFragment("")
+	}
 
-		blockCounter++
-		blockID := "tu" + strconv.Itoa(blockCounter)
-		block := &model.Block{
-			ID:           blockID,
-			Translatable: true,
-			Source: []*model.Segment{{
-				ID:      "s1",
-				Content: finalFrag,
-			}},
-			Targets:     make(map[model.LocaleID][]*model.Segment),
-			Properties:  make(map[string]string),
-			Annotations: make(map[string]model.Annotation),
-		}
+	s.stack = append(s.stack, frame)
 
-		block.Name = path
+	// Emit translatable attributes as blocks
+	s.emitTranslatableAttrs(t, tokOffset, contentStart)
+}
 
-		// Set block name from ID attribute if available
-		idVal := r.cfg.getIDAttribute(frame.name, frame.attrs)
-		if idVal != "" {
-			block.Name = idVal
-		}
+// handleEndElement processes an xml.EndElement token.
+func (s *xmlParseState) handleEndElement(t xml.EndElement) {
+	if len(s.wsStack) > 0 {
+		s.wsStack = s.wsStack[:len(s.wsStack)-1]
+	}
+	if len(s.stack) == 0 {
+		return
+	}
+	frame := s.stack[len(s.stack)-1]
+	// Compute the path before popping
+	path := s.elemPath()
+	s.stack = s.stack[:len(s.stack)-1]
 
-		// Set block type
-		block.Type = r.cfg.getBlockType(frame.name)
+	// endTagOffset is the byte offset after the end tag
+	endTagOffset := int(s.decoder.InputOffset())
 
-		// Set PreserveWhitespace
-		block.PreserveWhitespace = frame.preserveWS
-
-		// Set writable attributes as properties
-		writableAttrs := r.cfg.getWritableAttributes(frame.name, frame.attrs)
-		for k, v := range writableAttrs {
-			block.Properties[k] = v
-		}
-
-		r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block})
-
-		// Track content range for skeleton
-		if contentRanges != nil && frame.contentByteStart > 0 && endTagOffset > 0 {
-			// Find the start of the end tag by searching backwards from endTagOffset
-			closeStart := findCloseTagStart(content, frame.contentByteStart, endTagOffset, frame.name)
-			if closeStart >= 0 {
-				*contentRanges = append(*contentRanges, skelContentRange{
-					blockID: blockID,
-					start:   frame.contentByteStart,
-					end:     closeStart,
+	if frame.isInline {
+		parent := s.findTextFrame()
+		if parent != nil && parent.frag != nil && !parent.isExcluded {
+			if !frame.hasContent {
+				// Self-closing / empty inline: replace the opening span with a placeholder
+				spanID := strconv.Itoa(frame.spanID)
+				for i, sp := range parent.frag.Spans {
+					if sp.ID == spanID && sp.SpanType == model.SpanOpening {
+						parent.frag.Spans[i] = &model.Span{
+							SpanType: model.SpanPlaceholder,
+							ID:       spanID,
+							Data:     sp.Data,
+							Type:     sp.Type,
+						}
+						break
+					}
+				}
+			} else {
+				// Add closing span to parent's fragment
+				parent.frag.AppendSpan(&model.Span{
+					SpanType: model.SpanClosing,
+					ID:       strconv.Itoa(frame.spanID),
+					Data:     "</" + t.Name.Local + ">",
+					Type:     "fmt:" + t.Name.Local,
 				})
 			}
 		}
+	} else if !frame.isExcluded {
+		// Flush accumulated text as a block
+		s.flushBlock(frame, path, endTagOffset)
+	}
+}
 
-		frame.frag = nil
+// handleCharData processes an xml.CharData token.
+func (s *xmlParseState) handleCharData(t xml.CharData) {
+	text := string(t)
+
+	// If in excluded scope, check what kind
+	if s.isInExcludedScope() {
+		// Check if the nearest non-inline ancestor is excluded
+		textFrame := s.findTextFrame()
+		if textFrame == nil || textFrame.isExcluded {
+			return
+		}
+		// The text frame is not excluded, but an inline ancestor is.
+		// Skip text from any excluded inline element in the ancestor chain.
+		for i := len(s.stack) - 1; i >= 0; i-- {
+			if !s.stack[i].isInline {
+				break
+			}
+			if s.stack[i].isExcluded {
+				return
+			}
+		}
+	}
+
+	// Find the frame that should accumulate this text
+	textFrame := s.findTextFrame()
+
+	if textFrame != nil {
+		// Mark all inline ancestors as having content
+		for i := len(s.stack) - 1; i >= 0; i-- {
+			if s.stack[i].isInline {
+				s.stack[i].hasContent = true
+			} else {
+				break
+			}
+		}
+		// Accumulate text in the current text frame
+		if textFrame.frag == nil {
+			textFrame.frag = model.NewFragment("")
+		}
+		textFrame.frag.AppendText(text)
+		return
+	}
+
+	// No parent frame — standalone text (shouldn't normally happen with well-formed XML)
+	trimmed := strings.TrimSpace(text)
+	if trimmed == "" {
+		return
+	}
+	path := s.elemPath()
+	s.blockCounter++
+	block := model.NewBlock("tu"+strconv.Itoa(s.blockCounter), trimmed)
+	block.Name = path
+	s.reader.emit(s.ctx, s.ch, &model.Part{Type: model.PartBlock, Resource: block})
+}
+
+// handleProcInst processes an xml.ProcInst token.
+func (s *xmlParseState) handleProcInst(t xml.ProcInst) {
+	textFrame := s.findTextFrame()
+	if textFrame != nil && textFrame.frag != nil {
+		s.spanCounter++
+		piData := "<?" + t.Target
+		if len(t.Inst) > 0 {
+			piData += " " + string(t.Inst)
+		}
+		piData += "?>"
+		textFrame.frag.AppendSpan(&model.Span{
+			SpanType: model.SpanPlaceholder,
+			ID:       strconv.Itoa(s.spanCounter),
+			Data:     piData,
+			Type:     "xml:pi",
+		})
+	} else {
+		s.dataCounter++
+		data := &model.Data{
+			ID:   "d" + strconv.Itoa(s.dataCounter),
+			Name: "processing-instruction",
+		}
+		s.reader.emit(s.ctx, s.ch, &model.Part{Type: model.PartData, Resource: data})
+	}
+}
+
+// handleComment processes an xml.Comment token.
+func (s *xmlParseState) handleComment(t xml.Comment) {
+	textFrame := s.findTextFrame()
+	if textFrame != nil && textFrame.frag != nil {
+		s.spanCounter++
+		textFrame.frag.AppendSpan(&model.Span{
+			SpanType: model.SpanPlaceholder,
+			ID:       strconv.Itoa(s.spanCounter),
+			Data:     "<!--" + string(t) + "-->",
+			Type:     "xml:comment",
+		})
+	} else {
+		s.dataCounter++
+		data := &model.Data{
+			ID:   "d" + strconv.Itoa(s.dataCounter),
+			Name: "comment",
+		}
+		s.reader.emit(s.ctx, s.ch, &model.Part{Type: model.PartData, Resource: data})
+	}
+}
+
+func (r *Reader) readContentCore(ctx context.Context, ch chan<- model.PartResult, content []byte, layer *model.Layer,
+	contentRanges *[]skelContentRange, attrRanges *[]skelAttrRange) {
+
+	s := &xmlParseState{
+		reader:        r,
+		ctx:           ctx,
+		ch:            ch,
+		content:       content,
+		layer:         layer,
+		contentRanges: contentRanges,
+		attrRanges:    attrRanges,
+		decoder:       xml.NewDecoder(strings.NewReader(string(content))),
 	}
 
 	for {
-		tokOffset := int(decoder.InputOffset())
-		tok, err := decoder.Token()
+		tokOffset := int(s.decoder.InputOffset())
+		tok, err := s.decoder.Token()
 		if errors.Is(err, io.EOF) {
 			break
 		}
@@ -337,275 +638,15 @@ func (r *Reader) readContentCore(ctx context.Context, ch chan<- model.PartResult
 
 		switch t := tok.(type) {
 		case xml.StartElement:
-			attrs := make(map[string]string)
-			for _, attr := range t.Attr {
-				key := attr.Name.Local
-				if attr.Name.Space == "xml" || attr.Name.Space == "http://www.w3.org/XML/1998/namespace" {
-					key = "xml:" + attr.Name.Local
-				} else if attr.Name.Space != "" {
-					key = attr.Name.Space + ":" + attr.Name.Local
-				}
-				attrs[key] = attr.Value
-			}
-
-			// Detect xml:lang
-			if lang, ok := attrs["xml:lang"]; ok {
-				dataCounter++
-				data := &model.Data{
-					ID:         "d" + strconv.Itoa(dataCounter),
-					Name:       t.Name.Local,
-					Properties: map[string]string{"language": lang},
-				}
-				r.emit(ctx, ch, &model.Part{Type: model.PartData, Resource: data})
-			}
-
-			isInline := r.cfg.isInlineElement(t.Name.Local)
-			isExcluded := r.cfg.isExcludedElement(t.Name.Local, attrs)
-
-			// Check excludeByDefault
-			if r.cfg.ExcludeByDefault && !r.cfg.isIncludedElement(t.Name.Local, attrs) {
-				isExcluded = true
-			}
-
-			// An INCLUDE inside an excluded parent overrides
-			if isInExcludedScope() && r.cfg.isIncludedElement(t.Name.Local, attrs) {
-				isExcluded = false
-			}
-
-			// Check xml:space
-			preserveWS := r.cfg.shouldPreserveWhitespace(t.Name.Local)
-			if v, ok := attrs["xml:space"]; ok {
-				preserveWS = v == "preserve"
-			}
-			// Inherit from parent
-			if len(wsStack) > 0 && wsStack[len(wsStack)-1] {
-				preserveWS = true
-			}
-			wsStack = append(wsStack, preserveWS)
-
-			// Check if inline+excluded (content suppressed but element still inline)
-			inlineExcluded := isInline && r.isInlineExcluded(t.Name.Local, attrs)
-
-			// Content starts right after the '>' of the start tag
-			contentStart := int(decoder.InputOffset())
-
-			frame := &elementFrame{
-				name:             t.Name.Local,
-				attrs:            attrs,
-				isInline:         isInline,
-				isExcluded:       isExcluded || inlineExcluded,
-				preserveWS:       preserveWS,
-				contentByteStart: contentStart,
-			}
-
-			if isInline {
-				// Mark parent inline elements as having content
-				for i := len(stack) - 1; i >= 0; i-- {
-					if stack[i].isInline {
-						stack[i].hasContent = true
-					} else {
-						break
-					}
-				}
-				// For inline elements, add opening span to parent's fragment
-				parent := findTextFrame()
-				if parent != nil && parent.frag != nil && !parent.isExcluded {
-					spanCounter++
-					parent.frag.AppendSpan(&model.Span{
-						SpanType: model.SpanOpening,
-						ID:       strconv.Itoa(spanCounter),
-						Data:     buildStartTag(t),
-						Type:     "fmt:" + t.Name.Local,
-					})
-					frame.spanID = spanCounter
-				}
-			} else {
-				// Start a new text accumulator for this block element
-				frame.frag = model.NewFragment("")
-			}
-
-			stack = append(stack, frame)
-
-			// Emit translatable attributes as blocks
-			for _, attr := range t.Attr {
-				attrName := attr.Name.Local
-				if attr.Name.Space == "xml" {
-					attrName = "xml:" + attr.Name.Local
-				} else if attr.Name.Space != "" {
-					attrName = attr.Name.Space + ":" + attr.Name.Local
-				}
-				if r.cfg.isTranslatableAttribute(t.Name.Local, attrName, attrs) {
-					blockCounter++
-					blockID := "tu" + strconv.Itoa(blockCounter)
-					block := model.NewBlock(blockID, attr.Value)
-					block.Name = elemPath() + "@" + attrName
-					block.Type = "attribute"
-					block.IsReferent = true
-					r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block})
-
-					// Track attribute range for skeleton
-					if attrRanges != nil {
-						attrStart, attrEnd := findAttrValueByteRange(content, tokOffset, contentStart, attrName, attr.Value)
-						if attrStart >= 0 {
-							*attrRanges = append(*attrRanges, skelAttrRange{
-								blockID: blockID,
-								start:   attrStart,
-								end:     attrEnd,
-							})
-						}
-					}
-				}
-			}
-
+			s.handleStartElement(t, tokOffset)
 		case xml.EndElement:
-			if len(wsStack) > 0 {
-				wsStack = wsStack[:len(wsStack)-1]
-			}
-			if len(stack) == 0 {
-				continue
-			}
-			frame := stack[len(stack)-1]
-			// Compute the path before popping
-			path := elemPath()
-			stack = stack[:len(stack)-1]
-
-			// endTagOffset is the byte offset after the end tag
-			endTagOffset := int(decoder.InputOffset())
-
-			if frame.isInline {
-				parent := findTextFrame()
-				if parent != nil && parent.frag != nil && !parent.isExcluded {
-					if !frame.hasContent {
-						// Self-closing / empty inline: replace the opening span with a placeholder
-						spanID := strconv.Itoa(frame.spanID)
-						for i, s := range parent.frag.Spans {
-							if s.ID == spanID && s.SpanType == model.SpanOpening {
-								parent.frag.Spans[i] = &model.Span{
-									SpanType: model.SpanPlaceholder,
-									ID:       spanID,
-									Data:     s.Data,
-									Type:     s.Type,
-								}
-								break
-							}
-						}
-					} else {
-						// Add closing span to parent's fragment
-						parent.frag.AppendSpan(&model.Span{
-							SpanType: model.SpanClosing,
-							ID:       strconv.Itoa(frame.spanID),
-							Data:     "</" + t.Name.Local + ">",
-							Type:     "fmt:" + t.Name.Local,
-						})
-					}
-				}
-			} else if !frame.isExcluded {
-				// Flush accumulated text as a block
-				flushBlock(frame, path, endTagOffset)
-			}
-
+			s.handleEndElement(t)
 		case xml.CharData:
-			text := string(t)
-
-			// If in excluded scope, check what kind
-			if isInExcludedScope() {
-				// Check if the nearest non-inline ancestor is excluded
-				textFrame := findTextFrame()
-				if textFrame == nil || textFrame.isExcluded {
-					continue
-				}
-				// The text frame is not excluded, but an inline ancestor is.
-				// Skip text from any excluded inline element in the ancestor chain.
-				excludedInline := false
-				for i := len(stack) - 1; i >= 0; i-- {
-					if !stack[i].isInline {
-						break
-					}
-					if stack[i].isExcluded {
-						excludedInline = true
-						break
-					}
-				}
-				if excludedInline {
-					continue
-				}
-			}
-
-			// Find the frame that should accumulate this text
-			textFrame := findTextFrame()
-
-			if textFrame != nil {
-				// Mark all inline ancestors as having content
-				for i := len(stack) - 1; i >= 0; i-- {
-					if stack[i].isInline {
-						stack[i].hasContent = true
-					} else {
-						break
-					}
-				}
-				// Accumulate text in the current text frame
-				if textFrame.frag == nil {
-					textFrame.frag = model.NewFragment("")
-				}
-				textFrame.frag.AppendText(text)
-				continue
-			}
-
-			// No parent frame — standalone text (shouldn't normally happen with well-formed XML)
-			trimmed := strings.TrimSpace(text)
-			if trimmed == "" {
-				continue
-			}
-			path := elemPath()
-			blockCounter++
-			block := model.NewBlock("tu" + strconv.Itoa(blockCounter), trimmed)
-			block.Name = path
-			r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block})
-
+			s.handleCharData(t)
 		case xml.ProcInst:
-			// If we're inside a block element, add as placeholder span
-			textFrame := findTextFrame()
-			if textFrame != nil && textFrame.frag != nil {
-				spanCounter++
-				piData := "<?" + t.Target
-				if len(t.Inst) > 0 {
-					piData += " " + string(t.Inst)
-				}
-				piData += "?>"
-				textFrame.frag.AppendSpan(&model.Span{
-					SpanType: model.SpanPlaceholder,
-					ID:       strconv.Itoa(spanCounter),
-					Data:     piData,
-					Type:     "xml:pi",
-				})
-			} else {
-				dataCounter++
-				data := &model.Data{
-					ID:   "d" + strconv.Itoa(dataCounter),
-					Name: "processing-instruction",
-				}
-				r.emit(ctx, ch, &model.Part{Type: model.PartData, Resource: data})
-			}
-
+			s.handleProcInst(t)
 		case xml.Comment:
-			// If we're inside a block element, add as placeholder span
-			textFrame := findTextFrame()
-			if textFrame != nil && textFrame.frag != nil {
-				spanCounter++
-				textFrame.frag.AppendSpan(&model.Span{
-					SpanType: model.SpanPlaceholder,
-					ID:       strconv.Itoa(spanCounter),
-					Data:     "<!--" + string(t) + "-->",
-					Type:     "xml:comment",
-				})
-			} else {
-				dataCounter++
-				data := &model.Data{
-					ID:   "d" + strconv.Itoa(dataCounter),
-					Name: "comment",
-				}
-				r.emit(ctx, ch, &model.Part{Type: model.PartData, Resource: data})
-			}
+			s.handleComment(t)
 		}
 	}
 }
