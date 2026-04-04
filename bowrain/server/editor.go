@@ -837,8 +837,8 @@ func editorGetWordCount(ctx context.Context, cs store.ContentStore, projectID, s
 	}
 
 	result := &WordCountResponse{
-		TargetWords: make(map[string]int),
-		TargetChars: make(map[string]int),
+		TargetWords: make(map[string]int, len(targetLocales)),
+		TargetChars: make(map[string]int, len(targetLocales)),
 	}
 
 	for _, sb := range storedBlocks {
@@ -940,9 +940,9 @@ func editorLookupTermsForBlock(ctx context.Context, cs store.ContentStore, wsSto
 		ProjectID:    projectID,
 	})
 
-	result := make([]BlockTermMatchResponse, 0)
+	result := make([]BlockTermMatchResponse, 0, len(matches))
 	for _, m := range matches {
-		targetTerms := make([]string, 0)
+		var targetTerms []string
 		for _, t := range m.Concept.Terms {
 			if t.Locale == model.LocaleID(targetLocale) {
 				targetTerms = append(targetTerms, t.Text)
@@ -1096,14 +1096,14 @@ func editorBuildProjectInfo(ctx context.Context, cs store.ContentStore, proj *st
 
 // storedBlockToInfoResponse converts a StoredBlock to a BlockInfoResponse.
 func storedBlockToInfoResponse(sb *store.StoredBlock, targetLocales []string) BlockInfoResponse {
-	targets := make(map[string]string)
+	targets := make(map[string]string, len(targetLocales))
 	for _, locale := range targetLocales {
 		if t := sb.Block.TargetText(model.LocaleID(locale)); t != "" {
 			targets[locale] = t
 		}
 	}
 
-	props := make(map[string]string)
+	props := make(map[string]string, len(sb.Block.Properties))
 	for k, v := range sb.Block.Properties {
 		props[k] = v
 	}
@@ -1137,7 +1137,7 @@ func enrichBlockInfoResponse(bi *BlockInfoResponse, block *model.Block, targetLo
 		bi.SourceSpans[i] = editorSpanToInfo(s)
 	}
 
-	bi.TargetsCoded = make(map[string]string)
+	bi.TargetsCoded = make(map[string]string, len(targetLocales))
 	for _, locale := range targetLocales {
 		segs, ok := block.Targets[model.LocaleID(locale)]
 		if !ok || len(segs) == 0 {

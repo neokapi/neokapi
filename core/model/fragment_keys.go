@@ -1,7 +1,6 @@
 package model
 
 import (
-	"fmt"
 	"strings"
 )
 
@@ -26,11 +25,17 @@ func (f *Fragment) StructuralText() string {
 			span := f.Spans[spanIdx]
 			switch span.SpanType {
 			case SpanOpening:
-				buf.WriteString(fmt.Sprintf("{%s}", span.ID))
+				buf.WriteByte('{')
+				buf.WriteString(span.ID)
+				buf.WriteByte('}')
 			case SpanClosing:
-				buf.WriteString(fmt.Sprintf("{/%s}", span.ID))
+				buf.WriteString("{/")
+				buf.WriteString(span.ID)
+				buf.WriteByte('}')
 			case SpanPlaceholder:
-				buf.WriteString(fmt.Sprintf("{%s/}", span.ID))
+				buf.WriteByte('{')
+				buf.WriteString(span.ID)
+				buf.WriteString("/}")
 			}
 			spanIdx++
 		} else {
@@ -58,16 +63,24 @@ func (f *Fragment) GeneralizedText() string {
 			span := f.Spans[spanIdx]
 			if isEntitySpan(span) {
 				// Entity spans get typed placeholders.
-				buf.WriteString(fmt.Sprintf("{%s}", entityTypeLabel(span.Type)))
+				buf.WriteByte('{')
+				buf.WriteString(entityTypeLabel(span.Type))
+				buf.WriteByte('}')
 			} else {
 				// Structural spans get numbered placeholders.
 				switch span.SpanType {
 				case SpanOpening:
-					buf.WriteString(fmt.Sprintf("{%s}", span.ID))
+					buf.WriteByte('{')
+					buf.WriteString(span.ID)
+					buf.WriteByte('}')
 				case SpanClosing:
-					buf.WriteString(fmt.Sprintf("{/%s}", span.ID))
+					buf.WriteString("{/")
+					buf.WriteString(span.ID)
+					buf.WriteByte('}')
 				case SpanPlaceholder:
-					buf.WriteString(fmt.Sprintf("{%s/}", span.ID))
+					buf.WriteByte('{')
+					buf.WriteString(span.ID)
+					buf.WriteString("/}")
 				}
 			}
 			spanIdx++
@@ -98,7 +111,7 @@ func (f *Fragment) EntitySpans() []*Span {
 // EntityValues extracts the text values of entity spans from the coded text.
 // Returns a map from span ID to the entity text value.
 func (f *Fragment) EntityValues() map[string]string {
-	values := make(map[string]string)
+	values := make(map[string]string, len(f.Spans))
 	if len(f.Spans) == 0 {
 		return values
 	}
