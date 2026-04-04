@@ -27,9 +27,10 @@ func TestQueueSinkRoutesContentPush(t *testing.T) {
 		Data:      map[string]string{"workspace_id": "ws-1"},
 	})
 
-	time.Sleep(50 * time.Millisecond)
+	require.Eventually(t, func() bool {
+		return len(pub.GetMessages()) == 1
+	}, 2*time.Second, 10*time.Millisecond)
 
-	require.Len(t, pub.GetMessages(), 1)
 	assert.Equal(t, "content-pushed", pub.GetMessages()[0].Queue)
 
 	var msg QueueMessage
@@ -52,9 +53,10 @@ func TestQueueSinkRoutesExtractionToContentPushed(t *testing.T) {
 		ProjectID: "proj-2",
 	})
 
-	time.Sleep(50 * time.Millisecond)
+	require.Eventually(t, func() bool {
+		return len(pub.GetMessages()) == 1
+	}, 2*time.Second, 10*time.Millisecond)
 
-	require.Len(t, pub.GetMessages(), 1)
 	assert.Equal(t, "content-pushed", pub.GetMessages()[0].Queue)
 }
 
@@ -72,9 +74,10 @@ func TestQueueSinkRoutesBlockCreatedWithLocale(t *testing.T) {
 		Data:      map[string]string{"locale": "fr-FR"},
 	})
 
-	time.Sleep(50 * time.Millisecond)
+	require.Eventually(t, func() bool {
+		return len(pub.GetMessages()) == 1
+	}, 2*time.Second, 10*time.Millisecond)
 
-	require.Len(t, pub.GetMessages(), 1)
 	assert.Equal(t, "tasks-created-fr-fr", pub.GetMessages()[0].Queue)
 }
 
@@ -92,9 +95,10 @@ func TestQueueSinkRoutesBlockCreatedWithTargetLocale(t *testing.T) {
 		Data:      map[string]string{"target_locale": "de-DE"},
 	})
 
-	time.Sleep(50 * time.Millisecond)
+	require.Eventually(t, func() bool {
+		return len(pub.GetMessages()) == 1
+	}, 2*time.Second, 10*time.Millisecond)
 
-	require.Len(t, pub.GetMessages(), 1)
 	assert.Equal(t, "tasks-created-de-de", pub.GetMessages()[0].Queue)
 }
 
@@ -112,9 +116,10 @@ func TestQueueSinkRoutesBlockCreatedNoLocale(t *testing.T) {
 		Data:      map[string]string{},
 	})
 
-	time.Sleep(50 * time.Millisecond)
+	require.Eventually(t, func() bool {
+		return len(pub.GetMessages()) == 1
+	}, 2*time.Second, 10*time.Millisecond)
 
-	require.Len(t, pub.GetMessages(), 1)
 	assert.Equal(t, "tasks-created", pub.GetMessages()[0].Queue)
 }
 
@@ -131,9 +136,10 @@ func TestQueueSinkRoutesBlockUpdated(t *testing.T) {
 		ProjectID: "proj-1",
 	})
 
-	time.Sleep(50 * time.Millisecond)
+	require.Eventually(t, func() bool {
+		return len(pub.GetMessages()) == 1
+	}, 2*time.Second, 10*time.Millisecond)
 
-	require.Len(t, pub.GetMessages(), 1)
 	assert.Equal(t, "translation-complete", pub.GetMessages()[0].Queue)
 }
 
@@ -150,9 +156,10 @@ func TestQueueSinkRoutesQualityGatePass(t *testing.T) {
 		ProjectID: "proj-1",
 	})
 
-	time.Sleep(50 * time.Millisecond)
+	require.Eventually(t, func() bool {
+		return len(pub.GetMessages()) == 1
+	}, 2*time.Second, 10*time.Millisecond)
 
-	require.Len(t, pub.GetMessages(), 1)
 	assert.Equal(t, "qa-passed", pub.GetMessages()[0].Queue)
 }
 
@@ -170,9 +177,10 @@ func TestQueueSinkRoutesFlowCompletedQA(t *testing.T) {
 		Data:      map[string]string{"flow_type": "qa"},
 	})
 
-	time.Sleep(50 * time.Millisecond)
+	require.Eventually(t, func() bool {
+		return len(pub.GetMessages()) == 1
+	}, 2*time.Second, 10*time.Millisecond)
 
-	require.Len(t, pub.GetMessages(), 1)
 	assert.Equal(t, "qa-passed", pub.GetMessages()[0].Queue)
 }
 
@@ -190,6 +198,7 @@ func TestQueueSinkIgnoresNonQAFlowCompleted(t *testing.T) {
 		Data:      map[string]string{"flow_type": "translation"},
 	})
 
+	// Non-QA flow completions should be ignored. Give bus time to deliver.
 	time.Sleep(50 * time.Millisecond)
 
 	assert.Len(t, pub.GetMessages(), 0)
@@ -207,6 +216,7 @@ func TestQueueSinkIgnoresUnknownEvents(t *testing.T) {
 	bus.Publish(platev.Event{Type: platev.EventStreamCreated, ProjectID: "proj-1"})
 	bus.Publish(platev.Event{Type: platev.EventAgentMessageSent, ProjectID: "proj-1"})
 
+	// Unknown events should be ignored. Give bus time to deliver.
 	time.Sleep(50 * time.Millisecond)
 
 	assert.Len(t, pub.GetMessages(), 0)
@@ -228,9 +238,10 @@ func TestQueueSinkChannelPrefix(t *testing.T) {
 		ProjectID: "proj-1",
 	})
 
-	time.Sleep(50 * time.Millisecond)
+	require.Eventually(t, func() bool {
+		return len(pub.GetMessages()) == 1
+	}, 2*time.Second, 10*time.Millisecond)
 
-	require.Len(t, pub.GetMessages(), 1)
 	assert.Equal(t, "agentic:content-pushed", pub.GetMessages()[0].Queue)
 }
 
@@ -256,9 +267,10 @@ func TestQueueSinkCustomRoutes(t *testing.T) {
 	// Default route should not (only custom routes active).
 	bus.Publish(platev.Event{Type: platev.EventPushCompleted})
 
-	time.Sleep(50 * time.Millisecond)
+	require.Eventually(t, func() bool {
+		return len(pub.GetMessages()) == 1
+	}, 2*time.Second, 10*time.Millisecond)
 
-	require.Len(t, pub.GetMessages(), 1)
 	assert.Equal(t, "custom-queue", pub.GetMessages()[0].Queue)
 }
 
@@ -276,6 +288,7 @@ func TestQueueSinkErrorHandling(t *testing.T) {
 		ProjectID: "proj-1",
 	})
 
+	// Give the bus time to deliver and handle the error.
 	time.Sleep(50 * time.Millisecond)
 }
 
@@ -295,11 +308,11 @@ func TestQueueSinkConcurrentPublish(t *testing.T) {
 		})
 	}
 
-	time.Sleep(200 * time.Millisecond)
-
-	pub.mu.Lock()
-	assert.Equal(t, n, len(pub.messages))
-	pub.mu.Unlock()
+	require.Eventually(t, func() bool {
+		pub.mu.Lock()
+		defer pub.mu.Unlock()
+		return len(pub.messages) == n
+	}, 2*time.Second, 10*time.Millisecond)
 }
 
 func TestQueueSinkMessagePayload(t *testing.T) {
@@ -320,9 +333,9 @@ func TestQueueSinkMessagePayload(t *testing.T) {
 		},
 	})
 
-	time.Sleep(50 * time.Millisecond)
-
-	require.Len(t, pub.GetMessages(), 1)
+	require.Eventually(t, func() bool {
+		return len(pub.GetMessages()) == 1
+	}, 2*time.Second, 10*time.Millisecond)
 
 	var msg QueueMessage
 	require.NoError(t, json.Unmarshal(pub.GetMessages()[0].Data, &msg))
@@ -351,6 +364,7 @@ func TestQueueSinkClose(t *testing.T) {
 		ProjectID: "proj-1",
 	})
 
+	// After close, events should not be published. Give bus time to deliver.
 	time.Sleep(50 * time.Millisecond)
 	assert.Len(t, pub.GetMessages(), 0)
 }
