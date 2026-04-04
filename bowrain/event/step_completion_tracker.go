@@ -2,7 +2,7 @@ package event
 
 import (
 	"context"
-	"log"
+	"log/slog"
 	"sync"
 	"time"
 
@@ -206,10 +206,10 @@ func (t *StepCompletionTracker) completeStep(ctx context.Context, stepID, runID 
 	}
 
 	if err := t.runStore.UpdateStepStatus(ctx, stepID, status, errMsg); err != nil {
-		log.Printf("step-tracker: failed to update step %s: %v", stepID, err)
+		slog.Info("step-tracker: failed to update step", "id", stepID, "error", err)
 	}
 	if err := t.runStore.IncrementDoneCount(ctx, runID); err != nil {
-		log.Printf("step-tracker: failed to increment done count for run %s: %v", runID, err)
+		slog.Info("step-tracker: failed to increment done count for run", "id", runID, "error", err)
 	}
 
 	// Record runner usage and deduct billing credits.

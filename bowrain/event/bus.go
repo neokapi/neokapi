@@ -1,7 +1,7 @@
 package event
 
 import (
-	"log"
+	"log/slog"
 	"sync"
 	"time"
 
@@ -51,7 +51,7 @@ func (b *ChannelEventBus) Publish(ev platev.Event) {
 			select {
 			case s.ch <- ev:
 			default:
-				log.Printf("WARNING: event bus dropping event %s (type=%s) for subscriber %s: channel full", ev.ID, ev.Type, s.sub.ID)
+				slog.Warn("event bus dropping event: channel full", "event_id", ev.ID, "event_type", ev.Type, "subscriber_id", s.sub.ID)
 			}
 		}
 	}
@@ -104,7 +104,7 @@ func (b *ChannelEventBus) addSubscriber(sub *platev.Subscription) {
 			func() {
 				defer func() {
 					if r := recover(); r != nil {
-						log.Printf("ERROR: recovered panic in event handler %s: %v", sub.ID, r)
+						slog.Error("recovered panic in event handler", "subscriber_id", sub.ID, "panic", r)
 					}
 				}()
 				sub.Handler(ev)

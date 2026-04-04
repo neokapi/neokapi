@@ -3,7 +3,7 @@ package event
 import (
 	"context"
 	"fmt"
-	"log"
+	"log/slog"
 	"sync"
 	"time"
 
@@ -79,7 +79,7 @@ func (pt *ProgressTracker) handleEvent(ev platev.Event) {
 func (pt *ProgressTracker) checkProject(ctx context.Context, ev platev.Event) {
 	proj, err := pt.contentStore.GetProject(ctx, ev.ProjectID)
 	if err != nil {
-		log.Printf("WARNING: progress tracker failed to get project %s: %v", ev.ProjectID, err)
+		slog.Warn("progress tracker failed to get project", "id", ev.ProjectID, "error", err)
 		return
 	}
 
@@ -90,7 +90,7 @@ func (pt *ProgressTracker) checkProject(ctx context.Context, ev platev.Event) {
 
 	stats, err := pt.contentStore.GetBlockStats(ctx, proj.ID, stream)
 	if err != nil {
-		log.Printf("WARNING: progress tracker failed to get block stats for %s: %v", proj.ID, err)
+		slog.Warn("progress tracker failed to get block stats for", "id", proj.ID, "error", err)
 		return
 	}
 

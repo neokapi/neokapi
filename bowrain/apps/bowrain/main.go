@@ -2,7 +2,8 @@ package main
 
 import (
 	"embed"
-	"log"
+	"log/slog"
+	"os"
 	"strings"
 
 	"github.com/neokapi/neokapi/bowrain/apps/bowrain/backend"
@@ -82,7 +83,7 @@ func main() {
 			webURL := strings.TrimPrefix(rawURL, "bowrain:")
 			go appService.HandleDeepLink(webURL)
 		default:
-			log.Printf("bowrain: unrecognized URL: %s", rawURL)
+			slog.Info("bowrain: unrecognized URL:", "value", rawURL)
 		}
 	})
 
@@ -92,6 +93,7 @@ func main() {
 	})
 
 	if err := app.Run(); err != nil {
-		log.Fatal(err)
+		slog.Error("bowrain: fatal error", "error", err)
+		os.Exit(1)
 	}
 }

@@ -3,7 +3,7 @@ package event
 import (
 	"context"
 	"encoding/json"
-	"log"
+	"log/slog"
 	"sync"
 	"time"
 
@@ -86,7 +86,7 @@ func (b *NATSEventBus) Publish(ev platev.Event) {
 
 	data, err := json.Marshal(ev)
 	if err != nil {
-		log.Printf("nats-event-bus: marshal error: %v", err)
+		slog.Info("nats-event-bus: marshal error", "error", err)
 		return
 	}
 
@@ -95,7 +95,7 @@ func (b *NATSEventBus) Publish(ev platev.Event) {
 	defer cancel()
 
 	if _, err := b.js.Publish(ctx, subject, data); err != nil {
-		log.Printf("nats-event-bus: publish error: %v", err)
+		slog.Info("nats-event-bus: publish error", "error", err)
 	}
 }
 
@@ -139,7 +139,7 @@ func (b *NATSEventBus) subscribeInternal(consumerName, filter string, handler pl
 		AckWait:       natsEventAckWait,
 	})
 	if err != nil {
-		log.Printf("nats-event-bus: failed to create consumer %s: %v", consumerName, err)
+		slog.Info("nats-event-bus: failed to create consumer", "id", consumerName, "error", err)
 		cancel()
 		return sub
 	}
@@ -177,7 +177,7 @@ func (b *NATSEventBus) consumeLoop(ctx context.Context, consumer jetstream.Consu
 		for msg := range batch.Messages() {
 			var ev platev.Event
 			if err := json.Unmarshal(msg.Data(), &ev); err != nil {
-				log.Printf("nats-event-bus: unmarshal error: %v", err)
+				slog.Info("nats-event-bus: unmarshal error", "error", err)
 				_ = msg.Ack()
 				continue
 			}

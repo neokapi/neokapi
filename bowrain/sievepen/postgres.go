@@ -7,7 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log"
+	"log/slog"
 	"slices"
 	"strings"
 	"time"
@@ -415,7 +415,7 @@ func (tm *PostgresTM) Delete(id string) error {
 func (tm *PostgresTM) Count() int {
 	var count int
 	if err := tm.db.QueryRowContext(context.Background(), "SELECT COUNT(*) FROM tm_entries WHERE workspace_id = $1", tm.workspaceID).Scan(&count); err != nil {
-		log.Printf("WARNING: TM count query failed (workspace %s): %v", tm.workspaceID, err)
+		slog.Warn("TM count query failed", "workspace", tm.workspaceID, "error", err)
 		return 0
 	}
 	return count

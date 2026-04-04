@@ -2,7 +2,7 @@ package event
 
 import (
 	"context"
-	"log"
+	"log/slog"
 	"time"
 
 	platev "github.com/neokapi/neokapi/bowrain/core/event"
@@ -42,7 +42,7 @@ func (r *ActivityRecorder) handleEvent(ev platev.Event) {
 	defer cancel()
 
 	if err := r.store.Create(ctx, a); err != nil {
-		log.Printf("WARNING: activity recorder failed to persist activity for event %s (type=%s): %v", ev.ID, ev.Type, err)
+		slog.Warn("activity recorder failed to persist activity", "event_id", ev.ID, "event_type", ev.Type, "error", err)
 	}
 }
 

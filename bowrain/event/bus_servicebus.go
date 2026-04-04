@@ -3,7 +3,7 @@ package event
 import (
 	"context"
 	"encoding/json"
-	"log"
+	"log/slog"
 	"sync"
 	"time"
 
@@ -63,7 +63,7 @@ func (b *ServiceBusEventBus) Publish(ev platev.Event) {
 
 	data, err := json.Marshal(ev)
 	if err != nil {
-		log.Printf("servicebus-event-bus: marshal error: %v", err)
+		slog.Info("servicebus-event-bus: marshal error", "error", err)
 		return
 	}
 
@@ -79,7 +79,7 @@ func (b *ServiceBusEventBus) Publish(ev platev.Event) {
 	defer cancel()
 
 	if err := b.sender.SendMessage(ctx, msg, nil); err != nil {
-		log.Printf("servicebus-event-bus: publish error: %v", err)
+		slog.Info("servicebus-event-bus: publish error", "error", err)
 	}
 }
 
@@ -113,7 +113,7 @@ func (b *ServiceBusEventBus) SubscribeGroup(group string, handler platev.EventHa
 
 	receiver, err := b.client.NewReceiverForSubscription(b.topic, group, nil)
 	if err != nil {
-		log.Printf("servicebus-event-bus: failed to create receiver for %s: %v", group, err)
+		slog.Info("servicebus-event-bus: failed to create receiver for", "id", group, "error", err)
 		return sub
 	}
 
@@ -148,7 +148,7 @@ func (b *ServiceBusEventBus) receiveLoop(ctx context.Context, sr *sbReceiver) {
 			if ctx.Err() != nil {
 				return
 			}
-			log.Printf("servicebus-event-bus: receive error on %s: %v", sr.sub.Group, err)
+			slog.Info("servicebus-event-bus: receive error on", "id", sr.sub.Group, "error", err)
 			time.Sleep(2 * time.Second)
 			continue
 		}
@@ -156,7 +156,7 @@ func (b *ServiceBusEventBus) receiveLoop(ctx context.Context, sr *sbReceiver) {
 		for _, msg := range messages {
 			var ev platev.Event
 			if err := json.Unmarshal(msg.Body, &ev); err != nil {
-				log.Printf("servicebus-event-bus: unmarshal error: %v", err)
+				slog.Info("servicebus-event-bus: unmarshal error", "error", err)
 				_ = sr.receiver.CompleteMessage(ctx, msg, nil)
 				continue
 			}

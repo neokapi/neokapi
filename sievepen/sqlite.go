@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log"
+	"log/slog"
 	"slices"
 	"strings"
 	"time"
@@ -580,7 +580,7 @@ func (tm *SQLiteTM) Delete(id string) error {
 func (tm *SQLiteTM) Count() int {
 	var count int
 	if err := tm.db.QueryRow("SELECT COUNT(*) FROM tm_entries").Scan(&count); err != nil {
-		log.Printf("WARNING: TM count query failed: %v", err)
+		slog.Warn("TM count query failed", "error", err)
 		return 0
 	}
 	return count

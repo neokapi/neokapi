@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
+	"log/slog"
 
 	"github.com/redis/go-redis/v9"
 )
@@ -44,9 +44,9 @@ func (p *AgentPubSub) Subscribe(ctx context.Context, conversationID string) (<-c
 
 	// Wait for subscription confirmation.
 	if _, err := sub.Receive(ctx); err != nil {
-		log.Printf("Redis subscribe failed for %s: %v", channel, err)
+		slog.Warn("Redis subscribe failed", "channel", channel, "error", err)
 	} else {
-		log.Printf("Redis subscribed to %s", channel)
+		slog.Info("Redis subscribed", "channel", channel)
 	}
 
 	ch := make(chan SSEEvent, 64)

@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log"
+	"log/slog"
 	"time"
 
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
@@ -496,14 +496,14 @@ func (s *PostgresAuthStore) ValidateRefreshTokenByHash(ctx context.Context, toke
 
 	if time.Now().After(expiresAt) {
 		if _, err := s.db.ExecContext(ctx, `DELETE FROM refresh_tokens WHERE id = $1`, id); err != nil {
-			log.Printf("WARNING: failed to delete expired refresh token %s: %v", id, err)
+			slog.Warn("failed to delete expired refresh token", "id", id, "error", err)
 		}
 		return "", errors.New("refresh token expired")
 	}
 
 	// Single-use: delete after successful validation (token rotation).
 	if _, err := s.db.ExecContext(ctx, `DELETE FROM refresh_tokens WHERE id = $1`, id); err != nil {
-		log.Printf("WARNING: failed to delete consumed refresh token %s: %v", id, err)
+		slog.Warn("failed to delete consumed refresh token", "id", id, "error", err)
 	}
 	return userID, nil
 }

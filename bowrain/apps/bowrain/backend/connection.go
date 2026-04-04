@@ -5,7 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"os"
@@ -91,7 +91,7 @@ func (a *App) GetConnectionState() ConnectionInfo {
 			a.mu.Unlock()
 			serverURL := a.GetDefaultServerURL()
 			if err := a.connectWithToken(serverURL, token); err != nil {
-				log.Printf("bowrain: auto-connect failed: %v", err)
+				slog.Info("bowrain: auto-connect failed", "error", err)
 			}
 		}
 	}
@@ -139,7 +139,7 @@ func (a *App) connectWithToken(serverURL, token string) error {
 	// Don't auto-select workspace — the test seeder creates the workspace
 	// after the binary starts, so it may not exist yet. The frontend's
 	// setupServerApp helper handles workspace selection after seeding.
-	log.Printf("bowrain: auto-connected to %s via BOWRAIN_TOKEN", serverURL)
+	slog.Info("bowrain: auto-connected via BOWRAIN_TOKEN", "server_url", serverURL)
 	return nil
 }
 
@@ -174,7 +174,7 @@ func (a *App) enqueue(operation string, payload any) {
 		return
 	}
 	if err := a.offlineQueue.Enqueue(operation, payload); err != nil {
-		log.Printf("bowrain: failed to enqueue %s: %v", operation, err)
+		slog.Info("bowrain: failed to enqueue", "id", operation, "error", err)
 	}
 }
 
@@ -355,7 +355,7 @@ func (a *App) HandleAuthURL(rawURL string) {
 	a.mu.RUnlock()
 
 	if resultCh == nil {
-		log.Printf("bowrain: received auth URL but no login flow is active")
+		slog.Info("bowrain: received auth URL but no login flow is active")
 		return
 	}
 
@@ -390,7 +390,7 @@ func (a *App) HandleAuthURL(rawURL string) {
 func (a *App) HandleDeepLink(webURL string) {
 	parsed, err := url.Parse(webURL)
 	if err != nil {
-		log.Printf("bowrain: invalid deep link URL: %v", err)
+		slog.Info("bowrain: invalid deep link URL", "error", err)
 		return
 	}
 
@@ -411,7 +411,7 @@ func (a *App) HandleDeepLink(webURL string) {
 	}
 
 	if projectID == "" {
-		log.Printf("bowrain: deep link missing project ID: %s", webURL)
+		slog.Info("bowrain: deep link missing project ID:", "value", webURL)
 		return
 	}
 

@@ -2,7 +2,7 @@ package billing
 
 import (
 	"context"
-	"log"
+	"log/slog"
 )
 
 // DefaultTrialDays is the default Pro trial period for new workspaces.
@@ -27,20 +27,20 @@ func SetupTrial(ctx context.Context, store BillingStore, workspaceID string, syn
 		SeatCount:   1,
 	}
 	if err := store.UpsertSubscription(ctx, sub); err != nil {
-		log.Printf("billing: failed to set up trial for workspace %s: %v", workspaceID, err)
+		slog.Info("billing: failed to set up trial for workspace", "id", workspaceID, "error", err)
 		return
 	}
 
 	// Sync the plan to the workspace record so seat/project limits are correct.
 	if len(syncer) > 0 && syncer[0] != nil {
 		if err := syncer[0].SyncWorkspacePlan(ctx, workspaceID, string(PlanPro), ""); err != nil {
-			log.Printf("billing: failed to sync trial plan for workspace %s: %v", workspaceID, err)
+			slog.Info("billing: failed to sync trial plan for workspace", "id", workspaceID, "error", err)
 		}
 	}
 
 	// Grant Pro-level weekly credits for the trial.
 	if _, err := EnsureWeeklyAllocation(ctx, store, workspaceID, PlanPro); err != nil {
-		log.Printf("billing: failed to allocate trial credits for workspace %s: %v", workspaceID, err)
+		slog.Info("billing: failed to allocate trial credits for workspace", "id", workspaceID, "error", err)
 	}
 
 	_ = store.RecordBillingEvent(ctx, &BillingEvent{

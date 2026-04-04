@@ -2,7 +2,7 @@ package event
 
 import (
 	"context"
-	"log"
+	"log/slog"
 	"sync"
 	"time"
 
@@ -70,7 +70,7 @@ func (m *AutomationRunManager) Execute(action AutomationAction, ev platev.Event)
 		Config:     action.Config,
 	}
 	if err := m.store.CreateStep(ctx, step); err != nil {
-		log.Printf("run-manager: failed to create step: %v", err)
+		slog.Info("run-manager: failed to create step", "error", err)
 	}
 
 	_ = m.store.AppendLogs(ctx, []bstore.AutomationLog{{
@@ -136,7 +136,7 @@ func (m *AutomationRunManager) getOrCreateRun(ctx context.Context, ev platev.Eve
 		Status:      bstore.RunStatusRunning,
 	}
 	if err := m.store.CreateRun(ctx, run); err != nil {
-		log.Printf("run-manager: failed to create run: %v", err)
+		slog.Info("run-manager: failed to create run", "error", err)
 	}
 
 	m.eventRuns[ev.ID] = run.ID
