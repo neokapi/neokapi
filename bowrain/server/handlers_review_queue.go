@@ -116,7 +116,7 @@ func (s *Server) HandleDecideReviewItem(c echo.Context) error {
 
 	// Process side effects (termbase creation, rejected terms, DNT entries).
 	wsSlug, _ := c.Get("workspace_slug").(string)
-	go s.processDecisionSideEffects(context.Background(), item, wsSlug)
+	go s.processDecisionSideEffects(context.WithoutCancel(ctx), item, wsSlug)
 
 	return c.JSON(http.StatusOK, map[string]any{"ok": true})
 }
@@ -228,7 +228,7 @@ func (s *Server) HandleBatchDecideReviewItems(c echo.Context) error {
 				slog.Error("recovered panic in review decision side effects", "panic", r)
 			}
 		}()
-		bgCtx := context.Background()
+		bgCtx := context.WithoutCancel(ctx)
 		for _, id := range req.ItemIDs {
 			if item, getErr := s.ReviewQueueStore.GetItem(bgCtx, id); getErr == nil {
 				s.processDecisionSideEffects(bgCtx, item, wsSlug)
@@ -290,7 +290,7 @@ func (s *Server) HandleSyncReviewDecisions(c echo.Context) error {
 				slog.Error("recovered panic in sync review decision side effects", "panic", r)
 			}
 		}()
-		bgCtx := context.Background()
+		bgCtx := context.WithoutCancel(ctx)
 		for _, id := range decidedIDs {
 			if item, getErr := s.ReviewQueueStore.GetItem(bgCtx, id); getErr == nil {
 				s.processDecisionSideEffects(bgCtx, item, wsSlug)

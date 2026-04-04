@@ -1,7 +1,6 @@
 package server
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -109,7 +108,7 @@ func (s *Server) HandleAutomationRunSSE(c echo.Context) error {
 			s.sendRunSnapshot(c, runID)
 
 			// Check if run is complete — close stream.
-			run, err := s.AutomationRunStore.GetRun(context.Background(), runID)
+			run, err := s.AutomationRunStore.GetRun(ctx, runID)
 			if err != nil {
 				return nil
 			}
@@ -124,11 +123,12 @@ func (s *Server) HandleAutomationRunSSE(c echo.Context) error {
 }
 
 func (s *Server) sendRunSnapshot(c echo.Context, runID string) {
-	run, err := s.AutomationRunStore.GetRun(context.Background(), runID)
+	ctx := c.Request().Context()
+	run, err := s.AutomationRunStore.GetRun(ctx, runID)
 	if err != nil {
 		return
 	}
-	steps, _ := s.AutomationRunStore.ListSteps(context.Background(), runID)
+	steps, _ := s.AutomationRunStore.ListSteps(ctx, runID)
 
 	payload, _ := json.Marshal(map[string]any{
 		"type":  "snapshot",
