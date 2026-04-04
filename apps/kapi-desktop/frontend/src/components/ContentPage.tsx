@@ -38,11 +38,17 @@ interface ProjectFile {
   is_dir: boolean;
 }
 
-interface ContentPageProps {
+export interface ContentPageProps {
   project: KapiProject;
   projectPath: string;
   onUpdate: (project: KapiProject) => void;
   tabID: string;
+  /** Pre-loaded presets for Storybook — skips api.listPresets(). */
+  presetList?: Array<{ name: string; description: string }>;
+  /** Pre-loaded format names for Storybook — skips api.listFormats(). */
+  formatNames?: string[];
+  /** Pre-loaded base path for Storybook — skips api.getBasePath(). */
+  basePath?: string;
 }
 
 function formatSize(bytes: number): string {
@@ -56,15 +62,20 @@ export function ContentPage({
   projectPath: _projectPath,
   onUpdate,
   tabID,
+  presetList: propPresets,
+  formatNames: propFormats,
+  basePath: propBasePath,
 }: ContentPageProps) {
   const { showError } = useError();
   const shortenHome = useShortenHome();
   const [matches, setMatches] = useState<FileMatch[]>([]);
   const [projectFiles, setProjectFiles] = useState<ProjectFile[]>([]);
-  const [basePath, setBasePath] = useState("");
+  const [basePath, setBasePath] = useState(propBasePath ?? "");
   const [scanning, setScanning] = useState(false);
-  const [presets, setPresets] = useState<Array<{ name: string; description: string }>>([]);
-  const [formats, setFormats] = useState<string[]>([]);
+  const [presets, setPresets] = useState<Array<{ name: string; description: string }>>(
+    propPresets ?? [],
+  );
+  const [formats, setFormats] = useState<string[]>(propFormats ?? []);
   const [hideUnmatched, setHideUnmatched] = useState(false);
   const [dragging, setDragging] = useState(false);
   // Format presets cache: format name → presets list.
@@ -84,6 +95,7 @@ export function ContentPage({
 
   // Load format presets whenever used formats change.
   useEffect(() => {
+    if (hasPreloadedData) return;
     for (const fmt of usedFormats) {
       if (formatPresets[fmt]) continue;
       void api.listFormatPresets(fmt).then((presets) => {
@@ -92,31 +104,40 @@ export function ContentPage({
         }
       });
     }
-  }, [usedFormats]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [usedFormats, hasPreloadedData]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Load available presets and formats on mount.
   useEffect(() => {
-    api
-      .listPresets()
-      .then((p) => {
-        if (p) setPresets(p);
-      })
-      .catch((err) => showError("Failed to load presets", err));
-    api
-      .listFormats()
-      .then((f) => {
-        if (f) setFormats(f.map((x) => x.name));
-      })
-      .catch((err) => showError("Failed to load formats", err));
-    api
-      .getBasePath(tabID)
-      .then((b) => {
-        if (b) setBasePath(b);
-      })
-      .catch((err) => showError("Failed to get base path", err));
-  }, [tabID, showError]);
+    if (!propPresets) {
+      api
+        .listPresets()
+        .then((p) => {
+          if (p) setPresets(p);
+        })
+        .catch((err) => showError("Failed to load presets", err));
+    }
+    if (!propFormats) {
+      api
+        .listFormats()
+        .then((f) => {
+          if (f) setFormats(f.map((x) => x.name));
+        })
+        .catch((err) => showError("Failed to load formats", err));
+    }
+    if (!propBasePath) {
+      api
+        .getBasePath(tabID)
+        .then((b) => {
+          if (b) setBasePath(b);
+        })
+        .catch((err) => showError("Failed to get base path", err));
+    }
+  }, [tabID, showError, propPresets, propFormats, propBasePath]);
+
+  const hasPreloadedData = !!(propPresets && propFormats && propBasePath);
 
   const rescanFiles = useCallback(async () => {
+    if (hasPreloadedData) return;
     setScanning(true);
     try {
       await api.updateProject(tabID, project);
@@ -131,7 +152,7 @@ export function ContentPage({
     } finally {
       setScanning(false);
     }
-  }, [tabID, project, showError]);
+  }, [tabID, project, showError, hasPreloadedData]);
 
   useEffect(() => {
     void rescanFiles();

@@ -26,9 +26,14 @@ export function applyTheme(mode: ThemeMode) {
   }
 }
 
-export function SettingsPage() {
-  const [theme, setTheme] = useState<ThemeMode>("system");
-  const [loading, setLoading] = useState(true);
+export interface SettingsPageProps {
+  /** Pre-loaded theme for Storybook — skips api.getSettings(). */
+  theme?: ThemeMode;
+}
+
+export function SettingsPage({ theme: propTheme }: SettingsPageProps = {}) {
+  const [theme, setTheme] = useState<ThemeMode>(propTheme ?? "system");
+  const [loading, setLoading] = useState(!propTheme);
 
   const { showError } = useError();
 
@@ -44,6 +49,7 @@ export function SettingsPage() {
   }, [theme]);
 
   useEffect(() => {
+    if (propTheme) return;
     api
       .getSettings()
       .then((settings) => {
@@ -58,7 +64,7 @@ export function SettingsPage() {
       .finally(() => {
         setLoading(false);
       });
-  }, [showError]);
+  }, [showError, propTheme]);
 
   const handleThemeChange = useCallback(
     async (next: ThemeMode) => {

@@ -11,9 +11,19 @@ import {
   type ResourceInfo,
 } from "@neokapi/ui-primitives";
 
-export function TermbasesPage() {
-  const [resources, setResources] = useState<ResourceInfo[]>([]);
-  const [loading, setLoading] = useState(true);
+export interface TermbasesPageProps {
+  /** Pre-loaded resources for Storybook — skips api.listNamedTermbases(). */
+  resources?: ResourceInfo[];
+  /** Force loading/skeleton state (for Storybook). */
+  forceLoading?: boolean;
+}
+
+export function TermbasesPage({
+  resources: propResources,
+  forceLoading = false,
+}: TermbasesPageProps = {}) {
+  const [resources, setResources] = useState<ResourceInfo[]>(propResources ?? []);
+  const [loading, setLoading] = useState(forceLoading || !propResources);
   const [handle, setHandle] = useState<string | null>(null);
   const [tbName, setTbName] = useState("");
   const [tbPath, setTbPath] = useState("");
@@ -28,6 +38,7 @@ export function TermbasesPage() {
   const adapter = useTermbaseAdapter(handle);
 
   const refreshResources = useCallback(async () => {
+    if (propResources || forceLoading) return;
     setLoading(true);
     try {
       const list = await api.listNamedTermbases();
@@ -37,7 +48,7 @@ export function TermbasesPage() {
     } finally {
       setLoading(false);
     }
-  }, [showError]);
+  }, [showError, propResources]);
 
   useEffect(() => {
     void refreshResources();

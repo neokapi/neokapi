@@ -39,11 +39,25 @@ import { DocsPanel } from "./DocsPanel";
 export interface FormatsPageProps {
   /** Pre-loaded docs for Storybook — in real app, individual docs fetched on demand. */
   docs?: PluginDocs | null;
+  /** Pre-loaded formats for Storybook. */
+  formats?: FormatInfo[];
+  /** Pre-loaded schemas keyed by format name, for Storybook. */
+  schemas?: Record<string, ComponentSchema>;
+  /** Pre-loaded presets keyed by format name, for Storybook. */
+  presets?: Record<string, PresetInfoItem[]>;
+  /** Force loading/skeleton state (for Storybook). */
+  forceLoading?: boolean;
 }
 
-export function FormatsPage({ docs: propDocs }: FormatsPageProps = {}) {
-  const [formats, setFormats] = useState<FormatInfo[]>([]);
-  const [loading, setLoading] = useState(true);
+export function FormatsPage({
+  docs: propDocs,
+  formats: propFormats,
+  schemas: propSchemas,
+  presets: propPresets,
+  forceLoading = false,
+}: FormatsPageProps = {}) {
+  const [formats, setFormats] = useState<FormatInfo[]>(propFormats ?? []);
+  const [loading, setLoading] = useState(forceLoading || !propFormats);
   const [selectedFormat, setSelectedFormat] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [docs] = useState<PluginDocs | null>(propDocs ?? null);
@@ -52,6 +66,7 @@ export function FormatsPage({ docs: propDocs }: FormatsPageProps = {}) {
   const { showError } = useError();
 
   useEffect(() => {
+    if (propFormats || forceLoading) return;
     Promise.all([api.listFormats(), propDocs ? Promise.resolve(null) : api.getPluginDocsSummary()])
       .then(([f, summary]) => {
         if (f) setFormats(f);
@@ -59,7 +74,7 @@ export function FormatsPage({ docs: propDocs }: FormatsPageProps = {}) {
       })
       .catch((err) => showError("Failed to load formats", err))
       .finally(() => setLoading(false));
-  }, [showError, propDocs]);
+  }, [showError, propDocs, propFormats]);
 
   // Refresh when plugins change (formats may have been added/removed).
   useWailsEvent("registries-changed", () => {
@@ -101,6 +116,8 @@ export function FormatsPage({ docs: propDocs }: FormatsPageProps = {}) {
         formatName={selectedFormat}
         formatInfo={formats.find((f) => f.name === selectedFormat)}
         docs={docs}
+        propSchema={propSchemas?.[selectedFormat]}
+        propPresets={propPresets?.[selectedFormat]}
         onBack={() => setSelectedFormat(null)}
       />
     );
@@ -325,16 +342,20 @@ function FormatDetail({
   formatName,
   formatInfo,
   docs,
+  propSchema,
+  propPresets,
   onBack,
 }: {
   formatName: string;
   formatInfo?: FormatInfo;
   docs: PluginDocs | null;
+  propSchema?: ComponentSchema;
+  propPresets?: PresetInfoItem[];
   onBack: () => void;
 }) {
-  const [schema, setSchema] = useState<ComponentSchema | null>(null);
-  const [presets, setPresets] = useState<PresetInfoItem[]>([]);
-  const [loadingSchema, setLoadingSchema] = useState(true);
+  const [schema, setSchema] = useState<ComponentSchema | null>(propSchema ?? null);
+  const [presets, setPresets] = useState<PresetInfoItem[]>(propPresets ?? []);
+  const [loadingSchema, setLoadingSchema] = useState(!propSchema);
   const [config, setConfig] = useState<Record<string, unknown>>({});
   const [selectedPreset, setSelectedPreset] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<string>("editor");
@@ -377,14 +398,16 @@ function FormatDetail({
     return preset?.config;
   }, [selectedPreset, presets]);
 
-  // Load schema and presets
+  // Load schema and presets (skip if pre-loaded via props)
   const loadPresets = useCallback(() => {
+    if (propPresets) return Promise.resolve();
     return api.listFormatPresets(formatName).then((p) => {
       if (p) setPresets(p as PresetInfoItem[]);
     });
-  }, [formatName]);
+  }, [formatName, propPresets]);
 
   useEffect(() => {
+    if (propSchema) return;
     setLoadingSchema(true);
     Promise.all([api.getFormatSchema(formatName), loadPresets()])
       .then(([s]) => {
@@ -392,7 +415,7 @@ function FormatDetail({
       })
       .catch((err) => showError("Failed to load format details", err))
       .finally(() => setLoadingSchema(false));
-  }, [formatName, showError, loadPresets]);
+  }, [formatName, showError, loadPresets, propSchema]);
 
   // Phase 3: Update YAML when switching to YAML tab or config changes
   useEffect(() => {

@@ -1,6 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { useState } from "react";
 import { Database, Plus, FolderOpen, X, Upload, Download } from "lucide-react";
+import { MemoriesPage } from "../components/MemoriesPage";
 import {
   Button,
   TMBrowser,
@@ -232,3 +233,40 @@ export default meta;
 type Story = StoryObj<typeof SimulatedMemoriesPage>;
 
 export const Default: Story = {};
+
+/**
+ * Real component with pre-loaded resources (no Wails API calls).
+ */
+export const WithResources: StoryObj<typeof MemoriesPage> = {
+  render: () => (
+    <MemoriesPage
+      resources={[
+        {
+          name: "my-project",
+          path: "~/.config/kapi/tm/my-project.db",
+          size: 524288,
+          modified: new Date(Date.now() - 3600000).toISOString(),
+        },
+        {
+          name: "global-tm",
+          path: "~/.config/kapi/tm/global-tm.db",
+          size: 1048576,
+          modified: new Date(Date.now() - 86400000).toISOString(),
+        },
+      ]}
+    />
+  ),
+};
+
+/**
+ * Real component with empty resources list.
+ */
+export const Empty: StoryObj<typeof MemoriesPage> = {
+  render: () => <MemoriesPage resources={[]} />,
+};
+
+/** Loading state showing skeleton ResourceCards. */
+export const Loading: StoryObj<typeof MemoriesPage> = {
+  render: () => <MemoriesPage resources={[]} forceLoading />,
+};
+

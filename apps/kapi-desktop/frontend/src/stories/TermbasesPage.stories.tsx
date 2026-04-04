@@ -1,6 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { useState } from "react";
 import { BookOpen, Plus, FolderOpen, X, Upload } from "lucide-react";
+import { TermbasesPage } from "../components/TermbasesPage";
 import {
   Button,
   TermbaseBrowser,
@@ -195,3 +196,40 @@ export default meta;
 type Story = StoryObj<typeof SimulatedTermbasesPage>;
 
 export const Default: Story = {};
+
+/**
+ * Real component with pre-loaded resources (no Wails API calls).
+ */
+export const WithResources: StoryObj<typeof TermbasesPage> = {
+  render: () => (
+    <TermbasesPage
+      resources={[
+        {
+          name: "my-glossary",
+          path: "~/.config/kapi/termbases/my-glossary.db",
+          size: 262144,
+          modified: new Date(Date.now() - 7200000).toISOString(),
+        },
+        {
+          name: "brand-terms",
+          path: "~/.config/kapi/termbases/brand-terms.db",
+          size: 131072,
+          modified: new Date(Date.now() - 172800000).toISOString(),
+        },
+      ]}
+    />
+  ),
+};
+
+/**
+ * Real component with empty resources list.
+ */
+export const Empty: StoryObj<typeof TermbasesPage> = {
+  render: () => <TermbasesPage resources={[]} />,
+};
+
+/** Loading state showing skeleton ResourceCards. */
+export const Loading: StoryObj<typeof TermbasesPage> = {
+  render: () => <TermbasesPage resources={[]} forceLoading />,
+};
+

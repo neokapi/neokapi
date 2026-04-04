@@ -10,4 +10,22 @@ const meta: Meta<typeof SettingsPage> = {
 export default meta;
 type Story = StoryObj<typeof SettingsPage>;
 
-export const Default: Story = {};
+/**
+ * Default settings page with pre-loaded theme (no Wails API calls for settings).
+ * Embedded CredentialsPage and PluginManager tabs will show empty state.
+ */
+export const Default: Story = {
+  args: {
+    theme: "system",
+  },
+};
+
+/**
+ * Dark theme pre-selected.
+ */
+export const DarkTheme: Story = {
+  args: {
+    theme: "dark",
+  },
+};
+

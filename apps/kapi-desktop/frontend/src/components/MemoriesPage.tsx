@@ -6,9 +6,19 @@ import { useError } from "./ErrorBanner";
 import { useTMAdapter } from "../hooks/useTMAdapter";
 import { TMBrowser, ResourceCard, ImportProgress, type ResourceInfo } from "@neokapi/ui-primitives";
 
-export function MemoriesPage() {
-  const [resources, setResources] = useState<ResourceInfo[]>([]);
-  const [loading, setLoading] = useState(true);
+export interface MemoriesPageProps {
+  /** Pre-loaded resources for Storybook — skips api.listNamedTMs(). */
+  resources?: ResourceInfo[];
+  /** Force loading/skeleton state (for Storybook). */
+  forceLoading?: boolean;
+}
+
+export function MemoriesPage({
+  resources: propResources,
+  forceLoading = false,
+}: MemoriesPageProps = {}) {
+  const [resources, setResources] = useState<ResourceInfo[]>(propResources ?? []);
+  const [loading, setLoading] = useState(forceLoading || !propResources);
   const [handle, setHandle] = useState<string | null>(null);
   const [tmName, setTmName] = useState("");
   const [tmPath, setTmPath] = useState("");
@@ -23,6 +33,7 @@ export function MemoriesPage() {
   const adapter = useTMAdapter(handle);
 
   const refreshResources = useCallback(async () => {
+    if (propResources || forceLoading) return;
     setLoading(true);
     try {
       const list = await api.listNamedTMs();
@@ -32,7 +43,7 @@ export function MemoriesPage() {
     } finally {
       setLoading(false);
     }
-  }, [showError]);
+  }, [showError, propResources]);
 
   useEffect(() => {
     void refreshResources();

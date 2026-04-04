@@ -2,6 +2,7 @@ import type { Meta, StoryObj } from "@storybook/react-vite";
 import { useState, useCallback } from "react";
 import { Plus, Trash2, TestTube, KeyRound, Loader2, CheckCircle2, XCircle } from "lucide-react";
 import { Button, Badge, Card, Label, Input } from "@neokapi/ui-primitives";
+import { CredentialsPage } from "../components/CredentialsPage";
 
 const PROVIDER_TYPES = ["anthropic", "openai", "ollama", "azureopenai"] as const;
 
@@ -209,3 +210,35 @@ export default meta;
 type Story = StoryObj<typeof SimulatedCredentials>;
 
 export const Default: Story = {};
+
+/**
+ * Real component with pre-loaded providers (no Wails API calls).
+ */
+export const WithProviders: StoryObj<typeof CredentialsPage> = {
+  render: () => (
+    <CredentialsPage
+      providers={[
+        {
+          id: "1",
+          name: "Production Anthropic",
+          provider_type: "anthropic",
+          model: "claude-sonnet-4-5-20241022",
+        },
+        {
+          id: "2",
+          name: "OpenAI GPT-4o",
+          provider_type: "openai",
+          model: "gpt-4o",
+        },
+      ]}
+    />
+  ),
+};
+
+/**
+ * Real component with empty providers list.
+ */
+export const Empty: StoryObj<typeof CredentialsPage> = {
+  render: () => <CredentialsPage providers={[]} />,
+};
+

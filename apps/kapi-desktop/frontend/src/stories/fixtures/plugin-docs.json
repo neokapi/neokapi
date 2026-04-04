@@ -10,9 +10,7 @@
       "parameters": {
         "inlineCodes": {
           "description": "Inline code detection and handling. When enabled, specified regular expressions are applied to extracted text and any matches are converted to inline codes. Cannot be used together with the sub-filter",
-          "notes": [
-            "Note: This option cannot be used together with the sub-filtering option."
-          ]
+          "notes": ["Note: This option cannot be used together with the sub-filtering option."]
         },
         "extraction": {
           "description": "Control what content is extracted for translation. Provides options to extract all key-value pairs or use regex-based extraction rules, include isolated strings from arrays, exclude specific keys, and"
@@ -198,9 +196,7 @@
       "parameters": {
         "extraction.useKeyCondition": {
           "description": "Set this option to extract items based on their keys. When enabled, you specify a regular expression pattern; if the key matches the pattern, the item is extracted or not depending on the extractOnlyM",
-          "notes": [
-            "Note: directives have precedence over key condition."
-          ]
+          "notes": ["Note: directives have precedence over key condition."]
         },
         "extraction.extractOnlyMatchingKey": {
           "description": "When true, only items with keys matching the keyCondition pattern are extracted. When false, items with keys matching the pattern are excluded from extraction (i.e., do not extract matching items).",
@@ -236,9 +232,7 @@
           "description": "Set this option to include the comments before each entry as a note property on the text unit of the corresponding entry. All comment lines are grouped into a single note."
         }
       },
-      "limitations": [
-        "None known."
-      ],
+      "limitations": ["None known."],
       "processingNotes": [
         "If the file has a Unicode Byte-Order-Mark, the corresponding encoding (e.g. UTF-8, UTF-16) is used; otherwise the default encoding specified in the filter options is used.",
         "If the output encoding is UTF-8 and the input was also UTF-8, a BOM is used in the output only if one was detected in the input. If the input was not UTF-8, no BOM is used in the output.",
@@ -287,9 +281,7 @@
           "description": "ID and naming settings controlling how text unit identifiers are generated and how context information is handled."
         }
       },
-      "limitations": [
-        "None known."
-      ],
+      "limitations": ["None known."],
       "processingNotes": [
         "Encoding detection follows a priority chain: (1) Unicode BOM if present, (2) charset declaration in header entry within first 1000 characters, (3) default encoding from filter options. If both BOM and header charset exist and conflict, a warning is generated and the BOM encoding takes precedence.",
         "If the header charset value is literally 'charset' (case insensitive), the file is treated as a template with no declared encoding, and the auto-detected or default encoding is used.",
@@ -357,9 +349,7 @@
           ]
         }
       },
-      "limitations": [
-        "None known."
-      ],
+      "limitations": ["None known."],
       "processingNotes": [
         "The step extracts content from the raw document using its associated filter and places it in a temporary HTML document where each paragraph corresponds to a source segment (or source text unit if not segmented).",
         "Each input document can be processed using one or more temporary HTML files based on the block size, allowing tools with size limitations to translate very large documents.",
@@ -392,9 +382,7 @@
         },
         "matchRegexExpressions": {
           "description": "Mark segments matching default regular expressions for removal. This option is not currently used.",
-          "notes": [
-            "This option is not currently used."
-          ]
+          "notes": ["This option is not currently used."]
         },
         "matchUserRegex": {
           "description": "When enabled, removes text units that contain text matching the user-defined regular expression. This allows custom pattern-based filtering of segments."
@@ -406,9 +394,7 @@
           "description": "When enabled, standardizes spaces before and after certain punctuation marks to English writing style. This normalizes punctuation spacing conventions."
         }
       },
-      "limitations": [
-        "Does not work with Asian or bi-directional languages."
-      ],
+      "limitations": ["Does not work with Asian or bi-directional languages."],
       "processingNotes": [
         "By default, all whitespace is normalized before any further processing is performed; all multiple space, tab, etc. characters are replaced with a single instance.",
         "The step processes both source and target content of text units.",
@@ -441,9 +427,7 @@
           "description": "Size of text buffer used for character counting. A value of 0 indicates the default buffer size."
         }
       },
-      "limitations": [
-        "None known."
-      ],
+      "limitations": ["None known."],
       "processingNotes": [
         "Character count annotations are always set on each text unit, regardless of the aggregation-level options selected.",
         "The character count follows the GMX-V 2.0 standard (http://www.xtm-intl.com/manuals/gmx-v/GMX-V-2.0.html).",
