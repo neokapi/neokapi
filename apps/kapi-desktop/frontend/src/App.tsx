@@ -323,209 +323,214 @@ function AppInner() {
   });
 
   return (
-    <div className="flex h-screen bg-background text-foreground">
-      {/* Icon sidebar — full height */}
-      <div className="flex shrink-0 flex-col bg-sidebar">
-        <div className="h-12 shrink-0" style={{ WebkitAppRegion: "drag" } as React.CSSProperties} />
-        <div className="flex-1 border-r border-border">
-          <IconSidebar
-            mode={mode}
-            active={view}
-            onChange={handleViewChange}
-            projectDisabled={mode === "projects" && !activeTab}
+    <div className="flex h-screen flex-col bg-background text-foreground">
+      <div className="flex min-h-0 flex-1">
+        {/* Icon sidebar — full height */}
+        <div className="flex shrink-0 flex-col bg-sidebar">
+          <div
+            className="h-12 shrink-0"
+            style={{ WebkitAppRegion: "drag" } as React.CSSProperties}
           />
+          <div className="flex-1 border-r border-border">
+            <IconSidebar
+              mode={mode}
+              active={view}
+              onChange={handleViewChange}
+              projectDisabled={mode === "projects" && !activeTab}
+            />
+          </div>
         </div>
-      </div>
 
-      {/* Right: top bar + content */}
-      <div className="flex flex-1 flex-col overflow-hidden">
-        {/* Top bar: [traffic lights space] [tabs] ... [mode toggle] */}
-        <div
-          className="flex h-12 shrink-0 items-end border-b border-border bg-sidebar"
-          style={{ WebkitAppRegion: "drag" } as React.CSSProperties}
-        >
-          {/* Undo / Redo */}
-          {mode === "projects" && activeTab && (
+        {/* Right: top bar + content */}
+        <div className="flex flex-1 flex-col overflow-hidden">
+          {/* Top bar: [traffic lights space] [tabs] ... [mode toggle] */}
+          <div
+            className="flex h-12 shrink-0 items-end border-b border-border bg-sidebar"
+            style={{ WebkitAppRegion: "drag" } as React.CSSProperties}
+          >
+            {/* Undo / Redo */}
+            {mode === "projects" && activeTab && (
+              <div
+                className="flex shrink-0 items-center gap-0.5 pb-1.5 pl-16"
+                style={{ WebkitAppRegion: "no-drag" } as React.CSSProperties}
+              >
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  onClick={history.undo}
+                  disabled={!history.canUndo}
+                  aria-label="Undo"
+                  title="Undo (⌘Z)"
+                  className="h-7 w-7"
+                >
+                  <Undo2 size={14} />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  onClick={history.redo}
+                  disabled={!history.canRedo}
+                  aria-label="Redo"
+                  title="Redo (⌘⇧Z)"
+                  className="h-7 w-7"
+                >
+                  <Redo2 size={14} />
+                </Button>
+              </div>
+            )}
+            {/* Tabs or spacer */}
             <div
-              className="flex shrink-0 items-center gap-0.5 pb-1.5 pl-16"
+              className={`flex-1 ${mode === "projects" && activeTab ? "pl-2" : "pl-16"}`}
               style={{ WebkitAppRegion: "no-drag" } as React.CSSProperties}
             >
-              <Button
-                variant="ghost"
-                size="icon-sm"
-                onClick={history.undo}
-                disabled={!history.canUndo}
-                aria-label="Undo"
-                title="Undo (⌘Z)"
-                className="h-7 w-7"
-              >
-                <Undo2 size={14} />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon-sm"
-                onClick={history.redo}
-                disabled={!history.canRedo}
-                aria-label="Redo"
-                title="Redo (⌘⇧Z)"
-                className="h-7 w-7"
-              >
-                <Redo2 size={14} />
-              </Button>
+              {mode === "projects" && tabs.length > 0 && (
+                <TabBar
+                  tabs={tabs.map((t) => t.info)}
+                  activeTabID={activeTabID}
+                  onSelect={setActiveTabID}
+                  onClose={handleCloseTab}
+                  onRename={(id, name) => {
+                    setTabs((prev) =>
+                      prev.map((t) =>
+                        t.info.id === id
+                          ? { ...t, info: { ...t.info, name }, project: { ...t.project, name } }
+                          : t,
+                      ),
+                    );
+                  }}
+                />
+              )}
             </div>
-          )}
-          {/* Tabs or spacer */}
-          <div
-            className={`flex-1 ${mode === "projects" && activeTab ? "pl-2" : "pl-16"}`}
-            style={{ WebkitAppRegion: "no-drag" } as React.CSSProperties}
-          >
-            {mode === "projects" && tabs.length > 0 && (
-              <TabBar
-                tabs={tabs.map((t) => t.info)}
-                activeTabID={activeTabID}
-                onSelect={setActiveTabID}
-                onClose={handleCloseTab}
-                onRename={(id, name) => {
-                  setTabs((prev) =>
-                    prev.map((t) =>
-                      t.info.id === id
-                        ? { ...t, info: { ...t.info, name }, project: { ...t.project, name } }
-                        : t,
-                    ),
-                  );
+            {/* Mode toggle */}
+            <div
+              className="shrink-0 px-3 pb-1.5"
+              style={{ WebkitAppRegion: "no-drag" } as React.CSSProperties}
+            >
+              <ModeToggle mode={mode} onChange={handleModeChange} />
+            </div>
+          </div>
+
+          {/* Content */}
+          <main className="flex-1 overflow-auto">
+            {/* Home — always the global home page in both modes */}
+            {view === "home" && (
+              <AppHome
+                recentFiles={recentFiles}
+                samplesDismissed={samplesDismissed}
+                onOpenRecent={handleOpenRecent}
+                onNewProject={() => {
+                  setMode("projects");
+                  setShowNewProjectForm(true);
                 }}
+                onOpenProject={handleOpenProject}
+                onNavigate={handleViewChange}
+                onCreateSampleProject={handleCreateSampleProject}
+                onDismissSamples={handleDismissSamples}
               />
             )}
-          </div>
-          {/* Mode toggle */}
-          <div
-            className="shrink-0 px-3 pb-1.5"
-            style={{ WebkitAppRegion: "no-drag" } as React.CSSProperties}
-          >
-            <ModeToggle mode={mode} onChange={handleModeChange} />
-          </div>
-        </div>
 
-        {/* Content */}
-        <main className="flex-1 overflow-auto">
-          {/* Home — always the global home page in both modes */}
-          {view === "home" && (
-            <AppHome
-              recentFiles={recentFiles}
-              samplesDismissed={samplesDismissed}
-              onOpenRecent={handleOpenRecent}
-              onNewProject={() => {
-                setMode("projects");
-                setShowNewProjectForm(true);
-              }}
-              onOpenProject={handleOpenProject}
-              onNavigate={handleViewChange}
-              onCreateSampleProject={handleCreateSampleProject}
-              onDismissSamples={handleDismissSamples}
-            />
-          )}
+            {/* Ad-hoc views */}
+            {mode === "adhoc" && view === "flows" && <FlowsPage />}
+            {mode === "adhoc" && view === "tools" && <ToolRunnerPage />}
+            {mode === "adhoc" && view === "termbases" && <TermbasesPage />}
+            {mode === "adhoc" && view === "memories" && <MemoriesPage />}
+            {mode === "adhoc" && view === "formats" && <FormatsPage />}
 
-          {/* Ad-hoc views */}
-          {mode === "adhoc" && view === "flows" && <FlowsPage />}
-          {mode === "adhoc" && view === "tools" && <ToolRunnerPage />}
-          {mode === "adhoc" && view === "termbases" && <TermbasesPage />}
-          {mode === "adhoc" && view === "memories" && <MemoriesPage />}
-          {mode === "adhoc" && view === "formats" && <FormatsPage />}
-
-          {/* Project views (only when a project tab is active) */}
-          {mode === "projects" && activeTab && view === "project-home" && activeTab.isEmpty && (
-            <ProjectSetupPage
-              tabID={activeTab.info.id}
-              onDone={() => {
-                setTabs((prev) =>
-                  prev.map((t) =>
-                    t.info.id === activeTab.info.id
-                      ? { ...t, isEmpty: false, detectedPreset: undefined }
-                      : t,
-                  ),
-                );
-              }}
-            />
-          )}
-          {mode === "projects" &&
-            activeTab &&
-            view === "project-home" &&
-            !activeTab.isEmpty &&
-            activeTab.detectedPreset && (
-              <ProjectPresetPage
+            {/* Project views (only when a project tab is active) */}
+            {mode === "projects" && activeTab && view === "project-home" && activeTab.isEmpty && (
+              <ProjectSetupPage
                 tabID={activeTab.info.id}
-                detectedPreset={activeTab.detectedPreset}
-                onApplied={(updated) => {
-                  history.replace(updated);
+                onDone={() => {
                   setTabs((prev) =>
                     prev.map((t) =>
                       t.info.id === activeTab.info.id
-                        ? { ...t, project: updated, detectedPreset: undefined }
+                        ? { ...t, isEmpty: false, detectedPreset: undefined }
                         : t,
                     ),
                   );
                 }}
-                onSkip={() => {
-                  setTabs((prev) =>
-                    prev.map((t) =>
-                      t.info.id === activeTab.info.id ? { ...t, detectedPreset: undefined } : t,
-                    ),
-                  );
+              />
+            )}
+            {mode === "projects" &&
+              activeTab &&
+              view === "project-home" &&
+              !activeTab.isEmpty &&
+              activeTab.detectedPreset && (
+                <ProjectPresetPage
+                  tabID={activeTab.info.id}
+                  detectedPreset={activeTab.detectedPreset}
+                  onApplied={(updated) => {
+                    history.replace(updated);
+                    setTabs((prev) =>
+                      prev.map((t) =>
+                        t.info.id === activeTab.info.id
+                          ? { ...t, project: updated, detectedPreset: undefined }
+                          : t,
+                      ),
+                    );
+                  }}
+                  onSkip={() => {
+                    setTabs((prev) =>
+                      prev.map((t) =>
+                        t.info.id === activeTab.info.id ? { ...t, detectedPreset: undefined } : t,
+                      ),
+                    );
+                  }}
+                />
+              )}
+            {mode === "projects" &&
+              activeTab &&
+              view === "project-home" &&
+              !activeTab.isEmpty &&
+              !activeTab.detectedPreset && (
+                <HomePage
+                  project={history.project}
+                  displayName={activeTab.info.name}
+                  onNavigate={handleViewChange}
+                />
+              )}
+            {mode === "projects" && activeTab && view === "content" && (
+              <ContentPage
+                project={history.project}
+                projectPath={activeTab.info.path}
+                onUpdate={updateActiveProject}
+                tabID={activeTab.info.id}
+              />
+            )}
+            {mode === "projects" && activeTab && view === "flows" && (
+              <FlowsPage
+                tabID={activeTab.info.id}
+                projectFlows={history.project.flows}
+                onFlowChange={(name, spec) => {
+                  updateActiveProject({
+                    ...history.project,
+                    flows: { ...history.project.flows, [name]: spec },
+                  });
+                }}
+                onFlowDelete={(name) => {
+                  const { [name]: _, ...rest } = history.project.flows ?? {};
+                  updateActiveProject({ ...history.project, flows: rest });
                 }}
               />
             )}
-          {mode === "projects" &&
-            activeTab &&
-            view === "project-home" &&
-            !activeTab.isEmpty &&
-            !activeTab.detectedPreset && (
-              <HomePage
+            {mode === "projects" && activeTab && view === "tools" && <ToolRunnerPage />}
+            {mode === "projects" && activeTab && view === "termbases" && <TermbasesPage />}
+            {mode === "projects" && activeTab && view === "memories" && <MemoriesPage />}
+            {mode === "projects" && activeTab && view === "settings" && (
+              <ProjectSettingsPage
                 project={history.project}
-                displayName={activeTab.info.name}
-                onNavigate={handleViewChange}
+                onUpdate={updateActiveProject}
+                tabID={activeTab.info.id}
               />
             )}
-          {mode === "projects" && activeTab && view === "content" && (
-            <ContentPage
-              project={history.project}
-              projectPath={activeTab.info.path}
-              onUpdate={updateActiveProject}
-              tabID={activeTab.info.id}
-            />
-          )}
-          {mode === "projects" && activeTab && view === "flows" && (
-            <FlowsPage
-              tabID={activeTab.info.id}
-              projectFlows={history.project.flows}
-              onFlowChange={(name, spec) => {
-                updateActiveProject({
-                  ...history.project,
-                  flows: { ...history.project.flows, [name]: spec },
-                });
-              }}
-              onFlowDelete={(name) => {
-                const { [name]: _, ...rest } = history.project.flows ?? {};
-                updateActiveProject({ ...history.project, flows: rest });
-              }}
-            />
-          )}
-          {mode === "projects" && activeTab && view === "tools" && <ToolRunnerPage />}
-          {mode === "projects" && activeTab && view === "termbases" && <TermbasesPage />}
-          {mode === "projects" && activeTab && view === "memories" && <MemoriesPage />}
-          {mode === "projects" && activeTab && view === "settings" && (
-            <ProjectSettingsPage
-              project={history.project}
-              onUpdate={updateActiveProject}
-              tabID={activeTab.info.id}
-            />
-          )}
 
-          {view === "settings" && !(mode === "projects" && activeTab) && <SettingsPage />}
-        </main>
-        {mode === "projects" && activeTab && (
-          <SaveBar isDirty={history.isDirty} onSave={handleSaveProject} />
-        )}
+            {view === "settings" && !(mode === "projects" && activeTab) && <SettingsPage />}
+          </main>
+        </div>
       </div>
+      {mode === "projects" && activeTab && (
+        <SaveBar isDirty={history.isDirty} onSave={handleSaveProject} />
+      )}
 
       {showNewProjectForm && (
         <NewProjectDialog
