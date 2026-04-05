@@ -269,4 +269,3 @@ export const Empty: StoryObj<typeof MemoriesPage> = {
 export const Loading: StoryObj<typeof MemoriesPage> = {
   render: () => <MemoriesPage resources={[]} forceLoading />,
 };
-

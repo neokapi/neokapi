@@ -51,58 +51,64 @@ func (a *App) MatchContent(tabID string) ([]FileMatch, error) {
 	ig := ignore.ForProjectDir(basePath)
 
 	var matches []FileMatch
-	for _, entry := range op.Project.Content {
-		if entry.Path == "" {
-			continue
-		}
-
-		// Reject patterns that escape the project root.
-		if strings.Contains(entry.Path, "..") {
-			continue
-		}
-
-		// Reject absolute paths.
-		if filepath.IsAbs(entry.Path) {
-			continue
-		}
-
-		pattern := filepath.Join(basePath, entry.Path)
-		files, err := filepath.Glob(pattern)
-		if err != nil {
-			continue
-		}
-
-		for _, f := range files {
-			info, err := os.Stat(f)
-			if err != nil || info.IsDir() {
+	for _, coll := range op.Project.Content {
+		collName := coll.Name
+		for _, item := range coll.EffectiveItems() {
+			if item.Path == "" {
 				continue
 			}
 
-			// Verify the resolved file is within the project root.
-			absFile, _ := filepath.Abs(f)
-			absBase, _ := filepath.Abs(basePath)
-			if !strings.HasPrefix(absFile, absBase+string(filepath.Separator)) {
+			// Reject patterns that escape the project root.
+			if strings.Contains(item.Path, "..") {
 				continue
 			}
 
-			rel, _ := filepath.Rel(basePath, f)
-
-			// Skip ignored files.
-			if ig.Match(filepath.ToSlash(rel), false) {
+			// Reject absolute paths.
+			if filepath.IsAbs(item.Path) {
 				continue
 			}
 
-			format := entry.Format
-			if format == "" {
-				format = detectFormatByExtension(f)
+			pattern := filepath.Join(basePath, item.Path)
+			files, err := filepath.Glob(pattern)
+			if err != nil {
+				continue
 			}
-			matches = append(matches, FileMatch{
-				Path:       f,
-				Format:     format,
-				Relative:   rel,
-				Pattern:    entry.Path,
-				Collection: entry.Collection,
-			})
+
+			for _, f := range files {
+				info, err := os.Stat(f)
+				if err != nil || info.IsDir() {
+					continue
+				}
+
+				// Verify the resolved file is within the project root.
+				absFile, _ := filepath.Abs(f)
+				absBase, _ := filepath.Abs(basePath)
+				if !strings.HasPrefix(absFile, absBase+string(filepath.Separator)) {
+					continue
+				}
+
+				rel, _ := filepath.Rel(basePath, f)
+
+				// Skip ignored files.
+				if ig.Match(filepath.ToSlash(rel), false) {
+					continue
+				}
+
+				format := ""
+				if item.Format != nil {
+					format = item.Format.Name
+				}
+				if format == "" {
+					format = detectFormatByExtension(f)
+				}
+				matches = append(matches, FileMatch{
+					Path:       f,
+					Format:     format,
+					Relative:   rel,
+					Pattern:    item.Path,
+					Collection: collName,
+				})
+			}
 		}
 	}
 	return matches, nil
@@ -238,7 +244,7 @@ func (a *App) ApplyTemplate(tabID, template string) error {
 			return fmt.Errorf("create output dir: %w", err)
 		}
 		// Add content pattern.
-		op.Project.Content = append(op.Project.Content, project.ContentEntry{
+		op.Project.Content = append(op.Project.Content, project.ContentCollection{
 			Path:   "input/*",
 			Target: "output/{lang}/*",
 		})

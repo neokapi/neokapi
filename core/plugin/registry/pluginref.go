@@ -103,6 +103,82 @@ func (r FormatRef) IsPreset() bool {
 	return r.Preset != ""
 }
 
+// SemverRange represents a parsed semver version constraint.
+type SemverRange struct {
+	op  string // "=", "^", "~", ">=", ">", "<=", "<", "*"
+	ver [3]int // parsed version parts
+}
+
+// ParseSemverRange parses a semver range string.
+// Supported forms: "1.2.3" (exact), "^1.2.3" (compatible), "~1.2.3" (patch),
+// ">=1.2.3", ">1.2.3", "<=1.2.3", "<1.2.3", "*" (any).
+func ParseSemverRange(s string) SemverRange {
+	s = strings.TrimSpace(s)
+	if s == "*" || s == "" || s == "latest" {
+		return SemverRange{op: "*"}
+	}
+	for _, prefix := range []string{">=", "<=", ">", "<", "^", "~"} {
+		if strings.HasPrefix(s, prefix) {
+			return SemverRange{op: prefix, ver: parseSemverParts(strings.TrimSpace(s[len(prefix):]))}
+		}
+	}
+	return SemverRange{op: "=", ver: parseSemverParts(s)}
+}
+
+// Match reports whether the given version satisfies this range.
+func (r SemverRange) Match(version string) bool {
+	v := parseSemverParts(version)
+	switch r.op {
+	case "*":
+		return true
+	case "=":
+		return v == r.ver
+	case ">=":
+		return CompareSemver(version, semverString(r.ver)) >= 0
+	case ">":
+		return CompareSemver(version, semverString(r.ver)) > 0
+	case "<=":
+		return CompareSemver(version, semverString(r.ver)) <= 0
+	case "<":
+		return CompareSemver(version, semverString(r.ver)) < 0
+	case "^":
+		// Compatible: >=ver, <next major.
+		if CompareSemver(version, semverString(r.ver)) < 0 {
+			return false
+		}
+		// For ^0.x.y, the ceiling is the next minor (npm convention).
+		if r.ver[0] == 0 {
+			ceiling := [3]int{0, r.ver[1] + 1, 0}
+			return CompareSemver(version, semverString(ceiling)) < 0
+		}
+		ceiling := [3]int{r.ver[0] + 1, 0, 0}
+		return CompareSemver(version, semverString(ceiling)) < 0
+	case "~":
+		// Patch-level: >=ver, <next minor.
+		if CompareSemver(version, semverString(r.ver)) < 0 {
+			return false
+		}
+		ceiling := [3]int{r.ver[0], r.ver[1] + 1, 0}
+		return CompareSemver(version, semverString(ceiling)) < 0
+	}
+	return false
+}
+
+// String returns the range as a string.
+func (r SemverRange) String() string {
+	if r.op == "*" {
+		return "*"
+	}
+	if r.op == "=" {
+		return semverString(r.ver)
+	}
+	return r.op + semverString(r.ver)
+}
+
+func semverString(v [3]int) string {
+	return strconv.Itoa(v[0]) + "." + strconv.Itoa(v[1]) + "." + strconv.Itoa(v[2])
+}
+
 // CompareSemver compares two semantic version strings (major.minor.patch).
 // Returns -1 if a < b, 0 if a == b, +1 if a > b.
 // Malformed versions sort before well-formed ones.

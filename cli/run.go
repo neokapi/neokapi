@@ -85,11 +85,11 @@ func (a *App) runFromProject(cmd *cobra.Command, flowName, projectPath string, o
 	}
 
 	// Apply project defaults where CLI flags weren't explicitly set.
-	if !cmd.Flags().Changed("source-lang") && proj.SourceLanguage != "" {
-		a.SourceLang = proj.SourceLanguage
+	if !cmd.Flags().Changed("source-lang") && proj.Defaults.SourceLanguage != "" {
+		a.SourceLang = proj.Defaults.SourceLanguage
 	}
-	if !cmd.Flags().Changed("target-lang") && len(proj.TargetLanguages) > 0 {
-		a.TargetLang = proj.TargetLanguages[0]
+	if !cmd.Flags().Changed("target-lang") && len(proj.Defaults.TargetLanguages) > 0 {
+		a.TargetLang = proj.Defaults.TargetLanguages[0]
 	}
 
 	// Check if it's a built-in flow first (project can reference built-in flows).

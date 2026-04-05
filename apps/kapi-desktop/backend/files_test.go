@@ -28,8 +28,8 @@ func TestMatchContentFindsFiles(t *testing.T) {
 	proj := &project.KapiProject{
 		Version: "v1",
 		Name:    "Test",
-		Content: []project.ContentEntry{
-			{Path: "locales/*.json", Format: "json"},
+		Content: []project.ContentCollection{
+			{Path: "locales/*.json", Format: &project.FormatSpec{Name: "json"}},
 		},
 	}
 	require.NoError(t, project.Save(kapiPath, proj))
@@ -55,7 +55,7 @@ func TestMatchContentRejectsParentTraversal(t *testing.T) {
 	proj := &project.KapiProject{
 		Version: "v1",
 		Name:    "Test",
-		Content: []project.ContentEntry{
+		Content: []project.ContentCollection{
 			{Path: "../etc/passwd"},
 			{Path: "foo/../../secret"},
 		},
@@ -76,7 +76,7 @@ func TestMatchContentRejectsAbsolutePaths(t *testing.T) {
 	proj := &project.KapiProject{
 		Version: "v1",
 		Name:    "Test",
-		Content: []project.ContentEntry{
+		Content: []project.ContentCollection{
 			{Path: "/etc/passwd"},
 		},
 	}
@@ -190,7 +190,7 @@ func TestMatchContentRespectsKapiIgnore(t *testing.T) {
 	kapiPath := filepath.Join(dir, "project.kapi")
 	proj := &project.KapiProject{
 		Version: "v1",
-		Content: []project.ContentEntry{{Path: "*.json"}},
+		Content: []project.ContentCollection{{Path: "*.json"}},
 	}
 	require.NoError(t, project.Save(kapiPath, proj))
 

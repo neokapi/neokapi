@@ -227,10 +227,12 @@ func (a *App) NewProject(name, sourceLang string, targetLangs []string, savePath
 	}
 
 	proj := &project.KapiProject{
-		Version:         project.CurrentVersion,
-		SourceLanguage:  sourceLang,
-		TargetLanguages: targetLangs,
-		Flows:           make(map[string]*flow.StepsSpec),
+		Version: project.CurrentVersion,
+		Defaults: project.Defaults{
+			SourceLanguage:  sourceLang,
+			TargetLanguages: targetLangs,
+		},
+		Flows: make(map[string]*flow.StepsSpec),
 	}
 
 	if err := project.Save(savePath, proj); err != nil {
@@ -763,12 +765,16 @@ func (a *App) ApplyPreset(tabID, presetName string) (*project.KapiProject, error
 		return nil, fmt.Errorf("preset %q not found", presetName)
 	}
 
-	// Apply mappings as content entries.
-	var entries []project.ContentEntry
+	// Apply mappings as content entries (bare entries).
+	var entries []project.ContentCollection
 	for _, m := range fp.Mappings {
-		entries = append(entries, project.ContentEntry{
+		var fmtSpec *project.FormatSpec
+		if m.Format != "" {
+			fmtSpec = &project.FormatSpec{Name: m.Format}
+		}
+		entries = append(entries, project.ContentCollection{
 			Path:   m.Local,
-			Format: m.Format,
+			Format: fmtSpec,
 			Target: m.TargetPath,
 		})
 	}

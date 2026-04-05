@@ -2,6 +2,7 @@ import { useState, useCallback } from "react";
 import { Globe, FileText, Workflow, Save, Loader2, Pencil } from "lucide-react";
 import { Button, Badge, Card, CardHeader, CardTitle, CardContent } from "@neokapi/ui-primitives";
 import type { KapiProject, TabInfo } from "../types/api";
+import { isBareEntry, effectiveItems } from "../types/api";
 import { api } from "../hooks/useApi";
 
 interface ProjectPageProps {
@@ -31,6 +32,9 @@ export function ProjectPage({
   const [saving, setSaving] = useState(false);
   const [editingName, setEditingName] = useState(false);
   const [nameInput, setNameInput] = useState("");
+
+  const defaults = project.defaults ?? {};
+  const plugins = project.plugins ?? {};
 
   const handleSave = async () => {
     setSaving(true);
@@ -136,12 +140,14 @@ export function ProjectPage({
             <div className="space-y-1 text-sm">
               <div>
                 <span className="text-muted-foreground">Source: </span>
-                <span>{project.source_language || "Not set"}</span>
+                <span>{defaults.source_language || "Not set"}</span>
               </div>
               <div>
                 <span className="text-muted-foreground">Targets: </span>
                 <span>
-                  {project.target_languages?.length ? project.target_languages.join(", ") : "None"}
+                  {defaults.target_languages?.length
+                    ? defaults.target_languages.join(", ")
+                    : "None"}
                 </span>
               </div>
             </div>
@@ -159,12 +165,25 @@ export function ProjectPage({
           <CardContent className="px-4">
             <div className="space-y-1 text-sm">
               {project.content?.length ? (
-                project.content.map((entry, i) => (
-                  <div key={i} className="truncate text-muted-foreground">
-                    {entry.path}
-                    {entry.format && <span className="ml-1 text-xs">({entry.format})</span>}
-                  </div>
-                ))
+                project.content.map((coll, i) => {
+                  if (isBareEntry(coll)) {
+                    return (
+                      <div key={i} className="truncate text-muted-foreground">
+                        {coll.path}
+                        {coll.format && <span className="ml-1 text-xs">({coll.format.name})</span>}
+                      </div>
+                    );
+                  }
+                  return (
+                    <div key={i} className="text-muted-foreground">
+                      {coll.name || "Unnamed"}
+                      <span className="ml-1 text-xs">
+                        ({effectiveItems(coll).length} item
+                        {effectiveItems(coll).length !== 1 ? "s" : ""})
+                      </span>
+                    </div>
+                  );
+                })
               ) : (
                 <p className="text-muted-foreground">No content patterns</p>
               )}
@@ -200,7 +219,7 @@ export function ProjectPage({
       </div>
 
       {/* Preset & plugins */}
-      {(project.preset || project.plugins?.length) && (
+      {(project.preset || Object.keys(plugins).length > 0) && (
         <div className="mt-6 space-y-2 text-sm">
           {project.preset && (
             <div>
@@ -208,16 +227,17 @@ export function ProjectPage({
               <Badge variant="secondary">{project.preset}</Badge>
             </div>
           )}
-          {project.plugins?.length ? (
+          {Object.keys(plugins).length > 0 && (
             <div>
               <span className="text-muted-foreground">Plugins: </span>
-              {project.plugins.map((p) => (
-                <Badge key={p} variant="secondary" className="mr-1">
-                  {p}
+              {Object.entries(plugins).map(([name, spec]) => (
+                <Badge key={name} variant="secondary" className="mr-1">
+                  {name}
+                  {spec.version && spec.version !== "*" ? ` ${spec.version}` : ""}
                 </Badge>
               ))}
             </div>
-          ) : null}
+          )}
         </div>
       )}
     </div>

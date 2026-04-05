@@ -251,4 +251,3 @@ export const WithPlugins: StoryObj<typeof PluginManager> = {
 export const Empty: StoryObj<typeof PluginManager> = {
   render: () => <PluginManager plugins={[]} />,
 };
-

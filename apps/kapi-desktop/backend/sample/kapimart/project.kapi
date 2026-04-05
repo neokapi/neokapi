@@ -1,10 +1,11 @@
 version: v1
 name: KapiMart
-source_language: en-US
-target_languages:
-  - fr-FR
-  - de-DE
-  - ja-JP
+defaults:
+  source_language: en-US
+  target_languages:
+    - fr-FR
+    - de-DE
+    - ja-JP
 content:
   - path: "input/*"
     target: "output/{lang}/*"

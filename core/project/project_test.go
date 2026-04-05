@@ -8,19 +8,39 @@ import (
 	"github.com/neokapi/neokapi/core/flow"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"gopkg.in/yaml.v3"
 )
 
 func TestLoadSaveRoundtrip(t *testing.T) {
 	proj := &KapiProject{
-		Version:         "v1",
-		Name:            "My App",
-		SourceLanguage:  "en-US",
-		TargetLanguages: []string{"fr-FR", "de-DE"},
-		Content: []ContentEntry{
-			{Path: "src/locales/en/*.json", Format: "json", Target: "src/locales/{lang}/*.json"},
+		Version: "v1",
+		Name:    "My App",
+		Plugins: map[string]PluginSpec{
+			"okapi": {FrameworkVersion: "^1.47.0", FormatPriority: 200},
 		},
-		Preset:  "nextjs",
-		Plugins: []string{"okapi@1.47.0"},
+		Defaults: Defaults{
+			SourceLanguage:  "en-US",
+			TargetLanguages: []string{"fr-FR", "de-DE"},
+			Concurrency:     4,
+			ParallelBlocks:  3,
+			Encoding:        "utf-8",
+			Formats: map[string]FormatDefaults{
+				"okf_html": {Preset: "strict-extraction"},
+				"json":     {Config: map[string]any{"indent": 2}},
+			},
+		},
+		Content: []ContentCollection{
+			{Path: "src/locales/en/*.json", Format: &FormatSpec{Name: "json"}, Target: "src/locales/{lang}/*.json"},
+			{
+				Name:            "Marketing",
+				TargetLanguages: []string{"fr-FR"},
+				Items: []ContentItem{
+					{Path: "marketing/**/*.html", Format: &FormatSpec{Name: "okf_html", Preset: "lenient"}, Target: "marketing/{lang}/**/*.html"},
+					{Path: "marketing/**/*.json", Target: "marketing/{lang}/**/*.json"},
+				},
+			},
+		},
+		Preset: "nextjs",
 		Flows: map[string]*flow.StepsSpec{
 			"translate": {
 				Steps: []flow.FlowStep{
@@ -34,11 +54,6 @@ func TestLoadSaveRoundtrip(t *testing.T) {
 				},
 			},
 		},
-		Defaults: Defaults{
-			Concurrency:    4,
-			ParallelBlocks: 3,
-			Encoding:       "utf-8",
-		},
 	}
 
 	dir := t.TempDir()
@@ -51,33 +66,77 @@ func TestLoadSaveRoundtrip(t *testing.T) {
 
 	assert.Equal(t, "v1", loaded.Version)
 	assert.Equal(t, "My App", loaded.Name)
-	assert.Equal(t, "en-US", loaded.SourceLanguage)
-	assert.Equal(t, []string{"fr-FR", "de-DE"}, loaded.TargetLanguages)
-	assert.Len(t, loaded.Content, 1)
-	assert.Equal(t, "src/locales/en/*.json", loaded.Content[0].Path)
-	assert.Equal(t, "json", loaded.Content[0].Format)
-	assert.Equal(t, "src/locales/{lang}/*.json", loaded.Content[0].Target)
+	assert.Equal(t, "en-US", loaded.Defaults.SourceLanguage)
+	assert.Equal(t, []string{"fr-FR", "de-DE"}, loaded.Defaults.TargetLanguages)
+	assert.Equal(t, 4, loaded.Defaults.Concurrency)
+	assert.Equal(t, 3, loaded.Defaults.ParallelBlocks)
+	assert.Equal(t, "utf-8", loaded.Defaults.Encoding)
+	assert.Equal(t, "strict-extraction", loaded.Defaults.Formats["okf_html"].Preset)
+	assert.Equal(t, 2, loaded.Defaults.Formats["json"].Config["indent"])
+
+	// Plugins.
+	require.Contains(t, loaded.Plugins, "okapi")
+	assert.Equal(t, "^1.47.0", loaded.Plugins["okapi"].FrameworkVersion)
+	assert.Equal(t, 200, loaded.Plugins["okapi"].FormatPriority)
+
+	// Content.
+	require.Len(t, loaded.Content, 2)
+
+	// Bare entry.
+	bare := loaded.Content[0]
+	assert.True(t, bare.IsBareEntry())
+	assert.Equal(t, "src/locales/en/*.json", bare.Path)
+	assert.Equal(t, "json", bare.Format.Name)
+	assert.Equal(t, "src/locales/{lang}/*.json", bare.Target)
+
+	// Collection.
+	coll := loaded.Content[1]
+	assert.False(t, coll.IsBareEntry())
+	assert.Equal(t, "Marketing", coll.Name)
+	assert.Equal(t, []string{"fr-FR"}, coll.TargetLanguages)
+	require.Len(t, coll.Items, 2)
+	assert.Equal(t, "marketing/**/*.html", coll.Items[0].Path)
+	assert.Equal(t, "okf_html", coll.Items[0].Format.Name)
+	assert.Equal(t, "lenient", coll.Items[0].Format.Preset)
+
+	// Flows.
 	assert.Equal(t, "nextjs", loaded.Preset)
-	assert.Equal(t, []string{"okapi@1.47.0"}, loaded.Plugins)
 	assert.Len(t, loaded.Flows, 2)
 	assert.Len(t, loaded.Flows["translate"].Steps, 1)
 	assert.Equal(t, "ai-translate", loaded.Flows["translate"].Steps[0].Tool)
 	assert.Len(t, loaded.Flows["translate-and-qa"].Steps, 2)
-	assert.Equal(t, 4, loaded.Defaults.Concurrency)
-	assert.Equal(t, 3, loaded.Defaults.ParallelBlocks)
-	assert.Equal(t, "utf-8", loaded.Defaults.Encoding)
 }
 
 func TestLoadFromYAML(t *testing.T) {
-	yaml := `version: v1
+	yamlContent := `version: v1
 name: Test Project
-source_language: en
-target_languages:
-  - fr
-  - de
+defaults:
+  source_language: en
+  target_languages:
+    - fr
+    - de
+  formats:
+    okf_html:
+      preset: strict-extraction
+      priority: 200
+plugins:
+  okapi: "^1.47.0"
+  my-tool:
+    version: "^2.0.0"
 content:
   - path: "messages/*.json"
     format: json
+  - name: Docs
+    source_language: zh-CN
+    target_languages: [en-US]
+    items:
+      - path: "docs/*.html"
+        format:
+          name: okf_html
+          preset: lenient
+          config:
+            preserveWhitespace: true
+        target: "docs/{lang}/*.html"
 flows:
   pseudo:
     steps:
@@ -87,21 +146,170 @@ flows:
 `
 	dir := t.TempDir()
 	path := filepath.Join(dir, "test.kapi")
-	require.NoError(t, os.WriteFile(path, []byte(yaml), 0o644))
+	require.NoError(t, os.WriteFile(path, []byte(yamlContent), 0o644))
 
 	proj, err := Load(path)
 	require.NoError(t, err)
 
 	assert.Equal(t, "Test Project", proj.Name)
-	assert.Equal(t, "en", proj.SourceLanguage)
-	assert.Equal(t, []string{"fr", "de"}, proj.TargetLanguages)
-	assert.Len(t, proj.Content, 1)
+	assert.Equal(t, "en", proj.Defaults.SourceLanguage)
+	assert.Equal(t, []string{"fr", "de"}, proj.Defaults.TargetLanguages)
 
+	// Format defaults.
+	require.Contains(t, proj.Defaults.Formats, "okf_html")
+	assert.Equal(t, "strict-extraction", proj.Defaults.Formats["okf_html"].Preset)
+	assert.Equal(t, 200, proj.Defaults.Formats["okf_html"].Priority)
+
+	// Plugins — short form.
+	require.Contains(t, proj.Plugins, "okapi")
+	assert.Equal(t, "^1.47.0", proj.Plugins["okapi"].Version)
+	assert.Empty(t, proj.Plugins["okapi"].FrameworkVersion)
+
+	// Plugins — long form.
+	require.Contains(t, proj.Plugins, "my-tool")
+	assert.Equal(t, "^2.0.0", proj.Plugins["my-tool"].Version)
+
+	// Content — bare entry with short format.
+	require.Len(t, proj.Content, 2)
+	assert.True(t, proj.Content[0].IsBareEntry())
+	assert.Equal(t, "json", proj.Content[0].Format.Name)
+
+	// Content — collection with long format.
+	coll := proj.Content[1]
+	assert.False(t, coll.IsBareEntry())
+	assert.Equal(t, "Docs", coll.Name)
+	assert.Equal(t, "zh-CN", coll.SourceLanguage)
+	assert.Equal(t, []string{"en-US"}, coll.TargetLanguages)
+	require.Len(t, coll.Items, 1)
+	assert.Equal(t, "okf_html", coll.Items[0].Format.Name)
+	assert.Equal(t, "lenient", coll.Items[0].Format.Preset)
+	assert.Equal(t, true, coll.Items[0].Format.Config["preserveWhitespace"])
+
+	// Flows.
 	spec := proj.GetFlow("pseudo")
 	require.NotNil(t, spec)
 	assert.Len(t, spec.Steps, 1)
 	assert.Equal(t, "pseudo-translate", spec.Steps[0].Tool)
 	assert.Equal(t, 1.3, spec.Steps[0].Config["expansion_rate"])
+}
+
+func TestFormatSpecUnmarshal(t *testing.T) {
+	tests := []struct {
+		name     string
+		yaml     string
+		wantName string
+		wantPre  string
+	}{
+		{"short form", `format: okf_html`, "okf_html", ""},
+		{"long form", "format:\n  name: okf_html\n  preset: lenient", "okf_html", "lenient"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var target struct {
+				Format *FormatSpec `yaml:"format,omitempty"`
+			}
+			require.NoError(t, yaml.Unmarshal([]byte(tt.yaml), &target))
+			require.NotNil(t, target.Format)
+			assert.Equal(t, tt.wantName, target.Format.Name)
+			assert.Equal(t, tt.wantPre, target.Format.Preset)
+		})
+	}
+}
+
+func TestPluginSpecUnmarshal(t *testing.T) {
+	tests := []struct {
+		name    string
+		yaml    string
+		wantVer string
+		wantFV  string
+		wantFP  int
+	}{
+		{"short form", `"^2.0.0"`, "^2.0.0", "", 0},
+		{"long form", "version: \"^0.38.0\"\nframework_version: \"^1.47.0\"\nformat_priority: 200", "^0.38.0", "^1.47.0", 200},
+		{"framework only", "framework_version: \"^1.47.0\"", "", "^1.47.0", 0},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var spec PluginSpec
+			require.NoError(t, yaml.Unmarshal([]byte(tt.yaml), &spec))
+			assert.Equal(t, tt.wantVer, spec.Version)
+			assert.Equal(t, tt.wantFV, spec.FrameworkVersion)
+			assert.Equal(t, tt.wantFP, spec.FormatPriority)
+		})
+	}
+}
+
+func TestContentCollectionBareVsCollection(t *testing.T) {
+	yamlContent := `
+- path: "src/**/*"
+  target: "output/{lang}/**/*"
+- name: Marketing
+  target_languages: [fr-FR]
+  items:
+    - path: "marketing/*.html"
+      format: okf_html
+`
+	var content []ContentCollection
+	require.NoError(t, yaml.Unmarshal([]byte(yamlContent), &content))
+	require.Len(t, content, 2)
+
+	// Bare entry.
+	assert.True(t, content[0].IsBareEntry())
+	items := content[0].EffectiveItems()
+	require.Len(t, items, 1)
+	assert.Equal(t, "src/**/*", items[0].Path)
+	assert.Equal(t, "output/{lang}/**/*", items[0].Target)
+
+	// Collection.
+	assert.False(t, content[1].IsBareEntry())
+	assert.Equal(t, "Marketing", content[1].Name)
+	items = content[1].EffectiveItems()
+	require.Len(t, items, 1)
+	assert.Equal(t, "marketing/*.html", items[0].Path)
+}
+
+func TestLanguageResolution(t *testing.T) {
+	defaults := Defaults{
+		SourceLanguage:  "en-US",
+		TargetLanguages: []string{"fr-FR", "de-DE", "ja-JP"},
+	}
+
+	coll := &ContentCollection{
+		Name:            "China",
+		SourceLanguage:  "zh-CN",
+		TargetLanguages: []string{"en-US"},
+	}
+
+	t.Run("item inherits from defaults", func(t *testing.T) {
+		item := &ContentItem{Path: "src/**/*"}
+		assert.Equal(t, "en-US", item.ResolvedSourceLanguage(nil, defaults))
+		assert.Equal(t, []string{"fr-FR", "de-DE", "ja-JP"}, item.ResolvedTargetLanguages(nil, defaults))
+	})
+
+	t.Run("item inherits from collection", func(t *testing.T) {
+		item := &ContentItem{Path: "china/**/*"}
+		assert.Equal(t, "zh-CN", item.ResolvedSourceLanguage(coll, defaults))
+		assert.Equal(t, []string{"en-US"}, item.ResolvedTargetLanguages(coll, defaults))
+	})
+
+	t.Run("item overrides collection", func(t *testing.T) {
+		item := &ContentItem{
+			Path:            "special/*",
+			SourceLanguage:  "ko-KR",
+			TargetLanguages: []string{"ja-JP"},
+		}
+		assert.Equal(t, "ko-KR", item.ResolvedSourceLanguage(coll, defaults))
+		assert.Equal(t, []string{"ja-JP"}, item.ResolvedTargetLanguages(coll, defaults))
+	})
+
+	t.Run("partial override — source from collection, targets from item", func(t *testing.T) {
+		item := &ContentItem{
+			Path:            "mixed/*",
+			TargetLanguages: []string{"de-DE"},
+		}
+		assert.Equal(t, "zh-CN", item.ResolvedSourceLanguage(coll, defaults))
+		assert.Equal(t, []string{"de-DE"}, item.ResolvedTargetLanguages(coll, defaults))
+	})
 }
 
 func TestValidation(t *testing.T) {
@@ -121,19 +329,29 @@ func TestValidation(t *testing.T) {
 			wantErr: "unsupported version",
 		},
 		{
-			name: "content without path",
+			name: "collection without items",
 			proj: KapiProject{
 				Version: "v1",
-				Name:    "test",
-				Content: []ContentEntry{{Format: "json"}},
+				Content: []ContentCollection{
+					{Name: "Empty"},
+				},
 			},
-			wantErr: "content[0]: path is required",
+			wantErr: `collection "Empty" must have at least one item`,
+		},
+		{
+			name: "collection item without path",
+			proj: KapiProject{
+				Version: "v1",
+				Content: []ContentCollection{
+					{Name: "Bad", Items: []ContentItem{{}}},
+				},
+			},
+			wantErr: "content[0].items[0]: path is required",
 		},
 		{
 			name: "flow without steps",
 			proj: KapiProject{
 				Version: "v1",
-				Name:    "test",
 				Flows: map[string]*flow.StepsSpec{
 					"empty": {Steps: nil},
 				},
@@ -144,7 +362,6 @@ func TestValidation(t *testing.T) {
 			name: "flow step without tool",
 			proj: KapiProject{
 				Version: "v1",
-				Name:    "test",
 				Flows: map[string]*flow.StepsSpec{
 					"bad": {Steps: []flow.FlowStep{{}}},
 				},
@@ -153,16 +370,30 @@ func TestValidation(t *testing.T) {
 		},
 		{
 			name: "valid minimal project",
+			proj: KapiProject{Version: "v1"},
+		},
+		{
+			name: "valid bare entry",
 			proj: KapiProject{
 				Version: "v1",
-				Name:    "test",
+				Content: []ContentCollection{
+					{Path: "src/**/*"},
+				},
+			},
+		},
+		{
+			name: "valid collection",
+			proj: KapiProject{
+				Version: "v1",
+				Content: []ContentCollection{
+					{Name: "Docs", Items: []ContentItem{{Path: "docs/*.md"}}},
+				},
 			},
 		},
 		{
 			name: "valid with flows",
 			proj: KapiProject{
 				Version: "v1",
-				Name:    "test",
 				Flows: map[string]*flow.StepsSpec{
 					"translate": {Steps: []flow.FlowStep{{Tool: "ai-translate"}}},
 				},
@@ -186,7 +417,6 @@ func TestValidation(t *testing.T) {
 func TestGetFlow(t *testing.T) {
 	proj := &KapiProject{
 		Version: "v1",
-		Name:    "test",
 		Flows: map[string]*flow.StepsSpec{
 			"translate": {Steps: []flow.FlowStep{{Tool: "ai-translate"}}},
 		},
@@ -199,7 +429,6 @@ func TestGetFlow(t *testing.T) {
 func TestFlowNames(t *testing.T) {
 	proj := &KapiProject{
 		Version: "v1",
-		Name:    "test",
 		Flows: map[string]*flow.StepsSpec{
 			"a": {Steps: []flow.FlowStep{{Tool: "x"}}},
 			"b": {Steps: []flow.FlowStep{{Tool: "y"}}},
@@ -213,7 +442,7 @@ func TestFlowNames(t *testing.T) {
 }
 
 func TestFlowNamesEmpty(t *testing.T) {
-	proj := &KapiProject{Version: "v1", Name: "test"}
+	proj := &KapiProject{Version: "v1"}
 	assert.Empty(t, proj.FlowNames())
 }
 
@@ -245,7 +474,6 @@ func TestLoadInvalidYAML(t *testing.T) {
 func TestParallelSteps(t *testing.T) {
 	proj := &KapiProject{
 		Version: "v1",
-		Name:    "test",
 		Flows: map[string]*flow.StepsSpec{
 			"parallel-qa": {
 				Steps: []flow.FlowStep{
@@ -264,4 +492,31 @@ func TestParallelSteps(t *testing.T) {
 	spec := proj.GetFlow("parallel-qa")
 	require.NotNil(t, spec)
 	assert.Len(t, spec.Steps[0].Parallel, 2)
+}
+
+func TestEffectiveItems(t *testing.T) {
+	t.Run("bare entry wraps as single item", func(t *testing.T) {
+		c := &ContentCollection{
+			Path:   "src/**/*",
+			Format: &FormatSpec{Name: "json"},
+			Target: "output/{lang}/**/*",
+		}
+		items := c.EffectiveItems()
+		require.Len(t, items, 1)
+		assert.Equal(t, "src/**/*", items[0].Path)
+		assert.Equal(t, "json", items[0].Format.Name)
+		assert.Equal(t, "output/{lang}/**/*", items[0].Target)
+	})
+
+	t.Run("collection returns items directly", func(t *testing.T) {
+		c := &ContentCollection{
+			Name: "Test",
+			Items: []ContentItem{
+				{Path: "a/*"},
+				{Path: "b/*"},
+			},
+		}
+		items := c.EffectiveItems()
+		assert.Len(t, items, 2)
+	})
 }
