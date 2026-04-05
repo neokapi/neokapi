@@ -24,15 +24,7 @@ import {
   TargetPathInput,
   LocaleSelect,
   MultiLocaleSelect,
-  Combobox,
-  ComboboxInput,
-  ComboboxContent,
-  ComboboxList,
-  ComboboxItem,
-  ComboboxEmpty,
-  ComboboxGroup,
-  ComboboxLabel,
-  ComboboxSeparator,
+  FormatSelect,
   Select,
   SelectTrigger,
   SelectValue,
@@ -283,10 +275,9 @@ export function ContentPage({
         <div className="grid grid-cols-2 gap-2">
           <div>
             <Label className="mb-0.5 block text-xs text-muted-foreground">Format</Label>
-            <Combobox
-              value={fmt || ""}
-              onValueChange={(v: string | null) => {
-                const newFmt = v || undefined;
+            <FormatSelect
+              value={fmt}
+              onChange={(newFmt) => {
                 onItemChange({
                   ...item,
                   format: newFmt ? { name: newFmt } : undefined,
@@ -297,51 +288,8 @@ export function ContentPage({
                   });
                 }
               }}
-            >
-              <ComboboxInput placeholder="auto-detect" className="h-8 text-xs" showClear />
-              <ComboboxContent>
-                <ComboboxList>
-                  {(() => {
-                    const builtIn = formats.filter((f) => !f.source || f.source === "built-in");
-                    const plugin = formats.filter((f) => f.source && f.source !== "built-in");
-                    return (
-                      <>
-                        {builtIn.map((f) => (
-                          <ComboboxItem key={f.name} value={f.name}>
-                            <div className="flex w-full items-center justify-between gap-2">
-                              <span>{f.display_name || f.name}</span>
-                              {f.extensions && f.extensions.length > 0 && (
-                                <span className="text-[10px] text-muted-foreground">
-                                  {f.extensions.join(" ")}
-                                </span>
-                              )}
-                            </div>
-                          </ComboboxItem>
-                        ))}
-                        {plugin.length > 0 && builtIn.length > 0 && <ComboboxSeparator />}
-                        {plugin.length > 0 && (
-                          <ComboboxGroup>
-                            <ComboboxLabel>Plugins</ComboboxLabel>
-                            {plugin.map((f) => (
-                              <ComboboxItem key={f.name} value={f.name}>
-                                <div className="flex w-full items-center justify-between gap-2">
-                                  <span>{f.display_name || f.name}</span>
-                                  <span className="text-[10px] text-muted-foreground">
-                                    {f.source}
-                                    {f.extensions?.length ? ` · ${f.extensions.join(" ")}` : ""}
-                                  </span>
-                                </div>
-                              </ComboboxItem>
-                            ))}
-                          </ComboboxGroup>
-                        )}
-                      </>
-                    );
-                  })()}
-                  <ComboboxEmpty>No matching formats</ComboboxEmpty>
-                </ComboboxList>
-              </ComboboxContent>
-            </Combobox>
+              formats={formats}
+            />
           </div>
           <div>
             <Label className="mb-0.5 block text-xs text-muted-foreground">Target path</Label>

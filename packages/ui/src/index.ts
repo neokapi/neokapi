@@ -197,6 +197,11 @@ export {
   type SelectableListAction,
 } from "./components/ui/selectable-list";
 export {
+  FormatSelect,
+  type FormatInfo as FormatSelectInfo,
+  type FormatSelectProps,
+} from "./components/ui/format-select";
+export {
   LocaleSelect,
   MultiLocaleSelect,
   type LocaleInfo,
