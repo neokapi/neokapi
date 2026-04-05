@@ -30,8 +30,14 @@ function serialize(p: KapiProject): string {
   return JSON.stringify(p);
 }
 
+/** Deep-clone to plain objects — Wails bindings return class instances
+ *  which mutative's create() doesn't accept. */
+function toPlain(p: KapiProject): KapiProject {
+  return JSON.parse(JSON.stringify(p));
+}
+
 function newTravels(initial: KapiProject) {
-  return createTravels(initial, { maxHistory: MAX_UNDO, autoArchive: false });
+  return createTravels(toPlain(initial), { maxHistory: MAX_UNDO, autoArchive: false });
 }
 
 /**
@@ -82,7 +88,8 @@ export function useProjectHistory(
 
   const set = useCallback(
     (project: KapiProject) => {
-      setState(() => project);
+      const plain = toPlain(project);
+      setState(() => plain);
       scheduleArchive();
     },
     [setState, scheduleArchive],
