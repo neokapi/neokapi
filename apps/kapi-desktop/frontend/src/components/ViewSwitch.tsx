@@ -158,10 +158,10 @@ export function ViewSwitch({
       return <ToolRunnerPage />;
 
     case "termbases":
-      return <TermbasesPage />;
+      return <TermbasesPage tabID={tabID} />;
 
     case "memories":
-      return <MemoriesPage />;
+      return <MemoriesPage tabID={tabID} />;
 
     case "project-settings":
       return <ProjectSettingsPage project={history.project} onUpdate={updateProject} />;

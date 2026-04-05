@@ -586,6 +586,34 @@ func (tm *SQLiteTM) Count() int {
 	return count
 }
 
+// LocalePairStat holds the entry count for a source→target locale pair.
+type LocalePairStat struct {
+	SourceLocale string `json:"source_locale"`
+	TargetLocale string `json:"target_locale"`
+	Count        int    `json:"count"`
+}
+
+// LocalePairStats returns the number of entries grouped by locale pair.
+func (tm *SQLiteTM) LocalePairStats() []LocalePairStat {
+	rows, err := tm.db.Query(
+		"SELECT source_locale, target_locale, COUNT(*) FROM tm_entries GROUP BY source_locale, target_locale ORDER BY COUNT(*) DESC",
+	)
+	if err != nil {
+		slog.Warn("TM locale pair stats query failed", "error", err)
+		return nil
+	}
+	defer rows.Close()
+	var stats []LocalePairStat
+	for rows.Next() {
+		var s LocalePairStat
+		if err := rows.Scan(&s.SourceLocale, &s.TargetLocale, &s.Count); err != nil {
+			continue
+		}
+		stats = append(stats, s)
+	}
+	return stats
+}
+
 // Close closes the database connection.
 func (tm *SQLiteTM) Close() error {
 	return tm.db.Close()

@@ -1,6 +1,17 @@
 import { useState, useEffect, useCallback } from "react";
 import { BookOpen, Plus, FolderOpen, X, Upload, AlertTriangle } from "lucide-react";
-import { Button, Label, Input, PageHeader, EmptyState } from "@neokapi/ui-primitives";
+import {
+  Button,
+  Card,
+  CardContent,
+  Label,
+  Input,
+  PageHeader,
+  EmptyState,
+  ChartContainer,
+  type ChartConfig,
+} from "@neokapi/ui-primitives";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid } from "recharts";
 import { api } from "../hooks/useApi";
 import { useError } from "./ErrorBanner";
 import { useTermbaseAdapter } from "../hooks/useTermbaseAdapter";
@@ -12,13 +23,25 @@ import {
 } from "@neokapi/ui-primitives";
 
 export interface TermbasesPageProps {
+  /** Project tab ID — when set, shows the project-scoped termbase. */
+  tabID?: string;
   /** Pre-loaded resources for Storybook — skips api.listNamedTermbases(). */
   resources?: ResourceInfo[];
   /** Force loading/skeleton state (for Storybook). */
   forceLoading?: boolean;
 }
 
+interface LocaleStat {
+  locale: string;
+  count: number;
+}
+
+const chartConfig: ChartConfig = {
+  count: { label: "Terms", color: "var(--chart-2)" },
+};
+
 export function TermbasesPage({
+  tabID,
   resources: propResources,
   forceLoading = false,
 }: TermbasesPageProps = {}) {
@@ -34,8 +57,33 @@ export function TermbasesPage({
   const [corruptName, setCorruptName] = useState("");
   const [recovering, setRecovering] = useState(false);
 
+  // Project termbase state
+  const [projectHandle, setProjectHandle] = useState<string | null>(null);
+  const [projectStats, setProjectStats] = useState<{ count: number } | null>(null);
+  const [localeStats, setLocaleStats] = useState<LocaleStat[]>([]);
+
   const { showError } = useError();
-  const adapter = useTermbaseAdapter(handle);
+  const activeHandle = projectHandle || handle;
+  const adapter = useTermbaseAdapter(activeHandle);
+
+  // Load project termbase handle when tabID is provided.
+  useEffect(() => {
+    if (!tabID) return;
+    api
+      .getProjectTermbaseHandle(tabID)
+      .then((h) => {
+        if (h) {
+          setProjectHandle(h);
+          void api.getTermbaseStats(h).then((s) => {
+            if (s) setProjectStats(s);
+          });
+          void api.getTermbaseLocaleStats(h).then((stats) => {
+            if (stats) setLocaleStats(stats);
+          });
+        }
+      })
+      .catch(() => {});
+  }, [tabID]);
 
   const refreshResources = useCallback(async () => {
     if (propResources || forceLoading) return;
@@ -48,11 +96,11 @@ export function TermbasesPage({
     } finally {
       setLoading(false);
     }
-  }, [showError, propResources]);
+  }, [showError, propResources, forceLoading]);
 
   useEffect(() => {
-    void refreshResources();
-  }, [refreshResources]);
+    if (!projectHandle) void refreshResources();
+  }, [refreshResources, projectHandle]);
 
   const handleOpen = useCallback(async (path: string, name: string) => {
     try {
@@ -128,39 +176,92 @@ export function TermbasesPage({
   }, [handle, refreshResources]);
 
   const handleImportCSV = useCallback(async () => {
-    if (!handle) return;
+    if (!activeHandle) return;
     setImporting(true);
     try {
-      await api.importTermbaseCSVDialog(handle, "", "", "");
+      await api.importTermbaseCSVDialog(activeHandle, "", "", "");
     } catch (err) {
       showError("Failed to import CSV", err);
     } finally {
       setImporting(false);
     }
-  }, [handle, showError]);
+  }, [activeHandle, showError]);
 
   const handleImportJSON = useCallback(async () => {
-    if (!handle) return;
+    if (!activeHandle) return;
     setImporting(true);
     try {
-      await api.importTermbaseJSONDialog(handle);
+      await api.importTermbaseJSONDialog(activeHandle);
     } catch (err) {
       showError("Failed to import JSON", err);
     } finally {
       setImporting(false);
     }
-  }, [handle, showError]);
+  }, [activeHandle, showError]);
 
   const handleExport = useCallback(async () => {
-    if (!handle) return;
+    if (!activeHandle) return;
     try {
-      await api.exportTermbaseJSONDialog(handle, tbName || "termbase");
+      await api.exportTermbaseJSONDialog(activeHandle, tbName || "termbase");
     } catch (err) {
       showError("Failed to export termbase", err);
     }
-  }, [handle, tbName, showError]);
+  }, [activeHandle, tbName, showError]);
 
-  // Browser view — termbase is open.
+  // Project termbase view — shows dashboard + browser.
+  if (projectHandle && adapter) {
+    const chartData = localeStats.map((s) => ({
+      locale: s.locale,
+      count: s.count,
+    }));
+
+    return (
+      <div className="p-6">
+        <PageHeader
+          title="Project Termbase"
+          subtitle={projectStats ? `${projectStats.count.toLocaleString()} concepts` : undefined}
+          actions={
+            <div className="flex gap-2">
+              <Button variant="outline" size="sm" onClick={handleImportCSV}>
+                <Upload size={12} />
+                Import CSV
+              </Button>
+              <Button variant="outline" size="sm" onClick={handleImportJSON}>
+                <Upload size={12} />
+                Import JSON
+              </Button>
+              <Button variant="outline" size="sm" onClick={handleExport}>
+                Export JSON
+              </Button>
+            </div>
+          }
+        />
+
+        {/* Stats chart */}
+        {chartData.length > 0 && (
+          <Card className="mb-6">
+            <CardContent className="p-4">
+              <div className="mb-2 text-sm font-medium">Terms by Language</div>
+              <ChartContainer config={chartConfig} className="h-48 w-full">
+                <BarChart data={chartData} layout="vertical" margin={{ left: 60 }}>
+                  <CartesianGrid horizontal={false} />
+                  <XAxis type="number" />
+                  <YAxis dataKey="locale" type="category" width={55} className="text-xs" />
+                  <Bar dataKey="count" fill="var(--color-count)" radius={[0, 4, 4, 0]} />
+                </BarChart>
+              </ChartContainer>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Browser — shows entries by default */}
+        <TermbaseBrowser adapter={adapter} onError={showError} />
+        <ImportProgress active={importing} />
+      </div>
+    );
+  }
+
+  // Named termbase browser view — termbase is open (non-project).
   if (handle && adapter) {
     return (
       <div className="p-6">
@@ -188,9 +289,7 @@ export function TermbasesPage({
             </div>
           }
         />
-
         <TermbaseBrowser adapter={adapter} onError={showError} />
-
         <ImportProgress active={importing} />
       </div>
     );
@@ -215,7 +314,18 @@ export function TermbasesPage({
         }
       />
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+      {/* No project termbase hint */}
+      {tabID && !projectHandle && !loading && (
+        <Card className="mb-4 border-dashed">
+          <CardContent className="p-4 text-center text-sm text-muted-foreground">
+            <BookOpen size={16} className="mx-auto mb-1 opacity-50" />
+            No project termbase found. Import terminology to create one automatically, or create one
+            below.
+          </CardContent>
+        </Card>
+      )}
+
+      <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
         {loading
           ? [0, 1, 2].map((i) => (
               <ResourceCard key={i} loading name="" path="" onClick={() => {}} />
@@ -233,12 +343,12 @@ export function TermbasesPage({
             ))}
       </div>
 
-      {!loading && resources.length === 0 && (
+      {!loading && resources.length === 0 && !tabID && (
         <EmptyState
           icon={<BookOpen size={24} className="text-muted-foreground/50" />}
           title="No termbases found. Create one or open a .db file."
           action={
-            <div className="flex gap-2 justify-center">
+            <div className="flex justify-center gap-2">
               <Button size="sm" onClick={() => setShowCreateDialog(true)}>
                 New Termbase
               </Button>
@@ -253,8 +363,8 @@ export function TermbasesPage({
       {showCreateDialog && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
           <div className="w-full max-w-sm rounded-xl border border-border bg-background p-6 shadow-lg">
-            <h2 className="text-lg font-semibold mb-3">New Termbase</h2>
-            <Label className="text-xs text-muted-foreground block mb-1">Name</Label>
+            <h2 className="mb-3 text-lg font-semibold">New Termbase</h2>
+            <Label className="mb-1 block text-xs text-muted-foreground">Name</Label>
             <Input
               type="text"
               value={newName}
@@ -278,21 +388,20 @@ export function TermbasesPage({
         </div>
       )}
 
-      {/* Corruption recovery dialog */}
       {corruptPath && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
           <div className="w-full max-w-sm rounded-xl border border-border bg-background p-6 shadow-lg">
-            <div className="flex items-center gap-2 mb-3">
+            <div className="mb-3 flex items-center gap-2">
               <AlertTriangle size={18} className="text-destructive" />
               <h2 className="text-base font-semibold">Corrupt Termbase</h2>
             </div>
-            <p className="text-sm text-muted-foreground mb-2">
-              <strong>{corruptName}</strong> could not be opened. The database may be corrupt.
+            <p className="mb-2 text-sm text-muted-foreground">
+              <strong>{corruptName}</strong> could not be opened.
             </p>
-            <p className="text-xs text-muted-foreground mb-4">
+            <p className="mb-4 text-xs text-muted-foreground">
               The file will be renamed to{" "}
-              <code className="text-[10px] bg-muted px-1 py-0.5 rounded">.db.bak</code> and a fresh
-              database created in its place.
+              <code className="rounded bg-muted px-1 py-0.5 text-[10px]">.db.bak</code> and a fresh
+              database created.
             </p>
             <div className="flex gap-2">
               <Button size="sm" onClick={() => void handleRecover()} disabled={recovering}>

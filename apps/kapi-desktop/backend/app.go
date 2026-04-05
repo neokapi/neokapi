@@ -110,6 +110,28 @@ type openProject struct {
 	tbHandle string // handle ID in App.tbHandles, empty if none
 }
 
+// GetProjectTMHandle returns the auto-opened TM handle for a project tab,
+// or empty string if the project has no .kapi/tm.db.
+func (a *App) GetProjectTMHandle(tabID string) string {
+	a.mu.RLock()
+	defer a.mu.RUnlock()
+	if op := a.projects[tabID]; op != nil {
+		return op.tmHandle
+	}
+	return ""
+}
+
+// GetProjectTermbaseHandle returns the auto-opened termbase handle for a project tab,
+// or empty string if the project has no .kapi/termbase.db.
+func (a *App) GetProjectTermbaseHandle(tabID string) string {
+	a.mu.RLock()
+	defer a.mu.RUnlock()
+	if op := a.projects[tabID]; op != nil {
+		return op.tbHandle
+	}
+	return ""
+}
+
 // ServiceStartup is called by Wails v3 during application startup.
 // All initialization happens here — data is guaranteed ready before
 // the frontend renders.

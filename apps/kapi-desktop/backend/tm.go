@@ -310,6 +310,15 @@ func (a *App) GetTMStats(handle string) *TMStats {
 	}
 }
 
+// GetTMLocaleStats returns entry counts grouped by locale pair.
+func (a *App) GetTMLocaleStats(handle string) []sievepen.LocalePairStat {
+	tm, ok := a.tmHandles.Get(handle)
+	if !ok {
+		return nil
+	}
+	return tm.LocalePairStats()
+}
+
 // --- CRUD ---
 
 // SearchTMEntries searches TM entries by query with pagination.
