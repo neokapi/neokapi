@@ -188,6 +188,12 @@ export { CodeInput, type CodeInputProps, type CodeLanguage } from "./components/
 export { GlobInput, type GlobInputProps } from "./components/ui/glob-input";
 export { TargetPathInput, type TargetPathInputProps } from "./components/ui/target-path-input";
 export {
+  SelectableList,
+  type SelectableListProps,
+  type SelectableListColumn,
+  type SelectableListAction,
+} from "./components/ui/selectable-list";
+export {
   LocaleSelect,
   MultiLocaleSelect,
   type LocaleInfo,

@@ -13,7 +13,6 @@ import {
 } from "../../components/ui/form";
 import { Input } from "../../components/ui/input";
 import { Button } from "../../components/ui/button";
-import { Switch } from "../../components/ui/switch";
 import {
   Select,
   SelectTrigger,
@@ -128,9 +127,7 @@ export const FieldWithHelp: StoryObj = {
             "Patterns are matched against the full JSON path (e.g., $.messages[*].text).",
             "Use .* to extract all string values.",
           ]}
-          dependencies={[
-            { property: "extractAll", condition: "must be false" },
-          ]}
+          dependencies={[{ property: "extractAll", condition: "must be false" }]}
         />
       </FormItem>
     </div>
@@ -216,10 +213,7 @@ export const InputWithMultipleActions: StoryObj = {
       <FormItem>
         <FormLabel>TM File</FormLabel>
         <FormInputAction>
-          <Input
-            defaultValue="/data/project.tmx"
-            className="flex-1 font-mono text-xs h-8"
-          />
+          <Input defaultValue="/data/project.tmx" className="flex-1 font-mono text-xs h-8" />
           <Button variant="outline" size="sm" className="h-8 text-xs shrink-0">
             Browse
           </Button>
@@ -242,11 +236,15 @@ export const FieldGroup: StoryObj = {
         <div className="space-y-2">
           <FormItem>
             <FormLabel>Name</FormLabel>
-            <FormControl><Input defaultValue="My Project" /></FormControl>
+            <FormControl>
+              <Input defaultValue="My Project" />
+            </FormControl>
           </FormItem>
           <FormItem>
             <FormLabel>Description</FormLabel>
-            <FormControl><Input placeholder="Optional description..." /></FormControl>
+            <FormControl>
+              <Input placeholder="Optional description..." />
+            </FormControl>
           </FormItem>
         </div>
       </FormFieldGroup>
@@ -260,8 +258,18 @@ export const CollapsibleGroup: StoryObj = {
     <div className="max-w-xs space-y-4">
       <FormFieldGroup label="Whitespace Checks" collapsible>
         <div className="space-y-1">
-          <FormToggle checked={true} onCheckedChange={() => {}} label="Leading whitespace" compact />
-          <FormToggle checked={true} onCheckedChange={() => {}} label="Trailing whitespace" compact />
+          <FormToggle
+            checked={true}
+            onCheckedChange={() => {}}
+            label="Leading whitespace"
+            compact
+          />
+          <FormToggle
+            checked={true}
+            onCheckedChange={() => {}}
+            label="Trailing whitespace"
+            compact
+          />
           <FormToggle checked={false} onCheckedChange={() => {}} label="Double spaces" compact />
         </div>
       </FormFieldGroup>
@@ -269,7 +277,12 @@ export const CollapsibleGroup: StoryObj = {
       <FormFieldGroup label="Content Checks" collapsible defaultCollapsed>
         <div className="space-y-1">
           <FormToggle checked={true} onCheckedChange={() => {}} label="Empty target" compact />
-          <FormToggle checked={true} onCheckedChange={() => {}} label="Target same as source" compact />
+          <FormToggle
+            checked={true}
+            onCheckedChange={() => {}}
+            label="Target same as source"
+            compact
+          />
         </div>
       </FormFieldGroup>
 
@@ -278,8 +291,13 @@ export const CollapsibleGroup: StoryObj = {
           <FormItem>
             <FormLabel>Report Path</FormLabel>
             <FormInputAction>
-              <Input defaultValue="${rootDir}/qa-report.html" className="flex-1 font-mono text-xs h-8" />
-              <Button variant="outline" size="sm" className="h-8 text-xs shrink-0">Browse</Button>
+              <Input
+                defaultValue="${rootDir}/qa-report.html"
+                className="flex-1 font-mono text-xs h-8"
+              />
+              <Button variant="outline" size="sm" className="h-8 text-xs shrink-0">
+                Browse
+              </Button>
             </FormInputAction>
           </FormItem>
         </div>
@@ -316,7 +334,12 @@ export const ComposedConfigEditor: StoryObj = {
                   disabled={!useTM}
                   className="flex-1 font-mono text-xs h-8"
                 />
-                <Button variant="outline" size="sm" disabled={!useTM} className="h-8 text-xs shrink-0">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={!useTM}
+                  className="h-8 text-xs shrink-0"
+                >
                   Browse
                 </Button>
               </FormInputAction>
@@ -333,7 +356,9 @@ export const ComposedConfigEditor: StoryObj = {
                   value={threshold}
                   disabled={!useTM}
                   className="h-8 text-xs"
-                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setThreshold(e.target.value)}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                    setThreshold(e.target.value)
+                  }
                 />
               </FormControl>
             </FormItem>
