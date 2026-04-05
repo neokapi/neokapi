@@ -55,7 +55,7 @@ else
   _COVMODE  :=
 endif
 
-GOTEST_BASE := $(GOTEST) $(_RACE) -shuffle=on
+GOTEST_BASE := $(GOTEST) $(_RACE) -shuffle=on -timeout 15m
 
 # Docker
 DOCKER_IMAGE          := ghcr.io/neokapi/bowrain-server

@@ -114,9 +114,9 @@ func openWithSchema(connStr, schema string) (*storage.PgDB, error) {
 	}
 
 	db := stdlib.OpenDBFromPool(pool)
-	db.SetMaxOpenConns(25)
-	db.SetMaxIdleConns(5)
-	db.SetConnMaxLifetime(30 * time.Minute)
+	db.SetMaxOpenConns(5)
+	db.SetMaxIdleConns(2)
+	db.SetConnMaxLifetime(5 * time.Minute)
 
 	if err := db.PingContext(context.Background()); err != nil {
 		pool.Close()
