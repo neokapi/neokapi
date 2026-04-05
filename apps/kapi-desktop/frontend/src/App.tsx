@@ -2,12 +2,12 @@ import { useState, useCallback, useEffect, useRef } from "react";
 import type { AppMode, KapiProject, TabInfo } from "./types/api";
 import { api } from "./hooks/useApi";
 import { useWailsEvent } from "./hooks/useWailsEvent";
+import { useProjectHistory } from "./hooks/useProjectHistory";
 import { ErrorProvider, useError } from "./components/ErrorBanner";
 import { IconSidebar } from "./components/IconSidebar";
 import { ModeToggle } from "./components/ModeToggle";
 import { TabBar } from "./components/TabBar";
 import { AppHome } from "./components/AppHome";
-
 import { TermbasesPage } from "./components/TermbasesPage";
 import { MemoriesPage } from "./components/MemoriesPage";
 import { FormatsPage } from "./components/FormatsPage";
@@ -21,6 +21,7 @@ import { ProjectSetupPage } from "./components/ProjectSetupPage";
 import { ProjectSettingsPage } from "./components/ProjectSettingsPage";
 import { ProjectPresetPage } from "./components/ProjectPresetPage";
 import { useShortenHome } from "./hooks/useShortenHome";
+import { Undo2, Redo2, Save } from "lucide-react";
 import { Button, Label, Input } from "@neokapi/ui-primitives";
 
 interface TabState {
@@ -53,6 +54,8 @@ function AppInner() {
   const shortenHome = useShortenHome();
 
   const activeTab = tabs.find((t) => t.info.id === activeTabID) ?? null;
+  const emptyProject: KapiProject = { version: "v1", name: "" };
+  const history = useProjectHistory(activeTab?.project ?? emptyProject);
 
   const refreshRecent = useCallback(() => {
     void api.listRecentFiles().then((f) => {
@@ -107,6 +110,26 @@ function AppInner() {
     document.addEventListener("click", handler);
     return () => document.removeEventListener("click", handler);
   }, []);
+
+  // Keyboard shortcuts for undo/redo/save.
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (mode !== "projects" || !activeTab) return;
+      const meta = e.metaKey || e.ctrlKey;
+      if (meta && e.key === "z" && !e.shiftKey) {
+        e.preventDefault();
+        history.undo();
+      } else if (meta && e.key === "z" && e.shiftKey) {
+        e.preventDefault();
+        history.redo();
+      } else if (meta && e.key === "s") {
+        e.preventDefault();
+        void handleSaveProject();
+      }
+    };
+    document.addEventListener("keydown", handler);
+    return () => document.removeEventListener("keydown", handler);
+  }, [mode, activeTab, history, handleSaveProject]);
 
   const handleModeChange = useCallback(
     (m: AppMode) => {
@@ -225,13 +248,33 @@ function AppInner() {
     });
   }, []);
 
+  // Sync history state back to tabs whenever it changes.
+  useEffect(() => {
+    if (!activeTabID || !activeTab) return;
+    const histProj = history.project;
+    if (
+      histProj !== activeTab.project &&
+      JSON.stringify(histProj) !== JSON.stringify(activeTab.project)
+    ) {
+      setTabs((prev) =>
+        prev.map((t) => (t.info.id === activeTabID ? { ...t, project: histProj } : t)),
+      );
+    }
+  }, [history.project, activeTabID]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const updateActiveProject = useCallback(
     (project: KapiProject) => {
-      if (!activeTabID) return;
-      setTabs((prev) => prev.map((t) => (t.info.id === activeTabID ? { ...t, project } : t)));
+      history.update(project);
     },
-    [activeTabID],
+    [history],
   );
+
+  const handleSaveProject = useCallback(async () => {
+    if (!activeTabID) return;
+    await api.updateProject(activeTabID, history.project);
+    await api.saveProject(activeTabID);
+    history.markSaved();
+  }, [activeTabID, history]);
 
   const updateActiveTab = useCallback((updated: TabInfo) => {
     setTabs((prev) =>
@@ -334,6 +377,46 @@ function AppInner() {
               />
             )}
           </div>
+          {/* Undo / Redo / Save */}
+          {mode === "projects" && activeTab && (
+            <div
+              className="flex shrink-0 items-center gap-0.5 pb-1.5 pr-1"
+              style={{ WebkitAppRegion: "no-drag" } as React.CSSProperties}
+            >
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                onClick={history.undo}
+                disabled={!history.canUndo}
+                aria-label="Undo"
+                title="Undo (⌘Z)"
+                className="h-7 w-7"
+              >
+                <Undo2 size={14} />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                onClick={history.redo}
+                disabled={!history.canRedo}
+                aria-label="Redo"
+                title="Redo (⌘⇧Z)"
+                className="h-7 w-7"
+              >
+                <Redo2 size={14} />
+              </Button>
+              {history.isDirty && (
+                <Button
+                  size="sm"
+                  onClick={() => void handleSaveProject()}
+                  className="ml-1 h-7 text-xs"
+                >
+                  <Save size={12} />
+                  Save
+                </Button>
+              )}
+            </div>
+          )}
           {/* Mode toggle */}
           <div
             className="shrink-0 px-3 pb-1.5"
