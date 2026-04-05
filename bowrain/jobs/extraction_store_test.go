@@ -10,21 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func newTestExtractionStore(t *testing.T) *SQLiteExtractionJobStore {
-	t.Helper()
-	db, err := storage.Open(":memory:")
-	require.NoError(t, err)
-	t.Cleanup(func() { db.Close() })
-
-	// Run all job migrations (which include the extraction_jobs table).
-	js, err := NewSQLiteJobStore(db)
-	require.NoError(t, err)
-	_ = js
-
-	return NewSQLiteExtractionJobStore(db)
-}
-
-func newTestExtractionStorePg(t *testing.T) *PgExtractionJobStore {
+func newTestExtractionStore(t *testing.T) ExtractionJobStore {
 	t.Helper()
 	dbURL := os.Getenv("BOWRAIN_TEST_DATABASE_URL")
 	if dbURL == "" {
@@ -37,7 +23,7 @@ func newTestExtractionStorePg(t *testing.T) *PgExtractionJobStore {
 		_, _ = db.ExecContext(t.Context(), "DELETE FROM extraction_jobs")
 		db.Close()
 	})
-	store, err := NewPgExtractionJobStore(db)
+	store, err := NewExtractionJobStore(db)
 	require.NoError(t, err)
 	return store
 }
@@ -176,12 +162,7 @@ func extractionStoreTests(t *testing.T, store ExtractionJobStore) {
 	})
 }
 
-func TestExtractionJobStore_SQLite(t *testing.T) {
+func TestExtractionJobStore(t *testing.T) {
 	store := newTestExtractionStore(t)
-	extractionStoreTests(t, store)
-}
-
-func TestExtractionJobStore_Postgres(t *testing.T) {
-	store := newTestExtractionStorePg(t)
 	extractionStoreTests(t, store)
 }

@@ -89,22 +89,12 @@ type TaskResult struct {
 
 // TaskStore persists tasks.
 type TaskStore struct {
-	db      *sql.DB
-	dialect Dialect
+	db *sql.DB
 }
 
-// NewTaskStore creates a SQLite-backed task store.
+// NewTaskStore creates a PostgreSQL-backed task store.
 func NewTaskStore(db *sql.DB) *TaskStore {
-	return &TaskStore{db: db, dialect: DialectSQLite}
-}
-
-// NewPostgresTaskStore creates a PostgreSQL-backed task store.
-func NewPostgresTaskStore(db *sql.DB) *TaskStore {
-	return &TaskStore{db: db, dialect: DialectPostgres}
-}
-
-func (s *TaskStore) q(query string) string {
-	return Rebind(s.dialect, query)
+	return &TaskStore{db: db}
 }
 
 // Create inserts a new task.
@@ -137,28 +127,28 @@ func (s *TaskStore) Create(ctx context.Context, t *Task) error {
 		completedAt = t.CompletedAt.UTC().Format(time.RFC3339)
 	}
 
-	_, err := s.db.ExecContext(ctx, s.q(
+	_, err := s.db.ExecContext(ctx,
 		`INSERT INTO tasks (id, workspace_id, project_id, stream, type, status, priority,
 		 title, description, assignee_id, created_by, completed_by, data, due_at,
 		 created_at, updated_at, completed_at)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`),
+		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)`,
 		t.ID, t.WorkspaceID, t.ProjectID, t.Stream,
 		string(t.Type), string(t.Status), string(t.Priority),
 		t.Title, t.Description, t.AssigneeID, t.CreatedBy, t.CompletedBy,
 		string(dataJSON), dueAt,
-		t.CreatedAt.UTC().Format(time.RFC3339),
-		t.UpdatedAt.UTC().Format(time.RFC3339),
+		t.CreatedAt.UTC().Format(time.RFC3339Nano),
+		t.UpdatedAt.UTC().Format(time.RFC3339Nano),
 		completedAt)
 	return err
 }
 
 // Get retrieves a task by ID.
 func (s *TaskStore) Get(ctx context.Context, taskID string) (*Task, error) {
-	row := s.db.QueryRowContext(ctx, s.q(
+	row := s.db.QueryRowContext(ctx,
 		`SELECT id, workspace_id, project_id, stream, type, status, priority,
 		 title, description, assignee_id, created_by, completed_by, data, due_at,
 		 created_at, updated_at, completed_at
-		 FROM tasks WHERE id = ?`), taskID)
+		 FROM tasks WHERE id = $1`, taskID)
 	return scanTask(row)
 }
 
@@ -170,44 +160,49 @@ func (s *TaskStore) List(ctx context.Context, q TaskQuery) (*TaskResult, error) 
 
 	var where []string
 	var args []any
+	argN := 0
+	nextArg := func() string {
+		argN++
+		return fmt.Sprintf("$%d", argN)
+	}
 
 	if q.WorkspaceID != "" {
-		where = append(where, "workspace_id = ?")
+		where = append(where, "workspace_id = "+nextArg())
 		args = append(args, q.WorkspaceID)
 	}
 	if q.ProjectID != "" {
-		where = append(where, "project_id = ?")
+		where = append(where, "project_id = "+nextArg())
 		args = append(args, q.ProjectID)
 	}
 	if q.AssigneeID != "" {
-		where = append(where, "assignee_id = ?")
+		where = append(where, "assignee_id = "+nextArg())
 		args = append(args, q.AssigneeID)
 	}
 	if len(q.Statuses) > 0 {
 		placeholders := make([]string, len(q.Statuses))
-		for i, s := range q.Statuses {
-			placeholders[i] = "?"
-			args = append(args, s)
+		for i, st := range q.Statuses {
+			placeholders[i] = nextArg()
+			args = append(args, st)
 		}
 		where = append(where, "status IN ("+strings.Join(placeholders, ",")+")")
 	} else if q.Status != "" {
-		where = append(where, "status = ?")
+		where = append(where, "status = "+nextArg())
 		args = append(args, q.Status)
 	}
 	if q.Type != "" {
-		where = append(where, "type = ?")
+		where = append(where, "type = "+nextArg())
 		args = append(args, q.Type)
 	}
 	if q.Priority != "" {
-		where = append(where, "priority = ?")
+		where = append(where, "priority = "+nextArg())
 		args = append(args, q.Priority)
 	}
 	if q.DueBefore != nil {
-		where = append(where, "due_at IS NOT NULL AND due_at <= ?")
+		where = append(where, "due_at IS NOT NULL AND due_at <= "+nextArg())
 		args = append(args, q.DueBefore.UTC().Format(time.RFC3339))
 	}
 	if q.Cursor != "" {
-		where = append(where, "created_at < ?")
+		where = append(where, "created_at < "+nextArg())
 		args = append(args, q.Cursor)
 	}
 
@@ -220,10 +215,10 @@ func (s *TaskStore) List(ctx context.Context, q TaskQuery) (*TaskResult, error) 
 		`SELECT id, workspace_id, project_id, stream, type, status, priority,
 		 title, description, assignee_id, created_by, completed_by, data, due_at,
 		 created_at, updated_at, completed_at
-		 FROM tasks %s ORDER BY created_at DESC LIMIT ?`, whereClause)
+		 FROM tasks %s ORDER BY created_at DESC LIMIT %s`, whereClause, nextArg())
 	args = append(args, q.Limit+1)
 
-	rows, err := s.db.QueryContext(ctx, s.q(query), args...)
+	rows, err := s.db.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -265,65 +260,65 @@ func (s *TaskStore) Update(ctx context.Context, t *Task) error {
 		completedAt = t.CompletedAt.UTC().Format(time.RFC3339)
 	}
 
-	_, err := s.db.ExecContext(ctx, s.q(
-		`UPDATE tasks SET status = ?, priority = ?, title = ?, description = ?,
-		 assignee_id = ?, completed_by = ?, data = ?, due_at = ?,
-		 updated_at = ?, completed_at = ?
-		 WHERE id = ?`),
+	_, err := s.db.ExecContext(ctx,
+		`UPDATE tasks SET status = $1, priority = $2, title = $3, description = $4,
+		 assignee_id = $5, completed_by = $6, data = $7, due_at = $8,
+		 updated_at = $9, completed_at = $10
+		 WHERE id = $11`,
 		string(t.Status), string(t.Priority), t.Title, t.Description,
 		t.AssigneeID, t.CompletedBy, string(dataJSON), dueAt,
-		t.UpdatedAt.UTC().Format(time.RFC3339), completedAt,
+		t.UpdatedAt.UTC().Format(time.RFC3339Nano), completedAt,
 		t.ID)
 	return err
 }
 
 // Assign assigns a task to a user and sets status to in_progress.
 func (s *TaskStore) Assign(ctx context.Context, taskID, assigneeID string) error {
-	now := time.Now().UTC().Format(time.RFC3339)
-	_, err := s.db.ExecContext(ctx, s.q(
-		`UPDATE tasks SET assignee_id = ?, status = 'in_progress', updated_at = ?
-		 WHERE id = ? AND status IN ('open', 'in_progress')`),
+	now := time.Now().UTC().Format(time.RFC3339Nano)
+	_, err := s.db.ExecContext(ctx,
+		`UPDATE tasks SET assignee_id = $1, status = 'in_progress', updated_at = $2
+		 WHERE id = $3 AND status IN ('open', 'in_progress')`,
 		assigneeID, now, taskID)
 	return err
 }
 
 // Complete marks a task as completed.
 func (s *TaskStore) Complete(ctx context.Context, taskID, userID string) error {
-	now := time.Now().UTC().Format(time.RFC3339)
-	_, err := s.db.ExecContext(ctx, s.q(
-		`UPDATE tasks SET status = 'completed', completed_by = ?, completed_at = ?, updated_at = ?
-		 WHERE id = ? AND status IN ('open', 'in_progress')`),
+	now := time.Now().UTC().Format(time.RFC3339Nano)
+	_, err := s.db.ExecContext(ctx,
+		`UPDATE tasks SET status = 'completed', completed_by = $1, completed_at = $2, updated_at = $3
+		 WHERE id = $4 AND status IN ('open', 'in_progress')`,
 		userID, now, now, taskID)
 	return err
 }
 
 // Cancel marks a task as cancelled.
 func (s *TaskStore) Cancel(ctx context.Context, taskID string) error {
-	now := time.Now().UTC().Format(time.RFC3339)
-	_, err := s.db.ExecContext(ctx, s.q(
-		`UPDATE tasks SET status = 'cancelled', updated_at = ?
-		 WHERE id = ? AND status IN ('open', 'in_progress')`),
+	now := time.Now().UTC().Format(time.RFC3339Nano)
+	_, err := s.db.ExecContext(ctx,
+		`UPDATE tasks SET status = 'cancelled', updated_at = $1
+		 WHERE id = $2 AND status IN ('open', 'in_progress')`,
 		now, taskID)
 	return err
 }
 
 // Delete removes a task.
 func (s *TaskStore) Delete(ctx context.Context, taskID string) error {
-	_, err := s.db.ExecContext(ctx, s.q(
-		`DELETE FROM tasks WHERE id = ?`), taskID)
+	_, err := s.db.ExecContext(ctx,
+		`DELETE FROM tasks WHERE id = $1`, taskID)
 	return err
 }
 
 func scanTask(row scanner) (*Task, error) {
 	var t Task
-	var typ, status, priority, dataJSON, createdAtStr, updatedAtStr string
-	var dueAtStr, completedAtStr sql.NullString
+	var typ, status, priority, dataJSON string
+	var dueAt, completedAt sql.NullTime
 
 	err := row.Scan(
 		&t.ID, &t.WorkspaceID, &t.ProjectID, &t.Stream,
 		&typ, &status, &priority,
 		&t.Title, &t.Description, &t.AssigneeID, &t.CreatedBy, &t.CompletedBy,
-		&dataJSON, &dueAtStr, &createdAtStr, &updatedAtStr, &completedAtStr,
+		&dataJSON, &dueAt, &t.CreatedAt, &t.UpdatedAt, &completedAt,
 	)
 	if err != nil {
 		return nil, err
@@ -332,18 +327,14 @@ func scanTask(row scanner) (*Task, error) {
 	t.Type = TaskType(typ)
 	t.Status = TaskStatus(status)
 	t.Priority = TaskPriority(priority)
-	t.CreatedAt, _ = parseTime(createdAtStr)
-	t.UpdatedAt, _ = parseTime(updatedAtStr)
 
-	if dueAtStr.Valid && dueAtStr.String != "" {
-		if d, err := parseTime(dueAtStr.String); err == nil {
-			t.DueAt = &d
-		}
+	if dueAt.Valid {
+		d := dueAt.Time.UTC()
+		t.DueAt = &d
 	}
-	if completedAtStr.Valid && completedAtStr.String != "" {
-		if c, err := parseTime(completedAtStr.String); err == nil {
-			t.CompletedAt = &c
-		}
+	if completedAt.Valid {
+		c := completedAt.Time.UTC()
+		t.CompletedAt = &c
 	}
 	if dataJSON != "" {
 		_ = json.Unmarshal([]byte(dataJSON), &t.Data)

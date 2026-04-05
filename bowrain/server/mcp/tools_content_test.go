@@ -6,6 +6,7 @@ import (
 
 	"github.com/neokapi/neokapi/bowrain/core/store"
 	bstore "github.com/neokapi/neokapi/bowrain/store"
+	"github.com/neokapi/neokapi/bowrain/testutil/pgtest"
 	corebrand "github.com/neokapi/neokapi/core/brand"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/stretchr/testify/assert"
@@ -14,9 +15,9 @@ import (
 
 func newTestContentStore(t *testing.T) store.ContentStore {
 	t.Helper()
-	cs, err := bstore.NewSQLiteStore(":memory:")
+	db := pgtest.NewTestDB(t)
+	cs, err := bstore.NewPostgresStoreFromDB(db)
 	require.NoError(t, err)
-	t.Cleanup(func() { cs.Close() })
 	return cs
 }
 

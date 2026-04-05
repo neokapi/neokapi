@@ -5,16 +5,17 @@ import (
 
 	"github.com/neokapi/neokapi/bowrain/core/store"
 	bstore "github.com/neokapi/neokapi/bowrain/store"
+	"github.com/neokapi/neokapi/bowrain/testutil/pgtest"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-func newTestStore(t *testing.T) *bstore.SQLiteStore {
+func newTestStore(t *testing.T) *bstore.PostgresStore {
 	t.Helper()
-	s, err := bstore.NewSQLiteStore(":memory:")
+	db := pgtest.NewTestDB(t)
+	s, err := bstore.NewPostgresStoreFromDB(db)
 	require.NoError(t, err)
-	t.Cleanup(func() { s.Close() })
 	return s
 }
 

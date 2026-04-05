@@ -8,6 +8,7 @@ import (
 	platev "github.com/neokapi/neokapi/bowrain/core/event"
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
 	bstore "github.com/neokapi/neokapi/bowrain/store"
+	"github.com/neokapi/neokapi/bowrain/testutil/pgtest"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -15,15 +16,15 @@ import (
 
 func newTestRunStore(t *testing.T) *bstore.AutomationRunStore {
 	t.Helper()
-	ss, err := bstore.NewSQLiteStore(":memory:")
+	db := pgtest.NewTestDB(t)
+	ss, err := bstore.NewPostgresStoreFromDB(db)
 	require.NoError(t, err)
-	t.Cleanup(func() { ss.Close() })
 
 	// Create a project for FK.
 	p := &platstore.Project{ID: "proj-1", Name: "Test", DefaultSourceLanguage: model.LocaleID("en")}
 	require.NoError(t, ss.CreateProject(t.Context(), p))
 
-	return bstore.NewAutomationRunStore(ss.DB())
+	return bstore.NewAutomationRunStore(db.DB)
 }
 
 func TestRunManager_CreatesRunAndStep(t *testing.T) {

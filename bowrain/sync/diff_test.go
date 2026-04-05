@@ -5,16 +5,17 @@ import (
 
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
 	bstore "github.com/neokapi/neokapi/bowrain/store"
+	"github.com/neokapi/neokapi/bowrain/testutil/pgtest"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-func newTestDiffEngine(t *testing.T) (*DiffEngine, *bstore.SQLiteStore) {
+func newTestDiffEngine(t *testing.T) (*DiffEngine, *bstore.PostgresStore) {
 	t.Helper()
-	ss, err := bstore.NewSQLiteStore(":memory:")
+	db := pgtest.NewTestDB(t)
+	ss, err := bstore.NewPostgresStoreFromDB(db)
 	require.NoError(t, err)
-	t.Cleanup(func() { ss.Close() })
 	return NewDiffEngine(ss, nil), ss
 }
 

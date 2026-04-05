@@ -15,8 +15,8 @@ type RuleStore struct {
 	db *sql.DB
 }
 
-// NewPostgresRuleStore creates a new PostgreSQL-backed automation rule store.
-func NewPostgresRuleStore(db *sql.DB) *RuleStore {
+// NewRuleStore creates an automation rule store.
+func NewRuleStore(db *sql.DB) *RuleStore {
 	return &RuleStore{db: db}
 }
 

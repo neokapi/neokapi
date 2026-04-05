@@ -87,12 +87,12 @@ func runWorker(dbURL string) error {
 	}
 	var cs store.ContentStore = pgCS
 
-	pgJS, err := jobs.NewPgJobStore(pgdb)
+	pgJS, err := jobs.NewJobStore(pgdb)
 	if err != nil {
 		return fmt.Errorf("open PostgreSQL job store: %w", err)
 	}
 
-	pgQS, err := jobs.NewPgQuotaStore(pgdb)
+	pgQS, err := jobs.NewQuotaStore(pgdb)
 	if err != nil {
 		return fmt.Errorf("open PostgreSQL quota store: %w", err)
 	}
@@ -238,7 +238,7 @@ func runWorker(dbURL string) error {
 // buildAgentWorkerDeps sets up the agent worker dependencies.
 func buildAgentWorkerDeps(ctx context.Context, pgdb *storage.PgDB, serviceBusConn, azureClientID string) (*jobs.AgentWorkerDeps, func(), error) {
 	// Agent store (conversations + messages).
-	agentStore, err := agent.NewPostgresStore(pgdb)
+	agentStore, err := agent.NewStore(pgdb)
 	if err != nil {
 		return nil, nil, err
 	}

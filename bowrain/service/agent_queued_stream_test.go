@@ -9,6 +9,7 @@ import (
 	"time"
 
 	bragent "github.com/neokapi/neokapi/bowrain/agent"
+	"github.com/neokapi/neokapi/bowrain/testutil/pgtest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -174,9 +175,9 @@ func TestQueuedStream_TimeoutWritesError(t *testing.T) {
 // by checking that the non-queue paths are not taken.
 func TestQueuedStream_RoutingDecision_LocalFallback(t *testing.T) {
 	// When pool==nil and queue==nil, should route to local mode.
-	store, err := bragent.NewSQLiteStore(":memory:")
+	pgdb := pgtest.NewTestDB(t)
+	store, err := bragent.NewStore(pgdb)
 	require.NoError(t, err)
-	t.Cleanup(func() { store.Close() })
 
 	svc := NewAgentService(store, nil)
 	ctx := t.Context()
@@ -199,9 +200,9 @@ func TestQueuedStream_RoutingDecision_LocalFallback(t *testing.T) {
 // TestQueuedStream_RoutingDecision_QueueWithoutPubSub verifies that when
 // queue is set but pubsub is nil, it falls through to local mode.
 func TestQueuedStream_RoutingDecision_QueueWithoutPubSub(t *testing.T) {
-	store, err := bragent.NewSQLiteStore(":memory:")
+	pgdb := pgtest.NewTestDB(t)
+	store, err := bragent.NewStore(pgdb)
 	require.NoError(t, err)
-	t.Cleanup(func() { store.Close() })
 
 	svc := NewAgentService(store, nil)
 	svc.queue = &mockQueue{} // queue set but no pubsub
@@ -234,9 +235,9 @@ func TestQueuedStream_EnqueueError(t *testing.T) {
 // user message is persisted before the job is enqueued. We check this
 // by verifying SendMessageStream persists the user message even in local mode.
 func TestQueuedStream_UserMessagePersistedBeforeEnqueue(t *testing.T) {
-	store, err := bragent.NewSQLiteStore(":memory:")
+	pgdb := pgtest.NewTestDB(t)
+	store, err := bragent.NewStore(pgdb)
 	require.NoError(t, err)
-	t.Cleanup(func() { store.Close() })
 
 	svc := NewAgentService(store, nil)
 	ctx := t.Context()

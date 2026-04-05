@@ -11,6 +11,7 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/neokapi/neokapi/bowrain/auth"
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
+	"github.com/neokapi/neokapi/bowrain/testutil/pgtest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -84,7 +85,8 @@ func TestAuthMiddleware(t *testing.T) {
 }
 
 func TestAuthMiddleware_APIToken(t *testing.T) {
-	store, err := auth.NewSQLiteAuthStore(":memory:")
+	db := pgtest.NewTestDB(t)
+	store, err := auth.NewAuthStoreFromDB(db)
 	require.NoError(t, err)
 	defer store.Close()
 
@@ -175,7 +177,8 @@ func TestAuthMiddleware_APIToken(t *testing.T) {
 }
 
 func TestProjectAccessMiddleware(t *testing.T) {
-	store, err := auth.NewSQLiteAuthStore(":memory:")
+	db := pgtest.NewTestDB(t)
+	store, err := auth.NewAuthStoreFromDB(db)
 	require.NoError(t, err)
 	defer store.Close()
 

@@ -1,4 +1,4 @@
-package store
+package sqlitestore
 
 import (
 	"context"
@@ -10,7 +10,7 @@ import (
 )
 
 // AddBlockNote inserts a new block note.
-func (s *PostgresStore) AddBlockNote(ctx context.Context, projectID, stream, blockID string, note model.BlockNote) error {
+func (s *SQLiteStore) AddBlockNote(ctx context.Context, projectID, stream, blockID string, note model.BlockNote) error {
 	stream = defaultStream(stream)
 	if note.ID == "" {
 		note.ID = id.New()
@@ -21,8 +21,8 @@ func (s *PostgresStore) AddBlockNote(ctx context.Context, projectID, stream, blo
 
 	_, err := s.db.ExecContext(ctx,
 		`INSERT INTO block_notes (id, project_id, stream, block_id, author, text, created_at)
-		 VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-		note.ID, projectID, stream, blockID, note.Author, note.Text, note.CreatedAt)
+		 VALUES (?, ?, ?, ?, ?, ?, ?)`,
+		note.ID, projectID, stream, blockID, note.Author, note.Text, note.CreatedAt.Format(time.RFC3339))
 	if err != nil {
 		return fmt.Errorf("insert block note: %w", err)
 	}
@@ -30,12 +30,12 @@ func (s *PostgresStore) AddBlockNote(ctx context.Context, projectID, stream, blo
 }
 
 // ListBlockNotes returns all notes for a block, ordered by creation time.
-func (s *PostgresStore) ListBlockNotes(ctx context.Context, projectID, stream, blockID string) ([]model.BlockNote, error) {
+func (s *SQLiteStore) ListBlockNotes(ctx context.Context, projectID, stream, blockID string) ([]model.BlockNote, error) {
 	stream = defaultStream(stream)
 	rows, err := s.db.QueryContext(ctx,
 		`SELECT id, block_id, author, text, created_at
 		 FROM block_notes
-		 WHERE project_id = $1 AND stream = $2 AND block_id = $3
+		 WHERE project_id = ? AND stream = ? AND block_id = ?
 		 ORDER BY created_at ASC`,
 		projectID, stream, blockID)
 	if err != nil {
@@ -46,8 +46,13 @@ func (s *PostgresStore) ListBlockNotes(ctx context.Context, projectID, stream, b
 	var notes []model.BlockNote
 	for rows.Next() {
 		var n model.BlockNote
-		if err := rows.Scan(&n.ID, &n.BlockID, &n.Author, &n.Text, &n.CreatedAt); err != nil {
+		var createdStr string
+		if err := rows.Scan(&n.ID, &n.BlockID, &n.Author, &n.Text, &createdStr); err != nil {
 			return nil, fmt.Errorf("scan block note: %w", err)
+		}
+		n.CreatedAt, _ = time.Parse(time.RFC3339, createdStr)
+		if n.CreatedAt.IsZero() {
+			n.CreatedAt, _ = time.Parse("2006-01-02 15:04:05", createdStr)
 		}
 		notes = append(notes, n)
 	}
@@ -62,10 +67,10 @@ func (s *PostgresStore) ListBlockNotes(ctx context.Context, projectID, stream, b
 }
 
 // DeleteBlockNote removes a block note by ID.
-func (s *PostgresStore) DeleteBlockNote(ctx context.Context, projectID, stream, noteID string) error {
+func (s *SQLiteStore) DeleteBlockNote(ctx context.Context, projectID, stream, noteID string) error {
 	stream = defaultStream(stream)
 	res, err := s.db.ExecContext(ctx,
-		`DELETE FROM block_notes WHERE project_id = $1 AND stream = $2 AND id = $3`,
+		`DELETE FROM block_notes WHERE project_id = ? AND stream = ? AND id = ?`,
 		projectID, stream, noteID)
 	if err != nil {
 		return fmt.Errorf("delete block note: %w", err)

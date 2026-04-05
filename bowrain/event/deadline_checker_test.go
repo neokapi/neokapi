@@ -5,16 +5,17 @@ import (
 	"time"
 
 	bstore "github.com/neokapi/neokapi/bowrain/store"
+	"github.com/neokapi/neokapi/bowrain/testutil/pgtest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 func newTestTaskStore(t *testing.T) *bstore.TaskStore {
 	t.Helper()
-	s, err := bstore.NewSQLiteStore(":memory:")
+	db := pgtest.NewTestDB(t)
+	_, err := bstore.NewPostgresStoreFromDB(db)
 	require.NoError(t, err)
-	t.Cleanup(func() { s.Close() })
-	return bstore.NewTaskStore(s.DB())
+	return bstore.NewTaskStore(db.DB)
 }
 
 func newTestDispatcher(t *testing.T) (*NotificationDispatcher, *bstore.NotificationStore, *mockSender) {

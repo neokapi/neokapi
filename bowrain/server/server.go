@@ -324,14 +324,14 @@ func NewServer(cfg Config) *Server {
 			s.wsStores.pgDB = pg.DB
 			pgSQL := pg.DB.DB // embedded *sql.DB
 			s.AuditLogger = event.NewAuditLogger(pgSQL, s.EventBus)
-			s.AutomationRuleStore = event.NewPostgresRuleStore(pgSQL)
-			s.ReviewQueueStore = bstore.NewPostgresReviewQueueStore(pgSQL)
-			s.NotificationStore = bstore.NewPostgresNotificationStore(pgSQL)
-			s.ActivityStore = bstore.NewPostgresActivityStore(pgSQL)
-			s.TaskStore = bstore.NewPostgresTaskStore(pgSQL)
-			s.AutomationRunStore = bstore.NewAutomationRunStorePg(pgSQL)
-			s.PreferenceStore = bstore.NewPostgresPreferenceStore(pgSQL)
-			s.DigestStore = bstore.NewPostgresDigestStore(pgSQL)
+			s.AutomationRuleStore = event.NewRuleStore(pgSQL)
+			s.ReviewQueueStore = bstore.NewReviewQueueStore(pgSQL)
+			s.NotificationStore = bstore.NewNotificationStore(pgSQL)
+			s.ActivityStore = bstore.NewActivityStore(pgSQL)
+			s.TaskStore = bstore.NewTaskStore(pgSQL)
+			s.AutomationRunStore = bstore.NewAutomationRunStore(pgSQL)
+			s.PreferenceStore = bstore.NewPreferenceStore(pgSQL)
+			s.DigestStore = bstore.NewDigestStore(pgSQL)
 			s.BrandStore = pg.Brand
 			s.GraphStore = pg.GraphStore
 			s.AgentStore = pg.Agent
@@ -468,7 +468,7 @@ func NewServer(cfg Config) *Server {
 		if s.BillingHooks != nil {
 			s.stepCompletionTracker.SetBillingHooks(s.BillingHooks)
 		}
-		if pgQuota, ok := s.QuotaStore.(*jobs.PgQuotaStore); ok {
+		if pgQuota, ok := s.QuotaStore.(*jobs.QuotaStoreDB); ok {
 			s.stepCompletionTracker.SetQuotaStore(pgQuota)
 		}
 	}

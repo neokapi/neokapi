@@ -173,7 +173,7 @@ func TestGetChanges_MultiLocaleFilter(t *testing.T) {
 	insertTarget := func(locale string) {
 		_, err := s.db.ExecContext(ctx,
 			`INSERT INTO change_log (project_id, block_id, change_type, locale, content_hash, logged_at)
-			 VALUES (?, ?, ?, ?, ?, ?)`,
+			 VALUES ($1, $2, $3, $4, $5, $6)`,
 			p.ID, "b1", "target_added", sql.NullString{String: locale, Valid: true}, "hash-"+locale, now)
 		require.NoError(t, err)
 	}

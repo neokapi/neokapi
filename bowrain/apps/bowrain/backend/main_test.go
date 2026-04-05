@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/neokapi/neokapi/bowrain/store"
+	"github.com/neokapi/neokapi/bowrain/store/sqlitestore"
 	"github.com/neokapi/neokapi/termbase"
 )
 
@@ -26,7 +26,7 @@ func TestMain(m *testing.M) {
 // suitable for a single test.
 func newTestApp(t *testing.T) *App {
 	t.Helper()
-	cs, err := store.NewSQLiteStore(":memory:")
+	cs, err := sqlitestore.NewSQLiteStore(":memory:")
 	if err != nil {
 		t.Fatalf("create in-memory store: %v", err)
 	}

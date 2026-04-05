@@ -104,22 +104,12 @@ type ActivityResult struct {
 
 // ActivityStore persists activities.
 type ActivityStore struct {
-	db      *sql.DB
-	dialect Dialect
+	db *sql.DB
 }
 
-// NewActivityStore creates a SQLite-backed activity store.
+// NewActivityStore creates a PostgreSQL-backed activity store.
 func NewActivityStore(db *sql.DB) *ActivityStore {
-	return &ActivityStore{db: db, dialect: DialectSQLite}
-}
-
-// NewPostgresActivityStore creates a PostgreSQL-backed activity store.
-func NewPostgresActivityStore(db *sql.DB) *ActivityStore {
-	return &ActivityStore{db: db, dialect: DialectPostgres}
-}
-
-func (s *ActivityStore) q(query string) string {
-	return Rebind(s.dialect, query)
+	return &ActivityStore{db: db}
 }
 
 // Create inserts a new activity.
@@ -139,10 +129,10 @@ func (s *ActivityStore) Create(ctx context.Context, a *Activity) error {
 		dataJSON = []byte("{}")
 	}
 
-	_, err = s.db.ExecContext(ctx, s.q(
+	_, err = s.db.ExecContext(ctx,
 		`INSERT INTO activities (id, workspace_id, project_id, stream, actor_id, actor_name,
 		 type, entity_type, entity_id, summary, data, created_at)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`),
+		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
 		a.ID, a.WorkspaceID, a.ProjectID, a.Stream, a.ActorID, a.ActorName,
 		string(a.Type), a.EntityType, a.EntityID, a.Summary,
 		string(dataJSON), a.CreatedAt.UTC().Format(time.RFC3339))
@@ -157,33 +147,35 @@ func (s *ActivityStore) List(ctx context.Context, q ActivityQuery) (*ActivityRes
 
 	var where []string
 	var args []any
+	n := 0
+	ph := func() string { n++; return fmt.Sprintf("$%d", n) }
 
 	if q.WorkspaceID != "" {
-		where = append(where, "workspace_id = ?")
+		where = append(where, "workspace_id = "+ph())
 		args = append(args, q.WorkspaceID)
 	}
 	if q.ProjectID != "" {
-		where = append(where, "project_id = ?")
+		where = append(where, "project_id = "+ph())
 		args = append(args, q.ProjectID)
 	}
 	if q.Stream != "" {
-		where = append(where, "stream = ?")
+		where = append(where, "stream = "+ph())
 		args = append(args, q.Stream)
 	}
 	if q.ActorID != "" {
-		where = append(where, "actor_id = ?")
+		where = append(where, "actor_id = "+ph())
 		args = append(args, q.ActorID)
 	}
 	if q.Type != "" {
-		where = append(where, "type LIKE ?")
+		where = append(where, "type LIKE "+ph())
 		args = append(args, q.Type+"%")
 	}
 	if !q.Since.IsZero() {
-		where = append(where, "created_at > ?")
+		where = append(where, "created_at > "+ph())
 		args = append(args, q.Since.UTC().Format(time.RFC3339))
 	}
 	if q.Cursor != "" {
-		where = append(where, "created_at < ?")
+		where = append(where, "created_at < "+ph())
 		args = append(args, q.Cursor)
 	}
 
@@ -195,10 +187,10 @@ func (s *ActivityStore) List(ctx context.Context, q ActivityQuery) (*ActivityRes
 	query := fmt.Sprintf(
 		`SELECT id, workspace_id, project_id, stream, actor_id, actor_name,
 		 type, entity_type, entity_id, summary, data, created_at
-		 FROM activities %s ORDER BY created_at DESC LIMIT ?`, whereClause)
+		 FROM activities %s ORDER BY created_at DESC LIMIT %s`, whereClause, ph())
 	args = append(args, q.Limit+1)
 
-	rows, err := s.db.QueryContext(ctx, s.q(query), args...)
+	rows, err := s.db.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -229,20 +221,11 @@ func (s *ActivityStore) List(ctx context.Context, q ActivityQuery) (*ActivityRes
 
 // DailyCounts returns activity counts per day for a workspace since the given time.
 func (s *ActivityStore) DailyCounts(ctx context.Context, workspaceID string, since time.Time) ([]DailyCount, error) {
-	var dateFn string
-	switch s.dialect {
-	case DialectPostgres:
-		dateFn = "DATE(created_at)"
-	default:
-		dateFn = "DATE(created_at)"
-	}
+	query := `SELECT DATE(created_at) AS day, COUNT(*) AS cnt FROM activities
+		 WHERE workspace_id = $1 AND created_at > $2
+		 GROUP BY day ORDER BY day`
 
-	query := fmt.Sprintf(
-		`SELECT %s AS day, COUNT(*) AS cnt FROM activities
-		 WHERE workspace_id = ? AND created_at > ?
-		 GROUP BY day ORDER BY day`, dateFn)
-
-	rows, err := s.db.QueryContext(ctx, s.q(query),
+	rows, err := s.db.QueryContext(ctx, query,
 		workspaceID, since.UTC().Format(time.RFC3339))
 	if err != nil {
 		return nil, err
@@ -268,19 +251,18 @@ type DailyCount struct {
 
 func scanActivity(row scanner) (*Activity, error) {
 	var a Activity
-	var typ, dataJSON, createdAt string
+	var typ, dataJSON string
 
 	err := row.Scan(
 		&a.ID, &a.WorkspaceID, &a.ProjectID, &a.Stream,
 		&a.ActorID, &a.ActorName, &typ, &a.EntityType,
-		&a.EntityID, &a.Summary, &dataJSON, &createdAt,
+		&a.EntityID, &a.Summary, &dataJSON, &a.CreatedAt,
 	)
 	if err != nil {
 		return nil, err
 	}
 
 	a.Type = ActivityType(typ)
-	a.CreatedAt, _ = parseTime(createdAt)
 	if dataJSON != "" {
 		_ = json.Unmarshal([]byte(dataJSON), &a.Data)
 	}
@@ -294,38 +276,23 @@ func scanActivity(row scanner) (*Activity, error) {
 // GetActivitySeenAt returns when the user last viewed the activity feed.
 // Returns zero time if never viewed.
 func (s *ActivityStore) GetActivitySeenAt(ctx context.Context, userID, workspaceID string) (time.Time, error) {
-	var ts string
+	var t time.Time
 	err := s.db.QueryRowContext(ctx,
-		s.q(`SELECT last_seen_at FROM activity_state WHERE user_id = ? AND workspace_id = ?`),
-		userID, workspaceID).Scan(&ts)
+		`SELECT last_seen_at FROM activity_state WHERE user_id = $1 AND workspace_id = $2`,
+		userID, workspaceID).Scan(&t)
 	if err != nil {
 		return time.Time{}, nil // never seen
 	}
-	t, _ := parseTime(ts)
-	return t, nil
+	return t.UTC(), nil
 }
 
 // SetActivitySeenAt records when the user last viewed the activity feed.
 func (s *ActivityStore) SetActivitySeenAt(ctx context.Context, userID, workspaceID string, seenAt time.Time) error {
-	var tsVal string
-	if s.dialect == DialectPostgres {
-		tsVal = seenAt.UTC().Format(time.RFC3339Nano)
-	} else {
-		tsVal = seenAt.UTC().Format(time.RFC3339)
-	}
-
-	if s.dialect == DialectPostgres {
-		_, err := s.db.ExecContext(ctx,
-			`INSERT INTO activity_state (user_id, workspace_id, last_seen_at)
-			 VALUES ($1, $2, $3)
-			 ON CONFLICT (user_id, workspace_id) DO UPDATE SET last_seen_at = $3`,
-			userID, workspaceID, tsVal)
-		return err
-	}
+	tsVal := seenAt.UTC().Format(time.RFC3339Nano)
 	_, err := s.db.ExecContext(ctx,
 		`INSERT INTO activity_state (user_id, workspace_id, last_seen_at)
-		 VALUES (?, ?, ?)
-		 ON CONFLICT (user_id, workspace_id) DO UPDATE SET last_seen_at = excluded.last_seen_at`,
+		 VALUES ($1, $2, $3)
+		 ON CONFLICT (user_id, workspace_id) DO UPDATE SET last_seen_at = $3`,
 		userID, workspaceID, tsVal)
 	return err
 }
@@ -333,19 +300,14 @@ func (s *ActivityStore) SetActivitySeenAt(ctx context.Context, userID, workspace
 // CountNewActivities returns the number of activities newer than the user's last seen timestamp.
 func (s *ActivityStore) CountNewActivities(ctx context.Context, userID, workspaceID string) (int, error) {
 	seenAt, _ := s.GetActivitySeenAt(ctx, userID, workspaceID)
-	var tsVal string
 	if seenAt.IsZero() {
 		return 0, nil // never viewed = no indicator (avoid showing dot on first visit)
 	}
-	if s.dialect == DialectPostgres {
-		tsVal = seenAt.UTC().Format(time.RFC3339Nano)
-	} else {
-		tsVal = seenAt.UTC().Format(time.RFC3339)
-	}
+	tsVal := seenAt.UTC().Format(time.RFC3339Nano)
 
 	var count int
 	err := s.db.QueryRowContext(ctx,
-		s.q(`SELECT COUNT(*) FROM activities WHERE workspace_id = ? AND created_at > ?`),
+		`SELECT COUNT(*) FROM activities WHERE workspace_id = $1 AND created_at > $2`,
 		workspaceID, tsVal).Scan(&count)
 	return count, err
 }

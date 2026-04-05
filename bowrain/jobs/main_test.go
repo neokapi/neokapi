@@ -9,8 +9,7 @@ import (
 func TestMain(m *testing.M) {
 	goleak.VerifyTestMain(m,
 		// database/sql starts a background goroutine for each DB connection pool
-		// that is only cleaned up when DB.Close() is called. Test helpers that open
-		// in-memory SQLite databases may not always close them explicitly.
+		// that is only cleaned up when DB.Close() is called.
 		goleak.IgnoreTopFunction("database/sql.(*DB).connectionOpener"),
 	)
 }

@@ -48,8 +48,8 @@ type UsageSummary struct {
 // DefaultMonthlyQuota is the default token quota per workspace per month.
 const DefaultMonthlyQuota int64 = 10_000_000 // 10M tokens
 
-// pgQuotaMigrations defines the schema for AI usage tracking.
-var pgQuotaMigrations = []storage.Migration{
+// quotaMigrations defines the schema for AI usage tracking.
+var quotaMigrations = []storage.Migration{
 	{
 		Version:     1,
 		Description: "create ai_usage table",
@@ -96,24 +96,26 @@ var pgQuotaMigrations = []storage.Migration{
 	},
 }
 
-// PgQuotaStore implements QuotaStore using PostgreSQL.
-type PgQuotaStore struct {
+// QuotaStoreDB implements QuotaStore using PostgreSQL.
+// Exported because callers use the concrete type for additional methods
+// beyond the QuotaStore interface (e.g., GetUsageByModel, RecordRunnerUsage).
+type QuotaStoreDB struct {
 	db *storage.PgDB
 }
 
-// NewPgQuotaStore creates a PostgreSQL-backed QuotaStore.
-func NewPgQuotaStore(db *storage.PgDB) (*PgQuotaStore, error) {
-	if err := storage.MigratePostgresNS(db, "quota_schema_migrations", pgQuotaMigrations); err != nil {
+// NewQuotaStore creates a PostgreSQL-backed QuotaStore.
+func NewQuotaStore(db *storage.PgDB) (*QuotaStoreDB, error) {
+	if err := storage.MigratePostgresNS(db, "quota_schema_migrations", quotaMigrations); err != nil {
 		return nil, fmt.Errorf("migrate quota schema: %w", err)
 	}
-	s := &PgQuotaStore{db: db}
+	s := &QuotaStoreDB{db: db}
 	if err := s.initRunnerSchema(); err != nil {
 		return nil, fmt.Errorf("migrate runner schema: %w", err)
 	}
 	return s, nil
 }
 
-func (s *PgQuotaStore) CheckQuota(ctx context.Context, workspaceSlug string) (int64, error) {
+func (s *QuotaStoreDB) CheckQuota(ctx context.Context, workspaceSlug string) (int64, error) {
 	// Get the quota limit (use default if not set).
 	var limit int64
 	err := s.db.QueryRowContext(ctx,
@@ -139,7 +141,7 @@ func (s *PgQuotaStore) CheckQuota(ctx context.Context, workspaceSlug string) (in
 	return limit - used, nil
 }
 
-func (s *PgQuotaStore) RecordUsage(ctx context.Context, usage AIUsageRecord) error {
+func (s *QuotaStoreDB) RecordUsage(ctx context.Context, usage AIUsageRecord) error {
 	_, err := s.db.ExecContext(ctx,
 		`INSERT INTO ai_usage
 			(workspace_slug, workspace_id, project_id, job_id, model, operation, prompt_tokens, output_tokens, total_tokens)
@@ -152,7 +154,7 @@ func (s *PgQuotaStore) RecordUsage(ctx context.Context, usage AIUsageRecord) err
 	return nil
 }
 
-func (s *PgQuotaStore) GetUsageSummary(ctx context.Context, workspaceSlug string) (*UsageSummary, error) {
+func (s *QuotaStoreDB) GetUsageSummary(ctx context.Context, workspaceSlug string) (*UsageSummary, error) {
 	var limit int64
 	err := s.db.QueryRowContext(ctx,
 		`SELECT monthly_limit FROM ai_quotas WHERE workspace_slug = $1`,
@@ -194,7 +196,7 @@ type ModelUsage struct {
 
 // GetUsageByModel returns token usage grouped by model and operation for a workspace.
 // Uses workspace_id (aligned with billing system) with fallback to workspace_slug.
-func (s *PgQuotaStore) GetUsageByModel(ctx context.Context, workspaceID string, from, to time.Time) ([]ModelUsage, error) {
+func (s *QuotaStoreDB) GetUsageByModel(ctx context.Context, workspaceID string, from, to time.Time) ([]ModelUsage, error) {
 	rows, err := s.db.QueryContext(ctx,
 		`SELECT model, operation,
 			COALESCE(SUM(prompt_tokens), 0),
@@ -231,8 +233,8 @@ type RunnerUsageRecord struct {
 	ReferenceID string  // step ID, conversation ID, etc.
 }
 
-// pgRunnerMigrations extends the quota schema with runner usage.
-var pgRunnerMigrations = []storage.Migration{
+// runnerMigrations extends the quota schema with runner usage.
+var runnerMigrations = []storage.Migration{
 	{
 		Version:     1,
 		Description: "create runner_usage table",
@@ -253,12 +255,12 @@ var pgRunnerMigrations = []storage.Migration{
 }
 
 // initRunnerSchema runs runner_usage migrations (separate namespace from ai_usage).
-func (s *PgQuotaStore) initRunnerSchema() error {
-	return storage.MigratePostgresNS(s.db, "runner_schema_migrations", pgRunnerMigrations)
+func (s *QuotaStoreDB) initRunnerSchema() error {
+	return storage.MigratePostgresNS(s.db, "runner_schema_migrations", runnerMigrations)
 }
 
 // RecordRunnerUsage records a runner/container duration.
-func (s *PgQuotaStore) RecordRunnerUsage(ctx context.Context, usage RunnerUsageRecord) error {
+func (s *QuotaStoreDB) RecordRunnerUsage(ctx context.Context, usage RunnerUsageRecord) error {
 	_, err := s.db.ExecContext(ctx,
 		`INSERT INTO runner_usage
 			(workspace_id, project_id, operation, duration_sec, reference_id)
@@ -278,7 +280,7 @@ type RunnerUsageSummary struct {
 }
 
 // GetRunnerUsage returns runner time grouped by operation for a workspace.
-func (s *PgQuotaStore) GetRunnerUsage(ctx context.Context, workspaceID string, from, to time.Time) ([]RunnerUsageSummary, error) {
+func (s *QuotaStoreDB) GetRunnerUsage(ctx context.Context, workspaceID string, from, to time.Time) ([]RunnerUsageSummary, error) {
 	rows, err := s.db.QueryContext(ctx,
 		`SELECT operation,
 			COALESCE(SUM(duration_sec), 0),

@@ -21,7 +21,7 @@ type AgentWorkerDeps struct {
 	PubSub       *service.AgentPubSub // Redis pub/sub for SSE relay
 	JWTSecret    string               // Bowrain JWT secret for creating MCP auth tokens
 	BillingHooks *billing.UsageHooks  // optional; nil disables billing credit deduction
-	QuotaStore   *PgQuotaStore        // optional; nil disables runner usage recording
+	QuotaStore   *QuotaStoreDB        // optional; nil disables runner usage recording
 }
 
 // RunAgentWorker runs the agent job processing loop.

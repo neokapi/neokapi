@@ -33,8 +33,8 @@ func newWorkflowTestServer(t *testing.T) (*Server, string, string) {
 	t.Cleanup(func() { bus.Close() })
 	srv.EventBus = bus
 
-	sqliteStore := srv.ContentStore.(*bstore.SQLiteStore)
-	srv.TaskStore = bstore.NewTaskStore(sqliteStore.DB())
+	pgStore := srv.ContentStore.(*bstore.PostgresStore)
+	srv.TaskStore = bstore.NewTaskStore(pgStore.SQLDB())
 
 	// Create user and workspace.
 	user := &platauth.User{ID: "admin-1", Email: "admin@test.com", Name: "Admin"}

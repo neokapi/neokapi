@@ -26,7 +26,7 @@ func NewPostgresStore(connStr string) (*PostgresStore, error) {
 	if err != nil {
 		return nil, fmt.Errorf("open store database: %w", err)
 	}
-	if err := storage.MigratePostgresNS(db, "store_schema_migrations", storeMigrationsPg); err != nil {
+	if err := storage.MigratePostgresNS(db, "store_schema_migrations", storeMigrations); err != nil {
 		db.Close()
 		return nil, fmt.Errorf("migrate store schema: %w", err)
 	}
@@ -35,10 +35,15 @@ func NewPostgresStore(connStr string) (*PostgresStore, error) {
 
 // NewPostgresStoreFromDB wraps an existing PgDB for content store use.
 func NewPostgresStoreFromDB(db *storage.PgDB) (*PostgresStore, error) {
-	if err := storage.MigratePostgresNS(db, "store_schema_migrations", storeMigrationsPg); err != nil {
+	if err := storage.MigratePostgresNS(db, "store_schema_migrations", storeMigrations); err != nil {
 		return nil, fmt.Errorf("migrate store schema: %w", err)
 	}
 	return &PostgresStore{db: db}, nil
+}
+
+// SQLDB returns the underlying *sql.DB for sharing with subsystem stores.
+func (s *PostgresStore) SQLDB() *sql.DB {
+	return s.db.DB
 }
 
 // Close closes the underlying database.
@@ -85,7 +90,7 @@ func (s *PostgresStore) GetProject(ctx context.Context, id string) (*platstore.P
 	row := s.db.QueryRowContext(ctx,
 		`SELECT id, name, default_source_language, target_languages, target_language_mode, default_stream, dashboard_visibility, properties, workspace_id, archived, archived_at, created_at, updated_at
 		 FROM projects WHERE id = $1`, id)
-	return scanProjectPg(row)
+	return scanProject(row)
 }
 
 func (s *PostgresStore) ListProjects(ctx context.Context) ([]*platstore.Project, error) {
@@ -99,7 +104,7 @@ func (s *PostgresStore) ListProjects(ctx context.Context) ([]*platstore.Project,
 
 	result := make([]*platstore.Project, 0)
 	for rows.Next() {
-		p, err := scanProjectPg(rows)
+		p, err := scanProject(rows)
 		if err != nil {
 			return nil, err
 		}
@@ -187,7 +192,7 @@ func (s *PostgresStore) ListArchivedProjects(ctx context.Context, workspaceID st
 	defer rows.Close()
 	result := make([]*platstore.Project, 0)
 	for rows.Next() {
-		p, err := scanProjectPg(rows)
+		p, err := scanProject(rows)
 		if err != nil {
 			return nil, err
 		}
@@ -592,17 +597,17 @@ func (s *PostgresStore) storeBlocks(ctx context.Context, projectID, stream, item
 		}
 
 		if isNew {
-			if err := logChangePg(ctx, tx, projectID, stream, internalID, "source_added", "", identity.ContentHash); err != nil {
+			if err := logChange(ctx, tx, projectID, stream, internalID, "source_added", "", identity.ContentHash); err != nil {
 				return fmt.Errorf("log change for block %s: %w", internalID, err)
 			}
 			for locale := range b.Targets {
-				if err := logChangePg(ctx, tx, projectID, stream, internalID, "target_added", string(locale), ""); err != nil {
+				if err := logChange(ctx, tx, projectID, stream, internalID, "target_added", string(locale), ""); err != nil {
 					return fmt.Errorf("log target change for block %s locale %s: %w", internalID, locale, err)
 				}
 			}
 		} else {
 			if existingHash != identity.ContentHash {
-				if err := logChangePg(ctx, tx, projectID, stream, internalID, "source_modified", "", identity.ContentHash); err != nil {
+				if err := logChange(ctx, tx, projectID, stream, internalID, "source_modified", "", identity.ContentHash); err != nil {
 					return fmt.Errorf("log change for block %s: %w", internalID, err)
 				}
 			}
@@ -614,14 +619,14 @@ func (s *PostgresStore) storeBlocks(ctx context.Context, projectID, stream, item
 				for locale, newSegs := range b.Targets {
 					oldSegs, had := oldTargets[locale]
 					if !had {
-						if err := logChangePg(ctx, tx, projectID, stream, internalID, "target_added", string(locale), ""); err != nil {
+						if err := logChange(ctx, tx, projectID, stream, internalID, "target_added", string(locale), ""); err != nil {
 							return fmt.Errorf("log target change for block %s locale %s: %w", internalID, locale, err)
 						}
 					} else {
 						oldJSON, _ := json.Marshal(oldSegs)
 						newJSON, _ := json.Marshal(newSegs)
 						if string(oldJSON) != string(newJSON) {
-							if err := logChangePg(ctx, tx, projectID, stream, internalID, "target_modified", string(locale), ""); err != nil {
+							if err := logChange(ctx, tx, projectID, stream, internalID, "target_modified", string(locale), ""); err != nil {
 								return fmt.Errorf("log target change for block %s locale %s: %w", internalID, locale, err)
 							}
 						}
@@ -778,7 +783,7 @@ func (s *PostgresStore) DeleteBlock(ctx context.Context, projectID, stream, bloc
 		return fmt.Errorf("block %s not found in project %s", blockID, projectID)
 	}
 
-	if err := logChangePg(ctx, tx, projectID, stream, blockID, "source_removed", "", ""); err != nil {
+	if err := logChange(ctx, tx, projectID, stream, blockID, "source_removed", "", ""); err != nil {
 		return fmt.Errorf("log change for deleted block %s: %w", blockID, err)
 	}
 
@@ -911,7 +916,7 @@ func (s *PostgresStore) Diff(ctx context.Context, fromVersionID, toVersionID str
 // Scan helpers (PostgreSQL — uses time.Time directly for TIMESTAMPTZ)
 // ---------------------------------------------------------------------------
 
-func scanProjectPg(row scanner) (*platstore.Project, error) {
+func scanProject(row scanner) (*platstore.Project, error) {
 	var p platstore.Project
 	var srcLocale, targetLocales, propsJSON string
 	err := row.Scan(&p.ID, &p.Name, &srcLocale, &targetLocales, &p.TargetLanguageMode, &p.DefaultStream, &p.DashboardVisibility, &propsJSON, &p.WorkspaceID,
@@ -991,8 +996,8 @@ func queryVersionBlocks(ctx context.Context, db *sql.DB, versionID string) (map[
 	return result, rows.Err()
 }
 
-// logChangePg inserts a single change log entry within a PostgreSQL transaction.
-func logChangePg(ctx context.Context, tx *sql.Tx, projectID, stream, blockID, changeType, locale, contentHash string) error {
+// logChange inserts a single change log entry within a PostgreSQL transaction.
+func logChange(ctx context.Context, tx *sql.Tx, projectID, stream, blockID, changeType, locale, contentHash string) error {
 	stream = defaultStream(stream)
 	now := time.Now().UTC()
 	var localeVal any
@@ -1074,7 +1079,7 @@ func (s *PostgresStore) StoreAsset(ctx context.Context, projectID, stream string
 	if existingID != "" {
 		assetID = existingID
 	}
-	if err := logChangePg(ctx, tx, projectID, stream, assetID, changeType, "", asset.BlobKey); err != nil {
+	if err := logChange(ctx, tx, projectID, stream, assetID, changeType, "", asset.BlobKey); err != nil {
 		return fmt.Errorf("log asset change: %w", err)
 	}
 
@@ -1087,7 +1092,7 @@ func (s *PostgresStore) GetAsset(ctx context.Context, projectID, stream, assetID
 		`SELECT id, project_id, item_name, source_id, blob_key, mime_type, filename,
 			size_bytes, alt_text, properties, processing_status, processing_hint, stream, created_at, updated_at
 		 FROM assets WHERE project_id=$1 AND stream=$2 AND id=$3`, projectID, stream, assetID)
-	return scanAssetPg(row)
+	return scanAsset(row)
 }
 
 func (s *PostgresStore) ListAssets(ctx context.Context, projectID, stream, itemName string) ([]*platstore.Asset, error) {
@@ -1112,7 +1117,7 @@ func (s *PostgresStore) ListAssets(ctx context.Context, projectID, stream, itemN
 
 	var result []*platstore.Asset
 	for rows.Next() {
-		a, err := scanAssetPg(rows)
+		a, err := scanAsset(rows)
 		if err != nil {
 			return nil, err
 		}
@@ -1139,18 +1144,18 @@ func (s *PostgresStore) DeleteAsset(ctx context.Context, projectID, stream, asse
 		return fmt.Errorf("asset %q not found", assetID)
 	}
 
-	if err := logChangePg(ctx, tx, projectID, stream, assetID, "asset_removed", "", ""); err != nil {
+	if err := logChange(ctx, tx, projectID, stream, assetID, "asset_removed", "", ""); err != nil {
 		return fmt.Errorf("log asset removal: %w", err)
 	}
 
 	return tx.Commit()
 }
 
-type pgAssetScanner interface {
+type assetScanner interface {
 	Scan(dest ...any) error
 }
 
-func scanAssetPg(row pgAssetScanner) (*platstore.Asset, error) {
+func scanAsset(row assetScanner) (*platstore.Asset, error) {
 	var a platstore.Asset
 	var propsJSON string
 	err := row.Scan(&a.ID, &a.ProjectID, &a.ItemName, &a.SourceID, &a.BlobKey, &a.MimeType,
@@ -1218,7 +1223,7 @@ func (s *PostgresStore) StoreAssetVariant(ctx context.Context, projectID string,
 		if variant.Status == "approved" && existingKey != "" {
 			changeType = "variant_approved"
 		}
-		_ = logChangePg(ctx, tx, assetProjectID, assetStream, variant.AssetID, changeType, variant.Locale, variant.BlobKey)
+		_ = logChange(ctx, tx, assetProjectID, assetStream, variant.AssetID, changeType, variant.Locale, variant.BlobKey)
 	}
 
 	return tx.Commit()
@@ -1228,7 +1233,7 @@ func (s *PostgresStore) GetAssetVariant(ctx context.Context, _, assetID, locale 
 	row := s.db.QueryRowContext(ctx,
 		`SELECT asset_id, locale, blob_key, status, mime_type, size_bytes, properties, created_at, updated_at
 		 FROM asset_variants WHERE asset_id=$1 AND locale=$2`, assetID, locale)
-	return scanAssetVariantPg(row)
+	return scanAssetVariant(row)
 }
 
 func (s *PostgresStore) ListAssetVariants(ctx context.Context, _, assetID string) ([]*platstore.AssetVariant, error) {
@@ -1242,7 +1247,7 @@ func (s *PostgresStore) ListAssetVariants(ctx context.Context, _, assetID string
 
 	var result []*platstore.AssetVariant
 	for rows.Next() {
-		v, err := scanAssetVariantPg(rows)
+		v, err := scanAssetVariant(rows)
 		if err != nil {
 			return nil, err
 		}
@@ -1251,7 +1256,7 @@ func (s *PostgresStore) ListAssetVariants(ctx context.Context, _, assetID string
 	return result, rows.Err()
 }
 
-func scanAssetVariantPg(row pgAssetScanner) (*platstore.AssetVariant, error) {
+func scanAssetVariant(row assetScanner) (*platstore.AssetVariant, error) {
 	var v platstore.AssetVariant
 	var propsJSON string
 	err := row.Scan(&v.AssetID, &v.Locale, &v.BlobKey, &v.Status, &v.MimeType,

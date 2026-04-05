@@ -4,16 +4,17 @@ import (
 	"testing"
 	"time"
 
+	"github.com/neokapi/neokapi/bowrain/testutil/pgtest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 func newTestDigestStore(t *testing.T) *DigestStore {
 	t.Helper()
-	s, err := NewSQLiteStore(":memory:")
+	db := pgtest.NewTestDB(t)
+	_, err := NewPostgresStoreFromDB(db)
 	require.NoError(t, err)
-	t.Cleanup(func() { s.Close() })
-	return NewDigestStore(s.DB())
+	return NewDigestStore(db.DB)
 }
 
 func TestDigestStore_GetSettings_DefaultsWhenEmpty(t *testing.T) {

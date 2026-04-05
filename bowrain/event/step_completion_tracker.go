@@ -17,7 +17,7 @@ type StepCompletionTracker struct {
 	runStore     *bstore.AutomationRunStore
 	jobStore     jobs.JobStore
 	extractStore jobs.ExtractionJobStore
-	quotaStore   *jobs.PgQuotaStore  // optional; nil disables runner usage recording
+	quotaStore   *jobs.QuotaStoreDB  // optional; nil disables runner usage recording
 	billingHooks *billing.UsageHooks // optional; nil disables billing credit deduction
 
 	mu           sync.Mutex
@@ -64,7 +64,7 @@ func (t *StepCompletionTracker) SetBillingHooks(hooks *billing.UsageHooks) {
 }
 
 // SetQuotaStore configures runner usage recording.
-func (t *StepCompletionTracker) SetQuotaStore(store *jobs.PgQuotaStore) {
+func (t *StepCompletionTracker) SetQuotaStore(store *jobs.QuotaStoreDB) {
 	t.quotaStore = store
 }
 
