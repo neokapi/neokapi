@@ -133,7 +133,6 @@ export function ProjectSettingsPage({
     updateDefaults({ formats: Object.keys(next).length ? next : undefined });
   };
 
-  const hasPlugins = Object.keys(plugins).length > 0;
   const hasFormatDefaults = Object.keys(formatDefaults).length > 0;
 
   return (
