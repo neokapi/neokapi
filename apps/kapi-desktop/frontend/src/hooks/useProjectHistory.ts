@@ -4,10 +4,12 @@ import type { KapiProject } from "../types/api";
 const MAX_UNDO = 50;
 
 export interface ProjectHistory {
-  /** Current project state. */
+  /** Current project state (source of truth while editing). */
   project: KapiProject;
   /** Update the project (pushes to undo stack). */
   update: (project: KapiProject) => void;
+  /** Replace project without pushing to undo (e.g. after applying a preset). */
+  replace: (project: KapiProject) => void;
   /** Undo the last change. */
   undo: () => void;
   /** Redo the last undone change. */
@@ -20,39 +22,47 @@ export interface ProjectHistory {
   canRedo: boolean;
 }
 
-function eq(a: KapiProject, b: KapiProject): boolean {
-  return JSON.stringify(a) === JSON.stringify(b);
-}
-
 /**
  * Manages project undo/redo history and dirty-state tracking.
  *
  * The hook owns the project state — callers get `project` and `update()`.
+ * Reset happens only when `tabId` changes (tab switch), not on every render.
  * `markSaved()` snapshots the current state as the "clean" baseline.
  */
-export function useProjectHistory(initial: KapiProject): ProjectHistory {
-  const [project, setProject] = useState(initial);
+export function useProjectHistory(
+  initialProject: KapiProject,
+  tabId: string | null,
+): ProjectHistory {
+  const [project, setProject] = useState(initialProject);
   const undoStack = useRef<KapiProject[]>([]);
   const redoStack = useRef<KapiProject[]>([]);
-  const savedRef = useRef<string>(JSON.stringify(initial));
+  const savedRef = useRef<string>(JSON.stringify(initialProject));
+  const tabIdRef = useRef(tabId);
 
-  // When the external project changes (e.g. tab switch), reset history.
-  const initialRef = useRef(initial);
-  if (initial !== initialRef.current && !eq(initial, initialRef.current)) {
-    initialRef.current = initial;
+  // Reset history only when the tab changes.
+  if (tabId !== tabIdRef.current) {
+    tabIdRef.current = tabId;
     undoStack.current = [];
     redoStack.current = [];
-    savedRef.current = JSON.stringify(initial);
-    // Return will use the new initial via useState's initial value on next render.
+    savedRef.current = JSON.stringify(initialProject);
+    // Force state update for the new tab's project.
+    // This is safe in render — React handles it as an initial state correction.
+    setProject(initialProject);
   }
 
   const update = useCallback((next: KapiProject) => {
     setProject((prev) => {
-      if (eq(prev, next)) return prev;
+      if (JSON.stringify(prev) === JSON.stringify(next)) return prev;
       undoStack.current = [...undoStack.current.slice(-(MAX_UNDO - 1)), prev];
       redoStack.current = [];
       return next;
     });
+  }, []);
+
+  const replace = useCallback((next: KapiProject) => {
+    setProject(next);
+    undoStack.current = [];
+    redoStack.current = [];
   }, []);
 
   const undo = useCallback(() => {
@@ -89,6 +99,7 @@ export function useProjectHistory(initial: KapiProject): ProjectHistory {
   return {
     project,
     update,
+    replace,
     undo,
     redo,
     markSaved,
