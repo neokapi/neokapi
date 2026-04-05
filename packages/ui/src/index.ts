@@ -59,6 +59,9 @@ export {
   ComboboxChips,
   ComboboxChip,
   ComboboxChipsInput,
+  ComboboxGroup,
+  ComboboxLabel,
+  ComboboxSeparator,
 } from "./components/ui/combobox";
 export {
   Command,

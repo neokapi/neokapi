@@ -30,6 +30,9 @@ import {
   ComboboxList,
   ComboboxItem,
   ComboboxEmpty,
+  ComboboxGroup,
+  ComboboxLabel,
+  ComboboxSeparator,
   Select,
   SelectTrigger,
   SelectValue,
@@ -295,24 +298,46 @@ export function ContentPage({
                 }
               }}
             >
-              <ComboboxInput placeholder="auto-detect" className="h-8 text-xs" />
+              <ComboboxInput placeholder="auto-detect" className="h-8 text-xs" showClear />
               <ComboboxContent>
                 <ComboboxList>
-                  {formats.map((f) => (
-                    <ComboboxItem key={f.name} value={f.name}>
-                      <div className="flex items-center gap-2">
-                        <span>{f.display_name || f.name}</span>
-                        {f.display_name && f.display_name !== f.name && (
-                          <span className="text-[10px] text-muted-foreground">{f.name}</span>
+                  {(() => {
+                    const builtIn = formats.filter((f) => !f.source || f.source === "built-in");
+                    const plugin = formats.filter((f) => f.source && f.source !== "built-in");
+                    return (
+                      <>
+                        {builtIn.map((f) => (
+                          <ComboboxItem key={f.name} value={f.name}>
+                            <div className="flex w-full items-center justify-between gap-2">
+                              <span>{f.display_name || f.name}</span>
+                              {f.extensions && f.extensions.length > 0 && (
+                                <span className="text-[10px] text-muted-foreground">
+                                  {f.extensions.join(" ")}
+                                </span>
+                              )}
+                            </div>
+                          </ComboboxItem>
+                        ))}
+                        {plugin.length > 0 && builtIn.length > 0 && <ComboboxSeparator />}
+                        {plugin.length > 0 && (
+                          <ComboboxGroup>
+                            <ComboboxLabel>Plugins</ComboboxLabel>
+                            {plugin.map((f) => (
+                              <ComboboxItem key={f.name} value={f.name}>
+                                <div className="flex w-full items-center justify-between gap-2">
+                                  <span>{f.display_name || f.name}</span>
+                                  <span className="text-[10px] text-muted-foreground">
+                                    {f.source}
+                                    {f.extensions?.length ? ` · ${f.extensions.join(" ")}` : ""}
+                                  </span>
+                                </div>
+                              </ComboboxItem>
+                            ))}
+                          </ComboboxGroup>
                         )}
-                        {f.source && f.source !== "built-in" && (
-                          <span className="rounded bg-muted px-1 py-0.5 text-[9px] text-muted-foreground">
-                            {f.source}
-                          </span>
-                        )}
-                      </div>
-                    </ComboboxItem>
-                  ))}
+                      </>
+                    );
+                  })()}
                   <ComboboxEmpty>No matching formats</ComboboxEmpty>
                 </ComboboxList>
               </ComboboxContent>
