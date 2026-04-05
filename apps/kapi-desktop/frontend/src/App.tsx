@@ -22,6 +22,7 @@ import { ProjectSetupPage } from "./components/ProjectSetupPage";
 import { ProjectSettingsPage } from "./components/ProjectSettingsPage";
 import { ProjectPresetPage } from "./components/ProjectPresetPage";
 import { useShortenHome } from "./hooks/useShortenHome";
+import { Undo2, Redo2 } from "lucide-react";
 import { Button, Label, Input } from "@neokapi/ui-primitives";
 
 interface TabState {
@@ -343,9 +344,39 @@ function AppInner() {
           className="flex h-12 shrink-0 items-end border-b border-border bg-sidebar"
           style={{ WebkitAppRegion: "drag" } as React.CSSProperties}
         >
+          {/* Undo / Redo */}
+          {mode === "projects" && activeTab && (
+            <div
+              className="flex shrink-0 items-center gap-0.5 pb-1.5 pl-16"
+              style={{ WebkitAppRegion: "no-drag" } as React.CSSProperties}
+            >
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                onClick={history.undo}
+                disabled={!history.canUndo}
+                aria-label="Undo"
+                title="Undo (⌘Z)"
+                className="h-7 w-7"
+              >
+                <Undo2 size={14} />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                onClick={history.redo}
+                disabled={!history.canRedo}
+                aria-label="Redo"
+                title="Redo (⌘⇧Z)"
+                className="h-7 w-7"
+              >
+                <Redo2 size={14} />
+              </Button>
+            </div>
+          )}
           {/* Tabs or spacer */}
           <div
-            className="flex-1 pl-16"
+            className={`flex-1 ${mode === "projects" && activeTab ? "pl-2" : "pl-16"}`}
             style={{ WebkitAppRegion: "no-drag" } as React.CSSProperties}
           >
             {mode === "projects" && tabs.length > 0 && (
@@ -492,14 +523,7 @@ function AppInner() {
           {view === "settings" && !(mode === "projects" && activeTab) && <SettingsPage />}
         </main>
         {mode === "projects" && activeTab && (
-          <SaveBar
-            isDirty={history.isDirty}
-            canUndo={history.canUndo}
-            canRedo={history.canRedo}
-            onSave={handleSaveProject}
-            onUndo={history.undo}
-            onRedo={history.redo}
-          />
+          <SaveBar isDirty={history.isDirty} onSave={handleSaveProject} />
         )}
       </div>
 
