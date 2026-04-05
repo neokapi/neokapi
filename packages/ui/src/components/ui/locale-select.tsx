@@ -2,8 +2,7 @@
  * LocaleSelect — single and multi-locale selectors built on the Combobox primitive.
  *
  * Pure components with no API dependency — locales are passed as props.
- * Uses object values ({ value, label }) so base-ui's built-in filter
- * matches against display names, not just codes.
+ * Uses a custom filter so typing matches against both display name and code.
  */
 
 import { useMemo, useCallback } from "react";
@@ -28,7 +27,23 @@ export interface LocaleInfo {
 
 interface LocaleOption {
   value: string;
+  /** Display label: "French (fr)". */
   label: string;
+  /** Lowercase search text. */
+  searchText: string;
+}
+
+function buildOption(l: LocaleInfo): LocaleOption {
+  return {
+    value: l.code,
+    label: `${l.displayName} (${l.code})`,
+    searchText: `${l.displayName} ${l.code}`.toLowerCase(),
+  };
+}
+
+function localeFilter(option: LocaleOption, query: string): boolean {
+  if (!query) return true;
+  return option.searchText.includes(query.toLowerCase());
 }
 
 // --- Single locale selector ---
@@ -53,9 +68,7 @@ export function LocaleSelect({
 }: LocaleSelectProps) {
   const optionMap = useMemo(() => {
     const map = new Map<string, LocaleOption>();
-    for (const l of locales) {
-      map.set(l.code, { value: l.code, label: `${l.displayName} (${l.code})` });
-    }
+    for (const l of locales) map.set(l.code, buildOption(l));
     return map;
   }, [locales]);
 
@@ -70,7 +83,12 @@ export function LocaleSelect({
 
   return (
     <div className={cn("w-full", className)}>
-      <Combobox value={selectedOption} onValueChange={handleChange} disabled={disabled}>
+      <Combobox
+        value={selectedOption}
+        onValueChange={handleChange}
+        disabled={disabled}
+        filter={localeFilter}
+      >
         <ComboboxInput placeholder={placeholder} />
         <ComboboxContent>
           <ComboboxList>
@@ -109,9 +127,7 @@ export function MultiLocaleSelect({
 }: MultiLocaleSelectProps) {
   const optionMap = useMemo(() => {
     const map = new Map<string, LocaleOption>();
-    for (const l of locales) {
-      map.set(l.code, { value: l.code, label: `${l.displayName} (${l.code})` });
-    }
+    for (const l of locales) map.set(l.code, buildOption(l));
     return map;
   }, [locales]);
 
@@ -140,7 +156,13 @@ export function MultiLocaleSelect({
 
   return (
     <div className={cn("w-full", className)}>
-      <Combobox value={selectedOptions} onValueChange={handleChange} multiple disabled={disabled}>
+      <Combobox
+        value={selectedOptions}
+        onValueChange={handleChange}
+        multiple
+        disabled={disabled}
+        filter={localeFilter}
+      >
         <ComboboxChips>
           {value.map((code) => (
             <ComboboxChip key={code} value={optionMap.get(code)}>

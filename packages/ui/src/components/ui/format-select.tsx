@@ -4,8 +4,8 @@
  * Groups formats by source (built-in vs plugin), shows display names,
  * file extensions, and plugin source labels. Supports clear-to-auto-detect.
  *
- * Uses object values ({ value, label }) so base-ui's built-in filter
- * matches against the label (display name + ID + extensions).
+ * Uses a custom filter function so typing matches against display name, ID,
+ * extensions, and source, while the input shows a clean "Name (id)" label.
  */
 
 import { useMemo, useCallback } from "react";
@@ -41,7 +41,10 @@ export interface FormatSelectProps {
 
 interface FormatOption {
   value: string;
+  /** Clean display label: "HTML (okf_html)" or "JSON". */
   label: string;
+  /** Broad text for search matching. */
+  searchText: string;
 }
 
 /** Searchable format selector with built-in/plugin grouping and file extensions. */
@@ -53,20 +56,27 @@ export function FormatSelect({
   className,
   disabled,
 }: FormatSelectProps) {
-  // Build option objects with searchable labels.
   const optionMap = useMemo(() => {
     const map = new Map<string, FormatOption>();
     for (const f of formats) {
-      const parts = [f.display_name || f.name, f.name];
-      if (f.extensions?.length) parts.push(f.extensions.join(" "));
-      if (f.source && f.source !== "built-in") parts.push(f.source);
-      map.set(f.name, { value: f.name, label: parts.join(" ") });
+      const displayName = f.display_name || f.name;
+      const isPlugin = f.source && f.source !== "built-in";
+
+      // Clean display: "HTML (okf_html)" for plugin, "JSON" for built-in with same name.
+      const label = displayName !== f.name || isPlugin ? `${displayName} (${f.name})` : displayName;
+
+      // Broad search text.
+      const searchParts = [displayName, f.name];
+      if (f.extensions?.length) searchParts.push(f.extensions.join(" "));
+      if (isPlugin) searchParts.push(f.source!);
+      const searchText = searchParts.join(" ").toLowerCase();
+
+      map.set(f.name, { value: f.name, label, searchText });
     }
     return map;
   }, [formats]);
 
   const selectedOption = value ? (optionMap.get(value) ?? null) : null;
-
   const builtIn = formats.filter((f) => !f.source || f.source === "built-in");
   const plugin = formats.filter((f) => f.source && f.source !== "built-in");
 
@@ -75,9 +85,20 @@ export function FormatSelect({
     [onChange],
   );
 
+  // Custom filter: match against the broad searchText, not the display label.
+  const filter = useCallback((option: FormatOption, query: string) => {
+    if (!query) return true;
+    return option.searchText.includes(query.toLowerCase());
+  }, []);
+
   return (
     <div className={cn("w-full", className)}>
-      <Combobox value={selectedOption} onValueChange={handleChange} disabled={disabled}>
+      <Combobox
+        value={selectedOption}
+        onValueChange={handleChange}
+        disabled={disabled}
+        filter={filter}
+      >
         <ComboboxInput placeholder={placeholder} showClear />
         <ComboboxContent>
           <ComboboxList>
