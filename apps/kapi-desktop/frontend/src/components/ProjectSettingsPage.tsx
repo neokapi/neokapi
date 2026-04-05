@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Globe, Plug, Cpu, FileType, X, AlertTriangle } from "lucide-react";
+import { Globe, Plug, Cpu, FileType, AlertTriangle } from "lucide-react";
 import {
   Card,
   CardContent,
@@ -9,10 +9,13 @@ import {
   Badge,
   Button,
   Separator,
+  LocaleSelect,
+  MultiLocaleSelect,
 } from "@neokapi/ui-primitives";
 import type { KapiProject, PluginSpec, PluginInfo, FormatDefaults } from "../types/api";
 import { api } from "../hooks/useApi";
 import { useError } from "./ErrorBanner";
+import { useLocales } from "../hooks/useLocales";
 
 export interface ProjectSettingsPageProps {
   project: KapiProject;
@@ -95,6 +98,8 @@ export function ProjectSettingsPage({
       .catch((err) => showError("Failed to load plugins", err));
   }, [showError, propInstalled]);
 
+  const { locales } = useLocales();
+
   // Deduplicate installed plugins by name (keep highest version).
   const installedByName = new Map<string, PluginInfo>();
   for (const p of installed) {
@@ -150,66 +155,40 @@ export function ProjectSettingsPage({
             <CardContent className="space-y-4 p-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="source-lang" className="mb-1 block text-xs text-muted-foreground">
+                  <Label className="mb-1 block text-xs text-muted-foreground">
                     Source Language
                   </Label>
-                  <Input
-                    id="source-lang"
-                    type="text"
+                  <LocaleSelect
                     value={defaults.source_language ?? ""}
-                    onChange={(e) => updateDefaults({ source_language: e.target.value })}
-                    placeholder="en-US"
+                    onChange={(v) => updateDefaults({ source_language: v })}
+                    locales={locales}
+                    placeholder="Select source language..."
                   />
                 </div>
                 <div>
                   <Label className="mb-1 block text-xs text-muted-foreground">
                     Target Languages
                   </Label>
-                  <div className="flex flex-wrap items-center gap-1.5 rounded border border-input bg-transparent px-2 py-1.5">
-                    {(defaults.target_languages ?? []).map((lang) => (
-                      <span
-                        key={lang}
-                        className="flex items-center gap-1 rounded bg-accent px-2 py-0.5 text-xs"
-                      >
-                        {lang}
-                        <Button
-                          variant="ghost"
-                          size="icon-xs"
-                          onClick={() =>
-                            updateDefaults({
-                              target_languages: defaults.target_languages?.filter(
-                                (l) => l !== lang,
-                              ),
-                            })
-                          }
-                          className="ml-0.5 h-4 w-4 rounded-full hover:text-destructive"
-                          aria-label={`Remove ${lang}`}
-                        >
-                          <X size={10} />
-                        </Button>
-                      </span>
-                    ))}
-                    <input
-                      type="text"
-                      placeholder={
-                        defaults.target_languages?.length ? "" : "Add language (e.g. fr-FR)"
-                      }
-                      className="min-w-[80px] flex-1 bg-transparent text-sm outline-none"
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter" || e.key === ",") {
-                          e.preventDefault();
-                          const val = e.currentTarget.value.trim();
-                          if (val && !defaults.target_languages?.includes(val)) {
-                            updateDefaults({
-                              target_languages: [...(defaults.target_languages ?? []), val],
-                            });
-                            e.currentTarget.value = "";
-                          }
-                        }
-                      }}
-                    />
-                  </div>
+                  <MultiLocaleSelect
+                    value={defaults.target_languages ?? []}
+                    onChange={(v) => updateDefaults({ target_languages: v })}
+                    locales={locales}
+                  />
                 </div>
+              </div>
+              <div>
+                <Label className="mb-1 block text-xs text-muted-foreground">Locale Format</Label>
+                <select
+                  value={defaults.locale_format ?? ""}
+                  onChange={(e) => updateDefaults({ locale_format: e.target.value || undefined })}
+                  className="w-full max-w-xs rounded border border-input bg-transparent px-2 py-1.5 text-sm outline-none focus:ring-1 focus:ring-ring"
+                >
+                  <option value="">BCP-47 (default)</option>
+                  <option value="posix">POSIX (underscores)</option>
+                </select>
+                <p className="mt-1 text-[10px] text-muted-foreground">
+                  Determines locale code style in file paths and tool output.
+                </p>
               </div>
             </CardContent>
           </Card>

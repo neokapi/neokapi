@@ -38,6 +38,7 @@ type KapiProject struct {
 type Defaults struct {
 	SourceLanguage  string                    `yaml:"source_language,omitempty" json:"source_language,omitempty"`
 	TargetLanguages []string                  `yaml:"target_languages,omitempty" json:"target_languages,omitempty"`
+	LocaleFormat    string                    `yaml:"locale_format,omitempty" json:"locale_format,omitempty"` // "bcp-47" (default) or "posix"
 	Concurrency     int                       `yaml:"concurrency,omitempty" json:"concurrency,omitempty"`
 	ParallelBlocks  int                       `yaml:"parallel_blocks,omitempty" json:"parallel_blocks,omitempty"`
 	Encoding        string                    `yaml:"encoding,omitempty" json:"encoding,omitempty"`

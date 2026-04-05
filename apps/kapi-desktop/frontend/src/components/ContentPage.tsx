@@ -15,13 +15,23 @@ import {
   ChevronUp,
   Layers,
 } from "lucide-react";
-import { Button, Badge, Card, Label, GlobInput, TargetPathInput } from "@neokapi/ui-primitives";
+import {
+  Button,
+  Badge,
+  Card,
+  Label,
+  GlobInput,
+  TargetPathInput,
+  LocaleSelect,
+  MultiLocaleSelect,
+} from "@neokapi/ui-primitives";
 import type { KapiProject, ContentCollection, ContentItem, FormatSpec } from "../types/api";
 import { isBareEntry, effectiveItems } from "../types/api";
 import { api } from "../hooks/useApi";
 import { useError } from "./ErrorBanner";
 import { useShortenHome } from "../hooks/useShortenHome";
 import { useWailsEvent } from "../hooks/useWailsEvent";
+import { useLocales } from "../hooks/useLocales";
 
 interface FileMatch {
   path: string;
@@ -70,6 +80,7 @@ export function ContentPage({
   basePath: propBasePath,
 }: ContentPageProps) {
   const { showError } = useError();
+  const { locales } = useLocales();
   const shortenHome = useShortenHome();
   const [matches, setMatches] = useState<FileMatch[]>([]);
   const [projectFiles, setProjectFiles] = useState<ProjectFile[]>([]);
@@ -508,43 +519,48 @@ export function ContentPage({
 
                     {/* Collection language overrides (expanded) */}
                     {expandedLangs.has(ci) && (
-                      <div className="border-b border-border px-4 py-2">
-                        <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                          <span>Source:</span>
-                          <input
-                            type="text"
-                            value={coll.source_language ?? ""}
-                            onChange={(e) =>
-                              handleUpdateCollection(ci, {
-                                ...coll,
-                                source_language: e.target.value || undefined,
-                              })
-                            }
-                            placeholder={project.defaults?.source_language || "source lang"}
-                            className="w-24 rounded border border-input bg-transparent px-1.5 py-0.5 text-xs outline-none"
-                          />
-                          <span className="ml-1">Targets:</span>
-                          <input
-                            type="text"
-                            value={coll.target_languages?.join(", ") ?? ""}
-                            onChange={(e) => {
-                              const val = e.target.value.trim();
-                              handleUpdateCollection(ci, {
-                                ...coll,
-                                target_languages: val
-                                  ? val
-                                      .split(",")
-                                      .map((s) => s.trim())
-                                      .filter(Boolean)
-                                  : undefined,
-                              });
-                            }}
-                            placeholder={
-                              project.defaults?.target_languages?.join(", ") ||
-                              "target langs (comma-separated)"
-                            }
-                            className="min-w-[160px] flex-1 rounded border border-input bg-transparent px-1.5 py-0.5 text-xs outline-none"
-                          />
+                      <div className="border-b border-border px-4 py-3">
+                        <div className="grid grid-cols-2 gap-3">
+                          <div>
+                            <Label className="mb-0.5 block text-xs text-muted-foreground">
+                              Source override
+                            </Label>
+                            <LocaleSelect
+                              value={coll.source_language ?? ""}
+                              onChange={(v) =>
+                                handleUpdateCollection(ci, {
+                                  ...coll,
+                                  source_language: v || undefined,
+                                })
+                              }
+                              locales={locales}
+                              placeholder={
+                                project.defaults?.source_language
+                                  ? `Inherit (${project.defaults.source_language})`
+                                  : "Select source..."
+                              }
+                            />
+                          </div>
+                          <div>
+                            <Label className="mb-0.5 block text-xs text-muted-foreground">
+                              Target overrides
+                            </Label>
+                            <MultiLocaleSelect
+                              value={coll.target_languages ?? []}
+                              onChange={(v) =>
+                                handleUpdateCollection(ci, {
+                                  ...coll,
+                                  target_languages: v.length > 0 ? v : undefined,
+                                })
+                              }
+                              locales={locales}
+                              placeholder={
+                                project.defaults?.target_languages?.length
+                                  ? `Inherit (${project.defaults.target_languages.join(", ")})`
+                                  : "Add targets..."
+                              }
+                            />
+                          </div>
                         </div>
                       </div>
                     )}

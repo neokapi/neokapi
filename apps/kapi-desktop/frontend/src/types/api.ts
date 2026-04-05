@@ -19,6 +19,7 @@ export interface PluginSpec {
 export interface ProjectDefaults {
   source_language?: string;
   target_languages?: string[];
+  locale_format?: string;
   concurrency?: number;
   parallel_blocks?: number;
   encoding?: string;
