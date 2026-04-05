@@ -67,6 +67,7 @@ export function useTabManager() {
     });
     setActiveTabID(tab.id);
     setMode("projects");
+    setGlobalView(""); // clear home overlay so tab's view shows
   }, []);
 
   const closeTab = useCallback((tabID: string) => {
