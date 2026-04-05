@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Globe, Plug, Cpu, FileType, X } from "lucide-react";
+import { Globe, Plug, Cpu, FileType, X, AlertTriangle } from "lucide-react";
 import {
   Card,
   CardContent,
@@ -10,7 +10,7 @@ import {
   Button,
   Separator,
 } from "@neokapi/ui-primitives";
-import type { KapiProject, PluginSpec, FormatDefaults } from "../types/api";
+import type { KapiProject, PluginSpec, PluginInfo, FormatDefaults } from "../types/api";
 import { api } from "../hooks/useApi";
 import { useError } from "./ErrorBanner";
 
@@ -20,6 +20,8 @@ export interface ProjectSettingsPageProps {
   tabID: string;
   /** Pre-loaded presets for Storybook — skips api.listPresets(). */
   presetList?: Array<{ name: string; description: string }>;
+  /** Pre-loaded installed plugins for Storybook — skips api.listPlugins(). */
+  installedPlugins?: PluginInfo[];
 }
 
 const ENCODING_OPTIONS = ["UTF-8", "UTF-16", "ISO-8859-1", "Windows-1252", "Shift_JIS", "EUC-JP"];
@@ -27,11 +29,42 @@ const ENCODING_OPTIONS = ["UTF-8", "UTF-16", "ISO-8859-1", "Windows-1252", "Shif
 /** Default priority value used when "prefer plugin formats" is toggled on. */
 const PLUGIN_PREFER_PRIORITY = 200;
 
+/** Version pin modes for the UI. */
+type VersionPin = "none" | "compatible" | "gte" | "exact";
+
+function pinLabel(pin: VersionPin): string {
+  switch (pin) {
+    case "none":
+      return "Any";
+    case "compatible":
+      return "Compatible (^)";
+    case "gte":
+      return "This or later (>=)";
+    case "exact":
+      return "Exact (=)";
+  }
+}
+
+function parsePin(version?: string): { pin: VersionPin; base: string } {
+  if (!version || version === "*") return { pin: "none", base: "" };
+  if (version.startsWith("^")) return { pin: "compatible", base: version.slice(1) };
+  if (version.startsWith(">=")) return { pin: "gte", base: version.slice(2) };
+  return { pin: "exact", base: version };
+}
+
+function formatPin(pin: VersionPin, base: string): string | undefined {
+  if (pin === "none" || !base) return undefined;
+  if (pin === "compatible") return `^${base}`;
+  if (pin === "gte") return `>=${base}`;
+  return base;
+}
+
 export function ProjectSettingsPage({
   project,
   onUpdate,
   tabID,
   presetList: propPresets,
+  installedPlugins: propInstalled,
 }: ProjectSettingsPageProps) {
   const { showError } = useError();
   const defaults = project.defaults ?? {};
@@ -40,6 +73,7 @@ export function ProjectSettingsPage({
   const [presets, setPresets] = useState<Array<{ name: string; description: string }>>(
     propPresets ?? [],
   );
+  const [installed, setInstalled] = useState<PluginInfo[]>(propInstalled ?? []);
 
   useEffect(() => {
     if (propPresets) return;
@@ -50,6 +84,28 @@ export function ProjectSettingsPage({
       })
       .catch((err) => showError("Failed to load presets", err));
   }, [showError, propPresets]);
+
+  useEffect(() => {
+    if (propInstalled) return;
+    api
+      .listPlugins()
+      .then((p) => {
+        if (p) setInstalled(p);
+      })
+      .catch((err) => showError("Failed to load plugins", err));
+  }, [showError, propInstalled]);
+
+  // Deduplicate installed plugins by name (keep highest version).
+  const installedByName = new Map<string, PluginInfo>();
+  for (const p of installed) {
+    const existing = installedByName.get(p.name);
+    if (!existing || p.version > existing.version) {
+      installedByName.set(p.name, p);
+    }
+  }
+
+  // Detect missing plugins (in project but not installed).
+  const missingPlugins = Object.keys(plugins).filter((name) => !installedByName.has(name));
 
   // --- Update helpers ---
 
@@ -206,115 +262,125 @@ export function ProjectSettingsPage({
             <Plug size={14} />
             Plugins
           </h2>
-          <Card>
-            <CardContent className="space-y-4 p-4">
-              <div className="flex flex-wrap items-center gap-1.5 rounded border border-input bg-transparent px-2 py-1.5">
-                {Object.entries(plugins).map(([name, spec]) => (
-                  <span
-                    key={name}
-                    className="flex items-center gap-1 rounded bg-accent px-2 py-0.5 text-xs"
-                  >
-                    {name}
-                    {spec.version && <span className="text-muted-foreground">{spec.version}</span>}
-                    {spec.framework_version && (
-                      <span className="text-muted-foreground">fw:{spec.framework_version}</span>
-                    )}
-                    <Button
-                      variant="ghost"
-                      size="icon-xs"
-                      onClick={() => {
-                        const next = { ...plugins };
-                        delete next[name];
-                        onUpdate({
-                          ...project,
-                          plugins: Object.keys(next).length ? next : undefined,
-                        });
-                      }}
-                      className="ml-0.5 h-4 w-4 rounded-full hover:text-destructive"
-                      aria-label={`Remove ${name}`}
-                    >
-                      <X size={10} />
-                    </Button>
-                  </span>
-                ))}
-                <input
-                  type="text"
-                  placeholder={Object.keys(plugins).length ? "" : "Add plugin (e.g. okapi)"}
-                  className="min-w-[120px] flex-1 bg-transparent text-sm outline-none"
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" || e.key === ",") {
-                      e.preventDefault();
-                      const val = e.currentTarget.value.trim();
-                      if (val && !plugins[val]) {
-                        onUpdate({
-                          ...project,
-                          plugins: { ...plugins, [val]: { version: "*" } },
-                        });
-                        e.currentTarget.value = "";
-                      }
-                    }
-                  }}
-                />
-              </div>
-              <p className="text-[10px] text-muted-foreground">
-                Add plugins by name. Version ranges can be edited in the YAML directly.
-              </p>
 
-              {/* Plugin format priority */}
-              {hasPlugins && (
-                <>
-                  <Separator />
-                  <div>
-                    <p className="mb-3 text-xs text-muted-foreground">
-                      When a plugin provides a format that also exists as a built-in, the higher
-                      priority wins. Built-in formats default to priority 0.
-                    </p>
-                    {Object.entries(plugins).map(([name, spec]) => {
-                      const isPreferred = (spec.format_priority ?? 0) >= PLUGIN_PREFER_PRIORITY;
-                      return (
-                        <div key={name} className="mb-2">
-                          <div className="flex items-center justify-between">
-                            <span className="text-sm font-medium">{name}</span>
-                            <div className="flex items-center gap-3">
-                              <Label
-                                htmlFor={`prefer-${name}`}
-                                className="text-xs text-muted-foreground"
-                              >
-                                Prefer over built-in
-                              </Label>
-                              <Switch
-                                id={`prefer-${name}`}
-                                checked={isPreferred}
-                                onCheckedChange={(checked) =>
-                                  updatePlugin(name, {
-                                    format_priority: checked ? PLUGIN_PREFER_PRIORITY : undefined,
-                                  })
-                                }
-                              />
-                            </div>
-                          </div>
-                          {isPreferred && (
-                            <div className="mt-2 flex items-center gap-2">
-                              <Label className="text-xs text-muted-foreground">Priority</Label>
-                              <Input
-                                type="number"
-                                value={spec.format_priority ?? PLUGIN_PREFER_PRIORITY}
-                                onChange={(e) => {
-                                  const v = parseInt(e.target.value, 10);
-                                  updatePlugin(name, {
-                                    format_priority: isNaN(v) ? undefined : v,
-                                  });
-                                }}
-                                className="h-7 w-20 text-xs"
-                                min={1}
-                              />
-                            </div>
-                          )}
+          {/* Missing plugins warning */}
+          {missingPlugins.length > 0 && (
+            <div className="mb-3 flex items-start gap-2 rounded-lg border border-amber-500/30 bg-amber-500/5 p-3">
+              <AlertTriangle size={14} className="mt-0.5 shrink-0 text-amber-500" />
+              <div className="flex-1">
+                <p className="text-xs font-medium">
+                  {missingPlugins.length === 1 ? "Missing plugin" : "Missing plugins"}:{" "}
+                  {missingPlugins.join(", ")}
+                </p>
+                <p className="mt-0.5 text-[10px] text-muted-foreground">
+                  This project requires plugins that are not installed. Install them from the
+                  Plugins manager in app Settings.
+                </p>
+              </div>
+            </div>
+          )}
+
+          <Card>
+            <CardContent className="space-y-3 p-4">
+              {/* Installed plugins as checkboxes */}
+              {[...installedByName.entries()].map(([name, info]) => {
+                const inProject = !!plugins[name];
+                const spec = plugins[name] ?? {};
+                const { pin, base } = parsePin(spec.framework_version);
+                const isPreferred = (spec.format_priority ?? 0) >= PLUGIN_PREFER_PRIORITY;
+
+                return (
+                  <div key={name} className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <label className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          checked={inProject}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              onUpdate({
+                                ...project,
+                                plugins: { ...plugins, [name]: {} },
+                              });
+                            } else {
+                              const next = { ...plugins };
+                              delete next[name];
+                              onUpdate({
+                                ...project,
+                                plugins: Object.keys(next).length ? next : undefined,
+                              });
+                            }
+                          }}
+                          className="rounded"
+                        />
+                        <span className="text-sm font-medium">{name}</span>
+                        <Badge variant="secondary" className="text-[10px]">
+                          {info.version}
+                        </Badge>
+                      </label>
+                      {inProject && (
+                        <div className="flex items-center gap-2">
+                          <Label className="text-xs text-muted-foreground">Prefer formats</Label>
+                          <Switch
+                            checked={isPreferred}
+                            onCheckedChange={(checked) =>
+                              updatePlugin(name, {
+                                format_priority: checked ? PLUGIN_PREFER_PRIORITY : undefined,
+                              })
+                            }
+                          />
                         </div>
-                      );
-                    })}
+                      )}
+                    </div>
+
+                    {/* Version pinning (shown when plugin is in project) */}
+                    {inProject && (
+                      <div className="ml-6 flex items-center gap-2">
+                        <Label className="text-xs text-muted-foreground">Version</Label>
+                        <select
+                          value={pin}
+                          onChange={(e) => {
+                            const newPin = e.target.value as VersionPin;
+                            const ver = base || info.framework_version || info.version;
+                            updatePlugin(name, {
+                              framework_version: formatPin(newPin, ver),
+                            });
+                          }}
+                          className="rounded border border-input bg-transparent px-1.5 py-0.5 text-xs outline-none"
+                        >
+                          {(["none", "compatible", "gte", "exact"] as VersionPin[]).map((v) => (
+                            <option key={v} value={v}>
+                              {pinLabel(v)}
+                            </option>
+                          ))}
+                        </select>
+                        {pin !== "none" && (
+                          <Input
+                            type="text"
+                            value={base}
+                            onChange={(e) =>
+                              updatePlugin(name, {
+                                framework_version: formatPin(pin, e.target.value),
+                              })
+                            }
+                            placeholder={info.framework_version || info.version}
+                            className="h-6 w-28 text-xs"
+                          />
+                        )}
+                      </div>
+                    )}
+
+                    {info.description && (
+                      <p className="ml-6 text-[10px] text-muted-foreground">{info.description}</p>
+                    )}
                   </div>
-                </>
+                );
+              })}
+
+              {installedByName.size === 0 && (
+                <p className="text-xs text-muted-foreground">
+                  No plugins installed. Install plugins from the Plugins manager in app Settings.
+                </p>
               )}
             </CardContent>
           </Card>

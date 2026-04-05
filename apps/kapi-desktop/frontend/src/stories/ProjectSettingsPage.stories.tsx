@@ -2,6 +2,26 @@ import type { Meta, StoryObj } from "@storybook/react-vite";
 import { fn } from "storybook/test";
 import { ProjectSettingsPage } from "../components/ProjectSettingsPage";
 
+const installedPlugins = [
+  {
+    name: "okapi",
+    id: "okapi:1.47.0",
+    version: "2.20.0",
+    framework_version: "1.47.0",
+    description: "Okapi Framework bridge — 57+ format filters for document processing",
+    type: "format",
+    formats: ["okf_html", "okf_xml", "okf_xliff", "okf_po", "okf_properties"],
+  },
+  {
+    name: "custom-filter",
+    id: "custom-filter:1.0.0",
+    version: "1.2.0",
+    description: "Custom XML filter for proprietary format",
+    type: "format",
+    formats: ["custom_xml"],
+  },
+];
+
 const meta: Meta<typeof ProjectSettingsPage> = {
   title: "Pages/ProjectSettingsPage",
   component: ProjectSettingsPage,
@@ -14,6 +34,7 @@ const meta: Meta<typeof ProjectSettingsPage> = {
       { name: "react-intl", description: "React-Intl message files" },
       { name: "flutter", description: "Flutter ARB localization" },
     ],
+    installedPlugins,
   },
 };
 
@@ -43,6 +64,23 @@ export const WithPlugins: Story = {
   },
 };
 
+export const MissingPlugin: Story = {
+  args: {
+    project: {
+      version: "v1",
+      name: "Missing Deps",
+      plugins: {
+        okapi: { framework_version: "^1.47.0" },
+        "unknown-plugin": { version: "^1.0.0" },
+      },
+      defaults: {
+        source_language: "en-US",
+        target_languages: ["fr-FR"],
+      },
+    },
+  },
+};
+
 export const Minimal: Story = {
   args: {
     project: {
@@ -55,23 +93,15 @@ export const Minimal: Story = {
   },
 };
 
-export const MultiplePlugins: Story = {
+export const NoPluginsInstalled: Story = {
   args: {
+    installedPlugins: [],
     project: {
       version: "v1",
-      name: "Full Stack L10n",
-      plugins: {
-        okapi: { version: "^0.38.0", framework_version: "^1.47.0", format_priority: 200 },
-        "custom-filter": { version: "^1.0.0" },
-      },
+      name: "Fresh Install",
       defaults: {
         source_language: "en-US",
-        target_languages: ["ja-JP", "ko-KR", "zh-CN"],
-        concurrency: 2,
-        formats: {
-          okf_html: { preset: "lenient", priority: 100 },
-          okf_xml: { config: { escapeGT: false } },
-        },
+        target_languages: ["fr-FR"],
       },
     },
   },
