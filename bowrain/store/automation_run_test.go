@@ -4,17 +4,18 @@ import (
 	"testing"
 
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
+	"github.com/neokapi/neokapi/bowrain/testutil/pgtest"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-func newTestAutomationRunStore(t *testing.T) (*AutomationRunStore, *SQLiteStore) {
+func newTestAutomationRunStore(t *testing.T) (*AutomationRunStore, *PostgresStore) {
 	t.Helper()
-	s, err := NewSQLiteStore(":memory:")
+	db := pgtest.NewTestDB(t)
+	s, err := NewPostgresStoreFromDB(db)
 	require.NoError(t, err)
-	t.Cleanup(func() { s.Close() })
-	return NewAutomationRunStore(s.DB()), s
+	return NewAutomationRunStore(db.DB), s
 }
 
 func TestAutomationRunStore_RunLifecycle(t *testing.T) {
@@ -125,8 +126,8 @@ func TestAutomationRunStore_Logs(t *testing.T) {
 	assert.Equal(t, "5s", got[2].Data["retry_after"])
 }
 
-// createRunTestProject creates a project via SQLiteStore for FK references.
-func createRunTestProject(t *testing.T, ss *SQLiteStore) {
+// createRunTestProject creates a project via PostgresStore for FK references.
+func createRunTestProject(t *testing.T, ss *PostgresStore) {
 	t.Helper()
 	p := &platstore.Project{
 		ID:                    "test-proj",

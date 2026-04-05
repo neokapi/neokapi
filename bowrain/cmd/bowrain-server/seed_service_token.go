@@ -55,7 +55,7 @@ func runSeedServiceToken(dbURL, dbAuth, azureClientID, workspaceSlug string) err
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	store, err := auth.NewPostgresAuthStoreFromDB(db)
+	store, err := auth.NewAuthStoreFromDB(db)
 	if err != nil {
 		return fmt.Errorf("init auth store: %w", err)
 	}

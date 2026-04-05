@@ -20,9 +20,8 @@ func setupDigestTestServer(t *testing.T) *Server {
 	srv := NewServer(cfg)
 	initTestStores(t, srv)
 
-	sqliteStore := srv.ContentStore.(*bstore.SQLiteStore)
-	db := sqliteStore.DB()
-	srv.DigestStore = bstore.NewDigestStore(db)
+	pgStore := srv.ContentStore.(*bstore.PostgresStore)
+	srv.DigestStore = bstore.NewDigestStore(pgStore.SQLDB())
 
 	return srv
 }

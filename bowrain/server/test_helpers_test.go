@@ -17,10 +17,10 @@ import (
 	"github.com/neokapi/neokapi/bowrain/jobs"
 	pb "github.com/neokapi/neokapi/bowrain/proto/v1"
 	"github.com/neokapi/neokapi/bowrain/service"
-	bowrainstorage "github.com/neokapi/neokapi/bowrain/storage"
 	bloblocal "github.com/neokapi/neokapi/bowrain/storage/localblob"
 	bstore "github.com/neokapi/neokapi/bowrain/store"
 	bowsync "github.com/neokapi/neokapi/bowrain/sync"
+	"github.com/neokapi/neokapi/bowrain/testutil/pgtest"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/sievepen"
 	"github.com/neokapi/neokapi/termbase"
@@ -28,20 +28,21 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-// initTestStores wires up in-memory SQLite stores on the server for testing.
-// The server is PostgreSQL-only in production, but tests use SQLite for speed
-// and isolation. It also installs factory functions on wsStores so that
+// initTestStores wires up test stores on the server for testing.
+// It also installs factory functions on wsStores so that
 // getTM/getTB create in-memory stores instead of requiring PostgreSQL.
 func initTestStores(t *testing.T, srv *Server) {
 	t.Helper()
 
-	cs, err := bstore.NewSQLiteStore(":memory:")
+	db := pgtest.NewTestDB(t)
+
+	cs, err := bstore.NewPostgresStoreFromDB(db)
 	require.NoError(t, err)
 	srv.ContentStore = cs
 	srv.Services = service.NewServices(cs, srv.ConnectorReg, srv.FormatRegistry, srv.ToolRegistry)
 
 	if srv.Config.JWTSecret != "" {
-		as, err := auth.NewSQLiteAuthStore(":memory:")
+		as, err := auth.NewAuthStoreFromDB(db)
 		require.NoError(t, err)
 		srv.AuthStore = as
 		srv.Services.Auth = service.NewAuthService(as, srv.Config.JWTSecret)
@@ -51,14 +52,10 @@ func initTestStores(t *testing.T, srv *Server) {
 	if bs, err := bloblocal.New(t.TempDir()); err == nil {
 		srv.BlobStore = bs
 	}
-	jobDB, _ := bowrainstorage.Open(":memory:")
-	if jobDB != nil {
-		t.Cleanup(func() { jobDB.Close() })
-		js, _ := jobs.NewSQLiteJobStore(jobDB)
-		if js != nil {
-			srv.JobStore = js
-			srv.JobQueue = jobs.NewChannelQueue(64)
-		}
+	js, err := jobs.NewJobStore(db)
+	if err == nil {
+		srv.JobStore = js
+		srv.JobQueue = jobs.NewChannelQueue(64)
 	}
 
 	// Install factory functions for in-memory TM/TB stores.

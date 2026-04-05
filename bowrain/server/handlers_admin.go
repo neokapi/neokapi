@@ -262,7 +262,7 @@ func (s *Server) HandleAdminGetModelUsage(c echo.Context) error {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "usage tracking not configured"})
 	}
 
-	pgStore, ok := s.QuotaStore.(*jobs.PgQuotaStore)
+	pgStore, ok := s.QuotaStore.(*jobs.QuotaStoreDB)
 	if !ok {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "model usage not available"})
 	}

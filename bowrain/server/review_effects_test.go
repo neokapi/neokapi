@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	bstore "github.com/neokapi/neokapi/bowrain/store"
+	"github.com/neokapi/neokapi/bowrain/testutil/pgtest"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/termbase"
 	"github.com/stretchr/testify/assert"
@@ -166,12 +167,12 @@ func newTestTBStore() *testTermStore {
 }
 
 // newTestReviewStoreForServer creates a ReviewQueueStore for tests.
-func newTestReviewStoreForServer(t *testing.T) (*bstore.ReviewQueueStore, *bstore.SQLiteStore) {
+func newTestReviewStoreForServer(t *testing.T) (*bstore.ReviewQueueStore, *bstore.PostgresStore) {
 	t.Helper()
-	cs, err := bstore.NewSQLiteStore(":memory:")
+	db := pgtest.NewTestDB(t)
+	cs, err := bstore.NewPostgresStoreFromDB(db)
 	require.NoError(t, err)
-	t.Cleanup(func() { cs.Close() })
 
-	rqs := bstore.NewReviewQueueStore(cs.DB())
+	rqs := bstore.NewReviewQueueStore(db.DB)
 	return rqs, cs
 }

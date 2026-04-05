@@ -6,7 +6,7 @@ import (
 
 	"github.com/neokapi/neokapi/bowrain/core/connector"
 	"github.com/neokapi/neokapi/bowrain/core/store"
-	bstore "github.com/neokapi/neokapi/bowrain/store"
+	bstore "github.com/neokapi/neokapi/bowrain/store/sqlitestore"
 	"github.com/neokapi/neokapi/core/model"
 )
 

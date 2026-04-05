@@ -8,6 +8,7 @@ import (
 	platev "github.com/neokapi/neokapi/bowrain/core/event"
 	"github.com/neokapi/neokapi/bowrain/core/store"
 	bstore "github.com/neokapi/neokapi/bowrain/store"
+	"github.com/neokapi/neokapi/bowrain/testutil/pgtest"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -15,9 +16,9 @@ import (
 
 func newTestEventStore(t *testing.T) (*EventEmittingStore, *ChannelEventBus) {
 	t.Helper()
-	inner, err := bstore.NewSQLiteStore(":memory:")
+	db := pgtest.NewTestDB(t)
+	inner, err := bstore.NewPostgresStoreFromDB(db)
 	require.NoError(t, err)
-	t.Cleanup(func() { inner.Close() })
 
 	bus := NewChannelEventBus()
 	t.Cleanup(func() { bus.Close() })

@@ -18,8 +18,8 @@ type PostgresAuthStore struct {
 	db *storage.PgDB
 }
 
-// NewPostgresAuthStore opens a PostgreSQL-backed AuthStore.
-func NewPostgresAuthStore(connStr string) (*PostgresAuthStore, error) {
+// NewAuthStore opens a PostgreSQL-backed AuthStore.
+func NewAuthStore(connStr string) (*PostgresAuthStore, error) {
 	db, err := storage.OpenPostgres(connStr)
 	if err != nil {
 		return nil, fmt.Errorf("open auth database: %w", err)
@@ -31,8 +31,8 @@ func NewPostgresAuthStore(connStr string) (*PostgresAuthStore, error) {
 	return &PostgresAuthStore{db: db}, nil
 }
 
-// NewPostgresAuthStoreFromDB wraps an existing PgDB for auth use.
-func NewPostgresAuthStoreFromDB(db *storage.PgDB) (*PostgresAuthStore, error) {
+// NewAuthStoreFromDB wraps an existing PgDB for auth use.
+func NewAuthStoreFromDB(db *storage.PgDB) (*PostgresAuthStore, error) {
 	if err := storage.MigratePostgresNS(db, "auth_schema_migrations", authMigrationsPg); err != nil {
 		return nil, fmt.Errorf("migrate auth schema: %w", err)
 	}
@@ -798,6 +798,23 @@ func (s *PostgresAuthStore) ResolveProjectPermissions(ctx context.Context, proje
 		Permissions: platauth.Permission(perms),
 		Languages:   unmarshalLanguages(langsStr),
 	}, nil
+}
+
+// ---------------------------------------------------------------------------
+// Shared helpers
+// ---------------------------------------------------------------------------
+
+type scanner interface {
+	Scan(dest ...any) error
+}
+
+// parsePulseTermSources unmarshals JSON into PulseTermSources with defaults.
+func parsePulseTermSources(raw string, dst *platauth.PulseTermSources) {
+	dst.Terminology = true
+	dst.BrandVocabulary = false
+	if raw != "" {
+		_ = json.Unmarshal([]byte(raw), dst)
+	}
 }
 
 // ---------------------------------------------------------------------------

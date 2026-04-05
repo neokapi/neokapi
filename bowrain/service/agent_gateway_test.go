@@ -8,14 +8,15 @@ import (
 	"testing"
 
 	bragent "github.com/neokapi/neokapi/bowrain/agent"
+	"github.com/neokapi/neokapi/bowrain/testutil/pgtest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 func TestStreamFromGateway_Success(t *testing.T) {
-	store, err := bragent.NewSQLiteStore(":memory:")
+	pgdb := pgtest.NewTestDB(t)
+	store, err := bragent.NewStore(pgdb)
 	require.NoError(t, err)
-	t.Cleanup(func() { store.Close() })
 
 	svc := NewAgentService(store, nil)
 	ctx := t.Context()
@@ -102,9 +103,9 @@ func TestModePrefix_BravoBrandVoice(t *testing.T) {
 }
 
 func TestStreamFromGateway_ServerError(t *testing.T) {
-	store, err := bragent.NewSQLiteStore(":memory:")
+	pgdb := pgtest.NewTestDB(t)
+	store, err := bragent.NewStore(pgdb)
 	require.NoError(t, err)
-	t.Cleanup(func() { store.Close() })
 
 	svc := NewAgentService(store, nil)
 	ctx := t.Context()

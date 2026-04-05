@@ -13,12 +13,10 @@ import (
 )
 
 // ---------------------------------------------------------------------------
-// Stream CRUD
+// Stream CRUD (PostgreSQL)
 // ---------------------------------------------------------------------------
 
-// CreateStream inserts a new stream. If the stream has a parent, the BaseCursor
-// is automatically set to the parent's latest cursor position.
-func (s *SQLiteStore) CreateStream(ctx context.Context, st *platstore.Stream) error {
+func (s *PostgresStore) CreateStream(ctx context.Context, st *platstore.Stream) error {
 	if st.Name == "" {
 		return errors.New("stream name cannot be empty")
 	}
@@ -29,7 +27,6 @@ func (s *SQLiteStore) CreateStream(ctx context.Context, st *platstore.Stream) er
 	now := time.Now().UTC()
 	st.CreatedAt = now
 
-	// Auto-set base cursor from parent's latest cursor.
 	if st.Parent != "" {
 		parent := defaultStream(st.Parent)
 		cursor, err := s.LatestCursor(ctx, st.ProjectID, parent)
@@ -39,17 +36,11 @@ func (s *SQLiteStore) CreateStream(ctx context.Context, st *platstore.Stream) er
 		st.BaseCursor = cursor
 	}
 
-	archived := 0
-	if st.Archived {
-		archived = 1
-	}
-
 	_, err := s.db.ExecContext(ctx,
 		`INSERT INTO streams (project_id, name, parent, base_cursor, archived, visibility, description, created_at, created_by)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		st.ProjectID, st.Name, st.Parent, st.BaseCursor, archived,
-		string(st.Visibility), st.Description,
-		now.Format(time.RFC3339), st.CreatedBy)
+		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+		st.ProjectID, st.Name, st.Parent, st.BaseCursor, st.Archived,
+		string(st.Visibility), st.Description, now, st.CreatedBy)
 	if err != nil {
 		return fmt.Errorf("insert stream: %w", err)
 	}
@@ -58,10 +49,9 @@ func (s *SQLiteStore) CreateStream(ctx context.Context, st *platstore.Stream) er
 	parentStream := defaultStream(st.Parent)
 	_, err = s.db.ExecContext(ctx,
 		`INSERT INTO items (id, project_id, stream, name, format, item_type, block_index, preview_html, properties, collection_id, created_at, updated_at)
-		 SELECT lower(hex(randomblob(4))), project_id, ?, name, format, item_type, block_index, preview_html, properties, collection_id, ?, ?
-		 FROM items WHERE project_id = ? AND stream = ?`,
-		st.Name, now.Format(time.RFC3339), now.Format(time.RFC3339),
-		st.ProjectID, parentStream)
+		 SELECT substr(md5(random()::text), 1, 8), project_id, $1, name, format, item_type, block_index, preview_html, properties, collection_id, $2, $2
+		 FROM items WHERE project_id = $3 AND stream = $4`,
+		st.Name, now, st.ProjectID, parentStream)
 	if err != nil {
 		return fmt.Errorf("copy parent items: %w", err)
 	}
@@ -69,26 +59,23 @@ func (s *SQLiteStore) CreateStream(ctx context.Context, st *platstore.Stream) er
 	return nil
 }
 
-// GetStream returns a stream by project and name.
-func (s *SQLiteStore) GetStream(ctx context.Context, projectID, name string) (*platstore.Stream, error) {
+func (s *PostgresStore) GetStream(ctx context.Context, projectID, name string) (*platstore.Stream, error) {
 	row := s.db.QueryRowContext(ctx,
 		`SELECT project_id, name, parent, base_cursor, archived, visibility, description, created_at, created_by, locked, locked_by, locked_at
-		 FROM streams WHERE project_id = ? AND name = ?`,
-		projectID, name)
-	return scanStream(row)
+		 FROM streams WHERE project_id = $1 AND name = $2`, projectID, name)
+	return scanStreamPg(row)
 }
 
-// ListStreams returns all streams for a project.
-func (s *SQLiteStore) ListStreams(ctx context.Context, projectID string, includeArchived bool) ([]*platstore.Stream, error) {
+func (s *PostgresStore) ListStreams(ctx context.Context, projectID string, includeArchived bool) ([]*platstore.Stream, error) {
 	var query string
 	var args []any
 	if includeArchived {
 		query = `SELECT project_id, name, parent, base_cursor, archived, visibility, description, created_at, created_by, locked, locked_by, locked_at
-				 FROM streams WHERE project_id = ? ORDER BY name`
+				 FROM streams WHERE project_id = $1 ORDER BY name`
 		args = []any{projectID}
 	} else {
 		query = `SELECT project_id, name, parent, base_cursor, archived, visibility, description, created_at, created_by, locked, locked_by, locked_at
-				 FROM streams WHERE project_id = ? AND archived = 0 ORDER BY name`
+				 FROM streams WHERE project_id = $1 AND archived = FALSE ORDER BY name`
 		args = []any{projectID}
 	}
 
@@ -100,7 +87,7 @@ func (s *SQLiteStore) ListStreams(ctx context.Context, projectID string, include
 
 	var result []*platstore.Stream
 	for rows.Next() {
-		st, err := scanStream(rows)
+		st, err := scanStreamPg(rows)
 		if err != nil {
 			return nil, err
 		}
@@ -109,26 +96,12 @@ func (s *SQLiteStore) ListStreams(ctx context.Context, projectID string, include
 	return result, rows.Err()
 }
 
-// UpdateStream updates a stream's description, visibility, and archived status.
-func (s *SQLiteStore) UpdateStream(ctx context.Context, st *platstore.Stream) error {
-	archived := 0
-	if st.Archived {
-		archived = 1
-	}
-	locked := 0
-	if st.Locked {
-		locked = 1
-	}
-	var lockedAt *string
-	if st.LockedAt != nil {
-		s := st.LockedAt.UTC().Format(time.RFC3339)
-		lockedAt = &s
-	}
-
+func (s *PostgresStore) UpdateStream(ctx context.Context, st *platstore.Stream) error {
 	res, err := s.db.ExecContext(ctx,
-		`UPDATE streams SET description = ?, visibility = ?, archived = ?, locked = ?, locked_by = ?, locked_at = ?
-		 WHERE project_id = ? AND name = ?`,
-		st.Description, string(st.Visibility), archived, locked, st.LockedBy, lockedAt, st.ProjectID, st.Name)
+		`UPDATE streams SET parent=$1, base_cursor=$2, archived=$3, visibility=$4, description=$5, locked=$6, locked_by=$7, locked_at=$8
+		 WHERE project_id=$9 AND name=$10`,
+		st.Parent, st.BaseCursor, st.Archived, string(st.Visibility),
+		st.Description, st.Locked, st.LockedBy, st.LockedAt, st.ProjectID, st.Name)
 	if err != nil {
 		return fmt.Errorf("update stream: %w", err)
 	}
@@ -139,15 +112,12 @@ func (s *SQLiteStore) UpdateStream(ctx context.Context, st *platstore.Stream) er
 	return nil
 }
 
-// DeleteStream removes a stream and its associated data.
-func (s *SQLiteStore) DeleteStream(ctx context.Context, projectID, name string) error {
+func (s *PostgresStore) DeleteStream(ctx context.Context, projectID, name string) error {
 	if name == "main" {
 		return errors.New("cannot delete the main stream")
 	}
-
 	res, err := s.db.ExecContext(ctx,
-		`DELETE FROM streams WHERE project_id = ? AND name = ?`,
-		projectID, name)
+		`DELETE FROM streams WHERE project_id=$1 AND name=$2`, projectID, name)
 	if err != nil {
 		return fmt.Errorf("delete stream: %w", err)
 	}
@@ -162,8 +132,7 @@ func (s *SQLiteStore) DeleteStream(ctx context.Context, projectID, name string) 
 // Stream operations
 // ---------------------------------------------------------------------------
 
-// MergeStream applies a stream's changes to its parent stream.
-func (s *SQLiteStore) MergeStream(ctx context.Context, projectID, streamName string, opts platstore.MergeOptions) (*platstore.MergeResult, error) {
+func (s *PostgresStore) MergeStream(ctx context.Context, projectID, streamName string, opts platstore.MergeOptions) (*platstore.MergeResult, error) {
 	stream, err := s.GetStream(ctx, projectID, streamName)
 	if err != nil {
 		return nil, fmt.Errorf("get stream: %w", err)
@@ -174,16 +143,13 @@ func (s *SQLiteStore) MergeStream(ctx context.Context, projectID, streamName str
 
 	parentStream := defaultStream(stream.Parent)
 
-	// Get all change log entries for this stream since the base cursor.
 	changes, err := s.GetChanges(ctx, projectID, streamName, stream.BaseCursor, nil, MaxChangesPerRequest)
 	if err != nil {
 		return nil, fmt.Errorf("get stream changes: %w", err)
 	}
 
 	result := &platstore.MergeResult{}
-
-	// Collect unique block IDs and categorize changes.
-	blockChanges := map[string]string{} // blockID -> latest change type
+	blockChanges := map[string]string{}
 	for _, c := range changes.Changes {
 		blockChanges[c.BlockID] = c.ChangeType
 	}
@@ -212,7 +178,6 @@ func (s *SQLiteStore) MergeStream(ctx context.Context, projectID, streamName str
 		return result, nil
 	}
 
-	// Apply changes: copy block targets from stream to parent.
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return nil, fmt.Errorf("begin tx: %w", err)
@@ -223,20 +188,6 @@ func (s *SQLiteStore) MergeStream(ctx context.Context, projectID, streamName str
 		if changeType == "source_removed" {
 			continue
 		}
-
-		// Get the block's current targets.
-		var targetsJSON string
-		err := tx.QueryRowContext(ctx,
-			`SELECT targets_json FROM blocks WHERE project_id = ? AND id = ?`,
-			projectID, blockID).Scan(&targetsJSON)
-		if err != nil {
-			if errors.Is(err, sql.ErrNoRows) {
-				continue
-			}
-			return nil, fmt.Errorf("get block targets: %w", err)
-		}
-
-		// Log the change in the parent stream.
 		if err := logChange(ctx, tx, projectID, parentStream, blockID, changeType, "", ""); err != nil {
 			return nil, fmt.Errorf("log merge change: %w", err)
 		}
@@ -249,8 +200,7 @@ func (s *SQLiteStore) MergeStream(ctx context.Context, projectID, streamName str
 	return result, nil
 }
 
-// DiffStream compares a stream's blocks against its parent's state at the branch point.
-func (s *SQLiteStore) DiffStream(ctx context.Context, projectID, streamName string) (*platstore.StreamDiff, error) {
+func (s *PostgresStore) DiffStream(ctx context.Context, projectID, streamName string) (*platstore.StreamDiff, error) {
 	stream, err := s.GetStream(ctx, projectID, streamName)
 	if err != nil {
 		return nil, fmt.Errorf("get stream: %w", err)
@@ -258,7 +208,6 @@ func (s *SQLiteStore) DiffStream(ctx context.Context, projectID, streamName stri
 
 	parentName := defaultStream(stream.Parent)
 
-	// Get all changes in this stream since the base cursor.
 	changes, err := s.GetChanges(ctx, projectID, streamName, stream.BaseCursor, nil, MaxChangesPerRequest)
 	if err != nil {
 		return nil, fmt.Errorf("get stream changes: %w", err)
@@ -269,7 +218,6 @@ func (s *SQLiteStore) DiffStream(ctx context.Context, projectID, streamName stri
 		ParentName: parentName,
 	}
 
-	// Deduplicate by block ID, keeping the latest change type.
 	blockChanges := map[string]string{}
 	for _, c := range changes.Changes {
 		blockChanges[c.BlockID] = c.ChangeType
@@ -298,12 +246,10 @@ func (s *SQLiteStore) DiffStream(ctx context.Context, projectID, streamName stri
 // Stream membership
 // ---------------------------------------------------------------------------
 
-// AddStreamMember adds a user to a stream's member list.
-func (s *SQLiteStore) AddStreamMember(ctx context.Context, projectID, streamName, userID string) error {
-	now := time.Now().UTC().Format(time.RFC3339)
+func (s *PostgresStore) AddStreamMember(ctx context.Context, projectID, streamName, userID string) error {
+	now := time.Now().UTC()
 	_, err := s.db.ExecContext(ctx,
-		`INSERT INTO stream_members (project_id, stream, user_id, added_at)
-		 VALUES (?, ?, ?, ?)
+		`INSERT INTO stream_members (project_id, stream, user_id, added_at) VALUES ($1, $2, $3, $4)
 		 ON CONFLICT(project_id, stream, user_id) DO NOTHING`,
 		projectID, streamName, userID, now)
 	if err != nil {
@@ -312,25 +258,23 @@ func (s *SQLiteStore) AddStreamMember(ctx context.Context, projectID, streamName
 	return nil
 }
 
-// RemoveStreamMember removes a user from a stream's member list.
-func (s *SQLiteStore) RemoveStreamMember(ctx context.Context, projectID, streamName, userID string) error {
+func (s *PostgresStore) RemoveStreamMember(ctx context.Context, projectID, streamName, userID string) error {
 	res, err := s.db.ExecContext(ctx,
-		`DELETE FROM stream_members WHERE project_id = ? AND stream = ? AND user_id = ?`,
+		`DELETE FROM stream_members WHERE project_id=$1 AND stream=$2 AND user_id=$3`,
 		projectID, streamName, userID)
 	if err != nil {
 		return fmt.Errorf("remove stream member: %w", err)
 	}
 	n, _ := res.RowsAffected()
 	if n == 0 {
-		return fmt.Errorf("member %s not found in stream %s", userID, streamName)
+		return fmt.Errorf("member %s not found in stream %s/%s", userID, projectID, streamName)
 	}
 	return nil
 }
 
-// ListStreamMembers returns all user IDs that are members of a stream.
-func (s *SQLiteStore) ListStreamMembers(ctx context.Context, projectID, streamName string) ([]string, error) {
+func (s *PostgresStore) ListStreamMembers(ctx context.Context, projectID, streamName string) ([]string, error) {
 	rows, err := s.db.QueryContext(ctx,
-		`SELECT user_id FROM stream_members WHERE project_id = ? AND stream = ? ORDER BY added_at`,
+		`SELECT user_id FROM stream_members WHERE project_id=$1 AND stream=$2 ORDER BY user_id`,
 		projectID, streamName)
 	if err != nil {
 		return nil, fmt.Errorf("list stream members: %w", err)
@@ -349,26 +293,24 @@ func (s *SQLiteStore) ListStreamMembers(ctx context.Context, projectID, streamNa
 }
 
 // ---------------------------------------------------------------------------
-// Scan helpers
+// Scan helper
 // ---------------------------------------------------------------------------
 
 // ---------------------------------------------------------------------------
-// Stream lock
+// Stream lock (PostgreSQL)
 // ---------------------------------------------------------------------------
 
-// LockStream locks a stream, preventing further content changes.
-func (s *SQLiteStore) LockStream(ctx context.Context, projectID, streamName, userID string) error {
-	now := time.Now().UTC().Format(time.RFC3339)
+func (s *PostgresStore) LockStream(ctx context.Context, projectID, streamName, userID string) error {
+	now := time.Now().UTC()
 	res, err := s.db.ExecContext(ctx,
-		`UPDATE streams SET locked = 1, locked_by = ?, locked_at = ?
-		 WHERE project_id = ? AND name = ? AND locked = 0`,
+		`UPDATE streams SET locked = TRUE, locked_by = $1, locked_at = $2
+		 WHERE project_id = $3 AND name = $4 AND locked = FALSE`,
 		userID, now, projectID, streamName)
 	if err != nil {
 		return fmt.Errorf("lock stream: %w", err)
 	}
 	n, _ := res.RowsAffected()
 	if n == 0 {
-		// Either not found or already locked.
 		st, err := s.GetStream(ctx, projectID, streamName)
 		if err != nil {
 			return fmt.Errorf("stream %q not found in project %s", streamName, projectID)
@@ -380,11 +322,10 @@ func (s *SQLiteStore) LockStream(ctx context.Context, projectID, streamName, use
 	return nil
 }
 
-// UnlockStream unlocks a previously locked stream.
-func (s *SQLiteStore) UnlockStream(ctx context.Context, projectID, streamName string) error {
+func (s *PostgresStore) UnlockStream(ctx context.Context, projectID, streamName string) error {
 	res, err := s.db.ExecContext(ctx,
-		`UPDATE streams SET locked = 0, locked_by = '', locked_at = NULL
-		 WHERE project_id = ? AND name = ?`,
+		`UPDATE streams SET locked = FALSE, locked_by = '', locked_at = NULL
+		 WHERE project_id = $1 AND name = $2`,
 		projectID, streamName)
 	if err != nil {
 		return fmt.Errorf("unlock stream: %w", err)
@@ -397,11 +338,10 @@ func (s *SQLiteStore) UnlockStream(ctx context.Context, projectID, streamName st
 }
 
 // ---------------------------------------------------------------------------
-// Stream tags
+// Stream tags (PostgreSQL)
 // ---------------------------------------------------------------------------
 
-// CreateStreamTag creates a new immutable tag on a stream.
-func (s *SQLiteStore) CreateStreamTag(ctx context.Context, tag *platstore.StreamTag) error {
+func (s *PostgresStore) CreateStreamTag(ctx context.Context, tag *platstore.StreamTag) error {
 	if tag.ID == "" {
 		tag.ID = id.New()
 	}
@@ -418,41 +358,38 @@ func (s *SQLiteStore) CreateStreamTag(ctx context.Context, tag *platstore.Stream
 
 	_, err = s.db.ExecContext(ctx,
 		`INSERT INTO stream_tags (id, project_id, stream, name, kind, cursor, metadata, created_by, created_at)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
 		tag.ID, tag.ProjectID, tag.Stream, tag.Name, string(tag.Kind),
-		tag.Cursor, string(metaJSON), tag.CreatedBy, now.Format(time.RFC3339))
+		tag.Cursor, string(metaJSON), tag.CreatedBy, now)
 	if err != nil {
 		return fmt.Errorf("insert stream tag: %w", err)
 	}
 	return nil
 }
 
-// ListStreamTags returns all tags for a given stream.
-func (s *SQLiteStore) ListStreamTags(ctx context.Context, projectID, stream string) ([]*platstore.StreamTag, error) {
+func (s *PostgresStore) ListStreamTags(ctx context.Context, projectID, stream string) ([]*platstore.StreamTag, error) {
 	rows, err := s.db.QueryContext(ctx,
 		`SELECT id, project_id, stream, name, kind, cursor, metadata, created_by, created_at
-		 FROM stream_tags WHERE project_id = ? AND stream = ? ORDER BY created_at DESC`,
+		 FROM stream_tags WHERE project_id = $1 AND stream = $2 ORDER BY created_at DESC`,
 		projectID, stream)
 	if err != nil {
 		return nil, fmt.Errorf("list stream tags: %w", err)
 	}
 	defer rows.Close()
-	return scanStreamTags(rows)
+	return scanStreamTagsPg(rows)
 }
 
-// GetStreamTag returns a single tag by stream and tag name.
-func (s *SQLiteStore) GetStreamTag(ctx context.Context, projectID, stream, tagName string) (*platstore.StreamTag, error) {
+func (s *PostgresStore) GetStreamTag(ctx context.Context, projectID, stream, tagName string) (*platstore.StreamTag, error) {
 	row := s.db.QueryRowContext(ctx,
 		`SELECT id, project_id, stream, name, kind, cursor, metadata, created_by, created_at
-		 FROM stream_tags WHERE project_id = ? AND stream = ? AND name = ?`,
+		 FROM stream_tags WHERE project_id = $1 AND stream = $2 AND name = $3`,
 		projectID, stream, tagName)
-	return scanStreamTag(row)
+	return scanStreamTagPg(row)
 }
 
-// DeleteStreamTag removes a tag.
-func (s *SQLiteStore) DeleteStreamTag(ctx context.Context, projectID, stream, tagName string) error {
+func (s *PostgresStore) DeleteStreamTag(ctx context.Context, projectID, stream, tagName string) error {
 	res, err := s.db.ExecContext(ctx,
-		`DELETE FROM stream_tags WHERE project_id = ? AND stream = ? AND name = ?`,
+		`DELETE FROM stream_tags WHERE project_id = $1 AND stream = $2 AND name = $3`,
 		projectID, stream, tagName)
 	if err != nil {
 		return fmt.Errorf("delete stream tag: %w", err)
@@ -464,17 +401,16 @@ func (s *SQLiteStore) DeleteStreamTag(ctx context.Context, projectID, stream, ta
 	return nil
 }
 
-// ListProjectTags returns all tags across all streams in a project, optionally filtered by kind.
-func (s *SQLiteStore) ListProjectTags(ctx context.Context, projectID string, kind platstore.StreamTagKind) ([]*platstore.StreamTag, error) {
+func (s *PostgresStore) ListProjectTags(ctx context.Context, projectID string, kind platstore.StreamTagKind) ([]*platstore.StreamTag, error) {
 	var query string
 	var args []any
 	if kind != "" {
 		query = `SELECT id, project_id, stream, name, kind, cursor, metadata, created_by, created_at
-				 FROM stream_tags WHERE project_id = ? AND kind = ? ORDER BY created_at DESC`
+				 FROM stream_tags WHERE project_id = $1 AND kind = $2 ORDER BY created_at DESC`
 		args = []any{projectID, string(kind)}
 	} else {
 		query = `SELECT id, project_id, stream, name, kind, cursor, metadata, created_by, created_at
-				 FROM stream_tags WHERE project_id = ? ORDER BY created_at DESC`
+				 FROM stream_tags WHERE project_id = $1 ORDER BY created_at DESC`
 		args = []any{projectID}
 	}
 
@@ -483,41 +419,31 @@ func (s *SQLiteStore) ListProjectTags(ctx context.Context, projectID string, kin
 		return nil, fmt.Errorf("list project tags: %w", err)
 	}
 	defer rows.Close()
-	return scanStreamTags(rows)
+	return scanStreamTagsPg(rows)
 }
 
 // ---------------------------------------------------------------------------
 // Scan helpers
 // ---------------------------------------------------------------------------
 
-func scanStream(row scanner) (*platstore.Stream, error) {
+func scanStreamPg(row scanner) (*platstore.Stream, error) {
 	var st platstore.Stream
-	var archived, locked int
-	var visibility, createdStr, lockedBy string
-	var lockedAtStr *string
+	var visibility string
 	err := row.Scan(&st.ProjectID, &st.Name, &st.Parent, &st.BaseCursor,
-		&archived, &visibility, &st.Description, &createdStr, &st.CreatedBy,
-		&locked, &lockedBy, &lockedAtStr)
+		&st.Archived, &visibility, &st.Description, &st.CreatedAt, &st.CreatedBy,
+		&st.Locked, &st.LockedBy, &st.LockedAt)
 	if err != nil {
 		return nil, fmt.Errorf("scan stream: %w", err)
 	}
-	st.Archived = archived != 0
-	st.Locked = locked != 0
-	st.LockedBy = lockedBy
-	if lockedAtStr != nil {
-		t, _ := time.Parse(time.RFC3339, *lockedAtStr)
-		st.LockedAt = &t
-	}
 	st.Visibility = platstore.StreamVisibility(visibility)
-	st.CreatedAt, _ = time.Parse(time.RFC3339, createdStr)
 	return &st, nil
 }
 
-func scanStreamTag(row scanner) (*platstore.StreamTag, error) {
+func scanStreamTagPg(row scanner) (*platstore.StreamTag, error) {
 	var tag platstore.StreamTag
-	var kindStr, metaStr, createdStr string
+	var kindStr, metaStr string
 	err := row.Scan(&tag.ID, &tag.ProjectID, &tag.Stream, &tag.Name,
-		&kindStr, &tag.Cursor, &metaStr, &tag.CreatedBy, &createdStr)
+		&kindStr, &tag.Cursor, &metaStr, &tag.CreatedBy, &tag.CreatedAt)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, errors.New("stream tag not found")
@@ -525,17 +451,16 @@ func scanStreamTag(row scanner) (*platstore.StreamTag, error) {
 		return nil, fmt.Errorf("scan stream tag: %w", err)
 	}
 	tag.Kind = platstore.StreamTagKind(kindStr)
-	tag.CreatedAt, _ = time.Parse(time.RFC3339, createdStr)
 	if metaStr != "" && metaStr != "{}" {
 		_ = json.Unmarshal([]byte(metaStr), &tag.Metadata)
 	}
 	return &tag, nil
 }
 
-func scanStreamTags(rows *sql.Rows) ([]*platstore.StreamTag, error) {
+func scanStreamTagsPg(rows *sql.Rows) ([]*platstore.StreamTag, error) {
 	var result []*platstore.StreamTag
 	for rows.Next() {
-		tag, err := scanStreamTag(rows)
+		tag, err := scanStreamTagPg(rows)
 		if err != nil {
 			return nil, err
 		}

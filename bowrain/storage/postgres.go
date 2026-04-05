@@ -28,6 +28,12 @@ func (db *PgDB) Pool() *pgxpool.Pool {
 	return db.pool
 }
 
+// WrapPgDB creates a PgDB from an existing *sql.DB and optional pool.
+// Used by test infrastructure that needs to configure connections before wrapping.
+func WrapPgDB(db *sql.DB, connStr string, pool *pgxpool.Pool) *PgDB {
+	return &PgDB{DB: db, connStr: connStr, pool: pool}
+}
+
 // AfterConnectFunc is the type for pgx AfterConnect hooks.
 type AfterConnectFunc func(ctx context.Context, conn *pgx.Conn) error
 

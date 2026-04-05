@@ -46,22 +46,12 @@ type DigestState struct {
 
 // DigestStore persists digest settings and state.
 type DigestStore struct {
-	db      *sql.DB
-	dialect Dialect
+	db *sql.DB
 }
 
-// NewDigestStore creates a SQLite-backed digest store.
+// NewDigestStore creates a PostgreSQL-backed digest store.
 func NewDigestStore(db *sql.DB) *DigestStore {
-	return &DigestStore{db: db, dialect: DialectSQLite}
-}
-
-// NewPostgresDigestStore creates a PostgreSQL-backed digest store.
-func NewPostgresDigestStore(db *sql.DB) *DigestStore {
-	return &DigestStore{db: db, dialect: DialectPostgres}
-}
-
-func (s *DigestStore) q(query string) string {
-	return Rebind(s.dialect, query)
+	return &DigestStore{db: db}
 }
 
 // GetSettings returns the digest settings for a user in a workspace.
@@ -69,9 +59,9 @@ func (s *DigestStore) q(query string) string {
 func (s *DigestStore) GetSettings(ctx context.Context, userID, workspaceID string) (*DigestSettings, error) {
 	var ds DigestSettings
 	var freq string
-	err := s.db.QueryRowContext(ctx, s.q(
+	err := s.db.QueryRowContext(ctx,
 		`SELECT user_id, workspace_id, frequency, quiet_start, quiet_end, timezone
-		 FROM digest_settings WHERE user_id = ? AND workspace_id = ?`),
+		 FROM digest_settings WHERE user_id = $1 AND workspace_id = $2`,
 		userID, workspaceID).Scan(&ds.UserID, &ds.WorkspaceID, &freq, &ds.QuietStart, &ds.QuietEnd, &ds.Timezone)
 	if errors.Is(err, sql.ErrNoRows) {
 		return DefaultDigestSettings(userID, workspaceID), nil
@@ -85,21 +75,20 @@ func (s *DigestStore) GetSettings(ctx context.Context, userID, workspaceID strin
 
 // UpsertSettings saves digest settings, creating or updating as needed.
 func (s *DigestStore) UpsertSettings(ctx context.Context, ds *DigestSettings) error {
-	_, err := s.db.ExecContext(ctx, s.q(
+	_, err := s.db.ExecContext(ctx,
 		`INSERT INTO digest_settings (user_id, workspace_id, frequency, quiet_start, quiet_end, timezone)
-		 VALUES (?, ?, ?, ?, ?, ?)
+		 VALUES ($1, $2, $3, $4, $5, $6)
 		 ON CONFLICT (user_id, workspace_id)
-		 DO UPDATE SET frequency = ?, quiet_start = ?, quiet_end = ?, timezone = ?`),
-		ds.UserID, ds.WorkspaceID, string(ds.Frequency), ds.QuietStart, ds.QuietEnd, ds.Timezone,
-		string(ds.Frequency), ds.QuietStart, ds.QuietEnd, ds.Timezone)
+		 DO UPDATE SET frequency = $3, quiet_start = $4, quiet_end = $5, timezone = $6`,
+		ds.UserID, ds.WorkspaceID, string(ds.Frequency), ds.QuietStart, ds.QuietEnd, ds.Timezone)
 	return err
 }
 
 // ListUsersWithFrequency returns all user/workspace pairs with a specific digest frequency.
 func (s *DigestStore) ListUsersWithFrequency(ctx context.Context, frequency DigestFrequency) ([]DigestSettings, error) {
-	rows, err := s.db.QueryContext(ctx, s.q(
+	rows, err := s.db.QueryContext(ctx,
 		`SELECT user_id, workspace_id, frequency, quiet_start, quiet_end, timezone
-		 FROM digest_settings WHERE frequency = ?`), string(frequency))
+		 FROM digest_settings WHERE frequency = $1`, string(frequency))
 	if err != nil {
 		return nil, err
 	}
@@ -121,11 +110,10 @@ func (s *DigestStore) ListUsersWithFrequency(ctx context.Context, frequency Dige
 // GetState returns the last digest sent time for a user/workspace/frequency.
 func (s *DigestStore) GetState(ctx context.Context, userID, workspaceID, frequency string) (*DigestState, error) {
 	var ds DigestState
-	var lastSent string
-	err := s.db.QueryRowContext(ctx, s.q(
+	err := s.db.QueryRowContext(ctx,
 		`SELECT user_id, workspace_id, frequency, last_sent_at
-		 FROM digest_state WHERE user_id = ? AND workspace_id = ? AND frequency = ?`),
-		userID, workspaceID, frequency).Scan(&ds.UserID, &ds.WorkspaceID, &ds.Frequency, &lastSent)
+		 FROM digest_state WHERE user_id = $1 AND workspace_id = $2 AND frequency = $3`,
+		userID, workspaceID, frequency).Scan(&ds.UserID, &ds.WorkspaceID, &ds.Frequency, &ds.LastSentAt)
 	if errors.Is(err, sql.ErrNoRows) {
 		return &DigestState{
 			UserID:      userID,
@@ -137,19 +125,18 @@ func (s *DigestStore) GetState(ctx context.Context, userID, workspaceID, frequen
 	if err != nil {
 		return nil, err
 	}
-	ds.LastSentAt, _ = parseTime(lastSent)
+	ds.LastSentAt = ds.LastSentAt.UTC()
 	return &ds, nil
 }
 
 // UpdateState records when a digest was last sent.
 func (s *DigestStore) UpdateState(ctx context.Context, userID, workspaceID, frequency string, sentAt time.Time) error {
-	_, err := s.db.ExecContext(ctx, s.q(
+	_, err := s.db.ExecContext(ctx,
 		`INSERT INTO digest_state (user_id, workspace_id, frequency, last_sent_at)
-		 VALUES (?, ?, ?, ?)
+		 VALUES ($1, $2, $3, $4)
 		 ON CONFLICT (user_id, workspace_id, frequency)
-		 DO UPDATE SET last_sent_at = ?`),
-		userID, workspaceID, frequency, sentAt.UTC().Format(time.RFC3339),
-		sentAt.UTC().Format(time.RFC3339))
+		 DO UPDATE SET last_sent_at = $4`,
+		userID, workspaceID, frequency, sentAt.UTC().Format(time.RFC3339))
 	return err
 }
 
