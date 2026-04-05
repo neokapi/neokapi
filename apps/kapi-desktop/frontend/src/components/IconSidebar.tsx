@@ -95,7 +95,7 @@ export function IconSidebar({ mode, active, onChange, projectDisabled }: IconSid
   const items = mode === "adhoc" ? adhocItems : projectItems;
 
   return (
-    <aside className="flex w-12 flex-col items-center py-2">
+    <aside className="flex h-full w-12 flex-col items-center py-2">
       <nav className="flex flex-1 flex-col items-center gap-1">
         {items.map((item, i) => {
           if (item.type === "separator") {
