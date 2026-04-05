@@ -378,7 +378,10 @@ endif
 test-bowrain: ## Run bowrain module tests only
 	@mkdir -p $(COVER_DIR)
 ifdef CI
-	$(GOTEST_BASE) -coverprofile=$(COVER_DIR)/bowrain.out $(_COVMODE) -json $$($(GO) list ./... | grep -v '/apps/bowrain') > ../test-results-bowrain.json
+	$(GOTEST_BASE) -coverprofile=$(COVER_DIR)/bowrain.out $(_COVMODE) -json $$($(GO) list ./... | grep -v '/apps/bowrain') > ../test-results-bowrain.json 2> ../test-stderr-bowrain.txt; \
+		test_exit=$$?; \
+		if [ $$test_exit -ne 0 ]; then echo "::warning::go test exited with code $$test_exit"; cat ../test-stderr-bowrain.txt >&2; fi; \
+		exit $$test_exit
 else
 	$(GOTEST_BASE) ./... -count=1
 endif
