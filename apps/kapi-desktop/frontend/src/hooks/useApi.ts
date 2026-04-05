@@ -245,10 +245,19 @@ export const api = {
   // Recovery
   recoverResource: (path: string) => call<string>("RecoverResource", path),
 
+  // Project resource handles
+  getProjectTMHandle: (tabID: string) => call<string>("GetProjectTMHandle", tabID),
+  getProjectTermbaseHandle: (tabID: string) => call<string>("GetProjectTermbaseHandle", tabID),
+
   // TM
   listNamedTMs: () =>
     call<Array<{ name: string; path: string; size: number; modified: string }>>("ListNamedTMs"),
   getTMStats: (handle: string) => call<{ count: number; path: string }>("GetTMStats", handle),
+  getTMLocaleStats: (handle: string) =>
+    call<Array<{ source_locale: string; target_locale: string; count: number }>>(
+      "GetTMLocaleStats",
+      handle,
+    ),
   openTM: (path: string) => call<string>("OpenTM", path),
   openTMDialog: () => call<string>("OpenTMDialog"),
   createTM: (path: string) => call<string>("CreateTM", path),
@@ -281,6 +290,8 @@ export const api = {
       "ListNamedTermbases",
     ),
   getTermbaseStats: (handle: string) => call<{ count: number }>("GetTermbaseStats", handle),
+  getTermbaseLocaleStats: (handle: string) =>
+    call<Array<{ locale: string; count: number }>>("GetTermbaseLocaleStats", handle),
   openTermbase: (path: string) => call<string>("OpenTermbase", path),
   openTermbaseDialog: () => call<string>("OpenTermbaseDialog"),
   createTermbase: (path: string) => call<string>("CreateTermbase", path),

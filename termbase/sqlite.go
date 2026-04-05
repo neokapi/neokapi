@@ -636,6 +636,33 @@ func (tb *SQLiteTermBase) Concepts() []Concept {
 	return concepts
 }
 
+// LocaleStat holds the term count for a single locale.
+type LocaleStat struct {
+	Locale string `json:"locale"`
+	Count  int    `json:"count"`
+}
+
+// LocaleStats returns the number of terms grouped by locale.
+func (tb *SQLiteTermBase) LocaleStats() []LocaleStat {
+	rows, err := tb.db.Query(
+		"SELECT locale, COUNT(*) FROM tb_terms GROUP BY locale ORDER BY COUNT(*) DESC",
+	)
+	if err != nil {
+		slog.Warn("termbase locale stats query failed", "error", err)
+		return nil
+	}
+	defer rows.Close()
+	var stats []LocaleStat
+	for rows.Next() {
+		var s LocaleStat
+		if err := rows.Scan(&s.Locale, &s.Count); err != nil {
+			continue
+		}
+		stats = append(stats, s)
+	}
+	return stats
+}
+
 // Close closes the database connection.
 func (tb *SQLiteTermBase) Close() error {
 	return tb.db.Close()

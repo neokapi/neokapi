@@ -1,19 +1,42 @@
 import { useState, useEffect, useCallback } from "react";
 import { Database, Plus, FolderOpen, X, Upload, Download, AlertTriangle } from "lucide-react";
-import { Button, Card, CardContent, Label, Input, PageHeader } from "@neokapi/ui-primitives";
+import {
+  Button,
+  Card,
+  CardContent,
+  Label,
+  Input,
+  PageHeader,
+  ChartContainer,
+  type ChartConfig,
+} from "@neokapi/ui-primitives";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid } from "recharts";
 import { api } from "../hooks/useApi";
 import { useError } from "./ErrorBanner";
 import { useTMAdapter } from "../hooks/useTMAdapter";
 import { TMBrowser, ResourceCard, ImportProgress, type ResourceInfo } from "@neokapi/ui-primitives";
 
 export interface MemoriesPageProps {
+  /** Project tab ID — when set, shows the project-scoped TM. */
+  tabID?: string;
   /** Pre-loaded resources for Storybook — skips api.listNamedTMs(). */
   resources?: ResourceInfo[];
   /** Force loading/skeleton state (for Storybook). */
   forceLoading?: boolean;
 }
 
+interface LocalePairStat {
+  source_locale: string;
+  target_locale: string;
+  count: number;
+}
+
+const chartConfig: ChartConfig = {
+  count: { label: "Entries", color: "var(--chart-1)" },
+};
+
 export function MemoriesPage({
+  tabID,
   resources: propResources,
   forceLoading = false,
 }: MemoriesPageProps = {}) {
@@ -29,8 +52,33 @@ export function MemoriesPage({
   const [corruptName, setCorruptName] = useState("");
   const [recovering, setRecovering] = useState(false);
 
+  // Project TM state
+  const [projectHandle, setProjectHandle] = useState<string | null>(null);
+  const [projectStats, setProjectStats] = useState<{ count: number } | null>(null);
+  const [localeStats, setLocaleStats] = useState<LocalePairStat[]>([]);
+
   const { showError } = useError();
-  const adapter = useTMAdapter(handle);
+  const activeHandle = projectHandle || handle;
+  const adapter = useTMAdapter(activeHandle);
+
+  // Load project TM handle when tabID is provided.
+  useEffect(() => {
+    if (!tabID) return;
+    api
+      .getProjectTMHandle(tabID)
+      .then((h) => {
+        if (h) {
+          setProjectHandle(h);
+          void api.getTMStats(h).then((s) => {
+            if (s) setProjectStats(s);
+          });
+          void api.getTMLocaleStats(h).then((stats) => {
+            if (stats) setLocaleStats(stats);
+          });
+        }
+      })
+      .catch(() => {});
+  }, [tabID]);
 
   const refreshResources = useCallback(async () => {
     if (propResources || forceLoading) return;
@@ -43,11 +91,11 @@ export function MemoriesPage({
     } finally {
       setLoading(false);
     }
-  }, [showError, propResources]);
+  }, [showError, propResources, forceLoading]);
 
   useEffect(() => {
-    void refreshResources();
-  }, [refreshResources]);
+    if (!projectHandle) void refreshResources();
+  }, [refreshResources, projectHandle]);
 
   const handleOpen = useCallback(async (path: string, name: string) => {
     try {
@@ -123,27 +171,77 @@ export function MemoriesPage({
   }, [handle, refreshResources]);
 
   const handleImport = useCallback(async () => {
-    if (!handle) return;
+    if (!activeHandle) return;
     setImporting(true);
     try {
-      await api.importTMXDialog(handle, "", "");
+      await api.importTMXDialog(activeHandle, "", "");
     } catch (err) {
       showError("Failed to import TMX", err);
     } finally {
       setImporting(false);
     }
-  }, [handle, showError]);
+  }, [activeHandle, showError]);
 
   const handleExport = useCallback(async () => {
-    if (!handle) return;
+    if (!activeHandle) return;
     try {
-      await api.exportTMXDialog(handle, "", "");
+      await api.exportTMXDialog(activeHandle, "", "");
     } catch (err) {
       showError("Failed to export TMX", err);
     }
-  }, [handle, showError]);
+  }, [activeHandle, showError]);
 
-  // Browser view — TM is open.
+  // Project TM view — shows dashboard + browser.
+  if (projectHandle && adapter) {
+    const chartData = localeStats.map((s) => ({
+      pair: `${s.source_locale} → ${s.target_locale}`,
+      count: s.count,
+    }));
+
+    return (
+      <div className="p-6">
+        <PageHeader
+          title="Project Translation Memory"
+          subtitle={projectStats ? `${projectStats.count.toLocaleString()} entries` : undefined}
+          actions={
+            <div className="flex gap-2">
+              <Button variant="outline" size="sm" onClick={handleImport}>
+                <Upload size={12} />
+                Import TMX
+              </Button>
+              <Button variant="outline" size="sm" onClick={handleExport}>
+                <Download size={12} />
+                Export TMX
+              </Button>
+            </div>
+          }
+        />
+
+        {/* Stats chart */}
+        {chartData.length > 0 && (
+          <Card className="mb-6">
+            <CardContent className="p-4">
+              <div className="mb-2 text-sm font-medium">Entries by Language Pair</div>
+              <ChartContainer config={chartConfig} className="h-48 w-full">
+                <BarChart data={chartData} layout="vertical" margin={{ left: 80 }}>
+                  <CartesianGrid horizontal={false} />
+                  <XAxis type="number" />
+                  <YAxis dataKey="pair" type="category" width={75} className="text-xs" />
+                  <Bar dataKey="count" fill="var(--color-count)" radius={[0, 4, 4, 0]} />
+                </BarChart>
+              </ChartContainer>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Browser — shows recent entries by default (empty search) */}
+        <TMBrowser adapter={adapter} showLookup onError={showError} />
+        <ImportProgress active={importing} />
+      </div>
+    );
+  }
+
+  // Named TM browser view — TM is open (non-project).
   if (handle && adapter) {
     return (
       <div className="p-6">
@@ -168,9 +266,7 @@ export function MemoriesPage({
             </div>
           }
         />
-
         <TMBrowser adapter={adapter} showLookup onError={showError} />
-
         <ImportProgress active={importing} />
       </div>
     );
@@ -195,7 +291,18 @@ export function MemoriesPage({
         }
       />
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+      {/* No project TM hint */}
+      {tabID && !projectHandle && !loading && (
+        <Card className="mb-4 border-dashed">
+          <CardContent className="p-4 text-center text-sm text-muted-foreground">
+            <Database size={16} className="mx-auto mb-1 opacity-50" />
+            No project translation memory found. Run a translation flow to create one automatically,
+            or create one below.
+          </CardContent>
+        </Card>
+      )}
+
+      <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
         {loading
           ? [0, 1, 2].map((i) => (
               <ResourceCard key={i} loading name="" path="" onClick={() => {}} />
@@ -214,14 +321,14 @@ export function MemoriesPage({
       </div>
 
       {/* Empty state */}
-      {!loading && resources.length === 0 && (
+      {!loading && resources.length === 0 && !tabID && (
         <Card className="border-dashed">
           <CardContent className="p-8 text-center">
             <Database size={24} className="mx-auto mb-2 text-muted-foreground/50" />
-            <p className="text-sm text-muted-foreground mb-3">
+            <p className="mb-3 text-sm text-muted-foreground">
               No translation memories found. Create one or open a .db file.
             </p>
-            <div className="flex gap-2 justify-center">
+            <div className="flex justify-center gap-2">
               <Button size="sm" onClick={() => setShowCreateDialog(true)}>
                 Create TM
               </Button>
@@ -237,8 +344,8 @@ export function MemoriesPage({
       {showCreateDialog && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
           <div className="w-full max-w-sm rounded-xl border border-border bg-background p-6 shadow-lg">
-            <h2 className="text-lg font-semibold mb-3">New Translation Memory</h2>
-            <Label className="text-xs text-muted-foreground block mb-1">Name</Label>
+            <h2 className="mb-3 text-lg font-semibold">New Translation Memory</h2>
+            <Label className="mb-1 block text-xs text-muted-foreground">Name</Label>
             <Input
               type="text"
               value={newName}
@@ -266,21 +373,26 @@ export function MemoriesPage({
       {corruptPath && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
           <div className="w-full max-w-sm rounded-xl border border-border bg-background p-6 shadow-lg">
-            <div className="flex items-center gap-2 mb-3">
+            <div className="mb-3 flex items-center gap-2">
               <AlertTriangle size={18} className="text-destructive" />
               <h2 className="text-base font-semibold">Corrupt Translation Memory</h2>
             </div>
-            <p className="text-sm text-muted-foreground mb-2">
+            <p className="mb-2 text-sm text-muted-foreground">
               <strong>{corruptName}</strong> could not be opened. The database may be corrupt.
             </p>
-            <p className="text-xs text-muted-foreground mb-4">
+            <p className="mb-4 text-xs text-muted-foreground">
               The file will be renamed to{" "}
-              <code className="text-[10px] bg-muted px-1 py-0.5 rounded">.db.bak</code> and a fresh
+              <code className="rounded bg-muted px-1 py-0.5 text-[10px]">.db.bak</code> and a fresh
               database created in its place.
             </p>
             <div className="flex gap-2">
-              <Button size="sm" onClick={() => void handleRecover()} disabled={recovering}>
-                {recovering ? "Recovering..." : "Create Fresh TM"}
+              <Button
+                size="sm"
+                variant="destructive"
+                onClick={() => void handleRecover()}
+                disabled={recovering}
+              >
+                {recovering ? "Recovering..." : "Recover"}
               </Button>
               <Button
                 variant="outline"

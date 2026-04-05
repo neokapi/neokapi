@@ -179,6 +179,15 @@ func (a *App) GetTermbaseStats(handle string) *TermbaseStats {
 	return &TermbaseStats{Count: tb.Count()}
 }
 
+// GetTermbaseLocaleStats returns term counts grouped by locale.
+func (a *App) GetTermbaseLocaleStats(handle string) []termbase.LocaleStat {
+	tb, ok := a.tbHandles.Get(handle)
+	if !ok {
+		return nil
+	}
+	return tb.LocaleStats()
+}
+
 // --- CRUD ---
 
 // SearchTerms searches termbase concepts by query with pagination.
