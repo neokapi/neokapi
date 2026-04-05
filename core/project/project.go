@@ -10,6 +10,7 @@
 package project
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"os"
@@ -219,14 +220,16 @@ func Save(path string, proj *KapiProject) error {
 		proj.Version = CurrentVersion
 	}
 
-	data, err := yaml.Marshal(proj)
-	if err != nil {
+	var buf bytes.Buffer
+	enc := yaml.NewEncoder(&buf)
+	enc.SetIndent(2)
+	if err := enc.Encode(proj); err != nil {
 		return fmt.Errorf("marshal project: %w", err)
 	}
 
 	// Atomic write: temp file + rename to avoid corruption on crash.
 	tmp := path + ".tmp"
-	if err := os.WriteFile(tmp, data, 0o644); err != nil {
+	if err := os.WriteFile(tmp, buf.Bytes(), 0o644); err != nil {
 		return fmt.Errorf("write project file: %w", err)
 	}
 	if err := os.Rename(tmp, path); err != nil {
