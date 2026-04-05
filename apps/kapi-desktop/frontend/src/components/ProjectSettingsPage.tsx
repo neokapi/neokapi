@@ -10,6 +10,11 @@ import {
   Separator,
   LocaleSelect,
   MultiLocaleSelect,
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
 } from "@neokapi/ui-primitives";
 import type { KapiProject, PluginSpec, PluginInfo, FormatDefaults } from "../types/api";
 import { api } from "../hooks/useApi";
@@ -177,14 +182,20 @@ export function ProjectSettingsPage({
               </div>
               <div>
                 <Label className="mb-1 block text-xs text-muted-foreground">Locale Format</Label>
-                <select
-                  value={defaults.locale_format ?? ""}
-                  onChange={(e) => updateDefaults({ locale_format: e.target.value || undefined })}
-                  className="w-full max-w-xs rounded border border-input bg-transparent px-2 py-1.5 text-sm outline-none focus:ring-1 focus:ring-ring"
+                <Select
+                  value={defaults.locale_format || "__bcp47__"}
+                  onValueChange={(v) =>
+                    updateDefaults({ locale_format: v === "__bcp47__" ? undefined : v })
+                  }
                 >
-                  <option value="">BCP-47 (default)</option>
-                  <option value="posix">POSIX (underscores)</option>
-                </select>
+                  <SelectTrigger className="max-w-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__bcp47__">BCP-47 (default)</SelectItem>
+                    <SelectItem value="posix">POSIX (underscores)</SelectItem>
+                  </SelectContent>
+                </Select>
                 <p className="mt-1 text-[10px] text-muted-foreground">
                   Determines locale code style in file paths and tool output.
                 </p>
@@ -202,10 +213,10 @@ export function ProjectSettingsPage({
             <Card>
               <CardContent className="p-4">
                 <div className="flex items-center gap-2">
-                  <select
-                    value={project.preset ?? ""}
-                    onChange={async (e) => {
-                      const name = e.target.value;
+                  <Select
+                    value={project.preset || "__none__"}
+                    onValueChange={async (v) => {
+                      const name = v === "__none__" ? "" : v;
                       if (name) {
                         const updated = await api.applyPreset(tabID, name);
                         if (updated) onUpdate(updated);
@@ -213,16 +224,19 @@ export function ProjectSettingsPage({
                         onUpdate({ ...project, preset: undefined });
                       }
                     }}
-                    className="flex-1 rounded border border-input bg-transparent px-2 py-1.5 text-sm outline-none focus:ring-1 focus:ring-ring"
-                    aria-label="Framework preset"
                   >
-                    <option value="">None (custom)</option>
-                    {presets.map((p) => (
-                      <option key={p.name} value={p.name}>
-                        {p.name} — {p.description}
-                      </option>
-                    ))}
-                  </select>
+                    <SelectTrigger className="flex-1">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none__">None (custom)</SelectItem>
+                      {presets.map((p) => (
+                        <SelectItem key={p.name} value={p.name}>
+                          {p.name} — {p.description}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                   {project.preset && <Badge variant="secondary">{project.preset}</Badge>}
                 </div>
                 <p className="mt-2 text-[10px] text-muted-foreground">
@@ -314,23 +328,27 @@ export function ProjectSettingsPage({
                     {inProject && (
                       <div className="ml-6 flex items-center gap-2">
                         <Label className="text-xs text-muted-foreground">Version</Label>
-                        <select
+                        <Select
                           value={pin}
-                          onChange={(e) => {
-                            const newPin = e.target.value as VersionPin;
+                          onValueChange={(v) => {
+                            const newPin = v as VersionPin;
                             const ver = base || info.framework_version || info.version;
                             updatePlugin(name, {
                               framework_version: formatPin(newPin, ver),
                             });
                           }}
-                          className="rounded border border-input bg-transparent px-1.5 py-0.5 text-xs outline-none"
                         >
-                          {(["none", "compatible", "gte", "exact"] as VersionPin[]).map((v) => (
-                            <option key={v} value={v}>
-                              {pinLabel(v)}
-                            </option>
-                          ))}
-                        </select>
+                          <SelectTrigger className="h-7 w-40 text-xs">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {(["none", "compatible", "gte", "exact"] as VersionPin[]).map((v) => (
+                              <SelectItem key={v} value={v}>
+                                {pinLabel(v)}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                         {pin !== "none" && (
                           <Input
                             type="text"
@@ -420,22 +438,25 @@ export function ProjectSettingsPage({
               <Separator />
 
               <div>
-                <Label htmlFor="encoding" className="mb-1 block text-xs text-muted-foreground">
-                  Default Encoding
-                </Label>
-                <select
-                  id="encoding"
-                  value={defaults.encoding ?? ""}
-                  onChange={(e) => updateDefaults({ encoding: e.target.value || undefined })}
-                  className="w-full max-w-xs rounded border border-input bg-transparent px-2 py-1.5 text-sm outline-none focus:ring-1 focus:ring-ring"
+                <Label className="mb-1 block text-xs text-muted-foreground">Default Encoding</Label>
+                <Select
+                  value={defaults.encoding || "__auto__"}
+                  onValueChange={(v) =>
+                    updateDefaults({ encoding: v === "__auto__" ? undefined : v })
+                  }
                 >
-                  <option value="">Auto-detect</option>
-                  {ENCODING_OPTIONS.map((enc) => (
-                    <option key={enc} value={enc}>
-                      {enc}
-                    </option>
-                  ))}
-                </select>
+                  <SelectTrigger className="max-w-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__auto__">Auto-detect</SelectItem>
+                    {ENCODING_OPTIONS.map((enc) => (
+                      <SelectItem key={enc} value={enc}>
+                        {enc}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
                 <p className="mt-1 text-[10px] text-muted-foreground">
                   Character encoding for reading and writing files.
                 </p>

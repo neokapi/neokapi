@@ -24,6 +24,11 @@ import {
   TargetPathInput,
   LocaleSelect,
   MultiLocaleSelect,
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
 } from "@neokapi/ui-primitives";
 import type { KapiProject, ContentCollection, ContentItem, FormatSpec } from "../types/api";
 import { isBareEntry, effectiveItems } from "../types/api";
@@ -263,10 +268,10 @@ export function ContentPage({
         <div className="grid grid-cols-2 gap-2">
           <div>
             <Label className="mb-0.5 block text-xs text-muted-foreground">Format</Label>
-            <select
-              value={fmt}
-              onChange={(e) => {
-                const newFmt = e.target.value || undefined;
+            <Select
+              value={fmt || "__auto__"}
+              onValueChange={(v) => {
+                const newFmt = v === "__auto__" ? undefined : v;
                 onItemChange({
                   ...item,
                   format: newFmt ? { name: newFmt } : undefined,
@@ -277,15 +282,19 @@ export function ContentPage({
                   });
                 }
               }}
-              className="w-full rounded border border-input bg-transparent px-2 py-1 text-xs outline-none focus:ring-1 focus:ring-ring"
             >
-              <option value="">auto-detect</option>
-              {formats.map((f) => (
-                <option key={f} value={f}>
-                  {f}
-                </option>
-              ))}
-            </select>
+              <SelectTrigger className="h-8 text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__auto__">auto-detect</SelectItem>
+                {formats.map((f) => (
+                  <SelectItem key={f} value={f}>
+                    {f}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
           <div>
             <Label className="mb-0.5 block text-xs text-muted-foreground">Target path</Label>
@@ -301,24 +310,28 @@ export function ContentPage({
         {fmt && (
           <div>
             <Label className="mb-0.5 block text-xs text-muted-foreground">Format Preset</Label>
-            <select
-              value={item.format?.preset ?? ""}
-              onChange={(e) =>
+            <Select
+              value={item.format?.preset || "__default__"}
+              onValueChange={(v) =>
                 onItemChange({
                   ...item,
-                  format: { ...item.format!, preset: e.target.value || undefined },
+                  format: { ...item.format!, preset: v === "__default__" ? undefined : v },
                 })
               }
-              className="w-full rounded border border-input bg-transparent px-2 py-1 text-xs outline-none focus:ring-1 focus:ring-ring"
             >
-              <option value="">Default</option>
-              {presetOptions.map((p) => (
-                <option key={p.name} value={p.name}>
-                  {p.name}
-                  {p.description ? ` \u2014 ${p.description}` : ""}
-                </option>
-              ))}
-            </select>
+              <SelectTrigger className="h-8 text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__default__">Default</SelectItem>
+                {presetOptions.map((p) => (
+                  <SelectItem key={p.name} value={p.name}>
+                    {p.name}
+                    {p.description ? ` \u2014 ${p.description}` : ""}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
         )}
 
