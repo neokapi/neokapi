@@ -1,25 +1,23 @@
 /**
- * FormatSelect — searchable format selector with grouping and rich display.
+ * FormatSelect — searchable format selector using Popover + Command (cmdk).
  *
- * Groups formats by source (built-in vs plugin), shows display names,
- * file extensions, and plugin source labels. Supports clear-to-auto-detect.
- *
- * Uses a custom filter function so typing matches against display name, ID,
- * extensions, and source, while the input shows a clean "Name (id)" label.
+ * The cmdk Command component handles filtering automatically by matching
+ * typed text against item content. Groups by source (built-in vs plugin).
  */
 
-import { useMemo, useCallback } from "react";
+import { useState, useMemo } from "react";
+import { ChevronsUpDown, X } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "./popover";
 import {
-  Combobox,
-  ComboboxInput,
-  ComboboxContent,
-  ComboboxList,
-  ComboboxItem,
-  ComboboxEmpty,
-  ComboboxGroup,
-  ComboboxLabel,
-  ComboboxSeparator,
-} from "./combobox";
+  Command,
+  CommandInput,
+  CommandList,
+  CommandEmpty,
+  CommandGroup,
+  CommandItem,
+  CommandSeparator,
+} from "./command";
+import { Button } from "./button";
 import { cn } from "../../lib/utils";
 
 /** Format metadata for display in the selector. */
@@ -39,12 +37,11 @@ export interface FormatSelectProps {
   disabled?: boolean;
 }
 
-interface FormatOption {
-  value: string;
-  /** Clean display label: "HTML (okf_html)" or "JSON". */
-  label: string;
-  /** Broad text for search matching. */
-  searchText: string;
+function formatDisplayLabel(f: FormatInfo): string {
+  const displayName = f.display_name || f.name;
+  const isPlugin = f.source && f.source !== "built-in";
+  if (displayName !== f.name || isPlugin) return `${displayName} (${f.name})`;
+  return displayName;
 }
 
 /** Searchable format selector with built-in/plugin grouping and file extensions. */
@@ -56,85 +53,108 @@ export function FormatSelect({
   className,
   disabled,
 }: FormatSelectProps) {
-  const optionMap = useMemo(() => {
-    const map = new Map<string, FormatOption>();
-    for (const f of formats) {
-      const displayName = f.display_name || f.name;
-      const isPlugin = f.source && f.source !== "built-in";
+  const [open, setOpen] = useState(false);
 
-      // Clean display: "HTML (okf_html)" for plugin, "JSON" for built-in with same name.
-      const label = displayName !== f.name || isPlugin ? `${displayName} (${f.name})` : displayName;
-
-      // Broad search text.
-      const searchParts = [displayName, f.name];
-      if (f.extensions?.length) searchParts.push(f.extensions.join(" "));
-      if (isPlugin) searchParts.push(f.source!);
-      const searchText = searchParts.join(" ").toLowerCase();
-
-      map.set(f.name, { value: f.name, label, searchText });
-    }
-    return map;
-  }, [formats]);
-
-  const selectedOption = value ? (optionMap.get(value) ?? null) : null;
-  const builtIn = formats.filter((f) => !f.source || f.source === "built-in");
-  const plugin = formats.filter((f) => f.source && f.source !== "built-in");
-
-  const handleChange = useCallback(
-    (v: FormatOption | null) => onChange(v?.value || undefined),
-    [onChange],
+  const builtIn = useMemo(
+    () => formats.filter((f) => !f.source || f.source === "built-in"),
+    [formats],
+  );
+  const plugin = useMemo(
+    () => formats.filter((f) => f.source && f.source !== "built-in"),
+    [formats],
   );
 
-  // Custom filter: match against the broad searchText, not the display label.
-  const filter = useCallback((option: FormatOption, query: string) => {
-    if (!query) return true;
-    return option.searchText.includes(query.toLowerCase());
-  }, []);
+  const selected = formats.find((f) => f.name === value);
+  const triggerLabel = selected ? formatDisplayLabel(selected) : placeholder;
 
   return (
-    <div className={cn("w-full", className)}>
-      <Combobox
-        value={selectedOption}
-        onValueChange={handleChange}
-        disabled={disabled}
-        filter={filter}
-      >
-        <ComboboxInput placeholder={placeholder} showClear />
-        <ComboboxContent>
-          <ComboboxList>
-            {builtIn.map((f) => (
-              <ComboboxItem key={f.name} value={optionMap.get(f.name)}>
-                <div className="flex w-full items-center justify-between gap-2">
-                  <span>{f.display_name || f.name}</span>
-                  {f.extensions && f.extensions.length > 0 && (
-                    <span className="text-[10px] text-muted-foreground">
-                      {f.extensions.join(" ")}
-                    </span>
-                  )}
-                </div>
-              </ComboboxItem>
-            ))}
-            {plugin.length > 0 && builtIn.length > 0 && <ComboboxSeparator />}
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          variant="outline"
+          role="combobox"
+          aria-expanded={open}
+          disabled={disabled}
+          className={cn(
+            "h-8 w-full justify-between text-xs font-normal",
+            !selected && "text-muted-foreground",
+            className,
+          )}
+        >
+          <span className="truncate">{triggerLabel}</span>
+          <div className="flex shrink-0 items-center gap-0.5">
+            {selected && (
+              <span
+                role="button"
+                className="rounded-sm p-0.5 hover:bg-accent"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onChange(undefined);
+                }}
+              >
+                <X className="size-3 opacity-50 hover:opacity-100" />
+              </span>
+            )}
+            <ChevronsUpDown className="size-3 opacity-50" />
+          </div>
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-(--radix-popover-trigger-width) p-0" align="start">
+        <Command>
+          <CommandInput placeholder="Search formats..." />
+          <CommandList>
+            <CommandEmpty>No matching formats.</CommandEmpty>
+            {builtIn.length > 0 && (
+              <CommandGroup>
+                {builtIn.map((f) => (
+                  <CommandItem
+                    key={f.name}
+                    value={`${f.display_name || f.name} ${f.name} ${f.extensions?.join(" ") ?? ""}`}
+                    onSelect={() => {
+                      onChange(f.name === value ? undefined : f.name);
+                      setOpen(false);
+                    }}
+                    data-checked={f.name === value}
+                  >
+                    <div className="flex flex-1 items-center justify-between gap-2">
+                      <span>{f.display_name || f.name}</span>
+                      {f.extensions && f.extensions.length > 0 && (
+                        <span className="text-[10px] text-muted-foreground">
+                          {f.extensions.join(" ")}
+                        </span>
+                      )}
+                    </div>
+                  </CommandItem>
+                ))}
+              </CommandGroup>
+            )}
+            {plugin.length > 0 && builtIn.length > 0 && <CommandSeparator />}
             {plugin.length > 0 && (
-              <ComboboxGroup>
-                <ComboboxLabel>Plugins</ComboboxLabel>
+              <CommandGroup heading="Plugins">
                 {plugin.map((f) => (
-                  <ComboboxItem key={f.name} value={optionMap.get(f.name)}>
-                    <div className="flex w-full items-center justify-between gap-2">
+                  <CommandItem
+                    key={f.name}
+                    value={`${f.display_name || f.name} ${f.name} ${f.source} ${f.extensions?.join(" ") ?? ""}`}
+                    onSelect={() => {
+                      onChange(f.name === value ? undefined : f.name);
+                      setOpen(false);
+                    }}
+                    data-checked={f.name === value}
+                  >
+                    <div className="flex flex-1 items-center justify-between gap-2">
                       <span>{f.display_name || f.name}</span>
                       <span className="text-[10px] text-muted-foreground">
                         {f.source}
                         {f.extensions?.length ? ` · ${f.extensions.join(" ")}` : ""}
                       </span>
                     </div>
-                  </ComboboxItem>
+                  </CommandItem>
                 ))}
-              </ComboboxGroup>
+              </CommandGroup>
             )}
-            <ComboboxEmpty>No matching formats</ComboboxEmpty>
-          </ComboboxList>
-        </ComboboxContent>
-      </Combobox>
-    </div>
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
   );
 }
