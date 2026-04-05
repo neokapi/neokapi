@@ -28,12 +28,6 @@ const meta: Meta<typeof ProjectSettingsPage> = {
   tags: ["autodocs"],
   args: {
     onUpdate: fn(),
-    tabID: "story-tab",
-    presetList: [
-      { name: "nextjs", description: "Next.js i18n with JSON files" },
-      { name: "react-intl", description: "React-Intl message files" },
-      { name: "flutter", description: "Flutter ARB localization" },
-    ],
     installedPlugins,
   },
 };
