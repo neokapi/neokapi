@@ -261,7 +261,7 @@ function AppInner() {
 
   const updateActiveProject = useCallback(
     (project: KapiProject) => {
-      history.update(project);
+      history.set(project);
     },
     [history],
   );
