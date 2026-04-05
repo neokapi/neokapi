@@ -8,6 +8,7 @@ import { IconSidebar } from "./components/IconSidebar";
 import { ModeToggle } from "./components/ModeToggle";
 import { TabBar } from "./components/TabBar";
 import { AppHome } from "./components/AppHome";
+import { SaveBar } from "./components/SaveBar";
 import { TermbasesPage } from "./components/TermbasesPage";
 import { MemoriesPage } from "./components/MemoriesPage";
 import { FormatsPage } from "./components/FormatsPage";
@@ -21,7 +22,6 @@ import { ProjectSetupPage } from "./components/ProjectSetupPage";
 import { ProjectSettingsPage } from "./components/ProjectSettingsPage";
 import { ProjectPresetPage } from "./components/ProjectPresetPage";
 import { useShortenHome } from "./hooks/useShortenHome";
-import { Undo2, Redo2, Save } from "lucide-react";
 import { Button, Label, Input } from "@neokapi/ui-primitives";
 
 interface TabState {
@@ -55,7 +55,7 @@ function AppInner() {
 
   const activeTab = tabs.find((t) => t.info.id === activeTabID) ?? null;
   const emptyProject: KapiProject = { version: "v1", name: "" };
-  const history = useProjectHistory(activeTab?.project ?? emptyProject);
+  const history = useProjectHistory(activeTab?.project ?? emptyProject, activeTabID);
 
   const refreshRecent = useCallback(() => {
     void api.listRecentFiles().then((f) => {
@@ -113,9 +113,12 @@ function AppInner() {
 
   const handleSaveProject = useCallback(async () => {
     if (!activeTabID) return;
-    await api.updateProject(activeTabID, history.project);
+    const proj = history.project;
+    await api.updateProject(activeTabID, proj);
     await api.saveProject(activeTabID);
     history.markSaved();
+    // Sync saved state back to tabs so it persists across tab switches.
+    setTabs((prev) => prev.map((t) => (t.info.id === activeTabID ? { ...t, project: proj } : t)));
   }, [activeTabID, history]);
 
   // Keyboard shortcuts for undo/redo/save.
@@ -255,20 +258,6 @@ function AppInner() {
     });
   }, []);
 
-  // Sync history state back to tabs whenever it changes.
-  useEffect(() => {
-    if (!activeTabID || !activeTab) return;
-    const histProj = history.project;
-    if (
-      histProj !== activeTab.project &&
-      JSON.stringify(histProj) !== JSON.stringify(activeTab.project)
-    ) {
-      setTabs((prev) =>
-        prev.map((t) => (t.info.id === activeTabID ? { ...t, project: histProj } : t)),
-      );
-    }
-  }, [history.project, activeTabID]); // eslint-disable-line react-hooks/exhaustive-deps
-
   const updateActiveProject = useCallback(
     (project: KapiProject) => {
       history.update(project);
@@ -377,46 +366,6 @@ function AppInner() {
               />
             )}
           </div>
-          {/* Undo / Redo / Save */}
-          {mode === "projects" && activeTab && (
-            <div
-              className="flex shrink-0 items-center gap-0.5 pb-1.5 pr-1"
-              style={{ WebkitAppRegion: "no-drag" } as React.CSSProperties}
-            >
-              <Button
-                variant="ghost"
-                size="icon-sm"
-                onClick={history.undo}
-                disabled={!history.canUndo}
-                aria-label="Undo"
-                title="Undo (⌘Z)"
-                className="h-7 w-7"
-              >
-                <Undo2 size={14} />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon-sm"
-                onClick={history.redo}
-                disabled={!history.canRedo}
-                aria-label="Redo"
-                title="Redo (⌘⇧Z)"
-                className="h-7 w-7"
-              >
-                <Redo2 size={14} />
-              </Button>
-              {history.isDirty && (
-                <Button
-                  size="sm"
-                  onClick={() => void handleSaveProject()}
-                  className="ml-1 h-7 text-xs"
-                >
-                  <Save size={12} />
-                  Save
-                </Button>
-              )}
-            </div>
-          )}
           {/* Mode toggle */}
           <div
             className="shrink-0 px-3 pb-1.5"
@@ -476,10 +425,12 @@ function AppInner() {
                 tabID={activeTab.info.id}
                 detectedPreset={activeTab.detectedPreset}
                 onApplied={(updated) => {
-                  updateActiveProject(updated);
+                  history.replace(updated);
                   setTabs((prev) =>
                     prev.map((t) =>
-                      t.info.id === activeTab.info.id ? { ...t, detectedPreset: undefined } : t,
+                      t.info.id === activeTab.info.id
+                        ? { ...t, project: updated, detectedPreset: undefined }
+                        : t,
                     ),
                   );
                 }}
@@ -498,14 +449,14 @@ function AppInner() {
             !activeTab.isEmpty &&
             !activeTab.detectedPreset && (
               <HomePage
-                project={activeTab.project}
+                project={history.project}
                 displayName={activeTab.info.name}
                 onNavigate={handleViewChange}
               />
             )}
           {mode === "projects" && activeTab && view === "content" && (
             <ContentPage
-              project={activeTab.project}
+              project={history.project}
               projectPath={activeTab.info.path}
               onUpdate={updateActiveProject}
               tabID={activeTab.info.id}
@@ -514,16 +465,16 @@ function AppInner() {
           {mode === "projects" && activeTab && view === "flows" && (
             <FlowsPage
               tabID={activeTab.info.id}
-              projectFlows={activeTab.project.flows}
+              projectFlows={history.project.flows}
               onFlowChange={(name, spec) => {
                 updateActiveProject({
-                  ...activeTab.project,
-                  flows: { ...activeTab.project.flows, [name]: spec },
+                  ...history.project,
+                  flows: { ...history.project.flows, [name]: spec },
                 });
               }}
               onFlowDelete={(name) => {
-                const { [name]: _, ...rest } = activeTab.project.flows ?? {};
-                updateActiveProject({ ...activeTab.project, flows: rest });
+                const { [name]: _, ...rest } = history.project.flows ?? {};
+                updateActiveProject({ ...history.project, flows: rest });
               }}
             />
           )}
@@ -532,7 +483,7 @@ function AppInner() {
           {mode === "projects" && activeTab && view === "memories" && <MemoriesPage />}
           {mode === "projects" && activeTab && view === "settings" && (
             <ProjectSettingsPage
-              project={activeTab.project}
+              project={history.project}
               onUpdate={updateActiveProject}
               tabID={activeTab.info.id}
             />
@@ -540,6 +491,16 @@ function AppInner() {
 
           {view === "settings" && !(mode === "projects" && activeTab) && <SettingsPage />}
         </main>
+        {mode === "projects" && activeTab && (
+          <SaveBar
+            isDirty={history.isDirty}
+            canUndo={history.canUndo}
+            canRedo={history.canRedo}
+            onSave={handleSaveProject}
+            onUndo={history.undo}
+            onRedo={history.redo}
+          />
+        )}
       </div>
 
       {showNewProjectForm && (

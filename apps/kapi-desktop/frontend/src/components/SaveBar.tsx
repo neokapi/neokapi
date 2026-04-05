@@ -26,31 +26,35 @@ export function SaveBar({ isDirty, canUndo, canRedo, onSave, onUndo, onRedo }: S
   };
 
   return (
-    <div className="fixed bottom-4 right-4 z-40 flex items-center gap-1.5 rounded-lg border border-border bg-background/95 px-3 py-2 shadow-lg backdrop-blur">
-      <Button
-        variant="ghost"
-        size="icon-sm"
-        onClick={onUndo}
-        disabled={!canUndo || saving}
-        aria-label="Undo"
-        title="Undo (⌘Z)"
-      >
-        <Undo2 size={14} />
-      </Button>
-      <Button
-        variant="ghost"
-        size="icon-sm"
-        onClick={onRedo}
-        disabled={!canRedo || saving}
-        aria-label="Redo"
-        title="Redo (⌘⇧Z)"
-      >
-        <Redo2 size={14} />
-      </Button>
+    <div className="flex shrink-0 items-center justify-between border-t border-border bg-sidebar px-4 py-1.5">
+      <div className="flex items-center gap-1">
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          onClick={onUndo}
+          disabled={!canUndo || saving}
+          aria-label="Undo"
+          title="Undo (⌘Z)"
+          className="h-7 w-7"
+        >
+          <Undo2 size={14} />
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          onClick={onRedo}
+          disabled={!canRedo || saving}
+          aria-label="Redo"
+          title="Redo (⌘⇧Z)"
+          className="h-7 w-7"
+        >
+          <Redo2 size={14} />
+        </Button>
+      </div>
       {isDirty && (
-        <Button size="sm" onClick={handleSave} disabled={saving} className="ml-1">
+        <Button size="sm" onClick={handleSave} disabled={saving} className="h-7 text-xs">
           {saving ? <Loader2 size={12} className="animate-spin" /> : <Save size={12} />}
-          Save
+          Save Changes
         </Button>
       )}
     </div>
