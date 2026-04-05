@@ -11,8 +11,14 @@ import (
 type AppSettings struct {
 	Theme            string   `json:"theme"`                        // "system", "dark", or "light"
 	SamplesDismissed bool     `json:"samples_dismissed,omitempty"`  // true after user dismisses sample project cards
-	HiddenLocales    []string `json:"hidden_locales,omitempty"`     // locale codes to hide from selectors
-	CustomLocales    []string `json:"custom_locales,omitempty"`     // additional locale codes not in the well-known list
+	HiddenLocales    []string      `json:"hidden_locales,omitempty"`     // locale codes to hide from selectors
+	CustomLocales    []CustomLocale `json:"custom_locales,omitempty"`    // additional locales not in the well-known list
+}
+
+// CustomLocale is a user-defined locale with code and display name.
+type CustomLocale struct {
+	Code        string `json:"code"`
+	DisplayName string `json:"display_name,omitempty"`
 }
 
 // settingsStore manages user preferences.
