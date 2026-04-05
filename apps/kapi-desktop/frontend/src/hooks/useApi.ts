@@ -126,6 +126,7 @@ export const api = {
   detectFormat: (path: string) => call<string>("DetectFormat", path),
 
   // Locales
+  getAllLocales: () => call<Array<{ code: string; display_name: string }>>("GetAllLocales"),
   getKnownLocales: () => call<Array<{ code: string; display_name: string }>>("GetKnownLocales"),
 
   // Presets
@@ -236,7 +237,7 @@ export const api = {
 
   // Settings
   getSettings: () => call<{ theme: string; samples_dismissed?: boolean }>("GetSettings"),
-  saveSettings: (s: { theme: string }) => call<void>("SaveSettings", s),
+  saveSettings: (s: Record<string, unknown>) => call<void>("SaveSettings", s),
   dismissSamples: () => call<void>("DismissSamples"),
   getTheme: () => call<string>("GetTheme"),
   setTheme: (theme: string) => call<void>("SetTheme", theme),

@@ -7,7 +7,6 @@ import {
   Input,
   Switch,
   Badge,
-  Button,
   Separator,
   LocaleSelect,
   MultiLocaleSelect,

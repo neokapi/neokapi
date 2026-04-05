@@ -13,6 +13,7 @@ import {
 } from "@neokapi/ui-primitives";
 import { CredentialsPage } from "./CredentialsPage";
 import { PluginManager } from "./PluginManager";
+import { LocaleSettings } from "./LocaleSettings";
 
 export type ThemeMode = "system" | "light" | "dark";
 
@@ -89,6 +90,7 @@ export function SettingsPage({ theme: propTheme }: SettingsPageProps = {}) {
         <TabsTrigger value="general">General</TabsTrigger>
         <TabsTrigger value="credentials">AI Credentials</TabsTrigger>
         <TabsTrigger value="plugins">Plugins</TabsTrigger>
+        <TabsTrigger value="locales">Locales</TabsTrigger>
       </TabsList>
 
       <TabsContent value="general" className="flex-1 overflow-auto">
@@ -134,6 +136,10 @@ export function SettingsPage({ theme: propTheme }: SettingsPageProps = {}) {
 
       <TabsContent value="plugins" className="flex-1 overflow-auto">
         <PluginManager />
+      </TabsContent>
+
+      <TabsContent value="locales" className="flex-1 overflow-auto">
+        <LocaleSettings />
       </TabsContent>
     </Tabs>
   );
