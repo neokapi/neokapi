@@ -13,6 +13,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/jackc/pgx/v5/stdlib"
 	"github.com/neokapi/neokapi/bowrain/storage"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/modules/postgres"
@@ -24,6 +27,7 @@ var (
 	sharedDB      *storage.PgDB
 	sharedConnStr string
 	schemaCounter int
+	runID         = strconv.FormatInt(time.Now().UnixNano()%100000, 10)
 )
 
 // NewTestDB returns a *storage.PgDB connected to an isolated PostgreSQL schema.
@@ -65,7 +69,7 @@ func NewTestDB(t *testing.T) *storage.PgDB {
 		}
 	}
 	schemaCounter++
-	schemaName := "test_" + sanitize(t.Name()) + "_" + strconv.Itoa(schemaCounter)
+	schemaName := "t" + runID + "_" + sanitize(t.Name()) + "_" + strconv.Itoa(schemaCounter)
 	sharedMu.Unlock()
 
 	// Create an isolated schema for this test.
@@ -73,19 +77,53 @@ func NewTestDB(t *testing.T) *storage.PgDB {
 		t.Fatalf("create test schema: %v", err)
 	}
 
-	// Open a new connection that uses this schema as search_path.
-	connStr := sharedConnStr + "&search_path=" + schemaName
-	db, err := storage.OpenPostgres(connStr)
+	// Open a connection pool where every connection uses this schema.
+	db, err := openWithSchema(sharedConnStr, schemaName)
 	if err != nil {
 		t.Fatalf("open postgres with schema: %v", err)
 	}
 
 	t.Cleanup(func() {
 		db.Close()
+		// Close the pool after sql.DB to stop the background health check goroutine.
+		if p := db.Pool(); p != nil {
+			p.Close()
+		}
 		_, _ = sharedDB.Exec("DROP SCHEMA " + schemaName + " CASCADE")
 	})
 
 	return db
+}
+
+// openWithSchema opens a PgDB where every connection in the pool
+// sets search_path to the given schema via AfterConnect.
+func openWithSchema(connStr, schema string) (*storage.PgDB, error) {
+	poolConfig, err := pgxpool.ParseConfig(connStr)
+	if err != nil {
+		return nil, fmt.Errorf("parse config: %w", err)
+	}
+
+	poolConfig.AfterConnect = func(ctx context.Context, conn *pgx.Conn) error {
+		_, err := conn.Exec(ctx, "SET search_path TO "+schema+", public")
+		return err
+	}
+
+	pool, err := pgxpool.NewWithConfig(context.Background(), poolConfig)
+	if err != nil {
+		return nil, fmt.Errorf("create pool: %w", err)
+	}
+
+	db := stdlib.OpenDBFromPool(pool)
+	db.SetMaxOpenConns(25)
+	db.SetMaxIdleConns(5)
+	db.SetConnMaxLifetime(30 * time.Minute)
+
+	if err := db.PingContext(context.Background()); err != nil {
+		pool.Close()
+		return nil, fmt.Errorf("ping: %w", err)
+	}
+
+	return storage.WrapPgDB(db, connStr, pool), nil
 }
 
 // startContainer launches a PostgreSQL testcontainer and returns the connection string.
