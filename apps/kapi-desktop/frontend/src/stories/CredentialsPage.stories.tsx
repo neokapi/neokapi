@@ -241,4 +241,3 @@ export const WithProviders: StoryObj<typeof CredentialsPage> = {
 export const Empty: StoryObj<typeof CredentialsPage> = {
   render: () => <CredentialsPage providers={[]} />,
 };
-

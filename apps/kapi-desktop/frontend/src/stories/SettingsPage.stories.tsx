@@ -28,4 +28,3 @@ export const DarkTheme: Story = {
     theme: "dark",
   },
 };
-

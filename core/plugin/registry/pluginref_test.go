@@ -128,6 +128,75 @@ func TestCompareSemver(t *testing.T) {
 	}
 }
 
+func TestSemverRange(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		rangeStr string
+		version  string
+		want     bool
+	}{
+		// Exact.
+		{"1.2.3", "1.2.3", true},
+		{"1.2.3", "1.2.4", false},
+		{"1.2.3", "1.2.2", false},
+
+		// Star / any.
+		{"*", "0.0.1", true},
+		{"*", "99.99.99", true},
+		{"", "1.0.0", true},
+
+		// Caret (compatible).
+		{"^1.2.3", "1.2.3", true},
+		{"^1.2.3", "1.9.9", true},
+		{"^1.2.3", "1.2.2", false},
+		{"^1.2.3", "2.0.0", false},
+		{"^1.0.0", "1.99.99", true},
+		{"^0.2.3", "0.2.5", true},
+		{"^0.2.3", "0.3.0", false}, // ^0.x treats minor as major
+
+		// Tilde (patch-level).
+		{"~1.2.3", "1.2.3", true},
+		{"~1.2.3", "1.2.9", true},
+		{"~1.2.3", "1.3.0", false},
+		{"~1.2.3", "1.2.2", false},
+
+		// Greater/equal.
+		{">=1.2.3", "1.2.3", true},
+		{">=1.2.3", "2.0.0", true},
+		{">=1.2.3", "1.2.2", false},
+
+		// Greater than.
+		{">1.2.3", "1.2.4", true},
+		{">1.2.3", "1.2.3", false},
+
+		// Less/equal.
+		{"<=1.2.3", "1.2.3", true},
+		{"<=1.2.3", "1.2.2", true},
+		{"<=1.2.3", "1.2.4", false},
+
+		// Less than.
+		{"<1.2.3", "1.2.2", true},
+		{"<1.2.3", "1.2.3", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.rangeStr+"_"+tt.version, func(t *testing.T) {
+			t.Parallel()
+			r := ParseSemverRange(tt.rangeStr)
+			assert.Equal(t, tt.want, r.Match(tt.version), "ParseSemverRange(%q).Match(%q)", tt.rangeStr, tt.version)
+		})
+	}
+}
+
+func TestSemverRangeString(t *testing.T) {
+	t.Parallel()
+	assert.Equal(t, "*", ParseSemverRange("*").String())
+	assert.Equal(t, "1.2.3", ParseSemverRange("1.2.3").String())
+	assert.Equal(t, "^1.2.3", ParseSemverRange("^1.2.3").String())
+	assert.Equal(t, "~1.2.3", ParseSemverRange("~1.2.3").String())
+	assert.Equal(t, ">=1.2.3", ParseSemverRange(">=1.2.3").String())
+}
+
 func TestLatestVersion(t *testing.T) {
 	t.Parallel()
 	assert.Equal(t, "", LatestVersion(nil))

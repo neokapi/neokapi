@@ -96,8 +96,10 @@ export function WelcomePage({ onOpen, onNew, onSettings }: WelcomePageProps) {
       const proj: KapiProject = {
         version: "v1",
         name: "",
-        source_language: "en-US",
-        target_languages: [],
+        defaults: {
+          source_language: "en-US",
+          target_languages: [],
+        },
         flows: {},
       };
       const path = savePath ? `${savePath}/project.kapi` : undefined;

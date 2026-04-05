@@ -3,22 +3,68 @@
 export interface KapiProject {
   version: string;
   name: string;
-  source_language?: string;
-  target_languages?: string[];
-  content?: ContentEntry[];
-  preset?: string;
-  plugins?: string[];
-  flows?: Record<string, FlowSpec>;
+  plugins?: Record<string, PluginSpec>;
   defaults?: ProjectDefaults;
+  content?: ContentCollection[];
+  preset?: string;
+  flows?: Record<string, FlowSpec>;
 }
 
-export interface ContentEntry {
-  path: string;
-  format?: string;
+export interface PluginSpec {
+  version?: string;
+  framework_version?: string;
+  format_priority?: number;
+}
+
+export interface ProjectDefaults {
+  source_language?: string;
+  target_languages?: string[];
+  concurrency?: number;
+  parallel_blocks?: number;
+  encoding?: string;
+  formats?: Record<string, FormatDefaults>;
+}
+
+export interface FormatDefaults {
+  preset?: string;
+  config?: Record<string, unknown>;
+  priority?: number;
+}
+
+/**
+ * A content collection is either a bare entry (has path, no items) or a
+ * named collection (has name and items).
+ */
+export interface ContentCollection {
+  // Collection fields (long form).
+  name?: string;
+  source_language?: string;
+  target_languages?: string[];
+  items?: ContentItem[];
+
+  // Bare entry fields (short form — promoted from ContentItem).
+  path?: string;
+  format?: FormatSpec;
   target?: string;
-  collection?: string;
-  format_preset?: string;
-  format_config?: Record<string, unknown>;
+}
+
+export interface ContentItem {
+  path: string;
+  format?: FormatSpec;
+  target?: string;
+  source_language?: string;
+  target_languages?: string[];
+}
+
+/**
+ * Format spec — either a short form (just name as string from YAML) or
+ * long form (name + preset + config). In TypeScript, always represented
+ * as the full object since JSON from Go always sends the struct.
+ */
+export interface FormatSpec {
+  name: string;
+  preset?: string;
+  config?: Record<string, unknown>;
 }
 
 export interface FlowSpec {
@@ -31,12 +77,6 @@ export interface FlowStep {
   config?: Record<string, unknown>;
   label?: string;
   parallel?: FlowStep[];
-}
-
-export interface ProjectDefaults {
-  concurrency?: number;
-  parallel_blocks?: number;
-  encoding?: string;
 }
 
 export interface FlowInfo {
@@ -208,3 +248,18 @@ export type ProjectView =
 
 // Union for convenience
 export type View = AdhocView | ProjectView;
+
+// --- Helper functions for content collections ---
+
+/** Check if a content collection is a bare entry (has path, no items). */
+export function isBareEntry(c: ContentCollection): boolean {
+  return !!c.path && (!c.items || c.items.length === 0);
+}
+
+/** Get effective items for a collection (wraps bare entries as single-item array). */
+export function effectiveItems(c: ContentCollection): ContentItem[] {
+  if (isBareEntry(c)) {
+    return [{ path: c.path!, format: c.format, target: c.target }];
+  }
+  return c.items ?? [];
+}

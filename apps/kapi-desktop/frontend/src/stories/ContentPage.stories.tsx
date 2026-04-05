@@ -44,21 +44,74 @@ export const Default: Story = {
     project: {
       version: "v1",
       name: "Acme App Localization",
-      source_language: "en-US",
-      target_languages: ["fr-FR", "de-DE"],
+      defaults: {
+        source_language: "en-US",
+        target_languages: ["fr-FR", "de-DE"],
+      },
       preset: "nextjs",
-      plugins: ["okapi@1.47.0"],
+      plugins: {
+        okapi: { framework_version: "^1.47.0", format_priority: 200 },
+      },
       content: [
         {
           path: "src/i18n/en/*.json",
-          format: "json",
+          format: { name: "json" },
           target: "src/i18n/{lang}/*.json",
-          collection: "UI Strings",
         },
         {
           path: "docs/en/**/*.md",
-          format: "markdown",
-          collection: "Documentation",
+          format: { name: "markdown" },
+        },
+      ],
+    },
+  },
+};
+
+export const WithCollections: Story = {
+  args: {
+    project: {
+      version: "v1",
+      name: "Multi-Collection Project",
+      defaults: {
+        source_language: "en-US",
+        target_languages: ["fr-FR", "de-DE", "ja-JP"],
+        formats: {
+          okf_html: { preset: "strict-extraction" },
+        },
+      },
+      plugins: {
+        okapi: { framework_version: "^1.47.0", format_priority: 200 },
+      },
+      content: [
+        {
+          path: "src/i18n/en/*.json",
+          target: "src/i18n/{lang}/*.json",
+        },
+        {
+          name: "Marketing",
+          target_languages: ["fr-FR", "de-DE"],
+          items: [
+            {
+              path: "marketing/**/*.html",
+              format: { name: "okf_html", preset: "lenient" },
+              target: "marketing/{lang}/**/*.html",
+            },
+            {
+              path: "marketing/**/*.json",
+              target: "marketing/{lang}/**/*.json",
+            },
+          ],
+        },
+        {
+          name: "China",
+          source_language: "zh-CN",
+          target_languages: ["en-US"],
+          items: [
+            {
+              path: "china/**/*",
+              target: "china/output/{lang}/**/*",
+            },
+          ],
         },
       ],
     },
@@ -70,26 +123,35 @@ export const WithFormatPresets: Story = {
     project: {
       version: "v1",
       name: "Okapi Bridge Project",
-      source_language: "en-US",
-      target_languages: ["fr-FR", "ja-JP"],
-      plugins: ["okapi@1.47.0"],
+      defaults: {
+        source_language: "en-US",
+        target_languages: ["fr-FR", "ja-JP"],
+      },
+      plugins: {
+        okapi: { framework_version: "^1.47.0" },
+      },
       content: [
         {
-          path: "docs/**/*.html",
-          format: "okf_html",
-          format_preset: "strict-extraction",
-          target: "output/{lang}/docs/**/*.html",
-          collection: "Documentation",
+          name: "Documentation",
+          items: [
+            {
+              path: "docs/**/*.html",
+              format: { name: "okf_html", preset: "strict-extraction" },
+              target: "output/{lang}/docs/**/*.html",
+            },
+          ],
         },
         {
-          path: "emails/*.html",
-          format: "okf_html",
-          format_config: { useCodeFinder: true, escapeGT: false },
-          collection: "Emails",
+          name: "Emails",
+          items: [
+            {
+              path: "emails/*.html",
+              format: { name: "okf_html", config: { useCodeFinder: true, escapeGT: false } },
+            },
+          ],
         },
         {
           path: "src/i18n/en/*.json",
-          collection: "UI Strings",
           target: "src/i18n/{lang}/*.json",
         },
       ],
@@ -97,19 +159,23 @@ export const WithFormatPresets: Story = {
   },
 };
 
-export const WithPluginPinning: Story = {
+export const WithPlugins: Story = {
   args: {
     project: {
       version: "v1",
       name: "Pinned Plugins",
-      source_language: "en-US",
-      target_languages: ["fr-FR"],
-      plugins: ["okapi@1.47.0", "custom-filter@2.1.0"],
+      defaults: {
+        source_language: "en-US",
+        target_languages: ["fr-FR"],
+      },
+      plugins: {
+        okapi: { version: "^0.38.0", framework_version: "^1.47.0", format_priority: 200 },
+        "custom-filter": { version: "^2.1.0" },
+      },
       content: [
         {
           path: "input/*",
-          format: "okf_html",
-          format_preset: "default",
+          format: { name: "okf_html" },
           target: "output/{lang}/*",
         },
       ],
@@ -122,10 +188,11 @@ export const Empty: Story = {
     project: {
       version: "v1",
       name: "New Project",
-      source_language: "en",
-      target_languages: ["fr-FR"],
+      defaults: {
+        source_language: "en",
+        target_languages: ["fr-FR"],
+      },
       content: [],
     },
   },
 };
-

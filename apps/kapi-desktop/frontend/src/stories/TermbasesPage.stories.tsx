@@ -232,4 +232,3 @@ export const Empty: StoryObj<typeof TermbasesPage> = {
 export const Loading: StoryObj<typeof TermbasesPage> = {
   render: () => <TermbasesPage resources={[]} forceLoading />,
 };
-

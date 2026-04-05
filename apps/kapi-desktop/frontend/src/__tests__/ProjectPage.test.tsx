@@ -6,14 +6,18 @@ describe("ProjectPage", () => {
   const project = {
     version: "v1",
     name: "Test Project",
-    source_language: "en-US",
-    target_languages: ["fr-FR", "de-DE"],
-    content: [{ path: "src/locales/*.json", format: "json" }],
+    defaults: {
+      source_language: "en-US",
+      target_languages: ["fr-FR", "de-DE"],
+    },
+    content: [{ path: "src/locales/*.json", format: { name: "json" } }],
     flows: {
       translate: { steps: [{ tool: "ai-translate" }] },
     },
     preset: "nextjs",
-    plugins: ["okapi@1.47.0"],
+    plugins: {
+      okapi: { framework_version: "^1.47.0" },
+    },
   };
 
   it("displays project name", () => {
@@ -57,6 +61,6 @@ describe("ProjectPage", () => {
   it("displays preset and plugins", () => {
     render(<ProjectPage project={project} projectPath="" tabID="t1" />);
     expect(screen.getByText("nextjs")).toBeInTheDocument();
-    expect(screen.getByText("okapi@1.47.0")).toBeInTheDocument();
+    expect(screen.getByText(/okapi/)).toBeInTheDocument();
   });
 });

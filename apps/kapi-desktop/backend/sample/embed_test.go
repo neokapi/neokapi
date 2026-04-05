@@ -54,8 +54,8 @@ func assertScaffoldedProject(t *testing.T, dir, expectedName string) {
 	proj, err := project.Load(filepath.Join(dir, "project.kapi"))
 	require.NoError(t, err)
 	assert.Equal(t, expectedName, proj.Name)
-	assert.Equal(t, "en-US", proj.SourceLanguage)
-	assert.Equal(t, []string{"fr-FR", "de-DE", "ja-JP"}, proj.TargetLanguages)
+	assert.Equal(t, "en-US", proj.Defaults.SourceLanguage)
+	assert.Equal(t, []string{"fr-FR", "de-DE", "ja-JP"}, proj.Defaults.TargetLanguages)
 	assert.NotEmpty(t, proj.Flows)
 
 	// Input files should exist.

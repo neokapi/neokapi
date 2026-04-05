@@ -21,11 +21,17 @@ export const Default: Story = {
     project: {
       version: "v1",
       name: "Acme App Localization",
-      source_language: "en-US",
-      target_languages: ["fr-FR", "de-DE", "ja-JP"],
+      defaults: {
+        source_language: "en-US",
+        target_languages: ["fr-FR", "de-DE", "ja-JP"],
+      },
       content: [
-        { path: "src/i18n/en/*.json", format: "json", target: "src/i18n/{lang}/*.json" },
-        { path: "docs/en/**/*.md", format: "markdown" },
+        {
+          path: "src/i18n/en/*.json",
+          format: { name: "json" },
+          target: "src/i18n/{lang}/*.json",
+        },
+        { path: "docs/en/**/*.md", format: { name: "markdown" } },
       ],
       flows: {
         translate: {
@@ -48,9 +54,11 @@ export const NoFlows: Story = {
     project: {
       version: "v1",
       name: "Starter Project",
-      source_language: "en-US",
-      target_languages: ["fr-FR"],
-      content: [{ path: "src/locales/en.json", format: "json" }],
+      defaults: {
+        source_language: "en-US",
+        target_languages: ["fr-FR"],
+      },
+      content: [{ path: "src/locales/en.json", format: { name: "json" } }],
     },
   },
 };
