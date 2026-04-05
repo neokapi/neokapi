@@ -6,10 +6,17 @@ import (
 	"cmp"
 	"fmt"
 	"slices"
+	"strings"
 
 	"github.com/neokapi/neokapi/core/model"
 	"golang.org/x/text/language"
 	"golang.org/x/text/language/display"
+)
+
+// Supported locale format identifiers.
+const (
+	FormatBCP47 = "bcp-47"
+	FormatPOSIX = "posix"
 )
 
 // LocaleInfo holds a locale code and its English display name.
@@ -80,4 +87,37 @@ func WellKnownLocales() []LocaleInfo {
 		return cmp.Compare(a.DisplayName, b.DisplayName)
 	})
 	return result
+}
+
+// ToPosix converts a BCP-47 locale code to POSIX format.
+// "pt-BR" → "pt_BR", "en" → "en", "zh-Hans" → "zh_Hans".
+func ToPosix(code string) string {
+	return strings.ReplaceAll(code, "-", "_")
+}
+
+// FromPosix converts a POSIX locale code to BCP-47 format.
+// "pt_BR" → "pt-BR", "en" → "en", "zh_Hans" → "zh-Hans".
+func FromPosix(code string) string {
+	return strings.ReplaceAll(code, "_", "-")
+}
+
+// FormatCode converts a BCP-47 locale code to the specified format.
+// Supported formats: "bcp-47" (default, no-op) and "posix".
+func FormatCode(code, format string) string {
+	if format == FormatPOSIX {
+		return ToPosix(code)
+	}
+	return code
+}
+
+// WellKnownLocalesFormatted returns the curated locale list with codes
+// formatted according to the given format string.
+func WellKnownLocalesFormatted(format string) []LocaleInfo {
+	locales := WellKnownLocales()
+	if format == FormatPOSIX {
+		for i := range locales {
+			locales[i].Code = ToPosix(locales[i].Code)
+		}
+	}
+	return locales
 }

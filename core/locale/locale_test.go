@@ -105,3 +105,39 @@ func TestWellKnownLocales(t *testing.T) {
 	assert.True(t, codeSet["ja"], "should contain Japanese")
 	assert.True(t, codeSet["pt-BR"], "should contain Brazilian Portuguese")
 }
+
+func TestToPosix(t *testing.T) {
+	t.Parallel()
+	assert.Equal(t, "pt_BR", ToPosix("pt-BR"))
+	assert.Equal(t, "en", ToPosix("en"))
+	assert.Equal(t, "zh_Hans", ToPosix("zh-Hans"))
+	assert.Equal(t, "nb_NO", ToPosix("nb-NO"))
+}
+
+func TestFromPosix(t *testing.T) {
+	t.Parallel()
+	assert.Equal(t, "pt-BR", FromPosix("pt_BR"))
+	assert.Equal(t, "en", FromPosix("en"))
+	assert.Equal(t, "zh-Hans", FromPosix("zh_Hans"))
+	assert.Equal(t, "nb-NO", FromPosix("nb_NO"))
+}
+
+func TestFormatCode(t *testing.T) {
+	t.Parallel()
+	assert.Equal(t, "pt-BR", FormatCode("pt-BR", FormatBCP47))
+	assert.Equal(t, "pt_BR", FormatCode("pt-BR", FormatPOSIX))
+	assert.Equal(t, "en", FormatCode("en", FormatPOSIX))
+	assert.Equal(t, "en", FormatCode("en", ""))
+}
+
+func TestWellKnownLocalesFormatted(t *testing.T) {
+	t.Parallel()
+	posix := WellKnownLocalesFormatted(FormatPOSIX)
+	codeSet := make(map[string]bool)
+	for _, l := range posix {
+		codeSet[l.Code] = true
+	}
+	assert.True(t, codeSet["pt_BR"], "POSIX format should use underscore")
+	assert.True(t, codeSet["zh_Hans"], "POSIX format should use underscore")
+	assert.True(t, codeSet["en"], "language-only codes unchanged")
+}

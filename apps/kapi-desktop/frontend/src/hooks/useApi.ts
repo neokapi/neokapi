@@ -125,6 +125,9 @@ export const api = {
   getFormatSchema: (name: string) => call<unknown>("GetFormatSchema", name),
   detectFormat: (path: string) => call<string>("DetectFormat", path),
 
+  // Locales
+  getKnownLocales: () => call<Array<{ code: string; display_name: string }>>("GetKnownLocales"),
+
   // Presets
   listPresets: () => call<Array<{ name: string; description: string }>>("ListPresets"),
   detectPreset: (tabID: string) => call<string>("DetectPreset", tabID),

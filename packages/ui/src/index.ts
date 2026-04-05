@@ -56,6 +56,9 @@ export {
   ComboboxList,
   ComboboxItem,
   ComboboxEmpty,
+  ComboboxChips,
+  ComboboxChip,
+  ComboboxChipsInput,
 } from "./components/ui/combobox";
 export {
   Command,
@@ -184,6 +187,13 @@ export { Progress } from "./components/ui/progress";
 export { CodeInput, type CodeInputProps, type CodeLanguage } from "./components/ui/code-input";
 export { GlobInput, type GlobInputProps } from "./components/ui/glob-input";
 export { TargetPathInput, type TargetPathInputProps } from "./components/ui/target-path-input";
+export {
+  LocaleSelect,
+  MultiLocaleSelect,
+  type LocaleInfo,
+  type LocaleSelectProps,
+  type MultiLocaleSelectProps,
+} from "./components/ui/locale-select";
 
 // Tag input (chip-based)
 export { TagInput, type TagInputProps } from "./components/ui/tag-input";

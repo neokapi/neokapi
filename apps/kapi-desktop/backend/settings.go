@@ -9,8 +9,10 @@ import (
 
 // AppSettings holds persisted user preferences.
 type AppSettings struct {
-	Theme            string `json:"theme"`                       // "system", "dark", or "light"
-	SamplesDismissed bool   `json:"samples_dismissed,omitempty"` // true after user dismisses sample project cards
+	Theme            string   `json:"theme"`                        // "system", "dark", or "light"
+	SamplesDismissed bool     `json:"samples_dismissed,omitempty"`  // true after user dismisses sample project cards
+	HiddenLocales    []string `json:"hidden_locales,omitempty"`     // locale codes to hide from selectors
+	CustomLocales    []string `json:"custom_locales,omitempty"`     // additional locale codes not in the well-known list
 }
 
 // settingsStore manages user preferences.
