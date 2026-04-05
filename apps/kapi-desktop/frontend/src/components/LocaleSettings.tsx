@@ -1,6 +1,16 @@
 import { useState, useEffect, useMemo } from "react";
 import { RotateCcw, Plus, Trash2, EyeOff, Eye } from "lucide-react";
-import { Card, CardContent, Button, Input, Label } from "@neokapi/ui-primitives";
+import {
+  Card,
+  CardContent,
+  Button,
+  Input,
+  Label,
+  Badge,
+  SelectableList,
+  type SelectableListColumn,
+  type SelectableListAction,
+} from "@neokapi/ui-primitives";
 import { api } from "../hooks/useApi";
 import { useError } from "./ErrorBanner";
 
@@ -23,16 +33,44 @@ interface LocaleEntry {
   isHidden: boolean;
 }
 
+const columns: SelectableListColumn<LocaleEntry>[] = [
+  {
+    header: "Language",
+    cell: (item) => <span className="text-sm">{item.displayName}</span>,
+  },
+  {
+    header: "Code",
+    cell: (item) => <span className="font-mono text-xs text-muted-foreground">{item.code}</span>,
+    className: "w-24",
+  },
+  {
+    header: "Status",
+    cell: (item) => (
+      <>
+        {item.isCustom && (
+          <Badge variant="secondary" className="text-[9px]">
+            custom
+          </Badge>
+        )}
+        {item.isHidden && (
+          <Badge variant="outline" className="text-[9px]">
+            hidden
+          </Badge>
+        )}
+      </>
+    ),
+    className: "w-20",
+  },
+];
+
 export function LocaleSettings() {
   const { showError } = useError();
   const [allLocales, setAllLocales] = useState<Array<{ code: string; display_name: string }>>([]);
   const [hiddenSet, setHiddenSet] = useState<Set<string>>(new Set());
   const [customLocales, setCustomLocales] = useState<CustomLocale[]>([]);
-  const [selected, setSelected] = useState<Set<string>>(new Set());
   const [newCode, setNewCode] = useState("");
   const [newDisplayName, setNewDisplayName] = useState("");
   const [addError, setAddError] = useState("");
-  const [filter, setFilter] = useState("");
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -69,14 +107,6 @@ export function LocaleSettings() {
     return result;
   }, [allLocales, hiddenSet, customLocales]);
 
-  const filtered = useMemo(() => {
-    if (!filter) return entries;
-    const q = filter.toLowerCase();
-    return entries.filter(
-      (e) => e.displayName.toLowerCase().includes(q) || e.code.toLowerCase().includes(q),
-    );
-  }, [entries, filter]);
-
   const saveSettings = async (hidden: Set<string>, custom: CustomLocale[]) => {
     try {
       const current = (await api.getSettings()) as AppSettings;
@@ -90,57 +120,50 @@ export function LocaleSettings() {
     }
   };
 
-  const toggleSelect = (code: string) => {
-    setSelected((prev) => {
-      const next = new Set(prev);
-      if (next.has(code)) next.delete(code);
-      else next.add(code);
-      return next;
-    });
-  };
-
-  const selectAll = () => {
-    setSelected(new Set(filtered.map((e) => e.code)));
-  };
-
-  const selectNone = () => {
-    setSelected(new Set());
-  };
-
-  // Bulk operations
-  const hideSelected = () => {
-    const next = new Set(hiddenSet);
-    for (const code of selected) {
-      const entry = entries.find((e) => e.code === code);
-      if (entry && !entry.isCustom) next.add(code);
-    }
-    setHiddenSet(next);
-    setSelected(new Set());
-    void saveSettings(next, customLocales);
-  };
-
-  const showSelected = () => {
-    const next = new Set(hiddenSet);
-    for (const code of selected) next.delete(code);
-    setHiddenSet(next);
-    setSelected(new Set());
-    void saveSettings(next, customLocales);
-  };
-
-  const removeSelectedCustom = () => {
-    const toRemove = new Set(
-      [...selected].filter((code) => entries.find((e) => e.code === code)?.isCustom),
-    );
-    if (toRemove.size === 0) return;
-    const next = customLocales.filter((cl) => !toRemove.has(cl.code));
-    setCustomLocales(next);
-    setSelected((prev) => {
-      const s = new Set(prev);
-      for (const code of toRemove) s.delete(code);
-      return s;
-    });
-    void saveSettings(hiddenSet, next);
-  };
+  const actions: SelectableListAction<LocaleEntry>[] = [
+    {
+      label: (
+        <>
+          <EyeOff size={12} /> Hide
+        </>
+      ),
+      onAction: (selected) => {
+        const next = new Set(hiddenSet);
+        for (const s of selected) if (!s.isCustom) next.add(s.code);
+        setHiddenSet(next);
+        void saveSettings(next, customLocales);
+      },
+      when: (item) => !item.isHidden && !item.isCustom,
+    },
+    {
+      label: (
+        <>
+          <Eye size={12} /> Show
+        </>
+      ),
+      onAction: (selected) => {
+        const next = new Set(hiddenSet);
+        for (const s of selected) next.delete(s.code);
+        setHiddenSet(next);
+        void saveSettings(next, customLocales);
+      },
+      when: (item) => item.isHidden,
+    },
+    {
+      label: (
+        <>
+          <Trash2 size={12} /> Remove
+        </>
+      ),
+      onAction: (selected) => {
+        const codes = new Set(selected.map((s) => s.code));
+        const next = customLocales.filter((cl) => !codes.has(cl.code));
+        setCustomLocales(next);
+        void saveSettings(hiddenSet, next);
+      },
+      when: (item) => item.isCustom,
+    },
+  ];
 
   const addCustom = () => {
     const code = newCode.trim();
@@ -165,17 +188,11 @@ export function LocaleSettings() {
   const resetToDefaults = () => {
     setHiddenSet(new Set());
     setCustomLocales([]);
-    setSelected(new Set());
     void saveSettings(new Set(), []);
   };
 
   const hiddenCount = entries.filter((e) => e.isHidden).length;
   const customCount = entries.filter((e) => e.isCustom).length;
-  const selectedHasHidden = [...selected].some((c) => hiddenSet.has(c));
-  const selectedHasVisible = [...selected].some(
-    (c) => !hiddenSet.has(c) && !entries.find((e) => e.code === c)?.isCustom,
-  );
-  const selectedHasCustom = [...selected].some((c) => entries.find((e) => e.code === c)?.isCustom);
 
   if (loading) return null;
 
@@ -235,98 +252,19 @@ export function LocaleSettings() {
           </CardContent>
         </Card>
 
-        {/* Toolbar: filter + bulk actions */}
-        <div className="flex items-center gap-2">
-          <Input
-            type="text"
-            value={filter}
-            onChange={(e) => setFilter(e.target.value)}
-            placeholder="Filter locales..."
-            className="max-w-xs"
-          />
-          <div className="flex-1" />
-          {selected.size > 0 && (
-            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-              <span>{selected.size} selected</span>
-              {selectedHasVisible && (
-                <Button variant="outline" size="sm" onClick={hideSelected}>
-                  <EyeOff size={12} />
-                  Hide
-                </Button>
-              )}
-              {selectedHasHidden && (
-                <Button variant="outline" size="sm" onClick={showSelected}>
-                  <Eye size={12} />
-                  Show
-                </Button>
-              )}
-              {selectedHasCustom && (
-                <Button variant="outline" size="sm" onClick={removeSelectedCustom}>
-                  <Trash2 size={12} />
-                  Remove
-                </Button>
-              )}
-            </div>
-          )}
-        </div>
-
         {/* Locale table */}
-        <Card>
-          <CardContent className="p-0">
-            {/* Header */}
-            <div className="flex items-center gap-3 border-b border-border px-4 py-2 text-xs font-medium text-muted-foreground">
-              <input
-                type="checkbox"
-                checked={filtered.length > 0 && filtered.every((e) => selected.has(e.code))}
-                onChange={() => {
-                  if (filtered.every((e) => selected.has(e.code))) selectNone();
-                  else selectAll();
-                }}
-                className="rounded"
-              />
-              <span className="flex-1">Language</span>
-              <span className="w-24">Code</span>
-              <span className="w-16 text-center">Status</span>
-            </div>
-            {/* Rows */}
-            <div className="max-h-[400px] divide-y divide-border overflow-auto">
-              {filtered.map((entry) => (
-                <label
-                  key={entry.code}
-                  className={`flex cursor-pointer items-center gap-3 px-4 py-1.5 transition-colors hover:bg-accent/30 ${
-                    selected.has(entry.code) ? "bg-accent/20" : ""
-                  } ${entry.isHidden ? "opacity-50" : ""}`}
-                >
-                  <input
-                    type="checkbox"
-                    checked={selected.has(entry.code)}
-                    onChange={() => toggleSelect(entry.code)}
-                    className="rounded"
-                  />
-                  <span className="flex-1 text-sm">{entry.displayName}</span>
-                  <span className="w-24 font-mono text-xs text-muted-foreground">{entry.code}</span>
-                  <span className="flex w-16 justify-center">
-                    {entry.isCustom && (
-                      <span className="rounded bg-primary/10 px-1.5 py-0.5 text-[9px] text-primary">
-                        custom
-                      </span>
-                    )}
-                    {entry.isHidden && (
-                      <span className="rounded bg-muted px-1.5 py-0.5 text-[9px] text-muted-foreground">
-                        hidden
-                      </span>
-                    )}
-                  </span>
-                </label>
-              ))}
-              {filtered.length === 0 && (
-                <div className="px-4 py-6 text-center text-sm text-muted-foreground">
-                  No locales match the filter.
-                </div>
-              )}
-            </div>
-          </CardContent>
-        </Card>
+        <SelectableList
+          items={entries}
+          getKey={(e) => e.code}
+          columns={columns}
+          actions={actions}
+          filterFn={(item, q) =>
+            item.displayName.toLowerCase().includes(q.toLowerCase()) ||
+            item.code.toLowerCase().includes(q.toLowerCase())
+          }
+          filterPlaceholder="Filter locales..."
+          rowClassName={(item) => (item.isHidden ? "opacity-50" : "")}
+        />
       </div>
     </div>
   );
