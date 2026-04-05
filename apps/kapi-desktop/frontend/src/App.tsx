@@ -31,6 +31,8 @@ interface TabState {
   project: KapiProject;
   isEmpty?: boolean;
   detectedPreset?: string;
+  /** Per-tab view (content, flows, settings, etc.). */
+  view: string;
 }
 
 export default function App() {
@@ -58,7 +60,12 @@ function AppInner() {
 
   const activeTab = tabs.find((t) => t.info.id === activeTabID) ?? null;
   const emptyProject: KapiProject = { version: "v1", name: "" };
-  const history = useProjectHistory(activeTab?.project ?? emptyProject, activeTabID);
+  const history = useProjectHistory(activeTab?.project ?? emptyProject, activeTabID) as ReturnType<
+    typeof useProjectHistory
+  > & { cleanup: (id: string) => void };
+
+  // Effective view: per-tab in projects mode, global in adhoc mode.
+  const effectiveView = mode === "projects" && activeTab ? activeTab.view : view;
 
   const refreshRecent = useCallback(() => {
     void api.listRecentFiles().then((f) => {
@@ -164,7 +171,7 @@ function AppInner() {
       } else {
         if (tabs.length > 0) {
           setActiveTabID(tabs[0].info.id);
-          setView("project-home");
+          // Tab's own view is preserved — no global view change needed.
         } else {
           setView("home");
         }
@@ -173,10 +180,17 @@ function AppInner() {
     [tabs],
   );
 
-  const handleViewChange = useCallback((v: string) => {
-    setView(v);
-    if (v !== "flows") setSelectedFlow(null);
-  }, []);
+  const handleViewChange = useCallback(
+    (v: string) => {
+      if (mode === "projects" && activeTabID) {
+        setTabs((prev) => prev.map((t) => (t.info.id === activeTabID ? { ...t, view: v } : t)));
+      } else {
+        setView(v);
+      }
+      if (v !== "flows") setSelectedFlow(null);
+    },
+    [mode, activeTabID],
+  );
 
   const addTab = useCallback(async (tab: TabInfo, project: KapiProject) => {
     const empty = await api.isEmptyProject(tab.id);
@@ -188,11 +202,19 @@ function AppInner() {
     }
     setTabs((prev) => {
       if (prev.some((t) => t.info.id === tab.id)) return prev;
-      return [...prev, { info: tab, project, isEmpty: empty ?? false, detectedPreset: detected }];
+      return [
+        ...prev,
+        {
+          info: tab,
+          project,
+          isEmpty: empty ?? false,
+          detectedPreset: detected,
+          view: "project-home",
+        },
+      ];
     });
     setActiveTabID(tab.id);
     setMode("projects");
-    setView("project-home");
   }, []);
 
   const handleNewProject = useCallback(
@@ -258,19 +280,23 @@ function AppInner() {
     [addTab, showError],
   );
 
-  const closeTab = useCallback((tabID: string) => {
-    void api.closeProject(tabID);
-    setTabs((prev) => {
-      const remaining = prev.filter((t) => t.info.id !== tabID);
-      setActiveTabID((cur) => {
-        if (cur !== tabID) return cur;
-        if (remaining.length > 0) return remaining[remaining.length - 1].info.id;
-        setView("home"); // back to shared Home
-        return null;
+  const closeTab = useCallback(
+    (tabID: string) => {
+      void api.closeProject(tabID);
+      history.cleanup(tabID);
+      setTabs((prev) => {
+        const remaining = prev.filter((t) => t.info.id !== tabID);
+        setActiveTabID((cur) => {
+          if (cur !== tabID) return cur;
+          if (remaining.length > 0) return remaining[remaining.length - 1].info.id;
+          setView("home"); // back to shared Home
+          return null;
+        });
+        return remaining;
       });
-      return remaining;
-    });
-  }, []);
+    },
+    [history],
+  );
 
   const handleCloseTab = useCallback(
     (tabID: string) => {
@@ -378,7 +404,7 @@ function AppInner() {
           <div className="flex-1 border-r border-border">
             <IconSidebar
               mode={mode}
-              active={view}
+              active={effectiveView}
               onChange={handleViewChange}
               projectDisabled={mode === "projects" && !activeTab}
             />
@@ -457,7 +483,7 @@ function AppInner() {
           {/* Content */}
           <main className="flex-1 overflow-auto">
             {/* Home — always the global home page in both modes */}
-            {view === "home" && (
+            {effectiveView === "home" && (
               <AppHome
                 recentFiles={recentFiles}
                 samplesDismissed={samplesDismissed}
@@ -474,30 +500,33 @@ function AppInner() {
             )}
 
             {/* Ad-hoc views */}
-            {mode === "adhoc" && view === "flows" && <FlowsPage />}
-            {mode === "adhoc" && view === "tools" && <ToolRunnerPage />}
-            {mode === "adhoc" && view === "termbases" && <TermbasesPage />}
-            {mode === "adhoc" && view === "memories" && <MemoriesPage />}
-            {mode === "adhoc" && view === "formats" && <FormatsPage />}
+            {mode === "adhoc" && effectiveView === "flows" && <FlowsPage />}
+            {mode === "adhoc" && effectiveView === "tools" && <ToolRunnerPage />}
+            {mode === "adhoc" && effectiveView === "termbases" && <TermbasesPage />}
+            {mode === "adhoc" && effectiveView === "memories" && <MemoriesPage />}
+            {mode === "adhoc" && effectiveView === "formats" && <FormatsPage />}
 
             {/* Project views (only when a project tab is active) */}
-            {mode === "projects" && activeTab && view === "project-home" && activeTab.isEmpty && (
-              <ProjectSetupPage
-                tabID={activeTab.info.id}
-                onDone={() => {
-                  setTabs((prev) =>
-                    prev.map((t) =>
-                      t.info.id === activeTab.info.id
-                        ? { ...t, isEmpty: false, detectedPreset: undefined }
-                        : t,
-                    ),
-                  );
-                }}
-              />
-            )}
             {mode === "projects" &&
               activeTab &&
-              view === "project-home" &&
+              effectiveView === "project-home" &&
+              activeTab.isEmpty && (
+                <ProjectSetupPage
+                  tabID={activeTab.info.id}
+                  onDone={() => {
+                    setTabs((prev) =>
+                      prev.map((t) =>
+                        t.info.id === activeTab.info.id
+                          ? { ...t, isEmpty: false, detectedPreset: undefined }
+                          : t,
+                      ),
+                    );
+                  }}
+                />
+              )}
+            {mode === "projects" &&
+              activeTab &&
+              effectiveView === "project-home" &&
               !activeTab.isEmpty &&
               activeTab.detectedPreset && (
                 <ProjectPresetPage
@@ -524,7 +553,7 @@ function AppInner() {
               )}
             {mode === "projects" &&
               activeTab &&
-              view === "project-home" &&
+              effectiveView === "project-home" &&
               !activeTab.isEmpty &&
               !activeTab.detectedPreset && (
                 <HomePage
@@ -533,7 +562,7 @@ function AppInner() {
                   onNavigate={handleViewChange}
                 />
               )}
-            {mode === "projects" && activeTab && view === "content" && (
+            {mode === "projects" && activeTab && effectiveView === "content" && (
               <ContentPage
                 project={history.project}
                 projectPath={activeTab.info.path}
@@ -541,7 +570,7 @@ function AppInner() {
                 tabID={activeTab.info.id}
               />
             )}
-            {mode === "projects" && activeTab && view === "flows" && (
+            {mode === "projects" && activeTab && effectiveView === "flows" && (
               <FlowsPage
                 tabID={activeTab.info.id}
                 projectFlows={history.project.flows}
@@ -557,10 +586,10 @@ function AppInner() {
                 }}
               />
             )}
-            {mode === "projects" && activeTab && view === "tools" && <ToolRunnerPage />}
-            {mode === "projects" && activeTab && view === "termbases" && <TermbasesPage />}
-            {mode === "projects" && activeTab && view === "memories" && <MemoriesPage />}
-            {mode === "projects" && activeTab && view === "settings" && (
+            {mode === "projects" && activeTab && effectiveView === "tools" && <ToolRunnerPage />}
+            {mode === "projects" && activeTab && effectiveView === "termbases" && <TermbasesPage />}
+            {mode === "projects" && activeTab && effectiveView === "memories" && <MemoriesPage />}
+            {mode === "projects" && activeTab && effectiveView === "settings" && (
               <ProjectSettingsPage
                 project={history.project}
                 onUpdate={updateActiveProject}
@@ -568,7 +597,9 @@ function AppInner() {
               />
             )}
 
-            {view === "settings" && !(mode === "projects" && activeTab) && <SettingsPage />}
+            {effectiveView === "settings" && !(mode === "projects" && activeTab) && (
+              <SettingsPage />
+            )}
           </main>
         </div>
       </div>
