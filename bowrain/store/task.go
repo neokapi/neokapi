@@ -311,14 +311,14 @@ func (s *TaskStore) Delete(ctx context.Context, taskID string) error {
 
 func scanTask(row scanner) (*Task, error) {
 	var t Task
-	var typ, status, priority, dataJSON, createdAtStr, updatedAtStr string
-	var dueAtStr, completedAtStr sql.NullString
+	var typ, status, priority, dataJSON string
+	var dueAt, completedAt sql.NullTime
 
 	err := row.Scan(
 		&t.ID, &t.WorkspaceID, &t.ProjectID, &t.Stream,
 		&typ, &status, &priority,
 		&t.Title, &t.Description, &t.AssigneeID, &t.CreatedBy, &t.CompletedBy,
-		&dataJSON, &dueAtStr, &createdAtStr, &updatedAtStr, &completedAtStr,
+		&dataJSON, &dueAt, &t.CreatedAt, &t.UpdatedAt, &completedAt,
 	)
 	if err != nil {
 		return nil, err
@@ -327,18 +327,14 @@ func scanTask(row scanner) (*Task, error) {
 	t.Type = TaskType(typ)
 	t.Status = TaskStatus(status)
 	t.Priority = TaskPriority(priority)
-	t.CreatedAt, _ = parseTime(createdAtStr)
-	t.UpdatedAt, _ = parseTime(updatedAtStr)
 
-	if dueAtStr.Valid && dueAtStr.String != "" {
-		if d, err := parseTime(dueAtStr.String); err == nil {
-			t.DueAt = &d
-		}
+	if dueAt.Valid {
+		d := dueAt.Time.UTC()
+		t.DueAt = &d
 	}
-	if completedAtStr.Valid && completedAtStr.String != "" {
-		if c, err := parseTime(completedAtStr.String); err == nil {
-			t.CompletedAt = &c
-		}
+	if completedAt.Valid {
+		c := completedAt.Time.UTC()
+		t.CompletedAt = &c
 	}
 	if dataJSON != "" {
 		_ = json.Unmarshal([]byte(dataJSON), &t.Data)

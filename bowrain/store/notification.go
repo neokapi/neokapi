@@ -103,7 +103,7 @@ func (s *NotificationStore) Create(ctx context.Context, n *Notification) error {
 		`INSERT INTO notifications (id, user_id, type, title, body, project_id, link_url, read, created_at, category, group_key, actor_id, actor_name, task_id, priority)
 		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)`,
 		n.ID, n.UserID, string(n.Type), n.Title, n.Body,
-		n.ProjectID, n.LinkURL, 0, n.CreatedAt.UTC().Format(time.RFC3339Nano),
+		n.ProjectID, n.LinkURL, false, n.CreatedAt.UTC().Format(time.RFC3339Nano),
 		n.Category, n.GroupKey, n.ActorID, n.ActorName, n.TaskID, n.Priority)
 	return err
 }
@@ -117,7 +117,7 @@ func (s *NotificationStore) List(ctx context.Context, userID string, limit int, 
 	where := "user_id = $1"
 	args := []any{userID}
 	if unreadOnly {
-		where += " AND read = 0"
+		where += " AND read = false"
 	}
 
 	query := fmt.Sprintf(
@@ -134,14 +134,11 @@ func (s *NotificationStore) List(ctx context.Context, userID string, limit int, 
 	var notifications []Notification
 	for rows.Next() {
 		var n Notification
-		var typ, createdAt string
-		var readInt int
-		if err := rows.Scan(&n.ID, &n.UserID, &typ, &n.Title, &n.Body, &n.ProjectID, &n.LinkURL, &readInt, &createdAt, &n.Category, &n.GroupKey, &n.ActorID, &n.ActorName, &n.TaskID, &n.Priority); err != nil {
+		var typ string
+		if err := rows.Scan(&n.ID, &n.UserID, &typ, &n.Title, &n.Body, &n.ProjectID, &n.LinkURL, &n.Read, &n.CreatedAt, &n.Category, &n.GroupKey, &n.ActorID, &n.ActorName, &n.TaskID, &n.Priority); err != nil {
 			return nil, err
 		}
 		n.Type = NotificationType(typ)
-		n.Read = readInt != 0
-		n.CreatedAt, _ = parseTime(createdAt)
 		notifications = append(notifications, n)
 	}
 	return notifications, rows.Err()
@@ -151,14 +148,14 @@ func (s *NotificationStore) List(ctx context.Context, userID string, limit int, 
 func (s *NotificationStore) UnreadCount(ctx context.Context, userID string) (int, error) {
 	var count int
 	err := s.db.QueryRowContext(ctx,
-		`SELECT COUNT(*) FROM notifications WHERE user_id = $1 AND read = 0`, userID).Scan(&count)
+		`SELECT COUNT(*) FROM notifications WHERE user_id = $1 AND read = false`, userID).Scan(&count)
 	return count, err
 }
 
 // MarkRead marks a single notification as read.
 func (s *NotificationStore) MarkRead(ctx context.Context, notificationID, userID string) error {
 	_, err := s.db.ExecContext(ctx,
-		`UPDATE notifications SET read = 1 WHERE id = $1 AND user_id = $2`,
+		`UPDATE notifications SET read = true WHERE id = $1 AND user_id = $2`,
 		notificationID, userID)
 	return err
 }
@@ -166,7 +163,7 @@ func (s *NotificationStore) MarkRead(ctx context.Context, notificationID, userID
 // MarkAllRead marks all notifications as read for a user.
 func (s *NotificationStore) MarkAllRead(ctx context.Context, userID string) error {
 	_, err := s.db.ExecContext(ctx,
-		`UPDATE notifications SET read = 1 WHERE user_id = $1 AND read = 0`, userID)
+		`UPDATE notifications SET read = true WHERE user_id = $1 AND read = false`, userID)
 	return err
 }
 
@@ -176,7 +173,7 @@ func (s *NotificationStore) MarkReadByGroupKey(ctx context.Context, groupKey str
 		return nil
 	}
 	_, err := s.db.ExecContext(ctx,
-		`UPDATE notifications SET read = 1 WHERE group_key = $1 AND read = 0`,
+		`UPDATE notifications SET read = true WHERE group_key = $1 AND read = false`,
 		groupKey)
 	return err
 }
@@ -184,7 +181,7 @@ func (s *NotificationStore) MarkReadByGroupKey(ctx context.Context, groupKey str
 // ListUnreadSince returns unread notifications for a user created after the given time.
 func (s *NotificationStore) ListUnreadSince(ctx context.Context, userID string, since time.Time) ([]Notification, error) {
 	query := `SELECT id, user_id, type, title, body, project_id, link_url, read, created_at, category, group_key, actor_id, actor_name, task_id, priority
-		 FROM notifications WHERE user_id = $1 AND read = 0 AND created_at > $2 ORDER BY created_at DESC`
+		 FROM notifications WHERE user_id = $1 AND read = false AND created_at > $2 ORDER BY created_at DESC`
 	rows, err := s.db.QueryContext(ctx, query, userID, since.UTC().Format(time.RFC3339Nano))
 	if err != nil {
 		return nil, err
@@ -194,14 +191,11 @@ func (s *NotificationStore) ListUnreadSince(ctx context.Context, userID string, 
 	var notifications []Notification
 	for rows.Next() {
 		var n Notification
-		var typ, createdAt string
-		var readInt int
-		if err := rows.Scan(&n.ID, &n.UserID, &typ, &n.Title, &n.Body, &n.ProjectID, &n.LinkURL, &readInt, &createdAt, &n.Category, &n.GroupKey, &n.ActorID, &n.ActorName, &n.TaskID, &n.Priority); err != nil {
+		var typ string
+		if err := rows.Scan(&n.ID, &n.UserID, &typ, &n.Title, &n.Body, &n.ProjectID, &n.LinkURL, &n.Read, &n.CreatedAt, &n.Category, &n.GroupKey, &n.ActorID, &n.ActorName, &n.TaskID, &n.Priority); err != nil {
 			return nil, err
 		}
 		n.Type = NotificationType(typ)
-		n.Read = readInt != 0
-		n.CreatedAt, _ = parseTime(createdAt)
 		notifications = append(notifications, n)
 	}
 	return notifications, rows.Err()

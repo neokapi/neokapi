@@ -251,19 +251,18 @@ type DailyCount struct {
 
 func scanActivity(row scanner) (*Activity, error) {
 	var a Activity
-	var typ, dataJSON, createdAt string
+	var typ, dataJSON string
 
 	err := row.Scan(
 		&a.ID, &a.WorkspaceID, &a.ProjectID, &a.Stream,
 		&a.ActorID, &a.ActorName, &typ, &a.EntityType,
-		&a.EntityID, &a.Summary, &dataJSON, &createdAt,
+		&a.EntityID, &a.Summary, &dataJSON, &a.CreatedAt,
 	)
 	if err != nil {
 		return nil, err
 	}
 
 	a.Type = ActivityType(typ)
-	a.CreatedAt, _ = parseTime(createdAt)
 	if dataJSON != "" {
 		_ = json.Unmarshal([]byte(dataJSON), &a.Data)
 	}
@@ -277,15 +276,14 @@ func scanActivity(row scanner) (*Activity, error) {
 // GetActivitySeenAt returns when the user last viewed the activity feed.
 // Returns zero time if never viewed.
 func (s *ActivityStore) GetActivitySeenAt(ctx context.Context, userID, workspaceID string) (time.Time, error) {
-	var ts string
+	var t time.Time
 	err := s.db.QueryRowContext(ctx,
 		`SELECT last_seen_at FROM activity_state WHERE user_id = $1 AND workspace_id = $2`,
-		userID, workspaceID).Scan(&ts)
+		userID, workspaceID).Scan(&t)
 	if err != nil {
 		return time.Time{}, nil // never seen
 	}
-	t, _ := parseTime(ts)
-	return t, nil
+	return t.UTC(), nil
 }
 
 // SetActivitySeenAt records when the user last viewed the activity feed.

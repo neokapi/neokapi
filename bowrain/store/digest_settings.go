@@ -110,11 +110,10 @@ func (s *DigestStore) ListUsersWithFrequency(ctx context.Context, frequency Dige
 // GetState returns the last digest sent time for a user/workspace/frequency.
 func (s *DigestStore) GetState(ctx context.Context, userID, workspaceID, frequency string) (*DigestState, error) {
 	var ds DigestState
-	var lastSent string
 	err := s.db.QueryRowContext(ctx,
 		`SELECT user_id, workspace_id, frequency, last_sent_at
 		 FROM digest_state WHERE user_id = $1 AND workspace_id = $2 AND frequency = $3`,
-		userID, workspaceID, frequency).Scan(&ds.UserID, &ds.WorkspaceID, &ds.Frequency, &lastSent)
+		userID, workspaceID, frequency).Scan(&ds.UserID, &ds.WorkspaceID, &ds.Frequency, &ds.LastSentAt)
 	if errors.Is(err, sql.ErrNoRows) {
 		return &DigestState{
 			UserID:      userID,
@@ -126,7 +125,7 @@ func (s *DigestStore) GetState(ctx context.Context, userID, workspaceID, frequen
 	if err != nil {
 		return nil, err
 	}
-	ds.LastSentAt, _ = parseTime(lastSent)
+	ds.LastSentAt = ds.LastSentAt.UTC()
 	return &ds, nil
 }
 

@@ -351,11 +351,10 @@ func (s *AutomationRunStore) ListLogs(ctx context.Context, stepID string, limit 
 	var result []AutomationLog
 	for rows.Next() {
 		var l AutomationLog
-		var dataJSON, tsStr string
-		if err := rows.Scan(&l.ID, &l.StepID, &l.RunID, &l.Level, &l.Message, &dataJSON, &tsStr); err != nil {
+		var dataJSON string
+		if err := rows.Scan(&l.ID, &l.StepID, &l.RunID, &l.Level, &l.Message, &dataJSON, &l.Timestamp); err != nil {
 			return nil, err
 		}
-		l.Timestamp, _ = parseTime(tsStr)
 		if dataJSON != "" && dataJSON != "{}" {
 			if err := json.Unmarshal([]byte(dataJSON), &l.Data); err != nil {
 				return nil, fmt.Errorf("unmarshal log data for %s: %w", l.ID, err)
@@ -402,11 +401,9 @@ func (s *AutomationRunStore) ListPendingPushes(ctx context.Context) ([]PendingPu
 	var result []PendingPush
 	for rows.Next() {
 		var pp PendingPush
-		var createdAt string
-		if err := rows.Scan(&pp.PushID, &pp.ProjectID, &pp.Items, &pp.WsSlug, &pp.Actor, &createdAt); err != nil {
+		if err := rows.Scan(&pp.PushID, &pp.ProjectID, &pp.Items, &pp.WsSlug, &pp.Actor, &pp.CreatedAt); err != nil {
 			return nil, err
 		}
-		pp.CreatedAt, _ = parseTime(createdAt)
 		result = append(result, pp)
 	}
 	return result, rows.Err()
@@ -451,21 +448,19 @@ type scannable interface {
 
 func scanRun(row scannable) (*AutomationRun, error) {
 	var r AutomationRun
-	var triggerData, status, startedAtStr string
-	var endedAtStr sql.NullString
+	var triggerData, status string
+	var endedAt sql.NullTime
 
 	if err := row.Scan(&r.ID, &r.ProjectID, &r.TriggerType, &r.TriggerID,
 		&triggerData, &status, &r.StepCount, &r.DoneCount, &r.Error,
-		&startedAtStr, &endedAtStr); err != nil {
+		&r.StartedAt, &endedAt); err != nil {
 		return nil, fmt.Errorf("scan automation run: %w", err)
 	}
 
 	r.Status = RunStatus(status)
-	r.StartedAt, _ = parseTime(startedAtStr)
-	if endedAtStr.Valid && endedAtStr.String != "" {
-		if t, err := parseTime(endedAtStr.String); err == nil {
-			r.EndedAt = &t
-		}
+	if endedAt.Valid {
+		t := endedAt.Time.UTC()
+		r.EndedAt = &t
 	}
 	if triggerData != "" && triggerData != "{}" {
 		if err := json.Unmarshal([]byte(triggerData), &r.TriggerData); err != nil {
@@ -477,22 +472,20 @@ func scanRun(row scannable) (*AutomationRun, error) {
 
 func scanStep(row scannable) (*AutomationStep, error) {
 	var step AutomationStep
-	var config, jobIDs, taskIDs, status, startedAtStr string
-	var endedAtStr sql.NullString
+	var config, jobIDs, taskIDs, status string
+	var endedAt sql.NullTime
 
 	if err := row.Scan(&step.ID, &step.RunID, &step.RuleName, &step.ActionType,
 		&status, &config, &jobIDs, &taskIDs,
 		&step.TotalJobs, &step.DoneJobs, &step.Error,
-		&startedAtStr, &endedAtStr); err != nil {
+		&step.StartedAt, &endedAt); err != nil {
 		return nil, fmt.Errorf("scan automation step: %w", err)
 	}
 
 	step.Status = StepStatus(status)
-	step.StartedAt, _ = parseTime(startedAtStr)
-	if endedAtStr.Valid && endedAtStr.String != "" {
-		if t, err := parseTime(endedAtStr.String); err == nil {
-			step.EndedAt = &t
-		}
+	if endedAt.Valid {
+		t := endedAt.Time.UTC()
+		step.EndedAt = &t
 	}
 	if config != "" && config != "{}" {
 		if err := json.Unmarshal([]byte(config), &step.Config); err != nil {

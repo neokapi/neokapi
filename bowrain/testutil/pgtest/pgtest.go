@@ -6,6 +6,7 @@ package pgtest
 import (
 	"context"
 	"fmt"
+	"os"
 	"strconv"
 	"strings"
 	"sync"
@@ -35,22 +36,33 @@ func NewTestDB(t *testing.T) *storage.PgDB {
 
 	sharedMu.Lock()
 	if sharedDB == nil {
-		connStr, cleanup, err := startContainer(t)
-		if err != nil {
-			sharedMu.Unlock()
-			t.Skipf("PostgreSQL container not available: %v", err)
-			return nil
+		// Allow using an existing PostgreSQL instance via env var (e.g., from docker compose).
+		if envURL := os.Getenv("BOWRAIN_TEST_POSTGRES_URL"); envURL != "" {
+			db, err := storage.OpenPostgres(envURL)
+			if err != nil {
+				sharedMu.Unlock()
+				t.Fatalf("open postgres from BOWRAIN_TEST_POSTGRES_URL: %v", err)
+			}
+			sharedDB = db
+			sharedConnStr = envURL
+		} else {
+			connStr, cleanup, err := startContainer(t)
+			if err != nil {
+				sharedMu.Unlock()
+				t.Skipf("PostgreSQL container not available: %v", err)
+				return nil
+			}
+			db, err := storage.OpenPostgres(connStr)
+			if err != nil {
+				cleanup()
+				sharedMu.Unlock()
+				t.Fatalf("open postgres: %v", err)
+			}
+			sharedDB = db
+			sharedConnStr = connStr
+			// cleanup is intentionally not called — the container lives for the entire test binary.
+			// Docker will clean it up via Ryuk (testcontainers' resource reaper).
 		}
-		db, err := storage.OpenPostgres(connStr)
-		if err != nil {
-			cleanup()
-			sharedMu.Unlock()
-			t.Fatalf("open postgres: %v", err)
-		}
-		sharedDB = db
-		sharedConnStr = connStr
-		// cleanup is intentionally not called — the container lives for the entire test binary.
-		// Docker will clean it up via Ryuk (testcontainers' resource reaper).
 	}
 	schemaCounter++
 	schemaName := "test_" + sanitize(t.Name()) + "_" + strconv.Itoa(schemaCounter)

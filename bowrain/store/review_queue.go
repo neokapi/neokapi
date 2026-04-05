@@ -118,7 +118,7 @@ func (s *ReviewQueueStore) CreateItem(ctx context.Context, item *ReviewItem) err
 	_, err := s.db.ExecContext(ctx,
 		`INSERT INTO review_items (id, project_id, type, status, push_id, data, occurrences,
 		 assigned_to, decided_by, decided_at, comment, edits, confidence, locale, created_at)
-		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, '', '', $9, $10, $11, $12, $13)`,
+		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, '', NULL, $9, $10, $11, $12, $13)`,
 		item.ID, item.ProjectID, string(item.Type), string(item.Status),
 		item.PushID, string(item.Data), string(occJSON),
 		item.AssignedTo, item.Comment, edits,
@@ -369,7 +369,7 @@ func (s *ReviewQueueStore) SplitItem(ctx context.Context, itemID string, occurre
 	if _, err := tx.ExecContext(ctx,
 		`INSERT INTO review_items (id, project_id, type, status, push_id, data, occurrences,
 		 assigned_to, decided_by, decided_at, comment, edits, confidence, locale, created_at)
-		 VALUES ($1, $2, $3, $4, $5, $6, $7, '', '', '', '', '{}', $8, $9, $10)`,
+		 VALUES ($1, $2, $3, $4, $5, $6, $7, '', '', NULL, '', '{}', $8, $9, $10)`,
 		newItem.ID, newItem.ProjectID, string(newItem.Type), string(newItem.Status),
 		newItem.PushID, string(newItem.Data), string(splitJSON),
 		newItem.Confidence, newItem.Locale,
@@ -422,11 +422,9 @@ func (s *ReviewQueueStore) ListDNTEntries(ctx context.Context, projectID string)
 	var entries []DNTEntry
 	for rows.Next() {
 		var e DNTEntry
-		var createdAt string
-		if err := rows.Scan(&e.ProjectID, &e.Text, &e.EntityType, &e.Locale, &e.Source, &createdAt); err != nil {
+		if err := rows.Scan(&e.ProjectID, &e.Text, &e.EntityType, &e.Locale, &e.Source, &e.CreatedAt); err != nil {
 			return nil, err
 		}
-		e.CreatedAt, _ = parseTime(createdAt)
 		entries = append(entries, e)
 	}
 	return entries, rows.Err()
@@ -448,13 +446,14 @@ type DNTEntry struct {
 
 func (s *ReviewQueueStore) scanReviewItem(row scanner) (*ReviewItem, error) {
 	var item ReviewItem
-	var typ, status, pushID, occJSON, assignedTo, decidedBy, decidedAtStr, comment, editsStr, locale, createdAtStr string
+	var typ, status, pushID, occJSON, assignedTo, decidedBy, comment, editsStr, locale string
 	var data string
+	var decidedAt sql.NullTime
 
 	err := row.Scan(
 		&item.ID, &item.ProjectID, &typ, &status, &pushID,
-		&data, &occJSON, &assignedTo, &decidedBy, &decidedAtStr,
-		&comment, &editsStr, &item.Confidence, &locale, &createdAtStr,
+		&data, &occJSON, &assignedTo, &decidedBy, &decidedAt,
+		&comment, &editsStr, &item.Confidence, &locale, &item.CreatedAt,
 	)
 	if err != nil {
 		return nil, err
@@ -469,17 +468,15 @@ func (s *ReviewQueueStore) scanReviewItem(row scanner) (*ReviewItem, error) {
 	item.Comment = comment
 	item.Locale = locale
 
-	if decidedAtStr != "" {
-		if t, err := parseTime(decidedAtStr); err == nil {
-			item.DecidedAt = &t
-		}
+	if decidedAt.Valid {
+		t := decidedAt.Time.UTC()
+		item.DecidedAt = &t
 	}
 	if editsStr != "" && editsStr != "{}" {
 		item.Edits = json.RawMessage(editsStr)
 	}
 
 	_ = json.Unmarshal([]byte(occJSON), &item.Occurrences)
-	item.CreatedAt, _ = parseTime(createdAtStr)
 
 	return &item, nil
 }
