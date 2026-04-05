@@ -64,8 +64,10 @@ function AppInner() {
     typeof useProjectHistory
   > & { cleanup: (id: string) => void };
 
-  // Effective view: per-tab in projects mode, global in adhoc mode.
-  const effectiveView = mode === "projects" && activeTab ? activeTab.view : view;
+  // Effective view: "home" is a global overlay that doesn't change the tab's
+  // own view. When a tab is active and view !== "home", use the tab's view.
+  const effectiveView =
+    view === "home" ? "home" : mode === "projects" && activeTab ? activeTab.view : view;
 
   const refreshRecent = useCallback(() => {
     void api.listRecentFiles().then((f) => {
@@ -182,7 +184,11 @@ function AppInner() {
 
   const handleViewChange = useCallback(
     (v: string) => {
-      if (mode === "projects" && activeTabID) {
+      if (v === "home") {
+        // Home is global — don't change the tab's view.
+        setView("home");
+      } else if (mode === "projects" && activeTabID) {
+        setView(""); // clear global home overlay
         setTabs((prev) => prev.map((t) => (t.info.id === activeTabID ? { ...t, view: v } : t)));
       } else {
         setView(v);
@@ -457,7 +463,10 @@ function AppInner() {
                 <TabBar
                   tabs={tabs.map((t) => t.info)}
                   activeTabID={activeTabID}
-                  onSelect={setActiveTabID}
+                  onSelect={(id) => {
+                    setActiveTabID(id);
+                    setView(""); // clear home overlay
+                  }}
                   onClose={handleCloseTab}
                   onRename={(id, name) => {
                     setTabs((prev) =>
