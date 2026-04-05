@@ -28,15 +28,19 @@ func (a *App) GetKnownLocales() []locale.LocaleInfo {
 		}
 	}
 
-	// Append custom locales with resolved display names.
-	for _, code := range settings.CustomLocales {
-		id, err := locale.Parse(code)
-		if err != nil {
-			continue
+	// Append custom locales with user-provided or auto-resolved display names.
+	for _, cl := range settings.CustomLocales {
+		displayName := cl.DisplayName
+		if displayName == "" {
+			id, err := locale.Parse(cl.Code)
+			if err != nil {
+				continue
+			}
+			displayName = locale.DisplayName(id)
 		}
 		result = append(result, locale.LocaleInfo{
-			Code:        string(id),
-			DisplayName: locale.DisplayName(id),
+			Code:        cl.Code,
+			DisplayName: displayName,
 		})
 	}
 
