@@ -1,5 +1,5 @@
-import { useCallback, useRef } from "react";
-import { createTravels } from "travels";
+import { useCallback, useRef, useState } from "react";
+import { createTravels, type Travels } from "travels";
 import { useTravelStore } from "use-travel";
 import type { KapiProject } from "../types/api";
 
@@ -36,8 +36,11 @@ function toPlain(p: KapiProject): KapiProject {
   return JSON.parse(JSON.stringify(p));
 }
 
-function newTravels(initial: KapiProject) {
-  return createTravels(toPlain(initial), { maxHistory: MAX_UNDO, autoArchive: false });
+function makeTravels(initial: KapiProject): Travels<KapiProject> {
+  return createTravels(toPlain(initial), {
+    maxHistory: MAX_UNDO,
+    autoArchive: false,
+  }) as Travels<KapiProject>;
 }
 
 /**
@@ -48,27 +51,31 @@ function newTravels(initial: KapiProject) {
  * grouped into a single undo step via manual archive after ARCHIVE_DEBOUNCE_MS.
  *
  * On tab switch (tabId change), a fresh Travels instance is created with
- * the new tab's project as the initial state.
+ * the new tab's project as the initial state. Uses useState (not useRef)
+ * so React re-renders and useTravelStore binds to the new instance.
  */
 export function useProjectHistory(
   initialProject: KapiProject,
   tabId: string | null,
 ): ProjectHistory {
   const tabIdRef = useRef(tabId);
-  const travelsRef = useRef(newTravels(initialProject));
+  const [travels, setTravels] = useState(() => makeTravels(initialProject));
   const savedRef = useRef(serialize(initialProject));
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Recreate travels instance when the tab changes.
+  // Setting state during render is the React pattern for derived state
+  // (equivalent to getDerivedStateFromProps).
   if (tabId !== tabIdRef.current) {
     tabIdRef.current = tabId;
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = null;
-    travelsRef.current = newTravels(initialProject);
+    const next = makeTravels(initialProject);
+    setTravels(next);
     savedRef.current = serialize(initialProject);
   }
 
-  const [state, setState, controls] = useTravelStore(travelsRef.current);
+  const [state, setState, controls] = useTravelStore(travels);
 
   const scheduleArchive = useCallback(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
@@ -98,8 +105,8 @@ export function useProjectHistory(
   const replace = useCallback((project: KapiProject) => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = null;
-    // Recreate the travels instance with the new project as baseline.
-    travelsRef.current = newTravels(project);
+    const next = makeTravels(project);
+    setTravels(next);
     savedRef.current = serialize(project);
   }, []);
 
