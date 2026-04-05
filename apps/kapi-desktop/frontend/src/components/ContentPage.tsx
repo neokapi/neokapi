@@ -30,7 +30,13 @@ import {
   SelectContent,
   SelectItem,
 } from "@neokapi/ui-primitives";
-import type { KapiProject, ContentCollection, ContentItem, FormatSpec } from "../types/api";
+import type {
+  KapiProject,
+  ContentCollection,
+  ContentItem,
+  FormatSpec,
+  FormatInfo,
+} from "../types/api";
 import { isBareEntry, effectiveItems } from "../types/api";
 import { api } from "../hooks/useApi";
 import { useError } from "./ErrorBanner";
@@ -59,8 +65,8 @@ export interface ContentPageProps {
   projectPath: string;
   onUpdate: (project: KapiProject) => void;
   tabID: string;
-  /** Pre-loaded format names for Storybook — skips api.listFormats(). */
-  formatNames?: string[];
+  /** Pre-loaded formats for Storybook — skips api.listFormats(). */
+  formatList?: FormatInfo[];
   /** Pre-loaded base path for Storybook — skips api.getBasePath(). */
   basePath?: string;
 }
@@ -81,7 +87,7 @@ export function ContentPage({
   projectPath: _projectPath,
   onUpdate,
   tabID,
-  formatNames: propFormats,
+  formatList: propFormats,
   basePath: propBasePath,
 }: ContentPageProps) {
   const { showError } = useError();
@@ -91,7 +97,7 @@ export function ContentPage({
   const [projectFiles, setProjectFiles] = useState<ProjectFile[]>([]);
   const [basePath, setBasePath] = useState(propBasePath ?? "");
   const [scanning, setScanning] = useState(false);
-  const [formats, setFormats] = useState<string[]>(propFormats ?? []);
+  const [formats, setFormats] = useState<FormatInfo[]>(propFormats ?? []);
   const [hideUnmatched, setHideUnmatched] = useState(false);
   const [dragging, setDragging] = useState(false);
   const [formatPresets, setFormatPresets] = useState<
@@ -135,7 +141,7 @@ export function ContentPage({
       api
         .listFormats()
         .then((f) => {
-          if (f) setFormats(f.map((x) => x.name));
+          if (f) setFormats(f);
         })
         .catch((err) => showError("Failed to load formats", err));
     }
@@ -289,8 +295,18 @@ export function ContentPage({
               <SelectContent>
                 <SelectItem value="__auto__">auto-detect</SelectItem>
                 {formats.map((f) => (
-                  <SelectItem key={f} value={f}>
-                    {f}
+                  <SelectItem key={f.name} value={f.name}>
+                    <div className="flex items-center gap-2">
+                      <span>{f.display_name || f.name}</span>
+                      {f.display_name && f.display_name !== f.name && (
+                        <span className="text-muted-foreground">{f.name}</span>
+                      )}
+                      {f.source && f.source !== "built-in" && (
+                        <span className="rounded bg-muted px-1 py-0.5 text-[9px] text-muted-foreground">
+                          {f.source}
+                        </span>
+                      )}
+                    </div>
                   </SelectItem>
                 ))}
               </SelectContent>
