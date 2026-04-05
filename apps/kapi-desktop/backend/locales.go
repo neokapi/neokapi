@@ -4,6 +4,12 @@ import (
 	"github.com/neokapi/neokapi/core/locale"
 )
 
+// GetAllLocales returns the full curated locale list without filtering.
+// Used by the locale settings UI to show all locales with toggles.
+func (a *App) GetAllLocales() []locale.LocaleInfo {
+	return locale.WellKnownLocales()
+}
+
 // GetKnownLocales returns the curated locale list, filtered by user settings.
 // Hidden locales are removed; custom locales are appended with resolved display names.
 func (a *App) GetKnownLocales() []locale.LocaleInfo {
