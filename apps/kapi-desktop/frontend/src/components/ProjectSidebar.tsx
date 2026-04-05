@@ -1,4 +1,4 @@
-import { Home, FileText, Workflow, Wrench, Settings2, Plus, Trash2 } from "lucide-react";
+import { Home, FileText, Workflow, Wrench, SlidersHorizontal, Plus, Trash2 } from "lucide-react";
 import { Button, ScrollArea } from "@neokapi/ui-primitives";
 import type { ProjectView } from "../types/api";
 
@@ -18,7 +18,7 @@ const navItems: { view: ProjectView; label: string; icon: React.ReactNode }[] = 
   { view: "content", label: "Content", icon: <FileText size={16} /> },
   { view: "project-flows", label: "Flows", icon: <Workflow size={16} /> },
   { view: "project-tools", label: "Tools", icon: <Wrench size={16} /> },
-  { view: "settings", label: "Settings", icon: <Settings2 size={16} /> },
+  { view: "project-settings", label: "Settings", icon: <SlidersHorizontal size={16} /> },
 ];
 
 export function ProjectSidebar({

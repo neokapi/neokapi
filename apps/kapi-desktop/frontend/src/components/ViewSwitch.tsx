@@ -78,10 +78,16 @@ export function ViewSwitch({
       case "formats":
         return <FormatsPage />;
       case "settings":
+      case "app-settings":
         return <SettingsPage />;
       default:
         return null;
     }
+  }
+
+  // Global app settings — accessible from any mode via bottom gear icon
+  if (effectiveView === "app-settings") {
+    return <SettingsPage />;
   }
 
   // Project views — require an active tab
@@ -157,7 +163,7 @@ export function ViewSwitch({
     case "memories":
       return <MemoriesPage />;
 
-    case "settings":
+    case "project-settings":
       return (
         <ProjectSettingsPage project={history.project} onUpdate={updateProject} tabID={tabID} />
       );

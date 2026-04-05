@@ -22,16 +22,20 @@ export function useTabManager() {
 
   const activeTab = tabs.find((t) => t.info.id === activeTabID) ?? null;
 
-  // Effective view: "home" is a global overlay; otherwise per-tab in projects mode.
-  const effectiveView =
-    globalView === "home" ? "home" : mode === "projects" && activeTab ? activeTab.view : globalView;
+  // Global overlays don't change the tab's view — clicking a tab dismisses them.
+  const isGlobalOverlay = globalView === "home" || globalView === "app-settings";
+  const effectiveView = isGlobalOverlay
+    ? globalView
+    : mode === "projects" && activeTab
+      ? activeTab.view
+      : globalView;
 
   const navigate = useCallback(
     (v: string) => {
-      if (v === "home") {
-        setGlobalView("home");
+      if (v === "home" || v === "app-settings") {
+        setGlobalView(v);
       } else if (mode === "projects" && activeTabID) {
-        setGlobalView(""); // clear home overlay
+        setGlobalView(""); // clear global overlay
         setTabs((prev) => prev.map((t) => (t.info.id === activeTabID ? { ...t, view: v } : t)));
       } else {
         setGlobalView(v);
@@ -42,7 +46,7 @@ export function useTabManager() {
 
   const selectTab = useCallback((id: string) => {
     setActiveTabID(id);
-    setGlobalView(""); // clear home overlay
+    setGlobalView(""); // clear global overlay
   }, []);
 
   const addTab = useCallback(async (tab: TabInfo, project: KapiProject) => {
