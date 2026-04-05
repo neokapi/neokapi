@@ -5,6 +5,7 @@ package pgtest
 
 import (
 	"context"
+	"fmt"
 	"strconv"
 	"strings"
 	"sync"
@@ -76,8 +77,16 @@ func NewTestDB(t *testing.T) *storage.PgDB {
 }
 
 // startContainer launches a PostgreSQL testcontainer and returns the connection string.
-func startContainer(t *testing.T) (string, func(), error) {
+// It recovers from panics (testcontainers panics when Docker is unreachable) and
+// returns them as errors so callers can skip gracefully.
+func startContainer(t *testing.T) (connStr string, cleanup func(), err error) {
 	t.Helper()
+
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("docker not available: %v", r)
+		}
+	}()
 
 	ctx := context.Background()
 	container, err := postgres.Run(ctx,
@@ -95,13 +104,13 @@ func startContainer(t *testing.T) (string, func(), error) {
 		return "", nil, err
 	}
 
-	connStr, err := container.ConnectionString(ctx, "sslmode=disable")
+	connStr, err = container.ConnectionString(ctx, "sslmode=disable")
 	if err != nil {
 		_ = container.Terminate(ctx)
 		return "", nil, err
 	}
 
-	cleanup := func() {
+	cleanup = func() {
 		_ = container.Terminate(context.Background())
 	}
 	return connStr, cleanup, nil
