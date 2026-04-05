@@ -24,6 +24,12 @@ import {
   TargetPathInput,
   LocaleSelect,
   MultiLocaleSelect,
+  Combobox,
+  ComboboxInput,
+  ComboboxContent,
+  ComboboxList,
+  ComboboxItem,
+  ComboboxEmpty,
   Select,
   SelectTrigger,
   SelectValue,
@@ -274,10 +280,10 @@ export function ContentPage({
         <div className="grid grid-cols-2 gap-2">
           <div>
             <Label className="mb-0.5 block text-xs text-muted-foreground">Format</Label>
-            <Select
-              value={fmt || "__auto__"}
-              onValueChange={(v) => {
-                const newFmt = v === "__auto__" ? undefined : v;
+            <Combobox
+              value={fmt || ""}
+              onValueChange={(v: string | null) => {
+                const newFmt = v || undefined;
                 onItemChange({
                   ...item,
                   format: newFmt ? { name: newFmt } : undefined,
@@ -289,28 +295,28 @@ export function ContentPage({
                 }
               }}
             >
-              <SelectTrigger className="h-8 text-xs">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="__auto__">auto-detect</SelectItem>
-                {formats.map((f) => (
-                  <SelectItem key={f.name} value={f.name}>
-                    <div className="flex items-center gap-2">
-                      <span>{f.display_name || f.name}</span>
-                      {f.display_name && f.display_name !== f.name && (
-                        <span className="text-muted-foreground">{f.name}</span>
-                      )}
-                      {f.source && f.source !== "built-in" && (
-                        <span className="rounded bg-muted px-1 py-0.5 text-[9px] text-muted-foreground">
-                          {f.source}
-                        </span>
-                      )}
-                    </div>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+              <ComboboxInput placeholder="auto-detect" className="h-8 text-xs" />
+              <ComboboxContent>
+                <ComboboxList>
+                  {formats.map((f) => (
+                    <ComboboxItem key={f.name} value={f.name}>
+                      <div className="flex items-center gap-2">
+                        <span>{f.display_name || f.name}</span>
+                        {f.display_name && f.display_name !== f.name && (
+                          <span className="text-[10px] text-muted-foreground">{f.name}</span>
+                        )}
+                        {f.source && f.source !== "built-in" && (
+                          <span className="rounded bg-muted px-1 py-0.5 text-[9px] text-muted-foreground">
+                            {f.source}
+                          </span>
+                        )}
+                      </div>
+                    </ComboboxItem>
+                  ))}
+                  <ComboboxEmpty>No matching formats</ComboboxEmpty>
+                </ComboboxList>
+              </ComboboxContent>
+            </Combobox>
           </div>
           <div>
             <Label className="mb-0.5 block text-xs text-muted-foreground">Target path</Label>
