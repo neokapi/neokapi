@@ -9,6 +9,7 @@ import { ModeToggle } from "./components/ModeToggle";
 import { TabBar } from "./components/TabBar";
 import { AppHome } from "./components/AppHome";
 import { SaveBar } from "./components/SaveBar";
+import { UnsavedDialog } from "./components/UnsavedDialog";
 import { TermbasesPage } from "./components/TermbasesPage";
 import { MemoriesPage } from "./components/MemoriesPage";
 import { FormatsPage } from "./components/FormatsPage";
@@ -52,6 +53,7 @@ function AppInner() {
   >([]);
   const [showNewProjectForm, setShowNewProjectForm] = useState(false);
   const [samplesDismissed, setSamplesDismissed] = useState(true); // default hidden until settings load
+  const [pendingCloseTabID, setPendingCloseTabID] = useState<string | null>(null);
   const shortenHome = useShortenHome();
 
   const activeTab = tabs.find((t) => t.info.id === activeTabID) ?? null;
@@ -91,6 +93,17 @@ function AppInner() {
   // Per Wails v3 docs: common:ApplicationStarted fires after all
   // ServiceStartup hooks complete — data is guaranteed available.
   useWailsEvent("common:ApplicationStarted", () => refreshRecent());
+
+  // Warn before window close/quit if there are unsaved changes.
+  useEffect(() => {
+    const handler = (e: BeforeUnloadEvent) => {
+      if (history.isDirty) {
+        e.preventDefault();
+      }
+    };
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, [history.isDirty]);
 
   // Intercept external link clicks and open in the system browser
   // instead of navigating within the Wails webview.
@@ -245,7 +258,7 @@ function AppInner() {
     [addTab, showError],
   );
 
-  const handleCloseTab = useCallback((tabID: string) => {
+  const closeTab = useCallback((tabID: string) => {
     void api.closeProject(tabID);
     setTabs((prev) => {
       const remaining = prev.filter((t) => t.info.id !== tabID);
@@ -257,6 +270,37 @@ function AppInner() {
       });
       return remaining;
     });
+  }, []);
+
+  const handleCloseTab = useCallback(
+    (tabID: string) => {
+      // If closing the active tab with unsaved changes, prompt first.
+      if (tabID === activeTabID && history.isDirty) {
+        setPendingCloseTabID(tabID);
+        return;
+      }
+      closeTab(tabID);
+    },
+    [activeTabID, history.isDirty, closeTab],
+  );
+
+  const handleUnsavedSave = useCallback(async () => {
+    const tabID = pendingCloseTabID;
+    if (!tabID) return;
+    setPendingCloseTabID(null);
+    await handleSaveProject();
+    closeTab(tabID);
+  }, [pendingCloseTabID, handleSaveProject, closeTab]);
+
+  const handleUnsavedDiscard = useCallback(() => {
+    const tabID = pendingCloseTabID;
+    if (!tabID) return;
+    setPendingCloseTabID(null);
+    closeTab(tabID);
+  }, [pendingCloseTabID, closeTab]);
+
+  const handleUnsavedCancel = useCallback(() => {
+    setPendingCloseTabID(null);
   }, []);
 
   const updateActiveProject = useCallback(
@@ -537,6 +581,13 @@ function AppInner() {
           onCreate={handleNewProject}
           onCancel={() => setShowNewProjectForm(false)}
           shortenHome={shortenHome}
+        />
+      )}
+      {pendingCloseTabID && (
+        <UnsavedDialog
+          onSave={() => void handleUnsavedSave()}
+          onDiscard={handleUnsavedDiscard}
+          onCancel={handleUnsavedCancel}
         />
       )}
     </div>
