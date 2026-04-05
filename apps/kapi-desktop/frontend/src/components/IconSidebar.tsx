@@ -83,7 +83,6 @@ const projectItems: SidebarItem[] = [
     icon: <Database size={20} strokeWidth={SW} />,
     label: "Translation Memories",
   },
-  { type: "separator" },
   {
     type: "item",
     view: "project-settings",
@@ -124,9 +123,8 @@ export function IconSidebar({ mode, active, onChange, projectDisabled }: IconSid
         })}
       </nav>
 
-      {/* Separator + Global Settings */}
-      <div className="flex flex-col items-center gap-1">
-        <div className="my-1 h-px w-6 bg-border" />
+      {/* Global Settings — pinned at bottom */}
+      <div className="flex flex-col items-center">
         <button
           onClick={() => onChange("app-settings")}
           className={`rounded-lg p-2 transition-colors ${
