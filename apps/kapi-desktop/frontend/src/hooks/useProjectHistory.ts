@@ -1,5 +1,4 @@
-import { useCallback, useEffect, useRef } from "react";
-import { useTravel } from "use-travel";
+import { useCallback, useRef, useState } from "react";
 import type { KapiProject } from "../types/api";
 
 const MAX_UNDO = 50;
@@ -9,8 +8,6 @@ const ARCHIVE_DEBOUNCE_MS = 400;
 export interface ProjectHistory {
   /** Current project state (source of truth while editing). */
   project: KapiProject;
-  /** Update the project via mutation function. Undo boundaries are debounced. */
-  update: (recipe: (draft: KapiProject) => void) => void;
   /** Update by replacing the entire project object. Undo boundaries are debounced. */
   set: (project: KapiProject) => void;
   /** Replace project without pushing to undo (e.g. after applying a preset). */
@@ -27,114 +24,128 @@ export interface ProjectHistory {
   canRedo: boolean;
 }
 
+function serialize(p: KapiProject): string {
+  return JSON.stringify(p);
+}
+
 /**
- * Manages project undo/redo history and dirty-state tracking using
- * mutative/use-travel for patch-based storage.
+ * Manages project undo/redo history and dirty-state tracking.
  *
- * Undo boundaries are debounced: rapid `update()` calls are grouped
- * into a single undo step via manual archive after ARCHIVE_DEBOUNCE_MS.
+ * Undo boundaries are debounced: rapid `set()` calls (e.g. typing) are
+ * grouped into a single undo step. A new entry is committed to the undo
+ * stack only after ARCHIVE_DEBOUNCE_MS of inactivity.
  *
- * Reset happens only when `tabId` changes (tab switch).
+ * Resets cleanly when `tabId` changes (tab switch) — the new tab's
+ * project becomes the fresh baseline with empty undo/redo stacks.
  */
 export function useProjectHistory(
   initialProject: KapiProject,
   tabId: string | null,
 ): ProjectHistory {
-  const [state, setState, controls] = useTravel(initialProject, {
-    maxHistory: MAX_UNDO,
-    autoArchive: false,
-  });
-
-  const savedRef = useRef<string>(JSON.stringify(initialProject));
+  const [project, setProject] = useState(initialProject);
+  const undoStack = useRef<KapiProject[]>([]);
+  const redoStack = useRef<KapiProject[]>([]);
+  const savedRef = useRef(serialize(initialProject));
   const tabIdRef = useRef(tabId);
+  const pendingBaseRef = useRef<KapiProject | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Reset when the tab changes.
+  // Reset when the tab changes — new project becomes the clean baseline.
   if (tabId !== tabIdRef.current) {
     tabIdRef.current = tabId;
-    savedRef.current = JSON.stringify(initialProject);
+    undoStack.current = [];
+    redoStack.current = [];
+    pendingBaseRef.current = null;
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = null;
-    controls.reset();
+    savedRef.current = serialize(initialProject);
+    setProject(initialProject);
   }
 
-  // Clean up timer on unmount.
-  useEffect(() => {
-    return () => {
-      if (debounceRef.current) clearTimeout(debounceRef.current);
-    };
-  }, []);
-
-  const scheduleArchive = useCallback(() => {
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => {
-      debounceRef.current = null;
-      if (controls.canArchive()) controls.archive();
-    }, ARCHIVE_DEBOUNCE_MS);
-  }, [controls]);
-
-  const flushArchive = useCallback(() => {
+  const commitPending = useCallback(() => {
     if (debounceRef.current) {
       clearTimeout(debounceRef.current);
       debounceRef.current = null;
     }
-    if (controls.canArchive()) controls.archive();
-  }, [controls]);
-
-  const update = useCallback(
-    (recipe: (draft: KapiProject) => void) => {
-      setState(recipe);
-      scheduleArchive();
-    },
-    [setState, scheduleArchive],
-  );
+    if (pendingBaseRef.current !== null) {
+      undoStack.current = [...undoStack.current.slice(-(MAX_UNDO - 1)), pendingBaseRef.current];
+      redoStack.current = [];
+      pendingBaseRef.current = null;
+    }
+  }, []);
 
   const set = useCallback(
-    (project: KapiProject) => {
-      setState(() => project);
-      scheduleArchive();
+    (next: KapiProject) => {
+      setProject((prev) => {
+        if (serialize(prev) === serialize(next)) return prev;
+
+        // Capture base state at start of edit burst.
+        if (pendingBaseRef.current === null) {
+          pendingBaseRef.current = prev;
+        }
+
+        // Reset debounce timer.
+        if (debounceRef.current) clearTimeout(debounceRef.current);
+        debounceRef.current = setTimeout(commitPending, ARCHIVE_DEBOUNCE_MS);
+
+        return next;
+      });
     },
-    [setState, scheduleArchive],
+    [commitPending],
   );
 
-  const replace = useCallback(
-    (project: KapiProject) => {
-      if (debounceRef.current) clearTimeout(debounceRef.current);
-      debounceRef.current = null;
-      setState(() => project);
-      // Archive immediately so this becomes the new baseline.
-      setTimeout(() => {
-        if (controls.canArchive()) controls.archive();
-      }, 0);
-    },
-    [setState, controls],
-  );
+  const replace = useCallback((next: KapiProject) => {
+    pendingBaseRef.current = null;
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = null;
+    undoStack.current = [];
+    redoStack.current = [];
+    setProject(next);
+  }, []);
 
   const undo = useCallback(() => {
-    flushArchive();
-    controls.back();
-  }, [controls, flushArchive]);
+    // Flush any pending debounce before undoing.
+    commitPending();
+
+    setProject((prev) => {
+      const stack = undoStack.current;
+      if (stack.length === 0) return prev;
+      const restored = stack[stack.length - 1];
+      undoStack.current = stack.slice(0, -1);
+      redoStack.current = [...redoStack.current, prev];
+      return restored;
+    });
+  }, [commitPending]);
 
   const redo = useCallback(() => {
-    controls.forward();
-  }, [controls]);
+    setProject((prev) => {
+      const stack = redoStack.current;
+      if (stack.length === 0) return prev;
+      const restored = stack[stack.length - 1];
+      redoStack.current = stack.slice(0, -1);
+      undoStack.current = [...undoStack.current, prev];
+      return restored;
+    });
+  }, []);
 
   const markSaved = useCallback(() => {
-    savedRef.current = JSON.stringify(state);
-  }, [state]);
+    setProject((prev) => {
+      savedRef.current = serialize(prev);
+      return prev;
+    });
+  }, []);
 
-  const isDirty = JSON.stringify(state) !== savedRef.current;
+  const isDirty = serialize(project) !== savedRef.current;
 
   return {
-    project: state as KapiProject,
-    update,
+    project,
     set,
     replace,
     undo,
     redo,
     markSaved,
     isDirty,
-    canUndo: controls.canBack(),
-    canRedo: controls.canForward(),
+    canUndo: undoStack.current.length > 0 || pendingBaseRef.current !== null,
+    canRedo: redoStack.current.length > 0,
   };
 }
