@@ -164,9 +164,7 @@ export function ViewSwitch({
       return <MemoriesPage />;
 
     case "project-settings":
-      return (
-        <ProjectSettingsPage project={history.project} onUpdate={updateProject} tabID={tabID} />
-      );
+      return <ProjectSettingsPage project={history.project} onUpdate={updateProject} />;
 
     default:
       return null;

@@ -24,9 +24,6 @@ import { useLocales } from "../hooks/useLocales";
 export interface ProjectSettingsPageProps {
   project: KapiProject;
   onUpdate: (project: KapiProject) => void;
-  tabID: string;
-  /** Pre-loaded presets for Storybook — skips api.listPresets(). */
-  presetList?: Array<{ name: string; description: string }>;
   /** Pre-loaded installed plugins for Storybook — skips api.listPlugins(). */
   installedPlugins?: PluginInfo[];
 }
@@ -69,28 +66,13 @@ function formatPin(pin: VersionPin, base: string): string | undefined {
 export function ProjectSettingsPage({
   project,
   onUpdate,
-  tabID,
-  presetList: propPresets,
   installedPlugins: propInstalled,
 }: ProjectSettingsPageProps) {
   const { showError } = useError();
   const defaults = project.defaults ?? {};
   const plugins = project.plugins ?? {};
   const formatDefaults = defaults.formats ?? {};
-  const [presets, setPresets] = useState<Array<{ name: string; description: string }>>(
-    propPresets ?? [],
-  );
   const [installed, setInstalled] = useState<PluginInfo[]>(propInstalled ?? []);
-
-  useEffect(() => {
-    if (propPresets) return;
-    api
-      .listPresets()
-      .then((p) => {
-        if (p) setPresets(p);
-      })
-      .catch((err) => showError("Failed to load presets", err));
-  }, [showError, propPresets]);
 
   useEffect(() => {
     if (propInstalled) return;
@@ -203,49 +185,6 @@ export function ProjectSettingsPage({
             </CardContent>
           </Card>
         </section>
-
-        {/* Preset */}
-        {presets.length > 0 && (
-          <section>
-            <h2 className="mb-3 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-              Preset
-            </h2>
-            <Card>
-              <CardContent className="p-4">
-                <div className="flex items-center gap-2">
-                  <Select
-                    value={project.preset || "__none__"}
-                    onValueChange={async (v) => {
-                      const name = v === "__none__" ? "" : v;
-                      if (name) {
-                        const updated = await api.applyPreset(tabID, name);
-                        if (updated) onUpdate(updated);
-                      } else {
-                        onUpdate({ ...project, preset: undefined });
-                      }
-                    }}
-                  >
-                    <SelectTrigger className="flex-1">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="__none__">None (custom)</SelectItem>
-                      {presets.map((p) => (
-                        <SelectItem key={p.name} value={p.name}>
-                          {p.name} — {p.description}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  {project.preset && <Badge variant="secondary">{project.preset}</Badge>}
-                </div>
-                <p className="mt-2 text-[10px] text-muted-foreground">
-                  Presets configure content patterns, flows, and defaults for common project types.
-                </p>
-              </CardContent>
-            </Card>
-          </section>
-        )}
 
         {/* Plugins */}
         <section>
