@@ -380,7 +380,7 @@ test-bowrain: ## Run bowrain module tests only
 ifdef CI
 	$(GOTEST_BASE) -coverprofile=$(COVER_DIR)/bowrain.out $(_COVMODE) -json $$($(GO) list ./... | grep -v '/apps/bowrain') > ../test-results-bowrain.json 2>&1; \
 		test_exit=$$?; \
-		if [ $$test_exit -ne 0 ]; then echo "::warning::go test exited $$test_exit — checking JSON for failures:"; grep '"Action":"fail"' ../test-results-bowrain.json | tail -20 || true; fi; \
+		if [ $$test_exit -ne 0 ]; then echo "::warning::go test exited $$test_exit — checking JSON for failures:"; grep '"Action":"fail"' ../test-results-bowrain.json | tail -20 || true; echo "---goleak output---"; grep -i 'goleak\|goroutine\|Goroutine' ../test-results-bowrain.json | tail -20 || true; fi; \
 		exit $$test_exit
 else
 	$(GOTEST_BASE) ./... -count=1
