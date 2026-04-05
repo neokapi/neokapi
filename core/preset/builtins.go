@@ -11,6 +11,7 @@ func nextjsPreset() *FrameworkPreset {
 	return &FrameworkPreset{
 		Name:        "nextjs",
 		Description: "Next.js App Router with next-intl",
+		Detect:      []string{"next.config.js", "next.config.mjs", "next.config.ts"},
 		Mappings: []MappingTemplate{
 			{
 				Local:      "messages/*.json",
@@ -33,6 +34,7 @@ func reactIntlPreset() *FrameworkPreset {
 	return &FrameworkPreset{
 		Name:        "react-intl",
 		Description: "React with react-intl (FormatJS)",
+		Detect:      []string{"package.json:react-intl", "package.json:@formatjs/"},
 		Mappings: []MappingTemplate{
 			{
 				Local:      "src/lang/*.json",
@@ -55,6 +57,7 @@ func angularPreset() *FrameworkPreset {
 	return &FrameworkPreset{
 		Name:        "angular",
 		Description: "Angular with @angular/localize",
+		Detect:      []string{"angular.json"},
 		Mappings: []MappingTemplate{
 			{
 				Local:      "src/locale/*.xlf",

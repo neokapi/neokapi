@@ -784,6 +784,26 @@ func (a *App) ApplyPreset(tabID, presetName string) (*project.KapiProject, error
 	return op.Project, nil
 }
 
+// DetectPreset scans the project directory for telltale files defined by
+// each framework preset's Detect field and returns the matching preset name,
+// or empty string if none match.
+func (a *App) DetectPreset(tabID string) string {
+	a.mu.RLock()
+	op := a.projects[tabID]
+	a.mu.RUnlock()
+	if op == nil {
+		return ""
+	}
+	basePath := filepath.Dir(op.Path)
+	if basePath == "" {
+		return ""
+	}
+
+	reg := preset.NewPresetRegistry()
+	preset.RegisterBuiltins(reg)
+	return reg.DetectFrameworkPreset(basePath)
+}
+
 // ListFormatPresets returns format presets for a specific format.
 func (a *App) ListFormatPresets(format string) []FormatPresetInfo {
 	reg := a.pluginLoader.Presets()

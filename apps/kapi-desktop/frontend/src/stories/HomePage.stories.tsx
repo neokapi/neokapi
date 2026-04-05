@@ -25,6 +25,10 @@ export const Default: Story = {
         source_language: "en-US",
         target_languages: ["fr-FR", "de-DE", "ja-JP"],
       },
+      plugins: {
+        okapi: { framework_version: "^1.47.0", format_priority: 200 },
+      },
+      preset: "nextjs",
       content: [
         {
           path: "src/i18n/en/*.json",

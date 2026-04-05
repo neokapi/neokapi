@@ -1,9 +1,10 @@
 import { useState } from "react";
-import { Play, Globe, Workflow, Loader2 } from "lucide-react";
+import { Play, Globe, Workflow, Loader2, Plug, FileText, Settings2 } from "lucide-react";
 import { Button, Badge, Card, EmptyState } from "@neokapi/ui-primitives";
 import type { KapiProject, FlowSpec } from "../types/api";
+import { isBareEntry, effectiveItems } from "../types/api";
 
-interface HomePageProps {
+export interface HomePageProps {
   project: KapiProject;
   displayName: string;
   onRunFlow?: (flowName: string, flow: FlowSpec) => void;
@@ -12,8 +13,14 @@ interface HomePageProps {
 
 export function HomePage({ project, displayName, onRunFlow, onNavigate }: HomePageProps) {
   const [runningFlow, setRunningFlow] = useState<string | null>(null);
+  const defaults = project.defaults ?? {};
+  const plugins = project.plugins ?? {};
   const flowNames = Object.keys(project.flows ?? {});
   const hasContent = (project.content?.length ?? 0) > 0;
+  const contentCount = project.content?.length ?? 0;
+  const itemCount =
+    project.content?.reduce((sum, c) => sum + (isBareEntry(c) ? 1 : effectiveItems(c).length), 0) ??
+    0;
 
   const handleRunFlow = (name: string) => {
     const spec = project.flows?.[name];
@@ -25,31 +32,49 @@ export function HomePage({ project, displayName, onRunFlow, onNavigate }: HomePa
 
   return (
     <div className="p-6">
-      {/* Project summary */}
+      {/* Header */}
       <div className="mb-6">
         <h1 className="text-xl font-semibold">{displayName}</h1>
-        <div className="mt-2 flex items-center gap-4 text-sm text-muted-foreground">
+        <div className="mt-2 flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
           <span className="flex items-center gap-1.5">
             <Globe size={14} />
-            {project.defaults?.source_language || "No source"} &rarr;{" "}
-            {project.defaults?.target_languages?.length
-              ? project.defaults.target_languages.join(", ")
+            {defaults.source_language || "No source"} &rarr;{" "}
+            {defaults.target_languages?.length
+              ? defaults.target_languages.join(", ")
               : "No targets"}
           </span>
+          {project.preset && (
+            <Badge variant="secondary" className="text-xs">
+              {project.preset}
+            </Badge>
+          )}
+          {Object.keys(plugins).length > 0 &&
+            Object.entries(plugins).map(([name, spec]) => (
+              <span key={name} className="flex items-center gap-1">
+                <Plug size={10} />
+                <span className="text-xs">
+                  {name}
+                  {spec.framework_version && (
+                    <span className="text-muted-foreground/60"> {spec.framework_version}</span>
+                  )}
+                </span>
+              </span>
+            ))}
         </div>
       </div>
 
       {/* Quick actions */}
-      <div className="mb-8 grid grid-cols-1 gap-3 sm:grid-cols-3">
+      <div className="mb-8 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <Button
           variant="outline"
           onClick={() => onNavigate("content")}
           className="h-auto whitespace-normal rounded-lg p-4 text-left flex-col items-start hover:border-primary/30 hover:bg-accent/30"
         >
-          <div className="mb-1 text-sm font-medium">Content</div>
-          <div className="text-xs text-muted-foreground font-normal">
+          <FileText size={16} className="mb-1.5 text-primary" />
+          <div className="text-sm font-medium">Content</div>
+          <div className="text-xs font-normal text-muted-foreground">
             {hasContent
-              ? `${project.content!.length} pattern${project.content!.length !== 1 ? "s" : ""} configured`
+              ? `${contentCount} collection${contentCount !== 1 ? "s" : ""}, ${itemCount} pattern${itemCount !== 1 ? "s" : ""}`
               : "Configure file patterns"}
           </div>
         </Button>
@@ -58,8 +83,9 @@ export function HomePage({ project, displayName, onRunFlow, onNavigate }: HomePa
           onClick={() => onNavigate("flows")}
           className="h-auto whitespace-normal rounded-lg p-4 text-left flex-col items-start hover:border-primary/30 hover:bg-accent/30"
         >
-          <div className="mb-1 text-sm font-medium">Flows</div>
-          <div className="text-xs text-muted-foreground font-normal">
+          <Workflow size={16} className="mb-1.5 text-primary" />
+          <div className="text-sm font-medium">Flows</div>
+          <div className="text-xs font-normal text-muted-foreground">
             {flowNames.length > 0
               ? `${flowNames.length} flow${flowNames.length !== 1 ? "s" : ""} defined`
               : "Build your first flow"}
@@ -70,9 +96,21 @@ export function HomePage({ project, displayName, onRunFlow, onNavigate }: HomePa
           onClick={() => onNavigate("tools")}
           className="h-auto whitespace-normal rounded-lg p-4 text-left flex-col items-start hover:border-primary/30 hover:bg-accent/30"
         >
-          <div className="mb-1 text-sm font-medium">Tools</div>
-          <div className="text-xs text-muted-foreground font-normal">
+          <Workflow size={16} className="mb-1.5 text-primary" />
+          <div className="text-sm font-medium">Tools</div>
+          <div className="text-xs font-normal text-muted-foreground">
             Run individual tools on files
+          </div>
+        </Button>
+        <Button
+          variant="outline"
+          onClick={() => onNavigate("settings")}
+          className="h-auto whitespace-normal rounded-lg p-4 text-left flex-col items-start hover:border-primary/30 hover:bg-accent/30"
+        >
+          <Settings2 size={16} className="mb-1.5 text-primary" />
+          <div className="text-sm font-medium">Settings</div>
+          <div className="text-xs font-normal text-muted-foreground">
+            Languages, plugins, processing
           </div>
         </Button>
       </div>
@@ -132,7 +170,7 @@ export function HomePage({ project, displayName, onRunFlow, onNavigate }: HomePa
               variant="link"
               size="sm"
               onClick={() => onNavigate("flows")}
-              className="px-0 h-auto"
+              className="h-auto px-0"
             >
               Create your first flow
             </Button>

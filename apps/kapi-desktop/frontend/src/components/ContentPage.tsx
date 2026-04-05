@@ -2,21 +2,20 @@ import { useState, useEffect, useCallback, DragEvent, useMemo } from "react";
 import {
   Plus,
   Trash2,
-  Globe,
   FileText,
-  FolderOpen,
   RefreshCw,
   Loader2,
-  X,
   Upload,
   EyeOff,
   Eye,
+  Globe,
+  Pencil,
   Settings2,
   ChevronDown,
   ChevronUp,
   Layers,
 } from "lucide-react";
-import { Button, Badge, Card, Label, Input } from "@neokapi/ui-primitives";
+import { Button, Badge, Card, Label, GlobInput, TargetPathInput } from "@neokapi/ui-primitives";
 import type { KapiProject, ContentCollection, ContentItem, FormatSpec } from "../types/api";
 import { isBareEntry, effectiveItems } from "../types/api";
 import { api } from "../hooks/useApi";
@@ -45,8 +44,6 @@ export interface ContentPageProps {
   projectPath: string;
   onUpdate: (project: KapiProject) => void;
   tabID: string;
-  /** Pre-loaded presets for Storybook — skips api.listPresets(). */
-  presetList?: Array<{ name: string; description: string }>;
   /** Pre-loaded format names for Storybook — skips api.listFormats(). */
   formatNames?: string[];
   /** Pre-loaded base path for Storybook — skips api.getBasePath(). */
@@ -69,7 +66,6 @@ export function ContentPage({
   projectPath: _projectPath,
   onUpdate,
   tabID,
-  presetList: propPresets,
   formatNames: propFormats,
   basePath: propBasePath,
 }: ContentPageProps) {
@@ -79,9 +75,6 @@ export function ContentPage({
   const [projectFiles, setProjectFiles] = useState<ProjectFile[]>([]);
   const [basePath, setBasePath] = useState(propBasePath ?? "");
   const [scanning, setScanning] = useState(false);
-  const [presets, setPresets] = useState<Array<{ name: string; description: string }>>(
-    propPresets ?? [],
-  );
   const [formats, setFormats] = useState<string[]>(propFormats ?? []);
   const [hideUnmatched, setHideUnmatched] = useState(false);
   const [dragging, setDragging] = useState(false);
@@ -89,10 +82,9 @@ export function ContentPage({
     Record<string, Array<{ name: string; description: string }>>
   >({});
   const [expandedConfig, setExpandedConfig] = useState<Set<string>>(new Set());
+  const [expandedLangs, setExpandedLangs] = useState<Set<number>>(new Set());
 
-  const defaults = project.defaults ?? {};
   const content = project.content ?? [];
-  const plugins = project.plugins ?? {};
 
   // Collect unique format names used across content for preset loading.
   const usedFormats = useMemo(() => {
@@ -105,6 +97,8 @@ export function ContentPage({
     }
     return [...fmts];
   }, [content]);
+
+  const hasPreloadedData = !!(propFormats && propBasePath);
 
   // Load format presets whenever used formats change.
   useEffect(() => {
@@ -119,16 +113,8 @@ export function ContentPage({
     }
   }, [usedFormats, hasPreloadedData]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Load available presets and formats on mount.
+  // Load available formats and base path on mount.
   useEffect(() => {
-    if (!propPresets) {
-      api
-        .listPresets()
-        .then((p) => {
-          if (p) setPresets(p);
-        })
-        .catch((err) => showError("Failed to load presets", err));
-    }
     if (!propFormats) {
       api
         .listFormats()
@@ -145,9 +131,7 @@ export function ContentPage({
         })
         .catch((err) => showError("Failed to get base path", err));
     }
-  }, [tabID, showError, propPresets, propFormats, propBasePath]);
-
-  const hasPreloadedData = !!(propPresets && propFormats && propBasePath);
+  }, [tabID, showError, propFormats, propBasePath]);
 
   const rescanFiles = useCallback(async () => {
     if (hasPreloadedData) return;
@@ -176,16 +160,8 @@ export function ContentPage({
   });
 
   // --- Project update helpers ---
-  const updateDefaults = (patch: Partial<typeof defaults>) => {
-    onUpdate({ ...project, defaults: { ...defaults, ...patch } });
-  };
-
   const updateContent = (newContent: ContentCollection[]) => {
     onUpdate({ ...project, content: newContent });
-  };
-
-  const handleAddBareEntry = () => {
-    updateContent([...content, { path: "" }]);
   };
 
   const handleAddCollection = () => {
@@ -245,7 +221,6 @@ export function ContentPage({
     collectionMap.set(key, arr);
   }
   const unmatchedFiles = projectFiles.filter((f) => !f.is_dir && !matchedSet.has(f.relative));
-  const directories = projectFiles.filter((f) => f.is_dir);
   const collectionNames = [...collectionMap.keys()].sort((a, b) => {
     if (!a) return 1;
     if (!b) return -1;
@@ -268,12 +243,10 @@ export function ContentPage({
       <div className="space-y-2">
         <div>
           <Label className="mb-0.5 block text-xs text-muted-foreground">Path pattern</Label>
-          <input
-            type="text"
+          <GlobInput
             value={item.path}
-            onChange={(e) => onItemChange({ ...item, path: e.target.value })}
+            onChange={(v) => onItemChange({ ...item, path: v })}
             placeholder="src/locales/en/*.json"
-            className="w-full rounded border border-input bg-transparent px-2 py-1 text-xs outline-none focus:ring-1 focus:ring-ring"
           />
         </div>
         <div className="grid grid-cols-2 gap-2">
@@ -305,12 +278,10 @@ export function ContentPage({
           </div>
           <div>
             <Label className="mb-0.5 block text-xs text-muted-foreground">Target path</Label>
-            <input
-              type="text"
+            <TargetPathInput
               value={item.target ?? ""}
-              onChange={(e) => onItemChange({ ...item, target: e.target.value || undefined })}
+              onChange={(v) => onItemChange({ ...item, target: v || undefined })}
               placeholder="src/locales/{lang}/*.json"
-              className="w-full rounded border border-input bg-transparent px-2 py-1 text-xs outline-none focus:ring-1 focus:ring-ring"
             />
           </div>
         </div>
@@ -404,329 +375,184 @@ export function ContentPage({
   };
 
   return (
-    <div className="p-6">
-      <h1 className="mb-6 text-xl font-semibold">Content</h1>
+    <div className="flex h-full flex-col overflow-hidden p-6">
+      <div className="mb-4 flex items-baseline justify-between">
+        <h1 className="text-xl font-semibold">Content</h1>
+        {basePath && (
+          <p className="text-xs text-muted-foreground">
+            All paths relative to {shortenHome(basePath)}
+          </p>
+        )}
+      </div>
 
-      {/* Framework preset */}
-      {presets.length > 0 && (
-        <section className="mb-6">
-          <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-            Preset
-          </h2>
-          <div className="flex max-w-lg items-center gap-2">
-            <select
-              value={project.preset ?? ""}
-              onChange={async (e) => {
-                const name = e.target.value;
-                if (name) {
-                  const updated = await api.applyPreset(tabID, name);
-                  if (updated) onUpdate(updated);
-                } else {
-                  onUpdate({ ...project, preset: undefined });
-                }
-              }}
-              className="flex-1 rounded border border-input bg-transparent px-2 py-1.5 text-sm outline-none focus:ring-1 focus:ring-ring"
-              aria-label="Framework preset"
-            >
-              <option value="">None (custom)</option>
-              {presets.map((p) => (
-                <option key={p.name} value={p.name}>
-                  {p.name} — {p.description}
-                </option>
-              ))}
-            </select>
-            {project.preset && <Badge variant="secondary">{project.preset}</Badge>}
-          </div>
-        </section>
-      )}
-
-      {/* Languages (under defaults) */}
-      <section className="mb-6">
-        <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-          <Globe size={14} />
-          Languages
-        </h2>
-        <div className="grid max-w-lg grid-cols-2 gap-3">
-          <div>
-            <Label htmlFor="source-lang" className="mb-1 block text-xs text-muted-foreground">
-              Source Language
-            </Label>
-            <Input
-              id="source-lang"
-              type="text"
-              value={defaults.source_language ?? ""}
-              onChange={(e) => updateDefaults({ source_language: e.target.value })}
-              placeholder="en-US"
-            />
-          </div>
-          <div>
-            <Label className="mb-1 block text-xs text-muted-foreground">Target Languages</Label>
-            <div className="flex flex-wrap items-center gap-1.5 rounded border border-input bg-transparent px-2 py-1.5">
-              {(defaults.target_languages ?? []).map((lang) => (
-                <span
-                  key={lang}
-                  className="flex items-center gap-1 rounded bg-accent px-2 py-0.5 text-xs"
-                >
-                  {lang}
-                  <Button
-                    variant="ghost"
-                    size="icon-xs"
-                    onClick={() =>
-                      updateDefaults({
-                        target_languages: defaults.target_languages?.filter((l) => l !== lang),
-                      })
-                    }
-                    className="ml-0.5 h-4 w-4 rounded-full hover:text-destructive"
-                    aria-label={`Remove ${lang}`}
-                  >
-                    <X size={10} />
-                  </Button>
-                </span>
-              ))}
-              <input
-                type="text"
-                placeholder={defaults.target_languages?.length ? "" : "Add language (e.g. fr-FR)"}
-                className="min-w-[80px] flex-1 bg-transparent text-sm outline-none"
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" || e.key === ",") {
-                    e.preventDefault();
-                    const val = e.currentTarget.value.trim();
-                    if (val && !defaults.target_languages?.includes(val)) {
-                      updateDefaults({
-                        target_languages: [...(defaults.target_languages ?? []), val],
-                      });
-                      e.currentTarget.value = "";
-                    }
-                  }
-                }}
-              />
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Plugins (map form) */}
-      <section className="mb-6">
-        <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-          Plugins
-        </h2>
-        <div className="flex max-w-lg flex-wrap items-center gap-1.5 rounded border border-input bg-transparent px-2 py-1.5">
-          {Object.entries(plugins).map(([name, spec]) => (
-            <span
-              key={name}
-              className="flex items-center gap-1 rounded bg-accent px-2 py-0.5 text-xs"
-            >
-              {name}
-              {spec.version && <span className="text-muted-foreground">{spec.version}</span>}
-              {spec.framework_version && (
-                <span className="text-muted-foreground">fw:{spec.framework_version}</span>
-              )}
-              <Button
-                variant="ghost"
-                size="icon-xs"
-                onClick={() => {
-                  const next = { ...plugins };
-                  delete next[name];
-                  onUpdate({ ...project, plugins: Object.keys(next).length ? next : undefined });
-                }}
-                className="ml-0.5 h-4 w-4 rounded-full hover:text-destructive"
-                aria-label={`Remove ${name}`}
-              >
-                <X size={10} />
-              </Button>
-            </span>
-          ))}
-          <input
-            type="text"
-            placeholder={Object.keys(plugins).length ? "" : "Add plugin (e.g. okapi)"}
-            className="min-w-[120px] flex-1 bg-transparent text-sm outline-none"
-            onKeyDown={(e) => {
-              if (e.key === "Enter" || e.key === ",") {
-                e.preventDefault();
-                const val = e.currentTarget.value.trim();
-                if (val && !plugins[val]) {
-                  onUpdate({
-                    ...project,
-                    plugins: { ...plugins, [val]: { version: "*" } },
-                  });
-                  e.currentTarget.value = "";
-                }
-              }
-            }}
-          />
-        </div>
-        <p className="mt-1 text-xs text-muted-foreground">
-          Add plugins by name. Version ranges can be edited in the YAML directly.
-        </p>
-      </section>
-
-      {/* Project root info */}
-      {basePath && (
-        <p className="mb-6 text-xs text-muted-foreground">
-          All paths relative to {shortenHome(basePath)}
-        </p>
-      )}
-
-      {/* Content collections and bare entries */}
-      <section className="mb-6">
-        <div className="mb-3 flex items-center justify-between">
-          <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-            <FileText size={14} />
-            File Patterns
-          </h2>
-          <div className="flex gap-1.5">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleAddBareEntry}
-              aria-label="Add content pattern"
-            >
-              <Plus size={12} />
-              Add Pattern
-            </Button>
+      <div className="grid min-h-0 flex-1 grid-cols-2 gap-6">
+        {/* Left column: File Patterns */}
+        <section className="flex min-h-0 flex-col overflow-auto">
+          <div className="mb-3 flex items-center justify-between">
+            <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+              <FileText size={14} />
+              File Patterns
+            </h2>
             <Button
               variant="outline"
               size="sm"
               onClick={handleAddCollection}
               aria-label="Add content collection"
             >
-              <Layers size={12} />
+              <Plus size={12} />
               Add Collection
             </Button>
           </div>
-        </div>
 
-        {content.length > 0 ? (
-          <div className="space-y-3">
-            {content.map((coll, ci) => {
-              if (isBareEntry(coll)) {
-                // Bare entry — render as a simple card.
-                const item: ContentItem = {
-                  path: coll.path ?? "",
-                  format: coll.format,
-                  target: coll.target,
-                };
-                return (
-                  <div
-                    key={ci}
-                    className="group rounded-xl border border-border bg-background p-4 shadow-sm transition-colors hover:border-primary/20"
-                  >
-                    <div className="mb-3 flex items-start justify-between">
-                      <div className="font-mono text-xs text-muted-foreground">
-                        {item.path || (
-                          <span className="italic text-muted-foreground/50">no path</span>
-                        )}
-                      </div>
+          {content.length > 0 ? (
+            <div className="space-y-3">
+              {content.map((coll, ci) => {
+                if (isBareEntry(coll)) {
+                  // Bare entry — render as a simple card.
+                  const item: ContentItem = {
+                    path: coll.path ?? "",
+                    format: coll.format,
+                    target: coll.target,
+                  };
+                  return (
+                    <div
+                      key={ci}
+                      className="group relative rounded-xl border border-border bg-background p-4 shadow-sm transition-colors hover:border-primary/20"
+                    >
                       <Button
                         variant="ghost"
                         size="icon-xs"
                         onClick={() => handleDeleteCollection(ci)}
-                        className="opacity-0 hover:text-destructive group-hover:opacity-100"
+                        className="absolute right-2 top-2 opacity-0 hover:text-destructive group-hover:opacity-100"
                         aria-label={`Remove pattern ${ci + 1}`}
                       >
                         <Trash2 size={12} />
                       </Button>
-                    </div>
-                    {renderItemEditor(
-                      item,
-                      (updated) =>
-                        handleUpdateCollection(ci, {
-                          path: updated.path,
-                          format: updated.format,
-                          target: updated.target,
-                        }),
-                      `bare-${ci}`,
-                    )}
-                  </div>
-                );
-              }
-
-              // Collection — render as a grouped card.
-              return (
-                <div
-                  key={ci}
-                  className="group rounded-xl border border-border bg-background shadow-sm transition-colors hover:border-primary/20"
-                >
-                  <div className="flex items-center justify-between border-b border-border px-4 py-3">
-                    <div className="flex items-center gap-2">
-                      <Layers size={14} className="text-primary" />
-                      <input
-                        type="text"
-                        value={coll.name ?? ""}
-                        onChange={(e) =>
+                      {renderItemEditor(
+                        item,
+                        (updated) =>
                           handleUpdateCollection(ci, {
-                            ...coll,
-                            name: e.target.value || undefined,
-                          })
-                        }
-                        placeholder="Collection name"
-                        className="bg-transparent text-sm font-medium outline-none placeholder:text-muted-foreground/50"
-                      />
-                    </div>
-                    <div className="flex items-center gap-1.5">
-                      {coll.target_languages && coll.target_languages.length > 0 && (
-                        <Badge variant="secondary">{coll.target_languages.join(", ")}</Badge>
+                            path: updated.path,
+                            format: updated.format,
+                            target: updated.target,
+                          }),
+                        `bare-${ci}`,
                       )}
-                      {coll.source_language && (
-                        <Badge variant="secondary">src: {coll.source_language}</Badge>
-                      )}
-                      <Button
-                        variant="ghost"
-                        size="icon-xs"
-                        onClick={() => handleDeleteCollection(ci)}
-                        className="opacity-0 hover:text-destructive group-hover:opacity-100"
-                        aria-label={`Remove collection ${coll.name}`}
-                      >
-                        <Trash2 size={12} />
-                      </Button>
                     </div>
-                  </div>
+                  );
+                }
 
-                  {/* Collection language overrides */}
-                  <div className="border-b border-border px-4 py-2">
-                    <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                      <span>Language overrides:</span>
-                      <input
-                        type="text"
-                        value={coll.source_language ?? ""}
-                        onChange={(e) =>
-                          handleUpdateCollection(ci, {
-                            ...coll,
-                            source_language: e.target.value || undefined,
-                          })
-                        }
-                        placeholder="source lang"
-                        className="w-24 rounded border border-input bg-transparent px-1.5 py-0.5 text-xs outline-none"
-                      />
-                      <input
-                        type="text"
-                        value={coll.target_languages?.join(", ") ?? ""}
-                        onChange={(e) => {
-                          const val = e.target.value.trim();
-                          handleUpdateCollection(ci, {
-                            ...coll,
-                            target_languages: val
-                              ? val
-                                  .split(",")
-                                  .map((s) => s.trim())
-                                  .filter(Boolean)
-                              : undefined,
-                          });
-                        }}
-                        placeholder="target langs (comma-separated)"
-                        className="min-w-[160px] flex-1 rounded border border-input bg-transparent px-1.5 py-0.5 text-xs outline-none"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Items */}
-                  <div className="space-y-0 divide-y divide-border">
-                    {(coll.items ?? []).map((item, ii) => (
-                      <div key={ii} className="px-4 py-3">
-                        <div className="mb-2 flex items-center justify-between">
-                          <span className="font-mono text-xs text-muted-foreground">
-                            {item.path || "no path"}
+                // Collection — render as a grouped card.
+                return (
+                  <div
+                    key={ci}
+                    className="group rounded-xl border border-border bg-background shadow-sm transition-colors hover:border-primary/20"
+                  >
+                    <div className="flex items-center justify-between border-b border-border px-4 py-3">
+                      <div className="flex items-center gap-2">
+                        <Layers size={14} className="text-primary" />
+                        <input
+                          type="text"
+                          value={coll.name ?? ""}
+                          onChange={(e) =>
+                            handleUpdateCollection(ci, {
+                              ...coll,
+                              name: e.target.value || undefined,
+                            })
+                          }
+                          placeholder="Collection name"
+                          className="bg-transparent text-sm font-medium outline-none placeholder:text-muted-foreground/50"
+                        />
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          onClick={() =>
+                            setExpandedLangs((prev) => {
+                              const next = new Set(prev);
+                              if (next.has(ci)) next.delete(ci);
+                              else next.add(ci);
+                              return next;
+                            })
+                          }
+                          className="flex items-center gap-1 rounded px-1.5 py-0.5 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                          title="Edit language overrides"
+                        >
+                          <Globe size={10} />
+                          <span>
+                            {coll.source_language || project.defaults?.source_language || "?"}
                           </span>
+                          <span>&rarr;</span>
+                          <span>
+                            {(coll.target_languages ?? project.defaults?.target_languages)?.join(
+                              ", ",
+                            ) || "?"}
+                          </span>
+                          {(coll.source_language || coll.target_languages) && (
+                            <Badge variant="secondary" className="ml-0.5 px-1 py-0 text-[9px]">
+                              override
+                            </Badge>
+                          )}
+                          <Pencil size={8} className="ml-0.5" />
+                        </button>
+                        <Button
+                          variant="ghost"
+                          size="icon-xs"
+                          onClick={() => handleDeleteCollection(ci)}
+                          className="opacity-0 hover:text-destructive group-hover:opacity-100"
+                          aria-label={`Remove collection ${coll.name}`}
+                        >
+                          <Trash2 size={12} />
+                        </Button>
+                      </div>
+                    </div>
+
+                    {/* Collection language overrides (expanded) */}
+                    {expandedLangs.has(ci) && (
+                      <div className="border-b border-border px-4 py-2">
+                        <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                          <span>Source:</span>
+                          <input
+                            type="text"
+                            value={coll.source_language ?? ""}
+                            onChange={(e) =>
+                              handleUpdateCollection(ci, {
+                                ...coll,
+                                source_language: e.target.value || undefined,
+                              })
+                            }
+                            placeholder={project.defaults?.source_language || "source lang"}
+                            className="w-24 rounded border border-input bg-transparent px-1.5 py-0.5 text-xs outline-none"
+                          />
+                          <span className="ml-1">Targets:</span>
+                          <input
+                            type="text"
+                            value={coll.target_languages?.join(", ") ?? ""}
+                            onChange={(e) => {
+                              const val = e.target.value.trim();
+                              handleUpdateCollection(ci, {
+                                ...coll,
+                                target_languages: val
+                                  ? val
+                                      .split(",")
+                                      .map((s) => s.trim())
+                                      .filter(Boolean)
+                                  : undefined,
+                              });
+                            }}
+                            placeholder={
+                              project.defaults?.target_languages?.join(", ") ||
+                              "target langs (comma-separated)"
+                            }
+                            className="min-w-[160px] flex-1 rounded border border-input bg-transparent px-1.5 py-0.5 text-xs outline-none"
+                          />
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Items */}
+                    <div className="space-y-0 divide-y divide-border">
+                      {(coll.items ?? []).map((item, ii) => (
+                        <div key={ii} className="group/item relative px-4 py-3">
                           <Button
                             variant="ghost"
                             size="icon-xs"
@@ -738,122 +564,170 @@ export function ContentPage({
                                 handleUpdateCollection(ci, { ...coll, items: newItems });
                               }
                             }}
-                            className="opacity-0 hover:text-destructive group-hover:opacity-100"
+                            className="absolute right-2 top-2 opacity-0 hover:text-destructive group-hover/item:opacity-100"
                             aria-label={`Remove item ${ii + 1}`}
                           >
                             <Trash2 size={10} />
                           </Button>
+                          {renderItemEditor(
+                            item,
+                            (updated) => {
+                              const newItems = [...(coll.items ?? [])];
+                              newItems[ii] = updated;
+                              handleUpdateCollection(ci, { ...coll, items: newItems });
+                            },
+                            `coll-${ci}-${ii}`,
+                          )}
                         </div>
-                        {renderItemEditor(
-                          item,
-                          (updated) => {
-                            const newItems = [...(coll.items ?? [])];
-                            newItems[ii] = updated;
-                            handleUpdateCollection(ci, { ...coll, items: newItems });
-                          },
-                          `coll-${ci}-${ii}`,
-                        )}
-                      </div>
-                    ))}
+                      ))}
+                    </div>
+
+                    {/* Add item button */}
+                    <div className="border-t border-border px-4 py-2">
+                      <Button
+                        variant="ghost"
+                        size="xs"
+                        onClick={() =>
+                          handleUpdateCollection(ci, {
+                            ...coll,
+                            items: [...(coll.items ?? []), { path: "" }],
+                          })
+                        }
+                        className="text-muted-foreground"
+                      >
+                        <Plus size={10} />
+                        Add another pattern
+                      </Button>
+                    </div>
                   </div>
-
-                  {/* Add item button */}
-                  <div className="border-t border-border px-4 py-2">
-                    <Button
-                      variant="ghost"
-                      size="xs"
-                      onClick={() =>
-                        handleUpdateCollection(ci, {
-                          ...coll,
-                          items: [...(coll.items ?? []), { path: "" }],
-                        })
-                      }
-                      className="text-muted-foreground"
-                    >
-                      <Plus size={10} />
-                      Add item
-                    </Button>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        ) : (
-          <div className="rounded-xl border border-dashed border-border p-6 text-center">
-            <FileText size={20} className="mx-auto mb-2 text-muted-foreground/50" />
-            <p className="text-sm text-muted-foreground">
-              No content patterns. Add a pattern to map your source files.
-            </p>
-          </div>
-        )}
-      </section>
-
-      {/* Unified files view */}
-      <section>
-        <div className="mb-3 flex items-center justify-between">
-          <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-            Files
-            <span className="text-xs font-normal">
-              ({matches.length} matched
-              {!hideUnmatched && unmatchedFiles.length > 0 && `, ${unmatchedFiles.length} other`}
-              {totalFiles > 0 && ` of ${totalFiles} total`})
-            </span>
-          </h2>
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setHideUnmatched(!hideUnmatched)}
-              className={hideUnmatched ? "bg-accent" : ""}
-              aria-label={hideUnmatched ? "Show all files" : "Hide unmatched files"}
-              title={hideUnmatched ? "Show all files" : "Hide unmatched files"}
-            >
-              {hideUnmatched ? <Eye size={12} /> : <EyeOff size={12} />}
-              {hideUnmatched ? "Show all" : "Matched only"}
-            </Button>
-            <Button variant="outline" size="sm" onClick={handleAddFiles} aria-label="Add files">
-              <Plus size={12} />
-              Add Files
-            </Button>
-            <Button
-              variant="outline"
-              size="icon-sm"
-              onClick={rescanFiles}
-              disabled={scanning}
-              aria-label="Rescan files"
-            >
-              {scanning ? <Loader2 size={12} className="animate-spin" /> : <RefreshCw size={12} />}
-            </Button>
-          </div>
-        </div>
-
-        <div
-          onDrop={handleDrop}
-          onDragOver={handleDragOver}
-          onDragLeave={handleDragLeave}
-          className={`min-h-[120px] rounded-lg border-2 transition-colors ${
-            dragging ? "border-primary bg-primary/5" : "border-transparent"
-          }`}
-        >
-          {matches.length === 0 && (hideUnmatched || projectFiles.length === 0) ? (
-            <div className="flex flex-col items-center justify-center py-12 text-center">
-              <Upload size={24} className="mb-3 text-muted-foreground/50" />
-              <p className="text-sm text-muted-foreground">
-                {content.length > 0
-                  ? "No files matched the configured patterns."
-                  : "Drop files here or click Add Files to add them to the project."}
-              </p>
+                );
+              })}
             </div>
           ) : (
-            <div className="space-y-4">
-              {collectionNames.map((collName) => {
-                const collFiles = collectionMap.get(collName) ?? [];
-                return (
-                  <div key={collName || "__uncollected"}>
-                    {collName && (
+            <div className="rounded-xl border border-dashed border-border p-6 text-center">
+              <FileText size={20} className="mx-auto mb-2 text-muted-foreground/50" />
+              <p className="text-sm text-muted-foreground">
+                No content patterns. Add a collection to map your source files.
+              </p>
+            </div>
+          )}
+        </section>
+
+        {/* Right column: Files */}
+        <section className="flex min-h-0 flex-col overflow-auto">
+          <div className="mb-3 flex items-center justify-between">
+            <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+              Files
+              <span className="text-xs font-normal">
+                ({matches.length} matched
+                {!hideUnmatched && unmatchedFiles.length > 0 && `, ${unmatchedFiles.length} other`}
+                {totalFiles > 0 && ` of ${totalFiles} total`})
+              </span>
+            </h2>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setHideUnmatched(!hideUnmatched)}
+                className={hideUnmatched ? "bg-accent" : ""}
+                aria-label={hideUnmatched ? "Show all files" : "Hide unmatched files"}
+                title={hideUnmatched ? "Show all files" : "Hide unmatched files"}
+              >
+                {hideUnmatched ? <Eye size={12} /> : <EyeOff size={12} />}
+                {hideUnmatched ? "Show all" : "Matched only"}
+              </Button>
+              <Button variant="outline" size="sm" onClick={handleAddFiles} aria-label="Add files">
+                <Plus size={12} />
+                Add Files
+              </Button>
+              <Button
+                variant="outline"
+                size="icon-sm"
+                onClick={rescanFiles}
+                disabled={scanning}
+                aria-label="Rescan files"
+              >
+                {scanning ? (
+                  <Loader2 size={12} className="animate-spin" />
+                ) : (
+                  <RefreshCw size={12} />
+                )}
+              </Button>
+            </div>
+          </div>
+
+          <div
+            onDrop={handleDrop}
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            className={`min-h-[120px] rounded-lg border-2 transition-colors ${
+              dragging ? "border-primary bg-primary/5" : "border-transparent"
+            }`}
+          >
+            {matches.length === 0 && (hideUnmatched || projectFiles.length === 0) ? (
+              <div className="flex flex-col items-center justify-center py-12 text-center">
+                <Upload size={24} className="mb-3 text-muted-foreground/50" />
+                <p className="text-sm text-muted-foreground">
+                  {content.length > 0
+                    ? "No files matched the configured patterns."
+                    : "Drop files here or click Add Files to add them to the project."}
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {collectionNames.map((collName) => {
+                  const collFiles = collectionMap.get(collName) ?? [];
+                  return (
+                    <div key={collName || "__uncollected"}>
+                      {collName && (
+                        <h3 className="mb-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                          {collName}
+                          <span className="ml-1.5 font-normal">({collFiles.length})</span>
+                        </h3>
+                      )}
+                      <Card>
+                        <table className="w-full text-xs">
+                          <thead>
+                            <tr className="border-b border-border text-left text-muted-foreground">
+                              <th className="px-3 py-2 font-medium">File</th>
+                              <th className="px-3 py-2 font-medium">Format</th>
+                              <th className="px-3 py-2 font-medium">Pattern</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {collFiles.map((m, i) => (
+                              <tr
+                                key={i}
+                                className="border-b border-border last:border-0 hover:bg-accent/30"
+                              >
+                                <td className="px-3 py-1.5">
+                                  <span className="flex items-center gap-1.5 font-mono">
+                                    <FileText
+                                      size={12}
+                                      className="shrink-0 text-muted-foreground"
+                                    />
+                                    {m.relative}
+                                  </span>
+                                </td>
+                                <td className="px-3 py-1.5">
+                                  <Badge variant="secondary">{m.format || "unknown"}</Badge>
+                                </td>
+                                <td className="px-3 py-1.5 text-muted-foreground">{m.pattern}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </Card>
+                    </div>
+                  );
+                })}
+
+                {!hideUnmatched && unmatchedFiles.length > 0 && (
+                  <div>
+                    {matches.length > 0 && (
                       <h3 className="mb-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                        {collName}
-                        <span className="ml-1.5 font-normal">({collFiles.length})</span>
+                        Other files
+                        <span className="ml-1.5 font-normal">({unmatchedFiles.length})</span>
                       </h3>
                     )}
                     <Card>
@@ -862,99 +736,41 @@ export function ContentPage({
                           <tr className="border-b border-border text-left text-muted-foreground">
                             <th className="px-3 py-2 font-medium">File</th>
                             <th className="px-3 py-2 font-medium">Format</th>
-                            <th className="px-3 py-2 font-medium">Pattern</th>
+                            <th className="px-3 py-2 text-right font-medium">Size</th>
                           </tr>
                         </thead>
                         <tbody>
-                          {collFiles.map((m, i) => (
+                          {unmatchedFiles.map((f) => (
                             <tr
-                              key={i}
-                              className="border-b border-border last:border-0 hover:bg-accent/30"
+                              key={f.relative}
+                              className="border-b border-border last:border-0 text-muted-foreground hover:bg-accent/30"
                             >
                               <td className="px-3 py-1.5">
                                 <span className="flex items-center gap-1.5 font-mono">
-                                  <FileText size={12} className="shrink-0 text-muted-foreground" />
-                                  {m.relative}
+                                  <FileText size={12} className="shrink-0" />
+                                  {f.relative}
                                 </span>
                               </td>
                               <td className="px-3 py-1.5">
-                                <Badge variant="secondary">{m.format || "unknown"}</Badge>
+                                {f.format ? (
+                                  <Badge variant="secondary">{f.format}</Badge>
+                                ) : (
+                                  <span>&mdash;</span>
+                                )}
                               </td>
-                              <td className="px-3 py-1.5 text-muted-foreground">{m.pattern}</td>
+                              <td className="px-3 py-1.5 text-right">{formatSize(f.size)}</td>
                             </tr>
                           ))}
                         </tbody>
                       </table>
                     </Card>
                   </div>
-                );
-              })}
-
-              {!hideUnmatched && (unmatchedFiles.length > 0 || directories.length > 0) && (
-                <div>
-                  {matches.length > 0 && (
-                    <h3 className="mb-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                      Other files
-                      <span className="ml-1.5 font-normal">
-                        ({unmatchedFiles.length + directories.length})
-                      </span>
-                    </h3>
-                  )}
-                  <Card>
-                    <table className="w-full text-xs">
-                      <thead>
-                        <tr className="border-b border-border text-left text-muted-foreground">
-                          <th className="px-3 py-2 font-medium">File</th>
-                          <th className="px-3 py-2 font-medium">Format</th>
-                          <th className="px-3 py-2 text-right font-medium">Size</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {directories.map((f) => (
-                          <tr
-                            key={f.relative}
-                            className="border-b border-border last:border-0 text-muted-foreground hover:bg-accent/30"
-                          >
-                            <td className="px-3 py-1.5">
-                              <span className="flex items-center gap-1.5 font-mono">
-                                <FolderOpen size={12} className="shrink-0" />
-                                {f.relative}/
-                              </span>
-                            </td>
-                            <td className="px-3 py-1.5">&mdash;</td>
-                            <td className="px-3 py-1.5 text-right">&mdash;</td>
-                          </tr>
-                        ))}
-                        {unmatchedFiles.map((f) => (
-                          <tr
-                            key={f.relative}
-                            className="border-b border-border last:border-0 text-muted-foreground hover:bg-accent/30"
-                          >
-                            <td className="px-3 py-1.5">
-                              <span className="flex items-center gap-1.5 font-mono">
-                                <FileText size={12} className="shrink-0" />
-                                {f.relative}
-                              </span>
-                            </td>
-                            <td className="px-3 py-1.5">
-                              {f.format ? (
-                                <Badge variant="secondary">{f.format}</Badge>
-                              ) : (
-                                <span>&mdash;</span>
-                              )}
-                            </td>
-                            <td className="px-3 py-1.5 text-right">{formatSize(f.size)}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </Card>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-      </section>
+                )}
+              </div>
+            )}
+          </div>
+        </section>
+      </div>
     </div>
   );
 }
