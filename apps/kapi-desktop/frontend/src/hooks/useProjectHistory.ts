@@ -47,35 +47,41 @@ function makeTravels(initial: KapiProject): Travels<KapiProject> {
  * Manages project undo/redo history and dirty-state tracking using
  * mutative/travels for patch-based storage.
  *
- * Undo boundaries are debounced: rapid `set()` calls (e.g. typing) are
- * grouped into a single undo step via manual archive after ARCHIVE_DEBOUNCE_MS.
- *
- * On tab switch (tabId change), a fresh Travels instance is created with
- * the new tab's project as the initial state. Uses useState (not useRef)
- * so React re-renders and useTravelStore binds to the new instance.
+ * Each tab gets its own persistent Travels instance (stored in a Map).
+ * Switching tabs swaps the active instance without destroying history.
+ * Undo boundaries are debounced at ARCHIVE_DEBOUNCE_MS.
  */
 export function useProjectHistory(
   initialProject: KapiProject,
   tabId: string | null,
 ): ProjectHistory {
+  // Persistent map of Travels instances and saved snapshots per tab.
+  const instancesRef = useRef(new Map<string, Travels<KapiProject>>());
+  const savedMapRef = useRef(new Map<string, string>());
   const tabIdRef = useRef(tabId);
-  const [travels, setTravels] = useState(() => makeTravels(initialProject));
-  const savedRef = useRef(serialize(initialProject));
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Recreate travels instance when the tab changes.
-  // Setting state during render is the React pattern for derived state
-  // (equivalent to getDerivedStateFromProps).
+  // Get or create the Travels instance for the current tab.
+  const key = tabId ?? "";
+  if (!instancesRef.current.has(key)) {
+    instancesRef.current.set(key, makeTravels(initialProject));
+    savedMapRef.current.set(key, serialize(initialProject));
+  }
+
+  // On tab switch, flush any pending debounce from the previous tab.
   if (tabId !== tabIdRef.current) {
     tabIdRef.current = tabId;
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = null;
-    const next = makeTravels(initialProject);
-    setTravels(next);
-    savedRef.current = serialize(initialProject);
   }
 
-  const [state, setState, controls] = useTravelStore(travels);
+  // useState to hold the active instance — triggers re-render on tab switch.
+  const [activeInstance, setActiveInstance] = useState(() => instancesRef.current.get(key)!);
+  if (activeInstance !== instancesRef.current.get(key)) {
+    setActiveInstance(instancesRef.current.get(key)!);
+  }
+
+  const [state, setState, controls] = useTravelStore(activeInstance);
 
   const scheduleArchive = useCallback(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
@@ -102,13 +108,17 @@ export function useProjectHistory(
     [setState, scheduleArchive],
   );
 
-  const replace = useCallback((project: KapiProject) => {
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-    debounceRef.current = null;
-    const next = makeTravels(project);
-    setTravels(next);
-    savedRef.current = serialize(project);
-  }, []);
+  const replace = useCallback(
+    (project: KapiProject) => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+      debounceRef.current = null;
+      const inst = makeTravels(project);
+      instancesRef.current.set(key, inst);
+      savedMapRef.current.set(key, serialize(project));
+      setActiveInstance(inst);
+    },
+    [key],
+  );
 
   const undo = useCallback(() => {
     flushArchive();
@@ -120,10 +130,16 @@ export function useProjectHistory(
   }, [controls]);
 
   const markSaved = useCallback(() => {
-    savedRef.current = serialize(state);
-  }, [state]);
+    savedMapRef.current.set(key, serialize(state));
+  }, [key, state]);
 
-  const isDirty = serialize(state) !== savedRef.current;
+  const isDirty = serialize(state) !== (savedMapRef.current.get(key) ?? "");
+
+  /** Remove a tab's history (call when closing a tab). */
+  const cleanup = useCallback((id: string) => {
+    instancesRef.current.delete(id);
+    savedMapRef.current.delete(id);
+  }, []);
 
   return {
     project: state as KapiProject,
@@ -135,5 +151,7 @@ export function useProjectHistory(
     isDirty,
     canUndo: controls.canBack(),
     canRedo: controls.canForward(),
-  };
+    /** @internal Remove a closed tab's history. */
+    cleanup,
+  } as ProjectHistory & { cleanup: (id: string) => void };
 }
