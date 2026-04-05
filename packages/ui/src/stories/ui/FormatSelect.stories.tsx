@@ -17,24 +17,36 @@ const sampleFormats: FormatInfo[] = [
   { name: "strings", display_name: "Apple Strings", extensions: [".strings"] },
   { name: "arb", display_name: "Flutter ARB", extensions: [".arb"] },
   { name: "android", display_name: "Android XML", extensions: [".xml"] },
-  { name: "okf_html", display_name: "HTML (Okapi)", extensions: [".html", ".htm"], source: "okapi" },
+  {
+    name: "okf_html",
+    display_name: "HTML (Okapi)",
+    extensions: [".html", ".htm"],
+    source: "okapi",
+  },
   { name: "okf_xml", display_name: "XML (Okapi)", extensions: [".xml"], source: "okapi" },
   { name: "okf_xliff", display_name: "XLIFF (Okapi)", extensions: [".xlf"], source: "okapi" },
   { name: "okf_po", display_name: "PO (Okapi)", extensions: [".po"], source: "okapi" },
-  { name: "okf_properties", display_name: "Properties (Okapi)", extensions: [".properties"], source: "okapi" },
+  {
+    name: "okf_properties",
+    display_name: "Properties (Okapi)",
+    extensions: [".properties"],
+    source: "okapi",
+  },
   { name: "okf_dtd", display_name: "DTD (Okapi)", extensions: [".dtd"], source: "okapi" },
   { name: "okf_ts", display_name: "Qt TS (Okapi)", extensions: [".ts"], source: "okapi" },
 ];
 
-function Wrapper({ initial = "", formats = sampleFormats }: { initial?: string; formats?: FormatInfo[] }) {
+function Wrapper({
+  initial = "",
+  formats = sampleFormats,
+}: {
+  initial?: string;
+  formats?: FormatInfo[];
+}) {
   const [value, setValue] = useState(initial);
   return (
     <div className="max-w-sm space-y-2">
-      <FormatSelect
-        value={value}
-        onChange={(v) => setValue(v ?? "")}
-        formats={formats}
-      />
+      <FormatSelect value={value} onChange={(v) => setValue(v ?? "")} formats={formats} />
       <pre className="rounded bg-muted p-2 font-mono text-xs">
         value: {JSON.stringify(value || null)}
       </pre>
