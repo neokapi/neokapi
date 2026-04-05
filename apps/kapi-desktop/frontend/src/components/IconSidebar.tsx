@@ -7,6 +7,7 @@ import {
   Wrench,
   FileText,
   Settings,
+  SlidersHorizontal,
 } from "lucide-react";
 
 const SW = 1.5;
@@ -82,6 +83,13 @@ const projectItems: SidebarItem[] = [
     icon: <Database size={20} strokeWidth={SW} />,
     label: "Translation Memories",
   },
+  { type: "separator" },
+  {
+    type: "item",
+    view: "project-settings",
+    icon: <SlidersHorizontal size={20} strokeWidth={SW} />,
+    label: "Project Settings",
+  },
 ];
 
 export function IconSidebar({ mode, active, onChange, projectDisabled }: IconSidebarProps) {
@@ -116,18 +124,18 @@ export function IconSidebar({ mode, active, onChange, projectDisabled }: IconSid
         })}
       </nav>
 
-      {/* Separator + Settings */}
+      {/* Separator + Global Settings */}
       <div className="flex flex-col items-center gap-1">
         <div className="my-1 h-px w-6 bg-border" />
         <button
-          onClick={() => onChange("settings")}
+          onClick={() => onChange("app-settings")}
           className={`rounded-lg p-2 transition-colors ${
-            active === "settings"
+            active === "app-settings"
               ? "bg-primary text-primary-foreground"
               : "text-muted-foreground hover:bg-accent hover:text-foreground"
           }`}
-          aria-label="Settings"
-          title="Settings"
+          aria-label="App Settings"
+          title="App Settings"
         >
           <Settings size={20} strokeWidth={SW} />
         </button>

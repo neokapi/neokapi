@@ -104,7 +104,7 @@ export function HomePage({ project, displayName, onRunFlow, onNavigate }: HomePa
         </Button>
         <Button
           variant="outline"
-          onClick={() => onNavigate("settings")}
+          onClick={() => onNavigate("project-settings")}
           className="h-auto whitespace-normal rounded-lg p-4 text-left flex-col items-start hover:border-primary/30 hover:bg-accent/30"
         >
           <Settings2 size={16} className="mb-1.5 text-primary" />
