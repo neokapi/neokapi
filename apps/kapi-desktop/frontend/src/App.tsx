@@ -18,6 +18,8 @@ import { SettingsPage } from "./components/SettingsPage";
 import { HomePage } from "./components/HomePage";
 import { ContentPage } from "./components/ContentPage";
 import { ProjectSetupPage } from "./components/ProjectSetupPage";
+import { ProjectSettingsPage } from "./components/ProjectSettingsPage";
+import { ProjectPresetPage } from "./components/ProjectPresetPage";
 import { useShortenHome } from "./hooks/useShortenHome";
 import { Button, Label, Input } from "@neokapi/ui-primitives";
 
@@ -25,6 +27,7 @@ interface TabState {
   info: TabInfo;
   project: KapiProject;
   isEmpty?: boolean;
+  detectedPreset?: string;
 }
 
 export default function App() {
@@ -130,9 +133,15 @@ function AppInner() {
 
   const addTab = useCallback(async (tab: TabInfo, project: KapiProject) => {
     const empty = await api.isEmptyProject(tab.id);
+    // For non-empty folders, detect if a framework preset matches.
+    let detected: string | undefined;
+    if (!empty) {
+      const preset = await api.detectPreset(tab.id);
+      if (preset) detected = preset;
+    }
     setTabs((prev) => {
       if (prev.some((t) => t.info.id === tab.id)) return prev;
-      return [...prev, { info: tab, project, isEmpty: empty ?? false }];
+      return [...prev, { info: tab, project, isEmpty: empty ?? false, detectedPreset: detected }];
     });
     setActiveTabID(tab.id);
     setMode("projects");
@@ -366,18 +375,51 @@ function AppInner() {
               tabID={activeTab.info.id}
               onDone={() => {
                 setTabs((prev) =>
-                  prev.map((t) => (t.info.id === activeTab.info.id ? { ...t, isEmpty: false } : t)),
+                  prev.map((t) =>
+                    t.info.id === activeTab.info.id
+                      ? { ...t, isEmpty: false, detectedPreset: undefined }
+                      : t,
+                  ),
                 );
               }}
             />
           )}
-          {mode === "projects" && activeTab && view === "project-home" && !activeTab.isEmpty && (
-            <HomePage
-              project={activeTab.project}
-              displayName={activeTab.info.name}
-              onNavigate={handleViewChange}
-            />
-          )}
+          {mode === "projects" &&
+            activeTab &&
+            view === "project-home" &&
+            !activeTab.isEmpty &&
+            activeTab.detectedPreset && (
+              <ProjectPresetPage
+                tabID={activeTab.info.id}
+                detectedPreset={activeTab.detectedPreset}
+                onApplied={(updated) => {
+                  updateActiveProject(updated);
+                  setTabs((prev) =>
+                    prev.map((t) =>
+                      t.info.id === activeTab.info.id ? { ...t, detectedPreset: undefined } : t,
+                    ),
+                  );
+                }}
+                onSkip={() => {
+                  setTabs((prev) =>
+                    prev.map((t) =>
+                      t.info.id === activeTab.info.id ? { ...t, detectedPreset: undefined } : t,
+                    ),
+                  );
+                }}
+              />
+            )}
+          {mode === "projects" &&
+            activeTab &&
+            view === "project-home" &&
+            !activeTab.isEmpty &&
+            !activeTab.detectedPreset && (
+              <HomePage
+                project={activeTab.project}
+                displayName={activeTab.info.name}
+                onNavigate={handleViewChange}
+              />
+            )}
           {mode === "projects" && activeTab && view === "content" && (
             <ContentPage
               project={activeTab.project}
@@ -405,8 +447,15 @@ function AppInner() {
           {mode === "projects" && activeTab && view === "tools" && <ToolRunnerPage />}
           {mode === "projects" && activeTab && view === "termbases" && <TermbasesPage />}
           {mode === "projects" && activeTab && view === "memories" && <MemoriesPage />}
+          {mode === "projects" && activeTab && view === "settings" && (
+            <ProjectSettingsPage
+              project={activeTab.project}
+              onUpdate={updateActiveProject}
+              tabID={activeTab.info.id}
+            />
+          )}
 
-          {view === "settings" && <SettingsPage />}
+          {view === "settings" && !(mode === "projects" && activeTab) && <SettingsPage />}
         </main>
       </div>
 

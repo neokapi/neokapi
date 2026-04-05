@@ -1,7 +1,11 @@
 package preset
 
 import (
+	"bytes"
+	"os"
+	"path/filepath"
 	"slices"
+	"strings"
 	"sync"
 )
 
@@ -105,4 +109,56 @@ func (r *PresetRegistry) ListFrameworkPresets() []*FrameworkPreset {
 		result[i] = r.frameworkPresets[name]
 	}
 	return result
+}
+
+// DetectFrameworkPreset scans basePath for telltale files defined by each
+// preset's Detect field and returns the first matching preset name.
+//
+// Detect entries are either:
+//   - "filename" — matches if the file exists in basePath.
+//   - "filename:substring" — matches if the file exists AND contains the substring.
+func (r *PresetRegistry) DetectFrameworkPreset(basePath string) string {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	// Check presets in sorted order for deterministic results.
+	names := make([]string, 0, len(r.frameworkPresets))
+	for name := range r.frameworkPresets {
+		names = append(names, name)
+	}
+	slices.Sort(names)
+
+	for _, name := range names {
+		p := r.frameworkPresets[name]
+		if matchDetect(basePath, p.Detect) {
+			return name
+		}
+	}
+	return ""
+}
+
+// matchDetect returns true if any entry in detect matches the given basePath.
+func matchDetect(basePath string, detect []string) bool {
+	for _, entry := range detect {
+		file, substring, hasSubstring := strings.Cut(entry, ":")
+		path := filepath.Join(basePath, file)
+
+		info, err := os.Stat(path)
+		if err != nil || info.IsDir() {
+			continue
+		}
+
+		if !hasSubstring {
+			return true
+		}
+
+		data, err := os.ReadFile(path)
+		if err != nil {
+			continue
+		}
+		if bytes.Contains(data, []byte(substring)) {
+			return true
+		}
+	}
+	return false
 }

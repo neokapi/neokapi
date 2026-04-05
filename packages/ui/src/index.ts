@@ -22,7 +22,14 @@ export {
 
 // shadcn/ui primitives
 export { Alert, AlertTitle, AlertDescription } from "./components/ui/alert";
-export { Avatar, AvatarImage, AvatarFallback, AvatarBadge, AvatarGroup, AvatarGroupCount } from "./components/ui/avatar";
+export {
+  Avatar,
+  AvatarImage,
+  AvatarFallback,
+  AvatarBadge,
+  AvatarGroup,
+  AvatarGroupCount,
+} from "./components/ui/avatar";
 export { Button, buttonVariants } from "./components/ui/button";
 export {
   Card,
@@ -87,7 +94,14 @@ export {
   DropdownMenuRadioGroup,
 } from "./components/ui/dropdown-menu";
 export { Input } from "./components/ui/input";
-export { InputGroup, InputGroupAddon, InputGroupButton, InputGroupText, InputGroupInput, InputGroupTextarea } from "./components/ui/input-group";
+export {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupButton,
+  InputGroupText,
+  InputGroupInput,
+  InputGroupTextarea,
+} from "./components/ui/input-group";
 export { Label } from "./components/ui/label";
 export { Badge, badgeVariants } from "./components/ui/badge";
 export {
@@ -168,6 +182,8 @@ export { Progress } from "./components/ui/progress";
 
 // Code editor (CodeMirror 6)
 export { CodeInput, type CodeInputProps, type CodeLanguage } from "./components/ui/code-input";
+export { GlobInput, type GlobInputProps } from "./components/ui/glob-input";
+export { TargetPathInput, type TargetPathInputProps } from "./components/ui/target-path-input";
 
 // Tag input (chip-based)
 export { TagInput, type TagInputProps } from "./components/ui/tag-input";
@@ -268,7 +284,4 @@ export type {
 
 // Filter config editor (legacy — prefer SchemaForm)
 export { FilterConfigEditor, SchemaConfigEditor } from "./components/filter";
-export type {
-  FormatSchema,
-  FormatParamsValue,
-} from "./components/filter/types";
+export type { FormatSchema, FormatParamsValue } from "./components/filter/types";

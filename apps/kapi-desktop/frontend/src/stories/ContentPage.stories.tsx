@@ -10,11 +10,6 @@ const meta: Meta<typeof ContentPage> = {
     onUpdate: fn(),
     tabID: "tab-1",
     projectPath: "/Users/dev/acme-app/project.kapi",
-    presetList: [
-      { name: "nextjs", description: "Next.js i18n with JSON files" },
-      { name: "react-intl", description: "React-Intl message files" },
-      { name: "flutter", description: "Flutter ARB localization" },
-    ],
     formatNames: [
       "json",
       "xliff",

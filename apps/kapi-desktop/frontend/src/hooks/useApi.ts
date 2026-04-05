@@ -127,6 +127,7 @@ export const api = {
 
   // Presets
   listPresets: () => call<Array<{ name: string; description: string }>>("ListPresets"),
+  detectPreset: (tabID: string) => call<string>("DetectPreset", tabID),
   applyPreset: (tabID: string, presetName: string) =>
     call<KapiProject>("ApplyPreset", tabID, presetName),
   listFormatPresets: (format: string) =>

@@ -14,6 +14,7 @@ type FormatPreset struct {
 type FrameworkPreset struct {
 	Name          string                    // Preset name (e.g., "nextjs")
 	Description   string                    // Human-readable description
+	Detect        []string                  // Files whose presence indicates this framework (e.g., "next.config.*")
 	Mappings      []MappingTemplate         // Default file mappings
 	Exclude       []string                  // Default exclude patterns
 	FormatPresets map[string]map[string]any // format -> config overrides

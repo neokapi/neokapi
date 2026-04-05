@@ -15,13 +15,13 @@ const templates = [
     secondIcon: <FolderOutput size={20} />,
     title: "Input \u2192 Output",
     description:
-      "A folder for input files and a folder for output files. Source files go in ./input/, translations are written to ./output/{lang}/.",
+      "Source files in ./input/, translations written to ./output/{lang}/. Great for batch processing.",
   },
   {
     id: "empty",
     icon: <FileBox size={20} />,
-    title: "Empty Project",
-    description: "Start with a blank project and configure everything yourself.",
+    title: "Start empty",
+    description: "Blank project \u2014 configure everything yourself.",
   },
 ];
 
@@ -52,7 +52,7 @@ export function ProjectSetupPage({ tabID, onDone }: ProjectSetupPageProps) {
               variant="outline"
               onClick={() => handleSelect(t.id)}
               disabled={applying !== null}
-              className="group flex w-full h-auto whitespace-normal items-start gap-4 rounded-xl p-5 text-left hover:border-primary/30 hover:bg-accent/30"
+              className="group flex h-auto w-full whitespace-normal items-start gap-4 rounded-xl p-5 text-left hover:border-primary/30 hover:bg-accent/30"
             >
               <div className="flex shrink-0 items-center gap-1.5 pt-0.5 text-primary">
                 {t.icon}
