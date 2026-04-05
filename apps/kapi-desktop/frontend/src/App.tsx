@@ -111,6 +111,13 @@ function AppInner() {
     return () => document.removeEventListener("click", handler);
   }, []);
 
+  const handleSaveProject = useCallback(async () => {
+    if (!activeTabID) return;
+    await api.updateProject(activeTabID, history.project);
+    await api.saveProject(activeTabID);
+    history.markSaved();
+  }, [activeTabID, history]);
+
   // Keyboard shortcuts for undo/redo/save.
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -268,13 +275,6 @@ function AppInner() {
     },
     [history],
   );
-
-  const handleSaveProject = useCallback(async () => {
-    if (!activeTabID) return;
-    await api.updateProject(activeTabID, history.project);
-    await api.saveProject(activeTabID);
-    history.markSaved();
-  }, [activeTabID, history]);
 
   const updateActiveTab = useCallback((updated: TabInfo) => {
     setTabs((prev) =>
