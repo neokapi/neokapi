@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { Play, Globe, Workflow, Loader2, Plug, FileText, Settings2 } from "lucide-react";
-import { Button, Badge, Card, EmptyState } from "@neokapi/ui-primitives";
+import { Play, Globe, Workflow, Loader2, Plug, FileText, Settings2, Wrench } from "lucide-react";
+import { Button, Badge, Card, EmptyState, ActionCard } from "@neokapi/ui-primitives";
 import type { KapiProject, FlowSpec } from "../types/api";
 import { isBareEntry, effectiveItems } from "../types/api";
 
@@ -65,54 +65,38 @@ export function HomePage({ project, displayName, onRunFlow, onNavigate }: HomePa
 
       {/* Quick actions */}
       <div className="mb-8 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <Button
-          variant="outline"
-          onClick={() => onNavigate("content")}
-          className="h-auto whitespace-normal rounded-lg p-4 text-left flex-col items-start hover:border-primary/30 hover:bg-accent/30"
-        >
-          <FileText size={16} className="mb-1.5 text-primary" />
-          <div className="text-sm font-medium">Content</div>
-          <div className="text-xs font-normal text-muted-foreground">
-            {hasContent
+        <ActionCard
+          icon={<FileText size={16} />}
+          title="Content"
+          description={
+            hasContent
               ? `${contentCount} collection${contentCount !== 1 ? "s" : ""}, ${itemCount} pattern${itemCount !== 1 ? "s" : ""}`
-              : "Configure file patterns"}
-          </div>
-        </Button>
-        <Button
-          variant="outline"
-          onClick={() => onNavigate("flows")}
-          className="h-auto whitespace-normal rounded-lg p-4 text-left flex-col items-start hover:border-primary/30 hover:bg-accent/30"
-        >
-          <Workflow size={16} className="mb-1.5 text-primary" />
-          <div className="text-sm font-medium">Flows</div>
-          <div className="text-xs font-normal text-muted-foreground">
-            {flowNames.length > 0
+              : "Configure file patterns"
+          }
+          onClick={() => onNavigate("content")}
+        />
+        <ActionCard
+          icon={<Workflow size={16} />}
+          title="Flows"
+          description={
+            flowNames.length > 0
               ? `${flowNames.length} flow${flowNames.length !== 1 ? "s" : ""} defined`
-              : "Build your first flow"}
-          </div>
-        </Button>
-        <Button
-          variant="outline"
+              : "Build your first flow"
+          }
+          onClick={() => onNavigate("flows")}
+        />
+        <ActionCard
+          icon={<Wrench size={16} />}
+          title="Tools"
+          description="Run individual tools on files"
           onClick={() => onNavigate("tools")}
-          className="h-auto whitespace-normal rounded-lg p-4 text-left flex-col items-start hover:border-primary/30 hover:bg-accent/30"
-        >
-          <Workflow size={16} className="mb-1.5 text-primary" />
-          <div className="text-sm font-medium">Tools</div>
-          <div className="text-xs font-normal text-muted-foreground">
-            Run individual tools on files
-          </div>
-        </Button>
-        <Button
-          variant="outline"
+        />
+        <ActionCard
+          icon={<Settings2 size={16} />}
+          title="Settings"
+          description="Languages, plugins, processing"
           onClick={() => onNavigate("project-settings")}
-          className="h-auto whitespace-normal rounded-lg p-4 text-left flex-col items-start hover:border-primary/30 hover:bg-accent/30"
-        >
-          <Settings2 size={16} className="mb-1.5 text-primary" />
-          <div className="text-sm font-medium">Settings</div>
-          <div className="text-xs font-normal text-muted-foreground">
-            Languages, plugins, processing
-          </div>
-        </Button>
+        />
       </div>
 
       {/* Run flows */}

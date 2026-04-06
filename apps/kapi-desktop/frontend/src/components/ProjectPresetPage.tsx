@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
-import { Sparkles, SkipForward, Loader2 } from "lucide-react";
-import { Button, Badge } from "@neokapi/ui-primitives";
+import { Sparkles, SkipForward } from "lucide-react";
+import { Badge, ActionCard } from "@neokapi/ui-primitives";
 import type { KapiProject } from "../types/api";
 import { api } from "../hooks/useApi";
 
@@ -52,82 +52,53 @@ export function ProjectPresetPage({
         </p>
 
         <div className="space-y-3">
-          {/* Detected preset — highlighted */}
           {detected && (
             <>
               <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
                 Recommended
               </p>
-              <Button
-                variant="outline"
-                onClick={() => handleApply(detected.name)}
+              <ActionCard
+                icon={<Sparkles size={20} />}
+                title={detected.name}
+                description={detected.description}
+                badge={
+                  <Badge variant="secondary" className="text-[10px]">
+                    detected
+                  </Badge>
+                }
+                highlighted
+                loading={applying}
                 disabled={applying}
-                className="group flex h-auto w-full whitespace-normal items-start gap-4 rounded-xl border-primary/30 bg-primary/5 p-5 text-left hover:border-primary/50 hover:bg-primary/10"
-              >
-                <div className="shrink-0 pt-0.5 text-primary">
-                  <Sparkles size={20} />
-                </div>
-                <div className="flex-1">
-                  <div className="flex items-center gap-2 text-sm font-medium">
-                    {detected.name}
-                    <Badge variant="secondary" className="text-[10px]">
-                      detected
-                    </Badge>
-                    {applying && <Loader2 size={14} className="animate-spin" />}
-                  </div>
-                  <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-                    {detected.description}
-                  </p>
-                </div>
-              </Button>
+                onClick={() => handleApply(detected.name)}
+              />
             </>
           )}
 
-          {/* Other presets */}
           {others.length > 0 && (
             <>
               <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
                 Other presets
               </p>
               {others.map((p) => (
-                <Button
+                <ActionCard
                   key={p.name}
-                  variant="outline"
-                  onClick={() => handleApply(p.name)}
+                  icon={<Sparkles size={20} />}
+                  title={p.name}
+                  description={p.description}
                   disabled={applying}
-                  className="group flex h-auto w-full whitespace-normal items-start gap-4 rounded-xl p-5 text-left hover:border-primary/30 hover:bg-accent/30"
-                >
-                  <div className="shrink-0 pt-0.5 text-primary">
-                    <Sparkles size={20} />
-                  </div>
-                  <div className="flex-1">
-                    <div className="text-sm font-medium">{p.name}</div>
-                    <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-                      {p.description}
-                    </p>
-                  </div>
-                </Button>
+                  onClick={() => handleApply(p.name)}
+                />
               ))}
             </>
           )}
 
-          {/* Skip */}
-          <Button
-            variant="outline"
-            onClick={onSkip}
+          <ActionCard
+            icon={<SkipForward size={20} />}
+            title="Skip"
+            description="Configure everything manually in Settings."
             disabled={applying}
-            className="group flex h-auto w-full whitespace-normal items-start gap-4 rounded-xl p-5 text-left hover:border-primary/30 hover:bg-accent/30"
-          >
-            <div className="shrink-0 pt-0.5 text-muted-foreground">
-              <SkipForward size={20} />
-            </div>
-            <div className="flex-1">
-              <div className="text-sm font-medium">Skip</div>
-              <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-                Configure everything manually in Settings.
-              </p>
-            </div>
-          </Button>
+            onClick={onSkip}
+          />
         </div>
       </div>
     </div>

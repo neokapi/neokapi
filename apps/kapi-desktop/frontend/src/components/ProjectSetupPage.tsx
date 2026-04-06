@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { FolderInput, FolderOutput, FileBox, Loader2 } from "lucide-react";
-import { Button } from "@neokapi/ui-primitives";
+import { FolderInput, FolderOutput, FileBox } from "lucide-react";
+import { ActionCard } from "@neokapi/ui-primitives";
 import { api } from "../hooks/useApi";
 
 interface ProjectSetupPageProps {
@@ -11,8 +11,13 @@ interface ProjectSetupPageProps {
 const templates = [
   {
     id: "input-output",
-    icon: <FolderInput size={20} />,
-    secondIcon: <FolderOutput size={20} />,
+    icon: (
+      <div className="flex items-center gap-1.5">
+        <FolderInput size={20} />
+        <span className="text-xs text-muted-foreground">&rarr;</span>
+        <FolderOutput size={20} />
+      </div>
+    ),
     title: "Input \u2192 Output",
     description:
       "Source files in ./input/, translations written to ./output/{lang}/. Great for batch processing.",
@@ -47,32 +52,15 @@ export function ProjectSetupPage({ tabID, onDone }: ProjectSetupPageProps) {
         </p>
         <div className="space-y-3">
           {templates.map((t) => (
-            <Button
+            <ActionCard
               key={t.id}
-              variant="outline"
-              onClick={() => handleSelect(t.id)}
+              icon={t.icon}
+              title={t.title}
+              description={t.description}
+              loading={applying === t.id}
               disabled={applying !== null}
-              className="group flex h-auto w-full whitespace-normal items-start gap-4 rounded-xl p-5 text-left hover:border-primary/30 hover:bg-accent/30"
-            >
-              <div className="flex shrink-0 items-center gap-1.5 pt-0.5 text-primary">
-                {t.icon}
-                {t.secondIcon && (
-                  <>
-                    <span className="text-xs text-muted-foreground">&rarr;</span>
-                    {t.secondIcon}
-                  </>
-                )}
-              </div>
-              <div className="flex-1">
-                <div className="flex items-center gap-2 text-sm font-medium">
-                  {t.title}
-                  {applying === t.id && <Loader2 size={14} className="animate-spin" />}
-                </div>
-                <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-                  {t.description}
-                </p>
-              </div>
-            </Button>
+              onClick={() => handleSelect(t.id)}
+            />
           ))}
         </div>
       </div>
