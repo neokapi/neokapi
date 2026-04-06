@@ -10,6 +10,9 @@ import { EntityAnnotationDialog } from "./EntityAnnotationDialog";
 import { relativeTime } from "./utils";
 import { FilterBar, type FilterToken, type FilterField, type FilterPreset } from "../ui/filter-bar";
 import { LocaleSelect, resolveLocaleName, type LocaleInfo } from "../ui/locale-select";
+import { ItemCard } from "../ui/item-card";
+import { ConfirmDeleteButton } from "../ui/confirm-delete-button";
+import { Button } from "../ui/button";
 
 interface TMBrowserProps {
   adapter: TMAdapter;
@@ -326,10 +329,10 @@ export function TMBrowser({
         {loading && !initialLoadDone && (
           <div className="flex flex-col gap-2">
             {[0, 1, 2].map((i) => (
-              <div key={i} className="rounded-md border border-border p-3 animate-pulse">
-                <div className="h-3 bg-muted rounded w-3/4 mb-2" />
-                <div className="h-3 bg-muted rounded w-2/3" />
-              </div>
+              <ItemCard key={i} className="animate-pulse p-3">
+                <div className="mb-2 h-3 w-3/4 rounded bg-muted" />
+                <div className="h-3 w-2/3 rounded bg-muted" />
+              </ItemCard>
             ))}
           </div>
         )}
@@ -358,13 +361,10 @@ export function TMBrowser({
         {entries.length > 0 && (
           <div className="flex flex-col gap-1.5">
             {entries.map((entry: TMEntryDTO) => (
-              <div
+              <ItemCard
                 key={entry.id}
-                className={`group rounded-md border p-3 transition-colors ${
-                  selected.has(entry.id)
-                    ? "border-primary/40 bg-primary/5"
-                    : "border-border hover:border-border/80"
-                }`}
+                selected={selected.has(entry.id)}
+                className="p-3"
                 data-testid={`tm-entry-${entry.id}`}
               >
                 <div className="flex items-start gap-2">
@@ -444,27 +444,27 @@ export function TMBrowser({
                       )}
                       <span>{relativeTime(entry.updated_at)}</span>
 
-                      {/* Actions — visible at reduced opacity, full on hover */}
+                      {/* Actions — visible on hover */}
                       {editingId !== entry.id && (
-                        <div className="ml-auto flex gap-1 opacity-30 group-hover:opacity-100 transition-opacity">
-                          <button
+                        <div className="ml-auto flex gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-5 px-1 text-[10px] text-muted-foreground"
                             onClick={() => handleEdit(entry)}
-                            className="text-[10px] text-muted-foreground hover:text-foreground transition-colors"
                           >
                             Edit
-                          </button>
-                          <button
-                            onClick={() => void handleDelete(entry.id)}
-                            className="text-[10px] text-destructive hover:text-destructive/80 transition-colors"
-                          >
-                            Delete
-                          </button>
+                          </Button>
+                          <ConfirmDeleteButton
+                            onDelete={() => void handleDelete(entry.id)}
+                            mode="inline"
+                          />
                         </div>
                       )}
                     </div>
                   </div>
                 </div>
-              </div>
+              </ItemCard>
             ))}
           </div>
         )}
