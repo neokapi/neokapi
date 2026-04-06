@@ -186,8 +186,8 @@ export function TermbaseBrowser({
       setNewDomain("");
       setNewDefinition("");
       setNewTerms([
-        { text: "", locale: sourceLocale, status: "preferred" },
-        { text: "", locale: targetLocales[0] ?? "", status: "preferred" },
+        { text: "", locale: propSourceLocale, status: "preferred" },
+        { text: "", locale: propTargetLocales[0] ?? "", status: "preferred" },
       ]);
       setShowAddForm(false);
       void fetchConcepts(debouncedSearch, page);
@@ -200,8 +200,8 @@ export function TermbaseBrowser({
     newDomain,
     newDefinition,
     newTerms,
-    sourceLocale,
-    targetLocales,
+    propSourceLocale,
+    propTargetLocales,
     fetchConcepts,
     debouncedSearch,
     page,
