@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import type { TermbaseAdapter } from "./adapters";
 import type { ConceptDTO, TermDTO } from "./types";
 import { LocalePill } from "./LocalePill";
@@ -56,6 +56,19 @@ export function TermbaseBrowser({
     { text: "", locale: propSourceLocale, status: "preferred" },
     { text: "", locale: propTargetLocales[0] ?? "", status: "preferred" },
   ]);
+
+  // Merge locales prop with locales found in data so unknown codes are selectable.
+  const mergedLocales = useMemo(() => {
+    const known = new Map((locales ?? []).map((l) => [l.code, l]));
+    for (const c of concepts) {
+      for (const t of c.terms ?? []) {
+        if (t.locale && !known.has(t.locale)) {
+          known.set(t.locale, { code: t.locale, displayName: t.locale });
+        }
+      }
+    }
+    return [...known.values()];
+  }, [locales, concepts]);
 
   const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
 
@@ -352,16 +365,31 @@ export function TermbaseBrowser({
                         }}
                         className="flex-1 rounded border border-input bg-transparent px-2 py-1 text-[12px] outline-none"
                       />
-                      <input
-                        type="text"
-                        value={term.locale}
-                        onChange={(e) => {
-                          const terms = [...editConcept.terms];
-                          terms[idx] = { ...terms[idx], locale: e.target.value };
-                          setEditConcept({ ...editConcept, terms });
-                        }}
-                        className="w-16 rounded border border-input bg-transparent px-2 py-1 text-[12px] outline-none"
-                      />
+                      {mergedLocales.length > 0 ? (
+                        <div className="w-40">
+                          <LocaleSelect
+                            value={term.locale}
+                            onChange={(v) => {
+                              const terms = [...editConcept.terms];
+                              terms[idx] = { ...terms[idx], locale: v };
+                              setEditConcept({ ...editConcept, terms });
+                            }}
+                            locales={mergedLocales}
+                            placeholder="Locale"
+                          />
+                        </div>
+                      ) : (
+                        <input
+                          type="text"
+                          value={term.locale}
+                          onChange={(e) => {
+                            const terms = [...editConcept.terms];
+                            terms[idx] = { ...terms[idx], locale: e.target.value };
+                            setEditConcept({ ...editConcept, terms });
+                          }}
+                          className="w-16 rounded border border-input bg-transparent px-2 py-1 text-[12px] outline-none"
+                        />
+                      )}
                       <select
                         value={term.status}
                         onChange={(e) => {
@@ -539,8 +567,8 @@ export function TermbaseBrowser({
                       placeholder="Term"
                       className="flex-[2] rounded border border-input bg-transparent px-2 py-1.5 text-sm outline-none"
                     />
-                    {locales ? (
-                      <div className="w-28">
+                    {mergedLocales.length > 0 ? (
+                      <div className="w-40">
                         <LocaleSelect
                           value={term.locale}
                           onChange={(v) => {
@@ -548,7 +576,7 @@ export function TermbaseBrowser({
                             t[idx] = { ...t[idx], locale: v };
                             setNewTerms(t);
                           }}
-                          locales={locales}
+                          locales={mergedLocales}
                           placeholder="Locale"
                         />
                       </div>
