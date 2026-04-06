@@ -1,13 +1,18 @@
-import { useState, useCallback } from "react";
-import type { AppMode, KapiProject, TabInfo } from "../types/api";
+import { useState, useCallback, useEffect } from "react";
+import type { AppMode, KapiProject, TabInfo, PluginIssue } from "../types/api";
 import { api } from "./useApi";
 import { useError } from "../components/ErrorBanner";
+import { useWailsEvent } from "./useWailsEvent";
 
 export interface TabState {
   info: TabInfo;
   project: KapiProject;
   isEmpty?: boolean;
   detectedPreset?: string;
+  /** Whether all project plugin requirements are satisfied by installed plugins. */
+  pluginsResolved?: boolean;
+  /** Details of unsatisfied plugin requirements (missing or version mismatch). */
+  pluginIssues?: PluginIssue[];
   /** Per-tab view (content, flows, settings, etc.). */
   view: string;
 }
@@ -49,6 +54,19 @@ export function useTabManager() {
     setGlobalView(""); // clear global overlay
   }, []);
 
+  const checkPluginStatus = useCallback(async (tabID: string) => {
+    const status = await api.checkProjectPlugins(tabID);
+    if (status) {
+      setTabs((prev) =>
+        prev.map((t) =>
+          t.info.id === tabID
+            ? { ...t, pluginsResolved: status.satisfied, pluginIssues: status.issues }
+            : t,
+        ),
+      );
+    }
+  }, []);
+
   const addTab = useCallback(async (tab: TabInfo, project: KapiProject) => {
     const empty = await api.isEmptyProject(tab.id);
     let detected: string | undefined;
@@ -56,6 +74,10 @@ export function useTabManager() {
       const preset = await api.detectPreset(tab.id);
       if (preset) detected = preset;
     }
+
+    // Check if project plugin requirements are satisfied.
+    const pluginStatus = await api.checkProjectPlugins(tab.id);
+
     setTabs((prev) => {
       if (prev.some((t) => t.info.id === tab.id)) return prev;
       return [
@@ -65,6 +87,8 @@ export function useTabManager() {
           project,
           isEmpty: empty ?? false,
           detectedPreset: detected,
+          pluginsResolved: pluginStatus?.satisfied ?? true,
+          pluginIssues: pluginStatus?.issues,
           view: "project-home",
         },
       ];
@@ -72,7 +96,7 @@ export function useTabManager() {
     setActiveTabID(tab.id);
     setMode("projects");
     setGlobalView(""); // clear home overlay so tab's view shows
-  }, []);
+  }, [checkPluginStatus]);
 
   const closeTab = useCallback((tabID: string) => {
     void api.closeProject(tabID);
@@ -175,6 +199,13 @@ export function useTabManager() {
     [addTab, showError],
   );
 
+  // Re-check all open tabs when plugins change (install/remove/update).
+  useWailsEvent("plugins-changed", () => {
+    for (const tab of tabs) {
+      void checkPluginStatus(tab.info.id);
+    }
+  });
+
   return {
     mode,
     globalView,
@@ -195,5 +226,6 @@ export function useTabManager() {
     openRecent,
     createProject,
     createSampleProject,
+    checkPluginStatus,
   };
 }

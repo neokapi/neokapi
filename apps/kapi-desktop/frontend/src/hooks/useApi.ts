@@ -13,6 +13,7 @@ import type {
   ToolInfo,
   FormatInfo,
   PluginInfo,
+  PluginStatus,
   ProviderConfig,
   PluginDocsSummary,
   FilterDoc,
@@ -187,6 +188,7 @@ export const api = {
   getStepDoc: (stepID: string) => call<StepDoc>("GetStepDoc", stepID),
 
   // Plugins
+  checkProjectPlugins: (tabID: string) => call<PluginStatus>("CheckProjectPlugins", tabID),
   listPlugins: () => call<PluginInfo[]>("ListPlugins"),
   searchPlugins: (query: string) => call<unknown[]>("SearchPlugins", query),
   listAvailablePlugins: () => call<unknown[]>("ListAvailablePlugins"),

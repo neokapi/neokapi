@@ -13,7 +13,15 @@ import {
 const SW = 1.5;
 
 type SidebarItem =
-  | { type: "item"; view: string; icon: React.ReactNode; label: string; alwaysEnabled?: boolean }
+  | {
+      type: "item";
+      view: string;
+      icon: React.ReactNode;
+      label: string;
+      alwaysEnabled?: boolean;
+      /** When true, this item is disabled when project plugins are unresolved. */
+      pluginGated?: boolean;
+    }
   | { type: "separator" };
 
 interface IconSidebarProps {
@@ -21,6 +29,8 @@ interface IconSidebarProps {
   active: string;
   onChange: (view: string) => void;
   projectDisabled?: boolean;
+  /** When true, plugin-gated items (Content, Flows) are disabled. */
+  pluginsUnresolved?: boolean;
 }
 
 const adhocItems: SidebarItem[] = [
@@ -68,8 +78,15 @@ const projectItems: SidebarItem[] = [
     view: "content",
     icon: <FileText size={20} strokeWidth={SW} />,
     label: "Content",
+    pluginGated: true,
   },
-  { type: "item", view: "flows", icon: <Workflow size={20} strokeWidth={SW} />, label: "Flows" },
+  {
+    type: "item",
+    view: "flows",
+    icon: <Workflow size={20} strokeWidth={SW} />,
+    label: "Flows",
+    pluginGated: true,
+  },
   { type: "item", view: "tools", icon: <Wrench size={20} strokeWidth={SW} />, label: "Tools" },
   {
     type: "item",
@@ -91,7 +108,13 @@ const projectItems: SidebarItem[] = [
   },
 ];
 
-export function IconSidebar({ mode, active, onChange, projectDisabled }: IconSidebarProps) {
+export function IconSidebar({
+  mode,
+  active,
+  onChange,
+  projectDisabled,
+  pluginsUnresolved,
+}: IconSidebarProps) {
   const items = mode === "adhoc" ? adhocItems : projectItems;
 
   return (
@@ -101,7 +124,14 @@ export function IconSidebar({ mode, active, onChange, projectDisabled }: IconSid
           if (item.type === "separator") {
             return <div key={`sep-${i}`} className="my-1 h-px w-6 bg-border" />;
           }
-          const disabled = mode === "projects" && projectDisabled && !item.alwaysEnabled;
+          const noProject = mode === "projects" && projectDisabled && !item.alwaysEnabled;
+          const pluginBlocked = !!(pluginsUnresolved && item.pluginGated);
+          const disabled = noProject || pluginBlocked;
+          const title = noProject
+            ? `${item.label} (open a project first)`
+            : pluginBlocked
+              ? `${item.label} (resolve plugin requirements in Settings)`
+              : item.label;
           return (
             <button
               key={item.view}
@@ -115,7 +145,7 @@ export function IconSidebar({ mode, active, onChange, projectDisabled }: IconSid
                     : "text-muted-foreground hover:bg-accent hover:text-foreground"
               }`}
               aria-label={item.label}
-              title={disabled ? `${item.label} (open a project first)` : item.label}
+              title={title}
             >
               {item.icon}
             </button>

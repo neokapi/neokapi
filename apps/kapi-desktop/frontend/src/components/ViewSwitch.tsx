@@ -123,6 +123,8 @@ export function ViewSwitch({
           project={history.project}
           displayName={activeTab.info.name}
           onNavigate={navigate}
+          pluginsResolved={activeTab.pluginsResolved}
+          pluginIssues={activeTab.pluginIssues}
         />
       );
 
@@ -164,7 +166,13 @@ export function ViewSwitch({
       return <MemoriesPage tabID={tabID} />;
 
     case "project-settings":
-      return <ProjectSettingsPage project={history.project} onUpdate={updateProject} />;
+      return (
+        <ProjectSettingsPage
+          project={history.project}
+          onUpdate={updateProject}
+          pluginIssues={activeTab.pluginIssues}
+        />
+      );
 
     default:
       return null;

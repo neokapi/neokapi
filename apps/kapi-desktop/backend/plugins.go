@@ -7,6 +7,7 @@ import (
 
 	plugincache "github.com/neokapi/neokapi/core/plugin/cache"
 	pluginreg "github.com/neokapi/neokapi/core/plugin/registry"
+	"github.com/neokapi/neokapi/core/project"
 )
 
 const defaultRegistryURL = "https://neokapi.github.io/registry/plugins.json"
@@ -209,4 +210,31 @@ func (w *progressWriter) Write(p []byte) (int, error) {
 		})
 	}
 	return n, nil
+}
+
+// --- Plugin status checking ---
+
+// CheckProjectPlugins checks whether a project's declared plugin requirements
+// are satisfied by the currently installed plugins. Delegates to the shared
+// project.CheckPlugins implementation in core/project.
+func (a *App) CheckProjectPlugins(tabID string) *project.PluginStatus {
+	op := a.getOpenProject(tabID)
+	if op == nil {
+		return &project.PluginStatus{Satisfied: true}
+	}
+	return project.CheckPlugins(op.Project, a.installedPluginList())
+}
+
+// installedPluginList returns installed plugins as project.InstalledPlugin values.
+func (a *App) installedPluginList() []project.InstalledPlugin {
+	plugins := a.pluginLoader.Plugins()
+	result := make([]project.InstalledPlugin, len(plugins))
+	for i, p := range plugins {
+		result[i] = project.InstalledPlugin{
+			Name:             p.Name,
+			Version:          p.Version,
+			FrameworkVersion: p.FrameworkVersion,
+		}
+	}
+	return result
 }

@@ -15,6 +15,7 @@ import (
 	"github.com/neokapi/neokapi/core/format/schema"
 	"github.com/neokapi/neokapi/core/formats"
 	"github.com/neokapi/neokapi/core/plugin/loader"
+	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/registry"
 	"github.com/neokapi/neokapi/core/tool"
 	libtools "github.com/neokapi/neokapi/core/tools"
@@ -156,6 +157,24 @@ func (a *App) EnsureBridgesLoaded() {
 			fmt.Fprintf(os.Stderr, "Warning: bridge loading: %v\n", err)
 		}
 	}
+}
+
+// InstalledPluginList returns the currently loaded plugins as project.InstalledPlugin
+// values, suitable for passing to project.CheckPlugins or project.PopulatePlugins.
+func (a *App) InstalledPluginList() []project.InstalledPlugin {
+	if a.PluginLoader == nil {
+		return nil
+	}
+	plugins := a.PluginLoader.Plugins()
+	result := make([]project.InstalledPlugin, len(plugins))
+	for i, p := range plugins {
+		result[i] = project.InstalledPlugin{
+			Name:             p.Name,
+			Version:          p.Version,
+			FrameworkVersion: p.FrameworkVersion,
+		}
+	}
+	return result
 }
 
 // applyFormatPriorities applies priority overrides to the format registry.
