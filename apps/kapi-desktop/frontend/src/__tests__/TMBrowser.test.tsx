@@ -247,7 +247,11 @@ describe("TMBrowser", () => {
         expect(screen.getByText("Hello")).toBeInTheDocument();
       });
 
+      // First click shows confirmation (ConfirmDeleteButton two-step flow).
       await userEvent.click(screen.getByText("Delete"));
+
+      // Confirm the deletion.
+      await userEvent.click(screen.getByText("Confirm"));
 
       await waitFor(() => {
         expect(adapter.deleteEntry).toHaveBeenCalledWith("e1");
