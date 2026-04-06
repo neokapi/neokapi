@@ -9,10 +9,13 @@ import (
 	"embed"
 	"fmt"
 	"io/fs"
+	"math/rand"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/storage"
 	"github.com/neokapi/neokapi/sievepen"
 	"github.com/neokapi/neokapi/termbase"
 )
@@ -93,6 +96,8 @@ func seedTM(dbPath string) error {
 			return fmt.Errorf("import TMX for %s: %w", tgt, err)
 		}
 	}
+	// Spread created_at over the past 30 days to simulate realistic activity.
+	spreadTimestamps(tm.DB(), "tm_entries", 30)
 	return nil
 }
 
@@ -109,7 +114,45 @@ func seedTermbase(dbPath string) error {
 	if _, err := termbase.ImportJSON(tb, bytes.NewReader(tbData)); err != nil {
 		return fmt.Errorf("import termbase: %w", err)
 	}
+	// Spread created_at over the past 30 days to simulate realistic activity.
+	spreadTimestamps(tb.DB(), "tb_concepts", 30)
 	return nil
+}
+
+// spreadTimestamps distributes created_at timestamps across the past `days`
+// days so sample data produces a realistic activity chart. Each row gets a
+// random date within the window, with a bias toward more recent dates.
+func spreadTimestamps(db *storage.DB, table string, days int) {
+	rows, err := db.Query(fmt.Sprintf("SELECT id FROM %s ORDER BY RANDOM()", table))
+	if err != nil {
+		return
+	}
+	defer rows.Close()
+
+	var ids []string
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			continue
+		}
+		ids = append(ids, id)
+	}
+
+	if len(ids) == 0 {
+		return
+	}
+
+	now := time.Now()
+	rng := rand.New(rand.NewSource(42)) // deterministic for reproducibility
+	for _, id := range ids {
+		// Bias toward recent: square the random value so more entries cluster near today.
+		daysAgo := int(float64(days) * rng.Float64() * rng.Float64())
+		ts := now.AddDate(0, 0, -daysAgo).Format(time.RFC3339)
+		_, _ = db.Exec(
+			fmt.Sprintf("UPDATE %s SET created_at = ?, updated_at = ? WHERE id = ?", table),
+			ts, ts, id,
+		)
+	}
 }
 
 func copyEmbeddedDir(srcDir, destDir string) error {

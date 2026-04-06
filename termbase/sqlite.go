@@ -690,6 +690,9 @@ func (tb *SQLiteTermBase) ActivityStats() []ActivityStat {
 	return stats
 }
 
+// DB returns the underlying database for direct access (e.g., seeding).
+func (tb *SQLiteTermBase) DB() *storage.DB { return tb.db }
+
 // Close closes the database connection.
 func (tb *SQLiteTermBase) Close() error {
 	return tb.db.Close()

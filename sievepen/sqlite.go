@@ -641,6 +641,9 @@ func (tm *SQLiteTM) ActivityStats() []ActivityStat {
 	return stats
 }
 
+// DB returns the underlying database for direct access (e.g., seeding).
+func (tm *SQLiteTM) DB() *storage.DB { return tm.db }
+
 // Close closes the database connection.
 func (tm *SQLiteTM) Close() error {
 	return tm.db.Close()
