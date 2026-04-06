@@ -9,6 +9,7 @@ import { TMLookupPanel } from "./TMLookupPanel";
 import { EntityAnnotationDialog } from "./EntityAnnotationDialog";
 import { relativeTime } from "./utils";
 import { FilterBar, type FilterToken, type FilterField, type FilterPreset } from "../ui/filter-bar";
+import { LocaleSelect, type LocaleInfo } from "../ui/locale-select";
 
 interface TMBrowserProps {
   adapter: TMAdapter;
@@ -19,6 +20,8 @@ interface TMBrowserProps {
   filterFields?: FilterField[];
   /** Quick-access filter presets. */
   filterPresets?: FilterPreset[];
+  /** Locale list for the add-entry form's locale selectors. If omitted, plain text inputs are used. */
+  locales?: LocaleInfo[];
   onError?: (message: string, details?: unknown) => void;
 }
 
@@ -31,6 +34,7 @@ export function TMBrowser({
   showLookup = false,
   filterFields,
   filterPresets,
+  locales,
   onError,
 }: TMBrowserProps) {
   const [entries, setEntries] = useState<TMEntryDTO[]>([]);
@@ -516,23 +520,41 @@ export function TMBrowser({
                   <label className="text-[12px] text-muted-foreground block mb-1">
                     Source locale
                   </label>
-                  <input
-                    type="text"
-                    value={addSrcLocale}
-                    onChange={(e) => setAddSrcLocale(e.target.value)}
-                    className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-ring"
-                  />
+                  {locales ? (
+                    <LocaleSelect
+                      value={addSrcLocale}
+                      onChange={setAddSrcLocale}
+                      locales={locales}
+                      placeholder="Select source..."
+                    />
+                  ) : (
+                    <input
+                      type="text"
+                      value={addSrcLocale}
+                      onChange={(e) => setAddSrcLocale(e.target.value)}
+                      className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-ring"
+                    />
+                  )}
                 </div>
                 <div className="flex-1">
                   <label className="text-[12px] text-muted-foreground block mb-1">
                     Target locale
                   </label>
-                  <input
-                    type="text"
-                    value={addTgtLocale}
-                    onChange={(e) => setAddTgtLocale(e.target.value)}
-                    className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-ring"
-                  />
+                  {locales ? (
+                    <LocaleSelect
+                      value={addTgtLocale}
+                      onChange={setAddTgtLocale}
+                      locales={locales}
+                      placeholder="Select target..."
+                    />
+                  ) : (
+                    <input
+                      type="text"
+                      value={addTgtLocale}
+                      onChange={(e) => setAddTgtLocale(e.target.value)}
+                      className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-ring"
+                    />
+                  )}
                 </div>
               </div>
             </div>

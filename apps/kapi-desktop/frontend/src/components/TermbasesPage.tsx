@@ -66,7 +66,7 @@ export function TermbasesPage({
   const [localeList, setLocaleList] = useState<Array<{ locale: string; count: number }>>([]);
 
   const { showError } = useError();
-  const { getDisplayName } = useLocales();
+  const { locales, getDisplayName } = useLocales();
   const activeHandle = projectHandle || handle;
   const adapter = useTermbaseAdapter(activeHandle);
 
@@ -277,6 +277,7 @@ export function TermbasesPage({
         {/* Browser with integrated filter bar */}
         <TermbaseBrowser
           adapter={adapter}
+          locales={locales}
           onError={showError}
           filterFields={(() => {
             const fields: FilterField[] = [];
@@ -338,7 +339,7 @@ export function TermbasesPage({
             </div>
           }
         />
-        <TermbaseBrowser adapter={adapter} onError={showError} />
+        <TermbaseBrowser adapter={adapter} locales={locales} onError={showError} />
         <ImportProgress active={importing} />
       </div>
     );

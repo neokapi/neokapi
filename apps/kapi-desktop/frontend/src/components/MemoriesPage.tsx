@@ -62,7 +62,7 @@ export function MemoriesPage({
   >([]);
 
   const { showError } = useError();
-  const { getDisplayName } = useLocales();
+  const { locales, getDisplayName } = useLocales();
   const activeHandle = projectHandle || handle;
   const adapter = useTMAdapter(activeHandle);
 
@@ -259,6 +259,7 @@ export function MemoriesPage({
         <TMBrowser
           adapter={adapter}
           showLookup
+          locales={locales}
           onError={showError}
           filterFields={(() => {
             const srcLocales = [...new Set(localePairs.map((p) => p.source_locale))];
@@ -326,7 +327,7 @@ export function MemoriesPage({
             </div>
           }
         />
-        <TMBrowser adapter={adapter} showLookup onError={showError} />
+        <TMBrowser adapter={adapter} showLookup locales={locales} onError={showError} />
         <ImportProgress active={importing} />
       </div>
     );
