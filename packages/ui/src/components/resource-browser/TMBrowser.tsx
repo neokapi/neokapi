@@ -8,12 +8,17 @@ import { Pagination } from "./Pagination";
 import { TMLookupPanel } from "./TMLookupPanel";
 import { EntityAnnotationDialog } from "./EntityAnnotationDialog";
 import { relativeTime } from "./utils";
+import { FilterBar, type FilterToken, type FilterField, type FilterPreset } from "../ui/filter-bar";
 
 interface TMBrowserProps {
   adapter: TMAdapter;
   sourceLocale?: string;
   targetLocales?: string[];
   showLookup?: boolean;
+  /** Filter fields for the integrated FilterBar. If omitted, a plain search input is shown. */
+  filterFields?: FilterField[];
+  /** Quick-access filter presets. */
+  filterPresets?: FilterPreset[];
   onError?: (message: string, details?: unknown) => void;
 }
 
@@ -21,15 +26,18 @@ const PAGE_SIZE = 50;
 
 export function TMBrowser({
   adapter,
-  sourceLocale = "",
-  targetLocales = [],
+  sourceLocale: propSourceLocale = "",
+  targetLocales: propTargetLocales = [],
   showLookup = false,
+  filterFields,
+  filterPresets,
   onError,
 }: TMBrowserProps) {
   const [entries, setEntries] = useState<TMEntryDTO[]>([]);
   const [totalCount, setTotalCount] = useState(0);
   const [searchText, setSearchText] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [filterTokens, setFilterTokens] = useState<FilterToken[]>([]);
   const [page, setPage] = useState(0);
   const [loading, setLoading] = useState(true);
   const [initialLoadDone, setInitialLoadDone] = useState(false);
@@ -43,10 +51,23 @@ export function TMBrowser({
   const [showAddForm, setShowAddForm] = useState(false);
   const [addSource, setAddSource] = useState("");
   const [addTarget, setAddTarget] = useState("");
-  const [addSrcLocale, setAddSrcLocale] = useState(sourceLocale);
-  const [addTgtLocale, setAddTgtLocale] = useState(targetLocales[0] ?? "");
+  const [addSrcLocale, setAddSrcLocale] = useState(propSourceLocale);
+  const [addTgtLocale, setAddTgtLocale] = useState(propTargetLocales[0] ?? "");
 
-  // Debounce search input
+  // Derive effective locales from filter tokens, falling back to props.
+  const effectiveSourceLocale =
+    filterTokens.find((t) => t.key === "source")?.value ?? propSourceLocale;
+  const effectiveTargetLocale =
+    filterTokens.find((t) => t.key === "target")?.value ?? propTargetLocales[0] ?? "";
+
+  // Handle search from FilterBar (Enter-driven) or plain input (debounced).
+  const handleFilterSearchChange = useCallback((val: string) => {
+    setSearchText(val);
+    setDebouncedSearch(val);
+    setPage(0);
+  }, []);
+
+  // Debounce for plain search input (fallback when no filterFields).
   const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
   const handleSearch = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const val = e.target.value;
@@ -58,14 +79,13 @@ export function TMBrowser({
     }, 200);
   }, []);
 
-  // Use refs for values used in fetchEntries to avoid re-creating the callback
-  // when adapter/locale props change identity but not value (e.g., default [] array).
+  // Use refs for values used in fetchEntries to avoid re-creating the callback.
   const adapterRef = useRef(adapter);
-  const sourceLocaleRef = useRef(sourceLocale);
-  const targetLocaleRef = useRef(targetLocales[0] ?? "");
+  const sourceLocaleRef = useRef(effectiveSourceLocale);
+  const targetLocaleRef = useRef(effectiveTargetLocale);
   adapterRef.current = adapter;
-  sourceLocaleRef.current = sourceLocale;
-  targetLocaleRef.current = targetLocales[0] ?? "";
+  sourceLocaleRef.current = effectiveSourceLocale;
+  targetLocaleRef.current = effectiveTargetLocale;
 
   const fetchEntries = useCallback(
     async (q: string, p: number) => {
@@ -90,7 +110,7 @@ export function TMBrowser({
 
   useEffect(() => {
     void fetchEntries(debouncedSearch, page);
-  }, [fetchEntries, debouncedSearch, page]);
+  }, [fetchEntries, debouncedSearch, page, effectiveSourceLocale, effectiveTargetLocale]);
 
   const toggleSelect = useCallback((id: string) => {
     setSelected((prev: Set<string>) => {
@@ -215,28 +235,45 @@ export function TMBrowser({
       <div className="flex-1 min-w-0">
         {/* Search + Actions */}
         <div className="flex items-center gap-2 mb-4">
-          <div className="relative flex-1">
-            <input
-              type="text"
-              value={searchText}
-              onChange={handleSearch}
-              placeholder="Search translation memory..."
-              className="w-full rounded-md border border-input bg-transparent pl-8 pr-3 py-2 text-sm outline-none focus:ring-1 focus:ring-ring"
-            />
-            <svg
-              className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground"
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <circle cx="11" cy="11" r="8" />
-              <path d="m21 21-4.3-4.3" />
-            </svg>
-          </div>
+          {filterFields ? (
+            <div className="flex-1">
+              <FilterBar
+                filters={filterTokens}
+                onFiltersChange={(tokens) => {
+                  setFilterTokens(tokens);
+                  setPage(0);
+                }}
+                search={searchText}
+                onSearchChange={handleFilterSearchChange}
+                fields={filterFields}
+                presets={filterPresets}
+                placeholder="Search translation memory..."
+              />
+            </div>
+          ) : (
+            <div className="relative flex-1">
+              <input
+                type="text"
+                value={searchText}
+                onChange={handleSearch}
+                placeholder="Search translation memory..."
+                className="w-full rounded-md border border-input bg-transparent pl-8 pr-3 py-2 text-sm outline-none focus:ring-1 focus:ring-ring"
+              />
+              <svg
+                className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground"
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <circle cx="11" cy="11" r="8" />
+                <path d="m21 21-4.3-4.3" />
+              </svg>
+            </div>
+          )}
           {selected.size > 0 && selected.size < entries.length && (
             <button onClick={selectAll} className="text-[11px] text-primary hover:text-primary/80">
               Select all

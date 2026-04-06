@@ -9,9 +9,7 @@ import {
   PageHeader,
   EmptyState,
   ChartContainer,
-  FilterBar,
   type ChartConfig,
-  type FilterToken,
   type FilterField,
 } from "@neokapi/ui-primitives";
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip } from "recharts";
@@ -64,8 +62,6 @@ export function TermbasesPage({
   const [projectHandle, setProjectHandle] = useState<string | null>(null);
   const [projectStats, setProjectStats] = useState<{ count: number } | null>(null);
   const [activityStats, setActivityStats] = useState<ActivityPoint[]>([]);
-  const [filterTokens, setFilterTokens] = useState<FilterToken[]>([]);
-  const [filterSearch, setFilterSearch] = useState("");
   const [localeList, setLocaleList] = useState<Array<{ locale: string; count: number }>>([]);
 
   const { showError } = useError();
@@ -276,45 +272,33 @@ export function TermbasesPage({
           </Card>
         )}
 
-        {/* Filter bar */}
-        <div className="mb-4">
-          <FilterBar
-            filters={filterTokens}
-            onFiltersChange={setFilterTokens}
-            search={filterSearch}
-            onSearchChange={setFilterSearch}
-            fields={(() => {
-              const fields: FilterField[] = [];
-              if (localeList.length > 0) {
-                fields.push({
-                  key: "locale",
-                  label: "Language",
-                  hint: "filter by term locale",
-                  values: localeList.map((l) => ({ value: l.locale, label: l.locale })),
-                });
-              }
-              fields.push({
-                key: "status",
-                label: "Term Status",
-                hint: "filter by approval status",
-                values: [
-                  { value: "preferred", label: "Preferred" },
-                  { value: "approved", label: "Approved" },
-                  { value: "proposed", label: "Proposed" },
-                  { value: "deprecated", label: "Deprecated" },
-                ],
-              });
-              return fields;
-            })()}
-            placeholder="Search terminology..."
-          />
-        </div>
-
-        {/* Browser */}
+        {/* Browser with integrated filter bar */}
         <TermbaseBrowser
           adapter={adapter}
-          sourceLocale={filterTokens.find((t) => t.key === "locale")?.value ?? ""}
           onError={showError}
+          filterFields={(() => {
+            const fields: FilterField[] = [];
+            if (localeList.length > 0) {
+              fields.push({
+                key: "locale",
+                label: "Language",
+                hint: "filter by term locale",
+                values: localeList.map((l) => ({ value: l.locale, label: l.locale })),
+              });
+            }
+            fields.push({
+              key: "status",
+              label: "Term Status",
+              hint: "filter by approval status",
+              values: [
+                { value: "preferred", label: "Preferred" },
+                { value: "approved", label: "Approved" },
+                { value: "proposed", label: "Proposed" },
+                { value: "deprecated", label: "Deprecated" },
+              ],
+            });
+            return fields;
+          })()}
         />
         <ImportProgress active={importing} />
       </div>

@@ -5,12 +5,17 @@ import { LocalePill } from "./LocalePill";
 import { TermStatusBadge } from "./TermStatusBadge";
 import { BulkActionBar } from "./BulkActionBar";
 import { Pagination } from "./Pagination";
+import { FilterBar, type FilterToken, type FilterField, type FilterPreset } from "../ui/filter-bar";
 
 interface TermbaseBrowserProps {
   adapter: TermbaseAdapter;
   sourceLocale?: string;
   targetLocales?: string[];
   projectId?: string;
+  /** Filter fields for the integrated FilterBar. If omitted, a plain search input is shown. */
+  filterFields?: FilterField[];
+  /** Quick-access filter presets. */
+  filterPresets?: FilterPreset[];
   onError?: (message: string, details?: unknown) => void;
 }
 
@@ -19,15 +24,18 @@ const STATUS_OPTIONS = ["preferred", "approved", "admitted", "proposed", "deprec
 
 export function TermbaseBrowser({
   adapter,
-  sourceLocale = "",
-  targetLocales = [],
+  sourceLocale: propSourceLocale = "",
+  targetLocales: propTargetLocales = [],
   projectId,
+  filterFields,
+  filterPresets,
   onError,
 }: TermbaseBrowserProps) {
   const [concepts, setConcepts] = useState<ConceptDTO[]>([]);
   const [totalCount, setTotalCount] = useState(0);
   const [searchText, setSearchText] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [filterTokens, setFilterTokens] = useState<FilterToken[]>([]);
   const [page, setPage] = useState(0);
   const [loading, setLoading] = useState(true);
   const [initialLoadDone, setInitialLoadDone] = useState(false);
@@ -41,19 +49,32 @@ export function TermbaseBrowser({
   const [newDomain, setNewDomain] = useState("");
   const [newDefinition, setNewDefinition] = useState("");
   const [newTerms, setNewTerms] = useState<TermDTO[]>([
-    { text: "", locale: sourceLocale, status: "preferred" },
-    { text: "", locale: targetLocales[0] ?? "", status: "preferred" },
+    { text: "", locale: propSourceLocale, status: "preferred" },
+    { text: "", locale: propTargetLocales[0] ?? "", status: "preferred" },
   ]);
 
   const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
 
+  // Derive effective locales from filter tokens, falling back to props.
+  const effectiveSourceLocale =
+    filterTokens.find((t) => t.key === "locale" || t.key === "source")?.value ?? propSourceLocale;
+  const effectiveTargetLocale =
+    filterTokens.find((t) => t.key === "target")?.value ?? propTargetLocales[0] ?? "";
+
+  // Handle search from FilterBar (Enter-driven).
+  const handleFilterSearchChange = useCallback((val: string) => {
+    setSearchText(val);
+    setDebouncedSearch(val);
+    setPage(0);
+  }, []);
+
   // Use refs to avoid re-creating fetchConcepts when props change identity.
   const adapterRef = useRef(adapter);
-  const sourceLocaleRef = useRef(sourceLocale);
-  const targetLocaleRef = useRef(targetLocales[0] ?? "");
+  const sourceLocaleRef = useRef(effectiveSourceLocale);
+  const targetLocaleRef = useRef(effectiveTargetLocale);
   adapterRef.current = adapter;
-  sourceLocaleRef.current = sourceLocale;
-  targetLocaleRef.current = targetLocales[0] ?? "";
+  sourceLocaleRef.current = effectiveSourceLocale;
+  targetLocaleRef.current = effectiveTargetLocale;
 
   const fetchConcepts = useCallback(
     async (q: string, p: number) => {
@@ -78,7 +99,7 @@ export function TermbaseBrowser({
 
   useEffect(() => {
     void fetchConcepts(debouncedSearch, page);
-  }, [fetchConcepts, debouncedSearch, page]);
+  }, [fetchConcepts, debouncedSearch, page, effectiveSourceLocale, effectiveTargetLocale]);
 
   const handleSearch = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const val = e.target.value;
@@ -191,28 +212,45 @@ export function TermbaseBrowser({
     <div data-testid="termbase-browser">
       {/* Search + Actions */}
       <div className="flex items-center gap-2 mb-4">
-        <div className="relative flex-1">
-          <input
-            type="text"
-            value={searchText}
-            onChange={handleSearch}
-            placeholder="Search terminology..."
-            className="w-full rounded-md border border-input bg-transparent pl-8 pr-3 py-2 text-sm outline-none focus:ring-1 focus:ring-ring"
-          />
-          <svg
-            className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+        {filterFields ? (
+          <div className="flex-1">
+            <FilterBar
+              filters={filterTokens}
+              onFiltersChange={(tokens) => {
+                setFilterTokens(tokens);
+                setPage(0);
+              }}
+              search={searchText}
+              onSearchChange={handleFilterSearchChange}
+              fields={filterFields}
+              presets={filterPresets}
+              placeholder="Search terminology..."
             />
-          </svg>
-        </div>
+          </div>
+        ) : (
+          <div className="relative flex-1">
+            <input
+              type="text"
+              value={searchText}
+              onChange={handleSearch}
+              placeholder="Search terminology..."
+              className="w-full rounded-md border border-input bg-transparent pl-8 pr-3 py-2 text-sm outline-none focus:ring-1 focus:ring-ring"
+            />
+            <svg
+              className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+              />
+            </svg>
+          </div>
+        )}
         <button
           onClick={() => setShowAddForm(true)}
           className="rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90 whitespace-nowrap"
@@ -525,7 +563,9 @@ export function TermbaseBrowser({
                     </select>
                     {newTerms.length > 1 && (
                       <button
-                        onClick={() => setNewTerms(newTerms.filter((_: TermDTO, i: number) => i !== idx))}
+                        onClick={() =>
+                          setNewTerms(newTerms.filter((_: TermDTO, i: number) => i !== idx))
+                        }
                         className="text-xs text-muted-foreground hover:text-destructive px-1"
                       >
                         x
