@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import type { TMAdapter } from "./adapters";
 import type { TMEntryDTO, EntityPatternRequest } from "./types";
 import { CodedTextDisplay } from "./CodedTextDisplay";
@@ -57,6 +57,20 @@ export function TMBrowser({
   const [addTarget, setAddTarget] = useState("");
   const [addSrcLocale, setAddSrcLocale] = useState(propSourceLocale);
   const [addTgtLocale, setAddTgtLocale] = useState(propTargetLocales[0] ?? "");
+
+  // Merge locales prop with locales found in data so unknown codes are selectable.
+  const mergedLocales = useMemo(() => {
+    const known = new Map((locales ?? []).map((l) => [l.code, l]));
+    for (const e of entries) {
+      if (e.source_locale && !known.has(e.source_locale)) {
+        known.set(e.source_locale, { code: e.source_locale, displayName: e.source_locale });
+      }
+      if (e.target_locale && !known.has(e.target_locale)) {
+        known.set(e.target_locale, { code: e.target_locale, displayName: e.target_locale });
+      }
+    }
+    return [...known.values()];
+  }, [locales, entries]);
 
   // Derive effective locales from filter tokens, falling back to props.
   const effectiveSourceLocale =
@@ -520,11 +534,11 @@ export function TMBrowser({
                   <label className="text-[12px] text-muted-foreground block mb-1">
                     Source locale
                   </label>
-                  {locales ? (
+                  {mergedLocales.length > 0 ? (
                     <LocaleSelect
                       value={addSrcLocale}
                       onChange={setAddSrcLocale}
-                      locales={locales}
+                      locales={mergedLocales}
                       placeholder="Select source..."
                     />
                   ) : (
@@ -540,11 +554,11 @@ export function TMBrowser({
                   <label className="text-[12px] text-muted-foreground block mb-1">
                     Target locale
                   </label>
-                  {locales ? (
+                  {mergedLocales.length > 0 ? (
                     <LocaleSelect
                       value={addTgtLocale}
                       onChange={setAddTgtLocale}
-                      locales={locales}
+                      locales={mergedLocales}
                       placeholder="Select target..."
                     />
                   ) : (
