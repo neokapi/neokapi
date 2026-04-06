@@ -614,6 +614,33 @@ func (tm *SQLiteTM) LocalePairStats() []LocalePairStat {
 	return stats
 }
 
+// ActivityStat holds the entry count for a date bucket.
+type ActivityStat struct {
+	Date  string `json:"date"`  // YYYY-MM-DD
+	Count int    `json:"count"`
+}
+
+// ActivityStats returns daily entry counts over time based on created_at.
+func (tm *SQLiteTM) ActivityStats() []ActivityStat {
+	rows, err := tm.db.Query(
+		"SELECT DATE(created_at) AS day, COUNT(*) FROM tm_entries GROUP BY day ORDER BY day",
+	)
+	if err != nil {
+		slog.Warn("TM activity stats query failed", "error", err)
+		return nil
+	}
+	defer rows.Close()
+	var stats []ActivityStat
+	for rows.Next() {
+		var s ActivityStat
+		if err := rows.Scan(&s.Date, &s.Count); err != nil {
+			continue
+		}
+		stats = append(stats, s)
+	}
+	return stats
+}
+
 // Close closes the database connection.
 func (tm *SQLiteTM) Close() error {
 	return tm.db.Close()

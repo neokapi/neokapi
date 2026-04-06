@@ -179,6 +179,15 @@ func (a *App) GetTermbaseStats(handle string) *TermbaseStats {
 	return &TermbaseStats{Count: tb.Count()}
 }
 
+// GetTermbaseActivityStats returns daily concept counts over time.
+func (a *App) GetTermbaseActivityStats(handle string) []termbase.ActivityStat {
+	tb, ok := a.tbHandles.Get(handle)
+	if !ok {
+		return nil
+	}
+	return tb.ActivityStats()
+}
+
 // GetTermbaseLocaleStats returns term counts grouped by locale.
 func (a *App) GetTermbaseLocaleStats(handle string) []termbase.LocaleStat {
 	tb, ok := a.tbHandles.Get(handle)
