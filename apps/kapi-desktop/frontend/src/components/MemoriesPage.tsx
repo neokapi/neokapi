@@ -10,7 +10,7 @@ import {
   ChartContainer,
   type ChartConfig,
 } from "@neokapi/ui-primitives";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid } from "recharts";
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip } from "recharts";
 import { api } from "../hooks/useApi";
 import { useError } from "./ErrorBanner";
 import { useTMAdapter } from "../hooks/useTMAdapter";
@@ -25,9 +25,8 @@ export interface MemoriesPageProps {
   forceLoading?: boolean;
 }
 
-interface LocalePairStat {
-  source_locale: string;
-  target_locale: string;
+interface ActivityPoint {
+  date: string;
   count: number;
 }
 
@@ -55,7 +54,7 @@ export function MemoriesPage({
   // Project TM state
   const [projectHandle, setProjectHandle] = useState<string | null>(null);
   const [projectStats, setProjectStats] = useState<{ count: number } | null>(null);
-  const [localeStats, setLocaleStats] = useState<LocalePairStat[]>([]);
+  const [activityStats, setActivityStats] = useState<ActivityPoint[]>([]);
 
   const { showError } = useError();
   const activeHandle = projectHandle || handle;
@@ -72,8 +71,8 @@ export function MemoriesPage({
           void api.getTMStats(h).then((s) => {
             if (s) setProjectStats(s);
           });
-          void api.getTMLocaleStats(h).then((stats) => {
-            if (stats) setLocaleStats(stats);
+          void api.getTMActivityStats(h).then((stats) => {
+            if (stats) setActivityStats(stats);
           });
         }
       })
@@ -193,11 +192,6 @@ export function MemoriesPage({
 
   // Project TM view — shows dashboard + browser.
   if (projectHandle && adapter) {
-    const chartData = localeStats.map((s) => ({
-      pair: `${s.source_locale} → ${s.target_locale}`,
-      count: s.count,
-    }));
-
     return (
       <div className="p-6">
         <PageHeader
@@ -217,18 +211,36 @@ export function MemoriesPage({
           }
         />
 
-        {/* Stats chart */}
-        {chartData.length > 0 && (
+        {/* Activity chart */}
+        {activityStats.length > 1 && (
           <Card className="mb-6">
             <CardContent className="p-4">
-              <div className="mb-2 text-sm font-medium">Entries by Language Pair</div>
-              <ChartContainer config={chartConfig} className="h-48 w-full">
-                <BarChart data={chartData} layout="vertical" margin={{ left: 80 }}>
-                  <CartesianGrid horizontal={false} />
-                  <XAxis type="number" />
-                  <YAxis dataKey="pair" type="category" width={75} className="text-xs" />
-                  <Bar dataKey="count" fill="var(--color-count)" radius={[0, 4, 4, 0]} />
-                </BarChart>
+              <div className="mb-2 text-sm font-medium">Activity</div>
+              <ChartContainer config={chartConfig} className="h-40 w-full">
+                <AreaChart data={activityStats} margin={{ left: 0, right: 0, top: 4, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                  <XAxis
+                    dataKey="date"
+                    tickFormatter={(v: string) => {
+                      const d = new Date(v);
+                      return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+                    }}
+                    className="text-[10px]"
+                  />
+                  <YAxis width={40} className="text-[10px]" />
+                  <Tooltip
+                    labelFormatter={(v: string) => new Date(v).toLocaleDateString()}
+                    formatter={(v: number) => [`${v} entries`, "Entries"]}
+                  />
+                  <Area
+                    type="monotone"
+                    dataKey="count"
+                    stroke="var(--color-count)"
+                    fill="var(--color-count)"
+                    fillOpacity={0.15}
+                    strokeWidth={2}
+                  />
+                </AreaChart>
               </ChartContainer>
             </CardContent>
           </Card>

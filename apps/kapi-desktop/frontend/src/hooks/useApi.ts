@@ -258,6 +258,8 @@ export const api = {
       "GetTMLocaleStats",
       handle,
     ),
+  getTMActivityStats: (handle: string) =>
+    call<Array<{ date: string; count: number }>>("GetTMActivityStats", handle),
   openTM: (path: string) => call<string>("OpenTM", path),
   openTMDialog: () => call<string>("OpenTMDialog"),
   createTM: (path: string) => call<string>("CreateTM", path),
@@ -292,6 +294,8 @@ export const api = {
   getTermbaseStats: (handle: string) => call<{ count: number }>("GetTermbaseStats", handle),
   getTermbaseLocaleStats: (handle: string) =>
     call<Array<{ locale: string; count: number }>>("GetTermbaseLocaleStats", handle),
+  getTermbaseActivityStats: (handle: string) =>
+    call<Array<{ date: string; count: number }>>("GetTermbaseActivityStats", handle),
   openTermbase: (path: string) => call<string>("OpenTermbase", path),
   openTermbaseDialog: () => call<string>("OpenTermbaseDialog"),
   createTermbase: (path: string) => call<string>("CreateTermbase", path),

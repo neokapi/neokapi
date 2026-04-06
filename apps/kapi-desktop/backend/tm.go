@@ -310,6 +310,15 @@ func (a *App) GetTMStats(handle string) *TMStats {
 	}
 }
 
+// GetTMActivityStats returns daily entry counts over time.
+func (a *App) GetTMActivityStats(handle string) []sievepen.ActivityStat {
+	tm, ok := a.tmHandles.Get(handle)
+	if !ok {
+		return nil
+	}
+	return tm.ActivityStats()
+}
+
 // GetTMLocaleStats returns entry counts grouped by locale pair.
 func (a *App) GetTMLocaleStats(handle string) []sievepen.LocalePairStat {
 	tm, ok := a.tmHandles.Get(handle)

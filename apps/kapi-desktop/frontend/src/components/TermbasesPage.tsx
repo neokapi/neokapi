@@ -11,7 +11,7 @@ import {
   ChartContainer,
   type ChartConfig,
 } from "@neokapi/ui-primitives";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid } from "recharts";
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip } from "recharts";
 import { api } from "../hooks/useApi";
 import { useError } from "./ErrorBanner";
 import { useTermbaseAdapter } from "../hooks/useTermbaseAdapter";
@@ -31,13 +31,13 @@ export interface TermbasesPageProps {
   forceLoading?: boolean;
 }
 
-interface LocaleStat {
-  locale: string;
+interface ActivityPoint {
+  date: string;
   count: number;
 }
 
 const chartConfig: ChartConfig = {
-  count: { label: "Terms", color: "var(--chart-2)" },
+  count: { label: "Concepts", color: "var(--chart-2)" },
 };
 
 export function TermbasesPage({
@@ -60,7 +60,7 @@ export function TermbasesPage({
   // Project termbase state
   const [projectHandle, setProjectHandle] = useState<string | null>(null);
   const [projectStats, setProjectStats] = useState<{ count: number } | null>(null);
-  const [localeStats, setLocaleStats] = useState<LocaleStat[]>([]);
+  const [activityStats, setActivityStats] = useState<ActivityPoint[]>([]);
 
   const { showError } = useError();
   const activeHandle = projectHandle || handle;
@@ -77,8 +77,8 @@ export function TermbasesPage({
           void api.getTermbaseStats(h).then((s) => {
             if (s) setProjectStats(s);
           });
-          void api.getTermbaseLocaleStats(h).then((stats) => {
-            if (stats) setLocaleStats(stats);
+          void api.getTermbaseActivityStats(h).then((stats) => {
+            if (stats) setActivityStats(stats);
           });
         }
       })
@@ -210,11 +210,6 @@ export function TermbasesPage({
 
   // Project termbase view — shows dashboard + browser.
   if (projectHandle && adapter) {
-    const chartData = localeStats.map((s) => ({
-      locale: s.locale,
-      count: s.count,
-    }));
-
     return (
       <div className="p-6">
         <PageHeader
@@ -237,18 +232,36 @@ export function TermbasesPage({
           }
         />
 
-        {/* Stats chart */}
-        {chartData.length > 0 && (
+        {/* Activity chart */}
+        {activityStats.length > 1 && (
           <Card className="mb-6">
             <CardContent className="p-4">
-              <div className="mb-2 text-sm font-medium">Terms by Language</div>
-              <ChartContainer config={chartConfig} className="h-48 w-full">
-                <BarChart data={chartData} layout="vertical" margin={{ left: 60 }}>
-                  <CartesianGrid horizontal={false} />
-                  <XAxis type="number" />
-                  <YAxis dataKey="locale" type="category" width={55} className="text-xs" />
-                  <Bar dataKey="count" fill="var(--color-count)" radius={[0, 4, 4, 0]} />
-                </BarChart>
+              <div className="mb-2 text-sm font-medium">Activity</div>
+              <ChartContainer config={chartConfig} className="h-40 w-full">
+                <AreaChart data={activityStats} margin={{ left: 0, right: 0, top: 4, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                  <XAxis
+                    dataKey="date"
+                    tickFormatter={(v: string) => {
+                      const d = new Date(v);
+                      return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+                    }}
+                    className="text-[10px]"
+                  />
+                  <YAxis width={40} className="text-[10px]" />
+                  <Tooltip
+                    labelFormatter={(v: string) => new Date(v).toLocaleDateString()}
+                    formatter={(v: number) => [`${v} concepts`, "Concepts"]}
+                  />
+                  <Area
+                    type="monotone"
+                    dataKey="count"
+                    stroke="var(--color-count)"
+                    fill="var(--color-count)"
+                    fillOpacity={0.15}
+                    strokeWidth={2}
+                  />
+                </AreaChart>
               </ChartContainer>
             </CardContent>
           </Card>

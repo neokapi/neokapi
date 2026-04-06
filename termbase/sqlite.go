@@ -663,6 +663,33 @@ func (tb *SQLiteTermBase) LocaleStats() []LocaleStat {
 	return stats
 }
 
+// ActivityStat holds the concept count for a date bucket.
+type ActivityStat struct {
+	Date  string `json:"date"`  // YYYY-MM-DD
+	Count int    `json:"count"`
+}
+
+// ActivityStats returns daily concept counts over time based on created_at.
+func (tb *SQLiteTermBase) ActivityStats() []ActivityStat {
+	rows, err := tb.db.Query(
+		"SELECT DATE(created_at) AS day, COUNT(*) FROM tb_concepts GROUP BY day ORDER BY day",
+	)
+	if err != nil {
+		slog.Warn("termbase activity stats query failed", "error", err)
+		return nil
+	}
+	defer rows.Close()
+	var stats []ActivityStat
+	for rows.Next() {
+		var s ActivityStat
+		if err := rows.Scan(&s.Date, &s.Count); err != nil {
+			continue
+		}
+		stats = append(stats, s)
+	}
+	return stats
+}
+
 // Close closes the database connection.
 func (tb *SQLiteTermBase) Close() error {
 	return tb.db.Close()
