@@ -1,23 +1,13 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import {
-  Workflow,
-  Plus,
-  Trash2,
-  X,
-  Save,
-  Copy,
-  Lock,
-  Import,
-  FolderOpen,
-  Download,
-} from "lucide-react";
+import { Workflow, Plus, X, Save, Copy, Lock, Import, FolderOpen, Download } from "lucide-react";
 import {
   Button,
-  Card,
   Skeleton,
   Label,
   Input,
   ScrollArea,
+  ItemCard,
+  ConfirmDeleteButton,
   PageHeader,
   EmptyState,
 } from "@neokapi/ui-primitives";
@@ -63,7 +53,6 @@ export function FlowsPage({
   const [showImportDialog, setShowImportDialog] = useState(false);
   const [importFlows, setImportFlows] = useState<FlowListItem[]>([]);
   const [newFlowName, setNewFlowName] = useState("");
-  const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
 
   const { showError } = useError();
   const isProjectMode = !!tabID;
@@ -447,9 +436,6 @@ export function FlowsPage({
                   onDelete={
                     item.source !== "built-in" ? () => void handleDeleteFlow(item) : undefined
                   }
-                  deleteConfirm={deleteConfirm === item.id}
-                  onDeleteConfirm={() => setDeleteConfirm(item.id)}
-                  onDeleteCancel={() => setDeleteConfirm(null)}
                 />
               ))}
         </div>
@@ -586,63 +572,54 @@ function FlowCard({
   onClick,
   onCopy,
   onDelete,
-  deleteConfirm,
-  onDeleteConfirm,
-  onDeleteCancel,
 }: {
   item?: FlowCardItem;
   loading?: boolean;
   onClick?: () => void;
   onCopy?: () => void;
   onDelete?: () => void;
-  deleteConfirm?: boolean;
-  onDeleteConfirm?: () => void;
-  onDeleteCancel?: () => void;
 }) {
   if (loading) {
     return (
-      <Card className="p-4">
+      <ItemCard>
         <div className="flex items-start gap-3">
           <Skeleton className="mt-0.5 h-5 w-5 shrink-0 rounded" />
-          <div className="flex-1 min-w-0">
+          <div className="min-w-0 flex-1">
             <Skeleton className="h-4 w-1/2" />
             <Skeleton className="mt-1.5 h-3 w-3/4" />
             <Skeleton className="mt-2.5 h-3 w-16" />
           </div>
         </div>
-      </Card>
+      </ItemCard>
     );
   }
 
   if (!item) return null;
 
   return (
-    <Card
-      className="group p-4 transition-all hover:border-primary/30 hover:shadow-md cursor-pointer"
-      onClick={onClick}
-    >
+    <ItemCard clickable onClick={onClick}>
       <div className="flex items-start gap-3">
         <Workflow
           size={18}
-          className="mt-0.5 text-muted-foreground group-hover:text-primary transition-colors shrink-0"
+          className="mt-0.5 shrink-0 text-muted-foreground transition-colors group-hover:text-primary"
         />
-        <div className="flex-1 min-w-0">
+        <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
-            <span className="text-sm font-semibold text-foreground group-hover:text-primary transition-colors truncate">
+            <span className="truncate text-sm font-semibold text-foreground transition-colors group-hover:text-primary">
               {item.name}
             </span>
             {item.source === "built-in" && (
-              <span className="text-[10px] px-1.5 py-px rounded bg-muted text-muted-foreground shrink-0">
+              <span className="shrink-0 rounded bg-muted px-1.5 py-px text-[10px] text-muted-foreground">
                 built-in
               </span>
             )}
           </div>
           {item.description && (
-            <div className="text-[11px] text-muted-foreground truncate mt-0.5">
+            <div className="mt-0.5 truncate text-[11px] text-muted-foreground">
               {item.description}
             </div>
           )}
-          <div className="flex items-center gap-3 mt-2 text-[11px] text-muted-foreground">
+          <div className="mt-2 flex items-center gap-3 text-[11px] text-muted-foreground">
             <span>
               {item.stepCount} step{item.stepCount !== 1 ? "s" : ""}
             </span>
@@ -650,7 +627,7 @@ function FlowCard({
         </div>
 
         <div
-          className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity"
+          className="flex gap-1 opacity-0 transition-opacity group-hover:opacity-100"
           onClick={(e: React.MouseEvent) => e.stopPropagation()}
         >
           {onCopy && (
@@ -658,32 +635,9 @@ function FlowCard({
               <Copy size={12} />
             </Button>
           )}
-          {onDelete && (
-            <>
-              {deleteConfirm ? (
-                <div className="flex gap-1">
-                  <Button variant="destructive" size="xs" onClick={onDelete}>
-                    Delete
-                  </Button>
-                  <Button variant="ghost" size="xs" onClick={onDeleteCancel}>
-                    Cancel
-                  </Button>
-                </div>
-              ) : (
-                <Button
-                  variant="ghost"
-                  size="icon-xs"
-                  onClick={onDeleteConfirm}
-                  className="hover:bg-destructive/10 hover:text-destructive"
-                  title="Delete flow"
-                >
-                  <Trash2 size={12} />
-                </Button>
-              )}
-            </>
-          )}
+          {onDelete && <ConfirmDeleteButton onDelete={onDelete} mode="icon" />}
         </div>
       </div>
-    </Card>
+    </ItemCard>
   );
 }

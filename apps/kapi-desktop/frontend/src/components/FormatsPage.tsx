@@ -31,6 +31,7 @@ import {
   TabsContent,
   ScrollArea,
   PageHeader,
+  ItemCard,
 } from "@neokapi/ui-primitives";
 import { api } from "../hooks/useApi";
 import { useError } from "./ErrorBanner";
@@ -163,12 +164,12 @@ export function FormatsPage({
       {loading && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
           {[0, 1, 2, 3, 4, 5].map((i) => (
-            <Card key={i} className="p-4">
+            <ItemCard key={i}>
               <div className="flex items-start gap-3">
                 <Skeleton className="mt-0.5 h-5 w-5 shrink-0 rounded" />
-                <div className="flex-1 min-w-0">
+                <div className="min-w-0 flex-1">
                   <Skeleton className="h-4 w-2/3" />
-                  <div className="flex gap-1 mt-2">
+                  <div className="mt-2 flex gap-1">
                     <Skeleton className="h-4 w-10 rounded" />
                     <Skeleton className="h-4 w-10 rounded" />
                     <Skeleton className="h-4 w-12 rounded" />
@@ -176,7 +177,7 @@ export function FormatsPage({
                   <Skeleton className="mt-2 h-3 w-24" />
                 </div>
               </div>
-            </Card>
+            </ItemCard>
           ))}
         </div>
       )}
@@ -242,11 +243,7 @@ function FormatSection({
           const filterDoc = resolveFilterDoc(f.name, docs);
           const hasDocs = filterDoc || documentedIDs.has(f.name);
           return (
-            <Card
-              key={f.name}
-              className="group cursor-pointer p-4 transition-all hover:border-primary/30 hover:shadow-md"
-              onClick={() => onSelect(f.name)}
-            >
+            <ItemCard key={f.name} clickable onClick={() => onSelect(f.name)}>
               <div className="flex items-start gap-3">
                 <FileText
                   size={18}
@@ -310,7 +307,7 @@ function FormatSection({
                   </div>
                 </div>
               </div>
-            </Card>
+            </ItemCard>
           );
         })}
       </div>
