@@ -6,6 +6,7 @@ import { TermStatusBadge } from "./TermStatusBadge";
 import { BulkActionBar } from "./BulkActionBar";
 import { Pagination } from "./Pagination";
 import { FilterBar, type FilterToken, type FilterField, type FilterPreset } from "../ui/filter-bar";
+import { LocaleSelect, type LocaleInfo } from "../ui/locale-select";
 
 interface TermbaseBrowserProps {
   adapter: TermbaseAdapter;
@@ -16,6 +17,8 @@ interface TermbaseBrowserProps {
   filterFields?: FilterField[];
   /** Quick-access filter presets. */
   filterPresets?: FilterPreset[];
+  /** Locale list for the add-concept form's locale selectors. If omitted, plain text inputs are used. */
+  locales?: LocaleInfo[];
   onError?: (message: string, details?: unknown) => void;
 }
 
@@ -29,6 +32,7 @@ export function TermbaseBrowser({
   projectId,
   filterFields,
   filterPresets,
+  locales,
   onError,
 }: TermbaseBrowserProps) {
   const [concepts, setConcepts] = useState<ConceptDTO[]>([]);
@@ -535,17 +539,32 @@ export function TermbaseBrowser({
                       placeholder="Term"
                       className="flex-[2] rounded border border-input bg-transparent px-2 py-1.5 text-sm outline-none"
                     />
-                    <input
-                      type="text"
-                      value={term.locale}
-                      onChange={(e) => {
-                        const t = [...newTerms];
-                        t[idx] = { ...t[idx], locale: e.target.value };
-                        setNewTerms(t);
-                      }}
-                      placeholder="Locale"
-                      className="w-20 rounded border border-input bg-transparent px-2 py-1.5 text-sm outline-none"
-                    />
+                    {locales ? (
+                      <div className="w-28">
+                        <LocaleSelect
+                          value={term.locale}
+                          onChange={(v) => {
+                            const t = [...newTerms];
+                            t[idx] = { ...t[idx], locale: v };
+                            setNewTerms(t);
+                          }}
+                          locales={locales}
+                          placeholder="Locale"
+                        />
+                      </div>
+                    ) : (
+                      <input
+                        type="text"
+                        value={term.locale}
+                        onChange={(e) => {
+                          const t = [...newTerms];
+                          t[idx] = { ...t[idx], locale: e.target.value };
+                          setNewTerms(t);
+                        }}
+                        placeholder="Locale"
+                        className="w-20 rounded border border-input bg-transparent px-2 py-1.5 text-sm outline-none"
+                      />
+                    )}
                     <select
                       value={term.status}
                       onChange={(e) => {
