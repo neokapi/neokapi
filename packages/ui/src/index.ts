@@ -259,6 +259,8 @@ export {
   EntityAnnotationDialog,
   CodedTextDisplay,
   MatchScoreBar,
+  ConceptCard,
+  type ConceptCardProps,
   LocalePill,
   TermStatusBadge,
   BulkActionBar,

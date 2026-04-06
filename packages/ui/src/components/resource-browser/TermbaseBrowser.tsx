@@ -1,9 +1,8 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import type { TermbaseAdapter } from "./adapters";
 import type { ConceptDTO, TermDTO } from "./types";
-import { LocalePill } from "./LocalePill";
-import { TermStatusBadge } from "./TermStatusBadge";
 import { BulkActionBar } from "./BulkActionBar";
+import { ConceptCard } from "./ConceptCard";
 import { Pagination } from "./Pagination";
 import { FilterBar, type FilterToken, type FilterField, type FilterPreset } from "../ui/filter-bar";
 import { LocaleSelect, resolveLocaleName, type LocaleInfo } from "../ui/locale-select";
@@ -326,18 +325,14 @@ export function TermbaseBrowser({
       {/* Concept cards */}
       {concepts.length > 0 && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-          {concepts.map((concept: ConceptDTO) => (
-            <div
-              key={concept.id}
-              className={`group rounded-lg border p-4 transition-colors ${
-                selected.has(concept.id)
-                  ? "border-primary/40 bg-primary/5"
-                  : "border-border hover:border-border/80"
-              }`}
-              data-testid={`concept-${concept.id}`}
-            >
-              {editingId === concept.id && editConcept ? (
-                /* Edit mode */
+          {concepts.map((concept: ConceptDTO) =>
+            editingId === concept.id && editConcept ? (
+              <div
+                key={concept.id}
+                className="rounded-lg border border-primary/40 bg-primary/5 p-4"
+                data-testid={`concept-${concept.id}`}
+              >
+                {/* Edit mode */}
                 <div className="flex flex-col gap-2">
                   <input
                     type="text"
@@ -425,93 +420,23 @@ export function TermbaseBrowser({
                     </button>
                   </div>
                 </div>
-              ) : (
-                /* Display mode */
-                <>
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="checkbox"
-                        checked={selected.has(concept.id)}
-                        onChange={() => toggleSelect(concept.id)}
-                        className="rounded"
-                      />
-                      {concept.domain && (
-                        <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                          {concept.domain}
-                        </span>
-                      )}
-                    </div>
-                    {concept.project_id ? (
-                      <span className="text-[10px] px-1.5 py-px rounded bg-blue-500/10 text-blue-600 dark:text-blue-400">
-                        Project
-                      </span>
-                    ) : (
-                      <span className="text-[10px] px-1.5 py-px rounded bg-muted text-muted-foreground">
-                        User
-                      </span>
-                    )}
-                  </div>
-
-                  {concept.definition && (
-                    <p className="text-[12px] italic text-muted-foreground mb-2 line-clamp-2">
-                      {concept.definition}
-                    </p>
-                  )}
-
-                  <div className="flex flex-col gap-0.5 mb-2">
-                    {concept.terms.map((term: TermDTO, idx: number) => (
-                      <div key={idx} className="flex items-center gap-1.5">
-                        <LocalePill locale={term.locale} />
-                        <span
-                          className={`text-[12px] ${term.status === "preferred" ? "font-semibold text-foreground" : "text-muted-foreground"}`}
-                        >
-                          {term.text}
-                        </span>
-                        <TermStatusBadge status={term.status} />
-                        {term.note && (
-                          <span className="text-[10px] text-muted-foreground">({term.note})</span>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-
-                  {/* Actions */}
-                  <div className="flex gap-2 pt-2 border-t border-border/50 opacity-30 group-hover:opacity-100 transition-opacity">
-                    <button
-                      onClick={() => handleEdit(concept)}
-                      className="text-[10px] text-muted-foreground hover:text-foreground transition-colors"
-                    >
-                      Edit
-                    </button>
-                    {deleteConfirmId === concept.id ? (
-                      <>
-                        <button
-                          onClick={() => void handleDelete(concept.id)}
-                          className="text-[10px] text-destructive font-medium"
-                        >
-                          Confirm
-                        </button>
-                        <button
-                          onClick={() => setDeleteConfirmId(null)}
-                          className="text-[10px] text-muted-foreground"
-                        >
-                          Cancel
-                        </button>
-                      </>
-                    ) : (
-                      <button
-                        onClick={() => setDeleteConfirmId(concept.id)}
-                        className="text-[10px] text-destructive hover:text-destructive/80 transition-colors"
-                      >
-                        Delete
-                      </button>
-                    )}
-                  </div>
-                </>
-              )}
-            </div>
-          ))}
+              </div>
+            ) : (
+              /* Display mode */
+              <ConceptCard
+                key={concept.id}
+                concept={concept}
+                referenceLocale={effectiveSourceLocale || propSourceLocale || undefined}
+                selected={selected.has(concept.id)}
+                onToggleSelect={() => toggleSelect(concept.id)}
+                onEdit={() => handleEdit(concept)}
+                onDelete={() => setDeleteConfirmId(concept.id)}
+                deleteConfirm={deleteConfirmId === concept.id}
+                onDeleteConfirm={() => void handleDelete(concept.id)}
+                onDeleteCancel={() => setDeleteConfirmId(null)}
+              />
+            ),
+          )}
         </div>
       )}
 

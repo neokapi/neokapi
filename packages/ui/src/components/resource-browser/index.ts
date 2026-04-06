@@ -34,6 +34,7 @@ export { TMLookupPanel } from "./TMLookupPanel";
 export { EntityAnnotationDialog } from "./EntityAnnotationDialog";
 export { CodedTextDisplay } from "./CodedTextDisplay";
 export { MatchScoreBar } from "./MatchScoreBar";
+export { ConceptCard, type ConceptCardProps } from "./ConceptCard";
 export { LocalePill } from "./LocalePill";
 export { TermStatusBadge } from "./TermStatusBadge";
 export { BulkActionBar } from "./BulkActionBar";

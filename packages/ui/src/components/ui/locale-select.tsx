@@ -18,6 +18,7 @@ import {
 } from "./command";
 import { Button } from "./button";
 import { cn } from "../../lib/utils";
+import { LocalePill } from "../resource-browser/LocalePill";
 
 /** Locale info for display in selectors. */
 export interface LocaleInfo {
@@ -76,10 +77,8 @@ export function LocaleSelect({
         >
           {selected ? (
             <span className="flex items-center gap-1.5 truncate">
+              <LocalePill locale={selected.code} />
               <span>{selected.displayName}</span>
-              <span className="rounded bg-muted px-1 py-0.5 font-mono text-[9px] text-muted-foreground">
-                {selected.code}
-              </span>
             </span>
           ) : (
             <span className="truncate">{placeholder}</span>
@@ -104,10 +103,8 @@ export function LocaleSelect({
                   data-checked={l.code === value}
                 >
                   <span className="flex items-center gap-1.5">
+                    <LocalePill locale={l.code} />
                     <span>{l.displayName}</span>
-                    <span className="rounded bg-muted px-1 py-0.5 font-mono text-[9px] text-muted-foreground">
-                      {l.code}
-                    </span>
                   </span>
                 </CommandItem>
               ))}
@@ -173,12 +170,10 @@ export function MultiLocaleSelect({
               {value.map((code) => (
                 <span
                   key={code}
-                  className="inline-flex items-center gap-1 rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium"
+                  className="inline-flex items-center gap-1 rounded bg-muted px-1 py-0.5 text-[10px] font-medium"
                 >
-                  {displayMap.get(code) ?? code}
-                  <span className="rounded bg-background/50 px-0.5 font-mono text-[8px] text-muted-foreground">
-                    {code}
-                  </span>
+                  <LocalePill locale={code} />
+                  <span>{displayMap.get(code) ?? code}</span>
                   <span
                     role="button"
                     className="rounded-sm hover:bg-accent"
@@ -210,10 +205,8 @@ export function MultiLocaleSelect({
                   data-checked={selectedSet.has(l.code)}
                 >
                   <span className="flex items-center gap-1.5">
+                    <LocalePill locale={l.code} />
                     <span>{l.displayName}</span>
-                    <span className="rounded bg-muted px-1 py-0.5 font-mono text-[9px] text-muted-foreground">
-                      {l.code}
-                    </span>
                   </span>
                 </CommandItem>
               ))}
