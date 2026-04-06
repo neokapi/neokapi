@@ -20,7 +20,7 @@
     "@lexical/react": "^0.42.0",
     "@neokapi/ui": "*",
     "@tailwindcss/vite": "^4.2.2",
-    "@tanstack/react-query": "^5.91.3",
+    "@tanstack/react-query": "^5.96.2",
     "@tanstack/react-router": "^1.168.1",
     "lexical": "^0.42.0",
     "posthog-js": "^1.363.1",
@@ -39,6 +39,6 @@
     "@vitejs/plugin-react": "^6.0.1",
     "jsdom": "^29.0.1",
     "typescript": "^5.9.3",
-    "vite-plus": "^0.1.13"
+    "vite-plus": "^0.1.16"
   }
 }
