@@ -26,7 +26,7 @@ type SegmentationRule struct {
 
 // SegmentationConfig holds configuration for the segmentation tool.
 type SegmentationConfig struct {
-	TargetLocale model.LocaleID    `json:"targetLocale,omitempty" schema:"-"`
+	TargetLocale model.LocaleID     `json:"targetLocale,omitempty" schema:"-"`
 	Rules        []SegmentationRule `json:"rules,omitempty"        schema:"-"`
 
 	// Schema-visible properties matching the bridge schema.

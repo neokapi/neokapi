@@ -9,12 +9,12 @@ neokapi provides first-class LLM integration for translation, quality assurance,
 
 ## Supported Providers
 
-| Provider | Description |
-|----------|-------------|
-| **Anthropic** | Claude models (recommended for quality) |
-| **OpenAI** | GPT models |
+| Provider          | Description                                             |
+| ----------------- | ------------------------------------------------------- |
+| **Anthropic**     | Claude models (recommended for quality)                 |
+| **OpenAI**        | GPT models                                              |
 | **Google Gemini** | Gemini models with streaming and live thinking progress |
-| **Ollama** | Local models (no API key needed) |
+| **Ollama**        | Local models (no API key needed)                        |
 
 ## Setup
 
@@ -56,12 +56,12 @@ Or via CLI flags: `--provider gemini --api-key $GEMINI_API_KEY`. The default mod
 
 ## AI Tools
 
-| Tool | Purpose |
-|------|---------|
-| `ai-translate` | Translate untranslated Blocks using LLM |
-| `ai-qa` | Check translations for fluency, accuracy, terminology |
-| `ai-terminology` | Extract terminology from source Blocks |
-| `ai-review` | Review translations with explanations |
+| Tool             | Purpose                                               |
+| ---------------- | ----------------------------------------------------- |
+| `ai-translate`   | Translate untranslated Blocks using LLM               |
+| `ai-qa`          | Check translations for fluency, accuracy, terminology |
+| `ai-terminology` | Extract terminology from source Blocks                |
+| `ai-review`      | Review translations with explanations                 |
 
 ## Usage
 
@@ -83,11 +83,11 @@ Prompt templates in `ai/prompt/` are context-aware: they include surrounding Blo
 
 ## Environment Variables
 
-| Variable | Provider |
-|----------|----------|
+| Variable            | Provider           |
+| ------------------- | ------------------ |
 | `ANTHROPIC_API_KEY` | Anthropic (Claude) |
-| `OPENAI_API_KEY` | OpenAI (GPT) |
-| `GEMINI_API_KEY` | Google Gemini |
+| `OPENAI_API_KEY`    | OpenAI (GPT)       |
+| `GEMINI_API_KEY`    | Google Gemini      |
 
 ## Local Models with Ollama
 

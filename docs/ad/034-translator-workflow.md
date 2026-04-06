@@ -3,6 +3,7 @@ id: 034-translator-workflow
 sidebar_position: 34
 title: "AD-034: Translator Workflow"
 ---
+
 # AD-034: Translator Workflow
 
 ## Context
@@ -21,19 +22,19 @@ The translator workflow is not a separate system — it extends the existing aut
 
 Today's built-in automation rules:
 
-| Rule | Trigger | Action |
-|------|---------|--------|
-| `auto-translate-on-push` | `push.completed` | Create translation jobs per (item, locale) |
-| `auto-extract-on-push` | `push.completed` | Run entity/term extraction on pushed content |
-| `auto-translate-new-locale` | `project.updated` | Translate all items for new locales |
+| Rule                        | Trigger           | Action                                       |
+| --------------------------- | ----------------- | -------------------------------------------- |
+| `auto-translate-on-push`    | `push.completed`  | Create translation jobs per (item, locale)   |
+| `auto-extract-on-push`      | `push.completed`  | Run entity/term extraction on pushed content |
+| `auto-translate-new-locale` | `project.updated` | Translate all items for new locales          |
 
 New rules added by this AD:
 
-| Rule | Trigger | Action |
-|------|---------|--------|
-| `create-review-tasks` | `push.automations.completed` | Create per-locale review/translate tasks |
-| `create-source-review` | `push.automations.completed` | Create source review task (optional gate) |
-| `fan-out-after-source-review` | `source.review.completed` | Create per-locale tasks after source review |
+| Rule                          | Trigger                      | Action                                      |
+| ----------------------------- | ---------------------------- | ------------------------------------------- |
+| `create-review-tasks`         | `push.automations.completed` | Create per-locale review/translate tasks    |
+| `create-source-review`        | `push.automations.completed` | Create source review task (optional gate)   |
+| `fan-out-after-source-review` | `source.review.completed`    | Create per-locale tasks after source review |
 
 ### Event Flow
 
@@ -62,6 +63,7 @@ Option B — source review gate:
 A new server component that bridges the gap between individual job completion and collective push readiness. It subscribes to `push.completed` events and monitors all translation and extraction jobs spawned for each `push_id`.
 
 **Behavior:**
+
 - Polls `JobStore.ListJobsByPushID()` and `ExtractionJobStore.ListByPushID()` every 5 seconds
 - When all jobs reach terminal status (completed or failed), emits `push.automations.completed`
 - If the project has both `auto_translate` and `auto_extract` disabled (0 jobs), emits immediately
@@ -87,6 +89,7 @@ EventSourceReviewCompleted    EventType = "source.review.completed"
 Creates per-locale tasks for project members with appropriate permissions.
 
 **Algorithm:**
+
 1. Load project to get target languages
 2. Load project members via AuthStore
 3. For each target locale, find members with matching language scope and `PermReview` or `PermTranslate` permission
@@ -95,6 +98,7 @@ Creates per-locale tasks for project members with appropriate permissions.
 6. Dispatch `task.assigned` notification for each task
 
 **Configuration** (via `AutomationAction.Config`):
+
 - `mode`: `"review"` (default) or `"translate"` — controls whether tasks are `TaskReview` or `TaskTranslate`
 - `priority`: task priority (default: `"normal"`)
 
@@ -103,6 +107,7 @@ Creates per-locale tasks for project members with appropriate permissions.
 Creates a single source review task before language fan-out. This prevents fixing the same source issue N times across target languages.
 
 **Configuration:**
+
 - `reviewer`: user ID (optional — falls back to first project member with `PermEditSource`)
 
 The source reviewer inspects pushed content for placeholder correctness, terminology consistency, Do Not Translate (DNT) identification, and context notes. When the reviewer completes the task, `source.review.completed` fires and the automation chain continues.
@@ -133,6 +138,7 @@ The editor already displays AI-translated blocks in the target column — no UI 
 Agentic testing persona agents should work through the task system like human translators. Each persona is registered as a project member with language scope and `PermTranslate`/`PermReview` role. The workflow orchestrator assigns tasks to agents the same way it assigns to human translators.
 
 **Agent workflow change:**
+
 ```
 OLD: Poll /sync/blocks → filter untranslated → translate → push
 NEW: Poll /my/tasks → claim task → translate/review scoped to task → complete task

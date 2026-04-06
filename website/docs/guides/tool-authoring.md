@@ -60,27 +60,27 @@ type MyToolConfig struct {
 
 ### Supported struct tag keys
 
-| Key | Example | Purpose |
-|-----|---------|---------|
+| Key           | Example                     | Purpose                          |
+| ------------- | --------------------------- | -------------------------------- |
 | `description` | `description=Target locale` | Human-readable field description |
-| `default` | `default=true` | Default value |
-| `enum` | `enum=fast\|thorough` | Allowed values (pipe-separated) |
-| `min` | `min=0` | Minimum numeric value |
-| `max` | `max=100` | Maximum numeric value |
-| `widget` | `widget=regexBuilder` | UI widget hint |
-| `placeholder` | `placeholder=en-US` | Input placeholder text |
-| `group` | `group=validation` | Parameter group ID |
+| `default`     | `default=true`              | Default value                    |
+| `enum`        | `enum=fast\|thorough`       | Allowed values (pipe-separated)  |
+| `min`         | `min=0`                     | Minimum numeric value            |
+| `max`         | `max=100`                   | Maximum numeric value            |
+| `widget`      | `widget=regexBuilder`       | UI widget hint                   |
+| `placeholder` | `placeholder=en-US`         | Input placeholder text           |
+| `group`       | `group=validation`          | Parameter group ID               |
 
 ### Go type to JSON Schema type mapping
 
-| Go type | JSON Schema type |
-|---------|-----------------|
-| `bool` | `boolean` |
-| `string` | `string` |
-| `int`, `int64`, `uint`, etc. | `integer` |
-| `float32`, `float64` | `number` |
-| `[]T` | `array` |
-| `map`, `struct` | `object` |
+| Go type                      | JSON Schema type |
+| ---------------------------- | ---------------- |
+| `bool`                       | `boolean`        |
+| `string`                     | `string`         |
+| `int`, `int64`, `uint`, etc. | `integer`        |
+| `float32`, `float64`         | `number`         |
+| `[]T`                        | `array`          |
+| `map`, `struct`              | `object`         |
 
 Interface, function, and channel fields are automatically skipped.
 

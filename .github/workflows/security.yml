@@ -2,7 +2,7 @@ name: Security
 
 on:
   schedule:
-    - cron: '0 3 * * 1' # Monday 3 AM UTC
+    - cron: "0 3 * * 1" # Monday 3 AM UTC
   workflow_dispatch:
 
 permissions:
@@ -16,7 +16,7 @@ jobs:
       fail-fast: false
       matrix:
         module:
-          - '.'
+          - "."
           - cli
           - kapi
           - apps/kapi-desktop

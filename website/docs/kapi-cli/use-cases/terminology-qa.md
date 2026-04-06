@@ -86,6 +86,7 @@ The terminology QA process works in two stages:
 2. **Term enforcement** — for each discovered term, kapi checks whether the translation contains the approved or preferred target term.
 
 A violation is raised when:
+
 - The source contains "password" (a glossary term)
 - But the French translation uses "code secret" instead of the approved "mot de passe"
 

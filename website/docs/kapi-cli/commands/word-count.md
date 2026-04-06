@@ -45,17 +45,17 @@ kapi word-count src/**/*.json -j 4
 
 ## Flags
 
-| Flag | Short | Description | Default |
-|------|-------|-------------|---------|
-| `--source-lang` | | Source language code | `en` |
-| `--target-lang` | | Target language code | |
-| `--format` | `-f` | Override input format detection | |
-| `--encoding` | `-e` | Input file encoding | `UTF-8` |
-| `--concurrency` | `-j` | Max parallel files (0 = auto) | `0` |
-| `--progress` | `-p` | Show progress bar | `false` |
-| `--fail-on-unknown` | | Fail on unrecognized formats (default: skip) | `false` |
-| `--no-warn` | | Suppress warnings for skipped files | `false` |
-| `--json` | | Output results as JSON | `false` |
+| Flag                | Short | Description                                  | Default |
+| ------------------- | ----- | -------------------------------------------- | ------- |
+| `--source-lang`     |       | Source language code                         | `en`    |
+| `--target-lang`     |       | Target language code                         |         |
+| `--format`          | `-f`  | Override input format detection              |         |
+| `--encoding`        | `-e`  | Input file encoding                          | `UTF-8` |
+| `--concurrency`     | `-j`  | Max parallel files (0 = auto)                | `0`     |
+| `--progress`        | `-p`  | Show progress bar                            | `false` |
+| `--fail-on-unknown` |       | Fail on unrecognized formats (default: skip) | `false` |
+| `--no-warn`         |       | Suppress warnings for skipped files          | `false` |
+| `--json`            |       | Output results as JSON                       | `false` |
 
 ## Use Cases
 

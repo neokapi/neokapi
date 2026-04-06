@@ -40,7 +40,12 @@ export function PropertyField({
   allValues?: Record<string, unknown>;
   allProperties?: Record<string, PropertySchema>;
   depth?: number;
-  onDrillDown?: (label: string, key: string, schema: PropertySchema, values: Record<string, unknown>) => void;
+  onDrillDown?: (
+    label: string,
+    key: string,
+    schema: PropertySchema,
+    values: Record<string, unknown>,
+  ) => void;
   presetValues?: Record<string, unknown>;
   docParam?: ToolDocParam;
   error?: string;
@@ -79,7 +84,11 @@ export function PropertyField({
 
   const editor = schema["ui:widget-options"] as
     | {
-        path?: { browseTitle?: string; forSaveAs?: boolean; filters?: Array<{ name: string; extensions: string }> };
+        path?: {
+          browseTitle?: string;
+          forSaveAs?: boolean;
+          filters?: Array<{ name: string; extensions: string }>;
+        };
         folder?: { browseTitle?: string };
         text?: { height?: number };
       }
@@ -123,7 +132,15 @@ export function PropertyField({
 
   if (widget === "code-editor") {
     return (
-      <FieldWrapper label={label} description={description} compact={compact} isModified={isModifiedFromPreset} docParam={docParam} disabled={disabled} error={error}>
+      <FieldWrapper
+        label={label}
+        description={description}
+        compact={compact}
+        isModified={isModifiedFromPreset}
+        docParam={docParam}
+        disabled={disabled}
+        error={error}
+      >
         <CodeInput
           value={String(resolved ?? "")}
           onChange={(v) => onChange(v || undefined)}
@@ -141,7 +158,15 @@ export function PropertyField({
       <CodeFinderEditor
         label={label}
         description={description}
-        value={resolved as { rules: Array<{ pattern: string }>; sample?: string; useAllRulesWhenTesting?: boolean } | undefined}
+        value={
+          resolved as
+            | {
+                rules: Array<{ pattern: string }>;
+                sample?: string;
+                useAllRulesWhenTesting?: boolean;
+              }
+            | undefined
+        }
         presets={schema["ui:presets"]}
         onChange={onChange}
         disabled={disabled}
@@ -151,7 +176,15 @@ export function PropertyField({
 
   if (widget === "simplifier-rules") {
     return (
-      <FieldWrapper label={label} description={description} compact={compact} isModified={isModifiedFromPreset} docParam={docParam} disabled={disabled} error={error}>
+      <FieldWrapper
+        label={label}
+        description={description}
+        compact={compact}
+        isModified={isModifiedFromPreset}
+        docParam={docParam}
+        disabled={disabled}
+        error={error}
+      >
         <CodeInput
           value={String(resolved ?? "")}
           onChange={(v) => onChange(v || undefined)}
@@ -181,7 +214,15 @@ export function PropertyField({
 
   if (widget === "regex") {
     return (
-      <FieldWrapper label={label} description={description} compact={compact} isModified={isModifiedFromPreset} docParam={docParam} disabled={disabled} error={error}>
+      <FieldWrapper
+        label={label}
+        description={description}
+        compact={compact}
+        isModified={isModifiedFromPreset}
+        docParam={docParam}
+        disabled={disabled}
+        error={error}
+      >
         <CodeInput
           value={String(resolved ?? "")}
           onChange={(v) => onChange(v || undefined)}
@@ -197,9 +238,22 @@ export function PropertyField({
 
   if (widget === "tags") {
     const tagString = String(resolved ?? "");
-    const tags = tagString ? tagString.split(",").map((t) => t.trim()).filter(Boolean) : [];
+    const tags = tagString
+      ? tagString
+          .split(",")
+          .map((t) => t.trim())
+          .filter(Boolean)
+      : [];
     return (
-      <FieldWrapper label={label} description={description} compact={compact} isModified={isModifiedFromPreset} docParam={docParam} disabled={disabled} error={error}>
+      <FieldWrapper
+        label={label}
+        description={description}
+        compact={compact}
+        isModified={isModifiedFromPreset}
+        docParam={docParam}
+        disabled={disabled}
+        error={error}
+      >
         <TagInput
           value={tags}
           onChange={(newTags) => onChange(newTags.length > 0 ? newTags.join(", ") : undefined)}
@@ -212,13 +266,23 @@ export function PropertyField({
 
   if (widget === "number-list") {
     return (
-      <FieldWrapper label={label} description={description} compact={compact} isModified={isModifiedFromPreset} docParam={docParam} disabled={disabled} error={error}>
+      <FieldWrapper
+        label={label}
+        description={description}
+        compact={compact}
+        isModified={isModifiedFromPreset}
+        docParam={docParam}
+        disabled={disabled}
+        error={error}
+      >
         <Input
           value={String(resolved ?? "")}
           placeholder={schema["ui:placeholder"] || "1, 2, 3, ..."}
           disabled={disabled}
           className="text-xs h-8"
-          onChange={(e: React.ChangeEvent<HTMLInputElement>) => onChange(e.target.value || undefined)}
+          onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+            onChange(e.target.value || undefined)
+          }
         />
       </FieldWrapper>
     );
@@ -227,14 +291,25 @@ export function PropertyField({
   if (widget === "path" || widget === "file-picker") {
     const pathMeta = editor?.path;
     return (
-      <FieldWrapper label={showLabel ? label : ""} description={description} compact={compact} isModified={isModifiedFromPreset} docParam={docParam} vertical={verticalLayout} disabled={disabled} error={error}>
+      <FieldWrapper
+        label={showLabel ? label : ""}
+        description={description}
+        compact={compact}
+        isModified={isModifiedFromPreset}
+        docParam={docParam}
+        vertical={verticalLayout}
+        disabled={disabled}
+        error={error}
+      >
         <FormInputAction>
           <Input
             value={String(resolved ?? "")}
             placeholder={schema["ui:placeholder"] || pathMeta?.browseTitle || "/path/to/file..."}
             disabled={disabled}
             className="flex-1 font-mono text-xs h-8"
-            onChange={(e: React.ChangeEvent<HTMLInputElement>) => onChange(e.target.value || undefined)}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+              onChange(e.target.value || undefined)
+            }
           />
           <Button
             type="button"
@@ -274,16 +349,35 @@ export function PropertyField({
   if (widget === "folder") {
     const folderMeta = editor?.folder;
     return (
-      <FieldWrapper label={showLabel ? label : ""} description={description} compact={compact} isModified={isModifiedFromPreset} docParam={docParam} vertical={verticalLayout} disabled={disabled} error={error}>
+      <FieldWrapper
+        label={showLabel ? label : ""}
+        description={description}
+        compact={compact}
+        isModified={isModifiedFromPreset}
+        docParam={docParam}
+        vertical={verticalLayout}
+        disabled={disabled}
+        error={error}
+      >
         <FormInputAction>
           <Input
             value={String(resolved ?? "")}
-            placeholder={schema["ui:placeholder"] || folderMeta?.browseTitle || "/path/to/folder..."}
+            placeholder={
+              schema["ui:placeholder"] || folderMeta?.browseTitle || "/path/to/folder..."
+            }
             disabled={disabled}
             className="flex-1 font-mono text-xs h-8"
-            onChange={(e: React.ChangeEvent<HTMLInputElement>) => onChange(e.target.value || undefined)}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+              onChange(e.target.value || undefined)
+            }
           />
-          <Button type="button" variant="outline" size="sm" disabled={disabled} className="h-8 text-xs shrink-0">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={disabled}
+            className="h-8 text-xs shrink-0"
+          >
             Browse
           </Button>
         </FormInputAction>
@@ -294,7 +388,16 @@ export function PropertyField({
   if (widget === "textarea") {
     const textMeta = editor?.text;
     return (
-      <FieldWrapper label={showLabel ? label : ""} description={description} compact={compact} isModified={isModifiedFromPreset} docParam={docParam} vertical={verticalLayout} disabled={disabled} error={error}>
+      <FieldWrapper
+        label={showLabel ? label : ""}
+        description={description}
+        compact={compact}
+        isModified={isModifiedFromPreset}
+        docParam={docParam}
+        vertical={verticalLayout}
+        disabled={disabled}
+        error={error}
+      >
         <textarea
           value={String(resolved ?? "")}
           placeholder={schema["ui:placeholder"] || ""}
@@ -314,14 +417,25 @@ export function PropertyField({
 
   if (widget === "password") {
     return (
-      <FieldWrapper label={showLabel ? label : ""} description={description} compact={compact} isModified={isModifiedFromPreset} docParam={docParam} vertical={verticalLayout} disabled={disabled} error={error}>
+      <FieldWrapper
+        label={showLabel ? label : ""}
+        description={description}
+        compact={compact}
+        isModified={isModifiedFromPreset}
+        docParam={docParam}
+        vertical={verticalLayout}
+        disabled={disabled}
+        error={error}
+      >
         <Input
           type="password"
           value={String(resolved ?? "")}
           placeholder={schema["ui:placeholder"]}
           disabled={disabled}
           className="text-xs h-8"
-          onChange={(e: React.ChangeEvent<HTMLInputElement>) => onChange(e.target.value || undefined)}
+          onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+            onChange(e.target.value || undefined)
+          }
         />
       </FieldWrapper>
     );
@@ -330,10 +444,23 @@ export function PropertyField({
   const widgetOpts = schema["ui:widget-options"] as Record<string, unknown> | undefined;
 
   if (widget === "checklist" && widgetOpts?.entries) {
-    const entries = widgetOpts.entries as Array<{ name: string; title: string; description?: string }>;
+    const entries = widgetOpts.entries as Array<{
+      name: string;
+      title: string;
+      description?: string;
+    }>;
     const current = (resolved as Record<string, boolean>) ?? {};
     return (
-      <FieldWrapper label={showLabel ? label : ""} description={description} compact={compact} isModified={isModifiedFromPreset} docParam={docParam} vertical={verticalLayout} disabled={disabled} error={error}>
+      <FieldWrapper
+        label={showLabel ? label : ""}
+        description={description}
+        compact={compact}
+        isModified={isModifiedFromPreset}
+        docParam={docParam}
+        vertical={verticalLayout}
+        disabled={disabled}
+        error={error}
+      >
         <div className="space-y-1">
           {entries.map((entry) => (
             <label
@@ -365,8 +492,22 @@ export function PropertyField({
   if (widget === "select" && effectiveEnum && effectiveEnum.length > 0) {
     const current = String(resolved ?? "");
     return (
-      <FieldWrapper label={showLabel ? label : ""} description={description} compact={compact} isModified={isModifiedFromPreset} docParam={docParam} vertical={verticalLayout} disabled={disabled} error={error}>
-        <div className={cn("border border-input rounded-md max-h-[120px] overflow-y-auto", disabled && "opacity-50")}>
+      <FieldWrapper
+        label={showLabel ? label : ""}
+        description={description}
+        compact={compact}
+        isModified={isModifiedFromPreset}
+        docParam={docParam}
+        vertical={verticalLayout}
+        disabled={disabled}
+        error={error}
+      >
+        <div
+          className={cn(
+            "border border-input rounded-md max-h-[120px] overflow-y-auto",
+            disabled && "opacity-50",
+          )}
+        >
           {effectiveEnum.map((v) => {
             const val = String(v);
             const isActive = current === val;
@@ -410,7 +551,15 @@ export function PropertyField({
 
   if (effectiveEnum && effectiveEnum.length > 0) {
     return (
-      <FieldWrapper label={showLabel ? label : ""} description={description} compact={compact} isModified={isModifiedFromPreset} docParam={docParam} disabled={disabled} error={error}>
+      <FieldWrapper
+        label={showLabel ? label : ""}
+        description={description}
+        compact={compact}
+        isModified={isModifiedFromPreset}
+        docParam={docParam}
+        disabled={disabled}
+        error={error}
+      >
         <select
           value={String(resolved ?? "")}
           disabled={disabled}
@@ -432,7 +581,8 @@ export function PropertyField({
           })}
         </select>
         {(() => {
-          const desc = resolved != null ? schema["ui:enum-descriptions"]?.[String(resolved)] : undefined;
+          const desc =
+            resolved != null ? schema["ui:enum-descriptions"]?.[String(resolved)] : undefined;
           return desc ? (
             <p className="text-xs text-muted-foreground italic mt-0.5">{desc}</p>
           ) : null;
@@ -443,7 +593,15 @@ export function PropertyField({
 
   if (schema.type === "integer" || schema.type === "number") {
     return (
-      <FieldWrapper label={label} description={description} compact={compact} isModified={isModifiedFromPreset} docParam={docParam} disabled={disabled} error={error}>
+      <FieldWrapper
+        label={label}
+        description={description}
+        compact={compact}
+        isModified={isModifiedFromPreset}
+        docParam={docParam}
+        disabled={disabled}
+        error={error}
+      >
         <Input
           type="number"
           value={resolved != null ? String(resolved) : ""}
@@ -455,7 +613,9 @@ export function PropertyField({
           className="text-xs h-8"
           onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
             const v = e.target.value;
-            onChange(v === "" ? undefined : schema.type === "integer" ? parseInt(v) : parseFloat(v));
+            onChange(
+              v === "" ? undefined : schema.type === "integer" ? parseInt(v) : parseFloat(v),
+            );
           }}
         />
       </FieldWrapper>
@@ -494,7 +654,9 @@ export function PropertyField({
       );
     }
 
-    return <JsonEditor label={label} description={description} value={resolved} onChange={onChange} />;
+    return (
+      <JsonEditor label={label} description={description} value={resolved} onChange={onChange} />
+    );
   }
 
   if (schema.type === "array") {
@@ -511,15 +673,27 @@ export function PropertyField({
         />
       );
     }
-    return <JsonEditor label={label} description={description} value={resolved} onChange={onChange} />;
+    return (
+      <JsonEditor label={label} description={description} value={resolved} onChange={onChange} />
+    );
   }
 
   // Default: string input
   return (
-    <FieldWrapper label={label} description={description} compact={compact} isModified={isModifiedFromPreset} docParam={docParam} disabled={disabled} error={error}>
+    <FieldWrapper
+      label={label}
+      description={description}
+      compact={compact}
+      isModified={isModifiedFromPreset}
+      docParam={docParam}
+      disabled={disabled}
+      error={error}
+    >
       <Input
         value={String(resolved ?? "")}
-        placeholder={schema["ui:placeholder"] || (schema.default != null ? String(schema.default) : undefined)}
+        placeholder={
+          schema["ui:placeholder"] || (schema.default != null ? String(schema.default) : undefined)
+        }
         disabled={disabled}
         className="text-xs h-8"
         onChange={(e: React.ChangeEvent<HTMLInputElement>) => onChange(e.target.value || undefined)}

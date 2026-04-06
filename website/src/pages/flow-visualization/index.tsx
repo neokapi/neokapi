@@ -1,6 +1,6 @@
-import React from 'react';
-import Layout from '@theme/Layout';
-import FlowVisualization from './_FlowVisualization';
+import React from "react";
+import Layout from "@theme/Layout";
+import FlowVisualization from "./_FlowVisualization";
 
 export default function FlowVisualizationPage(): React.ReactElement {
   return (
@@ -10,7 +10,9 @@ export default function FlowVisualizationPage(): React.ReactElement {
     >
       <main className="container margin-vert--lg">
         <h1>Flow Visualization</h1>
-        <p>Watch how Parts flow through neokapi&apos;s concurrent processing pipeline in real-time.</p>
+        <p>
+          Watch how Parts flow through neokapi&apos;s concurrent processing pipeline in real-time.
+        </p>
         <FlowVisualization />
       </main>
     </Layout>

@@ -71,38 +71,119 @@
       "initial": { "id": "layer-1", "type": "LayerStart", "summary": "Document root" }
     },
     "block-title": {
-      "initial": { "id": "block-title", "type": "Block", "summary": "title: Getting Started", "sourceText": "Getting Started" },
+      "initial": {
+        "id": "block-title",
+        "type": "Block",
+        "summary": "title: Getting Started",
+        "sourceText": "Getting Started"
+      },
       "afterNode": {
-        "tm": { "id": "block-title", "type": "Block", "summary": "title: Getting Started (no TM match)", "sourceText": "Getting Started" },
-        "pseudo": { "id": "block-title", "type": "Block", "summary": "title: [\u011c\u00e9\u0163\u0163\u00ee\u00f1\u011d \u015c\u0163\u00e0\u0155\u0163\u00e9\u00f0]", "sourceText": "Getting Started", "targetText": "[\u011c\u00e9\u0163\u0163\u00ee\u00f1\u011d \u015c\u0163\u00e0\u0155\u0163\u00e9\u00f0]" }
+        "tm": {
+          "id": "block-title",
+          "type": "Block",
+          "summary": "title: Getting Started (no TM match)",
+          "sourceText": "Getting Started"
+        },
+        "pseudo": {
+          "id": "block-title",
+          "type": "Block",
+          "summary": "title: [\u011c\u00e9\u0163\u0163\u00ee\u00f1\u011d \u015c\u0163\u00e0\u0155\u0163\u00e9\u00f0]",
+          "sourceText": "Getting Started",
+          "targetText": "[\u011c\u00e9\u0163\u0163\u00ee\u00f1\u011d \u015c\u0163\u00e0\u0155\u0163\u00e9\u00f0]"
+        }
       }
     },
     "block-subtitle": {
-      "initial": { "id": "block-subtitle", "type": "Block", "summary": "subtitle: Quick Setup Guide", "sourceText": "Quick Setup Guide" },
+      "initial": {
+        "id": "block-subtitle",
+        "type": "Block",
+        "summary": "subtitle: Quick Setup Guide",
+        "sourceText": "Quick Setup Guide"
+      },
       "afterNode": {
-        "tm": { "id": "block-subtitle", "type": "Block", "summary": "subtitle: Quick Setup Guide (85% TM match)", "sourceText": "Quick Setup Guide" },
-        "pseudo": { "id": "block-subtitle", "type": "Block", "summary": "subtitle: [\u01ec\u00fb\u00ee\u00e7\u0137 \u015c\u00e9\u0163\u00fb\u00fe \u011c\u00fb\u00ee\u00f0\u00e9]", "sourceText": "Quick Setup Guide", "targetText": "[\u01ec\u00fb\u00ee\u00e7\u0137 \u015c\u00e9\u0163\u00fb\u00fe \u011c\u00fb\u00ee\u00f0\u00e9]" }
+        "tm": {
+          "id": "block-subtitle",
+          "type": "Block",
+          "summary": "subtitle: Quick Setup Guide (85% TM match)",
+          "sourceText": "Quick Setup Guide"
+        },
+        "pseudo": {
+          "id": "block-subtitle",
+          "type": "Block",
+          "summary": "subtitle: [\u01ec\u00fb\u00ee\u00e7\u0137 \u015c\u00e9\u0163\u00fb\u00fe \u011c\u00fb\u00ee\u00f0\u00e9]",
+          "sourceText": "Quick Setup Guide",
+          "targetText": "[\u01ec\u00fb\u00ee\u00e7\u0137 \u015c\u00e9\u0163\u00fb\u00fe \u011c\u00fb\u00ee\u00f0\u00e9]"
+        }
       }
     },
     "block-body1": {
-      "initial": { "id": "block-body1", "type": "Block", "summary": "body1: Install the package", "sourceText": "Install the package" },
+      "initial": {
+        "id": "block-body1",
+        "type": "Block",
+        "summary": "body1: Install the package",
+        "sourceText": "Install the package"
+      },
       "afterNode": {
-        "tm": { "id": "block-body1", "type": "Block", "summary": "body1: Install the package (100% TM match)", "sourceText": "Install the package", "targetText": "Installez le paquet" },
-        "pseudo": { "id": "block-body1", "type": "Block", "summary": "body1: Installez le paquet (TM applied)", "sourceText": "Install the package", "targetText": "Installez le paquet" }
+        "tm": {
+          "id": "block-body1",
+          "type": "Block",
+          "summary": "body1: Install the package (100% TM match)",
+          "sourceText": "Install the package",
+          "targetText": "Installez le paquet"
+        },
+        "pseudo": {
+          "id": "block-body1",
+          "type": "Block",
+          "summary": "body1: Installez le paquet (TM applied)",
+          "sourceText": "Install the package",
+          "targetText": "Installez le paquet"
+        }
       }
     },
     "block-body2": {
-      "initial": { "id": "block-body2", "type": "Block", "summary": "body2: Configure your settings", "sourceText": "Configure your settings" },
+      "initial": {
+        "id": "block-body2",
+        "type": "Block",
+        "summary": "body2: Configure your settings",
+        "sourceText": "Configure your settings"
+      },
       "afterNode": {
-        "tm": { "id": "block-body2", "type": "Block", "summary": "body2: Configure your settings (no TM match)", "sourceText": "Configure your settings" },
-        "pseudo": { "id": "block-body2", "type": "Block", "summary": "body2: [\u0108\u00f6\u00f1\u0192\u00ee\u011d\u00fb\u0155\u00e9 \u00fd\u00f6\u00fb\u0155 \u015d\u00e9\u0163\u0163\u00ee\u00f1\u011d\u015d]", "sourceText": "Configure your settings", "targetText": "[\u0108\u00f6\u00f1\u0192\u00ee\u011d\u00fb\u0155\u00e9 \u00fd\u00f6\u00fb\u0155 \u015d\u00e9\u0163\u0163\u00ee\u00f1\u011d\u015d]" }
+        "tm": {
+          "id": "block-body2",
+          "type": "Block",
+          "summary": "body2: Configure your settings (no TM match)",
+          "sourceText": "Configure your settings"
+        },
+        "pseudo": {
+          "id": "block-body2",
+          "type": "Block",
+          "summary": "body2: [\u0108\u00f6\u00f1\u0192\u00ee\u011d\u00fb\u0155\u00e9 \u00fd\u00f6\u00fb\u0155 \u015d\u00e9\u0163\u0163\u00ee\u00f1\u011d\u015d]",
+          "sourceText": "Configure your settings",
+          "targetText": "[\u0108\u00f6\u00f1\u0192\u00ee\u011d\u00fb\u0155\u00e9 \u00fd\u00f6\u00fb\u0155 \u015d\u00e9\u0163\u0163\u00ee\u00f1\u011d\u015d]"
+        }
       }
     },
     "block-body3": {
-      "initial": { "id": "block-body3", "type": "Block", "summary": "body3: Run the application", "sourceText": "Run the application" },
+      "initial": {
+        "id": "block-body3",
+        "type": "Block",
+        "summary": "body3: Run the application",
+        "sourceText": "Run the application"
+      },
       "afterNode": {
-        "tm": { "id": "block-body3", "type": "Block", "summary": "body3: Run the application (no TM match)", "sourceText": "Run the application" },
-        "pseudo": { "id": "block-body3", "type": "Block", "summary": "body3: [\u0158\u00fb\u00f1 \u0163\u0125\u00e9 \u00e0\u00fe\u00fe\u013c\u00ee\u00e7\u00e0\u0163\u00ee\u00f6\u00f1]", "sourceText": "Run the application", "targetText": "[\u0158\u00fb\u00f1 \u0163\u0125\u00e9 \u00e0\u00fe\u00fe\u013c\u00ee\u00e7\u00e0\u0163\u00ee\u00f6\u00f1]" }
+        "tm": {
+          "id": "block-body3",
+          "type": "Block",
+          "summary": "body3: Run the application (no TM match)",
+          "sourceText": "Run the application"
+        },
+        "pseudo": {
+          "id": "block-body3",
+          "type": "Block",
+          "summary": "body3: [\u0158\u00fb\u00f1 \u0163\u0125\u00e9 \u00e0\u00fe\u00fe\u013c\u00ee\u00e7\u00e0\u0163\u00ee\u00f6\u00f1]",
+          "sourceText": "Run the application",
+          "targetText": "[\u0158\u00fb\u00f1 \u0163\u0125\u00e9 \u00e0\u00fe\u00fe\u013c\u00ee\u00e7\u00e0\u0163\u00ee\u00f6\u00f1]"
+        }
       }
     },
     "data-1": {

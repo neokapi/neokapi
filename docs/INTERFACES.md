@@ -3,6 +3,7 @@
 This document defines the concrete Go interfaces and types that form the foundation of neokapi. These definitions serve as the contract for all implementations.
 
 ## Table of Contents
+
 - [Content Model](#content-model)
 - [Data Format Interfaces](#data-format-interfaces)
 - [Tool Interfaces](#tool-interfaces)

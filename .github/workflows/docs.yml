@@ -5,9 +5,9 @@ on:
   push:
     branches: [main]
     paths:
-      - 'website/**'
-      - 'docs/**'
-      - 'bowrain/docs/**'
+      - "website/**"
+      - "docs/**"
+      - "bowrain/docs/**"
 
 permissions:
   contents: read
@@ -25,7 +25,7 @@ jobs:
       - uses: actions/checkout@v6
       - uses: voidzero-dev/setup-vp@v1
         with:
-          node-version: '22'
+          node-version: "22"
           cache: true
           cache-dependency-path: website/package-lock.json
 

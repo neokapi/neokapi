@@ -3,6 +3,7 @@ id: 011-automation
 sidebar_position: 11
 title: "AD-011: Automation and Event System"
 ---
+
 # AD-011: Automation and Event System
 
 ## Context
@@ -18,6 +19,7 @@ The key insight is that automation should be event-driven rather than scheduled 
 ### Automation Scope
 
 **Bowrain Server** provides full event-driven automation:
+
 - Event bus for system-wide events
 - Automation rules with visual editor UI and YAML backing
 - Built-in default rules for common patterns
@@ -27,6 +29,7 @@ The key insight is that automation should be event-driven rather than scheduled 
 - GitHub Action for CI/CD integration
 
 **Bowrain CLI** provides local automation hooks:
+
 - Six trigger points: `pre-push`, `post-push`, `pre-pull`, `post-pull`,
   `pre-flow`, `post-flow`
 - Four action types: `run_flow`, `wait_translate`, `pull`, `push`
@@ -36,6 +39,7 @@ The key insight is that automation should be event-driven rather than scheduled 
 **Kapi** is a standalone file-processing tool with no project model or sync commands. It does not provide automation hooks.
 
 **Clear separation:**
+
 - **Server automation** = orchestrate complex multi-system workflows
 - **Bowrain CLI hooks** = coordinate local+server operations around sync
 - **Kapi** = standalone file processing, no automation
@@ -103,7 +107,7 @@ automations:
   - name: qa-on-translation
     on: translation.updated
     conditions:
-      origin: ["ai", "mt"]   # only for machine translations
+      origin: ["ai", "mt"] # only for machine translations
     actions:
       - flow: qa-check
       - notify: slack
@@ -128,12 +132,12 @@ Each automation rule specifies an event trigger (`on`), optional conditions that
 
 Three automation rules are built in and enabled by default on all projects:
 
-| Rule | Trigger | Action |
-|------|---------|--------|
-| `auto-translate-on-push` | `push.completed` | Create translation jobs for each (item, locale) pair pushed |
-| `auto-extract-on-push` | `push.completed` | Run entity/term extraction on pushed content |
-| `auto-translate-new-locale` | `project.updated` | Translate all items when new target locales are added |
-| `create-review-tasks` | `push.automations.completed` | Create per-locale review tasks for translators (opt-in) |
+| Rule                        | Trigger                      | Action                                                      |
+| --------------------------- | ---------------------------- | ----------------------------------------------------------- |
+| `auto-translate-on-push`    | `push.completed`             | Create translation jobs for each (item, locale) pair pushed |
+| `auto-extract-on-push`      | `push.completed`             | Run entity/term extraction on pushed content                |
+| `auto-translate-new-locale` | `project.updated`            | Translate all items when new target locales are added       |
+| `create-review-tasks`       | `push.automations.completed` | Create per-locale review tasks for translators (opt-in)     |
 
 Built-in rules use the platform AI provider (Azure OpenAI with Managed
 Identity) and link jobs to the originating `push_id` for traceability.
@@ -211,6 +215,7 @@ quality_gates:
 ```
 
 Example gates:
+
 - **terminology-compliance**: Block `push` if more than 5% of blocks use forbidden terms (blocking)
 - **qa-pass-rate**: Warn if QA check fails on more than 10% of blocks (advisory)
 - **review-coverage**: Block export if fewer than 80% of blocks are reviewed (blocking)
@@ -224,10 +229,10 @@ sync:
   - connector: contentful-main
     interval: 15m
     pull:
-      on_change: true      # only pull if content changed (ETag/modified check)
+      on_change: true # only pull if content changed (ETag/modified check)
     push:
-      auto: false          # require manual push (safety default)
-      on_review: true      # auto-push when all blocks reviewed
+      auto: false # require manual push (safety default)
+      on_review: true # auto-push when all blocks reviewed
 ```
 
 Continuous sync bridges the gap between event-driven automation (reactive) and time-based polling (proactive). The pull side detects changes; once detected, it emits `content.extracted` events that feed into the automation rules above.
@@ -256,6 +261,7 @@ automations:
 `pre-flow`, `post-flow`
 
 **Four action types:**
+
 - `run_flow` -- execute a local flow (e.g., QA check)
 - `wait_translate` -- poll server until translation jobs from the push
   are complete
@@ -266,6 +272,7 @@ The `bowrain sync` command combines push + wait + pull into a single
 operation, orchestrating the full round-trip via local automation.
 
 **Differences from server automation:**
+
 - **No event bus** — hooks are trigger-based command chains
 - **Coordinates client+server** — can wait for server-side jobs, then pull
 - **Synchronous** — hooks block the parent operation until complete
@@ -283,10 +290,12 @@ hooks:
 ```
 
 **Hook execution:**
+
 - `bowrain push` → runs `pre-push` flows → sends blocks to server
 - `bowrain pull` → fetches blocks from server → runs `post-pull` flows
 
 **Differences from Bowrain CLI automation rules:**
+
 - **Local file processing only** — no `wait_translate` or server coordination
 - **Simpler model** — two trigger points, flow names only
 - **Synchronous** — hooks block the push/pull operation until complete

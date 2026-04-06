@@ -11,15 +11,15 @@ The Okapi bridge provides access to all 40+ Okapi Framework filters without rewr
 
 The bridge subprocess starts a gRPC server and prints its socket address to stdout. The Go side connects as a client and communicates via the `BridgeService` defined in `core/plugin/proto/v2/neokapi_bridge.proto`:
 
-| RPC | Direction | Purpose |
-|-----|-----------|---------|
-| `ListFilters` | Unary | Discover available filters at startup |
-| `Info` | Unary | Get metadata for a specific filter |
-| `Open` | Unary | Open a document with a filter |
-| `Read` | Server-streaming | Stream extracted Parts from the document |
-| `Write` | Client-streaming | Send Parts to reconstruct the document |
-| `Close` | Unary | Release filter resources |
-| `Shutdown` | Unary | Gracefully stop the bridge |
+| RPC           | Direction        | Purpose                                  |
+| ------------- | ---------------- | ---------------------------------------- |
+| `ListFilters` | Unary            | Discover available filters at startup    |
+| `Info`        | Unary            | Get metadata for a specific filter       |
+| `Open`        | Unary            | Open a document with a filter            |
+| `Read`        | Server-streaming | Stream extracted Parts from the document |
+| `Write`       | Client-streaming | Send Parts to reconstruct the document   |
+| `Close`       | Unary            | Release filter resources                 |
+| `Shutdown`    | Unary            | Gracefully stop the bridge               |
 
 `Read` and `Write` use gRPC streaming — content flows incrementally without buffering the entire document in memory, which is critical for large files (e.g., XLSX).
 

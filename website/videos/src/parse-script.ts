@@ -58,10 +58,7 @@ export function expandThemes(script: Script): Script[] {
  * need the actual video duration, which is provided via videoDurations map.
  * Returns a ResolvedScript with all durations in frames.
  */
-export function resolveScript(
-  script: Script,
-  videoDurations: Map<string, number>
-): ResolvedScript {
+export function resolveScript(script: Script, videoDurations: Map<string, number>): ResolvedScript {
   const fps = script.video.fps;
   const resolvedScenes: ResolvedScene[] = script.scenes.map((scene) => {
     let durationInFrames: number;
@@ -79,7 +76,7 @@ export function resolveScript(
           if (videoDuration === undefined) {
             throw new Error(
               `No duration found for video: ${scene.source}. ` +
-                `Available: ${[...videoDurations.keys()].join(", ")}`
+                `Available: ${[...videoDurations.keys()].join(", ")}`,
             );
           }
           let seconds = videoDuration;
@@ -102,10 +99,7 @@ export function resolveScript(
     return { scene, durationInFrames };
   });
 
-  const totalDurationInFrames = resolvedScenes.reduce(
-    (sum, s) => sum + s.durationInFrames,
-    0
-  );
+  const totalDurationInFrames = resolvedScenes.reduce((sum, s) => sum + s.durationInFrames, 0);
 
   return {
     video: script.video,

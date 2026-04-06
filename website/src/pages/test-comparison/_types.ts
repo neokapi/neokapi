@@ -61,66 +61,61 @@ export interface TestSuite {
 export interface TestCase {
   name: string;
   className?: string;
-  status: 'pass' | 'fail' | 'skip' | 'error';
+  status: "pass" | "fail" | "skip" | "error";
   durationMs: number;
 }
 
 /** Test state classification. */
-export type TestState = 'implemented' | 'pending' | 'skipped' | 'unmapped';
+export type TestState = "implemented" | "pending" | "skipped" | "unmapped";
 
 /** State filter applied from the summary bar to the format list. */
-export type StateFilter =
-  | null
-  | 'implemented'
-  | 'not-applicable'
-  | 'pending'
-  | 'unmapped';
+export type StateFilter = null | "implemented" | "not-applicable" | "pending" | "unmapped";
 
 /** Auto-classified category for not-applicable tests. */
 export type SkipCategory =
-  | 'subfilter'
-  | 'vendor'
-  | 'roundtrip'
-  | 'testdata'
-  | 'java-api'
-  | 'regex'
-  | 'config'
-  | 'format'
-  | 'dita'
-  | 'feature'
-  | 'not-implemented'
-  | 'other';
+  | "subfilter"
+  | "vendor"
+  | "roundtrip"
+  | "testdata"
+  | "java-api"
+  | "regex"
+  | "config"
+  | "format"
+  | "dita"
+  | "feature"
+  | "not-implemented"
+  | "other";
 
 /** Human-readable labels for skip categories. */
 export const skipCategoryLabels: Record<SkipCategory, string> = {
-  subfilter: 'Subfilter',
-  vendor: 'Vendor Extension',
-  roundtrip: 'Roundtrip',
-  testdata: 'Test Data',
-  'java-api': 'Java API',
-  regex: 'Regex',
-  config: 'Config',
-  format: 'Wrong Format',
-  dita: 'DITA',
-  feature: 'Feature',
-  'not-implemented': 'Not Implemented',
-  other: 'Other',
+  subfilter: "Subfilter",
+  vendor: "Vendor Extension",
+  roundtrip: "Roundtrip",
+  testdata: "Test Data",
+  "java-api": "Java API",
+  regex: "Regex",
+  config: "Config",
+  format: "Wrong Format",
+  dita: "DITA",
+  feature: "Feature",
+  "not-implemented": "Not Implemented",
+  other: "Other",
 };
 
 /** Colors for skip categories. */
 export const skipCategoryColors: Record<SkipCategory, string> = {
-  subfilter: '#8b5cf6',
-  vendor: '#ec4899',
-  roundtrip: '#06b6d4',
-  testdata: '#f59e0b',
-  'java-api': '#6366f1',
-  regex: '#14b8a6',
-  config: '#f97316',
-  format: '#ef4444',
-  dita: '#a855f7',
-  feature: '#3b82f6',
-  'not-implemented': '#64748b',
-  other: '#94a3b8',
+  subfilter: "#8b5cf6",
+  vendor: "#ec4899",
+  roundtrip: "#06b6d4",
+  testdata: "#f59e0b",
+  "java-api": "#6366f1",
+  regex: "#14b8a6",
+  config: "#f97316",
+  format: "#ef4444",
+  dita: "#a855f7",
+  feature: "#3b82f6",
+  "not-implemented": "#64748b",
+  other: "#94a3b8",
 };
 
 /** Row in the unified test case table. */
@@ -232,14 +227,14 @@ function convertAnnotatedRows(matches: TestCaseMatch[]): TestCaseRow[] {
   return matches.map((m) => ({
     testName: m.javaMethod,
     javaClass: shortClass(m.javaClass),
-    okapiStatus: m.okapiStatus ?? '',
+    okapiStatus: m.okapiStatus ?? "",
     okapiFile: m.okapiFile,
-    bridgeTest: m.bridgeTest ?? '',
-    bridgeStatus: m.bridgeStatus ?? '',
+    bridgeTest: m.bridgeTest ?? "",
+    bridgeStatus: m.bridgeStatus ?? "",
     bridgeFile: m.bridgeFile,
     bridgeLine: m.bridgeLine,
-    nativeTest: m.nativeTest ?? '',
-    nativeStatus: m.nativeStatus ?? '',
+    nativeTest: m.nativeTest ?? "",
+    nativeStatus: m.nativeStatus ?? "",
     nativeFile: m.nativeFile,
     nativeLine: m.nativeLine,
     skipReason: m.skipReason,
@@ -270,10 +265,10 @@ function buildRowsFromSuites(
           testName: tc.name,
           javaClass: shortClass(tc.className ?? suite.name),
           okapiStatus: tc.status,
-          bridgeTest: '',
-          bridgeStatus: '',
-          nativeTest: '',
-          nativeStatus: '',
+          bridgeTest: "",
+          bridgeStatus: "",
+          nativeTest: "",
+          nativeStatus: "",
         });
       }
     }
@@ -285,12 +280,12 @@ function buildRowsFromSuites(
       for (const tc of suite.tests) {
         rows.push({
           testName: tc.name,
-          javaClass: '',
-          okapiStatus: '',
+          javaClass: "",
+          okapiStatus: "",
           bridgeTest: tc.name,
           bridgeStatus: tc.status,
-          nativeTest: '',
-          nativeStatus: '',
+          nativeTest: "",
+          nativeStatus: "",
         });
       }
     }
@@ -302,10 +297,10 @@ function buildRowsFromSuites(
       for (const tc of suite.tests) {
         rows.push({
           testName: tc.name,
-          javaClass: '',
-          okapiStatus: '',
-          bridgeTest: '',
-          bridgeStatus: '',
+          javaClass: "",
+          okapiStatus: "",
+          bridgeTest: "",
+          bridgeStatus: "",
           nativeTest: tc.name,
           nativeStatus: tc.status,
         });
@@ -317,7 +312,7 @@ function buildRowsFromSuites(
 }
 
 function shortClass(fqn: string): string {
-  const idx = fqn.lastIndexOf('.');
+  const idx = fqn.lastIndexOf(".");
   return idx >= 0 ? fqn.slice(idx + 1) : fqn;
 }
 

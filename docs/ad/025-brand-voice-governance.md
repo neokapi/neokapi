@@ -3,6 +3,7 @@ id: 025-brand-voice-governance
 sidebar_position: 25
 title: "AD-025: Brand Voice Governance"
 ---
+
 # AD-025: Brand voice governance
 
 ## Context
@@ -10,6 +11,7 @@ title: "AD-025: Brand Voice Governance"
 Localization teams need more than terminology management -- they need to enforce consistent brand voice across languages, channels, and markets. Existing tools like Acrolinx and Writer.com are proprietary, expensive, and don't integrate with streaming localization pipelines. neokapi's progressive terminology model ([AD-010](./010-terminology.md)) already provides the foundation for brand vocabulary; this extends it into full brand governance with voice profiles, MQM-inspired scoring, and AI-powered compliance checking.
 
 Key requirements:
+
 - Define brand voice as structured, machine-readable profiles (tone, style, vocabulary)
 - Score content against brand guidelines using MQM-inspired penalty weighting
 - Distribute profiles to AI agents via MCP ([AD-021](./021-mcp-integration.md))
@@ -43,6 +45,7 @@ type VoiceProfile struct {
 ```
 
 **ToneProfile** describes the desired personality characteristics:
+
 - `Personality` -- trait keywords (e.g., "friendly", "knowledgeable", "direct")
 - `Formality` -- "casual", "neutral", "formal", "technical"
 - `Emotion` -- "warm", "neutral", "authoritative"
@@ -50,6 +53,7 @@ type VoiceProfile struct {
 - `Guidelines` -- free-text tone guidance
 
 **StyleRules** defines writing constraints:
+
 - `ActiveVoice` -- prefer active voice
 - `SentenceLength` -- "short", "medium", "varied"
 - `PersonPOV` -- "first_plural", "second", "third"
@@ -57,6 +61,7 @@ type VoiceProfile struct {
 - `ProhibitedPatterns` / `RequiredPatterns` -- regex-based pattern rules with severity
 
 **VocabularyRules** defines term constraints:
+
 - `PreferredTerms` -- terms to use, with optional replacement and note
 - `ForbiddenTerms` -- terms to avoid, with replacement suggestions
 - `CompetitorTerms` -- competitor brand terms to never use
@@ -76,24 +81,25 @@ Brand compliance is scored using an MQM-inspired penalty model with five dimensi
 
 **Dimensions:**
 
-| Dimension | What it measures |
-|-----------|-----------------|
-| `tone` | Voice personality, formality, emotion alignment |
-| `style` | Writing rules (active voice, sentence length, POV) |
-| `vocabulary` | Preferred/forbidden/competitor term usage |
-| `clarity` | Readability and comprehension |
-| `brand_compliance` | Overall brand alignment |
+| Dimension          | What it measures                                   |
+| ------------------ | -------------------------------------------------- |
+| `tone`             | Voice personality, formality, emotion alignment    |
+| `style`            | Writing rules (active voice, sentence length, POV) |
+| `vocabulary`       | Preferred/forbidden/competitor term usage          |
+| `clarity`          | Readability and comprehension                      |
+| `brand_compliance` | Overall brand alignment                            |
 
 **Severity weights (MQM-inspired):**
 
-| Severity | Weight | Example |
-|----------|--------|---------|
-| `neutral` | 0 | Informational note |
-| `minor` | 1 | Slight tone inconsistency |
-| `major` | 5 | Wrong term used |
-| `critical` | 25 | Competitor term used |
+| Severity   | Weight | Example                   |
+| ---------- | ------ | ------------------------- |
+| `neutral`  | 0      | Informational note        |
+| `minor`    | 1      | Slight tone inconsistency |
+| `major`    | 5      | Wrong term used           |
+| `critical` | 25     | Competitor term used      |
 
 **Scoring algorithm** (`CalculateScore` in `core/brand/scoring.go`):
+
 1. Each `BrandVoiceFinding` contributes a penalty to its dimension
 2. Dimension score = 100 - sum of penalties for that dimension (clamped to 0)
 3. Overall score = 100 - total penalties across all dimensions (clamped to 0)
@@ -159,13 +165,13 @@ Server deployments can extend this with a cloud MCP endpoint using Streamable HT
 
 Five built-in starter packs are embedded via `go:embed` in `core/brand/packs/`:
 
-| Pack | Formality | Personality | Use Case |
-|------|-----------|-------------|----------|
-| `professional-b2b` | formal | knowledgeable, authoritative | Enterprise software |
-| `friendly-dtc` | casual | friendly, approachable | Consumer products |
-| `technical-docs` | technical | precise, informative | Developer documentation |
-| `marketing-blog` | neutral | engaging, creative | Content marketing |
-| `customer-support` | neutral | empathetic, helpful | Support interactions |
+| Pack               | Formality | Personality                  | Use Case                |
+| ------------------ | --------- | ---------------------------- | ----------------------- |
+| `professional-b2b` | formal    | knowledgeable, authoritative | Enterprise software     |
+| `friendly-dtc`     | casual    | friendly, approachable       | Consumer products       |
+| `technical-docs`   | technical | precise, informative         | Developer documentation |
+| `marketing-blog`   | neutral   | engaging, creative           | Content marketing       |
+| `customer-support` | neutral   | empathetic, helpful          | Support interactions    |
 
 Starter packs are YAML files loaded via `packs.Load(name)` and returned as `VoiceProfile` structs. They provide ready-to-use starting points that users can customize.
 
@@ -185,6 +191,7 @@ Workspace (default profile)
 ```
 
 **Resolution order** (most specific wins):
+
 1. Explicit `ProfileID` parameter (always takes priority)
 2. Collection-level: `ConnectorConfig["brand_voice_profile_id"]`
 3. Stream-level: `Properties["brand_voice_profile_id"]`
@@ -208,6 +215,7 @@ type ProfileResolver interface {
 ### Profile Versioning and Tags
 
 Profiles gain immutable version history and named tags, addressing two temporal dimensions:
+
 - **Content streams** answer "what if we apply profile X to our content?" (forward experiments)
 - **Profile versions** answer "what did profile X look like when we shipped v2.0?" (backward analysis)
 
@@ -227,6 +235,7 @@ The evaluation system enables comparing brand voice profiles against existing co
 - **Top findings** with source/target text snippets for in-context review
 
 The evaluation endpoint (`POST /projects/:id/brand-voice/evaluate`) accepts optional `profile_tag` and `baseline_profile_tag` parameters, enabling four evaluation modes:
+
 1. Stream vs stream (current profiles)
 2. Current vs historical (one tag)
 3. Experimental vs historical (stream + tag)

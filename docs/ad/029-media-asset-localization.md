@@ -3,6 +3,7 @@ id: 029-media-asset-localization
 sidebar_position: 29
 title: "AD-029: Media Asset Localization and Blob Storage"
 ---
+
 # AD-029: Media Asset Localization and Blob Storage
 
 ## Context
@@ -214,19 +215,19 @@ The three storage modes are mutually prioritized: `BlobKey` > `URI` > `Data`. Pi
 content:
   - path: docs/**/*.docx
     format: openxml
-    assets: true              # sync embedded assets (default: true)
-    asset_max_size: 50MB      # skip assets larger than this
+    assets: true # sync embedded assets (default: true)
+    asset_max_size: 50MB # skip assets larger than this
 
   - path: src/locales/**/*.json
     format: json
-    assets: false             # no binary assets in JSON files
+    assets: false # no binary assets in JSON files
 
 # Project-wide asset exclusions
 assets:
   exclude:
-    - "*.psd"                 # skip Photoshop files
-    - "*.ai"                  # skip Illustrator files
-  max_size: 100MB             # global max asset size
+    - "*.psd" # skip Photoshop files
+    - "*.ai" # skip Illustrator files
+  max_size: 100MB # global max asset size
 ```
 
 **New sync API endpoints:**
@@ -300,6 +301,7 @@ type Config struct {
 ```
 
 When `ExtractMedia` is true:
+
 - Images from `word/media/` are emitted as `PartMedia` with `BlobKey` (SHA-256 of image bytes)
 - The image Span sentinel (`\uE101`) in blocks gets a `Data` field linking to the Media's `ID`
 - The OpenXML writer reconstructs the document using locale-specific variants when available
@@ -333,6 +335,7 @@ type Asset struct {
 This leverages the existing `EventBus` and automation system ([AD-011](./011-automation.md)). Processing tools run as server-side flows, using the same `tool.Tool` interface as CLI-side tools.
 
 **Progressive capability:**
+
 - Phase 1: CLI extracts what it can (alt text, simple metadata). Assets it can't process are pushed raw.
 - Phase 2: Server gains OCR tool (AI-powered, using existing `ai/provider.LLMProvider` with vision models).
 - Phase 3: Server gains ASR/subtitle tools for audio/video assets.
@@ -374,6 +377,7 @@ This allows `bowrain pull` to fetch only changed assets since the last cursor, u
 ## Implementation Phases
 
 ### Phase 1: Foundation (BlobStore + Azure adapter + local adapter)
+
 - `BlobStore` interface in `core/storage/`
 - Azure Blob Storage adapter in `platform/storage/azureblob/`
 - Local filesystem adapter in `platform/storage/localblob/`
@@ -383,6 +387,7 @@ This allows `bowrain pull` to fetch only changed assets since the last cursor, u
 - `model.Media` extensions (BlobKey, Filename, Size)
 
 ### Phase 2: Sync Protocol
+
 - Config schema additions (assets flag, exclude patterns, max_size)
 - Sync cache extension (per-file asset hashes)
 - Push algorithm: extract → dedup → upload via SAS → register metadata
@@ -391,11 +396,13 @@ This allows `bowrain pull` to fetch only changed assets since the last cursor, u
 - Change log integration for asset events
 
 ### Phase 3: Format Extraction
+
 - OpenXML reader: `ExtractMedia` config → PartMedia emission
 - OpenXML writer: locale-variant image replacement during reconstruction
 - Block-asset dependency tracking (block_asset_refs table)
 
 ### Phase 4: Server-Side Processing
+
 - Asset processing queue via EventBus
 - OCR tool for text extraction from images (AI vision model)
 - Processing status tracking and block linkage

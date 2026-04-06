@@ -7,11 +7,7 @@ interface BrandedFrameProps {
   children: React.ReactNode;
 }
 
-export const BrandedFrame: React.FC<BrandedFrameProps> = ({
-  title,
-  branding,
-  children,
-}) => {
+export const BrandedFrame: React.FC<BrandedFrameProps> = ({ title, branding, children }) => {
   const radius = branding.cornerRadius;
 
   return (

@@ -3,6 +3,7 @@ id: 033-pulse-public-activity-dashboard
 sidebar_position: 33
 title: "AD-033: Pulse — Public Activity Dashboard"
 ---
+
 # AD-033: Pulse — Public Activity Dashboard
 
 ## Context
@@ -39,11 +40,11 @@ lives in the monorepo at `platform/apps/pulse/` and shares components from
 
 **Alternatives considered:**
 
-| Approach | Pros | Cons |
-|----------|------|------|
-| Routes in the main web app | Single build, shared auth | Heavy bundle for public visitors; auth bypass complexity; harder CDN caching |
-| Separate microservice | Full isolation | Operational overhead; duplicated types/queries |
-| **Standalone SPA, same server (chosen)** | Light bundle; no CORS; independent caching; clean public UX | One more app in the monorepo |
+| Approach                                 | Pros                                                        | Cons                                                                         |
+| ---------------------------------------- | ----------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| Routes in the main web app               | Single build, shared auth                                   | Heavy bundle for public visitors; auth bypass complexity; harder CDN caching |
+| Separate microservice                    | Full isolation                                              | Operational overhead; duplicated types/queries                               |
+| **Standalone SPA, same server (chosen)** | Light bundle; no CORS; independent caching; clean public UX | One more app in the monorepo                                                 |
 
 The bowrain-server detects the `Host` header and serves the Pulse SPA's
 embedded static files when the hostname matches `pulse.*`. API calls from the
@@ -69,12 +70,12 @@ const (
 
 Access rules:
 
-| Workspace | Project | Result |
-|-----------|---------|--------|
-| `public` | `public` | Fully discoverable — listed on any future directory, indexed by search engines |
+| Workspace              | Project    | Result                                                                                                                    |
+| ---------------------- | ---------- | ------------------------------------------------------------------------------------------------------------------------- |
+| `public`               | `public`   | Fully discoverable — listed on any future directory, indexed by search engines                                            |
 | `public` or `unlisted` | `unlisted` | Accessible via direct URL only — not listed on the workspace overview's project grid unless the visitor has the exact URL |
-| `private` | any | 404 for unauthenticated visitors |
-| any | `private` | Project hidden from Pulse; 404 for direct project URL |
+| `private`              | any        | 404 for unauthenticated visitors                                                                                          |
+| any                    | `private`  | Project hidden from Pulse; 404 for direct project URL                                                                     |
 
 **Unlisted** is the "share with a link" model — the workspace or project's
 Pulse URL works, but it won't appear in search engines (served with
@@ -155,13 +156,13 @@ Public dashboards must handle load from unauthenticated visitors without
 hammering the database. The caching approach mirrors the existing
 `dashboardCache` in `platform/server/editor.go`:
 
-| Endpoint | Cache TTL | Rationale |
-|----------|-----------|-----------|
-| Workspace overview | 5 min | Aggregates across projects; expensive query |
-| Leaderboard | 10 min | Heaviest computation (period comparisons) |
-| Activity feed | 1 min | Near-realtime feel |
-| Terminology | 15 min | Rarely changes |
-| Project detail | 2 min | Per-project stats |
+| Endpoint           | Cache TTL | Rationale                                   |
+| ------------------ | --------- | ------------------------------------------- |
+| Workspace overview | 5 min     | Aggregates across projects; expensive query |
+| Leaderboard        | 10 min    | Heaviest computation (period comparisons)   |
+| Activity feed      | 1 min     | Near-realtime feel                          |
+| Terminology        | 15 min    | Rarely changes                              |
+| Project detail     | 2 min     | Per-project stats                           |
 
 Cache keys include workspace slug, endpoint path, and normalized query
 parameters. The event bus subscriber invalidates relevant cache entries on
@@ -251,18 +252,18 @@ type PulseLanguageRank struct {
 
 New shared components in `@neokapi/ui` (`platform/packages/ui/src/components/pulse/`):
 
-| Component | Purpose |
-|-----------|---------|
-| `PulseOverview` | Main workspace overview layout |
-| `LanguageProgressGrid` | Grid of locale cards with circular completion rings |
-| `CompletionRing` | SVG circular progress indicator |
-| `ContributorBoard` | Leaderboard with avatars, counts, growth badges |
-| `RisingStarBadge` | Growth indicator (arrow + percentage) |
-| `TrendAreaChart` | Recharts area chart for activity over time |
-| `TermExplorerPublic` | Read-only terminology browser with search |
-| `PulseProjectCard` | Project summary card for overview grid |
-| `PulseHeader` | Minimal branded header with theme toggle |
-| `PulseFilterBar` | Pulse-specific filter bar extending shared `FilterBar` |
+| Component              | Purpose                                                |
+| ---------------------- | ------------------------------------------------------ |
+| `PulseOverview`        | Main workspace overview layout                         |
+| `LanguageProgressGrid` | Grid of locale cards with circular completion rings    |
+| `CompletionRing`       | SVG circular progress indicator                        |
+| `ContributorBoard`     | Leaderboard with avatars, counts, growth badges        |
+| `RisingStarBadge`      | Growth indicator (arrow + percentage)                  |
+| `TrendAreaChart`       | Recharts area chart for activity over time             |
+| `TermExplorerPublic`   | Read-only terminology browser with search              |
+| `PulseProjectCard`     | Project summary card for overview grid                 |
+| `PulseHeader`          | Minimal branded header with theme toggle               |
+| `PulseFilterBar`       | Pulse-specific filter bar extending shared `FilterBar` |
 
 Reused from existing `@neokapi/ui`:
 
@@ -341,6 +342,7 @@ Unit tests in `platform/packages/ui/src/__tests__/pulse/`:
 ## Implementation Phases
 
 ### Phase 1: Backend foundation
+
 1. Add `dashboard_visibility` (private/unlisted/public) to workspace/project models + migrations
 2. Create `handlers_pulse.go` — overview and project detail endpoints
 3. Create `pulse_cache.go` — caching layer
@@ -349,6 +351,7 @@ Unit tests in `platform/packages/ui/src/__tests__/pulse/`:
 6. Backend tests
 
 ### Phase 2: Core UI components (Storybook-driven)
+
 1. Scaffold `platform/apps/pulse/` (package.json, vite, index.html)
 2. Build primitives: `CompletionRing`, `RisingStarBadge`, `PulseHeader`
 3. Build composites: `LanguageProgressGrid`, `ContributorBoard`, `TrendAreaChart`
@@ -356,6 +359,7 @@ Unit tests in `platform/packages/ui/src/__tests__/pulse/`:
 5. Storybook stories + vitest tests
 
 ### Phase 3: Full pages, routing & URL-based filtering
+
 1. React Router setup with all routes
 2. `PulseFilterBar` + `PulseFilterContext` with URL sync
 3. Project detail page (reusing existing chart components)
@@ -364,6 +368,7 @@ Unit tests in `platform/packages/ui/src/__tests__/pulse/`:
 6. Locale detail page
 
 ### Phase 4: Integration & polish
+
 1. Connect to live API, end-to-end testing
 2. Workspace settings toggle UI
 3. Makefile targets (`pulse-build`, `pulse-dev`)
@@ -373,21 +378,21 @@ Unit tests in `platform/packages/ui/src/__tests__/pulse/`:
 
 ## Files Changed
 
-| File | Change |
-|------|--------|
-| `platform/core/auth/types.go` | Add `DashboardVisibility` to Workspace |
-| `platform/core/store/types.go` | Add `DashboardVisibility` to Project, new Pulse types |
-| `platform/server/server.go` | Register pulse route group |
-| `platform/server/handlers_pulse.go` | **New** — all pulse API handlers |
-| `platform/server/pulse_cache.go` | **New** — caching layer |
-| `platform/server/middleware_pulse.go` | **New** — access gate middleware |
-| `platform/store/sqlite.go` | Migration for `dashboard_visibility` |
-| `platform/store/postgres.go` | Migration for `dashboard_visibility` |
-| `platform/auth/sqlite.go` | Migration for workspace `dashboard_visibility` |
-| `platform/auth/migrations_pg.go` | Migration for workspace `dashboard_visibility` |
-| `platform/package.json` | Add `apps/pulse` to workspaces |
-| `platform/apps/pulse/**` | **New** — Pulse SPA |
-| `platform/packages/ui/src/components/pulse/**` | **New** — shared Pulse components |
-| `platform/packages/ui/src/stories/pulse/**` | **New** — Storybook stories |
-| `platform/packages/ui/src/__tests__/pulse/**` | **New** — vitest tests |
-| `Makefile` | Add `pulse-build`, `pulse-dev` targets |
+| File                                           | Change                                                |
+| ---------------------------------------------- | ----------------------------------------------------- |
+| `platform/core/auth/types.go`                  | Add `DashboardVisibility` to Workspace                |
+| `platform/core/store/types.go`                 | Add `DashboardVisibility` to Project, new Pulse types |
+| `platform/server/server.go`                    | Register pulse route group                            |
+| `platform/server/handlers_pulse.go`            | **New** — all pulse API handlers                      |
+| `platform/server/pulse_cache.go`               | **New** — caching layer                               |
+| `platform/server/middleware_pulse.go`          | **New** — access gate middleware                      |
+| `platform/store/sqlite.go`                     | Migration for `dashboard_visibility`                  |
+| `platform/store/postgres.go`                   | Migration for `dashboard_visibility`                  |
+| `platform/auth/sqlite.go`                      | Migration for workspace `dashboard_visibility`        |
+| `platform/auth/migrations_pg.go`               | Migration for workspace `dashboard_visibility`        |
+| `platform/package.json`                        | Add `apps/pulse` to workspaces                        |
+| `platform/apps/pulse/**`                       | **New** — Pulse SPA                                   |
+| `platform/packages/ui/src/components/pulse/**` | **New** — shared Pulse components                     |
+| `platform/packages/ui/src/stories/pulse/**`    | **New** — Storybook stories                           |
+| `platform/packages/ui/src/__tests__/pulse/**`  | **New** — vitest tests                                |
+| `Makefile`                                     | Add `pulse-build`, `pulse-dev` targets                |

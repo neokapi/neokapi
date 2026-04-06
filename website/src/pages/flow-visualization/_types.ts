@@ -1,34 +1,34 @@
 // Node types
 export interface FlowNode {
   id: string;
-  type: 'reader' | 'tool' | 'writer' | 'bridge-reader' | 'bridge-writer';
+  type: "reader" | "tool" | "writer" | "bridge-reader" | "bridge-writer";
   name: string;
   label: string;
   concurrency?: number; // number of parallel workers (e.g. 3 for --parallel-blocks 3)
   bridge?: {
     filterClass: string;
-    protocol: 'grpc' | 'netrpc';
+    protocol: "grpc" | "netrpc";
     subprocess?: string;
   };
 }
 
 // Event types
 export type EventType =
-  | 'enter'
-  | 'exit'
-  | 'bridge-serialize'
-  | 'bridge-deserialize'
-  | 'bridge-send'
-  | 'bridge-receive'
-  | 'pool-acquire'
-  | 'pool-release'
-  | 'jvm-start'
-  | 'jvm-ready'
-  | 'grpc-open'
-  | 'grpc-read-start'
-  | 'grpc-read-end'
-  | 'grpc-write-start'
-  | 'grpc-write-end';
+  | "enter"
+  | "exit"
+  | "bridge-serialize"
+  | "bridge-deserialize"
+  | "bridge-send"
+  | "bridge-receive"
+  | "pool-acquire"
+  | "pool-release"
+  | "jvm-start"
+  | "jvm-ready"
+  | "grpc-open"
+  | "grpc-read-start"
+  | "grpc-read-end"
+  | "grpc-write-start"
+  | "grpc-write-end";
 
 export interface TraceEvent {
   ts: number;
@@ -40,7 +40,7 @@ export interface TraceEvent {
 
 export interface PartSnapshot {
   id: string;
-  type: 'LayerStart' | 'LayerEnd' | 'Block' | 'Data' | 'Media' | 'GroupStart' | 'GroupEnd';
+  type: "LayerStart" | "LayerEnd" | "Block" | "Data" | "Media" | "GroupStart" | "GroupEnd";
   summary: string;
   sourceText?: string;
   targetText?: string;
@@ -83,7 +83,7 @@ export interface PlaybackState {
 export interface Particle {
   partId: string;
   partType: string;
-  position: 'edge' | 'node';
+  position: "edge" | "node";
   nodeId?: string;
   edgeIndex?: number;
   progress?: number;

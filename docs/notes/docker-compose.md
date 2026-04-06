@@ -2,6 +2,7 @@
 sidebar_position: 12
 title: "Docker Compose Development Setup"
 ---
+
 # Docker Compose Development Setup
 
 This note documents the `compose.yaml` configuration at the repository root, which provides external dependencies for local development without containerizing the bowrain-server itself.
@@ -32,15 +33,15 @@ The Docker Compose setup runs **Traefik** as a TLS-terminating reverse proxy in 
         └──────────┘
 ```
 
-| Service | URL | Routes to |
-|---|---|---|
-| Web app (dev) | `https://bowrain.mymac` | host:5173 (Vite HMR) |
-| API | `https://bowrain.mymac/api/*` | host:8080 (bowrain-server, h2c) |
-| gRPC | `https://bowrain.mymac/neokapi.*` | host:8080 (bowrain-server, h2c) |
-| Keycloak | `https://auth.bowrain.mymac` | keycloak container:8080 |
-| Mailpit | `https://mail.bowrain.mymac` | mailpit container:8025 |
-| Traefik dashboard | `https://traefik.bowrain.mymac` | traefik:8080 |
-| NATS | `nats://localhost:4222` | nats container:4222 |
+| Service           | URL                               | Routes to                       |
+| ----------------- | --------------------------------- | ------------------------------- |
+| Web app (dev)     | `https://bowrain.mymac`           | host:5173 (Vite HMR)            |
+| API               | `https://bowrain.mymac/api/*`     | host:8080 (bowrain-server, h2c) |
+| gRPC              | `https://bowrain.mymac/neokapi.*` | host:8080 (bowrain-server, h2c) |
+| Keycloak          | `https://auth.bowrain.mymac`      | keycloak container:8080         |
+| Mailpit           | `https://mail.bowrain.mymac`      | mailpit container:8025          |
+| Traefik dashboard | `https://traefik.bowrain.mymac`   | traefik:8080                    |
+| NATS              | `nats://localhost:4222`           | nats container:4222             |
 
 The bowrain-server and Vite dev server run **natively on the host** for fast iteration — no Docker image rebuild needed for Go or TypeScript changes. Traefik reaches them via `host.docker.internal`.
 
@@ -229,10 +230,10 @@ CI scripts (e.g. `e2e/setup.sh`, GitHub Actions workflows) use `http://localhost
 
 ### File Layout
 
-| File | Purpose | Used by |
-|---|---|---|
-| `compose.yaml` | Base: Keycloak + Mailpit + NATS with direct ports, no Traefik | CI (`-f compose.yaml`) |
-| `compose.override.yaml` | Adds Traefik, `KC_HOSTNAME`, TLS labels | Local dev (auto-loaded) |
+| File                    | Purpose                                                       | Used by                 |
+| ----------------------- | ------------------------------------------------------------- | ----------------------- |
+| `compose.yaml`          | Base: Keycloak + Mailpit + NATS with direct ports, no Traefik | CI (`-f compose.yaml`)  |
+| `compose.override.yaml` | Adds Traefik, `KC_HOSTNAME`, TLS labels                       | Local dev (auto-loaded) |
 
 ## Supporting E2E Testing
 
@@ -276,6 +277,7 @@ make cli-recordings
 ### CI Integration
 
 All three pipelines run in parallel in GitHub Actions (`.github/workflows/screenshots-recordings.yml`), using the CI overlay for HTTP-only mode:
+
 - On-demand via `workflow_dispatch`
 - On release via version tags (auto-commits assets)
 - Nightly at 2 AM UTC (uploads artifacts only)

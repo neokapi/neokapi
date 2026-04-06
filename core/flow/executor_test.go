@@ -446,7 +446,7 @@ func TestParallelExecutionErrorPropagation(t *testing.T) {
 			}, nil
 		}).
 		Build()
-		require.NoError(t, err)
+	require.NoError(t, err)
 
 	executor := flow.NewExecutor(
 		flow.WithMaxConcurrency(4),

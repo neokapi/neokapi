@@ -2,6 +2,7 @@
 sidebar_position: 14
 title: Skeleton Store and Streaming HTML
 ---
+
 # Skeleton Store and Streaming HTML
 
 Implementation details for the `SkeletonStore` framework type and the
@@ -22,10 +23,10 @@ Each entry is:
 [type:1 byte] [length:4 bytes big-endian] [data:N bytes]
 ```
 
-| Type byte | Meaning | Data contents |
-|-----------|---------|---------------|
-| `0` | Text | Non-translatable raw bytes |
-| `1` | Ref | Block ID as UTF-8 string |
+| Type byte | Meaning | Data contents              |
+| --------- | ------- | -------------------------- |
+| `0`       | Text    | Non-translatable raw bytes |
+| `1`       | Ref     | Block ID as UTF-8 string   |
 
 The format is append-only during writing and sequential during reading. After
 `Flush()`, the file is seeked to the beginning and entries are read with
@@ -119,15 +120,15 @@ are replayed for processing.
 
 ### Token processing
 
-| Token type | Action |
-|-----------|--------|
-| Non-translatable element start (e.g., `<script>`, `<style>`) | Write raw bytes to skeleton, consume until close tag |
-| Block-level element start (container) | Write start tag to skeleton, process children recursively |
-| Block-level element start (leaf) | Extract translatable attributes as skeleton refs, buffer content, build Fragment with inline Spans |
-| Inline element start/end | Part of leaf block content → becomes Span in Fragment |
-| Text token | Part of leaf block content → appended to Fragment |
-| Comment | Written to skeleton (non-translatable) |
-| Doctype | Written to skeleton |
+| Token type                                                   | Action                                                                                             |
+| ------------------------------------------------------------ | -------------------------------------------------------------------------------------------------- |
+| Non-translatable element start (e.g., `<script>`, `<style>`) | Write raw bytes to skeleton, consume until close tag                                               |
+| Block-level element start (container)                        | Write start tag to skeleton, process children recursively                                          |
+| Block-level element start (leaf)                             | Extract translatable attributes as skeleton refs, buffer content, build Fragment with inline Spans |
+| Inline element start/end                                     | Part of leaf block content → becomes Span in Fragment                                              |
+| Text token                                                   | Part of leaf block content → appended to Fragment                                                  |
+| Comment                                                      | Written to skeleton (non-translatable)                                                             |
+| Doctype                                                      | Written to skeleton                                                                                |
 
 ### Translatable attributes
 
@@ -158,14 +159,14 @@ built into a Fragment:
 
 ### Memory profile
 
-| Component | Memory |
-|-----------|--------|
-| Tokenizer | ~4KB internal buffer (streaming) |
-| Forward scan | ~1–10 tokens replay buffer |
-| Fragment building | ~1–10KB (one leaf block) |
-| Skeleton store | Temp file on disk |
-| Pipeline | Blocks only (~5% of document) |
-| **Peak per document** | **~100KB** |
+| Component             | Memory                           |
+| --------------------- | -------------------------------- |
+| Tokenizer             | ~4KB internal buffer (streaming) |
+| Forward scan          | ~1–10 tokens replay buffer       |
+| Fragment building     | ~1–10KB (one leaf block)         |
+| Skeleton store        | Temp file on disk                |
+| Pipeline              | Blocks only (~5% of document)    |
+| **Peak per document** | **~100KB**                       |
 
 Compared to the DOM-based approach: ~4–20MB per document (two full DOM trees
 for reader + writer).
@@ -212,14 +213,14 @@ The writer tries three modes in order:
 
 ## Files
 
-| File | Role |
-|------|------|
-| `core/format/skeleton.go` | SkeletonStore type, binary format, interfaces |
-| `core/format/skeleton_test.go` | Unit tests (roundtrip, empty skip, large data) |
-| `core/formats/html/tokenreader.go` | Single-pass tokenizer reader (~1100 lines) |
-| `core/formats/html/reader.go` | Dispatch: skeleton store → tokenizer, else → DOM |
-| `core/formats/html/writer.go` | Skeleton mode + re-parse fallback + block-only fallback |
-| `core/formats/html/roundtrip_test.go` | Byte-exact, translation, and attribute roundtrip tests |
-| `cli/flow.go` | Skeleton store wiring in `runSingleFile()` |
-| `cli/toolrun.go` | Skeleton store wiring in `processOneFile()` |
-| `kapi/cmd/kapi/mcp_tools.go` | Skeleton store wiring in `executeFlow()` |
+| File                                  | Role                                                    |
+| ------------------------------------- | ------------------------------------------------------- |
+| `core/format/skeleton.go`             | SkeletonStore type, binary format, interfaces           |
+| `core/format/skeleton_test.go`        | Unit tests (roundtrip, empty skip, large data)          |
+| `core/formats/html/tokenreader.go`    | Single-pass tokenizer reader (~1100 lines)              |
+| `core/formats/html/reader.go`         | Dispatch: skeleton store → tokenizer, else → DOM        |
+| `core/formats/html/writer.go`         | Skeleton mode + re-parse fallback + block-only fallback |
+| `core/formats/html/roundtrip_test.go` | Byte-exact, translation, and attribute roundtrip tests  |
+| `cli/flow.go`                         | Skeleton store wiring in `runSingleFile()`              |
+| `cli/toolrun.go`                      | Skeleton store wiring in `processOneFile()`             |
+| `kapi/cmd/kapi/mcp_tools.go`          | Skeleton store wiring in `executeFlow()`                |

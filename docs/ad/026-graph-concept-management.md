@@ -3,6 +3,7 @@ id: 026-graph-concept-management
 sidebar_position: 26
 title: "AD-026: Graph Concept Management"
 ---
+
 # AD-026: Graph-based concept management
 
 ## Context
@@ -10,6 +11,7 @@ title: "AD-026: Graph Concept Management"
 Terminology management ([AD-010](./010-terminology.md)) uses concept-oriented data with relationships (broader/narrower, related, supersedes). These relationships form a graph that is natural to query, navigate, and visualize. A flat relational model can store relationships but makes traversal queries (find all narrower concepts, shortest path between concepts, scoped neighbors) unnecessarily complex.
 
 Key requirements:
+
 - Abstract graph storage behind a common interface (GraphStore)
 - Support two backends: Apache AGE (PostgreSQL extension) for production and SQLite (adjacency tables) for CLI/development
 - Model temporal validity on edges (relationships change over time)
@@ -103,6 +105,7 @@ type Scope struct {
 ```
 
 **Matching rules** (`Validity.Matches(Scope)`):
+
 - Nil validity always matches (unbounded edge)
 - Time: half-open interval `[ValidFrom, ValidTo)`
 - Tags: all scope tags must be present in validity tags with matching values (open-world assumption -- extra validity tags are ignored)
@@ -115,21 +118,21 @@ Helper functions: `Now()`, `ScopeAt(t)`, `ScopeWithTags(tags)`, `IsExpired()`, `
 
 Edge labels in `core/graph/labels.go` are aligned with W3C SKOS vocabulary for terminology interoperability:
 
-| Label | SKOS/Semantic Origin | Purpose |
-|-------|---------------------|---------|
-| `BROADER` | skos:broader | Parent concept |
-| `NARROWER` | skos:narrower | Child concept |
-| `RELATED` | skos:related | Associative link |
-| `PART_OF` | meronymy | Component of |
-| `HAS_PART` | holonymy | Contains component |
-| `HAS_TERM` | terminological | Concept to term designation |
-| `USE_INSTEAD` | terminological | Deprecated to preferred term |
-| `REPLACED_BY` | terminological | Superseded concept to replacement |
-| `EXACT_MATCH` | skos:exactMatch | Cross-scheme equivalence |
-| `CLOSE_MATCH` | skos:closeMatch | Approximate equivalence |
-| `FORBIDDEN` | brand voice | Brand to forbidden term |
-| `PREFERRED` | brand voice | Brand to preferred term |
-| `COMPETITOR` | brand voice | Brand to competitor term |
+| Label         | SKOS/Semantic Origin | Purpose                           |
+| ------------- | -------------------- | --------------------------------- |
+| `BROADER`     | skos:broader         | Parent concept                    |
+| `NARROWER`    | skos:narrower        | Child concept                     |
+| `RELATED`     | skos:related         | Associative link                  |
+| `PART_OF`     | meronymy             | Component of                      |
+| `HAS_PART`    | holonymy             | Contains component                |
+| `HAS_TERM`    | terminological       | Concept to term designation       |
+| `USE_INSTEAD` | terminological       | Deprecated to preferred term      |
+| `REPLACED_BY` | terminological       | Superseded concept to replacement |
+| `EXACT_MATCH` | skos:exactMatch      | Cross-scheme equivalence          |
+| `CLOSE_MATCH` | skos:closeMatch      | Approximate equivalence           |
+| `FORBIDDEN`   | brand voice          | Brand to forbidden term           |
+| `PREFERRED`   | brand voice          | Brand to preferred term           |
+| `COMPETITOR`  | brand voice          | Brand to competitor term          |
 
 `InverseLabel()` returns the inverse of directional labels (BROADER/NARROWER, PART_OF/HAS_PART).
 
@@ -155,6 +158,7 @@ See the [Graph Store Schema](/docs/notes/graph-store-schema) implementation note
 `cli/storage/graph/sqlite.go` implements `GraphStore` using adjacency tables and recursive CTEs:
 
 **Schema:**
+
 ```sql
 CREATE TABLE graph_nodes (
     id TEXT PRIMARY KEY,
@@ -181,6 +185,7 @@ CREATE TABLE graph_edges (
 Indexes on `source`, `target`, and `label` columns for efficient traversal.
 
 **Key implementation details:**
+
 - Properties stored as JSON, queried via `json_extract()`
 - Validity filtering done in Go after edge retrieval (for scoped queries)
 - `ShortestPath` uses a recursive CTE with BFS, tracking visited nodes to avoid cycles

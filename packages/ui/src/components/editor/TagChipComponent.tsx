@@ -47,14 +47,20 @@ export function TagChipComponent({
       data-span-type={spanInfo.type}
       data-category={semanticCategory(spanInfo)}
     >
-      {index !== undefined && <span className="text-[9px] font-bold opacity-60 mr-px">{index}</span>}
+      {index !== undefined && (
+        <span className="text-[9px] font-bold opacity-60 mr-px">{index}</span>
+      )}
       {label}
       {showConstraints && !constraints.deletable && (
         <span className="text-[9px] font-bold opacity-70 ml-px leading-none" aria-label="required">
           *
         </span>
       )}
-      {pairIndex !== undefined && <span className="text-[8px] font-bold opacity-50 ml-0.5 align-super leading-none">{pairIndex}</span>}
+      {pairIndex !== undefined && (
+        <span className="text-[8px] font-bold opacity-50 ml-0.5 align-super leading-none">
+          {pairIndex}
+        </span>
+      )}
     </span>
   );
 }

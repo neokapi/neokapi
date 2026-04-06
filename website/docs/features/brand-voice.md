@@ -9,7 +9,7 @@ neokapi includes a brand voice governance system that helps teams maintain consi
 
 ## What is Brand Voice?
 
-Brand voice defines *how* your organization communicates -- the personality, formality, word choices, and writing patterns that make your content recognizable. While terminology management ensures you use the right words, brand voice governance ensures you say them the right way.
+Brand voice defines _how_ your organization communicates -- the personality, formality, word choices, and writing patterns that make your content recognizable. While terminology management ensures you use the right words, brand voice governance ensures you say them the right way.
 
 neokapi's brand voice system provides:
 
@@ -36,7 +36,7 @@ tone:
 style:
   active_voice: true
   sentence_length: medium
-  person_pov: second           # "you" / "your"
+  person_pov: second # "you" / "your"
   contractions: sometimes
 
 vocabulary:
@@ -70,11 +70,11 @@ Profiles can be adjusted for specific markets:
 ```yaml
 locales:
   ja:
-    formality: formal           # Japanese content should be more formal
-    person_pov: third           # Avoid direct "you" in Japanese
+    formality: formal # Japanese content should be more formal
+    person_pov: third # Avoid direct "you" in Japanese
     cultural_notes: "Use keigo (honorific language) for UI text"
   de:
-    contractions: never          # German UI text avoids contractions
+    contractions: never # German UI text avoids contractions
 ```
 
 ### Channel Overrides
@@ -98,22 +98,22 @@ channels:
 
 Brand compliance is scored on a 0-100 scale across five dimensions:
 
-| Dimension | What it measures |
-|-----------|-----------------|
-| Tone | Voice personality, formality, emotion alignment |
-| Style | Writing rules (active voice, sentence length, POV) |
-| Vocabulary | Preferred/forbidden/competitor term usage |
-| Clarity | Readability and comprehension |
-| Brand compliance | Overall brand alignment |
+| Dimension        | What it measures                                   |
+| ---------------- | -------------------------------------------------- |
+| Tone             | Voice personality, formality, emotion alignment    |
+| Style            | Writing rules (active voice, sentence length, POV) |
+| Vocabulary       | Preferred/forbidden/competitor term usage          |
+| Clarity          | Readability and comprehension                      |
+| Brand compliance | Overall brand alignment                            |
 
 Issues are rated by severity:
 
-| Severity | Weight | Example |
-|----------|--------|---------|
-| Neutral | 0 | Informational note |
-| Minor | 1 | Slight tone inconsistency |
-| Major | 5 | Wrong term used |
-| Critical | 25 | Competitor term used |
+| Severity | Weight | Example                   |
+| -------- | ------ | ------------------------- |
+| Neutral  | 0      | Informational note        |
+| Minor    | 1      | Slight tone inconsistency |
+| Major    | 5      | Wrong term used           |
+| Critical | 25     | Competitor term used      |
 
 A score of 100 means no issues found. Each finding reduces the score by its severity weight.
 
@@ -121,13 +121,13 @@ A score of 100 means no issues found. Each finding reduces the score by its seve
 
 Five built-in starter packs provide ready-to-use starting points:
 
-| Pack | Best for | Formality |
-|------|----------|-----------|
-| `professional-b2b` | Enterprise software, B2B SaaS | Formal |
-| `friendly-dtc` | Consumer products, D2C brands | Casual |
-| `technical-docs` | Developer documentation, API references | Technical |
-| `marketing-blog` | Content marketing, blog posts | Neutral |
-| `customer-support` | Help center, support responses | Neutral |
+| Pack               | Best for                                | Formality |
+| ------------------ | --------------------------------------- | --------- |
+| `professional-b2b` | Enterprise software, B2B SaaS           | Formal    |
+| `friendly-dtc`     | Consumer products, D2C brands           | Casual    |
+| `technical-docs`   | Developer documentation, API references | Technical |
+| `marketing-blog`   | Content marketing, blog posts           | Neutral   |
+| `customer-support` | Help center, support responses          | Neutral   |
 
 Each pack includes tone settings, style rules, vocabulary constraints, and before/after examples. Customize them to match your brand.
 

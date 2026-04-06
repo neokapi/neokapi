@@ -3,6 +3,7 @@ id: 023-identity-system
 sidebar_position: 23
 title: "AD-023: Identity System"
 ---
+
 # AD-023: Short IDs and Dual Block Identity
 
 ## Context
@@ -63,12 +64,12 @@ Blocks use a two-level ID system that separates **internal IDs**
 (project-unique, randomly generated) from **source IDs** (format-reader
 assigned, file-scoped):
 
-| Property | Internal ID | Source ID |
-|----------|-------------|-----------|
-| Generator | `id.New()` (8-char base62) | Format reader (e.g., `tu1`) |
-| Uniqueness | Per project | Per file within project |
-| Stored in | `blocks.id` (primary key) | `blocks.source_id` |
-| Used by | API responses, editor, internal refs | Export roundtrip matching |
+| Property   | Internal ID                          | Source ID                   |
+| ---------- | ------------------------------------ | --------------------------- |
+| Generator  | `id.New()` (8-char base62)           | Format reader (e.g., `tu1`) |
+| Uniqueness | Per project                          | Per file within project     |
+| Stored in  | `blocks.id` (primary key)            | `blocks.source_id`          |
+| Used by    | API responses, editor, internal refs | Export roundtrip matching   |
 
 **Ingestion path** (`StoreBlocksForItem`): When blocks arrive from a
 format reader with an `itemName` (file path), the incoming `block.ID` is

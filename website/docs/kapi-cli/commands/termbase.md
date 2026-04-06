@@ -26,12 +26,12 @@ A termbase is a glossary of approved terms stored as a SQLite database. Use thes
 
 All termbase commands (except `list`) accept these mutually exclusive flags for specifying which termbase to use:
 
-| Flag | Resolves to | Example |
-|------|------------|---------|
-| `--name <n>` | `~/.config/kapi/termbases/<n>.db` | `--name project-terms` |
-| `--local` | `./termbase.db` (current directory) | `--local` |
-| `--file <path>` | Explicit file path | `--file /shared/glossary.db` |
-| *(no flag)* | Same as `--local` | |
+| Flag            | Resolves to                         | Example                      |
+| --------------- | ----------------------------------- | ---------------------------- |
+| `--name <n>`    | `~/.config/kapi/termbases/<n>.db`   | `--name project-terms`       |
+| `--local`       | `./termbase.db` (current directory) | `--local`                    |
+| `--file <path>` | Explicit file path                  | `--file /shared/glossary.db` |
+| _(no flag)_     | Same as `--local`                   |                              |
 
 Databases are created on demand if they don't exist.
 

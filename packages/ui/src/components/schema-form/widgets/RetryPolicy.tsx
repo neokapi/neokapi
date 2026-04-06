@@ -75,7 +75,9 @@ export function RetryPolicySection({
               value={String(retry.retryOn ?? "")}
               placeholder="Error pattern..."
               className="h-8 text-xs"
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) => update("retryOn", e.target.value || undefined)}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                update("retryOn", e.target.value || undefined)
+              }
             />
           </div>
         </div>

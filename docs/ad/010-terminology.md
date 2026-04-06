@@ -3,6 +3,7 @@ id: 010-terminology
 sidebar_position: 10
 title: "AD-010: Terminology and Brand Management"
 ---
+
 # AD-010: Terminology and brand management system
 
 ## Context

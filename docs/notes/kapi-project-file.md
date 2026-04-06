@@ -70,6 +70,7 @@ kapi run translate-and-qa -p translation.kapi --target-lang de
 ```
 
 With `-p`:
+
 - Flow name is looked up in the project's `flows` map
 - `source_language` and `target_languages[0]` provide defaults (CLI flags override)
 - `--input` is still required (content pattern resolution is Kapi only)
@@ -77,6 +78,7 @@ With `-p`:
 ## Desktop Integration
 
 Kapi at `framework/apps/kapi-desktop/`:
+
 - Opens `.kapi` files as documents (File > Open, drag-and-drop, OS file association)
 - Edits flows inline (steps editor)
 - Resolves content patterns against the filesystem via `MatchContent(basePath)`
@@ -86,12 +88,14 @@ Kapi at `framework/apps/kapi-desktop/`:
 ## Example Files
 
 ### Minimal
+
 ```yaml
 version: v1
 name: Quick Translate
 ```
 
 ### Full
+
 ```yaml
 version: v1
 name: Acme App Localization

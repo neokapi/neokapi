@@ -133,6 +133,7 @@ type Scope struct {
 ```
 
 Matching rules:
+
 - Nil validity always matches (unbounded edge)
 - Time: half-open interval `[ValidFrom, ValidTo)`
 - Tags: all scope tags must be present in validity tags with matching values

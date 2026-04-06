@@ -944,7 +944,9 @@ function CodeFinderRulesField({
               value={rule.pattern}
               placeholder="Regex pattern"
               className="flex-1 font-mono text-xs"
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleRuleChange(index, e.target.value)}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                handleRuleChange(index, e.target.value)
+              }
             />
             <Button type="button" variant="ghost" size="sm" onClick={() => handleRemoveRule(index)}>
               ✕

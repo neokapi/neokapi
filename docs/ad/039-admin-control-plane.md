@@ -3,6 +3,7 @@ id: 039-admin-control-plane
 sidebar_position: 39
 title: "AD-039: Admin Control Plane"
 ---
+
 # AD-039: Admin Control Plane
 
 ## Context
@@ -10,6 +11,7 @@ title: "AD-039: Admin Control Plane"
 The Bowrain platform needs an internal control plane for platform operators to manage workspaces, users, billing, and provide customer support. This is separate from the customer-facing app — operators authenticate against a dedicated Keycloak realm (`bowrain-admin`) and access admin-only API endpoints.
 
 Key requirements:
+
 - View and manage all workspaces across the platform
 - Impersonate customers for debugging and support (with audit trail)
 - Add/remove workspace members directly

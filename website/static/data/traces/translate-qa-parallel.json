@@ -3,8 +3,20 @@
   "description": "AI translate followed by QA check, both with --parallel-blocks 2: two concurrent stages each processing blocks in parallel",
   "nodes": [
     { "id": "reader", "type": "reader", "name": "json", "label": "JSON Reader" },
-    { "id": "tool-0", "type": "tool", "name": "ai-translate", "label": "AI Translate", "concurrency": 2 },
-    { "id": "tool-1", "type": "tool", "name": "ai-qa-check", "label": "AI QA Check", "concurrency": 2 },
+    {
+      "id": "tool-0",
+      "type": "tool",
+      "name": "ai-translate",
+      "label": "AI Translate",
+      "concurrency": 2
+    },
+    {
+      "id": "tool-1",
+      "type": "tool",
+      "name": "ai-qa-check",
+      "label": "AI QA Check",
+      "concurrency": 2
+    },
     { "id": "writer", "type": "writer", "name": "json", "label": "JSON Writer" }
   ],
   "channelSize": 64,
@@ -23,29 +35,106 @@
     { "ts": 240, "type": "enter", "nodeId": "writer", "partId": "layer-1" },
     { "ts": 260, "type": "exit", "nodeId": "writer", "partId": "layer-1" },
 
-    { "ts": 270, "type": "enter", "nodeId": "tool-0", "partId": "block-heading", "meta": { "worker": 0 } },
-    { "ts": 280, "type": "enter", "nodeId": "tool-0", "partId": "block-body", "meta": { "worker": 1 } },
+    {
+      "ts": 270,
+      "type": "enter",
+      "nodeId": "tool-0",
+      "partId": "block-heading",
+      "meta": { "worker": 0 }
+    },
+    {
+      "ts": 280,
+      "type": "enter",
+      "nodeId": "tool-0",
+      "partId": "block-body",
+      "meta": { "worker": 1 }
+    },
 
-    { "ts": 570, "type": "exit", "nodeId": "tool-0", "partId": "block-heading", "meta": { "parallel": true, "worker": 0 } },
-    { "ts": 580, "type": "enter", "nodeId": "tool-0", "partId": "block-footer", "meta": { "worker": 0 } },
+    {
+      "ts": 570,
+      "type": "exit",
+      "nodeId": "tool-0",
+      "partId": "block-heading",
+      "meta": { "parallel": true, "worker": 0 }
+    },
+    {
+      "ts": 580,
+      "type": "enter",
+      "nodeId": "tool-0",
+      "partId": "block-footer",
+      "meta": { "worker": 0 }
+    },
 
-    { "ts": 590, "type": "enter", "nodeId": "tool-1", "partId": "block-heading", "meta": { "worker": 0 } },
-    { "ts": 600, "type": "enter", "nodeId": "tool-1", "partId": "block-body", "meta": { "worker": 1 } },
+    {
+      "ts": 590,
+      "type": "enter",
+      "nodeId": "tool-1",
+      "partId": "block-heading",
+      "meta": { "worker": 0 }
+    },
+    {
+      "ts": 600,
+      "type": "enter",
+      "nodeId": "tool-1",
+      "partId": "block-body",
+      "meta": { "worker": 1 }
+    },
 
-    { "ts": 650, "type": "exit", "nodeId": "tool-0", "partId": "block-body", "meta": { "parallel": true, "worker": 1 } },
+    {
+      "ts": 650,
+      "type": "exit",
+      "nodeId": "tool-0",
+      "partId": "block-body",
+      "meta": { "parallel": true, "worker": 1 }
+    },
 
-    { "ts": 820, "type": "exit", "nodeId": "tool-1", "partId": "block-heading", "meta": { "parallel": true, "worker": 0, "qaResult": "pass" } },
+    {
+      "ts": 820,
+      "type": "exit",
+      "nodeId": "tool-1",
+      "partId": "block-heading",
+      "meta": { "parallel": true, "worker": 0, "qaResult": "pass" }
+    },
     { "ts": 830, "type": "enter", "nodeId": "writer", "partId": "block-heading" },
     { "ts": 870, "type": "exit", "nodeId": "writer", "partId": "block-heading" },
 
-    { "ts": 880, "type": "exit", "nodeId": "tool-0", "partId": "block-footer", "meta": { "parallel": true, "worker": 0 } },
+    {
+      "ts": 880,
+      "type": "exit",
+      "nodeId": "tool-0",
+      "partId": "block-footer",
+      "meta": { "parallel": true, "worker": 0 }
+    },
 
-    { "ts": 890, "type": "exit", "nodeId": "tool-1", "partId": "block-body", "meta": { "parallel": true, "worker": 1, "qaResult": "warning", "qaIssue": "number format mismatch" } },
+    {
+      "ts": 890,
+      "type": "exit",
+      "nodeId": "tool-1",
+      "partId": "block-body",
+      "meta": {
+        "parallel": true,
+        "worker": 1,
+        "qaResult": "warning",
+        "qaIssue": "number format mismatch"
+      }
+    },
     { "ts": 900, "type": "enter", "nodeId": "writer", "partId": "block-body" },
     { "ts": 940, "type": "exit", "nodeId": "writer", "partId": "block-body" },
 
-    { "ts": 900, "type": "enter", "nodeId": "tool-1", "partId": "block-footer", "meta": { "worker": 0 } },
-    { "ts": 1120, "type": "exit", "nodeId": "tool-1", "partId": "block-footer", "meta": { "parallel": true, "worker": 0, "qaResult": "pass" } },
+    {
+      "ts": 900,
+      "type": "enter",
+      "nodeId": "tool-1",
+      "partId": "block-footer",
+      "meta": { "worker": 0 }
+    },
+    {
+      "ts": 1120,
+      "type": "exit",
+      "nodeId": "tool-1",
+      "partId": "block-footer",
+      "meta": { "parallel": true, "worker": 0, "qaResult": "pass" }
+    },
     { "ts": 1130, "type": "enter", "nodeId": "writer", "partId": "block-footer" },
     { "ts": 1170, "type": "exit", "nodeId": "writer", "partId": "block-footer" },
 
@@ -61,24 +150,75 @@
       "initial": { "id": "layer-1", "type": "LayerStart", "summary": "Document root" }
     },
     "block-heading": {
-      "initial": { "id": "block-heading", "type": "Block", "summary": "Your order has been confirmed", "sourceText": "Your order has been confirmed" },
+      "initial": {
+        "id": "block-heading",
+        "type": "Block",
+        "summary": "Your order has been confirmed",
+        "sourceText": "Your order has been confirmed"
+      },
       "afterNode": {
-        "tool-0": { "id": "block-heading", "type": "Block", "summary": "Votre commande a été confirmée", "sourceText": "Your order has been confirmed", "targetText": "Votre commande a été confirmée" },
-        "tool-1": { "id": "block-heading", "type": "Block", "summary": "Votre commande a été confirmée ✓", "sourceText": "Your order has been confirmed", "targetText": "Votre commande a été confirmée" }
+        "tool-0": {
+          "id": "block-heading",
+          "type": "Block",
+          "summary": "Votre commande a été confirmée",
+          "sourceText": "Your order has been confirmed",
+          "targetText": "Votre commande a été confirmée"
+        },
+        "tool-1": {
+          "id": "block-heading",
+          "type": "Block",
+          "summary": "Votre commande a été confirmée ✓",
+          "sourceText": "Your order has been confirmed",
+          "targetText": "Votre commande a été confirmée"
+        }
       }
     },
     "block-body": {
-      "initial": { "id": "block-body", "type": "Block", "summary": "We will ship 3 items to your address...", "sourceText": "We will ship 3 items to your address within 2-5 business days" },
+      "initial": {
+        "id": "block-body",
+        "type": "Block",
+        "summary": "We will ship 3 items to your address...",
+        "sourceText": "We will ship 3 items to your address within 2-5 business days"
+      },
       "afterNode": {
-        "tool-0": { "id": "block-body", "type": "Block", "summary": "Nous expédierons 3 articles à votre ...", "sourceText": "We will ship 3 items to your address within 2-5 business days", "targetText": "Nous expédierons 3 articles à votre adresse dans un délai de 2 à 5 jours ouvrables" },
-        "tool-1": { "id": "block-body", "type": "Block", "summary": "⚠ Nous expédierons 3 articles à votr...", "sourceText": "We will ship 3 items to your address within 2-5 business days", "targetText": "Nous expédierons 3 articles à votre adresse dans un délai de 2 à 5 jours ouvrables" }
+        "tool-0": {
+          "id": "block-body",
+          "type": "Block",
+          "summary": "Nous expédierons 3 articles à votre ...",
+          "sourceText": "We will ship 3 items to your address within 2-5 business days",
+          "targetText": "Nous expédierons 3 articles à votre adresse dans un délai de 2 à 5 jours ouvrables"
+        },
+        "tool-1": {
+          "id": "block-body",
+          "type": "Block",
+          "summary": "⚠ Nous expédierons 3 articles à votr...",
+          "sourceText": "We will ship 3 items to your address within 2-5 business days",
+          "targetText": "Nous expédierons 3 articles à votre adresse dans un délai de 2 à 5 jours ouvrables"
+        }
       }
     },
     "block-footer": {
-      "initial": { "id": "block-footer", "type": "Block", "summary": "Thank you for your purchase!", "sourceText": "Thank you for your purchase!" },
+      "initial": {
+        "id": "block-footer",
+        "type": "Block",
+        "summary": "Thank you for your purchase!",
+        "sourceText": "Thank you for your purchase!"
+      },
       "afterNode": {
-        "tool-0": { "id": "block-footer", "type": "Block", "summary": "Merci pour votre achat !", "sourceText": "Thank you for your purchase!", "targetText": "Merci pour votre achat !" },
-        "tool-1": { "id": "block-footer", "type": "Block", "summary": "Merci pour votre achat ! ✓", "sourceText": "Thank you for your purchase!", "targetText": "Merci pour votre achat !" }
+        "tool-0": {
+          "id": "block-footer",
+          "type": "Block",
+          "summary": "Merci pour votre achat !",
+          "sourceText": "Thank you for your purchase!",
+          "targetText": "Merci pour votre achat !"
+        },
+        "tool-1": {
+          "id": "block-footer",
+          "type": "Block",
+          "summary": "Merci pour votre achat ! ✓",
+          "sourceText": "Thank you for your purchase!",
+          "targetText": "Merci pour votre achat !"
+        }
       }
     },
     "layer-1-end": {

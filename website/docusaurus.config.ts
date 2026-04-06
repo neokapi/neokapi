@@ -1,80 +1,80 @@
-import {themes as prismThemes} from 'prism-react-renderer';
-import type {Config} from '@docusaurus/types';
-import type * as Preset from '@docusaurus/preset-classic';
+import { themes as prismThemes } from "prism-react-renderer";
+import type { Config } from "@docusaurus/types";
+import type * as Preset from "@docusaurus/preset-classic";
 
 const config: Config = {
-  title: 'neokapi',
-  tagline: 'Open, AI-native localization platform in Go',
-  favicon: 'img/favicon.png',
+  title: "neokapi",
+  tagline: "Open, AI-native localization platform in Go",
+  favicon: "img/favicon.png",
 
-  url: 'https://neokapi.github.io',
-  baseUrl: '/',
+  url: "https://neokapi.github.io",
+  baseUrl: "/",
 
-  organizationName: 'neokapi',
-  projectName: 'neokapi',
+  organizationName: "neokapi",
+  projectName: "neokapi",
   trailingSlash: false,
 
-  onBrokenLinks: 'throw',
+  onBrokenLinks: "throw",
 
   i18n: {
-    defaultLocale: 'en',
-    locales: ['en'],
+    defaultLocale: "en",
+    locales: ["en"],
   },
 
   markdown: {
     mermaid: true,
     hooks: {
-      onBrokenMarkdownLinks: 'warn',
-      onBrokenMarkdownImages: 'warn',
+      onBrokenMarkdownLinks: "warn",
+      onBrokenMarkdownImages: "warn",
     },
   },
 
-  themes: ['@docusaurus/theme-mermaid'],
+  themes: ["@docusaurus/theme-mermaid"],
 
   plugins: [
     [
-      '@docusaurus/plugin-content-docs',
+      "@docusaurus/plugin-content-docs",
       {
-        id: 'ad',
-        path: '../docs/ad',
-        routeBasePath: 'docs/ad',
-        sidebarPath: './sidebars-ad.ts',
-        editUrl: 'https://github.com/neokapi/neokapi/tree/main/',
+        id: "ad",
+        path: "../docs/ad",
+        routeBasePath: "docs/ad",
+        sidebarPath: "./sidebars-ad.ts",
+        editUrl: "https://github.com/neokapi/neokapi/tree/main/",
       },
     ],
     [
-      '@docusaurus/plugin-content-docs',
+      "@docusaurus/plugin-content-docs",
       {
-        id: 'notes',
-        path: '../docs/notes',
-        routeBasePath: 'docs/notes',
-        sidebarPath: './sidebars-notes.ts',
-        editUrl: 'https://github.com/neokapi/neokapi/tree/main/',
+        id: "notes",
+        path: "../docs/notes",
+        routeBasePath: "docs/notes",
+        sidebarPath: "./sidebars-notes.ts",
+        editUrl: "https://github.com/neokapi/neokapi/tree/main/",
       },
     ],
     [
-      '@docusaurus/plugin-content-docs',
+      "@docusaurus/plugin-content-docs",
       {
-        id: 'bowrain',
-        path: '../platform/docs',
-        routeBasePath: 'bowrain',
-        sidebarPath: './sidebars-bowrain.ts',
-        editUrl: 'https://github.com/neokapi/neokapi/tree/main/',
+        id: "bowrain",
+        path: "../platform/docs",
+        routeBasePath: "bowrain",
+        sidebarPath: "./sidebars-bowrain.ts",
+        editUrl: "https://github.com/neokapi/neokapi/tree/main/",
       },
     ],
   ],
 
   presets: [
     [
-      'classic',
+      "classic",
       {
         docs: {
-          sidebarPath: './sidebars.ts',
-          editUrl: 'https://github.com/neokapi/neokapi/tree/main/website/',
+          sidebarPath: "./sidebars.ts",
+          editUrl: "https://github.com/neokapi/neokapi/tree/main/website/",
         },
         blog: false,
         theme: {
-          customCss: './src/css/custom.css',
+          customCss: "./src/css/custom.css",
         },
       } satisfies Preset.Options,
     ],
@@ -82,79 +82,79 @@ const config: Config = {
 
   themeConfig: {
     navbar: {
-      title: 'neokapi',
+      title: "neokapi",
       logo: {
-        alt: 'neokapi',
-        src: 'img/logo.png',
+        alt: "neokapi",
+        src: "img/logo.png",
       },
       items: [
         {
-          type: 'docSidebar',
-          sidebarId: 'neokapiSidebar',
-          position: 'left',
-          label: 'Neokapi',
+          type: "docSidebar",
+          sidebarId: "neokapiSidebar",
+          position: "left",
+          label: "Neokapi",
         },
         {
-          type: 'docSidebar',
-          docsPluginId: 'bowrain',
-          sidebarId: 'bowrainSidebar',
-          position: 'left',
-          label: 'Bowrain',
+          type: "docSidebar",
+          docsPluginId: "bowrain",
+          sidebarId: "bowrainSidebar",
+          position: "left",
+          label: "Bowrain",
         },
         {
-          href: 'https://github.com/neokapi/neokapi',
-          label: 'GitHub',
-          position: 'right',
+          href: "https://github.com/neokapi/neokapi",
+          label: "GitHub",
+          position: "right",
         },
       ],
     },
     footer: {
-      style: 'dark',
+      style: "dark",
       links: [
         {
-          title: 'Neokapi',
+          title: "Neokapi",
           items: [
             {
-              label: 'Getting Started',
-              to: '/docs/getting-started/introduction',
+              label: "Getting Started",
+              to: "/docs/getting-started/introduction",
             },
             {
-              label: 'Kapi CLI',
-              to: '/docs/kapi-cli/overview',
+              label: "Kapi CLI",
+              to: "/docs/kapi-cli/overview",
             },
             {
-              label: 'Framework',
-              to: '/docs/developer/architecture',
+              label: "Framework",
+              to: "/docs/developer/architecture",
             },
           ],
         },
         {
-          title: 'Bowrain',
+          title: "Bowrain",
           items: [
             {
-              label: 'Getting Started',
-              to: '/bowrain/introduction',
+              label: "Getting Started",
+              to: "/bowrain/introduction",
             },
             {
-              label: 'Bowrain CLI',
-              to: '/bowrain/cli/overview',
+              label: "Bowrain CLI",
+              to: "/bowrain/cli/overview",
             },
             {
-              label: 'Bowrain Web',
-              to: '/bowrain/server/web-overview',
+              label: "Bowrain Web",
+              to: "/bowrain/server/web-overview",
             },
           ],
         },
         {
-          title: 'More',
+          title: "More",
           items: [
             {
-              label: 'GitHub',
-              href: 'https://github.com/neokapi/neokapi',
+              label: "GitHub",
+              href: "https://github.com/neokapi/neokapi",
             },
             {
-              label: 'Homebrew Tap',
-              href: 'https://github.com/neokapi/homebrew-tap',
+              label: "Homebrew Tap",
+              href: "https://github.com/neokapi/homebrew-tap",
             },
           ],
         },
@@ -164,10 +164,10 @@ const config: Config = {
     prism: {
       theme: prismThemes.github,
       darkTheme: prismThemes.dracula,
-      additionalLanguages: ['go', 'protobuf', 'yaml', 'bash', 'json'],
+      additionalLanguages: ["go", "protobuf", "yaml", "bash", "json"],
     },
     mermaid: {
-      theme: {light: 'neutral', dark: 'dark'},
+      theme: { light: "neutral", dark: "dark" },
     },
   } satisfies Preset.ThemeConfig,
 };

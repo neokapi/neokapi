@@ -2,6 +2,7 @@
 sidebar_position: 10
 title: "Keycloak Theming"
 ---
+
 # Keycloak Custom Theme with Keycloakify v11
 
 This note documents the custom Keycloak login theme built with Keycloakify v11. The theme replaces the default PatternFly-based login pages with glassmorphism-styled React pages that match the Bowrain application.
@@ -72,6 +73,7 @@ export default defineConfig({
 ```
 
 Key points:
+
 - `themeName: "bowrain"` -- the theme is registered in Keycloak under this name
 - `accountThemeImplementation: "none"` -- only the login theme is customized; the account management pages use Keycloak defaults
 - The `@neokapi/ui` alias points to the shared UI package source for direct TypeScript consumption
@@ -82,17 +84,18 @@ A critical configuration in `KcPage.tsx` prevents PatternFly CSS from loading:
 
 ```tsx
 <DefaultPage
-    kcContext={kcContext}
-    i18n={i18n}
-    classes={classes}
-    Template={Template}
-    doUseDefaultCss={false}
-    UserProfileFormFields={UserProfileFormFields}
-    doMakeUserConfirmPassword={true}
+  kcContext={kcContext}
+  i18n={i18n}
+  classes={classes}
+  Template={Template}
+  doUseDefaultCss={false}
+  UserProfileFormFields={UserProfileFormFields}
+  doMakeUserConfirmPassword={true}
 />
 ```
 
 Setting `doUseDefaultCss={false}` is essential because:
+
 - Keycloak's default theme loads PatternFly CSS, which conflicts with Tailwind utility classes
 - PatternFly's reset styles override Tailwind's base styles
 - The glassmorphism effects (backdrop-filter, alpha backgrounds) break under PatternFly's opaque surface styles
@@ -119,6 +122,7 @@ All pages render inside an `AnimatedBackgroundGlass` component for the floating-
 ### Login Page
 
 Uses `@neokapi/ui` components (`Card`, `Button`, `Input`, `Label`) with the `glass-surface` class for backdrop blur. Features:
+
 - Email/username + password form
 - "Remember me" checkbox (conditional on realm config)
 - Password reset link
@@ -144,9 +148,9 @@ Keycloakify's CSS processing can strip or reorder `@layer` blocks, which causes 
 :root {
   /* OKLCH primitives (~80 tokens: white opacity variants, black, color ramps) */
   --oklch-white-8: oklch(100% 0 0 / 0.08);
-  --oklch-copper-500: oklch(62% .16 48);
-  --oklch-copper-600: oklch(54% .16 46);
-  --oklch-bronze-500: oklch(58% .14 35);
+  --oklch-copper-500: oklch(62% 0.16 48);
+  --oklch-copper-600: oklch(54% 0.16 46);
+  --oklch-bronze-500: oklch(58% 0.14 35);
   /* ... */
 
   /* Semantic tokens (~45 tokens) */
@@ -165,11 +169,11 @@ Keycloakify's CSS processing can strip or reorder `@layer` blocks, which causes 
 
   /* Background gradient + orb tokens (5 orbs) */
   --bg-from: var(--oklch-slate-900);
-  --orb-1: var(--oklch-blue-500-20);     /* hue 255° */
-  --orb-2: var(--oklch-copper-600-20);   /* hue 46° */
-  --orb-3: var(--oklch-cyan-500-20);     /* hue 195° */
-  --orb-4: var(--oklch-copper-600-15);   /* hue 46° */
-  --orb-5: transparent;                   /* center, dark theme only */
+  --orb-1: var(--oklch-blue-500-20); /* hue 255° */
+  --orb-2: var(--oklch-copper-600-20); /* hue 46° */
+  --orb-3: var(--oklch-cyan-500-20); /* hue 195° */
+  --orb-4: var(--oklch-copper-600-15); /* hue 46° */
+  --orb-5: transparent; /* center, dark theme only */
 }
 ```
 
@@ -286,17 +290,18 @@ The dev compose builds from `Dockerfile.dev` so the extension is available out o
 
 Apple credentials are injected at container startup via the entrypoint script using these environment variables:
 
-| Variable | Description |
-|---|---|
-| `APPLE_CLIENT_ID` | Service ID from Apple Developer Account |
-| `APPLE_CLIENT_SECRET` | Contents of the `.p8` private key file |
-| `APPLE_TEAM_ID` | Team ID from Apple Developer Account |
-| `APPLE_KEY_ID` | Key identifier from Apple Developer Account |
+| Variable              | Description                                 |
+| --------------------- | ------------------------------------------- |
+| `APPLE_CLIENT_ID`     | Service ID from Apple Developer Account     |
+| `APPLE_CLIENT_SECRET` | Contents of the `.p8` private key file      |
+| `APPLE_TEAM_ID`       | Team ID from Apple Developer Account        |
+| `APPLE_KEY_ID`        | Key identifier from Apple Developer Account |
 
 The redirect URI to register in your Apple Developer Account is:
 `https://<keycloak-url>/realms/bowrain/broker/apple/endpoint`
 
 The realm also configures:
+
 - `registrationAllowed: true` with email-as-username
 - `verifyEmail: true` with SMTP pointing to Mailpit (`mailpit:1025`)
 - OAuth2 device authorization grant enabled for CLI authentication

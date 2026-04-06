@@ -2,6 +2,7 @@
 sidebar_position: 17
 title: "Brand Voice Data Model"
 ---
+
 # Brand Voice Data Model
 
 This note provides implementation details for [AD-025](/docs/ad/025-brand-voice-governance).
@@ -166,6 +167,7 @@ CREATE TABLE IF NOT EXISTS brand_voice_corrections (
 ## Server: PostgreSQL Schema
 
 The server PostgreSQL schema mirrors the SQLite schema with PostgreSQL-specific types:
+
 - `TEXT` columns for JSON data (tone, style, vocabulary, examples, locales, channels, dimensions, findings)
 - `TIMESTAMP WITH TIME ZONE` for temporal columns
 - Workspace isolation via `workspace_id` column with foreign key to workspaces table
@@ -181,6 +183,7 @@ The `CalculateScore` function in `core/brand/scoring.go`:
 4. Return `BrandComplianceScore` with overall, dimensions, findings, word count, profile ID
 
 Severity weights follow MQM conventions:
+
 - neutral=0 (informational)
 - minor=1 (slight issue)
 - major=5 (clear violation)
@@ -220,15 +223,15 @@ Loaded via `packs.Load("professional-b2b")` which returns a `*brand.VoiceProfile
 
 Profile bindings use well-known keys stored on existing entity maps:
 
-| Entity | Map | Key | Purpose |
-|--------|-----|-----|---------|
-| Workspace | (native field) | `BrandVoiceProfileID` | Default profile for workspace |
-| Project | `Properties` | `brand_voice_profile_id` | Override profile for project |
-| Project | `Properties` | `brand_voice_channel` | Default channel override |
-| Stream | `Properties` | `brand_voice_profile_id` | Override profile for stream |
-| Stream | `Properties` | `brand_voice_channel` | Channel override for stream |
+| Entity     | Map               | Key                      | Purpose                         |
+| ---------- | ----------------- | ------------------------ | ------------------------------- |
+| Workspace  | (native field)    | `BrandVoiceProfileID`    | Default profile for workspace   |
+| Project    | `Properties`      | `brand_voice_profile_id` | Override profile for project    |
+| Project    | `Properties`      | `brand_voice_channel`    | Default channel override        |
+| Stream     | `Properties`      | `brand_voice_profile_id` | Override profile for stream     |
+| Stream     | `Properties`      | `brand_voice_channel`    | Channel override for stream     |
 | Collection | `ConnectorConfig` | `brand_voice_profile_id` | Override profile for collection |
-| Collection | `ConnectorConfig` | `brand_voice_channel` | Channel override for collection |
+| Collection | `ConnectorConfig` | `brand_voice_channel`    | Channel override for collection |
 
 ### Resolution Algorithm
 
@@ -330,29 +333,29 @@ type BlastRadius struct {
 
 ### Framework (`core/`, `cli/`)
 
-| File | Purpose |
-|------|---------|
-| `core/brand/profile.go` | VoiceProfile data model with tone, style, vocabulary |
-| `core/brand/scoring.go` | Dimensions, severities, scoring algorithm |
-| `core/brand/store.go` | BrandStore interface + StoredScore, Correction types |
-| `core/brand/annotation.go` | BrandVoiceAnnotation (implements model.Annotation) |
-| `core/brand/resolve.go` | ResolveProfile + ResolveProfileFromContext for hierarchical resolution |
-| `core/brand/binding.go` | BrandVoiceBinding, ResolveContext, ProfileResolver interface |
-| `core/brand/evaluate.go` | BrandVoiceEvaluation, BlastRadius, AggregateScore types |
-| `core/brand/workspace_tags.go` | TagDimension for workspace-configurable scoping |
-| `core/brand/packs/*.yaml` | Starter pack YAML definitions |
-| `core/brand/packs/embed.go` | Embedded starter pack loader |
-| `core/ai/tools/brandvoice.go` | LLM-based brand-voice-check pipeline tool |
-| `core/tools/brandvocab.go` | Rule-based brand-vocab-filter pipeline tool |
-| `cli/storage/brand/sqlite.go` | SQLite BrandStore implementation |
+| File                           | Purpose                                                                |
+| ------------------------------ | ---------------------------------------------------------------------- |
+| `core/brand/profile.go`        | VoiceProfile data model with tone, style, vocabulary                   |
+| `core/brand/scoring.go`        | Dimensions, severities, scoring algorithm                              |
+| `core/brand/store.go`          | BrandStore interface + StoredScore, Correction types                   |
+| `core/brand/annotation.go`     | BrandVoiceAnnotation (implements model.Annotation)                     |
+| `core/brand/resolve.go`        | ResolveProfile + ResolveProfileFromContext for hierarchical resolution |
+| `core/brand/binding.go`        | BrandVoiceBinding, ResolveContext, ProfileResolver interface           |
+| `core/brand/evaluate.go`       | BrandVoiceEvaluation, BlastRadius, AggregateScore types                |
+| `core/brand/workspace_tags.go` | TagDimension for workspace-configurable scoping                        |
+| `core/brand/packs/*.yaml`      | Starter pack YAML definitions                                          |
+| `core/brand/packs/embed.go`    | Embedded starter pack loader                                           |
+| `core/ai/tools/brandvoice.go`  | LLM-based brand-voice-check pipeline tool                              |
+| `core/tools/brandvocab.go`     | Rule-based brand-vocab-filter pipeline tool                            |
+| `cli/storage/brand/sqlite.go`  | SQLite BrandStore implementation                                       |
 
 ### Server (`platform/`, `bowrain/`)
 
-| File | Purpose |
-|------|---------|
-| `bowrain/brand/` | PostgreSQL BrandStore (server) |
-| `platform/server/mcp/server.go` | Cloud MCP server bootstrap |
-| `platform/server/mcp/resources.go` | MCP resource handlers |
-| `platform/server/mcp/tools.go` | MCP tool handlers (Phase 1) |
-| `platform/server/mcp/tools_scoring.go` | MCP tool handlers (Phase 2) |
-| `platform/server/mcp/prompts.go` | MCP prompt templates |
+| File                                   | Purpose                        |
+| -------------------------------------- | ------------------------------ |
+| `bowrain/brand/`                       | PostgreSQL BrandStore (server) |
+| `platform/server/mcp/server.go`        | Cloud MCP server bootstrap     |
+| `platform/server/mcp/resources.go`     | MCP resource handlers          |
+| `platform/server/mcp/tools.go`         | MCP tool handlers (Phase 1)    |
+| `platform/server/mcp/tools_scoring.go` | MCP tool handlers (Phase 2)    |
+| `platform/server/mcp/prompts.go`       | MCP prompt templates           |

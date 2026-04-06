@@ -11,12 +11,112 @@ import { Create as $Create } from "@wailsio/runtime";
 import * as flow$0 from "../flow/models.js";
 
 /**
- * ContentEntry maps local files to format and target path patterns.
+ * ContentCollection is either a bare content entry or a named collection of items.
+ * 
+ * Bare entry (has path, no items):
+ * 
+ *   - path: "src/** /*"
+ *     target: "output/{lang}/** /*"
+ * 
+ * Collection (has name and items):
+ * 
+ *   - name: Marketing
+ *     target_languages: [fr-FR]
+ *     items:
+ *   - path: "marketing/*.html"
+ *     format: okf_html
  */
-export class ContentEntry {
+export class ContentCollection {
     /**
-     * Creates a new ContentEntry instance.
-     * @param {Partial<ContentEntry>} [$$source = {}] - The source object to create the ContentEntry.
+     * Creates a new ContentCollection instance.
+     * @param {Partial<ContentCollection>} [$$source = {}] - The source object to create the ContentCollection.
+     */
+    constructor($$source = {}) {
+        if (/** @type {any} */(false)) {
+            /**
+             * Collection fields (long form).
+             * @member
+             * @type {string | undefined}
+             */
+            this["name"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["source_language"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string[] | undefined}
+             */
+            this["target_languages"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {ContentItem[] | undefined}
+             */
+            this["items"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Bare entry fields (short form — promoted from ContentItem).
+             * @member
+             * @type {string | undefined}
+             */
+            this["path"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {FormatSpec | null | undefined}
+             */
+            this["format"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["target"] = undefined;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ContentCollection instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {ContentCollection}
+     */
+    static createFrom($$source = {}) {
+        const $$createField2_0 = $$createType0;
+        const $$createField3_0 = $$createType2;
+        const $$createField5_0 = $$createType4;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("target_languages" in $$parsedSource) {
+            $$parsedSource["target_languages"] = $$createField2_0($$parsedSource["target_languages"]);
+        }
+        if ("items" in $$parsedSource) {
+            $$parsedSource["items"] = $$createField3_0($$parsedSource["items"]);
+        }
+        if ("format" in $$parsedSource) {
+            $$parsedSource["format"] = $$createField5_0($$parsedSource["format"]);
+        }
+        return new ContentCollection(/** @type {Partial<ContentCollection>} */($$parsedSource));
+    }
+}
+
+/**
+ * ContentItem is a single content pattern within a collection.
+ */
+export class ContentItem {
+    /**
+     * Creates a new ContentItem instance.
+     * @param {Partial<ContentItem>} [$$source = {}] - The source object to create the ContentItem.
      */
     constructor($$source = {}) {
         if (!("path" in $$source)) {
@@ -29,7 +129,7 @@ export class ContentEntry {
         if (/** @type {any} */(false)) {
             /**
              * @member
-             * @type {string | undefined}
+             * @type {FormatSpec | null | undefined}
              */
             this["format"] = undefined;
         }
@@ -45,38 +145,35 @@ export class ContentEntry {
              * @member
              * @type {string | undefined}
              */
-            this["collection"] = undefined;
+            this["source_language"] = undefined;
         }
         if (/** @type {any} */(false)) {
             /**
              * @member
-             * @type {string | undefined}
+             * @type {string[] | undefined}
              */
-            this["format_preset"] = undefined;
-        }
-        if (/** @type {any} */(false)) {
-            /**
-             * @member
-             * @type {{ [_ in string]?: any } | undefined}
-             */
-            this["format_config"] = undefined;
+            this["target_languages"] = undefined;
         }
 
         Object.assign(this, $$source);
     }
 
     /**
-     * Creates a new ContentEntry instance from a string or object.
+     * Creates a new ContentItem instance from a string or object.
      * @param {any} [$$source = {}]
-     * @returns {ContentEntry}
+     * @returns {ContentItem}
      */
     static createFrom($$source = {}) {
-        const $$createField5_0 = $$createType0;
+        const $$createField1_0 = $$createType4;
+        const $$createField4_0 = $$createType0;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        if ("format_config" in $$parsedSource) {
-            $$parsedSource["format_config"] = $$createField5_0($$parsedSource["format_config"]);
+        if ("format" in $$parsedSource) {
+            $$parsedSource["format"] = $$createField1_0($$parsedSource["format"]);
         }
-        return new ContentEntry(/** @type {Partial<ContentEntry>} */($$parsedSource));
+        if ("target_languages" in $$parsedSource) {
+            $$parsedSource["target_languages"] = $$createField4_0($$parsedSource["target_languages"]);
+        }
+        return new ContentItem(/** @type {Partial<ContentItem>} */($$parsedSource));
     }
 }
 
@@ -89,6 +186,28 @@ export class Defaults {
      * @param {Partial<Defaults>} [$$source = {}] - The source object to create the Defaults.
      */
     constructor($$source = {}) {
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["source_language"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string[] | undefined}
+             */
+            this["target_languages"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * "bcp-47" (default) or "posix"
+             * @member
+             * @type {string | undefined}
+             */
+            this["locale_format"] = undefined;
+        }
         if (/** @type {any} */(false)) {
             /**
              * @member
@@ -110,6 +229,13 @@ export class Defaults {
              */
             this["encoding"] = undefined;
         }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {{ [_ in string]?: FormatDefaults } | undefined}
+             */
+            this["formats"] = undefined;
+        }
 
         Object.assign(this, $$source);
     }
@@ -120,8 +246,123 @@ export class Defaults {
      * @returns {Defaults}
      */
     static createFrom($$source = {}) {
+        const $$createField1_0 = $$createType0;
+        const $$createField6_0 = $$createType6;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("target_languages" in $$parsedSource) {
+            $$parsedSource["target_languages"] = $$createField1_0($$parsedSource["target_languages"]);
+        }
+        if ("formats" in $$parsedSource) {
+            $$parsedSource["formats"] = $$createField6_0($$parsedSource["formats"]);
+        }
         return new Defaults(/** @type {Partial<Defaults>} */($$parsedSource));
+    }
+}
+
+/**
+ * FormatDefaults holds project-level default settings for a specific format.
+ */
+export class FormatDefaults {
+    /**
+     * Creates a new FormatDefaults instance.
+     * @param {Partial<FormatDefaults>} [$$source = {}] - The source object to create the FormatDefaults.
+     */
+    constructor($$source = {}) {
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["preset"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {{ [_ in string]?: any } | undefined}
+             */
+            this["config"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {number | undefined}
+             */
+            this["priority"] = undefined;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new FormatDefaults instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {FormatDefaults}
+     */
+    static createFrom($$source = {}) {
+        const $$createField1_0 = $$createType7;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("config" in $$parsedSource) {
+            $$parsedSource["config"] = $$createField1_0($$parsedSource["config"]);
+        }
+        return new FormatDefaults(/** @type {Partial<FormatDefaults>} */($$parsedSource));
+    }
+}
+
+/**
+ * FormatSpec is the per-item format override.
+ * Supports short form (scalar string → just the name) and long form (mapping).
+ * 
+ * Short form: format: okf_html
+ * Long form:
+ * 
+ * 	format:
+ * 	  name: okf_html
+ * 	  preset: lenient
+ * 	  config: {escapeGT: false}
+ */
+export class FormatSpec {
+    /**
+     * Creates a new FormatSpec instance.
+     * @param {Partial<FormatSpec>} [$$source = {}] - The source object to create the FormatSpec.
+     */
+    constructor($$source = {}) {
+        if (!("name" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["name"] = "";
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["preset"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {{ [_ in string]?: any } | undefined}
+             */
+            this["config"] = undefined;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new FormatSpec instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {FormatSpec}
+     */
+    static createFrom($$source = {}) {
+        const $$createField2_0 = $$createType7;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("config" in $$parsedSource) {
+            $$parsedSource["config"] = $$createField2_0($$parsedSource["config"]);
+        }
+        return new FormatSpec(/** @type {Partial<FormatSpec>} */($$parsedSource));
     }
 }
 
@@ -151,21 +392,21 @@ export class KapiProject {
         if (/** @type {any} */(false)) {
             /**
              * @member
-             * @type {string | undefined}
+             * @type {{ [_ in string]?: PluginSpec } | undefined}
              */
-            this["source_language"] = undefined;
+            this["plugins"] = undefined;
         }
         if (/** @type {any} */(false)) {
             /**
              * @member
-             * @type {string[] | undefined}
+             * @type {Defaults | undefined}
              */
-            this["target_languages"] = undefined;
+            this["defaults"] = undefined;
         }
         if (/** @type {any} */(false)) {
             /**
              * @member
-             * @type {ContentEntry[] | undefined}
+             * @type {ContentCollection[] | undefined}
              */
             this["content"] = undefined;
         }
@@ -179,23 +420,9 @@ export class KapiProject {
         if (/** @type {any} */(false)) {
             /**
              * @member
-             * @type {string[] | undefined}
-             */
-            this["plugins"] = undefined;
-        }
-        if (/** @type {any} */(false)) {
-            /**
-             * @member
              * @type {{ [_ in string]?: flow$0.StepsSpec | null } | undefined}
              */
             this["flows"] = undefined;
-        }
-        if (/** @type {any} */(false)) {
-            /**
-             * @member
-             * @type {Defaults | undefined}
-             */
-            this["defaults"] = undefined;
         }
 
         Object.assign(this, $$source);
@@ -207,37 +434,95 @@ export class KapiProject {
      * @returns {KapiProject}
      */
     static createFrom($$source = {}) {
-        const $$createField3_0 = $$createType1;
-        const $$createField4_0 = $$createType3;
-        const $$createField6_0 = $$createType1;
-        const $$createField7_0 = $$createType6;
-        const $$createField8_0 = $$createType7;
+        const $$createField2_0 = $$createType9;
+        const $$createField3_0 = $$createType10;
+        const $$createField4_0 = $$createType12;
+        const $$createField6_0 = $$createType15;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        if ("target_languages" in $$parsedSource) {
-            $$parsedSource["target_languages"] = $$createField3_0($$parsedSource["target_languages"]);
+        if ("plugins" in $$parsedSource) {
+            $$parsedSource["plugins"] = $$createField2_0($$parsedSource["plugins"]);
+        }
+        if ("defaults" in $$parsedSource) {
+            $$parsedSource["defaults"] = $$createField3_0($$parsedSource["defaults"]);
         }
         if ("content" in $$parsedSource) {
             $$parsedSource["content"] = $$createField4_0($$parsedSource["content"]);
         }
-        if ("plugins" in $$parsedSource) {
-            $$parsedSource["plugins"] = $$createField6_0($$parsedSource["plugins"]);
-        }
         if ("flows" in $$parsedSource) {
-            $$parsedSource["flows"] = $$createField7_0($$parsedSource["flows"]);
-        }
-        if ("defaults" in $$parsedSource) {
-            $$parsedSource["defaults"] = $$createField8_0($$parsedSource["defaults"]);
+            $$parsedSource["flows"] = $$createField6_0($$parsedSource["flows"]);
         }
         return new KapiProject(/** @type {Partial<KapiProject>} */($$parsedSource));
     }
 }
 
+/**
+ * PluginSpec describes a plugin dependency with version constraints and settings.
+ * Supports short form (bare string → version range) and long form (struct).
+ * 
+ * Short form: okapi: "^1.47.0"
+ * Long form:
+ * 
+ * 	okapi:
+ * 	  version: "^0.38.0"
+ * 	  framework_version: "^1.47.0"
+ * 	  format_priority: 200
+ */
+export class PluginSpec {
+    /**
+     * Creates a new PluginSpec instance.
+     * @param {Partial<PluginSpec>} [$$source = {}] - The source object to create the PluginSpec.
+     */
+    constructor($$source = {}) {
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["version"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["framework_version"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {number | undefined}
+             */
+            this["format_priority"] = undefined;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new PluginSpec instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {PluginSpec}
+     */
+    static createFrom($$source = {}) {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new PluginSpec(/** @type {Partial<PluginSpec>} */($$parsedSource));
+    }
+}
+
 // Private type creation functions
-const $$createType0 = $Create.Map($Create.Any, $Create.Any);
-const $$createType1 = $Create.Array($Create.Any);
-const $$createType2 = ContentEntry.createFrom;
-const $$createType3 = $Create.Array($$createType2);
-const $$createType4 = flow$0.StepsSpec.createFrom;
-const $$createType5 = $Create.Nullable($$createType4);
+const $$createType0 = $Create.Array($Create.Any);
+const $$createType1 = ContentItem.createFrom;
+const $$createType2 = $Create.Array($$createType1);
+const $$createType3 = FormatSpec.createFrom;
+const $$createType4 = $Create.Nullable($$createType3);
+const $$createType5 = FormatDefaults.createFrom;
 const $$createType6 = $Create.Map($Create.Any, $$createType5);
-const $$createType7 = Defaults.createFrom;
+const $$createType7 = $Create.Map($Create.Any, $Create.Any);
+const $$createType8 = PluginSpec.createFrom;
+const $$createType9 = $Create.Map($Create.Any, $$createType8);
+const $$createType10 = Defaults.createFrom;
+const $$createType11 = ContentCollection.createFrom;
+const $$createType12 = $Create.Array($$createType11);
+const $$createType13 = flow$0.StepsSpec.createFrom;
+const $$createType14 = $Create.Nullable($$createType13);
+const $$createType15 = $Create.Map($Create.Any, $$createType14);

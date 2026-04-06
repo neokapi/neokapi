@@ -3,6 +3,7 @@ id: 018-multi-module-architecture
 sidebar_position: 18
 title: "AD-018: Multi-Module Monorepo Architecture"
 ---
+
 # AD-018: Multi-Module Monorepo Architecture
 
 ## Context
@@ -32,15 +33,15 @@ framework (root)
 
 ### Module Responsibilities
 
-| Module | Import Path | Directory | Role |
-|--------|------------|-----------|------|
-| Framework | `github.com/neokapi/neokapi` | `.` (repo root) | Content model, formats, tools, pipeline, plugin system, TM, termbase, AI/MT providers |
-| CLI | `github.com/neokapi/neokapi/cli` | `cli/` | Shared CLI base: App struct, command factories, output formatting, app config |
-| Bowrain Core | `github.com/neokapi/neokapi/bowrain/core` | `bowrain/core/` | Shared platform types: project model, auth, connector interfaces, REST client, store |
-| Kapi | `github.com/neokapi/neokapi/kapi` | `kapi/` | Standalone CLI tool for local file processing |
-| Kapi Desktop | `github.com/neokapi/neokapi/kapi-desktop` | `apps/kapi-desktop/` | Wails v3 desktop app for visual localization workflows |
-| Bowrain CLI | `github.com/neokapi/neokapi/bowrain/cli` | `bowrain/cli/` | Bowrain CLI — project sync companion (init, push, pull, auth, status) |
-| Bowrain | `github.com/neokapi/neokapi/bowrain` | `bowrain/` | REST server, desktop app, PostgreSQL storage, OIDC, connectors |
+| Module       | Import Path                               | Directory            | Role                                                                                  |
+| ------------ | ----------------------------------------- | -------------------- | ------------------------------------------------------------------------------------- |
+| Framework    | `github.com/neokapi/neokapi`              | `.` (repo root)      | Content model, formats, tools, pipeline, plugin system, TM, termbase, AI/MT providers |
+| CLI          | `github.com/neokapi/neokapi/cli`          | `cli/`               | Shared CLI base: App struct, command factories, output formatting, app config         |
+| Bowrain Core | `github.com/neokapi/neokapi/bowrain/core` | `bowrain/core/`      | Shared platform types: project model, auth, connector interfaces, REST client, store  |
+| Kapi         | `github.com/neokapi/neokapi/kapi`         | `kapi/`              | Standalone CLI tool for local file processing                                         |
+| Kapi Desktop | `github.com/neokapi/neokapi/kapi-desktop` | `apps/kapi-desktop/` | Wails v3 desktop app for visual localization workflows                                |
+| Bowrain CLI  | `github.com/neokapi/neokapi/bowrain/cli`  | `bowrain/cli/`       | Bowrain CLI — project sync companion (init, push, pull, auth, status)                 |
+| Bowrain      | `github.com/neokapi/neokapi/bowrain`      | `bowrain/`           | REST server, desktop app, PostgreSQL storage, OIDC, connectors                        |
 
 ### Directory Layout
 

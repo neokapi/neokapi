@@ -13,6 +13,7 @@ Kapi lets you combine translation memory, AI translation, and terminology in a s
 ## The Scenario
 
 Your project has:
+
 - `messages_en.json` — English source strings for a web application
 - `glossary.csv` — an approved bilingual glossary (English/French) maintained by your terminology team
 - A translation memory from previous releases, stored as `project.tmx`

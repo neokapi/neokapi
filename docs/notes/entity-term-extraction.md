@@ -2,6 +2,7 @@
 sidebar_position: 6
 title: "Entity & Term Extraction"
 ---
+
 # Entity & Term Extraction
 
 Implementation details for [AD-022](/docs/ad/022-entity-term-extraction).
@@ -30,7 +31,20 @@ The `AIEntityExtractTool` uses `ChatStructured()` with this JSON schema:
                 "type": "object",
                 "properties": {
                   "text": { "type": "string" },
-                  "type": { "type": "string", "enum": ["person", "organization", "product", "location", "date", "time", "currency", "measurement", "other"] },
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "person",
+                      "organization",
+                      "product",
+                      "location",
+                      "date",
+                      "time",
+                      "currency",
+                      "measurement",
+                      "other"
+                    ]
+                  },
                   "dnt": { "type": "boolean" },
                   "offset": { "type": "integer" },
                   "length": { "type": "integer" },
@@ -46,13 +60,24 @@ The `AIEntityExtractTool` uses `ChatStructured()` with this JSON schema:
                 "properties": {
                   "text": { "type": "string" },
                   "definition": { "type": "string" },
-                  "category": { "type": "string", "enum": ["brand", "technical", "ui", "legal", "marketing", "general"] },
+                  "category": {
+                    "type": "string",
+                    "enum": ["brand", "technical", "ui", "legal", "marketing", "general"]
+                  },
                   "translatability": { "type": "string", "enum": ["dnt", "consistent", "free"] },
                   "confidence": { "type": "number" },
                   "offset": { "type": "integer" },
                   "length": { "type": "integer" }
                 },
-                "required": ["text", "definition", "category", "translatability", "confidence", "offset", "length"]
+                "required": [
+                  "text",
+                  "definition",
+                  "category",
+                  "translatability",
+                  "confidence",
+                  "offset",
+                  "length"
+                ]
               }
             }
           },
@@ -125,17 +150,17 @@ POST {endpoint}/language/:analyze-text?api-version=2024-11-01
 
 Azure entity type mapping to `model.EntityType`:
 
-| Azure Type | model.EntityType |
-|-----------|-----------------|
-| Person, PersonType | EntityPerson |
-| Organization, OrganizationMedical, OrganizationSports, OrganizationStockExchange | EntityOrganization |
-| Product, ComputingProduct | EntityProduct |
-| Address, Airport, City, Continent, CountryRegion, GPE, Geological, Location, State, Structural | EntityLocation |
-| Date, DateTime, DateRange, DateTimeRange | EntityDate |
-| Time, TimeRange | EntityTime |
-| Currency | EntityCurrency |
-| Age, Area, Dimension, Height, Length, Number, NumberRange, Ordinal, Percentage, Speed, Temperature, Volume, Weight | EntityMeasurement |
-| (all others) | EntityOther |
+| Azure Type                                                                                                         | model.EntityType   |
+| ------------------------------------------------------------------------------------------------------------------ | ------------------ |
+| Person, PersonType                                                                                                 | EntityPerson       |
+| Organization, OrganizationMedical, OrganizationSports, OrganizationStockExchange                                   | EntityOrganization |
+| Product, ComputingProduct                                                                                          | EntityProduct      |
+| Address, Airport, City, Continent, CountryRegion, GPE, Geological, Location, State, Structural                     | EntityLocation     |
+| Date, DateTime, DateRange, DateTimeRange                                                                           | EntityDate         |
+| Time, TimeRange                                                                                                    | EntityTime         |
+| Currency                                                                                                           | EntityCurrency     |
+| Age, Area, Dimension, Height, Length, Number, NumberRange, Ordinal, Percentage, Speed, Temperature, Volume, Weight | EntityMeasurement  |
+| (all others)                                                                                                       | EntityOther        |
 
 Batch: up to 25 documents per request, 5120 characters each.
 
@@ -143,16 +168,16 @@ Batch: up to 25 documents per request, 5120 characters each.
 
 Uses the Java/Python plugin bridge ([AD-007](/docs/ad/007-plugin-system)). spaCy NER models output:
 
-| spaCy Label | model.EntityType |
-|------------|-----------------|
-| PERSON | EntityPerson |
-| ORG, NORP | EntityOrganization |
-| PRODUCT, WORK_OF_ART | EntityProduct |
-| GPE, LOC, FAC | EntityLocation |
-| DATE | EntityDate |
-| TIME | EntityTime |
-| MONEY | EntityCurrency |
-| QUANTITY, PERCENT, CARDINAL, ORDINAL | EntityMeasurement |
+| spaCy Label                          | model.EntityType   |
+| ------------------------------------ | ------------------ |
+| PERSON                               | EntityPerson       |
+| ORG, NORP                            | EntityOrganization |
+| PRODUCT, WORK_OF_ART                 | EntityProduct      |
+| GPE, LOC, FAC                        | EntityLocation     |
+| DATE                                 | EntityDate         |
+| TIME                                 | EntityTime         |
+| MONEY                                | EntityCurrency     |
+| QUANTITY, PERCENT, CARDINAL, ORDINAL | EntityMeasurement  |
 
 ## Review Queue SQLite Schema
 
@@ -388,14 +413,14 @@ VisualEditorLayout
 ### Entity Color Tokens (CSS custom properties)
 
 ```css
---entity-person: hsl(210 80% 92%);       /* blue tint */
---entity-organization: hsl(270 70% 92%);  /* purple tint */
---entity-product: hsl(40 80% 90%);        /* amber tint */
---entity-location: hsl(140 60% 90%);      /* green tint */
---entity-date: hsl(220 15% 90%);          /* slate tint */
---entity-time: hsl(220 15% 90%);          /* slate tint */
---entity-currency: hsl(160 60% 90%);      /* emerald tint */
---entity-measurement: hsl(190 70% 90%);   /* cyan tint */
+--entity-person: hsl(210 80% 92%); /* blue tint */
+--entity-organization: hsl(270 70% 92%); /* purple tint */
+--entity-product: hsl(40 80% 90%); /* amber tint */
+--entity-location: hsl(140 60% 90%); /* green tint */
+--entity-date: hsl(220 15% 90%); /* slate tint */
+--entity-time: hsl(220 15% 90%); /* slate tint */
+--entity-currency: hsl(160 60% 90%); /* emerald tint */
+--entity-measurement: hsl(190 70% 90%); /* cyan tint */
 ```
 
 Dark mode variants shift to lower lightness with higher saturation.

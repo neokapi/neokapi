@@ -3,6 +3,7 @@ id: 041-kapi-desktop
 sidebar_position: 41
 title: "AD-041: Kapi and .kapi Project Files"
 ---
+
 # AD-041: Kapi and .kapi Project Files
 
 ## Context
@@ -10,6 +11,7 @@ title: "AD-041: Kapi and .kapi Project Files"
 Kapi CLI is a standalone, one-shot localization tool: `kapi ai-translate -i file.json --target-lang fr`. It requires no project setup, no server, no configuration files. This simplicity is its strength — but it means every invocation requires repeating flags, and there is no way to save a workflow for reuse.
 
 Developers who process files regularly need:
+
 - A way to **save and share** localization workflows (source/target languages, content patterns, tool pipelines)
 - A **visual interface** for building flows, running tools, and managing plugins
 - **Credential management** for AI providers (API keys in the OS keychain, not in environment variables or command flags)
@@ -59,6 +61,7 @@ defaults:
 ```
 
 **Key properties:**
+
 - **Self-contained** — languages, content patterns, flows, tool configs, plugin requirements in one file
 - **No credentials** — provider names only; API keys come from the OS keychain or environment variables
 - **No state** — no sync cursors, caches, or timestamps; `.kapi` files are always clean
@@ -69,16 +72,16 @@ The `.kapi` format uses the same flow steps format as `.bowrain/flows/` ([flow-s
 
 ### .kapi vs .bowrain
 
-| Aspect | `.kapi` file | `.bowrain/` directory |
-|---|---|---|
-| Scope | Standalone file processing | Server-connected project sync |
-| Format | Single YAML file | Directory with config + flows + cache |
-| Server | None | Required (Bowrain Server URL) |
-| Sync state | None | `.sync-cache` (block hashes, cursors) |
-| Automation | Local flows only | Server-side hooks and automation rules |
-| Module | Framework (`core/project/`) | Platform (`platform/project/`) |
-| CLI | `kapi run -p file.kapi` | `bowrain run flowname` |
-| Desktop | Kapi | Bowrain Desktop |
+| Aspect     | `.kapi` file                | `.bowrain/` directory                  |
+| ---------- | --------------------------- | -------------------------------------- |
+| Scope      | Standalone file processing  | Server-connected project sync          |
+| Format     | Single YAML file            | Directory with config + flows + cache  |
+| Server     | None                        | Required (Bowrain Server URL)          |
+| Sync state | None                        | `.sync-cache` (block hashes, cursors)  |
+| Automation | Local flows only            | Server-side hooks and automation rules |
+| Module     | Framework (`core/project/`) | Platform (`platform/project/`)         |
+| CLI        | `kapi run -p file.kapi`     | `bowrain run flowname`                 |
+| Desktop    | Kapi                        | Bowrain Desktop                        |
 
 The upsell path from kapi to bowrain is about **managed AI projects** — team collaboration, server-side automation, connector integrations — not technical migration. Users who outgrow standalone file processing adopt bowrain for its platform features.
 
@@ -87,6 +90,7 @@ The upsell path from kapi to bowrain is about **managed AI projects** — team c
 Kapi is a Wails v3 application at `framework/apps/kapi-desktop/`. It is part of the **framework** module (no platform dependencies) and provides a GUI for the same capabilities as kapi CLI.
 
 **Technology stack** — identical to Bowrain Desktop ([AD-012](./012-bowrain.md)):
+
 - Go backend with Wails v3 auto-generated TypeScript bindings
 - React 19 + Vite + TailwindCSS 4 frontend
 - shadcn/ui component library via `@neokapi/ui-primitives` (shared `packages/ui/`)
@@ -110,6 +114,7 @@ Real-time collaboration   ✗           ✓
 ```
 
 **Backend service** (`backend/app.go`) exposes:
+
 - Project operations: New, Open, Save, SaveAs
 - Flow CRUD within the open `.kapi` file
 - Flow execution with TraceRecorder event streaming
@@ -120,6 +125,7 @@ Real-time collaboration   ✗           ✓
 - Recent files and settings persistence
 
 **Frontend views:**
+
 - Welcome page with neokapi logo, getting started, quick actions, recent files
 - Project overview (languages, content, flows, plugins)
 - Flow editor (steps-based, with visual graph editor planned)
@@ -139,6 +145,7 @@ go.work:
 ```
 
 The module depends on:
+
 - `github.com/neokapi/neokapi` (core: flow, format, tool, plugin, registry, project)
 - `github.com/neokapi/neokapi/cli` (shared CLI: credentials, config)
 - `github.com/wailsapp/wails/v3` (desktop framework)

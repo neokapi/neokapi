@@ -2,6 +2,7 @@
 sidebar_position: 7
 title: "Media Asset Storage"
 ---
+
 # Media Asset Storage
 
 This note provides implementation details for [AD-029](/docs/ad/029-media-asset-localization).
@@ -114,13 +115,13 @@ func (s *Store) GenerateDownloadURL(ctx context.Context, key string, opts SignOp
 
 **Environment variables:**
 
-| Variable | Description | Example |
-|---|---|---|
-| `BLOB_STORAGE_BACKEND` | Backend type | `azure`, `local` |
-| `AZURE_STORAGE_ACCOUNT_URL` | Azure account URL | `https://myaccount.blob.core.windows.net` |
-| `AZURE_STORAGE_CONTAINER` | Container name | `bowrain-assets` |
-| `AZURE_STORAGE_CONNECTION_STRING` | Dev fallback | `DefaultEndpointsProtocol=...` |
-| `BLOB_STORAGE_LOCAL_DIR` | Local backend root | `/var/lib/bowrain/blobs` |
+| Variable                          | Description        | Example                                   |
+| --------------------------------- | ------------------ | ----------------------------------------- |
+| `BLOB_STORAGE_BACKEND`            | Backend type       | `azure`, `local`                          |
+| `AZURE_STORAGE_ACCOUNT_URL`       | Azure account URL  | `https://myaccount.blob.core.windows.net` |
+| `AZURE_STORAGE_CONTAINER`         | Container name     | `bowrain-assets`                          |
+| `AZURE_STORAGE_CONNECTION_STRING` | Dev fallback       | `DefaultEndpointsProtocol=...`            |
+| `BLOB_STORAGE_LOCAL_DIR`          | Local backend root | `/var/lib/bowrain/blobs`                  |
 
 ## Local Filesystem Adapter
 
@@ -279,20 +280,21 @@ GET /api/v1/projects/:id/sync/pull?cursor=X&locales=fr-FR
 content:
   - path: docs/**/*.docx
     format: openxml
-    assets: true           # default: true for formats that support PartMedia
-    asset_max_size: 50MB   # per-asset size limit (default: 100MB)
+    assets: true # default: true for formats that support PartMedia
+    asset_max_size: 50MB # per-asset size limit (default: 100MB)
 
 # Project-wide asset settings
 assets:
-  enabled: true            # master toggle (default: true)
-  exclude:                 # glob patterns for filenames to skip
+  enabled: true # master toggle (default: true)
+  exclude: # glob patterns for filenames to skip
     - "*.psd"
     - "*.ai"
     - "thumbnail_*"
-  max_size: 100MB          # global per-asset size limit
+  max_size: 100MB # global per-asset size limit
 ```
 
 **Resolution order for asset inclusion:**
+
 1. `assets.enabled: false` → skip all assets globally
 2. `content[].assets: false` → skip assets for this content entry
 3. `assets.exclude` patterns → skip matching filenames

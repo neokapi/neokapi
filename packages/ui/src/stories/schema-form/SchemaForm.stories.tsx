@@ -20,13 +20,17 @@ function Wrapper({
         <SchemaForm schema={schema} values={values} onChange={setValues} compact={compact} />
       </div>
       <div className="min-w-0">
-        <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Schema</h4>
+        <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+          Schema
+        </h4>
         <pre className="rounded-md bg-muted p-3 text-xs text-muted-foreground overflow-auto max-h-[600px]">
           {JSON.stringify(schema, null, 2)}
         </pre>
         {hasProps && (
           <>
-            <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mt-4 mb-2">Values</h4>
+            <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mt-4 mb-2">
+              Values
+            </h4>
             <pre className="rounded-md bg-muted p-3 text-xs text-muted-foreground overflow-auto max-h-[200px]">
               {JSON.stringify(values, null, 2)}
             </pre>
@@ -44,8 +48,18 @@ const simpleSchema: ComponentSchema = {
   type: "object",
   toolMeta: { id: "pseudo-translate", category: "transform" },
   properties: {
-    prefix: { type: "string", title: "Prefix", default: "[", description: "Prefix added to translations" },
-    suffix: { type: "string", title: "Suffix", default: "]", description: "Suffix added to translations" },
+    prefix: {
+      type: "string",
+      title: "Prefix",
+      default: "[",
+      description: "Prefix added to translations",
+    },
+    suffix: {
+      type: "string",
+      title: "Suffix",
+      default: "]",
+      description: "Suffix added to translations",
+    },
     expansionPercent: {
       type: "integer",
       title: "Expansion Percent",
@@ -85,10 +99,30 @@ const groupedSchema: ComponentSchema = {
     },
   ],
   properties: {
-    checkLeadingWhitespace: { type: "boolean", title: "Check Leading Whitespace", default: true, description: "Check for leading whitespace differences" },
-    checkTrailingWhitespace: { type: "boolean", title: "Check Trailing Whitespace", default: true, description: "Check for trailing whitespace differences" },
-    checkDoubleSpaces: { type: "boolean", title: "Check Double Spaces", default: false, description: "Check for double spaces" },
-    checkEmptyTarget: { type: "boolean", title: "Warn on Empty Target", default: true, description: "Warn when target is empty" },
+    checkLeadingWhitespace: {
+      type: "boolean",
+      title: "Check Leading Whitespace",
+      default: true,
+      description: "Check for leading whitespace differences",
+    },
+    checkTrailingWhitespace: {
+      type: "boolean",
+      title: "Check Trailing Whitespace",
+      default: true,
+      description: "Check for trailing whitespace differences",
+    },
+    checkDoubleSpaces: {
+      type: "boolean",
+      title: "Check Double Spaces",
+      default: false,
+      description: "Check for double spaces",
+    },
+    checkEmptyTarget: {
+      type: "boolean",
+      title: "Warn on Empty Target",
+      default: true,
+      description: "Warn when target is empty",
+    },
     targetSameAsSource: {
       type: "boolean",
       title: "Target Same as Source",
@@ -185,7 +219,7 @@ const widgetsSchema: ComponentSchema = {
       "ui:widget": "code-finder",
       "ui:presets": {
         "HTML Tags": { rules: [{ pattern: "</?\\w[^>]*>" }], sample: "<b>Bold</b>" },
-        "Printf": { rules: [{ pattern: "%[ds]" }], sample: "Found %d items" },
+        Printf: { rules: [{ pattern: "%[ds]" }], sample: "Found %d items" },
       },
     },
   },

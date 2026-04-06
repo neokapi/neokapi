@@ -23,14 +23,14 @@ export interface CodeFinderEditorProps {
 
 // OKLCH colors for up to 8 rules — distinct hues, readable on both light/dark
 const RULE_COLORS = [
-  "oklch(0.75 0.15 145)",  // green
-  "oklch(0.75 0.15 250)",  // blue
-  "oklch(0.75 0.15 320)",  // pink
-  "oklch(0.78 0.14 75)",   // amber
-  "oklch(0.75 0.15 200)",  // cyan
-  "oklch(0.75 0.12 30)",   // red-orange
-  "oklch(0.78 0.12 180)",  // teal
-  "oklch(0.75 0.15 280)",  // violet
+  "oklch(0.75 0.15 145)", // green
+  "oklch(0.75 0.15 250)", // blue
+  "oklch(0.75 0.15 320)", // pink
+  "oklch(0.78 0.14 75)", // amber
+  "oklch(0.75 0.15 200)", // cyan
+  "oklch(0.75 0.12 30)", // red-orange
+  "oklch(0.78 0.12 180)", // teal
+  "oklch(0.75 0.15 280)", // violet
 ];
 
 function ruleColor(index: number): string {
@@ -62,10 +62,15 @@ function highlightMatches(
       const regex = new RegExp(pattern, "g");
       let m: RegExpExecArray | null;
       while ((m = regex.exec(text)) !== null) {
-        if (m[0].length === 0) { regex.lastIndex++; continue; }
+        if (m[0].length === 0) {
+          regex.lastIndex++;
+          continue;
+        }
         allMatches.push({ start: m.index, end: regex.lastIndex, text: m[0], ruleIndex: index });
       }
-    } catch { /* skip invalid */ }
+    } catch {
+      /* skip invalid */
+    }
   }
 
   if (allMatches.length === 0) return [text];
@@ -182,16 +187,15 @@ export function CodeFinderEditor({
   const hasPresets = presets && Object.keys(presets).length > 0;
 
   return (
-    <div data-slot="code-finder-editor" className={cn("space-y-3", disabled && "opacity-50 pointer-events-none", className)}>
+    <div
+      data-slot="code-finder-editor"
+      className={cn("space-y-3", disabled && "opacity-50 pointer-events-none", className)}
+    >
       {/* Header: label + presets */}
       <div className="flex items-center justify-between gap-2">
         <div>
           {label && <Label className="text-sm font-medium">{label}</Label>}
-          {description && (
-            <p className="text-xs text-muted-foreground mt-0.5">
-              {description}
-            </p>
-          )}
+          {description && <p className="text-xs text-muted-foreground mt-0.5">{description}</p>}
         </div>
         {hasPresets && (
           <div className="relative">
@@ -287,9 +291,7 @@ export function CodeFinderEditor({
 
       {/* Test area */}
       <div className="rounded-lg border border-input bg-card p-3 space-y-2">
-        <Label className="text-xs font-medium">
-          Test Sample
-        </Label>
+        <Label className="text-xs font-medium">Test Sample</Label>
 
         <Input
           value={sample}

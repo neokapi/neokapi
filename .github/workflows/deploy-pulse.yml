@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       environment:
-        description: 'Deployment environment'
+        description: "Deployment environment"
         required: true
         type: choice
         options:
@@ -13,8 +13,8 @@ on:
   push:
     branches: [main]
     paths:
-      - 'bowrain/apps/pulse/**'
-      - 'bowrain/packages/ui/**'
+      - "bowrain/apps/pulse/**"
+      - "bowrain/packages/ui/**"
 
 jobs:
   build:

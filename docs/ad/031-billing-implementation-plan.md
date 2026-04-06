@@ -9,6 +9,7 @@ AD-030 defined the billing architecture. Significant backend work has been compl
 ### What Exists Today (Implemented)
 
 **Backend — `platform/billing/` package (fully implemented, tested):**
+
 - `plans.go` — 4-tier plan model (Free/Pro/Team/Enterprise), feature matrix, weekly credits, `HasFeature()`, `MinimumPlanFor()`
 - `types.go` — All data types (`Subscription`, `CreditAllocation`, `LedgerEntry`, `FeatureOverride`, `WorkspaceNote`, `UpsellOpportunity`, `BillingEvent`, `PlatformMetrics`)
 - `store.go` — `BillingStore` interface (subscriptions, credits, ledger, feature overrides, notes, upsells, metrics, events)
@@ -22,6 +23,7 @@ AD-030 defined the billing architecture. Significant backend work has been compl
 - 9 test files with comprehensive unit tests
 
 **Server — `platform/server/` (handlers exist, routes registered):**
+
 - `handlers_billing.go` — 6 customer self-service handlers (GetBilling, GetBillingUsage, CreateCheckout, CreatePortal, GetInvoices, StripeWebhook)
 - `handlers_admin.go` — Full admin API handlers (workspaces, users, metrics, events, overrides, notes, credits, upsells)
 - `server.go` — Billing routes registered at `/api/v1/workspaces/:ws/billing/*`, admin routes at `/api/admin/*`, webhook at `/api/webhooks/stripe`
@@ -29,15 +31,18 @@ AD-030 defined the billing architecture. Significant backend work has been compl
 - Handler tests exist
 
 **Frontend — Control Plane (`platform/apps/ctrl/`):**
+
 - Full admin SPA: dashboard, workspace list/detail, users, events, overrides, upsells
 - Components: AdminSidebar, MetricsCards, WorkspaceTable, UserTable, EventFeed, UpsellTable, ChangePlanDialog, GrantCreditsDialog, FeatureOverrideDialog, AddNoteDialog
 - Admin API client, OIDC auth against bowrain-admin realm
 
 **Frontend — Customer Self-Service (`platform/apps/web/`):**
+
 - `routes/pricing.tsx` — Public pricing page with PlanCard + PlanComparisonTable
 - `routes/workspace/settings-billing.tsx` — Billing settings with SubscriptionBadge, UsageBar, CreditLedger, usage breakdown, invoice history, checkout/portal integration
 
 **Shared UI (`packages/ui/`):**
+
 - Billing types exported (BillingOverview, CreditLedgerEntry, BillingUsageBreakdown, etc.)
 - Components: PlanCard, PlanComparisonTable, SubscriptionBadge, UsageBar, CreditLedger
 
@@ -46,48 +51,63 @@ AD-030 defined the billing architecture. Significant backend work has been compl
 These are the gaps preventing the billing system from being end-to-end functional:
 
 #### Gap 1: PlanGuard / QuotaGuard Not Wired to Protected Routes
+
 The middleware functions exist and are tested, but `PlanGuard` and `QuotaGuard` are **not applied** to any feature routes in `server.go`. The AD-030 design specifies them on connectors, API tokens, agent exec, etc.
 
 #### Gap 2: No Credit Deduction in the Hot Path
+
 `DeductCredits()` is implemented and tested, but never called from the AI tool execution, @bravo agent, or any operation handler. The `jobs/quota.go` `RecordUsage` does not invoke `BillingStore.DeductCredits()`. Same for agent usage tracking. This means usage is tracked but credits are never consumed.
 
 #### Gap 3: No Stripe Meter Event Reporting from Usage
+
 `ReportMeterEvent()` is implemented but never called from any operation. Stripe Meters will show zero usage.
 
 #### Gap 4: Weekly Allocation Bootstrap Not Wired
+
 `EnsureWeeklyAllocation()` exists but is never called on login, request, or cron. New workspaces won't get their weekly credit allocation.
 
 #### Gap 5: Workspace Plan Field Not Synced
+
 Webhooks update the `subscriptions` table, but the `workspaces.plan` column (the cached plan read by `PlanGuard`) is never updated by webhook handlers. The plan field on workspace will always remain "free".
 
 #### Gap 6: No Stripe Customer Creation Flow
+
 `CreateCustomer()` exists but the checkout handler doesn't create a new Stripe customer when one doesn't exist. It passes an empty `customerID` to `CreateCheckoutSession`, which will fail.
 
 #### Gap 7: No Trial Support
+
 AD-030 mentions trials as an open question. Stripe supports trial periods natively, but no trial logic is implemented.
 
 #### Gap 8: No Email Notifications for Billing Events
+
 AD-030 specifies 5 email triggers (80% credits, exhausted, weekly reset, payment failed, subscription change). None are implemented.
 
 #### Gap 9: No Seat Enforcement
+
 `PlanLimits` defines `max-seats` but no middleware or service-layer check enforces the seat count when adding workspace members.
 
 #### Gap 10: No Project Limit Enforcement
+
 `PlanLimits` defines `max-projects` but no check enforces this when creating projects.
 
 #### Gap 11: PostHog Events Not Fired from Billing Operations
+
 PostHog client exists but no conversion events are tracked (viewed pricing, started checkout, completed checkout, hit feature gate).
 
 #### Gap 12: No Stripe Products/Prices Setup Documentation or Automation
+
 The Stripe dashboard needs products, prices, and meters configured. No Terraform, Stripe CLI seed script, or documentation exists.
 
 #### Gap 13: No Keycloak Admin Realm Config
+
 AD-030 specifies `docker/keycloak/admin-realm.json` for local dev. This file does not exist yet.
 
 #### Gap 14: No Credit Pack Purchase Flow
+
 Pro/Team overage handling mentions $5 credit packs. No one-time purchase checkout flow is implemented.
 
 #### Gap 15: No Graceful Degradation When Billing Is Disabled
+
 For self-hosted or development deployments without Stripe, there's no clean way to run without billing. The `BillingStore == nil` checks exist in handlers but PlanGuard/QuotaGuard would panic.
 
 ---
@@ -133,6 +153,7 @@ if billingStore != nil {
 ```
 
 Same for @bravo agent container time:
+
 ```go
 if billingStore != nil {
     _ = billingStore.DeductCredits(ctx, workspaceID, billing.ContainerTimeCredits(duration), "bravo_container", conversationID)
@@ -220,6 +241,7 @@ Must also handle nil `BillingStore` case — when billing is not configured, Pla
 **Files:** `platform/service/auth.go` (or workspace member service)
 
 Before adding a workspace member, check:
+
 ```go
 members, _ := store.ListMembers(ctx, workspaceID)
 limit := billing.GetLimit(billing.Plan(ws.Plan), "max-seats")
@@ -235,6 +257,7 @@ Return HTTP 403 with `upgrade_required` + `minimum_plan` for the next tier.
 **Files:** `platform/service/project.go` (or content store service)
 
 Before creating a project:
+
 ```go
 projects, _ := store.ListProjects(ctx, workspaceID)
 limit := billing.GetLimit(billing.Plan(ws.Plan), "max-projects")
@@ -248,6 +271,7 @@ if limit > 0 && len(projects) >= limit {
 **File:** `platform/server/handlers_billing.go`
 
 Add a handler for one-time credit pack purchase using Stripe Checkout in `payment` mode:
+
 ```go
 // POST /api/v1/workspaces/:ws/billing/buy-credits
 func (s *Server) HandleBuyCredits(c echo.Context) error {
@@ -264,19 +288,20 @@ func (s *Server) HandleBuyCredits(c echo.Context) error {
 
 Wire billing events to the existing mailer/email service:
 
-| Trigger | When | Template |
-|---------|------|----------|
-| Credits at 80% | After DeductCredits when used/total &gt;= 0.8 | Warning + usage breakdown + reset date |
-| Credits exhausted | After DeductCredits when remaining &lt;= 0 | Block notice + upgrade CTA or reset countdown |
-| Weekly reset | Monday 00:00 UTC cron job | Last week's usage summary |
-| Payment failed | Webhook: invoice.payment_failed | Grace period notice |
-| Subscription change | Webhook: subscription.updated/deleted | Confirmation with new limits |
+| Trigger             | When                                          | Template                                      |
+| ------------------- | --------------------------------------------- | --------------------------------------------- |
+| Credits at 80%      | After DeductCredits when used/total &gt;= 0.8 | Warning + usage breakdown + reset date        |
+| Credits exhausted   | After DeductCredits when remaining &lt;= 0    | Block notice + upgrade CTA or reset countdown |
+| Weekly reset        | Monday 00:00 UTC cron job                     | Last week's usage summary                     |
+| Payment failed      | Webhook: invoice.payment_failed               | Grace period notice                           |
+| Subscription change | Webhook: subscription.updated/deleted         | Confirmation with new limits                  |
 
 #### 3.2 PostHog Conversion Events
 
 **Files:** `platform/server/handlers_billing.go`, `platform/billing/middleware.go`
 
 Fire server-side PostHog events:
+
 - `billing.pricing_page_viewed` — when pricing page API is hit
 - `billing.checkout_started` — in HandleCreateCheckout
 - `billing.checkout_completed` — in checkout.session.completed webhook
@@ -294,6 +319,7 @@ Client-side PostHog JS SDK for page views and UI interactions.
 **Files:** `platform/service/auth.go`, `platform/billing/stripe.go`
 
 When creating a new workspace via OIDC signup:
+
 1. Create Stripe customer immediately
 2. Create subscription with `trial_period_days: 14` via Stripe API
 3. Set workspace plan to `pro` with status `trialing`
@@ -314,6 +340,7 @@ params.SubscriptionData = &stripe.CheckoutSessionSubscriptionDataParams{
 **File:** New `scripts/stripe-seed.sh` or `scripts/stripe-setup.go`
 
 Idempotent script using Stripe CLI to create:
+
 - Products: `bowrain-pro`, `bowrain-team-seat`, `bowrain-credits`
 - Prices with `bowrain_plan` metadata
 - Meter: `bowrain_ai_tokens` with `sum` aggregation and `workspace_id`/`operation_type` dimensions
@@ -339,6 +366,7 @@ Mount and import the admin realm alongside the customer realm.
 **Files:** `platform/billing/middleware.go`, `platform/server/server.go`
 
 When `BillingStore` is nil (no Stripe keys configured):
+
 - `PlanGuard` → pass through (all features enabled)
 - `QuotaGuard` → pass through (no credit checks)
 - Billing routes return 503
@@ -377,6 +405,7 @@ params.Identifier = stripe.String(fmt.Sprintf("%s-%s-%d", workspaceID, refID, ti
 #### 6.2 Evaluate Stripe Token Billing (Private Preview)
 
 Stripe's AI token billing (private preview) auto-tracks tokens per model and handles price syncing for OpenAI/Anthropic/Google. Worth evaluating when it reaches GA:
+
 - **Self-reporting mode**: Bowrain already reports via Meters API; could switch to Stripe's token-specific endpoints for automatic model-price tracking
 - **Stripe AI Gateway**: Not applicable (Bowrain manages its own provider routing)
 - No action needed now — current Meters API approach is correct
@@ -384,6 +413,7 @@ Stripe's AI token billing (private preview) auto-tracks tokens per model and han
 #### 6.3 Usage Alerts via Stripe
 
 Configure Stripe billing alerts for high-usage customers:
+
 - 80% of included credits → trigger webhook → email notification
 - 100% of credits → trigger webhook → enforcement
 
@@ -391,20 +421,20 @@ This supplements the server-side credit checks with Stripe-native alerting.
 
 #### 6.4 Restricted API Keys
 
-For any future agent/MCP integration (per Stripe AI toolkit patterns), use Restricted API Keys (rk_*) with minimal permissions rather than the main secret key.
+For any future agent/MCP integration (per Stripe AI toolkit patterns), use Restricted API Keys (rk\_\*) with minimal permissions rather than the main secret key.
 
 ---
 
 ## Phase Summary & Prioritization
 
-| Phase | Scope | Priority | Effort |
-|-------|-------|----------|--------|
-| **Phase 1** | Core billing loop (credits, plans, Stripe sync) | P0 — must have | ~3-4 days |
-| **Phase 2** | Limits enforcement (seats, projects, credit packs) | P0 — must have | ~2 days |
-| **Phase 3** | Notifications & analytics (email, PostHog) | P1 — should have | ~2 days |
-| **Phase 4** | Trial support (14-day Pro trial) | P1 — should have | ~1 day |
-| **Phase 5** | DevEx (seed scripts, Keycloak, graceful disable) | P1 — should have | ~1-2 days |
-| **Phase 6** | Stripe best practices (idempotency, alerts) | P2 — nice to have | ~1 day |
+| Phase       | Scope                                              | Priority          | Effort    |
+| ----------- | -------------------------------------------------- | ----------------- | --------- |
+| **Phase 1** | Core billing loop (credits, plans, Stripe sync)    | P0 — must have    | ~3-4 days |
+| **Phase 2** | Limits enforcement (seats, projects, credit packs) | P0 — must have    | ~2 days   |
+| **Phase 3** | Notifications & analytics (email, PostHog)         | P1 — should have  | ~2 days   |
+| **Phase 4** | Trial support (14-day Pro trial)                   | P1 — should have  | ~1 day    |
+| **Phase 5** | DevEx (seed scripts, Keycloak, graceful disable)   | P1 — should have  | ~1-2 days |
+| **Phase 6** | Stripe best practices (idempotency, alerts)        | P2 — nice to have | ~1 day    |
 
 **Total: ~10-13 days of focused implementation work.**
 

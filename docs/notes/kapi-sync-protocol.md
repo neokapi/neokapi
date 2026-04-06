@@ -2,6 +2,7 @@
 sidebar_position: 8
 title: "Bowrain Sync Protocol"
 ---
+
 # Bowrain Sync Protocol
 
 This note provides implementation details for [AD-016](/docs/ad/016-kapi-project-model).
@@ -39,8 +40,8 @@ content:
 
   - path: src/es/**/*.json
     format: json
-    language: es              # Override source language for this entry
-    collection: spanish-ui    # Override collection for this entry
+    language: es # Override source language for this entry
+    collection: spanish-ui # Override collection for this entry
 
 # Plugins: flat list of plugin dependencies.
 plugins:
@@ -86,6 +87,7 @@ content:
 ```
 
 **Fields:**
+
 - **`path`** -- Glob pattern for source files (relative to project root). May contain `\{lang\}` placeholder expanded with the source language.
 - **`dest`** -- (Optional) Output path pattern for translated files. May contain `\{lang\}` for target locale, or `\{locale\}`, `\{path\}`, `\{filename\}` for legacy-style templates.
 - **`format`** -- Format ID (from FormatRegistry: `json`, `html`, `markdown`, etc.). Use `$auto` or omit for auto-detection by file extension.
@@ -109,7 +111,7 @@ content:
 
   - path: src/es/**/*.json
     format: json
-    language: es    # This content is in Spanish, not English
+    language: es # This content is in Spanish, not English
 ```
 
 The `EffectiveLanguage()` method on `ContentEntry` resolves the per-entry language, falling back to the project default. All code paths that expand `\{lang\}` placeholders use this method.
@@ -160,6 +162,7 @@ Collections are sent with each block during push via the `collection` field in `
 ```
 
 **Key fields:**
+
 - **`sync_cursor`** -- Monotonic sequence number from the server's change log. Used by `pull` to request only changes since the last sync (`WHERE seq > cursor`). This follows the Contentful sync token / CouchDB sequence ID pattern.
 - **`last_sync`** -- Timestamp of the last successful push or pull.
 - **`claim_token`** -- Claim token for anonymous projects. Stored here (gitignored) rather than in `config.yaml` to avoid accidentally committing credentials to version control. Cleared after `bowrain auth claim` transfers ownership.
@@ -167,6 +170,7 @@ Collections are sent with each block during push via the `collection` field in `
 - **`server_meta`** -- Cached project metadata from the server, including target locales. Updated on each push/pull. Used to resolve dynamic target languages when `defaults.target_languages` is empty.
 
 **Design principles:**
+
 - **Cache, not state**: The sync cache can be deleted and regenerated. Deleting it forces a full re-scan on the next push (expensive but correct). The server is the source of truth.
 - **Block-level granularity**: Tracks individual block hashes, not file-level hashes. When one string changes in a 100-string file, only that block is pushed.
 - **Gitignored**: Contains local-only data. Each developer's cache tracks their own sync position.
@@ -209,6 +213,7 @@ The append-only change log with sync cursors follows the industry-standard patte
 When `url` is configured, Bowrain CLI uses the Bowrain Server REST API ([AD-013](/docs/ad/013-cli-and-server)):
 
 **Sync API endpoints:**
+
 ```
 POST /api/v1/projects/:id/sync/push       # Push source blocks to server
 GET  /api/v1/projects/:id/sync/pull        # Pull changes since cursor
@@ -220,6 +225,7 @@ GET  /api/v1/projects/:id/changes          # Raw change log query
 ```
 
 **Stream API endpoints** ([AD-024](/docs/ad/024-streams)):
+
 ```
 GET    /api/v1/projects/:id/streams                    # List streams
 POST   /api/v1/projects/:id/streams                    # Create stream
@@ -234,6 +240,7 @@ Push and pull endpoints accept the `X-Bowrain-Stream` header to target a specifi
 Workspace-scoped equivalents are also available at `/api/v1/workspaces/:ws/projects/:id/sync/...`.
 
 **Push workflow:**
+
 ```
 1. Read local files via FormatRegistry -> extract blocks
 2. Compute block hashes (BlockIdentity SHA-256)
@@ -249,6 +256,7 @@ Workspace-scoped equivalents are also available at `/api/v1/workspaces/:ws/proje
 ```
 
 **Pull workflow:**
+
 ```
 1. GET /api/v1/projects/:id -> cache server metadata (target_locales)
 2. Resolve target locales: CLI flags > config > server cache

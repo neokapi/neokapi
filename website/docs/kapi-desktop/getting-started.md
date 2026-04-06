@@ -22,6 +22,7 @@ Or download from [GitHub Releases](https://github.com/neokapi/neokapi/releases).
 Open Kapi. You'll see the welcome page with the neokapi logo and getting started guide.
 
 Click **New Project** to create a Kapi project. Set:
+
 - **Name**: Your project name (e.g., "Acme App")
 - **Source Language**: `en-US`
 - **Target Languages**: Add your target locales (e.g., `fr-FR`, `de-DE`)
@@ -42,6 +43,7 @@ The `{lang}` placeholder is replaced with each target locale when generating out
 ## 4. Set Up AI Credentials
 
 Go to **Credentials** and click **Add Provider**:
+
 1. Enter a name (e.g., "My Anthropic Key")
 2. Select the provider type (Anthropic, OpenAI, or Ollama)
 3. Paste your API key — it's stored securely in your OS keychain, never in the project file
@@ -64,6 +66,7 @@ This creates a two-step pipeline: AI translation followed by a quality check.
 ## 6. Run Your Flow
 
 Select your flow, choose input files, set the target language, and click **Run**. You'll see:
+
 - Real-time progress per file
 - Tool execution status
 - Timing and block counts
@@ -72,6 +75,7 @@ Select your flow, choose input files, set the target language, and click **Run**
 ## 7. Save and Share
 
 Save your Kapi project (e.g., `translation.kapi`). You can:
+
 - Commit it to git for team sharing
 - Run it from the CLI: `kapi run translate-and-qa -p translation.kapi`
 - Reopen it anytime in Kapi

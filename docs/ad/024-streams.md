@@ -3,6 +3,7 @@ id: 024-streams
 sidebar_position: 24
 title: "AD-024: Streams"
 ---
+
 # AD-024: Streams
 
 ## Context
@@ -69,21 +70,22 @@ When `stream` is set to `$auto` (or omitted, since `$auto` is the default), the 
 
 **CI systems** (checked in order):
 
-| CI System | Detection | Stream name |
-|---|---|---|
-| GitHub Actions | `GITHUB_ACTIONS=true` | PR: `GITHUB_HEAD_REF`; push: `GITHUB_REF_NAME` |
-| GitLab CI | `GITLAB_CI=true` | MR: `CI_MERGE_REQUEST_SOURCE_BRANCH_NAME`; push: `CI_COMMIT_BRANCH` |
-| CircleCI | `CIRCLECI=true` | `CIRCLE_BRANCH` |
-| Azure DevOps | `TF_BUILD=True` | PR: `SYSTEM_PULLREQUEST_SOURCEBRANCH`; push: `BUILD_SOURCEBRANCHNAME` |
-| Jenkins | `JENKINS_URL` set | PR: `CHANGE_BRANCH`; push: `BRANCH_NAME` |
-| Travis CI | `TRAVIS=true` | PR: `TRAVIS_PULL_REQUEST_BRANCH`; push: `TRAVIS_BRANCH` |
-| Buildkite | `BUILDKITE=true` | `BUILDKITE_BRANCH` |
+| CI System      | Detection             | Stream name                                                           |
+| -------------- | --------------------- | --------------------------------------------------------------------- |
+| GitHub Actions | `GITHUB_ACTIONS=true` | PR: `GITHUB_HEAD_REF`; push: `GITHUB_REF_NAME`                        |
+| GitLab CI      | `GITLAB_CI=true`      | MR: `CI_MERGE_REQUEST_SOURCE_BRANCH_NAME`; push: `CI_COMMIT_BRANCH`   |
+| CircleCI       | `CIRCLECI=true`       | `CIRCLE_BRANCH`                                                       |
+| Azure DevOps   | `TF_BUILD=True`       | PR: `SYSTEM_PULLREQUEST_SOURCEBRANCH`; push: `BUILD_SOURCEBRANCHNAME` |
+| Jenkins        | `JENKINS_URL` set     | PR: `CHANGE_BRANCH`; push: `BRANCH_NAME`                              |
+| Travis CI      | `TRAVIS=true`         | PR: `TRAVIS_PULL_REQUEST_BRANCH`; push: `TRAVIS_BRANCH`               |
+| Buildkite      | `BUILDKITE=true`      | `BUILDKITE_BRANCH`                                                    |
 
 **Local** (no CI detected): `git rev-parse --abbrev-ref HEAD`
 
 **Stream name normalization**: Branch names like `feature/new-ui` or `refs/heads/main` are normalized to valid stream names — slashes are preserved (they're natural grouping), but `refs/heads/` and `refs/tags/` prefixes are stripped.
 
 **Special cases**:
+
 - Detached HEAD (`git rev-parse` returns `HEAD`) → falls back to `main`
 - `main` or `master` branch → stream `main` (the default, no stream header sent)
 - GitHub PR merge refs (`123/merge`) → not used; `GITHUB_HEAD_REF` is preferred
@@ -139,6 +141,7 @@ GET    /api/v1/projects/:id/streams/:name/diff          # Diff against parent
 Streams are lightweight at the storage level:
 
 **`streams` table:**
+
 ```sql
 CREATE TABLE streams (
     project_id  TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
@@ -153,6 +156,7 @@ CREATE TABLE streams (
 ```
 
 **`change_log` extension:**
+
 ```sql
 -- Add stream column to change_log
 ALTER TABLE change_log ADD COLUMN stream TEXT NOT NULL DEFAULT 'main';

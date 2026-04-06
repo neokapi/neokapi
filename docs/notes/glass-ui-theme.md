@@ -2,6 +2,7 @@
 sidebar_position: 9
 title: "Theme System"
 ---
+
 # Theme System
 
 This note documents the theme system used across all four frontend projects. The design system builds on `shadcn-glass-ui` and Tailwind CSS v4, with an OKLCH-based token hierarchy and two active themes: **Aurora** (dark) and **Light**.
@@ -50,9 +51,9 @@ Low-level color values using the OKLCH color space for perceptual uniformity. Th
 
 ```css
 --oklch-white-8: oklch(100% 0 0 / 0.08);
---oklch-copper-500: oklch(62% .16 48);
---oklch-slate-800: oklch(27.9% .041 260);
---oklch-slate-900: oklch(20.8% .042 265);
+--oklch-copper-500: oklch(62% 0.16 48);
+--oklch-slate-800: oklch(27.9% 0.041 260);
+--oklch-slate-900: oklch(20.8% 0.042 265);
 ```
 
 The full set covers white opacity variants (3% through 90%), black variants, and color ramps for copper, bronze, slate, rose, emerald, blue, and amber.
@@ -170,6 +171,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 ```
 
 Key behaviors:
+
 - Persists to `localStorage` and HTTP cookie under the key `neokapi-theme`
 - Defaults to `"system"` when no stored preference exists
 - Sets `data-theme="aurora"` for dark mode, `data-theme="light"` for light mode
@@ -190,7 +192,9 @@ export function AnimatedBackgroundGlass({ className, showCenterOrb }: AnimatedBa
   const shouldShowCenterOrb = showCenterOrb ?? theme === "dark";
 
   return (
-    <div style={{ background: "linear-gradient(135deg, var(--bg-from), var(--bg-via), var(--bg-to))" }}>
+    <div
+      style={{ background: "linear-gradient(135deg, var(--bg-from), var(--bg-via), var(--bg-to))" }}
+    >
       {/* 4-5 floating orbs with blur filters and staggered animation delays */}
     </div>
   );
@@ -204,11 +208,13 @@ The orbs use `--orb-1` through `--orb-5` CSS variables with large blur filters (
 All four frontend projects consume the theme system identically:
 
 1. **CSS import**: Each project's `index.css` imports the shared globals:
+
    ```css
    @import "@neokapi/ui/styles/globals.css";
    ```
 
 2. **Vite alias**: Each project's `vite.config.ts` maps `@neokapi/ui` to the shared package source:
+
    ```ts
    resolve: {
      alias: {
@@ -224,11 +230,11 @@ All four frontend projects consume the theme system identically:
    </ThemeProvider>
    ```
 
-| Project | CSS Entry | ThemeProvider Location |
-|---------|-----------|----------------------|
-| Bowrain Desktop | `bowrain/apps/bowrain/frontend/src/index.css` | `App.tsx` |
-| Web App | `bowrain/apps/web/src/index.css` | `App.tsx` |
-| Kapi Web | `kapi/apps/kapi-web/src/index.css` | `App.tsx` |
-| Keycloak Theme | `bowrain/apps/keycloak-theme/src/login/main.css` | `main.tsx` |
+| Project         | CSS Entry                                        | ThemeProvider Location |
+| --------------- | ------------------------------------------------ | ---------------------- |
+| Bowrain Desktop | `bowrain/apps/bowrain/frontend/src/index.css`    | `App.tsx`              |
+| Web App         | `bowrain/apps/web/src/index.css`                 | `App.tsx`              |
+| Kapi Web        | `kapi/apps/kapi-web/src/index.css`               | `App.tsx`              |
+| Keycloak Theme  | `bowrain/apps/keycloak-theme/src/login/main.css` | `main.tsx`             |
 
 The Keycloak theme is a special case: it imports `@neokapi/ui/styles/globals.css` but also re-declares approximately 135 additional CSS custom properties (full OKLCH color palettes, glass surfaces, component variants, effects) in `:root` to work around Keycloakify's CSS processing, which can strip or reorder `@layer` blocks. The shared `packages/ui` defines ~76 properties; the Keycloak theme adds ~59 more for the complete glass design system. See [Keycloak Theming](keycloak-theming.md) for details.

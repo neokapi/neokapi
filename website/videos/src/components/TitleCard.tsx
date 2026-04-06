@@ -1,12 +1,5 @@
 import React from "react";
-import {
-  AbsoluteFill,
-  Img,
-  spring,
-  staticFile,
-  useCurrentFrame,
-  useVideoConfig,
-} from "remotion";
+import { AbsoluteFill, Img, spring, staticFile, useCurrentFrame, useVideoConfig } from "remotion";
 import type { Branding, TitleCardSceneType } from "../schema";
 
 interface TitleCardProps {
@@ -22,11 +15,7 @@ const styleColors: Record<string, { bg: string; text: string }> = {
   light: { bg: "#fafafa", text: "#111111" },
 };
 
-export const TitleCard: React.FC<TitleCardProps> = ({
-  scene,
-  branding,
-  durationInFrames,
-}) => {
+export const TitleCard: React.FC<TitleCardProps> = ({ scene, branding, durationInFrames }) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
 
@@ -42,8 +31,7 @@ export const TitleCard: React.FC<TitleCardProps> = ({
 
   // Exit: fade out over last 10 frames
   const exitStart = durationInFrames - 10;
-  const exitOpacity =
-    frame >= exitStart ? 1 - (frame - exitStart) / 10 : 1;
+  const exitOpacity = frame >= exitStart ? 1 - (frame - exitStart) / 10 : 1;
 
   const scale = 0.85 + enterProgress * 0.15;
   const opacity = enterProgress * Math.max(0, exitOpacity);

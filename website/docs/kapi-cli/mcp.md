@@ -121,16 +121,16 @@ If `kapi` is not in your `$PATH`, use the full path to the binary (e.g. `/usr/lo
 
 Once connected, your AI assistant can call these tools:
 
-| Tool | What it does |
-|------|-------------|
-| `list_formats` | List all supported file formats with extensions and capabilities |
-| `detect_format` | Detect a file's format from its path |
-| `extract_content` | Parse a file and return translatable content blocks |
-| `word_count` | Count translatable words in a file |
-| `run_flow` | Run a processing flow (pseudo-translate, QA check, etc.) |
-| `pseudo_translate` | Pseudo-translate a file for localization QA |
-| `list_flows` | List available processing flows |
-| `list_tools` | List available processing tools |
+| Tool               | What it does                                                     |
+| ------------------ | ---------------------------------------------------------------- |
+| `list_formats`     | List all supported file formats with extensions and capabilities |
+| `detect_format`    | Detect a file's format from its path                             |
+| `extract_content`  | Parse a file and return translatable content blocks              |
+| `word_count`       | Count translatable words in a file                               |
+| `run_flow`         | Run a processing flow (pseudo-translate, QA check, etc.)         |
+| `pseudo_translate` | Pseudo-translate a file for localization QA                      |
+| `list_flows`       | List available processing flows                                  |
+| `list_tools`       | List available processing tools                                  |
 
 ## Example Conversations
 
@@ -172,47 +172,47 @@ The assistant calls `run_flow` with `flow_name: "qa-check"` and returns the outp
 
 Parse a file and return translatable content blocks with source text and word counts.
 
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `path` | string | yes | File path to parse |
-| `format` | string | no | Override automatic format detection |
-| `source_lang` | string | no | Source language (default: `en`) |
+| Parameter     | Type   | Required | Description                         |
+| ------------- | ------ | -------- | ----------------------------------- |
+| `path`        | string | yes      | File path to parse                  |
+| `format`      | string | no       | Override automatic format detection |
+| `source_lang` | string | no       | Source language (default: `en`)     |
 
 ### run_flow
 
 Execute a processing flow on a file.
 
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `flow_name` | string | yes | Flow name: `pseudo-translate`, `qa-check`, `segmentation`, `tm-leverage` |
-| `path` | string | yes | Input file path |
-| `source_lang` | string | no | Source language (default: `en`) |
-| `target_lang` | string | yes* | Target language (*optional for `pseudo-translate`, defaults to `qps`) |
-| `output_path` | string | no | Output file path (default: auto-generated as `<base>_<lang><ext>`) |
+| Parameter     | Type   | Required | Description                                                              |
+| ------------- | ------ | -------- | ------------------------------------------------------------------------ |
+| `flow_name`   | string | yes      | Flow name: `pseudo-translate`, `qa-check`, `segmentation`, `tm-leverage` |
+| `path`        | string | yes      | Input file path                                                          |
+| `source_lang` | string | no       | Source language (default: `en`)                                          |
+| `target_lang` | string | yes\*    | Target language (\*optional for `pseudo-translate`, defaults to `qps`)   |
+| `output_path` | string | no       | Output file path (default: auto-generated as `<base>_<lang><ext>`)       |
 
 ### word_count
 
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `path` | string | yes | File path to count |
-| `format` | string | no | Override format detection |
-| `source_lang` | string | no | Source language (default: `en`) |
+| Parameter     | Type   | Required | Description                     |
+| ------------- | ------ | -------- | ------------------------------- |
+| `path`        | string | yes      | File path to count              |
+| `format`      | string | no       | Override format detection       |
+| `source_lang` | string | no       | Source language (default: `en`) |
 
 ### detect_format
 
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `path` | string | yes | File path to detect |
+| Parameter | Type   | Required | Description         |
+| --------- | ------ | -------- | ------------------- |
+| `path`    | string | yes      | File path to detect |
 
 ### pseudo_translate
 
 Shorthand for `run_flow` with `pseudo-translate`.
 
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `path` | string | yes | File path to pseudo-translate |
-| `target_lang` | string | no | Target language (default: `qps`) |
-| `output_path` | string | no | Output path (default: auto-generated) |
+| Parameter     | Type   | Required | Description                           |
+| ------------- | ------ | -------- | ------------------------------------- |
+| `path`        | string | yes      | File path to pseudo-translate         |
+| `target_lang` | string | no       | Target language (default: `qps`)      |
+| `output_path` | string | no       | Output path (default: auto-generated) |
 
 ## How It Works
 

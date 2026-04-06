@@ -3,6 +3,7 @@ id: 015-auth-and-workspaces
 sidebar_position: 15
 title: "AD-015: Authentication and Workspaces"
 ---
+
 # AD-015: Authentication and Workspaces
 
 ## Context
@@ -35,12 +36,12 @@ Workspace
 Users are identified by email address (unique) and carry an ID, name, and
 avatar URL. Roles within a workspace are hierarchical:
 
-| Role    | Permissions |
-|---------|-------------|
-| owner   | Full control, delete workspace, manage all members |
-| admin   | Manage members, create/delete projects |
-| member  | Create/edit content, run flows |
-| viewer  | Read-only access |
+| Role   | Permissions                                        |
+| ------ | -------------------------------------------------- |
+| owner  | Full control, delete workspace, manage all members |
+| admin  | Manage members, create/delete projects             |
+| member | Create/edit content, run flows                     |
+| viewer | Read-only access                                   |
 
 ### Authentication: OIDC
 
@@ -58,6 +59,7 @@ Google, LDAP, SAML, etc.) while presenting a single OIDC interface to neokapi.
 ### JWT Token-based API Auth with HttpOnly Cookies
 
 After OIDC authentication, the server issues a JWT (HMAC-SHA256 signed) containing:
+
 - `sub`: user ID
 - `email`: user email
 - `name`: display name
@@ -72,6 +74,7 @@ project routes.
 ### Refresh Token Security
 
 Refresh tokens use server-side hashing with single-use rotation:
+
 - Refresh tokens are hashed (SHA-256) before storage
 - Each refresh grants a new token pair (single-use rotation prevents reuse attacks)
 - 30-day expiry window
@@ -154,10 +157,10 @@ entries have a 10-minute TTL and are write-once/read-once.
 
 A `SessionStateStore` interface abstracts this storage:
 
-| Backend | When used | Configuration |
-|---------|-----------|--------------|
-| In-memory | Default; single instance | No config needed |
-| Redis | Multi-instance / horizontal scaling | Set `BOWRAIN_REDIS_URL` |
+| Backend   | When used                           | Configuration           |
+| --------- | ----------------------------------- | ----------------------- |
+| In-memory | Default; single instance            | No config needed        |
+| Redis     | Multi-instance / horizontal scaling | Set `BOWRAIN_REDIS_URL` |
 
 When `BOWRAIN_REDIS_URL` is set, the server uses Redis with `SETEX` for
 automatic key expiry. When absent, it falls back to an in-memory store with
@@ -170,13 +173,13 @@ Durable auth data (refresh tokens, API tokens) remains in the database
 
 ### Server Modes
 
-| Feature | `bowrain-server` | `bowrain serve` |
-|---------|-----------------|--------------|
-| Binding | 0.0.0.0 (configurable) | 127.0.0.1 |
-| Auth | OIDC + JWT | None (standalone) |
-| Workspaces | Multi-workspace, multi-user | Single implicit workspace |
-| gRPC | Yes (HTTP port + 1000) | No |
-| Use case | Production deployment | Local editing (like `jupyter notebook`) |
+| Feature    | `bowrain-server`            | `bowrain serve`                         |
+| ---------- | --------------------------- | --------------------------------------- |
+| Binding    | 0.0.0.0 (configurable)      | 127.0.0.1                               |
+| Auth       | OIDC + JWT                  | None (standalone)                       |
+| Workspaces | Multi-workspace, multi-user | Single implicit workspace               |
+| gRPC       | Yes (HTTP port + 1000)      | No                                      |
+| Use case   | Production deployment       | Local editing (like `jupyter notebook`) |
 
 The server reports its mode via `GET /api/v1/config` so the web UI can adapt.
 

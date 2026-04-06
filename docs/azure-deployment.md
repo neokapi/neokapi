@@ -6,16 +6,16 @@ This document covers setting up and running the Bowrain Azure deployment pipelin
 
 The deployment creates a full Bowrain stack on Azure Container Apps:
 
-| Component | Azure resource | Domain (prod) | Domain (dev) |
-|---|---|---|---|
-| API server | Container App | `bowrain.cloud` | `dev.bowrain.cloud` |
-| Worker | Container App | (no ingress) | (no ingress) |
-| Keycloak | Container App | `auth.bowrain.cloud` | `auth.dev.bowrain.cloud` |
-| Database | PostgreSQL Flexible Server | private network | private network |
-| Cache | Azure Cache for Redis | private network | private network |
-| Messaging | Azure Service Bus | managed identity | managed identity |
-| Secrets | Azure Key Vault | RBAC | RBAC |
-| Images | Azure Container Registry | managed identity | managed identity |
+| Component  | Azure resource             | Domain (prod)        | Domain (dev)             |
+| ---------- | -------------------------- | -------------------- | ------------------------ |
+| API server | Container App              | `bowrain.cloud`      | `dev.bowrain.cloud`      |
+| Worker     | Container App              | (no ingress)         | (no ingress)             |
+| Keycloak   | Container App              | `auth.bowrain.cloud` | `auth.dev.bowrain.cloud` |
+| Database   | PostgreSQL Flexible Server | private network      | private network          |
+| Cache      | Azure Cache for Redis      | private network      | private network          |
+| Messaging  | Azure Service Bus          | managed identity     | managed identity         |
+| Secrets    | Azure Key Vault            | RBAC                 | RBAC                     |
+| Images     | Azure Container Registry   | managed identity     | managed identity         |
 
 Infrastructure is defined in Bicep in the [bowrain-infra](https://github.com/neokapi/bowrain-infra) repo and deployed via GitHub Actions.
 
@@ -134,17 +134,17 @@ openssl rand -base64 24
 
 Go to **Settings → Secrets and variables → Actions** and create these repository secrets:
 
-| Secret | Value |
-|---|---|
-| `AZURE_CLIENT_ID` | App ID from step 4 |
-| `AZURE_TENANT_ID` | Azure tenant ID |
-| `AZURE_SUBSCRIPTION_ID` | Azure subscription ID |
-| `POSTGRES_ADMIN_LOGIN` | PostgreSQL admin username (e.g. `sqladmin`) |
-| `POSTGRES_ADMIN_PASSWORD` | Generated PostgreSQL password |
-| `JWT_SECRET` | Generated base64 JWT secret |
-| `OIDC_CLIENT_SECRET` | Generated base64 OIDC secret |
-| `KEYCLOAK_ADMIN_PASSWORD` | Generated Keycloak password |
-| `GH_PAT` | GitHub PAT with permission to read bowrain-infra repo |
+| Secret                    | Value                                                 |
+| ------------------------- | ----------------------------------------------------- |
+| `AZURE_CLIENT_ID`         | App ID from step 4                                    |
+| `AZURE_TENANT_ID`         | Azure tenant ID                                       |
+| `AZURE_SUBSCRIPTION_ID`   | Azure subscription ID                                 |
+| `POSTGRES_ADMIN_LOGIN`    | PostgreSQL admin username (e.g. `sqladmin`)           |
+| `POSTGRES_ADMIN_PASSWORD` | Generated PostgreSQL password                         |
+| `JWT_SECRET`              | Generated base64 JWT secret                           |
+| `OIDC_CLIENT_SECRET`      | Generated base64 OIDC secret                          |
+| `KEYCLOAK_ADMIN_PASSWORD` | Generated Keycloak password                           |
+| `GH_PAT`                  | GitHub PAT with permission to read bowrain-infra repo |
 
 ### 7. GitHub environments
 
@@ -184,21 +184,21 @@ az containerapp logs show \
 
 Bicep parameters live in the [bowrain-infra](https://github.com/neokapi/bowrain-infra) repo under `environments/{dev,prod}/`:
 
-| File | Layer | Environment | Notes |
-|---|---|---|---|
-| `environments/dev/core.bicepparam` | Core | dev | Identity, networking, databases, caches, ACR |
-| `environments/prod/core.bicepparam` | Core | prod | Identity, networking, databases, caches, ACR |
-| `environments/dev/apps.bicepparam` | Apps | dev | Container Apps, DNS |
-| `environments/prod/apps.bicepparam` | Apps | prod | Container Apps, DNS |
+| File                                | Layer | Environment | Notes                                        |
+| ----------------------------------- | ----- | ----------- | -------------------------------------------- |
+| `environments/dev/core.bicepparam`  | Core  | dev         | Identity, networking, databases, caches, ACR |
+| `environments/prod/core.bicepparam` | Core  | prod        | Identity, networking, databases, caches, ACR |
+| `environments/dev/apps.bicepparam`  | Apps  | dev         | Container Apps, DNS                          |
+| `environments/prod/apps.bicepparam` | Apps  | prod        | Container Apps, DNS                          |
 
 Sensitive parameters (database credentials, JWT secret, etc.) are passed via GitHub secrets at deploy time and never stored in parameter files. Core infrastructure outputs (managed identity ID, ACR login server, etc.) are synced to this repo's GitHub environment variables by bowrain-infra's `sync-vars.sh` script.
 
 ## Custom domains
 
-| Environment | API | Auth |
-|---|---|---|
-| **prod** | `bowrain.cloud` | `auth.bowrain.cloud` |
-| **dev** | `dev.bowrain.cloud` | `auth.dev.bowrain.cloud` |
+| Environment | API                 | Auth                     |
+| ----------- | ------------------- | ------------------------ |
+| **prod**    | `bowrain.cloud`     | `auth.bowrain.cloud`     |
+| **dev**     | `dev.bowrain.cloud` | `auth.dev.bowrain.cloud` |
 
 TLS certificates are automatically provisioned and managed by Azure Container Apps.
 
@@ -206,20 +206,20 @@ TLS certificates are automatically provisioned and managed by Azure Container Ap
 
 All Bicep modules live in the [bowrain-infra](https://github.com/neokapi/bowrain-infra) repo under `modules/`. The two orchestrator files (`core.bicep` and `apps.bicep`) compose these modules into deployment layers:
 
-| Module | Layer | Resources |
-|---|---|---|
-| `identity.bicep` | Core | User-assigned managed identity, RBAC role assignments |
-| `network.bicep` | Core | VNet, subnets, private DNS zones |
-| `acr.bicep` | Core | Container Registry, AcrPull role assignment |
-| `keyvault.bicep` | Core | Key Vault, secrets (JWT, OIDC, Redis key) |
-| `postgres.bicep` | Core | PostgreSQL Flexible Server, PgBouncer config, databases |
-| `redis.bicep` | Core | Redis Cache, private endpoint |
-| `servicebus.bicep` | Core | Service Bus namespace |
-| `containerapp-env.bicep` | Core | Container Apps Environment, Log Analytics |
-| `containerapp-api.bicep` | Apps | API server Container App |
-| `containerapp-worker.bicep` | Apps | Worker Container App (KEDA Service Bus scaler) |
-| `containerapp-keycloak.bicep` | Apps | Keycloak Container App |
-| `dns.bicep` | Apps | CNAME and TXT records in bowrain.cloud zone |
+| Module                        | Layer | Resources                                               |
+| ----------------------------- | ----- | ------------------------------------------------------- |
+| `identity.bicep`              | Core  | User-assigned managed identity, RBAC role assignments   |
+| `network.bicep`               | Core  | VNet, subnets, private DNS zones                        |
+| `acr.bicep`                   | Core  | Container Registry, AcrPull role assignment             |
+| `keyvault.bicep`              | Core  | Key Vault, secrets (JWT, OIDC, Redis key)               |
+| `postgres.bicep`              | Core  | PostgreSQL Flexible Server, PgBouncer config, databases |
+| `redis.bicep`                 | Core  | Redis Cache, private endpoint                           |
+| `servicebus.bicep`            | Core  | Service Bus namespace                                   |
+| `containerapp-env.bicep`      | Core  | Container Apps Environment, Log Analytics               |
+| `containerapp-api.bicep`      | Apps  | API server Container App                                |
+| `containerapp-worker.bicep`   | Apps  | Worker Container App (KEDA Service Bus scaler)          |
+| `containerapp-keycloak.bicep` | Apps  | Keycloak Container App                                  |
+| `dns.bicep`                   | Apps  | CNAME and TXT records in bowrain.cloud zone             |
 
 ## Linting
 

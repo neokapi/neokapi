@@ -3,6 +3,7 @@ id: 016-kapi-project-model
 sidebar_position: 16
 title: "AD-016: Bowrain Project Model"
 ---
+
 # AD-016: Bowrain Project Model
 
 ## Context
@@ -106,7 +107,7 @@ content:
 
   - path: src/es/**/*.json
     format: json
-    language: es    # This content is in Spanish
+    language: es # This content is in Spanish
 ```
 
 The `EffectiveLanguage()` method resolves per-entry language, falling back to the project default. All `\{lang\}` placeholder expansion uses this method.
@@ -154,6 +155,7 @@ steps:
 ```
 
 **Flow execution:**
+
 ```bash
 bowrain run pseudo
 ```
@@ -179,6 +181,7 @@ bowrain init --server https://bowrain.example.com --project my-app-l10n
 ```
 
 **Interactive `bowrain init` workflow:**
+
 1. Check if `.bowrain/` already exists (error if so)
 2. If already authenticated:
    - Prompt for workspace selection (or create a new workspace)

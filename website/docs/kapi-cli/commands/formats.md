@@ -40,36 +40,36 @@ kapi formats schema json
 
 ## Subcommands
 
-| Command | Description |
-|---------|-------------|
-| `info <name>` | Show detailed information about a format |
+| Command         | Description                                     |
+| --------------- | ----------------------------------------------- |
+| `info <name>`   | Show detailed information about a format        |
 | `schema <name>` | Output JSON Schema for a format's configuration |
 
 ## Flags
 
-| Flag | Description |
-|------|-------------|
-| `--ext` | Filter by file extension (e.g., `.docx`) |
-| `--mime` | Filter by MIME type (e.g., `text/html`) |
+| Flag     | Description                              |
+| -------- | ---------------------------------------- |
+| `--ext`  | Filter by file extension (e.g., `.docx`) |
+| `--mime` | Filter by MIME type (e.g., `text/html`)  |
 
 ## Supported Formats
 
-| Format | Extensions | Description |
-|--------|-----------|-------------|
-| HTML | .html, .htm | HTML documents |
-| XML | .xml | XML documents |
-| XLIFF | .xlf | XLIFF 1.2 translation files |
-| XLIFF 2 | .xlf | XLIFF 2.0/2.1 translation files |
-| JSON | .json | JSON key-value and nested structures |
-| YAML | .yaml, .yml | YAML documents |
-| PO | .po | GNU gettext translation files |
-| Properties | .properties | Java properties files |
-| Plaintext | .txt | Plain text files |
-| Markdown | .md | Markdown documents |
-| CSV | .csv | Comma-separated values |
-| SRT | .srt | SubRip subtitle files |
-| VTT | .vtt | WebVTT subtitle files |
-| TMX | .tmx | Translation Memory eXchange |
-| TBX | .tbx | TermBase eXchange |
+| Format     | Extensions  | Description                          |
+| ---------- | ----------- | ------------------------------------ |
+| HTML       | .html, .htm | HTML documents                       |
+| XML        | .xml        | XML documents                        |
+| XLIFF      | .xlf        | XLIFF 1.2 translation files          |
+| XLIFF 2    | .xlf        | XLIFF 2.0/2.1 translation files      |
+| JSON       | .json       | JSON key-value and nested structures |
+| YAML       | .yaml, .yml | YAML documents                       |
+| PO         | .po         | GNU gettext translation files        |
+| Properties | .properties | Java properties files                |
+| Plaintext  | .txt        | Plain text files                     |
+| Markdown   | .md         | Markdown documents                   |
+| CSV        | .csv        | Comma-separated values               |
+| SRT        | .srt        | SubRip subtitle files                |
+| VTT        | .vtt        | WebVTT subtitle files                |
+| TMX        | .tmx        | Translation Memory eXchange          |
+| TBX        | .tbx        | TermBase eXchange                    |
 
 Additional formats available via plugins (e.g., DOCX, XLSX via [Okapi bridge](/docs/kapi-cli/commands/plugins)).

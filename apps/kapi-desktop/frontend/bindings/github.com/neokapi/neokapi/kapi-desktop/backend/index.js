@@ -15,6 +15,7 @@ export {
     AppSettings,
     AvailablePlugin,
     ConceptDTO,
+    CustomLocale,
     EntityAdaptationDTO,
     EntityAnnotationDTO,
     EntityPatternRequest,

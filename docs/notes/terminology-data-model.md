@@ -2,6 +2,7 @@
 sidebar_position: 5
 title: "Terminology Data Model"
 ---
+
 # Terminology Data Model
 
 This note provides implementation details for [AD-010](/docs/ad/010-terminology).

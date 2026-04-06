@@ -2,6 +2,7 @@
 sidebar_position: 21
 title: "Bravo Agent Implementation"
 ---
+
 # Bravo Agent Implementation
 
 This note provides implementation details for [AD-028](/docs/ad/028-bravo-agent). The agent runtime uses [ZeroClaw](https://github.com/zeroclaw-labs/zeroclaw), a lightweight Rust-based agent framework, running in Docker containers with Azure OpenAI for model inference (swappable to any provider).
@@ -83,6 +84,7 @@ CREATE INDEX idx_agent_token_hash ON agent_tokens(token_hash) WHERE NOT revoked;
 ### SQLite (development)
 
 Same schema adapted for SQLite types:
+
 - `TIMESTAMPTZ` → `TEXT` (ISO 8601 strings)
 - `JSONB` → `TEXT` (JSON stored as text)
 - `BOOLEAN` → `INTEGER` (0/1)
@@ -95,16 +97,18 @@ Same schema adapted for SQLite types:
 #### `list_projects`
 
 **Input:**
+
 ```json
 {
-  "workspace_id": "ws_abc",        // required
-  "include_archived": false,        // optional, default false
-  "limit": 20,                      // optional, default 20, max 100
-  "offset": 0                       // optional
+  "workspace_id": "ws_abc", // required
+  "include_archived": false, // optional, default false
+  "limit": 20, // optional, default 20, max 100
+  "offset": 0 // optional
 }
 ```
 
 **Output:**
+
 ```json
 {
   "projects": [
@@ -125,15 +129,17 @@ Same schema adapted for SQLite types:
 #### `get_block`
 
 **Input:**
+
 ```json
 {
   "project_id": "proj_abc",
   "block_id": "blk_123",
-  "stream": "main"                  // optional, default "main"
+  "stream": "main" // optional, default "main"
 }
 ```
 
 **Output:**
+
 ```json
 {
   "id": "blk_123",
@@ -143,8 +149,8 @@ Same schema adapted for SQLite types:
     "text": "Welcome to our app"
   },
   "targets": {
-    "fr-FR": {"text": "Bienvenue dans notre application", "status": "translated"},
-    "de-DE": {"text": "", "status": "untranslated"}
+    "fr-FR": { "text": "Bienvenue dans notre application", "status": "translated" },
+    "de-DE": { "text": "", "status": "untranslated" }
   },
   "notes": [],
   "updated_at": "2026-03-15T10:30:00Z"
@@ -154,6 +160,7 @@ Same schema adapted for SQLite types:
 #### `update_block`
 
 **Input:**
+
 ```json
 {
   "project_id": "proj_abc",
@@ -161,11 +168,12 @@ Same schema adapted for SQLite types:
   "stream": "main",
   "locale": "fr-FR",
   "text": "Bienvenue dans notre application",
-  "status": "translated"             // optional
+  "status": "translated" // optional
 }
 ```
 
 **Output:**
+
 ```json
 {
   "success": true,
@@ -177,17 +185,19 @@ Same schema adapted for SQLite types:
 #### `run_flow`
 
 **Input:**
+
 ```json
 {
   "project_id": "proj_abc",
-  "flow": "pseudo-translate",        // flow name or preset
+  "flow": "pseudo-translate", // flow name or preset
   "stream": "main",
-  "target_locales": ["fr-FR"],       // optional, defaults to all project targets
-  "params": {}                       // optional flow-specific params
+  "target_locales": ["fr-FR"], // optional, defaults to all project targets
+  "params": {} // optional flow-specific params
 }
 ```
 
 **Output:**
+
 ```json
 {
   "job_id": "job_xyz",
@@ -203,41 +213,44 @@ Same schema adapted for SQLite types:
 #### `execute_script`
 
 **Input:**
+
 ```json
 {
-  "language": "python",              // "python" | "bash" | "node"
+  "language": "python", // "python" | "bash" | "node"
   "code": "import json\ndata = json.loads(open('/workspace/input.json').read())\nprint(len(data['keys']))",
-  "files": {                         // optional, base64-encoded files mounted at /workspace/
+  "files": {
+    // optional, base64-encoded files mounted at /workspace/
     "input.json": "eyJrZXlzIjogWyJhIiwgImIiLCAiYyJdfQ=="
   },
-  "timeout_seconds": 30              // optional, default 60, max 300
+  "timeout_seconds": 30 // optional, default 60, max 300
 }
 ```
 
 **Output:**
+
 ```json
 {
   "exit_code": 0,
   "stdout": "3\n",
   "stderr": "",
   "duration_ms": 450,
-  "output_files": {}                 // base64-encoded files written to /workspace/output/
+  "output_files": {} // base64-encoded files written to /workspace/output/
 }
 ```
 
 ## SSE Event Reference
 
-| Event | Data Shape | When |
-|-------|-----------|------|
-| `message_start` | `{id, role}` | Agent begins a response message |
-| `content_delta` | `{delta}` | Incremental text chunk |
-| `tool_call_start` | `{id, tool, input}` | Agent invokes a tool |
-| `tool_call_end` | `{id, status, output, duration_ms, error?}` | Tool execution completes |
-| `needs_approval` | `{id, tool, input, description}` | Tool requires human approval |
-| `approval_resolved` | `{id, decision}` | User approved or denied |
-| `message_end` | `{id}` | Response message complete |
-| `error` | `{code, message}` | Unrecoverable error |
-| `done` | `{}` | Stream finished |
+| Event               | Data Shape                                  | When                            |
+| ------------------- | ------------------------------------------- | ------------------------------- |
+| `message_start`     | `{id, role}`                                | Agent begins a response message |
+| `content_delta`     | `{delta}`                                   | Incremental text chunk          |
+| `tool_call_start`   | `{id, tool, input}`                         | Agent invokes a tool            |
+| `tool_call_end`     | `{id, status, output, duration_ms, error?}` | Tool execution completes        |
+| `needs_approval`    | `{id, tool, input, description}`            | Tool requires human approval    |
+| `approval_resolved` | `{id, decision}`                            | User approved or denied         |
+| `message_end`       | `{id}`                                      | Response message complete       |
+| `error`             | `{code, message}`                           | Unrecoverable error             |
+| `done`              | `{}`                                        | Stream finished                 |
 
 ## Container Sandbox Configuration
 
@@ -328,13 +341,13 @@ type AgentContainer struct {
 
 AgentPool renders `config.toml` per conversation by injecting:
 
-| Variable | Source |
-|----------|--------|
-| `{{workspace_name}}` | From AuthStore workspace lookup |
-| `{{user_name}}` | From AuthStore user lookup |
-| `{{user_role}}` | From workspace membership |
+| Variable                    | Source                                            |
+| --------------------------- | ------------------------------------------------- |
+| `{{workspace_name}}`        | From AuthStore workspace lookup                   |
+| `{{user_name}}`             | From AuthStore user lookup                        |
+| `{{user_role}}`             | From workspace membership                         |
 | `{{from_workspace_config}}` | Azure OpenAI key from workspace credentials store |
-| `{{scoped_agent_token}}` | Freshly minted `bwt_bravo_*` token |
+| `{{scoped_agent_token}}`    | Freshly minted `bwt_bravo_*` token                |
 
 ### Container lifecycle API
 
@@ -360,6 +373,7 @@ AgentService.SendMessage()
 ### Idle reaper
 
 A background goroutine in AgentPool checks containers every 60s:
+
 - Containers idle > `IdleTimeout` (default 5m) are stopped
 - Conversations marked "completed" or "failed" have containers removed
 - On container stop, SQLite memory file is optionally archived to object storage for conversation history
@@ -374,6 +388,7 @@ CMD ["zeroclaw", "gateway"]
 ```
 
 Config is injected at runtime via volume mount:
+
 ```bash
 docker run -d \
   --name bravo-${CONVERSATION_ID} \
@@ -394,6 +409,7 @@ Authorization: Bearer bwt_bravo_a1b2c3d4e5f6...
 ```
 
 The token resolves to:
+
 - `user_id` — the delegating user
 - `workspace_id` — the workspace scope
 - `conversation_id` — the originating conversation (for audit)
@@ -402,6 +418,7 @@ The token resolves to:
 ### Provider configuration examples
 
 Azure OpenAI (default):
+
 ```toml
 [model]
 provider = "azure-openai"
@@ -412,6 +429,7 @@ api_version = "2025-12-01-preview"
 ```
 
 Swap to Anthropic (no code changes):
+
 ```toml
 [model]
 provider = "anthropic"
@@ -420,6 +438,7 @@ api_key = "{{from_workspace_config}}"
 ```
 
 Swap to self-hosted Ollama (no code changes):
+
 ```toml
 [model]
 provider = "ollama"
@@ -429,13 +448,13 @@ api_base = "http://ollama.internal:11434"
 
 ### Resource footprint
 
-| Metric | Value |
-|--------|-------|
-| Image size | ~16MB |
-| Cold start | &lt;10ms |
-| Memory per agent | ~5MB (64MB limit) |
-| CPU per agent | 0.25 cores |
-| Agents per 1GB RAM | ~200 (theoretical) |
+| Metric                       | Value                    |
+| ---------------------------- | ------------------------ |
+| Image size                   | ~16MB                    |
+| Cold start                   | &lt;10ms                 |
+| Memory per agent             | ~5MB (64MB limit)        |
+| CPU per agent                | 0.25 cores               |
+| Agents per 1GB RAM           | ~200 (theoretical)       |
 | Max concurrent per workspace | Configurable (default 3) |
 
 ## Frontend Integration Details
@@ -463,18 +482,19 @@ export function useBravoRuntime(workspaceSlug: string) {
     },
     convertMessage: (msg) => ({
       role: msg.role,
-      content: msg.role === "assistant"
-        ? [
-            { type: "text", text: msg.content },
-            ...msg.toolCalls.map(tc => ({
-              type: "tool-call" as const,
-              toolCallId: tc.id,
-              toolName: tc.toolName,
-              args: tc.input,
-              result: tc.output,
-            })),
-          ]
-        : [{ type: "text", text: msg.content }],
+      content:
+        msg.role === "assistant"
+          ? [
+              { type: "text", text: msg.content },
+              ...msg.toolCalls.map((tc) => ({
+                type: "tool-call" as const,
+                toolCallId: tc.id,
+                toolName: tc.toolName,
+                args: tc.input,
+                result: tc.output,
+              })),
+            ]
+          : [{ type: "text", text: msg.content }],
     }),
   });
 }
@@ -538,18 +558,13 @@ export default function WorkspaceLayout() {
 Initial `require_approval` defaults for new workspaces:
 
 ```json
-[
-  "connector_push",
-  "connector_pull",
-  "merge_stream",
-  "create_project",
-  "execute_script"
-]
+["connector_push", "connector_pull", "merge_stream", "create_project", "execute_script"]
 ```
 
 These can be modified by workspace admins via `PUT /bravo/config`.
 
 Default `denied_tools` is empty (all tools available). Admins can restrict access by either:
+
 - Setting `allowed_tools` to a whitelist (only these tools are available)
 - Setting `denied_tools` to a blacklist (these tools are blocked, rest are available)
 

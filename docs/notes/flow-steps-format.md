@@ -5,6 +5,7 @@ The steps-based flow format provides human-friendly YAML authoring that compiles
 ## Format Detection
 
 The flow parser auto-detects the format:
+
 - `spec.steps` present -> steps format, compiled via `StepsToGraph()`
 - `spec.nodes` present -> graph format, used directly
 - Both enveloped (`apiVersion: v1`) and bare YAML are supported
@@ -23,6 +24,7 @@ type FlowStep struct {
 ## Compilation
 
 `StepsToGraph(spec)` generates:
+
 1. A reader node (using `spec.input`, default "auto")
 2. Tool nodes from steps, chained sequentially
 3. Parallel branches for `parallel:` blocks (tee from previous, join at next)
@@ -33,6 +35,7 @@ Auto-assigned IDs follow `tool-N` pattern. Positions auto-layout left-to-right.
 ## Examples
 
 ### Linear pipeline
+
 ```yaml
 steps:
   - tool: tm-leverage
@@ -42,6 +45,7 @@ steps:
 ```
 
 ### Fan-out
+
 ```yaml
 steps:
   - parallel:
@@ -51,6 +55,7 @@ steps:
 ```
 
 ### Script step
+
 ```yaml
 steps:
   - tool: script

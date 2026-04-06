@@ -665,7 +665,7 @@ func (tb *SQLiteTermBase) LocaleStats() []LocaleStat {
 
 // ActivityStat holds the concept count for a date bucket.
 type ActivityStat struct {
-	Date  string `json:"date"`  // YYYY-MM-DD
+	Date  string `json:"date"` // YYYY-MM-DD
 	Count int    `json:"count"`
 }
 

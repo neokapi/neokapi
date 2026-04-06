@@ -1,5 +1,5 @@
-import { useState, useRef, useCallback, useEffect } from 'react';
-import type { PlaybackState, TraceEvent, Particle, FlowNode, PartSnapshotSet } from './_types';
+import { useState, useRef, useCallback, useEffect } from "react";
+import type { PlaybackState, TraceEvent, Particle, FlowNode, PartSnapshotSet } from "./_types";
 
 interface UsePlaybackOptions {
   events: TraceEvent[];
@@ -31,7 +31,10 @@ function computeParticles(
   nodes.forEach((n, i) => nodeIndex.set(n.id, i));
 
   // Track per-part state: last event at or before current time
-  const partStates = new Map<string, { lastEvent: TraceEvent; prevExit?: TraceEvent; worker?: number }>();
+  const partStates = new Map<
+    string,
+    { lastEvent: TraceEvent; prevExit?: TraceEvent; worker?: number }
+  >();
 
   for (const evt of events) {
     if (evt.ts > time) break;
@@ -39,7 +42,7 @@ function computeParticles(
 
     const existing = partStates.get(evt.partId);
     const worker = (evt.meta?.worker as number | undefined) ?? existing?.worker;
-    if (existing && existing.lastEvent.type === 'exit') {
+    if (existing && existing.lastEvent.type === "exit") {
       partStates.set(evt.partId, { lastEvent: evt, prevExit: existing.lastEvent, worker });
     } else {
       partStates.set(evt.partId, { lastEvent: evt, prevExit: existing?.prevExit, worker });
@@ -64,25 +67,29 @@ function computeParticles(
     const nIdx = nodeIndex.get(lastEvent.nodeId);
     if (nIdx === undefined) continue;
 
-    if (lastEvent.type === 'enter') {
+    if (lastEvent.type === "enter") {
       // Part is inside a node being processed
       activeNodes.add(lastEvent.nodeId);
       particles.push({
         partId,
         partType: snapshot.type,
-        position: 'node',
+        position: "node",
         nodeId: lastEvent.nodeId,
         summary: snapshot.summary,
         worker,
       });
-    } else if (lastEvent.type === 'exit') {
+    } else if (lastEvent.type === "exit") {
       // Part has exited a node - is it traveling to next node?
       const nextNodeIdx = nIdx + 1;
       if (nextNodeIdx < nodes.length) {
         // Find when the next node's enter event happens for this part
         let nextEnterTs: number | null = null;
         for (const evt of events) {
-          if (evt.partId === partId && evt.type === 'enter' && evt.nodeId === nodes[nextNodeIdx].id) {
+          if (
+            evt.partId === partId &&
+            evt.type === "enter" &&
+            evt.nodeId === nodes[nextNodeIdx].id
+          ) {
             nextEnterTs = evt.ts;
             break;
           }
@@ -111,7 +118,7 @@ function computeParticles(
         particles.push({
           partId,
           partType: snapshot.type,
-          position: 'edge',
+          position: "edge",
           edgeIndex: nIdx,
           progress,
           summary: snapshot.summary,
@@ -146,7 +153,7 @@ export function usePlayback(options: UsePlaybackOptions): UsePlaybackReturn {
   // Update duration when events change
   useEffect(() => {
     const newDuration = events.length > 0 ? events[events.length - 1].ts : 0;
-    setState(s => ({ ...s, duration: newDuration, time: 0, eventIndex: 0, playing: false }));
+    setState((s) => ({ ...s, duration: newDuration, time: 0, eventIndex: 0, playing: false }));
     lastFrameRef.current = null;
     if (rafRef.current) {
       cancelAnimationFrame(rafRef.current);
@@ -154,42 +161,45 @@ export function usePlayback(options: UsePlaybackOptions): UsePlaybackReturn {
     }
   }, [events]);
 
-  const tick = useCallback((timestamp: number) => {
-    if (lastFrameRef.current === null) {
+  const tick = useCallback(
+    (timestamp: number) => {
+      if (lastFrameRef.current === null) {
+        lastFrameRef.current = timestamp;
+        rafRef.current = requestAnimationFrame(tick);
+        return;
+      }
+
+      const deltaMs = timestamp - lastFrameRef.current;
       lastFrameRef.current = timestamp;
-      rafRef.current = requestAnimationFrame(tick);
-      return;
-    }
 
-    const deltaMs = timestamp - lastFrameRef.current;
-    lastFrameRef.current = timestamp;
+      // Convert real-time ms to trace-time µs, scaled by speed
+      // Use a time scale: 1ms real = 2µs trace at 1x speed
+      const deltaUs = deltaMs * 2 * stateRef.current.speed;
 
-    // Convert real-time ms to trace-time µs, scaled by speed
-    // Use a time scale: 1ms real = 2µs trace at 1x speed
-    const deltaUs = deltaMs * 2 * stateRef.current.speed;
+      setState((prev) => {
+        const newTime = Math.min(prev.time + deltaUs, prev.duration);
+        let newIndex = prev.eventIndex;
+        while (newIndex < events.length && events[newIndex].ts <= newTime) {
+          newIndex++;
+        }
 
-    setState(prev => {
-      const newTime = Math.min(prev.time + deltaUs, prev.duration);
-      let newIndex = prev.eventIndex;
-      while (newIndex < events.length && events[newIndex].ts <= newTime) {
-        newIndex++;
+        if (newTime >= prev.duration) {
+          lastFrameRef.current = null;
+          return { ...prev, time: prev.duration, eventIndex: newIndex, playing: false };
+        }
+
+        return { ...prev, time: newTime, eventIndex: newIndex };
+      });
+
+      if (stateRef.current.playing) {
+        rafRef.current = requestAnimationFrame(tick);
       }
-
-      if (newTime >= prev.duration) {
-        lastFrameRef.current = null;
-        return { ...prev, time: prev.duration, eventIndex: newIndex, playing: false };
-      }
-
-      return { ...prev, time: newTime, eventIndex: newIndex };
-    });
-
-    if (stateRef.current.playing) {
-      rafRef.current = requestAnimationFrame(tick);
-    }
-  }, [events]);
+    },
+    [events],
+  );
 
   const play = useCallback(() => {
-    setState(prev => {
+    setState((prev) => {
       // If at the end, reset to beginning
       if (prev.time >= prev.duration) {
         lastFrameRef.current = null;
@@ -202,7 +212,7 @@ export function usePlayback(options: UsePlaybackOptions): UsePlaybackReturn {
   }, [tick]);
 
   const pause = useCallback(() => {
-    setState(prev => ({ ...prev, playing: false }));
+    setState((prev) => ({ ...prev, playing: false }));
     if (rafRef.current) {
       cancelAnimationFrame(rafRef.current);
       rafRef.current = null;
@@ -212,7 +222,7 @@ export function usePlayback(options: UsePlaybackOptions): UsePlaybackReturn {
 
   const step = useCallback(() => {
     pause();
-    setState(prev => {
+    setState((prev) => {
       if (prev.eventIndex < events.length) {
         const nextTime = events[prev.eventIndex].ts;
         return { ...prev, time: nextTime, eventIndex: prev.eventIndex + 1 };
@@ -221,22 +231,25 @@ export function usePlayback(options: UsePlaybackOptions): UsePlaybackReturn {
     });
   }, [events, pause]);
 
-  const seek = useCallback((time: number) => {
-    const clampedTime = Math.max(0, Math.min(time, duration));
-    let newIndex = 0;
-    while (newIndex < events.length && events[newIndex].ts <= clampedTime) {
-      newIndex++;
-    }
-    setState(prev => ({ ...prev, time: clampedTime, eventIndex: newIndex }));
-  }, [events, duration]);
+  const seek = useCallback(
+    (time: number) => {
+      const clampedTime = Math.max(0, Math.min(time, duration));
+      let newIndex = 0;
+      while (newIndex < events.length && events[newIndex].ts <= clampedTime) {
+        newIndex++;
+      }
+      setState((prev) => ({ ...prev, time: clampedTime, eventIndex: newIndex }));
+    },
+    [events, duration],
+  );
 
   const setSpeed = useCallback((speed: number) => {
-    setState(prev => ({ ...prev, speed }));
+    setState((prev) => ({ ...prev, speed }));
   }, []);
 
   const reset = useCallback(() => {
     pause();
-    setState(prev => ({ ...prev, time: 0, eventIndex: 0 }));
+    setState((prev) => ({ ...prev, time: 0, eventIndex: 0 }));
   }, [pause]);
 
   // Cleanup on unmount
@@ -249,7 +262,10 @@ export function usePlayback(options: UsePlaybackOptions): UsePlaybackReturn {
   }, []);
 
   const { particles, channelFills, activeNodes } = computeParticles(
-    events, nodes, parts, state.time,
+    events,
+    nodes,
+    parts,
+    state.time,
   );
 
   return {

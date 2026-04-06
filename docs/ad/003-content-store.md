@@ -3,6 +3,7 @@ id: 003-content-store
 sidebar_position: 3
 title: "AD-003: Content Store and Versioning"
 ---
+
 # AD-003: Content Store and Versioning
 
 ## Context
@@ -48,6 +49,7 @@ type ContentStore interface {
 ```
 
 **Key responsibilities:**
+
 - **Project CRUD** — Multi-tenant project management within workspaces ([AD-015](./015-auth-and-workspaces.md))
 - **Content-addressed storage** — Deduplicated block storage by content hash
 - **Version tracking** — Immutable snapshots of project state
@@ -141,11 +143,13 @@ Source System (CMS, Design Tool, Code Repo)
 ```
 
 **For Bowrain Server:**
+
 - Connectors (CMS, design, code) pull content → store in ContentStore
 - Flows process store content through tools
 - Connectors push translations back to source systems
 
 **For Bowrain CLI:**
+
 - Bowrain CLI is the **file connector** for Bowrain Server
 - `bowrain push` reads local files → sends blocks to ContentStore (via API)
 - `bowrain pull` fetches blocks from ContentStore (via API) → writes local files

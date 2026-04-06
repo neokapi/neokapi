@@ -3,6 +3,7 @@ id: 036-distributed-event-bus
 sidebar_position: 36
 title: "AD-036: Distributed Event Bus"
 ---
+
 # AD-036: Distributed Event Bus
 
 ## Context
@@ -88,12 +89,14 @@ default:
 ### Infrastructure changes
 
 **Azure (bowrain-infra):**
+
 - Add `bowrain-events` topic to the existing Service Bus namespace
 - Add 8 subscriptions (one per consumer component)
 - Topic auto-forwarded to dead-letter after 7 days
 - Subscriptions: max delivery 5, lock duration 30s
 
 **Local dev (compose.yaml):**
+
 - NATS already running with JetStream enabled — no change needed
 
 ## Implementation
@@ -142,23 +145,23 @@ type NATSEventBus struct {
 
 ### Files to create
 
-| File | Purpose |
-|---|---|
-| `platform/event/bus_servicebus.go` | Azure Service Bus EventBus implementation |
-| `platform/event/bus_nats.go` | NATS JetStream EventBus implementation |
-| `bowrain-infra/modules/servicebus-events.bicep` | Topic + subscriptions Bicep module |
+| File                                            | Purpose                                   |
+| ----------------------------------------------- | ----------------------------------------- |
+| `platform/event/bus_servicebus.go`              | Azure Service Bus EventBus implementation |
+| `platform/event/bus_nats.go`                    | NATS JetStream EventBus implementation    |
+| `bowrain-infra/modules/servicebus-events.bicep` | Topic + subscriptions Bicep module        |
 
 ### Files to modify
 
-| File | Change |
-|---|---|
-| `platform/server/server.go` | Select bus backend based on config, remove leader election |
-| `platform/server/config.go` | Already has ServiceBusConnection + NATSUrl |
-| `platform/event/automation.go` | Remove IsLeader field |
-| `platform/event/push_completion_tracker.go` | Remove IsLeader + DB polling, revert to event-only |
-| `platform/event/step_completion_tracker.go` | Remove IsLeader |
-| `platform/compose.yaml` | No change (NATS already present) |
-| `bowrain-infra/modules/servicebus.bicep` | Import events module |
+| File                                        | Change                                                     |
+| ------------------------------------------- | ---------------------------------------------------------- |
+| `platform/server/server.go`                 | Select bus backend based on config, remove leader election |
+| `platform/server/config.go`                 | Already has ServiceBusConnection + NATSUrl                 |
+| `platform/event/automation.go`              | Remove IsLeader field                                      |
+| `platform/event/push_completion_tracker.go` | Remove IsLeader + DB polling, revert to event-only         |
+| `platform/event/step_completion_tracker.go` | Remove IsLeader                                            |
+| `platform/compose.yaml`                     | No change (NATS already present)                           |
+| `bowrain-infra/modules/servicebus.bicep`    | Import events module                                       |
 
 ## Alternatives Considered
 

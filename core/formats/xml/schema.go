@@ -1,8 +1,8 @@
 package xml
 
 import (
-	coreschema "github.com/neokapi/neokapi/core/schema"
 	"github.com/neokapi/neokapi/core/format/schema"
+	coreschema "github.com/neokapi/neokapi/core/schema"
 )
 
 // Schema returns the JSON Schema metadata for the XML format's parameters.

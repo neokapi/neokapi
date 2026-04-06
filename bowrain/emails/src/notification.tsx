@@ -62,9 +62,7 @@ export const NotificationEmail = ({
   return (
     <Html lang="en" dir="ltr">
       <Head />
-      <Preview>
-        {title}
-      </Preview>
+      <Preview>{title}</Preview>
       <Body style={main}>
         <Container style={container}>
           {/* ── Header ─────────────────────────────────── */}

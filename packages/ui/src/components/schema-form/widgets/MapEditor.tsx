@@ -36,7 +36,9 @@ function MapEntry({
         <input
           value={String(value ?? "")}
           className="flex-1 bg-transparent px-2.5 py-1.5 text-xs outline-none"
-          onChange={(e: React.ChangeEvent<HTMLInputElement>) => onValueChange(e.target.value || undefined)}
+          onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+            onValueChange(e.target.value || undefined)
+          }
         />
         <Button
           type="button"
@@ -141,9 +143,7 @@ export function MapEditor({
   return (
     <div className="space-y-2">
       {label && <Label className="text-xs font-medium">{label}</Label>}
-      {!compact && description && (
-        <p className="text-xs text-muted-foreground">{description}</p>
-      )}
+      {!compact && description && <p className="text-xs text-muted-foreground">{description}</p>}
       <div className="space-y-1.5">
         {Object.entries(entries).map(([key, val]) => (
           <MapEntry

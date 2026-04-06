@@ -2,6 +2,7 @@
 sidebar_position: 16
 title: Translation Job Queue
 ---
+
 # Translation Job Queue
 
 Implementation details for the server-side async translation service
@@ -49,11 +50,11 @@ Identity.
 
 Three implementations of the `Queue` interface:
 
-| Implementation | Backend | Use Case |
-|----------------|---------|----------|
-| `ChannelQueue` | Go channels (in-memory) | Local development |
-| `ServiceBusQueue` | Azure Service Bus | Production Azure |
-| `NATSQueue` | NATS streaming | Cloud-native deployments |
+| Implementation    | Backend                 | Use Case                 |
+| ----------------- | ----------------------- | ------------------------ |
+| `ChannelQueue`    | Go channels (in-memory) | Local development        |
+| `ServiceBusQueue` | Azure Service Bus       | Production Azure         |
+| `NATSQueue`       | NATS streaming          | Cloud-native deployments |
 
 Interface:
 
@@ -141,25 +142,25 @@ large jobs.
 
 ## API Endpoints
 
-| Method | Path | Description |
-|--------|------|-------------|
-| POST | `/api/v1/workspaces/:ws/jobs/translate` | Create async job (202 Accepted) |
-| POST | `/api/v1/projects/:id/sync/translate` | Project-scoped translate (anonymous) |
-| GET | `/api/v1/workspaces/:ws/jobs/:id` | Poll job status and progress |
-| GET | `/api/v1/workspaces/:ws/jobs` | List recent 50 jobs |
-| DELETE | `/api/v1/workspaces/:ws/jobs/:id` | Cancel job |
-| GET | `/api/v1/workspaces/:ws/ai/usage` | Quota summary |
+| Method | Path                                    | Description                          |
+| ------ | --------------------------------------- | ------------------------------------ |
+| POST   | `/api/v1/workspaces/:ws/jobs/translate` | Create async job (202 Accepted)      |
+| POST   | `/api/v1/projects/:id/sync/translate`   | Project-scoped translate (anonymous) |
+| GET    | `/api/v1/workspaces/:ws/jobs/:id`       | Poll job status and progress         |
+| GET    | `/api/v1/workspaces/:ws/jobs`           | List recent 50 jobs                  |
+| DELETE | `/api/v1/workspaces/:ws/jobs/:id`       | Cancel job                           |
+| GET    | `/api/v1/workspaces/:ws/ai/usage`       | Quota summary                        |
 
 ## Environment Variables
 
-| Variable | Required | Description |
-|----------|----------|-------------|
-| `BOWRAIN_DATABASE_URL` | Yes | PostgreSQL or SQLite connection string |
-| `BOWRAIN_DATABASE_AUTH` | No | `"azure"` for Entra ID auth |
-| `BOWRAIN_OPENAI_ENDPOINT` | No | Azure OpenAI endpoint (enables platform provider) |
-| `AZURE_CLIENT_ID` | No | User-assigned managed identity client ID |
-| `BOWRAIN_SERVICE_BUS_CONNECTION` | No | Azure Service Bus connection string |
-| `BOWRAIN_NATS_URL` | No | NATS streaming URL |
+| Variable                         | Required | Description                                       |
+| -------------------------------- | -------- | ------------------------------------------------- |
+| `BOWRAIN_DATABASE_URL`           | Yes      | PostgreSQL or SQLite connection string            |
+| `BOWRAIN_DATABASE_AUTH`          | No       | `"azure"` for Entra ID auth                       |
+| `BOWRAIN_OPENAI_ENDPOINT`        | No       | Azure OpenAI endpoint (enables platform provider) |
+| `AZURE_CLIENT_ID`                | No       | User-assigned managed identity client ID          |
+| `BOWRAIN_SERVICE_BUS_CONNECTION` | No       | Azure Service Bus connection string               |
+| `BOWRAIN_NATS_URL`               | No       | NATS streaming URL                                |
 
 If neither Service Bus nor NATS is configured, the server uses an
 in-memory channel queue (suitable only for single-instance development).

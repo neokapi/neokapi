@@ -19,7 +19,7 @@ function getVideoDuration(filePath: string): number {
     const result = execFileSync(
       "ffprobe",
       ["-v", "quiet", "-print_format", "json", "-show_format", filePath],
-      { encoding: "utf-8" }
+      { encoding: "utf-8" },
     );
     const data = JSON.parse(result);
     return parseFloat(data.format.duration);
@@ -61,15 +61,11 @@ async function main() {
   const allScripts = rawScripts.flatMap(expandThemes);
 
   // Filter if a composition ID was provided
-  const scripts = filterArg
-    ? allScripts.filter((s) => s.video.id === filterArg)
-    : allScripts;
+  const scripts = filterArg ? allScripts.filter((s) => s.video.id === filterArg) : allScripts;
 
   if (scripts.length === 0) {
     const available = allScripts.map((s) => s.video.id).join(", ");
-    console.error(
-      `No matching composition found for "${filterArg}". Available: ${available}`
-    );
+    console.error(`No matching composition found for "${filterArg}". Available: ${available}`);
     process.exit(1);
   }
 
@@ -110,7 +106,9 @@ async function main() {
     const videoDurations = resolveVideoDurations(script);
     const resolved = resolveScript(script, videoDurations);
 
-    console.log(`  Total duration: ${resolved.totalDurationInFrames} frames (${(resolved.totalDurationInFrames / script.video.fps).toFixed(1)}s)`);
+    console.log(
+      `  Total duration: ${resolved.totalDurationInFrames} frames (${(resolved.totalDurationInFrames / script.video.fps).toFixed(1)}s)`,
+    );
 
     // Select composition from bundle
     const composition = await selectComposition({

@@ -16,21 +16,21 @@ The script tool receives each Part one at a time. For each Part, your script run
 ### The part object
 
 ```javascript
-part.type    // "block", "data", "media", "layer-start", "layer-end",
-             // "group-start", "group-end"
+part.type; // "block", "data", "media", "layer-start", "layer-end",
+// "group-start", "group-end"
 ```
 
 For block parts, the `block` property provides access to translatable content:
 
 ```javascript
-part.block.id            // Block ID string
-part.block.translatable  // boolean
+part.block.id; // Block ID string
+part.block.translatable; // boolean
 
 // Source segments (array)
-part.block.source[0].content.text  // Source text of first segment
+part.block.source[0].content.text; // Source text of first segment
 
 // Target segments by locale (object)
-part.block.targets["fr"][0].content.text  // French target text
+part.block.targets["fr"][0].content.text; // French target text
 ```
 
 ### emit(part)
@@ -48,7 +48,7 @@ emit(part);
 Drop the current Part entirely. It will not reach downstream tools or the writer.
 
 ```javascript
-if (part.type === 'block' && part.block.source[0].content.text === '') {
+if (part.type === "block" && part.block.source[0].content.text === "") {
   skip();
 }
 ```
@@ -63,11 +63,11 @@ log("Processing block: " + part.block.id);
 
 ### Control flow summary
 
-| Script behavior | Result |
-|----------------|--------|
-| No `emit()` or `skip()` called | Part passes through unchanged |
-| `emit(part)` called | Only emitted parts are forwarded |
-| `skip()` called | Part is dropped |
+| Script behavior                | Result                                        |
+| ------------------------------ | --------------------------------------------- |
+| No `emit()` or `skip()` called | Part passes through unchanged                 |
+| `emit(part)` called            | Only emitted parts are forwarded              |
+| `skip()` called                | Part is dropped                               |
 | `emit()` called multiple times | All emitted parts are forwarded (one-to-many) |
 
 ## CLI usage
@@ -90,7 +90,7 @@ kapi script -i input.xliff --script-file filter.js
 Where `filter.js` contains:
 
 ```javascript
-if (part.type === 'block') {
+if (part.type === "block") {
   var text = part.block.source[0].content.text;
   if (text.length <= 5) {
     skip();
@@ -140,7 +140,7 @@ steps:
 Skip blocks where the source text is shorter than a threshold:
 
 ```javascript
-if (part.type === 'block') {
+if (part.type === "block") {
   var text = part.block.source[0].content.text;
   if (text.length < 10) {
     skip();
@@ -153,9 +153,9 @@ if (part.type === 'block') {
 Append a marker to all French translations:
 
 ```javascript
-if (part.type === 'block' && part.block.targets['fr']) {
-  var seg = part.block.targets['fr'][0];
-  seg.content.text = seg.content.text + ' [REVIEW]';
+if (part.type === "block" && part.block.targets["fr"]) {
+  var seg = part.block.targets["fr"][0];
+  seg.content.text = seg.content.text + " [REVIEW]";
   emit(part);
 }
 ```
@@ -165,7 +165,7 @@ if (part.type === 'block' && part.block.targets['fr']) {
 Only pass translatable blocks through to downstream tools:
 
 ```javascript
-if (part.type !== 'block') {
+if (part.type !== "block") {
   // Let structural parts (layers, data) pass through
   emit(part);
 } else if (part.block.translatable) {
@@ -180,9 +180,9 @@ if (part.type !== 'block') {
 Normalize whitespace in source segments before translation:
 
 ```javascript
-if (part.type === 'block') {
+if (part.type === "block") {
   var text = part.block.source[0].content.text;
-  text = text.replace(/\s+/g, ' ').replace(/^\s+|\s+$/g, '');
+  text = text.replace(/\s+/g, " ").replace(/^\s+|\s+$/g, "");
   part.block.source[0].content.text = text;
   emit(part);
 }
@@ -193,18 +193,18 @@ if (part.type === 'block') {
 Inspect the pipeline without changing anything:
 
 ```javascript
-if (part.type === 'block') {
-  log('Block ' + part.block.id + ': ' + part.block.source[0].content.text);
+if (part.type === "block") {
+  log("Block " + part.block.id + ": " + part.block.source[0].content.text);
 }
 // No emit() or skip() -- part passes through unchanged
 ```
 
 ## Configuration reference
 
-| Property | Type | Description |
-|----------|------|-------------|
-| `code` | string | Inline JavaScript code (ES5) |
-| `scriptFile` | string | Path to a `.js` file |
+| Property     | Type   | Description                  |
+| ------------ | ------ | ---------------------------- |
+| `code`       | string | Inline JavaScript code (ES5) |
+| `scriptFile` | string | Path to a `.js` file         |
 
 The two properties are mutually exclusive. One of them must be provided.
 

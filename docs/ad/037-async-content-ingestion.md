@@ -3,6 +3,7 @@ id: 037-async-content-ingestion
 sidebar_position: 37
 title: "AD-037: Async Content Ingestion"
 ---
+
 # AD-037: Async Content Ingestion
 
 ## Context
@@ -88,6 +89,7 @@ type BlobStore interface {
 ```
 
 Implementations:
+
 - **Azure Blob Storage** (production) — already deployed, managed identity auth
 - **Local filesystem** (dev) — `$TMPDIR/bowrain-blobs/`
 - Both already exist in the codebase for media assets
@@ -123,31 +125,34 @@ A **transition period** can support both: if the request includes `?async=true`,
 ## Implementation
 
 ### Phase 1: Bulk INSERT + atomic transactions
+
 - Replace individual INSERTs with batched multi-row INSERT
 - Wrap multi-item push in a single transaction
 - Add rate limiting middleware on push endpoint
 - Add pagination to GetBlocks handler
 
 ### Phase 2: Async push via blob
+
 - Add `sync-push` job type to worker
 - Push endpoint writes blob + enqueues job
 - Worker reads blob, processes with bulk INSERT
 - Support `?async=true` query param for transition
 
 ### Phase 3: Client updates
+
 - Update bowrain CLI to handle 202 + poll
 - Update GitHub Action
 - Make async the default
 
 ### Files to modify
 
-| File | Change |
-|---|---|
+| File                      | Change                                     |
+| ------------------------- | ------------------------------------------ |
 | `server/handlers_sync.go` | Async push path, rate limiting, pagination |
-| `store/postgres.go` | Bulk INSERT implementation |
-| `store/sqlite.go` | Batched INSERT for dev |
-| `jobs/worker.go` | Sync push job type |
-| `server/server.go` | Rate limiting middleware |
+| `store/postgres.go`       | Bulk INSERT implementation                 |
+| `store/sqlite.go`         | Batched INSERT for dev                     |
+| `jobs/worker.go`          | Sync push job type                         |
+| `server/server.go`        | Rate limiting middleware                   |
 
 ## Alternatives Considered
 

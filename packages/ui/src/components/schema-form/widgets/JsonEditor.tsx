@@ -48,9 +48,7 @@ export function JsonEditor({
       </button>
       {!collapsed && (
         <>
-          {description && (
-            <p className="text-xs text-muted-foreground">{description}</p>
-          )}
+          {description && <p className="text-xs text-muted-foreground">{description}</p>}
           <CodeInput
             value={text}
             onChange={handleChange}
@@ -88,12 +86,5 @@ export function JsonInlineEditor({
     [onChange],
   );
 
-  return (
-    <CodeInput
-      value={text}
-      onChange={handleChange}
-      language="json"
-      minHeight={40}
-    />
-  );
+  return <CodeInput value={text} onChange={handleChange} language="json" minHeight={40} />;
 }

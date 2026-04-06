@@ -3,6 +3,7 @@ id: 040-rest-api-redesign
 sidebar_position: 40
 title: "AD-040: REST API Redesign — Slug-Based Hierarchy, Ref-Scoped, Clean Paths"
 ---
+
 # AD-040: REST API Redesign — Slug-Based Hierarchy, Ref-Scoped, Clean Paths
 
 ## Context
@@ -11,21 +12,21 @@ The Bowrain server API (~170 endpoints in `platform/server/server.go`) has evolv
 
 ### Problems in the Current API
 
-| Problem | Example |
-|---------|---------|
-| Dual flat/workspace routes | `/api/v1/projects/:id` AND `/api/v1/workspaces/:ws/projects/:id` for the same handlers |
-| Artificial `editor/` prefix | `/editor/projects/:pid/blocks/:bid` — these are just project resources |
-| Inconsistent param names | `:id` vs `:pid` for projects across different route groups |
-| Wildcard file paths | `file-blocks/*`, `file-export/*` suffix patterns — fragile, framework-specific |
-| Stream route duplication | Every sync/asset route registered twice (with and without `/streams/:stream/` infix) |
-| Verb-in-URL | `file-pseudo`, `file-ai-translate`, `file-tm-translate` — not RESTful |
-| Inconsistent naming | `tm` (abbreviation) vs `terms` (full word), mixed plural/singular |
-| Broken scoping | Connectors, fetch, publish are public when they should be workspace-scoped |
-| `automation-runs` as sibling | Should be nested under `automations/` |
-| `/my/tasks` special route | Should be a filter on the collection endpoint |
-| `files` too specific | Content can come from CMS, git, or filesystem — not always "files" |
-| Verbose paths | `/workspaces/:ws/projects/:pid` with `/w/` and `/p/` prefixes |
-| Scattered reference data | `/formats`, `/tools`, `/locales` as separate endpoints |
+| Problem                      | Example                                                                                |
+| ---------------------------- | -------------------------------------------------------------------------------------- |
+| Dual flat/workspace routes   | `/api/v1/projects/:id` AND `/api/v1/workspaces/:ws/projects/:id` for the same handlers |
+| Artificial `editor/` prefix  | `/editor/projects/:pid/blocks/:bid` — these are just project resources                 |
+| Inconsistent param names     | `:id` vs `:pid` for projects across different route groups                             |
+| Wildcard file paths          | `file-blocks/*`, `file-export/*` suffix patterns — fragile, framework-specific         |
+| Stream route duplication     | Every sync/asset route registered twice (with and without `/streams/:stream/` infix)   |
+| Verb-in-URL                  | `file-pseudo`, `file-ai-translate`, `file-tm-translate` — not RESTful                  |
+| Inconsistent naming          | `tm` (abbreviation) vs `terms` (full word), mixed plural/singular                      |
+| Broken scoping               | Connectors, fetch, publish are public when they should be workspace-scoped             |
+| `automation-runs` as sibling | Should be nested under `automations/`                                                  |
+| `/my/tasks` special route    | Should be a filter on the collection endpoint                                          |
+| `files` too specific         | Content can come from CMS, git, or filesystem — not always "files"                     |
+| Verbose paths                | `/workspaces/:ws/projects/:pid` with `/w/` and `/p/` prefixes                          |
+| Scattered reference data     | `/formats`, `/tools`, `/locales` as separate endpoints                                 |
 
 ## Decision
 
@@ -46,21 +47,21 @@ Redesign the REST API in-place (stay on `/api/v1`) with the following principles
 
 ### Key Renames
 
-| Current | New | Reason |
-|---------|-----|--------|
-| `/w/:ws/p/:pid` | `/:ws/:proj` | GitHub-style bare slugs, no prefixes |
-| `editor/projects/:pid/...` | `/:proj/...` | Remove artificial prefix |
-| `file-blocks/*`, `file-export/*` | `blocks?item=X`, `actions/export` | Standard query param + RPC pattern |
-| `/s/:ref/blocks`, `/s/:ref/items` | `/blocks/:ref`, `/items/:ref` | GitHub-style resource-first, no prefix |
-| `/streams/:stream/sync/...` duplication | `/sync/:ref/...` (mandatory) | Zero duplication, refs as first-class |
-| `streams/:stream/tags` (nested) | `/tags/:tag` (peer to `/streams/:stream`) | Tags and streams are interchangeable refs |
-| `file-pseudo`, `file-ai-translate` | `actions/pseudo-translate`, `actions/ai-translate` | No verbs in URLs |
-| `tm` | `translation-memory` | Self-documenting |
-| `files` | `items` | CMS/git/filesystem agnostic |
-| `/formats`, `/tools`, `/locales` | `/info` | Single endpoint returning all reference data |
-| `/my/tasks` | `/tasks?assignee_id=me` | Filter, not special route |
-| `/fetch`, `/publish` (root) | `/connectors/:id/fetch`, `/connectors/:id/publish` | Scope to connector |
-| `automation-runs` (sibling) | `automations/runs` (nested) | Proper hierarchy |
+| Current                                 | New                                                | Reason                                       |
+| --------------------------------------- | -------------------------------------------------- | -------------------------------------------- |
+| `/w/:ws/p/:pid`                         | `/:ws/:proj`                                       | GitHub-style bare slugs, no prefixes         |
+| `editor/projects/:pid/...`              | `/:proj/...`                                       | Remove artificial prefix                     |
+| `file-blocks/*`, `file-export/*`        | `blocks?item=X`, `actions/export`                  | Standard query param + RPC pattern           |
+| `/s/:ref/blocks`, `/s/:ref/items`       | `/blocks/:ref`, `/items/:ref`                      | GitHub-style resource-first, no prefix       |
+| `/streams/:stream/sync/...` duplication | `/sync/:ref/...` (mandatory)                       | Zero duplication, refs as first-class        |
+| `streams/:stream/tags` (nested)         | `/tags/:tag` (peer to `/streams/:stream`)          | Tags and streams are interchangeable refs    |
+| `file-pseudo`, `file-ai-translate`      | `actions/pseudo-translate`, `actions/ai-translate` | No verbs in URLs                             |
+| `tm`                                    | `translation-memory`                               | Self-documenting                             |
+| `files`                                 | `items`                                            | CMS/git/filesystem agnostic                  |
+| `/formats`, `/tools`, `/locales`        | `/info`                                            | Single endpoint returning all reference data |
+| `/my/tasks`                             | `/tasks?assignee_id=me`                            | Filter, not special route                    |
+| `/fetch`, `/publish` (root)             | `/connectors/:id/fetch`, `/connectors/:id/publish` | Scope to connector                           |
+| `automation-runs` (sibling)             | `automations/runs` (nested)                        | Proper hierarchy                             |
 
 ### Reserved Names
 
@@ -570,6 +571,7 @@ Content routes use `resource/:ref/` where `:ref` is resolved by middleware:
 Streams and tags share a single namespace — a tag cannot have the same name as a stream (enforced at creation time, like git). Write operations (PUT block, POST items, sync push) through a tag ref return **409 Conflict**.
 
 Three URL patterns involve refs:
+
 - **`/resource/:ref/`** — content scoping (blocks, items, sync, actions, assets, etc.). `:ref` can be a stream or tag. The resource keyword comes first, like GitHub's `/tree/:ref/`, `/blob/:ref/`.
 - **`/streams/:stream`** — stream management CRUD (create, merge, diff, lock/unlock).
 - **`/tags/:tag`** — tag management CRUD (create, delete).
@@ -594,6 +596,7 @@ File/item paths are passed as `?item=path/to/file.json` using standard URL encod
 ### Actions Convention
 
 Non-CRUD operations live under `actions/`:
+
 - `POST /api/v1/:ws/:proj/actions/:ref/ai-translate`
 - `POST /api/v1/:ws/:proj/actions/:ref/export`
 
@@ -602,6 +605,7 @@ This follows the Google Cloud API pattern and makes it unambiguous whether an en
 ### Workspace and Project Creation
 
 When creating a workspace or project, the API validates the slug against:
+
 1. The reserved name blocklist (see above)
 2. Slug format rules: lowercase alphanumeric + hyphens, 2-64 chars, no leading/trailing hyphens, no consecutive hyphens
 3. Uniqueness within the parent scope (workspace slugs globally unique, project slugs unique within workspace)
@@ -610,17 +614,17 @@ Slugs can be changed (renamed) — the internal ID remains stable. Clients that 
 
 ## Affected Files
 
-| File | Changes |
-|------|---------|
-| `platform/server/server.go` | Route registration rewrite |
-| `platform/server/editor.go` | `streamParam()` → `c.Param("ref")`, item path extraction |
-| `platform/server/handlers.go` | Consolidate `/info` endpoint |
-| `platform/server/handlers_*.go` | Param name standardization, slug resolution |
-| `platform/server/handlers_connector.go` | Scope to workspace, connector ID for fetch/publish |
-| `platform/server/middleware_auth.go` | Virtual workspace `_` support |
-| `platform/server/middleware_slug.go` | New: slug-to-ID resolution middleware |
-| `platform/server/middleware_ref.go` | New: ref resolution (stream or tag) middleware |
-| `platform/packages/ui/src/api/rest-adapter.ts` | All URL constructions |
-| `platform/packages/ui/src/api/adapter.ts` | Rename file→item in method signatures |
-| `platform/core/client/client.go` | URL prefix and ref handling |
-| `platform/apps/web/src/api.ts` | Login redirect URL |
+| File                                           | Changes                                                  |
+| ---------------------------------------------- | -------------------------------------------------------- |
+| `platform/server/server.go`                    | Route registration rewrite                               |
+| `platform/server/editor.go`                    | `streamParam()` → `c.Param("ref")`, item path extraction |
+| `platform/server/handlers.go`                  | Consolidate `/info` endpoint                             |
+| `platform/server/handlers_*.go`                | Param name standardization, slug resolution              |
+| `platform/server/handlers_connector.go`        | Scope to workspace, connector ID for fetch/publish       |
+| `platform/server/middleware_auth.go`           | Virtual workspace `_` support                            |
+| `platform/server/middleware_slug.go`           | New: slug-to-ID resolution middleware                    |
+| `platform/server/middleware_ref.go`            | New: ref resolution (stream or tag) middleware           |
+| `platform/packages/ui/src/api/rest-adapter.ts` | All URL constructions                                    |
+| `platform/packages/ui/src/api/adapter.ts`      | Rename file→item in method signatures                    |
+| `platform/core/client/client.go`               | URL prefix and ref handling                              |
+| `platform/apps/web/src/api.ts`                 | Login redirect URL                                       |

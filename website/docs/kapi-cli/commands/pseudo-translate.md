@@ -49,26 +49,26 @@ kapi pseudo-translate data.txt --format json --target-lang qps
 
 ## Flags
 
-| Flag | Short | Description | Default |
-|------|-------|-------------|---------|
-| `--target-lang` | | Target language code (BCP 47) | |
-| `--source-lang` | | Source language code | `en` |
-| `--output` | `-o` | Output path template (`\{name\}`, `\{ext\}`, `\{lang\}`) | |
-| `--expansion` | | Text expansion percentage (0 = none) | `0` |
-| `--format` | `-f` | Override input format detection | |
-| `--encoding` | `-e` | Input file encoding | `UTF-8` |
-| `--concurrency` | `-j` | Max parallel files (0 = auto) | `0` |
-| `--progress` | `-p` | Show progress bar | `false` |
-| `--fail-on-unknown` | | Fail on unrecognized formats (default: skip) | `false` |
-| `--no-warn` | | Suppress warnings for skipped files | `false` |
+| Flag                | Short | Description                                              | Default |
+| ------------------- | ----- | -------------------------------------------------------- | ------- |
+| `--target-lang`     |       | Target language code (BCP 47)                            |         |
+| `--source-lang`     |       | Source language code                                     | `en`    |
+| `--output`          | `-o`  | Output path template (`\{name\}`, `\{ext\}`, `\{lang\}`) |         |
+| `--expansion`       |       | Text expansion percentage (0 = none)                     | `0`     |
+| `--format`          | `-f`  | Override input format detection                          |         |
+| `--encoding`        | `-e`  | Input file encoding                                      | `UTF-8` |
+| `--concurrency`     | `-j`  | Max parallel files (0 = auto)                            | `0`     |
+| `--progress`        | `-p`  | Show progress bar                                        | `false` |
+| `--fail-on-unknown` |       | Fail on unrecognized formats (default: skip)             | `false` |
+| `--no-warn`         |       | Suppress warnings for skipped files                      | `false` |
 
 ## Output Path Templates
 
-| Variable | Description | Example |
-|----------|-------------|---------|
-| `\{name\}` | Filename without extension | `messages` |
-| `\{ext\}` | File extension including dot | `.json` |
-| `\{lang\}` | Target language code | `qps` |
+| Variable   | Description                  | Example    |
+| ---------- | ---------------------------- | ---------- |
+| `\{name\}` | Filename without extension   | `messages` |
+| `\{ext\}`  | File extension including dot | `.json`    |
+| `\{lang\}` | Target language code         | `qps`      |
 
 ## Use Cases
 

@@ -7,129 +7,185 @@
     "fmt:bold": {
       "category": "formatting",
       "label": "Bold",
-      "html": {"open": "<b>", "close": "</b>"},
-      "display": {"open": "[B]", "close": "[/B]"},
-      "chipLabel": {"open": "B>", "close": "/B", "placeholder": "B"},
-      "color": {"bg": "rgba(59,130,246,0.15)", "border": "rgba(59,130,246,0.5)", "text": "rgb(59,130,246)"},
+      "html": { "open": "<b>", "close": "</b>" },
+      "display": { "open": "[B]", "close": "[/B]" },
+      "chipLabel": { "open": "B>", "close": "/B", "placeholder": "B" },
+      "color": {
+        "bg": "rgba(59,130,246,0.15)",
+        "border": "rgba(59,130,246,0.5)",
+        "text": "rgb(59,130,246)"
+      },
       "equiv": "",
-      "constraints": {"deletable": true, "cloneable": true, "reorderable": true}
+      "constraints": { "deletable": true, "cloneable": true, "reorderable": true }
     },
     "fmt:italic": {
       "category": "formatting",
       "label": "Italic",
-      "html": {"open": "<i>", "close": "</i>"},
-      "display": {"open": "[I]", "close": "[/I]"},
-      "chipLabel": {"open": "I>", "close": "/I", "placeholder": "I"},
-      "color": {"bg": "rgba(139,92,246,0.15)", "border": "rgba(139,92,246,0.5)", "text": "rgb(139,92,246)"},
+      "html": { "open": "<i>", "close": "</i>" },
+      "display": { "open": "[I]", "close": "[/I]" },
+      "chipLabel": { "open": "I>", "close": "/I", "placeholder": "I" },
+      "color": {
+        "bg": "rgba(139,92,246,0.15)",
+        "border": "rgba(139,92,246,0.5)",
+        "text": "rgb(139,92,246)"
+      },
       "equiv": "",
-      "constraints": {"deletable": true, "cloneable": true, "reorderable": true}
+      "constraints": { "deletable": true, "cloneable": true, "reorderable": true }
     },
     "fmt:underline": {
       "category": "formatting",
       "label": "Underline",
-      "html": {"open": "<u>", "close": "</u>"},
-      "display": {"open": "[U]", "close": "[/U]"},
-      "chipLabel": {"open": "U>", "close": "/U", "placeholder": "U"},
-      "color": {"bg": "rgba(16,185,129,0.15)", "border": "rgba(16,185,129,0.5)", "text": "rgb(16,185,129)"},
+      "html": { "open": "<u>", "close": "</u>" },
+      "display": { "open": "[U]", "close": "[/U]" },
+      "chipLabel": { "open": "U>", "close": "/U", "placeholder": "U" },
+      "color": {
+        "bg": "rgba(16,185,129,0.15)",
+        "border": "rgba(16,185,129,0.5)",
+        "text": "rgb(16,185,129)"
+      },
       "equiv": "",
-      "constraints": {"deletable": true, "cloneable": true, "reorderable": true}
+      "constraints": { "deletable": true, "cloneable": true, "reorderable": true }
     },
     "fmt:code": {
       "category": "formatting",
       "label": "Code",
-      "html": {"open": "<code>", "close": "</code>"},
-      "display": {"open": "[CODE]", "close": "[/CODE]"},
-      "chipLabel": {"open": "code>", "close": "/code", "placeholder": "code"},
-      "color": {"bg": "rgba(100,116,139,0.15)", "border": "rgba(100,116,139,0.5)", "text": "rgb(100,116,139)"},
+      "html": { "open": "<code>", "close": "</code>" },
+      "display": { "open": "[CODE]", "close": "[/CODE]" },
+      "chipLabel": { "open": "code>", "close": "/code", "placeholder": "code" },
+      "color": {
+        "bg": "rgba(100,116,139,0.15)",
+        "border": "rgba(100,116,139,0.5)",
+        "text": "rgb(100,116,139)"
+      },
       "equiv": "",
-      "constraints": {"deletable": true, "cloneable": true, "reorderable": true}
+      "constraints": { "deletable": true, "cloneable": true, "reorderable": true }
     },
     "link:hyperlink": {
       "category": "linking",
       "label": "Hyperlink",
-      "html": {"open": "<a>", "close": "</a>"},
-      "display": {"open": "[A]", "close": "[/A]"},
-      "chipLabel": {"open": "a>", "close": "/a", "placeholder": "a"},
-      "color": {"bg": "rgba(245,158,11,0.15)", "border": "rgba(245,158,11,0.5)", "text": "rgb(245,158,11)"},
+      "html": { "open": "<a>", "close": "</a>" },
+      "display": { "open": "[A]", "close": "[/A]" },
+      "chipLabel": { "open": "a>", "close": "/a", "placeholder": "a" },
+      "color": {
+        "bg": "rgba(245,158,11,0.15)",
+        "border": "rgba(245,158,11,0.5)",
+        "text": "rgb(245,158,11)"
+      },
       "equiv": "",
-      "constraints": {"deletable": true, "cloneable": true, "reorderable": true}
+      "constraints": { "deletable": true, "cloneable": true, "reorderable": true }
     },
     "media:image": {
       "category": "media",
       "label": "Image",
-      "html": {"placeholder": "<img/>"},
-      "display": {"placeholder": "[IMG]"},
-      "chipLabel": {"placeholder": "img"},
-      "color": {"bg": "rgba(236,72,153,0.15)", "border": "rgba(236,72,153,0.5)", "text": "rgb(236,72,153)"},
+      "html": { "placeholder": "<img/>" },
+      "display": { "placeholder": "[IMG]" },
+      "chipLabel": { "placeholder": "img" },
+      "color": {
+        "bg": "rgba(236,72,153,0.15)",
+        "border": "rgba(236,72,153,0.5)",
+        "text": "rgb(236,72,153)"
+      },
       "equiv": "",
-      "constraints": {"deletable": true, "cloneable": true, "reorderable": true}
+      "constraints": { "deletable": true, "cloneable": true, "reorderable": true }
     },
     "fmt:strikethrough": {
       "category": "formatting",
       "label": "Strikethrough",
-      "html": {"open": "<s>", "close": "</s>"},
-      "display": {"open": "[S]", "close": "[/S]"},
-      "chipLabel": {"open": "S>", "close": "/S", "placeholder": "S"},
-      "color": {"bg": "rgba(239,68,68,0.15)", "border": "rgba(239,68,68,0.5)", "text": "rgb(239,68,68)"},
+      "html": { "open": "<s>", "close": "</s>" },
+      "display": { "open": "[S]", "close": "[/S]" },
+      "chipLabel": { "open": "S>", "close": "/S", "placeholder": "S" },
+      "color": {
+        "bg": "rgba(239,68,68,0.15)",
+        "border": "rgba(239,68,68,0.5)",
+        "text": "rgb(239,68,68)"
+      },
       "equiv": "",
-      "constraints": {"deletable": true, "cloneable": true, "reorderable": true}
+      "constraints": { "deletable": true, "cloneable": true, "reorderable": true }
     },
     "fmt:superscript": {
       "category": "formatting",
       "label": "Superscript",
-      "html": {"open": "<sup>", "close": "</sup>"},
-      "display": {"open": "[SUP]", "close": "[/SUP]"},
-      "chipLabel": {"open": "sup>", "close": "/sup", "placeholder": "sup"},
-      "color": {"bg": "rgba(168,85,247,0.15)", "border": "rgba(168,85,247,0.5)", "text": "rgb(168,85,247)"},
+      "html": { "open": "<sup>", "close": "</sup>" },
+      "display": { "open": "[SUP]", "close": "[/SUP]" },
+      "chipLabel": { "open": "sup>", "close": "/sup", "placeholder": "sup" },
+      "color": {
+        "bg": "rgba(168,85,247,0.15)",
+        "border": "rgba(168,85,247,0.5)",
+        "text": "rgb(168,85,247)"
+      },
       "equiv": "",
-      "constraints": {"deletable": true, "cloneable": true, "reorderable": true}
+      "constraints": { "deletable": true, "cloneable": true, "reorderable": true }
     },
     "fmt:subscript": {
       "category": "formatting",
       "label": "Subscript",
-      "html": {"open": "<sub>", "close": "</sub>"},
-      "display": {"open": "[SUB]", "close": "[/SUB]"},
-      "chipLabel": {"open": "sub>", "close": "/sub", "placeholder": "sub"},
-      "color": {"bg": "rgba(168,85,247,0.15)", "border": "rgba(168,85,247,0.5)", "text": "rgb(168,85,247)"},
+      "html": { "open": "<sub>", "close": "</sub>" },
+      "display": { "open": "[SUB]", "close": "[/SUB]" },
+      "chipLabel": { "open": "sub>", "close": "/sub", "placeholder": "sub" },
+      "color": {
+        "bg": "rgba(168,85,247,0.15)",
+        "border": "rgba(168,85,247,0.5)",
+        "text": "rgb(168,85,247)"
+      },
       "equiv": "",
-      "constraints": {"deletable": true, "cloneable": true, "reorderable": true}
+      "constraints": { "deletable": true, "cloneable": true, "reorderable": true }
     },
     "struct:break": {
       "category": "structure",
       "label": "Line Break",
-      "html": {"placeholder": "<br/>"},
-      "display": {"placeholder": "[BR]"},
-      "chipLabel": {"placeholder": "br"},
-      "color": {"bg": "rgba(107,114,128,0.15)", "border": "rgba(107,114,128,0.5)", "text": "rgb(107,114,128)"},
+      "html": { "placeholder": "<br/>" },
+      "display": { "placeholder": "[BR]" },
+      "chipLabel": { "placeholder": "br" },
+      "color": {
+        "bg": "rgba(107,114,128,0.15)",
+        "border": "rgba(107,114,128,0.5)",
+        "text": "rgb(107,114,128)"
+      },
       "equiv": "\n",
-      "constraints": {"deletable": false, "cloneable": false, "reorderable": false}
+      "constraints": { "deletable": false, "cloneable": false, "reorderable": false }
     },
     "struct:tab": {
       "category": "structure",
       "label": "Tab",
-      "html": {"placeholder": "<span class=\"tab\">\t</span>"},
-      "display": {"placeholder": "[TAB]"},
-      "chipLabel": {"placeholder": "tab"},
-      "color": {"bg": "rgba(107,114,128,0.15)", "border": "rgba(107,114,128,0.5)", "text": "rgb(107,114,128)"},
+      "html": { "placeholder": "<span class=\"tab\">\t</span>" },
+      "display": { "placeholder": "[TAB]" },
+      "chipLabel": { "placeholder": "tab" },
+      "color": {
+        "bg": "rgba(107,114,128,0.15)",
+        "border": "rgba(107,114,128,0.5)",
+        "text": "rgb(107,114,128)"
+      },
       "equiv": "\t",
-      "constraints": {"deletable": false, "cloneable": false, "reorderable": false}
+      "constraints": { "deletable": false, "cloneable": false, "reorderable": false }
     },
     "struct:footnote": {
       "category": "structure",
       "label": "Footnote Reference",
-      "html": {"placeholder": "<sup class=\"footnote\">[*]</sup>"},
-      "display": {"placeholder": "[FN]"},
-      "chipLabel": {"placeholder": "fn"},
-      "color": {"bg": "rgba(234,179,8,0.15)", "border": "rgba(234,179,8,0.5)", "text": "rgb(234,179,8)"},
+      "html": { "placeholder": "<sup class=\"footnote\">[*]</sup>" },
+      "display": { "placeholder": "[FN]" },
+      "chipLabel": { "placeholder": "fn" },
+      "color": {
+        "bg": "rgba(234,179,8,0.15)",
+        "border": "rgba(234,179,8,0.5)",
+        "text": "rgb(234,179,8)"
+      },
       "equiv": "",
-      "constraints": {"deletable": false, "cloneable": false, "reorderable": false}
+      "constraints": { "deletable": false, "cloneable": false, "reorderable": false }
     }
   },
   "fallback": {
-    "html": {"open": "<span data-type=\"{type}\">", "close": "</span>", "placeholder": "<span data-type=\"{type}\"/>"},
-    "display": {"open": "[{type}]", "close": "[/{type}]", "placeholder": "[{type}/]"},
-    "chipLabel": {"open": "?>", "close": "/?", "placeholder": "?"},
-    "color": {"bg": "rgba(156,163,175,0.15)", "border": "rgba(156,163,175,0.5)", "text": "rgb(107,114,128)"},
-    "constraints": {"deletable": true, "cloneable": true, "reorderable": true}
+    "html": {
+      "open": "<span data-type=\"{type}\">",
+      "close": "</span>",
+      "placeholder": "<span data-type=\"{type}\"/>"
+    },
+    "display": { "open": "[{type}]", "close": "[/{type}]", "placeholder": "[{type}/]" },
+    "chipLabel": { "open": "?>", "close": "/?", "placeholder": "?" },
+    "color": {
+      "bg": "rgba(156,163,175,0.15)",
+      "border": "rgba(156,163,175,0.5)",
+      "text": "rgb(107,114,128)"
+    },
+    "constraints": { "deletable": true, "cloneable": true, "reorderable": true }
   }
 }

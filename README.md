@@ -23,14 +23,14 @@ Pre-built binaries for Linux, macOS, and Windows are on the [Releases](https://g
 
 Six Go modules coordinated by `go.work`:
 
-| Module | Path | Description |
-|--------|------|-------------|
-| **Framework** | `core/` | Content model, format readers/writers, processing tools, pipeline executor, plugin system |
-| **CLI** | `cli/` | Shared CLI base, command factories, output formatting, app config |
-| **Platform** | `platform/` | Shared platform types, auth, connector interfaces, REST client |
-| **Kapi** | `kapi/` | Standalone CLI tool for local file processing |
-| **Bowrain CLI** | `bowrain-cli/` | Project sync companion CLI (init, push, pull, auth, status) |
-| **Bowrain** | `bowrain/` | Server, desktop app, SQLite storage, auth, connectors |
+| Module          | Path           | Description                                                                               |
+| --------------- | -------------- | ----------------------------------------------------------------------------------------- |
+| **Framework**   | `core/`        | Content model, format readers/writers, processing tools, pipeline executor, plugin system |
+| **CLI**         | `cli/`         | Shared CLI base, command factories, output formatting, app config                         |
+| **Platform**    | `platform/`    | Shared platform types, auth, connector interfaces, REST client                            |
+| **Kapi**        | `kapi/`        | Standalone CLI tool for local file processing                                             |
+| **Bowrain CLI** | `bowrain-cli/` | Project sync companion CLI (init, push, pull, auth, status)                               |
+| **Bowrain**     | `bowrain/`     | Server, desktop app, SQLite storage, auth, connectors                                     |
 
 See [AD-018](docs/ad/018-four-module-architecture.md) for the full rationale.
 
@@ -60,13 +60,13 @@ make dev-server                # Build + run bowrain-server
 make dev-web                   # Vite dev server with HMR
 ```
 
-| Service | URL |
-|---------|-----|
-| Web app | https://bowrain.mymac |
-| API | https://bowrain.mymac/api/* |
+| Service  | URL                                      |
+| -------- | ---------------------------------------- |
+| Web app  | https://bowrain.mymac                    |
+| API      | https://bowrain.mymac/api/*              |
 | Keycloak | https://auth.bowrain.mymac (admin/admin) |
-| Mailpit | https://mail.bowrain.mymac |
-| Traefik | https://traefik.bowrain.mymac |
+| Mailpit  | https://mail.bowrain.mymac               |
+| Traefik  | https://traefik.bowrain.mymac            |
 
 See [Docker Compose Development Setup](docs/notes/docker-compose.md) for details.
 

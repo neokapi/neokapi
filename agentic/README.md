@@ -12,12 +12,12 @@ See [issue #54](https://github.com/neokapi/neokapi/issues/54) for the roadmap.
 The agentic testing system runs as a service, driven by GitOps. Four GitHub
 repositories work together:
 
-| Repo | Role |
-|------|------|
-| [`neokapi/agentic-fleet`](#fleet-repo) | Fleet control plane — plans, status, agent personas |
-| [`neokapi/agentic-excalidraw`](#fork-repos) | Fork of upstream project (one per project) |
-| [`neokapi/agent-memory`](#agent-memory) | Per-agent session memory (sparse git checkout) |
-| [`neokapi/agent-feedback`](#agent-feedback) | GitHub Issues filed by agents for platform bugs |
+| Repo                                        | Role                                                |
+| ------------------------------------------- | --------------------------------------------------- |
+| [`neokapi/agentic-fleet`](#fleet-repo)      | Fleet control plane — plans, status, agent personas |
+| [`neokapi/agentic-excalidraw`](#fork-repos) | Fork of upstream project (one per project)          |
+| [`neokapi/agent-memory`](#agent-memory)     | Per-agent session memory (sparse git checkout)      |
+| [`neokapi/agent-feedback`](#agent-feedback) | GitHub Issues filed by agents for platform bugs     |
 
 ### The GitOps Cycle
 
@@ -183,21 +183,21 @@ agentic/
 
 ## Environment Variables
 
-| Variable | Required | Default | Description |
-|---|---|---|---|
-| `BOWRAIN_URL` | For remote | `http://localhost:8080` | Bowrain server URL |
-| `JWT_SECRET` | For local | `dev-secret-...` | JWT signing secret |
-| `KC_URL` | For users | `http://localhost:8180` | Keycloak URL |
-| `KC_ADMIN_PASS` | For users | `admin` | Keycloak admin password |
-| `KEY_VAULT` | Optional | — | Azure Key Vault for prod token storage |
+| Variable        | Required   | Default                 | Description                            |
+| --------------- | ---------- | ----------------------- | -------------------------------------- |
+| `BOWRAIN_URL`   | For remote | `http://localhost:8080` | Bowrain server URL                     |
+| `JWT_SECRET`    | For local  | `dev-secret-...`        | JWT signing secret                     |
+| `KC_URL`        | For users  | `http://localhost:8180` | Keycloak URL                           |
+| `KC_ADMIN_PASS` | For users  | `admin`                 | Keycloak admin password                |
+| `KEY_VAULT`     | Optional   | —                       | Azure Key Vault for prod token storage |
 
 Set in `.env` (gitignored) or export before running make targets.
 
 ## Workspaces
 
-| Workspace | Project | Languages | Agents | Status |
-|---|---|---|---|---|
-| [excalidraw](workspaces/excalidraw/) | Excalidraw | fr-FR, de-DE, ja-JP | 4 | Active (v0.14.0) |
+| Workspace                            | Project    | Languages           | Agents | Status           |
+| ------------------------------------ | ---------- | ------------------- | ------ | ---------------- |
+| [excalidraw](workspaces/excalidraw/) | Excalidraw | fr-FR, de-DE, ja-JP | 4      | Active (v0.14.0) |
 
 ## Architecture
 

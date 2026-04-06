@@ -1,7 +1,7 @@
-import {useState, useMemo} from 'react';
-import type {TestCaseRow, TestState, SkipCategory} from './_types';
-import {skipCategoryLabels, skipCategoryColors} from './_types';
-import styles from './_index.module.css';
+import { useState, useMemo } from "react";
+import type { TestCaseRow, TestState, SkipCategory } from "./_types";
+import { skipCategoryLabels, skipCategoryColors } from "./_types";
+import styles from "./_index.module.css";
 
 interface Props {
   testCases: TestCaseRow[];
@@ -12,26 +12,26 @@ interface Props {
 }
 
 type FilterMode =
-  | 'all'
-  | 'okapi'
-  | 'bridge'
-  | 'native'
-  | 'failing'
-  | 'implemented'
-  | 'pending'
-  | 'skipped'
-  | 'unmapped'
-  | 'not-applicable';
-type SortMode = 'name' | 'status' | 'category';
+  | "all"
+  | "okapi"
+  | "bridge"
+  | "native"
+  | "failing"
+  | "implemented"
+  | "pending"
+  | "skipped"
+  | "unmapped"
+  | "not-applicable";
+type SortMode = "name" | "status" | "category";
 
 const statusBadgeClass: Record<string, string> = {
-  pass: 'badge badge--success',
-  fail: 'badge badge--danger',
-  error: 'badge badge--danger',
-  skip: 'badge badge--secondary',
+  pass: "badge badge--success",
+  fail: "badge badge--danger",
+  error: "badge badge--danger",
+  skip: "badge badge--secondary",
 };
 
-function StatusCell({status}: {status: string}) {
+function StatusCell({ status }: { status: string }) {
   if (!status) {
     return <span className={styles.statusDash}>&mdash;</span>;
   }
@@ -41,26 +41,26 @@ function StatusCell({status}: {status: string}) {
 /** CSS class for test state row background. */
 function stateRowClass(state?: TestState): string {
   switch (state) {
-    case 'implemented':
-      return styles.stateImplemented ?? '';
-    case 'pending':
-      return styles.statePending ?? '';
-    case 'skipped':
-      return styles.stateSkipped ?? '';
+    case "implemented":
+      return styles.stateImplemented ?? "";
+    case "pending":
+      return styles.statePending ?? "";
+    case "skipped":
+      return styles.stateSkipped ?? "";
     default:
-      return '';
+      return "";
   }
 }
 
 function statusOrder(s: string): number {
   switch (s) {
-    case 'fail':
+    case "fail":
       return 0;
-    case 'error':
+    case "error":
       return 1;
-    case 'skip':
+    case "skip":
       return 2;
-    case 'pass':
+    case "pass":
       return 3;
     default:
       return 4;
@@ -68,15 +68,12 @@ function statusOrder(s: string): number {
 }
 
 /** Category badge for not-applicable tests. */
-function CategoryBadge({category}: {category?: SkipCategory}) {
+function CategoryBadge({ category }: { category?: SkipCategory }) {
   if (!category) return null;
   const label = skipCategoryLabels[category] ?? category;
-  const color = skipCategoryColors[category] ?? '#94a3b8';
+  const color = skipCategoryColors[category] ?? "#94a3b8";
   return (
-    <span
-      className={styles.categoryBadge}
-      style={{backgroundColor: color}}
-      title={label}>
+    <span className={styles.categoryBadge} style={{ backgroundColor: color }} title={label}>
       {label}
     </span>
   );
@@ -88,16 +85,16 @@ function goSourceUrl(
   line: number | undefined,
   commitSHA: string | undefined,
   filterName: string,
-  kind: 'bridge' | 'native',
+  kind: "bridge" | "native",
 ): string {
-  const ref = commitSHA || 'main';
+  const ref = commitSHA || "main";
   if (file) {
     const base = `https://github.com/neokapi/neokapi/blob/${ref}/${file}`;
     return line ? `${base}#L${line}` : base;
   }
   // Fallback to directory
   const dir =
-    kind === 'bridge'
+    kind === "bridge"
       ? `core/plugin/bridge/filters/okf_${filterName}/`
       : `core/formats/${filterName}/`;
   return `https://github.com/neokapi/neokapi/tree/${ref}/${dir}`;
@@ -109,17 +106,13 @@ function okapiSourceUrl(
   okapiTag: string | undefined,
 ): string | null {
   if (!okapiFile) return null;
-  const ref = okapiTag || 'master';
+  const ref = okapiTag || "master";
   return `https://gitlab.com/okapiframework/Okapi/-/blob/${ref}/${okapiFile}?ref_type=tags`;
 }
 
 /** Check if a test case is not-applicable (has skip reason but no state='implemented'). */
 function isNotApplicable(tc: TestCaseRow): boolean {
-  return (
-    tc.testState !== 'implemented' &&
-    tc.testState !== 'pending' &&
-    !!tc.skipReason
-  );
+  return tc.testState !== "implemented" && tc.testState !== "pending" && !!tc.skipReason;
 }
 
 export default function TestCaseTable({
@@ -129,10 +122,8 @@ export default function TestCaseTable({
   okapiTag,
   defaultFilter,
 }: Props) {
-  const [filter, setFilter] = useState<FilterMode>(
-    (defaultFilter as FilterMode) || 'all',
-  );
-  const [sort, setSort] = useState<SortMode>('name');
+  const [filter, setFilter] = useState<FilterMode>((defaultFilter as FilterMode) || "all");
+  const [sort, setSort] = useState<SortMode>("name");
   const [expandedRow, setExpandedRow] = useState<string | null>(null);
 
   // Compute counts
@@ -145,54 +136,53 @@ export default function TestCaseTable({
     const categories: Record<string, number> = {};
 
     for (const tc of testCases) {
-      if (tc.testState === 'implemented') implemented++;
-      else if (tc.testState === 'pending') pending++;
+      if (tc.testState === "implemented") implemented++;
+      else if (tc.testState === "pending") pending++;
       else if (isNotApplicable(tc)) {
         notApplicable++;
         if (tc.skipCategory) {
-          categories[tc.skipCategory] =
-            (categories[tc.skipCategory] || 0) + 1;
+          categories[tc.skipCategory] = (categories[tc.skipCategory] || 0) + 1;
         }
       } else unmapped++;
 
       if (
-        tc.okapiStatus === 'fail' ||
-        tc.okapiStatus === 'error' ||
-        tc.bridgeStatus === 'fail' ||
-        tc.bridgeStatus === 'error' ||
-        tc.nativeStatus === 'fail' ||
-        tc.nativeStatus === 'error'
+        tc.okapiStatus === "fail" ||
+        tc.okapiStatus === "error" ||
+        tc.bridgeStatus === "fail" ||
+        tc.bridgeStatus === "error" ||
+        tc.nativeStatus === "fail" ||
+        tc.nativeStatus === "error"
       )
         failing++;
     }
 
-    return {implemented, pending, notApplicable, unmapped, failing, categories};
+    return { implemented, pending, notApplicable, unmapped, failing, categories };
   }, [testCases]);
 
   const filtered = testCases.filter((tc) => {
     switch (filter) {
-      case 'okapi':
-        return tc.okapiStatus !== '';
-      case 'bridge':
-        return tc.bridgeStatus !== '';
-      case 'native':
-        return tc.nativeStatus !== '';
-      case 'failing':
+      case "okapi":
+        return tc.okapiStatus !== "";
+      case "bridge":
+        return tc.bridgeStatus !== "";
+      case "native":
+        return tc.nativeStatus !== "";
+      case "failing":
         return (
-          tc.okapiStatus === 'fail' ||
-          tc.okapiStatus === 'error' ||
-          tc.bridgeStatus === 'fail' ||
-          tc.bridgeStatus === 'error' ||
-          tc.nativeStatus === 'fail' ||
-          tc.nativeStatus === 'error'
+          tc.okapiStatus === "fail" ||
+          tc.okapiStatus === "error" ||
+          tc.bridgeStatus === "fail" ||
+          tc.bridgeStatus === "error" ||
+          tc.nativeStatus === "fail" ||
+          tc.nativeStatus === "error"
         );
-      case 'implemented':
-        return tc.testState === 'implemented';
-      case 'pending':
-        return tc.testState === 'pending';
-      case 'not-applicable':
+      case "implemented":
+        return tc.testState === "implemented";
+      case "pending":
+        return tc.testState === "pending";
+      case "not-applicable":
         return isNotApplicable(tc);
-      case 'unmapped':
+      case "unmapped":
         return !tc.testState && !tc.skipReason;
       default:
         return true;
@@ -200,7 +190,7 @@ export default function TestCaseTable({
   });
 
   const sorted = [...filtered].sort((a, b) => {
-    if (sort === 'status') {
+    if (sort === "status") {
       const aMin = Math.min(
         statusOrder(a.okapiStatus),
         statusOrder(a.bridgeStatus),
@@ -212,30 +202,30 @@ export default function TestCaseTable({
         statusOrder(b.nativeStatus),
       );
       if (aMin !== bMin) return aMin - bMin;
-    } else if (sort === 'category') {
-      const aCat = a.skipCategory || 'zzz';
-      const bCat = b.skipCategory || 'zzz';
+    } else if (sort === "category") {
+      const aCat = a.skipCategory || "zzz";
+      const bCat = b.skipCategory || "zzz";
       if (aCat !== bCat) return aCat.localeCompare(bCat);
     }
     return a.testName.localeCompare(b.testName);
   });
 
-  const filterButtons: {mode: FilterMode; label: string; count: number}[] = [
-    {mode: 'all', label: 'All', count: testCases.length},
-    {mode: 'implemented', label: 'Implemented', count: counts.implemented},
+  const filterButtons: { mode: FilterMode; label: string; count: number }[] = [
+    { mode: "all", label: "All", count: testCases.length },
+    { mode: "implemented", label: "Implemented", count: counts.implemented },
     {
-      mode: 'not-applicable',
-      label: 'Not Applicable',
+      mode: "not-applicable",
+      label: "Not Applicable",
       count: counts.notApplicable,
     },
     ...(counts.pending > 0
-      ? [{mode: 'pending' as FilterMode, label: 'Pending', count: counts.pending}]
+      ? [{ mode: "pending" as FilterMode, label: "Pending", count: counts.pending }]
       : []),
     ...(counts.unmapped > 0
-      ? [{mode: 'unmapped' as FilterMode, label: 'Unmapped', count: counts.unmapped}]
+      ? [{ mode: "unmapped" as FilterMode, label: "Unmapped", count: counts.unmapped }]
       : []),
     ...(counts.failing > 0
-      ? [{mode: 'failing' as FilterMode, label: 'Failing', count: counts.failing}]
+      ? [{ mode: "failing" as FilterMode, label: "Failing", count: counts.failing }]
       : []),
   ];
 
@@ -250,10 +240,10 @@ export default function TestCaseTable({
         <div className={styles.filterStateBar}>
           <div className={styles.filterStateSegments}>
             {[
-              {value: counts.implemented, color: '#2e8555', label: 'Implemented'},
-              {value: counts.notApplicable, color: '#94a3b8', label: 'Not Applicable'},
-              {value: counts.pending, color: '#e3a008', label: 'Pending'},
-              {value: counts.unmapped, color: '#dc2626', label: 'Unmapped'},
+              { value: counts.implemented, color: "#2e8555", label: "Implemented" },
+              { value: counts.notApplicable, color: "#94a3b8", label: "Not Applicable" },
+              { value: counts.pending, color: "#e3a008", label: "Pending" },
+              { value: counts.unmapped, color: "#dc2626", label: "Unmapped" },
             ]
               .filter((s) => s.value > 0)
               .map((s, i) => (
@@ -277,16 +267,11 @@ export default function TestCaseTable({
           {Object.entries(counts.categories)
             .sort(([, a], [, b]) => b - a)
             .map(([cat, count]) => {
-              const label =
-                skipCategoryLabels[cat as SkipCategory] ?? cat;
-              const color =
-                skipCategoryColors[cat as SkipCategory] ?? '#94a3b8';
+              const label = skipCategoryLabels[cat as SkipCategory] ?? cat;
+              const color = skipCategoryColors[cat as SkipCategory] ?? "#94a3b8";
               return (
                 <span key={cat} className={styles.filterCategoryTag}>
-                  <span
-                    className={styles.categoryDot}
-                    style={{backgroundColor: color}}
-                  />
+                  <span className={styles.categoryDot} style={{ backgroundColor: color }} />
                   {label}: {count}
                 </span>
               );
@@ -299,25 +284,27 @@ export default function TestCaseTable({
           {filterButtons.map((fb) => (
             <button
               key={fb.mode}
-              className={`button button--sm ${filter === fb.mode ? 'button--primary' : 'button--outline button--secondary'}`}
+              className={`button button--sm ${filter === fb.mode ? "button--primary" : "button--outline button--secondary"}`}
               onClick={(e) => {
                 e.stopPropagation();
                 setFilter(fb.mode);
-              }}>
+              }}
+            >
               {fb.label} ({fb.count})
             </button>
           ))}
         </div>
         <div className={styles.testCaseSortButtons}>
           <span className={styles.sortLabel}>Sort:</span>
-          {(['name', 'status', 'category'] as SortMode[]).map((mode) => (
+          {(["name", "status", "category"] as SortMode[]).map((mode) => (
             <button
               key={mode}
-              className={`button button--sm ${sort === mode ? 'button--primary' : 'button--outline button--secondary'}`}
+              className={`button button--sm ${sort === mode ? "button--primary" : "button--outline button--secondary"}`}
               onClick={(e) => {
                 e.stopPropagation();
                 setSort(mode);
-              }}>
+              }}
+            >
               {mode.charAt(0).toUpperCase() + mode.slice(1)}
             </button>
           ))}
@@ -341,30 +328,25 @@ export default function TestCaseTable({
               <>
                 <tr
                   key={rowKey}
-                  className={`${styles.testCaseRow} ${isExpanded ? styles.testCaseRowExpanded : ''} ${stateRowClass(tc.testState)} ${showCategory ? styles.stateNotApplicable : ''}`}
+                  className={`${styles.testCaseRow} ${isExpanded ? styles.testCaseRowExpanded : ""} ${stateRowClass(tc.testState)} ${showCategory ? styles.stateNotApplicable : ""}`}
                   title={
                     tc.skipReason
-                      ? `${isNotApplicable(tc) ? 'Not applicable' : tc.testState}: ${tc.skipReason}`
+                      ? `${isNotApplicable(tc) ? "Not applicable" : tc.testState}: ${tc.skipReason}`
                       : undefined
                   }
                   onClick={(e) => {
                     e.stopPropagation();
                     toggleRow(rowKey);
-                  }}>
+                  }}
+                >
                   <td className={styles.testCaseName}>
                     {tc.javaClass ? (
                       <>
-                        <span className={styles.testCaseClass}>
-                          {tc.javaClass}
-                        </span>
-                        <span className={styles.testCaseMethod}>
-                          #{tc.testName}
-                        </span>
+                        <span className={styles.testCaseClass}>{tc.javaClass}</span>
+                        <span className={styles.testCaseMethod}>#{tc.testName}</span>
                       </>
                     ) : (
-                      <span className={styles.testCaseGoName}>
-                        {tc.testName}
-                      </span>
+                      <span className={styles.testCaseGoName}>{tc.testName}</span>
                     )}
                     {showCategory && tc.skipCategory && (
                       <CategoryBadge category={tc.skipCategory} />
@@ -376,9 +358,7 @@ export default function TestCaseTable({
                   <td className={styles.testCaseStatus}>
                     <StatusCell status={tc.bridgeStatus} />
                     {tc.bridgeSubtests != null && tc.bridgeSubtests > 0 && (
-                      <span
-                        className={styles.subtestCount}
-                        title={`${tc.bridgeSubtests} subtests`}>
+                      <span className={styles.subtestCount} title={`${tc.bridgeSubtests} subtests`}>
                         +{tc.bridgeSubtests}
                       </span>
                     )}
@@ -386,9 +366,7 @@ export default function TestCaseTable({
                   <td className={styles.testCaseStatus}>
                     <StatusCell status={tc.nativeStatus} />
                     {tc.nativeSubtests != null && tc.nativeSubtests > 0 && (
-                      <span
-                        className={styles.subtestCount}
-                        title={`${tc.nativeSubtests} subtests`}>
+                      <span className={styles.subtestCount} title={`${tc.nativeSubtests} subtests`}>
                         +{tc.nativeSubtests}
                       </span>
                     )}
@@ -402,16 +380,14 @@ export default function TestCaseTable({
                           <div className={styles.detailItem}>
                             <span className={styles.detailLabel}>Okapi:</span>
                             {(() => {
-                              const url = okapiSourceUrl(
-                                tc.okapiFile,
-                                okapiTag,
-                              );
+                              const url = okapiSourceUrl(tc.okapiFile, okapiTag);
                               return url ? (
                                 <a
                                   href={url}
                                   target="_blank"
                                   rel="noopener noreferrer"
-                                  onClick={(e) => e.stopPropagation()}>
+                                  onClick={(e) => e.stopPropagation()}
+                                >
                                   <code>
                                     {tc.javaClass}#{tc.testName}
                                   </code>
@@ -423,9 +399,7 @@ export default function TestCaseTable({
                               );
                             })()}
                             {tc.okapiFile && (
-                              <span className={styles.detailPath}>
-                                {tc.okapiFile}
-                              </span>
+                              <span className={styles.detailPath}>{tc.okapiFile}</span>
                             )}
                           </div>
                         )}
@@ -438,17 +412,18 @@ export default function TestCaseTable({
                                 tc.bridgeLine,
                                 goCommitSHA,
                                 filterName,
-                                'bridge',
+                                "bridge",
                               )}
                               target="_blank"
                               rel="noopener noreferrer"
-                              onClick={(e) => e.stopPropagation()}>
+                              onClick={(e) => e.stopPropagation()}
+                            >
                               <code>{tc.bridgeTest || tc.testName}</code>
                             </a>
                             {tc.bridgeFile && (
                               <span className={styles.detailPath}>
                                 {tc.bridgeFile}
-                                {tc.bridgeLine ? `:${tc.bridgeLine}` : ''}
+                                {tc.bridgeLine ? `:${tc.bridgeLine}` : ""}
                               </span>
                             )}
                           </div>
@@ -462,17 +437,18 @@ export default function TestCaseTable({
                                 tc.nativeLine,
                                 goCommitSHA,
                                 filterName,
-                                'native',
+                                "native",
                               )}
                               target="_blank"
                               rel="noopener noreferrer"
-                              onClick={(e) => e.stopPropagation()}>
+                              onClick={(e) => e.stopPropagation()}
+                            >
                               <code>{tc.nativeTest || tc.testName}</code>
                             </a>
                             {tc.nativeFile && (
                               <span className={styles.detailPath}>
                                 {tc.nativeFile}
-                                {tc.nativeLine ? `:${tc.nativeLine}` : ''}
+                                {tc.nativeLine ? `:${tc.nativeLine}` : ""}
                               </span>
                             )}
                           </div>
@@ -481,9 +457,7 @@ export default function TestCaseTable({
                           <div className={styles.detailItem}>
                             <span className={styles.detailLabel}>Reason:</span>
                             <span>{tc.skipReason}</span>
-                            {tc.skipCategory && (
-                              <CategoryBadge category={tc.skipCategory} />
-                            )}
+                            {tc.skipCategory && <CategoryBadge category={tc.skipCategory} />}
                           </div>
                         )}
                         {!tc.okapiStatus &&
@@ -491,9 +465,7 @@ export default function TestCaseTable({
                           !tc.bridgeStatus &&
                           !tc.nativeTest &&
                           !tc.nativeStatus && (
-                            <span className={styles.noData}>
-                              No source mapping available.
-                            </span>
+                            <span className={styles.noData}>No source mapping available.</span>
                           )}
                       </div>
                     </td>

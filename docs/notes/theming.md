@@ -6,16 +6,17 @@ This document describes how the neokapi UI theme system works and how to change 
 
 The theme is defined as CSS custom properties (oklch color space) in two files that must be kept in sync:
 
-| File | Scope |
-|------|-------|
-| `packages/ui/src/styles/globals.css` | Shared framework theme — imported by all platform apps (bowrain web, bowrain desktop, ctrl, pulse, keycloak) |
-| `framework/apps/kapi-desktop/frontend/src/index.css` | Kapi Desktop — standalone copy (not imported, defines same variables) |
+| File                                                 | Scope                                                                                                        |
+| ---------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| `packages/ui/src/styles/globals.css`                 | Shared framework theme — imported by all platform apps (bowrain web, bowrain desktop, ctrl, pulse, keycloak) |
+| `framework/apps/kapi-desktop/frontend/src/index.css` | Kapi Desktop — standalone copy (not imported, defines same variables)                                        |
 
 The platform copy at `platform/packages/ui/src/styles/globals.css` is identical to `packages/ui/src/styles/globals.css` and must be updated together.
 
 ### How apps inherit the theme
 
 Platform apps (bowrain, web, ctrl, pulse) import the shared theme:
+
 ```css
 @import "@neokapi/ui/styles/globals.css";
 ```
@@ -27,6 +28,7 @@ Kapi Desktop defines its own variables (identical values) because it doesn't imp
 Source: https://tweakcn.com/themes/cmmi1ovml000404jlb6e44j42
 
 Warm, earthy palette with gold/amber accents. Key characteristics:
+
 - **Primary**: warm near-black (`oklch(0.2931 0 0)`) in light, warm off-white in dark
 - **Accent**: gold (`oklch(0.8778 0.1383 86.1920)`)
 - **Surfaces**: sandy warm tint (hue ~106)
@@ -39,6 +41,7 @@ Warm, earthy palette with gold/amber accents. Key characteristics:
 ### Step 1: Choose a theme
 
 Browse themes at https://tweakcn.com. Each theme has a registry URL like:
+
 ```
 https://tweakcn.com/r/themes/<theme-id>
 ```
@@ -72,6 +75,7 @@ Each file has `:root { }` (light) and `.dark { }` (dark) blocks with the same va
 ### Step 3: Update the `@theme inline` block
 
 The `@theme inline` block maps CSS variables to Tailwind utility names. Update:
+
 - `--font-sans` and `--font-mono` if the theme specifies different fonts
 - `--radius` base value
 - `--tracking-normal` for letter spacing
@@ -97,21 +101,21 @@ The flow editor (`packages/flow-editor/`) uses CSS variable references via `pack
 
 ### Theme token mapping (theme.ts)
 
-| Token | CSS Variable | Usage |
-|-------|-------------|-------|
-| `theme.bg` | `var(--background)` | Panel/canvas backgrounds |
-| `theme.bgCard` | `var(--card)` | Node backgrounds, input fields |
-| `theme.bgMuted` | `var(--muted)` | Toggle off-state |
-| `theme.bgSecondary` | `var(--secondary)` | Group headers, hover states |
-| `theme.fg` | `var(--foreground)` | Primary text |
-| `theme.fgMuted` | `var(--muted-foreground)` | Secondary text, icons |
-| `theme.fgSecondary` | `var(--secondary-foreground)` | Field labels |
-| `theme.border` | `var(--border)` | All borders |
-| `theme.accent` | `var(--accent)` | Run button, toggle on-state |
-| `theme.accentFg` | `var(--accent-foreground)` | Text on accent |
-| `theme.primary` | `var(--primary)` | Primary actions |
-| `theme.primaryFg` | `var(--primary-foreground)` | Text on primary |
-| `theme.destructive` | `var(--destructive)` | Remove button |
+| Token               | CSS Variable                  | Usage                          |
+| ------------------- | ----------------------------- | ------------------------------ |
+| `theme.bg`          | `var(--background)`           | Panel/canvas backgrounds       |
+| `theme.bgCard`      | `var(--card)`                 | Node backgrounds, input fields |
+| `theme.bgMuted`     | `var(--muted)`                | Toggle off-state               |
+| `theme.bgSecondary` | `var(--secondary)`            | Group headers, hover states    |
+| `theme.fg`          | `var(--foreground)`           | Primary text                   |
+| `theme.fgMuted`     | `var(--muted-foreground)`     | Secondary text, icons          |
+| `theme.fgSecondary` | `var(--secondary-foreground)` | Field labels                   |
+| `theme.border`      | `var(--border)`               | All borders                    |
+| `theme.accent`      | `var(--accent)`               | Run button, toggle on-state    |
+| `theme.accentFg`    | `var(--accent-foreground)`    | Text on accent                 |
+| `theme.primary`     | `var(--primary)`              | Primary actions                |
+| `theme.primaryFg`   | `var(--primary-foreground)`   | Text on primary                |
+| `theme.destructive` | `var(--destructive)`          | Remove button                  |
 
 ## Resource browser dark mode
 
@@ -119,14 +123,14 @@ The resource browser components (LocalePill, TermStatusBadge) use dynamic oklch 
 
 ```css
 :root {
-  --pill-bg-l: 0.92;   /* light bg for locale pills */
-  --pill-fg-l: 0.4;    /* dark text for locale pills */
+  --pill-bg-l: 0.92; /* light bg for locale pills */
+  --pill-fg-l: 0.4; /* dark text for locale pills */
   --badge-bg-l: 0.92;
   --badge-fg-l: 0.4;
 }
 .dark {
-  --pill-bg-l: 0.25;   /* dark bg */
-  --pill-fg-l: 0.75;   /* light text */
+  --pill-bg-l: 0.25; /* dark bg */
+  --pill-fg-l: 0.75; /* light text */
   --badge-bg-l: 0.25;
   --badge-fg-l: 0.75;
 }

@@ -1,7 +1,7 @@
-import {useState, useMemo} from 'react';
-import type {FilterComparison, FilterResult} from './_types';
-import TestCaseTable from './_TestCaseTable';
-import styles from './_index.module.css';
+import { useState, useMemo } from "react";
+import type { FilterComparison, FilterResult } from "./_types";
+import TestCaseTable from "./_TestCaseTable";
+import styles from "./_index.module.css";
 
 interface Props {
   filter: FilterComparison;
@@ -20,7 +20,7 @@ function statusColor(filter: FilterComparison): string {
   return styles.statusGreen;
 }
 
-function StatColumn({result}: {result: FilterResult | null}) {
+function StatColumn({ result }: { result: FilterResult | null }) {
   if (!result) {
     return (
       <div className={styles.sideColumn}>
@@ -38,49 +38,44 @@ function StatColumn({result}: {result: FilterResult | null}) {
             {result.failed + result.errors > 0 ? (
               <span
                 className="badge badge--danger"
-                title={`${result.failed + result.errors} failing (of ${result.total} incl. subtests)`}>
+                title={`${result.failed + result.errors} failing (of ${result.total} incl. subtests)`}
+              >
                 {result.failed + result.errors} failing
               </span>
             ) : (
               <span
                 className="badge badge--success"
-                title={`${result.passed} passed (of ${result.total} incl. subtests)`}>
+                title={`${result.passed} passed (of ${result.total} incl. subtests)`}
+              >
                 all passing
               </span>
             )}
             {result.skipped > 0 && (
               <span
                 className="badge badge--warning"
-                title={`${result.skipped} skipped (of ${result.total} incl. subtests)`}>
+                title={`${result.skipped} skipped (of ${result.total} incl. subtests)`}
+              >
                 {result.skipped} skipped
               </span>
             )}
           </>
         ) : (
           <>
-            <span
-              className="badge badge--success"
-              title={`${result.passed} passed`}>
+            <span className="badge badge--success" title={`${result.passed} passed`}>
               {result.passed}
             </span>
             {result.failed > 0 && (
-              <span
-                className="badge badge--danger"
-                title={`${result.failed} failed`}>
+              <span className="badge badge--danger" title={`${result.failed} failed`}>
                 {result.failed}
               </span>
             )}
             {result.errors > 0 && (
-              <span
-                className="badge badge--danger"
-                title={`${result.errors} errors`}>
+              <span className="badge badge--danger" title={`${result.errors} errors`}>
                 {result.errors} err
               </span>
             )}
             {result.skipped > 0 && (
-              <span
-                className="badge badge--warning"
-                title={`${result.skipped} skipped`}>
+              <span className="badge badge--warning" title={`${result.skipped} skipped`}>
                 {result.skipped}
               </span>
             )}
@@ -89,15 +84,13 @@ function StatColumn({result}: {result: FilterResult | null}) {
       </div>
       <div className={styles.barRow}>
         <div className={styles.progressBar}>
-          <div className={styles.progressFill} style={{width: `${pct}%`}} />
+          <div className={styles.progressFill} style={{ width: `${pct}%` }} />
         </div>
         <span className={styles.totalLabel}>
           {hasFuncs ? (
             <>
               {result.funcs}
-              <span
-                className={styles.subtestCount}
-                title={`${result.total} including subtests`}>
+              <span className={styles.subtestCount} title={`${result.total} including subtests`}>
                 ({result.total})
               </span>
             </>
@@ -111,7 +104,7 @@ function StatColumn({result}: {result: FilterResult | null}) {
 }
 
 /** Segmented coverage bar showing test state breakdown. */
-function CoverageBar({filter}: {filter: FilterComparison}) {
+function CoverageBar({ filter }: { filter: FilterComparison }) {
   const stats = useMemo(() => {
     if (!filter.testCases || filter.testCases.length === 0) return null;
     let implemented = 0;
@@ -120,13 +113,13 @@ function CoverageBar({filter}: {filter: FilterComparison}) {
     let unmapped = 0;
     for (const tc of filter.testCases) {
       switch (tc.testState) {
-        case 'implemented':
+        case "implemented":
           implemented++;
           break;
-        case 'pending':
+        case "pending":
           pending++;
           break;
-        case 'skipped':
+        case "skipped":
           notApplicable++;
           break;
         default:
@@ -134,7 +127,7 @@ function CoverageBar({filter}: {filter: FilterComparison}) {
           else unmapped++;
       }
     }
-    return {implemented, notApplicable, pending, unmapped};
+    return { implemented, notApplicable, pending, unmapped };
   }, [filter.testCases]);
 
   if (!stats) {
@@ -144,10 +137,7 @@ function CoverageBar({filter}: {filter: FilterComparison}) {
     return (
       <div className={styles.coverageMini}>
         <div className={styles.coverageMiniBar}>
-          <div
-            className={styles.coverageMiniBarFill}
-            style={{width: `${Math.min(pct, 100)}%`}}
-          />
+          <div className={styles.coverageMiniBarFill} style={{ width: `${Math.min(pct, 100)}%` }} />
         </div>
         <span className={styles.coverageMiniLabel}>{pct.toFixed(0)}%</span>
       </div>
@@ -158,10 +148,10 @@ function CoverageBar({filter}: {filter: FilterComparison}) {
   if (total === 0) return null;
 
   const segments = [
-    {value: stats.implemented, color: '#2e8555'},
-    {value: stats.notApplicable, color: '#94a3b8'},
-    {value: stats.pending, color: '#e3a008'},
-    {value: stats.unmapped, color: '#dc2626'},
+    { value: stats.implemented, color: "#2e8555" },
+    { value: stats.notApplicable, color: "#94a3b8" },
+    { value: stats.pending, color: "#e3a008" },
+    { value: stats.unmapped, color: "#dc2626" },
   ];
 
   const implementedPct = ((stats.implemented / total) * 100).toFixed(0);
@@ -169,7 +159,8 @@ function CoverageBar({filter}: {filter: FilterComparison}) {
   return (
     <div
       className={styles.coverageMini}
-      title={`Implemented: ${stats.implemented}, Not Applicable: ${stats.notApplicable}, Pending: ${stats.pending}, Unmapped: ${stats.unmapped}`}>
+      title={`Implemented: ${stats.implemented}, Not Applicable: ${stats.notApplicable}, Pending: ${stats.pending}, Unmapped: ${stats.unmapped}`}
+    >
       <div className={styles.segmentedBar}>
         {segments
           .filter((s) => s.value > 0)
@@ -227,19 +218,16 @@ export default function FilterCard({
         onClick={() => setExpanded(!expanded)}
         role="button"
         tabIndex={0}
-        onKeyDown={(e) => e.key === 'Enter' && setExpanded(!expanded)}>
+        onKeyDown={(e) => e.key === "Enter" && setExpanded(!expanded)}
+      >
         <div className={styles.filterHeaderLeft}>
           <span className={`${styles.statusDot} ${statusColor(filter)}`} />
           <strong>{filter.filterName}</strong>
           {filter.nativeFilterName && (
-            <span className={styles.nativeAlias}>
-              ({filter.nativeFilterName})
-            </span>
+            <span className={styles.nativeAlias}>({filter.nativeFilterName})</span>
           )}
           <CoverageBar filter={filter} />
-          <span className={styles.expandIcon}>
-            {expanded ? '\u25BE' : '\u25B8'}
-          </span>
+          <span className={styles.expandIcon}>{expanded ? "\u25BE" : "\u25B8"}</span>
         </div>
         <div className={styles.filterHeaderRight}>
           <StatColumn result={filter.okapi} />

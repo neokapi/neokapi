@@ -4,20 +4,20 @@ on:
   workflow_dispatch:
     inputs:
       server_url:
-        description: 'Server URL. Default: https://dev.bowrain.cloud'
+        description: "Server URL. Default: https://dev.bowrain.cloud"
         required: false
-        default: ''
+        default: ""
   schedule:
     # Nightly at 2 AM UTC
-    - cron: '0 2 * * *'
+    - cron: "0 2 * * *"
   push:
     tags:
-      - 'v*'
+      - "v*"
 
 permissions:
-  contents: write  # Needed to create/update releases
-  actions: write   # Needed to trigger docs redeploy workflow
-  packages: read   # Needed to pull Docker images from GHCR
+  contents: write # Needed to create/update releases
+  actions: write # Needed to trigger docs redeploy workflow
+  packages: read # Needed to pull Docker images from GHCR
 
 env:
   # Default to dev environment for nightly/scheduled runs.
@@ -245,7 +245,7 @@ jobs:
 
       - uses: voidzero-dev/setup-vp@v1
         with:
-          node-version: '22'
+          node-version: "22"
           cache: true
 
       - name: Download all raw recording artifacts

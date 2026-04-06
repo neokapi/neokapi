@@ -25,18 +25,20 @@ vhs pseudo-translate.tape
 ## Output
 
 Videos are generated as WebM files in:
+
 - `website/tapes/output/` — raw output
 - `website/static/video/kapi/` — copied for docs
 
 ## Tape Files
 
-| Tape | Description |
-|------|-------------|
-| `overview.tape` | Quick tour of kapi commands |
-| `word-count.tape` | Word counting for estimation |
+| Tape                    | Description                    |
+| ----------------------- | ------------------------------ |
+| `overview.tape`         | Quick tour of kapi commands    |
+| `word-count.tape`       | Word counting for estimation   |
 | `pseudo-translate.tape` | Pseudo-translation for testing |
 
 ## Sample Files
 
 The `samples/` directory contains example files used in demos:
+
 - `messages.json` — sample JSON localization file

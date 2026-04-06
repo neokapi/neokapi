@@ -2,6 +2,7 @@
 sidebar_position: 19
 title: Automation Run Visibility
 ---
+
 # Automation Run Visibility
 
 Implementation details for [AD-035](/docs/ad/035-automation-run-visibility).
@@ -149,6 +150,7 @@ type pendingStep struct {
 ```
 
 Poll loop (5s interval):
+
 1. For each pending step, query job statuses
 2. Update `done_jobs` on the step
 3. When all jobs complete → update step status → increment run done_count
@@ -253,31 +255,32 @@ g.GET("/projects/:id/automation-runs/:runId/events", s.HandleAutomationRunSSE)
 
 ## Files to Create
 
-| File | Purpose |
-|---|---|
-| `platform/event/automation_run.go` | Model types (Run, Step, Log, statuses) |
-| `platform/event/automation_run_store.go` | Store interface |
-| `platform/event/automation_run_store_sqlite.go` | SQLite implementation |
-| `platform/event/automation_run_store_pg.go` | PostgreSQL implementation |
-| `platform/event/automation_run_manager.go` | Lifecycle management, run/step creation |
-| `platform/event/step_completion_tracker.go` | Polls job stores, updates step/run status |
-| `platform/server/handlers_automation_runs.go` | REST handlers |
+| File                                            | Purpose                                   |
+| ----------------------------------------------- | ----------------------------------------- |
+| `platform/event/automation_run.go`              | Model types (Run, Step, Log, statuses)    |
+| `platform/event/automation_run_store.go`        | Store interface                           |
+| `platform/event/automation_run_store_sqlite.go` | SQLite implementation                     |
+| `platform/event/automation_run_store_pg.go`     | PostgreSQL implementation                 |
+| `platform/event/automation_run_manager.go`      | Lifecycle management, run/step creation   |
+| `platform/event/step_completion_tracker.go`     | Polls job stores, updates step/run status |
+| `platform/server/handlers_automation_runs.go`   | REST handlers                             |
 
 ## Files to Modify
 
-| File | Change |
-|---|---|
-| `platform/store/migrations_pg.go` | Add migration for new tables |
-| `platform/store/migrations.go` | SQLite equivalent |
-| `platform/server/automation.go` | Pass stepID to action handlers, register jobs/tasks |
-| `platform/server/server.go` | Wire RunManager, StepCompletionTracker, routes |
-| `platform/jobs/model.go` | Add StepID to TranslationJob (Phase 2) |
-| `platform/jobs/extraction_model.go` | Add StepID to ExtractionJob (Phase 2) |
-| `platform/jobs/worker.go` | Use RunLogger (Phase 2) |
+| File                                | Change                                              |
+| ----------------------------------- | --------------------------------------------------- |
+| `platform/store/migrations_pg.go`   | Add migration for new tables                        |
+| `platform/store/migrations.go`      | SQLite equivalent                                   |
+| `platform/server/automation.go`     | Pass stepID to action handlers, register jobs/tasks |
+| `platform/server/server.go`         | Wire RunManager, StepCompletionTracker, routes      |
+| `platform/jobs/model.go`            | Add StepID to TranslationJob (Phase 2)              |
+| `platform/jobs/extraction_model.go` | Add StepID to ExtractionJob (Phase 2)               |
+| `platform/jobs/worker.go`           | Use RunLogger (Phase 2)                             |
 
 ## Implementation Sequence
 
 ### Phase 1: Core (REST + polling)
+
 1. Model types + store interface + SQLite implementation
 2. AutomationRunManager
 3. StepCompletionTracker
@@ -286,12 +289,14 @@ g.GET("/projects/:id/automation-runs/:runId/events", s.HandleAutomationRunSSE)
 6. Tests
 
 ### Phase 2: Logs + SSE
+
 7. AutomationLog + RunLogger
 8. StepID on jobs
 9. Worker log integration
 10. SSE endpoint + automationRunHub
 
 ### Phase 3: UI
+
 11. Run list page
 12. Run detail with step graph
 13. Per-step log viewer

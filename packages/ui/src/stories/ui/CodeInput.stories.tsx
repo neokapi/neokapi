@@ -78,12 +78,7 @@ export const JsonMode: Story = {
 
 export const Regex: Story = {
   render: () => (
-    <Wrapper
-      language="regex"
-      placeholder="Regex pattern..."
-      initial="</?\\w[^>]*>"
-      singleLine
-    />
+    <Wrapper language="regex" placeholder="Regex pattern..." initial="</?\\w[^>]*>" singleLine />
   ),
 };
 
@@ -132,12 +127,5 @@ export const SingleLine: Story = {
 };
 
 export const Disabled: Story = {
-  render: () => (
-    <Wrapper
-      language="javascript"
-      initial="const x = 42;"
-      disabled
-      singleLine
-    />
-  ),
+  render: () => <Wrapper language="javascript" initial="const x = 42;" disabled singleLine />,
 };

@@ -30,9 +30,9 @@ type AIEntityExtractTool struct {
 // AIEntityExtractConfig holds configuration for the entity extraction tool.
 type AIEntityExtractConfig struct {
 	Locale      model.LocaleID `schema:"description=Locale of the source content"`
-	KnownTerms  []string       `schema:"description=Terms to exclude from extraction (already in termbase)"` // terms to exclude from extraction (already in termbase)
+	KnownTerms  []string       `schema:"description=Terms to exclude from extraction (already in termbase)"`                      // terms to exclude from extraction (already in termbase)
 	BatchSize   int            `schema:"description=Number of blocks per LLM call (0 or 1 = one block per call),default=1,min=1"` // Blocks per LLM call. 0 or 1 = one block per call.
-	Concurrency int            `schema:"description=Number of concurrent batch calls (0 or 1 = sequential),default=1,min=1"` // Concurrent batch calls. 0 or 1 = sequential.
+	Concurrency int            `schema:"description=Number of concurrent batch calls (0 or 1 = sequential),default=1,min=1"`      // Concurrent batch calls. 0 or 1 = sequential.
 }
 
 // NewAIEntityExtractTool creates a new entity/term extraction tool.

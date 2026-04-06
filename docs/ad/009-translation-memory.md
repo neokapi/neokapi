@@ -3,6 +3,7 @@ id: 009-translation-memory
 sidebar_position: 9
 title: "AD-009: Translation Memory"
 ---
+
 # AD-009: Content-aware translation memory
 
 ## Context

@@ -26,9 +26,7 @@ export function ArrayEditor({
 }) {
   const items = value ?? [];
   const isSimple =
-    itemSchema.type === "string" ||
-    itemSchema.type === "number" ||
-    itemSchema.type === "integer";
+    itemSchema.type === "string" || itemSchema.type === "number" || itemSchema.type === "integer";
 
   const [newItem, setNewItem] = useState("");
 
@@ -72,9 +70,7 @@ export function ArrayEditor({
     return (
       <div className="space-y-1.5">
         {label && <Label className="text-xs font-medium">{label}</Label>}
-        {!compact && description && (
-          <p className="text-xs text-muted-foreground">{description}</p>
-        )}
+        {!compact && description && <p className="text-xs text-muted-foreground">{description}</p>}
         <div className="flex flex-wrap gap-1.5">
           {items.map((item, i) => (
             <span
@@ -117,9 +113,7 @@ export function ArrayEditor({
   return (
     <div className="space-y-2">
       {label && <Label className="text-xs font-medium">{label}</Label>}
-      {!compact && description && (
-        <p className="text-xs text-muted-foreground">{description}</p>
-      )}
+      {!compact && description && <p className="text-xs text-muted-foreground">{description}</p>}
       <div className="space-y-2">
         {items.map((item, i) => (
           <div key={i} className="flex items-start gap-2 border border-input rounded-md p-2">
@@ -137,10 +131,7 @@ export function ArrayEditor({
                   depth={depth + 1}
                 />
               ) : (
-                <JsonInlineEditor
-                  value={item}
-                  onChange={(v) => handleChange(i, v)}
-                />
+                <JsonInlineEditor value={item} onChange={(v) => handleChange(i, v)} />
               )}
             </div>
             <div className="flex flex-col gap-0.5 shrink-0">

@@ -3,7 +3,13 @@
   "description": "AI translation with --parallel-blocks 3: blocks enter the tool quickly but are processed concurrently by 3 workers, showing overlapping API calls",
   "nodes": [
     { "id": "reader", "type": "reader", "name": "json", "label": "JSON Reader" },
-    { "id": "tool-0", "type": "tool", "name": "ai-translate", "label": "AI Translate", "concurrency": 3 },
+    {
+      "id": "tool-0",
+      "type": "tool",
+      "name": "ai-translate",
+      "label": "AI Translate",
+      "concurrency": 3
+    },
     { "id": "writer", "type": "writer", "name": "json", "label": "JSON Writer" }
   ],
   "channelSize": 64,
@@ -22,31 +28,91 @@
     { "ts": 270, "type": "enter", "nodeId": "writer", "partId": "layer-1" },
     { "ts": 290, "type": "exit", "nodeId": "writer", "partId": "layer-1" },
 
-    { "ts": 300, "type": "enter", "nodeId": "tool-0", "partId": "block-title", "meta": { "worker": 0 } },
-    { "ts": 310, "type": "enter", "nodeId": "tool-0", "partId": "block-subtitle", "meta": { "worker": 1 } },
-    { "ts": 320, "type": "enter", "nodeId": "tool-0", "partId": "block-intro", "meta": { "worker": 2 } },
+    {
+      "ts": 300,
+      "type": "enter",
+      "nodeId": "tool-0",
+      "partId": "block-title",
+      "meta": { "worker": 0 }
+    },
+    {
+      "ts": 310,
+      "type": "enter",
+      "nodeId": "tool-0",
+      "partId": "block-subtitle",
+      "meta": { "worker": 1 }
+    },
+    {
+      "ts": 320,
+      "type": "enter",
+      "nodeId": "tool-0",
+      "partId": "block-intro",
+      "meta": { "worker": 2 }
+    },
 
-    { "ts": 620, "type": "exit", "nodeId": "tool-0", "partId": "block-title", "meta": { "parallel": true, "worker": 0 } },
+    {
+      "ts": 620,
+      "type": "exit",
+      "nodeId": "tool-0",
+      "partId": "block-title",
+      "meta": { "parallel": true, "worker": 0 }
+    },
     { "ts": 630, "type": "enter", "nodeId": "writer", "partId": "block-title" },
     { "ts": 670, "type": "exit", "nodeId": "writer", "partId": "block-title" },
 
-    { "ts": 680, "type": "exit", "nodeId": "tool-0", "partId": "block-subtitle", "meta": { "parallel": true, "worker": 1 } },
+    {
+      "ts": 680,
+      "type": "exit",
+      "nodeId": "tool-0",
+      "partId": "block-subtitle",
+      "meta": { "parallel": true, "worker": 1 }
+    },
     { "ts": 690, "type": "enter", "nodeId": "writer", "partId": "block-subtitle" },
     { "ts": 730, "type": "exit", "nodeId": "writer", "partId": "block-subtitle" },
 
-    { "ts": 700, "type": "enter", "nodeId": "tool-0", "partId": "block-body", "meta": { "worker": 0 } },
+    {
+      "ts": 700,
+      "type": "enter",
+      "nodeId": "tool-0",
+      "partId": "block-body",
+      "meta": { "worker": 0 }
+    },
 
-    { "ts": 750, "type": "exit", "nodeId": "tool-0", "partId": "block-intro", "meta": { "parallel": true, "worker": 2 } },
+    {
+      "ts": 750,
+      "type": "exit",
+      "nodeId": "tool-0",
+      "partId": "block-intro",
+      "meta": { "parallel": true, "worker": 2 }
+    },
     { "ts": 760, "type": "enter", "nodeId": "writer", "partId": "block-intro" },
     { "ts": 800, "type": "exit", "nodeId": "writer", "partId": "block-intro" },
 
-    { "ts": 770, "type": "enter", "nodeId": "tool-0", "partId": "block-cta", "meta": { "worker": 1 } },
+    {
+      "ts": 770,
+      "type": "enter",
+      "nodeId": "tool-0",
+      "partId": "block-cta",
+      "meta": { "worker": 1 }
+    },
 
-    { "ts": 1020, "type": "exit", "nodeId": "tool-0", "partId": "block-body", "meta": { "parallel": true, "worker": 0 } },
+    {
+      "ts": 1020,
+      "type": "exit",
+      "nodeId": "tool-0",
+      "partId": "block-body",
+      "meta": { "parallel": true, "worker": 0 }
+    },
     { "ts": 1030, "type": "enter", "nodeId": "writer", "partId": "block-body" },
     { "ts": 1070, "type": "exit", "nodeId": "writer", "partId": "block-body" },
 
-    { "ts": 1100, "type": "exit", "nodeId": "tool-0", "partId": "block-cta", "meta": { "parallel": true, "worker": 1 } },
+    {
+      "ts": 1100,
+      "type": "exit",
+      "nodeId": "tool-0",
+      "partId": "block-cta",
+      "meta": { "parallel": true, "worker": 1 }
+    },
     { "ts": 1110, "type": "enter", "nodeId": "writer", "partId": "block-cta" },
     { "ts": 1150, "type": "exit", "nodeId": "writer", "partId": "block-cta" },
 
@@ -65,33 +131,88 @@
       "initial": { "id": "layer-1", "type": "LayerStart", "summary": "Document root" }
     },
     "block-title": {
-      "initial": { "id": "block-title", "type": "Block", "summary": "Welcome to our platform", "sourceText": "Welcome to our platform" },
+      "initial": {
+        "id": "block-title",
+        "type": "Block",
+        "summary": "Welcome to our platform",
+        "sourceText": "Welcome to our platform"
+      },
       "afterNode": {
-        "tool-0": { "id": "block-title", "type": "Block", "summary": "Bienvenue sur notre plateforme", "sourceText": "Welcome to our platform", "targetText": "Bienvenue sur notre plateforme" }
+        "tool-0": {
+          "id": "block-title",
+          "type": "Block",
+          "summary": "Bienvenue sur notre plateforme",
+          "sourceText": "Welcome to our platform",
+          "targetText": "Bienvenue sur notre plateforme"
+        }
       }
     },
     "block-subtitle": {
-      "initial": { "id": "block-subtitle", "type": "Block", "summary": "The best way to manage content", "sourceText": "The best way to manage content" },
+      "initial": {
+        "id": "block-subtitle",
+        "type": "Block",
+        "summary": "The best way to manage content",
+        "sourceText": "The best way to manage content"
+      },
       "afterNode": {
-        "tool-0": { "id": "block-subtitle", "type": "Block", "summary": "La meilleure façon de gérer du contenu", "sourceText": "The best way to manage content", "targetText": "La meilleure façon de gérer du contenu" }
+        "tool-0": {
+          "id": "block-subtitle",
+          "type": "Block",
+          "summary": "La meilleure façon de gérer du contenu",
+          "sourceText": "The best way to manage content",
+          "targetText": "La meilleure façon de gérer du contenu"
+        }
       }
     },
     "block-intro": {
-      "initial": { "id": "block-intro", "type": "Block", "summary": "Our platform helps teams collaborate...", "sourceText": "Our platform helps teams collaborate on translations efficiently" },
+      "initial": {
+        "id": "block-intro",
+        "type": "Block",
+        "summary": "Our platform helps teams collaborate...",
+        "sourceText": "Our platform helps teams collaborate on translations efficiently"
+      },
       "afterNode": {
-        "tool-0": { "id": "block-intro", "type": "Block", "summary": "Notre plateforme aide les équipes à c...", "sourceText": "Our platform helps teams collaborate on translations efficiently", "targetText": "Notre plateforme aide les équipes à collaborer efficacement sur les traductions" }
+        "tool-0": {
+          "id": "block-intro",
+          "type": "Block",
+          "summary": "Notre plateforme aide les équipes à c...",
+          "sourceText": "Our platform helps teams collaborate on translations efficiently",
+          "targetText": "Notre plateforme aide les équipes à collaborer efficacement sur les traductions"
+        }
       }
     },
     "block-body": {
-      "initial": { "id": "block-body", "type": "Block", "summary": "With powerful AI-driven translation, ...", "sourceText": "With powerful AI-driven translation, you can reduce costs and time to market" },
+      "initial": {
+        "id": "block-body",
+        "type": "Block",
+        "summary": "With powerful AI-driven translation, ...",
+        "sourceText": "With powerful AI-driven translation, you can reduce costs and time to market"
+      },
       "afterNode": {
-        "tool-0": { "id": "block-body", "type": "Block", "summary": "Grâce à une traduction pilotée par l'...", "sourceText": "With powerful AI-driven translation, you can reduce costs and time to market", "targetText": "Grâce à une traduction pilotée par l'IA, vous pouvez réduire les coûts et le délai de mise sur le marché" }
+        "tool-0": {
+          "id": "block-body",
+          "type": "Block",
+          "summary": "Grâce à une traduction pilotée par l'...",
+          "sourceText": "With powerful AI-driven translation, you can reduce costs and time to market",
+          "targetText": "Grâce à une traduction pilotée par l'IA, vous pouvez réduire les coûts et le délai de mise sur le marché"
+        }
       }
     },
     "block-cta": {
-      "initial": { "id": "block-cta", "type": "Block", "summary": "Get started today", "sourceText": "Get started today" },
+      "initial": {
+        "id": "block-cta",
+        "type": "Block",
+        "summary": "Get started today",
+        "sourceText": "Get started today"
+      },
       "afterNode": {
-        "tool-0": { "id": "block-cta", "type": "Block", "summary": "Commencez dès aujourd'hui", "sourceText": "Get started today", "targetText": "Commencez dès aujourd'hui" }
+        "tool-0": {
+          "id": "block-cta",
+          "type": "Block",
+          "summary": "Commencez dès aujourd'hui",
+          "sourceText": "Get started today",
+          "targetText": "Commencez dès aujourd'hui"
+        }
       }
     },
     "data-1": {

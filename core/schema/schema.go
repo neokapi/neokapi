@@ -34,7 +34,7 @@ type ComponentSchema struct {
 // ToolMeta identifies a tool and its capabilities.
 type ToolMeta struct {
 	ID          string `json:"id"`
-	Category    string `json:"category,omitempty"`    // "translate","validate","enrich","convert","transform","pipeline"
+	Category    string `json:"category,omitempty"` // "translate","validate","enrich","convert","transform","pipeline"
 	DisplayName string `json:"displayName,omitempty"`
 	Description string `json:"description,omitempty"`
 
@@ -131,16 +131,16 @@ type PropertySchema struct {
 	Options []OptionItem `json:"options,omitempty"`
 
 	// UI rendering hints (ui: prefix)
-	Widget             string            `json:"ui:widget,omitempty"`
-	WidgetOptions      map[string]any    `json:"ui:widget-options,omitempty"`
-	Placeholder        string            `json:"ui:placeholder,omitempty"`
-	Visible            *ConditionExpr    `json:"ui:visible,omitempty"`
-	Enabled            *ConditionExpr    `json:"ui:enabled,omitempty"`
-	Layout             *LayoutHints      `json:"ui:layout,omitempty"`
-	EnumDescriptions   map[string]string `json:"ui:enum-descriptions,omitempty"`
-	Order              *int              `json:"ui:order,omitempty"`
-	DeprecatedMessage  string            `json:"ui:deprecated-message,omitempty"`
-	IntroducedIn       string            `json:"ui:introduced-in,omitempty"`
+	Widget            string            `json:"ui:widget,omitempty"`
+	WidgetOptions     map[string]any    `json:"ui:widget-options,omitempty"`
+	Placeholder       string            `json:"ui:placeholder,omitempty"`
+	Visible           *ConditionExpr    `json:"ui:visible,omitempty"`
+	Enabled           *ConditionExpr    `json:"ui:enabled,omitempty"`
+	Layout            *LayoutHints      `json:"ui:layout,omitempty"`
+	EnumDescriptions  map[string]string `json:"ui:enum-descriptions,omitempty"`
+	Order             *int              `json:"ui:order,omitempty"`
+	DeprecatedMessage string            `json:"ui:deprecated-message,omitempty"`
+	IntroducedIn      string            `json:"ui:introduced-in,omitempty"`
 
 	// Nested properties for object types
 	Properties map[string]PropertySchema `json:"properties,omitempty"`

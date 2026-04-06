@@ -1,6 +1,6 @@
-import {useState, useCallback, useMemo} from 'react';
-import type {FormatDoc, GroupDoc, PropDoc} from './_types';
-import styles from './_index.module.css';
+import { useState, useCallback, useMemo } from "react";
+import type { FormatDoc, GroupDoc, PropDoc } from "./_types";
+import styles from "./_index.module.css";
 
 interface Props {
   format: FormatDoc;
@@ -31,19 +31,19 @@ function buildYaml(
     const prop = properties[key];
     if (!prop) return false;
     if (prop.default !== undefined && val === prop.default) return false;
-    if (val === '' || (Array.isArray(val) && val.length === 0)) return false;
+    if (val === "" || (Array.isArray(val) && val.length === 0)) return false;
     return true;
   });
 
   if (entries.length === 0) {
     lines.push(`  # (default configuration)`);
-    return lines.join('\n');
+    return lines.join("\n");
   }
 
   for (const [key, val] of entries.sort(([a], [b]) => a.localeCompare(b))) {
-    if (typeof val === 'boolean') {
+    if (typeof val === "boolean") {
       lines.push(`  ${key}: ${val}`);
-    } else if (typeof val === 'string') {
+    } else if (typeof val === "string") {
       lines.push(`  ${key}: "${val}"`);
     } else if (Array.isArray(val)) {
       if (val.length === 0) continue;
@@ -55,21 +55,14 @@ function buildYaml(
       lines.push(`  ${key}: ${JSON.stringify(val)}`);
     }
   }
-  return lines.join('\n');
+  return lines.join("\n");
 }
 
-export default function FormatCard({format, defaultExpanded}: Props) {
+export default function FormatCard({ format, defaultExpanded }: Props) {
   const [expanded, setExpanded] = useState(defaultExpanded ?? false);
-  const [values, setValues] = useState<Record<string, any>>(() =>
-    initValues(format.properties),
-  );
+  const [values, setValues] = useState<Record<string, any>>(() => initValues(format.properties));
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(
-    () =>
-      new Set(
-        (format.groups ?? [])
-          .filter((g) => g.collapsed)
-          .map((g) => g.id),
-      ),
+    () => new Set((format.groups ?? []).filter((g) => g.collapsed).map((g) => g.id)),
   );
   const [copied, setCopied] = useState(false);
   const [activePreset, setActivePreset] = useState<string | null>(null);
@@ -89,7 +82,7 @@ export default function FormatCard({format, defaultExpanded}: Props) {
   }, []);
 
   const setValue = useCallback((key: string, val: any) => {
-    setValues((prev) => ({...prev, [key]: val}));
+    setValues((prev) => ({ ...prev, [key]: val }));
     setActivePreset(null);
   }, []);
 
@@ -102,17 +95,14 @@ export default function FormatCard({format, defaultExpanded}: Props) {
     (presetId: string, params: Record<string, any>) => {
       setValues((prev) => {
         const next = initValues(format.properties);
-        return {...next, ...params};
+        return { ...next, ...params };
       });
       setActivePreset(presetId);
     },
     [format.properties],
   );
 
-  const yamlOutput = useMemo(
-    () => buildYaml(format.id, values, props),
-    [format.id, values, props],
-  );
+  const yamlOutput = useMemo(() => buildYaml(format.id, values, props), [format.id, values, props]);
 
   const handleCopy = useCallback(() => {
     navigator.clipboard.writeText(yamlOutput).then(() => {
@@ -122,19 +112,13 @@ export default function FormatCard({format, defaultExpanded}: Props) {
   }, [yamlOutput]);
 
   // Determine which fields are rendered in groups vs ungrouped.
-  const groupedFields = new Set(
-    (format.groups ?? []).flatMap((g) => g.fields),
-  );
-  const ungroupedFields = Object.keys(props).filter(
-    (f) => !groupedFields.has(f),
-  );
+  const groupedFields = new Set((format.groups ?? []).flatMap((g) => g.fields));
+  const ungroupedFields = Object.keys(props).filter((f) => !groupedFields.has(f));
 
   return (
-    <div
-      className={`${styles.formatCard} ${expanded ? styles.formatCardExpanded : ''}`}>
+    <div className={`${styles.formatCard} ${expanded ? styles.formatCardExpanded : ""}`}>
       <div className={styles.formatHeader} onClick={toggleExpand}>
-        <span
-          className={`${styles.expandIcon} ${expanded ? styles.expandIconOpen : ''}`}>
+        <span className={`${styles.expandIcon} ${expanded ? styles.expandIconOpen : ""}`}>
           &#9654;
         </span>
         <span className={styles.formatName}>{format.displayName}</span>
@@ -145,36 +129,28 @@ export default function FormatCard({format, defaultExpanded}: Props) {
             </span>
           ))}
           {format.hasReader && (
-            <span className={`${styles.capBadge} ${styles.capReader}`}>
-              Reader
-            </span>
+            <span className={`${styles.capBadge} ${styles.capReader}`}>Reader</span>
           )}
           {format.hasWriter && (
-            <span className={`${styles.capBadge} ${styles.capWriter}`}>
-              Writer
-            </span>
+            <span className={`${styles.capBadge} ${styles.capWriter}`}>Writer</span>
           )}
         </span>
         {paramCount > 0 && (
           <span className={styles.configCount}>
-            {paramCount} parameter{paramCount !== 1 ? 's' : ''}
+            {paramCount} parameter{paramCount !== 1 ? "s" : ""}
           </span>
         )}
       </div>
 
       {expanded && (
         <div className={styles.formatBody}>
-          {format.description && (
-            <p className={styles.formatDescription}>{format.description}</p>
-          )}
+          {format.description && <p className={styles.formatDescription}>{format.description}</p>}
 
           <div className={styles.metaGrid}>
             {format.mimeTypes && format.mimeTypes.length > 0 && (
               <div className={styles.metaSection}>
                 <span className={styles.metaLabel}>MIME Types</span>
-                <span className={styles.metaValue}>
-                  {format.mimeTypes.join(', ')}
-                </span>
+                <span className={styles.metaValue}>{format.mimeTypes.join(", ")}</span>
               </div>
             )}
             <div className={styles.metaSection}>
@@ -189,17 +165,19 @@ export default function FormatCard({format, defaultExpanded}: Props) {
               <div className={styles.presetTitle}>Presets</div>
               <div className={styles.presetButtons}>
                 <button
-                  className={`${styles.presetButton} ${activePreset === null ? styles.presetButtonActive : ''}`}
+                  className={`${styles.presetButton} ${activePreset === null ? styles.presetButtonActive : ""}`}
                   onClick={() => resetValues()}
-                  title="Default configuration">
+                  title="Default configuration"
+                >
                   Default
                 </button>
                 {format.presets.map((preset) => (
                   <button
                     key={preset.id}
-                    className={`${styles.presetButton} ${activePreset === preset.id ? styles.presetButtonActive : ''}`}
+                    className={`${styles.presetButton} ${activePreset === preset.id ? styles.presetButtonActive : ""}`}
                     onClick={() => applyPreset(preset.id, preset.parameters)}
-                    title={preset.description}>
+                    title={preset.description}
+                  >
                     {preset.name}
                   </button>
                 ))}
@@ -209,9 +187,7 @@ export default function FormatCard({format, defaultExpanded}: Props) {
 
           {/* Parameters */}
           {paramCount === 0 ? (
-            <p className={styles.noConfig}>
-              This format has no configurable parameters.
-            </p>
+            <p className={styles.noConfig}>This format has no configurable parameters.</p>
           ) : (
             <>
               {(format.groups ?? []).map((group) => (
@@ -239,17 +215,13 @@ export default function FormatCard({format, defaultExpanded}: Props) {
               {/* YAML output */}
               <div className={styles.outputSection}>
                 <div className={styles.outputHeader}>
-                  <span className={styles.outputTitle}>
-                    Configuration Output
-                  </span>
+                  <span className={styles.outputTitle}>Configuration Output</span>
                   <div className={styles.outputActions}>
-                    <button
-                      className={styles.resetButton}
-                      onClick={resetValues}>
+                    <button className={styles.resetButton} onClick={resetValues}>
                       Reset
                     </button>
                     <button className={styles.copyButton} onClick={handleCopy}>
-                      {copied ? 'Copied!' : 'Copy YAML'}
+                      {copied ? "Copied!" : "Copy YAML"}
                     </button>
                   </div>
                 </div>
@@ -285,8 +257,7 @@ function ParameterGroup({
   return (
     <div className={styles.paramGroup}>
       <div className={styles.groupHeader} onClick={onToggle}>
-        <span
-          className={`${styles.groupToggle} ${!collapsed ? styles.groupToggleOpen : ''}`}>
+        <span className={`${styles.groupToggle} ${!collapsed ? styles.groupToggleOpen : ""}`}>
           &#9654;
         </span>
         <span className={styles.groupLabel}>{group.label}</span>
@@ -316,22 +287,19 @@ function ParameterRow({
   value: any;
   onChange: (val: any) => void;
 }) {
-  const isModified =
-    prop.default !== undefined && value !== prop.default;
+  const isModified = prop.default !== undefined && value !== prop.default;
 
   return (
     <div className={styles.paramRow}>
       <div className={styles.paramInfo}>
         <span className={styles.paramName}>
           {name}
-          {isModified && (
-            <span className={styles.modifiedIndicator}> *</span>
-          )}
+          {isModified && <span className={styles.modifiedIndicator}> *</span>}
         </span>
         <span className={styles.paramType}>{prop.type}</span>
       </div>
       <div className={styles.paramControl}>
-        {prop.type === 'boolean' ? (
+        {prop.type === "boolean" ? (
           <div className={styles.checkbox}>
             <input
               type="checkbox"
@@ -344,33 +312,30 @@ function ParameterRow({
         ) : (
           <>
             <p className={styles.paramDesc}>{prop.description}</p>
-            {prop.type === 'string' && (
+            {prop.type === "string" && (
               <input
                 type="text"
                 className={styles.textInput}
-                value={value ?? ''}
-                placeholder={
-                  prop.default !== undefined
-                    ? String(prop.default)
-                    : undefined
-                }
+                value={value ?? ""}
+                placeholder={prop.default !== undefined ? String(prop.default) : undefined}
                 onChange={(e) => onChange(e.target.value)}
               />
             )}
-            {(prop.type === 'array' || prop.type === 'object') && (
+            {(prop.type === "array" || prop.type === "object") && (
               <input
                 type="text"
                 className={styles.textInput}
-                value={
-                  Array.isArray(value) ? value.join(', ') : (value ?? '')
-                }
-                placeholder={`Enter ${prop.type === 'array' ? 'comma-separated values' : 'JSON object'}`}
+                value={Array.isArray(value) ? value.join(", ") : (value ?? "")}
+                placeholder={`Enter ${prop.type === "array" ? "comma-separated values" : "JSON object"}`}
                 onChange={(e) => {
                   const raw = e.target.value;
-                  if (prop.type === 'array') {
+                  if (prop.type === "array") {
                     onChange(
                       raw
-                        ? raw.split(',').map((s) => s.trim()).filter(Boolean)
+                        ? raw
+                            .split(",")
+                            .map((s) => s.trim())
+                            .filter(Boolean)
                         : [],
                     );
                   } else {
@@ -386,22 +351,20 @@ function ParameterRow({
   );
 }
 
-function initValues(
-  properties: Record<string, PropDoc> | undefined,
-): Record<string, any> {
+function initValues(properties: Record<string, PropDoc> | undefined): Record<string, any> {
   if (!properties) return {};
   const result: Record<string, any> = {};
   for (const [key, prop] of Object.entries(properties)) {
     if (prop.default !== undefined) {
       result[key] = prop.default;
-    } else if (prop.type === 'boolean') {
+    } else if (prop.type === "boolean") {
       result[key] = false;
-    } else if (prop.type === 'string') {
-      result[key] = '';
-    } else if (prop.type === 'array') {
+    } else if (prop.type === "string") {
+      result[key] = "";
+    } else if (prop.type === "array") {
       result[key] = [];
     } else {
-      result[key] = '';
+      result[key] = "";
     }
   }
   return result;

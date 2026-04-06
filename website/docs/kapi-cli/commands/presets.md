@@ -23,12 +23,12 @@ Presets are pre-configured format and tool settings that simplify common operati
 Use the `-f` flag with the syntax `name[@version][:preset]` to select a specific
 format version and/or preset:
 
-| Reference | Version | Preset |
-|---|---|---|
-| `-f okf_openxml` | latest | default |
-| `-f okf_openxml@0.38` | 0.38 | default |
-| `-f okf_openxml:wellFormed` | latest | wellFormed |
-| `-f okf_openxml@0.38:wellFormed` | 0.38 | wellFormed |
+| Reference                        | Version | Preset     |
+| -------------------------------- | ------- | ---------- |
+| `-f okf_openxml`                 | latest  | default    |
+| `-f okf_openxml@0.38`            | 0.38    | default    |
+| `-f okf_openxml:wellFormed`      | latest  | wellFormed |
+| `-f okf_openxml@0.38:wellFormed` | 0.38    | wellFormed |
 
 ## Examples
 
@@ -48,7 +48,7 @@ kapi pseudo input.docx -f okf_openxml@0.38:wellFormed -o ./out/
 
 ## Subcommands
 
-| Command | Description |
-|---------|-------------|
-| `list` | List available presets |
+| Command       | Description                        |
+| ------------- | ---------------------------------- |
+| `list`        | List available presets             |
 | `show <name>` | Show detailed preset configuration |

@@ -9,13 +9,13 @@ neokapi integrates with external machine translation (MT) services as an alterna
 
 ## Supported Services
 
-| Service | Description |
-|---------|-------------|
-| **DeepL** | High-quality neural machine translation |
-| **Google Translate** | Google Cloud Translation API |
-| **Microsoft Translator** | Azure Cognitive Services |
-| **MyMemory** | Free translation memory API |
-| **ModernMT** | Adaptive machine translation |
+| Service                  | Description                             |
+| ------------------------ | --------------------------------------- |
+| **DeepL**                | High-quality neural machine translation |
+| **Google Translate**     | Google Cloud Translation API            |
+| **Microsoft Translator** | Azure Cognitive Services                |
+| **MyMemory**             | Free translation memory API             |
+| **ModernMT**             | Adaptive machine translation            |
 
 ## Configuration
 
@@ -25,7 +25,7 @@ Configure MT providers in `neokapi.yaml`:
 mt:
   deepl:
     apiKey: ${DEEPL_API_KEY}
-    formality: more    # less, more, default
+    formality: more # less, more, default
   google:
     apiKey: ${GOOGLE_TRANSLATE_API_KEY}
     project: my-project
@@ -46,12 +46,12 @@ The MT provider is selected based on your configuration.
 
 ## Comparison with AI Translation
 
-| Feature | MT Services | AI Translation |
-|---------|-------------|----------------|
-| Speed | Faster for bulk | Slower per segment |
-| Cost | Per-character pricing | Per-token pricing |
-| Quality | Consistent | Context-aware |
-| Customization | Limited | Full prompt control |
-| Offline | No | Yes (with Ollama) |
+| Feature       | MT Services           | AI Translation      |
+| ------------- | --------------------- | ------------------- |
+| Speed         | Faster for bulk       | Slower per segment  |
+| Cost          | Per-character pricing | Per-token pricing   |
+| Quality       | Consistent            | Context-aware       |
+| Customization | Limited               | Full prompt control |
+| Offline       | No                    | Yes (with Ollama)   |
 
 Both approaches can be combined in a flow: use MT services for bulk translation and AI for quality review.

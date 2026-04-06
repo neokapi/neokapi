@@ -11,15 +11,15 @@ Vocabularies are the semantic type system that drives format-independent inline 
 
 When neokapi parses a document, each inline code element (like `<b>`, `**`, or `{userName}`) is mapped to a **semantic type** from a vocabulary. This semantic type carries:
 
-| Layer | What it provides | Example |
-|---|---|---|
-| **Category** | Logical grouping | `"formatting"`, `"code"` |
-| **Label** | Human-readable name | `"Bold"`, `"Variable"` |
-| **HTML rendering** | Preview output | `<b>`, `</b>` |
-| **Display text** | Editor chip label | `[B]`, `[/B]` |
-| **Color scheme** | Visual styling | Blue for bold, orange for variables |
-| **Constraints** | Editing rules | Deletable, cloneable, reorderable |
-| **Text equivalent** | Plain text fallback | `"\n"` for line breaks |
+| Layer               | What it provides    | Example                             |
+| ------------------- | ------------------- | ----------------------------------- |
+| **Category**        | Logical grouping    | `"formatting"`, `"code"`            |
+| **Label**           | Human-readable name | `"Bold"`, `"Variable"`              |
+| **HTML rendering**  | Preview output      | `<b>`, `</b>`                       |
+| **Display text**    | Editor chip label   | `[B]`, `[/B]`                       |
+| **Color scheme**    | Visual styling      | Blue for bold, orange for variables |
+| **Constraints**     | Editing rules       | Deletable, cloneable, reorderable   |
+| **Text equivalent** | Plain text fallback | `"\n"` for line breaks              |
 
 Because `<b>` (HTML), `**` (Markdown), and `<w:b/>` (DOCX) all map to `fmt:bold`, translators see the same visual experience regardless of file format.
 
@@ -31,39 +31,39 @@ neokapi ships three vocabulary files. They form a layered system where each voca
 
 The foundational vocabulary with types used across all formats:
 
-| Type | Category | Label | Constraints |
-|---|---|---|---|
-| `fmt:bold` | formatting | Bold | Deletable, cloneable, reorderable |
-| `fmt:italic` | formatting | Italic | Deletable, cloneable, reorderable |
-| `fmt:underline` | formatting | Underline | Deletable, cloneable, reorderable |
-| `fmt:code` | formatting | Code | Deletable, cloneable, reorderable |
-| `link:hyperlink` | linking | Hyperlink | Deletable, cloneable, reorderable |
-| `media:image` | media | Image | Deletable, cloneable, reorderable |
-| `struct:break` | structure | Line Break | **Non-deletable, non-cloneable, non-reorderable** |
+| Type             | Category   | Label      | Constraints                                       |
+| ---------------- | ---------- | ---------- | ------------------------------------------------- |
+| `fmt:bold`       | formatting | Bold       | Deletable, cloneable, reorderable                 |
+| `fmt:italic`     | formatting | Italic     | Deletable, cloneable, reorderable                 |
+| `fmt:underline`  | formatting | Underline  | Deletable, cloneable, reorderable                 |
+| `fmt:code`       | formatting | Code       | Deletable, cloneable, reorderable                 |
+| `link:hyperlink` | linking    | Hyperlink  | Deletable, cloneable, reorderable                 |
+| `media:image`    | media      | Image      | Deletable, cloneable, reorderable                 |
+| `struct:break`   | structure  | Line Break | **Non-deletable, non-cloneable, non-reorderable** |
 
 ### rich-html (extends common-formatting)
 
 Additional types for HTML-rich content:
 
-| Type | Category | Label | Constraints |
-|---|---|---|---|
-| `fmt:strikethrough` | formatting | Strikethrough | Deletable, cloneable, reorderable |
-| `fmt:subscript` | formatting | Subscript | Deletable, cloneable, reorderable |
-| `fmt:superscript` | formatting | Superscript | Deletable, cloneable, reorderable |
-| `fmt:highlight` | formatting | Highlight | Deletable, cloneable, reorderable |
-| `struct:ruby` | structure | Ruby Annotation | **Non-deletable, non-cloneable, non-reorderable** |
-| `struct:footnote` | structure | Footnote | **Non-deletable, non-cloneable** |
+| Type                | Category   | Label           | Constraints                                       |
+| ------------------- | ---------- | --------------- | ------------------------------------------------- |
+| `fmt:strikethrough` | formatting | Strikethrough   | Deletable, cloneable, reorderable                 |
+| `fmt:subscript`     | formatting | Subscript       | Deletable, cloneable, reorderable                 |
+| `fmt:superscript`   | formatting | Superscript     | Deletable, cloneable, reorderable                 |
+| `fmt:highlight`     | formatting | Highlight       | Deletable, cloneable, reorderable                 |
+| `struct:ruby`       | structure  | Ruby Annotation | **Non-deletable, non-cloneable, non-reorderable** |
+| `struct:footnote`   | structure  | Footnote        | **Non-deletable, non-cloneable**                  |
 
 ### code-tokens (extends common-formatting)
 
 Types for code elements and i18n placeholders:
 
-| Type | Category | Label | Constraints |
-|---|---|---|---|
-| `code:variable` | code | Variable | **Non-deletable, non-cloneable**, reorderable |
-| `code:placeholder` | code | Placeholder | **Non-deletable, non-cloneable**, reorderable |
-| `code:function` | code | Function | **Non-deletable, non-cloneable, non-reorderable** |
-| `code:markup` | code | Markup | Deletable, cloneable, reorderable |
+| Type               | Category | Label       | Constraints                                       |
+| ------------------ | -------- | ----------- | ------------------------------------------------- |
+| `code:variable`    | code     | Variable    | **Non-deletable, non-cloneable**, reorderable     |
+| `code:placeholder` | code     | Placeholder | **Non-deletable, non-cloneable**, reorderable     |
+| `code:function`    | code     | Function    | **Non-deletable, non-cloneable, non-reorderable** |
+| `code:markup`      | code     | Markup      | Deletable, cloneable, reorderable                 |
 
 ## Vocabulary File Format
 
@@ -111,7 +111,11 @@ Each vocabulary is a JSON file with the following schema:
     "html": { "open": "<span>", "close": "</span>", "placeholder": "<span/>" },
     "display": { "open": "[?]", "close": "[/?]", "placeholder": "[?/]" },
     "chipLabel": { "open": "?>", "close": "/?", "placeholder": "?" },
-    "color": { "bg": "rgba(156,163,175,0.15)", "border": "rgba(156,163,175,0.5)", "text": "rgb(107,114,128)" },
+    "color": {
+      "bg": "rgba(156,163,175,0.15)",
+      "border": "rgba(156,163,175,0.5)",
+      "text": "rgb(107,114,128)"
+    },
     "constraints": { "deletable": true, "cloneable": true, "reorderable": true }
   }
 }
@@ -119,14 +123,14 @@ Each vocabulary is a JSON file with the following schema:
 
 ### Field Reference
 
-| Field | Required | Description |
-|---|---|---|
-| `name` | Yes | Unique vocabulary name |
-| `version` | Yes | Semver version string |
-| `extends` | No | Parent vocabulary name (types are merged) |
-| `entity_prefix` | No | Prefix for entity-type spans (default `"entity:"`) |
-| `types` | Yes | Map of type name → `SpanTypeInfo` |
-| `fallback` | No | Default rendering for unknown types |
+| Field           | Required | Description                                        |
+| --------------- | -------- | -------------------------------------------------- |
+| `name`          | Yes      | Unique vocabulary name                             |
+| `version`       | Yes      | Semver version string                              |
+| `extends`       | No       | Parent vocabulary name (types are merged)          |
+| `entity_prefix` | No       | Prefix for entity-type spans (default `"entity:"`) |
+| `types`         | Yes      | Map of type name → `SpanTypeInfo`                  |
+| `fallback`      | No       | Default rendering for unknown types                |
 
 ### Type Name Convention
 
@@ -139,10 +143,10 @@ Type names follow the `category:name` pattern:
 
 ### Constraint Semantics
 
-| Constraint | `true` | `false` |
-|---|---|---|
-| `deletable` | Translator may remove the tag | Tag must appear in translation (enforced) |
-| `cloneable` | Translator may duplicate the tag | Tag count must not exceed source count |
+| Constraint    | `true`                                | `false`                                   |
+| ------------- | ------------------------------------- | ----------------------------------------- |
+| `deletable`   | Translator may remove the tag         | Tag must appear in translation (enforced) |
+| `cloneable`   | Translator may duplicate the tag      | Tag count must not exceed source count    |
 | `reorderable` | Translator may rearrange tag position | Tag position relative to others is locked |
 
 ## Using Vocabularies in a Format Reader
@@ -235,12 +239,12 @@ var markdownSemanticTypes = map[string]string{
 
 The `SubType` field provides format-specific provenance using a prefix convention:
 
-| Prefix | Format | Examples |
-|---|---|---|
-| `html:` | HTML | `html:b`, `html:em`, `html:span` |
-| `md:` | Markdown | `md:strong`, `md:emphasis` |
-| `xlf:` | XLIFF 2.0 | `xlf:b`, `xlf:i`, `xlf:var` |
-| `docx:` | DOCX | `docx:w:b`, `docx:w:i` |
+| Prefix  | Format    | Examples                         |
+| ------- | --------- | -------------------------------- |
+| `html:` | HTML      | `html:b`, `html:em`, `html:span` |
+| `md:`   | Markdown  | `md:strong`, `md:emphasis`       |
+| `xlf:`  | XLIFF 2.0 | `xlf:b`, `xlf:i`, `xlf:var`      |
+| `docx:` | DOCX      | `docx:w:b`, `docx:w:i`           |
 
 Custom formats should use reverse-domain prefix: `com.acme:custom-tag`.
 
@@ -325,6 +329,7 @@ tool := tools.NewSpanClassifyTool(&tools.SpanClassifyConfig{})
 ```
 
 The tool applies classification strategies in order:
+
 1. Check `SubType` against known Okapi type strings
 2. Parse `Data` to extract HTML element name
 3. Look up element name in semantic type map
@@ -334,11 +339,11 @@ The tool applies classification strategies in order:
 
 Vocabularies enable format-independent TM matching through text projections:
 
-| Projection | Method | Use Case |
-|---|---|---|
-| **Generalized** | `Fragment.GeneralizedText()` | Maximum reuse — entities become typed placeholders |
-| **Structural** | `Fragment.StructuralText()` | Format-agnostic — inline codes become numbered placeholders |
-| **Plain** | `Fragment.Text()` | Exact text matching — markers stripped |
+| Projection      | Method                       | Use Case                                                    |
+| --------------- | ---------------------------- | ----------------------------------------------------------- |
+| **Generalized** | `Fragment.GeneralizedText()` | Maximum reuse — entities become typed placeholders          |
+| **Structural**  | `Fragment.StructuralText()`  | Format-agnostic — inline codes become numbered placeholders |
+| **Plain**       | `Fragment.Text()`            | Exact text matching — markers stripped                      |
 
 Because HTML `<b>Click</b>` and Markdown `**Click**` both produce `{1}Click{/1}` at the structural level, TM entries created from one format match sources in another format.
 
