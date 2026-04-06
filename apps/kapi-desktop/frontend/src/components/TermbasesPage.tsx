@@ -16,6 +16,7 @@ import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip } from "recharts"
 import { api } from "../hooks/useApi";
 import { useError } from "./ErrorBanner";
 import { useTermbaseAdapter } from "../hooks/useTermbaseAdapter";
+import { useLocales } from "../hooks/useLocales";
 import {
   TermbaseBrowser,
   ResourceCard,
@@ -65,6 +66,7 @@ export function TermbasesPage({
   const [localeList, setLocaleList] = useState<Array<{ locale: string; count: number }>>([]);
 
   const { showError } = useError();
+  const { getDisplayName } = useLocales();
   const activeHandle = projectHandle || handle;
   const adapter = useTermbaseAdapter(activeHandle);
 
@@ -283,7 +285,10 @@ export function TermbasesPage({
                 key: "locale",
                 label: "Language",
                 hint: "filter by term locale",
-                values: localeList.map((l) => ({ value: l.locale, label: l.locale })),
+                values: localeList.map((l) => ({
+                  value: l.locale,
+                  label: `${getDisplayName(l.locale)} (${l.locale})`,
+                })),
               });
             }
             fields.push({
