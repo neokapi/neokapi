@@ -15,6 +15,7 @@ import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip } from "recharts"
 import { api } from "../hooks/useApi";
 import { useError } from "./ErrorBanner";
 import { useTMAdapter } from "../hooks/useTMAdapter";
+import { useLocales } from "../hooks/useLocales";
 import { TMBrowser, ResourceCard, ImportProgress, type ResourceInfo } from "@neokapi/ui-primitives";
 
 export interface MemoriesPageProps {
@@ -61,6 +62,7 @@ export function MemoriesPage({
   >([]);
 
   const { showError } = useError();
+  const { getDisplayName } = useLocales();
   const activeHandle = projectHandle || handle;
   const adapter = useTMAdapter(activeHandle);
 
@@ -267,7 +269,10 @@ export function MemoriesPage({
                 key: "source",
                 label: "Source Language",
                 hint: "filter by source locale",
-                values: srcLocales.map((l) => ({ value: l, label: l })),
+                values: srcLocales.map((l) => ({
+                  value: l,
+                  label: `${getDisplayName(l)} (${l})`,
+                })),
               });
             }
             if (tgtLocales.length > 0) {
@@ -275,7 +280,10 @@ export function MemoriesPage({
                 key: "target",
                 label: "Target Language",
                 hint: "filter by target locale",
-                values: tgtLocales.map((l) => ({ value: l, label: l })),
+                values: tgtLocales.map((l) => ({
+                  value: l,
+                  label: `${getDisplayName(l)} (${l})`,
+                })),
               });
             }
             return fields;
@@ -283,7 +291,7 @@ export function MemoriesPage({
           filterPresets={(() => {
             const tgtLocales = [...new Set(localePairs.map((p) => p.target_locale))];
             return tgtLocales.slice(0, 3).map((l) => ({
-              label: l,
+              label: `${getDisplayName(l)} (${l})`,
               filters: [{ key: "target", value: l }],
             }));
           })()}
