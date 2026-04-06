@@ -91,7 +91,7 @@ export function FilterBar({
   placeholder = "Search...",
 }: FilterBarProps) {
   const inputRef = useRef<HTMLInputElement>(null);
-  const [inputValue, setInputValue] = useState("");
+  const [inputValue, setInputValue] = useState(search);
   const containerRef = useRef<HTMLDivElement>(null);
 
   // Inline autocomplete for key:value typing and filter key hints
@@ -202,9 +202,12 @@ export function FilterBar({
           return;
         }
         const { tokens, freeText } = parseInput(inputValue, knownKeys);
-        if (tokens.length > 0) onFiltersChange([...filters, ...tokens]);
+        if (tokens.length > 0) {
+          onFiltersChange([...filters, ...tokens]);
+          // Keep only the free text part in the input after extracting tokens.
+          setInputValue(freeText);
+        }
         onSearchChange(freeText);
-        setInputValue("");
         setShowAutocomplete(false);
       } else if (e.key === "Backspace" && inputValue === "" && filters.length > 0) {
         onFiltersChange(filters.slice(0, -1));
@@ -453,21 +456,6 @@ export function FilterBar({
             </Badge>
           ))}
 
-          {search && (
-            <Badge variant="outline" className="gap-1 pl-1.5 pr-1 py-0 text-[11px] shrink-0">
-              {search}
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onSearchChange("");
-                }}
-                className="ml-0.5 p-0 bg-transparent border-none cursor-pointer text-muted-foreground hover:text-foreground transition-colors"
-              >
-                <X className="w-3 h-3" />
-              </button>
-            </Badge>
-          )}
-
           <input
             ref={inputRef}
             type="text"
@@ -479,7 +467,7 @@ export function FilterBar({
               setShowAutocomplete(true);
             }}
             onBlur={() => setInputFocused(false)}
-            placeholder={filters.length === 0 && !search ? placeholder : ""}
+            placeholder={filters.length === 0 && !inputValue ? placeholder : ""}
             className="flex-1 min-w-[120px] bg-transparent border-none outline-none text-sm text-foreground placeholder:text-muted-foreground"
           />
         </div>
