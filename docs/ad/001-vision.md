@@ -3,6 +3,7 @@ id: 001-vision
 sidebar_position: 1
 title: "AD-001: Vision — The Open Localization Platform"
 ---
+
 # AD-001: Vision — The Open Localization Platform
 
 ## Vision
@@ -30,6 +31,7 @@ database, no server, no authentication. Bowrain depends on neokapi but not
 the reverse.
 
 Two CLIs demonstrate this separation:
+
 - **Kapi** (`kapi` binary) — standalone file-processing tool that demonstrates
   neokapi's capabilities. No project directory, no server, no sync. Processes
   files directly.
@@ -94,14 +96,14 @@ Two CLIs demonstrate this separation:
 The content model ([AD-002](./002-content-model.md)) uses the following
 core types:
 
-| Concept | Description |
-|---|---|
-| Part | Fundamental streaming unit with a PartType discriminator |
-| Layer | Structural grouping (document, section, embedded content) |
-| Block | Translatable content with source and target segments per locale |
-| Fragment | Text with inline Spans using coded text markers |
-| Data | Non-translatable structure |
-| Media | Binary content |
+| Concept  | Description                                                     |
+| -------- | --------------------------------------------------------------- |
+| Part     | Fundamental streaming unit with a PartType discriminator        |
+| Layer    | Structural grouping (document, section, embedded content)       |
+| Block    | Translatable content with source and target segments per locale |
+| Fragment | Text with inline Spans using coded text markers                 |
+| Data     | Non-translatable structure                                      |
+| Media    | Binary content                                                  |
 
 Parts flow through a channel-based pipeline
 ([AD-004](./004-processing-engine.md)) where each tool runs in its own
@@ -180,6 +182,7 @@ website/           Docusaurus 3 documentation site
 ```
 
 **Dependency boundaries:**
+
 - Framework has zero platform dependencies (no SQLite, Wails, Echo, Cobra, OIDC)
 - CLI depends on framework only
 - Platform depends on framework only (no CLI dependency)
@@ -225,14 +228,14 @@ Bowrain's searchable locale selector dropdowns.
 
 All subsystems validate locale codes at their boundaries:
 
-| Subsystem | Validation point |
-|---|---|
-| CLI flags (`--source-lang`, `--target-lang`) | Cobra argument parsing |
-| Project config ([AD-016](./016-kapi-project-model.md)) | Project initialization |
-| TM entries ([AD-009](./009-translation-memory.md)) | Entry insert/query |
-| Terminology ([AD-010](./010-terminology.md)) | Term creation |
-| Bowrain project creation ([AD-012](./012-bowrain.md)) | Locale selector component |
-| Format readers/writers | Source/target language properties |
+| Subsystem                                              | Validation point                  |
+| ------------------------------------------------------ | --------------------------------- |
+| CLI flags (`--source-lang`, `--target-lang`)           | Cobra argument parsing            |
+| Project config ([AD-016](./016-kapi-project-model.md)) | Project initialization            |
+| TM entries ([AD-009](./009-translation-memory.md))     | Entry insert/query                |
+| Terminology ([AD-010](./010-terminology.md))           | Term creation                     |
+| Bowrain project creation ([AD-012](./012-bowrain.md))  | Locale selector component         |
+| Format readers/writers                                 | Source/target language properties |
 
 ## Alternatives Considered
 

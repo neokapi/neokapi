@@ -7,7 +7,7 @@ import (
 
 // BOMConvertConfig holds configuration for the BOM conversion tool.
 type BOMConvertConfig struct {
-	AddBOM      bool `schema:"title=Add BOM,description=When true the Unicode BOM is added; when false it is removed"`     // true = ensure BOM is present, false = remove BOM
+	AddBOM      bool `schema:"title=Add BOM,description=When true the Unicode BOM is added; when false it is removed"`         // true = ensure BOM is present, false = remove BOM
 	AlsoNonUTF8 bool `schema:"title=Remove UTF-16 BOMs Also,description=Also remove the BOM from UTF-16 files not just UTF-8"` // Also handle UTF-16 BOMs
 }
 

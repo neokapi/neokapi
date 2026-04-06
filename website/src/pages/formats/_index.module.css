@@ -115,12 +115,12 @@
   color: #4f46e5;
 }
 
-[data-theme='dark'] .capReader {
+[data-theme="dark"] .capReader {
   background: color-mix(in srgb, var(--ifm-color-primary) 20%, transparent);
   color: var(--ifm-color-primary-lighter);
 }
 
-[data-theme='dark'] .capWriter {
+[data-theme="dark"] .capWriter {
   background: color-mix(in srgb, #818cf8 20%, transparent);
   color: #a5b4fc;
 }

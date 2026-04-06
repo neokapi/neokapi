@@ -3,14 +3,7 @@ import { z } from "zod";
 const OverlaySchema = z.object({
   text: z.string(),
   position: z
-    .enum([
-      "top-left",
-      "top-center",
-      "top-right",
-      "bottom-left",
-      "bottom-center",
-      "bottom-right",
-    ])
+    .enum(["top-left", "top-center", "top-right", "bottom-left", "bottom-center", "bottom-right"])
     .default("bottom-center"),
   startAt: z.number().default(0),
   duration: z.number().default(3),
@@ -32,16 +25,12 @@ const TitleCardScene = z.object({
   duration: z.number(),
   heading: z.string(),
   subheading: z.string().optional(),
-  style: z
-    .enum(["branded", "minimal", "dark", "light"])
-    .default("branded"),
+  style: z.enum(["branded", "minimal", "dark", "light"]).default("branded"),
 });
 
 const TransitionScene = z.object({
   type: z.literal("transition"),
-  effect: z
-    .enum(["crossfade", "fade-black", "wipe-left"])
-    .default("crossfade"),
+  effect: z.enum(["crossfade", "fade-black", "wipe-left"]).default("crossfade"),
   duration: z.number().default(0.5),
 });
 
@@ -55,11 +44,7 @@ const RecordingScene = z.object({
   overlays: z.array(OverlaySchema).optional(),
 });
 
-const SceneSchema = z.discriminatedUnion("type", [
-  TitleCardScene,
-  TransitionScene,
-  RecordingScene,
-]);
+const SceneSchema = z.discriminatedUnion("type", [TitleCardScene, TransitionScene, RecordingScene]);
 
 const BrandingSchema = z.object({
   logo: z.string().default("logo.png"),

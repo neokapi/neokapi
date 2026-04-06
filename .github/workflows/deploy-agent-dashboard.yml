@@ -4,7 +4,7 @@ on:
   push:
     branches: [main]
     paths:
-      - 'bowrain/agentic-testing/dashboard/**'
+      - "bowrain/agentic-testing/dashboard/**"
   workflow_dispatch:
 
 permissions:

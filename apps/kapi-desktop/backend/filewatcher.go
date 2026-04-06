@@ -17,8 +17,8 @@ type fileWatcher struct {
 	app    *App
 	tabID  string
 	dir    string
-	stop    chan struct{}
-	stopFn  func()
+	stop   chan struct{}
+	stopFn func()
 	ticker *time.Ticker
 	// snapshot of relative paths → modtime for change detection
 	snapshot map[string]time.Time

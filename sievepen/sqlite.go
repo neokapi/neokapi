@@ -616,7 +616,7 @@ func (tm *SQLiteTM) LocalePairStats() []LocalePairStat {
 
 // ActivityStat holds the entry count for a date bucket.
 type ActivityStat struct {
-	Date  string `json:"date"`  // YYYY-MM-DD
+	Date  string `json:"date"` // YYYY-MM-DD
 	Count int    `json:"count"`
 }
 

@@ -108,11 +108,7 @@ export const DigestEmail = ({
                 {group.items.map((item, idx) => (
                   <Section
                     key={idx}
-                    style={
-                      item.priority === "high"
-                        ? { ...itemRow, ...itemHighPriority }
-                        : itemRow
-                    }
+                    style={item.priority === "high" ? { ...itemRow, ...itemHighPriority } : itemRow}
                   >
                     <Text style={itemTitle}>{item.title}</Text>
                     <Text style={itemBody}>{item.body}</Text>

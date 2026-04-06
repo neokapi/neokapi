@@ -209,12 +209,12 @@ DataFormatReader.Read(ctx) -> chan PartResult
 
 ## Terminology Mapping from Okapi
 
-| Okapi (Java)               | neokapi (Go)                |
-|----------------------------|----------------------------|
-| Filter                     | DataFormat (Reader/Writer)  |
+| Okapi (Java)               | neokapi (Go)               |
+| -------------------------- | -------------------------- |
+| Filter                     | DataFormat (Reader/Writer) |
 | Step                       | Tool                       |
 | Pipeline                   | Flow                       |
-| PipelineDriver             | Executor               |
+| PipelineDriver             | Executor                   |
 | Event                      | Part                       |
 | TextUnit                   | Block                      |
 | TextFragment               | Fragment                   |
@@ -263,11 +263,11 @@ type StreamingLLMProvider interface {
 
 ## Build and Distribution
 
-| Channel | Target | Command |
-|---------|--------|---------|
-| Homebrew formula | kapi CLI | `brew install neokapi/tap/kapi` |
-| GitHub Releases | All platforms | Direct download |
-| Go install | Go developers | `go install github.com/neokapi/neokapi/kapi/cmd/kapi@latest` |
+| Channel          | Target        | Command                                                      |
+| ---------------- | ------------- | ------------------------------------------------------------ |
+| Homebrew formula | kapi CLI      | `brew install neokapi/tap/kapi`                              |
+| GitHub Releases  | All platforms | Direct download                                              |
+| Go install       | Go developers | `go install github.com/neokapi/neokapi/kapi/cmd/kapi@latest` |
 
 CI/CD runs via GitHub Actions: `ci.yml` (test, vet, lint, build on every
 push) and `release.yml` (GoReleaser on tag push).

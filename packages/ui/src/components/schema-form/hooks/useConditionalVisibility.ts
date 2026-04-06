@@ -8,8 +8,10 @@ export function evaluateCondition(
   if (!condition) return true;
   if (!values) return true;
 
-  if ("all" in condition) return condition.all.every((c) => evaluateCondition(c, values, properties));
-  if ("any" in condition) return condition.any.some((c) => evaluateCondition(c, values, properties));
+  if ("all" in condition)
+    return condition.all.every((c) => evaluateCondition(c, values, properties));
+  if ("any" in condition)
+    return condition.any.some((c) => evaluateCondition(c, values, properties));
   if ("not" in condition) return !evaluateCondition(condition.not, values, properties);
 
   if ("empty" in condition) {

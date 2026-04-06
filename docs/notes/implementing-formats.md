@@ -2,6 +2,7 @@
 sidebar_position: 15
 title: Implementing Formats
 ---
+
 # Implementing Formats
 
 Step-by-step guide for implementing new neokapi format readers/writers or
@@ -10,18 +11,18 @@ migrating existing Okapi filters. Parent AD:
 
 ## Terminology Mapping from Okapi
 
-| Okapi (Java) | neokapi (Go) |
-|---|---|
-| Filter | DataFormat (Reader/Writer) |
-| Step | Tool |
-| Pipeline | Flow |
-| PipelineDriver | Executor |
-| Event | Part |
-| TextUnit | Block |
-| TextFragment | Fragment |
-| Code | Span |
-| StartDocument / EndDocument | Layer (root) |
-| StartSubDocument / StartSubFilter | Child Layer |
+| Okapi (Java)                      | neokapi (Go)               |
+| --------------------------------- | -------------------------- |
+| Filter                            | DataFormat (Reader/Writer) |
+| Step                              | Tool                       |
+| Pipeline                          | Flow                       |
+| PipelineDriver                    | Executor                   |
+| Event                             | Part                       |
+| TextUnit                          | Block                      |
+| TextFragment                      | Fragment                   |
+| Code                              | Span                       |
+| StartDocument / EndDocument       | Layer (root)               |
+| StartSubDocument / StartSubFilter | Child Layer                |
 
 ## File Structure
 
@@ -341,14 +342,14 @@ produces ~101 entries instead of ~10,000.
 
 ### What Goes Where
 
-| Content | Skeleton | Block |
-|---------|----------|-------|
-| Structural tokens (`\{`, `}`, `[`, `]`, `,`, `:`) | Text | -- |
-| Whitespace, comments, formatting | Text | -- |
-| Non-translatable values | Text | -- |
-| Object keys | Text | -- |
-| Translatable string values | Ref (block ID) | Source text |
-| Embedded/subfiltered content | Ref (`layer:<path>`) | Child layer |
+| Content                                           | Skeleton             | Block       |
+| ------------------------------------------------- | -------------------- | ----------- |
+| Structural tokens (`\{`, `}`, `[`, `]`, `,`, `:`) | Text                 | --          |
+| Whitespace, comments, formatting                  | Text                 | --          |
+| Non-translatable values                           | Text                 | --          |
+| Object keys                                       | Text                 | --          |
+| Translatable string values                        | Ref (block ID)       | Source text |
+| Embedded/subfiltered content                      | Ref (`layer:<path>`) | Child layer |
 
 The skeleton ref replaces the **entire encoded value** (e.g., including JSON
 quotes), and the writer is responsible for re-encoding the block text in the
@@ -460,22 +461,22 @@ When migrating an Okapi filter, port its test inventory:
 
 Okapi test patterns map to neokapi as:
 
-| Okapi Pattern | neokapi Equivalent |
-|---|---|
-| `testRoundTrip(input)` | `roundtrip(t, input)` / `roundtripWithSkeleton(t, input)` |
-| `testExtraction(input, events)` | Read + assert block count, text, properties |
-| `testOutput(input, gold)` | Read + write + compare against expected output |
-| `testDoubleExtraction(input)` | Read, write, read again, compare blocks |
+| Okapi Pattern                   | neokapi Equivalent                                        |
+| ------------------------------- | --------------------------------------------------------- |
+| `testRoundTrip(input)`          | `roundtrip(t, input)` / `roundtripWithSkeleton(t, input)` |
+| `testExtraction(input, events)` | Read + assert block count, text, properties               |
+| `testOutput(input, gold)`       | Read + write + compare against expected output            |
+| `testDoubleExtraction(input)`   | Read, write, read again, compare blocks                   |
 
 ## Reference Implementations
 
-| Format | Best for learning | Key patterns |
-|--------|-------------------|--------------|
-| **JSON** (`core/formats/json/`) | Key-value formats, regex-based config, subfilter support | Token walking, coalescing skeleton, 3-mode writer fallback, extensive config |
-| **HTML** (`core/formats/html/`) | Markup/streaming formats, tokenizer-based parsing | Tokenizer dispatch, inline spans, skeleton store |
-| **Plaintext** (`core/formats/plaintext/`) | Minimal format, starting point | Simplest possible reader/writer |
-| **XLIFF** (`core/formats/xliff/`) | Bilingual exchange formats | Per-block skeletons (not SkeletonStore), segment handling |
-| **Properties** (`core/formats/properties/`) | Line-oriented key-value formats | Line parsing, escape handling |
+| Format                                      | Best for learning                                        | Key patterns                                                                 |
+| ------------------------------------------- | -------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| **JSON** (`core/formats/json/`)             | Key-value formats, regex-based config, subfilter support | Token walking, coalescing skeleton, 3-mode writer fallback, extensive config |
+| **HTML** (`core/formats/html/`)             | Markup/streaming formats, tokenizer-based parsing        | Tokenizer dispatch, inline spans, skeleton store                             |
+| **Plaintext** (`core/formats/plaintext/`)   | Minimal format, starting point                           | Simplest possible reader/writer                                              |
+| **XLIFF** (`core/formats/xliff/`)           | Bilingual exchange formats                               | Per-block skeletons (not SkeletonStore), segment handling                    |
+| **Properties** (`core/formats/properties/`) | Line-oriented key-value formats                          | Line parsing, escape handling                                                |
 
 ## Checklist
 

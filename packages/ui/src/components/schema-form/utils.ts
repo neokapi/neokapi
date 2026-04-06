@@ -10,8 +10,5 @@ export function resolveRef(schema: PropertySchema): PropertySchema | undefined {
 
 /** Check if schema declares additionalProperties. */
 export function hasAdditionalProperties(schema: PropertySchema): boolean {
-  return (
-    schema.additionalProperties !== undefined &&
-    schema.additionalProperties !== false
-  );
+  return schema.additionalProperties !== undefined && schema.additionalProperties !== false;
 }

@@ -387,10 +387,10 @@ func TestAITranslateBatchMode(t *testing.T) {
 	}
 
 	tool := tools.NewAITranslateTool(mock, tools.AITranslateConfig{
-		SourceLocale: model.LocaleEnglish,
-		TargetLocale: model.LocaleFrench,
-		BatchSize:    10,
-		BatchConcurrency:  2,
+		SourceLocale:     model.LocaleEnglish,
+		TargetLocale:     model.LocaleFrench,
+		BatchSize:        10,
+		BatchConcurrency: 2,
 	})
 
 	ctx := t.Context()
@@ -440,10 +440,10 @@ func TestAITranslateBatchSplitsIntoBatches(t *testing.T) {
 	}
 
 	tool := tools.NewAITranslateTool(mock, tools.AITranslateConfig{
-		SourceLocale: model.LocaleEnglish,
-		TargetLocale: model.LocaleFrench,
-		BatchSize:    2, // 5 blocks → 3 batches (2+2+1)
-		BatchConcurrency:  3,
+		SourceLocale:     model.LocaleEnglish,
+		TargetLocale:     model.LocaleFrench,
+		BatchSize:        2, // 5 blocks → 3 batches (2+2+1)
+		BatchConcurrency: 3,
 	})
 
 	ctx := t.Context()
@@ -487,10 +487,10 @@ func TestAITranslateBatchPreservesNonBlockParts(t *testing.T) {
 	}
 
 	tool := tools.NewAITranslateTool(mock, tools.AITranslateConfig{
-		SourceLocale: model.LocaleEnglish,
-		TargetLocale: model.LocaleFrench,
-		BatchSize:    10,
-		BatchConcurrency:  2,
+		SourceLocale:     model.LocaleEnglish,
+		TargetLocale:     model.LocaleFrench,
+		BatchSize:        10,
+		BatchConcurrency: 2,
 	})
 
 	ctx := t.Context()
@@ -532,10 +532,10 @@ func TestAITranslateBatchSkipsNonTranslatable(t *testing.T) {
 	// No ChatStructured call expected.
 
 	tool := tools.NewAITranslateTool(mock, tools.AITranslateConfig{
-		SourceLocale: model.LocaleEnglish,
-		TargetLocale: model.LocaleFrench,
-		BatchSize:    10,
-		BatchConcurrency:  1,
+		SourceLocale:     model.LocaleEnglish,
+		TargetLocale:     model.LocaleFrench,
+		BatchSize:        10,
+		BatchConcurrency: 1,
 	})
 
 	ctx := t.Context()
@@ -583,10 +583,10 @@ func TestAITranslateBatchStructuredSchema(t *testing.T) {
 	}
 
 	tool := tools.NewAITranslateTool(mock, tools.AITranslateConfig{
-		SourceLocale: model.LocaleEnglish,
-		TargetLocale: "es",
-		BatchSize:    10,
-		BatchConcurrency:  1,
+		SourceLocale:     model.LocaleEnglish,
+		TargetLocale:     "es",
+		BatchSize:        10,
+		BatchConcurrency: 1,
 	})
 
 	ctx := t.Context()

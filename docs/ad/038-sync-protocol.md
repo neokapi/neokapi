@@ -3,6 +3,7 @@ id: 038-sync-protocol
 sidebar_position: 38
 title: "AD-038: Sync Protocol — Chunked, Resumable, Direct-to-Storage"
 ---
+
 # AD-038: Sync Protocol — Chunked, Resumable, Direct-to-Storage
 
 ## Context
@@ -68,11 +69,11 @@ Project root hash
 
 **Scaling:**
 
-| Project size | Items | Init request | Diff requests |
-|---|---|---|---|
-| 1K blocks | 5 items | 5 hashes (~500B) | 0-2 item diffs |
-| 10K blocks | 20 items | 20 hashes (~2KB) | 0-5 item diffs |
-| 100K blocks | 100 items | 100 hashes (~10KB) | 0-10 item diffs |
+| Project size | Items     | Init request       | Diff requests   |
+| ------------ | --------- | ------------------ | --------------- |
+| 1K blocks    | 5 items   | 5 hashes (~500B)   | 0-2 item diffs  |
+| 10K blocks   | 20 items  | 20 hashes (~2KB)   | 0-5 item diffs  |
+| 100K blocks  | 100 items | 100 hashes (~10KB) | 0-10 item diffs |
 
 The init request is always small (item count, not block count). Block-level comparison only happens for changed items.
 
@@ -318,6 +319,7 @@ Pull:
 ```
 
 **Transport modes**: The init response includes a `transport` field:
+
 - `"direct"` — SAS URLs for Azure Blob (production)
 - `"proxy"` — upload through the API server (local dev, self-hosted)
 
@@ -344,6 +346,7 @@ Chunks are sealed by **byte size**, not record count:
 ### Upload budget enforcement
 
 SAS URLs are generated with constraints:
+
 - `Content-Length` limit per chunk (2x target chunk size as headroom)
 - Total upload budget per push (project storage quota)
 - Server validates total bytes on commit against the budget
@@ -352,6 +355,7 @@ SAS URLs are generated with constraints:
 ### Hash caching
 
 Project content hashes are cached in Redis for fast diff computation:
+
 - Key: `sync:hashes:{project_id}:{item_name}` → hash map of block_id:content_hash
 - Key: `sync:item_hashes:{project_id}` → hash map of item_name:item_hash
 - Invalidated on block write (event-driven)
@@ -399,6 +403,7 @@ publishEventPushCompleted(manifest)
 ## Implementation
 
 ### Phase 1: Protobuf contract
+
 - Define all message types in `platform/proto/v1/sync.proto`
 - Generate Go code
 - Block ↔ SyncBlock converters with content_hash computation
@@ -406,6 +411,7 @@ publishEventPushCompleted(manifest)
 - Merkle tree hash computation (item-level from block hashes)
 
 ### Phase 2: Diff engine
+
 - Server-side Merkle tree comparison (item-level, then block-level)
 - Root hash fast path
 - Conflict detection (expected_hash mismatch)
@@ -413,6 +419,7 @@ publishEventPushCompleted(manifest)
 - Fallback to PG on cache miss
 
 ### Phase 3: Chunked upload infrastructure
+
 - Extend `BlobStore` with `StageChunk`/`CommitUpload`
 - Azure implementation (Block Blob StageBlock + CommitBlockList)
 - Local filesystem implementation
@@ -420,28 +427,33 @@ publishEventPushCompleted(manifest)
 - Proxy upload endpoint for non-Azure deployments
 
 ### Phase 4: Push endpoints + worker
+
 - `POST /sync/push/init` — Merkle diff, return changed items
 - `POST /sync/push/diff` — block-level diff per item, return needed IDs + chunk URLs
 - `POST /sync/push/commit` — validate manifest, check budget, enqueue worker
 - Worker: download chunks, decompress, route by type, store, invalidate cache
 
 ### Phase 5: zstd compression
+
 - Train dictionary on representative payloads
 - `core/compression/` package with encoder/decoder pool
 - Apply to chunk serialization + pull responses
 
 ### Phase 6: Client + CLI
+
 - `BowrainClient`: `PushInit` (Merkle hashes), `PushDiff`, `UploadChunks`, `PushCommit`
 - bowrain CLI: local Merkle tree computation from `.bowrain/` project
 - bowrain CLI: byte-size-based chunking with parallel upload, progress bar
 - bowrain CLI: conflict reporting (`bowrain push` shows conflicts, `--force` to overwrite)
 
 ### Phase 7: Pull
+
 - Rich pull with full SyncBlock + SyncTerm + SyncMedia model
 - zstd-compressed responses
 - Cursor pagination
 
 ### Phase 8: Remove v1
+
 - Delete old sync endpoints, types, detectFormat
 - Clean dev DB reset
 

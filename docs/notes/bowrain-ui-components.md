@@ -2,6 +2,7 @@
 sidebar_position: 6
 title: "Bowrain UI Components"
 ---
+
 # Bowrain UI Components
 
 This note provides implementation details for [AD-012](/docs/ad/012-bowrain).

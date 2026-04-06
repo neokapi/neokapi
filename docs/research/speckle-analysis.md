@@ -62,6 +62,7 @@ Base
 ```
 
 **Key design decisions:**
+
 - **Hybrid typed/dynamic**: Inherits from C# `DynamicObject` — strongly typed when needed, falls back to dynamic properties. This means any data can flow through the system even without a pre-defined schema.
 - **Immutable hashing**: Every object gets a content-based hash ID. Changes create new objects (Git-like semantics).
 - **Detachable references**: The `@`-prefix on property names stores objects as references instead of nested copies, enabling deduplication.
@@ -75,6 +76,7 @@ A **Kit** is Speckle's unit of interoperability. It bundles:
 2. **Converters** — translation routines to/from native application formats
 
 The default "Objects Kit" provides:
+
 - **Geometry layer**: Point, Line, Curve, Mesh, Surface, Brep — the basic building blocks
 - **BuiltElements layer**: Wall, Floor, Beam, Room, Duct — domain-specific objects that compose geometry
 - **Application extensions**: `Objects.BuiltElements.Revit` adds Revit-specific properties to generic elements
@@ -91,6 +93,7 @@ Unlike traditional file-based exchange, Speckle **connectors** are plugins that 
 ```
 
 Each connector implements:
+
 - `ConvertToSpeckle()` — native objects → Speckle Base objects
 - `ConvertToNative()` — Speckle Base objects → native objects
 - Selection UI for choosing what to send/receive
@@ -102,13 +105,13 @@ Each connector implements:
 
 Speckle abstracts storage through **transports**:
 
-| Transport | Use Case |
-|-----------|----------|
-| SQLite | Local cache, offline work |
-| Server | Cloud storage, collaboration |
-| Memory | Testing, temporary processing |
-| MongoDB | Alternative backend |
-| Disk | File-based persistence |
+| Transport | Use Case                      |
+| --------- | ----------------------------- |
+| SQLite    | Local cache, offline work     |
+| Server    | Cloud storage, collaboration  |
+| Memory    | Testing, temporary processing |
+| MongoDB   | Alternative backend           |
+| Disk      | File-based persistence        |
 
 Writes can happen **in parallel to multiple transports** — e.g., local cache + remote server simultaneously. This decouples the data platform from any single storage backend.
 
@@ -174,20 +177,20 @@ HashiCorp go-plugin + gRPC for external format readers/writers and tools, includ
 
 ## 4. Architectural Comparison
 
-| Concept | Speckle (AEC) | Neokapi (Localization) | Gap? |
-|---------|--------------|----------------------|------|
-| **Fundamental unit** | Base object (dynamic + typed) | Part (typed enum + Resource interface) | Moderate |
-| **Schema/model** | Kit (hot-swappable, BYO) | Fixed model (Part/Block/Fragment) | **Significant** |
-| **Format reading** | Connector (lives in host app) | DataFormatReader (reads files) | **Significant** |
-| **Format writing** | Connector (writes to host app) | DataFormatWriter (writes files) | **Significant** |
-| **Conversion layer** | Kit converters (bidirectional) | Reader/Writer (tightly coupled) | Moderate |
-| **Processing** | Speckle Automate (serverless) | Executor (goroutine pipeline) | Moderate |
-| **Persistence** | Transport layer (multi-backend) | None (streaming only) | **Significant** |
-| **Versioning** | Git-like object graph | None | **Significant** |
-| **Collaboration** | Real-time, multi-user | None | **Significant** |
-| **Inline formatting** | displayValue (mesh fallback) | Coded text (PUA markers) | Comparable |
-| **Extensibility** | Custom kits, dynamic props | Plugin system (gRPC) | Moderate |
-| **Standards support** | IFC import (but not central) | XLIFF read/write (first-class) | Comparable |
+| Concept               | Speckle (AEC)                   | Neokapi (Localization)                 | Gap?            |
+| --------------------- | ------------------------------- | -------------------------------------- | --------------- |
+| **Fundamental unit**  | Base object (dynamic + typed)   | Part (typed enum + Resource interface) | Moderate        |
+| **Schema/model**      | Kit (hot-swappable, BYO)        | Fixed model (Part/Block/Fragment)      | **Significant** |
+| **Format reading**    | Connector (lives in host app)   | DataFormatReader (reads files)         | **Significant** |
+| **Format writing**    | Connector (writes to host app)  | DataFormatWriter (writes files)        | **Significant** |
+| **Conversion layer**  | Kit converters (bidirectional)  | Reader/Writer (tightly coupled)        | Moderate        |
+| **Processing**        | Speckle Automate (serverless)   | Executor (goroutine pipeline)          | Moderate        |
+| **Persistence**       | Transport layer (multi-backend) | None (streaming only)                  | **Significant** |
+| **Versioning**        | Git-like object graph           | None                                   | **Significant** |
+| **Collaboration**     | Real-time, multi-user           | None                                   | **Significant** |
+| **Inline formatting** | displayValue (mesh fallback)    | Coded text (PUA markers)               | Comparable      |
+| **Extensibility**     | Custom kits, dynamic props      | Plugin system (gRPC)                   | Moderate        |
+| **Standards support** | IFC import (but not central)    | XLIFF read/write (first-class)         | Comparable      |
 
 ---
 
@@ -199,18 +202,18 @@ HashiCorp go-plugin + gRPC for external format readers/writers and tools, includ
 
 **For Neokapi**: The current format system (DataFormatReader/Writer) is file-centric. But much of the world's translatable content doesn't live in files:
 
-| System Category | Examples | Integration Model |
-|----------------|----------|-------------------|
-| **CMS platforms** | WordPress, Drupal, Contentful, Strapi, Sanity | REST/GraphQL API connectors |
-| **Design tools** | Figma, Sketch, Adobe XD | Plugin APIs |
-| **Code repos** | GitHub, GitLab, Bitbucket | Git API + file format detection |
-| **Marketing platforms** | HubSpot, Marketo, Salesforce | REST API connectors |
-| **Documentation** | Confluence, Notion, Google Docs | REST/API connectors |
-| **E-commerce** | Shopify, Magento, WooCommerce | REST API connectors |
-| **Help centers** | Zendesk, Intercom, Freshdesk | REST API connectors |
-| **Game engines** | Unity, Unreal | Plugin APIs |
-| **Mobile apps** | App Store Connect, Google Play Console | API connectors |
-| **Subtitle platforms** | YouTube Studio, Vimeo | API connectors |
+| System Category         | Examples                                      | Integration Model               |
+| ----------------------- | --------------------------------------------- | ------------------------------- |
+| **CMS platforms**       | WordPress, Drupal, Contentful, Strapi, Sanity | REST/GraphQL API connectors     |
+| **Design tools**        | Figma, Sketch, Adobe XD                       | Plugin APIs                     |
+| **Code repos**          | GitHub, GitLab, Bitbucket                     | Git API + file format detection |
+| **Marketing platforms** | HubSpot, Marketo, Salesforce                  | REST API connectors             |
+| **Documentation**       | Confluence, Notion, Google Docs               | REST/API connectors             |
+| **E-commerce**          | Shopify, Magento, WooCommerce                 | REST API connectors             |
+| **Help centers**        | Zendesk, Intercom, Freshdesk                  | REST API connectors             |
+| **Game engines**        | Unity, Unreal                                 | Plugin APIs                     |
+| **Mobile apps**         | App Store Connect, Google Play Console        | API connectors                  |
+| **Subtitle platforms**  | YouTube Studio, Vimeo                         | API connectors                  |
 
 **Recommendation**: Introduce a **Connector interface** distinct from `DataFormatReader`/`DataFormatWriter`:
 
@@ -262,6 +265,7 @@ type Store interface {
 ```
 
 Implementations could include:
+
 - **SQLite Store** — local persistence (like Speckle's SQLite transport)
 - **Server Store** — cloud storage via the bowrain-server REST API
 - **Memory Store** — for testing and temporary pipelines
@@ -299,14 +303,14 @@ Additionally, consider a concept like Speckle's `displayValue` — a **canonical
 
 **Recommendation**: Consider introducing **Format Families** — groups of formats that share common patterns:
 
-| Family | Shared Patterns | Member Formats |
-|--------|----------------|----------------|
-| **Markup** | Tag-based structure, inline elements, attributes | HTML, XML, DITA, XHTML |
-| **Structured Data** | Key-value hierarchies, arrays, nested objects | JSON, YAML, Properties, TOML |
-| **Bilingual** | Source/target pairs, translation units, metadata | XLIFF, XLIFF2, PO, TMX, TBX |
-| **Subtitle** | Timed text, cue sequences, styling | SRT, VTT, TTML, DFXP |
-| **Rich Text** | Paragraphs, inline formatting, references | Markdown, reStructuredText, AsciiDoc |
-| **Binary Document** | Embedded content, styles, structure | DOCX, PPTX, IDML, PDF |
+| Family              | Shared Patterns                                  | Member Formats                       |
+| ------------------- | ------------------------------------------------ | ------------------------------------ |
+| **Markup**          | Tag-based structure, inline elements, attributes | HTML, XML, DITA, XHTML               |
+| **Structured Data** | Key-value hierarchies, arrays, nested objects    | JSON, YAML, Properties, TOML         |
+| **Bilingual**       | Source/target pairs, translation units, metadata | XLIFF, XLIFF2, PO, TMX, TBX          |
+| **Subtitle**        | Timed text, cue sequences, styling               | SRT, VTT, TTML, DFXP                 |
+| **Rich Text**       | Paragraphs, inline formatting, references        | Markdown, reStructuredText, AsciiDoc |
+| **Binary Document** | Embedded content, styles, structure              | DOCX, PPTX, IDML, PDF                |
 
 Within a family, a shared **base converter** could handle common patterns (e.g., inline code handling for all markup formats), with format-specific overrides for unique features. This is analogous to how Speckle's Objects Kit has a geometry layer used by all BIM elements.
 
@@ -348,19 +352,19 @@ These are content types that naturally exist as files, often within version cont
 
 These need API-level integration because the content lives in a system, not a file:
 
-| Priority | Connector | Why |
-|----------|-----------|-----|
-| **High** | **Figma** | Design-to-dev content flow; plugin API available; visual context |
-| **High** | **Contentful/Strapi** | Headless CMS with structured content; REST/GraphQL APIs |
-| **High** | **GitHub/GitLab** | Auto-detect localizable files in repos; PR-based translation workflow |
-| **High** | **WordPress** | World's most popular CMS; REST API; huge market |
-| **Medium** | **Shopify** | E-commerce localization; REST API; growing market |
-| **Medium** | **Notion** | Knowledge base/docs; API available; growing in enterprises |
-| **Medium** | **Google Docs/Sheets** | Collaborative documents; Drive API |
-| **Medium** | **Zendesk** | Help center content; REST API |
-| **Medium** | **HubSpot** | Marketing content; REST API |
-| **Low** | **Salesforce** | CRM/UI content; complex but large market |
-| **Low** | **Unity/Unreal** | Game localization; plugin APIs |
+| Priority   | Connector              | Why                                                                   |
+| ---------- | ---------------------- | --------------------------------------------------------------------- |
+| **High**   | **Figma**              | Design-to-dev content flow; plugin API available; visual context      |
+| **High**   | **Contentful/Strapi**  | Headless CMS with structured content; REST/GraphQL APIs               |
+| **High**   | **GitHub/GitLab**      | Auto-detect localizable files in repos; PR-based translation workflow |
+| **High**   | **WordPress**          | World's most popular CMS; REST API; huge market                       |
+| **Medium** | **Shopify**            | E-commerce localization; REST API; growing market                     |
+| **Medium** | **Notion**             | Knowledge base/docs; API available; growing in enterprises            |
+| **Medium** | **Google Docs/Sheets** | Collaborative documents; Drive API                                    |
+| **Medium** | **Zendesk**            | Help center content; REST API                                         |
+| **Medium** | **HubSpot**            | Marketing content; REST API                                           |
+| **Low**    | **Salesforce**         | CRM/UI content; complex but large market                              |
+| **Low**    | **Unity/Unreal**       | Game localization; plugin APIs                                        |
 
 ### Hybrid: Both Format and Connector
 
@@ -504,6 +508,7 @@ htmlConverter := &MarkupConverter{
 Putting it all together, here's what Neokapi becomes:
 
 ### Open Source Platform Layer
+
 - **Format readers/writers** (15+ built-in, extensible via plugins) — like Speckle's IFC import
 - **System connectors** (CMS, design tools, repos, platforms) — like Speckle's native connectors
 - **Versioned content store** — like Speckle's transport-backed object graph
@@ -511,6 +516,7 @@ Putting it all together, here's what Neokapi becomes:
 - **REST API server** (bowrain-server) — like Speckle Server
 
 ### What Changes from Today
+
 1. **Connectors become first-class** alongside formats
 2. **Content is addressable and versioned**, not just streamed
 3. **The model gets richer metadata** without losing streaming simplicity
@@ -518,6 +524,7 @@ Putting it all together, here's what Neokapi becomes:
 5. **Automation hooks** turn the pipeline into a platform
 
 ### What Stays the Same
+
 1. Channel-based streaming pipeline (the core engine)
 2. Coded text with PUA markers (the inline formatting system)
 3. Part/Block/Fragment/Layer model (the content abstraction)
@@ -526,32 +533,35 @@ Putting it all together, here's what Neokapi becomes:
 
 ### The Positioning
 
-| | XLIFF | Okapi | Neokapi (Today) | Neokapi (Vision) | Speckle (Analogy) |
-|---|---|---|---|---|---|
-| **Model** | Exchange format | Streaming events | Streaming Parts | Versioned Part graph | Versioned object graph |
-| **Formats** | Is itself a format | 20+ file filters | 15+ file formats | Formats + Connectors | Kit converters + Connectors |
-| **Standards** | Is the standard | Uses XLIFF, SRX, TMX | Reads/writes XLIFF | XLIFF as one path among many | IFC as one import among many |
-| **Persistence** | Files | None | None | Multi-backend store | Transport layer |
-| **Collaboration** | File sharing | None | None | API + versioning | Real-time multi-user |
-| **Automation** | None | Pipeline runner | Flow executor | Event-driven automation | Speckle Automate |
+|                   | XLIFF              | Okapi                | Neokapi (Today)    | Neokapi (Vision)             | Speckle (Analogy)            |
+| ----------------- | ------------------ | -------------------- | ------------------ | ---------------------------- | ---------------------------- |
+| **Model**         | Exchange format    | Streaming events     | Streaming Parts    | Versioned Part graph         | Versioned object graph       |
+| **Formats**       | Is itself a format | 20+ file filters     | 15+ file formats   | Formats + Connectors         | Kit converters + Connectors  |
+| **Standards**     | Is the standard    | Uses XLIFF, SRX, TMX | Reads/writes XLIFF | XLIFF as one path among many | IFC as one import among many |
+| **Persistence**   | Files              | None                 | None               | Multi-backend store          | Transport layer              |
+| **Collaboration** | File sharing       | None                 | None               | API + versioning             | Real-time multi-user         |
+| **Automation**    | None               | Pipeline runner      | Flow executor      | Event-driven automation      | Speckle Automate             |
 
 ---
 
 ## 10. Priority Roadmap
 
 ### Phase 1: Foundation (Near-term)
+
 - Extend `Properties` to `map[string]any` for richer metadata
 - Add `ContentRef` for addressable content
 - Design the `Connector` interface
 - Implement first connector: **GitHub** (file-based content in repos)
 
 ### Phase 2: Persistence (Medium-term)
+
 - Implement `Store` interface with SQLite backend
 - Add content-addressable hashing for deduplication
 - Build version diffing for incremental processing
 - Implement second connector: **Contentful** or **WordPress**
 
 ### Phase 3: Platform (Longer-term)
+
 - Automation triggers (on-change hooks, quality gates)
 - Format families with shared base converters
 - Design tool connectors (Figma)

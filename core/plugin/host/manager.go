@@ -89,7 +89,7 @@ func (m *PluginManager) loadPlugin(path string, reg *registry.FormatRegistry) er
 		HandshakeConfig: HandshakeConfig,
 		Plugins:         PluginMap(),
 		Cmd:             exec.Command(path), //nolint:noctx // long-lived plugin subprocess
-		Logger:          nil, // use default hclog
+		Logger:          nil,                // use default hclog
 	})
 
 	rpcClient, err := client.Client()

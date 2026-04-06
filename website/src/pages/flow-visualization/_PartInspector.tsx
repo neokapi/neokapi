@@ -1,6 +1,6 @@
-import React from 'react';
-import type { PartSnapshotSet, FlowNode } from './_types';
-import styles from './_index.module.css';
+import React from "react";
+import type { PartSnapshotSet, FlowNode } from "./_types";
+import styles from "./_index.module.css";
 
 interface PartInspectorProps {
   partId: string | null;
@@ -52,7 +52,7 @@ export default function PartInspector({
       {snapshots.afterNode && (
         <div className={styles.nodeHistory}>
           <div className={styles.inspectorLabel}>Transformations</div>
-          {nodes.map(node => {
+          {nodes.map((node) => {
             const after = snapshots.afterNode?.[node.id];
             if (!after) return null;
             return (
@@ -61,9 +61,7 @@ export default function PartInspector({
                 <div>
                   <div className={styles.nodeHistoryValue}>{after.summary}</div>
                   {after.targetText && (
-                    <div className={styles.nodeHistoryValue}>
-                      Target: {after.targetText}
-                    </div>
+                    <div className={styles.nodeHistoryValue}>Target: {after.targetText}</div>
                   )}
                 </div>
               </div>

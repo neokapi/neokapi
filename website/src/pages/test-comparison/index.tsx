@@ -1,41 +1,34 @@
-import {useState, useMemo, useCallback} from 'react';
-import Layout from '@theme/Layout';
-import type {TestComparisonData, FilterComparison, StateFilter} from './_types';
-import {normalizeFilter, normalizeSummary} from './_types';
-import SummaryBar from './_SummaryBar';
-import FilterCard, {FilterColumnHeadings} from './_FilterCard';
-import styles from './_index.module.css';
-import comparisonData from '@site/static/data/test-comparison.json';
+import { useState, useMemo, useCallback } from "react";
+import Layout from "@theme/Layout";
+import type { TestComparisonData, FilterComparison, StateFilter } from "./_types";
+import { normalizeFilter, normalizeSummary } from "./_types";
+import SummaryBar from "./_SummaryBar";
+import FilterCard, { FilterColumnHeadings } from "./_FilterCard";
+import styles from "./_index.module.css";
+import comparisonData from "@site/static/data/test-comparison.json";
 
-type Side = 'okapi' | 'bridge' | 'native';
+type Side = "okapi" | "bridge" | "native";
 
 const sideLabels: Record<Side, string> = {
-  okapi: 'Okapi',
-  bridge: 'Bridge',
-  native: 'Native',
+  okapi: "Okapi",
+  bridge: "Bridge",
+  native: "Native",
 };
 
 const raw = comparisonData as unknown as TestComparisonData;
 
 /** Check if a filter has any test cases matching a state. */
-function filterHasState(
-  f: FilterComparison,
-  state: StateFilter,
-): boolean {
+function filterHasState(f: FilterComparison, state: StateFilter): boolean {
   if (!state) return true;
   return f.testCases.some((tc) => {
     switch (state) {
-      case 'implemented':
-        return tc.testState === 'implemented';
-      case 'not-applicable':
-        return (
-          tc.testState !== 'implemented' &&
-          tc.testState !== 'pending' &&
-          !!tc.skipReason
-        );
-      case 'pending':
-        return tc.testState === 'pending';
-      case 'unmapped':
+      case "implemented":
+        return tc.testState === "implemented";
+      case "not-applicable":
+        return tc.testState !== "implemented" && tc.testState !== "pending" && !!tc.skipReason;
+      case "pending":
+        return tc.testState === "pending";
+      case "unmapped":
         return !tc.testState && !tc.skipReason;
       default:
         return true;
@@ -44,7 +37,7 @@ function filterHasState(
 }
 
 export default function TestComparison() {
-  const [search, setSearch] = useState('');
+  const [search, setSearch] = useState("");
   const [activeSides, setActiveSides] = useState<Set<Side>>(new Set());
   const [stateFilter, setStateFilter] = useState<StateFilter>(null);
 
@@ -84,28 +77,25 @@ export default function TestComparison() {
     if (search) {
       const q = search.toLowerCase();
       const matchesName = f.filterName.toLowerCase().includes(q);
-      const matchesNative =
-        f.nativeFilterName?.toLowerCase().includes(q) ?? false;
+      const matchesNative = f.nativeFilterName?.toLowerCase().includes(q) ?? false;
       if (!matchesName && !matchesNative) return false;
     }
     if (!allSelected) {
-      if (activeSides.has('okapi') && f.okapi == null) return false;
-      if (activeSides.has('bridge') && f.bridge == null) return false;
-      if (activeSides.has('native') && f.native == null) return false;
+      if (activeSides.has("okapi") && f.okapi == null) return false;
+      if (activeSides.has("bridge") && f.bridge == null) return false;
+      if (activeSides.has("native") && f.native == null) return false;
     }
     if (stateFilter && !filterHasState(f, stateFilter)) return false;
     return true;
   });
 
   return (
-    <Layout
-      title="Test Comparison"
-      description="Okapi vs neokapi filter test comparison">
+    <Layout title="Test Comparison" description="Okapi vs neokapi filter test comparison">
       <main className="container margin-vert--lg">
         <h1>Filter Test Comparison</h1>
         <p>
-          Side-by-side view of Okapi Framework (Java) tests and their neokapi
-          bridge and native counterparts.
+          Side-by-side view of Okapi Framework (Java) tests and their neokapi bridge and native
+          counterparts.
         </p>
 
         <SummaryBar
@@ -126,15 +116,17 @@ export default function TestComparison() {
           />
           <div className={styles.filterButtons}>
             <button
-              className={`button button--sm ${allSelected && !stateFilter ? 'button--primary' : 'button--outline button--secondary'}`}
-              onClick={selectAll}>
+              className={`button button--sm ${allSelected && !stateFilter ? "button--primary" : "button--outline button--secondary"}`}
+              onClick={selectAll}
+            >
               All
             </button>
-            {(['okapi', 'bridge', 'native'] as Side[]).map((side) => (
+            {(["okapi", "bridge", "native"] as Side[]).map((side) => (
               <button
                 key={side}
-                className={`button button--sm ${activeSides.has(side) ? 'button--primary' : 'button--outline button--secondary'}`}
-                onClick={() => toggleSide(side)}>
+                className={`button button--sm ${activeSides.has(side) ? "button--primary" : "button--outline button--secondary"}`}
+                onClick={() => toggleSide(side)}
+              >
                 {sideLabels[side]}
               </button>
             ))}
@@ -143,17 +135,14 @@ export default function TestComparison() {
 
         {stateFilter && (
           <div className={styles.activeFilterBanner}>
-            Showing formats with{' '}
-            <strong>
-              {stateFilter === 'not-applicable'
-                ? 'not applicable'
-                : stateFilter}
-            </strong>{' '}
+            Showing formats with{" "}
+            <strong>{stateFilter === "not-applicable" ? "not applicable" : stateFilter}</strong>{" "}
             tests ({filtered.length} formats)
             <button
               className="button button--sm button--outline button--secondary"
-              style={{marginLeft: '0.75rem'}}
-              onClick={() => setStateFilter(null)}>
+              style={{ marginLeft: "0.75rem" }}
+              onClick={() => setStateFilter(null)}
+            >
               Clear
             </button>
           </div>
@@ -169,14 +158,14 @@ export default function TestComparison() {
               okapiTag={data.okapiTag}
               defaultExpanded={stateFilter !== null}
               defaultTestFilter={
-                stateFilter === 'not-applicable'
-                  ? 'not-applicable'
-                  : stateFilter === 'unmapped'
-                    ? 'unmapped'
-                    : stateFilter === 'pending'
-                      ? 'pending'
-                      : stateFilter === 'implemented'
-                        ? 'implemented'
+                stateFilter === "not-applicable"
+                  ? "not-applicable"
+                  : stateFilter === "unmapped"
+                    ? "unmapped"
+                    : stateFilter === "pending"
+                      ? "pending"
+                      : stateFilter === "implemented"
+                        ? "implemented"
                         : undefined
               }
             />

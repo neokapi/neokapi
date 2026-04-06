@@ -27,11 +27,11 @@ graph TD
 
 Each TM entry is indexed with three keys, tried in order:
 
-| Tier | Key Type | What It Normalizes | Example |
-|------|----------|-------------------|---------|
-| 1 | **Generalized** | Named entities → typed placeholders | "Welcome, John" → "Welcome, \{PERSON\}" |
-| 2 | **Structural** | Inline markup → normalized codes | "Click **here**" → "Click \{1\}here\{/1\}" |
-| 3 | **Plain** | Nothing (raw text) | Levenshtein fuzzy matching |
+| Tier | Key Type        | What It Normalizes                  | Example                                    |
+| ---- | --------------- | ----------------------------------- | ------------------------------------------ |
+| 1    | **Generalized** | Named entities → typed placeholders | "Welcome, John" → "Welcome, \{PERSON\}"    |
+| 2    | **Structural**  | Inline markup → normalized codes    | "Click **here**" → "Click \{1\}here\{/1\}" |
+| 3    | **Plain**       | Nothing (raw text)                  | Levenshtein fuzzy matching                 |
 
 Each tier produces exact (100%) or fuzzy matches. When a generalized exact match is found, entity values from the current source are adapted into the stored target.
 
@@ -208,6 +208,7 @@ The `EntityAdaptations` field on `TMMatch` lists each substitution with its posi
 ### Content-Aware vs. Plain Text
 
 Storing `*model.Fragment` (coded text + inline spans) rather than plain strings enables:
+
 - Inline markup preservation across matches
 - Structural matching tier (ignoring markup differences)
 - Entity-aware matching with automatic adaptation
@@ -220,6 +221,7 @@ The three tiers (generalized → structural → plain) are tried in order, with 
 ### Separate from Terminology
 
 TM and terminology serve fundamentally different purposes:
+
 - **TM**: "How was this sentence translated before?" (segment pairs)
 - **Terminology**: "What is the correct term for this concept?" (multi-locale knowledge units)
 

@@ -35,7 +35,7 @@ func Migrate(db *DB, tableName string, migrations []Migration) error {
 	}
 
 	var currentVersion int
-	err := db.QueryRow("SELECT COALESCE(MAX(version), 0) FROM "+tableName).Scan(&currentVersion) //nolint:noctx // startup migration
+	err := db.QueryRow("SELECT COALESCE(MAX(version), 0) FROM " + tableName).Scan(&currentVersion) //nolint:noctx // startup migration
 	if err != nil {
 		return fmt.Errorf("get current version: %w", err)
 	}

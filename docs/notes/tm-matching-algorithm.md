@@ -2,6 +2,7 @@
 sidebar_position: 4
 title: "TM Matching Algorithm"
 ---
+
 # TM Matching Algorithm
 
 This note provides implementation details for [AD-009](/docs/ad/009-translation-memory).
@@ -61,6 +62,7 @@ Two FTS5 virtual tables synced via INSERT/UPDATE/DELETE triggers:
 - **`tm_search`**: `tokenize='unicode61'` on source_text, target_text. Used for ranked UI search with BM25.
 
 `buildTrigramQuery()` constructs the FTS5 MATCH expression:
+
 - **Multi-word text** (Latin, etc.): OR of individual words ≥3 chars as quoted substrings.
 - **Single word / CJK**: Overlapping 4-character windows sampled at even intervals (max 6 windows).
 
@@ -76,11 +78,11 @@ Falls back to length-based pre-filtering if pg_trgm is unavailable.
 
 ### Performance
 
-| Dataset | Before (full scan) | After (trigram + Levenshtein) |
-|---------|-------------------|-------------------------------|
-| 1K entries | ~5ms | ~2ms |
-| 10K entries | ~50ms | ~5ms |
-| 100K entries | ~500ms+ | ~10-15ms |
+| Dataset      | Before (full scan) | After (trigram + Levenshtein) |
+| ------------ | ------------------ | ----------------------------- |
+| 1K entries   | ~5ms               | ~2ms                          |
+| 10K entries  | ~50ms              | ~5ms                          |
+| 100K entries | ~500ms+            | ~10-15ms                      |
 
 ## Storage Backends
 
@@ -94,10 +96,10 @@ Generalized and structural exact matching is an indexed lookup -- fast even for 
 
 The import/export layer maps between Fragment Spans and TMX inline elements:
 
-| Fragment Span | TMX Element |
-|---|---|
-| `SpanPlaceholder` | `<ph>` |
-| `SpanOpening` | `<bpt>` |
-| `SpanClosing` | `<ept>` |
+| Fragment Span     | TMX Element |
+| ----------------- | ----------- |
+| `SpanPlaceholder` | `<ph>`      |
+| `SpanOpening`     | `<bpt>`     |
+| `SpanClosing`     | `<ept>`     |
 
 Entity metadata is carried as `<prop>` elements on the TMX `<tu>`. Note that inline element mapping (`<ph>`, `<bpt>`, `<ept>`) is handled by the full TMX format reader (`core/formats/tmx/`), not by the sievepen TM import/export layer. The TM module's TMX import (`core/sievepen/tmx_import.go`) handles plain text and entity properties only. When importing legacy TMX files that contain only plain text (no inline codes), entries are stored with plain Fragments and no entity mappings. They participate in plain matching only.

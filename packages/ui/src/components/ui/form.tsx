@@ -69,11 +69,7 @@ function FormLabel({
   return (
     <Label
       data-slot="form-label"
-      className={cn(
-        "text-xs font-medium",
-        disabled && "text-muted-foreground",
-        className,
-      )}
+      className={cn("text-xs font-medium", disabled && "text-muted-foreground", className)}
       {...props}
     >
       {children}
@@ -84,10 +80,7 @@ function FormLabel({
 // ── FormDescription ──────────────────────────────────────────────────
 // Help text shown below the label.
 
-function FormDescription({
-  className,
-  ...props
-}: React.ComponentProps<"p">) {
+function FormDescription({ className, ...props }: React.ComponentProps<"p">) {
   return (
     <p
       data-slot="form-description"
@@ -100,18 +93,10 @@ function FormDescription({
 // ── FormMessage ──────────────────────────────────────────────────────
 // Validation error message shown below the control.
 
-function FormMessage({
-  className,
-  children,
-  ...props
-}: React.ComponentProps<"p">) {
+function FormMessage({ className, children, ...props }: React.ComponentProps<"p">) {
   if (!children) return null;
   return (
-    <p
-      data-slot="form-message"
-      className={cn("text-xs text-destructive", className)}
-      {...props}
-    >
+    <p data-slot="form-message" className={cn("text-xs text-destructive", className)} {...props}>
       {children}
     </p>
   );
@@ -175,9 +160,7 @@ function FormToggle({
       />
       <div className="flex-1">
         <span className="text-xs font-medium">{label}</span>
-        {!compact && description && (
-          <p className="text-xs text-muted-foreground">{description}</p>
-        )}
+        {!compact && description && <p className="text-xs text-muted-foreground">{description}</p>}
       </div>
     </label>
   );
@@ -186,17 +169,8 @@ function FormToggle({
 // ── FormInputAction ──────────────────────────────────────────────────
 // Horizontal input + action button layout (e.g., path input + Browse).
 
-function FormInputAction({
-  className,
-  ...props
-}: React.ComponentProps<"div">) {
-  return (
-    <div
-      data-slot="form-input-action"
-      className={cn("flex gap-1.5", className)}
-      {...props}
-    />
-  );
+function FormInputAction({ className, ...props }: React.ComponentProps<"div">) {
+  return <div data-slot="form-input-action" className={cn("flex gap-1.5", className)} {...props} />;
 }
 
 // ── FormFieldGroup ───────────────────────────────────────────────────
@@ -223,12 +197,8 @@ function FormFieldGroup({
     <div data-slot="form-field-group" className={className}>
       {!collapsible ? (
         <div className="pb-1.5 mb-2 border-b border-border/40">
-          <span className="text-xs font-semibold text-muted-foreground tracking-wide">
-            {label}
-          </span>
-          {description && (
-            <p className="text-xs text-muted-foreground/70 mt-0.5">{description}</p>
-          )}
+          <span className="text-xs font-semibold text-muted-foreground tracking-wide">{label}</span>
+          {description && <p className="text-xs text-muted-foreground/70 mt-0.5">{description}</p>}
         </div>
       ) : (
         <>
@@ -279,10 +249,7 @@ function FormHelpText({
   const hasExtra = (notes && notes.length > 0) || (dependencies && dependencies.length > 0);
 
   return (
-    <div
-      data-slot="form-help-text"
-      className={cn("text-xs text-muted-foreground mt-1", className)}
-    >
+    <div data-slot="form-help-text" className={cn("text-xs text-muted-foreground mt-1", className)}>
       <p className="line-clamp-2">{description}</p>
       {hasExtra && (
         <>

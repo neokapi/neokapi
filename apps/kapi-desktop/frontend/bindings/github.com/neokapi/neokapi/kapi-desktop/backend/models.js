@@ -234,6 +234,22 @@ export class AppSettings {
              */
             this["samples_dismissed"] = undefined;
         }
+        if (/** @type {any} */(false)) {
+            /**
+             * locale codes to hide from selectors
+             * @member
+             * @type {string[] | undefined}
+             */
+            this["hidden_locales"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * additional locales not in the well-known list
+             * @member
+             * @type {CustomLocale[] | undefined}
+             */
+            this["custom_locales"] = undefined;
+        }
 
         Object.assign(this, $$source);
     }
@@ -244,7 +260,15 @@ export class AppSettings {
      * @returns {AppSettings}
      */
     static createFrom($$source = {}) {
+        const $$createField2_0 = $$createType2;
+        const $$createField3_0 = $$createType6;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("hidden_locales" in $$parsedSource) {
+            $$parsedSource["hidden_locales"] = $$createField2_0($$parsedSource["hidden_locales"]);
+        }
+        if ("custom_locales" in $$parsedSource) {
+            $$parsedSource["custom_locales"] = $$createField3_0($$parsedSource["custom_locales"]);
+        }
         return new AppSettings(/** @type {Partial<AppSettings>} */($$parsedSource));
     }
 }
@@ -392,7 +416,7 @@ export class ConceptDTO {
      */
     static createFrom($$source = {}) {
         const $$createField5_0 = $$createType1;
-        const $$createField6_0 = $$createType5;
+        const $$createField6_0 = $$createType7;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("terms" in $$parsedSource) {
             $$parsedSource["terms"] = $$createField5_0($$parsedSource["terms"]);
@@ -401,6 +425,44 @@ export class ConceptDTO {
             $$parsedSource["properties"] = $$createField6_0($$parsedSource["properties"]);
         }
         return new ConceptDTO(/** @type {Partial<ConceptDTO>} */($$parsedSource));
+    }
+}
+
+/**
+ * CustomLocale is a user-defined locale with code and display name.
+ */
+export class CustomLocale {
+    /**
+     * Creates a new CustomLocale instance.
+     * @param {Partial<CustomLocale>} [$$source = {}] - The source object to create the CustomLocale.
+     */
+    constructor($$source = {}) {
+        if (!("code" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["code"] = "";
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["display_name"] = undefined;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new CustomLocale instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {CustomLocale}
+     */
+    static createFrom($$source = {}) {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new CustomLocale(/** @type {Partial<CustomLocale>} */($$parsedSource));
     }
 }
 
@@ -801,7 +863,7 @@ export class FormatPartInfo {
      * @returns {FormatPartInfo}
      */
     static createFrom($$source = {}) {
-        const $$createField4_0 = $$createType5;
+        const $$createField4_0 = $$createType7;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("properties" in $$parsedSource) {
             $$parsedSource["properties"] = $$createField4_0($$parsedSource["properties"]);
@@ -865,7 +927,7 @@ export class FormatPresetInfo {
      * @returns {FormatPresetInfo}
      */
     static createFrom($$source = {}) {
-        const $$createField3_0 = $$createType6;
+        const $$createField3_0 = $$createType8;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("config" in $$parsedSource) {
             $$parsedSource["config"] = $$createField3_0($$parsedSource["config"]);
@@ -966,7 +1028,7 @@ export class LookupTMRequest {
      * @returns {LookupTMRequest}
      */
     static createFrom($$source = {}) {
-        const $$createField1_0 = $$createType8;
+        const $$createField1_0 = $$createType10;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("entities" in $$parsedSource) {
             $$parsedSource["entities"] = $$createField1_0($$parsedSource["entities"]);
@@ -1109,7 +1171,7 @@ export class PluginInfo {
      */
     static createFrom($$source = {}) {
         const $$createField6_0 = $$createType2;
-        const $$createField7_0 = $$createType10;
+        const $$createField7_0 = $$createType12;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("formats" in $$parsedSource) {
             $$parsedSource["formats"] = $$createField6_0($$parsedSource["formats"]);
@@ -1251,9 +1313,9 @@ export class PreviewResult {
      * @returns {PreviewResult}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType12;
-        const $$createField1_0 = $$createType14;
-        const $$createField2_0 = $$createType17;
+        const $$createField0_0 = $$createType14;
+        const $$createField1_0 = $$createType16;
+        const $$createField2_0 = $$createType19;
         const $$createField3_0 = $$createType2;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("nodes" in $$parsedSource) {
@@ -1602,7 +1664,7 @@ export class SaveUserFlowRequest {
      * @returns {SaveUserFlowRequest}
      */
     static createFrom($$source = {}) {
-        const $$createField3_0 = $$createType19;
+        const $$createField3_0 = $$createType21;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("steps" in $$parsedSource) {
             $$parsedSource["steps"] = $$createField3_0($$parsedSource["steps"]);
@@ -1777,9 +1839,9 @@ export class TMEntryDTO {
      * @returns {TMEntryDTO}
      */
     static createFrom($$source = {}) {
-        const $$createField5_0 = $$createType21;
-        const $$createField6_0 = $$createType21;
-        const $$createField10_0 = $$createType5;
+        const $$createField5_0 = $$createType23;
+        const $$createField6_0 = $$createType23;
+        const $$createField10_0 = $$createType7;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("source_spans" in $$parsedSource) {
             $$parsedSource["source_spans"] = $$createField5_0($$parsedSource["source_spans"]);
@@ -1841,8 +1903,8 @@ export class TMMatchDTO {
      * @returns {TMMatchDTO}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType22;
-        const $$createField3_0 = $$createType24;
+        const $$createField0_0 = $$createType24;
+        const $$createField3_0 = $$createType26;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("entry" in $$parsedSource) {
             $$parsedSource["entry"] = $$createField0_0($$parsedSource["entry"]);
@@ -1887,7 +1949,7 @@ export class TMSearchResult {
      * @returns {TMSearchResult}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType25;
+        const $$createField0_0 = $$createType27;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("entries" in $$parsedSource) {
             $$parsedSource["entries"] = $$createField0_0($$parsedSource["entries"]);
@@ -2093,7 +2155,7 @@ export class TermSearchResult {
      * @returns {TermSearchResult}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType27;
+        const $$createField0_0 = $$createType29;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("concepts" in $$parsedSource) {
             $$parsedSource["concepts"] = $$createField0_0($$parsedSource["concepts"]);
@@ -2434,7 +2496,7 @@ export class UserFlowDetail {
      * @returns {UserFlowDetail}
      */
     static createFrom($$source = {}) {
-        const $$createField4_0 = $$createType19;
+        const $$createField4_0 = $$createType21;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("steps" in $$parsedSource) {
             $$parsedSource["steps"] = $$createField4_0($$parsedSource["steps"]);
@@ -2516,26 +2578,28 @@ const $$createType1 = $Create.Array($$createType0);
 const $$createType2 = $Create.Array($Create.Any);
 const $$createType3 = EntityPatternRequest.createFrom;
 const $$createType4 = $Create.Array($$createType3);
-const $$createType5 = $Create.Map($Create.Any, $Create.Any);
-const $$createType6 = $Create.Map($Create.Any, $Create.Any);
-const $$createType7 = EntityAnnotationDTO.createFrom;
-const $$createType8 = $Create.Array($$createType7);
-const $$createType9 = PluginCapability.createFrom;
+const $$createType5 = CustomLocale.createFrom;
+const $$createType6 = $Create.Array($$createType5);
+const $$createType7 = $Create.Map($Create.Any, $Create.Any);
+const $$createType8 = $Create.Map($Create.Any, $Create.Any);
+const $$createType9 = EntityAnnotationDTO.createFrom;
 const $$createType10 = $Create.Array($$createType9);
-const $$createType11 = flow$0.TraceNode.createFrom;
+const $$createType11 = PluginCapability.createFrom;
 const $$createType12 = $Create.Array($$createType11);
-const $$createType13 = flow$0.TraceEvent.createFrom;
+const $$createType13 = flow$0.TraceNode.createFrom;
 const $$createType14 = $Create.Array($$createType13);
-const $$createType15 = flow$0.PartSnapshotSet.createFrom;
-const $$createType16 = $Create.Nullable($$createType15);
-const $$createType17 = $Create.Map($Create.Any, $$createType16);
-const $$createType18 = flow$0.FlowStep.createFrom;
-const $$createType19 = $Create.Array($$createType18);
-const $$createType20 = SpanDTO.createFrom;
+const $$createType15 = flow$0.TraceEvent.createFrom;
+const $$createType16 = $Create.Array($$createType15);
+const $$createType17 = flow$0.PartSnapshotSet.createFrom;
+const $$createType18 = $Create.Nullable($$createType17);
+const $$createType19 = $Create.Map($Create.Any, $$createType18);
+const $$createType20 = flow$0.FlowStep.createFrom;
 const $$createType21 = $Create.Array($$createType20);
-const $$createType22 = TMEntryDTO.createFrom;
-const $$createType23 = EntityAdaptationDTO.createFrom;
-const $$createType24 = $Create.Array($$createType23);
-const $$createType25 = $Create.Array($$createType22);
-const $$createType26 = ConceptDTO.createFrom;
-const $$createType27 = $Create.Array($$createType26);
+const $$createType22 = SpanDTO.createFrom;
+const $$createType23 = $Create.Array($$createType22);
+const $$createType24 = TMEntryDTO.createFrom;
+const $$createType25 = EntityAdaptationDTO.createFrom;
+const $$createType26 = $Create.Array($$createType25);
+const $$createType27 = $Create.Array($$createType24);
+const $$createType28 = ConceptDTO.createFrom;
+const $$createType29 = $Create.Array($$createType28);

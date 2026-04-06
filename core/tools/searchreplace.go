@@ -23,13 +23,13 @@ type SearchReplaceConfig struct {
 	TargetLocale model.LocaleID `json:"targetLocale,omitempty" schema:"-"`
 
 	// Schema-visible properties matching the bridge schema.
-	RegEx           bool `json:"regEx,omitempty"           schema:"title=Use Regular Expressions,description=Enable regular expression mode for all search patterns"`
-	DotAll          bool `json:"dotAll,omitempty"          schema:"title=Dot Also Matches Line-Feed,description=Make the period character match every character including line-feed"`
-	IgnoreCase      bool `json:"ignoreCase,omitempty"      schema:"title=Ignore Case Differences,description=Ignore case when matching search patterns"`
-	MultiLine       bool `json:"multiLine,omitempty"       schema:"title=Multiline Mode,description=Make ^ and $ match at the beginning and end of each line"`
-	Target          bool `json:"target,omitempty"          schema:"title=Replace in Target Content,description=Perform search and replace on target content,default=true"`
-	Source          bool `json:"source,omitempty"          schema:"title=Replace in Source Content,description=Perform search and replace on source content"`
-	ReplaceAll      bool `json:"replaceAll,omitempty"      schema:"title=Replace All Instances,description=Replace all matches instead of only the first,default=true"`
+	RegEx      bool `json:"regEx,omitempty"           schema:"title=Use Regular Expressions,description=Enable regular expression mode for all search patterns"`
+	DotAll     bool `json:"dotAll,omitempty"          schema:"title=Dot Also Matches Line-Feed,description=Make the period character match every character including line-feed"`
+	IgnoreCase bool `json:"ignoreCase,omitempty"      schema:"title=Ignore Case Differences,description=Ignore case when matching search patterns"`
+	MultiLine  bool `json:"multiLine,omitempty"       schema:"title=Multiline Mode,description=Make ^ and $ match at the beginning and end of each line"`
+	Target     bool `json:"target,omitempty"          schema:"title=Replace in Target Content,description=Perform search and replace on target content,default=true"`
+	Source     bool `json:"source,omitempty"          schema:"title=Replace in Source Content,description=Perform search and replace on source content"`
+	ReplaceAll bool `json:"replaceAll,omitempty"      schema:"title=Replace All Instances,description=Replace all matches instead of only the first,default=true"`
 }
 
 // ToolName returns the tool name this config applies to.

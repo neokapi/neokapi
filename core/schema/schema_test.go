@@ -205,17 +205,17 @@ func TestConditionExpr_Nested_Compound(t *testing.T) {
 func TestPropertySchema_UIExtensions_Roundtrip(t *testing.T) {
 	order := 3
 	prop := PropertySchema{
-		Type:        "string",
-		Title:       "Output Format",
-		Description: "Choose format",
-		Widget:      "segmented",
-		Placeholder: "select...",
-		Order:       &order,
-		Options: []OptionItem{{Value: "json", Label: "JSON"}, {Value: "yaml", Label: "YAML"}},
+		Type:             "string",
+		Title:            "Output Format",
+		Description:      "Choose format",
+		Widget:           "segmented",
+		Placeholder:      "select...",
+		Order:            &order,
+		Options:          []OptionItem{{Value: "json", Label: "JSON"}, {Value: "yaml", Label: "YAML"}},
 		EnumDescriptions: map[string]string{"json": "Standard JSON"},
-		Layout:      &LayoutHints{HideLabel: true, Columns: 2},
-		Visible:     &ConditionExpr{Field: "mode", Eq: "advanced"},
-		Enabled:     &ConditionExpr{Not: &ConditionExpr{Field: "locked", Eq: true}},
+		Layout:           &LayoutHints{HideLabel: true, Columns: 2},
+		Visible:          &ConditionExpr{Field: "mode", Eq: "advanced"},
+		Enabled:          &ConditionExpr{Not: &ConditionExpr{Field: "locked", Eq: true}},
 	}
 
 	data, err := json.Marshal(prop)

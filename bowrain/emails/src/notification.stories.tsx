@@ -22,7 +22,7 @@ type Story = StoryObj<typeof NotificationEmail>;
 export const QualityGateFailed: Story = {
   args: {
     title: "Quality gate failed: Terminology check",
-    body: "3 terminology violations were found in fr-FR for the Website project. The terms \"cloud computing\", \"machine learning\", and \"dashboard\" do not match your approved glossary entries. Please review and correct these before the next build.",
+    body: '3 terminology violations were found in fr-FR for the Website project. The terms "cloud computing", "machine learning", and "dashboard" do not match your approved glossary entries. Please review and correct these before the next build.',
     category: "Quality",
     priority: "high",
     actionURL: "https://app.bowrain.com/ws/acme/projects/website/quality",
@@ -44,7 +44,7 @@ export const FlowFailed: Story = {
 export const DeadlineApproaching: Story = {
   args: {
     title: "Deadline approaching: Review mobile content",
-    body: "The task \"Review mobile content\" for ja-JP is due in less than 24 hours. There are 42 blocks remaining to review. Please complete your review to avoid delays in the release schedule.",
+    body: 'The task "Review mobile content" for ja-JP is due in less than 24 hours. There are 42 blocks remaining to review. Please complete your review to avoid delays in the release schedule.',
     category: "Task",
     priority: "high",
     actionURL: "https://app.bowrain.com/ws/acme/tasks/task-123",
@@ -77,7 +77,7 @@ export const ContentAvailable: Story = {
 export const MentionNotification: Story = {
   args: {
     title: "Alice mentioned you",
-    body: "\"@charlie can you review the updated glossary terms for the German locale? I've added 15 new entries based on the brand guide update from last week.\"",
+    body: '"@charlie can you review the updated glossary terms for the German locale? I\'ve added 15 new entries based on the brand guide update from last week."',
     category: "Mention",
     priority: "normal",
     actionURL: "https://app.bowrain.com/ws/acme/projects/website/editor/block/123",

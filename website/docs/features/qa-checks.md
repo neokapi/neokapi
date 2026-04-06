@@ -45,13 +45,13 @@ steps:
 
 ## Available QA Rules
 
-| Rule | Description | Example |
-|------|-------------|---------|
-| `missing-punctuation` | Target missing punctuation from source | Source ends with `.`, target doesn't |
-| `number-mismatch` | Different numbers in source vs target | Source: "5 items", Target: "3 items" |
-| `term-violation` | Incorrect terminology | Using "login" instead of required "sign in" |
-| `tag-mismatch` | Missing or incorrect inline tags | Source has `<b>`, target doesn't |
-| `whitespace-mismatch` | Leading/trailing whitespace differs | Source has trailing space, target doesn't |
+| Rule                  | Description                            | Example                                     |
+| --------------------- | -------------------------------------- | ------------------------------------------- |
+| `missing-punctuation` | Target missing punctuation from source | Source ends with `.`, target doesn't        |
+| `number-mismatch`     | Different numbers in source vs target  | Source: "5 items", Target: "3 items"        |
+| `term-violation`      | Incorrect terminology                  | Using "login" instead of required "sign in" |
+| `tag-mismatch`        | Missing or incorrect inline tags       | Source has `<b>`, target doesn't            |
+| `whitespace-mismatch` | Leading/trailing whitespace differs    | Source has trailing space, target doesn't   |
 
 ## Implementation Status
 

@@ -23,20 +23,21 @@ Concept (e.g., "cloud storage")
 ```
 
 A **concept** groups related terms across languages. Each concept can have:
+
 - **Domain**: Subject area classification (e.g., "security", "ui", "marketing")
 - **Definition**: Clear description of the concept
 - **Terms**: Multiple terms per locale, each with a lifecycle status
 
 ### Term Lifecycle Statuses
 
-| Status | Meaning |
-|--------|---------|
-| `preferred` | The recommended term to use |
-| `approved` | Accepted for use |
-| `admitted` | Allowed but not recommended |
+| Status       | Meaning                             |
+| ------------ | ----------------------------------- |
+| `preferred`  | The recommended term to use         |
+| `approved`   | Accepted for use                    |
+| `admitted`   | Allowed but not recommended         |
 | `deprecated` | Should be avoided; being phased out |
-| `proposed` | Under review, not yet approved |
-| `forbidden` | Must not be used |
+| `proposed`   | Under review, not yet approved      |
+| `forbidden`  | Must not be used                    |
 
 ## Storage Backends
 
@@ -53,12 +54,12 @@ The `TermBase` interface supports server-side backends for multi-user deployment
 
 All termbase commands (except `list`) accept these mutually exclusive flags:
 
-| Flag | Resolves to | Example |
-|------|------------|---------|
-| `--name <n>` | `~/.config/kapi/termbases/<n>.db` | `--name project-terms` |
-| `--local` | `./termbase.db` (current directory) | `--local` |
-| `--file <path>` | Explicit file path | `--file /shared/glossary.db` |
-| *(no flag)* | Same as `--local` | |
+| Flag            | Resolves to                         | Example                      |
+| --------------- | ----------------------------------- | ---------------------------- |
+| `--name <n>`    | `~/.config/kapi/termbases/<n>.db`   | `--name project-terms`       |
+| `--local`       | `./termbase.db` (current directory) | `--local`                    |
+| `--file <path>` | Explicit file path                  | `--file /shared/glossary.db` |
+| _(no flag)_     | Same as `--local`                   |                              |
 
 Databases are created on demand if they don't exist.
 
@@ -158,8 +159,8 @@ Full concept-oriented format preserving all metadata:
       "domain": "security",
       "definition": "Encryption where only endpoints can decrypt",
       "terms": [
-        {"text": "end-to-end encryption", "locale": "en", "status": "preferred"},
-        {"text": "chiffrement de bout en bout", "locale": "fr", "status": "preferred"}
+        { "text": "end-to-end encryption", "locale": "en", "status": "preferred" },
+        { "text": "chiffrement de bout en bout", "locale": "fr", "status": "preferred" }
       ]
     }
   ]
@@ -184,6 +185,7 @@ The `LookupAll` function scans running text to find all term occurrences. This p
 ### Separate from TM
 
 Terminology and translation memory are separate systems because they serve different purposes:
+
 - **TM** answers: "How was this sentence translated before?"
 - **Terminology** answers: "What is the correct term for this concept?"
 

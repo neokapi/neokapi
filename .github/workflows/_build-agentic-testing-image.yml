@@ -4,24 +4,24 @@ on:
   workflow_call:
     inputs:
       image-tag:
-        description: 'Image tag'
+        description: "Image tag"
         required: true
         type: string
       version:
-        description: 'Version string (e.g. 0.3.0 or v0.3.0-5-gabcdef)'
+        description: "Version string (e.g. 0.3.0 or v0.3.0-5-gabcdef)"
         required: false
         type: string
-        default: 'dev'
+        default: "dev"
       commit:
-        description: 'Git commit short SHA'
+        description: "Git commit short SHA"
         required: false
         type: string
-        default: 'unknown'
+        default: "unknown"
       build-date:
-        description: 'Build date (ISO 8601)'
+        description: "Build date (ISO 8601)"
         required: false
         type: string
-        default: 'unknown'
+        default: "unknown"
 
 jobs:
   build:

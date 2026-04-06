@@ -987,7 +987,6 @@ func scanProject(row scanner) (*platstore.Project, error) {
 	return &p, nil
 }
 
-
 func scanStoredBlock(row scanner) (*platstore.StoredBlock, error) {
 	var sb platstore.StoredBlock
 	sb.Block = &model.Block{}
@@ -1019,7 +1018,6 @@ func scanStoredBlock(row scanner) (*platstore.StoredBlock, error) {
 
 	return &sb, nil
 }
-
 
 // annotationWrapper wraps an Annotation with a type discriminator for JSON storage.
 type annotationWrapper struct {

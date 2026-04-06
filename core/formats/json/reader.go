@@ -567,7 +567,7 @@ func (r *Reader) emitSubfiltered(ctx context.Context, ch chan<- model.PartResult
 	if err != nil {
 		// Fall back to plain block if subfilter reader is unavailable
 		*blockCounter++
-		block := model.NewBlock("tu" + strconv.Itoa(*blockCounter), content)
+		block := model.NewBlock("tu"+strconv.Itoa(*blockCounter), content)
 		block.Name = path
 		r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block})
 		return

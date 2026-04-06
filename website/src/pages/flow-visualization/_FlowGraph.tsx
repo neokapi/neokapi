@@ -1,6 +1,6 @@
-import React from 'react';
-import type { FlowNode, Particle } from './_types';
-import styles from './_index.module.css';
+import React from "react";
+import type { FlowNode, Particle } from "./_types";
+import styles from "./_index.module.css";
 
 interface FlowGraphProps {
   nodes: FlowNode[];
@@ -21,21 +21,21 @@ const PADDING_X = 60;
 const PADDING_Y = 60;
 
 const PART_COLORS: Record<string, string> = {
-  Block: '#3b82f6',
-  LayerStart: '#22c55e',
-  LayerEnd: '#22c55e',
-  Data: '#94a3b8',
-  Media: '#f59e0b',
-  GroupStart: '#a855f7',
-  GroupEnd: '#a855f7',
+  Block: "#3b82f6",
+  LayerStart: "#22c55e",
+  LayerEnd: "#22c55e",
+  Data: "#94a3b8",
+  Media: "#f59e0b",
+  GroupStart: "#a855f7",
+  GroupEnd: "#a855f7",
 };
 
 const NODE_COLORS: Record<string, { fill: string; stroke: string }> = {
-  reader: { fill: 'rgba(34, 197, 94, 0.12)', stroke: '#22c55e' },
-  tool: { fill: 'rgba(100, 116, 139, 0.12)', stroke: '#64748b' },
-  writer: { fill: 'rgba(59, 130, 246, 0.12)', stroke: '#3b82f6' },
-  'bridge-reader': { fill: 'rgba(34, 197, 94, 0.12)', stroke: '#22c55e' },
-  'bridge-writer': { fill: 'rgba(59, 130, 246, 0.12)', stroke: '#3b82f6' },
+  reader: { fill: "rgba(34, 197, 94, 0.12)", stroke: "#22c55e" },
+  tool: { fill: "rgba(100, 116, 139, 0.12)", stroke: "#64748b" },
+  writer: { fill: "rgba(59, 130, 246, 0.12)", stroke: "#3b82f6" },
+  "bridge-reader": { fill: "rgba(34, 197, 94, 0.12)", stroke: "#22c55e" },
+  "bridge-writer": { fill: "rgba(59, 130, 246, 0.12)", stroke: "#3b82f6" },
 };
 
 function getNodeWidth(node: FlowNode): number {
@@ -63,7 +63,11 @@ function getNodeX(nodes: FlowNode[], index: number): number {
   return x;
 }
 
-function getNodeCenter(nodes: FlowNode[], index: number, maxHeight: number): { x: number; y: number } {
+function getNodeCenter(
+  nodes: FlowNode[],
+  index: number,
+  maxHeight: number,
+): { x: number; y: number } {
   const x = getNodeX(nodes, index) + getNodeWidth(nodes[index]) / 2;
   const y = PADDING_Y + maxHeight / 2;
   return { x, y };
@@ -108,18 +112,8 @@ export default function FlowGraph({
       className={styles.svgGraph}
     >
       <defs>
-        <marker
-          id="arrowhead"
-          markerWidth="8"
-          markerHeight="6"
-          refX="8"
-          refY="3"
-          orient="auto"
-        >
-          <polygon
-            points="0 0, 8 3, 0 6"
-            className={styles.arrowhead}
-          />
+        <marker id="arrowhead" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+          <polygon points="0 0, 8 3, 0 6" className={styles.arrowhead} />
         </marker>
       </defs>
 
@@ -146,11 +140,7 @@ export default function FlowGraph({
 
         return (
           <g key={`edge-${i}`}>
-            <path
-              d={pathD}
-              className={styles.edgePath}
-              markerEnd="url(#arrowhead)"
-            />
+            <path d={pathD} className={styles.edgePath} markerEnd="url(#arrowhead)" />
             {/* Buffer meter */}
             <rect
               x={meterX}
@@ -218,26 +208,14 @@ export default function FlowGraph({
                 opacity={0.6}
               />
             )}
-            <text
-              x={x + w / 2}
-              y={y + 18}
-              className={styles.nodeTypeLabel}
-            >
-              {node.type.replace('bridge-', 'bridge ')}
+            <text x={x + w / 2} y={y + 18} className={styles.nodeTypeLabel}>
+              {node.type.replace("bridge-", "bridge ")}
             </text>
-            <text
-              x={x + w / 2}
-              y={y + 38}
-              className={styles.nodeLabel}
-            >
+            <text x={x + w / 2} y={y + 38} className={styles.nodeLabel}>
               {node.label}
             </text>
             {node.bridge && (
-              <text
-                x={x + w / 2}
-                y={y + h - 10}
-                className={styles.bridgeLabel}
-              >
+              <text x={x + w / 2} y={y + h - 10} className={styles.bridgeLabel}>
                 {node.bridge.filterClass}
               </text>
             )}
@@ -250,7 +228,7 @@ export default function FlowGraph({
                   const laneH = WORKER_LANE_HEIGHT - 4;
                   // Count active particles in this worker lane
                   const laneActive = particles.some(
-                    p => p.position === 'node' && p.nodeId === node.id && p.worker === wi,
+                    (p) => p.position === "node" && p.nodeId === node.id && p.worker === wi,
                   );
                   return (
                     <g key={`lane-${wi}`}>
@@ -261,18 +239,14 @@ export default function FlowGraph({
                         height={laneH}
                         rx={4}
                         ry={4}
-                        fill={laneActive ? colors.stroke : 'transparent'}
+                        fill={laneActive ? colors.stroke : "transparent"}
                         opacity={laneActive ? 0.15 : 1}
                         stroke={colors.stroke}
                         strokeWidth={1}
-                        strokeDasharray={laneActive ? 'none' : '3 2'}
+                        strokeDasharray={laneActive ? "none" : "3 2"}
                         strokeOpacity={0.4}
                       />
-                      <text
-                        x={x + 18}
-                        y={laneY + laneH / 2 + 1}
-                        className={styles.workerLabel}
-                      >
+                      <text x={x + 18} y={laneY + laneH / 2 + 1} className={styles.workerLabel}>
                         w{wi}
                       </text>
                     </g>
@@ -289,7 +263,7 @@ export default function FlowGraph({
         let cx: number;
         let cy: number;
 
-        if (particle.position === 'node' && particle.nodeId) {
+        if (particle.position === "node" && particle.nodeId) {
           const nIdx = nodeIndexMap.get(particle.nodeId);
           if (nIdx === undefined) return null;
           const node = nodes[nIdx];
@@ -307,7 +281,7 @@ export default function FlowGraph({
             cy = laneY + laneH / 2;
             cx = center.x + 16; // offset right of the "w0" label
           }
-        } else if (particle.position === 'edge' && particle.edgeIndex !== undefined) {
+        } else if (particle.position === "edge" && particle.edgeIndex !== undefined) {
           const i = particle.edgeIndex;
           if (i >= nodes.length - 1) return null;
           const fromCenter = getNodeCenter(nodes, i, maxNodeHeight);
@@ -321,7 +295,7 @@ export default function FlowGraph({
           return null;
         }
 
-        const color = PART_COLORS[particle.partType] || '#94a3b8';
+        const color = PART_COLORS[particle.partType] || "#94a3b8";
         const isSelected = particle.partId === selectedPartId;
         const radius = isSelected ? 9 : 7;
 
@@ -329,7 +303,7 @@ export default function FlowGraph({
           <g
             key={particle.partId}
             onClick={() => onPartClick(particle.partId)}
-            style={{ cursor: 'pointer' }}
+            style={{ cursor: "pointer" }}
           >
             {isSelected && (
               <circle
@@ -343,14 +317,7 @@ export default function FlowGraph({
                 className={styles.particleSelected}
               />
             )}
-            <circle
-              cx={cx}
-              cy={cy}
-              r={radius}
-              fill={color}
-              stroke="white"
-              strokeWidth={1.5}
-            />
+            <circle cx={cx} cy={cy} r={radius} fill={color} stroke="white" strokeWidth={1.5} />
             <title>{particle.summary}</title>
           </g>
         );

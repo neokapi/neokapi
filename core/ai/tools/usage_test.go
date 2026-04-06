@@ -87,10 +87,10 @@ func TestTranslateToolBatchAccumulatesUsage(t *testing.T) {
 	}
 
 	tool := tools.NewAITranslateTool(mock, tools.AITranslateConfig{
-		SourceLocale: model.LocaleEnglish,
-		TargetLocale: model.LocaleFrench,
-		BatchSize:    10,
-		BatchConcurrency:  2,
+		SourceLocale:     model.LocaleEnglish,
+		TargetLocale:     model.LocaleFrench,
+		BatchSize:        10,
+		BatchConcurrency: 2,
 	})
 
 	ctx := t.Context()

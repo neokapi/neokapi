@@ -3,6 +3,7 @@ id: 021-mcp-integration
 sidebar_position: 21
 title: "AD-021: MCP Integration"
 ---
+
 # AD-021: MCP Integration
 
 ## Context
@@ -25,6 +26,7 @@ Both servers use the official Go MCP SDK (`github.com/modelcontextprotocol/go-sd
 ### Why Separate Servers
 
 The separation mirrors the existing CLI architecture ([AD-013](./013-cli-and-server.md)):
+
 - **Kapi** = standalone file tool, no project or server dependency
 - **Bowrain CLI** = project sync companion, `.bowrain/` context required
 
@@ -32,29 +34,29 @@ Combining them would force agents to reason about when project context is needed
 
 ### Kapi MCP Tools
 
-| Tool | Description | Key Parameters |
-|------|-------------|----------------|
-| `list_formats` | List supported file formats | — |
-| `detect_format` | Detect format from file path | `path` |
-| `extract_content` | Parse file, return translatable blocks | `path`, `format?`, `source_lang?` |
-| `word_count` | Count translatable words | `path`, `format?`, `source_lang?` |
-| `run_flow` | Execute a processing flow on a file | `flow_name`, `path`, `target_lang?`, `output_path?` |
-| `pseudo_translate` | Pseudo-translate a file for QA | `path`, `target_lang?`, `output_path?` |
-| `list_flows` | List available processing flows | — |
-| `list_tools` | List available processing tools | — |
+| Tool               | Description                            | Key Parameters                                      |
+| ------------------ | -------------------------------------- | --------------------------------------------------- |
+| `list_formats`     | List supported file formats            | —                                                   |
+| `detect_format`    | Detect format from file path           | `path`                                              |
+| `extract_content`  | Parse file, return translatable blocks | `path`, `format?`, `source_lang?`                   |
+| `word_count`       | Count translatable words               | `path`, `format?`, `source_lang?`                   |
+| `run_flow`         | Execute a processing flow on a file    | `flow_name`, `path`, `target_lang?`, `output_path?` |
+| `pseudo_translate` | Pseudo-translate a file for QA         | `path`, `target_lang?`, `output_path?`              |
+| `list_flows`       | List available processing flows        | —                                                   |
+| `list_tools`       | List available processing tools        | —                                                   |
 
 Kapi tools reuse the same infrastructure as CLI commands: `FormatRegistry` for format detection and reader/writer creation, `Executor` for pipeline orchestration, and built-in tool constructors for flow chains.
 
 ### Bowrain CLI MCP Tools
 
-| Tool | Description | Key Parameters |
-|------|-------------|----------------|
-| `project_config` | Read project configuration | — |
-| `project_status` | Show sync status (pending push/pull) | — |
-| `project_ls` | List tracked files with optional stats | `paths?[]`, `stats?`, `dirty?` |
-| `project_push` | Upload local changes to server | `paths?[]`, `force?`, `dry_run?` |
-| `project_pull` | Download translations from server | `locales?[]`, `force?`, `dry_run?` |
-| `list_flows` | List available flows (built-in + project) | — |
+| Tool             | Description                               | Key Parameters                     |
+| ---------------- | ----------------------------------------- | ---------------------------------- |
+| `project_config` | Read project configuration                | —                                  |
+| `project_status` | Show sync status (pending push/pull)      | —                                  |
+| `project_ls`     | List tracked files with optional stats    | `paths?[]`, `stats?`, `dirty?`     |
+| `project_push`   | Upload local changes to server            | `paths?[]`, `force?`, `dry_run?`   |
+| `project_pull`   | Download translations from server         | `locales?[]`, `force?`, `dry_run?` |
+| `list_flows`     | List available flows (built-in + project) | —                                  |
 
 Bowrain CLI tools reuse `project.FindProject("")`, `project.NewSourceConnector()`, `project.NewLocalConnector()`, and `connector.PushOptions`/`PullOptions` — the same functions as the existing CLI commands.
 

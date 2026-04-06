@@ -88,7 +88,14 @@ export interface PropertySchema {
 
   "x-okapi-flatten-path"?: string;
   "x-okapi-format"?: string;
-  "x-path"?: { type?: string; role?: string; resourceKind?: string; accepts?: string[]; browseTitle?: string; filters?: Array<{ name: string; extensions: string }> };
+  "x-path"?: {
+    type?: string;
+    role?: string;
+    resourceKind?: string;
+    accepts?: string[];
+    browseTitle?: string;
+    filters?: Array<{ name: string; extensions: string }>;
+  };
 
   properties?: Record<string, PropertySchema>;
   additionalProperties?: PropertySchema | boolean;

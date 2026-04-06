@@ -3,6 +3,7 @@ id: 035-automation-run-visibility
 sidebar_position: 35
 title: "AD-035: Automation Run Visibility"
 ---
+
 # AD-035: Automation Run Visibility
 
 ## Context
@@ -105,6 +106,7 @@ type AutomationRunManager struct {
 ```
 
 When `Execute(action, event)` is called:
+
 1. Check if a Run exists for `event.ID`. If not, create one.
 2. Create a Step for this action.
 3. Call the real executor.
@@ -123,6 +125,7 @@ The existing `PushCompletionTracker` continues to emit `push.automations.complet
 A `RunLogger` passed through context to workers. It buffers log entries and flushes in batches to the `automation_logs` table.
 
 Workers log at key milestones:
+
 - `"Processing <item_name> for <locale>"` (info)
 - `"Translating blocks <start>-<end> of <total>"` (info, per chunk)
 - `"Chunk completed: <tokens> tokens"` (info)
@@ -174,6 +177,7 @@ The UI renders runs as a timeline/graph similar to GitHub Actions:
 **Run list page**: Status badge (green/red/blue spinner), trigger info ("Content pushed: en.json"), duration, step count. Auto-refreshes.
 
 **Run detail page**: Step graph showing the execution flow. Each step is a card with:
+
 - Status icon (spinner/checkmark/X)
 - Action type label
 - Progress bar (for async steps: 142/418 blocks)
@@ -193,6 +197,7 @@ The `executeAutomationAction` function in `server/automation.go` gains a `stepID
 ## Implementation Phases
 
 ### Phase 1: Core Model + REST API
+
 - Data model: `automation_runs`, `automation_steps` tables
 - `AutomationRunStore` interface + PostgreSQL/SQLite implementations
 - `AutomationRunManager` wrapping the action executor
@@ -201,6 +206,7 @@ The `executeAutomationAction` function in `server/automation.go` gains a `stepID
 - Integration in `server.go`
 
 ### Phase 2: Logs + Real-Time
+
 - `automation_logs` table
 - `RunLogger` for structured log capture in workers
 - `StepID` field on jobs
@@ -208,12 +214,14 @@ The `executeAutomationAction` function in `server/automation.go` gains a `stepID
 - Worker integration for translation and extraction logs
 
 ### Phase 3: UI
+
 - Run list page with live status badges
 - Run detail with step graph/timeline
 - Per-step expandable log viewer
 - Navigation from steps to tasks/jobs
 
 ### Phase 4: Polish
+
 - Migrate from `automation_history` to runs
 - Run cancellation (cancel pending jobs)
 - Retention policy (auto-delete old runs)

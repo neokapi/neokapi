@@ -1,6 +1,7 @@
 # neokapi Project Memory
 
 ## AD Conventions
+
 - Files named `NNN-topic.md` in `docs/ad/`
 - Implementation notes in `docs/notes/` (tactical details extracted from ADs)
 - Each AD has frontmatter: id, sidebar_position, title
@@ -9,6 +10,7 @@
 - README.md has an index table organized by architectural layer
 
 ## Key Architecture Points
+
 - Content flows as `Part` (with `PartType` discriminator + `Resource` interface) through channel-based pipeline
 - `Block` is the translatable unit; carries `Properties` (map[string]string) and `Annotations` (map[string]Annotation)
 - Tools embed `BaseTool` and set handler function fields; unhandled Part types pass through
@@ -17,6 +19,7 @@
 - KAZ = ZIP-based project archive format
 
 ## AD-010: Content-Aware TM (Sievepen)
+
 - TMEntry stores `*model.Fragment` (not strings) — preserves inline Spans and entity metadata
 - Derived matching keys: plain (Fragment.Text()), structural ({1},{2}), generalized ({PERSON},{PRODUCT})
 - Tiered matching: generalized-exact → structural-exact → plain-exact → generalized/structural/plain-fuzzy
@@ -26,6 +29,7 @@
 - Privacy redaction is orthogonal — TM handles generalization natively
 
 ## AD-016: Terminology & Brand Management
+
 - Progressive complexity: CSV glossary → concept-oriented termbase → streams → brand governance
 - Concept-oriented data model (TBX-inspired) with `Concept` containing `Term` entries per locale
 - TermBase interface mirrors Sievepen pattern (in-memory + SQLite backends)

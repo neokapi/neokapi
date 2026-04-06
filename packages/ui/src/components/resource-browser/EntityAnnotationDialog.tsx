@@ -48,12 +48,18 @@ export function EntityAnnotationDialog({
   }, []);
 
   const removePattern = useCallback((idx: number) => {
-    setPatterns((prev: EntityPatternRequest[]) => prev.filter((_: EntityPatternRequest, i: number) => i !== idx));
+    setPatterns((prev: EntityPatternRequest[]) =>
+      prev.filter((_: EntityPatternRequest, i: number) => i !== idx),
+    );
   }, []);
 
   const updatePattern = useCallback(
     (idx: number, field: keyof EntityPatternRequest, value: string | boolean) => {
-      setPatterns((prev: EntityPatternRequest[]) => prev.map((p: EntityPatternRequest, i: number) => (i === idx ? { ...p, [field]: value } : p)));
+      setPatterns((prev: EntityPatternRequest[]) =>
+        prev.map((p: EntityPatternRequest, i: number) =>
+          i === idx ? { ...p, [field]: value } : p,
+        ),
+      );
     },
     [],
   );

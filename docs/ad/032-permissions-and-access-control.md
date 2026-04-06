@@ -3,6 +3,7 @@ id: 032-permissions-and-access-control
 sidebar_position: 32
 title: "AD-032: Permissions and Access Control"
 ---
+
 # AD-032: Permissions and Access Control
 
 ## Context
@@ -65,23 +66,23 @@ project membership with a role template and language scope.
 
 **Permission primitives** (bitmask, 15 bits):
 
-| Permission | Bit | Description |
-|---|---|---|
-| `view_content` | 0 | View source and target content |
-| `edit_source` | 1 | Edit source text |
-| `translate` | 2 | Add/edit translations (language-scoped) |
-| `review` | 3 | Approve/reject translations (language-scoped) |
-| `manage_terms` | 4 | Edit terminology |
-| `manage_tm` | 5 | Edit translation memory |
-| `run_flows` | 6 | Execute processing flows |
-| `manage_files` | 7 | Upload/delete files |
-| `manage_streams` | 8 | Create/merge/delete streams |
-| `manage_connectors` | 9 | Configure connectors |
-| `manage_automation` | 10 | Create/edit automation rules |
-| `manage_members` | 11 | Add/remove project members |
-| `manage_project` | 12 | Edit project settings, archive |
-| `manage_brand` | 13 | Edit brand voice profiles |
-| `manage_assets` | 14 | Upload/delete media assets |
+| Permission          | Bit | Description                                   |
+| ------------------- | --- | --------------------------------------------- |
+| `view_content`      | 0   | View source and target content                |
+| `edit_source`       | 1   | Edit source text                              |
+| `translate`         | 2   | Add/edit translations (language-scoped)       |
+| `review`            | 3   | Approve/reject translations (language-scoped) |
+| `manage_terms`      | 4   | Edit terminology                              |
+| `manage_tm`         | 5   | Edit translation memory                       |
+| `run_flows`         | 6   | Execute processing flows                      |
+| `manage_files`      | 7   | Upload/delete files                           |
+| `manage_streams`    | 8   | Create/merge/delete streams                   |
+| `manage_connectors` | 9   | Configure connectors                          |
+| `manage_automation` | 10  | Create/edit automation rules                  |
+| `manage_members`    | 11  | Add/remove project members                    |
+| `manage_project`    | 12  | Edit project settings, archive                |
+| `manage_brand`      | 13  | Edit brand voice profiles                     |
+| `manage_assets`     | 14  | Upload/delete media assets                    |
 
 **Role templates** are workspace-scoped and configurable. Five built-in
 templates are seeded on workspace creation: project-admin (all), developer,
@@ -113,16 +114,16 @@ constraint  = locale ("," locale)*       // language restriction
 
 #### Scope-to-Permission Mapping
 
-| Scope | Grants |
-|---|---|
-| `*` | All permissions the user has (no restriction) |
-| `read` | `view_content` only |
-| `translate` | `view_content`, `translate` |
-| `translate:fr,de` | `view_content`, `translate` for fr and de only |
-| `review` | `view_content`, `translate`, `review` |
-| `manage` | All non-destructive permissions |
-| `admin` | All permissions |
-| `project:proj-123:translate:fr` | `translate` for fr on project proj-123 only |
+| Scope                           | Grants                                         |
+| ------------------------------- | ---------------------------------------------- |
+| `*`                             | All permissions the user has (no restriction)  |
+| `read`                          | `view_content` only                            |
+| `translate`                     | `view_content`, `translate`                    |
+| `translate:fr,de`               | `view_content`, `translate` for fr and de only |
+| `review`                        | `view_content`, `translate`, `review`          |
+| `manage`                        | All non-destructive permissions                |
+| `admin`                         | All permissions                                |
+| `project:proj-123:translate:fr` | `translate` for fr on project proj-123 only    |
 
 #### Middleware
 
@@ -189,11 +190,11 @@ after a configurable timeout. The existing `SessionStateStore` interface
 Each @bravo mode defines a permission ceiling that intersects with the user's
 base permissions:
 
-| Mode | Permission Ceiling | Description |
-|---|---|---|
-| **Ask** | `view_content` | Read-only. Can query projects, search TM/terms, explain content. Cannot modify anything. |
-| **Co-worker** | User's full permissions | Full access to all tools the user has permission for. Destructive operations require approval per `AgentConfig.RequireApproval`. |
-| **Voice** | `view_content`, `manage_brand`, `review` | Brand voice focused. Can check voice compliance, review translations, manage brand profiles. Cannot modify content directly. |
+| Mode          | Permission Ceiling                       | Description                                                                                                                      |
+| ------------- | ---------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| **Ask**       | `view_content`                           | Read-only. Can query projects, search TM/terms, explain content. Cannot modify anything.                                         |
+| **Co-worker** | User's full permissions                  | Full access to all tools the user has permission for. Destructive operations require approval per `AgentConfig.RequireApproval`. |
+| **Voice**     | `view_content`, `manage_brand`, `review` | Brand voice focused. Can check voice compliance, review translations, manage brand profiles. Cannot modify content directly.     |
 
 #### Step-Up Prompting
 
@@ -302,12 +303,12 @@ middleware auto-creates user records for agent JWTs.
 
 All access patterns preserve actor identity for audit:
 
-| Access Pattern | Actor Format | Example |
-|---|---|---|
-| Human user | `user_id` | `"u_abc123"` |
-| API token | `user_id` (token owner) | `"u_abc123"` |
-| @bravo | `bravo:<user_id>` | `"bravo:u_abc123"` |
-| Persona agent | `user_id` (agent user) | `"u_agent_fr"` |
+| Access Pattern | Actor Format            | Example            |
+| -------------- | ----------------------- | ------------------ |
+| Human user     | `user_id`               | `"u_abc123"`       |
+| API token      | `user_id` (token owner) | `"u_abc123"`       |
+| @bravo         | `bravo:<user_id>`       | `"bravo:u_abc123"` |
+| Persona agent  | `user_id` (agent user)  | `"u_agent_fr"`     |
 
 ### API Token Creation UI
 
@@ -330,6 +331,7 @@ Token Scopes
 ```
 
 The resulting scopes array is stored in `api_tokens.scopes`:
+
 ```json
 ["translate:fr,de", "read"]
 ```

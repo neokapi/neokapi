@@ -77,7 +77,12 @@ jobs:
           - { image: bowrain-web, arch: arm64, runner: ubuntu-24.04-arm, platform: linux/arm64 }
           - { image: bravo-agent, arch: amd64, runner: ubuntu-latest, platform: linux/amd64 }
           - { image: bravo-sandbox-node, arch: amd64, runner: ubuntu-latest, platform: linux/amd64 }
-          - { image: bravo-sandbox-python, arch: amd64, runner: ubuntu-latest, platform: linux/amd64 }
+          - {
+              image: bravo-sandbox-python,
+              arch: amd64,
+              runner: ubuntu-latest,
+              platform: linux/amd64,
+            }
           - { image: persona-agent, arch: amd64, runner: ubuntu-latest, platform: linux/amd64 }
     steps:
       - uses: actions/checkout@v6

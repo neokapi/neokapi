@@ -3,6 +3,7 @@ id: 012-bowrain
 sidebar_position: 12
 title: "AD-012: Bowrain Desktop App"
 ---
+
 # AD-012: Bowrain desktop app with Wails v3
 
 ## Context

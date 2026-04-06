@@ -2,6 +2,7 @@
 sidebar_position: 18
 title: "Graph Store Schema"
 ---
+
 # Graph Store Schema
 
 This note provides implementation details for [AD-026](/docs/ad/026-graph-concept-management).
@@ -38,6 +39,7 @@ CREATE INDEX IF NOT EXISTS idx_graph_nodes_label ON graph_nodes(label);
 ```
 
 **Design notes:**
+
 - Properties stored as JSON, queried via `json_extract(properties, '$.key')`
 - Validity fields (`valid_from`, `valid_to`) are nullable TEXT (RFC3339 format)
 - Tags stored as JSON object, parsed in Go for scope matching
@@ -54,6 +56,7 @@ SELECT * FROM ag_catalog.create_graph('bowrain_graph');
 ```
 
 **Node creation:**
+
 ```sql
 SELECT * FROM ag_catalog.cypher('bowrain_graph', $$
     CREATE (n:Concept {id: 'c1', name: 'encryption', created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z'})
@@ -62,6 +65,7 @@ $$) as (v agtype);
 ```
 
 **Edge creation with validity:**
+
 ```sql
 SELECT * FROM ag_catalog.cypher('bowrain_graph', $$
     MATCH (a {id: 'c1'}), (b {id: 'c2'})
@@ -75,6 +79,7 @@ $$) as (e agtype);
 ```
 
 **Traversal with direction:**
+
 ```sql
 -- Outgoing neighbors
 SELECT * FROM ag_catalog.cypher('bowrain_graph', $$
@@ -93,6 +98,7 @@ $$) as (v agtype);
 ```
 
 **Scoped traversal (temporal + tags):**
+
 ```sql
 SELECT * FROM ag_catalog.cypher('bowrain_graph', $$
     MATCH (n {id: 'c1'})-[r]->(m)
@@ -104,6 +110,7 @@ $$) as (v agtype);
 ```
 
 **Shortest path:**
+
 ```sql
 SELECT * FROM ag_catalog.cypher('bowrain_graph', $$
     MATCH p = shortestPath((a {id: 'c1'})-[*..10]-(b {id: 'c2'}))
@@ -116,33 +123,40 @@ $$) as (p agtype);
 AGE returns results as `agtype`, a custom PostgreSQL type. The parser in `platform/graph/agtype.go` handles three formats:
 
 ### Vertex format
+
 ```
 {"id": 123, "label": "Concept", "properties": {"id": "c1", "name": "encryption"}}::vertex
 ```
+
 - Strip `::vertex` suffix
 - Parse JSON body into `agtypeVertex` struct
 - Extract application-level `id` from properties (fall back to AGE internal `id`)
 - Convert `map[string]any` properties to `map[string]string`
 
 ### Edge format
+
 ```
 {"id": 456, "label": "BROADER", "start_id": 123, "end_id": 789, "properties": {"id": "e1", "source": "c1", "target": "c2", "valid_from": "2024-01-01T00:00:00Z"}}::edge
 ```
+
 - Strip `::edge` suffix
 - Parse JSON body into `agtypeEdge` struct
 - Extract `source`/`target` from properties (fall back to `start_id`/`end_id`)
 - Reconstruct `Validity` from `valid_from`, `valid_to`, `tags` properties
 
 ### Path format
+
 ```
 [{...}::vertex, {...}::edge, {...}::vertex]::path
 ```
+
 - Strip `::path` suffix
 - Split array elements by tracking brace depth (commas inside JSON objects are skipped)
 - Parse alternating vertex (even indices) and edge (odd indices) elements
 - Return assembled `Path` struct
 
 ### Scalar values
+
 `ParseScalar` handles: `null`, `true`/`false`, integers, floats, quoted strings.
 
 ## Framework: SQLite Shortest Path (Recursive CTE)
@@ -167,6 +181,7 @@ SELECT path_nodes, path_edges FROM bfs WHERE node = ? LIMIT 1
 ```
 
 **Algorithm:**
+
 1. Start from the source node (depth 0)
 2. Expand to neighbors via joined edges, tracking visited nodes via string concatenation
 3. Cycle detection via `instr(path_nodes, ...)` check
@@ -177,11 +192,11 @@ SELECT path_nodes, path_edges FROM bfs WHERE node = ? LIMIT 1
 
 `GraphSyncer` in `platform/graph/sync.go` subscribes to the event bus and maintains graph consistency:
 
-| Event | Action |
-|-------|--------|
+| Event               | Action                                                      |
+| ------------------- | ----------------------------------------------------------- |
 | `EventBlockCreated` | Create Concept node with `project_id` and `name` properties |
-| `EventBlockUpdated` | Update node properties |
-| `EventBlockDeleted` | Delete node (AGE: DETACH DELETE cascades edges) |
+| `EventBlockUpdated` | Update node properties                                      |
+| `EventBlockDeleted` | Delete node (AGE: DETACH DELETE cascades edges)             |
 
 The syncer uses a 10-second context timeout per event and logs errors without failing.
 
@@ -189,22 +204,22 @@ The syncer uses a 10-second context timeout per event and logs errors without fa
 
 ### Framework (`core/`, `cli/`)
 
-| File | Purpose |
-|------|---------|
-| `core/graph/types.go` | Node, Edge, Path, Direction types |
-| `core/graph/store.go` | GraphStore interface |
-| `core/graph/validity.go` | Validity, Scope, matching logic |
-| `core/graph/labels.go` | SKOS-aligned edge label constants |
-| `cli/storage/graph/sqlite.go` | SQLite adjacency table backend |
+| File                          | Purpose                           |
+| ----------------------------- | --------------------------------- |
+| `core/graph/types.go`         | Node, Edge, Path, Direction types |
+| `core/graph/store.go`         | GraphStore interface              |
+| `core/graph/validity.go`      | Validity, Scope, matching logic   |
+| `core/graph/labels.go`        | SKOS-aligned edge label constants |
+| `cli/storage/graph/sqlite.go` | SQLite adjacency table backend    |
 
 ### Server (`platform/`)
 
-| File | Purpose |
-|------|---------|
-| `platform/graph/cypher.go` | CypherStore sub-interface |
-| `platform/graph/age.go` | Apache AGE backend (implements GraphStore + CypherStore) |
-| `platform/graph/agtype.go` | agtype parser (vertex, edge, path, scalar) |
-| `platform/graph/time.go` | Time formatting helpers for AGE |
-| `platform/graph/afterconnect.go` | pgx AfterConnect hook for AGE extension |
-| `platform/graph/factory.go` | GraphStore factory |
-| `platform/graph/sync.go` | Event-driven graph sync |
+| File                             | Purpose                                                  |
+| -------------------------------- | -------------------------------------------------------- |
+| `platform/graph/cypher.go`       | CypherStore sub-interface                                |
+| `platform/graph/age.go`          | Apache AGE backend (implements GraphStore + CypherStore) |
+| `platform/graph/agtype.go`       | agtype parser (vertex, edge, path, scalar)               |
+| `platform/graph/time.go`         | Time formatting helpers for AGE                          |
+| `platform/graph/afterconnect.go` | pgx AfterConnect hook for AGE extension                  |
+| `platform/graph/factory.go`      | GraphStore factory                                       |
+| `platform/graph/sync.go`         | Event-driven graph sync                                  |

@@ -93,9 +93,10 @@ func (s *MyBrandStore) GetProfile(ctx context.Context, id string) (*brand.VoiceP
 ```
 
 Key implementation notes:
+
 - `UpdateProfile` should increment `Version` and set `UpdatedAt`
 - `ListProfiles` filters by `WorkspaceID`
-- `GetScoreTrends` aggregates by date with AVG(score) and COUNT(*)
+- `GetScoreTrends` aggregates by date with AVG(score) and COUNT(\*)
 - `GetSuggestedRules` groups corrections by original/corrected text and filters by minimum count
 
 ## Scoring
@@ -127,12 +128,12 @@ score := brand.CalculateScore(findings)
 
 ### Severity Weights
 
-| Severity | Weight | Use case |
-|----------|--------|----------|
-| `SeverityNeutral` | 0 | Informational findings |
-| `SeverityMinor` | 1 | Slight inconsistencies |
-| `SeverityMajor` | 5 | Clear violations |
-| `SeverityCritical` | 25 | Competitor terms, critical brand issues |
+| Severity           | Weight | Use case                                |
+| ------------------ | ------ | --------------------------------------- |
+| `SeverityNeutral`  | 0      | Informational findings                  |
+| `SeverityMinor`    | 1      | Slight inconsistencies                  |
+| `SeverityMajor`    | 5      | Clear violations                        |
+| `SeverityCritical` | 25     | Competitor terms, critical brand issues |
 
 ## Profile Resolution
 
@@ -172,6 +173,7 @@ tool := aitool.NewBrandVoiceCheckTool(llmProvider, profile)
 ```
 
 Uses `ChatStructured` to get structured findings from the LLM. The prompt includes the profile's tone, style, and examples as context. Results are scored via `CalculateScore` and attached as:
+
 - `BrandVoiceAnnotation` on the Block (implements `model.Annotation`)
 - `brand-voice-score` block property (JSON-encoded `BrandComplianceScore`)
 - `brand-voice-findings` block property (JSON-encoded findings array)

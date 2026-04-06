@@ -89,16 +89,16 @@ func (s *PluginSpec) UnmarshalYAML(node *yaml.Node) error {
 //
 // Bare entry (has path, no items):
 //
-//	- path: "src/**/*"
-//	  target: "output/{lang}/**/*"
+//   - path: "src/**/*"
+//     target: "output/{lang}/**/*"
 //
 // Collection (has name and items):
 //
-//	- name: Marketing
-//	  target_languages: [fr-FR]
-//	  items:
-//	    - path: "marketing/*.html"
-//	      format: okf_html
+//   - name: Marketing
+//     target_languages: [fr-FR]
+//     items:
+//   - path: "marketing/*.html"
+//     format: okf_html
 type ContentCollection struct {
 	// Collection fields (long form).
 	Name            string        `yaml:"name,omitempty" json:"name,omitempty"`

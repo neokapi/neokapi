@@ -22,7 +22,9 @@
 /* Clickable stat cards */
 .statCardClickable {
   cursor: pointer;
-  transition: border-color 0.15s, box-shadow 0.15s;
+  transition:
+    border-color 0.15s,
+    box-shadow 0.15s;
 }
 
 .statCardClickable:hover {

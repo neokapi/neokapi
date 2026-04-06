@@ -3,6 +3,7 @@ id: 022-entity-term-extraction
 sidebar_position: 22
 title: "AD-022: Automated Entity & Term Extraction"
 ---
+
 # AD-022: Automated Entity & Term Extraction
 
 ## Context
@@ -25,14 +26,14 @@ Both run through the same output path: entities become `EntityAnnotation`, term 
 
 ### Why Both
 
-| Concern | LLM | NER |
-|---------|-----|-----|
-| Terminology extraction | Excellent — understands domain context | Cannot do this |
-| Obvious entities (dates, currencies) | Works but expensive at volume | Fast, cheap, deterministic |
-| Context sensitivity ("Sprint" = agile vs. telecom) | Handles naturally | Cannot distinguish |
-| Language coverage | Depends on model | Azure: 70+, spaCy: 23+ |
-| Cost at scale | $$ per 1K blocks | ¢ per 1K blocks |
-| Consistency | Probabilistic | Deterministic |
+| Concern                                            | LLM                                    | NER                        |
+| -------------------------------------------------- | -------------------------------------- | -------------------------- |
+| Terminology extraction                             | Excellent — understands domain context | Cannot do this             |
+| Obvious entities (dates, currencies)               | Works but expensive at volume          | Fast, cheap, deterministic |
+| Context sensitivity ("Sprint" = agile vs. telecom) | Handles naturally                      | Cannot distinguish         |
+| Language coverage                                  | Depends on model                       | Azure: 70+, spaCy: 23+     |
+| Cost at scale                                      | $$ per 1K blocks                       | ¢ per 1K blocks            |
+| Consistency                                        | Probabilistic                          | Deterministic              |
 
 NER is an optimization layer: it handles the easy cases cheaply, freeing LLM capacity for the hard cases (terminology, ambiguous entities, classification decisions).
 
@@ -257,15 +258,18 @@ Default threshold: 0.4 (configurable in project config).
 ### Approval Lifecycle
 
 On **approve**:
+
 - **Term candidate:** Creates a Concept in the termbase with the extracted definition, category, and a Term entry for the source locale. In projects with role-based permissions, the behavior is configurable:
   - **Direct create** (default for small teams): approval creates an active Concept immediately
   - **Draft create** (enterprise): approval creates a Concept with `status: draft`, requiring a terminologist to promote to `active`
 - **Entity:** Adds `EntityAnnotation` to all occurrence blocks. If DNT, the entity text is added to a project-level DNT list for future auto-detection.
 
 On **reject:**
+
 - Item marked rejected with optional comment. The same term/entity won't be re-proposed on future pushes unless the source text changes.
 
 On **manual mark** (translator/creator marks a term in the editor or CLI):
+
 - Creates a `TermCandidateAnnotation` with `Source: "manual"` and routes to the review queue with the same approval workflow. Manual candidates can be auto-approved if the user has the appropriate role/permission.
 
 ### Review Queue API
@@ -328,6 +332,7 @@ No backfill on feature enable. Extraction runs incrementally on future pushes on
 Review queue changes need to reach users across all surfaces: desktop app, web app, and mobile companion. The architecture must support this from the start even if the full notification system is built incrementally.
 
 **Foundation already in place:**
+
 - The automation engine defines a `"notify"` action type — no executor yet
 - WebSocket infrastructure exists for collaborative editing (`ws_collab.go`) — can extend for notification streaming
 - The `TopBar` component has a placeholder bell icon ready for a notification center
@@ -343,6 +348,7 @@ Review queue changes need to reach users across all surfaces: desktop app, web a
 4. **Mobile push notifications.** Future: integrate with APNs/FCM via the bowrain-app. The server stores device tokens and dispatches push notifications for high-priority events (new items assigned to you).
 
 **Notification triggers for extraction:**
+
 - Extraction completed → notify project admins with summary (N entities, M terms found)
 - New items assigned → notify the assignee
 - Item decided → notify the original proposer (for manual candidates)
@@ -372,17 +378,18 @@ type BlockEntityResponse struct {
 
 Entities render as inline highlights with distinct styling per entity type:
 
-| Entity Type | Style | Icon |
-|------------|-------|------|
-| Person | Blue background tint | User icon |
-| Organization | Purple background tint | Building icon |
-| Product | Amber background tint | Package icon |
-| Location | Green background tint | MapPin icon |
-| Date/Time | Slate background tint | Calendar/Clock icon |
-| Currency | Emerald background tint | Currency icon |
-| Measurement | Cyan background tint | Ruler icon |
+| Entity Type  | Style                   | Icon                |
+| ------------ | ----------------------- | ------------------- |
+| Person       | Blue background tint    | User icon           |
+| Organization | Purple background tint  | Building icon       |
+| Product      | Amber background tint   | Package icon        |
+| Location     | Green background tint   | MapPin icon         |
+| Date/Time    | Slate background tint   | Calendar/Clock icon |
+| Currency     | Emerald background tint | Currency icon       |
+| Measurement  | Cyan background tint    | Ruler icon          |
 
 DNT entities get an additional lock badge overlay. Hovering shows a tooltip with entity type, DNT status, and extraction source. Clicking opens an inline popover to:
+
 - Toggle DNT
 - Change entity type (correct misclassification)
 - Promote to term candidate (creates a `TermCandidateAnnotation` with `Source: "manual"`)
@@ -391,6 +398,7 @@ DNT entities get an additional lock badge overlay. Hovering shows a tooltip with
 **Manual entity marking:**
 
 Users can select text in the source editor and mark it as an entity via:
+
 - Right-click context menu → "Mark as Entity" → type picker
 - Keyboard shortcut (Cmd/Ctrl+E) → type picker popover
 - These create `EntityAnnotation` with `Source: "manual"` or route through the review queue depending on the user's role

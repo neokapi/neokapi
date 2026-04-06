@@ -3,6 +3,7 @@ id: 019-mt-providers
 sidebar_position: 19
 title: "AD-019: Machine Translation Providers"
 ---
+
 # AD-019: Machine Translation Providers
 
 ## Context
@@ -36,6 +37,7 @@ type TranslateResponse struct {
 ```
 
 The interface is intentionally simpler than the AI provider (`LLMProvider`):
+
 - **MT**: One method (`Translate`), plain text in/out
 - **AI**: Two methods (`Translate` + `Chat`), richer request types with context, glossary, format, confidence
 
@@ -43,15 +45,16 @@ This reflects the fundamental difference: MT providers are deterministic transla
 
 ### Five Built-in Providers
 
-| Provider | Config Fields | Auth Mechanism | Notes |
-|----------|--------------|----------------|-------|
-| **DeepL** | APIKey, Formality, BaseURL | `DeepL-Auth-Key` header | Supports formality control (more/less/prefer) |
-| **Google Translate** | APIKey, ProjectID, BaseURL | API key in query string | Cloud Translation API v2 |
-| **Microsoft Translator** | SubscriptionKey, Region, BaseURL | `Ocp-Apim-Subscription-Key` header | Optional region header |
-| **ModernMT** | APIKey, Hints, BaseURL | `MMT-ApiKey` header | Memory hints bias translations toward specific TMs |
-| **MyMemory** | Email, BaseURL | None (free) | Email unlocks higher rate limits; no API key required |
+| Provider                 | Config Fields                    | Auth Mechanism                     | Notes                                                 |
+| ------------------------ | -------------------------------- | ---------------------------------- | ----------------------------------------------------- |
+| **DeepL**                | APIKey, Formality, BaseURL       | `DeepL-Auth-Key` header            | Supports formality control (more/less/prefer)         |
+| **Google Translate**     | APIKey, ProjectID, BaseURL       | API key in query string            | Cloud Translation API v2                              |
+| **Microsoft Translator** | SubscriptionKey, Region, BaseURL | `Ocp-Apim-Subscription-Key` header | Optional region header                                |
+| **ModernMT**             | APIKey, Hints, BaseURL           | `MMT-ApiKey` header                | Memory hints bias translations toward specific TMs    |
+| **MyMemory**             | Email, BaseURL                   | None (free)                        | Email unlocks higher rate limits; no API key required |
 
 Each provider implementation:
+
 - Handles locale format conversion (BCP-47 → provider-specific codes)
 - Includes a `BaseURL` override for testing
 - Returns structured errors with HTTP status codes
@@ -70,6 +73,7 @@ type MTTranslateTool struct {
 ```
 
 The tool:
+
 1. Receives `*Part` from the pipeline channel
 2. Extracts translatable `Block` resources
 3. Skips non-translatable blocks (`block.Translatable == false`)

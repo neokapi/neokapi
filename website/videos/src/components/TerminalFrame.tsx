@@ -7,11 +7,7 @@ interface TerminalFrameProps {
   children: React.ReactNode;
 }
 
-export const TerminalFrame: React.FC<TerminalFrameProps> = ({
-  title,
-  branding,
-  children,
-}) => {
+export const TerminalFrame: React.FC<TerminalFrameProps> = ({ title, branding, children }) => {
   const radius = branding.cornerRadius;
 
   return (

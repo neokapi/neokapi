@@ -14,15 +14,8 @@ function Wrapper({
   const [value, setValue] = useState(initial);
   return (
     <div className="max-w-sm space-y-2">
-      <TagInput
-        value={value}
-        onChange={setValue}
-        placeholder={placeholder}
-        disabled={disabled}
-      />
-      <pre className="p-2 rounded bg-muted text-xs font-mono">
-        {value.join(", ") || "(empty)"}
-      </pre>
+      <TagInput value={value} onChange={setValue} placeholder={placeholder} disabled={disabled} />
+      <pre className="p-2 rounded bg-muted text-xs font-mono">{value.join(", ") || "(empty)"}</pre>
     </div>
   );
 }
@@ -49,25 +42,13 @@ export const Empty: Story = {
 };
 
 export const WithTags: Story = {
-  render: () => (
-    <Wrapper initial={["HTML", "XML", "JSON", "YAML"]} />
-  ),
+  render: () => <Wrapper initial={["HTML", "XML", "JSON", "YAML"]} />,
 };
 
 export const FileExtensions: Story = {
-  render: () => (
-    <Wrapper
-      initial={[".html", ".htm", ".xhtml"]}
-      placeholder="Add extension..."
-    />
-  ),
+  render: () => <Wrapper initial={[".html", ".htm", ".xhtml"]} placeholder="Add extension..." />,
 };
 
 export const Disabled: Story = {
-  render: () => (
-    <Wrapper
-      initial={["read-only", "tags"]}
-      disabled
-    />
-  ),
+  render: () => <Wrapper initial={["read-only", "tags"]} disabled />,
 };

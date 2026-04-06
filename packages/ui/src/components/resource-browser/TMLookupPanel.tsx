@@ -1,5 +1,10 @@
 import { useState, useCallback, useRef } from "react";
-import type { EntityAdaptationDTO, EntityAnnotationDTO, TMMatchDTO, LookupTMRequest } from "./types";
+import type {
+  EntityAdaptationDTO,
+  EntityAnnotationDTO,
+  TMMatchDTO,
+  LookupTMRequest,
+} from "./types";
 import { ENTITY_TYPES } from "./types";
 import { CodedTextDisplay } from "./CodedTextDisplay";
 import { MatchScoreBar } from "./MatchScoreBar";
@@ -103,7 +108,12 @@ export function TMLookupPanel({ sourceLocale, targetLocale, onLookup }: TMLookup
     try {
       const result = await onLookup({
         text,
-        entities: entities.map(({ text, type, start, end }: MarkedEntity) => ({ text, type, start, end })),
+        entities: entities.map(({ text, type, start, end }: MarkedEntity) => ({
+          text,
+          type,
+          start,
+          end,
+        })),
         source_locale: sourceLocale,
         target_locale: targetLocale,
         min_score: minScore,
@@ -136,9 +146,7 @@ export function TMLookupPanel({ sourceLocale, targetLocale, onLookup }: TMLookup
 
         {/* Entity popover — positioned below the textarea near the selection */}
         {showEntityPopover && selectionRange && (
-          <div
-            className="absolute z-50 top-full left-0 mt-1 max-w-full rounded-md border border-border bg-popover shadow-lg p-1.5 flex flex-wrap gap-1"
-          >
+          <div className="absolute z-50 top-full left-0 mt-1 max-w-full rounded-md border border-border bg-popover shadow-lg p-1.5 flex flex-wrap gap-1">
             <span className="text-[10px] text-muted-foreground px-1 py-0.5 w-full">
               Mark &ldquo;{selectionRange.text}&rdquo; as:
             </span>

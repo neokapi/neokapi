@@ -66,19 +66,19 @@ Each tool runs in its own goroutine. Buffered channels provide backpressure. Con
 
 If you're familiar with the Okapi Framework, here's how concepts map:
 
-| Okapi (Java) | neokapi (Go) |
-|---|---|
-| Filter | DataFormat (Reader/Writer) |
-| Step | Tool |
-| Pipeline | Flow |
-| PipelineDriver | Executor |
-| Event | Part |
-| TextUnit | Block |
-| TextFragment | Fragment |
-| Code | Span |
-| StartSubDocument/SubFilter | Child Layer |
-| Tikal | kapi (CLI) |
-| Rainbow | Bowrain (desktop app) |
+| Okapi (Java)               | neokapi (Go)               |
+| -------------------------- | -------------------------- |
+| Filter                     | DataFormat (Reader/Writer) |
+| Step                       | Tool                       |
+| Pipeline                   | Flow                       |
+| PipelineDriver             | Executor                   |
+| Event                      | Part                       |
+| TextUnit                   | Block                      |
+| TextFragment               | Fragment                   |
+| Code                       | Span                       |
+| StartSubDocument/SubFilter | Child Layer                |
+| Tikal                      | kapi (CLI)                 |
+| Rainbow                    | Bowrain (desktop app)      |
 
 ## Next Steps
 

@@ -18,14 +18,15 @@ Inspired by Claude's multiplier model and Stripe's latest AI billing features, B
 
 #### Plans
 
-| Plan | Price | AI Credits/week | @bravo | Seats | Billing |
-|------|-------|-----------------|--------|-------|---------|
-| **Free** | $0 | 50K tokens | 5 messages/day | 1 | — |
-| **Pro** | $25/mo | 500K tokens (10x) | Unlimited messages | 3 | Monthly |
-| **Team** | $20/seat/mo | 2M tokens (40x) | Unlimited + code exec | Unlimited | Monthly |
-| **Enterprise** | Custom | Custom | Custom | Unlimited | Annual |
+| Plan           | Price       | AI Credits/week   | @bravo                | Seats     | Billing |
+| -------------- | ----------- | ----------------- | --------------------- | --------- | ------- |
+| **Free**       | $0          | 50K tokens        | 5 messages/day        | 1         | —       |
+| **Pro**        | $25/mo      | 500K tokens (10x) | Unlimited messages    | 3         | Monthly |
+| **Team**       | $20/seat/mo | 2M tokens (40x)   | Unlimited + code exec | Unlimited | Monthly |
+| **Enterprise** | Custom      | Custom            | Custom                | Unlimited | Annual  |
 
 **Why weekly credits instead of monthly?**
+
 - **Prevents binge/drought**: monthly quotas let users burn everything in week 1, then churn
 - **Claude precedent**: Claude uses 5-hour windows; weekly is the SaaS equivalent — short enough to feel generous, long enough to be manageable
 - **Smoother cost distribution**: aligns better with AI provider billing cycles
@@ -35,14 +36,15 @@ Inspired by Claude's multiplier model and Stripe's latest AI billing features, B
 
 One "credit" = 1 AI token (input or output). Different operations cost different amounts:
 
-| Operation | Credit Cost |
-|-----------|-------------|
-| AI translation (per token) | 1 credit |
-| AI quality check (per token) | 1 credit |
-| @bravo message (per token) | 1 credit |
-| @bravo container time | 10 credits/sec |
+| Operation                    | Credit Cost    |
+| ---------------------------- | -------------- |
+| AI translation (per token)   | 1 credit       |
+| AI quality check (per token) | 1 credit       |
+| @bravo message (per token)   | 1 credit       |
+| @bravo container time        | 10 credits/sec |
 
 **Overage handling**: When credits are exhausted:
+
 1. Free: hard block, wait for weekly reset (Monday 00:00 UTC)
 2. Pro: soft block with option to buy a one-time credit pack ($5 = 200K tokens)
 3. Team: configurable — soft block or auto-purchase credit packs
@@ -111,14 +113,14 @@ This enables Stripe to show usage dashboards and handle overage billing for cred
 
 #### Webhook Events
 
-| Event | Action |
-|-------|--------|
-| `checkout.session.completed` | Activate subscription, set plan on workspace |
-| `customer.subscription.updated` | Update plan, adjust quotas |
-| `customer.subscription.deleted` | Downgrade to Free |
-| `invoice.paid` | Confirm payment, grant weekly credits |
-| `invoice.payment_failed` | Grace period (3 days), then downgrade |
-| `customer.subscription.trial_will_end` | Send reminder email |
+| Event                                  | Action                                       |
+| -------------------------------------- | -------------------------------------------- |
+| `checkout.session.completed`           | Activate subscription, set plan on workspace |
+| `customer.subscription.updated`        | Update plan, adjust quotas                   |
+| `customer.subscription.deleted`        | Downgrade to Free                            |
+| `invoice.paid`                         | Confirm payment, grant weekly credits        |
+| `invoice.payment_failed`               | Grace period (3 days), then downgrade        |
+| `customer.subscription.trial_will_end` | Send reminder email                          |
 
 ### Feature Gating
 
@@ -186,17 +188,17 @@ This is the **default path**: zero latency, no external calls, deployed with the
 
 #### Feature Matrix Summary
 
-| Feature | Free | Pro | Team | Enterprise |
-|---------|------|-----|------|------------|
-| @bravo chat | yes | yes | yes | yes |
-| @bravo code exec | - | - | yes | yes |
-| Git connectors | - | yes | yes | yes |
-| Custom connectors | - | - | yes | yes |
-| API access | - | yes | yes | yes |
-| SSO/SAML | - | - | - | yes |
-| Custom MT providers | - | yes | yes | yes |
-| Max projects | 1 | 10 | unlimited | unlimited |
-| Max seats | 1 | 3 | unlimited | unlimited |
+| Feature             | Free | Pro | Team      | Enterprise |
+| ------------------- | ---- | --- | --------- | ---------- |
+| @bravo chat         | yes  | yes | yes       | yes        |
+| @bravo code exec    | -    | -   | yes       | yes        |
+| Git connectors      | -    | yes | yes       | yes        |
+| Custom connectors   | -    | -   | yes       | yes        |
+| API access          | -    | yes | yes       | yes        |
+| SSO/SAML            | -    | -   | -         | yes        |
+| Custom MT providers | -    | yes | yes       | yes        |
+| Max projects        | 1    | 10  | unlimited | unlimited  |
+| Max seats           | 1    | 3   | unlimited | unlimited  |
 
 #### PlanGuard Middleware
 
@@ -240,6 +242,7 @@ The `403` response body (`upgrade_required` + `minimum_plan`) gives the frontend
 Feature overrides are stored in the database and managed via the control plane (`ctrl.bowrain.cloud`). This replaces the need for PostHog-based feature gating.
 
 Use cases:
+
 - **Beta programs**: give a free workspace access to Git connectors during a beta
 - **Support compensation**: temporarily enable a feature after an outage
 - **Partner deals**: custom feature sets for strategic partners
@@ -268,12 +271,14 @@ Overrides can have an optional `expires_at` — expired overrides are ignored by
 PostHog's role is **analytics and experiments**, not billing or gating.
 
 #### Product Analytics
+
 - **Usage patterns**: which AI features are used, by whom, how often
 - **Conversion funnel**: free → pro upgrade triggers (viewed pricing → started checkout → completed)
 - **Churn prediction**: declining usage patterns before cancellation
 - **Revenue analytics**: Stripe data source integration for MRR/churn dashboards
 
 #### Experiments
+
 - "Does offering 2x credits for the first month increase Pro conversion?"
 - "Does removing the project limit on Free reduce churn?"
 - "Does showing upgrade prompts in @bravo increase Team plan adoption?"
@@ -577,6 +582,7 @@ User ──┬── Workspace A (personal, Free plan)
 ```
 
 **Key implications:**
+
 - One user can be in multiple workspaces on different plans
 - The workspace owner manages billing (only owners can access Settings > Billing)
 - Seat count is per workspace, enforced when adding members
@@ -584,6 +590,7 @@ User ──┬── Workspace A (personal, Free plan)
 - A personal workspace always has exactly 1 seat
 
 The control plane shows both views:
+
 - **Workspace-centric** (primary): subscription, credits, usage, members — this is the billing/support view
 - **User-centric**: which workspaces a user belongs to, useful for support escalations ("I can't access my workspace")
 
@@ -592,6 +599,7 @@ The control plane shows both views:
 The ctrl app reuses the same `@neokapi/ui` shared component library and the same `AppShell` layout as the main web app. Instead of the workspace sidebar/rail, it has an admin navigation sidebar.
 
 **Shared from `packages/ui/`:**
+
 - All primitives (`ui/button`, `ui/card`, `ui/input`, `ui/badge`, `ui/tabs`, etc.)
 - `AppShell` layout (top bar + sidebar + content area)
 - `FilterBar`, `ConfirmDialog`, `skeletons`
@@ -599,32 +607,33 @@ The ctrl app reuses the same `@neokapi/ui` shared component library and the same
 - Any new billing components (`PlanCard`, `UsageBar`, `CreditCounter`) — built in `packages/ui/` so both apps use them
 
 **Ctrl-specific (not shared):**
+
 - Admin sidebar navigation (Workspaces, Users, Events, Overrides, Upsells)
 - Admin API client (`/api/admin/*`)
 - OIDC auth against the `bowrain-admin` realm
 
-| Page | Purpose |
-|------|---------|
-| **Dashboard** | Platform KPIs: MRR, active workspaces, new signups (7d/30d), credit utilization rate, churn rate, top workspaces by usage |
-| **Workspaces** | Searchable/filterable table. Columns: name, owner, plan, status, credit usage %, members, created. Click → detail |
-| **Workspace Detail** | Full customer view: subscription info (plan, status, period, Stripe link), credit balance + usage bar + ledger, member list, recent activity, usage charts. Actions: change plan, grant credits, feature overrides, internal notes |
-| **Users** | Search by email/name. View: workspaces they belong to, last login, account age |
-| **Billing Events** | Live feed: new subscriptions, upgrades, downgrades, payment failures, credit purchases. Filterable by type + date |
-| **Feature Overrides** | All per-workspace overrides. Add/remove with reason + optional expiry |
-| **Upsells** | Workspaces ripe for upgrade (see below) |
+| Page                  | Purpose                                                                                                                                                                                                                            |
+| --------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Dashboard**         | Platform KPIs: MRR, active workspaces, new signups (7d/30d), credit utilization rate, churn rate, top workspaces by usage                                                                                                          |
+| **Workspaces**        | Searchable/filterable table. Columns: name, owner, plan, status, credit usage %, members, created. Click → detail                                                                                                                  |
+| **Workspace Detail**  | Full customer view: subscription info (plan, status, period, Stripe link), credit balance + usage bar + ledger, member list, recent activity, usage charts. Actions: change plan, grant credits, feature overrides, internal notes |
+| **Users**             | Search by email/name. View: workspaces they belong to, last login, account age                                                                                                                                                     |
+| **Billing Events**    | Live feed: new subscriptions, upgrades, downgrades, payment failures, credit purchases. Filterable by type + date                                                                                                                  |
+| **Feature Overrides** | All per-workspace overrides. Add/remove with reason + optional expiry                                                                                                                                                              |
+| **Upsells**           | Workspaces ripe for upgrade (see below)                                                                                                                                                                                            |
 
 #### Upsell View
 
 The upsell page surfaces workspaces that are likely candidates for an upgrade, helping the team prioritize outreach:
 
-| Signal | Description | Suggested Action |
-|--------|-------------|-----------------|
-| **Credit exhaustion** | Free workspaces that hit 100% credit usage 2+ weeks in a row | Reach out with Pro trial offer |
-| **Seat pressure** | Pro workspaces at seat limit (3/3) with pending invites or removed members | Suggest Team plan |
-| **Feature gate hits** | Workspaces receiving repeated `403 upgrade_required` responses | Offer trial of the gated feature |
-| **High usage, low plan** | Workspaces consistently using >80% of weekly credits | Proactive upgrade conversation |
-| **Trial expiring** | Workspaces on trial ending within 3 days | Follow up on conversion |
-| **Dormant paid** | Paid workspaces with less than 10% credit usage for 4+ weeks | Check in to prevent churn |
+| Signal                   | Description                                                                | Suggested Action                 |
+| ------------------------ | -------------------------------------------------------------------------- | -------------------------------- |
+| **Credit exhaustion**    | Free workspaces that hit 100% credit usage 2+ weeks in a row               | Reach out with Pro trial offer   |
+| **Seat pressure**        | Pro workspaces at seat limit (3/3) with pending invites or removed members | Suggest Team plan                |
+| **Feature gate hits**    | Workspaces receiving repeated `403 upgrade_required` responses             | Offer trial of the gated feature |
+| **High usage, low plan** | Workspaces consistently using >80% of weekly credits                       | Proactive upgrade conversation   |
+| **Trial expiring**       | Workspaces on trial ending within 3 days                                   | Follow up on conversion          |
+| **Dormant paid**         | Paid workspaces with less than 10% credit usage for 4+ weeks               | Check in to prevent churn        |
 
 The upsell view is powered by a `/api/admin/upsells` endpoint that queries usage patterns and returns ranked opportunities:
 
@@ -645,14 +654,14 @@ Each row links to the workspace detail page where the admin can take action (gra
 
 #### Workspace Detail — Customer Service Actions
 
-| Action | API | Effect |
-|--------|-----|--------|
-| **Change plan** | `PUT /api/admin/workspaces/:id/plan` | Override subscription plan. Syncs to Stripe |
-| **Grant credits** | `POST /api/admin/workspaces/:id/credits` | Bonus credits with reason note. Recorded in ledger |
-| **Feature override** | `PUT /api/admin/workspaces/:id/feature-overrides` | Enable/disable features, overriding the plan matrix |
-| **View as customer** | Link to `app.bowrain.cloud/ws/{slug}` | Opens workspace in the main app |
-| **Open in Stripe** | External link | Deep link to Stripe customer/subscription |
-| **Add internal note** | `POST /api/admin/workspaces/:id/notes` | Internal-only, visible to other admins |
+| Action                | API                                               | Effect                                              |
+| --------------------- | ------------------------------------------------- | --------------------------------------------------- |
+| **Change plan**       | `PUT /api/admin/workspaces/:id/plan`              | Override subscription plan. Syncs to Stripe         |
+| **Grant credits**     | `POST /api/admin/workspaces/:id/credits`          | Bonus credits with reason note. Recorded in ledger  |
+| **Feature override**  | `PUT /api/admin/workspaces/:id/feature-overrides` | Enable/disable features, overriding the plan matrix |
+| **View as customer**  | Link to `app.bowrain.cloud/ws/{slug}`             | Opens workspace in the main app                     |
+| **Open in Stripe**    | External link                                     | Deep link to Stripe customer/subscription           |
+| **Add internal note** | `POST /api/admin/workspaces/:id/notes`            | Internal-only, visible to other admins              |
 
 #### Feature Overrides Table
 
@@ -705,11 +714,13 @@ CREATE TABLE workspace_notes (
 Customer self-service within the main Bowrain web app remains the primary way to manage subscriptions. The control plane is for support and operations only.
 
 #### Pricing Page (public, no auth)
+
 - Plan comparison table with feature matrix
 - CTA buttons → Stripe Checkout
 - FAQ section
 
 #### Workspace Settings > Billing (owner-only)
+
 - Current plan + status badge
 - Credit usage bar (weekly, with reset countdown timer)
 - Usage breakdown by operation type (AI translation, @bravo, etc.)
@@ -718,7 +729,9 @@ Customer self-service within the main Bowrain web app remains the primary way to
 - Seat management (Team plan): current seats, add/remove, seat limit indicator
 
 #### Upgrade Prompts (contextual)
+
 When a user hits a plan limit, the UI shows a contextual upgrade prompt instead of a generic error:
+
 - **Feature gate**: "Git connectors require a Pro plan. [Upgrade →]"
 - **Credit exhaustion**: "Weekly credits used. Resets Monday. [Buy credits →] or [Upgrade →]"
 - **Seat limit**: "Your plan includes 3 seats. [Upgrade to Team →]"
@@ -727,6 +740,7 @@ When a user hits a plan limit, the UI shows a contextual upgrade prompt instead 
 These prompts use the `UpgradePrompt` component from `packages/ui/` (shared with the ctrl app's workspace detail).
 
 #### PostHog JS SDK
+
 - Loaded on both `app.bowrain.cloud` and `ctrl.bowrain.cloud`
 - Identifies user by user ID + workspace context
 - Tracks conversion events: viewed pricing, started checkout, completed checkout, hit feature gate
@@ -738,6 +752,7 @@ All files to create or modify, in dependency order:
 ### 1. Dependencies
 
 Add to `platform/go.mod`:
+
 ```
 github.com/stripe/stripe-go/v82
 github.com/posthog/posthog-go
@@ -745,96 +760,96 @@ github.com/posthog/posthog-go
 
 ### 2. New Package: `platform/billing/`
 
-| File | Purpose |
-|------|---------|
-| `plans.go` | Plan constants, feature matrix, weekly credit amounts per plan, `HasFeature()` |
-| `types.go` | `Subscription`, `CreditAllocation`, `LedgerEntry`, `FeatureOverride`, `WorkspaceNote`, `UpsellOpportunity` structs |
-| `store.go` | `BillingStore` interface (subscriptions, credits, ledger, feature overrides, notes, upsell queries) |
-| `postgres.go` | PostgreSQL implementation with migrations (subscriptions, credit_allocations, credit_ledger, feature_overrides, workspace_notes tables) |
-| `credits.go` | Credit allocation (weekly grant), deduction, balance checking, weekly reset logic |
-| `stripe.go` | Stripe client: create customers, checkout sessions, portal sessions, meter events |
-| `webhooks.go` | Stripe webhook handler with signature verification, subscription lifecycle |
-| `middleware.go` | `PlanGuard(feature)`, `QuotaGuard()`, and `AdminGuard(verifier)` Echo middleware |
-| `upsells.go` | Upsell signal detection queries (credit exhaustion, seat pressure, feature gate hits, dormant paid) |
-| `posthog.go` | PostHog client: event capture, user identification |
+| File            | Purpose                                                                                                                                 |
+| --------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| `plans.go`      | Plan constants, feature matrix, weekly credit amounts per plan, `HasFeature()`                                                          |
+| `types.go`      | `Subscription`, `CreditAllocation`, `LedgerEntry`, `FeatureOverride`, `WorkspaceNote`, `UpsellOpportunity` structs                      |
+| `store.go`      | `BillingStore` interface (subscriptions, credits, ledger, feature overrides, notes, upsell queries)                                     |
+| `postgres.go`   | PostgreSQL implementation with migrations (subscriptions, credit_allocations, credit_ledger, feature_overrides, workspace_notes tables) |
+| `credits.go`    | Credit allocation (weekly grant), deduction, balance checking, weekly reset logic                                                       |
+| `stripe.go`     | Stripe client: create customers, checkout sessions, portal sessions, meter events                                                       |
+| `webhooks.go`   | Stripe webhook handler with signature verification, subscription lifecycle                                                              |
+| `middleware.go` | `PlanGuard(feature)`, `QuotaGuard()`, and `AdminGuard(verifier)` Echo middleware                                                        |
+| `upsells.go`    | Upsell signal detection queries (credit exhaustion, seat pressure, feature gate hits, dormant paid)                                     |
+| `posthog.go`    | PostHog client: event capture, user identification                                                                                      |
 
 ### 3. Existing Files to Modify
 
-| File | Change |
-|------|--------|
-| `platform/core/auth/types.go` | Add `Plan` and `StripeCustomerID` fields to `Workspace` |
-| `platform/auth/postgres.go` | Add migration for `plan`, `stripe_customer_id` columns on workspaces |
-| `platform/auth/sqlite.go` | Same migration for SQLite |
-| `platform/server/config.go` | Add `BillingConfig` and `AdminConfig` (admin OIDC) fields to `Config` |
-| `platform/server/server.go` | Add `BillingStore` to Server struct, register billing routes + admin routes + webhook endpoint, wire `PlanGuard`/`QuotaGuard` on protected routes, wire `AdminGuard` on `/api/admin/*` routes, initialize admin OIDC verifier |
-| `platform/server/handlers_billing.go` | New file: customer self-service billing handlers (get plan, usage, checkout, portal, invoices) |
-| `platform/server/handlers_admin.go` | New file: admin API handlers (list workspaces, user search, plan overrides, grant credits, feature overrides, metrics, notes, upsells) |
-| `platform/cmd/bowrain-server/main.go` | Initialize `BillingStore`, Stripe client, PostHog client, admin OIDC verifier from config |
-| `platform/jobs/quota.go` | After `RecordUsage`, also call `BillingStore.DeductCredits` |
-| `platform/core/agent/agent.go` | After `RecordUsage`, also call `BillingStore.DeductCredits` |
+| File                                  | Change                                                                                                                                                                                                                        |
+| ------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `platform/core/auth/types.go`         | Add `Plan` and `StripeCustomerID` fields to `Workspace`                                                                                                                                                                       |
+| `platform/auth/postgres.go`           | Add migration for `plan`, `stripe_customer_id` columns on workspaces                                                                                                                                                          |
+| `platform/auth/sqlite.go`             | Same migration for SQLite                                                                                                                                                                                                     |
+| `platform/server/config.go`           | Add `BillingConfig` and `AdminConfig` (admin OIDC) fields to `Config`                                                                                                                                                         |
+| `platform/server/server.go`           | Add `BillingStore` to Server struct, register billing routes + admin routes + webhook endpoint, wire `PlanGuard`/`QuotaGuard` on protected routes, wire `AdminGuard` on `/api/admin/*` routes, initialize admin OIDC verifier |
+| `platform/server/handlers_billing.go` | New file: customer self-service billing handlers (get plan, usage, checkout, portal, invoices)                                                                                                                                |
+| `platform/server/handlers_admin.go`   | New file: admin API handlers (list workspaces, user search, plan overrides, grant credits, feature overrides, metrics, notes, upsells)                                                                                        |
+| `platform/cmd/bowrain-server/main.go` | Initialize `BillingStore`, Stripe client, PostHog client, admin OIDC verifier from config                                                                                                                                     |
+| `platform/jobs/quota.go`              | After `RecordUsage`, also call `BillingStore.DeductCredits`                                                                                                                                                                   |
+| `platform/core/agent/agent.go`        | After `RecordUsage`, also call `BillingStore.DeductCredits`                                                                                                                                                                   |
 
 ### 4. Keycloak Admin Realm
 
-| File | Change |
-|------|--------|
+| File                               | Change                                                                                          |
+| ---------------------------------- | ----------------------------------------------------------------------------------------------- |
 | `docker/keycloak/admin-realm.json` | New file: `bowrain-admin` realm config (registration disabled, MFA required, dev admin account) |
-| `docker/keycloak/Dockerfile.dev` | Import both `realm.json` and `admin-realm.json` |
-| `compose.yaml` | Mount `admin-realm.json` alongside `realm.json` |
-| `compose.override.yaml` | Add `ctrl.bowrain.mymac` route to Traefik for local dev |
+| `docker/keycloak/Dockerfile.dev`   | Import both `realm.json` and `admin-realm.json`                                                 |
+| `compose.yaml`                     | Mount `admin-realm.json` alongside `realm.json`                                                 |
+| `compose.override.yaml`            | Add `ctrl.bowrain.mymac` route to Traefik for local dev                                         |
 
 ### 5. Shared UI Components (`packages/ui/`)
 
 New billing components built in the shared library so both `apps/web/` and `apps/ctrl/` use the same implementation:
 
-| Component | Used By | Purpose |
-|-----------|---------|---------|
-| `PlanCard` | web (pricing page), ctrl (workspace detail) | Plan tier card with features, price, CTA |
-| `PlanComparisonTable` | web (pricing page), ctrl (upsell view) | Full feature matrix comparison across plans |
-| `UsageBar` | web (billing settings, @bravo), ctrl (workspace detail) | Credit usage progress bar with reset countdown |
-| `CreditCounter` | web (@bravo chat), ctrl (workspace detail) | Compact remaining credits display |
-| `UpgradePrompt` | web (feature gates), ctrl (workspace detail) | Contextual upgrade suggestion with plan + feature info |
-| `CreditLedger` | web (billing settings), ctrl (workspace detail) | Ledger table showing credit transactions |
-| `SubscriptionBadge` | web (settings), ctrl (workspace list + detail) | Plan name + status badge (active, trial, past_due) |
+| Component             | Used By                                                 | Purpose                                                |
+| --------------------- | ------------------------------------------------------- | ------------------------------------------------------ |
+| `PlanCard`            | web (pricing page), ctrl (workspace detail)             | Plan tier card with features, price, CTA               |
+| `PlanComparisonTable` | web (pricing page), ctrl (upsell view)                  | Full feature matrix comparison across plans            |
+| `UsageBar`            | web (billing settings, @bravo), ctrl (workspace detail) | Credit usage progress bar with reset countdown         |
+| `CreditCounter`       | web (@bravo chat), ctrl (workspace detail)              | Compact remaining credits display                      |
+| `UpgradePrompt`       | web (feature gates), ctrl (workspace detail)            | Contextual upgrade suggestion with plan + feature info |
+| `CreditLedger`        | web (billing settings), ctrl (workspace detail)         | Ledger table showing credit transactions               |
+| `SubscriptionBadge`   | web (settings), ctrl (workspace list + detail)          | Plan name + status badge (active, trial, past_due)     |
 
 ### 6. Customer Self-Service Frontend (`apps/web/`)
 
-| File | Purpose |
-|------|--------|
-| `apps/web/src/routes/pricing.tsx` | Public pricing page using `PlanComparisonTable` + Stripe Checkout CTAs |
+| File                                                 | Purpose                                                                                                              |
+| ---------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| `apps/web/src/routes/pricing.tsx`                    | Public pricing page using `PlanComparisonTable` + Stripe Checkout CTAs                                               |
 | `apps/web/src/routes/workspace/settings-billing.tsx` | Billing settings: `SubscriptionBadge`, `UsageBar`, usage breakdown, `CreditLedger`, invoice history, seat management |
-| `apps/web/src/lib/api.ts` | Add billing API methods (getSubscription, getUsage, createCheckout, createPortal) |
-| `apps/web/src/lib/posthog.ts` | PostHog JS SDK init, user identification, conversion event tracking |
-| `apps/web/src/components/bravo/` | Add `CreditCounter` and exhaustion `UpgradePrompt` to @bravo chat UI |
+| `apps/web/src/lib/api.ts`                            | Add billing API methods (getSubscription, getUsage, createCheckout, createPortal)                                    |
+| `apps/web/src/lib/posthog.ts`                        | PostHog JS SDK init, user identification, conversion event tracking                                                  |
+| `apps/web/src/components/bravo/`                     | Add `CreditCounter` and exhaustion `UpgradePrompt` to @bravo chat UI                                                 |
 
 ### 7. Control Plane Admin App (`apps/ctrl/`)
 
 New Vite + React + TanStack Router app. Same stack and same `@neokapi/ui` dependency as `apps/web/`. Reuses the `AppShell` layout with an admin-specific sidebar. Deployed at `ctrl.bowrain.cloud`.
 
-| File | Purpose |
-|------|--------|
-| `apps/ctrl/package.json` | Dependencies: same core as `apps/web/` (react, tanstack/router, tanstack/query, tailwindcss, `@neokapi/ui`) |
-| `apps/ctrl/src/routes/root-layout.tsx` | `AppShell` with admin sidebar (Dashboard, Workspaces, Users, Events, Overrides, Upsells) |
-| `apps/ctrl/src/routes/dashboard.tsx` | Platform KPIs: MRR, active workspaces, signups, credit utilization, churn. Uses `ui/chart` |
-| `apps/ctrl/src/routes/workspaces.tsx` | `FilterBar` + table of all workspaces. Columns: name, owner, `SubscriptionBadge`, `UsageBar` (compact), members, created |
+| File                                        | Purpose                                                                                                                                                                                                                                                        |
+| ------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `apps/ctrl/package.json`                    | Dependencies: same core as `apps/web/` (react, tanstack/router, tanstack/query, tailwindcss, `@neokapi/ui`)                                                                                                                                                    |
+| `apps/ctrl/src/routes/root-layout.tsx`      | `AppShell` with admin sidebar (Dashboard, Workspaces, Users, Events, Overrides, Upsells)                                                                                                                                                                       |
+| `apps/ctrl/src/routes/dashboard.tsx`        | Platform KPIs: MRR, active workspaces, signups, credit utilization, churn. Uses `ui/chart`                                                                                                                                                                     |
+| `apps/ctrl/src/routes/workspaces.tsx`       | `FilterBar` + table of all workspaces. Columns: name, owner, `SubscriptionBadge`, `UsageBar` (compact), members, created                                                                                                                                       |
 | `apps/ctrl/src/routes/workspace-detail.tsx` | Full customer view. Tabs: Overview (`SubscriptionBadge`, `UsageBar`, usage chart), Credits (`CreditLedger`, grant form), Members, Activity, Notes. Actions sidebar: change plan (`PlanCard` selector), feature overrides, Stripe link, "view as customer" link |
-| `apps/ctrl/src/routes/users.tsx` | User search by email/name. Shows workspace memberships, last login |
-| `apps/ctrl/src/routes/events.tsx` | Billing event feed with `FilterBar`. Uses `ui/badge` for event types |
-| `apps/ctrl/src/routes/overrides.tsx` | All feature overrides across workspaces. Add/remove with reason + expiry |
-| `apps/ctrl/src/routes/upsells.tsx` | Ranked upsell opportunities table. Columns: workspace, signal, current plan, suggested plan, score. Click → workspace detail |
-| `apps/ctrl/src/lib/api.ts` | Admin API client (wraps `/api/admin/*` endpoints) |
-| `apps/ctrl/src/lib/auth.ts` | OIDC auth against `bowrain-admin` realm |
-| `docker/bowrain-ctrl/Dockerfile` | nginx container serving the ctrl SPA (same pattern as `docker/bowrain-web/`) |
-| `docker/bowrain-ctrl/nginx.conf` | SPA fallback, proxies `/api/admin/*` to bowrain-server |
+| `apps/ctrl/src/routes/users.tsx`            | User search by email/name. Shows workspace memberships, last login                                                                                                                                                                                             |
+| `apps/ctrl/src/routes/events.tsx`           | Billing event feed with `FilterBar`. Uses `ui/badge` for event types                                                                                                                                                                                           |
+| `apps/ctrl/src/routes/overrides.tsx`        | All feature overrides across workspaces. Add/remove with reason + expiry                                                                                                                                                                                       |
+| `apps/ctrl/src/routes/upsells.tsx`          | Ranked upsell opportunities table. Columns: workspace, signal, current plan, suggested plan, score. Click → workspace detail                                                                                                                                   |
+| `apps/ctrl/src/lib/api.ts`                  | Admin API client (wraps `/api/admin/*` endpoints)                                                                                                                                                                                                              |
+| `apps/ctrl/src/lib/auth.ts`                 | OIDC auth against `bowrain-admin` realm                                                                                                                                                                                                                        |
+| `docker/bowrain-ctrl/Dockerfile`            | nginx container serving the ctrl SPA (same pattern as `docker/bowrain-web/`)                                                                                                                                                                                   |
+| `docker/bowrain-ctrl/nginx.conf`            | SPA fallback, proxies `/api/admin/*` to bowrain-server                                                                                                                                                                                                         |
 
 ### 8. Email Notifications
 
-| Trigger | Template |
-|---------|----------|
-| Credits at 80% used | Warning with usage breakdown and reset date |
-| Credits exhausted | Blocked notice with upgrade CTA (Pro/Team) or reset countdown (Free) |
-| Weekly credit reset | Summary of last week's usage |
-| Payment failed | Grace period notice (3 days), then downgrade warning |
-| Subscription change | Confirmation of upgrade/downgrade with new limits |
+| Trigger             | Template                                                             |
+| ------------------- | -------------------------------------------------------------------- |
+| Credits at 80% used | Warning with usage breakdown and reset date                          |
+| Credits exhausted   | Blocked notice with upgrade CTA (Pro/Team) or reset countdown (Free) |
+| Weekly credit reset | Summary of last week's usage                                         |
+| Payment failed      | Grace period notice (3 days), then downgrade warning                 |
+| Subscription change | Confirmation of upgrade/downgrade with new limits                    |
 
 ## Open Questions
 

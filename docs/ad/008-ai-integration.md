@@ -3,6 +3,7 @@ id: 008-ai-integration
 sidebar_position: 8
 title: "AD-008: AI Integration"
 ---
+
 # AD-008: First-class AI and LLM integration
 
 ## Context
@@ -57,14 +58,14 @@ type StreamingLLMProvider interface {
 
 Six AI tools are implemented as standard Tools (see [AD-006](./006-tool-system.md)) that embed `BaseTool`:
 
-| Tool | Package | Purpose |
-|---|---|---|
-| `ai-translate` | `ai/tools/translate.go` | Translate untranslated Blocks using LLM |
-| `ai-qa` | `ai/tools/qualitycheck.go` | Check translations for fluency, accuracy, terminology |
-| `ai-terminology` | `ai/tools/terminology.go` | Extract terminology candidates from source Blocks |
-| `ai-review` | `ai/tools/review.go` | Review translations with explanations |
+| Tool                | Package                      | Purpose                                                             |
+| ------------------- | ---------------------------- | ------------------------------------------------------------------- |
+| `ai-translate`      | `ai/tools/translate.go`      | Translate untranslated Blocks using LLM                             |
+| `ai-qa`             | `ai/tools/qualitycheck.go`   | Check translations for fluency, accuracy, terminology               |
+| `ai-terminology`    | `ai/tools/terminology.go`    | Extract terminology candidates from source Blocks                   |
+| `ai-review`         | `ai/tools/review.go`         | Review translations with explanations                               |
 | `ai-entity-extract` | `ai/tools/entity_extract.go` | Extract named entities and term candidates using LLM + optional NER |
-| `brand-voice-check` | `ai/tools/brandvoice.go` | Validate content against brand voice rules and score compliance |
+| `brand-voice-check` | `ai/tools/brandvoice.go`     | Validate content against brand voice rules and score compliance     |
 
 The `ai-terminology` tool creates `TermAnnotation` entries with `status: proposed`, feeding the terminology lifecycle workflow. The `ai-entity-extract` tool uses a hybrid approach (LLM via `ChatStructured` + optional NER provider) to produce `EntityAnnotation` entries that serve as do-not-translate markers, localization hints, and context for AI translation. It also extracts `TermCandidateAnnotation` entries from the same LLM call, combining entity detection and terminology extraction in a single pass. See [AD-022](./022-entity-term-extraction.md) for the extraction design and [AD-010](./010-terminology.md) for the full terminology and brand management design.
 
@@ -194,13 +195,13 @@ Current prompt templates:
 - `ai/prompt/translate.go` -- translation prompts with glossary and context
 - `ai/prompt/qa.go` -- quality assurance check prompts
 
-| Provider | Implementation | Default Model |
-|---|---|---|
-| Anthropic | `ai/provider/anthropic.go` | claude-sonnet-4-20250514 |
-| OpenAI | `ai/provider/openai.go` | gpt-4o |
-| Azure OpenAI | `ai/provider/azureopenai.go` | (deployment-specific) |
-| Ollama | `ai/provider/ollama.go` | llama3 |
-| Google Gemini | `ai/provider/gemini.go` | gemini-3-flash-preview |
+| Provider      | Implementation               | Default Model            |
+| ------------- | ---------------------------- | ------------------------ |
+| Anthropic     | `ai/provider/anthropic.go`   | claude-sonnet-4-20250514 |
+| OpenAI        | `ai/provider/openai.go`      | gpt-4o                   |
+| Azure OpenAI  | `ai/provider/azureopenai.go` | (deployment-specific)    |
+| Ollama        | `ai/provider/ollama.go`      | llama3                   |
+| Google Gemini | `ai/provider/gemini.go`      | gemini-3-flash-preview   |
 
 ## Alternatives Considered
 

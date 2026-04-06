@@ -64,7 +64,9 @@ describe("evaluateCondition", () => {
     });
 
     it("treats null as empty", () => {
-      expect(evaluateCondition({ field: "empty", empty: true }, { empty: null }, properties)).toBe(true);
+      expect(evaluateCondition({ field: "empty", empty: true }, { empty: null }, properties)).toBe(
+        true,
+      );
     });
   });
 
@@ -110,23 +112,22 @@ describe("evaluateCondition", () => {
     });
 
     it("not: inverts condition", () => {
-      expect(evaluateCondition({ not: { field: "mode", eq: "simple" } }, values, properties)).toBe(true);
-      expect(evaluateCondition({ not: { field: "mode", eq: "advanced" } }, values, properties)).toBe(false);
+      expect(evaluateCondition({ not: { field: "mode", eq: "simple" } }, values, properties)).toBe(
+        true,
+      );
+      expect(
+        evaluateCondition({ not: { field: "mode", eq: "advanced" } }, values, properties),
+      ).toBe(false);
     });
 
     it("nested compound", () => {
       const cond: ConditionExpr = {
-        all: [
-          { field: "enabled", eq: true },
-          { not: { field: "mode", eq: "simple" } },
-        ],
+        all: [{ field: "enabled", eq: true }, { not: { field: "mode", eq: "simple" } }],
       };
       expect(evaluateCondition(cond, values, properties)).toBe(true);
     });
   });
 });
-
-
 
 // ── resolveWidgetName ──────────────────────────────────────────────────
 
@@ -182,7 +183,9 @@ describe("resolveRef", () => {
 
 describe("hasAdditionalProperties", () => {
   it("returns true for object additionalProperties", () => {
-    expect(hasAdditionalProperties({ type: "object", additionalProperties: { type: "string" } })).toBe(true);
+    expect(
+      hasAdditionalProperties({ type: "object", additionalProperties: { type: "string" } }),
+    ).toBe(true);
   });
 
   it("returns true for boolean true", () => {

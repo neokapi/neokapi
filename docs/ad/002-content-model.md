@@ -3,6 +3,7 @@ id: 002-content-model
 sidebar_position: 2
 title: "AD-002: Content Model"
 ---
+
 # AD-002: Content model — Parts, Fragments, Spans, and Layers
 
 ## Context
@@ -26,12 +27,12 @@ Documents contain inline formatting (bold, italic, links, images, variables,
 placeholders) embedded within translatable text, and every source format
 represents these constructs differently:
 
-| Concept | HTML | Markdown | DOCX (OpenXML) | IDML | XLIFF 2.0 | ICU MF2 |
-|---|---|---|---|---|---|---|
-| Bold | `<b>` | `**` | `<w:b/>` | `FontStyle="Bold"` | `<pc type="fmt" subType="xlf:b">` | `{#bold}` |
-| Link | `<a href="…">` | `[text](url)` | `<w:hyperlink>` | `HyperlinkTextDestination` | `<pc type="link">` | `{#link url=\|…\|}` |
-| Line break | `<br/>` | two spaces + newline | `<w:br/>` | `<Br/>` | `<ph type="fmt" subType="xlf:lb"/>` | `{#lb /}` |
-| Placeholder | — | — | — | — | `<ph>` | `{$var}` |
+| Concept     | HTML           | Markdown             | DOCX (OpenXML)  | IDML                       | XLIFF 2.0                           | ICU MF2             |
+| ----------- | -------------- | -------------------- | --------------- | -------------------------- | ----------------------------------- | ------------------- |
+| Bold        | `<b>`          | `**`                 | `<w:b/>`        | `FontStyle="Bold"`         | `<pc type="fmt" subType="xlf:b">`   | `{#bold}`           |
+| Link        | `<a href="…">` | `[text](url)`        | `<w:hyperlink>` | `HyperlinkTextDestination` | `<pc type="link">`                  | `{#link url=\|…\|}` |
+| Line break  | `<br/>`        | two spaces + newline | `<w:br/>`       | `<Br/>`                    | `<ph type="fmt" subType="xlf:lb"/>` | `{#lb /}`           |
+| Placeholder | —              | —                    | —               | —                          | `<ph>`                              | `{$var}`            |
 
 A localization framework must make these constructs processable in a
 format-agnostic way — TM matching, AI translation, QA checks, and terminology
@@ -238,11 +239,11 @@ type Annotation interface {
 
 Built-in annotation types:
 
-| Annotation          | Type Key           | Producer              | Purpose                               |
-|---------------------|--------------------|-----------------------|---------------------------------------|
-| `AltTranslation`    | `alt-translation`  | TM leverage, AI tools | Alternative translations with scores  |
-| `TermAnnotation`    | `term`             | term-lookup tool      | Matched terminology with target terms |
-| `EntityAnnotation`  | `entity`           | entity-annotate tool  | Named entities (people, places, dates)|
+| Annotation         | Type Key          | Producer              | Purpose                                |
+| ------------------ | ----------------- | --------------------- | -------------------------------------- |
+| `AltTranslation`   | `alt-translation` | TM leverage, AI tools | Alternative translations with scores   |
+| `TermAnnotation`   | `term`            | term-lookup tool      | Matched terminology with target terms  |
+| `EntityAnnotation` | `entity`          | entity-annotate tool  | Named entities (people, places, dates) |
 
 Annotations are keyed by type and instance (e.g., `"term:0"`, `"term:1"`)
 to support multiple annotations of the same type per Block. Annotations
@@ -318,64 +319,64 @@ types. Types are grouped into categories:
 
 **Formatting** — visual text formatting:
 
-| Type | Meaning | HTML | Markdown | DOCX |
-|---|---|---|---|---|
-| `fmt:bold` | Bold text | `<b>`, `<strong>` | `**` | `<w:b/>` |
-| `fmt:italic` | Italic text | `<i>`, `<em>` | `*`, `_` | `<w:i/>` |
-| `fmt:underline` | Underlined text | `<u>` | — | `<w:u/>` |
-| `fmt:strikethrough` | Struck-through text | `<s>`, `<del>` | `~~` | `<w:strike/>` |
-| `fmt:subscript` | Subscript text | `<sub>` | — | `<w:vertAlign w:val="subscript"/>` |
-| `fmt:superscript` | Superscript text | `<sup>` | — | `<w:vertAlign w:val="superscript"/>` |
-| `fmt:code` | Inline code | `<code>` | `` ` `` | — |
-| `fmt:highlight` | Highlighted text | `<mark>` | — | `<w:highlight/>` |
+| Type                | Meaning             | HTML              | Markdown | DOCX                                 |
+| ------------------- | ------------------- | ----------------- | -------- | ------------------------------------ |
+| `fmt:bold`          | Bold text           | `<b>`, `<strong>` | `**`     | `<w:b/>`                             |
+| `fmt:italic`        | Italic text         | `<i>`, `<em>`     | `*`, `_` | `<w:i/>`                             |
+| `fmt:underline`     | Underlined text     | `<u>`             | —        | `<w:u/>`                             |
+| `fmt:strikethrough` | Struck-through text | `<s>`, `<del>`    | `~~`     | `<w:strike/>`                        |
+| `fmt:subscript`     | Subscript text      | `<sub>`           | —        | `<w:vertAlign w:val="subscript"/>`   |
+| `fmt:superscript`   | Superscript text    | `<sup>`           | —        | `<w:vertAlign w:val="superscript"/>` |
+| `fmt:code`          | Inline code         | `<code>`          | `` ` ``  | —                                    |
+| `fmt:highlight`     | Highlighted text    | `<mark>`          | —        | `<w:highlight/>`                     |
 
 **Linking** — references and hyperlinks:
 
-| Type | Meaning | HTML | Markdown |
-|---|---|---|---|
-| `link:hyperlink` | Hyperlink | `<a href="…">` | `[text](url)` |
-| `link:crossref` | Cross-reference | `<a href="#id">` | `[text](#anchor)` |
-| `link:email` | Email link | `<a href="mailto:…">` | — |
+| Type             | Meaning         | HTML                  | Markdown          |
+| ---------------- | --------------- | --------------------- | ----------------- |
+| `link:hyperlink` | Hyperlink       | `<a href="…">`        | `[text](url)`     |
+| `link:crossref`  | Cross-reference | `<a href="#id">`      | `[text](#anchor)` |
+| `link:email`     | Email link      | `<a href="mailto:…">` | —                 |
 
 **Media** — embedded content:
 
-| Type | Meaning | HTML | Markdown |
-|---|---|---|---|
-| `media:image` | Inline image | `<img>` | `![alt](url)` |
-| `media:video` | Inline video | `<video>` | — |
-| `media:audio` | Inline audio | `<audio>` | — |
+| Type          | Meaning      | HTML      | Markdown      |
+| ------------- | ------------ | --------- | ------------- |
+| `media:image` | Inline image | `<img>`   | `![alt](url)` |
+| `media:video` | Inline video | `<video>` | —             |
+| `media:audio` | Inline audio | `<audio>` | —             |
 
 **Structure** — structural inline codes:
 
-| Type | Meaning | HTML | Markdown |
-|---|---|---|---|
-| `struct:break` | Line break | `<br>` | `  \n` |
-| `struct:pagebreak` | Page break | — | — |
-| `struct:footnote` | Footnote reference | — | `[^id]` |
-| `struct:ruby` | Ruby annotation | `<ruby>` | — |
+| Type               | Meaning            | HTML     | Markdown |
+| ------------------ | ------------------ | -------- | -------- |
+| `struct:break`     | Line break         | `<br>`   | `  \n`   |
+| `struct:pagebreak` | Page break         | —        | —        |
+| `struct:footnote`  | Footnote reference | —        | `[^id]`  |
+| `struct:ruby`      | Ruby annotation    | `<ruby>` | —        |
 
 **Code** — non-translatable inline tokens:
 
-| Type | Meaning | Examples |
-|---|---|---|
-| `code:variable` | Named variable | `{name}`, `$name`, `%s` |
-| `code:placeholder` | Positional placeholder | `{0}`, `%1$s` |
-| `code:function` | ICU function | `{count, plural, …}` |
-| `code:markup` | Generic preserved markup | arbitrary format-specific tags |
+| Type               | Meaning                  | Examples                       |
+| ------------------ | ------------------------ | ------------------------------ |
+| `code:variable`    | Named variable           | `{name}`, `$name`, `%s`        |
+| `code:placeholder` | Positional placeholder   | `{0}`, `%1$s`                  |
+| `code:function`    | ICU function             | `{count, plural, …}`           |
+| `code:markup`      | Generic preserved markup | arbitrary format-specific tags |
 
 **Entity** — named entities (also used by entity annotation, see
 [AD-010](./010-terminology.md)):
 
-| Type | Meaning |
-|---|---|
-| `entity:person` | Person name |
+| Type                  | Meaning           |
+| --------------------- | ----------------- |
+| `entity:person`       | Person name       |
 | `entity:organization` | Organization name |
-| `entity:product` | Product name |
-| `entity:location` | Place name |
-| `entity:date` | Date value |
-| `entity:time` | Time value |
-| `entity:currency` | Currency amount |
-| `entity:measurement` | Measurement value |
+| `entity:product`      | Product name      |
+| `entity:location`     | Place name        |
+| `entity:date`         | Date value        |
+| `entity:time`         | Time value        |
+| `entity:currency`     | Currency amount   |
+| `entity:measurement`  | Measurement value |
 
 #### SubType and format-specific refinement
 
@@ -452,16 +453,16 @@ PlaceholderText(): "Click <x id=\"1\"/>here<x id=\"/1\"/> for info"
 
 The semantic type to HTML mapping is defined by a `SemanticHTMLMap`:
 
-| Semantic type | HTML open | HTML close | HTML placeholder |
-|---|---|---|---|
-| `fmt:bold` | `<b>` | `</b>` | — |
-| `fmt:italic` | `<i>` | `</i>` | — |
-| `fmt:underline` | `<u>` | `</u>` | — |
-| `fmt:code` | `<code>` | `</code>` | — |
-| `link:hyperlink` | `<a>` | `</a>` | — |
-| `media:image` | — | — | `<img/>` |
-| `struct:break` | — | — | `<br/>` |
-| `code:variable` | — | — | `<span class="code"/>` |
+| Semantic type    | HTML open | HTML close | HTML placeholder       |
+| ---------------- | --------- | ---------- | ---------------------- |
+| `fmt:bold`       | `<b>`     | `</b>`     | —                      |
+| `fmt:italic`     | `<i>`     | `</i>`     | —                      |
+| `fmt:underline`  | `<u>`     | `</u>`     | —                      |
+| `fmt:code`       | `<code>`  | `</code>`  | —                      |
+| `link:hyperlink` | `<a>`     | `</a>`     | —                      |
+| `media:image`    | —         | —          | `<img/>`               |
+| `struct:break`   | —         | —          | `<br/>`                |
+| `code:variable`  | —         | —          | `<span class="code"/>` |
 
 Unknown types fall back to `<span data-type="…">` for opening/closing
 and `<span data-type="…"/>` for placeholders, ensuring every span renders.
@@ -649,6 +650,7 @@ Pattern syntax varies by parent format:
 Patterns use `filepath.Match` semantics with `.` as the path separator.
 
 **JSON example:**
+
 ```yaml
 subfilters:
   - pattern: "*.body"
@@ -658,6 +660,7 @@ subfilters:
 ```
 
 **XML example:**
+
 ```yaml
 subfilters:
   - pattern: "root.*.body"
@@ -829,12 +832,12 @@ inline code structure.
 The three-tier TM matching pipeline ([AD-009](./009-translation-memory.md))
 uses Fragment projections to match at different granularities:
 
-| Tier | Key | Match type | Example key |
-|---|---|---|---|
-| 1 | `GeneralizedText()` | Generalized exact | `{PERSON} works at {ORGANIZATION}` |
-| 2 | `StructuralText()` | Structural exact | `{1}Click{/1} {2}here{/2}` |
-| 3 | `Text()` | Plain exact | `Click here` |
-| 4–6 | Same keys | Fuzzy (Levenshtein) | Scored matches |
+| Tier | Key                 | Match type          | Example key                        |
+| ---- | ------------------- | ------------------- | ---------------------------------- |
+| 1    | `GeneralizedText()` | Generalized exact   | `{PERSON} works at {ORGANIZATION}` |
+| 2    | `StructuralText()`  | Structural exact    | `{1}Click{/1} {2}here{/2}`         |
+| 3    | `Text()`            | Plain exact         | `Click here`                       |
+| 4–6  | Same keys           | Fuzzy (Levenshtein) | Scored matches                     |
 
 Sequential numeric IDs ensure structural keys are stable across formats:
 HTML `<b>Click</b>` and Markdown `**Click**` both produce `{1}Click{/1}` —
@@ -855,16 +858,16 @@ the editor permits.
 neokapi's content model draws from Okapi's proven concepts but adapts them
 to Go's type system and modern localization needs:
 
-| Concern | Okapi Framework | neokapi |
-|---|---|---|
-| **Type hierarchy** | Deep `IResource` inheritance (`TextUnit`, `DocumentPart`, `StartDocument`, etc.) with instanceof checks | Single `Part` struct with `PartType` discriminator and `Resource` interface — switch dispatch, no casts |
-| **Inline codes** | `Code` objects with type flags; code simplification step collapses redundant codes | Six-layer `Span` model with semantic types, native data, display text, and editing constraints — no simplification step needed |
-| **Semantic abstraction** | Format-specific code types; cross-format matching requires normalization | Defined semantic type vocabulary (`fmt:bold`, `link:hyperlink`, etc.) with `SubType` for format-specific refinement |
-| **Embedded content** | `START_SUBDOCUMENT`/`END_SUBDOCUMENT` flat events; subfilters via `FilterConfigurationMapper` | Nested `Layer` tree with recursive subfilter resolution; child layers are visible to tools |
-| **Block identity** | Opaque IDs assigned at extraction time; don't survive re-extraction | Content-addressable identity (SHA-256 of normalized source + context hash); stable across extraction cycles |
-| **Properties** | Dedicated fields per metadata type; requires model changes | `map[string]any` dynamic properties; tools attach arbitrary metadata without model changes |
-| **Annotations** | No equivalent — metadata like TM matches or term hits are separate | `Annotation` interface with character-level positions; carried on blocks through the pipeline |
-| **Text projections** | Single text representation; tools extract what they need | Multiple projections (`Text()`, `StructuralText()`, `SemanticHTML()`, `PlaceholderText()`) for different consumers |
+| Concern                  | Okapi Framework                                                                                         | neokapi                                                                                                                        |
+| ------------------------ | ------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| **Type hierarchy**       | Deep `IResource` inheritance (`TextUnit`, `DocumentPart`, `StartDocument`, etc.) with instanceof checks | Single `Part` struct with `PartType` discriminator and `Resource` interface — switch dispatch, no casts                        |
+| **Inline codes**         | `Code` objects with type flags; code simplification step collapses redundant codes                      | Six-layer `Span` model with semantic types, native data, display text, and editing constraints — no simplification step needed |
+| **Semantic abstraction** | Format-specific code types; cross-format matching requires normalization                                | Defined semantic type vocabulary (`fmt:bold`, `link:hyperlink`, etc.) with `SubType` for format-specific refinement            |
+| **Embedded content**     | `START_SUBDOCUMENT`/`END_SUBDOCUMENT` flat events; subfilters via `FilterConfigurationMapper`           | Nested `Layer` tree with recursive subfilter resolution; child layers are visible to tools                                     |
+| **Block identity**       | Opaque IDs assigned at extraction time; don't survive re-extraction                                     | Content-addressable identity (SHA-256 of normalized source + context hash); stable across extraction cycles                    |
+| **Properties**           | Dedicated fields per metadata type; requires model changes                                              | `map[string]any` dynamic properties; tools attach arbitrary metadata without model changes                                     |
+| **Annotations**          | No equivalent — metadata like TM matches or term hits are separate                                      | `Annotation` interface with character-level positions; carried on blocks through the pipeline                                  |
+| **Text projections**     | Single text representation; tools extract what they need                                                | Multiple projections (`Text()`, `StructuralText()`, `SemanticHTML()`, `PlaceholderText()`) for different consumers             |
 
 The key insight is separating semantic meaning (what a code represents) from
 native markup (what a code looks like in the source format). Okapi's code

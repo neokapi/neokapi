@@ -86,20 +86,20 @@ bowrain run my-flow
 
 ## Key Commands
 
-| Command                    | Description                        |
-| -------------------------- | ---------------------------------- |
-| `bowrain init`             | Initialize a project               |
-| `bowrain status`           | Show sync state                    |
-| `bowrain ai-translate`     | Translate with AI                  |
-| `bowrain pseudo-translate` | Generate pseudo-translations       |
-| `bowrain qa-check`         | Run quality checks                 |
-| `bowrain run <flow>`       | Execute a composed or custom flow  |
-| `bowrain flows`            | List available flows               |
-| `bowrain tools`            | List available tools               |
-| `bowrain push`             | Upload to server                   |
-| `bowrain pull`             | Fetch from server                  |
-| `bowrain config`           | View or set configuration          |
-| `bowrain serve`            | Open local web editor              |
+| Command                    | Description                       |
+| -------------------------- | --------------------------------- |
+| `bowrain init`             | Initialize a project              |
+| `bowrain status`           | Show sync state                   |
+| `bowrain ai-translate`     | Translate with AI                 |
+| `bowrain pseudo-translate` | Generate pseudo-translations      |
+| `bowrain qa-check`         | Run quality checks                |
+| `bowrain run <flow>`       | Execute a composed or custom flow |
+| `bowrain flows`            | List available flows              |
+| `bowrain tools`            | List available tools              |
+| `bowrain push`             | Upload to server                  |
+| `bowrain pull`             | Fetch from server                 |
+| `bowrain config`           | View or set configuration         |
+| `bowrain serve`            | Open local web editor             |
 
 ## Next Steps
 

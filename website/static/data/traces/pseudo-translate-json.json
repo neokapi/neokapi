@@ -44,21 +44,54 @@
       "initial": { "id": "layer-1", "type": "LayerStart", "summary": "Document root" }
     },
     "block-greeting": {
-      "initial": { "id": "block-greeting", "type": "Block", "summary": "greeting: Hello, World!", "sourceText": "Hello, World!" },
+      "initial": {
+        "id": "block-greeting",
+        "type": "Block",
+        "summary": "greeting: Hello, World!",
+        "sourceText": "Hello, World!"
+      },
       "afterNode": {
-        "pseudo": { "id": "block-greeting", "type": "Block", "summary": "greeting: [\u0124\u00e9\u013c\u013c\u00f6, \u0174\u00f6\u0155\u013c\u00f0!]", "sourceText": "Hello, World!", "targetText": "[\u0124\u00e9\u013c\u013c\u00f6, \u0174\u00f6\u0155\u013c\u00f0!]" }
+        "pseudo": {
+          "id": "block-greeting",
+          "type": "Block",
+          "summary": "greeting: [\u0124\u00e9\u013c\u013c\u00f6, \u0174\u00f6\u0155\u013c\u00f0!]",
+          "sourceText": "Hello, World!",
+          "targetText": "[\u0124\u00e9\u013c\u013c\u00f6, \u0174\u00f6\u0155\u013c\u00f0!]"
+        }
       }
     },
     "block-farewell": {
-      "initial": { "id": "block-farewell", "type": "Block", "summary": "farewell: Goodbye!", "sourceText": "Goodbye!" },
+      "initial": {
+        "id": "block-farewell",
+        "type": "Block",
+        "summary": "farewell: Goodbye!",
+        "sourceText": "Goodbye!"
+      },
       "afterNode": {
-        "pseudo": { "id": "block-farewell", "type": "Block", "summary": "farewell: [\u011c\u00f6\u00f6\u00f0\u00fe\u00fd\u00e9!]", "sourceText": "Goodbye!", "targetText": "[\u011c\u00f6\u00f6\u00f0\u00fe\u00fd\u00e9!]" }
+        "pseudo": {
+          "id": "block-farewell",
+          "type": "Block",
+          "summary": "farewell: [\u011c\u00f6\u00f6\u00f0\u00fe\u00fd\u00e9!]",
+          "sourceText": "Goodbye!",
+          "targetText": "[\u011c\u00f6\u00f6\u00f0\u00fe\u00fd\u00e9!]"
+        }
       }
     },
     "block-description": {
-      "initial": { "id": "block-description", "type": "Block", "summary": "description: Welcome to our application", "sourceText": "Welcome to our application" },
+      "initial": {
+        "id": "block-description",
+        "type": "Block",
+        "summary": "description: Welcome to our application",
+        "sourceText": "Welcome to our application"
+      },
       "afterNode": {
-        "pseudo": { "id": "block-description", "type": "Block", "summary": "description: [\u0174\u00e9\u013c\u00e7\u00f6\u0271\u00e9 \u0163\u00f6 \u00f6\u00fb\u0155 \u00e0\u00fe\u00fe\u013c\u00ee\u00e7\u00e0\u0163\u00ee\u00f6\u00f1]", "sourceText": "Welcome to our application", "targetText": "[\u0174\u00e9\u013c\u00e7\u00f6\u0271\u00e9 \u0163\u00f6 \u00f6\u00fb\u0155 \u00e0\u00fe\u00fe\u013c\u00ee\u00e7\u00e0\u0163\u00ee\u00f6\u00f1]" }
+        "pseudo": {
+          "id": "block-description",
+          "type": "Block",
+          "summary": "description: [\u0174\u00e9\u013c\u00e7\u00f6\u0271\u00e9 \u0163\u00f6 \u00f6\u00fb\u0155 \u00e0\u00fe\u00fe\u013c\u00ee\u00e7\u00e0\u0163\u00ee\u00f6\u00f1]",
+          "sourceText": "Welcome to our application",
+          "targetText": "[\u0174\u00e9\u013c\u00e7\u00f6\u0271\u00e9 \u0163\u00f6 \u00f6\u00fb\u0155 \u00e0\u00fe\u00fe\u013c\u00ee\u00e7\u00e0\u0163\u00ee\u00f6\u00f1]"
+        }
       }
     },
     "data-1": {

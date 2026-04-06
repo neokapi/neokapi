@@ -3,6 +3,7 @@ id: 004-processing-engine
 sidebar_position: 4
 title: "AD-004: Processing Engine"
 ---
+
 # AD-004: Channel-based processing engine
 
 ## Context
@@ -102,10 +103,10 @@ of which worker finished first.
 
 Auto-parallel is applied by the CLI for IO-bound flows:
 
-| Flow | Default Parallel Blocks |
-|------|------------------------|
-| `ai-translate`, `ai-translate-qa` | 5 |
-| All other flows | 1 (sequential) |
+| Flow                              | Default Parallel Blocks |
+| --------------------------------- | ----------------------- |
+| `ai-translate`, `ai-translate-qa` | 5                       |
+| All other flows                   | 1 (sequential)          |
 
 Users override with `--parallel-blocks N` or disable with
 `--parallel-blocks 1`.
@@ -133,12 +134,12 @@ protection for thread-safe aggregation across files.
 
 Four independent concurrency layers compose without interference:
 
-| Layer | Scope | Control | Order |
-|-------|-------|---------|-------|
-| ParallelBlockTool | Blocks within one tool | N goroutines per tool | Strict Part order |
-| BatchExecutor | Multiple files | FileConcurrency semaphore | File order preserved |
-| Executor | Multiple documents | MaxConcurrency semaphore | Document order preserved |
-| TappingTool | Observation | Inline (no extra goroutine) | Sequential |
+| Layer             | Scope                  | Control                     | Order                    |
+| ----------------- | ---------------------- | --------------------------- | ------------------------ |
+| ParallelBlockTool | Blocks within one tool | N goroutines per tool       | Strict Part order        |
+| BatchExecutor     | Multiple files         | FileConcurrency semaphore   | File order preserved     |
+| Executor          | Multiple documents     | MaxConcurrency semaphore    | Document order preserved |
+| TappingTool       | Observation            | Inline (no extra goroutine) | Sequential               |
 
 ### Collectors and Streaming Collectors
 
@@ -198,13 +199,13 @@ from reaching the runtime executor.
 
 Five built-in flow definitions are provided:
 
-| Name                  | Description                                         |
-|-----------------------|-----------------------------------------------------|
-| `ai-translate`        | AI-powered translation using configured provider    |
-| `ai-translate-qa`     | AI translation followed by QA validation            |
-| `pseudo-translate`    | Pseudo-translation for internationalization testing |
-| `qa-check`            | Quality assurance checks on existing translations   |
-| `tm-leverage`         | Translation memory leveraging from Sievepen TM      |
+| Name               | Description                                         |
+| ------------------ | --------------------------------------------------- |
+| `ai-translate`     | AI-powered translation using configured provider    |
+| `ai-translate-qa`  | AI translation followed by QA validation            |
+| `pseudo-translate` | Pseudo-translation for internationalization testing |
+| `qa-check`         | Quality assurance checks on existing translations   |
+| `tm-leverage`      | Translation memory leveraging from Sievepen TM      |
 
 `FlowStore` persists user-created flow definitions as JSON files on disk.
 Flow definitions are distinguished by source:

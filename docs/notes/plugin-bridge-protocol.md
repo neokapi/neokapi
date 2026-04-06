@@ -2,6 +2,7 @@
 sidebar_position: 3
 title: "Bridge Protocol"
 ---
+
 # Bridge Protocol
 
 This note provides implementation details for [AD-007](/docs/ad/007-plugin-system).
@@ -140,11 +141,11 @@ Key design choices:
 
 ### Configuration
 
-| Flag | Default | Description |
-|------|---------|-------------|
-| `--concurrency N` | `availableProcessors()` | Max concurrent filter pipelines |
-| `--idle-timeout N` | 0 (no timeout) | Shut down after N seconds idle |
-| `--stuck-timeout N` | 120 | Translation queue poll timeout (seconds) |
+| Flag                | Default                 | Description                              |
+| ------------------- | ----------------------- | ---------------------------------------- |
+| `--concurrency N`   | `availableProcessors()` | Max concurrent filter pipelines          |
+| `--idle-timeout N`  | 0 (no timeout)          | Shut down after N seconds idle           |
+| `--stuck-timeout N` | 120                     | Translation queue poll timeout (seconds) |
 
 ### Heartbeat and Auto-Close
 
@@ -174,6 +175,7 @@ type BridgeRegistry struct {
 ### Daemon Mode
 
 When `KAPI_BRIDGE_DAEMON=1`:
+
 - JVMs persist after kapi exits (no Shutdown RPC sent)
 - Discovered via address files in `~/.cache/neokapi/bridge/`
 - `KAPI_BRIDGE_IDLE_TIMEOUT` controls JVM auto-shutdown (default 30s)
@@ -189,22 +191,22 @@ Both Go client and Java server are tuned for localhost throughput:
 
 ### Go Client
 
-| Setting | Value | Purpose |
-|---------|-------|---------|
-| Write buffer | 256 KB | Coalesce small writes (default 32KB) |
-| Read buffer | 256 KB | Reduce read syscalls |
-| Stream window | 4 MB | Per-stream flow control headroom |
-| Connection window | 8 MB | Per-connection flow control |
-| Max recv msg | 64 MB | Large ContentBlockBatch messages |
-| readParts channel | 4096 | Absorb large batch unpacks |
+| Setting           | Value  | Purpose                              |
+| ----------------- | ------ | ------------------------------------ |
+| Write buffer      | 256 KB | Coalesce small writes (default 32KB) |
+| Read buffer       | 256 KB | Reduce read syscalls                 |
+| Stream window     | 4 MB   | Per-stream flow control headroom     |
+| Connection window | 8 MB   | Per-connection flow control          |
+| Max recv msg      | 64 MB  | Large ContentBlockBatch messages     |
+| readParts channel | 4096   | Absorb large batch unpacks           |
 
 ### Java Server (Netty)
 
-| Setting | Value | Purpose |
-|---------|-------|---------|
-| Flow control window | 4 MB | Match Go client window |
-| Max inbound msg | 64 MB | Large batch messages |
-| ContentBlockBatch size | 1024 | Blocks per gRPC message (Java→Go) |
+| Setting                | Value | Purpose                           |
+| ---------------------- | ----- | --------------------------------- |
+| Flow control window    | 4 MB  | Match Go client window            |
+| Max inbound msg        | 64 MB | Large batch messages              |
+| ContentBlockBatch size | 1024  | Blocks per gRPC message (Java→Go) |
 
 ### Go→Java Send Strategy
 

@@ -4,7 +4,7 @@ on:
   workflow_call:
     inputs:
       image-tag:
-        description: 'Image tag'
+        description: "Image tag"
         required: true
         type: string
 

@@ -1,34 +1,29 @@
-import clsx from 'clsx';
-import Link from '@docusaurus/Link';
-import useDocusaurusContext from '@docusaurus/useDocusaurusContext';
-import Layout from '@theme/Layout';
-import Heading from '@theme/Heading';
+import clsx from "clsx";
+import Link from "@docusaurus/Link";
+import useDocusaurusContext from "@docusaurus/useDocusaurusContext";
+import Layout from "@theme/Layout";
+import Heading from "@theme/Heading";
 
-import styles from './index.module.css';
+import styles from "./index.module.css";
 
 function HomepageHeader() {
-  const {siteConfig} = useDocusaurusContext();
+  const { siteConfig } = useDocusaurusContext();
   return (
-    <header className={clsx('hero hero--primary', styles.heroBanner)}>
+    <header className={clsx("hero hero--primary", styles.heroBanner)}>
       <div className="container">
-        <img
-          src="/img/hero-logo.png"
-          alt="neokapi"
-          className={styles.heroLogo}
-        />
-        <Heading as="h1" className={clsx('hero__title', styles.heroTitle)}>
+        <img src="/img/hero-logo.png" alt="neokapi" className={styles.heroLogo} />
+        <Heading as="h1" className={clsx("hero__title", styles.heroTitle)}>
           {siteConfig.title} &mdash; {siteConfig.tagline}
         </Heading>
         <div className={styles.buttons}>
           <Link
             className="button button--secondary button--lg"
             to="/docs/getting-started/introduction"
-            style={{marginRight: '1rem'}}>
+            style={{ marginRight: "1rem" }}
+          >
             Neokapi Framework
           </Link>
-          <Link
-            className="button button--secondary button--lg"
-            to="/bowrain/introduction">
+          <Link className="button button--secondary button--lg" to="/bowrain/introduction">
             Bowrain Platform
           </Link>
         </div>
@@ -46,55 +41,55 @@ type ProductItem = {
 
 const NeokapiFeatures: ProductItem[] = [
   {
-    title: '41+ Formats & Plugins',
+    title: "41+ Formats & Plugins",
     description:
-      'HTML, XML, XLIFF, JSON, YAML, PO, Markdown, OpenXML, InDesign, and more. Crash-isolated gRPC plugins in any language. Java bridge for 40+ Okapi filters.',
-    link: '/docs/features/formats',
-    linkText: 'Formats',
+      "HTML, XML, XLIFF, JSON, YAML, PO, Markdown, OpenXML, InDesign, and more. Crash-isolated gRPC plugins in any language. Java bridge for 40+ Okapi filters.",
+    link: "/docs/features/formats",
+    linkText: "Formats",
   },
   {
-    title: 'AI-native Tools',
+    title: "AI-native Tools",
     description:
-      'LLM-powered translation, QA, terminology, and review. Anthropic, OpenAI, Ollama, plus 5 MT services compose in the same pipeline.',
-    link: '/docs/features/ai-translation',
-    linkText: 'AI Translation',
+      "LLM-powered translation, QA, terminology, and review. Anthropic, OpenAI, Ollama, plus 5 MT services compose in the same pipeline.",
+    link: "/docs/features/ai-translation",
+    linkText: "AI Translation",
   },
   {
-    title: 'Streaming Pipeline',
+    title: "Streaming Pipeline",
     description:
-      'Concurrent processing with goroutines and buffered channels. Automatic backpressure and context cancellation. Low memory, high throughput.',
-    link: '/docs/developer/architecture',
-    linkText: 'Architecture',
+      "Concurrent processing with goroutines and buffered channels. Automatic backpressure and context cancellation. Low memory, high throughput.",
+    link: "/docs/developer/architecture",
+    linkText: "Architecture",
   },
 ];
 
 const BowrainFeatures: ProductItem[] = [
   {
-    title: 'Bowrain CLI',
+    title: "Bowrain CLI",
     description:
-      'Git-like project management for localization. One command to push, translate, and pull: bowrain sync. Run flows, manage terminology, and integrate with CI/CD.',
-    link: '/bowrain/cli/overview',
-    linkText: 'Bowrain CLI',
+      "Git-like project management for localization. One command to push, translate, and pull: bowrain sync. Run flows, manage terminology, and integrate with CI/CD.",
+    link: "/bowrain/cli/overview",
+    linkText: "Bowrain CLI",
   },
   {
-    title: 'Visual Editor',
+    title: "Visual Editor",
     description:
-      'Translation editor with split preview, focus view, translation memory, and terminology. Available as a web app and native desktop app.',
-    link: '/bowrain/server/web-overview',
-    linkText: 'Bowrain Web',
+      "Translation editor with split preview, focus view, translation memory, and terminology. Available as a web app and native desktop app.",
+    link: "/bowrain/server/web-overview",
+    linkText: "Bowrain Web",
   },
   {
-    title: 'Automation & Connectors',
+    title: "Automation & Connectors",
     description:
-      'Configurable automation rules locally in YAML and visually on the server. Event-driven triggers, quality gates, webhooks, and CI integration. Bidirectional connectors sync content from CMS, code repos, and design tools.',
-    link: '/bowrain/server/automation',
-    linkText: 'Automation',
+      "Configurable automation rules locally in YAML and visually on the server. Event-driven triggers, quality gates, webhooks, and CI integration. Bidirectional connectors sync content from CMS, code repos, and design tools.",
+    link: "/bowrain/server/automation",
+    linkText: "Automation",
   },
 ];
 
-function ProductCard({title, description, link, linkText}: ProductItem) {
+function ProductCard({ title, description, link, linkText }: ProductItem) {
   return (
-    <div className={clsx('col col--4')}>
+    <div className={clsx("col col--4")}>
       <div className="text--center padding-horiz--md padding-vert--md">
         <Heading as="h3">{title}</Heading>
         <p>{description}</p>
@@ -112,7 +107,8 @@ function HomepageFeatures() {
           Neokapi Framework
         </Heading>
         <p className="text--center margin-bottom--lg">
-          Open-source localization engine and <Link to="/docs/kapi-cli/overview">kapi CLI</Link> for standalone file processing.
+          Open-source localization engine and <Link to="/docs/kapi-cli/overview">kapi CLI</Link> for
+          standalone file processing.
         </p>
         <div className="row margin-bottom--xl">
           {NeokapiFeatures.map((props, idx) => (
@@ -126,7 +122,8 @@ function HomepageFeatures() {
           Bowrain Platform
         </Heading>
         <p className="text--center margin-bottom--lg">
-          Full-stack localization platform with <Link to="/bowrain/cli/overview">Bowrain CLI</Link>, visual editor, and server.
+          Full-stack localization platform with <Link to="/bowrain/cli/overview">Bowrain CLI</Link>,
+          visual editor, and server.
         </p>
         <div className="row">
           {BowrainFeatures.map((props, idx) => (
@@ -139,11 +136,9 @@ function HomepageFeatures() {
 }
 
 export default function Home() {
-  const {siteConfig} = useDocusaurusContext();
+  const { siteConfig } = useDocusaurusContext();
   return (
-    <Layout
-      title={siteConfig.title}
-      description="Open, AI-native localization platform in Go">
+    <Layout title={siteConfig.title} description="Open, AI-native localization platform in Go">
       <HomepageHeader />
       <main>
         <HomepageFeatures />

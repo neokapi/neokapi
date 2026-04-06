@@ -11,11 +11,11 @@ neokapi includes **Sievepen**, a built-in content-aware translation memory (TM) 
 
 Unlike traditional TMs that store plain strings, Sievepen works with the full content model. It stores `Fragment` objects (coded text with inline markup) and supports three matching tiers, tried in order:
 
-| Tier | Match Type | Description |
-|------|-----------|-------------|
-| 1 | **Generalized** | Entity-aware: named entities (people, products, dates) are replaced with typed placeholders. Matches segments with different entity values (e.g., "Welcome, John" matches "Welcome, Alice"). |
-| 2 | **Structural** | Inline-code-aware: inline markup (`<b>`, `<a href>`, etc.) is normalized. Matches segments with different formatting. |
-| 3 | **Plain** | Text-only: standard Levenshtein fuzzy matching on plain text. |
+| Tier | Match Type      | Description                                                                                                                                                                                  |
+| ---- | --------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1    | **Generalized** | Entity-aware: named entities (people, products, dates) are replaced with typed placeholders. Matches segments with different entity values (e.g., "Welcome, John" matches "Welcome, Alice"). |
+| 2    | **Structural**  | Inline-code-aware: inline markup (`<b>`, `<a href>`, etc.) is normalized. Matches segments with different formatting.                                                                        |
+| 3    | **Plain**       | Text-only: standard Levenshtein fuzzy matching on plain text.                                                                                                                                |
 
 Each tier can produce exact (100%) or fuzzy matches. When a generalized exact match is found, entity values from the current source are adapted into the stored target.
 
@@ -38,12 +38,12 @@ Sievepen uses Levenshtein edit distance with a configurable threshold (default 7
 
 All TM commands (except `list`) accept these mutually exclusive flags:
 
-| Flag | Resolves to | Example |
-|------|------------|---------|
-| `--name <n>` | `~/.config/kapi/tm/<n>.db` | `--name project-tm` |
-| `--local` | `./tm.db` (current directory) | `--local` |
-| `--file <path>` | Explicit file path | `--file /shared/memory.db` |
-| *(no flag)* | Same as `--local` | |
+| Flag            | Resolves to                   | Example                    |
+| --------------- | ----------------------------- | -------------------------- |
+| `--name <n>`    | `~/.config/kapi/tm/<n>.db`    | `--name project-tm`        |
+| `--local`       | `./tm.db` (current directory) | `--local`                  |
+| `--file <path>` | Explicit file path            | `--file /shared/memory.db` |
+| _(no flag)_     | Same as `--local`             |                            |
 
 Databases are created on demand if they don't exist.
 
@@ -88,8 +88,8 @@ TM exact matches skip AI translation, reducing cost and latency. Fuzzy matches a
 ```yaml
 tools:
   tm-leverage:
-    threshold: 0.70     # minimum match score (0.0-1.0)
-    max_results: 10     # maximum matches per block
+    threshold: 0.70 # minimum match score (0.0-1.0)
+    max_results: 10 # maximum matches per block
 ```
 
 ## Design Decision: Separate TM and Termbase

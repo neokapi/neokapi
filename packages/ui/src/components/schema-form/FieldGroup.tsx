@@ -21,7 +21,12 @@ export function FieldGroup({
   values: Record<string, unknown>;
   onChange: (key: string, value: unknown) => void;
   compact?: boolean;
-  onDrillDown?: (label: string, key: string, schema: PropertySchema, values: Record<string, unknown>) => void;
+  onDrillDown?: (
+    label: string,
+    key: string,
+    schema: PropertySchema,
+    values: Record<string, unknown>,
+  ) => void;
   presetValues?: Record<string, unknown>;
   paramDocs?: Record<string, ToolDocParam>;
   fieldErrors?: Record<string, string | undefined>;
@@ -38,7 +43,10 @@ export function FieldGroup({
   const isCollapsible = group.collapsible ?? fields.length > 4;
   const defaultCollapsed = isCollapsible ? (group.collapsed ?? groupIndex >= 2) : false;
 
-  const maxColumns = Math.max(1, ...sortedFields.map((k) => properties[k]?.["ui:layout"]?.columns ?? 1));
+  const maxColumns = Math.max(
+    1,
+    ...sortedFields.map((k) => properties[k]?.["ui:layout"]?.columns ?? 1),
+  );
   const useGrid = maxColumns > 1;
 
   return (
@@ -50,10 +58,7 @@ export function FieldGroup({
       className={cn(groupIndex > 0 && "mt-5")}
     >
       <div
-        className={cn(
-          useGrid ? "grid gap-1.5" : "flex flex-col gap-1.5",
-          compact && "gap-0.5",
-        )}
+        className={cn(useGrid ? "grid gap-1.5" : "flex flex-col gap-1.5", compact && "gap-0.5")}
         style={useGrid ? { gridTemplateColumns: `repeat(${maxColumns}, 1fr)` } : undefined}
       >
         {sortedFields.map((key) => {

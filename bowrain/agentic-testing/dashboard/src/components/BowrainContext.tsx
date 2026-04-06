@@ -46,7 +46,9 @@ export default function BowrainContext() {
             {progressData.map((p) => (
               <div key={p.locale} className="space-y-1">
                 <div className="flex items-center justify-between text-[11px]">
-                  <span className="font-mono text-muted-foreground">{localeDisplayName(p.locale)}</span>
+                  <span className="font-mono text-muted-foreground">
+                    {localeDisplayName(p.locale)}
+                  </span>
                   <span className="font-mono tabular-nums">
                     {p.translated}/{p.total} blocks
                   </span>

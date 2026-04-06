@@ -2,6 +2,7 @@
 sidebar_position: 2
 title: "Connector Interfaces"
 ---
+
 # Connector Interfaces
 
 This note provides implementation details for [AD-005](/docs/ad/005-connector-system).

@@ -2,6 +2,7 @@
 sidebar_position: 13
 title: "MCP Tools Reference"
 ---
+
 # MCP Tools Reference
 
 This note provides implementation details for [AD-021](/docs/ad/021-mcp-integration).
@@ -19,6 +20,7 @@ List all supported file formats with their extensions, MIME types, and read/writ
 **Input:** none
 
 **Output:**
+
 ```json
 {
   "formats": [
@@ -46,6 +48,7 @@ Detect the file format from a file path based on its extension.
 | `path` | string | yes | File path to detect format from |
 
 **Output:**
+
 ```json
 {
   "format": "json",
@@ -67,6 +70,7 @@ Parse a file and extract translatable content blocks with source text and word c
 | `source_lang` | string | no | Source language (default: `en`) |
 
 **Output:**
+
 ```json
 {
   "format": "json",
@@ -93,6 +97,7 @@ Count translatable words in a file.
 | `source_lang` | string | no | Source language (default: `en`) |
 
 **Output:**
+
 ```json
 {
   "format": "json",
@@ -115,6 +120,7 @@ Execute a processing flow on a file. Available flows: `pseudo-translate`, `qa-ch
 | `output_path` | string | no | Output file path (default: auto-generated as `<base>_<lang><ext>`) |
 
 **Output:**
+
 ```json
 {
   "flow_name": "pseudo-translate",
@@ -143,12 +149,13 @@ List all available processing flows.
 **Input:** none
 
 **Output:**
+
 ```json
 {
   "flows": [
-    {"name": "pseudo-translate", "description": "Generate pseudo-translations for testing"},
-    {"name": "qa-check", "description": "Run rule-based quality checks on translations"},
-    {"name": "ai-translate", "description": "Translate content using AI/LLM"}
+    { "name": "pseudo-translate", "description": "Generate pseudo-translations for testing" },
+    { "name": "qa-check", "description": "Run rule-based quality checks on translations" },
+    { "name": "ai-translate", "description": "Translate content using AI/LLM" }
   ],
   "total": 6
 }
@@ -161,6 +168,7 @@ List all available processing tools (built-in and plugin-provided).
 **Input:** none
 
 **Output:**
+
 ```json
 {
   "tools": [
@@ -189,6 +197,7 @@ Read project configuration from `.bowrain/config.yaml`.
 **Input:** none
 
 **Output:**
+
 ```json
 {
   "root": "/path/to/project",
@@ -210,6 +219,7 @@ Show project sync status including pending push/pull counts and server connectio
 **Input:** none
 
 **Output:**
+
 ```json
 {
   "project": {
@@ -240,21 +250,23 @@ List files tracked by the project. Supports optional stats (block/word counts) a
 | `dirty` | bool | no | Show only files with local changes |
 
 **Output (without stats):**
+
 ```json
 {
   "files": [
-    {"path": "locales/en.json", "format": "json"},
-    {"path": "locales/fr.json", "format": "json"}
+    { "path": "locales/en.json", "format": "json" },
+    { "path": "locales/fr.json", "format": "json" }
   ],
   "total": 2
 }
 ```
 
 **Output (with stats):**
+
 ```json
 {
   "files": [
-    {"path": "locales/en.json", "format": "json", "blocks": 45, "words": 320, "dirty": 3}
+    { "path": "locales/en.json", "format": "json", "blocks": 45, "words": 320, "dirty": 3 }
   ],
   "total": 1,
   "blocks": 45,
@@ -277,6 +289,7 @@ Upload local changes to the Bowrain Server.
 | `dry_run` | bool | no | Show what would be uploaded without sending |
 
 **Output:**
+
 ```json
 {
   "blocks_pushed": 12,
@@ -300,6 +313,7 @@ Download translations from the Bowrain Server and update local files.
 | `dry_run` | bool | no | Show what would change without writing files |
 
 **Output:**
+
 ```json
 {
   "blocks_pulled": 45,
@@ -316,11 +330,21 @@ List available processing flows (built-in and project-defined from `.bowrain/flo
 **Input:** none
 
 **Output:**
+
 ```json
 {
   "flows": [
-    {"name": "pseudo-translate", "description": "Generate pseudo-translations for testing", "source": "builtin"},
-    {"name": "custom-qa", "description": "Project-specific QA checks", "source": "project", "steps": 3}
+    {
+      "name": "pseudo-translate",
+      "description": "Generate pseudo-translations for testing",
+      "source": "builtin"
+    },
+    {
+      "name": "custom-qa",
+      "description": "Project-specific QA checks",
+      "source": "project",
+      "steps": 3
+    }
   ],
   "total": 7
 }
@@ -332,13 +356,13 @@ Project-defined flows include a `steps` count. Built-in flows always have `sourc
 
 ## Implementation Files
 
-| File | Purpose |
-|------|---------|
-| `kapi/cmd/kapi/mcp_cmd.go` | Cobra subcommand, server bootstrap |
-| `kapi/cmd/kapi/mcp_tools.go` | 8 tool handlers + input/output types |
-| `kapi/cmd/kapi/mcp_tools_test.go` | Unit tests for kapi MCP handlers |
-| `bowrain-cli/cmd/bowrain/mcp_cmd.go` | Cobra subcommand, server bootstrap |
-| `bowrain-cli/cmd/bowrain/mcp_tools.go` | 6 tool handlers + input/output types |
+| File                                        | Purpose                                 |
+| ------------------------------------------- | --------------------------------------- |
+| `kapi/cmd/kapi/mcp_cmd.go`                  | Cobra subcommand, server bootstrap      |
+| `kapi/cmd/kapi/mcp_tools.go`                | 8 tool handlers + input/output types    |
+| `kapi/cmd/kapi/mcp_tools_test.go`           | Unit tests for kapi MCP handlers        |
+| `bowrain-cli/cmd/bowrain/mcp_cmd.go`        | Cobra subcommand, server bootstrap      |
+| `bowrain-cli/cmd/bowrain/mcp_tools.go`      | 6 tool handlers + input/output types    |
 | `bowrain-cli/cmd/bowrain/mcp_tools_test.go` | Unit tests for Bowrain CLI MCP handlers |
 
 ## Testing

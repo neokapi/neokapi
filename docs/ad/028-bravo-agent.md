@@ -3,6 +3,7 @@ id: 028-bravo-agent
 sidebar_position: 28
 title: "AD-028: @bravo Agent"
 ---
+
 # AD-028: @bravo Agent
 
 ## Context
@@ -107,21 +108,21 @@ What's missing is an **AI agent** that can operate within this infrastructure on
 
 #### New Packages
 
-| Package | Purpose |
-|---------|---------|
-| `platform/core/agent/` | Domain types: `Conversation`, `Message`, `ToolCall`, `AgentConfig`, `AgentStore` interface |
-| `platform/agent/` | AgentStore implementations (PostgreSQL, SQLite), migrations |
-| `platform/service/agent.go` | AgentService: orchestrates agent lifecycle, manages sessions, enforces policy |
-| `platform/service/agent_pool.go` | ZeroClaw container pool: spawn, health-check, recycle agent containers |
-| `platform/server/agent_handler.go` | HTTP handlers for `/bravo/*` endpoints |
-| `platform/server/mcp/tools_content.go` | MCP tools: list/get/create/update projects, blocks, streams, versions |
-| `platform/server/mcp/tools_flow.go` | MCP tools: list/run flows, check status |
-| `platform/server/mcp/tools_tm.go` | MCP tools: TM search, import |
-| `platform/server/mcp/tools_termbase.go` | MCP tools: term search, add |
-| `platform/server/mcp/tools_connector.go` | MCP tools: pull, push, status |
-| `platform/server/mcp/tools_sandbox.go` | MCP tool: execute_script |
-| `platform/server/mcp/tool_policy.go` | Per-workspace tool access policy enforcement |
-| `platform/sandbox/` | Container-based code execution: executor, isolation, resource limits |
+| Package                                  | Purpose                                                                                    |
+| ---------------------------------------- | ------------------------------------------------------------------------------------------ |
+| `platform/core/agent/`                   | Domain types: `Conversation`, `Message`, `ToolCall`, `AgentConfig`, `AgentStore` interface |
+| `platform/agent/`                        | AgentStore implementations (PostgreSQL, SQLite), migrations                                |
+| `platform/service/agent.go`              | AgentService: orchestrates agent lifecycle, manages sessions, enforces policy              |
+| `platform/service/agent_pool.go`         | ZeroClaw container pool: spawn, health-check, recycle agent containers                     |
+| `platform/server/agent_handler.go`       | HTTP handlers for `/bravo/*` endpoints                                                     |
+| `platform/server/mcp/tools_content.go`   | MCP tools: list/get/create/update projects, blocks, streams, versions                      |
+| `platform/server/mcp/tools_flow.go`      | MCP tools: list/run flows, check status                                                    |
+| `platform/server/mcp/tools_tm.go`        | MCP tools: TM search, import                                                               |
+| `platform/server/mcp/tools_termbase.go`  | MCP tools: term search, add                                                                |
+| `platform/server/mcp/tools_connector.go` | MCP tools: pull, push, status                                                              |
+| `platform/server/mcp/tools_sandbox.go`   | MCP tool: execute_script                                                                   |
+| `platform/server/mcp/tool_policy.go`     | Per-workspace tool access policy enforcement                                               |
+| `platform/sandbox/`                      | Container-based code execution: executor, isolation, resource limits                       |
 
 #### Data Model
 
@@ -203,20 +204,20 @@ type AgentStore interface {
 
 All under `/api/v1/workspaces/:ws/bravo/`, protected by auth + workspace middleware:
 
-| Method | Path | Description |
-|--------|------|-------------|
-| `POST` | `/conversations` | Create conversation (optional `project_id` context) |
-| `GET` | `/conversations` | List conversations (paginated, filtered by user) |
-| `GET` | `/conversations/:id` | Get conversation with recent messages |
-| `DELETE` | `/conversations/:id` | Delete conversation |
-| `POST` | `/conversations/:id/messages` | Send message → SSE stream of agent response |
-| `GET` | `/conversations/:id/messages` | List messages (paginated) |
-| `POST` | `/conversations/:id/tool-calls/:tcid/approve` | Approve gated tool call |
-| `POST` | `/conversations/:id/tool-calls/:tcid/deny` | Deny gated tool call |
-| `POST` | `/conversations/:id/cancel` | Cancel running agent |
-| `GET` | `/config` | Get workspace agent config |
-| `PUT` | `/config` | Update config (admin/owner only) |
-| `GET` | `/tools` | List available tools (respects policy) |
+| Method   | Path                                          | Description                                         |
+| -------- | --------------------------------------------- | --------------------------------------------------- |
+| `POST`   | `/conversations`                              | Create conversation (optional `project_id` context) |
+| `GET`    | `/conversations`                              | List conversations (paginated, filtered by user)    |
+| `GET`    | `/conversations/:id`                          | Get conversation with recent messages               |
+| `DELETE` | `/conversations/:id`                          | Delete conversation                                 |
+| `POST`   | `/conversations/:id/messages`                 | Send message → SSE stream of agent response         |
+| `GET`    | `/conversations/:id/messages`                 | List messages (paginated)                           |
+| `POST`   | `/conversations/:id/tool-calls/:tcid/approve` | Approve gated tool call                             |
+| `POST`   | `/conversations/:id/tool-calls/:tcid/deny`    | Deny gated tool call                                |
+| `POST`   | `/conversations/:id/cancel`                   | Cancel running agent                                |
+| `GET`    | `/config`                                     | Get workspace agent config                          |
+| `PUT`    | `/config`                                     | Update config (admin/owner only)                    |
+| `GET`    | `/tools`                                      | List available tools (respects policy)              |
 
 #### SSE Stream Protocol
 
@@ -339,31 +340,31 @@ type AgentContainer struct {
 
 ### Expanded MCP Tools
 
-| Category | Tool | Description |
-|----------|------|-------------|
-| **Content** | `list_projects` | List workspace projects with filters |
-| | `get_project` | Get project details, languages, stats |
-| | `create_project` | Create a new project |
-| | `update_project` | Update project settings |
-| | `list_blocks` | Search/filter blocks (by locale, status, collection) |
-| | `get_block` | Get block with source + all target translations |
-| | `update_block` | Update a block's target translation |
-| | `create_version` | Create a named version snapshot |
-| | `list_streams` | List project streams |
-| | `diff_streams` | Compare two streams |
-| | `merge_stream` | Merge stream into main |
-| **Flow** | `list_flows` | List available flows and presets |
-| | `run_flow` | Execute a flow on project/files |
-| | `get_flow_status` | Check flow execution status |
-| **TM** | `tm_search` | Search translation memory |
-| | `tm_import` | Import TM entries from file data |
-| **Termbase** | `term_search` | Search terminology |
-| | `term_add` | Add term entries |
-| **Connector** | `connector_pull` | Pull content from external source |
-| | `connector_push` | Push content to external target |
-| | `connector_status` | Check connector sync status |
-| **Sandbox** | `execute_script` | Run code in sandboxed container |
-| **Brand** | *(existing)* | `check_vocabulary`, `list_profiles`, `get_voice_guide` |
+| Category      | Tool               | Description                                            |
+| ------------- | ------------------ | ------------------------------------------------------ |
+| **Content**   | `list_projects`    | List workspace projects with filters                   |
+|               | `get_project`      | Get project details, languages, stats                  |
+|               | `create_project`   | Create a new project                                   |
+|               | `update_project`   | Update project settings                                |
+|               | `list_blocks`      | Search/filter blocks (by locale, status, collection)   |
+|               | `get_block`        | Get block with source + all target translations        |
+|               | `update_block`     | Update a block's target translation                    |
+|               | `create_version`   | Create a named version snapshot                        |
+|               | `list_streams`     | List project streams                                   |
+|               | `diff_streams`     | Compare two streams                                    |
+|               | `merge_stream`     | Merge stream into main                                 |
+| **Flow**      | `list_flows`       | List available flows and presets                       |
+|               | `run_flow`         | Execute a flow on project/files                        |
+|               | `get_flow_status`  | Check flow execution status                            |
+| **TM**        | `tm_search`        | Search translation memory                              |
+|               | `tm_import`        | Import TM entries from file data                       |
+| **Termbase**  | `term_search`      | Search terminology                                     |
+|               | `term_add`         | Add term entries                                       |
+| **Connector** | `connector_pull`   | Pull content from external source                      |
+|               | `connector_push`   | Push content to external target                        |
+|               | `connector_status` | Check connector sync status                            |
+| **Sandbox**   | `execute_script`   | Run code in sandboxed container                        |
+| **Brand**     | _(existing)_       | `check_vocabulary`, `list_profiles`, `get_voice_guide` |
 
 ### Code Execution Sandbox
 
@@ -576,6 +577,7 @@ The panel is available on every page. Context-aware: when opened from a project 
 #### Tool Call Visualization
 
 Collapsed:
+
 ```
 ┌───────────────────────────────────────┐
 │ 🔧 run_flow                      ✓  │
@@ -585,6 +587,7 @@ Collapsed:
 ```
 
 Expanded:
+
 ```
 ┌───────────────────────────────────────┐
 │ 🔧 run_flow                      ✓  │
@@ -603,6 +606,7 @@ Expanded:
 ```
 
 Approval (paused):
+
 ```
 ┌───────────────────────────────────────┐
 │ ⚠ connector_push                     │
@@ -617,16 +621,17 @@ Approval (paused):
 
 New event types:
 
-| Event Type | Emitted When |
-|-----------|--------------|
+| Event Type                   | Emitted When                          |
+| ---------------------------- | ------------------------------------- |
 | `agent.conversation.created` | User starts a new @bravo conversation |
-| `agent.message.sent` | @bravo sends a response |
-| `agent.tool.executed` | @bravo completes a tool call |
-| `agent.tool.approved` | User approves a gated tool call |
-| `agent.tool.denied` | User denies a gated tool call |
-| `agent.code.executed` | @bravo runs a script in the sandbox |
+| `agent.message.sent`         | @bravo sends a response               |
+| `agent.tool.executed`        | @bravo completes a tool call          |
+| `agent.tool.approved`        | User approves a gated tool call       |
+| `agent.tool.denied`          | User denies a gated tool call         |
+| `agent.code.executed`        | @bravo runs a script in the sandbox   |
 
 All events carry `actor: "bravo:<user_id>"` and integrate with:
+
 - **ActivityRecorder** — "@bravo translated 45 blocks in project X" appears in feeds
 - **NotificationDispatcher** — notify user when long-running agent tasks complete
 - **AutomationEngine** — agent actions can trigger automation rules (e.g., agent translation → auto QA)
@@ -634,21 +639,22 @@ All events carry `actor: "bravo:<user_id>"` and integrate with:
 
 ### Security
 
-| Concern | Approach |
-|---------|----------|
-| Permission enforcement | Agent inherits user's workspace role; all MCP calls go through existing auth middleware |
-| Tool access control | `AgentConfig` whitelist/blacklist per workspace; admin-managed |
-| Human-in-the-loop | `RequireApproval` list gates destructive operations; agent loop pauses until user responds |
-| Code execution isolation | Ephemeral containers: no network, resource limits, read-only root, allowlisted languages |
-| Token scoping | Short-lived `bwt_bravo_*` tokens tied to conversation, revoked on end |
-| Audit trail | All agent actions emit events with full I/O; activity feed shows @bravo actions distinctly |
-| Rate limiting | `MaxConcurrent` caps active conversations per workspace |
+| Concern                  | Approach                                                                                   |
+| ------------------------ | ------------------------------------------------------------------------------------------ |
+| Permission enforcement   | Agent inherits user's workspace role; all MCP calls go through existing auth middleware    |
+| Tool access control      | `AgentConfig` whitelist/blacklist per workspace; admin-managed                             |
+| Human-in-the-loop        | `RequireApproval` list gates destructive operations; agent loop pauses until user responds |
+| Code execution isolation | Ephemeral containers: no network, resource limits, read-only root, allowlisted languages   |
+| Token scoping            | Short-lived `bwt_bravo_*` tokens tied to conversation, revoked on end                      |
+| Audit trail              | All agent actions emit events with full I/O; activity feed shows @bravo actions distinctly |
+| Rate limiting            | `MaxConcurrent` caps active conversations per workspace                                    |
 
 ---
 
 ## Implementation Phases
 
 ### Phase 1: Foundation
+
 - Data model + AgentStore (PostgreSQL + SQLite)
 - Agent API endpoints with SSE streaming
 - Expand MCP with content + flow tools
@@ -657,6 +663,7 @@ All events carry `actor: "bravo:<user_id>"` and integrate with:
 - Mock agent backend for end-to-end testing
 
 ### Phase 2: ZeroClaw Integration + Core Tools
+
 - ZeroClaw container pool (spawn, health-check, recycle)
 - @bravo Docker image + config.toml templating
 - Identity delegation (scoped tokens)
@@ -666,12 +673,14 @@ All events carry `actor: "bravo:<user_id>"` and integrate with:
 - Conversation history
 
 ### Phase 3: Code Execution
+
 - Sandbox executor (container-based)
 - `execute_script` MCP tool
 - Code block rendering in UI
 - Execution policies and resource limits
 
 ### Phase 4: Polish + Enterprise
+
 - Human-in-the-loop approval flow (end to end)
 - Admin configuration UI
 - Agent activity in workspace feeds
@@ -684,26 +693,26 @@ All events carry `actor: "bravo:<user_id>"` and integrate with:
 
 ### Frontend library
 
-| Option | Verdict |
-|--------|---------|
-| **assistant-ui** | **Chosen.** Same stack (shadcn/Radix/Tailwind), composable, backend-agnostic, excellent tool call rendering |
-| CopilotKit | More opinionated, AG-UI protocol adds complexity, less aligned with existing UI stack |
-| Vercel AI SDK | Next.js-centric hooks; bowrain uses Vite + TanStack Router, not Next.js |
-| Custom from scratch | Unnecessary; assistant-ui provides the primitives while allowing full customization |
+| Option              | Verdict                                                                                                     |
+| ------------------- | ----------------------------------------------------------------------------------------------------------- |
+| **assistant-ui**    | **Chosen.** Same stack (shadcn/Radix/Tailwind), composable, backend-agnostic, excellent tool call rendering |
+| CopilotKit          | More opinionated, AG-UI protocol adds complexity, less aligned with existing UI stack                       |
+| Vercel AI SDK       | Next.js-centric hooks; bowrain uses Vite + TanStack Router, not Next.js                                     |
+| Custom from scratch | Unnecessary; assistant-ui provides the primitives while allowing full customization                         |
 
 ### Agent runtime
 
-| Option | Verdict |
-|--------|---------|
+| Option                                 | Verdict                                                                                                                                       |
+| -------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
 | **ZeroClaw containers + Azure OpenAI** | **Chosen.** Self-hosted, no vendor lock-in, ~5MB RAM per agent, native MCP client, provider-swappable via config. Azure used only for models. |
-| Azure AI Foundry Agent Service | Full managed service but hard vendor lock-in to Azure agent orchestration, data leaves your infrastructure |
-| Direct LLM API + custom Go agent loop | Full control but must implement tool loop, memory, streaming from scratch |
-| LangChain/LangGraph | Python-centric, heavy dependency, doesn't leverage existing Go MCP server |
+| Azure AI Foundry Agent Service         | Full managed service but hard vendor lock-in to Azure agent orchestration, data leaves your infrastructure                                    |
+| Direct LLM API + custom Go agent loop  | Full control but must implement tool loop, memory, streaming from scratch                                                                     |
+| LangChain/LangGraph                    | Python-centric, heavy dependency, doesn't leverage existing Go MCP server                                                                     |
 
 ### Code execution
 
-| Option | Verdict |
-|--------|---------|
-| **Server-side containers** | **Chosen.** Full control, bowrain owns the sandbox, workspace-scoped, no data leaves the infrastructure |
-| Azure Code Interpreter | Data goes to Azure sandbox, less control over available libraries, harder to provide workspace context files |
-| MCP tool composition only | Too limiting; users expect script execution for bulk/custom operations |
+| Option                     | Verdict                                                                                                      |
+| -------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| **Server-side containers** | **Chosen.** Full control, bowrain owns the sandbox, workspace-scoped, no data leaves the infrastructure      |
+| Azure Code Interpreter     | Data goes to Azure sandbox, less control over available libraries, harder to provide workspace context files |
+| MCP tool composition only  | Too limiting; users expect script execution for bulk/custom operations                                       |

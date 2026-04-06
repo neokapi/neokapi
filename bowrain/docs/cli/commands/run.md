@@ -133,10 +133,10 @@ Available built-in composed flows:
 
 Single tools run directly as top-level commands:
 
-| Command              | Description                                   |
-| -------------------- | --------------------------------------------- |
-| `bowrain ai-translate`     | Translate content using AI/LLM          |
-| `bowrain pseudo-translate` | Generate pseudo-translations for testing |
+| Command                    | Description                                   |
+| -------------------------- | --------------------------------------------- |
+| `bowrain ai-translate`     | Translate content using AI/LLM                |
+| `bowrain pseudo-translate` | Generate pseudo-translations for testing      |
 | `bowrain qa-check`         | Run rule-based quality checks on translations |
 | `bowrain tm-leverage`      | Pre-fill translations from translation memory |
 

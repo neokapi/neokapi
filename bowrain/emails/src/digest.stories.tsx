@@ -71,7 +71,7 @@ export const DailyDigest: Story = {
         items: [
           {
             title: "Alice mentioned you",
-            body: "\"@charlie can you review the updated glossary terms?\"",
+            body: '"@charlie can you review the updated glossary terms?"',
           },
         ],
       },
@@ -163,11 +163,11 @@ export const WeeklySummary: Story = {
         items: [
           {
             title: "Alice mentioned you (3 times)",
-            body: "Latest: \"@charlie the Korean reviewer feedback is in\"",
+            body: 'Latest: "@charlie the Korean reviewer feedback is in"',
           },
           {
             title: "Bob mentioned you",
-            body: "\"@charlie can you check the German plurals?\"",
+            body: '"@charlie can you check the German plurals?"',
           },
         ],
       },

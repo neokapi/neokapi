@@ -1,22 +1,42 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import type { FlowTrace, TraceEvent, FlowNode, PartSnapshotSet } from './_types';
-import { usePlayback } from './_usePlayback';
-import FlowGraph from './_FlowGraph';
-import TimelineControls from './_TimelineControls';
-import PartInspector from './_PartInspector';
-import TraceSelector from './_TraceSelector';
-import styles from './_index.module.css';
+import React, { useState, useEffect, useCallback, useMemo } from "react";
+import type { FlowTrace, TraceEvent, FlowNode, PartSnapshotSet } from "./_types";
+import { usePlayback } from "./_usePlayback";
+import FlowGraph from "./_FlowGraph";
+import TimelineControls from "./_TimelineControls";
+import PartInspector from "./_PartInspector";
+import TraceSelector from "./_TraceSelector";
+import styles from "./_index.module.css";
 
 const EMPTY_EVENTS: TraceEvent[] = [];
 const EMPTY_NODES: FlowNode[] = [];
 const EMPTY_PARTS: Record<string, PartSnapshotSet> = {};
 
 const AVAILABLE_TRACES = [
-  { name: 'Pseudo-translate JSON', description: 'Basic native pipeline with 6 Parts', path: '/data/traces/pseudo-translate-json.json' },
-  { name: 'Multi-tool Pipeline', description: 'Multiple tools, concurrency, buffering', path: '/data/traces/multi-tool-pipeline.json' },
-  { name: 'Bridge HTML', description: 'Java/Okapi bridge with gRPC boundary', path: '/data/traces/bridge-html-pseudo.json' },
-  { name: 'AI Translate (Parallel)', description: 'Parallel block processing with 3 concurrent workers', path: '/data/traces/ai-translate-parallel.json' },
-  { name: 'Translate + QA (Parallel)', description: 'Two parallel stages: AI translate then QA check', path: '/data/traces/translate-qa-parallel.json' },
+  {
+    name: "Pseudo-translate JSON",
+    description: "Basic native pipeline with 6 Parts",
+    path: "/data/traces/pseudo-translate-json.json",
+  },
+  {
+    name: "Multi-tool Pipeline",
+    description: "Multiple tools, concurrency, buffering",
+    path: "/data/traces/multi-tool-pipeline.json",
+  },
+  {
+    name: "Bridge HTML",
+    description: "Java/Okapi bridge with gRPC boundary",
+    path: "/data/traces/bridge-html-pseudo.json",
+  },
+  {
+    name: "AI Translate (Parallel)",
+    description: "Parallel block processing with 3 concurrent workers",
+    path: "/data/traces/ai-translate-parallel.json",
+  },
+  {
+    name: "Translate + QA (Parallel)",
+    description: "Two parallel stages: AI translate then QA check",
+    path: "/data/traces/translate-qa-parallel.json",
+  },
 ];
 
 export default function FlowVisualization(): React.ReactElement {
@@ -34,12 +54,12 @@ export default function FlowVisualization(): React.ReactElement {
     setError(null);
     setSelectedPartId(null);
     fetch(tracePath)
-      .then(r => {
+      .then((r) => {
         if (!r.ok) throw new Error(`Failed to load trace: ${r.status}`);
         return r.json();
       })
       .then(setTrace)
-      .catch(e => setError(e.message));
+      .catch((e) => setError(e.message));
   }, [tracePath, loadedFileName]);
 
   const handleSelectBuiltin = useCallback((path: string) => {
@@ -118,11 +138,7 @@ export default function FlowVisualization(): React.ReactElement {
         onSetSpeed={playback.setSpeed}
         onReset={playback.reset}
       />
-      <PartInspector
-        partId={selectedPartId}
-        parts={trace.parts}
-        nodes={trace.nodes}
-      />
+      <PartInspector partId={selectedPartId} parts={trace.parts} nodes={trace.nodes} />
     </div>
   );
 }

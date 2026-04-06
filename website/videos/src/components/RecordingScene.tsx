@@ -10,14 +10,9 @@ interface RecordingSceneProps {
   branding: Branding;
 }
 
-export const RecordingScene: React.FC<RecordingSceneProps> = ({
-  scene,
-  branding,
-}) => {
+export const RecordingScene: React.FC<RecordingSceneProps> = ({ scene, branding }) => {
   const src = staticFile(`raw/${scene.source}`);
-  const startFrom = scene.trim?.start
-    ? Math.round(scene.trim.start * 30)
-    : undefined;
+  const startFrom = scene.trim?.start ? Math.round(scene.trim.start * 30) : undefined;
   const playbackRate = scene.playbackRate;
 
   const video = (

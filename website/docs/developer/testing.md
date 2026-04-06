@@ -145,12 +145,12 @@ go test ./flow/ -run TestExecutorCancellation -v
 
 ## Test Tags
 
-| Tag | Purpose | Command |
-|---|---|---|
-| (none) | Unit tests only | `go test ./...` |
-| `integration` | + plugin and format integration | `go test ./... -tags=integration` |
-| `java` | + Java bridge tests | `go test ./... -tags="integration java"` |
-| `ai` | + real AI provider tests | `go test ./... -tags="integration ai"` |
+| Tag           | Purpose                         | Command                                  |
+| ------------- | ------------------------------- | ---------------------------------------- |
+| (none)        | Unit tests only                 | `go test ./...`                          |
+| `integration` | + plugin and format integration | `go test ./... -tags=integration`        |
+| `java`        | + Java bridge tests             | `go test ./... -tags="integration java"` |
+| `ai`          | + real AI provider tests        | `go test ./... -tags="integration ai"`   |
 
 ## CI
 

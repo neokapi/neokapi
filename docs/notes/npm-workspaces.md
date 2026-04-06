@@ -2,6 +2,7 @@
 sidebar_position: 11
 title: "NPM Workspace Coordination"
 ---
+
 # NPM Workspace Coordination
 
 This note documents how the four frontend projects are coordinated via NPM workspaces, the build order constraints, and how the Makefile orchestrates frontend builds.
@@ -26,12 +27,12 @@ Note that `bowrain/apps/keycloak-theme` is intentionally excluded from the works
 
 ## The Four Frontend Projects
 
-| Project | Package Name | Purpose | Key Dependencies |
-|---------|-------------|---------|-----------------|
-| `packages/ui` | `@neokapi/ui` | Shared React component library | shadcn-glass-ui, Tailwind v4, Radix UI |
-| `bowrain/apps/web` | `neokapi-web` | SaaS web UI (bowrain-server) | React 19, Lexical, Tailwind v4 |
-| `kapi/apps/kapi-web` | `neokapi-kapi-web` | Kapi serve web UI | React 19, Lexical, Tailwind v4 |
-| `bowrain/apps/bowrain/frontend` | `bowrain` | Wails v3 desktop app frontend | React 19, Wails runtime, XYFlow, Lexical |
+| Project                         | Package Name       | Purpose                        | Key Dependencies                         |
+| ------------------------------- | ------------------ | ------------------------------ | ---------------------------------------- |
+| `packages/ui`                   | `@neokapi/ui`      | Shared React component library | shadcn-glass-ui, Tailwind v4, Radix UI   |
+| `bowrain/apps/web`              | `neokapi-web`      | SaaS web UI (bowrain-server)   | React 19, Lexical, Tailwind v4           |
+| `kapi/apps/kapi-web`            | `neokapi-kapi-web` | Kapi serve web UI              | React 19, Lexical, Tailwind v4           |
+| `bowrain/apps/bowrain/frontend` | `bowrain`          | Wails v3 desktop app frontend  | React 19, Wails runtime, XYFlow, Lexical |
 
 All four projects share React 19, Tailwind CSS v4, and TypeScript 5.8+. The three app projects consume `@neokapi/ui` through Vite path aliases rather than npm package resolution.
 
@@ -56,6 +57,7 @@ resolve: {
 ```
 
 This means:
+
 - Apps import directly from TypeScript source, not compiled output
 - No separate build step for the UI package in development
 - Changes to `packages/ui` are reflected immediately in Vite dev mode
@@ -120,6 +122,7 @@ frontend-build: ui-build frontend-deps  ## Build frontend for production
 ```
 
 Key observations:
+
 - A dedicated `ui-build` target compiles `packages/ui` TypeScript declarations via `npx tsc`
 - All three app build targets depend on `ui-build` (which itself depends on `ui-deps`)
 - `web-build` and `kapi-web-build` generate a `version.json` in their `public/` directory before building (containing version, commit hash, and build date)

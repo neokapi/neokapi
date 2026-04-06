@@ -19,12 +19,12 @@ const (
 // Default length-ratio thresholds shared between length-check and qa-check.
 // These mirror the Okapi Framework bridge length-checker defaults.
 const (
-	DefaultLengthBreak        = 20  // character count dividing "short" from "long" text
-	DefaultMaxPctLongText     = 200 // max target/source % for long text
-	DefaultMaxPctShortText    = 350 // max target/source % for short text
-	DefaultMinPctLongText     = 45  // min target/source % for long text
-	DefaultMinPctShortText    = 30  // min target/source % for short text
-	DefaultAbsoluteMaxChars   = 255 // absolute max character count
+	DefaultLengthBreak      = 20  // character count dividing "short" from "long" text
+	DefaultMaxPctLongText   = 200 // max target/source % for long text
+	DefaultMaxPctShortText  = 350 // max target/source % for short text
+	DefaultMinPctLongText   = 45  // min target/source % for long text
+	DefaultMinPctShortText  = 30  // min target/source % for short text
+	DefaultAbsoluteMaxChars = 255 // absolute max character count
 )
 
 // LengthCheckConfig holds configuration for the length check tool.

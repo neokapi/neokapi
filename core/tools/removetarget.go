@@ -10,10 +10,10 @@ import (
 
 // RemoveTargetConfig holds configuration for the remove-target tool.
 type RemoveTargetConfig struct {
-	TargetLocale        model.LocaleID `schema:"title=Target Locale,description=Target locale to remove (if empty all targets are removed)"`                                          // Target locale to remove (if empty, removes ALL targets)
-	TextUnitIDs         string         `schema:"title=Text Unit IDs for Removal,description=Comma-delimited list of text unit IDs whose targets should be removed; empty removes all targets"`     // Text unit IDs for selective removal
-	FilterByIDs         bool           `schema:"title=Filter by IDs,description=When true filter text units by ID; when false filter by target locale,default=true"`                   // Filter mode: by ID or by locale
-	RemoveBlockIfEmpty  bool           `schema:"title=Remove Empty Text Units,description=Remove the text unit entirely if it has no remaining targets after removal"`                           // Remove block when no targets remain
+	TargetLocale       model.LocaleID `schema:"title=Target Locale,description=Target locale to remove (if empty all targets are removed)"`                                                   // Target locale to remove (if empty, removes ALL targets)
+	TextUnitIDs        string         `schema:"title=Text Unit IDs for Removal,description=Comma-delimited list of text unit IDs whose targets should be removed; empty removes all targets"` // Text unit IDs for selective removal
+	FilterByIDs        bool           `schema:"title=Filter by IDs,description=When true filter text units by ID; when false filter by target locale,default=true"`                           // Filter mode: by ID or by locale
+	RemoveBlockIfEmpty bool           `schema:"title=Remove Empty Text Units,description=Remove the text unit entirely if it has no remaining targets after removal"`                         // Remove block when no targets remain
 }
 
 // ToolName returns the tool name this config applies to.

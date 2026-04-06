@@ -3,6 +3,7 @@ id: 040-tool-parameter-schemas
 sidebar_position: 40
 title: "AD-040: Tool Parameter Schemas"
 ---
+
 # AD-040: Tool parameter schemas
 
 ## Context

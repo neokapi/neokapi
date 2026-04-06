@@ -3,6 +3,7 @@ id: 027-activities-tasks-notifications
 sidebar_position: 27
 title: "AD-027: Activities, Tasks, and Notifications"
 ---
+
 # AD-027: Activities, Tasks, and Notifications
 
 ## Context
@@ -27,11 +28,11 @@ What's missing is the connective tissue: a unified **activity feed** showing wha
 
 ### Three Concepts
 
-| Concept | What it is | Who sees it | Persistence |
-|---------|-----------|-------------|-------------|
-| **Activity** | An immutable record of something that happened | Everyone in the project/workspace | PostgreSQL `activities` table |
-| **Task** | An actionable work item assigned to a person | Assignee + project members | PostgreSQL `tasks` table |
-| **Notification** | A user-targeted alert about something relevant | Individual user | Existing `notifications` table (extended) |
+| Concept          | What it is                                     | Who sees it                       | Persistence                               |
+| ---------------- | ---------------------------------------------- | --------------------------------- | ----------------------------------------- |
+| **Activity**     | An immutable record of something that happened | Everyone in the project/workspace | PostgreSQL `activities` table             |
+| **Task**         | An actionable work item assigned to a person   | Assignee + project members        | PostgreSQL `tasks` table                  |
+| **Notification** | A user-targeted alert about something relevant | Individual user                   | Existing `notifications` table (extended) |
 
 Activities are the **source of truth** — every significant event produces an activity. Tasks and notifications are **derived** from activities (or created directly for human-initiated assignments).
 
@@ -157,6 +158,7 @@ GET /api/v1/workspaces/:ws/activities
 ```
 
 Returns:
+
 ```json
 {
   "activities": [
@@ -303,7 +305,7 @@ automations:
       - type: task
         config:
           task_type: review
-          assignee: "@reviewer-role"    # role-based assignment
+          assignee: "@reviewer-role" # role-based assignment
           priority: normal
           title: "Review AI translations for {{.data.target_locale}}"
 ```
@@ -353,15 +355,15 @@ CREATE TABLE notification_preferences (
 
 **Notification categories:**
 
-| Category | Triggers | Default channels |
-|----------|----------|-----------------|
-| `task` | Task assigned, task due soon, task overdue | web, desktop, email |
-| `review` | Review requested, review completed | web, desktop |
-| `quality` | Quality gate failed, brand voice drift | web, desktop |
-| `automation` | Flow failed, connector error | web |
-| `mention` | @mentioned in a comment or note | web, desktop, email |
-| `project` | Member added/removed, locale added | web |
-| `system` | Workspace quota warning, maintenance | web, email |
+| Category     | Triggers                                   | Default channels    |
+| ------------ | ------------------------------------------ | ------------------- |
+| `task`       | Task assigned, task due soon, task overdue | web, desktop, email |
+| `review`     | Review requested, review completed         | web, desktop        |
+| `quality`    | Quality gate failed, brand voice drift     | web, desktop        |
+| `automation` | Flow failed, connector error               | web                 |
+| `mention`    | @mentioned in a comment or note            | web, desktop, email |
+| `project`    | Member added/removed, locale added         | web                 |
+| `system`     | Workspace quota warning, maintenance       | web, email          |
 
 #### API for Preferences
 
@@ -490,6 +492,7 @@ type NotificationDispatcher struct {
 ```
 
 The dispatcher:
+
 1. Subscribes to relevant event types
 2. Determines which users should be notified (project members, assignees, watchers)
 3. Checks each user's notification preferences for the category
@@ -598,6 +601,7 @@ type RedisNotificationBridge struct {
 ```
 
 When the dispatcher creates a notification:
+
 1. It publishes to Redis channel `notifications:{user_id}`
 2. All server instances subscribed to that channel receive it
 3. Each instance checks if the user has local WebSocket connections and delivers
@@ -619,6 +623,7 @@ The activity hub broadcasts new activities to all connected clients viewing the 
 #### Task Updates
 
 Task state changes (assigned, completed, cancelled) are broadcast to:
+
 - The assignee (via notification channels)
 - All clients viewing the project's task board (via a task WebSocket or piggybacked on the activity stream)
 
@@ -626,28 +631,28 @@ Task state changes (assigned, completed, cancelled) are broadcast to:
 
 Different roles need different notifications. The system should route notifications based on the user's project role template, not just category preferences. This table defines default relevance:
 
-| Notification Type | Category | PM / Admin | Developer | Translator | Reviewer | Observer |
-|---|---|---|---|---|---|---|
-| `task.assigned` | task | web | web | web, email, desktop | web, email, desktop | — |
-| `task.due_soon` | task | web | web | web, email, desktop | web, email, desktop | — |
-| `task.overdue` | task | web, email | web | web, email, desktop | web, email, desktop | — |
-| `task.completed` | task | web, email | web | — | — | — |
-| `review.assigned` | review | web | — | — | web, email, desktop | — |
-| `review.completed` | review | web, email | — | web, desktop | web | — |
-| `extraction.completed` | automation | web, email | web, email | — | — | — |
-| `quality.gate.failed` | quality | web, email | web, email | web | web, desktop | — |
-| `brand.drift` | quality | web, email | — | web | web, desktop | — |
-| `flow.failed` | automation | web, email | web, email | — | — | — |
-| `connector.error` | automation | web, email | web, email | — | — | — |
-| `mention` | mention | web, email, desktop | web, email, desktop | web, email, desktop | web, email, desktop | — |
-| `comment` | mention | web, email, desktop | web, email, desktop | web, email, desktop | web, email, desktop | — |
-| `quota.warning` | system | web, email | — | — | — | — |
-| `content.available` | task | web | — | web, email, desktop | web, desktop | — |
-| `progress.milestone` | project | web, email | web | web | web | web |
-| `stream.merged` | project | web, email | web, email | — | — | — |
-| `version.ready` | project | web, email | web | — | — | — |
-| `member.joined` | project | web, email | web | — | — | — |
-| `deadline.approaching` | task | web, email | web | web, email | web, email | — |
+| Notification Type      | Category   | PM / Admin          | Developer           | Translator          | Reviewer            | Observer |
+| ---------------------- | ---------- | ------------------- | ------------------- | ------------------- | ------------------- | -------- |
+| `task.assigned`        | task       | web                 | web                 | web, email, desktop | web, email, desktop | —        |
+| `task.due_soon`        | task       | web                 | web                 | web, email, desktop | web, email, desktop | —        |
+| `task.overdue`         | task       | web, email          | web                 | web, email, desktop | web, email, desktop | —        |
+| `task.completed`       | task       | web, email          | web                 | —                   | —                   | —        |
+| `review.assigned`      | review     | web                 | —                   | —                   | web, email, desktop | —        |
+| `review.completed`     | review     | web, email          | —                   | web, desktop        | web                 | —        |
+| `extraction.completed` | automation | web, email          | web, email          | —                   | —                   | —        |
+| `quality.gate.failed`  | quality    | web, email          | web, email          | web                 | web, desktop        | —        |
+| `brand.drift`          | quality    | web, email          | —                   | web                 | web, desktop        | —        |
+| `flow.failed`          | automation | web, email          | web, email          | —                   | —                   | —        |
+| `connector.error`      | automation | web, email          | web, email          | —                   | —                   | —        |
+| `mention`              | mention    | web, email, desktop | web, email, desktop | web, email, desktop | web, email, desktop | —        |
+| `comment`              | mention    | web, email, desktop | web, email, desktop | web, email, desktop | web, email, desktop | —        |
+| `quota.warning`        | system     | web, email          | —                   | —                   | —                   | —        |
+| `content.available`    | task       | web                 | —                   | web, email, desktop | web, desktop        | —        |
+| `progress.milestone`   | project    | web, email          | web                 | web                 | web                 | web      |
+| `stream.merged`        | project    | web, email          | web, email          | —                   | —                   | —        |
+| `version.ready`        | project    | web, email          | web                 | —                   | —                   | —        |
+| `member.joined`        | project    | web, email          | web                 | —                   | —                   | —        |
+| `deadline.approaching` | task       | web, email          | web                 | web, email          | web, email          | —        |
 
 **"—"** means the notification is not delivered to that role by default. Users can always override via notification preferences.
 
@@ -689,13 +694,13 @@ const (
 
 Activities are visible to all project members, but the UI filters by relevance based on the user's role:
 
-| Role | Default Activity Filter | Key Activities |
-|---|---|---|
-| PM / Admin | All | Progress milestones, quality gates, brand drift, member changes, connector status |
-| Developer | Technical | Connector syncs, flow results, stream operations, pushes/pulls |
-| Translator | My work + content | Content pushed, own translations, review feedback, task assignments |
-| Reviewer | Review pipeline | Translations completed, review decisions, quality gates, brand drift |
-| Observer | Milestones only | Project updates, progress milestones, version releases |
+| Role       | Default Activity Filter | Key Activities                                                                    |
+| ---------- | ----------------------- | --------------------------------------------------------------------------------- |
+| PM / Admin | All                     | Progress milestones, quality gates, brand drift, member changes, connector status |
+| Developer  | Technical               | Connector syncs, flow results, stream operations, pushes/pulls                    |
+| Translator | My work + content       | Content pushed, own translations, review feedback, task assignments               |
+| Reviewer   | Review pipeline         | Translations completed, review decisions, quality gates, brand drift              |
+| Observer   | Milestones only         | Project updates, progress milestones, version releases                            |
 
 The `ActivityFeed` component accepts a `defaultFilter` prop derived from the user's resolved project role. Users can always change the filter.
 
@@ -705,11 +710,11 @@ Email digests batch notifications into periodic summaries, reducing inbox noise 
 
 #### Frequencies
 
-| Frequency | Default For | Content |
-|---|---|---|
-| **Daily** (default) | All active users | Grouped unread notifications from last 24h, task summary, progress changes |
-| **Weekly** | Observers, leadership | Workspace activity overview, week-over-week progress, top contributors, upcoming deadlines |
-| **Off** | User opt-out | No digest emails (real-time web notifications still work) |
+| Frequency           | Default For           | Content                                                                                    |
+| ------------------- | --------------------- | ------------------------------------------------------------------------------------------ |
+| **Daily** (default) | All active users      | Grouped unread notifications from last 24h, task summary, progress changes                 |
+| **Weekly**          | Observers, leadership | Workspace activity overview, week-over-week progress, top contributors, upcoming deadlines |
+| **Off**             | User opt-out          | No digest emails (real-time web notifications still work)                                  |
 
 Users configure their digest frequency per workspace. High-priority notifications (`priority: "high"`) always send an immediate email regardless of digest frequency, provided the user has email enabled for that category.
 
@@ -729,6 +734,7 @@ type DigestWorker struct {
 ```
 
 The worker runs on a ticker (daily at 08:00 user-local, weekly on Monday 08:00):
+
 1. Query users with matching `digest_frequency`
 2. For each user, fetch unread notifications since `last_sent_at`
 3. **Skip if all read** — if the user has already seen everything on web, skip the email
@@ -769,6 +775,7 @@ PUT  /api/v1/workspaces/:ws/notifications/digest-settings
 #### "Seen on web, skip email"
 
 Before sending a digest or immediate email, the DigestWorker checks:
+
 - If all notifications in the batch are already `read=true`, skip the email entirely
 - If the user has had an active WebSocket connection in the last hour (tracked by `notificationHub.lastActiveAt`), defer non-urgent emails to the next digest cycle
 
@@ -777,6 +784,7 @@ This prevents the common SaaS anti-pattern of emailing users about things they'v
 #### Quiet Hours
 
 Users can configure quiet hours (e.g., 22:00–08:00) and timezone in `digest_settings`. During quiet hours:
+
 - Non-urgent emails are queued until the quiet period ends
 - Push and desktop notifications are suppressed
 - High-priority (`priority: "high"`) notifications still deliver immediately
@@ -784,6 +792,7 @@ Users can configure quiet hours (e.g., 22:00–08:00) and timezone in `digest_se
 #### Escalation
 
 Task notifications escalate over time:
+
 1. `task.assigned` — normal priority, web notification
 2. `task.due_soon` — 24h before deadline, elevated to email if not already enabled
 3. `task.overdue` — past deadline, `priority: "high"`, immediate email even if user normally has email off for tasks
@@ -828,6 +837,7 @@ All UI components live in the shared `packages/ui` library for reuse across web,
 ```
 
 The activity feed appears in:
+
 - **Project dashboard** — filtered to the active project
 - **Workspace overview** — aggregated across all projects
 - **Block detail panel** — filtered to the active block (replaces/augments block history)
@@ -854,6 +864,7 @@ The activity feed appears in:
 ```
 
 The task board is accessible from:
+
 - **Project sidebar** — project-scoped tasks
 - **"My Tasks" view** — cross-project personal task list with due date sorting
 - **Dashboard home** — summary cards showing overdue and upcoming tasks
@@ -861,6 +872,7 @@ The task board is accessible from:
 #### Notification Panel (Enhanced)
 
 The existing notification dropdown is enhanced with:
+
 - **Grouped notifications** — collapsible groups for batch operations
 - **Category badges** — colored indicators for task, review, quality, etc.
 - **Inline actions** — "Mark as done", "Go to task", "View in editor" without leaving the panel
@@ -904,23 +916,23 @@ The mobile app (future, or PWA) uses the same notification API and WebSocket inf
 
 All new code follows the existing module boundaries:
 
-| Component | Module | Location |
-|-----------|--------|----------|
-| Activity types, store interface | `platform` | `platform/store/activity.go` |
-| Task types, store interface | `platform` | `platform/store/task.go` |
-| Notification preferences | `platform` | `platform/store/notification_preferences.go` |
-| Push token store | `platform` | `platform/store/push_token.go` |
-| ActivityRecorder | `bowrain` (platform) | `platform/event/activity_recorder.go` |
-| NotificationDispatcher | `bowrain` (platform) | `platform/event/notification_dispatcher.go` |
-| DigestWorker | `bowrain` (platform) | `platform/event/digest_worker.go` |
-| Redis notification bridge | `bowrain` (platform) | `platform/server/ws_notifications_redis.go` |
-| PushService (FCM) | `bowrain` (platform) | `platform/push/fcm.go` |
-| REST handlers | `bowrain` (platform) | `platform/server/handlers_activity.go`, `handlers_task.go` |
-| Activity WebSocket | `bowrain` (platform) | `platform/server/ws_activities.go` |
-| gRPC notification stream | `bowrain` (platform) | `platform/server/grpc_editor.go` (extend) |
-| UI components | shared | `platform/packages/ui/src/components/ActivityFeed.tsx`, `TaskBoard.tsx` |
-| React hooks | shared | `platform/packages/ui/src/hooks/useActivities.ts`, `useTasks.ts` |
-| Desktop integration | bowrain app | `platform/apps/bowrain/backend/notifications.go` |
+| Component                       | Module               | Location                                                                |
+| ------------------------------- | -------------------- | ----------------------------------------------------------------------- |
+| Activity types, store interface | `platform`           | `platform/store/activity.go`                                            |
+| Task types, store interface     | `platform`           | `platform/store/task.go`                                                |
+| Notification preferences        | `platform`           | `platform/store/notification_preferences.go`                            |
+| Push token store                | `platform`           | `platform/store/push_token.go`                                          |
+| ActivityRecorder                | `bowrain` (platform) | `platform/event/activity_recorder.go`                                   |
+| NotificationDispatcher          | `bowrain` (platform) | `platform/event/notification_dispatcher.go`                             |
+| DigestWorker                    | `bowrain` (platform) | `platform/event/digest_worker.go`                                       |
+| Redis notification bridge       | `bowrain` (platform) | `platform/server/ws_notifications_redis.go`                             |
+| PushService (FCM)               | `bowrain` (platform) | `platform/push/fcm.go`                                                  |
+| REST handlers                   | `bowrain` (platform) | `platform/server/handlers_activity.go`, `handlers_task.go`              |
+| Activity WebSocket              | `bowrain` (platform) | `platform/server/ws_activities.go`                                      |
+| gRPC notification stream        | `bowrain` (platform) | `platform/server/grpc_editor.go` (extend)                               |
+| UI components                   | shared               | `platform/packages/ui/src/components/ActivityFeed.tsx`, `TaskBoard.tsx` |
+| React hooks                     | shared               | `platform/packages/ui/src/hooks/useActivities.ts`, `useTasks.ts`        |
+| Desktop integration             | bowrain app          | `platform/apps/bowrain/backend/notifications.go`                        |
 
 ### Database Migrations
 
@@ -964,15 +976,15 @@ var notificationExtMigrations = []storage.Migration{
 
 ### Relationship to Existing Systems
 
-| Existing System | Relationship |
-|----------------|-------------|
-| **Event bus** | Activities and notifications are derived from events. The event bus remains the source of truth for system events. |
-| **Audit log** | Audit log records raw events for compliance/debugging. Activities are curated for human consumption. Both subscribe to the same event bus. They coexist — audit log is for ops, activities are for users. |
-| **Automation engine** | Extended with `"task"` action type. Automation can create tasks as a side effect of rule execution. |
-| **Translation jobs** | Job lifecycle events (`job.completed`, `job.failed`) generate activities and notifications. The job system itself is unchanged. |
-| **Review queue** | Review assignments generate tasks and notifications. The review queue store remains the source of truth for review item state. |
-| **Collaborative editing** | Presence and block changes remain on the collab WebSocket. Notifications and activities use the separate notification WebSocket. |
-| **Quality gates** | Gate failures generate activities, notifications, and optionally tasks (for fix assignments). |
+| Existing System           | Relationship                                                                                                                                                                                              |
+| ------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Event bus**             | Activities and notifications are derived from events. The event bus remains the source of truth for system events.                                                                                        |
+| **Audit log**             | Audit log records raw events for compliance/debugging. Activities are curated for human consumption. Both subscribe to the same event bus. They coexist — audit log is for ops, activities are for users. |
+| **Automation engine**     | Extended with `"task"` action type. Automation can create tasks as a side effect of rule execution.                                                                                                       |
+| **Translation jobs**      | Job lifecycle events (`job.completed`, `job.failed`) generate activities and notifications. The job system itself is unchanged.                                                                           |
+| **Review queue**          | Review assignments generate tasks and notifications. The review queue store remains the source of truth for review item state.                                                                            |
+| **Collaborative editing** | Presence and block changes remain on the collab WebSocket. Notifications and activities use the separate notification WebSocket.                                                                          |
+| **Quality gates**         | Gate failures generate activities, notifications, and optionally tasks (for fix assignments).                                                                                                             |
 
 ## Alternatives Considered
 

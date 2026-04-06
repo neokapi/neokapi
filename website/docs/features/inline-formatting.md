@@ -5,7 +5,7 @@ title: Inline Formatting
 
 # Working with Inline Formatting
 
-When documents are processed through the pipeline, neokapi preserves inline formatting like **bold**, *italic*, [links](https://example.com), and embedded values like variables and placeholders. This is handled through the Fragment and Span model, which normalizes format-specific markup into a format-independent representation.
+When documents are processed through the pipeline, neokapi preserves inline formatting like **bold**, _italic_, [links](https://example.com), and embedded values like variables and placeholders. This is handled through the Fragment and Span model, which normalizes format-specific markup into a format-independent representation.
 
 ## How It Works
 
@@ -24,16 +24,19 @@ See [Vocabularies](/docs/developer/vocabularies) for the full semantic type syst
 Each inline code carries constraint metadata that defines what translators may do with it:
 
 **Flexible tags** (like bold, italic, underline):
+
 - Deletable: can be removed if the target language doesn't need them
 - Cloneable: can be duplicated to apply formatting to more text
 - Reorderable: can be rearranged in the sentence
 
 **Required elements** (like line breaks, variables, placeholders):
+
 - Non-deletable: must appear in the translation
 - Non-cloneable: cannot be duplicated
 - Often non-reorderable: position relative to other codes is fixed
 
 **Variables and placeholders** (like `{userName}` or `{count}`):
+
 - Non-deletable and non-cloneable: must be preserved exactly
 - Reorderable: can be moved to match target language grammar
 
@@ -46,13 +49,15 @@ Editors can use these constraints to prevent invalid changes and provide real-ti
 HTML inline elements (`<b>`, `<a href="...">`, `<br/>`) are extracted as Spans. Block-level elements form Block boundaries.
 
 **Example:**
-> Click **here** to visit our *website* for more information.
+
+> Click **here** to visit our _website_ for more information.
 
 ### Markdown Files
 
 Markdown emphasis (`**`, `*`, backticks, `[]()`) maps to the same semantic types as HTML. `**bold**` and `<b>bold</b>` both resolve to `fmt:bold`.
 
 **Example:**
+
 > Run `kapi init` to set up your project. See the [documentation](https://docs.example.com) for details.
 
 ### JSON/YAML Localization Files

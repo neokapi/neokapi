@@ -26,12 +26,12 @@ A translation memory (TM) stores previously translated segments as a SQLite data
 
 All TM commands (except `list`) accept these mutually exclusive flags for specifying which TM to use:
 
-| Flag | Resolves to | Example |
-|------|------------|---------|
-| `--name <n>` | `~/.config/kapi/tm/<n>.db` | `--name project-tm` |
-| `--local` | `./tm.db` (current directory) | `--local` |
-| `--file <path>` | Explicit file path | `--file /shared/memory.db` |
-| *(no flag)* | Same as `--local` | |
+| Flag            | Resolves to                   | Example                    |
+| --------------- | ----------------------------- | -------------------------- |
+| `--name <n>`    | `~/.config/kapi/tm/<n>.db`    | `--name project-tm`        |
+| `--local`       | `./tm.db` (current directory) | `--local`                  |
+| `--file <path>` | Explicit file path            | `--file /shared/memory.db` |
+| _(no flag)_     | Same as `--local`             |                            |
 
 Databases are created on demand if they don't exist.
 
@@ -114,13 +114,13 @@ kapi ai-translate -i input.html -o output.html -s en -t fr \
 
 kapi's TM uses a 6-tier matching pipeline, tried in order of reuse potential:
 
-| Tier | Type | Description |
-|------|------|-------------|
-| 1 | Generalized Exact | Entity values replaced with placeholders (100% match) |
-| 2 | Structural Exact | Inline markup normalized (100% match) |
-| 3 | Plain Exact | Raw text exact match (100% match) |
-| 4 | Generalized Fuzzy | Levenshtein with entity normalization |
-| 5 | Structural Fuzzy | Levenshtein with markup normalization |
-| 6 | Plain Fuzzy | Levenshtein on raw text |
+| Tier | Type              | Description                                           |
+| ---- | ----------------- | ----------------------------------------------------- |
+| 1    | Generalized Exact | Entity values replaced with placeholders (100% match) |
+| 2    | Structural Exact  | Inline markup normalized (100% match)                 |
+| 3    | Plain Exact       | Raw text exact match (100% match)                     |
+| 4    | Generalized Fuzzy | Levenshtein with entity normalization                 |
+| 5    | Structural Fuzzy  | Levenshtein with markup normalization                 |
+| 6    | Plain Fuzzy       | Levenshtein on raw text                               |
 
 See [Translation Memory features](/docs/features/translation-memory) for details.

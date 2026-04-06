@@ -33,15 +33,9 @@ export function FieldWrapper({
 
   return (
     <FormItem disabled={disabled} modified={isModified}>
-      {label && (
-        <FormLabel disabled={disabled}>
-          {label}
-        </FormLabel>
-      )}
+      {label && <FormLabel disabled={disabled}>{label}</FormLabel>}
 
-      {!compact && description && (
-        <FormDescription>{description}</FormDescription>
-      )}
+      {!compact && description && <FormDescription>{description}</FormDescription>}
 
       <FormControl vertical={vertical}>{children}</FormControl>
 

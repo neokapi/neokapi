@@ -171,11 +171,11 @@ type Fragment struct {
 
 Three marker characters identify span types:
 
-| Marker | Constant | Unicode | Purpose |
-|--------|----------|---------|---------|
-| Opening | `model.MarkerOpening` | U+E001 | Paired opening tag (`<b>`, `**`, `<a href="...">`) |
-| Closing | `model.MarkerClosing` | U+E002 | Paired closing tag (`</b>`, `**`, `</a>`) |
-| Placeholder | `model.MarkerPlaceholder` | U+E003 | Self-closing element (`<br/>`, `<img>`, `\{variable\}`) |
+| Marker      | Constant                  | Unicode | Purpose                                                 |
+| ----------- | ------------------------- | ------- | ------------------------------------------------------- |
+| Opening     | `model.MarkerOpening`     | U+E001  | Paired opening tag (`<b>`, `**`, `<a href="...">`)      |
+| Closing     | `model.MarkerClosing`     | U+E002  | Paired closing tag (`</b>`, `**`, `</a>`)               |
+| Placeholder | `model.MarkerPlaceholder` | U+E003  | Self-closing element (`<br/>`, `<img>`, `\{variable\}`) |
 
 Each `Span` stores full metadata about an inline code:
 
@@ -274,11 +274,11 @@ frag.AppendSpan(&model.Span{
 When implementing a format reader, classify each inline element into one of
 three categories:
 
-| Category | SpanType | Examples | Pattern |
-|----------|----------|----------|---------|
-| **Paired tags** | Opening + Closing | `<b>...</b>`, `**...**`, `<a>...</a>` | Wrap content with two spans |
-| **Self-closing** | Placeholder | `<br/>`, `<img>`, `<hr/>` | Single span, no children |
-| **Block-level** | *(not a span)* | `<p>`, `<div>`, `<h1>` | Boundary for a new Block |
+| Category         | SpanType          | Examples                              | Pattern                     |
+| ---------------- | ----------------- | ------------------------------------- | --------------------------- |
+| **Paired tags**  | Opening + Closing | `<b>...</b>`, `**...**`, `<a>...</a>` | Wrap content with two spans |
+| **Self-closing** | Placeholder       | `<br/>`, `<img>`, `<hr/>`             | Single span, no children    |
+| **Block-level**  | _(not a span)_    | `<p>`, `<div>`, `<h1>`                | Boundary for a new Block    |
 
 The reader decides what is inline vs. block-level. For HTML, this distinction
 is well-defined. For other formats (Markdown, XLIFF, custom XML), you choose
@@ -446,18 +446,18 @@ tags, whitespace, and attributes — which risks losing information.
 The `Span` struct carries more than just the raw markup. These fields help
 tools, editors, and QA checks work with inline codes intelligently:
 
-| Field | Purpose | Example |
-|-------|---------|---------|
-| `SpanType` | Discriminator: Opening, Closing, or Placeholder | `SpanOpening` |
-| `Type` | Semantic type for tool processing | `"bold"`, `"link"`, `"image"` |
-| `ID` | Matches opening/closing pairs | `"b1"` for both `<b>` and `</b>` |
-| `Data` | Original markup for roundtrip reconstruction | `"<a href=\"/help\">"` |
-| `OuterData` | Outer context (e.g., CDATA wrapper) | |
-| `Deletable` | Translator can remove this code | `true` for optional formatting |
-| `Cloneable` | Translator can duplicate this code | `true` for `<b>` |
-| `CanReorder` | Code can move in translation | `true` for independent placeholders |
-| `DisplayText` | UI label in translation editors | `"[B]"`, `"[/B]"`, `"[IMG]"` |
-| `EquivText` | Plain text equivalent | `"\n"` for `<br>` |
+| Field         | Purpose                                         | Example                             |
+| ------------- | ----------------------------------------------- | ----------------------------------- |
+| `SpanType`    | Discriminator: Opening, Closing, or Placeholder | `SpanOpening`                       |
+| `Type`        | Semantic type for tool processing               | `"bold"`, `"link"`, `"image"`       |
+| `ID`          | Matches opening/closing pairs                   | `"b1"` for both `<b>` and `</b>`    |
+| `Data`        | Original markup for roundtrip reconstruction    | `"<a href=\"/help\">"`              |
+| `OuterData`   | Outer context (e.g., CDATA wrapper)             |                                     |
+| `Deletable`   | Translator can remove this code                 | `true` for optional formatting      |
+| `Cloneable`   | Translator can duplicate this code              | `true` for `<b>`                    |
+| `CanReorder`  | Code can move in translation                    | `true` for independent placeholders |
+| `DisplayText` | UI label in translation editors                 | `"[B]"`, `"[/B]"`, `"[IMG]"`        |
+| `EquivText`   | Plain text equivalent                           | `"\n"` for `<br>`                   |
 
 Set these fields in the reader when you have the information. At minimum, set
 `SpanType`, `Type`, `ID`, and `Data`. The other fields enhance the experience

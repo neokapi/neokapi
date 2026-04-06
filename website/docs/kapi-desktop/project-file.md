@@ -59,38 +59,38 @@ defaults:
 
 ### Required
 
-| Field | Type | Description |
-|---|---|---|
+| Field     | Type   | Description                    |
+| --------- | ------ | ------------------------------ |
 | `version` | string | Schema version, must be `"v1"` |
-| `name` | string | Project display name |
+| `name`    | string | Project display name           |
 
 ### Optional
 
-| Field | Type | Description |
-|---|---|---|
-| `source_language` | string | BCP-47 source locale (e.g., `en-US`) |
-| `target_languages` | string[] | BCP-47 target locales |
-| `content` | ContentEntry[] | File patterns to process |
-| `preset` | string | Framework preset name (e.g., `nextjs`, `react-intl`) |
-| `plugins` | string[] | Plugin requirements (e.g., `okapi@1.47.0`) |
-| `flows` | map | Named flow definitions |
-| `defaults` | Defaults | Processing defaults |
+| Field              | Type           | Description                                          |
+| ------------------ | -------------- | ---------------------------------------------------- |
+| `source_language`  | string         | BCP-47 source locale (e.g., `en-US`)                 |
+| `target_languages` | string[]       | BCP-47 target locales                                |
+| `content`          | ContentEntry[] | File patterns to process                             |
+| `preset`           | string         | Framework preset name (e.g., `nextjs`, `react-intl`) |
+| `plugins`          | string[]       | Plugin requirements (e.g., `okapi@1.47.0`)           |
+| `flows`            | map            | Named flow definitions                               |
+| `defaults`         | Defaults       | Processing defaults                                  |
 
 ### ContentEntry
 
-| Field | Type | Description |
-|---|---|---|
-| `path` | string | Glob pattern for source files (required) |
-| `format` | string | Format ID; auto-detected if omitted |
+| Field    | Type   | Description                                   |
+| -------- | ------ | --------------------------------------------- |
+| `path`   | string | Glob pattern for source files (required)      |
+| `format` | string | Format ID; auto-detected if omitted           |
 | `target` | string | Output path pattern with `{lang}` placeholder |
 
 ### Defaults
 
-| Field | Type | Description |
-|---|---|---|
-| `concurrency` | int | Number of files to process in parallel |
-| `parallel_blocks` | int | Goroutine fan-out for block processing |
-| `encoding` | string | Input file encoding (default: `utf-8`) |
+| Field             | Type   | Description                            |
+| ----------------- | ------ | -------------------------------------- |
+| `concurrency`     | int    | Number of files to process in parallel |
+| `parallel_blocks` | int    | Goroutine fan-out for block processing |
+| `encoding`        | string | Input file encoding (default: `utf-8`) |
 
 ### Flow Steps
 
@@ -100,10 +100,10 @@ Each flow contains an ordered list of steps. See [Flow Steps Format](/docs/notes
 flows:
   my-flow:
     steps:
-      - tool: ai-translate       # tool name (required)
-        config:                   # tool-specific config (optional)
+      - tool: ai-translate # tool name (required)
+        config: # tool-specific config (optional)
           provider: anthropic
-        label: "Translate"        # display label (optional)
+        label: "Translate" # display label (optional)
 ```
 
 Steps can also define parallel branches:

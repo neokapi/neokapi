@@ -1,6 +1,7 @@
 # neokapi: Test Strategy
 
 ## Table of Contents
+
 - [Principles](#principles)
 - [Test Structure](#test-structure)
 - [Frontend Test Strategy](#frontend-test-strategy)
@@ -116,10 +117,10 @@ The frontend spans three apps and a shared UI library. Testing is split into two
 
 ### Two-Layer Testing Model
 
-| Layer | Tool | Scope | Speed | Infrastructure |
-|---|---|---|---|---|
-| **Unit** | Vitest + React Testing Library | Components, hooks, utilities | ~2 s for 126 tests | None (jsdom) |
-| **E2E** | Playwright | Full user flows, screenshots, recordings | 30–60 s per suite | Dev server or Docker backend |
+| Layer    | Tool                           | Scope                                    | Speed              | Infrastructure               |
+| -------- | ------------------------------ | ---------------------------------------- | ------------------ | ---------------------------- |
+| **Unit** | Vitest + React Testing Library | Components, hooks, utilities             | ~2 s for 126 tests | None (jsdom)                 |
+| **E2E**  | Playwright                     | Full user flows, screenshots, recordings | 30–60 s per suite  | Dev server or Docker backend |
 
 Unit tests are the primary fast feedback loop for developers. They run in-memory with no browser or backend. E2E tests verify integration across the full stack and produce visual artifacts for documentation.
 
@@ -130,6 +131,7 @@ All shared UI components, contexts, hooks, and utilities live in `bowrain/packag
 **Stack:** Vitest 4 + React Testing Library + jsdom
 
 **Running:**
+
 ```bash
 cd bowrain/packages/ui
 npm test            # single run
@@ -137,6 +139,7 @@ npm run test:watch  # watch mode
 ```
 
 **Configuration:** `bowrain/packages/ui/vitest.config.ts`
+
 ```typescript
 export default defineConfig({
   test: {
@@ -153,6 +156,7 @@ The setup file (`src/__tests__/setup.ts`) loads `@testing-library/jest-dom/vites
 Tests are organized by what they exercise:
 
 **Pure utilities** (no React, no mocking):
+
 ```
 src/__tests__/codedText.test.ts      — Unicode marker parsing, segment roundtripping
 src/__tests__/tagSemantics.test.ts   — Tag classification, pair building, validation, HTML preview
@@ -161,6 +165,7 @@ src/__tests__/tagSemantics.test.ts   — Tag classification, pair building, vali
 These are the highest-value tests: pure logic, fast, no dependencies.
 
 **Context providers** (React, lightweight mocking):
+
 ```
 src/__tests__/ThemeContext.test.tsx      — Theme persistence, system preference, DOM attributes
 src/__tests__/AuthContext.test.tsx       — Authentication state transitions
@@ -171,6 +176,7 @@ src/__tests__/ApiContext.test.tsx        — Adapter injection
 Each context test uses a small helper component that exposes the context value through `data-testid` elements, then asserts on DOM text content after `act()` interactions.
 
 **Components** (React, render + interact):
+
 ```
 src/__tests__/MainSidebar.test.tsx      — Navigation, collapse, theme toggle
 src/__tests__/WorkspaceIcon.test.tsx    — Letter rendering, color hashing, active state
@@ -180,6 +186,7 @@ src/__tests__/TagValidationBar.test.tsx — Error/warning display, null handling
 ```
 
 **Hooks** (React, mock API adapter):
+
 ```
 src/__tests__/useLocales.test.tsx       — API fetch, loading state, display name resolution
 ```
@@ -193,6 +200,7 @@ src/__tests__/useLocales.test.tsx       — API fetch, loading state, display na
 #### Unit Test Patterns
 
 **Helper component pattern** — Expose hook/context state through testable elements:
+
 ```tsx
 function ThemeDisplay() {
   const { theme, resolvedTheme, setTheme } = useTheme();
@@ -200,13 +208,16 @@ function ThemeDisplay() {
     <div>
       <span data-testid="theme">{theme}</span>
       <span data-testid="resolved">{resolvedTheme}</span>
-      <button data-testid="set-dark" onClick={() => setTheme("dark")}>Dark</button>
+      <button data-testid="set-dark" onClick={() => setTheme("dark")}>
+        Dark
+      </button>
     </div>
   );
 }
 ```
 
 **Mock API adapter** — For hooks that depend on `useApi()`, create a mock adapter with `vi.fn()` stubs:
+
 ```tsx
 const adapter = { getKnownLocales: vi.fn().mockResolvedValue(mockLocales), ... };
 render(<ApiProvider adapter={adapter}><Component /></ApiProvider>);
@@ -214,6 +225,7 @@ await waitFor(() => expect(...));
 ```
 
 **DOM attribute assertions** — Theme tests verify side effects on the real DOM:
+
 ```tsx
 act(() => screen.getByTestId("set-dark").click());
 expect(document.documentElement.dataset.theme).toBe("dark");
@@ -252,6 +264,7 @@ bowrain/apps/bowrain/frontend/e2e/
 ```
 
 **Running:**
+
 ```bash
 cd bowrain/apps/bowrain/frontend
 npx playwright test                    # all specs
@@ -271,6 +284,7 @@ bowrain/apps/web/e2e/
 ```
 
 **Running:**
+
 ```bash
 cd bowrain/apps/web
 npm run e2e:screenshots   # requires Docker backend (bowrain-server)
@@ -288,6 +302,7 @@ kapi/apps/kapi-web/e2e/
 ```
 
 **Running:**
+
 ```bash
 cd kapi/apps/kapi-web
 npx playwright test
@@ -341,6 +356,7 @@ git clone https://gitlab.com/okapiframework/Okapi.git /tmp/okapi-tests
 ```
 
 Test resources per filter:
+
 ```
 Okapi/filters/<format>/src/test/resources/
 ```
@@ -356,6 +372,7 @@ For each format:
 3. **Translate assertions**: Convert Java JUnit assertions to Go `testing` + `testify` assertions.
 
 **Java (Okapi):**
+
 ```java
 @Test
 public void testSimpleHtml() {
@@ -380,6 +397,7 @@ public void testSimpleHtml() {
 ```
 
 **Go (neokapi):**
+
 ```go
 func TestSimpleHTML(t *testing.T) {
     input := `<html><body><p>Hello</p></body></html>`
@@ -407,16 +425,16 @@ func TestSimpleHTML(t *testing.T) {
 
 Files to port from Okapi (representative sample):
 
-| Format | Okapi Test Path | Key Files |
-|---|---|---|
-| HTML | `filters/html/src/test/resources/` | Basic HTML, entities, inline codes, scripts, styles |
-| XML | `filters/xml/src/test/resources/` | Simple XML, namespaces, CDATA, DTD references |
-| XLIFF | `filters/xliff/src/test/resources/` | XLIFF 1.2 files with various features |
-| XLIFF 2 | `filters/xliff2/src/test/resources/` | XLIFF 2.0 with segments, notes |
-| JSON | `filters/json/src/test/resources/` | Simple JSON, nested objects, arrays |
-| YAML | `filters/yaml/src/test/resources/` | Scalars, multiline, anchors |
-| PO | `filters/po/src/test/resources/` | Singular, plural, context, comments |
-| Properties | `filters/properties/src/test/resources/` | Escapes, Unicode, multiline |
+| Format     | Okapi Test Path                          | Key Files                                           |
+| ---------- | ---------------------------------------- | --------------------------------------------------- |
+| HTML       | `filters/html/src/test/resources/`       | Basic HTML, entities, inline codes, scripts, styles |
+| XML        | `filters/xml/src/test/resources/`        | Simple XML, namespaces, CDATA, DTD references       |
+| XLIFF      | `filters/xliff/src/test/resources/`      | XLIFF 1.2 files with various features               |
+| XLIFF 2    | `filters/xliff2/src/test/resources/`     | XLIFF 2.0 with segments, notes                      |
+| JSON       | `filters/json/src/test/resources/`       | Simple JSON, nested objects, arrays                 |
+| YAML       | `filters/yaml/src/test/resources/`       | Scalars, multiline, anchors                         |
+| PO         | `filters/po/src/test/resources/`         | Singular, plural, context, comments                 |
+| Properties | `filters/properties/src/test/resources/` | Escapes, Unicode, multiline                         |
 
 ---
 
@@ -733,7 +751,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        go: ['1.22', '1.23']
+        go: ["1.22", "1.23"]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
@@ -770,8 +788,8 @@ jobs:
       - uses: actions/setup-go@v5
       - uses: actions/setup-java@v4
         with:
-          java-version: '17'
-          distribution: 'temurin'
+          java-version: "17"
+          distribution: "temurin"
 
       - name: Build Java Bridge
         run: cd plugin/bridge/java && mvn package -q
@@ -802,9 +820,9 @@ jobs:
 
 ### Test Tags
 
-| Tag | Purpose | Command |
-|---|---|---|
-| (none) | Unit tests only | `go test ./...` and `cd bowrain && go test ./...` |
-| `integration` | + plugin and format integration | `go test ./... -tags=integration` (both modules) |
-| `java` | + Java bridge tests | `go test ./... -tags="integration java"` (both modules) |
-| `ai` | + real AI provider tests | `go test ./... -tags="integration ai"` (both modules) |
+| Tag           | Purpose                         | Command                                                 |
+| ------------- | ------------------------------- | ------------------------------------------------------- |
+| (none)        | Unit tests only                 | `go test ./...` and `cd bowrain && go test ./...`       |
+| `integration` | + plugin and format integration | `go test ./... -tags=integration` (both modules)        |
+| `java`        | + Java bridge tests             | `go test ./... -tags="integration java"` (both modules) |
+| `ai`          | + real AI provider tests        | `go test ./... -tags="integration ai"` (both modules)   |

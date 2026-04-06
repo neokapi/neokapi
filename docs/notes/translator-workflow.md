@@ -2,6 +2,7 @@
 sidebar_position: 18
 title: Translator Workflow
 ---
+
 # Translator Workflow
 
 Implementation details for the translator workflow described in
@@ -18,20 +19,20 @@ EventSourceReviewCompleted    EventType = "source.review.completed"
 
 ### `push.automations.completed` Data
 
-| Field | Source | Example |
-|-------|--------|---------|
-| `push_id` | Carried from `push.completed` | `"abc123"` |
-| `items` | Carried from `push.completed` | `"en.json,src/locales/en.json"` |
-| `workspace_slug` | Carried from `push.completed` | `"excalidraw-l10n"` |
-| `translation_status` | Aggregated from jobs | `"all_completed"` / `"some_failed"` / `"timeout"` |
-| `extraction_status` | Aggregated from extraction jobs | `"all_completed"` / `"none"` |
+| Field                | Source                          | Example                                           |
+| -------------------- | ------------------------------- | ------------------------------------------------- |
+| `push_id`            | Carried from `push.completed`   | `"abc123"`                                        |
+| `items`              | Carried from `push.completed`   | `"en.json,src/locales/en.json"`                   |
+| `workspace_slug`     | Carried from `push.completed`   | `"excalidraw-l10n"`                               |
+| `translation_status` | Aggregated from jobs            | `"all_completed"` / `"some_failed"` / `"timeout"` |
+| `extraction_status`  | Aggregated from extraction jobs | `"all_completed"` / `"none"`                      |
 
 ### `source.review.completed` Data
 
 Same fields as the originating push (carried via `Task.Data`), plus:
 
-| Field | Source | Example |
-|-------|--------|---------|
+| Field      | Source             | Example      |
+| ---------- | ------------------ | ------------ |
 | `reviewer` | Completing user ID | `"user-456"` |
 
 ## New Task Type
@@ -44,12 +45,12 @@ TaskSourceReview TaskType = "source_review"
 
 Task `Data` map for review/translate tasks:
 
-| Key | Purpose |
-|-----|---------|
+| Key       | Purpose                        |
+| --------- | ------------------------------ |
 | `push_id` | Links back to originating push |
-| `locale` | Target language for this task |
-| `items` | Comma-separated item names |
-| `mode` | `"review"` or `"translate"` |
+| `locale`  | Target language for this task  |
+| `items`   | Comma-separated item names     |
+| `mode`    | `"review"` or `"translate"`    |
 
 ## PushCompletionTracker
 
@@ -77,6 +78,7 @@ type pendingPush struct {
 ```
 
 **Lifecycle:**
+
 1. Subscribes to `EventPushCompleted`
 2. On event: registers push_id in `pending` map
 3. Ticker (5s) polls all pending pushes:
@@ -89,6 +91,7 @@ type pendingPush struct {
 If both are `"false"`, emit immediately (no jobs to wait for).
 
 **Wire-up** in `platform/server/server.go`:
+
 ```go
 if s.EventBus != nil && s.JobStore != nil {
     s.pushCompletionTracker = event.NewPushCompletionTracker(
@@ -106,6 +109,7 @@ ListByPushID(ctx context.Context, pushID string) ([]*ExtractionJob, error)
 ```
 
 **SQLite implementation:**
+
 ```sql
 SELECT * FROM extraction_jobs WHERE push_id = ? ORDER BY created_at
 ```
@@ -168,6 +172,7 @@ func (s *Server) createReviewTasks(ctx context.Context, action AutomationAction,
 ```
 
 **Member matching:** `findMembersForLocale` filters project members by:
+
 1. Language scope: `member.Languages` contains locale, or is empty (all languages)
 2. Permission: `PermReview` for review mode, `PermTranslate` for translate mode
 
@@ -240,11 +245,11 @@ review workflows, users create two rules:
 
 **File:** `platform/agentic-testing/agenticmcp/tools_tasks.go`
 
-| Tool | Method | Endpoint |
-|------|--------|----------|
-| `list_my_tasks` | GET | `/api/v1/workspaces/:ws/my/tasks?status=open` |
-| `claim_task` | POST | `/api/v1/workspaces/:ws/tasks/:id/assign` |
-| `complete_task` | POST | `/api/v1/workspaces/:ws/tasks/:id/complete` |
+| Tool            | Method | Endpoint                                      |
+| --------------- | ------ | --------------------------------------------- |
+| `list_my_tasks` | GET    | `/api/v1/workspaces/:ws/my/tasks?status=open` |
+| `claim_task`    | POST   | `/api/v1/workspaces/:ws/tasks/:id/assign`     |
+| `complete_task` | POST   | `/api/v1/workspaces/:ws/tasks/:id/complete`   |
 
 Tools authenticate using the agent's API token (same as existing
 `list_blocks`/`update_block` tools).
@@ -252,21 +257,25 @@ Tools authenticate using the agent's API token (same as existing
 ## Implementation Phases
 
 ### Phase 1: Foundation (types only)
+
 - `platform/core/event/event.go` — add 2 event types
 - `platform/store/task.go` — add `TaskSourceReview`
 - `platform/jobs/extraction_store.go` — add `ListByPushID` interface + implementations
 
 ### Phase 2: PushCompletionTracker
+
 - `platform/event/push_completion_tracker.go` — new file
 - `platform/event/push_completion_tracker_test.go` — new file
 - `platform/server/server.go` — wire up
 
 ### Phase 3: Automation actions
+
 - `platform/server/automation.go` — add actions + default rules
 - `platform/server/handlers_task.go` — source review hook
 - Tests
 
 ### Phase 4: Agentic testing
+
 - `platform/agentic-testing/agenticmcp/tools_tasks.go` — new file
 - SOUL.md updates for task-driven personas
 - Excalidraw test round

@@ -84,14 +84,14 @@ type Term struct {
 
 ### Term Lifecycle Statuses
 
-| Status | Meaning | Usage |
-|--------|---------|-------|
-| `preferred` | The recommended term | Always suggest to translators |
-| `approved` | Accepted for use | Valid alternative |
-| `admitted` | Allowed but not ideal | Show with lower priority |
-| `deprecated` | Being phased out | Warn when found in translations |
-| `proposed` | Under review | Show as suggestion with caveat |
-| `forbidden` | Must not be used | Flag as error in QA |
+| Status       | Meaning               | Usage                           |
+| ------------ | --------------------- | ------------------------------- |
+| `preferred`  | The recommended term  | Always suggest to translators   |
+| `approved`   | Accepted for use      | Valid alternative               |
+| `admitted`   | Allowed but not ideal | Show with lower priority        |
+| `deprecated` | Being phased out      | Warn when found in translations |
+| `proposed`   | Under review          | Show as suggestion with caveat  |
+| `forbidden`  | Must not be used      | Flag as error in QA             |
 
 ### TermMatch
 
@@ -167,8 +167,8 @@ JSON format:
       "domain": "security",
       "definition": "Encryption where only endpoints can decrypt",
       "terms": [
-        {"text": "end-to-end encryption", "locale": "en", "status": "preferred"},
-        {"text": "chiffrement de bout en bout", "locale": "fr", "status": "preferred"}
+        { "text": "end-to-end encryption", "locale": "en", "status": "preferred" },
+        { "text": "chiffrement de bout en bout", "locale": "fr", "status": "preferred" }
       ]
     }
   ]
@@ -249,6 +249,7 @@ func main() {
 4. Deduplicates overlapping matches (longest match wins)
 
 This powers:
+
 - The **term-lookup** pipeline tool — annotates blocks with matched terms
 - The **term-enforce** tool — validates that translations use correct terms
 - **Editor integration** — editors can use `LookupAll` to show per-block terminology suggestions
@@ -284,6 +285,7 @@ Checks translations for correct terminology usage. For each source term found, v
 ### Concept-Oriented vs. Flat Glossary
 
 A concept-oriented model (inspired by TBX) was chosen over flat source→target pairs because:
+
 - **Multiple terms per locale**: A concept can have preferred and admitted terms in the same language
 - **Lifecycle management**: Terms progress through statuses (proposed → approved → preferred → deprecated)
 - **Rich metadata**: Domain, definitions, part of speech, gender, usage notes
@@ -296,6 +298,7 @@ Case-insensitive matching is the default for `LookupAll` because terminology sho
 ### Separate from TM
 
 Terminology and translation memory are separate systems with different data shapes:
+
 - **TM entries**: Segment pairs (source fragment → target fragment) with inline markup
 - **Termbase concepts**: Multi-term, multi-locale knowledge units with lifecycle statuses
 

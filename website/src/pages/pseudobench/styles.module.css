@@ -513,7 +513,7 @@
   margin-bottom: 1.5rem;
 }
 
-[data-theme='dark'] .error {
+[data-theme="dark"] .error {
   background: #450a0a;
   color: #fca5a5;
   border-color: #7f1d1d;

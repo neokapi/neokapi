@@ -3,6 +3,7 @@ id: 020-collaborative-editor
 sidebar_position: 20
 title: "AD-020: Collaborative Editor and Offline-First Desktop"
 ---
+
 # AD-020: Collaborative Editor and Offline-First Desktop
 
 ## Context
@@ -17,17 +18,18 @@ This creates a fundamental tension: the app must be useful without a network con
 
 The desktop app communicates with Bowrain Server via a dedicated gRPC `EditorService` with 24 RPCs organized into 7 categories:
 
-| Category | RPCs | Purpose |
-|----------|------|---------|
-| **Auth & Workspace** | GetCurrentUser, ListWorkspaces | Identity and workspace discovery |
-| **Projects** | ListEditorProjects, GetEditorProject | Read-only project browsing |
-| **Blocks** | GetBlocks, UpdateBlockTarget, ReviewBlock | Translation editing |
-| **Context** | LookupTMForBlock, LookupTermsForBlock | TM and terminology lookups |
-| **TM CRUD** | GetTMEntries, GetTMCount, AddTMEntry, UpdateTMEntry, DeleteTMEntry | Translation memory management |
-| **Terminology** | GetTerms, GetTermCount, AddConcept, UpdateConcept, DeleteConcept, ImportTermsCSV, ImportTermsJSON, ExportTermsJSON | Terminology management |
-| **Real-time** | WatchProject (server-streaming), UpdatePresence | Collaboration |
+| Category             | RPCs                                                                                                               | Purpose                          |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------ | -------------------------------- |
+| **Auth & Workspace** | GetCurrentUser, ListWorkspaces                                                                                     | Identity and workspace discovery |
+| **Projects**         | ListEditorProjects, GetEditorProject                                                                               | Read-only project browsing       |
+| **Blocks**           | GetBlocks, UpdateBlockTarget, ReviewBlock                                                                          | Translation editing              |
+| **Context**          | LookupTMForBlock, LookupTermsForBlock                                                                              | TM and terminology lookups       |
+| **TM CRUD**          | GetTMEntries, GetTMCount, AddTMEntry, UpdateTMEntry, DeleteTMEntry                                                 | Translation memory management    |
+| **Terminology**      | GetTerms, GetTermCount, AddConcept, UpdateConcept, DeleteConcept, ImportTermsCSV, ImportTermsJSON, ExportTermsJSON | Terminology management           |
+| **Real-time**        | WatchProject (server-streaming), UpdatePresence                                                                    | Collaboration                    |
 
 gRPC was chosen over REST for the desktop client because:
+
 - **Server-streaming** (`WatchProject`) delivers real-time block changes and presence events without polling
 - **Binary protocol** reduces overhead for frequent small updates (block edits)
 - **Strong typing** via protobuf generates both Go server code and Go client code
@@ -39,6 +41,7 @@ The gRPC port follows a discovery convention: **HTTP port + 1000** (e.g., `local
 Two mechanisms enable real-time awareness:
 
 **WatchProject** — A server-streaming RPC that opens when a user navigates to a project. It delivers two event types:
+
 - `BlockChangeEvent`: block created/updated/deleted, with the editor's name
 - `PresenceChangeEvent`: user joined/moved to a different block/left
 
@@ -95,6 +98,7 @@ Queued mutations include: `UpdateBlockTarget`, `ReviewBlock`, `AddTMEntry`, `Upd
 ### Reconnection and Queue Replay
 
 When the connection is lost:
+
 1. State transitions to `offline`
 2. A reconnection goroutine starts with exponential backoff (2s → 60s max)
 3. Each attempt calls `ConnectToServer()` with stored credentials
@@ -116,6 +120,7 @@ Desktop auth uses OAuth 2.0 Authorization Code with PKCE (RFC 7636):
 6. App exchanges the callback for access and refresh tokens
 
 **Token storage is split for security:**
+
 - **Secrets** (access token, refresh token): Stored in OS keyring (macOS Keychain, Windows Credential Manager, Linux Secret Service)
 - **Metadata** (server URL, expiry, user info): Stored in `<UserConfigDir>/bowrain-desktop/auth.json`
 
@@ -124,6 +129,7 @@ This ensures tokens are never written to plaintext files and benefit from OS-lev
 ### gRPC Authentication
 
 Both unary and streaming RPCs use JWT authentication:
+
 - Client sets `authorization: Bearer <token>` in gRPC metadata
 - Server interceptors extract and validate JWT claims
 - Claims are injected into the request context

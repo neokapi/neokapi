@@ -28,6 +28,7 @@ The shadcn monorepo pattern uses `components.json` in each workspace so the CLI
 routes base primitives to the shared package and composed blocks to the app.
 
 **Adopted.** Added `components.json` to all 6 workspaces:
+
 - `packages/ui/components.json` — shared primitives (base target for `shadcn add`)
 - `bowrain/packages/ui/components.json` — domain components
 - `apps/kapi-desktop/frontend/components.json`

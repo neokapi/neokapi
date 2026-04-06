@@ -6,10 +6,7 @@ interface TextOverlayProps {
   overlay: Overlay;
 }
 
-const positionStyles: Record<
-  string,
-  React.CSSProperties
-> = {
+const positionStyles: Record<string, React.CSSProperties> = {
   "top-left": { top: 40, left: 40 },
   "top-center": { top: 40, left: "50%", transform: "translateX(-50%)" },
   "top-right": { top: 40, right: 40 },
@@ -65,12 +62,10 @@ export const TextOverlay: React.FC<TextOverlayProps> = ({ overlay }) => {
   });
 
   // Fade out over last 8 frames
-  const fadeOut = interpolate(
-    localFrame,
-    [durationFrames - fadeFrames, durationFrames],
-    [1, 0],
-    { extrapolateLeft: "clamp", extrapolateRight: "clamp" }
-  );
+  const fadeOut = interpolate(localFrame, [durationFrames - fadeFrames, durationFrames], [1, 0], {
+    extrapolateLeft: "clamp",
+    extrapolateRight: "clamp",
+  });
 
   const opacity = Math.min(fadeIn, fadeOut);
 

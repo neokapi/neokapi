@@ -10,8 +10,8 @@ import (
 	"testing"
 
 	"github.com/neokapi/neokapi/core/format"
-	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/internal/testutil"
+	"github.com/neokapi/neokapi/core/model"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

@@ -2,6 +2,7 @@
 sidebar_position: 7
 title: "CLI Commands Reference"
 ---
+
 # CLI Commands Reference
 
 This note provides implementation details for [AD-013](/docs/ad/013-cli-and-server).
@@ -105,6 +106,7 @@ All paths support `--json` output for CI/CD integration.
 6. Update `.bowrain/.sync-cache`
 
 **Conflict handling:**
+
 - By default, pull fails if local files have uncommitted changes
 - `--force` overwrites local changes
 
@@ -296,6 +298,7 @@ gRPC and REST are multiplexed on the same port via h2c (HTTP/2 cleartext). gRPC 
 ```
 
 **CI-friendly features:**
+
 - `--json` flag for machine-readable output
 - Exit codes: 0 (success), 1 (error), 2 (conflict)
 - `BOWRAIN_AUTH_TOKEN` environment variable (bypasses device flow login)

@@ -34,7 +34,9 @@
   color: var(--ifm-font-color-base);
   cursor: pointer;
   font-size: 0.85rem;
-  transition: border-color 0.15s, background 0.15s;
+  transition:
+    border-color 0.15s,
+    background 0.15s;
 }
 
 .traceButton:hover {
@@ -73,7 +75,10 @@
   cursor: pointer;
   font-size: 0.85rem;
   font-family: var(--ifm-font-family-monospace);
-  transition: border-color 0.15s, background 0.15s, color 0.15s;
+  transition:
+    border-color 0.15s,
+    background 0.15s,
+    color 0.15s;
 }
 
 .controlButton:hover {
@@ -257,8 +262,13 @@
 
 /* Animations */
 @keyframes pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.6; }
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.6;
+  }
 }
 
 .nodeActive {
@@ -266,8 +276,13 @@
 }
 
 @keyframes particleGlow {
-  0%, 100% { filter: drop-shadow(0 0 2px currentColor); }
-  50% { filter: drop-shadow(0 0 6px currentColor); }
+  0%,
+  100% {
+    filter: drop-shadow(0 0 2px currentColor);
+  }
+  50% {
+    filter: drop-shadow(0 0 6px currentColor);
+  }
 }
 
 .particleSelected {

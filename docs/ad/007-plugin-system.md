@@ -3,6 +3,7 @@ id: 007-plugin-system
 sidebar_position: 7
 title: "AD-007: Plugin System and Okapi Bridge"
 ---
+
 # AD-007: Plugin System and Okapi Bridge
 
 ## Context
@@ -50,13 +51,13 @@ JVM startup cost is only paid when processing files.
 
 ### Plugin Types
 
-| Type | What it adds | Example |
-|------|-------------|---------|
-| **Bundle** | Collection of formats and/or tools | Okapi bridge (40+ formats) |
-| **Format** | Reader + Writer for a file format | `neokapi-plugin-docx` |
-| **Tool** | Processing step in a flow | `neokapi-plugin-terminology` |
-| **Connector** | Bidirectional system integration | `neokapi-plugin-contentful` |
-| **Provider** | AI/LLM or MT backend | `neokapi-plugin-deepl-v2` |
+| Type          | What it adds                       | Example                      |
+| ------------- | ---------------------------------- | ---------------------------- |
+| **Bundle**    | Collection of formats and/or tools | Okapi bridge (40+ formats)   |
+| **Format**    | Reader + Writer for a file format  | `neokapi-plugin-docx`        |
+| **Tool**      | Processing step in a flow          | `neokapi-plugin-terminology` |
+| **Connector** | Bidirectional system integration   | `neokapi-plugin-contentful`  |
+| **Provider**  | AI/LLM or MT backend               | `neokapi-plugin-deepl-v2`    |
 
 Go binary plugins are discovered by scanning for executables named
 `neokapi-plugin-*` in versioned directories. Bridge plugins are discovered
@@ -148,10 +149,10 @@ indistinguishable from native Go formats at the registry level.
 The bridge protocol (`core/plugin/proto/v2/neokapi_bridge.proto`) defines a
 unified bidirectional streaming RPC:
 
-| RPC | Direction | Purpose |
-|-----|-----------|---------|
-| `Process` | Bidirectional-streaming | Complete read→process→write cycle |
-| `Shutdown` | Unary | Gracefully stop the bridge process |
+| RPC        | Direction               | Purpose                            |
+| ---------- | ----------------------- | ---------------------------------- |
+| `Process`  | Bidirectional-streaming | Complete read→process→write cycle  |
+| `Shutdown` | Unary                   | Gracefully stop the bridge process |
 
 `Process` combines the entire document lifecycle into a single bidirectional
 stream. The Java side reads events from the Okapi filter, converts subscribed
@@ -256,12 +257,12 @@ for version and preset:
 - `:` denotes a **preset reference** (`okf_html:wellFormed`)
 - Both can be combined: `okf_openxml@0.38:wellFormed`
 
-| Reference | Version | Preset |
-|---|---|---|
-| `okf_openxml` | latest | default |
-| `okf_openxml@0.38` | 0.38 | default |
-| `okf_openxml:wellFormed` | latest | wellFormed |
-| `okf_openxml@0.38:wellFormed` | 0.38 | wellFormed |
+| Reference                     | Version | Preset     |
+| ----------------------------- | ------- | ---------- |
+| `okf_openxml`                 | latest  | default    |
+| `okf_openxml@0.38`            | 0.38    | default    |
+| `okf_openxml:wellFormed`      | latest  | wellFormed |
+| `okf_openxml@0.38:wellFormed` | 0.38    | wellFormed |
 
 #### Design Principle
 
@@ -299,12 +300,14 @@ Each registry entry can declare its available `channels` — named release track
 helping teams document which channels a registry provides.
 
 **Resolution behavior:**
+
 - **Install/update**: iterate registries in order, first match wins
 - **Search/list**: merge results from all registries, deduplicating by name+version
 - `--registry <name>` flag pins to a specific named registry
 - `--channel <name>` flag derives channel-specific URLs (orthogonal to registry selection)
 
 **Registry management:**
+
 ```bash
 kapi registry list                                          # List configured registries
 kapi registry add <name> <url>                              # Add to global config
@@ -322,12 +325,12 @@ simultaneously, giving plugin authors time to migrate.
 
 **Quality tiers.** Not all plugins carry the same trust level:
 
-| Tier | Source | Trust | Installation |
-|------|--------|-------|-------------|
-| **Built-in** | `formats/`, `tools/` | Full | Ships with binary |
-| **Official** | neokapi org registry | High | `kapi plugins install` |
-| **Community** | Third-party registry | Medium | `kapi plugins install --registry <name>` |
-| **Local** | User-built | User's risk | Copy to plugin directory |
+| Tier          | Source               | Trust       | Installation                             |
+| ------------- | -------------------- | ----------- | ---------------------------------------- |
+| **Built-in**  | `formats/`, `tools/` | Full        | Ships with binary                        |
+| **Official**  | neokapi org registry | High        | `kapi plugins install`                   |
+| **Community** | Third-party registry | Medium      | `kapi plugins install --registry <name>` |
+| **Local**     | User-built           | User's risk | Copy to plugin directory                 |
 
 **Built-in vs plugin split.** Formats with broad usage (HTML, XML, JSON, YAML,
 XLIFF, PO, Markdown, CSV, SRT, VTT) are built-in. Specialized or proprietary

@@ -24,7 +24,12 @@ export function NestedObjectEditor({
   compact?: boolean;
   depth: number;
   name: string;
-  onDrillDown?: (label: string, key: string, schema: PropertySchema, values: Record<string, unknown>) => void;
+  onDrillDown?: (
+    label: string,
+    key: string,
+    schema: PropertySchema,
+    values: Record<string, unknown>,
+  ) => void;
   disabled?: boolean;
 }) {
   const props = schema.properties || {};
@@ -59,9 +64,7 @@ export function NestedObjectEditor({
       {label && depth > 0 && (
         <Label className="text-xs font-medium text-muted-foreground">{label}</Label>
       )}
-      {!compact && description && (
-        <p className="text-xs text-muted-foreground">{description}</p>
-      )}
+      {!compact && description && <p className="text-xs text-muted-foreground">{description}</p>}
       <div className={cn("space-y-2", depth > 0 && "ml-3 border-l pl-3")}>
         {keys.map((key) => (
           <PropertyField

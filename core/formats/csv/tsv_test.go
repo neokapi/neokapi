@@ -6,8 +6,8 @@ import (
 	"testing"
 
 	csvfmt "github.com/neokapi/neokapi/core/formats/csv"
-	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/internal/testutil"
+	"github.com/neokapi/neokapi/core/model"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

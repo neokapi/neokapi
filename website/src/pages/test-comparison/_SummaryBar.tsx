@@ -1,7 +1,7 @@
-import {useMemo} from 'react';
-import type {FilterComparison, Summary, SkipCategory, StateFilter} from './_types';
-import {skipCategoryLabels, skipCategoryColors} from './_types';
-import styles from './_index.module.css';
+import { useMemo } from "react";
+import type { FilterComparison, Summary, SkipCategory, StateFilter } from "./_types";
+import { skipCategoryLabels, skipCategoryColors } from "./_types";
+import styles from "./_index.module.css";
 
 interface Props {
   summary: Summary;
@@ -42,13 +42,13 @@ function aggregateStats(filters: FilterComparison[]): AggregateStats {
     for (const tc of f.testCases) {
       stats.total++;
       switch (tc.testState) {
-        case 'implemented':
+        case "implemented":
           stats.implemented++;
           break;
-        case 'pending':
+        case "pending":
           stats.pending++;
           break;
-        case 'skipped':
+        case "skipped":
           stats.notApplicable++;
           break;
         default:
@@ -69,8 +69,7 @@ function aggregateStats(filters: FilterComparison[]): AggregateStats {
 
       // Track categories
       if (tc.skipCategory) {
-        stats.categoryCounts[tc.skipCategory] =
-          (stats.categoryCounts[tc.skipCategory] || 0) + 1;
+        stats.categoryCounts[tc.skipCategory] = (stats.categoryCounts[tc.skipCategory] || 0) + 1;
       }
     }
   }
@@ -98,7 +97,7 @@ function StackedBar({
   total,
   height = 20,
 }: {
-  segments: {value: number; color: string; label: string}[];
+  segments: { value: number; color: string; label: string }[];
   total: number;
   height?: number;
 }) {
@@ -106,11 +105,12 @@ function StackedBar({
   return (
     <div
       className={styles.stackedBar}
-      style={{height}}
+      style={{ height }}
       title={segments
         .filter((s) => s.value > 0)
         .map((s) => `${s.label}: ${s.value} (${((s.value / total) * 100).toFixed(1)}%)`)
-        .join('\n')}>
+        .join("\n")}
+    >
       {segments
         .filter((s) => s.value > 0)
         .map((s, i) => (
@@ -144,11 +144,9 @@ function CategoryBreakdown({
       <div className={styles.categoryTitle}>Skip Reasons</div>
       <div className={styles.categoryList}>
         {sorted.map(([cat, count]) => {
-          const label =
-            skipCategoryLabels[cat as SkipCategory] ?? cat;
-          const color =
-            skipCategoryColors[cat as SkipCategory] ?? '#94a3b8';
-          const pct = total > 0 ? ((count / total) * 100).toFixed(0) : '0';
+          const label = skipCategoryLabels[cat as SkipCategory] ?? cat;
+          const color = skipCategoryColors[cat as SkipCategory] ?? "#94a3b8";
+          const pct = total > 0 ? ((count / total) * 100).toFixed(0) : "0";
           return (
             <div key={cat} className={styles.categoryItem}>
               <div className={styles.categoryBar}>
@@ -160,14 +158,10 @@ function CategoryBreakdown({
                   }}
                 />
               </div>
-              <span
-                className={styles.categoryDot}
-                style={{backgroundColor: color}}
-              />
+              <span className={styles.categoryDot} style={{ backgroundColor: color }} />
               <span className={styles.categoryLabel}>{label}</span>
               <span className={styles.categoryCount}>
-                {count}{' '}
-                <span className={styles.categoryPct}>({pct}%)</span>
+                {count} <span className={styles.categoryPct}>({pct}%)</span>
               </span>
             </div>
           );
@@ -184,21 +178,18 @@ export default function SummaryBar({
   stateFilter,
   onStateFilter,
 }: Props) {
-  const stats = useMemo(
-    () => (filters ? aggregateStats(filters) : null),
-    [filters],
-  );
+  const stats = useMemo(() => (filters ? aggregateStats(filters) : null), [filters]);
 
   const coverageSegments = stats
     ? [
-        {value: stats.implemented, color: '#2e8555', label: 'Implemented'},
+        { value: stats.implemented, color: "#2e8555", label: "Implemented" },
         {
           value: stats.notApplicable,
-          color: '#94a3b8',
-          label: 'Not Applicable',
+          color: "#94a3b8",
+          label: "Not Applicable",
         },
-        {value: stats.pending, color: '#e3a008', label: 'Pending'},
-        {value: stats.unmapped, color: '#dc2626', label: 'Unmapped'},
+        { value: stats.pending, color: "#e3a008", label: "Pending" },
+        { value: stats.unmapped, color: "#dc2626", label: "Unmapped" },
       ]
     : [];
 
@@ -206,11 +197,11 @@ export default function SummaryBar({
     ? [
         {
           value: stats.bridgeAndNative,
-          color: '#2e8555',
-          label: 'Bridge + Native',
+          color: "#2e8555",
+          label: "Bridge + Native",
         },
-        {value: stats.bridgeOnly, color: '#3b82f6', label: 'Bridge Only'},
-        {value: stats.nativeOnly, color: '#8b5cf6', label: 'Native Only'},
+        { value: stats.bridgeOnly, color: "#3b82f6", label: "Bridge Only" },
+        { value: stats.nativeOnly, color: "#8b5cf6", label: "Native Only" },
       ]
     : [];
 
@@ -225,55 +216,46 @@ export default function SummaryBar({
         {stats ? (
           <>
             <div
-              className={`${styles.statCard} ${styles.statCardClickable} ${stateFilter === 'implemented' ? styles.statCardActive : ''}`}
-              onClick={() => onStateFilter?.('implemented')}
+              className={`${styles.statCard} ${styles.statCardClickable} ${stateFilter === "implemented" ? styles.statCardActive : ""}`}
+              onClick={() => onStateFilter?.("implemented")}
               role="button"
               tabIndex={0}
-              onKeyDown={(e) =>
-                e.key === 'Enter' && onStateFilter?.('implemented')
-              }>
-              <div className={`${styles.statValue} ${styles.statGreen}`}>
-                {stats.implemented}
-              </div>
+              onKeyDown={(e) => e.key === "Enter" && onStateFilter?.("implemented")}
+            >
+              <div className={`${styles.statValue} ${styles.statGreen}`}>{stats.implemented}</div>
               <div className={styles.statLabel}>Implemented</div>
             </div>
             <div
-              className={`${styles.statCard} ${styles.statCardClickable} ${stateFilter === 'not-applicable' ? styles.statCardActive : ''}`}
-              onClick={() => onStateFilter?.('not-applicable')}
+              className={`${styles.statCard} ${styles.statCardClickable} ${stateFilter === "not-applicable" ? styles.statCardActive : ""}`}
+              onClick={() => onStateFilter?.("not-applicable")}
               role="button"
               tabIndex={0}
-              onKeyDown={(e) =>
-                e.key === 'Enter' && onStateFilter?.('not-applicable')
-              }>
+              onKeyDown={(e) => e.key === "Enter" && onStateFilter?.("not-applicable")}
+            >
               <div className={styles.statValue}>{stats.notApplicable}</div>
               <div className={styles.statLabel}>Not Applicable</div>
             </div>
             <div
-              className={`${styles.statCard} ${styles.statCardClickable} ${stateFilter === 'unmapped' ? styles.statCardActive : ''}`}
-              onClick={() => onStateFilter?.('unmapped')}
+              className={`${styles.statCard} ${styles.statCardClickable} ${stateFilter === "unmapped" ? styles.statCardActive : ""}`}
+              onClick={() => onStateFilter?.("unmapped")}
               role="button"
               tabIndex={0}
-              onKeyDown={(e) =>
-                e.key === 'Enter' && onStateFilter?.('unmapped')
-              }>
-              <div
-                className={`${styles.statValue} ${stats.unmapped > 0 ? styles.statRed : ''}`}>
+              onKeyDown={(e) => e.key === "Enter" && onStateFilter?.("unmapped")}
+            >
+              <div className={`${styles.statValue} ${stats.unmapped > 0 ? styles.statRed : ""}`}>
                 {stats.unmapped}
               </div>
               <div className={styles.statLabel}>Unmapped</div>
             </div>
             {stats.pending > 0 && (
               <div
-                className={`${styles.statCard} ${styles.statCardClickable} ${stateFilter === 'pending' ? styles.statCardActive : ''}`}
-                onClick={() => onStateFilter?.('pending')}
+                className={`${styles.statCard} ${styles.statCardClickable} ${stateFilter === "pending" ? styles.statCardActive : ""}`}
+                onClick={() => onStateFilter?.("pending")}
                 role="button"
                 tabIndex={0}
-                onKeyDown={(e) =>
-                  e.key === 'Enter' && onStateFilter?.('pending')
-                }>
-                <div className={`${styles.statValue} ${styles.statYellow}`}>
-                  {stats.pending}
-                </div>
+                onKeyDown={(e) => e.key === "Enter" && onStateFilter?.("pending")}
+              >
+                <div className={`${styles.statValue} ${styles.statYellow}`}>{stats.pending}</div>
                 <div className={styles.statLabel}>Pending</div>
               </div>
             )}
@@ -296,17 +278,13 @@ export default function SummaryBar({
         )}
         <div className={styles.statCard}>
           <div className={styles.statValue}>
-            {summary.coveragePct > 0
-              ? `${summary.coveragePct.toFixed(1)}%`
-              : '\u2014'}
+            {summary.coveragePct > 0 ? `${summary.coveragePct.toFixed(1)}%` : "\u2014"}
           </div>
           <div className={styles.statLabel}>Coverage</div>
         </div>
         <div className={styles.statCard}>
           <div className={styles.statLabel}>Generated</div>
-          <div className={styles.statDate}>
-            {new Date(generatedAt).toLocaleDateString()}
-          </div>
+          <div className={styles.statDate}>{new Date(generatedAt).toLocaleDateString()}</div>
         </div>
       </div>
 
@@ -321,10 +299,7 @@ export default function SummaryBar({
                 .filter((s) => s.value > 0)
                 .map((s) => (
                   <span key={s.label} className={styles.legendItem}>
-                    <span
-                      className={styles.legendDot}
-                      style={{backgroundColor: s.color}}
-                    />
+                    <span className={styles.legendDot} style={{ backgroundColor: s.color }} />
                     {s.label} ({s.value})
                   </span>
                 ))}
@@ -332,24 +307,17 @@ export default function SummaryBar({
           </div>
 
           <div className={styles.summaryBarSection}>
-            <div className={styles.barSectionLabel}>
-              Implementation Coverage
-            </div>
+            <div className={styles.barSectionLabel}>Implementation Coverage</div>
             <StackedBar
               segments={overlapSegments}
-              total={
-                stats.bridgeAndNative + stats.bridgeOnly + stats.nativeOnly
-              }
+              total={stats.bridgeAndNative + stats.bridgeOnly + stats.nativeOnly}
             />
             <div className={styles.barLegend}>
               {overlapSegments
                 .filter((s) => s.value > 0)
                 .map((s) => (
                   <span key={s.label} className={styles.legendItem}>
-                    <span
-                      className={styles.legendDot}
-                      style={{backgroundColor: s.color}}
-                    />
+                    <span className={styles.legendDot} style={{ backgroundColor: s.color }} />
                     {s.label} ({s.value})
                   </span>
                 ))}
@@ -359,14 +327,9 @@ export default function SummaryBar({
       )}
 
       {/* Category breakdown */}
-      {stats &&
-        Object.keys(stats.categoryCounts).length > 0 &&
-        stats.notApplicable > 0 && (
-          <CategoryBreakdown
-            categoryCounts={stats.categoryCounts}
-            total={stats.notApplicable}
-          />
-        )}
+      {stats && Object.keys(stats.categoryCounts).length > 0 && stats.notApplicable > 0 && (
+        <CategoryBreakdown categoryCounts={stats.categoryCounts} total={stats.notApplicable} />
+      )}
     </div>
   );
 }

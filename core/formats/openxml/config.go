@@ -59,8 +59,8 @@ type Config struct {
 	LineSeparatorReplacement string // Replacement string for line separator (default: "\n")
 
 	// --- General options (from bridge) ---
-	IgnoreSoftHyphenTag      bool // Ignore soft hyphen tags
-	ReplaceNoBreakHyphenTag  bool // Replace no-break hyphen tags with non-breaking hyphen character
+	IgnoreSoftHyphenTag          bool // Ignore soft hyphen tags
+	ReplaceNoBreakHyphenTag      bool // Replace no-break hyphen tags with non-breaking hyphen character
 	AutomaticallyAcceptRevisions bool // Automatically accept tracked changes before extraction
 }
 

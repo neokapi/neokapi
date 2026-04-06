@@ -3,17 +3,20 @@ id: 013-cli-and-server
 sidebar_position: 13
 title: "AD-013: Bowrain CLI and Bowrain Server"
 ---
+
 # AD-013: Bowrain CLI and Bowrain Server
 
 ## Context
 
 The Bowrain platform exposes its functionality through two application entry points:
+
 - **Bowrain CLI** (`bowrain` binary) — Project-centric command-line tool for syncing files with Bowrain Server
 - **Bowrain Server** (`bowrain-server` binary) — Multi-user platform for team collaboration and integrations
 
 The CLI reflects the **project-based architecture** ([AD-016](./016-kapi-project-model.md)). All commands operate within a `.bowrain/` project directory. The server provides both REST (for external integrations and webhooks) and gRPC (for Bowrain desktop app streaming) APIs.
 
 **This AD establishes the role separation:**
+
 - **Bowrain CLI** = project-centric sync companion, git-like workflow, syncs with Bowrain Server
 - **Bowrain Server** = multi-user platform, integration connectors, automation, ContentStore
 - **Kapi** (separate CLI, see below) = standalone file processing tool demonstrating the neokapi framework, no project directory, no server sync
@@ -35,6 +38,7 @@ The `bowrain auth` command group enables CLI users to authenticate against a Bow
 The server binary (`bowrain/cmd/bowrain-server/`) provides remote access via two protocols. Server logic lives in `bowrain/server/` and supports two deployment modes:
 
 **Deployment modes:**
+
 1. **Server mode** (bowrain-server with `JWTSecret` set) — Full OIDC authentication, workspaces, binds to `0.0.0.0`
 2. **Standalone mode** (bowrain-server with empty `JWTSecret`, or `bowrain serve`) — No authentication, binds to `localhost`
 

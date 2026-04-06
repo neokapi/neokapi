@@ -3,6 +3,7 @@ id: 017-cli-output-format
 sidebar_position: 17
 title: "AD-017: CLI Output Format Flags"
 ---
+
 # AD-017: CLI Output Format Flags
 
 ## Context
@@ -32,13 +33,14 @@ bowrain status -o json                   # Short flag form
 ```
 
 **Supported formats:**
+
 - `text` — Human-readable output (default). Tables, formatted text, colors if terminal.
 - `json` — Machine-readable JSON. Single JSON object or array per command.
 
 ### Flag Precedence
 
 1. `--json` flag sets format to JSON (highest precedence, for convenience)
-2. `--text` flag sets format to text  
+2. `--text` flag sets format to text
 3. `--output-format=<format>` or `-o <format>` explicit format selection
 4. Default: `text`
 
@@ -199,11 +201,11 @@ Example JSON outputs:
 
 Exit codes are consistent regardless of output format:
 
-| Code | Meaning |
-|------|---------|
-| 0 | Success |
-| 1 | Error (command failed) |
-| 2 | Conflict (sync conflict detected) |
+| Code | Meaning                           |
+| ---- | --------------------------------- |
+| 0    | Success                           |
+| 1    | Error (command failed)            |
+| 2    | Conflict (sync conflict detected) |
 
 Errors in JSON mode are output as:
 
@@ -218,21 +220,21 @@ Errors in JSON mode are output as:
 
 All commands producing output should be updated:
 
-| Command | Current Output | JSON Structure |
-|---------|---------------|----------------|
-| `status` | Text table | Project state, changes, conflicts |
-| `diff` | Text diff | Array of diffs per file |
-| `formats list` | Text table | Array of format objects |
-| `plugins list` | Text table | Array of plugin objects |
-| `plugins search` | Text table | Array of search results |
-| `auth status` | Text lines | Auth state object |
-| `flows` | Text table | Array of flow definitions |
-| `tools` | Text table | Array of tool objects |
-| `run <flow>` | Progress + result | Flow execution result |
-| `<tool>` (e.g., `pseudo-translate`) | Progress + result | Tool execution result |
-| `termbase stats` | Text table | Statistics object |
-| `termbase lookup` | Text entries | Array of term matches |
-| `version` | Text line | Version object |
+| Command                             | Current Output    | JSON Structure                    |
+| ----------------------------------- | ----------------- | --------------------------------- |
+| `status`                            | Text table        | Project state, changes, conflicts |
+| `diff`                              | Text diff         | Array of diffs per file           |
+| `formats list`                      | Text table        | Array of format objects           |
+| `plugins list`                      | Text table        | Array of plugin objects           |
+| `plugins search`                    | Text table        | Array of search results           |
+| `auth status`                       | Text lines        | Auth state object                 |
+| `flows`                             | Text table        | Array of flow definitions         |
+| `tools`                             | Text table        | Array of tool objects             |
+| `run <flow>`                        | Progress + result | Flow execution result             |
+| `<tool>` (e.g., `pseudo-translate`) | Progress + result | Tool execution result             |
+| `termbase stats`                    | Text table        | Statistics object                 |
+| `termbase lookup`                   | Text entries      | Array of term matches             |
+| `version`                           | Text line         | Version object                    |
 
 ### Backward Compatibility
 

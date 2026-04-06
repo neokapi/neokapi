@@ -31,9 +31,7 @@ export function ResourceCard({
 }: ResourceCardProps) {
   if (loading) {
     return (
-      <div
-        className={`w-full rounded-lg border border-border bg-card p-4 ${className ?? ""}`}
-      >
+      <div className={`w-full rounded-lg border border-border bg-card p-4 ${className ?? ""}`}>
         <div className="flex items-start gap-3">
           <Skeleton className="mt-0.5 h-5 w-5 shrink-0 rounded" />
           <div className="flex-1 min-w-0">
