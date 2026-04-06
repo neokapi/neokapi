@@ -233,11 +233,11 @@ export function TermbasesPage({
         />
 
         {/* Activity chart */}
-        {activityStats.length > 1 && (
+        {activityStats.length > 0 && (
           <Card className="mb-6">
             <CardContent className="p-4">
               <div className="mb-2 text-sm font-medium">Activity</div>
-              <ChartContainer config={chartConfig} className="h-40 w-full">
+              <ChartContainer config={chartConfig} className="aspect-auto h-40 w-full">
                 <AreaChart data={activityStats} margin={{ left: 0, right: 0, top: 4, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} />
                   <XAxis
