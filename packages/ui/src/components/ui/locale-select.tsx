@@ -46,9 +46,11 @@ export interface LocaleSelectProps {
   placeholder?: string;
   className?: string;
   disabled?: boolean;
+  /** Compact mode — trigger shows only the colored LocalePill, no display name. */
+  compact?: boolean;
 }
 
-/** Single-locale selector with search. Shows "French (fr)" in trigger. */
+/** Single-locale selector with search. */
 export function LocaleSelect({
   value,
   onChange,
@@ -56,6 +58,7 @@ export function LocaleSelect({
   placeholder = "Select locale...",
   className,
   disabled,
+  compact = false,
 }: LocaleSelectProps) {
   const [open, setOpen] = useState(false);
 
@@ -70,23 +73,28 @@ export function LocaleSelect({
           aria-expanded={open}
           disabled={disabled}
           className={cn(
-            "h-8 w-full justify-between text-xs font-normal",
+            "h-8 justify-between text-xs font-normal",
+            compact ? "w-auto" : "w-full",
             !selected && "text-muted-foreground",
             className,
           )}
         >
           {selected ? (
-            <span className="flex items-center gap-1.5 truncate">
+            compact ? (
               <LocalePill locale={selected.code} />
-              <span>{selected.displayName}</span>
-            </span>
+            ) : (
+              <span className="flex items-center gap-1.5 truncate">
+                <LocalePill locale={selected.code} />
+                <span>{selected.displayName}</span>
+              </span>
+            )
           ) : (
             <span className="truncate">{placeholder}</span>
           )}
           <ChevronsUpDown className="size-3 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-(--radix-popover-trigger-width) p-0" align="start">
+      <PopoverContent className="min-w-[240px] p-0" align="start">
         <Command>
           <CommandInput placeholder="Search locales..." />
           <CommandList>
@@ -102,9 +110,9 @@ export function LocaleSelect({
                   }}
                   data-checked={l.code === value}
                 >
-                  <span className="flex items-center gap-1.5">
+                  <span className="flex items-center gap-2">
                     <LocalePill locale={l.code} />
-                    <span>{l.displayName}</span>
+                    <span className="whitespace-nowrap">{l.displayName}</span>
                   </span>
                 </CommandItem>
               ))}
@@ -191,7 +199,7 @@ export function MultiLocaleSelect({
           <ChevronsUpDown className="size-3 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-(--radix-popover-trigger-width) p-0" align="start">
+      <PopoverContent className="min-w-[240px] p-0" align="start">
         <Command>
           <CommandInput placeholder="Search locales..." />
           <CommandList>
@@ -204,9 +212,9 @@ export function MultiLocaleSelect({
                   onSelect={() => toggle(l.code)}
                   data-checked={selectedSet.has(l.code)}
                 >
-                  <span className="flex items-center gap-1.5">
+                  <span className="flex items-center gap-2">
                     <LocalePill locale={l.code} />
-                    <span>{l.displayName}</span>
+                    <span className="whitespace-nowrap">{l.displayName}</span>
                   </span>
                 </CommandItem>
               ))}

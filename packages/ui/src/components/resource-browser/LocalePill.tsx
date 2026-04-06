@@ -22,7 +22,7 @@ export function LocalePill({ locale, className }: LocalePillProps) {
 
   return (
     <span
-      className={`inline-flex items-center px-1.5 py-px rounded text-[10px] font-medium tracking-wide ${className ?? ""}`}
+      className={`inline-flex shrink-0 items-center px-1.5 py-px rounded font-mono text-[10px] font-medium ${className ?? ""}`}
       style={{
         backgroundColor: `oklch(var(--pill-bg-l, 0.92) 0.03 ${hue})`,
         color: `oklch(var(--pill-fg-l, 0.4) 0.08 ${hue})`,
