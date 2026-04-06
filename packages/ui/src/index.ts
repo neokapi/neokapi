@@ -196,6 +196,12 @@ export {
   type SelectableListColumn,
   type SelectableListAction,
 } from "./components/ui/selectable-list";
+export { ItemCard, type ItemCardProps } from "./components/ui/item-card";
+export {
+  ConfirmDeleteButton,
+  type ConfirmDeleteButtonProps,
+} from "./components/ui/confirm-delete-button";
+export { ActionCard, type ActionCardProps } from "./components/ui/action-card";
 export {
   FilterBar,
   type FilterBarProps,
