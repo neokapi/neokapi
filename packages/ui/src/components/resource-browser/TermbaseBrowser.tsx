@@ -361,7 +361,7 @@ export function TermbaseBrowser({
                         className="flex-1 rounded border border-input bg-transparent px-2 py-1 text-[12px] outline-none"
                       />
                       {mergedLocales.length > 0 ? (
-                        <div className="w-40">
+                        <div>
                           <LocaleSelect
                             value={term.locale}
                             onChange={(v) => {
@@ -371,6 +371,7 @@ export function TermbaseBrowser({
                             }}
                             locales={mergedLocales}
                             placeholder="Locale"
+                            compact
                           />
                         </div>
                       ) : (
@@ -493,7 +494,7 @@ export function TermbaseBrowser({
                       className="flex-[2] rounded border border-input bg-transparent px-2 py-1.5 text-sm outline-none"
                     />
                     {mergedLocales.length > 0 ? (
-                      <div className="w-40">
+                      <div>
                         <LocaleSelect
                           value={term.locale}
                           onChange={(v) => {
@@ -501,6 +502,7 @@ export function TermbaseBrowser({
                             t[idx] = { ...t[idx], locale: v };
                             setNewTerms(t);
                           }}
+                          compact
                           locales={mergedLocales}
                           placeholder="Locale"
                         />
