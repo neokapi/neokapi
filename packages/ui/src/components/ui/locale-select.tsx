@@ -25,6 +25,17 @@ export interface LocaleInfo {
   displayName: string;
 }
 
+/** Resolve a locale code to a display name via the browser's Intl API. */
+let intlNames: Intl.DisplayNames | null = null;
+export function resolveLocaleName(code: string): string {
+  try {
+    if (!intlNames) intlNames = new Intl.DisplayNames("en", { type: "language" });
+    return intlNames.of(code) ?? code;
+  } catch {
+    return code;
+  }
+}
+
 // --- Single locale selector ---
 
 export interface LocaleSelectProps {
@@ -48,7 +59,6 @@ export function LocaleSelect({
   const [open, setOpen] = useState(false);
 
   const selected = locales.find((l) => l.code === value);
-  const triggerLabel = selected ? `${selected.displayName} (${selected.code})` : placeholder;
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -64,7 +74,16 @@ export function LocaleSelect({
             className,
           )}
         >
-          <span className="truncate">{triggerLabel}</span>
+          {selected ? (
+            <span className="flex items-center gap-1.5 truncate">
+              <span>{selected.displayName}</span>
+              <span className="rounded bg-muted px-1 py-0.5 font-mono text-[9px] text-muted-foreground">
+                {selected.code}
+              </span>
+            </span>
+          ) : (
+            <span className="truncate">{placeholder}</span>
+          )}
           <ChevronsUpDown className="size-3 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
@@ -84,7 +103,12 @@ export function LocaleSelect({
                   }}
                   data-checked={l.code === value}
                 >
-                  {l.displayName} ({l.code})
+                  <span className="flex items-center gap-1.5">
+                    <span>{l.displayName}</span>
+                    <span className="rounded bg-muted px-1 py-0.5 font-mono text-[9px] text-muted-foreground">
+                      {l.code}
+                    </span>
+                  </span>
                 </CommandItem>
               ))}
             </CommandGroup>
@@ -149,9 +173,12 @@ export function MultiLocaleSelect({
               {value.map((code) => (
                 <span
                   key={code}
-                  className="inline-flex items-center gap-0.5 rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium"
+                  className="inline-flex items-center gap-1 rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium"
                 >
-                  {displayMap.get(code) ?? code} ({code})
+                  {displayMap.get(code) ?? code}
+                  <span className="rounded bg-background/50 px-0.5 font-mono text-[8px] text-muted-foreground">
+                    {code}
+                  </span>
                   <span
                     role="button"
                     className="rounded-sm hover:bg-accent"
@@ -182,7 +209,12 @@ export function MultiLocaleSelect({
                   onSelect={() => toggle(l.code)}
                   data-checked={selectedSet.has(l.code)}
                 >
-                  {l.displayName} ({l.code})
+                  <span className="flex items-center gap-1.5">
+                    <span>{l.displayName}</span>
+                    <span className="rounded bg-muted px-1 py-0.5 font-mono text-[9px] text-muted-foreground">
+                      {l.code}
+                    </span>
+                  </span>
                 </CommandItem>
               ))}
             </CommandGroup>

@@ -9,7 +9,7 @@ import { TMLookupPanel } from "./TMLookupPanel";
 import { EntityAnnotationDialog } from "./EntityAnnotationDialog";
 import { relativeTime } from "./utils";
 import { FilterBar, type FilterToken, type FilterField, type FilterPreset } from "../ui/filter-bar";
-import { LocaleSelect, type LocaleInfo } from "../ui/locale-select";
+import { LocaleSelect, resolveLocaleName, type LocaleInfo } from "../ui/locale-select";
 
 interface TMBrowserProps {
   adapter: TMAdapter;
@@ -63,10 +63,16 @@ export function TMBrowser({
     const known = new Map((locales ?? []).map((l) => [l.code, l]));
     for (const e of entries) {
       if (e.source_locale && !known.has(e.source_locale)) {
-        known.set(e.source_locale, { code: e.source_locale, displayName: e.source_locale });
+        known.set(e.source_locale, {
+          code: e.source_locale,
+          displayName: resolveLocaleName(e.source_locale),
+        });
       }
       if (e.target_locale && !known.has(e.target_locale)) {
-        known.set(e.target_locale, { code: e.target_locale, displayName: e.target_locale });
+        known.set(e.target_locale, {
+          code: e.target_locale,
+          displayName: resolveLocaleName(e.target_locale),
+        });
       }
     }
     return [...known.values()];
