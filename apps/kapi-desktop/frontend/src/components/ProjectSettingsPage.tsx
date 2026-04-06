@@ -16,7 +16,7 @@ import {
   SelectContent,
   SelectItem,
 } from "@neokapi/ui-primitives";
-import type { KapiProject, PluginSpec, PluginInfo, FormatDefaults } from "../types/api";
+import type { KapiProject, PluginSpec, PluginInfo, PluginIssue, FormatDefaults } from "../types/api";
 import { api } from "../hooks/useApi";
 import { useError } from "./ErrorBanner";
 import { useLocales } from "../hooks/useLocales";
@@ -26,6 +26,8 @@ export interface ProjectSettingsPageProps {
   onUpdate: (project: KapiProject) => void;
   /** Pre-loaded installed plugins for Storybook — skips api.listPlugins(). */
   installedPlugins?: PluginInfo[];
+  /** Plugin issues from CheckProjectPlugins — shows detailed resolution guidance. */
+  pluginIssues?: PluginIssue[];
 }
 
 const ENCODING_OPTIONS = ["UTF-8", "UTF-16", "ISO-8859-1", "Windows-1252", "Shift_JIS", "EUC-JP"];
@@ -67,6 +69,7 @@ export function ProjectSettingsPage({
   project,
   onUpdate,
   installedPlugins: propInstalled,
+  pluginIssues,
 }: ProjectSettingsPageProps) {
   const { showError } = useError();
   const defaults = project.defaults ?? {};
@@ -193,21 +196,52 @@ export function ProjectSettingsPage({
             Plugins
           </h2>
 
-          {/* Missing plugins warning */}
-          {missingPlugins.length > 0 && (
-            <div className="mb-3 flex items-start gap-2 rounded-lg border border-amber-500/30 bg-amber-500/5 p-3">
-              <AlertTriangle size={14} className="mt-0.5 shrink-0 text-amber-500" />
-              <div className="flex-1">
-                <p className="text-xs font-medium">
-                  {missingPlugins.length === 1 ? "Missing plugin" : "Missing plugins"}:{" "}
-                  {missingPlugins.join(", ")}
-                </p>
-                <p className="mt-0.5 text-[10px] text-muted-foreground">
-                  This project requires plugins that are not installed. Install them from the
-                  Plugins manager in app Settings.
-                </p>
+          {/* Plugin issues warning */}
+          {pluginIssues && pluginIssues.length > 0 ? (
+            <div className="mb-3 rounded-lg border border-amber-500/30 bg-amber-500/5 p-3">
+              <div className="flex items-start gap-2">
+                <AlertTriangle size={14} className="mt-0.5 shrink-0 text-amber-500" />
+                <div className="flex-1">
+                  <p className="text-xs font-medium">Plugin requirements not met</p>
+                  <p className="mt-0.5 text-[10px] text-muted-foreground">
+                    Content and flow features are disabled. Resolve by installing missing plugins or
+                    adjusting version constraints below, then save.
+                  </p>
+                  <ul className="mt-2 space-y-1">
+                    {pluginIssues.map((issue) => (
+                      <li key={issue.plugin} className="flex items-center gap-2 text-xs">
+                        <Badge variant="outline" className="text-[10px]">
+                          {issue.plugin}
+                        </Badge>
+                        {issue.type === "missing" ? (
+                          <span className="text-amber-600 dark:text-amber-400">not installed</span>
+                        ) : (
+                          <span className="text-amber-600 dark:text-amber-400">
+                            requires {issue.required}, have {issue.installed_version}
+                          </span>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
               </div>
             </div>
+          ) : (
+            missingPlugins.length > 0 && (
+              <div className="mb-3 flex items-start gap-2 rounded-lg border border-amber-500/30 bg-amber-500/5 p-3">
+                <AlertTriangle size={14} className="mt-0.5 shrink-0 text-amber-500" />
+                <div className="flex-1">
+                  <p className="text-xs font-medium">
+                    {missingPlugins.length === 1 ? "Missing plugin" : "Missing plugins"}:{" "}
+                    {missingPlugins.join(", ")}
+                  </p>
+                  <p className="mt-0.5 text-[10px] text-muted-foreground">
+                    This project requires plugins that are not installed. Install them from the
+                    Plugins manager in app Settings.
+                  </p>
+                </div>
+              </div>
+            )
           )}
 
           <Card>

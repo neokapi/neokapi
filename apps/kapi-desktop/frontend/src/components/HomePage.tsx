@@ -1,7 +1,17 @@
 import { useState } from "react";
-import { Play, Globe, Workflow, Loader2, Plug, FileText, Settings2, Wrench } from "lucide-react";
+import {
+  Play,
+  Globe,
+  Workflow,
+  Loader2,
+  Plug,
+  FileText,
+  Settings2,
+  Wrench,
+  AlertTriangle,
+} from "lucide-react";
 import { Button, Badge, Card, EmptyState, ActionCard } from "@neokapi/ui-primitives";
-import type { KapiProject, FlowSpec } from "../types/api";
+import type { KapiProject, FlowSpec, PluginIssue } from "../types/api";
 import { isBareEntry, effectiveItems } from "../types/api";
 
 export interface HomePageProps {
@@ -9,9 +19,20 @@ export interface HomePageProps {
   displayName: string;
   onRunFlow?: (flowName: string, flow: FlowSpec) => void;
   onNavigate: (view: string) => void;
+  /** When false, plugin requirements are unmet — show warning banner. */
+  pluginsResolved?: boolean;
+  /** Details of unsatisfied plugin requirements. */
+  pluginIssues?: PluginIssue[];
 }
 
-export function HomePage({ project, displayName, onRunFlow, onNavigate }: HomePageProps) {
+export function HomePage({
+  project,
+  displayName,
+  onRunFlow,
+  onNavigate,
+  pluginsResolved,
+  pluginIssues,
+}: HomePageProps) {
   const [runningFlow, setRunningFlow] = useState<string | null>(null);
   const defaults = project.defaults ?? {};
   const plugins = project.plugins ?? {};
@@ -62,6 +83,48 @@ export function HomePage({ project, displayName, onRunFlow, onNavigate }: HomePa
             ))}
         </div>
       </div>
+
+      {/* Plugin issues banner */}
+      {pluginsResolved === false && pluginIssues && pluginIssues.length > 0 && (
+        <div className="mb-6 rounded-lg border border-amber-500/30 bg-amber-500/5 p-4">
+          <div className="flex items-start gap-3">
+            <AlertTriangle size={16} className="mt-0.5 shrink-0 text-amber-500" />
+            <div className="flex-1">
+              <p className="text-sm font-medium">Plugin requirements not met</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                This project requires plugins that are not installed or have incompatible versions.
+                Content and flow features are disabled until this is resolved.
+              </p>
+              <ul className="mt-2 space-y-1">
+                {pluginIssues.map((issue) => (
+                  <li key={issue.plugin} className="flex items-center gap-2 text-xs">
+                    <Badge variant="outline" className="text-[10px]">
+                      {issue.plugin}
+                    </Badge>
+                    {issue.type === "missing" ? (
+                      <span className="text-muted-foreground">not installed</span>
+                    ) : (
+                      <span className="text-muted-foreground">
+                        requires {issue.required}, installed {issue.installed_version}
+                      </span>
+                    )}
+                  </li>
+                ))}
+              </ul>
+              <div className="mt-3 flex gap-2">
+                <Button size="sm" variant="outline" onClick={() => onNavigate("project-settings")}>
+                  <Settings2 size={12} />
+                  Edit Plugin Settings
+                </Button>
+                <Button size="sm" variant="outline" onClick={() => onNavigate("app-settings")}>
+                  <Plug size={12} />
+                  Install Plugins
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Quick actions */}
       <div className="mb-8 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">

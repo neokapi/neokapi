@@ -127,6 +127,18 @@ export interface PluginInfo {
   capabilities?: PluginCapability[];
 }
 
+export interface PluginStatus {
+  satisfied: boolean;
+  issues?: PluginIssue[];
+}
+
+export interface PluginIssue {
+  plugin: string;
+  type: "missing" | "version_mismatch";
+  required?: string;
+  installed_version?: string;
+}
+
 export interface ProviderConfig {
   id: string;
   name: string;

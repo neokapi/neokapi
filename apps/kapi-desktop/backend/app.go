@@ -257,6 +257,10 @@ func (a *App) NewProject(name, sourceLang string, targetLangs []string, savePath
 		Flows: make(map[string]*flow.StepsSpec),
 	}
 
+	// Auto-populate plugins from installed plugins so the project
+	// is immediately compatible with the user's environment.
+	project.PopulatePlugins(proj, a.installedPluginList())
+
 	if err := project.Save(savePath, proj); err != nil {
 		return nil, fmt.Errorf("save project: %w", err)
 	}

@@ -3,6 +3,7 @@ package cli
 import (
 	"errors"
 	"fmt"
+	"os"
 	"path/filepath"
 
 	"github.com/neokapi/neokapi/core/flow"
@@ -82,6 +83,20 @@ func (a *App) runFromProject(cmd *cobra.Command, flowName, projectPath string, o
 	proj, err := project.Load(projectPath)
 	if err != nil {
 		return fmt.Errorf("load project: %w", err)
+	}
+
+	// Check that declared plugin requirements are met.
+	if status := project.CheckPlugins(proj, a.InstalledPluginList()); !status.Satisfied {
+		for _, issue := range status.Issues {
+			switch issue.Type {
+			case "missing":
+				fmt.Fprintf(os.Stderr, "Warning: plugin %q required by project but not installed\n", issue.Plugin)
+			case "version_mismatch":
+				fmt.Fprintf(os.Stderr, "Warning: plugin %q version mismatch — requires %s, installed %s\n",
+					issue.Plugin, issue.Required, issue.InstalledVersion)
+			}
+		}
+		return fmt.Errorf("project plugin requirements not met — install missing plugins or adjust version constraints in %s", projectPath)
 	}
 
 	// Apply project defaults where CLI flags weren't explicitly set.

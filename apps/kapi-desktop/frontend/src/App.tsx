@@ -58,6 +58,8 @@ function AppInner() {
     await api.saveProject(tm.activeTabID);
     history.markSaved();
     tm.updateTab(tm.activeTabID, { project: proj });
+    // Re-check plugin status — user may have edited plugin requirements.
+    void tm.checkPluginStatus(tm.activeTabID);
   }, [tm, history]);
 
   // --- Keyboard shortcuts ---
@@ -140,6 +142,7 @@ function AppInner() {
               active={tm.effectiveView}
               onChange={tm.navigate}
               projectDisabled={tm.mode === "projects" && !tm.activeTab}
+              pluginsUnresolved={tm.activeTab?.pluginsResolved === false}
             />
           </div>
         </div>
