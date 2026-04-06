@@ -107,11 +107,8 @@ describe("TermbaseBrowser", () => {
       render(<TermbaseBrowser adapter={adapter} sourceLocale="en-US" targetLocales={["fr-FR"]} />);
 
       await waitFor(() => {
-        // All "preferred" badges
-        const preferredBadges = screen.getAllByText("preferred");
-        expect(preferredBadges.length).toBeGreaterThanOrEqual(2);
-
-        // "approved" badge
+        // "preferred" status is not rendered as a badge (it's the default).
+        // Only non-preferred statuses get a visible badge.
         expect(screen.getByText("approved")).toBeInTheDocument();
       });
     });
