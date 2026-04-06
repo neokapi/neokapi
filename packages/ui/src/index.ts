@@ -211,6 +211,7 @@ export {
 export {
   LocaleSelect,
   MultiLocaleSelect,
+  resolveLocaleName,
   type LocaleInfo,
   type LocaleSelectProps,
   type MultiLocaleSelectProps,

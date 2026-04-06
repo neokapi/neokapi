@@ -6,7 +6,7 @@ import { TermStatusBadge } from "./TermStatusBadge";
 import { BulkActionBar } from "./BulkActionBar";
 import { Pagination } from "./Pagination";
 import { FilterBar, type FilterToken, type FilterField, type FilterPreset } from "../ui/filter-bar";
-import { LocaleSelect, type LocaleInfo } from "../ui/locale-select";
+import { LocaleSelect, resolveLocaleName, type LocaleInfo } from "../ui/locale-select";
 
 interface TermbaseBrowserProps {
   adapter: TermbaseAdapter;
@@ -63,7 +63,7 @@ export function TermbaseBrowser({
     for (const c of concepts) {
       for (const t of c.terms ?? []) {
         if (t.locale && !known.has(t.locale)) {
-          known.set(t.locale, { code: t.locale, displayName: t.locale });
+          known.set(t.locale, { code: t.locale, displayName: resolveLocaleName(t.locale) });
         }
       }
     }
