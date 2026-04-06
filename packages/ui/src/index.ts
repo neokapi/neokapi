@@ -197,6 +197,13 @@ export {
   type SelectableListAction,
 } from "./components/ui/selectable-list";
 export {
+  FilterBar,
+  type FilterBarProps,
+  type FilterToken,
+  type FilterField,
+  type FilterPreset,
+} from "./components/ui/filter-bar";
+export {
   FormatSelect,
   type FormatInfo as FormatSelectInfo,
   type FormatSelectProps,
