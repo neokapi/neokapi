@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback, DragEvent, useMemo } from "react";
 import {
   Plus,
-  Trash2,
   FileText,
   RefreshCw,
   Loader2,
@@ -25,6 +24,8 @@ import {
   LocaleSelect,
   MultiLocaleSelect,
   FormatSelect,
+  ItemCard,
+  ConfirmDeleteButton,
   Select,
   SelectTrigger,
   SelectValue,
@@ -434,19 +435,13 @@ export function ContentPage({
                     target: coll.target,
                   };
                   return (
-                    <div
-                      key={ci}
-                      className="group relative rounded-xl border border-border bg-background p-4 shadow-sm transition-colors hover:border-primary/20"
-                    >
-                      <Button
-                        variant="ghost"
-                        size="icon-xs"
-                        onClick={() => handleDeleteCollection(ci)}
-                        className="absolute right-2 top-2 opacity-0 hover:text-destructive group-hover:opacity-100"
-                        aria-label={`Remove pattern ${ci + 1}`}
-                      >
-                        <Trash2 size={12} />
-                      </Button>
+                    <ItemCard key={ci} className="relative">
+                      <div className="absolute right-2 top-2 opacity-0 group-hover:opacity-100">
+                        <ConfirmDeleteButton
+                          onDelete={() => handleDeleteCollection(ci)}
+                          mode="icon"
+                        />
+                      </div>
                       {renderItemEditor(
                         item,
                         (updated) =>
@@ -457,16 +452,13 @@ export function ContentPage({
                           }),
                         `bare-${ci}`,
                       )}
-                    </div>
+                    </ItemCard>
                   );
                 }
 
                 // Collection — render as a grouped card.
                 return (
-                  <div
-                    key={ci}
-                    className="group rounded-xl border border-border bg-background shadow-sm transition-colors hover:border-primary/20"
-                  >
+                  <ItemCard key={ci} className="p-0 overflow-hidden">
                     <div className="flex items-center justify-between border-b border-border px-4 py-3">
                       <div className="flex items-center gap-2">
                         <Layers size={14} className="text-primary" />
@@ -513,15 +505,12 @@ export function ContentPage({
                           )}
                           <Pencil size={8} className="ml-0.5" />
                         </button>
-                        <Button
-                          variant="ghost"
-                          size="icon-xs"
-                          onClick={() => handleDeleteCollection(ci)}
-                          className="opacity-0 hover:text-destructive group-hover:opacity-100"
-                          aria-label={`Remove collection ${coll.name}`}
-                        >
-                          <Trash2 size={12} />
-                        </Button>
+                        <div className="opacity-0 group-hover:opacity-100">
+                          <ConfirmDeleteButton
+                            onDelete={() => handleDeleteCollection(ci)}
+                            mode="icon"
+                          />
+                        </div>
                       </div>
                     </div>
 
@@ -577,22 +566,19 @@ export function ContentPage({
                     <div className="space-y-0 divide-y divide-border">
                       {(coll.items ?? []).map((item, ii) => (
                         <div key={ii} className="group/item relative px-4 py-3">
-                          <Button
-                            variant="ghost"
-                            size="icon-xs"
-                            onClick={() => {
-                              const newItems = (coll.items ?? []).filter((_, j) => j !== ii);
-                              if (newItems.length === 0) {
-                                handleDeleteCollection(ci);
-                              } else {
-                                handleUpdateCollection(ci, { ...coll, items: newItems });
-                              }
-                            }}
-                            className="absolute right-2 top-2 opacity-0 hover:text-destructive group-hover/item:opacity-100"
-                            aria-label={`Remove item ${ii + 1}`}
-                          >
-                            <Trash2 size={10} />
-                          </Button>
+                          <div className="absolute right-2 top-2 opacity-0 group-hover/item:opacity-100">
+                            <ConfirmDeleteButton
+                              onDelete={() => {
+                                const newItems = (coll.items ?? []).filter((_, j) => j !== ii);
+                                if (newItems.length === 0) {
+                                  handleDeleteCollection(ci);
+                                } else {
+                                  handleUpdateCollection(ci, { ...coll, items: newItems });
+                                }
+                              }}
+                              mode="icon"
+                            />
+                          </div>
                           {renderItemEditor(
                             item,
                             (updated) => {
@@ -623,7 +609,7 @@ export function ContentPage({
                         Add another pattern
                       </Button>
                     </div>
-                  </div>
+                  </ItemCard>
                 );
               })}
             </div>
