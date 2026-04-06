@@ -457,8 +457,8 @@ export function TMBrowser({
       {showLookup && adapter.lookup && (
         <div className="w-80 shrink-0 border-l border-border pl-4">
           <TMLookupPanel
-            sourceLocale={sourceLocale}
-            targetLocale={targetLocales[0] ?? ""}
+            sourceLocale={effectiveSourceLocale}
+            targetLocale={effectiveTargetLocale}
             onLookup={adapter.lookup}
           />
         </div>
