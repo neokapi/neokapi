@@ -226,12 +226,15 @@ func (a *App) PreviewFlow(tabID, flowName, sampleText, sourceLang, targetLang st
 		return nil, fmt.Errorf("build flow: %w", err)
 	}
 
+	pctx := project.NewProjectContext(op.Project, op.Path)
+
 	executor := flow.NewExecutor()
 	item := &flow.Item{
 		Input: &model.RawDocument{
 			URI:          tmpFile.Name(),
 			SourceLocale: model.LocaleID(sourceLang),
 			TargetLocale: model.LocaleID(targetLang),
+			Encoding:     pctx.Encoding,
 		},
 	}
 
