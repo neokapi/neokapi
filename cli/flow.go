@@ -120,63 +120,22 @@ func builtinComposedFlows() []output.FlowInfo {
 }
 
 func (a *App) runSingleFile(ctx context.Context, cmd *cobra.Command, flowName, inputPath string) error {
+	// Resolve format with optional preset syntax (e.g., "okf_html:strict").
 	fmtName := a.FormatFlag
-	if fmtName == "" {
-		ext := filepath.Ext(inputPath)
-		detected, err := a.FormatReg.DetectByExtension(ext)
-		if err != nil {
-			return fmt.Errorf("unable to detect format: %w", err)
-		}
-		fmtName = detected
-	}
-
-	ref := pluginreg.ParseFormatRef(fmtName)
-	registryName := ref.RegistryName()
-
 	var mergedConfig map[string]any
-	if ref.IsPreset() {
-		presetReg := a.PluginLoader.Presets()
-		preset.RegisterBuiltins(presetReg)
-		resolver := preset.NewConfigResolver(presetReg, a.SchemaReg)
-
-		var err error
-		mergedConfig, err = resolver.ResolveFormatConfig(ref.Name, ref.Preset, nil, nil)
-		if err != nil {
-			return fmt.Errorf("resolve format config: %w", err)
-		}
-	}
-
-	reader, err := a.FormatReg.NewReader(registryName)
-	if err != nil {
-		return fmt.Errorf("no reader for format %q: %w", fmtName, err)
-	}
-
-	if len(mergedConfig) > 0 {
-		if cfg := reader.Config(); cfg != nil {
-			if err := cfg.ApplyMap(mergedConfig); err != nil {
-				return fmt.Errorf("apply format config: %w", err)
+	if fmtName != "" {
+		ref := pluginreg.ParseFormatRef(fmtName)
+		fmtName = ref.RegistryName()
+		if ref.IsPreset() {
+			presetReg := a.PluginLoader.Presets()
+			preset.RegisterBuiltins(presetReg)
+			resolver := preset.NewConfigResolver(presetReg, a.SchemaReg)
+			var err error
+			mergedConfig, err = resolver.ResolveFormatConfig(ref.Name, ref.Preset, nil, nil)
+			if err != nil {
+				return fmt.Errorf("resolve format config: %w", err)
 			}
 		}
-	}
-
-	// Apply project format defaults (overrides on top of presets).
-	if a.projectContext != nil {
-		if err := a.projectContext.ConfigureReader(reader, fmtName); err != nil {
-			return fmt.Errorf("apply project format config: %w", err)
-		}
-	}
-
-	// Bridge formats: use single-pass pipeline via BridgeProcessor.
-	if bridgeReader, ok := reader.(*bridge.BridgeFormatReader); ok {
-		outputFlag, _ := cmd.Flags().GetString("output")
-		_, err := a.processFlowFileBridge(ctx, cmd, flowName, inputPath, outputFlag, bridgeReader, nil)
-		return err
-	}
-
-	// Create writer.
-	writer, err := a.FormatReg.NewWriter(registryName)
-	if err != nil {
-		return fmt.Errorf("no writer for format %q: %w", fmtName, err)
 	}
 
 	// Build tools.
@@ -216,20 +175,39 @@ func (a *App) runSingleFile(ctx context.Context, cmd *cobra.Command, flowName, i
 		outputPath = fmt.Sprintf("%s_%s%s", base, a.TargetLang, ext)
 	}
 
-	// Delegate the core read → process → write pipeline to FileRunner.
+	// Build reader configuration callback: applies preset config + project defaults.
 	runner := flow.NewFileRunner(flow.FileRunnerConfig{
 		FormatReg:    a.FormatReg,
 		SourceLocale: model.LocaleID(a.SourceLang),
 		Encoding:     a.Encoding,
+		ConfigureReader: func(reader format.DataFormatReader, detectedFmt string) error {
+			if len(mergedConfig) > 0 {
+				if cfg := reader.Config(); cfg != nil {
+					if err := cfg.ApplyMap(mergedConfig); err != nil {
+						return fmt.Errorf("apply format config: %w", err)
+					}
+				}
+			}
+			if a.projectContext != nil {
+				if err := a.projectContext.ConfigureReader(reader, detectedFmt); err != nil {
+					return fmt.Errorf("apply project format config: %w", err)
+				}
+			}
+			return nil
+		},
 	})
 
-	if err := runner.RunFileWithReaderWriter(ctx, flowName, flowTools, inputPath, outputPath, a.TargetLang, reader, writer); err != nil {
+	if err := runner.RunFile(ctx, flowName, flowTools, inputPath, outputPath, a.TargetLang); err != nil {
 		return err
 	}
 
 	// Write trace JSON if --trace was set.
 	if tracePath != "" && recorder != nil {
-		a.writeTraceFile(tracePath, flowName, fmtName, inputPath, outputPath, recorder)
+		detectedFmt := fmtName
+		if detectedFmt == "" {
+			detectedFmt, _ = a.FormatReg.DetectByExtension(filepath.Ext(inputPath))
+		}
+		a.writeTraceFile(tracePath, flowName, detectedFmt, inputPath, outputPath, recorder)
 	}
 
 	if !a.Quiet {
@@ -545,11 +523,6 @@ func (a *App) processFlowFileBridge(ctx context.Context, cmd *cobra.Command,
 // When recorder is non-nil, tools are wrapped with TracingTool and reader/writer
 // events are recorded. Returns trace nodes (nil when recorder is nil).
 func (a *App) processFlowFileNative(ctx context.Context, cmd *cobra.Command, flowName, inputPath, outputTemplate, registryName string, reader format.DataFormatReader, mergedConfig map[string]any, recorder *flow.TraceRecorder) ([]flow.TraceNode, error) {
-	writer, err := a.FormatReg.NewWriter(registryName)
-	if err != nil {
-		return nil, fmt.Errorf("no writer for format %q: %w", registryName, err)
-	}
-
 	// Build fresh tool instances for this file (thread-safe in batch mode).
 	flowTools, cleanup, err := a.buildFlowTools(flowName, cmd)
 	if err != nil {
@@ -583,6 +556,13 @@ func (a *App) processFlowFileNative(ctx context.Context, cmd *cobra.Command, flo
 	}
 
 	outputPath := a.resolveOutputPath(inputPath, outputTemplate)
+
+	// Reader is pre-created and pre-configured by processFlowFile.
+	// Pass it via RunFileWithReaderWriter since format detection already happened.
+	writer, err := a.FormatReg.NewWriter(registryName)
+	if err != nil {
+		return traceNodes, fmt.Errorf("no writer for %q: %w", registryName, err)
+	}
 
 	runner := flow.NewFileRunner(flow.FileRunnerConfig{
 		FormatReg:    a.FormatReg,

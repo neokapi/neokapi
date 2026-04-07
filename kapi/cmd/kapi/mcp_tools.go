@@ -555,63 +555,36 @@ func executeFlow(ctx context.Context, a *cli.App, flowName, inputPath, sourceLan
 }
 
 func executeFlowWithTools(ctx context.Context, a *cli.App, flowName, inputPath, sourceLang, targetLang, outputPath string, flowTools []tool.Tool, pctx *project.ProjectContext) (string, error) {
-	// Detect format — project-scoped when a project context is available.
-	ext := filepath.Ext(inputPath)
-	var fmtName string
-	var err error
-	if pctx != nil {
-		fmtName = pctx.DetectFormat(a.FormatReg, inputPath)
-		if fmtName == "" {
-			return "", fmt.Errorf("unable to detect format for %q", inputPath)
-		}
-	} else {
-		fmtName, err = a.FormatReg.DetectByExtension(ext)
-		if err != nil {
-			return "", fmt.Errorf("unable to detect format: %w", err)
-		}
-	}
-
-	ref := pluginreg.ParseFormatRef(fmtName)
-	registryName := ref.RegistryName()
-
-	// Create reader and apply project config.
-	reader, err := a.FormatReg.NewReader(registryName)
-	if err != nil {
-		return "", fmt.Errorf("no reader for format %q: %w", fmtName, err)
-	}
-	if pctx != nil {
-		if cfgErr := pctx.ConfigureReader(reader, fmtName); cfgErr != nil {
-			return "", fmt.Errorf("apply project format config: %w", cfgErr)
-		}
-	}
-
-	// Create writer and apply project encoding.
-	writer, err := a.FormatReg.NewWriter(registryName)
-	if err != nil {
-		return "", fmt.Errorf("no writer for format %q: %w", fmtName, err)
-	}
-	if pctx != nil {
-		pctx.ConfigureWriter(writer)
-	}
-
 	// Compute output path if not specified.
 	if outputPath == "" {
+		ext := filepath.Ext(inputPath)
 		base := inputPath[:len(inputPath)-len(ext)]
 		outputPath = fmt.Sprintf("%s_%s%s", base, targetLang, ext)
 	}
 
-	// Delegate to shared FileRunner.
 	encoding := "UTF-8"
 	if pctx != nil && pctx.Encoding != "" {
 		encoding = pctx.Encoding
 	}
+
 	runner := flow.NewFileRunner(flow.FileRunnerConfig{
 		FormatReg:    a.FormatReg,
 		SourceLocale: model.LocaleID(sourceLang),
 		Encoding:     encoding,
+		ConfigureReader: func(reader format.DataFormatReader, fmtName string) error {
+			if pctx != nil {
+				return pctx.ConfigureReader(reader, fmtName)
+			}
+			return nil
+		},
+		ConfigureWriter: func(writer format.DataFormatWriter) {
+			if pctx != nil {
+				pctx.ConfigureWriter(writer)
+			}
+		},
 	})
 
-	if err := runner.RunFileWithReaderWriter(ctx, flowName, flowTools, inputPath, outputPath, targetLang, reader, writer); err != nil {
+	if err := runner.RunFile(ctx, flowName, flowTools, inputPath, outputPath, targetLang); err != nil {
 		return "", err
 	}
 

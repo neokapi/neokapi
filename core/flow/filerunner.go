@@ -25,6 +25,15 @@ type FileRunnerConfig struct {
 
 	// Encoding is the file encoding (default: "UTF-8").
 	Encoding string
+
+	// ConfigureReader is an optional callback applied to each reader after
+	// creation. Use this to apply project format defaults or preset config.
+	// The formatName parameter is the detected format name (e.g., "json").
+	ConfigureReader func(reader format.DataFormatReader, formatName string) error
+
+	// ConfigureWriter is an optional callback applied to each writer after
+	// creation. Use this to apply project encoding or other defaults.
+	ConfigureWriter func(writer format.DataFormatWriter)
 }
 
 // FileRunner runs a full read → process → write pipeline for a single file.
@@ -59,6 +68,14 @@ func (r *FileRunner) RunFile(ctx context.Context, flowName string, tools []tool.
 		return fmt.Errorf("no reader for %q: %w", fmtName, err)
 	}
 
+	// Apply reader configuration (project defaults, presets).
+	if r.cfg.ConfigureReader != nil {
+		if err := r.cfg.ConfigureReader(reader, fmtName); err != nil {
+			reader.Close()
+			return fmt.Errorf("configure reader for %q: %w", fmtName, err)
+		}
+	}
+
 	// Bridge format: Java controls read/write, Go processes parts inline.
 	if bridgeReader, ok := reader.(*bridge.BridgeFormatReader); ok {
 		br := NewBridgeRunner(BridgeRunnerConfig{
@@ -74,6 +91,11 @@ func (r *FileRunner) RunFile(ctx context.Context, flowName string, tools []tool.
 	if err != nil {
 		reader.Close()
 		return fmt.Errorf("no writer for %q: %w", fmtName, err)
+	}
+
+	// Apply writer configuration (encoding, project defaults).
+	if r.cfg.ConfigureWriter != nil {
+		r.cfg.ConfigureWriter(writer)
 	}
 
 	return r.RunFileWithReaderWriter(ctx, flowName, tools, inputPath, outputPath, targetLang, reader, writer)
