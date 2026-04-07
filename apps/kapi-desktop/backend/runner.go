@@ -59,9 +59,10 @@ func newRunner() *runner {
 	return &runner{state: RunStateIdle}
 }
 
-// RunFlow executes a flow by name from the current project.
-// Events are streamed to the frontend via Wails events.
-func (a *App) RunFlow(tabID, flowName string, inputPaths []string, targetLang string) error {
+// RunFlow executes a flow by name from the current project for one or more
+// target languages. All languages are processed sequentially in a single
+// background goroutine. Events are streamed to the frontend via Wails events.
+func (a *App) RunFlow(tabID, flowName string, inputPaths []string, targetLangs []string) error {
 	op := a.getOpenProject(tabID)
 	if op == nil {
 		return fmt.Errorf("tab %q not found", tabID)
@@ -76,31 +77,18 @@ func (a *App) RunFlow(tabID, flowName string, inputPaths []string, targetLang st
 		return fmt.Errorf("no input files specified")
 	}
 
+	if len(targetLangs) == 0 {
+		return fmt.Errorf("no target languages specified")
+	}
+
 	if a.runState == nil {
 		a.runState = newRunner()
 	}
 
-	// Atomically check and set running state under a single lock.
 	a.runState.mu.Lock()
 	if a.runState.running {
 		a.runState.mu.Unlock()
 		return fmt.Errorf("a flow is already running")
-	}
-
-	// Build tools from steps, applying step config (before marking as running
-	// so errors don't leave stale state).
-	var tools []tool.Tool
-	for _, step := range spec.Steps {
-		config := step.Config
-		if config == nil {
-			config = make(map[string]any)
-		}
-		t, err := a.toolReg.NewToolWithConfig(step.Tool, config, targetLang)
-		if err != nil {
-			a.runState.mu.Unlock()
-			return fmt.Errorf("tool %q: %w", step.Tool, err)
-		}
-		tools = append(tools, t)
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -110,8 +98,109 @@ func (a *App) RunFlow(tabID, flowName string, inputPaths []string, targetLang st
 	a.runState.mu.Unlock()
 
 	pctx := project.NewProjectContext(op.Project, op.Path)
-	go a.executeFlow(ctx, flowName, tools, inputPaths, targetLang, pctx)
+	go a.executeFlowAllLangs(ctx, flowName, spec, inputPaths, targetLangs, pctx)
 	return nil
+}
+
+// executeFlowAllLangs runs the flow for each target language sequentially.
+// Tools are rebuilt per language since target locale is baked into tool config.
+func (a *App) executeFlowAllLangs(ctx context.Context, flowName string, spec *flow.StepsSpec, inputPaths []string, targetLangs []string, pctx *project.ProjectContext) {
+	defer func() {
+		a.runState.mu.Lock()
+		a.runState.running = false
+		a.runState.mu.Unlock()
+	}()
+
+	start := time.Now()
+	totalFiles := len(inputPaths) * len(targetLangs)
+	filesDone := 0
+
+	a.emitEvent("flow:event", RunEvent{
+		Type: "state", FlowID: flowName, Message: "running",
+	})
+
+	for _, lang := range targetLangs {
+		if ctx.Err() != nil {
+			break
+		}
+
+		a.emitEvent("flow:event", RunEvent{
+			Type:    "state",
+			FlowID:  flowName,
+			Message: fmt.Sprintf("Running for %s (%d files)...", lang, len(inputPaths)),
+		})
+
+		// Build tools for this target language.
+		var tools []tool.Tool
+		for _, step := range spec.Steps {
+			config := step.Config
+			if config == nil {
+				config = make(map[string]any)
+			}
+			t, err := a.toolReg.NewToolWithConfig(step.Tool, config, lang)
+			if err != nil {
+				a.emitEvent("flow:event", RunEvent{
+					Type: "error", FlowID: flowName,
+					Message: fmt.Sprintf("tool %q for %s: %v", step.Tool, lang, err),
+				})
+				a.runState.mu.Lock()
+				a.runState.state = RunStateError
+				a.runState.mu.Unlock()
+				return
+			}
+			tools = append(tools, t)
+		}
+
+		// Process each file for this language.
+		for fileIdx, inputPath := range inputPaths {
+			if ctx.Err() != nil {
+				break
+			}
+
+			a.emitEvent("flow:event", RunEvent{
+				Type: "progress", FlowID: flowName,
+				FileIndex: filesDone, FileCount: totalFiles, FilePath: inputPath,
+			})
+
+			outputPath := a.resolveOutputPath(inputPath, lang)
+			runner := flow.NewFileRunner(flow.FileRunnerConfig{
+				FormatReg:    a.formatReg,
+				SourceLocale: pctx.SourceLocale,
+				Encoding:     pctx.Encoding,
+				DetectFormat: func(path string) string {
+					return pctx.DetectFormat(a.formatReg, path)
+				},
+			})
+
+			if err := runner.RunFile(ctx, flowName, tools, inputPath, outputPath, lang); err != nil {
+				a.emitEvent("flow:event", RunEvent{
+					Type: "error", FlowID: flowName,
+					Message: fmt.Sprintf("%s [%s]: %v", filepath.Base(inputPath), lang, err),
+				})
+				a.runState.mu.Lock()
+				a.runState.state = RunStateError
+				a.runState.mu.Unlock()
+				return
+			}
+
+			filesDone++
+			_ = fileIdx
+		}
+	}
+
+	duration := time.Since(start)
+	a.runState.mu.Lock()
+	if a.runState.state == RunStateRunning {
+		a.runState.state = RunStateComplete
+	}
+	a.runState.mu.Unlock()
+
+	a.emitEvent("flow:event", RunEvent{
+		Type: "complete", FlowID: flowName,
+		DurationMs: duration.Milliseconds(), FilesProcessed: filesDone,
+		Message: fmt.Sprintf("Completed %d files for %d languages in %s",
+			filesDone, len(targetLangs), duration.Round(time.Millisecond)),
+	})
 }
 
 // CancelRun cancels the currently running flow.
@@ -249,118 +338,6 @@ func (a *App) PreviewFlow(tabID, flowName, sampleText, sourceLang, targetLang st
 		Parts:     recorder.Snapshots(),
 		NodeOrder: nodeOrder,
 	}, nil
-}
-
-func (a *App) executeFlow(ctx context.Context, flowName string, tools []tool.Tool, inputPaths []string, targetLang string, pctx *project.ProjectContext) {
-	defer func() {
-		a.runState.mu.Lock()
-		a.runState.running = false
-		a.runState.mu.Unlock()
-	}()
-
-	start := time.Now()
-	recorder := flow.NewTraceRecorder()
-
-	traceNodes := make([]flow.TraceNode, len(tools))
-	tracedTools := make([]tool.Tool, len(tools))
-	for i, t := range tools {
-		nodeID := fmt.Sprintf("tool-%d", i)
-		traceNodes[i] = flow.TraceNode{ID: nodeID, Type: "tool", Name: t.Name()}
-		tracedTools[i] = flow.NewTracingTool(t, nodeID, recorder)
-	}
-
-	a.emitEvent("flow:event", RunEvent{
-		Type: "state", FlowID: flowName, Message: "running",
-	})
-
-	// Stream trace events in the background.
-	stopStreaming := make(chan struct{})
-	var streamWg sync.WaitGroup
-	streamWg.Add(1)
-	go func() {
-		defer streamWg.Done()
-		lastSeen := 0
-		ticker := time.NewTicker(50 * time.Millisecond)
-		defer ticker.Stop()
-		for {
-			select {
-			case <-stopStreaming:
-				events := recorder.Events()
-				for i := lastSeen; i < len(events); i++ {
-					a.emitEvent("flow:event", RunEvent{Type: "trace", FlowID: flowName, TraceEvent: &events[i]})
-				}
-				return
-			case <-ticker.C:
-				events := recorder.Events()
-				for i := lastSeen; i < len(events); i++ {
-					a.emitEvent("flow:event", RunEvent{Type: "trace", FlowID: flowName, TraceEvent: &events[i]})
-				}
-				lastSeen = len(events)
-			}
-		}
-	}()
-
-	emitErr := func(msg string) {
-		a.emitEvent("flow:event", RunEvent{Type: "error", FlowID: flowName, Message: msg})
-		a.runState.mu.Lock()
-		a.runState.state = RunStateError
-		a.runState.mu.Unlock()
-		close(stopStreaming)
-		streamWg.Wait()
-	}
-
-	filesProcessed := 0
-
-	for fileIdx, inputPath := range inputPaths {
-		if ctx.Err() != nil {
-			break
-		}
-
-		a.emitEvent("flow:event", RunEvent{
-			Type: "progress", FlowID: flowName,
-			FileIndex: fileIdx, FileCount: len(inputPaths), FilePath: inputPath,
-		})
-
-		outputPath := a.resolveOutputPath(inputPath, targetLang)
-		runner := flow.NewFileRunner(flow.FileRunnerConfig{
-			FormatReg:    a.formatReg,
-			SourceLocale: pctx.SourceLocale,
-			Encoding:     pctx.Encoding,
-			DetectFormat: func(path string) string {
-				return pctx.DetectFormat(a.formatReg, path)
-			},
-		})
-		if err := runner.RunFile(ctx, flowName, tracedTools, inputPath, outputPath, targetLang); err != nil {
-			emitErr(fmt.Sprintf("file %s: %v", filepath.Base(inputPath), err))
-			return
-		}
-
-		filesProcessed++
-	}
-
-	close(stopStreaming)
-	streamWg.Wait()
-
-	duration := time.Since(start)
-
-	trace := &flow.FlowTrace{
-		Name: flowName, Nodes: traceNodes,
-		Events: recorder.Events(), Parts: recorder.Snapshots(),
-		DurationUs: recorder.DurationUs(),
-	}
-
-	a.runState.mu.Lock()
-	a.runState.lastTrace = trace
-	if a.runState.state == RunStateRunning {
-		a.runState.state = RunStateComplete
-	}
-	a.runState.mu.Unlock()
-
-	a.emitEvent("flow:event", RunEvent{
-		Type: "complete", FlowID: flowName,
-		DurationMs: duration.Milliseconds(), FilesProcessed: filesProcessed,
-		Message: fmt.Sprintf("Completed %d files in %s", filesProcessed, duration.Round(time.Millisecond)),
-	})
 }
 
 // resolveOutputPath computes the output file path for a given input and target

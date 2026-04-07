@@ -349,7 +349,7 @@ function ToolDetail({ tool, docs }: { tool: ToolInfo; docs: PluginDocs | null })
     setRunning(true);
     setError(null);
     try {
-      await api.runFlow("", tool.name, [], targetLang);
+      await api.runFlow("", tool.name, [], targetLang ? [targetLang] : []);
     } catch (e) {
       setError(String(e));
     } finally {

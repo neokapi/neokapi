@@ -114,8 +114,8 @@ export const api = {
     call<void>("SaveFlowFileDialog", name, steps),
 
   // Runner (scoped to tab)
-  runFlow: (tabID: string, name: string, inputPaths: string[], targetLang: string) =>
-    call<void>("RunFlow", tabID, name, inputPaths, targetLang),
+  runFlow: (tabID: string, name: string, inputPaths: string[], targetLangs: string[]) =>
+    call<void>("RunFlow", tabID, name, inputPaths, targetLangs),
   cancelRun: () => call<void>("CancelRun"),
   getRunState: () => call<string>("GetRunState"),
 

@@ -29,34 +29,6 @@ interface RunEvent {
   files_processed?: number;
 }
 
-/**
- * Returns a promise that resolves when the backend emits a flow:event with
- * type "complete" or rejects on "error". Used to serialize multi-language
- * runs so the next language waits for the previous one to finish.
- */
-function waitForFlowComplete(): Promise<void> {
-  return new Promise((resolve, reject) => {
-    let cleanup: (() => void) | null = null;
-    import("@wailsio/runtime")
-      .then((mod) => {
-        cleanup = mod.Events.On("flow:event", (e: { data: unknown }) => {
-          const event = e.data as { type: string; message?: string };
-          if (event.type === "complete") {
-            cleanup?.();
-            resolve();
-          } else if (event.type === "error") {
-            cleanup?.();
-            reject(new Error(event.message ?? "Flow execution failed"));
-          }
-        });
-      })
-      .catch(() => {
-        // No Wails runtime (Storybook/test) — resolve immediately.
-        resolve();
-      });
-  });
-}
-
 export interface RunnerPageProps {
   tabID: string;
   flowName: string;
@@ -75,7 +47,6 @@ export function RunnerPage({ tabID, flowName, flow, onClose, project, autoRun }:
   const [targetLang, setTargetLang] = useState("");
   const [progress, setProgress] = useState({ current: 0, total: 0 });
   const [error, setError] = useState<string | null>(null);
-  const [currentTarget, setCurrentTarget] = useState("");
   const autoRunStarted = useRef(false);
 
   useWailsEvent("flow:event", (data) => {
@@ -125,42 +96,14 @@ export function RunnerPage({ tabID, flowName, flow, onClose, project, autoRun }:
       setState("running");
       setProgress({ current: 0, total: paths.length * targets.length });
 
-      let filesDone = 0;
-      for (const lang of targets) {
-        setCurrentTarget(lang);
-        setEvents((prev) => [
-          ...prev,
-          {
-            type: "state",
-            flow_id: flowName,
-            message: `Running for ${lang} (${paths.length} files)...`,
-          },
-        ]);
-
-        try {
-          // Start the flow — returns immediately (backend runs in goroutine).
-          await api.runFlow(tabID, flowName, paths, lang);
-
-          // Wait for the backend to signal completion or error via Wails event.
-          await waitForFlowComplete();
-        } catch (e) {
-          setState("error");
-          setError(`Failed for ${lang}: ${String(e)}`);
-          return;
-        }
-        filesDone += paths.length;
-        setProgress({ current: filesDone, total: paths.length * targets.length });
+      try {
+        // Single backend call — backend handles all languages sequentially.
+        await api.runFlow(tabID, flowName, paths, targets);
+        // Completion/error signaled via flow:event (handled by useWailsEvent above).
+      } catch (e) {
+        setState("error");
+        setError(String(e));
       }
-
-      setState("complete");
-      setEvents((prev) => [
-        ...prev,
-        {
-          type: "complete",
-          flow_id: flowName,
-          message: `Completed for ${targets.length} language${targets.length > 1 ? "s" : ""}: ${targets.join(", ")}`,
-        },
-      ]);
     })();
   }, [autoRun, project, tabID, flowName]);
 
@@ -173,7 +116,7 @@ export function RunnerPage({ tabID, flowName, flow, onClose, project, autoRun }:
     setProgress({ current: 0, total: inputFiles.length });
 
     try {
-      await api.runFlow(tabID, flowName, inputFiles, targetLang);
+      await api.runFlow(tabID, flowName, inputFiles, [targetLang]);
     } catch (e) {
       setState("error");
       setError(String(e));
@@ -205,11 +148,6 @@ export function RunnerPage({ tabID, flowName, flow, onClose, project, autoRun }:
         actions={
           <div className="flex items-center gap-2">
             {stateIcon[state]}
-            {currentTarget && state === "running" && (
-              <Badge variant="secondary" className="text-xs">
-                {currentTarget}
-              </Badge>
-            )}
             <Button variant="outline" size="sm" onClick={onClose} aria-label="Back">
               {state === "complete" || state === "error" ? "Done" : "Back"}
             </Button>
