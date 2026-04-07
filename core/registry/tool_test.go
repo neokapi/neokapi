@@ -131,3 +131,50 @@ func TestNewTool_ErrorForUnknown(t *testing.T) {
 	_, err := reg.NewTool("nonexistent")
 	require.Error(t, err)
 }
+
+func TestGetToolInfo_ReturnsInfo(t *testing.T) {
+	reg := NewToolRegistry()
+	reg.RegisterWithSchema("test", func() tool.Tool { return &stubTool{} }, &schema.ComponentSchema{
+		Title: "Test",
+		ToolMeta: &schema.ToolMeta{
+			ID:            "test",
+			Category:      "validate",
+			Cardinality:   schema.Bilingual,
+			DefaultLocale: "qps",
+			Produces:      []schema.AnnotationType{schema.AnnotationQAIssues},
+			SideEffects:   []schema.SideEffect{schema.SideEffectTMRead},
+		},
+	})
+
+	info := reg.GetToolInfo("test")
+	require.NotNil(t, info)
+	assert.Equal(t, "test", info.Name)
+	assert.Equal(t, schema.Bilingual, info.Cardinality)
+	assert.Equal(t, "qps", info.DefaultLocale)
+	assert.Equal(t, []schema.AnnotationType{schema.AnnotationQAIssues}, info.Produces)
+	assert.Equal(t, []schema.SideEffect{schema.SideEffectTMRead}, info.SideEffects)
+}
+
+func TestGetToolInfo_ReturnsNilForUnknown(t *testing.T) {
+	reg := NewToolRegistry()
+	assert.Nil(t, reg.GetToolInfo("nonexistent"))
+}
+
+func TestRegisterWithSchema_PropagatesIOContract(t *testing.T) {
+	reg := NewToolRegistry()
+	reg.RegisterWithSchema("io-tool", func() tool.Tool { return &stubTool{} }, &schema.ComponentSchema{
+		Title: "IO Tool",
+		ToolMeta: &schema.ToolMeta{
+			ID:            "io-tool",
+			Cardinality:   schema.Multilingual,
+			Produces:      []schema.AnnotationType{schema.AnnotationComparison},
+			SideEffects:   []schema.SideEffect{schema.SideEffectAnalytics},
+		},
+	})
+
+	infos := reg.ListWithSchemas()
+	require.Len(t, infos, 1)
+	assert.Equal(t, schema.Multilingual, infos[0].Cardinality)
+	assert.Equal(t, []schema.AnnotationType{schema.AnnotationComparison}, infos[0].Produces)
+	assert.Equal(t, []schema.SideEffect{schema.SideEffectAnalytics}, infos[0].SideEffects)
+}
