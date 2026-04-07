@@ -271,4 +271,32 @@ func RegisterAll(reg *registry.ToolRegistry) {
 		return NewScriptTool(&ScriptConfig{})
 	}, toolSchema(&ScriptConfig{}, toolMeta("script", "Script", "pipeline",
 		withInputs(B, schema.PartTypeData), withTags("configurable"))))
+
+	// Register config factories for all tools that support NewToolFromConfig.
+	// This enables project flows to create tools with step-level config.
+	registerConfigFactories(reg)
+}
+
+func registerConfigFactories(reg *registry.ToolRegistry) {
+	reg.SetConfigFactory("word-count", NewWordCountFromConfig)
+	reg.SetConfigFactory("char-count", NewCharCountFromConfig)
+	reg.SetConfigFactory("segment-count", NewSegCountFromConfig)
+	reg.SetConfigFactory("qa-check", NewQACheckFromConfig)
+	reg.SetConfigFactory("inconsistency-check", NewInconsistencyCheckFromConfig)
+	reg.SetConfigFactory("length-check", NewLengthCheckFromConfig)
+	reg.SetConfigFactory("chars-check", NewCharsCheckFromConfig)
+	reg.SetConfigFactory("pattern-check", NewPatternCheckFromConfig)
+	reg.SetConfigFactory("term-check", NewTermCheckFromConfig)
+	reg.SetConfigFactory("scoping-report", NewScopingReportFromConfig)
+	reg.SetConfigFactory("repetition-analysis", NewRepetitionAnalysisFromConfig)
+	reg.SetConfigFactory("chars-listing", NewCharsListingFromConfig)
+	reg.SetConfigFactory("translation-comparison", NewTranslationComparisonFromConfig)
+	reg.SetConfigFactory("encoding-detect", NewEncodingDetectFromConfig)
+	reg.SetConfigFactory("pseudo-translate", NewPseudoTranslateFromConfig)
+	reg.SetConfigFactory("search-replace", NewSearchReplaceFromConfig)
+	reg.SetConfigFactory("case-transform", NewCaseTransformFromConfig)
+	reg.SetConfigFactory("segmentation", NewSegmentationFromConfig)
+	reg.SetConfigFactory("tm-leverage", NewTMLeverageFromConfig)
+	reg.SetConfigFactory("diff-leverage", NewDiffLeverageFromConfig)
+	reg.SetConfigFactory("script", NewScriptFromConfig)
 }

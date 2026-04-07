@@ -39,9 +39,9 @@ describe("RunnerPage", () => {
     expect(runButton).toBeDisabled();
   });
 
-  it("has Back to Flows button", () => {
+  it("has Back button", () => {
     const onClose = vi.fn();
     render(<RunnerPage {...defaultProps} onClose={onClose} />);
-    expect(screen.getByText("Back to Flows")).toBeInTheDocument();
+    expect(screen.getByText("Back")).toBeInTheDocument();
   });
 });

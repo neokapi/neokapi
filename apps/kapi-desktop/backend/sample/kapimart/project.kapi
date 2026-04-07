@@ -46,3 +46,5 @@ flows:
   pseudo-translate:
     steps:
       - tool: pseudo-translate
+        config:
+          target_locale: qps

@@ -8,8 +8,12 @@ import (
 	"github.com/neokapi/neokapi/core/tool"
 )
 
-// ToolFactory creates a new Tool instance.
+// ToolFactory creates a new Tool instance with default configuration.
 type ToolFactory func() tool.Tool
+
+// ToolConfigFactory creates a Tool from a config map and target language.
+// Used for project flows where step config overrides tool defaults.
+type ToolConfigFactory func(config map[string]any, targetLang string) (tool.Tool, error)
 
 // ToolInfo holds metadata about a registered tool.
 type ToolInfo struct {
@@ -27,9 +31,10 @@ type ToolInfo struct {
 
 // ToolRegistration bundles a factory with optional schema and metadata.
 type ToolRegistration struct {
-	Factory ToolFactory
-	Schema  *schema.ComponentSchema
-	Info    ToolInfo
+	Factory       ToolFactory
+	ConfigFactory ToolConfigFactory // optional: creates tool from step config
+	Schema        *schema.ComponentSchema
+	Info          ToolInfo
 }
 
 // ToolRegistry manages available Tools.
@@ -108,7 +113,18 @@ func (r *ToolRegistry) RegisterMetadata(name string, s *schema.ComponentSchema, 
 	}
 }
 
-// NewTool creates a new Tool instance for the given name.
+// SetConfigFactory registers a config-based factory for an already-registered tool.
+// This is used by CLI/desktop to attach NewToolFromConfig functions to tools
+// that were registered via RegisterAll with zero-arg factories.
+func (r *ToolRegistry) SetConfigFactory(name string, factory ToolConfigFactory) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if reg, ok := r.tools[name]; ok {
+		reg.ConfigFactory = factory
+	}
+}
+
+// NewTool creates a new Tool instance for the given name with default config.
 func (r *ToolRegistry) NewTool(name string) (tool.Tool, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
@@ -120,6 +136,24 @@ func (r *ToolRegistry) NewTool(name string) (tool.Tool, error) {
 		return nil, fmt.Errorf("tool %s is a plugin tool and cannot be instantiated locally", name)
 	}
 	return reg.Factory(), nil
+}
+
+// NewToolWithConfig creates a Tool from a step config map and target language.
+// Falls back to the zero-arg Factory if no ConfigFactory is registered.
+func (r *ToolRegistry) NewToolWithConfig(name string, config map[string]any, targetLang string) (tool.Tool, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	reg, ok := r.tools[name]
+	if !ok {
+		return nil, fmt.Errorf("unknown tool: %s", name)
+	}
+	if reg.ConfigFactory != nil {
+		return reg.ConfigFactory(config, targetLang)
+	}
+	if reg.Factory != nil {
+		return reg.Factory(), nil
+	}
+	return nil, fmt.Errorf("tool %s has no factory", name)
 }
 
 // GetSchema returns the schema for a tool, or nil if none is registered.
