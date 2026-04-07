@@ -11,6 +11,7 @@ import (
 
 	"github.com/neokapi/neokapi/core/flow"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/tool"
 )
 
@@ -108,7 +109,8 @@ func (a *App) RunFlow(tabID, flowName string, inputPaths []string, targetLang st
 	a.runState.running = true
 	a.runState.mu.Unlock()
 
-	go a.executeFlow(ctx, flowName, tools, inputPaths, targetLang)
+	pctx := project.NewProjectContext(op.Project, op.Path)
+	go a.executeFlow(ctx, flowName, tools, inputPaths, targetLang, pctx)
 	return nil
 }
 
@@ -246,7 +248,7 @@ func (a *App) PreviewFlow(tabID, flowName, sampleText, sourceLang, targetLang st
 	}, nil
 }
 
-func (a *App) executeFlow(ctx context.Context, flowName string, tools []tool.Tool, inputPaths []string, targetLang string) {
+func (a *App) executeFlow(ctx context.Context, flowName string, tools []tool.Tool, inputPaths []string, targetLang string, pctx *project.ProjectContext) {
 	defer func() {
 		a.runState.mu.Lock()
 		a.runState.running = false
@@ -319,7 +321,11 @@ func (a *App) executeFlow(ctx context.Context, flowName string, tools []tool.Too
 		outputPath := a.resolveOutputPath(inputPath, targetLang)
 		runner := flow.NewFileRunner(flow.FileRunnerConfig{
 			FormatReg:    a.formatReg,
-			SourceLocale: "en-US",
+			SourceLocale: pctx.SourceLocale,
+			Encoding:     pctx.Encoding,
+			DetectFormat: func(path string) string {
+				return pctx.DetectFormat(a.formatReg, path)
+			},
 		})
 		if err := runner.RunFile(ctx, flowName, tracedTools, inputPath, outputPath, targetLang); err != nil {
 			emitErr(fmt.Sprintf("file %s: %v", filepath.Base(inputPath), err))
