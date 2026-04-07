@@ -12,34 +12,98 @@ Tools in the processing pipeline ([AD-004](./004-processing-engine.md),
 [AD-006](./006-tool-system.md)) operate on Blocks as they stream through
 channels. Each Block carries source segments and a map of target segments
 keyed by locale (`Targets map[LocaleID][]*Segment`). The data model
-supports multiple target locales simultaneously — but the tool system
-doesn't declare what each tool reads, writes, or requires.
+supports multiple locales simultaneously — but the tool system doesn't
+declare what each tool reads, writes, or requires.
 
 Without IO declarations, the runner cannot determine whether a flow
-should iterate all project target languages, run once for a fixed locale,
-or run once with no target at all. The flow editor cannot show which
-annotations a tool produces. And tools that need multiple target locales
-(cross-locale comparison, multi-target QA) have no standard way to
-express that requirement.
+should iterate target languages, run once, or run for a specific locale
+set. The flow editor cannot show annotation data flow or warn about
+conflicts. And tools that compare or validate across locales have no
+standard way to express their requirements.
 
 ## Decision
 
+### Locale Cardinality
+
+Tools declare how many locales they operate on per execution using
+three cardinality levels:
+
+```go
+type LocaleCardinality string
+
+const (
+    // Monolingual — tool operates on a single locale.
+    // Examples: word-count (source), pseudo-translate (target),
+    // encoding-detect (source), target normalization (target).
+    Monolingual LocaleCardinality = "monolingual"
+
+    // Bilingual — tool operates on exactly two locales.
+    // The locales are provided at runtime as a pair.
+    // Examples: ai-translate (source→target), qa-check (source vs target),
+    // pivot comparison (fr vs de).
+    Bilingual LocaleCardinality = "bilingual"
+
+    // Multilingual — tool operates on N locales simultaneously.
+    // The locale set is provided at runtime.
+    // Examples: translation-comparison, cross-locale QA,
+    // consistency-check, multi-target word count.
+    Multilingual LocaleCardinality = "multilingual"
+)
+```
+
+Locale cardinality describes **how many** locales a tool needs. **Which**
+locales are always provided at runtime by the runner or flow
+configuration — not hardcoded in the tool.
+
+### Uniform Locale Access
+
+Blocks carry one source locale and N target locales. The source locale
+is structurally distinct because it defines the document skeleton, inline
+code positions, and format round-tripping anchor. However, tools should
+not need to know whether a locale is "source" or "target" — they just
+need text for a given locale.
+
+```go
+// Text returns the segment text for a locale. Checks source first
+// (if the locale matches the Block's source locale), then targets.
+// Returns empty string if the locale has no segments.
+func (b *Block) Text(locale LocaleID) string
+
+// SetText writes segment text for a locale. Writes to source if the
+// locale matches the Block's source locale, otherwise to targets.
+func (b *Block) SetText(locale LocaleID, text string)
+
+// HasLocale reports whether the Block has segments for a locale
+// (source or target).
+func (b *Block) HasLocale(locale LocaleID) bool
+```
+
+This gives tools a uniform API without changing the underlying storage
+model. `SourceText()` and `TargetText(locale)` remain available for
+tools that explicitly need the source-anchored skeleton or a specific
+target, but most tools use `Text(locale)` and don't care about the
+source/target distinction.
+
+A bilingual tool comparing `[fr, de]` calls `block.Text("fr")` and
+`block.Text("de")` — it doesn't need to know that `fr` might be a
+target and `de` might also be a target, or that one of them might be
+the source locale. The Block resolves the mapping internally.
+
 ### IO Contract on ToolMeta
 
-Each tool declares an IO contract in its `ToolMeta` (the schema metadata
-registered alongside the tool). The contract describes what the tool
-consumes and produces at the Block level.
+Each tool declares an IO contract in its `ToolMeta`:
 
 ```go
 type ToolMeta struct {
     // ... existing fields (ID, Category, DisplayName, Inputs, Outputs, Tags) ...
 
-    // TargetMode declares how the tool interacts with target locales.
-    TargetMode TargetMode
+    // Cardinality declares how many locales the tool operates on.
+    Cardinality LocaleCardinality
 
-    // DefaultTargetLocale is the fixed target locale for TargetModeFixed tools.
-    // Empty for all other modes.
-    DefaultTargetLocale string
+    // DefaultLocale is an optional default locale for monolingual and
+    // bilingual tools. When set, the runner uses it if no locale is
+    // specified. Example: pseudo-translate defaults to "qps".
+    DefaultLocale string
 
     // Produces lists the annotation types this tool writes to Blocks.
     Produces []AnnotationType
@@ -51,7 +115,7 @@ type ToolMeta struct {
 
 ### Typed Constants
 
-`TargetMode`, `AnnotationType`, and `SideEffect` are typed string
+`LocaleCardinality`, `AnnotationType`, and `SideEffect` are typed string
 constants. Using typed strings instead of raw `string` gives compile-time
 safety (typos won't compile), discoverability via IDE autocomplete,
 and JSON/YAML serializability for schemas and project files.
@@ -82,12 +146,12 @@ const (
 type SideEffect string
 
 const (
-    SideEffectTMRead       SideEffect = "tm-read"
-    SideEffectTMWrite      SideEffect = "tm-write"
-    SideEffectTermbaseRead SideEffect = "termbase-read"
+    SideEffectTMRead        SideEffect = "tm-read"
+    SideEffectTMWrite       SideEffect = "tm-write"
+    SideEffectTermbaseRead  SideEffect = "termbase-read"
     SideEffectTermbaseWrite SideEffect = "termbase-write"
-    SideEffectAPICall      SideEffect = "api-call"
-    SideEffectAnalytics    SideEffect = "analytics"
+    SideEffectAPICall       SideEffect = "api-call"
+    SideEffectAnalytics     SideEffect = "analytics"
 )
 ```
 
@@ -120,104 +184,62 @@ validated at registration time — if the annotation type is unknown, the
 registration fails fast rather than silently producing unrecognized
 metadata at runtime.
 
-### Target Modes
-
-```go
-type TargetMode string
-
-const (
-    // TargetModeNone — tool reads source only, ignores targets.
-    // Examples: word-count, segment-count, encoding-detect.
-    // Runner: run once with no target locale.
-    TargetModeNone TargetMode = "none"
-
-    // TargetModeSingle — tool operates on one target locale per execution.
-    // The locale is provided at runtime by the runner, or falls back to
-    // DefaultTargetLocale if set.
-    // Examples: ai-translate, pseudo-translate, qa-check, tm-leverage.
-    // Runner: iterate project target languages (or just the default if
-    // all tools in the flow have defaults and no tool requires iteration).
-    TargetModeSingle TargetMode = "single"
-
-    // TargetModeAll — tool reads source and all present targets.
-    // Used for cross-locale operations.
-    // Examples: translation-comparison, cross-locale QA, consistency-check.
-    // Runner: run once after all per-target tools have populated targets.
-    TargetModeAll TargetMode = "all"
-)
-```
-
-`DefaultTargetLocale` is an optional field on any `single`-mode tool. It
-provides a fallback locale when the runner doesn't specify one. For
-example, pseudo-translate declares `DefaultTargetLocale: "qps"` — it
-accepts any target locale but defaults to `qps`. ai-translate has no
-default and requires the runner to provide one.
-
-This keeps the target mode enum simple (three values, not four) while
-supporting tools with built-in defaults. A tool with
-`TargetMode: single` and `DefaultTargetLocale: "qps"` is not "fixed" —
-it's a single-target tool that happens to have a sensible default.
-
 ### Flow Target Inference
 
-The runner inspects the tool chain's `TargetMode` declarations to
-determine which target locales to process:
+The runner inspects the tool chain's cardinality declarations to
+determine which locales to process:
 
 ```go
-func ResolveFlowTargets(toolMetas []ToolMeta, projectTargets []string) []string
+func ResolveFlowLocales(
+    toolMetas []ToolMeta,
+    sourceLocale string,
+    projectTargets []string,
+) [][]string
 ```
 
-1. Collect `TargetMode` and `DefaultTargetLocale` from each tool
-2. Apply resolution rules:
-   - If **all tools are `none`** → return `nil` (source-only flow, run once)
-   - If **any `single` tool has no default** → include all `projectTargets`
-   - If **any `single` tool has a default** → include that default locale
-   - If **any tool is `all`** → include all `projectTargets`
-3. Return the deduplicated union
+The return type is a slice of locale sets — one set per execution pass.
+Each set contains the locales the tools receive for that pass.
 
-When all `single` tools have defaults and no tool requires project
-target iteration, the flow runs only for the unique default locales.
-When any `single` tool lacks a default, all project targets are included
-(because that tool needs to know which locale to target).
+**Resolution rules:**
 
-The flow runner calls `ResolveFlowTargets` before execution instead of
-blindly iterating project target languages. No per-flow configuration
-is needed — the tool chain's metadata determines the iteration strategy.
+1. If **all tools are monolingual with no default** and don't need a
+   target → return `[[sourceLocale]]` (run once on source)
+2. If **any bilingual tool has no default** → one pass per project
+   target: `[[source, target1], [source, target2], ...]`
+3. If **all bilingual tools have defaults** → one pass per unique
+   default: `[[source, qps]]`
+4. If **any multilingual tool** → one pass with all locales:
+   `[[source, target1, target2, ...]]`
+5. Mixed flows → union of all needed passes
 
 **Examples:**
 
-| Flow | Tools | Resolved Targets |
-|------|-------|------------------|
-| pseudo-translate | `[pseudo-translate(single, default:qps)]` | `["qps"]` |
-| translate | `[ai-translate(single, no default)]` | `["de-DE","fr-FR","ja-JP","nb-NO","ar-SA"]` |
-| translate-and-qa | `[ai-translate(single), qa-check(single)]` | `["de-DE","fr-FR","ja-JP","nb-NO","ar-SA"]` |
-| word-count | `[word-count(none)]` | `nil` (run once) |
-| compare | `[translation-comparison(all)]` | `["de-DE","fr-FR","ja-JP","nb-NO","ar-SA"]` |
-| translate+pseudo | `[ai-translate(single), pseudo-translate(single, default:qps)]` | `["de-DE","fr-FR","ja-JP","nb-NO","ar-SA","qps"]` |
+| Flow | Tools | Passes |
+|------|-------|--------|
+| word-count | `[word-count(mono)]` | `[[en]]` |
+| pseudo-translate | `[pseudo-translate(bi, default:qps)]` | `[[en, qps]]` |
+| translate | `[ai-translate(bi)]` | `[[en, de], [en, fr], [en, ja], ...]` |
+| translate+qa | `[ai-translate(bi), qa-check(bi)]` | `[[en, de], [en, fr], ...]` |
+| compare de vs fr | `[comparison(bi)]` with config `[de, fr]` | `[[de, fr]]` |
+| cross-locale QA | `[consistency-check(multi)]` | `[[en, de, fr, ja, nb, ar]]` |
+| translate+pseudo | `[ai-translate(bi), pseudo(bi, default:qps)]` | `[[en, de], [en, fr], ..., [en, qps]]` |
 
-### Multi-Locale Tools
+### Source as a Tagged Locale
 
-Tools with `TargetModeAll` receive Blocks where the `Targets` map is
-already populated by earlier tools in the pipeline (or from previous
-runs stored in the content store). These tools read multiple target
-locales in a single pass:
+The Block's source locale is structurally special — it anchors the
+document skeleton, inline codes, and format round-tripping. But from a
+tool's perspective, it's just another locale with a tag.
 
-```go
-// Example: cross-locale consistency check
-func (t *ConsistencyTool) handleBlock(block *Block) (*Block, error) {
-    for locale, segments := range block.Targets {
-        // Compare each target against source and other targets
-    }
-    // Produce annotations about cross-locale inconsistencies
-    return block, nil
-}
-```
+The Block stores which locale is the source via `SourceLocale LocaleID`.
+The `Text(locale)` method uses this to resolve whether to read from
+`Source` (the skeleton-anchored segments) or `Targets[locale]`. Tools
+don't branch on this — they call `Text(locale)` with whatever locales
+the runner provides.
 
-For flows that mix `single` and `all` tools, the runner processes
-per-target tools first (populating individual targets), then runs
-`all`-mode tools once on the fully-populated Blocks. This ordering
-is implicit in the tool chain sequence — the flow author places
-comparison/validation tools after translation tools.
+This means a bilingual tool configured with `[de, es]` compares two
+target locales without touching source. A bilingual tool configured with
+`[en, fr]` compares source against a target. The tool code is identical
+in both cases — only the locale pair differs.
 
 ### Annotation Production
 
@@ -287,30 +309,48 @@ trade-off.
 
 ## Trade-offs
 
+**Monolingual/bilingual/multilingual vs. none/single/all.** The locale
+cardinality model uses domain language from linguistics rather than
+abstract CS terms. "Bilingual" immediately communicates that a tool
+works with two locales — it doesn't say which two, or whether one is
+source. This maps directly to how localization professionals think about
+tools.
+
+**Uniform `Text(locale)` vs. explicit `SourceText()`/`TargetText()`.** The
+uniform API treats locales as peers at the tool level while preserving
+structural asymmetry in storage. A bilingual tool comparing `[de, es]`
+and one comparing `[en, fr]` use the same code. The cost: tools that
+specifically need the source skeleton (format writers, inline code
+validators) must still use `SourceText()`. Both APIs coexist.
+
+**Source as storage vs. source as tag.** Source segments remain
+structurally separate in the Block (`Source []*Segment` vs
+`Targets map[LocaleID][]*Segment`) because the source anchors the
+document skeleton and inline code positions. Making source just another
+entry in the targets map would lose this structural guarantee. The
+`Text(locale)` API abstracts over this for tools that don't need it.
+
 **Declarative IO vs. runtime validation.** IO contracts are metadata
-declarations, not enforced types. A tool that declares `TargetMode:
-none` can still access `block.Targets` — the contract is documentation
-and tooling support, not a compile-time guarantee. This keeps the tool
-interface simple (one `Process` method) while enabling flow validation
-and runner inference.
+declarations, not enforced types. A tool that declares
+`Cardinality: Monolingual` can still access multiple locales — the
+contract is documentation and tooling support, not a compile-time
+guarantee. This keeps the tool interface simple (one `Process` method)
+while enabling flow validation and runner inference.
 
-**Target mode enum vs. arbitrary IO graphs.** Four target modes cover
-the known use cases. A more expressive model (arbitrary input/output
-port declarations like NiFi) would handle edge cases but adds
-significant complexity to the flow editor and runner. The enum is
-extensible — new modes can be added without changing the tool interface.
+**Locale cardinality vs. arbitrary IO graphs.** Three cardinalities
+cover the known use cases. A more expressive model (arbitrary
+input/output port declarations like NiFi) would handle edge cases but
+adds significant complexity to the flow editor and runner. The enum is
+extensible — new cardinalities can be added without changing the tool
+interface.
 
-**Per-flow iteration vs. per-tool iteration.** The runner iterates
-target locales at the flow level (all tools in a flow run for the
-same target in each iteration). An alternative — per-tool target
-selection — would allow different tools in the same flow to target
-different locales independently. This is more flexible but makes flow
-execution harder to reason about. The current model handles the common
-case (translate all targets, then QA all targets) and mixed cases
-(translate + pseudo in the same flow) through target union resolution.
-Tools with `DefaultTargetLocale` use their default when the runner's
-current target doesn't match what they expect — the tool decides, not
-the runner.
+**Per-flow locale iteration vs. per-tool locale selection.** The runner
+determines locale passes at the flow level. Tools in a bilingual flow
+all receive the same locale pair per pass. An alternative — per-tool
+locale selection within a pass — would let different tools target
+different locale pairs independently. This is more flexible but makes
+flow execution harder to reason about. The current model handles mixed
+flows (translate + pseudo) through pass union resolution.
 
 **Side effects as metadata vs. capability system.** Side effects are
 declared but not enforced. A richer model would use capability-based
@@ -319,9 +359,8 @@ The metadata approach is simpler and sufficient for flow editor hints
 and documentation.
 
 **Typed constants vs. raw strings.** `AnnotationType`, `SideEffect`,
-and `TargetMode` are typed string constants rather than raw `string`.
-This catches typos at compile time, enables IDE autocomplete, and
-provides a clear vocabulary of known values. The `AnnotationRegistry`
+and `LocaleCardinality` are typed string constants rather than raw
+`string`. This catches typos at compile time, enables IDE autocomplete,
+and provides a clear vocabulary of known values. The `AnnotationRegistry`
 extends the closed built-in set for plugins that introduce custom
-annotation types. A tool declaring `Produces: []AnnotationType{"typo"}`
-fails at registration time, not silently at runtime.
+annotation types.
