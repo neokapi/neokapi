@@ -167,3 +167,72 @@ describe("graphToSteps", () => {
     expect(result.steps[0].tool).toBe("x");
   });
 });
+
+describe("stepsToGraph IO contract fields", () => {
+  it("passes cardinality and defaultLocale to sequential node data", () => {
+    const toolMap = new Map<string, ToolInfo>([
+      [
+        "pseudo-translate",
+        {
+          name: "pseudo-translate",
+          description: "Pseudo translate",
+          category: "transform",
+          cardinality: "bilingual",
+          default_locale: "qps",
+          side_effects: ["tm-read"],
+        },
+      ],
+    ]);
+
+    const { nodes } = stepsToGraph({ steps: [{ tool: "pseudo-translate" }] }, toolMap);
+
+    const toolNode = nodes.find((n) => n.type === "tool");
+    expect(toolNode).toBeDefined();
+    expect(toolNode!.data.cardinality).toBe("bilingual");
+    expect(toolNode!.data.defaultLocale).toBe("qps");
+    expect(toolNode!.data.sideEffects).toEqual(["tm-read"]);
+  });
+
+  it("passes cardinality to parallel branch node data", () => {
+    const toolMap = new Map<string, ToolInfo>([
+      [
+        "ai-translate",
+        {
+          name: "ai-translate",
+          description: "AI Translate",
+          category: "translate",
+          cardinality: "bilingual",
+        },
+      ],
+      [
+        "pseudo-translate",
+        {
+          name: "pseudo-translate",
+          description: "Pseudo",
+          category: "transform",
+          cardinality: "bilingual",
+          default_locale: "qps",
+        },
+      ],
+    ]);
+
+    const spec: FlowSpec = {
+      steps: [{ parallel: [{ tool: "ai-translate" }, { tool: "pseudo-translate" }] }],
+    };
+    const { nodes } = stepsToGraph(spec, toolMap);
+
+    const toolNodes = nodes.filter((n) => n.type === "tool");
+    expect(toolNodes).toHaveLength(2);
+    expect(toolNodes[0].data.cardinality).toBe("bilingual");
+    expect(toolNodes[1].data.cardinality).toBe("bilingual");
+    expect(toolNodes[1].data.defaultLocale).toBe("qps");
+  });
+
+  it("handles tools without IO contract fields", () => {
+    const { nodes } = stepsToGraph({ steps: [{ tool: "unknown-tool" }] });
+    const toolNode = nodes.find((n) => n.type === "tool");
+    expect(toolNode!.data.cardinality).toBeUndefined();
+    expect(toolNode!.data.defaultLocale).toBeUndefined();
+    expect(toolNode!.data.sideEffects).toBeUndefined();
+  });
+});
