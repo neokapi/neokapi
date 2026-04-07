@@ -42,6 +42,9 @@ func AIQASchema() *schema.ComponentSchema {
 		Inputs:      []string{schema.PartTypeBlock},
 		Tags:        []string{"ai-powered"},
 		Requires:    []string{schema.RequiresTargetLanguage, schema.RequiresCredentials},
+		Cardinality: schema.Bilingual,
+		Produces:    []schema.AnnotationType{schema.AnnotationQAIssues},
+		SideEffects: []schema.SideEffect{schema.SideEffectAPICall},
 	})
 }
 
