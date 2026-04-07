@@ -11,6 +11,7 @@ import (
 
 	"github.com/neokapi/neokapi/core/flow"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/plugin/bridge"
 	"github.com/neokapi/neokapi/core/tool"
 )
 
@@ -317,11 +318,9 @@ func (a *App) executeFlow(ctx context.Context, flowName string, tools []tool.Too
 		})
 
 		outputPath := a.resolveOutputPath(inputPath, targetLang)
-		runner := flow.NewFileRunner(flow.FileRunnerConfig{
-			FormatReg:    a.formatReg,
-			SourceLocale: "en-US",
-		})
-		if err := runner.RunFile(ctx, flowName, tracedTools, inputPath, outputPath, targetLang); err != nil {
+
+		// Route to bridge or native pipeline based on reader type.
+		if err := a.runFlowFile(ctx, flowName, tracedTools, inputPath, outputPath, targetLang); err != nil {
 			emitErr(fmt.Sprintf("file %s: %v", filepath.Base(inputPath), err))
 			return
 		}
@@ -352,6 +351,43 @@ func (a *App) executeFlow(ctx context.Context, flowName string, tools []tool.Too
 		DurationMs: duration.Milliseconds(), FilesProcessed: filesProcessed,
 		Message: fmt.Sprintf("Completed %d files in %s", filesProcessed, duration.Round(time.Millisecond)),
 	})
+}
+
+// runFlowFile routes to bridge or native pipeline based on the format's reader type.
+func (a *App) runFlowFile(ctx context.Context, flowName string, tools []tool.Tool, inputPath, outputPath, targetLang string) error {
+	ext := filepath.Ext(inputPath)
+	fmtName, err := a.formatReg.DetectByExtension(ext)
+	if err != nil {
+		return fmt.Errorf("detect format: %w", err)
+	}
+
+	reader, err := a.formatReg.NewReader(fmtName)
+	if err != nil {
+		return fmt.Errorf("no reader for %q: %w", fmtName, err)
+	}
+
+	// Bridge format: use BridgeRunner (Java controls read/write).
+	if bridgeReader, ok := reader.(*bridge.BridgeFormatReader); ok {
+		br := flow.NewBridgeRunner(flow.BridgeRunnerConfig{
+			SourceLocale: "en-US",
+			TargetLocale: targetLang,
+		})
+		return br.RunFile(ctx, flowName, tools, bridgeReader, inputPath, outputPath)
+	}
+
+	// Native format: use FileRunner (Go controls read/write).
+	// We already have the reader, create a writer and delegate.
+	writer, err := a.formatReg.NewWriter(fmtName)
+	if err != nil {
+		reader.Close()
+		return fmt.Errorf("no writer for %q: %w", fmtName, err)
+	}
+
+	fr := flow.NewFileRunner(flow.FileRunnerConfig{
+		FormatReg:    a.formatReg,
+		SourceLocale: "en-US",
+	})
+	return fr.RunFileWithReaderWriter(ctx, flowName, tools, inputPath, outputPath, targetLang, reader, writer)
 }
 
 // resolveOutputPath computes the output file path for a given input and target

@@ -493,8 +493,7 @@ func (a *App) processFlowFile(ctx context.Context, cmd *cobra.Command, flowName,
 }
 
 // processFlowFileBridge runs a single-pass Okapi pipeline where Go acts as a
-// step. Java reads each event, sends the part to Go, Go processes it and sends
-// it back, Java applies the translation and writes — all in one filter iteration.
+// step. Delegates the core bridge execution to flow.BridgeRunner.
 // When recorder is non-nil, tools are wrapped with TracingTool.
 func (a *App) processFlowFileBridge(ctx context.Context, cmd *cobra.Command,
 	flowName, inputPath, outputTemplate string, bridgeReader *bridge.BridgeFormatReader, recorder *flow.TraceRecorder) ([]flow.TraceNode, error) {
@@ -532,47 +531,13 @@ func (a *App) processFlowFileBridge(ctx context.Context, cmd *cobra.Command,
 		})
 	}
 
-	processor := bridgeReader.NewProcessor()
-	_, err = processor.Execute(ctx, bridge.ProcessExecuteParams{
-		InputPath:      inputPath,
-		SourceLocale:   a.SourceLang,
-		TargetLocale:   a.TargetLang,
-		OutputPath:     outputPath,
-		OutputLocale:   a.TargetLang,
-		Encoding:       a.Encoding,
-		SubscribeParts: []int32{int32(model.PartBlock)}, // Only send Blocks to Go
-	}, func(parts <-chan *model.Part) <-chan *model.Part {
-		fb := flow.NewFlow(flowName)
-		for _, t := range flowTools {
-			fb.AddTool(t)
-		}
-		f, ferr := fb.Build()
-		if ferr != nil {
-			out := make(chan *model.Part)
-			close(out)
-			return out
-		}
-
-		executor := flow.NewExecutor()
-		inCh, outCh, wait := executor.ExecuteWithChannels(ctx, f)
-
-		go func() {
-			for p := range parts {
-				if recorder != nil && p.Resource != nil {
-					recorder.Record("exit", "bridge-reader", p.Resource.ResourceID(), nil)
-				}
-				inCh <- p
-			}
-			close(inCh)
-		}()
-
-		// Wait for flow completion in a goroutine so outCh can drain.
-		go func() {
-			_ = wait()
-		}()
-
-		return outCh
+	runner := flow.NewBridgeRunner(flow.BridgeRunnerConfig{
+		SourceLocale: a.SourceLang,
+		TargetLocale: a.TargetLang,
+		Encoding:     a.Encoding,
 	})
+
+	err = runner.RunFile(ctx, flowName, flowTools, bridgeReader, inputPath, outputPath)
 	return traceNodes, err
 }
 
