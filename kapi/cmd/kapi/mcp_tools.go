@@ -95,6 +95,7 @@ type ExtractContentInput struct {
 	Path       string `json:"path" jsonschema:"File path to extract content from"`
 	Format     string `json:"format,omitempty" jsonschema:"Override format detection"`
 	SourceLang string `json:"source_lang,omitempty" jsonschema:"Source language (default: en)"`
+	Project    string `json:"project,omitempty" jsonschema:"Path to .kapi project file for scoped format detection"`
 }
 
 type BlockEntry struct {
@@ -128,6 +129,7 @@ type WordCountInput struct {
 	Path       string `json:"path" jsonschema:"File path to count words in"`
 	Format     string `json:"format,omitempty" jsonschema:"Override format detection"`
 	SourceLang string `json:"source_lang,omitempty" jsonschema:"Source language (default: en)"`
+	Project    string `json:"project,omitempty" jsonschema:"Path to .kapi project file for scoped format detection"`
 }
 
 type WordCountOutput struct {
@@ -218,7 +220,7 @@ func handleDetectFormat(a *cli.App, input DetectFormatInput) (*mcp.CallToolResul
 }
 
 func handleExtractContent(ctx context.Context, a *cli.App, input ExtractContentInput) (*mcp.CallToolResult, ExtractContentOutput, error) {
-	fmtName, reader, err := openReader(ctx, a, input.Path, input.Format, input.SourceLang)
+	fmtName, reader, err := openReader(ctx, a, input.Path, input.Format, input.SourceLang, input.Project)
 	if err != nil {
 		return nil, ExtractContentOutput{}, err
 	}
@@ -402,7 +404,7 @@ func handleListFlows() (*mcp.CallToolResult, ListFlowsOutput, error) {
 }
 
 func handleWordCount(ctx context.Context, a *cli.App, input WordCountInput) (*mcp.CallToolResult, WordCountOutput, error) {
-	fmtName, reader, err := openReader(ctx, a, input.Path, input.Format, input.SourceLang)
+	fmtName, reader, err := openReader(ctx, a, input.Path, input.Format, input.SourceLang, input.Project)
 	if err != nil {
 		return nil, WordCountOutput{}, err
 	}
@@ -471,15 +473,25 @@ func handlePseudoTranslate(ctx context.Context, a *cli.App, input PseudoTranslat
 
 // openReader detects the format, creates a reader, and opens the document.
 // Caller must call reader.Close().
-func openReader(ctx context.Context, a *cli.App, path, formatOverride, sourceLang string) (string, format.DataFormatReader, error) {
+func openReader(ctx context.Context, a *cli.App, path, formatOverride, sourceLang, projectPath string) (string, format.DataFormatReader, error) {
 	fmtName := formatOverride
 	if fmtName == "" {
-		ext := filepath.Ext(path)
-		detected, err := a.FormatReg.DetectByExtension(ext)
-		if err != nil {
-			return "", nil, fmt.Errorf("unable to detect format: %w", err)
+		// Use project-scoped detection when a project file is specified.
+		if projectPath != "" {
+			proj, err := project.Load(projectPath)
+			if err == nil {
+				pctx := project.NewProjectContext(proj, projectPath)
+				fmtName = pctx.DetectFormat(a.FormatReg, path)
+			}
 		}
-		fmtName = detected
+		if fmtName == "" {
+			ext := filepath.Ext(path)
+			detected, err := a.FormatReg.DetectByExtension(ext)
+			if err != nil {
+				return "", nil, fmt.Errorf("unable to detect format: %w", err)
+			}
+			fmtName = detected
+		}
 	}
 
 	reader, err := createReader(a, fmtName)

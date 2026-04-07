@@ -148,7 +148,7 @@ func (a *App) runSingleFile(ctx context.Context, cmd *cobra.Command, flowName, i
 	// Wrap IO-bound tools with ParallelBlockTool.
 	parallelBlocks, _ := cmd.Flags().GetInt("parallel-blocks")
 	if parallelBlocks == 0 {
-		parallelBlocks = defaultParallelBlocks(flowName)
+		parallelBlocks = a.resolveParallelBlocks(flowName)
 	}
 	if parallelBlocks > 1 {
 		for i, ft := range flowTools {
@@ -280,7 +280,11 @@ func (a *App) writeTraceFile(tracePath, flowName, fmtName, inputPath, outputPath
 
 func (a *App) runMultipleFiles(ctx context.Context, cmd *cobra.Command, flowName string, inputPaths []string, concurrency int, outputTemplate string) error {
 	if concurrency <= 0 {
-		concurrency = runtime.NumCPU()
+		if a.projectContext != nil && a.projectContext.Concurrency > 0 {
+			concurrency = a.projectContext.Concurrency
+		} else {
+			concurrency = runtime.NumCPU()
+		}
 	}
 
 	// Pre-warm bridge JVMs so they're ready when files arrive.
@@ -415,12 +419,18 @@ func (a *App) runMultipleFiles(ctx context.Context, cmd *cobra.Command, flowName
 func (a *App) processFlowFile(ctx context.Context, cmd *cobra.Command, flowName, inputPath, outputTemplate string, recorder *flow.TraceRecorder) (string, []flow.TraceNode, error) {
 	fmtName := a.FormatFlag
 	if fmtName == "" {
-		ext := filepath.Ext(inputPath)
-		detected, err := a.FormatReg.DetectByExtension(ext)
-		if err != nil {
-			return "", nil, fmt.Errorf("unable to detect format: %w", err)
+		// Use project-scoped detection when running in project mode.
+		if a.projectContext != nil {
+			fmtName = a.projectContext.DetectFormat(a.FormatReg, inputPath)
 		}
-		fmtName = detected
+		if fmtName == "" {
+			ext := filepath.Ext(inputPath)
+			detected, err := a.FormatReg.DetectByExtension(ext)
+			if err != nil {
+				return "", nil, fmt.Errorf("unable to detect format: %w", err)
+			}
+			fmtName = detected
+		}
 	}
 
 	ref := pluginreg.ParseFormatRef(fmtName)
@@ -485,7 +495,7 @@ func (a *App) processFlowFileBridge(ctx context.Context, cmd *cobra.Command,
 	defer cleanup()
 
 	// Auto-wrap IO-bound tools with ParallelBlockTool.
-	if n := defaultParallelBlocks(flowName); n > 1 {
+	if n := a.resolveParallelBlocks(flowName); n > 1 {
 		for i, ft := range flowTools {
 			flowTools[i] = tool.NewParallelBlockTool(ft, n)
 		}
@@ -531,7 +541,7 @@ func (a *App) processFlowFileNative(ctx context.Context, cmd *cobra.Command, flo
 	defer cleanup()
 
 	// Auto-wrap IO-bound tools with ParallelBlockTool.
-	if n := defaultParallelBlocks(flowName); n > 1 {
+	if n := a.resolveParallelBlocks(flowName); n > 1 {
 		for i, ft := range flowTools {
 			flowTools[i] = tool.NewParallelBlockTool(ft, n)
 		}
@@ -787,6 +797,15 @@ func countStats(parts []*model.Part) *output.FlowStats {
 		}
 	}
 	return stats
+}
+
+// resolveParallelBlocks returns the parallel block concurrency to use.
+// Prefers project context setting, then falls back to flow/tool defaults.
+func (a *App) resolveParallelBlocks(flowName string) int {
+	if a.projectContext != nil && a.projectContext.ParallelBlocks > 0 {
+		return a.projectContext.ParallelBlocks
+	}
+	return defaultParallelBlocks(flowName)
 }
 
 // defaultParallelBlocks returns the default parallel block concurrency for a

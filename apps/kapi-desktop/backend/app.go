@@ -660,7 +660,43 @@ func (a *App) ListFormats() []FormatInfo {
 	return infos
 }
 
-// GetFormatSchema returns the configuration schema for a format.
+// ListProjectFormats returns formats available for a project, filtered by
+// the project's declared plugins. Built-in formats are always included.
+func (a *App) ListProjectFormats(tabID string) []FormatInfo {
+	op := a.getOpenProject(tabID)
+	if op == nil {
+		return a.ListFormats()
+	}
+	ctx := project.NewProjectContext(op.Project, op.Path)
+	allowed := make(map[string]bool, len(ctx.AllowedSources))
+	for _, s := range ctx.AllowedSources {
+		allowed[s] = true
+	}
+
+	all := a.ListFormats()
+	var filtered []FormatInfo
+	for _, fi := range all {
+		source := fi.Source
+		if source == "" {
+			source = "built-in"
+		}
+		if allowed[source] {
+			filtered = append(filtered, fi)
+		}
+	}
+	return filtered
+}
+
+// DetectProjectFormat detects a format scoped to a project's declared plugins.
+func (a *App) DetectProjectFormat(tabID, path string) string {
+	op := a.getOpenProject(tabID)
+	if op == nil {
+		return a.DetectFormat(path)
+	}
+	ctx := project.NewProjectContext(op.Project, op.Path)
+	return ctx.DetectFormat(a.formatReg, path)
+}
+
 // GetFormatSchema returns the configuration schema for a format filter.
 // When the schema has pre-built RawJSON (e.g. loaded from a plugin schema file),
 // it is used directly so that all extension metadata (x-editor, x-enumLabels,
