@@ -139,6 +139,7 @@ export function ViewSwitch({
         <HomePage
           project={history.project}
           displayName={activeTab.info.name}
+          tabID={tabID}
           onRunFlow={handleRunFlow}
           onNavigate={navigate}
           pluginsResolved={activeTab.pluginsResolved}

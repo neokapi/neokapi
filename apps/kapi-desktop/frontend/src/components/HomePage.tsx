@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Play,
   Globe,
@@ -11,12 +11,14 @@ import {
   AlertTriangle,
 } from "lucide-react";
 import { Button, Badge, Card, EmptyState, ActionCard } from "@neokapi/ui-primitives";
-import type { KapiProject, FlowSpec, PluginIssue } from "../types/api";
+import type { KapiProject, FlowSpec, FlowInfo, PluginIssue } from "../types/api";
 import { isBareEntry, effectiveItems } from "../types/api";
+import { api } from "../hooks/useApi";
 
 export interface HomePageProps {
   project: KapiProject;
   displayName: string;
+  tabID?: string;
   onRunFlow?: (flowName: string, flow: FlowSpec) => void;
   onNavigate: (view: string) => void;
   /** When false, plugin requirements are unmet — show warning banner. */
@@ -28,12 +30,27 @@ export interface HomePageProps {
 export function HomePage({
   project,
   displayName,
+  tabID,
   onRunFlow,
   onNavigate,
   pluginsResolved,
   pluginIssues,
 }: HomePageProps) {
   const [runningFlow, setRunningFlow] = useState<string | null>(null);
+  const [flowValidation, setFlowValidation] = useState<Record<string, FlowInfo>>({});
+
+  // Fetch flow validation on mount / project change.
+  useEffect(() => {
+    if (!tabID) return;
+    void api.listFlows(tabID).then((flows) => {
+      if (!flows) return;
+      const map: Record<string, FlowInfo> = {};
+      for (const f of flows) {
+        map[f.name] = f;
+      }
+      setFlowValidation(map);
+    });
+  }, [tabID, project.flows]);
   const defaults = project.defaults ?? {};
   const plugins = project.plugins ?? {};
   const flowNames = Object.keys(project.flows ?? {});
@@ -173,25 +190,58 @@ export function HomePage({
             {flowNames.map((name) => {
               const spec = project.flows?.[name];
               if (!spec) return null;
+              const validation = flowValidation[name];
+              const isValid = validation?.valid !== false;
+              const flowIssues = validation?.issues ?? [];
+              const canRun = isValid && hasContent && runningFlow !== name;
+              const runTitle = !isValid
+                ? `Cannot run: ${flowIssues.map((i) => i.message).join("; ")}`
+                : !hasContent
+                  ? "Configure content patterns first"
+                  : undefined;
+
               return (
-                <Card key={name} className="flex flex-row items-center gap-3 p-3">
+                <Card
+                  key={name}
+                  className={`flex flex-row items-center gap-3 p-3 ${!isValid ? "border-amber-500/30 bg-amber-500/5" : ""}`}
+                >
                   <div className="flex-1">
-                    <div className="text-sm font-medium">{name}</div>
-                    <div className="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground">
-                      {spec.steps.map((step, i) => (
-                        <span key={i} className="flex items-center gap-1">
-                          {i > 0 && <span>&rarr;</span>}
-                          <Badge variant="secondary">{step.tool}</Badge>
-                        </span>
-                      ))}
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-sm font-medium">{name}</span>
+                      {!isValid && (
+                        <AlertTriangle size={12} className="text-amber-500" />
+                      )}
                     </div>
+                    <div className="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground">
+                      {spec.steps.map((step, i) => {
+                        const stepHasIssue = flowIssues.some((issue) => issue.tool === step.tool);
+                        return (
+                          <span key={i} className="flex items-center gap-1">
+                            {i > 0 && <span>&rarr;</span>}
+                            <Badge
+                              variant={stepHasIssue ? "destructive" : "secondary"}
+                              className={stepHasIssue ? "line-through opacity-70" : ""}
+                            >
+                              {step.tool}
+                            </Badge>
+                          </span>
+                        );
+                      })}
+                    </div>
+                    {flowIssues.length > 0 && (
+                      <div className="mt-1 text-[10px] text-amber-600 dark:text-amber-400">
+                        {flowIssues.map((issue, i) => (
+                          <div key={i}>{issue.message}</div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                   <Button
                     size="sm"
                     onClick={() => handleRunFlow(name)}
-                    disabled={runningFlow === name || !hasContent}
+                    disabled={!canRun}
                     aria-label={`Run flow ${name}`}
-                    title={!hasContent ? "Configure content patterns first" : undefined}
+                    title={runTitle}
                   >
                     {runningFlow === name ? (
                       <Loader2 size={12} className="animate-spin" />

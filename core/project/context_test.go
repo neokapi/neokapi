@@ -421,7 +421,9 @@ func TestValidateFlows_UndeclaredPlugin(t *testing.T) {
 	require.Len(t, issues, 1)
 	assert.Equal(t, "bridge-flow", issues[0].FlowName)
 	assert.Equal(t, "okf-segmentation", issues[0].StepTool)
+	assert.Equal(t, "undeclared_plugin", issues[0].Type)
 	assert.Equal(t, "okapi-bridge", issues[0].Source)
+	assert.Contains(t, issues[0].Message, "okapi-bridge")
 }
 
 func TestValidateFlows_ParallelSteps(t *testing.T) {
@@ -452,10 +454,7 @@ func TestValidateFlows_NoFlows(t *testing.T) {
 	assert.Nil(t, ctx.ValidateFlows(nil))
 }
 
-func TestValidateFlows_UnknownToolNotFlagged(t *testing.T) {
-	// Tools not in the registry at all are not flagged — they may be from
-	// plugins not yet loaded. Only tools with a known source from an
-	// undeclared plugin are flagged.
+func TestValidateFlows_UnknownToolFlagged(t *testing.T) {
 	ctx := NewProjectContext(&KapiProject{
 		Version: CurrentVersion,
 		Flows: map[string]*flow.StepsSpec{
@@ -466,7 +465,11 @@ func TestValidateFlows_UnknownToolNotFlagged(t *testing.T) {
 	}, "/tmp/test/project.kapi")
 
 	issues := ctx.ValidateFlows([]registry.ToolInfo{})
-	assert.Nil(t, issues)
+	require.Len(t, issues, 1)
+	assert.Equal(t, "unknown", issues[0].Type)
+	assert.Equal(t, "unknown-tool", issues[0].StepTool)
+	assert.Equal(t, "custom", issues[0].FlowName)
+	assert.Contains(t, issues[0].Message, "not installed")
 }
 
 // --- Helpers ---

@@ -54,6 +54,7 @@ function SimulatedFlowsPage() {
     name,
     description: spec.description ?? "",
     step_count: spec.steps.length,
+    valid: true,
   }));
 
   if (selected && flows[selected]) {
