@@ -26,6 +26,11 @@ type FileRunnerConfig struct {
 	// Encoding is the file encoding (default: "UTF-8").
 	Encoding string
 
+	// DetectFormat is an optional callback for project-scoped format detection.
+	// When set, it replaces the default FormatReg.DetectByExtension call.
+	// Use this to restrict detection to project-declared plugin sources.
+	DetectFormat func(path string) string
+
 	// ConfigureReader is an optional callback applied to each reader after
 	// creation. Use this to apply project format defaults or preset config.
 	// The formatName parameter is the detected format name (e.g., "json").
@@ -57,10 +62,17 @@ func NewFileRunner(cfg FileRunnerConfig) *FileRunner {
 func (r *FileRunner) RunFile(ctx context.Context, flowName string, tools []tool.Tool, inputPath, outputPath, targetLang string) error {
 	reg := r.cfg.FormatReg
 
-	ext := filepath.Ext(inputPath)
-	fmtName, err := reg.DetectByExtension(ext)
-	if err != nil {
-		return fmt.Errorf("detect format for %q: %w", filepath.Base(inputPath), err)
+	var fmtName string
+	if r.cfg.DetectFormat != nil {
+		fmtName = r.cfg.DetectFormat(inputPath)
+	}
+	if fmtName == "" {
+		ext := filepath.Ext(inputPath)
+		var err error
+		fmtName, err = reg.DetectByExtension(ext)
+		if err != nil {
+			return fmt.Errorf("detect format for %q: %w", filepath.Base(inputPath), err)
+		}
 	}
 
 	reader, err := reg.NewReader(fmtName)
