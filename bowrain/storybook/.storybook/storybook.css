@@ -1,0 +1,14 @@
+/*
+ * Bowrain Storybook CSS entry point.
+ * Imports the bowrain theme and adds @source directives so Tailwind
+ * can detect utility classes across all packages included in this Storybook.
+ */
+@import "../../packages/ui/src/styles/globals.css";
+
+@source "../../../packages/ui/src";
+@source "../../../packages/flow-editor/src";
+@source "../../packages/ui/src";
+@source "../../apps/bowrain/frontend/src";
+@source "../../emails/src";
+@source "../../apps/keycloak-theme/src";
+@source "../../apps/web/src";

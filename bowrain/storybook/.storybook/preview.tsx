@@ -1,6 +1,6 @@
 import { createPreview } from "@neokapi/storybook-config/preview";
 import { TooltipProvider } from "@neokapi/ui";
-import "../../packages/ui/src/styles/globals.css";
+import "./storybook.css";
 
 function BowrainProviders(Story: React.ComponentType) {
   return (
