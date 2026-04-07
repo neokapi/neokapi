@@ -538,6 +538,12 @@ type ToolInfo struct {
 	Outputs     []string `json:"outputs,omitempty"`
 	Tags        []string `json:"tags,omitempty"`
 	Requires    []string `json:"requires,omitempty"`
+
+	// IO contract fields (AD-043)
+	Cardinality   string   `json:"cardinality,omitempty"`    // "monolingual", "bilingual", "multilingual"
+	DefaultLocale string   `json:"default_locale,omitempty"` // e.g., "qps" for pseudo-translate
+	Produces      []string `json:"produces,omitempty"`       // annotation types
+	SideEffects   []string `json:"side_effects,omitempty"`   // external interactions
 }
 
 // ListTools returns all registered tools (built-in + plugin).
@@ -572,17 +578,29 @@ func (a *App) ValidateProjectFlows(tabID string) []project.FlowValidationIssue {
 func (a *App) toolInfosFrom(all []registry.ToolInfo) []ToolInfo {
 	infos := make([]ToolInfo, len(all))
 	for i, info := range all {
+		var produces []string
+		for _, p := range info.Produces {
+			produces = append(produces, string(p))
+		}
+		var sideEffects []string
+		for _, s := range info.SideEffects {
+			sideEffects = append(sideEffects, string(s))
+		}
 		infos[i] = ToolInfo{
-			Name:        info.Name,
-			DisplayName: info.DisplayName,
-			Description: info.Description,
-			Category:    info.Category,
-			Source:      info.Source,
-			HasSchema:   info.HasSchema,
-			Inputs:      info.Inputs,
-			Outputs:     info.Outputs,
-			Tags:        info.Tags,
-			Requires:    info.Requires,
+			Name:          info.Name,
+			DisplayName:   info.DisplayName,
+			Description:   info.Description,
+			Category:      info.Category,
+			Source:        info.Source,
+			HasSchema:     info.HasSchema,
+			Inputs:        info.Inputs,
+			Outputs:       info.Outputs,
+			Tags:          info.Tags,
+			Requires:      info.Requires,
+			Cardinality:   string(info.Cardinality),
+			DefaultLocale: info.DefaultLocale,
+			Produces:      produces,
+			SideEffects:   sideEffects,
 		}
 	}
 	slices.SortFunc(infos, func(a, b ToolInfo) int { return cmp.Compare(a.Name, b.Name) })

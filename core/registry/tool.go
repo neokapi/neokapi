@@ -27,6 +27,12 @@ type ToolInfo struct {
 	Outputs     []string `json:"outputs,omitempty"`  // part types produced/modified
 	Tags        []string `json:"tags,omitempty"`     // freeform labels: "ai-powered","regex","batch"
 	Requires    []string `json:"requires,omitempty"` // runtime requirements: "target-language","credentials","tm"
+
+	// IO contract fields (AD-043)
+	Cardinality   schema.LocaleCardinality `json:"cardinality,omitempty"`
+	DefaultLocale string                   `json:"default_locale,omitempty"`
+	Produces      []schema.AnnotationType  `json:"produces,omitempty"`
+	SideEffects   []schema.SideEffect      `json:"side_effects,omitempty"`
 }
 
 // ToolRegistration bundles a factory with optional schema and metadata.
@@ -76,6 +82,10 @@ func (r *ToolRegistry) RegisterWithSchema(name string, factory ToolFactory, s *s
 			info.Outputs = s.ToolMeta.Outputs
 			info.Tags = s.ToolMeta.Tags
 			info.Requires = s.ToolMeta.Requires
+			info.Cardinality = s.ToolMeta.Cardinality
+			info.DefaultLocale = s.ToolMeta.DefaultLocale
+			info.Produces = s.ToolMeta.Produces
+			info.SideEffects = s.ToolMeta.SideEffects
 		}
 	}
 	r.tools[name] = &ToolRegistration{
@@ -105,6 +115,10 @@ func (r *ToolRegistry) RegisterMetadata(name string, s *schema.ComponentSchema, 
 			info.Outputs = s.ToolMeta.Outputs
 			info.Tags = s.ToolMeta.Tags
 			info.Requires = s.ToolMeta.Requires
+			info.Cardinality = s.ToolMeta.Cardinality
+			info.DefaultLocale = s.ToolMeta.DefaultLocale
+			info.Produces = s.ToolMeta.Produces
+			info.SideEffects = s.ToolMeta.SideEffects
 		}
 	}
 	r.tools[name] = &ToolRegistration{

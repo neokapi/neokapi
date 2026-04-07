@@ -347,3 +347,72 @@ func TestFragmentPlaceholderSpan(t *testing.T) {
 	assert.Len(t, frag.Spans, 1)
 	assert.Equal(t, model.SpanPlaceholder, frag.Spans[0].SpanType)
 }
+
+// --- Block uniform locale access (AD-043) ---
+
+func TestBlockText_SourceLocale(t *testing.T) {
+	b := model.NewBlock("b1", "Hello")
+	b.SourceLocale = "en-US"
+	assert.Equal(t, "Hello", b.Text("en-US"))
+}
+
+func TestBlockText_TargetLocale(t *testing.T) {
+	b := model.NewBlock("b1", "Hello")
+	b.SourceLocale = "en-US"
+	b.SetTargetText("fr-FR", "Bonjour")
+	assert.Equal(t, "Bonjour", b.Text("fr-FR"))
+}
+
+func TestBlockText_MissingLocale(t *testing.T) {
+	b := model.NewBlock("b1", "Hello")
+	b.SourceLocale = "en-US"
+	assert.Equal(t, "", b.Text("de-DE"))
+}
+
+func TestBlockText_NoSourceLocaleSet(t *testing.T) {
+	b := model.NewBlock("b1", "Hello")
+	// SourceLocale not set — Text("en-US") looks in targets, finds nothing.
+	assert.Equal(t, "", b.Text("en-US"))
+	// SourceText still works via the direct method.
+	assert.Equal(t, "Hello", b.SourceText())
+}
+
+func TestBlockSetText_Source(t *testing.T) {
+	b := model.NewBlock("b1", "Hello")
+	b.SourceLocale = "en-US"
+	b.SetText("en-US", "Hi")
+	assert.Equal(t, "Hi", b.SourceText())
+}
+
+func TestBlockSetText_Target(t *testing.T) {
+	b := model.NewBlock("b1", "Hello")
+	b.SourceLocale = "en-US"
+	b.SetText("fr-FR", "Bonjour")
+	assert.Equal(t, "Bonjour", b.TargetText("fr-FR"))
+}
+
+func TestBlockHasLocale_Source(t *testing.T) {
+	b := model.NewBlock("b1", "Hello")
+	b.SourceLocale = "en-US"
+	assert.True(t, b.HasLocale("en-US"))
+	assert.False(t, b.HasLocale("fr-FR"))
+}
+
+func TestBlockHasLocale_Target(t *testing.T) {
+	b := model.NewBlock("b1", "Hello")
+	b.SourceLocale = "en-US"
+	b.SetTargetText("de-DE", "Hallo")
+	assert.True(t, b.HasLocale("de-DE"))
+}
+
+func TestBlockText_BilingualPeerComparison(t *testing.T) {
+	// Two target locales compared as peers — no source involved.
+	b := model.NewBlock("b1", "Hello")
+	b.SourceLocale = "en-US"
+	b.SetTargetText("de-DE", "Hallo")
+	b.SetTargetText("fr-FR", "Bonjour")
+
+	// A bilingual tool comparing [de-DE, fr-FR] uses Text() uniformly.
+	assert.Equal(t, "Hallo", b.Text("de-DE"))
+	assert.Equal(t, "Bonjour", b.Text("fr-FR"))
+}
