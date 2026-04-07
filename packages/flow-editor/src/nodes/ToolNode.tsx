@@ -63,6 +63,7 @@ export function ToolNode({ data, selected }: NodeProps) {
   const cardinality = data.cardinality as string | undefined;
   const defaultLocale = data.defaultLocale as string | undefined;
   const sideEffects = data.sideEffects as string[] | undefined;
+  const isValid = data.valid !== false;
   const vertical = data.layoutDirection === "vertical";
   const retryConfig = data.retryConfig as Record<string, unknown> | undefined;
   const onRemove = data.onRemove as (() => void) | undefined;
@@ -71,14 +72,16 @@ export function ToolNode({ data, selected }: NodeProps) {
     <div
       className="relative flex min-w-[180px] rounded-lg overflow-visible bg-card transition-[border-color,box-shadow] duration-150"
       style={{
-        border:
-          execState === "error"
+        border: !isValid
+          ? "2px solid oklch(0.7 0.15 85)"
+          : execState === "error"
             ? "2px solid var(--destructive)"
             : execState === "complete"
               ? "2px solid oklch(0.65 0.15 145)"
               : selected
                 ? `2px solid ${style.color}`
                 : "2px solid var(--border)",
+        opacity: isValid ? 1 : 0.7,
         boxShadow: selected
           ? `0 0 0 3px ${style.color}33, 0 4px 12px oklch(0 0 0 / 0.3)`
           : "0 2px 8px oklch(0 0 0 / 0.2)",
@@ -119,9 +122,25 @@ export function ToolNode({ data, selected }: NodeProps) {
         </div>
 
         {/* Tool name */}
-        <div className="text-[13px] font-semibold text-foreground leading-tight">
-          {String(data.label || data.toolName || "")}
+        <div className="flex items-center gap-1">
+          <span
+            className={`text-[13px] font-semibold leading-tight ${isValid ? "text-foreground" : "text-foreground/50 line-through"}`}
+          >
+            {String(data.label || data.toolName || "")}
+          </span>
+          {!isValid && (
+            <AlertCircle
+              size={12}
+              style={{ color: "oklch(0.7 0.15 85)" }}
+              aria-label="Unknown tool"
+            />
+          )}
         </div>
+        {!isValid && (
+          <div className="text-[9px] font-medium" style={{ color: "oklch(0.65 0.15 85)" }}>
+            Tool not found
+          </div>
+        )}
 
         {/* IO indicators */}
         <div className="flex items-center gap-1 mt-1">

@@ -235,4 +235,26 @@ describe("stepsToGraph IO contract fields", () => {
     expect(toolNode!.data.defaultLocale).toBeUndefined();
     expect(toolNode!.data.sideEffects).toBeUndefined();
   });
+
+  it("marks unknown tools as invalid when toolMap is provided", () => {
+    const toolMap = new Map<string, ToolInfo>([
+      ["known-tool", { name: "known-tool", description: "A known tool", category: "validate" }],
+    ]);
+
+    const spec: FlowSpec = {
+      steps: [{ tool: "known-tool" }, { tool: "bogus-tool" }],
+    };
+    const { nodes } = stepsToGraph(spec, toolMap);
+
+    const toolNodes = nodes.filter((n) => n.type === "tool");
+    expect(toolNodes).toHaveLength(2);
+    expect(toolNodes[0].data.valid).toBe(true);
+    expect(toolNodes[1].data.valid).toBe(false);
+  });
+
+  it("marks all tools as valid when no toolMap is provided", () => {
+    const { nodes } = stepsToGraph({ steps: [{ tool: "anything" }] });
+    const toolNode = nodes.find((n) => n.type === "tool");
+    expect(toolNode!.data.valid).toBe(true);
+  });
 });
