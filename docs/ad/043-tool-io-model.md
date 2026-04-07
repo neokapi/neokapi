@@ -42,16 +42,83 @@ type ToolMeta struct {
     DefaultTargetLocale string
 
     // Produces lists the annotation types this tool writes to Blocks.
-    // Examples: "alt-translation", "qa-issues", "term-annotations",
-    // "word-count", "tm-match-score".
-    Produces []string
+    Produces []AnnotationType
 
-    // SideEffects lists external systems this tool writes to.
-    // Examples: "tm-write", "termbase-write", "analytics".
-    // Informational — used by flow editor and documentation.
-    SideEffects []string
+    // SideEffects lists external systems this tool reads from or writes to.
+    SideEffects []SideEffect
 }
 ```
+
+### Typed Constants
+
+`TargetMode`, `AnnotationType`, and `SideEffect` are typed string
+constants. Using typed strings instead of raw `string` gives compile-time
+safety (typos won't compile), discoverability via IDE autocomplete,
+and JSON/YAML serializability for schemas and project files.
+
+**Annotation types** — the framework defines well-known types as
+constants. Plugins register additional types via an annotation registry.
+
+```go
+type AnnotationType string
+
+const (
+    AnnotationQAIssues       AnnotationType = "quality.qa-issues"
+    AnnotationTMMatch        AnnotationType = "leverage.tm-match"
+    AnnotationAltTranslation AnnotationType = "leverage.alt-translation"
+    AnnotationTerms          AnnotationType = "terminology.annotations"
+    AnnotationTermEnforce    AnnotationType = "terminology.enforcement"
+    AnnotationWordCount      AnnotationType = "analysis.word-count"
+    AnnotationCharCount      AnnotationType = "analysis.char-count"
+    AnnotationSegCount       AnnotationType = "analysis.seg-count"
+    AnnotationEntityMapping  AnnotationType = "entity.mapping"
+    AnnotationComparison     AnnotationType = "analysis.comparison"
+)
+```
+
+**Side effects** — a closed set of known external interactions:
+
+```go
+type SideEffect string
+
+const (
+    SideEffectTMRead       SideEffect = "tm-read"
+    SideEffectTMWrite      SideEffect = "tm-write"
+    SideEffectTermbaseRead SideEffect = "termbase-read"
+    SideEffectTermbaseWrite SideEffect = "termbase-write"
+    SideEffectAPICall      SideEffect = "api-call"
+    SideEffectAnalytics    SideEffect = "analytics"
+)
+```
+
+### Annotation Registry
+
+The annotation registry provides validation at tool registration time
+and discoverability for the flow editor:
+
+```go
+type AnnotationTypeInfo struct {
+    Type        AnnotationType
+    DisplayName string
+    Description string
+    Source      string // "built-in" or plugin name
+}
+
+type AnnotationRegistry struct {
+    types map[AnnotationType]AnnotationTypeInfo
+}
+
+func (r *AnnotationRegistry) Register(info AnnotationTypeInfo)
+func (r *AnnotationRegistry) Validate(t AnnotationType) error
+func (r *AnnotationRegistry) List() []AnnotationTypeInfo
+```
+
+Built-in annotation types are registered during `RegisterAll`. Plugin
+annotation types are registered during plugin metadata scanning. A tool
+that declares `Produces: []AnnotationType{AnnotationQAIssues}` is
+validated at registration time — if the annotation type is unknown, the
+registration fails fast rather than silently producing unrecognized
+metadata at runtime.
 
 ### Target Modes
 
@@ -143,35 +210,44 @@ comparison/validation tools after translation tools.
 
 ### Annotation Production
 
-The `Produces` field declares which annotation types a tool writes.
-This serves three purposes:
+The `Produces` field declares which annotation types a tool writes,
+using typed `AnnotationType` constants. This serves three purposes:
 
 1. **Flow editor** — shows what data flows between tools, enables
-   connection validation (e.g., "qa-check produces `qa-issues`,
-   term-enforce consumes `term-annotations`")
+   connection validation (e.g., "qa-check produces `AnnotationQAIssues`,
+   term-enforce consumes `AnnotationTerms`")
 2. **Documentation** — auto-generated tool docs include output types
 3. **Conflict detection** — warn if two tools in a flow produce the
    same annotation type (potential overwrite)
 
-Annotation types are string identifiers following the pattern
-`category.name`: `quality.qa-issues`, `leverage.tm-match`,
-`terminology.annotations`, `analysis.word-count`.
+Annotation types follow the pattern `category.name` and are defined as
+typed constants: `AnnotationQAIssues`, `AnnotationTMMatch`,
+`AnnotationAltTranslation`, etc. Plugins register custom annotation
+types via the `AnnotationRegistry` at scan time.
 
 ### Side Effects
 
-Tools that interact with external systems declare their side effects:
+Tools that interact with external systems declare their side effects
+using typed `SideEffect` constants:
 
 ```go
-Produces:    []string{"leverage.tm-match", "leverage.alt-translation"}
-SideEffects: []string{"tm-read"}
+Produces:    []AnnotationType{AnnotationTMMatch, AnnotationAltTranslation}
+SideEffects: []SideEffect{SideEffectTMRead}
 ```
 
 Side effect declarations are informational metadata for the flow editor
 and documentation. They are not enforced at runtime — a tool with
-`SideEffects: ["tm-write"]` still runs normally even if no TM is
+`SideEffects: [SideEffectTMWrite]` still runs normally even if no TM is
 configured (it simply skips the write). This keeps the tool interface
 simple while giving the UI enough information to show meaningful
 warnings ("this flow writes to TM — make sure one is configured").
+
+The `SideEffect` type is a closed set of known external interactions.
+Unlike annotation types which are extensible via the registry, side
+effects represent infrastructure capabilities that the framework itself
+provides (TM, termbase, API calls, analytics). Plugins that introduce
+new infrastructure interactions add new `SideEffect` constants to the
+framework.
 
 ### Mutable Streaming Model
 
@@ -227,3 +303,11 @@ declared but not enforced. A richer model would use capability-based
 injection (tools request TM access, runner provides it or rejects).
 The metadata approach is simpler and sufficient for flow editor hints
 and documentation.
+
+**Typed constants vs. raw strings.** `AnnotationType`, `SideEffect`,
+and `TargetMode` are typed string constants rather than raw `string`.
+This catches typos at compile time, enables IDE autocomplete, and
+provides a clear vocabulary of known values. The `AnnotationRegistry`
+extends the closed built-in set for plugins that introduce custom
+annotation types. A tool declaring `Produces: []AnnotationType{"typo"}`
+fails at registration time, not silently at runtime.
