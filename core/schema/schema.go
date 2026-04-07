@@ -49,6 +49,20 @@ type ToolMeta struct {
 
 	// Requires declares external resources this tool needs at runtime.
 	Requires []string `json:"requires,omitempty"` // "target-language","source-language","tm","termbase","credentials"
+
+	// Cardinality declares how many locales the tool operates on per execution.
+	Cardinality LocaleCardinality `json:"cardinality,omitempty"`
+
+	// DefaultLocale is an optional fallback locale for the tool.
+	// For bilingual tools, this is the default second locale (e.g., "qps"
+	// for pseudo-translate). Empty means the runner must provide one.
+	DefaultLocale string `json:"defaultLocale,omitempty"`
+
+	// Produces lists the annotation types this tool writes to Blocks.
+	Produces []AnnotationType `json:"produces,omitempty"`
+
+	// SideEffects lists external systems this tool reads from or writes to.
+	SideEffects []SideEffect `json:"sideEffects,omitempty"`
 }
 
 // Standard part type names for Inputs/Outputs declarations.

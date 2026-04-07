@@ -10,6 +10,7 @@ type Block struct {
 	Type               string
 	MimeType           string
 	Translatable       bool
+	SourceLocale       LocaleID // locale of the source segments (set by reader)
 	Skeleton           *Skeleton
 	Source             []*Segment
 	Targets            map[LocaleID][]*Segment
@@ -81,6 +82,36 @@ func (b *Block) SetTargetFragment(locale LocaleID, frag *Fragment) {
 		b.Targets = make(map[LocaleID][]*Segment)
 	}
 	b.Targets[locale] = []*Segment{{ID: "s1", Content: frag}}
+}
+
+// Text returns the plain text for a locale. If the locale matches SourceLocale,
+// returns the source text. Otherwise returns the target text for that locale.
+// Returns empty string if the locale has no segments. This provides uniform
+// access regardless of whether a locale is source or target.
+func (b *Block) Text(locale LocaleID) string {
+	if locale == b.SourceLocale && b.SourceLocale != "" {
+		return b.SourceText()
+	}
+	return b.TargetText(locale)
+}
+
+// SetText writes text for a locale. If the locale matches SourceLocale,
+// writes to source. Otherwise writes to targets.
+func (b *Block) SetText(locale LocaleID, text string) {
+	if locale == b.SourceLocale && b.SourceLocale != "" {
+		b.SetSourceText(text)
+		return
+	}
+	b.SetTargetText(locale, text)
+}
+
+// HasLocale reports whether the Block has segments for a locale,
+// checking both source and targets.
+func (b *Block) HasLocale(locale LocaleID) bool {
+	if locale == b.SourceLocale && b.SourceLocale != "" {
+		return len(b.Source) > 0
+	}
+	return b.HasTarget(locale)
 }
 
 // WordCount returns the number of words in the source text.

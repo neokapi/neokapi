@@ -24,6 +24,8 @@ export interface FlowEdgeInfo {
   target: string;
 }
 
+export type LocaleCardinality = "monolingual" | "bilingual" | "multilingual";
+
 export interface ToolInfo {
   name: string;
   display_name?: string;
@@ -35,6 +37,10 @@ export interface ToolInfo {
   outputs?: string[];
   tags?: string[];
   requires?: string[];
+  cardinality?: LocaleCardinality;
+  default_locale?: string;
+  produces?: string[];
+  side_effects?: string[];
 }
 
 export interface FlowStep {

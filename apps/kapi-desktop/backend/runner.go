@@ -59,9 +59,10 @@ func newRunner() *runner {
 	return &runner{state: RunStateIdle}
 }
 
-// RunFlow executes a flow by name from the current project for one or more
-// target languages. All languages are processed sequentially in a single
-// background goroutine. Events are streamed to the frontend via Wails events.
+// RunFlow executes a flow by name from the current project. Target locales
+// are inferred from the flow's tool chain metadata (AD-043) — the frontend
+// passes project target languages as a fallback, but ResolveFlowLocales
+// determines the actual locale passes based on tool cardinality.
 func (a *App) RunFlow(tabID, flowName string, inputPaths []string, targetLangs []string) error {
 	op := a.getOpenProject(tabID)
 	if op == nil {
@@ -75,10 +76,6 @@ func (a *App) RunFlow(tabID, flowName string, inputPaths []string, targetLangs [
 
 	if len(inputPaths) == 0 {
 		return fmt.Errorf("no input files specified")
-	}
-
-	if len(targetLangs) == 0 {
-		return fmt.Errorf("no target languages specified")
 	}
 
 	if a.runState == nil {
@@ -98,13 +95,22 @@ func (a *App) RunFlow(tabID, flowName string, inputPaths []string, targetLangs [
 	a.runState.mu.Unlock()
 
 	pctx := project.NewProjectContext(op.Project, op.Path)
-	go a.executeFlowAllLangs(ctx, flowName, spec, inputPaths, targetLangs, pctx)
+
+	// Resolve locale passes from tool chain metadata (AD-043).
+	// Falls back to project target languages for bilingual tools without defaults.
+	toolInfoMap := flow.BuildToolInfoMap(a.toolReg)
+	localePasses := flow.ResolveFlowLocales(spec, toolInfoMap, string(pctx.SourceLocale), targetLangs)
+
+	go a.executeFlowAllLangs(ctx, flowName, spec, inputPaths, localePasses, pctx)
 	return nil
 }
 
-// executeFlowAllLangs runs the flow for each target language sequentially.
-// Tools are rebuilt per language since target locale is baked into tool config.
-func (a *App) executeFlowAllLangs(ctx context.Context, flowName string, spec *flow.StepsSpec, inputPaths []string, targetLangs []string, pctx *project.ProjectContext) {
+// executeFlowAllLangs runs the flow for each locale pass sequentially.
+// Each pass is a locale set (e.g., ["en-US", "de-DE"]) determined by
+// ResolveFlowLocales. Tools are rebuilt per pass since target locale is
+// baked into tool config. If localePasses is nil (source-only flow),
+// runs once with no target.
+func (a *App) executeFlowAllLangs(ctx context.Context, flowName string, spec *flow.StepsSpec, inputPaths []string, localePasses [][]string, pctx *project.ProjectContext) {
 	defer func() {
 		a.runState.mu.Lock()
 		a.runState.running = false
@@ -112,16 +118,28 @@ func (a *App) executeFlowAllLangs(ctx context.Context, flowName string, spec *fl
 	}()
 
 	start := time.Now()
-	totalFiles := len(inputPaths) * len(targetLangs)
+
+	// Source-only flows: run once with no target.
+	if localePasses == nil {
+		localePasses = [][]string{{string(pctx.SourceLocale)}}
+	}
+
+	totalFiles := len(inputPaths) * len(localePasses)
 	filesDone := 0
 
 	a.emitEvent("flow:event", RunEvent{
 		Type: "state", FlowID: flowName, Message: "running",
 	})
 
-	for _, lang := range targetLangs {
+	for _, pass := range localePasses {
 		if ctx.Err() != nil {
 			break
+		}
+
+		// Target locale is the second element in the pass (if present).
+		lang := ""
+		if len(pass) > 1 {
+			lang = pass[1]
 		}
 
 		a.emitEvent("flow:event", RunEvent{
@@ -130,7 +148,7 @@ func (a *App) executeFlowAllLangs(ctx context.Context, flowName string, spec *fl
 			Message: fmt.Sprintf("Running for %s (%d files)...", lang, len(inputPaths)),
 		})
 
-		// Build tools for this target language.
+		// Build tools for this locale pass.
 		var tools []tool.Tool
 		for _, step := range spec.Steps {
 			config := step.Config
@@ -198,8 +216,8 @@ func (a *App) executeFlowAllLangs(ctx context.Context, flowName string, spec *fl
 	a.emitEvent("flow:event", RunEvent{
 		Type: "complete", FlowID: flowName,
 		DurationMs: duration.Milliseconds(), FilesProcessed: filesDone,
-		Message: fmt.Sprintf("Completed %d files for %d languages in %s",
-			filesDone, len(targetLangs), duration.Round(time.Millisecond)),
+		Message: fmt.Sprintf("Completed %d files for %d locale passes in %s",
+			filesDone, len(localePasses), duration.Round(time.Millisecond)),
 	})
 }
 
