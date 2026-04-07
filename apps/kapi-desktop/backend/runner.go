@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
@@ -254,26 +256,19 @@ func (a *App) executeFlow(ctx context.Context, flowName string, tools []tool.Too
 	start := time.Now()
 	recorder := flow.NewTraceRecorder()
 
-	// Build trace node metadata.
 	traceNodes := make([]flow.TraceNode, len(tools))
 	tracedTools := make([]tool.Tool, len(tools))
 	for i, t := range tools {
 		nodeID := fmt.Sprintf("tool-%d", i)
-		traceNodes[i] = flow.TraceNode{
-			ID:   nodeID,
-			Type: "tool",
-			Name: t.Name(),
-		}
+		traceNodes[i] = flow.TraceNode{ID: nodeID, Type: "tool", Name: t.Name()}
 		tracedTools[i] = flow.NewTracingTool(t, nodeID, recorder)
 	}
 
 	a.emitEvent("flow:event", RunEvent{
-		Type:    "state",
-		FlowID:  flowName,
-		Message: "running",
+		Type: "state", FlowID: flowName, Message: "running",
 	})
 
-	// Stream trace events in a background goroutine by polling the recorder.
+	// Stream trace events in the background.
 	stopStreaming := make(chan struct{})
 	var streamWg sync.WaitGroup
 	streamWg.Add(1)
@@ -285,29 +280,29 @@ func (a *App) executeFlow(ctx context.Context, flowName string, tools []tool.Too
 		for {
 			select {
 			case <-stopStreaming:
-				// Flush remaining events.
 				events := recorder.Events()
 				for i := lastSeen; i < len(events); i++ {
-					a.emitEvent("flow:event", RunEvent{
-						Type:       "trace",
-						FlowID:     flowName,
-						TraceEvent: &events[i],
-					})
+					a.emitEvent("flow:event", RunEvent{Type: "trace", FlowID: flowName, TraceEvent: &events[i]})
 				}
 				return
 			case <-ticker.C:
 				events := recorder.Events()
 				for i := lastSeen; i < len(events); i++ {
-					a.emitEvent("flow:event", RunEvent{
-						Type:       "trace",
-						FlowID:     flowName,
-						TraceEvent: &events[i],
-					})
+					a.emitEvent("flow:event", RunEvent{Type: "trace", FlowID: flowName, TraceEvent: &events[i]})
 				}
 				lastSeen = len(events)
 			}
 		}
 	}()
+
+	emitErr := func(msg string) {
+		a.emitEvent("flow:event", RunEvent{Type: "error", FlowID: flowName, Message: msg})
+		a.runState.mu.Lock()
+		a.runState.state = RunStateError
+		a.runState.mu.Unlock()
+		close(stopStreaming)
+		streamWg.Wait()
+	}
 
 	filesProcessed := 0
 
@@ -317,77 +312,32 @@ func (a *App) executeFlow(ctx context.Context, flowName string, tools []tool.Too
 		}
 
 		a.emitEvent("flow:event", RunEvent{
-			Type:      "progress",
-			FlowID:    flowName,
-			FileIndex: fileIdx,
-			FileCount: len(inputPaths),
-			FilePath:  inputPath,
+			Type: "progress", FlowID: flowName,
+			FileIndex: fileIdx, FileCount: len(inputPaths), FilePath: inputPath,
 		})
 
-		fb := flow.NewFlow(flowName)
-		for _, t := range tracedTools {
-			fb.AddTool(t)
-		}
-		f, err := fb.Build()
-		if err != nil {
-			recorder.Record("error", "build", "", map[string]any{
-				"error": err.Error(),
-			})
-			a.emitEvent("flow:event", RunEvent{
-				Type:    "error",
-				FlowID:  flowName,
-				Message: fmt.Sprintf("build flow: %v", err),
-			})
-			a.runState.mu.Lock()
-			a.runState.state = RunStateError
-			a.runState.mu.Unlock()
-			close(stopStreaming)
-			streamWg.Wait()
-			return
-		}
-
-		executor := flow.NewExecutor()
-		item := &flow.Item{
-			Input: &model.RawDocument{
-				URI:          inputPath,
-				TargetLocale: model.LocaleID(targetLang),
-			},
-		}
-
-		if err := executor.Execute(ctx, f, []*flow.Item{item}); err != nil {
-			// Record error in trace.
-			recorder.Record("error", "executor", "", map[string]any{
-				"error": err.Error(),
-				"file":  inputPath,
-			})
-			a.emitEvent("flow:event", RunEvent{
-				Type:    "error",
-				FlowID:  flowName,
-				Message: fmt.Sprintf("file %s: %v", inputPath, err),
-			})
-			a.runState.mu.Lock()
-			a.runState.state = RunStateError
-			a.runState.mu.Unlock()
-			close(stopStreaming)
-			streamWg.Wait()
+		outputPath := a.resolveOutputPath(inputPath, targetLang)
+		runner := flow.NewFileRunner(flow.FileRunnerConfig{
+			FormatReg:    a.formatReg,
+			SourceLocale: "en-US",
+			Recorder:     recorder,
+		})
+		if err := runner.RunFile(ctx, flowName, tracedTools, inputPath, outputPath, targetLang); err != nil {
+			emitErr(fmt.Sprintf("file %s: %v", filepath.Base(inputPath), err))
 			return
 		}
 
 		filesProcessed++
 	}
 
-	// Stop trace streaming and flush remaining events.
 	close(stopStreaming)
 	streamWg.Wait()
 
 	duration := time.Since(start)
 
-	// Store the complete trace for later retrieval.
 	trace := &flow.FlowTrace{
-		Name:       flowName,
-		Nodes:      traceNodes,
-		Events:     recorder.Events(),
-		Parts:      recorder.Snapshots(),
+		Name: flowName, Nodes: traceNodes,
+		Events: recorder.Events(), Parts: recorder.Snapshots(),
 		DurationUs: recorder.DurationUs(),
 	}
 
@@ -399,10 +349,47 @@ func (a *App) executeFlow(ctx context.Context, flowName string, tools []tool.Too
 	a.runState.mu.Unlock()
 
 	a.emitEvent("flow:event", RunEvent{
-		Type:           "complete",
-		FlowID:         flowName,
-		DurationMs:     duration.Milliseconds(),
-		FilesProcessed: filesProcessed,
-		Message:        fmt.Sprintf("Completed %d files in %s", filesProcessed, duration.Round(time.Millisecond)),
+		Type: "complete", FlowID: flowName,
+		DurationMs: duration.Milliseconds(), FilesProcessed: filesProcessed,
+		Message: fmt.Sprintf("Completed %d files in %s", filesProcessed, duration.Round(time.Millisecond)),
 	})
+}
+
+// resolveOutputPath computes the output file path for a given input and target
+// language. It replaces {lang} in the first matching content target pattern.
+// Falls back to input_targetLang.ext if no pattern matches.
+func (a *App) resolveOutputPath(inputPath, targetLang string) string {
+	// Try to find the matching content pattern and use its target template.
+	a.mu.RLock()
+	defer a.mu.RUnlock()
+	for _, op := range a.projects {
+		basePath := filepath.Dir(op.Path)
+		rel, err := filepath.Rel(basePath, inputPath)
+		if err != nil {
+			continue
+		}
+		for _, coll := range op.Project.Content {
+			for _, item := range coll.EffectiveItems() {
+				if item.Target == "" {
+					continue
+				}
+				// Check if the input matches this pattern.
+				matched, _ := filepath.Match(item.Path, rel)
+				if !matched {
+					continue
+				}
+				// Resolve {lang} in the target pattern.
+				target := strings.ReplaceAll(item.Target, "{lang}", targetLang)
+				// Replace the wildcard with the actual filename.
+				if strings.Contains(target, "*") {
+					target = strings.ReplaceAll(target, "*", filepath.Base(rel))
+				}
+				return filepath.Join(basePath, target)
+			}
+		}
+	}
+	// Fallback: input_targetLang.ext
+	ext := filepath.Ext(inputPath)
+	base := inputPath[:len(inputPath)-len(ext)]
+	return fmt.Sprintf("%s_%s%s", base, targetLang, ext)
 }
