@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { Play, Square, CheckCircle2, XCircle, Loader2, FileText } from "lucide-react";
 import {
   Button,
@@ -12,7 +12,7 @@ import {
   ScrollArea,
   PageHeader,
 } from "@neokapi/ui-primitives";
-import type { FlowSpec } from "../types/api";
+import type { FlowSpec, KapiProject } from "../types/api";
 import { api } from "../hooks/useApi";
 import { useWailsEvent } from "../hooks/useWailsEvent";
 
@@ -29,21 +29,27 @@ interface RunEvent {
   files_processed?: number;
 }
 
-interface RunnerPageProps {
+export interface RunnerPageProps {
   tabID: string;
   flowName: string;
   flow: FlowSpec;
   onClose: () => void;
+  /** When set, the project is used to resolve content and target languages. */
+  project?: KapiProject;
+  /** When true, automatically resolve content and run for all target languages on mount. */
+  autoRun?: boolean;
 }
 
-export function RunnerPage({ tabID, flowName, flow, onClose }: RunnerPageProps) {
+export function RunnerPage({ tabID, flowName, flow, onClose, project, autoRun }: RunnerPageProps) {
   const [state, setState] = useState<RunState>("idle");
   const [events, setEvents] = useState<RunEvent[]>([]);
-  const [inputFiles] = useState<string[]>([]);
+  const [inputFiles, setInputFiles] = useState<string[]>([]);
   const [targetLang, setTargetLang] = useState("");
   const [progress, setProgress] = useState({ current: 0, total: 0 });
   const [error, setError] = useState<string | null>(null);
-  // Listen for flow events from the backend.
+  const [currentTarget, setCurrentTarget] = useState("");
+  const autoRunStarted = useRef(false);
+
   useWailsEvent("flow:event", (data) => {
     const e = data as RunEvent;
     setEvents((prev) => [...prev, e]);
@@ -66,6 +72,67 @@ export function RunnerPage({ tabID, flowName, flow, onClose }: RunnerPageProps) 
     }
   });
 
+  // Auto-run: resolve content and execute for all target languages.
+  useEffect(() => {
+    if (!autoRun || !project || autoRunStarted.current) return;
+    autoRunStarted.current = true;
+
+    const targets = project.defaults?.target_languages ?? [];
+    if (targets.length === 0) {
+      setError("No target languages configured in project.");
+      setState("error");
+      return;
+    }
+
+    (async () => {
+      const matches = await api.matchContent(tabID);
+      const paths = matches?.map((m) => m.path) ?? [];
+      if (paths.length === 0) {
+        setError("No content files matched the project patterns.");
+        setState("error");
+        return;
+      }
+
+      setInputFiles(paths);
+      setState("running");
+      setProgress({ current: 0, total: paths.length * targets.length });
+
+      let filesDone = 0;
+      for (const lang of targets) {
+        setCurrentTarget(lang);
+        setEvents((prev) => [
+          ...prev,
+          {
+            type: "state",
+            flow_id: flowName,
+            message: `Running for ${lang} (${paths.length} files)...`,
+          },
+        ]);
+
+        try {
+          await api.runFlow(tabID, flowName, paths, lang);
+        } catch (e) {
+          setState("error");
+          setError(`Failed for ${lang}: ${String(e)}`);
+          return;
+        }
+        filesDone += paths.length;
+        setProgress({ current: filesDone, total: paths.length * targets.length });
+      }
+
+      setState("complete");
+      setEvents((prev) => [
+        ...prev,
+        {
+          type: "complete",
+          flow_id: flowName,
+          message: `Completed for ${targets.length} language${targets.length > 1 ? "s" : ""}: ${targets.join(", ")}`,
+        },
+      ]);
+    })();
+  }, [autoRun, project, tabID, flowName]);
+
+  // Manual run (single language).
   const handleRun = useCallback(async () => {
     if (!targetLang || inputFiles.length === 0) return;
     setState("running");
@@ -75,12 +142,11 @@ export function RunnerPage({ tabID, flowName, flow, onClose }: RunnerPageProps) 
 
     try {
       await api.runFlow(tabID, flowName, inputFiles, targetLang);
-      // Completion is signaled via events, not the return value.
     } catch (e) {
       setState("error");
       setError(String(e));
     }
-  }, [flowName, targetLang, inputFiles]);
+  }, [tabID, flowName, targetLang, inputFiles]);
 
   const handleCancel = useCallback(async () => {
     try {
@@ -107,8 +173,13 @@ export function RunnerPage({ tabID, flowName, flow, onClose }: RunnerPageProps) 
         actions={
           <div className="flex items-center gap-2">
             {stateIcon[state]}
-            <Button variant="outline" size="sm" onClick={onClose} aria-label="Back to flows">
-              Back to Flows
+            {currentTarget && state === "running" && (
+              <Badge variant="secondary" className="text-xs">
+                {currentTarget}
+              </Badge>
+            )}
+            <Button variant="outline" size="sm" onClick={onClose} aria-label="Back">
+              {state === "complete" || state === "error" ? "Done" : "Back"}
             </Button>
           </div>
         }
@@ -133,8 +204,8 @@ export function RunnerPage({ tabID, flowName, flow, onClose }: RunnerPageProps) 
         </CardContent>
       </Card>
 
-      {/* Configuration (only in idle state) */}
-      {state === "idle" && (
+      {/* Manual configuration (only in idle state, non-autoRun) */}
+      {state === "idle" && !autoRun && (
         <div className="mb-4 space-y-3">
           <div>
             <Label htmlFor="runner-files" className="mb-1 block">
@@ -168,7 +239,7 @@ export function RunnerPage({ tabID, flowName, flow, onClose }: RunnerPageProps) 
 
       {/* Controls */}
       <div className="mb-6 flex gap-2">
-        {state === "idle" && (
+        {state === "idle" && !autoRun && (
           <Button
             onClick={handleRun}
             disabled={!targetLang || inputFiles.length === 0}
@@ -233,8 +304,8 @@ export function RunnerPage({ tabID, flowName, flow, onClose }: RunnerPageProps) 
             </CardTitle>
           </CardHeader>
           <CardContent className="px-4">
-            <ScrollArea className="max-h-64">
-              <div>
+            <div className="h-64">
+              <ScrollArea className="h-full">
                 {events.map((event, i) => (
                   <div
                     key={i}
@@ -249,8 +320,8 @@ export function RunnerPage({ tabID, flowName, flow, onClose }: RunnerPageProps) 
                     {event.message || event.file_path || event.type}
                   </div>
                 ))}
-              </div>
-            </ScrollArea>
+              </ScrollArea>
+            </div>
           </CardContent>
         </Card>
       )}

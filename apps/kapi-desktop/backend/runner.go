@@ -84,10 +84,15 @@ func (a *App) RunFlow(tabID, flowName string, inputPaths []string, targetLang st
 		return fmt.Errorf("a flow is already running")
 	}
 
-	// Build tools from steps (before marking as running so errors don't leave stale state).
+	// Build tools from steps, applying step config (before marking as running
+	// so errors don't leave stale state).
 	var tools []tool.Tool
 	for _, step := range spec.Steps {
-		t, err := a.toolReg.NewTool(step.Tool)
+		config := step.Config
+		if config == nil {
+			config = make(map[string]any)
+		}
+		t, err := a.toolReg.NewToolWithConfig(step.Tool, config, targetLang)
 		if err != nil {
 			a.runState.mu.Unlock()
 			return fmt.Errorf("tool %q: %w", step.Tool, err)
@@ -163,10 +168,14 @@ func (a *App) PreviewFlow(tabID, flowName, sampleText, sourceLang, targetLang st
 		return nil, fmt.Errorf("sample text is required")
 	}
 
-	// Build tools from steps.
+	// Build tools from steps with config.
 	var tools []tool.Tool
 	for _, step := range spec.Steps {
-		t, err := a.toolReg.NewTool(step.Tool)
+		config := step.Config
+		if config == nil {
+			config = make(map[string]any)
+		}
+		t, err := a.toolReg.NewToolWithConfig(step.Tool, config, targetLang)
 		if err != nil {
 			return nil, fmt.Errorf("tool %q: %w", step.Tool, err)
 		}

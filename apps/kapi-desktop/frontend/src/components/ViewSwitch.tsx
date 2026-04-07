@@ -1,7 +1,9 @@
-import type { KapiProject } from "../types/api";
+import { useCallback, useState } from "react";
+import type { KapiProject, FlowSpec } from "../types/api";
 import type { TabState } from "../hooks/useTabManager";
 import type { ProjectHistory } from "../hooks/useProjectHistory";
 import { AppHome } from "./AppHome";
+import { RunnerPage } from "./RunnerPage";
 import { FlowsPage } from "./FlowsPage";
 import { ToolRunnerPage } from "./ToolRunnerPage";
 import { TermbasesPage } from "./TermbasesPage";
@@ -48,6 +50,21 @@ export function ViewSwitch({
   onCreateSampleProject,
   onDismissSamples,
 }: ViewSwitchProps) {
+  // State for the runner view — set when the user clicks Run on a flow.
+  const [runnerState, setRunnerState] = useState<{
+    flowName: string;
+    flow: FlowSpec;
+  } | null>(null);
+
+  // Run a project flow from the home page: navigate to the runner view.
+  const handleRunFlow = useCallback(
+    (_flowName: string, spec: FlowSpec) => {
+      setRunnerState({ flowName: _flowName, flow: spec });
+      navigate("runner");
+    },
+    [navigate],
+  );
+
   // Home — global overlay in both modes
   if (effectiveView === "home") {
     return (
@@ -122,6 +139,7 @@ export function ViewSwitch({
         <HomePage
           project={history.project}
           displayName={activeTab.info.name}
+          onRunFlow={handleRunFlow}
           onNavigate={navigate}
           pluginsResolved={activeTab.pluginsResolved}
           pluginIssues={activeTab.pluginIssues}
@@ -155,6 +173,25 @@ export function ViewSwitch({
           }}
         />
       );
+
+    case "runner":
+      if (runnerState) {
+        return (
+          <RunnerPage
+            tabID={tabID}
+            flowName={runnerState.flowName}
+            flow={runnerState.flow}
+            project={history.project}
+            autoRun
+            onClose={() => {
+              setRunnerState(null);
+              navigate("project-home");
+            }}
+          />
+        );
+      }
+      navigate("project-home");
+      return null;
 
     case "tools":
       return <ToolRunnerPage tabID={tabID} />;
