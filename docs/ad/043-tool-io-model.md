@@ -131,17 +131,13 @@ const (
     // Runner: run once with no target locale.
     TargetModeNone TargetMode = "none"
 
-    // TargetModeSingle — tool reads source and writes/validates one target.
-    // The target locale is provided at runtime by the runner.
-    // Examples: ai-translate, qa-check, tm-leverage.
-    // Runner: iterate all project target languages.
+    // TargetModeSingle — tool operates on one target locale per execution.
+    // The locale is provided at runtime by the runner, or falls back to
+    // DefaultTargetLocale if set.
+    // Examples: ai-translate, pseudo-translate, qa-check, tm-leverage.
+    // Runner: iterate project target languages (or just the default if
+    // all tools in the flow have defaults and no tool requires iteration).
     TargetModeSingle TargetMode = "single"
-
-    // TargetModeFixed — like Single but with a built-in default locale.
-    // The tool always targets this locale unless overridden.
-    // Examples: pseudo-translate (qps).
-    // Runner: run once for the default locale.
-    TargetModeFixed TargetMode = "fixed"
 
     // TargetModeAll — tool reads source and all present targets.
     // Used for cross-locale operations.
@@ -150,6 +146,17 @@ const (
     TargetModeAll TargetMode = "all"
 )
 ```
+
+`DefaultTargetLocale` is an optional field on any `single`-mode tool. It
+provides a fallback locale when the runner doesn't specify one. For
+example, pseudo-translate declares `DefaultTargetLocale: "qps"` — it
+accepts any target locale but defaults to `qps`. ai-translate has no
+default and requires the runner to provide one.
+
+This keeps the target mode enum simple (three values, not four) while
+supporting tools with built-in defaults. A tool with
+`TargetMode: single` and `DefaultTargetLocale: "qps"` is not "fixed" —
+it's a single-target tool that happens to have a sensible default.
 
 ### Flow Target Inference
 
@@ -160,14 +167,18 @@ determine which target locales to process:
 func ResolveFlowTargets(toolMetas []ToolMeta, projectTargets []string) []string
 ```
 
-1. Collect `TargetMode` from each tool in the flow
+1. Collect `TargetMode` and `DefaultTargetLocale` from each tool
 2. Apply resolution rules:
    - If **all tools are `none`** → return `nil` (source-only flow, run once)
-   - If **any tool is `single`** → include all `projectTargets`
-   - If **any tool is `fixed`** → include its `DefaultTargetLocale`
-   - If **any tool is `all`** → include all `projectTargets` (targets
-     must be populated before this tool runs)
+   - If **any `single` tool has no default** → include all `projectTargets`
+   - If **any `single` tool has a default** → include that default locale
+   - If **any tool is `all`** → include all `projectTargets`
 3. Return the deduplicated union
+
+When all `single` tools have defaults and no tool requires project
+target iteration, the flow runs only for the unique default locales.
+When any `single` tool lacks a default, all project targets are included
+(because that tool needs to know which locale to target).
 
 The flow runner calls `ResolveFlowTargets` before execution instead of
 blindly iterating project target languages. No per-flow configuration
@@ -177,12 +188,12 @@ is needed — the tool chain's metadata determines the iteration strategy.
 
 | Flow | Tools | Resolved Targets |
 |------|-------|------------------|
-| pseudo-translate | `[pseudo-translate(fixed:qps)]` | `["qps"]` |
-| translate | `[ai-translate(single)]` | `["de-DE","fr-FR","ja-JP","nb-NO","ar-SA"]` |
+| pseudo-translate | `[pseudo-translate(single, default:qps)]` | `["qps"]` |
+| translate | `[ai-translate(single, no default)]` | `["de-DE","fr-FR","ja-JP","nb-NO","ar-SA"]` |
 | translate-and-qa | `[ai-translate(single), qa-check(single)]` | `["de-DE","fr-FR","ja-JP","nb-NO","ar-SA"]` |
 | word-count | `[word-count(none)]` | `nil` (run once) |
 | compare | `[translation-comparison(all)]` | `["de-DE","fr-FR","ja-JP","nb-NO","ar-SA"]` |
-| translate+pseudo | `[ai-translate(single), pseudo-translate(fixed:qps)]` | `["de-DE","fr-FR","ja-JP","nb-NO","ar-SA","qps"]` |
+| translate+pseudo | `[ai-translate(single), pseudo-translate(single, default:qps)]` | `["de-DE","fr-FR","ja-JP","nb-NO","ar-SA","qps"]` |
 
 ### Multi-Locale Tools
 
@@ -297,6 +308,9 @@ different locales independently. This is more flexible but makes flow
 execution harder to reason about. The current model handles the common
 case (translate all targets, then QA all targets) and mixed cases
 (translate + pseudo in the same flow) through target union resolution.
+Tools with `DefaultTargetLocale` use their default when the runner's
+current target doesn't match what they expect — the tool decides, not
+the runner.
 
 **Side effects as metadata vs. capability system.** Side effects are
 declared but not enforced. A richer model would use capability-based
