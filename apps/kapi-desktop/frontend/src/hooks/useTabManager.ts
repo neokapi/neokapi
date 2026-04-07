@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback } from "react";
 import type { AppMode, KapiProject, TabInfo, PluginIssue } from "../types/api";
 import { api } from "./useApi";
 import { useError } from "../components/ErrorBanner";

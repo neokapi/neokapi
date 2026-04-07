@@ -10,12 +10,12 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/neokapi/neokapi/cli/output"
-	"github.com/neokapi/neokapi/core/ai/tools"
 	"github.com/neokapi/neokapi/core/flow"
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/model"
@@ -23,7 +23,6 @@ import (
 	pluginreg "github.com/neokapi/neokapi/core/plugin/registry"
 	"github.com/neokapi/neokapi/core/preset"
 	"github.com/neokapi/neokapi/core/tool"
-	libtools "github.com/neokapi/neokapi/core/tools"
 	aiprovider "github.com/neokapi/neokapi/providers/ai"
 	sqltm "github.com/neokapi/neokapi/sievepen"
 	sqltb "github.com/neokapi/neokapi/termbase"
@@ -48,8 +47,9 @@ func (a *App) RunFlow(ctx context.Context, cmd *cobra.Command, flowName string, 
 
 	if len(inputPaths) > 0 {
 		if a.TargetLang == "" {
-			if flowName == "pseudo-translate" {
-				a.TargetLang = "qps"
+			// Check if the flow's primary tool has a default target language.
+			if def := LookupToolCommand(flowName); def != nil && def.DefaultTargetLang != "" {
+				a.TargetLang = def.DefaultTargetLang
 			} else {
 				return errors.New("--target-lang is required")
 			}
@@ -100,12 +100,25 @@ func (a *App) listFlows(cmd *cobra.Command, opts FlowCmdOptions) error {
 }
 
 // builtinComposedFlows returns the list of built-in composed flows
-// (multi-tool pipelines). Single-tool operations are exposed as top-level
-// tool commands instead.
+// (multi-tool pipelines with 2+ tool nodes). Single-tool operations are
+// exposed as top-level tool commands instead.
 func builtinComposedFlows() []output.FlowInfo {
-	return []output.FlowInfo{
-		{Name: "ai-translate-qa", Description: "Translate + quality check using AI/LLM"},
+	var composed []output.FlowInfo
+	for _, def := range flow.BuiltInFlows() {
+		toolCount := 0
+		for _, n := range def.Nodes {
+			if n.Type == "tool" {
+				toolCount++
+			}
+		}
+		if toolCount >= 2 {
+			composed = append(composed, output.FlowInfo{
+				Name:        def.ID,
+				Description: def.Description,
+			})
+		}
 	}
+	return composed
 }
 
 func (a *App) runSingleFile(ctx context.Context, cmd *cobra.Command, flowName, inputPath string) error {
@@ -145,6 +158,13 @@ func (a *App) runSingleFile(ctx context.Context, cmd *cobra.Command, flowName, i
 			if err := cfg.ApplyMap(mergedConfig); err != nil {
 				return fmt.Errorf("apply format config: %w", err)
 			}
+		}
+	}
+
+	// Apply project format defaults (overrides on top of presets).
+	if a.projectContext != nil {
+		if err := a.projectContext.ConfigureReader(reader, fmtName); err != nil {
+			return fmt.Errorf("apply project format config: %w", err)
 		}
 	}
 
@@ -535,6 +555,13 @@ func (a *App) processFlowFile(ctx context.Context, cmd *cobra.Command, flowName,
 		}
 	}
 
+	// Apply project format defaults.
+	if a.projectContext != nil {
+		if err := a.projectContext.ConfigureReader(reader, fmtName); err != nil {
+			return "", nil, fmt.Errorf("apply project format config: %w", err)
+		}
+	}
+
 	// Bridge formats: single-pass pipeline via BridgeProcessor.
 	if bridgeReader, ok := reader.(*bridge.BridgeFormatReader); ok {
 		nodes, err := a.processFlowFileBridge(ctx, cmd, flowName, inputPath, outputTemplate, bridgeReader, recorder)
@@ -828,38 +855,86 @@ func (a *App) buildFlowTools(flowName string, cmd ...*cobra.Command) ([]tool.Too
 		return a.projectFlowTools, noop, nil
 	}
 
-	switch flowName {
-	case "ai-translate":
-		p := a.getProvider()
-		return []tool.Tool{
-			tools.NewAITranslateTool(p, tools.AITranslateConfig{
-				SourceLocale: model.LocaleID(a.SourceLang),
-				TargetLocale: model.LocaleID(a.TargetLang),
-			}),
-		}, noop, nil
-	case "ai-translate-qa":
-		p := a.getProvider()
-		return []tool.Tool{
-			tools.NewAITranslateTool(p, tools.AITranslateConfig{
-				SourceLocale: model.LocaleID(a.SourceLang),
-				TargetLocale: model.LocaleID(a.TargetLang),
-			}),
-			tools.NewAIQACheckTool(p, tools.AIQAConfig{
-				SourceLocale: model.LocaleID(a.SourceLang),
-				TargetLocale: model.LocaleID(a.TargetLang),
-			}),
-		}, noop, nil
-	case "pseudo-translate":
-		return []tool.Tool{
-			libtools.NewPseudoTranslateTool(&libtools.PseudoConfig{
-				TargetLocale: model.LocaleID(a.TargetLang),
-			}),
-		}, noop, nil
-	case "qa-check":
-		qaTools := []tool.Tool{
-			libtools.NewQACheckTool(libtools.NewQACheckConfig(model.LocaleID(a.TargetLang))),
+	// Look up the flow definition from the built-in registry.
+	var flowDef *flow.FlowDefinition
+	for _, def := range flow.BuiltInFlows() {
+		if def.ID == flowName {
+			d := def
+			flowDef = &d
+			break
 		}
-		cleanup := noop
+	}
+	if flowDef == nil {
+		return nil, nil, fmt.Errorf("unknown flow: %q", flowName)
+	}
+
+	// Extract tool node names in topological order (by X position).
+	type toolPos struct {
+		name string
+		x    float64
+	}
+	var toolNodes []toolPos
+	for _, n := range flowDef.Nodes {
+		if n.Type == "tool" {
+			toolNodes = append(toolNodes, toolPos{name: n.Name, x: n.Position.X})
+		}
+	}
+	slices.SortFunc(toolNodes, func(a, b toolPos) int {
+		if a.x < b.x {
+			return -1
+		}
+		if a.x > b.x {
+			return 1
+		}
+		return 0
+	})
+
+	// Build the tool chain from tool definitions.
+	var builtTools []tool.Tool
+	cleanups := []func(){}
+	cleanup := func() {
+		for _, fn := range cleanups {
+			fn()
+		}
+	}
+
+	config := map[string]any{
+		"source_locale": a.SourceLang,
+		"target_locale": a.TargetLang,
+	}
+
+	for _, tn := range toolNodes {
+		t, toolCleanup, err := a.buildToolByName(tn.name, config, cmd...)
+		if err != nil {
+			cleanup()
+			return nil, nil, fmt.Errorf("tool %q in flow %q: %w", tn.name, flowName, err)
+		}
+		builtTools = append(builtTools, t...)
+		if toolCleanup != nil {
+			cleanups = append(cleanups, toolCleanup)
+		}
+	}
+
+	return builtTools, cleanup, nil
+}
+
+// buildToolByName creates tool(s) for a named tool, returning any resource
+// cleanup function. Some tools (qa-check) may expand to multiple pipeline tools.
+func (a *App) buildToolByName(toolName string, config map[string]any, cmd ...*cobra.Command) ([]tool.Tool, func(), error) {
+	def := LookupToolCommand(toolName)
+	if def == nil {
+		return nil, nil, fmt.Errorf("tool %q not found in registry", toolName)
+	}
+
+	// Tool-specific resource setup (e.g., qa-check adds term tools, tm-leverage opens TM).
+	switch toolName {
+	case "qa-check":
+		t, err := def.NewToolFromConfig(config, a.TargetLang)
+		if err != nil {
+			return nil, nil, err
+		}
+		qaTools := []tool.Tool{t}
+		var cleanup func()
 		if tb, tbCleanup, err := a.openTermbase(cmd...); err != nil {
 			return nil, nil, err
 		} else if tb != nil {
@@ -876,15 +951,14 @@ func (a *App) buildFlowTools(flowName string, cmd ...*cobra.Command) ([]tool.Too
 			cleanup = tbCleanup
 		}
 		return qaTools, cleanup, nil
-	case "segmentation":
-		return []tool.Tool{
-			libtools.NewSegmentationTool(&libtools.SegmentationConfig{
-				TargetLocale: model.LocaleID(a.TargetLang),
-			}),
-		}, noop, nil
+
 	case "tm-leverage":
-		var tmProvider libtools.TMProvider = libtools.NullTMProvider{}
-		cleanup := noop
+		tmConfig := map[string]any{
+			"source_locale":   a.SourceLang,
+			"target_locale":   a.TargetLang,
+			"fuzzy_threshold": 70,
+		}
+		var cleanup func()
 		if len(cmd) > 0 && cmd[0] != nil {
 			if tmName, _ := cmd[0].Flags().GetString("tm"); tmName != "" {
 				var tmPath string
@@ -897,25 +971,31 @@ func (a *App) buildFlowTools(flowName string, cmd ...*cobra.Command) ([]tool.Too
 						return nil, nil, fmt.Errorf("resolve TM %q: %w", tmName, err)
 					}
 				}
-				sqltm, err := sqltm.NewSQLiteTM(tmPath)
+				tm, err := sqltm.NewSQLiteTM(tmPath)
 				if err != nil {
 					return nil, nil, fmt.Errorf("open TM %q: %w", tmName, err)
 				}
-				tmProvider = &cliTMProvider{tm: sqltm}
-				cleanup = func() { sqltm.Close() }
+				tmConfig["provider"] = &cliTMProvider{tm: tm}
+				cleanup = func() { tm.Close() }
 			}
 		}
-		return []tool.Tool{
-			libtools.NewTMLeverageTool(&libtools.TMLeverageConfig{
-				SourceLocale:   model.LocaleID(a.SourceLang),
-				TargetLocale:   model.LocaleID(a.TargetLang),
-				FuzzyThreshold: 70,
-				Provider:       tmProvider,
-			}),
-		}, cleanup, nil
-	default:
-		return nil, nil, fmt.Errorf("unknown flow: %q", flowName)
+		t, err := def.NewToolFromConfig(tmConfig, a.TargetLang)
+		if err != nil {
+			return nil, nil, err
+		}
+		return []tool.Tool{t}, cleanup, nil
 	}
+
+	// Default: use the tool's NewToolFromConfig factory.
+	if def.NewToolFromConfig != nil {
+		t, err := def.NewToolFromConfig(config, a.TargetLang)
+		if err != nil {
+			return nil, nil, err
+		}
+		return []tool.Tool{t}, nil, nil
+	}
+
+	return nil, nil, fmt.Errorf("tool %q has no config factory", toolName)
 }
 
 func (a *App) getProvider() aiprovider.LLMProvider {
@@ -933,18 +1013,28 @@ func countStats(parts []*model.Part) *output.FlowStats {
 	return stats
 }
 
-// defaultParallelBlocks returns the default parallel block concurrency for
-// IO-bound flows. Returns 0 (disabled) for CPU-bound flows.
+// defaultParallelBlocks returns the default parallel block concurrency for a
+// flow. Looks up each tool in the flow and returns the max DefaultParallelBlocks
+// from the tool definitions. Returns 0 (sequential) if no tool specifies it.
 func defaultParallelBlocks(flowName string) int {
-	switch flowName {
-	case "ai-translate", "ai-translate-qa":
-		return 5
-	default:
-		return 0
+	for _, def := range flow.BuiltInFlows() {
+		if def.ID == flowName {
+			maxPB := 0
+			for _, n := range def.Nodes {
+				if n.Type != "tool" {
+					continue
+				}
+				if td := LookupToolCommand(n.Name); td != nil && td.DefaultParallelBlocks > maxPB {
+					maxPB = td.DefaultParallelBlocks
+				}
+			}
+			return maxPB
+		}
 	}
+	return 0
 }
 
-// cliTMProvider adapts a CLI SQLite TM to the libtools.TMProvider interface.
+// cliTMProvider adapts a CLI SQLite TM to the tools.TMProvider interface.
 type cliTMProvider struct {
 	tm *sqltm.SQLiteTM
 }

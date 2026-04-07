@@ -107,6 +107,21 @@ func PopulatePlugins(proj *KapiProject, installed []InstalledPlugin) {
 	}
 }
 
+// AllowedFormatSources returns the set of format source names that a project
+// allows. This always includes "built-in". If the project declares plugins,
+// their names are added (e.g., "okapi-bridge"). If the project has no plugins
+// section, only "built-in" is returned.
+//
+// Use this with FormatRegistry.DetectByExtensionForSources to restrict
+// auto-detection to formats the project can actually process.
+func AllowedFormatSources(proj *KapiProject) []string {
+	sources := []string{"built-in"}
+	for name := range proj.Plugins {
+		sources = append(sources, name)
+	}
+	return sources
+}
+
 // --- Version constraint matching ---
 
 // MatchVersionConstraint checks whether an installed version satisfies a

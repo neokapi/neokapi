@@ -19,9 +19,6 @@ export interface ParallelSuggestion {
 // Tools in these categories can safely run in parallel with each other.
 const READ_ONLY_CATEGORIES = new Set(["validate", "enrich"]);
 
-// Categories whose tools modify blocks and thus create ordering dependencies.
-const _MUTATING_CATEGORIES = new Set(["translate", "transform", "convert"]);
-
 /**
  * Analyze a sequential flow and suggest groups of adjacent steps that
  * could safely run in parallel.

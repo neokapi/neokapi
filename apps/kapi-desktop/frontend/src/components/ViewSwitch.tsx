@@ -157,7 +157,7 @@ export function ViewSwitch({
       );
 
     case "tools":
-      return <ToolRunnerPage />;
+      return <ToolRunnerPage tabID={tabID} />;
 
     case "termbases":
       return <TermbasesPage tabID={tabID} />;

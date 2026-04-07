@@ -77,9 +77,11 @@ export interface ToolRunnerPageProps {
   docs?: PluginDocs | null;
   /** Pre-loaded tools for Storybook. */
   tools?: ToolInfo[];
+  /** When set, tools are scoped to the project's declared plugins. */
+  tabID?: string;
 }
 
-export function ToolRunnerPage({ docs: propDocs, tools: propTools }: ToolRunnerPageProps = {}) {
+export function ToolRunnerPage({ docs: propDocs, tools: propTools, tabID }: ToolRunnerPageProps = {}) {
   const [tools, setTools] = useState<ToolInfo[]>(propTools ?? []);
   const [loading, setLoading] = useState(!propTools);
   const [docs] = useState<PluginDocs | null>(propDocs ?? null);
@@ -92,14 +94,15 @@ export function ToolRunnerPage({ docs: propDocs, tools: propTools }: ToolRunnerP
 
   useEffect(() => {
     if (propTools) return;
-    Promise.all([api.listTools(), propDocs ? Promise.resolve(null) : api.getPluginDocsSummary()])
+    const toolsPromise = tabID ? api.listProjectTools(tabID) : api.listTools();
+    Promise.all([toolsPromise, propDocs ? Promise.resolve(null) : api.getPluginDocsSummary()])
       .then(([t, summary]) => {
         if (t) setTools(t);
         if (summary) setDocsSummary(summary);
       })
       .catch((err) => showError("Failed to load tools", err))
       .finally(() => setLoading(false));
-  }, [showError, propDocs, propTools]);
+  }, [showError, propDocs, propTools, tabID]);
 
   // Group tools by category
   const categories = useMemo(() => {

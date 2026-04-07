@@ -542,7 +542,34 @@ type ToolInfo struct {
 
 // ListTools returns all registered tools (built-in + plugin).
 func (a *App) ListTools() []ToolInfo {
-	all := a.toolReg.ListWithSchemas()
+	return a.toolInfosFrom(a.toolReg.ListWithSchemas())
+}
+
+// ListProjectTools returns tools available for a project, filtered by the
+// project's declared plugins. Built-in tools are always included; plugin
+// tools are only included if the project declares the plugin.
+func (a *App) ListProjectTools(tabID string) []ToolInfo {
+	op := a.getOpenProject(tabID)
+	if op == nil {
+		return a.ListTools()
+	}
+	ctx := project.NewProjectContext(op.Project, op.Path)
+	filtered := ctx.AllowedTools(a.toolReg.ListWithSchemas())
+	return a.toolInfosFrom(filtered)
+}
+
+// ValidateProjectFlows checks all flows in a project for tool references
+// that require undeclared plugins. Returns nil if all tools are available.
+func (a *App) ValidateProjectFlows(tabID string) []project.FlowValidationIssue {
+	op := a.getOpenProject(tabID)
+	if op == nil {
+		return nil
+	}
+	ctx := project.NewProjectContext(op.Project, op.Path)
+	return ctx.ValidateFlows(a.toolReg.ListWithSchemas())
+}
+
+func (a *App) toolInfosFrom(all []registry.ToolInfo) []ToolInfo {
 	infos := make([]ToolInfo, len(all))
 	for i, info := range all {
 		infos[i] = ToolInfo{

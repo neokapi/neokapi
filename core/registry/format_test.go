@@ -579,3 +579,50 @@ func TestDetectByExtensionTriggersOnMiss(t *testing.T) {
 	assert.Equal(t, "okf_openxml", name)
 	assert.True(t, called, "onMiss should fire for a missing extension")
 }
+
+func TestDetectByExtensionForSources(t *testing.T) {
+	reg := NewFormatRegistry()
+
+	// Register a built-in JSON format.
+	reg.RegisterReader("json", func() format.DataFormatReader {
+		return newStubReaderWithSig("json", "JSON", []string{"application/json"}, []string{".json"})
+	}, format.FormatSignature{Extensions: []string{".json"}}, "JSON")
+
+	// Register a plugin JSON format (higher priority).
+	reg.RegisterFormatInfo("okf_json", FormatInfo{
+		DisplayName: "Okapi JSON",
+		Extensions:  []string{".json"},
+		Source:      "okapi-bridge",
+		HasReader:   true,
+	})
+	reg.SetFormatPriority("okf_json", format.DefaultPluginPriority)
+
+	// Without source filter: plugin wins (higher priority).
+	name, err := reg.DetectByExtension(".json")
+	require.NoError(t, err)
+	assert.Equal(t, "okf_json", name)
+
+	// With source filter: only built-in allowed.
+	name, err = reg.DetectByExtensionForSources(".json", []string{"built-in"})
+	require.NoError(t, err)
+	assert.Equal(t, "json", name)
+
+	// With source filter including the plugin.
+	name, err = reg.DetectByExtensionForSources(".json", []string{"built-in", "okapi-bridge"})
+	require.NoError(t, err)
+	assert.Equal(t, "okf_json", name, "plugin format should win when its source is allowed")
+
+	// Nil sources = no filter = same as DetectByExtension.
+	name, err = reg.DetectByExtensionForSources(".json", nil)
+	require.NoError(t, err)
+	assert.Equal(t, "okf_json", name)
+
+	// Empty sources = no filter.
+	name, err = reg.DetectByExtensionForSources(".json", []string{})
+	require.NoError(t, err)
+	assert.Equal(t, "okf_json", name)
+
+	// Unknown extension with restrictive filter.
+	_, err = reg.DetectByExtensionForSources(".xyz", []string{"built-in"})
+	assert.Error(t, err)
+}

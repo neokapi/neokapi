@@ -91,6 +91,7 @@ export interface ToolInfo {
   display_name?: string;
   description: string;
   category: string;
+  source?: string;
   has_schema: boolean;
   inputs?: string[];
   outputs?: string[];

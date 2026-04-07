@@ -18,9 +18,14 @@ type RunCmdOptions struct {
 	FallbackRunE func(cmd *cobra.Command, flowName string, args []string) error
 }
 
-// builtinComposedFlowNames lists flows that are genuinely composed (multi-tool).
-var builtinComposedFlowNames = map[string]bool{
-	"ai-translate-qa": true,
+// builtinComposedFlowNames returns the set of composed (multi-tool) flow names.
+// Derived from flow.BuiltInFlows() rather than hardcoded.
+func builtinComposedFlowNames() map[string]bool {
+	names := make(map[string]bool)
+	for _, fi := range builtinComposedFlows() {
+		names[fi.Name] = true
+	}
+	return names
 }
 
 // NewRunCmd creates the "run" command for executing composed flows.
@@ -58,7 +63,7 @@ Use -p to run a flow from a .kapi project file:
 			}
 
 			// Built-in composed flow — run directly.
-			if builtinComposedFlowNames[flowName] {
+			if builtinComposedFlowNames()[flowName] {
 				return a.RunFlow(cmd.Context(), cmd, flowName, flowOpts)
 			}
 
@@ -99,16 +104,22 @@ func (a *App) runFromProject(cmd *cobra.Command, flowName, projectPath string, o
 		return fmt.Errorf("project plugin requirements not met — install missing plugins or adjust version constraints in %s", projectPath)
 	}
 
+	// Create project context to resolve all defaults.
+	ctx := project.NewProjectContext(proj, projectPath)
+
 	// Apply project defaults where CLI flags weren't explicitly set.
-	if !cmd.Flags().Changed("source-lang") && proj.Defaults.SourceLanguage != "" {
-		a.SourceLang = proj.Defaults.SourceLanguage
+	if !cmd.Flags().Changed("source-lang") && ctx.SourceLocale != "" {
+		a.SourceLang = string(ctx.SourceLocale)
 	}
-	if !cmd.Flags().Changed("target-lang") && len(proj.Defaults.TargetLanguages) > 0 {
-		a.TargetLang = proj.Defaults.TargetLanguages[0]
+	if !cmd.Flags().Changed("target-lang") && len(ctx.TargetLocales) > 0 {
+		a.TargetLang = string(ctx.TargetLocales[0])
+	}
+	if !cmd.Flags().Changed("encoding") && ctx.Encoding != "" {
+		a.Encoding = ctx.Encoding
 	}
 
 	// Check if it's a built-in flow first (project can reference built-in flows).
-	if builtinComposedFlowNames[flowName] {
+	if builtinComposedFlowNames()[flowName] {
 		return a.RunFlow(cmd.Context(), cmd, flowName, FlowCmdOptions{
 			FallbackRunE: opts.FallbackRunE,
 		})
@@ -125,9 +136,24 @@ func (a *App) runFromProject(cmd *cobra.Command, flowName, projectPath string, o
 	}
 
 	inputPaths, _ := cmd.Flags().GetStringSlice("input")
+
+	// Resolve content patterns if no --input flag was provided.
 	if len(inputPaths) == 0 {
-		return errors.New("--input (-i) is required (content pattern resolution not yet implemented)")
+		resolved, err := ctx.ResolveContent(a.FormatReg)
+		if err != nil {
+			return fmt.Errorf("resolve content: %w", err)
+		}
+		for _, rf := range resolved {
+			inputPaths = append(inputPaths, rf.Path)
+		}
+		if len(inputPaths) == 0 {
+			return errors.New("no input files found — specify --input (-i) or add content patterns to the project file")
+		}
 	}
+
+	// Store project context for downstream reader/writer configuration.
+	a.projectContext = ctx
+	defer func() { a.projectContext = nil }()
 
 	// Build resource context from project file location.
 	absProjectPath, _ := filepath.Abs(projectPath)

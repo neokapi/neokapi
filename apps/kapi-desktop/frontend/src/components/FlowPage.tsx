@@ -11,9 +11,11 @@ interface FlowPageProps {
   onChange: (spec: FlowSpec) => void;
   onRun?: (flowName: string, spec: FlowSpec) => void;
   readOnly?: boolean;
+  /** When set, tools are scoped to the project's declared plugins. */
+  tabID?: string;
 }
 
-export function FlowPage({ flowName, flow, onChange, onRun, readOnly }: FlowPageProps) {
+export function FlowPage({ flowName, flow, onChange, onRun, readOnly, tabID }: FlowPageProps) {
   const [tools, setTools] = useState<ToolInfo[]>([]);
   const schemasRef = useRef<Record<string, ComponentSchema | null>>({});
   const docsRef = useRef<Record<string, ToolDoc | null>>({});
@@ -21,7 +23,9 @@ export function FlowPage({ flowName, flow, onChange, onRun, readOnly }: FlowPage
   const [, forceUpdate] = useReducer((x: number) => x + 1, 0);
 
   const loadTools = useCallback(() => {
-    void api.listTools().then((result) => {
+    // Use project-scoped tools when in project mode.
+    const promise = tabID ? api.listProjectTools(tabID) : api.listTools();
+    void promise.then((result) => {
       if (result) {
         setTools(
           result.map((t) => ({
@@ -38,7 +42,7 @@ export function FlowPage({ flowName, flow, onChange, onRun, readOnly }: FlowPage
         );
       }
     });
-  }, []);
+  }, [tabID]);
 
   useEffect(() => {
     loadTools();

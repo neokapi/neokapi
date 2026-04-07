@@ -121,6 +121,12 @@ export const api = {
 
   // Tools
   listTools: () => call<ToolInfo[]>("ListTools"),
+  listProjectTools: (tabID: string) => call<ToolInfo[]>("ListProjectTools", tabID),
+  validateProjectFlows: (tabID: string) =>
+    call<Array<{ flow_name: string; step_tool: string; source: string }>>(
+      "ValidateProjectFlows",
+      tabID,
+    ),
   getToolSchema: (name: string) => call<unknown>("GetToolSchema", name),
   listFormats: () => call<FormatInfo[]>("ListFormats"),
   getFormatSchema: (name: string) => call<unknown>("GetFormatSchema", name),

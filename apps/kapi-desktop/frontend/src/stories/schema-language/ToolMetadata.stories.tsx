@@ -26,15 +26,15 @@ function SchemaStory({ schema, description }: { schema: ComponentSchema; descrip
               <span className="text-sm font-semibold">
                 {(meta.displayName as string) || schema.title}
               </span>
-              {meta.category && (
+              {meta.category ? (
                 <span className="rounded-full bg-primary/10 text-primary px-2 py-0.5 text-xs">
-                  {meta.category as string}
+                  {String(meta.category)}
                 </span>
-              )}
+              ) : null}
             </div>
-            {meta.description && (
-              <p className="text-sm text-muted-foreground">{meta.description as string}</p>
-            )}
+            {meta.description ? (
+              <p className="text-sm text-muted-foreground">{String(meta.description)}</p>
+            ) : null}
             <div className="flex flex-wrap gap-2 text-xs">
               {(meta.inputs as string[])?.map((i: string) => (
                 <span key={i} className="rounded bg-muted px-1.5 py-0.5">

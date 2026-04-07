@@ -43,72 +43,20 @@ func (a *App) MatchContent(tabID string) ([]FileMatch, error) {
 		return nil, nil
 	}
 
-	basePath := a.GetBasePath(tabID)
-	if basePath == "" {
-		return nil, nil
+	ctx := project.NewProjectContext(op.Project, op.Path)
+	resolved, err := ctx.ResolveContent(a.formatReg)
+	if err != nil {
+		return nil, err
 	}
 
-	ig := ignore.ForProjectDir(basePath)
-
-	var matches []FileMatch
-	for _, coll := range op.Project.Content {
-		collName := coll.Name
-		for _, item := range coll.EffectiveItems() {
-			if item.Path == "" {
-				continue
-			}
-
-			// Reject patterns that escape the project root.
-			if strings.Contains(item.Path, "..") {
-				continue
-			}
-
-			// Reject absolute paths.
-			if filepath.IsAbs(item.Path) {
-				continue
-			}
-
-			pattern := filepath.Join(basePath, item.Path)
-			files, err := filepath.Glob(pattern)
-			if err != nil {
-				continue
-			}
-
-			for _, f := range files {
-				info, err := os.Stat(f)
-				if err != nil || info.IsDir() {
-					continue
-				}
-
-				// Verify the resolved file is within the project root.
-				absFile, _ := filepath.Abs(f)
-				absBase, _ := filepath.Abs(basePath)
-				if !strings.HasPrefix(absFile, absBase+string(filepath.Separator)) {
-					continue
-				}
-
-				rel, _ := filepath.Rel(basePath, f)
-
-				// Skip ignored files.
-				if ig.Match(filepath.ToSlash(rel), false) {
-					continue
-				}
-
-				format := ""
-				if item.Format != nil {
-					format = item.Format.Name
-				}
-				if format == "" {
-					format = detectFormatByExtension(f)
-				}
-				matches = append(matches, FileMatch{
-					Path:       f,
-					Format:     format,
-					Relative:   rel,
-					Pattern:    item.Path,
-					Collection: collName,
-				})
-			}
+	matches := make([]FileMatch, len(resolved))
+	for i, rf := range resolved {
+		matches[i] = FileMatch{
+			Path:       rf.Path,
+			Format:     rf.Format,
+			Relative:   rf.Relative,
+			Pattern:    rf.Pattern,
+			Collection: rf.Collection,
 		}
 	}
 	return matches, nil
@@ -174,18 +122,26 @@ func (a *App) IsEmptyProject(tabID string) bool {
 
 // ListProjectFiles returns all files in the project directory recursively.
 // Files matching .kapiignore / KAPI_IGNORE patterns are excluded.
+// Format detection is scoped to the project's declared plugins.
 func (a *App) ListProjectFiles(tabID string) ([]ProjectFileInfo, error) {
+	op := a.getOpenProject(tabID)
 	basePath := a.GetBasePath(tabID)
 	if basePath == "" {
 		return nil, nil
 	}
+
+	// Use project-scoped format detection when a project is available.
+	var ctx *project.ProjectContext
+	if op != nil {
+		ctx = project.NewProjectContext(op.Project, op.Path)
+	}
+
 	ig := ignore.ForProjectDir(basePath)
 	var files []ProjectFileInfo
 	err := filepath.Walk(basePath, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return nil
 		}
-		// Always skip hidden entries.
 		if strings.HasPrefix(info.Name(), ".") {
 			if info.IsDir() {
 				return filepath.SkipDir
@@ -209,7 +165,11 @@ func (a *App) ListProjectFiles(tabID string) ([]ProjectFileInfo, error) {
 			IsDir:    info.IsDir(),
 		}
 		if !info.IsDir() {
-			pf.Format = detectFormatByExtension(path)
+			if ctx != nil {
+				pf.Format = ctx.DetectFormat(a.formatReg, path)
+			} else {
+				pf.Format = a.DetectFormat(path)
+			}
 		}
 		files = append(files, pf)
 		return nil
@@ -318,32 +278,3 @@ func (a *App) AddFilesDialog(tabID, destDir string) ([]string, error) {
 	return results, nil
 }
 
-func detectFormatByExtension(path string) string {
-	ext := strings.ToLower(filepath.Ext(path))
-	switch ext {
-	case ".json":
-		return "json"
-	case ".xliff", ".xlf":
-		return "xliff"
-	case ".po":
-		return "po"
-	case ".properties":
-		return "java-properties"
-	case ".yaml", ".yml":
-		return "yaml"
-	case ".xml":
-		return "xml"
-	case ".html", ".htm":
-		return "html"
-	case ".md", ".markdown":
-		return "markdown"
-	case ".txt":
-		return "plaintext"
-	case ".ts", ".tsx":
-		return "typescript"
-	case ".csv":
-		return "csv"
-	default:
-		return ""
-	}
-}

@@ -268,6 +268,56 @@ func (r *FormatRegistry) DetectByExtension(ext string) (string, error) {
 	return "", fmt.Errorf("no format found for extension %q", ext)
 }
 
+// DetectByExtensionForSources detects a format by extension, restricted to
+// formats whose Source matches one of the allowed sources. Pass nil or empty
+// to allow all sources (equivalent to DetectByExtension).
+//
+// This enables project-scoped format detection: a project that doesn't declare
+// a plugin should not auto-detect plugin-provided formats. Pass
+// []string{"built-in"} to restrict to built-in formats only, or
+// []string{"built-in", "okapi-bridge"} to also include that plugin's formats.
+func (r *FormatRegistry) DetectByExtensionForSources(ext string, allowedSources []string) (string, error) {
+	if len(allowedSources) == 0 {
+		return r.DetectByExtension(ext)
+	}
+	allowed := make(map[string]bool, len(allowedSources))
+	for _, s := range allowedSources {
+		allowed[s] = true
+	}
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	ext = strings.ToLower(ext)
+	if ext == "" {
+		return "", fmt.Errorf("empty extension")
+	}
+
+	bestName := ""
+	bestPriority := -1
+	for name, info := range r.infos {
+		source := info.Source
+		if source == "" {
+			source = "built-in"
+		}
+		if !allowed[source] {
+			continue
+		}
+		for _, e := range info.Extensions {
+			if strings.ToLower(e) == ext {
+				pri := r.detector.Priority(name)
+				if bestName == "" || pri > bestPriority || (pri == bestPriority && name < bestName) {
+					bestName = name
+					bestPriority = pri
+				}
+			}
+		}
+	}
+	if bestName != "" {
+		return bestName, nil
+	}
+	return "", fmt.Errorf("no format found for extension %q with allowed sources", ext)
+}
+
 // NewReader creates a new reader instance for the given format name.
 // If the name contains "@", it looks up the exact versioned name.
 // If the bare name is not found, it scans for versioned entries and

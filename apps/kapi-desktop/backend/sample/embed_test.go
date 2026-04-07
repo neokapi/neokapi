@@ -26,14 +26,51 @@ func TestScaffoldKapiMart(t *testing.T) {
 	dir := t.TempDir()
 	require.NoError(t, Scaffold("kapimart", dir))
 
-	assertScaffoldedProject(t, dir, "KapiMart")
+	// Validate project file.
+	proj, err := project.Load(filepath.Join(dir, "project.kapi"))
+	require.NoError(t, err)
+	assert.Equal(t, "KapiMart", proj.Name)
+	assert.Equal(t, "en-US", proj.Defaults.SourceLanguage)
+	assert.Equal(t, []string{"de-DE", "fr-FR", "ja-JP", "nb-NO", "ar-SA"}, proj.Defaults.TargetLanguages)
+
+	// 4 named content collections.
+	require.Len(t, proj.Content, 4)
+	assert.Equal(t, "Website", proj.Content[0].Name)
+	assert.Equal(t, "Online Store", proj.Content[1].Name)
+	assert.Equal(t, "Contracts", proj.Content[2].Name)
+	assert.Equal(t, "Templates", proj.Content[3].Name)
+
+	// 3 flows.
+	assert.NotEmpty(t, proj.Flows)
+
+	// Check input file counts per collection.
+	assertDirCount(t, filepath.Join(dir, "input", "docs"), 7)
+	assertDirCount(t, filepath.Join(dir, "input", "store"), 5)
+	assertDirCount(t, filepath.Join(dir, "input", "contracts"), 2)
+	assertDirCount(t, filepath.Join(dir, "input", "templates"), 2)
+
+	// Output directory should exist.
+	_, err = os.Stat(filepath.Join(dir, "output"))
+	assert.NoError(t, err)
+
+	// TM should have 1000+ entries (200 TUs × 5 targets + enriched).
+	tm, err := sievepen.NewSQLiteTM(filepath.Join(dir, ".kapi", "tm.db"))
+	require.NoError(t, err)
+	defer tm.Close()
+	assert.GreaterOrEqual(t, tm.Count(), 1000, "TM should have at least 1000 entries")
+
+	// Termbase should have 100+ concepts.
+	tb, err := termbase.NewSQLiteTermBase(filepath.Join(dir, ".kapi", "termbase.db"))
+	require.NoError(t, err)
+	defer tb.Close()
+	assert.GreaterOrEqual(t, tb.Count(), 100, "termbase should have at least 100 concepts")
 }
 
 func TestScaffoldOkapiMart(t *testing.T) {
 	dir := t.TempDir()
 	require.NoError(t, Scaffold("okapimart", dir))
 
-	assertScaffoldedProject(t, dir, "OkapiMart")
+	assertOkapiMartProject(t, dir)
 
 	// OkapiMart should require the okapi-bridge plugin.
 	proj, err := project.Load(filepath.Join(dir, "project.kapi"))
@@ -47,18 +84,18 @@ func TestScaffoldUnknown(t *testing.T) {
 	assert.Contains(t, err.Error(), "unknown sample project")
 }
 
-func assertScaffoldedProject(t *testing.T, dir, expectedName string) {
+// assertOkapiMartProject validates the OkapiMart v1 project structure.
+func assertOkapiMartProject(t *testing.T, dir string) {
 	t.Helper()
 
-	// project.kapi should be valid.
 	proj, err := project.Load(filepath.Join(dir, "project.kapi"))
 	require.NoError(t, err)
-	assert.Equal(t, expectedName, proj.Name)
+	assert.Equal(t, "OkapiMart", proj.Name)
 	assert.Equal(t, "en-US", proj.Defaults.SourceLanguage)
 	assert.Equal(t, []string{"fr-FR", "de-DE", "ja-JP"}, proj.Defaults.TargetLanguages)
 	assert.NotEmpty(t, proj.Flows)
 
-	// Input files should exist.
+	// v1 shared input files.
 	expectedFiles := []string{
 		"store-ui.json",
 		"product-catalog.yaml",
@@ -74,21 +111,23 @@ func assertScaffoldedProject(t *testing.T, dir, expectedName string) {
 		assert.NoError(t, err, "missing input file: %s", f)
 	}
 
-	// Output directory should exist.
 	_, err = os.Stat(filepath.Join(dir, "output"))
 	assert.NoError(t, err)
 
-	// TM should be seeded.
-	tmPath := filepath.Join(dir, ".kapi", "tm.db")
-	tm, err := sievepen.NewSQLiteTM(tmPath)
+	tm, err := sievepen.NewSQLiteTM(filepath.Join(dir, ".kapi", "tm.db"))
 	require.NoError(t, err)
 	defer tm.Close()
 	assert.Greater(t, tm.Count(), 0, "TM should have entries")
 
-	// Termbase should be seeded.
-	tbPath := filepath.Join(dir, ".kapi", "termbase.db")
-	tb, err := termbase.NewSQLiteTermBase(tbPath)
+	tb, err := termbase.NewSQLiteTermBase(filepath.Join(dir, ".kapi", "termbase.db"))
 	require.NoError(t, err)
 	defer tb.Close()
 	assert.Greater(t, tb.Count(), 0, "termbase should have concepts")
+}
+
+func assertDirCount(t *testing.T, dir string, expectedCount int) {
+	t.Helper()
+	entries, err := os.ReadDir(dir)
+	require.NoError(t, err, "directory should exist: %s", dir)
+	assert.Len(t, entries, expectedCount, "file count in %s", dir)
 }

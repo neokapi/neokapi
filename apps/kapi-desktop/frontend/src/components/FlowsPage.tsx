@@ -126,7 +126,7 @@ export function FlowsPage({
   );
 
   // Debounce persistence — update local state immediately, save to backend after 500ms idle.
-  const saveTimerRef = useRef<ReturnType<typeof setTimeout>>();
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   const handleFlowChange = useCallback(
     (spec: FlowSpec) => {
@@ -282,7 +282,6 @@ export function FlowsPage({
         } else {
           await api.deleteUserFlow(item.id);
         }
-        setDeleteConfirm(null);
         if (selectedId === item.id) {
           setSelectedId(null);
           setSelectedSpec(null);
@@ -388,6 +387,7 @@ export function FlowsPage({
             onChange={isReadOnly ? () => {} : handleFlowChange}
             onRun={undefined}
             readOnly={isReadOnly}
+            tabID={tabID}
           />
         </div>
       </div>

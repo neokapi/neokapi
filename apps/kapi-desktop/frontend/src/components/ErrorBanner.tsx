@@ -118,7 +118,7 @@ function ErrorBannerItem({
   const [expanded, setExpanded] = useState(false);
   const [copied, setCopied] = useState(false);
   const hovering = useRef(false);
-  const timerRef = useRef<ReturnType<typeof setTimeout>>();
+  const timerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   const startTimer = useCallback(() => {
     clearTimeout(timerRef.current);

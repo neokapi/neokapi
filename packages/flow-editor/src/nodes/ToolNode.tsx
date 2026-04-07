@@ -108,7 +108,7 @@ export function ToolNode({ data, selected }: NodeProps) {
             {style.label}
           </span>
           {isParallel && (
-            <GitBranch size={10} className="text-accent ml-auto" title="Runs in parallel" />
+            <GitBranch size={10} className="text-accent ml-auto" aria-label="Runs in parallel" />
           )}
           {hasConfig && !isParallel && (
             <Settings2 size={10} className="text-muted-foreground ml-auto" />

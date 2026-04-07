@@ -22,6 +22,9 @@ type ToolCommandDef struct {
 	Category          string // e.g. "translation", "quality", "analysis", "text-processing"
 	WritesOutput      bool
 	DefaultTargetLang string
+	// DefaultParallelBlocks is the number of blocks to process in parallel
+	// for IO-bound tools (e.g., AI-powered). 0 means sequential.
+	DefaultParallelBlocks int
 
 	// NewTool creates the tool. It receives the resolved target language and
 	// the cobra command so it can read tool-specific flags.
@@ -43,18 +46,35 @@ type ToolCommandDef struct {
 	AddFlags func(cmd *cobra.Command)
 }
 
+// LookupToolCommand finds a ToolCommandDef by name or alias. Returns nil if not found.
+func LookupToolCommand(name string) *ToolCommandDef {
+	for i := range BuiltinToolCommands {
+		def := &BuiltinToolCommands[i]
+		if def.Use == name {
+			return def
+		}
+		for _, alias := range def.Aliases {
+			if alias == name {
+				return def
+			}
+		}
+	}
+	return nil
+}
+
 // BuiltinToolCommands lists all tools exposed as top-level CLI commands.
 // Internal pipeline tools (layer-processor, span-classify, etc.) are excluded.
 var BuiltinToolCommands = []ToolCommandDef{
 	// ── Translation ─────────────────────────────────────────────────
 
 	{
-		Use:          "ai-translate",
-		Aliases:      []string{"translate"},
-		Short:        "Translate content using AI/LLM",
-		Category:     "translation",
-		WritesOutput: true,
-		Schema:       aitools.AITranslateSchema(),
+		Use:                   "ai-translate",
+		Aliases:               []string{"translate"},
+		Short:                 "Translate content using AI/LLM",
+		Category:              "translation",
+		WritesOutput:          true,
+		DefaultParallelBlocks: 5,
+		Schema:                aitools.AITranslateSchema(),
 		NewToolFromConfig: func(config map[string]any, targetLang string) (tool.Tool, error) {
 			return aitools.NewAITranslateFromConfig(config, targetLang)
 		},
@@ -106,20 +126,22 @@ var BuiltinToolCommands = []ToolCommandDef{
 		},
 	},
 	{
-		Use:          "ai-qa",
-		Short:        "Check translation quality using AI/LLM",
-		Category:     "quality",
-		WritesOutput: true,
+		Use:                   "ai-qa",
+		Short:                 "Check translation quality using AI/LLM",
+		Category:              "quality",
+		WritesOutput:          true,
+		DefaultParallelBlocks: 5,
 		Schema:       aitools.AIQASchema(),
 		NewToolFromConfig: func(config map[string]any, targetLang string) (tool.Tool, error) {
 			return aitools.NewAIQAFromConfig(config, targetLang)
 		},
 	},
 	{
-		Use:          "ai-review",
-		Short:        "Review translations with scoring using AI/LLM",
-		Category:     "quality",
-		WritesOutput: true,
+		Use:                   "ai-review",
+		Short:                 "Review translations with scoring using AI/LLM",
+		Category:              "quality",
+		WritesOutput:          true,
+		DefaultParallelBlocks: 5,
 		Schema:       aitools.AIReviewSchema(),
 		NewToolFromConfig: func(config map[string]any, targetLang string) (tool.Tool, error) {
 			return aitools.NewAIReviewFromConfig(config, targetLang)
