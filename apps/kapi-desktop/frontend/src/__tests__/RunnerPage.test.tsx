@@ -4,6 +4,7 @@ import { RunnerPage } from "../components/RunnerPage";
 
 describe("RunnerPage", () => {
   const defaultProps = {
+    tabID: "test-tab",
     flowName: "translate",
     flow: {
       steps: [{ tool: "ai-translate" }, { tool: "qa-check" }],

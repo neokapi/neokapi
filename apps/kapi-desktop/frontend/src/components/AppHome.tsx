@@ -60,8 +60,8 @@ export function AppHome({
             >
               <div className="text-sm font-medium">KapiMart</div>
               <p className="mt-1 text-xs text-muted-foreground font-normal">
-                A sample store using Kapi's built-in Go formats — JSON, HTML, Markdown, and more. No
-                plugins needed.
+                A realistic localization project with docs, store UI, Office documents, and templates
+                — 4 content collections, 5 target languages, 1000+ TM entries. No plugins needed.
               </p>
             </Button>
             <Button

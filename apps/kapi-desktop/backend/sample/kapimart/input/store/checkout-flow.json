@@ -1,0 +1,127 @@
+{
+  "steps": [
+    {
+      "id": "cart_review",
+      "title": "Review Your Cart",
+      "description": "Check the items in your cart before proceeding.",
+      "actions": {
+        "next": "Continue to Shipping",
+        "back": "Back to Shopping"
+      },
+      "labels": {
+        "item_count": "{count} items in your cart",
+        "subtotal": "Subtotal",
+        "discount": "Discount",
+        "empty_state": "Your cart is empty. Start shopping to add items."
+      }
+    },
+    {
+      "id": "shipping",
+      "title": "Shipping Information",
+      "description": "Enter your delivery address and choose a shipping method.",
+      "actions": {
+        "next": "Continue to Payment",
+        "back": "Back to Cart"
+      },
+      "fields": {
+        "full_name": "Full Name",
+        "address_line_1": "Street Address",
+        "address_line_2": "Apartment, suite, or unit (optional)",
+        "city": "City",
+        "state": "State / Province",
+        "postal_code": "Postal Code",
+        "country": "Country",
+        "phone": "Phone Number"
+      },
+      "shipping_methods": {
+        "standard": {
+          "label": "Standard Shipping",
+          "description": "Delivered in 5-7 business days",
+          "price_label": "Free on orders over {threshold}"
+        },
+        "express": {
+          "label": "Express Shipping",
+          "description": "Delivered in 2-3 business days"
+        },
+        "overnight": {
+          "label": "Overnight Shipping",
+          "description": "Delivered by next business day"
+        }
+      },
+      "validation": {
+        "name_required": "Please enter your full name.",
+        "address_required": "Please enter your street address.",
+        "city_required": "Please enter your city.",
+        "postal_required": "Please enter a valid postal code.",
+        "country_required": "Please select your country.",
+        "phone_required": "A phone number is required for delivery."
+      }
+    },
+    {
+      "id": "payment",
+      "title": "Payment Details",
+      "description": "Choose your payment method and enter your details.",
+      "actions": {
+        "next": "Review Order",
+        "back": "Back to Shipping"
+      },
+      "methods": {
+        "credit_card": {
+          "label": "Credit or Debit Card",
+          "fields": {
+            "card_number": "Card Number",
+            "expiry": "Expiration Date (MM/YY)",
+            "cvv": "Security Code (CVV)",
+            "cardholder": "Name on Card"
+          }
+        },
+        "paypal": {
+          "label": "PayPal",
+          "description": "You will be redirected to PayPal to complete your purchase."
+        },
+        "bank_transfer": {
+          "label": "Bank Transfer",
+          "description": "Pay directly from your bank account. Processing may take 1-2 business days."
+        }
+      },
+      "validation": {
+        "card_invalid": "Please enter a valid card number.",
+        "expiry_invalid": "Please enter a valid expiration date.",
+        "cvv_invalid": "Please enter the 3-digit security code from the back of your card."
+      }
+    },
+    {
+      "id": "review",
+      "title": "Review and Confirm",
+      "description": "Review your order details before placing your order.",
+      "actions": {
+        "confirm": "Place Order",
+        "back": "Back to Payment"
+      },
+      "labels": {
+        "items": "Items",
+        "shipping_address": "Ships to",
+        "shipping_method": "Shipping Method",
+        "payment_method": "Payment",
+        "subtotal": "Subtotal",
+        "shipping": "Shipping",
+        "tax": "Tax",
+        "total": "Order Total",
+        "terms_agreement": "By placing your order, you agree to our Terms of Service and Privacy Policy.",
+        "processing": "Processing your order..."
+      }
+    },
+    {
+      "id": "confirmation",
+      "title": "Order Confirmed!",
+      "description": "Your order has been placed successfully.",
+      "labels": {
+        "order_number": "Order Number",
+        "confirmation_email": "A confirmation email has been sent to {email}.",
+        "estimated_delivery": "Estimated delivery: {date}",
+        "continue_shopping": "Continue Shopping",
+        "view_order": "View Order Details"
+      }
+    }
+  ]
+}

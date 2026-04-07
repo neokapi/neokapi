@@ -7,6 +7,7 @@ import (
 
 	"github.com/neokapi/neokapi/cli"
 	"github.com/neokapi/neokapi/core/formats"
+	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/registry"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -217,4 +218,87 @@ func TestHandleRunFlowUnknown(t *testing.T) {
 	})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "unknown flow")
+}
+
+func TestHandleRunFlowWithProject(t *testing.T) {
+	a := testApp()
+	ctx := t.Context()
+
+	// Create a temp project with a content pattern and a flow.
+	dir := t.TempDir()
+	inputDir := filepath.Join(dir, "input")
+	require.NoError(t, os.MkdirAll(inputDir, 0o755))
+	require.NoError(t, os.WriteFile(
+		filepath.Join(inputDir, "test.json"),
+		[]byte(`{"greeting": "Hello World"}`),
+		0o644,
+	))
+
+	proj := &project.KapiProject{
+		Version: "v1",
+		Defaults: project.Defaults{
+			SourceLanguage:  "en-US",
+			TargetLanguages: []string{"qps"},
+		},
+		Content: []project.ContentCollection{
+			{Path: "input/*.json"},
+		},
+	}
+	kapiPath := filepath.Join(dir, "project.kapi")
+	require.NoError(t, project.Save(kapiPath, proj))
+
+	tmpDir := t.TempDir()
+	outputPath := filepath.Join(tmpDir, "output.json")
+
+	// Run pseudo-translate via project mode — should resolve content from project.
+	_, out, err := handleRunFlow(ctx, a, RunFlowInput{
+		FlowName:   "pseudo-translate",
+		Project:    kapiPath,
+		OutputPath: outputPath,
+	})
+	require.NoError(t, err)
+	assert.Equal(t, "pseudo-translate", out.FlowName)
+	assert.NotEmpty(t, out.InputPath)
+	assert.Equal(t, outputPath, out.OutputPath)
+
+	content, err := os.ReadFile(outputPath)
+	require.NoError(t, err)
+	assert.NotEmpty(t, content)
+}
+
+func TestHandleRunFlowWithProjectDefaults(t *testing.T) {
+	a := testApp()
+	ctx := t.Context()
+
+	dir := t.TempDir()
+	inputDir := filepath.Join(dir, "input")
+	require.NoError(t, os.MkdirAll(inputDir, 0o755))
+	require.NoError(t, os.WriteFile(
+		filepath.Join(inputDir, "test.json"),
+		[]byte(`{"msg": "Test"}`),
+		0o644,
+	))
+
+	// Project provides target language — no need to pass in input.
+	proj := &project.KapiProject{
+		Version: "v1",
+		Defaults: project.Defaults{
+			SourceLanguage:  "en-US",
+			TargetLanguages: []string{"qps"},
+		},
+	}
+	kapiPath := filepath.Join(dir, "project.kapi")
+	require.NoError(t, project.Save(kapiPath, proj))
+
+	tmpDir := t.TempDir()
+	outputPath := filepath.Join(tmpDir, "out.json")
+
+	_, out, err := handleRunFlow(ctx, a, RunFlowInput{
+		FlowName:   "pseudo-translate",
+		Path:       filepath.Join(inputDir, "test.json"),
+		Project:    kapiPath,
+		OutputPath: outputPath,
+	})
+	require.NoError(t, err)
+	assert.Equal(t, "pseudo-translate", out.FlowName)
 }

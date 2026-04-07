@@ -257,8 +257,8 @@ export function TermbasesPage({
                   />
                   <YAxis width={40} className="text-[10px]" />
                   <Tooltip
-                    labelFormatter={(v: string) => new Date(v).toLocaleDateString()}
-                    formatter={(v: number) => [`${v} concepts`, "Concepts"]}
+                    labelFormatter={(v) => new Date(String(v)).toLocaleDateString()}
+                    formatter={(v) => [`${v} concepts`, "Concepts"]}
                   />
                   <Area
                     type="monotone"

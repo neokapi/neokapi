@@ -36,11 +36,11 @@ function toPlain(p: KapiProject): KapiProject {
   return JSON.parse(JSON.stringify(p));
 }
 
-function makeTravels(initial: KapiProject): Travels<KapiProject> {
+function makeTravels(initial: KapiProject) {
   return createTravels(toPlain(initial), {
     maxHistory: MAX_UNDO,
     autoArchive: false,
-  }) as Travels<KapiProject>;
+  }) as unknown as Travels<KapiProject, false, true>;
 }
 
 /**
@@ -56,7 +56,7 @@ export function useProjectHistory(
   tabId: string | null,
 ): ProjectHistory {
   // Persistent map of Travels instances and saved snapshots per tab.
-  const instancesRef = useRef(new Map<string, Travels<KapiProject>>());
+  const instancesRef = useRef(new Map<string, Travels<KapiProject, false, true>>());
   const savedMapRef = useRef(new Map<string, string>());
   const tabIdRef = useRef(tabId);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -81,7 +81,12 @@ export function useProjectHistory(
     setActiveInstance(instancesRef.current.get(key)!);
   }
 
-  const [state, setState, controls] = useTravelStore(activeInstance);
+  const [state, setState, rawControls] = useTravelStore(activeInstance);
+  // Cast to manual controls — autoArchive is false so canArchive/archive are available.
+  const controls = rawControls as typeof rawControls & {
+    canArchive: () => boolean;
+    archive: () => void;
+  };
 
   const scheduleArchive = useCallback(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);

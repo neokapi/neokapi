@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>KapiMart Email Templates</title>
+</head>
+<body>
+
+<!-- ORDER CONFIRMATION -->
+<div id="order-confirmation">
+  <h1>Thank you for your order!</h1>
+  <p>Hi <strong>{customer_name}</strong>,</p>
+  <p>We've received your order <strong>#{order_number}</strong> and it's being prepared for shipment.</p>
+  <h2>Order Summary</h2>
+  <p>Here's a summary of what you ordered:</p>
+  <table>
+    <tr><th>Item</th><th>Qty</th><th>Price</th></tr>
+    <tr><td>{item_name}</td><td>{item_qty}</td><td>{item_price}</td></tr>
+  </table>
+  <p><strong>Subtotal:</strong> {subtotal}</p>
+  <p><strong>Shipping:</strong> {shipping_cost}</p>
+  <p><strong>Total:</strong> {order_total}</p>
+  <p>We'll send you a shipping confirmation with tracking details once your package is on its way.</p>
+  <p>If you have any questions about your order, please don't hesitate to <a href="mailto:support@kapimart.com">contact our support team</a>.</p>
+  <p>Thank you for shopping with KapiMart!</p>
+</div>
+
+<!-- SHIPPING NOTIFICATION -->
+<div id="shipping-notification">
+  <h1>Your order is on its way!</h1>
+  <p>Hi <strong>{customer_name}</strong>,</p>
+  <p>Great news! Your order <strong>#{order_number}</strong> has been shipped and is on its way to you.</p>
+  <h2>Tracking Information</h2>
+  <p><strong>Carrier:</strong> {carrier_name}</p>
+  <p><strong>Tracking Number:</strong> <a href="{tracking_url}">{tracking_number}</a></p>
+  <p><strong>Estimated Delivery:</strong> {delivery_date}</p>
+  <h2>Shipping Address</h2>
+  <p>{shipping_address}</p>
+  <p>You can track your package at any time by visiting your <a href="https://kapimart.com/orders">order history</a>.</p>
+  <p>Thank you for choosing KapiMart!</p>
+</div>
+
+<!-- WELCOME EMAIL -->
+<div id="welcome-email">
+  <h1>Welcome to KapiMart!</h1>
+  <p>Hi <strong>{customer_name}</strong>,</p>
+  <p>Welcome aboard! We're excited to have you as part of the KapiMart community.</p>
+  <p>Here's what you can do with your new account:</p>
+  <ul>
+    <li><strong>Browse thousands of products</strong> across electronics, home goods, and more.</li>
+    <li><strong>Save your favorites</strong> to your wishlist and get notified about price drops.</li>
+    <li><strong>Track your orders</strong> in real time from your account dashboard.</li>
+    <li><strong>Earn loyalty points</strong> on every purchase and redeem them for discounts.</li>
+  </ul>
+  <p>To get started, check out our <a href="https://kapimart.com/deals">latest deals</a> or explore our <a href="https://kapimart.com/new">new arrivals</a>.</p>
+  <p>If you need any help, our support team is available 24/7 at <a href="mailto:support@kapimart.com">support@kapimart.com</a>.</p>
+  <p>Happy shopping!</p>
+  <p>The KapiMart Team</p>
+</div>
+
+<!-- PASSWORD RESET -->
+<div id="password-reset">
+  <h1>Reset Your Password</h1>
+  <p>Hi <strong>{customer_name}</strong>,</p>
+  <p>We received a request to reset the password for your KapiMart account.</p>
+  <p>Click the button below to create a new password:</p>
+  <p><a href="{reset_url}" style="background-color: #4F46E5; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px;">Reset Password</a></p>
+  <p>This link will expire in 24 hours. If you didn't request a password reset, you can safely ignore this email.</p>
+  <p>For security reasons, never share this link with anyone.</p>
+  <p>Best regards,<br>The KapiMart Security Team</p>
+</div>
+
+</body>
+</html>

@@ -1,0 +1,128 @@
+categories:
+  - slug: electronics
+    name: Electronics
+    description: The latest gadgets and devices for your connected lifestyle.
+  - slug: audio
+    name: Audio
+    description: Headphones, speakers, and audio accessories for every occasion.
+  - slug: home
+    name: Home & Living
+    description: Everything you need to make your house a home.
+  - slug: outdoor
+    name: Outdoor & Travel
+    description: Gear and accessories for your next adventure.
+  - slug: accessories
+    name: Accessories
+    description: Phone cases, chargers, cables, and more.
+
+products:
+  - id: prod_001
+    name: "Wireless Noise-Cancelling Headphones"
+    description: "Premium over-ear headphones with active noise cancellation and 30-hour battery life. Perfect for commuters and remote workers."
+    category: audio
+    price: 7999
+    currency: USD
+    tags: [featured, best-seller]
+
+  - id: prod_002
+    name: "Portable Bluetooth Speaker"
+    description: "Waterproof speaker with 360-degree sound and 12-hour playback. Take your music anywhere."
+    category: audio
+    price: 4999
+    currency: USD
+    tags: [new-arrival]
+
+  - id: prod_003
+    name: "Smart Home Hub"
+    description: "Control your lights, thermostat, and security cameras from a single device. Works with all major smart home ecosystems."
+    category: electronics
+    price: 12999
+    currency: USD
+    tags: [featured]
+
+  - id: prod_004
+    name: "Ergonomic Desk Lamp"
+    description: "Adjustable LED desk lamp with five brightness levels and a built-in USB charging port."
+    category: home
+    price: 3499
+    currency: USD
+
+  - id: prod_005
+    name: "Travel Backpack"
+    description: "Lightweight, expandable backpack with a padded laptop compartment and anti-theft zippers."
+    category: outdoor
+    price: 8999
+    currency: USD
+    tags: [new-arrival]
+
+  - id: prod_006
+    name: "Wireless Charging Pad"
+    description: "Fast wireless charger compatible with all Qi-enabled devices. Sleek, minimalist design."
+    category: accessories
+    price: 1999
+    currency: USD
+
+  - id: prod_007
+    name: "Fitness Tracker Watch"
+    description: "Track your steps, heart rate, and sleep quality. Water-resistant with a 7-day battery life."
+    category: electronics
+    price: 5999
+    currency: USD
+    tags: [best-seller]
+
+  - id: prod_008
+    name: "Insulated Water Bottle"
+    description: "Double-wall vacuum insulation keeps drinks cold for 24 hours or hot for 12 hours."
+    category: outdoor
+    price: 2499
+    currency: USD
+
+  - id: prod_009
+    name: "Mechanical Keyboard"
+    description: "Compact 75% layout with hot-swappable switches and customizable RGB backlighting."
+    category: electronics
+    price: 9499
+    currency: USD
+
+  - id: prod_010
+    name: "Scented Candle Set"
+    description: "Set of three hand-poured soy candles in lavender, vanilla, and sandalwood."
+    category: home
+    price: 2999
+    currency: USD
+
+  - id: prod_011
+    name: "USB-C Hub Adapter"
+    description: "7-in-1 hub with HDMI, USB-A, SD card reader, and 100W power delivery pass-through."
+    category: accessories
+    price: 3999
+    currency: USD
+
+  - id: prod_012
+    name: "Hiking Daypack"
+    description: "20-liter daypack with hydration bladder compatibility and reflective safety strips."
+    category: outdoor
+    price: 5499
+    currency: USD
+
+  - id: prod_013
+    name: "Wireless Earbuds"
+    description: "True wireless earbuds with active noise cancellation, transparency mode, and 8 hours of playback."
+    category: audio
+    price: 6499
+    currency: USD
+    tags: [featured, new-arrival]
+
+  - id: prod_014
+    name: "Smart Plug Bundle"
+    description: "Pack of four Wi-Fi smart plugs with energy monitoring and voice assistant support."
+    category: home
+    price: 3999
+    currency: USD
+
+  - id: prod_015
+    name: "Laptop Sleeve"
+    description: "Slim, shock-absorbing sleeve for laptops up to 15 inches. Available in five colors."
+    category: accessories
+    price: 1499
+    currency: USD

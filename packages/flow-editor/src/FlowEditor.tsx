@@ -122,14 +122,6 @@ function ParallelSuggestionBanner({
   );
 }
 
-function _EmptyFlowMessage() {
-  return (
-    <div className="flex flex-col items-center justify-center h-full text-muted-foreground text-sm gap-2">
-      <p>Add tools from the palette to build your flow.</p>
-    </div>
-  );
-}
-
 interface StepConfigPanelProps {
   step: { tool: string };
   toolInfo: ToolInfo | null | undefined;
@@ -160,7 +152,7 @@ function StepConfigPanel({
   // Local config state -- owns the values to prevent parent re-renders from
   // resetting inputs. Syncs to parent via debounced onConfigChange.
   const [localConfig, setLocalConfig] = useState(config);
-  const syncTimerRef = useRef<ReturnType<typeof setTimeout>>();
+  const syncTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   // Re-initialize when the selected tool changes (not on every config update).
   const toolRef = useRef(step.tool);

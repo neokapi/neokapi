@@ -48,6 +48,10 @@ type App struct {
 	// When set, it is called before falling back to the config-based registries.
 	RegistryResolver func() []config.RegistryEntry
 
+	// projectContext is set temporarily by runFromProject so that downstream
+	// methods (reader creation, writer setup) can apply project format defaults.
+	projectContext *project.ProjectContext
+
 	// projectFlowTools is set temporarily by runProjectSteps to override
 	// buildFlowTools for project-defined flows.
 	projectFlowTools []tool.Tool

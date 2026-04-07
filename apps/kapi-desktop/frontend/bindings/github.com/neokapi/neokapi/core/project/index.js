@@ -6,8 +6,11 @@ export {
     ContentCollection,
     ContentItem,
     Defaults,
+    FlowValidationIssue,
     FormatDefaults,
     FormatSpec,
     KapiProject,
-    PluginSpec
+    PluginIssue,
+    PluginSpec,
+    PluginStatus
 } from "./models.js";

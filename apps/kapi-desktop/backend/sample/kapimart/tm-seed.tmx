@@ -1,0 +1,1640 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<tmx version="1.4">
+  <header creationtool="KapiMart Sample" creationtoolversion="2.0"
+          datatype="plaintext" segtype="sentence" adminlang="en-US" srclang="en-US"/>
+  <body>
+    <!-- ============================================================ -->
+    <!-- Website Documentation (~60 TUs)                              -->
+    <!-- ============================================================ -->
+    <tu>
+      <tuv xml:lang="en-US"><seg>Welcome to the KapiMart Developer Platform!</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Willkommen auf der KapiMart-Entwicklerplattform!</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Bienvenue sur la plateforme de développement KapiMart !</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>KapiMart開発者プラットフォームへようこそ！</seg></tuv>
+      <tuv xml:lang="nb-NO"><seg>Velkommen til KapiMart-utviklerplattformen!</seg></tuv>
+      <tuv xml:lang="ar-SA"><seg>مرحبًا بك في منصة مطوري KapiMart!</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>Before you begin, make sure you have the following prerequisites.</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Stellen Sie vor dem Start sicher, dass die folgenden Voraussetzungen erfüllt sind.</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Avant de commencer, assurez-vous de disposer des prérequis suivants.</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>開始する前に、以下の前提条件を満たしていることをご確認ください。</seg></tuv>
+      <tuv xml:lang="nb-NO"><seg>Før du begynner, må du sørge for at følgende forutsetninger er oppfylt.</seg></tuv>
+      <tuv xml:lang="ar-SA"><seg>قبل البدء، تأكد من توفر المتطلبات الأساسية التالية.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>Install the SDK using your preferred package manager.</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Installieren Sie das SDK mit Ihrem bevorzugten Paketmanager.</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Installez le SDK à l'aide de votre gestionnaire de paquets préféré.</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>お好みのパッケージマネージャーを使用してSDKをインストールしてください。</seg></tuv>
+      <tuv xml:lang="nb-NO"><seg>Installer SDK-en med din foretrukne pakkebehandler.</seg></tuv>
+      <tuv xml:lang="ar-SA"><seg>قم بتثبيت SDK باستخدام مدير الحزم المفضل لديك.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>All requests and responses use JSON format.</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Alle Anfragen und Antworten verwenden das JSON-Format.</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Toutes les requêtes et réponses utilisent le format JSON.</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>すべてのリクエストとレスポンスはJSON形式を使用します。</seg></tuv>
+      <tuv xml:lang="nb-NO"><seg>Alle forespørsler og svar bruker JSON-format.</seg></tuv>
+      <tuv xml:lang="ar-SA"><seg>تستخدم جميع الطلبات والاستجابات صيغة JSON.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>Include your API key in the Authorization header.</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Fügen Sie Ihren API-Schlüssel in den Authorization-Header ein.</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Incluez votre clé API dans l'en-tête Authorization.</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>Authorizationヘッダーにお使いのAPIキーを含めてください。</seg></tuv>
+      <tuv xml:lang="nb-NO"><seg>Inkluder API-nøkkelen din i Authorization-headeren.</seg></tuv>
+      <tuv xml:lang="ar-SA"><seg>قم بتضمين مفتاح API الخاص بك في رأس Authorization.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>This guide walks you through the initial setup of your development environment.</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Diese Anleitung führt Sie durch die Ersteinrichtung Ihrer Entwicklungsumgebung.</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Ce guide vous accompagne dans la configuration initiale de votre environnement de développement.</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>このガイドでは、開発環境の初期設定について説明します。</seg></tuv>
+      <tuv xml:lang="nb-NO"><seg>Denne veiledningen tar deg gjennom det første oppsettet av utviklingsmiljøet ditt.</seg></tuv>
+      <tuv xml:lang="ar-SA"><seg>يرشدك هذا الدليل خلال الإعداد الأولي لبيئة التطوير الخاصة بك.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>You can find the complete API reference in the documentation portal.</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Die vollständige API-Referenz finden Sie im Dokumentationsportal.</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Vous trouverez la référence complète de l'API dans le portail de documentation.</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>完全なAPIリファレンスはドキュメントポータルでご覧いただけます。</seg></tuv>
+      <tuv xml:lang="nb-NO"><seg>Du finner den fullstendige API-referansen i dokumentasjonsportalen.</seg></tuv>
+      <tuv xml:lang="ar-SA"><seg>يمكنك العثور على مرجع API الكامل في بوابة التوثيق.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>Rate limits are applied per API key and reset every 60 seconds.</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Ratenbegrenzungen gelten pro API-Schlüssel und werden alle 60 Sekunden zurückgesetzt.</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Les limites de débit sont appliquées par clé API et réinitialisées toutes les 60 secondes.</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>レート制限はAPIキーごとに適用され、60秒ごとにリセットされます。</seg></tuv>
+      <tuv xml:lang="nb-NO"><seg>Hastighetsbegrensninger gjelder per API-nøkkel og tilbakestilles hvert 60. sekund.</seg></tuv>
+      <tuv xml:lang="ar-SA"><seg>يتم تطبيق حدود المعدل لكل مفتاح API وتتم إعادة تعيينها كل 60 ثانية.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>Authentication is required for all endpoints except the health check.</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Für alle Endpunkte außer dem Health-Check ist eine Authentifizierung erforderlich.</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>L'authentification est requise pour tous les points de terminaison, à l'exception du contrôle de santé.</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>ヘルスチェックを除くすべてのエンドポイントで認証が必要です。</seg></tuv>
+      <tuv xml:lang="nb-NO"><seg>Autentisering er påkrevd for alle endepunkter bortsett fra helsesjekken.</seg></tuv>
+      <tuv xml:lang="ar-SA"><seg>المصادقة مطلوبة لجميع نقاط النهاية باستثناء فحص الحالة الصحية.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>Use pagination parameters to control the number of results returned.</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Verwenden Sie Paginierungsparameter, um die Anzahl der zurückgegebenen Ergebnisse zu steuern.</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Utilisez les paramètres de pagination pour contrôler le nombre de résultats renvoyés.</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>ページネーションパラメーターを使用して、返される結果の数を制御してください。</seg></tuv>
+      <tuv xml:lang="nb-NO"><seg>Bruk pagineringsparametere for å kontrollere antall returnerte resultater.</seg></tuv>
+      <tuv xml:lang="ar-SA"><seg>استخدم معلمات الترقيم للتحكم في عدد النتائج المُعادة.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>The webhook payload includes the event type and a timestamp.</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Die Webhook-Nutzlast enthält den Ereignistyp und einen Zeitstempel.</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>La charge utile du webhook comprend le type d'événement et un horodatage.</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>Webhookペイロードにはイベントタイプとタイムスタンプが含まれます。</seg></tuv>
+      <tuv xml:lang="nb-NO"><seg>Webhook-nyttelasten inneholder hendelsestypen og et tidsstempel.</seg></tuv>
+      <tuv xml:lang="ar-SA"><seg>تتضمن حمولة Webhook نوع الحدث والطابع الزمني.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>To create a new product, send a POST request to the /products endpoint.</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Um ein neues Produkt zu erstellen, senden Sie eine POST-Anfrage an den Endpunkt /products.</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Pour créer un nouveau produit, envoyez une requête POST au point de terminaison /products.</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>新しい商品を作成するには、/productsエンドポイントにPOSTリクエストを送信してください。</seg></tuv>
+      <tuv xml:lang="nb-NO"><seg>For å opprette et nytt produkt, send en POST-forespørsel til /products-endepunktet.</seg></tuv>
+      <tuv xml:lang="ar-SA"><seg>لإنشاء منتج جديد، أرسل طلب POST إلى نقطة النهاية /products.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>Response codes follow standard HTTP conventions.</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Antwortcodes folgen den standardmäßigen HTTP-Konventionen.</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Les codes de réponse suivent les conventions HTTP standard.</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>レスポンスコードは標準的なHTTP規約に従います。</seg></tuv>
+      <tuv xml:lang="nb-NO"><seg>Svarkoder følger standard HTTP-konvensjoner.</seg></tuv>
+      <tuv xml:lang="ar-SA"><seg>تتبع رموز الاستجابة اصطلاحات HTTP القياسية.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>Enable debug logging by setting the LOG_LEVEL environment variable to debug.</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Aktivieren Sie die Debug-Protokollierung, indem Sie die Umgebungsvariable LOG_LEVEL auf debug setzen.</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Activez la journalisation de débogage en définissant la variable d'environnement LOG_LEVEL sur debug.</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>環境変数LOG_LEVELをdebugに設定して、デバッグログを有効にしてください。</seg></tuv>
+      <tuv xml:lang="nb-NO"><seg>Aktiver feilsøkingslogging ved å sette miljøvariabelen LOG_LEVEL til debug.</seg></tuv>
+      <tuv xml:lang="ar-SA"><seg>قم بتمكين تسجيل التصحيح عن طريق تعيين متغير البيئة LOG_LEVEL إلى debug.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>The SDK supports both synchronous and asynchronous operations.</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Das SDK unterstützt sowohl synchrone als auch asynchrone Operationen.</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Le SDK prend en charge les opérations synchrones et asynchrones.</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>SDKは同期操作と非同期操作の両方をサポートしています。</seg></tuv>
+      <tuv xml:lang="nb-NO"><seg>SDK-en støtter både synkrone og asynkrone operasjoner.</seg></tuv>
+      <tuv xml:lang="ar-SA"><seg>يدعم SDK كلاً من العمليات المتزامنة وغير المتزامنة.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>Each request must include a valid Content-Type header set to application/json.</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Jede Anfrage muss einen gültigen Content-Type-Header mit dem Wert application/json enthalten.</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Chaque requête doit inclure un en-tête Content-Type valide défini sur application/json.</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>各リクエストには、application/jsonに設定された有効なContent-Typeヘッダーを含める必要があります。</seg></tuv>
+      <tuv xml:lang="nb-NO"><seg>Hver forespørsel må inneholde en gyldig Content-Type-header satt til application/json.</seg></tuv>
+      <tuv xml:lang="ar-SA"><seg>يجب أن يتضمن كل طلب رأس Content-Type صالحًا مضبوطًا على application/json.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>Refer to the changelog for a list of breaking changes in each release.</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Im Änderungsprotokoll finden Sie eine Liste der nicht abwärtskompatiblen Änderungen in jeder Version.</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Consultez le journal des modifications pour la liste des changements non rétrocompatibles de chaque version.</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>各リリースの破壊的変更の一覧については、変更履歴を参照してください。</seg></tuv>
+      <tuv xml:lang="nb-NO"><seg>Se endringsloggen for en liste over brytende endringer i hver utgivelse.</seg></tuv>
+      <tuv xml:lang="ar-SA"><seg>راجع سجل التغييرات للاطلاع على قائمة التغييرات الجذرية في كل إصدار.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>Configure retry behavior by passing options to the client constructor.</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Konfigurieren Sie das Wiederholungsverhalten, indem Sie Optionen an den Client-Konstruktor übergeben.</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Configurez le comportement de nouvelle tentative en passant des options au constructeur du client.</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>クライアントコンストラクターにオプションを渡して、リトライ動作を設定してください。</seg></tuv>
+      <tuv xml:lang="nb-NO"><seg>Konfigurer gjentakelsesatferd ved å sende alternativer til klientkonstruktøren.</seg></tuv>
+      <tuv xml:lang="ar-SA"><seg>قم بتكوين سلوك إعادة المحاولة عن طريق تمرير الخيارات إلى مُنشئ العميل.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>The maximum request body size is 10 MB.</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Die maximale Größe des Anfragekörpers beträgt 10 MB.</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>La taille maximale du corps de la requête est de 10 Mo.</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>リクエストボディの最大サイズは10 MBです。</seg></tuv>
+      <tuv xml:lang="nb-NO"><seg>Maksimal størrelse på forespørselsteksten er 10 MB.</seg></tuv>
+      <tuv xml:lang="ar-SA"><seg>الحد الأقصى لحجم نص الطلب هو 10 ميغابايت.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>Test your integration using the sandbox environment before going to production.</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Testen Sie Ihre Integration in der Sandbox-Umgebung, bevor Sie in die Produktion wechseln.</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Testez votre intégration dans l'environnement bac à sable avant de passer en production.</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>本番環境に移行する前に、サンドボックス環境で統合をテストしてください。</seg></tuv>
+      <tuv xml:lang="nb-NO"><seg>Test integrasjonen din i sandkassemiljøet før du går over til produksjon.</seg></tuv>
+      <tuv xml:lang="ar-SA"><seg>اختبر التكامل الخاص بك باستخدام بيئة الاختبار قبل الانتقال إلى الإنتاج.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>All timestamps are returned in ISO 8601 format with UTC timezone.</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Alle Zeitstempel werden im ISO-8601-Format mit UTC-Zeitzone zurückgegeben.</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Tous les horodatages sont renvoyés au format ISO 8601 avec le fuseau horaire UTC.</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>すべてのタイムスタンプはISO 8601形式（UTCタイムゾーン）で返されます。</seg></tuv>
+      <tuv xml:lang="nb-NO"><seg>Alle tidsstempler returneres i ISO 8601-format med UTC-tidssone.</seg></tuv>
+      <tuv xml:lang="ar-SA"><seg>تُعاد جميع الطوابع الزمنية بصيغة ISO 8601 مع المنطقة الزمنية UTC.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>For bulk operations, use the batch endpoint to improve performance.</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Verwenden Sie für Massenoperationen den Batch-Endpunkt, um die Leistung zu verbessern.</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Pour les opérations en masse, utilisez le point de terminaison batch pour améliorer les performances.</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>一括操作の場合は、バッチエンドポイントを使用してパフォーマンスを向上させてください。</seg></tuv>
+      <tuv xml:lang="nb-NO"><seg>For masseoperasjoner, bruk batch-endepunktet for å forbedre ytelsen.</seg></tuv>
+      <tuv xml:lang="ar-SA"><seg>للعمليات المجمعة، استخدم نقطة النهاية الدفعية لتحسين الأداء.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>The configuration file uses YAML syntax and supports environment variable substitution.</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Die Konfigurationsdatei verwendet YAML-Syntax und unterstützt die Substitution von Umgebungsvariablen.</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Le fichier de configuration utilise la syntaxe YAML et prend en charge la substitution de variables d'environnement.</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>設定ファイルはYAML構文を使用し、環境変数の置換をサポートしています。</seg></tuv>
+      <tuv xml:lang="nb-NO"><seg>Konfigurasjonsfilen bruker YAML-syntaks og støtter substitusjon av miljøvariabler.</seg></tuv>
+      <tuv xml:lang="ar-SA"><seg>يستخدم ملف التكوين صيغة YAML ويدعم استبدال متغيرات البيئة.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>Versioning follows semantic versioning conventions.</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Die Versionierung folgt den Konventionen der semantischen Versionierung.</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Le versionnage suit les conventions du versionnage sémantique.</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>バージョニングはセマンティックバージョニングの規約に従います。</seg></tuv>
+      <tuv xml:lang="nb-NO"><seg>Versjonering følger konvensjonene for semantisk versjonering.</seg></tuv>
+      <tuv xml:lang="ar-SA"><seg>يتبع الترقيم اصطلاحات الإصدار الدلالي.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>You can subscribe to events using webhooks or server-sent events.</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Sie können Ereignisse über Webhooks oder Server-Sent Events abonnieren.</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Vous pouvez vous abonner aux événements via des webhooks ou des événements envoyés par le serveur.</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>WebhookまたはServer-Sent Eventsを使用してイベントを購読できます。</seg></tuv>
+      <tuv xml:lang="nb-NO"><seg>Du kan abonnere på hendelser ved hjelp av webhooks eller server-sendte hendelser.</seg></tuv>
+      <tuv xml:lang="ar-SA"><seg>يمكنك الاشتراك في الأحداث باستخدام webhooks أو الأحداث المُرسلة من الخادم.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>The search endpoint supports full-text search with relevance scoring.</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Der Suchendpunkt unterstützt Volltextsuche mit Relevanzbewertung.</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Le point de terminaison de recherche prend en charge la recherche en texte intégral avec classement par pertinence.</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>検索エンドポイントは関連性スコアリング付きの全文検索をサポートしています。</seg></tuv>
+      <tuv xml:lang="nb-NO"><seg>Søkeendepunktet støtter fulltekstsøk med relevansvurdering.</seg></tuv>
+      <tuv xml:lang="ar-SA"><seg>تدعم نقطة نهاية البحث البحث في النص الكامل مع تقييم الصلة.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>Enable CORS by adding your domain to the allowed origins list.</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Aktivieren Sie CORS, indem Sie Ihre Domain zur Liste der erlaubten Ursprünge hinzufügen.</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Activez CORS en ajoutant votre domaine à la liste des origines autorisées.</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>許可されたオリジンリストにドメインを追加して、CORSを有効にしてください。</seg></tuv>
+      <tuv xml:lang="nb-NO"><seg>Aktiver CORS ved å legge til domenet ditt i listen over tillatte opphav.</seg></tuv>
+      <tuv xml:lang="ar-SA"><seg>قم بتمكين CORS عن طريق إضافة نطاقك إلى قائمة الأصول المسموح بها.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>Access tokens expire after 24 hours and must be refreshed.</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Zugriffstoken laufen nach 24 Stunden ab und müssen erneuert werden.</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Les jetons d'accès expirent après 24 heures et doivent être renouvelés.</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>アクセストークンは24時間後に有効期限が切れるため、更新が必要です。</seg></tuv>
+      <tuv xml:lang="nb-NO"><seg>Tilgangstokener utløper etter 24 timer og må fornyes.</seg></tuv>
+      <tuv xml:lang="ar-SA"><seg>تنتهي صلاحية رموز الوصول بعد 24 ساعة ويجب تجديدها.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>Use the filtering syntax to narrow down query results by field values.</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Verwenden Sie die Filtersyntax, um Abfrageergebnisse nach Feldwerten einzuschränken.</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Utilisez la syntaxe de filtrage pour affiner les résultats de la requête par valeurs de champ.</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>フィルタリング構文を使用して、フィールド値でクエリ結果を絞り込んでください。</seg></tuv>
+      <tuv xml:lang="nb-NO"><seg>Bruk filtreringssyntaksen for å begrense spørringsresultater etter feltverdier.</seg></tuv>
+      <tuv xml:lang="ar-SA"><seg>استخدم صياغة التصفية لتضييق نتائج الاستعلام حسب قيم الحقول.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>The API supports idempotent requests using the Idempotency-Key header.</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Die API unterstützt idempotente Anfragen mithilfe des Idempotency-Key-Headers.</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>L'API prend en charge les requêtes idempotentes à l'aide de l'en-tête Idempotency-Key.</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>APIはIdempotency-Keyヘッダーを使用した冪等リクエストをサポートしています。</seg></tuv>
+      <tuv xml:lang="nb-NO"><seg>API-et støtter idempotente forespørsler ved hjelp av Idempotency-Key-headeren.</seg></tuv>
+      <tuv xml:lang="ar-SA"><seg>تدعم واجهة API الطلبات المتكافئة باستخدام رأس Idempotency-Key.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>Data is encrypted at rest using AES-256 encryption.</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Daten werden im Ruhezustand mit AES-256-Verschlüsselung verschlüsselt.</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Les données sont chiffrées au repos à l'aide du chiffrement AES-256.</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>保存データはAES-256暗号化を使用して暗号化されます。</seg></tuv>
+      <tuv xml:lang="nb-NO"><seg>Data krypteres i hvile ved hjelp av AES-256-kryptering.</seg></tuv>
+      <tuv xml:lang="ar-SA"><seg>يتم تشفير البيانات في حالة السكون باستخدام تشفير AES-256.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>See the migration guide for instructions on upgrading from version 1 to version 2.</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>In der Migrationsanleitung finden Sie Anweisungen für das Upgrade von Version 1 auf Version 2.</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Consultez le guide de migration pour les instructions de mise à niveau de la version 1 à la version 2.</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>バージョン1からバージョン2へのアップグレード手順については、移行ガイドを参照してください。</seg></tuv>
+      <tuv xml:lang="nb-NO"><seg>Se migreringsveiledningen for instruksjoner om oppgradering fra versjon 1 til versjon 2.</seg></tuv>
+      <tuv xml:lang="ar-SA"><seg>راجع دليل الترحيل للحصول على تعليمات الترقية من الإصدار 1 إلى الإصدار 2.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>Custom fields can be added to any resource using the metadata object.</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Benutzerdefinierte Felder können jedem Objekt über das Metadatenobjekt hinzugefügt werden.</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Des champs personnalisés peuvent être ajoutés à n'importe quelle ressource à l'aide de l'objet métadonnées.</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>メタデータオブジェクトを使用して、任意のリソースにカスタムフィールドを追加できます。</seg></tuv>
+      <tuv xml:lang="nb-NO"><seg>Egendefinerte felt kan legges til enhver ressurs ved hjelp av metadataobjektet.</seg></tuv>
+      <tuv xml:lang="ar-SA"><seg>يمكن إضافة حقول مخصصة إلى أي مورد باستخدام كائن البيانات الوصفية.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>The client library automatically handles token refresh and session management.</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Die Client-Bibliothek übernimmt automatisch die Tokenerneuerung und Sitzungsverwaltung.</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>La bibliothèque client gère automatiquement le renouvellement des jetons et la gestion des sessions.</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>クライアントライブラリはトークンの更新とセッション管理を自動的に処理します。</seg></tuv>
+      <tuv xml:lang="nb-NO"><seg>Klientbiblioteket håndterer automatisk tokenfornyelse og sesjonsadministrasjon.</seg></tuv>
+      <tuv xml:lang="ar-SA"><seg>تتولى مكتبة العميل تلقائيًا تجديد الرموز وإدارة الجلسات.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>Set up a development store to test your application without affecting live data.</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Richten Sie einen Entwicklungsshop ein, um Ihre Anwendung zu testen, ohne Live-Daten zu beeinträchtigen.</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Configurez une boutique de développement pour tester votre application sans affecter les données en production.</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>本番データに影響を与えずにアプリケーションをテストするために、開発ストアを設定してください。</seg></tuv>
+      <tuv xml:lang="nb-NO"><seg>Sett opp en utviklingsbutikk for å teste applikasjonen din uten å påvirke aktive data.</seg></tuv>
+      <tuv xml:lang="ar-SA"><seg>قم بإعداد متجر تطوير لاختبار تطبيقك دون التأثير على البيانات الحية.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>Inventory levels are updated in real time across all sales channels.</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Lagerbestände werden in Echtzeit über alle Vertriebskanäle hinweg aktualisiert.</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Les niveaux de stock sont mis à jour en temps réel sur tous les canaux de vente.</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>在庫レベルはすべての販売チャネルでリアルタイムに更新されます。</seg></tuv>
+      <tuv xml:lang="nb-NO"><seg>Lagernivåer oppdateres i sanntid på tvers av alle salgskanaler.</seg></tuv>
+      <tuv xml:lang="ar-SA"><seg>يتم تحديث مستويات المخزون في الوقت الفعلي عبر جميع قنوات البيع.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>Product variants inherit the parent product's attributes unless overridden.</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Produktvarianten erben die Attribute des übergeordneten Produkts, sofern sie nicht überschrieben werden.</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Les variantes de produit héritent des attributs du produit parent, sauf si elles sont remplacées.</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>商品バリアントは、上書きされない限り、親商品の属性を継承します。</seg></tuv>
+      <tuv xml:lang="nb-NO"><seg>Produktvarianter arver attributtene til overordnet produkt med mindre de overstyres.</seg></tuv>
+      <tuv xml:lang="ar-SA"><seg>ترث متغيرات المنتج سمات المنتج الأصلي ما لم يتم تجاوزها.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>Use cursor-based pagination for large result sets to ensure consistent ordering.</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Verwenden Sie Cursor-basierte Paginierung für große Ergebnismengen, um eine konsistente Reihenfolge sicherzustellen.</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Utilisez la pagination basée sur un curseur pour les grands ensembles de résultats afin de garantir un ordre cohérent.</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>一貫した順序を確保するために、大きな結果セットにはカーソルベースのページネーションを使用してください。</seg></tuv>
+      <tuv xml:lang="nb-NO"><seg>Bruk markørbasert paginering for store resultatsett for å sikre konsistent rekkefølge.</seg></tuv>
+      <tuv xml:lang="ar-SA"><seg>استخدم الترقيم المستند إلى المؤشر لمجموعات النتائج الكبيرة لضمان ترتيب متسق.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>Detailed error information is included in the response body for debugging purposes.</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Detaillierte Fehlerinformationen sind zu Debugging-Zwecken im Antwortkörper enthalten.</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Des informations détaillées sur l'erreur sont incluses dans le corps de la réponse à des fins de débogage.</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>デバッグ目的で、詳細なエラー情報がレスポンスボディに含まれます。</seg></tuv>
+      <tuv xml:lang="nb-NO"><seg>Detaljert feilinformasjon er inkludert i svarteksten for feilsøkingsformål.</seg></tuv>
+      <tuv xml:lang="ar-SA"><seg>يتم تضمين معلومات تفصيلية عن الخطأ في نص الاستجابة لأغراض التصحيح.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>The GraphQL API provides more flexible queries than the REST API.</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Die GraphQL-API bietet flexiblere Abfragen als die REST-API.</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>L'API GraphQL offre des requêtes plus flexibles que l'API REST.</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>GraphQL APIはREST APIよりも柔軟なクエリを提供します。</seg></tuv>
+      <tuv xml:lang="nb-NO"><seg>GraphQL-API-et gir mer fleksible spørringer enn REST-API-et.</seg></tuv>
+      <tuv xml:lang="ar-SA"><seg>توفر واجهة GraphQL API استعلامات أكثر مرونة من واجهة REST API.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>Upload product images by sending a multipart form request to the media endpoint.</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Laden Sie Produktbilder hoch, indem Sie eine Multipart-Formularanfrage an den Medien-Endpunkt senden.</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Téléchargez des images de produit en envoyant une requête multipart au point de terminaison média.</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>メディアエンドポイントにマルチパートフォームリクエストを送信して、商品画像をアップロードしてください。</seg></tuv>
+      <tuv xml:lang="nb-NO"><seg>Last opp produktbilder ved å sende en flerdelt skjemaforespørsel til medieendepunktet.</seg></tuv>
+      <tuv xml:lang="ar-SA"><seg>قم بتحميل صور المنتجات عن طريق إرسال طلب نموذج متعدد الأجزاء إلى نقطة نهاية الوسائط.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>Collections allow you to group products for easier browsing and marketing.</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Mit Kollektionen können Sie Produkte für ein einfacheres Durchsuchen und Marketing gruppieren.</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Les collections vous permettent de regrouper des produits pour faciliter la navigation et le marketing.</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>コレクションを使用すると、閲覧やマーケティングを容易にするために商品をグループ化できます。</seg></tuv>
+      <tuv xml:lang="nb-NO"><seg>Samlinger lar deg gruppere produkter for enklere surfing og markedsføring.</seg></tuv>
+      <tuv xml:lang="ar-SA"><seg>تتيح لك المجموعات تجميع المنتجات لتسهيل التصفح والتسويق.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>Discount codes can be applied at checkout using the discounts API.</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Rabattcodes können an der Kasse über die Rabatt-API angewendet werden.</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Les codes de réduction peuvent être appliqués lors du paiement à l'aide de l'API de remises.</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>ディスカウントAPIを使用して、チェックアウト時に割引コードを適用できます。</seg></tuv>
+      <tuv xml:lang="nb-NO"><seg>Rabattkoder kan brukes ved utsjekking ved hjelp av rabatt-API-et.</seg></tuv>
+      <tuv xml:lang="ar-SA"><seg>يمكن تطبيق رموز الخصم عند الدفع باستخدام واجهة API للخصومات.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>The order fulfillment workflow tracks items from warehouse to delivery.</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Der Auftragsabwicklungsworkflow verfolgt Artikel vom Lager bis zur Lieferung.</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Le processus d'exécution des commandes suit les articles de l'entrepôt à la livraison.</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>注文フルフィルメントワークフローは、倉庫から配送までのアイテムを追跡します。</seg></tuv>
+      <tuv xml:lang="nb-NO"><seg>Ordreoppfyllelsesarbeidsflyten sporer varer fra lager til levering.</seg></tuv>
+      <tuv xml:lang="ar-SA"><seg>يتتبع سير عمل تنفيذ الطلبات العناصر من المستودع إلى التسليم.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>Tax calculations are performed automatically based on the customer's shipping address.</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Steuerberechnungen werden automatisch auf Grundlage der Lieferadresse des Kunden durchgeführt.</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Les calculs de taxes sont effectués automatiquement en fonction de l'adresse de livraison du client.</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>税金の計算は、お客様の配送先住所に基づいて自動的に実行されます。</seg></tuv>
+      <tuv xml:lang="nb-NO"><seg>Skatteberegninger utføres automatisk basert på kundens leveringsadresse.</seg></tuv>
+      <tuv xml:lang="ar-SA"><seg>يتم إجراء حسابات الضرائب تلقائيًا بناءً على عنوان شحن العميل.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>Multi-currency support requires enabling the feature in your store settings.</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Die Unterstützung mehrerer Währungen erfordert die Aktivierung der Funktion in Ihren Shop-Einstellungen.</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>La prise en charge multidevise nécessite l'activation de la fonctionnalité dans les paramètres de votre boutique.</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>多通貨サポートには、ストア設定で機能を有効にする必要があります。</seg></tuv>
+      <tuv xml:lang="nb-NO"><seg>Støtte for flere valutaer krever at funksjonen aktiveres i butikkinnstillingene dine.</seg></tuv>
+      <tuv xml:lang="ar-SA"><seg>يتطلب دعم العملات المتعددة تمكين الميزة في إعدادات متجرك.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>Shipping rates are calculated based on weight, dimensions, and destination.</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Versandkosten werden basierend auf Gewicht, Abmessungen und Zielort berechnet.</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Les frais d'expédition sont calculés en fonction du poids, des dimensions et de la destination.</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>配送料は重量、寸法、配送先に基づいて計算されます。</seg></tuv>
+      <tuv xml:lang="nb-NO"><seg>Fraktrater beregnes basert på vekt, dimensjoner og destinasjon.</seg></tuv>
+      <tuv xml:lang="ar-SA"><seg>يتم حساب أسعار الشحن بناءً على الوزن والأبعاد والوجهة.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>Customer data can be exported in CSV or JSON format for analytics.</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Kundendaten können im CSV- oder JSON-Format für Analysen exportiert werden.</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Les données client peuvent être exportées au format CSV ou JSON à des fins d'analyse.</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>顧客データは分析のためにCSVまたはJSON形式でエクスポートできます。</seg></tuv>
+      <tuv xml:lang="nb-NO"><seg>Kundedata kan eksporteres i CSV- eller JSON-format for analyse.</seg></tuv>
+      <tuv xml:lang="ar-SA"><seg>يمكن تصدير بيانات العملاء بصيغة CSV أو JSON لأغراض التحليل.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>The plugin architecture allows third-party developers to extend platform functionality.</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Die Plugin-Architektur ermöglicht es Drittentwicklern, die Plattformfunktionalität zu erweitern.</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>L'architecture de plugins permet aux développeurs tiers d'étendre les fonctionnalités de la plateforme.</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>プラグインアーキテクチャにより、サードパーティの開発者がプラットフォームの機能を拡張できます。</seg></tuv>
+      <tuv xml:lang="nb-NO"><seg>Plugin-arkitekturen lar tredjepartsutviklere utvide plattformfunksjonaliteten.</seg></tuv>
+      <tuv xml:lang="ar-SA"><seg>تتيح بنية المكونات الإضافية للمطورين الخارجيين توسيع وظائف المنصة.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>Localization settings are managed per store and support right-to-left languages.</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Lokalisierungseinstellungen werden pro Shop verwaltet und unterstützen Sprachen mit Rechts-nach-links-Schreibrichtung.</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Les paramètres de localisation sont gérés par boutique et prennent en charge les langues de droite à gauche.</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>ローカリゼーション設定はストアごとに管理され、右から左に書く言語をサポートしています。</seg></tuv>
+      <tuv xml:lang="nb-NO"><seg>Lokaliseringsinnstillinger administreres per butikk og støtter høyre-til-venstre-språk.</seg></tuv>
+      <tuv xml:lang="ar-SA"><seg>تُدار إعدادات التعريب لكل متجر وتدعم اللغات التي تُكتب من اليمين إلى اليسار.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>Contact our support team if you encounter issues not covered in this documentation.</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Kontaktieren Sie unser Support-Team, wenn Probleme auftreten, die in dieser Dokumentation nicht behandelt werden.</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Contactez notre équipe d'assistance si vous rencontrez des problèmes non couverts par cette documentation.</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>このドキュメントに記載されていない問題が発生した場合は、サポートチームにお問い合わせください。</seg></tuv>
+      <tuv xml:lang="nb-NO"><seg>Kontakt supportteamet vårt hvis du opplever problemer som ikke dekkes i denne dokumentasjonen.</seg></tuv>
+      <tuv xml:lang="ar-SA"><seg>تواصل مع فريق الدعم لدينا إذا واجهت مشكلات غير مشمولة في هذا التوثيق.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>Review the security best practices guide before deploying to production.</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Lesen Sie den Leitfaden für bewährte Sicherheitspraktiken, bevor Sie in die Produktion deployen.</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Consultez le guide des meilleures pratiques de sécurité avant le déploiement en production.</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>本番環境にデプロイする前に、セキュリティベストプラクティスガイドを確認してください。</seg></tuv>
+      <tuv xml:lang="nb-NO"><seg>Gjennomgå veiledningen for beste sikkerhetspraksis før du distribuerer til produksjon.</seg></tuv>
+      <tuv xml:lang="ar-SA"><seg>راجع دليل أفضل ممارسات الأمان قبل النشر في بيئة الإنتاج.</seg></tuv>
+    </tu>
+
+    <!-- ============================================================ -->
+    <!-- Store UI Strings (~60 TUs)                                   -->
+    <!-- ============================================================ -->
+    <tu>
+      <tuv xml:lang="en-US"><seg>Home</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Startseite</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Accueil</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>ホーム</seg></tuv>
+      <tuv xml:lang="nb-NO"><seg>Hjem</seg></tuv>
+      <tuv xml:lang="ar-SA"><seg>الرئيسية</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>Products</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Produkte</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Produits</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>商品</seg></tuv>
+      <tuv xml:lang="nb-NO"><seg>Produkter</seg></tuv>
+      <tuv xml:lang="ar-SA"><seg>المنتجات</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>Shopping Cart</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Warenkorb</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Panier</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>ショッピングカート</seg></tuv>
+      <tuv xml:lang="nb-NO"><seg>Handlekurv</seg></tuv>
+      <tuv xml:lang="ar-SA"><seg>سلة التسوق</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>My Account</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Mein Konto</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Mon compte</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>マイアカウント</seg></tuv>
+      <tuv xml:lang="nb-NO"><seg>Min konto</seg></tuv>
+      <tuv xml:lang="ar-SA"><seg>حسابي</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>Sign In</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Anmelden</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Se connecter</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>サインイン</seg></tuv>
+      <tuv xml:lang="nb-NO"><seg>Logg inn</seg></tuv>
+      <tuv xml:lang="ar-SA"><seg>تسجيل الدخول</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>Sign Out</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Abmelden</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Se déconnecter</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>サインアウト</seg></tuv>
+      <tuv xml:lang="nb-NO"><seg>Logg ut</seg></tuv>
+      <tuv xml:lang="ar-SA"><seg>تسجيل الخروج</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>Add to Cart</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>In den Warenkorb</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Ajouter au panier</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>カートに追加</seg></tuv>
+      <tuv xml:lang="nb-NO"><seg>Legg i handlekurv</seg></tuv>
+      <tuv xml:lang="ar-SA"><seg>أضف إلى السلة</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>Buy Now</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Jetzt kaufen</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Acheter maintenant</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>今すぐ購入</seg></tuv>
+      <tuv xml:lang="nb-NO"><seg>Kjøp nå</seg></tuv>
+      <tuv xml:lang="ar-SA"><seg>اشترِ الآن</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>Out of Stock</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Nicht auf Lager</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Rupture de stock</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>在庫切れ</seg></tuv>
+      <tuv xml:lang="nb-NO"><seg>Ikke på lager</seg></tuv>
+      <tuv xml:lang="ar-SA"><seg>غير متوفر</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>In Stock</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Auf Lager</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>En stock</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>在庫あり</seg></tuv>
+      <tuv xml:lang="nb-NO"><seg>På lager</seg></tuv>
+      <tuv xml:lang="ar-SA"><seg>متوفر</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>Proceed to Checkout</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Zur Kasse gehen</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Passer à la caisse</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>レジに進む</seg></tuv>
+      <tuv xml:lang="nb-NO"><seg>Gå til kassen</seg></tuv>
+      <tuv xml:lang="ar-SA"><seg>المتابعة إلى الدفع</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>Place Order</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Bestellung aufgeben</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Passer la commande</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>注文する</seg></tuv>
+      <tuv xml:lang="nb-NO"><seg>Legg inn bestilling</seg></tuv>
+      <tuv xml:lang="ar-SA"><seg>تأكيد الطلب</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>Continue Shopping</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Weiter einkaufen</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Continuer les achats</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>買い物を続ける</seg></tuv>
+      <tuv xml:lang="nb-NO"><seg>Fortsett å handle</seg></tuv>
+      <tuv xml:lang="ar-SA"><seg>متابعة التسوق</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>Your cart is empty.</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Ihr Warenkorb ist leer.</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Votre panier est vide.</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>カートは空です。</seg></tuv>
+      <tuv xml:lang="nb-NO"><seg>Handlekurven din er tom.</seg></tuv>
+      <tuv xml:lang="ar-SA"><seg>سلة التسوق فارغة.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>Item added to your cart!</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Artikel wurde Ihrem Warenkorb hinzugefügt!</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Article ajouté à votre panier !</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>商品がカートに追加されました！</seg></tuv>
+      <tuv xml:lang="nb-NO"><seg>Varen er lagt i handlekurven!</seg></tuv>
+      <tuv xml:lang="ar-SA"><seg>تمت إضافة المنتج إلى سلتك!</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>Subtotal</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Zwischensumme</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Sous-total</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>小計</seg></tuv>
+      <tuv xml:lang="nb-NO"><seg>Delsum</seg></tuv>
+      <tuv xml:lang="ar-SA"><seg>المجموع الفرعي</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>Shipping</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Versand</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Livraison</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>配送</seg></tuv>
+      <tuv xml:lang="nb-NO"><seg>Frakt</seg></tuv>
+      <tuv xml:lang="ar-SA"><seg>الشحن</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>Tax</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Steuer</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Taxe</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>税金</seg></tuv>
+      <tuv xml:lang="nb-NO"><seg>Avgift</seg></tuv>
+      <tuv xml:lang="ar-SA"><seg>الضريبة</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>Order Total</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Bestellsumme</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Total de la commande</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>注文合計</seg></tuv>
+      <tuv xml:lang="nb-NO"><seg>Ordretotal</seg></tuv>
+      <tuv xml:lang="ar-SA"><seg>إجمالي الطلب</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>Search products...</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Produkte suchen...</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Rechercher des produits...</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>商品を検索...</seg></tuv>
+      <tuv xml:lang="nb-NO"><seg>Søk etter produkter...</seg></tuv>
+      <tuv xml:lang="ar-SA"><seg>البحث عن منتجات...</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>Categories</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Kategorien</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Catégories</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>カテゴリー</seg></tuv>
+      <tuv xml:lang="nb-NO"><seg>Kategorier</seg></tuv>
+      <tuv xml:lang="ar-SA"><seg>الفئات</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>Filter by Price</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Nach Preis filtern</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Filtrer par prix</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>価格で絞り込む</seg></tuv>
+      <tuv xml:lang="nb-NO"><seg>Filtrer etter pris</seg></tuv>
+      <tuv xml:lang="ar-SA"><seg>التصفية حسب السعر</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>Sort by</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Sortieren nach</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Trier par</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>並べ替え</seg></tuv>
+      <tuv xml:lang="nb-NO"><seg>Sorter etter</seg></tuv>
+      <tuv xml:lang="ar-SA"><seg>ترتيب حسب</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>Newest First</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Neueste zuerst</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Plus récents d'abord</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>新着順</seg></tuv>
+      <tuv xml:lang="nb-NO"><seg>Nyeste først</seg></tuv>
+      <tuv xml:lang="ar-SA"><seg>الأحدث أولاً</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>Price: Low to High</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Preis: Niedrig bis Hoch</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Prix : croissant</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>価格: 安い順</seg></tuv>
+      <tuv xml:lang="nb-NO"><seg>Pris: Lav til høy</seg></tuv>
+      <tuv xml:lang="ar-SA"><seg>السعر: من الأقل إلى الأعلى</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>Price: High to Low</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Preis: Hoch bis Niedrig</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Prix : décroissant</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>価格: 高い順</seg></tuv>
+      <tuv xml:lang="nb-NO"><seg>Pris: Høy til lav</seg></tuv>
+      <tuv xml:lang="ar-SA"><seg>السعر: من الأعلى إلى الأقل</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>Customer Reviews</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Kundenbewertungen</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Avis des clients</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>カスタマーレビュー</seg></tuv>
+      <tuv xml:lang="nb-NO"><seg>Kundeanmeldelser</seg></tuv>
+      <tuv xml:lang="ar-SA"><seg>تقييمات العملاء</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>Write a Review</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Bewertung schreiben</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Rédiger un avis</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>レビューを書く</seg></tuv>
+      <tuv xml:lang="nb-NO"><seg>Skriv en anmeldelse</seg></tuv>
+      <tuv xml:lang="ar-SA"><seg>كتابة تقييم</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>Wishlist</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Wunschliste</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Liste de souhaits</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>ウィッシュリスト</seg></tuv>
+      <tuv xml:lang="nb-NO"><seg>Ønskeliste</seg></tuv>
+      <tuv xml:lang="ar-SA"><seg>قائمة الأمنيات</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>Order History</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Bestellverlauf</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Historique des commandes</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>注文履歴</seg></tuv>
+      <tuv xml:lang="nb-NO"><seg>Ordrehistorikk</seg></tuv>
+      <tuv xml:lang="ar-SA"><seg>سجل الطلبات</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>Track Your Order</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Bestellung verfolgen</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Suivre votre commande</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>注文を追跡する</seg></tuv>
+      <tuv xml:lang="nb-NO"><seg>Spor bestillingen din</seg></tuv>
+      <tuv xml:lang="ar-SA"><seg>تتبع طلبك</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>Email Address</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>E-Mail-Adresse</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Adresse e-mail</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>メールアドレス</seg></tuv>
+      <tuv xml:lang="nb-NO"><seg>E-postadresse</seg></tuv>
+      <tuv xml:lang="ar-SA"><seg>عنوان البريد الإلكتروني</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>Password</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Passwort</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Mot de passe</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>パスワード</seg></tuv>
+      <tuv xml:lang="nb-NO"><seg>Passord</seg></tuv>
+      <tuv xml:lang="ar-SA"><seg>كلمة المرور</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>Forgot your password?</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Passwort vergessen?</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Mot de passe oublié ?</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>パスワードをお忘れですか？</seg></tuv>
+      <tuv xml:lang="nb-NO"><seg>Glemt passordet ditt?</seg></tuv>
+      <tuv xml:lang="ar-SA"><seg>هل نسيت كلمة المرور؟</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>Create Account</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Konto erstellen</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Créer un compte</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>アカウントを作成</seg></tuv>
+      <tuv xml:lang="nb-NO"><seg>Opprett konto</seg></tuv>
+      <tuv xml:lang="ar-SA"><seg>إنشاء حساب</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>First Name</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Vorname</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Prénom</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>名</seg></tuv>
+      <tuv xml:lang="nb-NO"><seg>Fornavn</seg></tuv>
+      <tuv xml:lang="ar-SA"><seg>الاسم الأول</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>Last Name</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Nachname</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Nom de famille</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>姓</seg></tuv>
+      <tuv xml:lang="nb-NO"><seg>Etternavn</seg></tuv>
+      <tuv xml:lang="ar-SA"><seg>اسم العائلة</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>Shipping Address</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Lieferadresse</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Adresse de livraison</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>配送先住所</seg></tuv>
+      <tuv xml:lang="nb-NO"><seg>Leveringsadresse</seg></tuv>
+      <tuv xml:lang="ar-SA"><seg>عنوان الشحن</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>Billing Address</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Rechnungsadresse</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Adresse de facturation</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>請求先住所</seg></tuv>
+      <tuv xml:lang="nb-NO"><seg>Fakturaadresse</seg></tuv>
+      <tuv xml:lang="ar-SA"><seg>عنوان الفوترة</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>Payment Method</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Zahlungsmethode</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Mode de paiement</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>お支払い方法</seg></tuv>
+      <tuv xml:lang="nb-NO"><seg>Betalingsmetode</seg></tuv>
+      <tuv xml:lang="ar-SA"><seg>طريقة الدفع</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>Credit Card</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Kreditkarte</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Carte de crédit</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>クレジットカード</seg></tuv>
+      <tuv xml:lang="nb-NO"><seg>Kredittkort</seg></tuv>
+      <tuv xml:lang="ar-SA"><seg>بطاقة ائتمان</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>Standard Shipping (5-7 business days)</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Standardversand (5-7 Werktage)</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Livraison standard (5 à 7 jours ouvrés)</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>通常配送（5〜7営業日）</seg></tuv>
+      <tuv xml:lang="nb-NO"><seg>Standardfrakt (5–7 virkedager)</seg></tuv>
+      <tuv xml:lang="ar-SA"><seg>الشحن القياسي (5-7 أيام عمل)</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>Express Shipping (2-3 business days)</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Expressversand (2-3 Werktage)</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Livraison express (2 à 3 jours ouvrés)</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>速達配送（2〜3営業日）</seg></tuv>
+      <tuv xml:lang="nb-NO"><seg>Ekspressfrakt (2–3 virkedager)</seg></tuv>
+      <tuv xml:lang="ar-SA"><seg>الشحن السريع (2-3 أيام عمل)</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>Free Shipping on orders over $50</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Kostenloser Versand bei Bestellungen über 50 $</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Livraison gratuite pour les commandes de plus de 50 $</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>50ドル以上のご注文で送料無料</seg></tuv>
+      <tuv xml:lang="nb-NO"><seg>Gratis frakt på bestillinger over 50 $</seg></tuv>
+      <tuv xml:lang="ar-SA"><seg>شحن مجاني للطلبات التي تزيد عن 50 دولارًا</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>Apply Coupon</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Gutschein einlösen</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Appliquer le coupon</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>クーポンを適用</seg></tuv>
+      <tuv xml:lang="nb-NO"><seg>Bruk kupong</seg></tuv>
+      <tuv xml:lang="ar-SA"><seg>تطبيق القسيمة</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>Quantity</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Menge</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Quantité</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>数量</seg></tuv>
+      <tuv xml:lang="nb-NO"><seg>Antall</seg></tuv>
+      <tuv xml:lang="ar-SA"><seg>الكمية</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>Remove</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Entfernen</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Supprimer</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>削除</seg></tuv>
+      <tuv xml:lang="nb-NO"><seg>Fjern</seg></tuv>
+      <tuv xml:lang="ar-SA"><seg>إزالة</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>Save for Later</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Für später speichern</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Enregistrer pour plus tard</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>後で購入する</seg></tuv>
+      <tuv xml:lang="nb-NO"><seg>Lagre til senere</seg></tuv>
+      <tuv xml:lang="ar-SA"><seg>حفظ لوقت لاحق</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>Back to Top</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Nach oben</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Retour en haut</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>ページトップへ</seg></tuv>
+      <tuv xml:lang="nb-NO"><seg>Tilbake til toppen</seg></tuv>
+      <tuv xml:lang="ar-SA"><seg>العودة إلى الأعلى</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>Help Center</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Hilfezentrum</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Centre d'aide</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>ヘルプセンター</seg></tuv>
+      <tuv xml:lang="nb-NO"><seg>Hjelpesenter</seg></tuv>
+      <tuv xml:lang="ar-SA"><seg>مركز المساعدة</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>Contact Us</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Kontakt</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Nous contacter</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>お問い合わせ</seg></tuv>
+      <tuv xml:lang="nb-NO"><seg>Kontakt oss</seg></tuv>
+      <tuv xml:lang="ar-SA"><seg>اتصل بنا</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>About Us</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Über uns</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>À propos de nous</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>会社概要</seg></tuv>
+      <tuv xml:lang="nb-NO"><seg>Om oss</seg></tuv>
+      <tuv xml:lang="ar-SA"><seg>من نحن</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>Privacy Policy</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Datenschutzrichtlinie</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Politique de confidentialité</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>プライバシーポリシー</seg></tuv>
+      <tuv xml:lang="nb-NO"><seg>Personvernerklæring</seg></tuv>
+      <tuv xml:lang="ar-SA"><seg>سياسة الخصوصية</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>Terms of Service</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Nutzungsbedingungen</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Conditions d'utilisation</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>利用規約</seg></tuv>
+      <tuv xml:lang="nb-NO"><seg>Vilkår for bruk</seg></tuv>
+      <tuv xml:lang="ar-SA"><seg>شروط الخدمة</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>Newsletter Signup</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Newsletter-Anmeldung</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Inscription à la newsletter</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>ニュースレター登録</seg></tuv>
+      <tuv xml:lang="nb-NO"><seg>Nyhetsbrevregistrering</seg></tuv>
+      <tuv xml:lang="ar-SA"><seg>الاشتراك في النشرة الإخبارية</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>Subscribe to our newsletter for the latest deals and updates.</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Abonnieren Sie unseren Newsletter für die neuesten Angebote und Neuigkeiten.</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Abonnez-vous à notre newsletter pour les dernières offres et mises à jour.</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>最新のセール情報やお知らせを受け取るには、ニュースレターにご登録ください。</seg></tuv>
+      <tuv xml:lang="nb-NO"><seg>Abonner på nyhetsbrevet vårt for de siste tilbudene og oppdateringene.</seg></tuv>
+      <tuv xml:lang="ar-SA"><seg>اشترك في نشرتنا الإخبارية للحصول على أحدث العروض والتحديثات.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>Return Policy</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Rückgaberichtlinie</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Politique de retour</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>返品ポリシー</seg></tuv>
+      <tuv xml:lang="nb-NO"><seg>Returpolicy</seg></tuv>
+      <tuv xml:lang="ar-SA"><seg>سياسة الإرجاع</seg></tuv>
+    </tu>
+
+    <!-- ============================================================ -->
+    <!-- Product Descriptions (~30 TUs)                               -->
+    <!-- ============================================================ -->
+    <tu>
+      <tuv xml:lang="en-US"><seg>Premium over-ear headphones with active noise cancellation.</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Premium-Over-Ear-Kopfhörer mit aktiver Geräuschunterdrückung.</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Casque circum-aural haut de gamme avec réduction active du bruit.</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>アクティブノイズキャンセリング搭載のプレミアムオーバーイヤーヘッドフォン。</seg></tuv>
+      <tuv xml:lang="nb-NO"><seg>Premium over-ear-hodetelefoner med aktiv støydemping.</seg></tuv>
+      <tuv xml:lang="ar-SA"><seg>سماعات رأس فاخرة بخاصية إلغاء الضوضاء النشط.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>Waterproof speaker with 360-degree sound.</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Wasserdichter Lautsprecher mit 360-Grad-Sound.</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Enceinte étanche avec son à 360 degrés.</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>360度サウンド搭載の防水スピーカー。</seg></tuv>
+      <tuv xml:lang="nb-NO"><seg>Vanntett høyttaler med 360-graders lyd.</seg></tuv>
+      <tuv xml:lang="ar-SA"><seg>مكبر صوت مقاوم للماء بصوت محيطي 360 درجة.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>Ultra-slim laptop with all-day battery life and stunning Retina display.</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Ultraflacher Laptop mit ganztägiger Akkulaufzeit und beeindruckendem Retina-Display.</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Ordinateur portable ultra-fin avec autonomie toute la journée et superbe écran Retina.</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>終日バッテリーと美しいRetinaディスプレイを備えた超薄型ノートパソコン。</seg></tuv>
+      <tuv xml:lang="nb-NO"><seg>Ultraslank bærbar PC med batteritid hele dagen og fantastisk Retina-skjerm.</seg></tuv>
+      <tuv xml:lang="ar-SA"><seg>حاسوب محمول فائق النحافة مع بطارية تدوم طوال اليوم وشاشة Retina مذهلة.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>Ergonomic wireless mouse designed for all-day comfort.</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Ergonomische kabellose Maus für ganztägigen Komfort.</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Souris sans fil ergonomique conçue pour un confort tout au long de la journée.</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>終日快適に使えるよう設計されたエルゴノミクスワイヤレスマウス。</seg></tuv>
+      <tuv xml:lang="nb-NO"><seg>Ergonomisk trådløs mus designet for komfort hele dagen.</seg></tuv>
+      <tuv xml:lang="ar-SA"><seg>فأرة لاسلكية مريحة مصممة للاستخدام المريح طوال اليوم.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>Mechanical keyboard with customizable RGB lighting and tactile switches.</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Mechanische Tastatur mit anpassbarer RGB-Beleuchtung und taktilen Schaltern.</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Clavier mécanique avec éclairage RGB personnalisable et touches tactiles.</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>カスタマイズ可能なRGBライティングとタクタイルスイッチを備えたメカニカルキーボード。</seg></tuv>
+      <tuv xml:lang="nb-NO"><seg>Mekanisk tastatur med tilpassbar RGB-belysning og taktile brytere.</seg></tuv>
+      <tuv xml:lang="ar-SA"><seg>لوحة مفاتيح ميكانيكية مع إضاءة RGB قابلة للتخصيص ومفاتيح لمسية.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>Smart fitness tracker with heart rate monitoring and sleep analysis.</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Intelligenter Fitnesstracker mit Herzfrequenzüberwachung und Schlafanalyse.</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Bracelet connecté avec suivi de la fréquence cardiaque et analyse du sommeil.</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>心拍数モニタリングと睡眠分析機能を搭載したスマートフィットネストラッカー。</seg></tuv>
+      <tuv xml:lang="nb-NO"><seg>Smart aktivitetsmåler med pulsmåling og søvnanalyse.</seg></tuv>
+      <tuv xml:lang="ar-SA"><seg>جهاز تتبع لياقة ذكي مع مراقبة معدل ضربات القلب وتحليل النوم.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>Portable power bank with 20,000 mAh capacity and fast charging.</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Tragbare Powerbank mit 20.000 mAh Kapazität und Schnellladefunktion.</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Batterie externe portable de 20 000 mAh avec charge rapide.</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>20,000 mAh容量と急速充電対応のポータブルモバイルバッテリー。</seg></tuv>
+      <tuv xml:lang="nb-NO"><seg>Bærbar powerbank med 20 000 mAh kapasitet og hurtiglading.</seg></tuv>
+      <tuv xml:lang="ar-SA"><seg>بنك طاقة محمول بسعة 20,000 مللي أمبير مع شحن سريع.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>4K ultra-high-definition webcam with built-in microphone.</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>4K-Ultra-HD-Webcam mit integriertem Mikrofon.</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Webcam ultra haute définition 4K avec microphone intégré.</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>マイク内蔵の4K超高精細ウェブカメラ。</seg></tuv>
+      <tuv xml:lang="nb-NO"><seg>4K ultrahøyoppløselig webkamera med innebygd mikrofon.</seg></tuv>
+      <tuv xml:lang="ar-SA"><seg>كاميرا ويب بدقة 4K فائقة الوضوح مع ميكروفون مدمج.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>Lightweight running shoes with responsive cushioning and breathable mesh.</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Leichte Laufschuhe mit reaktionsfreudiger Dämpfung und atmungsaktivem Mesh.</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Chaussures de course légères avec amorti réactif et maille respirante.</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>レスポンシブクッションと通気性メッシュを備えた軽量ランニングシューズ。</seg></tuv>
+      <tuv xml:lang="nb-NO"><seg>Lette løpesko med responsiv demping og pustende mesh.</seg></tuv>
+      <tuv xml:lang="ar-SA"><seg>أحذية جري خفيفة الوزن مع توسيد متجاوب وشبكة قابلة للتنفس.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>Stainless steel water bottle that keeps drinks cold for 24 hours.</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Edelstahl-Trinkflasche, die Getränke 24 Stunden lang kalt hält.</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Bouteille en acier inoxydable qui maintient les boissons fraîches pendant 24 heures.</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>飲み物を24時間冷たく保つステンレス製ウォーターボトル。</seg></tuv>
+      <tuv xml:lang="nb-NO"><seg>Vannflaske i rustfritt stål som holder drikke kald i 24 timer.</seg></tuv>
+      <tuv xml:lang="ar-SA"><seg>زجاجة مياه من الفولاذ المقاوم للصدأ تحافظ على برودة المشروبات لمدة 24 ساعة.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>Professional-grade drone with 4K camera and 30-minute flight time.</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Drohne in Profiqualität mit 4K-Kamera und 30 Minuten Flugzeit.</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Drone de qualité professionnelle avec caméra 4K et 30 minutes d'autonomie de vol.</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>4Kカメラと30分の飛行時間を備えたプロフェッショナルグレードのドローン。</seg></tuv>
+      <tuv xml:lang="nb-NO"><seg>Profesjonell drone med 4K-kamera og 30 minutters flytid.</seg></tuv>
+      <tuv xml:lang="ar-SA"><seg>طائرة بدون طيار احترافية مع كاميرا 4K ومدة طيران 30 دقيقة.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>Smart home hub that connects all your devices in one place.</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Smart-Home-Hub, der alle Ihre Geräte an einem Ort verbindet.</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Hub domotique qui connecte tous vos appareils en un seul endroit.</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>すべてのデバイスを一か所で接続するスマートホームハブ。</seg></tuv>
+      <tuv xml:lang="nb-NO"><seg>Smarthus-hub som kobler sammen alle enhetene dine på ett sted.</seg></tuv>
+      <tuv xml:lang="ar-SA"><seg>مركز منزل ذكي يربط جميع أجهزتك في مكان واحد.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>Organic cotton t-shirt made from 100% sustainably sourced materials.</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Bio-Baumwoll-T-Shirt aus 100 % nachhaltig gewonnenen Materialien.</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>T-shirt en coton biologique fabriqué à partir de matériaux 100 % durables.</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>100%持続可能な素材から作られたオーガニックコットンTシャツ。</seg></tuv>
+      <tuv xml:lang="nb-NO"><seg>T-skjorte i økologisk bomull laget av 100 % bærekraftig materiale.</seg></tuv>
+      <tuv xml:lang="ar-SA"><seg>قميص من القطن العضوي مصنوع من مواد مستدامة بنسبة 100%.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>Compact espresso machine with 15-bar pressure and milk frother.</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Kompakte Espressomaschine mit 15 Bar Druck und Milchaufschäumer.</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Machine à expresso compacte avec pression de 15 bars et mousseur à lait.</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>15気圧とミルクフロッサーを備えたコンパクトエスプレッソマシン。</seg></tuv>
+      <tuv xml:lang="nb-NO"><seg>Kompakt espressomaskin med 15 bar trykk og melkeskummer.</seg></tuv>
+      <tuv xml:lang="ar-SA"><seg>ماكينة إسبريسو مدمجة بضغط 15 بار ومبخر حليب.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>Adjustable standing desk with programmable height presets.</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Höhenverstellbarer Stehschreibtisch mit programmierbaren Höhenspeichern.</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Bureau debout réglable avec préréglages de hauteur programmables.</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>プログラム可能な高さプリセット付きの調節可能なスタンディングデスク。</seg></tuv>
+      <tuv xml:lang="nb-NO"><seg>Justerbart ståbord med programmerbare høydeinnstillinger.</seg></tuv>
+      <tuv xml:lang="ar-SA"><seg>مكتب وقوف قابل للتعديل مع إعدادات ارتفاع قابلة للبرمجة.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>Noise-isolating earbuds with up to 8 hours of playback time.</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Geräuschisolierende Ohrhörer mit bis zu 8 Stunden Wiedergabezeit.</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Écouteurs à isolation phonique avec jusqu'à 8 heures d'autonomie.</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>最大8時間の再生時間を備えたノイズアイソレーションイヤーバッド。</seg></tuv>
+      <tuv xml:lang="nb-NO"><seg>Støyisolerende ørepropper med opptil 8 timers spilletid.</seg></tuv>
+      <tuv xml:lang="ar-SA"><seg>سماعات أذن عازلة للضوضاء مع ما يصل إلى 8 ساعات من التشغيل.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>Handcrafted leather wallet with RFID-blocking technology.</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Handgefertigte Ledergeldbörse mit RFID-Schutztechnologie.</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Portefeuille en cuir artisanal avec technologie de blocage RFID.</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>RFIDブロッキング技術を搭載したハンドクラフトレザーウォレット。</seg></tuv>
+      <tuv xml:lang="nb-NO"><seg>Håndlaget skinnlommebok med RFID-blokkeringsteknologi.</seg></tuv>
+      <tuv xml:lang="ar-SA"><seg>محفظة جلدية مصنوعة يدويًا مع تقنية حجب RFID.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>Solar-powered outdoor security camera with night vision.</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Solarbetriebene Außensicherheitskamera mit Nachtsicht.</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Caméra de sécurité extérieure à énergie solaire avec vision nocturne.</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>ナイトビジョン付きソーラー式屋外セキュリティカメラ。</seg></tuv>
+      <tuv xml:lang="nb-NO"><seg>Solcelledrevet utendørs sikkerhetskamera med nattsyn.</seg></tuv>
+      <tuv xml:lang="ar-SA"><seg>كاميرا أمان خارجية تعمل بالطاقة الشمسية مع رؤية ليلية.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>Bamboo cutting board set with juice grooves and easy-grip handles.</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Bambus-Schneidebrett-Set mit Saftrille und rutschfesten Griffen.</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Ensemble de planches à découper en bambou avec rainures à jus et poignées ergonomiques.</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>溝付きで持ちやすいハンドルの竹製カッティングボードセット。</seg></tuv>
+      <tuv xml:lang="nb-NO"><seg>Skjærefjølsett i bambus med saftriller og grep som er enkle å holde.</seg></tuv>
+      <tuv xml:lang="ar-SA"><seg>مجموعة ألواح تقطيع من الخيزران مع أخاديد للعصير ومقابض سهلة الإمساك.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>Wireless charging pad compatible with all Qi-enabled devices.</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Kabelloses Ladepad kompatibel mit allen Qi-fähigen Geräten.</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Socle de charge sans fil compatible avec tous les appareils Qi.</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>すべてのQi対応デバイスと互換性のあるワイヤレス充電パッド。</seg></tuv>
+      <tuv xml:lang="nb-NO"><seg>Trådløs ladepute kompatibel med alle Qi-aktiverte enheter.</seg></tuv>
+      <tuv xml:lang="ar-SA"><seg>قاعدة شحن لاسلكية متوافقة مع جميع الأجهزة المزودة بتقنية Qi.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>Insulated travel mug that fits standard car cup holders.</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Isolierter Reisebecher, der in Standard-Getränkehalter im Auto passt.</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Mug de voyage isotherme compatible avec les porte-gobelets de voiture standard.</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>標準的な車のカップホルダーに収まる断熱トラベルマグ。</seg></tuv>
+      <tuv xml:lang="nb-NO"><seg>Isolert reisekopp som passer i standard bilkoppholdere.</seg></tuv>
+      <tuv xml:lang="ar-SA"><seg>كوب سفر معزول يناسب حاملات الأكواب القياسية في السيارة.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>Anti-blue-light glasses that reduce eye strain during long screen sessions.</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Blaulichtfilterbrillen, die die Augenbelastung bei langen Bildschirmsitzungen reduzieren.</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Lunettes anti-lumière bleue qui réduisent la fatigue oculaire lors de longues sessions d'écran.</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>長時間の画面使用時の目の疲れを軽減するブルーライトカットメガネ。</seg></tuv>
+      <tuv xml:lang="nb-NO"><seg>Blålysbriller som reduserer øyebelastning under lange skjermøkter.</seg></tuv>
+      <tuv xml:lang="ar-SA"><seg>نظارات مضادة للضوء الأزرق تقلل إجهاد العين أثناء جلسات الشاشة الطويلة.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>Collapsible silicone food storage containers for meal prep and leftovers.</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Faltbare Silikon-Aufbewahrungsbehälter für Meal-Prep und Reste.</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Contenants alimentaires pliables en silicone pour la préparation de repas et les restes.</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>作り置きや残り物用の折りたたみ式シリコンフードコンテナ。</seg></tuv>
+      <tuv xml:lang="nb-NO"><seg>Sammenleggbare matoppbevaringsbeholdere i silikon for måltidsplanlegging og restemat.</seg></tuv>
+      <tuv xml:lang="ar-SA"><seg>حاويات تخزين طعام سيليكون قابلة للطي لتحضير الوجبات وبقايا الطعام.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>USB-C docking station with dual monitor support and 100W power delivery.</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>USB-C-Dockingstation mit Unterstützung für zwei Monitore und 100 W Stromversorgung.</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Station d'accueil USB-C avec prise en charge de deux moniteurs et alimentation 100 W.</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>デュアルモニター対応および100W電力供給のUSB-Cドッキングステーション。</seg></tuv>
+      <tuv xml:lang="nb-NO"><seg>USB-C-dokkingstasjon med støtte for to skjermer og 100W strømlevering.</seg></tuv>
+      <tuv xml:lang="ar-SA"><seg>محطة إرساء USB-C مع دعم شاشتين وتوصيل طاقة بقدرة 100 واط.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>Memory foam travel pillow with adjustable neck support.</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Memory-Foam-Reisekissen mit verstellbarer Nackenstütze.</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Oreiller de voyage en mousse à mémoire de forme avec soutien cervical réglable.</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>調節可能なネックサポート付きのメモリーフォームトラベルピロー。</seg></tuv>
+      <tuv xml:lang="nb-NO"><seg>Reisepute i minneskum med justerbar nakkestøtte.</seg></tuv>
+      <tuv xml:lang="ar-SA"><seg>وسادة سفر من الإسفنج الذكي مع دعم رقبة قابل للتعديل.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>Plant-based protein powder with natural vanilla flavor.</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Pflanzliches Proteinpulver mit natürlichem Vanillegeschmack.</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Protéine en poudre végétale à la vanille naturelle.</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>天然バニラフレーバーの植物性プロテインパウダー。</seg></tuv>
+      <tuv xml:lang="nb-NO"><seg>Plantebasert proteinpulver med naturlig vaniljesmak.</seg></tuv>
+      <tuv xml:lang="ar-SA"><seg>مسحوق بروتين نباتي بنكهة الفانيليا الطبيعية.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>Scratch-resistant tempered glass screen protector with easy installation kit.</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Kratzfester Displayschutz aus gehärtetem Glas mit einfachem Montagekit.</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Protecteur d'écran en verre trempé anti-rayures avec kit d'installation facile.</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>簡単取り付けキット付きの傷防止強化ガラススクリーンプロテクター。</seg></tuv>
+      <tuv xml:lang="nb-NO"><seg>Ripesikker skjermbeskytter i herdet glass med enkelt monteringssett.</seg></tuv>
+      <tuv xml:lang="ar-SA"><seg>واقي شاشة من الزجاج المقوى المقاوم للخدش مع طقم تركيب سهل.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>Aromatherapy essential oil diffuser with color-changing LED lights.</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Aromatherapie-Ätherischöl-Diffusor mit farbwechselnden LED-Lichtern.</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Diffuseur d'huiles essentielles avec lumières LED à changement de couleur.</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>色が変わるLEDライト付きアロマセラピーエッセンシャルオイルディフューザー。</seg></tuv>
+      <tuv xml:lang="nb-NO"><seg>Aromaterapi eterisk oljediffusor med fargevekslende LED-lys.</seg></tuv>
+      <tuv xml:lang="ar-SA"><seg>موزع زيوت عطرية للعلاج بالروائح مع أضواء LED متغيرة الألوان.</seg></tuv>
+    </tu>
+
+    <!-- ============================================================ -->
+    <!-- Error Messages (~20 TUs)                                     -->
+    <!-- ============================================================ -->
+    <tu>
+      <tuv xml:lang="en-US"><seg>The email or password you entered is incorrect.</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Die eingegebene E-Mail-Adresse oder das Passwort ist falsch.</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>L'adresse e-mail ou le mot de passe que vous avez saisi est incorrect.</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>入力されたメールアドレスまたはパスワードが正しくありません。</seg></tuv>
+      <tuv xml:lang="nb-NO"><seg>E-postadressen eller passordet du oppga er feil.</seg></tuv>
+      <tuv xml:lang="ar-SA"><seg>البريد الإلكتروني أو كلمة المرور التي أدخلتها غير صحيحة.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>Your session has expired. Please sign in again.</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Ihre Sitzung ist abgelaufen. Bitte melden Sie sich erneut an.</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Votre session a expiré. Veuillez vous reconnecter.</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>セッションの有効期限が切れました。もう一度サインインしてください。</seg></tuv>
+      <tuv xml:lang="nb-NO"><seg>Økten din har utløpt. Vennligst logg inn på nytt.</seg></tuv>
+      <tuv xml:lang="ar-SA"><seg>انتهت صلاحية جلستك. يرجى تسجيل الدخول مرة أخرى.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>Something went wrong. Please try again later.</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Etwas ist schiefgelaufen. Bitte versuchen Sie es später erneut.</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Une erreur s'est produite. Veuillez réessayer plus tard.</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>問題が発生しました。後でもう一度お試しください。</seg></tuv>
+      <tuv xml:lang="nb-NO"><seg>Noe gikk galt. Vennligst prøv igjen senere.</seg></tuv>
+      <tuv xml:lang="ar-SA"><seg>حدث خطأ ما. يرجى المحاولة مرة أخرى لاحقًا.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>This field is required.</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Dieses Feld ist erforderlich.</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Ce champ est obligatoire.</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>この項目は必須です。</seg></tuv>
+      <tuv xml:lang="nb-NO"><seg>Dette feltet er obligatorisk.</seg></tuv>
+      <tuv xml:lang="ar-SA"><seg>هذا الحقل مطلوب.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>Please enter a valid email address.</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Bitte geben Sie eine gültige E-Mail-Adresse ein.</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Veuillez saisir une adresse e-mail valide.</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>有効なメールアドレスを入力してください。</seg></tuv>
+      <tuv xml:lang="nb-NO"><seg>Vennligst oppgi en gyldig e-postadresse.</seg></tuv>
+      <tuv xml:lang="ar-SA"><seg>يرجى إدخال عنوان بريد إلكتروني صالح.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>Password must be at least 8 characters long.</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Das Passwort muss mindestens 8 Zeichen lang sein.</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Le mot de passe doit contenir au moins 8 caractères.</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>パスワードは8文字以上である必要があります。</seg></tuv>
+      <tuv xml:lang="nb-NO"><seg>Passordet må være minst 8 tegn langt.</seg></tuv>
+      <tuv xml:lang="ar-SA"><seg>يجب أن تكون كلمة المرور 8 أحرف على الأقل.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>The page you are looking for could not be found.</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Die gesuchte Seite konnte nicht gefunden werden.</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>La page que vous recherchez est introuvable.</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>お探しのページは見つかりませんでした。</seg></tuv>
+      <tuv xml:lang="nb-NO"><seg>Siden du leter etter ble ikke funnet.</seg></tuv>
+      <tuv xml:lang="ar-SA"><seg>لم يتم العثور على الصفحة التي تبحث عنها.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>You do not have permission to access this resource.</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Sie haben keine Berechtigung, auf diese Ressource zuzugreifen.</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Vous n'avez pas la permission d'accéder à cette ressource.</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>このリソースにアクセスする権限がありません。</seg></tuv>
+      <tuv xml:lang="nb-NO"><seg>Du har ikke tilgang til denne ressursen.</seg></tuv>
+      <tuv xml:lang="ar-SA"><seg>ليس لديك إذن للوصول إلى هذا المورد.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>The requested item is no longer available.</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Der angeforderte Artikel ist nicht mehr verfügbar.</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>L'article demandé n'est plus disponible.</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>リクエストされた商品はご利用いただけなくなりました。</seg></tuv>
+      <tuv xml:lang="nb-NO"><seg>Den forespurte varen er ikke lenger tilgjengelig.</seg></tuv>
+      <tuv xml:lang="ar-SA"><seg>العنصر المطلوب لم يعد متاحًا.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>Unable to process your payment. Please check your payment details.</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Ihre Zahlung konnte nicht verarbeitet werden. Bitte überprüfen Sie Ihre Zahlungsdaten.</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Impossible de traiter votre paiement. Veuillez vérifier vos informations de paiement.</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>お支払いを処理できません。お支払い情報をご確認ください。</seg></tuv>
+      <tuv xml:lang="nb-NO"><seg>Kan ikke behandle betalingen din. Vennligst sjekk betalingsopplysningene dine.</seg></tuv>
+      <tuv xml:lang="ar-SA"><seg>تعذرت معالجة الدفع. يرجى التحقق من تفاصيل الدفع الخاصة بك.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>The coupon code you entered is invalid or has expired.</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Der eingegebene Gutscheincode ist ungültig oder abgelaufen.</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Le code de réduction que vous avez saisi est invalide ou a expiré.</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>入力されたクーポンコードは無効または有効期限が切れています。</seg></tuv>
+      <tuv xml:lang="nb-NO"><seg>Kupongkoden du oppga er ugyldig eller har utløpt.</seg></tuv>
+      <tuv xml:lang="ar-SA"><seg>رمز القسيمة الذي أدخلته غير صالح أو منتهي الصلاحية.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>An account with this email address already exists.</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Ein Konto mit dieser E-Mail-Adresse existiert bereits.</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Un compte avec cette adresse e-mail existe déjà.</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>このメールアドレスのアカウントは既に存在します。</seg></tuv>
+      <tuv xml:lang="nb-NO"><seg>En konto med denne e-postadressen finnes allerede.</seg></tuv>
+      <tuv xml:lang="ar-SA"><seg>يوجد حساب بهذا العنوان البريدي بالفعل.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>The file you uploaded exceeds the maximum allowed size.</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Die hochgeladene Datei überschreitet die maximal zulässige Größe.</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Le fichier que vous avez téléchargé dépasse la taille maximale autorisée.</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>アップロードされたファイルが許容最大サイズを超えています。</seg></tuv>
+      <tuv xml:lang="nb-NO"><seg>Filen du lastet opp overskrider den maksimalt tillatte størrelsen.</seg></tuv>
+      <tuv xml:lang="ar-SA"><seg>الملف الذي قمت بتحميله يتجاوز الحجم الأقصى المسموح به.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>Network error. Please check your internet connection.</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Netzwerkfehler. Bitte überprüfen Sie Ihre Internetverbindung.</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Erreur réseau. Veuillez vérifier votre connexion Internet.</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>ネットワークエラー。インターネット接続を確認してください。</seg></tuv>
+      <tuv xml:lang="nb-NO"><seg>Nettverksfeil. Vennligst sjekk internettforbindelsen din.</seg></tuv>
+      <tuv xml:lang="ar-SA"><seg>خطأ في الشبكة. يرجى التحقق من اتصالك بالإنترنت.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>Too many requests. Please wait a moment and try again.</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Zu viele Anfragen. Bitte warten Sie einen Moment und versuchen Sie es erneut.</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Trop de requêtes. Veuillez patienter un instant et réessayer.</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>リクエストが多すぎます。しばらくお待ちになってから再度お試しください。</seg></tuv>
+      <tuv xml:lang="nb-NO"><seg>For mange forespørsler. Vennligst vent et øyeblikk og prøv igjen.</seg></tuv>
+      <tuv xml:lang="ar-SA"><seg>طلبات كثيرة جدًا. يرجى الانتظار لحظة والمحاولة مرة أخرى.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>The selected quantity is not available for this product.</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Die ausgewählte Menge ist für dieses Produkt nicht verfügbar.</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>La quantité sélectionnée n'est pas disponible pour ce produit.</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>選択された数量はこの商品では利用できません。</seg></tuv>
+      <tuv xml:lang="nb-NO"><seg>Det valgte antallet er ikke tilgjengelig for dette produktet.</seg></tuv>
+      <tuv xml:lang="ar-SA"><seg>الكمية المحددة غير متاحة لهذا المنتج.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>Your password reset link has expired. Please request a new one.</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Ihr Link zum Zurücksetzen des Passworts ist abgelaufen. Bitte fordern Sie einen neuen an.</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Votre lien de réinitialisation du mot de passe a expiré. Veuillez en demander un nouveau.</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>パスワードリセットリンクの有効期限が切れました。新しいリンクをリクエストしてください。</seg></tuv>
+      <tuv xml:lang="nb-NO"><seg>Lenken for tilbakestilling av passord har utløpt. Vennligst be om en ny.</seg></tuv>
+      <tuv xml:lang="ar-SA"><seg>انتهت صلاحية رابط إعادة تعيين كلمة المرور. يرجى طلب رابط جديد.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>Please accept the terms and conditions before proceeding.</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Bitte akzeptieren Sie die Allgemeinen Geschäftsbedingungen, bevor Sie fortfahren.</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Veuillez accepter les conditions générales avant de continuer.</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>続行する前に利用規約に同意してください。</seg></tuv>
+      <tuv xml:lang="nb-NO"><seg>Vennligst godta vilkårene og betingelsene før du fortsetter.</seg></tuv>
+      <tuv xml:lang="ar-SA"><seg>يرجى الموافقة على الشروط والأحكام قبل المتابعة.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>The shipping address provided is not valid. Please verify and try again.</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Die angegebene Lieferadresse ist ungültig. Bitte überprüfen Sie sie und versuchen Sie es erneut.</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>L'adresse de livraison fournie n'est pas valide. Veuillez vérifier et réessayer.</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>入力された配送先住所が無効です。確認して再度お試しください。</seg></tuv>
+      <tuv xml:lang="nb-NO"><seg>Leveringsadressen som er oppgitt er ikke gyldig. Vennligst kontroller og prøv igjen.</seg></tuv>
+      <tuv xml:lang="ar-SA"><seg>عنوان الشحن المقدم غير صالح. يرجى التحقق والمحاولة مرة أخرى.</seg></tuv>
+    </tu>
+
+    <!-- ============================================================ -->
+    <!-- Legal / Contract Phrases (~20 TUs)                           -->
+    <!-- ============================================================ -->
+    <tu>
+      <tuv xml:lang="en-US"><seg>This agreement is governed by the laws of the State of California.</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Diese Vereinbarung unterliegt den Gesetzen des Bundesstaates Kalifornien.</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Le présent accord est régi par les lois de l'État de Californie.</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>本契約はカリフォルニア州の法律に準拠します。</seg></tuv>
+      <tuv xml:lang="nb-NO"><seg>Denne avtalen er underlagt lovgivningen i delstaten California.</seg></tuv>
+      <tuv xml:lang="ar-SA"><seg>تخضع هذه الاتفاقية لقوانين ولاية كاليفورنيا.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>The total liability shall not exceed the amount paid in the preceding twelve months.</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Die Gesamthaftung darf den in den vorangegangenen zwölf Monaten gezahlten Betrag nicht überschreiten.</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>La responsabilité totale ne saurait excéder le montant versé au cours des douze mois précédents.</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>総賠償責任額は、過去12か月間に支払われた金額を超えないものとします。</seg></tuv>
+      <tuv xml:lang="nb-NO"><seg>Det totale erstatningsansvaret skal ikke overstige beløpet betalt i de foregående tolv månedene.</seg></tuv>
+      <tuv xml:lang="ar-SA"><seg>لا يتجاوز إجمالي المسؤولية المبلغ المدفوع في الأشهر الاثني عشر السابقة.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>All rights not expressly granted herein are reserved.</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Alle nicht ausdrücklich gewährten Rechte sind vorbehalten.</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Tous les droits non expressément accordés dans les présentes sont réservés.</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>本契約で明示的に付与されていないすべての権利は留保されます。</seg></tuv>
+      <tuv xml:lang="nb-NO"><seg>Alle rettigheter som ikke uttrykkelig er gitt heri, er forbeholdt.</seg></tuv>
+      <tuv xml:lang="ar-SA"><seg>جميع الحقوق غير الممنوحة صراحةً بموجب هذه الوثيقة محفوظة.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>Either party may terminate this agreement with thirty days' written notice.</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Jede Partei kann diese Vereinbarung mit einer Frist von dreißig Tagen schriftlich kündigen.</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Chaque partie peut résilier le présent accord moyennant un préavis écrit de trente jours.</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>いずれの当事者も、30日前の書面による通知をもって本契約を解除することができます。</seg></tuv>
+      <tuv xml:lang="nb-NO"><seg>Hver av partene kan si opp denne avtalen med tretti dagers skriftlig varsel.</seg></tuv>
+      <tuv xml:lang="ar-SA"><seg>يجوز لأي من الطرفين إنهاء هذه الاتفاقية بإشعار كتابي قبل ثلاثين يومًا.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>You agree not to reproduce, distribute, or create derivative works without prior written consent.</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Sie erklären sich damit einverstanden, ohne vorherige schriftliche Zustimmung keine Vervielfältigungen, Verbreitungen oder abgeleiteten Werke zu erstellen.</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Vous acceptez de ne pas reproduire, distribuer ou créer des œuvres dérivées sans consentement écrit préalable.</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>事前の書面による同意なしに、複製、配布、または二次的著作物の作成を行わないことに同意するものとします。</seg></tuv>
+      <tuv xml:lang="nb-NO"><seg>Du samtykker i å ikke reprodusere, distribuere eller lage avledede verk uten forhåndsgodkjenning.</seg></tuv>
+      <tuv xml:lang="ar-SA"><seg>أنت توافق على عدم إعادة الإنتاج أو التوزيع أو إنشاء أعمال مشتقة دون موافقة كتابية مسبقة.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>Personal data is collected and processed in accordance with our Privacy Policy.</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Personenbezogene Daten werden gemäß unserer Datenschutzrichtlinie erhoben und verarbeitet.</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Les données personnelles sont collectées et traitées conformément à notre Politique de confidentialité.</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>個人データは当社のプライバシーポリシーに従って収集および処理されます。</seg></tuv>
+      <tuv xml:lang="nb-NO"><seg>Personopplysninger samles inn og behandles i samsvar med vår personvernerklæring.</seg></tuv>
+      <tuv xml:lang="ar-SA"><seg>يتم جمع البيانات الشخصية ومعالجتها وفقًا لسياسة الخصوصية الخاصة بنا.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>Any disputes arising under this agreement shall be resolved through binding arbitration.</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Alle Streitigkeiten aus dieser Vereinbarung werden durch ein verbindliches Schiedsverfahren beigelegt.</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Tout litige découlant du présent accord sera résolu par arbitrage contraignant.</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>本契約に基づき生じる紛争は、拘束力のある仲裁により解決されるものとします。</seg></tuv>
+      <tuv xml:lang="nb-NO"><seg>Eventuelle tvister som oppstår under denne avtalen skal løses gjennom bindende voldgift.</seg></tuv>
+      <tuv xml:lang="ar-SA"><seg>يتم حل أي نزاعات ناشئة بموجب هذه الاتفاقية من خلال التحكيم الملزم.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>This warranty does not cover damage resulting from misuse or unauthorized modification.</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Diese Garantie deckt keine Schäden ab, die durch Missbrauch oder unbefugte Änderungen entstehen.</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Cette garantie ne couvre pas les dommages résultant d'une mauvaise utilisation ou d'une modification non autorisée.</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>この保証は、誤使用または無許可の改造に起因する損害には適用されません。</seg></tuv>
+      <tuv xml:lang="nb-NO"><seg>Denne garantien dekker ikke skader som skyldes feil bruk eller uautoriserte endringer.</seg></tuv>
+      <tuv xml:lang="ar-SA"><seg>لا يغطي هذا الضمان الأضرار الناتجة عن سوء الاستخدام أو التعديل غير المصرح به.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>The licensor grants you a non-exclusive, non-transferable, revocable license.</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Der Lizenzgeber gewährt Ihnen eine nicht-exklusive, nicht übertragbare, widerrufliche Lizenz.</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Le concédant vous accorde une licence non exclusive, non transférable et révocable.</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>ライセンサーは、非独占的、譲渡不能、取消可能なライセンスをお客様に付与します。</seg></tuv>
+      <tuv xml:lang="nb-NO"><seg>Lisensgiveren gir deg en ikke-eksklusiv, ikke-overførbar og gjenkallelig lisens.</seg></tuv>
+      <tuv xml:lang="ar-SA"><seg>يمنحك المرخِّص ترخيصًا غير حصري وغير قابل للتحويل وقابلًا للإلغاء.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>You may return unused items within 30 days of purchase for a full refund.</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Sie können unbenutzte Artikel innerhalb von 30 Tagen nach dem Kauf gegen volle Rückerstattung zurückgeben.</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Vous pouvez retourner les articles non utilisés dans les 30 jours suivant l'achat pour un remboursement intégral.</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>未使用の商品は購入後30日以内に返品していただければ、全額返金いたします。</seg></tuv>
+      <tuv xml:lang="nb-NO"><seg>Du kan returnere ubrukte varer innen 30 dager etter kjøpet for full refusjon.</seg></tuv>
+      <tuv xml:lang="ar-SA"><seg>يمكنك إرجاع المنتجات غير المستخدمة خلال 30 يومًا من الشراء لاسترداد كامل المبلغ.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>We reserve the right to modify these terms at any time without prior notice.</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Wir behalten uns das Recht vor, diese Bedingungen jederzeit ohne vorherige Ankündigung zu ändern.</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Nous nous réservons le droit de modifier ces conditions à tout moment sans préavis.</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>当社は、事前の通知なしにいつでもこれらの条件を変更する権利を留保します。</seg></tuv>
+      <tuv xml:lang="nb-NO"><seg>Vi forbeholder oss retten til å endre disse vilkårene når som helst uten forvarsel.</seg></tuv>
+      <tuv xml:lang="ar-SA"><seg>نحتفظ بالحق في تعديل هذه الشروط في أي وقت دون إشعار مسبق.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>By using this service, you acknowledge that you have read and understood these terms.</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Durch die Nutzung dieses Dienstes bestätigen Sie, dass Sie diese Bedingungen gelesen und verstanden haben.</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>En utilisant ce service, vous reconnaissez avoir lu et compris ces conditions.</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>本サービスを利用することにより、これらの条件を読み、理解したことを認めるものとします。</seg></tuv>
+      <tuv xml:lang="nb-NO"><seg>Ved å bruke denne tjenesten bekrefter du at du har lest og forstått disse vilkårene.</seg></tuv>
+      <tuv xml:lang="ar-SA"><seg>باستخدام هذه الخدمة، فإنك تقر بأنك قد قرأت وفهمت هذه الشروط.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>The seller makes no warranties, express or implied, regarding the merchantability of the goods.</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Der Verkäufer gibt keine ausdrücklichen oder stillschweigenden Garantien hinsichtlich der Handelsfähigkeit der Waren.</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Le vendeur n'offre aucune garantie, expresse ou implicite, concernant la qualité marchande des produits.</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>売主は、商品の商品性に関して、明示的または黙示的を問わず、いかなる保証も行いません。</seg></tuv>
+      <tuv xml:lang="nb-NO"><seg>Selgeren gir ingen garantier, uttrykkelige eller underforståtte, angående varenes salgbarhet.</seg></tuv>
+      <tuv xml:lang="ar-SA"><seg>لا يقدم البائع أي ضمانات، صريحة أو ضمنية، فيما يتعلق بصلاحية البضائع للتسويق.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>In no event shall the company be liable for any indirect, incidental, or consequential damages.</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Die Firma haftet in keinem Fall für indirekte, zufällige oder Folgeschäden.</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>En aucun cas la société ne saurait être tenue responsable de dommages indirects, accessoires ou consécutifs.</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>いかなる場合も、当社は間接的、偶発的、または結果的な損害について責任を負わないものとします。</seg></tuv>
+      <tuv xml:lang="nb-NO"><seg>Selskapet skal under ingen omstendigheter holdes ansvarlig for indirekte, tilfeldige eller følgeskader.</seg></tuv>
+      <tuv xml:lang="ar-SA"><seg>لن تكون الشركة بأي حال من الأحوال مسؤولة عن أي أضرار غير مباشرة أو عرضية أو تبعية.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>Confidential information shall not be disclosed to any third party without written authorization.</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Vertrauliche Informationen dürfen ohne schriftliche Genehmigung nicht an Dritte weitergegeben werden.</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Les informations confidentielles ne doivent pas être divulguées à un tiers sans autorisation écrite.</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>機密情報は、書面による承認なしに第三者に開示してはなりません。</seg></tuv>
+      <tuv xml:lang="nb-NO"><seg>Konfidensiell informasjon skal ikke utleveres til noen tredjepart uten skriftlig autorisasjon.</seg></tuv>
+      <tuv xml:lang="ar-SA"><seg>لا يجوز الإفصاح عن المعلومات السرية لأي طرف ثالث دون تفويض كتابي.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>The customer shall indemnify the company against all claims arising from the use of the service.</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Der Kunde stellt die Firma von allen Ansprüchen frei, die sich aus der Nutzung des Dienstes ergeben.</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Le client indemnisera la société contre toute réclamation découlant de l'utilisation du service.</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>顧客は、本サービスの利用に起因するすべての請求について当社を補償するものとします。</seg></tuv>
+      <tuv xml:lang="nb-NO"><seg>Kunden skal holde selskapet skadesløs mot alle krav som oppstår ved bruk av tjenesten.</seg></tuv>
+      <tuv xml:lang="ar-SA"><seg>يتعين على العميل تعويض الشركة ضد جميع المطالبات الناشئة عن استخدام الخدمة.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>This agreement constitutes the entire understanding between the parties.</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Diese Vereinbarung stellt die gesamte Übereinkunft zwischen den Parteien dar.</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Le présent accord constitue l'intégralité de l'entente entre les parties.</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>本契約は、両当事者間の完全な合意を構成します。</seg></tuv>
+      <tuv xml:lang="nb-NO"><seg>Denne avtalen utgjør den fullstendige forståelsen mellom partene.</seg></tuv>
+      <tuv xml:lang="ar-SA"><seg>تشكل هذه الاتفاقية التفاهم الكامل بين الطرفين.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>If any provision of this agreement is found to be unenforceable, the remaining provisions shall remain in effect.</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Sollte eine Bestimmung dieser Vereinbarung als nicht durchsetzbar erachtet werden, bleiben die übrigen Bestimmungen in Kraft.</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Si une disposition du présent accord est jugée inapplicable, les autres dispositions resteront en vigueur.</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>本契約のいずれかの条項が執行不能と判断された場合でも、残りの条項は引き続き有効とします。</seg></tuv>
+      <tuv xml:lang="nb-NO"><seg>Dersom noen bestemmelse i denne avtalen anses som ikke gjennomførbar, skal de øvrige bestemmelsene forbli i kraft.</seg></tuv>
+      <tuv xml:lang="ar-SA"><seg>إذا تبين أن أي بند من بنود هذه الاتفاقية غير قابل للتنفيذ، تظل البنود المتبقية سارية المفعول.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>Prices are subject to change without notice and do not include applicable taxes.</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Preise können ohne Vorankündigung geändert werden und enthalten keine anfallenden Steuern.</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Les prix sont susceptibles de changer sans préavis et n'incluent pas les taxes applicables.</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>価格は予告なく変更される場合があり、適用される税金は含まれていません。</seg></tuv>
+      <tuv xml:lang="nb-NO"><seg>Prisene kan endres uten varsel og inkluderer ikke gjeldende avgifter.</seg></tuv>
+      <tuv xml:lang="ar-SA"><seg>الأسعار قابلة للتغيير دون إشعار ولا تشمل الضرائب المطبقة.</seg></tuv>
+    </tu>
+
+    <!-- ============================================================ -->
+    <!-- Email Template Phrases (~10 TUs)                             -->
+    <!-- ============================================================ -->
+    <tu>
+      <tuv xml:lang="en-US"><seg>Thank you for your order!</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Vielen Dank für Ihre Bestellung!</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Merci pour votre commande !</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>ご注文ありがとうございます！</seg></tuv>
+      <tuv xml:lang="nb-NO"><seg>Takk for bestillingen din!</seg></tuv>
+      <tuv xml:lang="ar-SA"><seg>شكرًا لطلبك!</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>Your order has been shipped and is on its way.</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Ihre Bestellung wurde versandt und ist unterwegs.</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Votre commande a été expédiée et est en cours de livraison.</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>ご注文の商品が発送されました。配送中です。</seg></tuv>
+      <tuv xml:lang="nb-NO"><seg>Bestillingen din er sendt og er på vei.</seg></tuv>
+      <tuv xml:lang="ar-SA"><seg>تم شحن طلبك وهو في الطريق إليك.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>Welcome aboard! We're excited to have you.</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Willkommen an Bord! Wir freuen uns, Sie bei uns zu haben.</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Bienvenue parmi nous ! Nous sommes ravis de vous accueillir.</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>ようこそ！ご参加いただけることを嬉しく思います。</seg></tuv>
+      <tuv xml:lang="nb-NO"><seg>Velkommen om bord! Vi er glade for å ha deg med oss.</seg></tuv>
+      <tuv xml:lang="ar-SA"><seg>مرحبًا بك معنا! يسعدنا انضمامك.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>Your password has been successfully reset.</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Ihr Passwort wurde erfolgreich zurückgesetzt.</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Votre mot de passe a été réinitialisé avec succès.</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>パスワードが正常にリセットされました。</seg></tuv>
+      <tuv xml:lang="nb-NO"><seg>Passordet ditt er tilbakestilt.</seg></tuv>
+      <tuv xml:lang="ar-SA"><seg>تمت إعادة تعيين كلمة المرور الخاصة بك بنجاح.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>We have received your support request and will get back to you within 24 hours.</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Wir haben Ihre Supportanfrage erhalten und werden uns innerhalb von 24 Stunden bei Ihnen melden.</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Nous avons reçu votre demande d'assistance et vous répondrons dans les 24 heures.</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>サポートリクエストを受け付けました。24時間以内にご連絡いたします。</seg></tuv>
+      <tuv xml:lang="nb-NO"><seg>Vi har mottatt din henvendelse og vil svare deg innen 24 timer.</seg></tuv>
+      <tuv xml:lang="ar-SA"><seg>لقد تلقينا طلب الدعم الخاص بك وسنرد عليك خلال 24 ساعة.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>Your refund has been processed and will appear in your account within 5-10 business days.</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Ihre Rückerstattung wurde bearbeitet und wird innerhalb von 5-10 Werktagen auf Ihrem Konto erscheinen.</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Votre remboursement a été traité et apparaîtra sur votre compte dans un délai de 5 à 10 jours ouvrés.</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>返金処理が完了しました。5〜10営業日以内にお客様の口座に反映されます。</seg></tuv>
+      <tuv xml:lang="nb-NO"><seg>Refusjonen din er behandlet og vil vises på kontoen din innen 5–10 virkedager.</seg></tuv>
+      <tuv xml:lang="ar-SA"><seg>تمت معالجة استردادك وسيظهر في حسابك خلال 5-10 أيام عمل.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>Your subscription has been renewed successfully.</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Ihr Abonnement wurde erfolgreich verlängert.</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Votre abonnement a été renouvelé avec succès.</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>サブスクリプションが正常に更新されました。</seg></tuv>
+      <tuv xml:lang="nb-NO"><seg>Abonnementet ditt er fornyet.</seg></tuv>
+      <tuv xml:lang="ar-SA"><seg>تم تجديد اشتراكك بنجاح.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>Don't miss out! Items in your cart are selling fast.</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Nicht verpassen! Die Artikel in Ihrem Warenkorb sind schnell vergriffen.</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Ne manquez pas cette occasion ! Les articles dans votre panier se vendent rapidement.</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>お見逃しなく！カート内の商品は残りわずかです。</seg></tuv>
+      <tuv xml:lang="nb-NO"><seg>Ikke gå glipp av det! Varene i handlekurven din selges raskt.</seg></tuv>
+      <tuv xml:lang="ar-SA"><seg>لا تفوّت الفرصة! المنتجات في سلتك تُباع بسرعة.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>We'd love to hear your feedback on your recent purchase.</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Wir würden uns über Ihr Feedback zu Ihrem letzten Einkauf freuen.</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Nous aimerions connaître votre avis sur votre récent achat.</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>最近のご購入についてのご感想をお聞かせください。</seg></tuv>
+      <tuv xml:lang="nb-NO"><seg>Vi vil gjerne høre din tilbakemelding om ditt nylige kjøp.</seg></tuv>
+      <tuv xml:lang="ar-SA"><seg>يسعدنا سماع رأيك حول عملية الشراء الأخيرة.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>If you did not request this change, please contact our support team immediately.</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Wenn Sie diese Änderung nicht angefordert haben, kontaktieren Sie bitte umgehend unser Support-Team.</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Si vous n'avez pas demandé cette modification, veuillez contacter immédiatement notre équipe d'assistance.</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>この変更をリクエストしていない場合は、直ちにサポートチームにご連絡ください。</seg></tuv>
+      <tuv xml:lang="nb-NO"><seg>Hvis du ikke ba om denne endringen, vennligst kontakt supportteamet vårt umiddelbart.</seg></tuv>
+      <tuv xml:lang="ar-SA"><seg>إذا لم تطلب هذا التغيير، يرجى الاتصال بفريق الدعم لدينا فورًا.</seg></tuv>
+    </tu>
+
+    <!-- Additional Documentation TUs -->
+    <tu>
+      <tuv xml:lang="en-US"><seg>The API uses OAuth 2.0 for authorization with support for refresh tokens.</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Die API verwendet OAuth 2.0 zur Autorisierung mit Unterstützung für Aktualisierungstoken.</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>L'API utilise OAuth 2.0 pour l'autorisation avec prise en charge des jetons de renouvellement.</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>APIはリフレッシュトークンをサポートするOAuth 2.0を認可に使用します。</seg></tuv>
+      <tuv xml:lang="nb-NO"><seg>API-et bruker OAuth 2.0 for autorisering med støtte for oppdateringstokener.</seg></tuv>
+      <tuv xml:lang="ar-SA"><seg>تستخدم واجهة API بروتوكول OAuth 2.0 للتفويض مع دعم رموز التحديث.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>Database backups are performed automatically every six hours.</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Datenbanksicherungen werden automatisch alle sechs Stunden durchgeführt.</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Les sauvegardes de la base de données sont effectuées automatiquement toutes les six heures.</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>データベースのバックアップは6時間ごとに自動的に実行されます。</seg></tuv>
+      <tuv xml:lang="nb-NO"><seg>Databasesikkerhetskopier utføres automatisk hver sjette time.</seg></tuv>
+      <tuv xml:lang="ar-SA"><seg>يتم إجراء نسخ احتياطية لقاعدة البيانات تلقائيًا كل ست ساعات.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>Use environment-specific configuration files for development, staging, and production.</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Verwenden Sie umgebungsspezifische Konfigurationsdateien für Entwicklung, Staging und Produktion.</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Utilisez des fichiers de configuration spécifiques à l'environnement pour le développement, la pré-production et la production.</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>開発、ステージング、本番用にそれぞれ環境固有の設定ファイルを使用してください。</seg></tuv>
+      <tuv xml:lang="nb-NO"><seg>Bruk miljøspesifikke konfigurasjonsfiler for utvikling, staging og produksjon.</seg></tuv>
+      <tuv xml:lang="ar-SA"><seg>استخدم ملفات تكوين خاصة بالبيئة للتطوير والاختبار والإنتاج.</seg></tuv>
+    </tu>
+
+    <!-- Additional UI TUs -->
+    <tu>
+      <tuv xml:lang="en-US"><seg>Select Size</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Größe auswählen</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Sélectionner la taille</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>サイズを選択</seg></tuv>
+      <tuv xml:lang="nb-NO"><seg>Velg størrelse</seg></tuv>
+      <tuv xml:lang="ar-SA"><seg>اختر المقاس</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>Select Color</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Farbe auswählen</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Sélectionner la couleur</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>色を選択</seg></tuv>
+      <tuv xml:lang="nb-NO"><seg>Velg farge</seg></tuv>
+      <tuv xml:lang="ar-SA"><seg>اختر اللون</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>Delivery Estimate</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Voraussichtliche Lieferung</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Estimation de livraison</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>配送予定日</seg></tuv>
+      <tuv xml:lang="nb-NO"><seg>Leveringsestimat</seg></tuv>
+      <tuv xml:lang="ar-SA"><seg>تقدير التسليم</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>Gift Wrapping Available</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Geschenkverpackung verfügbar</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Emballage cadeau disponible</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>ギフトラッピング対応</seg></tuv>
+      <tuv xml:lang="nb-NO"><seg>Gaveinnpakning tilgjengelig</seg></tuv>
+      <tuv xml:lang="ar-SA"><seg>تغليف الهدايا متاح</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>Compare Products</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Produkte vergleichen</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Comparer les produits</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>商品を比較</seg></tuv>
+      <tuv xml:lang="nb-NO"><seg>Sammenlign produkter</seg></tuv>
+      <tuv xml:lang="ar-SA"><seg>مقارنة المنتجات</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>Recently Viewed</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Zuletzt angesehen</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Consultés récemment</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>最近閲覧した商品</seg></tuv>
+      <tuv xml:lang="nb-NO"><seg>Nylig sett</seg></tuv>
+      <tuv xml:lang="ar-SA"><seg>شوهد مؤخرًا</seg></tuv>
+    </tu>
+
+    <!-- Additional Product TUs -->
+    <tu>
+      <tuv xml:lang="en-US"><seg>Lightweight backpack with padded laptop compartment and water bottle pockets.</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Leichter Rucksack mit gepolstertem Laptopfach und Wasserflaschenhaltern.</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Sac à dos léger avec compartiment rembourré pour ordinateur portable et poches pour bouteille d'eau.</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>パッド入りノートパソコン収納とウォーターボトルポケット付きの軽量バックパック。</seg></tuv>
+      <tuv xml:lang="nb-NO"><seg>Lett ryggsekk med polstret bærbar PC-rom og vannflaskelommer.</seg></tuv>
+      <tuv xml:lang="ar-SA"><seg>حقيبة ظهر خفيفة الوزن مع حجرة مبطنة للحاسوب المحمول وجيوب لزجاجات المياه.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>Ceramic non-stick cookware set safe for oven use up to 450 degrees.</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Keramik-Antihaft-Kochgeschirr-Set ofenfest bis 450 Grad.</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Ensemble de batterie de cuisine antiadhésive en céramique compatible four jusqu'à 450 degrés.</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>450度までのオーブン使用に対応したセラミックノンスティック調理器具セット。</seg></tuv>
+      <tuv xml:lang="nb-NO"><seg>Keramisk non-stick kokekarsett som tåler ovn opptil 450 grader.</seg></tuv>
+      <tuv xml:lang="ar-SA"><seg>طقم أواني طهي سيراميك غير لاصق آمن للاستخدام في الفرن حتى 450 درجة.</seg></tuv>
+    </tu>
+
+    <!-- Additional Legal TUs -->
+    <tu>
+      <tuv xml:lang="en-US"><seg>Force majeure events relieve the affected party from its obligations under this agreement.</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Ereignisse höherer Gewalt entbinden die betroffene Partei von ihren Pflichten aus dieser Vereinbarung.</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Les événements de force majeure libèrent la partie concernée de ses obligations au titre du présent accord.</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>不可抗力事由は、影響を受ける当事者を本契約に基づく義務から免除します。</seg></tuv>
+      <tuv xml:lang="nb-NO"><seg>Force majeure-hendelser fritar den berørte parten fra sine forpliktelser i henhold til denne avtalen.</seg></tuv>
+      <tuv xml:lang="ar-SA"><seg>تُعفي أحداث القوة القاهرة الطرف المتأثر من التزاماته بموجب هذه الاتفاقية.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>The governing language of this agreement is English.</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Die maßgebliche Sprache dieser Vereinbarung ist Englisch.</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>La langue de référence du présent accord est l'anglais.</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>本契約の準拠言語は英語とします。</seg></tuv>
+      <tuv xml:lang="nb-NO"><seg>Det gjeldende språket for denne avtalen er engelsk.</seg></tuv>
+      <tuv xml:lang="ar-SA"><seg>اللغة المعتمدة لهذه الاتفاقية هي الإنجليزية.</seg></tuv>
+    </tu>
+
+    <!-- Additional Error TUs -->
+    <tu>
+      <tuv xml:lang="en-US"><seg>The image format is not supported. Please upload a JPEG or PNG file.</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Das Bildformat wird nicht unterstützt. Bitte laden Sie eine JPEG- oder PNG-Datei hoch.</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Le format d'image n'est pas pris en charge. Veuillez télécharger un fichier JPEG ou PNG.</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>この画像形式はサポートされていません。JPEGまたはPNGファイルをアップロードしてください。</seg></tuv>
+      <tuv xml:lang="nb-NO"><seg>Bildeformatet støttes ikke. Vennligst last opp en JPEG- eller PNG-fil.</seg></tuv>
+      <tuv xml:lang="ar-SA"><seg>صيغة الصورة غير مدعومة. يرجى تحميل ملف JPEG أو PNG.</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>Your changes have been saved successfully.</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Ihre Änderungen wurden erfolgreich gespeichert.</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Vos modifications ont été enregistrées avec succès.</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>変更が正常に保存されました。</seg></tuv>
+      <tuv xml:lang="nb-NO"><seg>Endringene dine er lagret.</seg></tuv>
+      <tuv xml:lang="ar-SA"><seg>تم حفظ تغييراتك بنجاح.</seg></tuv>
+    </tu>
+  </body>
+</tmx>

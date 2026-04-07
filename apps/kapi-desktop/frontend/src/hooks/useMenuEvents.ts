@@ -1,5 +1,5 @@
 import { useRef } from "react";
-import type { TabInfo } from "../types/api";
+import type { KapiProject, TabInfo } from "../types/api";
 import { api } from "./useApi";
 import { useWailsEvent } from "./useWailsEvent";
 import { useError } from "../components/ErrorBanner";
@@ -8,7 +8,7 @@ interface MenuEventsOptions {
   activeTabID: string | null;
   openProject: () => void;
   openRecent: (path: string) => void;
-  addTab: (tab: TabInfo, project: unknown) => Promise<void>;
+  addTab: (tab: TabInfo, project: KapiProject) => Promise<void>;
   updateTabInfo: (tab: TabInfo) => void;
   setShowNewProjectForm: (v: boolean) => void;
   setMode: (m: "projects") => void;

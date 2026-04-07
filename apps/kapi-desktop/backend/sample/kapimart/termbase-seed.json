@@ -1,0 +1,1339 @@
+{
+  "version": "1",
+  "concepts": [
+    {
+      "id": "km-001",
+      "domain": "e-commerce",
+      "definition": "A temporary container where customers collect products before purchasing.",
+      "terms": [
+        { "text": "shopping cart", "locale": "en-US", "status": "preferred" },
+        { "text": "cart", "locale": "en-US", "status": "admitted" },
+        { "text": "Warenkorb", "locale": "de-DE", "status": "preferred" },
+        { "text": "Einkaufswagen", "locale": "de-DE", "status": "admitted" },
+        { "text": "panier", "locale": "fr-FR", "status": "preferred" },
+        { "text": "ショッピングカート", "locale": "ja-JP", "status": "preferred" },
+        { "text": "handlekurv", "locale": "nb-NO", "status": "preferred" },
+        { "text": "سلة التسوق", "locale": "ar-SA", "status": "preferred" }
+      ]
+    },
+    {
+      "id": "km-002",
+      "domain": "e-commerce",
+      "definition": "The process of completing a purchase by providing shipping and payment details.",
+      "terms": [
+        { "text": "checkout", "locale": "en-US", "status": "preferred" },
+        { "text": "Kasse", "locale": "de-DE", "status": "preferred" },
+        { "text": "Bezahlvorgang", "locale": "de-DE", "status": "admitted" },
+        { "text": "paiement", "locale": "fr-FR", "status": "preferred" },
+        { "text": "レジ", "locale": "ja-JP", "status": "preferred" },
+        { "text": "kasse", "locale": "nb-NO", "status": "preferred" },
+        { "text": "الدفع", "locale": "ar-SA", "status": "preferred" }
+      ]
+    },
+    {
+      "id": "km-003",
+      "domain": "e-commerce",
+      "definition": "A saved list of products a customer intends to purchase in the future.",
+      "terms": [
+        { "text": "wishlist", "locale": "en-US", "status": "preferred" },
+        { "text": "wish list", "locale": "en-US", "status": "admitted" },
+        { "text": "Wunschliste", "locale": "de-DE", "status": "preferred" },
+        { "text": "liste de souhaits", "locale": "fr-FR", "status": "preferred" },
+        { "text": "ウィッシュリスト", "locale": "ja-JP", "status": "preferred" },
+        { "text": "ønskeliste", "locale": "nb-NO", "status": "preferred" },
+        { "text": "قائمة الرغبات", "locale": "ar-SA", "status": "preferred" }
+      ]
+    },
+    {
+      "id": "km-004",
+      "domain": "e-commerce",
+      "definition": "The action of placing a product into the shopping cart for future purchase.",
+      "terms": [
+        { "text": "add to cart", "locale": "en-US", "status": "preferred" },
+        { "text": "in den Warenkorb legen", "locale": "de-DE", "status": "preferred" },
+        { "text": "ajouter au panier", "locale": "fr-FR", "status": "preferred" },
+        { "text": "カートに追加", "locale": "ja-JP", "status": "preferred" },
+        { "text": "legg i handlekurv", "locale": "nb-NO", "status": "preferred" },
+        { "text": "أضف إلى السلة", "locale": "ar-SA", "status": "preferred" }
+      ]
+    },
+    {
+      "id": "km-005",
+      "domain": "e-commerce",
+      "definition": "A shortcut action to immediately purchase a product without adding it to the cart first.",
+      "terms": [
+        { "text": "buy now", "locale": "en-US", "status": "preferred" },
+        { "text": "Jetzt kaufen", "locale": "de-DE", "status": "preferred" },
+        { "text": "acheter maintenant", "locale": "fr-FR", "status": "preferred" },
+        { "text": "今すぐ購入", "locale": "ja-JP", "status": "preferred" },
+        { "text": "kjøp nå", "locale": "nb-NO", "status": "preferred" },
+        { "text": "اشترِ الآن", "locale": "ar-SA", "status": "preferred" }
+      ]
+    },
+    {
+      "id": "km-006",
+      "domain": "e-commerce",
+      "definition": "A page displaying available products with key details such as name, price, and image.",
+      "terms": [
+        { "text": "product listing", "locale": "en-US", "status": "preferred" },
+        { "text": "Produktliste", "locale": "de-DE", "status": "preferred" },
+        { "text": "Produktübersicht", "locale": "de-DE", "status": "admitted" },
+        { "text": "liste de produits", "locale": "fr-FR", "status": "preferred" },
+        { "text": "商品一覧", "locale": "ja-JP", "status": "preferred" },
+        { "text": "produktliste", "locale": "nb-NO", "status": "preferred" },
+        { "text": "قائمة المنتجات", "locale": "ar-SA", "status": "preferred" }
+      ]
+    },
+    {
+      "id": "km-007",
+      "domain": "e-commerce",
+      "definition": "A hierarchical grouping used to organize products by type or purpose.",
+      "terms": [
+        { "text": "category", "locale": "en-US", "status": "preferred" },
+        { "text": "Kategorie", "locale": "de-DE", "status": "preferred" },
+        { "text": "catégorie", "locale": "fr-FR", "status": "preferred" },
+        { "text": "カテゴリ", "locale": "ja-JP", "status": "preferred" },
+        { "text": "kategori", "locale": "nb-NO", "status": "preferred" },
+        { "text": "فئة", "locale": "ar-SA", "status": "preferred" }
+      ]
+    },
+    {
+      "id": "km-008",
+      "domain": "e-commerce",
+      "definition": "A mechanism to narrow search results by specific attributes such as size, color, or price range.",
+      "terms": [
+        { "text": "filter", "locale": "en-US", "status": "preferred" },
+        { "text": "Filter", "locale": "de-DE", "status": "preferred" },
+        { "text": "filtre", "locale": "fr-FR", "status": "preferred" },
+        { "text": "フィルター", "locale": "ja-JP", "status": "preferred" },
+        { "text": "filter", "locale": "nb-NO", "status": "preferred" },
+        { "text": "تصفية", "locale": "ar-SA", "status": "preferred" }
+      ]
+    },
+    {
+      "id": "km-009",
+      "domain": "e-commerce",
+      "definition": "The ability to order search results or product lists by a specific criterion such as price or relevance.",
+      "terms": [
+        { "text": "sort", "locale": "en-US", "status": "preferred" },
+        { "text": "Sortieren", "locale": "de-DE", "status": "preferred" },
+        { "text": "trier", "locale": "fr-FR", "status": "preferred" },
+        { "text": "並べ替え", "locale": "ja-JP", "status": "preferred" },
+        { "text": "sorter", "locale": "nb-NO", "status": "preferred" },
+        { "text": "ترتيب", "locale": "ar-SA", "status": "preferred" }
+      ]
+    },
+    {
+      "id": "km-010",
+      "domain": "e-commerce",
+      "definition": "The functionality allowing customers to find products by entering keywords or phrases.",
+      "terms": [
+        { "text": "search", "locale": "en-US", "status": "preferred" },
+        { "text": "Suche", "locale": "de-DE", "status": "preferred" },
+        { "text": "recherche", "locale": "fr-FR", "status": "preferred" },
+        { "text": "検索", "locale": "ja-JP", "status": "preferred" },
+        { "text": "søk", "locale": "nb-NO", "status": "preferred" },
+        { "text": "بحث", "locale": "ar-SA", "status": "preferred" }
+      ]
+    },
+    {
+      "id": "km-011",
+      "domain": "e-commerce",
+      "definition": "The act of exploring products without a specific purchase intent.",
+      "terms": [
+        { "text": "browse", "locale": "en-US", "status": "preferred" },
+        { "text": "Stöbern", "locale": "de-DE", "status": "preferred" },
+        { "text": "parcourir", "locale": "fr-FR", "status": "preferred" },
+        { "text": "閲覧", "locale": "ja-JP", "status": "preferred" },
+        { "text": "bla gjennom", "locale": "nb-NO", "status": "preferred" },
+        { "text": "تصفّح", "locale": "ar-SA", "status": "preferred" }
+      ]
+    },
+    {
+      "id": "km-012",
+      "domain": "e-commerce",
+      "definition": "Products suggested to a customer based on their browsing history, preferences, or purchase patterns.",
+      "terms": [
+        { "text": "recommended", "locale": "en-US", "status": "preferred" },
+        { "text": "Empfohlen", "locale": "de-DE", "status": "preferred" },
+        { "text": "recommandé", "locale": "fr-FR", "status": "preferred" },
+        { "text": "おすすめ", "locale": "ja-JP", "status": "preferred" },
+        { "text": "anbefalt", "locale": "nb-NO", "status": "preferred" },
+        { "text": "موصى به", "locale": "ar-SA", "status": "preferred" }
+      ]
+    },
+    {
+      "id": "km-013",
+      "domain": "e-commerce",
+      "definition": "A product that ranks among the highest in sales volume within a given period.",
+      "terms": [
+        { "text": "best seller", "locale": "en-US", "status": "preferred" },
+        { "text": "bestseller", "locale": "en-US", "status": "admitted" },
+        { "text": "Bestseller", "locale": "de-DE", "status": "preferred" },
+        { "text": "meilleure vente", "locale": "fr-FR", "status": "preferred" },
+        { "text": "ベストセラー", "locale": "ja-JP", "status": "preferred" },
+        { "text": "bestselger", "locale": "nb-NO", "status": "preferred" },
+        { "text": "الأكثر مبيعًا", "locale": "ar-SA", "status": "preferred" }
+      ]
+    },
+    {
+      "id": "km-014",
+      "domain": "e-commerce",
+      "definition": "A recently added product to the catalog.",
+      "terms": [
+        { "text": "new arrival", "locale": "en-US", "status": "preferred" },
+        { "text": "Neuheit", "locale": "de-DE", "status": "preferred" },
+        { "text": "nouveauté", "locale": "fr-FR", "status": "preferred" },
+        { "text": "新着", "locale": "ja-JP", "status": "preferred" },
+        { "text": "nyhet", "locale": "nb-NO", "status": "preferred" },
+        { "text": "وصل حديثًا", "locale": "ar-SA", "status": "preferred" }
+      ]
+    },
+    {
+      "id": "km-015",
+      "domain": "e-commerce",
+      "definition": "A sale event to reduce remaining inventory of discontinued or seasonal products.",
+      "terms": [
+        { "text": "clearance", "locale": "en-US", "status": "preferred" },
+        { "text": "Räumungsverkauf", "locale": "de-DE", "status": "preferred" },
+        { "text": "liquidation", "locale": "fr-FR", "status": "preferred" },
+        { "text": "在庫一掃セール", "locale": "ja-JP", "status": "preferred" },
+        { "text": "salg", "locale": "nb-NO", "status": "preferred" },
+        { "text": "تصفية", "locale": "ar-SA", "status": "preferred" }
+      ]
+    },
+    {
+      "id": "km-016",
+      "domain": "e-commerce",
+      "definition": "A group of products sold together at a combined price, typically at a discount.",
+      "terms": [
+        { "text": "bundle", "locale": "en-US", "status": "preferred" },
+        { "text": "package", "locale": "en-US", "status": "admitted" },
+        { "text": "Paket", "locale": "de-DE", "status": "preferred" },
+        { "text": "lot", "locale": "fr-FR", "status": "preferred" },
+        { "text": "バンドル", "locale": "ja-JP", "status": "preferred" },
+        { "text": "pakke", "locale": "nb-NO", "status": "preferred" },
+        { "text": "حزمة", "locale": "ar-SA", "status": "preferred" }
+      ]
+    },
+    {
+      "id": "km-017",
+      "domain": "e-commerce",
+      "definition": "A prepaid card with a stored monetary value that can be redeemed for purchases.",
+      "terms": [
+        { "text": "gift card", "locale": "en-US", "status": "preferred" },
+        { "text": "Geschenkgutschein", "locale": "de-DE", "status": "preferred" },
+        { "text": "Geschenkkarte", "locale": "de-DE", "status": "admitted" },
+        { "text": "carte cadeau", "locale": "fr-FR", "status": "preferred" },
+        { "text": "ギフトカード", "locale": "ja-JP", "status": "preferred" },
+        { "text": "gavekort", "locale": "nb-NO", "status": "preferred" },
+        { "text": "بطاقة هدية", "locale": "ar-SA", "status": "preferred" }
+      ]
+    },
+    {
+      "id": "km-018",
+      "domain": "e-commerce",
+      "definition": "Reward credits earned through purchases that can be redeemed for discounts or perks.",
+      "terms": [
+        { "text": "loyalty points", "locale": "en-US", "status": "preferred" },
+        { "text": "reward points", "locale": "en-US", "status": "admitted" },
+        { "text": "Treuepunkte", "locale": "de-DE", "status": "preferred" },
+        { "text": "points de fidélité", "locale": "fr-FR", "status": "preferred" },
+        { "text": "ポイント", "locale": "ja-JP", "status": "preferred" },
+        { "text": "lojalitetspoeng", "locale": "nb-NO", "status": "preferred" },
+        { "text": "نقاط الولاء", "locale": "ar-SA", "status": "preferred" }
+      ]
+    },
+    {
+      "id": "km-019",
+      "domain": "e-commerce",
+      "definition": "An online platform where multiple sellers list and sell their products to buyers.",
+      "terms": [
+        { "text": "marketplace", "locale": "en-US", "status": "preferred" },
+        { "text": "Marktplatz", "locale": "de-DE", "status": "preferred" },
+        { "text": "place de marché", "locale": "fr-FR", "status": "preferred" },
+        { "text": "マーケットプレイス", "locale": "ja-JP", "status": "preferred" },
+        { "text": "markedsplass", "locale": "nb-NO", "status": "preferred" },
+        { "text": "سوق إلكتروني", "locale": "ar-SA", "status": "preferred" }
+      ]
+    },
+    {
+      "id": "km-020",
+      "domain": "e-commerce",
+      "definition": "The front-facing interface of an online store where customers browse and purchase products.",
+      "terms": [
+        { "text": "storefront", "locale": "en-US", "status": "preferred" },
+        { "text": "Schaufenster", "locale": "de-DE", "status": "preferred" },
+        { "text": "vitrine", "locale": "fr-FR", "status": "preferred" },
+        { "text": "ストアフロント", "locale": "ja-JP", "status": "preferred" },
+        { "text": "butikkfront", "locale": "nb-NO", "status": "preferred" },
+        { "text": "واجهة المتجر", "locale": "ar-SA", "status": "preferred" }
+      ]
+    },
+    {
+      "id": "km-021",
+      "domain": "e-commerce",
+      "definition": "The monetary amount required to purchase a product or service.",
+      "terms": [
+        { "text": "price", "locale": "en-US", "status": "preferred" },
+        { "text": "Preis", "locale": "de-DE", "status": "preferred" },
+        { "text": "prix", "locale": "fr-FR", "status": "preferred" },
+        { "text": "価格", "locale": "ja-JP", "status": "preferred" },
+        { "text": "pris", "locale": "nb-NO", "status": "preferred" },
+        { "text": "سعر", "locale": "ar-SA", "status": "preferred" }
+      ]
+    },
+    {
+      "id": "km-022",
+      "domain": "e-commerce",
+      "definition": "A reduction in the original price of a product, expressed as a percentage or fixed amount.",
+      "terms": [
+        { "text": "discount", "locale": "en-US", "status": "preferred" },
+        { "text": "Rabatt", "locale": "de-DE", "status": "preferred" },
+        { "text": "réduction", "locale": "fr-FR", "status": "preferred" },
+        { "text": "割引", "locale": "ja-JP", "status": "preferred" },
+        { "text": "rabatt", "locale": "nb-NO", "status": "preferred" },
+        { "text": "خصم", "locale": "ar-SA", "status": "preferred" }
+      ]
+    },
+    {
+      "id": "km-023",
+      "domain": "e-commerce",
+      "definition": "A unique alphanumeric code that provides a price reduction when applied at checkout.",
+      "terms": [
+        { "text": "coupon", "locale": "en-US", "status": "preferred" },
+        { "text": "discount code", "locale": "en-US", "status": "admitted" },
+        { "text": "Gutschein", "locale": "de-DE", "status": "preferred" },
+        { "text": "coupon", "locale": "fr-FR", "status": "preferred" },
+        { "text": "クーポン", "locale": "ja-JP", "status": "preferred" },
+        { "text": "kupong", "locale": "nb-NO", "status": "preferred" },
+        { "text": "قسيمة", "locale": "ar-SA", "status": "preferred" }
+      ]
+    },
+    {
+      "id": "km-024",
+      "domain": "e-commerce",
+      "definition": "A marketing activity designed to increase sales through special offers or incentives.",
+      "terms": [
+        { "text": "promotion", "locale": "en-US", "status": "preferred" },
+        { "text": "Aktion", "locale": "de-DE", "status": "preferred" },
+        { "text": "promotion", "locale": "fr-FR", "status": "preferred" },
+        { "text": "プロモーション", "locale": "ja-JP", "status": "preferred" },
+        { "text": "kampanje", "locale": "nb-NO", "status": "preferred" },
+        { "text": "عرض ترويجي", "locale": "ar-SA", "status": "preferred" }
+      ]
+    },
+    {
+      "id": "km-025",
+      "domain": "e-commerce",
+      "definition": "A time-limited sale event offering steep discounts to create urgency.",
+      "terms": [
+        { "text": "flash sale", "locale": "en-US", "status": "preferred" },
+        { "text": "Blitzangebot", "locale": "de-DE", "status": "preferred" },
+        { "text": "vente flash", "locale": "fr-FR", "status": "preferred" },
+        { "text": "タイムセール", "locale": "ja-JP", "status": "preferred" },
+        { "text": "lynkampanje", "locale": "nb-NO", "status": "preferred" },
+        { "text": "تخفيضات خاطفة", "locale": "ar-SA", "status": "preferred" }
+      ]
+    },
+    {
+      "id": "km-026",
+      "domain": "logistics",
+      "definition": "The physical delivery of purchased goods from seller to customer.",
+      "terms": [
+        { "text": "shipping", "locale": "en-US", "status": "preferred" },
+        { "text": "Versand", "locale": "de-DE", "status": "preferred" },
+        { "text": "expédition", "locale": "fr-FR", "status": "preferred" },
+        { "text": "配送", "locale": "ja-JP", "status": "preferred" },
+        { "text": "frakt", "locale": "nb-NO", "status": "preferred" },
+        { "text": "شحن", "locale": "ar-SA", "status": "preferred" }
+      ]
+    },
+    {
+      "id": "km-027",
+      "domain": "logistics",
+      "definition": "The act of transporting a package to its final destination.",
+      "terms": [
+        { "text": "delivery", "locale": "en-US", "status": "preferred" },
+        { "text": "Lieferung", "locale": "de-DE", "status": "preferred" },
+        { "text": "livraison", "locale": "fr-FR", "status": "preferred" },
+        { "text": "配達", "locale": "ja-JP", "status": "preferred" },
+        { "text": "levering", "locale": "nb-NO", "status": "preferred" },
+        { "text": "توصيل", "locale": "ar-SA", "status": "preferred" }
+      ]
+    },
+    {
+      "id": "km-028",
+      "domain": "logistics",
+      "definition": "A unique identifier assigned to a shipment for monitoring its transit status.",
+      "terms": [
+        { "text": "tracking number", "locale": "en-US", "status": "preferred" },
+        { "text": "Sendungsnummer", "locale": "de-DE", "status": "preferred" },
+        { "text": "numéro de suivi", "locale": "fr-FR", "status": "preferred" },
+        { "text": "追跡番号", "locale": "ja-JP", "status": "preferred" },
+        { "text": "sporingsnummer", "locale": "nb-NO", "status": "preferred" },
+        { "text": "رقم التتبع", "locale": "ar-SA", "status": "preferred" }
+      ]
+    },
+    {
+      "id": "km-029",
+      "domain": "logistics",
+      "definition": "A company responsible for transporting packages from origin to destination.",
+      "terms": [
+        { "text": "carrier", "locale": "en-US", "status": "preferred" },
+        { "text": "Spediteur", "locale": "de-DE", "status": "preferred" },
+        { "text": "transporteur", "locale": "fr-FR", "status": "preferred" },
+        { "text": "運送業者", "locale": "ja-JP", "status": "preferred" },
+        { "text": "transportør", "locale": "nb-NO", "status": "preferred" },
+        { "text": "شركة الشحن", "locale": "ar-SA", "status": "preferred" }
+      ]
+    },
+    {
+      "id": "km-030",
+      "domain": "logistics",
+      "definition": "A large facility used for storing goods before they are shipped to customers.",
+      "terms": [
+        { "text": "warehouse", "locale": "en-US", "status": "preferred" },
+        { "text": "Lager", "locale": "de-DE", "status": "preferred" },
+        { "text": "entrepôt", "locale": "fr-FR", "status": "preferred" },
+        { "text": "倉庫", "locale": "ja-JP", "status": "preferred" },
+        { "text": "lager", "locale": "nb-NO", "status": "preferred" },
+        { "text": "مستودع", "locale": "ar-SA", "status": "preferred" }
+      ]
+    },
+    {
+      "id": "km-031",
+      "domain": "logistics",
+      "definition": "The process of receiving, processing, and delivering orders to customers.",
+      "terms": [
+        { "text": "fulfillment", "locale": "en-US", "status": "preferred" },
+        { "text": "order fulfillment", "locale": "en-US", "status": "admitted" },
+        { "text": "Auftragsabwicklung", "locale": "de-DE", "status": "preferred" },
+        { "text": "exécution des commandes", "locale": "fr-FR", "status": "preferred" },
+        { "text": "フルフィルメント", "locale": "ja-JP", "status": "preferred" },
+        { "text": "ordreoppfyllelse", "locale": "nb-NO", "status": "preferred" },
+        { "text": "تنفيذ الطلبات", "locale": "ar-SA", "status": "preferred" }
+      ]
+    },
+    {
+      "id": "km-032",
+      "domain": "logistics",
+      "definition": "A prepaid shipping label provided to a customer for returning a product.",
+      "terms": [
+        { "text": "return label", "locale": "en-US", "status": "preferred" },
+        { "text": "Rücksendeetikett", "locale": "de-DE", "status": "preferred" },
+        { "text": "étiquette de retour", "locale": "fr-FR", "status": "preferred" },
+        { "text": "返品ラベル", "locale": "ja-JP", "status": "preferred" },
+        { "text": "returetikett", "locale": "nb-NO", "status": "preferred" },
+        { "text": "ملصق الإرجاع", "locale": "ar-SA", "status": "preferred" }
+      ]
+    },
+    {
+      "id": "km-033",
+      "domain": "logistics",
+      "definition": "Government-imposed duties and regulations on goods crossing international borders.",
+      "terms": [
+        { "text": "customs", "locale": "en-US", "status": "preferred" },
+        { "text": "Zoll", "locale": "de-DE", "status": "preferred" },
+        { "text": "douane", "locale": "fr-FR", "status": "preferred" },
+        { "text": "税関", "locale": "ja-JP", "status": "preferred" },
+        { "text": "toll", "locale": "nb-NO", "status": "preferred" },
+        { "text": "جمارك", "locale": "ar-SA", "status": "preferred" }
+      ]
+    },
+    {
+      "id": "km-034",
+      "domain": "logistics",
+      "definition": "The transport of goods in bulk, typically by sea, air, rail, or road.",
+      "terms": [
+        { "text": "freight", "locale": "en-US", "status": "preferred" },
+        { "text": "Fracht", "locale": "de-DE", "status": "preferred" },
+        { "text": "fret", "locale": "fr-FR", "status": "preferred" },
+        { "text": "貨物", "locale": "ja-JP", "status": "preferred" },
+        { "text": "gods", "locale": "nb-NO", "status": "preferred" },
+        { "text": "شحن بضائع", "locale": "ar-SA", "status": "preferred" }
+      ]
+    },
+    {
+      "id": "km-035",
+      "domain": "logistics",
+      "definition": "The act of sending out a shipment from the warehouse for delivery.",
+      "terms": [
+        { "text": "dispatch", "locale": "en-US", "status": "preferred" },
+        { "text": "Versendung", "locale": "de-DE", "status": "preferred" },
+        { "text": "expédier", "locale": "fr-FR", "status": "preferred" },
+        { "text": "出荷", "locale": "ja-JP", "status": "preferred" },
+        { "text": "utsendelse", "locale": "nb-NO", "status": "preferred" },
+        { "text": "إرسال", "locale": "ar-SA", "status": "preferred" }
+      ]
+    },
+    {
+      "id": "km-036",
+      "domain": "logistics",
+      "definition": "The final stage of delivery from the distribution hub to the customer's door.",
+      "terms": [
+        { "text": "last mile delivery", "locale": "en-US", "status": "preferred" },
+        { "text": "Letzte-Meile-Zustellung", "locale": "de-DE", "status": "preferred" },
+        { "text": "livraison du dernier kilomètre", "locale": "fr-FR", "status": "preferred" },
+        { "text": "ラストマイル配送", "locale": "ja-JP", "status": "preferred" },
+        { "text": "siste mil-levering", "locale": "nb-NO", "status": "preferred" },
+        { "text": "توصيل الميل الأخير", "locale": "ar-SA", "status": "preferred" }
+      ]
+    },
+    {
+      "id": "km-037",
+      "domain": "logistics",
+      "definition": "A premium shipping option with faster transit times and guaranteed delivery dates.",
+      "terms": [
+        { "text": "express delivery", "locale": "en-US", "status": "preferred" },
+        { "text": "Expresslieferung", "locale": "de-DE", "status": "preferred" },
+        { "text": "livraison express", "locale": "fr-FR", "status": "preferred" },
+        { "text": "速達配送", "locale": "ja-JP", "status": "preferred" },
+        { "text": "ekspresslevering", "locale": "nb-NO", "status": "preferred" },
+        { "text": "توصيل سريع", "locale": "ar-SA", "status": "preferred" }
+      ]
+    },
+    {
+      "id": "km-038",
+      "domain": "logistics",
+      "definition": "The default shipping method with regular transit times and lower cost.",
+      "terms": [
+        { "text": "standard shipping", "locale": "en-US", "status": "preferred" },
+        { "text": "Standardversand", "locale": "de-DE", "status": "preferred" },
+        { "text": "livraison standard", "locale": "fr-FR", "status": "preferred" },
+        { "text": "通常配送", "locale": "ja-JP", "status": "preferred" },
+        { "text": "standardfrakt", "locale": "nb-NO", "status": "preferred" },
+        { "text": "شحن عادي", "locale": "ar-SA", "status": "preferred" }
+      ]
+    },
+    {
+      "id": "km-039",
+      "domain": "logistics",
+      "definition": "A designated location where customers can collect their packages in person.",
+      "terms": [
+        { "text": "pickup point", "locale": "en-US", "status": "preferred" },
+        { "text": "collection point", "locale": "en-US", "status": "deprecated" },
+        { "text": "Abholstation", "locale": "de-DE", "status": "preferred" },
+        { "text": "point de retrait", "locale": "fr-FR", "status": "preferred" },
+        { "text": "受取場所", "locale": "ja-JP", "status": "preferred" },
+        { "text": "hentepunkt", "locale": "nb-NO", "status": "preferred" },
+        { "text": "نقطة الاستلام", "locale": "ar-SA", "status": "preferred" }
+      ]
+    },
+    {
+      "id": "km-040",
+      "domain": "logistics",
+      "definition": "A major logistics hub where goods are sorted and routed to local delivery networks.",
+      "terms": [
+        { "text": "distribution center", "locale": "en-US", "status": "preferred" },
+        { "text": "Verteilzentrum", "locale": "de-DE", "status": "preferred" },
+        { "text": "centre de distribution", "locale": "fr-FR", "status": "preferred" },
+        { "text": "物流センター", "locale": "ja-JP", "status": "preferred" },
+        { "text": "distribusjonssenter", "locale": "nb-NO", "status": "preferred" },
+        { "text": "مركز التوزيع", "locale": "ar-SA", "status": "preferred" }
+      ]
+    },
+    {
+      "id": "km-041",
+      "domain": "legal",
+      "definition": "A legal agreement outlining the rules and guidelines for using a service or product.",
+      "terms": [
+        { "text": "terms of service", "locale": "en-US", "status": "preferred" },
+        { "text": "terms and conditions", "locale": "en-US", "status": "deprecated" },
+        { "text": "Nutzungsbedingungen", "locale": "de-DE", "status": "preferred" },
+        { "text": "conditions d'utilisation", "locale": "fr-FR", "status": "preferred" },
+        { "text": "利用規約", "locale": "ja-JP", "status": "preferred" },
+        { "text": "bruksvilkår", "locale": "nb-NO", "status": "preferred" },
+        { "text": "شروط الخدمة", "locale": "ar-SA", "status": "preferred" }
+      ]
+    },
+    {
+      "id": "km-042",
+      "domain": "legal",
+      "definition": "A document describing how an organization collects, uses, and protects personal data.",
+      "terms": [
+        { "text": "privacy policy", "locale": "en-US", "status": "preferred" },
+        { "text": "Datenschutzerklärung", "locale": "de-DE", "status": "preferred" },
+        { "text": "politique de confidentialité", "locale": "fr-FR", "status": "preferred" },
+        { "text": "プライバシーポリシー", "locale": "ja-JP", "status": "preferred" },
+        { "text": "personvernerklæring", "locale": "nb-NO", "status": "preferred" },
+        { "text": "سياسة الخصوصية", "locale": "ar-SA", "status": "preferred" }
+      ]
+    },
+    {
+      "id": "km-043",
+      "domain": "legal",
+      "definition": "The rules governing how customers can return products and receive their money back.",
+      "terms": [
+        { "text": "refund policy", "locale": "en-US", "status": "preferred" },
+        { "text": "return policy", "locale": "en-US", "status": "deprecated" },
+        { "text": "Rückerstattungsrichtlinie", "locale": "de-DE", "status": "preferred" },
+        { "text": "politique de remboursement", "locale": "fr-FR", "status": "preferred" },
+        { "text": "返金ポリシー", "locale": "ja-JP", "status": "preferred" },
+        { "text": "refusjonspolicy", "locale": "nb-NO", "status": "preferred" },
+        { "text": "سياسة الاسترداد", "locale": "ar-SA", "status": "preferred" }
+      ]
+    },
+    {
+      "id": "km-044",
+      "domain": "legal",
+      "definition": "A guarantee that a product will function as described for a specified period.",
+      "terms": [
+        { "text": "warranty", "locale": "en-US", "status": "preferred" },
+        { "text": "Garantie", "locale": "de-DE", "status": "preferred" },
+        { "text": "garantie", "locale": "fr-FR", "status": "preferred" },
+        { "text": "保証", "locale": "ja-JP", "status": "preferred" },
+        { "text": "garanti", "locale": "nb-NO", "status": "preferred" },
+        { "text": "ضمان", "locale": "ar-SA", "status": "preferred" }
+      ]
+    },
+    {
+      "id": "km-045",
+      "domain": "legal",
+      "definition": "Legal responsibility for damages, losses, or obligations arising from use of a product or service.",
+      "terms": [
+        { "text": "liability", "locale": "en-US", "status": "preferred" },
+        { "text": "Haftung", "locale": "de-DE", "status": "preferred" },
+        { "text": "responsabilité", "locale": "fr-FR", "status": "preferred" },
+        { "text": "責任", "locale": "ja-JP", "status": "preferred" },
+        { "text": "ansvar", "locale": "nb-NO", "status": "preferred" },
+        { "text": "مسؤولية", "locale": "ar-SA", "status": "preferred" }
+      ]
+    },
+    {
+      "id": "km-046",
+      "domain": "legal",
+      "definition": "A contractual obligation to compensate for losses or damages incurred by another party.",
+      "terms": [
+        { "text": "indemnification", "locale": "en-US", "status": "preferred" },
+        { "text": "Schadloshaltung", "locale": "de-DE", "status": "preferred" },
+        { "text": "indemnisation", "locale": "fr-FR", "status": "preferred" },
+        { "text": "補償", "locale": "ja-JP", "status": "preferred" },
+        { "text": "skadesløsholdelse", "locale": "nb-NO", "status": "preferred" },
+        { "text": "تعويض", "locale": "ar-SA", "status": "preferred" }
+      ]
+    },
+    {
+      "id": "km-047",
+      "domain": "legal",
+      "definition": "Legal rights over creations of the mind such as inventions, designs, and brand names.",
+      "terms": [
+        { "text": "intellectual property", "locale": "en-US", "status": "preferred" },
+        { "text": "IP", "locale": "en-US", "status": "admitted" },
+        { "text": "geistiges Eigentum", "locale": "de-DE", "status": "preferred" },
+        { "text": "propriété intellectuelle", "locale": "fr-FR", "status": "preferred" },
+        { "text": "知的財産", "locale": "ja-JP", "status": "preferred" },
+        { "text": "immaterielle rettigheter", "locale": "nb-NO", "status": "preferred" },
+        { "text": "ملكية فكرية", "locale": "ar-SA", "status": "preferred" }
+      ]
+    },
+    {
+      "id": "km-048",
+      "domain": "legal",
+      "definition": "An obligation to keep certain information secret and not disclose it to third parties.",
+      "terms": [
+        { "text": "confidentiality", "locale": "en-US", "status": "preferred" },
+        { "text": "Vertraulichkeit", "locale": "de-DE", "status": "preferred" },
+        { "text": "confidentialité", "locale": "fr-FR", "status": "preferred" },
+        { "text": "機密保持", "locale": "ja-JP", "status": "preferred" },
+        { "text": "konfidensialitet", "locale": "nb-NO", "status": "preferred" },
+        { "text": "سرية", "locale": "ar-SA", "status": "preferred" }
+      ]
+    },
+    {
+      "id": "km-049",
+      "domain": "legal",
+      "definition": "Adherence to laws, regulations, and industry standards that govern business operations.",
+      "terms": [
+        { "text": "compliance", "locale": "en-US", "status": "preferred" },
+        { "text": "Konformität", "locale": "de-DE", "status": "preferred" },
+        { "text": "conformité", "locale": "fr-FR", "status": "preferred" },
+        { "text": "コンプライアンス", "locale": "ja-JP", "status": "preferred" },
+        { "text": "samsvar", "locale": "nb-NO", "status": "preferred" },
+        { "text": "امتثال", "locale": "ar-SA", "status": "preferred" }
+      ]
+    },
+    {
+      "id": "km-050",
+      "domain": "legal",
+      "definition": "Safeguards and practices ensuring personal data is collected, stored, and used lawfully.",
+      "terms": [
+        { "text": "data protection", "locale": "en-US", "status": "preferred" },
+        { "text": "Datenschutz", "locale": "de-DE", "status": "preferred" },
+        { "text": "protection des données", "locale": "fr-FR", "status": "preferred" },
+        { "text": "データ保護", "locale": "ja-JP", "status": "preferred" },
+        { "text": "personvern", "locale": "nb-NO", "status": "preferred" },
+        { "text": "حماية البيانات", "locale": "ar-SA", "status": "preferred" }
+      ]
+    },
+    {
+      "id": "km-051",
+      "domain": "legal",
+      "definition": "Explicit agreement from a user to allow processing of their personal data or acceptance of terms.",
+      "terms": [
+        { "text": "consent", "locale": "en-US", "status": "preferred" },
+        { "text": "Einwilligung", "locale": "de-DE", "status": "preferred" },
+        { "text": "consentement", "locale": "fr-FR", "status": "preferred" },
+        { "text": "同意", "locale": "ja-JP", "status": "preferred" },
+        { "text": "samtykke", "locale": "nb-NO", "status": "preferred" },
+        { "text": "موافقة", "locale": "ar-SA", "status": "preferred" }
+      ]
+    },
+    {
+      "id": "km-052",
+      "domain": "legal",
+      "definition": "A method of resolving disputes outside of court through a neutral third party.",
+      "terms": [
+        { "text": "arbitration", "locale": "en-US", "status": "preferred" },
+        { "text": "Schiedsverfahren", "locale": "de-DE", "status": "preferred" },
+        { "text": "arbitrage", "locale": "fr-FR", "status": "preferred" },
+        { "text": "仲裁", "locale": "ja-JP", "status": "preferred" },
+        { "text": "voldgift", "locale": "nb-NO", "status": "preferred" },
+        { "text": "تحكيم", "locale": "ar-SA", "status": "preferred" }
+      ]
+    },
+    {
+      "id": "km-053",
+      "domain": "legal",
+      "definition": "The jurisdiction and legal framework that applies to a contract or agreement.",
+      "terms": [
+        { "text": "governing law", "locale": "en-US", "status": "preferred" },
+        { "text": "applicable law", "locale": "en-US", "status": "deprecated" },
+        { "text": "anwendbares Recht", "locale": "de-DE", "status": "preferred" },
+        { "text": "droit applicable", "locale": "fr-FR", "status": "preferred" },
+        { "text": "準拠法", "locale": "ja-JP", "status": "preferred" },
+        { "text": "gjeldende lov", "locale": "nb-NO", "status": "preferred" },
+        { "text": "القانون الحاكم", "locale": "ar-SA", "status": "preferred" }
+      ]
+    },
+    {
+      "id": "km-054",
+      "domain": "legal",
+      "definition": "A clause excusing parties from contractual obligations due to extraordinary and unforeseeable events.",
+      "terms": [
+        { "text": "force majeure", "locale": "en-US", "status": "preferred" },
+        { "text": "höhere Gewalt", "locale": "de-DE", "status": "preferred" },
+        { "text": "force majeure", "locale": "fr-FR", "status": "preferred" },
+        { "text": "不可抗力", "locale": "ja-JP", "status": "preferred" },
+        { "text": "force majeure", "locale": "nb-NO", "status": "preferred" },
+        { "text": "قوة قاهرة", "locale": "ar-SA", "status": "preferred" }
+      ]
+    },
+    {
+      "id": "km-055",
+      "domain": "legal",
+      "definition": "A clause that caps the maximum amount of damages a party can be held responsible for.",
+      "terms": [
+        { "text": "limitation of liability", "locale": "en-US", "status": "preferred" },
+        { "text": "Haftungsbeschränkung", "locale": "de-DE", "status": "preferred" },
+        { "text": "limitation de responsabilité", "locale": "fr-FR", "status": "preferred" },
+        { "text": "責任制限", "locale": "ja-JP", "status": "preferred" },
+        { "text": "ansvarsbegrensning", "locale": "nb-NO", "status": "preferred" },
+        { "text": "تحديد المسؤولية", "locale": "ar-SA", "status": "preferred" }
+      ]
+    },
+    {
+      "id": "km-056",
+      "domain": "support",
+      "definition": "The department responsible for assisting customers with inquiries, issues, and complaints.",
+      "terms": [
+        { "text": "customer service", "locale": "en-US", "status": "preferred" },
+        { "text": "customer support", "locale": "en-US", "status": "admitted" },
+        { "text": "Kundenservice", "locale": "de-DE", "status": "preferred" },
+        { "text": "Kundendienst", "locale": "de-DE", "status": "deprecated" },
+        { "text": "service client", "locale": "fr-FR", "status": "preferred" },
+        { "text": "カスタマーサービス", "locale": "ja-JP", "status": "preferred" },
+        { "text": "kundeservice", "locale": "nb-NO", "status": "preferred" },
+        { "text": "خدمة العملاء", "locale": "ar-SA", "status": "preferred" }
+      ]
+    },
+    {
+      "id": "km-057",
+      "domain": "support",
+      "definition": "A collection of answers to the most common questions customers ask.",
+      "terms": [
+        { "text": "FAQ", "locale": "en-US", "status": "preferred" },
+        { "text": "frequently asked questions", "locale": "en-US", "status": "admitted" },
+        { "text": "FAQ", "locale": "de-DE", "status": "preferred" },
+        { "text": "häufig gestellte Fragen", "locale": "de-DE", "status": "admitted" },
+        { "text": "FAQ", "locale": "fr-FR", "status": "preferred" },
+        { "text": "よくある質問", "locale": "ja-JP", "status": "preferred" },
+        { "text": "ofte stilte spørsmål", "locale": "nb-NO", "status": "preferred" },
+        { "text": "الأسئلة الشائعة", "locale": "ar-SA", "status": "preferred" }
+      ]
+    },
+    {
+      "id": "km-058",
+      "domain": "support",
+      "definition": "A formal request for help submitted by a customer, tracked through a ticketing system.",
+      "terms": [
+        { "text": "support ticket", "locale": "en-US", "status": "preferred" },
+        { "text": "Support-Ticket", "locale": "de-DE", "status": "preferred" },
+        { "text": "ticket d'assistance", "locale": "fr-FR", "status": "preferred" },
+        { "text": "サポートチケット", "locale": "ja-JP", "status": "preferred" },
+        { "text": "henvendelse", "locale": "nb-NO", "status": "preferred" },
+        { "text": "تذكرة دعم", "locale": "ar-SA", "status": "preferred" }
+      ]
+    },
+    {
+      "id": "km-059",
+      "domain": "support",
+      "definition": "The process of transferring an unresolved issue to a higher level of support or management.",
+      "terms": [
+        { "text": "escalation", "locale": "en-US", "status": "preferred" },
+        { "text": "Eskalation", "locale": "de-DE", "status": "preferred" },
+        { "text": "escalade", "locale": "fr-FR", "status": "preferred" },
+        { "text": "エスカレーション", "locale": "ja-JP", "status": "preferred" },
+        { "text": "eskalering", "locale": "nb-NO", "status": "preferred" },
+        { "text": "تصعيد", "locale": "ar-SA", "status": "preferred" }
+      ]
+    },
+    {
+      "id": "km-060",
+      "domain": "support",
+      "definition": "The successful conclusion of a support case where the customer's issue has been addressed.",
+      "terms": [
+        { "text": "resolution", "locale": "en-US", "status": "preferred" },
+        { "text": "Lösung", "locale": "de-DE", "status": "preferred" },
+        { "text": "résolution", "locale": "fr-FR", "status": "preferred" },
+        { "text": "解決", "locale": "ja-JP", "status": "preferred" },
+        { "text": "løsning", "locale": "nb-NO", "status": "preferred" },
+        { "text": "حل", "locale": "ar-SA", "status": "preferred" }
+      ]
+    },
+    {
+      "id": "km-061",
+      "domain": "support",
+      "definition": "A service level agreement defining expected response times and performance standards.",
+      "terms": [
+        { "text": "SLA", "locale": "en-US", "status": "preferred" },
+        { "text": "service level agreement", "locale": "en-US", "status": "admitted" },
+        { "text": "SLA", "locale": "de-DE", "status": "preferred" },
+        { "text": "accord de niveau de service", "locale": "fr-FR", "status": "preferred" },
+        { "text": "SLA", "locale": "ja-JP", "status": "preferred" },
+        { "text": "tjenestenivåavtale", "locale": "nb-NO", "status": "preferred" },
+        { "text": "اتفاقية مستوى الخدمة", "locale": "ar-SA", "status": "preferred" }
+      ]
+    },
+    {
+      "id": "km-062",
+      "domain": "support",
+      "definition": "A centralized repository of articles and guides to help users find solutions independently.",
+      "terms": [
+        { "text": "knowledge base", "locale": "en-US", "status": "preferred" },
+        { "text": "Wissensdatenbank", "locale": "de-DE", "status": "preferred" },
+        { "text": "base de connaissances", "locale": "fr-FR", "status": "preferred" },
+        { "text": "ナレッジベース", "locale": "ja-JP", "status": "preferred" },
+        { "text": "kunnskapsbase", "locale": "nb-NO", "status": "preferred" },
+        { "text": "قاعدة المعرفة", "locale": "ar-SA", "status": "preferred" }
+      ]
+    },
+    {
+      "id": "km-063",
+      "domain": "support",
+      "definition": "A real-time messaging feature enabling customers to communicate with support agents.",
+      "terms": [
+        { "text": "live chat", "locale": "en-US", "status": "preferred" },
+        { "text": "Live-Chat", "locale": "de-DE", "status": "preferred" },
+        { "text": "chat en direct", "locale": "fr-FR", "status": "preferred" },
+        { "text": "ライブチャット", "locale": "ja-JP", "status": "preferred" },
+        { "text": "direktechat", "locale": "nb-NO", "status": "preferred" },
+        { "text": "دردشة مباشرة", "locale": "ar-SA", "status": "preferred" }
+      ]
+    },
+    {
+      "id": "km-064",
+      "domain": "support",
+      "definition": "A service where the support team returns a customer's call at a scheduled time.",
+      "terms": [
+        { "text": "callback", "locale": "en-US", "status": "preferred" },
+        { "text": "Rückruf", "locale": "de-DE", "status": "preferred" },
+        { "text": "rappel", "locale": "fr-FR", "status": "preferred" },
+        { "text": "コールバック", "locale": "ja-JP", "status": "preferred" },
+        { "text": "tilbakeringing", "locale": "nb-NO", "status": "preferred" },
+        { "text": "معاودة الاتصال", "locale": "ar-SA", "status": "preferred" }
+      ]
+    },
+    {
+      "id": "km-065",
+      "domain": "support",
+      "definition": "Information provided by customers about their experience with a product or service.",
+      "terms": [
+        { "text": "feedback", "locale": "en-US", "status": "preferred" },
+        { "text": "Feedback", "locale": "de-DE", "status": "preferred" },
+        { "text": "Rückmeldung", "locale": "de-DE", "status": "admitted" },
+        { "text": "retour d'information", "locale": "fr-FR", "status": "preferred" },
+        { "text": "フィードバック", "locale": "ja-JP", "status": "preferred" },
+        { "text": "tilbakemelding", "locale": "nb-NO", "status": "preferred" },
+        { "text": "ملاحظات", "locale": "ar-SA", "status": "preferred" }
+      ]
+    },
+    {
+      "id": "km-066",
+      "domain": "support",
+      "definition": "A questionnaire sent to customers to measure their satisfaction with support interactions.",
+      "terms": [
+        { "text": "satisfaction survey", "locale": "en-US", "status": "preferred" },
+        { "text": "Zufriedenheitsumfrage", "locale": "de-DE", "status": "preferred" },
+        { "text": "enquête de satisfaction", "locale": "fr-FR", "status": "preferred" },
+        { "text": "満足度調査", "locale": "ja-JP", "status": "preferred" },
+        { "text": "tilfredshetsundersøkelse", "locale": "nb-NO", "status": "preferred" },
+        { "text": "استبيان الرضا", "locale": "ar-SA", "status": "preferred" }
+      ]
+    },
+    {
+      "id": "km-067",
+      "domain": "support",
+      "definition": "A centralized online portal where customers can find support resources and contact options.",
+      "terms": [
+        { "text": "help center", "locale": "en-US", "status": "preferred" },
+        { "text": "Hilfecenter", "locale": "de-DE", "status": "preferred" },
+        { "text": "centre d'aide", "locale": "fr-FR", "status": "preferred" },
+        { "text": "ヘルプセンター", "locale": "ja-JP", "status": "preferred" },
+        { "text": "hjelpesenter", "locale": "nb-NO", "status": "preferred" },
+        { "text": "مركز المساعدة", "locale": "ar-SA", "status": "preferred" }
+      ]
+    },
+    {
+      "id": "km-068",
+      "domain": "support",
+      "definition": "A systematic process of diagnosing and resolving technical problems step by step.",
+      "terms": [
+        { "text": "troubleshooting", "locale": "en-US", "status": "preferred" },
+        { "text": "Fehlerbehebung", "locale": "de-DE", "status": "preferred" },
+        { "text": "dépannage", "locale": "fr-FR", "status": "preferred" },
+        { "text": "トラブルシューティング", "locale": "ja-JP", "status": "preferred" },
+        { "text": "feilsøking", "locale": "nb-NO", "status": "preferred" },
+        { "text": "استكشاف الأخطاء وإصلاحها", "locale": "ar-SA", "status": "preferred" }
+      ]
+    },
+    {
+      "id": "km-069",
+      "domain": "support",
+      "definition": "A formal report submitted when a user encounters a software defect or unexpected behavior.",
+      "terms": [
+        { "text": "bug report", "locale": "en-US", "status": "preferred" },
+        { "text": "Fehlerbericht", "locale": "de-DE", "status": "preferred" },
+        { "text": "rapport de bogue", "locale": "fr-FR", "status": "preferred" },
+        { "text": "バグレポート", "locale": "ja-JP", "status": "preferred" },
+        { "text": "feilrapport", "locale": "nb-NO", "status": "preferred" },
+        { "text": "تقرير خطأ", "locale": "ar-SA", "status": "preferred" }
+      ]
+    },
+    {
+      "id": "km-070",
+      "domain": "support",
+      "definition": "A suggestion from a user for a new capability or improvement to the product.",
+      "terms": [
+        { "text": "feature request", "locale": "en-US", "status": "preferred" },
+        { "text": "Funktionswunsch", "locale": "de-DE", "status": "preferred" },
+        { "text": "demande de fonctionnalité", "locale": "fr-FR", "status": "preferred" },
+        { "text": "機能リクエスト", "locale": "ja-JP", "status": "preferred" },
+        { "text": "funksjonsforespørsel", "locale": "nb-NO", "status": "preferred" },
+        { "text": "طلب ميزة", "locale": "ar-SA", "status": "preferred" }
+      ]
+    },
+    {
+      "id": "km-071",
+      "domain": "marketing",
+      "definition": "A coordinated set of marketing activities aimed at achieving a specific business goal.",
+      "terms": [
+        { "text": "campaign", "locale": "en-US", "status": "preferred" },
+        { "text": "Kampagne", "locale": "de-DE", "status": "preferred" },
+        { "text": "campagne", "locale": "fr-FR", "status": "preferred" },
+        { "text": "キャンペーン", "locale": "ja-JP", "status": "preferred" },
+        { "text": "kampanje", "locale": "nb-NO", "status": "preferred" },
+        { "text": "حملة", "locale": "ar-SA", "status": "preferred" }
+      ]
+    },
+    {
+      "id": "km-072",
+      "domain": "marketing",
+      "definition": "A periodic email communication sent to subscribers with updates, offers, or content.",
+      "terms": [
+        { "text": "newsletter", "locale": "en-US", "status": "preferred" },
+        { "text": "Newsletter", "locale": "de-DE", "status": "preferred" },
+        { "text": "Rundschreiben", "locale": "de-DE", "status": "deprecated" },
+        { "text": "newsletter", "locale": "fr-FR", "status": "preferred" },
+        { "text": "ニュースレター", "locale": "ja-JP", "status": "preferred" },
+        { "text": "nyhetsbrev", "locale": "nb-NO", "status": "preferred" },
+        { "text": "نشرة إخبارية", "locale": "ar-SA", "status": "preferred" }
+      ]
+    },
+    {
+      "id": "km-073",
+      "domain": "marketing",
+      "definition": "A prominent visual advertisement displayed on a webpage to attract user attention.",
+      "terms": [
+        { "text": "banner", "locale": "en-US", "status": "preferred" },
+        { "text": "Banner", "locale": "de-DE", "status": "preferred" },
+        { "text": "bannière", "locale": "fr-FR", "status": "preferred" },
+        { "text": "バナー", "locale": "ja-JP", "status": "preferred" },
+        { "text": "banner", "locale": "nb-NO", "status": "preferred" },
+        { "text": "لافتة", "locale": "ar-SA", "status": "preferred" }
+      ]
+    },
+    {
+      "id": "km-074",
+      "domain": "marketing",
+      "definition": "A prompt designed to encourage a user to take a specific action such as signing up or purchasing.",
+      "terms": [
+        { "text": "call to action", "locale": "en-US", "status": "preferred" },
+        { "text": "CTA", "locale": "en-US", "status": "admitted" },
+        { "text": "Handlungsaufforderung", "locale": "de-DE", "status": "preferred" },
+        { "text": "appel à l'action", "locale": "fr-FR", "status": "preferred" },
+        { "text": "行動喚起", "locale": "ja-JP", "status": "preferred" },
+        { "text": "handlingsoppfordring", "locale": "nb-NO", "status": "preferred" },
+        { "text": "دعوة لاتخاذ إجراء", "locale": "ar-SA", "status": "preferred" }
+      ]
+    },
+    {
+      "id": "km-075",
+      "domain": "marketing",
+      "definition": "A standalone web page created specifically for a marketing campaign to drive conversions.",
+      "terms": [
+        { "text": "landing page", "locale": "en-US", "status": "preferred" },
+        { "text": "Landingpage", "locale": "de-DE", "status": "preferred" },
+        { "text": "Zielseite", "locale": "de-DE", "status": "admitted" },
+        { "text": "page d'atterrissage", "locale": "fr-FR", "status": "preferred" },
+        { "text": "ランディングページ", "locale": "ja-JP", "status": "preferred" },
+        { "text": "landingsside", "locale": "nb-NO", "status": "preferred" },
+        { "text": "صفحة الهبوط", "locale": "ar-SA", "status": "preferred" }
+      ]
+    },
+    {
+      "id": "km-076",
+      "domain": "marketing",
+      "definition": "The percentage of users who complete a desired action out of the total who had the opportunity.",
+      "terms": [
+        { "text": "conversion", "locale": "en-US", "status": "preferred" },
+        { "text": "Konversion", "locale": "de-DE", "status": "preferred" },
+        { "text": "conversion", "locale": "fr-FR", "status": "preferred" },
+        { "text": "コンバージョン", "locale": "ja-JP", "status": "preferred" },
+        { "text": "konvertering", "locale": "nb-NO", "status": "preferred" },
+        { "text": "تحويل", "locale": "ar-SA", "status": "preferred" }
+      ]
+    },
+    {
+      "id": "km-077",
+      "domain": "marketing",
+      "definition": "The level of interaction and involvement users have with content, brand, or platform.",
+      "terms": [
+        { "text": "engagement", "locale": "en-US", "status": "preferred" },
+        { "text": "Engagement", "locale": "de-DE", "status": "preferred" },
+        { "text": "engagement", "locale": "fr-FR", "status": "preferred" },
+        { "text": "エンゲージメント", "locale": "ja-JP", "status": "preferred" },
+        { "text": "engasjement", "locale": "nb-NO", "status": "preferred" },
+        { "text": "تفاعل", "locale": "ar-SA", "status": "preferred" }
+      ]
+    },
+    {
+      "id": "km-078",
+      "domain": "marketing",
+      "definition": "The identity, reputation, and perception of a company in the minds of customers.",
+      "terms": [
+        { "text": "brand", "locale": "en-US", "status": "preferred" },
+        { "text": "Marke", "locale": "de-DE", "status": "preferred" },
+        { "text": "marque", "locale": "fr-FR", "status": "preferred" },
+        { "text": "ブランド", "locale": "ja-JP", "status": "preferred" },
+        { "text": "merkevare", "locale": "nb-NO", "status": "preferred" },
+        { "text": "علامة تجارية", "locale": "ar-SA", "status": "preferred" }
+      ]
+    },
+    {
+      "id": "km-079",
+      "domain": "marketing",
+      "definition": "The practice of optimizing web content to rank higher in search engine results.",
+      "terms": [
+        { "text": "SEO", "locale": "en-US", "status": "preferred" },
+        { "text": "search engine optimization", "locale": "en-US", "status": "forbidden" },
+        { "text": "SEO", "locale": "de-DE", "status": "preferred" },
+        { "text": "Suchmaschinenoptimierung", "locale": "de-DE", "status": "forbidden" },
+        { "text": "SEO", "locale": "fr-FR", "status": "preferred" },
+        { "text": "SEO", "locale": "ja-JP", "status": "preferred" },
+        { "text": "SEO", "locale": "nb-NO", "status": "preferred" },
+        { "text": "تحسين محركات البحث", "locale": "ar-SA", "status": "preferred" }
+      ]
+    },
+    {
+      "id": "km-080",
+      "domain": "marketing",
+      "definition": "Online platforms that enable users to create and share content and interact with communities.",
+      "terms": [
+        { "text": "social media", "locale": "en-US", "status": "preferred" },
+        { "text": "soziale Medien", "locale": "de-DE", "status": "preferred" },
+        { "text": "réseaux sociaux", "locale": "fr-FR", "status": "preferred" },
+        { "text": "ソーシャルメディア", "locale": "ja-JP", "status": "preferred" },
+        { "text": "sosiale medier", "locale": "nb-NO", "status": "preferred" },
+        { "text": "وسائل التواصل الاجتماعي", "locale": "ar-SA", "status": "preferred" }
+      ]
+    },
+    {
+      "id": "km-081",
+      "domain": "marketing",
+      "definition": "A person with a significant online following who can affect purchasing decisions of their audience.",
+      "terms": [
+        { "text": "influencer", "locale": "en-US", "status": "preferred" },
+        { "text": "Influencer", "locale": "de-DE", "status": "preferred" },
+        { "text": "influenceur", "locale": "fr-FR", "status": "preferred" },
+        { "text": "インフルエンサー", "locale": "ja-JP", "status": "preferred" },
+        { "text": "influenser", "locale": "nb-NO", "status": "preferred" },
+        { "text": "مؤثر", "locale": "ar-SA", "status": "preferred" }
+      ]
+    },
+    {
+      "id": "km-082",
+      "domain": "marketing",
+      "definition": "A marketing arrangement where a partner earns commission for driving sales or traffic.",
+      "terms": [
+        { "text": "affiliate", "locale": "en-US", "status": "preferred" },
+        { "text": "Affiliate", "locale": "de-DE", "status": "preferred" },
+        { "text": "Partner", "locale": "de-DE", "status": "deprecated" },
+        { "text": "affilié", "locale": "fr-FR", "status": "preferred" },
+        { "text": "アフィリエイト", "locale": "ja-JP", "status": "preferred" },
+        { "text": "affiliate", "locale": "nb-NO", "status": "preferred" },
+        { "text": "مسوّق بالعمولة", "locale": "ar-SA", "status": "preferred" }
+      ]
+    },
+    {
+      "id": "km-083",
+      "domain": "marketing",
+      "definition": "The process of identifying and cultivating potential customers for a business.",
+      "terms": [
+        { "text": "lead generation", "locale": "en-US", "status": "preferred" },
+        { "text": "Leadgenerierung", "locale": "de-DE", "status": "preferred" },
+        { "text": "génération de prospects", "locale": "fr-FR", "status": "preferred" },
+        { "text": "リード獲得", "locale": "ja-JP", "status": "preferred" },
+        { "text": "leadgenerering", "locale": "nb-NO", "status": "preferred" },
+        { "text": "توليد العملاء المحتملين", "locale": "ar-SA", "status": "preferred" }
+      ]
+    },
+    {
+      "id": "km-084",
+      "domain": "marketing",
+      "definition": "An experiment comparing two variants of a page or element to determine which performs better.",
+      "terms": [
+        { "text": "A/B testing", "locale": "en-US", "status": "preferred" },
+        { "text": "split testing", "locale": "en-US", "status": "forbidden" },
+        { "text": "A/B-Test", "locale": "de-DE", "status": "preferred" },
+        { "text": "test A/B", "locale": "fr-FR", "status": "preferred" },
+        { "text": "A/Bテスト", "locale": "ja-JP", "status": "preferred" },
+        { "text": "A/B-testing", "locale": "nb-NO", "status": "preferred" },
+        { "text": "اختبار أ/ب", "locale": "ar-SA", "status": "preferred" }
+      ]
+    },
+    {
+      "id": "km-085",
+      "domain": "marketing",
+      "definition": "A strategy of creating and distributing valuable content to attract and retain a target audience.",
+      "terms": [
+        { "text": "content marketing", "locale": "en-US", "status": "preferred" },
+        { "text": "Content-Marketing", "locale": "de-DE", "status": "preferred" },
+        { "text": "marketing de contenu", "locale": "fr-FR", "status": "preferred" },
+        { "text": "コンテンツマーケティング", "locale": "ja-JP", "status": "preferred" },
+        { "text": "innholdsmarkedsføring", "locale": "nb-NO", "status": "preferred" },
+        { "text": "تسويق المحتوى", "locale": "ar-SA", "status": "preferred" }
+      ]
+    },
+    {
+      "id": "km-086",
+      "domain": "technical",
+      "definition": "An application programming interface that enables communication between software systems.",
+      "terms": [
+        { "text": "API", "locale": "en-US", "status": "preferred" },
+        { "text": "API", "locale": "de-DE", "status": "preferred" },
+        { "text": "Programmierschnittstelle", "locale": "de-DE", "status": "forbidden" },
+        { "text": "API", "locale": "fr-FR", "status": "preferred" },
+        { "text": "API", "locale": "ja-JP", "status": "preferred" },
+        { "text": "API", "locale": "nb-NO", "status": "preferred" },
+        { "text": "واجهة برمجة التطبيقات", "locale": "ar-SA", "status": "preferred" }
+      ]
+    },
+    {
+      "id": "km-087",
+      "domain": "technical",
+      "definition": "A software development kit providing tools, libraries, and documentation for building applications.",
+      "terms": [
+        { "text": "SDK", "locale": "en-US", "status": "preferred" },
+        { "text": "SDK", "locale": "de-DE", "status": "preferred" },
+        { "text": "SDK", "locale": "fr-FR", "status": "preferred" },
+        { "text": "SDK", "locale": "ja-JP", "status": "preferred" },
+        { "text": "SDK", "locale": "nb-NO", "status": "preferred" },
+        { "text": "حزمة تطوير البرمجيات", "locale": "ar-SA", "status": "preferred" }
+      ]
+    },
+    {
+      "id": "km-088",
+      "domain": "technical",
+      "definition": "The connection of two or more systems to exchange data and work together.",
+      "terms": [
+        { "text": "integration", "locale": "en-US", "status": "preferred" },
+        { "text": "Integration", "locale": "de-DE", "status": "preferred" },
+        { "text": "intégration", "locale": "fr-FR", "status": "preferred" },
+        { "text": "インテグレーション", "locale": "ja-JP", "status": "preferred" },
+        { "text": "integrasjon", "locale": "nb-NO", "status": "preferred" },
+        { "text": "تكامل", "locale": "ar-SA", "status": "preferred" }
+      ]
+    },
+    {
+      "id": "km-089",
+      "domain": "technical",
+      "definition": "An automated HTTP callback triggered by a specific event in a source system.",
+      "terms": [
+        { "text": "webhook", "locale": "en-US", "status": "preferred" },
+        { "text": "Webhook", "locale": "de-DE", "status": "preferred" },
+        { "text": "webhook", "locale": "fr-FR", "status": "preferred" },
+        { "text": "ウェブフック", "locale": "ja-JP", "status": "preferred" },
+        { "text": "webhook", "locale": "nb-NO", "status": "preferred" },
+        { "text": "ويب هوك", "locale": "ar-SA", "status": "preferred" }
+      ]
+    },
+    {
+      "id": "km-090",
+      "domain": "technical",
+      "definition": "The process of verifying the identity of a user or system attempting to access a resource.",
+      "terms": [
+        { "text": "authentication", "locale": "en-US", "status": "preferred" },
+        { "text": "Authentifizierung", "locale": "de-DE", "status": "preferred" },
+        { "text": "authentification", "locale": "fr-FR", "status": "preferred" },
+        { "text": "認証", "locale": "ja-JP", "status": "preferred" },
+        { "text": "autentisering", "locale": "nb-NO", "status": "preferred" },
+        { "text": "مصادقة", "locale": "ar-SA", "status": "preferred" }
+      ]
+    },
+    {
+      "id": "km-091",
+      "domain": "technical",
+      "definition": "The process of determining what actions an authenticated user is permitted to perform.",
+      "terms": [
+        { "text": "authorization", "locale": "en-US", "status": "preferred" },
+        { "text": "Autorisierung", "locale": "de-DE", "status": "preferred" },
+        { "text": "autorisation", "locale": "fr-FR", "status": "preferred" },
+        { "text": "認可", "locale": "ja-JP", "status": "preferred" },
+        { "text": "autorisering", "locale": "nb-NO", "status": "preferred" },
+        { "text": "تفويض", "locale": "ar-SA", "status": "preferred" }
+      ]
+    },
+    {
+      "id": "km-092",
+      "domain": "technical",
+      "definition": "A specific URL where an API receives requests for a particular resource or operation.",
+      "terms": [
+        { "text": "endpoint", "locale": "en-US", "status": "preferred" },
+        { "text": "Endpunkt", "locale": "de-DE", "status": "preferred" },
+        { "text": "point de terminaison", "locale": "fr-FR", "status": "preferred" },
+        { "text": "エンドポイント", "locale": "ja-JP", "status": "preferred" },
+        { "text": "endepunkt", "locale": "nb-NO", "status": "preferred" },
+        { "text": "نقطة النهاية", "locale": "ar-SA", "status": "preferred" }
+      ]
+    },
+    {
+      "id": "km-093",
+      "domain": "technical",
+      "definition": "A restriction on the number of API requests a client can make within a given time period.",
+      "terms": [
+        { "text": "rate limit", "locale": "en-US", "status": "preferred" },
+        { "text": "throttling", "locale": "en-US", "status": "deprecated" },
+        { "text": "Ratenlimit", "locale": "de-DE", "status": "preferred" },
+        { "text": "limite de débit", "locale": "fr-FR", "status": "preferred" },
+        { "text": "レート制限", "locale": "ja-JP", "status": "preferred" },
+        { "text": "frekvensgrense", "locale": "nb-NO", "status": "preferred" },
+        { "text": "حد المعدل", "locale": "ar-SA", "status": "preferred" }
+      ]
+    },
+    {
+      "id": "km-094",
+      "domain": "technical",
+      "definition": "The data content transmitted in the body of an API request or response.",
+      "terms": [
+        { "text": "payload", "locale": "en-US", "status": "preferred" },
+        { "text": "Nutzdaten", "locale": "de-DE", "status": "preferred" },
+        { "text": "charge utile", "locale": "fr-FR", "status": "preferred" },
+        { "text": "ペイロード", "locale": "ja-JP", "status": "preferred" },
+        { "text": "nyttelast", "locale": "nb-NO", "status": "preferred" },
+        { "text": "حمولة البيانات", "locale": "ar-SA", "status": "preferred" }
+      ]
+    },
+    {
+      "id": "km-095",
+      "domain": "technical",
+      "definition": "A numeric code returned by an API indicating the result of a request.",
+      "terms": [
+        { "text": "response code", "locale": "en-US", "status": "preferred" },
+        { "text": "status code", "locale": "en-US", "status": "deprecated" },
+        { "text": "Antwortcode", "locale": "de-DE", "status": "preferred" },
+        { "text": "code de réponse", "locale": "fr-FR", "status": "preferred" },
+        { "text": "レスポンスコード", "locale": "ja-JP", "status": "preferred" },
+        { "text": "svarkode", "locale": "nb-NO", "status": "preferred" },
+        { "text": "رمز الاستجابة", "locale": "ar-SA", "status": "preferred" }
+      ]
+    },
+    {
+      "id": "km-096",
+      "domain": "technical",
+      "definition": "The time delay between a request being sent and the response being received.",
+      "terms": [
+        { "text": "latency", "locale": "en-US", "status": "preferred" },
+        { "text": "Latenz", "locale": "de-DE", "status": "preferred" },
+        { "text": "latence", "locale": "fr-FR", "status": "preferred" },
+        { "text": "レイテンシ", "locale": "ja-JP", "status": "preferred" },
+        { "text": "forsinkelse", "locale": "nb-NO", "status": "preferred" },
+        { "text": "زمن الاستجابة", "locale": "ar-SA", "status": "preferred" }
+      ]
+    },
+    {
+      "id": "km-097",
+      "domain": "technical",
+      "definition": "The percentage of time a system is operational and accessible over a given period.",
+      "terms": [
+        { "text": "uptime", "locale": "en-US", "status": "preferred" },
+        { "text": "Verfügbarkeit", "locale": "de-DE", "status": "preferred" },
+        { "text": "disponibilité", "locale": "fr-FR", "status": "preferred" },
+        { "text": "稼働時間", "locale": "ja-JP", "status": "preferred" },
+        { "text": "oppetid", "locale": "nb-NO", "status": "preferred" },
+        { "text": "وقت التشغيل", "locale": "ar-SA", "status": "preferred" }
+      ]
+    },
+    {
+      "id": "km-098",
+      "domain": "technical",
+      "definition": "The process of releasing and installing a new version of software into an environment.",
+      "terms": [
+        { "text": "deployment", "locale": "en-US", "status": "preferred" },
+        { "text": "Bereitstellung", "locale": "de-DE", "status": "preferred" },
+        { "text": "déploiement", "locale": "fr-FR", "status": "preferred" },
+        { "text": "デプロイ", "locale": "ja-JP", "status": "preferred" },
+        { "text": "utrulling", "locale": "nb-NO", "status": "preferred" },
+        { "text": "نشر", "locale": "ar-SA", "status": "preferred" }
+      ]
+    },
+    {
+      "id": "km-099",
+      "domain": "technical",
+      "definition": "An isolated testing environment that mirrors production but uses simulated data and services.",
+      "terms": [
+        { "text": "sandbox", "locale": "en-US", "status": "preferred" },
+        { "text": "Sandbox", "locale": "de-DE", "status": "preferred" },
+        { "text": "Testumgebung", "locale": "de-DE", "status": "admitted" },
+        { "text": "bac à sable", "locale": "fr-FR", "status": "preferred" },
+        { "text": "サンドボックス", "locale": "ja-JP", "status": "preferred" },
+        { "text": "sandkasse", "locale": "nb-NO", "status": "preferred" },
+        { "text": "بيئة اختبار", "locale": "ar-SA", "status": "preferred" }
+      ]
+    },
+    {
+      "id": "km-100",
+      "domain": "technical",
+      "definition": "The live environment where the application serves real users and processes real data.",
+      "terms": [
+        { "text": "production", "locale": "en-US", "status": "preferred" },
+        { "text": "prod", "locale": "en-US", "status": "forbidden" },
+        { "text": "Produktion", "locale": "de-DE", "status": "preferred" },
+        { "text": "production", "locale": "fr-FR", "status": "preferred" },
+        { "text": "本番環境", "locale": "ja-JP", "status": "preferred" },
+        { "text": "produksjon", "locale": "nb-NO", "status": "preferred" },
+        { "text": "بيئة الإنتاج", "locale": "ar-SA", "status": "preferred" }
+      ]
+    }
+  ]
+}

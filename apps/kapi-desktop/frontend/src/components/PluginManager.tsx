@@ -227,7 +227,7 @@ export function PluginManager({ plugins: propPlugins }: PluginManagerProps = {})
     (p) => !search || p.name.toLowerCase().includes(search.toLowerCase()),
   );
 
-  const searchDebounceRef = useRef<ReturnType<typeof setTimeout>>();
+  const searchDebounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
   const handleSearchChange = useCallback(
     (query: string) => {
       setSearch(query);

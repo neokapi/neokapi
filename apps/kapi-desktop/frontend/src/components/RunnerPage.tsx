@@ -30,12 +30,13 @@ interface RunEvent {
 }
 
 interface RunnerPageProps {
+  tabID: string;
   flowName: string;
   flow: FlowSpec;
   onClose: () => void;
 }
 
-export function RunnerPage({ flowName, flow, onClose }: RunnerPageProps) {
+export function RunnerPage({ tabID, flowName, flow, onClose }: RunnerPageProps) {
   const [state, setState] = useState<RunState>("idle");
   const [events, setEvents] = useState<RunEvent[]>([]);
   const [inputFiles] = useState<string[]>([]);
@@ -73,7 +74,7 @@ export function RunnerPage({ flowName, flow, onClose }: RunnerPageProps) {
     setProgress({ current: 0, total: inputFiles.length });
 
     try {
-      await api.runFlow(flowName, inputFiles, targetLang);
+      await api.runFlow(tabID, flowName, inputFiles, targetLang);
       // Completion is signaled via events, not the return value.
     } catch (e) {
       setState("error");

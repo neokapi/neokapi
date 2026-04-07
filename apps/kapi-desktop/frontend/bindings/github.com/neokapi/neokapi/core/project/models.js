@@ -260,6 +260,53 @@ export class Defaults {
 }
 
 /**
+ * FlowValidationIssue describes a tool reference in a project flow that
+ * requires a plugin the project does not declare.
+ */
+export class FlowValidationIssue {
+    /**
+     * Creates a new FlowValidationIssue instance.
+     * @param {Partial<FlowValidationIssue>} [$$source = {}] - The source object to create the FlowValidationIssue.
+     */
+    constructor($$source = {}) {
+        if (!("flow_name" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["flow_name"] = "";
+        }
+        if (!("step_tool" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["step_tool"] = "";
+        }
+        if (!("source" in $$source)) {
+            /**
+             * the plugin that provides the tool
+             * @member
+             * @type {string}
+             */
+            this["source"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new FlowValidationIssue instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {FlowValidationIssue}
+     */
+    static createFrom($$source = {}) {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new FlowValidationIssue(/** @type {Partial<FlowValidationIssue>} */($$parsedSource));
+    }
+}
+
+/**
  * FormatDefaults holds project-level default settings for a specific format.
  */
 export class FormatDefaults {
@@ -456,6 +503,59 @@ export class KapiProject {
 }
 
 /**
+ * PluginIssue describes a single plugin requirement that is not met.
+ */
+export class PluginIssue {
+    /**
+     * Creates a new PluginIssue instance.
+     * @param {Partial<PluginIssue>} [$$source = {}] - The source object to create the PluginIssue.
+     */
+    constructor($$source = {}) {
+        if (!("plugin" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["plugin"] = "";
+        }
+        if (!("type" in $$source)) {
+            /**
+             * "missing" or "version_mismatch"
+             * @member
+             * @type {string}
+             */
+            this["type"] = "";
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["required"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["installed_version"] = undefined;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new PluginIssue instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {PluginIssue}
+     */
+    static createFrom($$source = {}) {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new PluginIssue(/** @type {Partial<PluginIssue>} */($$parsedSource));
+    }
+}
+
+/**
  * PluginSpec describes a plugin dependency with version constraints and settings.
  * Supports short form (bare string → version range) and long form (struct).
  * 
@@ -509,6 +609,49 @@ export class PluginSpec {
     }
 }
 
+/**
+ * PluginStatus reports whether a project's plugin requirements are satisfied
+ * by the locally installed plugins.
+ */
+export class PluginStatus {
+    /**
+     * Creates a new PluginStatus instance.
+     * @param {Partial<PluginStatus>} [$$source = {}] - The source object to create the PluginStatus.
+     */
+    constructor($$source = {}) {
+        if (!("satisfied" in $$source)) {
+            /**
+             * @member
+             * @type {boolean}
+             */
+            this["satisfied"] = false;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {PluginIssue[] | undefined}
+             */
+            this["issues"] = undefined;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new PluginStatus instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {PluginStatus}
+     */
+    static createFrom($$source = {}) {
+        const $$createField1_0 = $$createType17;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("issues" in $$parsedSource) {
+            $$parsedSource["issues"] = $$createField1_0($$parsedSource["issues"]);
+        }
+        return new PluginStatus(/** @type {Partial<PluginStatus>} */($$parsedSource));
+    }
+}
+
 // Private type creation functions
 const $$createType0 = $Create.Array($Create.Any);
 const $$createType1 = ContentItem.createFrom;
@@ -526,3 +669,5 @@ const $$createType12 = $Create.Array($$createType11);
 const $$createType13 = flow$0.StepsSpec.createFrom;
 const $$createType14 = $Create.Nullable($$createType13);
 const $$createType15 = $Create.Map($Create.Any, $$createType14);
+const $$createType16 = PluginIssue.createFrom;
+const $$createType17 = $Create.Array($$createType16);

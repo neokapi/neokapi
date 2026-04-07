@@ -83,7 +83,7 @@ export function PreviewPanel({
   const [sampleText, setSampleText] = useState("");
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<PreviewResult | null>(null);
-  const debounceRef = useRef<ReturnType<typeof setTimeout>>();
+  const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   const handlePreview = useCallback(async () => {
     if (!sampleText.trim()) return;
@@ -114,7 +114,6 @@ export function PreviewPanel({
   const blockPart = result
     ? Object.entries(result.parts).find(([, ss]) => ss.initial.type === "Block")
     : null;
-  const _blockId = blockPart?.[0];
   const snapshots = blockPart?.[1];
 
   return (

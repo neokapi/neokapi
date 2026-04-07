@@ -122,6 +122,25 @@ func TestPopulatePlugins(t *testing.T) {
 	assert.Equal(t, PluginSpec{}, proj.Plugins["okapi"])
 }
 
+func TestAllowedFormatSources_NoPlugins(t *testing.T) {
+	proj := &KapiProject{Version: CurrentVersion}
+	sources := AllowedFormatSources(proj)
+	assert.Equal(t, []string{"built-in"}, sources)
+}
+
+func TestAllowedFormatSources_WithPlugins(t *testing.T) {
+	proj := &KapiProject{
+		Version: CurrentVersion,
+		Plugins: map[string]PluginSpec{
+			"okapi-bridge": {},
+		},
+	}
+	sources := AllowedFormatSources(proj)
+	assert.Contains(t, sources, "built-in")
+	assert.Contains(t, sources, "okapi-bridge")
+	assert.Len(t, sources, 2)
+}
+
 func TestPopulatePlugins_DoesNotOverwrite(t *testing.T) {
 	proj := &KapiProject{
 		Version: CurrentVersion,

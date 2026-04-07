@@ -3,12 +3,38 @@ name: KapiMart
 defaults:
   source_language: en-US
   target_languages:
-    - fr-FR
     - de-DE
+    - fr-FR
     - ja-JP
+    - nb-NO
+    - ar-SA
 content:
-  - path: "input/*"
-    target: "output/{lang}/*"
+  - name: Website
+    items:
+      - path: "input/docs/*.md"
+        target: "output/{lang}/docs/*.md"
+  - name: Online Store
+    items:
+      - path: "input/store/*.json"
+        target: "output/{lang}/store/*.json"
+      - path: "input/store/*.yaml"
+        target: "output/{lang}/store/*.yaml"
+      - path: "input/store/*.properties"
+        target: "output/{lang}/store/*.properties"
+      - path: "input/store/*.html"
+        target: "output/{lang}/store/*.html"
+  - name: Contracts
+    items:
+      - path: "input/contracts/*.docx"
+        target: "output/{lang}/contracts/*.docx"
+      - path: "input/contracts/*.xlsx"
+        target: "output/{lang}/contracts/*.xlsx"
+  - name: Templates
+    items:
+      - path: "input/templates/*.pptx"
+        target: "output/{lang}/templates/*.pptx"
+      - path: "input/templates/*.docx"
+        target: "output/{lang}/templates/*.docx"
 flows:
   translate:
     steps:

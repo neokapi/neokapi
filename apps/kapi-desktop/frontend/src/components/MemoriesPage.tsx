@@ -238,8 +238,8 @@ export function MemoriesPage({
                   />
                   <YAxis width={40} className="text-[10px]" />
                   <Tooltip
-                    labelFormatter={(v: string) => new Date(v).toLocaleDateString()}
-                    formatter={(v: number) => [`${v} entries`, "Entries"]}
+                    labelFormatter={(v) => new Date(String(v)).toLocaleDateString()}
+                    formatter={(v) => [`${v} entries`, "Entries"]}
                   />
                   <Area
                     type="monotone"

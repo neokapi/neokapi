@@ -270,6 +270,7 @@ func TestCopyFileToProject(t *testing.T) {
 }
 
 func TestDetectFormatByExtension(t *testing.T) {
+	app := NewApp()
 	tests := []struct {
 		path   string
 		expect string
@@ -280,9 +281,13 @@ func TestDetectFormatByExtension(t *testing.T) {
 		{"file.yaml", "yaml"},
 		{"file.html", "html"},
 		{"file.md", "markdown"},
+		{"file.docx", "openxml"},
+		{"file.xlsx", "openxml"},
+		{"file.pptx", "openxml"},
+		{"file.srt", "srt"},
 		{"file.unknown", ""},
 	}
 	for _, tt := range tests {
-		assert.Equal(t, tt.expect, detectFormatByExtension(tt.path), "for %s", tt.path)
+		assert.Equal(t, tt.expect, app.DetectFormat(tt.path), "for %s", tt.path)
 	}
 }
