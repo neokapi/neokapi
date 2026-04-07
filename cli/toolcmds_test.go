@@ -42,7 +42,6 @@ func TestLookupToolCommand_ByName(t *testing.T) {
 	def := LookupToolCommand("pseudo-translate")
 	require.NotNil(t, def)
 	assert.Equal(t, "pseudo-translate", def.Use)
-	assert.Equal(t, "qps", def.DefaultTargetLang)
 }
 
 func TestLookupToolCommand_ByAlias(t *testing.T) {

@@ -167,22 +167,36 @@ function PaletteItem({
       <div className="min-w-0 flex-1">
         <div className="text-[11.5px] font-medium text-foreground">{displayName}</div>
         <div className="text-[10px] leading-tight text-muted-foreground">{tool.description}</div>
-        {tool.tags && tool.tags.length > 0 && (
-          <div className="mt-0.5 flex flex-wrap gap-0.5">
-            {tool.tags.slice(0, 3).map((tag) => (
-              <span
-                key={tag}
-                className="rounded-sm px-1 py-px text-[9px] font-medium"
-                style={{
-                  background: `${categoryColor}22`,
-                  color: categoryColor,
-                }}
-              >
-                {tag}
-              </span>
-            ))}
-          </div>
-        )}
+        {/* Tags + IO contract badges */}
+        <div className="mt-0.5 flex flex-wrap gap-0.5">
+          {tool.tags?.slice(0, 3).map((tag) => (
+            <span
+              key={tag}
+              className="rounded-sm px-1 py-px text-[9px] font-medium"
+              style={{
+                background: `${categoryColor}22`,
+                color: categoryColor,
+              }}
+            >
+              {tag}
+            </span>
+          ))}
+          {tool.cardinality && tool.cardinality !== "monolingual" && (
+            <span className="rounded-sm bg-blue-500/10 px-1 py-px text-[9px] font-medium text-blue-600 dark:text-blue-400">
+              {tool.cardinality === "bilingual" ? "Bi" : "Multi"}
+            </span>
+          )}
+          {tool.default_locale && (
+            <span className="rounded-sm bg-purple-500/10 px-1 py-px text-[9px] font-medium text-purple-600 dark:text-purple-400">
+              {tool.default_locale}
+            </span>
+          )}
+          {tool.side_effects && tool.side_effects.length > 0 && (
+            <span className="rounded-sm bg-amber-500/10 px-1 py-px text-[9px] font-medium text-amber-600 dark:text-amber-400">
+              {tool.side_effects.map((s) => s.replace(/-/g, " ")).join(", ")}
+            </span>
+          )}
+        </div>
       </div>
     </button>
   );

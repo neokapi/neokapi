@@ -21,7 +21,6 @@ type ToolCommandDef struct {
 	Short             string
 	Category          string // e.g. "translation", "quality", "analysis", "text-processing"
 	WritesOutput      bool
-	DefaultTargetLang string
 	// DefaultParallelBlocks is the number of blocks to process in parallel
 	// for IO-bound tools (e.g., AI-powered). 0 means sequential.
 	DefaultParallelBlocks int
@@ -80,12 +79,11 @@ var BuiltinToolCommands = []ToolCommandDef{
 		},
 	},
 	{
-		Use:               "pseudo-translate",
-		Aliases:           []string{"pseudo"},
-		Short:             "Generate pseudo-translations for localization testing",
-		Category:          "translation",
-		WritesOutput:      true,
-		DefaultTargetLang: "qps",
+		Use:          "pseudo-translate",
+		Aliases:      []string{"pseudo"},
+		Short:        "Generate pseudo-translations for localization testing",
+		Category:     "translation",
+		WritesOutput: true,
 		Schema:            libtools.PseudoTranslateSchema(),
 		NewToolFromConfig: func(config map[string]any, targetLang string) (tool.Tool, error) {
 			return libtools.NewPseudoTranslateFromConfig(config, targetLang)
@@ -385,8 +383,10 @@ func (a *App) NewToolCommands() []*cobra.Command {
 				}
 
 				effectiveLang := a.TargetLang
-				if effectiveLang == "" && d.DefaultTargetLang != "" {
-					effectiveLang = d.DefaultTargetLang
+				if effectiveLang == "" && a.ToolReg != nil {
+					if info := a.ToolReg.GetToolInfo(d.Use); info != nil && info.DefaultLocale != "" {
+						effectiveLang = info.DefaultLocale
+					}
 				}
 
 				tracePath, _ := cmd.Flags().GetString("trace")

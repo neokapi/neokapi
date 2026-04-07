@@ -9,6 +9,7 @@ import (
 	"github.com/neokapi/neokapi/core/formats"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/registry"
+	"github.com/neokapi/neokapi/core/tools"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -17,6 +18,8 @@ func testApp() *cli.App {
 	a := &cli.App{}
 	a.FormatReg = registry.NewFormatRegistry()
 	formats.RegisterAll(a.FormatReg)
+	a.ToolReg = registry.NewToolRegistry()
+	tools.RegisterAll(a.ToolReg)
 	return a
 }
 
