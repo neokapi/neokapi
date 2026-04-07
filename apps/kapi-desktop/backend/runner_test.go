@@ -10,7 +10,7 @@ import (
 
 func TestRunFlowBadTab(t *testing.T) {
 	app := NewApp()
-	err := app.RunFlow("bad-tab", "test", []string{"file.json"}, "fr")
+	err := app.RunFlow("bad-tab", "test", []string{"file.json"}, []string{"fr"})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "not found")
 }
@@ -19,7 +19,7 @@ func TestRunFlowNotFound(t *testing.T) {
 	app := NewApp()
 	tab := newTestProject(t, app, "RunTest")
 
-	err := app.RunFlow(tab.ID, "nonexistent", []string{"file.json"}, "fr")
+	err := app.RunFlow(tab.ID, "nonexistent", []string{"file.json"}, []string{"fr"})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "not found")
 }
@@ -31,7 +31,7 @@ func TestRunFlowNoInputs(t *testing.T) {
 		Steps: []flow.FlowStep{{Tool: "qa-check"}},
 	})
 
-	err := app.RunFlow(tab.ID, "qa", nil, "fr")
+	err := app.RunFlow(tab.ID, "qa", nil, []string{"fr"})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "no input files")
 }
