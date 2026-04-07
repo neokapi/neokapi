@@ -27,6 +27,7 @@ import (
 	"github.com/neokapi/neokapi/core/preset"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/registry"
+	aitools "github.com/neokapi/neokapi/core/ai/tools"
 	libtools "github.com/neokapi/neokapi/core/tools"
 	"github.com/neokapi/neokapi/core/version"
 	"github.com/neokapi/neokapi/sievepen"
@@ -77,6 +78,7 @@ func NewApp() *App {
 
 	toolReg := registry.NewToolRegistry()
 	libtools.RegisterAll(toolReg)
+	aitools.RegisterAll(toolReg)
 
 	logger := log.New(os.Stderr, "[kapi-desktop] ", log.LstdFlags)
 	pluginDir := defaultPluginDir()

@@ -18,6 +18,7 @@ import (
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/registry"
 	"github.com/neokapi/neokapi/core/tool"
+	aitools "github.com/neokapi/neokapi/core/ai/tools"
 	libtools "github.com/neokapi/neokapi/core/tools"
 	"github.com/spf13/cobra"
 )
@@ -95,6 +96,7 @@ func (a *App) Init() {
 
 	a.ToolReg = registry.NewToolRegistry()
 	libtools.RegisterAll(a.ToolReg)
+	aitools.RegisterAll(a.ToolReg)
 
 	if a.Config == nil {
 		a.Config = config.NewAppConfig()

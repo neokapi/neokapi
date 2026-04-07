@@ -60,6 +60,9 @@ func AITranslateSchema() *schema.ComponentSchema {
 		Inputs:      []string{schema.PartTypeBlock},
 		Tags:        []string{"ai-powered"},
 		Requires:    []string{schema.RequiresTargetLanguage, schema.RequiresCredentials},
+		Cardinality: schema.Bilingual,
+		Produces:    []schema.AnnotationType{schema.AnnotationTranslation},
+		SideEffects: []schema.SideEffect{schema.SideEffectAPICall},
 	})
 }
 
