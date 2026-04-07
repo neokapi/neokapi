@@ -10,6 +10,7 @@ import (
 
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/plugin/bridge"
 	"github.com/neokapi/neokapi/core/registry"
 	"github.com/neokapi/neokapi/core/tool"
 )
@@ -41,9 +42,9 @@ func NewFileRunner(cfg FileRunnerConfig) *FileRunner {
 	return &FileRunner{cfg: cfg}
 }
 
-// RunFile is the simple entry point: detects format, creates reader/writer,
-// and runs the full pipeline. Use RunFileWithReader for pre-configured
-// reader/writer (e.g., after preset resolution).
+// RunFile detects the format, creates a reader, and routes to the appropriate
+// pipeline — bridge (Java single-pass) or native (Go read→process→write).
+// Consumers don't need to know which execution model is used.
 func (r *FileRunner) RunFile(ctx context.Context, flowName string, tools []tool.Tool, inputPath, outputPath, targetLang string) error {
 	reg := r.cfg.FormatReg
 
@@ -58,6 +59,17 @@ func (r *FileRunner) RunFile(ctx context.Context, flowName string, tools []tool.
 		return fmt.Errorf("no reader for %q: %w", fmtName, err)
 	}
 
+	// Bridge format: Java controls read/write, Go processes parts inline.
+	if bridgeReader, ok := reader.(*bridge.BridgeFormatReader); ok {
+		br := NewBridgeRunner(BridgeRunnerConfig{
+			SourceLocale: string(r.cfg.SourceLocale),
+			TargetLocale: targetLang,
+			Encoding:     r.cfg.Encoding,
+		})
+		return br.RunFile(ctx, flowName, tools, bridgeReader, inputPath, outputPath)
+	}
+
+	// Native format: Go controls full lifecycle.
 	writer, err := reg.NewWriter(fmtName)
 	if err != nil {
 		reader.Close()
