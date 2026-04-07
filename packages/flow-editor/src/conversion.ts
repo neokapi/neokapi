@@ -102,6 +102,7 @@ export function stepsToGraph(
             cardinality: info?.cardinality,
             defaultLocale: info?.default_locale,
             sideEffects: info?.side_effects,
+            valid: toolMap ? !!info : true,
             parallel: true,
           },
         });
@@ -136,6 +137,7 @@ export function stepsToGraph(
           cardinality: info?.cardinality,
           defaultLocale: info?.default_locale,
           sideEffects: info?.side_effects,
+          valid: toolMap ? !!info : true,
         },
       });
 
