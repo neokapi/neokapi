@@ -574,123 +574,46 @@ func executeFlowWithTools(ctx context.Context, a *cli.App, flowName, inputPath, 
 	ref := pluginreg.ParseFormatRef(fmtName)
 	registryName := ref.RegistryName()
 
+	// Create reader and apply project config.
 	reader, err := a.FormatReg.NewReader(registryName)
 	if err != nil {
 		return "", fmt.Errorf("no reader for format %q: %w", fmtName, err)
 	}
-
-	// Apply project format defaults to reader.
 	if pctx != nil {
 		if cfgErr := pctx.ConfigureReader(reader, fmtName); cfgErr != nil {
 			return "", fmt.Errorf("apply project format config: %w", cfgErr)
 		}
 	}
 
-	inputContent, err := os.ReadFile(inputPath)
-	if err != nil {
-		return "", fmt.Errorf("read input: %w", err)
-	}
-
-	// Create writer early so we can wire skeleton store before reading.
+	// Create writer and apply project encoding.
 	writer, err := a.FormatReg.NewWriter(registryName)
 	if err != nil {
 		return "", fmt.Errorf("no writer for format %q: %w", fmtName, err)
 	}
-
-	// Apply project encoding to writer.
 	if pctx != nil {
 		pctx.ConfigureWriter(writer)
 	}
 
-	// Wire skeleton store if both reader and writer support it.
-	if emitter, ok := reader.(format.SkeletonStoreEmitter); ok {
-		if consumer, ok := writer.(format.SkeletonStoreConsumer); ok {
-			store, err := format.NewSkeletonStore()
-			if err == nil {
-				defer store.Close()
-				emitter.SetSkeletonStore(store)
-				consumer.SetSkeletonStore(store)
-			}
-		}
-	}
-
-	doc := &model.RawDocument{
-		URI:          inputPath,
-		SourceLocale: model.LocaleID(sourceLang),
-		Encoding:     "UTF-8",
-		Reader:       io.NopCloser(bytes.NewReader(inputContent)),
-	}
-
-	if err := reader.Open(ctx, doc); err != nil {
-		return "", fmt.Errorf("open document: %w", err)
-	}
-	defer reader.Close()
-
-	var parts []*model.Part
-	for result := range reader.Read(ctx) {
-		if result.Error != nil {
-			return "", fmt.Errorf("read error: %w", result.Error)
-		}
-		parts = append(parts, result.Part)
-	}
-
-	fb := flow.NewFlow(flowName)
-	for _, t := range flowTools {
-		fb.AddTool(t)
-	}
-	f, err := fb.Build()
-	if err != nil {
-		return "", fmt.Errorf("build flow: %w", err)
-	}
-
-	executor := flow.NewExecutor()
-	inCh, outCh, wait := executor.ExecuteWithChannels(ctx, f)
-
-	go func() {
-		for _, p := range parts {
-			inCh <- p
-		}
-		close(inCh)
-	}()
-
-	var outputParts []*model.Part
-	for p := range outCh {
-		outputParts = append(outputParts, p)
-	}
-
-	if err := wait(); err != nil {
-		return "", fmt.Errorf("flow execution error: %w", err)
-	}
-
+	// Compute output path if not specified.
 	if outputPath == "" {
 		base := inputPath[:len(inputPath)-len(ext)]
 		outputPath = fmt.Sprintf("%s_%s%s", base, targetLang, ext)
 	}
 
-	if err := writer.SetOutput(outputPath); err != nil {
-		return "", fmt.Errorf("set output: %w", err)
+	// Delegate to shared FileRunner.
+	encoding := "UTF-8"
+	if pctx != nil && pctx.Encoding != "" {
+		encoding = pctx.Encoding
 	}
+	runner := flow.NewFileRunner(flow.FileRunnerConfig{
+		FormatReg:    a.FormatReg,
+		SourceLocale: model.LocaleID(sourceLang),
+		Encoding:     encoding,
+	})
 
-	// Prefer passing the file path over loading content bytes when the writer
-	// supports it. This avoids duplicating the file in memory for gRPC transfer.
-	if sps, ok := writer.(format.SourcePathSetter); ok && filepath.IsAbs(inputPath) {
-		sps.SetSourcePath(inputPath)
-	} else if ocs, ok := writer.(format.OriginalContentSetter); ok {
-		ocs.SetOriginalContent(inputContent)
+	if err := runner.RunFileWithReaderWriter(ctx, flowName, flowTools, inputPath, outputPath, targetLang, reader, writer); err != nil {
+		return "", err
 	}
-
-	writer.SetLocale(model.LocaleID(targetLang))
-
-	ch := make(chan *model.Part, len(outputParts))
-	for _, p := range outputParts {
-		ch <- p
-	}
-	close(ch)
-
-	if err := writer.Write(ctx, ch); err != nil {
-		return "", fmt.Errorf("write output: %w", err)
-	}
-	writer.Close()
 
 	return outputPath, nil
 }

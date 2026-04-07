@@ -1,12 +1,10 @@
 package cli
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -175,54 +173,13 @@ func (a *App) runSingleFile(ctx context.Context, cmd *cobra.Command, flowName, i
 		return err
 	}
 
-	inputContent, err := os.ReadFile(inputPath)
-	if err != nil {
-		return fmt.Errorf("read input: %w", err)
-	}
-
-	// Create writer early so we can wire skeleton store before reading.
+	// Create writer.
 	writer, err := a.FormatReg.NewWriter(registryName)
 	if err != nil {
 		return fmt.Errorf("no writer for format %q: %w", fmtName, err)
 	}
 
-	// Wire skeleton store if both reader and writer support it.
-	if emitter, ok := reader.(format.SkeletonStoreEmitter); ok {
-		if consumer, ok := writer.(format.SkeletonStoreConsumer); ok {
-			store, err := format.NewSkeletonStore()
-			if err == nil {
-				defer store.Close()
-				emitter.SetSkeletonStore(store)
-				consumer.SetSkeletonStore(store)
-			}
-		}
-	}
-
-	doc := &model.RawDocument{
-		URI:          inputPath,
-		SourceLocale: model.LocaleID(a.SourceLang),
-		Encoding:     a.Encoding,
-		Reader:       io.NopCloser(bytes.NewReader(inputContent)),
-	}
-
-	if err := reader.Open(ctx, doc); err != nil {
-		return fmt.Errorf("open document: %w", err)
-	}
-
-	var parts []*model.Part
-	for result := range reader.Read(ctx) {
-		if result.Error != nil {
-			reader.Close()
-			return fmt.Errorf("read error: %w", result.Error)
-		}
-		parts = append(parts, result.Part)
-	}
-
-	// Close the reader immediately after reading all parts. For bridge formats
-	// this releases the JVM back to the pool so the writer can reuse it,
-	// avoiding a second JVM startup.
-	reader.Close()
-
+	// Build tools.
 	flowTools, cleanup, err := a.buildFlowTools(flowName, cmd)
 	if err != nil {
 		return err
@@ -230,7 +187,6 @@ func (a *App) runSingleFile(ctx context.Context, cmd *cobra.Command, flowName, i
 	defer cleanup()
 
 	// Wrap IO-bound tools with ParallelBlockTool.
-	// AI flows default to 5 concurrent blocks; --parallel-blocks overrides.
 	parallelBlocks, _ := cmd.Flags().GetInt("parallel-blocks")
 	if parallelBlocks == 0 {
 		parallelBlocks = defaultParallelBlocks(flowName)
@@ -241,64 +197,18 @@ func (a *App) runSingleFile(ctx context.Context, cmd *cobra.Command, flowName, i
 		}
 	}
 
-	// If --trace is set, wrap tools with TracingTool to record events.
+	// Wrap with TracingTool if --trace is set.
 	tracePath, _ := cmd.Flags().GetString("trace")
 	var recorder *flow.TraceRecorder
-	var traceNodes []flow.TraceNode
 	if tracePath != "" {
 		recorder = flow.NewTraceRecorder()
-		traceNodes = append(traceNodes, flow.TraceNode{
-			ID: "reader", Type: "reader", Name: fmtName, Label: fmtName + " reader",
-		})
 		for i, t := range flowTools {
 			nodeID := fmt.Sprintf("tool-%d", i)
-			traceNodes = append(traceNodes, flow.TraceNode{
-				ID: nodeID, Type: "tool", Name: t.Name(), Label: t.Name(),
-			})
 			flowTools[i] = flow.NewTracingTool(t, nodeID, recorder)
 		}
-		traceNodes = append(traceNodes, flow.TraceNode{
-			ID: "writer", Type: "writer", Name: fmtName, Label: fmtName + " writer",
-		})
 	}
 
-	fb := flow.NewFlow(flowName)
-	for _, t := range flowTools {
-		fb.AddTool(t)
-	}
-	f2, err := fb.Build()
-	if err != nil {
-		return fmt.Errorf("build flow: %w", err)
-	}
-
-	executor := flow.NewExecutor()
-	inCh, outCh, wait := executor.ExecuteWithChannels(ctx, f2)
-
-	go func() {
-		for _, p := range parts {
-			if recorder != nil && p.Resource != nil {
-				recorder.SnapshotPart(p, "reader", "initial")
-				recorder.Record("exit", "reader", p.Resource.ResourceID(), nil)
-			}
-			inCh <- p
-		}
-		close(inCh)
-	}()
-
-	var outputParts []*model.Part
-	for p := range outCh {
-		if recorder != nil && p.Resource != nil {
-			id := p.Resource.ResourceID()
-			recorder.Record("enter", "writer", id, nil)
-			recorder.Record("exit", "writer", id, nil)
-		}
-		outputParts = append(outputParts, p)
-	}
-
-	if err := wait(); err != nil {
-		return fmt.Errorf("flow execution error: %w", err)
-	}
-
+	// Resolve output path.
 	outputPath, _ := cmd.Flags().GetString("output")
 	if outputPath == "" {
 		ext := filepath.Ext(inputPath)
@@ -306,65 +216,20 @@ func (a *App) runSingleFile(ctx context.Context, cmd *cobra.Command, flowName, i
 		outputPath = fmt.Sprintf("%s_%s%s", base, a.TargetLang, ext)
 	}
 
-	if err := writer.SetOutput(outputPath); err != nil {
-		return fmt.Errorf("set output: %w", err)
-	}
+	// Delegate the core read → process → write pipeline to FileRunner.
+	runner := flow.NewFileRunner(flow.FileRunnerConfig{
+		FormatReg:    a.FormatReg,
+		SourceLocale: model.LocaleID(a.SourceLang),
+		Encoding:     a.Encoding,
+	})
 
-	// Prefer passing the file path over loading content bytes when the writer
-	// supports it. This avoids duplicating the file in memory for gRPC transfer.
-	if sps, ok := writer.(format.SourcePathSetter); ok && filepath.IsAbs(inputPath) {
-		sps.SetSourcePath(inputPath)
-	} else if ocs, ok := writer.(format.OriginalContentSetter); ok {
-		ocs.SetOriginalContent(inputContent)
+	if err := runner.RunFileWithReaderWriter(ctx, flowName, flowTools, inputPath, outputPath, a.TargetLang, reader, writer); err != nil {
+		return err
 	}
-
-	writer.SetLocale(model.LocaleID(a.TargetLang))
-
-	ch := make(chan *model.Part, len(outputParts))
-	for _, p := range outputParts {
-		ch <- p
-	}
-	close(ch)
-
-	if err := writer.Write(ctx, ch); err != nil {
-		return fmt.Errorf("write output: %w", err)
-	}
-	writer.Close()
 
 	// Write trace JSON if --trace was set.
 	if tracePath != "" && recorder != nil {
-		inputPreview := string(inputContent)
-		if len(inputPreview) > 2000 {
-			inputPreview = inputPreview[:2000] + "\n... (truncated)"
-		}
-		outputData, _ := os.ReadFile(outputPath)
-		outputPreview := string(outputData)
-		if len(outputPreview) > 2000 {
-			outputPreview = outputPreview[:2000] + "\n... (truncated)"
-		}
-
-		trace := &flow.FlowTrace{
-			Name:        flowName,
-			Description: fmt.Sprintf("%s flow on %s", flowName, filepath.Base(inputPath)),
-			Nodes:       traceNodes,
-			ChannelSize: 64,
-			Events:      recorder.Events(),
-			Parts:       recorder.Snapshots(),
-			InputFile:   flow.TraceFile{Name: filepath.Base(inputPath), Format: fmtName, Preview: inputPreview},
-			OutputFile:  flow.TraceFile{Name: filepath.Base(outputPath), Preview: outputPreview},
-			DurationUs:  recorder.DurationUs(),
-		}
-
-		traceJSON, err := json.MarshalIndent(trace, "", "  ")
-		if err != nil {
-			return fmt.Errorf("marshal trace: %w", err)
-		}
-		if err := os.MkdirAll(filepath.Dir(tracePath), 0o755); err != nil {
-			return fmt.Errorf("create trace dir: %w", err)
-		}
-		if err := os.WriteFile(tracePath, traceJSON, 0o644); err != nil {
-			return fmt.Errorf("write trace: %w", err)
-		}
+		a.writeTraceFile(tracePath, flowName, fmtName, inputPath, outputPath, recorder)
 	}
 
 	if !a.Quiet {
@@ -373,12 +238,66 @@ func (a *App) runSingleFile(ctx context.Context, cmd *cobra.Command, flowName, i
 			InputPath:  inputPath,
 			OutputPath: outputPath,
 		}
-		if showStats, _ := cmd.Flags().GetBool("stats"); showStats {
-			out.Stats = countStats(outputParts)
-		}
 		return output.Print(cmd, out)
 	}
 	return nil
+}
+
+// writeTraceFile serializes a trace to JSON and writes it to disk.
+func (a *App) writeTraceFile(tracePath, flowName, fmtName, inputPath, outputPath string, recorder *flow.TraceRecorder) {
+	inputContent, _ := os.ReadFile(inputPath)
+	inputPreview := string(inputContent)
+	if len(inputPreview) > 2000 {
+		inputPreview = inputPreview[:2000] + "\n... (truncated)"
+	}
+	outputData, _ := os.ReadFile(outputPath)
+	outputPreview := string(outputData)
+	if len(outputPreview) > 2000 {
+		outputPreview = outputPreview[:2000] + "\n... (truncated)"
+	}
+
+	var traceNodes []flow.TraceNode
+	traceNodes = append(traceNodes, flow.TraceNode{
+		ID: "reader", Type: "reader", Name: fmtName, Label: fmtName + " reader",
+	})
+	for _, e := range recorder.Events() {
+		if e.Type == "enter" && e.NodeID != "reader" && e.NodeID != "writer" {
+			found := false
+			for _, n := range traceNodes {
+				if n.ID == e.NodeID {
+					found = true
+					break
+				}
+			}
+			if !found {
+				traceNodes = append(traceNodes, flow.TraceNode{
+					ID: e.NodeID, Type: "tool", Name: e.NodeID,
+				})
+			}
+		}
+	}
+	traceNodes = append(traceNodes, flow.TraceNode{
+		ID: "writer", Type: "writer", Name: fmtName, Label: fmtName + " writer",
+	})
+
+	trace := &flow.FlowTrace{
+		Name:        flowName,
+		Description: fmt.Sprintf("%s flow on %s", flowName, filepath.Base(inputPath)),
+		Nodes:       traceNodes,
+		ChannelSize: 64,
+		Events:      recorder.Events(),
+		Parts:       recorder.Snapshots(),
+		InputFile:   flow.TraceFile{Name: filepath.Base(inputPath), Format: fmtName, Preview: inputPreview},
+		OutputFile:  flow.TraceFile{Name: filepath.Base(outputPath), Preview: outputPreview},
+		DurationUs:  recorder.DurationUs(),
+	}
+
+	traceJSON, err := json.MarshalIndent(trace, "", "  ")
+	if err != nil {
+		return
+	}
+	_ = os.MkdirAll(filepath.Dir(tracePath), 0o755)
+	_ = os.WriteFile(tracePath, traceJSON, 0o644)
 }
 
 func (a *App) runMultipleFiles(ctx context.Context, cmd *cobra.Command, flowName string, inputPaths []string, concurrency int, outputTemplate string) error {
@@ -661,50 +580,12 @@ func (a *App) processFlowFileBridge(ctx context.Context, cmd *cobra.Command,
 // When recorder is non-nil, tools are wrapped with TracingTool and reader/writer
 // events are recorded. Returns trace nodes (nil when recorder is nil).
 func (a *App) processFlowFileNative(ctx context.Context, cmd *cobra.Command, flowName, inputPath, outputTemplate, registryName string, reader format.DataFormatReader, mergedConfig map[string]any, recorder *flow.TraceRecorder) ([]flow.TraceNode, error) {
-	inputContent, err := os.ReadFile(inputPath)
-	if err != nil {
-		return nil, fmt.Errorf("read input: %w", err)
-	}
-
 	writer, err := a.FormatReg.NewWriter(registryName)
 	if err != nil {
 		return nil, fmt.Errorf("no writer for format %q: %w", registryName, err)
 	}
 
-	// Wire skeleton store if both reader and writer support it.
-	if emitter, ok := reader.(format.SkeletonStoreEmitter); ok {
-		if consumer, ok := writer.(format.SkeletonStoreConsumer); ok {
-			store, err := format.NewSkeletonStore()
-			if err == nil {
-				defer store.Close()
-				emitter.SetSkeletonStore(store)
-				consumer.SetSkeletonStore(store)
-			}
-		}
-	}
-
-	doc := &model.RawDocument{
-		URI:          inputPath,
-		SourceLocale: model.LocaleID(a.SourceLang),
-		Encoding:     a.Encoding,
-		Reader:       io.NopCloser(bytes.NewReader(inputContent)),
-	}
-
-	if err := reader.Open(ctx, doc); err != nil {
-		return nil, fmt.Errorf("open document: %w", err)
-	}
-
-	var parts []*model.Part
-	for result := range reader.Read(ctx) {
-		if result.Error != nil {
-			reader.Close()
-			return nil, fmt.Errorf("read error: %w", result.Error)
-		}
-		parts = append(parts, result.Part)
-	}
-	reader.Close()
-
-	// Build fresh tool instances for this file (thread-safe).
+	// Build fresh tool instances for this file (thread-safe in batch mode).
 	flowTools, cleanup, err := a.buildFlowTools(flowName, cmd)
 	if err != nil {
 		return nil, err
@@ -736,67 +617,17 @@ func (a *App) processFlowFileNative(ctx context.Context, cmd *cobra.Command, flo
 		})
 	}
 
-	fb := flow.NewFlow(flowName)
-	for _, t := range flowTools {
-		fb.AddTool(t)
-	}
-	f, err := fb.Build()
-	if err != nil {
-		return nil, fmt.Errorf("build flow: %w", err)
-	}
-
-	executor := flow.NewExecutor()
-	inCh, outCh, wait := executor.ExecuteWithChannels(ctx, f)
-
-	go func() {
-		for _, p := range parts {
-			if recorder != nil && p.Resource != nil {
-				recorder.SnapshotPart(p, "reader", "initial")
-				recorder.Record("exit", "reader", p.Resource.ResourceID(), nil)
-			}
-			inCh <- p
-		}
-		close(inCh)
-	}()
-
-	var outputParts []*model.Part
-	for p := range outCh {
-		if recorder != nil && p.Resource != nil {
-			id := p.Resource.ResourceID()
-			recorder.Record("enter", "writer", id, nil)
-			recorder.Record("exit", "writer", id, nil)
-		}
-		outputParts = append(outputParts, p)
-	}
-
-	if err := wait(); err != nil {
-		return traceNodes, fmt.Errorf("flow execution error: %w", err)
-	}
-
 	outputPath := a.resolveOutputPath(inputPath, outputTemplate)
 
-	if err := writer.SetOutput(outputPath); err != nil {
-		return traceNodes, fmt.Errorf("set output: %w", err)
-	}
+	runner := flow.NewFileRunner(flow.FileRunnerConfig{
+		FormatReg:    a.FormatReg,
+		SourceLocale: model.LocaleID(a.SourceLang),
+		Encoding:     a.Encoding,
+	})
 
-	if sps, ok := writer.(format.SourcePathSetter); ok && filepath.IsAbs(inputPath) {
-		sps.SetSourcePath(inputPath)
-	} else if ocs, ok := writer.(format.OriginalContentSetter); ok {
-		ocs.SetOriginalContent(inputContent)
+	if err := runner.RunFileWithReaderWriter(ctx, flowName, flowTools, inputPath, outputPath, a.TargetLang, reader, writer); err != nil {
+		return traceNodes, err
 	}
-
-	writer.SetLocale(model.LocaleID(a.TargetLang))
-
-	ch := make(chan *model.Part, len(outputParts))
-	for _, p := range outputParts {
-		ch <- p
-	}
-	close(ch)
-
-	if err := writer.Write(ctx, ch); err != nil {
-		return traceNodes, fmt.Errorf("write output: %w", err)
-	}
-	writer.Close()
 
 	return traceNodes, nil
 }
