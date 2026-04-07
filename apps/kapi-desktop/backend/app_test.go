@@ -167,6 +167,43 @@ func TestListProjectTools_NoProject(t *testing.T) {
 	assert.Equal(t, len(app.ListTools()), len(tools))
 }
 
+func TestListFlows_ValidatesTools(t *testing.T) {
+	app := NewApp()
+	tab := newTestProject(t, app, "FlowValidation")
+
+	// Add a flow with a valid tool and an invalid tool.
+	_ = app.SaveFlow(tab.ID, "good-flow", &flow.StepsSpec{
+		Steps: []flow.FlowStep{{Tool: "pseudo-translate"}},
+	})
+	_ = app.SaveFlow(tab.ID, "bad-flow", &flow.StepsSpec{
+		Steps: []flow.FlowStep{{Tool: "nonexistent-magic-tool"}},
+	})
+
+	flows := app.ListFlows(tab.ID)
+	require.Len(t, flows, 2)
+
+	// Find each flow.
+	var good, bad *FlowInfo
+	for i := range flows {
+		switch flows[i].Name {
+		case "good-flow":
+			good = &flows[i]
+		case "bad-flow":
+			bad = &flows[i]
+		}
+	}
+
+	require.NotNil(t, good)
+	assert.True(t, good.Valid)
+	assert.Empty(t, good.Issues)
+
+	require.NotNil(t, bad)
+	assert.False(t, bad.Valid)
+	require.Len(t, bad.Issues, 1)
+	assert.Equal(t, "unknown", bad.Issues[0].Type)
+	assert.Equal(t, "nonexistent-magic-tool", bad.Issues[0].Tool)
+}
+
 func TestDetectProjectFormat_NoProject(t *testing.T) {
 	app := NewApp()
 	// No open project — should use global detection.

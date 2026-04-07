@@ -1,6 +1,7 @@
 package project
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -247,12 +248,13 @@ func (ctx *ProjectContext) AllowedTools(allTools []registry.ToolInfo) []registry
 
 // --- Flow validation ---
 
-// FlowValidationIssue describes a tool reference in a project flow that
-// requires a plugin the project does not declare.
+// FlowValidationIssue describes a problem with a tool reference in a project flow.
 type FlowValidationIssue struct {
 	FlowName string `json:"flow_name"`
 	StepTool string `json:"step_tool"`
-	Source   string `json:"source"` // the plugin that provides the tool
+	Type     string `json:"type"`             // "unknown" or "undeclared_plugin"
+	Source   string `json:"source,omitempty"` // plugin name (for undeclared_plugin)
+	Message  string `json:"message"`
 }
 
 // ValidateFlows checks all flows in the project for tool references that
@@ -292,15 +294,25 @@ func (ctx *ProjectContext) ValidateFlows(allTools []registry.ToolInfo) []FlowVal
 func validateStep(step flow.FlowStep, flowName string, toolSource map[string]string, allowed map[string]bool, issues *[]FlowValidationIssue) {
 	if step.Tool != "" {
 		source, known := toolSource[step.Tool]
-		if known && !allowed[source] {
+		if !known {
+			// Tool doesn't exist in any registry.
 			*issues = append(*issues, FlowValidationIssue{
 				FlowName: flowName,
 				StepTool: step.Tool,
+				Type:     "unknown",
+				Message:  fmt.Sprintf("tool %q is not installed or does not exist", step.Tool),
+			})
+		} else if !allowed[source] {
+			// Tool exists but its plugin is not declared by the project.
+			*issues = append(*issues, FlowValidationIssue{
+				FlowName: flowName,
+				StepTool: step.Tool,
+				Type:     "undeclared_plugin",
 				Source:   source,
+				Message:  fmt.Sprintf("tool %q requires plugin %q which is not declared in the project", step.Tool, source),
 			})
 		}
 	}
-	// Recurse into parallel steps.
 	for _, p := range step.Parallel {
 		validateStep(p, flowName, toolSource, allowed, issues)
 	}

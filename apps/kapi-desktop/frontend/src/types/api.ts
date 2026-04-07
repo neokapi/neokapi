@@ -80,10 +80,18 @@ export interface FlowStep {
   parallel?: FlowStep[];
 }
 
+export interface FlowIssue {
+  tool: string;
+  type: "unknown" | "undeclared_plugin";
+  message: string;
+}
+
 export interface FlowInfo {
   name: string;
   description: string;
   step_count: number;
+  valid: boolean;
+  issues?: FlowIssue[];
 }
 
 export type LocaleCardinality = "monolingual" | "bilingual" | "multilingual";

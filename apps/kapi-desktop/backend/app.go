@@ -466,23 +466,49 @@ func (a *App) getOpenProject(tabID string) *openProject {
 
 // FlowInfo is the frontend-facing flow summary.
 type FlowInfo struct {
-	Name        string `json:"name"`
-	Description string `json:"description"`
-	StepCount   int    `json:"step_count"`
+	Name        string            `json:"name"`
+	Description string            `json:"description"`
+	StepCount   int               `json:"step_count"`
+	Valid       bool              `json:"valid"`
+	Issues      []FlowIssueInfo   `json:"issues,omitempty"`
 }
 
-// ListFlows returns all flows in a project tab.
+// FlowIssueInfo is a validation issue for a flow step.
+type FlowIssueInfo struct {
+	Tool    string `json:"tool"`
+	Type    string `json:"type"`    // "unknown" or "undeclared_plugin"
+	Message string `json:"message"`
+}
+
+// ListFlows returns all flows in a project tab with validation status.
 func (a *App) ListFlows(tabID string) []FlowInfo {
 	op := a.getOpenProject(tabID)
 	if op == nil {
 		return nil
 	}
 
+	// Validate all flows against the tool registry.
+	pctx := project.NewProjectContext(op.Project, op.Path)
+	allIssues := pctx.ValidateFlows(a.toolReg.ListWithSchemas())
+
+	// Index issues by flow name.
+	issuesByFlow := make(map[string][]FlowIssueInfo)
+	for _, issue := range allIssues {
+		issuesByFlow[issue.FlowName] = append(issuesByFlow[issue.FlowName], FlowIssueInfo{
+			Tool:    issue.StepTool,
+			Type:    issue.Type,
+			Message: issue.Message,
+		})
+	}
+
 	var infos []FlowInfo
 	for name, spec := range op.Project.Flows {
+		issues := issuesByFlow[name]
 		infos = append(infos, FlowInfo{
 			Name:      name,
 			StepCount: len(spec.Steps),
+			Valid:     len(issues) == 0,
+			Issues:    issues,
 		})
 	}
 	return infos
