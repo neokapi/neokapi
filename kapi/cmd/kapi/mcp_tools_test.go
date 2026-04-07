@@ -302,3 +302,59 @@ func TestHandleRunFlowWithProjectDefaults(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "pseudo-translate", out.FlowName)
 }
+
+func TestHandleExtractContentWithProject(t *testing.T) {
+	a := testApp()
+	ctx := t.Context()
+
+	// Create a project without okapi plugin and a JSON file.
+	dir := t.TempDir()
+	inputDir := filepath.Join(dir, "input")
+	require.NoError(t, os.MkdirAll(inputDir, 0o755))
+	require.NoError(t, os.WriteFile(
+		filepath.Join(inputDir, "test.json"),
+		[]byte(`{"msg": "Hello"}`),
+		0o644,
+	))
+
+	proj := &project.KapiProject{
+		Version: "v1",
+		// No plugins — should use built-in "json" format, not "okf_json".
+	}
+	kapiPath := filepath.Join(dir, "project.kapi")
+	require.NoError(t, project.Save(kapiPath, proj))
+
+	_, out, err := handleExtractContent(ctx, a, ExtractContentInput{
+		Path:    filepath.Join(inputDir, "test.json"),
+		Project: kapiPath,
+	})
+	require.NoError(t, err)
+	assert.Equal(t, "json", out.Format, "should use built-in json, not okf_json")
+	assert.NotEmpty(t, out.Blocks)
+}
+
+func TestHandleWordCountWithProject(t *testing.T) {
+	a := testApp()
+	ctx := t.Context()
+
+	dir := t.TempDir()
+	inputDir := filepath.Join(dir, "input")
+	require.NoError(t, os.MkdirAll(inputDir, 0o755))
+	require.NoError(t, os.WriteFile(
+		filepath.Join(inputDir, "test.json"),
+		[]byte(`{"msg": "Hello World"}`),
+		0o644,
+	))
+
+	proj := &project.KapiProject{Version: "v1"}
+	kapiPath := filepath.Join(dir, "project.kapi")
+	require.NoError(t, project.Save(kapiPath, proj))
+
+	_, out, err := handleWordCount(ctx, a, WordCountInput{
+		Path:    filepath.Join(inputDir, "test.json"),
+		Project: kapiPath,
+	})
+	require.NoError(t, err)
+	assert.Equal(t, "json", out.Format)
+	assert.Greater(t, out.WordCount, 0)
+}

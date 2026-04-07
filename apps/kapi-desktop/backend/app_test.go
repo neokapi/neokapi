@@ -151,6 +151,29 @@ func TestListFormats(t *testing.T) {
 	assert.NotEmpty(t, app.ListFormats())
 }
 
+func TestListProjectFormats_NoProject(t *testing.T) {
+	app := NewApp()
+	// No open project — should return all formats.
+	formats := app.ListProjectFormats("nonexistent")
+	assert.NotEmpty(t, formats)
+	assert.Equal(t, len(app.ListFormats()), len(formats))
+}
+
+func TestListProjectTools_NoProject(t *testing.T) {
+	app := NewApp()
+	// No open project — should return all tools.
+	tools := app.ListProjectTools("nonexistent")
+	assert.NotEmpty(t, tools)
+	assert.Equal(t, len(app.ListTools()), len(tools))
+}
+
+func TestDetectProjectFormat_NoProject(t *testing.T) {
+	app := NewApp()
+	// No open project — should use global detection.
+	fmt := app.DetectProjectFormat("nonexistent", "test.json")
+	assert.Equal(t, "json", fmt)
+}
+
 func TestGetPluginDocsNil(t *testing.T) {
 	app := NewApp()
 	// No plugins installed — docs should be nil.
