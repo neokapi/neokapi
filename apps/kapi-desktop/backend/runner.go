@@ -320,7 +320,6 @@ func (a *App) executeFlow(ctx context.Context, flowName string, tools []tool.Too
 		runner := flow.NewFileRunner(flow.FileRunnerConfig{
 			FormatReg:    a.formatReg,
 			SourceLocale: "en-US",
-			Recorder:     recorder,
 		})
 		if err := runner.RunFile(ctx, flowName, tracedTools, inputPath, outputPath, targetLang); err != nil {
 			emitErr(fmt.Sprintf("file %s: %v", filepath.Base(inputPath), err))

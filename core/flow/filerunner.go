@@ -24,14 +24,11 @@ type FileRunnerConfig struct {
 
 	// Encoding is the file encoding (default: "UTF-8").
 	Encoding string
-
-	// Recorder optionally records trace events during execution.
-	Recorder *TraceRecorder
 }
 
 // FileRunner runs a full read → process → write pipeline for a single file.
 // It handles format detection, reader/writer creation, skeleton store wiring,
-// tool execution, and output writing. Shared by CLI and desktop.
+// tool execution, and output writing. Shared by CLI, desktop, and MCP.
 type FileRunner struct {
 	cfg FileRunnerConfig
 }
@@ -44,37 +41,43 @@ func NewFileRunner(cfg FileRunnerConfig) *FileRunner {
 	return &FileRunner{cfg: cfg}
 }
 
-// RunFile processes a single input file through a tool chain and writes the
-// result to outputPath. The tools slice should already be configured (e.g.,
-// with target locale via NewToolWithConfig).
+// RunFile is the simple entry point: detects format, creates reader/writer,
+// and runs the full pipeline. Use RunFileWithReader for pre-configured
+// reader/writer (e.g., after preset resolution).
 func (r *FileRunner) RunFile(ctx context.Context, flowName string, tools []tool.Tool, inputPath, outputPath, targetLang string) error {
 	reg := r.cfg.FormatReg
 
-	// Detect format.
 	ext := filepath.Ext(inputPath)
 	fmtName, err := reg.DetectByExtension(ext)
 	if err != nil {
 		return fmt.Errorf("detect format for %q: %w", filepath.Base(inputPath), err)
 	}
 
-	// Create reader.
 	reader, err := reg.NewReader(fmtName)
 	if err != nil {
 		return fmt.Errorf("no reader for %q: %w", fmtName, err)
 	}
 
-	// Create writer.
 	writer, err := reg.NewWriter(fmtName)
 	if err != nil {
 		reader.Close()
 		return fmt.Errorf("no writer for %q: %w", fmtName, err)
 	}
 
+	return r.RunFileWithReaderWriter(ctx, flowName, tools, inputPath, outputPath, targetLang, reader, writer)
+}
+
+// RunFileWithReaderWriter runs the pipeline with pre-created reader and writer.
+// The caller is responsible for configuring the reader (presets, project
+// defaults) before calling. This is the primary integration point for CLI
+// and MCP which need to apply format presets and project config.
+func (r *FileRunner) RunFileWithReaderWriter(ctx context.Context, flowName string, tools []tool.Tool, inputPath, outputPath, targetLang string, reader format.DataFormatReader, writer format.DataFormatWriter) error {
 	// Wire skeleton store if both support it.
+	var skeletonStore *format.SkeletonStore
 	if emitter, ok := reader.(format.SkeletonStoreEmitter); ok {
 		if consumer, ok := writer.(format.SkeletonStoreConsumer); ok {
 			if store, storeErr := format.NewSkeletonStore(); storeErr == nil {
-				defer store.Close()
+				skeletonStore = store
 				emitter.SetSkeletonStore(store)
 				consumer.SetSkeletonStore(store)
 			}
@@ -85,6 +88,9 @@ func (r *FileRunner) RunFile(ctx context.Context, flowName string, tools []tool.
 	inputContent, err := os.ReadFile(inputPath)
 	if err != nil {
 		reader.Close()
+		if skeletonStore != nil {
+			skeletonStore.Close()
+		}
 		return fmt.Errorf("read file: %w", err)
 	}
 
@@ -98,6 +104,9 @@ func (r *FileRunner) RunFile(ctx context.Context, flowName string, tools []tool.
 
 	if err := reader.Open(ctx, doc); err != nil {
 		reader.Close()
+		if skeletonStore != nil {
+			skeletonStore.Close()
+		}
 		return fmt.Errorf("open %q: %w", filepath.Base(inputPath), err)
 	}
 
@@ -105,10 +114,15 @@ func (r *FileRunner) RunFile(ctx context.Context, flowName string, tools []tool.
 	for result := range reader.Read(ctx) {
 		if result.Error != nil {
 			reader.Close()
+			if skeletonStore != nil {
+				skeletonStore.Close()
+			}
 			return fmt.Errorf("read %q: %w", filepath.Base(inputPath), result.Error)
 		}
 		parts = append(parts, result.Part)
 	}
+	// Close reader immediately after reading — for bridge formats this releases
+	// the JVM back to the pool so the writer can reuse it.
 	reader.Close()
 
 	// Build and execute tool pipeline.
@@ -118,6 +132,9 @@ func (r *FileRunner) RunFile(ctx context.Context, flowName string, tools []tool.
 	}
 	f, err := fb.Build()
 	if err != nil {
+		if skeletonStore != nil {
+			skeletonStore.Close()
+		}
 		return fmt.Errorf("build flow: %w", err)
 	}
 
@@ -137,15 +154,24 @@ func (r *FileRunner) RunFile(ctx context.Context, flowName string, tools []tool.
 	}
 
 	if err := wait(); err != nil {
+		if skeletonStore != nil {
+			skeletonStore.Close()
+		}
 		return fmt.Errorf("execute flow: %w", err)
 	}
 
 	// Ensure output directory exists.
 	if err := os.MkdirAll(filepath.Dir(outputPath), 0o755); err != nil {
+		if skeletonStore != nil {
+			skeletonStore.Close()
+		}
 		return fmt.Errorf("create output dir: %w", err)
 	}
 
 	if err := writer.SetOutput(outputPath); err != nil {
+		if skeletonStore != nil {
+			skeletonStore.Close()
+		}
 		return fmt.Errorf("set output: %w", err)
 	}
 
@@ -165,9 +191,16 @@ func (r *FileRunner) RunFile(ctx context.Context, flowName string, tools []tool.
 	close(ch)
 
 	if err := writer.Write(ctx, ch); err != nil {
+		if skeletonStore != nil {
+			skeletonStore.Close()
+		}
 		return fmt.Errorf("write %q: %w", filepath.Base(outputPath), err)
 	}
 	writer.Close()
+
+	if skeletonStore != nil {
+		skeletonStore.Close()
+	}
 
 	return nil
 }
