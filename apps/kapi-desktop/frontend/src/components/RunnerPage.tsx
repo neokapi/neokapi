@@ -29,6 +29,34 @@ interface RunEvent {
   files_processed?: number;
 }
 
+/**
+ * Returns a promise that resolves when the backend emits a flow:event with
+ * type "complete" or rejects on "error". Used to serialize multi-language
+ * runs so the next language waits for the previous one to finish.
+ */
+function waitForFlowComplete(): Promise<void> {
+  return new Promise((resolve, reject) => {
+    let cleanup: (() => void) | null = null;
+    import("@wailsio/runtime")
+      .then((mod) => {
+        cleanup = mod.Events.On("flow:event", (e: { data: unknown }) => {
+          const event = e.data as { type: string; message?: string };
+          if (event.type === "complete") {
+            cleanup?.();
+            resolve();
+          } else if (event.type === "error") {
+            cleanup?.();
+            reject(new Error(event.message ?? "Flow execution failed"));
+          }
+        });
+      })
+      .catch(() => {
+        // No Wails runtime (Storybook/test) — resolve immediately.
+        resolve();
+      });
+  });
+}
+
 export interface RunnerPageProps {
   tabID: string;
   flowName: string;
@@ -110,7 +138,11 @@ export function RunnerPage({ tabID, flowName, flow, onClose, project, autoRun }:
         ]);
 
         try {
+          // Start the flow — returns immediately (backend runs in goroutine).
           await api.runFlow(tabID, flowName, paths, lang);
+
+          // Wait for the backend to signal completion or error via Wails event.
+          await waitForFlowComplete();
         } catch (e) {
           setState("error");
           setError(`Failed for ${lang}: ${String(e)}`);
