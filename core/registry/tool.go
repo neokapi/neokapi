@@ -152,6 +152,18 @@ func (r *ToolRegistry) NewTool(name string) (tool.Tool, error) {
 	return reg.Factory(), nil
 }
 
+// GetToolInfo returns the metadata for a named tool, or nil if not found.
+func (r *ToolRegistry) GetToolInfo(name string) *ToolInfo {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	reg, ok := r.tools[name]
+	if !ok {
+		return nil
+	}
+	info := reg.Info
+	return &info
+}
+
 // NewToolWithConfig creates a Tool from a step config map and target language.
 // Falls back to the zero-arg Factory if no ConfigFactory is registered.
 func (r *ToolRegistry) NewToolWithConfig(name string, config map[string]any, targetLang string) (tool.Tool, error) {

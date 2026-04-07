@@ -99,6 +99,9 @@ export function stepsToGraph(
             description: info?.description,
             inputs: info?.inputs,
             outputs: info?.outputs,
+            cardinality: info?.cardinality,
+            defaultLocale: info?.default_locale,
+            sideEffects: info?.side_effects,
             parallel: true,
           },
         });
@@ -130,6 +133,9 @@ export function stepsToGraph(
           description: info?.description,
           inputs: info?.inputs,
           outputs: info?.outputs,
+          cardinality: info?.cardinality,
+          defaultLocale: info?.default_locale,
+          sideEffects: info?.side_effects,
         },
       });
 

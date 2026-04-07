@@ -45,9 +45,9 @@ func (a *App) RunFlow(ctx context.Context, cmd *cobra.Command, flowName string, 
 
 	if len(inputPaths) > 0 {
 		if a.TargetLang == "" {
-			// Check if the flow's primary tool has a default target language.
-			if def := LookupToolCommand(flowName); def != nil && def.DefaultTargetLang != "" {
-				a.TargetLang = def.DefaultTargetLang
+			// Check tool registry for a default locale (e.g., pseudo-translate → "qps").
+			if info := a.ToolReg.GetToolInfo(flowName); info != nil && info.DefaultLocale != "" {
+				a.TargetLang = info.DefaultLocale
 			} else {
 				return errors.New("--target-lang is required")
 			}

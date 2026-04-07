@@ -219,6 +219,58 @@ function StepConfigPanel({
           </div>
         )}
 
+        {/* IO contract info */}
+        {(toolInfo?.cardinality ||
+          toolInfo?.produces?.length ||
+          toolInfo?.side_effects?.length) && (
+          <div className="flex gap-1 flex-wrap items-center">
+            {toolInfo.cardinality && (
+              <span
+                className="rounded px-1.5 py-0 h-4 inline-flex items-center text-[9px] font-mono font-semibold"
+                style={{
+                  background:
+                    toolInfo.cardinality === "bilingual"
+                      ? "oklch(0.55 0.15 250 / 0.1)"
+                      : toolInfo.cardinality === "multilingual"
+                        ? "oklch(0.55 0.15 320 / 0.1)"
+                        : "oklch(0.5 0.02 0 / 0.06)",
+                  color:
+                    toolInfo.cardinality === "bilingual"
+                      ? "oklch(0.55 0.15 250)"
+                      : toolInfo.cardinality === "multilingual"
+                        ? "oklch(0.55 0.15 320)"
+                        : "var(--muted-foreground)",
+                }}
+              >
+                {toolInfo.cardinality}
+              </span>
+            )}
+            {toolInfo.default_locale && (
+              <span
+                className="rounded px-1.5 py-0 h-4 inline-flex items-center text-[9px] font-mono"
+                style={{
+                  background: "oklch(0.6 0.12 290 / 0.1)",
+                  color: "oklch(0.55 0.12 290)",
+                }}
+              >
+                default: {toolInfo.default_locale}
+              </span>
+            )}
+            {toolInfo.side_effects?.map((se) => (
+              <span
+                key={se}
+                className="rounded px-1.5 py-0 h-4 inline-flex items-center text-[9px]"
+                style={{
+                  background: "oklch(0.65 0.12 85 / 0.1)",
+                  color: "oklch(0.55 0.12 85)",
+                }}
+              >
+                ⚡ {se}
+              </span>
+            ))}
+          </div>
+        )}
+
         {/* Requirements badges + docs toggle */}
         <div className="flex gap-1 flex-wrap items-center">
           {toolInfo?.requires?.map((req) => (

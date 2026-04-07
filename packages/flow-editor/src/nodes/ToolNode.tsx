@@ -60,6 +60,9 @@ export function ToolNode({ data, selected }: NodeProps) {
   const partCount = data.partCount as number | undefined;
   const inputs = data.inputs as string[] | undefined;
   const outputs = data.outputs as string[] | undefined;
+  const cardinality = data.cardinality as string | undefined;
+  const defaultLocale = data.defaultLocale as string | undefined;
+  const sideEffects = data.sideEffects as string[] | undefined;
   const vertical = data.layoutDirection === "vertical";
   const retryConfig = data.retryConfig as Record<string, unknown> | undefined;
   const onRemove = data.onRemove as (() => void) | undefined;
@@ -120,30 +123,70 @@ export function ToolNode({ data, selected }: NodeProps) {
           {String(data.label || data.toolName || "")}
         </div>
 
-        {/* Port type indicators */}
-        {(inputs?.length || outputs?.length) && (
-          <div className="flex items-center gap-0.5 mt-1">
-            {inputs?.map((t) => (
-              <span
-                key={`in-${t}`}
-                title={`Input: ${t}`}
-                className="size-1.5 rounded-full opacity-70"
-                style={{ background: portColor(t) }}
-              />
-            ))}
-            {inputs?.length && outputs?.length ? (
-              <span className="text-[8px] text-muted-foreground">&rarr;</span>
-            ) : null}
-            {outputs?.map((t) => (
-              <span
-                key={`out-${t}`}
-                title={`Output: ${t}`}
-                className="size-1.5 rounded-full opacity-70"
-                style={{ background: portColor(t) }}
-              />
-            ))}
-          </div>
-        )}
+        {/* IO indicators */}
+        <div className="flex items-center gap-1 mt-1">
+          {/* Locale cardinality */}
+          {cardinality && cardinality !== "monolingual" && (
+            <span
+              className="rounded px-1 py-px text-[8px] font-mono font-semibold uppercase tracking-wider"
+              style={{
+                background:
+                  cardinality === "bilingual"
+                    ? "oklch(0.55 0.15 250 / 0.12)"
+                    : "oklch(0.55 0.15 320 / 0.12)",
+                color:
+                  cardinality === "bilingual" ? "oklch(0.55 0.15 250)" : "oklch(0.55 0.15 320)",
+              }}
+              title={
+                cardinality === "bilingual" ? "Operates on two locales" : "Operates on all locales"
+              }
+            >
+              {cardinality === "bilingual" ? "BI" : "ML"}
+            </span>
+          )}
+          {/* Default locale */}
+          {defaultLocale && (
+            <span
+              className="rounded px-1 py-px text-[8px] font-mono font-medium"
+              style={{
+                background: "oklch(0.6 0.12 290 / 0.12)",
+                color: "oklch(0.55 0.12 290)",
+              }}
+              title={`Default locale: ${defaultLocale}`}
+            >
+              {defaultLocale}
+            </span>
+          )}
+          {/* Port type dots */}
+          {inputs?.map((t) => (
+            <span
+              key={`in-${t}`}
+              title={`Input: ${t}`}
+              className="size-1.5 rounded-full opacity-70"
+              style={{ background: portColor(t) }}
+            />
+          ))}
+          {inputs?.length && outputs?.length ? (
+            <span className="text-[8px] text-muted-foreground">&rarr;</span>
+          ) : null}
+          {outputs?.map((t) => (
+            <span
+              key={`out-${t}`}
+              title={`Output: ${t}`}
+              className="size-1.5 rounded-full opacity-70"
+              style={{ background: portColor(t) }}
+            />
+          ))}
+          {/* Side effect indicator */}
+          {sideEffects && sideEffects.length > 0 && (
+            <span
+              className="ml-auto text-[8px] font-mono opacity-60"
+              title={`Side effects: ${sideEffects.join(", ")}`}
+            >
+              ⚡
+            </span>
+          )}
+        </div>
 
         <Handle
           type="source"
