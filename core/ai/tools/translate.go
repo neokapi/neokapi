@@ -31,6 +31,13 @@ type AITranslateTool struct {
 	totalBlocks  int
 }
 
+// Default values for AITranslateConfig — used in both the schema tags
+// (for UI display) and NewAITranslateTool (for runtime fallback).
+const (
+	DefaultBatchSize        = 100
+	DefaultBatchConcurrency = 1
+)
+
 // AITranslateConfig holds configuration for the AI translate tool.
 // Fields are exposed as CLI flags via schema tags and as flow config
 // via json tags.
@@ -157,10 +164,10 @@ func NewAITranslateTool(p aiprovider.LLMProvider, cfg AITranslateConfig) *AITran
 		t.streaming = sp
 	}
 	if t.batchSize < 1 {
-		t.batchSize = 100 // default matches schema default
+		t.batchSize = DefaultBatchSize
 	}
 	if t.concurrency < 1 {
-		t.concurrency = 1
+		t.concurrency = DefaultBatchConcurrency
 	}
 	t.ToolName = "ai-translate"
 	t.ToolDescription = "Translates Blocks using AI/LLM"
