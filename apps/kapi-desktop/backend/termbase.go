@@ -205,7 +205,7 @@ func (a *App) SearchTerms(handle, query, srcLocale, tgtLocale string, offset, li
 	if !ok {
 		return &TermSearchResult{}
 	}
-	concepts, total := tb.Search(query, srcLocale, tgtLocale, offset, limit)
+	concepts, total := tb.Search(query, model.LocaleID(srcLocale), model.LocaleID(tgtLocale), offset, limit)
 	dtos := make([]ConceptDTO, 0, len(concepts))
 	for _, c := range concepts {
 		dtos = append(dtos, conceptToDTO(c))

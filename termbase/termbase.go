@@ -143,7 +143,7 @@ type TermBase interface {
 	LookupAll(sourceText string, opts LookupOptions) []TermMatch
 
 	// Search performs a text search across terms and definitions.
-	Search(query string, sourceLocale, targetLocale string, offset, limit int) ([]Concept, int)
+	Search(query string, sourceLocale, targetLocale model.LocaleID, offset, limit int) ([]Concept, int)
 
 	// Count returns the total number of concepts.
 	Count() int

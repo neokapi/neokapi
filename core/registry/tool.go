@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"sync"
 
+	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/schema"
 	"github.com/neokapi/neokapi/core/tool"
 )
@@ -36,7 +37,7 @@ type ToolInfo struct {
 
 	// IO contract fields (AD-043)
 	Cardinality   schema.LocaleCardinality `json:"cardinality,omitempty"`
-	DefaultLocale string                   `json:"default_locale,omitempty"`
+	DefaultLocale model.LocaleID            `json:"default_locale,omitempty"`
 	Produces      []schema.AnnotationType  `json:"produces,omitempty"`
 	SideEffects   []schema.SideEffect      `json:"side_effects,omitempty"`
 }

@@ -32,7 +32,7 @@ func TestRegister_BasicTool(t *testing.T) {
 	assert.False(t, reg.Has("nonexistent"))
 
 	names := reg.Names()
-	assert.Contains(t, names, "test-tool")
+	assert.Contains(t, names, ToolID("test-tool"))
 }
 
 func TestRegisterWithSchema_PropagatesMetadata(t *testing.T) {
@@ -57,7 +57,7 @@ func TestRegisterWithSchema_PropagatesMetadata(t *testing.T) {
 	require.Len(t, infos, 1)
 
 	info := infos[0]
-	assert.Equal(t, "test-tool", info.Name)
+	assert.Equal(t, ToolID("test-tool"), info.Name)
 	assert.Equal(t, "A test tool", info.Description)
 	assert.Equal(t, "validate", info.Category)
 	assert.True(t, info.HasSchema)
@@ -76,7 +76,7 @@ func TestRegisterWithSchema_NilSchema(t *testing.T) {
 	require.Len(t, infos, 1)
 
 	info := infos[0]
-	assert.Equal(t, "no-schema", info.Name)
+	assert.Equal(t, ToolID("no-schema"), info.Name)
 	assert.False(t, info.HasSchema)
 	assert.Empty(t, info.Inputs)
 	assert.Empty(t, info.Tags)
@@ -148,9 +148,9 @@ func TestGetToolInfo_ReturnsInfo(t *testing.T) {
 
 	info := reg.GetToolInfo("test")
 	require.NotNil(t, info)
-	assert.Equal(t, "test", info.Name)
+	assert.Equal(t, ToolID("test"), info.Name)
 	assert.Equal(t, schema.Bilingual, info.Cardinality)
-	assert.Equal(t, "qps", info.DefaultLocale)
+	assert.Equal(t, model.LocaleID("qps"), info.DefaultLocale)
 	assert.Equal(t, []schema.AnnotationType{schema.AnnotationQAIssues}, info.Produces)
 	assert.Equal(t, []schema.SideEffect{schema.SideEffectTMRead}, info.SideEffects)
 }

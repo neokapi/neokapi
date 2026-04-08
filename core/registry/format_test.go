@@ -65,14 +65,14 @@ func (s *stubWriter) Write(_ context.Context, _ <-chan *model.Part) error { retu
 
 // regStub registers a stub reader with an empty signature.
 func regStub(reg *FormatRegistry, name string) {
-	reg.RegisterReader(name, func() format.DataFormatReader {
+	reg.RegisterReader(FormatID(name), func() format.DataFormatReader {
 		return newStubReader(name)
 	}, format.FormatSignature{}, "")
 }
 
 // regStubSig registers a stub reader with the given signature and display name.
 func regStubSig(reg *FormatRegistry, name, displayName string, mimes, exts []string) {
-	reg.RegisterReader(name, func() format.DataFormatReader {
+	reg.RegisterReader(FormatID(name), func() format.DataFormatReader {
 		return newStubReaderWithSig(name, displayName, mimes, exts)
 	}, format.FormatSignature{MIMETypes: mimes, Extensions: exts}, displayName)
 }

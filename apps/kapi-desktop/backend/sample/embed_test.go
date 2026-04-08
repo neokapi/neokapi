@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/sievepen"
 	"github.com/neokapi/neokapi/termbase"
@@ -30,8 +31,8 @@ func TestScaffoldKapiMart(t *testing.T) {
 	proj, err := project.Load(filepath.Join(dir, "project.kapi"))
 	require.NoError(t, err)
 	assert.Equal(t, "KapiMart", proj.Name)
-	assert.Equal(t, "en-US", proj.Defaults.SourceLanguage)
-	assert.Equal(t, []string{"de-DE", "fr-FR", "ja-JP", "nb-NO", "ar-SA"}, proj.Defaults.TargetLanguages)
+	assert.Equal(t, model.LocaleID("en-US"), proj.Defaults.SourceLanguage)
+	assert.Equal(t, []model.LocaleID{"de-DE", "fr-FR", "ja-JP", "nb-NO", "ar-SA"}, proj.Defaults.TargetLanguages)
 
 	// 4 named content collections.
 	require.Len(t, proj.Content, 4)
@@ -91,8 +92,8 @@ func assertOkapiMartProject(t *testing.T, dir string) {
 	proj, err := project.Load(filepath.Join(dir, "project.kapi"))
 	require.NoError(t, err)
 	assert.Equal(t, "OkapiMart", proj.Name)
-	assert.Equal(t, "en-US", proj.Defaults.SourceLanguage)
-	assert.Equal(t, []string{"fr-FR", "de-DE", "ja-JP"}, proj.Defaults.TargetLanguages)
+	assert.Equal(t, model.LocaleID("en-US"), proj.Defaults.SourceLanguage)
+	assert.Equal(t, []model.LocaleID{"fr-FR", "de-DE", "ja-JP"}, proj.Defaults.TargetLanguages)
 	assert.NotEmpty(t, proj.Flows)
 
 	// v1 shared input files.

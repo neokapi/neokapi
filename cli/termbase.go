@@ -284,7 +284,7 @@ func (a *App) newTermbaseSearchCmd() *cobra.Command {
 			}
 			defer tb.Close()
 
-			results, total := tb.Search(args[0], srcLocale, tgtLocale, 0, limit)
+			results, total := tb.Search(args[0], model.LocaleID(srcLocale), model.LocaleID(tgtLocale), 0, limit)
 
 			entries := make([]output.TermbaseSearchEntry, len(results))
 			for i, c := range results {

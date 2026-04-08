@@ -1,5 +1,7 @@
 package termbase
 
+import "github.com/neokapi/neokapi/core/model"
+
 // TBStore extends TermBase with stream-aware methods needed by
 // persistent backends (SQLite and PostgreSQL).
 type TBStore interface {
@@ -13,5 +15,5 @@ type TBStore interface {
 	// The streamChain is the ordered list of ancestor streams to search
 	// (e.g., ["feature/rebrand", "main", ""]). Concepts from earlier streams
 	// in the chain take priority.
-	SearchForStream(query, sourceLocale, targetLocale, stream string, streamChain []string, offset, limit int) ([]Concept, int)
+	SearchForStream(query string, sourceLocale, targetLocale model.LocaleID, stream string, streamChain []string, offset, limit int) ([]Concept, int)
 }

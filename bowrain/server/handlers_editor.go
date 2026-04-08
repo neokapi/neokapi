@@ -874,13 +874,15 @@ func (s *Server) HandleGetTerms(c echo.Context) error {
 	}
 
 	stream := c.QueryParam("stream")
+	srcLocaleID := model.LocaleID(sourceLocale)
+	tgtLocaleID := model.LocaleID(targetLocale)
 	var concepts []termbase.Concept
 	var total int
 	if stream != "" && stream != "main" && s.ContentStore != nil {
 		chain := buildStreamChain(c.Request().Context(), s.ContentStore, projectID, stream)
-		concepts, total = tb.SearchForStream(query, sourceLocale, targetLocale, stream, chain[1:], offset, limit)
+		concepts, total = tb.SearchForStream(query, srcLocaleID, tgtLocaleID, stream, chain[1:], offset, limit)
 	} else {
-		concepts, total = tb.Search(query, sourceLocale, targetLocale, offset, limit)
+		concepts, total = tb.Search(query, srcLocaleID, tgtLocaleID, offset, limit)
 	}
 
 	// Post-filter by project_id if specified.

@@ -3,6 +3,7 @@ package tools
 import (
 	"testing"
 
+	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/registry"
 	"github.com/neokapi/neokapi/core/schema"
 	"github.com/stretchr/testify/assert"
@@ -31,7 +32,7 @@ func TestPseudoTranslateHasDefaultLocale(t *testing.T) {
 	for _, info := range reg.ListWithSchemas() {
 		if info.Name == "pseudo-translate" {
 			assert.Equal(t, schema.Bilingual, info.Cardinality)
-			assert.Equal(t, "qps", info.DefaultLocale)
+			assert.Equal(t, model.LocaleID("qps"), info.DefaultLocale)
 			assert.Contains(t, info.Produces, schema.AnnotationTranslation)
 			return
 		}
@@ -46,7 +47,7 @@ func TestBilingualToolCount(t *testing.T) {
 	var bilingual []string
 	for _, info := range reg.ListWithSchemas() {
 		if info.Cardinality == schema.Bilingual {
-			bilingual = append(bilingual, info.Name)
+			bilingual = append(bilingual, string(info.Name))
 		}
 	}
 	// Sanity check: we have a reasonable number of bilingual tools.

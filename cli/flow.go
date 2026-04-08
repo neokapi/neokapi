@@ -50,7 +50,7 @@ func (a *App) RunFlow(ctx context.Context, cmd *cobra.Command, flowName string, 
 		if a.TargetLang == "" {
 			// Check tool registry for a default locale (e.g., pseudo-translate → "qps").
 			if info := a.ToolReg.GetToolInfo(registry.ToolID(flowName)); info != nil && info.DefaultLocale != "" {
-				a.TargetLang = info.DefaultLocale
+				a.TargetLang = string(info.DefaultLocale)
 			} else {
 				return errors.New("--target-lang is required")
 			}

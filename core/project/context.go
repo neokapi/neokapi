@@ -47,10 +47,7 @@ func NewProjectContext(proj *KapiProject, projectPath string) *ProjectContext {
 	}
 
 	// Resolve locale defaults.
-	targetLocales := make([]model.LocaleID, len(proj.Defaults.TargetLanguages))
-	for i, lang := range proj.Defaults.TargetLanguages {
-		targetLocales[i] = model.LocaleID(lang)
-	}
+	targetLocales := proj.Defaults.TargetLanguages
 
 	// Resolve encoding (default UTF-8).
 	encoding := proj.Defaults.Encoding
@@ -67,7 +64,7 @@ func NewProjectContext(proj *KapiProject, projectPath string) *ProjectContext {
 	return &ProjectContext{
 		Project:        proj,
 		ProjectDir:     dir,
-		SourceLocale:   model.LocaleID(proj.Defaults.SourceLanguage),
+		SourceLocale:   proj.Defaults.SourceLanguage,
 		TargetLocales:  targetLocales,
 		AllowedSources: sources,
 		Encoding:       encoding,

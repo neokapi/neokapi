@@ -7,6 +7,7 @@ import (
 
 	"github.com/neokapi/neokapi/core/flow"
 	"github.com/neokapi/neokapi/core/format"
+	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/registry"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -19,7 +20,7 @@ func TestNewProjectContext_Defaults(t *testing.T) {
 		Version: CurrentVersion,
 		Defaults: Defaults{
 			SourceLanguage:  "en-US",
-			TargetLanguages: []string{"fr-FR", "de-DE"},
+			TargetLanguages: []model.LocaleID{"fr-FR", "de-DE"},
 		},
 	}
 	ctx := NewProjectContext(proj, "/tmp/test/project.kapi")
@@ -39,7 +40,7 @@ func TestNewProjectContext_CustomDefaults(t *testing.T) {
 		Version: CurrentVersion,
 		Defaults: Defaults{
 			SourceLanguage:  "ja-JP",
-			TargetLanguages: []string{"en-US"},
+			TargetLanguages: []model.LocaleID{"en-US"},
 			Encoding:        "Shift_JIS",
 			Concurrency:     8,
 			ParallelBlocks:  5,
@@ -484,14 +485,14 @@ func createFile(t *testing.T, base, rel, content string) {
 func toolNames(tools []registry.ToolInfo) []string {
 	names := make([]string, len(tools))
 	for i, t := range tools {
-		names[i] = t.Name
+		names[i] = string(t.Name)
 	}
 	return names
 }
 
 // registerBuiltIn registers a format with "built-in" source and default priority.
 func registerBuiltIn(reg *registry.FormatRegistry, name, ext string) {
-	reg.RegisterFormatInfo(name, registry.FormatInfo{
+	reg.RegisterFormatInfo(registry.FormatID(name), registry.FormatInfo{
 		Extensions: []string{ext},
 		Source:     "built-in",
 		HasReader:  true,

@@ -272,7 +272,7 @@ func handleRunFlow(ctx context.Context, a *cli.App, input RunFlowInput) (*mcp.Ca
 	targetLang := input.TargetLang
 	if targetLang == "" {
 		if info := a.ToolReg.GetToolInfo(registry.ToolID(input.FlowName)); info != nil && info.DefaultLocale != "" {
-			targetLang = info.DefaultLocale
+			targetLang = string(info.DefaultLocale)
 		} else {
 			return nil, RunFlowOutput{}, fmt.Errorf("target_lang is required for flow %q", input.FlowName)
 		}
@@ -318,7 +318,7 @@ func handleRunFlowWithProject(ctx context.Context, a *cli.App, input RunFlowInpu
 	}
 	if targetLang == "" {
 		if info := a.ToolReg.GetToolInfo(registry.ToolID(input.FlowName)); info != nil && info.DefaultLocale != "" {
-			targetLang = info.DefaultLocale
+			targetLang = string(info.DefaultLocale)
 		} else {
 			return nil, RunFlowOutput{}, fmt.Errorf("target_lang is required for flow %q", input.FlowName)
 		}
@@ -453,7 +453,7 @@ func handlePseudoTranslate(ctx context.Context, a *cli.App, input PseudoTranslat
 	targetLang := input.TargetLang
 	if targetLang == "" {
 		if info := a.ToolReg.GetToolInfo(registry.ToolID("pseudo-translate")); info != nil && info.DefaultLocale != "" {
-			targetLang = info.DefaultLocale
+			targetLang = string(info.DefaultLocale)
 		} else {
 			targetLang = "qps"
 		}

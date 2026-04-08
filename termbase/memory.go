@@ -287,7 +287,7 @@ func (tb *InMemoryTermBase) LookupAll(sourceText string, opts LookupOptions) []T
 }
 
 // Search performs a case-insensitive text search across terms and definitions.
-func (tb *InMemoryTermBase) Search(query, sourceLocale, targetLocale string, offset, limit int) ([]Concept, int) {
+func (tb *InMemoryTermBase) Search(query string, sourceLocale, targetLocale model.LocaleID, offset, limit int) ([]Concept, int) {
 	tb.mu.RLock()
 	defer tb.mu.RUnlock()
 
@@ -406,7 +406,7 @@ func NormalizeTerm(s string) string {
 	return strings.Join(fields, " ")
 }
 
-func matchesConcept(c Concept, lowerQuery, sourceLocale, targetLocale string) bool {
+func matchesConcept(c Concept, lowerQuery string, sourceLocale, targetLocale model.LocaleID) bool {
 	if lowerQuery == "" && sourceLocale == "" && targetLocale == "" {
 		return true
 	}
@@ -415,10 +415,10 @@ func matchesConcept(c Concept, lowerQuery, sourceLocale, targetLocale string) bo
 	if sourceLocale != "" || targetLocale != "" {
 		hasSource, hasTarget := false, false
 		for _, t := range c.Terms {
-			if sourceLocale != "" && string(t.Locale) == sourceLocale {
+			if sourceLocale != "" && t.Locale == sourceLocale {
 				hasSource = true
 			}
-			if targetLocale != "" && string(t.Locale) == targetLocale {
+			if targetLocale != "" && t.Locale == targetLocale {
 				hasTarget = true
 			}
 		}

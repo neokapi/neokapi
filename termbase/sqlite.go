@@ -322,7 +322,7 @@ func (tb *SQLiteTermBase) LookupAll(sourceText string, opts LookupOptions) []Ter
 }
 
 // Search performs a ranked full-text search across concepts and terms.
-func (tb *SQLiteTermBase) Search(query, sourceLocale, targetLocale string, offset, limit int) ([]Concept, int) {
+func (tb *SQLiteTermBase) Search(query string, sourceLocale, targetLocale model.LocaleID, offset, limit int) ([]Concept, int) {
 	if query != "" {
 		concepts, total, err := tb.searchFTS5(query, sourceLocale, targetLocale, offset, limit)
 		if err == nil {
@@ -332,18 +332,18 @@ func (tb *SQLiteTermBase) Search(query, sourceLocale, targetLocale string, offse
 	return tb.searchLike(query, sourceLocale, targetLocale, offset, limit)
 }
 
-func (tb *SQLiteTermBase) searchFTS5(query, sourceLocale, targetLocale string, offset, limit int) ([]Concept, int, error) {
+func (tb *SQLiteTermBase) searchFTS5(query string, sourceLocale, targetLocale model.LocaleID, offset, limit int) ([]Concept, int, error) {
 	trigramQuery := `"` + strings.ReplaceAll(query, `"`, `""`) + `"`
 
 	localeWhere := ""
 	var localeArgs []any
 	if sourceLocale != "" {
 		localeWhere += " AND c.id IN (SELECT concept_id FROM tb_terms WHERE locale = ?)"
-		localeArgs = append(localeArgs, sourceLocale)
+		localeArgs = append(localeArgs, string(sourceLocale))
 	}
 	if targetLocale != "" {
 		localeWhere += " AND c.id IN (SELECT concept_id FROM tb_terms WHERE locale = ?)"
-		localeArgs = append(localeArgs, targetLocale)
+		localeArgs = append(localeArgs, string(targetLocale))
 	}
 
 	countQ := `SELECT COUNT(DISTINCT t.concept_id)
@@ -391,7 +391,7 @@ func (tb *SQLiteTermBase) searchFTS5(query, sourceLocale, targetLocale string, o
 	return concepts, total, nil
 }
 
-func (tb *SQLiteTermBase) searchLike(query, sourceLocale, targetLocale string, offset, limit int) ([]Concept, int) {
+func (tb *SQLiteTermBase) searchLike(query string, sourceLocale, targetLocale model.LocaleID, offset, limit int) ([]Concept, int) {
 	where := "1=1"
 	var args []any
 
@@ -404,11 +404,11 @@ func (tb *SQLiteTermBase) searchLike(query, sourceLocale, targetLocale string, o
 
 	if sourceLocale != "" {
 		where += " AND c.id IN (SELECT concept_id FROM tb_terms WHERE locale = ?)"
-		args = append(args, sourceLocale)
+		args = append(args, string(sourceLocale))
 	}
 	if targetLocale != "" {
 		where += " AND c.id IN (SELECT concept_id FROM tb_terms WHERE locale = ?)"
-		args = append(args, targetLocale)
+		args = append(args, string(targetLocale))
 	}
 
 	var total int
@@ -446,7 +446,7 @@ func (tb *SQLiteTermBase) searchLike(query, sourceLocale, targetLocale string, o
 }
 
 // SearchForStream performs a ranked full-text search with stream inheritance.
-func (tb *SQLiteTermBase) SearchForStream(query, sourceLocale, targetLocale, stream string, streamChain []string, offset, limit int) ([]Concept, int) {
+func (tb *SQLiteTermBase) SearchForStream(query string, sourceLocale, targetLocale model.LocaleID, stream string, streamChain []string, offset, limit int) ([]Concept, int) {
 	if query != "" {
 		concepts, total, err := tb.searchFTS5ForStream(query, sourceLocale, targetLocale, stream, streamChain, offset, limit)
 		if err == nil {
@@ -456,7 +456,7 @@ func (tb *SQLiteTermBase) SearchForStream(query, sourceLocale, targetLocale, str
 	return tb.searchLikeForStream(query, sourceLocale, targetLocale, stream, streamChain, offset, limit)
 }
 
-func (tb *SQLiteTermBase) searchFTS5ForStream(query, sourceLocale, targetLocale, stream string, streamChain []string, offset, limit int) ([]Concept, int, error) {
+func (tb *SQLiteTermBase) searchFTS5ForStream(query string, sourceLocale, targetLocale model.LocaleID, stream string, streamChain []string, offset, limit int) ([]Concept, int, error) {
 	streams := []string{stream}
 	streams = append(streams, streamChain...)
 
@@ -475,11 +475,11 @@ func (tb *SQLiteTermBase) searchFTS5ForStream(query, sourceLocale, targetLocale,
 
 	if sourceLocale != "" {
 		where += " AND c.id IN (SELECT concept_id FROM tb_terms WHERE locale = ?)"
-		args = append(args, sourceLocale)
+		args = append(args, string(sourceLocale))
 	}
 	if targetLocale != "" {
 		where += " AND c.id IN (SELECT concept_id FROM tb_terms WHERE locale = ?)"
-		args = append(args, targetLocale)
+		args = append(args, string(targetLocale))
 	}
 
 	var total int
@@ -526,7 +526,7 @@ func (tb *SQLiteTermBase) searchFTS5ForStream(query, sourceLocale, targetLocale,
 	return concepts, total, nil
 }
 
-func (tb *SQLiteTermBase) searchLikeForStream(query, sourceLocale, targetLocale, stream string, streamChain []string, offset, limit int) ([]Concept, int) {
+func (tb *SQLiteTermBase) searchLikeForStream(query string, sourceLocale, targetLocale model.LocaleID, stream string, streamChain []string, offset, limit int) ([]Concept, int) {
 	streams := []string{stream}
 	streams = append(streams, streamChain...)
 
@@ -548,11 +548,11 @@ func (tb *SQLiteTermBase) searchLikeForStream(query, sourceLocale, targetLocale,
 
 	if sourceLocale != "" {
 		where += " AND c.id IN (SELECT concept_id FROM tb_terms WHERE locale = ?)"
-		args = append(args, sourceLocale)
+		args = append(args, string(sourceLocale))
 	}
 	if targetLocale != "" {
 		where += " AND c.id IN (SELECT concept_id FROM tb_terms WHERE locale = ?)"
-		args = append(args, targetLocale)
+		args = append(args, string(targetLocale))
 	}
 
 	var total int

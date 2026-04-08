@@ -386,7 +386,7 @@ func (a *App) NewToolCommands() []*cobra.Command {
 				effectiveLang := a.TargetLang
 				if effectiveLang == "" && a.ToolReg != nil {
 					if info := a.ToolReg.GetToolInfo(registry.ToolID(d.Use)); info != nil && info.DefaultLocale != "" {
-						effectiveLang = info.DefaultLocale
+						effectiveLang = string(info.DefaultLocale)
 					}
 				}
 

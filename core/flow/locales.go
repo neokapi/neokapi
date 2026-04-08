@@ -48,7 +48,7 @@ func ResolveFlowLocales(spec *StepsSpec, toolInfos map[registry.ToolID]registry.
 		case schema.Bilingual:
 			hasMonoOnly = false
 			if info.DefaultLocale != "" {
-				bilingualDefaults = append(bilingualDefaults, info.DefaultLocale)
+				bilingualDefaults = append(bilingualDefaults, string(info.DefaultLocale))
 			} else {
 				hasBilingualNoDefault = true
 			}
