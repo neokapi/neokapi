@@ -9,23 +9,22 @@ import { useEffect } from "react";
 
 type WailsEventCallback = (data: unknown) => void;
 
-// Lazily resolve the Wails Events module once.
+// Eagerly resolve the Wails Events module once at import time.
+// This avoids race conditions where fast backend events arrive before
+// the async import resolves.
 let eventsModule: { On: (name: string, cb: (e: { data: unknown }) => void) => () => void } | null =
   null;
-let eventsLoaded = false;
 
-async function getEvents() {
-  if (eventsModule) return eventsModule;
-  if (eventsLoaded) return null;
-  try {
-    const mod = await import("@wailsio/runtime");
+const eventsReady: Promise<typeof eventsModule> = import("@wailsio/runtime")
+  .then((mod) => {
     eventsModule = mod.Events;
-    eventsLoaded = true;
     return eventsModule;
-  } catch {
-    eventsLoaded = true;
-    return null;
-  }
+  })
+  .catch(() => null);
+
+function getEvents(): Promise<typeof eventsModule> {
+  if (eventsModule) return Promise.resolve(eventsModule);
+  return eventsReady;
 }
 
 /**

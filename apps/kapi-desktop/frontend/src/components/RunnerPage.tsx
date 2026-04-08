@@ -67,7 +67,9 @@ export function RunnerPage({ tabID, flowName, flow, onClose, project, autoRun }:
       if (paths.length === 0) return;
 
       setInputFiles(paths);
-      startJob(flowName, projectName, targets, paths.length);
+      // Don't pass target langs — the backend resolves actual locale passes
+      // from tool metadata (e.g. pseudo-translate uses qps, not project targets).
+      startJob(flowName, projectName, undefined, paths.length);
       try {
         await api.runFlow(tabID, flowName, paths, targets);
       } catch {

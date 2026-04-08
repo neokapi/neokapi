@@ -118,6 +118,7 @@ export const api = {
     call<void>("RunFlow", tabID, name, inputPaths, targetLangs),
   cancelRun: () => call<void>("CancelRun"),
   getRunState: () => call<string>("GetRunState"),
+  getRunEvents: () => call<unknown[]>("GetRunEvents"),
 
   // Tools
   listTools: () => call<ToolInfo[]>("ListTools"),
