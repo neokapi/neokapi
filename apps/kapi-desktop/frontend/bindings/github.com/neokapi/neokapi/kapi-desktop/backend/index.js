@@ -38,6 +38,7 @@ export {
     ProviderTypeInfo,
     RecentFile,
     ResourceInfo,
+    RunEvent,
     SaveUserFlowRequest,
     SpanDTO,
     TMEntryDTO,

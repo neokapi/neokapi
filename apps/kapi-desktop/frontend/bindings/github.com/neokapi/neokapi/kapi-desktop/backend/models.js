@@ -1720,6 +1720,101 @@ export class ResourceInfo {
 }
 
 /**
+ * RunEvent is emitted to the frontend during flow execution.
+ */
+export class RunEvent {
+    /**
+     * Creates a new RunEvent instance.
+     * @param {Partial<RunEvent>} [$$source = {}] - The source object to create the RunEvent.
+     */
+    constructor($$source = {}) {
+        if (!("type" in $$source)) {
+            /**
+             * "state", "progress", "trace", "error", "complete"
+             * @member
+             * @type {string}
+             */
+            this["type"] = "";
+        }
+        if (!("flow_id" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["flow_id"] = "";
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["message"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Progress fields
+             * @member
+             * @type {number | undefined}
+             */
+            this["file_index"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {number | undefined}
+             */
+            this["file_count"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["file_path"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Trace event (when type == "trace")
+             * @member
+             * @type {flow$0.TraceEvent | null | undefined}
+             */
+            this["trace_event"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Stats (when type == "complete")
+             * @member
+             * @type {number | undefined}
+             */
+            this["duration_ms"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {number | undefined}
+             */
+            this["files_processed"] = undefined;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new RunEvent instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {RunEvent}
+     */
+    static createFrom($$source = {}) {
+        const $$createField6_0 = $$createType22;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("trace_event" in $$parsedSource) {
+            $$parsedSource["trace_event"] = $$createField6_0($$parsedSource["trace_event"]);
+        }
+        return new RunEvent(/** @type {Partial<RunEvent>} */($$parsedSource));
+    }
+}
+
+/**
  * SaveUserFlowRequest is the request to save a user flow.
  */
 export class SaveUserFlowRequest {
@@ -1766,7 +1861,7 @@ export class SaveUserFlowRequest {
      * @returns {SaveUserFlowRequest}
      */
     static createFrom($$source = {}) {
-        const $$createField3_0 = $$createType23;
+        const $$createField3_0 = $$createType24;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("steps" in $$parsedSource) {
             $$parsedSource["steps"] = $$createField3_0($$parsedSource["steps"]);
@@ -1941,8 +2036,8 @@ export class TMEntryDTO {
      * @returns {TMEntryDTO}
      */
     static createFrom($$source = {}) {
-        const $$createField5_0 = $$createType25;
-        const $$createField6_0 = $$createType25;
+        const $$createField5_0 = $$createType26;
+        const $$createField6_0 = $$createType26;
         const $$createField10_0 = $$createType7;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("source_spans" in $$parsedSource) {
@@ -2005,8 +2100,8 @@ export class TMMatchDTO {
      * @returns {TMMatchDTO}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType26;
-        const $$createField3_0 = $$createType28;
+        const $$createField0_0 = $$createType27;
+        const $$createField3_0 = $$createType29;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("entry" in $$parsedSource) {
             $$parsedSource["entry"] = $$createField0_0($$parsedSource["entry"]);
@@ -2051,7 +2146,7 @@ export class TMSearchResult {
      * @returns {TMSearchResult}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType29;
+        const $$createField0_0 = $$createType30;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("entries" in $$parsedSource) {
             $$parsedSource["entries"] = $$createField0_0($$parsedSource["entries"]);
@@ -2257,7 +2352,7 @@ export class TermSearchResult {
      * @returns {TermSearchResult}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType31;
+        const $$createField0_0 = $$createType32;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("concepts" in $$parsedSource) {
             $$parsedSource["concepts"] = $$createField0_0($$parsedSource["concepts"]);
@@ -2639,7 +2734,7 @@ export class UserFlowDetail {
      * @returns {UserFlowDetail}
      */
     static createFrom($$source = {}) {
-        const $$createField4_0 = $$createType23;
+        const $$createField4_0 = $$createType24;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("steps" in $$parsedSource) {
             $$parsedSource["steps"] = $$createField4_0($$parsedSource["steps"]);
@@ -2738,13 +2833,14 @@ const $$createType18 = $Create.Array($$createType17);
 const $$createType19 = flow$0.PartSnapshotSet.createFrom;
 const $$createType20 = $Create.Nullable($$createType19);
 const $$createType21 = $Create.Map($Create.Any, $$createType20);
-const $$createType22 = flow$0.FlowStep.createFrom;
-const $$createType23 = $Create.Array($$createType22);
-const $$createType24 = SpanDTO.createFrom;
-const $$createType25 = $Create.Array($$createType24);
-const $$createType26 = TMEntryDTO.createFrom;
-const $$createType27 = EntityAdaptationDTO.createFrom;
-const $$createType28 = $Create.Array($$createType27);
-const $$createType29 = $Create.Array($$createType26);
-const $$createType30 = ConceptDTO.createFrom;
-const $$createType31 = $Create.Array($$createType30);
+const $$createType22 = $Create.Nullable($$createType17);
+const $$createType23 = flow$0.FlowStep.createFrom;
+const $$createType24 = $Create.Array($$createType23);
+const $$createType25 = SpanDTO.createFrom;
+const $$createType26 = $Create.Array($$createType25);
+const $$createType27 = TMEntryDTO.createFrom;
+const $$createType28 = EntityAdaptationDTO.createFrom;
+const $$createType29 = $Create.Array($$createType28);
+const $$createType30 = $Create.Array($$createType27);
+const $$createType31 = ConceptDTO.createFrom;
+const $$createType32 = $Create.Array($$createType31);
