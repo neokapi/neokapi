@@ -41,6 +41,9 @@ type RunEvent struct {
 	// Trace event (when type == "trace")
 	TraceEvent *flow.TraceEvent `json:"trace_event,omitempty"`
 
+	// Pipeline metrics snapshot (when type == "pipeline_metrics")
+	Steps []flow.StepSnapshot `json:"steps,omitempty"`
+
 	// Stats (when type == "complete")
 	DurationMs     int64 `json:"duration_ms,omitempty"`
 	FilesProcessed int   `json:"files_processed,omitempty"`
@@ -121,7 +124,6 @@ func (a *App) executeFlowAllLangs(ctx context.Context, flowName string, spec *fl
 	}()
 
 	start := time.Now()
-	recorder := flow.NewTraceRecorder()
 
 	// Source-only flows: run once with no target.
 	if localePasses == nil {
@@ -130,6 +132,37 @@ func (a *App) executeFlowAllLangs(ctx context.Context, flowName string, spec *fl
 
 	totalFiles := len(inputPaths) * len(localePasses)
 	filesDone := 0
+
+	// Build pipeline metrics from step names.
+	stepNames := make([]string, len(spec.Steps))
+	for i, s := range spec.Steps {
+		stepNames[i] = s.Tool
+	}
+	metrics := flow.NewPipelineMetrics(stepNames)
+
+	// Start 200ms ticker to emit pipeline metrics snapshots.
+	ticker := time.NewTicker(200 * time.Millisecond)
+	stopTick := make(chan struct{})
+	tickDone := make(chan struct{})
+	go func() {
+		defer close(tickDone)
+		for {
+			select {
+			case <-ticker.C:
+				a.emitRunEvent(RunEvent{
+					Type: "pipeline_metrics", FlowID: flowName,
+					Steps: metrics.Snapshot(),
+				})
+			case <-stopTick:
+				return
+			}
+		}
+	}()
+	defer func() {
+		ticker.Stop()
+		close(stopTick)
+		<-tickDone
+	}()
 
 	a.emitRunEvent(RunEvent{
 		Type: "state", FlowID: flowName, Message: "running",
@@ -173,9 +206,9 @@ func (a *App) executeFlowAllLangs(ctx context.Context, flowName string, spec *fl
 			Message: fmt.Sprintf("Running for %s (%d files)...", lang, len(inputPaths)),
 		})
 
-		// Build tools for this locale pass, with tracing and progress callbacks.
+		// Build tools for this locale pass, with metrics and progress callbacks.
 		var tools []tool.Tool
-		for i, step := range spec.Steps {
+		for _, step := range spec.Steps {
 			// Copy step config to avoid mutating the original flow spec.
 			config := make(map[string]any)
 			for k, v := range step.Config {
@@ -197,16 +230,20 @@ func (a *App) executeFlowAllLangs(ctx context.Context, flowName string, spec *fl
 				return
 			}
 
-			// Wrap with tracing to capture per-tool timing.
-			nodeID := fmt.Sprintf("tool-%d", i)
-			tools = append(tools, flow.NewTracingTool(t, nodeID, recorder))
+			tools = append(tools, t)
 		}
+
+		// Wrap with pipeline metrics (outermost wrapper).
+		tools = flow.WrapWithMetrics(tools, metrics)
 
 		// Process each file for this language.
 		for fileIdx, inputPath := range inputPaths {
 			if ctx.Err() != nil {
 				break
 			}
+
+			// Reset metrics for the new file and emit a zero snapshot.
+			metrics.Reset()
 
 			a.emitRunEvent(RunEvent{
 				Type: "progress", FlowID: flowName,
@@ -224,6 +261,11 @@ func (a *App) executeFlowAllLangs(ctx context.Context, flowName string, spec *fl
 			})
 
 			if err := runner.RunFile(ctx, flowName, tools, inputPath, outputPath, lang); err != nil {
+				// Emit final metrics snapshot so the frontend preserves counts at failure.
+				a.emitRunEvent(RunEvent{
+					Type: "pipeline_metrics", FlowID: flowName,
+					Steps: metrics.Snapshot(),
+				})
 				a.emitRunEvent(RunEvent{
 					Type: "error", FlowID: flowName,
 					Message: fmt.Sprintf("%s [%s]: %v", filepath.Base(inputPath), lang, err),
@@ -241,25 +283,13 @@ func (a *App) executeFlowAllLangs(ctx context.Context, flowName string, spec *fl
 
 	duration := time.Since(start)
 
-	// Build trace nodes from the flow steps.
-	traceNodes := make([]flow.TraceNode, len(spec.Steps))
-	for i, step := range spec.Steps {
-		traceNodes[i] = flow.TraceNode{
-			ID:   fmt.Sprintf("tool-%d", i),
-			Type: "tool",
-			Name: step.Tool,
-		}
-	}
+	// Emit final metrics snapshot so frontend shows completed state.
+	a.emitRunEvent(RunEvent{
+		Type: "pipeline_metrics", FlowID: flowName,
+		Steps: metrics.Snapshot(),
+	})
 
-	// Store the trace for post-run inspection via GetLastTrace().
 	a.runState.mu.Lock()
-	a.runState.lastTrace = &flow.FlowTrace{
-		Name:       flowName,
-		Nodes:      traceNodes,
-		Events:     recorder.Events(),
-		Parts:      recorder.Snapshots(),
-		DurationUs: recorder.DurationUs(),
-	}
 	if a.runState.state == RunStateRunning {
 		a.runState.state = RunStateComplete
 	}
@@ -310,8 +340,19 @@ func (a *App) GetRunEvents() []RunEvent {
 }
 
 // emitRunEvent emits a flow event to the frontend and stores it for reconnection.
+// For pipeline_metrics events, the last stored snapshot is replaced instead of
+// appending to prevent the reconnection buffer from growing at 5 events/second.
 func (a *App) emitRunEvent(event RunEvent) {
 	a.runState.mu.Lock()
+	if event.Type == "pipeline_metrics" && len(a.runState.events) > 0 {
+		last := a.runState.events[len(a.runState.events)-1]
+		if last.Type == "pipeline_metrics" {
+			a.runState.events[len(a.runState.events)-1] = event
+			a.runState.mu.Unlock()
+			a.emitEvent("flow:event", event)
+			return
+		}
+	}
 	a.runState.events = append(a.runState.events, event)
 	a.runState.mu.Unlock()
 	a.emitEvent("flow:event", event)

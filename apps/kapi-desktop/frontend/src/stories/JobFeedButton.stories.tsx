@@ -38,7 +38,12 @@ function SimulatedJobFeed({
           if (j.status !== "running") return j;
           const next = j.progress.current + 1;
           if (next >= j.progress.total) {
-            return { ...j, status: "complete", durationMs: 4200, progress: { ...j.progress, current: j.progress.total } };
+            return {
+              ...j,
+              status: "complete",
+              durationMs: 4200,
+              progress: { ...j.progress, current: j.progress.total },
+            };
           }
           return { ...j, progress: { ...j.progress, current: next } };
         }),
@@ -102,20 +107,31 @@ function SimulatedJobFeed({
             <ScrollArea className="max-h-64">
               <div className="divide-y divide-border/30">
                 {jobs.map((job) => (
-                  <div key={job.id} className="flex items-start gap-2 px-3 py-2 hover:bg-muted/30 cursor-pointer group">
+                  <div
+                    key={job.id}
+                    className="flex items-start gap-2 px-3 py-2 hover:bg-muted/30 cursor-pointer group"
+                  >
                     <div className="mt-0.5">{statusIcon(job)}</div>
                     <div className="flex-1 min-w-0">
-                      <div className="text-xs font-medium text-foreground truncate">{job.flowName}</div>
+                      <div className="text-xs font-medium text-foreground truncate">
+                        {job.flowName}
+                      </div>
                       {job.status === "running" && job.progress.total > 0 && (
                         <div className="mt-1">
                           <div className="flex justify-between text-[10px] text-muted-foreground mb-0.5">
-                            <span>{job.progress.current}/{job.progress.total}</span>
-                            <span>{Math.round((job.progress.current / job.progress.total) * 100)}%</span>
+                            <span>
+                              {job.progress.current}/{job.progress.total}
+                            </span>
+                            <span>
+                              {Math.round((job.progress.current / job.progress.total) * 100)}%
+                            </span>
                           </div>
                           <div className="h-1 rounded-full bg-accent overflow-hidden">
                             <div
                               className="h-full rounded-full bg-primary transition-all duration-300"
-                              style={{ width: `${(job.progress.current / job.progress.total) * 100}%` }}
+                              style={{
+                                width: `${(job.progress.current / job.progress.total) * 100}%`,
+                              }}
                             />
                           </div>
                         </div>
@@ -126,7 +142,9 @@ function SimulatedJobFeed({
                         </div>
                       )}
                       {job.status === "error" && (
-                        <div className="text-[10px] text-destructive mt-0.5 truncate">{job.error}</div>
+                        <div className="text-[10px] text-destructive mt-0.5 truncate">
+                          {job.error}
+                        </div>
                       )}
                     </div>
                   </div>
@@ -178,7 +196,13 @@ export const RunningJob: Story = {
 export const CompletedJob: Story = {
   args: {
     initialJobs: [
-      { id: "1", flowName: "translate", status: "complete", progress: { current: 16, total: 16 }, durationMs: 12400 },
+      {
+        id: "1",
+        flowName: "translate",
+        status: "complete",
+        progress: { current: 16, total: 16 },
+        durationMs: 12400,
+      },
     ],
   },
 };
@@ -186,7 +210,13 @@ export const CompletedJob: Story = {
 export const ErroredJob: Story = {
   args: {
     initialJobs: [
-      { id: "1", flowName: "translate-and-qa", status: "error", progress: { current: 3, total: 16 }, error: "API rate limit exceeded" },
+      {
+        id: "1",
+        flowName: "translate-and-qa",
+        status: "error",
+        progress: { current: 3, total: 16 },
+        error: "API rate limit exceeded",
+      },
     ],
   },
 };
@@ -195,9 +225,26 @@ export const MultipleJobs: Story = {
   name: "Multiple jobs (mixed status)",
   args: {
     initialJobs: [
-      { id: "1", flowName: "translate (de-DE)", status: "running", progress: { current: 8, total: 16 } },
-      { id: "2", flowName: "translate (fr-FR)", status: "complete", progress: { current: 16, total: 16 }, durationMs: 8200 },
-      { id: "3", flowName: "qa-check", status: "error", progress: { current: 2, total: 10 }, error: "Provider unavailable" },
+      {
+        id: "1",
+        flowName: "translate (de-DE)",
+        status: "running",
+        progress: { current: 8, total: 16 },
+      },
+      {
+        id: "2",
+        flowName: "translate (fr-FR)",
+        status: "complete",
+        progress: { current: 16, total: 16 },
+        durationMs: 8200,
+      },
+      {
+        id: "3",
+        flowName: "qa-check",
+        status: "error",
+        progress: { current: 2, total: 10 },
+        error: "Provider unavailable",
+      },
     ],
     simulateProgress: true,
   },

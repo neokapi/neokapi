@@ -16,7 +16,13 @@ import {
   SelectContent,
   SelectItem,
 } from "@neokapi/ui-primitives";
-import type { KapiProject, PluginSpec, PluginInfo, PluginIssue, FormatDefaults } from "../types/api";
+import type {
+  KapiProject,
+  PluginSpec,
+  PluginInfo,
+  PluginIssue,
+  FormatDefaults,
+} from "../types/api";
 import { api } from "../hooks/useApi";
 import { useError } from "./ErrorBanner";
 import { useLocales } from "../hooks/useLocales";

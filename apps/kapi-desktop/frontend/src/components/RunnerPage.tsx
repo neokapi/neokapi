@@ -1,8 +1,15 @@
 import { useState, useCallback, useEffect, useRef } from "react";
-import { Play, Square, CheckCircle2, XCircle, Loader2, FileText, AlertTriangle } from "lucide-react";
+import {
+  Play,
+  Square,
+  CheckCircle2,
+  XCircle,
+  Loader2,
+  FileText,
+  AlertTriangle,
+} from "lucide-react";
 import {
   Button,
-  Badge,
   Card,
   CardHeader,
   CardTitle,
@@ -15,6 +22,7 @@ import {
 import type { FlowSpec, KapiProject } from "../types/api";
 import { api } from "../hooks/useApi";
 import { useJobFeed, type RunEvent } from "../context/JobFeedContext";
+import { PipelineProgress } from "./PipelineProgress";
 
 type RunState = "idle" | "running" | "complete" | "error" | "canceled";
 
@@ -23,7 +31,7 @@ export { type RunEvent };
 export interface RunnerPageProps {
   tabID: string;
   flowName: string;
-  flow: FlowSpec;
+  flow?: FlowSpec;
   onClose: () => void;
   /** When set, the project is used to resolve content and target languages. */
   project?: KapiProject;
@@ -45,6 +53,7 @@ export function RunnerPage({ tabID, flowName, flow, onClose, project, autoRun }:
   const state: RunState = job?.status ?? "idle";
   const events: RunEvent[] = job?.events ?? [];
   const progress = job?.progress ?? { current: 0, total: 0 };
+  const stepSnapshots = job?.stepSnapshots ?? [];
   const error = job?.error ?? null;
 
   const [inputFiles, setInputFiles] = useState<string[]>([]);
@@ -134,23 +143,18 @@ export function RunnerPage({ tabID, flowName, flow, onClose, project, autoRun }:
       />
 
       {/* Pipeline preview */}
-      <Card className="mb-4">
-        <CardHeader className="px-4">
-          <CardTitle className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-            Pipeline
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="px-4">
-          <div className="flex items-center gap-2">
-            {flow.steps.map((step, i) => (
-              <div key={i} className="flex items-center gap-2">
-                {i > 0 && <span className="text-muted-foreground">&rarr;</span>}
-                <Badge variant="secondary">{step.tool}</Badge>
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
+      {flow && (
+        <Card className="mb-4">
+          <CardHeader className="px-4">
+            <CardTitle className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              Pipeline
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="px-4">
+            <PipelineProgress steps={flow.steps} snapshots={stepSnapshots} runState={state} />
+          </CardContent>
+        </Card>
+      )}
 
       {/* Manual configuration (only in idle state, non-autoRun) */}
       {state === "idle" && !autoRun && (
@@ -221,7 +225,10 @@ export function RunnerPage({ tabID, flowName, flow, onClose, project, autoRun }:
 
       {/* Errors */}
       {launchError && (
-        <div className="mb-4 flex items-center gap-2 rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive" role="alert">
+        <div
+          className="mb-4 flex items-center gap-2 rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive"
+          role="alert"
+        >
           <AlertTriangle size={14} className="shrink-0" />
           {launchError}
         </div>

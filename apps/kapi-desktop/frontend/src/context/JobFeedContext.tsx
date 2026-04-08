@@ -8,8 +8,14 @@ import { api } from "../hooks/useApi";
 
 export type JobStatus = "running" | "complete" | "error" | "canceled";
 
+export interface StepSnapshot {
+  name: string;
+  parts_in: number;
+  parts_out: number;
+}
+
 export interface RunEvent {
-  type: "state" | "progress" | "trace" | "error" | "complete";
+  type: "state" | "progress" | "trace" | "error" | "complete" | "pipeline_metrics";
   flow_id: string;
   message?: string;
   file_index?: number;
@@ -17,6 +23,7 @@ export interface RunEvent {
   file_path?: string;
   duration_ms?: number;
   files_processed?: number;
+  steps?: StepSnapshot[];
 }
 
 export interface Job {
@@ -28,6 +35,7 @@ export interface Job {
   status: JobStatus;
   events: RunEvent[];
   progress: { current: number; total: number };
+  stepSnapshots: StepSnapshot[];
   startTime: number;
   durationMs?: number;
   error?: string;
@@ -90,6 +98,7 @@ export function JobFeedProvider({ children }: { children: React.ReactNode }) {
         status: "running",
         events: [],
         progress: { current: 0, total: 0 },
+        stepSnapshots: [],
         startTime: Date.now(),
       };
       setJobs((prev) => [job, ...prev].slice(0, MAX_JOBS));
@@ -145,6 +154,8 @@ export function JobFeedProvider({ children }: { children: React.ReactNode }) {
                 error: isCanceled ? "Flow canceled" : rawMsg,
               };
             }
+            case "pipeline_metrics":
+              return { ...job, events, stepSnapshots: e.steps ?? job.stepSnapshots };
             default:
               return { ...job, events };
           }
@@ -162,6 +173,7 @@ export function JobFeedProvider({ children }: { children: React.ReactNode }) {
           status: "running",
           events: [e],
           progress: { current: 0, total: 0 },
+          stepSnapshots: [],
           startTime: Date.now(),
         };
         setSelectedJobId(id);
@@ -211,6 +223,8 @@ export function JobFeedProvider({ children }: { children: React.ReactNode }) {
                 durationMs: e.duration_ms,
                 progress: { ...updated.progress, current: updated.progress.total },
               };
+            } else if (e.type === "pipeline_metrics") {
+              updated = { ...updated, stepSnapshots: e.steps ?? updated.stepSnapshots };
             } else if (e.type === "error") {
               activeIdRef.current = null;
               const rawMsg = e.message ?? "Flow execution failed";

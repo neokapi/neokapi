@@ -13,6 +13,9 @@ import (
 	"sync"
 	"time"
 
+	"io"
+
+	"github.com/mattn/go-isatty"
 	"github.com/neokapi/neokapi/cli/output"
 	"github.com/neokapi/neokapi/core/flow"
 	"github.com/neokapi/neokapi/core/format"
@@ -168,6 +171,22 @@ func (a *App) runSingleFile(ctx context.Context, cmd *cobra.Command, flowName, i
 		}
 	}
 
+	// Wrap with pipeline metrics (outermost wrapper).
+	stepNames := make([]string, len(flowTools))
+	for i, t := range flowTools {
+		stepNames[i] = t.Name()
+	}
+	metrics := flow.NewPipelineMetrics(stepNames)
+	flowTools = flow.WrapWithMetrics(flowTools, metrics)
+
+	// Start TTY progress ticker (200ms) if interactive.
+	jsonOut, _ := cmd.Flags().GetBool("json")
+	showStepProgress := !a.Quiet && !jsonOut && isatty.IsTerminal(os.Stderr.Fd())
+	var stopProgress func()
+	if showStepProgress {
+		stopProgress = startStepProgress(os.Stderr, metrics)
+	}
+
 	// Resolve output path.
 	outputPath, _ := cmd.Flags().GetString("output")
 	if outputPath == "" {
@@ -199,7 +218,13 @@ func (a *App) runSingleFile(ctx context.Context, cmd *cobra.Command, flowName, i
 	})
 
 	if err := runner.RunFile(ctx, flowName, flowTools, inputPath, outputPath, a.TargetLang); err != nil {
+		if stopProgress != nil {
+			stopProgress()
+		}
 		return err
+	}
+	if stopProgress != nil {
+		stopProgress()
 	}
 
 	// Write trace JSON if --trace was set.
@@ -1020,4 +1045,73 @@ func (a *App) toolFromStep(step flow.FlowStep, cmd *cobra.Command, rCtx *flow.Re
 	}
 
 	return t, nil
+}
+
+// startStepProgress starts a 200ms ticker that renders a single-line pipeline
+// progress status to w using \r overwrite. Returns a stop function that clears
+// the line and stops the ticker.
+//
+// Output format:
+//
+//	[2.3s] ● ai-translate [47/120] → ○ qa-check [32/120] → ◌ term-enforce
+func startStepProgress(w io.Writer, metrics *flow.PipelineMetrics) func() {
+	start := time.Now()
+	ticker := time.NewTicker(200 * time.Millisecond)
+	stop := make(chan struct{})
+	stopped := make(chan struct{})
+
+	go func() {
+		defer close(stopped)
+		for {
+			select {
+			case <-ticker.C:
+				renderStepProgress(w, metrics, start)
+			case <-stop:
+				return
+			}
+		}
+	}()
+
+	return func() {
+		ticker.Stop()
+		close(stop)
+		<-stopped
+		// Clear the line.
+		fmt.Fprintf(w, "\r\033[K")
+	}
+}
+
+func renderStepProgress(w io.Writer, metrics *flow.PipelineMetrics, start time.Time) {
+	snap := metrics.Snapshot()
+	elapsed := time.Since(start).Truncate(100 * time.Millisecond)
+
+	var b strings.Builder
+	b.WriteString(fmt.Sprintf("\r\033[K[%s]", elapsed))
+
+	for i, s := range snap {
+		if i > 0 {
+			b.WriteString(" → ")
+		} else {
+			b.WriteByte(' ')
+		}
+
+		switch {
+		case s.PartsIn == 0:
+			// Pending
+			b.WriteString("◌ ")
+			b.WriteString(s.Name)
+		case s.PartsIn > s.PartsOut:
+			// Active
+			b.WriteString("● ")
+			b.WriteString(s.Name)
+			b.WriteString(fmt.Sprintf(" [%d/%d]", s.PartsOut, s.PartsIn))
+		default:
+			// Done
+			b.WriteString("○ ")
+			b.WriteString(s.Name)
+			b.WriteString(fmt.Sprintf(" [%d/%d]", s.PartsOut, s.PartsIn))
+		}
+	}
+
+	fmt.Fprint(w, b.String())
 }

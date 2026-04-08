@@ -64,4 +64,41 @@ describe("JobFeedContext", () => {
     expect(screen.getByTestId("job-count").textContent).toBe("0");
     expect(screen.getByTestId("has-active").textContent).toBe("false");
   });
+
+  it("startJob initializes stepSnapshots as empty array", () => {
+    let feed: ReturnType<typeof useJobFeed> | undefined;
+    render(
+      <JobFeedProvider>
+        <JobFeedReader
+          onRead={(f) => {
+            feed = f;
+          }}
+        />
+      </JobFeedProvider>,
+    );
+
+    act(() => {
+      feed?.startJob("test-flow", "project");
+    });
+
+    expect(feed?.jobs).toHaveLength(1);
+    expect(feed?.jobs[0].stepSnapshots).toEqual([]);
+    expect(feed?.jobs[0].status).toBe("running");
+  });
+
+  it("provides selectJob and startJob functions", () => {
+    let feed: ReturnType<typeof useJobFeed> | undefined;
+    render(
+      <JobFeedProvider>
+        <JobFeedReader
+          onRead={(f) => {
+            feed = f;
+          }}
+        />
+      </JobFeedProvider>,
+    );
+
+    expect(typeof feed?.selectJob).toBe("function");
+    expect(typeof feed?.startJob).toBe("function");
+  });
 });

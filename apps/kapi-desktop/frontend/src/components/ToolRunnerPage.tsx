@@ -81,7 +81,11 @@ export interface ToolRunnerPageProps {
   tabID?: string;
 }
 
-export function ToolRunnerPage({ docs: propDocs, tools: propTools, tabID }: ToolRunnerPageProps = {}) {
+export function ToolRunnerPage({
+  docs: propDocs,
+  tools: propTools,
+  tabID,
+}: ToolRunnerPageProps = {}) {
   const [tools, setTools] = useState<ToolInfo[]>(propTools ?? []);
   const [loading, setLoading] = useState(!propTools);
   const [docs] = useState<PluginDocs | null>(propDocs ?? null);

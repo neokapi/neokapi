@@ -67,36 +67,39 @@ export function useTabManager() {
     }
   }, []);
 
-  const addTab = useCallback(async (tab: TabInfo, project: KapiProject) => {
-    const empty = await api.isEmptyProject(tab.id);
-    let detected: string | undefined;
-    if (!empty) {
-      const preset = await api.detectPreset(tab.id);
-      if (preset) detected = preset;
-    }
+  const addTab = useCallback(
+    async (tab: TabInfo, project: KapiProject) => {
+      const empty = await api.isEmptyProject(tab.id);
+      let detected: string | undefined;
+      if (!empty) {
+        const preset = await api.detectPreset(tab.id);
+        if (preset) detected = preset;
+      }
 
-    // Check if project plugin requirements are satisfied.
-    const pluginStatus = await api.checkProjectPlugins(tab.id);
+      // Check if project plugin requirements are satisfied.
+      const pluginStatus = await api.checkProjectPlugins(tab.id);
 
-    setTabs((prev) => {
-      if (prev.some((t) => t.info.id === tab.id)) return prev;
-      return [
-        ...prev,
-        {
-          info: tab,
-          project,
-          isEmpty: empty ?? false,
-          detectedPreset: detected,
-          pluginsResolved: pluginStatus?.satisfied ?? true,
-          pluginIssues: pluginStatus?.issues,
-          view: "project-home",
-        },
-      ];
-    });
-    setActiveTabID(tab.id);
-    setMode("projects");
-    setGlobalView(""); // clear home overlay so tab's view shows
-  }, [checkPluginStatus]);
+      setTabs((prev) => {
+        if (prev.some((t) => t.info.id === tab.id)) return prev;
+        return [
+          ...prev,
+          {
+            info: tab,
+            project,
+            isEmpty: empty ?? false,
+            detectedPreset: detected,
+            pluginsResolved: pluginStatus?.satisfied ?? true,
+            pluginIssues: pluginStatus?.issues,
+            view: "project-home",
+          },
+        ];
+      });
+      setActiveTabID(tab.id);
+      setMode("projects");
+      setGlobalView(""); // clear home overlay so tab's view shows
+    },
+    [checkPluginStatus],
+  );
 
   const closeTab = useCallback((tabID: string) => {
     void api.closeProject(tabID);

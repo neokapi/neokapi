@@ -14,6 +14,7 @@ import { Button, Badge, Card, EmptyState, ActionCard } from "@neokapi/ui-primiti
 import type { KapiProject, FlowSpec, FlowInfo, PluginIssue } from "../types/api";
 import { isBareEntry, effectiveItems } from "../types/api";
 import { api } from "../hooks/useApi";
+import { useJobFeed } from "../context/JobFeedContext";
 
 export interface HomePageProps {
   project: KapiProject;
@@ -36,7 +37,7 @@ export function HomePage({
   pluginsResolved,
   pluginIssues,
 }: HomePageProps) {
-  const [runningFlow, setRunningFlow] = useState<string | null>(null);
+  const { hasActive, activeJob } = useJobFeed();
   const [flowValidation, setFlowValidation] = useState<Record<string, FlowInfo>>({});
 
   // Fetch flow validation on mount / project change.
@@ -63,9 +64,7 @@ export function HomePage({
   const handleRunFlow = (name: string) => {
     const spec = project.flows?.[name];
     if (!spec || !onRunFlow) return;
-    setRunningFlow(name);
     onRunFlow(name, spec);
-    setTimeout(() => setRunningFlow(null), 2000);
   };
 
   return (
@@ -193,7 +192,7 @@ export function HomePage({
               const validation = flowValidation[name];
               const isValid = validation?.valid !== false;
               const flowIssues = validation?.issues ?? [];
-              const canRun = isValid && hasContent && runningFlow !== name;
+              const canRun = isValid && hasContent && !hasActive;
               const runTitle = !isValid
                 ? `Cannot run: ${flowIssues.map((i) => i.message).join("; ")}`
                 : !hasContent
@@ -208,9 +207,7 @@ export function HomePage({
                   <div className="flex-1">
                     <div className="flex items-center gap-1.5">
                       <span className="text-sm font-medium">{name}</span>
-                      {!isValid && (
-                        <AlertTriangle size={12} className="text-amber-500" />
-                      )}
+                      {!isValid && <AlertTriangle size={12} className="text-amber-500" />}
                     </div>
                     <div className="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground">
                       {spec.steps.map((step, i) => {
@@ -243,7 +240,7 @@ export function HomePage({
                     aria-label={`Run flow ${name}`}
                     title={runTitle}
                   >
-                    {runningFlow === name ? (
+                    {activeJob?.flowName === name ? (
                       <Loader2 size={12} className="animate-spin" />
                     ) : (
                       <Play size={12} />

@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import type { KapiProject, FlowSpec } from "../types/api";
 import type { TabState } from "../hooks/useTabManager";
 import type { ProjectHistory } from "../hooks/useProjectHistory";
@@ -15,6 +15,40 @@ import { ContentPage } from "./ContentPage";
 import { ProjectSetupPage } from "./ProjectSetupPage";
 import { ProjectSettingsPage } from "./ProjectSettingsPage";
 import { ProjectPresetPage } from "./ProjectPresetPage";
+import { useJobFeed } from "../context/JobFeedContext";
+
+/**
+ * Renders RunnerPage for a job selected from the feed (no runnerState).
+ * Falls back to project-home if there's no selected job to display.
+ */
+function RunnerViewFallback({
+  tabID,
+  project,
+  navigate,
+}: {
+  tabID: string;
+  project: KapiProject;
+  navigate: (view: string) => void;
+}) {
+  const { selectedJob } = useJobFeed();
+
+  useEffect(() => {
+    if (!selectedJob) {
+      navigate("project-home");
+    }
+  }, [selectedJob, navigate]);
+
+  if (!selectedJob) return null;
+
+  return (
+    <RunnerPage
+      tabID={tabID}
+      flowName={selectedJob.flowName}
+      project={project}
+      onClose={() => navigate("project-home")}
+    />
+  );
+}
 
 interface ViewSwitchProps {
   mode: "adhoc" | "projects";
@@ -191,8 +225,8 @@ export function ViewSwitch({
           />
         );
       }
-      navigate("project-home");
-      return null;
+      // View-only runner for a job selected from the feed (no runnerState).
+      return <RunnerViewFallback tabID={tabID} project={history.project} navigate={navigate} />;
 
     case "tools":
       return <ToolRunnerPage tabID={tabID} />;
