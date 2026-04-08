@@ -262,8 +262,8 @@ func (a *App) NewProject(name, sourceLang string, targetLangs []string, savePath
 	proj := &project.KapiProject{
 		Version: project.CurrentVersion,
 		Defaults: project.Defaults{
-			SourceLanguage:  sourceLang,
-			TargetLanguages: targetLangs,
+			SourceLanguage:  model.LocaleID(sourceLang),
+			TargetLanguages: toLocaleIDs(targetLangs),
 		},
 		Flows: make(map[string]*flow.StepsSpec),
 	}
@@ -635,7 +635,7 @@ func (a *App) toolInfosFrom(all []registry.ToolInfo) []ToolInfo {
 			Tags:          info.Tags,
 			Requires:      info.Requires,
 			Cardinality:   string(info.Cardinality),
-			DefaultLocale: info.DefaultLocale,
+			DefaultLocale: string(info.DefaultLocale),
 			Produces:      produces,
 			SideEffects:   sideEffects,
 		}
@@ -1445,4 +1445,12 @@ func defaultPluginDir() string {
 		return ""
 	}
 	return filepath.Join(home, "kapi", "plugins")
+}
+
+func toLocaleIDs(ss []string) []model.LocaleID {
+	ids := make([]model.LocaleID, len(ss))
+	for i, s := range ss {
+		ids[i] = model.LocaleID(s)
+	}
+	return ids
 }
