@@ -32,13 +32,14 @@ export interface RunnerPageProps {
 }
 
 export function RunnerPage({ tabID, flowName, flow, onClose, project, autoRun }: RunnerPageProps) {
-  const { activeJob, jobs } = useJobFeed();
+  const { activeJob, selectedJob, jobs, startJob } = useJobFeed();
 
-  // Find the job for this flow — prefer active, fall back to most recent matching.
+  // Show selected job, or active job for this flow, or most recent matching.
   const job =
-    activeJob?.flowName === flowName
-      ? activeJob
-      : jobs.find((j) => j.flowName === flowName) ?? activeJob;
+    selectedJob ??
+    (activeJob?.flowName === flowName ? activeJob : null) ??
+    jobs.find((j) => j.flowName === flowName) ??
+    activeJob;
 
   // Derive state from job feed.
   const state: RunState = job?.status ?? "idle";
@@ -49,6 +50,8 @@ export function RunnerPage({ tabID, flowName, flow, onClose, project, autoRun }:
   const [inputFiles, setInputFiles] = useState<string[]>([]);
   const [targetLang, setTargetLang] = useState("");
   const autoRunStarted = useRef(false);
+
+  const projectName = project?.name || undefined;
 
   // Auto-run: resolve content and execute for all target languages.
   useEffect(() => {
@@ -64,23 +67,25 @@ export function RunnerPage({ tabID, flowName, flow, onClose, project, autoRun }:
       if (paths.length === 0) return;
 
       setInputFiles(paths);
+      startJob(flowName, projectName, targets, paths.length);
       try {
         await api.runFlow(tabID, flowName, paths, targets);
       } catch {
         // Error will be captured by the job feed via events.
       }
     })();
-  }, [autoRun, project, tabID, flowName]);
+  }, [autoRun, project, tabID, flowName, projectName, startJob]);
 
   // Manual run (single language).
   const handleRun = useCallback(async () => {
     if (!targetLang || inputFiles.length === 0) return;
+    startJob(flowName, projectName, [targetLang], inputFiles.length);
     try {
       await api.runFlow(tabID, flowName, inputFiles, [targetLang]);
     } catch {
       // Error captured by job feed.
     }
-  }, [tabID, flowName, inputFiles, targetLang]);
+  }, [tabID, flowName, inputFiles, targetLang, projectName, startJob]);
 
   const handleCancel = useCallback(async () => {
     try {

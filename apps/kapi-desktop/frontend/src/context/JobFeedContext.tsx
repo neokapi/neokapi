@@ -22,6 +22,9 @@ export interface RunEvent {
 export interface Job {
   id: string;
   flowName: string;
+  projectName?: string;
+  targetLangs?: string[];
+  fileCount?: number;
   status: JobStatus;
   events: RunEvent[];
   progress: { current: number; total: number };
@@ -33,7 +36,17 @@ export interface Job {
 interface JobFeedContextValue {
   jobs: Job[];
   activeJob: Job | null;
+  selectedJobId: string | null;
+  selectedJob: Job | null;
   hasActive: boolean;
+  /** Pre-create a job with full context before the backend emits "running". */
+  startJob: (
+    flowName: string,
+    projectName?: string,
+    targetLangs?: string[],
+    fileCount?: number,
+  ) => void;
+  selectJob: (id: string | null) => void;
   clearJob: (id: string) => void;
   clearAll: () => void;
 }
@@ -41,7 +54,11 @@ interface JobFeedContextValue {
 const JobFeedContext = createContext<JobFeedContextValue>({
   jobs: [],
   activeJob: null,
+  selectedJobId: null,
+  selectedJob: null,
   hasActive: false,
+  startJob: () => {},
+  selectJob: () => {},
   clearJob: () => {},
   clearAll: () => {},
 });
@@ -54,15 +71,48 @@ const MAX_JOBS = 20;
 
 export function JobFeedProvider({ children }: { children: React.ReactNode }) {
   const [jobs, setJobs] = useState<Job[]>([]);
+  const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
   const activeIdRef = useRef<string | null>(null);
+  const pendingJobRef = useRef<Job | null>(null);
+
+  // startJob is called from RunnerPage BEFORE api.runFlow — pre-creates
+  // the job with project name and context so we don't show "Running flow".
+  const startJob = useCallback(
+    (flowName: string, projectName?: string, targetLangs?: string[], fileCount?: number) => {
+      const id = `${flowName}-${Date.now()}`;
+      activeIdRef.current = id;
+      const job: Job = {
+        id,
+        flowName,
+        projectName,
+        targetLangs,
+        fileCount,
+        status: "running",
+        events: [],
+        progress: { current: 0, total: 0 },
+        startTime: Date.now(),
+      };
+      pendingJobRef.current = job;
+      setJobs((prev) => [job, ...prev].slice(0, MAX_JOBS));
+      setSelectedJobId(id);
+    },
+    [],
+  );
 
   // Global event listener — always mounted, persists across navigation.
   useWailsEvent("flow:event", (data) => {
     const e = data as RunEvent;
 
     setJobs((prev) => {
-      // "state" with "running" → start a new job.
+      // "state" with "running" → if we have a pending job, just append the event.
+      // Otherwise create a new job (reconnection or unexpected start).
       if (e.type === "state" && e.message === "running") {
+        if (pendingJobRef.current) {
+          const pending = pendingJobRef.current;
+          pendingJobRef.current = null;
+          return prev.map((j) => (j.id === pending.id ? { ...j, events: [...j.events, e] } : j));
+        }
+        // No pending job — create one from the event.
         const id = `${e.flow_id}-${Date.now()}`;
         activeIdRef.current = id;
         const job: Job = {
@@ -73,6 +123,7 @@ export function JobFeedProvider({ children }: { children: React.ReactNode }) {
           progress: { current: 0, total: 0 },
           startTime: Date.now(),
         };
+        setSelectedJobId(id);
         return [job, ...prev].slice(0, MAX_JOBS);
       }
 
@@ -123,7 +174,6 @@ export function JobFeedProvider({ children }: { children: React.ReactNode }) {
     void (async () => {
       const state = await api.getRunState();
       if (state === "running" && activeIdRef.current === null) {
-        // A flow is running but we have no job for it — create a placeholder.
         const id = `reconnected-${Date.now()}`;
         activeIdRef.current = id;
         setJobs((prev) => [
@@ -137,23 +187,43 @@ export function JobFeedProvider({ children }: { children: React.ReactNode }) {
           },
           ...prev,
         ]);
+        setSelectedJobId(id);
       }
     })();
   }, []);
 
   const activeJob = jobs.find((j) => j.status === "running") ?? null;
+  const selectedJob = jobs.find((j) => j.id === selectedJobId) ?? null;
   const hasActive = activeJob !== null;
+
+  const selectJob = useCallback((id: string | null) => {
+    setSelectedJobId(id);
+  }, []);
 
   const clearJob = useCallback((id: string) => {
     setJobs((prev) => prev.filter((j) => j.id !== id));
+    setSelectedJobId((prev) => (prev === id ? null : prev));
   }, []);
 
   const clearAll = useCallback(() => {
     setJobs((prev) => prev.filter((j) => j.status === "running"));
+    setSelectedJobId(null);
   }, []);
 
   return (
-    <JobFeedContext.Provider value={{ jobs, activeJob, hasActive, clearJob, clearAll }}>
+    <JobFeedContext.Provider
+      value={{
+        jobs,
+        activeJob,
+        selectedJobId,
+        selectedJob,
+        hasActive,
+        startJob,
+        selectJob,
+        clearJob,
+        clearAll,
+      }}
+    >
       {children}
     </JobFeedContext.Provider>
   );
