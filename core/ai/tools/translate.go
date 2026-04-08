@@ -97,19 +97,19 @@ func injectProviderOptions(s *schema.ComponentSchema) {
 // ProviderFromConfig creates an LLM provider from a provider name and config.
 func ProviderFromConfig(name string, cfg aiprovider.Config) (aiprovider.LLMProvider, error) {
 	if name == "" {
-		name = "anthropic"
+		name = string(aiprovider.Anthropic)
 	}
 
-	switch name {
-	case "anthropic":
+	switch aiprovider.ProviderID(name) {
+	case aiprovider.Anthropic:
 		return aiprovider.NewAnthropicProvider(cfg), nil
-	case "openai":
+	case aiprovider.OpenAI:
 		return aiprovider.NewOpenAIProvider(cfg), nil
-	case "gemini":
+	case aiprovider.Gemini:
 		return aiprovider.NewGeminiProvider(cfg), nil
-	case "azureopenai", "azure_openai":
+	case aiprovider.AzureOpenAI, "azure_openai":
 		return aiprovider.NewAzureOpenAIProvider(cfg), nil
-	case "ollama":
+	case aiprovider.Ollama:
 		return aiprovider.NewOllamaProvider(cfg), nil
 	default:
 		return nil, fmt.Errorf("unknown AI provider: %s (supported: %s)", name, strings.Join(aiprovider.ProviderNames(), ", "))
@@ -332,7 +332,7 @@ func (t *AITranslateTool) annotateTranslation(block *model.Block, resp *aiprovid
 	block.Annotations["alt-translations"] = &model.AltTranslation{
 		Target:    model.NewFragment(resp.Translation),
 		Locale:    t.targetLocale,
-		Origin:    "ai:" + t.provider.Name(),
+		Origin:    "ai:" + string(t.provider.Name()),
 		Score:     resp.Confidence,
 		MatchType: "ai",
 	}

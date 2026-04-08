@@ -43,7 +43,7 @@ func NewGeminiProvider(cfg Config) *GeminiProvider {
 	}
 }
 
-func (p *GeminiProvider) Name() string { return "gemini" }
+func (p *GeminiProvider) Name() ProviderID { return Gemini }
 
 func (p *GeminiProvider) Translate(ctx context.Context, req TranslateRequest) (*TranslateResponse, error) {
 	var prompt strings.Builder

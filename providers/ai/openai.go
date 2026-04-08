@@ -36,7 +36,7 @@ func NewOpenAIProvider(cfg Config) *OpenAIProvider {
 	}
 }
 
-func (p *OpenAIProvider) Name() string { return "openai" }
+func (p *OpenAIProvider) Name() ProviderID { return OpenAI }
 
 func (p *OpenAIProvider) Translate(ctx context.Context, req TranslateRequest) (*TranslateResponse, error) {
 	var prompt strings.Builder

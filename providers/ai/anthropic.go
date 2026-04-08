@@ -36,7 +36,7 @@ func NewAnthropicProvider(cfg Config) *AnthropicProvider {
 	}
 }
 
-func (p *AnthropicProvider) Name() string { return "anthropic" }
+func (p *AnthropicProvider) Name() ProviderID { return Anthropic }
 
 func (p *AnthropicProvider) Translate(ctx context.Context, req TranslateRequest) (*TranslateResponse, error) {
 	var prompt strings.Builder

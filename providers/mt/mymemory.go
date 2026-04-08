@@ -45,7 +45,7 @@ func NewMyMemoryProvider(cfg MyMemoryConfig) *MyMemoryProvider {
 	return &MyMemoryProvider{cfg: cfg, client: httputil.NewResilientClient()}
 }
 
-func (p *MyMemoryProvider) Name() string { return "mymemory" }
+func (p *MyMemoryProvider) Name() ProviderID { return MyMemory }
 
 func (p *MyMemoryProvider) Translate(ctx context.Context, req TranslateRequest) (*TranslateResponse, error) {
 	if req.SourceLocale.IsEmpty() {

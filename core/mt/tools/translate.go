@@ -36,8 +36,8 @@ func NewMTTranslateTool(p mtprovider.MTProvider, cfg MTTranslateConfig) *MTTrans
 		targetLocale: cfg.TargetLocale,
 		vocab:        vocab,
 	}
-	t.ToolName = p.Name() + "-translate"
-	t.ToolDescription = "Translates Blocks using " + p.Name()
+	t.ToolName = string(p.Name()) + "-translate"
+	t.ToolDescription = "Translates Blocks using " + string(p.Name())
 	t.HandleBlockFn = t.handleBlock
 	return t
 }
@@ -70,7 +70,7 @@ func (t *MTTranslateTool) handleBlock(part *model.Part) (*model.Part, error) {
 		TargetLocale: t.targetLocale,
 	})
 	if err != nil {
-		return nil, fmt.Errorf("%s-translate: %w", t.provider.Name(), err)
+		return nil, fmt.Errorf("%s-translate: %w", string(t.provider.Name()), err)
 	}
 
 	block.SetTargetText(t.targetLocale, resp.Translation)
@@ -89,7 +89,7 @@ func (t *MTTranslateTool) handleBlockWithSpans(part *model.Part, block *model.Bl
 		TargetLocale: t.targetLocale,
 	})
 	if err != nil {
-		return nil, fmt.Errorf("%s-translate: %w", t.provider.Name(), err)
+		return nil, fmt.Errorf("%s-translate: %w", string(t.provider.Name()), err)
 	}
 
 	// Reconstruct Fragment from the HTML response.

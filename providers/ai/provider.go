@@ -9,8 +9,8 @@ import (
 
 // LLMProvider defines the interface for LLM service providers.
 type LLMProvider interface {
-	// Name returns the provider identifier (e.g., "anthropic", "openai").
-	Name() string
+	// Name returns the provider identifier (e.g., Anthropic, OpenAI).
+	Name() ProviderID
 
 	// Translate translates text using the LLM.
 	Translate(ctx context.Context, req TranslateRequest) (*TranslateResponse, error)
@@ -153,10 +153,25 @@ type QAIssue struct {
 	Suggestion  string `json:"suggestion,omitempty"`
 }
 
+// ProviderID is a type-safe identifier for an AI provider.
+type ProviderID string
+
+// String returns the string representation.
+func (id ProviderID) String() string { return string(id) }
+
+// Known AI provider identifiers.
+const (
+	Anthropic   ProviderID = "anthropic"
+	OpenAI      ProviderID = "openai"
+	Gemini      ProviderID = "gemini"
+	AzureOpenAI ProviderID = "azureopenai"
+	Ollama      ProviderID = "ollama"
+)
+
 // ProviderInfo describes a registered AI provider.
 type ProviderInfo struct {
 	// Name is the provider identifier (e.g. "anthropic").
-	Name string
+	Name ProviderID
 	// Label is the human-readable display name (e.g. "Anthropic").
 	Label string
 }
@@ -166,11 +181,11 @@ type ProviderInfo struct {
 // schemas, CLI flags, and UI dropdowns.
 func Providers() []ProviderInfo {
 	return []ProviderInfo{
-		{Name: "anthropic", Label: "Anthropic"},
-		{Name: "openai", Label: "OpenAI"},
-		{Name: "gemini", Label: "Gemini"},
-		{Name: "azureopenai", Label: "Azure OpenAI"},
-		{Name: "ollama", Label: "Ollama"},
+		{Name: Anthropic, Label: "Anthropic"},
+		{Name: OpenAI, Label: "OpenAI"},
+		{Name: Gemini, Label: "Gemini"},
+		{Name: AzureOpenAI, Label: "Azure OpenAI"},
+		{Name: Ollama, Label: "Ollama"},
 	}
 }
 
@@ -179,7 +194,7 @@ func ProviderNames() []string {
 	providers := Providers()
 	names := make([]string, len(providers))
 	for i, p := range providers {
-		names[i] = p.Name
+		names[i] = string(p.Name)
 	}
 	return names
 }
