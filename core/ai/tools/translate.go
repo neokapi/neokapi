@@ -157,7 +157,7 @@ func NewAITranslateTool(p aiprovider.LLMProvider, cfg AITranslateConfig) *AITran
 		t.streaming = sp
 	}
 	if t.batchSize < 1 {
-		t.batchSize = 1
+		t.batchSize = 100 // default matches schema default
 	}
 	if t.concurrency < 1 {
 		t.concurrency = 1
