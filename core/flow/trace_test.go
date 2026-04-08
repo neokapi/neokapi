@@ -16,22 +16,22 @@ func TestTraceRecorder(t *testing.T) {
 	t.Run("basic event recording", func(t *testing.T) {
 		rec := flow.NewTraceRecorder()
 
-		rec.Record("enter", "tool-1", "block-1", nil)
-		rec.Record("exit", "tool-1", "block-1", map[string]any{"changed": true})
-		rec.Record("enter", "tool-2", "block-1", nil)
+		rec.Record(flow.TraceEnter, "tool-1", "block-1", nil)
+		rec.Record(flow.TraceExit, "tool-1", "block-1", map[string]any{"changed": true})
+		rec.Record(flow.TraceEnter, "tool-2", "block-1", nil)
 
 		events := rec.Events()
 		require.Len(t, events, 3)
 
-		assert.Equal(t, "enter", events[0].Type)
+		assert.Equal(t, flow.TraceEnter, events[0].Type)
 		assert.Equal(t, "tool-1", events[0].NodeID)
 		assert.Equal(t, "block-1", events[0].PartID)
 		assert.Nil(t, events[0].Meta)
 
-		assert.Equal(t, "exit", events[1].Type)
+		assert.Equal(t, flow.TraceExit, events[1].Type)
 		assert.Equal(t, true, events[1].Meta["changed"])
 
-		assert.Equal(t, "enter", events[2].Type)
+		assert.Equal(t, flow.TraceEnter, events[2].Type)
 		assert.Equal(t, "tool-2", events[2].NodeID)
 
 		// Timestamps should be non-negative and non-decreasing.
@@ -73,14 +73,14 @@ func TestTraceRecorder(t *testing.T) {
 
 	t.Run("events returns a copy", func(t *testing.T) {
 		rec := flow.NewTraceRecorder()
-		rec.Record("enter", "n1", "p1", nil)
+		rec.Record(flow.TraceEnter, "n1", "p1", nil)
 
 		events1 := rec.Events()
 		events2 := rec.Events()
 
 		// Modifying one copy should not affect the other.
-		events1[0].Type = "modified"
-		assert.Equal(t, "enter", events2[0].Type)
+		events1[0].Type = "modified" // intentionally assign invalid value to test copy isolation
+		assert.Equal(t, flow.TraceEnter, events2[0].Type)
 	})
 }
 
@@ -253,10 +253,10 @@ func TestTracingTool(t *testing.T) {
 			enterIdx := -1
 			exitIdx := -1
 			for j, ev := range events {
-				if ev.PartID == partID && ev.Type == "enter" {
+				if ev.PartID == partID && ev.Type == flow.TraceEnter {
 					enterIdx = j
 				}
-				if ev.PartID == partID && ev.Type == "exit" {
+				if ev.PartID == partID && ev.Type == flow.TraceExit {
 					exitIdx = j
 				}
 			}
@@ -347,13 +347,13 @@ func TestTracingTool(t *testing.T) {
 		events := rec.Events()
 		assert.Len(t, events, 4)
 
-		assert.Equal(t, "enter", events[0].Type)
+		assert.Equal(t, flow.TraceEnter, events[0].Type)
 		assert.Equal(t, "node-1", events[0].NodeID)
-		assert.Equal(t, "exit", events[1].Type)
+		assert.Equal(t, flow.TraceExit, events[1].Type)
 		assert.Equal(t, "node-1", events[1].NodeID)
-		assert.Equal(t, "enter", events[2].Type)
+		assert.Equal(t, flow.TraceEnter, events[2].Type)
 		assert.Equal(t, "node-2", events[2].NodeID)
-		assert.Equal(t, "exit", events[3].Type)
+		assert.Equal(t, flow.TraceExit, events[3].Type)
 		assert.Equal(t, "node-2", events[3].NodeID)
 	})
 }

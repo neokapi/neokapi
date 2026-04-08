@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/neokapi/neokapi/core/flow"
+	"github.com/neokapi/neokapi/core/registry"
 	"gopkg.in/yaml.v3"
 )
 
@@ -19,7 +20,7 @@ type UserFlowInfo struct {
 	ID          string `json:"id"`
 	Name        string `json:"name"`
 	Description string `json:"description"`
-	Source      string `json:"source"` // "built-in" or "user"
+	Source      string `json:"source"` // registry.SourceBuiltIn or "user"
 	StepCount   int    `json:"step_count"`
 	Modified    string `json:"modified,omitempty"`
 }
@@ -62,7 +63,7 @@ func (a *App) ListUserFlows() []UserFlowInfo {
 	for _, def := range flow.BuiltInFlows() {
 		stepCount := 0
 		for _, n := range def.Nodes {
-			if n.Type == "tool" {
+			if n.Type == flow.NodeTool {
 				stepCount++
 			}
 		}
@@ -70,7 +71,7 @@ func (a *App) ListUserFlows() []UserFlowInfo {
 			ID:          def.ID,
 			Name:        def.Name,
 			Description: def.Description,
-			Source:      "built-in",
+			Source:      registry.SourceBuiltIn,
 			StepCount:   stepCount,
 		})
 	}
@@ -102,7 +103,7 @@ func (a *App) ListUserFlows() []UserFlowInfo {
 	slices.SortFunc(result, func(a, b UserFlowInfo) int {
 		// Built-in first, then user by modified time.
 		if a.Source != b.Source {
-			if a.Source == "built-in" {
+			if a.Source == registry.SourceBuiltIn {
 				return -1
 			}
 			return 1
@@ -123,7 +124,7 @@ func (a *App) GetUserFlow(id string) *UserFlowDetail {
 				ID:          def.ID,
 				Name:        def.Name,
 				Description: def.Description,
-				Source:      "built-in",
+				Source:      registry.SourceBuiltIn,
 				Steps:       steps,
 			}
 		}
@@ -304,7 +305,7 @@ func graphToSteps(def *flow.FlowDefinition) []flow.FlowStep {
 	}
 	var tools []toolNode
 	for _, n := range def.Nodes {
-		if n.Type == "tool" {
+		if n.Type == flow.NodeTool {
 			tools = append(tools, toolNode{
 				name:   n.Name,
 				label:  n.Label,

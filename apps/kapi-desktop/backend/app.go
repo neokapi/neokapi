@@ -809,7 +809,7 @@ func (a *App) ListProjectFormats(tabID string) []FormatInfo {
 	for _, fi := range all {
 		source := fi.Source
 		if source == "" {
-			source = "built-in"
+			source = registry.SourceBuiltIn
 		}
 		if allowed[source] {
 			filtered = append(filtered, fi)
@@ -1034,7 +1034,7 @@ func (a *App) ListFormatPresets(format string) []FormatPresetInfo {
 	for _, p := range reg.ListFormatPresets(format) {
 		source := p.Source
 		if source == "" {
-			source = "built-in"
+			source = registry.SourceBuiltIn
 		}
 		infos = append(infos, FormatPresetInfo{
 			Name:        p.Name,

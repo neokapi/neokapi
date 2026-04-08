@@ -628,7 +628,7 @@ func buildFlowTools(flowName, sourceLang, targetLang string) ([]tool.Tool, error
 	}
 	var toolNodes []tn
 	for _, n := range flowDef.Nodes {
-		if n.Type == "tool" {
+		if n.Type == flow.NodeTool {
 			toolNodes = append(toolNodes, tn{name: n.Name, x: n.Position.X})
 		}
 	}

@@ -335,9 +335,9 @@ func (a *App) processOneFile(ctx context.Context, cfg ToolRunConfig, filePath st
 		resolvedTracePath = strings.ReplaceAll(resolvedTracePath, "{ext}", extNoDot)
 		recorder = flow.NewTraceRecorder()
 		traceNodes = []flow.TraceNode{
-			{ID: "reader", Type: "reader", Name: fmtName, Label: fmtName + " reader"},
-			{ID: "tool-0", Type: "tool", Name: t.Name(), Label: t.Name()},
-			{ID: "writer", Type: "writer", Name: fmtName, Label: fmtName + " writer"},
+			{ID: "reader", Type: flow.NodeReader, Name: fmtName, Label: fmtName + " reader"},
+			{ID: "tool-0", Type: flow.NodeTool, Name: t.Name(), Label: t.Name()},
+			{ID: "writer", Type: flow.NodeWriter, Name: fmtName, Label: fmtName + " writer"},
 		}
 		t = flow.NewTracingTool(t, "tool-0", recorder)
 	}

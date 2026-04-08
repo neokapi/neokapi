@@ -61,7 +61,7 @@ func TestRegisterWithSchema_PropagatesMetadata(t *testing.T) {
 	assert.Equal(t, "A test tool", info.Description)
 	assert.Equal(t, "validate", info.Category)
 	assert.True(t, info.HasSchema)
-	assert.Equal(t, "built-in", info.Source)
+	assert.Equal(t, SourceBuiltIn, info.Source)
 	assert.Equal(t, []string{"block", "data"}, info.Inputs)
 	assert.Equal(t, []string{"block"}, info.Outputs)
 	assert.Equal(t, []string{"quality", "ai-powered"}, info.Tags)

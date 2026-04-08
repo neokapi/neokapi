@@ -5,6 +5,10 @@ import (
 	"sync"
 )
 
+// sourceBuiltIn mirrors sourceBuiltIn to avoid an import cycle
+// (schema cannot import registry because registry transitively depends on schema).
+const sourceBuiltIn = "built-in"
+
 // LocaleCardinality declares how many locales a tool operates on per execution.
 type LocaleCardinality string
 
@@ -118,19 +122,19 @@ func (r *AnnotationRegistry) Has(t AnnotationType) bool {
 // RegisterBuiltIns registers all framework-defined annotation types.
 func (r *AnnotationRegistry) RegisterBuiltIns() {
 	builtins := []AnnotationTypeInfo{
-		{AnnotationQAIssues, "QA Issues", "Quality check results", "built-in"},
-		{AnnotationTMMatch, "TM Match", "Translation memory match score and type", "built-in"},
-		{AnnotationAltTranslation, "Alt Translation", "Alternative translations from TM or AI", "built-in"},
-		{AnnotationTerms, "Term Annotations", "Terminology matches found in source", "built-in"},
-		{AnnotationTermEnforce, "Term Enforcement", "Terminology enforcement results", "built-in"},
-		{AnnotationWordCount, "Word Count", "Word count per locale", "built-in"},
-		{AnnotationCharCount, "Char Count", "Character count per locale", "built-in"},
-		{AnnotationSegCount, "Segment Count", "Segment count", "built-in"},
-		{AnnotationEntityMapping, "Entity Mapping", "Named entity annotations", "built-in"},
-		{AnnotationComparison, "Comparison", "Cross-locale comparison results", "built-in"},
-		{AnnotationScopingReport, "Scoping Report", "Detailed scoping analysis", "built-in"},
-		{AnnotationRepetition, "Repetition", "Repeated segment analysis", "built-in"},
-		{AnnotationTranslation, "Translation", "Translated target content", "built-in"},
+		{AnnotationQAIssues, "QA Issues", "Quality check results", sourceBuiltIn},
+		{AnnotationTMMatch, "TM Match", "Translation memory match score and type", sourceBuiltIn},
+		{AnnotationAltTranslation, "Alt Translation", "Alternative translations from TM or AI", sourceBuiltIn},
+		{AnnotationTerms, "Term Annotations", "Terminology matches found in source", sourceBuiltIn},
+		{AnnotationTermEnforce, "Term Enforcement", "Terminology enforcement results", sourceBuiltIn},
+		{AnnotationWordCount, "Word Count", "Word count per locale", sourceBuiltIn},
+		{AnnotationCharCount, "Char Count", "Character count per locale", sourceBuiltIn},
+		{AnnotationSegCount, "Segment Count", "Segment count", sourceBuiltIn},
+		{AnnotationEntityMapping, "Entity Mapping", "Named entity annotations", sourceBuiltIn},
+		{AnnotationComparison, "Comparison", "Cross-locale comparison results", sourceBuiltIn},
+		{AnnotationScopingReport, "Scoping Report", "Detailed scoping analysis", sourceBuiltIn},
+		{AnnotationRepetition, "Repetition", "Repeated segment analysis", sourceBuiltIn},
+		{AnnotationTranslation, "Translation", "Translated target content", sourceBuiltIn},
 	}
 	for _, info := range builtins {
 		r.Register(info)

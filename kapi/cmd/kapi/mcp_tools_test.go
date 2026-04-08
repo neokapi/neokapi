@@ -37,7 +37,7 @@ func TestHandleListFormats(t *testing.T) {
 			found = true
 			assert.True(t, e.HasReader)
 			assert.True(t, e.HasWriter)
-			assert.Equal(t, "built-in", e.Source)
+			assert.Equal(t, registry.SourceBuiltIn, e.Source)
 			break
 		}
 	}

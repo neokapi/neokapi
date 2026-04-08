@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/neokapi/neokapi/core/registry"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -139,8 +140,8 @@ func TestFlowStore_MixedFormats(t *testing.T) {
 		ID:   "json-flow",
 		Name: "JSON Flow",
 		Nodes: []FlowNode{
-			{ID: "r", Type: "reader", Name: "auto"},
-			{ID: "w", Type: "writer", Name: "auto"},
+			{ID: "r", Type: NodeReader, Name: "auto"},
+			{ID: "w", Type: NodeWriter, Name: "auto"},
 		},
 		Edges: []FlowEdge{
 			{ID: "e1", Source: "r", Target: "w"},
@@ -200,8 +201,8 @@ func TestFlowDefinitionValidate(t *testing.T) {
 				ID:   "test",
 				Name: "test",
 				Nodes: []FlowNode{
-					{ID: "a", Type: "tool", Name: "t1"},
-					{ID: "a", Type: "tool", Name: "t2"},
+					{ID: "a", Type: NodeTool, Name: "t1"},
+					{ID: "a", Type: NodeTool, Name: "t2"},
 				},
 			},
 			wantErr: "duplicate node id",
@@ -223,7 +224,7 @@ func TestFlowDefinitionValidate(t *testing.T) {
 				ID:   "test",
 				Name: "test",
 				Nodes: []FlowNode{
-					{ID: "a", Type: "tool", Name: "t1"},
+					{ID: "a", Type: NodeTool, Name: "t1"},
 				},
 				Edges: []FlowEdge{
 					{ID: "e1", Source: "missing", Target: "a"},
@@ -237,7 +238,7 @@ func TestFlowDefinitionValidate(t *testing.T) {
 				ID:   "test",
 				Name: "test",
 				Nodes: []FlowNode{
-					{ID: "a", Type: "tool", Name: "t1"},
+					{ID: "a", Type: NodeTool, Name: "t1"},
 				},
 				Edges: []FlowEdge{
 					{ID: "e1", Source: "a", Target: "missing"},
@@ -251,9 +252,9 @@ func TestFlowDefinitionValidate(t *testing.T) {
 				ID:   "test",
 				Name: "test",
 				Nodes: []FlowNode{
-					{ID: "r", Type: "reader", Name: "html"},
-					{ID: "t", Type: "tool", Name: "translate"},
-					{ID: "w", Type: "writer", Name: "html"},
+					{ID: "r", Type: NodeReader, Name: "html"},
+					{ID: "t", Type: NodeTool, Name: "translate"},
+					{ID: "w", Type: NodeWriter, Name: "html"},
 				},
 				Edges: []FlowEdge{
 					{ID: "e1", Source: "r", Target: "t"},
@@ -281,10 +282,10 @@ func TestTopologicalOrder(t *testing.T) {
 		ID:   "test",
 		Name: "test",
 		Nodes: []FlowNode{
-			{ID: "reader", Type: "reader", Name: "html"},
-			{ID: "tool1", Type: "tool", Name: "translate"},
-			{ID: "tool2", Type: "tool", Name: "qa"},
-			{ID: "writer", Type: "writer", Name: "html"},
+			{ID: "reader", Type: NodeReader, Name: "html"},
+			{ID: "tool1", Type: NodeTool, Name: "translate"},
+			{ID: "tool2", Type: NodeTool, Name: "qa"},
+			{ID: "writer", Type: NodeWriter, Name: "html"},
 		},
 		Edges: []FlowEdge{
 			{ID: "e1", Source: "reader", Target: "tool1"},
@@ -303,8 +304,8 @@ func TestTopologicalOrderCycle(t *testing.T) {
 		ID:   "test",
 		Name: "test",
 		Nodes: []FlowNode{
-			{ID: "a", Type: "tool", Name: "t1"},
-			{ID: "b", Type: "tool", Name: "t2"},
+			{ID: "a", Type: NodeTool, Name: "t1"},
+			{ID: "b", Type: NodeTool, Name: "t2"},
 		},
 		Edges: []FlowEdge{
 			{ID: "e1", Source: "a", Target: "b"},
@@ -322,10 +323,10 @@ func TestToolNodeNames(t *testing.T) {
 		ID:   "test",
 		Name: "test",
 		Nodes: []FlowNode{
-			{ID: "reader", Type: "reader", Name: "html"},
-			{ID: "tool1", Type: "tool", Name: "ai-translate"},
-			{ID: "tool2", Type: "tool", Name: "ai-qa"},
-			{ID: "writer", Type: "writer", Name: "html"},
+			{ID: "reader", Type: NodeReader, Name: "html"},
+			{ID: "tool1", Type: NodeTool, Name: "ai-translate"},
+			{ID: "tool2", Type: NodeTool, Name: "ai-qa"},
+			{ID: "writer", Type: NodeWriter, Name: "html"},
 		},
 		Edges: []FlowEdge{
 			{ID: "e1", Source: "reader", Target: "tool1"},
@@ -347,7 +348,7 @@ func TestBuiltInFlows(t *testing.T) {
 	for _, f := range flows {
 		assert.NotEmpty(t, f.ID)
 		assert.NotEmpty(t, f.Name)
-		assert.Equal(t, "built-in", f.Source)
+		assert.Equal(t, registry.SourceBuiltIn, f.Source)
 		require.NoError(t, f.Validate())
 		ids[f.ID] = true
 	}
@@ -365,9 +366,9 @@ func TestFlowDefinitionJSON(t *testing.T) {
 		Description: "A test flow",
 		Source:      "user",
 		Nodes: []FlowNode{
-			{ID: "r", Type: "reader", Name: "html", Position: NodePosition{X: 0, Y: 100}},
-			{ID: "t", Type: "tool", Name: "translate", Label: "Translate", Position: NodePosition{X: 250, Y: 100}},
-			{ID: "w", Type: "writer", Name: "html", Position: NodePosition{X: 500, Y: 100}},
+			{ID: "r", Type: NodeReader, Name: "html", Position: NodePosition{X: 0, Y: 100}},
+			{ID: "t", Type: NodeTool, Name: "translate", Label: "Translate", Position: NodePosition{X: 250, Y: 100}},
+			{ID: "w", Type: NodeWriter, Name: "html", Position: NodePosition{X: 500, Y: 100}},
 		},
 		Edges: []FlowEdge{
 			{ID: "e1", Source: "r", Target: "t"},
@@ -401,8 +402,8 @@ func TestFlowStore(t *testing.T) {
 		ID:   "my-flow",
 		Name: "My Flow",
 		Nodes: []FlowNode{
-			{ID: "r", Type: "reader", Name: "html"},
-			{ID: "w", Type: "writer", Name: "html"},
+			{ID: "r", Type: NodeReader, Name: "html"},
+			{ID: "w", Type: NodeWriter, Name: "html"},
 		},
 		Edges: []FlowEdge{
 			{ID: "e1", Source: "r", Target: "w"},
@@ -451,7 +452,7 @@ func TestFlowStoreNonExistentDir(t *testing.T) {
 		ID:   "test",
 		Name: "Test",
 		Nodes: []FlowNode{
-			{ID: "r", Type: "reader", Name: "html"},
+			{ID: "r", Type: NodeReader, Name: "html"},
 		},
 	}
 	require.NoError(t, store.Save(def))

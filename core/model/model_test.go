@@ -279,7 +279,7 @@ func TestAltTranslation(t *testing.T) {
 		Locale:    model.LocaleFrench,
 		Origin:    "tm",
 		Score:     0.95,
-		MatchType: "fuzzy",
+		MatchType: model.MatchFuzzy,
 	}
 	assert.Equal(t, "alt-translation", alt.AnnotationType())
 	assert.Equal(t, "Bonjour", alt.Target.Text())

@@ -180,7 +180,7 @@ func TestFormatInfosBuiltIn(t *testing.T) {
 	assert.Equal(t, []string{".html", ".htm"}, infos[0].Extensions)
 	assert.True(t, infos[0].HasReader)
 	assert.True(t, infos[0].HasWriter)
-	assert.Equal(t, "built-in", infos[0].Source)
+	assert.Equal(t, SourceBuiltIn, infos[0].Source)
 }
 
 func TestFormatInfosPluginSource(t *testing.T) {
@@ -209,7 +209,7 @@ func TestFormatInfosSorted(t *testing.T) {
 func TestFormatInfoSingleLookup(t *testing.T) {
 	reg := NewFormatRegistry()
 	regStubSig(reg, "html", "HTML", []string{"text/html"}, []string{".html"})
-	reg.SetFormatSource("html", "built-in")
+	reg.SetFormatSource("html", SourceBuiltIn)
 
 	info := reg.FormatInfo("html")
 	require.NotNil(t, info)
@@ -256,7 +256,7 @@ func TestSetFormatSourceSetsPluginPriority(t *testing.T) {
 func TestSetFormatSourceBuiltInKeepsDefaultPriority(t *testing.T) {
 	reg := NewFormatRegistry()
 	regStubSig(reg, "html", "HTML", []string{"text/html"}, []string{".html"})
-	reg.SetFormatSource("html", "built-in")
+	reg.SetFormatSource("html", SourceBuiltIn)
 
 	info := reg.FormatInfo("html")
 	require.NotNil(t, info)
@@ -603,12 +603,12 @@ func TestDetectByExtensionForSources(t *testing.T) {
 	assert.Equal(t, "okf_json", name)
 
 	// With source filter: only built-in allowed.
-	name, err = reg.DetectByExtensionForSources(".json", []string{"built-in"})
+	name, err = reg.DetectByExtensionForSources(".json", []string{SourceBuiltIn})
 	require.NoError(t, err)
 	assert.Equal(t, "json", name)
 
 	// With source filter including the plugin.
-	name, err = reg.DetectByExtensionForSources(".json", []string{"built-in", "okapi-bridge"})
+	name, err = reg.DetectByExtensionForSources(".json", []string{SourceBuiltIn, "okapi-bridge"})
 	require.NoError(t, err)
 	assert.Equal(t, "okf_json", name, "plugin format should win when its source is allowed")
 
@@ -623,6 +623,6 @@ func TestDetectByExtensionForSources(t *testing.T) {
 	assert.Equal(t, "okf_json", name)
 
 	// Unknown extension with restrictive filter.
-	_, err = reg.DetectByExtensionForSources(".xyz", []string{"built-in"})
+	_, err = reg.DetectByExtensionForSources(".xyz", []string{SourceBuiltIn})
 	assert.Error(t, err)
 }

@@ -109,7 +109,7 @@ func builtinComposedFlows() []output.FlowInfo {
 	for _, def := range flow.BuiltInFlows() {
 		toolCount := 0
 		for _, n := range def.Nodes {
-			if n.Type == "tool" {
+			if n.Type == flow.NodeTool {
 				toolCount++
 			}
 		}
@@ -263,10 +263,10 @@ func (a *App) writeTraceFile(tracePath, flowName, fmtName, inputPath, outputPath
 
 	var traceNodes []flow.TraceNode
 	traceNodes = append(traceNodes, flow.TraceNode{
-		ID: "reader", Type: "reader", Name: fmtName, Label: fmtName + " reader",
+		ID: "reader", Type: flow.NodeReader, Name: fmtName, Label: fmtName + " reader",
 	})
 	for _, e := range recorder.Events() {
-		if e.Type == "enter" && e.NodeID != "reader" && e.NodeID != "writer" {
+		if e.Type == flow.TraceEnter && e.NodeID != "reader" && e.NodeID != "writer" {
 			found := false
 			for _, n := range traceNodes {
 				if n.ID == e.NodeID {
@@ -276,13 +276,13 @@ func (a *App) writeTraceFile(tracePath, flowName, fmtName, inputPath, outputPath
 			}
 			if !found {
 				traceNodes = append(traceNodes, flow.TraceNode{
-					ID: e.NodeID, Type: "tool", Name: e.NodeID,
+					ID: e.NodeID, Type: flow.NodeTool, Name: e.NodeID,
 				})
 			}
 		}
 	}
 	traceNodes = append(traceNodes, flow.TraceNode{
-		ID: "writer", Type: "writer", Name: fmtName, Label: fmtName + " writer",
+		ID: "writer", Type: flow.NodeWriter, Name: fmtName, Label: fmtName + " writer",
 	})
 
 	trace := &flow.FlowTrace{
@@ -532,17 +532,17 @@ func (a *App) processFlowFileBridge(ctx context.Context, cmd *cobra.Command,
 	var traceNodes []flow.TraceNode
 	if recorder != nil {
 		traceNodes = append(traceNodes, flow.TraceNode{
-			ID: "bridge-reader", Type: "reader", Name: "bridge", Label: "bridge reader",
+			ID: "bridge-reader", Type: flow.NodeReader, Name: "bridge", Label: "bridge reader",
 		})
 		for i, t := range flowTools {
 			nodeID := fmt.Sprintf("tool-%d", i)
 			traceNodes = append(traceNodes, flow.TraceNode{
-				ID: nodeID, Type: "tool", Name: t.Name(), Label: t.Name(),
+				ID: nodeID, Type: flow.NodeTool, Name: t.Name(), Label: t.Name(),
 			})
 			flowTools[i] = flow.NewTracingTool(t, nodeID, recorder)
 		}
 		traceNodes = append(traceNodes, flow.TraceNode{
-			ID: "bridge-writer", Type: "writer", Name: "bridge", Label: "bridge writer",
+			ID: "bridge-writer", Type: flow.NodeWriter, Name: "bridge", Label: "bridge writer",
 		})
 	}
 
@@ -578,17 +578,17 @@ func (a *App) processFlowFileNative(ctx context.Context, cmd *cobra.Command, flo
 	var traceNodes []flow.TraceNode
 	if recorder != nil {
 		traceNodes = append(traceNodes, flow.TraceNode{
-			ID: "reader", Type: "reader", Name: registryName, Label: registryName + " reader",
+			ID: "reader", Type: flow.NodeReader, Name: registryName, Label: registryName + " reader",
 		})
 		for i, t := range flowTools {
 			nodeID := fmt.Sprintf("tool-%d", i)
 			traceNodes = append(traceNodes, flow.TraceNode{
-				ID: nodeID, Type: "tool", Name: t.Name(), Label: t.Name(),
+				ID: nodeID, Type: flow.NodeTool, Name: t.Name(), Label: t.Name(),
 			})
 			flowTools[i] = flow.NewTracingTool(t, nodeID, recorder)
 		}
 		traceNodes = append(traceNodes, flow.TraceNode{
-			ID: "writer", Type: "writer", Name: registryName, Label: registryName + " writer",
+			ID: "writer", Type: flow.NodeWriter, Name: registryName, Label: registryName + " writer",
 		})
 	}
 
@@ -688,7 +688,7 @@ func (a *App) buildFlowTools(flowName string, cmd ...*cobra.Command) ([]tool.Too
 	}
 	var toolNodes []toolPos
 	for _, n := range flowDef.Nodes {
-		if n.Type == "tool" {
+		if n.Type == flow.NodeTool {
 			toolNodes = append(toolNodes, toolPos{name: n.Name, x: n.Position.X})
 		}
 	}

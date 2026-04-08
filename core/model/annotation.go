@@ -5,6 +5,16 @@ type Annotation interface {
 	AnnotationType() string
 }
 
+// MatchType classifies how an alternative translation was produced.
+type MatchType string
+
+const (
+	MatchExact MatchType = "exact"
+	MatchFuzzy MatchType = "fuzzy"
+	MatchMT    MatchType = "mt"
+	MatchAI    MatchType = "ai"
+)
+
 // AltTranslation holds an alternative translation with metadata.
 type AltTranslation struct {
 	Source        *Fragment `json:"source,omitempty"`
@@ -12,7 +22,7 @@ type AltTranslation struct {
 	Locale        LocaleID  `json:"locale,omitempty"`
 	Origin        string    `json:"origin,omitempty"`         // Where this translation came from (TM, MT, etc.)
 	Score         float64   `json:"score,omitempty"`          // Match quality (0.0 - 1.0)
-	MatchType     string    `json:"match_type,omitempty"`     // "exact", "fuzzy", "mt", "ai"
+	MatchType     MatchType `json:"match_type,omitempty"`     // MatchExact, MatchFuzzy, MatchMT, or MatchAI
 	CombinedScore float64   `json:"combined_score,omitempty"` // Combined match score (Okapi)
 	FuzzyScore    float64   `json:"fuzzy_score,omitempty"`    // Fuzzy match score (Okapi)
 	QualityScore  float64   `json:"quality_score,omitempty"`  // Quality score (Okapi)

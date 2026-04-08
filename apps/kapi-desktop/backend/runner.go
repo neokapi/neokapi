@@ -418,7 +418,7 @@ func (a *App) PreviewFlow(tabID, flowName, sampleText, sourceLang, targetLang st
 		nodeID := fmt.Sprintf("tool-%d", i)
 		traceNodes[i] = flow.TraceNode{
 			ID:   nodeID,
-			Type: "tool",
+			Type: flow.NodeTool,
 			Name: t.Name(),
 		}
 		tracedTools[i] = flow.NewTracingTool(t, nodeID, recorder)

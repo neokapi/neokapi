@@ -82,7 +82,7 @@ func TestFrameworkPresetRegistry(t *testing.T) {
 			Mappings: []MappingTemplate{
 				{Local: "locales/*.json", Format: "okf_json"},
 			},
-			Source: "built-in",
+			Source: sourceBuiltIn,
 		}
 		r.RegisterFrameworkPreset("nextjs", p)
 

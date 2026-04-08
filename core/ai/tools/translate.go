@@ -322,7 +322,7 @@ func (t *AITranslateTool) annotateTranslation(block *model.Block, resp *aiprovid
 		Locale:    t.targetLocale,
 		Origin:    "ai:" + string(t.provider.Name()),
 		Score:     resp.Confidence,
-		MatchType: "ai",
+		MatchType: model.MatchAI,
 	}
 }
 

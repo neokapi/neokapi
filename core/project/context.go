@@ -41,7 +41,7 @@ func NewProjectContext(proj *KapiProject, projectPath string) *ProjectContext {
 	}
 
 	// Resolve allowed format sources from declared plugins.
-	sources := []string{"built-in"}
+	sources := []string{registry.SourceBuiltIn}
 	for name := range proj.Plugins {
 		sources = append(sources, name)
 	}
@@ -234,7 +234,7 @@ func (ctx *ProjectContext) AllowedTools(allTools []registry.ToolInfo) []registry
 	for _, t := range allTools {
 		source := t.Source
 		if source == "" {
-			source = "built-in"
+			source = registry.SourceBuiltIn
 		}
 		if allowed[source] {
 			result = append(result, t)
@@ -266,7 +266,7 @@ func (ctx *ProjectContext) ValidateFlows(allTools []registry.ToolInfo) []FlowVal
 	for _, t := range allTools {
 		source := t.Source
 		if source == "" {
-			source = "built-in"
+			source = registry.SourceBuiltIn
 		}
 		toolSource[string(t.Name)] = source
 	}
