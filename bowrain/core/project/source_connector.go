@@ -724,7 +724,7 @@ func (c *BowrainSourceConnector) detectFormat(absPath string) string {
 	if err != nil {
 		return ""
 	}
-	return string(name)
+	return name
 }
 
 // buildItemMeta generates editor metadata (BlockIndex + PreviewHTML) for each
