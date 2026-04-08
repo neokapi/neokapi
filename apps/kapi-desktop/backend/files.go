@@ -72,7 +72,7 @@ func (a *App) DetectFormat(path string) string {
 	if err != nil {
 		return ""
 	}
-	return detected
+	return string(detected)
 }
 
 // ValidateContentPath checks if a content path pattern is safe (no .., no absolute).

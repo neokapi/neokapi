@@ -591,7 +591,7 @@ func TestExtract_AltTranslation(t *testing.T) {
 	alt := altAnn.(*model.AltTranslation)
 	assert.Equal(t, "TM", alt.Origin)
 	assert.Equal(t, 95.0, alt.CombinedScore)
-	assert.Equal(t, "FUZZY", alt.MatchType)
+	assert.Equal(t, model.MatchFuzzy, alt.MatchType)
 	require.NotNil(t, alt.Source)
 	assert.Equal(t, "Hello", alt.Source.Text())
 	require.NotNil(t, alt.Target)
@@ -620,7 +620,7 @@ func TestExtract_MultipleAltTranslations(t *testing.T) {
 	alt0 := b.Annotations["alt-translation"].(*model.AltTranslation)
 	assert.Equal(t, 100.0, alt0.CombinedScore)
 	assert.Equal(t, "TM", alt0.Origin)
-	assert.Equal(t, "EXACT", alt0.MatchType)
+	assert.Equal(t, model.MatchExact, alt0.MatchType)
 
 	alt1 := b.Annotations["alt-translation-1"].(*model.AltTranslation)
 	assert.Equal(t, 80.0, alt1.CombinedScore)

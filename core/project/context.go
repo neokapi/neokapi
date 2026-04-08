@@ -41,16 +41,13 @@ func NewProjectContext(proj *KapiProject, projectPath string) *ProjectContext {
 	}
 
 	// Resolve allowed format sources from declared plugins.
-	sources := []string{"built-in"}
+	sources := []string{registry.SourceBuiltIn}
 	for name := range proj.Plugins {
 		sources = append(sources, name)
 	}
 
 	// Resolve locale defaults.
-	targetLocales := make([]model.LocaleID, len(proj.Defaults.TargetLanguages))
-	for i, lang := range proj.Defaults.TargetLanguages {
-		targetLocales[i] = model.LocaleID(lang)
-	}
+	targetLocales := proj.Defaults.TargetLanguages
 
 	// Resolve encoding (default UTF-8).
 	encoding := proj.Defaults.Encoding
@@ -67,7 +64,7 @@ func NewProjectContext(proj *KapiProject, projectPath string) *ProjectContext {
 	return &ProjectContext{
 		Project:        proj,
 		ProjectDir:     dir,
-		SourceLocale:   model.LocaleID(proj.Defaults.SourceLanguage),
+		SourceLocale:   proj.Defaults.SourceLanguage,
 		TargetLocales:  targetLocales,
 		AllowedSources: sources,
 		Encoding:       encoding,
@@ -91,7 +88,7 @@ func (ctx *ProjectContext) DetectFormat(reg *registry.FormatRegistry, path strin
 	if err != nil {
 		return ""
 	}
-	return name
+	return string(name)
 }
 
 // --- Content resolution ---
@@ -237,7 +234,7 @@ func (ctx *ProjectContext) AllowedTools(allTools []registry.ToolInfo) []registry
 	for _, t := range allTools {
 		source := t.Source
 		if source == "" {
-			source = "built-in"
+			source = registry.SourceBuiltIn
 		}
 		if allowed[source] {
 			result = append(result, t)
@@ -269,9 +266,9 @@ func (ctx *ProjectContext) ValidateFlows(allTools []registry.ToolInfo) []FlowVal
 	for _, t := range allTools {
 		source := t.Source
 		if source == "" {
-			source = "built-in"
+			source = registry.SourceBuiltIn
 		}
-		toolSource[t.Name] = source
+		toolSource[string(t.Name)] = source
 	}
 
 	allowed := make(map[string]bool, len(ctx.AllowedSources))

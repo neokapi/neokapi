@@ -36,7 +36,7 @@ func withCardinality(c schema.LocaleCardinality) func(*schema.ToolMeta) {
 	return func(m *schema.ToolMeta) { m.Cardinality = c }
 }
 
-func withDefaultLocale(locale string) func(*schema.ToolMeta) {
+func withDefaultLocale(locale model.LocaleID) func(*schema.ToolMeta) {
 	return func(m *schema.ToolMeta) { m.DefaultLocale = locale }
 }
 
@@ -148,7 +148,7 @@ func RegisterAll(reg *registry.ToolRegistry) {
 	reg.RegisterWithSchema("pseudo-translate", func() tool.Tool {
 		return NewPseudoTranslateTool(&PseudoConfig{Prefix: "[", Suffix: "]", TargetLocale: "qps"})
 	}, toolSchema(&PseudoConfig{Prefix: "[", Suffix: "]"}, toolMeta("pseudo-translate", "Pseudo Translate", "transform",
-		withInputs(B), withTags("translation"), withRequires("target-language"), withCardinality(schema.Bilingual), withDefaultLocale("qps"), withProduces(schema.AnnotationTranslation))))
+		withInputs(B), withTags("translation"), withRequires("target-language"), withCardinality(schema.Bilingual), withDefaultLocale(model.LocaleID("qps")), withProduces(schema.AnnotationTranslation))))
 
 	reg.RegisterWithSchema("search-replace", func() tool.Tool {
 		return NewSearchReplaceTool(&SearchReplaceConfig{})

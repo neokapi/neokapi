@@ -22,22 +22,22 @@ type FormatWriterFactory func() format.DataFormatWriter
 
 // FormatInfo describes a registered format with its metadata.
 type FormatInfo struct {
-	Name        string   `json:"name"`
+	Name        FormatID `json:"name"`
 	DisplayName string   `json:"display_name"`
 	MimeTypes   []string `json:"mime_types,omitempty"`
 	Extensions  []string `json:"extensions,omitempty"`
 	HasReader   bool     `json:"has_reader"`
 	HasWriter   bool     `json:"has_writer"`
-	Source      string   `json:"source"`   // "built-in" or plugin name
+	Source      string   `json:"source"`   // SourceBuiltIn or plugin name
 	Priority    int      `json:"priority"` // higher = preferred when multiple formats match
 }
 
 // FormatRegistry manages available DataFormats and their configurations.
 type FormatRegistry struct {
 	mu       sync.RWMutex
-	readers  map[string]FormatReaderFactory
-	writers  map[string]FormatWriterFactory
-	infos    map[string]*FormatInfo
+	readers  map[FormatID]FormatReaderFactory
+	writers  map[FormatID]FormatWriterFactory
+	infos    map[FormatID]*FormatInfo
 	detector *format.Detector
 
 	// onMiss is called once when NewReader/NewWriter fails to find a format.
@@ -51,9 +51,9 @@ type FormatRegistry struct {
 // NewFormatRegistry creates a new FormatRegistry.
 func NewFormatRegistry() *FormatRegistry {
 	return &FormatRegistry{
-		readers:  make(map[string]FormatReaderFactory),
-		writers:  make(map[string]FormatWriterFactory),
-		infos:    make(map[string]*FormatInfo),
+		readers:  make(map[FormatID]FormatReaderFactory),
+		writers:  make(map[FormatID]FormatWriterFactory),
+		infos:    make(map[FormatID]*FormatInfo),
 		detector: format.NewDetector(),
 	}
 }
@@ -86,12 +86,12 @@ func (r *FormatRegistry) triggerOnMiss() bool {
 // RegisterReader registers a DataFormatReader factory with static metadata.
 // The signature and display name are provided directly — no reader instance
 // is created during registration, keeping startup fast.
-func (r *FormatRegistry) RegisterReader(name string, factory FormatReaderFactory, sig format.FormatSignature, displayName string) {
+func (r *FormatRegistry) RegisterReader(name FormatID, factory FormatReaderFactory, sig format.FormatSignature, displayName string) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	r.readers[name] = factory
 
-	r.detector.Register(name, sig)
+	r.detector.Register(string(name), sig)
 
 	info := r.getOrCreateInfo(name)
 	info.HasReader = true
@@ -103,14 +103,14 @@ func (r *FormatRegistry) RegisterReader(name string, factory FormatReaderFactory
 		info.Extensions = sig.Extensions
 	}
 	if info.Priority != 0 {
-		r.detector.SetPriority(name, info.Priority)
+		r.detector.SetPriority(string(name), info.Priority)
 	} else {
 		info.Priority = format.DefaultBuiltInPriority
 	}
 }
 
 // RegisterWriter registers a DataFormatWriter factory.
-func (r *FormatRegistry) RegisterWriter(name string, factory FormatWriterFactory) {
+func (r *FormatRegistry) RegisterWriter(name FormatID, factory FormatWriterFactory) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	r.writers[name] = factory
@@ -124,7 +124,7 @@ func (r *FormatRegistry) RegisterWriter(name string, factory FormatWriterFactory
 // bridge-provided formats before the bridge process is started.
 // When the bridge is later loaded, RegisterReader/RegisterWriter will update
 // the existing info entry with HasReader/HasWriter = true.
-func (r *FormatRegistry) RegisterFormatInfo(name string, info FormatInfo) {
+func (r *FormatRegistry) RegisterFormatInfo(name FormatID, info FormatInfo) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	existing := r.getOrCreateInfo(name)
@@ -154,7 +154,7 @@ func (r *FormatRegistry) RegisterFormatInfo(name string, info FormatInfo) {
 	// DetectByExtension and DetectByMIME from metadata scan time, before
 	// the bridge process or plugin is actually loaded.
 	if len(existing.Extensions) > 0 || len(existing.MimeTypes) > 0 {
-		r.detector.Register(name, format.FormatSignature{
+		r.detector.Register(string(name), format.FormatSignature{
 			Extensions: existing.Extensions,
 			MIMETypes:  existing.MimeTypes,
 		})
@@ -164,7 +164,7 @@ func (r *FormatRegistry) RegisterFormatInfo(name string, info FormatInfo) {
 			pri = format.DefaultPluginPriority
 			existing.Priority = pri
 		}
-		r.detector.SetPriority(name, pri)
+		r.detector.SetPriority(string(name), pri)
 	}
 }
 
@@ -172,7 +172,7 @@ func (r *FormatRegistry) RegisterFormatInfo(name string, info FormatInfo) {
 // built-in formats or the plugin name for plugin-provided formats.
 // Plugin formats automatically receive DefaultPluginPriority unless a priority
 // has already been explicitly set.
-func (r *FormatRegistry) SetFormatSource(name, source string) {
+func (r *FormatRegistry) SetFormatSource(name FormatID, source string) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	info := r.getOrCreateInfo(name)
@@ -180,34 +180,34 @@ func (r *FormatRegistry) SetFormatSource(name, source string) {
 
 	// Assign default plugin priority if the source is not built-in and no
 	// explicit priority has been set (priority is still at default built-in).
-	if source != "" && source != "built-in" && info.Priority == format.DefaultBuiltInPriority {
+	if source != "" && source != SourceBuiltIn && info.Priority == format.DefaultBuiltInPriority {
 		info.Priority = format.DefaultPluginPriority
-		r.detector.SetPriority(name, format.DefaultPluginPriority)
+		r.detector.SetPriority(string(name), format.DefaultPluginPriority)
 	}
 }
 
 // SetFormatPriority sets an explicit priority for the named format. Higher
 // values are preferred when multiple formats match the same MIME type or
 // extension during detection.
-func (r *FormatRegistry) SetFormatPriority(name string, priority int) {
+func (r *FormatRegistry) SetFormatPriority(name FormatID, priority int) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	info := r.getOrCreateInfo(name)
 	info.Priority = priority
-	r.detector.SetPriority(name, priority)
+	r.detector.SetPriority(string(name), priority)
 }
 
 // ResolveFormat finds the best format name for a given MIME type by consulting
 // the detector (which considers priorities). Returns an empty string if no
 // format matches.
-func (r *FormatRegistry) ResolveFormat(mimeType string) string {
+func (r *FormatRegistry) ResolveFormat(mimeType string) FormatID {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	name, err := r.detector.DetectByMIME(mimeType)
 	if err != nil {
 		return ""
 	}
-	return name
+	return FormatID(name)
 }
 
 // FormatInfos returns metadata for all registered formats, sorted by name.
@@ -219,19 +219,19 @@ func (r *FormatRegistry) FormatInfos() []FormatInfo {
 	for _, info := range r.infos {
 		cp := *info
 		if cp.Source == "" {
-			cp.Source = "built-in"
+			cp.Source = SourceBuiltIn
 		}
 		result = append(result, cp)
 	}
 
 	slices.SortFunc(result, func(a, b FormatInfo) int {
-		return cmp.Compare(a.Name, b.Name)
+		return cmp.Compare(string(a.Name), string(b.Name))
 	})
 	return result
 }
 
 // FormatInfo returns metadata for a specific format, or nil if not found.
-func (r *FormatRegistry) FormatInfo(name string) *FormatInfo {
+func (r *FormatRegistry) FormatInfo(name FormatID) *FormatInfo {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	info, ok := r.infos[name]
@@ -240,14 +240,14 @@ func (r *FormatRegistry) FormatInfo(name string) *FormatInfo {
 	}
 	cp := *info
 	if cp.Source == "" {
-		cp.Source = "built-in"
+		cp.Source = SourceBuiltIn
 	}
 	return &cp
 }
 
 // getOrCreateInfo returns the FormatInfo for the given name, creating it if needed.
 // Caller must hold the write lock.
-func (r *FormatRegistry) getOrCreateInfo(name string) *FormatInfo {
+func (r *FormatRegistry) getOrCreateInfo(name FormatID) *FormatInfo {
 	info, ok := r.infos[name]
 	if !ok {
 		info = &FormatInfo{Name: name}
@@ -259,12 +259,13 @@ func (r *FormatRegistry) getOrCreateInfo(name string) *FormatInfo {
 // DetectByExtension maps a file extension to a registered format name.
 // If detection fails and an onMiss callback is set, it triggers lazy loading
 // (e.g., starting bridge processes) and retries once.
-func (r *FormatRegistry) DetectByExtension(ext string) (string, error) {
+func (r *FormatRegistry) DetectByExtension(ext string) (FormatID, error) {
 	if name, err := r.detector.DetectByExtension(ext); err == nil {
-		return name, nil
+		return FormatID(name), nil
 	}
 	if r.triggerOnMiss() {
-		return r.detector.DetectByExtension(ext)
+		name, err := r.detector.DetectByExtension(ext)
+		return FormatID(name), err
 	}
 	return "", fmt.Errorf("no format found for extension %q", ext)
 }
@@ -277,7 +278,7 @@ func (r *FormatRegistry) DetectByExtension(ext string) (string, error) {
 // a plugin should not auto-detect plugin-provided formats. Pass
 // []string{"built-in"} to restrict to built-in formats only, or
 // []string{"built-in", "okapi-bridge"} to also include that plugin's formats.
-func (r *FormatRegistry) DetectByExtensionForSources(ext string, allowedSources []string) (string, error) {
+func (r *FormatRegistry) DetectByExtensionForSources(ext string, allowedSources []string) (FormatID, error) {
 	if len(allowedSources) == 0 {
 		return r.DetectByExtension(ext)
 	}
@@ -293,20 +294,20 @@ func (r *FormatRegistry) DetectByExtensionForSources(ext string, allowedSources 
 		return "", errors.New("empty extension")
 	}
 
-	bestName := ""
+	var bestName FormatID
 	bestPriority := -1
 	for name, info := range r.infos {
 		source := info.Source
 		if source == "" {
-			source = "built-in"
+			source = SourceBuiltIn
 		}
 		if !allowed[source] {
 			continue
 		}
 		for _, e := range info.Extensions {
 			if strings.ToLower(e) == ext {
-				pri := r.detector.Priority(name)
-				if bestName == "" || pri > bestPriority || (pri == bestPriority && name < bestName) {
+				pri := r.detector.Priority(string(name))
+				if bestName == "" || pri > bestPriority || (pri == bestPriority && string(name) < string(bestName)) {
 					bestName = name
 					bestPriority = pri
 				}
@@ -325,7 +326,7 @@ func (r *FormatRegistry) DetectByExtensionForSources(ext string, allowedSources 
 // returns the latest version as a fallback.
 // If no reader is found and an onMiss callback is set, it triggers
 // lazy loading (e.g., starting bridge processes) and retries once.
-func (r *FormatRegistry) NewReader(name string) (format.DataFormatReader, error) {
+func (r *FormatRegistry) NewReader(name FormatID) (format.DataFormatReader, error) {
 	if f := r.findReader(name); f != nil {
 		return f(), nil
 	}
@@ -344,7 +345,7 @@ func (r *FormatRegistry) NewReader(name string) (format.DataFormatReader, error)
 // returns the latest version as a fallback.
 // If no writer is found and an onMiss callback is set, it triggers
 // lazy loading (e.g., starting bridge processes) and retries once.
-func (r *FormatRegistry) NewWriter(name string) (format.DataFormatWriter, error) {
+func (r *FormatRegistry) NewWriter(name FormatID) (format.DataFormatWriter, error) {
 	if f := r.findWriter(name); f != nil {
 		return f(), nil
 	}
@@ -358,13 +359,13 @@ func (r *FormatRegistry) NewWriter(name string) (format.DataFormatWriter, error)
 }
 
 // findReader looks up a reader factory by exact name or latest versioned entry.
-func (r *FormatRegistry) findReader(name string) FormatReaderFactory {
+func (r *FormatRegistry) findReader(name FormatID) FormatReaderFactory {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	if factory, ok := r.readers[name]; ok {
 		return factory
 	}
-	if !strings.Contains(name, "@") {
+	if !strings.Contains(string(name), "@") {
 		if f, ok := findLatest(r.readers, name); ok {
 			return f
 		}
@@ -373,13 +374,13 @@ func (r *FormatRegistry) findReader(name string) FormatReaderFactory {
 }
 
 // findWriter looks up a writer factory by exact name or latest versioned entry.
-func (r *FormatRegistry) findWriter(name string) FormatWriterFactory {
+func (r *FormatRegistry) findWriter(name FormatID) FormatWriterFactory {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	if factory, ok := r.writers[name]; ok {
 		return factory
 	}
-	if !strings.Contains(name, "@") {
+	if !strings.Contains(string(name), "@") {
 		if f, ok := findLatest(r.writers, name); ok {
 			return f
 		}
@@ -390,16 +391,16 @@ func (r *FormatRegistry) findWriter(name string) FormatWriterFactory {
 // findLatest scans a map for entries matching "prefix@version" and returns the
 // value for the highest semantic version. This generic helper collapses the
 // previously separate findLatestReader and findLatestWriter functions.
-func findLatest[F any](m map[string]F, name string) (F, bool) {
-	prefix := name + "@"
+func findLatest[F any](m map[FormatID]F, name FormatID) (F, bool) {
+	prefix := string(name) + "@"
 	var bestVersion string
 	var bestFactory F
 	var found bool
 	for key, factory := range m {
-		if !strings.HasPrefix(key, prefix) {
+		if !strings.HasPrefix(string(key), prefix) {
 			continue
 		}
-		version := key[len(prefix):]
+		version := string(key)[len(prefix):]
 		if !found || compareSemver(version, bestVersion) > 0 {
 			bestVersion = version
 			bestFactory = factory
@@ -450,7 +451,7 @@ func (r *FormatRegistry) CollectNativeSchemas(schemaReg *schema.SchemaRegistry) 
 
 	for name, factory := range r.readers {
 		// Skip versioned entries — only collect from bare names.
-		if strings.Contains(name, "@") {
+		if strings.Contains(string(name), "@") {
 			continue
 		}
 		reader := factory()
@@ -459,7 +460,7 @@ func (r *FormatRegistry) CollectNativeSchemas(schemaReg *schema.SchemaRegistry) 
 			continue
 		}
 		if sp, ok := cfg.(format.SchemaProvider); ok {
-			schemaReg.RegisterSchema(name, sp.Schema())
+			schemaReg.RegisterSchema(string(name), sp.Schema())
 		}
 	}
 }
@@ -472,7 +473,7 @@ func (r *FormatRegistry) CollectNativeDecoders(configReg *config.Registry) {
 	defer r.mu.RUnlock()
 
 	for name, factory := range r.readers {
-		if strings.Contains(name, "@") {
+		if strings.Contains(string(name), "@") {
 			continue
 		}
 		reader := factory()
@@ -481,7 +482,7 @@ func (r *FormatRegistry) CollectNativeDecoders(configReg *config.Registry) {
 			continue
 		}
 
-		kind := config.FormatConfigKind(name)
+		kind := config.FormatConfigKind(string(name))
 		if ckp, ok := cfg.(format.ConfigKindProvider); ok {
 			kind = ckp.ConfigKind()
 		}
@@ -514,12 +515,12 @@ var _ format.SubfilterResolver = (*FormatRegistry)(nil)
 
 // ResolveReader creates a new reader for the named format. Implements SubfilterResolver.
 func (r *FormatRegistry) ResolveReader(name string) (format.DataFormatReader, error) {
-	return r.NewReader(name)
+	return r.NewReader(FormatID(name))
 }
 
 // ResolveWriter creates a new writer for the named format. Implements SubfilterResolver.
 func (r *FormatRegistry) ResolveWriter(name string) (format.DataFormatWriter, error) {
-	return r.NewWriter(name)
+	return r.NewWriter(FormatID(name))
 }
 
 // Detector returns the format Detector backed by this registry.
@@ -528,10 +529,10 @@ func (r *FormatRegistry) Detector() *format.Detector {
 }
 
 // ReaderNames returns the names of all registered readers.
-func (r *FormatRegistry) ReaderNames() []string {
+func (r *FormatRegistry) ReaderNames() []FormatID {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
-	names := make([]string, 0, len(r.readers))
+	names := make([]FormatID, 0, len(r.readers))
 	for name := range r.readers {
 		names = append(names, name)
 	}
@@ -539,10 +540,10 @@ func (r *FormatRegistry) ReaderNames() []string {
 }
 
 // WriterNames returns the names of all registered writers.
-func (r *FormatRegistry) WriterNames() []string {
+func (r *FormatRegistry) WriterNames() []FormatID {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
-	names := make([]string, 0, len(r.writers))
+	names := make([]FormatID, 0, len(r.writers))
 	for name := range r.writers {
 		names = append(names, name)
 	}
@@ -550,7 +551,7 @@ func (r *FormatRegistry) WriterNames() []string {
 }
 
 // HasReader returns true if a reader is registered for the given format name.
-func (r *FormatRegistry) HasReader(name string) bool {
+func (r *FormatRegistry) HasReader(name FormatID) bool {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	_, ok := r.readers[name]
@@ -558,7 +559,7 @@ func (r *FormatRegistry) HasReader(name string) bool {
 }
 
 // HasWriter returns true if a writer is registered for the given format name.
-func (r *FormatRegistry) HasWriter(name string) bool {
+func (r *FormatRegistry) HasWriter(name FormatID) bool {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	_, ok := r.writers[name]
@@ -567,7 +568,7 @@ func (r *FormatRegistry) HasWriter(name string) bool {
 
 // ReaderFactory returns the reader factory for the given format name, or nil.
 // Use this to build alias factories without triggering lock re-entry.
-func (r *FormatRegistry) ReaderFactory(name string) FormatReaderFactory {
+func (r *FormatRegistry) ReaderFactory(name FormatID) FormatReaderFactory {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	return r.readers[name]
@@ -575,7 +576,7 @@ func (r *FormatRegistry) ReaderFactory(name string) FormatReaderFactory {
 
 // WriterFactory returns the writer factory for the given format name, or nil.
 // Use this to build alias factories without triggering lock re-entry.
-func (r *FormatRegistry) WriterFactory(name string) FormatWriterFactory {
+func (r *FormatRegistry) WriterFactory(name FormatID) FormatWriterFactory {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	return r.writers[name]

@@ -509,7 +509,7 @@ func RegisterAll(reg *registry.FormatRegistry, opts ...RegisterOptions) {
 // registerSchemaAndDecoder registers a format's schema and config decoder
 // if the format implements SchemaProvider. This creates one reader instance
 // per format that has a schema — only called for formats that implement it.
-func registerSchemaAndDecoder(o RegisterOptions, reg *registry.FormatRegistry, name string, factory func() format.DataFormatReader) {
+func registerSchemaAndDecoder(o RegisterOptions, reg *registry.FormatRegistry, name registry.FormatID, factory func() format.DataFormatReader) {
 	if o.SchemaReg == nil && o.ConfigReg == nil {
 		return
 	}
@@ -522,12 +522,12 @@ func registerSchemaAndDecoder(o RegisterOptions, reg *registry.FormatRegistry, n
 
 	if o.SchemaReg != nil {
 		if sp, ok := cfg.(format.SchemaProvider); ok {
-			o.SchemaReg.RegisterSchema(name, sp.Schema())
+			o.SchemaReg.RegisterSchema(string(name), sp.Schema())
 		}
 	}
 
 	if o.ConfigReg != nil {
-		kind := config.FormatConfigKind(name)
+		kind := config.FormatConfigKind(string(name))
 		if ckp, ok := cfg.(format.ConfigKindProvider); ok {
 			kind = ckp.ConfigKind()
 		}

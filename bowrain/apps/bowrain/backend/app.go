@@ -204,7 +204,7 @@ func (a *App) ListFormats() []FormatInfo {
 	result := make([]FormatInfo, len(regInfos))
 	for i, ri := range regInfos {
 		result[i] = FormatInfo{
-			Name:        ri.Name,
+			Name:        string(ri.Name),
 			DisplayName: ri.DisplayName,
 			MimeTypes:   ri.MimeTypes,
 			Extensions:  ri.Extensions,
@@ -255,12 +255,12 @@ func (a *App) ListTools() []ToolInfo {
 			if err != nil {
 				continue
 			}
-			category := toolCategory[name]
+			category := toolCategory[string(name)]
 			if category == "" {
 				category = "utility"
 			}
 			result = append(result, ToolInfo{
-				Name:        name,
+				Name:        string(name),
 				Description: t.Description(),
 				Category:    category,
 			})

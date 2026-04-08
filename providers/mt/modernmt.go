@@ -49,7 +49,7 @@ func NewModernMTProvider(cfg ModernMTConfig) *ModernMTProvider {
 	return &ModernMTProvider{cfg: cfg, client: httputil.NewResilientClient()}
 }
 
-func (p *ModernMTProvider) Name() string { return "modernmt" }
+func (p *ModernMTProvider) Name() ProviderID { return ModernMT }
 
 func (p *ModernMTProvider) Translate(ctx context.Context, req TranslateRequest) (*TranslateResponse, error) {
 	reqBody := modernMTRequest{

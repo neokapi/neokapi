@@ -751,7 +751,7 @@ func (c *BowrainSourceConnector) buildItemMeta(ctx context.Context, changed []it
 			continue
 		}
 
-		reader, err := c.formatReg.NewReader(formatName)
+		reader, err := c.formatReg.NewReader(registry.FormatID(formatName))
 		if err != nil {
 			continue
 		}
@@ -791,7 +791,7 @@ func (c *BowrainSourceConnector) readBlocks(ctx context.Context, filePath, forma
 
 // readBlocksAndMedia reads a file and extracts both blocks and media using the format reader.
 func (c *BowrainSourceConnector) readBlocksAndMedia(ctx context.Context, filePath, formatName string) ([]*model.Block, []*model.Media, error) {
-	reader, err := c.formatReg.NewReader(formatName)
+	reader, err := c.formatReg.NewReader(registry.FormatID(formatName))
 	if err != nil {
 		return nil, nil, fmt.Errorf("create reader for %s: %w", formatName, err)
 	}
@@ -919,7 +919,7 @@ type MediaReplacementSetter interface {
 
 func (c *BowrainSourceConnector) writeTranslatedFile(ctx context.Context, sourcePath, outputPath, formatName, locale string, targets map[string]string, mediaReplacements ...MediaReplacement) error {
 	// Read source.
-	reader, err := c.formatReg.NewReader(formatName)
+	reader, err := c.formatReg.NewReader(registry.FormatID(formatName))
 	if err != nil {
 		return fmt.Errorf("create reader for %s: %w", formatName, err)
 	}
@@ -970,7 +970,7 @@ func (c *BowrainSourceConnector) writeTranslatedFile(ctx context.Context, source
 	}
 
 	// Write output.
-	writer, err := c.formatReg.NewWriter(formatName)
+	writer, err := c.formatReg.NewWriter(registry.FormatID(formatName))
 	if err != nil {
 		return fmt.Errorf("create writer for %s: %w", formatName, err)
 	}

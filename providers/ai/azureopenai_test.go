@@ -18,7 +18,7 @@ func TestAzureOpenAIProviderName(t *testing.T) {
 		APIKey:  "test-key",
 		Model:   "gpt-4o",
 	})
-	assert.Equal(t, "azureopenai", p.Name())
+	assert.Equal(t, AzureOpenAI, p.Name())
 }
 
 func TestAzureOpenAIProviderChat(t *testing.T) {

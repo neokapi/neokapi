@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/neokapi/neokapi/core/flow"
+	"github.com/neokapi/neokapi/core/registry"
 )
 
 // FlowDefinitionInfo is the frontend-facing flow definition type.
@@ -49,7 +50,7 @@ func flowDefToInfo(def flow.FlowDefinition) FlowDefinitionInfo {
 	for i, n := range def.Nodes {
 		nodes[i] = FlowNodeInfo{
 			ID:       n.ID,
-			Type:     n.Type,
+			Type:     string(n.Type),
 			Name:     n.Name,
 			Label:    n.Label,
 			Config:   n.Config,
@@ -81,7 +82,7 @@ func infoToFlowDef(info FlowDefinitionInfo) flow.FlowDefinition {
 	for i, n := range info.Nodes {
 		nodes[i] = flow.FlowNode{
 			ID:       n.ID,
-			Type:     n.Type,
+			Type:     flow.NodeType(n.Type),
 			Name:     n.Name,
 			Label:    n.Label,
 			Config:   n.Config,
@@ -163,7 +164,7 @@ func (a *App) GetFlowDefinition(id string) (*FlowDefinitionInfo, error) {
 
 // SaveFlowDefinition saves a user flow definition.
 func (a *App) SaveFlowDefinition(info FlowDefinitionInfo) (*FlowDefinitionInfo, error) {
-	if info.Source == "built-in" {
+	if info.Source == registry.SourceBuiltIn {
 		return nil, fmt.Errorf("cannot modify built-in flows")
 	}
 

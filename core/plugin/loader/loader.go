@@ -201,7 +201,7 @@ func (l *PluginLoader) loadFromCache(c *plugincache.PluginCache, fmtReg *registr
 				}
 				// Build a ComponentSchema from the capability + optional FormatSchema.
 				cs := capabilityToComponentSchema(cap, toolSchema)
-				l.toolReg.RegisterMetadata(name, cs, cp.Name)
+				l.toolReg.RegisterMetadata(registry.ToolID(name), cs, cp.Name)
 			}
 		}
 	}
@@ -261,7 +261,7 @@ func (l *PluginLoader) loadFromCache(c *plugincache.PluginCache, fmtReg *registr
 		// Register format metadata with the format registry.
 		if fmtReg != nil {
 			for _, cf := range cp.Formats {
-				fmtReg.RegisterFormatInfo(cf.VersionedName, registry.FormatInfo{
+				fmtReg.RegisterFormatInfo(registry.FormatID(cf.VersionedName), registry.FormatInfo{
 					DisplayName: cf.DisplayName,
 					MimeTypes:   cf.MimeTypes,
 					Extensions:  cf.Extensions,
@@ -368,7 +368,7 @@ func (l *PluginLoader) scanFromDisk(fmtReg *registry.FormatRegistry) error {
 									info.HasReader = cap.HasCapability("read")
 									info.HasWriter = cap.HasCapability("write")
 								}
-								fmtReg.RegisterFormatInfo(versionedName, info)
+								fmtReg.RegisterFormatInfo(registry.FormatID(versionedName), info)
 							}
 						}
 
@@ -387,7 +387,7 @@ func (l *PluginLoader) scanFromDisk(fmtReg *registry.FormatRegistry) error {
 						formats = append(formats, versionedName)
 
 						if fmtReg != nil {
-							fmtReg.RegisterFormatInfo(versionedName, registry.FormatInfo{
+							fmtReg.RegisterFormatInfo(registry.FormatID(versionedName), registry.FormatInfo{
 								DisplayName: cap.DisplayName,
 								MimeTypes:   cap.MimeTypes,
 								Extensions:  cap.Extensions,
@@ -440,8 +440,8 @@ func (l *PluginLoader) scanFromDisk(fmtReg *registry.FormatRegistry) error {
 					best = c
 				}
 			}
-			if info := fmtReg.FormatInfo(best.name); info != nil {
-				fmtReg.RegisterFormatInfo(baseName, *info)
+			if info := fmtReg.FormatInfo(registry.FormatID(best.name)); info != nil {
+				fmtReg.RegisterFormatInfo(registry.FormatID(baseName), *info)
 			}
 		}
 	}
@@ -533,26 +533,26 @@ func (l *PluginLoader) LoadBridges(formatReg *registry.FormatRegistry, toolReg *
 					best = c
 				}
 			}
-			if !formatReg.HasReader(baseName) {
-				if rf := formatReg.ReaderFactory(best.name); rf != nil {
+			if !formatReg.HasReader(registry.FormatID(baseName)) {
+				if rf := formatReg.ReaderFactory(registry.FormatID(best.name)); rf != nil {
 					var sig format.FormatSignature
 					var displayName string
-					if info := formatReg.FormatInfo(best.name); info != nil {
+					if info := formatReg.FormatInfo(registry.FormatID(best.name)); info != nil {
 						sig = format.FormatSignature{
 							MIMETypes:  info.MimeTypes,
 							Extensions: info.Extensions,
 						}
 						displayName = info.DisplayName
 					}
-					formatReg.RegisterReader(baseName, rf, sig, displayName)
-					if info := formatReg.FormatInfo(best.name); info != nil {
-						formatReg.SetFormatSource(baseName, info.Source)
+					formatReg.RegisterReader(registry.FormatID(baseName), rf, sig, displayName)
+					if info := formatReg.FormatInfo(registry.FormatID(best.name)); info != nil {
+						formatReg.SetFormatSource(registry.FormatID(baseName), info.Source)
 					}
 				}
 			}
-			if !formatReg.HasWriter(baseName) {
-				if wf := formatReg.WriterFactory(best.name); wf != nil {
-					formatReg.RegisterWriter(baseName, wf)
+			if !formatReg.HasWriter(registry.FormatID(baseName)) {
+				if wf := formatReg.WriterFactory(registry.FormatID(best.name)); wf != nil {
+					formatReg.RegisterWriter(registry.FormatID(baseName), wf)
 				}
 			}
 		}
@@ -713,12 +713,12 @@ func (l *PluginLoader) loadBridge(manifest *pluginreg.BundledManifest, versionDi
 				}
 			}
 
-			formatReg.RegisterReader(versionedName, func() format.DataFormatReader {
+			formatReg.RegisterReader(registry.FormatID(versionedName), func() format.DataFormatReader {
 				return bridge.NewBridgeFormatReader(sharedRegistry, bridgeCfg, filterClass, sig)
 			}, sig, "")
 			// No separate writer registration — bridge formats use BridgeProcessor
 			// for the single-pass pipeline (Go acts as an Okapi step).
-			formatReg.SetFormatSource(versionedName, manifest.Name)
+			formatReg.SetFormatSource(registry.FormatID(versionedName), manifest.Name)
 		}
 
 		l.logf("registered bridge format: %s (filter: %s)", versionedName, filterClass)
@@ -806,7 +806,7 @@ func (l *PluginLoader) loadBridgeStepTools(versionDir string, reg *bridge.Bridge
 			desc = cs.ToolMeta.Description
 		}
 
-		toolReg.RegisterWithSchema(toolName, func() tool.Tool {
+		toolReg.RegisterWithSchema(registry.ToolID(toolName), func() tool.Tool {
 			return bridge.NewBridgeStepTool(reg, cfgRef, stepClassRef, toolName, desc, schemaRef)
 		}, schemaRef)
 

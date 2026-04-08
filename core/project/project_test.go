@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/neokapi/neokapi/core/flow"
+	"github.com/neokapi/neokapi/core/model"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gopkg.in/yaml.v3"
@@ -20,7 +21,7 @@ func TestLoadSaveRoundtrip(t *testing.T) {
 		},
 		Defaults: Defaults{
 			SourceLanguage:  "en-US",
-			TargetLanguages: []string{"fr-FR", "de-DE"},
+			TargetLanguages: []model.LocaleID{"fr-FR", "de-DE"},
 			Concurrency:     4,
 			ParallelBlocks:  3,
 			Encoding:        "utf-8",
@@ -33,7 +34,7 @@ func TestLoadSaveRoundtrip(t *testing.T) {
 			{Path: "src/locales/en/*.json", Format: &FormatSpec{Name: "json"}, Target: "src/locales/{lang}/*.json"},
 			{
 				Name:            "Marketing",
-				TargetLanguages: []string{"fr-FR"},
+				TargetLanguages: []model.LocaleID{"fr-FR"},
 				Items: []ContentItem{
 					{Path: "marketing/**/*.html", Format: &FormatSpec{Name: "okf_html", Preset: "lenient"}, Target: "marketing/{lang}/**/*.html"},
 					{Path: "marketing/**/*.json", Target: "marketing/{lang}/**/*.json"},
@@ -66,8 +67,8 @@ func TestLoadSaveRoundtrip(t *testing.T) {
 
 	assert.Equal(t, "v1", loaded.Version)
 	assert.Equal(t, "My App", loaded.Name)
-	assert.Equal(t, "en-US", loaded.Defaults.SourceLanguage)
-	assert.Equal(t, []string{"fr-FR", "de-DE"}, loaded.Defaults.TargetLanguages)
+	assert.Equal(t, model.LocaleID("en-US"), loaded.Defaults.SourceLanguage)
+	assert.Equal(t, []model.LocaleID{"fr-FR", "de-DE"}, loaded.Defaults.TargetLanguages)
 	assert.Equal(t, 4, loaded.Defaults.Concurrency)
 	assert.Equal(t, 3, loaded.Defaults.ParallelBlocks)
 	assert.Equal(t, "utf-8", loaded.Defaults.Encoding)
@@ -93,7 +94,7 @@ func TestLoadSaveRoundtrip(t *testing.T) {
 	coll := loaded.Content[1]
 	assert.False(t, coll.IsBareEntry())
 	assert.Equal(t, "Marketing", coll.Name)
-	assert.Equal(t, []string{"fr-FR"}, coll.TargetLanguages)
+	assert.Equal(t, []model.LocaleID{"fr-FR"}, coll.TargetLanguages)
 	require.Len(t, coll.Items, 2)
 	assert.Equal(t, "marketing/**/*.html", coll.Items[0].Path)
 	assert.Equal(t, "okf_html", coll.Items[0].Format.Name)
@@ -152,8 +153,8 @@ flows:
 	require.NoError(t, err)
 
 	assert.Equal(t, "Test Project", proj.Name)
-	assert.Equal(t, "en", proj.Defaults.SourceLanguage)
-	assert.Equal(t, []string{"fr", "de"}, proj.Defaults.TargetLanguages)
+	assert.Equal(t, model.LocaleID("en"), proj.Defaults.SourceLanguage)
+	assert.Equal(t, []model.LocaleID{"fr", "de"}, proj.Defaults.TargetLanguages)
 
 	// Format defaults.
 	require.Contains(t, proj.Defaults.Formats, "okf_html")
@@ -178,8 +179,8 @@ flows:
 	coll := proj.Content[1]
 	assert.False(t, coll.IsBareEntry())
 	assert.Equal(t, "Docs", coll.Name)
-	assert.Equal(t, "zh-CN", coll.SourceLanguage)
-	assert.Equal(t, []string{"en-US"}, coll.TargetLanguages)
+	assert.Equal(t, model.LocaleID("zh-CN"), coll.SourceLanguage)
+	assert.Equal(t, []model.LocaleID{"en-US"}, coll.TargetLanguages)
 	require.Len(t, coll.Items, 1)
 	assert.Equal(t, "okf_html", coll.Items[0].Format.Name)
 	assert.Equal(t, "lenient", coll.Items[0].Format.Preset)
@@ -271,44 +272,44 @@ func TestContentCollectionBareVsCollection(t *testing.T) {
 func TestLanguageResolution(t *testing.T) {
 	defaults := Defaults{
 		SourceLanguage:  "en-US",
-		TargetLanguages: []string{"fr-FR", "de-DE", "ja-JP"},
+		TargetLanguages: []model.LocaleID{"fr-FR", "de-DE", "ja-JP"},
 	}
 
 	coll := &ContentCollection{
 		Name:            "China",
 		SourceLanguage:  "zh-CN",
-		TargetLanguages: []string{"en-US"},
+		TargetLanguages: []model.LocaleID{"en-US"},
 	}
 
 	t.Run("item inherits from defaults", func(t *testing.T) {
 		item := &ContentItem{Path: "src/**/*"}
-		assert.Equal(t, "en-US", item.ResolvedSourceLanguage(nil, defaults))
-		assert.Equal(t, []string{"fr-FR", "de-DE", "ja-JP"}, item.ResolvedTargetLanguages(nil, defaults))
+		assert.Equal(t, model.LocaleID("en-US"), item.ResolvedSourceLanguage(nil, defaults))
+		assert.Equal(t, []model.LocaleID{"fr-FR", "de-DE", "ja-JP"}, item.ResolvedTargetLanguages(nil, defaults))
 	})
 
 	t.Run("item inherits from collection", func(t *testing.T) {
 		item := &ContentItem{Path: "china/**/*"}
-		assert.Equal(t, "zh-CN", item.ResolvedSourceLanguage(coll, defaults))
-		assert.Equal(t, []string{"en-US"}, item.ResolvedTargetLanguages(coll, defaults))
+		assert.Equal(t, model.LocaleID("zh-CN"), item.ResolvedSourceLanguage(coll, defaults))
+		assert.Equal(t, []model.LocaleID{"en-US"}, item.ResolvedTargetLanguages(coll, defaults))
 	})
 
 	t.Run("item overrides collection", func(t *testing.T) {
 		item := &ContentItem{
 			Path:            "special/*",
 			SourceLanguage:  "ko-KR",
-			TargetLanguages: []string{"ja-JP"},
+			TargetLanguages: []model.LocaleID{"ja-JP"},
 		}
-		assert.Equal(t, "ko-KR", item.ResolvedSourceLanguage(coll, defaults))
-		assert.Equal(t, []string{"ja-JP"}, item.ResolvedTargetLanguages(coll, defaults))
+		assert.Equal(t, model.LocaleID("ko-KR"), item.ResolvedSourceLanguage(coll, defaults))
+		assert.Equal(t, []model.LocaleID{"ja-JP"}, item.ResolvedTargetLanguages(coll, defaults))
 	})
 
 	t.Run("partial override — source from collection, targets from item", func(t *testing.T) {
 		item := &ContentItem{
 			Path:            "mixed/*",
-			TargetLanguages: []string{"de-DE"},
+			TargetLanguages: []model.LocaleID{"de-DE"},
 		}
-		assert.Equal(t, "zh-CN", item.ResolvedSourceLanguage(coll, defaults))
-		assert.Equal(t, []string{"de-DE"}, item.ResolvedTargetLanguages(coll, defaults))
+		assert.Equal(t, model.LocaleID("zh-CN"), item.ResolvedSourceLanguage(coll, defaults))
+		assert.Equal(t, []model.LocaleID{"de-DE"}, item.ResolvedTargetLanguages(coll, defaults))
 	})
 }
 

@@ -98,7 +98,7 @@ func (t *TMLeverageTool) handleBlock(part *model.Part) (*model.Part, error) {
 		Locale:    t.cfg.TargetLocale,
 		Origin:    "tm:sievepen",
 		Score:     best.Score,
-		MatchType: best.MatchType.String(),
+		MatchType: model.MatchType(best.MatchType),
 	}
 
 	return part, nil

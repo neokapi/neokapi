@@ -12,6 +12,7 @@ import (
 	"github.com/neokapi/neokapi/core/flow"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/project"
+	"github.com/neokapi/neokapi/core/registry"
 	"github.com/neokapi/neokapi/core/tool"
 	aiprovider "github.com/neokapi/neokapi/providers/ai"
 )
@@ -218,7 +219,7 @@ func (a *App) executeFlowAllLangs(ctx context.Context, flowName string, spec *fl
 			// Inject live progress callback for AI tools.
 			config["onProgress"] = onProgress
 
-			t, err := a.toolReg.NewToolWithConfig(step.Tool, config, lang)
+			t, err := a.toolReg.NewToolWithConfig(registry.ToolID(step.Tool), config, lang)
 			if err != nil {
 				a.emitRunEvent(RunEvent{
 					Type: "error", FlowID: flowName,
@@ -255,8 +256,8 @@ func (a *App) executeFlowAllLangs(ctx context.Context, flowName string, spec *fl
 				FormatReg:    a.formatReg,
 				SourceLocale: pctx.SourceLocale,
 				Encoding:     pctx.Encoding,
-				DetectFormat: func(path string) string {
-					return pctx.DetectFormat(a.formatReg, path)
+				DetectFormat: func(path string) registry.FormatID {
+					return registry.FormatID(pctx.DetectFormat(a.formatReg, path))
 				},
 			})
 
@@ -400,7 +401,7 @@ func (a *App) PreviewFlow(tabID, flowName, sampleText, sourceLang, targetLang st
 		if config == nil {
 			config = make(map[string]any)
 		}
-		t, err := a.toolReg.NewToolWithConfig(step.Tool, config, targetLang)
+		t, err := a.toolReg.NewToolWithConfig(registry.ToolID(step.Tool), config, targetLang)
 		if err != nil {
 			return nil, fmt.Errorf("tool %q: %w", step.Tool, err)
 		}
@@ -417,7 +418,7 @@ func (a *App) PreviewFlow(tabID, flowName, sampleText, sourceLang, targetLang st
 		nodeID := fmt.Sprintf("tool-%d", i)
 		traceNodes[i] = flow.TraceNode{
 			ID:   nodeID,
-			Type: "tool",
+			Type: flow.NodeTool,
 			Name: t.Name(),
 		}
 		tracedTools[i] = flow.NewTracingTool(t, nodeID, recorder)

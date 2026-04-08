@@ -29,12 +29,12 @@ type FileRunnerConfig struct {
 	// DetectFormat is an optional callback for project-scoped format detection.
 	// When set, it replaces the default FormatReg.DetectByExtension call.
 	// Use this to restrict detection to project-declared plugin sources.
-	DetectFormat func(path string) string
+	DetectFormat func(path string) registry.FormatID
 
 	// ConfigureReader is an optional callback applied to each reader after
 	// creation. Use this to apply project format defaults or preset config.
 	// The formatName parameter is the detected format name (e.g., "json").
-	ConfigureReader func(reader format.DataFormatReader, formatName string) error
+	ConfigureReader func(reader format.DataFormatReader, formatName registry.FormatID) error
 
 	// ConfigureWriter is an optional callback applied to each writer after
 	// creation. Use this to apply project encoding or other defaults.
@@ -62,7 +62,7 @@ func NewFileRunner(cfg FileRunnerConfig) *FileRunner {
 func (r *FileRunner) RunFile(ctx context.Context, flowName string, tools []tool.Tool, inputPath, outputPath, targetLang string) error {
 	reg := r.cfg.FormatReg
 
-	var fmtName string
+	var fmtName registry.FormatID
 	if r.cfg.DetectFormat != nil {
 		fmtName = r.cfg.DetectFormat(inputPath)
 	}

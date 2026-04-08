@@ -153,7 +153,7 @@ func (a *App) GetTerms(projectID, query, sourceLocale, targetLocale string, offs
 	if err != nil {
 		return nil, fmt.Errorf("init termbase: %w", err)
 	}
-	results, total := tb.Search(query, sourceLocale, targetLocale, offset, limit)
+	results, total := tb.Search(query, model.LocaleID(sourceLocale), model.LocaleID(targetLocale), offset, limit)
 	infos := make([]ConceptInfo, len(results))
 	for i, c := range results {
 		infos[i] = conceptToInfo(c)

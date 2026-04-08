@@ -114,7 +114,7 @@ func (m *PluginManager) loadPlugin(path string, reg *registry.FormatRegistry) er
 				if reg != nil {
 					sig := reader.Signature()
 					displayName := reader.DisplayName()
-					reg.RegisterReader(name, func() format.DataFormatReader {
+					reg.RegisterReader(registry.FormatID(name), func() format.DataFormatReader {
 						return reader
 					}, sig, displayName)
 					m.logger.Printf("registered format reader plugin: %s (mime=%v, ext=%v)",
@@ -139,7 +139,7 @@ func (m *PluginManager) loadPlugin(path string, reg *registry.FormatRegistry) er
 				m.plugins[path] = mp
 
 				if reg != nil {
-					reg.RegisterWriter(writerName, func() format.DataFormatWriter {
+					reg.RegisterWriter(registry.FormatID(writerName), func() format.DataFormatWriter {
 						return writer
 					})
 					m.logger.Printf("registered format writer plugin: %s", writerName)

@@ -1,5 +1,9 @@
 package preset
 
+// sourceBuiltIn mirrors sourceBuiltIn to avoid an import cycle
+// (preset cannot import registry because registry transitively depends on preset).
+const sourceBuiltIn = "built-in"
+
 // RegisterBuiltins registers built-in framework presets into the given registry.
 func RegisterBuiltins(reg *PresetRegistry) {
 	reg.RegisterFrameworkPreset("nextjs", nextjsPreset())
@@ -26,7 +30,7 @@ func nextjsPreset() *FrameworkPreset {
 		Flows: map[string]map[string]any{
 			"translate": {"ai_provider": "anthropic"},
 		},
-		Source: "built-in",
+		Source: sourceBuiltIn,
 	}
 }
 
@@ -49,7 +53,7 @@ func reactIntlPreset() *FrameworkPreset {
 		Flows: map[string]map[string]any{
 			"translate": {"ai_provider": "anthropic"},
 		},
-		Source: "built-in",
+		Source: sourceBuiltIn,
 	}
 }
 
@@ -66,6 +70,6 @@ func angularPreset() *FrameworkPreset {
 			},
 		},
 		Exclude: []string{"node_modules/**", "dist/**", ".angular/**"},
-		Source:  "built-in",
+		Source:  sourceBuiltIn,
 	}
 }

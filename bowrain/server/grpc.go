@@ -11,6 +11,7 @@ import (
 	"github.com/neokapi/neokapi/bowrain/core/store"
 	pb "github.com/neokapi/neokapi/bowrain/proto/v1"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/registry"
 	"github.com/neokapi/neokapi/core/tool"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -218,7 +219,7 @@ func (g *GRPCServer) ExecuteFlow(req *pb.ExecuteFlowRequest, stream pb.NeokapiSe
 	// Build tools from registry.
 	tools := make([]tool.Tool, 0, len(cfg.Tools))
 	for _, name := range cfg.Tools {
-		t, err := g.srv.ToolRegistry.NewTool(name)
+		t, err := g.srv.ToolRegistry.NewTool(registry.ToolID(name))
 		if err != nil {
 			return status.Errorf(codes.InvalidArgument, "unknown tool %q: %v", name, err)
 		}

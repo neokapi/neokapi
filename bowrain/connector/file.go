@@ -98,7 +98,7 @@ func (c *FileConnector) fetchFile(ctx context.Context, path string) (*platconn.C
 		return nil, fmt.Errorf("detect format for %s: %w", path, err)
 	}
 
-	reader, err := c.formatRegistry.NewReader(formatName)
+	reader, err := c.formatRegistry.NewReader(registry.FormatID(formatName))
 	if err != nil {
 		return nil, fmt.Errorf("create reader for %s: %w", formatName, err)
 	}
@@ -162,7 +162,7 @@ func (c *FileConnector) Publish(ctx context.Context, items []*platconn.ContentIt
 func (c *FileConnector) publishFile(ctx context.Context, item *platconn.ContentItem, opts platconn.PublishOptions) error {
 	path := filepath.Join(c.basePath, item.Path)
 
-	writer, err := c.formatRegistry.NewWriter(item.Format)
+	writer, err := c.formatRegistry.NewWriter(registry.FormatID(item.Format))
 	if err != nil {
 		return fmt.Errorf("create writer for %s: %w", item.Format, err)
 	}

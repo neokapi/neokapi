@@ -114,7 +114,7 @@ Suggestion: <improved translation if needed, or "none">`,
 		block.Properties = make(map[string]string)
 	}
 	block.Properties["review"] = resp.Content
-	block.Properties["review-provider"] = t.provider.Name()
+	block.Properties["review-provider"] = string(t.provider.Name())
 
 	return part, nil
 }

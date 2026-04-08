@@ -3,6 +3,7 @@ package backend
 import (
 	"testing"
 
+	"github.com/neokapi/neokapi/core/registry"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -15,7 +16,7 @@ func TestFlowDefToInfoRoundTrip(t *testing.T) {
 	for _, d := range defs {
 		assert.NotEmpty(t, d.ID)
 		assert.NotEmpty(t, d.Name)
-		if d.Source == "built-in" {
+		if d.Source == registry.SourceBuiltIn {
 			assert.NotEmpty(t, d.Nodes)
 			assert.NotEmpty(t, d.Edges)
 		}
@@ -40,7 +41,7 @@ func TestGetFlowDefinitionBuiltIn(t *testing.T) {
 	info, err := app.GetFlowDefinition("ai-translate")
 	require.NoError(t, err)
 	assert.Equal(t, "AI Translate", info.Name)
-	assert.Equal(t, "built-in", info.Source)
+	assert.Equal(t, registry.SourceBuiltIn, info.Source)
 }
 
 func TestGetFlowDefinitionNotFound(t *testing.T) {
@@ -61,7 +62,7 @@ func TestSaveBuiltInFlowFails(t *testing.T) {
 	_, err := app.SaveFlowDefinition(FlowDefinitionInfo{
 		ID:     "test",
 		Name:   "test",
-		Source: "built-in",
+		Source: registry.SourceBuiltIn,
 	})
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "built-in")

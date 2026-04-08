@@ -98,7 +98,7 @@ func (a *App) ListProviderTypes() []ProviderTypeInfo {
 	providers := aiprovider.Providers()
 	out := make([]ProviderTypeInfo, len(providers))
 	for i, p := range providers {
-		out[i] = ProviderTypeInfo{Name: p.Name, Label: p.Label}
+		out[i] = ProviderTypeInfo{Name: string(p.Name), Label: p.Label}
 	}
 	return out
 }

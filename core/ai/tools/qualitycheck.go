@@ -163,7 +163,7 @@ func (t *AIQACheckTool) handleBlock(part *model.Part) (*model.Part, error) {
 
 	issuesJSON, _ := json.Marshal(result.Issues)
 	block.Properties["qa-issues"] = string(issuesJSON)
-	block.Properties["qa-provider"] = t.provider.Name()
+	block.Properties["qa-provider"] = string(t.provider.Name())
 	block.Properties["qa-checks"] = strings.Join(t.checks, ",")
 
 	return part, nil

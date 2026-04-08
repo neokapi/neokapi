@@ -66,7 +66,7 @@ func NewAzureOpenAITokenProvider(endpoint, deployment string, tp TokenProvider) 
 	}
 }
 
-func (p *AzureOpenAIProvider) Name() string { return "azureopenai" }
+func (p *AzureOpenAIProvider) Name() ProviderID { return AzureOpenAI }
 
 func (p *AzureOpenAIProvider) Translate(ctx context.Context, req TranslateRequest) (*TranslateResponse, error) {
 	system := fmt.Sprintf(

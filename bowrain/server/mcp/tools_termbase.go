@@ -59,7 +59,7 @@ func (s *MCPServer) handleTermSearch(ctx context.Context, req *mcp.CallToolReque
 		limit = 10
 	}
 
-	concepts, total := tb.Search(input.Query, input.Locale, "", 0, limit)
+	concepts, total := tb.Search(input.Query, model.LocaleID(input.Locale), "", 0, limit)
 
 	var results []termResult
 	for _, c := range concepts {

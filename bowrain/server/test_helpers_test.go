@@ -338,6 +338,6 @@ func (t *testTermStore) AddConceptWithStream(concept termbase.Concept, _ string)
 	return t.AddConcept(concept)
 }
 
-func (t *testTermStore) SearchForStream(query, sourceLocale, targetLocale, _ string, _ []string, offset, limit int) ([]termbase.Concept, int) {
+func (t *testTermStore) SearchForStream(query string, sourceLocale, targetLocale model.LocaleID, _ string, _ []string, offset, limit int) ([]termbase.Concept, int) {
 	return t.Search(query, sourceLocale, targetLocale, offset, limit)
 }

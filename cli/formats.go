@@ -49,7 +49,7 @@ Use --mime or --ext to filter by MIME type or file extension.`,
 			}
 			for _, info := range infos {
 				out.Formats = append(out.Formats, output.FormatInfo{
-					Name:        info.Name,
+					Name:        string(info.Name),
 					DisplayName: info.DisplayName,
 					HasReader:   info.HasReader,
 					HasWriter:   info.HasWriter,
@@ -78,7 +78,7 @@ func (a *App) newFormatsInfoCmd() *cobra.Command {
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			filterID := args[0]
-			info := a.FormatReg.FormatInfo(filterID)
+			info := a.FormatReg.FormatInfo(registry.FormatID(filterID))
 
 			var filterSchema *schema.FormatSchema
 			if a.SchemaReg != nil {
@@ -160,7 +160,7 @@ func (a *App) newFormatsInfoCmd() *cobra.Command {
 			}
 
 			// Check if the format declares a config kind.
-			if reader, err := a.FormatReg.NewReader(filterID); err == nil {
+			if reader, err := a.FormatReg.NewReader(registry.FormatID(filterID)); err == nil {
 				if cfg := reader.Config(); cfg != nil {
 					if ckp, ok := cfg.(format.ConfigKindProvider); ok {
 						out.ConfigKind = string(ckp.ConfigKind())
@@ -214,16 +214,18 @@ func deduplicateVersionedFormats(infos []registry.FormatInfo) []registry.FormatI
 	// Build a set of bare names present in the list.
 	bareNames := make(map[string]bool, len(infos))
 	for _, info := range infos {
-		if !strings.Contains(info.Name, "@") {
-			bareNames[info.Name] = true
+		name := string(info.Name)
+		if !strings.Contains(name, "@") {
+			bareNames[name] = true
 		}
 	}
 
 	// Filter out versioned entries whose bare name is also present.
 	result := make([]registry.FormatInfo, 0, len(infos))
 	for _, info := range infos {
-		if idx := strings.LastIndex(info.Name, "@"); idx > 0 {
-			baseName := info.Name[:idx]
+		name := string(info.Name)
+		if idx := strings.LastIndex(name, "@"); idx > 0 {
+			baseName := name[:idx]
 			if bareNames[baseName] {
 				continue // skip — bare-name alias covers this
 			}

@@ -28,7 +28,7 @@ func TestFilterFormatsByMime(t *testing.T) {
 
 	result := filterFormats(infos, "text/html", "")
 	assert.Len(t, result, 1)
-	assert.Equal(t, "html", result[0].Name)
+	assert.Equal(t, registry.FormatID("html"), result[0].Name)
 }
 
 func TestFilterFormatsByExt(t *testing.T) {
@@ -39,7 +39,7 @@ func TestFilterFormatsByExt(t *testing.T) {
 
 	result := filterFormats(infos, "", ".htm")
 	assert.Len(t, result, 1)
-	assert.Equal(t, "html", result[0].Name)
+	assert.Equal(t, registry.FormatID("html"), result[0].Name)
 }
 
 func TestFilterFormatsCombined(t *testing.T) {
@@ -51,7 +51,7 @@ func TestFilterFormatsCombined(t *testing.T) {
 
 	result := filterFormats(infos, "text/html", ".htm")
 	assert.Len(t, result, 1)
-	assert.Equal(t, "okapi-html", result[0].Name)
+	assert.Equal(t, registry.FormatID("okapi-html"), result[0].Name)
 }
 
 func TestContainsLower(t *testing.T) {

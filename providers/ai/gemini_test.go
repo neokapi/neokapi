@@ -14,7 +14,7 @@ import (
 func TestGeminiProviderName(t *testing.T) {
 	t.Parallel()
 	p := NewGeminiProvider(Config{APIKey: "test-key"})
-	assert.Equal(t, "gemini", p.Name())
+	assert.Equal(t, Gemini, p.Name())
 }
 
 func TestGeminiProviderDefaults(t *testing.T) {

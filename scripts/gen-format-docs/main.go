@@ -70,7 +70,7 @@ func main() {
 
 	for _, info := range infos {
 		doc := FormatDoc{
-			ID:          info.Name,
+			ID:          string(info.Name),
 			DisplayName: info.DisplayName,
 			Extensions:  info.Extensions,
 			MIMETypes:   info.MimeTypes,

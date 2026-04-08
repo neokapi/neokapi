@@ -16,6 +16,7 @@ import (
 	"os"
 
 	"github.com/neokapi/neokapi/core/flow"
+	"github.com/neokapi/neokapi/core/model"
 
 	"gopkg.in/yaml.v3"
 )
@@ -36,8 +37,8 @@ type KapiProject struct {
 
 // Defaults holds project-wide processing defaults.
 type Defaults struct {
-	SourceLanguage  string                    `yaml:"source_language,omitempty" json:"source_language,omitempty"`
-	TargetLanguages []string                  `yaml:"target_languages,omitempty" json:"target_languages,omitempty"`
+	SourceLanguage  model.LocaleID            `yaml:"source_language,omitempty" json:"source_language,omitempty"`
+	TargetLanguages []model.LocaleID          `yaml:"target_languages,omitempty" json:"target_languages,omitempty"`
 	LocaleFormat    string                    `yaml:"locale_format,omitempty" json:"locale_format,omitempty"` // "bcp-47" (default) or "posix"
 	Concurrency     int                       `yaml:"concurrency,omitempty" json:"concurrency,omitempty"`
 	ParallelBlocks  int                       `yaml:"parallel_blocks,omitempty" json:"parallel_blocks,omitempty"`
@@ -101,9 +102,9 @@ func (s *PluginSpec) UnmarshalYAML(node *yaml.Node) error {
 //     format: okf_html
 type ContentCollection struct {
 	// Collection fields (long form).
-	Name            string        `yaml:"name,omitempty" json:"name,omitempty"`
-	SourceLanguage  string        `yaml:"source_language,omitempty" json:"source_language,omitempty"`
-	TargetLanguages []string      `yaml:"target_languages,omitempty" json:"target_languages,omitempty"`
+	Name            string           `yaml:"name,omitempty" json:"name,omitempty"`
+	SourceLanguage  model.LocaleID   `yaml:"source_language,omitempty" json:"source_language,omitempty"`
+	TargetLanguages []model.LocaleID `yaml:"target_languages,omitempty" json:"target_languages,omitempty"`
 	Items           []ContentItem `yaml:"items,omitempty" json:"items,omitempty"`
 
 	// Bare entry fields (short form — promoted from ContentItem).
@@ -132,16 +133,16 @@ func (c *ContentCollection) EffectiveItems() []ContentItem {
 
 // ContentItem is a single content pattern within a collection.
 type ContentItem struct {
-	Path            string      `yaml:"path" json:"path"`
-	Format          *FormatSpec `yaml:"format,omitempty" json:"format,omitempty"`
-	Target          string      `yaml:"target,omitempty" json:"target,omitempty"`
-	SourceLanguage  string      `yaml:"source_language,omitempty" json:"source_language,omitempty"`
-	TargetLanguages []string    `yaml:"target_languages,omitempty" json:"target_languages,omitempty"`
+	Path            string           `yaml:"path" json:"path"`
+	Format          *FormatSpec      `yaml:"format,omitempty" json:"format,omitempty"`
+	Target          string           `yaml:"target,omitempty" json:"target,omitempty"`
+	SourceLanguage  model.LocaleID   `yaml:"source_language,omitempty" json:"source_language,omitempty"`
+	TargetLanguages []model.LocaleID `yaml:"target_languages,omitempty" json:"target_languages,omitempty"`
 }
 
 // ResolvedSourceLanguage returns the source language for this item, falling
 // back through collection and project defaults.
-func (item *ContentItem) ResolvedSourceLanguage(coll *ContentCollection, defaults Defaults) string {
+func (item *ContentItem) ResolvedSourceLanguage(coll *ContentCollection, defaults Defaults) model.LocaleID {
 	if item.SourceLanguage != "" {
 		return item.SourceLanguage
 	}
@@ -153,7 +154,7 @@ func (item *ContentItem) ResolvedSourceLanguage(coll *ContentCollection, default
 
 // ResolvedTargetLanguages returns the target languages for this item, falling
 // back through collection and project defaults.
-func (item *ContentItem) ResolvedTargetLanguages(coll *ContentCollection, defaults Defaults) []string {
+func (item *ContentItem) ResolvedTargetLanguages(coll *ContentCollection, defaults Defaults) []model.LocaleID {
 	if len(item.TargetLanguages) > 0 {
 		return item.TargetLanguages
 	}

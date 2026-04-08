@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -32,7 +33,7 @@ func TestRunFromProject_LoadsDefaults(t *testing.T) {
 		Name:    "Test",
 		Defaults: project.Defaults{
 			SourceLanguage:  "ja-JP",
-			TargetLanguages: []string{"en-US", "zh-CN"},
+			TargetLanguages: []model.LocaleID{"en-US", "zh-CN"},
 		},
 	}
 	require.NoError(t, project.Save(projPath, proj))
@@ -49,10 +50,10 @@ func TestRunFromProject_LoadsDefaults(t *testing.T) {
 
 	// Simulate what runFromProject does for language defaults.
 	if app.SourceLang == "en" && loaded.Defaults.SourceLanguage != "" {
-		app.SourceLang = loaded.Defaults.SourceLanguage
+		app.SourceLang = string(loaded.Defaults.SourceLanguage)
 	}
 	if app.TargetLang == "" && len(loaded.Defaults.TargetLanguages) > 0 {
-		app.TargetLang = loaded.Defaults.TargetLanguages[0]
+		app.TargetLang = string(loaded.Defaults.TargetLanguages[0])
 	}
 
 	assert.Equal(t, "ja-JP", app.SourceLang, "project source lang should override default 'en'")
@@ -69,7 +70,7 @@ func TestRunFromProject_CLIFlagsOverride(t *testing.T) {
 		Name:    "Test",
 		Defaults: project.Defaults{
 			SourceLanguage:  "ja-JP",
-			TargetLanguages: []string{"en-US"},
+			TargetLanguages: []model.LocaleID{"en-US"},
 		},
 	}
 	require.NoError(t, project.Save(projPath, proj))
@@ -85,10 +86,10 @@ func TestRunFromProject_CLIFlagsOverride(t *testing.T) {
 
 	// Same logic as runFromProject — only override when CLI default.
 	if app.SourceLang == "en" && loaded.Defaults.SourceLanguage != "" {
-		app.SourceLang = loaded.Defaults.SourceLanguage
+		app.SourceLang = string(loaded.Defaults.SourceLanguage)
 	}
 	if app.TargetLang == "" && len(loaded.Defaults.TargetLanguages) > 0 {
-		app.TargetLang = loaded.Defaults.TargetLanguages[0]
+		app.TargetLang = string(loaded.Defaults.TargetLanguages[0])
 	}
 
 	assert.Equal(t, "fr-FR", app.SourceLang, "explicit CLI source lang should not be overridden")
@@ -194,7 +195,7 @@ flows:
 	require.NoError(t, err)
 
 	assert.Equal(t, "Acme App Localization", proj.Name)
-	assert.Equal(t, "en-US", proj.Defaults.SourceLanguage)
+	assert.Equal(t, model.LocaleID("en-US"), proj.Defaults.SourceLanguage)
 	assert.Equal(t, 3, len(proj.Defaults.TargetLanguages))
 	assert.Equal(t, 2, len(proj.Content))
 	assert.Equal(t, "nextjs", proj.Preset)

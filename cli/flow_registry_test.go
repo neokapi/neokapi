@@ -31,7 +31,7 @@ func TestBuiltinComposedFlows_OnlyMultiTool(t *testing.T) {
 			if def.ID == cf.Name {
 				toolCount := 0
 				for _, n := range def.Nodes {
-					if n.Type == "tool" {
+					if n.Type == flow.NodeTool {
 						toolCount++
 					}
 				}

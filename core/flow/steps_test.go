@@ -22,14 +22,14 @@ func TestStepsToGraph_Linear(t *testing.T) {
 
 	// reader + 2 tools + writer = 4 nodes
 	assert.Len(t, nodes, 4)
-	assert.Equal(t, "reader", nodes[0].Type)
+	assert.Equal(t, NodeReader, nodes[0].Type)
 	assert.Equal(t, "auto", nodes[0].Name)
-	assert.Equal(t, "tool", nodes[1].Type)
+	assert.Equal(t, NodeTool, nodes[1].Type)
 	assert.Equal(t, "ai-translate", nodes[1].Name)
 	assert.Equal(t, map[string]any{"provider": "anthropic"}, nodes[1].Config)
-	assert.Equal(t, "tool", nodes[2].Type)
+	assert.Equal(t, NodeTool, nodes[2].Type)
 	assert.Equal(t, "qa-check", nodes[2].Name)
-	assert.Equal(t, "writer", nodes[3].Type)
+	assert.Equal(t, NodeWriter, nodes[3].Type)
 
 	// reader->translate, translate->qa, qa->writer = 3 edges
 	assert.Len(t, edges, 3)

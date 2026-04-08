@@ -102,7 +102,9 @@ func populateAnnotation(typeName string, a model.Annotation, m map[string]any) m
 			v.QualityScore = f
 		}
 		v.Engine, _ = m["engine"].(string)
-		v.MatchType, _ = m["match_type"].(string)
+		if mt, ok := m["match_type"].(string); ok {
+			v.MatchType = model.MatchType(mt)
+		}
 		v.ToolID, _ = m["tool_id"].(string)
 		v.AltTransType, _ = m["alt_trans_type"].(string)
 		v.FromOriginal, _ = m["from_original"].(bool)

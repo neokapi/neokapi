@@ -21,7 +21,7 @@ type mockProvider struct {
 	lastRequest mtprovider.TranslateRequest
 }
 
-func (m *mockProvider) Name() string { return m.name }
+func (m *mockProvider) Name() mtprovider.ProviderID { return mtprovider.ProviderID(m.name) }
 func (m *mockProvider) Close() error { return nil }
 func (m *mockProvider) Translate(ctx context.Context, req mtprovider.TranslateRequest) (*mtprovider.TranslateResponse, error) {
 	m.calls++

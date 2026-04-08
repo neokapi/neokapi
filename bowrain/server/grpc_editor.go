@@ -460,11 +460,13 @@ func (g *EditorGRPCServer) GetTerms(ctx context.Context, req *pb.TermsRequest) (
 
 	var concepts []termbase.Concept
 	var total int
+	srcLocaleID := model.LocaleID(req.SourceLocale)
+	tgtLocaleID := model.LocaleID(req.TargetLocale)
 	if req.Stream != "" && req.Stream != "main" && g.srv.ContentStore != nil {
 		chain := buildStreamChain(ctx, g.srv.ContentStore, "", req.Stream)
-		concepts, total = tb.SearchForStream(req.Query, req.SourceLocale, req.TargetLocale, req.Stream, chain[1:], int(req.Offset), limit)
+		concepts, total = tb.SearchForStream(req.Query, srcLocaleID, tgtLocaleID, req.Stream, chain[1:], int(req.Offset), limit)
 	} else {
-		concepts, total = tb.Search(req.Query, req.SourceLocale, req.TargetLocale, int(req.Offset), limit)
+		concepts, total = tb.Search(req.Query, srcLocaleID, tgtLocaleID, int(req.Offset), limit)
 	}
 
 	resp := &pb.TermsResponse{TotalCount: int32(total)}
