@@ -6,7 +6,7 @@ require (
 	github.com/neokapi/neokapi v0.0.0
 	github.com/neokapi/neokapi/cli v0.0.0-00010101000000-000000000000
 	github.com/stretchr/testify v1.11.1
-	github.com/wailsapp/wails/v3 v3.0.0-alpha.74
+	github.com/wailsapp/wails/v3 v3.0.0-alpha.8.2
 	gopkg.in/yaml.v3 v3.0.1
 )
 
@@ -17,7 +17,6 @@ require (
 	github.com/adrg/xdg v0.5.3 // indirect
 	github.com/bep/debounce v1.2.1 // indirect
 	github.com/cloudflare/circl v1.6.3 // indirect
-	github.com/coder/websocket v1.8.14 // indirect
 	github.com/cyphar/filepath-securejoin v0.6.1 // indirect
 	github.com/danieljoos/wincred v1.2.3 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
@@ -60,6 +59,7 @@ require (
 	github.com/sergi/go-diff v1.4.0 // indirect
 	github.com/skeema/knownhosts v1.3.2 // indirect
 	github.com/wailsapp/go-webview2 v1.0.23 // indirect
+	github.com/wailsapp/mimetype v1.4.1 // indirect
 	github.com/xanzy/ssh-agent v0.3.3 // indirect
 	github.com/yuin/goldmark v1.7.16 // indirect
 	github.com/zalando/go-keyring v0.2.8 // indirect
