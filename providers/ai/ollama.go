@@ -31,7 +31,7 @@ func NewOllamaProvider(cfg Config) *OllamaProvider {
 	}
 }
 
-func (p *OllamaProvider) Name() string { return "ollama" }
+func (p *OllamaProvider) Name() ProviderID { return Ollama }
 
 func (p *OllamaProvider) Translate(ctx context.Context, req TranslateRequest) (*TranslateResponse, error) {
 	prompt := fmt.Sprintf(

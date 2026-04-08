@@ -49,7 +49,7 @@ func NewGoogleProvider(cfg GoogleConfig) *GoogleProvider {
 	return &GoogleProvider{cfg: cfg, client: httputil.NewResilientClient()}
 }
 
-func (p *GoogleProvider) Name() string { return "google" }
+func (p *GoogleProvider) Name() ProviderID { return Google }
 
 func (p *GoogleProvider) Translate(ctx context.Context, req TranslateRequest) (*TranslateResponse, error) {
 	reqBody := googleTranslateRequest{

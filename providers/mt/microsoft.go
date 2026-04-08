@@ -49,7 +49,7 @@ func NewMicrosoftProvider(cfg MicrosoftConfig) *MicrosoftProvider {
 	return &MicrosoftProvider{cfg: cfg, client: httputil.NewResilientClient()}
 }
 
-func (p *MicrosoftProvider) Name() string { return "microsoft" }
+func (p *MicrosoftProvider) Name() ProviderID { return MSFT }
 
 func (p *MicrosoftProvider) Translate(ctx context.Context, req TranslateRequest) (*TranslateResponse, error) {
 	body := []msRequestBody{{Text: req.Source}}

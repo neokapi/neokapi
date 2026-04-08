@@ -17,6 +17,7 @@ import (
 	pluginreg "github.com/neokapi/neokapi/core/plugin/registry"
 	"github.com/neokapi/neokapi/core/preset"
 	"github.com/neokapi/neokapi/core/project"
+	"github.com/neokapi/neokapi/core/registry"
 	"github.com/neokapi/neokapi/core/tool"
 )
 
@@ -188,7 +189,7 @@ func handleListFormats(a *cli.App) (*mcp.CallToolResult, ListFormatsOutput, erro
 	entries := make([]FormatEntry, len(infos))
 	for i, info := range infos {
 		entries[i] = FormatEntry{
-			Name:        info.Name,
+			Name:        string(info.Name),
 			DisplayName: info.DisplayName,
 			Extensions:  info.Extensions,
 			MimeTypes:   info.MimeTypes,
@@ -211,7 +212,7 @@ func handleDetectFormat(a *cli.App, input DetectFormatInput) (*mcp.CallToolResul
 		return nil, DetectFormatOutput{}, fmt.Errorf("unable to detect format: %w", err)
 	}
 
-	out := DetectFormatOutput{Format: fmtName}
+	out := DetectFormatOutput{Format: string(fmtName)}
 	if info := a.FormatReg.FormatInfo(fmtName); info != nil {
 		out.Extensions = info.Extensions
 		out.HasReader = info.HasReader
@@ -270,8 +271,8 @@ func handleRunFlow(ctx context.Context, a *cli.App, input RunFlowInput) (*mcp.Ca
 
 	targetLang := input.TargetLang
 	if targetLang == "" {
-		if info := a.ToolReg.GetToolInfo(input.FlowName); info != nil && info.DefaultLocale != "" {
-			targetLang = info.DefaultLocale
+		if info := a.ToolReg.GetToolInfo(registry.ToolID(input.FlowName)); info != nil && info.DefaultLocale != "" {
+			targetLang = string(info.DefaultLocale)
 		} else {
 			return nil, RunFlowOutput{}, fmt.Errorf("target_lang is required for flow %q", input.FlowName)
 		}
@@ -316,8 +317,8 @@ func handleRunFlowWithProject(ctx context.Context, a *cli.App, input RunFlowInpu
 		targetLang = string(pctx.TargetLocales[0])
 	}
 	if targetLang == "" {
-		if info := a.ToolReg.GetToolInfo(input.FlowName); info != nil && info.DefaultLocale != "" {
-			targetLang = info.DefaultLocale
+		if info := a.ToolReg.GetToolInfo(registry.ToolID(input.FlowName)); info != nil && info.DefaultLocale != "" {
+			targetLang = string(info.DefaultLocale)
 		} else {
 			return nil, RunFlowOutput{}, fmt.Errorf("target_lang is required for flow %q", input.FlowName)
 		}
@@ -451,8 +452,8 @@ func handleListTools() (*mcp.CallToolResult, ListToolsOutput, error) {
 func handlePseudoTranslate(ctx context.Context, a *cli.App, input PseudoTranslateInput) (*mcp.CallToolResult, RunFlowOutput, error) {
 	targetLang := input.TargetLang
 	if targetLang == "" {
-		if info := a.ToolReg.GetToolInfo("pseudo-translate"); info != nil && info.DefaultLocale != "" {
-			targetLang = info.DefaultLocale
+		if info := a.ToolReg.GetToolInfo(registry.ToolID("pseudo-translate")); info != nil && info.DefaultLocale != "" {
+			targetLang = string(info.DefaultLocale)
 		} else {
 			targetLang = "qps"
 		}
@@ -491,7 +492,7 @@ func openReader(ctx context.Context, a *cli.App, path, formatOverride, sourceLan
 			if err != nil {
 				return "", nil, fmt.Errorf("unable to detect format: %w", err)
 			}
-			fmtName = detected
+			fmtName = string(detected)
 		}
 	}
 
@@ -542,7 +543,7 @@ func createReader(a *cli.App, fmtName string) (format.DataFormatReader, error) {
 		}
 	}
 
-	reader, err := a.FormatReg.NewReader(registryName)
+	reader, err := a.FormatReg.NewReader(registry.FormatID(registryName))
 	if err != nil {
 		return nil, fmt.Errorf("no reader for format %q: %w", fmtName, err)
 	}
@@ -584,9 +585,9 @@ func executeFlowWithTools(ctx context.Context, a *cli.App, flowName, inputPath, 
 		FormatReg:    a.FormatReg,
 		SourceLocale: model.LocaleID(sourceLang),
 		Encoding:     encoding,
-		ConfigureReader: func(reader format.DataFormatReader, fmtName string) error {
+		ConfigureReader: func(reader format.DataFormatReader, fmtName registry.FormatID) error {
 			if pctx != nil {
-				return pctx.ConfigureReader(reader, fmtName)
+				return pctx.ConfigureReader(reader, string(fmtName))
 			}
 			return nil
 		},
@@ -627,7 +628,7 @@ func buildFlowTools(flowName, sourceLang, targetLang string) ([]tool.Tool, error
 	}
 	var toolNodes []tn
 	for _, n := range flowDef.Nodes {
-		if n.Type == "tool" {
+		if n.Type == flow.NodeTool {
 			toolNodes = append(toolNodes, tn{name: n.Name, x: n.Position.X})
 		}
 	}

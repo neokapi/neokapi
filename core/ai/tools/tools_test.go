@@ -159,7 +159,7 @@ func TestAITranslateToolSetsAnnotation(t *testing.T) {
 	require.True(t, ok)
 	alt := ann.(*model.AltTranslation)
 	assert.Equal(t, "ai:mock", alt.Origin)
-	assert.Equal(t, "ai", alt.MatchType)
+	assert.Equal(t, model.MatchAI, alt.MatchType)
 	assert.Equal(t, model.LocaleFrench, alt.Locale)
 }
 

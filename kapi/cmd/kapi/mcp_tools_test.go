@@ -7,6 +7,7 @@ import (
 
 	"github.com/neokapi/neokapi/cli"
 	"github.com/neokapi/neokapi/core/formats"
+	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/registry"
 	"github.com/neokapi/neokapi/core/tools"
@@ -37,7 +38,7 @@ func TestHandleListFormats(t *testing.T) {
 			found = true
 			assert.True(t, e.HasReader)
 			assert.True(t, e.HasWriter)
-			assert.Equal(t, "built-in", e.Source)
+			assert.Equal(t, registry.SourceBuiltIn, e.Source)
 			break
 		}
 	}
@@ -241,7 +242,7 @@ func TestHandleRunFlowWithProject(t *testing.T) {
 		Version: "v1",
 		Defaults: project.Defaults{
 			SourceLanguage:  "en-US",
-			TargetLanguages: []string{"qps"},
+			TargetLanguages: []model.LocaleID{"qps"},
 		},
 		Content: []project.ContentCollection{
 			{Path: "input/*.json"},
@@ -287,7 +288,7 @@ func TestHandleRunFlowWithProjectDefaults(t *testing.T) {
 		Version: "v1",
 		Defaults: project.Defaults{
 			SourceLanguage:  "en-US",
-			TargetLanguages: []string{"qps"},
+			TargetLanguages: []model.LocaleID{"qps"},
 		},
 	}
 	kapiPath := filepath.Join(dir, "project.kapi")

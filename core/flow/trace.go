@@ -9,10 +9,18 @@ import (
 	"github.com/neokapi/neokapi/core/tool"
 )
 
+// TraceEventType identifies the kind of trace event.
+type TraceEventType string
+
+const (
+	TraceEnter TraceEventType = "enter"
+	TraceExit  TraceEventType = "exit"
+)
+
 // TraceEvent represents a single timestamped event during flow execution.
 type TraceEvent struct {
 	TS     int64          `json:"ts"`               // microseconds from flow start
-	Type   string         `json:"type"`             // event type (e.g., "enter", "exit")
+	Type   TraceEventType `json:"type"`             // TraceEnter or TraceExit
 	NodeID string         `json:"nodeId"`           // which node
 	PartID string         `json:"partId,omitempty"` // which Part
 	Meta   map[string]any `json:"meta,omitempty"`   // extra data
@@ -48,10 +56,10 @@ type FlowTrace struct {
 
 // TraceNode describes a node in the flow graph.
 type TraceNode struct {
-	ID    string `json:"id"`
-	Type  string `json:"type"` // "reader", "tool", "writer"
-	Name  string `json:"name"`
-	Label string `json:"label"`
+	ID    string   `json:"id"`
+	Type  NodeType `json:"type"` // NodeReader, NodeTool, or NodeWriter
+	Name  string   `json:"name"`
+	Label string   `json:"label"`
 }
 
 // TraceFile describes an input or output file.
@@ -79,7 +87,7 @@ func NewTraceRecorder() *TraceRecorder {
 }
 
 // Record adds a timestamped event to the trace.
-func (r *TraceRecorder) Record(eventType string, nodeID string, partID string, meta map[string]any) {
+func (r *TraceRecorder) Record(eventType TraceEventType, nodeID string, partID string, meta map[string]any) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	r.events = append(r.events, TraceEvent{
@@ -249,7 +257,7 @@ func (t *TracingTool) Process(ctx context.Context, in <-chan *model.Part, out ch
 		defer close(tracedIn)
 		for part := range in {
 			id := part.Resource.ResourceID()
-			t.recorder.Record("enter", t.nodeID, id, nil)
+			t.recorder.Record(TraceEnter, t.nodeID, id, nil)
 			tracedIn <- part
 		}
 	}()
@@ -262,7 +270,7 @@ func (t *TracingTool) Process(ctx context.Context, in <-chan *model.Part, out ch
 		for part := range tracedOut {
 			id := part.Resource.ResourceID()
 			t.recorder.SnapshotPart(part, t.nodeID, t.nodeID)
-			t.recorder.Record("exit", t.nodeID, id, nil)
+			t.recorder.Record(TraceExit, t.nodeID, id, nil)
 			out <- part
 		}
 	}()

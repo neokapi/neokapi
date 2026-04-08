@@ -792,11 +792,11 @@ func (r *Reader) buildBlock(tu *parsedTransUnit, sourceLang, targetLang model.Lo
 			key = fmt.Sprintf("alt-translation-%d", i)
 		}
 
-		matchType := ""
+		var matchType model.MatchType
 		if at.matchQuality >= 100 {
-			matchType = "EXACT"
+			matchType = model.MatchExact
 		} else if at.matchQuality > 0 {
-			matchType = "FUZZY"
+			matchType = model.MatchFuzzy
 		}
 
 		alt := &model.AltTranslation{

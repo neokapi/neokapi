@@ -12,7 +12,7 @@ func TestAnnotationRegistry_RegisterAndValidate(t *testing.T) {
 	reg.Register(AnnotationTypeInfo{
 		Type:        AnnotationQAIssues,
 		DisplayName: "QA Issues",
-		Source:      "built-in",
+		Source:      sourceBuiltIn,
 	})
 
 	require.NoError(t, reg.Validate(AnnotationQAIssues))
@@ -23,14 +23,14 @@ func TestAnnotationRegistry_Has(t *testing.T) {
 	reg := NewAnnotationRegistry()
 	assert.False(t, reg.Has(AnnotationQAIssues))
 
-	reg.Register(AnnotationTypeInfo{Type: AnnotationQAIssues, Source: "built-in"})
+	reg.Register(AnnotationTypeInfo{Type: AnnotationQAIssues, Source: sourceBuiltIn})
 	assert.True(t, reg.Has(AnnotationQAIssues))
 }
 
 func TestAnnotationRegistry_List(t *testing.T) {
 	reg := NewAnnotationRegistry()
-	reg.Register(AnnotationTypeInfo{Type: AnnotationQAIssues, Source: "built-in"})
-	reg.Register(AnnotationTypeInfo{Type: AnnotationWordCount, Source: "built-in"})
+	reg.Register(AnnotationTypeInfo{Type: AnnotationQAIssues, Source: sourceBuiltIn})
+	reg.Register(AnnotationTypeInfo{Type: AnnotationWordCount, Source: sourceBuiltIn})
 
 	list := reg.List()
 	assert.Len(t, list, 2)

@@ -9,6 +9,7 @@ import (
 
 	"github.com/labstack/echo/v4"
 	"github.com/neokapi/neokapi/core/locale"
+	"github.com/neokapi/neokapi/core/registry"
 	"github.com/neokapi/neokapi/core/version"
 )
 
@@ -252,7 +253,7 @@ func (s *Server) HandleInfo(c echo.Context) error {
 	}
 
 	// Formats.
-	nameSet := make(map[string]struct{})
+	nameSet := make(map[registry.FormatID]struct{})
 	for _, name := range s.FormatRegistry.ReaderNames() {
 		nameSet[name] = struct{}{}
 	}
@@ -262,7 +263,7 @@ func (s *Server) HandleInfo(c echo.Context) error {
 	var formats []FormatInfo
 	for name := range nameSet {
 		formats = append(formats, FormatInfo{
-			Name:      name,
+			Name:      string(name),
 			HasReader: s.FormatRegistry.HasReader(name),
 			HasWriter: s.FormatRegistry.HasWriter(name),
 		})
@@ -276,7 +277,7 @@ func (s *Server) HandleInfo(c echo.Context) error {
 	slices.Sort(toolNames)
 	tools := make([]ToolInfo, len(toolNames))
 	for i, name := range toolNames {
-		tools[i] = ToolInfo{Name: name}
+		tools[i] = ToolInfo{Name: string(name)}
 	}
 
 	// Locales.
@@ -308,7 +309,7 @@ func (s *Server) HandleInfo(c echo.Context) error {
 // HandleListFormats lists all registered formats with reader/writer availability.
 func (s *Server) HandleListFormats(c echo.Context) error {
 	// Collect unique format names from both readers and writers.
-	nameSet := make(map[string]struct{})
+	nameSet := make(map[registry.FormatID]struct{})
 	for _, name := range s.FormatRegistry.ReaderNames() {
 		nameSet[name] = struct{}{}
 	}
@@ -319,7 +320,7 @@ func (s *Server) HandleListFormats(c echo.Context) error {
 	var formatList []FormatInfo
 	for name := range nameSet {
 		formatList = append(formatList, FormatInfo{
-			Name:      name,
+			Name:      string(name),
 			HasReader: s.FormatRegistry.HasReader(name),
 			HasWriter: s.FormatRegistry.HasWriter(name),
 		})
@@ -340,7 +341,7 @@ func (s *Server) HandleListTools(c echo.Context) error {
 
 	tools := make([]ToolInfo, len(names))
 	for i, name := range names {
-		tools[i] = ToolInfo{Name: name}
+		tools[i] = ToolInfo{Name: string(name)}
 	}
 
 	return c.JSON(http.StatusOK, tools)

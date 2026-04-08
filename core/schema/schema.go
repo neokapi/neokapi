@@ -2,7 +2,11 @@
 // Both format filters and tools use these types to declare their parameters.
 package schema
 
-import "encoding/json"
+import (
+	"encoding/json"
+
+	"github.com/neokapi/neokapi/core/model"
+)
 
 // ComponentSchema represents a JSON Schema for a component's parameters.
 // It supports parameter grouping, UI hints, and validation metadata.
@@ -56,7 +60,7 @@ type ToolMeta struct {
 	// DefaultLocale is an optional fallback locale for the tool.
 	// For bilingual tools, this is the default second locale (e.g., "qps"
 	// for pseudo-translate). Empty means the runner must provide one.
-	DefaultLocale string `json:"defaultLocale,omitempty"`
+	DefaultLocale model.LocaleID `json:"defaultLocale,omitempty"`
 
 	// Produces lists the annotation types this tool writes to Blocks.
 	Produces []AnnotationType `json:"produces,omitempty"`

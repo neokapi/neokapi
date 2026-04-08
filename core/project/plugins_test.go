@@ -3,6 +3,7 @@ package project
 import (
 	"testing"
 
+	"github.com/neokapi/neokapi/core/registry"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -125,7 +126,7 @@ func TestPopulatePlugins(t *testing.T) {
 func TestAllowedFormatSources_NoPlugins(t *testing.T) {
 	proj := &KapiProject{Version: CurrentVersion}
 	sources := AllowedFormatSources(proj)
-	assert.Equal(t, []string{"built-in"}, sources)
+	assert.Equal(t, []string{registry.SourceBuiltIn}, sources)
 }
 
 func TestAllowedFormatSources_WithPlugins(t *testing.T) {
@@ -136,7 +137,7 @@ func TestAllowedFormatSources_WithPlugins(t *testing.T) {
 		},
 	}
 	sources := AllowedFormatSources(proj)
-	assert.Contains(t, sources, "built-in")
+	assert.Contains(t, sources, registry.SourceBuiltIn)
 	assert.Contains(t, sources, "okapi-bridge")
 	assert.Len(t, sources, 2)
 }

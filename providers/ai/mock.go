@@ -32,7 +32,7 @@ func NewMockProvider() *MockProvider {
 	}
 }
 
-func (p *MockProvider) Name() string { return p.ProviderName }
+func (p *MockProvider) Name() ProviderID { return ProviderID(p.ProviderName) }
 
 func (p *MockProvider) Translate(ctx context.Context, req TranslateRequest) (*TranslateResponse, error) {
 	p.mu.Lock()

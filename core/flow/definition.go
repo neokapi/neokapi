@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/neokapi/neokapi/core/config"
+	"github.com/neokapi/neokapi/core/registry"
 	"github.com/neokapi/neokapi/core/set"
 	"gopkg.in/yaml.v3"
 )
@@ -19,6 +20,15 @@ var (
 	ErrFlowIDRequired   = errors.New("flow definition id is required")
 	ErrFlowNameRequired = errors.New("flow definition name is required")
 	ErrNodeIDRequired   = errors.New("node id is required")
+)
+
+// NodeType identifies the role of a node in a flow graph.
+type NodeType string
+
+const (
+	NodeReader NodeType = "reader"
+	NodeWriter NodeType = "writer"
+	NodeTool   NodeType = "tool"
 )
 
 // FlowDefinition is a JSON-serializable flow that can be stored and loaded.
@@ -38,7 +48,7 @@ type FlowDefinition struct {
 // FlowNode represents a node in the flow graph.
 type FlowNode struct {
 	ID       string         `json:"id"`
-	Type     string         `json:"type"` // "tool", "reader", "writer"
+	Type     NodeType       `json:"type"` // NodeReader, NodeWriter, or NodeTool
 	Name     string         `json:"name"` // tool or format name
 	Label    string         `json:"label,omitempty"`
 	Config   map[string]any `json:"config,omitempty"`
@@ -76,7 +86,7 @@ func (d *FlowDefinition) Validate() error {
 		}
 		nodeIDs.Add(n.ID)
 		switch n.Type {
-		case "tool", "reader", "writer":
+		case NodeTool, NodeReader, NodeWriter:
 		default:
 			return fmt.Errorf("invalid node type %q for node %s", n.Type, n.ID)
 		}
@@ -141,7 +151,7 @@ func (d *FlowDefinition) ToolNodeNames() ([]string, error) {
 	var names []string
 	for _, id := range order {
 		n := nodeMap[id]
-		if n.Type == "tool" {
+		if n.Type == NodeTool {
 			names = append(names, n.Name)
 		}
 	}
@@ -155,11 +165,11 @@ func BuiltInFlows() []FlowDefinition {
 			ID:          "ai-translate",
 			Name:        "AI Translate",
 			Description: "Translate content using AI/LLM",
-			Source:      "built-in",
+			Source:      registry.SourceBuiltIn,
 			Nodes: []FlowNode{
-				{ID: "reader", Type: "reader", Name: "auto", Label: "Input", Position: NodePosition{X: 0, Y: 100}},
-				{ID: "ai-translate", Type: "tool", Name: "ai-translate", Label: "AI Translate", Position: NodePosition{X: 250, Y: 100}},
-				{ID: "writer", Type: "writer", Name: "auto", Label: "Output", Position: NodePosition{X: 500, Y: 100}},
+				{ID: "reader", Type: NodeReader, Name: "auto", Label: "Input", Position: NodePosition{X: 0, Y: 100}},
+				{ID: "ai-translate", Type: NodeTool, Name: "ai-translate", Label: "AI Translate", Position: NodePosition{X: 250, Y: 100}},
+				{ID: "writer", Type: NodeWriter, Name: "auto", Label: "Output", Position: NodePosition{X: 500, Y: 100}},
 			},
 			Edges: []FlowEdge{
 				{ID: "e-reader-translate", Source: "reader", Target: "ai-translate"},
@@ -170,12 +180,12 @@ func BuiltInFlows() []FlowDefinition {
 			ID:          "ai-translate-qa",
 			Name:        "AI Translate + QA",
 			Description: "Translate content using AI/LLM then run quality check",
-			Source:      "built-in",
+			Source:      registry.SourceBuiltIn,
 			Nodes: []FlowNode{
-				{ID: "reader", Type: "reader", Name: "auto", Label: "Input", Position: NodePosition{X: 0, Y: 100}},
-				{ID: "ai-translate", Type: "tool", Name: "ai-translate", Label: "AI Translate", Position: NodePosition{X: 250, Y: 100}},
-				{ID: "ai-qa", Type: "tool", Name: "ai-qa", Label: "QA Check", Position: NodePosition{X: 500, Y: 100}},
-				{ID: "writer", Type: "writer", Name: "auto", Label: "Output", Position: NodePosition{X: 750, Y: 100}},
+				{ID: "reader", Type: NodeReader, Name: "auto", Label: "Input", Position: NodePosition{X: 0, Y: 100}},
+				{ID: "ai-translate", Type: NodeTool, Name: "ai-translate", Label: "AI Translate", Position: NodePosition{X: 250, Y: 100}},
+				{ID: "ai-qa", Type: NodeTool, Name: "ai-qa", Label: "QA Check", Position: NodePosition{X: 500, Y: 100}},
+				{ID: "writer", Type: NodeWriter, Name: "auto", Label: "Output", Position: NodePosition{X: 750, Y: 100}},
 			},
 			Edges: []FlowEdge{
 				{ID: "e-reader-translate", Source: "reader", Target: "ai-translate"},
@@ -187,11 +197,11 @@ func BuiltInFlows() []FlowDefinition {
 			ID:          "pseudo-translate",
 			Name:        "Pseudo Translate",
 			Description: "Generate pseudo-translations for testing",
-			Source:      "built-in",
+			Source:      registry.SourceBuiltIn,
 			Nodes: []FlowNode{
-				{ID: "reader", Type: "reader", Name: "auto", Label: "Input", Position: NodePosition{X: 0, Y: 100}},
-				{ID: "pseudo-translate", Type: "tool", Name: "pseudo-translate", Label: "Pseudo Translate", Position: NodePosition{X: 250, Y: 100}},
-				{ID: "writer", Type: "writer", Name: "auto", Label: "Output", Position: NodePosition{X: 500, Y: 100}},
+				{ID: "reader", Type: NodeReader, Name: "auto", Label: "Input", Position: NodePosition{X: 0, Y: 100}},
+				{ID: "pseudo-translate", Type: NodeTool, Name: "pseudo-translate", Label: "Pseudo Translate", Position: NodePosition{X: 250, Y: 100}},
+				{ID: "writer", Type: NodeWriter, Name: "auto", Label: "Output", Position: NodePosition{X: 500, Y: 100}},
 			},
 			Edges: []FlowEdge{
 				{ID: "e-reader-pseudo", Source: "reader", Target: "pseudo-translate"},
@@ -202,11 +212,11 @@ func BuiltInFlows() []FlowDefinition {
 			ID:          "qa-check",
 			Name:        "QA Check",
 			Description: "Run rule-based quality checks on translations",
-			Source:      "built-in",
+			Source:      registry.SourceBuiltIn,
 			Nodes: []FlowNode{
-				{ID: "reader", Type: "reader", Name: "auto", Label: "Input", Position: NodePosition{X: 0, Y: 100}},
-				{ID: "qa-check", Type: "tool", Name: "qa-check", Label: "QA Check", Position: NodePosition{X: 250, Y: 100}},
-				{ID: "writer", Type: "writer", Name: "auto", Label: "Output", Position: NodePosition{X: 500, Y: 100}},
+				{ID: "reader", Type: NodeReader, Name: "auto", Label: "Input", Position: NodePosition{X: 0, Y: 100}},
+				{ID: "qa-check", Type: NodeTool, Name: "qa-check", Label: "QA Check", Position: NodePosition{X: 250, Y: 100}},
+				{ID: "writer", Type: NodeWriter, Name: "auto", Label: "Output", Position: NodePosition{X: 500, Y: 100}},
 			},
 			Edges: []FlowEdge{
 				{ID: "e-reader-qa", Source: "reader", Target: "qa-check"},
@@ -217,11 +227,11 @@ func BuiltInFlows() []FlowDefinition {
 			ID:          "tm-leverage",
 			Name:        "TM Leverage",
 			Description: "Pre-fill translations from translation memory",
-			Source:      "built-in",
+			Source:      registry.SourceBuiltIn,
 			Nodes: []FlowNode{
-				{ID: "reader", Type: "reader", Name: "auto", Label: "Input", Position: NodePosition{X: 0, Y: 100}},
-				{ID: "tm-leverage", Type: "tool", Name: "tm-leverage", Label: "TM Leverage", Position: NodePosition{X: 250, Y: 100}},
-				{ID: "writer", Type: "writer", Name: "auto", Label: "Output", Position: NodePosition{X: 500, Y: 100}},
+				{ID: "reader", Type: NodeReader, Name: "auto", Label: "Input", Position: NodePosition{X: 0, Y: 100}},
+				{ID: "tm-leverage", Type: NodeTool, Name: "tm-leverage", Label: "TM Leverage", Position: NodePosition{X: 250, Y: 100}},
+				{ID: "writer", Type: NodeWriter, Name: "auto", Label: "Output", Position: NodePosition{X: 500, Y: 100}},
 			},
 			Edges: []FlowEdge{
 				{ID: "e-reader-tm", Source: "reader", Target: "tm-leverage"},

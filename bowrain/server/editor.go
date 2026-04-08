@@ -515,7 +515,7 @@ func editorAddFiles(ctx context.Context, cs store.ContentStore, formatReg *regis
 			continue
 		}
 
-		reader, err := formatReg.NewReader(fmtName)
+		reader, err := formatReg.NewReader(registry.FormatID(fmtName))
 		if err != nil {
 			continue
 		}
@@ -568,7 +568,7 @@ func editorAddFilesToCollection(ctx context.Context, cs store.ContentStore, form
 			continue
 		}
 
-		reader, err := formatReg.NewReader(fmtName)
+		reader, err := formatReg.NewReader(registry.FormatID(fmtName))
 		if err != nil {
 			continue
 		}

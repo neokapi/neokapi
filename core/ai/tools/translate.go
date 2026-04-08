@@ -95,25 +95,13 @@ func injectProviderOptions(s *schema.ComponentSchema) {
 }
 
 // ProviderFromConfig creates an LLM provider from a provider name and config.
+// The provider name is looked up in the global provider registry, which
+// built-in providers populate at init time and plugins can extend.
 func ProviderFromConfig(name string, cfg aiprovider.Config) (aiprovider.LLMProvider, error) {
 	if name == "" {
-		name = "anthropic"
+		name = string(aiprovider.Anthropic)
 	}
-
-	switch name {
-	case "anthropic":
-		return aiprovider.NewAnthropicProvider(cfg), nil
-	case "openai":
-		return aiprovider.NewOpenAIProvider(cfg), nil
-	case "gemini":
-		return aiprovider.NewGeminiProvider(cfg), nil
-	case "azureopenai", "azure_openai":
-		return aiprovider.NewAzureOpenAIProvider(cfg), nil
-	case "ollama":
-		return aiprovider.NewOllamaProvider(cfg), nil
-	default:
-		return nil, fmt.Errorf("unknown AI provider: %s (supported: %s)", name, strings.Join(aiprovider.ProviderNames(), ", "))
-	}
+	return aiprovider.NewProvider(aiprovider.ProviderID(name), cfg)
 }
 
 // NewAITranslateFromConfig creates an AI translate tool from a config map.
@@ -332,9 +320,9 @@ func (t *AITranslateTool) annotateTranslation(block *model.Block, resp *aiprovid
 	block.Annotations["alt-translations"] = &model.AltTranslation{
 		Target:    model.NewFragment(resp.Translation),
 		Locale:    t.targetLocale,
-		Origin:    "ai:" + t.provider.Name(),
+		Origin:    "ai:" + string(t.provider.Name()),
 		Score:     resp.Confidence,
-		MatchType: "ai",
+		MatchType: model.MatchAI,
 	}
 }
 

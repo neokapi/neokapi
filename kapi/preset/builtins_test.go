@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/neokapi/neokapi/core/preset"
+	"github.com/neokapi/neokapi/core/registry"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -20,7 +21,7 @@ func TestRegisterBuiltins(t *testing.T) {
 	assert.Equal(t, "messages/*.json", fp.Mappings[0].Local)
 	assert.Contains(t, fp.Exclude, "node_modules/**")
 	assert.Contains(t, fp.Exclude, ".next/**")
-	assert.Equal(t, "built-in", fp.Source)
+	assert.Equal(t, registry.SourceBuiltIn, fp.Source)
 
 	// react-intl
 	fp = reg.GetFrameworkPreset("react-intl")

@@ -270,7 +270,7 @@ func (tb *PostgresTermBase) LookupAll(sourceText string, opts fw.LookupOptions) 
 
 // Search performs a ranked full-text search across concepts and terms.
 // Uses pg_trgm for term matching when a query is provided, falls back to LIKE.
-func (tb *PostgresTermBase) Search(query, sourceLocale, targetLocale string, offset, limit int) ([]fw.Concept, int) {
+func (tb *PostgresTermBase) Search(query string, sourceLocale, targetLocale model.LocaleID, offset, limit int) ([]fw.Concept, int) {
 	if query != "" {
 		concepts, total, err := tb.pgSearchTrgm(query, sourceLocale, targetLocale, offset, limit)
 		if err == nil {
@@ -280,21 +280,21 @@ func (tb *PostgresTermBase) Search(query, sourceLocale, targetLocale string, off
 	return tb.pgSearchLike(query, sourceLocale, targetLocale, offset, limit)
 }
 
-func (tb *PostgresTermBase) pgSearchTrgm(query, sourceLocale, targetLocale string, offset, limit int) ([]fw.Concept, int, error) {
+func (tb *PostgresTermBase) pgSearchTrgm(query string, sourceLocale, targetLocale model.LocaleID, offset, limit int) ([]fw.Concept, int, error) {
 	where := "t.workspace_id = $1 AND t.text_lower % $2"
 	args := []any{tb.workspaceID, strings.ToLower(query)}
 	argN := 3
 
 	if sourceLocale != "" {
 		where += fmt.Sprintf(" AND t.locale = $%d", argN)
-		args = append(args, sourceLocale)
+		args = append(args, string(sourceLocale))
 		argN++
 	}
 	if targetLocale != "" {
 		// Need to check that concept has a term in target locale too.
 		where += fmt.Sprintf(` AND t.concept_id IN (
 			SELECT concept_id FROM tb_terms WHERE workspace_id = $1 AND locale = $%d)`, argN)
-		args = append(args, targetLocale)
+		args = append(args, string(targetLocale))
 		argN++
 	}
 
@@ -337,7 +337,7 @@ func (tb *PostgresTermBase) pgSearchTrgm(query, sourceLocale, targetLocale strin
 	return concepts, total, nil
 }
 
-func (tb *PostgresTermBase) pgSearchLike(query, sourceLocale, targetLocale string, offset, limit int) ([]fw.Concept, int) {
+func (tb *PostgresTermBase) pgSearchLike(query string, sourceLocale, targetLocale model.LocaleID, offset, limit int) ([]fw.Concept, int) {
 	where := "workspace_id = $1"
 	args := []any{tb.workspaceID}
 	argN := 2
@@ -352,12 +352,12 @@ func (tb *PostgresTermBase) pgSearchLike(query, sourceLocale, targetLocale strin
 
 	if sourceLocale != "" {
 		where += fmt.Sprintf(" AND c.id IN (SELECT concept_id FROM tb_terms WHERE workspace_id = $1 AND locale = $%d)", argN)
-		args = append(args, sourceLocale)
+		args = append(args, string(sourceLocale))
 		argN++
 	}
 	if targetLocale != "" {
 		where += fmt.Sprintf(" AND c.id IN (SELECT concept_id FROM tb_terms WHERE workspace_id = $1 AND locale = $%d)", argN)
-		args = append(args, targetLocale)
+		args = append(args, string(targetLocale))
 		argN++
 	}
 
@@ -399,7 +399,7 @@ func (tb *PostgresTermBase) pgSearchLike(query, sourceLocale, targetLocale strin
 // Uses pg_trgm when a query is provided, falls back to LIKE.
 // The streamChain is an ordered list of ancestor streams to search.
 // Concepts from earlier streams take priority.
-func (tb *PostgresTermBase) SearchForStream(query, sourceLocale, targetLocale, stream string, streamChain []string, offset, limit int) ([]fw.Concept, int) {
+func (tb *PostgresTermBase) SearchForStream(query string, sourceLocale, targetLocale model.LocaleID, stream string, streamChain []string, offset, limit int) ([]fw.Concept, int) {
 	if query != "" {
 		concepts, total, err := tb.pgSearchTrgmForStream(query, sourceLocale, targetLocale, stream, streamChain, offset, limit)
 		if err == nil {
@@ -409,7 +409,7 @@ func (tb *PostgresTermBase) SearchForStream(query, sourceLocale, targetLocale, s
 	return tb.pgSearchLikeForStream(query, sourceLocale, targetLocale, stream, streamChain, offset, limit)
 }
 
-func (tb *PostgresTermBase) pgSearchTrgmForStream(query, sourceLocale, targetLocale, stream string, streamChain []string, offset, limit int) ([]fw.Concept, int, error) {
+func (tb *PostgresTermBase) pgSearchTrgmForStream(query string, sourceLocale, targetLocale model.LocaleID, stream string, streamChain []string, offset, limit int) ([]fw.Concept, int, error) {
 	streams := []string{stream}
 	streams = append(streams, streamChain...)
 
@@ -433,12 +433,12 @@ func (tb *PostgresTermBase) pgSearchTrgmForStream(query, sourceLocale, targetLoc
 
 	if sourceLocale != "" {
 		where += fmt.Sprintf(" AND c.id IN (SELECT concept_id FROM tb_terms WHERE workspace_id = $1 AND locale = $%d)", argN)
-		args = append(args, sourceLocale)
+		args = append(args, string(sourceLocale))
 		argN++
 	}
 	if targetLocale != "" {
 		where += fmt.Sprintf(" AND c.id IN (SELECT concept_id FROM tb_terms WHERE workspace_id = $1 AND locale = $%d)", argN)
-		args = append(args, targetLocale)
+		args = append(args, string(targetLocale))
 		argN++
 	}
 
@@ -488,7 +488,7 @@ func (tb *PostgresTermBase) pgSearchTrgmForStream(query, sourceLocale, targetLoc
 	return concepts, total, nil
 }
 
-func (tb *PostgresTermBase) pgSearchLikeForStream(query, sourceLocale, targetLocale, stream string, streamChain []string, offset, limit int) ([]fw.Concept, int) {
+func (tb *PostgresTermBase) pgSearchLikeForStream(query string, sourceLocale, targetLocale model.LocaleID, stream string, streamChain []string, offset, limit int) ([]fw.Concept, int) {
 	streams := []string{stream}
 	streams = append(streams, streamChain...)
 
@@ -515,12 +515,12 @@ func (tb *PostgresTermBase) pgSearchLikeForStream(query, sourceLocale, targetLoc
 
 	if sourceLocale != "" {
 		where += fmt.Sprintf(" AND c.id IN (SELECT concept_id FROM tb_terms WHERE workspace_id = $1 AND locale = $%d)", argN)
-		args = append(args, sourceLocale)
+		args = append(args, string(sourceLocale))
 		argN++
 	}
 	if targetLocale != "" {
 		where += fmt.Sprintf(" AND c.id IN (SELECT concept_id FROM tb_terms WHERE workspace_id = $1 AND locale = $%d)", argN)
-		args = append(args, targetLocale)
+		args = append(args, string(targetLocale))
 		argN++
 	}
 

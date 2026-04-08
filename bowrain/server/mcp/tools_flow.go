@@ -10,6 +10,7 @@ import (
 	"github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/core/flow"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/registry"
 )
 
 // registerFlowTools registers flow execution MCP tools.
@@ -119,7 +120,7 @@ func (s *MCPServer) handleRunFlow(ctx context.Context, req *mcp.CallToolRequest,
 		if node.Type != "tool" {
 			continue
 		}
-		t, err := s.toolReg.NewTool(node.Name)
+		t, err := s.toolReg.NewTool(registry.ToolID(node.Name))
 		if err != nil {
 			return nil, runFlowOutput{}, fmt.Errorf("resolve tool %q: %w", node.Name, err)
 		}

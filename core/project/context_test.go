@@ -7,6 +7,7 @@ import (
 
 	"github.com/neokapi/neokapi/core/flow"
 	"github.com/neokapi/neokapi/core/format"
+	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/registry"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -19,7 +20,7 @@ func TestNewProjectContext_Defaults(t *testing.T) {
 		Version: CurrentVersion,
 		Defaults: Defaults{
 			SourceLanguage:  "en-US",
-			TargetLanguages: []string{"fr-FR", "de-DE"},
+			TargetLanguages: []model.LocaleID{"fr-FR", "de-DE"},
 		},
 	}
 	ctx := NewProjectContext(proj, "/tmp/test/project.kapi")
@@ -31,7 +32,7 @@ func TestNewProjectContext_Defaults(t *testing.T) {
 	assert.Equal(t, "bcp-47", ctx.LocaleFormat)
 	assert.Equal(t, 0, ctx.Concurrency)
 	assert.Equal(t, 0, ctx.ParallelBlocks)
-	assert.Equal(t, []string{"built-in"}, ctx.AllowedSources)
+	assert.Equal(t, []string{registry.SourceBuiltIn}, ctx.AllowedSources)
 }
 
 func TestNewProjectContext_CustomDefaults(t *testing.T) {
@@ -39,7 +40,7 @@ func TestNewProjectContext_CustomDefaults(t *testing.T) {
 		Version: CurrentVersion,
 		Defaults: Defaults{
 			SourceLanguage:  "ja-JP",
-			TargetLanguages: []string{"en-US"},
+			TargetLanguages: []model.LocaleID{"en-US"},
 			Encoding:        "Shift_JIS",
 			Concurrency:     8,
 			ParallelBlocks:  5,
@@ -64,7 +65,7 @@ func TestNewProjectContext_WithPlugins(t *testing.T) {
 	}
 	ctx := NewProjectContext(proj, "/tmp/test/project.kapi")
 
-	assert.Contains(t, ctx.AllowedSources, "built-in")
+	assert.Contains(t, ctx.AllowedSources, registry.SourceBuiltIn)
 	assert.Contains(t, ctx.AllowedSources, "okapi-bridge")
 	assert.Contains(t, ctx.AllowedSources, "my-plugin")
 	assert.Len(t, ctx.AllowedSources, 3)
@@ -347,7 +348,7 @@ func TestAllowedTools_BuiltInOnly(t *testing.T) {
 	ctx := NewProjectContext(&KapiProject{Version: CurrentVersion}, "/tmp/test/project.kapi")
 
 	allTools := []registry.ToolInfo{
-		{Name: "pseudo-translate", Source: "built-in"},
+		{Name: "pseudo-translate", Source: registry.SourceBuiltIn},
 		{Name: "qa-check", Source: ""},  // empty = built-in
 		{Name: "okf-step", Source: "okapi-bridge"},
 	}
@@ -367,7 +368,7 @@ func TestAllowedTools_WithPlugin(t *testing.T) {
 	}, "/tmp/test/project.kapi")
 
 	allTools := []registry.ToolInfo{
-		{Name: "pseudo-translate", Source: "built-in"},
+		{Name: "pseudo-translate", Source: registry.SourceBuiltIn},
 		{Name: "okf-step", Source: "okapi-bridge"},
 		{Name: "other-step", Source: "other-plugin"},
 	}
@@ -394,8 +395,8 @@ func TestValidateFlows_AllValid(t *testing.T) {
 	}, "/tmp/test/project.kapi")
 
 	allTools := []registry.ToolInfo{
-		{Name: "ai-translate", Source: "built-in"},
-		{Name: "qa-check", Source: "built-in"},
+		{Name: "ai-translate", Source: registry.SourceBuiltIn},
+		{Name: "qa-check", Source: registry.SourceBuiltIn},
 	}
 
 	issues := ctx.ValidateFlows(allTools)
@@ -440,7 +441,7 @@ func TestValidateFlows_ParallelSteps(t *testing.T) {
 	}, "/tmp/test/project.kapi")
 
 	allTools := []registry.ToolInfo{
-		{Name: "ai-translate", Source: "built-in"},
+		{Name: "ai-translate", Source: registry.SourceBuiltIn},
 		{Name: "okf-step", Source: "okapi-bridge"},
 	}
 
@@ -484,16 +485,16 @@ func createFile(t *testing.T, base, rel, content string) {
 func toolNames(tools []registry.ToolInfo) []string {
 	names := make([]string, len(tools))
 	for i, t := range tools {
-		names[i] = t.Name
+		names[i] = string(t.Name)
 	}
 	return names
 }
 
 // registerBuiltIn registers a format with "built-in" source and default priority.
 func registerBuiltIn(reg *registry.FormatRegistry, name, ext string) {
-	reg.RegisterFormatInfo(name, registry.FormatInfo{
+	reg.RegisterFormatInfo(registry.FormatID(name), registry.FormatInfo{
 		Extensions: []string{ext},
-		Source:     "built-in",
+		Source:     registry.SourceBuiltIn,
 		HasReader:  true,
 		Priority:   format.DefaultBuiltInPriority,
 	})

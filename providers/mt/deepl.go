@@ -17,19 +17,22 @@ import (
 // DefaultDeepLBaseURL is the default DeepL free API endpoint.
 const DefaultDeepLBaseURL = "https://api-free.deepl.com"
 
+// Formality represents a DeepL formality level.
+type Formality string
+
 // DeepL formality levels.
 const (
-	FormalityDefault    = "default"
-	FormalityMore       = "more"
-	FormalityLess       = "less"
-	FormalityPreferMore = "prefer_more"
-	FormalityPreferLess = "prefer_less"
+	FormalityDefault    Formality = "default"
+	FormalityMore       Formality = "more"
+	FormalityLess       Formality = "less"
+	FormalityPreferMore Formality = "prefer_more"
+	FormalityPreferLess Formality = "prefer_less"
 )
 
 // DeepLConfig holds configuration for the DeepL provider.
 type DeepLConfig struct {
 	APIKey    string `schema:"description=DeepL API authentication key,widget=password"`
-	Formality string `schema:"description=Formality level for translations,enum=default|more|less|prefer_more|prefer_less,default=default"` // "default", "more", "less", "prefer_more", "prefer_less"
+	Formality Formality `schema:"description=Formality level for translations,enum=default|more|less|prefer_more|prefer_less,default=default"`
 	BaseURL   string `schema:"description=API base URL override for testing"`                                                               // Override for testing
 }
 
@@ -59,7 +62,7 @@ func NewDeepLProvider(cfg DeepLConfig) *DeepLProvider {
 	return &DeepLProvider{cfg: cfg, client: httputil.NewResilientClient()}
 }
 
-func (p *DeepLProvider) Name() string { return "deepl" }
+func (p *DeepLProvider) Name() ProviderID { return DeepL }
 
 func (p *DeepLProvider) Translate(ctx context.Context, req TranslateRequest) (*TranslateResponse, error) {
 	form := url.Values{}
@@ -69,7 +72,7 @@ func (p *DeepLProvider) Translate(ctx context.Context, req TranslateRequest) (*T
 		form.Set("source_lang", strings.ToUpper(string(req.SourceLocale)))
 	}
 	if p.cfg.Formality != "" && p.cfg.Formality != FormalityDefault {
-		form.Set("formality", p.cfg.Formality)
+		form.Set("formality", string(p.cfg.Formality))
 	}
 
 	apiURL := p.cfg.baseURL() + "/v2/translate"

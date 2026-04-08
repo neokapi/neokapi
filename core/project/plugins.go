@@ -3,6 +3,8 @@ package project
 import (
 	"strconv"
 	"strings"
+
+	"github.com/neokapi/neokapi/core/registry"
 )
 
 // InstalledPlugin describes a plugin that is available in the local environment.
@@ -115,7 +117,7 @@ func PopulatePlugins(proj *KapiProject, installed []InstalledPlugin) {
 // Use this with FormatRegistry.DetectByExtensionForSources to restrict
 // auto-detection to formats the project can actually process.
 func AllowedFormatSources(proj *KapiProject) []string {
-	sources := []string{"built-in"}
+	sources := []string{registry.SourceBuiltIn}
 	for name := range proj.Plugins {
 		sources = append(sources, name)
 	}

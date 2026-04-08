@@ -20,6 +20,7 @@ import (
 	"github.com/neokapi/neokapi/core/model"
 	pluginreg "github.com/neokapi/neokapi/core/plugin/registry"
 	"github.com/neokapi/neokapi/core/preset"
+	"github.com/neokapi/neokapi/core/registry"
 	"github.com/neokapi/neokapi/core/tool"
 	"github.com/vbauerster/mpb/v8"
 	"github.com/vbauerster/mpb/v8/decor"
@@ -189,13 +190,13 @@ func (a *App) processOneFile(ctx context.Context, cfg ToolRunConfig, filePath st
 			}
 			return fmt.Errorf("unable to detect format for %q: %w", filePath, err)
 		}
-		fmtName = detected
+		fmtName = string(detected)
 	}
 
 	ref := pluginreg.ParseFormatRef(fmtName)
 	registryName := ref.RegistryName()
 
-	reader, err := a.FormatReg.NewReader(registryName)
+	reader, err := a.FormatReg.NewReader(registry.FormatID(registryName))
 	if err != nil {
 		if !cfg.FailOnUnknown {
 			if !cfg.NoWarn {
@@ -228,7 +229,7 @@ func (a *App) processOneFile(ctx context.Context, cfg ToolRunConfig, filePath st
 	var writer format.DataFormatWriter
 	if cfg.OutputTemplate != "" {
 		var err error
-		writer, err = a.FormatReg.NewWriter(registryName)
+		writer, err = a.FormatReg.NewWriter(registry.FormatID(registryName))
 		if err != nil {
 			if !cfg.FailOnUnknown {
 				if !cfg.NoWarn {
@@ -334,9 +335,9 @@ func (a *App) processOneFile(ctx context.Context, cfg ToolRunConfig, filePath st
 		resolvedTracePath = strings.ReplaceAll(resolvedTracePath, "{ext}", extNoDot)
 		recorder = flow.NewTraceRecorder()
 		traceNodes = []flow.TraceNode{
-			{ID: "reader", Type: "reader", Name: fmtName, Label: fmtName + " reader"},
-			{ID: "tool-0", Type: "tool", Name: t.Name(), Label: t.Name()},
-			{ID: "writer", Type: "writer", Name: fmtName, Label: fmtName + " writer"},
+			{ID: "reader", Type: flow.NodeReader, Name: fmtName, Label: fmtName + " reader"},
+			{ID: "tool-0", Type: flow.NodeTool, Name: t.Name(), Label: t.Name()},
+			{ID: "writer", Type: flow.NodeWriter, Name: fmtName, Label: fmtName + " writer"},
 		}
 		t = flow.NewTracingTool(t, "tool-0", recorder)
 	}

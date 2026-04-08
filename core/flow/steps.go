@@ -52,7 +52,7 @@ func StepsToGraph(spec *StepsSpec) ([]FlowNode, []FlowEdge, error) {
 	readerID := "reader"
 	nodes = append(nodes, FlowNode{
 		ID:       readerID,
-		Type:     "reader",
+		Type:     NodeReader,
 		Name:     inputFormat,
 		Label:    "Input",
 		Position: NodePosition{X: 0, Y: 100},
@@ -74,7 +74,7 @@ func StepsToGraph(spec *StepsSpec) ([]FlowNode, []FlowEdge, error) {
 				}
 				nodes = append(nodes, FlowNode{
 					ID:       id,
-					Type:     "tool",
+					Type:     NodeTool,
 					Name:     branch.Tool,
 					Label:    label,
 					Config:   branch.Config,
@@ -102,7 +102,7 @@ func StepsToGraph(spec *StepsSpec) ([]FlowNode, []FlowEdge, error) {
 			}
 			nodes = append(nodes, FlowNode{
 				ID:       id,
-				Type:     "tool",
+				Type:     NodeTool,
 				Name:     step.Tool,
 				Label:    label,
 				Config:   step.Config,
@@ -124,7 +124,7 @@ func StepsToGraph(spec *StepsSpec) ([]FlowNode, []FlowEdge, error) {
 	writerID := "writer"
 	nodes = append(nodes, FlowNode{
 		ID:       writerID,
-		Type:     "writer",
+		Type:     NodeWriter,
 		Name:     outputFormat,
 		Label:    "Output",
 		Position: NodePosition{X: xPos, Y: 100},

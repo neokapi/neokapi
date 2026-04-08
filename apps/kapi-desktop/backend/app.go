@@ -262,8 +262,8 @@ func (a *App) NewProject(name, sourceLang string, targetLangs []string, savePath
 	proj := &project.KapiProject{
 		Version: project.CurrentVersion,
 		Defaults: project.Defaults{
-			SourceLanguage:  sourceLang,
-			TargetLanguages: targetLangs,
+			SourceLanguage:  model.LocaleID(sourceLang),
+			TargetLanguages: toLocaleIDs(targetLangs),
 		},
 		Flows: make(map[string]*flow.StepsSpec),
 	}
@@ -624,7 +624,7 @@ func (a *App) toolInfosFrom(all []registry.ToolInfo) []ToolInfo {
 			sideEffects = append(sideEffects, string(s))
 		}
 		infos[i] = ToolInfo{
-			Name:          info.Name,
+			Name:          string(info.Name),
 			DisplayName:   info.DisplayName,
 			Description:   info.Description,
 			Category:      info.Category,
@@ -635,7 +635,7 @@ func (a *App) toolInfosFrom(all []registry.ToolInfo) []ToolInfo {
 			Tags:          info.Tags,
 			Requires:      info.Requires,
 			Cardinality:   string(info.Cardinality),
-			DefaultLocale: info.DefaultLocale,
+			DefaultLocale: string(info.DefaultLocale),
 			Produces:      produces,
 			SideEffects:   sideEffects,
 		}
@@ -653,7 +653,7 @@ func (a *App) toolInfosFrom(all []registry.ToolInfo) []ToolInfo {
 // into the schema with a credential-picker widget, and the manual provider
 // fields (provider, apiKey, model) are made conditionally visible.
 func (a *App) GetToolSchema(name string) map[string]any {
-	s := a.toolReg.GetSchema(name)
+	s := a.toolReg.GetSchema(registry.ToolID(name))
 	if s == nil {
 		return nil
 	}
@@ -762,21 +762,23 @@ func (a *App) ListFormats() []FormatInfo {
 	allInfos := a.formatReg.FormatInfos()
 	bareNames := make(map[string]bool, len(allInfos))
 	for _, fi := range allInfos {
-		if !strings.Contains(fi.Name, "@") {
-			bareNames[fi.Name] = true
+		name := string(fi.Name)
+		if !strings.Contains(name, "@") {
+			bareNames[name] = true
 		}
 	}
 
 	var infos []FormatInfo
 	for _, fi := range allInfos {
-		if idx := strings.LastIndex(fi.Name, "@"); idx > 0 {
-			if bareNames[fi.Name[:idx]] {
+		name := string(fi.Name)
+		if idx := strings.LastIndex(name, "@"); idx > 0 {
+			if bareNames[name[:idx]] {
 				continue
 			}
 		}
-		_, hasSchema := a.schemaReg.GetSchema(fi.Name)
+		_, hasSchema := a.schemaReg.GetSchema(name)
 		infos = append(infos, FormatInfo{
-			Name:        fi.Name,
+			Name:        name,
 			DisplayName: fi.DisplayName,
 			Extensions:  fi.Extensions,
 			MimeTypes:   fi.MimeTypes,
@@ -807,7 +809,7 @@ func (a *App) ListProjectFormats(tabID string) []FormatInfo {
 	for _, fi := range all {
 		source := fi.Source
 		if source == "" {
-			source = "built-in"
+			source = registry.SourceBuiltIn
 		}
 		if allowed[source] {
 			filtered = append(filtered, fi)
@@ -1032,7 +1034,7 @@ func (a *App) ListFormatPresets(format string) []FormatPresetInfo {
 	for _, p := range reg.ListFormatPresets(format) {
 		source := p.Source
 		if source == "" {
-			source = "built-in"
+			source = registry.SourceBuiltIn
 		}
 		infos = append(infos, FormatPresetInfo{
 			Name:        p.Name,
@@ -1196,7 +1198,7 @@ func (a *App) RunFormatReader(formatName string, filePath string, config map[str
 		return nil, fmt.Errorf("file path is required")
 	}
 
-	reader, err := a.formatReg.NewReader(formatName)
+	reader, err := a.formatReg.NewReader(registry.FormatID(formatName))
 	if err != nil {
 		return nil, fmt.Errorf("create reader: %w", err)
 	}
@@ -1443,4 +1445,12 @@ func defaultPluginDir() string {
 		return ""
 	}
 	return filepath.Join(home, "kapi", "plugins")
+}
+
+func toLocaleIDs(ss []string) []model.LocaleID {
+	ids := make([]model.LocaleID, len(ss))
+	for i, s := range ss {
+		ids[i] = model.LocaleID(s)
+	}
+	return ids
 }
