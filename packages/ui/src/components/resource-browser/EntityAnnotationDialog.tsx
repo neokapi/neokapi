@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect } from "react";
 import { ENTITY_TYPES, type EntityPatternRequest, type AnnotateResult } from "./types";
+import { Checkbox } from "../ui/checkbox";
 
 interface EntityAnnotationDialogProps {
   open: boolean;
@@ -137,12 +138,10 @@ export function EntityAnnotationDialog({
                       </option>
                     ))}
                   </select>
-                  <label className="flex items-center gap-1 text-[11px] text-muted-foreground whitespace-nowrap">
-                    <input
-                      type="checkbox"
+                  <label className="flex items-center gap-1.5 text-[11px] text-muted-foreground whitespace-nowrap">
+                    <Checkbox
                       checked={p.case_sensitive}
-                      onChange={(e) => updatePattern(idx, "case_sensitive", e.target.checked)}
-                      className="rounded"
+                      onCheckedChange={(v) => updatePattern(idx, "case_sensitive", !!v)}
                     />
                     Case
                   </label>

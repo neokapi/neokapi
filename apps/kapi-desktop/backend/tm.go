@@ -98,21 +98,27 @@ type EntityAnnotationDTO struct {
 
 // AddTMEntryRequest is the request to add a new TM entry.
 type AddTMEntryRequest struct {
-	Source       string `json:"source"`
-	Target       string `json:"target"`
-	SourceLocale string `json:"source_locale"`
-	TargetLocale string `json:"target_locale"`
-	ProjectID    string `json:"project_id"`
+	Source       string    `json:"source"`
+	Target       string    `json:"target"`
+	SourceCoded  string    `json:"source_coded,omitempty"`
+	TargetCoded  string    `json:"target_coded,omitempty"`
+	SourceSpans  []SpanDTO `json:"source_spans,omitempty"`
+	TargetSpans  []SpanDTO `json:"target_spans,omitempty"`
+	SourceLocale string    `json:"source_locale"`
+	TargetLocale string    `json:"target_locale"`
+	ProjectID    string    `json:"project_id"`
 }
 
 // UpdateTMEntryRequest is the request to update a TM entry.
 type UpdateTMEntryRequest struct {
-	EntryID      string `json:"entry_id"`
-	Source       string `json:"source"`
-	Target       string `json:"target"`
-	SourceLocale string `json:"source_locale"`
-	TargetLocale string `json:"target_locale"`
-	ProjectID    string `json:"project_id"`
+	EntryID      string    `json:"entry_id"`
+	Source       string    `json:"source"`
+	Target       string    `json:"target"`
+	TargetCoded  string    `json:"target_coded,omitempty"`
+	TargetSpans  []SpanDTO `json:"target_spans,omitempty"`
+	SourceLocale string    `json:"source_locale"`
+	TargetLocale string    `json:"target_locale"`
+	ProjectID    string    `json:"project_id"`
 }
 
 // ImportResult reports the outcome of an import operation.
@@ -150,6 +156,36 @@ func spanTypeStr(st model.SpanType) string {
 	default:
 		return "placeholder"
 	}
+}
+
+// parseSpanType converts a string span type to a model.SpanType.
+func parseSpanType(s string) model.SpanType {
+	switch s {
+	case "opening":
+		return model.SpanOpening
+	case "closing":
+		return model.SpanClosing
+	default:
+		return model.SpanPlaceholder
+	}
+}
+
+// fragmentFromDTO builds a model.Fragment from coded text and span DTOs.
+// If codedText is empty, it falls back to plain text via model.NewFragment.
+func fragmentFromDTO(plainText, codedText string, spans []SpanDTO) *model.Fragment {
+	if codedText == "" {
+		return model.NewFragment(plainText)
+	}
+	frag := &model.Fragment{CodedText: codedText}
+	for _, s := range spans {
+		frag.Spans = append(frag.Spans, &model.Span{
+			SpanType:    parseSpanType(s.SpanType),
+			Type:        s.Type,
+			Data:        s.Data,
+			DisplayText: s.DisplayText,
+		})
+	}
+	return frag
 }
 
 func fragmentToDTO(frag *model.Fragment) (codedText string, spans []SpanDTO) {
@@ -367,8 +403,8 @@ func (a *App) AddTMEntry(handle string, req AddTMEntryRequest) error {
 	entry := sievepen.TMEntry{
 		ID:           id.New(),
 		ProjectID:    req.ProjectID,
-		Source:       model.NewFragment(req.Source),
-		Target:       model.NewFragment(req.Target),
+		Source:       fragmentFromDTO(req.Source, req.SourceCoded, req.SourceSpans),
+		Target:       fragmentFromDTO(req.Target, req.TargetCoded, req.TargetSpans),
 		SourceLocale: model.LocaleID(req.SourceLocale),
 		TargetLocale: model.LocaleID(req.TargetLocale),
 		CreatedAt:    time.Now(),
@@ -387,11 +423,7 @@ func (a *App) UpdateTMEntry(handle string, req UpdateTMEntryRequest) error {
 	if !found {
 		return fmt.Errorf("entry %q not found", req.EntryID)
 	}
-	existing.Source = model.NewFragment(req.Source)
-	existing.Target = model.NewFragment(req.Target)
-	existing.SourceLocale = model.LocaleID(req.SourceLocale)
-	existing.TargetLocale = model.LocaleID(req.TargetLocale)
-	existing.ProjectID = req.ProjectID
+	existing.Target = fragmentFromDTO(req.Target, req.TargetCoded, req.TargetSpans)
 	existing.UpdatedAt = time.Now()
 	return tm.Add(existing) // Add with same ID = update
 }

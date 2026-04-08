@@ -63,6 +63,20 @@ interface VocabularySchema {
   fallback?: FallbackDefinition;
 }
 
+/** Derive a short chip label from a span type name (e.g. "fmt:bold" → "bold"). */
+function shortChipLabel(
+  typeName: string,
+  fallback: { open: string; close: string; placeholder: string },
+): { open: string; close: string; placeholder: string } {
+  // Extract the part after the colon (e.g. "fmt:bold" → "bold", "struct:break" → "break").
+  const short = typeName.includes(":") ? typeName.split(":").pop()! : typeName;
+  return {
+    open: `${short}>`,
+    close: `/${short}`,
+    placeholder: short || fallback.placeholder,
+  };
+}
+
 // --- Vocabulary Registry ---
 
 const defaultFallback: FallbackDefinition = {
@@ -124,7 +138,7 @@ export class VocabularyRegistry {
         close: this.fallback.display.close.replace("{type}", typeName),
         placeholder: this.fallback.display.placeholder.replace("{type}", typeName),
       },
-      chipLabel: { ...this.fallback.chipLabel },
+      chipLabel: shortChipLabel(typeName, this.fallback.chipLabel),
       color: { ...this.fallback.color },
       equiv: "",
       constraints: { ...this.fallback.constraints },
