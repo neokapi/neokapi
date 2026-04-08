@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { Loader2, CheckCircle2, XCircle, ListTodo, X, Trash2 } from "lucide-react";
+import { Loader2, CheckCircle2, XCircle, ListTodo, X, Trash2, ExternalLink } from "lucide-react";
 import { Button, ScrollArea } from "@neokapi/ui-primitives";
 import { useJobFeed, type Job } from "../context/JobFeedContext";
 
@@ -8,7 +8,7 @@ import { useJobFeed, type Job } from "../context/JobFeedContext";
  * Shows a badge when jobs are active, and a dropdown panel on click.
  */
 export function JobFeedButton({ onViewJob }: { onViewJob?: (job: Job) => void }) {
-  const { jobs, hasActive, clearJob, clearAll } = useJobFeed();
+  const { jobs, hasActive, selectJob, clearJob, clearAll } = useJobFeed();
   const [open, setOpen] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
 
@@ -32,20 +32,40 @@ export function JobFeedButton({ onViewJob }: { onViewJob?: (job: Job) => void })
   const statusIcon = (job: Job) => {
     switch (job.status) {
       case "running":
-        return <Loader2 size={13} className="animate-spin text-primary shrink-0" />;
+        return <Loader2 size={14} className="animate-spin text-primary shrink-0" />;
       case "complete":
-        return <CheckCircle2 size={13} className="text-green-500 shrink-0" />;
+        return <CheckCircle2 size={14} className="text-green-500 shrink-0" />;
       case "error":
-        return <XCircle size={13} className="text-destructive shrink-0" />;
+        return <XCircle size={14} className="text-destructive shrink-0" />;
       default:
-        return <XCircle size={13} className="text-muted-foreground shrink-0" />;
+        return <XCircle size={14} className="text-muted-foreground shrink-0" />;
     }
   };
 
   const formatDuration = (ms?: number) => {
     if (!ms) return "";
     if (ms < 1000) return `${ms}ms`;
-    return `${(ms / 1000).toFixed(1)}s`;
+    if (ms < 60_000) return `${(ms / 1000).toFixed(1)}s`;
+    return `${Math.floor(ms / 60_000)}m ${Math.round((ms % 60_000) / 1000)}s`;
+  };
+
+  const relativeTime = (ts: number) => {
+    const diff = Date.now() - ts;
+    if (diff < 5_000) return "just now";
+    if (diff < 60_000) return `${Math.floor(diff / 1000)}s ago`;
+    if (diff < 3_600_000) return `${Math.floor(diff / 60_000)}m ago`;
+    return `${Math.floor(diff / 3_600_000)}h ago`;
+  };
+
+  const jobTitle = (job: Job) => {
+    if (job.projectName) return `${job.projectName} — ${job.flowName}`;
+    return job.flowName;
+  };
+
+  const handleView = (job: Job) => {
+    selectJob(job.id);
+    onViewJob?.(job);
+    setOpen(false);
   };
 
   return (
@@ -63,7 +83,6 @@ export function JobFeedButton({ onViewJob }: { onViewJob?: (job: Job) => void })
         ) : (
           <ListTodo size={15} className="text-muted-foreground" />
         )}
-        {/* Badge */}
         {jobs.length > 0 && (
           <span className="absolute -top-0.5 -right-0.5 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-primary text-[8px] font-bold text-primary-foreground">
             {jobs.length}
@@ -73,7 +92,7 @@ export function JobFeedButton({ onViewJob }: { onViewJob?: (job: Job) => void })
 
       {/* Dropdown panel */}
       {open && (
-        <div className="absolute right-0 top-full mt-1 z-50 w-72 rounded-lg border border-border bg-card shadow-lg overflow-hidden">
+        <div className="absolute right-0 top-full mt-1 z-50 w-80 rounded-lg border border-border bg-card shadow-lg overflow-hidden">
           {/* Header */}
           <div className="flex items-center justify-between px-3 py-2 border-b border-border bg-muted/30">
             <span className="text-[11px] font-semibold text-foreground">Jobs</span>
@@ -102,67 +121,86 @@ export function JobFeedButton({ onViewJob }: { onViewJob?: (job: Job) => void })
               No recent jobs
             </div>
           ) : (
-            <ScrollArea className="max-h-64">
+            <ScrollArea className="max-h-72">
               <div className="divide-y divide-border/30">
                 {jobs.map((job) => (
                   <div
                     key={job.id}
-                    className="flex items-start gap-2 px-3 py-2 hover:bg-muted/30 transition-colors cursor-pointer group"
-                    onClick={() => {
-                      onViewJob?.(job);
-                      setOpen(false);
-                    }}
+                    className="px-3 py-2.5 hover:bg-muted/30 transition-colors group"
                   >
-                    <div className="mt-0.5">{statusIcon(job)}</div>
-                    <div className="flex-1 min-w-0">
-                      <div className="text-xs font-medium text-foreground truncate">
-                        {job.flowName}
-                      </div>
-                      {job.status === "running" && job.progress.total > 0 && (
-                        <div className="mt-1">
-                          <div className="flex justify-between text-[10px] text-muted-foreground mb-0.5">
-                            <span>
-                              {job.progress.current}/{job.progress.total}
-                            </span>
-                            <span>
-                              {Math.round((job.progress.current / job.progress.total) * 100)}%
-                            </span>
-                          </div>
-                          <div className="h-1 rounded-full bg-accent overflow-hidden">
-                            <div
-                              className="h-full rounded-full bg-primary transition-all duration-300"
-                              style={{
-                                width: `${(job.progress.current / job.progress.total) * 100}%`,
-                              }}
-                            />
-                          </div>
-                        </div>
+                    {/* Title row */}
+                    <div className="flex items-center gap-1.5 mb-1">
+                      {statusIcon(job)}
+                      <span className="text-xs font-medium text-foreground truncate flex-1">
+                        {jobTitle(job)}
+                      </span>
+                      <span className="text-[10px] text-muted-foreground shrink-0">
+                        {job.status === "complete" || job.status === "error"
+                          ? relativeTime(job.startTime)
+                          : ""}
+                      </span>
+                    </div>
+
+                    {/* Details row */}
+                    <div className="flex items-center gap-2 text-[10px] text-muted-foreground ml-5">
+                      {job.targetLangs && job.targetLangs.length > 0 && (
+                        <span>{job.targetLangs.join(", ")}</span>
                       )}
-                      {job.status === "complete" && (
-                        <div className="text-[10px] text-muted-foreground mt-0.5">
-                          {formatDuration(job.durationMs)}
-                          {job.events.find((e) => e.files_processed) &&
-                            ` — ${job.events.find((e) => e.files_processed)?.files_processed} files`}
-                        </div>
+                      {job.fileCount != null && job.fileCount > 0 && (
+                        <span>{job.fileCount} files</span>
                       )}
-                      {job.status === "error" && (
-                        <div className="text-[10px] text-destructive mt-0.5 truncate">
-                          {job.error}
-                        </div>
+                      {job.status === "complete" && job.durationMs != null && (
+                        <span>{formatDuration(job.durationMs)}</span>
                       )}
                     </div>
-                    {job.status !== "running" && (
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          clearJob(job.id);
-                        }}
-                        className="opacity-0 group-hover:opacity-100 p-0.5 rounded hover:bg-muted/60 transition-all shrink-0"
-                        title="Dismiss"
-                      >
-                        <X size={11} className="text-muted-foreground" />
-                      </button>
+
+                    {/* Progress bar (running) */}
+                    {job.status === "running" && job.progress.total > 0 && (
+                      <div className="mt-1.5 ml-5">
+                        <div className="flex justify-between text-[10px] text-muted-foreground mb-0.5">
+                          <span>
+                            {job.progress.current}/{job.progress.total}
+                          </span>
+                          <span>
+                            {Math.round((job.progress.current / job.progress.total) * 100)}%
+                          </span>
+                        </div>
+                        <div className="h-1 rounded-full bg-accent overflow-hidden">
+                          <div
+                            className="h-full rounded-full bg-primary transition-all duration-300"
+                            style={{
+                              width: `${(job.progress.current / job.progress.total) * 100}%`,
+                            }}
+                          />
+                        </div>
+                      </div>
                     )}
+
+                    {/* Error message */}
+                    {job.status === "error" && job.error && (
+                      <div className="text-[10px] text-destructive mt-1 ml-5 truncate">
+                        {job.error}
+                      </div>
+                    )}
+
+                    {/* Actions row */}
+                    <div className="flex items-center gap-1 mt-1.5 ml-5">
+                      <button
+                        onClick={() => handleView(job)}
+                        className="text-[10px] text-primary hover:text-primary/80 flex items-center gap-0.5 transition-colors"
+                      >
+                        <ExternalLink size={10} />
+                        View
+                      </button>
+                      {job.status !== "running" && (
+                        <button
+                          onClick={() => clearJob(job.id)}
+                          className="text-[10px] text-muted-foreground hover:text-foreground ml-auto transition-colors opacity-0 group-hover:opacity-100"
+                        >
+                          Dismiss
+                        </button>
+                      )}
+                    </div>
                   </div>
                 ))}
               </div>
