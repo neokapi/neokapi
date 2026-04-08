@@ -24,7 +24,6 @@ import (
 	pluginreg "github.com/neokapi/neokapi/core/plugin/registry"
 	"github.com/neokapi/neokapi/core/preset"
 	"github.com/neokapi/neokapi/core/tool"
-	aiprovider "github.com/neokapi/neokapi/providers/ai"
 	sqltm "github.com/neokapi/neokapi/sievepen"
 	sqltb "github.com/neokapi/neokapi/termbase"
 	"github.com/spf13/cobra"
@@ -832,21 +831,6 @@ func (a *App) buildToolByName(toolName string, config map[string]any, cmd ...*co
 	}
 
 	return nil, nil, fmt.Errorf("tool %q has no config factory", toolName)
-}
-
-func (a *App) getProvider() aiprovider.LLMProvider {
-	return aiprovider.NewMockProvider()
-}
-
-// countStats counts parts and blocks from the output parts slice.
-func countStats(parts []*model.Part) *output.FlowStats {
-	stats := &output.FlowStats{PartCount: len(parts)}
-	for _, p := range parts {
-		if p.Type == model.PartBlock {
-			stats.BlockCount++
-		}
-	}
-	return stats
 }
 
 // resolveParallelBlocks returns the parallel block concurrency to use.
