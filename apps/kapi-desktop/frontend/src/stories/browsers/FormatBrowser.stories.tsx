@@ -26,7 +26,9 @@ function buildFormatEntries(): FormatEntry[] {
   const entries: FormatEntry[] = [];
 
   for (const f of formatList.builtIn) {
-    const schema = allSchemas.find((s) => (s as unknown as Record<string, unknown>)["x-name"] === f.name);
+    const schema = allSchemas.find(
+      (s) => (s as unknown as Record<string, unknown>)["x-name"] === f.name,
+    );
     entries.push({
       name: f.name,
       displayName: f.display_name || f.name,
@@ -38,7 +40,9 @@ function buildFormatEntries(): FormatEntry[] {
   }
 
   for (const f of formatList.bridge) {
-    const schema = allSchemas.find((s) => (s as unknown as Record<string, unknown>)["x-name"] === f.name);
+    const schema = allSchemas.find(
+      (s) => (s as unknown as Record<string, unknown>)["x-name"] === f.name,
+    );
     entries.push({
       name: f.name,
       displayName: f.display_name || f.name,

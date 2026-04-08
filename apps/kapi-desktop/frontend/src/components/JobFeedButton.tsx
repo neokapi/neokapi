@@ -1,5 +1,14 @@
 import { useState, useRef, useEffect } from "react";
-import { Loader2, CheckCircle2, XCircle, Ban, ListTodo, X, Trash2, ExternalLink } from "lucide-react";
+import {
+  Loader2,
+  CheckCircle2,
+  XCircle,
+  Ban,
+  ListTodo,
+  X,
+  Trash2,
+  ExternalLink,
+} from "lucide-react";
 import { Button, ScrollArea } from "@neokapi/ui-primitives";
 import { useJobFeed, type Job } from "../context/JobFeedContext";
 
@@ -64,8 +73,9 @@ export function JobFeedButton({ onViewJob }: { onViewJob?: (job: Job) => void })
 
   const handleView = (job: Job) => {
     selectJob(job.id);
-    onViewJob?.(job);
     setOpen(false);
+    // Defer navigation to avoid updating AppInner while ViewSwitch is rendering.
+    queueMicrotask(() => onViewJob?.(job));
   };
 
   return (

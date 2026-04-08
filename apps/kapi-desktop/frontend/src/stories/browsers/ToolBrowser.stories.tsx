@@ -41,7 +41,9 @@ function buildToolEntries(): ToolEntry[] {
   const entries: ToolEntry[] = [];
 
   for (const t of toolList.builtIn) {
-    const schema = allSchemas.find((s) => (s as unknown as Record<string, unknown>)["x-name"] === t.name);
+    const schema = allSchemas.find(
+      (s) => (s as unknown as Record<string, unknown>)["x-name"] === t.name,
+    );
     entries.push({
       name: t.name,
       displayName: t.name,
@@ -55,7 +57,9 @@ function buildToolEntries(): ToolEntry[] {
   }
 
   for (const t of toolList.bridge) {
-    const schema = allSchemas.find((s) => (s as unknown as Record<string, unknown>)["x-name"] === t.name);
+    const schema = allSchemas.find(
+      (s) => (s as unknown as Record<string, unknown>)["x-name"] === t.name,
+    );
     entries.push({
       name: t.name,
       displayName: t.display_name || t.name,

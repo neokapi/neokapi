@@ -2,7 +2,9 @@ import type { Meta, StoryObj } from "@storybook/react-vite";
 import { useState, useEffect, useCallback } from "react";
 import { Play, Square, CheckCircle2, XCircle, Loader2 } from "lucide-react";
 import type { FlowSpec } from "../types/api";
+import type { StepSnapshot } from "../context/JobFeedContext";
 import { Button, Card, ScrollArea } from "@neokapi/ui-primitives";
+import { PipelineProgress } from "../components/PipelineProgress";
 
 // Simulated RunnerPage that demonstrates the full execution lifecycle
 // without needing a real Wails backend.
@@ -26,7 +28,9 @@ function SimulatedRunner({
   const [state, setState] = useState<RunState>("idle");
   const [progress, setProgress] = useState({ current: 0, total: fileCount });
   const [currentFile, setCurrentFile] = useState("");
-  const [activeStep, setActiveStep] = useState(-1);
+  const [stepSnapshots, setStepSnapshots] = useState<StepSnapshot[]>(
+    flow.steps.map((s) => ({ name: s.tool, parts_in: 0, parts_out: 0 })),
+  );
   const [events, setEvents] = useState<Array<{ type: string; message: string; ts: number }>>([]);
   const [elapsed, setElapsed] = useState(0);
 
@@ -37,9 +41,11 @@ function SimulatedRunner({
   const runSimulation = useCallback(async () => {
     setState("running");
     setProgress({ current: 0, total: fileCount });
+    setStepSnapshots(flow.steps.map((s) => ({ name: s.tool, parts_in: 0, parts_out: 0 })));
     setEvents([]);
     setElapsed(0);
     const start = Date.now();
+    const partsPerFile = 30;
 
     const files = Array.from(
       { length: fileCount },
@@ -54,11 +60,22 @@ function SimulatedRunner({
       setProgress({ current: fileIdx, total: files.length });
       addEvent("progress", `Processing ${file}`);
 
+      // Simulate streaming metrics: parts flow through each step.
       for (let stepIdx = 0; stepIdx < flow.steps.length; stepIdx++) {
-        setActiveStep(stepIdx);
         addEvent("trace", `  ${flow.steps[stepIdx].tool}: processing ${file}`);
+
+        // Simulate parts flowing in/out of this step.
+        setStepSnapshots((prev) =>
+          prev.map((s, i) => (i === stepIdx ? { ...s, parts_in: s.parts_in + partsPerFile } : s)),
+        );
+
         await new Promise((r) => setTimeout(r, stepDurationMs));
         setElapsed(Date.now() - start);
+
+        // Mark parts out after processing.
+        setStepSnapshots((prev) =>
+          prev.map((s, i) => (i === stepIdx ? { ...s, parts_out: s.parts_out + partsPerFile } : s)),
+        );
 
         if (simulateError && fileIdx === 1 && stepIdx === 1) {
           addEvent(
@@ -66,7 +83,6 @@ function SimulatedRunner({
             `Error in ${flow.steps[stepIdx].tool}: connection timeout to AI provider`,
           );
           setState("error");
-          setActiveStep(-1);
           return;
         }
       }
@@ -75,7 +91,6 @@ function SimulatedRunner({
       addEvent("complete", `Completed ${file}`);
     }
 
-    setActiveStep(-1);
     setCurrentFile("");
     const duration = ((Date.now() - start) / 1000).toFixed(1);
     addEvent("complete", `Flow completed: ${files.length} files in ${duration}s`);
@@ -84,7 +99,6 @@ function SimulatedRunner({
 
   const handleCancel = useCallback(() => {
     setState("canceled");
-    setActiveStep(-1);
     addEvent("state", "Flow execution canceled by user");
   }, [addEvent]);
 
@@ -121,25 +135,7 @@ function SimulatedRunner({
         <h3 className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
           Pipeline
         </h3>
-        <div className="flex items-center gap-2">
-          {flow.steps.map((step, i) => (
-            <div key={i} className="flex items-center gap-2">
-              {i > 0 && <span className="text-muted-foreground">&rarr;</span>}
-              <span
-                className={`rounded px-2 py-0.5 text-xs font-medium transition-all duration-300 ${
-                  activeStep === i
-                    ? "bg-primary text-primary-foreground scale-110 shadow-md"
-                    : activeStep > i || state === "complete"
-                      ? "bg-green-500/20 text-green-400"
-                      : "bg-accent"
-                }`}
-              >
-                {activeStep === i && <Loader2 size={10} className="mr-1 inline animate-spin" />}
-                {step.tool}
-              </span>
-            </div>
-          ))}
-        </div>
+        <PipelineProgress steps={flow.steps} snapshots={stepSnapshots} runState={state} />
       </Card>
 
       {/* Controls */}

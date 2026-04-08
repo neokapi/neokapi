@@ -91,7 +91,10 @@ export const BuiltInOnly: Story = {
 export const PluginFormats: Story = {
   name: "Plugin Formats",
   args: {
-    formats: formatList.bridge.map((f) => ({ ...f, source: "okapi-bridge" })) as unknown as FormatInfo[],
+    formats: formatList.bridge.map((f) => ({
+      ...f,
+      source: "okapi-bridge",
+    })) as unknown as FormatInfo[],
     docs,
     schemas,
     presets,
