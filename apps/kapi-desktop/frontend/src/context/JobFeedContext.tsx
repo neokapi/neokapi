@@ -1,5 +1,6 @@
-import { createContext, useContext, useState, useCallback, useRef } from "react";
+import { createContext, useContext, useState, useCallback, useRef, useEffect } from "react";
 import { useWailsEvent } from "../hooks/useWailsEvent";
+import { api } from "../hooks/useApi";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -171,6 +172,63 @@ export function JobFeedProvider({ children }: { children: React.ReactNode }) {
       return prev;
     });
   });
+
+  // Backfill: if the active job has no events after 500ms (fast flow completed
+  // before the Wails event listener was ready), fetch events from the backend.
+  const backfilledRef = useRef<string | null>(null);
+  useEffect(() => {
+    const activeId = activeIdRef.current;
+    if (!activeId || backfilledRef.current === activeId) return;
+
+    const timer = setTimeout(() => {
+      if (activeIdRef.current !== activeId) return;
+      backfilledRef.current = activeId;
+
+      void (async () => {
+        const backfillEvents = await api.getRunEvents();
+        if (!backfillEvents || backfillEvents.length === 0) return;
+
+        setJobs((prev) => {
+          const job = prev.find((j) => j.id === activeId);
+          if (!job || job.events.length > 0) return prev; // already has events
+
+          // Apply all backfilled events.
+          let updated = { ...job, events: backfillEvents as RunEvent[] };
+          for (const e of backfillEvents as RunEvent[]) {
+            if (e.type === "progress") {
+              updated = {
+                ...updated,
+                progress: {
+                  current: (e.file_index ?? 0) + 1,
+                  total: e.file_count ?? updated.progress.total,
+                },
+              };
+            } else if (e.type === "complete") {
+              activeIdRef.current = null;
+              updated = {
+                ...updated,
+                status: "complete",
+                durationMs: e.duration_ms,
+                progress: { ...updated.progress, current: updated.progress.total },
+              };
+            } else if (e.type === "error") {
+              activeIdRef.current = null;
+              const rawMsg = e.message ?? "Flow execution failed";
+              const isCanceled =
+                rawMsg.includes("context canceled") || rawMsg.includes("context cancelled");
+              updated = {
+                ...updated,
+                status: isCanceled ? "canceled" : "error",
+                error: isCanceled ? "Flow canceled" : rawMsg,
+              };
+            }
+          }
+          return prev.map((j) => (j.id === activeId ? updated : j));
+        });
+      })();
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [jobs]);
 
   const activeJob = jobs.find((j) => j.status === "running") ?? null;
   const selectedJob = jobs.find((j) => j.id === selectedJobId) ?? null;
