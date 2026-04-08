@@ -32,7 +32,7 @@ export interface RunnerPageProps {
 }
 
 export function RunnerPage({ tabID, flowName, flow, onClose, project, autoRun }: RunnerPageProps) {
-  const { activeJob, selectedJob, jobs, startJob } = useJobFeed();
+  const { activeJob, selectedJob, jobs, startJob, hasActive } = useJobFeed();
 
   // Show selected job, or active job for this flow, or most recent matching.
   const job =
@@ -190,11 +190,20 @@ export function RunnerPage({ tabID, flowName, flow, onClose, project, autoRun }:
         {state === "idle" && !autoRun && (
           <Button
             onClick={handleRun}
-            disabled={!targetLang || inputFiles.length === 0}
+            disabled={!targetLang || inputFiles.length === 0 || hasActive}
             aria-label="Run flow"
           >
-            <Play size={14} />
-            Run Flow
+            {hasActive ? (
+              <>
+                <Loader2 size={14} className="animate-spin" />
+                Running...
+              </>
+            ) : (
+              <>
+                <Play size={14} />
+                Run Flow
+              </>
+            )}
           </Button>
         )}
         {state === "running" && (
