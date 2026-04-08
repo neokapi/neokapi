@@ -174,26 +174,33 @@ export function JobFeedProvider({ children }: { children: React.ReactNode }) {
   });
 
   // On mount, check if a flow is already running (reconnect scenario).
+  // Skip if startJob has already been called (pendingJobRef is set) — that
+  // means the app initiated the flow and will handle the "running" event.
   useEffect(() => {
-    void (async () => {
-      const state = await api.getRunState();
-      if (state === "running" && activeIdRef.current === null) {
-        const id = `reconnected-${Date.now()}`;
-        activeIdRef.current = id;
-        setJobs((prev) => [
-          {
-            id,
-            flowName: "Running flow",
-            status: "running",
-            events: [],
-            progress: { current: 0, total: 0 },
-            startTime: Date.now(),
-          },
-          ...prev,
-        ]);
-        setSelectedJobId(id);
-      }
-    })();
+    // Small delay so startJob (called synchronously from RunnerPage mount)
+    // has a chance to set pendingJobRef before this async check resolves.
+    const timer = setTimeout(() => {
+      void (async () => {
+        const state = await api.getRunState();
+        if (state === "running" && activeIdRef.current === null && !pendingJobRef.current) {
+          const id = `reconnected-${Date.now()}`;
+          activeIdRef.current = id;
+          setJobs((prev) => [
+            {
+              id,
+              flowName: "Running flow",
+              status: "running",
+              events: [],
+              progress: { current: 0, total: 0 },
+              startTime: Date.now(),
+            },
+            ...prev,
+          ]);
+          setSelectedJobId(id);
+        }
+      })();
+    }, 200);
+    return () => clearTimeout(timer);
   }, []);
 
   const activeJob = jobs.find((j) => j.status === "running") ?? null;
