@@ -7,6 +7,7 @@ import (
 	"github.com/mattn/go-isatty"
 	aitools "github.com/neokapi/neokapi/core/ai/tools"
 	"github.com/neokapi/neokapi/core/flow"
+	"github.com/neokapi/neokapi/core/registry"
 	"github.com/neokapi/neokapi/core/schema"
 	"github.com/neokapi/neokapi/core/tool"
 	libtools "github.com/neokapi/neokapi/core/tools"
@@ -384,7 +385,7 @@ func (a *App) NewToolCommands() []*cobra.Command {
 
 				effectiveLang := a.TargetLang
 				if effectiveLang == "" && a.ToolReg != nil {
-					if info := a.ToolReg.GetToolInfo(d.Use); info != nil && info.DefaultLocale != "" {
+					if info := a.ToolReg.GetToolInfo(registry.ToolID(d.Use)); info != nil && info.DefaultLocale != "" {
 						effectiveLang = info.DefaultLocale
 					}
 				}
@@ -404,7 +405,7 @@ func (a *App) NewToolCommands() []*cobra.Command {
 						if !jsonOut && isatty.IsTerminal(os.Stderr.Fd()) {
 							config["onProgress"] = aiProgressWriter(os.Stderr)
 						}
-						return a.ToolReg.NewToolWithConfig(d.Use, config, effectiveLang)
+						return a.ToolReg.NewToolWithConfig(registry.ToolID(d.Use), config, effectiveLang)
 					}
 					return d.NewTool(cmd, effectiveLang)
 				}

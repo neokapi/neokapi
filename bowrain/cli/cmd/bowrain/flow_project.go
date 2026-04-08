@@ -56,7 +56,7 @@ func runProjectFlow(cmd *cobra.Command, proj *project.Project, flowName string, 
 	// Convert FlowDefinition steps to tool.Tool chain.
 	var tools []tool.Tool
 	for _, step := range flowDef.Steps {
-		t, err := toolReg.NewTool(step.Tool)
+		t, err := toolReg.NewTool(registry.ToolID(step.Tool))
 		if err != nil {
 			return fmt.Errorf("tool %q: %w", step.Tool, err)
 		}

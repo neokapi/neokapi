@@ -14,6 +14,7 @@ import (
 	"github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/core/editor"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/registry"
 )
 
 // ProjectInfo describes a translation project exposed to the frontend.
@@ -217,7 +218,7 @@ func (a *App) AddItems(projectID string, filePaths []string) (*ProjectInfo, erro
 		}
 
 		// Parse with format reader using editor.ParseItem.
-		reader, err := a.formatReg.NewReader(fmtName)
+		reader, err := a.formatReg.NewReader(registry.FormatID(fmtName))
 		if err != nil {
 			continue
 		}

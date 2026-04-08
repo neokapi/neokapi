@@ -20,6 +20,7 @@ import (
 	"github.com/neokapi/neokapi/core/flow"
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/registry"
 	"github.com/neokapi/neokapi/core/plugin/bridge"
 	pluginreg "github.com/neokapi/neokapi/core/plugin/registry"
 	"github.com/neokapi/neokapi/core/preset"
@@ -48,7 +49,7 @@ func (a *App) RunFlow(ctx context.Context, cmd *cobra.Command, flowName string, 
 	if len(inputPaths) > 0 {
 		if a.TargetLang == "" {
 			// Check tool registry for a default locale (e.g., pseudo-translate → "qps").
-			if info := a.ToolReg.GetToolInfo(flowName); info != nil && info.DefaultLocale != "" {
+			if info := a.ToolReg.GetToolInfo(registry.ToolID(flowName)); info != nil && info.DefaultLocale != "" {
 				a.TargetLang = info.DefaultLocale
 			} else {
 				return errors.New("--target-lang is required")
@@ -199,7 +200,7 @@ func (a *App) runSingleFile(ctx context.Context, cmd *cobra.Command, flowName, i
 		FormatReg:    a.FormatReg,
 		SourceLocale: model.LocaleID(a.SourceLang),
 		Encoding:     a.Encoding,
-		ConfigureReader: func(reader format.DataFormatReader, detectedFmt string) error {
+		ConfigureReader: func(reader format.DataFormatReader, detectedFmt registry.FormatID) error {
 			if len(mergedConfig) > 0 {
 				if cfg := reader.Config(); cfg != nil {
 					if err := cfg.ApplyMap(mergedConfig); err != nil {
@@ -208,7 +209,7 @@ func (a *App) runSingleFile(ctx context.Context, cmd *cobra.Command, flowName, i
 				}
 			}
 			if a.projectContext != nil {
-				if err := a.projectContext.ConfigureReader(reader, detectedFmt); err != nil {
+				if err := a.projectContext.ConfigureReader(reader, string(detectedFmt)); err != nil {
 					return fmt.Errorf("apply project format config: %w", err)
 				}
 			}
@@ -230,7 +231,8 @@ func (a *App) runSingleFile(ctx context.Context, cmd *cobra.Command, flowName, i
 	if tracePath != "" && recorder != nil {
 		detectedFmt := fmtName
 		if detectedFmt == "" {
-			detectedFmt, _ = a.FormatReg.DetectByExtension(filepath.Ext(inputPath))
+			detected, _ := a.FormatReg.DetectByExtension(filepath.Ext(inputPath))
+			detectedFmt = string(detected)
 		}
 		a.writeTraceFile(tracePath, flowName, detectedFmt, inputPath, outputPath, recorder)
 	}
@@ -454,7 +456,7 @@ func (a *App) processFlowFile(ctx context.Context, cmd *cobra.Command, flowName,
 			if err != nil {
 				return "", nil, fmt.Errorf("unable to detect format: %w", err)
 			}
-			fmtName = detected
+			fmtName = string(detected)
 		}
 	}
 
@@ -474,7 +476,7 @@ func (a *App) processFlowFile(ctx context.Context, cmd *cobra.Command, flowName,
 		}
 	}
 
-	reader, err := a.FormatReg.NewReader(registryName)
+	reader, err := a.FormatReg.NewReader(registry.FormatID(registryName))
 	if err != nil {
 		return "", nil, fmt.Errorf("no reader for format %q: %w", fmtName, err)
 	}
@@ -594,7 +596,7 @@ func (a *App) processFlowFileNative(ctx context.Context, cmd *cobra.Command, flo
 
 	// Reader is pre-created and pre-configured by processFlowFile.
 	// Pass it via RunFileWithReaderWriter since format detection already happened.
-	writer, err := a.FormatReg.NewWriter(registryName)
+	writer, err := a.FormatReg.NewWriter(registry.FormatID(registryName))
 	if err != nil {
 		return traceNodes, fmt.Errorf("no writer for %q: %w", registryName, err)
 	}
@@ -815,8 +817,8 @@ func (a *App) buildToolByName(toolName string, config map[string]any, cmd ...*co
 
 	// Default: use the tool registry (which runs the config preprocessor
 	// for credential resolution) then fall back to direct factory.
-	if a.ToolReg != nil && a.ToolReg.Has(toolName) {
-		t, err := a.ToolReg.NewToolWithConfig(toolName, config, a.TargetLang)
+	if a.ToolReg != nil && a.ToolReg.Has(registry.ToolID(toolName)) {
+		t, err := a.ToolReg.NewToolWithConfig(registry.ToolID(toolName), config, a.TargetLang)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -1005,7 +1007,7 @@ func (a *App) toolFromStep(step flow.FlowStep, cmd *cobra.Command, rCtx *flow.Re
 	}
 
 	// Fall back to tool registry (handles plugin tools, including bridge step tools).
-	t, err := a.ToolReg.NewTool(step.Tool)
+	t, err := a.ToolReg.NewTool(registry.ToolID(step.Tool))
 	if err != nil {
 		return nil, fmt.Errorf("tool %q: %w", step.Tool, err)
 	}

@@ -23,7 +23,7 @@ type ConfigPreprocessor func(toolName string, requires []string, config map[stri
 
 // ToolInfo holds metadata about a registered tool.
 type ToolInfo struct {
-	Name        string   `json:"name"`
+	Name        ToolID   `json:"name"`
 	DisplayName string   `json:"display_name,omitempty"`
 	Description string   `json:"description,omitempty"`
 	Category    string   `json:"category,omitempty"`
@@ -52,32 +52,32 @@ type ToolRegistration struct {
 // ToolRegistry manages available Tools.
 type ToolRegistry struct {
 	mu           sync.RWMutex
-	tools        map[string]*ToolRegistration
+	tools        map[ToolID]*ToolRegistration
 	preprocessor ConfigPreprocessor // optional: runs before ConfigFactory
 }
 
 // NewToolRegistry creates a new ToolRegistry.
 func NewToolRegistry() *ToolRegistry {
-	return &ToolRegistry{tools: make(map[string]*ToolRegistration)}
+	return &ToolRegistry{tools: make(map[ToolID]*ToolRegistration)}
 }
 
 // Register registers a Tool factory (backward compatible).
-func (r *ToolRegistry) Register(name string, factory ToolFactory) {
+func (r *ToolRegistry) Register(name ToolID, factory ToolFactory) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	r.tools[name] = &ToolRegistration{
 		Factory: factory,
-		Info:    ToolInfo{Name: name, Source: "built-in"},
+		Info:    ToolInfo{Name: name, Source: SourceBuiltIn},
 	}
 }
 
 // RegisterWithSchema registers a Tool factory with a parameter schema.
-func (r *ToolRegistry) RegisterWithSchema(name string, factory ToolFactory, s *schema.ComponentSchema) {
+func (r *ToolRegistry) RegisterWithSchema(name ToolID, factory ToolFactory, s *schema.ComponentSchema) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	info := ToolInfo{
 		Name:      name,
-		Source:    "built-in",
+		Source:    SourceBuiltIn,
 		HasSchema: s != nil,
 	}
 	if s != nil {
@@ -105,7 +105,7 @@ func (r *ToolRegistry) RegisterWithSchema(name string, factory ToolFactory, s *s
 // RegisterMetadata registers a tool's schema and metadata without a factory.
 // Used for plugin tools that are executed remotely via a bridge — they appear
 // in listings and have schemas for config UI, but cannot be instantiated locally.
-func (r *ToolRegistry) RegisterMetadata(name string, s *schema.ComponentSchema, source string) {
+func (r *ToolRegistry) RegisterMetadata(name ToolID, s *schema.ComponentSchema, source string) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	info := ToolInfo{
@@ -137,7 +137,7 @@ func (r *ToolRegistry) RegisterMetadata(name string, s *schema.ComponentSchema, 
 // SetConfigFactory registers a config-based factory for an already-registered tool.
 // This is used by CLI/desktop to attach NewToolFromConfig functions to tools
 // that were registered via RegisterAll with zero-arg factories.
-func (r *ToolRegistry) SetConfigFactory(name string, factory ToolConfigFactory) {
+func (r *ToolRegistry) SetConfigFactory(name ToolID, factory ToolConfigFactory) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	if reg, ok := r.tools[name]; ok {
@@ -156,7 +156,7 @@ func (r *ToolRegistry) SetConfigPreprocessor(fn ConfigPreprocessor) {
 }
 
 // NewTool creates a new Tool instance for the given name with default config.
-func (r *ToolRegistry) NewTool(name string) (tool.Tool, error) {
+func (r *ToolRegistry) NewTool(name ToolID) (tool.Tool, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	reg, ok := r.tools[name]
@@ -170,7 +170,7 @@ func (r *ToolRegistry) NewTool(name string) (tool.Tool, error) {
 }
 
 // GetToolInfo returns the metadata for a named tool, or nil if not found.
-func (r *ToolRegistry) GetToolInfo(name string) *ToolInfo {
+func (r *ToolRegistry) GetToolInfo(name ToolID) *ToolInfo {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	reg, ok := r.tools[name]
@@ -185,7 +185,7 @@ func (r *ToolRegistry) GetToolInfo(name string) *ToolInfo {
 // If a ConfigPreprocessor is set, it runs first to enrich the config (e.g.
 // credential resolution). Falls back to the zero-arg Factory if no
 // ConfigFactory is registered.
-func (r *ToolRegistry) NewToolWithConfig(name string, config map[string]any, targetLang string) (tool.Tool, error) {
+func (r *ToolRegistry) NewToolWithConfig(name ToolID, config map[string]any, targetLang string) (tool.Tool, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	reg, ok := r.tools[name]
@@ -196,7 +196,7 @@ func (r *ToolRegistry) NewToolWithConfig(name string, config map[string]any, tar
 	// Run preprocessor if set (e.g. credential resolution).
 	if r.preprocessor != nil && reg.ConfigFactory != nil {
 		var err error
-		config, err = r.preprocessor(name, reg.Info.Requires, config)
+		config, err = r.preprocessor(string(name), reg.Info.Requires, config)
 		if err != nil {
 			return nil, fmt.Errorf("tool %s config: %w", name, err)
 		}
@@ -212,7 +212,7 @@ func (r *ToolRegistry) NewToolWithConfig(name string, config map[string]any, tar
 }
 
 // GetSchema returns the schema for a tool, or nil if none is registered.
-func (r *ToolRegistry) GetSchema(name string) *schema.ComponentSchema {
+func (r *ToolRegistry) GetSchema(name ToolID) *schema.ComponentSchema {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	reg, ok := r.tools[name]
@@ -223,10 +223,10 @@ func (r *ToolRegistry) GetSchema(name string) *schema.ComponentSchema {
 }
 
 // Names returns the names of all registered tools.
-func (r *ToolRegistry) Names() []string {
+func (r *ToolRegistry) Names() []ToolID {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
-	names := make([]string, 0, len(r.tools))
+	names := make([]ToolID, 0, len(r.tools))
 	for name := range r.tools {
 		names = append(names, name)
 	}
@@ -234,7 +234,7 @@ func (r *ToolRegistry) Names() []string {
 }
 
 // Has returns true if a tool is registered for the given name.
-func (r *ToolRegistry) Has(name string) bool {
+func (r *ToolRegistry) Has(name ToolID) bool {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	_, ok := r.tools[name]

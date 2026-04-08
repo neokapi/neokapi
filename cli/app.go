@@ -202,12 +202,12 @@ func (a *App) applyFormatPriorities(priorities map[string]int) {
 		if isGlobPattern(pattern) {
 			// Glob pattern — match against all registered format infos.
 			for _, info := range a.FormatReg.FormatInfos() {
-				if matched, _ := filepath.Match(pattern, info.Name); matched {
+				if matched, _ := filepath.Match(pattern, string(info.Name)); matched {
 					a.FormatReg.SetFormatPriority(info.Name, priority)
 				}
 			}
 		} else {
-			a.FormatReg.SetFormatPriority(pattern, priority)
+			a.FormatReg.SetFormatPriority(registry.FormatID(pattern), priority)
 		}
 	}
 }

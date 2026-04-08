@@ -6,6 +6,7 @@ import (
 	"slices"
 
 	"github.com/neokapi/neokapi/cli/output"
+	"github.com/neokapi/neokapi/core/registry"
 	"github.com/spf13/cobra"
 )
 
@@ -62,13 +63,13 @@ func (a *App) listTools(cmd *cobra.Command) error {
 		names := a.ToolReg.Names()
 		slices.Sort(names)
 		for _, name := range names {
-			if !seen[name] {
+			if !seen[string(name)] {
 				t, err := a.ToolReg.NewTool(name)
 				if err != nil {
 					continue
 				}
 				tools = append(tools, output.ToolInfo{
-					Name:        name,
+					Name:        string(name),
 					Description: t.Description(),
 					Source:      "builtin",
 				})
@@ -93,7 +94,7 @@ func (a *App) toolSchema(_ *cobra.Command, name string) error {
 
 	// Check registry
 	if a.ToolReg != nil {
-		if s := a.ToolReg.GetSchema(name); s != nil {
+		if s := a.ToolReg.GetSchema(registry.ToolID(name)); s != nil {
 			return printSchema(s)
 		}
 	}

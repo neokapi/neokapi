@@ -91,7 +91,7 @@ func (ctx *ProjectContext) DetectFormat(reg *registry.FormatRegistry, path strin
 	if err != nil {
 		return ""
 	}
-	return name
+	return string(name)
 }
 
 // --- Content resolution ---
@@ -271,7 +271,7 @@ func (ctx *ProjectContext) ValidateFlows(allTools []registry.ToolInfo) []FlowVal
 		if source == "" {
 			source = "built-in"
 		}
-		toolSource[t.Name] = source
+		toolSource[string(t.Name)] = source
 	}
 
 	allowed := make(map[string]bool, len(ctx.AllowedSources))

@@ -8,8 +8,8 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func toolMap(tools ...registry.ToolInfo) map[string]registry.ToolInfo {
-	m := make(map[string]registry.ToolInfo)
+func toolMap(tools ...registry.ToolInfo) map[registry.ToolID]registry.ToolInfo {
+	m := make(map[registry.ToolID]registry.ToolInfo)
 	for _, t := range tools {
 		m[t.Name] = t
 	}

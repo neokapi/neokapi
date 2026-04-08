@@ -20,7 +20,7 @@ import (
 //  3. If all bilingual tools have defaults → one pass per unique default
 //  4. If any tool is multilingual → one pass with source + all project targets
 //  5. Mixed → union of all needed passes
-func ResolveFlowLocales(spec *StepsSpec, toolInfos map[string]registry.ToolInfo, sourceLocale string, projectTargets []string) [][]string {
+func ResolveFlowLocales(spec *StepsSpec, toolInfos map[registry.ToolID]registry.ToolInfo, sourceLocale string, projectTargets []string) [][]string {
 	if spec == nil || len(spec.Steps) == 0 {
 		return nil
 	}
@@ -34,7 +34,7 @@ func ResolveFlowLocales(spec *StepsSpec, toolInfos map[string]registry.ToolInfo,
 	var bilingualDefaults []string
 
 	for _, name := range toolNames {
-		info, ok := toolInfos[name]
+		info, ok := toolInfos[registry.ToolID(name)]
 		if !ok {
 			// Unknown tool — assume bilingual (conservative, iterates all targets).
 			hasBilingualNoDefault = true
@@ -118,8 +118,8 @@ func collectToolNames(steps []FlowStep) []string {
 }
 
 // BuildToolInfoMap creates a tool name → ToolInfo lookup from the registry.
-func BuildToolInfoMap(reg *registry.ToolRegistry) map[string]registry.ToolInfo {
-	m := make(map[string]registry.ToolInfo)
+func BuildToolInfoMap(reg *registry.ToolRegistry) map[registry.ToolID]registry.ToolInfo {
+	m := make(map[registry.ToolID]registry.ToolInfo)
 	for _, info := range reg.ListWithSchemas() {
 		m[info.Name] = info
 	}
