@@ -86,22 +86,8 @@ func (a *App) RunFlow(tabID, flowName string, inputPaths []string, targetLangs [
 
 	a.runState.mu.Lock()
 	if a.runState.running {
-		// Cancel the previous flow before starting a new one.
-		if a.runState.cancel != nil {
-			a.runState.cancel()
-		}
 		a.runState.mu.Unlock()
-		// Brief wait for the goroutine to notice cancellation.
-		for i := 0; i < 50; i++ {
-			time.Sleep(10 * time.Millisecond)
-			a.runState.mu.Lock()
-			if !a.runState.running {
-				a.runState.mu.Unlock()
-				break
-			}
-			a.runState.mu.Unlock()
-		}
-		a.runState.mu.Lock()
+		return fmt.Errorf("a flow is already running — cancel it first")
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())

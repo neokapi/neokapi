@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect, useRef } from "react";
-import { Play, Square, CheckCircle2, XCircle, Loader2, FileText } from "lucide-react";
+import { Play, Square, CheckCircle2, XCircle, Loader2, FileText, AlertTriangle } from "lucide-react";
 import {
   Button,
   Badge,
@@ -53,6 +53,31 @@ export function RunnerPage({ tabID, flowName, flow, onClose, project, autoRun }:
 
   const projectName = project?.name || undefined;
 
+  const [launchError, setLaunchError] = useState<string | null>(null);
+
+  // Helper: check if a flow is already running and cancel it before starting.
+  const launchFlow = useCallback(
+    async (paths: string[], targets: string[]) => {
+      setLaunchError(null);
+
+      // If another flow is running, cancel it first.
+      const runState = await api.getRunState();
+      if (runState === "running") {
+        await api.cancelRun();
+        // Wait briefly for the goroutine to stop.
+        await new Promise((r) => setTimeout(r, 300));
+      }
+
+      startJob(flowName, projectName, undefined, paths.length);
+      try {
+        await api.runFlow(tabID, flowName, paths, targets);
+      } catch (err) {
+        setLaunchError(String(err));
+      }
+    },
+    [tabID, flowName, projectName, startJob],
+  );
+
   // Auto-run: resolve content and execute for all target languages.
   useEffect(() => {
     if (!autoRun || !project || autoRunStarted.current) return;
@@ -67,27 +92,15 @@ export function RunnerPage({ tabID, flowName, flow, onClose, project, autoRun }:
       if (paths.length === 0) return;
 
       setInputFiles(paths);
-      // Don't pass target langs — the backend resolves actual locale passes
-      // from tool metadata (e.g. pseudo-translate uses qps, not project targets).
-      startJob(flowName, projectName, undefined, paths.length);
-      try {
-        await api.runFlow(tabID, flowName, paths, targets);
-      } catch {
-        // Error will be captured by the job feed via events.
-      }
+      await launchFlow(paths, targets);
     })();
-  }, [autoRun, project, tabID, flowName, projectName, startJob]);
+  }, [autoRun, project, tabID, launchFlow]);
 
   // Manual run (single language).
   const handleRun = useCallback(async () => {
     if (!targetLang || inputFiles.length === 0) return;
-    startJob(flowName, projectName, [targetLang], inputFiles.length);
-    try {
-      await api.runFlow(tabID, flowName, inputFiles, [targetLang]);
-    } catch {
-      // Error captured by job feed.
-    }
-  }, [tabID, flowName, inputFiles, targetLang, projectName, startJob]);
+    await launchFlow(inputFiles, [targetLang]);
+  }, [inputFiles, targetLang, launchFlow]);
 
   const handleCancel = useCallback(async () => {
     try {
@@ -197,7 +210,13 @@ export function RunnerPage({ tabID, flowName, flow, onClose, project, autoRun }:
         )}
       </div>
 
-      {/* Error */}
+      {/* Errors */}
+      {launchError && (
+        <div className="mb-4 flex items-center gap-2 rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive" role="alert">
+          <AlertTriangle size={14} className="shrink-0" />
+          {launchError}
+        </div>
+      )}
       {error && (
         <p className="mb-4 text-sm text-destructive" role="alert">
           {error}
