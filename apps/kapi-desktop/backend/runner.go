@@ -54,6 +54,7 @@ type runner struct {
 	cancel    context.CancelFunc
 	running   bool
 	lastTrace *flow.FlowTrace // trace from the last completed run
+	events    []RunEvent      // accumulated events for reconnection
 }
 
 func newRunner() *runner {
@@ -93,6 +94,7 @@ func (a *App) RunFlow(tabID, flowName string, inputPaths []string, targetLangs [
 	a.runState.state = RunStateRunning
 	a.runState.cancel = cancel
 	a.runState.running = true
+	a.runState.events = nil // clear events from previous run
 	a.runState.mu.Unlock()
 
 	pctx := project.NewProjectContext(op.Project, op.Path)
@@ -129,7 +131,7 @@ func (a *App) executeFlowAllLangs(ctx context.Context, flowName string, spec *fl
 	totalFiles := len(inputPaths) * len(localePasses)
 	filesDone := 0
 
-	a.emitEvent("flow:event", RunEvent{
+	a.emitRunEvent(RunEvent{
 		Type: "state", FlowID: flowName, Message: "running",
 	})
 
@@ -148,7 +150,7 @@ func (a *App) executeFlowAllLangs(ctx context.Context, flowName string, spec *fl
 			}
 			msg += " " + think
 		}
-		a.emitEvent("flow:event", RunEvent{
+		a.emitRunEvent(RunEvent{
 			Type: "progress", FlowID: flowName, Message: msg,
 			FileIndex: filesDone, FileCount: totalFiles,
 		})
@@ -165,7 +167,7 @@ func (a *App) executeFlowAllLangs(ctx context.Context, flowName string, spec *fl
 			lang = pass[1]
 		}
 
-		a.emitEvent("flow:event", RunEvent{
+		a.emitRunEvent(RunEvent{
 			Type:    "state",
 			FlowID:  flowName,
 			Message: fmt.Sprintf("Running for %s (%d files)...", lang, len(inputPaths)),
@@ -184,7 +186,7 @@ func (a *App) executeFlowAllLangs(ctx context.Context, flowName string, spec *fl
 
 			t, err := a.toolReg.NewToolWithConfig(step.Tool, config, lang)
 			if err != nil {
-				a.emitEvent("flow:event", RunEvent{
+				a.emitRunEvent(RunEvent{
 					Type: "error", FlowID: flowName,
 					Message: fmt.Sprintf("tool %q for %s: %v", step.Tool, lang, err),
 				})
@@ -205,7 +207,7 @@ func (a *App) executeFlowAllLangs(ctx context.Context, flowName string, spec *fl
 				break
 			}
 
-			a.emitEvent("flow:event", RunEvent{
+			a.emitRunEvent(RunEvent{
 				Type: "progress", FlowID: flowName,
 				FileIndex: filesDone, FileCount: totalFiles, FilePath: inputPath,
 			})
@@ -221,7 +223,7 @@ func (a *App) executeFlowAllLangs(ctx context.Context, flowName string, spec *fl
 			})
 
 			if err := runner.RunFile(ctx, flowName, tools, inputPath, outputPath, lang); err != nil {
-				a.emitEvent("flow:event", RunEvent{
+				a.emitRunEvent(RunEvent{
 					Type: "error", FlowID: flowName,
 					Message: fmt.Sprintf("%s [%s]: %v", filepath.Base(inputPath), lang, err),
 				})
@@ -262,7 +264,7 @@ func (a *App) executeFlowAllLangs(ctx context.Context, flowName string, spec *fl
 	}
 	a.runState.mu.Unlock()
 
-	a.emitEvent("flow:event", RunEvent{
+	a.emitRunEvent(RunEvent{
 		Type: "complete", FlowID: flowName,
 		DurationMs: duration.Milliseconds(), FilesProcessed: filesDone,
 		Message: fmt.Sprintf("Completed %d files for %d locale passes in %s",
@@ -291,6 +293,27 @@ func (a *App) GetRunState() string {
 	a.runState.mu.Lock()
 	defer a.runState.mu.Unlock()
 	return string(a.runState.state)
+}
+
+// GetRunEvents returns accumulated events from the current or last run.
+// Used by the frontend to reconnect to a running flow after navigation.
+func (a *App) GetRunEvents() []RunEvent {
+	if a.runState == nil {
+		return nil
+	}
+	a.runState.mu.Lock()
+	defer a.runState.mu.Unlock()
+	out := make([]RunEvent, len(a.runState.events))
+	copy(out, a.runState.events)
+	return out
+}
+
+// emitRunEvent emits a flow event to the frontend and stores it for reconnection.
+func (a *App) emitRunEvent(event RunEvent) {
+	a.runState.mu.Lock()
+	a.runState.events = append(a.runState.events, event)
+	a.runState.mu.Unlock()
+	a.emitEvent("flow:event", event)
 }
 
 // GetLastTrace returns the trace data from the last completed flow execution.

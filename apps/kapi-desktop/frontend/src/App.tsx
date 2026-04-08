@@ -6,7 +6,9 @@ import { useTabManager } from "./hooks/useTabManager";
 import { useAppInit } from "./hooks/useAppInit";
 import { useMenuEvents } from "./hooks/useMenuEvents";
 import { ErrorProvider } from "./components/ErrorBanner";
+import { JobFeedProvider } from "./context/JobFeedContext";
 import { IconSidebar } from "./components/IconSidebar";
+import { JobFeedButton } from "./components/JobFeedButton";
 import { ModeToggle } from "./components/ModeToggle";
 import { TabBar } from "./components/TabBar";
 import { SaveBar } from "./components/SaveBar";
@@ -20,7 +22,9 @@ import { Button } from "@neokapi/ui-primitives";
 export default function App() {
   return (
     <ErrorProvider>
-      <AppInner />
+      <JobFeedProvider>
+        <AppInner />
+      </JobFeedProvider>
     </ErrorProvider>
   );
 }
@@ -203,11 +207,19 @@ function AppInner() {
                 />
               )}
             </div>
-            {/* Mode toggle */}
+            {/* Job feed + mode toggle */}
             <div
-              className="shrink-0 px-3 pb-1.5"
+              className="flex shrink-0 items-center gap-1.5 px-3 pb-1.5"
               style={{ WebkitAppRegion: "no-drag" } as React.CSSProperties}
             >
+              <JobFeedButton
+                onViewJob={() => {
+                  // Navigate to runner view for the job's flow.
+                  if (tm.activeTabID) {
+                    tm.navigate("runner");
+                  }
+                }}
+              />
               <ModeToggle mode={tm.mode} onChange={tm.switchMode} />
             </div>
           </div>
