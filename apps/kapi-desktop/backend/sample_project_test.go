@@ -20,6 +20,7 @@ func TestOpenProjectAutoOpensTM(t *testing.T) {
 	// Open the project — should auto-detect .kapi/tm.db and .kapi/termbase.db.
 	tab, err := app.OpenProject(filepath.Join(dir, "project.kapi"))
 	require.NoError(t, err)
+	t.Cleanup(func() { app.CloseProject(tab.ID) })
 
 	app.mu.RLock()
 	op := app.projects[tab.ID]
@@ -84,6 +85,7 @@ func TestCreateSampleProjectIdempotent(t *testing.T) {
 	kapiPath := filepath.Join(dir, "project.kapi")
 	tab1, err := app.OpenProject(kapiPath)
 	require.NoError(t, err)
+	t.Cleanup(func() { app.CloseProject(tab1.ID) })
 	tab2, err := app.OpenProject(kapiPath)
 	require.NoError(t, err)
 	assert.Equal(t, tab1.ID, tab2.ID)

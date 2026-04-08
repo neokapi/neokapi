@@ -25,6 +25,7 @@ func newTestProject(t *testing.T, app *App, name string) *TabInfo {
 	path := filepath.Join(t.TempDir(), name, "project.kapi")
 	tab, err := app.NewProject("", "en-US", nil, path)
 	require.NoError(t, err)
+	t.Cleanup(func() { app.CloseProject(tab.ID) })
 	return tab
 }
 
@@ -75,6 +76,7 @@ func TestOpenSaveProject(t *testing.T) {
 
 	tab, err := app.OpenProject(path)
 	require.NoError(t, err)
+	t.Cleanup(func() { app.CloseProject(tab.ID) })
 	assert.Equal(t, "Roundtrip Test", tab.Name)
 
 	loaded := app.GetProject(tab.ID)
