@@ -6,13 +6,14 @@ import { useTabManager } from "./hooks/useTabManager";
 import { useAppInit } from "./hooks/useAppInit";
 import { useMenuEvents } from "./hooks/useMenuEvents";
 import { ErrorProvider } from "./components/ErrorBanner";
-import { JobFeedProvider } from "./context/JobFeedContext";
+import { JobFeedProvider, useJobFeed } from "./context/JobFeedContext";
 import { IconSidebar } from "./components/IconSidebar";
 import { JobFeedButton } from "./components/JobFeedButton";
 import { ModeToggle } from "./components/ModeToggle";
 import { TabBar } from "./components/TabBar";
 import { SaveBar } from "./components/SaveBar";
 import { UnsavedDialog } from "./components/UnsavedDialog";
+import { RunningFlowDialog } from "./components/RunningFlowDialog";
 import { ViewSwitch } from "./components/ViewSwitch";
 import { NewProjectDialog } from "./components/NewProjectDialog";
 import { useShortenHome } from "./hooks/useShortenHome";
@@ -33,6 +34,7 @@ function AppInner() {
   const shortenHome = useShortenHome();
   const { recentFiles, samplesDismissed, refreshRecent, dismissSamples } = useAppInit();
   const tm = useTabManager();
+  const { hasActive: hasRunningFlow } = useJobFeed();
 
   const emptyProject: KapiProject = { version: "v1", name: "" };
   const history = useProjectHistory(
@@ -45,14 +47,14 @@ function AppInner() {
     refreshRecent();
   }, [refreshRecent, tm.tabs.length]);
 
-  // Warn before window close/quit if there are unsaved changes.
+  // Warn before window close/quit if there are unsaved changes or running flows.
   useEffect(() => {
     const handler = (e: BeforeUnloadEvent) => {
-      if (history.isDirty) e.preventDefault();
+      if (history.isDirty || hasRunningFlow) e.preventDefault();
     };
     window.addEventListener("beforeunload", handler);
     return () => window.removeEventListener("beforeunload", handler);
-  }, [history.isDirty]);
+  }, [history.isDirty, hasRunningFlow]);
 
   // --- Project save ---
   const handleSaveProject = useCallback(async () => {
@@ -88,9 +90,16 @@ function AppInner() {
 
   // --- Unsaved-changes guard for tab close ---
   const [pendingCloseTabID, setPendingCloseTabID] = useState<string | null>(null);
+  const [pendingFlowCloseTabID, setPendingFlowCloseTabID] = useState<string | null>(null);
 
   const handleCloseTab = useCallback(
     (tabID: string) => {
+      // Guard: running flow.
+      if (hasRunningFlow) {
+        setPendingFlowCloseTabID(tabID);
+        return;
+      }
+      // Guard: unsaved changes.
       if (tabID === tm.activeTabID && history.isDirty) {
         setPendingCloseTabID(tabID);
         return;
@@ -98,8 +107,22 @@ function AppInner() {
       history.cleanup(tabID);
       tm.closeTab(tabID);
     },
-    [tm, history],
+    [tm, history, hasRunningFlow],
   );
+
+  const handleFlowCancelAndClose = useCallback(async () => {
+    if (!pendingFlowCloseTabID) return;
+    await api.cancelRun();
+    const tabID = pendingFlowCloseTabID;
+    setPendingFlowCloseTabID(null);
+    // After canceling, check for unsaved changes before closing.
+    if (tabID === tm.activeTabID && history.isDirty) {
+      setPendingCloseTabID(tabID);
+      return;
+    }
+    history.cleanup(tabID);
+    tm.closeTab(tabID);
+  }, [pendingFlowCloseTabID, tm, history]);
 
   const handleUnsavedSave = useCallback(async () => {
     if (!pendingCloseTabID) return;
@@ -260,6 +283,12 @@ function AppInner() {
           onCreate={tm.createProject}
           onCancel={() => tm.setShowNewProjectForm(false)}
           shortenHome={shortenHome}
+        />
+      )}
+      {pendingFlowCloseTabID && (
+        <RunningFlowDialog
+          onCancelFlow={() => void handleFlowCancelAndClose()}
+          onKeepRunning={() => setPendingFlowCloseTabID(null)}
         />
       )}
       {pendingCloseTabID && (
