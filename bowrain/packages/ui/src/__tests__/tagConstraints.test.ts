@@ -1,6 +1,5 @@
 import { describe, it, expect } from "vite-plus/test";
-import { resolveConstraints, isDeletable, isCloneable } from "../components/editor/tagConstraints";
-import type { SpanInfo } from "../types/api";
+import { resolveConstraints, isDeletable, isCloneable, type SpanInfo } from "@neokapi/ui-primitives";
 
 function span(type: string, overrides?: Partial<SpanInfo>): SpanInfo {
   return { span_type: "placeholder", type, id: "1", data: "<x/>", ...overrides };

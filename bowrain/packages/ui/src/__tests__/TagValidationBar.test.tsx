@@ -1,7 +1,6 @@
 import { describe, it, expect } from "vite-plus/test";
 import { render, screen } from "@testing-library/react";
-import { TagValidationBar } from "../components/editor/TagValidationBar";
-import type { TagValidationResult } from "../components/editor/tagSemantics";
+import { TagValidationBar, type TagValidationResult } from "@neokapi/ui-primitives";
 
 describe("TagValidationBar", () => {
   it("renders nothing when validation is null", () => {

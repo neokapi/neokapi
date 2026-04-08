@@ -1,9 +1,8 @@
 import { useState, useMemo } from "react";
 import { getDefaultRegistry, type SpanTypeInfo, type ColorScheme } from "../../vocabularies";
-import { TagChipComponent } from "./TagChipComponent";
+import { TagChipComponent, cn } from "@neokapi/ui-primitives";
 import type { SpanInfo } from "../../types/api";
 import { ChevronDown } from "../icons";
-import { cn } from "@neokapi/ui-primitives";
 
 // ---------------------------------------------------------------------------
 // Types

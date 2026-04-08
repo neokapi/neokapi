@@ -1,8 +1,7 @@
 import { useMemo } from "react";
 import type { SpanInfo } from "../../types/api";
 import { getDefaultRegistry } from "../../vocabularies";
-import { parseCodedSegments } from "./codedText";
-import { semanticTooltip, tagColors, type TagColorScheme } from "./tagSemantics";
+import { parseCodedSegments, semanticTooltip, tagColors, type TagColorScheme } from "@neokapi/ui-primitives";
 
 interface FormattedSourceDisplayProps {
   codedText: string;

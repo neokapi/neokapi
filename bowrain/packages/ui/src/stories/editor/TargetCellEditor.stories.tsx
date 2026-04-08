@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { fn } from "storybook/test";
-import { TargetCellEditor } from "../../components/editor/TargetCellEditor";
+import { InlineCodeEditor as TargetCellEditor } from "@neokapi/ui-primitives";
 import {
   simpleBoldCodedText,
   simpleBoldSpans,

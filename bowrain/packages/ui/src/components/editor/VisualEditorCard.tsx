@@ -14,11 +14,11 @@ import type {
 import type { VisualEditorMode } from "./visual-editor-types";
 import { SourceCellDisplay } from "./SourceCellDisplay";
 import { FormattedSourceDisplay } from "./FormattedSourceDisplay";
-import { TargetCellEditor } from "./TargetCellEditor";
+import { InlineCodeEditor as TargetCellEditor } from "@neokapi/ui-primitives";
 import { HighlightedSource } from "./HighlightedSource";
 import { VisualEditorToolbar } from "./VisualEditorToolbar";
 import { TermCreationPopover } from "./TermCreationPopover";
-import { InlineCodeLegend } from "./InlineCodeLegend";
+import { InlineCodeLegend } from "@neokapi/ui-primitives";
 import { FormatVocabularyBadge } from "./FormatVocabularyBadge";
 import {
   Check,

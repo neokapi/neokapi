@@ -1,6 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { TagValidationBar } from "../../components/editor/TagValidationBar";
-import type { TagValidationResult } from "../../components/editor/tagSemantics";
+import { TagValidationBar, type TagValidationResult } from "@neokapi/ui-primitives";
 
 const meta: Meta<typeof TagValidationBar> = {
   title: "Editor/Tags/TagValidationBar",
