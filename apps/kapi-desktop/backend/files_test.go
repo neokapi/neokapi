@@ -10,6 +10,15 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// openTestProjectFile opens a .kapi project and registers cleanup to stop the file watcher.
+func openTestProjectFile(t *testing.T, app *App, kapiPath string) *TabInfo {
+	t.Helper()
+	tab, err := app.OpenProject(kapiPath)
+	require.NoError(t, err)
+	t.Cleanup(func() { app.CloseProject(tab.ID) })
+	return tab
+}
+
 func TestMatchContentBadTab(t *testing.T) {
 	app := NewApp()
 	matches, err := app.MatchContent("bad")
@@ -35,8 +44,7 @@ func TestMatchContentFindsFiles(t *testing.T) {
 	require.NoError(t, project.Save(kapiPath, proj))
 
 	app := NewApp()
-	tab, err := app.OpenProject(kapiPath)
-	require.NoError(t, err)
+	tab := openTestProjectFile(t, app, kapiPath)
 
 	matches, err := app.MatchContent(tab.ID)
 	require.NoError(t, err)
@@ -63,7 +71,7 @@ func TestMatchContentRejectsParentTraversal(t *testing.T) {
 	require.NoError(t, project.Save(kapiPath, proj))
 
 	app := NewApp()
-	tab, _ := app.OpenProject(kapiPath)
+	tab := openTestProjectFile(t, app, kapiPath)
 
 	matches, err := app.MatchContent(tab.ID)
 	require.NoError(t, err)
@@ -83,7 +91,7 @@ func TestMatchContentRejectsAbsolutePaths(t *testing.T) {
 	require.NoError(t, project.Save(kapiPath, proj))
 
 	app := NewApp()
-	tab, _ := app.OpenProject(kapiPath)
+	tab := openTestProjectFile(t, app, kapiPath)
 
 	matches, err := app.MatchContent(tab.ID)
 	require.NoError(t, err)
@@ -96,7 +104,7 @@ func TestGetBasePathDefault(t *testing.T) {
 	require.NoError(t, project.Save(kapiPath, &project.KapiProject{Version: "v1", Name: "Test"}))
 
 	app := NewApp()
-	tab, _ := app.OpenProject(kapiPath)
+	tab := openTestProjectFile(t, app, kapiPath)
 	assert.Equal(t, dir, app.GetBasePath(tab.ID))
 }
 
@@ -120,8 +128,7 @@ func TestIsEmptyProject(t *testing.T) {
 	require.NoError(t, project.Save(kapiPath, &project.KapiProject{Version: "v1"}))
 
 	app := NewApp()
-	tab, err := app.OpenProject(kapiPath)
-	require.NoError(t, err)
+	tab := openTestProjectFile(t, app, kapiPath)
 
 	assert.True(t, app.IsEmptyProject(tab.ID), "project with only project.kapi should be empty")
 
@@ -140,8 +147,7 @@ func TestListProjectFiles(t *testing.T) {
 	require.NoError(t, project.Save(kapiPath, &project.KapiProject{Version: "v1"}))
 
 	app := NewApp()
-	tab, err := app.OpenProject(kapiPath)
-	require.NoError(t, err)
+	tab := openTestProjectFile(t, app, kapiPath)
 
 	files, err := app.ListProjectFiles(tab.ID)
 	require.NoError(t, err)
@@ -168,8 +174,7 @@ func TestKapiIgnoreExcludesFiles(t *testing.T) {
 	require.NoError(t, project.Save(kapiPath, &project.KapiProject{Version: "v1"}))
 
 	app := NewApp()
-	tab, err := app.OpenProject(kapiPath)
-	require.NoError(t, err)
+	tab := openTestProjectFile(t, app, kapiPath)
 
 	files, err := app.ListProjectFiles(tab.ID)
 	require.NoError(t, err)
@@ -195,8 +200,7 @@ func TestMatchContentRespectsKapiIgnore(t *testing.T) {
 	require.NoError(t, project.Save(kapiPath, proj))
 
 	app := NewApp()
-	tab, err := app.OpenProject(kapiPath)
-	require.NoError(t, err)
+	tab := openTestProjectFile(t, app, kapiPath)
 
 	matches, err := app.MatchContent(tab.ID)
 	require.NoError(t, err)
@@ -212,13 +216,12 @@ func TestApplyTemplateInputOutput(t *testing.T) {
 	kapiPath := filepath.Join(dir, "project.kapi")
 	require.NoError(t, project.Save(kapiPath, &project.KapiProject{Version: "v1"}))
 
-	tab, err := app.OpenProject(kapiPath)
-	require.NoError(t, err)
+	tab := openTestProjectFile(t, app, kapiPath)
 
 	require.NoError(t, app.ApplyTemplate(tab.ID, "input-output"))
 
 	// Directories should exist.
-	_, err = os.Stat(filepath.Join(dir, "input"))
+	_, err := os.Stat(filepath.Join(dir, "input"))
 	assert.NoError(t, err)
 	_, err = os.Stat(filepath.Join(dir, "output"))
 	assert.NoError(t, err)
@@ -236,8 +239,7 @@ func TestApplyTemplateEmpty(t *testing.T) {
 	kapiPath := filepath.Join(dir, "project.kapi")
 	require.NoError(t, project.Save(kapiPath, &project.KapiProject{Version: "v1"}))
 
-	tab, err := app.OpenProject(kapiPath)
-	require.NoError(t, err)
+	tab := openTestProjectFile(t, app, kapiPath)
 
 	require.NoError(t, app.ApplyTemplate(tab.ID, "empty"))
 
@@ -251,8 +253,7 @@ func TestCopyFileToProject(t *testing.T) {
 	kapiPath := filepath.Join(dir, "project.kapi")
 	require.NoError(t, project.Save(kapiPath, &project.KapiProject{Version: "v1"}))
 
-	tab, err := app.OpenProject(kapiPath)
-	require.NoError(t, err)
+	tab := openTestProjectFile(t, app, kapiPath)
 
 	// Create a source file outside the project.
 	srcDir := t.TempDir()
