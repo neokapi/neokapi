@@ -565,9 +565,11 @@ export function PropertyField({
           disabled={disabled}
           onChange={(e) => onChange(e.target.value)}
           className={cn(
-            "w-full rounded-md border border-input bg-transparent px-2 py-1.5 text-xs",
-            "focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]",
-            disabled && "opacity-50",
+            "h-8 w-full rounded-lg border border-input bg-transparent px-2 py-1 text-base md:text-sm",
+            "transition-colors outline-none",
+            "focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50",
+            "dark:bg-input/30",
+            disabled && "opacity-50 pointer-events-none",
           )}
         >
           <option value="">—</option>

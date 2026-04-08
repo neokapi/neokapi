@@ -242,7 +242,7 @@ describe("TagChipComponent", () => {
       dimmed: true,
     });
     const chip = container.querySelector("[data-tag-chip]") as HTMLElement;
-    expect(chip.style.opacity).toBe("0.4");
+    expect(chip.className).toContain("opacity-40");
   });
 
   it("uses dashed border when locked", async () => {

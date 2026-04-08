@@ -1,10 +1,17 @@
-package backend
+// Package credentials manages AI provider configurations on disk and API keys
+// in the OS keychain. Configurations are stored in ~/.config/kapi/providers.json;
+// API keys are kept in the platform keychain (macOS Keychain, Windows Credential
+// Manager, Linux Secret Service).
+//
+// Both the kapi CLI and Kapi Desktop share this store.
+package credentials
 
 import (
 	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 
 	"github.com/neokapi/neokapi/core/id"
@@ -18,7 +25,7 @@ const keyringService = "kapi"
 type ProviderConfig struct {
 	ID           string `json:"id"`
 	Name         string `json:"name"`
-	ProviderType string `json:"provider_type"` // "anthropic", "openai", "ollama", "azureopenai"
+	ProviderType string `json:"provider_type"` // "anthropic", "openai", "ollama", "azureopenai", "gemini"
 	Model        string `json:"model,omitempty"`
 	BaseURL      string `json:"base_url,omitempty"`
 }
@@ -29,8 +36,8 @@ type ProviderConfigWithKey struct {
 	APIKey string `json:"api_key"`
 }
 
-// CredentialStore manages provider configurations on disk and API keys in the OS keychain.
-type CredentialStore struct {
+// Store manages provider configurations on disk and API keys in the OS keychain.
+type Store struct {
 	mu       sync.RWMutex
 	filePath string
 	configs  []ProviderConfig
@@ -38,14 +45,14 @@ type CredentialStore struct {
 
 // NewStore creates a Store backed by the given JSON file path.
 // If the file does not exist, the store starts empty.
-func NewCredentialStore(filePath string) *CredentialStore {
-	s := &CredentialStore{filePath: filePath}
+func NewStore(filePath string) *Store {
+	s := &Store{filePath: filePath}
 	s.load()
 	return s
 }
 
 // DefaultPath returns the default config file path (~/.config/kapi/providers.json).
-func DefaultCredentialPath() string {
+func DefaultPath() string {
 	configDir, err := os.UserConfigDir()
 	if err != nil {
 		configDir = filepath.Join(os.Getenv("HOME"), ".config")
@@ -54,7 +61,7 @@ func DefaultCredentialPath() string {
 }
 
 // List returns all stored provider configs.
-func (s *CredentialStore) List() []ProviderConfig {
+func (s *Store) List() []ProviderConfig {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	out := make([]ProviderConfig, len(s.configs))
@@ -63,7 +70,7 @@ func (s *CredentialStore) List() []ProviderConfig {
 }
 
 // Get returns a provider config by ID.
-func (s *CredentialStore) Get(configID string) (ProviderConfig, error) {
+func (s *Store) Get(configID string) (ProviderConfig, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	for _, c := range s.configs {
@@ -74,8 +81,34 @@ func (s *CredentialStore) Get(configID string) (ProviderConfig, error) {
 	return ProviderConfig{}, fmt.Errorf("provider config %q not found", configID)
 }
 
+// GetByName returns a provider config by its user-friendly name (case-insensitive).
+func (s *Store) GetByName(name string) (ProviderConfig, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	for _, c := range s.configs {
+		if strings.EqualFold(c.Name, name) {
+			return c, nil
+		}
+	}
+	return ProviderConfig{}, fmt.Errorf("provider config with name %q not found", name)
+}
+
+// FindByType returns all provider configs matching the given provider type.
+// If providerType is empty, returns all configs.
+func (s *Store) FindByType(providerType string) []ProviderConfig {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	var out []ProviderConfig
+	for _, c := range s.configs {
+		if providerType == "" || strings.EqualFold(c.ProviderType, providerType) {
+			out = append(out, c)
+		}
+	}
+	return out
+}
+
 // Upsert inserts or updates a provider config. If cfg.ID is empty, a new ID is assigned.
-func (s *CredentialStore) Upsert(cfg ProviderConfig) ProviderConfig {
+func (s *Store) Upsert(cfg ProviderConfig) ProviderConfig {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -97,7 +130,7 @@ func (s *CredentialStore) Upsert(cfg ProviderConfig) ProviderConfig {
 }
 
 // Remove deletes a provider config by ID.
-func (s *CredentialStore) Remove(configID string) error {
+func (s *Store) Remove(configID string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -112,21 +145,21 @@ func (s *CredentialStore) Remove(configID string) error {
 }
 
 // SetAPIKey stores an API key in the OS keychain.
-func (s *CredentialStore) SetAPIKey(configID, key string) error {
+func (s *Store) SetAPIKey(configID, key string) error {
 	return keyring.Set(keyringService, configID, key)
 }
 
 // GetAPIKey retrieves an API key from the OS keychain.
-func (s *CredentialStore) GetAPIKey(configID string) (string, error) {
+func (s *Store) GetAPIKey(configID string) (string, error) {
 	return keyring.Get(keyringService, configID)
 }
 
 // DeleteAPIKey removes an API key from the OS keychain.
-func (s *CredentialStore) DeleteAPIKey(configID string) error {
+func (s *Store) DeleteAPIKey(configID string) error {
 	return keyring.Delete(keyringService, configID)
 }
 
-func (s *CredentialStore) load() {
+func (s *Store) load() {
 	data, err := os.ReadFile(s.filePath)
 	if err != nil {
 		s.configs = nil
@@ -140,7 +173,7 @@ func (s *CredentialStore) load() {
 	s.configs = configs
 }
 
-func (s *CredentialStore) save() {
+func (s *Store) save() {
 	data, err := json.MarshalIndent(s.configs, "", "  ")
 	if err != nil {
 		return

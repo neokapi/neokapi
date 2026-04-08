@@ -15,15 +15,24 @@ import type { ProviderConfig } from "../types/api";
 import { api } from "../hooks/useApi";
 import { useError } from "./ErrorBanner";
 
-const PROVIDER_TYPES = ["anthropic", "openai", "ollama", "azureopenai"] as const;
+interface ProviderTypeOption {
+  name: string;
+  label: string;
+}
 
 export interface CredentialsPageProps {
   /** Pre-loaded providers for Storybook — skips api.listProviders(). */
   providers?: ProviderConfig[];
+  /** Pre-loaded provider types for Storybook. */
+  providerTypes?: ProviderTypeOption[];
 }
 
-export function CredentialsPage({ providers: propProviders }: CredentialsPageProps = {}) {
+export function CredentialsPage({
+  providers: propProviders,
+  providerTypes: propProviderTypes,
+}: CredentialsPageProps = {}) {
   const [providers, setProviders] = useState<ProviderConfig[]>(propProviders ?? []);
+  const [providerTypes, setProviderTypes] = useState<ProviderTypeOption[]>(propProviderTypes ?? []);
   const [loading, setLoading] = useState(!propProviders);
   const [editing, setEditing] = useState<ProviderConfig | null>(null);
   const [apiKey, setApiKey] = useState("");
@@ -36,8 +45,9 @@ export function CredentialsPage({ providers: propProviders }: CredentialsPagePro
   const loadProviders = useCallback(async () => {
     if (propProviders) return;
     try {
-      const result = await api.listProviders();
+      const [result, types] = await Promise.all([api.listProviders(), api.listProviderTypes()]);
       if (result) setProviders(result);
+      if (types) setProviderTypes(types);
     } catch (err) {
       showError("Failed to load AI providers", err);
     } finally {
@@ -53,7 +63,7 @@ export function CredentialsPage({ providers: propProviders }: CredentialsPagePro
     setEditing({
       id: "",
       name: "",
-      provider_type: "anthropic",
+      provider_type: providerTypes[0]?.name ?? "anthropic",
     });
     setApiKey("");
     setError(null);
@@ -121,7 +131,7 @@ export function CredentialsPage({ providers: propProviders }: CredentialsPagePro
       ) : (
         <div className="space-y-2">
           {providers.map((provider) => (
-            <Card key={provider.id} className="flex items-center gap-3 p-4">
+            <Card key={provider.id} className="!flex-row items-center gap-3 p-4">
               <KeyRound size={18} className="shrink-0 text-primary" />
               <div className="flex-1">
                 <div className="flex items-center gap-2">
@@ -188,11 +198,11 @@ export function CredentialsPage({ providers: propProviders }: CredentialsPagePro
                   id="cred-type"
                   value={editing.provider_type}
                   onChange={(e) => setEditing({ ...editing, provider_type: e.target.value })}
-                  className="w-full rounded border border-input bg-transparent px-2 py-1.5 text-sm outline-none focus:ring-1 focus:ring-ring"
+                  className="h-8 w-full rounded-lg border border-input bg-transparent px-2 py-1 text-base md:text-sm outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30"
                 >
-                  {PROVIDER_TYPES.map((t) => (
-                    <option key={t} value={t}>
-                      {t}
+                  {providerTypes.map((t) => (
+                    <option key={t.name} value={t.name}>
+                      {t.label}
                     </option>
                   ))}
                 </select>

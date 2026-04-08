@@ -396,11 +396,15 @@ func (a *App) NewToolCommands() []*cobra.Command {
 				newTool := func() (tool.Tool, error) {
 					if d.Schema != nil && d.NewToolFromConfig != nil {
 						config := ReadAllSchemaFlags(cmd, d.Schema)
+						// Inject --credential flag value into config for credential resolution.
+						if credName, _ := cmd.Flags().GetString("credential"); credName != "" {
+							config["credential"] = credName
+						}
 						// Inject progress callback for AI tools on a TTY.
 						if !jsonOut && isatty.IsTerminal(os.Stderr.Fd()) {
 							config["onProgress"] = aiProgressWriter(os.Stderr)
 						}
-						return d.NewToolFromConfig(config, effectiveLang)
+						return a.ToolReg.NewToolWithConfig(d.Use, config, effectiveLang)
 					}
 					return d.NewTool(cmd, effectiveLang)
 				}
@@ -445,6 +449,15 @@ func (a *App) NewToolCommands() []*cobra.Command {
 		}
 		if d.Schema != nil {
 			RegisterSchemaFlags(cmd, d.Schema)
+			// Add --credential flag for tools that require credentials.
+			if d.Schema.ToolMeta != nil {
+				for _, req := range d.Schema.ToolMeta.Requires {
+					if req == "credentials" {
+						cmd.Flags().String("credential", "", "saved credential name to use (see 'kapi credentials list')")
+						break
+					}
+				}
+			}
 		} else if d.AddFlags != nil {
 			d.AddFlags(cmd)
 		}

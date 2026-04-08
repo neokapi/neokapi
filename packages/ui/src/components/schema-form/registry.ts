@@ -23,6 +23,7 @@ export const WIDGET_NAMES = [
   "folder-picker",
   "checklist",
   "select",
+  "credential-picker",
   "code-finder",
   "element-rules",
   "attribute-rules",

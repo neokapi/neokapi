@@ -4,9 +4,9 @@ go 1.26.0
 
 require (
 	github.com/neokapi/neokapi v0.0.0
+	github.com/neokapi/neokapi/cli v0.0.0-00010101000000-000000000000
 	github.com/stretchr/testify v1.11.1
 	github.com/wailsapp/wails/v3 v3.0.0-alpha.74
-	github.com/zalando/go-keyring v0.2.8
 	gopkg.in/yaml.v3 v3.0.1
 )
 
@@ -62,6 +62,7 @@ require (
 	github.com/wailsapp/go-webview2 v1.0.23 // indirect
 	github.com/xanzy/ssh-agent v0.3.3 // indirect
 	github.com/yuin/goldmark v1.7.16 // indirect
+	github.com/zalando/go-keyring v0.2.8 // indirect
 	golang.org/x/crypto v0.47.0 // indirect
 	golang.org/x/exp v0.0.0-20260112195511-716be5621a96 // indirect
 	golang.org/x/net v0.49.0 // indirect

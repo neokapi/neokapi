@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/neokapi/neokapi/cli/credentials"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -12,15 +13,15 @@ import (
 func TestNewStoreEmpty(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "providers.json")
-	s := NewCredentialStore(path)
+	s := credentials.NewStore(path)
 	assert.Empty(t, s.List())
 }
 
 func TestUpsertAndList(t *testing.T) {
 	dir := t.TempDir()
-	s := NewCredentialStore(filepath.Join(dir, "providers.json"))
+	s := credentials.NewStore(filepath.Join(dir, "providers.json"))
 
-	cfg := s.Upsert(ProviderConfig{
+	cfg := s.Upsert(credentials.ProviderConfig{
 		Name:         "My Anthropic",
 		ProviderType: "anthropic",
 		Model:        "claude-sonnet-4-5-20241022",
@@ -35,9 +36,9 @@ func TestUpsertAndList(t *testing.T) {
 
 func TestUpsertUpdate(t *testing.T) {
 	dir := t.TempDir()
-	s := NewCredentialStore(filepath.Join(dir, "providers.json"))
+	s := credentials.NewStore(filepath.Join(dir, "providers.json"))
 
-	cfg := s.Upsert(ProviderConfig{
+	cfg := s.Upsert(credentials.ProviderConfig{
 		Name:         "Original",
 		ProviderType: "openai",
 	})
@@ -52,9 +53,9 @@ func TestUpsertUpdate(t *testing.T) {
 
 func TestGet(t *testing.T) {
 	dir := t.TempDir()
-	s := NewCredentialStore(filepath.Join(dir, "providers.json"))
+	s := credentials.NewStore(filepath.Join(dir, "providers.json"))
 
-	cfg := s.Upsert(ProviderConfig{
+	cfg := s.Upsert(credentials.ProviderConfig{
 		Name:         "Test",
 		ProviderType: "anthropic",
 	})
@@ -69,9 +70,9 @@ func TestGet(t *testing.T) {
 
 func TestRemove(t *testing.T) {
 	dir := t.TempDir()
-	s := NewCredentialStore(filepath.Join(dir, "providers.json"))
+	s := credentials.NewStore(filepath.Join(dir, "providers.json"))
 
-	cfg := s.Upsert(ProviderConfig{
+	cfg := s.Upsert(credentials.ProviderConfig{
 		Name:         "To Delete",
 		ProviderType: "ollama",
 	})
@@ -87,15 +88,15 @@ func TestPersistence(t *testing.T) {
 	path := filepath.Join(dir, "providers.json")
 
 	// Create and save.
-	s1 := NewCredentialStore(path)
-	s1.Upsert(ProviderConfig{
+	s1 := credentials.NewStore(path)
+	s1.Upsert(credentials.ProviderConfig{
 		ID:           "test-id",
 		Name:         "Persisted",
 		ProviderType: "anthropic",
 	})
 
 	// Reopen and verify.
-	s2 := NewCredentialStore(path)
+	s2 := credentials.NewStore(path)
 	list := s2.List()
 	require.Len(t, list, 1)
 	assert.Equal(t, "test-id", list[0].ID)
@@ -103,7 +104,7 @@ func TestPersistence(t *testing.T) {
 }
 
 func TestDefaultPath(t *testing.T) {
-	path := DefaultCredentialPath()
+	path := credentials.DefaultPath()
 	assert.Contains(t, path, "kapi")
 	assert.Contains(t, path, "providers.json")
 }
@@ -113,17 +114,17 @@ func TestLoadInvalidJSON(t *testing.T) {
 	path := filepath.Join(dir, "providers.json")
 	require.NoError(t, os.WriteFile(path, []byte("not json"), 0o644))
 
-	s := NewCredentialStore(path)
+	s := credentials.NewStore(path)
 	assert.Empty(t, s.List(), "invalid JSON should result in empty store")
 }
 
 func TestMultipleProviders(t *testing.T) {
 	dir := t.TempDir()
-	s := NewCredentialStore(filepath.Join(dir, "providers.json"))
+	s := credentials.NewStore(filepath.Join(dir, "providers.json"))
 
-	s.Upsert(ProviderConfig{Name: "A", ProviderType: "anthropic"})
-	s.Upsert(ProviderConfig{Name: "B", ProviderType: "openai"})
-	s.Upsert(ProviderConfig{Name: "C", ProviderType: "ollama"})
+	s.Upsert(credentials.ProviderConfig{Name: "A", ProviderType: "anthropic"})
+	s.Upsert(credentials.ProviderConfig{Name: "B", ProviderType: "openai"})
+	s.Upsert(credentials.ProviderConfig{Name: "C", ProviderType: "ollama"})
 
 	assert.Len(t, s.List(), 3)
 }

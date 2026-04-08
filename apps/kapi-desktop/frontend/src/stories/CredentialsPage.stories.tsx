@@ -4,7 +4,13 @@ import { Plus, Trash2, TestTube, KeyRound, Loader2, CheckCircle2, XCircle } from
 import { Button, Badge, Card, Label, Input } from "@neokapi/ui-primitives";
 import { CredentialsPage } from "../components/CredentialsPage";
 
-const PROVIDER_TYPES = ["anthropic", "openai", "ollama", "azureopenai"] as const;
+const PROVIDER_TYPES = [
+  { name: "anthropic", label: "Anthropic" },
+  { name: "openai", label: "OpenAI" },
+  { name: "gemini", label: "Gemini" },
+  { name: "azureopenai", label: "Azure OpenAI" },
+  { name: "ollama", label: "Ollama" },
+] as const;
 
 interface Provider {
   id: string;
@@ -149,11 +155,11 @@ function SimulatedCredentials() {
               <select
                 value={editing.provider_type}
                 onChange={(e) => setEditing({ ...editing, provider_type: e.target.value })}
-                className="w-full rounded border border-input bg-transparent px-2 py-1.5 text-sm outline-none"
+                className="h-8 w-full rounded-lg border border-input bg-transparent px-2 py-1 text-base md:text-sm outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30"
               >
                 {PROVIDER_TYPES.map((t) => (
-                  <option key={t} value={t}>
-                    {t}
+                  <option key={t.name} value={t.name}>
+                    {t.label}
                   </option>
                 ))}
               </select>
@@ -231,6 +237,7 @@ export const WithProviders: StoryObj<typeof CredentialsPage> = {
           model: "gpt-4o",
         },
       ]}
+      providerTypes={[...PROVIDER_TYPES]}
     />
   ),
 };
@@ -239,5 +246,5 @@ export const WithProviders: StoryObj<typeof CredentialsPage> = {
  * Real component with empty providers list.
  */
 export const Empty: StoryObj<typeof CredentialsPage> = {
-  render: () => <CredentialsPage providers={[]} />,
+  render: () => <CredentialsPage providers={[]} providerTypes={[...PROVIDER_TYPES]} />,
 };

@@ -245,6 +245,7 @@ export { TagChipComponent } from "./components/editor/TagChipComponent";
 export { parseCodedSegments, segmentsToCodedText, spanLabel } from "./components/editor/codedText";
 export type { CodedSegment } from "./components/editor/codedText";
 export {
+  tagNameFromData,
   tagColors,
   semanticLabel,
   semanticTooltip,
@@ -256,6 +257,15 @@ export {
 export type { TagColorScheme, TagValidationResult } from "./components/editor/tagSemantics";
 export { resolveConstraints, isDeletable, isCloneable } from "./components/editor/tagConstraints";
 export type { ResolvedConstraints } from "./components/editor/tagConstraints";
+
+// Inline code editor — Lexical-based rich text editing with visual tag chips
+export { InlineCodeEditor } from "./components/editor/InlineCodeEditor";
+export type { InlineCodeEditorProps } from "./components/editor/InlineCodeEditor";
+export { TagChipNode, $createTagChipNode, $isTagChipNode } from "./components/editor/TagChipNode";
+export { TagPalette } from "./components/editor/TagPalette";
+export { TagValidationBar } from "./components/editor/TagValidationBar";
+export { InlineCodeLegend } from "./components/editor/InlineCodeLegend";
+export { InlinePreview } from "./components/editor/InlinePreview";
 
 // Resource browser — TM and Termbase management
 export {
