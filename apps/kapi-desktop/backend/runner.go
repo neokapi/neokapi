@@ -176,9 +176,10 @@ func (a *App) executeFlowAllLangs(ctx context.Context, flowName string, spec *fl
 		// Build tools for this locale pass, with tracing and progress callbacks.
 		var tools []tool.Tool
 		for i, step := range spec.Steps {
-			config := step.Config
-			if config == nil {
-				config = make(map[string]any)
+			// Copy step config to avoid mutating the original flow spec.
+			config := make(map[string]any)
+			for k, v := range step.Config {
+				config[k] = v
 			}
 
 			// Inject live progress callback for AI tools.
