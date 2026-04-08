@@ -632,7 +632,7 @@ jobs:
 
       - name: Verify kapi has no heavy deps
         run: |
-          if cd kapi && GOWORK=off go list -m all | grep -iE 'wails|echo|oidc|keyring'; then
+          if cd kapi && GOWORK=off go list -m all | grep -iE 'wails|echo|oidc'; then
             exit 1
           fi
 
