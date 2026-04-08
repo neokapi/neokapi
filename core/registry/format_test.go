@@ -174,7 +174,7 @@ func TestFormatInfosBuiltIn(t *testing.T) {
 
 	infos := reg.FormatInfos()
 	require.Len(t, infos, 1)
-	assert.Equal(t, "html", infos[0].Name)
+	assert.Equal(t, FormatID("html"), infos[0].Name)
 	assert.Equal(t, "HTML", infos[0].DisplayName)
 	assert.Equal(t, []string{"text/html"}, infos[0].MimeTypes)
 	assert.Equal(t, []string{".html", ".htm"}, infos[0].Extensions)
@@ -201,9 +201,9 @@ func TestFormatInfosSorted(t *testing.T) {
 
 	infos := reg.FormatInfos()
 	require.Len(t, infos, 3)
-	assert.Equal(t, "csv", infos[0].Name)
-	assert.Equal(t, "html", infos[1].Name)
-	assert.Equal(t, "yaml", infos[2].Name)
+	assert.Equal(t, FormatID("csv"), infos[0].Name)
+	assert.Equal(t, FormatID("html"), infos[1].Name)
+	assert.Equal(t, FormatID("yaml"), infos[2].Name)
 }
 
 func TestFormatInfoSingleLookup(t *testing.T) {
@@ -213,7 +213,7 @@ func TestFormatInfoSingleLookup(t *testing.T) {
 
 	info := reg.FormatInfo("html")
 	require.NotNil(t, info)
-	assert.Equal(t, "html", info.Name)
+	assert.Equal(t, FormatID("html"), info.Name)
 	assert.Equal(t, "HTML", info.DisplayName)
 
 	// Non-existent format returns nil.
@@ -299,7 +299,7 @@ func TestResolveFormatWithPriority(t *testing.T) {
 
 	// Plugin format should win by default (priority 100 > 50).
 	name := reg.ResolveFormat("text/html")
-	assert.Equal(t, "okapi-html", name)
+	assert.Equal(t, FormatID("okapi-html"), name)
 }
 
 func TestResolveFormatConfigOverride(t *testing.T) {
@@ -312,13 +312,13 @@ func TestResolveFormatConfigOverride(t *testing.T) {
 	reg.SetFormatPriority("html", 200)
 
 	name := reg.ResolveFormat("text/html")
-	assert.Equal(t, "html", name)
+	assert.Equal(t, FormatID("html"), name)
 }
 
 func TestResolveFormatNoMatch(t *testing.T) {
 	reg := NewFormatRegistry()
 	name := reg.ResolveFormat("application/octet-stream")
-	assert.Equal(t, "", name)
+	assert.Equal(t, FormatID(""), name)
 }
 
 func TestFormatInfoIncludesPriority(t *testing.T) {
@@ -353,7 +353,7 @@ func TestDetectorUsedByResolveFormat(t *testing.T) {
 	regStubSig(reg, "json", "JSON", []string{"application/json"}, []string{".json"})
 
 	name := reg.ResolveFormat("application/json")
-	assert.Equal(t, "json", name)
+	assert.Equal(t, FormatID("json"), name)
 }
 
 func TestSetFormatSourceDoesNotDowngradeExplicitPriority(t *testing.T) {
@@ -407,7 +407,7 @@ func TestRegisterFormatInfoAppearsInList(t *testing.T) {
 	})
 	infos := reg.FormatInfos()
 	require.Len(t, infos, 1)
-	assert.Equal(t, "bridge-csv@2.0.0", infos[0].Name)
+	assert.Equal(t, FormatID("bridge-csv@2.0.0"), infos[0].Name)
 	assert.Equal(t, "CSV (Bridge)", infos[0].DisplayName)
 	assert.Equal(t, "my-plugin", infos[0].Source)
 }
@@ -504,11 +504,11 @@ func TestRegisterFormatInfoDetectableByExtension(t *testing.T) {
 	// Should find the format by extension without needing a reader factory.
 	name, err := reg.DetectByExtension(".docx")
 	require.NoError(t, err)
-	assert.Equal(t, "okf_openxml@1.46.0", name)
+	assert.Equal(t, FormatID("okf_openxml@1.46.0"), name)
 
 	name, err = reg.DetectByExtension(".xlsx")
 	require.NoError(t, err)
-	assert.Equal(t, "okf_openxml@1.46.0", name)
+	assert.Equal(t, FormatID("okf_openxml@1.46.0"), name)
 }
 
 func TestRegisterFormatInfoDetectableByMIME(t *testing.T) {
@@ -521,7 +521,7 @@ func TestRegisterFormatInfoDetectableByMIME(t *testing.T) {
 	})
 
 	name := reg.ResolveFormat("text/html")
-	assert.Equal(t, "okf_html@1.46.0", name)
+	assert.Equal(t, FormatID("okf_html@1.46.0"), name)
 }
 
 func TestRegisterFormatInfoPriorityInDetection(t *testing.T) {
@@ -541,16 +541,16 @@ func TestRegisterFormatInfoPriorityInDetection(t *testing.T) {
 	// Bridge format should win (priority 100 > 50).
 	name, err := reg.DetectByExtension(".html")
 	require.NoError(t, err)
-	assert.Equal(t, "okf_html@1.46.0", name)
+	assert.Equal(t, FormatID("okf_html@1.46.0"), name)
 
 	name = reg.ResolveFormat("text/html")
-	assert.Equal(t, "okf_html@1.46.0", name)
+	assert.Equal(t, FormatID("okf_html@1.46.0"), name)
 
 	// Override built-in to have higher priority — should win.
 	reg.SetFormatPriority("html", 200)
 	name, err = reg.DetectByExtension(".html")
 	require.NoError(t, err)
-	assert.Equal(t, "html", name)
+	assert.Equal(t, FormatID("html"), name)
 }
 
 func TestDetectByExtensionTriggersOnMiss(t *testing.T) {
@@ -570,13 +570,13 @@ func TestDetectByExtensionTriggersOnMiss(t *testing.T) {
 
 	name, err := reg.DetectByExtension(".json")
 	require.NoError(t, err)
-	assert.Equal(t, "json", name)
+	assert.Equal(t, FormatID("json"), name)
 	assert.False(t, called, "onMiss should not fire for a built-in extension")
 
 	// Unknown extension — triggers onMiss, which registers the format.
 	name, err = reg.DetectByExtension(".docx")
 	require.NoError(t, err)
-	assert.Equal(t, "okf_openxml", name)
+	assert.Equal(t, FormatID("okf_openxml"), name)
 	assert.True(t, called, "onMiss should fire for a missing extension")
 }
 
@@ -600,27 +600,27 @@ func TestDetectByExtensionForSources(t *testing.T) {
 	// Without source filter: plugin wins (higher priority).
 	name, err := reg.DetectByExtension(".json")
 	require.NoError(t, err)
-	assert.Equal(t, "okf_json", name)
+	assert.Equal(t, FormatID("okf_json"), name)
 
 	// With source filter: only built-in allowed.
 	name, err = reg.DetectByExtensionForSources(".json", []string{SourceBuiltIn})
 	require.NoError(t, err)
-	assert.Equal(t, "json", name)
+	assert.Equal(t, FormatID("json"), name)
 
 	// With source filter including the plugin.
 	name, err = reg.DetectByExtensionForSources(".json", []string{SourceBuiltIn, "okapi-bridge"})
 	require.NoError(t, err)
-	assert.Equal(t, "okf_json", name, "plugin format should win when its source is allowed")
+	assert.Equal(t, FormatID("okf_json"), name, "plugin format should win when its source is allowed")
 
 	// Nil sources = no filter = same as DetectByExtension.
 	name, err = reg.DetectByExtensionForSources(".json", nil)
 	require.NoError(t, err)
-	assert.Equal(t, "okf_json", name)
+	assert.Equal(t, FormatID("okf_json"), name)
 
 	// Empty sources = no filter.
 	name, err = reg.DetectByExtensionForSources(".json", []string{})
 	require.NoError(t, err)
-	assert.Equal(t, "okf_json", name)
+	assert.Equal(t, FormatID("okf_json"), name)
 
 	// Unknown extension with restrictive filter.
 	_, err = reg.DetectByExtensionForSources(".xyz", []string{SourceBuiltIn})

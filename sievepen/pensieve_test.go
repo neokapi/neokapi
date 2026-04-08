@@ -318,7 +318,7 @@ func TestTMLeverageTool(t *testing.T) {
 	assert.Equal(t, "tm:sievepen", altTrans.Origin)
 	assert.Equal(t, 1.0, altTrans.Score)
 	// Plain text blocks match at generalized-exact tier (generalized key == plain key).
-	assert.Equal(t, "generalized-exact", altTrans.MatchType)
+	assert.Equal(t, model.MatchType("generalized-exact"), altTrans.MatchType)
 }
 
 func TestTMLeverageTool_FuzzyMatch(t *testing.T) {
@@ -372,7 +372,7 @@ func TestTMLeverageTool_FuzzyMatch(t *testing.T) {
 	altTrans, ok := alt.(*model.AltTranslation)
 	require.True(t, ok)
 	// Plain text blocks match at generalized-fuzzy tier (generalized key == plain key).
-	assert.Equal(t, "generalized-fuzzy", altTrans.MatchType)
+	assert.Equal(t, model.MatchType("generalized-fuzzy"), altTrans.MatchType)
 	assert.Greater(t, altTrans.Score, 0.5)
 	assert.Less(t, altTrans.Score, 1.0)
 }

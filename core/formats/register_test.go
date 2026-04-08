@@ -20,7 +20,7 @@ func TestRegisterAllReaders(t *testing.T) {
 	reg := registry.NewFormatRegistry()
 	formats.RegisterAll(reg)
 
-	expectedFormats := []string{
+	expectedFormats := []registry.FormatID{
 		"plaintext", "html", "xml", "xliff", "xliff2",
 		"yaml", "json", "po", "properties",
 		"markdown", "csv", "tsv", "srt", "ttml", "vtt", "tmx", "openxml",
@@ -41,7 +41,7 @@ func TestRegisterAllWriters(t *testing.T) {
 	reg := registry.NewFormatRegistry()
 	formats.RegisterAll(reg)
 
-	expectedFormats := []string{
+	expectedFormats := []registry.FormatID{
 		"plaintext", "html", "xml", "xliff", "xliff2",
 		"yaml", "json", "po", "properties",
 		"markdown", "csv", "tsv", "srt", "ttml", "vtt", "tmx", "openxml",
@@ -65,13 +65,13 @@ func TestRegistryCreateInstances(t *testing.T) {
 	for _, name := range reg.ReaderNames() {
 		reader, err := reg.NewReader(name)
 		require.NoError(t, err, "failed to create reader: %s", name)
-		assert.Equal(t, name, reader.Name())
+		assert.Equal(t, string(name), reader.Name())
 	}
 
 	for _, name := range reg.WriterNames() {
 		writer, err := reg.NewWriter(name)
 		require.NoError(t, err, "failed to create writer: %s", name)
-		assert.Equal(t, name, writer.Name())
+		assert.Equal(t, string(name), writer.Name())
 	}
 }
 
@@ -315,7 +315,7 @@ func TestEndToEndMultiFormatRead(t *testing.T) {
 
 	// Test that all formats can read simple content without errors
 	testCases := []struct {
-		format string
+		format registry.FormatID
 		input  string
 	}{
 		{"plaintext", "Hello World"},
@@ -327,7 +327,7 @@ func TestEndToEndMultiFormatRead(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		t.Run(tc.format, func(t *testing.T) {
+		t.Run(string(tc.format), func(t *testing.T) {
 			reader, err := reg.NewReader(tc.format)
 			require.NoError(t, err)
 			err = reader.Open(ctx, testutil.RawDocFromString(tc.input, model.LocaleEnglish))
