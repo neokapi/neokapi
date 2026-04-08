@@ -29,6 +29,8 @@ import { isDeletable, isCloneable } from "./tagConstraints";
 import { TagPalette } from "./TagPalette";
 import { TagValidationBar } from "./TagValidationBar";
 import { InlinePreview } from "./InlinePreview";
+import { SelectionToolbarPlugin } from "./SelectionToolbarPlugin";
+import { IntellisensePlugin } from "./IntellisensePlugin";
 import { validateTags, type TagValidationResult } from "./tagSemantics";
 
 export interface InlineCodeEditorProps {
@@ -323,6 +325,8 @@ export function InlineCodeEditor({
         <KeyHandlerPlugin onSave={handleSave} onCancel={onCancel} />
         <TagConstraintPlugin />
         <TagShortcutPlugin sourceSpans={sourceSpans} usedSpans={currentSpans} />
+        <SelectionToolbarPlugin sourceSpans={sourceSpans} usedSpans={currentSpans} />
+        <IntellisensePlugin sourceSpans={sourceSpans} usedSpans={currentSpans} />
         <EditorObserverPlugin sourceSpans={sourceSpans} onUpdate={handleEditorUpdate} />
       </LexicalComposer>
       {!compact && (

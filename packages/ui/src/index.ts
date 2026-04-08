@@ -48,6 +48,7 @@ export {
   ChartLegendContent,
   type ChartConfig,
 } from "./components/ui/chart";
+export { Checkbox } from "./components/ui/checkbox";
 export { Collapsible, CollapsibleTrigger, CollapsibleContent } from "./components/ui/collapsible";
 export {
   Combobox,

@@ -13,6 +13,7 @@ import { TermStatusBadge } from "./TermStatusBadge";
 import { Card, CardContent } from "../ui/card";
 import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
+import { Checkbox } from "../ui/checkbox";
 import { Pencil, Trash2 } from "lucide-react";
 import { cn } from "../../lib/utils";
 
@@ -69,11 +70,9 @@ export function ConceptCard({
         <div className="mb-2 flex items-center justify-between">
           <div className="flex items-center gap-2">
             {onToggleSelect && (
-              <input
-                type="checkbox"
+              <Checkbox
                 checked={selected}
-                onChange={onToggleSelect}
-                className="rounded"
+                onCheckedChange={onToggleSelect}
               />
             )}
             {concept.domain && (

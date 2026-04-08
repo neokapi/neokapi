@@ -74,7 +74,7 @@ export class TagChipNode extends DecoratorNode<ReactNode> {
   }
 
   isIsolated(): boolean {
-    return true;
+    return false;
   }
 
   decorate(): ReactNode {

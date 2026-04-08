@@ -15,6 +15,7 @@ import { LocaleSelect, resolveLocaleName, type LocaleInfo } from "../ui/locale-s
 import { ItemCard } from "../ui/item-card";
 import { ConfirmDeleteButton } from "../ui/confirm-delete-button";
 import { Button } from "../ui/button";
+import { Checkbox } from "../ui/checkbox";
 
 interface TMBrowserProps {
   adapter: TMAdapter;
@@ -372,20 +373,16 @@ export function TMBrowser({
                 data-testid={`tm-entry-${entry.id}`}
               >
                 <div className="flex items-start gap-2">
-                  <input
-                    type="checkbox"
+                  <Checkbox
                     checked={selected.has(entry.id)}
-                    onChange={() => toggleSelect(entry.id)}
-                    className="mt-1 shrink-0 rounded"
+                    onCheckedChange={() => toggleSelect(entry.id)}
+                    className="mt-1 shrink-0"
                     aria-label={`Select entry ${entry.source_text}`}
                   />
 
                   <div className="flex-1 min-w-0">
                     {/* Source */}
                     <div className="flex items-start gap-2 mb-0.5">
-                      <span className="text-[10px] text-muted-foreground w-5 shrink-0 pt-0.5 select-none">
-                        src
-                      </span>
                       <CodedTextDisplay
                         text={entry.source_text}
                         codedText={entry.source_coded}
@@ -397,9 +394,6 @@ export function TMBrowser({
 
                     {/* Target (or edit mode) */}
                     <div className="flex items-start gap-2">
-                      <span className="text-[10px] text-muted-foreground w-5 shrink-0 pt-0.5 select-none">
-                        tgt
-                      </span>
                       {editingId === entry.id ? (
                         <div className="flex-1">
                           <InlineCodeEditor
