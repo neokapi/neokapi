@@ -154,14 +154,18 @@ export function JobFeedProvider({ children }: { children: React.ReactNode }) {
               durationMs: e.duration_ms,
               progress: { ...job.progress, current: job.progress.total },
             };
-          case "error":
+          case "error": {
             activeIdRef.current = null;
+            const rawMsg = e.message ?? "Flow execution failed";
+            const isCanceled =
+              rawMsg.includes("context canceled") || rawMsg.includes("context cancelled");
             return {
               ...job,
               events,
-              status: "error" as const,
-              error: e.message ?? "Flow execution failed",
+              status: isCanceled ? ("canceled" as const) : ("error" as const),
+              error: isCanceled ? "Flow canceled" : rawMsg,
             };
+          }
           default:
             return { ...job, events };
         }
