@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { Loader2, CheckCircle2, XCircle, ListTodo, X, Trash2, ExternalLink } from "lucide-react";
+import { Loader2, CheckCircle2, XCircle, Ban, ListTodo, X, Trash2, ExternalLink } from "lucide-react";
 import { Button, ScrollArea } from "@neokapi/ui-primitives";
 import { useJobFeed, type Job } from "../context/JobFeedContext";
 
@@ -35,10 +35,10 @@ export function JobFeedButton({ onViewJob }: { onViewJob?: (job: Job) => void })
         return <Loader2 size={14} className="animate-spin text-primary shrink-0" />;
       case "complete":
         return <CheckCircle2 size={14} className="text-green-500 shrink-0" />;
+      case "canceled":
+        return <Ban size={14} className="text-muted-foreground shrink-0" />;
       case "error":
         return <XCircle size={14} className="text-destructive shrink-0" />;
-      default:
-        return <XCircle size={14} className="text-muted-foreground shrink-0" />;
     }
   };
 
@@ -83,9 +83,9 @@ export function JobFeedButton({ onViewJob }: { onViewJob?: (job: Job) => void })
         ) : (
           <ListTodo size={15} className="text-muted-foreground" />
         )}
-        {jobs.length > 0 && (
+        {hasActive && (
           <span className="absolute -top-0.5 -right-0.5 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-primary text-[8px] font-bold text-primary-foreground">
-            {jobs.length}
+            {jobs.filter((j) => j.status === "running").length}
           </span>
         )}
       </Button>
@@ -176,7 +176,12 @@ export function JobFeedButton({ onViewJob }: { onViewJob?: (job: Job) => void })
                       </div>
                     )}
 
-                    {/* Error message */}
+                    {/* Error/canceled message */}
+                    {job.status === "canceled" && (
+                      <div className="text-[10px] text-muted-foreground mt-1 ml-5">
+                        Flow canceled
+                      </div>
+                    )}
                     {job.status === "error" && job.error && (
                       <div className="text-[10px] text-destructive mt-1 ml-5 truncate">
                         {job.error}
