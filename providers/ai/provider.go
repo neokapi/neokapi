@@ -3,6 +3,8 @@ package aiprovider
 import (
 	"context"
 	"errors"
+	"fmt"
+	"strings"
 
 	"github.com/neokapi/neokapi/core/model"
 )
@@ -168,6 +170,9 @@ const (
 	Ollama      ProviderID = "ollama"
 )
 
+// ProviderFactory creates an LLMProvider from a Config.
+type ProviderFactory func(cfg Config) LLMProvider
+
 // ProviderInfo describes a registered AI provider.
 type ProviderInfo struct {
 	// Name is the provider identifier (e.g. "anthropic").
@@ -176,25 +181,80 @@ type ProviderInfo struct {
 	Label string
 }
 
+// providerRegistration bundles a factory with metadata.
+type providerRegistration struct {
+	Info    ProviderInfo
+	Factory ProviderFactory
+	Aliases []ProviderID // alternative names (e.g., "azure_openai" → AzureOpenAI)
+}
+
+// globalProviders is the default provider registry, populated by init().
+var globalProviders []providerRegistration
+
+func init() {
+	RegisterProvider(ProviderInfo{Name: Anthropic, Label: "Anthropic"},
+		func(cfg Config) LLMProvider { return NewAnthropicProvider(cfg) })
+	RegisterProvider(ProviderInfo{Name: OpenAI, Label: "OpenAI"},
+		func(cfg Config) LLMProvider { return NewOpenAIProvider(cfg) })
+	RegisterProvider(ProviderInfo{Name: Gemini, Label: "Gemini"},
+		func(cfg Config) LLMProvider { return NewGeminiProvider(cfg) })
+	RegisterProviderWithAliases(ProviderInfo{Name: AzureOpenAI, Label: "Azure OpenAI"},
+		func(cfg Config) LLMProvider { return NewAzureOpenAIProvider(cfg) },
+		"azure_openai")
+	RegisterProvider(ProviderInfo{Name: Ollama, Label: "Ollama"},
+		func(cfg Config) LLMProvider { return NewOllamaProvider(cfg) })
+}
+
+// RegisterProvider registers a new AI provider factory. Plugins can call this
+// to add custom providers that will appear in tool schemas and CLI flags.
+func RegisterProvider(info ProviderInfo, factory ProviderFactory) {
+	globalProviders = append(globalProviders, providerRegistration{
+		Info:    info,
+		Factory: factory,
+	})
+}
+
+// RegisterProviderWithAliases registers a provider with alternative name aliases.
+func RegisterProviderWithAliases(info ProviderInfo, factory ProviderFactory, aliases ...ProviderID) {
+	globalProviders = append(globalProviders, providerRegistration{
+		Info:    info,
+		Factory: factory,
+		Aliases: aliases,
+	})
+}
+
+// NewProvider creates an LLMProvider by looking up the registered factory for
+// the given provider name. Returns an error if the provider is not registered.
+func NewProvider(name ProviderID, cfg Config) (LLMProvider, error) {
+	for _, reg := range globalProviders {
+		if reg.Info.Name == name {
+			return reg.Factory(cfg), nil
+		}
+		for _, alias := range reg.Aliases {
+			if alias == name {
+				return reg.Factory(cfg), nil
+			}
+		}
+	}
+	return nil, fmt.Errorf("unknown AI provider: %s (supported: %s)", name, strings.Join(ProviderNames(), ", "))
+}
+
 // Providers returns the list of available AI providers in display order.
 // This is the canonical source of truth for provider names — used by tool
 // schemas, CLI flags, and UI dropdowns.
 func Providers() []ProviderInfo {
-	return []ProviderInfo{
-		{Name: Anthropic, Label: "Anthropic"},
-		{Name: OpenAI, Label: "OpenAI"},
-		{Name: Gemini, Label: "Gemini"},
-		{Name: AzureOpenAI, Label: "Azure OpenAI"},
-		{Name: Ollama, Label: "Ollama"},
+	infos := make([]ProviderInfo, len(globalProviders))
+	for i, reg := range globalProviders {
+		infos[i] = reg.Info
 	}
+	return infos
 }
 
 // ProviderNames returns just the provider name strings.
 func ProviderNames() []string {
-	providers := Providers()
-	names := make([]string, len(providers))
-	for i, p := range providers {
-		names[i] = string(p.Name)
+	names := make([]string, len(globalProviders))
+	for i, reg := range globalProviders {
+		names[i] = string(reg.Info.Name)
 	}
 	return names
 }

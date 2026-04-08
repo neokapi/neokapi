@@ -16,7 +16,7 @@ func NewProvider(store *Store, configID string) (aiprovider.LLMProvider, error) 
 	apiKey, err := store.GetAPIKey(configID)
 	if err != nil {
 		// Ollama doesn't require an API key, so continue with empty string
-		if cfg.ProviderType != "ollama" {
+		if cfg.ProviderType != string(aiprovider.Ollama) {
 			return nil, fmt.Errorf("get API key for %q: %w", cfg.Name, err)
 		}
 	}
@@ -25,22 +25,17 @@ func NewProvider(store *Store, configID string) (aiprovider.LLMProvider, error) 
 }
 
 // NewProviderFromConfig creates an LLMProvider from an explicit config and API key.
+// Uses the global provider registry, so plugin-provided providers are supported.
 func NewProviderFromConfig(cfg ProviderConfig, apiKey string) aiprovider.LLMProvider {
 	pcfg := aiprovider.Config{
 		APIKey:  apiKey,
 		Model:   cfg.Model,
 		BaseURL: cfg.BaseURL,
 	}
-	switch cfg.ProviderType {
-	case "anthropic":
-		return aiprovider.NewAnthropicProvider(pcfg)
-	case "openai":
-		return aiprovider.NewOpenAIProvider(pcfg)
-	case "azureopenai", "azure_openai":
-		return aiprovider.NewAzureOpenAIProvider(pcfg)
-	case "ollama":
-		return aiprovider.NewOllamaProvider(pcfg)
-	default:
+	provider, err := aiprovider.NewProvider(aiprovider.ProviderID(cfg.ProviderType), pcfg)
+	if err != nil {
+		// Fall back to mock for unknown providers (preserves existing behavior).
 		return aiprovider.NewMockProvider()
 	}
+	return provider
 }
