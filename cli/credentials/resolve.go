@@ -1,6 +1,7 @@
 package credentials
 
 import (
+	"errors"
 	"fmt"
 	"slices"
 	"strings"
@@ -74,7 +75,7 @@ func autoDetect(store *Store, providerType string) (*ProviderConfigWithKey, erro
 		if providerType != "" {
 			return nil, fmt.Errorf("no saved credentials found for provider %q; use 'kapi credentials add' to save one or pass --api-key directly", providerType)
 		}
-		return nil, fmt.Errorf("no saved credentials found; use 'kapi credentials add' to save one or pass --api-key directly")
+		return nil, errors.New("no saved credentials found; use 'kapi credentials add' to save one or pass --api-key directly")
 	case 1:
 		cfg := matches[0]
 		apiKey, err := store.GetAPIKey(cfg.ID)

@@ -46,7 +46,7 @@ func TestResolveCredentials_ByName(t *testing.T) {
 
 	_, err := ResolveCredentials(store, []string{"credentials"}, config)
 	// Will fail because no keychain available in test, but should resolve the config first.
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "keychain")
 
 	_ = cfg // suppress unused
@@ -57,7 +57,7 @@ func TestResolveCredentials_NotFound(t *testing.T) {
 	config := map[string]any{"credential": "nonexistent"}
 
 	_, err := ResolveCredentials(store, []string{"credentials"}, config)
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "not found")
 }
 
@@ -66,7 +66,7 @@ func TestResolveCredentials_AutoDetectEmpty(t *testing.T) {
 	config := map[string]any{}
 
 	_, err := ResolveCredentials(store, []string{"credentials"}, config)
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "no saved credentials")
 }
 
@@ -78,7 +78,7 @@ func TestResolveCredentials_AutoDetectMultiple(t *testing.T) {
 	config := map[string]any{"provider": "openai"}
 
 	_, err := ResolveCredentials(store, []string{"credentials"}, config)
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "multiple credentials")
 }
 

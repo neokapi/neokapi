@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -264,7 +265,7 @@ func handleRunFlow(ctx context.Context, a *cli.App, input RunFlowInput) (*mcp.Ca
 	}
 
 	if input.Path == "" {
-		return nil, RunFlowOutput{}, fmt.Errorf("path is required (or specify a project file)")
+		return nil, RunFlowOutput{}, errors.New("path is required (or specify a project file)")
 	}
 
 	targetLang := input.TargetLang
@@ -361,7 +362,7 @@ func handleRunFlowWithProject(ctx context.Context, a *cli.App, input RunFlowInpu
 				return nil, RunFlowOutput{}, fmt.Errorf("resolve content: %w", err)
 			}
 			if len(resolved) == 0 {
-				return nil, RunFlowOutput{}, fmt.Errorf("no input files — specify path or add content patterns")
+				return nil, RunFlowOutput{}, errors.New("no input files — specify path or add content patterns")
 			}
 			inputPath = resolved[0].Path
 		}
@@ -380,7 +381,7 @@ func handleRunFlowWithProject(ctx context.Context, a *cli.App, input RunFlowInpu
 			return nil, RunFlowOutput{}, fmt.Errorf("resolve content: %w", err)
 		}
 		if len(resolved) == 0 {
-			return nil, RunFlowOutput{}, fmt.Errorf("no input files — specify path or add content patterns")
+			return nil, RunFlowOutput{}, errors.New("no input files — specify path or add content patterns")
 		}
 		inputPath = resolved[0].Path
 	}

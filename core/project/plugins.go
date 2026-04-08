@@ -160,7 +160,7 @@ func compatibleVersion(required, installed string) bool {
 func compareVersions(a, b string) int {
 	ap := parseVersion(a)
 	bp := parseVersion(b)
-	for i := 0; i < 3; i++ {
+	for i := range 3 {
 		if ap[i] < bp[i] {
 			return -1
 		}

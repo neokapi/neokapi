@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"text/tabwriter"
@@ -47,7 +48,7 @@ If only one credential is saved, tools will auto-detect it without --credential.
 			baseURL, _ := cmd.Flags().GetString("base-url")
 
 			if providerType == "" {
-				return fmt.Errorf("--provider is required (anthropic, openai, gemini, ollama)")
+				return errors.New("--provider is required (anthropic, openai, gemini, ollama)")
 			}
 			if apiKey == "" && providerType != "ollama" {
 				return fmt.Errorf("--api-key is required for %s provider", providerType)

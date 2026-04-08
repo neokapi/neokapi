@@ -2,6 +2,7 @@ package registry
 
 import (
 	"cmp"
+	"errors"
 	"fmt"
 	"slices"
 	"strconv"
@@ -289,7 +290,7 @@ func (r *FormatRegistry) DetectByExtensionForSources(ext string, allowedSources 
 
 	ext = strings.ToLower(ext)
 	if ext == "" {
-		return "", fmt.Errorf("empty extension")
+		return "", errors.New("empty extension")
 	}
 
 	bestName := ""

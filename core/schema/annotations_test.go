@@ -15,7 +15,7 @@ func TestAnnotationRegistry_RegisterAndValidate(t *testing.T) {
 		Source:      "built-in",
 	})
 
-	assert.NoError(t, reg.Validate(AnnotationQAIssues))
+	require.NoError(t, reg.Validate(AnnotationQAIssues))
 	assert.Error(t, reg.Validate("unknown.type"))
 }
 
