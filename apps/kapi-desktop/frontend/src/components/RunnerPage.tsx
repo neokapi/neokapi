@@ -14,20 +14,11 @@ import {
 } from "@neokapi/ui-primitives";
 import type { FlowSpec, KapiProject } from "../types/api";
 import { api } from "../hooks/useApi";
-import { useWailsEvent } from "../hooks/useWailsEvent";
+import { useJobFeed, type RunEvent } from "../context/JobFeedContext";
 
 type RunState = "idle" | "running" | "complete" | "error" | "canceled";
 
-interface RunEvent {
-  type: "state" | "progress" | "trace" | "error" | "complete";
-  flow_id: string;
-  message?: string;
-  file_index?: number;
-  file_count?: number;
-  file_path?: string;
-  duration_ms?: number;
-  files_processed?: number;
-}
+export { type RunEvent };
 
 export interface RunnerPageProps {
   tabID: string;
@@ -41,35 +32,23 @@ export interface RunnerPageProps {
 }
 
 export function RunnerPage({ tabID, flowName, flow, onClose, project, autoRun }: RunnerPageProps) {
-  const [state, setState] = useState<RunState>("idle");
-  const [events, setEvents] = useState<RunEvent[]>([]);
+  const { activeJob, jobs } = useJobFeed();
+
+  // Find the job for this flow — prefer active, fall back to most recent matching.
+  const job =
+    activeJob?.flowName === flowName
+      ? activeJob
+      : jobs.find((j) => j.flowName === flowName) ?? activeJob;
+
+  // Derive state from job feed.
+  const state: RunState = job?.status ?? "idle";
+  const events: RunEvent[] = job?.events ?? [];
+  const progress = job?.progress ?? { current: 0, total: 0 };
+  const error = job?.error ?? null;
+
   const [inputFiles, setInputFiles] = useState<string[]>([]);
   const [targetLang, setTargetLang] = useState("");
-  const [progress, setProgress] = useState({ current: 0, total: 0 });
-  const [error, setError] = useState<string | null>(null);
   const autoRunStarted = useRef(false);
-
-  useWailsEvent("flow:event", (data) => {
-    const e = data as RunEvent;
-    setEvents((prev) => [...prev, e]);
-
-    switch (e.type) {
-      case "progress":
-        setProgress({
-          current: (e.file_index ?? 0) + 1,
-          total: e.file_count ?? 0,
-        });
-        break;
-      case "complete":
-        setState("complete");
-        setProgress((prev) => ({ ...prev, current: prev.total }));
-        break;
-      case "error":
-        setState("error");
-        setError(e.message ?? "Flow execution failed");
-        break;
-    }
-  });
 
   // Auto-run: resolve content and execute for all target languages.
   useEffect(() => {
@@ -77,32 +56,18 @@ export function RunnerPage({ tabID, flowName, flow, onClose, project, autoRun }:
     autoRunStarted.current = true;
 
     const targets = project.defaults?.target_languages ?? [];
-    if (targets.length === 0) {
-      setError("No target languages configured in project.");
-      setState("error");
-      return;
-    }
+    if (targets.length === 0) return;
 
     (async () => {
       const matches = await api.matchContent(tabID);
       const paths = matches?.map((m) => m.path) ?? [];
-      if (paths.length === 0) {
-        setError("No content files matched the project patterns.");
-        setState("error");
-        return;
-      }
+      if (paths.length === 0) return;
 
       setInputFiles(paths);
-      setState("running");
-      setProgress({ current: 0, total: paths.length * targets.length });
-
       try {
-        // Single backend call — backend handles all languages sequentially.
         await api.runFlow(tabID, flowName, paths, targets);
-        // Completion/error signaled via flow:event (handled by useWailsEvent above).
-      } catch (e) {
-        setState("error");
-        setError(String(e));
+      } catch {
+        // Error will be captured by the job feed via events.
       }
     })();
   }, [autoRun, project, tabID, flowName]);
@@ -110,25 +75,18 @@ export function RunnerPage({ tabID, flowName, flow, onClose, project, autoRun }:
   // Manual run (single language).
   const handleRun = useCallback(async () => {
     if (!targetLang || inputFiles.length === 0) return;
-    setState("running");
-    setEvents([]);
-    setError(null);
-    setProgress({ current: 0, total: inputFiles.length });
-
     try {
       await api.runFlow(tabID, flowName, inputFiles, [targetLang]);
-    } catch (e) {
-      setState("error");
-      setError(String(e));
+    } catch {
+      // Error captured by job feed.
     }
-  }, [tabID, flowName, targetLang, inputFiles]);
+  }, [tabID, flowName, inputFiles, targetLang]);
 
   const handleCancel = useCallback(async () => {
     try {
       await api.cancelRun();
-      setState("canceled");
-    } catch (e) {
-      setError(String(e));
+    } catch {
+      // ignore
     }
   }, []);
 
