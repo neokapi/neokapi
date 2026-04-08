@@ -1,6 +1,5 @@
-import { createContext, useContext, useState, useCallback, useRef, useEffect } from "react";
+import { createContext, useContext, useState, useCallback, useRef } from "react";
 import { useWailsEvent } from "../hooks/useWailsEvent";
-import { api } from "../hooks/useApi";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -72,11 +71,11 @@ const MAX_JOBS = 20;
 export function JobFeedProvider({ children }: { children: React.ReactNode }) {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
+  // Tracks the ID of the job that is currently waiting for backend events.
   const activeIdRef = useRef<string | null>(null);
-  const pendingJobRef = useRef<Job | null>(null);
 
   // startJob is called from RunnerPage BEFORE api.runFlow — pre-creates
-  // the job with project name and context so we don't show "Running flow".
+  // the job with project name and context.
   const startJob = useCallback(
     (flowName: string, projectName?: string, targetLangs?: string[], fileCount?: number) => {
       const id = `${flowName}-${Date.now()}`;
@@ -92,7 +91,6 @@ export function JobFeedProvider({ children }: { children: React.ReactNode }) {
         progress: { current: 0, total: 0 },
         startTime: Date.now(),
       };
-      pendingJobRef.current = job;
       setJobs((prev) => [job, ...prev].slice(0, MAX_JOBS));
       setSelectedJobId(id);
     },
@@ -100,19 +98,61 @@ export function JobFeedProvider({ children }: { children: React.ReactNode }) {
   );
 
   // Global event listener — always mounted, persists across navigation.
+  // All events update the active job (the one created by startJob).
+  // If no active job exists and a "running" event arrives (e.g. reconnect),
+  // a new job is created.
   useWailsEvent("flow:event", (data) => {
     const e = data as RunEvent;
 
     setJobs((prev) => {
-      // "state" with "running" → if we have a pending job, just append the event.
-      // Otherwise create a new job (reconnection or unexpected start).
+      const activeId = activeIdRef.current;
+
+      // If we have an active job, route ALL events to it.
+      if (activeId) {
+        return prev.map((job) => {
+          if (job.id !== activeId) return job;
+          const events = [...job.events, e];
+
+          switch (e.type) {
+            case "progress":
+              return {
+                ...job,
+                events,
+                progress: {
+                  current: (e.file_index ?? job.progress.current) + 1,
+                  total: e.file_count ?? job.progress.total,
+                },
+              };
+            case "complete":
+              activeIdRef.current = null;
+              return {
+                ...job,
+                events,
+                status: "complete" as const,
+                durationMs: e.duration_ms,
+                progress: { ...job.progress, current: job.progress.total },
+              };
+            case "error": {
+              activeIdRef.current = null;
+              const rawMsg = e.message ?? "Flow execution failed";
+              const isCanceled =
+                rawMsg.includes("context canceled") || rawMsg.includes("context cancelled");
+              return {
+                ...job,
+                events,
+                status: isCanceled ? ("canceled" as const) : ("error" as const),
+                error: isCanceled ? "Flow canceled" : rawMsg,
+              };
+            }
+            default:
+              return { ...job, events };
+          }
+        });
+      }
+
+      // No active job — if this is a "running" event, create a new job
+      // (reconnect scenario: app started while backend was already running).
       if (e.type === "state" && e.message === "running") {
-        if (pendingJobRef.current) {
-          const pending = pendingJobRef.current;
-          pendingJobRef.current = null;
-          return prev.map((j) => (j.id === pending.id ? { ...j, events: [...j.events, e] } : j));
-        }
-        // No pending job — create one from the event.
         const id = `${e.flow_id}-${Date.now()}`;
         activeIdRef.current = id;
         const job: Job = {
@@ -127,81 +167,10 @@ export function JobFeedProvider({ children }: { children: React.ReactNode }) {
         return [job, ...prev].slice(0, MAX_JOBS);
       }
 
-      // All other events update the active job.
-      const activeId = activeIdRef.current;
-      if (!activeId) return prev;
-
-      return prev.map((job) => {
-        if (job.id !== activeId) return job;
-        const events = [...job.events, e];
-
-        switch (e.type) {
-          case "progress":
-            return {
-              ...job,
-              events,
-              progress: {
-                current: (e.file_index ?? job.progress.current) + 1,
-                total: e.file_count ?? job.progress.total,
-              },
-            };
-          case "complete":
-            activeIdRef.current = null;
-            return {
-              ...job,
-              events,
-              status: "complete" as const,
-              durationMs: e.duration_ms,
-              progress: { ...job.progress, current: job.progress.total },
-            };
-          case "error": {
-            activeIdRef.current = null;
-            const rawMsg = e.message ?? "Flow execution failed";
-            const isCanceled =
-              rawMsg.includes("context canceled") || rawMsg.includes("context cancelled");
-            return {
-              ...job,
-              events,
-              status: isCanceled ? ("canceled" as const) : ("error" as const),
-              error: isCanceled ? "Flow canceled" : rawMsg,
-            };
-          }
-          default:
-            return { ...job, events };
-        }
-      });
+      // No active job and not a "running" event — ignore (stale event).
+      return prev;
     });
   });
-
-  // On mount, check if a flow is already running (reconnect scenario).
-  // Skip if startJob has already been called (pendingJobRef is set) — that
-  // means the app initiated the flow and will handle the "running" event.
-  useEffect(() => {
-    // Small delay so startJob (called synchronously from RunnerPage mount)
-    // has a chance to set pendingJobRef before this async check resolves.
-    const timer = setTimeout(() => {
-      void (async () => {
-        const state = await api.getRunState();
-        if (state === "running" && activeIdRef.current === null && !pendingJobRef.current) {
-          const id = `reconnected-${Date.now()}`;
-          activeIdRef.current = id;
-          setJobs((prev) => [
-            {
-              id,
-              flowName: "Running flow",
-              status: "running",
-              events: [],
-              progress: { current: 0, total: 0 },
-              startTime: Date.now(),
-            },
-            ...prev,
-          ]);
-          setSelectedJobId(id);
-        }
-      })();
-    }, 200);
-    return () => clearTimeout(timer);
-  }, []);
 
   const activeJob = jobs.find((j) => j.status === "running") ?? null;
   const selectedJob = jobs.find((j) => j.id === selectedJobId) ?? null;
