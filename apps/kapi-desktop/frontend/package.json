@@ -17,6 +17,8 @@
   "dependencies": {
     "@fontsource-variable/inter": "^5.2.8",
     "@fontsource-variable/jetbrains-mono": "^5.2.8",
+    "@lexical/react": "^0.42.0",
+    "lexical": "^0.42.0",
     "@neokapi/flow-editor": "*",
     "@neokapi/ui-primitives": "*",
     "@radix-ui/react-slot": "^1.2.4",

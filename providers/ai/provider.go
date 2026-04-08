@@ -153,6 +153,37 @@ type QAIssue struct {
 	Suggestion  string `json:"suggestion,omitempty"`
 }
 
+// ProviderInfo describes a registered AI provider.
+type ProviderInfo struct {
+	// Name is the provider identifier (e.g. "anthropic").
+	Name string
+	// Label is the human-readable display name (e.g. "Anthropic").
+	Label string
+}
+
+// Providers returns the list of available AI providers in display order.
+// This is the canonical source of truth for provider names — used by tool
+// schemas, CLI flags, and UI dropdowns.
+func Providers() []ProviderInfo {
+	return []ProviderInfo{
+		{Name: "anthropic", Label: "Anthropic"},
+		{Name: "openai", Label: "OpenAI"},
+		{Name: "gemini", Label: "Gemini"},
+		{Name: "azureopenai", Label: "Azure OpenAI"},
+		{Name: "ollama", Label: "Ollama"},
+	}
+}
+
+// ProviderNames returns just the provider name strings.
+func ProviderNames() []string {
+	providers := Providers()
+	names := make([]string, len(providers))
+	for i, p := range providers {
+		names[i] = p.Name
+	}
+	return names
+}
+
 // Config holds common provider configuration.
 type Config struct {
 	APIKey      string  `json:"api_key"`

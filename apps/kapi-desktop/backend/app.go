@@ -16,6 +16,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/neokapi/neokapi/cli/credentials"
 	"github.com/neokapi/neokapi/core/flow"
 	fmtschema "github.com/neokapi/neokapi/core/format/schema"
 	"github.com/neokapi/neokapi/core/formats"
@@ -60,7 +61,7 @@ type App struct {
 	tbHandles *handleStore[*termbase.SQLiteTermBase]
 
 	// Persistence
-	credentials *CredentialStore
+	credentials *credentials.Store
 	recent      *recentStore
 	settings    *settingsStore
 
@@ -85,6 +86,14 @@ func NewApp() *App {
 	pluginLoader := loader.NewPluginLoader(pluginDir, logger)
 	pluginLoader.SetToolRegistry(toolReg)
 
+	credStore := credentials.NewStore(credentials.DefaultPath())
+
+	// Wire credential resolution: tools requiring "credentials" get their
+	// provider/apiKey/model injected from the shared credential store.
+	toolReg.SetConfigPreprocessor(func(toolName string, requires []string, config map[string]any) (map[string]any, error) {
+		return credentials.ResolveCredentials(credStore, requires, config)
+	})
+
 	return &App{
 		formatReg:    formatReg,
 		toolReg:      toolReg,
@@ -93,7 +102,7 @@ func NewApp() *App {
 		projects:     make(map[string]*openProject),
 		tmHandles:    newHandleStore[*sievepen.SQLiteTM](),
 		tbHandles:    newHandleStore[*termbase.SQLiteTermBase](),
-		credentials:  NewCredentialStore(DefaultCredentialPath()),
+		credentials:  credStore,
 		recent:       newRecentStore(),
 		settings:     newSettingsStore(),
 		logger:       logger,
@@ -639,6 +648,10 @@ func (a *App) toolInfosFrom(all []registry.ToolInfo) []ToolInfo {
 // When the schema has pre-built RawJSON (e.g. from a plugin schema file),
 // it is used directly so that all extension metadata (x-editor, x-enumLabels,
 // x-step, $defs, etc.) passes through to the frontend unchanged.
+//
+// For tools that require credentials, a "credential" property is injected
+// into the schema with a credential-picker widget, and the manual provider
+// fields (provider, apiKey, model) are made conditionally visible.
 func (a *App) GetToolSchema(name string) map[string]any {
 	s := a.toolReg.GetSchema(name)
 	if s == nil {
@@ -657,7 +670,77 @@ func (a *App) GetToolSchema(name string) map[string]any {
 	if err := json.Unmarshal(data, &result); err != nil {
 		return nil
 	}
+
+	// Inject credential picker for tools that require credentials.
+	if s.ToolMeta != nil && slices.Contains(s.ToolMeta.Requires, "credentials") {
+		a.injectCredentialPicker(result)
+	}
+
 	return result
+}
+
+// injectCredentialPicker adds a "credential" property with a credential-picker
+// widget to the schema and makes the manual provider/apiKey/model fields
+// conditionally visible only when no credential is selected.
+func (a *App) injectCredentialPicker(schema map[string]any) {
+	props, ok := schema["properties"].(map[string]any)
+	if !ok {
+		return
+	}
+
+	// Build credential options from the store.
+	options := []map[string]any{
+		{"value": "", "label": "Custom (manual entry)"},
+	}
+	for _, c := range a.credentials.List() {
+		label := c.Name
+		if c.Model != "" {
+			label += " (" + c.Model + ")"
+		}
+		options = append(options, map[string]any{
+			"value": c.Name,
+			"label": label,
+		})
+	}
+
+	// Add the credential property.
+	props["credential"] = map[string]any{
+		"type":        "string",
+		"title":       "Credential",
+		"description": "Saved credential to use for this tool",
+		"default":     "",
+		"options":     options,
+		"ui:widget":   "credential-picker",
+		"ui:order":    float64(-1), // show first in group
+	}
+
+	// Make manual provider fields conditionally visible (only when credential is empty).
+	manualCondition := map[string]any{
+		"field": "credential",
+		"eq":    "",
+	}
+	for _, fieldName := range []string{"provider", "apiKey", "model"} {
+		if prop, ok := props[fieldName].(map[string]any); ok {
+			prop["ui:visible"] = manualCondition
+		}
+	}
+
+	// Add credential to the provider group if it exists.
+	if groups, ok := schema["ui:groups"].([]any); ok {
+		for _, g := range groups {
+			group, ok := g.(map[string]any)
+			if !ok {
+				continue
+			}
+			if group["id"] == "provider" {
+				if fields, ok := group["fields"].([]any); ok {
+					// Prepend credential to the group fields.
+					group["fields"] = append([]any{"credential"}, fields...)
+				}
+				break
+			}
+		}
+	}
 }
 
 // FormatInfo is the frontend-facing format summary.

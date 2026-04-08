@@ -72,6 +72,7 @@ func (a *App) addFlowRunFlags(cmd *cobra.Command) {
 	cmd.Flags().StringSliceP("input", "i", nil, "input file path(s); repeat for multiple files")
 	cmd.Flags().StringP("output", "o", "", "output path or template (e.g. ./out/{name}_{lang}.{ext})")
 	cmd.Flags().IntP("concurrency", "j", 0, "number of files to process at once (0 = auto)")
+	cmd.Flags().String("credential", "", "saved credential name to use (see 'kapi credentials list')")
 	cmd.Flags().String("provider", "anthropic", "AI provider (anthropic, openai, ollama)")
 	cmd.Flags().String("api-key", "", "API key for the AI provider")
 	cmd.Flags().String("model", "", "AI model name")
@@ -689,6 +690,22 @@ func (a *App) buildFlowTools(flowName string, cmd ...*cobra.Command) ([]tool.Too
 		"target_locale": a.TargetLang,
 	}
 
+	// Inject credential/provider flags from the command into the tool config.
+	if len(cmd) > 0 && cmd[0] != nil {
+		if v, _ := cmd[0].Flags().GetString("credential"); v != "" {
+			config["credential"] = v
+		}
+		if v, _ := cmd[0].Flags().GetString("provider"); v != "" {
+			config["provider"] = v
+		}
+		if v, _ := cmd[0].Flags().GetString("api-key"); v != "" {
+			config["apiKey"] = v
+		}
+		if v, _ := cmd[0].Flags().GetString("model"); v != "" {
+			config["model"] = v
+		}
+	}
+
 	for _, tn := range toolNodes {
 		t, toolCleanup, err := a.buildToolByName(tn.name, config, cmd...)
 		if err != nil {
@@ -772,7 +789,15 @@ func (a *App) buildToolByName(toolName string, config map[string]any, cmd ...*co
 		return []tool.Tool{t}, cleanup, nil
 	}
 
-	// Default: use the tool's NewToolFromConfig factory.
+	// Default: use the tool registry (which runs the config preprocessor
+	// for credential resolution) then fall back to direct factory.
+	if a.ToolReg != nil && a.ToolReg.Has(toolName) {
+		t, err := a.ToolReg.NewToolWithConfig(toolName, config, a.TargetLang)
+		if err != nil {
+			return nil, nil, err
+		}
+		return []tool.Tool{t}, nil, nil
+	}
 	if def.NewToolFromConfig != nil {
 		t, err := def.NewToolFromConfig(config, a.TargetLang)
 		if err != nil {

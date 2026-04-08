@@ -1,7 +1,9 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import type { TMAdapter } from "./adapters";
 import type { TMEntryDTO, EntityPatternRequest } from "./types";
+import type { SpanInfo } from "../../types/span";
 import { CodedTextDisplay } from "./CodedTextDisplay";
+import { InlineCodeEditor } from "../editor/InlineCodeEditor";
 import { LocalePill } from "./LocalePill";
 import { BulkActionBar } from "./BulkActionBar";
 import { Pagination } from "./Pagination";
@@ -50,7 +52,6 @@ export function TMBrowser({
   const [initialLoadDone, setInitialLoadDone] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [editTarget, setEditTarget] = useState("");
   const [showAnnotateDialog, setShowAnnotateDialog] = useState(false);
   const [confirmBulkDelete, setConfirmBulkDelete] = useState(false);
 
@@ -159,16 +160,19 @@ export function TMBrowser({
 
   const handleEdit = useCallback((entry: TMEntryDTO) => {
     setEditingId(entry.id);
-    setEditTarget(entry.target_text);
   }, []);
 
-  const handleSaveEdit = useCallback(
-    async (entry: TMEntryDTO) => {
+  const handleSaveCodedEdit = useCallback(
+    async (entry: TMEntryDTO, codedText: string, spans: SpanInfo[]) => {
       try {
+        // Extract plain text by stripping markers for backward compatibility.
+        const plainText = codedText.replace(/[\uE001\uE002\uE003]/g, "");
         await adapter.updateEntry({
           entry_id: entry.id,
           source: entry.source_text,
-          target: editTarget,
+          target: plainText,
+          target_coded: codedText,
+          target_spans: spans,
           source_locale: entry.source_locale,
           target_locale: entry.target_locale,
           project_id: entry.project_id,
@@ -179,7 +183,7 @@ export function TMBrowser({
         onError?.("Failed to save TM entry", err);
       }
     },
-    [adapter, editTarget, fetchEntries, debouncedSearch, page, onError],
+    [adapter, fetchEntries, debouncedSearch, page, onError],
   );
 
   const handleDelete = useCallback(
@@ -397,30 +401,17 @@ export function TMBrowser({
                         tgt
                       </span>
                       {editingId === entry.id ? (
-                        <div className="flex-1 flex gap-1">
-                          <input
-                            type="text"
-                            value={editTarget}
-                            onChange={(e) => setEditTarget(e.target.value)}
-                            className="flex-1 rounded border border-input bg-transparent px-2 py-1 text-[13px] outline-none focus:ring-1 focus:ring-ring"
-                            autoFocus
-                            onKeyDown={(e) => {
-                              if (e.key === "Enter") void handleSaveEdit(entry);
-                              if (e.key === "Escape") setEditingId(null);
-                            }}
+                        <div className="flex-1">
+                          <InlineCodeEditor
+                            initialCodedText={entry.target_coded || entry.target_text}
+                            initialSpans={entry.target_spans || []}
+                            sourceSpans={entry.source_spans || []}
+                            onSave={(codedText, spans) =>
+                              void handleSaveCodedEdit(entry, codedText, spans)
+                            }
+                            onCancel={() => setEditingId(null)}
+                            compact
                           />
-                          <button
-                            onClick={() => void handleSaveEdit(entry)}
-                            className="text-[11px] text-primary hover:text-primary/80"
-                          >
-                            Save
-                          </button>
-                          <button
-                            onClick={() => setEditingId(null)}
-                            className="text-[11px] text-muted-foreground hover:text-foreground"
-                          >
-                            Cancel
-                          </button>
                         </div>
                       ) : (
                         <CodedTextDisplay

@@ -15,6 +15,12 @@ type ToolFactory func() tool.Tool
 // Used for project flows where step config overrides tool defaults.
 type ToolConfigFactory func(config map[string]any, targetLang string) (tool.Tool, error)
 
+// ConfigPreprocessor transforms a tool's config map before it is passed to
+// the tool's ConfigFactory. Used by CLI/desktop to inject credentials or
+// resolve references before tool creation. The toolName identifies the tool
+// being created; requires lists its runtime requirements (e.g. "credentials").
+type ConfigPreprocessor func(toolName string, requires []string, config map[string]any) (map[string]any, error)
+
 // ToolInfo holds metadata about a registered tool.
 type ToolInfo struct {
 	Name        string   `json:"name"`
@@ -45,8 +51,9 @@ type ToolRegistration struct {
 
 // ToolRegistry manages available Tools.
 type ToolRegistry struct {
-	mu    sync.RWMutex
-	tools map[string]*ToolRegistration
+	mu           sync.RWMutex
+	tools        map[string]*ToolRegistration
+	preprocessor ConfigPreprocessor // optional: runs before ConfigFactory
 }
 
 // NewToolRegistry creates a new ToolRegistry.
@@ -138,6 +145,16 @@ func (r *ToolRegistry) SetConfigFactory(name string, factory ToolConfigFactory) 
 	}
 }
 
+// SetConfigPreprocessor registers a function that transforms tool config maps
+// before they are passed to the tool's ConfigFactory. This enables credential
+// resolution, environment variable expansion, and similar config enrichment
+// without tools needing to know about these concerns.
+func (r *ToolRegistry) SetConfigPreprocessor(fn ConfigPreprocessor) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.preprocessor = fn
+}
+
 // NewTool creates a new Tool instance for the given name with default config.
 func (r *ToolRegistry) NewTool(name string) (tool.Tool, error) {
 	r.mu.RLock()
@@ -165,7 +182,9 @@ func (r *ToolRegistry) GetToolInfo(name string) *ToolInfo {
 }
 
 // NewToolWithConfig creates a Tool from a step config map and target language.
-// Falls back to the zero-arg Factory if no ConfigFactory is registered.
+// If a ConfigPreprocessor is set, it runs first to enrich the config (e.g.
+// credential resolution). Falls back to the zero-arg Factory if no
+// ConfigFactory is registered.
 func (r *ToolRegistry) NewToolWithConfig(name string, config map[string]any, targetLang string) (tool.Tool, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
@@ -173,6 +192,16 @@ func (r *ToolRegistry) NewToolWithConfig(name string, config map[string]any, tar
 	if !ok {
 		return nil, fmt.Errorf("unknown tool: %s", name)
 	}
+
+	// Run preprocessor if set (e.g. credential resolution).
+	if r.preprocessor != nil && reg.ConfigFactory != nil {
+		var err error
+		config, err = r.preprocessor(name, reg.Info.Requires, config)
+		if err != nil {
+			return nil, fmt.Errorf("tool %s config: %w", name, err)
+		}
+	}
+
 	if reg.ConfigFactory != nil {
 		return reg.ConfigFactory(config, targetLang)
 	}

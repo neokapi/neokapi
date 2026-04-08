@@ -160,6 +160,89 @@ func TestGetToolInfo_ReturnsNilForUnknown(t *testing.T) {
 	assert.Nil(t, reg.GetToolInfo("nonexistent"))
 }
 
+func TestSetConfigPreprocessor_TransformsConfig(t *testing.T) {
+	reg := NewToolRegistry()
+	reg.RegisterWithSchema("ai-tool", func() tool.Tool { return &stubTool{} }, &schema.ComponentSchema{
+		Title: "AI Tool",
+		ToolMeta: &schema.ToolMeta{
+			ID:       "ai-tool",
+			Requires: []string{"credentials"},
+		},
+	})
+	reg.SetConfigFactory("ai-tool", func(config map[string]any, targetLang string) (tool.Tool, error) {
+		// Verify the preprocessor ran before the factory.
+		assert.Equal(t, "injected-key", config["apiKey"])
+		assert.Equal(t, "anthropic", config["provider"])
+		return &stubTool{}, nil
+	})
+
+	// Preprocessor injects credentials into the config.
+	reg.SetConfigPreprocessor(func(toolName string, requires []string, config map[string]any) (map[string]any, error) {
+		assert.Equal(t, "ai-tool", toolName)
+		assert.Contains(t, requires, "credentials")
+		result := make(map[string]any)
+		for k, v := range config {
+			result[k] = v
+		}
+		result["apiKey"] = "injected-key"
+		result["provider"] = "anthropic"
+		return result, nil
+	})
+
+	_, err := reg.NewToolWithConfig("ai-tool", map[string]any{"batchSize": 10}, "fr")
+	require.NoError(t, err)
+}
+
+func TestSetConfigPreprocessor_ErrorPropagates(t *testing.T) {
+	reg := NewToolRegistry()
+	reg.RegisterWithSchema("ai-tool", func() tool.Tool { return &stubTool{} }, &schema.ComponentSchema{
+		Title:    "AI Tool",
+		ToolMeta: &schema.ToolMeta{ID: "ai-tool"},
+	})
+	reg.SetConfigFactory("ai-tool", func(config map[string]any, targetLang string) (tool.Tool, error) {
+		t.Fatal("factory should not be called when preprocessor errors")
+		return nil, nil
+	})
+
+	reg.SetConfigPreprocessor(func(toolName string, requires []string, config map[string]any) (map[string]any, error) {
+		return nil, assert.AnError
+	})
+
+	_, err := reg.NewToolWithConfig("ai-tool", map[string]any{}, "fr")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "ai-tool config")
+}
+
+func TestSetConfigPreprocessor_SkippedWithoutConfigFactory(t *testing.T) {
+	reg := NewToolRegistry()
+	called := false
+	reg.Register("simple-tool", func() tool.Tool { return &stubTool{} })
+
+	reg.SetConfigPreprocessor(func(toolName string, requires []string, config map[string]any) (map[string]any, error) {
+		called = true
+		return config, nil
+	})
+
+	// Tool without ConfigFactory should fall back to zero-arg Factory.
+	got, err := reg.NewToolWithConfig("simple-tool", map[string]any{}, "")
+	require.NoError(t, err)
+	assert.NotNil(t, got)
+	assert.False(t, called, "preprocessor should not run when no ConfigFactory is set")
+}
+
+func TestNewToolWithConfig_UsesConfigFactory(t *testing.T) {
+	reg := NewToolRegistry()
+	reg.Register("cfg-tool", func() tool.Tool { return &stubTool{} })
+	reg.SetConfigFactory("cfg-tool", func(config map[string]any, targetLang string) (tool.Tool, error) {
+		assert.Equal(t, "value", config["key"])
+		assert.Equal(t, "de", targetLang)
+		return &stubTool{}, nil
+	})
+
+	_, err := reg.NewToolWithConfig("cfg-tool", map[string]any{"key": "value"}, "de")
+	require.NoError(t, err)
+}
+
 func TestRegisterWithSchema_PropagatesIOContract(t *testing.T) {
 	reg := NewToolRegistry()
 	reg.RegisterWithSchema("io-tool", func() tool.Tool { return &stubTool{} }, &schema.ComponentSchema{

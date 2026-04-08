@@ -13,6 +13,7 @@ import (
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/tool"
+	aiprovider "github.com/neokapi/neokapi/providers/ai"
 )
 
 // RunState represents the current state of a flow execution.
@@ -118,6 +119,7 @@ func (a *App) executeFlowAllLangs(ctx context.Context, flowName string, spec *fl
 	}()
 
 	start := time.Now()
+	recorder := flow.NewTraceRecorder()
 
 	// Source-only flows: run once with no target.
 	if localePasses == nil {
@@ -130,6 +132,27 @@ func (a *App) executeFlowAllLangs(ctx context.Context, flowName string, spec *fl
 	a.emitEvent("flow:event", RunEvent{
 		Type: "state", FlowID: flowName, Message: "running",
 	})
+
+	// Progress callback for AI tools — emits live block progress to the frontend.
+	onProgress := func(e aiprovider.ProgressEvent) {
+		msg := ""
+		if e.TotalBlocks > 0 {
+			msg = fmt.Sprintf("[%d/%d]", e.Block, e.TotalBlocks)
+		} else {
+			msg = fmt.Sprintf("[%d]", e.Block)
+		}
+		if e.Thinking != "" {
+			think := e.Thinking
+			if len(think) > 80 {
+				think = think[:77] + "..."
+			}
+			msg += " " + think
+		}
+		a.emitEvent("flow:event", RunEvent{
+			Type: "progress", FlowID: flowName, Message: msg,
+			FileIndex: filesDone, FileCount: totalFiles,
+		})
+	}
 
 	for _, pass := range localePasses {
 		if ctx.Err() != nil {
@@ -148,13 +171,17 @@ func (a *App) executeFlowAllLangs(ctx context.Context, flowName string, spec *fl
 			Message: fmt.Sprintf("Running for %s (%d files)...", lang, len(inputPaths)),
 		})
 
-		// Build tools for this locale pass.
+		// Build tools for this locale pass, with tracing and progress callbacks.
 		var tools []tool.Tool
-		for _, step := range spec.Steps {
+		for i, step := range spec.Steps {
 			config := step.Config
 			if config == nil {
 				config = make(map[string]any)
 			}
+
+			// Inject live progress callback for AI tools.
+			config["onProgress"] = onProgress
+
 			t, err := a.toolReg.NewToolWithConfig(step.Tool, config, lang)
 			if err != nil {
 				a.emitEvent("flow:event", RunEvent{
@@ -166,7 +193,10 @@ func (a *App) executeFlowAllLangs(ctx context.Context, flowName string, spec *fl
 				a.runState.mu.Unlock()
 				return
 			}
-			tools = append(tools, t)
+
+			// Wrap with tracing to capture per-tool timing.
+			nodeID := fmt.Sprintf("tool-%d", i)
+			tools = append(tools, flow.NewTracingTool(t, nodeID, recorder))
 		}
 
 		// Process each file for this language.
@@ -207,7 +237,26 @@ func (a *App) executeFlowAllLangs(ctx context.Context, flowName string, spec *fl
 	}
 
 	duration := time.Since(start)
+
+	// Build trace nodes from the flow steps.
+	traceNodes := make([]flow.TraceNode, len(spec.Steps))
+	for i, step := range spec.Steps {
+		traceNodes[i] = flow.TraceNode{
+			ID:   fmt.Sprintf("tool-%d", i),
+			Type: "tool",
+			Name: step.Tool,
+		}
+	}
+
+	// Store the trace for post-run inspection via GetLastTrace().
 	a.runState.mu.Lock()
+	a.runState.lastTrace = &flow.FlowTrace{
+		Name:       flowName,
+		Nodes:      traceNodes,
+		Events:     recorder.Events(),
+		Parts:      recorder.Snapshots(),
+		DurationUs: recorder.DurationUs(),
+	}
 	if a.runState.state == RunStateRunning {
 		a.runState.state = RunStateComplete
 	}

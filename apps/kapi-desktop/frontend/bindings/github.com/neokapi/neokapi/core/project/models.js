@@ -260,8 +260,7 @@ export class Defaults {
 }
 
 /**
- * FlowValidationIssue describes a tool reference in a project flow that
- * requires a plugin the project does not declare.
+ * FlowValidationIssue describes a problem with a tool reference in a project flow.
  */
 export class FlowValidationIssue {
     /**
@@ -283,13 +282,28 @@ export class FlowValidationIssue {
              */
             this["step_tool"] = "";
         }
-        if (!("source" in $$source)) {
+        if (!("type" in $$source)) {
             /**
-             * the plugin that provides the tool
+             * "unknown" or "undeclared_plugin"
              * @member
              * @type {string}
              */
-            this["source"] = "";
+            this["type"] = "";
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * plugin name (for undeclared_plugin)
+             * @member
+             * @type {string | undefined}
+             */
+            this["source"] = undefined;
+        }
+        if (!("message" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["message"] = "";
         }
 
         Object.assign(this, $$source);

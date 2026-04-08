@@ -43,7 +43,17 @@
     "vitest": "^4.1.2"
   },
   "peerDependencies": {
+    "@lexical/react": "^0.42.0",
+    "lexical": "^0.42.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
+  },
+  "peerDependenciesMeta": {
+    "@lexical/react": {
+      "optional": true
+    },
+    "lexical": {
+      "optional": true
+    }
   }
 }

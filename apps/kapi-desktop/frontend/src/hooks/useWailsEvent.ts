@@ -39,12 +39,15 @@ async function getEvents() {
 export function useWailsEvent(name: string, callback: WailsEventCallback) {
   useEffect(() => {
     let cleanup: (() => void) | null = null;
+    let cancelled = false;
     void getEvents().then((events) => {
+      if (cancelled) return;
       if (events) {
         cleanup = events.On(name, (e) => callback(e.data));
       }
     });
     return () => {
+      cancelled = true;
       cleanup?.();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- callback identity managed by caller
@@ -57,14 +60,19 @@ export function useWailsEvent(name: string, callback: WailsEventCallback) {
 export function useWailsEvents(names: string[], callback: WailsEventCallback) {
   useEffect(() => {
     const cleanups: Array<() => void> = [];
+    let cancelled = false;
     void getEvents().then((events) => {
+      if (cancelled) return;
       if (events) {
         for (const name of names) {
           cleanups.push(events.On(name, (e) => callback(e.data)));
         }
       }
     });
-    return () => cleanups.forEach((fn) => fn());
+    return () => {
+      cancelled = true;
+      cleanups.forEach((fn) => fn());
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [names.join(",")]);
 }

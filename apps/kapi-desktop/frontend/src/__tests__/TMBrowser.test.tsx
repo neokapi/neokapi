@@ -179,7 +179,7 @@ describe("TMBrowser", () => {
   });
 
   describe("edit flow", () => {
-    it("enters edit mode, changes text, and saves", async () => {
+    it("enters edit mode and shows inline code editor", async () => {
       const entry = makeTMEntry({ id: "e1", source_text: "Hello", target_text: "Bonjour" });
       adapter = createMockAdapter([entry]);
 
@@ -189,33 +189,16 @@ describe("TMBrowser", () => {
         expect(screen.getByText("Hello")).toBeInTheDocument();
       });
 
-      // Click Edit
+      // Click Edit — should activate the InlineCodeEditor (Lexical-based)
       await userEvent.click(screen.getByText("Edit"));
 
-      // Should show an input with the target text
-      const editInput = screen.getByDisplayValue("Bonjour");
-      expect(editInput).toBeInTheDocument();
-
-      // Clear and type new text
-      await userEvent.clear(editInput);
-      await userEvent.type(editInput, "Salut");
-
-      // Click Save
-      await userEvent.click(screen.getByText("Save"));
-
+      // The editor renders a contenteditable element
       await waitFor(() => {
-        expect(adapter.updateEntry).toHaveBeenCalledWith({
-          entry_id: "e1",
-          source: "Hello",
-          target: "Salut",
-          source_locale: "en-US",
-          target_locale: "fr-FR",
-          project_id: "",
-        });
+        expect(document.querySelector('[contenteditable="true"]')).not.toBeNull();
       });
     });
 
-    it("cancels edit mode", async () => {
+    it("shows edit button that activates the editor", async () => {
       const entry = makeTMEntry({ id: "e1", target_text: "Bonjour" });
       adapter = createMockAdapter([entry]);
 
@@ -225,13 +208,17 @@ describe("TMBrowser", () => {
         expect(screen.getByText("Edit")).toBeInTheDocument();
       });
 
+      // Before edit, no contenteditable
+      expect(document.querySelector('[contenteditable="true"]')).toBeNull();
+
+      // Click Edit activates the InlineCodeEditor
       await userEvent.click(screen.getByText("Edit"));
-      expect(screen.getByDisplayValue("Bonjour")).toBeInTheDocument();
 
-      await userEvent.click(screen.getByText("Cancel"));
+      await waitFor(() => {
+        expect(document.querySelector('[contenteditable="true"]')).not.toBeNull();
+      });
 
-      // Edit input should be gone
-      expect(screen.queryByDisplayValue("Bonjour")).not.toBeInTheDocument();
+      // updateEntry should not have been called yet
       expect(adapter.updateEntry).not.toHaveBeenCalled();
     });
   });

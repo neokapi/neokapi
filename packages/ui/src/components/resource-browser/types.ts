@@ -71,6 +71,8 @@ export interface UpdateTMEntryRequest {
   entry_id: string;
   source: string;
   target: string;
+  target_coded?: string;
+  target_spans?: SpanInfo[];
   source_locale: string;
   target_locale: string;
   project_id?: string;

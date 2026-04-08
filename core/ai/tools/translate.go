@@ -37,7 +37,7 @@ type AITranslateTool struct {
 type AITranslateConfig struct {
 	SourceLocale     model.LocaleID    `json:"sourceLocale,omitempty" schema:"-"`
 	TargetLocale     model.LocaleID    `json:"targetLocale,omitempty" schema:"-"`
-	Provider         string            `json:"provider,omitempty"     schema:"title=AI Provider,description=AI provider,default=anthropic,enum=anthropic|openai|gemini|ollama,group=provider"`
+	Provider         string            `json:"provider,omitempty"     schema:"title=AI Provider,description=AI provider,default=anthropic,group=provider"`
 	APIKey           string            `json:"apiKey,omitempty"       schema:"title=API Key,description=API key for the AI provider,group=provider"`
 	Model            string            `json:"model,omitempty"        schema:"title=Model,description=AI model name,group=provider"`
 	Glossary         map[string]string `json:"glossary,omitempty"     schema:"-"`
@@ -52,7 +52,7 @@ type AITranslateConfig struct {
 
 // AITranslateSchema returns the auto-generated schema for the AI translate tool.
 func AITranslateSchema() *schema.ComponentSchema {
-	return schema.FromStruct(&AITranslateConfig{}, schema.ToolMeta{
+	s := schema.FromStruct(&AITranslateConfig{}, schema.ToolMeta{
 		ID:          "ai-translate",
 		Category:    schema.CategoryTranslate,
 		DisplayName: "AI Translate",
@@ -64,6 +64,27 @@ func AITranslateSchema() *schema.ComponentSchema {
 		Produces:    []schema.AnnotationType{schema.AnnotationTranslation},
 		SideEffects: []schema.SideEffect{schema.SideEffectAPICall},
 	})
+	injectProviderOptions(s)
+	return s
+}
+
+// injectProviderOptions sets the Provider field's options from the canonical
+// provider registry, replacing any hardcoded enum values.
+func injectProviderOptions(s *schema.ComponentSchema) {
+	if s == nil || s.Properties == nil {
+		return
+	}
+	if prop, ok := s.Properties["provider"]; ok {
+		var options []schema.OptionItem
+		for _, p := range aiprovider.Providers() {
+			options = append(options, schema.OptionItem{
+				Value: p.Name,
+				Label: p.Label,
+			})
+		}
+		prop.Options = options
+		s.Properties["provider"] = prop
+	}
 }
 
 // ProviderFromConfig creates an LLM provider from a provider name and config.
@@ -79,10 +100,12 @@ func ProviderFromConfig(name string, cfg aiprovider.Config) (aiprovider.LLMProvi
 		return aiprovider.NewOpenAIProvider(cfg), nil
 	case "gemini":
 		return aiprovider.NewGeminiProvider(cfg), nil
+	case "azureopenai", "azure_openai":
+		return aiprovider.NewAzureOpenAIProvider(cfg), nil
 	case "ollama":
 		return aiprovider.NewOllamaProvider(cfg), nil
 	default:
-		return nil, fmt.Errorf("unknown AI provider: %s (supported: anthropic, openai, gemini, ollama)", name)
+		return nil, fmt.Errorf("unknown AI provider: %s (supported: %s)", name, strings.Join(aiprovider.ProviderNames(), ", "))
 	}
 }
 

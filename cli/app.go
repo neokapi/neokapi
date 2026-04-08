@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/neokapi/neokapi/cli/config"
+	"github.com/neokapi/neokapi/cli/credentials"
 	"github.com/neokapi/neokapi/cli/output"
 	neokapiconfig "github.com/neokapi/neokapi/core/config"
 	"github.com/neokapi/neokapi/core/format/schema"
@@ -44,6 +45,9 @@ type App struct {
 	Encoding   string
 	SourceLang string
 	TargetLang string
+
+	// Credentials is the shared credential store for AI provider keys.
+	Credentials *credentials.Store
 
 	// RegistryResolver is an optional hook for resolving plugin registries.
 	// When set, it is called before falling back to the config-based registries.
@@ -97,6 +101,14 @@ func (a *App) Init() {
 	a.ToolReg = registry.NewToolRegistry()
 	libtools.RegisterAll(a.ToolReg)
 	aitools.RegisterAll(a.ToolReg)
+
+	// Initialize the shared credential store and wire credential resolution
+	// into the tool registry so AI tools auto-resolve from saved credentials.
+	a.Credentials = credentials.NewStore(credentials.DefaultPath())
+	credStore := a.Credentials
+	a.ToolReg.SetConfigPreprocessor(func(toolName string, requires []string, config map[string]any) (map[string]any, error) {
+		return credentials.ResolveCredentials(credStore, requires, config)
+	})
 
 	if a.Config == nil {
 		a.Config = config.NewAppConfig()

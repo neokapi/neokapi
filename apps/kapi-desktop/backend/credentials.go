@@ -2,6 +2,9 @@ package backend
 
 import (
 	"fmt"
+
+	"github.com/neokapi/neokapi/cli/credentials"
+	aiprovider "github.com/neokapi/neokapi/providers/ai"
 )
 
 // ProviderInfo is the frontend-facing provider summary (no API key).
@@ -30,13 +33,7 @@ func (a *App) ListProviders() []ProviderInfo {
 	}
 	var infos []ProviderInfo
 	for _, c := range a.credentials.List() {
-		infos = append(infos, ProviderInfo{
-			ID:           c.ID,
-			Name:         c.Name,
-			ProviderType: c.ProviderType,
-			Model:        c.Model,
-			BaseURL:      c.BaseURL,
-		})
+		infos = append(infos, providerInfoFrom(c))
 	}
 	return infos
 }
@@ -47,7 +44,7 @@ func (a *App) SaveProvider(req ProviderSaveRequest) (*ProviderInfo, error) {
 		return nil, fmt.Errorf("credential store not initialized")
 	}
 
-	cfg := a.credentials.Upsert(ProviderConfig{
+	cfg := a.credentials.Upsert(credentials.ProviderConfig{
 		ID:           req.ID,
 		Name:         req.Name,
 		ProviderType: req.ProviderType,
@@ -61,13 +58,8 @@ func (a *App) SaveProvider(req ProviderSaveRequest) (*ProviderInfo, error) {
 		}
 	}
 
-	return &ProviderInfo{
-		ID:           cfg.ID,
-		Name:         cfg.Name,
-		ProviderType: cfg.ProviderType,
-		Model:        cfg.Model,
-		BaseURL:      cfg.BaseURL,
-	}, nil
+	info := providerInfoFrom(cfg)
+	return &info, nil
 }
 
 // DeleteProvider removes a provider config and its API key.
@@ -93,4 +85,30 @@ func (a *App) TestProvider(id string) (bool, error) {
 		return false, fmt.Errorf("API key not found in keychain: %w", err)
 	}
 	return len(key) > 0, nil
+}
+
+// ProviderTypeInfo describes an available AI provider type for the frontend.
+type ProviderTypeInfo struct {
+	Name  string `json:"name"`
+	Label string `json:"label"`
+}
+
+// ListProviderTypes returns the canonical list of available AI provider types.
+func (a *App) ListProviderTypes() []ProviderTypeInfo {
+	providers := aiprovider.Providers()
+	out := make([]ProviderTypeInfo, len(providers))
+	for i, p := range providers {
+		out[i] = ProviderTypeInfo{Name: p.Name, Label: p.Label}
+	}
+	return out
+}
+
+func providerInfoFrom(c credentials.ProviderConfig) ProviderInfo {
+	return ProviderInfo{
+		ID:           c.ID,
+		Name:         c.Name,
+		ProviderType: c.ProviderType,
+		Model:        c.Model,
+		BaseURL:      c.BaseURL,
+	}
 }
