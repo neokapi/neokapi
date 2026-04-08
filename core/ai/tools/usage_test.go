@@ -27,6 +27,7 @@ func TestTranslateToolAccumulatesUsage(t *testing.T) {
 	tool := tools.NewAITranslateTool(mock, tools.AITranslateConfig{
 		SourceLocale: model.LocaleEnglish,
 		TargetLocale: model.LocaleFrench,
+		BatchSize:    1, // individual calls, not batched
 	})
 
 	// Process two blocks.
