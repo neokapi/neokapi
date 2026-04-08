@@ -11,7 +11,7 @@ import type { Meta, StoryObj } from "@storybook/react-vite";
 import { FormattedSourceDisplay } from "../../components/editor/FormattedSourceDisplay";
 import { SourceCellDisplay } from "../../components/editor/SourceCellDisplay";
 import { FormatVocabularyBadge } from "../../components/editor/FormatVocabularyBadge";
-import { InlineCodeLegend } from "../../components/editor/InlineCodeLegend";
+import { InlineCodeLegend } from "@neokapi/ui-primitives";
 import type { SpanInfo } from "../../types/api";
 import {
   simpleBoldCodedText,

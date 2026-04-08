@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { InlinePreview } from "../../components/editor/InlinePreview";
+import { InlinePreview } from "@neokapi/ui-primitives";
 import {
   simpleBoldCodedText,
   simpleBoldSpans,

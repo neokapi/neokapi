@@ -243,18 +243,20 @@ export { EntityPopover } from "./components/editor/EntityPopover";
 export { EntityMarkPopover } from "./components/editor/EntityMarkPopover";
 export { SourceCellDisplay } from "./components/editor/SourceCellDisplay";
 export { FormattedSourceDisplay } from "./components/editor/FormattedSourceDisplay";
-export { TargetCellEditor } from "./components/editor/TargetCellEditor";
-export { TagChipNode, $createTagChipNode, $isTagChipNode } from "./components/editor/TagChipNode";
-export { TagChipComponent } from "./components/editor/TagChipComponent";
-export { TagPalette } from "./components/editor/TagPalette";
-export { TagValidationBar } from "./components/editor/TagValidationBar";
-export { InlinePreview } from "./components/editor/InlinePreview";
+// Editor components — re-exported from shared @neokapi/ui-primitives
+export { InlineCodeEditor as TargetCellEditor } from "@neokapi/ui-primitives";
+export { TagChipNode, $createTagChipNode, $isTagChipNode } from "@neokapi/ui-primitives";
+export { TagChipComponent } from "@neokapi/ui-primitives";
+export { TagPalette } from "@neokapi/ui-primitives";
+export { TagValidationBar } from "@neokapi/ui-primitives";
+export { InlinePreview } from "@neokapi/ui-primitives";
+export { InlineCodeLegend } from "@neokapi/ui-primitives";
 export { DocumentPreview } from "./components/editor/DocumentPreview";
 export type { PreviewContentMode } from "./components/editor/visual-editor-types";
 
-// Editor utilities
-export { parseCodedSegments, segmentsToCodedText, spanLabel } from "./components/editor/codedText";
-export type { CodedSegment } from "./components/editor/codedText";
+// Editor utilities — re-exported from shared @neokapi/ui-primitives
+export { parseCodedSegments, segmentsToCodedText, spanLabel } from "@neokapi/ui-primitives";
+export type { CodedSegment } from "@neokapi/ui-primitives";
 export {
   semanticCategory,
   semanticLabel,
@@ -264,14 +266,14 @@ export {
   buildPairs,
   validateTags,
   codedTextToHtml,
-} from "./components/editor/tagSemantics";
+} from "@neokapi/ui-primitives";
 export type {
   SemanticCategory,
   TagColorScheme,
   SpanPairInfo,
   TagValidationResult,
   TagValidationIssue,
-} from "./components/editor/tagSemantics";
+} from "@neokapi/ui-primitives";
 export { VocabularyRegistry, getDefaultRegistry } from "./vocabularies";
 export type { SpanTypeInfo, ColorScheme, SpanConstraints } from "./vocabularies";
 

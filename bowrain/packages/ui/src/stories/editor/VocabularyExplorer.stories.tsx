@@ -7,9 +7,8 @@
  */
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { VocabularyExplorer } from "../../components/editor/VocabularyExplorer";
-import { InlineCodeLegend } from "../../components/editor/InlineCodeLegend";
+import { InlineCodeLegend, TagChipComponent } from "@neokapi/ui-primitives";
 import { FormatVocabularyBadge } from "../../components/editor/FormatVocabularyBadge";
-import { TagChipComponent } from "../../components/editor/TagChipComponent";
 import type { SpanInfo } from "../../types/api";
 import {
   boldOpen,

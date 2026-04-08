@@ -9,8 +9,7 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { FormattedSourceDisplay } from "../../components/editor/FormattedSourceDisplay";
 import { SourceCellDisplay } from "../../components/editor/SourceCellDisplay";
-import { TagPalette } from "../../components/editor/TagPalette";
-import { InlineCodeLegend } from "../../components/editor/InlineCodeLegend";
+import { TagPalette, InlineCodeLegend } from "@neokapi/ui-primitives";
 import { FormatVocabularyBadge } from "../../components/editor/FormatVocabularyBadge";
 import type { SpanInfo } from "../../types/api";
 

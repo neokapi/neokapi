@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { TagChipComponent } from "../../components/editor/TagChipComponent";
+import { TagChipComponent } from "@neokapi/ui-primitives";
 import { boldOpen, linkOpen, codeOpen, lineBreak, imgTag } from "../fixtures";
 
 /**

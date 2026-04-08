@@ -6,14 +6,16 @@
  * translators can and cannot do with inline tags.
  */
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { TagChipComponent } from "../../components/editor/TagChipComponent";
-import { TagPalette } from "../../components/editor/TagPalette";
-import { TagValidationBar } from "../../components/editor/TagValidationBar";
-import { InlineCodeLegend } from "../../components/editor/InlineCodeLegend";
+import {
+  TagChipComponent,
+  TagPalette,
+  TagValidationBar,
+  InlineCodeLegend,
+  type TagValidationResult,
+} from "@neokapi/ui-primitives";
 import { FormattedSourceDisplay } from "../../components/editor/FormattedSourceDisplay";
 import { SourceCellDisplay } from "../../components/editor/SourceCellDisplay";
 import type { SpanInfo } from "../../types/api";
-import type { TagValidationResult } from "../../components/editor/tagSemantics";
 
 // ---------------------------------------------------------------------------
 // Unicode markers

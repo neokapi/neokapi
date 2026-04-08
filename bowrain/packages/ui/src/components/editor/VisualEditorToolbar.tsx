@@ -1,8 +1,7 @@
-import { Button } from "@neokapi/ui-primitives";
+import { Button, tagColors, type TagColorScheme } from "@neokapi/ui-primitives";
 import { useMemo } from "react";
 import type { SpanInfo } from "../../types/api";
 import { getDefaultRegistry } from "../../vocabularies";
-import { tagColors, type TagColorScheme } from "./tagSemantics";
 
 interface VisualEditorToolbarProps {
   sourceSpans: SpanInfo[];

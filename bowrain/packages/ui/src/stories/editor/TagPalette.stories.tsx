@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { fn } from "storybook/test";
-import { TagPalette } from "../../components/editor/TagPalette";
+import { TagPalette } from "@neokapi/ui-primitives";
 import {
   boldOpen,
   boldClose,

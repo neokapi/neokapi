@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { fn } from "storybook/test";
-import { InlineCodeLegend } from "../../components/editor/InlineCodeLegend";
+import { InlineCodeLegend } from "@neokapi/ui-primitives";
 import {
   boldOpen,
   boldClose,

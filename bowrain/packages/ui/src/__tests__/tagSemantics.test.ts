@@ -8,8 +8,8 @@ import {
   buildPairs,
   validateTags,
   codedTextToHtml,
-} from "../components/editor/tagSemantics";
-import type { SpanInfo } from "../types/api";
+  type SpanInfo,
+} from "@neokapi/ui-primitives";
 
 function span(
   spanType: "opening" | "closing" | "placeholder",

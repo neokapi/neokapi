@@ -254,7 +254,13 @@ export {
   validateTags,
   codedTextToHtml,
 } from "./components/editor/tagSemantics";
-export type { TagColorScheme, TagValidationResult } from "./components/editor/tagSemantics";
+export type {
+  SemanticCategory,
+  TagColorScheme,
+  SpanPairInfo,
+  TagValidationResult,
+  TagValidationIssue,
+} from "./components/editor/tagSemantics";
 export { resolveConstraints, isDeletable, isCloneable } from "./components/editor/tagConstraints";
 export type { ResolvedConstraints } from "./components/editor/tagConstraints";
 

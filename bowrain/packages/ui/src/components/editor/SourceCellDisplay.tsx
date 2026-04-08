@@ -1,8 +1,6 @@
 import { useState, useMemo } from "react";
 import type { SpanInfo, EntityInfo } from "../../types/api";
-import { parseCodedSegments } from "./codedText";
-import { TagChipComponent } from "./TagChipComponent";
-import { buildPairs } from "./tagSemantics";
+import { parseCodedSegments, TagChipComponent, buildPairs } from "@neokapi/ui-primitives";
 
 /** Color config per entity type — mirrors HighlightedSource. */
 const entityColors: Record<string, { bg: string; border: string }> = {

@@ -187,9 +187,9 @@ describe("SourceCellDisplay", () => {
 
 describe("TagChipComponent", () => {
   async function renderComponent(
-    props: Parameters<typeof import("../components/editor/TagChipComponent").TagChipComponent>[0],
+    props: Parameters<typeof import("@neokapi/ui-primitives").TagChipComponent>[0],
   ) {
-    const { TagChipComponent } = await import("../components/editor/TagChipComponent");
+    const { TagChipComponent } = await import("@neokapi/ui-primitives");
     return render(<TagChipComponent {...props} />);
   }
 
@@ -279,9 +279,9 @@ describe("TagChipComponent", () => {
 
 describe("TagPalette", () => {
   async function renderComponent(
-    props: Parameters<typeof import("../components/editor/TagPalette").TagPalette>[0],
+    props: Parameters<typeof import("@neokapi/ui-primitives").TagPalette>[0],
   ) {
-    const { TagPalette } = await import("../components/editor/TagPalette");
+    const { TagPalette } = await import("@neokapi/ui-primitives");
     return render(<TagPalette {...props} />);
   }
 
@@ -499,9 +499,9 @@ describe("FormatVocabularyBadge", () => {
 
 describe("InlinePreview", () => {
   async function renderComponent(
-    props: Parameters<typeof import("../components/editor/InlinePreview").InlinePreview>[0],
+    props: Parameters<typeof import("@neokapi/ui-primitives").InlinePreview>[0],
   ) {
-    const { InlinePreview } = await import("../components/editor/InlinePreview");
+    const { InlinePreview } = await import("@neokapi/ui-primitives");
     return render(<InlinePreview {...props} />);
   }
 
@@ -760,9 +760,9 @@ describe("VocabularyExplorer", () => {
 
 describe("InlineCodeLegend", () => {
   async function renderComponent(
-    props: Parameters<typeof import("../components/editor/InlineCodeLegend").InlineCodeLegend>[0],
+    props: Parameters<typeof import("@neokapi/ui-primitives").InlineCodeLegend>[0],
   ) {
-    const { InlineCodeLegend } = await import("../components/editor/InlineCodeLegend");
+    const { InlineCodeLegend } = await import("@neokapi/ui-primitives");
     return render(<InlineCodeLegend {...props} />);
   }
 
