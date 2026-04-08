@@ -12,7 +12,7 @@ import {
   type ReactFlowInstance,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
-import { Play, X, GitBranch, Zap, Eye, ArrowDownUp, ArrowLeftRight } from "lucide-react";
+import { Play, X, GitBranch, Zap, Eye, ArrowDownUp, ArrowLeftRight, Loader2 } from "lucide-react";
 import { DotEdge } from "./edges/DotEdge";
 
 import type { FlowEditorProps, FlowSpec, FlowStep, ToolInfo, ComponentSchema } from "./types";
@@ -49,10 +49,18 @@ interface FlowToolbarProps {
   showPreview: boolean;
   onTogglePreview: () => void;
   onRun?: (flow: FlowSpec) => void;
+  runDisabled?: boolean;
   flow: FlowSpec;
 }
 
-function FlowToolbar({ stepCount, showPreview, onTogglePreview, onRun, flow }: FlowToolbarProps) {
+function FlowToolbar({
+  stepCount,
+  showPreview,
+  onTogglePreview,
+  onRun,
+  runDisabled,
+  flow,
+}: FlowToolbarProps) {
   return (
     <PanelHeader
       title={`${stepCount} step${stepCount !== 1 ? "s" : ""}`}
@@ -71,9 +79,14 @@ function FlowToolbar({ stepCount, showPreview, onTogglePreview, onRun, flow }: F
           </Button>
 
           {onRun && (
-            <Button size="xs" onClick={() => onRun(flow)} aria-label="Run flow">
-              <Play size={12} />
-              Run
+            <Button
+              size="xs"
+              onClick={() => onRun(flow)}
+              disabled={runDisabled}
+              aria-label="Run flow"
+            >
+              {runDisabled ? <Loader2 size={12} className="animate-spin" /> : <Play size={12} />}
+              {runDisabled ? "Running..." : "Run"}
             </Button>
           )}
         </>
@@ -365,6 +378,7 @@ export function FlowEditor({
   tools,
   onChange,
   onRun,
+  runDisabled,
   onGetSchema,
   onGetDoc,
   readOnly = false,
@@ -670,6 +684,7 @@ export function FlowEditor({
           showPreview={showPreview}
           onTogglePreview={() => setShowPreview((p) => !p)}
           onRun={onRun}
+          runDisabled={runDisabled}
           flow={flow}
         />
 

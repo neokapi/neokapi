@@ -218,6 +218,8 @@ export interface FlowEditorProps {
   onChange: (flow: FlowSpec) => void;
   /** Called when the user requests to run the flow. */
   onRun?: (flow: FlowSpec) => void;
+  /** Whether the run button is disabled (e.g. a flow is already running). */
+  runDisabled?: boolean;
   /** Whether the flow is read-only (built-in flows). */
   readOnly?: boolean;
   /** Called to fetch a tool's config schema. Returns null if none available. */

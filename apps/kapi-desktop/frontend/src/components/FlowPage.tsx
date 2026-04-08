@@ -4,6 +4,7 @@ import { useWailsEvent } from "../hooks/useWailsEvent";
 import { FlowEditor } from "@neokapi/flow-editor";
 import type { ToolInfo, ToolDoc, ComponentSchema } from "@neokapi/flow-editor";
 import { api } from "../hooks/useApi";
+import { useJobFeed } from "../context/JobFeedContext";
 
 interface FlowPageProps {
   flowName: string;
@@ -16,6 +17,7 @@ interface FlowPageProps {
 }
 
 export function FlowPage({ flowName, flow, onChange, onRun, readOnly, tabID }: FlowPageProps) {
+  const { hasActive } = useJobFeed();
   const [tools, setTools] = useState<ToolInfo[]>([]);
   const schemasRef = useRef<Record<string, ComponentSchema | null>>({});
   const docsRef = useRef<Record<string, ToolDoc | null>>({});
@@ -103,6 +105,7 @@ export function FlowPage({ flowName, flow, onChange, onRun, readOnly, tabID }: F
       tools={tools}
       onChange={onChange}
       onRun={onRun ? (spec) => onRun(flowName, spec) : undefined}
+      runDisabled={hasActive}
       onGetSchema={handleGetSchema}
       onGetDoc={handleGetDoc}
       readOnly={readOnly}
