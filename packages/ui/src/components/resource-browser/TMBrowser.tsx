@@ -90,12 +90,14 @@ export function TMBrowser({
     return [...known.values()];
   }, [locales, entries]);
 
-  // Effective locales from facet selection.
+  // Effective locales from facet selection — single selection filters, empty means all.
   const effectiveSourceLocale = propSourceLocale;
   const effectiveTargetLocale =
     facetSelection.targetLocales.length === 1
       ? facetSelection.targetLocales[0]
-      : propTargetLocales[0] ?? "";
+      : facetSelection.targetLocales.length === 0
+        ? propTargetLocales[0] ?? ""
+        : ""; // multiple selected = don't filter by target locale
 
   // Debounce search.
   const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
@@ -171,11 +173,11 @@ export function TMBrowser({
     void fetchFacets();
   }, [fetchFacets]);
 
-  // Reset page when view mode changes.
+  // Reset page when view mode or facet selection changes.
   useEffect(() => {
     setPage(0);
     setSelected(new Set());
-  }, [viewMode]);
+  }, [viewMode, facetSelection]);
 
   // --- Selection ---
   const toggleSelect = useCallback((id: string) => {
@@ -327,64 +329,72 @@ export function TMBrowser({
 
   return (
     <div className="flex gap-4" data-testid="tm-browser">
-      {/* Main column */}
-      <div className="flex-1 min-w-0">
-        {/* Search bar + actions */}
-        <div className="mb-4">
-          <TMSearchBar
-            value={searchText}
-            onChange={handleSearchChange}
-            onLookup={adapter.lookup}
-            sourceLocale={effectiveSourceLocale}
-            targetLocale={effectiveTargetLocale}
-            actions={
-              <div className="flex items-center gap-1">
-                {/* View mode toggle */}
-                {adapter.searchGrouped && (
-                  <div className="flex rounded-md border border-input">
-                    <Button
-                      variant="ghost"
-                      size="icon-xs"
-                      onClick={() => setViewMode("bilingual")}
-                      className={cn(
-                        "rounded-r-none",
-                        viewMode === "bilingual" && "bg-accent text-foreground",
-                      )}
-                      title="Bilingual view"
-                    >
-                      <List className="size-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon-xs"
-                      onClick={() => setViewMode("multilang")}
-                      className={cn(
-                        "rounded-l-none",
-                        viewMode === "multilang" && "bg-accent text-foreground",
-                      )}
-                      title="Multi-language view"
-                    >
-                      <Languages className="size-4" />
-                    </Button>
-                  </div>
-                )}
-                <Button size="sm" onClick={() => setShowAddForm(true)} className="whitespace-nowrap">
-                  Add Entry
-                </Button>
-              </div>
-            }
-          />
-        </div>
+      {/* Left sidebar: search + facets */}
+      <div className="w-64 shrink-0">
+        <TMSearchBar
+          value={searchText}
+          onChange={handleSearchChange}
+          onLookup={adapter.lookup}
+          sourceLocale={effectiveSourceLocale}
+          targetLocale={effectiveTargetLocale}
+        />
+        {adapter.getFacets && (
+          <div className="mt-3">
+            <TMFacetSidebar
+              facets={facets}
+              selection={facetSelection}
+              onSelectionChange={setFacetSelection}
+            />
+          </div>
+        )}
+      </div>
 
-        {/* Count + loading */}
-        <div className="text-[12px] text-muted-foreground mb-3 flex items-center gap-2">
-          <span>
-            {totalCount} {totalCount === 1 ? (viewMode === "multilang" ? "source" : "entry") : (viewMode === "multilang" ? "sources" : "entries")}
-            {debouncedSearch && " matching"}
-          </span>
-          {loading && initialLoadDone && (
-            <span className="inline-block w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin opacity-50" />
+      {/* Main content */}
+      <div className="flex-1 min-w-0">
+        {/* Toolbar */}
+        <div className="flex items-center gap-2 mb-3">
+          {adapter.searchGrouped && (
+            <div className="flex rounded-md border border-input">
+              <Button
+                variant="ghost"
+                size="icon-xs"
+                onClick={() => setViewMode("bilingual")}
+                className={cn(
+                  "rounded-r-none",
+                  viewMode === "bilingual" && "bg-accent text-foreground",
+                )}
+                title="Bilingual view"
+              >
+                <List className="size-4" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon-xs"
+                onClick={() => setViewMode("multilang")}
+                className={cn(
+                  "rounded-l-none",
+                  viewMode === "multilang" && "bg-accent text-foreground",
+                )}
+                title="Multi-language view"
+              >
+                <Languages className="size-4" />
+              </Button>
+            </div>
           )}
+          <div className="text-[12px] text-muted-foreground flex items-center gap-2">
+            <span>
+              {totalCount} {totalCount === 1 ? (viewMode === "multilang" ? "source" : "entry") : (viewMode === "multilang" ? "sources" : "entries")}
+              {debouncedSearch && " matching"}
+            </span>
+            {loading && initialLoadDone && (
+              <span className="inline-block w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin opacity-50" />
+            )}
+          </div>
+          <div className="ml-auto">
+            <Button size="sm" onClick={() => setShowAddForm(true)} className="whitespace-nowrap">
+              Add Entry
+            </Button>
+          </div>
         </div>
 
         {/* Loading skeleton */}
@@ -509,17 +519,6 @@ export function TMBrowser({
 
         <Pagination page={page} pageSize={PAGE_SIZE} totalCount={totalCount} onPageChange={setPage} />
       </div>
-
-      {/* Facet sidebar (right) */}
-      {adapter.getFacets && (
-        <div className="w-56 shrink-0 border-l border-border pl-4">
-          <TMFacetSidebar
-            facets={facets}
-            selection={facetSelection}
-            onSelectionChange={setFacetSelection}
-          />
-        </div>
-      )}
 
       {/* Bulk action bar */}
       <BulkActionBar
