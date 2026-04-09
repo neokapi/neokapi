@@ -83,7 +83,8 @@ const meta: Meta<typeof TMGroupedEntry> = {
 export default meta;
 type Story = StoryObj<typeof TMGroupedEntry>;
 
-export const Collapsed: Story = {
+/** Groups with fewer than 10 target languages auto-expand. */
+export const AutoExpanded: Story = {
   args: {
     group: basicGroup,
     selected: false,
@@ -106,6 +107,53 @@ export const Selected: Story = {
 export const SingleTranslation: Story = {
   args: {
     group: singleTarget,
+    selected: false,
+    onToggleSelect: fn(),
+    onEditTarget: fn(),
+    onDeleteTarget: fn(),
+  },
+};
+
+/** Only shows translations for the specified target locales; count shows "visible/total". */
+export const FilteredByLocale: Story = {
+  args: {
+    group: basicGroup,
+    selected: false,
+    visibleLocales: ["fr-FR", "de-DE"],
+    onToggleSelect: fn(),
+    onEditTarget: fn(),
+    onDeleteTarget: fn(),
+  },
+};
+
+/** Single locale filter — only French. */
+export const SingleLocaleFilter: Story = {
+  args: {
+    group: basicGroup,
+    selected: false,
+    visibleLocales: ["fr-FR"],
+    onToggleSelect: fn(),
+    onEditTarget: fn(),
+    onDeleteTarget: fn(),
+  },
+};
+
+/** Groups with 10+ targets stay collapsed by default (chevron visible). */
+export const ManyTargetsCollapsed: Story = {
+  args: {
+    group: {
+      ...basicGroup,
+      targets: [
+        ...basicGroup.targets,
+        { id: "t5", target_text: "Il client gestisce...", target_coded: "Il client gestisce...", target_spans: [], target_locale: "it-IT", project_id: "", updated_at: now },
+        { id: "t6", target_text: "O cliente gerencia...", target_coded: "O cliente gerencia...", target_spans: [], target_locale: "pt-BR", project_id: "", updated_at: now },
+        { id: "t7", target_text: "\u0645\u0643\u062a\u0628\u0629 \u0627\u0644\u0639\u0645\u064a\u0644...", target_coded: "\u0645\u0643\u062a\u0628\u0629 \u0627\u0644\u0639\u0645\u064a\u0644...", target_spans: [], target_locale: "ar-SA", project_id: "", updated_at: now },
+        { id: "t8", target_text: "\ud074\ub77c\uc774\uc5b8\ud2b8 \ub77c\uc774\ube0c\ub7ec\ub9ac...", target_coded: "\ud074\ub77c\uc774\uc5b8\ud2b8 \ub77c\uc774\ube0c\ub7ec\ub9ac...", target_spans: [], target_locale: "ko-KR", project_id: "", updated_at: now },
+        { id: "t9", target_text: "\u5ba2\u6237\u7aef\u5e93...", target_coded: "\u5ba2\u6237\u7aef\u5e93...", target_spans: [], target_locale: "zh-CN", project_id: "", updated_at: now },
+        { id: "t10", target_text: "Klientbiblioteket...", target_coded: "Klientbiblioteket...", target_spans: [], target_locale: "sv-SE", project_id: "", updated_at: now },
+        { id: "t11", target_text: "Klientbiblioteket...", target_coded: "Klientbiblioteket...", target_spans: [], target_locale: "nb-NO", project_id: "", updated_at: now },
+      ],
+    },
     selected: false,
     onToggleSelect: fn(),
     onEditTarget: fn(),
