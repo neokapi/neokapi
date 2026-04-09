@@ -752,6 +752,12 @@ func (tm *PostgresTM) FacetStats() fw.FacetData {
 	return fw.FacetData{}
 }
 
+// FacetStatsFiltered returns facet counts scoped to the given query/filter.
+// This is a stub implementation for PostgresTM — full implementation is pending.
+func (tm *PostgresTM) FacetStatsFiltered(query, sourceLocale, targetLocale string, filter fw.SearchFilter) fw.FacetData {
+	return fw.FacetData{}
+}
+
 // GetEntry fetches a single entry by ID.
 func (tm *PostgresTM) GetEntry(id string) (fw.TMEntry, bool) {
 	rows, err := tm.db.QueryContext(context.Background(), `

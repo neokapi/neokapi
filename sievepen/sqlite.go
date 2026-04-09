@@ -1063,14 +1063,38 @@ func (tm *SQLiteTM) Entries() []TMEntry {
 	return entries
 }
 
-// FacetStats returns aggregated facet data for filtering UI.
+// FacetStats returns aggregated facet data for filtering UI (unfiltered).
 func (tm *SQLiteTM) FacetStats() FacetData {
-	data := FacetData{
-		LocalePairs: tm.LocalePairStats(),
+	return tm.FacetStatsFiltered("", "", "", SearchFilter{})
+}
+
+// FacetStatsFiltered returns facet counts scoped to entries matching the
+// given search query and filter.
+func (tm *SQLiteTM) FacetStatsFiltered(query, sourceLocale, targetLocale string, filter SearchFilter) FacetData {
+	// Build the subquery that yields the rowids of matching entries.
+	// We reuse the same filter logic from SearchEntriesFiltered to stay consistent.
+	subArgs, subWhere := tm.buildFacetSubquery(query, sourceLocale, targetLocale, filter)
+
+	data := FacetData{}
+
+	// Locale pair facets.
+	lpQuery := `SELECT source_locale, target_locale, COUNT(*) as cnt FROM tm_entries e WHERE ` + subWhere +
+		` GROUP BY source_locale, target_locale ORDER BY cnt DESC`
+	lpRows, err := tm.db.Query(lpQuery, subArgs...)
+	if err == nil {
+		defer lpRows.Close()
+		for lpRows.Next() {
+			var lp LocalePairStat
+			if err := lpRows.Scan(&lp.SourceLocale, &lp.TargetLocale, &lp.Count); err == nil {
+				data.LocalePairs = append(data.LocalePairs, lp)
+			}
+		}
 	}
 
 	// Project facets.
-	rows, err := tm.db.Query("SELECT project_id, COUNT(*) as cnt FROM tm_entries GROUP BY project_id ORDER BY cnt DESC")
+	projQuery := `SELECT project_id, COUNT(*) as cnt FROM tm_entries e WHERE ` + subWhere +
+		` GROUP BY project_id ORDER BY cnt DESC`
+	rows, err := tm.db.Query(projQuery, subArgs...)
 	if err == nil {
 		defer rows.Close()
 		for rows.Next() {
@@ -1081,8 +1105,13 @@ func (tm *SQLiteTM) FacetStats() FacetData {
 		}
 	}
 
-	// Entity type facets.
-	rows2, err := tm.db.Query("SELECT entity_type, COUNT(DISTINCT entry_id) as cnt FROM tm_entity_mappings GROUP BY entity_type ORDER BY cnt DESC")
+	// Entity type facets — join mappings with filtered entries.
+	etQuery := `SELECT m.entity_type, COUNT(DISTINCT m.entry_id) as cnt
+		FROM tm_entity_mappings m
+		INNER JOIN tm_entries e ON e.id = m.entry_id
+		WHERE ` + subWhere + `
+		GROUP BY m.entity_type ORDER BY cnt DESC`
+	rows2, err := tm.db.Query(etQuery, subArgs...)
 	if err == nil {
 		defer rows2.Close()
 		for rows2.Next() {
@@ -1094,12 +1123,48 @@ func (tm *SQLiteTM) FacetStats() FacetData {
 	}
 
 	// Inline code facets.
-	_ = tm.db.QueryRow(`SELECT
-		SUM(CASE WHEN INSTR(source_coded, char(0xE001)) > 0 THEN 1 ELSE 0 END),
-		SUM(CASE WHEN INSTR(source_coded, char(0xE001)) = 0 THEN 1 ELSE 0 END)
-		FROM tm_entries`).Scan(&data.HasCodes, &data.NoCodes)
+	codeQuery := `SELECT
+		SUM(CASE WHEN INSTR(e.source_coded, char(0xE001)) > 0 THEN 1 ELSE 0 END),
+		SUM(CASE WHEN INSTR(e.source_coded, char(0xE001)) = 0 THEN 1 ELSE 0 END)
+		FROM tm_entries e WHERE ` + subWhere
+	_ = tm.db.QueryRow(codeQuery, subArgs...).Scan(&data.HasCodes, &data.NoCodes)
 
 	return data
+}
+
+// buildFacetSubquery builds a WHERE clause (using alias `e`) that matches the
+// same entries that SearchEntriesFiltered would return, for use in facet counts.
+func (tm *SQLiteTM) buildFacetSubquery(query, sourceLocale, targetLocale string, filter SearchFilter) ([]any, string) {
+	var args []any
+	var clauses []string
+
+	if sourceLocale != "" {
+		clauses = append(clauses, "e.source_locale = ?")
+		args = append(args, sourceLocale)
+	}
+	if targetLocale != "" {
+		clauses = append(clauses, "e.target_locale = ?")
+		args = append(args, targetLocale)
+	}
+
+	// Filter additions.
+	filterClause, filterArgs := filterWhere(filter)
+	if filterClause != "" {
+		// filterWhere prefixes with " AND " — strip it and add as a clause.
+		clauses = append(clauses, strings.TrimPrefix(filterClause, " AND "))
+		args = append(args, filterArgs...)
+	}
+
+	// Query — use FTS5 rowid subquery.
+	if query != "" {
+		clauses = append(clauses, "e.rowid IN (SELECT rowid FROM tm_search WHERE tm_search MATCH ?)")
+		args = append(args, query)
+	}
+
+	if len(clauses) == 0 {
+		return nil, "1=1"
+	}
+	return args, strings.Join(clauses, " AND ")
 }
 
 // SearchEntriesGrouped returns entries grouped by source text with pagination

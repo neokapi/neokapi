@@ -39,6 +39,13 @@ export interface TMAdapter {
   exportTMX?(srcLocale: string, tgtLocale: string): Promise<void>;
   getStats?(): Promise<TMStats>;
   getFacets?(): Promise<TMFacets>;
+  /** Facet counts scoped to the current search query and filter. */
+  getFacetsFiltered?(
+    query: string,
+    srcLocale: string,
+    tgtLocale: string,
+    filter: TMSearchFilter,
+  ): Promise<TMFacets>;
   searchFiltered?(
     query: string,
     srcLocale: string,

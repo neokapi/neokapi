@@ -447,11 +447,18 @@ func (tm *InMemoryTM) GetEntry(id string) (TMEntry, bool) {
 	return tm.entries[idx].entry, true
 }
 
-// FacetStats returns aggregated facet data for filtering UI.
+// FacetStats returns aggregated facet data for filtering UI (unfiltered).
 func (tm *InMemoryTM) FacetStats() FacetData {
+	return tm.FacetStatsFiltered("", "", "", SearchFilter{})
+}
+
+// FacetStatsFiltered returns facet counts scoped to entries matching the
+// given search query and filter.
+func (tm *InMemoryTM) FacetStatsFiltered(query, sourceLocale, targetLocale string, filter SearchFilter) FacetData {
 	tm.mu.RLock()
 	defer tm.mu.RUnlock()
 
+	lowerQuery := strings.ToLower(query)
 	localePairCounts := make(map[[2]string]int)
 	projectCounts := make(map[string]int)
 	entityTypeCounts := make(map[string]int)
@@ -459,6 +466,27 @@ func (tm *InMemoryTM) FacetStats() FacetData {
 
 	for _, ne := range tm.entries {
 		e := ne.entry
+
+		// Locale params.
+		if sourceLocale != "" && string(e.SourceLocale) != sourceLocale {
+			continue
+		}
+		if targetLocale != "" && string(e.TargetLocale) != targetLocale {
+			continue
+		}
+		// Filter.
+		if !matchesSearchFilter(e, filter) {
+			continue
+		}
+		// Text search.
+		if lowerQuery != "" {
+			src := strings.ToLower(e.SourceText())
+			tgt := strings.ToLower(e.TargetText())
+			if !strings.Contains(src, lowerQuery) && !strings.Contains(tgt, lowerQuery) {
+				continue
+			}
+		}
+
 		pair := [2]string{string(e.SourceLocale), string(e.TargetLocale)}
 		localePairCounts[pair]++
 		projectCounts[e.ProjectID]++

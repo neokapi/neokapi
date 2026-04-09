@@ -70,7 +70,8 @@ export function TMBrowser({
   const [facetSelection, setFacetSelection] = useState<FacetSelection>(EMPTY_FACETS);
 
   // --- Display locales for multi-language view (independent of filter) ---
-  const [displayLocales, setDisplayLocales] = useState<string[]>([]);
+  // undefined = show all; array (even empty) = show only those (empty = none shown).
+  const [displayLocales, setDisplayLocales] = useState<string[] | undefined>(undefined);
 
   // --- Marked entities from search bar for entity-value filtering ---
   const [markedEntities, setMarkedEntities] = useState<EntityAnnotationDTO[]>([]);
@@ -104,11 +105,18 @@ export function TMBrowser({
     return [...new Set(entries.map((e) => e.target_locale).filter(Boolean))];
   }, [facets, entries]);
 
-  const toggleDisplayLocale = useCallback((locale: string) => {
-    setDisplayLocales((prev) =>
-      prev.includes(locale) ? prev.filter((l) => l !== locale) : [...prev, locale],
-    );
-  }, []);
+  const toggleDisplayLocale = useCallback(
+    (locale: string) => {
+      setDisplayLocales((prev) => {
+        // If undefined (showing all), clicking one locale switches to showing only the others.
+        if (prev === undefined) {
+          return availableTargetLocales.filter((l) => l !== locale);
+        }
+        return prev.includes(locale) ? prev.filter((l) => l !== locale) : [...prev, locale];
+      });
+    },
+    [availableTargetLocales],
+  );
 
   // Filter tokens (e.g. language:fr-FR, project:my-app) in the search bar.
   const [filterTokens, setFilterTokens] = useState<Array<{ key: string; value: string }>>([]);
@@ -198,25 +206,35 @@ export function TMBrowser({
     [viewMode],
   );
 
-  // Fetch facets.
+  // Fetch facets — scoped to current search/filter when the adapter supports it.
   const fetchFacets = useCallback(async () => {
-    if (adapterRef.current.getFacets) {
-      try {
-        const data = await adapterRef.current.getFacets();
+    const a = adapterRef.current;
+    try {
+      if (a.getFacetsFiltered) {
+        const data = await a.getFacetsFiltered(
+          debouncedSearch,
+          sourceLocaleRef.current,
+          targetLocaleRef.current,
+          filterRef.current,
+        );
         setFacets(data);
-      } catch {
-        // Facets are non-critical.
+      } else if (a.getFacets) {
+        const data = await a.getFacets();
+        setFacets(data);
       }
+    } catch {
+      // Facets are non-critical.
     }
-  }, []);
+  }, [debouncedSearch]);
 
   useEffect(() => {
     void fetchEntries(debouncedSearch, page);
   }, [fetchEntries, debouncedSearch, page, effectiveSourceLocale, effectiveTargetLocale, viewMode, searchFilter]);
 
+  // Re-fetch facets whenever the search or filter context changes.
   useEffect(() => {
     void fetchFacets();
-  }, [fetchFacets]);
+  }, [fetchFacets, debouncedSearch, effectiveSourceLocale, effectiveTargetLocale, searchFilter]);
 
   // Reset page when view mode, facet selection, or filter tokens change.
   useEffect(() => {
@@ -488,7 +506,7 @@ export function TMBrowser({
           <div className="flex items-center gap-1 mb-3 flex-wrap">
             <span className="text-[11px] text-muted-foreground mr-1">Show:</span>
             {availableTargetLocales.map((locale) => {
-              const active = displayLocales.length === 0 || displayLocales.includes(locale);
+              const active = displayLocales === undefined || displayLocales.includes(locale);
               return (
                 <button
                   key={locale}
@@ -502,15 +520,23 @@ export function TMBrowser({
                 </button>
               );
             })}
-            {displayLocales.length > 0 && (
+            <div className="flex items-center gap-1 ml-2 text-[10px]">
               <button
-                onClick={() => setDisplayLocales([])}
-                className="text-[10px] text-muted-foreground hover:text-foreground ml-1"
+                onClick={() => setDisplayLocales(undefined)}
+                className="text-muted-foreground hover:text-foreground px-1 hover:underline"
                 title="Show all languages"
               >
-                <X className="size-3" />
+                All
               </button>
-            )}
+              <span className="text-muted-foreground/50">·</span>
+              <button
+                onClick={() => setDisplayLocales([])}
+                className="text-muted-foreground hover:text-foreground px-1 hover:underline"
+                title="Hide all languages"
+              >
+                None
+              </button>
+            </div>
           </div>
         )}
 
