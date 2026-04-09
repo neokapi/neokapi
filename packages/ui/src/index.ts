@@ -309,6 +309,7 @@ export type {
   TMGroupedResult,
   TMTargetDTO,
   TMGroupedSearchResult,
+  TMSearchFilter,
   TMMatchDTO,
   EntityAdaptationDTO,
   EntityAnnotationDTO,

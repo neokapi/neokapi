@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import type { TMAdapter } from "./adapters";
-import type { TMEntryDTO, TMGroupedResult, TMFacets, EntityPatternRequest } from "./types";
+import type { TMEntryDTO, TMGroupedResult, TMFacets, TMSearchFilter, EntityPatternRequest } from "./types";
 import type { SpanInfo } from "../../types/span";
 import { CodedTextDisplay } from "./CodedTextDisplay";
 import { InlineCodeEditor } from "../editor/InlineCodeEditor";
@@ -110,37 +110,50 @@ export function TMBrowser({
     }, 200);
   }, []);
 
+  // Build search filter from facet selection.
+  const searchFilter = useMemo((): TMSearchFilter => {
+    const filter: TMSearchFilter = {};
+    if (facetSelection.projects.length === 1) filter.project_id = facetSelection.projects[0];
+    if (facetSelection.entityTypes.length > 0) filter.entity_types = facetSelection.entityTypes;
+    if (facetSelection.codeFilter === "has_codes") filter.has_codes = true;
+    if (facetSelection.codeFilter === "no_codes") filter.has_codes = false;
+    return filter;
+  }, [facetSelection]);
+
   // Refs for stable callbacks.
   const adapterRef = useRef(adapter);
   const sourceLocaleRef = useRef(effectiveSourceLocale);
   const targetLocaleRef = useRef(effectiveTargetLocale);
+  const filterRef = useRef(searchFilter);
   adapterRef.current = adapter;
   sourceLocaleRef.current = effectiveSourceLocale;
   targetLocaleRef.current = effectiveTargetLocale;
+  filterRef.current = searchFilter;
+
+  const hasActiveFilter = Object.keys(searchFilter).length > 0;
 
   // --- Fetch logic ---
   const fetchEntries = useCallback(
     async (q: string, p: number) => {
       setLoading(true);
       try {
-        if (viewMode === "multilang" && adapterRef.current.searchGrouped) {
-          const result = await adapterRef.current.searchGrouped(
-            q,
-            sourceLocaleRef.current,
-            p * PAGE_SIZE,
-            PAGE_SIZE,
-          );
+        const a = adapterRef.current;
+        const f = filterRef.current;
+        const hasFilter = Object.keys(f).length > 0;
+
+        if (viewMode === "multilang") {
+          const result = hasFilter && a.searchGroupedFiltered
+            ? await a.searchGroupedFiltered(q, sourceLocaleRef.current, f, p * PAGE_SIZE, PAGE_SIZE)
+            : a.searchGrouped
+              ? await a.searchGrouped(q, sourceLocaleRef.current, p * PAGE_SIZE, PAGE_SIZE)
+              : { groups: [], total_count: 0 };
           setGroups(result.groups ?? []);
           setEntries([]);
           setTotalCount(result.total_count);
         } else {
-          const result = await adapterRef.current.search(
-            q,
-            sourceLocaleRef.current,
-            targetLocaleRef.current,
-            p * PAGE_SIZE,
-            PAGE_SIZE,
-          );
+          const result = hasFilter && a.searchFiltered
+            ? await a.searchFiltered(q, sourceLocaleRef.current, targetLocaleRef.current, f, p * PAGE_SIZE, PAGE_SIZE)
+            : await a.search(q, sourceLocaleRef.current, targetLocaleRef.current, p * PAGE_SIZE, PAGE_SIZE);
           setEntries(result.entries ?? []);
           setGroups([]);
           setTotalCount(result.total_count);
@@ -167,7 +180,7 @@ export function TMBrowser({
 
   useEffect(() => {
     void fetchEntries(debouncedSearch, page);
-  }, [fetchEntries, debouncedSearch, page, effectiveSourceLocale, effectiveTargetLocale, viewMode]);
+  }, [fetchEntries, debouncedSearch, page, effectiveSourceLocale, effectiveTargetLocale, viewMode, searchFilter]);
 
   useEffect(() => {
     void fetchFacets();
@@ -328,18 +341,28 @@ export function TMBrowser({
   const isEmpty = viewMode === "multilang" ? groups.length === 0 : entries.length === 0;
 
   return (
-    <div className="flex gap-4" data-testid="tm-browser">
-      {/* Left sidebar: search + facets */}
-      <div className="w-64 shrink-0">
+    <div data-testid="tm-browser">
+      {/* Search bar — full width across top */}
+      <div className="mb-3">
         <TMSearchBar
           value={searchText}
           onChange={handleSearchChange}
           onLookup={adapter.lookup}
           sourceLocale={effectiveSourceLocale}
           targetLocale={effectiveTargetLocale}
+          actions={
+            <Button size="sm" onClick={() => setShowAddForm(true)} className="whitespace-nowrap">
+              Add Entry
+            </Button>
+          }
         />
+      </div>
+
+      {/* Filters (left) + Results (right) */}
+      <div className="flex gap-4">
+        {/* Left: facet filters */}
         {adapter.getFacets && (
-          <div className="mt-3">
+          <div className="w-56 shrink-0">
             <TMFacetSidebar
               facets={facets}
               selection={facetSelection}
@@ -347,10 +370,9 @@ export function TMBrowser({
             />
           </div>
         )}
-      </div>
 
-      {/* Main content */}
-      <div className="flex-1 min-w-0">
+        {/* Right: results */}
+        <div className="flex-1 min-w-0">
         {/* Toolbar */}
         <div className="flex items-center gap-2 mb-3">
           {adapter.searchGrouped && (
@@ -389,11 +411,6 @@ export function TMBrowser({
             {loading && initialLoadDone && (
               <span className="inline-block w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin opacity-50" />
             )}
-          </div>
-          <div className="ml-auto">
-            <Button size="sm" onClick={() => setShowAddForm(true)} className="whitespace-nowrap">
-              Add Entry
-            </Button>
           </div>
         </div>
 
@@ -518,6 +535,7 @@ export function TMBrowser({
         )}
 
         <Pagination page={page} pageSize={PAGE_SIZE} totalCount={totalCount} onPageChange={setPage} />
+      </div>
       </div>
 
       {/* Bulk action bar */}
