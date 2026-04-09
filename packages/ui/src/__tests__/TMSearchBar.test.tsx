@@ -49,17 +49,19 @@ describe("TMSearchBar", () => {
     expect(input.value).toBe("hello");
   });
 
-  it("renders actions slot", () => {
+  it("renders filter tokens", () => {
     const c = renderToContainer(
       createElement(TMSearchBar, {
         value: "",
         onChange: vi.fn(),
+        filters: [{ key: "language", value: "fr-FR" }],
+        onFiltersChange: vi.fn(),
+        filterFields: [{ key: "language", label: "Language" }],
         sourceLocale: "en-US",
         targetLocale: "fr-FR",
-        actions: createElement("button", { "data-testid": "custom-action" }, "Action"),
       }),
     );
-    expect(c.querySelector("[data-testid=custom-action]")).toBeTruthy();
+    expect(c.textContent).toContain("fr-FR");
   });
 
   it("does not show entity popover initially", () => {

@@ -1,7 +1,6 @@
 import { useState } from "react";
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { TMSearchBar } from "../../components/resource-browser/TMSearchBar";
-import { Button } from "../../components/ui/button";
 
 const meta: Meta<typeof TMSearchBar> = {
   title: "Resource Browser/TMSearchBar",
@@ -41,20 +40,50 @@ export const Default: Story = {
   },
 };
 
-export const WithActions: Story = {
+/** Search bar with filter tokens for language and project. */
+export const WithFilterTokens: Story = {
   render: () => {
     const [value, setValue] = useState("");
+    const [filters, setFilters] = useState([
+      { key: "language", value: "fr-FR" },
+      { key: "project", value: "webapp" },
+    ]);
     return (
       <TMSearchBar
         value={value}
         onChange={setValue}
+        filters={filters}
+        onFiltersChange={setFilters}
+        filterFields={[
+          {
+            key: "language",
+            label: "Target Language",
+            values: [
+              { value: "fr-FR", label: "French (fr-FR)" },
+              { value: "de-DE", label: "German (de-DE)" },
+              { value: "ja-JP", label: "Japanese (ja-JP)" },
+            ],
+          },
+          {
+            key: "project",
+            label: "Project",
+            values: [
+              { value: "webapp", label: "Web App" },
+              { value: "mobile", label: "Mobile" },
+            ],
+          },
+        ]}
         sourceLocale="en-US"
         targetLocale="fr-FR"
-        actions={
-          <Button size="sm">Add Entry</Button>
-        }
       />
     );
+  },
+  parameters: {
+    docs: {
+      description: {
+        story: "Filter tokens appear as inline badges at the left of the input. Click the chevron to add more filters. Backspace on an empty input removes the last token.",
+      },
+    },
   },
 };
 
