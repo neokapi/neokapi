@@ -15,7 +15,11 @@ import { relativeTime } from "./utils";
 import { LocaleSelect, resolveLocaleName, type LocaleInfo } from "../ui/locale-select";
 import { ItemCard } from "../ui/item-card";
 import { ConfirmDeleteButton } from "../ui/confirm-delete-button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "../ui/dialog";
 import { Button } from "../ui/button";
+import { Input } from "../ui/input";
+import { Label } from "../ui/label";
+import { Badge } from "../ui/badge";
 import { Checkbox } from "../ui/checkbox";
 import { List, Languages } from "lucide-react";
 import { cn } from "../../lib/utils";
@@ -338,26 +342,30 @@ export function TMBrowser({
                 {/* View mode toggle */}
                 {adapter.searchGrouped && (
                   <div className="flex rounded-md border border-input">
-                    <button
+                    <Button
+                      variant="ghost"
+                      size="icon-xs"
                       onClick={() => setViewMode("bilingual")}
                       className={cn(
-                        "p-1.5 rounded-l-md transition-colors",
-                        viewMode === "bilingual" ? "bg-accent text-foreground" : "text-muted-foreground hover:text-foreground",
+                        "rounded-r-none",
+                        viewMode === "bilingual" && "bg-accent text-foreground",
                       )}
                       title="Bilingual view"
                     >
                       <List className="size-4" />
-                    </button>
-                    <button
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon-xs"
                       onClick={() => setViewMode("multilang")}
                       className={cn(
-                        "p-1.5 rounded-r-md transition-colors",
-                        viewMode === "multilang" ? "bg-accent text-foreground" : "text-muted-foreground hover:text-foreground",
+                        "rounded-l-none",
+                        viewMode === "multilang" && "bg-accent text-foreground",
                       )}
                       title="Multi-language view"
                     >
                       <Languages className="size-4" />
-                    </button>
+                    </Button>
                   </div>
                 )}
                 <Button size="sm" onClick={() => setShowAddForm(true)} className="whitespace-nowrap">
@@ -478,9 +486,9 @@ export function TMBrowser({
                     {/* Footer */}
                     <div className="flex items-center gap-2 mt-1.5 text-[10px] text-muted-foreground">
                       {entry.project_id ? (
-                        <span className="px-1.5 py-px rounded bg-blue-500/10 text-blue-600 dark:text-blue-400">Project</span>
+                        <Badge variant="secondary" className="text-[10px] h-4 bg-blue-500/10 text-blue-600 dark:text-blue-400">Project</Badge>
                       ) : (
-                        <span className="px-1.5 py-px rounded bg-muted">User</span>
+                        <Badge variant="secondary" className="text-[10px] h-4">User</Badge>
                       )}
                       <span>{relativeTime(entry.updated_at)}</span>
                       {editingId !== entry.id && (
@@ -532,49 +540,45 @@ export function TMBrowser({
       />
 
       {/* Add entry dialog */}
-      {showAddForm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="w-full max-w-lg rounded-xl border border-border bg-card p-6 shadow-lg">
-            <h3 className="text-base font-semibold mb-4">Add TM Entry</h3>
-            <div className="flex flex-col gap-3">
-              <div>
-                <label className="text-[12px] text-muted-foreground block mb-1">Source</label>
-                <input type="text" value={addSource} onChange={(e) => setAddSource(e.target.value)} placeholder="Source text" className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-ring" autoFocus />
-              </div>
-              <div>
-                <label className="text-[12px] text-muted-foreground block mb-1">Target</label>
-                <input type="text" value={addTarget} onChange={(e) => setAddTarget(e.target.value)} placeholder="Target text" className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-ring" />
-              </div>
-              <div className="flex gap-3">
-                <div className="flex-1">
-                  <label className="text-[12px] text-muted-foreground block mb-1">Source locale</label>
-                  {mergedLocales.length > 0 ? (
-                    <LocaleSelect value={addSrcLocale} onChange={setAddSrcLocale} locales={mergedLocales} placeholder="Select source..." />
-                  ) : (
-                    <input type="text" value={addSrcLocale} onChange={(e) => setAddSrcLocale(e.target.value)} className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-ring" />
-                  )}
-                </div>
-                <div className="flex-1">
-                  <label className="text-[12px] text-muted-foreground block mb-1">Target locale</label>
-                  {mergedLocales.length > 0 ? (
-                    <LocaleSelect value={addTgtLocale} onChange={setAddTgtLocale} locales={mergedLocales} placeholder="Select target..." />
-                  ) : (
-                    <input type="text" value={addTgtLocale} onChange={(e) => setAddTgtLocale(e.target.value)} className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-ring" />
-                  )}
-                </div>
-              </div>
+      <Dialog open={showAddForm} onOpenChange={setShowAddForm}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Add TM Entry</DialogTitle>
+          </DialogHeader>
+          <div className="flex flex-col gap-3">
+            <div>
+              <Label className="text-[12px]">Source</Label>
+              <Input value={addSource} onChange={(e) => setAddSource(e.target.value)} placeholder="Source text" autoFocus className="mt-1" />
             </div>
-            <div className="flex gap-2 mt-4 pt-3 border-t border-border">
-              <button onClick={() => void handleAdd()} disabled={!addSource.trim() || !addTarget.trim()} className="rounded-md bg-primary px-4 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50">
-                Add
-              </button>
-              <button onClick={() => setShowAddForm(false)} className="rounded-md border border-border px-4 py-1.5 text-xs hover:bg-accent transition-colors">
-                Cancel
-              </button>
+            <div>
+              <Label className="text-[12px]">Target</Label>
+              <Input value={addTarget} onChange={(e) => setAddTarget(e.target.value)} placeholder="Target text" className="mt-1" />
+            </div>
+            <div className="flex gap-3">
+              <div className="flex-1">
+                <Label className="text-[12px]">Source locale</Label>
+                {mergedLocales.length > 0 ? (
+                  <LocaleSelect value={addSrcLocale} onChange={setAddSrcLocale} locales={mergedLocales} placeholder="Select source..." />
+                ) : (
+                  <Input value={addSrcLocale} onChange={(e) => setAddSrcLocale(e.target.value)} className="mt-1" />
+                )}
+              </div>
+              <div className="flex-1">
+                <Label className="text-[12px]">Target locale</Label>
+                {mergedLocales.length > 0 ? (
+                  <LocaleSelect value={addTgtLocale} onChange={setAddTgtLocale} locales={mergedLocales} placeholder="Select target..." />
+                ) : (
+                  <Input value={addTgtLocale} onChange={(e) => setAddTgtLocale(e.target.value)} className="mt-1" />
+                )}
+              </div>
             </div>
           </div>
-        </div>
-      )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowAddForm(false)}>Cancel</Button>
+            <Button onClick={() => void handleAdd()} disabled={!addSource.trim() || !addTarget.trim()}>Add</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -4,7 +4,11 @@ import { ENTITY_TYPES } from "./types";
 import { CodedTextDisplay } from "./CodedTextDisplay";
 import { MatchScoreBar } from "./MatchScoreBar";
 import { LocalePill } from "./LocalePill";
-import { Search, ChevronDown, ChevronUp, X } from "lucide-react";
+import { Input } from "../ui/input";
+import { Button } from "../ui/button";
+import { Badge } from "../ui/badge";
+import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "../ui/collapsible";
+import { Search, ChevronDown, X } from "lucide-react";
 
 interface MarkedEntity extends EntityAnnotationDTO {
   id: string;
@@ -54,15 +58,12 @@ export function TMSearchBar({
     (e: React.ChangeEvent<HTMLInputElement>) => {
       const newText = e.target.value;
       onChange(newText);
-      // Validate entity positions
       if (entities.length > 0) {
         const valid = entities.filter((ent) => {
           if (ent.end > newText.length) return false;
           return newText.substring(ent.start, ent.end) === ent.text;
         });
-        if (valid.length !== entities.length) {
-          setEntities(valid);
-        }
+        if (valid.length !== entities.length) setEntities(valid);
       }
     },
     [onChange, entities],
@@ -78,8 +79,7 @@ export function TMSearchBar({
       setShowEntityPopover(false);
       return;
     }
-    const selectedText = value.substring(start, end);
-    setSelectionRange({ start, end, text: selectedText });
+    setSelectionRange({ start, end, text: value.substring(start, end) });
     setShowEntityPopover(true);
   }, [value, onLookup]);
 
@@ -94,10 +94,9 @@ export function TMSearchBar({
         end: selectionRange.end,
       };
       setEntities((prev) =>
-        [
-          ...prev.filter((e) => e.end <= newEntity.start || e.start >= newEntity.end),
-          newEntity,
-        ].sort((a, b) => a.start - b.start),
+        [...prev.filter((e) => e.end <= newEntity.start || e.start >= newEntity.end), newEntity].sort(
+          (a, b) => a.start - b.start,
+        ),
       );
       setShowEntityPopover(false);
     },
@@ -137,33 +136,34 @@ export function TMSearchBar({
       {/* Search bar row */}
       <div className="flex items-center gap-2">
         <div className="relative flex-1">
-          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground" />
-          <input
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground pointer-events-none" />
+          <Input
             ref={inputRef}
-            type="text"
             value={value}
             onChange={handleTextChange}
             onMouseUp={handleTextSelect}
             onKeyUp={handleTextSelect}
             onKeyDown={handleKeyDown}
             placeholder={placeholder}
-            className="w-full rounded-md border border-input bg-transparent pl-8 pr-3 py-2 text-sm outline-none focus:ring-1 focus:ring-ring"
+            className="pl-8"
           />
 
           {/* Entity popover */}
           {showEntityPopover && selectionRange && (
-            <div className="absolute z-50 top-full left-0 mt-1 rounded-md border bg-popover shadow-lg p-1.5 flex flex-wrap gap-1">
+            <div className="absolute z-50 top-full left-0 mt-1 rounded-lg border bg-popover shadow-lg p-1.5 flex flex-wrap gap-1">
               <span className="text-[10px] text-muted-foreground px-1 py-0.5 w-full">
                 Mark &ldquo;{selectionRange.text}&rdquo; as:
               </span>
               {ENTITY_TYPES.map((et) => (
-                <button
+                <Button
                   key={et.value}
+                  variant="outline"
+                  size="sm"
+                  className="h-5 text-[10px] px-2"
                   onClick={() => markEntity(et.value)}
-                  className="text-[10px] px-2 py-0.5 rounded border border-border hover:bg-accent hover:border-primary/30 transition-colors"
                 >
                   {et.label}
-                </button>
+                </Button>
               ))}
             </div>
           )}
@@ -177,10 +177,7 @@ export function TMSearchBar({
           {entities.map((e) => {
             const label = ENTITY_TYPES.find((t) => t.value === e.type)?.label ?? e.type;
             return (
-              <span
-                key={e.id}
-                className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium border border-border bg-muted/50"
-              >
+              <Badge key={e.id} variant="outline" className="gap-1 pr-1">
                 <span className="text-muted-foreground uppercase tracking-wider text-[9px]">
                   {label}
                 </span>
@@ -191,7 +188,7 @@ export function TMSearchBar({
                 >
                   <X className="size-2.5" />
                 </button>
-              </span>
+              </Badge>
             );
           })}
           {onLookup && (
@@ -204,23 +201,20 @@ export function TMSearchBar({
 
       {/* Lookup results (collapsible) */}
       {matches.length > 0 && (
-        <div className="rounded-md border border-border bg-card/50">
-          <button
-            className="flex items-center gap-2 w-full px-3 py-1.5 text-[11px] text-muted-foreground hover:text-foreground transition-colors"
-            onClick={() => setShowMatches(!showMatches)}
-          >
-            {showMatches ? <ChevronUp className="size-3" /> : <ChevronDown className="size-3" />}
+        <Collapsible open={showMatches} onOpenChange={setShowMatches}>
+          <CollapsibleTrigger className="flex items-center gap-2 w-full px-3 py-1.5 text-[11px] text-muted-foreground hover:text-foreground transition-colors rounded-md border bg-card/50">
+            <ChevronDown className="size-3 transition-transform data-[state=open]:rotate-180" />
             {matches.length} {matches.length === 1 ? "match" : "matches"} found
             {!showMatches && (
               <span className="text-[10px] ml-auto">
                 Best: {Math.round(matches[0].score * 100)}%
               </span>
             )}
-          </button>
-          {showMatches && (
-            <div className="flex flex-col gap-1.5 px-3 pb-2">
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <div className="flex flex-col gap-1.5 px-3 pb-2 pt-1">
               {matches.map((m, i) => (
-                <div key={i} className="rounded border border-border/50 p-2">
+                <div key={i} className="rounded-lg border p-2">
                   <MatchScoreBar score={m.score} matchType={m.match_type} className="mb-1.5" />
                   <div className="flex items-start gap-2 mb-0.5">
                     <CodedTextDisplay
@@ -243,8 +237,8 @@ export function TMSearchBar({
                 </div>
               ))}
             </div>
-          )}
-        </div>
+          </CollapsibleContent>
+        </Collapsible>
       )}
     </div>
   );
