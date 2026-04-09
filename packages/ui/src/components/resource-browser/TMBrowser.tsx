@@ -507,7 +507,7 @@ export function TMBrowser({
           )}
           {viewMode === "multilang" && availableTargetLocales.length > 1 && (
             <>
-              <span className="inline-flex shrink-0 items-center px-1.5 py-px font-mono text-[10px] font-medium text-muted-foreground ml-3">
+              <span className="inline-flex shrink-0 items-center px-1.5 py-px text-[10px] font-medium text-muted-foreground ml-3">
                 Show:
               </span>
               {availableTargetLocales.map((locale) => {
