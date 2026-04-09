@@ -271,6 +271,28 @@ export function TMBrowser({
     setConfirmBulkDelete(false);
   }, []);
 
+  // IDs currently visible in the results (bilingual = entry IDs; multilang = all target IDs).
+  const visibleIds = useMemo(() => {
+    if (viewMode === "multilang") {
+      return groups.flatMap((g) => g.targets.map((t) => t.id));
+    }
+    return entries.map((e) => e.id);
+  }, [viewMode, entries, groups]);
+
+  const allVisibleSelected = visibleIds.length > 0 && visibleIds.every((id) => selected.has(id));
+  const someVisibleSelected = visibleIds.some((id) => selected.has(id));
+
+  const toggleSelectAll = useCallback(() => {
+    setSelected((prev) => {
+      if (allVisibleSelected) {
+        const next = new Set(prev);
+        for (const id of visibleIds) next.delete(id);
+        return next;
+      }
+      return new Set([...prev, ...visibleIds]);
+    });
+  }, [allVisibleSelected, visibleIds]);
+
   // --- CRUD handlers ---
   const handleEdit = useCallback((entry: TMEntryDTO) => {
     setEditingId(entry.id);
@@ -455,6 +477,16 @@ export function TMBrowser({
         <div className="flex-1 min-w-0">
         {/* Toolbar */}
         <div className="flex items-center gap-2 mb-3">
+          {!isEmpty && (
+            <label className="flex items-center gap-1.5 cursor-pointer" title={allVisibleSelected ? "Deselect all" : "Select all on this page"}>
+              <Checkbox
+                checked={allVisibleSelected ? true : someVisibleSelected ? "indeterminate" : false}
+                onCheckedChange={toggleSelectAll}
+                aria-label="Select all visible entries"
+              />
+              <span className="text-[11px] text-muted-foreground">Select all</span>
+            </label>
+          )}
           {adapter.searchGrouped && (
             <div className="flex rounded-md border border-input">
               <Button
