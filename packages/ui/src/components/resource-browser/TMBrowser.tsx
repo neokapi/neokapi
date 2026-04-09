@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import type { TMAdapter } from "./adapters";
-import type { TMEntryDTO, TMGroupedResult, TMFacets, TMSearchFilter, EntityPatternRequest } from "./types";
+import type { TMEntryDTO, TMGroupedResult, TMFacets, TMSearchFilter, EntityAnnotationDTO, EntityPatternRequest } from "./types";
 import type { SpanInfo } from "../../types/span";
 import { CodedTextDisplay } from "./CodedTextDisplay";
 import { InlineCodeEditor } from "../editor/InlineCodeEditor";
@@ -72,6 +72,9 @@ export function TMBrowser({
   // --- Display locales for multi-language view (independent of filter) ---
   const [displayLocales, setDisplayLocales] = useState<string[]>([]);
 
+  // --- Marked entities from search bar for entity-value filtering ---
+  const [markedEntities, setMarkedEntities] = useState<EntityAnnotationDTO[]>([]);
+
   // --- Add entry form ---
   const [showAddForm, setShowAddForm] = useState(false);
   const [addSource, setAddSource] = useState("");
@@ -127,15 +130,18 @@ export function TMBrowser({
     }, 200);
   }, []);
 
-  // Build search filter from facet selection.
+  // Build search filter from facet selection + marked entities in search bar.
   const searchFilter = useMemo((): TMSearchFilter => {
     const filter: TMSearchFilter = {};
     if (facetSelection.projects.length === 1) filter.project_id = facetSelection.projects[0];
     if (facetSelection.entityTypes.length > 0) filter.entity_types = facetSelection.entityTypes;
     if (facetSelection.codeFilter === "has_codes") filter.has_codes = true;
     if (facetSelection.codeFilter === "no_codes") filter.has_codes = false;
+    if (markedEntities.length > 0) {
+      filter.entity_values = markedEntities.map((e) => ({ value: e.text, type: e.type }));
+    }
     return filter;
-  }, [facetSelection]);
+  }, [facetSelection, markedEntities]);
 
   // Refs for stable callbacks.
   const adapterRef = useRef(adapter);
@@ -365,6 +371,7 @@ export function TMBrowser({
           value={searchText}
           onChange={handleSearchChange}
           onLookup={adapter.lookup}
+          onEntitiesChange={setMarkedEntities}
           sourceLocale={effectiveSourceLocale}
           targetLocale={effectiveTargetLocale}
           actions={

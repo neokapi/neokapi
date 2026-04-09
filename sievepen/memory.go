@@ -404,6 +404,23 @@ func matchesSearchFilter(entry TMEntry, filter SearchFilter) bool {
 			return false
 		}
 	}
+	if len(filter.EntityValues) > 0 {
+		found := false
+		for _, ev := range filter.EntityValues {
+			for _, em := range entry.Entities {
+				if em.SourceValue == ev.Value && string(em.Type) == ev.Type {
+					found = true
+					break
+				}
+			}
+			if found {
+				break
+			}
+		}
+		if !found {
+			return false
+		}
+	}
 	if filter.HasCodes != nil {
 		hasCodes := entry.Source != nil && strings.ContainsRune(entry.Source.CodedText, '\uE001')
 		if *filter.HasCodes != hasCodes {

@@ -478,3 +478,93 @@ func TestSQLiteTM_SearchEntriesGrouped(t *testing.T) {
 		assert.Len(t, groups[0].Targets, 3)
 	})
 }
+
+func TestSQLiteTM_EntityValueFilter(t *testing.T) {
+	tm, err := sievepen.NewSQLiteTM(":memory:")
+	require.NoError(t, err)
+	defer tm.Close()
+
+	mkWithEntity := func(id, src, tgt, entityValue, entityType string) sievepen.TMEntry {
+		return sievepen.TMEntry{
+			ID:           id,
+			Source:       model.NewFragment(src),
+			Target:       model.NewFragment(tgt),
+			SourceLocale: "en-US",
+			TargetLocale: "fr-FR",
+			Entities: []sievepen.EntityMapping{
+				{
+					PlaceholderID: "e1",
+					Type:          model.EntityType(entityType),
+					SourceValue:   entityValue,
+					TargetValue:   entityValue,
+				},
+			},
+		}
+	}
+
+	require.NoError(t, tm.Add(mkWithEntity("e1", "John works here", "Jean travaille ici", "John", "entity:person")))
+	require.NoError(t, tm.Add(mkWithEntity("e2", "Acme Corp released", "Acme Corp a publié", "Acme Corp", "entity:organization")))
+	require.NoError(t, tm.Add(mkWithEntity("e3", "John met Acme Corp", "Jean a rencontré Acme Corp", "John", "entity:person")))
+	require.NoError(t, tm.Add(makeEntry("e4", "Hello world", "Bonjour le monde")))
+
+	t.Run("filter by entity value + type", func(t *testing.T) {
+		entries, total := tm.SearchEntriesFiltered("", "en-US", "fr-FR",
+			sievepen.SearchFilter{
+				EntityValues: []sievepen.EntityValueFilter{
+					{Value: "John", Type: "entity:person"},
+				},
+			}, 0, 10)
+		assert.Equal(t, 2, total, "two entries have John as person")
+		assert.Len(t, entries, 2)
+		ids := map[string]bool{}
+		for _, e := range entries {
+			ids[e.ID] = true
+		}
+		assert.True(t, ids["e1"])
+		assert.True(t, ids["e3"])
+	})
+
+	t.Run("filter by organization entity value", func(t *testing.T) {
+		entries, total := tm.SearchEntriesFiltered("", "en-US", "fr-FR",
+			sievepen.SearchFilter{
+				EntityValues: []sievepen.EntityValueFilter{
+					{Value: "Acme Corp", Type: "entity:organization"},
+				},
+			}, 0, 10)
+		assert.Equal(t, 1, total)
+		require.Len(t, entries, 1)
+		assert.Equal(t, "e2", entries[0].ID)
+	})
+
+	t.Run("multiple entity values OR-ed", func(t *testing.T) {
+		entries, total := tm.SearchEntriesFiltered("", "en-US", "fr-FR",
+			sievepen.SearchFilter{
+				EntityValues: []sievepen.EntityValueFilter{
+					{Value: "John", Type: "entity:person"},
+					{Value: "Acme Corp", Type: "entity:organization"},
+				},
+			}, 0, 10)
+		assert.Equal(t, 3, total, "any match — three entries have John or Acme")
+		assert.Len(t, entries, 3)
+	})
+
+	t.Run("value without matching type returns nothing", func(t *testing.T) {
+		entries, total := tm.SearchEntriesFiltered("", "en-US", "fr-FR",
+			sievepen.SearchFilter{
+				EntityValues: []sievepen.EntityValueFilter{
+					{Value: "John", Type: "entity:organization"},
+				},
+			}, 0, 10)
+		assert.Equal(t, 0, total)
+		assert.Empty(t, entries)
+	})
+
+	t.Run("entities round-trip correctly after scanEntries", func(t *testing.T) {
+		entry, found := tm.GetEntry("e1")
+		require.True(t, found)
+		require.Len(t, entry.Entities, 1)
+		assert.Equal(t, "John", entry.Entities[0].SourceValue)
+		assert.Equal(t, model.EntityType("entity:person"), entry.Entities[0].Type)
+		assert.Equal(t, "e1", entry.Entities[0].PlaceholderID)
+	})
+}

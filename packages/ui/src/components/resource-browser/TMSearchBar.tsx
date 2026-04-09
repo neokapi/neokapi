@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import type { EntityAnnotationDTO, TMMatchDTO, LookupTMRequest } from "./types";
 import { ENTITY_TYPES } from "./types";
 import { CodedTextDisplay } from "./CodedTextDisplay";
@@ -19,6 +19,8 @@ interface TMSearchBarProps {
   onChange: (value: string) => void;
   /** Called with entities when the user triggers a lookup (Enter with entities marked). */
   onLookup?: (req: LookupTMRequest) => Promise<TMMatchDTO[]>;
+  /** Called whenever the marked entity list changes — used for filter wiring. */
+  onEntitiesChange?: (entities: EntityAnnotationDTO[]) => void;
   sourceLocale: string;
   targetLocale: string;
   placeholder?: string;
@@ -36,12 +38,20 @@ export function TMSearchBar({
   value,
   onChange,
   onLookup,
+  onEntitiesChange,
   sourceLocale,
   targetLocale,
   placeholder = "Search translation memory...",
   actions,
 }: TMSearchBarProps) {
   const [entities, setEntities] = useState<MarkedEntity[]>([]);
+
+  // Propagate entity changes to parent for filter wiring.
+  useEffect(() => {
+    if (onEntitiesChange) {
+      onEntitiesChange(entities.map(({ text, type, start, end }) => ({ text, type, start, end })));
+    }
+  }, [entities, onEntitiesChange]);
   const [showEntityPopover, setShowEntityPopover] = useState(false);
   const [selectionRange, setSelectionRange] = useState<{
     start: number;
