@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import type { TMGroupedResult, TMTargetDTO } from "./types";
 import type { SpanInfo } from "../../types/span";
 import { CodedTextDisplay } from "./CodedTextDisplay";
@@ -12,18 +12,22 @@ import { relativeTime } from "./utils";
 import { ChevronRight } from "lucide-react";
 import { cn } from "../../lib/utils";
 
+const AUTO_EXPAND_THRESHOLD = 10;
+
 interface TMGroupedEntryProps {
   group: TMGroupedResult;
   selected: boolean;
   onToggleSelect: () => void;
   onEditTarget: (targetId: string, codedText: string, spans: SpanInfo[]) => void;
   onDeleteTarget: (targetId: string) => void;
+  /** When set, only show targets for these locales. Empty array = show all. */
+  visibleLocales?: string[];
 }
 
 /**
- * Expandable card for a source text with all its target translations.
- * Collapsed: source text, locale, target count.
- * Expanded: source + indented list of targets with edit/delete.
+ * Card for a source text with all its target translations.
+ * Auto-expands when fewer than 10 targets; otherwise collapsible.
+ * Supports filtering visible targets by locale.
  */
 export function TMGroupedEntry({
   group,
@@ -31,9 +35,17 @@ export function TMGroupedEntry({
   onToggleSelect,
   onEditTarget,
   onDeleteTarget,
+  visibleLocales,
 }: TMGroupedEntryProps) {
-  const [expanded, setExpanded] = useState(false);
+  const autoExpand = group.targets.length < AUTO_EXPAND_THRESHOLD;
+  const [manualExpanded, setManualExpanded] = useState<boolean | null>(null);
+  const expanded = manualExpanded ?? autoExpand;
   const [editingTargetId, setEditingTargetId] = useState<string | null>(null);
+
+  const filteredTargets = useMemo(() => {
+    if (!visibleLocales || visibleLocales.length === 0) return group.targets;
+    return group.targets.filter((t) => visibleLocales.includes(t.target_locale));
+  }, [group.targets, visibleLocales]);
 
   const handleSave = useCallback(
     (target: TMTargetDTO, codedText: string, spans: SpanInfo[]) => {
@@ -42,6 +54,8 @@ export function TMGroupedEntry({
     },
     [onEditTarget],
   );
+
+  const hiddenCount = group.targets.length - filteredTargets.length;
 
   return (
     <ItemCard selected={selected} className="p-3" data-testid={`tm-group-${group.source_text.slice(0, 20)}`}>
@@ -54,17 +68,19 @@ export function TMGroupedEntry({
         />
 
         <div className="flex-1 min-w-0">
-          {/* Source header — click to expand */}
+          {/* Source header */}
           <button
             className="flex items-start gap-2 w-full text-left"
-            onClick={() => setExpanded(!expanded)}
+            onClick={() => setManualExpanded(expanded ? false : true)}
           >
-            <ChevronRight
-              className={cn(
-                "size-4 shrink-0 mt-0.5 text-muted-foreground transition-transform",
-                expanded && "rotate-90",
-              )}
-            />
+            {!autoExpand && (
+              <ChevronRight
+                className={cn(
+                  "size-4 shrink-0 mt-0.5 text-muted-foreground transition-transform",
+                  expanded && "rotate-90",
+                )}
+              />
+            )}
             <CodedTextDisplay
               text={group.source_text}
               codedText={group.source_coded}
@@ -73,14 +89,14 @@ export function TMGroupedEntry({
             />
             <LocalePill locale={group.source_locale} />
             <span className="text-[10px] text-muted-foreground bg-muted px-1.5 py-px rounded tabular-nums shrink-0">
-              {group.targets.length} {group.targets.length === 1 ? "translation" : "translations"}
+              {filteredTargets.length}{hiddenCount > 0 ? `/${group.targets.length}` : ""} {group.targets.length === 1 ? "translation" : "translations"}
             </span>
           </button>
 
-          {/* Expanded: target translations */}
-          {expanded && (
-            <div className="mt-2 ml-6 flex flex-col gap-1.5 border-l-2 border-border/50 pl-3">
-              {group.targets.map((target) => (
+          {/* Target translations */}
+          {expanded && filteredTargets.length > 0 && (
+            <div className={cn("mt-1.5 flex flex-col gap-1", !autoExpand && "ml-6 border-l-2 border-border/50 pl-3")}>
+              {filteredTargets.map((target) => (
                 <div key={target.id} className="group/target flex items-start gap-2">
                   {editingTargetId === target.id ? (
                     <div className="flex-1">
@@ -95,17 +111,17 @@ export function TMGroupedEntry({
                     </div>
                   ) : (
                     <>
+                      <LocalePill locale={target.target_locale} />
                       <CodedTextDisplay
                         text={target.target_text}
                         codedText={target.target_coded}
                         spans={target.target_spans}
                         className="text-[13px] text-muted-foreground flex-1"
                       />
-                      <LocalePill locale={target.target_locale} />
-                      <span className="text-[10px] text-muted-foreground">
+                      <span className="text-[10px] text-muted-foreground shrink-0">
                         {relativeTime(target.updated_at)}
                       </span>
-                      <div className="flex gap-1 opacity-0 transition-opacity group-hover/target:opacity-100">
+                      <div className="flex gap-1 opacity-0 transition-opacity group-hover/target:opacity-100 shrink-0">
                         <Button
                           variant="ghost"
                           size="sm"

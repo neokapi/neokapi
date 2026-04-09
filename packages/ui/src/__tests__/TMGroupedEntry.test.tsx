@@ -103,7 +103,7 @@ describe("TMGroupedEntry", () => {
     expect(c.textContent).toContain("1 translation");
   });
 
-  it("does not show targets when collapsed", () => {
+  it("auto-expands when fewer than 10 targets", () => {
     const c = renderToContainer(
       createElement(TMGroupedEntry, {
         group: makeGroup(),
@@ -113,29 +113,45 @@ describe("TMGroupedEntry", () => {
         onDeleteTarget: vi.fn(),
       }),
     );
-    expect(c.textContent).not.toContain("Bonjour le monde");
-    expect(c.textContent).not.toContain("Hallo Welt");
-  });
-
-  it("shows targets when expanded by clicking source", () => {
-    const c = renderToContainer(
-      createElement(TMGroupedEntry, {
-        group: makeGroup(),
-        selected: false,
-        onToggleSelect: vi.fn(),
-        onEditTarget: vi.fn(),
-        onDeleteTarget: vi.fn(),
-      }),
-    );
-    // The expand button is the second button (first is the checkbox)
-    const buttons = c.querySelectorAll("button");
-    const expandBtn = Array.from(buttons).find((b) => b.textContent?.includes("Hello world"));
-    expect(expandBtn).toBeTruthy();
-    act(() => { expandBtn!.click(); });
+    // 2 targets < 10, so auto-expanded
     expect(c.textContent).toContain("Bonjour le monde");
     expect(c.textContent).toContain("Hallo Welt");
     expect(c.textContent).toContain("fr-FR");
     expect(c.textContent).toContain("de-DE");
+  });
+
+  it("collapses when clicking source on auto-expanded entry", () => {
+    const c = renderToContainer(
+      createElement(TMGroupedEntry, {
+        group: makeGroup(),
+        selected: false,
+        onToggleSelect: vi.fn(),
+        onEditTarget: vi.fn(),
+        onDeleteTarget: vi.fn(),
+      }),
+    );
+    expect(c.textContent).toContain("Bonjour le monde");
+    const buttons = c.querySelectorAll("button");
+    const expandBtn = Array.from(buttons).find((b) => b.textContent?.includes("Hello world"));
+    act(() => { expandBtn!.click(); });
+    expect(c.textContent).not.toContain("Bonjour le monde");
+  });
+
+  it("filters targets by visibleLocales", () => {
+    const c = renderToContainer(
+      createElement(TMGroupedEntry, {
+        group: makeGroup(),
+        selected: false,
+        onToggleSelect: vi.fn(),
+        onEditTarget: vi.fn(),
+        onDeleteTarget: vi.fn(),
+        visibleLocales: ["fr-FR"],
+      }),
+    );
+    expect(c.textContent).toContain("Bonjour le monde");
+    expect(c.textContent).not.toContain("Hallo Welt");
+    // Shows filtered count: 1/2
+    expect(c.textContent).toContain("1/2");
   });
 
   it("calls onToggleSelect when checkbox clicked", () => {
