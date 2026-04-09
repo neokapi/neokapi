@@ -394,13 +394,6 @@ export function TMBrowser({
 
   return (
     <div data-testid="tm-browser">
-      {/* Add Entry — separate row above search */}
-      <div className="flex justify-end mb-2">
-        <Button size="sm" onClick={() => setShowAddForm(true)} className="whitespace-nowrap">
-          Add Entry
-        </Button>
-      </div>
-
       {/* Google-style search bar — centered, full width */}
       <div className="mb-4">
         <TMSearchBar
@@ -470,6 +463,13 @@ export function TMBrowser({
               <span className="inline-block w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin opacity-50" />
             )}
           </div>
+          <Button
+            size="sm"
+            onClick={() => setShowAddForm(true)}
+            className="ml-auto whitespace-nowrap"
+          >
+            Add Entry
+          </Button>
         </div>
 
         {/* Target language selector — multilang view only */}
