@@ -507,14 +507,16 @@ export function TMBrowser({
           )}
           {viewMode === "multilang" && availableTargetLocales.length > 1 && (
             <>
-              <span className="text-[10px] text-muted-foreground ml-3 leading-none">Show:</span>
+              <span className="inline-flex shrink-0 items-center px-1.5 py-px font-mono text-[10px] font-medium text-muted-foreground ml-3">
+                Show:
+              </span>
               {availableTargetLocales.map((locale) => {
                 const active = displayLocales === undefined || displayLocales.includes(locale);
                 return (
                   <button
                     key={locale}
                     onClick={() => toggleDisplayLocale(locale)}
-                    className={cn("transition-opacity", !active && "opacity-30")}
+                    className={cn("inline-flex items-center", "transition-opacity", !active && "opacity-30")}
                   >
                     <LocalePill locale={locale} />
                   </button>
