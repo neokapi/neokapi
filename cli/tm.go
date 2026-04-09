@@ -1,8 +1,12 @@
 package cli
 
 import (
+	"compress/gzip"
 	"fmt"
+	"io"
 	"os"
+	"path/filepath"
+	"strings"
 
 	"github.com/neokapi/neokapi/cli/output"
 	"github.com/neokapi/neokapi/core/model"
@@ -31,17 +35,18 @@ Default (no flag): same as --local (uses ./tm.db).`,
 	}
 
 	importCmd := a.newTMImportCmd()
+	importDirCmd := a.newTMImportDirCmd()
 	exportCmd := a.newTMExportCmd()
 	lookupCmd := a.newTMLookupCmd()
 	searchCmd := a.newTMSearchCmd()
 	statsCmd := a.newTMStatsCmd()
 	listCmd := a.newTMListCmd()
 
-	for _, cmd := range []*cobra.Command{importCmd, exportCmd, lookupCmd, searchCmd, statsCmd} {
+	for _, cmd := range []*cobra.Command{importCmd, importDirCmd, exportCmd, lookupCmd, searchCmd, statsCmd} {
 		AddResourceFlags(cmd)
 	}
 
-	tmCmd.AddCommand(importCmd, exportCmd, lookupCmd, searchCmd, statsCmd, listCmd)
+	tmCmd.AddCommand(importCmd, importDirCmd, exportCmd, lookupCmd, searchCmd, statsCmd, listCmd)
 	return tmCmd
 }
 
@@ -60,11 +65,24 @@ func (a *App) openTMSQLite(cmd *cobra.Command) (*sievepen.SQLiteTM, string, erro
 func (a *App) newTMImportCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "import [file]",
-		Short: "Import TMX file into translation memory",
-		Args:  cobra.ExactArgs(1),
+		Short: "Import a TMX file into translation memory",
+		Long: `Import a single TMX file (plain or .gz) into the TM.
+
+By default, imports entries matching the given --source-locale and --target-locale.
+Use --all-pairs to emit entries for every (src, tgt) language pair present in
+each TU — useful for multilingual TMX files (e.g. EUR-Lex Euramis exports where
+a single TU may contain 24+ languages). Combine with --locales to restrict the
+pair set (e.g. --all-pairs --locales en-GB,fr-FR,de-DE).
+
+The importer auto-detects UTF-8/UTF-16 from the BOM, so Euramis exports work
+without pre-conversion. For web-crawl TMX sets (bitextor output) the per-TUV
+<prop type="source-document"> URL is recorded as Origin.Reference.`,
+		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			srcLocale, _ := cmd.Flags().GetString("source-locale")
 			tgtLocale, _ := cmd.Flags().GetString("target-locale")
+			allPairs, _ := cmd.Flags().GetBool("all-pairs")
+			localesRaw, _ := cmd.Flags().GetString("locales")
 
 			tm, dbPath, err := a.openTMSQLite(cmd)
 			if err != nil {
@@ -72,15 +90,9 @@ func (a *App) newTMImportCmd() *cobra.Command {
 			}
 			defer tm.Close()
 
-			f, err := os.Open(args[0])
+			count, err := importTMXFile(tm, args[0], srcLocale, tgtLocale, allPairs, parseLocaleList(localesRaw))
 			if err != nil {
-				return fmt.Errorf("open input: %w", err)
-			}
-			defer f.Close()
-
-			count, err := sievepen.ImportTMX(tm, f, model.LocaleID(srcLocale), model.LocaleID(tgtLocale))
-			if err != nil {
-				return fmt.Errorf("import TMX: %w", err)
+				return err
 			}
 
 			if a.Quiet {
@@ -96,8 +108,188 @@ func (a *App) newTMImportCmd() *cobra.Command {
 
 	cmd.Flags().StringP("source-locale", "s", "en", "source locale")
 	cmd.Flags().StringP("target-locale", "t", "", "target locale")
+	cmd.Flags().Bool("all-pairs", false, "emit entries for every (src,tgt) pair present in each TU (multilingual TMX)")
+	cmd.Flags().String("locales", "", "comma-separated locale subset for --all-pairs (empty = all languages in file)")
 
 	return cmd
+}
+
+func (a *App) newTMImportDirCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "import-dir [directory]",
+		Short: "Import all TMX files from a directory into translation memory",
+		Long: `Walk a directory and import every matching TMX file into the TM.
+
+Auto-detects plain .tmx and gzipped .tmx.gz files. The filename (without path)
+becomes the Origin.Key on each imported entry so you can trace which file a
+segment came from.
+
+By default, imports entries matching --source-locale and --target-locale from
+every file. Use --pattern to filter (glob against filename) and --all-pairs to
+emit the full language cross-product from multilingual files.
+
+Examples:
+  kapi tm import-dir ./tmx --name corpus --source-locale en --target-locale nb --pattern "*en-nb*"
+  kapi tm import-dir ./eurlex --name corpus --all-pairs --locales en-GB,fr-FR,de-DE`,
+		Args: cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			srcLocale, _ := cmd.Flags().GetString("source-locale")
+			tgtLocale, _ := cmd.Flags().GetString("target-locale")
+			allPairs, _ := cmd.Flags().GetBool("all-pairs")
+			localesRaw, _ := cmd.Flags().GetString("locales")
+			pattern, _ := cmd.Flags().GetString("pattern")
+			recursive, _ := cmd.Flags().GetBool("recursive")
+
+			tm, dbPath, err := a.openTMSQLite(cmd)
+			if err != nil {
+				return err
+			}
+			defer tm.Close()
+
+			dir := args[0]
+			info, err := os.Stat(dir)
+			if err != nil {
+				return fmt.Errorf("stat directory: %w", err)
+			}
+			if !info.IsDir() {
+				return fmt.Errorf("%s is not a directory", dir)
+			}
+
+			locales := parseLocaleList(localesRaw)
+
+			files, err := listTMXFiles(dir, pattern, recursive)
+			if err != nil {
+				return err
+			}
+			if len(files) == 0 {
+				return fmt.Errorf("no TMX files found in %s", dir)
+			}
+
+			var totalImported int
+			var failed int
+			for i, path := range files {
+				rel, _ := filepath.Rel(dir, path)
+				if !a.Quiet {
+					fmt.Fprintf(os.Stderr, "[%d/%d] %s ", i+1, len(files), rel)
+				}
+				n, err := importTMXFile(tm, path, srcLocale, tgtLocale, allPairs, locales)
+				if err != nil {
+					failed++
+					if !a.Quiet {
+						fmt.Fprintf(os.Stderr, "FAILED: %v\n", err)
+					}
+					continue
+				}
+				totalImported += n
+				if !a.Quiet {
+					fmt.Fprintf(os.Stderr, "%d entries\n", n)
+				}
+			}
+
+			if a.Quiet {
+				return nil
+			}
+			fmt.Fprintf(os.Stderr, "\nDone. %d files processed (%d failed), %d entries imported, TM now has %d entries\n",
+				len(files), failed, totalImported, tm.Count())
+			return output.Print(cmd, output.TMImportOutput{
+				Imported: totalImported,
+				DBPath:   dbPath,
+				Total:    tm.Count(),
+			})
+		},
+	}
+
+	cmd.Flags().StringP("source-locale", "s", "en", "source locale")
+	cmd.Flags().StringP("target-locale", "t", "", "target locale")
+	cmd.Flags().Bool("all-pairs", false, "emit entries for every (src,tgt) pair present in each TU")
+	cmd.Flags().String("locales", "", "comma-separated locale subset for --all-pairs")
+	cmd.Flags().StringP("pattern", "p", "", "filename glob to filter (default: all .tmx and .tmx.gz)")
+	cmd.Flags().BoolP("recursive", "r", false, "recurse into subdirectories")
+
+	return cmd
+}
+
+// parseLocaleList parses a comma-separated locale list, trimming whitespace.
+func parseLocaleList(raw string) []model.LocaleID {
+	if raw == "" {
+		return nil
+	}
+	parts := strings.Split(raw, ",")
+	out := make([]model.LocaleID, 0, len(parts))
+	for _, p := range parts {
+		p = strings.TrimSpace(p)
+		if p != "" {
+			out = append(out, model.LocaleID(p))
+		}
+	}
+	return out
+}
+
+// importTMXFile imports a single TMX file (plain or .gz) into the TM.
+// Uses ImportTMXLocalePairs when allPairs is true, otherwise single-pair import.
+func importTMXFile(tm *sievepen.SQLiteTM, path, srcLocale, tgtLocale string, allPairs bool, locales []model.LocaleID) (int, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return 0, fmt.Errorf("open %s: %w", path, err)
+	}
+	defer f.Close()
+
+	var reader io.Reader = f
+	if strings.HasSuffix(strings.ToLower(path), ".gz") {
+		gz, err := gzip.NewReader(f)
+		if err != nil {
+			return 0, fmt.Errorf("gunzip %s: %w", path, err)
+		}
+		defer gz.Close()
+		reader = gz
+	}
+
+	opts := sievepen.ImportTMXOptions{
+		OriginKey:     filepath.Base(path),
+		OriginAddedBy: "kapi tm import",
+	}
+
+	if allPairs {
+		return sievepen.ImportTMXLocalePairs(tm, reader, locales, opts)
+	}
+	return sievepen.ImportTMXWithOptions(tm, reader,
+		model.LocaleID(srcLocale), model.LocaleID(tgtLocale), opts)
+}
+
+// listTMXFiles returns all .tmx and .tmx.gz files in dir matching pattern.
+func listTMXFiles(dir, pattern string, recursive bool) ([]string, error) {
+	var files []string
+	walk := func(path string, info os.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if info.IsDir() {
+			if !recursive && path != dir {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		name := info.Name()
+		lower := strings.ToLower(name)
+		if !strings.HasSuffix(lower, ".tmx") && !strings.HasSuffix(lower, ".tmx.gz") {
+			return nil
+		}
+		if pattern != "" {
+			matched, err := filepath.Match(pattern, name)
+			if err != nil {
+				return fmt.Errorf("invalid pattern %q: %w", pattern, err)
+			}
+			if !matched {
+				return nil
+			}
+		}
+		files = append(files, path)
+		return nil
+	}
+	if err := filepath.WalkDir(dir, walk); err != nil {
+		return nil, err
+	}
+	return files, nil
 }
 
 func (a *App) newTMExportCmd() *cobra.Command {
