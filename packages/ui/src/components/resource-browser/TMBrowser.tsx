@@ -635,16 +635,17 @@ export function TMBrowser({
                   <div className="flex-1 min-w-0">
                     {/* Source */}
                     <div className="flex items-start gap-2 mb-0.5">
+                      <LocalePill locale={entry.source_locale} />
                       <CodedTextDisplay
                         text={entry.source_text}
                         codedText={entry.source_coded}
                         spans={entry.source_spans}
-                        className="text-[13px] text-foreground flex-1"
+                        className="text-[14px] font-medium text-foreground flex-1"
                       />
-                      <LocalePill locale={entry.source_locale} />
                     </div>
                     {/* Target */}
                     <div className="flex items-start gap-2">
+                      <LocalePill locale={entry.target_locale} />
                       {editingId === entry.id ? (
                         <div className="flex-1">
                           <InlineCodeEditor
@@ -664,7 +665,6 @@ export function TMBrowser({
                           className="text-[13px] text-muted-foreground flex-1"
                         />
                       )}
-                      <LocalePill locale={entry.target_locale} />
                     </div>
                     {/* Footer */}
                     <div className="flex items-center gap-2 mt-1.5 text-[10px] text-muted-foreground">
