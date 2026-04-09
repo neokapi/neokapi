@@ -13,7 +13,6 @@ import type {
   ImportResult,
   TMStats,
   TMFacets,
-  TMSearchFilter,
   TMGroupedSearchResult,
 } from "@neokapi/ui-primitives";
 

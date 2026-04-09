@@ -110,30 +110,36 @@ export function TMBrowser({
     );
   }, []);
 
-  // Effective locales from facet selection — single selection filters, empty means all.
+  // Filter tokens (e.g. language:fr-FR, project:my-app) in the search bar.
+  const [filterTokens, setFilterTokens] = useState<Array<{ key: string; value: string }>>([]);
+
+  // Effective locales: filter tokens > facet selection > props.
   const effectiveSourceLocale = propSourceLocale;
+  const tokenTargetLocale = useMemo(
+    () => filterTokens.find((t) => t.key === "language")?.value ?? "",
+    [filterTokens],
+  );
   const effectiveTargetLocale =
-    facetSelection.targetLocales.length === 1
+    tokenTargetLocale ||
+    (facetSelection.targetLocales.length === 1
       ? facetSelection.targetLocales[0]
       : facetSelection.targetLocales.length === 0
         ? propTargetLocales[0] ?? ""
-        : ""; // multiple selected = don't filter by target locale
+        : "");
 
-  // Debounce search.
-  const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
-  const handleSearchChange = useCallback((val: string) => {
+  // Search is submitted explicitly (Enter or icon click), not debounced.
+  const handleSearchSubmit = useCallback((val: string) => {
     setSearchText(val);
-    clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => {
-      setDebouncedSearch(val);
-      setPage(0);
-    }, 200);
+    setDebouncedSearch(val);
+    setPage(0);
   }, []);
 
-  // Build search filter from facet selection + marked entities in search bar.
+  // Build search filter from facet selection + filter tokens + marked entities.
   const searchFilter = useMemo((): TMSearchFilter => {
     const filter: TMSearchFilter = {};
-    if (facetSelection.projects.length === 1) filter.project_id = facetSelection.projects[0];
+    const tokenProject = filterTokens.find((t) => t.key === "project")?.value;
+    if (tokenProject) filter.project_id = tokenProject;
+    else if (facetSelection.projects.length === 1) filter.project_id = facetSelection.projects[0];
     if (facetSelection.entityTypes.length > 0) filter.entity_types = facetSelection.entityTypes;
     if (facetSelection.codeFilter === "has_codes") filter.has_codes = true;
     if (facetSelection.codeFilter === "no_codes") filter.has_codes = false;
@@ -141,7 +147,7 @@ export function TMBrowser({
       filter.entity_values = markedEntities.map((e) => ({ value: e.text, type: e.type }));
     }
     return filter;
-  }, [facetSelection, markedEntities]);
+  }, [facetSelection, filterTokens, markedEntities]);
 
   // Refs for stable callbacks.
   const adapterRef = useRef(adapter);
@@ -152,8 +158,6 @@ export function TMBrowser({
   sourceLocaleRef.current = effectiveSourceLocale;
   targetLocaleRef.current = effectiveTargetLocale;
   filterRef.current = searchFilter;
-
-  const hasActiveFilter = Object.keys(searchFilter).length > 0;
 
   // --- Fetch logic ---
   const fetchEntries = useCallback(
@@ -209,11 +213,11 @@ export function TMBrowser({
     void fetchFacets();
   }, [fetchFacets]);
 
-  // Reset page when view mode or facet selection changes.
+  // Reset page when view mode, facet selection, or filter tokens change.
   useEffect(() => {
     setPage(0);
     setSelected(new Set());
-  }, [viewMode, facetSelection]);
+  }, [viewMode, facetSelection, filterTokens]);
 
   // --- Selection ---
   const toggleSelect = useCallback((id: string) => {
@@ -363,22 +367,52 @@ export function TMBrowser({
 
   const isEmpty = viewMode === "multilang" ? groups.length === 0 : entries.length === 0;
 
+  // Build filter fields from facet data for the search bar's filter dropdown.
+  const searchBarFilterFields = useMemo(() => {
+    if (!facets) return [];
+    const fields: Array<{ key: string; label: string; values?: Array<{ value: string; label: string }> }> = [];
+    const targetLocales = [...new Set(facets.locale_pairs.map((lp) => lp.target_locale))];
+    if (targetLocales.length > 0) {
+      fields.push({
+        key: "language",
+        label: "Target Language",
+        values: targetLocales.map((l) => ({ value: l, label: l })),
+      });
+    }
+    if (facets.projects.length > 0) {
+      fields.push({
+        key: "project",
+        label: "Project",
+        values: facets.projects.map((p) => ({
+          value: p.project_id,
+          label: p.project_id || "No project",
+        })),
+      });
+    }
+    return fields;
+  }, [facets]);
+
   return (
     <div data-testid="tm-browser">
-      {/* Search bar — full width across top */}
-      <div className="mb-3">
+      {/* Add Entry — separate row above search */}
+      <div className="flex justify-end mb-2">
+        <Button size="sm" onClick={() => setShowAddForm(true)} className="whitespace-nowrap">
+          Add Entry
+        </Button>
+      </div>
+
+      {/* Google-style search bar — centered, full width */}
+      <div className="mb-4">
         <TMSearchBar
           value={searchText}
-          onChange={handleSearchChange}
+          onChange={handleSearchSubmit}
+          filters={filterTokens}
+          onFiltersChange={setFilterTokens}
+          filterFields={searchBarFilterFields}
           onLookup={adapter.lookup}
           onEntitiesChange={setMarkedEntities}
           sourceLocale={effectiveSourceLocale}
           targetLocale={effectiveTargetLocale}
-          actions={
-            <Button size="sm" onClick={() => setShowAddForm(true)} className="whitespace-nowrap">
-              Add Entry
-            </Button>
-          }
         />
       </div>
 
