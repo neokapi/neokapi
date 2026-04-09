@@ -20,7 +20,10 @@ interface TMGroupedEntryProps {
   onToggleSelect: () => void;
   onEditTarget: (targetId: string, codedText: string, spans: SpanInfo[]) => void;
   onDeleteTarget: (targetId: string) => void;
-  /** When set, only show targets for these locales. Empty array = show all. */
+  /**
+   * Filter visible targets by locale. `undefined` = show all.
+   * An array (even empty) = show only those locales — empty means hide all.
+   */
   visibleLocales?: string[];
 }
 
@@ -43,7 +46,7 @@ export function TMGroupedEntry({
   const [editingTargetId, setEditingTargetId] = useState<string | null>(null);
 
   const filteredTargets = useMemo(() => {
-    if (!visibleLocales || visibleLocales.length === 0) return group.targets;
+    if (visibleLocales === undefined) return group.targets;
     return group.targets.filter((t) => visibleLocales.includes(t.target_locale));
   }, [group.targets, visibleLocales]);
 

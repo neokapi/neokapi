@@ -323,6 +323,10 @@ func (t *testTMStore) FacetStats() sievepen.FacetData {
 	return t.InMemoryTM.FacetStats()
 }
 
+func (t *testTMStore) FacetStatsFiltered(query, sourceLocale, targetLocale string, filter sievepen.SearchFilter) sievepen.FacetData {
+	return t.InMemoryTM.FacetStatsFiltered(query, sourceLocale, targetLocale, filter)
+}
+
 func filterTMEntries(entries []sievepen.TMEntry, query, sourceLocale, targetLocale string, offset, limit int) ([]sievepen.TMEntry, int) {
 	var filtered []sievepen.TMEntry
 	for _, e := range entries {

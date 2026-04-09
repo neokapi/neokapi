@@ -67,6 +67,10 @@ function createWailsTMAdapter(handle: string): TMAdapter {
       const result = await api.getTMFacets(handle);
       return (result as TMFacets) ?? { locale_pairs: [], projects: [], entity_types: [], has_codes: 0, no_codes: 0 };
     },
+    async getFacetsFiltered(query, srcLocale, tgtLocale, filter) {
+      const result = await api.getTMFacetsFiltered(handle, query, srcLocale, tgtLocale, filter);
+      return (result as TMFacets) ?? { locale_pairs: [], projects: [], entity_types: [], has_codes: 0, no_codes: 0 };
+    },
     async searchFiltered(query, srcLocale, tgtLocale, filter, offset, limit) {
       const result = await api.searchTMEntriesFiltered(handle, query, srcLocale, tgtLocale, filter, offset, limit);
       return (result as TMSearchResult) ?? { entries: [], total_count: 0 };

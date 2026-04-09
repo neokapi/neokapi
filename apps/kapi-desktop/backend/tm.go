@@ -718,11 +718,20 @@ func (a *App) ExportTMXDialog(handle, srcLocale, tgtLocale string) error {
 
 // GetTMFacets returns facet data for the TM sidebar.
 func (a *App) GetTMFacets(handle string) *TMFacets {
+	return a.GetTMFacetsFiltered(handle, "", "", "", TMSearchFilter{})
+}
+
+// GetTMFacetsFiltered returns facet counts scoped to the current search/filter.
+func (a *App) GetTMFacetsFiltered(handle, query, srcLocale, tgtLocale string, filter TMSearchFilter) *TMFacets {
 	tm, ok := a.tmHandles.Get(handle)
 	if !ok {
 		return nil
 	}
-	data := tm.FacetStats()
+	data := tm.FacetStatsFiltered(query, srcLocale, tgtLocale, toSearchFilter(filter))
+	return buildTMFacetsDTO(data)
+}
+
+func buildTMFacetsDTO(data sievepen.FacetData) *TMFacets {
 	result := &TMFacets{HasCodes: data.HasCodes, NoCodes: data.NoCodes}
 	for _, lp := range data.LocalePairs {
 		result.LocalePairs = append(result.LocalePairs, LocalePairFacetDTO{

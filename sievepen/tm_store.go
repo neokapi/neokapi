@@ -33,6 +33,11 @@ type TMStore interface {
 	// SearchEntriesGroupedFiltered returns entries grouped by source text with facet filters.
 	SearchEntriesGroupedFiltered(query, sourceLocale string, filter SearchFilter, offset, limit int) ([]TMEntryGroup, int)
 
-	// FacetStats returns aggregated facet data for filtering UI.
+	// FacetStats returns aggregated facet data for filtering UI (unfiltered).
 	FacetStats() FacetData
+
+	// FacetStatsFiltered returns facet counts scoped to entries matching the
+	// given search query and filter. This lets the UI reflect faceted counts
+	// for the current result set.
+	FacetStatsFiltered(query, sourceLocale, targetLocale string, filter SearchFilter) FacetData
 }
