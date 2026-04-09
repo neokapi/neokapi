@@ -1,6 +1,7 @@
 package sievepen
 
 import (
+	"sort"
 	"time"
 
 	"github.com/neokapi/neokapi/core/model"
@@ -34,72 +35,150 @@ func (mt MatchType) IsExact() bool {
 type Origin struct {
 	Source    string    // "file", "tool", "import", "user"
 	Key       string    // e.g. "errors.notFound" for keyed formats, or file path
-	Reference string    // optional: git commit, job ID, URL
+	Reference string    // optional: git commit, job ID, URL, crawl URL
 	AddedAt   time.Time
 	AddedBy   string // user ID or tool name
+	SessionID string // FK to ImportSession.ID (empty for non-imported origins)
 }
 
-// EntityMapping tracks a named entity and its values in source and target.
+// EntityValue is a per-locale entity value with its position within the
+// corresponding variant's fragment.
+type EntityValue struct {
+	Text  string
+	Start int
+	End   int
+}
+
+// EntityMapping tracks a named entity across all variants of a multilingual
+// TM entry. Each placeholder has a Type and a map of locale → value.
 // This enables generalized matching: entities are replaced with typed
 // placeholders in the matching key, so structurally identical segments
-// match regardless of entity values.
+// match regardless of entity values, and entity values can be adapted
+// across languages.
 type EntityMapping struct {
-	PlaceholderID string           // "e1", "e2" — links source and target positions
-	Type          model.EntityType // person, product, organization, date, etc.
-	SourceValue   string           // original value in source ("John")
-	SourcePos     model.TextRange  // position in source fragment
-	TargetValue   string           // original value in target ("John" or adapted form)
-	TargetPos     model.TextRange  // position in target fragment
+	PlaceholderID string                           // "e1", "e2"
+	Type          model.EntityType                 // person, product, organization, date, etc.
+	Values        map[model.LocaleID]EntityValue   // per-locale value + position
 }
 
-// TMEntry represents a single translation memory entry with full
-// content model representation. Stores Fragments (not plain strings)
-// to preserve inline markup and entity metadata.
+// Pair returns the source and target entity values for a given language pair.
+// It reports ok=false if either locale is missing from the mapping.
+func (em *EntityMapping) Pair(src, tgt model.LocaleID) (EntityValue, EntityValue, bool) {
+	sv, hasSrc := em.Values[src]
+	tv, hasTgt := em.Values[tgt]
+	if !hasSrc || !hasTgt {
+		return EntityValue{}, EntityValue{}, false
+	}
+	return sv, tv, true
+}
+
+// Value returns the entity value for a specific locale, or false if missing.
+func (em *EntityMapping) Value(locale model.LocaleID) (EntityValue, bool) {
+	v, ok := em.Values[locale]
+	return v, ok
+}
+
+// ImportSession records per-file metadata captured once at import time.
+// Entries imported from the same file share a single ImportSession row;
+// each Origin row carries the SessionID instead of duplicating the
+// header metadata.
+type ImportSession struct {
+	ID               string
+	FileKey          string // filename or user-friendly label
+	FileHash         string // sha256 hex of the raw file bytes
+	FileSizeBytes    int64
+	ImportedAt       time.Time
+	ImportedBy       string
+	ToolName         string // TMX <header creationtool>
+	ToolVersion      string // TMX <header creationtoolversion>
+	SegType          string // sentence, paragraph, phrase, block
+	AdminLang        string
+	SrcLang          string // TMX header's default source language
+	DataType         string // PlainText, html, xml, etc.
+	OriginalFormat   string // TMX <header o-tmf>
+	OriginalEncoding string // TMX <header o-encoding>
+	EntryCount       int    // number of TUs imported in this session
+	Properties       map[string]string
+}
+
+// TMEntry is a multilingual translation memory entry. Each language
+// variant is stored as a peer fragment in Variants; there is no
+// authoritative "source" at the persistence layer. HintSrcLang records
+// which locale the author treated as canonical (for example the TMX
+// header's srclang, or the locale chosen by a translator adding a new
+// entry) and is used for display and entity-direction purposes only.
 type TMEntry struct {
-	ID           string
-	ProjectID    string          // project scope (empty = workspace-scoped)
-	Source       *model.Fragment // coded text + inline spans
-	Target       *model.Fragment // coded text + inline spans
-	SourceLocale model.LocaleID
-	TargetLocale model.LocaleID
-	Entities     []EntityMapping // entity placeholders in this entry
-	Properties   map[string]string
-	Origins      []Origin // provenance: where this entry came from
-	Note         string   // translator-visible context note
-	CreatedAt    time.Time
-	UpdatedAt    time.Time
+	ID          string
+	ProjectID   string
+	Variants    map[model.LocaleID]*model.Fragment
+	HintSrcLang model.LocaleID
+	Entities    []EntityMapping
+	Properties  map[string]string
+	Origins     []Origin
+	Note        string
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
 }
 
-// SourceText returns the plain text of the source fragment.
-func (e *TMEntry) SourceText() string {
-	if e.Source == nil {
-		return ""
+// Variant returns the fragment for a given locale, or nil if not present.
+func (e *TMEntry) Variant(locale model.LocaleID) *model.Fragment {
+	if e == nil || e.Variants == nil {
+		return nil
 	}
-	return e.Source.Text()
+	return e.Variants[locale]
 }
 
-// TargetText returns the plain text of the target fragment.
-func (e *TMEntry) TargetText() string {
-	if e.Target == nil {
+// VariantText returns the plain text of the variant for a given locale,
+// or the empty string if the locale has no variant.
+func (e *TMEntry) VariantText(locale model.LocaleID) string {
+	f := e.Variant(locale)
+	if f == nil {
 		return ""
 	}
-	return e.Target.Text()
+	return f.Text()
 }
 
-// SourceStructural returns the structural key of the source fragment.
-func (e *TMEntry) SourceStructural() string {
-	if e.Source == nil {
+// VariantStructural returns the structural key (inline codes preserved
+// as placeholders) of the variant for a given locale.
+func (e *TMEntry) VariantStructural(locale model.LocaleID) string {
+	f := e.Variant(locale)
+	if f == nil {
 		return ""
 	}
-	return e.Source.StructuralText()
+	return f.StructuralText()
 }
 
-// SourceGeneralized returns the generalized key of the source fragment.
-func (e *TMEntry) SourceGeneralized() string {
-	if e.Source == nil {
+// VariantGeneralized returns the generalized key (entities replaced with
+// typed placeholders) of the variant for a given locale.
+func (e *TMEntry) VariantGeneralized(locale model.LocaleID) string {
+	f := e.Variant(locale)
+	if f == nil {
 		return ""
 	}
-	return e.Source.GeneralizedText()
+	return f.GeneralizedText()
+}
+
+// HasLocale reports whether the entry has a variant for the given locale.
+func (e *TMEntry) HasLocale(locale model.LocaleID) bool {
+	if e == nil || e.Variants == nil {
+		return false
+	}
+	_, ok := e.Variants[locale]
+	return ok
+}
+
+// Locales returns the sorted list of locales for which the entry has
+// variants. The empty locale (if present for any reason) is included.
+func (e *TMEntry) Locales() []model.LocaleID {
+	if e == nil || len(e.Variants) == 0 {
+		return nil
+	}
+	out := make([]model.LocaleID, 0, len(e.Variants))
+	for l := range e.Variants {
+		out = append(out, l)
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i] < out[j] })
+	return out
 }
 
 // EntityAdaptation describes how to substitute an entity value
@@ -112,7 +191,9 @@ type EntityAdaptation struct {
 	TargetPos     model.TextRange  // where to substitute in the target
 }
 
-// TMMatch represents a match result from a TM lookup.
+// TMMatch represents a match result from a TM lookup. The Entry carries
+// the full multilingual entry; the caller asked for a target in a specific
+// locale, which is fetched via entry.Variant(tgtLocale) at the call site.
 type TMMatch struct {
 	Entry             TMEntry
 	Score             float64 // 0.0-1.0 (1.0 = exact match)
@@ -156,22 +237,21 @@ func DefaultLookupOptions() LookupOptions {
 	}
 }
 
-// TMEntryGroup represents a source text with all its target translations.
-type TMEntryGroup struct {
-	SourceText   string
-	SourceCoded  string // JSON-marshaled Fragment
-	Source       *model.Fragment
-	SourceLocale model.LocaleID
-	Targets      []TMEntry
-}
-
 // FacetData contains aggregated facet counts for the TM sidebar.
 type FacetData struct {
-	LocalePairs []LocalePairStat
-	Projects    []ProjectFacet
-	EntityTypes []EntityTypeFacet
-	HasCodes    int
-	NoCodes     int
+	Locales        []LocaleFacet
+	Projects       []ProjectFacet
+	EntityTypes    []EntityTypeFacet
+	ImportSessions []ImportSessionFacet
+	HasCodes       int
+	NoCodes        int
+}
+
+// LocaleFacet is a single-locale count across all entries in the TM.
+// An entry with N variants contributes to N LocaleFacet counts.
+type LocaleFacet struct {
+	Locale string `json:"locale"`
+	Count  int    `json:"count"`
 }
 
 // ProjectFacet is a project ID with its entry count.
@@ -186,25 +266,43 @@ type EntityTypeFacet struct {
 	Count int    `json:"count"`
 }
 
+// ImportSessionFacet exposes an import session as a facet option so the
+// UI can scope the browse view to "entries imported from this file".
+type ImportSessionFacet struct {
+	SessionID  string    `json:"session_id"`
+	FileKey    string    `json:"file_key"`
+	ToolName   string    `json:"tool_name,omitempty"`
+	ImportedAt time.Time `json:"imported_at"`
+	Count      int       `json:"count"`
+}
+
+// ActivityStat is a daily entry-creation count for the activity sparkline.
+type ActivityStat struct {
+	Date  string `json:"date"` // YYYY-MM-DD
+	Count int    `json:"count"`
+}
+
 // SearchFilter holds optional filter parameters for TM search.
 type SearchFilter struct {
 	ProjectID    string              // filter by project (empty = all)
-	Locale       string              // match this locale in source OR target (empty = none)
+	SessionIDs   []string            // filter to entries imported in these sessions (empty = all)
 	EntityTypes  []string            // filter by entity types (empty = all)
-	EntityValues []EntityValueFilter // filter by specific entity value+type pairs (any match)
+	EntityValues []EntityValueFilter // filter by specific entity value+type pairs (OR-matched)
 	HasCodes     *bool               // nil = all, true = only with codes, false = only without
 }
 
-// EntityValueFilter matches entries that have an entity mapping with the given
-// value and type. Multiple filters are OR-ed (any match).
+// EntityValueFilter matches entries that have an entity mapping with the
+// given source value and type. Multiple filters are OR-ed (any match).
+// Matching is performed across all locale variants of the entity.
 type EntityValueFilter struct {
-	Value string // the entity's source_value, e.g. "Acme Corp"
+	Value string // the entity's value, e.g. "Acme Corp"
 	Type  string // entity:person, entity:organization, etc.
 }
 
 // TranslationMemory defines the interface for a content-aware translation
-// memory store. Unlike traditional TMs that store plain strings, this
-// interface works with the full content model (Fragments, Blocks, entities).
+// memory store. The interface is directional at the call site — callers
+// ask "match this source in locale X and return the target in locale Y"
+// — but entries themselves are multilingual peers.
 type TranslationMemory interface {
 	// Add inserts or updates a TM entry with full Fragment representation.
 	Add(entry TMEntry) error
@@ -212,6 +310,10 @@ type TranslationMemory interface {
 	// Lookup searches for matches using tiered matching
 	// (generalized → structural → plain). The source Block's entity
 	// annotations are used to compute the generalized key.
+	//
+	// Matches are found among entries whose Variants[sourceLocale] exists
+	// and matches the source. Returned TMMatch.Entry.Variant(targetLocale)
+	// is the translation. Entries lacking the target locale are skipped.
 	Lookup(source *model.Block, sourceLocale, targetLocale model.LocaleID, opts LookupOptions) ([]TMMatch, error)
 
 	// LookupText searches for matches using plain text only.
