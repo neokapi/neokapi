@@ -704,6 +704,16 @@ func (tm *PostgresTM) SearchEntriesGrouped(query, sourceLocale string, offset, l
 	return result, totalGroups
 }
 
+// SearchEntriesFiltered delegates to the unfiltered SearchEntries (filters not yet implemented for PostgresTM).
+func (tm *PostgresTM) SearchEntriesFiltered(query, sourceLocale, targetLocale string, _ fw.SearchFilter, offset, limit int) ([]fw.TMEntry, int) {
+	return tm.SearchEntries(query, sourceLocale, targetLocale, offset, limit)
+}
+
+// SearchEntriesGroupedFiltered delegates to the unfiltered SearchEntriesGrouped (filters not yet implemented for PostgresTM).
+func (tm *PostgresTM) SearchEntriesGroupedFiltered(query, sourceLocale string, _ fw.SearchFilter, offset, limit int) ([]fw.TMEntryGroup, int) {
+	return tm.SearchEntriesGrouped(query, sourceLocale, offset, limit)
+}
+
 // FacetStats returns aggregated facet data for filtering UI.
 // This is a stub implementation for PostgresTM — full implementation is pending.
 func (tm *PostgresTM) FacetStats() fw.FacetData {

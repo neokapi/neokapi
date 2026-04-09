@@ -343,6 +343,11 @@ func (tm *InMemoryTM) Entries() []TMEntry {
 
 // SearchEntries performs a case-insensitive substring search on source/target text.
 func (tm *InMemoryTM) SearchEntries(query, sourceLocale, targetLocale string, offset, limit int) ([]TMEntry, int) {
+	return tm.SearchEntriesFiltered(query, sourceLocale, targetLocale, SearchFilter{}, offset, limit)
+}
+
+// SearchEntriesFiltered performs a search with additional facet filters.
+func (tm *InMemoryTM) SearchEntriesFiltered(query, sourceLocale, targetLocale string, filter SearchFilter, offset, limit int) ([]TMEntry, int) {
 	tm.mu.RLock()
 	defer tm.mu.RUnlock()
 
@@ -363,6 +368,9 @@ func (tm *InMemoryTM) SearchEntries(query, sourceLocale, targetLocale string, of
 				continue
 			}
 		}
+		if !matchesSearchFilter(ne.entry, filter) {
+			continue
+		}
 		matched = append(matched, ne.entry)
 	}
 
@@ -372,6 +380,37 @@ func (tm *InMemoryTM) SearchEntries(query, sourceLocale, targetLocale string, of
 	}
 	end := min(offset+limit, total)
 	return matched[offset:end], total
+}
+
+// matchesSearchFilter returns true if the entry passes all filter criteria.
+func matchesSearchFilter(entry TMEntry, filter SearchFilter) bool {
+	if filter.ProjectID != "" && entry.ProjectID != filter.ProjectID {
+		return false
+	}
+	if len(filter.EntityTypes) > 0 {
+		found := false
+		for _, et := range filter.EntityTypes {
+			for _, em := range entry.Entities {
+				if string(em.Type) == et {
+					found = true
+					break
+				}
+			}
+			if found {
+				break
+			}
+		}
+		if !found {
+			return false
+		}
+	}
+	if filter.HasCodes != nil {
+		hasCodes := entry.Source != nil && strings.ContainsRune(entry.Source.CodedText, '\uE001')
+		if *filter.HasCodes != hasCodes {
+			return false
+		}
+	}
+	return true
 }
 
 // GetEntry fetches a single entry by ID.
@@ -432,6 +471,11 @@ func (tm *InMemoryTM) FacetStats() FacetData {
 
 // SearchEntriesGrouped returns entries grouped by source text.
 func (tm *InMemoryTM) SearchEntriesGrouped(query, sourceLocale string, offset, limit int) ([]TMEntryGroup, int) {
+	return tm.SearchEntriesGroupedFiltered(query, sourceLocale, SearchFilter{}, offset, limit)
+}
+
+// SearchEntriesGroupedFiltered returns entries grouped by source text with facet filters.
+func (tm *InMemoryTM) SearchEntriesGroupedFiltered(query, sourceLocale string, filter SearchFilter, offset, limit int) ([]TMEntryGroup, int) {
 	tm.mu.RLock()
 	defer tm.mu.RUnlock()
 
@@ -456,6 +500,9 @@ func (tm *InMemoryTM) SearchEntriesGrouped(query, sourceLocale string, offset, l
 			if !strings.Contains(srcText, lowerQuery) && !strings.Contains(tgtText, lowerQuery) {
 				continue
 			}
+		}
+		if !matchesSearchFilter(e, filter) {
+			continue
 		}
 		key := NormalizeText(e.SourceText())
 		g, ok := groups[key]
