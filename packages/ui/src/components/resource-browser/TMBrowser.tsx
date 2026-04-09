@@ -475,18 +475,8 @@ export function TMBrowser({
 
         {/* Right: results */}
         <div className="flex-1 min-w-0">
-        {/* Toolbar */}
-        <div className="flex items-center gap-2 mb-3">
-          {!isEmpty && (
-            <label className="flex items-center gap-1.5 cursor-pointer" title={allVisibleSelected ? "Deselect all" : "Select all on this page"}>
-              <Checkbox
-                checked={allVisibleSelected ? true : someVisibleSelected ? "indeterminate" : false}
-                onCheckedChange={toggleSelectAll}
-                aria-label="Select all visible entries"
-              />
-              <span className="text-[11px] text-muted-foreground">Select all</span>
-            </label>
-          )}
+        {/* Toolbar row: view toggle · count · Add Entry */}
+        <div className="flex items-center gap-2 mb-2">
           {adapter.searchGrouped && (
             <div className="flex rounded-md border border-input">
               <Button
@@ -533,42 +523,49 @@ export function TMBrowser({
           </Button>
         </div>
 
-        {/* Target language selector — multilang view only */}
-        {viewMode === "multilang" && availableTargetLocales.length > 1 && (
-          <div className="flex items-center gap-1 mb-3 flex-wrap">
-            <span className="text-[11px] text-muted-foreground mr-1">Show:</span>
-            {availableTargetLocales.map((locale) => {
-              const active = displayLocales === undefined || displayLocales.includes(locale);
-              return (
-                <button
-                  key={locale}
-                  onClick={() => toggleDisplayLocale(locale)}
-                  className={cn(
-                    "transition-opacity",
-                    !active && "opacity-30",
-                  )}
-                >
-                  <LocalePill locale={locale} />
-                </button>
-              );
-            })}
-            <div className="flex items-center gap-1 ml-2 text-[10px]">
-              <button
-                onClick={() => setDisplayLocales(undefined)}
-                className="text-muted-foreground hover:text-foreground px-1 hover:underline"
-                title="Show all languages"
-              >
-                All
-              </button>
-              <span className="text-muted-foreground/50">·</span>
-              <button
-                onClick={() => setDisplayLocales([])}
-                className="text-muted-foreground hover:text-foreground px-1 hover:underline"
-                title="Hide all languages"
-              >
-                None
-              </button>
-            </div>
+        {/* Selection + Show-locales row — aligned with the card checkboxes inside ItemCards (pl-3) */}
+        {!isEmpty && (
+          <div className="flex items-center gap-2 mb-2 pl-3">
+            <Checkbox
+              checked={allVisibleSelected ? true : someVisibleSelected ? "indeterminate" : false}
+              onCheckedChange={toggleSelectAll}
+              aria-label="Select all visible entries"
+              title={allVisibleSelected ? "Deselect all" : "Select all on this page"}
+            />
+            {viewMode === "multilang" && availableTargetLocales.length > 1 && (
+              <>
+                <span className="text-[11px] text-muted-foreground ml-3">Show:</span>
+                {availableTargetLocales.map((locale) => {
+                  const active = displayLocales === undefined || displayLocales.includes(locale);
+                  return (
+                    <button
+                      key={locale}
+                      onClick={() => toggleDisplayLocale(locale)}
+                      className={cn("transition-opacity", !active && "opacity-30")}
+                    >
+                      <LocalePill locale={locale} />
+                    </button>
+                  );
+                })}
+                <div className="flex items-center gap-1 ml-1 text-[10px]">
+                  <button
+                    onClick={() => setDisplayLocales(undefined)}
+                    className="text-muted-foreground hover:text-foreground px-1 hover:underline"
+                    title="Show all languages"
+                  >
+                    All
+                  </button>
+                  <span className="text-muted-foreground/50">·</span>
+                  <button
+                    onClick={() => setDisplayLocales([])}
+                    className="text-muted-foreground hover:text-foreground px-1 hover:underline"
+                    title="Hide all languages"
+                  >
+                    None
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         )}
 
