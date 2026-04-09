@@ -202,6 +202,7 @@ type TMGroupedSearchResult struct {
 // TMSearchFilter is the frontend-facing search filter.
 type TMSearchFilter struct {
 	ProjectID    string              `json:"project_id,omitempty"`
+	Locale       string              `json:"locale,omitempty"` // matches source_locale OR target_locale
 	EntityTypes  []string            `json:"entity_types,omitempty"`
 	EntityValues []EntityValueFilter `json:"entity_values,omitempty"`
 	HasCodes     *bool               `json:"has_codes,omitempty"`
@@ -815,6 +816,7 @@ func (a *App) SearchTMEntriesGroupedFiltered(handle, query, srcLocale string, fi
 func toSearchFilter(f TMSearchFilter) sievepen.SearchFilter {
 	sf := sievepen.SearchFilter{
 		ProjectID:   f.ProjectID,
+		Locale:      f.Locale,
 		EntityTypes: f.EntityTypes,
 		HasCodes:    f.HasCodes,
 	}

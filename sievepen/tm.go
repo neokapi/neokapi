@@ -176,6 +176,7 @@ type EntityTypeFacet struct {
 // SearchFilter holds optional filter parameters for TM search.
 type SearchFilter struct {
 	ProjectID    string              // filter by project (empty = all)
+	Locale       string              // match this locale in source OR target (empty = none)
 	EntityTypes  []string            // filter by entity types (empty = all)
 	EntityValues []EntityValueFilter // filter by specific entity value+type pairs (any match)
 	HasCodes     *bool               // nil = all, true = only with codes, false = only without

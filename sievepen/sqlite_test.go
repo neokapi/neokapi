@@ -568,3 +568,56 @@ func TestSQLiteTM_EntityValueFilter(t *testing.T) {
 		assert.Equal(t, "e1", entry.Entities[0].PlaceholderID)
 	})
 }
+
+func TestSQLiteTM_LocaleFilter(t *testing.T) {
+	tm, err := sievepen.NewSQLiteTM(":memory:")
+	require.NoError(t, err)
+	defer tm.Close()
+
+	mkEntry := func(id, src, tgt, srcLoc, tgtLoc string) sievepen.TMEntry {
+		return sievepen.TMEntry{
+			ID:           id,
+			Source:       model.NewFragment(src),
+			Target:       model.NewFragment(tgt),
+			SourceLocale: model.LocaleID(srcLoc),
+			TargetLocale: model.LocaleID(tgtLoc),
+		}
+	}
+
+	require.NoError(t, tm.Add(mkEntry("a", "Hello", "Bonjour", "en-US", "fr-FR")))
+	require.NoError(t, tm.Add(mkEntry("b", "Hello", "Hola", "en-US", "es-ES")))
+	require.NoError(t, tm.Add(mkEntry("c", "Bonjour", "Hallo", "fr-FR", "de-DE")))
+	require.NoError(t, tm.Add(mkEntry("d", "Hallo", "Hello", "de-DE", "en-GB")))
+
+	t.Run("locale filter matches entries where locale appears as source OR target", func(t *testing.T) {
+		entries, total := tm.SearchEntriesFiltered("", "", "",
+			sievepen.SearchFilter{Locale: "fr-FR"}, 0, 10)
+		assert.Equal(t, 2, total, "fr-FR is in entries a (target) and c (source)")
+		ids := map[string]bool{}
+		for _, e := range entries {
+			ids[e.ID] = true
+		}
+		assert.True(t, ids["a"])
+		assert.True(t, ids["c"])
+	})
+
+	t.Run("locale filter: en-US matches two source entries", func(t *testing.T) {
+		entries, total := tm.SearchEntriesFiltered("", "", "",
+			sievepen.SearchFilter{Locale: "en-US"}, 0, 10)
+		assert.Equal(t, 2, total)
+		assert.Len(t, entries, 2)
+	})
+
+	t.Run("locale filter: de-DE matches both source and target", func(t *testing.T) {
+		_, total := tm.SearchEntriesFiltered("", "", "",
+			sievepen.SearchFilter{Locale: "de-DE"}, 0, 10)
+		assert.Equal(t, 2, total, "de-DE is target in c, source in d")
+	})
+
+	t.Run("locale filter: unknown locale returns nothing", func(t *testing.T) {
+		entries, total := tm.SearchEntriesFiltered("", "", "",
+			sievepen.SearchFilter{Locale: "zh-CN"}, 0, 10)
+		assert.Equal(t, 0, total)
+		assert.Empty(t, entries)
+	})
+}
