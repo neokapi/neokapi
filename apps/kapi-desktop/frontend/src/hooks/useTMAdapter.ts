@@ -12,6 +12,8 @@ import type {
   LookupTMRequest,
   ImportResult,
   TMStats,
+  TMFacets,
+  TMGroupedSearchResult,
 } from "@neokapi/ui-primitives";
 
 /** Creates a TMAdapter that delegates to Wails IPC for a given TM handle. */
@@ -60,6 +62,14 @@ function createWailsTMAdapter(handle: string): TMAdapter {
     async getStats() {
       const result = await api.getTMStats(handle);
       return (result as TMStats) ?? { count: 0 };
+    },
+    async getFacets() {
+      const result = await api.getTMFacets(handle);
+      return (result as TMFacets) ?? { locale_pairs: [], projects: [], entity_types: [], has_codes: 0, no_codes: 0 };
+    },
+    async searchGrouped(query, srcLocale, offset, limit) {
+      const result = await api.searchTMEntriesGrouped(handle, query, srcLocale, offset, limit);
+      return (result as TMGroupedSearchResult) ?? { groups: [], total_count: 0 };
     },
   };
 }

@@ -145,6 +145,60 @@ type AnnotateResult struct {
 	EntitiesAdded  int `json:"entities_added"`
 }
 
+// TMFacets is the frontend-facing facet data for the sidebar.
+type TMFacets struct {
+	LocalePairs []LocalePairFacetDTO `json:"locale_pairs"`
+	Projects    []ProjectFacetDTO    `json:"projects"`
+	EntityTypes []EntityTypeFacetDTO `json:"entity_types"`
+	HasCodes    int                  `json:"has_codes"`
+	NoCodes     int                  `json:"no_codes"`
+}
+
+// LocalePairFacetDTO is a locale pair with its entry count.
+type LocalePairFacetDTO struct {
+	SourceLocale string `json:"source_locale"`
+	TargetLocale string `json:"target_locale"`
+	Count        int    `json:"count"`
+}
+
+// ProjectFacetDTO is a project ID with its entry count.
+type ProjectFacetDTO struct {
+	ProjectID string `json:"project_id"`
+	Count     int    `json:"count"`
+}
+
+// EntityTypeFacetDTO is an entity type with its entry count.
+type EntityTypeFacetDTO struct {
+	Type  string `json:"type"`
+	Count int    `json:"count"`
+}
+
+// TMGroupedResult is a source text with all target translations.
+type TMGroupedResult struct {
+	SourceText   string        `json:"source_text"`
+	SourceCoded  string        `json:"source_coded"`
+	SourceSpans  []SpanDTO     `json:"source_spans"`
+	SourceLocale string        `json:"source_locale"`
+	Targets      []TMTargetDTO `json:"targets"`
+}
+
+// TMTargetDTO is a single target translation within a grouped result.
+type TMTargetDTO struct {
+	ID           string    `json:"id"`
+	TargetText   string    `json:"target_text"`
+	TargetCoded  string    `json:"target_coded"`
+	TargetSpans  []SpanDTO `json:"target_spans"`
+	TargetLocale string    `json:"target_locale"`
+	ProjectID    string    `json:"project_id"`
+	UpdatedAt    string    `json:"updated_at"`
+}
+
+// TMGroupedSearchResult is the paginated result from SearchTMEntriesGrouped.
+type TMGroupedSearchResult struct {
+	Groups     []TMGroupedResult `json:"groups"`
+	TotalCount int               `json:"total_count"`
+}
+
 // --- Conversion helpers ---
 
 func spanTypeStr(st model.SpanType) string {
@@ -629,6 +683,71 @@ func (a *App) ExportTMXDialog(handle, srcLocale, tgtLocale string) error {
 	defer f.Close()
 
 	return sievepen.ExportTMX(tm, f, model.LocaleID(srcLocale), model.LocaleID(tgtLocale))
+}
+
+// --- Grouped search & facets ---
+
+// GetTMFacets returns facet data for the TM sidebar.
+func (a *App) GetTMFacets(handle string) *TMFacets {
+	tm, ok := a.tmHandles.Get(handle)
+	if !ok {
+		return nil
+	}
+	data := tm.FacetStats()
+	result := &TMFacets{HasCodes: data.HasCodes, NoCodes: data.NoCodes}
+	for _, lp := range data.LocalePairs {
+		result.LocalePairs = append(result.LocalePairs, LocalePairFacetDTO{
+			SourceLocale: lp.SourceLocale,
+			TargetLocale: lp.TargetLocale,
+			Count:        lp.Count,
+		})
+	}
+	for _, p := range data.Projects {
+		result.Projects = append(result.Projects, ProjectFacetDTO{
+			ProjectID: p.ProjectID,
+			Count:     p.Count,
+		})
+	}
+	for _, et := range data.EntityTypes {
+		result.EntityTypes = append(result.EntityTypes, EntityTypeFacetDTO{
+			Type:  et.Type,
+			Count: et.Count,
+		})
+	}
+	return result
+}
+
+// SearchTMEntriesGrouped searches TM entries grouped by source text.
+func (a *App) SearchTMEntriesGrouped(handle, query, srcLocale string, offset, limit int) *TMGroupedSearchResult {
+	tm, ok := a.tmHandles.Get(handle)
+	if !ok {
+		return &TMGroupedSearchResult{}
+	}
+	groups, total := tm.SearchEntriesGrouped(query, srcLocale, offset, limit)
+	result := &TMGroupedSearchResult{TotalCount: total}
+	for _, g := range groups {
+		srcCoded, srcSpans := fragmentToDTO(g.Source)
+		gr := TMGroupedResult{
+			SourceText:   g.SourceText,
+			SourceCoded:  srcCoded,
+			SourceSpans:  srcSpans,
+			SourceLocale: string(g.SourceLocale),
+		}
+		for _, t := range g.Targets {
+			tgtCoded, tgtSpans := fragmentToDTO(t.Target)
+			gr.Targets = append(gr.Targets, TMTargetDTO{
+				ID:           t.ID,
+				TargetText:   t.TargetText(),
+				TargetCoded:  tgtCoded,
+				TargetSpans:  tgtSpans,
+				TargetLocale: string(t.TargetLocale),
+				ProjectID:    t.ProjectID,
+				UpdatedAt:    t.UpdatedAt.Format(time.RFC3339),
+			})
+		}
+		result.Groups = append(result.Groups, gr)
+	}
+	return result
 }
 
 // --- Batch entity annotation ---

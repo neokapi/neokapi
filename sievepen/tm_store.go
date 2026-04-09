@@ -23,4 +23,10 @@ type TMStore interface {
 
 	// Entries returns all entries (for export).
 	Entries() []TMEntry
+
+	// SearchEntriesGrouped returns entries grouped by source text.
+	SearchEntriesGrouped(query, sourceLocale string, offset, limit int) ([]TMEntryGroup, int)
+
+	// FacetStats returns aggregated facet data for filtering UI.
+	FacetStats() FacetData
 }

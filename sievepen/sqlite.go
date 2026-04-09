@@ -120,6 +120,19 @@ var tmMigrations = []storage.Migration{
 			INSERT INTO tm_search(rowid, source_text, target_text)
 			VALUES (new.rowid, new.source_plain, new.target_coded);
 		END;
+
+		-- Covering indexes for facet GROUP BY queries
+		CREATE INDEX IF NOT EXISTS idx_tm_target_locale ON tm_entries(target_locale);
+		CREATE INDEX IF NOT EXISTS idx_tm_project ON tm_entries(project_id);
+		CREATE INDEX IF NOT EXISTS idx_tm_created ON tm_entries(created_at);
+		CREATE INDEX IF NOT EXISTS idx_tm_source_group ON tm_entries(source_plain, updated_at DESC);
+
+		-- Entity junction table for fast entity type faceting
+		CREATE TABLE IF NOT EXISTS tm_entry_entities (
+			entry_id TEXT NOT NULL REFERENCES tm_entries(id) ON DELETE CASCADE,
+			entity_type TEXT NOT NULL
+		);
+		CREATE INDEX IF NOT EXISTS idx_tm_entity_type ON tm_entry_entities(entity_type);
 		`,
 	},
 }
@@ -195,6 +208,13 @@ func (tm *SQLiteTM) AddWithStream(entry TMEntry, stream string) error {
 		entry.CreatedAt.Format(time.RFC3339), entry.UpdatedAt.Format(time.RFC3339))
 	if err != nil {
 		return fmt.Errorf("insert entry: %w", err)
+	}
+
+	// Populate entity junction table.
+	tm.db.Exec("DELETE FROM tm_entry_entities WHERE entry_id = ?", entry.ID)
+	for _, em := range entry.Entities {
+		tm.db.Exec("INSERT INTO tm_entry_entities (entry_id, entity_type) VALUES (?, ?)",
+			entry.ID, string(em.Type))
 	}
 
 	return nil
@@ -893,6 +913,214 @@ func (tm *SQLiteTM) Entries() []TMEntry {
 
 	entries, _ := tm.scanEntries(rows)
 	return entries
+}
+
+// FacetStats returns aggregated facet data for filtering UI.
+func (tm *SQLiteTM) FacetStats() FacetData {
+	data := FacetData{
+		LocalePairs: tm.LocalePairStats(),
+	}
+
+	// Project facets.
+	rows, err := tm.db.Query("SELECT project_id, COUNT(*) as cnt FROM tm_entries GROUP BY project_id ORDER BY cnt DESC")
+	if err == nil {
+		defer rows.Close()
+		for rows.Next() {
+			var pf ProjectFacet
+			if err := rows.Scan(&pf.ProjectID, &pf.Count); err == nil {
+				data.Projects = append(data.Projects, pf)
+			}
+		}
+	}
+
+	// Entity type facets.
+	rows2, err := tm.db.Query("SELECT entity_type, COUNT(DISTINCT entry_id) as cnt FROM tm_entry_entities GROUP BY entity_type ORDER BY cnt DESC")
+	if err == nil {
+		defer rows2.Close()
+		for rows2.Next() {
+			var ef EntityTypeFacet
+			if err := rows2.Scan(&ef.Type, &ef.Count); err == nil {
+				data.EntityTypes = append(data.EntityTypes, ef)
+			}
+		}
+	}
+
+	// Inline code facets.
+	_ = tm.db.QueryRow(`SELECT
+		SUM(CASE WHEN INSTR(source_coded, char(0xE001)) > 0 THEN 1 ELSE 0 END),
+		SUM(CASE WHEN INSTR(source_coded, char(0xE001)) = 0 THEN 1 ELSE 0 END)
+		FROM tm_entries`).Scan(&data.HasCodes, &data.NoCodes)
+
+	return data
+}
+
+// SearchEntriesGrouped returns entries grouped by source text with pagination
+// on distinct source texts.
+func (tm *SQLiteTM) SearchEntriesGrouped(query, sourceLocale string, offset, limit int) ([]TMEntryGroup, int) {
+	var total int
+	var sourcePlains []string
+
+	if query != "" {
+		// FTS5 search path.
+		sourcePlains, total = tm.groupedFTS5(query, sourceLocale, offset, limit)
+		if sourcePlains == nil {
+			// Fallback to LIKE search.
+			sourcePlains, total = tm.groupedLike(query, sourceLocale, offset, limit)
+		}
+	} else {
+		sourcePlains, total = tm.groupedLike("", sourceLocale, offset, limit)
+	}
+
+	if len(sourcePlains) == 0 {
+		return nil, total
+	}
+
+	// Fetch all entries for the selected source_plain values.
+	placeholders := make([]string, len(sourcePlains))
+	args := make([]any, len(sourcePlains))
+	for i, sp := range sourcePlains {
+		placeholders[i] = "?"
+		args[i] = sp
+	}
+
+	rows, err := tm.db.Query(fmt.Sprintf(`
+		SELECT id, project_id, source_coded, target_coded, source_locale, target_locale,
+			entities, properties, created_at, updated_at
+		FROM tm_entries
+		WHERE source_plain IN (%s)
+		ORDER BY source_plain, target_locale
+	`, strings.Join(placeholders, ",")), args...)
+	if err != nil {
+		return nil, total
+	}
+	defer rows.Close()
+
+	entries, err := tm.scanEntries(rows)
+	if err != nil {
+		return nil, total
+	}
+
+	// Group entries by source_plain, maintaining the page order.
+	groupMap := make(map[string]*TMEntryGroup)
+	orderMap := make(map[string]int)
+	for i, sp := range sourcePlains {
+		orderMap[sp] = i
+	}
+
+	groups := make([]TMEntryGroup, len(sourcePlains))
+	for i, sp := range sourcePlains {
+		g := &groups[i]
+		g.SourceText = sp
+		groupMap[sp] = g
+	}
+
+	for _, e := range entries {
+		plain := NormalizeText(e.SourceText())
+		g, ok := groupMap[plain]
+		if !ok {
+			continue
+		}
+		if g.Source == nil {
+			g.Source = e.Source
+			g.SourceLocale = e.SourceLocale
+			sourceJSON, _ := json.Marshal(e.Source)
+			g.SourceCoded = string(sourceJSON)
+		}
+		g.Targets = append(g.Targets, e)
+	}
+
+	return groups, total
+}
+
+func (tm *SQLiteTM) groupedFTS5(query, sourceLocale string, offset, limit int) ([]string, int) {
+	localeWhere := "1=1"
+	var localeArgs []any
+	if sourceLocale != "" {
+		localeWhere += " AND e.source_locale = ?"
+		localeArgs = append(localeArgs, sourceLocale)
+	}
+
+	// Count distinct source texts.
+	countQ := fmt.Sprintf(`SELECT COUNT(DISTINCT e.source_plain)
+		FROM tm_entries e
+		JOIN tm_search s ON s.rowid = e.rowid
+		WHERE tm_search MATCH ? AND %s`, localeWhere)
+	countArgs := append([]any{query}, localeArgs...)
+	var total int
+	if err := tm.db.QueryRow(countQ, countArgs...).Scan(&total); err != nil {
+		return nil, 0
+	}
+
+	// Get paginated distinct source_plain values.
+	pageQ := fmt.Sprintf(`SELECT e.source_plain, MAX(e.updated_at) as latest
+		FROM tm_entries e
+		JOIN tm_search s ON s.rowid = e.rowid
+		WHERE tm_search MATCH ? AND %s
+		GROUP BY e.source_plain
+		ORDER BY latest DESC
+		LIMIT ? OFFSET ?`, localeWhere)
+	pageArgs := append([]any{query}, localeArgs...)
+	pageArgs = append(pageArgs, limit, offset)
+
+	rows, err := tm.db.Query(pageQ, pageArgs...)
+	if err != nil {
+		return nil, 0
+	}
+	defer rows.Close()
+
+	var sourcePlains []string
+	for rows.Next() {
+		var sp, latest string
+		if err := rows.Scan(&sp, &latest); err == nil {
+			sourcePlains = append(sourcePlains, sp)
+		}
+	}
+	return sourcePlains, total
+}
+
+func (tm *SQLiteTM) groupedLike(query, sourceLocale string, offset, limit int) ([]string, int) {
+	where := "1=1"
+	var args []any
+	if query != "" {
+		where += " AND (LOWER(source_plain) LIKE ? OR LOWER(target_coded) LIKE ?)"
+		pattern := "%" + strings.ToLower(query) + "%"
+		args = append(args, pattern, pattern)
+	}
+	if sourceLocale != "" {
+		where += " AND source_locale = ?"
+		args = append(args, sourceLocale)
+	}
+
+	// Count distinct source texts.
+	var total int
+	countArgs := make([]any, len(args))
+	copy(countArgs, args)
+	_ = tm.db.QueryRow(fmt.Sprintf("SELECT COUNT(DISTINCT source_plain) FROM tm_entries WHERE %s", where), countArgs...).Scan(&total)
+
+	// Get paginated distinct source_plain values.
+	pageQ := fmt.Sprintf(`SELECT source_plain, MAX(updated_at) as latest
+		FROM tm_entries WHERE %s
+		GROUP BY source_plain
+		ORDER BY latest DESC
+		LIMIT ? OFFSET ?`, where)
+	pageArgs := make([]any, len(args))
+	copy(pageArgs, args)
+	pageArgs = append(pageArgs, limit, offset)
+
+	rows, err := tm.db.Query(pageQ, pageArgs...)
+	if err != nil {
+		return nil, total
+	}
+	defer rows.Close()
+
+	var sourcePlains []string
+	for rows.Next() {
+		var sp, latest string
+		if err := rows.Scan(&sp, &latest); err == nil {
+			sourcePlains = append(sourcePlains, sp)
+		}
+	}
+	return sourcePlains, total
 }
 
 func nullableString(b []byte) *string {

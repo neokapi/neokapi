@@ -180,7 +180,7 @@ function SimulatedMemoriesPage() {
             </Button>
           </div>
         </div>
-        <TMBrowser adapter={adapter} showLookup />
+        <TMBrowser adapter={adapter} />
       </div>
     );
   }

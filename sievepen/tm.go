@@ -143,6 +143,36 @@ func DefaultLookupOptions() LookupOptions {
 	}
 }
 
+// TMEntryGroup represents a source text with all its target translations.
+type TMEntryGroup struct {
+	SourceText   string
+	SourceCoded  string // JSON-marshaled Fragment
+	Source       *model.Fragment
+	SourceLocale model.LocaleID
+	Targets      []TMEntry
+}
+
+// FacetData contains aggregated facet counts for the TM sidebar.
+type FacetData struct {
+	LocalePairs []LocalePairStat
+	Projects    []ProjectFacet
+	EntityTypes []EntityTypeFacet
+	HasCodes    int
+	NoCodes     int
+}
+
+// ProjectFacet is a project ID with its entry count.
+type ProjectFacet struct {
+	ProjectID string `json:"project_id"`
+	Count     int    `json:"count"`
+}
+
+// EntityTypeFacet is an entity type with its entry count.
+type EntityTypeFacet struct {
+	Type  string `json:"type"`
+	Count int    `json:"count"`
+}
+
 // TranslationMemory defines the interface for a content-aware translation
 // memory store. Unlike traditional TMs that store plain strings, this
 // interface works with the full content model (Fragments, Blocks, entities).

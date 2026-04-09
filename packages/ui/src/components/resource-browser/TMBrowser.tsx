@@ -1,31 +1,31 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import type { TMAdapter } from "./adapters";
-import type { TMEntryDTO, EntityPatternRequest } from "./types";
+import type { TMEntryDTO, TMGroupedResult, TMFacets, EntityPatternRequest } from "./types";
 import type { SpanInfo } from "../../types/span";
 import { CodedTextDisplay } from "./CodedTextDisplay";
 import { InlineCodeEditor } from "../editor/InlineCodeEditor";
 import { LocalePill } from "./LocalePill";
 import { BulkActionBar } from "./BulkActionBar";
 import { Pagination } from "./Pagination";
-import { TMLookupPanel } from "./TMLookupPanel";
+import { TMSearchBar } from "./TMSearchBar";
+import { TMFacetSidebar, EMPTY_FACETS, type FacetSelection } from "./TMFacetSidebar";
+import { TMGroupedEntry } from "./TMGroupedEntry";
 import { EntityAnnotationDialog } from "./EntityAnnotationDialog";
 import { relativeTime } from "./utils";
-import { FilterBar, type FilterToken, type FilterField, type FilterPreset } from "../ui/filter-bar";
 import { LocaleSelect, resolveLocaleName, type LocaleInfo } from "../ui/locale-select";
 import { ItemCard } from "../ui/item-card";
 import { ConfirmDeleteButton } from "../ui/confirm-delete-button";
 import { Button } from "../ui/button";
 import { Checkbox } from "../ui/checkbox";
+import { List, Languages } from "lucide-react";
+import { cn } from "../../lib/utils";
+
+type ViewMode = "bilingual" | "multilang";
 
 interface TMBrowserProps {
   adapter: TMAdapter;
   sourceLocale?: string;
   targetLocales?: string[];
-  showLookup?: boolean;
-  /** Filter fields for the integrated FilterBar. If omitted, a plain search input is shown. */
-  filterFields?: FilterField[];
-  /** Quick-access filter presets. */
-  filterPresets?: FilterPreset[];
   /** Locale list for the add-entry form's locale selectors. If omitted, plain text inputs are used. */
   locales?: LocaleInfo[];
   onError?: (message: string, details?: unknown) => void;
@@ -37,17 +37,22 @@ export function TMBrowser({
   adapter,
   sourceLocale: propSourceLocale = "",
   targetLocales: propTargetLocales = [],
-  showLookup = false,
-  filterFields,
-  filterPresets,
   locales,
   onError,
 }: TMBrowserProps) {
+  // --- View mode ---
+  const [viewMode, setViewMode] = useState<ViewMode>("bilingual");
+
+  // --- Bilingual state ---
   const [entries, setEntries] = useState<TMEntryDTO[]>([]);
+
+  // --- Multi-language state ---
+  const [groups, setGroups] = useState<TMGroupedResult[]>([]);
+
+  // --- Shared state ---
   const [totalCount, setTotalCount] = useState(0);
   const [searchText, setSearchText] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
-  const [filterTokens, setFilterTokens] = useState<FilterToken[]>([]);
   const [page, setPage] = useState(0);
   const [loading, setLoading] = useState(true);
   const [initialLoadDone, setInitialLoadDone] = useState(false);
@@ -56,50 +61,41 @@ export function TMBrowser({
   const [showAnnotateDialog, setShowAnnotateDialog] = useState(false);
   const [confirmBulkDelete, setConfirmBulkDelete] = useState(false);
 
-  // Add entry form
+  // --- Facets ---
+  const [facets, setFacets] = useState<TMFacets | null>(null);
+  const [facetSelection, setFacetSelection] = useState<FacetSelection>(EMPTY_FACETS);
+
+  // --- Add entry form ---
   const [showAddForm, setShowAddForm] = useState(false);
   const [addSource, setAddSource] = useState("");
   const [addTarget, setAddTarget] = useState("");
   const [addSrcLocale, setAddSrcLocale] = useState(propSourceLocale);
   const [addTgtLocale, setAddTgtLocale] = useState(propTargetLocales[0] ?? "");
 
-  // Merge locales prop with locales found in data so unknown codes are selectable.
+  // Merge locales prop with locales found in data.
   const mergedLocales = useMemo(() => {
     const known = new Map((locales ?? []).map((l) => [l.code, l]));
     for (const e of entries) {
       if (e.source_locale && !known.has(e.source_locale)) {
-        known.set(e.source_locale, {
-          code: e.source_locale,
-          displayName: resolveLocaleName(e.source_locale),
-        });
+        known.set(e.source_locale, { code: e.source_locale, displayName: resolveLocaleName(e.source_locale) });
       }
       if (e.target_locale && !known.has(e.target_locale)) {
-        known.set(e.target_locale, {
-          code: e.target_locale,
-          displayName: resolveLocaleName(e.target_locale),
-        });
+        known.set(e.target_locale, { code: e.target_locale, displayName: resolveLocaleName(e.target_locale) });
       }
     }
     return [...known.values()];
   }, [locales, entries]);
 
-  // Derive effective locales from filter tokens, falling back to props.
-  const effectiveSourceLocale =
-    filterTokens.find((t) => t.key === "source")?.value ?? propSourceLocale;
+  // Effective locales from facet selection.
+  const effectiveSourceLocale = propSourceLocale;
   const effectiveTargetLocale =
-    filterTokens.find((t) => t.key === "target")?.value ?? propTargetLocales[0] ?? "";
+    facetSelection.targetLocales.length === 1
+      ? facetSelection.targetLocales[0]
+      : propTargetLocales[0] ?? "";
 
-  // Handle search from FilterBar (Enter-driven) or plain input (debounced).
-  const handleFilterSearchChange = useCallback((val: string) => {
-    setSearchText(val);
-    setDebouncedSearch(val);
-    setPage(0);
-  }, []);
-
-  // Debounce for plain search input (fallback when no filterFields).
+  // Debounce search.
   const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
-  const handleSearch = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const val = e.target.value;
+  const handleSearchChange = useCallback((val: string) => {
     setSearchText(val);
     clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => {
@@ -108,7 +104,7 @@ export function TMBrowser({
     }, 200);
   }, []);
 
-  // Use refs for values used in fetchEntries to avoid re-creating the callback.
+  // Refs for stable callbacks.
   const adapterRef = useRef(adapter);
   const sourceLocaleRef = useRef(effectiveSourceLocale);
   const targetLocaleRef = useRef(effectiveTargetLocale);
@@ -116,33 +112,70 @@ export function TMBrowser({
   sourceLocaleRef.current = effectiveSourceLocale;
   targetLocaleRef.current = effectiveTargetLocale;
 
+  // --- Fetch logic ---
   const fetchEntries = useCallback(
     async (q: string, p: number) => {
       setLoading(true);
       try {
-        const result = await adapterRef.current.search(
-          q,
-          sourceLocaleRef.current,
-          targetLocaleRef.current,
-          p * PAGE_SIZE,
-          PAGE_SIZE,
-        );
-        setEntries(result.entries ?? []);
-        setTotalCount(result.total_count);
+        if (viewMode === "multilang" && adapterRef.current.searchGrouped) {
+          const result = await adapterRef.current.searchGrouped(
+            q,
+            sourceLocaleRef.current,
+            p * PAGE_SIZE,
+            PAGE_SIZE,
+          );
+          setGroups(result.groups ?? []);
+          setEntries([]);
+          setTotalCount(result.total_count);
+        } else {
+          const result = await adapterRef.current.search(
+            q,
+            sourceLocaleRef.current,
+            targetLocaleRef.current,
+            p * PAGE_SIZE,
+            PAGE_SIZE,
+          );
+          setEntries(result.entries ?? []);
+          setGroups([]);
+          setTotalCount(result.total_count);
+        }
       } finally {
         setLoading(false);
         setInitialLoadDone(true);
       }
     },
-    [], // stable — reads from refs
+    [viewMode],
   );
+
+  // Fetch facets.
+  const fetchFacets = useCallback(async () => {
+    if (adapterRef.current.getFacets) {
+      try {
+        const data = await adapterRef.current.getFacets();
+        setFacets(data);
+      } catch {
+        // Facets are non-critical.
+      }
+    }
+  }, []);
 
   useEffect(() => {
     void fetchEntries(debouncedSearch, page);
-  }, [fetchEntries, debouncedSearch, page, effectiveSourceLocale, effectiveTargetLocale]);
+  }, [fetchEntries, debouncedSearch, page, effectiveSourceLocale, effectiveTargetLocale, viewMode]);
 
+  useEffect(() => {
+    void fetchFacets();
+  }, [fetchFacets]);
+
+  // Reset page when view mode changes.
+  useEffect(() => {
+    setPage(0);
+    setSelected(new Set());
+  }, [viewMode]);
+
+  // --- Selection ---
   const toggleSelect = useCallback((id: string) => {
-    setSelected((prev: Set<string>) => {
+    setSelected((prev) => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
       else next.add(id);
@@ -150,15 +183,26 @@ export function TMBrowser({
     });
   }, []);
 
-  const selectAll = useCallback(() => {
-    setSelected(new Set(entries.map((e: TMEntryDTO) => e.id)));
-  }, [entries]);
+  const toggleSelectGroup = useCallback((group: TMGroupedResult) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      const ids = group.targets.map((t) => t.id);
+      const allSelected = ids.every((id) => next.has(id));
+      if (allSelected) {
+        ids.forEach((id) => next.delete(id));
+      } else {
+        ids.forEach((id) => next.add(id));
+      }
+      return next;
+    });
+  }, []);
 
   const deselectAll = useCallback(() => {
     setSelected(new Set());
     setConfirmBulkDelete(false);
   }, []);
 
+  // --- CRUD handlers ---
   const handleEdit = useCallback((entry: TMEntryDTO) => {
     setEditingId(entry.id);
   }, []);
@@ -166,7 +210,6 @@ export function TMBrowser({
   const handleSaveCodedEdit = useCallback(
     async (entry: TMEntryDTO, codedText: string, spans: SpanInfo[]) => {
       try {
-        // Extract plain text by stripping markers for backward compatibility.
         const plainText = codedText.replace(/[\uE001\uE002\uE003]/g, "");
         await adapter.updateEntry({
           entry_id: entry.id,
@@ -180,6 +223,31 @@ export function TMBrowser({
         });
         setEditingId(null);
         void fetchEntries(debouncedSearch, page);
+        void fetchFacets();
+      } catch (err) {
+        onError?.("Failed to save TM entry", err);
+      }
+    },
+    [adapter, fetchEntries, fetchFacets, debouncedSearch, page, onError],
+  );
+
+  const handleSaveGroupedTarget = useCallback(
+    async (targetId: string, codedText: string, spans: SpanInfo[]) => {
+      try {
+        const entry = await adapter.getEntry(targetId);
+        if (!entry) return;
+        const plainText = codedText.replace(/[\uE001\uE002\uE003]/g, "");
+        await adapter.updateEntry({
+          entry_id: targetId,
+          source: entry.source_text,
+          target: plainText,
+          target_coded: codedText,
+          target_spans: spans,
+          source_locale: entry.source_locale,
+          target_locale: entry.target_locale,
+          project_id: entry.project_id,
+        });
+        void fetchEntries(debouncedSearch, page);
       } catch (err) {
         onError?.("Failed to save TM entry", err);
       }
@@ -191,17 +259,18 @@ export function TMBrowser({
     async (id: string) => {
       try {
         await adapter.deleteEntry(id);
-        setSelected((prev: Set<string>) => {
+        setSelected((prev) => {
           const next = new Set(prev);
           next.delete(id);
           return next;
         });
         void fetchEntries(debouncedSearch, page);
+        void fetchFacets();
       } catch (err) {
         onError?.("Failed to delete TM entry", err);
       }
     },
-    [adapter, fetchEntries, debouncedSearch, page, onError],
+    [adapter, fetchEntries, fetchFacets, debouncedSearch, page, onError],
   );
 
   const handleBulkDelete = useCallback(async () => {
@@ -210,15 +279,15 @@ export function TMBrowser({
       return;
     }
     try {
-      const ids = [...selected];
-      await adapter.deleteEntries(ids);
+      await adapter.deleteEntries([...selected]);
       setSelected(new Set());
       setConfirmBulkDelete(false);
       void fetchEntries(debouncedSearch, page);
+      void fetchFacets();
     } catch (err) {
       onError?.("Failed to delete TM entries", err);
     }
-  }, [adapter, selected, confirmBulkDelete, fetchEntries, debouncedSearch, page, onError]);
+  }, [adapter, selected, confirmBulkDelete, fetchEntries, fetchFacets, debouncedSearch, page, onError]);
 
   const handleAdd = useCallback(async () => {
     if (!addSource.trim() || !addTarget.trim()) return;
@@ -233,96 +302,76 @@ export function TMBrowser({
       setAddTarget("");
       setShowAddForm(false);
       void fetchEntries(debouncedSearch, page);
+      void fetchFacets();
     } catch (err) {
       onError?.("Failed to add TM entry", err);
     }
-  }, [
-    adapter,
-    addSource,
-    addTarget,
-    addSrcLocale,
-    addTgtLocale,
-    fetchEntries,
-    debouncedSearch,
-    page,
-    onError,
-  ]);
+  }, [adapter, addSource, addTarget, addSrcLocale, addTgtLocale, fetchEntries, fetchFacets, debouncedSearch, page, onError]);
 
   const handleAnnotateEntities = useCallback(
     async (patterns: EntityPatternRequest[]) => {
       if (!adapter.annotateEntities) throw new Error("Adapter does not support entity annotation");
-      const result = await adapter.annotateEntities({
-        entry_ids: [...selected],
-        patterns,
-      });
+      const result = await adapter.annotateEntities({ entry_ids: [...selected], patterns });
       void fetchEntries(debouncedSearch, page);
+      void fetchFacets();
       return result;
     },
-    [adapter, selected, fetchEntries, debouncedSearch, page],
+    [adapter, selected, fetchEntries, fetchFacets, debouncedSearch, page],
   );
+
+  const isEmpty = viewMode === "multilang" ? groups.length === 0 : entries.length === 0;
 
   return (
     <div className="flex gap-4" data-testid="tm-browser">
       {/* Main column */}
       <div className="flex-1 min-w-0">
-        {/* Search + Actions */}
-        <div className="flex items-center gap-2 mb-4">
-          {filterFields ? (
-            <div className="flex-1">
-              <FilterBar
-                filters={filterTokens}
-                onFiltersChange={(tokens) => {
-                  setFilterTokens(tokens);
-                  setPage(0);
-                }}
-                search={searchText}
-                onSearchChange={handleFilterSearchChange}
-                fields={filterFields}
-                presets={filterPresets}
-                placeholder="Search translation memory..."
-              />
-            </div>
-          ) : (
-            <div className="relative flex-1">
-              <input
-                type="text"
-                value={searchText}
-                onChange={handleSearch}
-                placeholder="Search translation memory..."
-                className="w-full rounded-md border border-input bg-transparent pl-8 pr-3 py-2 text-sm outline-none focus:ring-1 focus:ring-ring"
-              />
-              <svg
-                className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground"
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <circle cx="11" cy="11" r="8" />
-                <path d="m21 21-4.3-4.3" />
-              </svg>
-            </div>
-          )}
-          {selected.size > 0 && selected.size < entries.length && (
-            <button onClick={selectAll} className="text-[11px] text-primary hover:text-primary/80">
-              Select all
-            </button>
-          )}
-          <button
-            onClick={() => setShowAddForm(true)}
-            className="rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90 whitespace-nowrap"
-          >
-            Add Entry
-          </button>
+        {/* Search bar + actions */}
+        <div className="mb-4">
+          <TMSearchBar
+            value={searchText}
+            onChange={handleSearchChange}
+            onLookup={adapter.lookup}
+            sourceLocale={effectiveSourceLocale}
+            targetLocale={effectiveTargetLocale}
+            actions={
+              <div className="flex items-center gap-1">
+                {/* View mode toggle */}
+                {adapter.searchGrouped && (
+                  <div className="flex rounded-md border border-input">
+                    <button
+                      onClick={() => setViewMode("bilingual")}
+                      className={cn(
+                        "p-1.5 rounded-l-md transition-colors",
+                        viewMode === "bilingual" ? "bg-accent text-foreground" : "text-muted-foreground hover:text-foreground",
+                      )}
+                      title="Bilingual view"
+                    >
+                      <List className="size-4" />
+                    </button>
+                    <button
+                      onClick={() => setViewMode("multilang")}
+                      className={cn(
+                        "p-1.5 rounded-r-md transition-colors",
+                        viewMode === "multilang" ? "bg-accent text-foreground" : "text-muted-foreground hover:text-foreground",
+                      )}
+                      title="Multi-language view"
+                    >
+                      <Languages className="size-4" />
+                    </button>
+                  </div>
+                )}
+                <Button size="sm" onClick={() => setShowAddForm(true)} className="whitespace-nowrap">
+                  Add Entry
+                </Button>
+              </div>
+            }
+          />
         </div>
 
-        {/* Entry count + inline loading indicator for subsequent fetches */}
+        {/* Count + loading */}
         <div className="text-[12px] text-muted-foreground mb-3 flex items-center gap-2">
           <span>
-            {totalCount} {totalCount === 1 ? "entry" : "entries"}
+            {totalCount} {totalCount === 1 ? (viewMode === "multilang" ? "source" : "entry") : (viewMode === "multilang" ? "sources" : "entries")}
             {debouncedSearch && " matching"}
           </span>
           {loading && initialLoadDone && (
@@ -330,7 +379,7 @@ export function TMBrowser({
           )}
         </div>
 
-        {/* Loading skeleton — only on initial load, not on subsequent fetches */}
+        {/* Loading skeleton */}
         {loading && !initialLoadDone && (
           <div className="flex flex-col gap-2">
             {[0, 1, 2].map((i) => (
@@ -342,18 +391,15 @@ export function TMBrowser({
           </div>
         )}
 
-        {/* Empty state — only after initial load completes */}
-        {initialLoadDone && !loading && entries.length === 0 && (
+        {/* Empty state */}
+        {initialLoadDone && !loading && isEmpty && (
           <div className="py-12 text-center text-muted-foreground">
             <p className="text-sm mb-1">
               {debouncedSearch ? "No entries match your search." : "No entries yet."}
             </p>
             {debouncedSearch && (
               <button
-                onClick={() => {
-                  setSearchText("");
-                  setDebouncedSearch("");
-                }}
+                onClick={() => { setSearchText(""); setDebouncedSearch(""); }}
                 className="text-xs text-primary hover:text-primary/80"
               >
                 Clear search
@@ -362,8 +408,24 @@ export function TMBrowser({
           </div>
         )}
 
-        {/* Entry list */}
-        {entries.length > 0 && (
+        {/* Multi-language view */}
+        {viewMode === "multilang" && groups.length > 0 && (
+          <div className="flex flex-col gap-1.5">
+            {groups.map((group, idx) => (
+              <TMGroupedEntry
+                key={`${group.source_text}-${idx}`}
+                group={group}
+                selected={group.targets.every((t) => selected.has(t.id))}
+                onToggleSelect={() => toggleSelectGroup(group)}
+                onEditTarget={handleSaveGroupedTarget}
+                onDeleteTarget={(id) => void handleDelete(id)}
+              />
+            ))}
+          </div>
+        )}
+
+        {/* Bilingual view */}
+        {viewMode === "bilingual" && entries.length > 0 && (
           <div className="flex flex-col gap-1.5">
             {entries.map((entry: TMEntryDTO) => (
               <ItemCard
@@ -379,7 +441,6 @@ export function TMBrowser({
                     className="mt-1 shrink-0"
                     aria-label={`Select entry ${entry.source_text}`}
                   />
-
                   <div className="flex-1 min-w-0">
                     {/* Source */}
                     <div className="flex items-start gap-2 mb-0.5">
@@ -391,8 +452,7 @@ export function TMBrowser({
                       />
                       <LocalePill locale={entry.source_locale} />
                     </div>
-
-                    {/* Target (or edit mode) */}
+                    {/* Target */}
                     <div className="flex items-start gap-2">
                       {editingId === entry.id ? (
                         <div className="flex-1">
@@ -400,9 +460,7 @@ export function TMBrowser({
                             initialCodedText={entry.target_coded || entry.target_text}
                             initialSpans={entry.target_spans || []}
                             sourceSpans={entry.source_spans || []}
-                            onSave={(codedText, spans) =>
-                              void handleSaveCodedEdit(entry, codedText, spans)
-                            }
+                            onSave={(codedText, spans) => void handleSaveCodedEdit(entry, codedText, spans)}
                             onCancel={() => setEditingId(null)}
                             compact
                           />
@@ -417,33 +475,20 @@ export function TMBrowser({
                       )}
                       <LocalePill locale={entry.target_locale} />
                     </div>
-
                     {/* Footer */}
-                    <div className="flex items-center gap-2 mt-1.5 pl-7 text-[10px] text-muted-foreground">
+                    <div className="flex items-center gap-2 mt-1.5 text-[10px] text-muted-foreground">
                       {entry.project_id ? (
-                        <span className="px-1.5 py-px rounded bg-blue-500/10 text-blue-600 dark:text-blue-400">
-                          Project
-                        </span>
+                        <span className="px-1.5 py-px rounded bg-blue-500/10 text-blue-600 dark:text-blue-400">Project</span>
                       ) : (
                         <span className="px-1.5 py-px rounded bg-muted">User</span>
                       )}
                       <span>{relativeTime(entry.updated_at)}</span>
-
-                      {/* Actions — visible on hover */}
                       {editingId !== entry.id && (
                         <div className="ml-auto flex gap-1 opacity-0 transition-opacity group-hover:opacity-100">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-5 px-1 text-[10px] text-muted-foreground"
-                            onClick={() => handleEdit(entry)}
-                          >
+                          <Button variant="ghost" size="sm" className="h-5 px-1 text-[10px] text-muted-foreground" onClick={() => handleEdit(entry)}>
                             Edit
                           </Button>
-                          <ConfirmDeleteButton
-                            onDelete={() => void handleDelete(entry.id)}
-                            mode="inline"
-                          />
+                          <ConfirmDeleteButton onDelete={() => void handleDelete(entry.id)} mode="inline" />
                         </div>
                       )}
                     </div>
@@ -454,21 +499,16 @@ export function TMBrowser({
           </div>
         )}
 
-        <Pagination
-          page={page}
-          pageSize={PAGE_SIZE}
-          totalCount={totalCount}
-          onPageChange={setPage}
-        />
+        <Pagination page={page} pageSize={PAGE_SIZE} totalCount={totalCount} onPageChange={setPage} />
       </div>
 
-      {/* Lookup panel (right side) */}
-      {showLookup && adapter.lookup && (
-        <div className="w-80 shrink-0 border-l border-border pl-4">
-          <TMLookupPanel
-            sourceLocale={effectiveSourceLocale}
-            targetLocale={effectiveTargetLocale}
-            onLookup={adapter.lookup}
+      {/* Facet sidebar (right) */}
+      {adapter.getFacets && (
+        <div className="w-56 shrink-0 border-l border-border pl-4">
+          <TMFacetSidebar
+            facets={facets}
+            selection={facetSelection}
+            onSelectionChange={setFacetSelection}
           />
         </div>
       )}
@@ -478,9 +518,7 @@ export function TMBrowser({
         selectedCount={selected.size}
         onDelete={handleBulkDelete}
         confirmDelete={confirmBulkDelete}
-        onAnnotateEntities={
-          adapter.annotateEntities ? () => setShowAnnotateDialog(true) : undefined
-        }
+        onAnnotateEntities={adapter.annotateEntities ? () => setShowAnnotateDialog(true) : undefined}
         onDeselectAll={deselectAll}
       />
 
@@ -501,80 +539,36 @@ export function TMBrowser({
             <div className="flex flex-col gap-3">
               <div>
                 <label className="text-[12px] text-muted-foreground block mb-1">Source</label>
-                <input
-                  type="text"
-                  value={addSource}
-                  onChange={(e) => setAddSource(e.target.value)}
-                  placeholder="Source text"
-                  className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-ring"
-                  autoFocus
-                />
+                <input type="text" value={addSource} onChange={(e) => setAddSource(e.target.value)} placeholder="Source text" className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-ring" autoFocus />
               </div>
               <div>
                 <label className="text-[12px] text-muted-foreground block mb-1">Target</label>
-                <input
-                  type="text"
-                  value={addTarget}
-                  onChange={(e) => setAddTarget(e.target.value)}
-                  placeholder="Target text"
-                  className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-ring"
-                />
+                <input type="text" value={addTarget} onChange={(e) => setAddTarget(e.target.value)} placeholder="Target text" className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-ring" />
               </div>
               <div className="flex gap-3">
                 <div className="flex-1">
-                  <label className="text-[12px] text-muted-foreground block mb-1">
-                    Source locale
-                  </label>
+                  <label className="text-[12px] text-muted-foreground block mb-1">Source locale</label>
                   {mergedLocales.length > 0 ? (
-                    <LocaleSelect
-                      value={addSrcLocale}
-                      onChange={setAddSrcLocale}
-                      locales={mergedLocales}
-                      placeholder="Select source..."
-                    />
+                    <LocaleSelect value={addSrcLocale} onChange={setAddSrcLocale} locales={mergedLocales} placeholder="Select source..." />
                   ) : (
-                    <input
-                      type="text"
-                      value={addSrcLocale}
-                      onChange={(e) => setAddSrcLocale(e.target.value)}
-                      className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-ring"
-                    />
+                    <input type="text" value={addSrcLocale} onChange={(e) => setAddSrcLocale(e.target.value)} className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-ring" />
                   )}
                 </div>
                 <div className="flex-1">
-                  <label className="text-[12px] text-muted-foreground block mb-1">
-                    Target locale
-                  </label>
+                  <label className="text-[12px] text-muted-foreground block mb-1">Target locale</label>
                   {mergedLocales.length > 0 ? (
-                    <LocaleSelect
-                      value={addTgtLocale}
-                      onChange={setAddTgtLocale}
-                      locales={mergedLocales}
-                      placeholder="Select target..."
-                    />
+                    <LocaleSelect value={addTgtLocale} onChange={setAddTgtLocale} locales={mergedLocales} placeholder="Select target..." />
                   ) : (
-                    <input
-                      type="text"
-                      value={addTgtLocale}
-                      onChange={(e) => setAddTgtLocale(e.target.value)}
-                      className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-ring"
-                    />
+                    <input type="text" value={addTgtLocale} onChange={(e) => setAddTgtLocale(e.target.value)} className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-ring" />
                   )}
                 </div>
               </div>
             </div>
             <div className="flex gap-2 mt-4 pt-3 border-t border-border">
-              <button
-                onClick={() => void handleAdd()}
-                disabled={!addSource.trim() || !addTarget.trim()}
-                className="rounded-md bg-primary px-4 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
-              >
+              <button onClick={() => void handleAdd()} disabled={!addSource.trim() || !addTarget.trim()} className="rounded-md bg-primary px-4 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50">
                 Add
               </button>
-              <button
-                onClick={() => setShowAddForm(false)}
-                className="rounded-md border border-border px-4 py-1.5 text-xs hover:bg-accent transition-colors"
-              >
+              <button onClick={() => setShowAddForm(false)} className="rounded-md border border-border px-4 py-1.5 text-xs hover:bg-accent transition-colors">
                 Cancel
               </button>
             </div>

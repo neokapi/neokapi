@@ -305,50 +305,26 @@ describe("TMBrowser", () => {
     });
   });
 
-  describe("lookup panel", () => {
-    it("shows lookup panel when showLookup=true and adapter has lookup", async () => {
-      const lookupAdapter: TMAdapter = {
+  describe("facet sidebar", () => {
+    it("shows facet sidebar when adapter has getFacets", async () => {
+      const facetAdapter: TMAdapter = {
         ...createMockAdapter([makeTMEntry()]),
-        lookup: vi.fn().mockResolvedValue([]),
+        getFacets: vi.fn().mockResolvedValue({
+          locale_pairs: [{ source_locale: "en-US", target_locale: "fr-FR", count: 1 }],
+          projects: [],
+          entity_types: [],
+          has_codes: 0,
+          no_codes: 1,
+        }),
       };
 
       render(
-        <TMBrowser
-          adapter={lookupAdapter}
-          sourceLocale="en-US"
-          targetLocales={["fr-FR"]}
-          showLookup={true}
-        />,
+        <TMBrowser adapter={facetAdapter} sourceLocale="en-US" targetLocales={["fr-FR"]} />,
       );
 
       await waitFor(() => {
-        // TMLookupPanel renders both an h3 "Lookup" heading and a "Lookup" button
-        const lookupElements = screen.getAllByText("Lookup");
-        expect(lookupElements.length).toBeGreaterThanOrEqual(1);
+        expect(screen.getByText("Filters")).toBeInTheDocument();
       });
-    });
-
-    it("does not show lookup panel when showLookup=false", async () => {
-      const lookupAdapter: TMAdapter = {
-        ...createMockAdapter([makeTMEntry()]),
-        lookup: vi.fn().mockResolvedValue([]),
-      };
-
-      render(
-        <TMBrowser
-          adapter={lookupAdapter}
-          sourceLocale="en-US"
-          targetLocales={["fr-FR"]}
-          showLookup={false}
-        />,
-      );
-
-      await waitFor(() => {
-        expect(screen.getByTestId("tm-browser")).toBeInTheDocument();
-      });
-
-      // Lookup heading should not be present
-      expect(screen.queryAllByText("Lookup")).toHaveLength(0);
     });
   });
 
