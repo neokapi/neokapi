@@ -113,3 +113,55 @@ export const CustomPlaceholder: Story = {
     );
   },
 };
+
+/**
+ * Demonstrates the entity-value filter flow. When the user marks text in
+ * the search bar as an entity, the parent component receives the marked
+ * entities via onEntitiesChange and converts them to search filters.
+ * This gives precise entity-aware browser filtering — "find all entries
+ * where Acme Corp is tagged as an Organization" — distinct from plain
+ * text search.
+ *
+ * Select text in the input and mark it with an entity type; the Filter
+ * state panel below shows how the parent would build a search filter.
+ */
+export const EntityValueFilter: Story = {
+  render: () => {
+    const [value, setValue] = useState("Acme Corp hired John");
+    const [entities, setEntities] = useState<Array<{ text: string; type: string; start: number; end: number }>>([]);
+    return (
+      <div>
+        <TMSearchBar
+          value={value}
+          onChange={setValue}
+          onEntitiesChange={setEntities}
+          onLookup={async () => []}
+          sourceLocale="en-US"
+          targetLocale="fr-FR"
+        />
+        <div className="mt-4 rounded-lg border bg-muted/30 p-3">
+          <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-1">
+            Search filter state (from onEntitiesChange)
+          </div>
+          <pre className="text-[11px] text-foreground">
+            {JSON.stringify(
+              {
+                entity_values: entities.map((e) => ({ value: e.text, type: e.type })),
+              },
+              null,
+              2,
+            )}
+          </pre>
+        </div>
+      </div>
+    );
+  },
+  parameters: {
+    docs: {
+      description: {
+        story:
+          "Select 'Acme Corp' and mark as Organization, then 'John' as Person. The Filter state panel updates live, showing how the parent component would build a TMSearchFilter to pass to the backend.",
+      },
+    },
+  },
+};

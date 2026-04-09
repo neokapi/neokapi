@@ -74,4 +74,37 @@ describe("TMSearchBar", () => {
     );
     expect(c.textContent).not.toContain("Mark");
   });
+
+  it("invokes onEntitiesChange with empty array on mount", () => {
+    const onEntitiesChange = vi.fn();
+    renderToContainer(
+      createElement(TMSearchBar, {
+        value: "",
+        onChange: vi.fn(),
+        onEntitiesChange,
+        sourceLocale: "en-US",
+        targetLocale: "fr-FR",
+      }),
+    );
+    expect(onEntitiesChange).toHaveBeenCalledWith([]);
+  });
+
+  it("does not show entity popover when onLookup is not provided, even with selection", () => {
+    // Without onLookup, text selection should not trigger the popover.
+    const c = renderToContainer(
+      createElement(TMSearchBar, {
+        value: "John works at Acme",
+        onChange: vi.fn(),
+        sourceLocale: "en-US",
+        targetLocale: "fr-FR",
+      }),
+    );
+    const input = c.querySelector("input") as HTMLInputElement;
+    act(() => {
+      input.setSelectionRange(0, 4);
+      input.dispatchEvent(new Event("mouseup", { bubbles: true }));
+    });
+    // Popover should not be shown since onLookup is undefined
+    expect(c.textContent).not.toContain("Mark");
+  });
 });
