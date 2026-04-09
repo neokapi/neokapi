@@ -220,10 +220,17 @@ export function TMSearchBar({
           {/* Filter tokens inline */}
           {filters.map((token, i) => {
             const { key, value } = filterLabel(token);
+            const isLanguage = token.key === "language";
             return (
               <Badge key={i} variant="secondary" className="gap-1 pr-1 rounded-full">
-                <span className="text-[9px] uppercase tracking-wider text-muted-foreground">{key}</span>
-                <span>{value}</span>
+                {isLanguage ? (
+                  <LocalePill locale={token.value} />
+                ) : (
+                  <>
+                    <span className="text-[9px] uppercase tracking-wider text-muted-foreground">{key}</span>
+                    <span>{value}</span>
+                  </>
+                )}
                 {onFiltersChange && (
                   <button
                     onClick={() => removeFilter(i)}
@@ -268,15 +275,27 @@ export function TMSearchBar({
                       <div className="text-[10px] uppercase tracking-wider text-muted-foreground px-1.5 py-1">
                         {field.label}
                       </div>
-                      {field.values?.map((v) => (
-                        <button
-                          key={v.value}
-                          onClick={() => addFilter(field.key, v.value)}
-                          className="flex w-full items-center rounded px-1.5 py-1 text-sm hover:bg-accent text-left"
-                        >
-                          {v.label}
-                        </button>
-                      ))}
+                      <div className={field.key === "language" ? "flex flex-wrap gap-1 px-1.5 py-1" : undefined}>
+                        {field.values?.map((v) =>
+                          field.key === "language" ? (
+                            <button
+                              key={v.value}
+                              onClick={() => addFilter(field.key, v.value)}
+                              className="hover:opacity-80 transition-opacity"
+                            >
+                              <LocalePill locale={v.value} />
+                            </button>
+                          ) : (
+                            <button
+                              key={v.value}
+                              onClick={() => addFilter(field.key, v.value)}
+                              className="flex w-full items-center rounded px-1.5 py-1 text-sm hover:bg-accent text-left"
+                            >
+                              {v.label}
+                            </button>
+                          ),
+                        )}
+                      </div>
                     </div>
                   ))}
                 </div>
