@@ -354,3 +354,96 @@ func TestTM_ListNamedTMs(t *testing.T) {
 	list := listNamedResources("nonexistent-dir-12345")
 	assert.Nil(t, list)
 }
+
+func TestTM_GetTMFacets(t *testing.T) {
+	app := newTestApp(t)
+	handle := openTestTM(t, app)
+
+	// Empty TM facets.
+	facets := app.GetTMFacets(handle)
+	require.NotNil(t, facets)
+	assert.Empty(t, facets.LocalePairs)
+	assert.Empty(t, facets.Projects)
+	assert.Empty(t, facets.EntityTypes)
+	assert.Equal(t, 0, facets.HasCodes)
+	assert.Equal(t, 0, facets.NoCodes)
+
+	// Add entries across locales and projects.
+	tm, ok := app.tmHandles.Get(handle)
+	require.True(t, ok)
+
+	require.NoError(t, tm.Add(sievepen.TMEntry{
+		ID: "e1", Source: model.NewFragment("Hello"), Target: model.NewFragment("Bonjour"),
+		SourceLocale: "en-US", TargetLocale: "fr-FR", ProjectID: "proj-x",
+	}))
+	require.NoError(t, tm.Add(sievepen.TMEntry{
+		ID: "e2", Source: model.NewFragment("Hello"), Target: model.NewFragment("Hallo"),
+		SourceLocale: "en-US", TargetLocale: "de-DE", ProjectID: "proj-x",
+	}))
+	require.NoError(t, tm.Add(sievepen.TMEntry{
+		ID: "e3", Source: model.NewFragment("Goodbye"), Target: model.NewFragment("Au revoir"),
+		SourceLocale: "en-US", TargetLocale: "fr-FR", ProjectID: "proj-y",
+	}))
+
+	facets = app.GetTMFacets(handle)
+	require.NotNil(t, facets)
+	assert.Len(t, facets.LocalePairs, 2)
+	assert.Len(t, facets.Projects, 2)
+	assert.Equal(t, 0, facets.HasCodes)
+	assert.Equal(t, 3, facets.NoCodes)
+
+	// Invalid handle returns nil.
+	assert.Nil(t, app.GetTMFacets("bad-handle"))
+}
+
+func TestTM_SearchTMEntriesGrouped(t *testing.T) {
+	app := newTestApp(t)
+	handle := openTestTM(t, app)
+
+	tm, ok := app.tmHandles.Get(handle)
+	require.True(t, ok)
+
+	// Same source, multiple target locales.
+	require.NoError(t, tm.Add(sievepen.TMEntry{
+		ID: "e1", Source: model.NewFragment("Hello world"), Target: model.NewFragment("Bonjour le monde"),
+		SourceLocale: "en-US", TargetLocale: "fr-FR",
+	}))
+	require.NoError(t, tm.Add(sievepen.TMEntry{
+		ID: "e2", Source: model.NewFragment("Hello world"), Target: model.NewFragment("Hallo Welt"),
+		SourceLocale: "en-US", TargetLocale: "de-DE",
+	}))
+	// Different source.
+	require.NoError(t, tm.Add(sievepen.TMEntry{
+		ID: "e3", Source: model.NewFragment("Goodbye"), Target: model.NewFragment("Au revoir"),
+		SourceLocale: "en-US", TargetLocale: "fr-FR",
+	}))
+
+	result := app.SearchTMEntriesGrouped(handle, "", "", 0, 10)
+	require.NotNil(t, result)
+	assert.Equal(t, 2, result.TotalCount, "two distinct source texts")
+	require.Len(t, result.Groups, 2)
+
+	// Find the "Hello world" group and verify it has 2 targets.
+	var helloGroup *TMGroupedResult
+	for i := range result.Groups {
+		if result.Groups[i].SourceText == "hello world" || result.Groups[i].SourceText == "Hello world" {
+			helloGroup = &result.Groups[i]
+			break
+		}
+	}
+	require.NotNil(t, helloGroup, "should find 'Hello world' group")
+	assert.Len(t, helloGroup.Targets, 2)
+	assert.NotEmpty(t, helloGroup.SourceLocale)
+
+	// Each target should have non-empty fields.
+	for _, tgt := range helloGroup.Targets {
+		assert.NotEmpty(t, tgt.ID)
+		assert.NotEmpty(t, tgt.TargetText)
+		assert.NotEmpty(t, tgt.TargetLocale)
+	}
+
+	// Invalid handle returns empty result.
+	empty := app.SearchTMEntriesGrouped("bad-handle", "", "", 0, 10)
+	require.NotNil(t, empty)
+	assert.Equal(t, 0, empty.TotalCount)
+}
