@@ -454,6 +454,7 @@ export function TMBrowser({
                 onToggleSelect={() => toggleSelectGroup(group)}
                 onEditTarget={handleSaveGroupedTarget}
                 onDeleteTarget={(id) => void handleDelete(id)}
+                visibleLocales={facetSelection.targetLocales}
               />
             ))}
           </div>
