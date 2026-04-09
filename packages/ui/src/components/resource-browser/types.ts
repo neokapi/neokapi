@@ -84,7 +84,14 @@ export interface TMGroupedSearchResult {
 export interface TMSearchFilter {
   project_id?: string;
   entity_types?: string[];
+  entity_values?: EntityValueFilter[];
   has_codes?: boolean | null;
+}
+
+/** Filter for searching by a specific entity value + type. */
+export interface EntityValueFilter {
+  value: string;
+  type: string; // e.g. "entity:person"
 }
 
 export interface TMMatchDTO {

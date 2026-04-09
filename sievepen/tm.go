@@ -175,9 +175,17 @@ type EntityTypeFacet struct {
 
 // SearchFilter holds optional filter parameters for TM search.
 type SearchFilter struct {
-	ProjectID   string   // filter by project (empty = all)
-	EntityTypes []string // filter by entity types (empty = all)
-	HasCodes    *bool    // nil = all, true = only with codes, false = only without
+	ProjectID    string              // filter by project (empty = all)
+	EntityTypes  []string            // filter by entity types (empty = all)
+	EntityValues []EntityValueFilter // filter by specific entity value+type pairs (any match)
+	HasCodes     *bool               // nil = all, true = only with codes, false = only without
+}
+
+// EntityValueFilter matches entries that have an entity mapping with the given
+// value and type. Multiple filters are OR-ed (any match).
+type EntityValueFilter struct {
+	Value string // the entity's source_value, e.g. "Acme Corp"
+	Type  string // entity:person, entity:organization, etc.
 }
 
 // TranslationMemory defines the interface for a content-aware translation

@@ -201,9 +201,16 @@ type TMGroupedSearchResult struct {
 
 // TMSearchFilter is the frontend-facing search filter.
 type TMSearchFilter struct {
-	ProjectID   string   `json:"project_id,omitempty"`
-	EntityTypes []string `json:"entity_types,omitempty"`
-	HasCodes    *bool    `json:"has_codes,omitempty"`
+	ProjectID    string              `json:"project_id,omitempty"`
+	EntityTypes  []string            `json:"entity_types,omitempty"`
+	EntityValues []EntityValueFilter `json:"entity_values,omitempty"`
+	HasCodes     *bool               `json:"has_codes,omitempty"`
+}
+
+// EntityValueFilter is a single entity value+type pair for search filtering.
+type EntityValueFilter struct {
+	Value string `json:"value"`
+	Type  string `json:"type"`
 }
 
 // --- Conversion helpers ---
@@ -806,11 +813,18 @@ func (a *App) SearchTMEntriesGroupedFiltered(handle, query, srcLocale string, fi
 
 // toSearchFilter converts the frontend DTO to the sievepen filter type.
 func toSearchFilter(f TMSearchFilter) sievepen.SearchFilter {
-	return sievepen.SearchFilter{
+	sf := sievepen.SearchFilter{
 		ProjectID:   f.ProjectID,
 		EntityTypes: f.EntityTypes,
 		HasCodes:    f.HasCodes,
 	}
+	if len(f.EntityValues) > 0 {
+		sf.EntityValues = make([]sievepen.EntityValueFilter, len(f.EntityValues))
+		for i, ev := range f.EntityValues {
+			sf.EntityValues[i] = sievepen.EntityValueFilter{Value: ev.Value, Type: ev.Type}
+		}
+	}
+	return sf
 }
 
 // --- Batch entity annotation ---
