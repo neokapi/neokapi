@@ -386,6 +386,108 @@ func (tm *InMemoryTM) GetEntry(id string) (TMEntry, bool) {
 	return tm.entries[idx].entry, true
 }
 
+// FacetStats returns aggregated facet data for filtering UI.
+func (tm *InMemoryTM) FacetStats() FacetData {
+	tm.mu.RLock()
+	defer tm.mu.RUnlock()
+
+	localePairCounts := make(map[[2]string]int)
+	projectCounts := make(map[string]int)
+	entityTypeCounts := make(map[string]int)
+	var hasCodes, noCodes int
+
+	for _, ne := range tm.entries {
+		e := ne.entry
+		pair := [2]string{string(e.SourceLocale), string(e.TargetLocale)}
+		localePairCounts[pair]++
+		projectCounts[e.ProjectID]++
+
+		for _, em := range e.Entities {
+			entityTypeCounts[string(em.Type)]++
+		}
+
+		if e.Source != nil && strings.ContainsRune(e.Source.CodedText, '\uE001') {
+			hasCodes++
+		} else {
+			noCodes++
+		}
+	}
+
+	data := FacetData{HasCodes: hasCodes, NoCodes: noCodes}
+	for pair, count := range localePairCounts {
+		data.LocalePairs = append(data.LocalePairs, LocalePairStat{
+			SourceLocale: pair[0],
+			TargetLocale: pair[1],
+			Count:        count,
+		})
+	}
+	for pid, count := range projectCounts {
+		data.Projects = append(data.Projects, ProjectFacet{ProjectID: pid, Count: count})
+	}
+	for et, count := range entityTypeCounts {
+		data.EntityTypes = append(data.EntityTypes, EntityTypeFacet{Type: et, Count: count})
+	}
+	return data
+}
+
+// SearchEntriesGrouped returns entries grouped by source text.
+func (tm *InMemoryTM) SearchEntriesGrouped(query, sourceLocale string, offset, limit int) ([]TMEntryGroup, int) {
+	tm.mu.RLock()
+	defer tm.mu.RUnlock()
+
+	lowerQuery := strings.ToLower(query)
+
+	// Group matching entries by source plain text.
+	type groupInfo struct {
+		order   int
+		entries []TMEntry
+	}
+	groups := make(map[string]*groupInfo)
+	var groupOrder []string
+
+	for _, ne := range tm.entries {
+		e := ne.entry
+		if sourceLocale != "" && string(e.SourceLocale) != sourceLocale {
+			continue
+		}
+		if query != "" {
+			srcText := strings.ToLower(e.SourceText())
+			tgtText := strings.ToLower(e.TargetText())
+			if !strings.Contains(srcText, lowerQuery) && !strings.Contains(tgtText, lowerQuery) {
+				continue
+			}
+		}
+		key := NormalizeText(e.SourceText())
+		g, ok := groups[key]
+		if !ok {
+			g = &groupInfo{order: len(groupOrder)}
+			groups[key] = g
+			groupOrder = append(groupOrder, key)
+		}
+		g.entries = append(g.entries, e)
+	}
+
+	total := len(groupOrder)
+	if offset >= total {
+		return nil, total
+	}
+	end := min(offset+limit, total)
+	pageKeys := groupOrder[offset:end]
+
+	result := make([]TMEntryGroup, 0, len(pageKeys))
+	for _, key := range pageKeys {
+		g := groups[key]
+		first := g.entries[0]
+		result = append(result, TMEntryGroup{
+			SourceText:   key,
+			Source:       first.Source,
+			SourceLocale: first.SourceLocale,
+			Targets:      g.entries,
+		})
+	}
+	return result, total
+}
+
 // --- helpers ---
 
 func ApplyDefaults(opts LookupOptions) LookupOptions {

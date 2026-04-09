@@ -9,6 +9,8 @@ import type {
   LookupTMRequest,
   ImportResult,
   TMStats,
+  TMFacets,
+  TMGroupedSearchResult,
   TermSearchResult,
   ConceptDTO,
   AddConceptRequest,
@@ -35,6 +37,13 @@ export interface TMAdapter {
   importTMX?(srcLocale: string, tgtLocale: string): Promise<ImportResult | null>;
   exportTMX?(srcLocale: string, tgtLocale: string): Promise<void>;
   getStats?(): Promise<TMStats>;
+  getFacets?(): Promise<TMFacets>;
+  searchGrouped?(
+    query: string,
+    srcLocale: string,
+    offset: number,
+    limit: number,
+  ): Promise<TMGroupedSearchResult>;
 }
 
 /** Adapter interface for termbase operations. */

@@ -295,6 +295,14 @@ export const api = {
     call<{ count: number }>("ImportTMXDialog", handle, srcLocale, tgtLocale),
   exportTMXDialog: (handle: string, srcLocale: string, tgtLocale: string) =>
     call<void>("ExportTMXDialog", handle, srcLocale, tgtLocale),
+  getTMFacets: (handle: string) => call<unknown>("GetTMFacets", handle),
+  searchTMEntriesGrouped: (
+    handle: string,
+    query: string,
+    srcLocale: string,
+    offset: number,
+    limit: number,
+  ) => call<unknown>("SearchTMEntriesGrouped", handle, query, srcLocale, offset, limit),
 
   // Termbase
   listNamedTermbases: () =>

@@ -3,6 +3,13 @@ export type {
   TMEntryDTO,
   TMSearchResult,
   TMStats,
+  TMFacets,
+  LocalePairFacet,
+  ProjectFacet,
+  EntityTypeFacet,
+  TMGroupedResult,
+  TMTargetDTO,
+  TMGroupedSearchResult,
   TMMatchDTO,
   EntityAdaptationDTO,
   EntityAnnotationDTO,
@@ -30,7 +37,9 @@ export type { TMAdapter, TermbaseAdapter } from "./adapters";
 // Components
 export { TMBrowser } from "./TMBrowser";
 export { TermbaseBrowser } from "./TermbaseBrowser";
-export { TMLookupPanel } from "./TMLookupPanel";
+export { TMSearchBar } from "./TMSearchBar";
+export { TMFacetSidebar, EMPTY_FACETS, type FacetSelection } from "./TMFacetSidebar";
+export { TMGroupedEntry } from "./TMGroupedEntry";
 export { EntityAnnotationDialog } from "./EntityAnnotationDialog";
 export { CodedTextDisplay } from "./CodedTextDisplay";
 export { MatchScoreBar } from "./MatchScoreBar";

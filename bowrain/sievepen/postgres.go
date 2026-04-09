@@ -656,6 +656,60 @@ func (tm *PostgresTM) pgSearchLikeForStream(query, sourceLocale, targetLocale, s
 	return entries, total
 }
 
+// SearchEntriesGrouped returns entries grouped by source text.
+// This is a stub implementation for PostgresTM — full implementation is pending.
+func (tm *PostgresTM) SearchEntriesGrouped(query, sourceLocale string, offset, limit int) ([]fw.TMEntryGroup, int) {
+	// Use flat search and group in Go.
+	entries, total := tm.SearchEntries(query, sourceLocale, "", offset*limit, limit*10)
+	if len(entries) == 0 {
+		return nil, 0
+	}
+
+	type groupInfo struct {
+		entries []fw.TMEntry
+	}
+	groups := make(map[string]*groupInfo)
+	var groupOrder []string
+	for _, e := range entries {
+		key := fw.NormalizeText(e.SourceText())
+		g, ok := groups[key]
+		if !ok {
+			g = &groupInfo{}
+			groups[key] = g
+			groupOrder = append(groupOrder, key)
+		}
+		g.entries = append(g.entries, e)
+	}
+
+	totalGroups := len(groupOrder)
+	if offset >= totalGroups {
+		return nil, total
+	}
+	end := offset + limit
+	if end > totalGroups {
+		end = totalGroups
+	}
+
+	var result []fw.TMEntryGroup
+	for _, key := range groupOrder[offset:end] {
+		g := groups[key]
+		first := g.entries[0]
+		result = append(result, fw.TMEntryGroup{
+			SourceText:   key,
+			Source:       first.Source,
+			SourceLocale: first.SourceLocale,
+			Targets:      g.entries,
+		})
+	}
+	return result, totalGroups
+}
+
+// FacetStats returns aggregated facet data for filtering UI.
+// This is a stub implementation for PostgresTM — full implementation is pending.
+func (tm *PostgresTM) FacetStats() fw.FacetData {
+	return fw.FacetData{}
+}
+
 // GetEntry fetches a single entry by ID.
 func (tm *PostgresTM) GetEntry(id string) (fw.TMEntry, bool) {
 	rows, err := tm.db.QueryContext(context.Background(), `

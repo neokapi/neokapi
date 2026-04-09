@@ -307,6 +307,14 @@ func (t *testTMStore) GetEntry(id string) (sievepen.TMEntry, bool) {
 	return sievepen.TMEntry{}, false
 }
 
+func (t *testTMStore) SearchEntriesGrouped(query, sourceLocale string, offset, limit int) ([]sievepen.TMEntryGroup, int) {
+	return t.InMemoryTM.SearchEntriesGrouped(query, sourceLocale, offset, limit)
+}
+
+func (t *testTMStore) FacetStats() sievepen.FacetData {
+	return t.InMemoryTM.FacetStats()
+}
+
 func filterTMEntries(entries []sievepen.TMEntry, query, sourceLocale, targetLocale string, offset, limit int) ([]sievepen.TMEntry, int) {
 	var filtered []sievepen.TMEntry
 	for _, e := range entries {

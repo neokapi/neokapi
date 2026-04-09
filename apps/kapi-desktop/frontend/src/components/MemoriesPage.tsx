@@ -9,7 +9,6 @@ import {
   PageHeader,
   ChartContainer,
   type ChartConfig,
-  type FilterField,
 } from "@neokapi/ui-primitives";
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip } from "recharts";
 import { api } from "../hooks/useApi";
@@ -57,12 +56,8 @@ export function MemoriesPage({
   const [projectHandle, setProjectHandle] = useState<string | null>(null);
   const [projectStats, setProjectStats] = useState<{ count: number } | null>(null);
   const [activityStats, setActivityStats] = useState<ActivityPoint[]>([]);
-  const [localePairs, setLocalePairs] = useState<
-    Array<{ source_locale: string; target_locale: string; count: number }>
-  >([]);
-
   const { showError } = useError();
-  const { locales, getDisplayName } = useLocales();
+  const { locales } = useLocales();
   const activeHandle = projectHandle || handle;
   const adapter = useTMAdapter(activeHandle);
 
@@ -79,9 +74,6 @@ export function MemoriesPage({
           });
           void api.getTMActivityStats(h).then((stats) => {
             if (stats) setActivityStats(stats);
-          });
-          void api.getTMLocaleStats(h).then((stats) => {
-            if (stats) setLocalePairs(stats);
           });
         }
       })
@@ -258,44 +250,8 @@ export function MemoriesPage({
         {/* Browser with integrated filter bar */}
         <TMBrowser
           adapter={adapter}
-          showLookup
           locales={locales}
           onError={showError}
-          filterFields={(() => {
-            const srcLocales = [...new Set(localePairs.map((p) => p.source_locale))];
-            const tgtLocales = [...new Set(localePairs.map((p) => p.target_locale))];
-            const fields: FilterField[] = [];
-            if (srcLocales.length > 1) {
-              fields.push({
-                key: "source",
-                label: "Source Language",
-                hint: "filter by source locale",
-                values: srcLocales.map((l) => ({
-                  value: l,
-                  label: `${getDisplayName(l)} (${l})`,
-                })),
-              });
-            }
-            if (tgtLocales.length > 0) {
-              fields.push({
-                key: "target",
-                label: "Target Language",
-                hint: "filter by target locale",
-                values: tgtLocales.map((l) => ({
-                  value: l,
-                  label: `${getDisplayName(l)} (${l})`,
-                })),
-              });
-            }
-            return fields;
-          })()}
-          filterPresets={(() => {
-            const tgtLocales = [...new Set(localePairs.map((p) => p.target_locale))];
-            return tgtLocales.slice(0, 3).map((l) => ({
-              label: `${getDisplayName(l)} (${l})`,
-              filters: [{ key: "target", value: l }],
-            }));
-          })()}
         />
         <ImportProgress active={importing} />
       </div>
@@ -327,7 +283,7 @@ export function MemoriesPage({
             </div>
           }
         />
-        <TMBrowser adapter={adapter} showLookup locales={locales} onError={showError} />
+        <TMBrowser adapter={adapter} locales={locales} onError={showError} />
         <ImportProgress active={importing} />
       </div>
     );

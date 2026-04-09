@@ -29,6 +29,57 @@ export interface TMStats {
   size?: number;
 }
 
+// --- TM Facets ---
+
+export interface TMFacets {
+  locale_pairs: LocalePairFacet[];
+  projects: ProjectFacet[];
+  entity_types: EntityTypeFacet[];
+  has_codes: number;
+  no_codes: number;
+}
+
+export interface LocalePairFacet {
+  source_locale: string;
+  target_locale: string;
+  count: number;
+}
+
+export interface ProjectFacet {
+  project_id: string;
+  count: number;
+}
+
+export interface EntityTypeFacet {
+  type: string;
+  count: number;
+}
+
+// --- TM Grouped (multi-language) ---
+
+export interface TMGroupedResult {
+  source_text: string;
+  source_coded: string;
+  source_spans: SpanInfo[];
+  source_locale: string;
+  targets: TMTargetDTO[];
+}
+
+export interface TMTargetDTO {
+  id: string;
+  target_text: string;
+  target_coded: string;
+  target_spans: SpanInfo[];
+  target_locale: string;
+  project_id: string;
+  updated_at: string;
+}
+
+export interface TMGroupedSearchResult {
+  groups: TMGroupedResult[];
+  total_count: number;
+}
+
 export interface TMMatchDTO {
   entry: TMEntryDTO;
   score: number;
