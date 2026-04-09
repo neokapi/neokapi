@@ -84,13 +84,13 @@ export function TMGroupedEntry({
                 )}
               />
             )}
+            <LocalePill locale={group.source_locale} />
             <CodedTextDisplay
               text={group.source_text}
               codedText={group.source_coded}
               spans={group.source_spans}
-              className="text-[13px] text-foreground flex-1"
+              className="text-[14px] font-medium text-foreground flex-1"
             />
-            <LocalePill locale={group.source_locale} />
             <span className="text-[10px] text-muted-foreground bg-muted px-1.5 py-px rounded tabular-nums shrink-0">
               {filteredTargets.length}{hiddenCount > 0 ? `/${group.targets.length}` : ""} {group.targets.length === 1 ? "translation" : "translations"}
             </span>
