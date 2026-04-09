@@ -80,6 +80,13 @@ export interface TMGroupedSearchResult {
   total_count: number;
 }
 
+/** Filter parameters for faceted TM search. */
+export interface TMSearchFilter {
+  project_id?: string;
+  entity_types?: string[];
+  has_codes?: boolean | null;
+}
+
 export interface TMMatchDTO {
   entry: TMEntryDTO;
   score: number;

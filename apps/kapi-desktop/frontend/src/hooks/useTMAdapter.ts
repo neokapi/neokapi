@@ -13,6 +13,7 @@ import type {
   ImportResult,
   TMStats,
   TMFacets,
+  TMSearchFilter,
   TMGroupedSearchResult,
 } from "@neokapi/ui-primitives";
 
@@ -67,8 +68,16 @@ function createWailsTMAdapter(handle: string): TMAdapter {
       const result = await api.getTMFacets(handle);
       return (result as TMFacets) ?? { locale_pairs: [], projects: [], entity_types: [], has_codes: 0, no_codes: 0 };
     },
+    async searchFiltered(query, srcLocale, tgtLocale, filter, offset, limit) {
+      const result = await api.searchTMEntriesFiltered(handle, query, srcLocale, tgtLocale, filter, offset, limit);
+      return (result as TMSearchResult) ?? { entries: [], total_count: 0 };
+    },
     async searchGrouped(query, srcLocale, offset, limit) {
       const result = await api.searchTMEntriesGrouped(handle, query, srcLocale, offset, limit);
+      return (result as TMGroupedSearchResult) ?? { groups: [], total_count: 0 };
+    },
+    async searchGroupedFiltered(query, srcLocale, filter, offset, limit) {
+      const result = await api.searchTMEntriesGroupedFiltered(handle, query, srcLocale, filter, offset, limit);
       return (result as TMGroupedSearchResult) ?? { groups: [], total_count: 0 };
     },
   };

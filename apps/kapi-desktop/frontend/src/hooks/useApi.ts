@@ -296,6 +296,23 @@ export const api = {
   exportTMXDialog: (handle: string, srcLocale: string, tgtLocale: string) =>
     call<void>("ExportTMXDialog", handle, srcLocale, tgtLocale),
   getTMFacets: (handle: string) => call<unknown>("GetTMFacets", handle),
+  searchTMEntriesFiltered: (
+    handle: string,
+    query: string,
+    srcLocale: string,
+    tgtLocale: string,
+    filter: unknown,
+    offset: number,
+    limit: number,
+  ) => call<unknown>("SearchTMEntriesFiltered", handle, query, srcLocale, tgtLocale, filter, offset, limit),
+  searchTMEntriesGroupedFiltered: (
+    handle: string,
+    query: string,
+    srcLocale: string,
+    filter: unknown,
+    offset: number,
+    limit: number,
+  ) => call<unknown>("SearchTMEntriesGroupedFiltered", handle, query, srcLocale, filter, offset, limit),
   searchTMEntriesGrouped: (
     handle: string,
     query: string,

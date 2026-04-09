@@ -10,6 +10,7 @@ import type {
   ImportResult,
   TMStats,
   TMFacets,
+  TMSearchFilter,
   TMGroupedSearchResult,
   TermSearchResult,
   ConceptDTO,
@@ -38,9 +39,24 @@ export interface TMAdapter {
   exportTMX?(srcLocale: string, tgtLocale: string): Promise<void>;
   getStats?(): Promise<TMStats>;
   getFacets?(): Promise<TMFacets>;
+  searchFiltered?(
+    query: string,
+    srcLocale: string,
+    tgtLocale: string,
+    filter: TMSearchFilter,
+    offset: number,
+    limit: number,
+  ): Promise<TMSearchResult>;
   searchGrouped?(
     query: string,
     srcLocale: string,
+    offset: number,
+    limit: number,
+  ): Promise<TMGroupedSearchResult>;
+  searchGroupedFiltered?(
+    query: string,
+    srcLocale: string,
+    filter: TMSearchFilter,
     offset: number,
     limit: number,
   ): Promise<TMGroupedSearchResult>;
