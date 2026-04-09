@@ -275,3 +275,206 @@ func TestSQLiteTM_InterfaceCompliance(t *testing.T) {
 
 	require.NoError(t, tm.Close())
 }
+
+func TestSQLiteTM_FacetStats(t *testing.T) {
+	t.Run("empty TM", func(t *testing.T) {
+		tm, err := sievepen.NewSQLiteTM(":memory:")
+		require.NoError(t, err)
+		defer tm.Close()
+
+		data := tm.FacetStats()
+		assert.Empty(t, data.LocalePairs)
+		assert.Empty(t, data.Projects)
+		assert.Empty(t, data.EntityTypes)
+		assert.Equal(t, 0, data.HasCodes)
+		assert.Equal(t, 0, data.NoCodes)
+	})
+
+	t.Run("locale pairs and projects", func(t *testing.T) {
+		tm, err := sievepen.NewSQLiteTM(":memory:")
+		require.NoError(t, err)
+		defer tm.Close()
+
+		// Add entries across different locales and projects.
+		require.NoError(t, tm.Add(sievepen.TMEntry{
+			ID: "e1", Source: model.NewFragment("Hello"), Target: model.NewFragment("Bonjour"),
+			SourceLocale: "en-US", TargetLocale: "fr-FR", ProjectID: "proj-a",
+		}))
+		require.NoError(t, tm.Add(sievepen.TMEntry{
+			ID: "e2", Source: model.NewFragment("Hello"), Target: model.NewFragment("Hallo"),
+			SourceLocale: "en-US", TargetLocale: "de-DE", ProjectID: "proj-a",
+		}))
+		require.NoError(t, tm.Add(sievepen.TMEntry{
+			ID: "e3", Source: model.NewFragment("Goodbye"), Target: model.NewFragment("Au revoir"),
+			SourceLocale: "en-US", TargetLocale: "fr-FR", ProjectID: "proj-b",
+		}))
+
+		data := tm.FacetStats()
+
+		// Two locale pairs: en-US→fr-FR (2 entries), en-US→de-DE (1 entry).
+		assert.Len(t, data.LocalePairs, 2)
+
+		// Two projects: proj-a (2 entries), proj-b (1 entry).
+		assert.Len(t, data.Projects, 2)
+		assert.Equal(t, "proj-a", data.Projects[0].ProjectID)
+		assert.Equal(t, 2, data.Projects[0].Count)
+		assert.Equal(t, "proj-b", data.Projects[1].ProjectID)
+		assert.Equal(t, 1, data.Projects[1].Count)
+
+		// No inline codes — all plain text.
+		assert.Equal(t, 0, data.HasCodes)
+		assert.Equal(t, 3, data.NoCodes)
+	})
+
+	t.Run("inline code detection", func(t *testing.T) {
+		tm, err := sievepen.NewSQLiteTM(":memory:")
+		require.NoError(t, err)
+		defer tm.Close()
+
+		// Plain text entry.
+		require.NoError(t, tm.Add(sievepen.TMEntry{
+			ID: "plain", Source: model.NewFragment("plain text"), Target: model.NewFragment("texte brut"),
+			SourceLocale: "en-US", TargetLocale: "fr-FR",
+		}))
+
+		// Entry with inline spans (coded text).
+		frag := model.NewFragment("Click ")
+		frag.AppendSpan(&model.Span{SpanType: model.SpanOpening, ID: "1", Type: "bold"})
+		frag.AppendText("here")
+		frag.AppendSpan(&model.Span{SpanType: model.SpanClosing, ID: "1", Type: "bold"})
+		require.NoError(t, tm.Add(sievepen.TMEntry{
+			ID: "coded", Source: frag, Target: model.NewFragment("Cliquez ici"),
+			SourceLocale: "en-US", TargetLocale: "fr-FR",
+		}))
+
+		data := tm.FacetStats()
+		assert.Equal(t, 1, data.HasCodes)
+		assert.Equal(t, 1, data.NoCodes)
+	})
+}
+
+func TestSQLiteTM_SearchEntriesGrouped(t *testing.T) {
+	t.Run("empty TM", func(t *testing.T) {
+		tm, err := sievepen.NewSQLiteTM(":memory:")
+		require.NoError(t, err)
+		defer tm.Close()
+
+		groups, total := tm.SearchEntriesGrouped("", "", 0, 10)
+		assert.Nil(t, groups)
+		assert.Equal(t, 0, total)
+	})
+
+	t.Run("groups by source text", func(t *testing.T) {
+		tm, err := sievepen.NewSQLiteTM(":memory:")
+		require.NoError(t, err)
+		defer tm.Close()
+
+		// Same source "Hello" translated to two locales.
+		require.NoError(t, tm.Add(sievepen.TMEntry{
+			ID: "e1", Source: model.NewFragment("Hello"), Target: model.NewFragment("Bonjour"),
+			SourceLocale: "en-US", TargetLocale: "fr-FR",
+		}))
+		require.NoError(t, tm.Add(sievepen.TMEntry{
+			ID: "e2", Source: model.NewFragment("Hello"), Target: model.NewFragment("Hallo"),
+			SourceLocale: "en-US", TargetLocale: "de-DE",
+		}))
+		// Different source.
+		require.NoError(t, tm.Add(sievepen.TMEntry{
+			ID: "e3", Source: model.NewFragment("Goodbye"), Target: model.NewFragment("Au revoir"),
+			SourceLocale: "en-US", TargetLocale: "fr-FR",
+		}))
+
+		groups, total := tm.SearchEntriesGrouped("", "", 0, 10)
+		assert.Equal(t, 2, total, "two distinct source texts")
+		require.Len(t, groups, 2)
+
+		// Find the "Hello" group — it should have 2 targets.
+		var helloGroup *sievepen.TMEntryGroup
+		for i := range groups {
+			if groups[i].SourceText == "hello" || groups[i].SourceText == "Hello" {
+				helloGroup = &groups[i]
+				break
+			}
+		}
+		require.NotNil(t, helloGroup, "should find the Hello group")
+		assert.Len(t, helloGroup.Targets, 2)
+	})
+
+	t.Run("pagination on groups", func(t *testing.T) {
+		tm, err := sievepen.NewSQLiteTM(":memory:")
+		require.NoError(t, err)
+		defer tm.Close()
+
+		// Create 5 distinct source texts.
+		for i := 0; i < 5; i++ {
+			require.NoError(t, tm.Add(sievepen.TMEntry{
+				ID: fmt.Sprintf("e%d", i), Source: model.NewFragment(fmt.Sprintf("Sentence %d", i)),
+				Target: model.NewFragment(fmt.Sprintf("Phrase %d", i)),
+				SourceLocale: "en-US", TargetLocale: "fr-FR",
+			}))
+		}
+
+		// Get first page of 2 groups.
+		groups, total := tm.SearchEntriesGrouped("", "", 0, 2)
+		assert.Equal(t, 5, total)
+		assert.Len(t, groups, 2)
+
+		// Get second page.
+		groups2, total2 := tm.SearchEntriesGrouped("", "", 2, 2)
+		assert.Equal(t, 5, total2)
+		assert.Len(t, groups2, 2)
+
+		// Third page should have 1 group.
+		groups3, total3 := tm.SearchEntriesGrouped("", "", 4, 2)
+		assert.Equal(t, 5, total3)
+		assert.Len(t, groups3, 1)
+	})
+
+	t.Run("search query filters groups", func(t *testing.T) {
+		tm, err := sievepen.NewSQLiteTM(":memory:")
+		require.NoError(t, err)
+		defer tm.Close()
+
+		require.NoError(t, tm.Add(sievepen.TMEntry{
+			ID: "e1", Source: model.NewFragment("Hello world"), Target: model.NewFragment("Bonjour le monde"),
+			SourceLocale: "en-US", TargetLocale: "fr-FR",
+		}))
+		require.NoError(t, tm.Add(sievepen.TMEntry{
+			ID: "e2", Source: model.NewFragment("Goodbye world"), Target: model.NewFragment("Au revoir le monde"),
+			SourceLocale: "en-US", TargetLocale: "fr-FR",
+		}))
+		require.NoError(t, tm.Add(sievepen.TMEntry{
+			ID: "e3", Source: model.NewFragment("Something else"), Target: model.NewFragment("Autre chose"),
+			SourceLocale: "en-US", TargetLocale: "fr-FR",
+		}))
+
+		groups, total := tm.SearchEntriesGrouped("world", "", 0, 10)
+		assert.Equal(t, 2, total)
+		assert.Len(t, groups, 2)
+	})
+
+	t.Run("count reflects distinct sources not entries", func(t *testing.T) {
+		tm, err := sievepen.NewSQLiteTM(":memory:")
+		require.NoError(t, err)
+		defer tm.Close()
+
+		// Same source text, 3 different target locales = 1 group.
+		require.NoError(t, tm.Add(sievepen.TMEntry{
+			ID: "e1", Source: model.NewFragment("Hello"), Target: model.NewFragment("Bonjour"),
+			SourceLocale: "en-US", TargetLocale: "fr-FR",
+		}))
+		require.NoError(t, tm.Add(sievepen.TMEntry{
+			ID: "e2", Source: model.NewFragment("Hello"), Target: model.NewFragment("Hallo"),
+			SourceLocale: "en-US", TargetLocale: "de-DE",
+		}))
+		require.NoError(t, tm.Add(sievepen.TMEntry{
+			ID: "e3", Source: model.NewFragment("Hello"), Target: model.NewFragment("Hola"),
+			SourceLocale: "en-US", TargetLocale: "es-ES",
+		}))
+
+		groups, total := tm.SearchEntriesGrouped("", "", 0, 10)
+		assert.Equal(t, 1, total, "one distinct source = one group")
+		require.Len(t, groups, 1)
+		assert.Len(t, groups[0].Targets, 3)
+	})
+}
