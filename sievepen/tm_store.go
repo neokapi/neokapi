@@ -27,6 +27,12 @@ type TMStore interface {
 	// SearchEntriesGrouped returns entries grouped by source text.
 	SearchEntriesGrouped(query, sourceLocale string, offset, limit int) ([]TMEntryGroup, int)
 
+	// SearchEntriesFiltered performs a search with additional facet filters.
+	SearchEntriesFiltered(query, sourceLocale, targetLocale string, filter SearchFilter, offset, limit int) ([]TMEntry, int)
+
+	// SearchEntriesGroupedFiltered returns entries grouped by source text with facet filters.
+	SearchEntriesGroupedFiltered(query, sourceLocale string, filter SearchFilter, offset, limit int) ([]TMEntryGroup, int)
+
 	// FacetStats returns aggregated facet data for filtering UI.
 	FacetStats() FacetData
 }

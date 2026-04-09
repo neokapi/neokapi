@@ -672,16 +672,80 @@ func (tm *SQLiteTM) Close() error {
 // SearchEntries performs a ranked full-text search using FTS5 with BM25 ranking.
 // Falls back to LIKE-based substring search if FTS5 is unavailable.
 func (tm *SQLiteTM) SearchEntries(query, sourceLocale, targetLocale string, offset, limit int) ([]TMEntry, int) {
+	return tm.SearchEntriesFiltered(query, sourceLocale, targetLocale, SearchFilter{}, offset, limit)
+}
+
+// SearchEntriesFiltered performs a search with additional facet filters.
+func (tm *SQLiteTM) SearchEntriesFiltered(query, sourceLocale, targetLocale string, filter SearchFilter, offset, limit int) ([]TMEntry, int) {
 	if query != "" {
-		entries, total, err := tm.searchFTS5(query, sourceLocale, targetLocale, offset, limit)
+		entries, total, err := tm.searchFTS5(query, sourceLocale, targetLocale, filter, offset, limit)
 		if err == nil {
 			return entries, total
 		}
 	}
-	return tm.searchLike(query, sourceLocale, targetLocale, offset, limit)
+	return tm.searchLike(query, sourceLocale, targetLocale, filter, offset, limit)
 }
 
-func (tm *SQLiteTM) searchFTS5(query, sourceLocale, targetLocale string, offset, limit int) ([]TMEntry, int, error) {
+// filterWhere builds additional WHERE clauses and args for SearchFilter.
+// The returned clauses use "e." table alias prefix for tm_entries columns.
+func filterWhere(filter SearchFilter) (string, []any) {
+	var clauses []string
+	var args []any
+	if filter.ProjectID != "" {
+		clauses = append(clauses, "e.project_id = ?")
+		args = append(args, filter.ProjectID)
+	}
+	if len(filter.EntityTypes) > 0 {
+		placeholders := make([]string, len(filter.EntityTypes))
+		for i, et := range filter.EntityTypes {
+			placeholders[i] = "?"
+			args = append(args, et)
+		}
+		clauses = append(clauses, "e.id IN (SELECT entry_id FROM tm_entry_entities WHERE entity_type IN ("+strings.Join(placeholders, ",")+"))")
+	}
+	if filter.HasCodes != nil {
+		if *filter.HasCodes {
+			clauses = append(clauses, "INSTR(e.source_coded, char(0xE001)) > 0")
+		} else {
+			clauses = append(clauses, "INSTR(e.source_coded, char(0xE001)) = 0")
+		}
+	}
+	if len(clauses) == 0 {
+		return "", nil
+	}
+	return " AND " + strings.Join(clauses, " AND "), args
+}
+
+// filterWhereNoAlias builds additional WHERE clauses without table alias prefix.
+func filterWhereNoAlias(filter SearchFilter) (string, []any) {
+	var clauses []string
+	var args []any
+	if filter.ProjectID != "" {
+		clauses = append(clauses, "project_id = ?")
+		args = append(args, filter.ProjectID)
+	}
+	if len(filter.EntityTypes) > 0 {
+		placeholders := make([]string, len(filter.EntityTypes))
+		for i, et := range filter.EntityTypes {
+			placeholders[i] = "?"
+			args = append(args, et)
+		}
+		clauses = append(clauses, "id IN (SELECT entry_id FROM tm_entry_entities WHERE entity_type IN ("+strings.Join(placeholders, ",")+"))")
+	}
+	if filter.HasCodes != nil {
+		if *filter.HasCodes {
+			clauses = append(clauses, "INSTR(source_coded, char(0xE001)) > 0")
+		} else {
+			clauses = append(clauses, "INSTR(source_coded, char(0xE001)) = 0")
+		}
+	}
+	if len(clauses) == 0 {
+		return "", nil
+	}
+	return " AND " + strings.Join(clauses, " AND "), args
+}
+
+func (tm *SQLiteTM) searchFTS5(query, sourceLocale, targetLocale string, filter SearchFilter, offset, limit int) ([]TMEntry, int, error) {
 	localeWhere := "1=1"
 	var localeArgs []any
 	if sourceLocale != "" {
@@ -693,8 +757,11 @@ func (tm *SQLiteTM) searchFTS5(query, sourceLocale, targetLocale string, offset,
 		localeArgs = append(localeArgs, targetLocale)
 	}
 
-	countQ := "\n\t\tSELECT COUNT(*) FROM tm_entries e\n\t\tWHERE e.rowid IN (SELECT rowid FROM tm_search WHERE tm_search MATCH ?)\n\t\tAND " + localeWhere
+	filterClause, filterArgs := filterWhere(filter)
+
+	countQ := "\n\t\tSELECT COUNT(*) FROM tm_entries e\n\t\tWHERE e.rowid IN (SELECT rowid FROM tm_search WHERE tm_search MATCH ?)\n\t\tAND " + localeWhere + filterClause
 	countArgs := append([]any{query}, localeArgs...)
+	countArgs = append(countArgs, filterArgs...)
 	var total int
 	if err := tm.db.QueryRow(countQ, countArgs...).Scan(&total); err != nil {
 		return nil, 0, err
@@ -705,10 +772,11 @@ func (tm *SQLiteTM) searchFTS5(query, sourceLocale, targetLocale string, offset,
 			e.entities, e.properties, e.created_at, e.updated_at
 		FROM tm_entries e
 		JOIN tm_search s ON s.rowid = e.rowid
-		WHERE tm_search MATCH ? AND %s
+		WHERE tm_search MATCH ? AND %s%s
 		ORDER BY s.rank
-		LIMIT ? OFFSET ?`, localeWhere)
+		LIMIT ? OFFSET ?`, localeWhere, filterClause)
 	args := append([]any{query}, localeArgs...)
+	args = append(args, filterArgs...)
 	args = append(args, limit, offset)
 
 	rows, err := tm.db.Query(q, args...)
@@ -721,7 +789,7 @@ func (tm *SQLiteTM) searchFTS5(query, sourceLocale, targetLocale string, offset,
 	return entries, total, err
 }
 
-func (tm *SQLiteTM) searchLike(query, sourceLocale, targetLocale string, offset, limit int) ([]TMEntry, int) {
+func (tm *SQLiteTM) searchLike(query, sourceLocale, targetLocale string, filter SearchFilter, offset, limit int) ([]TMEntry, int) {
 	where := "1=1"
 	var args []any
 	if query != "" {
@@ -737,6 +805,10 @@ func (tm *SQLiteTM) searchLike(query, sourceLocale, targetLocale string, offset,
 		where += " AND target_locale = ?"
 		args = append(args, targetLocale)
 	}
+
+	filterClause, filterArgs := filterWhereNoAlias(filter)
+	where += filterClause
+	args = append(args, filterArgs...)
 
 	var total int
 	countArgs := make([]any, len(args))
@@ -957,18 +1029,23 @@ func (tm *SQLiteTM) FacetStats() FacetData {
 // SearchEntriesGrouped returns entries grouped by source text with pagination
 // on distinct source texts.
 func (tm *SQLiteTM) SearchEntriesGrouped(query, sourceLocale string, offset, limit int) ([]TMEntryGroup, int) {
+	return tm.SearchEntriesGroupedFiltered(query, sourceLocale, SearchFilter{}, offset, limit)
+}
+
+// SearchEntriesGroupedFiltered returns entries grouped by source text with facet filters.
+func (tm *SQLiteTM) SearchEntriesGroupedFiltered(query, sourceLocale string, filter SearchFilter, offset, limit int) ([]TMEntryGroup, int) {
 	var total int
 	var sourcePlains []string
 
 	if query != "" {
 		// FTS5 search path.
-		sourcePlains, total = tm.groupedFTS5(query, sourceLocale, offset, limit)
+		sourcePlains, total = tm.groupedFTS5(query, sourceLocale, filter, offset, limit)
 		if sourcePlains == nil {
 			// Fallback to LIKE search.
-			sourcePlains, total = tm.groupedLike(query, sourceLocale, offset, limit)
+			sourcePlains, total = tm.groupedLike(query, sourceLocale, filter, offset, limit)
 		}
 	} else {
-		sourcePlains, total = tm.groupedLike("", sourceLocale, offset, limit)
+		sourcePlains, total = tm.groupedLike("", sourceLocale, filter, offset, limit)
 	}
 
 	if len(sourcePlains) == 0 {
@@ -1032,7 +1109,7 @@ func (tm *SQLiteTM) SearchEntriesGrouped(query, sourceLocale string, offset, lim
 	return groups, total
 }
 
-func (tm *SQLiteTM) groupedFTS5(query, sourceLocale string, offset, limit int) ([]string, int) {
+func (tm *SQLiteTM) groupedFTS5(query, sourceLocale string, filter SearchFilter, offset, limit int) ([]string, int) {
 	localeWhere := "1=1"
 	var localeArgs []any
 	if sourceLocale != "" {
@@ -1040,12 +1117,15 @@ func (tm *SQLiteTM) groupedFTS5(query, sourceLocale string, offset, limit int) (
 		localeArgs = append(localeArgs, sourceLocale)
 	}
 
+	filterClause, filterArgs := filterWhere(filter)
+
 	// Count distinct source texts.
 	countQ := fmt.Sprintf(`SELECT COUNT(DISTINCT e.source_plain)
 		FROM tm_entries e
 		JOIN tm_search s ON s.rowid = e.rowid
-		WHERE tm_search MATCH ? AND %s`, localeWhere)
+		WHERE tm_search MATCH ? AND %s%s`, localeWhere, filterClause)
 	countArgs := append([]any{query}, localeArgs...)
+	countArgs = append(countArgs, filterArgs...)
 	var total int
 	if err := tm.db.QueryRow(countQ, countArgs...).Scan(&total); err != nil {
 		return nil, 0
@@ -1055,11 +1135,12 @@ func (tm *SQLiteTM) groupedFTS5(query, sourceLocale string, offset, limit int) (
 	pageQ := fmt.Sprintf(`SELECT e.source_plain, MAX(e.updated_at) as latest
 		FROM tm_entries e
 		JOIN tm_search s ON s.rowid = e.rowid
-		WHERE tm_search MATCH ? AND %s
+		WHERE tm_search MATCH ? AND %s%s
 		GROUP BY e.source_plain
 		ORDER BY latest DESC
-		LIMIT ? OFFSET ?`, localeWhere)
+		LIMIT ? OFFSET ?`, localeWhere, filterClause)
 	pageArgs := append([]any{query}, localeArgs...)
+	pageArgs = append(pageArgs, filterArgs...)
 	pageArgs = append(pageArgs, limit, offset)
 
 	rows, err := tm.db.Query(pageQ, pageArgs...)
@@ -1078,7 +1159,7 @@ func (tm *SQLiteTM) groupedFTS5(query, sourceLocale string, offset, limit int) (
 	return sourcePlains, total
 }
 
-func (tm *SQLiteTM) groupedLike(query, sourceLocale string, offset, limit int) ([]string, int) {
+func (tm *SQLiteTM) groupedLike(query, sourceLocale string, filter SearchFilter, offset, limit int) ([]string, int) {
 	where := "1=1"
 	var args []any
 	if query != "" {
@@ -1090,6 +1171,10 @@ func (tm *SQLiteTM) groupedLike(query, sourceLocale string, offset, limit int) (
 		where += " AND source_locale = ?"
 		args = append(args, sourceLocale)
 	}
+
+	filterClause, filterArgs := filterWhereNoAlias(filter)
+	where += filterClause
+	args = append(args, filterArgs...)
 
 	// Count distinct source texts.
 	var total int

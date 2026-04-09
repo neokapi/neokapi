@@ -311,6 +311,14 @@ func (t *testTMStore) SearchEntriesGrouped(query, sourceLocale string, offset, l
 	return t.InMemoryTM.SearchEntriesGrouped(query, sourceLocale, offset, limit)
 }
 
+func (t *testTMStore) SearchEntriesFiltered(query, sourceLocale, targetLocale string, filter sievepen.SearchFilter, offset, limit int) ([]sievepen.TMEntry, int) {
+	return t.InMemoryTM.SearchEntriesFiltered(query, sourceLocale, targetLocale, filter, offset, limit)
+}
+
+func (t *testTMStore) SearchEntriesGroupedFiltered(query, sourceLocale string, filter sievepen.SearchFilter, offset, limit int) ([]sievepen.TMEntryGroup, int) {
+	return t.InMemoryTM.SearchEntriesGroupedFiltered(query, sourceLocale, filter, offset, limit)
+}
+
 func (t *testTMStore) FacetStats() sievepen.FacetData {
 	return t.InMemoryTM.FacetStats()
 }

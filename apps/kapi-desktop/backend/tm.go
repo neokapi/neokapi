@@ -199,6 +199,13 @@ type TMGroupedSearchResult struct {
 	TotalCount int               `json:"total_count"`
 }
 
+// TMSearchFilter is the frontend-facing search filter.
+type TMSearchFilter struct {
+	ProjectID   string   `json:"project_id,omitempty"`
+	EntityTypes []string `json:"entity_types,omitempty"`
+	HasCodes    *bool    `json:"has_codes,omitempty"`
+}
+
 // --- Conversion helpers ---
 
 func spanTypeStr(st model.SpanType) string {
@@ -427,6 +434,20 @@ func (a *App) SearchTMEntries(handle, query, srcLocale, tgtLocale string, offset
 		return &TMSearchResult{}
 	}
 	entries, total := tm.SearchEntries(query, srcLocale, tgtLocale, offset, limit)
+	dtos := make([]TMEntryDTO, 0, len(entries))
+	for _, e := range entries {
+		dtos = append(dtos, tmEntryToDTO(e))
+	}
+	return &TMSearchResult{Entries: dtos, TotalCount: total}
+}
+
+// SearchTMEntriesFiltered searches TM entries with facet filters.
+func (a *App) SearchTMEntriesFiltered(handle, query, srcLocale, tgtLocale string, filter TMSearchFilter, offset, limit int) *TMSearchResult {
+	tm, ok := a.tmHandles.Get(handle)
+	if !ok {
+		return &TMSearchResult{}
+	}
+	entries, total := tm.SearchEntriesFiltered(query, srcLocale, tgtLocale, toSearchFilter(filter), offset, limit)
 	dtos := make([]TMEntryDTO, 0, len(entries))
 	for _, e := range entries {
 		dtos = append(dtos, tmEntryToDTO(e))
@@ -748,6 +769,48 @@ func (a *App) SearchTMEntriesGrouped(handle, query, srcLocale string, offset, li
 		result.Groups = append(result.Groups, gr)
 	}
 	return result
+}
+
+// SearchTMEntriesGroupedFiltered searches TM entries grouped by source text with facet filters.
+func (a *App) SearchTMEntriesGroupedFiltered(handle, query, srcLocale string, filter TMSearchFilter, offset, limit int) *TMGroupedSearchResult {
+	tm, ok := a.tmHandles.Get(handle)
+	if !ok {
+		return &TMGroupedSearchResult{}
+	}
+	groups, total := tm.SearchEntriesGroupedFiltered(query, srcLocale, toSearchFilter(filter), offset, limit)
+	result := &TMGroupedSearchResult{TotalCount: total}
+	for _, g := range groups {
+		srcCoded, srcSpans := fragmentToDTO(g.Source)
+		gr := TMGroupedResult{
+			SourceText:   g.SourceText,
+			SourceCoded:  srcCoded,
+			SourceSpans:  srcSpans,
+			SourceLocale: string(g.SourceLocale),
+		}
+		for _, t := range g.Targets {
+			tgtCoded, tgtSpans := fragmentToDTO(t.Target)
+			gr.Targets = append(gr.Targets, TMTargetDTO{
+				ID:           t.ID,
+				TargetText:   t.TargetText(),
+				TargetCoded:  tgtCoded,
+				TargetSpans:  tgtSpans,
+				TargetLocale: string(t.TargetLocale),
+				ProjectID:    t.ProjectID,
+				UpdatedAt:    t.UpdatedAt.Format(time.RFC3339),
+			})
+		}
+		result.Groups = append(result.Groups, gr)
+	}
+	return result
+}
+
+// toSearchFilter converts the frontend DTO to the sievepen filter type.
+func toSearchFilter(f TMSearchFilter) sievepen.SearchFilter {
+	return sievepen.SearchFilter{
+		ProjectID:   f.ProjectID,
+		EntityTypes: f.EntityTypes,
+		HasCodes:    f.HasCodes,
+	}
 }
 
 // --- Batch entity annotation ---

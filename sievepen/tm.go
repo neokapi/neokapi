@@ -173,6 +173,13 @@ type EntityTypeFacet struct {
 	Count int    `json:"count"`
 }
 
+// SearchFilter holds optional filter parameters for TM search.
+type SearchFilter struct {
+	ProjectID   string   // filter by project (empty = all)
+	EntityTypes []string // filter by entity types (empty = all)
+	HasCodes    *bool    // nil = all, true = only with codes, false = only without
+}
+
 // TranslationMemory defines the interface for a content-aware translation
 // memory store. Unlike traditional TMs that store plain strings, this
 // interface works with the full content model (Fragments, Blocks, entities).
