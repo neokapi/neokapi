@@ -475,10 +475,73 @@ export function TMBrowser({
 
         {/* Right: results */}
         <div className="flex-1 min-w-0">
-        {/* Toolbar row: view toggle · count · Add Entry */}
+        {/* Toolbar row: count · Add Entry */}
         <div className="flex items-center gap-2 mb-2">
+          <div className="text-[12px] text-muted-foreground flex items-center gap-2">
+            <span>
+              {totalCount} {totalCount === 1 ? (viewMode === "multilang" ? "source" : "entry") : (viewMode === "multilang" ? "sources" : "entries")}
+              {debouncedSearch && " matching"}
+            </span>
+            {loading && initialLoadDone && (
+              <span className="inline-block w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin opacity-50" />
+            )}
+          </div>
+          <Button
+            size="sm"
+            onClick={() => setShowAddForm(true)}
+            className="ml-auto whitespace-nowrap"
+          >
+            Add Entry
+          </Button>
+        </div>
+
+        {/* Selection + Show-locales + view toggle row — aligned with the card checkboxes (pl-3) */}
+        <div className="flex items-center gap-2 mb-2 pl-3 min-h-7">
+          {!isEmpty && (
+            <Checkbox
+              checked={allVisibleSelected ? true : someVisibleSelected ? "indeterminate" : false}
+              onCheckedChange={toggleSelectAll}
+              aria-label="Select all visible entries"
+              title={allVisibleSelected ? "Deselect all" : "Select all on this page"}
+            />
+          )}
+          {viewMode === "multilang" && availableTargetLocales.length > 1 && (
+            <>
+              <span className="text-[11px] text-muted-foreground ml-3">Show:</span>
+              {availableTargetLocales.map((locale) => {
+                const active = displayLocales === undefined || displayLocales.includes(locale);
+                return (
+                  <button
+                    key={locale}
+                    onClick={() => toggleDisplayLocale(locale)}
+                    className={cn("transition-opacity", !active && "opacity-30")}
+                  >
+                    <LocalePill locale={locale} />
+                  </button>
+                );
+              })}
+              <div className="flex items-center gap-1 ml-1 text-[10px]">
+                <button
+                  onClick={() => setDisplayLocales(undefined)}
+                  className="text-muted-foreground hover:text-foreground px-1 hover:underline"
+                  title="Show all languages"
+                >
+                  All
+                </button>
+                <span className="text-muted-foreground/50">·</span>
+                <button
+                  onClick={() => setDisplayLocales([])}
+                  className="text-muted-foreground hover:text-foreground px-1 hover:underline"
+                  title="Hide all languages"
+                >
+                  None
+                </button>
+              </div>
+            </>
+          )}
+          {/* View toggle — right aligned */}
           {adapter.searchGrouped && (
-            <div className="flex rounded-md border border-input">
+            <div className="flex rounded-md border border-input ml-auto">
               <Button
                 variant="ghost"
                 size="icon-xs"
@@ -505,69 +568,7 @@ export function TMBrowser({
               </Button>
             </div>
           )}
-          <div className="text-[12px] text-muted-foreground flex items-center gap-2">
-            <span>
-              {totalCount} {totalCount === 1 ? (viewMode === "multilang" ? "source" : "entry") : (viewMode === "multilang" ? "sources" : "entries")}
-              {debouncedSearch && " matching"}
-            </span>
-            {loading && initialLoadDone && (
-              <span className="inline-block w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin opacity-50" />
-            )}
-          </div>
-          <Button
-            size="sm"
-            onClick={() => setShowAddForm(true)}
-            className="ml-auto whitespace-nowrap"
-          >
-            Add Entry
-          </Button>
         </div>
-
-        {/* Selection + Show-locales row — aligned with the card checkboxes inside ItemCards (pl-3) */}
-        {!isEmpty && (
-          <div className="flex items-center gap-2 mb-2 pl-3">
-            <Checkbox
-              checked={allVisibleSelected ? true : someVisibleSelected ? "indeterminate" : false}
-              onCheckedChange={toggleSelectAll}
-              aria-label="Select all visible entries"
-              title={allVisibleSelected ? "Deselect all" : "Select all on this page"}
-            />
-            {viewMode === "multilang" && availableTargetLocales.length > 1 && (
-              <>
-                <span className="text-[11px] text-muted-foreground ml-3">Show:</span>
-                {availableTargetLocales.map((locale) => {
-                  const active = displayLocales === undefined || displayLocales.includes(locale);
-                  return (
-                    <button
-                      key={locale}
-                      onClick={() => toggleDisplayLocale(locale)}
-                      className={cn("transition-opacity", !active && "opacity-30")}
-                    >
-                      <LocalePill locale={locale} />
-                    </button>
-                  );
-                })}
-                <div className="flex items-center gap-1 ml-1 text-[10px]">
-                  <button
-                    onClick={() => setDisplayLocales(undefined)}
-                    className="text-muted-foreground hover:text-foreground px-1 hover:underline"
-                    title="Show all languages"
-                  >
-                    All
-                  </button>
-                  <span className="text-muted-foreground/50">·</span>
-                  <button
-                    onClick={() => setDisplayLocales([])}
-                    className="text-muted-foreground hover:text-foreground px-1 hover:underline"
-                    title="Hide all languages"
-                  >
-                    None
-                  </button>
-                </div>
-              </>
-            )}
-          </div>
-        )}
 
         {/* Loading skeleton */}
         {loading && !initialLoadDone && (
