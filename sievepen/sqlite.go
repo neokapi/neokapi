@@ -747,6 +747,10 @@ func filterWhere(filter SearchFilter) (string, []any) {
 		clauses = append(clauses, "e.project_id = ?")
 		args = append(args, filter.ProjectID)
 	}
+	if filter.Locale != "" {
+		clauses = append(clauses, "(e.source_locale = ? OR e.target_locale = ?)")
+		args = append(args, filter.Locale, filter.Locale)
+	}
 	if len(filter.EntityTypes) > 0 {
 		placeholders := make([]string, len(filter.EntityTypes))
 		for i, et := range filter.EntityTypes {
@@ -783,6 +787,10 @@ func filterWhereNoAlias(filter SearchFilter) (string, []any) {
 	if filter.ProjectID != "" {
 		clauses = append(clauses, "project_id = ?")
 		args = append(args, filter.ProjectID)
+	}
+	if filter.Locale != "" {
+		clauses = append(clauses, "(source_locale = ? OR target_locale = ?)")
+		args = append(args, filter.Locale, filter.Locale)
 	}
 	if len(filter.EntityTypes) > 0 {
 		placeholders := make([]string, len(filter.EntityTypes))

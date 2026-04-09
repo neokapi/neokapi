@@ -387,6 +387,11 @@ func matchesSearchFilter(entry TMEntry, filter SearchFilter) bool {
 	if filter.ProjectID != "" && entry.ProjectID != filter.ProjectID {
 		return false
 	}
+	if filter.Locale != "" {
+		if string(entry.SourceLocale) != filter.Locale && string(entry.TargetLocale) != filter.Locale {
+			return false
+		}
+	}
 	if len(filter.EntityTypes) > 0 {
 		found := false
 		for _, et := range filter.EntityTypes {

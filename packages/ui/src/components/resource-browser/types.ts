@@ -83,6 +83,8 @@ export interface TMGroupedSearchResult {
 /** Filter parameters for faceted TM search. */
 export interface TMSearchFilter {
   project_id?: string;
+  /** Matches either source_locale OR target_locale. */
+  locale?: string;
   entity_types?: string[];
   entity_values?: EntityValueFilter[];
   has_codes?: boolean | null;

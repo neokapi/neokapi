@@ -113,19 +113,23 @@ export function TMBrowser({
   // Filter tokens (e.g. language:fr-FR, project:my-app) in the search bar.
   const [filterTokens, setFilterTokens] = useState<Array<{ key: string; value: string }>>([]);
 
-  // Effective locales: filter tokens > facet selection > props.
-  const effectiveSourceLocale = propSourceLocale;
-  const tokenTargetLocale = useMemo(
+  // Token language filter matches either source or target locale.
+  const tokenLocale = useMemo(
     () => filterTokens.find((t) => t.key === "language")?.value ?? "",
     [filterTokens],
   );
-  const effectiveTargetLocale =
-    tokenTargetLocale ||
-    (facetSelection.targetLocales.length === 1
+
+  // Effective locales: facet selection > props. When a language token is
+  // active, clear both locale params — the language filter is applied as
+  // an OR filter via searchFilter.locale below.
+  const effectiveSourceLocale = tokenLocale ? "" : propSourceLocale;
+  const effectiveTargetLocale = tokenLocale
+    ? ""
+    : facetSelection.targetLocales.length === 1
       ? facetSelection.targetLocales[0]
       : facetSelection.targetLocales.length === 0
         ? propTargetLocales[0] ?? ""
-        : "");
+        : "";
 
   // Search is submitted explicitly (Enter or icon click), not debounced.
   const handleSearchSubmit = useCallback((val: string) => {
@@ -140,6 +144,7 @@ export function TMBrowser({
     const tokenProject = filterTokens.find((t) => t.key === "project")?.value;
     if (tokenProject) filter.project_id = tokenProject;
     else if (facetSelection.projects.length === 1) filter.project_id = facetSelection.projects[0];
+    if (tokenLocale) filter.locale = tokenLocale;
     if (facetSelection.entityTypes.length > 0) filter.entity_types = facetSelection.entityTypes;
     if (facetSelection.codeFilter === "has_codes") filter.has_codes = true;
     if (facetSelection.codeFilter === "no_codes") filter.has_codes = false;
@@ -147,7 +152,7 @@ export function TMBrowser({
       filter.entity_values = markedEntities.map((e) => ({ value: e.text, type: e.type }));
     }
     return filter;
-  }, [facetSelection, filterTokens, markedEntities]);
+  }, [facetSelection, filterTokens, tokenLocale, markedEntities]);
 
   // Refs for stable callbacks.
   const adapterRef = useRef(adapter);
@@ -371,12 +376,18 @@ export function TMBrowser({
   const searchBarFilterFields = useMemo(() => {
     if (!facets) return [];
     const fields: Array<{ key: string; label: string; values?: Array<{ value: string; label: string }> }> = [];
-    const targetLocales = [...new Set(facets.locale_pairs.map((lp) => lp.target_locale))];
-    if (targetLocales.length > 0) {
+    // Include both source and target locales so users can filter by any
+    // language appearing in the TM (matches either column in the backend).
+    const allLocales = new Set<string>();
+    for (const lp of facets.locale_pairs) {
+      if (lp.source_locale) allLocales.add(lp.source_locale);
+      if (lp.target_locale) allLocales.add(lp.target_locale);
+    }
+    if (allLocales.size > 0) {
       fields.push({
         key: "language",
-        label: "Target Language",
-        values: targetLocales.map((l) => ({ value: l, label: l })),
+        label: "Language",
+        values: [...allLocales].sort().map((l) => ({ value: l, label: l })),
       });
     }
     if (facets.projects.length > 0) {
