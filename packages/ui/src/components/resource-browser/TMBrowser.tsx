@@ -21,7 +21,7 @@ import { Input } from "../ui/input";
 import { Label } from "../ui/label";
 import { Badge } from "../ui/badge";
 import { Checkbox } from "../ui/checkbox";
-import { List, Languages } from "lucide-react";
+import { List, Languages, X } from "lucide-react";
 import { cn } from "../../lib/utils";
 
 type ViewMode = "bilingual" | "multilang";
@@ -69,6 +69,9 @@ export function TMBrowser({
   const [facets, setFacets] = useState<TMFacets | null>(null);
   const [facetSelection, setFacetSelection] = useState<FacetSelection>(EMPTY_FACETS);
 
+  // --- Display locales for multi-language view (independent of filter) ---
+  const [displayLocales, setDisplayLocales] = useState<string[]>([]);
+
   // --- Add entry form ---
   const [showAddForm, setShowAddForm] = useState(false);
   const [addSource, setAddSource] = useState("");
@@ -89,6 +92,20 @@ export function TMBrowser({
     }
     return [...known.values()];
   }, [locales, entries]);
+
+  // Available target locales (from facets or data).
+  const availableTargetLocales = useMemo(() => {
+    if (facets) {
+      return [...new Set(facets.locale_pairs.map((lp) => lp.target_locale))];
+    }
+    return [...new Set(entries.map((e) => e.target_locale).filter(Boolean))];
+  }, [facets, entries]);
+
+  const toggleDisplayLocale = useCallback((locale: string) => {
+    setDisplayLocales((prev) =>
+      prev.includes(locale) ? prev.filter((l) => l !== locale) : [...prev, locale],
+    );
+  }, []);
 
   // Effective locales from facet selection — single selection filters, empty means all.
   const effectiveSourceLocale = propSourceLocale;
@@ -414,6 +431,37 @@ export function TMBrowser({
           </div>
         </div>
 
+        {/* Target language selector — multilang view only */}
+        {viewMode === "multilang" && availableTargetLocales.length > 1 && (
+          <div className="flex items-center gap-1 mb-3 flex-wrap">
+            <span className="text-[11px] text-muted-foreground mr-1">Show:</span>
+            {availableTargetLocales.map((locale) => {
+              const active = displayLocales.length === 0 || displayLocales.includes(locale);
+              return (
+                <button
+                  key={locale}
+                  onClick={() => toggleDisplayLocale(locale)}
+                  className={cn(
+                    "transition-opacity",
+                    !active && "opacity-30",
+                  )}
+                >
+                  <LocalePill locale={locale} />
+                </button>
+              );
+            })}
+            {displayLocales.length > 0 && (
+              <button
+                onClick={() => setDisplayLocales([])}
+                className="text-[10px] text-muted-foreground hover:text-foreground ml-1"
+                title="Show all languages"
+              >
+                <X className="size-3" />
+              </button>
+            )}
+          </div>
+        )}
+
         {/* Loading skeleton */}
         {loading && !initialLoadDone && (
           <div className="flex flex-col gap-2">
@@ -454,7 +502,7 @@ export function TMBrowser({
                 onToggleSelect={() => toggleSelectGroup(group)}
                 onEditTarget={handleSaveGroupedTarget}
                 onDeleteTarget={(id) => void handleDelete(id)}
-                visibleLocales={facetSelection.targetLocales}
+                visibleLocales={displayLocales}
               />
             ))}
           </div>
