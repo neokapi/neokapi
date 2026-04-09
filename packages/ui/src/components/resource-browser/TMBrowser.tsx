@@ -507,7 +507,7 @@ export function TMBrowser({
           )}
           {viewMode === "multilang" && availableTargetLocales.length > 1 && (
             <>
-              <span className="text-[11px] text-muted-foreground ml-3">Show:</span>
+              <span className="text-[10px] text-muted-foreground ml-3 leading-none">Show:</span>
               {availableTargetLocales.map((locale) => {
                 const active = displayLocales === undefined || displayLocales.includes(locale);
                 return (
@@ -520,23 +520,20 @@ export function TMBrowser({
                   </button>
                 );
               })}
-              <div className="flex items-center gap-1 ml-1 text-[10px]">
-                <button
-                  onClick={() => setDisplayLocales(undefined)}
-                  className="text-muted-foreground hover:text-foreground px-1 hover:underline"
-                  title="Show all languages"
-                >
-                  All
-                </button>
-                <span className="text-muted-foreground/50">·</span>
-                <button
-                  onClick={() => setDisplayLocales([])}
-                  className="text-muted-foreground hover:text-foreground px-1 hover:underline"
-                  title="Hide all languages"
-                >
-                  None
-                </button>
-              </div>
+              <button
+                onClick={() => setDisplayLocales(undefined)}
+                className="inline-flex shrink-0 items-center px-1.5 py-px rounded font-mono text-[10px] font-medium bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground transition-colors"
+                title="Show all languages"
+              >
+                All
+              </button>
+              <button
+                onClick={() => setDisplayLocales([])}
+                className="inline-flex shrink-0 items-center px-1.5 py-px rounded font-mono text-[10px] font-medium bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground transition-colors"
+                title="Hide all languages"
+              >
+                None
+              </button>
             </>
           )}
           {/* View toggle — right aligned */}
