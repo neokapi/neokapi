@@ -4,6 +4,7 @@ import type { SpanInfo } from "../../types/span";
 import { CodedTextDisplay } from "./CodedTextDisplay";
 import { InlineCodeEditor } from "../editor/InlineCodeEditor";
 import { LocalePill } from "./LocalePill";
+import { OriginsPopover } from "./OriginsPopover";
 import { ItemCard } from "../ui/item-card";
 import { Checkbox } from "../ui/checkbox";
 import { Button } from "../ui/button";
@@ -124,6 +125,7 @@ export function TMGroupedEntry({
                       <span className="text-[10px] text-muted-foreground shrink-0">
                         {relativeTime(target.updated_at)}
                       </span>
+                      <OriginsPopover origins={target.origins ?? []} note={target.note} />
                       <div className="flex gap-1 opacity-0 transition-opacity group-hover/target:opacity-100 shrink-0">
                         <Button
                           variant="ghost"

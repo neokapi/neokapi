@@ -10,6 +10,7 @@ import { Pagination } from "./Pagination";
 import { TMSearchBar } from "./TMSearchBar";
 import { TMFacetSidebar, EMPTY_FACETS, type FacetSelection } from "./TMFacetSidebar";
 import { TMGroupedEntry } from "./TMGroupedEntry";
+import { OriginsPopover } from "./OriginsPopover";
 import { EntityAnnotationDialog } from "./EntityAnnotationDialog";
 import { relativeTime } from "./utils";
 import { LocaleSelect, resolveLocaleName, type LocaleInfo } from "../ui/locale-select";
@@ -674,6 +675,7 @@ export function TMBrowser({
                         <Badge variant="secondary" className="text-[10px] h-4">User</Badge>
                       )}
                       <span>{relativeTime(entry.updated_at)}</span>
+                      <OriginsPopover origins={entry.origins ?? []} note={entry.note} />
                       {editingId !== entry.id && (
                         <div className="ml-auto flex gap-1 opacity-0 transition-opacity group-hover:opacity-100">
                           <Button variant="ghost" size="sm" className="h-5 px-1 text-[10px] text-muted-foreground" onClick={() => handleEdit(entry)}>

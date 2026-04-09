@@ -28,6 +28,17 @@ func (mt MatchType) IsExact() bool {
 	return mt == MatchGeneralizedExact || mt == MatchStructuralExact || mt == MatchExact
 }
 
+// Origin records where a TM entry came from — file, tool, import, etc.
+// An entry can have multiple origins if the same source text was ingested
+// from multiple locations (common TM deduplication case).
+type Origin struct {
+	Source    string    // "file", "tool", "import", "user"
+	Key       string    // e.g. "errors.notFound" for keyed formats, or file path
+	Reference string    // optional: git commit, job ID, URL
+	AddedAt   time.Time
+	AddedBy   string // user ID or tool name
+}
+
 // EntityMapping tracks a named entity and its values in source and target.
 // This enables generalized matching: entities are replaced with typed
 // placeholders in the matching key, so structurally identical segments
@@ -53,6 +64,8 @@ type TMEntry struct {
 	TargetLocale model.LocaleID
 	Entities     []EntityMapping // entity placeholders in this entry
 	Properties   map[string]string
+	Origins      []Origin // provenance: where this entry came from
+	Note         string   // translator-visible context note
 	CreatedAt    time.Time
 	UpdatedAt    time.Time
 }

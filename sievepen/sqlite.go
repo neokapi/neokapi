@@ -67,6 +67,7 @@ var tmMigrations = []storage.Migration{
 			source_general  TEXT NOT NULL,
 			source_locale   TEXT NOT NULL,
 			target_locale   TEXT NOT NULL,
+			note            TEXT NOT NULL DEFAULT '',
 			properties      TEXT,
 			created_at      TEXT NOT NULL,
 			updated_at      TEXT NOT NULL
@@ -142,6 +143,20 @@ var tmMigrations = []storage.Migration{
 		);
 		CREATE INDEX IF NOT EXISTS idx_tm_ent_type ON tm_entity_mappings(entity_type);
 		CREATE INDEX IF NOT EXISTS idx_tm_ent_value_type ON tm_entity_mappings(source_value, entity_type);
+
+		-- Origins: provenance tracking for TM entries.
+		CREATE TABLE IF NOT EXISTS tm_entry_origins (
+			entry_id  TEXT NOT NULL REFERENCES tm_entries(id) ON DELETE CASCADE,
+			ordinal   INTEGER NOT NULL,
+			source    TEXT NOT NULL,
+			key       TEXT NOT NULL DEFAULT '',
+			reference TEXT NOT NULL DEFAULT '',
+			added_at  TEXT NOT NULL,
+			added_by  TEXT NOT NULL DEFAULT '',
+			PRIMARY KEY (entry_id, ordinal)
+		);
+		CREATE INDEX IF NOT EXISTS idx_tm_origin_source ON tm_entry_origins(source);
+		CREATE INDEX IF NOT EXISTS idx_tm_origin_key ON tm_entry_origins(key);
 		`,
 	},
 }
@@ -188,9 +203,9 @@ func (tm *SQLiteTM) AddWithStream(entry TMEntry, stream string) error {
 		INSERT INTO tm_entries (id, project_id, stream, source_coded, target_coded,
 			source_plain, source_struct, source_general,
 			source_locale, target_locale,
-			properties,
+			note, properties,
 			created_at, updated_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT(id) DO UPDATE SET
 			project_id = excluded.project_id,
 			stream = excluded.stream,
@@ -201,6 +216,7 @@ func (tm *SQLiteTM) AddWithStream(entry TMEntry, stream string) error {
 			source_general = excluded.source_general,
 			source_locale = excluded.source_locale,
 			target_locale = excluded.target_locale,
+			note = excluded.note,
 			properties = excluded.properties,
 			updated_at = excluded.updated_at
 	`, entry.ID, entry.ProjectID, stream,
@@ -209,6 +225,7 @@ func (tm *SQLiteTM) AddWithStream(entry TMEntry, stream string) error {
 		NormalizeText(entry.SourceStructural()),
 		NormalizeText(entry.SourceGeneralized()),
 		string(entry.SourceLocale), string(entry.TargetLocale),
+		entry.Note,
 		nullableString(propertiesJSON),
 		entry.CreatedAt.Format(time.RFC3339), entry.UpdatedAt.Format(time.RFC3339))
 	if err != nil {
@@ -229,6 +246,24 @@ func (tm *SQLiteTM) AddWithStream(entry TMEntry, stream string) error {
 			em.SourceValue, em.SourcePos.Start, em.SourcePos.End,
 			em.TargetValue, em.TargetPos.Start, em.TargetPos.End); err != nil {
 			return fmt.Errorf("insert entity mapping: %w", err)
+		}
+	}
+
+	// Replace origins — single source of truth.
+	if _, err := tm.db.Exec("DELETE FROM tm_entry_origins WHERE entry_id = ?", entry.ID); err != nil {
+		return fmt.Errorf("delete origins: %w", err)
+	}
+	for i, o := range entry.Origins {
+		addedAt := o.AddedAt
+		if addedAt.IsZero() {
+			addedAt = now
+		}
+		if _, err := tm.db.Exec(`INSERT INTO tm_entry_origins
+			(entry_id, ordinal, source, key, reference, added_at, added_by)
+			VALUES (?, ?, ?, ?, ?, ?, ?)`,
+			entry.ID, i, o.Source, o.Key, o.Reference,
+			addedAt.Format(time.RFC3339), o.AddedBy); err != nil {
+			return fmt.Errorf("insert origin: %w", err)
 		}
 	}
 
@@ -408,7 +443,7 @@ func (tm *SQLiteTM) queryExact(column, value string, sourceLocale, targetLocale 
 
 	query := fmt.Sprintf(`
 		SELECT id, project_id, source_coded, target_coded, source_locale, target_locale,
-			properties, created_at, updated_at
+			note, properties, created_at, updated_at
 		FROM tm_entries
 		WHERE %s
 	`, where)
@@ -447,7 +482,7 @@ func (tm *SQLiteTM) queryTrigramCandidates(plainKey, structKey, generalKey strin
 
 	rows, err := tm.db.Query(fmt.Sprintf(`
 		SELECT DISTINCT e.id, e.project_id, e.source_coded, e.target_coded, e.source_locale, e.target_locale,
-			e.properties, e.created_at, e.updated_at
+			e.note, e.properties, e.created_at, e.updated_at
 		FROM tm_entries e
 		WHERE %s
 		LIMIT 200
@@ -475,7 +510,7 @@ func (tm *SQLiteTM) queryLengthFiltered(plainKey string, sourceLocale, targetLoc
 
 	rows, err := tm.db.Query(fmt.Sprintf(`
 		SELECT id, project_id, source_coded, target_coded, source_locale, target_locale,
-			properties, created_at, updated_at
+			note, properties, created_at, updated_at
 		FROM tm_entries
 		WHERE %s
 		LIMIT 500
@@ -556,15 +591,18 @@ func (tm *SQLiteTM) scanEntries(rows interface {
 		var entry TMEntry
 		var sourceJSON, targetJSON string
 		var srcLocale, tgtLocale string
+		var note string
 		var propertiesJSON *string
 		var createdStr, updatedStr string
 
 		if err := rows.Scan(&entry.ID, &entry.ProjectID, &sourceJSON, &targetJSON,
 			&srcLocale, &tgtLocale,
+			&note,
 			&propertiesJSON,
 			&createdStr, &updatedStr); err != nil {
 			return nil, fmt.Errorf("scan entry: %w", err)
 		}
+		entry.Note = note
 
 		entry.Source = &model.Fragment{}
 		if err := json.Unmarshal([]byte(sourceJSON), entry.Source); err != nil {
@@ -601,6 +639,11 @@ func (tm *SQLiteTM) scanEntries(rows interface {
 		for i, id := range ids {
 			args[i] = id
 		}
+		byID := make(map[string]int, len(entries))
+		for i, e := range entries {
+			byID[e.ID] = i
+		}
+
 		mapRows, err := tm.db.Query(`SELECT entry_id, placeholder_id, entity_type,
 			source_value, source_start, source_end,
 			target_value, target_start, target_end
@@ -608,10 +651,6 @@ func (tm *SQLiteTM) scanEntries(rows interface {
 			ORDER BY entry_id, ordinal`, args...)
 		if err == nil {
 			defer mapRows.Close()
-			byID := make(map[string]int, len(entries))
-			for i, e := range entries {
-				byID[e.ID] = i
-			}
 			for mapRows.Next() {
 				var eid string
 				var em EntityMapping
@@ -624,6 +663,26 @@ func (tm *SQLiteTM) scanEntries(rows interface {
 				em.Type = model.EntityType(etype)
 				if idx, ok := byID[eid]; ok {
 					entries[idx].Entities = append(entries[idx].Entities, em)
+				}
+			}
+		}
+
+		// Batch-fetch origins for all loaded entries.
+		originRows, err := tm.db.Query(`SELECT entry_id, source, key, reference, added_at, added_by
+			FROM tm_entry_origins WHERE entry_id IN (`+placeholders+`)
+			ORDER BY entry_id, ordinal`, args...)
+		if err == nil {
+			defer originRows.Close()
+			for originRows.Next() {
+				var eid string
+				var o Origin
+				var addedAtStr string
+				if err := originRows.Scan(&eid, &o.Source, &o.Key, &o.Reference, &addedAtStr, &o.AddedBy); err != nil {
+					continue
+				}
+				o.AddedAt, _ = time.Parse(time.RFC3339, addedAtStr)
+				if idx, ok := byID[eid]; ok {
+					entries[idx].Origins = append(entries[idx].Origins, o)
 				}
 			}
 		}
@@ -845,7 +904,7 @@ func (tm *SQLiteTM) searchFTS5(query, sourceLocale, targetLocale string, filter 
 
 	q := fmt.Sprintf(`
 		SELECT e.id, e.project_id, e.source_coded, e.target_coded, e.source_locale, e.target_locale,
-			e.properties, e.created_at, e.updated_at
+			e.note, e.properties, e.created_at, e.updated_at
 		FROM tm_entries e
 		JOIN tm_search s ON s.rowid = e.rowid
 		WHERE tm_search MATCH ? AND %s%s
@@ -892,7 +951,7 @@ func (tm *SQLiteTM) searchLike(query, sourceLocale, targetLocale string, filter 
 	_ = tm.db.QueryRow("SELECT COUNT(*) FROM tm_entries WHERE "+where, countArgs...).Scan(&total)
 
 	q := fmt.Sprintf(`SELECT id, project_id, source_coded, target_coded, source_locale, target_locale,
-		properties, created_at, updated_at
+		note, properties, created_at, updated_at
 		FROM tm_entries WHERE %s ORDER BY updated_at DESC LIMIT ? OFFSET ?`, where)
 	args = append(args, limit, offset)
 	rows, err := tm.db.Query(q, args...)
@@ -959,7 +1018,7 @@ func (tm *SQLiteTM) searchFTS5ForStream(query, sourceLocale, targetLocale, strea
 	caseExpr.WriteString(fmt.Sprintf(" ELSE %d END", len(streams)))
 
 	q := fmt.Sprintf(`SELECT e.id, e.project_id, e.source_coded, e.target_coded, e.source_locale, e.target_locale,
-		e.properties, e.created_at, e.updated_at
+		e.note, e.properties, e.created_at, e.updated_at
 		FROM tm_entries e
 		JOIN tm_search s ON s.rowid = e.rowid
 		WHERE %s ORDER BY %s, s.rank LIMIT ? OFFSET ?`, where, caseExpr.String())
@@ -1015,7 +1074,7 @@ func (tm *SQLiteTM) searchLikeForStream(query, sourceLocale, targetLocale, strea
 	caseExpr.WriteString(fmt.Sprintf(" ELSE %d END", len(streams)))
 
 	q := fmt.Sprintf(`SELECT id, project_id, source_coded, target_coded, source_locale, target_locale,
-		properties, created_at, updated_at
+		note, properties, created_at, updated_at
 		FROM tm_entries WHERE %s ORDER BY %s, updated_at DESC LIMIT ? OFFSET ?`, where, caseExpr.String())
 	args = append(args, limit, offset)
 	rows, err := tm.db.Query(q, args...)
@@ -1032,7 +1091,7 @@ func (tm *SQLiteTM) searchLikeForStream(query, sourceLocale, targetLocale, strea
 func (tm *SQLiteTM) GetEntry(id string) (TMEntry, bool) {
 	rows, err := tm.db.Query(`
 		SELECT id, project_id, source_coded, target_coded, source_locale, target_locale,
-			properties, created_at, updated_at
+			note, properties, created_at, updated_at
 		FROM tm_entries WHERE id = ?
 	`, id)
 	if err != nil {
@@ -1051,7 +1110,7 @@ func (tm *SQLiteTM) GetEntry(id string) (TMEntry, bool) {
 func (tm *SQLiteTM) Entries() []TMEntry {
 	rows, err := tm.db.Query(`
 		SELECT id, project_id, source_coded, target_coded, source_locale, target_locale,
-			properties, created_at, updated_at
+			note, properties, created_at, updated_at
 		FROM tm_entries ORDER BY id
 	`)
 	if err != nil {
@@ -1203,7 +1262,7 @@ func (tm *SQLiteTM) SearchEntriesGroupedFiltered(query, sourceLocale string, fil
 
 	rows, err := tm.db.Query(fmt.Sprintf(`
 		SELECT id, project_id, source_coded, target_coded, source_locale, target_locale,
-			properties, created_at, updated_at
+			note, properties, created_at, updated_at
 		FROM tm_entries
 		WHERE source_plain IN (%s)
 		ORDER BY source_plain, target_locale

@@ -621,3 +621,53 @@ func TestSQLiteTM_LocaleFilter(t *testing.T) {
 		assert.Empty(t, entries)
 	})
 }
+
+func TestSQLiteTM_OriginsRoundtrip(t *testing.T) {
+	tm, err := sievepen.NewSQLiteTM(":memory:")
+	require.NoError(t, err)
+	defer tm.Close()
+
+	now := time.Now().UTC().Truncate(time.Second)
+	entry := sievepen.TMEntry{
+		ID:           "e1",
+		Source:       model.NewFragment("Hello"),
+		Target:       model.NewFragment("Bonjour"),
+		SourceLocale: "en-US",
+		TargetLocale: "fr-FR",
+		Note:         "Greeting used in welcome screen",
+		Origins: []sievepen.Origin{
+			{
+				Source:    "file",
+				Key:       "apps/web/locales/en-US.json:errors.notFound",
+				Reference: "commit:abc123",
+				AddedAt:   now,
+				AddedBy:   "tmx-import",
+			},
+			{
+				Source:    "tool",
+				Key:       "ai-translate",
+				Reference: "job-42",
+				AddedAt:   now,
+				AddedBy:   "kapi",
+			},
+		},
+	}
+	require.NoError(t, tm.Add(entry))
+
+	got, found := tm.GetEntry("e1")
+	require.True(t, found)
+	assert.Equal(t, "Greeting used in welcome screen", got.Note)
+	require.Len(t, got.Origins, 2)
+	assert.Equal(t, "file", got.Origins[0].Source)
+	assert.Equal(t, "apps/web/locales/en-US.json:errors.notFound", got.Origins[0].Key)
+	assert.Equal(t, "commit:abc123", got.Origins[0].Reference)
+	assert.Equal(t, "tmx-import", got.Origins[0].AddedBy)
+	assert.Equal(t, "tool", got.Origins[1].Source)
+	assert.Equal(t, "ai-translate", got.Origins[1].Key)
+
+	// Update should replace origins, not append.
+	entry.Origins = entry.Origins[:1] // keep only the first
+	require.NoError(t, tm.Add(entry))
+	got, _ = tm.GetEntry("e1")
+	assert.Len(t, got.Origins, 1)
+}

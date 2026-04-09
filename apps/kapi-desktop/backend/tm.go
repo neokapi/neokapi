@@ -24,6 +24,15 @@ type ResourceInfo struct {
 	Modified string `json:"modified"` // ISO 8601
 }
 
+// OriginDTO is the frontend-facing TM entry origin (provenance).
+type OriginDTO struct {
+	Source    string `json:"source"`
+	Key       string `json:"key,omitempty"`
+	Reference string `json:"reference,omitempty"`
+	AddedAt   string `json:"added_at"`
+	AddedBy   string `json:"added_by,omitempty"`
+}
+
 // TMEntryDTO is the frontend-facing TM entry.
 type TMEntryDTO struct {
 	ID           string            `json:"id"`
@@ -37,6 +46,8 @@ type TMEntryDTO struct {
 	TargetLocale string            `json:"target_locale"`
 	ProjectID    string            `json:"project_id"`
 	Properties   map[string]string `json:"properties,omitempty"`
+	Note         string            `json:"note,omitempty"`
+	Origins      []OriginDTO       `json:"origins,omitempty"`
 	CreatedAt    string            `json:"created_at"`
 	UpdatedAt    string            `json:"updated_at"`
 }
@@ -98,27 +109,31 @@ type EntityAnnotationDTO struct {
 
 // AddTMEntryRequest is the request to add a new TM entry.
 type AddTMEntryRequest struct {
-	Source       string    `json:"source"`
-	Target       string    `json:"target"`
-	SourceCoded  string    `json:"source_coded,omitempty"`
-	TargetCoded  string    `json:"target_coded,omitempty"`
-	SourceSpans  []SpanDTO `json:"source_spans,omitempty"`
-	TargetSpans  []SpanDTO `json:"target_spans,omitempty"`
-	SourceLocale string    `json:"source_locale"`
-	TargetLocale string    `json:"target_locale"`
-	ProjectID    string    `json:"project_id"`
+	Source       string      `json:"source"`
+	Target       string      `json:"target"`
+	SourceCoded  string      `json:"source_coded,omitempty"`
+	TargetCoded  string      `json:"target_coded,omitempty"`
+	SourceSpans  []SpanDTO   `json:"source_spans,omitempty"`
+	TargetSpans  []SpanDTO   `json:"target_spans,omitempty"`
+	SourceLocale string      `json:"source_locale"`
+	TargetLocale string      `json:"target_locale"`
+	ProjectID    string      `json:"project_id"`
+	Note         string      `json:"note,omitempty"`
+	Origins      []OriginDTO `json:"origins,omitempty"`
 }
 
 // UpdateTMEntryRequest is the request to update a TM entry.
 type UpdateTMEntryRequest struct {
-	EntryID      string    `json:"entry_id"`
-	Source       string    `json:"source"`
-	Target       string    `json:"target"`
-	TargetCoded  string    `json:"target_coded,omitempty"`
-	TargetSpans  []SpanDTO `json:"target_spans,omitempty"`
-	SourceLocale string    `json:"source_locale"`
-	TargetLocale string    `json:"target_locale"`
-	ProjectID    string    `json:"project_id"`
+	EntryID      string      `json:"entry_id"`
+	Source       string      `json:"source"`
+	Target       string      `json:"target"`
+	TargetCoded  string      `json:"target_coded,omitempty"`
+	TargetSpans  []SpanDTO   `json:"target_spans,omitempty"`
+	SourceLocale string      `json:"source_locale"`
+	TargetLocale string      `json:"target_locale"`
+	ProjectID    string      `json:"project_id"`
+	Note         string      `json:"note,omitempty"`
+	Origins      []OriginDTO `json:"origins,omitempty"`
 }
 
 // ImportResult reports the outcome of an import operation.
@@ -184,13 +199,15 @@ type TMGroupedResult struct {
 
 // TMTargetDTO is a single target translation within a grouped result.
 type TMTargetDTO struct {
-	ID           string    `json:"id"`
-	TargetText   string    `json:"target_text"`
-	TargetCoded  string    `json:"target_coded"`
-	TargetSpans  []SpanDTO `json:"target_spans"`
-	TargetLocale string    `json:"target_locale"`
-	ProjectID    string    `json:"project_id"`
-	UpdatedAt    string    `json:"updated_at"`
+	ID           string      `json:"id"`
+	TargetText   string      `json:"target_text"`
+	TargetCoded  string      `json:"target_coded"`
+	TargetSpans  []SpanDTO   `json:"target_spans"`
+	TargetLocale string      `json:"target_locale"`
+	ProjectID    string      `json:"project_id"`
+	Note         string      `json:"note,omitempty"`
+	Origins      []OriginDTO `json:"origins,omitempty"`
+	UpdatedAt    string      `json:"updated_at"`
 }
 
 // TMGroupedSearchResult is the paginated result from SearchTMEntriesGrouped.
@@ -274,9 +291,28 @@ func fragmentToDTO(frag *model.Fragment) (codedText string, spans []SpanDTO) {
 	return codedText, spans
 }
 
+// originsToDTO converts sievepen.Origin values to OriginDTO for the frontend.
+func originsToDTO(in []sievepen.Origin) []OriginDTO {
+	if len(in) == 0 {
+		return nil
+	}
+	out := make([]OriginDTO, 0, len(in))
+	for _, o := range in {
+		out = append(out, OriginDTO{
+			Source:    o.Source,
+			Key:       o.Key,
+			Reference: o.Reference,
+			AddedAt:   o.AddedAt.Format(time.RFC3339),
+			AddedBy:   o.AddedBy,
+		})
+	}
+	return out
+}
+
 func tmEntryToDTO(entry sievepen.TMEntry) TMEntryDTO {
 	srcCoded, srcSpans := fragmentToDTO(entry.Source)
 	tgtCoded, tgtSpans := fragmentToDTO(entry.Target)
+	origins := originsToDTO(entry.Origins)
 	return TMEntryDTO{
 		ID:           entry.ID,
 		SourceText:   entry.SourceText(),
@@ -289,9 +325,35 @@ func tmEntryToDTO(entry sievepen.TMEntry) TMEntryDTO {
 		TargetLocale: string(entry.TargetLocale),
 		ProjectID:    entry.ProjectID,
 		Properties:   entry.Properties,
+		Note:         entry.Note,
+		Origins:      origins,
 		CreatedAt:    entry.CreatedAt.Format(time.RFC3339),
 		UpdatedAt:    entry.UpdatedAt.Format(time.RFC3339),
 	}
+}
+
+// originsFromDTO converts request OriginDTOs to sievepen.Origin values,
+// defaulting AddedAt to time.Now() when not supplied.
+func originsFromDTO(in []OriginDTO) []sievepen.Origin {
+	if len(in) == 0 {
+		return nil
+	}
+	out := make([]sievepen.Origin, 0, len(in))
+	now := time.Now()
+	for _, o := range in {
+		addedAt, _ := time.Parse(time.RFC3339, o.AddedAt)
+		if addedAt.IsZero() {
+			addedAt = now
+		}
+		out = append(out, sievepen.Origin{
+			Source:    o.Source,
+			Key:       o.Key,
+			Reference: o.Reference,
+			AddedAt:   addedAt,
+			AddedBy:   o.AddedBy,
+		})
+	}
+	return out
 }
 
 // --- Resource discovery ---
@@ -490,6 +552,8 @@ func (a *App) AddTMEntry(handle string, req AddTMEntryRequest) error {
 		Target:       fragmentFromDTO(req.Target, req.TargetCoded, req.TargetSpans),
 		SourceLocale: model.LocaleID(req.SourceLocale),
 		TargetLocale: model.LocaleID(req.TargetLocale),
+		Note:         req.Note,
+		Origins:      originsFromDTO(req.Origins),
 		CreatedAt:    time.Now(),
 		UpdatedAt:    time.Now(),
 	}
@@ -507,6 +571,10 @@ func (a *App) UpdateTMEntry(handle string, req UpdateTMEntryRequest) error {
 		return fmt.Errorf("entry %q not found", req.EntryID)
 	}
 	existing.Target = fragmentFromDTO(req.Target, req.TargetCoded, req.TargetSpans)
+	existing.Note = req.Note
+	if req.Origins != nil {
+		existing.Origins = originsFromDTO(req.Origins)
+	}
 	existing.UpdatedAt = time.Now()
 	return tm.Add(existing) // Add with same ID = update
 }
@@ -780,6 +848,8 @@ func (a *App) SearchTMEntriesGrouped(handle, query, srcLocale string, offset, li
 				TargetSpans:  tgtSpans,
 				TargetLocale: string(t.TargetLocale),
 				ProjectID:    t.ProjectID,
+				Note:         t.Note,
+				Origins:      originsToDTO(t.Origins),
 				UpdatedAt:    t.UpdatedAt.Format(time.RFC3339),
 			})
 		}
@@ -813,6 +883,8 @@ func (a *App) SearchTMEntriesGroupedFiltered(handle, query, srcLocale string, fi
 				TargetSpans:  tgtSpans,
 				TargetLocale: string(t.TargetLocale),
 				ProjectID:    t.ProjectID,
+				Note:         t.Note,
+				Origins:      originsToDTO(t.Origins),
 				UpdatedAt:    t.UpdatedAt.Format(time.RFC3339),
 			})
 		}

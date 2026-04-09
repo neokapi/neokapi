@@ -48,6 +48,7 @@ var tmMigrationsPg = []storage.Migration{
 			source_general  TEXT NOT NULL,
 			source_locale   TEXT NOT NULL,
 			target_locale   TEXT NOT NULL,
+			note            TEXT NOT NULL DEFAULT '',
 			properties      TEXT,
 			created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 			updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -74,6 +75,21 @@ var tmMigrationsPg = []storage.Migration{
 		);
 		CREATE INDEX IF NOT EXISTS idx_tm_ent_type ON tm_entity_mappings(workspace_id, entity_type);
 		CREATE INDEX IF NOT EXISTS idx_tm_ent_value_type ON tm_entity_mappings(workspace_id, source_value, entity_type);
+
+		CREATE TABLE IF NOT EXISTS tm_entry_origins (
+			workspace_id TEXT NOT NULL,
+			entry_id     TEXT NOT NULL,
+			ordinal      INTEGER NOT NULL,
+			source       TEXT NOT NULL,
+			key          TEXT NOT NULL DEFAULT '',
+			reference    TEXT NOT NULL DEFAULT '',
+			added_at     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+			added_by     TEXT NOT NULL DEFAULT '',
+			PRIMARY KEY (workspace_id, entry_id, ordinal),
+			FOREIGN KEY (workspace_id, entry_id) REFERENCES tm_entries(workspace_id, id) ON DELETE CASCADE
+		);
+		CREATE INDEX IF NOT EXISTS idx_tm_origin_source ON tm_entry_origins(workspace_id, source);
+		CREATE INDEX IF NOT EXISTS idx_tm_origin_key ON tm_entry_origins(workspace_id, key);
 		`,
 	},
 	{
@@ -150,9 +166,9 @@ func (tm *PostgresTM) AddWithStream(entry fw.TMEntry, stream string) error {
 		INSERT INTO tm_entries (id, workspace_id, stream, source_coded, target_coded,
 			source_plain, source_struct, source_general,
 			source_locale, target_locale,
-			properties,
+			note, properties,
 			created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
 		ON CONFLICT (workspace_id, id) DO UPDATE SET
 			stream = EXCLUDED.stream,
 			source_coded = EXCLUDED.source_coded,
@@ -162,6 +178,7 @@ func (tm *PostgresTM) AddWithStream(entry fw.TMEntry, stream string) error {
 			source_general = EXCLUDED.source_general,
 			source_locale = EXCLUDED.source_locale,
 			target_locale = EXCLUDED.target_locale,
+			note = EXCLUDED.note,
 			properties = EXCLUDED.properties,
 			updated_at = EXCLUDED.updated_at
 	`, entry.ID, tm.workspaceID, stream,
@@ -170,6 +187,7 @@ func (tm *PostgresTM) AddWithStream(entry fw.TMEntry, stream string) error {
 		fw.NormalizeText(entry.SourceStructural()),
 		fw.NormalizeText(entry.SourceGeneralized()),
 		string(entry.SourceLocale), string(entry.TargetLocale),
+		entry.Note,
 		nullableString(propertiesJSON),
 		entry.CreatedAt, entry.UpdatedAt)
 	if err != nil {
@@ -192,6 +210,25 @@ func (tm *PostgresTM) AddWithStream(entry fw.TMEntry, stream string) error {
 			em.SourceValue, em.SourcePos.Start, em.SourcePos.End,
 			em.TargetValue, em.TargetPos.Start, em.TargetPos.End); err != nil {
 			return fmt.Errorf("insert entity mapping: %w", err)
+		}
+	}
+
+	// Replace origins — single source of truth.
+	if _, err := tm.db.ExecContext(context.Background(),
+		"DELETE FROM tm_entry_origins WHERE workspace_id = $1 AND entry_id = $2",
+		tm.workspaceID, entry.ID); err != nil {
+		return fmt.Errorf("delete origins: %w", err)
+	}
+	for i, o := range entry.Origins {
+		addedAt := o.AddedAt
+		if addedAt.IsZero() {
+			addedAt = now
+		}
+		if _, err := tm.db.ExecContext(context.Background(), `INSERT INTO tm_entry_origins
+			(workspace_id, entry_id, ordinal, source, key, reference, added_at, added_by)
+			VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+			tm.workspaceID, entry.ID, i, o.Source, o.Key, o.Reference, addedAt, o.AddedBy); err != nil {
+			return fmt.Errorf("insert origin: %w", err)
 		}
 	}
 
@@ -355,7 +392,7 @@ func (tm *PostgresTM) tieredLookup(plainKey, structKey, generalKey string, entit
 func (tm *PostgresTM) queryExact(column, value string, sourceLocale, targetLocale model.LocaleID) ([]fw.TMEntry, error) {
 	query := fmt.Sprintf(`
 		SELECT id, source_coded, target_coded, source_locale, target_locale,
-			properties, created_at, updated_at
+			note, properties, created_at, updated_at
 		FROM tm_entries
 		WHERE workspace_id = $1 AND %s = $2 AND source_locale = $3 AND target_locale = $4
 	`, column)
@@ -387,7 +424,7 @@ func (tm *PostgresTM) queryTrigramCandidates(plainKey, structKey, generalKey str
 	// Set a low threshold to maximize recall; final scoring is done in Go.
 	rows, err := tm.db.QueryContext(context.Background(), `
 		SELECT DISTINCT ON (id) id, source_coded, target_coded, source_locale, target_locale,
-			properties, created_at, updated_at
+			note, properties, created_at, updated_at
 		FROM tm_entries
 		WHERE workspace_id = $1
 			AND source_locale = $2 AND target_locale = $3
@@ -413,7 +450,7 @@ func (tm *PostgresTM) queryLengthFiltered(plainKey string, sourceLocale, targetL
 
 	rows, err := tm.db.QueryContext(context.Background(), `
 		SELECT id, source_coded, target_coded, source_locale, target_locale,
-			properties, created_at, updated_at
+			note, properties, created_at, updated_at
 		FROM tm_entries
 		WHERE workspace_id = $1 AND source_locale = $2 AND target_locale = $3
 			AND LENGTH(source_plain) BETWEEN $4 AND $5
@@ -494,7 +531,7 @@ func (tm *PostgresTM) searchTSVector(query, sourceLocale, targetLocale string, o
 	}
 
 	q := fmt.Sprintf(`SELECT id, source_coded, target_coded, source_locale, target_locale,
-		properties, created_at, updated_at
+		note, properties, created_at, updated_at
 		FROM tm_entries WHERE %s
 		ORDER BY ts_rank(search_tsv, plainto_tsquery('simple', $2)) DESC
 		LIMIT $%d OFFSET $%d`, where, argN, argN+1)
@@ -537,7 +574,7 @@ func (tm *PostgresTM) pgSearchLike(query, sourceLocale, targetLocale string, off
 	_ = tm.db.QueryRowContext(context.Background(), "SELECT COUNT(*) FROM tm_entries WHERE "+where, countArgs...).Scan(&total)
 
 	q := fmt.Sprintf(`SELECT id, source_coded, target_coded, source_locale, target_locale,
-		properties, created_at, updated_at
+		note, properties, created_at, updated_at
 		FROM tm_entries WHERE %s ORDER BY updated_at DESC LIMIT $%d OFFSET $%d`, where, argN, argN+1)
 	args = append(args, limit, offset)
 	rows, err := tm.db.QueryContext(context.Background(), q, args...)
@@ -610,7 +647,7 @@ func (tm *PostgresTM) searchTSVectorForStream(query, sourceLocale, targetLocale,
 	caseExpr.WriteString(fmt.Sprintf(" ELSE %d END", len(streams)))
 
 	q := fmt.Sprintf(`SELECT id, source_coded, target_coded, source_locale, target_locale,
-		properties, created_at, updated_at
+		note, properties, created_at, updated_at
 		FROM tm_entries WHERE %s
 		ORDER BY %s, ts_rank(search_tsv, plainto_tsquery('simple', $2)) DESC
 		LIMIT $%d OFFSET $%d`, where, caseExpr.String(), argN, argN+1)
@@ -675,7 +712,7 @@ func (tm *PostgresTM) pgSearchLikeForStream(query, sourceLocale, targetLocale, s
 	caseExpr.WriteString(fmt.Sprintf(" ELSE %d END", len(streams)))
 
 	q := fmt.Sprintf(`SELECT id, source_coded, target_coded, source_locale, target_locale,
-		properties, created_at, updated_at
+		note, properties, created_at, updated_at
 		FROM tm_entries WHERE %s ORDER BY %s, updated_at DESC LIMIT $%d OFFSET $%d`, where, caseExpr.String(), argN, argN+1)
 	args = append(args, limit, offset)
 	rows, err := tm.db.QueryContext(context.Background(), q, args...)
@@ -762,7 +799,7 @@ func (tm *PostgresTM) FacetStatsFiltered(query, sourceLocale, targetLocale strin
 func (tm *PostgresTM) GetEntry(id string) (fw.TMEntry, bool) {
 	rows, err := tm.db.QueryContext(context.Background(), `
 		SELECT id, source_coded, target_coded, source_locale, target_locale,
-			properties, created_at, updated_at
+			note, properties, created_at, updated_at
 		FROM tm_entries WHERE workspace_id = $1 AND id = $2
 	`, tm.workspaceID, id)
 	if err != nil {
@@ -781,7 +818,7 @@ func (tm *PostgresTM) GetEntry(id string) (fw.TMEntry, bool) {
 func (tm *PostgresTM) Entries() []fw.TMEntry {
 	rows, err := tm.db.QueryContext(context.Background(), `
 		SELECT id, source_coded, target_coded, source_locale, target_locale,
-			properties, created_at, updated_at
+			note, properties, created_at, updated_at
 		FROM tm_entries WHERE workspace_id = $1 ORDER BY id
 	`, tm.workspaceID)
 	if err != nil {
@@ -801,15 +838,18 @@ func (tm *PostgresTM) scanTMEntries(rows *sql.Rows) ([]fw.TMEntry, error) {
 		var entry fw.TMEntry
 		var sourceJSON, targetJSON string
 		var srcLocale, tgtLocale string
+		var note string
 		var propertiesJSON *string
 		var createdAt, updatedAt time.Time
 
 		if err := rows.Scan(&entry.ID, &sourceJSON, &targetJSON,
 			&srcLocale, &tgtLocale,
+			&note,
 			&propertiesJSON,
 			&createdAt, &updatedAt); err != nil {
 			return nil, fmt.Errorf("scan entry: %w", err)
 		}
+		entry.Note = note
 
 		entry.Source = &model.Fragment{}
 		if err := json.Unmarshal([]byte(sourceJSON), entry.Source); err != nil {
@@ -848,6 +888,11 @@ func (tm *PostgresTM) scanTMEntries(rows *sql.Rows) ([]fw.TMEntry, error) {
 			placeholders[i] = fmt.Sprintf("$%d", i+2)
 			args = append(args, id)
 		}
+		byID := make(map[string]int, len(entries))
+		for i, e := range entries {
+			byID[e.ID] = i
+		}
+
 		q := `SELECT entry_id, placeholder_id, entity_type,
 			source_value, source_start, source_end,
 			target_value, target_start, target_end
@@ -857,10 +902,6 @@ func (tm *PostgresTM) scanTMEntries(rows *sql.Rows) ([]fw.TMEntry, error) {
 		mapRows, err := tm.db.QueryContext(context.Background(), q, args...)
 		if err == nil {
 			defer mapRows.Close()
-			byID := make(map[string]int, len(entries))
-			for i, e := range entries {
-				byID[e.ID] = i
-			}
 			for mapRows.Next() {
 				var eid string
 				var em fw.EntityMapping
@@ -873,6 +914,28 @@ func (tm *PostgresTM) scanTMEntries(rows *sql.Rows) ([]fw.TMEntry, error) {
 				em.Type = model.EntityType(etype)
 				if idx, ok := byID[eid]; ok {
 					entries[idx].Entities = append(entries[idx].Entities, em)
+				}
+			}
+		}
+
+		// Batch-fetch origins for all loaded entries.
+		originQ := `SELECT entry_id, source, key, reference, added_at, added_by
+			FROM tm_entry_origins
+			WHERE workspace_id = $1 AND entry_id IN (` + strings.Join(placeholders, ",") + `)
+			ORDER BY entry_id, ordinal`
+		originRows, err := tm.db.QueryContext(context.Background(), originQ, args...)
+		if err == nil {
+			defer originRows.Close()
+			for originRows.Next() {
+				var eid string
+				var o fw.Origin
+				var addedAt time.Time
+				if err := originRows.Scan(&eid, &o.Source, &o.Key, &o.Reference, &addedAt, &o.AddedBy); err != nil {
+					continue
+				}
+				o.AddedAt = addedAt
+				if idx, ok := byID[eid]; ok {
+					entries[idx].Origins = append(entries[idx].Origins, o)
 				}
 			}
 		}

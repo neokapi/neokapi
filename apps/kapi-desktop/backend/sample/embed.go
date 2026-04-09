@@ -259,7 +259,8 @@ type enrichedEntry struct {
 // exact, exact, generalized fuzzy, structural fuzzy, fuzzy).
 func seedEnrichedEntries(tm *sievepen.SQLiteTM) error {
 	entries := enrichedEntryDefs()
-	for _, def := range entries {
+	now := time.Now()
+	for i, def := range entries {
 		for _, tgt := range v2Targets {
 			targetFn, ok := def.targets[tgt]
 			if !ok {
@@ -272,6 +273,15 @@ func seedEnrichedEntries(tm *sievepen.SQLiteTM) error {
 				SourceLocale: "en-US",
 				TargetLocale: tgt,
 				Entities:     def.entities,
+				Origins: []sievepen.Origin{
+					{
+						Source:    "import",
+						Key:       fmt.Sprintf("sample/kapimart/enriched/%d", i),
+						Reference: "seed",
+						AddedAt:   now,
+						AddedBy:   "kapi-sample",
+					},
+				},
 			}
 			if err := tm.Add(entry); err != nil {
 				return fmt.Errorf("add enriched entry: %w", err)

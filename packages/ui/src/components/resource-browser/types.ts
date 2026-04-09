@@ -14,8 +14,23 @@ export interface TMEntryDTO {
   target_locale: string;
   project_id: string;
   properties?: Record<string, string>;
+  note?: string;
+  origins?: OriginDTO[];
   created_at: string;
   updated_at: string;
+}
+
+/**
+ * Provenance record — where a TM entry came from.
+ * An entry can have multiple origins if the same source was ingested
+ * from multiple locations.
+ */
+export interface OriginDTO {
+  source: string; // "file" | "tool" | "import" | "user"
+  key?: string; // file path + key, tool name, etc.
+  reference?: string; // commit hash, job ID, URL
+  added_at: string; // ISO 8601
+  added_by?: string; // user ID or tool name
 }
 
 export interface TMSearchResult {
@@ -72,6 +87,8 @@ export interface TMTargetDTO {
   target_spans: SpanInfo[];
   target_locale: string;
   project_id: string;
+  note?: string;
+  origins?: OriginDTO[];
   updated_at: string;
 }
 
@@ -132,6 +149,8 @@ export interface AddTMEntryRequest {
   source_locale: string;
   target_locale: string;
   project_id?: string;
+  note?: string;
+  origins?: OriginDTO[];
 }
 
 export interface UpdateTMEntryRequest {
@@ -143,6 +162,8 @@ export interface UpdateTMEntryRequest {
   source_locale: string;
   target_locale: string;
   project_id?: string;
+  note?: string;
+  origins?: OriginDTO[];
 }
 
 export interface AnnotateEntitiesRequest {
