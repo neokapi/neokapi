@@ -25,6 +25,8 @@ export interface EntityMappingDTO {
   placeholder_id: string;
   type: string;
   values: Record<string, EntityValueDTO>;
+  /** Optional cross-reference to a termbase concept ID. */
+  concept_id?: string;
 }
 
 /** Frontend-facing multilingual TM entry. */

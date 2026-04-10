@@ -55,6 +55,7 @@ type EntityMappingDTO struct {
 	PlaceholderID string                    `json:"placeholder_id"`
 	Type          string                    `json:"type"`
 	Values        map[string]EntityValueDTO `json:"values"`
+	ConceptID     string                    `json:"concept_id,omitempty"` // optional termbase cross-reference
 }
 
 // TMEntryDTO is the frontend-facing multilingual TM entry.
@@ -376,6 +377,7 @@ func entitiesToDTO(in []sievepen.EntityMapping) []EntityMappingDTO {
 			PlaceholderID: em.PlaceholderID,
 			Type:          string(em.Type),
 			Values:        values,
+			ConceptID:     em.ConceptID,
 		})
 	}
 	return out
@@ -396,6 +398,7 @@ func entitiesFromDTO(in []EntityMappingDTO) []sievepen.EntityMapping {
 			PlaceholderID: em.PlaceholderID,
 			Type:          model.EntityType(em.Type),
 			Values:        values,
+			ConceptID:     em.ConceptID,
 		})
 	}
 	return out

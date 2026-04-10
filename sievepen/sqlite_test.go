@@ -343,6 +343,32 @@ func TestSQLiteTM_EntityMappingRoundtrip(t *testing.T) {
 	assert.Equal(t, "Johann", got.Entities[0].Values["de"].Text)
 }
 
+func TestSQLiteTM_EntityConceptIDRoundtrip(t *testing.T) {
+	tm, err := sievepen.NewSQLiteTM(":memory:")
+	require.NoError(t, err)
+	defer tm.Close()
+
+	entry := trilingual("e1", "Acme ships fast", "Acme livre vite", "Acme liefert schnell")
+	entry.Entities = []sievepen.EntityMapping{
+		{
+			PlaceholderID: "e1",
+			Type:          "entity:organization",
+			ConceptID:     "concept-acme-corp",
+			Values: map[model.LocaleID]sievepen.EntityValue{
+				"en": {Text: "Acme"},
+				"fr": {Text: "Acme"},
+				"de": {Text: "Acme"},
+			},
+		},
+	}
+	require.NoError(t, tm.Add(entry))
+
+	got, ok := tm.GetEntry("e1")
+	require.True(t, ok)
+	require.Len(t, got.Entities, 1)
+	assert.Equal(t, "concept-acme-corp", got.Entities[0].ConceptID, "concept_id should round-trip")
+}
+
 // --- ICU tokenizer — multilingual search ---
 
 // TestSQLiteTM_SearchCJK verifies that the ICU tokenizer correctly segments

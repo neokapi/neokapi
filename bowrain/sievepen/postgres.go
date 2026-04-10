@@ -188,6 +188,14 @@ var tmMigrationsPg = []storage.Migration{
 		CREATE INDEX idx_tm_origin_session ON tm_entry_origins(workspace_id, session_id);
 		`,
 	},
+	{
+		Version:     5,
+		Description: "add concept_id to entity mappings for termbase cross-reference",
+		SQL: `
+		ALTER TABLE tm_entry_entities ADD COLUMN IF NOT EXISTS concept_id TEXT NOT NULL DEFAULT '';
+		CREATE INDEX IF NOT EXISTS idx_tm_entities_concept ON tm_entry_entities(workspace_id, concept_id);
+		`,
+	},
 }
 
 // --- basic ---
@@ -294,8 +302,8 @@ func (tm *PostgresTM) AddWithStream(entry fw.TMEntry, stream string) error {
 			continue
 		}
 		if _, err := tm.db.ExecContext(ctx, `INSERT INTO tm_entry_entities
-			(workspace_id, entry_id, placeholder_id, entity_type) VALUES ($1, $2, $3, $4)`,
-			tm.workspaceID, entry.ID, em.PlaceholderID, string(em.Type)); err != nil {
+			(workspace_id, entry_id, placeholder_id, entity_type, concept_id) VALUES ($1, $2, $3, $4, $5)`,
+			tm.workspaceID, entry.ID, em.PlaceholderID, string(em.Type), em.ConceptID); err != nil {
 			return fmt.Errorf("insert entity: %w", err)
 		}
 		for loc, val := range em.Values {
@@ -675,7 +683,7 @@ func (tm *PostgresTM) loadEntriesByIDs(ids []string) ([]fw.TMEntry, error) {
 
 	// Entities joined with values.
 	entRows, err := tm.db.QueryContext(ctx, `
-		SELECT e.entry_id, e.placeholder_id, e.entity_type,
+		SELECT e.entry_id, e.placeholder_id, e.entity_type, e.concept_id,
 			v.locale, v.text_value, v.start_pos, v.end_pos
 		FROM tm_entry_entities e
 		LEFT JOIN tm_entry_entity_values v
@@ -691,10 +699,10 @@ func (tm *PostgresTM) loadEntriesByIDs(ids []string) ([]fw.TMEntry, error) {
 		}
 		entIdx := make(map[entKey]int)
 		for entRows.Next() {
-			var eid, pid, etype string
+			var eid, pid, etype, conceptID string
 			var loc, textVal sql.NullString
 			var startPos, endPos sql.NullInt64
-			if err := entRows.Scan(&eid, &pid, &etype, &loc, &textVal, &startPos, &endPos); err != nil {
+			if err := entRows.Scan(&eid, &pid, &etype, &conceptID, &loc, &textVal, &startPos, &endPos); err != nil {
 				continue
 			}
 			idx, ok := byID[eid]
@@ -707,6 +715,7 @@ func (tm *PostgresTM) loadEntriesByIDs(ids []string) ([]fw.TMEntry, error) {
 				entries[idx].Entities = append(entries[idx].Entities, fw.EntityMapping{
 					PlaceholderID: pid,
 					Type:          model.EntityType(etype),
+					ConceptID:     conceptID,
 					Values:        make(map[model.LocaleID]fw.EntityValue),
 				})
 				emIdx = len(entries[idx].Entities) - 1
