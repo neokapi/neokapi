@@ -1,5 +1,10 @@
 import { describe, it, expect } from "vite-plus/test";
-import { parseCodedSegments, segmentsToCodedText, spanLabel, type SpanInfo } from "@neokapi/ui-primitives";
+import {
+  parseCodedSegments,
+  segmentsToCodedText,
+  spanLabel,
+  type SpanInfo,
+} from "@neokapi/ui-primitives";
 
 // Unicode markers matching the Go model constants
 const OPENING = "\uE001";
