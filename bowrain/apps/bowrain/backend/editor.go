@@ -593,11 +593,13 @@ func (a *App) LookupTMForBlock(projectID, itemName, blockID, targetLocale string
 		return nil, err
 	}
 
+	srcLoc := proj.DefaultSourceLanguage
+	tgtLoc := model.LocaleID(targetLocale)
 	result := make([]TMMatchInfo, len(matches))
 	for i, m := range matches {
 		result[i] = TMMatchInfo{
-			Source:    m.Entry.SourceText(),
-			Target:    m.Entry.TargetText(),
+			Source:    m.Entry.VariantText(srcLoc),
+			Target:    m.Entry.VariantText(tgtLoc),
 			Score:     m.Score,
 			MatchType: string(m.MatchType),
 		}

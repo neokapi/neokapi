@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
@@ -73,6 +74,8 @@ func (s *MCPServer) handleTMSearch(ctx context.Context, req *mcp.CallToolRequest
 		return nil, tmSearchOutput{}, fmt.Errorf("TM lookup: %w", err)
 	}
 
+	srcLoc := model.LocaleID(input.SourceLocale)
+	tgtLoc := model.LocaleID(input.TargetLocale)
 	result := make([]tmMatch, 0, len(matches))
 	for _, m := range matches {
 		matchType := "fuzzy"
@@ -80,8 +83,8 @@ func (s *MCPServer) handleTMSearch(ctx context.Context, req *mcp.CallToolRequest
 			matchType = "exact"
 		}
 		result = append(result, tmMatch{
-			Source:    m.Entry.Source.Text(),
-			Target:    m.Entry.Target.Text(),
+			Source:    m.Entry.VariantText(srcLoc),
+			Target:    m.Entry.VariantText(tgtLoc),
 			Score:     m.Score,
 			MatchType: matchType,
 		})
@@ -117,13 +120,20 @@ func (s *MCPServer) handleTMImport(ctx context.Context, req *mcp.CallToolRequest
 		return nil, tmImportOutput{}, fmt.Errorf("get TM store: %w", err)
 	}
 
+	srcLoc := model.LocaleID(input.SourceLocale)
+	tgtLoc := model.LocaleID(input.TargetLocale)
+	now := time.Now()
 	imported := 0
-	for _, e := range input.Entries {
+	for i, e := range input.Entries {
 		entry := sievepen.TMEntry{
-			Source:       model.NewFragment(e.Source),
-			Target:       model.NewFragment(e.Target),
-			SourceLocale: model.LocaleID(input.SourceLocale),
-			TargetLocale: model.LocaleID(input.TargetLocale),
+			ID: fmt.Sprintf("mcp-import-%d-%d", now.UnixNano(), i),
+			Variants: map[model.LocaleID]*model.Fragment{
+				srcLoc: model.NewFragment(e.Source),
+				tgtLoc: model.NewFragment(e.Target),
+			},
+			HintSrcLang: srcLoc,
+			CreatedAt:   now,
+			UpdatedAt:   now,
 		}
 		if err := tm.Add(entry); err != nil {
 			return nil, tmImportOutput{}, fmt.Errorf("add TM entry: %w", err)

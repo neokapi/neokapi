@@ -264,10 +264,7 @@ export const api = {
     call<Array<{ name: string; path: string; size: number; modified: string }>>("ListNamedTMs"),
   getTMStats: (handle: string) => call<{ count: number; path: string }>("GetTMStats", handle),
   getTMLocaleStats: (handle: string) =>
-    call<Array<{ source_locale: string; target_locale: string; count: number }>>(
-      "GetTMLocaleStats",
-      handle,
-    ),
+    call<Array<{ locale: string; count: number }>>("GetTMLocaleStats", handle),
   getTMActivityStats: (handle: string) =>
     call<Array<{ date: string; count: number }>>("GetTMActivityStats", handle),
   openTM: (path: string) => call<string>("OpenTM", path),
@@ -278,11 +275,11 @@ export const api = {
   searchTMEntries: (
     handle: string,
     query: string,
-    srcLocale: string,
-    tgtLocale: string,
+    anyLocale: string,
+    requireLocale: string,
     offset: number,
     limit: number,
-  ) => call<unknown>("SearchTMEntries", handle, query, srcLocale, tgtLocale, offset, limit),
+  ) => call<unknown>("SearchTMEntries", handle, query, anyLocale, requireLocale, offset, limit),
   getTMEntry: (handle: string, id: string) => call<unknown>("GetTMEntry", handle, id),
   addTMEntry: (handle: string, req: unknown) => call<void>("AddTMEntry", handle, req),
   updateTMEntry: (handle: string, req: unknown) => call<void>("UpdateTMEntry", handle, req),
@@ -291,42 +288,42 @@ export const api = {
   lookupTM: (handle: string, req: unknown) => call<unknown[]>("LookupTM", handle, req),
   annotateEntities: (handle: string, req: unknown) =>
     call<unknown>("AnnotateEntities", handle, req),
-  importTMXDialog: (handle: string, srcLocale: string, tgtLocale: string) =>
-    call<{ count: number }>("ImportTMXDialog", handle, srcLocale, tgtLocale),
-  exportTMXDialog: (handle: string, srcLocale: string, tgtLocale: string) =>
-    call<void>("ExportTMXDialog", handle, srcLocale, tgtLocale),
+  importTMXDialog: (handle: string) =>
+    call<{ session_id: string; count: number }>("ImportTMXDialog", handle),
+  exportTMXDialog: (handle: string, locales: string[]) =>
+    call<void>("ExportTMXDialog", handle, locales),
   getTMFacets: (handle: string) => call<unknown>("GetTMFacets", handle),
   getTMFacetsFiltered: (
     handle: string,
     query: string,
-    srcLocale: string,
-    tgtLocale: string,
+    anyLocale: string,
+    requireLocale: string,
     filter: unknown,
-  ) => call<unknown>("GetTMFacetsFiltered", handle, query, srcLocale, tgtLocale, filter),
+  ) => call<unknown>("GetTMFacetsFiltered", handle, query, anyLocale, requireLocale, filter),
   searchTMEntriesFiltered: (
     handle: string,
     query: string,
-    srcLocale: string,
-    tgtLocale: string,
+    anyLocale: string,
+    requireLocale: string,
     filter: unknown,
     offset: number,
     limit: number,
-  ) => call<unknown>("SearchTMEntriesFiltered", handle, query, srcLocale, tgtLocale, filter, offset, limit),
-  searchTMEntriesGroupedFiltered: (
-    handle: string,
-    query: string,
-    srcLocale: string,
-    filter: unknown,
-    offset: number,
-    limit: number,
-  ) => call<unknown>("SearchTMEntriesGroupedFiltered", handle, query, srcLocale, filter, offset, limit),
-  searchTMEntriesGrouped: (
-    handle: string,
-    query: string,
-    srcLocale: string,
-    offset: number,
-    limit: number,
-  ) => call<unknown>("SearchTMEntriesGrouped", handle, query, srcLocale, offset, limit),
+  ) =>
+    call<unknown>(
+      "SearchTMEntriesFiltered",
+      handle,
+      query,
+      anyLocale,
+      requireLocale,
+      filter,
+      offset,
+      limit,
+    ),
+  listTMImportSessions: (handle: string) => call<unknown[]>("ListTMImportSessions", handle),
+  getTMImportSession: (handle: string, sessionID: string) =>
+    call<unknown>("GetTMImportSession", handle, sessionID),
+  deleteTMImportSession: (handle: string, sessionID: string) =>
+    call<void>("DeleteTMImportSession", handle, sessionID),
 
   // Termbase
   listNamedTermbases: () =>

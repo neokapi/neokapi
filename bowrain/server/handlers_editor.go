@@ -725,7 +725,7 @@ func (s *Server) HandleGetTMEntries(c echo.Context) error {
 
 	infos := make([]TMEntryInfoResponse, len(entries))
 	for i, e := range entries {
-		infos[i] = editorEntryToInfo(e)
+		infos[i] = editorEntryToInfo(e, sourceLocale, targetLocale)
 	}
 
 	return c.JSON(http.StatusOK, TMSearchResponse{Entries: infos, TotalCount: total})
@@ -765,15 +765,18 @@ func (s *Server) HandleAddTMEntry(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
 	}
 
+	srcLoc := model.LocaleID(req.SourceLocale)
+	tgtLoc := model.LocaleID(req.TargetLocale)
 	entry := sievepen.TMEntry{
-		ID:           id.New(),
-		Source:       &model.Fragment{CodedText: req.Source},
-		Target:       &model.Fragment{CodedText: req.Target},
-		SourceLocale: model.LocaleID(req.SourceLocale),
-		TargetLocale: model.LocaleID(req.TargetLocale),
-		ProjectID:    req.ProjectID,
-		CreatedAt:    time.Now(),
-		UpdatedAt:    time.Now(),
+		ID: id.New(),
+		Variants: map[model.LocaleID]*model.Fragment{
+			srcLoc: {CodedText: req.Source},
+			tgtLoc: {CodedText: req.Target},
+		},
+		HintSrcLang: srcLoc,
+		ProjectID:   req.ProjectID,
+		CreatedAt:   time.Now(),
+		UpdatedAt:   time.Now(),
 	}
 	stream := streamParam(c)
 	if stream != "" && stream != "main" {
@@ -785,7 +788,7 @@ func (s *Server) HandleAddTMEntry(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
 	}
 
-	return c.JSON(http.StatusCreated, editorEntryToInfo(entry))
+	return c.JSON(http.StatusCreated, editorEntryToInfo(entry, req.SourceLocale, req.TargetLocale))
 }
 
 // HandleUpdateTMEntry updates an existing TM entry.
@@ -817,10 +820,16 @@ func (s *Server) HandleUpdateTMEntry(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
 	}
 
-	existing.Source = &model.Fragment{CodedText: req.Source}
-	existing.Target = &model.Fragment{CodedText: req.Target}
-	existing.SourceLocale = model.LocaleID(req.SourceLocale)
-	existing.TargetLocale = model.LocaleID(req.TargetLocale)
+	srcLoc := model.LocaleID(req.SourceLocale)
+	tgtLoc := model.LocaleID(req.TargetLocale)
+	if existing.Variants == nil {
+		existing.Variants = make(map[model.LocaleID]*model.Fragment)
+	}
+	existing.Variants[srcLoc] = &model.Fragment{CodedText: req.Source}
+	existing.Variants[tgtLoc] = &model.Fragment{CodedText: req.Target}
+	if existing.HintSrcLang == "" {
+		existing.HintSrcLang = srcLoc
+	}
 	existing.UpdatedAt = time.Now()
 
 	if err := tm.Add(existing); err != nil {

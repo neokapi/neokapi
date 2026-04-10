@@ -104,7 +104,7 @@ var tbMigrations = []storage.Migration{
 		CREATE VIRTUAL TABLE IF NOT EXISTS tb_search USING fts5(
 			term_text, definition, domain,
 			content='',
-			tokenize='unicode61'
+			tokenize='icu'
 		);
 		`,
 	},

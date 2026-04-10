@@ -21,6 +21,11 @@ runs:
           bowrain/core/go.sum
           bowrain/cli/go.sum
 
+    - name: Install ICU development libraries
+      if: runner.os == 'Linux'
+      shell: bash
+      run: sudo apt-get update && sudo apt-get install -y libicu-dev pkg-config
+
     - name: Download modules
       shell: bash
       run: |

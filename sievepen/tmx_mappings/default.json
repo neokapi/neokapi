@@ -1,0 +1,36 @@
+{
+  "element_types": {
+    "ph":  "code:placeholder",
+    "bpt": "code:markup",
+    "ept": "code:markup",
+    "it":  "code:markup",
+    "hi":  "code:markup",
+    "sub": "code:placeholder",
+    "ut":  "code:placeholder"
+  },
+  "element_type_attr": {
+    "ph": {
+      "image": "media:image",
+      "img": "media:image",
+      "link": "link:hyperlink",
+      "linebreak": "struct:break",
+      "br": "struct:break",
+      "newline": "struct:break"
+    },
+    "bpt": {
+      "b": "fmt:bold",
+      "bold": "fmt:bold",
+      "i": "fmt:italic",
+      "italic": "fmt:italic",
+      "u": "fmt:underline",
+      "link": "link:hyperlink",
+      "a": "link:hyperlink"
+    },
+    "hi": {
+      "b": "fmt:bold",
+      "i": "fmt:italic",
+      "u": "fmt:underline"
+    }
+  },
+  "fallback": "code:markup"
+}

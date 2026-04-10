@@ -896,11 +896,13 @@ func editorLookupTMForBlock(ctx context.Context, cs store.ContentStore, wsStores
 		return nil, err
 	}
 
+	srcLoc := proj.DefaultSourceLanguage
+	tgtLoc := model.LocaleID(targetLocale)
 	result := make([]TMMatchInfoResponse, len(matches))
 	for i, m := range matches {
 		result[i] = TMMatchInfoResponse{
-			Source:    m.Entry.SourceText(),
-			Target:    m.Entry.TargetText(),
+			Source:    m.Entry.VariantText(srcLoc),
+			Target:    m.Entry.VariantText(tgtLoc),
 			Score:     m.Score,
 			MatchType: string(m.MatchType),
 			ProjectID: m.Entry.ProjectID,
@@ -1336,13 +1338,30 @@ func editorCreateProvider(provType, apiKey, modelName string) aiprovider.LLMProv
 	}, apiKey)
 }
 
-func editorEntryToInfo(e sievepen.TMEntry) TMEntryInfoResponse {
+// editorEntryToInfo projects a multilingual TMEntry onto a bilingual
+// response view for the requested (src, tgt) locale pair. When the source
+// is empty, it falls back to the entry's HintSrcLang. When the target is
+// empty, it picks any other variant on the entry.
+func editorEntryToInfo(e sievepen.TMEntry, sourceLocale, targetLocale string) TMEntryInfoResponse {
+	srcLoc := model.LocaleID(sourceLocale)
+	tgtLoc := model.LocaleID(targetLocale)
+	if srcLoc == "" && e.HintSrcLang != "" {
+		srcLoc = e.HintSrcLang
+	}
+	if tgtLoc == "" {
+		for loc := range e.Variants {
+			if loc != srcLoc {
+				tgtLoc = loc
+				break
+			}
+		}
+	}
 	return TMEntryInfoResponse{
 		ID:             e.ID,
-		Source:         e.SourceText(),
-		Target:         e.TargetText(),
-		SourceLanguage: string(e.SourceLocale),
-		TargetLanguage: string(e.TargetLocale),
+		Source:         e.VariantText(srcLoc),
+		Target:         e.VariantText(tgtLoc),
+		SourceLanguage: string(srcLoc),
+		TargetLanguage: string(tgtLoc),
 		ProjectID:      e.ProjectID,
 		UpdatedAt:      e.UpdatedAt.Format(time.RFC3339),
 	}

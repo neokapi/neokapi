@@ -67,7 +67,9 @@ export class AddConceptRequest {
 }
 
 /**
- * AddTMEntryRequest is the request to add a new TM entry.
+ * AddTMEntryRequest is the request to add a new multilingual TM entry.
+ * Callers populate Variants with one VariantInput per locale; the server
+ * rebuilds Fragments from CodedText + Spans or falls back to plain Text.
  */
 export class AddTMEntryRequest {
     /**
@@ -75,61 +77,19 @@ export class AddTMEntryRequest {
      * @param {Partial<AddTMEntryRequest>} [$$source = {}] - The source object to create the AddTMEntryRequest.
      */
     constructor($$source = {}) {
-        if (!("source" in $$source)) {
+        if (!("variants" in $$source)) {
+            /**
+             * @member
+             * @type {{ [_ in string]?: VariantInputDTO }}
+             */
+            this["variants"] = {};
+        }
+        if (!("hint_src_lang" in $$source)) {
             /**
              * @member
              * @type {string}
              */
-            this["source"] = "";
-        }
-        if (!("target" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["target"] = "";
-        }
-        if (/** @type {any} */(false)) {
-            /**
-             * @member
-             * @type {string | undefined}
-             */
-            this["source_coded"] = undefined;
-        }
-        if (/** @type {any} */(false)) {
-            /**
-             * @member
-             * @type {string | undefined}
-             */
-            this["target_coded"] = undefined;
-        }
-        if (/** @type {any} */(false)) {
-            /**
-             * @member
-             * @type {SpanDTO[] | undefined}
-             */
-            this["source_spans"] = undefined;
-        }
-        if (/** @type {any} */(false)) {
-            /**
-             * @member
-             * @type {SpanDTO[] | undefined}
-             */
-            this["target_spans"] = undefined;
-        }
-        if (!("source_locale" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["source_locale"] = "";
-        }
-        if (!("target_locale" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["target_locale"] = "";
+            this["hint_src_lang"] = "";
         }
         if (!("project_id" in $$source)) {
             /**
@@ -137,6 +97,20 @@ export class AddTMEntryRequest {
              * @type {string}
              */
             this["project_id"] = "";
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["note"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {OriginDTO[] | undefined}
+             */
+            this["origins"] = undefined;
         }
 
         Object.assign(this, $$source);
@@ -148,14 +122,14 @@ export class AddTMEntryRequest {
      * @returns {AddTMEntryRequest}
      */
     static createFrom($$source = {}) {
-        const $$createField4_0 = $$createType3;
-        const $$createField5_0 = $$createType3;
+        const $$createField0_0 = $$createType3;
+        const $$createField4_0 = $$createType5;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        if ("source_spans" in $$parsedSource) {
-            $$parsedSource["source_spans"] = $$createField4_0($$parsedSource["source_spans"]);
+        if ("variants" in $$parsedSource) {
+            $$parsedSource["variants"] = $$createField0_0($$parsedSource["variants"]);
         }
-        if ("target_spans" in $$parsedSource) {
-            $$parsedSource["target_spans"] = $$createField5_0($$parsedSource["target_spans"]);
+        if ("origins" in $$parsedSource) {
+            $$parsedSource["origins"] = $$createField4_0($$parsedSource["origins"]);
         }
         return new AddTMEntryRequest(/** @type {Partial<AddTMEntryRequest>} */($$parsedSource));
     }
@@ -194,8 +168,8 @@ export class AnnotateEntitiesRequest {
      * @returns {AnnotateEntitiesRequest}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType4;
-        const $$createField1_0 = $$createType6;
+        const $$createField0_0 = $$createType6;
+        const $$createField1_0 = $$createType8;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("entry_ids" in $$parsedSource) {
             $$parsedSource["entry_ids"] = $$createField0_0($$parsedSource["entry_ids"]);
@@ -296,8 +270,8 @@ export class AppSettings {
      * @returns {AppSettings}
      */
     static createFrom($$source = {}) {
-        const $$createField2_0 = $$createType4;
-        const $$createField3_0 = $$createType8;
+        const $$createField2_0 = $$createType6;
+        const $$createField3_0 = $$createType10;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("hidden_locales" in $$parsedSource) {
             $$parsedSource["hidden_locales"] = $$createField2_0($$parsedSource["hidden_locales"]);
@@ -452,7 +426,7 @@ export class ConceptDTO {
      */
     static createFrom($$source = {}) {
         const $$createField5_0 = $$createType1;
-        const $$createField6_0 = $$createType9;
+        const $$createField6_0 = $$createType11;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("terms" in $$parsedSource) {
             $$parsedSource["terms"] = $$createField5_0($$parsedSource["terms"]);
@@ -572,7 +546,6 @@ export class EntityAnnotationDTO {
         }
         if (!("type" in $$source)) {
             /**
-             * "entity:person" etc.
              * @member
              * @type {string}
              */
@@ -608,6 +581,55 @@ export class EntityAnnotationDTO {
 }
 
 /**
+ * EntityMappingDTO is a multilingual entity mapping.
+ */
+export class EntityMappingDTO {
+    /**
+     * Creates a new EntityMappingDTO instance.
+     * @param {Partial<EntityMappingDTO>} [$$source = {}] - The source object to create the EntityMappingDTO.
+     */
+    constructor($$source = {}) {
+        if (!("placeholder_id" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["placeholder_id"] = "";
+        }
+        if (!("type" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["type"] = "";
+        }
+        if (!("values" in $$source)) {
+            /**
+             * @member
+             * @type {{ [_ in string]?: EntityValueDTO }}
+             */
+            this["values"] = {};
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new EntityMappingDTO instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {EntityMappingDTO}
+     */
+    static createFrom($$source = {}) {
+        const $$createField2_0 = $$createType13;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("values" in $$parsedSource) {
+            $$parsedSource["values"] = $$createField2_0($$parsedSource["values"]);
+        }
+        return new EntityMappingDTO(/** @type {Partial<EntityMappingDTO>} */($$parsedSource));
+    }
+}
+
+/**
  * EntityPatternRequest defines a text→entity mapping for batch annotation.
  */
 export class EntityPatternRequest {
@@ -625,7 +647,6 @@ export class EntityPatternRequest {
         }
         if (!("entity_type" in $$source)) {
             /**
-             * "entity:person" etc.
              * @member
              * @type {string}
              */
@@ -650,6 +671,128 @@ export class EntityPatternRequest {
     static createFrom($$source = {}) {
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         return new EntityPatternRequest(/** @type {Partial<EntityPatternRequest>} */($$parsedSource));
+    }
+}
+
+/**
+ * EntityTypeFacetDTO is an entity type with its entry count.
+ */
+export class EntityTypeFacetDTO {
+    /**
+     * Creates a new EntityTypeFacetDTO instance.
+     * @param {Partial<EntityTypeFacetDTO>} [$$source = {}] - The source object to create the EntityTypeFacetDTO.
+     */
+    constructor($$source = {}) {
+        if (!("type" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["type"] = "";
+        }
+        if (!("count" in $$source)) {
+            /**
+             * @member
+             * @type {number}
+             */
+            this["count"] = 0;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new EntityTypeFacetDTO instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {EntityTypeFacetDTO}
+     */
+    static createFrom($$source = {}) {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new EntityTypeFacetDTO(/** @type {Partial<EntityTypeFacetDTO>} */($$parsedSource));
+    }
+}
+
+/**
+ * EntityValueDTO is the frontend-facing value+position of an entity mapping
+ * for a single locale.
+ */
+export class EntityValueDTO {
+    /**
+     * Creates a new EntityValueDTO instance.
+     * @param {Partial<EntityValueDTO>} [$$source = {}] - The source object to create the EntityValueDTO.
+     */
+    constructor($$source = {}) {
+        if (!("text" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["text"] = "";
+        }
+        if (!("start" in $$source)) {
+            /**
+             * @member
+             * @type {number}
+             */
+            this["start"] = 0;
+        }
+        if (!("end" in $$source)) {
+            /**
+             * @member
+             * @type {number}
+             */
+            this["end"] = 0;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new EntityValueDTO instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {EntityValueDTO}
+     */
+    static createFrom($$source = {}) {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new EntityValueDTO(/** @type {Partial<EntityValueDTO>} */($$parsedSource));
+    }
+}
+
+/**
+ * EntityValueFilter is a single entity value+type pair for search filtering.
+ */
+export class EntityValueFilter {
+    /**
+     * Creates a new EntityValueFilter instance.
+     * @param {Partial<EntityValueFilter>} [$$source = {}] - The source object to create the EntityValueFilter.
+     */
+    constructor($$source = {}) {
+        if (!("value" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["value"] = "";
+        }
+        if (!("type" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["type"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new EntityValueFilter instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {EntityValueFilter}
+     */
+    static createFrom($$source = {}) {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new EntityValueFilter(/** @type {Partial<EntityValueFilter>} */($$parsedSource));
     }
 }
 
@@ -766,7 +909,7 @@ export class FlowInfo {
      * @returns {FlowInfo}
      */
     static createFrom($$source = {}) {
-        const $$createField4_0 = $$createType11;
+        const $$createField4_0 = $$createType15;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("issues" in $$parsedSource) {
             $$parsedSource["issues"] = $$createField4_0($$parsedSource["issues"]);
@@ -896,8 +1039,8 @@ export class FormatInfo {
      * @returns {FormatInfo}
      */
     static createFrom($$source = {}) {
-        const $$createField2_0 = $$createType4;
-        const $$createField3_0 = $$createType4;
+        const $$createField2_0 = $$createType6;
+        const $$createField3_0 = $$createType6;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("extensions" in $$parsedSource) {
             $$parsedSource["extensions"] = $$createField2_0($$parsedSource["extensions"]);
@@ -963,7 +1106,7 @@ export class FormatPartInfo {
      * @returns {FormatPartInfo}
      */
     static createFrom($$source = {}) {
-        const $$createField4_0 = $$createType9;
+        const $$createField4_0 = $$createType11;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("properties" in $$parsedSource) {
             $$parsedSource["properties"] = $$createField4_0($$parsedSource["properties"]);
@@ -1027,7 +1170,7 @@ export class FormatPresetInfo {
      * @returns {FormatPresetInfo}
      */
     static createFrom($$source = {}) {
-        const $$createField3_0 = $$createType12;
+        const $$createField3_0 = $$createType16;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("config" in $$parsedSource) {
             $$parsedSource["config"] = $$createField3_0($$parsedSource["config"]);
@@ -1045,6 +1188,13 @@ export class ImportResult {
      * @param {Partial<ImportResult>} [$$source = {}] - The source object to create the ImportResult.
      */
     constructor($$source = {}) {
+        if (!("session_id" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["session_id"] = "";
+        }
         if (!("count" in $$source)) {
             /**
              * @member
@@ -1064,6 +1214,243 @@ export class ImportResult {
     static createFrom($$source = {}) {
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         return new ImportResult(/** @type {Partial<ImportResult>} */($$parsedSource));
+    }
+}
+
+/**
+ * ImportSessionDTO is the full import-session record for the sessions panel.
+ */
+export class ImportSessionDTO {
+    /**
+     * Creates a new ImportSessionDTO instance.
+     * @param {Partial<ImportSessionDTO>} [$$source = {}] - The source object to create the ImportSessionDTO.
+     */
+    constructor($$source = {}) {
+        if (!("id" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["id"] = "";
+        }
+        if (!("file_key" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["file_key"] = "";
+        }
+        if (!("file_hash" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["file_hash"] = "";
+        }
+        if (!("file_size_bytes" in $$source)) {
+            /**
+             * @member
+             * @type {number}
+             */
+            this["file_size_bytes"] = 0;
+        }
+        if (!("imported_at" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["imported_at"] = "";
+        }
+        if (!("imported_by" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["imported_by"] = "";
+        }
+        if (!("tool_name" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["tool_name"] = "";
+        }
+        if (!("tool_version" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["tool_version"] = "";
+        }
+        if (!("seg_type" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["seg_type"] = "";
+        }
+        if (!("admin_lang" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["admin_lang"] = "";
+        }
+        if (!("src_lang" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["src_lang"] = "";
+        }
+        if (!("data_type" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["data_type"] = "";
+        }
+        if (!("original_format" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["original_format"] = "";
+        }
+        if (!("original_encoding" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["original_encoding"] = "";
+        }
+        if (!("entry_count" in $$source)) {
+            /**
+             * @member
+             * @type {number}
+             */
+            this["entry_count"] = 0;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {{ [_ in string]?: string } | undefined}
+             */
+            this["properties"] = undefined;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ImportSessionDTO instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {ImportSessionDTO}
+     */
+    static createFrom($$source = {}) {
+        const $$createField15_0 = $$createType11;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("properties" in $$parsedSource) {
+            $$parsedSource["properties"] = $$createField15_0($$parsedSource["properties"]);
+        }
+        return new ImportSessionDTO(/** @type {Partial<ImportSessionDTO>} */($$parsedSource));
+    }
+}
+
+/**
+ * ImportSessionFacetDTO is an import session as a facet option.
+ */
+export class ImportSessionFacetDTO {
+    /**
+     * Creates a new ImportSessionFacetDTO instance.
+     * @param {Partial<ImportSessionFacetDTO>} [$$source = {}] - The source object to create the ImportSessionFacetDTO.
+     */
+    constructor($$source = {}) {
+        if (!("session_id" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["session_id"] = "";
+        }
+        if (!("file_key" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["file_key"] = "";
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["tool_name"] = undefined;
+        }
+        if (!("imported_at" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["imported_at"] = "";
+        }
+        if (!("count" in $$source)) {
+            /**
+             * @member
+             * @type {number}
+             */
+            this["count"] = 0;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ImportSessionFacetDTO instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {ImportSessionFacetDTO}
+     */
+    static createFrom($$source = {}) {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new ImportSessionFacetDTO(/** @type {Partial<ImportSessionFacetDTO>} */($$parsedSource));
+    }
+}
+
+/**
+ * LocaleFacetDTO is a single-locale entry count.
+ */
+export class LocaleFacetDTO {
+    /**
+     * Creates a new LocaleFacetDTO instance.
+     * @param {Partial<LocaleFacetDTO>} [$$source = {}] - The source object to create the LocaleFacetDTO.
+     */
+    constructor($$source = {}) {
+        if (!("locale" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["locale"] = "";
+        }
+        if (!("count" in $$source)) {
+            /**
+             * @member
+             * @type {number}
+             */
+            this["count"] = 0;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new LocaleFacetDTO instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {LocaleFacetDTO}
+     */
+    static createFrom($$source = {}) {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new LocaleFacetDTO(/** @type {Partial<LocaleFacetDTO>} */($$parsedSource));
     }
 }
 
@@ -1128,12 +1515,78 @@ export class LookupTMRequest {
      * @returns {LookupTMRequest}
      */
     static createFrom($$source = {}) {
-        const $$createField1_0 = $$createType14;
+        const $$createField1_0 = $$createType18;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("entities" in $$parsedSource) {
             $$parsedSource["entities"] = $$createField1_0($$parsedSource["entities"]);
         }
         return new LookupTMRequest(/** @type {Partial<LookupTMRequest>} */($$parsedSource));
+    }
+}
+
+/**
+ * OriginDTO is the frontend-facing TM entry origin (provenance).
+ */
+export class OriginDTO {
+    /**
+     * Creates a new OriginDTO instance.
+     * @param {Partial<OriginDTO>} [$$source = {}] - The source object to create the OriginDTO.
+     */
+    constructor($$source = {}) {
+        if (!("source" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["source"] = "";
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["key"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["reference"] = undefined;
+        }
+        if (!("added_at" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["added_at"] = "";
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["added_by"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["session_id"] = undefined;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new OriginDTO instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {OriginDTO}
+     */
+    static createFrom($$source = {}) {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new OriginDTO(/** @type {Partial<OriginDTO>} */($$parsedSource));
     }
 }
 
@@ -1185,7 +1638,7 @@ export class PluginCapability {
      * @returns {PluginCapability}
      */
     static createFrom($$source = {}) {
-        const $$createField3_0 = $$createType4;
+        const $$createField3_0 = $$createType6;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("extensions" in $$parsedSource) {
             $$parsedSource["extensions"] = $$createField3_0($$parsedSource["extensions"]);
@@ -1270,8 +1723,8 @@ export class PluginInfo {
      * @returns {PluginInfo}
      */
     static createFrom($$source = {}) {
-        const $$createField6_0 = $$createType4;
-        const $$createField7_0 = $$createType16;
+        const $$createField6_0 = $$createType6;
+        const $$createField7_0 = $$createType20;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("formats" in $$parsedSource) {
             $$parsedSource["formats"] = $$createField6_0($$parsedSource["formats"]);
@@ -1413,10 +1866,10 @@ export class PreviewResult {
      * @returns {PreviewResult}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType18;
-        const $$createField1_0 = $$createType20;
-        const $$createField2_0 = $$createType23;
-        const $$createField3_0 = $$createType4;
+        const $$createField0_0 = $$createType22;
+        const $$createField1_0 = $$createType24;
+        const $$createField2_0 = $$createType27;
+        const $$createField3_0 = $$createType6;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("nodes" in $$parsedSource) {
             $$parsedSource["nodes"] = $$createField0_0($$parsedSource["nodes"]);
@@ -1431,6 +1884,44 @@ export class PreviewResult {
             $$parsedSource["node_order"] = $$createField3_0($$parsedSource["node_order"]);
         }
         return new PreviewResult(/** @type {Partial<PreviewResult>} */($$parsedSource));
+    }
+}
+
+/**
+ * ProjectFacetDTO is a project ID with its entry count.
+ */
+export class ProjectFacetDTO {
+    /**
+     * Creates a new ProjectFacetDTO instance.
+     * @param {Partial<ProjectFacetDTO>} [$$source = {}] - The source object to create the ProjectFacetDTO.
+     */
+    constructor($$source = {}) {
+        if (!("project_id" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["project_id"] = "";
+        }
+        if (!("count" in $$source)) {
+            /**
+             * @member
+             * @type {number}
+             */
+            this["count"] = 0;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ProjectFacetDTO instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {ProjectFacetDTO}
+     */
+    static createFrom($$source = {}) {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new ProjectFacetDTO(/** @type {Partial<ProjectFacetDTO>} */($$parsedSource));
     }
 }
 
@@ -1849,8 +2340,8 @@ export class RunEvent {
      * @returns {RunEvent}
      */
     static createFrom($$source = {}) {
-        const $$createField6_0 = $$createType24;
-        const $$createField7_0 = $$createType26;
+        const $$createField6_0 = $$createType28;
+        const $$createField7_0 = $$createType30;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("trace_event" in $$parsedSource) {
             $$parsedSource["trace_event"] = $$createField6_0($$parsedSource["trace_event"]);
@@ -1909,7 +2400,7 @@ export class SaveUserFlowRequest {
      * @returns {SaveUserFlowRequest}
      */
     static createFrom($$source = {}) {
-        const $$createField3_0 = $$createType28;
+        const $$createField3_0 = $$createType32;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("steps" in $$parsedSource) {
             $$parsedSource["steps"] = $$createField3_0($$parsedSource["steps"]);
@@ -1919,7 +2410,7 @@ export class SaveUserFlowRequest {
 }
 
 /**
- * SpanDTO is the frontend-facing inline span, matching the SpanInfo TypeScript type.
+ * SpanDTO is the frontend-facing inline span.
  */
 export class SpanDTO {
     /**
@@ -1937,7 +2428,6 @@ export class SpanDTO {
         }
         if (!("type" in $$source)) {
             /**
-             * "fmt:bold", "entity:person"
              * @member
              * @type {string}
              */
@@ -1945,7 +2435,6 @@ export class SpanDTO {
         }
         if (!("data" in $$source)) {
             /**
-             * raw markup or entity value
              * @member
              * @type {string}
              */
@@ -1953,7 +2442,6 @@ export class SpanDTO {
         }
         if (/** @type {any} */(false)) {
             /**
-             * optional label override
              * @member
              * @type {string | undefined}
              */
@@ -1975,7 +2463,7 @@ export class SpanDTO {
 }
 
 /**
- * TMEntryDTO is the frontend-facing TM entry.
+ * TMEntryDTO is the frontend-facing multilingual TM entry.
  */
 export class TMEntryDTO {
     /**
@@ -1990,62 +2478,6 @@ export class TMEntryDTO {
              */
             this["id"] = "";
         }
-        if (!("source_text" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["source_text"] = "";
-        }
-        if (!("target_text" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["target_text"] = "";
-        }
-        if (!("source_coded" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["source_coded"] = "";
-        }
-        if (!("target_coded" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["target_coded"] = "";
-        }
-        if (!("source_spans" in $$source)) {
-            /**
-             * @member
-             * @type {SpanDTO[]}
-             */
-            this["source_spans"] = [];
-        }
-        if (!("target_spans" in $$source)) {
-            /**
-             * @member
-             * @type {SpanDTO[]}
-             */
-            this["target_spans"] = [];
-        }
-        if (!("source_locale" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["source_locale"] = "";
-        }
-        if (!("target_locale" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["target_locale"] = "";
-        }
         if (!("project_id" in $$source)) {
             /**
              * @member
@@ -2053,12 +2485,47 @@ export class TMEntryDTO {
              */
             this["project_id"] = "";
         }
+        if (!("variants" in $$source)) {
+            /**
+             * @member
+             * @type {{ [_ in string]?: VariantDTO }}
+             */
+            this["variants"] = {};
+        }
+        if (!("hint_src_lang" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["hint_src_lang"] = "";
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {EntityMappingDTO[] | undefined}
+             */
+            this["entities"] = undefined;
+        }
         if (/** @type {any} */(false)) {
             /**
              * @member
              * @type {{ [_ in string]?: string } | undefined}
              */
             this["properties"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["note"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {OriginDTO[] | undefined}
+             */
+            this["origins"] = undefined;
         }
         if (!("created_at" in $$source)) {
             /**
@@ -2084,20 +2551,106 @@ export class TMEntryDTO {
      * @returns {TMEntryDTO}
      */
     static createFrom($$source = {}) {
-        const $$createField5_0 = $$createType3;
-        const $$createField6_0 = $$createType3;
-        const $$createField10_0 = $$createType9;
+        const $$createField2_0 = $$createType34;
+        const $$createField4_0 = $$createType36;
+        const $$createField5_0 = $$createType11;
+        const $$createField7_0 = $$createType5;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        if ("source_spans" in $$parsedSource) {
-            $$parsedSource["source_spans"] = $$createField5_0($$parsedSource["source_spans"]);
+        if ("variants" in $$parsedSource) {
+            $$parsedSource["variants"] = $$createField2_0($$parsedSource["variants"]);
         }
-        if ("target_spans" in $$parsedSource) {
-            $$parsedSource["target_spans"] = $$createField6_0($$parsedSource["target_spans"]);
+        if ("entities" in $$parsedSource) {
+            $$parsedSource["entities"] = $$createField4_0($$parsedSource["entities"]);
         }
         if ("properties" in $$parsedSource) {
-            $$parsedSource["properties"] = $$createField10_0($$parsedSource["properties"]);
+            $$parsedSource["properties"] = $$createField5_0($$parsedSource["properties"]);
+        }
+        if ("origins" in $$parsedSource) {
+            $$parsedSource["origins"] = $$createField7_0($$parsedSource["origins"]);
         }
         return new TMEntryDTO(/** @type {Partial<TMEntryDTO>} */($$parsedSource));
+    }
+}
+
+/**
+ * TMFacets is the frontend-facing facet data for the sidebar.
+ */
+export class TMFacets {
+    /**
+     * Creates a new TMFacets instance.
+     * @param {Partial<TMFacets>} [$$source = {}] - The source object to create the TMFacets.
+     */
+    constructor($$source = {}) {
+        if (!("locales" in $$source)) {
+            /**
+             * @member
+             * @type {LocaleFacetDTO[]}
+             */
+            this["locales"] = [];
+        }
+        if (!("projects" in $$source)) {
+            /**
+             * @member
+             * @type {ProjectFacetDTO[]}
+             */
+            this["projects"] = [];
+        }
+        if (!("entity_types" in $$source)) {
+            /**
+             * @member
+             * @type {EntityTypeFacetDTO[]}
+             */
+            this["entity_types"] = [];
+        }
+        if (!("import_sessions" in $$source)) {
+            /**
+             * @member
+             * @type {ImportSessionFacetDTO[]}
+             */
+            this["import_sessions"] = [];
+        }
+        if (!("has_codes" in $$source)) {
+            /**
+             * @member
+             * @type {number}
+             */
+            this["has_codes"] = 0;
+        }
+        if (!("no_codes" in $$source)) {
+            /**
+             * @member
+             * @type {number}
+             */
+            this["no_codes"] = 0;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new TMFacets instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {TMFacets}
+     */
+    static createFrom($$source = {}) {
+        const $$createField0_0 = $$createType38;
+        const $$createField1_0 = $$createType40;
+        const $$createField2_0 = $$createType42;
+        const $$createField3_0 = $$createType44;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("locales" in $$parsedSource) {
+            $$parsedSource["locales"] = $$createField0_0($$parsedSource["locales"]);
+        }
+        if ("projects" in $$parsedSource) {
+            $$parsedSource["projects"] = $$createField1_0($$parsedSource["projects"]);
+        }
+        if ("entity_types" in $$parsedSource) {
+            $$parsedSource["entity_types"] = $$createField2_0($$parsedSource["entity_types"]);
+        }
+        if ("import_sessions" in $$parsedSource) {
+            $$parsedSource["import_sessions"] = $$createField3_0($$parsedSource["import_sessions"]);
+        }
+        return new TMFacets(/** @type {Partial<TMFacets>} */($$parsedSource));
     }
 }
 
@@ -2148,8 +2701,8 @@ export class TMMatchDTO {
      * @returns {TMMatchDTO}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType29;
-        const $$createField3_0 = $$createType31;
+        const $$createField0_0 = $$createType45;
+        const $$createField3_0 = $$createType47;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("entry" in $$parsedSource) {
             $$parsedSource["entry"] = $$createField0_0($$parsedSource["entry"]);
@@ -2158,6 +2711,85 @@ export class TMMatchDTO {
             $$parsedSource["entity_adaptations"] = $$createField3_0($$parsedSource["entity_adaptations"]);
         }
         return new TMMatchDTO(/** @type {Partial<TMMatchDTO>} */($$parsedSource));
+    }
+}
+
+/**
+ * TMSearchFilter is the frontend-facing search filter.
+ */
+export class TMSearchFilter {
+    /**
+     * Creates a new TMSearchFilter instance.
+     * @param {Partial<TMSearchFilter>} [$$source = {}] - The source object to create the TMSearchFilter.
+     */
+    constructor($$source = {}) {
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["project_id"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * require this locale variant
+             * @member
+             * @type {string | undefined}
+             */
+            this["locale"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string[] | undefined}
+             */
+            this["session_ids"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string[] | undefined}
+             */
+            this["entity_types"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {EntityValueFilter[] | undefined}
+             */
+            this["entity_values"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {boolean | null | undefined}
+             */
+            this["has_codes"] = undefined;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new TMSearchFilter instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {TMSearchFilter}
+     */
+    static createFrom($$source = {}) {
+        const $$createField2_0 = $$createType6;
+        const $$createField3_0 = $$createType6;
+        const $$createField4_0 = $$createType49;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("session_ids" in $$parsedSource) {
+            $$parsedSource["session_ids"] = $$createField2_0($$parsedSource["session_ids"]);
+        }
+        if ("entity_types" in $$parsedSource) {
+            $$parsedSource["entity_types"] = $$createField3_0($$parsedSource["entity_types"]);
+        }
+        if ("entity_values" in $$parsedSource) {
+            $$parsedSource["entity_values"] = $$createField4_0($$parsedSource["entity_values"]);
+        }
+        return new TMSearchFilter(/** @type {Partial<TMSearchFilter>} */($$parsedSource));
     }
 }
 
@@ -2194,7 +2826,7 @@ export class TMSearchResult {
      * @returns {TMSearchResult}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType32;
+        const $$createField0_0 = $$createType50;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("entries" in $$parsedSource) {
             $$parsedSource["entries"] = $$createField0_0($$parsedSource["entries"]);
@@ -2400,7 +3032,7 @@ export class TermSearchResult {
      * @returns {TermSearchResult}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType34;
+        const $$createField0_0 = $$createType52;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("concepts" in $$parsedSource) {
             $$parsedSource["concepts"] = $$createField0_0($$parsedSource["concepts"]);
@@ -2570,12 +3202,12 @@ export class ToolInfo {
      * @returns {ToolInfo}
      */
     static createFrom($$source = {}) {
-        const $$createField6_0 = $$createType4;
-        const $$createField7_0 = $$createType4;
-        const $$createField8_0 = $$createType4;
-        const $$createField9_0 = $$createType4;
-        const $$createField12_0 = $$createType4;
-        const $$createField13_0 = $$createType4;
+        const $$createField6_0 = $$createType6;
+        const $$createField7_0 = $$createType6;
+        const $$createField8_0 = $$createType6;
+        const $$createField9_0 = $$createType6;
+        const $$createField12_0 = $$createType6;
+        const $$createField13_0 = $$createType6;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("inputs" in $$parsedSource) {
             $$parsedSource["inputs"] = $$createField6_0($$parsedSource["inputs"]);
@@ -2663,7 +3295,8 @@ export class UpdateConceptRequest {
 }
 
 /**
- * UpdateTMEntryRequest is the request to update a TM entry.
+ * UpdateTMEntryRequest is the request to update a TM entry. The Variants map
+ * replaces the stored variants wholesale.
  */
 export class UpdateTMEntryRequest {
     /**
@@ -2678,47 +3311,19 @@ export class UpdateTMEntryRequest {
              */
             this["entry_id"] = "";
         }
-        if (!("source" in $$source)) {
+        if (!("variants" in $$source)) {
+            /**
+             * @member
+             * @type {{ [_ in string]?: VariantInputDTO }}
+             */
+            this["variants"] = {};
+        }
+        if (!("hint_src_lang" in $$source)) {
             /**
              * @member
              * @type {string}
              */
-            this["source"] = "";
-        }
-        if (!("target" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["target"] = "";
-        }
-        if (/** @type {any} */(false)) {
-            /**
-             * @member
-             * @type {string | undefined}
-             */
-            this["target_coded"] = undefined;
-        }
-        if (/** @type {any} */(false)) {
-            /**
-             * @member
-             * @type {SpanDTO[] | undefined}
-             */
-            this["target_spans"] = undefined;
-        }
-        if (!("source_locale" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["source_locale"] = "";
-        }
-        if (!("target_locale" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["target_locale"] = "";
+            this["hint_src_lang"] = "";
         }
         if (!("project_id" in $$source)) {
             /**
@@ -2726,6 +3331,20 @@ export class UpdateTMEntryRequest {
              * @type {string}
              */
             this["project_id"] = "";
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["note"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {OriginDTO[] | undefined}
+             */
+            this["origins"] = undefined;
         }
 
         Object.assign(this, $$source);
@@ -2737,10 +3356,14 @@ export class UpdateTMEntryRequest {
      * @returns {UpdateTMEntryRequest}
      */
     static createFrom($$source = {}) {
-        const $$createField4_0 = $$createType3;
+        const $$createField1_0 = $$createType3;
+        const $$createField5_0 = $$createType5;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        if ("target_spans" in $$parsedSource) {
-            $$parsedSource["target_spans"] = $$createField4_0($$parsedSource["target_spans"]);
+        if ("variants" in $$parsedSource) {
+            $$parsedSource["variants"] = $$createField1_0($$parsedSource["variants"]);
+        }
+        if ("origins" in $$parsedSource) {
+            $$parsedSource["origins"] = $$createField5_0($$parsedSource["origins"]);
         }
         return new UpdateTMEntryRequest(/** @type {Partial<UpdateTMEntryRequest>} */($$parsedSource));
     }
@@ -2800,7 +3423,7 @@ export class UserFlowDetail {
      * @returns {UserFlowDetail}
      */
     static createFrom($$source = {}) {
-        const $$createField4_0 = $$createType28;
+        const $$createField4_0 = $$createType32;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("steps" in $$parsedSource) {
             $$parsedSource["steps"] = $$createField4_0($$parsedSource["steps"]);
@@ -2841,7 +3464,7 @@ export class UserFlowInfo {
         }
         if (!("source" in $$source)) {
             /**
-             * "built-in" or "user"
+             * registry.SourceBuiltIn or "user"
              * @member
              * @type {string}
              */
@@ -2876,39 +3499,164 @@ export class UserFlowInfo {
     }
 }
 
+/**
+ * VariantDTO is a single language variant of a multilingual TM entry.
+ */
+export class VariantDTO {
+    /**
+     * Creates a new VariantDTO instance.
+     * @param {Partial<VariantDTO>} [$$source = {}] - The source object to create the VariantDTO.
+     */
+    constructor($$source = {}) {
+        if (!("locale" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["locale"] = "";
+        }
+        if (!("text" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["text"] = "";
+        }
+        if (!("coded" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["coded"] = "";
+        }
+        if (!("spans" in $$source)) {
+            /**
+             * @member
+             * @type {SpanDTO[]}
+             */
+            this["spans"] = [];
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new VariantDTO instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {VariantDTO}
+     */
+    static createFrom($$source = {}) {
+        const $$createField3_0 = $$createType54;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("spans" in $$parsedSource) {
+            $$parsedSource["spans"] = $$createField3_0($$parsedSource["spans"]);
+        }
+        return new VariantDTO(/** @type {Partial<VariantDTO>} */($$parsedSource));
+    }
+}
+
+/**
+ * VariantInputDTO is how the frontend submits a single variant on add/update.
+ */
+export class VariantInputDTO {
+    /**
+     * Creates a new VariantInputDTO instance.
+     * @param {Partial<VariantInputDTO>} [$$source = {}] - The source object to create the VariantInputDTO.
+     */
+    constructor($$source = {}) {
+        if (!("text" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["text"] = "";
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["coded"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {SpanDTO[] | undefined}
+             */
+            this["spans"] = undefined;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new VariantInputDTO instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {VariantInputDTO}
+     */
+    static createFrom($$source = {}) {
+        const $$createField2_0 = $$createType54;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("spans" in $$parsedSource) {
+            $$parsedSource["spans"] = $$createField2_0($$parsedSource["spans"]);
+        }
+        return new VariantInputDTO(/** @type {Partial<VariantInputDTO>} */($$parsedSource));
+    }
+}
+
 // Private type creation functions
 const $$createType0 = TermDTO.createFrom;
 const $$createType1 = $Create.Array($$createType0);
-const $$createType2 = SpanDTO.createFrom;
-const $$createType3 = $Create.Array($$createType2);
-const $$createType4 = $Create.Array($Create.Any);
-const $$createType5 = EntityPatternRequest.createFrom;
-const $$createType6 = $Create.Array($$createType5);
-const $$createType7 = CustomLocale.createFrom;
+const $$createType2 = VariantInputDTO.createFrom;
+const $$createType3 = $Create.Map($Create.Any, $$createType2);
+const $$createType4 = OriginDTO.createFrom;
+const $$createType5 = $Create.Array($$createType4);
+const $$createType6 = $Create.Array($Create.Any);
+const $$createType7 = EntityPatternRequest.createFrom;
 const $$createType8 = $Create.Array($$createType7);
-const $$createType9 = $Create.Map($Create.Any, $Create.Any);
-const $$createType10 = FlowIssueInfo.createFrom;
-const $$createType11 = $Create.Array($$createType10);
-const $$createType12 = $Create.Map($Create.Any, $Create.Any);
-const $$createType13 = EntityAnnotationDTO.createFrom;
-const $$createType14 = $Create.Array($$createType13);
-const $$createType15 = PluginCapability.createFrom;
-const $$createType16 = $Create.Array($$createType15);
-const $$createType17 = flow$0.TraceNode.createFrom;
+const $$createType9 = CustomLocale.createFrom;
+const $$createType10 = $Create.Array($$createType9);
+const $$createType11 = $Create.Map($Create.Any, $Create.Any);
+const $$createType12 = EntityValueDTO.createFrom;
+const $$createType13 = $Create.Map($Create.Any, $$createType12);
+const $$createType14 = FlowIssueInfo.createFrom;
+const $$createType15 = $Create.Array($$createType14);
+const $$createType16 = $Create.Map($Create.Any, $Create.Any);
+const $$createType17 = EntityAnnotationDTO.createFrom;
 const $$createType18 = $Create.Array($$createType17);
-const $$createType19 = flow$0.TraceEvent.createFrom;
+const $$createType19 = PluginCapability.createFrom;
 const $$createType20 = $Create.Array($$createType19);
-const $$createType21 = flow$0.PartSnapshotSet.createFrom;
-const $$createType22 = $Create.Nullable($$createType21);
-const $$createType23 = $Create.Map($Create.Any, $$createType22);
-const $$createType24 = $Create.Nullable($$createType19);
-const $$createType25 = flow$0.StepSnapshot.createFrom;
-const $$createType26 = $Create.Array($$createType25);
-const $$createType27 = flow$0.FlowStep.createFrom;
-const $$createType28 = $Create.Array($$createType27);
-const $$createType29 = TMEntryDTO.createFrom;
-const $$createType30 = EntityAdaptationDTO.createFrom;
-const $$createType31 = $Create.Array($$createType30);
-const $$createType32 = $Create.Array($$createType29);
-const $$createType33 = ConceptDTO.createFrom;
-const $$createType34 = $Create.Array($$createType33);
+const $$createType21 = flow$0.TraceNode.createFrom;
+const $$createType22 = $Create.Array($$createType21);
+const $$createType23 = flow$0.TraceEvent.createFrom;
+const $$createType24 = $Create.Array($$createType23);
+const $$createType25 = flow$0.PartSnapshotSet.createFrom;
+const $$createType26 = $Create.Nullable($$createType25);
+const $$createType27 = $Create.Map($Create.Any, $$createType26);
+const $$createType28 = $Create.Nullable($$createType23);
+const $$createType29 = flow$0.StepSnapshot.createFrom;
+const $$createType30 = $Create.Array($$createType29);
+const $$createType31 = flow$0.FlowStep.createFrom;
+const $$createType32 = $Create.Array($$createType31);
+const $$createType33 = VariantDTO.createFrom;
+const $$createType34 = $Create.Map($Create.Any, $$createType33);
+const $$createType35 = EntityMappingDTO.createFrom;
+const $$createType36 = $Create.Array($$createType35);
+const $$createType37 = LocaleFacetDTO.createFrom;
+const $$createType38 = $Create.Array($$createType37);
+const $$createType39 = ProjectFacetDTO.createFrom;
+const $$createType40 = $Create.Array($$createType39);
+const $$createType41 = EntityTypeFacetDTO.createFrom;
+const $$createType42 = $Create.Array($$createType41);
+const $$createType43 = ImportSessionFacetDTO.createFrom;
+const $$createType44 = $Create.Array($$createType43);
+const $$createType45 = TMEntryDTO.createFrom;
+const $$createType46 = EntityAdaptationDTO.createFrom;
+const $$createType47 = $Create.Array($$createType46);
+const $$createType48 = EntityValueFilter.createFrom;
+const $$createType49 = $Create.Array($$createType48);
+const $$createType50 = $Create.Array($$createType45);
+const $$createType51 = ConceptDTO.createFrom;
+const $$createType52 = $Create.Array($$createType51);
+const $$createType53 = SpanDTO.createFrom;
+const $$createType54 = $Create.Array($$createType53);

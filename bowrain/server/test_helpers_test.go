@@ -281,72 +281,10 @@ func pushBlocks(t *testing.T, srv *Server, e *echo.Echo, authHeader, projectID s
 }
 
 // testTMStore wraps InMemoryTM to satisfy the TMStore interface for tests.
+// All new multilingual methods delegate directly to the in-memory
+// implementation, since it already implements the full TMStore interface.
 type testTMStore struct {
 	*sievepen.InMemoryTM
-}
-
-func (t *testTMStore) AddWithStream(entry sievepen.TMEntry, _ string) error {
-	return t.Add(entry)
-}
-
-func (t *testTMStore) SearchEntries(query, sourceLocale, targetLocale string, offset, limit int) ([]sievepen.TMEntry, int) {
-	all := t.Entries()
-	return filterTMEntries(all, query, sourceLocale, targetLocale, offset, limit)
-}
-
-func (t *testTMStore) SearchEntriesForStream(query, sourceLocale, targetLocale, _ string, _ []string, offset, limit int) ([]sievepen.TMEntry, int) {
-	return t.SearchEntries(query, sourceLocale, targetLocale, offset, limit)
-}
-
-func (t *testTMStore) GetEntry(id string) (sievepen.TMEntry, bool) {
-	for _, e := range t.Entries() {
-		if e.ID == id {
-			return e, true
-		}
-	}
-	return sievepen.TMEntry{}, false
-}
-
-func (t *testTMStore) SearchEntriesGrouped(query, sourceLocale string, offset, limit int) ([]sievepen.TMEntryGroup, int) {
-	return t.InMemoryTM.SearchEntriesGrouped(query, sourceLocale, offset, limit)
-}
-
-func (t *testTMStore) SearchEntriesFiltered(query, sourceLocale, targetLocale string, filter sievepen.SearchFilter, offset, limit int) ([]sievepen.TMEntry, int) {
-	return t.InMemoryTM.SearchEntriesFiltered(query, sourceLocale, targetLocale, filter, offset, limit)
-}
-
-func (t *testTMStore) SearchEntriesGroupedFiltered(query, sourceLocale string, filter sievepen.SearchFilter, offset, limit int) ([]sievepen.TMEntryGroup, int) {
-	return t.InMemoryTM.SearchEntriesGroupedFiltered(query, sourceLocale, filter, offset, limit)
-}
-
-func (t *testTMStore) FacetStats() sievepen.FacetData {
-	return t.InMemoryTM.FacetStats()
-}
-
-func (t *testTMStore) FacetStatsFiltered(query, sourceLocale, targetLocale string, filter sievepen.SearchFilter) sievepen.FacetData {
-	return t.InMemoryTM.FacetStatsFiltered(query, sourceLocale, targetLocale, filter)
-}
-
-func filterTMEntries(entries []sievepen.TMEntry, query, sourceLocale, targetLocale string, offset, limit int) ([]sievepen.TMEntry, int) {
-	var filtered []sievepen.TMEntry
-	for _, e := range entries {
-		if sourceLocale != "" && string(e.SourceLocale) != sourceLocale {
-			continue
-		}
-		if targetLocale != "" && string(e.TargetLocale) != targetLocale {
-			continue
-		}
-		filtered = append(filtered, e)
-	}
-	total := len(filtered)
-	if offset >= total {
-		return nil, total
-	}
-	end := offset + limit
-	if end > total {
-		end = total
-	}
-	return filtered[offset:end], total
 }
 
 // testTermStore wraps InMemoryTermBase to satisfy the TBStore interface for tests.

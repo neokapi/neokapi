@@ -4,34 +4,25 @@ import { createElement } from "react";
 import { createRoot } from "react-dom/client";
 import { act } from "react";
 import { TMGroupedEntry } from "../components/resource-browser/TMGroupedEntry";
-import type { TMGroupedResult } from "../components/resource-browser/types";
+import type { TMEntryDTO, VariantDTO } from "../components/resource-browser/types";
 
-function makeGroup(overrides: Partial<TMGroupedResult> = {}): TMGroupedResult {
+function v(locale: string, text: string): VariantDTO {
+  return { locale, text, coded: text, spans: [] };
+}
+
+function makeEntry(overrides: Partial<TMEntryDTO> = {}): TMEntryDTO {
+  const now = new Date().toISOString();
   return {
-    source_text: "Hello world",
-    source_coded: "Hello world",
-    source_spans: [],
-    source_locale: "en-US",
-    targets: [
-      {
-        id: "t1",
-        target_text: "Bonjour le monde",
-        target_coded: "Bonjour le monde",
-        target_spans: [],
-        target_locale: "fr-FR",
-        project_id: "",
-        updated_at: new Date().toISOString(),
-      },
-      {
-        id: "t2",
-        target_text: "Hallo Welt",
-        target_coded: "Hallo Welt",
-        target_spans: [],
-        target_locale: "de-DE",
-        project_id: "",
-        updated_at: new Date().toISOString(),
-      },
-    ],
+    id: "tm-1",
+    project_id: "",
+    hint_src_lang: "en-US",
+    variants: {
+      "en-US": v("en-US", "Hello world"),
+      "fr-FR": v("fr-FR", "Bonjour le monde"),
+      "de-DE": v("de-DE", "Hallo Welt"),
+    },
+    created_at: now,
+    updated_at: now,
     ...overrides,
   };
 }
@@ -55,11 +46,11 @@ describe("TMGroupedEntry", () => {
   it("renders source text and translation count", () => {
     const c = renderToContainer(
       createElement(TMGroupedEntry, {
-        group: makeGroup(),
+        entry: makeEntry(),
         selected: false,
         onToggleSelect: vi.fn(),
-        onEditTarget: vi.fn(),
-        onDeleteTarget: vi.fn(),
+        onEditVariant: vi.fn(),
+        onDelete: vi.fn(),
       }),
     );
     expect(c.textContent).toContain("Hello world");
@@ -69,51 +60,45 @@ describe("TMGroupedEntry", () => {
   it("renders source locale pill", () => {
     const c = renderToContainer(
       createElement(TMGroupedEntry, {
-        group: makeGroup(),
+        entry: makeEntry(),
         selected: false,
         onToggleSelect: vi.fn(),
-        onEditTarget: vi.fn(),
-        onDeleteTarget: vi.fn(),
+        onEditVariant: vi.fn(),
+        onDelete: vi.fn(),
       }),
     );
     expect(c.textContent).toContain("en-US");
   });
 
-  it("shows singular translation for single target", () => {
-    const group = makeGroup({
-      targets: [{
-        id: "t1",
-        target_text: "Bonjour",
-        target_coded: "Bonjour",
-        target_spans: [],
-        target_locale: "fr-FR",
-        project_id: "",
-        updated_at: new Date().toISOString(),
-      }],
+  it("shows singular translation for a single non-source variant", () => {
+    const entry = makeEntry({
+      variants: {
+        "en-US": v("en-US", "Hello"),
+        "fr-FR": v("fr-FR", "Bonjour"),
+      },
     });
     const c = renderToContainer(
       createElement(TMGroupedEntry, {
-        group,
+        entry,
         selected: false,
         onToggleSelect: vi.fn(),
-        onEditTarget: vi.fn(),
-        onDeleteTarget: vi.fn(),
+        onEditVariant: vi.fn(),
+        onDelete: vi.fn(),
       }),
     );
     expect(c.textContent).toContain("1 translation");
   });
 
-  it("auto-expands when fewer than 10 targets", () => {
+  it("auto-expands when fewer than 10 non-source variants", () => {
     const c = renderToContainer(
       createElement(TMGroupedEntry, {
-        group: makeGroup(),
+        entry: makeEntry(),
         selected: false,
         onToggleSelect: vi.fn(),
-        onEditTarget: vi.fn(),
-        onDeleteTarget: vi.fn(),
+        onEditVariant: vi.fn(),
+        onDelete: vi.fn(),
       }),
     );
-    // 2 targets < 10, so auto-expanded
     expect(c.textContent).toContain("Bonjour le monde");
     expect(c.textContent).toContain("Hallo Welt");
     expect(c.textContent).toContain("fr-FR");
@@ -123,34 +108,35 @@ describe("TMGroupedEntry", () => {
   it("collapses when clicking source on auto-expanded entry", () => {
     const c = renderToContainer(
       createElement(TMGroupedEntry, {
-        group: makeGroup(),
+        entry: makeEntry(),
         selected: false,
         onToggleSelect: vi.fn(),
-        onEditTarget: vi.fn(),
-        onDeleteTarget: vi.fn(),
+        onEditVariant: vi.fn(),
+        onDelete: vi.fn(),
       }),
     );
     expect(c.textContent).toContain("Bonjour le monde");
     const buttons = c.querySelectorAll("button");
     const expandBtn = Array.from(buttons).find((b) => b.textContent?.includes("Hello world"));
-    act(() => { expandBtn!.click(); });
+    act(() => {
+      expandBtn!.click();
+    });
     expect(c.textContent).not.toContain("Bonjour le monde");
   });
 
-  it("filters targets by visibleLocales", () => {
+  it("filters variants by visibleLocales", () => {
     const c = renderToContainer(
       createElement(TMGroupedEntry, {
-        group: makeGroup(),
+        entry: makeEntry(),
         selected: false,
         onToggleSelect: vi.fn(),
-        onEditTarget: vi.fn(),
-        onDeleteTarget: vi.fn(),
+        onEditVariant: vi.fn(),
+        onDelete: vi.fn(),
         visibleLocales: ["fr-FR"],
       }),
     );
     expect(c.textContent).toContain("Bonjour le monde");
     expect(c.textContent).not.toContain("Hallo Welt");
-    // Shows filtered count: 1/2
     expect(c.textContent).toContain("1/2");
   });
 
@@ -158,15 +144,39 @@ describe("TMGroupedEntry", () => {
     const onToggle = vi.fn();
     const c = renderToContainer(
       createElement(TMGroupedEntry, {
-        group: makeGroup(),
+        entry: makeEntry(),
         selected: false,
         onToggleSelect: onToggle,
-        onEditTarget: vi.fn(),
-        onDeleteTarget: vi.fn(),
+        onEditVariant: vi.fn(),
+        onDelete: vi.fn(),
       }),
     );
     const checkbox = c.querySelector("[data-slot=checkbox]") as HTMLElement;
-    act(() => { checkbox.click(); });
+    act(() => {
+      checkbox.click();
+    });
     expect(onToggle).toHaveBeenCalledTimes(1);
+  });
+
+  it("falls back to first locale when hint_src_lang is missing", () => {
+    const entry = makeEntry({
+      hint_src_lang: "",
+      variants: {
+        "fr-FR": v("fr-FR", "Bonjour"),
+        "de-DE": v("de-DE", "Hallo"),
+      },
+    });
+    const c = renderToContainer(
+      createElement(TMGroupedEntry, {
+        entry,
+        selected: false,
+        onToggleSelect: vi.fn(),
+        onEditVariant: vi.fn(),
+        onDelete: vi.fn(),
+      }),
+    );
+    // The first variant ("fr-FR") is used as the header.
+    expect(c.textContent).toContain("Bonjour");
+    expect(c.textContent).toContain("Hallo");
   });
 });
