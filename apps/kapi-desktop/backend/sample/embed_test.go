@@ -54,11 +54,13 @@ func TestScaffoldKapiMart(t *testing.T) {
 	_, err = os.Stat(filepath.Join(dir, "output"))
 	assert.NoError(t, err)
 
-	// TM should have 1000+ entries (200 TUs × 5 targets + enriched).
+	// TM should have 200+ entries. Under the multilingual model each TU
+	// becomes a single entry with N variants instead of N entries per TU,
+	// so the total is roughly ~1/5 of the old count.
 	tm, err := sievepen.NewSQLiteTM(filepath.Join(dir, ".kapi", "tm.db"))
 	require.NoError(t, err)
 	defer tm.Close()
-	assert.GreaterOrEqual(t, tm.Count(), 1000, "TM should have at least 1000 entries")
+	assert.GreaterOrEqual(t, tm.Count(), 200, "TM should have at least 200 multilingual entries")
 
 	// Termbase should have 100+ concepts.
 	tb, err := termbase.NewSQLiteTermBase(filepath.Join(dir, ".kapi", "termbase.db"))

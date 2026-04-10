@@ -1,17 +1,21 @@
 // Types
 export type {
   TMEntryDTO,
+  VariantDTO,
+  VariantInputDTO,
+  EntityMappingDTO,
+  EntityValueDTO,
   TMSearchResult,
   TMStats,
   TMFacets,
-  LocalePairFacet,
+  LocaleFacet,
   ProjectFacet,
   EntityTypeFacet,
-  TMGroupedResult,
-  TMTargetDTO,
-  TMGroupedSearchResult,
+  ImportSessionFacet,
+  ImportSessionDTO,
   TMSearchFilter,
   EntityValueFilter,
+  OriginDTO,
   TMMatchDTO,
   EntityAdaptationDTO,
   EntityAnnotationDTO,
@@ -42,6 +46,7 @@ export { TermbaseBrowser } from "./TermbaseBrowser";
 export { TMSearchBar } from "./TMSearchBar";
 export { TMFacetSidebar, EMPTY_FACETS, type FacetSelection } from "./TMFacetSidebar";
 export { TMGroupedEntry } from "./TMGroupedEntry";
+export { OriginsPopover } from "./OriginsPopover";
 export { EntityAnnotationDialog } from "./EntityAnnotationDialog";
 export { CodedTextDisplay } from "./CodedTextDisplay";
 export { MatchScoreBar } from "./MatchScoreBar";

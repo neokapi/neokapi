@@ -13,49 +13,65 @@ import {
 const SAMPLE_ENTRIES: TMEntryDTO[] = [
   {
     id: "1",
-    source_text: "Hello world",
-    target_text: "Bonjour le monde",
-    source_coded: "Hello world",
-    target_coded: "Bonjour le monde",
-    source_spans: [],
-    target_spans: [],
-    source_locale: "en-US",
-    target_locale: "fr-FR",
     project_id: "",
+    hint_src_lang: "en-US",
+    variants: {
+      "en-US": { locale: "en-US", text: "Hello world", coded: "Hello world", spans: [] },
+      "fr-FR": {
+        locale: "fr-FR",
+        text: "Bonjour le monde",
+        coded: "Bonjour le monde",
+        spans: [],
+      },
+    },
     created_at: new Date(Date.now() - 3600000).toISOString(),
     updated_at: new Date(Date.now() - 3600000).toISOString(),
   },
   {
     id: "2",
-    source_text: "Click here to continue",
-    target_text: "Cliquez ici pour continuer",
-    source_coded: "Click \uE001here\uE002 to continue",
-    target_coded: "Cliquez \uE001ici\uE002 pour continuer",
-    source_spans: [
-      { span_type: "opening", type: "fmt:bold", id: "1", data: "<b>" },
-      { span_type: "closing", type: "fmt:bold", id: "1", data: "</b>" },
-    ],
-    target_spans: [
-      { span_type: "opening", type: "fmt:bold", id: "1", data: "<b>" },
-      { span_type: "closing", type: "fmt:bold", id: "1", data: "</b>" },
-    ],
-    source_locale: "en-US",
-    target_locale: "fr-FR",
     project_id: "proj-1",
+    hint_src_lang: "en-US",
+    variants: {
+      "en-US": {
+        locale: "en-US",
+        text: "Click here to continue",
+        coded: "Click \uE001here\uE002 to continue",
+        spans: [
+          { span_type: "opening", type: "fmt:bold", id: "1", data: "<b>" },
+          { span_type: "closing", type: "fmt:bold", id: "1", data: "</b>" },
+        ],
+      },
+      "fr-FR": {
+        locale: "fr-FR",
+        text: "Cliquez ici pour continuer",
+        coded: "Cliquez \uE001ici\uE002 pour continuer",
+        spans: [
+          { span_type: "opening", type: "fmt:bold", id: "1", data: "<b>" },
+          { span_type: "closing", type: "fmt:bold", id: "1", data: "</b>" },
+        ],
+      },
+    },
     created_at: new Date(Date.now() - 7200000).toISOString(),
     updated_at: new Date(Date.now() - 7200000).toISOString(),
   },
   {
     id: "3",
-    source_text: " is a hero",
-    target_text: " est un héros",
-    source_coded: "\uE003 is a hero",
-    target_coded: "\uE003 est un héros",
-    source_spans: [{ span_type: "placeholder", type: "entity:person", id: "e1", data: "Bob" }],
-    target_spans: [{ span_type: "placeholder", type: "entity:person", id: "e1", data: "Bob" }],
-    source_locale: "en-US",
-    target_locale: "fr-FR",
     project_id: "",
+    hint_src_lang: "en-US",
+    variants: {
+      "en-US": {
+        locale: "en-US",
+        text: " is a hero",
+        coded: "\uE003 is a hero",
+        spans: [{ span_type: "placeholder", type: "entity:person", id: "e1", data: "Bob" }],
+      },
+      "fr-FR": {
+        locale: "fr-FR",
+        text: " est un héros",
+        coded: "\uE003 est un héros",
+        spans: [{ span_type: "placeholder", type: "entity:person", id: "e1", data: "Bob" }],
+      },
+    },
     created_at: new Date(Date.now() - 86400000).toISOString(),
     updated_at: new Date(Date.now() - 86400000).toISOString(),
   },
@@ -63,47 +79,60 @@ const SAMPLE_ENTRIES: TMEntryDTO[] = [
 
 function createMockAdapter(entries: TMEntryDTO[]): TMAdapter {
   let data = [...entries];
+
+  const matchQuery = (e: TMEntryDTO, q: string) => {
+    const needle = q.toLowerCase();
+    return Object.values(e.variants).some((v) => v.text.toLowerCase().includes(needle));
+  };
+
   return {
     async search(query) {
-      const filtered = query
-        ? data.filter(
-            (e) =>
-              e.source_text.toLowerCase().includes(query.toLowerCase()) ||
-              e.target_text.toLowerCase().includes(query.toLowerCase()),
-          )
-        : data;
+      const filtered = query ? data.filter((e) => matchQuery(e, query)) : data;
       return { entries: filtered, total_count: filtered.length };
     },
     async getEntry(id) {
       return data.find((e) => e.id === id) ?? null;
     },
     async addEntry(req) {
+      const variants: TMEntryDTO["variants"] = {};
+      for (const [locale, input] of Object.entries(req.variants)) {
+        variants[locale] = {
+          locale,
+          text: input.text,
+          coded: input.coded ?? input.text,
+          spans: input.spans ?? [],
+        };
+      }
       data.push({
         id: String(Date.now()),
-        source_text: req.source,
-        target_text: req.target,
-        source_coded: req.source,
-        target_coded: req.target,
-        source_spans: [],
-        target_spans: [],
-        source_locale: req.source_locale,
-        target_locale: req.target_locale,
         project_id: req.project_id ?? "",
+        hint_src_lang: req.hint_src_lang,
+        variants,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       });
     },
     async updateEntry(req) {
-      data = data.map((e) =>
-        e.id === req.entry_id
-          ? {
-              ...e,
-              target_text: req.target,
-              target_coded: req.target,
-              updated_at: new Date().toISOString(),
-            }
-          : e,
-      );
+      data = data.map((e) => {
+        if (e.id !== req.entry_id) return e;
+        const variants: TMEntryDTO["variants"] = {};
+        for (const [locale, input] of Object.entries(req.variants)) {
+          variants[locale] = {
+            locale,
+            text: input.text,
+            coded: input.coded ?? input.text,
+            spans: input.spans ?? [],
+          };
+        }
+        return {
+          ...e,
+          variants,
+          hint_src_lang: req.hint_src_lang || e.hint_src_lang,
+          project_id: req.project_id ?? e.project_id,
+          note: req.note ?? e.note,
+          updated_at: new Date().toISOString(),
+        };
+      });
     },
     async deleteEntry(id) {
       data = data.filter((e) => e.id !== id);

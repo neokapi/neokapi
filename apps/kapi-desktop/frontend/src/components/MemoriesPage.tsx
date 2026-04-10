@@ -174,7 +174,7 @@ export function MemoriesPage({
     if (!activeHandle) return;
     setImporting(true);
     try {
-      await api.importTMXDialog(activeHandle, "", "");
+      await api.importTMXDialog(activeHandle);
     } catch (err) {
       showError("Failed to import TMX", err);
     } finally {
@@ -185,7 +185,7 @@ export function MemoriesPage({
   const handleExport = useCallback(async () => {
     if (!activeHandle) return;
     try {
-      await api.exportTMXDialog(activeHandle, "", "");
+      await api.exportTMXDialog(activeHandle, []);
     } catch (err) {
       showError("Failed to export TMX", err);
     }
@@ -248,11 +248,7 @@ export function MemoriesPage({
         )}
 
         {/* Browser with integrated filter bar */}
-        <TMBrowser
-          adapter={adapter}
-          locales={locales}
-          onError={showError}
-        />
+        <TMBrowser adapter={adapter} locales={locales} onError={showError} />
         <ImportProgress active={importing} />
       </div>
     );

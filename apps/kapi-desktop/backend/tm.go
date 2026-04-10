@@ -24,29 +24,59 @@ type ResourceInfo struct {
 	Modified string `json:"modified"` // ISO 8601
 }
 
-// TMEntryDTO is the frontend-facing TM entry.
-type TMEntryDTO struct {
-	ID           string            `json:"id"`
-	SourceText   string            `json:"source_text"`
-	TargetText   string            `json:"target_text"`
-	SourceCoded  string            `json:"source_coded"`
-	TargetCoded  string            `json:"target_coded"`
-	SourceSpans  []SpanDTO         `json:"source_spans"`
-	TargetSpans  []SpanDTO         `json:"target_spans"`
-	SourceLocale string            `json:"source_locale"`
-	TargetLocale string            `json:"target_locale"`
-	ProjectID    string            `json:"project_id"`
-	Properties   map[string]string `json:"properties,omitempty"`
-	CreatedAt    string            `json:"created_at"`
-	UpdatedAt    string            `json:"updated_at"`
+// OriginDTO is the frontend-facing TM entry origin (provenance).
+type OriginDTO struct {
+	Source    string `json:"source"`
+	Key       string `json:"key,omitempty"`
+	Reference string `json:"reference,omitempty"`
+	AddedAt   string `json:"added_at"`
+	AddedBy   string `json:"added_by,omitempty"`
+	SessionID string `json:"session_id,omitempty"`
 }
 
-// SpanDTO is the frontend-facing inline span, matching the SpanInfo TypeScript type.
+// VariantDTO is a single language variant of a multilingual TM entry.
+type VariantDTO struct {
+	Locale string    `json:"locale"`
+	Text   string    `json:"text"`
+	Coded  string    `json:"coded"`
+	Spans  []SpanDTO `json:"spans"`
+}
+
+// EntityValueDTO is the frontend-facing value+position of an entity mapping
+// for a single locale.
+type EntityValueDTO struct {
+	Text  string `json:"text"`
+	Start int    `json:"start"`
+	End   int    `json:"end"`
+}
+
+// EntityMappingDTO is a multilingual entity mapping.
+type EntityMappingDTO struct {
+	PlaceholderID string                    `json:"placeholder_id"`
+	Type          string                    `json:"type"`
+	Values        map[string]EntityValueDTO `json:"values"`
+}
+
+// TMEntryDTO is the frontend-facing multilingual TM entry.
+type TMEntryDTO struct {
+	ID          string                `json:"id"`
+	ProjectID   string                `json:"project_id"`
+	Variants    map[string]VariantDTO `json:"variants"`
+	HintSrcLang string                `json:"hint_src_lang"`
+	Entities    []EntityMappingDTO    `json:"entities,omitempty"`
+	Properties  map[string]string     `json:"properties,omitempty"`
+	Note        string                `json:"note,omitempty"`
+	Origins     []OriginDTO           `json:"origins,omitempty"`
+	CreatedAt   string                `json:"created_at"`
+	UpdatedAt   string                `json:"updated_at"`
+}
+
+// SpanDTO is the frontend-facing inline span.
 type SpanDTO struct {
-	SpanType    string `json:"span_type"`              // "opening"|"closing"|"placeholder"
-	Type        string `json:"type"`                   // "fmt:bold", "entity:person"
-	Data        string `json:"data"`                   // raw markup or entity value
-	DisplayText string `json:"display_text,omitempty"` // optional label override
+	SpanType    string `json:"span_type"` // "opening"|"closing"|"placeholder"
+	Type        string `json:"type"`
+	Data        string `json:"data"`
+	DisplayText string `json:"display_text,omitempty"`
 }
 
 // TMSearchResult is the paginated result from SearchTMEntries.
@@ -91,39 +121,44 @@ type LookupTMRequest struct {
 // EntityAnnotationDTO is a single entity annotation from the frontend.
 type EntityAnnotationDTO struct {
 	Text  string `json:"text"`
-	Type  string `json:"type"` // "entity:person" etc.
+	Type  string `json:"type"`
 	Start int    `json:"start"`
 	End   int    `json:"end"`
 }
 
-// AddTMEntryRequest is the request to add a new TM entry.
+// AddTMEntryRequest is the request to add a new multilingual TM entry.
+// Callers populate Variants with one VariantInput per locale; the server
+// rebuilds Fragments from CodedText + Spans or falls back to plain Text.
 type AddTMEntryRequest struct {
-	Source       string    `json:"source"`
-	Target       string    `json:"target"`
-	SourceCoded  string    `json:"source_coded,omitempty"`
-	TargetCoded  string    `json:"target_coded,omitempty"`
-	SourceSpans  []SpanDTO `json:"source_spans,omitempty"`
-	TargetSpans  []SpanDTO `json:"target_spans,omitempty"`
-	SourceLocale string    `json:"source_locale"`
-	TargetLocale string    `json:"target_locale"`
-	ProjectID    string    `json:"project_id"`
+	Variants    map[string]VariantInputDTO `json:"variants"`
+	HintSrcLang string                     `json:"hint_src_lang"`
+	ProjectID   string                     `json:"project_id"`
+	Note        string                     `json:"note,omitempty"`
+	Origins     []OriginDTO                `json:"origins,omitempty"`
 }
 
-// UpdateTMEntryRequest is the request to update a TM entry.
+// VariantInputDTO is how the frontend submits a single variant on add/update.
+type VariantInputDTO struct {
+	Text  string    `json:"text"`
+	Coded string    `json:"coded,omitempty"`
+	Spans []SpanDTO `json:"spans,omitempty"`
+}
+
+// UpdateTMEntryRequest is the request to update a TM entry. The Variants map
+// replaces the stored variants wholesale.
 type UpdateTMEntryRequest struct {
-	EntryID      string    `json:"entry_id"`
-	Source       string    `json:"source"`
-	Target       string    `json:"target"`
-	TargetCoded  string    `json:"target_coded,omitempty"`
-	TargetSpans  []SpanDTO `json:"target_spans,omitempty"`
-	SourceLocale string    `json:"source_locale"`
-	TargetLocale string    `json:"target_locale"`
-	ProjectID    string    `json:"project_id"`
+	EntryID     string                     `json:"entry_id"`
+	Variants    map[string]VariantInputDTO `json:"variants"`
+	HintSrcLang string                     `json:"hint_src_lang"`
+	ProjectID   string                     `json:"project_id"`
+	Note        string                     `json:"note,omitempty"`
+	Origins     []OriginDTO                `json:"origins,omitempty"`
 }
 
 // ImportResult reports the outcome of an import operation.
 type ImportResult struct {
-	Count int `json:"count"`
+	SessionID string `json:"session_id"`
+	Count     int    `json:"count"`
 }
 
 // AnnotateEntitiesRequest is the request to batch-annotate entities on TM entries.
@@ -135,7 +170,7 @@ type AnnotateEntitiesRequest struct {
 // EntityPatternRequest defines a text→entity mapping for batch annotation.
 type EntityPatternRequest struct {
 	Text          string `json:"text"`
-	EntityType    string `json:"entity_type"` // "entity:person" etc.
+	EntityType    string `json:"entity_type"`
 	CaseSensitive bool   `json:"case_sensitive"`
 }
 
@@ -147,18 +182,18 @@ type AnnotateResult struct {
 
 // TMFacets is the frontend-facing facet data for the sidebar.
 type TMFacets struct {
-	LocalePairs []LocalePairFacetDTO `json:"locale_pairs"`
-	Projects    []ProjectFacetDTO    `json:"projects"`
-	EntityTypes []EntityTypeFacetDTO `json:"entity_types"`
-	HasCodes    int                  `json:"has_codes"`
-	NoCodes     int                  `json:"no_codes"`
+	Locales        []LocaleFacetDTO        `json:"locales"`
+	Projects       []ProjectFacetDTO       `json:"projects"`
+	EntityTypes    []EntityTypeFacetDTO    `json:"entity_types"`
+	ImportSessions []ImportSessionFacetDTO `json:"import_sessions"`
+	HasCodes       int                     `json:"has_codes"`
+	NoCodes        int                     `json:"no_codes"`
 }
 
-// LocalePairFacetDTO is a locale pair with its entry count.
-type LocalePairFacetDTO struct {
-	SourceLocale string `json:"source_locale"`
-	TargetLocale string `json:"target_locale"`
-	Count        int    `json:"count"`
+// LocaleFacetDTO is a single-locale entry count.
+type LocaleFacetDTO struct {
+	Locale string `json:"locale"`
+	Count  int    `json:"count"`
 }
 
 // ProjectFacetDTO is a project ID with its entry count.
@@ -173,36 +208,40 @@ type EntityTypeFacetDTO struct {
 	Count int    `json:"count"`
 }
 
-// TMGroupedResult is a source text with all target translations.
-type TMGroupedResult struct {
-	SourceText   string        `json:"source_text"`
-	SourceCoded  string        `json:"source_coded"`
-	SourceSpans  []SpanDTO     `json:"source_spans"`
-	SourceLocale string        `json:"source_locale"`
-	Targets      []TMTargetDTO `json:"targets"`
+// ImportSessionFacetDTO is an import session as a facet option.
+type ImportSessionFacetDTO struct {
+	SessionID  string `json:"session_id"`
+	FileKey    string `json:"file_key"`
+	ToolName   string `json:"tool_name,omitempty"`
+	ImportedAt string `json:"imported_at"`
+	Count      int    `json:"count"`
 }
 
-// TMTargetDTO is a single target translation within a grouped result.
-type TMTargetDTO struct {
-	ID           string    `json:"id"`
-	TargetText   string    `json:"target_text"`
-	TargetCoded  string    `json:"target_coded"`
-	TargetSpans  []SpanDTO `json:"target_spans"`
-	TargetLocale string    `json:"target_locale"`
-	ProjectID    string    `json:"project_id"`
-	UpdatedAt    string    `json:"updated_at"`
-}
-
-// TMGroupedSearchResult is the paginated result from SearchTMEntriesGrouped.
-type TMGroupedSearchResult struct {
-	Groups     []TMGroupedResult `json:"groups"`
-	TotalCount int               `json:"total_count"`
+// ImportSessionDTO is the full import-session record for the sessions panel.
+type ImportSessionDTO struct {
+	ID               string            `json:"id"`
+	FileKey          string            `json:"file_key"`
+	FileHash         string            `json:"file_hash"`
+	FileSizeBytes    int64             `json:"file_size_bytes"`
+	ImportedAt       string            `json:"imported_at"`
+	ImportedBy       string            `json:"imported_by"`
+	ToolName         string            `json:"tool_name"`
+	ToolVersion      string            `json:"tool_version"`
+	SegType          string            `json:"seg_type"`
+	AdminLang        string            `json:"admin_lang"`
+	SrcLang          string            `json:"src_lang"`
+	DataType         string            `json:"data_type"`
+	OriginalFormat   string            `json:"original_format"`
+	OriginalEncoding string            `json:"original_encoding"`
+	EntryCount       int               `json:"entry_count"`
+	Properties       map[string]string `json:"properties,omitempty"`
 }
 
 // TMSearchFilter is the frontend-facing search filter.
 type TMSearchFilter struct {
 	ProjectID    string              `json:"project_id,omitempty"`
-	Locale       string              `json:"locale,omitempty"` // matches source_locale OR target_locale
+	Locale       string              `json:"locale,omitempty"` // require this locale variant
+	SessionIDs   []string            `json:"session_ids,omitempty"`
 	EntityTypes  []string            `json:"entity_types,omitempty"`
 	EntityValues []EntityValueFilter `json:"entity_values,omitempty"`
 	HasCodes     *bool               `json:"has_codes,omitempty"`
@@ -227,7 +266,6 @@ func spanTypeStr(st model.SpanType) string {
 	}
 }
 
-// parseSpanType converts a string span type to a model.SpanType.
 func parseSpanType(s string) model.SpanType {
 	switch s {
 	case "opening":
@@ -239,14 +277,14 @@ func parseSpanType(s string) model.SpanType {
 	}
 }
 
-// fragmentFromDTO builds a model.Fragment from coded text and span DTOs.
-// If codedText is empty, it falls back to plain text via model.NewFragment.
-func fragmentFromDTO(plainText, codedText string, spans []SpanDTO) *model.Fragment {
-	if codedText == "" {
-		return model.NewFragment(plainText)
+// fragmentFromVariantInput builds a model.Fragment from the frontend variant
+// input. If Coded is empty, the fragment is built from Text via NewFragment.
+func fragmentFromVariantInput(in VariantInputDTO) *model.Fragment {
+	if in.Coded == "" {
+		return model.NewFragment(in.Text)
 	}
-	frag := &model.Fragment{CodedText: codedText}
-	for _, s := range spans {
+	frag := &model.Fragment{CodedText: in.Coded}
+	for _, s := range in.Spans {
 		frag.Spans = append(frag.Spans, &model.Span{
 			SpanType:    parseSpanType(s.SpanType),
 			Type:        s.Type,
@@ -257,12 +295,12 @@ func fragmentFromDTO(plainText, codedText string, spans []SpanDTO) *model.Fragme
 	return frag
 }
 
-func fragmentToDTO(frag *model.Fragment) (codedText string, spans []SpanDTO) {
+// fragmentToVariantDTO converts a stored fragment to the frontend shape.
+func fragmentToVariantDTO(locale model.LocaleID, frag *model.Fragment) VariantDTO {
 	if frag == nil {
-		return "", nil
+		return VariantDTO{Locale: string(locale)}
 	}
-	codedText = frag.CodedText
-	spans = make([]SpanDTO, 0, len(frag.Spans))
+	spans := make([]SpanDTO, 0, len(frag.Spans))
 	for _, s := range frag.Spans {
 		spans = append(spans, SpanDTO{
 			SpanType:    spanTypeStr(s.SpanType),
@@ -271,32 +309,130 @@ func fragmentToDTO(frag *model.Fragment) (codedText string, spans []SpanDTO) {
 			DisplayText: s.DisplayText,
 		})
 	}
-	return codedText, spans
+	return VariantDTO{
+		Locale: string(locale),
+		Text:   frag.Text(),
+		Coded:  frag.CodedText,
+		Spans:  spans,
+	}
+}
+
+// originsToDTO converts sievepen.Origin values to OriginDTO for the frontend.
+func originsToDTO(in []sievepen.Origin) []OriginDTO {
+	if len(in) == 0 {
+		return nil
+	}
+	out := make([]OriginDTO, 0, len(in))
+	for _, o := range in {
+		out = append(out, OriginDTO{
+			Source:    o.Source,
+			Key:       o.Key,
+			Reference: o.Reference,
+			AddedAt:   o.AddedAt.Format(time.RFC3339),
+			AddedBy:   o.AddedBy,
+			SessionID: o.SessionID,
+		})
+	}
+	return out
+}
+
+// originsFromDTO converts request OriginDTOs to sievepen.Origin values,
+// defaulting AddedAt to time.Now() when not supplied.
+func originsFromDTO(in []OriginDTO) []sievepen.Origin {
+	if len(in) == 0 {
+		return nil
+	}
+	out := make([]sievepen.Origin, 0, len(in))
+	now := time.Now()
+	for _, o := range in {
+		addedAt, _ := time.Parse(time.RFC3339, o.AddedAt)
+		if addedAt.IsZero() {
+			addedAt = now
+		}
+		out = append(out, sievepen.Origin{
+			Source:    o.Source,
+			Key:       o.Key,
+			Reference: o.Reference,
+			AddedAt:   addedAt,
+			AddedBy:   o.AddedBy,
+			SessionID: o.SessionID,
+		})
+	}
+	return out
+}
+
+// entitiesToDTO converts stored entities to the frontend shape.
+func entitiesToDTO(in []sievepen.EntityMapping) []EntityMappingDTO {
+	if len(in) == 0 {
+		return nil
+	}
+	out := make([]EntityMappingDTO, 0, len(in))
+	for _, em := range in {
+		values := make(map[string]EntityValueDTO, len(em.Values))
+		for loc, v := range em.Values {
+			values[string(loc)] = EntityValueDTO{Text: v.Text, Start: v.Start, End: v.End}
+		}
+		out = append(out, EntityMappingDTO{
+			PlaceholderID: em.PlaceholderID,
+			Type:          string(em.Type),
+			Values:        values,
+		})
+	}
+	return out
+}
+
+// entitiesFromDTO converts request entities to the stored shape.
+func entitiesFromDTO(in []EntityMappingDTO) []sievepen.EntityMapping {
+	if len(in) == 0 {
+		return nil
+	}
+	out := make([]sievepen.EntityMapping, 0, len(in))
+	for _, em := range in {
+		values := make(map[model.LocaleID]sievepen.EntityValue, len(em.Values))
+		for loc, v := range em.Values {
+			values[model.LocaleID(loc)] = sievepen.EntityValue{Text: v.Text, Start: v.Start, End: v.End}
+		}
+		out = append(out, sievepen.EntityMapping{
+			PlaceholderID: em.PlaceholderID,
+			Type:          model.EntityType(em.Type),
+			Values:        values,
+		})
+	}
+	return out
 }
 
 func tmEntryToDTO(entry sievepen.TMEntry) TMEntryDTO {
-	srcCoded, srcSpans := fragmentToDTO(entry.Source)
-	tgtCoded, tgtSpans := fragmentToDTO(entry.Target)
-	return TMEntryDTO{
-		ID:           entry.ID,
-		SourceText:   entry.SourceText(),
-		TargetText:   entry.TargetText(),
-		SourceCoded:  srcCoded,
-		TargetCoded:  tgtCoded,
-		SourceSpans:  srcSpans,
-		TargetSpans:  tgtSpans,
-		SourceLocale: string(entry.SourceLocale),
-		TargetLocale: string(entry.TargetLocale),
-		ProjectID:    entry.ProjectID,
-		Properties:   entry.Properties,
-		CreatedAt:    entry.CreatedAt.Format(time.RFC3339),
-		UpdatedAt:    entry.UpdatedAt.Format(time.RFC3339),
+	variants := make(map[string]VariantDTO, len(entry.Variants))
+	for loc, frag := range entry.Variants {
+		variants[string(loc)] = fragmentToVariantDTO(loc, frag)
 	}
+	return TMEntryDTO{
+		ID:          entry.ID,
+		ProjectID:   entry.ProjectID,
+		Variants:    variants,
+		HintSrcLang: string(entry.HintSrcLang),
+		Entities:    entitiesToDTO(entry.Entities),
+		Properties:  entry.Properties,
+		Note:        entry.Note,
+		Origins:     originsToDTO(entry.Origins),
+		CreatedAt:   entry.CreatedAt.Format(time.RFC3339),
+		UpdatedAt:   entry.UpdatedAt.Format(time.RFC3339),
+	}
+}
+
+func variantsFromInput(in map[string]VariantInputDTO) map[model.LocaleID]*model.Fragment {
+	out := make(map[model.LocaleID]*model.Fragment, len(in))
+	for loc, v := range in {
+		if loc == "" {
+			continue
+		}
+		out[model.LocaleID(loc)] = fragmentFromVariantInput(v)
+	}
+	return out
 }
 
 // --- Resource discovery ---
 
-// ListNamedTMs returns named TMs from KAPI_HOME/tm/.
 func (a *App) ListNamedTMs() []ResourceInfo {
 	return listNamedResources("tm")
 }
@@ -325,7 +461,7 @@ func listNamedResources(kind string) []ResourceInfo {
 		})
 	}
 	slices.SortFunc(result, func(a, b ResourceInfo) int {
-		return cmp.Compare(b.Modified, a.Modified) // newest first
+		return cmp.Compare(b.Modified, a.Modified)
 	})
 	return result
 }
@@ -340,11 +476,8 @@ func namedResourceDir(kind string) string {
 
 // --- Recovery ---
 
-// RecoverResource backs up a corrupt .db file to .db.bak and returns the backup path.
-// The caller should then create a fresh resource at the original path.
 func (a *App) RecoverResource(path string) (string, error) {
 	bakPath := path + ".bak"
-	// Remove existing backup if present.
 	_ = os.Remove(bakPath)
 	if err := os.Rename(path, bakPath); err != nil {
 		return "", fmt.Errorf("backup %q: %w", path, err)
@@ -354,7 +487,6 @@ func (a *App) RecoverResource(path string) (string, error) {
 
 // --- Lifecycle ---
 
-// OpenTM opens a SQLite TM file and returns a handle ID.
 func (a *App) OpenTM(path string) (string, error) {
 	tm, err := sievepen.NewSQLiteTM(path)
 	if err != nil {
@@ -363,7 +495,6 @@ func (a *App) OpenTM(path string) (string, error) {
 	return a.tmHandles.Open(tm), nil
 }
 
-// OpenTMDialog shows a native file dialog to open a TM.
 func (a *App) OpenTMDialog() (string, error) {
 	if a.app == nil {
 		return "", nil
@@ -381,7 +512,6 @@ func (a *App) OpenTMDialog() (string, error) {
 	return a.OpenTM(path)
 }
 
-// CreateTM creates a new empty TM at the given path.
 func (a *App) CreateTM(path string) (string, error) {
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return "", fmt.Errorf("create directory: %w", err)
@@ -389,7 +519,6 @@ func (a *App) CreateTM(path string) (string, error) {
 	return a.OpenTM(path)
 }
 
-// CreateNamedTM creates a new named TM in KAPI_HOME/tm/.
 func (a *App) CreateNamedTM(name string) (string, error) {
 	dir := namedResourceDir("tm")
 	if err := os.MkdirAll(dir, 0o755); err != nil {
@@ -399,20 +528,16 @@ func (a *App) CreateNamedTM(name string) (string, error) {
 	return a.OpenTM(path)
 }
 
-// CloseTM closes an open TM by handle.
 func (a *App) CloseTM(handle string) {
 	_ = a.tmHandles.Close(handle)
 }
 
-// GetTMStats returns stats for an open TM.
 func (a *App) GetTMStats(handle string) *TMStats {
 	tm, ok := a.tmHandles.Get(handle)
 	if !ok {
 		return nil
 	}
-	return &TMStats{
-		Count: tm.Count(),
-	}
+	return &TMStats{Count: tm.Count()}
 }
 
 // GetTMActivityStats returns daily entry counts over time.
@@ -424,24 +549,28 @@ func (a *App) GetTMActivityStats(handle string) []sievepen.ActivityStat {
 	return tm.ActivityStats()
 }
 
-// GetTMLocaleStats returns entry counts grouped by locale pair.
-func (a *App) GetTMLocaleStats(handle string) []sievepen.LocalePairStat {
+// GetTMLocaleStats returns per-locale entry counts. The legacy API name is
+// preserved for frontend compatibility; the response is now a flat list of
+// single-locale counts, not locale pairs.
+func (a *App) GetTMLocaleStats(handle string) []sievepen.LocaleFacet {
 	tm, ok := a.tmHandles.Get(handle)
 	if !ok {
 		return nil
 	}
-	return tm.LocalePairStats()
+	return tm.LocaleStats()
 }
 
 // --- CRUD ---
 
 // SearchTMEntries searches TM entries by query with pagination.
-func (a *App) SearchTMEntries(handle, query, srcLocale, tgtLocale string, offset, limit int) *TMSearchResult {
+// anyLocale restricts the text search to entries with a variant in that
+// locale; requireLocale additionally requires that variant to exist.
+func (a *App) SearchTMEntries(handle, query, anyLocale, requireLocale string, offset, limit int) *TMSearchResult {
 	tm, ok := a.tmHandles.Get(handle)
 	if !ok {
 		return &TMSearchResult{}
 	}
-	entries, total := tm.SearchEntries(query, srcLocale, tgtLocale, offset, limit)
+	entries, total := tm.SearchEntries(query, anyLocale, requireLocale, offset, limit)
 	dtos := make([]TMEntryDTO, 0, len(entries))
 	for _, e := range entries {
 		dtos = append(dtos, tmEntryToDTO(e))
@@ -450,12 +579,12 @@ func (a *App) SearchTMEntries(handle, query, srcLocale, tgtLocale string, offset
 }
 
 // SearchTMEntriesFiltered searches TM entries with facet filters.
-func (a *App) SearchTMEntriesFiltered(handle, query, srcLocale, tgtLocale string, filter TMSearchFilter, offset, limit int) *TMSearchResult {
+func (a *App) SearchTMEntriesFiltered(handle, query, anyLocale, requireLocale string, filter TMSearchFilter, offset, limit int) *TMSearchResult {
 	tm, ok := a.tmHandles.Get(handle)
 	if !ok {
 		return &TMSearchResult{}
 	}
-	entries, total := tm.SearchEntriesFiltered(query, srcLocale, tgtLocale, toSearchFilter(filter), offset, limit)
+	entries, total := tm.SearchEntriesFiltered(query, anyLocale, requireLocale, toSearchFilter(filter), offset, limit)
 	dtos := make([]TMEntryDTO, 0, len(entries))
 	for _, e := range entries {
 		dtos = append(dtos, tmEntryToDTO(e))
@@ -477,26 +606,27 @@ func (a *App) GetTMEntry(handle, entryID string) *TMEntryDTO {
 	return &dto
 }
 
-// AddTMEntry adds a new TM entry.
+// AddTMEntry adds a new multilingual TM entry.
 func (a *App) AddTMEntry(handle string, req AddTMEntryRequest) error {
 	tm, ok := a.tmHandles.Get(handle)
 	if !ok {
 		return fmt.Errorf("TM handle %q not found", handle)
 	}
+	now := time.Now()
 	entry := sievepen.TMEntry{
-		ID:           id.New(),
-		ProjectID:    req.ProjectID,
-		Source:       fragmentFromDTO(req.Source, req.SourceCoded, req.SourceSpans),
-		Target:       fragmentFromDTO(req.Target, req.TargetCoded, req.TargetSpans),
-		SourceLocale: model.LocaleID(req.SourceLocale),
-		TargetLocale: model.LocaleID(req.TargetLocale),
-		CreatedAt:    time.Now(),
-		UpdatedAt:    time.Now(),
+		ID:          id.New(),
+		ProjectID:   req.ProjectID,
+		Variants:    variantsFromInput(req.Variants),
+		HintSrcLang: model.LocaleID(req.HintSrcLang),
+		Note:        req.Note,
+		Origins:     originsFromDTO(req.Origins),
+		CreatedAt:   now,
+		UpdatedAt:   now,
 	}
 	return tm.Add(entry)
 }
 
-// UpdateTMEntry updates an existing TM entry.
+// UpdateTMEntry updates an existing multilingual TM entry.
 func (a *App) UpdateTMEntry(handle string, req UpdateTMEntryRequest) error {
 	tm, ok := a.tmHandles.Get(handle)
 	if !ok {
@@ -506,9 +636,19 @@ func (a *App) UpdateTMEntry(handle string, req UpdateTMEntryRequest) error {
 	if !found {
 		return fmt.Errorf("entry %q not found", req.EntryID)
 	}
-	existing.Target = fragmentFromDTO(req.Target, req.TargetCoded, req.TargetSpans)
+	existing.Variants = variantsFromInput(req.Variants)
+	if req.HintSrcLang != "" {
+		existing.HintSrcLang = model.LocaleID(req.HintSrcLang)
+	}
+	if req.ProjectID != "" {
+		existing.ProjectID = req.ProjectID
+	}
+	existing.Note = req.Note
+	if req.Origins != nil {
+		existing.Origins = originsFromDTO(req.Origins)
+	}
 	existing.UpdatedAt = time.Now()
-	return tm.Add(existing) // Add with same ID = update
+	return tm.Add(existing)
 }
 
 // DeleteTMEntry deletes a single TM entry.
@@ -543,18 +683,13 @@ func (a *App) LookupTM(handle string, req LookupTMRequest) []TMMatchDTO {
 		return nil
 	}
 
-	// Build a Fragment with entity spans from the annotated text.
 	frag := buildFragmentWithEntities(req.Text, req.Entities)
-
-	// Build a Block to carry the fragment and entity annotations.
 	block := &model.Block{
 		ID:           "lookup",
 		Translatable: true,
 		Source:       []*model.Segment{{ID: "s1", Content: frag}},
 		Annotations:  make(map[string]model.Annotation),
 	}
-
-	// Add entity annotations to the block (used by the matching pipeline).
 	for i, ea := range req.Entities {
 		block.Annotations[fmt.Sprintf("entity:%d", i)] = &model.EntityAnnotation{
 			Text:     ea.Text,
@@ -602,13 +737,11 @@ func (a *App) LookupTM(handle string, req LookupTMRequest) []TMMatchDTO {
 }
 
 // buildFragmentWithEntities constructs a Fragment from plain text + entity annotations.
-// Entity annotations are converted to placeholder spans in the coded text.
 func buildFragmentWithEntities(text string, entities []EntityAnnotationDTO) *model.Fragment {
 	if len(entities) == 0 {
 		return model.NewFragment(text)
 	}
 
-	// Sort entities by start position.
 	sorted := make([]EntityAnnotationDTO, len(entities))
 	copy(sorted, entities)
 	slices.SortFunc(sorted, func(a, b EntityAnnotationDTO) int {
@@ -621,13 +754,11 @@ func buildFragmentWithEntities(text string, entities []EntityAnnotationDTO) *mod
 
 	for i, ea := range sorted {
 		if ea.Start < pos || ea.Start >= len(runes) || ea.End > len(runes) {
-			continue // skip invalid or overlapping
+			continue
 		}
-		// Add text before this entity.
 		if ea.Start > pos {
 			frag.AppendText(string(runes[pos:ea.Start]))
 		}
-		// Add entity span.
 		frag.AppendSpan(&model.Span{
 			SpanType: model.SpanPlaceholder,
 			Type:     ea.Type,
@@ -636,19 +767,18 @@ func buildFragmentWithEntities(text string, entities []EntityAnnotationDTO) *mod
 		})
 		pos = ea.End
 	}
-
-	// Add remaining text.
 	if pos < len(runes) {
 		frag.AppendText(string(runes[pos:]))
 	}
-
 	return frag
 }
 
 // --- Import / Export ---
 
 // ImportTMXDialog shows a file dialog and imports a TMX file into the TM.
-func (a *App) ImportTMXDialog(handle, srcLocale, tgtLocale string) (*ImportResult, error) {
+// The importer creates one multilingual entry per TU with all TUVs as
+// variants. A new ImportSession row is created for each invocation.
+func (a *App) ImportTMXDialog(handle string) (*ImportResult, error) {
 	if a.app == nil {
 		return nil, nil
 	}
@@ -674,15 +804,19 @@ func (a *App) ImportTMXDialog(handle, srcLocale, tgtLocale string) (*ImportResul
 	}
 	defer f.Close()
 
-	count, err := sievepen.ImportTMX(tm, f, model.LocaleID(srcLocale), model.LocaleID(tgtLocale))
+	sid, count, err := sievepen.ImportTMXSession(tm, f, sievepen.ImportTMXOptions{
+		OriginKey:     filepath.Base(path),
+		OriginAddedBy: "tmx-import",
+	})
 	if err != nil {
 		return nil, fmt.Errorf("import TMX: %w", err)
 	}
-	return &ImportResult{Count: count}, nil
+	return &ImportResult{SessionID: sid, Count: count}, nil
 }
 
-// ExportTMXDialog shows a save dialog and exports the TM as TMX.
-func (a *App) ExportTMXDialog(handle, srcLocale, tgtLocale string) error {
+// ExportTMXDialog shows a save dialog and exports the TM as TMX. When
+// locales is empty, every variant present on each entry is emitted.
+func (a *App) ExportTMXDialog(handle string, locales []string) error {
 	if a.app == nil {
 		return nil
 	}
@@ -711,112 +845,47 @@ func (a *App) ExportTMXDialog(handle, srcLocale, tgtLocale string) error {
 	}
 	defer f.Close()
 
-	return sievepen.ExportTMX(tm, f, model.LocaleID(srcLocale), model.LocaleID(tgtLocale))
+	localeIDs := make([]model.LocaleID, 0, len(locales))
+	for _, l := range locales {
+		localeIDs = append(localeIDs, model.LocaleID(l))
+	}
+	return sievepen.ExportTMX(tm, f, localeIDs)
 }
 
-// --- Grouped search & facets ---
+// --- Facets ---
 
-// GetTMFacets returns facet data for the TM sidebar.
 func (a *App) GetTMFacets(handle string) *TMFacets {
 	return a.GetTMFacetsFiltered(handle, "", "", "", TMSearchFilter{})
 }
 
-// GetTMFacetsFiltered returns facet counts scoped to the current search/filter.
-func (a *App) GetTMFacetsFiltered(handle, query, srcLocale, tgtLocale string, filter TMSearchFilter) *TMFacets {
+func (a *App) GetTMFacetsFiltered(handle, query, anyLocale, requireLocale string, filter TMSearchFilter) *TMFacets {
 	tm, ok := a.tmHandles.Get(handle)
 	if !ok {
 		return nil
 	}
-	data := tm.FacetStatsFiltered(query, srcLocale, tgtLocale, toSearchFilter(filter))
+	data := tm.FacetStatsFiltered(query, anyLocale, requireLocale, toSearchFilter(filter))
 	return buildTMFacetsDTO(data)
 }
 
 func buildTMFacetsDTO(data sievepen.FacetData) *TMFacets {
 	result := &TMFacets{HasCodes: data.HasCodes, NoCodes: data.NoCodes}
-	for _, lp := range data.LocalePairs {
-		result.LocalePairs = append(result.LocalePairs, LocalePairFacetDTO{
-			SourceLocale: lp.SourceLocale,
-			TargetLocale: lp.TargetLocale,
-			Count:        lp.Count,
-		})
+	for _, lf := range data.Locales {
+		result.Locales = append(result.Locales, LocaleFacetDTO{Locale: lf.Locale, Count: lf.Count})
 	}
 	for _, p := range data.Projects {
-		result.Projects = append(result.Projects, ProjectFacetDTO{
-			ProjectID: p.ProjectID,
-			Count:     p.Count,
-		})
+		result.Projects = append(result.Projects, ProjectFacetDTO{ProjectID: p.ProjectID, Count: p.Count})
 	}
 	for _, et := range data.EntityTypes {
-		result.EntityTypes = append(result.EntityTypes, EntityTypeFacetDTO{
-			Type:  et.Type,
-			Count: et.Count,
+		result.EntityTypes = append(result.EntityTypes, EntityTypeFacetDTO{Type: et.Type, Count: et.Count})
+	}
+	for _, sf := range data.ImportSessions {
+		result.ImportSessions = append(result.ImportSessions, ImportSessionFacetDTO{
+			SessionID:  sf.SessionID,
+			FileKey:    sf.FileKey,
+			ToolName:   sf.ToolName,
+			ImportedAt: sf.ImportedAt.Format(time.RFC3339),
+			Count:      sf.Count,
 		})
-	}
-	return result
-}
-
-// SearchTMEntriesGrouped searches TM entries grouped by source text.
-func (a *App) SearchTMEntriesGrouped(handle, query, srcLocale string, offset, limit int) *TMGroupedSearchResult {
-	tm, ok := a.tmHandles.Get(handle)
-	if !ok {
-		return &TMGroupedSearchResult{}
-	}
-	groups, total := tm.SearchEntriesGrouped(query, srcLocale, offset, limit)
-	result := &TMGroupedSearchResult{TotalCount: total}
-	for _, g := range groups {
-		srcCoded, srcSpans := fragmentToDTO(g.Source)
-		gr := TMGroupedResult{
-			SourceText:   g.SourceText,
-			SourceCoded:  srcCoded,
-			SourceSpans:  srcSpans,
-			SourceLocale: string(g.SourceLocale),
-		}
-		for _, t := range g.Targets {
-			tgtCoded, tgtSpans := fragmentToDTO(t.Target)
-			gr.Targets = append(gr.Targets, TMTargetDTO{
-				ID:           t.ID,
-				TargetText:   t.TargetText(),
-				TargetCoded:  tgtCoded,
-				TargetSpans:  tgtSpans,
-				TargetLocale: string(t.TargetLocale),
-				ProjectID:    t.ProjectID,
-				UpdatedAt:    t.UpdatedAt.Format(time.RFC3339),
-			})
-		}
-		result.Groups = append(result.Groups, gr)
-	}
-	return result
-}
-
-// SearchTMEntriesGroupedFiltered searches TM entries grouped by source text with facet filters.
-func (a *App) SearchTMEntriesGroupedFiltered(handle, query, srcLocale string, filter TMSearchFilter, offset, limit int) *TMGroupedSearchResult {
-	tm, ok := a.tmHandles.Get(handle)
-	if !ok {
-		return &TMGroupedSearchResult{}
-	}
-	groups, total := tm.SearchEntriesGroupedFiltered(query, srcLocale, toSearchFilter(filter), offset, limit)
-	result := &TMGroupedSearchResult{TotalCount: total}
-	for _, g := range groups {
-		srcCoded, srcSpans := fragmentToDTO(g.Source)
-		gr := TMGroupedResult{
-			SourceText:   g.SourceText,
-			SourceCoded:  srcCoded,
-			SourceSpans:  srcSpans,
-			SourceLocale: string(g.SourceLocale),
-		}
-		for _, t := range g.Targets {
-			tgtCoded, tgtSpans := fragmentToDTO(t.Target)
-			gr.Targets = append(gr.Targets, TMTargetDTO{
-				ID:           t.ID,
-				TargetText:   t.TargetText(),
-				TargetCoded:  tgtCoded,
-				TargetSpans:  tgtSpans,
-				TargetLocale: string(t.TargetLocale),
-				ProjectID:    t.ProjectID,
-				UpdatedAt:    t.UpdatedAt.Format(time.RFC3339),
-			})
-		}
-		result.Groups = append(result.Groups, gr)
 	}
 	return result
 }
@@ -825,7 +894,7 @@ func (a *App) SearchTMEntriesGroupedFiltered(handle, query, srcLocale string, fi
 func toSearchFilter(f TMSearchFilter) sievepen.SearchFilter {
 	sf := sievepen.SearchFilter{
 		ProjectID:   f.ProjectID,
-		Locale:      f.Locale,
+		SessionIDs:  f.SessionIDs,
 		EntityTypes: f.EntityTypes,
 		HasCodes:    f.HasCodes,
 	}
@@ -838,11 +907,73 @@ func toSearchFilter(f TMSearchFilter) sievepen.SearchFilter {
 	return sf
 }
 
+// --- Import session CRUD ---
+
+// ListTMImportSessions returns every session row in imported_at DESC order.
+func (a *App) ListTMImportSessions(handle string) []ImportSessionDTO {
+	tm, ok := a.tmHandles.Get(handle)
+	if !ok {
+		return nil
+	}
+	sessions := tm.ListImportSessions()
+	out := make([]ImportSessionDTO, 0, len(sessions))
+	for _, s := range sessions {
+		out = append(out, importSessionToDTO(s))
+	}
+	return out
+}
+
+// GetTMImportSession fetches a single session by ID.
+func (a *App) GetTMImportSession(handle, sessionID string) *ImportSessionDTO {
+	tm, ok := a.tmHandles.Get(handle)
+	if !ok {
+		return nil
+	}
+	s, found := tm.GetImportSession(sessionID)
+	if !found {
+		return nil
+	}
+	dto := importSessionToDTO(s)
+	return &dto
+}
+
+// DeleteTMImportSession removes a session; its origins keep pointing at
+// empty session_id (see sievepen.DeleteImportSession).
+func (a *App) DeleteTMImportSession(handle, sessionID string) error {
+	tm, ok := a.tmHandles.Get(handle)
+	if !ok {
+		return fmt.Errorf("TM handle %q not found", handle)
+	}
+	return tm.DeleteImportSession(sessionID)
+}
+
+func importSessionToDTO(s sievepen.ImportSession) ImportSessionDTO {
+	return ImportSessionDTO{
+		ID:               s.ID,
+		FileKey:          s.FileKey,
+		FileHash:         s.FileHash,
+		FileSizeBytes:    s.FileSizeBytes,
+		ImportedAt:       s.ImportedAt.Format(time.RFC3339),
+		ImportedBy:       s.ImportedBy,
+		ToolName:         s.ToolName,
+		ToolVersion:      s.ToolVersion,
+		SegType:          s.SegType,
+		AdminLang:        s.AdminLang,
+		SrcLang:          s.SrcLang,
+		DataType:         s.DataType,
+		OriginalFormat:   s.OriginalFormat,
+		OriginalEncoding: s.OriginalEncoding,
+		EntryCount:       s.EntryCount,
+		Properties:       s.Properties,
+	}
+}
+
 // --- Batch entity annotation ---
 
-// AnnotateEntities applies entity annotations to selected TM entries,
-// converting plain text occurrences to entity spans. This enables
-// generalized matching (e.g., "Bob" → {PERSON} allows matching with "Jane").
+// AnnotateEntities applies entity annotations to selected TM entries. The
+// patterns are searched across every variant's plain text and entity spans
+// are inserted where matches are found. Entity values are populated per
+// locale from the matching variant.
 func (a *App) AnnotateEntities(handle string, req AnnotateEntitiesRequest) (*AnnotateResult, error) {
 	tm, ok := a.tmHandles.Get(handle)
 	if !ok {
@@ -857,59 +988,45 @@ func (a *App) AnnotateEntities(handle string, req AnnotateEntitiesRequest) (*Ann
 			continue
 		}
 
-		srcHas, _ := annotateFragment(entry.Source, req.Patterns)
-		tgtHas, _ := annotateFragment(entry.Target, req.Patterns)
-
-		if srcHas || tgtHas {
-			var srcCount, tgtCount int
-			if srcHas {
-				entry.Source, srcCount = rebuildWithEntities(entry.Source, req.Patterns)
+		anyHit := false
+		newVariants := make(map[model.LocaleID]*model.Fragment, len(entry.Variants))
+		perLocaleCounts := make(map[model.LocaleID]int)
+		for loc, frag := range entry.Variants {
+			if frag == nil {
+				continue
 			}
-			if tgtHas {
-				entry.Target, tgtCount = rebuildWithEntities(entry.Target, req.Patterns)
+			newFrag, n := rebuildWithEntities(frag, req.Patterns)
+			newVariants[loc] = newFrag
+			if n > 0 {
+				anyHit = true
+				perLocaleCounts[loc] = n
 			}
-			// Rebuild entity mappings from the annotated fragments.
-			entry.Entities = buildEntityMappings(entry.Source, entry.Target)
-			entry.UpdatedAt = time.Now()
-			if err := tm.Add(entry); err != nil {
-				return nil, fmt.Errorf("update entry %q: %w", eid, err)
-			}
-			entriesUpdated++
-			entitiesAdded += srcCount + tgtCount
+		}
+		if !anyHit {
+			continue
+		}
+		entry.Variants = newVariants
+		entry.Entities = buildEntityMappingsFromVariants(entry.Variants)
+		entry.UpdatedAt = time.Now()
+		if err := tm.Add(entry); err != nil {
+			return nil, fmt.Errorf("update entry %q: %w", eid, err)
+		}
+		entriesUpdated++
+		for _, n := range perLocaleCounts {
+			entitiesAdded += n
 		}
 	}
 
-	return &AnnotateResult{
-		EntriesUpdated: entriesUpdated,
-		EntitiesAdded:  entitiesAdded,
-	}, nil
-}
-
-// annotateFragment checks if a fragment's plain text contains any pattern matches.
-// Returns whether updates are needed and the count of matches found.
-func annotateFragment(frag *model.Fragment, patterns []EntityPatternRequest) (bool, int) {
-	if frag == nil {
-		return false, 0
-	}
-	text := frag.Text()
-	count := 0
-	for _, p := range patterns {
-		matches := findPatternOccurrences(text, p.Text, p.CaseSensitive)
-		count += len(matches)
-	}
-	return count > 0, count
+	return &AnnotateResult{EntriesUpdated: entriesUpdated, EntitiesAdded: entitiesAdded}, nil
 }
 
 // rebuildWithEntities creates a new Fragment with entity spans inserted for pattern matches.
-// Returns the new fragment and the actual number of entities inserted (after overlap filtering).
 func rebuildWithEntities(frag *model.Fragment, patterns []EntityPatternRequest) (*model.Fragment, int) {
 	if frag == nil {
 		return nil, 0
 	}
-
 	text := frag.Text()
 
-	// Collect all entity positions from patterns.
 	type entityHit struct {
 		start      int
 		end        int
@@ -921,7 +1038,6 @@ func rebuildWithEntities(frag *model.Fragment, patterns []EntityPatternRequest) 
 	for _, p := range patterns {
 		patLen := len([]rune(p.Text))
 		for _, pos := range findPatternOccurrences(text, p.Text, p.CaseSensitive) {
-			// Use the actual text from the source (preserves original casing).
 			actualText := string(runes[pos : pos+patLen])
 			hits = append(hits, entityHit{
 				start:      pos,
@@ -931,8 +1047,6 @@ func rebuildWithEntities(frag *model.Fragment, patterns []EntityPatternRequest) 
 			})
 		}
 	}
-
-	// Sort by position, remove overlaps.
 	slices.SortFunc(hits, func(a, b entityHit) int { return cmp.Compare(a.start, b.start) })
 	var filtered []entityHit
 	lastEnd := 0
@@ -943,7 +1057,6 @@ func rebuildWithEntities(frag *model.Fragment, patterns []EntityPatternRequest) 
 		}
 	}
 
-	// Convert to EntityAnnotationDTO and use buildFragmentWithEntities.
 	dtos := make([]EntityAnnotationDTO, len(filtered))
 	for i, h := range filtered {
 		dtos[i] = EntityAnnotationDTO{
@@ -953,7 +1066,6 @@ func rebuildWithEntities(frag *model.Fragment, patterns []EntityPatternRequest) 
 			End:   h.end,
 		}
 	}
-
 	return buildFragmentWithEntities(text, dtos), len(filtered)
 }
 
@@ -977,7 +1089,7 @@ func findPatternOccurrences(text, pattern string, caseSensitive bool) []int {
 	for i := 0; i <= len(runes)-patLen; {
 		if string(runes[i:i+patLen]) == string(patternRunes) {
 			positions = append(positions, i)
-			i += patLen // skip past this match
+			i += patLen
 		} else {
 			i++
 		}
@@ -985,26 +1097,44 @@ func findPatternOccurrences(text, pattern string, caseSensitive bool) []int {
 	return positions
 }
 
-// buildEntityMappings creates EntityMapping entries from entity spans in source and target.
-func buildEntityMappings(source, target *model.Fragment) []sievepen.EntityMapping {
-	if source == nil {
+// buildEntityMappingsFromVariants walks every variant's entity spans and
+// produces a unified EntityMapping list indexed by PlaceholderID. Values
+// are populated per locale from the corresponding variant's entity span.
+func buildEntityMappingsFromVariants(variants map[model.LocaleID]*model.Fragment) []sievepen.EntityMapping {
+	if len(variants) == 0 {
 		return nil
 	}
-	srcEntities := source.EntitySpans()
-	srcValues := source.EntityValues()
-	tgtValues := map[string]string{}
-	if target != nil {
-		tgtValues = target.EntityValues()
+	type entKey struct {
+		id    string
+		eType string
 	}
-
-	var mappings []sievepen.EntityMapping
-	for _, s := range srcEntities {
-		mappings = append(mappings, sievepen.EntityMapping{
-			PlaceholderID: s.ID,
-			Type:          model.EntityType(s.Type),
-			SourceValue:   srcValues[s.ID],
-			TargetValue:   tgtValues[s.ID],
-		})
+	byKey := make(map[entKey]*sievepen.EntityMapping)
+	var order []entKey
+	for loc, frag := range variants {
+		if frag == nil {
+			continue
+		}
+		for _, s := range frag.EntitySpans() {
+			if !model.IsEntityTypeString(s.Type) {
+				continue
+			}
+			key := entKey{id: s.ID, eType: s.Type}
+			em, ok := byKey[key]
+			if !ok {
+				em = &sievepen.EntityMapping{
+					PlaceholderID: s.ID,
+					Type:          model.EntityType(s.Type),
+					Values:        make(map[model.LocaleID]sievepen.EntityValue),
+				}
+				byKey[key] = em
+				order = append(order, key)
+			}
+			em.Values[loc] = sievepen.EntityValue{Text: s.Data}
+		}
 	}
-	return mappings
+	out := make([]sievepen.EntityMapping, 0, len(order))
+	for _, k := range order {
+		out = append(out, *byKey[k])
+	}
+	return out
 }

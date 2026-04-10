@@ -5,18 +5,21 @@ import { Checkbox } from "../ui/checkbox";
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "../ui/collapsible";
 import { LocalePill } from "./LocalePill";
 import { ChevronRight } from "lucide-react";
+import { relativeTime } from "./utils";
 
 export interface FacetSelection {
-  targetLocales: string[];
+  locales: string[];
   projects: string[];
   entityTypes: string[];
+  sessionIds: string[];
   codeFilter: "all" | "has_codes" | "no_codes";
 }
 
 const EMPTY_FACETS: FacetSelection = {
-  targetLocales: [],
+  locales: [],
   projects: [],
   entityTypes: [],
+  sessionIds: [],
   codeFilter: "all",
 };
 
@@ -28,7 +31,7 @@ interface TMFacetSidebarProps {
 }
 
 /**
- * Right sidebar showing faceted filters for the TM browser.
+ * Left sidebar showing faceted filters for the TM browser.
  * Each section is collapsible with checkboxes and counts.
  */
 export function TMFacetSidebar({
@@ -39,24 +42,12 @@ export function TMFacetSidebar({
 }: TMFacetSidebarProps) {
   if (!facets && !loading) return null;
 
-  // Derive unique target locales from locale_pairs
-  const targetLocales = facets
-    ? [...new Map(facets.locale_pairs.map((lp) => [lp.target_locale, lp])).entries()].map(
-        ([locale, _]) => ({
-          locale,
-          count: facets.locale_pairs
-            .filter((lp) => lp.target_locale === locale)
-            .reduce((sum, lp) => sum + lp.count, 0),
-        }),
-      )
-    : [];
-
   const toggleLocale = useCallback(
     (locale: string) => {
-      const next = selection.targetLocales.includes(locale)
-        ? selection.targetLocales.filter((l) => l !== locale)
-        : [...selection.targetLocales, locale];
-      onSelectionChange({ ...selection, targetLocales: next });
+      const next = selection.locales.includes(locale)
+        ? selection.locales.filter((l) => l !== locale)
+        : [...selection.locales, locale];
+      onSelectionChange({ ...selection, locales: next });
     },
     [selection, onSelectionChange],
   );
@@ -81,17 +72,31 @@ export function TMFacetSidebar({
     [selection, onSelectionChange],
   );
 
+  const toggleSession = useCallback(
+    (sessionId: string) => {
+      const next = selection.sessionIds.includes(sessionId)
+        ? selection.sessionIds.filter((s) => s !== sessionId)
+        : [...selection.sessionIds, sessionId];
+      onSelectionChange({ ...selection, sessionIds: next });
+    },
+    [selection, onSelectionChange],
+  );
+
   const setCodeFilter = useCallback(
     (filter: FacetSelection["codeFilter"]) => {
-      onSelectionChange({ ...selection, codeFilter: filter === selection.codeFilter ? "all" : filter });
+      onSelectionChange({
+        ...selection,
+        codeFilter: filter === selection.codeFilter ? "all" : filter,
+      });
     },
     [selection, onSelectionChange],
   );
 
   const hasActiveFilters =
-    selection.targetLocales.length > 0 ||
+    selection.locales.length > 0 ||
     selection.projects.length > 0 ||
     selection.entityTypes.length > 0 ||
+    selection.sessionIds.length > 0 ||
     selection.codeFilter !== "all";
 
   return (
@@ -108,13 +113,13 @@ export function TMFacetSidebar({
         )}
       </div>
 
-      {/* Target Locales */}
-      {targetLocales.length > 0 && (
-        <FacetSection title="Target Language" defaultOpen>
-          {targetLocales.map(({ locale, count }) => (
+      {/* Languages */}
+      {facets && facets.locales.length > 0 && (
+        <FacetSection title="Languages" defaultOpen>
+          {facets.locales.map(({ locale, count }) => (
             <FacetItem
               key={locale}
-              checked={selection.targetLocales.includes(locale)}
+              checked={selection.locales.includes(locale)}
               onCheckedChange={() => toggleLocale(locale)}
               label={<LocalePill locale={locale} />}
               count={count}
@@ -153,6 +158,30 @@ export function TMFacetSidebar({
               />
             );
           })}
+        </FacetSection>
+      )}
+
+      {/* Import Sessions */}
+      {facets && facets.import_sessions.length > 0 && (
+        <FacetSection title="Import Sessions">
+          {facets.import_sessions.map((s) => (
+            <FacetItem
+              key={s.session_id}
+              checked={selection.sessionIds.includes(s.session_id)}
+              onCheckedChange={() => toggleSession(s.session_id)}
+              label={
+                <span className="flex flex-col min-w-0">
+                  <span className="truncate" title={s.file_key}>
+                    {s.file_key || s.session_id}
+                  </span>
+                  <span className="text-[9px] text-muted-foreground">
+                    {relativeTime(s.imported_at)}
+                  </span>
+                </span>
+              }
+              count={s.count}
+            />
+          ))}
         </FacetSection>
       )}
 

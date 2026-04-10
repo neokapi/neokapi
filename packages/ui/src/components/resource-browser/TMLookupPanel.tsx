@@ -223,53 +223,66 @@ export function TMLookupPanel({ sourceLocale, targetLocale, onLookup }: TMLookup
           <div className="text-[11px] text-muted-foreground">
             {matches.length} {matches.length === 1 ? "match" : "matches"}
           </div>
-          {matches.map((m: TMMatchDTO, i: number) => (
-            <div key={i} className="rounded-md border border-border p-3 bg-card">
-              <MatchScoreBar score={m.score} matchType={m.match_type} className="mb-2" />
-              <div className="flex items-start gap-2 mb-1">
-                <span className="text-[10px] text-muted-foreground w-6 shrink-0 pt-0.5">src</span>
-                <CodedTextDisplay
-                  text={m.entry.source_text}
-                  codedText={m.entry.source_coded}
-                  spans={m.entry.source_spans}
-                  className="text-[12px] text-foreground flex-1"
-                />
-                <LocalePill locale={m.entry.source_locale} />
-              </div>
-              <div className="flex items-start gap-2">
-                <span className="text-[10px] text-muted-foreground w-6 shrink-0 pt-0.5">tgt</span>
-                <CodedTextDisplay
-                  text={m.entry.target_text}
-                  codedText={m.entry.target_coded}
-                  spans={m.entry.target_spans}
-                  className="text-[12px] text-muted-foreground flex-1"
-                />
-                <LocalePill locale={m.entry.target_locale} />
-              </div>
+          {matches.map((m: TMMatchDTO, i: number) => {
+            const srcKey = m.entry.hint_src_lang || sourceLocale;
+            const src = srcKey ? m.entry.variants[srcKey] : undefined;
+            const tgt = targetLocale ? m.entry.variants[targetLocale] : undefined;
+            return (
+              <div key={i} className="rounded-md border border-border p-3 bg-card">
+                <MatchScoreBar score={m.score} matchType={m.match_type} className="mb-2" />
+                {src && (
+                  <div className="flex items-start gap-2 mb-1">
+                    <span className="text-[10px] text-muted-foreground w-6 shrink-0 pt-0.5">
+                      src
+                    </span>
+                    <CodedTextDisplay
+                      text={src.text}
+                      codedText={src.coded}
+                      spans={src.spans}
+                      className="text-[12px] text-foreground flex-1"
+                    />
+                    <LocalePill locale={src.locale} />
+                  </div>
+                )}
+                {tgt && (
+                  <div className="flex items-start gap-2">
+                    <span className="text-[10px] text-muted-foreground w-6 shrink-0 pt-0.5">
+                      tgt
+                    </span>
+                    <CodedTextDisplay
+                      text={tgt.text}
+                      codedText={tgt.coded}
+                      spans={tgt.spans}
+                      className="text-[12px] text-muted-foreground flex-1"
+                    />
+                    <LocalePill locale={tgt.locale} />
+                  </div>
+                )}
 
-              {/* Entity adaptations */}
-              {m.entity_adaptations && m.entity_adaptations.length > 0 && (
-                <div className="mt-2 pt-2 border-t border-border/50">
-                  <div className="text-[10px] text-muted-foreground mb-1">Adaptations</div>
-                  {m.entity_adaptations.map((ea: EntityAdaptationDTO, j: number) => {
-                    const typeLabel =
-                      ENTITY_TYPES.find((t) => t.value === ea.type)?.label ??
-                      ea.type.replace("entity:", "");
-                    return (
-                      <div key={j} className="flex items-center gap-1.5 text-[11px]">
-                        <span className="text-[9px] uppercase tracking-wider text-muted-foreground font-medium">
-                          {typeLabel}
-                        </span>
-                        <span className="text-foreground">{ea.stored_value}</span>
-                        <span className="text-muted-foreground">&rarr;</span>
-                        <span className="text-primary font-medium">{ea.current_value}</span>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          ))}
+                {/* Entity adaptations */}
+                {m.entity_adaptations && m.entity_adaptations.length > 0 && (
+                  <div className="mt-2 pt-2 border-t border-border/50">
+                    <div className="text-[10px] text-muted-foreground mb-1">Adaptations</div>
+                    {m.entity_adaptations.map((ea: EntityAdaptationDTO, j: number) => {
+                      const typeLabel =
+                        ENTITY_TYPES.find((t) => t.value === ea.type)?.label ??
+                        ea.type.replace("entity:", "");
+                      return (
+                        <div key={j} className="flex items-center gap-1.5 text-[11px]">
+                          <span className="text-[9px] uppercase tracking-wider text-muted-foreground font-medium">
+                            {typeLabel}
+                          </span>
+                          <span className="text-foreground">{ea.stored_value}</span>
+                          <span className="text-muted-foreground">&rarr;</span>
+                          <span className="text-primary font-medium">{ea.current_value}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
       )}
     </div>

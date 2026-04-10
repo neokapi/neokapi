@@ -3,20 +3,21 @@ import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { TMBrowser } from "@neokapi/ui-primitives";
-import type { TMAdapter, TMEntryDTO } from "@neokapi/ui-primitives";
+import type { TMAdapter, TMEntryDTO, VariantDTO } from "@neokapi/ui-primitives";
+
+function v(locale: string, text: string): VariantDTO {
+  return { locale, text, coded: text, spans: [] };
+}
 
 function makeTMEntry(overrides: Partial<TMEntryDTO> = {}): TMEntryDTO {
   return {
     id: "tm-1",
-    source_text: "Hello",
-    target_text: "Bonjour",
-    source_coded: "",
-    target_coded: "",
-    source_spans: [],
-    target_spans: [],
-    source_locale: "en-US",
-    target_locale: "fr-FR",
     project_id: "",
+    hint_src_lang: "en-US",
+    variants: {
+      "en-US": v("en-US", "Hello"),
+      "fr-FR": v("fr-FR", "Bonjour"),
+    },
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
     ...overrides,
@@ -42,8 +43,14 @@ describe("TMBrowser", () => {
 
   describe("rendering entries", () => {
     const entries = [
-      makeTMEntry({ id: "1", source_text: "Hello", target_text: "Bonjour" }),
-      makeTMEntry({ id: "2", source_text: "Goodbye", target_text: "Au revoir" }),
+      makeTMEntry({
+        id: "1",
+        variants: { "en-US": v("en-US", "Hello"), "fr-FR": v("fr-FR", "Bonjour") },
+      }),
+      makeTMEntry({
+        id: "2",
+        variants: { "en-US": v("en-US", "Goodbye"), "fr-FR": v("fr-FR", "Au revoir") },
+      }),
     ];
 
     beforeEach(() => {
@@ -65,7 +72,7 @@ describe("TMBrowser", () => {
       render(<TMBrowser adapter={adapter} sourceLocale="en-US" targetLocales={["fr-FR"]} />);
 
       await waitFor(() => {
-        expect(adapter.search).toHaveBeenCalledWith("", "en-US", "fr-FR", 0, 50);
+        expect(adapter.search).toHaveBeenCalledWith("", "", "", 0, 50);
       });
     });
 
@@ -88,20 +95,16 @@ describe("TMBrowser", () => {
   });
 
   describe("search", () => {
-    it("triggers adapter.search with debounced query", async () => {
+    it("triggers adapter.search with submitted query", async () => {
       adapter = createMockAdapter([]);
       render(<TMBrowser adapter={adapter} sourceLocale="en-US" targetLocales={["fr-FR"]} />);
 
       const input = screen.getByPlaceholderText("Search translation memory...");
-      await userEvent.type(input, "test query");
+      await userEvent.type(input, "test query{Enter}");
 
-      // Wait for debounce (200ms) + re-render
-      await waitFor(
-        () => {
-          expect(adapter.search).toHaveBeenCalledWith("test query", "en-US", "fr-FR", 0, 50);
-        },
-        { timeout: 1000 },
-      );
+      await waitFor(() => {
+        expect(adapter.search).toHaveBeenCalledWith("test query", "", "", 0, 50);
+      });
     });
   });
 
@@ -116,13 +119,12 @@ describe("TMBrowser", () => {
     });
 
     it("shows search empty state with clear button", async () => {
-      // First render with no results but with a search query active
       const emptyAdapter: TMAdapter = {
         ...createMockAdapter([]),
         search: vi
           .fn()
-          .mockResolvedValueOnce({ entries: [], total_count: 0 }) // initial load
-          .mockResolvedValue({ entries: [], total_count: 0 }), // after search
+          .mockResolvedValueOnce({ entries: [], total_count: 0 })
+          .mockResolvedValue({ entries: [], total_count: 0 }),
       };
       render(<TMBrowser adapter={emptyAdapter} sourceLocale="en-US" targetLocales={["fr-FR"]} />);
 
@@ -131,22 +133,24 @@ describe("TMBrowser", () => {
       });
 
       const input = screen.getByPlaceholderText("Search translation memory...");
-      await userEvent.type(input, "nonexistent");
+      await userEvent.type(input, "nonexistent{Enter}");
 
-      await waitFor(
-        () => {
-          expect(screen.getByText("No entries match your search.")).toBeInTheDocument();
-        },
-        { timeout: 1000 },
-      );
+      await waitFor(() => {
+        expect(screen.getByText("No entries match your search.")).toBeInTheDocument();
+      });
     });
   });
 
   describe("pagination", () => {
     it("shows pagination when total exceeds page size", async () => {
-      // 60 total entries with page size 50 = 2 pages
       const entries = Array.from({ length: 50 }, (_, i) =>
-        makeTMEntry({ id: `e-${i}`, source_text: `Source ${i}`, target_text: `Target ${i}` }),
+        makeTMEntry({
+          id: `e-${i}`,
+          variants: {
+            "en-US": v("en-US", `Source ${i}`),
+            "fr-FR": v("fr-FR", `Target ${i}`),
+          },
+        }),
       );
       adapter = createMockAdapter(entries, 60);
       render(<TMBrowser adapter={adapter} sourceLocale="en-US" targetLocales={["fr-FR"]} />);
@@ -160,7 +164,10 @@ describe("TMBrowser", () => {
 
     it("navigates to next page", async () => {
       const entries = Array.from({ length: 50 }, (_, i) =>
-        makeTMEntry({ id: `e-${i}`, source_text: `Source ${i}` }),
+        makeTMEntry({
+          id: `e-${i}`,
+          variants: { "en-US": v("en-US", `Source ${i}`), "fr-FR": v("fr-FR", `T${i}`) },
+        }),
       );
       adapter = createMockAdapter(entries, 60);
       render(<TMBrowser adapter={adapter} sourceLocale="en-US" targetLocales={["fr-FR"]} />);
@@ -172,15 +179,17 @@ describe("TMBrowser", () => {
       await userEvent.click(screen.getByText("Next"));
 
       await waitFor(() => {
-        // Should call search with offset 50
-        expect(adapter.search).toHaveBeenCalledWith("", "en-US", "fr-FR", 50, 50);
+        expect(adapter.search).toHaveBeenCalledWith("", "", "", 50, 50);
       });
     });
   });
 
   describe("edit flow", () => {
     it("enters edit mode and shows inline code editor", async () => {
-      const entry = makeTMEntry({ id: "e1", source_text: "Hello", target_text: "Bonjour" });
+      const entry = makeTMEntry({
+        id: "e1",
+        variants: { "en-US": v("en-US", "Hello"), "fr-FR": v("fr-FR", "Bonjour") },
+      });
       adapter = createMockAdapter([entry]);
 
       render(<TMBrowser adapter={adapter} sourceLocale="en-US" targetLocales={["fr-FR"]} />);
@@ -189,43 +198,20 @@ describe("TMBrowser", () => {
         expect(screen.getByText("Hello")).toBeInTheDocument();
       });
 
-      // Click Edit — should activate the InlineCodeEditor (Lexical-based)
-      await userEvent.click(screen.getByText("Edit"));
-
-      // The editor renders a contenteditable element
-      await waitFor(() => {
-        expect(document.querySelector('[contenteditable="true"]')).not.toBeNull();
-      });
-    });
-
-    it("shows edit button that activates the editor", async () => {
-      const entry = makeTMEntry({ id: "e1", target_text: "Bonjour" });
-      adapter = createMockAdapter([entry]);
-
-      render(<TMBrowser adapter={adapter} sourceLocale="en-US" targetLocales={["fr-FR"]} />);
-
-      await waitFor(() => {
-        expect(screen.getByText("Edit")).toBeInTheDocument();
-      });
-
-      // Before edit, no contenteditable
-      expect(document.querySelector('[contenteditable="true"]')).toBeNull();
-
-      // Click Edit activates the InlineCodeEditor
       await userEvent.click(screen.getByText("Edit"));
 
       await waitFor(() => {
         expect(document.querySelector('[contenteditable="true"]')).not.toBeNull();
       });
-
-      // updateEntry should not have been called yet
-      expect(adapter.updateEntry).not.toHaveBeenCalled();
     });
   });
 
   describe("delete", () => {
     it("calls adapter.deleteEntry when clicking delete on an entry", async () => {
-      const entry = makeTMEntry({ id: "e1", source_text: "Hello" });
+      const entry = makeTMEntry({
+        id: "e1",
+        variants: { "en-US": v("en-US", "Hello"), "fr-FR": v("fr-FR", "Bonjour") },
+      });
       adapter = createMockAdapter([entry]);
 
       render(<TMBrowser adapter={adapter} sourceLocale="en-US" targetLocales={["fr-FR"]} />);
@@ -234,10 +220,7 @@ describe("TMBrowser", () => {
         expect(screen.getByText("Hello")).toBeInTheDocument();
       });
 
-      // First click shows confirmation (ConfirmDeleteButton two-step flow).
       await userEvent.click(screen.getByText("Delete"));
-
-      // Confirm the deletion.
       await userEvent.click(screen.getByText("Confirm"));
 
       await waitFor(() => {
@@ -249,8 +232,14 @@ describe("TMBrowser", () => {
   describe("bulk select + delete", () => {
     it("shows bulk action bar when entries are selected", async () => {
       const entries = [
-        makeTMEntry({ id: "e1", source_text: "Hello" }),
-        makeTMEntry({ id: "e2", source_text: "World" }),
+        makeTMEntry({
+          id: "e1",
+          variants: { "en-US": v("en-US", "Hello"), "fr-FR": v("fr-FR", "Bonjour") },
+        }),
+        makeTMEntry({
+          id: "e2",
+          variants: { "en-US": v("en-US", "World"), "fr-FR": v("fr-FR", "Monde") },
+        }),
       ];
       adapter = createMockAdapter(entries);
 
@@ -260,18 +249,22 @@ describe("TMBrowser", () => {
         expect(screen.getByText("Hello")).toBeInTheDocument();
       });
 
-      // Select first entry
       const checkbox = screen.getByLabelText("Select entry Hello");
       await userEvent.click(checkbox);
 
-      // Bulk action bar should appear
       expect(screen.getByText("1 selected")).toBeInTheDocument();
     });
 
     it("bulk delete requires confirmation then calls adapter.deleteEntries", async () => {
       const entries = [
-        makeTMEntry({ id: "e1", source_text: "Hello" }),
-        makeTMEntry({ id: "e2", source_text: "World" }),
+        makeTMEntry({
+          id: "e1",
+          variants: { "en-US": v("en-US", "Hello"), "fr-FR": v("fr-FR", "Bonjour") },
+        }),
+        makeTMEntry({
+          id: "e2",
+          variants: { "en-US": v("en-US", "World"), "fr-FR": v("fr-FR", "Monde") },
+        }),
       ];
       adapter = createMockAdapter(entries);
 
@@ -281,22 +274,18 @@ describe("TMBrowser", () => {
         expect(screen.getByText("Hello")).toBeInTheDocument();
       });
 
-      // Select both entries
       await userEvent.click(screen.getByLabelText("Select entry Hello"));
       await userEvent.click(screen.getByLabelText("Select entry World"));
 
       expect(screen.getByText("2 selected")).toBeInTheDocument();
 
-      // First click on Delete in bulk bar — triggers confirmation
       const bulkBar = screen.getByText("2 selected").closest("div")!;
       const deleteBtn = within(bulkBar).getByText("Delete");
       await userEvent.click(deleteBtn);
 
-      // Confirmation button should appear
       const confirmBtn = screen.getByText(/Confirm delete 2/);
       expect(confirmBtn).toBeInTheDocument();
 
-      // Click confirm
       await userEvent.click(confirmBtn);
 
       await waitFor(() => {
@@ -310,17 +299,19 @@ describe("TMBrowser", () => {
       const facetAdapter: TMAdapter = {
         ...createMockAdapter([makeTMEntry()]),
         getFacets: vi.fn().mockResolvedValue({
-          locale_pairs: [{ source_locale: "en-US", target_locale: "fr-FR", count: 1 }],
+          locales: [
+            { locale: "en-US", count: 1 },
+            { locale: "fr-FR", count: 1 },
+          ],
           projects: [],
           entity_types: [],
+          import_sessions: [],
           has_codes: 0,
           no_codes: 1,
         }),
       };
 
-      render(
-        <TMBrowser adapter={facetAdapter} sourceLocale="en-US" targetLocales={["fr-FR"]} />,
-      );
+      render(<TMBrowser adapter={facetAdapter} sourceLocale="en-US" targetLocales={["fr-FR"]} />);
 
       await waitFor(() => {
         expect(screen.getByText("Filters")).toBeInTheDocument();
@@ -329,7 +320,7 @@ describe("TMBrowser", () => {
   });
 
   describe("add entry", () => {
-    it("opens add form and calls adapter.addEntry", async () => {
+    it("opens add form and calls adapter.addEntry with variants map", async () => {
       adapter = createMockAdapter([]);
       render(<TMBrowser adapter={adapter} sourceLocale="en-US" targetLocales={["fr-FR"]} />);
 
@@ -339,24 +330,22 @@ describe("TMBrowser", () => {
 
       await userEvent.click(screen.getByText("Add Entry"));
 
-      // Dialog should open
       expect(screen.getByText("Add TM Entry")).toBeInTheDocument();
 
-      // Fill in source and target
       const sourceInput = screen.getByPlaceholderText("Source text");
       const targetInput = screen.getByPlaceholderText("Target text");
       await userEvent.type(sourceInput, "New source");
       await userEvent.type(targetInput, "New target");
 
-      // Click Add button in dialog
       await userEvent.click(screen.getByRole("button", { name: "Add" }));
 
       await waitFor(() => {
         expect(adapter.addEntry).toHaveBeenCalledWith({
-          source: "New source",
-          target: "New target",
-          source_locale: "en-US",
-          target_locale: "fr-FR",
+          variants: {
+            "en-US": { text: "New source" },
+            "fr-FR": { text: "New target" },
+          },
+          hint_src_lang: "en-US",
         });
       });
     });

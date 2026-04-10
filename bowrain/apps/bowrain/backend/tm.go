@@ -12,6 +12,8 @@ import (
 )
 
 // TMEntryInfo is the frontend-facing representation of a TM entry.
+// The Bowrain desktop still exposes a bilingual shape over the API; it
+// renders two locales at a time chosen by the user.
 type TMEntryInfo struct {
 	ID           string `json:"id"`
 	Source       string `json:"source"`
@@ -56,14 +58,29 @@ func (a *App) getOrCreateTM() (*sievepen.SQLiteTM, error) {
 	return tm, nil
 }
 
-// entryToInfo converts a sievepen.TMEntry to a TMEntryInfo.
-func entryToInfo(e sievepen.TMEntry) TMEntryInfo {
+// entryToInfo converts a sievepen.TMEntry to a TMEntryInfo for the bilingual
+// view. It projects the entry's variants onto the requested (src, tgt) pair.
+func entryToInfo(e sievepen.TMEntry, sourceLocale, targetLocale string) TMEntryInfo {
+	srcLoc := model.LocaleID(sourceLocale)
+	tgtLoc := model.LocaleID(targetLocale)
+	if srcLoc == "" && e.HintSrcLang != "" {
+		srcLoc = e.HintSrcLang
+	}
+	// Pick any other locale for target if not specified.
+	if tgtLoc == "" {
+		for loc := range e.Variants {
+			if loc != srcLoc {
+				tgtLoc = loc
+				break
+			}
+		}
+	}
 	return TMEntryInfo{
 		ID:           e.ID,
-		Source:       e.SourceText(),
-		Target:       e.TargetText(),
-		SourceLocale: string(e.SourceLocale),
-		TargetLocale: string(e.TargetLocale),
+		Source:       e.VariantText(srcLoc),
+		Target:       e.VariantText(tgtLoc),
+		SourceLocale: string(srcLoc),
+		TargetLocale: string(tgtLoc),
 		UpdatedAt:    e.UpdatedAt.Format(time.RFC3339),
 	}
 }
@@ -90,7 +107,7 @@ func (a *App) GetTMEntries(projectID, query, sourceLocale, targetLocale string, 
 	entries, total := tm.SearchEntries(query, sourceLocale, targetLocale, offset, limit)
 	infos := make([]TMEntryInfo, len(entries))
 	for i, e := range entries {
-		infos[i] = entryToInfo(e)
+		infos[i] = entryToInfo(e, sourceLocale, targetLocale)
 	}
 
 	return &TMSearchResult{
@@ -146,10 +163,16 @@ func (a *App) UpdateTMEntry(req TMUpdateRequest) error {
 		return fmt.Errorf("TM entry %q not found", req.EntryID)
 	}
 
-	entry.Source = model.NewFragment(req.Source)
-	entry.Target = model.NewFragment(req.Target)
-	entry.SourceLocale = model.LocaleID(req.SourceLocale)
-	entry.TargetLocale = model.LocaleID(req.TargetLocale)
+	srcLoc := model.LocaleID(req.SourceLocale)
+	tgtLoc := model.LocaleID(req.TargetLocale)
+	if entry.Variants == nil {
+		entry.Variants = make(map[model.LocaleID]*model.Fragment)
+	}
+	entry.Variants[srcLoc] = model.NewFragment(req.Source)
+	entry.Variants[tgtLoc] = model.NewFragment(req.Target)
+	if entry.HintSrcLang == "" {
+		entry.HintSrcLang = srcLoc
+	}
 	entry.UpdatedAt = time.Now()
 
 	return tm.Add(entry)
@@ -206,20 +229,23 @@ func (a *App) AddTMEntry(projectID, source, target, sourceLocale, targetLocale s
 	}
 
 	now := time.Now()
+	srcLoc := model.LocaleID(sourceLocale)
+	tgtLoc := model.LocaleID(targetLocale)
 	entry := sievepen.TMEntry{
-		ID:           id.New(),
-		Source:       model.NewFragment(source),
-		Target:       model.NewFragment(target),
-		SourceLocale: model.LocaleID(sourceLocale),
-		TargetLocale: model.LocaleID(targetLocale),
-		CreatedAt:    now,
-		UpdatedAt:    now,
+		ID: id.New(),
+		Variants: map[model.LocaleID]*model.Fragment{
+			srcLoc: model.NewFragment(source),
+			tgtLoc: model.NewFragment(target),
+		},
+		HintSrcLang: srcLoc,
+		CreatedAt:   now,
+		UpdatedAt:   now,
 	}
 
 	if err := tm.Add(entry); err != nil {
 		return nil, err
 	}
 
-	info := entryToInfo(entry)
+	info := entryToInfo(entry, sourceLocale, targetLocale)
 	return &info, nil
 }
