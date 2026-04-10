@@ -25,9 +25,13 @@ VERSION_PKG ?= github.com/neokapi/neokapi/core/version
 LDFLAGS     ?= -ldflags "-X $(VERSION_PKG).Version=$(VERSION) -X $(VERSION_PKG).Commit=$(COMMIT) -X $(VERSION_PKG).BuildDate=$(BUILD_DATE)"
 
 GO          := go
-GOTEST      := $(GO) test
-GOBUILD     := $(GO) build
-GOVET       := $(GO) vet
+GOTAGS      := -tags fts5
+ifeq ($(shell uname -s),Darwin)
+export PKG_CONFIG_PATH := /opt/homebrew/opt/icu4c@78/lib/pkgconfig:$(PKG_CONFIG_PATH)
+endif
+GOTEST      := $(GO) test $(GOTAGS)
+GOBUILD     := $(GO) build $(GOTAGS)
+GOVET       := $(GO) vet $(GOTAGS)
 GOFMT       := gofmt
 BIN_DIR     := $(ROOT_DIR)/bin
 COVER_DIR   := $(ROOT_DIR)/coverage

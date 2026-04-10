@@ -175,6 +175,22 @@ export class FlowTrace {
 }
 
 /**
+ * NodeType identifies the role of a node in a flow graph.
+ * @readonly
+ * @enum {string}
+ */
+export const NodeType = {
+    /**
+     * The Go zero value for the underlying type of the enum.
+     */
+    $zero: "",
+
+    NodeReader: "reader",
+    NodeWriter: "writer",
+    NodeTool: "tool",
+};
+
+/**
  * PartSnapshot captures the state of a Part at a point in time.
  */
 export class PartSnapshot {
@@ -284,6 +300,51 @@ export class PartSnapshotSet {
 }
 
 /**
+ * StepSnapshot is a point-in-time read of a single step's counters.
+ */
+export class StepSnapshot {
+    /**
+     * Creates a new StepSnapshot instance.
+     * @param {Partial<StepSnapshot>} [$$source = {}] - The source object to create the StepSnapshot.
+     */
+    constructor($$source = {}) {
+        if (!("name" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["name"] = "";
+        }
+        if (!("parts_in" in $$source)) {
+            /**
+             * @member
+             * @type {number}
+             */
+            this["parts_in"] = 0;
+        }
+        if (!("parts_out" in $$source)) {
+            /**
+             * @member
+             * @type {number}
+             */
+            this["parts_out"] = 0;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new StepSnapshot instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {StepSnapshot}
+     */
+    static createFrom($$source = {}) {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new StepSnapshot(/** @type {Partial<StepSnapshot>} */($$parsedSource));
+    }
+}
+
+/**
  * StepsSpec is the steps-based flow format that humans author.
  * It compiles to a FlowDefinition (nodes + edges) for execution.
  */
@@ -352,11 +413,11 @@ export class TraceEvent {
         }
         if (!("type" in $$source)) {
             /**
-             * event type (e.g., "enter", "exit")
+             * TraceEnter or TraceExit
              * @member
-             * @type {string}
+             * @type {TraceEventType}
              */
-            this["type"] = "";
+            this["type"] = TraceEventType.$zero;
         }
         if (!("nodeId" in $$source)) {
             /**
@@ -400,6 +461,21 @@ export class TraceEvent {
         return new TraceEvent(/** @type {Partial<TraceEvent>} */($$parsedSource));
     }
 }
+
+/**
+ * TraceEventType identifies the kind of trace event.
+ * @readonly
+ * @enum {string}
+ */
+export const TraceEventType = {
+    /**
+     * The Go zero value for the underlying type of the enum.
+     */
+    $zero: "",
+
+    TraceEnter: "enter",
+    TraceExit: "exit",
+};
 
 /**
  * TraceFile describes an input or output file.
@@ -464,11 +540,11 @@ export class TraceNode {
         }
         if (!("type" in $$source)) {
             /**
-             * "reader", "tool", "writer"
+             * NodeReader, NodeTool, or NodeWriter
              * @member
-             * @type {string}
+             * @type {NodeType}
              */
-            this["type"] = "";
+            this["type"] = NodeType.$zero;
         }
         if (!("name" in $$source)) {
             /**

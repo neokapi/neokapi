@@ -5,10 +5,13 @@
 export {
     FlowStep,
     FlowTrace,
+    NodeType,
     PartSnapshot,
     PartSnapshotSet,
+    StepSnapshot,
     StepsSpec,
     TraceEvent,
+    TraceEventType,
     TraceFile,
     TraceNode
 } from "./models.js";

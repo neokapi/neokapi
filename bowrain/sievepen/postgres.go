@@ -1,3 +1,7 @@
+// Package sievepen provides a PostgreSQL-backed implementation of
+// neokapi's multilingual translation memory. It mirrors the SQLite
+// implementation in the framework module, with workspace_id as a
+// composite PK component on every table for multi-tenant isolation.
 package sievepen
 
 import (
@@ -9,6 +13,7 @@ import (
 	"fmt"
 	"log/slog"
 	"slices"
+	"sort"
 	"strings"
 	"time"
 
@@ -17,15 +22,16 @@ import (
 	fw "github.com/neokapi/neokapi/sievepen"
 )
 
-// PostgresTM is a persistent translation memory backed by PostgreSQL.
-// All workspace TMs share the same PostgreSQL database, isolated by workspace_id.
+// PostgresTM is a persistent, multilingual translation memory backed by
+// PostgreSQL. All workspace TMs share the same database, isolated by
+// workspace_id.
 type PostgresTM struct {
 	db          *storage.PgDB
 	workspaceID string
 }
 
-// NewPostgresTMFromDB creates a PostgresTM using an existing shared PgDB connection.
-// workspaceID scopes all entries to a specific workspace.
+// NewPostgresTMFromDB creates a PostgresTM using an existing shared PgDB
+// connection. workspaceID scopes all entries to a specific workspace.
 func NewPostgresTMFromDB(db *storage.PgDB, workspaceID string) (*PostgresTM, error) {
 	if err := storage.MigratePostgresNS(db, "tm_schema_migrations", tmMigrationsPg); err != nil {
 		return nil, fmt.Errorf("migrate TM schema: %w", err)
@@ -33,10 +39,12 @@ func NewPostgresTMFromDB(db *storage.PgDB, workspaceID string) (*PostgresTM, err
 	return &PostgresTM{db: db, workspaceID: workspaceID}, nil
 }
 
+// tmMigrationsPg holds the evolution of the TM Postgres schema. Version 4
+// wipes the legacy bilingual schema and creates the multilingual tables.
 var tmMigrationsPg = []storage.Migration{
 	{
 		Version:     1,
-		Description: "content-aware TM schema",
+		Description: "legacy bilingual TM schema (superseded by v4)",
 		SQL: `
 		CREATE TABLE IF NOT EXISTS tm_entries (
 			id              TEXT NOT NULL,
@@ -54,29 +62,115 @@ var tmMigrationsPg = []storage.Migration{
 			updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 			PRIMARY KEY (workspace_id, id)
 		);
-		CREATE INDEX IF NOT EXISTS idx_tm_ws_general ON tm_entries(workspace_id, source_general, source_locale, target_locale);
-		CREATE INDEX IF NOT EXISTS idx_tm_ws_struct  ON tm_entries(workspace_id, source_struct, source_locale, target_locale);
-		CREATE INDEX IF NOT EXISTS idx_tm_ws_plain   ON tm_entries(workspace_id, source_plain, source_locale, target_locale);
+		`,
+	},
+	{
+		Version:     2,
+		Description: "add stream column (legacy)",
+		SQL:         `ALTER TABLE tm_entries ADD COLUMN IF NOT EXISTS stream TEXT NOT NULL DEFAULT '';`,
+	},
+	{
+		Version:     3,
+		Description: "placeholder (legacy tsvector)",
+		SQL:         `SELECT 1;`,
+	},
+	{
+		Version:     4,
+		Description: "multilingual TM schema rewrite — variants, entities per locale, import sessions",
+		SQL: `
+		DROP TABLE IF EXISTS tm_entity_mappings CASCADE;
+		DROP TABLE IF EXISTS tm_entry_origins CASCADE;
+		DROP TABLE IF EXISTS tm_entries CASCADE;
 
-		CREATE TABLE IF NOT EXISTS tm_entity_mappings (
-			workspace_id   TEXT NOT NULL,
-			entry_id       TEXT NOT NULL,
-			ordinal        INTEGER NOT NULL,
-			placeholder_id TEXT NOT NULL,
-			entity_type    TEXT NOT NULL,
-			source_value   TEXT NOT NULL DEFAULT '',
-			source_start   INTEGER NOT NULL DEFAULT 0,
-			source_end     INTEGER NOT NULL DEFAULT 0,
-			target_value   TEXT NOT NULL DEFAULT '',
-			target_start   INTEGER NOT NULL DEFAULT 0,
-			target_end     INTEGER NOT NULL DEFAULT 0,
-			PRIMARY KEY (workspace_id, entry_id, ordinal),
+		CREATE TABLE tm_entries (
+			workspace_id    TEXT NOT NULL,
+			id              TEXT NOT NULL,
+			project_id      TEXT NOT NULL DEFAULT '',
+			stream          TEXT NOT NULL DEFAULT '',
+			hint_src_lang   TEXT NOT NULL DEFAULT '',
+			properties      JSONB NOT NULL DEFAULT '{}'::jsonb,
+			note            TEXT NOT NULL DEFAULT '',
+			created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+			updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+			PRIMARY KEY (workspace_id, id)
+		);
+		CREATE INDEX idx_tm_ws_project ON tm_entries(workspace_id, project_id);
+		CREATE INDEX idx_tm_ws_stream  ON tm_entries(workspace_id, stream);
+		CREATE INDEX idx_tm_ws_updated ON tm_entries(workspace_id, updated_at DESC);
+
+		CREATE TABLE tm_variants (
+			workspace_id TEXT NOT NULL,
+			entry_id     TEXT NOT NULL,
+			locale       TEXT NOT NULL,
+			coded        TEXT NOT NULL,
+			plain        TEXT NOT NULL,
+			struct_key   TEXT NOT NULL,
+			general_key  TEXT NOT NULL,
+			PRIMARY KEY (workspace_id, entry_id, locale),
 			FOREIGN KEY (workspace_id, entry_id) REFERENCES tm_entries(workspace_id, id) ON DELETE CASCADE
 		);
-		CREATE INDEX IF NOT EXISTS idx_tm_ent_type ON tm_entity_mappings(workspace_id, entity_type);
-		CREATE INDEX IF NOT EXISTS idx_tm_ent_value_type ON tm_entity_mappings(workspace_id, source_value, entity_type);
+		CREATE INDEX idx_tm_var_ws_locale      ON tm_variants(workspace_id, locale);
+		CREATE INDEX idx_tm_var_plain_loc      ON tm_variants(workspace_id, plain, locale);
+		CREATE INDEX idx_tm_var_struct_loc     ON tm_variants(workspace_id, struct_key, locale);
+		CREATE INDEX idx_tm_var_general_loc    ON tm_variants(workspace_id, general_key, locale);
 
-		CREATE TABLE IF NOT EXISTS tm_entry_origins (
+		CREATE EXTENSION IF NOT EXISTS pg_trgm;
+		CREATE INDEX idx_tm_var_trgm_plain   ON tm_variants USING gin (plain gin_trgm_ops);
+		CREATE INDEX idx_tm_var_trgm_struct  ON tm_variants USING gin (struct_key gin_trgm_ops);
+		CREATE INDEX idx_tm_var_trgm_general ON tm_variants USING gin (general_key gin_trgm_ops);
+
+		ALTER TABLE tm_variants ADD COLUMN search_tsv tsvector
+			GENERATED ALWAYS AS (to_tsvector('simple', plain)) STORED;
+		CREATE INDEX idx_tm_var_search_tsv ON tm_variants USING gin (search_tsv);
+
+		CREATE TABLE tm_entry_entities (
+			workspace_id   TEXT NOT NULL,
+			entry_id       TEXT NOT NULL,
+			placeholder_id TEXT NOT NULL,
+			entity_type    TEXT NOT NULL,
+			PRIMARY KEY (workspace_id, entry_id, placeholder_id),
+			FOREIGN KEY (workspace_id, entry_id) REFERENCES tm_entries(workspace_id, id) ON DELETE CASCADE
+		);
+		CREATE INDEX idx_tm_entities_type ON tm_entry_entities(workspace_id, entity_type);
+
+		CREATE TABLE tm_entry_entity_values (
+			workspace_id   TEXT NOT NULL,
+			entry_id       TEXT NOT NULL,
+			placeholder_id TEXT NOT NULL,
+			locale         TEXT NOT NULL,
+			text_value     TEXT NOT NULL DEFAULT '',
+			start_pos      INTEGER NOT NULL DEFAULT 0,
+			end_pos        INTEGER NOT NULL DEFAULT 0,
+			PRIMARY KEY (workspace_id, entry_id, placeholder_id, locale),
+			FOREIGN KEY (workspace_id, entry_id, placeholder_id)
+				REFERENCES tm_entry_entities(workspace_id, entry_id, placeholder_id) ON DELETE CASCADE
+		);
+		CREATE INDEX idx_tm_entity_values_text ON tm_entry_entity_values(workspace_id, text_value, locale);
+
+		CREATE TABLE tm_import_sessions (
+			workspace_id      TEXT NOT NULL,
+			id                TEXT NOT NULL,
+			file_key          TEXT NOT NULL,
+			file_hash         TEXT NOT NULL DEFAULT '',
+			file_size_bytes   BIGINT NOT NULL DEFAULT 0,
+			imported_at       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+			imported_by       TEXT NOT NULL DEFAULT '',
+			tool_name         TEXT NOT NULL DEFAULT '',
+			tool_version      TEXT NOT NULL DEFAULT '',
+			seg_type          TEXT NOT NULL DEFAULT '',
+			admin_lang        TEXT NOT NULL DEFAULT '',
+			src_lang          TEXT NOT NULL DEFAULT '',
+			data_type         TEXT NOT NULL DEFAULT '',
+			original_format   TEXT NOT NULL DEFAULT '',
+			original_encoding TEXT NOT NULL DEFAULT '',
+			entry_count       INTEGER NOT NULL DEFAULT 0,
+			properties        JSONB NOT NULL DEFAULT '{}'::jsonb,
+			PRIMARY KEY (workspace_id, id)
+		);
+		CREATE INDEX idx_tm_sessions_hash ON tm_import_sessions(workspace_id, file_hash);
+		CREATE INDEX idx_tm_sessions_time ON tm_import_sessions(workspace_id, imported_at DESC);
+
+		CREATE TABLE tm_entry_origins (
 			workspace_id TEXT NOT NULL,
 			entry_id     TEXT NOT NULL,
 			ordinal      INTEGER NOT NULL,
@@ -85,59 +179,49 @@ var tmMigrationsPg = []storage.Migration{
 			reference    TEXT NOT NULL DEFAULT '',
 			added_at     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 			added_by     TEXT NOT NULL DEFAULT '',
+			session_id   TEXT NOT NULL DEFAULT '',
 			PRIMARY KEY (workspace_id, entry_id, ordinal),
 			FOREIGN KEY (workspace_id, entry_id) REFERENCES tm_entries(workspace_id, id) ON DELETE CASCADE
 		);
-		CREATE INDEX IF NOT EXISTS idx_tm_origin_source ON tm_entry_origins(workspace_id, source);
-		CREATE INDEX IF NOT EXISTS idx_tm_origin_key ON tm_entry_origins(workspace_id, key);
-		`,
-	},
-	{
-		Version:     2,
-		Description: "add stream column",
-		SQL: `ALTER TABLE tm_entries ADD COLUMN stream TEXT NOT NULL DEFAULT '';
-		CREATE INDEX IF NOT EXISTS idx_tm_ws_stream ON tm_entries(workspace_id, stream, source_locale, target_locale);`,
-	},
-	{
-		Version:     3,
-		Description: "pg_trgm trigram indexes for fuzzy candidate retrieval + tsvector for UI search",
-		SQL: `
-		CREATE EXTENSION IF NOT EXISTS pg_trgm;
-		CREATE EXTENSION IF NOT EXISTS fuzzystrmatch;
-
-		CREATE INDEX IF NOT EXISTS idx_tm_trgm_plain   ON tm_entries USING gin (source_plain gin_trgm_ops);
-		CREATE INDEX IF NOT EXISTS idx_tm_trgm_struct   ON tm_entries USING gin (source_struct gin_trgm_ops);
-		CREATE INDEX IF NOT EXISTS idx_tm_trgm_general  ON tm_entries USING gin (source_general gin_trgm_ops);
-
-		ALTER TABLE tm_entries ADD COLUMN search_tsv tsvector;
-		UPDATE tm_entries SET search_tsv = to_tsvector('simple', source_plain || ' ' || COALESCE(target_coded, ''));
-		CREATE INDEX IF NOT EXISTS idx_tm_search_tsv ON tm_entries USING gin (search_tsv);
-
-		CREATE OR REPLACE FUNCTION tm_search_tsv_update() RETURNS trigger AS $$
-		BEGIN
-			NEW.search_tsv := to_tsvector('simple', NEW.source_plain || ' ' || COALESCE(NEW.target_coded, ''));
-			RETURN NEW;
-		END $$ LANGUAGE plpgsql;
-
-		DROP TRIGGER IF EXISTS tm_search_tsv_trigger ON tm_entries;
-		CREATE TRIGGER tm_search_tsv_trigger BEFORE INSERT OR UPDATE ON tm_entries
-			FOR EACH ROW EXECUTE FUNCTION tm_search_tsv_update();
+		CREATE INDEX idx_tm_origin_source  ON tm_entry_origins(workspace_id, source);
+		CREATE INDEX idx_tm_origin_key     ON tm_entry_origins(workspace_id, key);
+		CREATE INDEX idx_tm_origin_session ON tm_entry_origins(workspace_id, session_id);
 		`,
 	},
 }
 
-// Add inserts or updates a translation memory entry with an empty stream.
+// --- basic ---
+
+// Close is a no-op for PostgresTM; the connection is shared.
+func (tm *PostgresTM) Close() error { return nil }
+
+// Count returns the total number of entries for this workspace.
+func (tm *PostgresTM) Count() int {
+	ctx := context.Background()
+	var count int
+	if err := tm.db.QueryRowContext(ctx,
+		"SELECT COUNT(*) FROM tm_entries WHERE workspace_id = $1",
+		tm.workspaceID).Scan(&count); err != nil {
+		slog.Warn("TM count query failed", "workspace", tm.workspaceID, "error", err)
+		return 0
+	}
+	return count
+}
+
+// --- writes ---
+
+// Add inserts or updates a multilingual TM entry.
 func (tm *PostgresTM) Add(entry fw.TMEntry) error {
 	return tm.AddWithStream(entry, "")
 }
 
-// AddWithStream inserts or updates a translation memory entry associated with a stream.
+// AddWithStream inserts or updates a multilingual TM entry on a given stream.
 func (tm *PostgresTM) AddWithStream(entry fw.TMEntry, stream string) error {
 	if entry.ID == "" {
 		return errors.New("entry ID is required")
 	}
-	if entry.Source == nil {
-		return errors.New("entry source Fragment is required")
+	if len(entry.Variants) == 0 {
+		return errors.New("entry must have at least one variant")
 	}
 
 	now := time.Now()
@@ -148,73 +232,85 @@ func (tm *PostgresTM) AddWithStream(entry fw.TMEntry, stream string) error {
 		entry.UpdatedAt = now
 	}
 
-	sourceJSON, err := json.Marshal(entry.Source)
-	if err != nil {
-		return fmt.Errorf("marshal source: %w", err)
-	}
-	targetJSON, err := json.Marshal(entry.Target)
-	if err != nil {
-		return fmt.Errorf("marshal target: %w", err)
-	}
+	ctx := context.Background()
 
-	var propertiesJSON []byte
+	propsJSON := []byte("{}")
 	if len(entry.Properties) > 0 {
-		propertiesJSON, _ = json.Marshal(entry.Properties)
-	}
-
-	_, err = tm.db.ExecContext(context.Background(), `
-		INSERT INTO tm_entries (id, workspace_id, stream, source_coded, target_coded,
-			source_plain, source_struct, source_general,
-			source_locale, target_locale,
-			note, properties,
-			created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
-		ON CONFLICT (workspace_id, id) DO UPDATE SET
-			stream = EXCLUDED.stream,
-			source_coded = EXCLUDED.source_coded,
-			target_coded = EXCLUDED.target_coded,
-			source_plain = EXCLUDED.source_plain,
-			source_struct = EXCLUDED.source_struct,
-			source_general = EXCLUDED.source_general,
-			source_locale = EXCLUDED.source_locale,
-			target_locale = EXCLUDED.target_locale,
-			note = EXCLUDED.note,
-			properties = EXCLUDED.properties,
-			updated_at = EXCLUDED.updated_at
-	`, entry.ID, tm.workspaceID, stream,
-		string(sourceJSON), string(targetJSON),
-		fw.NormalizeText(entry.SourceText()),
-		fw.NormalizeText(entry.SourceStructural()),
-		fw.NormalizeText(entry.SourceGeneralized()),
-		string(entry.SourceLocale), string(entry.TargetLocale),
-		entry.Note,
-		nullableString(propertiesJSON),
-		entry.CreatedAt, entry.UpdatedAt)
-	if err != nil {
-		return fmt.Errorf("insert entry: %w", err)
-	}
-
-	// Replace entity mappings — single source of truth.
-	if _, err := tm.db.ExecContext(context.Background(),
-		"DELETE FROM tm_entity_mappings WHERE workspace_id = $1 AND entry_id = $2",
-		tm.workspaceID, entry.ID); err != nil {
-		return fmt.Errorf("delete entity mappings: %w", err)
-	}
-	for i, em := range entry.Entities {
-		if _, err := tm.db.ExecContext(context.Background(), `INSERT INTO tm_entity_mappings
-			(workspace_id, entry_id, ordinal, placeholder_id, entity_type,
-			 source_value, source_start, source_end,
-			 target_value, target_start, target_end)
-			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
-			tm.workspaceID, entry.ID, i, em.PlaceholderID, string(em.Type),
-			em.SourceValue, em.SourcePos.Start, em.SourcePos.End,
-			em.TargetValue, em.TargetPos.Start, em.TargetPos.End); err != nil {
-			return fmt.Errorf("insert entity mapping: %w", err)
+		if b, err := json.Marshal(entry.Properties); err == nil {
+			propsJSON = b
 		}
 	}
 
-	// Replace origins — single source of truth.
-	if _, err := tm.db.ExecContext(context.Background(),
+	if _, err := tm.db.ExecContext(ctx, `
+		INSERT INTO tm_entries
+			(workspace_id, id, project_id, stream, hint_src_lang, properties, note, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7, $8, $9)
+		ON CONFLICT (workspace_id, id) DO UPDATE SET
+			project_id    = EXCLUDED.project_id,
+			stream        = EXCLUDED.stream,
+			hint_src_lang = EXCLUDED.hint_src_lang,
+			properties    = EXCLUDED.properties,
+			note          = EXCLUDED.note,
+			updated_at    = EXCLUDED.updated_at
+	`, tm.workspaceID, entry.ID, entry.ProjectID, stream,
+		string(entry.HintSrcLang), string(propsJSON), entry.Note,
+		entry.CreatedAt, entry.UpdatedAt); err != nil {
+		return fmt.Errorf("upsert entry: %w", err)
+	}
+
+	// Replace variants.
+	if _, err := tm.db.ExecContext(ctx,
+		"DELETE FROM tm_variants WHERE workspace_id = $1 AND entry_id = $2",
+		tm.workspaceID, entry.ID); err != nil {
+		return fmt.Errorf("delete variants: %w", err)
+	}
+	for loc, frag := range entry.Variants {
+		if frag == nil {
+			continue
+		}
+		coded, err := json.Marshal(frag)
+		if err != nil {
+			return fmt.Errorf("marshal variant %s: %w", loc, err)
+		}
+		plain := fw.NormalizeText(frag.Text())
+		sk := fw.NormalizeText(frag.StructuralText())
+		gk := fw.NormalizeText(frag.GeneralizedText())
+		if _, err := tm.db.ExecContext(ctx, `INSERT INTO tm_variants
+			(workspace_id, entry_id, locale, coded, plain, struct_key, general_key)
+			VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+			tm.workspaceID, entry.ID, string(loc), string(coded), plain, sk, gk); err != nil {
+			return fmt.Errorf("insert variant %s: %w", loc, err)
+		}
+	}
+
+	// Replace entities + values. CASCADE on tm_entry_entities removes values.
+	if _, err := tm.db.ExecContext(ctx,
+		"DELETE FROM tm_entry_entities WHERE workspace_id = $1 AND entry_id = $2",
+		tm.workspaceID, entry.ID); err != nil {
+		return fmt.Errorf("delete entities: %w", err)
+	}
+	for _, em := range entry.Entities {
+		if em.PlaceholderID == "" {
+			continue
+		}
+		if _, err := tm.db.ExecContext(ctx, `INSERT INTO tm_entry_entities
+			(workspace_id, entry_id, placeholder_id, entity_type) VALUES ($1, $2, $3, $4)`,
+			tm.workspaceID, entry.ID, em.PlaceholderID, string(em.Type)); err != nil {
+			return fmt.Errorf("insert entity: %w", err)
+		}
+		for loc, val := range em.Values {
+			if _, err := tm.db.ExecContext(ctx, `INSERT INTO tm_entry_entity_values
+				(workspace_id, entry_id, placeholder_id, locale, text_value, start_pos, end_pos)
+				VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+				tm.workspaceID, entry.ID, em.PlaceholderID, string(loc),
+				val.Text, val.Start, val.End); err != nil {
+				return fmt.Errorf("insert entity value: %w", err)
+			}
+		}
+	}
+
+	// Replace origins.
+	if _, err := tm.db.ExecContext(ctx,
 		"DELETE FROM tm_entry_origins WHERE workspace_id = $1 AND entry_id = $2",
 		tm.workspaceID, entry.ID); err != nil {
 		return fmt.Errorf("delete origins: %w", err)
@@ -224,10 +320,11 @@ func (tm *PostgresTM) AddWithStream(entry fw.TMEntry, stream string) error {
 		if addedAt.IsZero() {
 			addedAt = now
 		}
-		if _, err := tm.db.ExecContext(context.Background(), `INSERT INTO tm_entry_origins
-			(workspace_id, entry_id, ordinal, source, key, reference, added_at, added_by)
-			VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-			tm.workspaceID, entry.ID, i, o.Source, o.Key, o.Reference, addedAt, o.AddedBy); err != nil {
+		if _, err := tm.db.ExecContext(ctx, `INSERT INTO tm_entry_origins
+			(workspace_id, entry_id, ordinal, source, key, reference, added_at, added_by, session_id)
+			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+			tm.workspaceID, entry.ID, i, o.Source, o.Key, o.Reference,
+			addedAt, o.AddedBy, o.SessionID); err != nil {
 			return fmt.Errorf("insert origin: %w", err)
 		}
 	}
@@ -235,90 +332,103 @@ func (tm *PostgresTM) AddWithStream(entry fw.TMEntry, stream string) error {
 	return nil
 }
 
-// Lookup searches for matches using tiered matching with the full content model.
+// Delete removes an entry by ID.
+func (tm *PostgresTM) Delete(id string) error {
+	ctx := context.Background()
+	result, err := tm.db.ExecContext(ctx,
+		"DELETE FROM tm_entries WHERE workspace_id = $1 AND id = $2",
+		tm.workspaceID, id)
+	if err != nil {
+		return fmt.Errorf("delete entry: %w", err)
+	}
+	n, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("rows affected: %w", err)
+	}
+	if n == 0 {
+		return fmt.Errorf("entry not found: %s", id)
+	}
+	return nil
+}
+
+// --- lookup ---
+
+// Lookup searches for matches using tiered matching.
 func (tm *PostgresTM) Lookup(source *model.Block, sourceLocale, targetLocale model.LocaleID, opts fw.LookupOptions) ([]fw.TMMatch, error) {
 	if source == nil {
 		return nil, nil
 	}
-
 	opts = fw.ApplyDefaults(opts)
 	frag := source.FirstFragment()
 	if frag == nil {
 		return nil, nil
 	}
-
 	plainKey := fw.NormalizeText(frag.Text())
 	structKey := fw.NormalizeText(frag.StructuralText())
 	generalKey := fw.NormalizeText(frag.GeneralizedText())
 	entityAnnotations := fw.ExtractEntityAnnotations(source)
-
 	return tm.tieredLookup(plainKey, structKey, generalKey, entityAnnotations, sourceLocale, targetLocale, opts)
 }
 
-// LookupText searches for matches using plain text only.
+// LookupText searches for plain-text matches.
 func (tm *PostgresTM) LookupText(source string, sourceLocale, targetLocale model.LocaleID, opts fw.LookupOptions) ([]fw.TMMatch, error) {
 	opts = fw.ApplyDefaults(opts)
 	opts.MatchModes = []fw.MatchMode{fw.MatchModePlain}
-	normalizedSource := fw.NormalizeText(source)
-	return tm.tieredLookup(normalizedSource, normalizedSource, normalizedSource, nil, sourceLocale, targetLocale, opts)
+	normalized := fw.NormalizeText(source)
+	return tm.tieredLookup(normalized, normalized, normalized, nil, sourceLocale, targetLocale, opts)
 }
 
 func (tm *PostgresTM) tieredLookup(plainKey, structKey, generalKey string, entityAnnotations []*model.EntityAnnotation, sourceLocale, targetLocale model.LocaleID, opts fw.LookupOptions) ([]fw.TMMatch, error) {
 	var matches []fw.TMMatch
 	seen := make(map[string]bool)
-
 	modeEnabled := fw.MatchModesEnabled(opts.MatchModes)
 
+	add := func(entry fw.TMEntry, score float64, mt fw.MatchType) {
+		if seen[entry.ID] {
+			return
+		}
+		if !entry.HasLocale(targetLocale) {
+			return
+		}
+		seen[entry.ID] = true
+		var adaptations []fw.EntityAdaptation
+		if mt == fw.MatchGeneralizedExact || mt == fw.MatchGeneralizedFuzzy {
+			adaptations = fw.ComputeEntityAdaptations(entry, sourceLocale, targetLocale, entityAnnotations)
+		}
+		matches = append(matches, fw.TMMatch{
+			Entry:             entry,
+			Score:             score,
+			MatchType:         mt,
+			ProjectID:         entry.ProjectID,
+			EntityAdaptations: adaptations,
+		})
+	}
+
 	if modeEnabled[fw.MatchModeGeneralized] {
-		exactMatches, err := tm.queryExact("source_general", generalKey, sourceLocale, targetLocale)
+		entries, err := tm.queryExactVariant("general_key", generalKey, sourceLocale, opts)
 		if err != nil {
 			return nil, err
 		}
-		for _, entry := range exactMatches {
-			if !seen[entry.ID] {
-				seen[entry.ID] = true
-				adaptations := fw.ComputeEntityAdaptations(entry, entityAnnotations)
-				matches = append(matches, fw.TMMatch{
-					Entry:             entry,
-					Score:             1.0,
-					MatchType:         fw.MatchGeneralizedExact,
-					EntityAdaptations: adaptations,
-				})
-			}
+		for _, e := range entries {
+			add(e, 1.0, fw.MatchGeneralizedExact)
 		}
 	}
-
 	if modeEnabled[fw.MatchModeStructural] {
-		exactMatches, err := tm.queryExact("source_struct", structKey, sourceLocale, targetLocale)
+		entries, err := tm.queryExactVariant("struct_key", structKey, sourceLocale, opts)
 		if err != nil {
 			return nil, err
 		}
-		for _, entry := range exactMatches {
-			if !seen[entry.ID] {
-				seen[entry.ID] = true
-				matches = append(matches, fw.TMMatch{
-					Entry:     entry,
-					Score:     1.0,
-					MatchType: fw.MatchStructuralExact,
-				})
-			}
+		for _, e := range entries {
+			add(e, 1.0, fw.MatchStructuralExact)
 		}
 	}
-
 	if modeEnabled[fw.MatchModePlain] {
-		exactMatches, err := tm.queryExact("source_plain", plainKey, sourceLocale, targetLocale)
+		entries, err := tm.queryExactVariant("plain", plainKey, sourceLocale, opts)
 		if err != nil {
 			return nil, err
 		}
-		for _, entry := range exactMatches {
-			if !seen[entry.ID] {
-				seen[entry.ID] = true
-				matches = append(matches, fw.TMMatch{
-					Entry:     entry,
-					Score:     1.0,
-					MatchType: fw.MatchExact,
-				})
-			}
+		for _, e := range entries {
+			add(e, 1.0, fw.MatchExact)
 		}
 	}
 
@@ -326,55 +436,51 @@ func (tm *PostgresTM) tieredLookup(plainKey, structKey, generalKey string, entit
 		return fw.LimitResults(matches, opts.MaxResults), nil
 	}
 
-	// Fuzzy matching: trigram candidate retrieval + Levenshtein scoring.
-	allEntries, err := tm.queryFuzzyCandidates(plainKey, structKey, generalKey, sourceLocale, targetLocale)
+	candidates, err := tm.queryFuzzyCandidates(plainKey, structKey, generalKey, sourceLocale, opts)
 	if err != nil {
 		return nil, err
 	}
-
-	for _, entry := range allEntries {
+	for _, entry := range candidates {
 		if seen[entry.ID] {
 			continue
 		}
-
+		srcVariant := entry.Variant(sourceLocale)
+		if srcVariant == nil {
+			continue
+		}
 		var bestScore float64
 		var bestType fw.MatchType
-		var adaptations []fw.EntityAdaptation
-
 		if modeEnabled[fw.MatchModeGeneralized] {
-			score := fw.LevenshteinRatio(generalKey, fw.NormalizeText(entry.SourceGeneralized()))
-			if score >= opts.MinScore && score > bestScore {
-				bestScore = score
+			s := fw.LevenshteinRatio(generalKey, fw.NormalizeText(srcVariant.GeneralizedText()))
+			if s >= opts.MinScore && s > bestScore {
+				bestScore = s
 				bestType = fw.MatchGeneralizedFuzzy
-				adaptations = fw.ComputeEntityAdaptations(entry, entityAnnotations)
 			}
 		}
 		if modeEnabled[fw.MatchModeStructural] {
-			score := fw.LevenshteinRatio(structKey, fw.NormalizeText(entry.SourceStructural()))
-			if score >= opts.MinScore && score > bestScore {
-				bestScore = score
+			s := fw.LevenshteinRatio(structKey, fw.NormalizeText(srcVariant.StructuralText()))
+			if s >= opts.MinScore && s > bestScore {
+				bestScore = s
 				bestType = fw.MatchStructuralFuzzy
-				adaptations = nil
 			}
 		}
 		if modeEnabled[fw.MatchModePlain] {
-			score := fw.LevenshteinRatio(plainKey, fw.NormalizeText(entry.SourceText()))
-			if score >= opts.MinScore && score > bestScore {
-				bestScore = score
+			s := fw.LevenshteinRatio(plainKey, fw.NormalizeText(srcVariant.Text()))
+			if s >= opts.MinScore && s > bestScore {
+				bestScore = s
 				bestType = fw.MatchFuzzy
-				adaptations = nil
 			}
 		}
-
-		if bestScore >= opts.MinScore {
-			seen[entry.ID] = true
-			matches = append(matches, fw.TMMatch{
-				Entry:             entry,
-				Score:             bestScore,
-				MatchType:         bestType,
-				EntityAdaptations: adaptations,
-			})
+		if bestScore < opts.MinScore {
+			continue
 		}
+		if opts.ProjectID != "" && entry.ProjectID == opts.ProjectID && bestScore < 1.0 {
+			bestScore += 0.03
+			if bestScore > 1.0 {
+				bestScore = 1.0
+			}
+		}
+		add(entry, bestScore, bestType)
 	}
 
 	slices.SortFunc(matches, func(a, b fw.TMMatch) int {
@@ -385,429 +491,87 @@ func (tm *PostgresTM) tieredLookup(plainKey, structKey, generalKey string, entit
 		}
 		return cmp.Compare(b.Score, a.Score)
 	})
-
 	return fw.LimitResults(matches, opts.MaxResults), nil
 }
 
-func (tm *PostgresTM) queryExact(column, value string, sourceLocale, targetLocale model.LocaleID) ([]fw.TMEntry, error) {
-	query := fmt.Sprintf(`
-		SELECT id, source_coded, target_coded, source_locale, target_locale,
-			note, properties, created_at, updated_at
-		FROM tm_entries
-		WHERE workspace_id = $1 AND %s = $2 AND source_locale = $3 AND target_locale = $4
+func (tm *PostgresTM) queryExactVariant(column, key string, sourceLocale model.LocaleID, opts fw.LookupOptions) ([]fw.TMEntry, error) {
+	q := fmt.Sprintf(`
+		SELECT DISTINCT v.entry_id
+		FROM tm_variants v
+		INNER JOIN tm_entries e ON e.workspace_id = v.workspace_id AND e.id = v.entry_id
+		WHERE v.workspace_id = $1 AND v.%s = $2 AND v.locale = $3
 	`, column)
-
-	rows, err := tm.db.QueryContext(context.Background(), query, tm.workspaceID, value, string(sourceLocale), string(targetLocale))
+	args := []any{tm.workspaceID, key, string(sourceLocale)}
+	argN := 4
+	switch opts.ProjectScope {
+	case fw.ProjectScopeOnly:
+		q += fmt.Sprintf(" AND e.project_id = $%d", argN)
+		args = append(args, opts.ProjectID)
+	case fw.ProjectScopeExclude:
+		q += fmt.Sprintf(" AND e.project_id != $%d", argN)
+		args = append(args, opts.ProjectID)
+	}
+	q += " LIMIT 200"
+	rows, err := tm.db.QueryContext(context.Background(), q, args...)
 	if err != nil {
-		return nil, fmt.Errorf("query exact: %w", err)
+		return nil, fmt.Errorf("query exact variant: %w", err)
 	}
 	defer rows.Close()
-
-	return tm.scanTMEntries(rows)
-}
-
-// queryFuzzyCandidates uses pg_trgm indexes to retrieve a limited set of
-// candidate entries for Levenshtein scoring, replacing the previous full table scan.
-// Falls back to length-based pre-filtering if pg_trgm is unavailable.
-func (tm *PostgresTM) queryFuzzyCandidates(plainKey, structKey, generalKey string, sourceLocale, targetLocale model.LocaleID) ([]fw.TMEntry, error) {
-	entries, err := tm.queryTrigramCandidates(plainKey, structKey, generalKey, sourceLocale, targetLocale)
-	if err == nil {
-		return entries, nil
+	ids, err := scanStringColumn(rows)
+	if err != nil {
+		return nil, err
 	}
-
-	// Fallback: length-based pre-filtering.
-	return tm.queryLengthFiltered(plainKey, sourceLocale, targetLocale)
+	return tm.loadEntriesByIDs(ids)
 }
 
-func (tm *PostgresTM) queryTrigramCandidates(plainKey, structKey, generalKey string, sourceLocale, targetLocale model.LocaleID) ([]fw.TMEntry, error) {
-	// Use pg_trgm similarity operator (%) on all three key columns.
-	// Set a low threshold to maximize recall; final scoring is done in Go.
-	rows, err := tm.db.QueryContext(context.Background(), `
-		SELECT DISTINCT ON (id) id, source_coded, target_coded, source_locale, target_locale,
-			note, properties, created_at, updated_at
-		FROM tm_entries
-		WHERE workspace_id = $1
-			AND source_locale = $2 AND target_locale = $3
-			AND (source_plain % $4 OR source_struct % $5 OR source_general % $6)
+func (tm *PostgresTM) queryFuzzyCandidates(plainKey, structKey, generalKey string, sourceLocale model.LocaleID, _ fw.LookupOptions) ([]fw.TMEntry, error) {
+	q := `
+		SELECT DISTINCT entry_id FROM tm_variants
+		WHERE workspace_id = $1 AND locale = $2
+			AND (plain % $3 OR struct_key % $4 OR general_key % $5)
 		LIMIT 200
-	`, tm.workspaceID, string(sourceLocale), string(targetLocale),
-		plainKey, structKey, generalKey)
+	`
+	rows, err := tm.db.QueryContext(context.Background(), q,
+		tm.workspaceID, string(sourceLocale), plainKey, structKey, generalKey)
 	if err != nil {
-		return nil, fmt.Errorf("trigram query: %w", err)
+		return tm.queryLengthFiltered(plainKey, sourceLocale)
 	}
 	defer rows.Close()
-
-	return tm.scanTMEntries(rows)
+	ids, err := scanStringColumn(rows)
+	if err != nil {
+		return nil, err
+	}
+	return tm.loadEntriesByIDs(ids)
 }
 
-func (tm *PostgresTM) queryLengthFiltered(plainKey string, sourceLocale, targetLocale model.LocaleID) ([]fw.TMEntry, error) {
+func (tm *PostgresTM) queryLengthFiltered(plainKey string, sourceLocale model.LocaleID) ([]fw.TMEntry, error) {
 	keyLen := len([]rune(plainKey))
 	minLen := int(float64(keyLen) * 0.7)
 	maxLen := int(float64(keyLen) * 1.3)
 	if minLen < 0 {
 		minLen = 0
 	}
-
 	rows, err := tm.db.QueryContext(context.Background(), `
-		SELECT id, source_coded, target_coded, source_locale, target_locale,
-			note, properties, created_at, updated_at
-		FROM tm_entries
-		WHERE workspace_id = $1 AND source_locale = $2 AND target_locale = $3
-			AND LENGTH(source_plain) BETWEEN $4 AND $5
+		SELECT DISTINCT entry_id FROM tm_variants
+		WHERE workspace_id = $1 AND locale = $2 AND CHAR_LENGTH(plain) BETWEEN $3 AND $4
 		LIMIT 500
-	`, tm.workspaceID, string(sourceLocale), string(targetLocale), minLen, maxLen)
+	`, tm.workspaceID, string(sourceLocale), minLen, maxLen)
 	if err != nil {
 		return nil, fmt.Errorf("length-filtered query: %w", err)
 	}
 	defer rows.Close()
-
-	return tm.scanTMEntries(rows)
-}
-
-// Delete removes an entry by ID.
-func (tm *PostgresTM) Delete(id string) error {
-	result, err := tm.db.ExecContext(context.Background(), "DELETE FROM tm_entries WHERE workspace_id = $1 AND id = $2", tm.workspaceID, id)
+	ids, err := scanStringColumn(rows)
 	if err != nil {
-		return fmt.Errorf("delete entry: %w", err)
+		return nil, err
 	}
-	rows, err := result.RowsAffected()
-	if err != nil {
-		return fmt.Errorf("rows affected: %w", err)
-	}
-	if rows == 0 {
-		return fmt.Errorf("entry not found: %s", id)
-	}
-	return nil
+	return tm.loadEntriesByIDs(ids)
 }
 
-// Count returns the total number of entries for this workspace.
-func (tm *PostgresTM) Count() int {
-	var count int
-	if err := tm.db.QueryRowContext(context.Background(), "SELECT COUNT(*) FROM tm_entries WHERE workspace_id = $1", tm.workspaceID).Scan(&count); err != nil {
-		slog.Warn("TM count query failed", "workspace", tm.workspaceID, "error", err)
-		return 0
-	}
-	return count
-}
-
-// Close is a no-op for PostgresTM since the connection is shared.
-func (tm *PostgresTM) Close() error {
-	return nil
-}
-
-// SearchEntries performs a ranked full-text search using tsvector with BM25-like ranking.
-// Falls back to LIKE-based substring search if tsvector column is unavailable.
-func (tm *PostgresTM) SearchEntries(query, sourceLocale, targetLocale string, offset, limit int) ([]fw.TMEntry, int) {
-	if query != "" {
-		entries, total, err := tm.searchTSVector(query, sourceLocale, targetLocale, offset, limit)
-		if err == nil {
-			return entries, total
-		}
-	}
-	return tm.pgSearchLike(query, sourceLocale, targetLocale, offset, limit)
-}
-
-func (tm *PostgresTM) searchTSVector(query, sourceLocale, targetLocale string, offset, limit int) ([]fw.TMEntry, int, error) {
-	where := "workspace_id = $1 AND search_tsv @@ plainto_tsquery('simple', $2)"
-	args := []any{tm.workspaceID, query}
-	argN := 3
-
-	if sourceLocale != "" {
-		where += fmt.Sprintf(" AND source_locale = $%d", argN)
-		args = append(args, sourceLocale)
-		argN++
-	}
-	if targetLocale != "" {
-		where += fmt.Sprintf(" AND target_locale = $%d", argN)
-		args = append(args, targetLocale)
-		argN++
-	}
-
-	var total int
-	countArgs := make([]any, len(args))
-	copy(countArgs, args)
-	if err := tm.db.QueryRowContext(context.Background(), "SELECT COUNT(*) FROM tm_entries WHERE "+where, countArgs...).Scan(&total); err != nil {
-		return nil, 0, err
-	}
-
-	q := fmt.Sprintf(`SELECT id, source_coded, target_coded, source_locale, target_locale,
-		note, properties, created_at, updated_at
-		FROM tm_entries WHERE %s
-		ORDER BY ts_rank(search_tsv, plainto_tsquery('simple', $2)) DESC
-		LIMIT $%d OFFSET $%d`, where, argN, argN+1)
-	args = append(args, limit, offset)
-	rows, err := tm.db.QueryContext(context.Background(), q, args...)
-	if err != nil {
-		return nil, 0, err
-	}
-	defer rows.Close()
-
-	entries, err := tm.scanTMEntries(rows)
-	return entries, total, err
-}
-
-func (tm *PostgresTM) pgSearchLike(query, sourceLocale, targetLocale string, offset, limit int) ([]fw.TMEntry, int) {
-	where := "workspace_id = $1"
-	args := []any{tm.workspaceID}
-	argN := 2
-
-	if query != "" {
-		where += fmt.Sprintf(" AND (LOWER(source_plain) LIKE $%d OR LOWER(target_coded) LIKE $%d)", argN, argN+1)
-		pattern := "%" + strings.ToLower(query) + "%"
-		args = append(args, pattern, pattern)
-		argN += 2
-	}
-	if sourceLocale != "" {
-		where += fmt.Sprintf(" AND source_locale = $%d", argN)
-		args = append(args, sourceLocale)
-		argN++
-	}
-	if targetLocale != "" {
-		where += fmt.Sprintf(" AND target_locale = $%d", argN)
-		args = append(args, targetLocale)
-		argN++
-	}
-
-	var total int
-	countArgs := make([]any, len(args))
-	copy(countArgs, args)
-	_ = tm.db.QueryRowContext(context.Background(), "SELECT COUNT(*) FROM tm_entries WHERE "+where, countArgs...).Scan(&total)
-
-	q := fmt.Sprintf(`SELECT id, source_coded, target_coded, source_locale, target_locale,
-		note, properties, created_at, updated_at
-		FROM tm_entries WHERE %s ORDER BY updated_at DESC LIMIT $%d OFFSET $%d`, where, argN, argN+1)
-	args = append(args, limit, offset)
-	rows, err := tm.db.QueryContext(context.Background(), q, args...)
-	if err != nil {
-		return nil, total
-	}
-	defer rows.Close()
-
-	entries, _ := tm.scanTMEntries(rows)
-	return entries, total
-}
-
-// SearchEntriesForStream performs a ranked full-text search with stream
-// inheritance. Uses tsvector when a query is provided, falls back to LIKE.
-// The streamChain is an ordered list of ancestor streams to search.
-// Entries from earlier streams in the chain take priority.
-func (tm *PostgresTM) SearchEntriesForStream(query, sourceLocale, targetLocale, stream string, streamChain []string, offset, limit int) ([]fw.TMEntry, int) {
-	if query != "" {
-		entries, total, err := tm.searchTSVectorForStream(query, sourceLocale, targetLocale, stream, streamChain, offset, limit)
-		if err == nil {
-			return entries, total
-		}
-	}
-	return tm.pgSearchLikeForStream(query, sourceLocale, targetLocale, stream, streamChain, offset, limit)
-}
-
-func (tm *PostgresTM) searchTSVectorForStream(query, sourceLocale, targetLocale, stream string, streamChain []string, offset, limit int) ([]fw.TMEntry, int, error) {
-	streams := []string{stream}
-	streams = append(streams, streamChain...)
-
-	where := "workspace_id = $1 AND search_tsv @@ plainto_tsquery('simple', $2)"
-	args := []any{tm.workspaceID, query}
-	argN := 3
-
-	// Stream filter.
-	placeholders := make([]string, len(streams))
-	for i, s := range streams {
-		placeholders[i] = fmt.Sprintf("$%d", argN)
-		args = append(args, s)
-		argN++
-	}
-	where += " AND stream IN (" + strings.Join(placeholders, ",") + ")"
-
-	if sourceLocale != "" {
-		where += fmt.Sprintf(" AND source_locale = $%d", argN)
-		args = append(args, sourceLocale)
-		argN++
-	}
-	if targetLocale != "" {
-		where += fmt.Sprintf(" AND target_locale = $%d", argN)
-		args = append(args, targetLocale)
-		argN++
-	}
-
-	var total int
-	countArgs := make([]any, len(args))
-	copy(countArgs, args)
-	if err := tm.db.QueryRowContext(context.Background(), "SELECT COUNT(*) FROM tm_entries WHERE "+where, countArgs...).Scan(&total); err != nil {
-		return nil, 0, err
-	}
-
-	// Build CASE expression for stream priority ordering.
-	var caseExpr strings.Builder
-	caseExpr.WriteString("CASE stream")
-	for i, s := range streams {
-		caseExpr.WriteString(fmt.Sprintf(" WHEN $%d THEN %d", argN, i))
-		args = append(args, s)
-		argN++
-	}
-	caseExpr.WriteString(fmt.Sprintf(" ELSE %d END", len(streams)))
-
-	q := fmt.Sprintf(`SELECT id, source_coded, target_coded, source_locale, target_locale,
-		note, properties, created_at, updated_at
-		FROM tm_entries WHERE %s
-		ORDER BY %s, ts_rank(search_tsv, plainto_tsquery('simple', $2)) DESC
-		LIMIT $%d OFFSET $%d`, where, caseExpr.String(), argN, argN+1)
-	args = append(args, limit, offset)
-	rows, err := tm.db.QueryContext(context.Background(), q, args...)
-	if err != nil {
-		return nil, 0, err
-	}
-	defer rows.Close()
-
-	entries, err := tm.scanTMEntries(rows)
-	return entries, total, err
-}
-
-func (tm *PostgresTM) pgSearchLikeForStream(query, sourceLocale, targetLocale, stream string, streamChain []string, offset, limit int) ([]fw.TMEntry, int) {
-	streams := []string{stream}
-	streams = append(streams, streamChain...)
-
-	where := "workspace_id = $1"
-	args := []any{tm.workspaceID}
-	argN := 2
-
-	// Stream filter.
-	placeholders := make([]string, len(streams))
-	for i, s := range streams {
-		placeholders[i] = fmt.Sprintf("$%d", argN)
-		args = append(args, s)
-		argN++
-	}
-	where += " AND stream IN (" + strings.Join(placeholders, ",") + ")"
-
-	if query != "" {
-		where += fmt.Sprintf(" AND (LOWER(source_plain) LIKE $%d OR LOWER(target_coded) LIKE $%d)", argN, argN+1)
-		pattern := "%" + strings.ToLower(query) + "%"
-		args = append(args, pattern, pattern)
-		argN += 2
-	}
-	if sourceLocale != "" {
-		where += fmt.Sprintf(" AND source_locale = $%d", argN)
-		args = append(args, sourceLocale)
-		argN++
-	}
-	if targetLocale != "" {
-		where += fmt.Sprintf(" AND target_locale = $%d", argN)
-		args = append(args, targetLocale)
-		argN++
-	}
-
-	var total int
-	countArgs := make([]any, len(args))
-	copy(countArgs, args)
-	_ = tm.db.QueryRowContext(context.Background(), "SELECT COUNT(*) FROM tm_entries WHERE "+where, countArgs...).Scan(&total)
-
-	// Build CASE expression for stream priority ordering.
-	var caseExpr strings.Builder
-	caseExpr.WriteString("CASE stream")
-	for i, s := range streams {
-		caseExpr.WriteString(fmt.Sprintf(" WHEN $%d THEN %d", argN, i))
-		args = append(args, s)
-		argN++
-	}
-	caseExpr.WriteString(fmt.Sprintf(" ELSE %d END", len(streams)))
-
-	q := fmt.Sprintf(`SELECT id, source_coded, target_coded, source_locale, target_locale,
-		note, properties, created_at, updated_at
-		FROM tm_entries WHERE %s ORDER BY %s, updated_at DESC LIMIT $%d OFFSET $%d`, where, caseExpr.String(), argN, argN+1)
-	args = append(args, limit, offset)
-	rows, err := tm.db.QueryContext(context.Background(), q, args...)
-	if err != nil {
-		return nil, total
-	}
-	defer rows.Close()
-
-	entries, _ := tm.scanTMEntries(rows)
-	return entries, total
-}
-
-// SearchEntriesGrouped returns entries grouped by source text.
-// This is a stub implementation for PostgresTM — full implementation is pending.
-func (tm *PostgresTM) SearchEntriesGrouped(query, sourceLocale string, offset, limit int) ([]fw.TMEntryGroup, int) {
-	// Use flat search and group in Go.
-	entries, total := tm.SearchEntries(query, sourceLocale, "", offset*limit, limit*10)
-	if len(entries) == 0 {
-		return nil, 0
-	}
-
-	type groupInfo struct {
-		entries []fw.TMEntry
-	}
-	groups := make(map[string]*groupInfo)
-	var groupOrder []string
-	for _, e := range entries {
-		key := fw.NormalizeText(e.SourceText())
-		g, ok := groups[key]
-		if !ok {
-			g = &groupInfo{}
-			groups[key] = g
-			groupOrder = append(groupOrder, key)
-		}
-		g.entries = append(g.entries, e)
-	}
-
-	totalGroups := len(groupOrder)
-	if offset >= totalGroups {
-		return nil, total
-	}
-	end := offset + limit
-	if end > totalGroups {
-		end = totalGroups
-	}
-
-	var result []fw.TMEntryGroup
-	for _, key := range groupOrder[offset:end] {
-		g := groups[key]
-		first := g.entries[0]
-		result = append(result, fw.TMEntryGroup{
-			SourceText:   key,
-			Source:       first.Source,
-			SourceLocale: first.SourceLocale,
-			Targets:      g.entries,
-		})
-	}
-	return result, totalGroups
-}
-
-// SearchEntriesFiltered delegates to the unfiltered SearchEntries (filters not yet implemented for PostgresTM).
-func (tm *PostgresTM) SearchEntriesFiltered(query, sourceLocale, targetLocale string, _ fw.SearchFilter, offset, limit int) ([]fw.TMEntry, int) {
-	return tm.SearchEntries(query, sourceLocale, targetLocale, offset, limit)
-}
-
-// SearchEntriesGroupedFiltered delegates to the unfiltered SearchEntriesGrouped (filters not yet implemented for PostgresTM).
-func (tm *PostgresTM) SearchEntriesGroupedFiltered(query, sourceLocale string, _ fw.SearchFilter, offset, limit int) ([]fw.TMEntryGroup, int) {
-	return tm.SearchEntriesGrouped(query, sourceLocale, offset, limit)
-}
-
-// FacetStats returns aggregated facet data for filtering UI.
-// This is a stub implementation for PostgresTM — full implementation is pending.
-func (tm *PostgresTM) FacetStats() fw.FacetData {
-	return fw.FacetData{}
-}
-
-// FacetStatsFiltered returns facet counts scoped to the given query/filter.
-// This is a stub implementation for PostgresTM — full implementation is pending.
-func (tm *PostgresTM) FacetStatsFiltered(query, sourceLocale, targetLocale string, filter fw.SearchFilter) fw.FacetData {
-	return fw.FacetData{}
-}
+// --- entry loading ---
 
 // GetEntry fetches a single entry by ID.
 func (tm *PostgresTM) GetEntry(id string) (fw.TMEntry, bool) {
-	rows, err := tm.db.QueryContext(context.Background(), `
-		SELECT id, source_coded, target_coded, source_locale, target_locale,
-			note, properties, created_at, updated_at
-		FROM tm_entries WHERE workspace_id = $1 AND id = $2
-	`, tm.workspaceID, id)
-	if err != nil {
-		return fw.TMEntry{}, false
-	}
-	defer rows.Close()
-
-	entries, err := tm.scanTMEntries(rows)
+	entries, err := tm.loadEntriesByIDs([]string{id})
 	if err != nil || len(entries) == 0 {
 		return fw.TMEntry{}, false
 	}
@@ -816,137 +580,681 @@ func (tm *PostgresTM) GetEntry(id string) (fw.TMEntry, bool) {
 
 // Entries returns all entries for this workspace.
 func (tm *PostgresTM) Entries() []fw.TMEntry {
+	rows, err := tm.db.QueryContext(context.Background(),
+		"SELECT id FROM tm_entries WHERE workspace_id = $1 ORDER BY id",
+		tm.workspaceID)
+	if err != nil {
+		return nil
+	}
+	defer rows.Close()
+	ids, err := scanStringColumn(rows)
+	if err != nil {
+		return nil
+	}
+	entries, err := tm.loadEntriesByIDs(ids)
+	if err != nil {
+		return nil
+	}
+	return entries
+}
+
+func (tm *PostgresTM) loadEntriesByIDs(ids []string) ([]fw.TMEntry, error) {
+	if len(ids) == 0 {
+		return nil, nil
+	}
+	ctx := context.Background()
+
+	// Build placeholders $2..$N for IDs; $1 is workspace.
+	placeholders := make([]string, len(ids))
+	args := make([]any, 0, len(ids)+1)
+	args = append(args, tm.workspaceID)
+	for i, id := range ids {
+		placeholders[i] = fmt.Sprintf("$%d", i+2)
+		args = append(args, id)
+	}
+	inClause := strings.Join(placeholders, ",")
+
+	entryQ := `SELECT id, project_id, hint_src_lang, properties::text, note, created_at, updated_at
+		FROM tm_entries WHERE workspace_id = $1 AND id IN (` + inClause + `)`
+	rows, err := tm.db.QueryContext(ctx, entryQ, args...)
+	if err != nil {
+		return nil, fmt.Errorf("load entries: %w", err)
+	}
+	defer rows.Close()
+
+	var entries []fw.TMEntry
+	for rows.Next() {
+		var e fw.TMEntry
+		var hint, propsJSON, note string
+		var createdAt, updatedAt time.Time
+		if err := rows.Scan(&e.ID, &e.ProjectID, &hint, &propsJSON, &note, &createdAt, &updatedAt); err != nil {
+			return nil, fmt.Errorf("scan entry: %w", err)
+		}
+		e.HintSrcLang = model.LocaleID(hint)
+		e.Note = note
+		e.CreatedAt = createdAt
+		e.UpdatedAt = updatedAt
+		if propsJSON != "" && propsJSON != "{}" {
+			_ = json.Unmarshal([]byte(propsJSON), &e.Properties)
+		}
+		e.Variants = make(map[model.LocaleID]*model.Fragment)
+		entries = append(entries, e)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	if len(entries) == 0 {
+		return nil, nil
+	}
+
+	byID := make(map[string]int, len(entries))
+	for i, e := range entries {
+		byID[e.ID] = i
+	}
+
+	// Variants.
+	varRows, err := tm.db.QueryContext(ctx,
+		`SELECT entry_id, locale, coded FROM tm_variants
+		 WHERE workspace_id = $1 AND entry_id IN (`+inClause+`) ORDER BY entry_id, locale`,
+		args...)
+	if err == nil {
+		for varRows.Next() {
+			var eid, loc, coded string
+			if err := varRows.Scan(&eid, &loc, &coded); err != nil {
+				continue
+			}
+			frag := &model.Fragment{}
+			if err := json.Unmarshal([]byte(coded), frag); err == nil {
+				if idx, ok := byID[eid]; ok {
+					entries[idx].Variants[model.LocaleID(loc)] = frag
+				}
+			}
+		}
+		varRows.Close()
+	}
+
+	// Entities joined with values.
+	entRows, err := tm.db.QueryContext(ctx, `
+		SELECT e.entry_id, e.placeholder_id, e.entity_type,
+			v.locale, v.text_value, v.start_pos, v.end_pos
+		FROM tm_entry_entities e
+		LEFT JOIN tm_entry_entity_values v
+			ON v.workspace_id = e.workspace_id AND v.entry_id = e.entry_id
+			AND v.placeholder_id = e.placeholder_id
+		WHERE e.workspace_id = $1 AND e.entry_id IN (`+inClause+`)
+		ORDER BY e.entry_id, e.placeholder_id, v.locale
+	`, args...)
+	if err == nil {
+		type entKey struct {
+			entryIdx int
+			pid      string
+		}
+		entIdx := make(map[entKey]int)
+		for entRows.Next() {
+			var eid, pid, etype string
+			var loc, textVal sql.NullString
+			var startPos, endPos sql.NullInt64
+			if err := entRows.Scan(&eid, &pid, &etype, &loc, &textVal, &startPos, &endPos); err != nil {
+				continue
+			}
+			idx, ok := byID[eid]
+			if !ok {
+				continue
+			}
+			key := entKey{idx, pid}
+			emIdx, exists := entIdx[key]
+			if !exists {
+				entries[idx].Entities = append(entries[idx].Entities, fw.EntityMapping{
+					PlaceholderID: pid,
+					Type:          model.EntityType(etype),
+					Values:        make(map[model.LocaleID]fw.EntityValue),
+				})
+				emIdx = len(entries[idx].Entities) - 1
+				entIdx[key] = emIdx
+			}
+			if loc.Valid && loc.String != "" {
+				entries[idx].Entities[emIdx].Values[model.LocaleID(loc.String)] = fw.EntityValue{
+					Text:  textVal.String,
+					Start: int(startPos.Int64),
+					End:   int(endPos.Int64),
+				}
+			}
+		}
+		entRows.Close()
+	}
+
+	// Origins.
+	originRows, err := tm.db.QueryContext(ctx, `
+		SELECT entry_id, source, key, reference, added_at, added_by, session_id
+		FROM tm_entry_origins WHERE workspace_id = $1 AND entry_id IN (`+inClause+`)
+		ORDER BY entry_id, ordinal
+	`, args...)
+	if err == nil {
+		for originRows.Next() {
+			var eid string
+			var o fw.Origin
+			if err := originRows.Scan(&eid, &o.Source, &o.Key, &o.Reference, &o.AddedAt, &o.AddedBy, &o.SessionID); err != nil {
+				continue
+			}
+			if idx, ok := byID[eid]; ok {
+				entries[idx].Origins = append(entries[idx].Origins, o)
+			}
+		}
+		originRows.Close()
+	}
+
+	return entries, nil
+}
+
+func scanStringColumn(rows *sql.Rows) ([]string, error) {
+	var out []string
+	for rows.Next() {
+		var s string
+		if err := rows.Scan(&s); err != nil {
+			return nil, err
+		}
+		out = append(out, s)
+	}
+	return out, rows.Err()
+}
+
+// --- search ---
+
+// SearchEntries performs a ranked full-text search across variant text.
+func (tm *PostgresTM) SearchEntries(query, anyLocale, requireLocale string, offset, limit int) ([]fw.TMEntry, int) {
+	return tm.SearchEntriesFiltered(query, anyLocale, requireLocale, fw.SearchFilter{}, offset, limit)
+}
+
+// SearchEntriesFiltered applies additional facet filters.
+func (tm *PostgresTM) SearchEntriesFiltered(query, anyLocale, requireLocale string, filter fw.SearchFilter, offset, limit int) ([]fw.TMEntry, int) {
+	return tm.searchInternal(query, anyLocale, requireLocale, "", nil, filter, offset, limit)
+}
+
+// SearchEntriesForStream performs a search with stream inheritance.
+func (tm *PostgresTM) SearchEntriesForStream(query, anyLocale, requireLocale, stream string, streamChain []string, offset, limit int) ([]fw.TMEntry, int) {
+	return tm.searchInternal(query, anyLocale, requireLocale, stream, streamChain, fw.SearchFilter{}, offset, limit)
+}
+
+func (tm *PostgresTM) searchInternal(query, anyLocale, requireLocale, stream string, streamChain []string, filter fw.SearchFilter, offset, limit int) ([]fw.TMEntry, int) {
+	ctx := context.Background()
+	args := []any{tm.workspaceID}
+	argN := 2
+	clauses := []string{"e.workspace_id = $1"}
+
+	if query != "" {
+		// Variant text search via tsvector.
+		sub := fmt.Sprintf(`e.id IN (
+			SELECT entry_id FROM tm_variants
+			WHERE workspace_id = $1 AND search_tsv @@ plainto_tsquery('simple', $%d)`, argN)
+		args = append(args, query)
+		argN++
+		if anyLocale != "" {
+			sub += fmt.Sprintf(" AND locale = $%d", argN)
+			args = append(args, anyLocale)
+			argN++
+		}
+		sub += ")"
+		clauses = append(clauses, sub)
+	} else if anyLocale != "" {
+		clauses = append(clauses, fmt.Sprintf(
+			"e.id IN (SELECT entry_id FROM tm_variants WHERE workspace_id = $1 AND locale = $%d)", argN))
+		args = append(args, anyLocale)
+		argN++
+	}
+
+	if requireLocale != "" {
+		clauses = append(clauses, fmt.Sprintf(
+			"e.id IN (SELECT entry_id FROM tm_variants WHERE workspace_id = $1 AND locale = $%d)", argN))
+		args = append(args, requireLocale)
+		argN++
+	}
+
+	// Stream inheritance.
+	var streamCase string
+	var streamCaseArgs []any
+	if stream != "" || len(streamChain) > 0 {
+		streams := append([]string{stream}, streamChain...)
+		placeholders := make([]string, len(streams))
+		for i, s := range streams {
+			placeholders[i] = fmt.Sprintf("$%d", argN)
+			args = append(args, s)
+			argN++
+		}
+		clauses = append(clauses, "e.stream IN ("+strings.Join(placeholders, ",")+")")
+
+		var b strings.Builder
+		b.WriteString("CASE e.stream")
+		for i, s := range streams {
+			fmt.Fprintf(&b, " WHEN $%d THEN %d", argN, i)
+			streamCaseArgs = append(streamCaseArgs, s)
+			argN++
+		}
+		fmt.Fprintf(&b, " ELSE %d END", len(streams))
+		streamCase = b.String()
+	}
+
+	// Filters.
+	filterClause, filterArgs, nextArgN := pgFilterWhere(filter, argN)
+	if filterClause != "" {
+		clauses = append(clauses, strings.TrimPrefix(filterClause, " AND "))
+		args = append(args, filterArgs...)
+		argN = nextArgN
+	}
+	_ = argN
+
+	where := strings.Join(clauses, " AND ")
+
+	// Count.
+	countArgs := append([]any{}, args...)
+	var total int
+	if err := tm.db.QueryRowContext(ctx,
+		"SELECT COUNT(*) FROM tm_entries e WHERE "+where,
+		countArgs...).Scan(&total); err != nil {
+		return nil, 0
+	}
+	if total == 0 {
+		return nil, 0
+	}
+
+	orderBy := "e.updated_at DESC"
+	if streamCase != "" {
+		orderBy = streamCase + ", " + orderBy
+	}
+
+	pageArgs := append([]any{}, args...)
+	pageArgs = append(pageArgs, streamCaseArgs...)
+	limitN := argN
+	pageArgs = append(pageArgs, limit)
+	offsetN := argN + 1
+	pageArgs = append(pageArgs, offset)
+
+	q := fmt.Sprintf("SELECT e.id FROM tm_entries e WHERE %s ORDER BY %s LIMIT $%d OFFSET $%d",
+		where, orderBy, limitN, offsetN)
+	rows, err := tm.db.QueryContext(ctx, q, pageArgs...)
+	if err != nil {
+		return nil, total
+	}
+	defer rows.Close()
+	ids, err := scanStringColumn(rows)
+	if err != nil {
+		return nil, total
+	}
+	entries, err := tm.loadEntriesByIDs(ids)
+	if err != nil {
+		return nil, total
+	}
+	return orderByIDs(entries, ids), total
+}
+
+func orderByIDs(entries []fw.TMEntry, ids []string) []fw.TMEntry {
+	if len(entries) == 0 {
+		return entries
+	}
+	byID := make(map[string]int, len(entries))
+	for i, e := range entries {
+		byID[e.ID] = i
+	}
+	out := make([]fw.TMEntry, 0, len(ids))
+	for _, id := range ids {
+		if idx, ok := byID[id]; ok {
+			out = append(out, entries[idx])
+		}
+	}
+	return out
+}
+
+func pgFilterWhere(filter fw.SearchFilter, startN int) (string, []any, int) {
+	var args []any
+	var clauses []string
+	argN := startN
+	if filter.ProjectID != "" {
+		clauses = append(clauses, fmt.Sprintf("e.project_id = $%d", argN))
+		args = append(args, filter.ProjectID)
+		argN++
+	}
+	if len(filter.SessionIDs) > 0 {
+		placeholders := make([]string, len(filter.SessionIDs))
+		for i, sid := range filter.SessionIDs {
+			placeholders[i] = fmt.Sprintf("$%d", argN)
+			args = append(args, sid)
+			argN++
+		}
+		clauses = append(clauses,
+			"e.id IN (SELECT entry_id FROM tm_entry_origins WHERE workspace_id = $1 AND session_id IN ("+strings.Join(placeholders, ",")+"))")
+	}
+	if len(filter.EntityTypes) > 0 {
+		placeholders := make([]string, len(filter.EntityTypes))
+		for i, et := range filter.EntityTypes {
+			placeholders[i] = fmt.Sprintf("$%d", argN)
+			args = append(args, et)
+			argN++
+		}
+		clauses = append(clauses,
+			"e.id IN (SELECT entry_id FROM tm_entry_entities WHERE workspace_id = $1 AND entity_type IN ("+strings.Join(placeholders, ",")+"))")
+	}
+	if len(filter.EntityValues) > 0 {
+		pairs := make([]string, len(filter.EntityValues))
+		for i, ev := range filter.EntityValues {
+			pairs[i] = fmt.Sprintf("(v.text_value = $%d AND ee.entity_type = $%d)", argN, argN+1)
+			args = append(args, ev.Value, ev.Type)
+			argN += 2
+		}
+		clauses = append(clauses,
+			"e.id IN (SELECT v.entry_id FROM tm_entry_entity_values v "+
+				"INNER JOIN tm_entry_entities ee ON ee.workspace_id = v.workspace_id AND ee.entry_id = v.entry_id AND ee.placeholder_id = v.placeholder_id "+
+				"WHERE v.workspace_id = $1 AND ("+strings.Join(pairs, " OR ")+"))")
+	}
+	if filter.HasCodes != nil {
+		if *filter.HasCodes {
+			clauses = append(clauses,
+				"e.id IN (SELECT entry_id FROM tm_variants WHERE workspace_id = $1 AND (POSITION(E'\\ue001' IN coded) > 0 OR POSITION(E'\\ue002' IN coded) > 0 OR POSITION(E'\\ue003' IN coded) > 0))")
+		} else {
+			clauses = append(clauses,
+				"e.id NOT IN (SELECT entry_id FROM tm_variants WHERE workspace_id = $1 AND (POSITION(E'\\ue001' IN coded) > 0 OR POSITION(E'\\ue002' IN coded) > 0 OR POSITION(E'\\ue003' IN coded) > 0))")
+		}
+	}
+	if len(clauses) == 0 {
+		return "", nil, argN
+	}
+	return " AND " + strings.Join(clauses, " AND "), args, argN
+}
+
+// --- facets ---
+
+// FacetStats returns aggregated facet data across the workspace.
+func (tm *PostgresTM) FacetStats() fw.FacetData {
+	return tm.FacetStatsFiltered("", "", "", fw.SearchFilter{})
+}
+
+// FacetStatsFiltered returns facet counts scoped to matching entries.
+func (tm *PostgresTM) FacetStatsFiltered(query, anyLocale, requireLocale string, filter fw.SearchFilter) fw.FacetData {
+	ctx := context.Background()
+	where, args := tm.buildFacetSubquery(query, anyLocale, requireLocale, filter)
+
+	data := fw.FacetData{}
+
+	localeQ := `SELECT v.locale, COUNT(DISTINCT v.entry_id)
+		FROM tm_variants v
+		INNER JOIN tm_entries e ON e.workspace_id = v.workspace_id AND e.id = v.entry_id
+		WHERE ` + where + `
+		GROUP BY v.locale ORDER BY COUNT(DISTINCT v.entry_id) DESC`
+	if rows, err := tm.db.QueryContext(ctx, localeQ, args...); err == nil {
+		for rows.Next() {
+			var lf fw.LocaleFacet
+			if err := rows.Scan(&lf.Locale, &lf.Count); err == nil {
+				data.Locales = append(data.Locales, lf)
+			}
+		}
+		rows.Close()
+	}
+
+	projQ := `SELECT e.project_id, COUNT(*) FROM tm_entries e WHERE ` + where + ` GROUP BY e.project_id ORDER BY COUNT(*) DESC`
+	if rows, err := tm.db.QueryContext(ctx, projQ, args...); err == nil {
+		for rows.Next() {
+			var pf fw.ProjectFacet
+			if err := rows.Scan(&pf.ProjectID, &pf.Count); err == nil {
+				data.Projects = append(data.Projects, pf)
+			}
+		}
+		rows.Close()
+	}
+
+	etQ := `SELECT ent.entity_type, COUNT(DISTINCT ent.entry_id)
+		FROM tm_entry_entities ent
+		INNER JOIN tm_entries e ON e.workspace_id = ent.workspace_id AND e.id = ent.entry_id
+		WHERE ` + where + `
+		GROUP BY ent.entity_type ORDER BY COUNT(DISTINCT ent.entry_id) DESC`
+	if rows, err := tm.db.QueryContext(ctx, etQ, args...); err == nil {
+		for rows.Next() {
+			var ef fw.EntityTypeFacet
+			if err := rows.Scan(&ef.Type, &ef.Count); err == nil {
+				data.EntityTypes = append(data.EntityTypes, ef)
+			}
+		}
+		rows.Close()
+	}
+
+	sessQ := `SELECT s.id, s.file_key, s.tool_name, s.imported_at, COUNT(DISTINCT o.entry_id)
+		FROM tm_import_sessions s
+		INNER JOIN tm_entry_origins o ON o.workspace_id = s.workspace_id AND o.session_id = s.id
+		INNER JOIN tm_entries e ON e.workspace_id = o.workspace_id AND e.id = o.entry_id
+		WHERE ` + where + `
+		GROUP BY s.id, s.file_key, s.tool_name, s.imported_at
+		ORDER BY COUNT(DISTINCT o.entry_id) DESC`
+	if rows, err := tm.db.QueryContext(ctx, sessQ, args...); err == nil {
+		for rows.Next() {
+			var sf fw.ImportSessionFacet
+			if err := rows.Scan(&sf.SessionID, &sf.FileKey, &sf.ToolName, &sf.ImportedAt, &sf.Count); err == nil {
+				data.ImportSessions = append(data.ImportSessions, sf)
+			}
+		}
+		rows.Close()
+	}
+
+	codeQ := `SELECT
+		COUNT(DISTINCT CASE WHEN EXISTS (
+			SELECT 1 FROM tm_variants v
+			WHERE v.workspace_id = e.workspace_id AND v.entry_id = e.id
+			AND (POSITION(E'\ue001' IN v.coded) > 0 OR POSITION(E'\ue002' IN v.coded) > 0 OR POSITION(E'\ue003' IN v.coded) > 0)
+		) THEN e.id END),
+		COUNT(DISTINCT CASE WHEN NOT EXISTS (
+			SELECT 1 FROM tm_variants v
+			WHERE v.workspace_id = e.workspace_id AND v.entry_id = e.id
+			AND (POSITION(E'\ue001' IN v.coded) > 0 OR POSITION(E'\ue002' IN v.coded) > 0 OR POSITION(E'\ue003' IN v.coded) > 0)
+		) THEN e.id END)
+		FROM tm_entries e WHERE ` + where
+	_ = tm.db.QueryRowContext(ctx, codeQ, args...).Scan(&data.HasCodes, &data.NoCodes)
+
+	return data
+}
+
+func (tm *PostgresTM) buildFacetSubquery(query, anyLocale, requireLocale string, filter fw.SearchFilter) (string, []any) {
+	args := []any{tm.workspaceID}
+	argN := 2
+	clauses := []string{"e.workspace_id = $1"}
+
+	if query != "" {
+		sub := fmt.Sprintf(`e.id IN (
+			SELECT entry_id FROM tm_variants
+			WHERE workspace_id = $1 AND search_tsv @@ plainto_tsquery('simple', $%d)`, argN)
+		args = append(args, query)
+		argN++
+		if anyLocale != "" {
+			sub += fmt.Sprintf(" AND locale = $%d", argN)
+			args = append(args, anyLocale)
+			argN++
+		}
+		sub += ")"
+		clauses = append(clauses, sub)
+	} else if anyLocale != "" {
+		clauses = append(clauses, fmt.Sprintf(
+			"e.id IN (SELECT entry_id FROM tm_variants WHERE workspace_id = $1 AND locale = $%d)", argN))
+		args = append(args, anyLocale)
+		argN++
+	}
+	if requireLocale != "" {
+		clauses = append(clauses, fmt.Sprintf(
+			"e.id IN (SELECT entry_id FROM tm_variants WHERE workspace_id = $1 AND locale = $%d)", argN))
+		args = append(args, requireLocale)
+		argN++
+	}
+	if fc, fa, _ := pgFilterWhere(filter, argN); fc != "" {
+		clauses = append(clauses, strings.TrimPrefix(fc, " AND "))
+		args = append(args, fa...)
+	}
+	return strings.Join(clauses, " AND "), args
+}
+
+// LocaleStats returns per-locale entry counts across the workspace.
+func (tm *PostgresTM) LocaleStats() []fw.LocaleFacet {
 	rows, err := tm.db.QueryContext(context.Background(), `
-		SELECT id, source_coded, target_coded, source_locale, target_locale,
-			note, properties, created_at, updated_at
-		FROM tm_entries WHERE workspace_id = $1 ORDER BY id
+		SELECT locale, COUNT(DISTINCT entry_id) FROM tm_variants
+		WHERE workspace_id = $1
+		GROUP BY locale ORDER BY COUNT(DISTINCT entry_id) DESC
 	`, tm.workspaceID)
 	if err != nil {
 		return nil
 	}
 	defer rows.Close()
-
-	entries, _ := tm.scanTMEntries(rows)
-	return entries
-}
-
-// scanTMEntries scans rows from tm_entries and batch-fetches associated
-// entity mappings from tm_entity_mappings for this workspace.
-func (tm *PostgresTM) scanTMEntries(rows *sql.Rows) ([]fw.TMEntry, error) {
-	var entries []fw.TMEntry
+	var out []fw.LocaleFacet
 	for rows.Next() {
-		var entry fw.TMEntry
-		var sourceJSON, targetJSON string
-		var srcLocale, tgtLocale string
-		var note string
-		var propertiesJSON *string
-		var createdAt, updatedAt time.Time
-
-		if err := rows.Scan(&entry.ID, &sourceJSON, &targetJSON,
-			&srcLocale, &tgtLocale,
-			&note,
-			&propertiesJSON,
-			&createdAt, &updatedAt); err != nil {
-			return nil, fmt.Errorf("scan entry: %w", err)
-		}
-		entry.Note = note
-
-		entry.Source = &model.Fragment{}
-		if err := json.Unmarshal([]byte(sourceJSON), entry.Source); err != nil {
-			return nil, fmt.Errorf("unmarshal source: %w", err)
-		}
-		entry.Target = &model.Fragment{}
-		if err := json.Unmarshal([]byte(targetJSON), entry.Target); err != nil {
-			return nil, fmt.Errorf("unmarshal target: %w", err)
-		}
-
-		entry.SourceLocale = model.LocaleID(srcLocale)
-		entry.TargetLocale = model.LocaleID(tgtLocale)
-		entry.CreatedAt = createdAt
-		entry.UpdatedAt = updatedAt
-
-		if propertiesJSON != nil && *propertiesJSON != "" {
-			_ = json.Unmarshal([]byte(*propertiesJSON), &entry.Properties)
-		}
-
-		entries = append(entries, entry)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("iterate rows: %w", err)
-	}
-
-	// Batch-fetch entity mappings for all loaded entries.
-	if len(entries) > 0 {
-		ids := make([]string, len(entries))
-		for i, e := range entries {
-			ids[i] = e.ID
-		}
-		placeholders := make([]string, len(ids))
-		args := make([]any, 0, len(ids)+1)
-		args = append(args, tm.workspaceID)
-		for i, id := range ids {
-			placeholders[i] = fmt.Sprintf("$%d", i+2)
-			args = append(args, id)
-		}
-		byID := make(map[string]int, len(entries))
-		for i, e := range entries {
-			byID[e.ID] = i
-		}
-
-		q := `SELECT entry_id, placeholder_id, entity_type,
-			source_value, source_start, source_end,
-			target_value, target_start, target_end
-			FROM tm_entity_mappings
-			WHERE workspace_id = $1 AND entry_id IN (` + strings.Join(placeholders, ",") + `)
-			ORDER BY entry_id, ordinal`
-		mapRows, err := tm.db.QueryContext(context.Background(), q, args...)
-		if err == nil {
-			defer mapRows.Close()
-			for mapRows.Next() {
-				var eid string
-				var em fw.EntityMapping
-				var etype string
-				if err := mapRows.Scan(&eid, &em.PlaceholderID, &etype,
-					&em.SourceValue, &em.SourcePos.Start, &em.SourcePos.End,
-					&em.TargetValue, &em.TargetPos.Start, &em.TargetPos.End); err != nil {
-					continue
-				}
-				em.Type = model.EntityType(etype)
-				if idx, ok := byID[eid]; ok {
-					entries[idx].Entities = append(entries[idx].Entities, em)
-				}
-			}
-		}
-
-		// Batch-fetch origins for all loaded entries.
-		originQ := `SELECT entry_id, source, key, reference, added_at, added_by
-			FROM tm_entry_origins
-			WHERE workspace_id = $1 AND entry_id IN (` + strings.Join(placeholders, ",") + `)
-			ORDER BY entry_id, ordinal`
-		originRows, err := tm.db.QueryContext(context.Background(), originQ, args...)
-		if err == nil {
-			defer originRows.Close()
-			for originRows.Next() {
-				var eid string
-				var o fw.Origin
-				var addedAt time.Time
-				if err := originRows.Scan(&eid, &o.Source, &o.Key, &o.Reference, &addedAt, &o.AddedBy); err != nil {
-					continue
-				}
-				o.AddedAt = addedAt
-				if idx, ok := byID[eid]; ok {
-					entries[idx].Origins = append(entries[idx].Origins, o)
-				}
-			}
+		var lf fw.LocaleFacet
+		if err := rows.Scan(&lf.Locale, &lf.Count); err == nil {
+			out = append(out, lf)
 		}
 	}
-	return entries, nil
+	return out
 }
 
-func nullableString(b []byte) *string {
-	if len(b) == 0 {
+// ActivityStats returns daily entry counts.
+func (tm *PostgresTM) ActivityStats() []fw.ActivityStat {
+	rows, err := tm.db.QueryContext(context.Background(), `
+		SELECT TO_CHAR(created_at, 'YYYY-MM-DD') AS day, COUNT(*)
+		FROM tm_entries WHERE workspace_id = $1
+		GROUP BY day ORDER BY day
+	`, tm.workspaceID)
+	if err != nil {
 		return nil
 	}
-	s := string(b)
-	return &s
+	defer rows.Close()
+	var out []fw.ActivityStat
+	for rows.Next() {
+		var s fw.ActivityStat
+		if err := rows.Scan(&s.Date, &s.Count); err == nil {
+			out = append(out, s)
+		}
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].Date < out[j].Date })
+	return out
+}
+
+// --- import sessions ---
+
+// CreateImportSession inserts a new session row.
+func (tm *PostgresTM) CreateImportSession(session fw.ImportSession) error {
+	if session.ID == "" {
+		return errors.New("import session ID is required")
+	}
+	if session.FileKey == "" {
+		return errors.New("import session file_key is required")
+	}
+	if session.ImportedAt.IsZero() {
+		session.ImportedAt = time.Now()
+	}
+	propsJSON := []byte("{}")
+	if len(session.Properties) > 0 {
+		if b, err := json.Marshal(session.Properties); err == nil {
+			propsJSON = b
+		}
+	}
+	_, err := tm.db.ExecContext(context.Background(), `INSERT INTO tm_import_sessions
+		(workspace_id, id, file_key, file_hash, file_size_bytes, imported_at, imported_by,
+		 tool_name, tool_version, seg_type, admin_lang, src_lang, data_type,
+		 original_format, original_encoding, entry_count, properties)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17::jsonb)`,
+		tm.workspaceID, session.ID, session.FileKey, session.FileHash, session.FileSizeBytes,
+		session.ImportedAt, session.ImportedBy,
+		session.ToolName, session.ToolVersion, session.SegType,
+		session.AdminLang, session.SrcLang, session.DataType,
+		session.OriginalFormat, session.OriginalEncoding, session.EntryCount,
+		string(propsJSON))
+	if err != nil {
+		return fmt.Errorf("insert import session: %w", err)
+	}
+	return nil
+}
+
+// GetImportSession fetches a session by ID.
+func (tm *PostgresTM) GetImportSession(id string) (fw.ImportSession, bool) {
+	row := tm.db.QueryRowContext(context.Background(),
+		"SELECT "+pgSessionColumns+" FROM tm_import_sessions WHERE workspace_id = $1 AND id = $2",
+		tm.workspaceID, id)
+	return scanPgSession(row)
+}
+
+// FindImportSessionByHash returns the most recent session matching the hash.
+func (tm *PostgresTM) FindImportSessionByHash(hash string) (fw.ImportSession, bool) {
+	if hash == "" {
+		return fw.ImportSession{}, false
+	}
+	row := tm.db.QueryRowContext(context.Background(),
+		"SELECT "+pgSessionColumns+" FROM tm_import_sessions WHERE workspace_id = $1 AND file_hash = $2 ORDER BY imported_at DESC LIMIT 1",
+		tm.workspaceID, hash)
+	return scanPgSession(row)
+}
+
+// ListImportSessions returns all sessions ordered by imported_at DESC.
+func (tm *PostgresTM) ListImportSessions() []fw.ImportSession {
+	rows, err := tm.db.QueryContext(context.Background(),
+		"SELECT "+pgSessionColumns+" FROM tm_import_sessions WHERE workspace_id = $1 ORDER BY imported_at DESC",
+		tm.workspaceID)
+	if err != nil {
+		return nil
+	}
+	defer rows.Close()
+	var out []fw.ImportSession
+	for rows.Next() {
+		if s, ok := scanPgSession(rows); ok {
+			out = append(out, s)
+		}
+	}
+	return out
+}
+
+// UpdateImportSessionCount sets the entry_count on a session.
+func (tm *PostgresTM) UpdateImportSessionCount(id string, count int) error {
+	res, err := tm.db.ExecContext(context.Background(),
+		"UPDATE tm_import_sessions SET entry_count = $1 WHERE workspace_id = $2 AND id = $3",
+		count, tm.workspaceID, id)
+	if err != nil {
+		return fmt.Errorf("update session count: %w", err)
+	}
+	n, _ := res.RowsAffected()
+	if n == 0 {
+		return errors.New("import session not found")
+	}
+	return nil
+}
+
+// DeleteImportSession removes a session row and clears origin.session_id.
+func (tm *PostgresTM) DeleteImportSession(id string) error {
+	if _, err := tm.db.ExecContext(context.Background(),
+		"UPDATE tm_entry_origins SET session_id = '' WHERE workspace_id = $1 AND session_id = $2",
+		tm.workspaceID, id); err != nil {
+		return fmt.Errorf("clear origin session_id: %w", err)
+	}
+	res, err := tm.db.ExecContext(context.Background(),
+		"DELETE FROM tm_import_sessions WHERE workspace_id = $1 AND id = $2",
+		tm.workspaceID, id)
+	if err != nil {
+		return fmt.Errorf("delete session: %w", err)
+	}
+	n, _ := res.RowsAffected()
+	if n == 0 {
+		return errors.New("import session not found")
+	}
+	return nil
+}
+
+const pgSessionColumns = `id, file_key, file_hash, file_size_bytes, imported_at,
+	imported_by, tool_name, tool_version, seg_type, admin_lang, src_lang,
+	data_type, original_format, original_encoding, entry_count, properties::text`
+
+type pgScanner interface {
+	Scan(dest ...any) error
+}
+
+func scanPgSession(sc pgScanner) (fw.ImportSession, bool) {
+	var s fw.ImportSession
+	var propsJSON string
+	if err := sc.Scan(&s.ID, &s.FileKey, &s.FileHash, &s.FileSizeBytes,
+		&s.ImportedAt, &s.ImportedBy, &s.ToolName, &s.ToolVersion,
+		&s.SegType, &s.AdminLang, &s.SrcLang, &s.DataType,
+		&s.OriginalFormat, &s.OriginalEncoding, &s.EntryCount, &propsJSON); err != nil {
+		return fw.ImportSession{}, false
+	}
+	if propsJSON != "" && propsJSON != "{}" {
+		_ = json.Unmarshal([]byte(propsJSON), &s.Properties)
+	}
+	return s, true
 }

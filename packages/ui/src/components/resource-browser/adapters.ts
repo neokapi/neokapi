@@ -11,7 +11,7 @@ import type {
   TMStats,
   TMFacets,
   TMSearchFilter,
-  TMGroupedSearchResult,
+  ImportSessionDTO,
   TermSearchResult,
   ConceptDTO,
   AddConceptRequest,
@@ -21,10 +21,16 @@ import type {
 
 /** Adapter interface for TM operations — implemented per-backend (Wails, REST, mock). */
 export interface TMAdapter {
+  /**
+   * Plain search.
+   * @param query     full-text search query
+   * @param anyLocale restrict search scope to variants in this locale (empty = any)
+   * @param requireLocale require entries to have a variant in this locale (empty = none)
+   */
   search(
     query: string,
-    srcLocale: string,
-    tgtLocale: string,
+    anyLocale: string,
+    requireLocale: string,
     offset: number,
     limit: number,
   ): Promise<TMSearchResult>;
@@ -35,38 +41,33 @@ export interface TMAdapter {
   deleteEntries(ids: string[]): Promise<void>;
   annotateEntities?(req: AnnotateEntitiesRequest): Promise<AnnotateResult>;
   lookup?(req: LookupTMRequest): Promise<TMMatchDTO[]>;
-  importTMX?(srcLocale: string, tgtLocale: string): Promise<ImportResult | null>;
-  exportTMX?(srcLocale: string, tgtLocale: string): Promise<void>;
+  /** Launches a file dialog and imports a TMX file. Returns null on cancel. */
+  importTMX?(): Promise<ImportResult | null>;
+  /** Launches a save dialog and exports the specified locales (empty = all). */
+  exportTMX?(locales: string[]): Promise<void>;
   getStats?(): Promise<TMStats>;
   getFacets?(): Promise<TMFacets>;
   /** Facet counts scoped to the current search query and filter. */
   getFacetsFiltered?(
     query: string,
-    srcLocale: string,
-    tgtLocale: string,
+    anyLocale: string,
+    requireLocale: string,
     filter: TMSearchFilter,
   ): Promise<TMFacets>;
   searchFiltered?(
     query: string,
-    srcLocale: string,
-    tgtLocale: string,
+    anyLocale: string,
+    requireLocale: string,
     filter: TMSearchFilter,
     offset: number,
     limit: number,
   ): Promise<TMSearchResult>;
-  searchGrouped?(
-    query: string,
-    srcLocale: string,
-    offset: number,
-    limit: number,
-  ): Promise<TMGroupedSearchResult>;
-  searchGroupedFiltered?(
-    query: string,
-    srcLocale: string,
-    filter: TMSearchFilter,
-    offset: number,
-    limit: number,
-  ): Promise<TMGroupedSearchResult>;
+  /** List every import session row (most recent first). */
+  listImportSessions?(): Promise<ImportSessionDTO[]>;
+  /** Fetch a single import session by ID. */
+  getImportSession?(id: string): Promise<ImportSessionDTO | null>;
+  /** Delete an import session row (origins keep pointing at empty session_id). */
+  deleteImportSession?(id: string): Promise<void>;
 }
 
 /** Adapter interface for termbase operations. */

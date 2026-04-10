@@ -1,6 +1,10 @@
 // Package storage provides a shared SQLite infrastructure layer for
 // persistent translation memories and termbases. It handles connection
 // management, WAL mode, and common pragmas.
+//
+// The FTS5 ICU tokenizer (from cwt/fts5-icu-tokenizer) is statically
+// linked into the binary via icu_tokenizer.go and registered as an
+// auto-extension, so `tokenize='icu'` is available in all FTS5 tables.
 package storage
 
 import (
@@ -9,8 +13,10 @@ import (
 	"strings"
 	"time"
 
-	// Pure Go SQLite driver — no CGo dependencies.
-	_ "modernc.org/sqlite"
+	// Native C SQLite via CGo — significantly faster than the pure-Go
+	// transpilation for scan-heavy workloads (facet queries, FTS5, bulk
+	// imports on large TMs). Requires a C compiler at build time.
+	_ "github.com/mattn/go-sqlite3"
 )
 
 // DB wraps a sql.DB with shared configuration applied.
@@ -23,7 +29,7 @@ type DB struct {
 // Use ":memory:" for in-memory databases (useful for testing).
 // Parent directories must already exist; the file is created on demand.
 func Open(dbPath string) (*DB, error) {
-	db, err := sql.Open("sqlite", dbPath)
+	db, err := sql.Open("sqlite3", dbPath)
 	if err != nil {
 		return nil, fmt.Errorf("open database %s: %w", dbPath, err)
 	}
@@ -57,7 +63,9 @@ func applyPragmas(db *sql.DB) error {
 		"PRAGMA synchronous=NORMAL",
 		"PRAGMA foreign_keys=ON",
 		"PRAGMA busy_timeout=5000",
-		"PRAGMA cache_size=-8000", // 8MB cache
+		"PRAGMA cache_size=-131072",
+		"PRAGMA wal_autocheckpoint=10000",
+		"PRAGMA temp_store=MEMORY",
 	}
 	for _, p := range pragmas {
 		if _, err := db.Exec(p); err != nil { //nolint:noctx // startup pragmas

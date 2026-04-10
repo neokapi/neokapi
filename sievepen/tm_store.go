@@ -78,3 +78,11 @@ type TMStore interface {
 	// SET NULL behavior — the entries themselves are not affected.
 	DeleteImportSession(id string) error
 }
+
+// BulkAdder is an optional capability implemented by backends that support
+// batched inserts. The TMX importer detects it and commits an entire file
+// in a single transaction, which is the difference between reasonable and
+// unreasonable import times on large corpora (EUR-Lex, bitextor).
+type BulkAdder interface {
+	BulkAddWithStream(entries []TMEntry, stream string) error
+}

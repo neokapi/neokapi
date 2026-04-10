@@ -7,7 +7,6 @@ package sample
 import (
 	"bytes"
 	"embed"
-	"encoding/xml"
 	"fmt"
 	"io/fs"
 	"math/rand"
@@ -106,10 +105,14 @@ func seedTM(dbPath string) error {
 		return err
 	}
 	defer tm.Close()
-	for _, tgt := range []model.LocaleID{"fr-FR", "de-DE", "ja-JP"} {
-		if _, err := sievepen.ImportTMX(tm, bytes.NewReader(tmxData), "en-US", tgt); err != nil {
-			return fmt.Errorf("import TMX for %s: %w", tgt, err)
-		}
+	// The TMX already has all target locales on each TU; a single import
+	// creates one multilingual entry per TU with every variant populated.
+	if _, _, err := sievepen.ImportTMXSession(tm, bytes.NewReader(tmxData),
+		sievepen.ImportTMXOptions{
+			OriginKey:     "tm-seed.tmx",
+			OriginAddedBy: "kapi-sample",
+		}); err != nil {
+		return fmt.Errorf("import TMX: %w", err)
 	}
 	spreadTimestamps(tm.DB(), "tm_entries", 30)
 	return nil
@@ -147,13 +150,14 @@ func seedTMv2(dbPath string) error {
 	}
 	defer tm.Close()
 
-	// Import TMX entries for all 5 target languages. Each import pass uses
-	// a locale-qualified ID suffix so entries are stored separately per
-	// locale pair (otherwise ON CONFLICT overwrites with the same tu-N ID).
-	for _, tgt := range v2Targets {
-		if _, err := importTMXWithLocaleSuffix(tm, tmxData, "en-US", tgt); err != nil {
-			return fmt.Errorf("import TMX for %s: %w", tgt, err)
-		}
+	// The TMX already has all target locales on each TU; a single import
+	// creates one multilingual entry per TU with every variant populated.
+	if _, _, err := sievepen.ImportTMXSession(tm, bytes.NewReader(tmxData),
+		sievepen.ImportTMXOptions{
+			OriginKey:     "tm-seed.tmx",
+			OriginAddedBy: "kapi-sample",
+		}); err != nil {
+		return fmt.Errorf("import TMX: %w", err)
 	}
 
 	// Add enriched entries with structural inline codes and entity annotations.
@@ -183,109 +187,72 @@ func seedTermbasev2(dbPath string) error {
 	return nil
 }
 
-// importTMXWithLocaleSuffix imports a TMX file with locale-qualified entry IDs
-// so that the same TU can be stored once per target locale without ON CONFLICT
-// collisions. Without this, re-importing the same TMX for a second locale would
-// overwrite the first locale's entries because TMX TU IDs are locale-agnostic.
-func importTMXWithLocaleSuffix(tm *sievepen.SQLiteTM, tmxData []byte, src, tgt model.LocaleID) (int, error) {
-	type tmxTUV struct {
-		Lang string `xml:"http://www.w3.org/XML/1998/namespace lang,attr"`
-		Seg  string `xml:"seg"`
-	}
-	type tmxTU struct {
-		TUID string   `xml:"tuid,attr"`
-		TUVs []tmxTUV `xml:"tuv"`
-	}
-	type tmxDoc struct {
-		TUs []tmxTU `xml:"body>tu"`
-	}
-
-	var doc tmxDoc
-	if err := xml.Unmarshal(tmxData, &doc); err != nil {
-		return 0, fmt.Errorf("parse TMX: %w", err)
-	}
-
-	imported := 0
-	for i, tu := range doc.TUs {
-		var srcText, tgtText string
-		var foundSrc, foundTgt bool
-		for _, tuv := range tu.TUVs {
-			if model.LocaleID(tuv.Lang) == src {
-				srcText = tuv.Seg
-				foundSrc = true
-			}
-			if model.LocaleID(tuv.Lang) == tgt {
-				tgtText = tuv.Seg
-				foundTgt = true
-			}
-		}
-		if !foundSrc || !foundTgt {
-			continue
-		}
-
-		tuID := tu.TUID
-		if tuID == "" {
-			tuID = fmt.Sprintf("tu-%d", i+1)
-		}
-		entryID := fmt.Sprintf("%s:%s", tuID, tgt) // locale-qualified
-
-		entry := sievepen.TMEntry{
-			ID:           entryID,
-			Source:       model.NewFragment(srcText),
-			Target:       model.NewFragment(tgtText),
-			SourceLocale: src,
-			TargetLocale: tgt,
-		}
-		if err := tm.Add(entry); err != nil {
-			return imported, fmt.Errorf("add entry %s: %w", entryID, err)
-		}
-		imported++
-	}
-	return imported, nil
-}
 
 // --- Enriched TM entries (structural + entity) ---
 
 // enrichedEntry defines a TM entry with inline codes and/or entity placeholders.
+// The source is always in en-US; targets maps each supported locale to a
+// Fragment factory. Entities, when set, carry the placeholder ID, type, and
+// the en-US value; per-locale entity values are not defined separately for
+// sample data.
 type enrichedEntry struct {
-	source  func() *model.Fragment
-	targets map[model.LocaleID]func() *model.Fragment
-	// entities is optional — set for entries with entity placeholders.
-	entities []sievepen.EntityMapping
+	source   func() *model.Fragment
+	targets  map[model.LocaleID]func() *model.Fragment
+	entities []enrichedEntity
 }
 
-// seedEnrichedEntries adds TM entries with structural markup and entity
-// annotations that exercise all 6 match tiers (generalized exact, structural
-// exact, exact, generalized fuzzy, structural fuzzy, fuzzy).
+// enrichedEntity is the sample-file shape for an entity mapping — just
+// the placeholder ID, type, and the en-US value. At seed time we expand
+// this into a sievepen.EntityMapping with a Values map keyed by en-US.
+type enrichedEntity struct {
+	PlaceholderID string
+	Type          model.EntityType
+	SourceValue   string
+}
+
+// seedEnrichedEntries adds multilingual TM entries with structural markup
+// and entity annotations that exercise all 6 match tiers. Each definition
+// produces exactly one entry with en-US as the canonical source and all
+// v2Targets as peer variants.
 func seedEnrichedEntries(tm *sievepen.SQLiteTM) error {
 	entries := enrichedEntryDefs()
 	now := time.Now()
 	for i, def := range entries {
+		variants := map[model.LocaleID]*model.Fragment{
+			"en-US": def.source(),
+		}
 		for _, tgt := range v2Targets {
-			targetFn, ok := def.targets[tgt]
-			if !ok {
-				continue
+			if fn, ok := def.targets[tgt]; ok {
+				variants[tgt] = fn()
 			}
-			entry := sievepen.TMEntry{
-				ID:           id.New(),
-				Source:       def.source(),
-				Target:       targetFn(),
-				SourceLocale: "en-US",
-				TargetLocale: tgt,
-				Entities:     def.entities,
-				Origins: []sievepen.Origin{
-					{
-						Source:    "import",
-						Key:       fmt.Sprintf("sample/kapimart/enriched/%d", i),
-						Reference: "seed",
-						AddedAt:   now,
-						AddedBy:   "kapi-sample",
-					},
+		}
+		entity := make([]sievepen.EntityMapping, 0, len(def.entities))
+		for _, e := range def.entities {
+			entity = append(entity, sievepen.EntityMapping{
+				PlaceholderID: e.PlaceholderID,
+				Type:          e.Type,
+				Values: map[model.LocaleID]sievepen.EntityValue{
+					"en-US": {Text: e.SourceValue},
 				},
-			}
-			if err := tm.Add(entry); err != nil {
-				return fmt.Errorf("add enriched entry: %w", err)
-			}
+			})
+		}
+		entry := sievepen.TMEntry{
+			ID:          id.New(),
+			Variants:    variants,
+			HintSrcLang: "en-US",
+			Entities:    entity,
+			Origins: []sievepen.Origin{
+				{
+					Source:    "import",
+					Key:       fmt.Sprintf("sample/kapimart/enriched/%d", i),
+					Reference: "seed",
+					AddedAt:   now,
+					AddedBy:   "kapi-sample",
+				},
+			},
+		}
+		if err := tm.Add(entry); err != nil {
+			return fmt.Errorf("add enriched entry: %w", err)
 		}
 	}
 	return nil
@@ -487,7 +454,7 @@ func enrichedEntryDefs() []enrichedEntry {
 		// --- Entity entries (person) ---
 		{
 			source:  entityF("Dear ", "person", "John", ", your order has shipped."),
-			entities: []sievepen.EntityMapping{{PlaceholderID: "1", Type: model.EntityPerson, SourceValue: "John"}},
+			entities: []enrichedEntity{{PlaceholderID: "1", Type: model.EntityPerson, SourceValue: "John"}},
 			targets: map[model.LocaleID]func() *model.Fragment{
 				"de-DE": entityF("Sehr geehrte/r ", "person", "John", ", Ihre Bestellung wurde versandt."),
 				"fr-FR": entityF("Cher/Chère ", "person", "John", ", votre commande a été expédiée."),
@@ -498,7 +465,7 @@ func enrichedEntryDefs() []enrichedEntry {
 		},
 		{
 			source:  entityF("Hi ", "person", "Sarah", ", welcome to KapiMart!"),
-			entities: []sievepen.EntityMapping{{PlaceholderID: "1", Type: model.EntityPerson, SourceValue: "Sarah"}},
+			entities: []enrichedEntity{{PlaceholderID: "1", Type: model.EntityPerson, SourceValue: "Sarah"}},
 			targets: map[model.LocaleID]func() *model.Fragment{
 				"de-DE": entityF("Hallo ", "person", "Sarah", ", willkommen bei KapiMart!"),
 				"fr-FR": entityF("Bonjour ", "person", "Sarah", ", bienvenue sur KapiMart !"),
@@ -509,7 +476,7 @@ func enrichedEntryDefs() []enrichedEntry {
 		},
 		{
 			source:  entityF("Thank you, ", "person", "Alex", ". Your review has been submitted."),
-			entities: []sievepen.EntityMapping{{PlaceholderID: "1", Type: model.EntityPerson, SourceValue: "Alex"}},
+			entities: []enrichedEntity{{PlaceholderID: "1", Type: model.EntityPerson, SourceValue: "Alex"}},
 			targets: map[model.LocaleID]func() *model.Fragment{
 				"de-DE": entityF("Vielen Dank, ", "person", "Alex", ". Ihre Bewertung wurde eingereicht."),
 				"fr-FR": entityF("Merci, ", "person", "Alex", ". Votre avis a été soumis."),
@@ -521,7 +488,7 @@ func enrichedEntryDefs() []enrichedEntry {
 		// --- Entity entries (product) ---
 		{
 			source:  entityF("The ", "product", "Wireless Headphones", " are now back in stock."),
-			entities: []sievepen.EntityMapping{{PlaceholderID: "1", Type: model.EntityProduct, SourceValue: "Wireless Headphones"}},
+			entities: []enrichedEntity{{PlaceholderID: "1", Type: model.EntityProduct, SourceValue: "Wireless Headphones"}},
 			targets: map[model.LocaleID]func() *model.Fragment{
 				"de-DE": entityF("Die ", "product", "Kabellose Kopfhörer", " sind wieder verfügbar."),
 				"fr-FR": entityF("Les ", "product", "Écouteurs sans fil", " sont de nouveau en stock."),
@@ -532,7 +499,7 @@ func enrichedEntryDefs() []enrichedEntry {
 		},
 		{
 			source:  entityF("You saved $20 on ", "product", "Smart Home Hub", "!"),
-			entities: []sievepen.EntityMapping{{PlaceholderID: "1", Type: model.EntityProduct, SourceValue: "Smart Home Hub"}},
+			entities: []enrichedEntity{{PlaceholderID: "1", Type: model.EntityProduct, SourceValue: "Smart Home Hub"}},
 			targets: map[model.LocaleID]func() *model.Fragment{
 				"de-DE": entityF("Sie haben 20 $ beim ", "product", "Smart Home Hub", " gespart!"),
 				"fr-FR": entityF("Vous avez économisé 20 $ sur le ", "product", "Hub domotique", " !"),
@@ -544,7 +511,7 @@ func enrichedEntryDefs() []enrichedEntry {
 		// --- Entity entries (organization) ---
 		{
 			source:  entityF("Shipped by ", "organization", "FastPost", " via express delivery."),
-			entities: []sievepen.EntityMapping{{PlaceholderID: "1", Type: model.EntityOrganization, SourceValue: "FastPost"}},
+			entities: []enrichedEntity{{PlaceholderID: "1", Type: model.EntityOrganization, SourceValue: "FastPost"}},
 			targets: map[model.LocaleID]func() *model.Fragment{
 				"de-DE": entityF("Versandt durch ", "organization", "FastPost", " per Expresslieferung."),
 				"fr-FR": entityF("Expédié par ", "organization", "FastPost", " en livraison express."),
@@ -556,7 +523,7 @@ func enrichedEntryDefs() []enrichedEntry {
 		// --- Entity entries (currency) ---
 		{
 			source:  entityF("Your refund of ", "currency", "$49.99", " has been processed."),
-			entities: []sievepen.EntityMapping{{PlaceholderID: "1", Type: model.EntityCurrency, SourceValue: "$49.99"}},
+			entities: []enrichedEntity{{PlaceholderID: "1", Type: model.EntityCurrency, SourceValue: "$49.99"}},
 			targets: map[model.LocaleID]func() *model.Fragment{
 				"de-DE": entityF("Ihre Erstattung von ", "currency", "49,99 $", " wurde verarbeitet."),
 				"fr-FR": entityF("Votre remboursement de ", "currency", "49,99 $", " a été traité."),
@@ -568,7 +535,7 @@ func enrichedEntryDefs() []enrichedEntry {
 		// --- Combined: bold + entity ---
 		{
 			source:  boldEntityF("Hi ", "there", "! Your ", "product", "Travel Backpack", " is on its way."),
-			entities: []sievepen.EntityMapping{{PlaceholderID: "2", Type: model.EntityProduct, SourceValue: "Travel Backpack"}},
+			entities: []enrichedEntity{{PlaceholderID: "2", Type: model.EntityProduct, SourceValue: "Travel Backpack"}},
 			targets: map[model.LocaleID]func() *model.Fragment{
 				"de-DE": boldEntityF("Hallo", "", "! Ihr ", "product", "Reiserucksack", " ist unterwegs."),
 				"fr-FR": boldEntityF("Bonjour", "", " ! Votre ", "product", "Sac à dos de voyage", " est en route."),
@@ -579,7 +546,7 @@ func enrichedEntryDefs() []enrichedEntry {
 		},
 		{
 			source:  boldEntityF("Dear ", "Customer", ", ", "organization", "KapiMart", " values your feedback."),
-			entities: []sievepen.EntityMapping{{PlaceholderID: "2", Type: model.EntityOrganization, SourceValue: "KapiMart"}},
+			entities: []enrichedEntity{{PlaceholderID: "2", Type: model.EntityOrganization, SourceValue: "KapiMart"}},
 			targets: map[model.LocaleID]func() *model.Fragment{
 				"de-DE": boldEntityF("Sehr geehrter ", "Kunde", ", ", "organization", "KapiMart", " schätzt Ihr Feedback."),
 				"fr-FR": boldEntityF("Cher ", "Client", ", ", "organization", "KapiMart", " apprécie vos commentaires."),
@@ -590,7 +557,7 @@ func enrichedEntryDefs() []enrichedEntry {
 		},
 		{
 			source:  boldEntityF("Order ", "confirmed", " for ", "person", "Emily", ". Check your email for details."),
-			entities: []sievepen.EntityMapping{{PlaceholderID: "2", Type: model.EntityPerson, SourceValue: "Emily"}},
+			entities: []enrichedEntity{{PlaceholderID: "2", Type: model.EntityPerson, SourceValue: "Emily"}},
 			targets: map[model.LocaleID]func() *model.Fragment{
 				"de-DE": boldEntityF("Bestellung ", "bestätigt", " für ", "person", "Emily", ". Details finden Sie in Ihrer E-Mail."),
 				"fr-FR": boldEntityF("Commande ", "confirmée", " pour ", "person", "Emily", ". Consultez votre e-mail pour les détails."),
@@ -601,7 +568,7 @@ func enrichedEntryDefs() []enrichedEntry {
 		},
 		{
 			source:  boldEntityF("", "Flash Sale", ": Save big on ", "product", "Fitness Tracker Watch", " today!"),
-			entities: []sievepen.EntityMapping{{PlaceholderID: "2", Type: model.EntityProduct, SourceValue: "Fitness Tracker Watch"}},
+			entities: []enrichedEntity{{PlaceholderID: "2", Type: model.EntityProduct, SourceValue: "Fitness Tracker Watch"}},
 			targets: map[model.LocaleID]func() *model.Fragment{
 				"de-DE": boldEntityF("", "Blitzangebot", ": Sparen Sie heute beim ", "product", "Fitness-Tracker", "!"),
 				"fr-FR": boldEntityF("", "Vente flash", " : Profitez de la ", "product", "Montre connectée", " aujourd'hui !"),

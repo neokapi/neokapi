@@ -82,9 +82,15 @@ func (t *TMLeverageTool) handleBlock(part *model.Part) (*model.Part, error) {
 
 	best := matches[0]
 
+	sourceVariant := best.Entry.Variant(t.cfg.SourceLocale)
+	targetVariant := best.Entry.Variant(t.cfg.TargetLocale)
+	if targetVariant == nil {
+		return part, nil
+	}
+
 	// For exact matches (any tier), apply the target directly.
 	if best.MatchType.IsExact() {
-		adapted := applyEntityAdaptations(best.Entry.Target, best.EntityAdaptations)
+		adapted := applyEntityAdaptations(targetVariant, best.EntityAdaptations)
 		block.SetTargetFragment(t.cfg.TargetLocale, adapted)
 	}
 
@@ -93,8 +99,8 @@ func (t *TMLeverageTool) handleBlock(part *model.Part) (*model.Part, error) {
 		block.Annotations = make(map[string]model.Annotation)
 	}
 	block.Annotations["alt-translation"] = &model.AltTranslation{
-		Source:    best.Entry.Source,
-		Target:    best.Entry.Target,
+		Source:    sourceVariant,
+		Target:    targetVariant,
 		Locale:    t.cfg.TargetLocale,
 		Origin:    "tm:sievepen",
 		Score:     best.Score,

@@ -10,13 +10,14 @@ import (
 func ExampleNewInMemoryTM() {
 	tm := sievepen.NewInMemoryTM()
 
-	// Add a translation entry.
+	// Add a multilingual translation entry with two variants.
 	err := tm.Add(sievepen.TMEntry{
-		ID:           "e1",
-		Source:       model.NewFragment("Save"),
-		Target:       model.NewFragment("Enregistrer"),
-		SourceLocale: "en",
-		TargetLocale: "fr",
+		ID: "e1",
+		Variants: map[model.LocaleID]*model.Fragment{
+			"en": model.NewFragment("Save"),
+			"fr": model.NewFragment("Enregistrer"),
+		},
+		HintSrcLang: "en",
 	})
 	if err != nil {
 		panic(err)
@@ -31,7 +32,7 @@ func ExampleNewInMemoryTM() {
 	}
 
 	fmt.Println(len(matches))
-	fmt.Println(matches[0].Entry.TargetText())
+	fmt.Println(matches[0].Entry.VariantText("fr"))
 	fmt.Println(matches[0].Score)
 	// Output:
 	// 1
@@ -44,11 +45,12 @@ func ExampleNewInMemoryTM_fuzzyMatch() {
 	tm := sievepen.NewInMemoryTM()
 
 	_ = tm.Add(sievepen.TMEntry{
-		ID:           "e1",
-		Source:       model.NewFragment("Save the document"),
-		Target:       model.NewFragment("Enregistrer le document"),
-		SourceLocale: "en",
-		TargetLocale: "fr",
+		ID: "e1",
+		Variants: map[model.LocaleID]*model.Fragment{
+			"en": model.NewFragment("Save the document"),
+			"fr": model.NewFragment("Enregistrer le document"),
+		},
+		HintSrcLang: "en",
 	})
 
 	// A similar but not identical source text returns a fuzzy match.

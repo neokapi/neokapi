@@ -23,9 +23,21 @@ export VERSION_PKG := github.com/neokapi/neokapi/core/version
 export LDFLAGS     := -ldflags "-X $(VERSION_PKG).Version=$(VERSION) -X $(VERSION_PKG).Commit=$(COMMIT) -X $(VERSION_PKG).BuildDate=$(BUILD_DATE)"
 
 GO := go
-GOTEST  := $(GO) test
-GOBUILD := $(GO) build
-GOVET   := $(GO) vet
+# FTS5 build tag is required by mattn/go-sqlite3 to enable FTS5 full-text
+# search. Without it, TM and termbase migrations fail at runtime.
+#
+# ICU requirement: The FTS5 ICU tokenizer requires ICU development libraries.
+#   Linux:  sudo apt-get install libicu-dev pkg-config
+#   macOS:  brew install icu4c && export PKG_CONFIG_PATH="/opt/homebrew/opt/icu4c@78/lib/pkgconfig"
+GOTAGS  := -tags fts5
+
+# macOS Homebrew ICU: expose to pkg-config if not already on the path.
+ifeq ($(shell uname -s),Darwin)
+export PKG_CONFIG_PATH := /opt/homebrew/opt/icu4c@78/lib/pkgconfig:$(PKG_CONFIG_PATH)
+endif
+GOTEST  := $(GO) test $(GOTAGS)
+GOBUILD := $(GO) build $(GOTAGS)
+GOVET   := $(GO) vet $(GOTAGS)
 GOFMT   := gofmt
 BIN_DIR := $(ROOT_DIR)/bin
 COVER_DIR := coverage

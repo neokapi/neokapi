@@ -2,11 +2,11 @@ package sievepen
 
 import (
 	"cmp"
-	"errors"
-	"fmt"
 	"slices"
+	"sort"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/neokapi/neokapi/core/model"
 	"golang.org/x/text/unicode/norm"
@@ -16,39 +16,43 @@ import (
 // A value of 0 means unlimited.
 const DefaultMaxEntries = 0
 
-// normalizedEntry caches the pre-computed normalized text forms for a TMEntry,
-// avoiding repeated NormalizeText calls during lookup scans.
-type normalizedEntry struct {
-	entry      TMEntry
-	plainNorm  string // NormalizeText(entry.SourceText())
-	structNorm string // NormalizeText(entry.SourceStructural())
-	genNorm    string // NormalizeText(entry.SourceGeneralized())
+// variantKeys caches the pre-computed normalized text forms for one variant
+// of an entry, avoiding repeated NormalizeText calls during lookup scans.
+type variantKeys struct {
+	plain      string
+	structural string
+	generalized string
 }
 
-// InMemoryTM is a thread-safe, in-memory implementation of TranslationMemory
-// with content-aware tiered matching (generalized → structural → plain).
+// storedEntry is an entry plus pre-computed per-variant keys.
+type storedEntry struct {
+	entry TMEntry
+	keys  map[model.LocaleID]variantKeys
+}
+
+// InMemoryTM is a thread-safe, in-memory implementation of TMStore with
+// multilingual entries and tiered content-aware matching.
 type InMemoryTM struct {
 	mu         sync.RWMutex
-	entries    []normalizedEntry
-	byID       map[string]int // maps entry ID to index in entries slice
-	maxEntries int            // 0 = unlimited
+	entries    []storedEntry
+	byID       map[string]int
+	sessions   map[string]ImportSession
+	maxEntries int
 }
 
 // InMemoryTMOption configures an InMemoryTM instance.
 type InMemoryTMOption func(*InMemoryTM)
 
-// WithMaxEntries sets the maximum number of entries. When the limit is reached,
-// the oldest entry is evicted to make room. A value of 0 means unlimited.
+// WithMaxEntries sets the maximum number of entries; 0 = unlimited.
 func WithMaxEntries(max int) InMemoryTMOption {
-	return func(tm *InMemoryTM) {
-		tm.maxEntries = max
-	}
+	return func(tm *InMemoryTM) { tm.maxEntries = max }
 }
 
 // NewInMemoryTM creates a new empty in-memory translation memory.
 func NewInMemoryTM(opts ...InMemoryTMOption) *InMemoryTM {
 	tm := &InMemoryTM{
 		byID:       make(map[string]int),
+		sessions:   make(map[string]ImportSession),
 		maxEntries: DefaultMaxEntries,
 	}
 	for _, opt := range opts {
@@ -57,266 +61,11 @@ func NewInMemoryTM(opts ...InMemoryTMOption) *InMemoryTM {
 	return tm
 }
 
-// Add inserts or updates an entry in the translation memory.
-func (tm *InMemoryTM) Add(entry TMEntry) error {
-	tm.mu.Lock()
-	defer tm.mu.Unlock()
+// MaxEntries returns the configured max entry count (0 = unlimited).
+func (tm *InMemoryTM) MaxEntries() int { return tm.maxEntries }
 
-	if entry.ID == "" {
-		return errors.New("entry ID is required")
-	}
-	if entry.Source == nil {
-		return errors.New("entry source Fragment is required")
-	}
-
-	ne := normalizedEntry{
-		entry:      entry,
-		plainNorm:  NormalizeText(entry.SourceText()),
-		structNorm: NormalizeText(entry.SourceStructural()),
-		genNorm:    NormalizeText(entry.SourceGeneralized()),
-	}
-
-	if _, exists := tm.byID[entry.ID]; exists {
-		idx := tm.byID[entry.ID]
-		tm.entries[idx] = ne
-		return nil
-	}
-
-	// Evict the oldest entry if we've reached the size limit.
-	if tm.maxEntries > 0 && len(tm.entries) >= tm.maxEntries {
-		tm.evictOldest()
-	}
-
-	tm.byID[entry.ID] = len(tm.entries)
-	tm.entries = append(tm.entries, ne)
-	return nil
-}
-
-// evictOldest removes the first (oldest) entry. Caller must hold tm.mu.
-func (tm *InMemoryTM) evictOldest() {
-	if len(tm.entries) == 0 {
-		return
-	}
-	oldest := tm.entries[0]
-	delete(tm.byID, oldest.entry.ID)
-
-	// Shift entries and update index map.
-	copy(tm.entries, tm.entries[1:])
-	tm.entries = tm.entries[:len(tm.entries)-1]
-	for id, idx := range tm.byID {
-		tm.byID[id] = idx - 1
-	}
-}
-
-// MaxEntries returns the configured maximum entry count (0 = unlimited).
-func (tm *InMemoryTM) MaxEntries() int {
-	return tm.maxEntries
-}
-
-// Lookup searches for matches using tiered matching. The source Block's
-// entity annotations are used to compute the generalized key.
-func (tm *InMemoryTM) Lookup(source *model.Block, sourceLocale, targetLocale model.LocaleID, opts LookupOptions) ([]TMMatch, error) {
-	if source == nil {
-		return nil, nil
-	}
-
-	opts = ApplyDefaults(opts)
-	frag := source.FirstFragment()
-	if frag == nil {
-		return nil, nil
-	}
-
-	// Compute lookup keys from the source block.
-	plainKey := NormalizeText(frag.Text())
-	structKey := NormalizeText(frag.StructuralText())
-	generalKey := NormalizeText(frag.GeneralizedText())
-
-	// Extract entity annotations from the block for adaptation computation.
-	entityAnnotations := ExtractEntityAnnotations(source)
-
-	tm.mu.RLock()
-	defer tm.mu.RUnlock()
-
-	return tm.tieredLookup(plainKey, structKey, generalKey, entityAnnotations, sourceLocale, targetLocale, opts), nil
-}
-
-// LookupText searches for matches using plain text only.
-// This always uses plain-mode matching, returning MatchExact/MatchFuzzy types.
-func (tm *InMemoryTM) LookupText(source string, sourceLocale, targetLocale model.LocaleID, opts LookupOptions) ([]TMMatch, error) {
-	opts = ApplyDefaults(opts)
-	opts.MatchModes = []MatchMode{MatchModePlain}
-	normalizedSource := NormalizeText(source)
-
-	tm.mu.RLock()
-	defer tm.mu.RUnlock()
-
-	return tm.tieredLookup(normalizedSource, normalizedSource, normalizedSource, nil, sourceLocale, targetLocale, opts), nil
-}
-
-// tieredLookup performs the 6-tier matching pipeline.
-// It uses pre-computed normalized text from normalizedEntry to avoid
-// calling NormalizeText on every stored entry during each lookup.
-func (tm *InMemoryTM) tieredLookup(plainKey, structKey, generalKey string, entityAnnotations []*model.EntityAnnotation, sourceLocale, targetLocale model.LocaleID, opts LookupOptions) []TMMatch {
-	var matches []TMMatch
-	seen := make(map[string]bool) // track entry IDs to avoid duplicates
-
-	modeEnabled := MatchModesEnabled(opts.MatchModes)
-
-	// Tier 1: generalized exact
-	if modeEnabled[MatchModeGeneralized] {
-		for i := range tm.entries {
-			ne := &tm.entries[i]
-			if !matchesLocale(ne.entry, sourceLocale, targetLocale) {
-				continue
-			}
-			if ne.genNorm == generalKey {
-				if !seen[ne.entry.ID] {
-					seen[ne.entry.ID] = true
-					adaptations := ComputeEntityAdaptations(ne.entry, entityAnnotations)
-					matches = append(matches, TMMatch{
-						Entry:             ne.entry,
-						Score:             1.0,
-						MatchType:         MatchGeneralizedExact,
-						EntityAdaptations: adaptations,
-					})
-				}
-			}
-		}
-	}
-
-	// Tier 2: structural exact
-	if modeEnabled[MatchModeStructural] {
-		for i := range tm.entries {
-			ne := &tm.entries[i]
-			if !matchesLocale(ne.entry, sourceLocale, targetLocale) || seen[ne.entry.ID] {
-				continue
-			}
-			if ne.structNorm == structKey {
-				seen[ne.entry.ID] = true
-				matches = append(matches, TMMatch{
-					Entry:     ne.entry,
-					Score:     1.0,
-					MatchType: MatchStructuralExact,
-				})
-			}
-		}
-	}
-
-	// Tier 3: plain exact
-	if modeEnabled[MatchModePlain] {
-		for i := range tm.entries {
-			ne := &tm.entries[i]
-			if !matchesLocale(ne.entry, sourceLocale, targetLocale) || seen[ne.entry.ID] {
-				continue
-			}
-			if ne.plainNorm == plainKey {
-				seen[ne.entry.ID] = true
-				matches = append(matches, TMMatch{
-					Entry:     ne.entry,
-					Score:     1.0,
-					MatchType: MatchExact,
-				})
-			}
-		}
-	}
-
-	// If we have exact matches at or above threshold, return early.
-	if len(matches) > 0 && opts.MinScore >= 1.0 {
-		return LimitResults(matches, opts.MaxResults)
-	}
-
-	// Tier 4: generalized fuzzy
-	if modeEnabled[MatchModeGeneralized] {
-		for i := range tm.entries {
-			ne := &tm.entries[i]
-			if !matchesLocale(ne.entry, sourceLocale, targetLocale) || seen[ne.entry.ID] {
-				continue
-			}
-			score := LevenshteinRatio(generalKey, ne.genNorm)
-			if score >= opts.MinScore {
-				seen[ne.entry.ID] = true
-				adaptations := ComputeEntityAdaptations(ne.entry, entityAnnotations)
-				matches = append(matches, TMMatch{
-					Entry:             ne.entry,
-					Score:             score,
-					MatchType:         MatchGeneralizedFuzzy,
-					EntityAdaptations: adaptations,
-				})
-			}
-		}
-	}
-
-	// Tier 5: structural fuzzy
-	if modeEnabled[MatchModeStructural] {
-		for i := range tm.entries {
-			ne := &tm.entries[i]
-			if !matchesLocale(ne.entry, sourceLocale, targetLocale) || seen[ne.entry.ID] {
-				continue
-			}
-			score := LevenshteinRatio(structKey, ne.structNorm)
-			if score >= opts.MinScore {
-				seen[ne.entry.ID] = true
-				matches = append(matches, TMMatch{
-					Entry:     ne.entry,
-					Score:     score,
-					MatchType: MatchStructuralFuzzy,
-				})
-			}
-		}
-	}
-
-	// Tier 6: plain fuzzy
-	if modeEnabled[MatchModePlain] {
-		for i := range tm.entries {
-			ne := &tm.entries[i]
-			if !matchesLocale(ne.entry, sourceLocale, targetLocale) || seen[ne.entry.ID] {
-				continue
-			}
-			score := LevenshteinRatio(plainKey, ne.plainNorm)
-			if score >= opts.MinScore {
-				seen[ne.entry.ID] = true
-				matches = append(matches, TMMatch{
-					Entry:     ne.entry,
-					Score:     score,
-					MatchType: MatchFuzzy,
-				})
-			}
-		}
-	}
-
-	// Sort by match type priority, then by score descending.
-	slices.SortFunc(matches, func(a, b TMMatch) int {
-		pa := MatchTypePriority(a.MatchType)
-		pb := MatchTypePriority(b.MatchType)
-		if c := cmp.Compare(pa, pb); c != 0 {
-			return c
-		}
-		return cmp.Compare(b.Score, a.Score)
-	})
-
-	return LimitResults(matches, opts.MaxResults)
-}
-
-// Delete removes an entry by ID.
-func (tm *InMemoryTM) Delete(id string) error {
-	tm.mu.Lock()
-	defer tm.mu.Unlock()
-
-	idx, exists := tm.byID[id]
-	if !exists {
-		return fmt.Errorf("entry not found: %s", id)
-	}
-
-	lastIdx := len(tm.entries) - 1
-	if idx != lastIdx {
-		tm.entries[idx] = tm.entries[lastIdx]
-		tm.byID[tm.entries[idx].entry.ID] = idx
-	}
-	tm.entries = tm.entries[:lastIdx]
-	delete(tm.byID, id)
-
-	return nil
-}
+// Close is a no-op for InMemoryTM.
+func (tm *InMemoryTM) Close() error { return nil }
 
 // Count returns the total number of entries.
 func (tm *InMemoryTM) Count() int {
@@ -325,70 +74,395 @@ func (tm *InMemoryTM) Count() int {
 	return len(tm.entries)
 }
 
-// Close releases resources. For InMemoryTM, this is a no-op.
-func (tm *InMemoryTM) Close() error {
+// Add inserts or updates a TM entry.
+func (tm *InMemoryTM) Add(entry TMEntry) error {
+	return tm.AddWithStream(entry, "")
+}
+
+// AddWithStream inserts or updates a TM entry. InMemoryTM ignores the
+// stream parameter — it's a persistence concern for on-disk backends only.
+func (tm *InMemoryTM) AddWithStream(entry TMEntry, _ string) error {
+	if entry.ID == "" {
+		return ErrEntryIDRequired
+	}
+	if len(entry.Variants) == 0 {
+		return ErrEntryNoVariants
+	}
+	now := time.Now()
+	if entry.CreatedAt.IsZero() {
+		entry.CreatedAt = now
+	}
+	if entry.UpdatedAt.IsZero() {
+		entry.UpdatedAt = now
+	}
+
+	stored := storedEntry{entry: entry, keys: buildVariantKeys(entry)}
+
+	tm.mu.Lock()
+	defer tm.mu.Unlock()
+
+	if idx, exists := tm.byID[entry.ID]; exists {
+		tm.entries[idx] = stored
+		return nil
+	}
+	if tm.maxEntries > 0 && len(tm.entries) >= tm.maxEntries {
+		tm.evictOldest()
+	}
+	tm.byID[entry.ID] = len(tm.entries)
+	tm.entries = append(tm.entries, stored)
 	return nil
 }
 
-// Entries returns a copy of all entries. Used for export operations.
+func buildVariantKeys(entry TMEntry) map[model.LocaleID]variantKeys {
+	keys := make(map[model.LocaleID]variantKeys, len(entry.Variants))
+	for loc, frag := range entry.Variants {
+		if frag == nil {
+			continue
+		}
+		keys[loc] = variantKeys{
+			plain:       NormalizeText(frag.Text()),
+			structural:  NormalizeText(frag.StructuralText()),
+			generalized: NormalizeText(frag.GeneralizedText()),
+		}
+	}
+	return keys
+}
+
+func (tm *InMemoryTM) evictOldest() {
+	if len(tm.entries) == 0 {
+		return
+	}
+	oldest := tm.entries[0]
+	delete(tm.byID, oldest.entry.ID)
+	copy(tm.entries, tm.entries[1:])
+	tm.entries = tm.entries[:len(tm.entries)-1]
+	for id, idx := range tm.byID {
+		tm.byID[id] = idx - 1
+	}
+}
+
+// Delete removes an entry by ID.
+func (tm *InMemoryTM) Delete(id string) error {
+	tm.mu.Lock()
+	defer tm.mu.Unlock()
+	idx, ok := tm.byID[id]
+	if !ok {
+		return ErrImportSessionMiss // reuse "not found" style error — matches sqlite behavior
+	}
+	lastIdx := len(tm.entries) - 1
+	if idx != lastIdx {
+		tm.entries[idx] = tm.entries[lastIdx]
+		tm.byID[tm.entries[idx].entry.ID] = idx
+	}
+	tm.entries = tm.entries[:lastIdx]
+	delete(tm.byID, id)
+	return nil
+}
+
+// --- Lookup ---
+
+// Lookup searches for matches using tiered matching against the source-locale
+// variant of each stored entry. Entries lacking the target-locale variant
+// are skipped. Returns TMMatch results ordered by match priority and score.
+func (tm *InMemoryTM) Lookup(source *model.Block, sourceLocale, targetLocale model.LocaleID, opts LookupOptions) ([]TMMatch, error) {
+	if source == nil {
+		return nil, nil
+	}
+	opts = ApplyDefaults(opts)
+	frag := source.FirstFragment()
+	if frag == nil {
+		return nil, nil
+	}
+	plainKey := NormalizeText(frag.Text())
+	structKey := NormalizeText(frag.StructuralText())
+	generalKey := NormalizeText(frag.GeneralizedText())
+	entityAnnotations := ExtractEntityAnnotations(source)
+	tm.mu.RLock()
+	defer tm.mu.RUnlock()
+	return tm.tieredLookup(plainKey, structKey, generalKey, entityAnnotations, sourceLocale, targetLocale, opts), nil
+}
+
+// LookupText searches for matches using plain text only.
+func (tm *InMemoryTM) LookupText(source string, sourceLocale, targetLocale model.LocaleID, opts LookupOptions) ([]TMMatch, error) {
+	opts = ApplyDefaults(opts)
+	opts.MatchModes = []MatchMode{MatchModePlain}
+	normalized := NormalizeText(source)
+	tm.mu.RLock()
+	defer tm.mu.RUnlock()
+	return tm.tieredLookup(normalized, normalized, normalized, nil, sourceLocale, targetLocale, opts), nil
+}
+
+func (tm *InMemoryTM) tieredLookup(plainKey, structKey, generalKey string, entityAnnotations []*model.EntityAnnotation, sourceLocale, targetLocale model.LocaleID, opts LookupOptions) []TMMatch {
+	var matches []TMMatch
+	seen := make(map[string]bool)
+	modeEnabled := MatchModesEnabled(opts.MatchModes)
+
+	// Helper: check entry has both source and target variants.
+	eligible := func(se *storedEntry) (variantKeys, bool) {
+		k, ok := se.keys[sourceLocale]
+		if !ok {
+			return variantKeys{}, false
+		}
+		if !se.entry.HasLocale(targetLocale) {
+			return variantKeys{}, false
+		}
+		if !projectAllowed(se.entry.ProjectID, opts) {
+			return variantKeys{}, false
+		}
+		return k, true
+	}
+
+	// Tier 1-3: exact matches.
+	for tierType, mode := range []struct {
+		modeFlag MatchMode
+		mt       MatchType
+	}{
+		{MatchModeGeneralized, MatchGeneralizedExact},
+		{MatchModeStructural, MatchStructuralExact},
+		{MatchModePlain, MatchExact},
+	} {
+		_ = tierType
+		if !modeEnabled[mode.modeFlag] {
+			continue
+		}
+		for i := range tm.entries {
+			se := &tm.entries[i]
+			if seen[se.entry.ID] {
+				continue
+			}
+			k, ok := eligible(se)
+			if !ok {
+				continue
+			}
+			var storedKey, lookupKey string
+			switch mode.modeFlag {
+			case MatchModeGeneralized:
+				storedKey, lookupKey = k.generalized, generalKey
+			case MatchModeStructural:
+				storedKey, lookupKey = k.structural, structKey
+			case MatchModePlain:
+				storedKey, lookupKey = k.plain, plainKey
+			}
+			if storedKey == lookupKey {
+				seen[se.entry.ID] = true
+				var adaptations []EntityAdaptation
+				if mode.mt == MatchGeneralizedExact {
+					adaptations = ComputeEntityAdaptations(se.entry, sourceLocale, targetLocale, entityAnnotations)
+				}
+				matches = append(matches, TMMatch{
+					Entry:             se.entry,
+					Score:             1.0,
+					MatchType:         mode.mt,
+					ProjectID:         se.entry.ProjectID,
+					EntityAdaptations: adaptations,
+				})
+			}
+		}
+	}
+
+	if len(matches) > 0 && opts.MinScore >= 1.0 {
+		return LimitResults(matches, opts.MaxResults)
+	}
+
+	// Tier 4-6: fuzzy.
+	for i := range tm.entries {
+		se := &tm.entries[i]
+		if seen[se.entry.ID] {
+			continue
+		}
+		k, ok := eligible(se)
+		if !ok {
+			continue
+		}
+		var bestScore float64
+		var bestType MatchType
+		if modeEnabled[MatchModeGeneralized] {
+			s := LevenshteinRatio(generalKey, k.generalized)
+			if s >= opts.MinScore && s > bestScore {
+				bestScore = s
+				bestType = MatchGeneralizedFuzzy
+			}
+		}
+		if modeEnabled[MatchModeStructural] {
+			s := LevenshteinRatio(structKey, k.structural)
+			if s >= opts.MinScore && s > bestScore {
+				bestScore = s
+				bestType = MatchStructuralFuzzy
+			}
+		}
+		if modeEnabled[MatchModePlain] {
+			s := LevenshteinRatio(plainKey, k.plain)
+			if s >= opts.MinScore && s > bestScore {
+				bestScore = s
+				bestType = MatchFuzzy
+			}
+		}
+		if bestScore < opts.MinScore {
+			continue
+		}
+		if opts.ProjectID != "" && se.entry.ProjectID == opts.ProjectID && bestScore < 1.0 {
+			bestScore += 0.03
+			if bestScore > 1.0 {
+				bestScore = 1.0
+			}
+		}
+		seen[se.entry.ID] = true
+		var adaptations []EntityAdaptation
+		if bestType == MatchGeneralizedFuzzy {
+			adaptations = ComputeEntityAdaptations(se.entry, sourceLocale, targetLocale, entityAnnotations)
+		}
+		matches = append(matches, TMMatch{
+			Entry:             se.entry,
+			Score:             bestScore,
+			MatchType:         bestType,
+			ProjectID:         se.entry.ProjectID,
+			EntityAdaptations: adaptations,
+		})
+	}
+
+	slices.SortFunc(matches, func(a, b TMMatch) int {
+		pa := MatchTypePriority(a.MatchType)
+		pb := MatchTypePriority(b.MatchType)
+		if c := cmp.Compare(pa, pb); c != 0 {
+			return c
+		}
+		return cmp.Compare(b.Score, a.Score)
+	})
+	return LimitResults(matches, opts.MaxResults)
+}
+
+func projectAllowed(entryProject string, opts LookupOptions) bool {
+	switch opts.ProjectScope {
+	case ProjectScopeAll:
+		return true
+	case ProjectScopeOnly:
+		return entryProject == opts.ProjectID
+	case ProjectScopeExclude:
+		return entryProject != opts.ProjectID
+	}
+	return true
+}
+
+// --- Retrieval ---
+
+// GetEntry fetches a single entry by ID.
+func (tm *InMemoryTM) GetEntry(id string) (TMEntry, bool) {
+	tm.mu.RLock()
+	defer tm.mu.RUnlock()
+	idx, ok := tm.byID[id]
+	if !ok {
+		return TMEntry{}, false
+	}
+	return tm.entries[idx].entry, true
+}
+
+// Entries returns a snapshot of all entries.
 func (tm *InMemoryTM) Entries() []TMEntry {
 	tm.mu.RLock()
 	defer tm.mu.RUnlock()
 	out := make([]TMEntry, len(tm.entries))
-	for i, ne := range tm.entries {
-		out[i] = ne.entry
+	for i, se := range tm.entries {
+		out[i] = se.entry
 	}
 	return out
 }
 
-// SearchEntries performs a case-insensitive substring search on source/target text.
-func (tm *InMemoryTM) SearchEntries(query, sourceLocale, targetLocale string, offset, limit int) ([]TMEntry, int) {
-	return tm.SearchEntriesFiltered(query, sourceLocale, targetLocale, SearchFilter{}, offset, limit)
+// --- Search ---
+
+// SearchEntries performs a case-insensitive substring search.
+func (tm *InMemoryTM) SearchEntries(query, anyLocale, requireLocale string, offset, limit int) ([]TMEntry, int) {
+	return tm.SearchEntriesFiltered(query, anyLocale, requireLocale, SearchFilter{}, offset, limit)
 }
 
-// SearchEntriesFiltered performs a search with additional facet filters.
-func (tm *InMemoryTM) SearchEntriesFiltered(query, sourceLocale, targetLocale string, filter SearchFilter, offset, limit int) ([]TMEntry, int) {
+// SearchEntriesFiltered applies additional facet filters.
+func (tm *InMemoryTM) SearchEntriesFiltered(query, anyLocale, requireLocale string, filter SearchFilter, offset, limit int) ([]TMEntry, int) {
+	return tm.searchInternal(query, anyLocale, requireLocale, "", nil, filter, offset, limit)
+}
+
+// SearchEntriesForStream performs a search with stream priority ordering.
+func (tm *InMemoryTM) SearchEntriesForStream(query, anyLocale, requireLocale, stream string, streamChain []string, offset, limit int) ([]TMEntry, int) {
+	return tm.searchInternal(query, anyLocale, requireLocale, stream, streamChain, SearchFilter{}, offset, limit)
+}
+
+func (tm *InMemoryTM) searchInternal(query, anyLocale, requireLocale, _ string, _ []string, filter SearchFilter, offset, limit int) ([]TMEntry, int) {
 	tm.mu.RLock()
 	defer tm.mu.RUnlock()
 
 	lowerQuery := strings.ToLower(query)
 	var matched []TMEntry
-
-	for _, ne := range tm.entries {
-		if sourceLocale != "" && string(ne.entry.SourceLocale) != sourceLocale {
+	for _, se := range tm.entries {
+		e := se.entry
+		if !matchesSearchFilter(e, filter) {
 			continue
 		}
-		if targetLocale != "" && string(ne.entry.TargetLocale) != targetLocale {
+		if requireLocale != "" && !e.HasLocale(model.LocaleID(requireLocale)) {
 			continue
 		}
 		if query != "" {
-			srcText := strings.ToLower(ne.entry.SourceText())
-			tgtText := strings.ToLower(ne.entry.TargetText())
-			if !strings.Contains(srcText, lowerQuery) && !strings.Contains(tgtText, lowerQuery) {
+			if !variantTextContains(e, anyLocale, lowerQuery) {
 				continue
 			}
-		}
-		if !matchesSearchFilter(ne.entry, filter) {
+		} else if anyLocale != "" && !e.HasLocale(model.LocaleID(anyLocale)) {
 			continue
 		}
-		matched = append(matched, ne.entry)
+		matched = append(matched, e)
 	}
-
+	// Sort by updated_at DESC for stable pagination.
+	sort.SliceStable(matched, func(i, j int) bool {
+		return matched[i].UpdatedAt.After(matched[j].UpdatedAt)
+	})
 	total := len(matched)
 	if offset >= total {
 		return nil, total
 	}
-	end := min(offset+limit, total)
+	end := offset + limit
+	if end > total {
+		end = total
+	}
 	return matched[offset:end], total
 }
 
-// matchesSearchFilter returns true if the entry passes all filter criteria.
+// variantTextContains checks if any variant's plain text contains the
+// (already lowercased) needle. When anyLocale is set, only that locale's
+// variant is consulted.
+func variantTextContains(e TMEntry, anyLocale, needle string) bool {
+	if anyLocale != "" {
+		frag := e.Variant(model.LocaleID(anyLocale))
+		if frag == nil {
+			return false
+		}
+		return strings.Contains(strings.ToLower(frag.Text()), needle)
+	}
+	for _, frag := range e.Variants {
+		if frag == nil {
+			continue
+		}
+		if strings.Contains(strings.ToLower(frag.Text()), needle) {
+			return true
+		}
+	}
+	return false
+}
+
+// matchesSearchFilter reports whether entry passes the facet filter.
 func matchesSearchFilter(entry TMEntry, filter SearchFilter) bool {
 	if filter.ProjectID != "" && entry.ProjectID != filter.ProjectID {
 		return false
 	}
-	if filter.Locale != "" {
-		if string(entry.SourceLocale) != filter.Locale && string(entry.TargetLocale) != filter.Locale {
+	if len(filter.SessionIDs) > 0 {
+		found := false
+		for _, sid := range filter.SessionIDs {
+			for _, o := range entry.Origins {
+				if o.SessionID == sid {
+					found = true
+					break
+				}
+			}
+			if found {
+				break
+			}
+		}
+		if !found {
 			return false
 		}
 	}
@@ -413,8 +487,16 @@ func matchesSearchFilter(entry TMEntry, filter SearchFilter) bool {
 		found := false
 		for _, ev := range filter.EntityValues {
 			for _, em := range entry.Entities {
-				if em.SourceValue == ev.Value && string(em.Type) == ev.Type {
-					found = true
+				if string(em.Type) != ev.Type {
+					continue
+				}
+				for _, val := range em.Values {
+					if val.Text == ev.Value {
+						found = true
+						break
+					}
+				}
+				if found {
 					break
 				}
 			}
@@ -427,75 +509,89 @@ func matchesSearchFilter(entry TMEntry, filter SearchFilter) bool {
 		}
 	}
 	if filter.HasCodes != nil {
-		hasCodes := entry.Source != nil && strings.ContainsRune(entry.Source.CodedText, '\uE001')
-		if *filter.HasCodes != hasCodes {
+		has := entryHasCodes(entry)
+		if *filter.HasCodes != has {
 			return false
 		}
 	}
 	return true
 }
 
-// GetEntry fetches a single entry by ID.
-func (tm *InMemoryTM) GetEntry(id string) (TMEntry, bool) {
-	tm.mu.RLock()
-	defer tm.mu.RUnlock()
-
-	idx, exists := tm.byID[id]
-	if !exists {
-		return TMEntry{}, false
+func entryHasCodes(entry TMEntry) bool {
+	for _, frag := range entry.Variants {
+		if frag == nil {
+			continue
+		}
+		if len(frag.Spans) > 0 || strings.ContainsAny(frag.CodedText, "\uE001\uE002\uE003") {
+			return true
+		}
 	}
-	return tm.entries[idx].entry, true
+	return false
 }
 
-// FacetStats returns aggregated facet data for filtering UI (unfiltered).
+// --- Facets & stats ---
+
+// FacetStats returns aggregated facet data for filtering UI.
 func (tm *InMemoryTM) FacetStats() FacetData {
 	return tm.FacetStatsFiltered("", "", "", SearchFilter{})
 }
 
 // FacetStatsFiltered returns facet counts scoped to entries matching the
 // given search query and filter.
-func (tm *InMemoryTM) FacetStatsFiltered(query, sourceLocale, targetLocale string, filter SearchFilter) FacetData {
+func (tm *InMemoryTM) FacetStatsFiltered(query, anyLocale, requireLocale string, filter SearchFilter) FacetData {
 	tm.mu.RLock()
 	defer tm.mu.RUnlock()
-
 	lowerQuery := strings.ToLower(query)
-	localePairCounts := make(map[[2]string]int)
-	projectCounts := make(map[string]int)
-	entityTypeCounts := make(map[string]int)
+
+	localeCounts := make(map[string]int)
+	projCounts := make(map[string]int)
+	entityCounts := make(map[string]int)
+	sessionCounts := make(map[string]int)
+	sessionInfo := make(map[string]ImportSession)
 	var hasCodes, noCodes int
 
-	for _, ne := range tm.entries {
-		e := ne.entry
-
-		// Locale params.
-		if sourceLocale != "" && string(e.SourceLocale) != sourceLocale {
-			continue
-		}
-		if targetLocale != "" && string(e.TargetLocale) != targetLocale {
-			continue
-		}
-		// Filter.
+	for _, se := range tm.entries {
+		e := se.entry
 		if !matchesSearchFilter(e, filter) {
 			continue
 		}
-		// Text search.
-		if lowerQuery != "" {
-			src := strings.ToLower(e.SourceText())
-			tgt := strings.ToLower(e.TargetText())
-			if !strings.Contains(src, lowerQuery) && !strings.Contains(tgt, lowerQuery) {
+		if requireLocale != "" && !e.HasLocale(model.LocaleID(requireLocale)) {
+			continue
+		}
+		if query != "" {
+			if !variantTextContains(e, anyLocale, lowerQuery) {
 				continue
 			}
+		} else if anyLocale != "" && !e.HasLocale(model.LocaleID(anyLocale)) {
+			continue
 		}
 
-		pair := [2]string{string(e.SourceLocale), string(e.TargetLocale)}
-		localePairCounts[pair]++
-		projectCounts[e.ProjectID]++
-
+		for loc := range e.Variants {
+			localeCounts[string(loc)]++
+		}
+		projCounts[e.ProjectID]++
+		entityTypesCounted := make(map[string]bool)
 		for _, em := range e.Entities {
-			entityTypeCounts[string(em.Type)]++
+			t := string(em.Type)
+			if !entityTypesCounted[t] {
+				entityTypesCounted[t] = true
+				entityCounts[t]++
+			}
 		}
-
-		if e.Source != nil && strings.ContainsRune(e.Source.CodedText, '\uE001') {
+		sessionCounted := make(map[string]bool)
+		for _, o := range e.Origins {
+			if o.SessionID == "" || sessionCounted[o.SessionID] {
+				continue
+			}
+			sessionCounted[o.SessionID] = true
+			sessionCounts[o.SessionID]++
+			if _, ok := sessionInfo[o.SessionID]; !ok {
+				if s, ok := tm.sessions[o.SessionID]; ok {
+					sessionInfo[o.SessionID] = s
+				}
+			}
+		}
+		if entryHasCodes(e) {
 			hasCodes++
 		} else {
 			noCodes++
@@ -503,90 +599,183 @@ func (tm *InMemoryTM) FacetStatsFiltered(query, sourceLocale, targetLocale strin
 	}
 
 	data := FacetData{HasCodes: hasCodes, NoCodes: noCodes}
-	for pair, count := range localePairCounts {
-		data.LocalePairs = append(data.LocalePairs, LocalePairStat{
-			SourceLocale: pair[0],
-			TargetLocale: pair[1],
-			Count:        count,
-		})
+	for loc, count := range localeCounts {
+		data.Locales = append(data.Locales, LocaleFacet{Locale: loc, Count: count})
 	}
-	for pid, count := range projectCounts {
+	sort.Slice(data.Locales, func(i, j int) bool {
+		if data.Locales[i].Count != data.Locales[j].Count {
+			return data.Locales[i].Count > data.Locales[j].Count
+		}
+		return data.Locales[i].Locale < data.Locales[j].Locale
+	})
+	for pid, count := range projCounts {
 		data.Projects = append(data.Projects, ProjectFacet{ProjectID: pid, Count: count})
 	}
-	for et, count := range entityTypeCounts {
+	sort.Slice(data.Projects, func(i, j int) bool { return data.Projects[i].Count > data.Projects[j].Count })
+	for et, count := range entityCounts {
 		data.EntityTypes = append(data.EntityTypes, EntityTypeFacet{Type: et, Count: count})
 	}
+	sort.Slice(data.EntityTypes, func(i, j int) bool { return data.EntityTypes[i].Count > data.EntityTypes[j].Count })
+	for sid, count := range sessionCounts {
+		info := sessionInfo[sid]
+		data.ImportSessions = append(data.ImportSessions, ImportSessionFacet{
+			SessionID:  sid,
+			FileKey:    info.FileKey,
+			ToolName:   info.ToolName,
+			ImportedAt: info.ImportedAt,
+			Count:      count,
+		})
+	}
+	sort.Slice(data.ImportSessions, func(i, j int) bool {
+		return data.ImportSessions[i].Count > data.ImportSessions[j].Count
+	})
 	return data
 }
 
-// SearchEntriesGrouped returns entries grouped by source text.
-func (tm *InMemoryTM) SearchEntriesGrouped(query, sourceLocale string, offset, limit int) ([]TMEntryGroup, int) {
-	return tm.SearchEntriesGroupedFiltered(query, sourceLocale, SearchFilter{}, offset, limit)
-}
-
-// SearchEntriesGroupedFiltered returns entries grouped by source text with facet filters.
-func (tm *InMemoryTM) SearchEntriesGroupedFiltered(query, sourceLocale string, filter SearchFilter, offset, limit int) ([]TMEntryGroup, int) {
+// LocaleStats returns per-locale entry counts across the full TM.
+func (tm *InMemoryTM) LocaleStats() []LocaleFacet {
 	tm.mu.RLock()
 	defer tm.mu.RUnlock()
-
-	lowerQuery := strings.ToLower(query)
-
-	// Group matching entries by source plain text.
-	type groupInfo struct {
-		order   int
-		entries []TMEntry
+	counts := make(map[string]int)
+	for _, se := range tm.entries {
+		for loc := range se.entry.Variants {
+			counts[string(loc)]++
+		}
 	}
-	groups := make(map[string]*groupInfo)
-	var groupOrder []string
+	out := make([]LocaleFacet, 0, len(counts))
+	for loc, count := range counts {
+		out = append(out, LocaleFacet{Locale: loc, Count: count})
+	}
+	sort.Slice(out, func(i, j int) bool {
+		if out[i].Count != out[j].Count {
+			return out[i].Count > out[j].Count
+		}
+		return out[i].Locale < out[j].Locale
+	})
+	return out
+}
 
-	for _, ne := range tm.entries {
-		e := ne.entry
-		if sourceLocale != "" && string(e.SourceLocale) != sourceLocale {
+// ActivityStats returns daily entry counts over time based on CreatedAt.
+func (tm *InMemoryTM) ActivityStats() []ActivityStat {
+	tm.mu.RLock()
+	defer tm.mu.RUnlock()
+	counts := make(map[string]int)
+	for _, se := range tm.entries {
+		day := se.entry.CreatedAt.Format("2006-01-02")
+		counts[day]++
+	}
+	out := make([]ActivityStat, 0, len(counts))
+	for d, c := range counts {
+		out = append(out, ActivityStat{Date: d, Count: c})
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].Date < out[j].Date })
+	return out
+}
+
+// --- Import session CRUD ---
+
+// CreateImportSession inserts a new session.
+func (tm *InMemoryTM) CreateImportSession(session ImportSession) error {
+	if session.ID == "" {
+		return ErrSessionIDRequired
+	}
+	if session.FileKey == "" {
+		return ErrSessionFileKey
+	}
+	if session.ImportedAt.IsZero() {
+		session.ImportedAt = time.Now()
+	}
+	tm.mu.Lock()
+	defer tm.mu.Unlock()
+	copySession := session
+	if session.Properties != nil {
+		copySession.Properties = make(map[string]string, len(session.Properties))
+		for k, v := range session.Properties {
+			copySession.Properties[k] = v
+		}
+	}
+	tm.sessions[session.ID] = copySession
+	return nil
+}
+
+// GetImportSession fetches a session by ID.
+func (tm *InMemoryTM) GetImportSession(id string) (ImportSession, bool) {
+	tm.mu.RLock()
+	defer tm.mu.RUnlock()
+	s, ok := tm.sessions[id]
+	return s, ok
+}
+
+// FindImportSessionByHash returns the most recent session matching the hash.
+func (tm *InMemoryTM) FindImportSessionByHash(hash string) (ImportSession, bool) {
+	if hash == "" {
+		return ImportSession{}, false
+	}
+	tm.mu.RLock()
+	defer tm.mu.RUnlock()
+	var best *ImportSession
+	for _, s := range tm.sessions {
+		s := s
+		if s.FileHash != hash {
 			continue
 		}
-		if query != "" {
-			srcText := strings.ToLower(e.SourceText())
-			tgtText := strings.ToLower(e.TargetText())
-			if !strings.Contains(srcText, lowerQuery) && !strings.Contains(tgtText, lowerQuery) {
-				continue
+		if best == nil || s.ImportedAt.After(best.ImportedAt) {
+			best = &s
+		}
+	}
+	if best == nil {
+		return ImportSession{}, false
+	}
+	return *best, true
+}
+
+// ListImportSessions returns all sessions ordered by imported_at DESC.
+func (tm *InMemoryTM) ListImportSessions() []ImportSession {
+	tm.mu.RLock()
+	defer tm.mu.RUnlock()
+	out := make([]ImportSession, 0, len(tm.sessions))
+	for _, s := range tm.sessions {
+		out = append(out, s)
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].ImportedAt.After(out[j].ImportedAt) })
+	return out
+}
+
+// UpdateImportSessionCount sets the entry_count on a session.
+func (tm *InMemoryTM) UpdateImportSessionCount(id string, count int) error {
+	tm.mu.Lock()
+	defer tm.mu.Unlock()
+	s, ok := tm.sessions[id]
+	if !ok {
+		return ErrImportSessionMiss
+	}
+	s.EntryCount = count
+	tm.sessions[id] = s
+	return nil
+}
+
+// DeleteImportSession removes a session; any origins referencing it have
+// their session_id cleared.
+func (tm *InMemoryTM) DeleteImportSession(id string) error {
+	tm.mu.Lock()
+	defer tm.mu.Unlock()
+	if _, ok := tm.sessions[id]; !ok {
+		return ErrImportSessionMiss
+	}
+	delete(tm.sessions, id)
+	for i := range tm.entries {
+		for j := range tm.entries[i].entry.Origins {
+			if tm.entries[i].entry.Origins[j].SessionID == id {
+				tm.entries[i].entry.Origins[j].SessionID = ""
 			}
 		}
-		if !matchesSearchFilter(e, filter) {
-			continue
-		}
-		key := NormalizeText(e.SourceText())
-		g, ok := groups[key]
-		if !ok {
-			g = &groupInfo{order: len(groupOrder)}
-			groups[key] = g
-			groupOrder = append(groupOrder, key)
-		}
-		g.entries = append(g.entries, e)
 	}
-
-	total := len(groupOrder)
-	if offset >= total {
-		return nil, total
-	}
-	end := min(offset+limit, total)
-	pageKeys := groupOrder[offset:end]
-
-	result := make([]TMEntryGroup, 0, len(pageKeys))
-	for _, key := range pageKeys {
-		g := groups[key]
-		first := g.entries[0]
-		result = append(result, TMEntryGroup{
-			SourceText:   key,
-			Source:       first.Source,
-			SourceLocale: first.SourceLocale,
-			Targets:      g.entries,
-		})
-	}
-	return result, total
+	return nil
 }
 
 // --- helpers ---
 
+// ApplyDefaults fills in sensible defaults for LookupOptions.
 func ApplyDefaults(opts LookupOptions) LookupOptions {
 	if opts.MinScore <= 0 {
 		opts.MinScore = 0.7
@@ -597,10 +786,7 @@ func ApplyDefaults(opts LookupOptions) LookupOptions {
 	return opts
 }
 
-func matchesLocale(entry TMEntry, sourceLocale, targetLocale model.LocaleID) bool {
-	return entry.SourceLocale == sourceLocale && entry.TargetLocale == targetLocale
-}
-
+// MatchModesEnabled returns a set of enabled match modes; empty means all.
 func MatchModesEnabled(modes []MatchMode) map[MatchMode]bool {
 	if len(modes) == 0 {
 		return map[MatchMode]bool{
@@ -616,6 +802,7 @@ func MatchModesEnabled(modes []MatchMode) map[MatchMode]bool {
 	return m
 }
 
+// MatchTypePriority returns the sort priority (lower = better) for a match type.
 func MatchTypePriority(mt MatchType) int {
 	switch mt {
 	case MatchGeneralizedExact:
@@ -635,6 +822,7 @@ func MatchTypePriority(mt MatchType) int {
 	}
 }
 
+// LimitResults truncates a match list to max entries.
 func LimitResults(matches []TMMatch, max int) []TMMatch {
 	if len(matches) > max {
 		return matches[:max]
@@ -642,9 +830,10 @@ func LimitResults(matches []TMMatch, max int) []TMMatch {
 	return matches
 }
 
-// ExtractEntityAnnotations pulls EntityAnnotation instances from a Block's annotations.
+// ExtractEntityAnnotations pulls EntityAnnotation instances from a Block's
+// annotations map.
 func ExtractEntityAnnotations(block *model.Block) []*model.EntityAnnotation {
-	if block.Annotations == nil {
+	if block == nil || block.Annotations == nil {
 		return nil
 	}
 	var entities []*model.EntityAnnotation
@@ -657,65 +846,56 @@ func ExtractEntityAnnotations(block *model.Block) []*model.EntityAnnotation {
 }
 
 // ComputeEntityAdaptations computes how to adapt entity values from a stored
-// TM entry to match the current source content.
-func ComputeEntityAdaptations(entry TMEntry, currentEntities []*model.EntityAnnotation) []EntityAdaptation {
+// TM entry's target variant to match the current source content.
+// sourceLocale is the locale of currentEntities; targetLocale is the variant
+// whose entity values should be rewritten.
+func ComputeEntityAdaptations(entry TMEntry, sourceLocale, targetLocale model.LocaleID, currentEntities []*model.EntityAnnotation) []EntityAdaptation {
 	if len(entry.Entities) == 0 || len(currentEntities) == 0 {
 		return nil
 	}
-
-	var adaptations []EntityAdaptation
-
-	// Match stored entities to current entities by type, in order.
-	// This is a simple positional matching — entities of the same type
-	// are matched left-to-right.
 	typeQueues := make(map[model.EntityType][]*model.EntityAnnotation)
 	for _, ea := range currentEntities {
 		typeQueues[ea.Type] = append(typeQueues[ea.Type], ea)
 	}
-
 	typeIdx := make(map[model.EntityType]int)
+	var adaptations []EntityAdaptation
 	for _, em := range entry.Entities {
 		queue := typeQueues[em.Type]
 		idx := typeIdx[em.Type]
-		if idx < len(queue) {
-			current := queue[idx]
-			typeIdx[em.Type] = idx + 1
-
-			if em.TargetValue != current.Text {
-				adaptations = append(adaptations, EntityAdaptation{
-					PlaceholderID: em.PlaceholderID,
-					Type:          em.Type,
-					StoredValue:   em.TargetValue,
-					CurrentValue:  current.Text,
-					TargetPos:     em.TargetPos,
-				})
-			}
+		if idx >= len(queue) {
+			continue
 		}
+		current := queue[idx]
+		typeIdx[em.Type] = idx + 1
+		tv, ok := em.Values[targetLocale]
+		if !ok {
+			continue
+		}
+		if tv.Text == current.Text {
+			continue
+		}
+		adaptations = append(adaptations, EntityAdaptation{
+			PlaceholderID: em.PlaceholderID,
+			Type:          em.Type,
+			StoredValue:   tv.Text,
+			CurrentValue:  current.Text,
+			TargetPos:     model.TextRange{Start: tv.Start, End: tv.End},
+		})
 	}
-
 	return adaptations
 }
 
 // NormalizeText normalizes text for comparison by applying Unicode NFC
 // normalization, trimming whitespace, and collapsing internal whitespace
-// to single spaces. NFC normalization ensures consistent representation
-// of composed characters (e.g., Hangul jamo → syllables, combining
-// diacritics → precomposed forms, Arabic tashkeel).
+// to single spaces.
 func NormalizeText(s string) string {
 	s = norm.NFC.String(s)
-
-	// Fast path: if the string contains no whitespace anomalies, return as-is.
-	// This avoids allocation for the common case of already-clean text.
 	if !needsWhitespaceNormalization(s) {
 		return s
 	}
-
-	// Single-pass: trim leading/trailing whitespace and collapse internal
-	// runs of whitespace to a single space, avoiding the two extra
-	// allocations from strings.Fields + strings.Join.
 	var b strings.Builder
 	b.Grow(len(s))
-	inSpace := true // treat leading whitespace as a run to skip
+	inSpace := true
 	for _, r := range s {
 		if isWhitespace(r) {
 			inSpace = true
@@ -730,8 +910,6 @@ func NormalizeText(s string) string {
 	return b.String()
 }
 
-// needsWhitespaceNormalization reports whether s has leading/trailing whitespace,
-// consecutive whitespace, or non-space whitespace characters.
 func needsWhitespaceNormalization(s string) bool {
 	if len(s) == 0 {
 		return false
@@ -743,20 +921,17 @@ func needsWhitespaceNormalization(s string) bool {
 	for _, r := range s {
 		ws := isWhitespace(r)
 		if ws && prev {
-			return true // consecutive whitespace
+			return true
 		}
 		if ws && r != ' ' {
-			return true // tab, newline, etc.
+			return true
 		}
 		prev = ws
 	}
 	return false
 }
 
-// isWhitespace reports whether r is a Unicode whitespace character,
-// matching the same set as strings.Fields / unicode.IsSpace.
 func isWhitespace(r rune) bool {
-	// Common ASCII cases first for speed.
 	switch r {
 	case ' ', '\t', '\n', '\r', '\v', '\f':
 		return true

@@ -342,7 +342,7 @@ func (g *EditorGRPCServer) GetTMEntries(ctx context.Context, req *pb.TMEntriesRe
 
 	resp := &pb.TMEntriesResponse{TotalCount: int32(total)}
 	for _, e := range entries {
-		resp.Entries = append(resp.Entries, tmEntryToProto(e))
+		resp.Entries = append(resp.Entries, tmEntryToProto(e, req.SourceLocale, req.TargetLocale))
 	}
 	return resp, nil
 }
@@ -370,15 +370,18 @@ func (g *EditorGRPCServer) AddTMEntry(ctx context.Context, req *pb.AddTMEntryReq
 		return nil, status.Errorf(codes.Internal, "init TM: %v", err)
 	}
 
+	srcLoc := model.LocaleID(req.SourceLocale)
+	tgtLoc := model.LocaleID(req.TargetLocale)
 	entry := sievepen.TMEntry{
-		ID:           id.New(),
-		Source:       &model.Fragment{CodedText: req.Source},
-		Target:       &model.Fragment{CodedText: req.Target},
-		SourceLocale: model.LocaleID(req.SourceLocale),
-		TargetLocale: model.LocaleID(req.TargetLocale),
-		ProjectID:    req.ProjectId,
-		CreatedAt:    time.Now(),
-		UpdatedAt:    time.Now(),
+		ID: id.New(),
+		Variants: map[model.LocaleID]*model.Fragment{
+			srcLoc: {CodedText: req.Source},
+			tgtLoc: {CodedText: req.Target},
+		},
+		HintSrcLang: srcLoc,
+		ProjectID:   req.ProjectId,
+		CreatedAt:   time.Now(),
+		UpdatedAt:   time.Now(),
 	}
 	if req.Stream != "" && req.Stream != "main" {
 		err = tm.AddWithStream(entry, req.Stream)
@@ -389,7 +392,7 @@ func (g *EditorGRPCServer) AddTMEntry(ctx context.Context, req *pb.AddTMEntryReq
 		return nil, status.Errorf(codes.Internal, "add TM entry: %v", err)
 	}
 
-	return &pb.TMEntryResponse{Entry: tmEntryToProto(entry)}, nil
+	return &pb.TMEntryResponse{Entry: tmEntryToProto(entry, req.SourceLocale, req.TargetLocale)}, nil
 }
 
 func (g *EditorGRPCServer) UpdateTMEntry(ctx context.Context, req *pb.UpdateTMEntryRequest) (*emptypb.Empty, error) {
@@ -411,10 +414,16 @@ func (g *EditorGRPCServer) UpdateTMEntry(ctx context.Context, req *pb.UpdateTMEn
 		return nil, status.Errorf(codes.Internal, "delete old TM entry: %v", err)
 	}
 
-	existing.Source = &model.Fragment{CodedText: req.Source}
-	existing.Target = &model.Fragment{CodedText: req.Target}
-	existing.SourceLocale = model.LocaleID(req.SourceLocale)
-	existing.TargetLocale = model.LocaleID(req.TargetLocale)
+	srcLoc := model.LocaleID(req.SourceLocale)
+	tgtLoc := model.LocaleID(req.TargetLocale)
+	if existing.Variants == nil {
+		existing.Variants = make(map[model.LocaleID]*model.Fragment)
+	}
+	existing.Variants[srcLoc] = &model.Fragment{CodedText: req.Source}
+	existing.Variants[tgtLoc] = &model.Fragment{CodedText: req.Target}
+	if existing.HintSrcLang == "" {
+		existing.HintSrcLang = srcLoc
+	}
 	existing.UpdatedAt = time.Now()
 
 	if err := tm.Add(existing); err != nil {
@@ -844,13 +853,26 @@ func protoToSpan(si *pb.SpanInfo) *model.Span {
 	}
 }
 
-func tmEntryToProto(e sievepen.TMEntry) *pb.TMEntryInfo {
+func tmEntryToProto(e sievepen.TMEntry, sourceLocale, targetLocale string) *pb.TMEntryInfo {
+	srcLoc := model.LocaleID(sourceLocale)
+	tgtLoc := model.LocaleID(targetLocale)
+	if srcLoc == "" && e.HintSrcLang != "" {
+		srcLoc = e.HintSrcLang
+	}
+	if tgtLoc == "" {
+		for loc := range e.Variants {
+			if loc != srcLoc {
+				tgtLoc = loc
+				break
+			}
+		}
+	}
 	return &pb.TMEntryInfo{
 		Id:           e.ID,
-		Source:       e.SourceText(),
-		Target:       e.TargetText(),
-		SourceLocale: string(e.SourceLocale),
-		TargetLocale: string(e.TargetLocale),
+		Source:       e.VariantText(srcLoc),
+		Target:       e.VariantText(tgtLoc),
+		SourceLocale: string(srcLoc),
+		TargetLocale: string(tgtLoc),
 		UpdatedAt:    e.UpdatedAt.Format(time.RFC3339),
 	}
 }

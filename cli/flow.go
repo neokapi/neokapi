@@ -880,7 +880,7 @@ func (p *cliTMProvider) LookupExact(source string, sourceLocale, targetLocale mo
 	if err != nil || len(matches) == 0 {
 		return "", false
 	}
-	return matches[0].Entry.TargetText(), true
+	return matches[0].Entry.VariantText(targetLocale), true
 }
 
 func (p *cliTMProvider) LookupFuzzy(source string, sourceLocale, targetLocale model.LocaleID, threshold int) (string, int, bool) {
@@ -894,7 +894,7 @@ func (p *cliTMProvider) LookupFuzzy(source string, sourceLocale, targetLocale mo
 		return "", 0, false
 	}
 	score := int(matches[0].Score * 100)
-	return matches[0].Entry.TargetText(), score, true
+	return matches[0].Entry.VariantText(targetLocale), score, true
 }
 
 // openTermbase resolves the --termbase flag and opens a SQLite termbase.

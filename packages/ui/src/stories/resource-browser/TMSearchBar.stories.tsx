@@ -30,12 +30,7 @@ export const Default: Story = {
   render: () => {
     const [value, setValue] = useState("");
     return (
-      <TMSearchBar
-        value={value}
-        onChange={setValue}
-        sourceLocale="en-US"
-        targetLocale="fr-FR"
-      />
+      <TMSearchBar value={value} onChange={setValue} sourceLocale="en-US" targetLocale="fr-FR" />
     );
   },
 };
@@ -81,7 +76,8 @@ export const WithFilterTokens: Story = {
   parameters: {
     docs: {
       description: {
-        story: "Filter tokens appear as inline badges at the left of the input. Click the chevron to add more filters. Backspace on an empty input removes the last token.",
+        story:
+          "Filter tokens appear as inline badges at the left of the input. Click the chevron to add more filters. Backspace on an empty input removes the last token.",
       },
     },
   },
@@ -100,15 +96,22 @@ export const WithLookup: Story = {
           {
             entry: {
               id: "1",
-              source_text: "Bob works at Widget Inc",
-              target_text: "Bob travaille chez Widget Inc",
-              source_coded: "",
-              target_coded: "",
-              source_spans: [],
-              target_spans: [],
-              source_locale: "en-US",
-              target_locale: "fr-FR",
               project_id: "",
+              hint_src_lang: "en-US",
+              variants: {
+                "en-US": {
+                  locale: "en-US",
+                  text: "Bob works at Widget Inc",
+                  coded: "Bob works at Widget Inc",
+                  spans: [],
+                },
+                "fr-FR": {
+                  locale: "fr-FR",
+                  text: "Bob travaille chez Widget Inc",
+                  coded: "Bob travaille chez Widget Inc",
+                  spans: [],
+                },
+              },
               created_at: new Date().toISOString(),
               updated_at: new Date().toISOString(),
             },
@@ -122,7 +125,8 @@ export const WithLookup: Story = {
   parameters: {
     docs: {
       description: {
-        story: "Select text to mark entities, then press Enter to trigger lookup. Try selecting 'John' and marking as Person.",
+        story:
+          "Select text to mark entities, then press Enter to trigger lookup. Try selecting 'John' and marking as Person.",
       },
     },
   },
@@ -157,7 +161,9 @@ export const CustomPlaceholder: Story = {
 export const EntityValueFilter: Story = {
   render: () => {
     const [value, setValue] = useState("Acme Corp hired John");
-    const [entities, setEntities] = useState<Array<{ text: string; type: string; start: number; end: number }>>([]);
+    const [entities, setEntities] = useState<
+      Array<{ text: string; type: string; start: number; end: number }>
+    >([]);
     return (
       <div>
         <TMSearchBar

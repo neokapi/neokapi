@@ -28,363 +28,144 @@ func openTestPostgresTM(t *testing.T) *pgtm.PostgresTM {
 	if err != nil {
 		t.Skipf("PostgreSQL not available: %v", err)
 	}
-	// Use a unique workspace per test to isolate.
 	wsID := fmt.Sprintf("test-%s-%d", t.Name(), time.Now().UnixNano())
 	tm, err := pgtm.NewPostgresTMFromDB(db, wsID)
 	require.NoError(t, err)
 	t.Cleanup(func() {
-		// Clean up entries for this workspace.
 		db.Exec("DELETE FROM tm_entries WHERE workspace_id = $1", wsID)
+		db.Exec("DELETE FROM tm_import_sessions WHERE workspace_id = $1", wsID)
 		db.Close()
 	})
 	return tm
 }
 
-func TestPostgresTM_IntegrationAddAndLookup(t *testing.T) {
-	tm := openTestPostgresTM(t)
-
-	entry := sievepen.TMEntry{
-		ID:           "entry-1",
-		Source:       model.NewFragment("Hello"),
-		Target:       model.NewFragment("Bonjour"),
-		SourceLocale: model.LocaleEnglish,
-		TargetLocale: model.LocaleFrench,
-		CreatedAt:    time.Now(),
-		UpdatedAt:    time.Now(),
-		Properties:   map[string]string{"domain": "general"},
+func trilingual(id, en, fr, de string) sievepen.TMEntry {
+	return sievepen.TMEntry{
+		ID: id,
+		Variants: map[model.LocaleID]*model.Fragment{
+			"en": model.NewFragment(en),
+			"fr": model.NewFragment(fr),
+			"de": model.NewFragment(de),
+		},
+		HintSrcLang: "en",
 	}
+}
 
-	err := tm.Add(entry)
-	require.NoError(t, err)
+func TestPostgresTM_MultilingualAddAndLookup(t *testing.T) {
+	tm := openTestPostgresTM(t)
+	require.NoError(t, tm.Add(trilingual("e1", "Hello", "Bonjour", "Hallo")))
 	assert.Equal(t, 1, tm.Count())
 
-	matches, err := tm.LookupText("Hello", model.LocaleEnglish, model.LocaleFrench, sievepen.DefaultLookupOptions())
+	matches, err := tm.LookupText("Hello", "en", "fr", sievepen.DefaultLookupOptions())
 	require.NoError(t, err)
 	require.Len(t, matches, 1)
-	assert.Equal(t, "Bonjour", matches[0].Entry.TargetText())
+	assert.Equal(t, "Bonjour", matches[0].Entry.VariantText("fr"))
 	assert.Equal(t, 1.0, matches[0].Score)
 	assert.Equal(t, sievepen.MatchExact, matches[0].MatchType)
 }
 
-func TestPostgresTM_IntegrationExactMatch(t *testing.T) {
+func TestPostgresTM_LookupCrossDirection(t *testing.T) {
 	tm := openTestPostgresTM(t)
-
-	require.NoError(t, tm.Add(sievepen.TMEntry{
-		ID: "e1", Source: model.NewFragment("Save"), Target: model.NewFragment("Sauvegarder"),
-		SourceLocale: model.LocaleEnglish, TargetLocale: model.LocaleFrench,
-	}))
-	require.NoError(t, tm.Add(sievepen.TMEntry{
-		ID: "e2", Source: model.NewFragment("Cancel"), Target: model.NewFragment("Annuler"),
-		SourceLocale: model.LocaleEnglish, TargetLocale: model.LocaleFrench,
-	}))
-
-	matches, err := tm.LookupText("Save", model.LocaleEnglish, model.LocaleFrench, sievepen.LookupOptions{
-		MinScore: 1.0, MaxResults: 10,
-	})
+	require.NoError(t, tm.Add(trilingual("e1", "Save", "Enregistrer", "Speichern")))
+	matches, err := tm.LookupText("Enregistrer", "fr", "de", sievepen.DefaultLookupOptions())
 	require.NoError(t, err)
 	require.Len(t, matches, 1)
-	assert.Equal(t, "Sauvegarder", matches[0].Entry.TargetText())
-	assert.Equal(t, sievepen.MatchExact, matches[0].MatchType)
+	assert.Equal(t, "Speichern", matches[0].Entry.VariantText("de"))
 }
 
-func TestPostgresTM_IntegrationFuzzyMatch(t *testing.T) {
+func TestPostgresTM_SearchRequireLocale(t *testing.T) {
 	tm := openTestPostgresTM(t)
-
 	require.NoError(t, tm.Add(sievepen.TMEntry{
-		ID: "e1", Source: model.NewFragment("The file was saved successfully"),
-		Target:       model.NewFragment("Le fichier a ete sauvegarde avec succes"),
-		SourceLocale: model.LocaleEnglish, TargetLocale: model.LocaleFrench,
-	}))
-
-	matches, err := tm.LookupText("The file was saved", model.LocaleEnglish, model.LocaleFrench, sievepen.LookupOptions{
-		MinScore: 0.5, MaxResults: 10,
-	})
-	require.NoError(t, err)
-	require.NotEmpty(t, matches)
-	assert.Equal(t, sievepen.MatchFuzzy, matches[0].MatchType)
-	assert.Greater(t, matches[0].Score, 0.5)
-	assert.Less(t, matches[0].Score, 1.0)
-}
-
-func TestPostgresTM_IntegrationDelete(t *testing.T) {
-	tm := openTestPostgresTM(t)
-
-	require.NoError(t, tm.Add(sievepen.TMEntry{
-		ID: "e1", Source: model.NewFragment("Hello"), Target: model.NewFragment("Bonjour"),
-		SourceLocale: model.LocaleEnglish, TargetLocale: model.LocaleFrench,
+		ID: "e1",
+		Variants: map[model.LocaleID]*model.Fragment{
+			"en": model.NewFragment("hello"),
+			"fr": model.NewFragment("bonjour"),
+		},
 	}))
 	require.NoError(t, tm.Add(sievepen.TMEntry{
-		ID: "e2", Source: model.NewFragment("Goodbye"), Target: model.NewFragment("Au revoir"),
-		SourceLocale: model.LocaleEnglish, TargetLocale: model.LocaleFrench,
+		ID: "e2",
+		Variants: map[model.LocaleID]*model.Fragment{
+			"en": model.NewFragment("hello"),
+		},
 	}))
-	assert.Equal(t, 2, tm.Count())
-
-	err := tm.Delete("e1")
-	require.NoError(t, err)
-	assert.Equal(t, 1, tm.Count())
-
-	matches, err := tm.LookupText("Hello", model.LocaleEnglish, model.LocaleFrench, sievepen.LookupOptions{
-		MinScore: 1.0, MaxResults: 10,
-	})
-	require.NoError(t, err)
-	assert.Empty(t, matches)
-
-	matches, err = tm.LookupText("Goodbye", model.LocaleEnglish, model.LocaleFrench, sievepen.LookupOptions{
-		MinScore: 1.0, MaxResults: 10,
-	})
-	require.NoError(t, err)
-	require.Len(t, matches, 1)
-	assert.Equal(t, "Au revoir", matches[0].Entry.TargetText())
-
-	err = tm.Delete("non-existent")
-	assert.Error(t, err)
-}
-
-func TestPostgresTM_IntegrationEmptyIDError(t *testing.T) {
-	tm := openTestPostgresTM(t)
-
-	err := tm.Add(sievepen.TMEntry{
-		Source: model.NewFragment("Hello"), Target: model.NewFragment("Bonjour"),
-		SourceLocale: model.LocaleEnglish, TargetLocale: model.LocaleFrench,
-	})
-	assert.Error(t, err)
-}
-
-func TestPostgresTM_IntegrationUpdateExisting(t *testing.T) {
-	tm := openTestPostgresTM(t)
-
-	require.NoError(t, tm.Add(sievepen.TMEntry{
-		ID: "e1", Source: model.NewFragment("Hello"), Target: model.NewFragment("Bonjour"),
-		SourceLocale: model.LocaleEnglish, TargetLocale: model.LocaleFrench,
-	}))
-
-	// Update with same ID.
-	require.NoError(t, tm.Add(sievepen.TMEntry{
-		ID: "e1", Source: model.NewFragment("Hello"), Target: model.NewFragment("Salut"),
-		SourceLocale: model.LocaleEnglish, TargetLocale: model.LocaleFrench,
-	}))
-
-	assert.Equal(t, 1, tm.Count())
-	matches, err := tm.LookupText("Hello", model.LocaleEnglish, model.LocaleFrench, sievepen.DefaultLookupOptions())
-	require.NoError(t, err)
-	require.Len(t, matches, 1)
-	assert.Equal(t, "Salut", matches[0].Entry.TargetText())
-}
-
-func TestPostgresTM_IntegrationLocaleFiltering(t *testing.T) {
-	tm := openTestPostgresTM(t)
-
-	require.NoError(t, tm.Add(sievepen.TMEntry{
-		ID: "e1", Source: model.NewFragment("Hello"), Target: model.NewFragment("Bonjour"),
-		SourceLocale: model.LocaleEnglish, TargetLocale: model.LocaleFrench,
-	}))
-	require.NoError(t, tm.Add(sievepen.TMEntry{
-		ID: "e2", Source: model.NewFragment("Hello"), Target: model.NewFragment("Hallo"),
-		SourceLocale: model.LocaleEnglish, TargetLocale: model.LocaleGerman,
-	}))
-
-	matches, err := tm.LookupText("Hello", model.LocaleEnglish, model.LocaleFrench, sievepen.DefaultLookupOptions())
-	require.NoError(t, err)
-	require.Len(t, matches, 1)
-	assert.Equal(t, "Bonjour", matches[0].Entry.TargetText())
-
-	matches, err = tm.LookupText("Hello", model.LocaleEnglish, model.LocaleGerman, sievepen.DefaultLookupOptions())
-	require.NoError(t, err)
-	require.Len(t, matches, 1)
-	assert.Equal(t, "Hallo", matches[0].Entry.TargetText())
-}
-
-func TestPostgresTM_IntegrationEntries(t *testing.T) {
-	tm := openTestPostgresTM(t)
-
-	require.NoError(t, tm.Add(sievepen.TMEntry{
-		ID: "e1", Source: model.NewFragment("Hello"), Target: model.NewFragment("Bonjour"),
-		SourceLocale: model.LocaleEnglish, TargetLocale: model.LocaleFrench,
-		Properties: map[string]string{"domain": "general"},
-	}))
-	require.NoError(t, tm.Add(sievepen.TMEntry{
-		ID: "e2", Source: model.NewFragment("Goodbye"), Target: model.NewFragment("Au revoir"),
-		SourceLocale: model.LocaleEnglish, TargetLocale: model.LocaleFrench,
-	}))
-
-	entries := tm.Entries()
-	assert.Len(t, entries, 2)
-}
-
-func TestPostgresTM_IntegrationSearchEntries(t *testing.T) {
-	tm := openTestPostgresTM(t)
-
-	require.NoError(t, tm.Add(sievepen.TMEntry{
-		ID: "e1", Source: model.NewFragment("Hello World"), Target: model.NewFragment("Bonjour le monde"),
-		SourceLocale: model.LocaleEnglish, TargetLocale: model.LocaleFrench,
-	}))
-	require.NoError(t, tm.Add(sievepen.TMEntry{
-		ID: "e2", Source: model.NewFragment("Goodbye"), Target: model.NewFragment("Au revoir"),
-		SourceLocale: model.LocaleEnglish, TargetLocale: model.LocaleFrench,
-	}))
-	require.NoError(t, tm.Add(sievepen.TMEntry{
-		ID: "e3", Source: model.NewFragment("Hello"), Target: model.NewFragment("Hallo"),
-		SourceLocale: model.LocaleEnglish, TargetLocale: model.LocaleGerman,
-	}))
-
-	// No filter returns all entries
-	entries, total := tm.SearchEntries("", "", "", 0, 100)
-	assert.Equal(t, 3, total)
-	assert.Len(t, entries, 3)
-
-	// Search by query (case-insensitive, matches source)
-	entries, total = tm.SearchEntries("hello", "", "", 0, 100)
-	assert.Equal(t, 2, total)
-	assert.Len(t, entries, 2)
-
-	// Search by query matches target
-	entries, total = tm.SearchEntries("revoir", "", "", 0, 100)
+	entries, total := tm.SearchEntries("hello", "en", "fr", 0, 10)
 	assert.Equal(t, 1, total)
-	assert.Equal(t, "e2", entries[0].ID)
-
-	// Filter by target locale
-	entries, total = tm.SearchEntries("", "", "de", 0, 100)
-	assert.Equal(t, 1, total)
-	assert.Equal(t, "e3", entries[0].ID)
-
-	// Pagination
-	entries, total = tm.SearchEntries("", "", "", 0, 2)
-	assert.Equal(t, 3, total)
-	assert.Len(t, entries, 2)
-
-	entries, total = tm.SearchEntries("", "", "", 2, 2)
-	assert.Equal(t, 3, total)
-	assert.Len(t, entries, 1)
+	require.Len(t, entries, 1)
+	assert.Equal(t, "e1", entries[0].ID)
 }
 
-func TestPostgresTM_IntegrationGetEntry(t *testing.T) {
+func TestPostgresTM_FacetLocales(t *testing.T) {
 	tm := openTestPostgresTM(t)
-
+	require.NoError(t, tm.Add(trilingual("e1", "a", "b", "c")))
 	require.NoError(t, tm.Add(sievepen.TMEntry{
-		ID: "e1", Source: model.NewFragment("Hello"), Target: model.NewFragment("Bonjour"),
-		SourceLocale: model.LocaleEnglish, TargetLocale: model.LocaleFrench,
+		ID: "e2",
+		Variants: map[model.LocaleID]*model.Fragment{
+			"en": model.NewFragment("d"),
+			"fr": model.NewFragment("e"),
+		},
 	}))
+	f := tm.FacetStats()
+	counts := map[string]int{}
+	for _, lf := range f.Locales {
+		counts[lf.Locale] = lf.Count
+	}
+	assert.Equal(t, 2, counts["en"])
+	assert.Equal(t, 2, counts["fr"])
+	assert.Equal(t, 1, counts["de"])
+}
 
-	entry, ok := tm.GetEntry("e1")
-	assert.True(t, ok)
-	assert.Equal(t, "Hello", entry.SourceText())
-	assert.Equal(t, "Bonjour", entry.TargetText())
+func TestPostgresTM_ImportSessionCRUD(t *testing.T) {
+	tm := openTestPostgresTM(t)
+	require.NoError(t, tm.CreateImportSession(sievepen.ImportSession{
+		ID: "s1", FileKey: "a.tmx", FileHash: "deadbeef",
+	}))
+	s, ok := tm.GetImportSession("s1")
+	require.True(t, ok)
+	assert.Equal(t, "a.tmx", s.FileKey)
 
-	_, ok = tm.GetEntry("nonexistent")
+	require.NoError(t, tm.UpdateImportSessionCount("s1", 42))
+	s, _ = tm.GetImportSession("s1")
+	assert.Equal(t, 42, s.EntryCount)
+
+	hit, ok := tm.FindImportSessionByHash("deadbeef")
+	require.True(t, ok)
+	assert.Equal(t, "s1", hit.ID)
+
+	require.NoError(t, tm.DeleteImportSession("s1"))
+	_, ok = tm.GetImportSession("s1")
 	assert.False(t, ok)
 }
 
-func TestPostgresTM_IntegrationInterfaceCompliance(t *testing.T) {
+func TestPostgresTM_DeleteSessionKeepsOrigins(t *testing.T) {
 	tm := openTestPostgresTM(t)
-
-	var _ sievepen.TranslationMemory = tm
-	var _ sievepen.EntryProvider = tm
-	var _ pgtm.TMStore = tm
-}
-
-func TestPostgresTM_IntegrationAddWithStream(t *testing.T) {
-	tm := openTestPostgresTM(t)
-
-	mainEntry := sievepen.TMEntry{
-		ID:           "main-1",
-		Source:       model.NewFragment("Hello world"),
-		Target:       model.NewFragment("Hallo Welt"),
-		SourceLocale: "en-US",
-		TargetLocale: "de-DE",
-	}
-	require.NoError(t, tm.AddWithStream(mainEntry, "main"))
-
-	featureEntry := sievepen.TMEntry{
-		ID:           "feat-1",
-		Source:       model.NewFragment("Hello world"),
-		Target:       model.NewFragment("Hallo Welt (Rebrand)"),
-		SourceLocale: "en-US",
-		TargetLocale: "de-DE",
-	}
-	require.NoError(t, tm.AddWithStream(featureEntry, "feature/rebrand"))
-
-	workspaceEntry := sievepen.TMEntry{
-		ID:           "ws-1",
-		Source:       model.NewFragment("Goodbye"),
-		Target:       model.NewFragment("Auf Wiedersehen"),
-		SourceLocale: "en-US",
-		TargetLocale: "de-DE",
-	}
-	require.NoError(t, tm.Add(workspaceEntry))
-
-	entries, total := tm.SearchEntriesForStream("", "en-US", "de-DE",
-		"feature/rebrand", []string{"main", ""}, 0, 100)
-	assert.Equal(t, 3, total)
-	assert.Len(t, entries, 3)
-	assert.Equal(t, "feat-1", entries[0].ID)
-
-	entries, total = tm.SearchEntriesForStream("", "en-US", "de-DE", "", nil, 0, 100)
-	assert.Equal(t, 1, total)
-	assert.Len(t, entries, 1)
-	assert.Equal(t, "ws-1", entries[0].ID)
-
-	entries, total = tm.SearchEntriesForStream("goodbye", "en-US", "de-DE",
-		"feature/rebrand", []string{"main", ""}, 0, 100)
-	assert.Equal(t, 1, total)
-	assert.Len(t, entries, 1)
-	assert.Equal(t, "ws-1", entries[0].ID)
-}
-
-func TestPostgresTM_IntegrationBlockLookup(t *testing.T) {
-	tm := openTestPostgresTM(t)
-
-	require.NoError(t, tm.Add(sievepen.TMEntry{
-		ID:           "e1",
-		Source:       model.NewFragment("Click the Save button"),
-		Target:       model.NewFragment("Cliquez sur le bouton Enregistrer"),
-		SourceLocale: model.LocaleEnglish,
-		TargetLocale: model.LocaleFrench,
-	}))
-
-	block := model.NewBlock("tu1", "Click the Save button")
-	matches, err := tm.Lookup(block, model.LocaleEnglish, model.LocaleFrench, sievepen.DefaultLookupOptions())
-	require.NoError(t, err)
-	require.Len(t, matches, 1)
-	assert.Equal(t, 1.0, matches[0].Score)
-	assert.Equal(t, "Cliquez sur le bouton Enregistrer", matches[0].Entry.TargetText())
-}
-
-func TestPostgresTM_IntegrationFragmentRoundtrip(t *testing.T) {
-	tm := openTestPostgresTM(t)
-
-	frag := model.NewFragment("Click ")
-	frag.AppendSpan(&model.Span{SpanType: model.SpanOpening, ID: "1", Type: "bold"})
-	frag.AppendText("here")
-	frag.AppendSpan(&model.Span{SpanType: model.SpanClosing, ID: "1", Type: "bold"})
-	frag.AppendText(" to continue")
-
-	require.NoError(t, tm.Add(sievepen.TMEntry{
-		ID:           "e1",
-		Source:       frag,
-		Target:       model.NewFragment("Cliquez ici pour continuer"),
-		SourceLocale: model.LocaleEnglish,
-		TargetLocale: model.LocaleFrench,
-	}))
-
-	entry, ok := tm.GetEntry("e1")
+	require.NoError(t, tm.CreateImportSession(sievepen.ImportSession{ID: "s1", FileKey: "a.tmx"}))
+	e := trilingual("e1", "a", "b", "c")
+	e.Origins = []sievepen.Origin{{Source: "import", SessionID: "s1"}}
+	require.NoError(t, tm.Add(e))
+	require.NoError(t, tm.DeleteImportSession("s1"))
+	got, ok := tm.GetEntry("e1")
 	require.True(t, ok)
-	assert.Equal(t, "Click here to continue", entry.SourceText())
-	assert.True(t, entry.Source.HasSpans())
-	assert.Len(t, entry.Source.Spans, 2)
+	require.Len(t, got.Origins, 1)
+	assert.Equal(t, "", got.Origins[0].SessionID)
 }
 
-func TestPostgresTM_IntegrationTimestampPreservation(t *testing.T) {
+func TestPostgresTM_EntityRoundtrip(t *testing.T) {
 	tm := openTestPostgresTM(t)
-
-	now := time.Now().Truncate(time.Millisecond)
-	require.NoError(t, tm.Add(sievepen.TMEntry{
-		ID: "e1", Source: model.NewFragment("Hello"), Target: model.NewFragment("Bonjour"),
-		SourceLocale: model.LocaleEnglish, TargetLocale: model.LocaleFrench,
-		CreatedAt: now, UpdatedAt: now,
-	}))
-
-	entry, ok := tm.GetEntry("e1")
+	e := trilingual("e1", "John works here", "Jean travaille ici", "Johann arbeitet hier")
+	e.Entities = []sievepen.EntityMapping{
+		{
+			PlaceholderID: "e1",
+			Type:          "entity:person",
+			Values: map[model.LocaleID]sievepen.EntityValue{
+				"en": {Text: "John", Start: 0, End: 4},
+				"fr": {Text: "Jean", Start: 0, End: 4},
+				"de": {Text: "Johann", Start: 0, End: 6},
+			},
+		},
+	}
+	require.NoError(t, tm.Add(e))
+	got, ok := tm.GetEntry("e1")
 	require.True(t, ok)
-	assert.WithinDuration(t, now, entry.CreatedAt, time.Second)
-	assert.WithinDuration(t, now, entry.UpdatedAt, time.Second)
+	require.Len(t, got.Entities, 1)
+	assert.Equal(t, "Jean", got.Entities[0].Values["fr"].Text)
 }

@@ -1,18 +1,41 @@
 import type { SpanInfo } from "../../types/span";
 
-// --- TM Types ---
+// --- TM Types (multilingual model) ---
 
+/**
+ * A single language variant of a multilingual TM entry.
+ * Each TM entry has one variant per locale.
+ */
+export interface VariantDTO {
+  locale: string;
+  text: string;
+  coded: string;
+  spans: SpanInfo[];
+}
+
+/** Position + text for a single-locale entity value. */
+export interface EntityValueDTO {
+  text: string;
+  start: number;
+  end: number;
+}
+
+/** Multilingual entity mapping — one placeholder, per-locale values. */
+export interface EntityMappingDTO {
+  placeholder_id: string;
+  type: string;
+  values: Record<string, EntityValueDTO>;
+}
+
+/** Frontend-facing multilingual TM entry. */
 export interface TMEntryDTO {
   id: string;
-  source_text: string;
-  target_text: string;
-  source_coded: string;
-  target_coded: string;
-  source_spans: SpanInfo[];
-  target_spans: SpanInfo[];
-  source_locale: string;
-  target_locale: string;
   project_id: string;
+  /** Per-locale variants keyed by locale tag (e.g. "en-US"). */
+  variants: Record<string, VariantDTO>;
+  /** Locale pointer used as the default source for display. */
+  hint_src_lang: string;
+  entities?: EntityMappingDTO[];
   properties?: Record<string, string>;
   note?: string;
   origins?: OriginDTO[];
@@ -23,7 +46,8 @@ export interface TMEntryDTO {
 /**
  * Provenance record — where a TM entry came from.
  * An entry can have multiple origins if the same source was ingested
- * from multiple locations.
+ * from multiple locations. When the origin came from an import session
+ * the `session_id` links back to an ImportSessionDTO.
  */
 export interface OriginDTO {
   source: string; // "file" | "tool" | "import" | "user"
@@ -31,6 +55,7 @@ export interface OriginDTO {
   reference?: string; // commit hash, job ID, URL
   added_at: string; // ISO 8601
   added_by?: string; // user ID or tool name
+  session_id?: string; // link to an ImportSessionDTO when applicable
 }
 
 export interface TMSearchResult {
@@ -47,16 +72,17 @@ export interface TMStats {
 // --- TM Facets ---
 
 export interface TMFacets {
-  locale_pairs: LocalePairFacet[];
+  locales: LocaleFacet[];
   projects: ProjectFacet[];
   entity_types: EntityTypeFacet[];
+  import_sessions: ImportSessionFacet[];
   has_codes: number;
   no_codes: number;
 }
 
-export interface LocalePairFacet {
-  source_locale: string;
-  target_locale: string;
+/** Single-locale variant count (replaces the legacy locale-pair facet). */
+export interface LocaleFacet {
+  locale: string;
   count: number;
 }
 
@@ -70,38 +96,40 @@ export interface EntityTypeFacet {
   count: number;
 }
 
-// --- TM Grouped (multi-language) ---
-
-export interface TMGroupedResult {
-  source_text: string;
-  source_coded: string;
-  source_spans: SpanInfo[];
-  source_locale: string;
-  targets: TMTargetDTO[];
+/** Compact import-session record used as a sidebar facet. */
+export interface ImportSessionFacet {
+  session_id: string;
+  file_key: string;
+  tool_name?: string;
+  imported_at: string;
+  count: number;
 }
 
-export interface TMTargetDTO {
+/** Full import-session record fetched on demand from the backend. */
+export interface ImportSessionDTO {
   id: string;
-  target_text: string;
-  target_coded: string;
-  target_spans: SpanInfo[];
-  target_locale: string;
-  project_id: string;
-  note?: string;
-  origins?: OriginDTO[];
-  updated_at: string;
-}
-
-export interface TMGroupedSearchResult {
-  groups: TMGroupedResult[];
-  total_count: number;
+  file_key: string;
+  file_hash: string;
+  file_size_bytes: number;
+  imported_at: string;
+  imported_by: string;
+  tool_name: string;
+  tool_version: string;
+  seg_type: string;
+  admin_lang: string;
+  src_lang: string;
+  data_type: string;
+  original_format: string;
+  original_encoding: string;
+  entry_count: number;
+  properties?: Record<string, string>;
 }
 
 /** Filter parameters for faceted TM search. */
 export interface TMSearchFilter {
   project_id?: string;
-  /** Matches either source_locale OR target_locale. */
-  locale?: string;
+  /** Restrict to entries that originated from these import sessions. */
+  session_ids?: string[];
   entity_types?: string[];
   entity_values?: EntityValueFilter[];
   has_codes?: boolean | null;
@@ -143,24 +171,27 @@ export interface LookupTMRequest {
   max_results: number;
 }
 
+/** Input for a single variant when adding / updating a TM entry. */
+export interface VariantInputDTO {
+  text: string;
+  coded?: string;
+  spans?: SpanInfo[];
+}
+
+/** Request payload for adding a multilingual TM entry. */
 export interface AddTMEntryRequest {
-  source: string;
-  target: string;
-  source_locale: string;
-  target_locale: string;
+  variants: Record<string, VariantInputDTO>;
+  hint_src_lang: string;
   project_id?: string;
   note?: string;
   origins?: OriginDTO[];
 }
 
+/** Request payload for updating a multilingual TM entry. Variants replace wholesale. */
 export interface UpdateTMEntryRequest {
   entry_id: string;
-  source: string;
-  target: string;
-  target_coded?: string;
-  target_spans?: SpanInfo[];
-  source_locale: string;
-  target_locale: string;
+  variants: Record<string, VariantInputDTO>;
+  hint_src_lang: string;
   project_id?: string;
   note?: string;
   origins?: OriginDTO[];
@@ -234,6 +265,7 @@ export interface UpdateConceptRequest {
 // --- Shared ---
 
 export interface ImportResult {
+  session_id: string;
   count: number;
 }
 

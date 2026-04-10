@@ -13,8 +13,17 @@ import type {
   ImportResult,
   TMStats,
   TMFacets,
-  TMGroupedSearchResult,
+  ImportSessionDTO,
 } from "@neokapi/ui-primitives";
+
+const EMPTY_FACETS: TMFacets = {
+  locales: [],
+  projects: [],
+  entity_types: [],
+  import_sessions: [],
+  has_codes: 0,
+  no_codes: 0,
+};
 
 /** Creates a TMAdapter that delegates to Wails IPC for a given TM handle. */
 export function useTMAdapter(handle: string | null): TMAdapter | null {
@@ -26,8 +35,15 @@ export function useTMAdapter(handle: string | null): TMAdapter | null {
 
 function createWailsTMAdapter(handle: string): TMAdapter {
   return {
-    async search(query, srcLocale, tgtLocale, offset, limit) {
-      const result = await api.searchTMEntries(handle, query, srcLocale, tgtLocale, offset, limit);
+    async search(query, anyLocale, requireLocale, offset, limit) {
+      const result = await api.searchTMEntries(
+        handle,
+        query,
+        anyLocale,
+        requireLocale,
+        offset,
+        limit,
+      );
       return (result as TMSearchResult) ?? { entries: [], total_count: 0 };
     },
     async getEntry(id) {
@@ -53,11 +69,11 @@ function createWailsTMAdapter(handle: string): TMAdapter {
       const result = await api.lookupTM(handle, req);
       return (result as TMMatchDTO[]) ?? [];
     },
-    async importTMX(srcLocale, tgtLocale) {
-      return (await api.importTMXDialog(handle, srcLocale, tgtLocale)) as ImportResult | null;
+    async importTMX() {
+      return (await api.importTMXDialog(handle)) as ImportResult | null;
     },
-    async exportTMX(srcLocale, tgtLocale) {
-      await api.exportTMXDialog(handle, srcLocale, tgtLocale);
+    async exportTMX(locales: string[]) {
+      await api.exportTMXDialog(handle, locales);
     },
     async getStats() {
       const result = await api.getTMStats(handle);
@@ -65,23 +81,33 @@ function createWailsTMAdapter(handle: string): TMAdapter {
     },
     async getFacets() {
       const result = await api.getTMFacets(handle);
-      return (result as TMFacets) ?? { locale_pairs: [], projects: [], entity_types: [], has_codes: 0, no_codes: 0 };
+      return (result as TMFacets) ?? EMPTY_FACETS;
     },
-    async getFacetsFiltered(query, srcLocale, tgtLocale, filter) {
-      const result = await api.getTMFacetsFiltered(handle, query, srcLocale, tgtLocale, filter);
-      return (result as TMFacets) ?? { locale_pairs: [], projects: [], entity_types: [], has_codes: 0, no_codes: 0 };
+    async getFacetsFiltered(query, anyLocale, requireLocale, filter) {
+      const result = await api.getTMFacetsFiltered(handle, query, anyLocale, requireLocale, filter);
+      return (result as TMFacets) ?? EMPTY_FACETS;
     },
-    async searchFiltered(query, srcLocale, tgtLocale, filter, offset, limit) {
-      const result = await api.searchTMEntriesFiltered(handle, query, srcLocale, tgtLocale, filter, offset, limit);
+    async searchFiltered(query, anyLocale, requireLocale, filter, offset, limit) {
+      const result = await api.searchTMEntriesFiltered(
+        handle,
+        query,
+        anyLocale,
+        requireLocale,
+        filter,
+        offset,
+        limit,
+      );
       return (result as TMSearchResult) ?? { entries: [], total_count: 0 };
     },
-    async searchGrouped(query, srcLocale, offset, limit) {
-      const result = await api.searchTMEntriesGrouped(handle, query, srcLocale, offset, limit);
-      return (result as TMGroupedSearchResult) ?? { groups: [], total_count: 0 };
+    async listImportSessions() {
+      const result = await api.listTMImportSessions(handle);
+      return (result as ImportSessionDTO[]) ?? [];
     },
-    async searchGroupedFiltered(query, srcLocale, filter, offset, limit) {
-      const result = await api.searchTMEntriesGroupedFiltered(handle, query, srcLocale, filter, offset, limit);
-      return (result as TMGroupedSearchResult) ?? { groups: [], total_count: 0 };
+    async getImportSession(id: string) {
+      return (await api.getTMImportSession(handle, id)) as ImportSessionDTO | null;
+    },
+    async deleteImportSession(id: string) {
+      await api.deleteTMImportSession(handle, id);
     },
   };
 }

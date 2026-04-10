@@ -9,6 +9,9 @@ import { Create as $Create } from "@wailsio/runtime";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
 import * as flow$0 from "../flow/models.js";
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore: Unused imports
+import * as model$0 from "../model/models.js";
 
 /**
  * ContentCollection is either a bare content entry or a named collection of items.
@@ -43,14 +46,14 @@ export class ContentCollection {
         if (/** @type {any} */(false)) {
             /**
              * @member
-             * @type {string | undefined}
+             * @type {model$0.LocaleID | undefined}
              */
             this["source_language"] = undefined;
         }
         if (/** @type {any} */(false)) {
             /**
              * @member
-             * @type {string[] | undefined}
+             * @type {model$0.LocaleID[] | undefined}
              */
             this["target_languages"] = undefined;
         }
@@ -143,14 +146,14 @@ export class ContentItem {
         if (/** @type {any} */(false)) {
             /**
              * @member
-             * @type {string | undefined}
+             * @type {model$0.LocaleID | undefined}
              */
             this["source_language"] = undefined;
         }
         if (/** @type {any} */(false)) {
             /**
              * @member
-             * @type {string[] | undefined}
+             * @type {model$0.LocaleID[] | undefined}
              */
             this["target_languages"] = undefined;
         }
@@ -189,14 +192,14 @@ export class Defaults {
         if (/** @type {any} */(false)) {
             /**
              * @member
-             * @type {string | undefined}
+             * @type {model$0.LocaleID | undefined}
              */
             this["source_language"] = undefined;
         }
         if (/** @type {any} */(false)) {
             /**
              * @member
-             * @type {string[] | undefined}
+             * @type {model$0.LocaleID[] | undefined}
              */
             this["target_languages"] = undefined;
         }

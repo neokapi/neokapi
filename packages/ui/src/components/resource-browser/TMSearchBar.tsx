@@ -69,7 +69,11 @@ export function TMSearchBar({
   const [draft, setDraft] = useState(value);
   const [entities, setEntities] = useState<MarkedEntity[]>([]);
   const [showEntityPopover, setShowEntityPopover] = useState(false);
-  const [selectionRange, setSelectionRange] = useState<{ start: number; end: number; text: string } | null>(null);
+  const [selectionRange, setSelectionRange] = useState<{
+    start: number;
+    end: number;
+    text: string;
+  } | null>(null);
   const [matches, setMatches] = useState<TMMatchDTO[]>([]);
   const [showMatches, setShowMatches] = useState(false);
   const [lookupLoading, setLookupLoading] = useState(false);
@@ -163,9 +167,10 @@ export function TMSearchBar({
         end: selectionRange.end,
       };
       setEntities((prev) =>
-        [...prev.filter((e) => e.end <= newEntity.start || e.start >= newEntity.end), newEntity].sort(
-          (a, b) => a.start - b.start,
-        ),
+        [
+          ...prev.filter((e) => e.end <= newEntity.start || e.start >= newEntity.end),
+          newEntity,
+        ].sort((a, b) => a.start - b.start),
       );
       setShowEntityPopover(false);
     },
@@ -227,7 +232,9 @@ export function TMSearchBar({
                   <LocalePill locale={token.value} />
                 ) : (
                   <>
-                    <span className="text-[9px] uppercase tracking-wider text-muted-foreground">{key}</span>
+                    <span className="text-[9px] uppercase tracking-wider text-muted-foreground">
+                      {key}
+                    </span>
                     <span>{value}</span>
                   </>
                 )}
@@ -275,7 +282,11 @@ export function TMSearchBar({
                       <div className="text-[10px] uppercase tracking-wider text-muted-foreground px-1.5 py-1">
                         {field.label}
                       </div>
-                      <div className={field.key === "language" ? "flex flex-wrap gap-1 px-1.5 py-1" : undefined}>
+                      <div
+                        className={
+                          field.key === "language" ? "flex flex-wrap gap-1 px-1.5 py-1" : undefined
+                        }
+                      >
                         {field.values?.map((v) =>
                           field.key === "language" ? (
                             <button
@@ -343,7 +354,9 @@ export function TMSearchBar({
             const label = ENTITY_TYPES.find((t) => t.value === e.type)?.label ?? e.type;
             return (
               <Badge key={e.id} variant="outline" className="gap-1 pr-1 rounded-full">
-                <span className="text-muted-foreground uppercase tracking-wider text-[9px]">{label}</span>
+                <span className="text-muted-foreground uppercase tracking-wider text-[9px]">
+                  {label}
+                </span>
                 <span>{e.text}</span>
                 <button
                   onClick={() => removeEntity(e.id)}
@@ -366,37 +379,50 @@ export function TMSearchBar({
         <div className="w-full max-w-2xl">
           <Collapsible open={showMatches} onOpenChange={setShowMatches}>
             <CollapsibleTrigger className="flex items-center gap-2 w-full px-3 py-1.5 text-[11px] text-muted-foreground hover:text-foreground transition-colors rounded-lg border bg-card/50">
-              <ChevronDown className={cn("size-3 transition-transform", showMatches && "rotate-180")} />
+              <ChevronDown
+                className={cn("size-3 transition-transform", showMatches && "rotate-180")}
+              />
               {matches.length} {matches.length === 1 ? "match" : "matches"} found
               {!showMatches && (
-                <span className="text-[10px] ml-auto">Best: {Math.round(matches[0].score * 100)}%</span>
+                <span className="text-[10px] ml-auto">
+                  Best: {Math.round(matches[0].score * 100)}%
+                </span>
               )}
             </CollapsibleTrigger>
             <CollapsibleContent>
               <div className="flex flex-col gap-1.5 px-3 pb-2 pt-1">
-                {matches.map((m, i) => (
-                  <div key={i} className="rounded-lg border p-2">
-                    <MatchScoreBar score={m.score} matchType={m.match_type} className="mb-1.5" />
-                    <div className="flex items-start gap-2 mb-0.5">
-                      <LocalePill locale={m.entry.source_locale} />
-                      <CodedTextDisplay
-                        text={m.entry.source_text}
-                        codedText={m.entry.source_coded}
-                        spans={m.entry.source_spans}
-                        className="text-[12px] text-foreground flex-1"
-                      />
+                {matches.map((m, i) => {
+                  const srcKey = m.entry.hint_src_lang || sourceLocale;
+                  const src = srcKey ? m.entry.variants[srcKey] : undefined;
+                  const tgt = targetLocale ? m.entry.variants[targetLocale] : undefined;
+                  return (
+                    <div key={i} className="rounded-lg border p-2">
+                      <MatchScoreBar score={m.score} matchType={m.match_type} className="mb-1.5" />
+                      {src && (
+                        <div className="flex items-start gap-2 mb-0.5">
+                          <LocalePill locale={src.locale} />
+                          <CodedTextDisplay
+                            text={src.text}
+                            codedText={src.coded}
+                            spans={src.spans}
+                            className="text-[12px] text-foreground flex-1"
+                          />
+                        </div>
+                      )}
+                      {tgt && (
+                        <div className="flex items-start gap-2">
+                          <LocalePill locale={tgt.locale} />
+                          <CodedTextDisplay
+                            text={tgt.text}
+                            codedText={tgt.coded}
+                            spans={tgt.spans}
+                            className="text-[12px] text-muted-foreground flex-1"
+                          />
+                        </div>
+                      )}
                     </div>
-                    <div className="flex items-start gap-2">
-                      <LocalePill locale={m.entry.target_locale} />
-                      <CodedTextDisplay
-                        text={m.entry.target_text}
-                        codedText={m.entry.target_coded}
-                        spans={m.entry.target_spans}
-                        className="text-[12px] text-muted-foreground flex-1"
-                      />
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </CollapsibleContent>
           </Collapsible>
