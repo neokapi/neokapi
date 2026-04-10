@@ -715,7 +715,6 @@ func (tm *InMemoryTM) FindImportSessionByHash(hash string) (ImportSession, bool)
 	defer tm.mu.RUnlock()
 	var best *ImportSession
 	for _, s := range tm.sessions {
-		s := s
 		if s.FileHash != hash {
 			continue
 		}

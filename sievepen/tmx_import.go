@@ -3,10 +3,11 @@ package sievepen
 import (
 	"bytes"
 	"crypto/sha256"
+	"encoding/hex"
 	"encoding/xml"
+	"errors"
 	"fmt"
 	"io"
-	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -75,7 +76,7 @@ type ImportTMXOptions struct {
 func ImportTMX(tm TranslationMemory, reader io.Reader, _ model.LocaleID, _ model.LocaleID) (int, error) {
 	store, ok := tm.(TMStore)
 	if !ok {
-		return 0, fmt.Errorf("TM does not support import sessions")
+		return 0, errors.New("TM does not support import sessions")
 	}
 	_, imported, err := ImportTMXSession(store, reader, ImportTMXOptions{})
 	return imported, err
@@ -87,7 +88,7 @@ func ImportTMX(tm TranslationMemory, reader io.Reader, _ model.LocaleID, _ model
 func ImportTMXWithOptions(tm TranslationMemory, reader io.Reader, sourceLocale, targetLocale model.LocaleID, opts ImportTMXOptions) (int, error) {
 	store, ok := tm.(TMStore)
 	if !ok {
-		return 0, fmt.Errorf("TM does not support import sessions")
+		return 0, errors.New("TM does not support import sessions")
 	}
 	if sourceLocale != "" && targetLocale != "" {
 		opts.Locales = []model.LocaleID{sourceLocale, targetLocale}
@@ -106,7 +107,7 @@ func ImportTMXWithOptions(tm TranslationMemory, reader io.Reader, sourceLocale, 
 func ImportTMXLocalePairs(tm TranslationMemory, reader io.Reader, locales []model.LocaleID, opts ImportTMXOptions) (int, error) {
 	store, ok := tm.(TMStore)
 	if !ok {
-		return 0, fmt.Errorf("TM does not support import sessions")
+		return 0, errors.New("TM does not support import sessions")
 	}
 	opts.Locales = locales
 	_, imported, err := ImportTMXSession(store, reader, opts)
@@ -127,7 +128,7 @@ func ImportTMXSession(store TMStore, reader io.Reader, opts ImportTMXOptions) (s
 		return "", 0, fmt.Errorf("read TMX: %w", err)
 	}
 	hashBytes := sha256.Sum256(buf)
-	hash := fmt.Sprintf("%x", hashBytes[:])
+	hash := hex.EncodeToString(hashBytes[:])
 
 	// 2. Warn on duplicate hash.
 	if opts.WarnFunc != nil {
@@ -330,7 +331,7 @@ func parseTMXDocument(r io.Reader, mapping *TMXMapping) (*tmxDocument, error) {
 	doc := &tmxDocument{}
 	for {
 		tok, err := dec.Token()
-		if err == io.EOF {
+		if errors.Is(err, io.EOF) {
 			return doc, nil
 		}
 		if err != nil {
@@ -862,12 +863,4 @@ func parseTMXTime(s string) time.Time {
 		return t
 	}
 	return time.Time{}
-}
-
-// sortLocales returns a deterministic ordering for variant emission.
-func sortLocales(locales []model.LocaleID) []model.LocaleID {
-	out := make([]model.LocaleID, len(locales))
-	copy(out, locales)
-	sort.Slice(out, func(i, j int) bool { return out[i] < out[j] })
-	return out
 }

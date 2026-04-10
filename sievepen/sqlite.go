@@ -2,6 +2,7 @@ package sievepen
 
 import (
 	"cmp"
+	"context"
 	"database/sql"
 	"encoding/json"
 	"errors"
@@ -176,7 +177,7 @@ func (tm *SQLiteTM) Close() error { return tm.db.Close() }
 // Count returns the total number of entries.
 func (tm *SQLiteTM) Count() int {
 	var count int
-	if err := tm.db.QueryRow("SELECT COUNT(*) FROM tm_entries").Scan(&count); err != nil {
+	if err := tm.db.QueryRowContext(context.Background(), "SELECT COUNT(*) FROM tm_entries").Scan(&count); err != nil {
 		slog.Warn("TM count query failed", "error", err)
 		return 0
 	}
@@ -194,7 +195,7 @@ func (tm *SQLiteTM) Add(entry TMEntry) error {
 // partial failure can't leave orphan rows and bulk imports aren't gated by
 // per-statement fsync latency.
 func (tm *SQLiteTM) AddWithStream(entry TMEntry, stream string) error {
-	tx, err := tm.db.Begin()
+	tx, err := tm.db.BeginTx(context.Background(), nil)
 	if err != nil {
 		return fmt.Errorf("begin tx: %w", err)
 	}
@@ -219,7 +220,7 @@ func (tm *SQLiteTM) BulkAddWithStream(entries []TMEntry, stream string) error {
 	if len(entries) == 0 {
 		return nil
 	}
-	tx, err := tm.db.Begin()
+	tx, err := tm.db.BeginTx(context.Background(), nil)
 	if err != nil {
 		return fmt.Errorf("begin tx: %w", err)
 	}
@@ -252,10 +253,10 @@ func (tm *SQLiteTM) BulkAddWithStream(entries []TMEntry, stream string) error {
 // Until this is called, fuzzy lookups fall back to length-filtered
 // scanning over tm_variants, which is functional but slower on huge TMs.
 func (tm *SQLiteTM) RebuildFuzzyIndex() error {
-	if _, err := tm.db.Exec(`DELETE FROM tm_variant_trigram`); err != nil {
+	if _, err := tm.db.ExecContext(context.Background(), `DELETE FROM tm_variant_trigram`); err != nil {
 		return fmt.Errorf("clear fuzzy index: %w", err)
 	}
-	if _, err := tm.db.Exec(`INSERT INTO tm_variant_trigram
+	if _, err := tm.db.ExecContext(context.Background(), `INSERT INTO tm_variant_trigram
 		(plain, struct_key, general_key, locale, entry_id)
 		SELECT plain, struct_key, general_key, locale, entry_id FROM tm_variants`); err != nil {
 		return fmt.Errorf("rebuild fuzzy index: %w", err)
@@ -269,10 +270,10 @@ func (tm *SQLiteTM) RebuildFuzzyIndex() error {
 // deliberately skips per-row FTS5 inserts because FTS5 ICU
 // tokenization is expensive.
 func (tm *SQLiteTM) RebuildSearchIndex() error {
-	if _, err := tm.db.Exec(`DELETE FROM tm_variant_search`); err != nil {
+	if _, err := tm.db.ExecContext(context.Background(), `DELETE FROM tm_variant_search`); err != nil {
 		return fmt.Errorf("clear search index: %w", err)
 	}
-	if _, err := tm.db.Exec(`INSERT INTO tm_variant_search
+	if _, err := tm.db.ExecContext(context.Background(), `INSERT INTO tm_variant_search
 		(text, locale, entry_id)
 		SELECT plain, locale, entry_id FROM tm_variants`); err != nil {
 		return fmt.Errorf("rebuild search index: %w", err)
@@ -302,7 +303,7 @@ func prepareBulkStmts(tx *sql.Tx) (*bulkStmts, error) {
 	s := &bulkStmts{}
 
 	var err error
-	if s.upsertEntry, err = tx.Prepare(`INSERT INTO tm_entries
+	if s.upsertEntry, err = tx.PrepareContext(context.Background(), `INSERT INTO tm_entries
 		(id, project_id, stream, hint_src_lang, properties, note, created_at, updated_at)
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT(id) DO UPDATE SET
@@ -315,31 +316,31 @@ func prepareBulkStmts(tx *sql.Tx) (*bulkStmts, error) {
 		return nil, fmt.Errorf("prepare upsert: %w", err)
 	}
 
-	if s.delVariants, err = tx.Prepare(`DELETE FROM tm_variants WHERE entry_id = ?`); err != nil {
+	if s.delVariants, err = tx.PrepareContext(context.Background(), `DELETE FROM tm_variants WHERE entry_id = ?`); err != nil {
 		return nil, err
 	}
-	if s.insVariant, err = tx.Prepare(`INSERT INTO tm_variants
+	if s.insVariant, err = tx.PrepareContext(context.Background(), `INSERT INTO tm_variants
 		(entry_id, locale, coded, plain, struct_key, general_key) VALUES (?, ?, ?, ?, ?, ?)`); err != nil {
 		return nil, err
 	}
-	if s.delEntities, err = tx.Prepare(`DELETE FROM tm_entry_entities WHERE entry_id = ?`); err != nil {
+	if s.delEntities, err = tx.PrepareContext(context.Background(), `DELETE FROM tm_entry_entities WHERE entry_id = ?`); err != nil {
 		return nil, err
 	}
-	if s.delEntityValues, err = tx.Prepare(`DELETE FROM tm_entry_entity_values WHERE entry_id = ?`); err != nil {
+	if s.delEntityValues, err = tx.PrepareContext(context.Background(), `DELETE FROM tm_entry_entity_values WHERE entry_id = ?`); err != nil {
 		return nil, err
 	}
-	if s.insEntity, err = tx.Prepare(`INSERT INTO tm_entry_entities
+	if s.insEntity, err = tx.PrepareContext(context.Background(), `INSERT INTO tm_entry_entities
 		(entry_id, placeholder_id, entity_type) VALUES (?, ?, ?)`); err != nil {
 		return nil, err
 	}
-	if s.insEntityValue, err = tx.Prepare(`INSERT INTO tm_entry_entity_values
+	if s.insEntityValue, err = tx.PrepareContext(context.Background(), `INSERT INTO tm_entry_entity_values
 		(entry_id, placeholder_id, locale, text_value, start_pos, end_pos) VALUES (?, ?, ?, ?, ?, ?)`); err != nil {
 		return nil, err
 	}
-	if s.delOrigins, err = tx.Prepare(`DELETE FROM tm_entry_origins WHERE entry_id = ?`); err != nil {
+	if s.delOrigins, err = tx.PrepareContext(context.Background(), `DELETE FROM tm_entry_origins WHERE entry_id = ?`); err != nil {
 		return nil, err
 	}
-	if s.insOrigin, err = tx.Prepare(`INSERT INTO tm_entry_origins
+	if s.insOrigin, err = tx.PrepareContext(context.Background(), `INSERT INTO tm_entry_origins
 		(entry_id, ordinal, source, key, reference, added_at, added_by, session_id)
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?)`); err != nil {
 		return nil, err
@@ -389,7 +390,7 @@ func (s *bulkStmts) addEntry(entry *TMEntry, stream string) error {
 		propertiesJSON = string(b)
 	}
 
-	if _, err := s.upsertEntry.Exec(
+	if _, err := s.upsertEntry.ExecContext(context.Background(),
 		entry.ID, entry.ProjectID, stream, string(entry.HintSrcLang),
 		propertiesJSON, entry.Note,
 		entry.CreatedAt.Format(time.RFC3339), entry.UpdatedAt.Format(time.RFC3339),
@@ -397,7 +398,7 @@ func (s *bulkStmts) addEntry(entry *TMEntry, stream string) error {
 		return fmt.Errorf("upsert entry: %w", err)
 	}
 
-	if _, err := s.delVariants.Exec(entry.ID); err != nil {
+	if _, err := s.delVariants.ExecContext(context.Background(), entry.ID); err != nil {
 		return fmt.Errorf("delete variants: %w", err)
 	}
 
@@ -427,32 +428,32 @@ func (s *bulkStmts) addEntry(entry *TMEntry, stream string) error {
 			generalKey = NormalizeText(frag.GeneralizedText())
 		}
 
-		if _, err := s.insVariant.Exec(entry.ID, string(locale), coded, plain, structKey, generalKey); err != nil {
+		if _, err := s.insVariant.ExecContext(context.Background(), entry.ID, string(locale), coded, plain, structKey, generalKey); err != nil {
 			return fmt.Errorf("insert variant %s: %w", locale, err)
 		}
 	}
 
-	if _, err := s.delEntities.Exec(entry.ID); err != nil {
+	if _, err := s.delEntities.ExecContext(context.Background(), entry.ID); err != nil {
 		return fmt.Errorf("delete entities: %w", err)
 	}
-	if _, err := s.delEntityValues.Exec(entry.ID); err != nil {
+	if _, err := s.delEntityValues.ExecContext(context.Background(), entry.ID); err != nil {
 		return fmt.Errorf("delete entity values: %w", err)
 	}
 	for _, em := range entry.Entities {
 		if em.PlaceholderID == "" {
 			continue
 		}
-		if _, err := s.insEntity.Exec(entry.ID, em.PlaceholderID, string(em.Type)); err != nil {
+		if _, err := s.insEntity.ExecContext(context.Background(), entry.ID, em.PlaceholderID, string(em.Type)); err != nil {
 			return fmt.Errorf("insert entity: %w", err)
 		}
 		for loc, val := range em.Values {
-			if _, err := s.insEntityValue.Exec(entry.ID, em.PlaceholderID, string(loc), val.Text, val.Start, val.End); err != nil {
+			if _, err := s.insEntityValue.ExecContext(context.Background(), entry.ID, em.PlaceholderID, string(loc), val.Text, val.Start, val.End); err != nil {
 				return fmt.Errorf("insert entity value: %w", err)
 			}
 		}
 	}
 
-	if _, err := s.delOrigins.Exec(entry.ID); err != nil {
+	if _, err := s.delOrigins.ExecContext(context.Background(), entry.ID); err != nil {
 		return fmt.Errorf("delete origins: %w", err)
 	}
 	for i, o := range entry.Origins {
@@ -460,7 +461,7 @@ func (s *bulkStmts) addEntry(entry *TMEntry, stream string) error {
 		if addedAt.IsZero() {
 			addedAt = now
 		}
-		if _, err := s.insOrigin.Exec(
+		if _, err := s.insOrigin.ExecContext(context.Background(),
 			entry.ID, i, o.Source, o.Key, o.Reference,
 			addedAt.Format(time.RFC3339), o.AddedBy, o.SessionID,
 		); err != nil {
@@ -498,7 +499,7 @@ func (tm *SQLiteTM) addInTx(tx *sql.Tx, entry TMEntry, stream string) error {
 		propertiesJSON = string(b)
 	}
 
-	if _, err := tx.Exec(`
+	if _, err := tx.ExecContext(context.Background(), `
 		INSERT INTO tm_entries (id, project_id, stream, hint_src_lang, properties, note, created_at, updated_at)
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT(id) DO UPDATE SET
@@ -516,13 +517,13 @@ func (tm *SQLiteTM) addInTx(tx *sql.Tx, entry TMEntry, stream string) error {
 
 	// Replace variants. We also maintain the two FTS5 side-tables manually
 	// (they are not content= external FTS, so triggers aren't wired).
-	if _, err := tx.Exec("DELETE FROM tm_variants WHERE entry_id = ?", entry.ID); err != nil {
+	if _, err := tx.ExecContext(context.Background(), "DELETE FROM tm_variants WHERE entry_id = ?", entry.ID); err != nil {
 		return fmt.Errorf("delete variants: %w", err)
 	}
-	if _, err := tx.Exec("DELETE FROM tm_variant_search WHERE entry_id = ?", entry.ID); err != nil {
+	if _, err := tx.ExecContext(context.Background(), "DELETE FROM tm_variant_search WHERE entry_id = ?", entry.ID); err != nil {
 		return fmt.Errorf("delete variant_search: %w", err)
 	}
-	if _, err := tx.Exec("DELETE FROM tm_variant_trigram WHERE entry_id = ?", entry.ID); err != nil {
+	if _, err := tx.ExecContext(context.Background(), "DELETE FROM tm_variant_trigram WHERE entry_id = ?", entry.ID); err != nil {
 		return fmt.Errorf("delete variant_trigram: %w", err)
 	}
 
@@ -538,40 +539,40 @@ func (tm *SQLiteTM) addInTx(tx *sql.Tx, entry TMEntry, stream string) error {
 		structKey := NormalizeText(frag.StructuralText())
 		generalKey := NormalizeText(frag.GeneralizedText())
 
-		if _, err := tx.Exec(`INSERT INTO tm_variants
+		if _, err := tx.ExecContext(context.Background(), `INSERT INTO tm_variants
 			(entry_id, locale, coded, plain, struct_key, general_key)
 			VALUES (?, ?, ?, ?, ?, ?)`,
 			entry.ID, string(locale), string(coded), plain, structKey, generalKey); err != nil {
 			return fmt.Errorf("insert variant %s: %w", locale, err)
 		}
-		if _, err := tx.Exec(`INSERT INTO tm_variant_search (text, locale, entry_id)
+		if _, err := tx.ExecContext(context.Background(), `INSERT INTO tm_variant_search (text, locale, entry_id)
 			VALUES (?, ?, ?)`, plain, string(locale), entry.ID); err != nil {
 			return fmt.Errorf("insert variant_search: %w", err)
 		}
-		if _, err := tx.Exec(`INSERT INTO tm_variant_trigram (plain, struct_key, general_key, locale, entry_id)
+		if _, err := tx.ExecContext(context.Background(), `INSERT INTO tm_variant_trigram (plain, struct_key, general_key, locale, entry_id)
 			VALUES (?, ?, ?, ?, ?)`, plain, structKey, generalKey, string(locale), entry.ID); err != nil {
 			return fmt.Errorf("insert variant_trigram: %w", err)
 		}
 	}
 
 	// Replace entities + per-locale entity values.
-	if _, err := tx.Exec("DELETE FROM tm_entry_entities WHERE entry_id = ?", entry.ID); err != nil {
+	if _, err := tx.ExecContext(context.Background(), "DELETE FROM tm_entry_entities WHERE entry_id = ?", entry.ID); err != nil {
 		return fmt.Errorf("delete entities: %w", err)
 	}
-	if _, err := tx.Exec("DELETE FROM tm_entry_entity_values WHERE entry_id = ?", entry.ID); err != nil {
+	if _, err := tx.ExecContext(context.Background(), "DELETE FROM tm_entry_entity_values WHERE entry_id = ?", entry.ID); err != nil {
 		return fmt.Errorf("delete entity values: %w", err)
 	}
 	for _, em := range entry.Entities {
 		if em.PlaceholderID == "" {
 			continue
 		}
-		if _, err := tx.Exec(`INSERT INTO tm_entry_entities
+		if _, err := tx.ExecContext(context.Background(), `INSERT INTO tm_entry_entities
 			(entry_id, placeholder_id, entity_type) VALUES (?, ?, ?)`,
 			entry.ID, em.PlaceholderID, string(em.Type)); err != nil {
 			return fmt.Errorf("insert entity: %w", err)
 		}
 		for loc, val := range em.Values {
-			if _, err := tx.Exec(`INSERT INTO tm_entry_entity_values
+			if _, err := tx.ExecContext(context.Background(), `INSERT INTO tm_entry_entity_values
 				(entry_id, placeholder_id, locale, text_value, start_pos, end_pos)
 				VALUES (?, ?, ?, ?, ?, ?)`,
 				entry.ID, em.PlaceholderID, string(loc),
@@ -582,7 +583,7 @@ func (tm *SQLiteTM) addInTx(tx *sql.Tx, entry TMEntry, stream string) error {
 	}
 
 	// Replace origins.
-	if _, err := tx.Exec("DELETE FROM tm_entry_origins WHERE entry_id = ?", entry.ID); err != nil {
+	if _, err := tx.ExecContext(context.Background(), "DELETE FROM tm_entry_origins WHERE entry_id = ?", entry.ID); err != nil {
 		return fmt.Errorf("delete origins: %w", err)
 	}
 	for i, o := range entry.Origins {
@@ -590,7 +591,7 @@ func (tm *SQLiteTM) addInTx(tx *sql.Tx, entry TMEntry, stream string) error {
 		if addedAt.IsZero() {
 			addedAt = now
 		}
-		if _, err := tx.Exec(`INSERT INTO tm_entry_origins
+		if _, err := tx.ExecContext(context.Background(), `INSERT INTO tm_entry_origins
 			(entry_id, ordinal, source, key, reference, added_at, added_by, session_id)
 			VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
 			entry.ID, i, o.Source, o.Key, o.Reference,
@@ -605,16 +606,16 @@ func (tm *SQLiteTM) addInTx(tx *sql.Tx, entry TMEntry, stream string) error {
 // Delete removes an entry by ID, cascading to variants, entities, and origins.
 // The two FTS5 side-tables are cleaned up explicitly.
 func (tm *SQLiteTM) Delete(id string) error {
-	if _, err := tm.db.Exec("DELETE FROM tm_variant_search WHERE entry_id = ?", id); err != nil {
+	if _, err := tm.db.ExecContext(context.Background(), "DELETE FROM tm_variant_search WHERE entry_id = ?", id); err != nil {
 		return fmt.Errorf("delete variant_search: %w", err)
 	}
-	if _, err := tm.db.Exec("DELETE FROM tm_variant_trigram WHERE entry_id = ?", id); err != nil {
+	if _, err := tm.db.ExecContext(context.Background(), "DELETE FROM tm_variant_trigram WHERE entry_id = ?", id); err != nil {
 		return fmt.Errorf("delete variant_trigram: %w", err)
 	}
-	if _, err := tm.db.Exec("DELETE FROM tm_entry_entity_values WHERE entry_id = ?", id); err != nil {
+	if _, err := tm.db.ExecContext(context.Background(), "DELETE FROM tm_entry_entity_values WHERE entry_id = ?", id); err != nil {
 		return fmt.Errorf("delete entity values: %w", err)
 	}
-	result, err := tm.db.Exec("DELETE FROM tm_entries WHERE id = ?", id)
+	result, err := tm.db.ExecContext(context.Background(), "DELETE FROM tm_entries WHERE id = ?", id)
 	if err != nil {
 		return fmt.Errorf("delete entry: %w", err)
 	}
@@ -797,7 +798,7 @@ func (tm *SQLiteTM) queryExactVariant(column, key string, sourceLocale model.Loc
 		LIMIT 200
 	`, where, entryWhere)
 
-	rows, err := tm.db.Query(q, args...)
+	rows, err := tm.db.QueryContext(context.Background(), q, args...)
 	if err != nil {
 		return nil, fmt.Errorf("query exact variant: %w", err)
 	}
@@ -834,7 +835,7 @@ func (tm *SQLiteTM) queryTrigramCandidates(plainKey, structKey, generalKey strin
 		if tq == "" {
 			continue
 		}
-		rows, err := tm.db.Query(q, tq, string(sourceLocale))
+		rows, err := tm.db.QueryContext(context.Background(), q, tq, string(sourceLocale))
 		if err != nil {
 			return nil, fmt.Errorf("trigram query: %w", err)
 		}
@@ -865,7 +866,7 @@ func (tm *SQLiteTM) queryLengthFiltered(plainKey string, sourceLocale model.Loca
 		minLen = 0
 	}
 
-	rows, err := tm.db.Query(`
+	rows, err := tm.db.QueryContext(context.Background(), `
 		SELECT DISTINCT entry_id FROM tm_variants
 		WHERE locale = ? AND LENGTH(plain) BETWEEN ? AND ?
 		LIMIT 500
@@ -980,7 +981,7 @@ func (tm *SQLiteTM) loadEntriesByIDs(ids []string) ([]TMEntry, error) {
 		args[i] = id
 	}
 
-	rows, err := tm.db.Query(`
+	rows, err := tm.db.QueryContext(context.Background(), `
 		SELECT id, project_id, hint_src_lang, properties, note, created_at, updated_at
 		FROM tm_entries WHERE id IN (`+placeholders+`)
 	`, args...)
@@ -1036,7 +1037,7 @@ func (tm *SQLiteTM) scanEntriesWithChildren(rows interface {
 	//     by a leading '{' character.
 	//   - A plain-text string (spanless fast-path used by bulk imports),
 	//     stored as-is.
-	varRows, err := tm.db.Query(`SELECT entry_id, locale, coded FROM tm_variants
+	varRows, err := tm.db.QueryContext(context.Background(), `SELECT entry_id, locale, coded FROM tm_variants
 		WHERE entry_id IN (`+placeholders+`) ORDER BY entry_id, locale`, idArgs...)
 	if err == nil {
 		for varRows.Next() {
@@ -1061,7 +1062,7 @@ func (tm *SQLiteTM) scanEntriesWithChildren(rows interface {
 	}
 
 	// Entities + per-locale values. Single join query keeps us at O(1) round trips.
-	entRows, err := tm.db.Query(`
+	entRows, err := tm.db.QueryContext(context.Background(), `
 		SELECT e.entry_id, e.placeholder_id, e.entity_type,
 			v.locale, v.text_value, v.start_pos, v.end_pos
 		FROM tm_entry_entities e
@@ -1117,7 +1118,7 @@ func (tm *SQLiteTM) scanEntriesWithChildren(rows interface {
 	}
 
 	// Origins.
-	originRows, err := tm.db.Query(`SELECT entry_id, source, key, reference, added_at, added_by, session_id
+	originRows, err := tm.db.QueryContext(context.Background(), `SELECT entry_id, source, key, reference, added_at, added_by, session_id
 		FROM tm_entry_origins WHERE entry_id IN (`+placeholders+`)
 		ORDER BY entry_id, ordinal`, idArgs...)
 	if err == nil {
@@ -1185,7 +1186,7 @@ func (tm *SQLiteTM) GetEntry(id string) (TMEntry, bool) {
 
 // Entries returns all entries. Used for export operations.
 func (tm *SQLiteTM) Entries() []TMEntry {
-	rows, err := tm.db.Query(`SELECT id FROM tm_entries ORDER BY id`)
+	rows, err := tm.db.QueryContext(context.Background(), `SELECT id FROM tm_entries ORDER BY id`)
 	if err != nil {
 		return nil
 	}
@@ -1274,7 +1275,7 @@ func (tm *SQLiteTM) searchInternal(query, anyLocale, requireLocale, stream strin
 	var total int
 	countArgs := make([]any, len(args))
 	copy(countArgs, args)
-	if err := tm.db.QueryRow("SELECT COUNT(*) FROM tm_entries e WHERE "+where, countArgs...).Scan(&total); err != nil {
+	if err := tm.db.QueryRowContext(context.Background(), "SELECT COUNT(*) FROM tm_entries e WHERE "+where, countArgs...).Scan(&total); err != nil {
 		return nil, 0
 	}
 	if total == 0 {
@@ -1293,7 +1294,7 @@ func (tm *SQLiteTM) searchInternal(query, anyLocale, requireLocale, stream strin
 	pageArgs = append(pageArgs, limit, offset)
 
 	q := fmt.Sprintf("SELECT e.id FROM tm_entries e WHERE %s ORDER BY %s LIMIT ? OFFSET ?", where, orderBy)
-	rows, err := tm.db.Query(q, pageArgs...)
+	rows, err := tm.db.QueryContext(context.Background(), q, pageArgs...)
 	if err != nil {
 		return nil, total
 	}
@@ -1427,7 +1428,7 @@ func (tm *SQLiteTM) FacetStatsFiltered(query, anyLocale, requireLocale string, f
 		INNER JOIN tm_entries e ON e.id = v.entry_id
 		WHERE ` + subWhere + `
 		GROUP BY v.locale ORDER BY COUNT(DISTINCT v.entry_id) DESC`
-	if rows, err := tm.db.Query(localeQ, subArgs...); err == nil {
+	if rows, err := tm.db.QueryContext(context.Background(), localeQ, subArgs...); err == nil {
 		for rows.Next() {
 			var lf LocaleFacet
 			if err := rows.Scan(&lf.Locale, &lf.Count); err == nil {
@@ -1439,7 +1440,7 @@ func (tm *SQLiteTM) FacetStatsFiltered(query, anyLocale, requireLocale string, f
 
 	// Project facets.
 	projQ := `SELECT e.project_id, COUNT(*) FROM tm_entries e WHERE ` + subWhere + ` GROUP BY e.project_id ORDER BY COUNT(*) DESC`
-	if rows, err := tm.db.Query(projQ, subArgs...); err == nil {
+	if rows, err := tm.db.QueryContext(context.Background(), projQ, subArgs...); err == nil {
 		for rows.Next() {
 			var pf ProjectFacet
 			if err := rows.Scan(&pf.ProjectID, &pf.Count); err == nil {
@@ -1455,7 +1456,7 @@ func (tm *SQLiteTM) FacetStatsFiltered(query, anyLocale, requireLocale string, f
 		INNER JOIN tm_entries e ON e.id = ent.entry_id
 		WHERE ` + subWhere + `
 		GROUP BY ent.entity_type ORDER BY COUNT(DISTINCT ent.entry_id) DESC`
-	if rows, err := tm.db.Query(etQ, subArgs...); err == nil {
+	if rows, err := tm.db.QueryContext(context.Background(), etQ, subArgs...); err == nil {
 		for rows.Next() {
 			var ef EntityTypeFacet
 			if err := rows.Scan(&ef.Type, &ef.Count); err == nil {
@@ -1472,7 +1473,7 @@ func (tm *SQLiteTM) FacetStatsFiltered(query, anyLocale, requireLocale string, f
 		INNER JOIN tm_entries e ON e.id = o.entry_id
 		WHERE ` + subWhere + `
 		GROUP BY s.id ORDER BY COUNT(DISTINCT o.entry_id) DESC`
-	if rows, err := tm.db.Query(sessQ, subArgs...); err == nil {
+	if rows, err := tm.db.QueryContext(context.Background(), sessQ, subArgs...); err == nil {
 		for rows.Next() {
 			var sf ImportSessionFacet
 			var importedAtStr string
@@ -1489,7 +1490,7 @@ func (tm *SQLiteTM) FacetStatsFiltered(query, anyLocale, requireLocale string, f
 		COUNT(DISTINCT CASE WHEN EXISTS (SELECT 1 FROM tm_variants v WHERE v.entry_id = e.id AND (INSTR(v.coded, char(0xE001)) > 0 OR INSTR(v.coded, char(0xE002)) > 0 OR INSTR(v.coded, char(0xE003)) > 0)) THEN e.id END),
 		COUNT(DISTINCT CASE WHEN NOT EXISTS (SELECT 1 FROM tm_variants v WHERE v.entry_id = e.id AND (INSTR(v.coded, char(0xE001)) > 0 OR INSTR(v.coded, char(0xE002)) > 0 OR INSTR(v.coded, char(0xE003)) > 0)) THEN e.id END)
 		FROM tm_entries e WHERE ` + subWhere
-	_ = tm.db.QueryRow(codeQ, subArgs...).Scan(&data.HasCodes, &data.NoCodes)
+	_ = tm.db.QueryRowContext(context.Background(), codeQ, subArgs...).Scan(&data.HasCodes, &data.NoCodes)
 
 	return data
 }
@@ -1529,7 +1530,7 @@ func (tm *SQLiteTM) buildFacetSubquery(query, anyLocale, requireLocale string, f
 
 // LocaleStats returns per-locale entry counts across the full TM.
 func (tm *SQLiteTM) LocaleStats() []LocaleFacet {
-	rows, err := tm.db.Query(`
+	rows, err := tm.db.QueryContext(context.Background(), `
 		SELECT locale, COUNT(DISTINCT entry_id) FROM tm_variants
 		GROUP BY locale ORDER BY COUNT(DISTINCT entry_id) DESC
 	`)
@@ -1550,7 +1551,7 @@ func (tm *SQLiteTM) LocaleStats() []LocaleFacet {
 
 // ActivityStats returns daily entry counts over time based on created_at.
 func (tm *SQLiteTM) ActivityStats() []ActivityStat {
-	rows, err := tm.db.Query(
+	rows, err := tm.db.QueryContext(context.Background(),
 		`SELECT DATE(created_at) AS day, COUNT(*) FROM tm_entries GROUP BY day ORDER BY day`,
 	)
 	if err != nil {
@@ -1589,7 +1590,7 @@ func (tm *SQLiteTM) CreateImportSession(session ImportSession) error {
 		}
 		propsJSON = string(b)
 	}
-	_, err := tm.db.Exec(`INSERT INTO tm_import_sessions
+	_, err := tm.db.ExecContext(context.Background(), `INSERT INTO tm_import_sessions
 		(id, file_key, file_hash, file_size_bytes, imported_at, imported_by,
 		 tool_name, tool_version, seg_type, admin_lang, src_lang, data_type,
 		 original_format, original_encoding, entry_count, properties_json)
@@ -1623,7 +1624,7 @@ func (tm *SQLiteTM) FindImportSessionByHash(hash string) (ImportSession, bool) {
 
 // ListImportSessions returns all sessions ordered by imported_at DESC.
 func (tm *SQLiteTM) ListImportSessions() []ImportSession {
-	rows, err := tm.db.Query("SELECT " + sessionColumns + " FROM tm_import_sessions ORDER BY imported_at DESC")
+	rows, err := tm.db.QueryContext(context.Background(), "SELECT "+sessionColumns+" FROM tm_import_sessions ORDER BY imported_at DESC")
 	if err != nil {
 		return nil
 	}
@@ -1640,7 +1641,7 @@ func (tm *SQLiteTM) ListImportSessions() []ImportSession {
 
 // UpdateImportSessionCount sets the entry_count on a session.
 func (tm *SQLiteTM) UpdateImportSessionCount(id string, count int) error {
-	res, err := tm.db.Exec(`UPDATE tm_import_sessions SET entry_count = ? WHERE id = ?`, count, id)
+	res, err := tm.db.ExecContext(context.Background(), `UPDATE tm_import_sessions SET entry_count = ? WHERE id = ?`, count, id)
 	if err != nil {
 		return fmt.Errorf("update session count: %w", err)
 	}
@@ -1654,10 +1655,10 @@ func (tm *SQLiteTM) UpdateImportSessionCount(id string, count int) error {
 // DeleteImportSession removes a session row. Origins referencing it have
 // their session_id cleared to empty (no true FK SET NULL — emulated here).
 func (tm *SQLiteTM) DeleteImportSession(id string) error {
-	if _, err := tm.db.Exec(`UPDATE tm_entry_origins SET session_id = '' WHERE session_id = ?`, id); err != nil {
+	if _, err := tm.db.ExecContext(context.Background(), `UPDATE tm_entry_origins SET session_id = '' WHERE session_id = ?`, id); err != nil {
 		return fmt.Errorf("clear origin session_id: %w", err)
 	}
-	res, err := tm.db.Exec(`DELETE FROM tm_import_sessions WHERE id = ?`, id)
+	res, err := tm.db.ExecContext(context.Background(), `DELETE FROM tm_import_sessions WHERE id = ?`, id)
 	if err != nil {
 		return fmt.Errorf("delete session: %w", err)
 	}
@@ -1693,6 +1694,6 @@ func scanSession(sc sessionScanner) (ImportSession, bool) {
 }
 
 func (tm *SQLiteTM) querySingleSession(q string, args ...any) (ImportSession, bool) {
-	row := tm.db.QueryRow(q, args...)
+	row := tm.db.QueryRowContext(context.Background(), q, args...)
 	return scanSession(row)
 }

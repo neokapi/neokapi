@@ -86,7 +86,7 @@ func ExportTMX(tm TranslationMemory, writer io.Writer, locales []model.LocaleID)
 		if !entry.UpdatedAt.IsZero() {
 			fmt.Fprintf(bw, ` changedate="%s"`, entry.UpdatedAt.UTC().Format("20060102T150405Z"))
 		}
-		bw.WriteString(">\n")
+		_, _ = bw.WriteString(">\n")
 
 		// TU-level props: entry properties + entity markers.
 		for k, v := range entry.Properties {
@@ -102,19 +102,19 @@ func ExportTMX(tm TranslationMemory, writer io.Writer, locales []model.LocaleID)
 				continue
 			}
 			fmt.Fprintf(bw, `      <tuv xml:lang="%s">`+"\n", xmlAttr(string(loc)))
-			bw.WriteString(`        <seg>`)
+			_, _ = bw.WriteString(`        <seg>`)
 			if err := fragmentToTMXSeg(bw, frag); err != nil {
 				return err
 			}
-			bw.WriteString("</seg>\n")
-			bw.WriteString("      </tuv>\n")
+			_, _ = bw.WriteString("</seg>\n")
+			_, _ = bw.WriteString("      </tuv>\n")
 		}
 
-		bw.WriteString("    </tu>\n")
+		_, _ = bw.WriteString("    </tu>\n")
 	}
 
-	bw.WriteString("  </body>\n")
-	bw.WriteString("</tmx>\n")
+	_, _ = bw.WriteString("  </body>\n")
+	_, _ = bw.WriteString("</tmx>\n")
 	return nil
 }
 
@@ -173,19 +173,19 @@ func writeSpanAsTMX(w *bufio.Writer, s *model.Span) error {
 			if s.Type != "" {
 				fmt.Fprintf(w, `<hi type="%s">`, xmlAttr(s.Type))
 			} else {
-				w.WriteString(`<hi>`)
+				_, _ = w.WriteString(`<hi>`)
 			}
 		} else if s.SpanType == model.SpanClosing {
-			w.WriteString(`</hi>`)
+			_, _ = w.WriteString(`</hi>`)
 		}
 	case "tmx:sub":
 		// Data already contains the serialized <sub>...</sub> markup.
-		w.WriteString(s.Data)
+		_, _ = w.WriteString(s.Data)
 	case "tmx:ut":
 		fmt.Fprintf(w, `<ut>%s</ut>`, xmlEscape(s.Data))
 	case "tmx:raw":
 		// Raw XML round-trip.
-		w.WriteString(s.Data)
+		_, _ = w.WriteString(s.Data)
 	default:
 		// Non-TMX span (e.g. from HTML/XLIFF readers) — encode as <ph> with
 		// the vocabulary type recorded so that round-trip retains the type.
