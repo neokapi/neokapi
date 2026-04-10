@@ -50,7 +50,7 @@ tasks:
     cmds:
       - go build {{.BUILD_FLAGS}} -o {{.OUTPUT}}
     vars:
-      BUILD_FLAGS: '{{if eq .DEV "true"}}-buildvcs=false -gcflags=all="-l"{{else}}-tags production -trimpath -buildvcs=false -ldflags="-w -s -X {{.VERSION_PKG}}.Version={{.GIT_VERSION}} -X {{.VERSION_PKG}}.Commit={{.GIT_COMMIT}} -X {{.VERSION_PKG}}.BuildDate={{.GIT_BUILD_DATE}}"{{end}}'
+      BUILD_FLAGS: '{{if eq .DEV "true"}}-tags fts5 -buildvcs=false -gcflags=all="-l"{{else}}-tags production,fts5 -trimpath -buildvcs=false -ldflags="-w -s -X {{.VERSION_PKG}}.Version={{.GIT_VERSION}} -X {{.VERSION_PKG}}.Commit={{.GIT_COMMIT}} -X {{.VERSION_PKG}}.BuildDate={{.GIT_BUILD_DATE}}"{{end}}'
       DEFAULT_OUTPUT: "{{.BIN_DIR}}/{{.APP_NAME}}"
       OUTPUT: "{{ .OUTPUT | default .DEFAULT_OUTPUT }}"
     env:

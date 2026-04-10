@@ -56,7 +56,7 @@ tasks:
       - cmd: rm -f *.syso
         platforms: [linux, darwin]
     vars:
-      BUILD_FLAGS: '{{if eq .DEV "true"}}-buildvcs=false -gcflags=all="-l"{{else}}-tags production -trimpath -buildvcs=false -ldflags="-w -s -H windowsgui -X {{.VERSION_PKG}}.Version={{.GIT_VERSION}} -X {{.VERSION_PKG}}.Commit={{.GIT_COMMIT}} -X {{.VERSION_PKG}}.BuildDate={{.GIT_BUILD_DATE}}"{{end}}'
+      BUILD_FLAGS: '{{if eq .DEV "true"}}-tags fts5 -buildvcs=false -gcflags=all="-l"{{else}}-tags production,fts5 -trimpath -buildvcs=false -ldflags="-w -s -H windowsgui -X {{.VERSION_PKG}}.Version={{.GIT_VERSION}} -X {{.VERSION_PKG}}.Commit={{.GIT_COMMIT}} -X {{.VERSION_PKG}}.BuildDate={{.GIT_BUILD_DATE}}"{{end}}'
     env:
       GOOS: windows
       CGO_ENABLED: '{{.CGO_ENABLED | default "0"}}'
