@@ -174,6 +174,13 @@ var tmMigrations = []storage.Migration{
 		CREATE INDEX IF NOT EXISTS idx_entities_concept ON tm_entry_entities(concept_id);
 		`,
 	},
+	{
+		Version:     3,
+		Description: "precomputed has_codes flag on tm_entries for fast facet queries",
+		SQL: `
+		ALTER TABLE tm_entries ADD COLUMN has_codes INTEGER NOT NULL DEFAULT 0;
+		`,
+	},
 }
 
 // DB returns the underlying database for direct access.
@@ -312,14 +319,15 @@ func prepareBulkStmts(tx *sql.Tx) (*bulkStmts, error) {
 
 	var err error
 	if s.upsertEntry, err = tx.PrepareContext(context.Background(), `INSERT INTO tm_entries
-		(id, project_id, stream, hint_src_lang, properties, note, created_at, updated_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+		(id, project_id, stream, hint_src_lang, properties, note, has_codes, created_at, updated_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT(id) DO UPDATE SET
 			project_id    = excluded.project_id,
 			stream        = excluded.stream,
 			hint_src_lang = excluded.hint_src_lang,
 			properties    = excluded.properties,
 			note          = excluded.note,
+			has_codes     = excluded.has_codes,
 			updated_at    = excluded.updated_at`); err != nil {
 		return nil, fmt.Errorf("prepare upsert: %w", err)
 	}
@@ -398,9 +406,17 @@ func (s *bulkStmts) addEntry(entry *TMEntry, stream string) error {
 		propertiesJSON = string(b)
 	}
 
+	hasCodes := 0
+	for _, frag := range entry.Variants {
+		if frag != nil && len(frag.Spans) > 0 {
+			hasCodes = 1
+			break
+		}
+	}
+
 	if _, err := s.upsertEntry.ExecContext(context.Background(),
 		entry.ID, entry.ProjectID, stream, string(entry.HintSrcLang),
-		propertiesJSON, entry.Note,
+		propertiesJSON, entry.Note, hasCodes,
 		entry.CreatedAt.Format(time.RFC3339), entry.UpdatedAt.Format(time.RFC3339),
 	); err != nil {
 		return fmt.Errorf("upsert entry: %w", err)
@@ -507,18 +523,27 @@ func (tm *SQLiteTM) addInTx(tx *sql.Tx, entry TMEntry, stream string) error {
 		propertiesJSON = string(b)
 	}
 
+	hasCodes := 0
+	for _, frag := range entry.Variants {
+		if frag != nil && len(frag.Spans) > 0 {
+			hasCodes = 1
+			break
+		}
+	}
+
 	if _, err := tx.ExecContext(context.Background(), `
-		INSERT INTO tm_entries (id, project_id, stream, hint_src_lang, properties, note, created_at, updated_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+		INSERT INTO tm_entries (id, project_id, stream, hint_src_lang, properties, note, has_codes, created_at, updated_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT(id) DO UPDATE SET
 			project_id    = excluded.project_id,
 			stream        = excluded.stream,
 			hint_src_lang = excluded.hint_src_lang,
 			properties    = excluded.properties,
 			note          = excluded.note,
+			has_codes     = excluded.has_codes,
 			updated_at    = excluded.updated_at
 	`, entry.ID, entry.ProjectID, stream, string(entry.HintSrcLang),
-		propertiesJSON, entry.Note,
+		propertiesJSON, entry.Note, hasCodes,
 		entry.CreatedAt.Format(time.RFC3339), entry.UpdatedAt.Format(time.RFC3339)); err != nil {
 		return fmt.Errorf("upsert entry: %w", err)
 	}
@@ -1402,14 +1427,10 @@ func filterWhere(filter SearchFilter) (string, []any) {
 				strings.Join(pairs, " OR ")+")")
 	}
 	if filter.HasCodes != nil {
-		// An entry has codes iff any variant's coded JSON has a Spans array.
-		// Use the marker character to detect plain/coded variants.
 		if *filter.HasCodes {
-			clauses = append(clauses,
-				"e.id IN (SELECT entry_id FROM tm_variants WHERE INSTR(coded, char(0xE001)) > 0 OR INSTR(coded, char(0xE002)) > 0 OR INSTR(coded, char(0xE003)) > 0)")
+			clauses = append(clauses, "e.has_codes = 1")
 		} else {
-			clauses = append(clauses,
-				"e.id NOT IN (SELECT entry_id FROM tm_variants WHERE INSTR(coded, char(0xE001)) > 0 OR INSTR(coded, char(0xE002)) > 0 OR INSTR(coded, char(0xE003)) > 0)")
+			clauses = append(clauses, "e.has_codes = 0")
 		}
 	}
 	if len(clauses) == 0 {
@@ -1432,11 +1453,17 @@ func (tm *SQLiteTM) FacetStatsFiltered(query, anyLocale, requireLocale string, f
 
 	data := FacetData{}
 
-	// Locale facets: per-locale counts across all variants of matching entries.
-	localeQ := `SELECT v.locale, COUNT(DISTINCT v.entry_id) FROM tm_variants v
-		INNER JOIN tm_entries e ON e.id = v.entry_id
-		WHERE ` + subWhere + `
-		GROUP BY v.locale ORDER BY COUNT(DISTINCT v.entry_id) DESC`
+	// Locale facets: per-locale counts. When unfiltered (subWhere = "1=1"),
+	// skip the JOIN and use a simple GROUP BY on tm_variants directly.
+	var localeQ string
+	if subWhere == "1=1" {
+		localeQ = `SELECT locale, COUNT(*) FROM tm_variants GROUP BY locale ORDER BY COUNT(*) DESC`
+	} else {
+		localeQ = `SELECT v.locale, COUNT(DISTINCT v.entry_id) FROM tm_variants v
+			INNER JOIN tm_entries e ON e.id = v.entry_id
+			WHERE ` + subWhere + `
+			GROUP BY v.locale ORDER BY COUNT(DISTINCT v.entry_id) DESC`
+	}
 	if rows, err := tm.db.QueryContext(context.Background(), localeQ, subArgs...); err == nil {
 		for rows.Next() {
 			var lf LocaleFacet
@@ -1494,10 +1521,11 @@ func (tm *SQLiteTM) FacetStatsFiltered(query, anyLocale, requireLocale string, f
 		rows.Close()
 	}
 
-	// Inline code facets.
+	// Inline code facets — uses the precomputed has_codes column on tm_entries
+	// instead of scanning every variant row for marker characters.
 	codeQ := `SELECT
-		COUNT(DISTINCT CASE WHEN EXISTS (SELECT 1 FROM tm_variants v WHERE v.entry_id = e.id AND (INSTR(v.coded, char(0xE001)) > 0 OR INSTR(v.coded, char(0xE002)) > 0 OR INSTR(v.coded, char(0xE003)) > 0)) THEN e.id END),
-		COUNT(DISTINCT CASE WHEN NOT EXISTS (SELECT 1 FROM tm_variants v WHERE v.entry_id = e.id AND (INSTR(v.coded, char(0xE001)) > 0 OR INSTR(v.coded, char(0xE002)) > 0 OR INSTR(v.coded, char(0xE003)) > 0)) THEN e.id END)
+		SUM(CASE WHEN e.has_codes = 1 THEN 1 ELSE 0 END),
+		SUM(CASE WHEN e.has_codes = 0 THEN 1 ELSE 0 END)
 		FROM tm_entries e WHERE ` + subWhere
 	_ = tm.db.QueryRowContext(context.Background(), codeQ, subArgs...).Scan(&data.HasCodes, &data.NoCodes)
 
