@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"context"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -12,14 +13,16 @@ func TestICUTokenizer(t *testing.T) {
 	require.NoError(t, err)
 	defer db.Close()
 
+	ctx := context.Background()
+
 	// Create an FTS5 table using the ICU tokenizer.
-	_, err = db.Exec(`CREATE VIRTUAL TABLE icu_test USING fts5(
+	_, err = db.ExecContext(ctx, `CREATE VIRTUAL TABLE icu_test USING fts5(
 		content, tokenize='icu'
 	)`)
 	require.NoError(t, err, "FTS5 ICU tokenizer should be available")
 
 	// Insert multilingual content.
-	_, err = db.Exec(`INSERT INTO icu_test(content) VALUES
+	_, err = db.ExecContext(ctx, `INSERT INTO icu_test(content) VALUES
 		('中国 经济 发展 报告'),
 		('การ ทดสอบ ภาษา ไทย ใน ระบบ'),
 		('日本語 の テスト です'),
@@ -43,7 +46,7 @@ func TestICUTokenizer(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			var count int
-			err := db.QueryRow(`SELECT COUNT(*) FROM icu_test WHERE icu_test MATCH ?`, tc.query).Scan(&count)
+			err := db.QueryRowContext(ctx, `SELECT COUNT(*) FROM icu_test WHERE icu_test MATCH ?`, tc.query).Scan(&count)
 			require.NoError(t, err)
 			assert.Equal(t, tc.want, count)
 		})
