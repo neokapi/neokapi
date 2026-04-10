@@ -111,7 +111,8 @@ describe("semanticLabel", () => {
   it("handles unknown types with fallback labels", () => {
     const s = span("opening", "custom:unknown", "<span>");
     const label = semanticLabel(s);
-    expect(label).toBe("?>");
+    // shortChipLabel extracts the part after ':' → "unknown>"
+    expect(label).toBe("unknown>");
   });
 });
 
