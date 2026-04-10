@@ -7,6 +7,7 @@ import (
 
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/sievepen"
+	"github.com/neokapi/neokapi/termbase"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -165,6 +166,99 @@ func TestTM_DeleteImportSession_KeepsEntries(t *testing.T) {
 	require.NotNil(t, got)
 	require.Len(t, got.Origins, 1)
 	assert.Equal(t, "", got.Origins[0].SessionID)
+}
+
+func TestTM_AnnotateEntities_ResolvesConceptID(t *testing.T) {
+	app := newTestApp(t)
+	tmHandle := openTestTM(t, app)
+
+	// Add a TM entry with "Acme" in the text.
+	require.NoError(t, app.AddTMEntry(tmHandle, AddTMEntryRequest{
+		Variants: map[string]VariantInputDTO{
+			"en-US": {Text: "Contact Acme for support"},
+			"fr-FR": {Text: "Contactez Acme pour le support"},
+		},
+		HintSrcLang: "en-US",
+	}))
+	r := app.SearchTMEntries(tmHandle, "", "", "", 0, 10)
+	require.Len(t, r.Entries, 1)
+	entryID := r.Entries[0].ID
+
+	// Create a termbase with "Acme" as an organization concept.
+	tbPath := filepath.Join(t.TempDir(), "tb.db")
+	tb, err := termbase.NewSQLiteTermBase(tbPath)
+	require.NoError(t, err)
+	require.NoError(t, tb.AddConcept(termbase.Concept{
+		ID:     "concept-acme",
+		Domain: "brand",
+		Terms: []termbase.Term{
+			{Text: "Acme", Locale: "en-US", Status: model.TermApproved},
+			{Text: "Acme", Locale: "fr-FR", Status: model.TermApproved},
+		},
+	}))
+	tbHandle := app.tbHandles.Open(tb)
+	t.Cleanup(func() { app.tbHandles.Close(tbHandle) })
+
+	// Annotate: mark "Acme" as entity:organization — with termbase handle
+	// so the concept ID gets resolved automatically.
+	result, err := app.AnnotateEntities(tmHandle, AnnotateEntitiesRequest{
+		EntryIDs: []string{entryID},
+		Patterns: []EntityPatternRequest{
+			{Text: "Acme", EntityType: "entity:organization", CaseSensitive: true},
+		},
+		TermbaseHandle: tbHandle,
+	})
+	require.NoError(t, err)
+	assert.Equal(t, 1, result.EntriesUpdated)
+	assert.GreaterOrEqual(t, result.EntitiesAdded, 1)
+
+	// Verify the entity got the concept_id from the termbase.
+	got := app.GetTMEntry(tmHandle, entryID)
+	require.NotNil(t, got)
+	require.NotEmpty(t, got.Entities)
+	assert.Equal(t, "concept-acme", got.Entities[0].ConceptID,
+		"entity should be cross-referenced to the termbase concept")
+}
+
+func TestTM_ResolveEntityConcepts(t *testing.T) {
+	app := newTestApp(t)
+	tmHandle := openTestTM(t, app)
+
+	// Add a TM entry with an entity that has no concept ID.
+	tm, _ := app.tmHandles.Get(tmHandle)
+	require.NoError(t, tm.Add(sievepen.TMEntry{
+		ID: "e1",
+		Variants: map[model.LocaleID]*model.Fragment{
+			"en-US": model.NewFragment("hello"),
+		},
+		Entities: []sievepen.EntityMapping{{
+			PlaceholderID: "e1",
+			Type:          "entity:product",
+			Values:        map[model.LocaleID]sievepen.EntityValue{"en-US": {Text: "Widget"}},
+		}},
+	}))
+
+	// Create termbase with matching concept.
+	tbPath := filepath.Join(t.TempDir(), "tb.db")
+	tb, err := termbase.NewSQLiteTermBase(tbPath)
+	require.NoError(t, err)
+	require.NoError(t, tb.AddConcept(termbase.Concept{
+		ID: "concept-widget",
+		Terms: []termbase.Term{
+			{Text: "Widget", Locale: "en-US", Status: model.TermApproved},
+		},
+	}))
+	tbHandle := app.tbHandles.Open(tb)
+	t.Cleanup(func() { app.tbHandles.Close(tbHandle) })
+
+	// Resolve — should link the entity to the concept.
+	updated, err := app.ResolveEntityConcepts(tmHandle, tbHandle, []string{"e1"}, false)
+	require.NoError(t, err)
+	assert.Equal(t, 1, updated)
+
+	got := app.GetTMEntry(tmHandle, "e1")
+	require.NotNil(t, got)
+	assert.Equal(t, "concept-widget", got.Entities[0].ConceptID)
 }
 
 func TestTM_DeleteEntry(t *testing.T) {

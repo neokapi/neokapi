@@ -12,6 +12,7 @@ import (
 	"github.com/neokapi/neokapi/core/id"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/sievepen"
+	"github.com/neokapi/neokapi/termbase"
 )
 
 // --- DTOs ---
@@ -164,8 +165,9 @@ type ImportResult struct {
 
 // AnnotateEntitiesRequest is the request to batch-annotate entities on TM entries.
 type AnnotateEntitiesRequest struct {
-	EntryIDs []string               `json:"entry_ids"`
-	Patterns []EntityPatternRequest `json:"patterns"`
+	EntryIDs       []string               `json:"entry_ids"`
+	Patterns       []EntityPatternRequest `json:"patterns"`
+	TermbaseHandle string                 `json:"termbase_handle,omitempty"` // optional: cross-ref entities against this termbase
 }
 
 // EntityPatternRequest defines a text→entity mapping for batch annotation.
@@ -977,10 +979,20 @@ func importSessionToDTO(s sievepen.ImportSession) ImportSessionDTO {
 // patterns are searched across every variant's plain text and entity spans
 // are inserted where matches are found. Entity values are populated per
 // locale from the matching variant.
+//
+// When TermbaseHandle is set, each new entity's text is looked up in the
+// termbase; if a concept matches, its ID is stored on the EntityMapping
+// so the TM entry cross-references the termbase.
 func (a *App) AnnotateEntities(handle string, req AnnotateEntitiesRequest) (*AnnotateResult, error) {
 	tm, ok := a.tmHandles.Get(handle)
 	if !ok {
 		return nil, fmt.Errorf("TM handle %q not found", handle)
+	}
+
+	// Optionally resolve concept IDs from the termbase.
+	var tb *termbase.SQLiteTermBase
+	if req.TermbaseHandle != "" {
+		tb, _ = a.tbHandles.Get(req.TermbaseHandle)
 	}
 
 	var entriesUpdated, entitiesAdded int
@@ -1010,6 +1022,9 @@ func (a *App) AnnotateEntities(handle string, req AnnotateEntitiesRequest) (*Ann
 		}
 		entry.Variants = newVariants
 		entry.Entities = buildEntityMappingsFromVariants(entry.Variants)
+		if tb != nil {
+			resolveConceptIDs(entry.Entities, tb)
+		}
 		entry.UpdatedAt = time.Now()
 		if err := tm.Add(entry); err != nil {
 			return nil, fmt.Errorf("update entry %q: %w", eid, err)
@@ -1021,6 +1036,49 @@ func (a *App) AnnotateEntities(handle string, req AnnotateEntitiesRequest) (*Ann
 	}
 
 	return &AnnotateResult{EntriesUpdated: entriesUpdated, EntitiesAdded: entitiesAdded}, nil
+}
+
+// ResolveEntityConcepts re-links entities on TM entries to termbase concepts.
+// Useful after a termbase import or when entities were created without a
+// termbase available. Entries whose entities already have a ConceptID are
+// skipped unless force is true.
+func (a *App) ResolveEntityConcepts(tmHandle, tbHandle string, entryIDs []string, force bool) (int, error) {
+	tm, ok := a.tmHandles.Get(tmHandle)
+	if !ok {
+		return 0, fmt.Errorf("TM handle %q not found", tmHandle)
+	}
+	tb, ok := a.tbHandles.Get(tbHandle)
+	if !ok {
+		return 0, fmt.Errorf("termbase handle %q not found", tbHandle)
+	}
+
+	updated := 0
+	for _, eid := range entryIDs {
+		entry, found := tm.GetEntry(eid)
+		if !found || len(entry.Entities) == 0 {
+			continue
+		}
+		changed := false
+		for i := range entry.Entities {
+			if entry.Entities[i].ConceptID != "" && !force {
+				continue
+			}
+			old := entry.Entities[i].ConceptID
+			resolveOneConceptID(&entry.Entities[i], tb)
+			if entry.Entities[i].ConceptID != old {
+				changed = true
+			}
+		}
+		if !changed {
+			continue
+		}
+		entry.UpdatedAt = time.Now()
+		if err := tm.Add(entry); err != nil {
+			return updated, fmt.Errorf("update entry %q: %w", eid, err)
+		}
+		updated++
+	}
+	return updated, nil
 }
 
 // rebuildWithEntities creates a new Fragment with entity spans inserted for pattern matches.
@@ -1140,4 +1198,37 @@ func buildEntityMappingsFromVariants(variants map[model.LocaleID]*model.Fragment
 		out = append(out, *byKey[k])
 	}
 	return out
+}
+
+// resolveConceptIDs looks up each entity mapping's text in the termbase
+// and sets ConceptID when a concept matches. Looks up the first locale
+// value that returns a hit.
+func resolveConceptIDs(entities []sievepen.EntityMapping, tb *termbase.SQLiteTermBase) {
+	for i := range entities {
+		resolveOneConceptID(&entities[i], tb)
+	}
+}
+
+// resolveOneConceptID looks up one entity mapping's text values in the
+// termbase and sets ConceptID if a concept with a matching term is found.
+func resolveOneConceptID(em *sievepen.EntityMapping, tb *termbase.SQLiteTermBase) {
+	if tb == nil {
+		return
+	}
+	// Try each locale's entity value text against the termbase.
+	for loc, val := range em.Values {
+		if val.Text == "" {
+			continue
+		}
+		matches := tb.Lookup(val.Text, termbase.LookupOptions{
+			SourceLocale:  loc,
+			CaseSensitive: false,
+			MinScore:      1.0, // exact or normalized match only
+			MatchModes:    []model.MatchStrategy{model.MatchStrategyExact, model.MatchStrategyNormalized},
+		})
+		if len(matches) > 0 {
+			em.ConceptID = matches[0].Concept.ID
+			return
+		}
+	}
 }
