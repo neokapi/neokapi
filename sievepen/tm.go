@@ -55,10 +55,15 @@ type EntityValue struct {
 // placeholders in the matching key, so structurally identical segments
 // match regardless of entity values, and entity values can be adapted
 // across languages.
+//
+// ConceptID optionally links to a termbase Concept, enabling cross-reference
+// between TM entities and terminology. When set, the UI can show the
+// preferred translation from the termbase and flag consistency violations.
 type EntityMapping struct {
-	PlaceholderID string                           // "e1", "e2"
-	Type          model.EntityType                 // person, product, organization, date, etc.
-	Values        map[model.LocaleID]EntityValue   // per-locale value + position
+	PlaceholderID string                         // "e1", "e2"
+	Type          model.EntityType               // person, product, organization, date, etc.
+	Values        map[model.LocaleID]EntityValue // per-locale value + position
+	ConceptID     string                         // optional: termbase.Concept.ID
 }
 
 // Pair returns the source and target entity values for a given language pair.

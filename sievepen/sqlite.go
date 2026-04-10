@@ -166,6 +166,14 @@ var tmMigrations = []storage.Migration{
 		CREATE INDEX IF NOT EXISTS idx_origins_session ON tm_entry_origins(session_id);
 		`,
 	},
+	{
+		Version:     2,
+		Description: "add concept_id to entity mappings for termbase cross-reference",
+		SQL: `
+		ALTER TABLE tm_entry_entities ADD COLUMN concept_id TEXT NOT NULL DEFAULT '';
+		CREATE INDEX IF NOT EXISTS idx_entities_concept ON tm_entry_entities(concept_id);
+		`,
+	},
 }
 
 // DB returns the underlying database for direct access.
@@ -330,7 +338,7 @@ func prepareBulkStmts(tx *sql.Tx) (*bulkStmts, error) {
 		return nil, err
 	}
 	if s.insEntity, err = tx.PrepareContext(context.Background(), `INSERT INTO tm_entry_entities
-		(entry_id, placeholder_id, entity_type) VALUES (?, ?, ?)`); err != nil {
+		(entry_id, placeholder_id, entity_type, concept_id) VALUES (?, ?, ?, ?)`); err != nil {
 		return nil, err
 	}
 	if s.insEntityValue, err = tx.PrepareContext(context.Background(), `INSERT INTO tm_entry_entity_values
@@ -443,7 +451,7 @@ func (s *bulkStmts) addEntry(entry *TMEntry, stream string) error {
 		if em.PlaceholderID == "" {
 			continue
 		}
-		if _, err := s.insEntity.ExecContext(context.Background(), entry.ID, em.PlaceholderID, string(em.Type)); err != nil {
+		if _, err := s.insEntity.ExecContext(context.Background(), entry.ID, em.PlaceholderID, string(em.Type), em.ConceptID); err != nil {
 			return fmt.Errorf("insert entity: %w", err)
 		}
 		for loc, val := range em.Values {
@@ -567,8 +575,8 @@ func (tm *SQLiteTM) addInTx(tx *sql.Tx, entry TMEntry, stream string) error {
 			continue
 		}
 		if _, err := tx.ExecContext(context.Background(), `INSERT INTO tm_entry_entities
-			(entry_id, placeholder_id, entity_type) VALUES (?, ?, ?)`,
-			entry.ID, em.PlaceholderID, string(em.Type)); err != nil {
+			(entry_id, placeholder_id, entity_type, concept_id) VALUES (?, ?, ?, ?)`,
+			entry.ID, em.PlaceholderID, string(em.Type), em.ConceptID); err != nil {
 			return fmt.Errorf("insert entity: %w", err)
 		}
 		for loc, val := range em.Values {
@@ -1063,7 +1071,7 @@ func (tm *SQLiteTM) scanEntriesWithChildren(rows interface {
 
 	// Entities + per-locale values. Single join query keeps us at O(1) round trips.
 	entRows, err := tm.db.QueryContext(context.Background(), `
-		SELECT e.entry_id, e.placeholder_id, e.entity_type,
+		SELECT e.entry_id, e.placeholder_id, e.entity_type, e.concept_id,
 			v.locale, v.text_value, v.start_pos, v.end_pos
 		FROM tm_entry_entities e
 		LEFT JOIN tm_entry_entity_values v
@@ -1079,10 +1087,10 @@ func (tm *SQLiteTM) scanEntriesWithChildren(rows interface {
 		}
 		entIdx := make(map[entKey]int)
 		for entRows.Next() {
-			var eid, pid, etype string
+			var eid, pid, etype, conceptID string
 			var loc, textVal *string
 			var startPos, endPos *int
-			if err := entRows.Scan(&eid, &pid, &etype, &loc, &textVal, &startPos, &endPos); err != nil {
+			if err := entRows.Scan(&eid, &pid, &etype, &conceptID, &loc, &textVal, &startPos, &endPos); err != nil {
 				continue
 			}
 			idx, ok := byID[eid]
@@ -1094,6 +1102,7 @@ func (tm *SQLiteTM) scanEntriesWithChildren(rows interface {
 			if !exists {
 				entries[idx].Entities = append(entries[idx].Entities, EntityMapping{
 					PlaceholderID: pid,
+					ConceptID:     conceptID,
 					Type:          model.EntityType(etype),
 					Values:        make(map[model.LocaleID]EntityValue),
 				})
