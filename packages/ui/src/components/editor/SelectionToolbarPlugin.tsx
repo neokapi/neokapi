@@ -1,11 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { createPortal } from "react-dom";
 import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
-import {
-  $getSelection,
-  $isRangeSelection,
-  $createTextNode,
-} from "lexical";
+import { $getSelection, $isRangeSelection, $createTextNode } from "lexical";
 import type { SpanInfo } from "../../types/span";
 import { $createTagChipNode } from "./TagChipNode";
 import { TagChipComponent } from "./TagChipComponent";

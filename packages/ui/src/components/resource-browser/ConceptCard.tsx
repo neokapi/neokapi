@@ -69,12 +69,7 @@ export function ConceptCard({
         {/* Header: checkbox + domain + scope */}
         <div className="mb-2 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            {onToggleSelect && (
-              <Checkbox
-                checked={selected}
-                onCheckedChange={onToggleSelect}
-              />
-            )}
+            {onToggleSelect && <Checkbox checked={selected} onCheckedChange={onToggleSelect} />}
             {concept.domain && (
               <Badge
                 variant="secondary"

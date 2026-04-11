@@ -158,6 +158,14 @@ export class AnnotateEntitiesRequest {
              */
             this["patterns"] = [];
         }
+        if (/** @type {any} */(false)) {
+            /**
+             * optional: cross-ref entities against this termbase
+             * @member
+             * @type {string | undefined}
+             */
+            this["termbase_handle"] = undefined;
+        }
 
         Object.assign(this, $$source);
     }
@@ -609,6 +617,14 @@ export class EntityMappingDTO {
              * @type {{ [_ in string]?: EntityValueDTO }}
              */
             this["values"] = {};
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * optional termbase cross-reference
+             * @member
+             * @type {string | undefined}
+             */
+            this["concept_id"] = undefined;
         }
 
         Object.assign(this, $$source);

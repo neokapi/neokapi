@@ -73,6 +73,10 @@ export function AddTMEntry(handle, req) {
  * patterns are searched across every variant's plain text and entity spans
  * are inserted where matches are found. Entity values are populated per
  * locale from the matching variant.
+ * 
+ * When TermbaseHandle is set, each new entity's text is looked up in the
+ * termbase; if a concept matches, its ID is stored on the EntityMapping
+ * so the TM entry cross-references the termbase.
  * @param {string} handle
  * @param {$models.AnnotateEntitiesRequest} req
  * @returns {$CancellablePromise<$models.AnnotateResult | null>}
@@ -1184,6 +1188,21 @@ export function RemovePlugin(name) {
  */
 export function RenderFormatConfig(formatName, config, outputFormat) {
     return $Call.ByID(2381041337, formatName, config, outputFormat);
+}
+
+/**
+ * ResolveEntityConcepts re-links entities on TM entries to termbase concepts.
+ * Useful after a termbase import or when entities were created without a
+ * termbase available. Entries whose entities already have a ConceptID are
+ * skipped unless force is true.
+ * @param {string} tmHandle
+ * @param {string} tbHandle
+ * @param {string[]} entryIDs
+ * @param {boolean} force
+ * @returns {$CancellablePromise<number>}
+ */
+export function ResolveEntityConcepts(tmHandle, tbHandle, entryIDs, force) {
+    return $Call.ByID(4123096462, tmHandle, tbHandle, entryIDs, force);
 }
 
 /**

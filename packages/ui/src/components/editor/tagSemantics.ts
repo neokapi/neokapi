@@ -31,7 +31,11 @@ export function semanticLabel(span: SpanInfo): string {
     return span.display_text;
   }
   // Entity placeholders show their value (stored in data).
-  if (span.span_type === "placeholder" && getDefaultRegistry().isEntityType(span.type) && span.data) {
+  if (
+    span.span_type === "placeholder" &&
+    getDefaultRegistry().isEntityType(span.type) &&
+    span.data
+  ) {
     return span.data;
   }
   return getDefaultRegistry().chipLabel(span);
