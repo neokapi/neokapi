@@ -10,6 +10,7 @@ import (
 	"log/slog"
 	"slices"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/neokapi/neokapi/core/model"
@@ -1453,82 +1454,114 @@ func (tm *SQLiteTM) FacetStatsFiltered(query, anyLocale, requireLocale string, f
 
 	data := FacetData{}
 
-	// Locale facets: per-locale counts. When unfiltered (subWhere = "1=1"),
-	// skip the JOIN and use a simple GROUP BY on tm_variants directly.
-	var localeQ string
-	if subWhere == "1=1" {
-		localeQ = `SELECT locale, COUNT(*) FROM tm_variants GROUP BY locale ORDER BY COUNT(*) DESC`
-	} else {
-		localeQ = `SELECT v.locale, COUNT(DISTINCT v.entry_id) FROM tm_variants v
-			INNER JOIN tm_entries e ON e.id = v.entry_id
-			WHERE ` + subWhere + `
-			GROUP BY v.locale ORDER BY COUNT(DISTINCT v.entry_id) DESC`
-	}
-	if rows, err := tm.db.QueryContext(context.Background(), localeQ, subArgs...); err == nil {
-		for rows.Next() {
-			var lf LocaleFacet
-			if err := rows.Scan(&lf.Locale, &lf.Count); err == nil {
-				data.Locales = append(data.Locales, lf)
-			}
+	// Run all facet queries concurrently. SQLite WAL mode allows parallel
+	// readers, and the connection pool has room for all 5 queries.
+	ctx := context.Background()
+	var wg sync.WaitGroup
+
+	// Locale facets.
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		var localeQ string
+		if subWhere == "1=1" {
+			localeQ = `SELECT locale, COUNT(*) FROM tm_variants GROUP BY locale ORDER BY COUNT(*) DESC`
+		} else {
+			localeQ = `SELECT v.locale, COUNT(DISTINCT v.entry_id) FROM tm_variants v
+				INNER JOIN tm_entries e ON e.id = v.entry_id
+				WHERE ` + subWhere + `
+				GROUP BY v.locale ORDER BY COUNT(DISTINCT v.entry_id) DESC`
 		}
-		rows.Close()
-	}
+		if rows, err := tm.db.QueryContext(ctx, localeQ, subArgs...); err == nil {
+			var locales []LocaleFacet
+			for rows.Next() {
+				var lf LocaleFacet
+				if err := rows.Scan(&lf.Locale, &lf.Count); err == nil {
+					locales = append(locales, lf)
+				}
+			}
+			rows.Close()
+			data.Locales = locales
+		}
+	}()
 
 	// Project facets.
-	projQ := `SELECT e.project_id, COUNT(*) FROM tm_entries e WHERE ` + subWhere + ` GROUP BY e.project_id ORDER BY COUNT(*) DESC`
-	if rows, err := tm.db.QueryContext(context.Background(), projQ, subArgs...); err == nil {
-		for rows.Next() {
-			var pf ProjectFacet
-			if err := rows.Scan(&pf.ProjectID, &pf.Count); err == nil {
-				data.Projects = append(data.Projects, pf)
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		projQ := `SELECT e.project_id, COUNT(*) FROM tm_entries e WHERE ` + subWhere + ` GROUP BY e.project_id ORDER BY COUNT(*) DESC`
+		if rows, err := tm.db.QueryContext(ctx, projQ, subArgs...); err == nil {
+			var projects []ProjectFacet
+			for rows.Next() {
+				var pf ProjectFacet
+				if err := rows.Scan(&pf.ProjectID, &pf.Count); err == nil {
+					projects = append(projects, pf)
+				}
 			}
+			rows.Close()
+			data.Projects = projects
 		}
-		rows.Close()
-	}
+	}()
 
 	// Entity type facets.
-	etQ := `SELECT ent.entity_type, COUNT(DISTINCT ent.entry_id)
-		FROM tm_entry_entities ent
-		INNER JOIN tm_entries e ON e.id = ent.entry_id
-		WHERE ` + subWhere + `
-		GROUP BY ent.entity_type ORDER BY COUNT(DISTINCT ent.entry_id) DESC`
-	if rows, err := tm.db.QueryContext(context.Background(), etQ, subArgs...); err == nil {
-		for rows.Next() {
-			var ef EntityTypeFacet
-			if err := rows.Scan(&ef.Type, &ef.Count); err == nil {
-				data.EntityTypes = append(data.EntityTypes, ef)
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		etQ := `SELECT ent.entity_type, COUNT(DISTINCT ent.entry_id)
+			FROM tm_entry_entities ent
+			INNER JOIN tm_entries e ON e.id = ent.entry_id
+			WHERE ` + subWhere + `
+			GROUP BY ent.entity_type ORDER BY COUNT(DISTINCT ent.entry_id) DESC`
+		if rows, err := tm.db.QueryContext(ctx, etQ, subArgs...); err == nil {
+			var types []EntityTypeFacet
+			for rows.Next() {
+				var ef EntityTypeFacet
+				if err := rows.Scan(&ef.Type, &ef.Count); err == nil {
+					types = append(types, ef)
+				}
 			}
+			rows.Close()
+			data.EntityTypes = types
 		}
-		rows.Close()
-	}
+	}()
 
 	// Import session facets.
-	sessQ := `SELECT s.id, s.file_key, s.tool_name, s.imported_at, COUNT(DISTINCT o.entry_id)
-		FROM tm_import_sessions s
-		INNER JOIN tm_entry_origins o ON o.session_id = s.id
-		INNER JOIN tm_entries e ON e.id = o.entry_id
-		WHERE ` + subWhere + `
-		GROUP BY s.id ORDER BY COUNT(DISTINCT o.entry_id) DESC`
-	if rows, err := tm.db.QueryContext(context.Background(), sessQ, subArgs...); err == nil {
-		for rows.Next() {
-			var sf ImportSessionFacet
-			var importedAtStr string
-			if err := rows.Scan(&sf.SessionID, &sf.FileKey, &sf.ToolName, &importedAtStr, &sf.Count); err == nil {
-				sf.ImportedAt, _ = time.Parse(time.RFC3339, importedAtStr)
-				data.ImportSessions = append(data.ImportSessions, sf)
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		sessQ := `SELECT s.id, s.file_key, s.tool_name, s.imported_at, COUNT(DISTINCT o.entry_id)
+			FROM tm_import_sessions s
+			INNER JOIN tm_entry_origins o ON o.session_id = s.id
+			INNER JOIN tm_entries e ON e.id = o.entry_id
+			WHERE ` + subWhere + `
+			GROUP BY s.id ORDER BY COUNT(DISTINCT o.entry_id) DESC`
+		if rows, err := tm.db.QueryContext(ctx, sessQ, subArgs...); err == nil {
+			var sessions []ImportSessionFacet
+			for rows.Next() {
+				var sf ImportSessionFacet
+				var importedAtStr string
+				if err := rows.Scan(&sf.SessionID, &sf.FileKey, &sf.ToolName, &importedAtStr, &sf.Count); err == nil {
+					sf.ImportedAt, _ = time.Parse(time.RFC3339, importedAtStr)
+					sessions = append(sessions, sf)
+				}
 			}
+			rows.Close()
+			data.ImportSessions = sessions
 		}
-		rows.Close()
-	}
+	}()
 
-	// Inline code facets — uses the precomputed has_codes column on tm_entries
-	// instead of scanning every variant row for marker characters.
-	codeQ := `SELECT
-		SUM(CASE WHEN e.has_codes = 1 THEN 1 ELSE 0 END),
-		SUM(CASE WHEN e.has_codes = 0 THEN 1 ELSE 0 END)
-		FROM tm_entries e WHERE ` + subWhere
-	_ = tm.db.QueryRowContext(context.Background(), codeQ, subArgs...).Scan(&data.HasCodes, &data.NoCodes)
+	// Inline code facets.
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		codeQ := `SELECT
+			SUM(CASE WHEN e.has_codes = 1 THEN 1 ELSE 0 END),
+			SUM(CASE WHEN e.has_codes = 0 THEN 1 ELSE 0 END)
+			FROM tm_entries e WHERE ` + subWhere
+		_ = tm.db.QueryRowContext(ctx, codeQ, subArgs...).Scan(&data.HasCodes, &data.NoCodes)
+	}()
 
+	wg.Wait()
 	return data
 }
 

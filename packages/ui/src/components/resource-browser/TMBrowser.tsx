@@ -78,6 +78,7 @@ export function TMBrowser({
   const [confirmBulkDelete, setConfirmBulkDelete] = useState(false);
 
   const [facets, setFacets] = useState<TMFacets | null>(null);
+  const [facetsLoading, setFacetsLoading] = useState(false);
   const [facetSelection, setFacetSelection] = useState<FacetSelection>(EMPTY_FACETS);
 
   // Bilingual locale pair controlled from the top bar. When null we pick
@@ -225,6 +226,7 @@ export function TMBrowser({
 
   const fetchFacets = useCallback(async () => {
     const a = adapterRef.current;
+    setFacetsLoading(true);
     try {
       if (a.getFacetsFiltered) {
         const data = await a.getFacetsFiltered(
@@ -240,6 +242,8 @@ export function TMBrowser({
       }
     } catch {
       // Facets are non-critical.
+    } finally {
+      setFacetsLoading(false);
     }
   }, [debouncedSearch]);
 
@@ -471,6 +475,7 @@ export function TMBrowser({
               facets={facets}
               selection={facetSelection}
               onSelectionChange={setFacetSelection}
+              loading={facetsLoading}
             />
           </div>
         )}

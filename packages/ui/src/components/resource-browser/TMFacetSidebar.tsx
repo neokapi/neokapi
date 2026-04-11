@@ -122,6 +122,9 @@ export function TMFacetSidebar({
         )}
       </div>
 
+      {/* Skeleton while facets are loading */}
+      {loading && !facets && <FacetSkeleton />}
+
       {facets && facets.locales.length > 0 && (
         <LocalesSection
           locales={facets.locales}
@@ -470,6 +473,33 @@ function FacetRow({
       <span className="flex-1 min-w-0 truncate">{label}</span>
       <span className="text-[10px] text-muted-foreground tabular-nums shrink-0">{count}</span>
     </label>
+  );
+}
+
+// ─── Skeleton ─────────────────────────────────────────────────────────────────
+
+function FacetSkeleton() {
+  return (
+    <div className="flex flex-col gap-3 animate-pulse">
+      <SkeletonSection rows={5} />
+      <SkeletonSection rows={2} />
+      <SkeletonSection rows={3} />
+    </div>
+  );
+}
+
+function SkeletonSection({ rows }: { rows: number }) {
+  return (
+    <div className="flex flex-col gap-1.5 pl-1">
+      <div className="h-2.5 w-16 rounded bg-muted" />
+      {Array.from({ length: rows }, (_, i) => (
+        <div key={i} className="flex items-center gap-1.5">
+          <div className="size-3 rounded-sm bg-muted shrink-0" />
+          <div className="h-2.5 rounded bg-muted" style={{ width: `${55 + ((i * 17) % 30)}%` }} />
+          <div className="h-2.5 w-6 rounded bg-muted ml-auto shrink-0" />
+        </div>
+      ))}
+    </div>
   );
 }
 
