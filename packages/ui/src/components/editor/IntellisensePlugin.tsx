@@ -197,7 +197,10 @@ export function IntellisensePlugin({ sourceSpans, usedSpans }: IntellisensePlugi
                         {opening.span.type}
                       </span>
                       {opening.sourceIndex < 9 && (
-                        <CommandShortcut>{"\u2318"}{opening.sourceIndex + 1}</CommandShortcut>
+                        <CommandShortcut>
+                          {"\u2318"}
+                          {opening.sourceIndex + 1}
+                        </CommandShortcut>
                       )}
                     </CommandItem>
                   );
@@ -216,7 +219,10 @@ export function IntellisensePlugin({ sourceSpans, usedSpans }: IntellisensePlugi
                         {placeholder.span.type}
                       </span>
                       {placeholder.sourceIndex < 9 && (
-                        <CommandShortcut>{"\u2318"}{placeholder.sourceIndex + 1}</CommandShortcut>
+                        <CommandShortcut>
+                          {"\u2318"}
+                          {placeholder.sourceIndex + 1}
+                        </CommandShortcut>
                       )}
                     </CommandItem>
                   );
