@@ -1,11 +1,13 @@
-import { useCallback } from "react";
-import type { TMFacets } from "./types";
+import { useCallback, useMemo, useState } from "react";
+import type { TMFacets, ImportSessionFacet } from "./types";
 import { ENTITY_TYPES } from "./types";
 import { Checkbox } from "../ui/checkbox";
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "../ui/collapsible";
+import { ScrollArea } from "../ui/scroll-area";
 import { LocalePill } from "./LocalePill";
-import { ChevronRight } from "lucide-react";
-import { relativeTime } from "./utils";
+import { ChevronRight, X, Search } from "lucide-react";
+
+// ─── Public interface ─────────────────────────────────────────────────────────
 
 export interface FacetSelection {
   locales: string[];
@@ -15,7 +17,7 @@ export interface FacetSelection {
   codeFilter: "all" | "has_codes" | "no_codes";
 }
 
-const EMPTY_FACETS: FacetSelection = {
+export const EMPTY_FACETS: FacetSelection = {
   locales: [],
   projects: [],
   entityTypes: [],
@@ -30,10 +32,15 @@ interface TMFacetSidebarProps {
   loading?: boolean;
 }
 
-/**
- * Left sidebar showing faceted filters for the TM browser.
- * Each section is collapsible with checkboxes and counts.
- */
+// ─── Constants ────────────────────────────────────────────────────────────────
+
+const LOCALE_INLINE_THRESHOLD = 6;
+const LOCALE_COLLAPSED_COUNT = 5;
+const SESSION_PAGE_SIZE = 8;
+const PROJECT_VISIBLE_COUNT = 5;
+
+// ─── Root component ───────────────────────────────────────────────────────────
+
 export function TMFacetSidebar({
   facets,
   selection,
@@ -100,56 +107,43 @@ export function TMFacetSidebar({
     selection.codeFilter !== "all";
 
   return (
-    <div className="flex flex-col gap-1 text-sm">
-      <div className="flex items-center justify-between mb-1">
-        <h3 className="text-[13px] font-semibold text-foreground">Filters</h3>
+    <div className="flex flex-col gap-0.5 text-sm">
+      <div className="flex items-center justify-between mb-1 px-0.5">
+        <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
+          Filters
+        </span>
         {hasActiveFilters && (
           <button
             onClick={() => onSelectionChange(EMPTY_FACETS)}
-            className="text-[10px] text-primary hover:text-primary/80"
+            className="text-[10px] text-muted-foreground hover:text-foreground transition-colors"
           >
             Clear all
           </button>
         )}
       </div>
 
-      {/* Languages */}
       {facets && facets.locales.length > 0 && (
-        <FacetSection title="Languages" defaultOpen>
-          {facets.locales.map(({ locale, count }) => (
-            <FacetItem
-              key={locale}
-              checked={selection.locales.includes(locale)}
-              onCheckedChange={() => toggleLocale(locale)}
-              label={<LocalePill locale={locale} />}
-              count={count}
-            />
-          ))}
-        </FacetSection>
+        <LocalesSection
+          locales={facets.locales}
+          selectedLocales={selection.locales}
+          onToggle={toggleLocale}
+        />
       )}
 
-      {/* Projects */}
       {facets && facets.projects.length > 0 && (
-        <FacetSection title="Project">
-          {facets.projects.map((p) => (
-            <FacetItem
-              key={p.project_id || "__none__"}
-              checked={selection.projects.includes(p.project_id)}
-              onCheckedChange={() => toggleProject(p.project_id)}
-              label={p.project_id || "No project"}
-              count={p.count}
-            />
-          ))}
-        </FacetSection>
+        <ProjectsSection
+          projects={facets.projects}
+          selectedProjects={selection.projects}
+          onToggle={toggleProject}
+        />
       )}
 
-      {/* Entity Types */}
       {facets && facets.entity_types.length > 0 && (
         <FacetSection title="Entity Types">
           {facets.entity_types.map((et) => {
             const label = ENTITY_TYPES.find((t) => t.value === et.type)?.label ?? et.type;
             return (
-              <FacetItem
+              <FacetRow
                 key={et.type}
                 checked={selection.entityTypes.includes(et.type)}
                 onCheckedChange={() => toggleEntityType(et.type)}
@@ -161,40 +155,23 @@ export function TMFacetSidebar({
         </FacetSection>
       )}
 
-      {/* Import Sessions */}
       {facets && facets.import_sessions.length > 0 && (
-        <FacetSection title="Import Sessions">
-          {facets.import_sessions.map((s) => (
-            <FacetItem
-              key={s.session_id}
-              checked={selection.sessionIds.includes(s.session_id)}
-              onCheckedChange={() => toggleSession(s.session_id)}
-              label={
-                <span className="flex flex-col min-w-0">
-                  <span className="truncate" title={s.file_key}>
-                    {s.file_key || s.session_id}
-                  </span>
-                  <span className="text-[9px] text-muted-foreground">
-                    {relativeTime(s.imported_at)}
-                  </span>
-                </span>
-              }
-              count={s.count}
-            />
-          ))}
-        </FacetSection>
+        <SessionsSection
+          sessions={facets.import_sessions}
+          selectedIds={selection.sessionIds}
+          onToggle={toggleSession}
+        />
       )}
 
-      {/* Inline Codes */}
       {facets && (facets.has_codes > 0 || facets.no_codes > 0) && (
-        <FacetSection title="Inline Codes">
-          <FacetItem
+        <FacetSection title="Inline Codes" defaultOpen>
+          <FacetRow
             checked={selection.codeFilter === "has_codes"}
             onCheckedChange={() => setCodeFilter("has_codes")}
             label="Has inline codes"
             count={facets.has_codes}
           />
-          <FacetItem
+          <FacetRow
             checked={selection.codeFilter === "no_codes"}
             onCheckedChange={() => setCodeFilter("no_codes")}
             label="Plain text only"
@@ -205,6 +182,254 @@ export function TMFacetSidebar({
     </div>
   );
 }
+
+// ─── Languages section ────────────────────────────────────────────────────────
+
+function LocalesSection({
+  locales,
+  selectedLocales,
+  onToggle,
+}: {
+  locales: TMFacets["locales"];
+  selectedLocales: string[];
+  onToggle: (locale: string) => void;
+}) {
+  const [expanded, setExpanded] = useState(false);
+
+  const showAll = locales.length <= LOCALE_INLINE_THRESHOLD;
+  const visible = showAll || expanded ? locales : locales.slice(0, LOCALE_COLLAPSED_COUNT);
+  const hiddenCount = locales.length - LOCALE_COLLAPSED_COUNT;
+  const hiddenSelected = expanded
+    ? 0
+    : locales.slice(LOCALE_COLLAPSED_COUNT).filter((l) => selectedLocales.includes(l.locale))
+        .length;
+
+  return (
+    <FacetSection title="Languages" defaultOpen>
+      {visible.map(({ locale, count }) => (
+        <FacetRow
+          key={locale}
+          checked={selectedLocales.includes(locale)}
+          onCheckedChange={() => onToggle(locale)}
+          label={<LocalePill locale={locale} />}
+          count={count}
+        />
+      ))}
+      {!showAll && (
+        <button
+          onClick={() => setExpanded((e) => !e)}
+          className="mt-0.5 ml-5 text-[10px] text-muted-foreground hover:text-foreground transition-colors text-left"
+        >
+          {expanded ? (
+            "Show fewer"
+          ) : (
+            <>
+              {hiddenCount} more
+              {hiddenSelected > 0 && (
+                <span className="ml-1 text-primary">({hiddenSelected} selected)</span>
+              )}
+            </>
+          )}
+        </button>
+      )}
+    </FacetSection>
+  );
+}
+
+// ─── Projects section ─────────────────────────────────────────────────────────
+
+function ProjectsSection({
+  projects,
+  selectedProjects,
+  onToggle,
+}: {
+  projects: TMFacets["projects"];
+  selectedProjects: string[];
+  onToggle: (projectId: string) => void;
+}) {
+  const [expanded, setExpanded] = useState(false);
+
+  const showAll = projects.length <= PROJECT_VISIBLE_COUNT;
+  const visible = showAll || expanded ? projects : projects.slice(0, PROJECT_VISIBLE_COUNT);
+  const hiddenCount = projects.length - PROJECT_VISIBLE_COUNT;
+  const hiddenSelected = expanded
+    ? 0
+    : projects.slice(PROJECT_VISIBLE_COUNT).filter((p) => selectedProjects.includes(p.project_id))
+        .length;
+
+  return (
+    <FacetSection title="Project">
+      {visible.map((p) => (
+        <FacetRow
+          key={p.project_id || "__none__"}
+          checked={selectedProjects.includes(p.project_id)}
+          onCheckedChange={() => onToggle(p.project_id)}
+          label={
+            <span className="truncate" title={p.project_id || "No project"}>
+              {p.project_id || "No project"}
+            </span>
+          }
+          count={p.count}
+        />
+      ))}
+      {!showAll && (
+        <button
+          onClick={() => setExpanded((e) => !e)}
+          className="mt-0.5 ml-5 text-[10px] text-muted-foreground hover:text-foreground transition-colors text-left"
+        >
+          {expanded ? (
+            "Show fewer"
+          ) : (
+            <>
+              {hiddenCount} more
+              {hiddenSelected > 0 && (
+                <span className="ml-1 text-primary">({hiddenSelected} selected)</span>
+              )}
+            </>
+          )}
+        </button>
+      )}
+    </FacetSection>
+  );
+}
+
+// ─── Sessions section ─────────────────────────────────────────────────────────
+
+function SessionsSection({
+  sessions,
+  selectedIds,
+  onToggle,
+}: {
+  sessions: ImportSessionFacet[];
+  selectedIds: string[];
+  onToggle: (sessionId: string) => void;
+}) {
+  const [query, setQuery] = useState("");
+
+  const sessionMap = useMemo(() => new Map(sessions.map((s) => [s.session_id, s])), [sessions]);
+
+  const pinnedSessions = useMemo(
+    () => selectedIds.map((id) => sessionMap.get(id)).filter(Boolean) as ImportSessionFacet[],
+    [selectedIds, sessionMap],
+  );
+
+  const filteredSessions = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return sessions
+      .filter((s) => !selectedIds.includes(s.session_id))
+      .filter(
+        (s) => !q || s.file_key.toLowerCase().includes(q) || s.session_id.toLowerCase().includes(q),
+      )
+      .slice(0, SESSION_PAGE_SIZE);
+  }, [sessions, selectedIds, query]);
+
+  const totalUnselected = sessions.length - selectedIds.length;
+
+  return (
+    <FacetSection title="Import Sessions">
+      {pinnedSessions.length > 0 && (
+        <div className="flex flex-col gap-0.5 pb-1.5">
+          {pinnedSessions.map((s) => (
+            <SessionBadge key={s.session_id} session={s} onRemove={() => onToggle(s.session_id)} />
+          ))}
+        </div>
+      )}
+
+      {totalUnselected > 0 && (
+        <div className="relative mb-1">
+          <Search className="absolute left-1.5 top-1/2 -translate-y-1/2 size-3 text-muted-foreground pointer-events-none" />
+          <input
+            type="text"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder={`Search ${totalUnselected} sessions…`}
+            className="w-full h-6 pl-5 pr-2 rounded border border-input bg-transparent text-[11px] text-foreground placeholder:text-muted-foreground outline-none focus:border-ring transition-colors"
+          />
+          {query && (
+            <button
+              onClick={() => setQuery("")}
+              className="absolute right-1.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+            >
+              <X className="size-3" />
+            </button>
+          )}
+        </div>
+      )}
+
+      {filteredSessions.length > 0 && (
+        <ScrollArea className="max-h-[240px]">
+          <div className="flex flex-col gap-0.5 pr-2">
+            {filteredSessions.map((s) => (
+              <SessionRow
+                key={s.session_id}
+                session={s}
+                onCheckedChange={() => onToggle(s.session_id)}
+              />
+            ))}
+          </div>
+        </ScrollArea>
+      )}
+
+      {filteredSessions.length === 0 && query && (
+        <p className="text-[10px] text-muted-foreground px-1 py-1">No sessions match</p>
+      )}
+    </FacetSection>
+  );
+}
+
+function SessionBadge({
+  session,
+  onRemove,
+}: {
+  session: ImportSessionFacet;
+  onRemove: () => void;
+}) {
+  const name = basename(session.file_key) || session.session_id.slice(0, 8);
+  return (
+    <div
+      className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-muted/60 group"
+      title={session.file_key}
+    >
+      <span className="flex-1 min-w-0 font-mono text-[10px] text-foreground truncate">{name}</span>
+      <span className="text-[10px] text-muted-foreground tabular-nums shrink-0">
+        {session.count}
+      </span>
+      <button
+        onClick={onRemove}
+        className="shrink-0 text-muted-foreground hover:text-foreground transition-colors"
+        aria-label="Remove filter"
+      >
+        <X className="size-2.5" />
+      </button>
+    </div>
+  );
+}
+
+function SessionRow({
+  session,
+  onCheckedChange,
+}: {
+  session: ImportSessionFacet;
+  onCheckedChange: () => void;
+}) {
+  const name = basename(session.file_key) || session.session_id.slice(0, 8);
+  return (
+    <label
+      className="flex items-center gap-1.5 py-0.5 cursor-pointer group"
+      title={session.file_key}
+    >
+      <Checkbox checked={false} onCheckedChange={onCheckedChange} className="size-3 shrink-0" />
+      <span className="flex-1 min-w-0 font-mono text-[10px] text-foreground truncate leading-tight">
+        {name}
+      </span>
+      <span className="text-[10px] text-muted-foreground tabular-nums shrink-0">
+        {session.count}
+      </span>
+    </label>
+  );
+}
+
+// ─── Shared primitives ────────────────────────────────────────────────────────
 
 function FacetSection({
   title,
@@ -217,8 +442,8 @@ function FacetSection({
 }) {
   return (
     <Collapsible defaultOpen={defaultOpen}>
-      <CollapsibleTrigger className="flex w-full items-center gap-1 py-1.5 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider hover:text-foreground transition-colors group">
-        <ChevronRight className="size-3 transition-transform group-data-[state=open]:rotate-90" />
+      <CollapsibleTrigger className="flex w-full items-center gap-1 py-1.5 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider hover:text-foreground transition-colors group">
+        <ChevronRight className="size-3 shrink-0 transition-transform group-data-[state=open]:rotate-90" />
         {title}
       </CollapsibleTrigger>
       <CollapsibleContent>
@@ -228,7 +453,7 @@ function FacetSection({
   );
 }
 
-function FacetItem({
+function FacetRow({
   checked,
   onCheckedChange,
   label,
@@ -241,11 +466,17 @@ function FacetItem({
 }) {
   return (
     <label className="flex items-center gap-1.5 py-0.5 cursor-pointer text-[12px]">
-      <Checkbox checked={checked} onCheckedChange={onCheckedChange} className="size-3.5" />
-      <span className="flex-1 truncate">{label}</span>
-      <span className="text-[10px] text-muted-foreground tabular-nums">{count}</span>
+      <Checkbox checked={checked} onCheckedChange={onCheckedChange} className="size-3 shrink-0" />
+      <span className="flex-1 min-w-0 truncate">{label}</span>
+      <span className="text-[10px] text-muted-foreground tabular-nums shrink-0">{count}</span>
     </label>
   );
 }
 
-export { EMPTY_FACETS };
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function basename(path: string): string {
+  if (!path) return "";
+  const slash = path.lastIndexOf("/");
+  return slash >= 0 ? path.slice(slash + 1) : path;
+}
