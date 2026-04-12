@@ -120,25 +120,16 @@ func TestRunFromProject_ProjectFileNotFound(t *testing.T) {
 }
 
 func TestToolFromStep_BuiltinTool(t *testing.T) {
-	// Verify that toolFromStep can look up built-in tools by name.
-	app := &App{
-		TargetLang: "fr",
-	}
+	app := newTestApp()
+	app.TargetLang = "fr"
 
-	// Find a tool that has NewToolFromConfig (pseudo-translate has it via schema).
-	// For tools without NewToolFromConfig, the function falls back to NewTool(cmd, targetLang).
-	// Since we can't easily construct a cmd in tests, just verify the lookup logic.
-	found := false
-	for _, def := range BuiltinToolCommands {
-		if def.Use == "pseudo-translate" {
-			found = true
-			break
-		}
-	}
-	assert.True(t, found, "pseudo-translate should be in BuiltinToolCommands")
+	// Verify that pseudo-translate is in the registry and can be looked up.
+	assert.True(t, app.ToolReg.Has("pseudo-translate"),
+		"pseudo-translate should be in ToolRegistry")
 
-	// Verify that unknown tools would need registry.
-	_ = app // suppress unused
+	// Verify it has a schema (needed for CLI command generation).
+	s := app.ToolReg.GetSchema("pseudo-translate")
+	assert.NotNil(t, s, "pseudo-translate should have a schema")
 }
 
 func TestKapiProjectYAMLRoundtrip(t *testing.T) {

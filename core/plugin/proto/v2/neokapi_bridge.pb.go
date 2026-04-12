@@ -1894,6 +1894,70 @@ func (*ProcessResponse_PartBatch) isProcessResponse_Response() {}
 
 func (*ProcessResponse_ContentBatch) isProcessResponse_Response() {}
 
+// InlineStep configures a pipeline step to run inside the Process RPC.
+// When ProcessHeader.inline_steps is non-empty, the Java side pipes each
+// filter event through the step chain before streaming results to Go.
+// This eliminates Go↔Java round-trips for Okapi-native step processing.
+type InlineStep struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	StepClass     string                 `protobuf:"bytes,1,opt,name=step_class,json=stepClass,proto3" json:"step_class,omitempty"`                                                                              // Fully-qualified Java class name
+	StepParams    map[string]string      `protobuf:"bytes,2,rep,name=step_params,json=stepParams,proto3" json:"step_params,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"` // Step parameters (key-value)
+	ParamTypes    map[string]string      `protobuf:"bytes,3,rep,name=param_types,json=paramTypes,proto3" json:"param_types,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"` // Schema-derived types for correct Okapi suffixes
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *InlineStep) Reset() {
+	*x = InlineStep{}
+	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[22]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *InlineStep) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*InlineStep) ProtoMessage() {}
+
+func (x *InlineStep) ProtoReflect() protoreflect.Message {
+	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[22]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use InlineStep.ProtoReflect.Descriptor instead.
+func (*InlineStep) Descriptor() ([]byte, []int) {
+	return file_core_plugin_proto_v2_neokapi_bridge_proto_rawDescGZIP(), []int{22}
+}
+
+func (x *InlineStep) GetStepClass() string {
+	if x != nil {
+		return x.StepClass
+	}
+	return ""
+}
+
+func (x *InlineStep) GetStepParams() map[string]string {
+	if x != nil {
+		return x.StepParams
+	}
+	return nil
+}
+
+func (x *InlineStep) GetParamTypes() map[string]string {
+	if x != nil {
+		return x.ParamTypes
+	}
+	return nil
+}
+
 // ProcessHeader configures the Process RPC.
 type ProcessHeader struct {
 	state          protoimpl.MessageState `protogen:"open.v1"`
@@ -1907,13 +1971,18 @@ type ProcessHeader struct {
 	Output         *OutputRef             `protobuf:"bytes,8,opt,name=output,proto3" json:"output,omitempty"`                                                // Where to write output (optional; omit for read-only)
 	OutputLocale   string                 `protobuf:"bytes,9,opt,name=output_locale,json=outputLocale,proto3" json:"output_locale,omitempty"`                // Locale for the output document
 	SubscribeParts []int32                `protobuf:"varint,10,rep,packed,name=subscribe_parts,json=subscribeParts,proto3" json:"subscribe_parts,omitempty"` // Part types to stream to Go (empty = all).
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	// Java only sends parts matching these types;
+	// all other events are written directly without
+	// crossing the gRPC boundary.
+	// Values match PartMessage.part_type (e.g. 5 = Block).
+	InlineSteps   []*InlineStep `protobuf:"bytes,11,rep,name=inline_steps,json=inlineSteps,proto3" json:"inline_steps,omitempty"` // Optional steps to run between filter and writer.
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ProcessHeader) Reset() {
 	*x = ProcessHeader{}
-	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[22]
+	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1925,7 +1994,7 @@ func (x *ProcessHeader) String() string {
 func (*ProcessHeader) ProtoMessage() {}
 
 func (x *ProcessHeader) ProtoReflect() protoreflect.Message {
-	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[22]
+	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1938,7 +2007,7 @@ func (x *ProcessHeader) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProcessHeader.ProtoReflect.Descriptor instead.
 func (*ProcessHeader) Descriptor() ([]byte, []int) {
-	return file_core_plugin_proto_v2_neokapi_bridge_proto_rawDescGZIP(), []int{22}
+	return file_core_plugin_proto_v2_neokapi_bridge_proto_rawDescGZIP(), []int{23}
 }
 
 func (x *ProcessHeader) GetFilterClass() string {
@@ -2011,6 +2080,13 @@ func (x *ProcessHeader) GetSubscribeParts() []int32 {
 	return nil
 }
 
+func (x *ProcessHeader) GetInlineSteps() []*InlineStep {
+	if x != nil {
+		return x.InlineSteps
+	}
+	return nil
+}
+
 // ProcessReadDone signals that all parts have been read from the document.
 type ProcessReadDone struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
@@ -2020,7 +2096,7 @@ type ProcessReadDone struct {
 
 func (x *ProcessReadDone) Reset() {
 	*x = ProcessReadDone{}
-	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[23]
+	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[24]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2032,7 +2108,7 @@ func (x *ProcessReadDone) String() string {
 func (*ProcessReadDone) ProtoMessage() {}
 
 func (x *ProcessReadDone) ProtoReflect() protoreflect.Message {
-	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[23]
+	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[24]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2045,7 +2121,7 @@ func (x *ProcessReadDone) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProcessReadDone.ProtoReflect.Descriptor instead.
 func (*ProcessReadDone) Descriptor() ([]byte, []int) {
-	return file_core_plugin_proto_v2_neokapi_bridge_proto_rawDescGZIP(), []int{23}
+	return file_core_plugin_proto_v2_neokapi_bridge_proto_rawDescGZIP(), []int{24}
 }
 
 // ProcessComplete signals that the output has been written (or read-only is done).
@@ -2060,7 +2136,7 @@ type ProcessComplete struct {
 
 func (x *ProcessComplete) Reset() {
 	*x = ProcessComplete{}
-	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[24]
+	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[25]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2072,7 +2148,7 @@ func (x *ProcessComplete) String() string {
 func (*ProcessComplete) ProtoMessage() {}
 
 func (x *ProcessComplete) ProtoReflect() protoreflect.Message {
-	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[24]
+	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[25]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2085,7 +2161,7 @@ func (x *ProcessComplete) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProcessComplete.ProtoReflect.Descriptor instead.
 func (*ProcessComplete) Descriptor() ([]byte, []int) {
-	return file_core_plugin_proto_v2_neokapi_bridge_proto_rawDescGZIP(), []int{24}
+	return file_core_plugin_proto_v2_neokapi_bridge_proto_rawDescGZIP(), []int{25}
 }
 
 func (x *ProcessComplete) GetOutput() []byte {
@@ -2117,7 +2193,7 @@ type ShutdownRequest struct {
 
 func (x *ShutdownRequest) Reset() {
 	*x = ShutdownRequest{}
-	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[25]
+	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[26]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2129,7 +2205,7 @@ func (x *ShutdownRequest) String() string {
 func (*ShutdownRequest) ProtoMessage() {}
 
 func (x *ShutdownRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[25]
+	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[26]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2142,7 +2218,7 @@ func (x *ShutdownRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ShutdownRequest.ProtoReflect.Descriptor instead.
 func (*ShutdownRequest) Descriptor() ([]byte, []int) {
-	return file_core_plugin_proto_v2_neokapi_bridge_proto_rawDescGZIP(), []int{25}
+	return file_core_plugin_proto_v2_neokapi_bridge_proto_rawDescGZIP(), []int{26}
 }
 
 type ShutdownResponse struct {
@@ -2153,7 +2229,7 @@ type ShutdownResponse struct {
 
 func (x *ShutdownResponse) Reset() {
 	*x = ShutdownResponse{}
-	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[26]
+	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[27]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2165,7 +2241,7 @@ func (x *ShutdownResponse) String() string {
 func (*ShutdownResponse) ProtoMessage() {}
 
 func (x *ShutdownResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[26]
+	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[27]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2178,7 +2254,7 @@ func (x *ShutdownResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ShutdownResponse.ProtoReflect.Descriptor instead.
 func (*ShutdownResponse) Descriptor() ([]byte, []int) {
-	return file_core_plugin_proto_v2_neokapi_bridge_proto_rawDescGZIP(), []int{26}
+	return file_core_plugin_proto_v2_neokapi_bridge_proto_rawDescGZIP(), []int{27}
 }
 
 // StepRequest is sent by the client (Go) to the server (Java) for step processing.
@@ -2195,7 +2271,7 @@ type StepRequest struct {
 
 func (x *StepRequest) Reset() {
 	*x = StepRequest{}
-	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[27]
+	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[28]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2207,7 +2283,7 @@ func (x *StepRequest) String() string {
 func (*StepRequest) ProtoMessage() {}
 
 func (x *StepRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[27]
+	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[28]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2220,7 +2296,7 @@ func (x *StepRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StepRequest.ProtoReflect.Descriptor instead.
 func (*StepRequest) Descriptor() ([]byte, []int) {
-	return file_core_plugin_proto_v2_neokapi_bridge_proto_rawDescGZIP(), []int{27}
+	return file_core_plugin_proto_v2_neokapi_bridge_proto_rawDescGZIP(), []int{28}
 }
 
 func (x *StepRequest) GetRequest() isStepRequest_Request {
@@ -2271,15 +2347,16 @@ type StepHeader struct {
 	StepParams         map[string]string      `protobuf:"bytes,2,rep,name=step_params,json=stepParams,proto3" json:"step_params,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"` // Step parameters (key-value)
 	SourceLocale       string                 `protobuf:"bytes,3,opt,name=source_locale,json=sourceLocale,proto3" json:"source_locale,omitempty"`
 	TargetLocale       string                 `protobuf:"bytes,4,opt,name=target_locale,json=targetLocale,proto3" json:"target_locale,omitempty"`
-	RootDirectory      string                 `protobuf:"bytes,5,opt,name=root_directory,json=rootDirectory,proto3" json:"root_directory,omitempty"`                  // Project root for ${rootDir} resolution
-	InputRootDirectory string                 `protobuf:"bytes,6,opt,name=input_root_directory,json=inputRootDirectory,proto3" json:"input_root_directory,omitempty"` // Input root for ${inputRootDir} resolution
+	RootDirectory      string                 `protobuf:"bytes,5,opt,name=root_directory,json=rootDirectory,proto3" json:"root_directory,omitempty"`                                                                  // Project root for ${rootDir} resolution
+	InputRootDirectory string                 `protobuf:"bytes,6,opt,name=input_root_directory,json=inputRootDirectory,proto3" json:"input_root_directory,omitempty"`                                                 // Input root for ${inputRootDir} resolution
+	ParamTypes         map[string]string      `protobuf:"bytes,7,rep,name=param_types,json=paramTypes,proto3" json:"param_types,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"` // Schema-derived types: {"regEx":"boolean","count":"integer"}
 	unknownFields      protoimpl.UnknownFields
 	sizeCache          protoimpl.SizeCache
 }
 
 func (x *StepHeader) Reset() {
 	*x = StepHeader{}
-	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[28]
+	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[29]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2291,7 +2368,7 @@ func (x *StepHeader) String() string {
 func (*StepHeader) ProtoMessage() {}
 
 func (x *StepHeader) ProtoReflect() protoreflect.Message {
-	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[28]
+	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[29]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2304,7 +2381,7 @@ func (x *StepHeader) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StepHeader.ProtoReflect.Descriptor instead.
 func (*StepHeader) Descriptor() ([]byte, []int) {
-	return file_core_plugin_proto_v2_neokapi_bridge_proto_rawDescGZIP(), []int{28}
+	return file_core_plugin_proto_v2_neokapi_bridge_proto_rawDescGZIP(), []int{29}
 }
 
 func (x *StepHeader) GetStepClass() string {
@@ -2349,6 +2426,13 @@ func (x *StepHeader) GetInputRootDirectory() string {
 	return ""
 }
 
+func (x *StepHeader) GetParamTypes() map[string]string {
+	if x != nil {
+		return x.ParamTypes
+	}
+	return nil
+}
+
 // StepResponse is sent by the server (Java) to the client (Go).
 type StepResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -2363,7 +2447,7 @@ type StepResponse struct {
 
 func (x *StepResponse) Reset() {
 	*x = StepResponse{}
-	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[29]
+	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[30]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2375,7 +2459,7 @@ func (x *StepResponse) String() string {
 func (*StepResponse) ProtoMessage() {}
 
 func (x *StepResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[29]
+	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[30]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2388,7 +2472,7 @@ func (x *StepResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StepResponse.ProtoReflect.Descriptor instead.
 func (*StepResponse) Descriptor() ([]byte, []int) {
-	return file_core_plugin_proto_v2_neokapi_bridge_proto_rawDescGZIP(), []int{29}
+	return file_core_plugin_proto_v2_neokapi_bridge_proto_rawDescGZIP(), []int{30}
 }
 
 func (x *StepResponse) GetResponse() isStepResponse_Response {
@@ -2442,7 +2526,7 @@ type StepComplete struct {
 
 func (x *StepComplete) Reset() {
 	*x = StepComplete{}
-	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[30]
+	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[31]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2454,7 +2538,7 @@ func (x *StepComplete) String() string {
 func (*StepComplete) ProtoMessage() {}
 
 func (x *StepComplete) ProtoReflect() protoreflect.Message {
-	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[30]
+	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[31]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2467,7 +2551,7 @@ func (x *StepComplete) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StepComplete.ProtoReflect.Descriptor instead.
 func (*StepComplete) Descriptor() ([]byte, []int) {
-	return file_core_plugin_proto_v2_neokapi_bridge_proto_rawDescGZIP(), []int{30}
+	return file_core_plugin_proto_v2_neokapi_bridge_proto_rawDescGZIP(), []int{31}
 }
 
 func (x *StepComplete) GetPartsProcessed() int32 {
@@ -2681,7 +2765,21 @@ const file_core_plugin_proto_v2_neokapi_bridge_proto_rawDesc = "" +
 	"part_batch\x18\x04 \x01(\v2\x1c.neokapi.bridge.v2.PartBatchH\x00R\tpartBatch\x12K\n" +
 	"\rcontent_batch\x18\x05 \x01(\v2$.neokapi.bridge.v2.ContentBlockBatchH\x00R\fcontentBatchB\n" +
 	"\n" +
-	"\bresponse\"\x88\x04\n" +
+	"\bresponse\"\xc9\x02\n" +
+	"\n" +
+	"InlineStep\x12\x1d\n" +
+	"\n" +
+	"step_class\x18\x01 \x01(\tR\tstepClass\x12N\n" +
+	"\vstep_params\x18\x02 \x03(\v2-.neokapi.bridge.v2.InlineStep.StepParamsEntryR\n" +
+	"stepParams\x12N\n" +
+	"\vparam_types\x18\x03 \x03(\v2-.neokapi.bridge.v2.InlineStep.ParamTypesEntryR\n" +
+	"paramTypes\x1a=\n" +
+	"\x0fStepParamsEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\x1a=\n" +
+	"\x0fParamTypesEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xca\x04\n" +
 	"\rProcessHeader\x12!\n" +
 	"\ffilter_class\x18\x01 \x01(\tR\vfilterClass\x123\n" +
 	"\x05input\x18\x02 \x01(\v2\x1d.neokapi.bridge.v2.ContentRefR\x05input\x12#\n" +
@@ -2693,7 +2791,8 @@ const file_core_plugin_proto_v2_neokapi_bridge_proto_rawDesc = "" +
 	"\x06output\x18\b \x01(\v2\x1c.neokapi.bridge.v2.OutputRefR\x06output\x12#\n" +
 	"\routput_locale\x18\t \x01(\tR\foutputLocale\x12'\n" +
 	"\x0fsubscribe_parts\x18\n" +
-	" \x03(\x05R\x0esubscribeParts\x1a?\n" +
+	" \x03(\x05R\x0esubscribeParts\x12@\n" +
+	"\finline_steps\x18\v \x03(\v2\x1d.neokapi.bridge.v2.InlineStepR\vinlineSteps\x1a?\n" +
 	"\x11FilterParamsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\x11\n" +
@@ -2708,7 +2807,7 @@ const file_core_plugin_proto_v2_neokapi_bridge_proto_rawDesc = "" +
 	"\vStepRequest\x127\n" +
 	"\x06header\x18\x01 \x01(\v2\x1d.neokapi.bridge.v2.StepHeaderH\x00R\x06header\x124\n" +
 	"\x04part\x18\x02 \x01(\v2\x1e.neokapi.bridge.v2.PartMessageH\x00R\x04partB\t\n" +
-	"\arequest\"\xdd\x02\n" +
+	"\arequest\"\xec\x03\n" +
 	"\n" +
 	"StepHeader\x12\x1d\n" +
 	"\n" +
@@ -2718,8 +2817,13 @@ const file_core_plugin_proto_v2_neokapi_bridge_proto_rawDesc = "" +
 	"\rsource_locale\x18\x03 \x01(\tR\fsourceLocale\x12#\n" +
 	"\rtarget_locale\x18\x04 \x01(\tR\ftargetLocale\x12%\n" +
 	"\x0eroot_directory\x18\x05 \x01(\tR\rrootDirectory\x120\n" +
-	"\x14input_root_directory\x18\x06 \x01(\tR\x12inputRootDirectory\x1a=\n" +
+	"\x14input_root_directory\x18\x06 \x01(\tR\x12inputRootDirectory\x12N\n" +
+	"\vparam_types\x18\a \x03(\v2-.neokapi.bridge.v2.StepHeader.ParamTypesEntryR\n" +
+	"paramTypes\x1a=\n" +
 	"\x0fStepParamsEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\x1a=\n" +
+	"\x0fParamTypesEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\x8f\x01\n" +
 	"\fStepResponse\x124\n" +
@@ -2747,7 +2851,7 @@ func file_core_plugin_proto_v2_neokapi_bridge_proto_rawDescGZIP() []byte {
 	return file_core_plugin_proto_v2_neokapi_bridge_proto_rawDescData
 }
 
-var file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes = make([]protoimpl.MessageInfo, 43)
+var file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes = make([]protoimpl.MessageInfo, 47)
 var file_core_plugin_proto_v2_neokapi_bridge_proto_goTypes = []any{
 	(*AnnotationEntry)(nil),     // 0: neokapi.bridge.v2.AnnotationEntry
 	(*SpanMessage)(nil),         // 1: neokapi.bridge.v2.SpanMessage
@@ -2771,52 +2875,56 @@ var file_core_plugin_proto_v2_neokapi_bridge_proto_goTypes = []any{
 	(*PartBatch)(nil),           // 19: neokapi.bridge.v2.PartBatch
 	(*ProcessRequest)(nil),      // 20: neokapi.bridge.v2.ProcessRequest
 	(*ProcessResponse)(nil),     // 21: neokapi.bridge.v2.ProcessResponse
-	(*ProcessHeader)(nil),       // 22: neokapi.bridge.v2.ProcessHeader
-	(*ProcessReadDone)(nil),     // 23: neokapi.bridge.v2.ProcessReadDone
-	(*ProcessComplete)(nil),     // 24: neokapi.bridge.v2.ProcessComplete
-	(*ShutdownRequest)(nil),     // 25: neokapi.bridge.v2.ShutdownRequest
-	(*ShutdownResponse)(nil),    // 26: neokapi.bridge.v2.ShutdownResponse
-	(*StepRequest)(nil),         // 27: neokapi.bridge.v2.StepRequest
-	(*StepHeader)(nil),          // 28: neokapi.bridge.v2.StepHeader
-	(*StepResponse)(nil),        // 29: neokapi.bridge.v2.StepResponse
-	(*StepComplete)(nil),        // 30: neokapi.bridge.v2.StepComplete
-	nil,                         // 31: neokapi.bridge.v2.SpanMessage.AnnotationsEntry
-	nil,                         // 32: neokapi.bridge.v2.SegmentMessage.PropertiesEntry
-	nil,                         // 33: neokapi.bridge.v2.ContentBlock.PropertiesEntry
-	nil,                         // 34: neokapi.bridge.v2.ContentBlock.AnnotationsEntry
-	nil,                         // 35: neokapi.bridge.v2.BlockMessage.PropertiesEntry
-	nil,                         // 36: neokapi.bridge.v2.BlockMessage.AnnotationsEntry
-	nil,                         // 37: neokapi.bridge.v2.LayerMessage.PropertiesEntry
-	nil,                         // 38: neokapi.bridge.v2.DataMessage.PropertiesEntry
-	nil,                         // 39: neokapi.bridge.v2.GroupStartMessage.PropertiesEntry
-	nil,                         // 40: neokapi.bridge.v2.MediaMessage.PropertiesEntry
-	nil,                         // 41: neokapi.bridge.v2.ProcessHeader.FilterParamsEntry
-	nil,                         // 42: neokapi.bridge.v2.StepHeader.StepParamsEntry
+	(*InlineStep)(nil),          // 22: neokapi.bridge.v2.InlineStep
+	(*ProcessHeader)(nil),       // 23: neokapi.bridge.v2.ProcessHeader
+	(*ProcessReadDone)(nil),     // 24: neokapi.bridge.v2.ProcessReadDone
+	(*ProcessComplete)(nil),     // 25: neokapi.bridge.v2.ProcessComplete
+	(*ShutdownRequest)(nil),     // 26: neokapi.bridge.v2.ShutdownRequest
+	(*ShutdownResponse)(nil),    // 27: neokapi.bridge.v2.ShutdownResponse
+	(*StepRequest)(nil),         // 28: neokapi.bridge.v2.StepRequest
+	(*StepHeader)(nil),          // 29: neokapi.bridge.v2.StepHeader
+	(*StepResponse)(nil),        // 30: neokapi.bridge.v2.StepResponse
+	(*StepComplete)(nil),        // 31: neokapi.bridge.v2.StepComplete
+	nil,                         // 32: neokapi.bridge.v2.SpanMessage.AnnotationsEntry
+	nil,                         // 33: neokapi.bridge.v2.SegmentMessage.PropertiesEntry
+	nil,                         // 34: neokapi.bridge.v2.ContentBlock.PropertiesEntry
+	nil,                         // 35: neokapi.bridge.v2.ContentBlock.AnnotationsEntry
+	nil,                         // 36: neokapi.bridge.v2.BlockMessage.PropertiesEntry
+	nil,                         // 37: neokapi.bridge.v2.BlockMessage.AnnotationsEntry
+	nil,                         // 38: neokapi.bridge.v2.LayerMessage.PropertiesEntry
+	nil,                         // 39: neokapi.bridge.v2.DataMessage.PropertiesEntry
+	nil,                         // 40: neokapi.bridge.v2.GroupStartMessage.PropertiesEntry
+	nil,                         // 41: neokapi.bridge.v2.MediaMessage.PropertiesEntry
+	nil,                         // 42: neokapi.bridge.v2.InlineStep.StepParamsEntry
+	nil,                         // 43: neokapi.bridge.v2.InlineStep.ParamTypesEntry
+	nil,                         // 44: neokapi.bridge.v2.ProcessHeader.FilterParamsEntry
+	nil,                         // 45: neokapi.bridge.v2.StepHeader.StepParamsEntry
+	nil,                         // 46: neokapi.bridge.v2.StepHeader.ParamTypesEntry
 }
 var file_core_plugin_proto_v2_neokapi_bridge_proto_depIdxs = []int32{
-	31, // 0: neokapi.bridge.v2.SpanMessage.annotations:type_name -> neokapi.bridge.v2.SpanMessage.AnnotationsEntry
+	32, // 0: neokapi.bridge.v2.SpanMessage.annotations:type_name -> neokapi.bridge.v2.SpanMessage.AnnotationsEntry
 	1,  // 1: neokapi.bridge.v2.FragmentMessage.spans:type_name -> neokapi.bridge.v2.SpanMessage
 	2,  // 2: neokapi.bridge.v2.SegmentMessage.content:type_name -> neokapi.bridge.v2.FragmentMessage
-	32, // 3: neokapi.bridge.v2.SegmentMessage.properties:type_name -> neokapi.bridge.v2.SegmentMessage.PropertiesEntry
+	33, // 3: neokapi.bridge.v2.SegmentMessage.properties:type_name -> neokapi.bridge.v2.SegmentMessage.PropertiesEntry
 	3,  // 4: neokapi.bridge.v2.TargetEntry.segments:type_name -> neokapi.bridge.v2.SegmentMessage
 	3,  // 5: neokapi.bridge.v2.ContentBlock.source:type_name -> neokapi.bridge.v2.SegmentMessage
 	4,  // 6: neokapi.bridge.v2.ContentBlock.targets:type_name -> neokapi.bridge.v2.TargetEntry
-	33, // 7: neokapi.bridge.v2.ContentBlock.properties:type_name -> neokapi.bridge.v2.ContentBlock.PropertiesEntry
-	34, // 8: neokapi.bridge.v2.ContentBlock.annotations:type_name -> neokapi.bridge.v2.ContentBlock.AnnotationsEntry
+	34, // 7: neokapi.bridge.v2.ContentBlock.properties:type_name -> neokapi.bridge.v2.ContentBlock.PropertiesEntry
+	35, // 8: neokapi.bridge.v2.ContentBlock.annotations:type_name -> neokapi.bridge.v2.ContentBlock.AnnotationsEntry
 	9,  // 9: neokapi.bridge.v2.ContentBlock.display_hint:type_name -> neokapi.bridge.v2.DisplayHintMessage
 	5,  // 10: neokapi.bridge.v2.ContentBlockBatch.blocks:type_name -> neokapi.bridge.v2.ContentBlock
 	8,  // 11: neokapi.bridge.v2.SkeletonMessage.parts:type_name -> neokapi.bridge.v2.SkeletonPartMessage
 	3,  // 12: neokapi.bridge.v2.BlockMessage.source:type_name -> neokapi.bridge.v2.SegmentMessage
 	4,  // 13: neokapi.bridge.v2.BlockMessage.targets:type_name -> neokapi.bridge.v2.TargetEntry
-	35, // 14: neokapi.bridge.v2.BlockMessage.properties:type_name -> neokapi.bridge.v2.BlockMessage.PropertiesEntry
-	36, // 15: neokapi.bridge.v2.BlockMessage.annotations:type_name -> neokapi.bridge.v2.BlockMessage.AnnotationsEntry
+	36, // 14: neokapi.bridge.v2.BlockMessage.properties:type_name -> neokapi.bridge.v2.BlockMessage.PropertiesEntry
+	37, // 15: neokapi.bridge.v2.BlockMessage.annotations:type_name -> neokapi.bridge.v2.BlockMessage.AnnotationsEntry
 	9,  // 16: neokapi.bridge.v2.BlockMessage.display_hint:type_name -> neokapi.bridge.v2.DisplayHintMessage
 	7,  // 17: neokapi.bridge.v2.BlockMessage.skeleton:type_name -> neokapi.bridge.v2.SkeletonMessage
-	37, // 18: neokapi.bridge.v2.LayerMessage.properties:type_name -> neokapi.bridge.v2.LayerMessage.PropertiesEntry
-	38, // 19: neokapi.bridge.v2.DataMessage.properties:type_name -> neokapi.bridge.v2.DataMessage.PropertiesEntry
+	38, // 18: neokapi.bridge.v2.LayerMessage.properties:type_name -> neokapi.bridge.v2.LayerMessage.PropertiesEntry
+	39, // 19: neokapi.bridge.v2.DataMessage.properties:type_name -> neokapi.bridge.v2.DataMessage.PropertiesEntry
 	7,  // 20: neokapi.bridge.v2.DataMessage.skeleton:type_name -> neokapi.bridge.v2.SkeletonMessage
-	39, // 21: neokapi.bridge.v2.GroupStartMessage.properties:type_name -> neokapi.bridge.v2.GroupStartMessage.PropertiesEntry
-	40, // 22: neokapi.bridge.v2.MediaMessage.properties:type_name -> neokapi.bridge.v2.MediaMessage.PropertiesEntry
+	40, // 21: neokapi.bridge.v2.GroupStartMessage.properties:type_name -> neokapi.bridge.v2.GroupStartMessage.PropertiesEntry
+	41, // 22: neokapi.bridge.v2.MediaMessage.properties:type_name -> neokapi.bridge.v2.MediaMessage.PropertiesEntry
 	10, // 23: neokapi.bridge.v2.PartMessage.block:type_name -> neokapi.bridge.v2.BlockMessage
 	11, // 24: neokapi.bridge.v2.PartMessage.layer:type_name -> neokapi.bridge.v2.LayerMessage
 	12, // 25: neokapi.bridge.v2.PartMessage.data:type_name -> neokapi.bridge.v2.DataMessage
@@ -2824,38 +2932,42 @@ var file_core_plugin_proto_v2_neokapi_bridge_proto_depIdxs = []int32{
 	14, // 27: neokapi.bridge.v2.PartMessage.group_end:type_name -> neokapi.bridge.v2.GroupEndMessage
 	15, // 28: neokapi.bridge.v2.PartMessage.media:type_name -> neokapi.bridge.v2.MediaMessage
 	16, // 29: neokapi.bridge.v2.PartBatch.parts:type_name -> neokapi.bridge.v2.PartMessage
-	22, // 30: neokapi.bridge.v2.ProcessRequest.header:type_name -> neokapi.bridge.v2.ProcessHeader
+	23, // 30: neokapi.bridge.v2.ProcessRequest.header:type_name -> neokapi.bridge.v2.ProcessHeader
 	16, // 31: neokapi.bridge.v2.ProcessRequest.part:type_name -> neokapi.bridge.v2.PartMessage
 	19, // 32: neokapi.bridge.v2.ProcessRequest.part_batch:type_name -> neokapi.bridge.v2.PartBatch
 	5,  // 33: neokapi.bridge.v2.ProcessRequest.content_block:type_name -> neokapi.bridge.v2.ContentBlock
 	6,  // 34: neokapi.bridge.v2.ProcessRequest.content_batch:type_name -> neokapi.bridge.v2.ContentBlockBatch
 	16, // 35: neokapi.bridge.v2.ProcessResponse.part:type_name -> neokapi.bridge.v2.PartMessage
-	23, // 36: neokapi.bridge.v2.ProcessResponse.read_done:type_name -> neokapi.bridge.v2.ProcessReadDone
-	24, // 37: neokapi.bridge.v2.ProcessResponse.complete:type_name -> neokapi.bridge.v2.ProcessComplete
+	24, // 36: neokapi.bridge.v2.ProcessResponse.read_done:type_name -> neokapi.bridge.v2.ProcessReadDone
+	25, // 37: neokapi.bridge.v2.ProcessResponse.complete:type_name -> neokapi.bridge.v2.ProcessComplete
 	19, // 38: neokapi.bridge.v2.ProcessResponse.part_batch:type_name -> neokapi.bridge.v2.PartBatch
 	6,  // 39: neokapi.bridge.v2.ProcessResponse.content_batch:type_name -> neokapi.bridge.v2.ContentBlockBatch
-	17, // 40: neokapi.bridge.v2.ProcessHeader.input:type_name -> neokapi.bridge.v2.ContentRef
-	41, // 41: neokapi.bridge.v2.ProcessHeader.filter_params:type_name -> neokapi.bridge.v2.ProcessHeader.FilterParamsEntry
-	18, // 42: neokapi.bridge.v2.ProcessHeader.output:type_name -> neokapi.bridge.v2.OutputRef
-	28, // 43: neokapi.bridge.v2.StepRequest.header:type_name -> neokapi.bridge.v2.StepHeader
-	16, // 44: neokapi.bridge.v2.StepRequest.part:type_name -> neokapi.bridge.v2.PartMessage
-	42, // 45: neokapi.bridge.v2.StepHeader.step_params:type_name -> neokapi.bridge.v2.StepHeader.StepParamsEntry
-	16, // 46: neokapi.bridge.v2.StepResponse.part:type_name -> neokapi.bridge.v2.PartMessage
-	30, // 47: neokapi.bridge.v2.StepResponse.complete:type_name -> neokapi.bridge.v2.StepComplete
-	0,  // 48: neokapi.bridge.v2.SpanMessage.AnnotationsEntry.value:type_name -> neokapi.bridge.v2.AnnotationEntry
-	0,  // 49: neokapi.bridge.v2.ContentBlock.AnnotationsEntry.value:type_name -> neokapi.bridge.v2.AnnotationEntry
-	0,  // 50: neokapi.bridge.v2.BlockMessage.AnnotationsEntry.value:type_name -> neokapi.bridge.v2.AnnotationEntry
-	20, // 51: neokapi.bridge.v2.BridgeService.Process:input_type -> neokapi.bridge.v2.ProcessRequest
-	27, // 52: neokapi.bridge.v2.BridgeService.ProcessStep:input_type -> neokapi.bridge.v2.StepRequest
-	25, // 53: neokapi.bridge.v2.BridgeService.Shutdown:input_type -> neokapi.bridge.v2.ShutdownRequest
-	21, // 54: neokapi.bridge.v2.BridgeService.Process:output_type -> neokapi.bridge.v2.ProcessResponse
-	29, // 55: neokapi.bridge.v2.BridgeService.ProcessStep:output_type -> neokapi.bridge.v2.StepResponse
-	26, // 56: neokapi.bridge.v2.BridgeService.Shutdown:output_type -> neokapi.bridge.v2.ShutdownResponse
-	54, // [54:57] is the sub-list for method output_type
-	51, // [51:54] is the sub-list for method input_type
-	51, // [51:51] is the sub-list for extension type_name
-	51, // [51:51] is the sub-list for extension extendee
-	0,  // [0:51] is the sub-list for field type_name
+	42, // 40: neokapi.bridge.v2.InlineStep.step_params:type_name -> neokapi.bridge.v2.InlineStep.StepParamsEntry
+	43, // 41: neokapi.bridge.v2.InlineStep.param_types:type_name -> neokapi.bridge.v2.InlineStep.ParamTypesEntry
+	17, // 42: neokapi.bridge.v2.ProcessHeader.input:type_name -> neokapi.bridge.v2.ContentRef
+	44, // 43: neokapi.bridge.v2.ProcessHeader.filter_params:type_name -> neokapi.bridge.v2.ProcessHeader.FilterParamsEntry
+	18, // 44: neokapi.bridge.v2.ProcessHeader.output:type_name -> neokapi.bridge.v2.OutputRef
+	22, // 45: neokapi.bridge.v2.ProcessHeader.inline_steps:type_name -> neokapi.bridge.v2.InlineStep
+	29, // 46: neokapi.bridge.v2.StepRequest.header:type_name -> neokapi.bridge.v2.StepHeader
+	16, // 47: neokapi.bridge.v2.StepRequest.part:type_name -> neokapi.bridge.v2.PartMessage
+	45, // 48: neokapi.bridge.v2.StepHeader.step_params:type_name -> neokapi.bridge.v2.StepHeader.StepParamsEntry
+	46, // 49: neokapi.bridge.v2.StepHeader.param_types:type_name -> neokapi.bridge.v2.StepHeader.ParamTypesEntry
+	16, // 50: neokapi.bridge.v2.StepResponse.part:type_name -> neokapi.bridge.v2.PartMessage
+	31, // 51: neokapi.bridge.v2.StepResponse.complete:type_name -> neokapi.bridge.v2.StepComplete
+	0,  // 52: neokapi.bridge.v2.SpanMessage.AnnotationsEntry.value:type_name -> neokapi.bridge.v2.AnnotationEntry
+	0,  // 53: neokapi.bridge.v2.ContentBlock.AnnotationsEntry.value:type_name -> neokapi.bridge.v2.AnnotationEntry
+	0,  // 54: neokapi.bridge.v2.BlockMessage.AnnotationsEntry.value:type_name -> neokapi.bridge.v2.AnnotationEntry
+	20, // 55: neokapi.bridge.v2.BridgeService.Process:input_type -> neokapi.bridge.v2.ProcessRequest
+	28, // 56: neokapi.bridge.v2.BridgeService.ProcessStep:input_type -> neokapi.bridge.v2.StepRequest
+	26, // 57: neokapi.bridge.v2.BridgeService.Shutdown:input_type -> neokapi.bridge.v2.ShutdownRequest
+	21, // 58: neokapi.bridge.v2.BridgeService.Process:output_type -> neokapi.bridge.v2.ProcessResponse
+	30, // 59: neokapi.bridge.v2.BridgeService.ProcessStep:output_type -> neokapi.bridge.v2.StepResponse
+	27, // 60: neokapi.bridge.v2.BridgeService.Shutdown:output_type -> neokapi.bridge.v2.ShutdownResponse
+	58, // [58:61] is the sub-list for method output_type
+	55, // [55:58] is the sub-list for method input_type
+	55, // [55:55] is the sub-list for extension type_name
+	55, // [55:55] is the sub-list for extension extendee
+	0,  // [0:55] is the sub-list for field type_name
 }
 
 func init() { file_core_plugin_proto_v2_neokapi_bridge_proto_init() }
@@ -2886,11 +2998,11 @@ func file_core_plugin_proto_v2_neokapi_bridge_proto_init() {
 		(*ProcessResponse_PartBatch)(nil),
 		(*ProcessResponse_ContentBatch)(nil),
 	}
-	file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[27].OneofWrappers = []any{
+	file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[28].OneofWrappers = []any{
 		(*StepRequest_Header)(nil),
 		(*StepRequest_Part)(nil),
 	}
-	file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[29].OneofWrappers = []any{
+	file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[30].OneofWrappers = []any{
 		(*StepResponse_Part)(nil),
 		(*StepResponse_Complete)(nil),
 	}
@@ -2900,7 +3012,7 @@ func file_core_plugin_proto_v2_neokapi_bridge_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_core_plugin_proto_v2_neokapi_bridge_proto_rawDesc), len(file_core_plugin_proto_v2_neokapi_bridge_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   43,
+			NumMessages:   47,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

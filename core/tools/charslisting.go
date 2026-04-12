@@ -47,7 +47,7 @@ func (c *CharsListingConfig) Validate() error {
 func CharsListingSchema() *schema.ComponentSchema {
 	return schema.FromStruct(&CharsListingConfig{}, schema.ToolMeta{
 		ID:          "chars-listing",
-		Category:    schema.CategoryEnrich,
+		Category:    schema.CategoryAnalysis,
 		DisplayName: "Chars Listing",
 		Description: "List all distinct characters used in source and/or target",
 		Inputs:      []string{schema.PartTypeBlock},

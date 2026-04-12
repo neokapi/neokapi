@@ -111,6 +111,7 @@ func (t *BridgeStepTool) processWithBridge(
 	header := &pb.StepHeader{
 		StepClass:          t.stepClass,
 		StepParams:         encodeFilterParams(t.stepParams),
+		ParamTypes:         extractParamTypes(t.toolSchema, t.stepParams),
 		SourceLocale:       t.sourceLocale,
 		TargetLocale:       t.targetLocale,
 		RootDirectory:      t.rootDirectory,

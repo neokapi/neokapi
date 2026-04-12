@@ -6,6 +6,8 @@ package bridge
 import (
 	"encoding/json"
 	"fmt"
+
+	"github.com/neokapi/neokapi/core/schema"
 )
 
 // encodeFilterParams converts map[string]any to map[string]string for proto.
@@ -31,4 +33,23 @@ func encodeFilterParams(params map[string]any) map[string]string {
 		}
 	}
 	return result
+}
+
+// extractParamTypes builds a type map from the tool schema for the given params.
+// The returned map has entries like {"regEx":"boolean","count":"integer"} which
+// tells the Java side what Okapi parameter suffix to use (.b, .i, or bare).
+func extractParamTypes(s *schema.ComponentSchema, params map[string]any) map[string]string {
+	if s == nil || len(s.Properties) == 0 || len(params) == 0 {
+		return nil
+	}
+	types := make(map[string]string, len(params))
+	for k := range params {
+		if prop, ok := s.Properties[k]; ok && prop.Type != "" {
+			types[k] = prop.Type
+		}
+	}
+	if len(types) == 0 {
+		return nil
+	}
+	return types
 }

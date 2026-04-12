@@ -40,6 +40,30 @@ type ToolInfo struct {
 	DefaultLocale model.LocaleID            `json:"default_locale,omitempty"`
 	Produces      []schema.AnnotationType  `json:"produces,omitempty"`
 	SideEffects   []schema.SideEffect      `json:"side_effects,omitempty"`
+
+	// CLI metadata
+	WritesOutput          bool     `json:"writes_output,omitempty"`
+	DefaultParallelBlocks int      `json:"default_parallel_blocks,omitempty"`
+	Aliases               []string `json:"aliases,omitempty"`
+
+	// Bridge step metadata (only for Okapi bridge step tools).
+	StepMeta *schema.StepMeta `json:"step_meta,omitempty"`
+}
+
+// copyToolMeta copies all ToolMeta fields into a ToolInfo.
+func copyToolMeta(info *ToolInfo, m *schema.ToolMeta) {
+	info.Category = m.Category
+	info.Inputs = m.Inputs
+	info.Outputs = m.Outputs
+	info.Tags = m.Tags
+	info.Requires = m.Requires
+	info.Cardinality = m.Cardinality
+	info.DefaultLocale = m.DefaultLocale
+	info.Produces = m.Produces
+	info.SideEffects = m.SideEffects
+	info.WritesOutput = m.WritesOutput
+	info.DefaultParallelBlocks = m.DefaultParallelBlocks
+	info.Aliases = m.Aliases
 }
 
 // ToolRegistration bundles a factory with optional schema and metadata.
@@ -85,16 +109,9 @@ func (r *ToolRegistry) RegisterWithSchema(name ToolID, factory ToolFactory, s *s
 		info.DisplayName = s.Title
 		info.Description = s.Description
 		if s.ToolMeta != nil {
-			info.Category = s.ToolMeta.Category
-			info.Inputs = s.ToolMeta.Inputs
-			info.Outputs = s.ToolMeta.Outputs
-			info.Tags = s.ToolMeta.Tags
-			info.Requires = s.ToolMeta.Requires
-			info.Cardinality = s.ToolMeta.Cardinality
-			info.DefaultLocale = s.ToolMeta.DefaultLocale
-			info.Produces = s.ToolMeta.Produces
-			info.SideEffects = s.ToolMeta.SideEffects
+			copyToolMeta(&info, s.ToolMeta)
 		}
+		info.StepMeta = s.StepMeta
 	}
 	r.tools[name] = &ToolRegistration{
 		Factory: factory,
@@ -118,16 +135,9 @@ func (r *ToolRegistry) RegisterMetadata(name ToolID, s *schema.ComponentSchema, 
 		info.DisplayName = s.Title
 		info.Description = s.Description
 		if s.ToolMeta != nil {
-			info.Category = s.ToolMeta.Category
-			info.Inputs = s.ToolMeta.Inputs
-			info.Outputs = s.ToolMeta.Outputs
-			info.Tags = s.ToolMeta.Tags
-			info.Requires = s.ToolMeta.Requires
-			info.Cardinality = s.ToolMeta.Cardinality
-			info.DefaultLocale = s.ToolMeta.DefaultLocale
-			info.Produces = s.ToolMeta.Produces
-			info.SideEffects = s.ToolMeta.SideEffects
+			copyToolMeta(&info, s.ToolMeta)
 		}
+		info.StepMeta = s.StepMeta
 	}
 	r.tools[name] = &ToolRegistration{
 		Schema: s,
@@ -251,4 +261,38 @@ func (r *ToolRegistry) ListWithSchemas() []ToolInfo {
 		infos = append(infos, reg.Info)
 	}
 	return infos
+}
+
+// CLIToolEntry holds the information needed to generate a CLI command for a tool.
+type CLIToolEntry struct {
+	Info   ToolInfo
+	Schema *schema.ComponentSchema
+}
+
+// CLITools returns tools that should be exposed as CLI commands.
+// A tool is CLI-visible if it has a schema and a ConfigFactory (built-in tools
+// with NewToolFromConfig) or is a plugin tool with a Factory and schema.
+// Internal pipeline tools that lack a ConfigFactory are excluded.
+func (r *ToolRegistry) CLITools() []CLIToolEntry {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	entries := make([]CLIToolEntry, 0, len(r.tools))
+	for _, reg := range r.tools {
+		if reg.Schema == nil {
+			continue
+		}
+		// Built-in tools need ConfigFactory to be CLI-visible.
+		// Plugin tools (bridge step tools) have Factory from RegisterWithSchema.
+		if reg.ConfigFactory == nil && reg.Info.Source == SourceBuiltIn {
+			continue
+		}
+		if reg.ConfigFactory == nil && reg.Factory == nil {
+			continue
+		}
+		entries = append(entries, CLIToolEntry{
+			Info:   reg.Info,
+			Schema: reg.Schema,
+		})
+	}
+	return entries
 }

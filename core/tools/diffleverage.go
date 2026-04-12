@@ -57,7 +57,7 @@ func (c *DiffLeverageConfig) Validate() error {
 func DiffLeverageSchema() *schema.ComponentSchema {
 	return schema.FromStruct(&DiffLeverageConfig{}, schema.ToolMeta{
 		ID:          "diff-leverage",
-		Category:    schema.CategoryTranslate,
+		Category:    schema.CategoryTranslation,
 		DisplayName: "Diff Leverage",
 		Description: "Leverage translations from previous versions using diff analysis",
 		Inputs:      []string{schema.PartTypeBlock},

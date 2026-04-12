@@ -3,7 +3,6 @@ package cli
 import (
 	"encoding/json"
 	"fmt"
-	"slices"
 
 	"github.com/neokapi/neokapi/cli/output"
 	"github.com/neokapi/neokapi/core/registry"
@@ -44,37 +43,26 @@ func (a *App) NewToolsCmd() *cobra.Command {
 }
 
 func (a *App) listTools(cmd *cobra.Command) error {
-	// Collect tools exposed as top-level CLI commands.
-	seen := make(map[string]bool)
-	var tools []output.ToolInfo
-
-	for _, def := range BuiltinToolCommands {
-		tools = append(tools, output.ToolInfo{
-			Name:        def.Use,
-			Description: def.Short,
-			Category:    def.Category,
-			Source:      "builtin",
-		})
-		seen[def.Use] = true
+	if a.ToolReg == nil {
+		return output.Print(cmd, output.ToolsListOutput{})
 	}
 
-	// Add any tools from the registry that aren't already listed.
-	if a.ToolReg != nil {
-		names := a.ToolReg.Names()
-		slices.Sort(names)
-		for _, name := range names {
-			if !seen[string(name)] {
-				t, err := a.ToolReg.NewTool(name)
-				if err != nil {
-					continue
-				}
-				tools = append(tools, output.ToolInfo{
-					Name:        string(name),
-					Description: t.Description(),
-					Source:      "builtin",
-				})
-			}
+	var tools []output.ToolInfo
+	for _, entry := range a.ToolReg.CLITools() {
+		source := entry.Info.Source
+		if source == registry.SourceBuiltIn {
+			source = "builtin"
 		}
+		desc := entry.Info.Description
+		if desc == "" {
+			desc = entry.Info.DisplayName
+		}
+		tools = append(tools, output.ToolInfo{
+			Name:        string(entry.Info.Name),
+			Description: desc,
+			Category:    entry.Info.Category,
+			Source:      source,
+		})
 	}
 
 	out := output.ToolsListOutput{
@@ -85,20 +73,11 @@ func (a *App) listTools(cmd *cobra.Command) error {
 }
 
 func (a *App) toolSchema(_ *cobra.Command, name string) error {
-	// Check ToolCommandDefs first
-	for _, def := range BuiltinToolCommands {
-		if def.Use == name && def.Schema != nil {
-			return printSchema(def.Schema)
-		}
-	}
-
-	// Check registry
 	if a.ToolReg != nil {
 		if s := a.ToolReg.GetSchema(registry.ToolID(name)); s != nil {
 			return printSchema(s)
 		}
 	}
-
 	return fmt.Errorf("no schema found for tool %q", name)
 }
 

@@ -35,16 +35,18 @@ type AIQAConfig struct {
 // AIQASchema returns the auto-generated schema for the AI QA tool.
 func AIQASchema() *schema.ComponentSchema {
 	s := schema.FromStruct(&AIQAConfig{}, schema.ToolMeta{
-		ID:          "ai-qa",
-		Category:    schema.CategoryValidate,
-		DisplayName: "AI QA Check",
-		Description: "Check translation quality using an LLM provider",
-		Inputs:      []string{schema.PartTypeBlock},
-		Tags:        []string{"ai-powered"},
-		Requires:    []string{schema.RequiresTargetLanguage, schema.RequiresCredentials},
-		Cardinality: schema.Bilingual,
-		Produces:    []schema.AnnotationType{schema.AnnotationQAIssues},
-		SideEffects: []schema.SideEffect{schema.SideEffectAPICall},
+		ID:                    "ai-qa",
+		Category:              schema.CategoryQuality,
+		DisplayName:           "AI QA Check",
+		Description:           "Check translation quality using an LLM provider",
+		Inputs:                []string{schema.PartTypeBlock},
+		Tags:                  []string{"ai-powered"},
+		WritesOutput:          true,
+		DefaultParallelBlocks: 5,
+		Requires:              []string{schema.RequiresTargetLanguage, schema.RequiresCredentials},
+		Cardinality:           schema.Bilingual,
+		Produces:              []schema.AnnotationType{schema.AnnotationQAIssues},
+		SideEffects:           []schema.SideEffect{schema.SideEffectAPICall},
 	})
 	injectProviderOptions(s)
 	return s

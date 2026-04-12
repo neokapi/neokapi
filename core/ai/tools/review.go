@@ -31,16 +31,18 @@ type AIReviewConfig struct {
 // AIReviewSchema returns the auto-generated schema for the AI review tool.
 func AIReviewSchema() *schema.ComponentSchema {
 	s := schema.FromStruct(&AIReviewConfig{}, schema.ToolMeta{
-		ID:          "ai-review",
-		Category:    schema.CategoryValidate,
-		DisplayName: "AI Review",
-		Description: "Review translations with scoring using an LLM provider",
-		Inputs:      []string{schema.PartTypeBlock},
-		Tags:        []string{"ai-powered"},
-		Requires:    []string{schema.RequiresTargetLanguage, schema.RequiresCredentials},
-		Cardinality: schema.Bilingual,
-		Produces:    []schema.AnnotationType{schema.AnnotationQAIssues},
-		SideEffects: []schema.SideEffect{schema.SideEffectAPICall},
+		ID:                    "ai-review",
+		Category:              schema.CategoryQuality,
+		DisplayName:           "AI Review",
+		Description:           "Review translations with scoring using an LLM provider",
+		Inputs:                []string{schema.PartTypeBlock},
+		Tags:                  []string{"ai-powered"},
+		WritesOutput:          true,
+		DefaultParallelBlocks: 5,
+		Requires:              []string{schema.RequiresTargetLanguage, schema.RequiresCredentials},
+		Cardinality:           schema.Bilingual,
+		Produces:              []schema.AnnotationType{schema.AnnotationQAIssues},
+		SideEffects:           []schema.SideEffect{schema.SideEffectAPICall},
 	})
 	injectProviderOptions(s)
 	return s

@@ -49,7 +49,7 @@ func (c *ScriptConfig) Validate() error {
 func ScriptSchema() *schema.ComponentSchema {
 	return schema.FromStruct(&ScriptConfig{}, schema.ToolMeta{
 		ID:          "script",
-		Category:    schema.CategoryTransform,
+		Category:    schema.CategoryTextProcessing,
 		DisplayName: "Script",
 		Description: "Run a JavaScript processing script on each part",
 		Inputs:      []string{schema.PartTypeBlock},

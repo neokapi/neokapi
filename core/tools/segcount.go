@@ -35,7 +35,7 @@ func (c *SegCountConfig) Validate() error { return nil }
 func SegCountSchema() *schema.ComponentSchema {
 	return schema.FromStruct(&SegCountConfig{}, schema.ToolMeta{
 		ID:          "segment-count",
-		Category:    schema.CategoryEnrich,
+		Category:    schema.CategoryAnalysis,
 		DisplayName: "Segment Count",
 		Description: "Count translatable segments",
 		Inputs:      []string{schema.PartTypeBlock},

@@ -28,6 +28,9 @@ type ComponentSchema struct {
 	// Parameter groupings for UI
 	Groups []ParameterGroup `json:"ui:groups,omitempty"`
 
+	// StepMeta holds Okapi bridge step metadata (only present for bridge step tools).
+	StepMeta *StepMeta `json:"x-step,omitempty"`
+
 	// Properties contains the parameter definitions.
 	Properties map[string]PropertySchema `json:"properties,omitempty"`
 
@@ -67,6 +70,28 @@ type ToolMeta struct {
 
 	// SideEffects lists external systems this tool reads from or writes to.
 	SideEffects []SideEffect `json:"sideEffects,omitempty"`
+
+	// WritesOutput indicates the tool produces modified output files.
+	// When true, the CLI adds an -o/--output flag.
+	WritesOutput bool `json:"writesOutput,omitempty"`
+
+	// DefaultParallelBlocks is the default number of blocks to process
+	// concurrently for IO-bound tools (e.g., AI-powered). 0 means sequential.
+	DefaultParallelBlocks int `json:"defaultParallelBlocks,omitempty"`
+
+	// Aliases lists alternative CLI command names (e.g., "translate" for "ai-translate").
+	Aliases []string `json:"aliases,omitempty"`
+}
+
+// StepMeta holds metadata for Okapi bridge pipeline steps. Parsed from the
+// "x-step" section of bridge step schema JSON files. Used for pipeline
+// composition — steps with compatible inputType/outputType can be chained
+// inside a single Java bridge Process RPC.
+type StepMeta struct {
+	Class             string   `json:"class"`                       // Fully-qualified Java class name
+	InputType         string   `json:"inputType,omitempty"`         // "filter-events" or "raw-document"
+	OutputType        string   `json:"outputType,omitempty"`        // "filter-events" or "file"
+	ParameterMappings []string `json:"parameterMappings,omitempty"` // Runtime parameter injection points
 }
 
 // Standard part type names for Inputs/Outputs declarations.
@@ -78,14 +103,13 @@ const (
 	PartTypeGroup = "group"
 )
 
-// Standard tool categories.
+// Standard tool categories. These serve as CLI command group IDs and must
+// match the cobra group IDs in cli.AddCommandGroups.
 const (
-	CategoryTranslate = "translate"
-	CategoryValidate  = "validate"
-	CategoryEnrich    = "enrich"
-	CategoryConvert   = "convert"
-	CategoryTransform = "transform"
-	CategoryPipeline  = "pipeline"
+	CategoryTranslation    = "translation"
+	CategoryQuality        = "quality"
+	CategoryAnalysis       = "analysis"
+	CategoryTextProcessing = "text-processing"
 )
 
 // Standard requirement names for the Requires field.

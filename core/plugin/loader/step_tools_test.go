@@ -114,3 +114,93 @@ func TestLoadBridgeStepTools_ToolInfoMetadata(t *testing.T) {
 	require.NotNil(t, found)
 	assert.True(t, found.HasSchema)
 }
+
+func TestLoadBridgeStepTools_HasFactory(t *testing.T) {
+	toolReg := registry.NewToolRegistry()
+	loader := &PluginLoader{}
+	bridgeReg := bridge.NewBridgeRegistry(1, 1, nil)
+
+	loader.loadBridgeStepTools("testdata", bridgeReg, bridge.BridgeConfig{}, toolReg, "test")
+
+	// Verify that tools registered via loadBridgeStepTools have factories
+	// (not just metadata). NewTool should succeed — it calls the factory.
+	for _, name := range []string{"search-and-replace", "segmentation", "quality-check"} {
+		t.Run(name, func(t *testing.T) {
+			tl, err := toolReg.NewTool(registry.ToolID(name))
+			require.NoError(t, err, "NewTool(%q) should succeed — factory must be registered", name)
+			assert.Equal(t, name, tl.Name())
+		})
+	}
+}
+
+func TestLoadBridgeStepTools_NewToolWithConfig(t *testing.T) {
+	toolReg := registry.NewToolRegistry()
+	loader := &PluginLoader{}
+	bridgeReg := bridge.NewBridgeRegistry(1, 1, nil)
+
+	loader.loadBridgeStepTools("testdata", bridgeReg, bridge.BridgeConfig{}, toolReg, "test")
+
+	// NewToolWithConfig should fall back to the zero-arg factory when
+	// no ConfigFactory is registered (bridge tools use the factory).
+	config := map[string]any{"regEx": true, "source": true}
+	tl, err := toolReg.NewToolWithConfig("search-and-replace", config, "fr")
+	require.NoError(t, err)
+	assert.Equal(t, "search-and-replace", tl.Name())
+}
+
+func TestLoadBridgeStepTools_StepMetaParsed(t *testing.T) {
+	toolReg := registry.NewToolRegistry()
+	loader := &PluginLoader{}
+	bridgeReg := bridge.NewBridgeRegistry(1, 1, nil)
+
+	loader.loadBridgeStepTools("testdata", bridgeReg, bridge.BridgeConfig{}, toolReg, "test")
+
+	// Verify x-step metadata is parsed into StepMeta on the schema.
+	s := toolReg.GetSchema("search-and-replace")
+	require.NotNil(t, s)
+	require.NotNil(t, s.StepMeta, "search-and-replace should have StepMeta from x-step")
+	assert.Equal(t, "net.sf.okapi.steps.searchandreplace.SearchAndReplaceStep", s.StepMeta.Class)
+	assert.Equal(t, "filter-events", s.StepMeta.InputType)
+	assert.Equal(t, "filter-events", s.StepMeta.OutputType)
+	assert.Contains(t, s.StepMeta.ParameterMappings, "SOURCE_LOCALE")
+}
+
+func TestLoadBridgeStepTools_StepMetaInToolInfo(t *testing.T) {
+	toolReg := registry.NewToolRegistry()
+	loader := &PluginLoader{}
+	bridgeReg := bridge.NewBridgeRegistry(1, 1, nil)
+
+	loader.loadBridgeStepTools("testdata", bridgeReg, bridge.BridgeConfig{}, toolReg, "test")
+
+	// Verify StepMeta is surfaced in ToolInfo.
+	info := toolReg.GetToolInfo("search-and-replace")
+	require.NotNil(t, info)
+	require.NotNil(t, info.StepMeta, "ToolInfo should have StepMeta")
+	assert.Equal(t, "filter-events", info.StepMeta.InputType)
+}
+
+func TestMetadataOnly_HasNoFactory(t *testing.T) {
+	toolReg := registry.NewToolRegistry()
+
+	// RegisterMetadata simulates what ScanMetadata does for plugin tools.
+	toolReg.RegisterMetadata("some-plugin-tool", &schema.ComponentSchema{
+		ID:    "some-plugin-tool",
+		Title: "Some Plugin Tool",
+		ToolMeta: &schema.ToolMeta{
+			ID: "some-plugin-tool",
+		},
+	}, "test-plugin")
+
+	// Has returns true — the tool appears in listings.
+	assert.True(t, toolReg.Has("some-plugin-tool"))
+
+	// But NewTool fails — no factory.
+	_, err := toolReg.NewTool("some-plugin-tool")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "cannot be instantiated locally")
+
+	// NewToolWithConfig also fails — no factory.
+	_, err = toolReg.NewToolWithConfig("some-plugin-tool", nil, "fr")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "no factory")
+}

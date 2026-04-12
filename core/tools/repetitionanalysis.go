@@ -42,7 +42,7 @@ func (c *RepetitionAnalysisConfig) Validate() error {
 func RepetitionAnalysisSchema() *schema.ComponentSchema {
 	return schema.FromStruct(&RepetitionAnalysisConfig{}, schema.ToolMeta{
 		ID:          "repetition-analysis",
-		Category:    schema.CategoryEnrich,
+		Category:    schema.CategoryAnalysis,
 		DisplayName: "Repetition Analysis",
 		Description: "Identify repeated segments across files for TM leverage",
 		Inputs:      []string{schema.PartTypeBlock},

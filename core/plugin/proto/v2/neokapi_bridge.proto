@@ -284,6 +284,16 @@ message ProcessResponse {
   }
 }
 
+// InlineStep configures a pipeline step to run inside the Process RPC.
+// When ProcessHeader.inline_steps is non-empty, the Java side pipes each
+// filter event through the step chain before streaming results to Go.
+// This eliminates Go↔Java round-trips for Okapi-native step processing.
+message InlineStep {
+  string step_class = 1;              // Fully-qualified Java class name
+  map<string, string> step_params = 2; // Step parameters (key-value)
+  map<string, string> param_types = 3; // Schema-derived types for correct Okapi suffixes
+}
+
 // ProcessHeader configures the Process RPC.
 message ProcessHeader {
   string filter_class = 1;
@@ -299,7 +309,10 @@ message ProcessHeader {
                                        // Java only sends parts matching these types;
                                        // all other events are written directly without
                                        // crossing the gRPC boundary.
-                                       // Values match PartMessage.part_type (e.g. 4 = Block).
+                                       // Values match PartMessage.part_type (e.g. 5 = Block).
+  repeated InlineStep inline_steps = 11; // Optional steps to run between filter and writer.
+                                          // Steps are applied in order to each filter event
+                                          // before it is streamed to Go or written to output.
 }
 
 // ProcessReadDone signals that all parts have been read from the document.
@@ -335,6 +348,9 @@ message StepHeader {
   string target_locale = 4;
   string root_directory = 5;          // Project root for ${rootDir} resolution
   string input_root_directory = 6;    // Input root for ${inputRootDir} resolution
+  map<string, string> param_types = 7; // Schema-derived types: {"regEx":"boolean","count":"integer"}
+                                       // Used by Java to apply correct Okapi parameter suffixes
+                                       // (.b for boolean, .i for integer, bare for string).
 }
 
 // StepResponse is sent by the server (Java) to the client (Go).

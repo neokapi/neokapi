@@ -4,7 +4,6 @@ package bridge
 
 import (
 	"bytes"
-	"context"
 	"io"
 	"log"
 	"os"

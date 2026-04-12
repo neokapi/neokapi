@@ -10,6 +10,7 @@ import (
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/registry"
+	aitools "github.com/neokapi/neokapi/core/ai/tools"
 	"github.com/neokapi/neokapi/core/tools"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -21,6 +22,7 @@ func testApp() *cli.App {
 	formats.RegisterAll(a.FormatReg)
 	a.ToolReg = registry.NewToolRegistry()
 	tools.RegisterAll(a.ToolReg)
+	aitools.RegisterAll(a.ToolReg)
 	return a
 }
 
@@ -136,7 +138,8 @@ func TestHandleListFlows(t *testing.T) {
 }
 
 func TestHandleListTools(t *testing.T) {
-	_, out, err := handleListTools()
+	a := testApp()
+	_, out, err := handleListTools(a)
 	require.NoError(t, err)
 	assert.NotEmpty(t, out.Tools)
 	assert.Equal(t, len(out.Tools), out.Total)

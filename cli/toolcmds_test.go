@@ -3,32 +3,48 @@ package cli
 import (
 	"testing"
 
+	aitools "github.com/neokapi/neokapi/core/ai/tools"
+	"github.com/neokapi/neokapi/core/registry"
+	"github.com/neokapi/neokapi/core/schema"
+	libtools "github.com/neokapi/neokapi/core/tools"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-func TestAllBuiltinToolCommandsHaveCategory(t *testing.T) {
-	for _, def := range BuiltinToolCommands {
-		assert.NotEmpty(t, def.Category, "tool %q has no category", def.Use)
+// newTestApp creates an App with a fully populated ToolRegistry for testing.
+func newTestApp() *App {
+	toolReg := registry.NewToolRegistry()
+	libtools.RegisterAll(toolReg)
+	aitools.RegisterAll(toolReg)
+	return &App{ToolReg: toolReg}
+}
+
+func TestAllCLIToolsHaveCategory(t *testing.T) {
+	app := newTestApp()
+	entries := app.ToolReg.CLITools()
+	require.NotEmpty(t, entries)
+	for _, entry := range entries {
+		assert.NotEmpty(t, entry.Info.Category, "tool %q has no category", entry.Info.Name)
 	}
 }
 
-func TestBuiltinToolCommandCategories(t *testing.T) {
+func TestCLIToolCategories(t *testing.T) {
 	valid := map[string]bool{
-		"translation":     true,
-		"quality":         true,
-		"analysis":        true,
-		"text-processing": true,
+		schema.CategoryTranslation:    true,
+		schema.CategoryQuality:        true,
+		schema.CategoryAnalysis:       true,
+		schema.CategoryTextProcessing: true,
 	}
-	for _, def := range BuiltinToolCommands {
-		assert.True(t, valid[def.Category],
-			"tool %q has invalid category %q", def.Use, def.Category)
+	app := newTestApp()
+	for _, entry := range app.ToolReg.CLITools() {
+		assert.True(t, valid[entry.Info.Category],
+			"tool %q has invalid category %q", entry.Info.Name, entry.Info.Category)
 	}
 }
 
 func TestNewToolCommandsSetsGroupID(t *testing.T) {
-	app := &App{}
+	app := newTestApp()
 	cmds := app.NewToolCommands()
 	require.NotEmpty(t, cmds)
 
@@ -38,40 +54,105 @@ func TestNewToolCommandsSetsGroupID(t *testing.T) {
 	}
 }
 
-func TestLookupToolCommand_ByName(t *testing.T) {
-	def := LookupToolCommand("pseudo-translate")
-	require.NotNil(t, def)
-	assert.Equal(t, "pseudo-translate", def.Use)
+func TestNewToolCommands_GeneratesExpectedTools(t *testing.T) {
+	app := newTestApp()
+	cmds := app.NewToolCommands()
+
+	// Verify specific tools are present.
+	names := make(map[string]bool)
+	for _, cmd := range cmds {
+		names[cmd.Name()] = true
+	}
+
+	expectedTools := []string{
+		"ai-translate", "pseudo-translate", "tm-leverage", "qa-check",
+		"ai-qa", "ai-review", "word-count", "search-replace",
+		"segmentation", "script",
+	}
+	for _, name := range expectedTools {
+		assert.True(t, names[name], "expected CLI command for %q", name)
+	}
+
+	// Internal tools should NOT be present.
+	internalTools := []string{
+		"create-target", "remove-target", "layer-processor",
+		"span-classify", "batch",
+	}
+	for _, name := range internalTools {
+		assert.False(t, names[name], "internal tool %q should not be a CLI command", name)
+	}
 }
 
-func TestLookupToolCommand_ByAlias(t *testing.T) {
-	def := LookupToolCommand("translate")
-	require.NotNil(t, def)
-	assert.Equal(t, "ai-translate", def.Use)
+func TestNewToolCommands_AliasesWork(t *testing.T) {
+	app := newTestApp()
+	cmds := app.NewToolCommands()
+
+	aliasMap := make(map[string][]string)
+	for _, cmd := range cmds {
+		if len(cmd.Aliases) > 0 {
+			aliasMap[cmd.Name()] = cmd.Aliases
+		}
+	}
+
+	assert.Contains(t, aliasMap["ai-translate"], "translate")
+	assert.Contains(t, aliasMap["pseudo-translate"], "pseudo")
+	assert.Contains(t, aliasMap["qa-check"], "qa")
+	assert.Contains(t, aliasMap["word-count"], "wc")
 }
 
-func TestLookupToolCommand_NotFound(t *testing.T) {
-	def := LookupToolCommand("nonexistent-tool")
-	assert.Nil(t, def)
+func TestNewToolCommands_WritesOutputHasOutputFlag(t *testing.T) {
+	app := newTestApp()
+	cmds := app.NewToolCommands()
+
+	for _, cmd := range cmds {
+		info := app.ToolReg.GetToolInfo(registry.ToolID(cmd.Name()))
+		if info == nil {
+			continue
+		}
+		f := cmd.Flags().Lookup("output")
+		if info.WritesOutput {
+			assert.NotNil(t, f, "tool %q with WritesOutput should have --output flag", cmd.Name())
+		} else {
+			assert.Nil(t, f, "tool %q without WritesOutput should not have --output flag", cmd.Name())
+		}
+	}
 }
 
-func TestLookupToolCommand_AllHaveFactory(t *testing.T) {
-	for _, def := range BuiltinToolCommands {
-		assert.True(t, def.NewToolFromConfig != nil || def.NewTool != nil,
-			"tool %q has no factory function", def.Use)
+func TestNewToolCommands_CredentialFlagForAITools(t *testing.T) {
+	app := newTestApp()
+	cmds := app.NewToolCommands()
+
+	for _, cmd := range cmds {
+		info := app.ToolReg.GetToolInfo(registry.ToolID(cmd.Name()))
+		if info == nil {
+			continue
+		}
+		needsCredentials := false
+		for _, req := range info.Requires {
+			if req == "credentials" {
+				needsCredentials = true
+				break
+			}
+		}
+		f := cmd.Flags().Lookup("credential")
+		if needsCredentials {
+			assert.NotNil(t, f, "tool %q requiring credentials should have --credential flag", cmd.Name())
+		}
 	}
 }
 
 func TestDefaultParallelBlocks_AITools(t *testing.T) {
-	def := LookupToolCommand("ai-translate")
-	require.NotNil(t, def)
-	assert.Equal(t, 5, def.DefaultParallelBlocks)
+	app := newTestApp()
+	info := app.ToolReg.GetToolInfo("ai-translate")
+	require.NotNil(t, info)
+	assert.Equal(t, 5, info.DefaultParallelBlocks)
 }
 
 func TestDefaultParallelBlocks_NonAITools(t *testing.T) {
-	def := LookupToolCommand("pseudo-translate")
-	require.NotNil(t, def)
-	assert.Equal(t, 0, def.DefaultParallelBlocks)
+	app := newTestApp()
+	info := app.ToolReg.GetToolInfo("pseudo-translate")
+	require.NotNil(t, info)
+	assert.Equal(t, 0, info.DefaultParallelBlocks)
 }
 
 func TestAddCommandGroupsRegistersGroups(t *testing.T) {
@@ -79,7 +160,6 @@ func TestAddCommandGroupsRegistersGroups(t *testing.T) {
 	app := &App{}
 	app.AddCommandGroups(root)
 
-	// Verify groups are registered by adding a command with each GroupID.
 	groupIDs := []string{"processing", "translation", "quality", "analysis", "text-processing", "management"}
 	for _, id := range groupIDs {
 		cmd := &cobra.Command{Use: "test-" + id, GroupID: id}
@@ -87,4 +167,11 @@ func TestAddCommandGroupsRegistersGroups(t *testing.T) {
 			root.AddCommand(cmd)
 		}, "group %q should be registered", id)
 	}
+}
+
+func TestCollectorFactories_WordCount(t *testing.T) {
+	cf, ok := CollectorFactories["word-count"]
+	require.True(t, ok, "word-count should have a collector factory")
+	collector := cf()
+	assert.NotNil(t, collector)
 }

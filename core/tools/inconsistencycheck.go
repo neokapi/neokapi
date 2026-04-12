@@ -65,7 +65,7 @@ func NewInconsistencyCheckConfig(targetLocale model.LocaleID) *InconsistencyChec
 func InconsistencyCheckSchema() *schema.ComponentSchema {
 	return schema.FromStruct(NewInconsistencyCheckConfig(""), schema.ToolMeta{
 		ID:          "inconsistency-check",
-		Category:    schema.CategoryValidate,
+		Category:    schema.CategoryQuality,
 		DisplayName: "Inconsistency Check",
 		Description: "Detect inconsistent translations of identical source strings",
 		Inputs:      []string{schema.PartTypeBlock},

@@ -55,7 +55,7 @@ func (c *CaseTransformConfig) Validate() error {
 func CaseTransformSchema() *schema.ComponentSchema {
 	return schema.FromStruct(&CaseTransformConfig{}, schema.ToolMeta{
 		ID:          "case-transform",
-		Category:    schema.CategoryTransform,
+		Category:    schema.CategoryTextProcessing,
 		DisplayName: "Case Transform",
 		Description: "Transform text case (upper, lower, title)",
 		Inputs:      []string{schema.PartTypeBlock},

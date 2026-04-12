@@ -185,6 +185,12 @@ func (a *App) rescanPlugins() {
 	for id, s := range a.pluginLoader.Schemas().AllSchemas() {
 		a.schemaReg.RegisterSchema(id, s)
 	}
+
+	// Load bridges so that bridge step tools get factory-bearing
+	// registrations and can be instantiated via NewToolWithConfig.
+	if err := a.pluginLoader.LoadBridges(a.formatReg, a.toolReg); err != nil {
+		a.logger.Printf("bridge loading: %v", err)
+	}
 }
 
 // watchPluginCache polls the plugin-cache.json file for changes and re-scans

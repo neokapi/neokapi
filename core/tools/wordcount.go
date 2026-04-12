@@ -44,7 +44,7 @@ func (c *WordCountConfig) Validate() error {
 func WordCountSchema() *schema.ComponentSchema {
 	return schema.FromStruct(&WordCountConfig{}, schema.ToolMeta{
 		ID:          "word-count",
-		Category:    schema.CategoryEnrich,
+		Category:    schema.CategoryAnalysis,
 		DisplayName: "Word Count",
 		Description: "Count words in source and target text",
 		Inputs:      []string{schema.PartTypeBlock},

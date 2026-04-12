@@ -7,6 +7,12 @@
     "displayName": "Search and Replace",
     "description": "Performs search and replace on the entire file or the text units. Expects raw document or filter events. Sends back: raw document or filter events."
   },
+  "x-step": {
+    "class": "net.sf.okapi.steps.searchandreplace.SearchAndReplaceStep",
+    "inputType": "filter-events",
+    "outputType": "filter-events",
+    "parameterMappings": ["SOURCE_LOCALE", "TARGET_LOCALE", "ROOT_DIRECTORY"]
+  },
   "properties": {
     "regEx": {
       "type": "boolean",

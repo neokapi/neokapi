@@ -64,7 +64,7 @@ func NewCharsCheckConfig(targetLocale model.LocaleID) *CharsCheckConfig {
 func CharsCheckSchema() *schema.ComponentSchema {
 	return schema.FromStruct(NewCharsCheckConfig(""), schema.ToolMeta{
 		ID:          "chars-check",
-		Category:    schema.CategoryValidate,
+		Category:    schema.CategoryQuality,
 		DisplayName: "Chars Check",
 		Description: "Check for invalid or unexpected Unicode characters",
 		Inputs:      []string{schema.PartTypeBlock},

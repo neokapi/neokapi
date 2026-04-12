@@ -32,7 +32,7 @@ func (c *EncodingDetectConfig) Validate() error { return nil }
 func EncodingDetectSchema() *schema.ComponentSchema {
 	return schema.FromStruct(&EncodingDetectConfig{}, schema.ToolMeta{
 		ID:          "encoding-detect",
-		Category:    schema.CategoryEnrich,
+		Category:    schema.CategoryAnalysis,
 		DisplayName: "Encoding Detect",
 		Description: "Detect character encoding of source files",
 		Inputs:      []string{schema.PartTypeBlock},

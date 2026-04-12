@@ -748,91 +748,87 @@ func (a *App) buildFlowTools(flowName string, cmd ...*cobra.Command) ([]tool.Too
 }
 
 // buildToolByName creates tool(s) for a named tool, returning any resource
-// cleanup function. Some tools (qa-check) may expand to multiple pipeline tools.
+// cleanup function. Uses ToolInfo.Requires to drive resource setup (termbase,
+// TM) rather than hardcoding tool names.
 func (a *App) buildToolByName(toolName string, config map[string]any, cmd ...*cobra.Command) ([]tool.Tool, func(), error) {
-	def := LookupToolCommand(toolName)
-	if def == nil {
+	if a.ToolReg == nil || !a.ToolReg.Has(registry.ToolID(toolName)) {
 		return nil, nil, fmt.Errorf("tool %q not found in registry", toolName)
 	}
 
-	// Tool-specific resource setup (e.g., qa-check adds term tools, tm-leverage opens TM).
-	switch toolName {
-	case "qa-check":
-		t, err := def.NewToolFromConfig(config, a.TargetLang)
-		if err != nil {
-			return nil, nil, err
-		}
-		qaTools := []tool.Tool{t}
-		var cleanup func()
-		if tb, tbCleanup, err := a.openTermbase(cmd...); err != nil {
-			return nil, nil, err
-		} else if tb != nil {
-			qaTools = append(qaTools,
-				sqltb.NewTermLookupTool(tb, sqltb.TermLookupConfig{
-					SourceLocale: model.LocaleID(a.SourceLang),
-					TargetLocale: model.LocaleID(a.TargetLang),
-				}),
-				sqltb.NewTermEnforceTool(tb, sqltb.TermEnforceConfig{
-					SourceLocale: model.LocaleID(a.SourceLang),
-					TargetLocale: model.LocaleID(a.TargetLang),
-				}),
-			)
-			cleanup = tbCleanup
-		}
-		return qaTools, cleanup, nil
+	info := a.ToolReg.GetToolInfo(registry.ToolID(toolName))
 
-	case "tm-leverage":
-		tmConfig := map[string]any{
-			"source_locale":   a.SourceLang,
-			"target_locale":   a.TargetLang,
-			"fuzzy_threshold": 70,
-		}
-		var cleanup func()
-		if len(cmd) > 0 && cmd[0] != nil {
-			if tmName, _ := cmd[0].Flags().GetString("tm"); tmName != "" {
-				var tmPath string
-				if strings.ContainsAny(tmName, "/\\") || strings.HasSuffix(tmName, ".db") {
-					tmPath = tmName
-				} else {
-					var err error
-					tmPath, err = resolveNamedResource("tm", tmName)
-					if err != nil {
-						return nil, nil, fmt.Errorf("resolve TM %q: %w", tmName, err)
+	// Resource setup driven by Requires metadata.
+	if info != nil {
+		for _, req := range info.Requires {
+			switch req {
+			case "termbase":
+				// Tools requiring a termbase get term lookup/enforce tools appended.
+				t, err := a.ToolReg.NewToolWithConfig(registry.ToolID(toolName), config, a.TargetLang)
+				if err != nil {
+					return nil, nil, err
+				}
+				qaTools := []tool.Tool{t}
+				var cleanup func()
+				if tb, tbCleanup, err := a.openTermbase(cmd...); err != nil {
+					return nil, nil, err
+				} else if tb != nil {
+					qaTools = append(qaTools,
+						sqltb.NewTermLookupTool(tb, sqltb.TermLookupConfig{
+							SourceLocale: model.LocaleID(a.SourceLang),
+							TargetLocale: model.LocaleID(a.TargetLang),
+						}),
+						sqltb.NewTermEnforceTool(tb, sqltb.TermEnforceConfig{
+							SourceLocale: model.LocaleID(a.SourceLang),
+							TargetLocale: model.LocaleID(a.TargetLang),
+						}),
+					)
+					cleanup = tbCleanup
+				}
+				return qaTools, cleanup, nil
+
+			case "tm":
+				// Tools requiring a TM get the provider injected from CLI flags.
+				tmConfig := map[string]any{
+					"source_locale":   a.SourceLang,
+					"target_locale":   a.TargetLang,
+					"fuzzy_threshold": 70,
+				}
+				var cleanup func()
+				if len(cmd) > 0 && cmd[0] != nil {
+					if tmName, _ := cmd[0].Flags().GetString("tm"); tmName != "" {
+						var tmPath string
+						if strings.ContainsAny(tmName, "/\\") || strings.HasSuffix(tmName, ".db") {
+							tmPath = tmName
+						} else {
+							var err error
+							tmPath, err = resolveNamedResource("tm", tmName)
+							if err != nil {
+								return nil, nil, fmt.Errorf("resolve TM %q: %w", tmName, err)
+							}
+						}
+						tm, err := sqltm.NewSQLiteTM(tmPath)
+						if err != nil {
+							return nil, nil, fmt.Errorf("open TM %q: %w", tmName, err)
+						}
+						tmConfig["provider"] = &cliTMProvider{tm: tm}
+						cleanup = func() { tm.Close() }
 					}
 				}
-				tm, err := sqltm.NewSQLiteTM(tmPath)
+				t, err := a.ToolReg.NewToolWithConfig(registry.ToolID(toolName), tmConfig, a.TargetLang)
 				if err != nil {
-					return nil, nil, fmt.Errorf("open TM %q: %w", tmName, err)
+					return nil, nil, err
 				}
-				tmConfig["provider"] = &cliTMProvider{tm: tm}
-				cleanup = func() { tm.Close() }
+				return []tool.Tool{t}, cleanup, nil
 			}
 		}
-		t, err := def.NewToolFromConfig(tmConfig, a.TargetLang)
-		if err != nil {
-			return nil, nil, err
-		}
-		return []tool.Tool{t}, cleanup, nil
 	}
 
-	// Default: use the tool registry (which runs the config preprocessor
-	// for credential resolution) then fall back to direct factory.
-	if a.ToolReg != nil && a.ToolReg.Has(registry.ToolID(toolName)) {
-		t, err := a.ToolReg.NewToolWithConfig(registry.ToolID(toolName), config, a.TargetLang)
-		if err != nil {
-			return nil, nil, err
-		}
-		return []tool.Tool{t}, nil, nil
+	// Default: create from registry.
+	t, err := a.ToolReg.NewToolWithConfig(registry.ToolID(toolName), config, a.TargetLang)
+	if err != nil {
+		return nil, nil, err
 	}
-	if def.NewToolFromConfig != nil {
-		t, err := def.NewToolFromConfig(config, a.TargetLang)
-		if err != nil {
-			return nil, nil, err
-		}
-		return []tool.Tool{t}, nil, nil
-	}
-
-	return nil, nil, fmt.Errorf("tool %q has no config factory", toolName)
+	return []tool.Tool{t}, nil, nil
 }
 
 // resolveParallelBlocks returns the parallel block concurrency to use.
@@ -841,13 +837,16 @@ func (a *App) resolveParallelBlocks(flowName string) int {
 	if a.projectContext != nil && a.projectContext.ParallelBlocks > 0 {
 		return a.projectContext.ParallelBlocks
 	}
-	return defaultParallelBlocks(flowName)
+	return a.defaultParallelBlocks(flowName)
 }
 
 // defaultParallelBlocks returns the default parallel block concurrency for a
 // flow. Looks up each tool in the flow and returns the max DefaultParallelBlocks
-// from the tool definitions. Returns 0 (sequential) if no tool specifies it.
-func defaultParallelBlocks(flowName string) int {
+// from the tool registry. Returns 0 (sequential) if no tool specifies it.
+func (a *App) defaultParallelBlocks(flowName string) int {
+	if a.ToolReg == nil {
+		return 0
+	}
 	for _, def := range flow.BuiltInFlows() {
 		if def.ID == flowName {
 			maxPB := 0
@@ -855,8 +854,8 @@ func defaultParallelBlocks(flowName string) int {
 				if n.Type != "tool" {
 					continue
 				}
-				if td := LookupToolCommand(n.Name); td != nil && td.DefaultParallelBlocks > maxPB {
-					maxPB = td.DefaultParallelBlocks
+				if info := a.ToolReg.GetToolInfo(registry.ToolID(n.Name)); info != nil && info.DefaultParallelBlocks > maxPB {
+					maxPB = info.DefaultParallelBlocks
 				}
 			}
 			return maxPB
@@ -940,7 +939,7 @@ func (a *App) runProjectSteps(ctx context.Context, cmd *cobra.Command, flowName 
 		return errors.New("--target-lang is required")
 	}
 
-	// Build tools from step definitions using the tool registry + BuiltinToolCommands.
+	// Build tools from step definitions using the tool registry.
 	var projectTools []tool.Tool
 	for _, step := range spec.Steps {
 		t, err := a.toolFromStep(step, cmd, rCtx)
@@ -963,51 +962,32 @@ func (a *App) runProjectSteps(ctx context.Context, cmd *cobra.Command, flowName 
 }
 
 // toolFromStep creates a tool.Tool from a flow step definition.
-// It first checks BuiltinToolCommands for NewToolFromConfig support,
-// then falls back to the tool registry. If rCtx is non-nil, resource
-// references in the step config are resolved before applying.
+// Uses the tool registry as the single source of truth. If rCtx is non-nil,
+// resource references in the step config are resolved before applying.
 func (a *App) toolFromStep(step flow.FlowStep, cmd *cobra.Command, rCtx *flow.ResourceContext) (tool.Tool, error) {
-	// Check if a BuiltinToolCommand has NewToolFromConfig for this tool.
-	for _, def := range BuiltinToolCommands {
-		if def.Use == step.Tool {
-			if def.NewToolFromConfig != nil {
-				config := step.Config
-				if rCtx != nil && def.Schema != nil {
-					var err error
-					config, err = flow.ResolveToolConfig(config, def.Schema, *rCtx)
-					if err != nil {
-						return nil, fmt.Errorf("resolve config for %q: %w", step.Tool, err)
-					}
-				}
-				return def.NewToolFromConfig(config, a.TargetLang)
-			}
-			if def.NewTool != nil {
-				return def.NewTool(cmd, a.TargetLang)
+	toolID := registry.ToolID(step.Tool)
+
+	// Try config factory first (schema-driven tools).
+	if a.ToolReg.Has(toolID) {
+		toolSchema := a.ToolReg.GetSchema(toolID)
+		config := step.Config
+		if rCtx != nil && toolSchema != nil {
+			var err error
+			config, err = flow.ResolveToolConfig(config, toolSchema, *rCtx)
+			if err != nil {
+				return nil, fmt.Errorf("resolve config for %q: %w", step.Tool, err)
 			}
 		}
-		// Check aliases too.
-		for _, alias := range def.Aliases {
-			if alias == step.Tool {
-				if def.NewToolFromConfig != nil {
-					config := step.Config
-					if rCtx != nil && def.Schema != nil {
-						var err error
-						config, err = flow.ResolveToolConfig(config, def.Schema, *rCtx)
-						if err != nil {
-							return nil, fmt.Errorf("resolve config for %q: %w", step.Tool, err)
-						}
-					}
-					return def.NewToolFromConfig(config, a.TargetLang)
-				}
-				if def.NewTool != nil {
-					return def.NewTool(cmd, a.TargetLang)
-				}
-			}
+		t, err := a.ToolReg.NewToolWithConfig(toolID, config, a.TargetLang)
+		if err == nil {
+			return t, nil
 		}
+		// If NewToolWithConfig failed (e.g., no ConfigFactory), fall through
+		// to the zero-arg factory below.
 	}
 
-	// Fall back to tool registry (handles plugin tools, including bridge step tools).
-	t, err := a.ToolReg.NewTool(registry.ToolID(step.Tool))
+	// Fall back to zero-arg factory (bridge step tools without ConfigFactory).
+	t, err := a.ToolReg.NewTool(toolID)
 	if err != nil {
 		return nil, fmt.Errorf("tool %q: %w", step.Tool, err)
 	}

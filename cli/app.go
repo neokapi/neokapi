@@ -130,6 +130,7 @@ func (a *App) Init() {
 	}
 
 	a.PluginLoader = loader.NewPluginLoader(dir, logger)
+	a.PluginLoader.SetToolRegistry(a.ToolReg)
 
 	disabled := a.disabledPluginSet()
 	if len(disabled) > 0 {
@@ -170,7 +171,7 @@ func (a *App) EnsureBridgesLoaded() {
 	if a.PluginLoader == nil || a.PluginLoader.BridgesLoaded() {
 		return
 	}
-	if err := a.PluginLoader.LoadBridges(a.FormatReg, nil); err != nil {
+	if err := a.PluginLoader.LoadBridges(a.FormatReg, a.ToolReg); err != nil {
 		if !a.Quiet {
 			fmt.Fprintf(os.Stderr, "Warning: bridge loading: %v\n", err)
 		}
