@@ -60,16 +60,19 @@ type AITranslateConfig struct {
 // AITranslateSchema returns the auto-generated schema for the AI translate tool.
 func AITranslateSchema() *schema.ComponentSchema {
 	s := schema.FromStruct(&AITranslateConfig{}, schema.ToolMeta{
-		ID:          "ai-translate",
-		Category:    schema.CategoryTranslate,
-		DisplayName: "AI Translate",
-		Description: "Translate content using an LLM provider",
-		Inputs:      []string{schema.PartTypeBlock},
-		Tags:        []string{"ai-powered"},
-		Requires:    []string{schema.RequiresTargetLanguage, schema.RequiresCredentials},
-		Cardinality: schema.Bilingual,
-		Produces:    []schema.AnnotationType{schema.AnnotationTranslation},
-		SideEffects: []schema.SideEffect{schema.SideEffectAPICall},
+		ID:                    "ai-translate",
+		Category:              schema.CategoryTranslation,
+		DisplayName:           "AI Translate",
+		Description:           "Translate content using an LLM provider",
+		Inputs:                []string{schema.PartTypeBlock},
+		Tags:                  []string{"ai-powered"},
+		Aliases:               []string{"translate"},
+		WritesOutput:          true,
+		DefaultParallelBlocks: 5,
+		Requires:              []string{schema.RequiresTargetLanguage, schema.RequiresCredentials},
+		Cardinality:           schema.Bilingual,
+		Produces:              []schema.AnnotationType{schema.AnnotationTranslation},
+		SideEffects:           []schema.SideEffect{schema.SideEffectAPICall},
 	})
 	injectProviderOptions(s)
 	return s

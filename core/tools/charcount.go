@@ -48,7 +48,7 @@ func (c *CharCountConfig) Validate() error {
 func CharCountSchema() *schema.ComponentSchema {
 	return schema.FromStruct(&CharCountConfig{}, schema.ToolMeta{
 		ID:          "char-count",
-		Category:    schema.CategoryEnrich,
+		Category:    schema.CategoryAnalysis,
 		DisplayName: "Char Count",
 		Description: "Count characters in source and target text",
 		Inputs:      []string{schema.PartTypeBlock},

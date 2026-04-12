@@ -69,7 +69,7 @@ func registerKapiTools(server *mcp.Server, a *cli.App) {
 		Name:        "list_tools",
 		Description: "List all available processing tools",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, input struct{}) (*mcp.CallToolResult, ListToolsOutput, error) {
-		return handleListTools()
+		return handleListTools(a)
 	})
 
 	mcp.AddTool(server, &mcp.Tool{
@@ -334,10 +334,6 @@ func handleRunFlowWithProject(ctx context.Context, a *cli.App, input RunFlowInpu
 		}
 		var flowTools []tool.Tool
 		for _, step := range spec.Steps {
-			def := cli.LookupToolCommand(step.Tool)
-			if def == nil || def.NewToolFromConfig == nil {
-				return nil, RunFlowOutput{}, fmt.Errorf("tool %q not available", step.Tool)
-			}
 			// Merge step config with defaults.
 			merged := config
 			if len(step.Config) > 0 {
@@ -349,7 +345,7 @@ func handleRunFlowWithProject(ctx context.Context, a *cli.App, input RunFlowInpu
 					merged[k] = v
 				}
 			}
-			t, err := def.NewToolFromConfig(merged, targetLang)
+			t, err := a.ToolReg.NewToolWithConfig(registry.ToolID(step.Tool), merged, targetLang)
 			if err != nil {
 				return nil, RunFlowOutput{}, fmt.Errorf("create tool %q: %w", step.Tool, err)
 			}
@@ -437,14 +433,20 @@ func handleWordCount(ctx context.Context, a *cli.App, input WordCountInput) (*mc
 	}, nil
 }
 
-func handleListTools() (*mcp.CallToolResult, ListToolsOutput, error) {
+func handleListTools(a *cli.App) (*mcp.CallToolResult, ListToolsOutput, error) {
 	var entries []ToolEntry
-	for _, def := range cli.BuiltinToolCommands {
-		entries = append(entries, ToolEntry{
-			Name:        def.Use,
-			Description: def.Short,
-			Source:      "builtin",
-		})
+	if a.ToolReg != nil {
+		for _, entry := range a.ToolReg.CLITools() {
+			desc := entry.Info.Description
+			if desc == "" {
+				desc = entry.Info.DisplayName
+			}
+			entries = append(entries, ToolEntry{
+				Name:        string(entry.Info.Name),
+				Description: desc,
+				Source:      entry.Info.Source,
+			})
+		}
 	}
 	return nil, ListToolsOutput{Tools: entries, Total: len(entries)}, nil
 }
@@ -561,7 +563,7 @@ func createReader(a *cli.App, fmtName string) (format.DataFormatReader, error) {
 
 // executeFlow runs a named flow on a file and writes the result.
 func executeFlow(ctx context.Context, a *cli.App, flowName, inputPath, sourceLang, targetLang, outputPath string, pctx *project.ProjectContext) (string, error) {
-	flowTools, err := buildFlowTools(flowName, sourceLang, targetLang)
+	flowTools, err := buildFlowTools(a, flowName, sourceLang, targetLang)
 	if err != nil {
 		return "", err
 	}
@@ -607,7 +609,7 @@ func executeFlowWithTools(ctx context.Context, a *cli.App, flowName, inputPath, 
 
 // buildFlowTools creates the tool chain for a named flow using the built-in
 // flow registry and tool command definitions.
-func buildFlowTools(flowName, sourceLang, targetLang string) ([]tool.Tool, error) {
+func buildFlowTools(a *cli.App, flowName, sourceLang, targetLang string) ([]tool.Tool, error) {
 	// Look up the flow definition.
 	var flowDef *flow.FlowDefinition
 	for _, def := range flow.BuiltInFlows() {
@@ -646,14 +648,7 @@ func buildFlowTools(flowName, sourceLang, targetLang string) ([]tool.Tool, error
 
 	var tools []tool.Tool
 	for _, node := range toolNodes {
-		def := cli.LookupToolCommand(node.name)
-		if def == nil {
-			return nil, fmt.Errorf("tool %q not found in registry", node.name)
-		}
-		if def.NewToolFromConfig == nil {
-			return nil, fmt.Errorf("tool %q has no config factory (AI-powered tools require API keys)", node.name)
-		}
-		t, err := def.NewToolFromConfig(config, targetLang)
+		t, err := a.ToolReg.NewToolWithConfig(registry.ToolID(node.name), config, targetLang)
 		if err != nil {
 			return nil, fmt.Errorf("tool %q: %w", node.name, err)
 		}

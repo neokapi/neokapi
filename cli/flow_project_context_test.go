@@ -19,17 +19,16 @@ func TestResolveParallelBlocks_ProjectOverride(t *testing.T) {
 }
 
 func TestResolveParallelBlocks_NoProject(t *testing.T) {
-	app := &App{}
+	app := newTestApp()
 	// Without project, falls back to flow defaults.
 	assert.Equal(t, 0, app.resolveParallelBlocks("pseudo-translate"))
 	assert.Greater(t, app.resolveParallelBlocks("ai-translate"), 0)
 }
 
 func TestResolveParallelBlocks_ProjectZero(t *testing.T) {
-	app := &App{
-		projectContext: &project.ProjectContext{
-			ParallelBlocks: 0, // zero = use flow default
-		},
+	app := newTestApp()
+	app.projectContext = &project.ProjectContext{
+		ParallelBlocks: 0, // zero = use flow default
 	}
 	// Zero in project means "use flow default".
 	assert.Greater(t, app.resolveParallelBlocks("ai-translate"), 0)

@@ -59,7 +59,7 @@ func (c *TermCheckConfig) Validate() error {
 func TermCheckSchema() *schema.ComponentSchema {
 	return schema.FromStruct(&TermCheckConfig{}, schema.ToolMeta{
 		ID:          "term-check",
-		Category:    schema.CategoryValidate,
+		Category:    schema.CategoryQuality,
 		DisplayName: "Term Check",
 		Description: "Check terminology consistency across content",
 		Inputs:      []string{schema.PartTypeBlock},

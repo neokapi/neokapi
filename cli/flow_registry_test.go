@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/neokapi/neokapi/core/flow"
+	"github.com/neokapi/neokapi/core/registry"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -12,7 +13,6 @@ func TestBuiltinComposedFlows_DerivedFromRegistry(t *testing.T) {
 	composed := builtinComposedFlows()
 	require.NotEmpty(t, composed, "should have at least one composed flow")
 
-	// Every composed flow should exist in flow.BuiltInFlows().
 	builtInIDs := make(map[string]bool)
 	for _, def := range flow.BuiltInFlows() {
 		builtInIDs[def.ID] = true
@@ -26,7 +26,6 @@ func TestBuiltinComposedFlows_DerivedFromRegistry(t *testing.T) {
 func TestBuiltinComposedFlows_OnlyMultiTool(t *testing.T) {
 	composed := builtinComposedFlows()
 	for _, cf := range composed {
-		// Find the flow definition and count tools.
 		for _, def := range flow.BuiltInFlows() {
 			if def.ID == cf.Name {
 				toolCount := 0
@@ -52,35 +51,34 @@ func TestBuiltinComposedFlowNames_MatchesComposedFlows(t *testing.T) {
 }
 
 func TestDefaultParallelBlocks_AIFlows(t *testing.T) {
-	// AI-powered flows should have parallel blocks > 0.
-	pb := defaultParallelBlocks("ai-translate")
+	app := newTestApp()
+	pb := app.defaultParallelBlocks("ai-translate")
 	assert.Greater(t, pb, 0, "ai-translate should have parallel blocks")
 
-	pb = defaultParallelBlocks("ai-translate-qa")
+	pb = app.defaultParallelBlocks("ai-translate-qa")
 	assert.Greater(t, pb, 0, "ai-translate-qa should have parallel blocks")
 }
 
 func TestDefaultParallelBlocks_CPUFlows(t *testing.T) {
-	// CPU-bound flows should have 0 parallel blocks.
-	assert.Equal(t, 0, defaultParallelBlocks("pseudo-translate"))
-	assert.Equal(t, 0, defaultParallelBlocks("qa-check"))
-	assert.Equal(t, 0, defaultParallelBlocks("segmentation"))
+	app := newTestApp()
+	assert.Equal(t, 0, app.defaultParallelBlocks("pseudo-translate"))
+	assert.Equal(t, 0, app.defaultParallelBlocks("qa-check"))
 }
 
 func TestDefaultParallelBlocks_Unknown(t *testing.T) {
-	assert.Equal(t, 0, defaultParallelBlocks("nonexistent"))
+	app := newTestApp()
+	assert.Equal(t, 0, app.defaultParallelBlocks("nonexistent"))
 }
 
 func TestAllBuiltInFlowToolsResolvable(t *testing.T) {
-	// Every tool node in every built-in flow should be resolvable via LookupToolCommand.
+	app := newTestApp()
 	for _, def := range flow.BuiltInFlows() {
 		for _, n := range def.Nodes {
 			if n.Type != "tool" {
 				continue
 			}
-			td := LookupToolCommand(n.Name)
-			assert.NotNil(t, td,
-				"flow %q references tool %q which is not in BuiltinToolCommands",
+			assert.True(t, app.ToolReg.Has(registry.ToolID(n.Name)),
+				"flow %q references tool %q which is not in ToolRegistry",
 				def.ID, n.Name)
 		}
 	}

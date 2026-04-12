@@ -96,7 +96,7 @@ func TMLeverageSchema() *schema.ComponentSchema {
 	cfg.Reset()
 	return schema.FromStruct(cfg, schema.ToolMeta{
 		ID:          "tm-leverage",
-		Category:    schema.CategoryTranslate,
+		Category:    schema.CategoryTranslation,
 		DisplayName: "TM Leverage",
 		Description: "Pre-fill translations from translation memory",
 		Inputs:      []string{schema.PartTypeBlock},

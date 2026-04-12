@@ -151,7 +151,7 @@ func NewQACheckConfig(targetLocale model.LocaleID) *QACheckConfig {
 func QACheckSchema() *schema.ComponentSchema {
 	return schema.FromStruct(NewQACheckConfig(""), schema.ToolMeta{
 		ID:          "qa-check",
-		Category:    schema.CategoryValidate,
+		Category:    schema.CategoryQuality,
 		DisplayName: "QA Check",
 		Description: "Run rule-based quality checks on translations",
 		Inputs:      []string{schema.PartTypeBlock},

@@ -81,7 +81,7 @@ func SegmentationSchema() *schema.ComponentSchema {
 	cfg.Reset()
 	return schema.FromStruct(cfg, schema.ToolMeta{
 		ID:          "segmentation",
-		Category:    schema.CategoryTransform,
+		Category:    schema.CategoryTextProcessing,
 		DisplayName: "Segmentation",
 		Description: "Split source text into sentence-level segments",
 		Inputs:      []string{schema.PartTypeBlock},

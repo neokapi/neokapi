@@ -69,7 +69,7 @@ func SearchReplaceSchema() *schema.ComponentSchema {
 	cfg.Reset()
 	return schema.FromStruct(cfg, schema.ToolMeta{
 		ID:          "search-replace",
-		Category:    schema.CategoryTransform,
+		Category:    schema.CategoryTextProcessing,
 		DisplayName: "Search Replace",
 		Description: "Find and replace patterns (literal or regex)",
 		Inputs:      []string{schema.PartTypeBlock},

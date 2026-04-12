@@ -39,7 +39,7 @@ func (c *ScopingReportConfig) Validate() error { return nil }
 func ScopingReportSchema() *schema.ComponentSchema {
 	return schema.FromStruct(&ScopingReportConfig{}, schema.ToolMeta{
 		ID:          "scoping-report",
-		Category:    schema.CategoryEnrich,
+		Category:    schema.CategoryAnalysis,
 		DisplayName: "Scoping Report",
 		Description: "Generate detailed scoping report (word counts, repetitions, file breakdown)",
 		Inputs:      []string{schema.PartTypeBlock},

@@ -101,7 +101,7 @@ func (c *PseudoConfig) Validate() error {
 func PseudoTranslateSchema() *schema.ComponentSchema {
 	return schema.FromStruct(&PseudoConfig{}, schema.ToolMeta{
 		ID:          "pseudo-translate",
-		Category:    schema.CategoryTranslate,
+		Category:    schema.CategoryTranslation,
 		DisplayName: "Pseudo Translate",
 		Description: "Generate pseudo-translations for localization testing",
 		Inputs:      []string{schema.PartTypeBlock},

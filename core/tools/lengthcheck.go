@@ -95,7 +95,7 @@ func (c *LengthCheckConfig) Validate() error {
 func LengthCheckSchema() *schema.ComponentSchema {
 	return schema.FromStruct(&LengthCheckConfig{}, schema.ToolMeta{
 		ID:          "length-check",
-		Category:    schema.CategoryValidate,
+		Category:    schema.CategoryQuality,
 		DisplayName: "Length Check",
 		Description: "Validate string length against configured limits",
 		Inputs:      []string{schema.PartTypeBlock},

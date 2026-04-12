@@ -65,7 +65,7 @@ func (c *TranslationComparisonConfig) Validate() error {
 func TranslationComparisonSchema() *schema.ComponentSchema {
 	return schema.FromStruct(&TranslationComparisonConfig{}, schema.ToolMeta{
 		ID:          "translation-comparison",
-		Category:    schema.CategoryEnrich,
+		Category:    schema.CategoryAnalysis,
 		DisplayName: "Translation Comparison",
 		Description: "Compare translations across locales or versions",
 		Inputs:      []string{schema.PartTypeBlock},

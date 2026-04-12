@@ -63,7 +63,7 @@ func (c *PatternCheckConfig) Validate() error {
 func PatternCheckSchema() *schema.ComponentSchema {
 	return schema.FromStruct(&PatternCheckConfig{}, schema.ToolMeta{
 		ID:          "pattern-check",
-		Category:    schema.CategoryValidate,
+		Category:    schema.CategoryQuality,
 		DisplayName: "Pattern Check",
 		Description: "Validate content against custom regex patterns",
 		Inputs:      []string{schema.PartTypeBlock},
