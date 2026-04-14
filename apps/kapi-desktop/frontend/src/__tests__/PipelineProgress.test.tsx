@@ -1,11 +1,6 @@
 import { render, screen } from "@testing-library/react";
 import { describe, it, expect } from "vitest";
-import {
-  PipelineProgress,
-  StepBadge,
-  deriveStepState,
-  type StepState,
-} from "../components/PipelineProgress";
+import { PipelineProgress, StepBadge, deriveStepState } from "../components/PipelineProgress";
 import type { StepSnapshot } from "../context/JobFeedContext";
 
 // ---------------------------------------------------------------------------

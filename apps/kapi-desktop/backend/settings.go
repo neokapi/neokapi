@@ -10,6 +10,7 @@ import (
 // AppSettings holds persisted user preferences.
 type AppSettings struct {
 	Theme            string         `json:"theme"`                       // "system", "dark", or "light"
+	UILanguage       string         `json:"ui_language,omitempty"`       // BCP-47 UI language code, e.g. "en" or "qps"
 	SamplesDismissed bool           `json:"samples_dismissed,omitempty"` // true after user dismisses sample project cards
 	HiddenLocales    []string       `json:"hidden_locales,omitempty"`    // locale codes to hide from selectors
 	CustomLocales    []CustomLocale `json:"custom_locales,omitempty"`    // additional locales not in the well-known list
@@ -37,7 +38,7 @@ func newSettingsStore() *settingsStore {
 
 	s := &settingsStore{
 		filePath: path,
-		settings: AppSettings{Theme: "system"},
+		settings: AppSettings{Theme: "system", UILanguage: "en"},
 	}
 	s.load()
 	return s
@@ -95,6 +96,24 @@ func (a *App) SetTheme(theme string) {
 	a.settings.mu.Lock()
 	defer a.settings.mu.Unlock()
 	a.settings.settings.Theme = theme
+	a.settings.save()
+}
+
+// GetUILanguage returns the persisted UI language code (e.g. "en", "qps").
+func (a *App) GetUILanguage() string {
+	a.settings.mu.Lock()
+	defer a.settings.mu.Unlock()
+	if a.settings.settings.UILanguage == "" {
+		return "en"
+	}
+	return a.settings.settings.UILanguage
+}
+
+// SetUILanguage updates the UI language preference.
+func (a *App) SetUILanguage(lang string) {
+	a.settings.mu.Lock()
+	defer a.settings.mu.Unlock()
+	a.settings.settings.UILanguage = lang
 	a.settings.save()
 }
 

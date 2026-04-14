@@ -1,9 +1,10 @@
 import { defineConfig } from "vite-plus";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
+import neokapi from "@neokapi/react/vite";
 
 export default defineConfig({
-  plugins: [react(), tailwindcss()],
+  plugins: [neokapi({ mode: "runtime" }), react(), tailwindcss()],
   build: {
     outDir: "dist",
   },
@@ -18,7 +19,13 @@ export default defineConfig({
     exclude: ["dist/**", "storybook-static/**", "node_modules/**"],
   },
   lint: {
-    ignorePatterns: ["dist/**", "bindings/**", "storybook-static/**"],
+    ignorePatterns: [
+      "dist/**",
+      "bindings/**",
+      "storybook-static/**",
+      "public/translations/**",
+      "i18n/**",
+    ],
     options: {
       typeAware: true,
       typeCheck: false,
@@ -26,6 +33,12 @@ export default defineConfig({
   },
   fmt: {
     singleQuote: false,
-    ignorePatterns: ["dist/**", "bindings/**", "storybook-static/**"],
+    ignorePatterns: [
+      "dist/**",
+      "bindings/**",
+      "storybook-static/**",
+      "public/translations/**",
+      "i18n/**",
+    ],
   },
 });

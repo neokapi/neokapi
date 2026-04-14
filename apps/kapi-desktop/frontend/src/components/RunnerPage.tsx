@@ -95,7 +95,7 @@ export function RunnerPage({ tabID, flowName, flow, onClose, project, autoRun }:
     const targets = project.defaults?.target_languages ?? [];
     if (targets.length === 0) return;
 
-    (async () => {
+    void (async () => {
       const matches = await api.matchContent(tabID);
       const paths = matches?.map((m) => m.path) ?? [];
       if (paths.length === 0) return;

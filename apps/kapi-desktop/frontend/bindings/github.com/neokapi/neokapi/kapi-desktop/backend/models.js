@@ -246,6 +246,14 @@ export class AppSettings {
         }
         if (/** @type {any} */(false)) {
             /**
+             * BCP-47 UI language code, e.g. "en" or "qps"
+             * @member
+             * @type {string | undefined}
+             */
+            this["ui_language"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
              * true after user dismisses sample project cards
              * @member
              * @type {boolean | undefined}
@@ -278,14 +286,14 @@ export class AppSettings {
      * @returns {AppSettings}
      */
     static createFrom($$source = {}) {
-        const $$createField2_0 = $$createType6;
-        const $$createField3_0 = $$createType10;
+        const $$createField3_0 = $$createType6;
+        const $$createField4_0 = $$createType10;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("hidden_locales" in $$parsedSource) {
-            $$parsedSource["hidden_locales"] = $$createField2_0($$parsedSource["hidden_locales"]);
+            $$parsedSource["hidden_locales"] = $$createField3_0($$parsedSource["hidden_locales"]);
         }
         if ("custom_locales" in $$parsedSource) {
-            $$parsedSource["custom_locales"] = $$createField3_0($$parsedSource["custom_locales"]);
+            $$parsedSource["custom_locales"] = $$createField4_0($$parsedSource["custom_locales"]);
         }
         return new AppSettings(/** @type {Partial<AppSettings>} */($$parsedSource));
     }

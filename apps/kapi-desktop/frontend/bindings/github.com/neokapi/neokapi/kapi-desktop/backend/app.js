@@ -753,6 +753,14 @@ export function GetToolSchema(name) {
 }
 
 /**
+ * GetUILanguage returns the persisted UI language code (e.g. "en", "qps").
+ * @returns {$CancellablePromise<string>}
+ */
+export function GetUILanguage() {
+    return $Call.ByID(1689291596);
+}
+
+/**
  * GetUserFlow returns a flow by ID (built-in or user).
  * @param {string} id
  * @returns {$CancellablePromise<$models.UserFlowDetail | null>}
@@ -1416,6 +1424,15 @@ export function SetApplication(app) {
  */
 export function SetTheme(theme) {
     return $Call.ByID(3719958557, theme);
+}
+
+/**
+ * SetUILanguage updates the UI language preference.
+ * @param {string} lang
+ * @returns {$CancellablePromise<void>}
+ */
+export function SetUILanguage(lang) {
+    return $Call.ByID(950373336, lang);
 }
 
 /**

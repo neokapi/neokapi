@@ -9,6 +9,7 @@ on:
 permissions:
   contents: read
   checks: write
+  packages: read
 
 jobs:
   # ── Detect which modules changed ──────────────────────────────────────────
