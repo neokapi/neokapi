@@ -27,7 +27,13 @@ const preview = createPreview({
   i18n: {
     locales: [
       { value: "en", title: "English" },
-      { value: "qps", title: "Pseudo English (qps)", url: "/translations/qps.json" },
+      {
+        value: "qps",
+        title: "Pseudo English (qps)",
+        // Resolve against the Storybook base path (set per-PR by the
+        // storybook-preview workflow via STORYBOOK_BASE_PATH).
+        url: `${import.meta.env.BASE_URL}translations/qps.json`,
+      },
     ],
   },
 });
