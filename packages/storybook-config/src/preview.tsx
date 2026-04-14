@@ -11,9 +11,9 @@ type NeokapiRuntime = {
 let neokapiRuntime: NeokapiRuntime | null = null;
 async function getNeokapiRuntime(): Promise<NeokapiRuntime> {
   if (neokapiRuntime) return neokapiRuntime;
-  neokapiRuntime = (await import(
-    /* @vite-ignore */ "@neokapi/react/runtime"
-  )) as unknown as NeokapiRuntime;
+  // Vite bundles the dynamic import; Bowrain Storybook (which doesn't yet
+  // opt into i18n) never reaches this path, so the tree-shaker drops it.
+  neokapiRuntime = (await import("@neokapi/react/runtime")) as unknown as NeokapiRuntime;
   return neokapiRuntime;
 }
 
