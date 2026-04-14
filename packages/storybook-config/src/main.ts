@@ -16,6 +16,11 @@ export interface CreateMainConfigOptions {
   stories: string[];
   /** Optional base path for GitHub Pages deployment (e.g. "/storybook/"). */
   basePath?: string;
+  /**
+   * Enable @neokapi/react runtime-mode transform so stories pick up
+   * the locale toolbar. Pair with `i18n` in createPreview().
+   */
+  i18n?: boolean;
 }
 
 /**
@@ -38,9 +43,14 @@ export function createMainConfig(
       name: getAbsolutePath("@storybook/react-vite", req) as "@storybook/react-vite",
       options: {},
     },
-    viteFinal(config) {
+    async viteFinal(config) {
       config.plugins = config.plugins || [];
       config.plugins.push(tailwindcss());
+
+      if (options.i18n) {
+        const neokapi = (await import("@neokapi/react/vite")).default;
+        config.plugins.push(neokapi({ mode: "runtime" }));
+      }
 
       const envBasePath = options.basePath || process.env.STORYBOOK_BASE_PATH;
       if (envBasePath) {

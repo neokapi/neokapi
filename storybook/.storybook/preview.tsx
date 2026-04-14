@@ -24,6 +24,12 @@ const preview = createPreview({
     "Interactions",
   ],
   decorators: [KapiProviders],
+  i18n: {
+    locales: [
+      { value: "en", title: "English" },
+      { value: "qps", title: "Pseudo English (qps)", url: "/translations/qps.json" },
+    ],
+  },
 });
 
 export default preview;

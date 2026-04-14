@@ -9,10 +9,16 @@
     "./manager": "./src/manager.ts"
   },
   "peerDependencies": {
+    "@neokapi/react": "^0.5.0",
     "@storybook/addon-themes": "^10.3.1",
     "@storybook/react-vite": "^10.3.1",
     "@tailwindcss/vite": "^4.0.0",
     "react": "^19.0.0",
     "storybook": "^10.3.1"
+  },
+  "peerDependenciesMeta": {
+    "@neokapi/react": {
+      "optional": true
+    }
   }
 }
