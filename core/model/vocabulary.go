@@ -105,12 +105,13 @@ func (r *VocabularyRegistry) Load(data []byte) error {
 	return nil
 }
 
-// LoadDefaults loads the embedded default vocabularies (common-formatting,
-// rich-html, code-tokens).
+// LoadDefaults loads the embedded default vocabularies
+// (common-formatting, rich-html, rich-jsx, code-tokens).
 func (r *VocabularyRegistry) LoadDefaults() error {
 	files := []string{
 		"common-formatting.json",
 		"rich-html.json",
+		"rich-jsx.json",
 		"code-tokens.json",
 	}
 	for _, name := range files {

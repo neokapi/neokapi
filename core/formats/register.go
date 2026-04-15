@@ -18,6 +18,7 @@ import (
 	"github.com/neokapi/neokapi/core/formats/icml"
 	"github.com/neokapi/neokapi/core/formats/idml"
 	"github.com/neokapi/neokapi/core/formats/json"
+	"github.com/neokapi/neokapi/core/formats/jsx"
 	"github.com/neokapi/neokapi/core/formats/markdown"
 	"github.com/neokapi/neokapi/core/formats/messageformat"
 	"github.com/neokapi/neokapi/core/formats/mif"
@@ -494,6 +495,26 @@ func RegisterAll(reg *registry.FormatRegistry, opts ...RegisterOptions) {
 		}, "Trados XML")
 	reg.RegisterWriter("txml", func() format.DataFormatWriter { return txml.NewWriter() })
 	registerSchemaAndDecoder(o, reg, "txml", func() format.DataFormatReader { return txml.NewReader() })
+
+	// JSX / KLF / KLZ — Kapi Localization Format (RFC 0001)
+	reg.RegisterReader("jsx",
+		func() format.DataFormatReader { return jsx.NewReader() },
+		format.FormatSignature{
+			MIMETypes:  []string{"application/vnd.neokapi.klf+json", "application/vnd.neokapi.klz+zip"},
+			Extensions: []string{".klf", ".klz"},
+			MagicBytes: [][]byte{{0x50, 0x4B, 0x03, 0x04}},
+			Sniff: func(data []byte) bool {
+				if bytes.Contains(data, []byte(`"kapi-localization-format"`)) {
+					return true
+				}
+				if len(data) >= 4 && bytes.Equal(data[:4], []byte{0x50, 0x4B, 0x03, 0x04}) {
+					return bytes.Contains(data, []byte("manifest.json")) &&
+						bytes.Contains(data, []byte("kapiLocalizationFormat"))
+				}
+				return false
+			},
+		}, "Kapi Localization Format (KLF/KLZ)")
+	reg.RegisterWriter("jsx", func() format.DataFormatWriter { return jsx.NewWriter() })
 
 	// PDF (extraction only)
 	reg.RegisterReader("pdf",
