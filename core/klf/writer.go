@@ -3,6 +3,7 @@ package klf
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 )
@@ -13,7 +14,7 @@ import (
 // stable across writes. The .klz writer builds on this contract.
 func Marshal(f *File) ([]byte, error) {
 	if f == nil {
-		return nil, fmt.Errorf("klf: marshal nil file")
+		return nil, errors.New("klf: marshal nil file")
 	}
 	if f.SchemaVersion == "" {
 		f.SchemaVersion = SchemaVersion

@@ -5,8 +5,8 @@ import (
 	"context"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
-	"io"
 	"os"
 	"path/filepath"
 	"sort"
@@ -172,7 +172,7 @@ func (a *App) newKLZExtractCmd() *cobra.Command {
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if outDir == "" {
-				return fmt.Errorf("--out is required")
+				return errors.New("--out is required")
 			}
 			r, err := klz.Open(args[0])
 			if err != nil {
@@ -221,7 +221,7 @@ func (a *App) newKLZPackCmd() *cobra.Command {
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if outPath == "" {
-				return fmt.Errorf("--out is required")
+				return errors.New("--out is required")
 			}
 			dir := args[0]
 			manifestPath := filepath.Join(dir, klz.ManifestPath)
@@ -389,10 +389,10 @@ func (a *App) newKLZMergeCmd() *cobra.Command {
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if locale == "" {
-				return fmt.Errorf("--locale is required")
+				return errors.New("--locale is required")
 			}
 			if outDir == "" {
-				return fmt.Errorf("--out is required")
+				return errors.New("--out is required")
 			}
 			r, err := klz.Open(args[0])
 			if err != nil {
@@ -455,10 +455,10 @@ func (a *App) newKLZAnnotateCmd() *cobra.Command {
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if inAnnotation == "" {
-				return fmt.Errorf("--in is required")
+				return errors.New("--in is required")
 			}
 			if outPath == "" {
-				return fmt.Errorf("--out is required")
+				return errors.New("--out is required")
 			}
 			r, err := klz.Open(args[0])
 			if err != nil {
@@ -683,8 +683,3 @@ func writeFileAtomic(path string, data []byte) error {
 	}
 	return os.Rename(tmp, path)
 }
-
-// discardWriter is a tiny helper used by some of the klz commands
-// when they want to compute work without emitting output (e.g.
-// verify + exit-code branch without cluttering a shared buffer).
-var discardWriter io.Writer = io.Discard

@@ -3,6 +3,7 @@ package klz
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 )
 
@@ -71,7 +72,7 @@ type ManifestPartInfo struct {
 // cache-key change, by design.
 func MarshalManifest(m *Manifest) ([]byte, error) {
 	if m == nil {
-		return nil, fmt.Errorf("klz: marshal nil manifest")
+		return nil, errors.New("klz: marshal nil manifest")
 	}
 	if m.KapiLocalizationFormat == "" {
 		m.KapiLocalizationFormat = ManifestVersion
@@ -101,7 +102,7 @@ func UnmarshalManifest(data []byte) (*Manifest, error) {
 
 func checkManifestVersion(v string) error {
 	if v == "" {
-		return fmt.Errorf("klz: manifest missing kapiLocalizationFormat")
+		return errors.New("klz: manifest missing kapiLocalizationFormat")
 	}
 	wantMajor, _, _ := splitVersion(ManifestVersion)
 	major, _, ok := splitVersion(v)

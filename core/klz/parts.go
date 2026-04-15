@@ -1,6 +1,7 @@
 package klz
 
 import (
+	"errors"
 	"fmt"
 	"path"
 	"strings"
@@ -31,7 +32,7 @@ const ManifestPath = "manifest.json"
 // Returns the normalized (NFC, POSIX) path on success.
 func validatePartPath(raw string) (string, error) {
 	if raw == "" {
-		return "", fmt.Errorf("klz: empty part path")
+		return "", errors.New("klz: empty part path")
 	}
 	if !utf8.ValidString(raw) {
 		return "", fmt.Errorf("klz: part path %q is not valid UTF-8", raw)

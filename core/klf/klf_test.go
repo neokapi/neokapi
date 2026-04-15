@@ -310,8 +310,8 @@ func TestAnnotationFileResolvesAgainstFixtures(t *testing.T) {
 	// Mirror neokapi-format/examples/validate.ts: every annotation
 	// in the example file must resolve against the example blocks.
 	blocks := map[string]*Block{
-		"files-heading":         filesHeading(),
-		"tag-chip":              tagChip(),
+		"files-heading":        filesHeading(),
+		"tag-chip":             tagChip(),
 		"shopping-cart-plural": shoppingCart(),
 	}
 	file := exampleAnnotationFile()

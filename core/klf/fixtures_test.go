@@ -121,8 +121,8 @@ func shoppingCart() *Block {
 			{Plural: &PluralRun{
 				Pivot: "count",
 				Forms: map[PluralForm][]Run{
-					PluralZero:  {{Text: &TextRun{Text: "Your cart is empty"}}},
-					PluralOne:   {{Text: &TextRun{Text: "1 item in your cart"}}},
+					PluralZero: {{Text: &TextRun{Text: "Your cart is empty"}}},
+					PluralOne:  {{Text: &TextRun{Text: "1 item in your cart"}}},
 					PluralOther: {
 						{Ph: &PlaceholderRun{
 							ID: "1", Type: "jsx:var", SubType: "number",
