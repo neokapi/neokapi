@@ -22,7 +22,7 @@ func TestRegisterAllReaders(t *testing.T) {
 
 	expectedFormats := []registry.FormatID{
 		"plaintext", "html", "xml", "xliff", "xliff2",
-		"yaml", "json", "po", "properties",
+		"yaml", "json", "jsx", "po", "properties",
 		"markdown", "csv", "tsv", "srt", "ttml", "vtt", "tmx", "openxml",
 		"mosestext", "dtd", "ts", "wiki", "tex",
 		"regex", "doxygen", "messageformat", "phpcontent",
@@ -43,7 +43,7 @@ func TestRegisterAllWriters(t *testing.T) {
 
 	expectedFormats := []registry.FormatID{
 		"plaintext", "html", "xml", "xliff", "xliff2",
-		"yaml", "json", "po", "properties",
+		"yaml", "json", "jsx", "po", "properties",
 		"markdown", "csv", "tsv", "srt", "ttml", "vtt", "tmx", "openxml",
 		"mosestext", "dtd", "ts", "wiki", "tex",
 		"regex", "doxygen", "messageformat", "phpcontent",
