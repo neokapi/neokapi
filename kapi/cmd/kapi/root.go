@@ -43,6 +43,8 @@ func init() {
 	rootCmd.AddCommand(app.NewTermbaseCmd())
 	rootCmd.AddCommand(app.NewTMCmd())
 	rootCmd.AddCommand(app.NewCredentialsCmd())
+	rootCmd.AddCommand(app.NewKLZCmd())
+	rootCmd.AddCommand(app.NewCacheCmd())
 	rootCmd.AddCommand(app.NewVersionCmd("kapi"))
 	rootCmd.AddCommand(app.NewCompletionCmd())
 
