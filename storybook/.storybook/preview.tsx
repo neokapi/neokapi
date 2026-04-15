@@ -24,6 +24,18 @@ const preview = createPreview({
     "Interactions",
   ],
   decorators: [KapiProviders],
+  i18n: {
+    locales: [
+      { value: "en", title: "English" },
+      {
+        value: "qps",
+        title: "Pseudo English (qps)",
+        // Resolve against the Storybook base path (set per-PR by the
+        // storybook-preview workflow via STORYBOOK_BASE_PATH).
+        url: `${import.meta.env.BASE_URL}translations/qps.json`,
+      },
+    ],
+  },
 });
 
 export default preview;

@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
-import { Sun, Moon, Monitor } from "lucide-react";
+import { Sun, Moon, Monitor, Languages, FlaskConical } from "lucide-react";
+import { loadTranslations, setTranslations } from "@neokapi/react/runtime";
 import { api } from "../hooks/useApi";
 import { useError } from "./ErrorBanner";
 import {
@@ -16,6 +17,12 @@ import { PluginManager } from "./PluginManager";
 import { LocaleSettings } from "./LocaleSettings";
 
 export type ThemeMode = "system" | "light" | "dark";
+export type UILanguage = "en" | "qps";
+
+const UI_LANGUAGES: { value: UILanguage; label: string; icon: typeof Languages }[] = [
+  { value: "en", label: "English", icon: Languages },
+  { value: "qps", label: "Pseudo English (qps)", icon: FlaskConical },
+];
 
 /** Apply theme to document — resolves "system" to the OS preference. */
 export function applyTheme(mode: ThemeMode) {
@@ -30,10 +37,13 @@ export function applyTheme(mode: ThemeMode) {
 export interface SettingsPageProps {
   /** Pre-loaded theme for Storybook — skips api.getSettings(). */
   theme?: ThemeMode;
+  /** Pre-loaded UI language for Storybook — skips api.getSettings(). */
+  uiLanguage?: UILanguage;
 }
 
-export function SettingsPage({ theme: propTheme }: SettingsPageProps = {}) {
+export function SettingsPage({ theme: propTheme, uiLanguage: propLang }: SettingsPageProps = {}) {
   const [theme, setTheme] = useState<ThemeMode>(propTheme ?? "system");
+  const [uiLanguage, setUILanguage] = useState<UILanguage>(propLang ?? "en");
   const [loading, setLoading] = useState(!propTheme);
 
   const { showError } = useError();
@@ -57,6 +67,8 @@ export function SettingsPage({ theme: propTheme }: SettingsPageProps = {}) {
         if (settings) {
           const t = (settings.theme || "system") as ThemeMode;
           setTheme(t);
+          const l = (settings.ui_language || "en") as UILanguage;
+          setUILanguage(l);
         }
       })
       .catch((err) => {
@@ -75,6 +87,23 @@ export function SettingsPage({ theme: propTheme }: SettingsPageProps = {}) {
         await api.setTheme(next);
       } catch (err) {
         showError("Failed to save theme", err);
+      }
+    },
+    [showError],
+  );
+
+  const handleLanguageChange = useCallback(
+    async (next: UILanguage) => {
+      setUILanguage(next);
+      try {
+        if (next === "en") {
+          setTranslations("en", {});
+        } else {
+          await loadTranslations(next, `/translations/${next}.json`);
+        }
+        await api.setUILanguage(next);
+      } catch (err) {
+        showError("Failed to save language", err);
       }
     },
     [showError],
@@ -123,6 +152,31 @@ export function SettingsPage({ theme: propTheme }: SettingsPageProps = {}) {
                 </div>
                 <p className="mt-2 text-[10px] text-muted-foreground">
                   System follows your operating system's appearance setting.
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardContent className="p-4">
+                <div className="mb-3 text-sm font-medium">Language</div>
+                <div className="flex gap-2">
+                  {UI_LANGUAGES.map(({ value, icon: Icon, label }) => (
+                    <button
+                      key={value}
+                      onClick={() => void handleLanguageChange(value)}
+                      className={`flex flex-1 flex-col items-center gap-1.5 rounded-md border p-3 text-xs font-medium transition-colors ${
+                        uiLanguage === value
+                          ? "border-primary bg-primary/10 text-primary"
+                          : "border-border text-muted-foreground hover:border-primary/30 hover:text-foreground"
+                      }`}
+                    >
+                      <Icon size={16} />
+                      {label}
+                    </button>
+                  ))}
+                </div>
+                <p className="mt-2 text-[10px] text-muted-foreground">
+                  Pseudo English expands strings and adds accents — useful for localization QA.
                 </p>
               </CardContent>
             </Card>

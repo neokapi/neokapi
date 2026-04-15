@@ -1,6 +1,5 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { fn } from "storybook/test";
 import { Loader2, CheckCircle2, XCircle, ListTodo, X, Trash2 } from "lucide-react";
 import { Button, ScrollArea } from "@neokapi/ui-primitives";
 

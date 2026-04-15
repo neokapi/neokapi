@@ -1,6 +1,6 @@
 import { render, screen, act } from "@testing-library/react";
 import { describe, it, expect } from "vitest";
-import { JobFeedProvider, useJobFeed, type Job } from "../context/JobFeedContext";
+import { JobFeedProvider, useJobFeed } from "../context/JobFeedContext";
 
 // Helper to read context values.
 function JobFeedReader({ onRead }: { onRead: (feed: ReturnType<typeof useJobFeed>) => void }) {

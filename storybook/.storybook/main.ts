@@ -7,6 +7,7 @@ const config = createMainConfig(
       "../../packages/flow-editor/src/**/*.stories.@(ts|tsx)",
       "../../apps/kapi-desktop/frontend/src/**/*.stories.@(ts|tsx)",
     ],
+    i18n: true,
   },
   import.meta,
 );
