@@ -1,5 +1,10 @@
 import type { Decorator, Preview, ReactRenderer } from "@storybook/react-vite";
 import { withThemeByClassName } from "@storybook/addon-themes";
+import {
+  neokapiDecorator,
+  neokapiGlobalType,
+  type NeokapiStorybookOptions,
+} from "@neokapi/react/storybook";
 import { themes } from "storybook/theming";
 import React from "react";
 
@@ -20,6 +25,8 @@ export function ThemeDecorator(Story: React.ComponentType) {
 export const prefersDark =
   typeof window !== "undefined" && window.matchMedia("(prefers-color-scheme: dark)").matches;
 
+export type I18nOptions = NeokapiStorybookOptions;
+
 export interface CreatePreviewOptions {
   /** Default Storybook layout: "centered" | "fullscreen" | "padded". */
   layout?: "centered" | "fullscreen" | "padded";
@@ -29,6 +36,11 @@ export interface CreatePreviewOptions {
   sortOrder?: string[];
   /** Additional decorators inserted before theme decorators. */
   decorators?: Decorator[];
+  /**
+   * Enable a locale toolbar driven by @neokapi/react. Pair with `i18n: true`
+   * in createMainConfig() so stories receive the runtime transform.
+   */
+  i18n?: I18nOptions;
 }
 
 /**
@@ -41,6 +53,7 @@ export function createPreview(options: CreatePreviewOptions = {}): Preview {
     defaultTheme = "system",
     sortOrder,
     decorators: extraDecorators = [],
+    i18n,
   } = options;
 
   const resolvedDefault =
@@ -69,6 +82,7 @@ export function createPreview(options: CreatePreviewOptions = {}): Preview {
     },
     decorators: [
       ...extraDecorators,
+      ...(i18n ? [neokapiDecorator(i18n)] : []),
       ThemeDecorator,
       withThemeByClassName<ReactRenderer>({
         themes: {
@@ -78,6 +92,11 @@ export function createPreview(options: CreatePreviewOptions = {}): Preview {
         defaultTheme: resolvedDefault,
       }),
     ],
+    ...(i18n && {
+      globalTypes: {
+        locale: neokapiGlobalType(i18n),
+      },
+    }),
   };
 
   return preview;

@@ -246,11 +246,14 @@ export const api = {
   clearRecentFiles: () => call<void>("ClearRecentFiles"),
 
   // Settings
-  getSettings: () => call<{ theme: string; samples_dismissed?: boolean }>("GetSettings"),
+  getSettings: () =>
+    call<{ theme: string; ui_language?: string; samples_dismissed?: boolean }>("GetSettings"),
   saveSettings: (s: Record<string, unknown>) => call<void>("SaveSettings", s),
   dismissSamples: () => call<void>("DismissSamples"),
   getTheme: () => call<string>("GetTheme"),
   setTheme: (theme: string) => call<void>("SetTheme", theme),
+  getUILanguage: () => call<string>("GetUILanguage"),
+  setUILanguage: (lang: string) => call<void>("SetUILanguage", lang),
 
   // Recovery
   recoverResource: (path: string) => call<string>("RecoverResource", path),
