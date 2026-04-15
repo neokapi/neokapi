@@ -56,6 +56,12 @@ func withParallelBlocks(n int) func(*schema.ToolMeta) {
 	return func(m *schema.ToolMeta) { m.DefaultParallelBlocks = n }
 }
 
+// Keep withParallelBlocks reachable until the first tool adopts it.
+// Without this anchor, linters flag the helper as unused even though
+// it's part of the builder chain that sits next to withWritesOutput
+// / withSideEffects / withAliases.
+var _ = withParallelBlocks
+
 func withAliases(aliases ...string) func(*schema.ToolMeta) {
 	return func(m *schema.ToolMeta) { m.Aliases = aliases }
 }

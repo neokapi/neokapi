@@ -2,6 +2,7 @@ package klf
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 )
 
@@ -108,7 +109,7 @@ type SubRun struct {
 // PluralRun is the inner part of a structured plural construct.
 // The outer wrapper is a Run containing this via its Plural field.
 type PluralRun struct {
-	Pivot string            `json:"pivot"`
+	Pivot string               `json:"pivot"`
 	Forms map[PluralForm][]Run `json:"forms"`
 }
 
@@ -232,7 +233,7 @@ func (r *Run) UnmarshalJSON(data []byte) error {
 		}
 	}
 	if seen == 0 {
-		return fmt.Errorf("klf: run has no discriminator")
+		return errors.New("klf: run has no discriminator")
 	}
 	if seen > 1 {
 		return fmt.Errorf("klf: run has multiple discriminators (%d)", seen)
@@ -246,7 +247,7 @@ func (r *Run) UnmarshalJSON(data []byte) error {
 func (r Run) MarshalJSON() ([]byte, error) {
 	switch r.Kind() {
 	case "":
-		return nil, fmt.Errorf("klf: run has no discriminator")
+		return nil, errors.New("klf: run has no discriminator")
 	case "text":
 		return json.Marshal(struct {
 			Text *TextRun `json:"text"`

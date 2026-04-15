@@ -20,14 +20,14 @@ import (
 // two-faced API — query helpers (TM, BlockByID, SimilarSources)
 // land in Phase 4.
 type Reader struct {
-	archive        *zip.Reader
-	closer         io.Closer
-	manifest       *Manifest
-	manifestBytes  []byte
-	pathIndex      map[string]*zip.File
-	maxPartBytes   int64
-	maxTotalBytes  int64
-	totalInflated  int64
+	archive       *zip.Reader
+	closer        io.Closer
+	manifest      *Manifest
+	manifestBytes []byte
+	pathIndex     map[string]*zip.File
+	maxPartBytes  int64
+	maxTotalBytes int64
+	totalInflated int64
 }
 
 // ReaderOptions configures a Reader.

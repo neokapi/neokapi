@@ -3,6 +3,7 @@ package klf
 import (
 	"bufio"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"strings"
@@ -154,7 +155,7 @@ func (s *RunPathStep) UnmarshalJSON(data []byte) error {
 		*s = RunPathStep{Kind: StepSelect, SelectValue: v}
 		return nil
 	}
-	return fmt.Errorf("klf: run path step has no recognized discriminator")
+	return errors.New("klf: run path step has no recognized discriminator")
 }
 
 // ───────── anchor resolution ─────────
@@ -387,7 +388,7 @@ func DecodeAnnotationFile(r io.Reader) (*AnnotationFile, error) {
 		return nil, fmt.Errorf("klf: read annotation header: %w", err)
 	}
 	if header == nil {
-		return nil, fmt.Errorf("klf: empty annotation file")
+		return nil, errors.New("klf: empty annotation file")
 	}
 	if err := json.Unmarshal(header, &out.Header); err != nil {
 		return nil, fmt.Errorf("klf: decode annotation header: %w", err)
@@ -445,7 +446,7 @@ func readJSONLine(br *bufio.Reader) ([]byte, error) {
 // 0001.
 func EncodeAnnotationFile(w io.Writer, f *AnnotationFile) error {
 	if f == nil {
-		return fmt.Errorf("klf: encode nil annotation file")
+		return errors.New("klf: encode nil annotation file")
 	}
 	// Header.
 	headerLine := AnnotationFileHeader{

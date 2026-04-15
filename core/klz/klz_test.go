@@ -408,8 +408,8 @@ func fixtureShoppingCart() *klf.Block {
 			{Plural: &klf.PluralRun{
 				Pivot: "count",
 				Forms: map[klf.PluralForm][]klf.Run{
-					klf.PluralZero:  {{Text: &klf.TextRun{Text: "Your cart is empty"}}},
-					klf.PluralOne:   {{Text: &klf.TextRun{Text: "1 item in your cart"}}},
+					klf.PluralZero: {{Text: &klf.TextRun{Text: "Your cart is empty"}}},
+					klf.PluralOne:  {{Text: &klf.TextRun{Text: "1 item in your cart"}}},
 					klf.PluralOther: {
 						{Ph: &klf.PlaceholderRun{
 							ID: "1", Type: "jsx:var", SubType: "number",

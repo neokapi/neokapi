@@ -2,7 +2,7 @@ package klz
 
 import (
 	"context"
-	"fmt"
+	"errors"
 
 	"github.com/neokapi/neokapi/core/klz/internal/db"
 )
@@ -25,6 +25,6 @@ func (r *Reader) WarmCache(ctx context.Context) error {
 	return db.Build(ctx, r.ManifestHash())
 }
 
-// CacheErrNotBuilt is returned when query helpers are called
+// ErrCacheNotBuilt is returned when query helpers are called
 // before the Phase-4 cache layer is present.
-var CacheErrNotBuilt = fmt.Errorf("klz: runtime cache is unavailable in this build (phase 4 feature)")
+var ErrCacheNotBuilt = errors.New("klz: runtime cache is unavailable in this build (phase 4 feature)")
