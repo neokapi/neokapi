@@ -193,23 +193,24 @@ func (w *Writer) writeOriginal(origZR *zip.Reader, zw *zip.Writer) error {
 
 // renderBlock converts a block's content back to plain text for IDML Content elements.
 func (w *Writer) renderBlock(block *model.Block) string {
-	frag := w.getFragment(block)
-	if frag == nil {
+	runs := w.blockRuns(block)
+	if runs == nil {
 		return ""
 	}
-	return xmlEscape(frag.Text())
+	return xmlEscape(model.FlattenRuns(runs))
 }
 
-// getFragment returns the appropriate fragment (target or source) for a block.
-func (w *Writer) getFragment(block *model.Block) *model.Fragment {
+// blockRuns returns the target or source Run sequence for the block,
+// preferring the configured target locale when present.
+func (w *Writer) blockRuns(block *model.Block) []model.Run {
 	if !w.Locale.IsEmpty() && block.HasTarget(w.Locale) {
 		segs := block.Targets[w.Locale]
 		if len(segs) > 0 && len(segs[0].Runs) > 0 {
-			return model.RunsToFragment(segs[0].Runs)
+			return segs[0].Runs
 		}
 	}
 	if len(block.Source) > 0 && len(block.Source[0].Runs) > 0 {
-		return model.RunsToFragment(block.Source[0].Runs)
+		return block.Source[0].Runs
 	}
 	return nil
 }
