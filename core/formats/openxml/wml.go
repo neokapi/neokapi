@@ -646,19 +646,20 @@ func (p *wmlParser) buildBlock(id string, runs []textRun, partPath string) *mode
 		}
 	}
 
+	// Apply code finder before block construction so the Run
+	// conversion sees the placeholder spans the finder inserts.
+	if p.codeFinder != nil {
+		p.codeFinder.apply(frag, &spanCounter)
+	}
+
 	block := &model.Block{
 		ID:           id,
 		Type:         "paragraph",
 		Translatable: true,
-		Source:       []*model.Segment{{ID: "s1", Content: frag}},
+		Source:       []*model.Segment{model.NewRunsSegment("s1", model.FragmentToRuns(frag))},
 		Targets:      make(map[model.LocaleID][]*model.Segment),
 		Properties:   map[string]string{"partPath": partPath},
 		Annotations:  make(map[string]model.Annotation),
-	}
-
-	// Apply code finder if configured
-	if p.codeFinder != nil {
-		p.codeFinder.apply(frag, &spanCounter)
 	}
 
 	// Collect font info if configured
