@@ -92,13 +92,13 @@ type SubRunInfo struct {
 
 // PluralRunInfo is a structured plural construct.
 type PluralRunInfo struct {
-	Pivot string                `json:"pivot"`
+	Pivot string               `json:"pivot"`
 	Forms map[string][]RunInfo `json:"forms"`
 }
 
 // SelectRunInfo is a structured select construct.
 type SelectRunInfo struct {
-	Pivot string                `json:"pivot"`
+	Pivot string               `json:"pivot"`
 	Cases map[string][]RunInfo `json:"cases"`
 }
 
@@ -116,11 +116,11 @@ type RunInfo struct {
 
 // BlockInfo is a serializable representation of a translatable block.
 type BlockInfo struct {
-	ID           string                `json:"id"`
-	SourceRuns   []RunInfo             `json:"sourceRuns,omitempty"`
-	TargetRuns   map[string][]RunInfo  `json:"targetRuns,omitempty"`
-	Translatable bool                  `json:"translatable"`
-	Properties   map[string]string     `json:"properties"`
+	ID           string               `json:"id"`
+	SourceRuns   []RunInfo            `json:"sourceRuns,omitempty"`
+	TargetRuns   map[string][]RunInfo `json:"targetRuns,omitempty"`
+	Translatable bool                 `json:"translatable"`
+	Properties   map[string]string    `json:"properties"`
 }
 
 // UpdateBlockRequest holds parameters for updating a block target.

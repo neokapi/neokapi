@@ -136,7 +136,7 @@ func ProtoToBlock(sb *pb.SyncBlock) *model.Block {
 func segmentToProto(seg *model.Segment) *pb.SyncSegment {
 	return &pb.SyncSegment{
 		Id:         seg.ID,
-		Runs:       runsToSyncProto(seg.Runs()),
+		Runs:       runsToSyncProto(seg.Runs),
 		Properties: seg.Properties,
 	}
 }
@@ -277,7 +277,6 @@ func syncProtoToRunConstraints(msg *pb.SyncRunConstraints) *model.RunConstraints
 	}
 	return &model.RunConstraints{Deletable: msg.GetDeletable(), Cloneable: msg.GetCloneable(), Reorderable: msg.GetReorderable()}
 }
-
 
 // ComputeItemHash computes the Merkle hash for an item by hashing
 // all its block content hashes in sorted order.

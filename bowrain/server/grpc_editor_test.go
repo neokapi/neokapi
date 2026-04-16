@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"net"
+	"strings"
 	"testing"
 
 	pb "github.com/neokapi/neokapi/bowrain/proto/v1"
@@ -124,13 +125,13 @@ func TestEditorGRPCGetBlocks(t *testing.T) {
 // flattenEditorRuns returns the plain-text flattening of EditorRun
 // sequence — used in tests that assert on block content.
 func flattenEditorRuns(runs []*pb.EditorRun) string {
-	var s string
+	var b strings.Builder
 	for _, r := range runs {
 		if t, ok := r.GetKind().(*pb.EditorRun_Text); ok {
-			s += t.Text.GetText()
+			b.WriteString(t.Text.GetText())
 		}
 	}
-	return s
+	return b.String()
 }
 
 func TestEditorGRPCUpdateBlockTarget(t *testing.T) {

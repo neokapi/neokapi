@@ -93,24 +93,11 @@ func AssetToSyncMedia(a *store.Asset) SyncMedia {
 }
 
 func segmentToWire(seg *model.Segment) SyncSegment {
-	ws := SyncSegment{
+	return SyncSegment{
 		ID:         seg.ID,
+		Runs:       modelRunsToSync(seg.Runs),
 		Properties: seg.Properties,
 	}
-	if seg.Content != nil {
-		ws.Text = seg.Content.Text()
-		ws.CodedText = seg.Content.CodedText
-		for _, span := range seg.Content.Spans {
-			ws.Spans = append(ws.Spans, SyncSpan{
-				ID:       span.ID,
-				Type:     span.Type,
-				SubType:  span.SubType,
-				SpanType: span.SpanType.String(),
-				Data:     span.Data,
-			})
-		}
-	}
-	return ws
 }
 
 // SyncBlockToBlock converts a SyncBlock wire type back to a model.Block.
@@ -172,38 +159,123 @@ func SyncBlockToBlock(sb SyncBlock) *model.Block {
 }
 
 func wireToSegment(ws SyncSegment) *model.Segment {
-	seg := &model.Segment{
+	return &model.Segment{
 		ID:         ws.ID,
+		Runs:       syncRunsToModel(ws.Runs),
 		Properties: ws.Properties,
 	}
-	frag := &model.Fragment{
-		CodedText: ws.CodedText,
-	}
-	if frag.CodedText == "" {
-		frag.CodedText = ws.Text
-	}
-	for _, sp := range ws.Spans {
-		frag.Spans = append(frag.Spans, &model.Span{
-			ID:       sp.ID,
-			Type:     sp.Type,
-			SubType:  sp.SubType,
-			SpanType: parseSpanType(sp.SpanType),
-			Data:     sp.Data,
-		})
-	}
-	seg.Content = frag
-	return seg
 }
 
-func parseSpanType(s string) model.SpanType {
-	switch s {
-	case "Opening":
-		return model.SpanOpening
-	case "Closing":
-		return model.SpanClosing
-	case "Placeholder":
-		return model.SpanPlaceholder
-	default:
-		return model.SpanPlaceholder
+func modelRunsToSync(runs []model.Run) []SyncRun {
+	if len(runs) == 0 {
+		return nil
 	}
+	out := make([]SyncRun, len(runs))
+	for i, r := range runs {
+		out[i] = modelRunToSync(r)
+	}
+	return out
+}
+
+func syncRunsToModel(runs []SyncRun) []model.Run {
+	if len(runs) == 0 {
+		return nil
+	}
+	out := make([]model.Run, len(runs))
+	for i, r := range runs {
+		out[i] = syncRunToModel(r)
+	}
+	return out
+}
+
+func modelRunToSync(r model.Run) SyncRun {
+	switch {
+	case r.Text != nil:
+		return SyncRun{Text: &SyncTextRun{Text: r.Text.Text}}
+	case r.Ph != nil:
+		return SyncRun{Ph: &SyncPlaceholderRun{
+			ID: r.Ph.ID, Type: r.Ph.Type, SubType: r.Ph.SubType,
+			Data: r.Ph.Data, Equiv: r.Ph.Equiv, Disp: r.Ph.Disp,
+			Constraints: modelRunConstraintsToSync(r.Ph.Constraints),
+		}}
+	case r.PcOpen != nil:
+		return SyncRun{PcOpen: &SyncPcOpenRun{
+			ID: r.PcOpen.ID, Type: r.PcOpen.Type, SubType: r.PcOpen.SubType,
+			Data: r.PcOpen.Data, Equiv: r.PcOpen.Equiv, Disp: r.PcOpen.Disp,
+			Constraints: modelRunConstraintsToSync(r.PcOpen.Constraints),
+		}}
+	case r.PcClose != nil:
+		return SyncRun{PcClose: &SyncPcCloseRun{
+			ID: r.PcClose.ID, Type: r.PcClose.Type, SubType: r.PcClose.SubType,
+			Data: r.PcClose.Data, Equiv: r.PcClose.Equiv,
+		}}
+	case r.Sub != nil:
+		return SyncRun{Sub: &SyncSubRun{ID: r.Sub.ID, Ref: r.Sub.Ref, Equiv: r.Sub.Equiv}}
+	case r.Plural != nil:
+		forms := make(map[string][]SyncRun, len(r.Plural.Forms))
+		for form, runs := range r.Plural.Forms {
+			forms[string(form)] = modelRunsToSync(runs)
+		}
+		return SyncRun{Plural: &SyncPluralRun{Pivot: r.Plural.Pivot, Forms: forms}}
+	case r.Select != nil:
+		cases := make(map[string][]SyncRun, len(r.Select.Cases))
+		for key, runs := range r.Select.Cases {
+			cases[key] = modelRunsToSync(runs)
+		}
+		return SyncRun{Select: &SyncSelectRun{Pivot: r.Select.Pivot, Cases: cases}}
+	}
+	return SyncRun{}
+}
+
+func syncRunToModel(r SyncRun) model.Run {
+	switch {
+	case r.Text != nil:
+		return model.Run{Text: &model.TextRun{Text: r.Text.Text}}
+	case r.Ph != nil:
+		return model.Run{Ph: &model.PlaceholderRun{
+			ID: r.Ph.ID, Type: r.Ph.Type, SubType: r.Ph.SubType,
+			Data: r.Ph.Data, Equiv: r.Ph.Equiv, Disp: r.Ph.Disp,
+			Constraints: syncRunConstraintsToModel(r.Ph.Constraints),
+		}}
+	case r.PcOpen != nil:
+		return model.Run{PcOpen: &model.PcOpenRun{
+			ID: r.PcOpen.ID, Type: r.PcOpen.Type, SubType: r.PcOpen.SubType,
+			Data: r.PcOpen.Data, Equiv: r.PcOpen.Equiv, Disp: r.PcOpen.Disp,
+			Constraints: syncRunConstraintsToModel(r.PcOpen.Constraints),
+		}}
+	case r.PcClose != nil:
+		return model.Run{PcClose: &model.PcCloseRun{
+			ID: r.PcClose.ID, Type: r.PcClose.Type, SubType: r.PcClose.SubType,
+			Data: r.PcClose.Data, Equiv: r.PcClose.Equiv,
+		}}
+	case r.Sub != nil:
+		return model.Run{Sub: &model.SubRun{ID: r.Sub.ID, Ref: r.Sub.Ref, Equiv: r.Sub.Equiv}}
+	case r.Plural != nil:
+		forms := make(map[model.PluralForm][]model.Run, len(r.Plural.Forms))
+		for form, runs := range r.Plural.Forms {
+			forms[model.PluralForm(form)] = syncRunsToModel(runs)
+		}
+		return model.Run{Plural: &model.PluralRun{Pivot: r.Plural.Pivot, Forms: forms}}
+	case r.Select != nil:
+		cases := make(map[string][]model.Run, len(r.Select.Cases))
+		for key, runs := range r.Select.Cases {
+			cases[key] = syncRunsToModel(runs)
+		}
+		return model.Run{Select: &model.SelectRun{Pivot: r.Select.Pivot, Cases: cases}}
+	}
+	return model.Run{}
+}
+
+func modelRunConstraintsToSync(c *model.RunConstraints) *SyncRunConstraints {
+	if c == nil {
+		return nil
+	}
+	return &SyncRunConstraints{Deletable: c.Deletable, Cloneable: c.Cloneable, Reorderable: c.Reorderable}
+}
+
+func syncRunConstraintsToModel(c *SyncRunConstraints) *model.RunConstraints {
+	if c == nil {
+		return nil
+	}
+	return &model.RunConstraints{Deletable: c.Deletable, Cloneable: c.Cloneable, Reorderable: c.Reorderable}
 }

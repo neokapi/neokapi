@@ -369,7 +369,6 @@ func (a *App) reviewBlockLocal(projectID, blockID string, reviewed bool) error {
 	return a.store.StoreBlocks(ctx, projectID, "main", []*model.Block{sb.Block})
 }
 
-
 // PseudoTranslateItem pseudo-translates all blocks in an item.
 func (a *App) PseudoTranslateItem(projectID, itemName, targetLocale string) (*TranslationStats, error) {
 	ctx := context.Background()

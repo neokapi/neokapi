@@ -98,8 +98,8 @@ func segmentsText(segs []*model.Segment) string {
 	if len(segs) == 0 {
 		return ""
 	}
-	if segs[0].Content != nil {
-		return segs[0].Content.Text()
+	if segs[0].Fragment() != nil {
+		return segs[0].Text()
 	}
 	return ""
 }
@@ -109,8 +109,8 @@ func segmentsCodedText(segs []*model.Segment) string {
 	if len(segs) == 0 {
 		return ""
 	}
-	if segs[0].Content != nil {
-		return segs[0].Content.CodedText
+	if segs[0].Fragment() != nil {
+		return segs[0].Fragment().CodedText
 	}
 	return ""
 }

@@ -1124,10 +1124,10 @@ func storedBlockToInfoResponse(sb *store.StoredBlock, targetLocales []string) Bl
 }
 
 func enrichBlockInfoResponse(bi *BlockInfoResponse, block *model.Block, targetLocales []string) {
-	if len(block.Source) == 0 || block.Source[0].Content == nil {
+	if len(block.Source) == 0 || block.Source[0].Fragment() == nil {
 		return
 	}
-	frag := block.Source[0].Content
+	frag := block.Source[0].Fragment()
 	if !frag.HasSpans() {
 		return
 	}
@@ -1145,8 +1145,8 @@ func enrichBlockInfoResponse(bi *BlockInfoResponse, block *model.Block, targetLo
 		if !ok || len(segs) == 0 {
 			continue
 		}
-		if segs[0].Content != nil {
-			bi.TargetsCoded[locale] = segs[0].Content.CodedText
+		if segs[0].Fragment() != nil {
+			bi.TargetsCoded[locale] = segs[0].Fragment().CodedText
 		}
 	}
 }
