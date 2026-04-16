@@ -144,7 +144,10 @@ func (w *Writer) renderBlockXML(block *model.Block) string {
 	}
 	var buf strings.Builder
 	for _, seg := range segs {
-		w.renderFragmentXML(&buf, seg.Fragment())
+		if len(seg.Runs) == 0 {
+			continue
+		}
+		w.renderFragmentXML(&buf, model.RunsToFragment(seg.Runs))
 	}
 	return buf.String()
 }
@@ -280,7 +283,10 @@ func (w *Writer) blockText(block *model.Block) string {
 func (w *Writer) renderSegments(segs []*model.Segment) string {
 	var buf strings.Builder
 	for _, seg := range segs {
-		w.renderFragment(&buf, seg.Fragment())
+		if len(seg.Runs) == 0 {
+			continue
+		}
+		w.renderFragment(&buf, model.RunsToFragment(seg.Runs))
 	}
 	return buf.String()
 }

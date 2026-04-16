@@ -152,12 +152,12 @@ func (w *Writer) blockText(block *model.Block) string {
 func (w *Writer) getFragment(block *model.Block) *model.Fragment {
 	if !w.Locale.IsEmpty() && block.HasTarget(w.Locale) {
 		segs := block.Targets[w.Locale]
-		if len(segs) > 0 && segs[0].Fragment() != nil {
-			return segs[0].Fragment()
+		if len(segs) > 0 && len(segs[0].Runs) > 0 {
+			return model.RunsToFragment(segs[0].Runs)
 		}
 	}
-	if len(block.Source) > 0 && block.Source[0].Fragment() != nil {
-		return block.Source[0].Fragment()
+	if len(block.Source) > 0 && len(block.Source[0].Runs) > 0 {
+		return model.RunsToFragment(block.Source[0].Runs)
 	}
 	return nil
 }
