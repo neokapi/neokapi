@@ -145,13 +145,16 @@ func NewPseudoTranslateTool(cfg *PseudoConfig) *tool.BaseTool {
 		}
 
 		conf := t.Cfg.(*PseudoConfig)
-		frag := block.FirstFragment()
-		if frag != nil && frag.HasSpans() {
-			// Pseudo-translate coded text, preserving span markers
-			pseudoCoded := pseudoTranslateCoded(frag.CodedText, conf)
-			targetFrag := frag.Clone()
-			targetFrag.CodedText = pseudoCoded
-			block.SetTargetFragment(conf.TargetLocale, targetFrag)
+		runs := block.SourceRuns()
+		if len(runs) == 0 {
+			return part, nil
+		}
+		if runsHaveInline(runs) {
+			// Pseudo-translate text runs in place, leaving paired
+			// codes and placeholders untouched per RFC 0001 §Phase 2
+			// (Runs are first-class and inline markup is protected).
+			targetRuns := pseudoTranslateRuns(runs, conf)
+			block.SetTargetRuns(conf.TargetLocale, targetRuns)
 		} else {
 			sourceText := block.SourceText()
 			if sourceText == "" {
@@ -165,47 +168,47 @@ func NewPseudoTranslateTool(cfg *PseudoConfig) *tool.BaseTool {
 	return t
 }
 
-// pseudoTranslateCoded applies pseudo-translation to coded text, preserving
-// inline span markers (Unicode private use area characters).
-func pseudoTranslateCoded(coded string, cfg *PseudoConfig) string {
-	// Step 1: Replace ASCII characters with accented equivalents, skip markers.
-	var accented strings.Builder
-	markerCount := 0
-	for _, r := range coded {
-		if r >= '\uE001' && r <= '\uE003' {
-			accented.WriteRune(r)
-			markerCount++
-		} else if replacement, ok := accentMap[r]; ok {
-			accented.WriteRune(replacement)
-		} else {
-			accented.WriteRune(r)
+// runsHaveInline reports whether the run sequence contains any
+// non-text run (placeholder, paired code, subblock reference, or
+// structured plural/select construct). Used by pseudo-translate to
+// pick between the text-only fast path and the Run-walker path.
+func runsHaveInline(runs []model.Run) bool {
+	for _, r := range runs {
+		if r.Text == nil {
+			return true
 		}
 	}
+	return false
+}
 
-	result := accented.String()
-
-	// Step 2: Add expansion padding (based on text length, excluding markers).
-	if cfg.ExpansionPercent > 0 {
-		textLen := len([]rune(result)) - markerCount
-		paddingLen := (textLen * cfg.ExpansionPercent) / 100
-		if paddingLen > 0 {
-			padding := strings.Repeat("~", paddingLen)
-			result = result + " " + padding
+// pseudoTranslateRuns walks a run sequence and pseudo-translates
+// the text of TextRuns in place, leaving every other run type
+// unchanged. Also recurses into plural/select form runs so inline
+// markup stays protected inside structured constructs.
+func pseudoTranslateRuns(runs []model.Run, cfg *PseudoConfig) []model.Run {
+	out := make([]model.Run, len(runs))
+	for i, r := range runs {
+		switch {
+		case r.Text != nil:
+			rtext := pseudoTranslate(r.Text.Text, cfg)
+			out[i] = model.Run{Text: &model.TextRun{Text: rtext}}
+		case r.Plural != nil:
+			forms := make(map[model.PluralForm][]model.Run, len(r.Plural.Forms))
+			for k, v := range r.Plural.Forms {
+				forms[k] = pseudoTranslateRuns(v, cfg)
+			}
+			out[i] = model.Run{Plural: &model.PluralRun{Pivot: r.Plural.Pivot, Forms: forms}}
+		case r.Select != nil:
+			cases := make(map[string][]model.Run, len(r.Select.Cases))
+			for k, v := range r.Select.Cases {
+				cases[k] = pseudoTranslateRuns(v, cfg)
+			}
+			out[i] = model.Run{Select: &model.SelectRun{Pivot: r.Select.Pivot, Cases: cases}}
+		default:
+			out[i] = r
 		}
 	}
-
-	// Step 3: Wrap with prefix/suffix.
-	prefix := cfg.Prefix
-	suffix := cfg.Suffix
-	if prefix == "" {
-		prefix = "["
-	}
-	if suffix == "" {
-		suffix = "]"
-	}
-	result = prefix + result + suffix
-
-	return result
+	return out
 }
 
 // pseudoTranslate applies pseudo-translation transformations to text.
