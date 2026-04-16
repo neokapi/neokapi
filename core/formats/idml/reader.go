@@ -280,7 +280,7 @@ func (r *Reader) parseStory(ctx context.Context, ch chan<- model.PartResult,
 						block := &model.Block{
 							ID:           blockID,
 							Translatable: true,
-							Source:       []*model.Segment{{ID: "s1", Content: model.NewFragment(text)}},
+							Source:       []*model.Segment{model.NewRunsSegment("s1", []model.Run{{Text: &model.TextRun{Text: text}}})},
 							Targets:      make(map[model.LocaleID][]*model.Segment),
 							Properties: map[string]string{
 								"storyPath":      storyPath,
