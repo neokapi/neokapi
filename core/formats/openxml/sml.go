@@ -279,10 +279,10 @@ func (p *smlParser) parseWorksheet(data []byte, partPath string, emitBlock func(
 							ID:           blockID,
 							Type:         "cell",
 							Translatable: true,
-							Source: []*model.Segment{model.NewRunsSegment("s1", []model.Run{{Text: &model.TextRun{Text: text}}})},
-							Targets:     make(map[model.LocaleID][]*model.Segment),
-							Properties:  map[string]string{"partPath": partPath, "cell": cellRef},
-							Annotations: make(map[string]model.Annotation),
+							Source:       []*model.Segment{model.NewRunsSegment("s1", []model.Run{{Text: &model.TextRun{Text: text}}})},
+							Targets:      make(map[model.LocaleID][]*model.Segment),
+							Properties:   map[string]string{"partPath": partPath, "cell": cellRef},
+							Annotations:  make(map[string]model.Annotation),
 						}
 						emitBlock(block)
 					} else {

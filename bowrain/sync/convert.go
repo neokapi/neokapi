@@ -134,24 +134,11 @@ func ProtoToBlock(sb *pb.SyncBlock) *model.Block {
 
 // segmentToProto converts a model.Segment to proto.
 func segmentToProto(seg *model.Segment) *pb.SyncSegment {
-	ps := &pb.SyncSegment{
+	return &pb.SyncSegment{
 		Id:         seg.ID,
+		Runs:       runsToSyncProto(seg.Runs()),
 		Properties: seg.Properties,
 	}
-	if seg.Content != nil {
-		ps.Text = seg.Content.Text()
-		ps.CodedText = seg.Content.CodedText
-		for _, span := range seg.Content.Spans {
-			ps.Spans = append(ps.Spans, &pb.SyncSpan{
-				Id:       span.ID,
-				Type:     span.Type,
-				SubType:  span.SubType,
-				SpanType: span.SpanType.String(),
-				Data:     span.Data,
-			})
-		}
-	}
-	return ps
 }
 
 // protoToSegment converts a proto segment to model.Segment.
@@ -160,37 +147,137 @@ func protoToSegment(ps *pb.SyncSegment) *model.Segment {
 		ID:         ps.Id,
 		Properties: ps.Properties,
 	}
-	frag := &model.Fragment{
-		CodedText: ps.CodedText,
-	}
-	if frag.CodedText == "" {
-		frag.CodedText = ps.Text
-	}
-	for _, sp := range ps.Spans {
-		frag.Spans = append(frag.Spans, &model.Span{
-			ID:       sp.Id,
-			Type:     sp.Type,
-			SubType:  sp.SubType,
-			SpanType: parseSpanType(sp.SpanType),
-			Data:     sp.Data,
-		})
-	}
-	seg.Content = frag
+	seg.SetRuns(syncProtoToRuns(ps.Runs))
 	return seg
 }
 
-func parseSpanType(s string) model.SpanType {
-	switch s {
-	case "Opening":
-		return model.SpanOpening
-	case "Closing":
-		return model.SpanClosing
-	case "Placeholder":
-		return model.SpanPlaceholder
-	default:
-		return model.SpanPlaceholder
+// runsToSyncProto converts a run sequence into the wire form.
+func runsToSyncProto(runs []model.Run) []*pb.SyncRun {
+	if len(runs) == 0 {
+		return nil
 	}
+	out := make([]*pb.SyncRun, len(runs))
+	for i, r := range runs {
+		out[i] = runToSyncProto(r)
+	}
+	return out
 }
+
+// syncProtoToRuns converts wire runs into model.Run form.
+func syncProtoToRuns(msgs []*pb.SyncRun) []model.Run {
+	if len(msgs) == 0 {
+		return nil
+	}
+	out := make([]model.Run, len(msgs))
+	for i, m := range msgs {
+		out[i] = syncProtoToRun(m)
+	}
+	return out
+}
+
+func runToSyncProto(r model.Run) *pb.SyncRun {
+	switch {
+	case r.Text != nil:
+		return &pb.SyncRun{Kind: &pb.SyncRun_Text{Text: &pb.SyncTextRun{Text: r.Text.Text}}}
+	case r.Ph != nil:
+		return &pb.SyncRun{Kind: &pb.SyncRun_Ph{Ph: &pb.SyncPlaceholderRun{
+			Id: r.Ph.ID, Type: r.Ph.Type, SubType: r.Ph.SubType,
+			Data: r.Ph.Data, Equiv: r.Ph.Equiv, Disp: r.Ph.Disp,
+			Constraints: runConstraintsToSyncProto(r.Ph.Constraints),
+		}}}
+	case r.PcOpen != nil:
+		return &pb.SyncRun{Kind: &pb.SyncRun_PcOpen{PcOpen: &pb.SyncPcOpenRun{
+			Id: r.PcOpen.ID, Type: r.PcOpen.Type, SubType: r.PcOpen.SubType,
+			Data: r.PcOpen.Data, Equiv: r.PcOpen.Equiv, Disp: r.PcOpen.Disp,
+			Constraints: runConstraintsToSyncProto(r.PcOpen.Constraints),
+		}}}
+	case r.PcClose != nil:
+		return &pb.SyncRun{Kind: &pb.SyncRun_PcClose{PcClose: &pb.SyncPcCloseRun{
+			Id: r.PcClose.ID, Type: r.PcClose.Type, SubType: r.PcClose.SubType,
+			Data: r.PcClose.Data, Equiv: r.PcClose.Equiv,
+		}}}
+	case r.Sub != nil:
+		return &pb.SyncRun{Kind: &pb.SyncRun_Sub{Sub: &pb.SyncSubRun{
+			Id: r.Sub.ID, Ref: r.Sub.Ref, Equiv: r.Sub.Equiv,
+		}}}
+	case r.Plural != nil:
+		forms := make(map[string]*pb.SyncRunList, len(r.Plural.Forms))
+		for form, runs := range r.Plural.Forms {
+			forms[string(form)] = &pb.SyncRunList{Runs: runsToSyncProto(runs)}
+		}
+		return &pb.SyncRun{Kind: &pb.SyncRun_Plural{Plural: &pb.SyncPluralRun{
+			Pivot: r.Plural.Pivot, Forms: forms,
+		}}}
+	case r.Select != nil:
+		cases := make(map[string]*pb.SyncRunList, len(r.Select.Cases))
+		for key, runs := range r.Select.Cases {
+			cases[key] = &pb.SyncRunList{Runs: runsToSyncProto(runs)}
+		}
+		return &pb.SyncRun{Kind: &pb.SyncRun_Select{Select: &pb.SyncSelectRun{
+			Pivot: r.Select.Pivot, Cases: cases,
+		}}}
+	}
+	return nil
+}
+
+func syncProtoToRun(msg *pb.SyncRun) model.Run {
+	if msg == nil {
+		return model.Run{}
+	}
+	switch k := msg.Kind.(type) {
+	case *pb.SyncRun_Text:
+		return model.Run{Text: &model.TextRun{Text: k.Text.GetText()}}
+	case *pb.SyncRun_Ph:
+		return model.Run{Ph: &model.PlaceholderRun{
+			ID: k.Ph.GetId(), Type: k.Ph.GetType(), SubType: k.Ph.GetSubType(),
+			Data: k.Ph.GetData(), Equiv: k.Ph.GetEquiv(), Disp: k.Ph.GetDisp(),
+			Constraints: syncProtoToRunConstraints(k.Ph.GetConstraints()),
+		}}
+	case *pb.SyncRun_PcOpen:
+		return model.Run{PcOpen: &model.PcOpenRun{
+			ID: k.PcOpen.GetId(), Type: k.PcOpen.GetType(), SubType: k.PcOpen.GetSubType(),
+			Data: k.PcOpen.GetData(), Equiv: k.PcOpen.GetEquiv(), Disp: k.PcOpen.GetDisp(),
+			Constraints: syncProtoToRunConstraints(k.PcOpen.GetConstraints()),
+		}}
+	case *pb.SyncRun_PcClose:
+		return model.Run{PcClose: &model.PcCloseRun{
+			ID: k.PcClose.GetId(), Type: k.PcClose.GetType(), SubType: k.PcClose.GetSubType(),
+			Data: k.PcClose.GetData(), Equiv: k.PcClose.GetEquiv(),
+		}}
+	case *pb.SyncRun_Sub:
+		return model.Run{Sub: &model.SubRun{
+			ID: k.Sub.GetId(), Ref: k.Sub.GetRef(), Equiv: k.Sub.GetEquiv(),
+		}}
+	case *pb.SyncRun_Plural:
+		forms := make(map[model.PluralForm][]model.Run, len(k.Plural.GetForms()))
+		for form, runList := range k.Plural.GetForms() {
+			forms[model.PluralForm(form)] = syncProtoToRuns(runList.GetRuns())
+		}
+		return model.Run{Plural: &model.PluralRun{Pivot: k.Plural.GetPivot(), Forms: forms}}
+	case *pb.SyncRun_Select:
+		cases := make(map[string][]model.Run, len(k.Select.GetCases()))
+		for key, runList := range k.Select.GetCases() {
+			cases[key] = syncProtoToRuns(runList.GetRuns())
+		}
+		return model.Run{Select: &model.SelectRun{Pivot: k.Select.GetPivot(), Cases: cases}}
+	}
+	return model.Run{}
+}
+
+func runConstraintsToSyncProto(c *model.RunConstraints) *pb.SyncRunConstraints {
+	if c == nil {
+		return nil
+	}
+	return &pb.SyncRunConstraints{Deletable: c.Deletable, Cloneable: c.Cloneable, Reorderable: c.Reorderable}
+}
+
+func syncProtoToRunConstraints(msg *pb.SyncRunConstraints) *model.RunConstraints {
+	if msg == nil {
+		return nil
+	}
+	return &model.RunConstraints{Deletable: msg.GetDeletable(), Cloneable: msg.GetCloneable(), Reorderable: msg.GetReorderable()}
+}
+
 
 // ComputeItemHash computes the Merkle hash for an item by hashing
 // all its block content hashes in sorted order.

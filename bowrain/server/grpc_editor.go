@@ -197,17 +197,9 @@ func (g *EditorGRPCServer) UpdateBlockTarget(ctx context.Context, req *pb.Update
 
 	locale := model.LocaleID(req.TargetLocale)
 
-	if req.CodedText != "" {
-		// Coded text update with spans.
-		frag := &model.Fragment{CodedText: req.CodedText}
-		for _, si := range req.Spans {
-			frag.Spans = append(frag.Spans, protoToSpan(si))
-		}
-		sb.Block.SetTargetFragment(locale, frag)
-	} else {
-		// Plain text update.
-		sb.Block.SetTargetText(locale, req.Text)
-	}
+	// The Run-based update carries structured inline codes via the
+	// gRPC oneof; an empty slice means "clear target".
+	sb.Block.SetTargetRuns(locale, protoEditorRunsToModel(req.Runs))
 
 	// Mark as human translation.
 	if sb.Block.Properties == nil {
@@ -763,17 +755,13 @@ func (g *EditorGRPCServer) buildEditorProjectInfo(ctx context.Context, proj *sto
 }
 
 func storedBlockToProto(sb *store.StoredBlock, targetLocales []string) *pb.BlockInfo {
-	targets := make(map[string]string, len(targetLocales))
-	targetsCoded := make(map[string]string, len(targetLocales))
+	targetRuns := make(map[string]*pb.EditorRuns, len(targetLocales))
 	for _, locale := range targetLocales {
-		if t := sb.Block.TargetText(model.LocaleID(locale)); t != "" {
-			targets[locale] = t
+		runs := sb.Block.TargetRuns(model.LocaleID(locale))
+		if len(runs) == 0 {
+			continue
 		}
-		// Include coded text for targets with spans.
-		segs, ok := sb.Block.Targets[model.LocaleID(locale)]
-		if ok && len(segs) > 0 && segs[0].Content != nil && segs[0].Content.HasSpans() {
-			targetsCoded[locale] = segs[0].Content.CodedText
-		}
+		targetRuns[locale] = &pb.EditorRuns{Runs: modelRunsToEditorProto(runs)}
 	}
 
 	props := make(map[string]string, len(sb.Block.Properties))
@@ -781,76 +769,141 @@ func storedBlockToProto(sb *store.StoredBlock, targetLocales []string) *pb.Block
 		props[k] = v
 	}
 
-	bi := &pb.BlockInfo{
+	return &pb.BlockInfo{
 		Id:           sb.Block.ID,
-		Source:       sb.Block.SourceText(),
-		Targets:      targets,
-		TargetsCoded: targetsCoded,
+		SourceRuns:   modelRunsToEditorProto(sb.Block.SourceRuns()),
+		TargetRuns:   targetRuns,
 		Translatable: sb.Block.Translatable,
 		Properties:   props,
 	}
+}
 
-	// Enrich with coded text and span info if available.
-	if len(sb.Block.Source) > 0 && sb.Block.Source[0].Content != nil {
-		frag := sb.Block.Source[0].Content
-		if frag.HasSpans() {
-			bi.HasSpans = true
-			bi.SourceCoded = frag.CodedText
-			for _, s := range frag.Spans {
-				bi.SourceSpans = append(bi.SourceSpans, spanToProto(s))
-			}
+// modelRunsToEditorProto converts a Run slice to the EditorRun wire
+// form used by editor gRPC responses and update requests.
+func modelRunsToEditorProto(runs []model.Run) []*pb.EditorRun {
+	if len(runs) == 0 {
+		return nil
+	}
+	out := make([]*pb.EditorRun, len(runs))
+	for i, r := range runs {
+		out[i] = modelRunToEditorProto(r)
+	}
+	return out
+}
+
+// protoEditorRunsToModel reverses modelRunsToEditorProto.
+func protoEditorRunsToModel(msgs []*pb.EditorRun) []model.Run {
+	if len(msgs) == 0 {
+		return nil
+	}
+	out := make([]model.Run, len(msgs))
+	for i, m := range msgs {
+		out[i] = protoEditorRunToModel(m)
+	}
+	return out
+}
+
+func modelRunToEditorProto(r model.Run) *pb.EditorRun {
+	switch {
+	case r.Text != nil:
+		return &pb.EditorRun{Kind: &pb.EditorRun_Text{Text: &pb.EditorTextRun{Text: r.Text.Text}}}
+	case r.Ph != nil:
+		return &pb.EditorRun{Kind: &pb.EditorRun_Ph{Ph: &pb.EditorPlaceholderRun{
+			Id: r.Ph.ID, Type: r.Ph.Type, SubType: r.Ph.SubType,
+			Data: r.Ph.Data, Equiv: r.Ph.Equiv, Disp: r.Ph.Disp,
+			Constraints: runConstraintsToEditorProto(r.Ph.Constraints),
+		}}}
+	case r.PcOpen != nil:
+		return &pb.EditorRun{Kind: &pb.EditorRun_PcOpen{PcOpen: &pb.EditorPcOpenRun{
+			Id: r.PcOpen.ID, Type: r.PcOpen.Type, SubType: r.PcOpen.SubType,
+			Data: r.PcOpen.Data, Equiv: r.PcOpen.Equiv, Disp: r.PcOpen.Disp,
+			Constraints: runConstraintsToEditorProto(r.PcOpen.Constraints),
+		}}}
+	case r.PcClose != nil:
+		return &pb.EditorRun{Kind: &pb.EditorRun_PcClose{PcClose: &pb.EditorPcCloseRun{
+			Id: r.PcClose.ID, Type: r.PcClose.Type, SubType: r.PcClose.SubType,
+			Data: r.PcClose.Data, Equiv: r.PcClose.Equiv,
+		}}}
+	case r.Sub != nil:
+		return &pb.EditorRun{Kind: &pb.EditorRun_Sub{Sub: &pb.EditorSubRun{
+			Id: r.Sub.ID, Ref: r.Sub.Ref, Equiv: r.Sub.Equiv,
+		}}}
+	case r.Plural != nil:
+		forms := make(map[string]*pb.EditorRunList, len(r.Plural.Forms))
+		for form, runs := range r.Plural.Forms {
+			forms[string(form)] = &pb.EditorRunList{Runs: modelRunsToEditorProto(runs)}
 		}
+		return &pb.EditorRun{Kind: &pb.EditorRun_Plural{Plural: &pb.EditorPluralRun{
+			Pivot: r.Plural.Pivot, Forms: forms,
+		}}}
+	case r.Select != nil:
+		cases := make(map[string]*pb.EditorRunList, len(r.Select.Cases))
+		for key, runs := range r.Select.Cases {
+			cases[key] = &pb.EditorRunList{Runs: modelRunsToEditorProto(runs)}
+		}
+		return &pb.EditorRun{Kind: &pb.EditorRun_Select{Select: &pb.EditorSelectRun{
+			Pivot: r.Select.Pivot, Cases: cases,
+		}}}
 	}
-
-	return bi
+	return nil
 }
 
-func spanToProto(s *model.Span) *pb.SpanInfo {
-	var spanType string
-	switch s.SpanType {
-	case model.SpanOpening:
-		spanType = "opening"
-	case model.SpanClosing:
-		spanType = "closing"
-	case model.SpanPlaceholder:
-		spanType = "placeholder"
+func protoEditorRunToModel(msg *pb.EditorRun) model.Run {
+	if msg == nil {
+		return model.Run{}
 	}
-	return &pb.SpanInfo{
-		SpanType:    spanType,
-		Type:        s.Type,
-		Id:          s.ID,
-		Data:        s.Data,
-		SubType:     s.SubType,
-		DisplayText: s.DisplayText,
-		EquivText:   s.EquivText,
-		Deletable:   s.Deletable,
-		Cloneable:   s.Cloneable,
-		CanReorder:  s.CanReorder,
+	switch k := msg.Kind.(type) {
+	case *pb.EditorRun_Text:
+		return model.Run{Text: &model.TextRun{Text: k.Text.GetText()}}
+	case *pb.EditorRun_Ph:
+		return model.Run{Ph: &model.PlaceholderRun{
+			ID: k.Ph.GetId(), Type: k.Ph.GetType(), SubType: k.Ph.GetSubType(),
+			Data: k.Ph.GetData(), Equiv: k.Ph.GetEquiv(), Disp: k.Ph.GetDisp(),
+			Constraints: editorProtoToRunConstraints(k.Ph.GetConstraints()),
+		}}
+	case *pb.EditorRun_PcOpen:
+		return model.Run{PcOpen: &model.PcOpenRun{
+			ID: k.PcOpen.GetId(), Type: k.PcOpen.GetType(), SubType: k.PcOpen.GetSubType(),
+			Data: k.PcOpen.GetData(), Equiv: k.PcOpen.GetEquiv(), Disp: k.PcOpen.GetDisp(),
+			Constraints: editorProtoToRunConstraints(k.PcOpen.GetConstraints()),
+		}}
+	case *pb.EditorRun_PcClose:
+		return model.Run{PcClose: &model.PcCloseRun{
+			ID: k.PcClose.GetId(), Type: k.PcClose.GetType(), SubType: k.PcClose.GetSubType(),
+			Data: k.PcClose.GetData(), Equiv: k.PcClose.GetEquiv(),
+		}}
+	case *pb.EditorRun_Sub:
+		return model.Run{Sub: &model.SubRun{
+			ID: k.Sub.GetId(), Ref: k.Sub.GetRef(), Equiv: k.Sub.GetEquiv(),
+		}}
+	case *pb.EditorRun_Plural:
+		forms := make(map[model.PluralForm][]model.Run, len(k.Plural.GetForms()))
+		for form, runList := range k.Plural.GetForms() {
+			forms[model.PluralForm(form)] = protoEditorRunsToModel(runList.GetRuns())
+		}
+		return model.Run{Plural: &model.PluralRun{Pivot: k.Plural.GetPivot(), Forms: forms}}
+	case *pb.EditorRun_Select:
+		cases := make(map[string][]model.Run, len(k.Select.GetCases()))
+		for key, runList := range k.Select.GetCases() {
+			cases[key] = protoEditorRunsToModel(runList.GetRuns())
+		}
+		return model.Run{Select: &model.SelectRun{Pivot: k.Select.GetPivot(), Cases: cases}}
 	}
+	return model.Run{}
 }
 
-func protoToSpan(si *pb.SpanInfo) *model.Span {
-	var st model.SpanType
-	switch si.SpanType {
-	case "opening":
-		st = model.SpanOpening
-	case "closing":
-		st = model.SpanClosing
-	case "placeholder":
-		st = model.SpanPlaceholder
+func runConstraintsToEditorProto(c *model.RunConstraints) *pb.EditorRunConstraints {
+	if c == nil {
+		return nil
 	}
-	return &model.Span{
-		SpanType:    st,
-		Type:        si.Type,
-		ID:          si.Id,
-		Data:        si.Data,
-		SubType:     si.SubType,
-		DisplayText: si.DisplayText,
-		EquivText:   si.EquivText,
-		Deletable:   si.Deletable,
-		Cloneable:   si.Cloneable,
-		CanReorder:  si.CanReorder,
+	return &pb.EditorRunConstraints{Deletable: c.Deletable, Cloneable: c.Cloneable, Reorderable: c.Reorderable}
+}
+
+func editorProtoToRunConstraints(msg *pb.EditorRunConstraints) *model.RunConstraints {
+	if msg == nil {
+		return nil
 	}
+	return &model.RunConstraints{Deletable: msg.GetDeletable(), Cloneable: msg.GetCloneable(), Reorderable: msg.GetReorderable()}
 }
 
 func tmEntryToProto(e sievepen.TMEntry, sourceLocale, targetLocale string) *pb.TMEntryInfo {

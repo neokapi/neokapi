@@ -1,6 +1,7 @@
 package backend
 
 import (
+	"strings"
 	"path/filepath"
 	"testing"
 
@@ -44,7 +45,10 @@ func TestUpdateBlockTarget(t *testing.T) {
 	// Verify the update
 	updated, err := app.GetItemBlocks(info.ID, itemName)
 	require.NoError(t, err)
-	assert.Equal(t, "Bonjour le monde", updated[0].Targets["fr"])
+	frRuns := updated[0].TargetRuns["fr"]
+	require.Len(t, frRuns, 1)
+	require.NotNil(t, frRuns[0].Text)
+	assert.Equal(t, "Bonjour le monde", frRuns[0].Text.Text)
 }
 
 func TestUpdateBlockTarget_NotFound(t *testing.T) {
@@ -76,9 +80,9 @@ func TestPseudoTranslateFile(t *testing.T) {
 
 	for _, b := range blocks {
 		if b.Translatable {
-			assert.NotEmpty(t, b.Targets["fr"], "block %q should have fr target", b.ID)
-			assert.Contains(t, b.Targets["fr"], "[", "pseudo target should have brackets")
-			assert.Contains(t, b.Targets["fr"], "]", "pseudo target should have brackets")
+			assert.NotEmpty(t, flattenTargetRuns(b, "fr"), "block %q should have fr target", b.ID)
+			assert.Contains(t, flattenTargetRuns(b, "fr"), "[", "pseudo target should have brackets")
+			assert.Contains(t, flattenTargetRuns(b, "fr"), "]", "pseudo target should have brackets")
 		}
 	}
 }
@@ -93,52 +97,75 @@ func TestPseudoTranslateFile_PreservesSpans(t *testing.T) {
 	info, err = app.AddItems(info.ID, []string{htmlFile})
 	require.NoError(t, err)
 
-	// Verify we have blocks with spans before pseudo-translating
+	// Verify we have blocks with inline-code runs before pseudo-translating.
 	blocksBefore, err := app.GetItemBlocks(info.ID, "inline.html")
 	require.NoError(t, err)
 	var spanBlock *BlockInfo
 	for i := range blocksBefore {
-		if blocksBefore[i].HasSpans {
+		if runInfosHaveInline(blocksBefore[i].SourceRuns) {
 			spanBlock = &blocksBefore[i]
 			break
 		}
 	}
-	require.NotNil(t, spanBlock, "expected at least one block with inline spans")
-	require.NotEmpty(t, spanBlock.SourceSpans, "block should have source spans")
+	require.NotNil(t, spanBlock, "expected at least one block with inline codes")
+	require.NotEmpty(t, spanBlock.SourceRuns, "block should have source runs")
 
 	// Pseudo-translate
 	stats, err := app.PseudoTranslateItem(info.ID, "inline.html", "fr")
 	require.NoError(t, err)
 	assert.Greater(t, stats.TranslatedBlocks, 0)
 
-	// Verify blocks after pseudo-translation
+	// Verify blocks after pseudo-translation.
 	blocksAfter, err := app.GetItemBlocks(info.ID, "inline.html")
 	require.NoError(t, err)
 
 	for _, b := range blocksAfter {
-		if !b.HasSpans || !b.Translatable {
+		if !b.Translatable || !runInfosHaveInline(b.SourceRuns) {
 			continue
 		}
-		// Target coded text should be populated and contain markers
-		targetCoded, ok := b.TargetsCoded["fr"]
-		require.True(t, ok, "block %q should have coded target for fr", b.ID)
-		assert.NotEmpty(t, targetCoded, "coded target should not be empty")
+		targetRuns, ok := b.TargetRuns["fr"]
+		require.True(t, ok, "block %q should have target runs for fr", b.ID)
+		require.NotEmpty(t, targetRuns, "target runs should not be empty")
 
-		// Should contain at least one marker character
-		hasMarker := false
-		for _, r := range targetCoded {
-			if r >= '\uE001' && r <= '\uE003' {
-				hasMarker = true
+		// The translation must preserve the inline-code runs
+		// (non-deletable Ph/PcOpen/PcClose). Count matches source.
+		srcInline := countInlineCodes(b.SourceRuns)
+		tgtInline := countInlineCodes(targetRuns)
+		assert.Equal(t, srcInline, tgtInline, "inline-code count should match source")
+
+		// Pseudo-translated text should carry the [...] wrapping
+		// emitted by the pseudo-translate tool.
+		hasBracket := false
+		for _, r := range targetRuns {
+			if r.Text != nil && (strings.Contains(r.Text.Text, "[") || strings.Contains(r.Text.Text, "]")) {
+				hasBracket = true
 				break
 			}
 		}
-		assert.True(t, hasMarker, "coded target should contain span markers")
-
-		// Plain target should have brackets
-		plainTarget := b.Targets["fr"]
-		assert.Contains(t, plainTarget, "[")
-		assert.Contains(t, plainTarget, "]")
+		assert.True(t, hasBracket, "pseudo-translated target should contain bracket wrap")
 	}
+}
+
+// runInfosHaveInline reports whether a RunInfo slice contains any
+// non-text run (inline code).
+func runInfosHaveInline(runs []RunInfo) bool {
+	for _, r := range runs {
+		if r.Text == nil {
+			return true
+		}
+	}
+	return false
+}
+
+// countInlineCodes counts non-text runs in a RunInfo slice.
+func countInlineCodes(runs []RunInfo) int {
+	n := 0
+	for _, r := range runs {
+		if r.Text == nil {
+			n++
+		}
+	}
+	return n
 }
 
 func TestPseudoTranslateFile_FileNotFound(t *testing.T) {
@@ -249,7 +276,7 @@ func TestHTMLFileBlocks(t *testing.T) {
 	// Check for expected content
 	sources := make([]string, 0)
 	for _, b := range blocks {
-		sources = append(sources, b.Source)
+		sources = append(sources, b.FlattenSource())
 	}
 	assert.NotEmpty(t, sources)
 }

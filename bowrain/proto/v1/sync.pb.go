@@ -5,17 +5,16 @@
 // versions:
 // 	protoc-gen-go v1.36.11
 // 	protoc        v7.34.1
-// source: platform/proto/v1/sync.proto
+// source: proto/v1/sync.proto
 
 package serverv1
 
 import (
+	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
+	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"
 	sync "sync"
 	unsafe "unsafe"
-
-	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
-	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 )
 
 const (
@@ -45,7 +44,7 @@ type SyncPushInit struct {
 
 func (x *SyncPushInit) Reset() {
 	*x = SyncPushInit{}
-	mi := &file_platform_proto_v1_sync_proto_msgTypes[0]
+	mi := &file_proto_v1_sync_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -57,7 +56,7 @@ func (x *SyncPushInit) String() string {
 func (*SyncPushInit) ProtoMessage() {}
 
 func (x *SyncPushInit) ProtoReflect() protoreflect.Message {
-	mi := &file_platform_proto_v1_sync_proto_msgTypes[0]
+	mi := &file_proto_v1_sync_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -70,7 +69,7 @@ func (x *SyncPushInit) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SyncPushInit.ProtoReflect.Descriptor instead.
 func (*SyncPushInit) Descriptor() ([]byte, []int) {
-	return file_platform_proto_v1_sync_proto_rawDescGZIP(), []int{0}
+	return file_proto_v1_sync_proto_rawDescGZIP(), []int{0}
 }
 
 func (x *SyncPushInit) GetProjectId() string {
@@ -142,7 +141,7 @@ type SyncPushInitResponse struct {
 
 func (x *SyncPushInitResponse) Reset() {
 	*x = SyncPushInitResponse{}
-	mi := &file_platform_proto_v1_sync_proto_msgTypes[1]
+	mi := &file_proto_v1_sync_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -154,7 +153,7 @@ func (x *SyncPushInitResponse) String() string {
 func (*SyncPushInitResponse) ProtoMessage() {}
 
 func (x *SyncPushInitResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_platform_proto_v1_sync_proto_msgTypes[1]
+	mi := &file_proto_v1_sync_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -167,7 +166,7 @@ func (x *SyncPushInitResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SyncPushInitResponse.ProtoReflect.Descriptor instead.
 func (*SyncPushInitResponse) Descriptor() ([]byte, []int) {
-	return file_platform_proto_v1_sync_proto_rawDescGZIP(), []int{1}
+	return file_proto_v1_sync_proto_rawDescGZIP(), []int{1}
 }
 
 func (x *SyncPushInitResponse) GetUploadId() string {
@@ -237,7 +236,7 @@ type SyncItemDiff struct {
 
 func (x *SyncItemDiff) Reset() {
 	*x = SyncItemDiff{}
-	mi := &file_platform_proto_v1_sync_proto_msgTypes[2]
+	mi := &file_proto_v1_sync_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -249,7 +248,7 @@ func (x *SyncItemDiff) String() string {
 func (*SyncItemDiff) ProtoMessage() {}
 
 func (x *SyncItemDiff) ProtoReflect() protoreflect.Message {
-	mi := &file_platform_proto_v1_sync_proto_msgTypes[2]
+	mi := &file_proto_v1_sync_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -262,7 +261,7 @@ func (x *SyncItemDiff) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SyncItemDiff.ProtoReflect.Descriptor instead.
 func (*SyncItemDiff) Descriptor() ([]byte, []int) {
-	return file_platform_proto_v1_sync_proto_rawDescGZIP(), []int{2}
+	return file_proto_v1_sync_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *SyncItemDiff) GetUploadId() string {
@@ -304,7 +303,7 @@ type SyncItemDiffResponse struct {
 
 func (x *SyncItemDiffResponse) Reset() {
 	*x = SyncItemDiffResponse{}
-	mi := &file_platform_proto_v1_sync_proto_msgTypes[3]
+	mi := &file_proto_v1_sync_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -316,7 +315,7 @@ func (x *SyncItemDiffResponse) String() string {
 func (*SyncItemDiffResponse) ProtoMessage() {}
 
 func (x *SyncItemDiffResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_platform_proto_v1_sync_proto_msgTypes[3]
+	mi := &file_proto_v1_sync_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -329,7 +328,7 @@ func (x *SyncItemDiffResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SyncItemDiffResponse.ProtoReflect.Descriptor instead.
 func (*SyncItemDiffResponse) Descriptor() ([]byte, []int) {
-	return file_platform_proto_v1_sync_proto_rawDescGZIP(), []int{3}
+	return file_proto_v1_sync_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *SyncItemDiffResponse) GetNeeded() []string {
@@ -387,7 +386,7 @@ type SyncManifest struct {
 
 func (x *SyncManifest) Reset() {
 	*x = SyncManifest{}
-	mi := &file_platform_proto_v1_sync_proto_msgTypes[4]
+	mi := &file_proto_v1_sync_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -399,7 +398,7 @@ func (x *SyncManifest) String() string {
 func (*SyncManifest) ProtoMessage() {}
 
 func (x *SyncManifest) ProtoReflect() protoreflect.Message {
-	mi := &file_platform_proto_v1_sync_proto_msgTypes[4]
+	mi := &file_proto_v1_sync_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -412,7 +411,7 @@ func (x *SyncManifest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SyncManifest.ProtoReflect.Descriptor instead.
 func (*SyncManifest) Descriptor() ([]byte, []int) {
-	return file_platform_proto_v1_sync_proto_rawDescGZIP(), []int{4}
+	return file_proto_v1_sync_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *SyncManifest) GetUploadId() string {
@@ -491,7 +490,7 @@ type ChunkRef struct {
 
 func (x *ChunkRef) Reset() {
 	*x = ChunkRef{}
-	mi := &file_platform_proto_v1_sync_proto_msgTypes[5]
+	mi := &file_proto_v1_sync_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -503,7 +502,7 @@ func (x *ChunkRef) String() string {
 func (*ChunkRef) ProtoMessage() {}
 
 func (x *ChunkRef) ProtoReflect() protoreflect.Message {
-	mi := &file_platform_proto_v1_sync_proto_msgTypes[5]
+	mi := &file_proto_v1_sync_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -516,7 +515,7 @@ func (x *ChunkRef) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ChunkRef.ProtoReflect.Descriptor instead.
 func (*ChunkRef) Descriptor() ([]byte, []int) {
-	return file_platform_proto_v1_sync_proto_rawDescGZIP(), []int{5}
+	return file_proto_v1_sync_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *ChunkRef) GetIndex() int32 {
@@ -571,7 +570,7 @@ type SyncChunk struct {
 
 func (x *SyncChunk) Reset() {
 	*x = SyncChunk{}
-	mi := &file_platform_proto_v1_sync_proto_msgTypes[6]
+	mi := &file_proto_v1_sync_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -583,7 +582,7 @@ func (x *SyncChunk) String() string {
 func (*SyncChunk) ProtoMessage() {}
 
 func (x *SyncChunk) ProtoReflect() protoreflect.Message {
-	mi := &file_platform_proto_v1_sync_proto_msgTypes[6]
+	mi := &file_proto_v1_sync_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -596,7 +595,7 @@ func (x *SyncChunk) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SyncChunk.ProtoReflect.Descriptor instead.
 func (*SyncChunk) Descriptor() ([]byte, []int) {
-	return file_platform_proto_v1_sync_proto_rawDescGZIP(), []int{6}
+	return file_proto_v1_sync_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *SyncChunk) GetContentType() string {
@@ -676,7 +675,7 @@ type SyncBlock struct {
 
 func (x *SyncBlock) Reset() {
 	*x = SyncBlock{}
-	mi := &file_platform_proto_v1_sync_proto_msgTypes[7]
+	mi := &file_proto_v1_sync_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -688,7 +687,7 @@ func (x *SyncBlock) String() string {
 func (*SyncBlock) ProtoMessage() {}
 
 func (x *SyncBlock) ProtoReflect() protoreflect.Message {
-	mi := &file_platform_proto_v1_sync_proto_msgTypes[7]
+	mi := &file_proto_v1_sync_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -701,7 +700,7 @@ func (x *SyncBlock) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SyncBlock.ProtoReflect.Descriptor instead.
 func (*SyncBlock) Descriptor() ([]byte, []int) {
-	return file_platform_proto_v1_sync_proto_rawDescGZIP(), []int{7}
+	return file_proto_v1_sync_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *SyncBlock) GetId() string {
@@ -833,17 +832,15 @@ func (x *SyncBlock) GetContentHash() string {
 type SyncSegment struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	Text          string                 `protobuf:"bytes,2,opt,name=text,proto3" json:"text,omitempty"`                            // plain text
-	CodedText     string                 `protobuf:"bytes,3,opt,name=coded_text,json=codedText,proto3" json:"coded_text,omitempty"` // text with PUA markers for inline spans
-	Spans         []*SyncSpan            `protobuf:"bytes,4,rep,name=spans,proto3" json:"spans,omitempty"`
-	Properties    map[string]string      `protobuf:"bytes,5,rep,name=properties,proto3" json:"properties,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	Runs          []*SyncRun             `protobuf:"bytes,2,rep,name=runs,proto3" json:"runs,omitempty"`
+	Properties    map[string]string      `protobuf:"bytes,3,rep,name=properties,proto3" json:"properties,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *SyncSegment) Reset() {
 	*x = SyncSegment{}
-	mi := &file_platform_proto_v1_sync_proto_msgTypes[8]
+	mi := &file_proto_v1_sync_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -855,7 +852,7 @@ func (x *SyncSegment) String() string {
 func (*SyncSegment) ProtoMessage() {}
 
 func (x *SyncSegment) ProtoReflect() protoreflect.Message {
-	mi := &file_platform_proto_v1_sync_proto_msgTypes[8]
+	mi := &file_proto_v1_sync_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -868,7 +865,7 @@ func (x *SyncSegment) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SyncSegment.ProtoReflect.Descriptor instead.
 func (*SyncSegment) Descriptor() ([]byte, []int) {
-	return file_platform_proto_v1_sync_proto_rawDescGZIP(), []int{8}
+	return file_proto_v1_sync_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *SyncSegment) GetId() string {
@@ -878,23 +875,9 @@ func (x *SyncSegment) GetId() string {
 	return ""
 }
 
-func (x *SyncSegment) GetText() string {
+func (x *SyncSegment) GetRuns() []*SyncRun {
 	if x != nil {
-		return x.Text
-	}
-	return ""
-}
-
-func (x *SyncSegment) GetCodedText() string {
-	if x != nil {
-		return x.CodedText
-	}
-	return ""
-}
-
-func (x *SyncSegment) GetSpans() []*SyncSpan {
-	if x != nil {
-		return x.Spans
+		return x.Runs
 	}
 	return nil
 }
@@ -915,7 +898,7 @@ type SyncSegmentList struct {
 
 func (x *SyncSegmentList) Reset() {
 	*x = SyncSegmentList{}
-	mi := &file_platform_proto_v1_sync_proto_msgTypes[9]
+	mi := &file_proto_v1_sync_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -927,7 +910,7 @@ func (x *SyncSegmentList) String() string {
 func (*SyncSegmentList) ProtoMessage() {}
 
 func (x *SyncSegmentList) ProtoReflect() protoreflect.Message {
-	mi := &file_platform_proto_v1_sync_proto_msgTypes[9]
+	mi := &file_proto_v1_sync_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -940,7 +923,7 @@ func (x *SyncSegmentList) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SyncSegmentList.ProtoReflect.Descriptor instead.
 func (*SyncSegmentList) Descriptor() ([]byte, []int) {
-	return file_platform_proto_v1_sync_proto_rawDescGZIP(), []int{9}
+	return file_proto_v1_sync_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *SyncSegmentList) GetSegments() []*SyncSegment {
@@ -950,32 +933,31 @@ func (x *SyncSegmentList) GetSegments() []*SyncSegment {
 	return nil
 }
 
-type SyncSpan struct {
+// SyncRunConstraints mirrors model.RunConstraints.
+type SyncRunConstraints struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	Type          string                 `protobuf:"bytes,2,opt,name=type,proto3" json:"type,omitempty"`                         // semantic type from vocabulary
-	SubType       string                 `protobuf:"bytes,3,opt,name=sub_type,json=subType,proto3" json:"sub_type,omitempty"`    // format-specific refinement
-	SpanType      string                 `protobuf:"bytes,4,opt,name=span_type,json=spanType,proto3" json:"span_type,omitempty"` // "opening", "closing", "placeholder"
-	Data          string                 `protobuf:"bytes,5,opt,name=data,proto3" json:"data,omitempty"`                         // original markup
+	Deletable     bool                   `protobuf:"varint,1,opt,name=deletable,proto3" json:"deletable,omitempty"`
+	Cloneable     bool                   `protobuf:"varint,2,opt,name=cloneable,proto3" json:"cloneable,omitempty"`
+	Reorderable   bool                   `protobuf:"varint,3,opt,name=reorderable,proto3" json:"reorderable,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *SyncSpan) Reset() {
-	*x = SyncSpan{}
-	mi := &file_platform_proto_v1_sync_proto_msgTypes[10]
+func (x *SyncRunConstraints) Reset() {
+	*x = SyncRunConstraints{}
+	mi := &file_proto_v1_sync_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *SyncSpan) String() string {
+func (x *SyncRunConstraints) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*SyncSpan) ProtoMessage() {}
+func (*SyncRunConstraints) ProtoMessage() {}
 
-func (x *SyncSpan) ProtoReflect() protoreflect.Message {
-	mi := &file_platform_proto_v1_sync_proto_msgTypes[10]
+func (x *SyncRunConstraints) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_v1_sync_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -986,45 +968,706 @@ func (x *SyncSpan) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use SyncSpan.ProtoReflect.Descriptor instead.
-func (*SyncSpan) Descriptor() ([]byte, []int) {
-	return file_platform_proto_v1_sync_proto_rawDescGZIP(), []int{10}
+// Deprecated: Use SyncRunConstraints.ProtoReflect.Descriptor instead.
+func (*SyncRunConstraints) Descriptor() ([]byte, []int) {
+	return file_proto_v1_sync_proto_rawDescGZIP(), []int{10}
 }
 
-func (x *SyncSpan) GetId() string {
+func (x *SyncRunConstraints) GetDeletable() bool {
+	if x != nil {
+		return x.Deletable
+	}
+	return false
+}
+
+func (x *SyncRunConstraints) GetCloneable() bool {
+	if x != nil {
+		return x.Cloneable
+	}
+	return false
+}
+
+func (x *SyncRunConstraints) GetReorderable() bool {
+	if x != nil {
+		return x.Reorderable
+	}
+	return false
+}
+
+type SyncTextRun struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Text          string                 `protobuf:"bytes,1,opt,name=text,proto3" json:"text,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SyncTextRun) Reset() {
+	*x = SyncTextRun{}
+	mi := &file_proto_v1_sync_proto_msgTypes[11]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SyncTextRun) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SyncTextRun) ProtoMessage() {}
+
+func (x *SyncTextRun) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_v1_sync_proto_msgTypes[11]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SyncTextRun.ProtoReflect.Descriptor instead.
+func (*SyncTextRun) Descriptor() ([]byte, []int) {
+	return file_proto_v1_sync_proto_rawDescGZIP(), []int{11}
+}
+
+func (x *SyncTextRun) GetText() string {
+	if x != nil {
+		return x.Text
+	}
+	return ""
+}
+
+type SyncPlaceholderRun struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Type          string                 `protobuf:"bytes,2,opt,name=type,proto3" json:"type,omitempty"`
+	SubType       string                 `protobuf:"bytes,3,opt,name=sub_type,json=subType,proto3" json:"sub_type,omitempty"`
+	Data          string                 `protobuf:"bytes,4,opt,name=data,proto3" json:"data,omitempty"`
+	Equiv         string                 `protobuf:"bytes,5,opt,name=equiv,proto3" json:"equiv,omitempty"`
+	Disp          string                 `protobuf:"bytes,6,opt,name=disp,proto3" json:"disp,omitempty"`
+	Constraints   *SyncRunConstraints    `protobuf:"bytes,7,opt,name=constraints,proto3" json:"constraints,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SyncPlaceholderRun) Reset() {
+	*x = SyncPlaceholderRun{}
+	mi := &file_proto_v1_sync_proto_msgTypes[12]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SyncPlaceholderRun) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SyncPlaceholderRun) ProtoMessage() {}
+
+func (x *SyncPlaceholderRun) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_v1_sync_proto_msgTypes[12]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SyncPlaceholderRun.ProtoReflect.Descriptor instead.
+func (*SyncPlaceholderRun) Descriptor() ([]byte, []int) {
+	return file_proto_v1_sync_proto_rawDescGZIP(), []int{12}
+}
+
+func (x *SyncPlaceholderRun) GetId() string {
 	if x != nil {
 		return x.Id
 	}
 	return ""
 }
 
-func (x *SyncSpan) GetType() string {
+func (x *SyncPlaceholderRun) GetType() string {
 	if x != nil {
 		return x.Type
 	}
 	return ""
 }
 
-func (x *SyncSpan) GetSubType() string {
+func (x *SyncPlaceholderRun) GetSubType() string {
 	if x != nil {
 		return x.SubType
 	}
 	return ""
 }
 
-func (x *SyncSpan) GetSpanType() string {
-	if x != nil {
-		return x.SpanType
-	}
-	return ""
-}
-
-func (x *SyncSpan) GetData() string {
+func (x *SyncPlaceholderRun) GetData() string {
 	if x != nil {
 		return x.Data
 	}
 	return ""
 }
+
+func (x *SyncPlaceholderRun) GetEquiv() string {
+	if x != nil {
+		return x.Equiv
+	}
+	return ""
+}
+
+func (x *SyncPlaceholderRun) GetDisp() string {
+	if x != nil {
+		return x.Disp
+	}
+	return ""
+}
+
+func (x *SyncPlaceholderRun) GetConstraints() *SyncRunConstraints {
+	if x != nil {
+		return x.Constraints
+	}
+	return nil
+}
+
+type SyncPcOpenRun struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Type          string                 `protobuf:"bytes,2,opt,name=type,proto3" json:"type,omitempty"`
+	SubType       string                 `protobuf:"bytes,3,opt,name=sub_type,json=subType,proto3" json:"sub_type,omitempty"`
+	Data          string                 `protobuf:"bytes,4,opt,name=data,proto3" json:"data,omitempty"`
+	Equiv         string                 `protobuf:"bytes,5,opt,name=equiv,proto3" json:"equiv,omitempty"`
+	Disp          string                 `protobuf:"bytes,6,opt,name=disp,proto3" json:"disp,omitempty"`
+	Constraints   *SyncRunConstraints    `protobuf:"bytes,7,opt,name=constraints,proto3" json:"constraints,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SyncPcOpenRun) Reset() {
+	*x = SyncPcOpenRun{}
+	mi := &file_proto_v1_sync_proto_msgTypes[13]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SyncPcOpenRun) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SyncPcOpenRun) ProtoMessage() {}
+
+func (x *SyncPcOpenRun) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_v1_sync_proto_msgTypes[13]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SyncPcOpenRun.ProtoReflect.Descriptor instead.
+func (*SyncPcOpenRun) Descriptor() ([]byte, []int) {
+	return file_proto_v1_sync_proto_rawDescGZIP(), []int{13}
+}
+
+func (x *SyncPcOpenRun) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *SyncPcOpenRun) GetType() string {
+	if x != nil {
+		return x.Type
+	}
+	return ""
+}
+
+func (x *SyncPcOpenRun) GetSubType() string {
+	if x != nil {
+		return x.SubType
+	}
+	return ""
+}
+
+func (x *SyncPcOpenRun) GetData() string {
+	if x != nil {
+		return x.Data
+	}
+	return ""
+}
+
+func (x *SyncPcOpenRun) GetEquiv() string {
+	if x != nil {
+		return x.Equiv
+	}
+	return ""
+}
+
+func (x *SyncPcOpenRun) GetDisp() string {
+	if x != nil {
+		return x.Disp
+	}
+	return ""
+}
+
+func (x *SyncPcOpenRun) GetConstraints() *SyncRunConstraints {
+	if x != nil {
+		return x.Constraints
+	}
+	return nil
+}
+
+type SyncPcCloseRun struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Type          string                 `protobuf:"bytes,2,opt,name=type,proto3" json:"type,omitempty"`
+	SubType       string                 `protobuf:"bytes,3,opt,name=sub_type,json=subType,proto3" json:"sub_type,omitempty"`
+	Data          string                 `protobuf:"bytes,4,opt,name=data,proto3" json:"data,omitempty"`
+	Equiv         string                 `protobuf:"bytes,5,opt,name=equiv,proto3" json:"equiv,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SyncPcCloseRun) Reset() {
+	*x = SyncPcCloseRun{}
+	mi := &file_proto_v1_sync_proto_msgTypes[14]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SyncPcCloseRun) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SyncPcCloseRun) ProtoMessage() {}
+
+func (x *SyncPcCloseRun) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_v1_sync_proto_msgTypes[14]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SyncPcCloseRun.ProtoReflect.Descriptor instead.
+func (*SyncPcCloseRun) Descriptor() ([]byte, []int) {
+	return file_proto_v1_sync_proto_rawDescGZIP(), []int{14}
+}
+
+func (x *SyncPcCloseRun) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *SyncPcCloseRun) GetType() string {
+	if x != nil {
+		return x.Type
+	}
+	return ""
+}
+
+func (x *SyncPcCloseRun) GetSubType() string {
+	if x != nil {
+		return x.SubType
+	}
+	return ""
+}
+
+func (x *SyncPcCloseRun) GetData() string {
+	if x != nil {
+		return x.Data
+	}
+	return ""
+}
+
+func (x *SyncPcCloseRun) GetEquiv() string {
+	if x != nil {
+		return x.Equiv
+	}
+	return ""
+}
+
+type SyncSubRun struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Ref           string                 `protobuf:"bytes,2,opt,name=ref,proto3" json:"ref,omitempty"`
+	Equiv         string                 `protobuf:"bytes,3,opt,name=equiv,proto3" json:"equiv,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SyncSubRun) Reset() {
+	*x = SyncSubRun{}
+	mi := &file_proto_v1_sync_proto_msgTypes[15]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SyncSubRun) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SyncSubRun) ProtoMessage() {}
+
+func (x *SyncSubRun) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_v1_sync_proto_msgTypes[15]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SyncSubRun.ProtoReflect.Descriptor instead.
+func (*SyncSubRun) Descriptor() ([]byte, []int) {
+	return file_proto_v1_sync_proto_rawDescGZIP(), []int{15}
+}
+
+func (x *SyncSubRun) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *SyncSubRun) GetRef() string {
+	if x != nil {
+		return x.Ref
+	}
+	return ""
+}
+
+func (x *SyncSubRun) GetEquiv() string {
+	if x != nil {
+		return x.Equiv
+	}
+	return ""
+}
+
+type SyncPluralRun struct {
+	state         protoimpl.MessageState  `protogen:"open.v1"`
+	Pivot         string                  `protobuf:"bytes,1,opt,name=pivot,proto3" json:"pivot,omitempty"`
+	Forms         map[string]*SyncRunList `protobuf:"bytes,2,rep,name=forms,proto3" json:"forms,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SyncPluralRun) Reset() {
+	*x = SyncPluralRun{}
+	mi := &file_proto_v1_sync_proto_msgTypes[16]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SyncPluralRun) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SyncPluralRun) ProtoMessage() {}
+
+func (x *SyncPluralRun) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_v1_sync_proto_msgTypes[16]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SyncPluralRun.ProtoReflect.Descriptor instead.
+func (*SyncPluralRun) Descriptor() ([]byte, []int) {
+	return file_proto_v1_sync_proto_rawDescGZIP(), []int{16}
+}
+
+func (x *SyncPluralRun) GetPivot() string {
+	if x != nil {
+		return x.Pivot
+	}
+	return ""
+}
+
+func (x *SyncPluralRun) GetForms() map[string]*SyncRunList {
+	if x != nil {
+		return x.Forms
+	}
+	return nil
+}
+
+type SyncSelectRun struct {
+	state         protoimpl.MessageState  `protogen:"open.v1"`
+	Pivot         string                  `protobuf:"bytes,1,opt,name=pivot,proto3" json:"pivot,omitempty"`
+	Cases         map[string]*SyncRunList `protobuf:"bytes,2,rep,name=cases,proto3" json:"cases,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SyncSelectRun) Reset() {
+	*x = SyncSelectRun{}
+	mi := &file_proto_v1_sync_proto_msgTypes[17]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SyncSelectRun) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SyncSelectRun) ProtoMessage() {}
+
+func (x *SyncSelectRun) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_v1_sync_proto_msgTypes[17]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SyncSelectRun.ProtoReflect.Descriptor instead.
+func (*SyncSelectRun) Descriptor() ([]byte, []int) {
+	return file_proto_v1_sync_proto_rawDescGZIP(), []int{17}
+}
+
+func (x *SyncSelectRun) GetPivot() string {
+	if x != nil {
+		return x.Pivot
+	}
+	return ""
+}
+
+func (x *SyncSelectRun) GetCases() map[string]*SyncRunList {
+	if x != nil {
+		return x.Cases
+	}
+	return nil
+}
+
+type SyncRunList struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Runs          []*SyncRun             `protobuf:"bytes,1,rep,name=runs,proto3" json:"runs,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SyncRunList) Reset() {
+	*x = SyncRunList{}
+	mi := &file_proto_v1_sync_proto_msgTypes[18]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SyncRunList) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SyncRunList) ProtoMessage() {}
+
+func (x *SyncRunList) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_v1_sync_proto_msgTypes[18]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SyncRunList.ProtoReflect.Descriptor instead.
+func (*SyncRunList) Descriptor() ([]byte, []int) {
+	return file_proto_v1_sync_proto_rawDescGZIP(), []int{18}
+}
+
+func (x *SyncRunList) GetRuns() []*SyncRun {
+	if x != nil {
+		return x.Runs
+	}
+	return nil
+}
+
+// SyncRun is the discriminated-union inline-content primitive.
+type SyncRun struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Types that are valid to be assigned to Kind:
+	//
+	//	*SyncRun_Text
+	//	*SyncRun_Ph
+	//	*SyncRun_PcOpen
+	//	*SyncRun_PcClose
+	//	*SyncRun_Sub
+	//	*SyncRun_Plural
+	//	*SyncRun_Select
+	Kind          isSyncRun_Kind `protobuf_oneof:"kind"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SyncRun) Reset() {
+	*x = SyncRun{}
+	mi := &file_proto_v1_sync_proto_msgTypes[19]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SyncRun) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SyncRun) ProtoMessage() {}
+
+func (x *SyncRun) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_v1_sync_proto_msgTypes[19]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SyncRun.ProtoReflect.Descriptor instead.
+func (*SyncRun) Descriptor() ([]byte, []int) {
+	return file_proto_v1_sync_proto_rawDescGZIP(), []int{19}
+}
+
+func (x *SyncRun) GetKind() isSyncRun_Kind {
+	if x != nil {
+		return x.Kind
+	}
+	return nil
+}
+
+func (x *SyncRun) GetText() *SyncTextRun {
+	if x != nil {
+		if x, ok := x.Kind.(*SyncRun_Text); ok {
+			return x.Text
+		}
+	}
+	return nil
+}
+
+func (x *SyncRun) GetPh() *SyncPlaceholderRun {
+	if x != nil {
+		if x, ok := x.Kind.(*SyncRun_Ph); ok {
+			return x.Ph
+		}
+	}
+	return nil
+}
+
+func (x *SyncRun) GetPcOpen() *SyncPcOpenRun {
+	if x != nil {
+		if x, ok := x.Kind.(*SyncRun_PcOpen); ok {
+			return x.PcOpen
+		}
+	}
+	return nil
+}
+
+func (x *SyncRun) GetPcClose() *SyncPcCloseRun {
+	if x != nil {
+		if x, ok := x.Kind.(*SyncRun_PcClose); ok {
+			return x.PcClose
+		}
+	}
+	return nil
+}
+
+func (x *SyncRun) GetSub() *SyncSubRun {
+	if x != nil {
+		if x, ok := x.Kind.(*SyncRun_Sub); ok {
+			return x.Sub
+		}
+	}
+	return nil
+}
+
+func (x *SyncRun) GetPlural() *SyncPluralRun {
+	if x != nil {
+		if x, ok := x.Kind.(*SyncRun_Plural); ok {
+			return x.Plural
+		}
+	}
+	return nil
+}
+
+func (x *SyncRun) GetSelect() *SyncSelectRun {
+	if x != nil {
+		if x, ok := x.Kind.(*SyncRun_Select); ok {
+			return x.Select
+		}
+	}
+	return nil
+}
+
+type isSyncRun_Kind interface {
+	isSyncRun_Kind()
+}
+
+type SyncRun_Text struct {
+	Text *SyncTextRun `protobuf:"bytes,1,opt,name=text,proto3,oneof"`
+}
+
+type SyncRun_Ph struct {
+	Ph *SyncPlaceholderRun `protobuf:"bytes,2,opt,name=ph,proto3,oneof"`
+}
+
+type SyncRun_PcOpen struct {
+	PcOpen *SyncPcOpenRun `protobuf:"bytes,3,opt,name=pc_open,json=pcOpen,proto3,oneof"`
+}
+
+type SyncRun_PcClose struct {
+	PcClose *SyncPcCloseRun `protobuf:"bytes,4,opt,name=pc_close,json=pcClose,proto3,oneof"`
+}
+
+type SyncRun_Sub struct {
+	Sub *SyncSubRun `protobuf:"bytes,5,opt,name=sub,proto3,oneof"`
+}
+
+type SyncRun_Plural struct {
+	Plural *SyncPluralRun `protobuf:"bytes,6,opt,name=plural,proto3,oneof"`
+}
+
+type SyncRun_Select struct {
+	Select *SyncSelectRun `protobuf:"bytes,7,opt,name=select,proto3,oneof"`
+}
+
+func (*SyncRun_Text) isSyncRun_Kind() {}
+
+func (*SyncRun_Ph) isSyncRun_Kind() {}
+
+func (*SyncRun_PcOpen) isSyncRun_Kind() {}
+
+func (*SyncRun_PcClose) isSyncRun_Kind() {}
+
+func (*SyncRun_Sub) isSyncRun_Kind() {}
+
+func (*SyncRun_Plural) isSyncRun_Kind() {}
+
+func (*SyncRun_Select) isSyncRun_Kind() {}
 
 // SyncTerm carries a terminology concept with translations.
 type SyncTerm struct {
@@ -1044,7 +1687,7 @@ type SyncTerm struct {
 
 func (x *SyncTerm) Reset() {
 	*x = SyncTerm{}
-	mi := &file_platform_proto_v1_sync_proto_msgTypes[11]
+	mi := &file_proto_v1_sync_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1056,7 +1699,7 @@ func (x *SyncTerm) String() string {
 func (*SyncTerm) ProtoMessage() {}
 
 func (x *SyncTerm) ProtoReflect() protoreflect.Message {
-	mi := &file_platform_proto_v1_sync_proto_msgTypes[11]
+	mi := &file_proto_v1_sync_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1069,7 +1712,7 @@ func (x *SyncTerm) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SyncTerm.ProtoReflect.Descriptor instead.
 func (*SyncTerm) Descriptor() ([]byte, []int) {
-	return file_platform_proto_v1_sync_proto_rawDescGZIP(), []int{11}
+	return file_proto_v1_sync_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *SyncTerm) GetConceptId() string {
@@ -1146,7 +1789,7 @@ type SyncTermTranslation struct {
 
 func (x *SyncTermTranslation) Reset() {
 	*x = SyncTermTranslation{}
-	mi := &file_platform_proto_v1_sync_proto_msgTypes[12]
+	mi := &file_proto_v1_sync_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1158,7 +1801,7 @@ func (x *SyncTermTranslation) String() string {
 func (*SyncTermTranslation) ProtoMessage() {}
 
 func (x *SyncTermTranslation) ProtoReflect() protoreflect.Message {
-	mi := &file_platform_proto_v1_sync_proto_msgTypes[12]
+	mi := &file_proto_v1_sync_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1171,7 +1814,7 @@ func (x *SyncTermTranslation) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SyncTermTranslation.ProtoReflect.Descriptor instead.
 func (*SyncTermTranslation) Descriptor() ([]byte, []int) {
-	return file_platform_proto_v1_sync_proto_rawDescGZIP(), []int{12}
+	return file_proto_v1_sync_proto_rawDescGZIP(), []int{21}
 }
 
 func (x *SyncTermTranslation) GetLocale() string {
@@ -1213,7 +1856,7 @@ type SyncTMEntry struct {
 
 func (x *SyncTMEntry) Reset() {
 	*x = SyncTMEntry{}
-	mi := &file_platform_proto_v1_sync_proto_msgTypes[13]
+	mi := &file_proto_v1_sync_proto_msgTypes[22]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1225,7 +1868,7 @@ func (x *SyncTMEntry) String() string {
 func (*SyncTMEntry) ProtoMessage() {}
 
 func (x *SyncTMEntry) ProtoReflect() protoreflect.Message {
-	mi := &file_platform_proto_v1_sync_proto_msgTypes[13]
+	mi := &file_proto_v1_sync_proto_msgTypes[22]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1238,7 +1881,7 @@ func (x *SyncTMEntry) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SyncTMEntry.ProtoReflect.Descriptor instead.
 func (*SyncTMEntry) Descriptor() ([]byte, []int) {
-	return file_platform_proto_v1_sync_proto_rawDescGZIP(), []int{13}
+	return file_proto_v1_sync_proto_rawDescGZIP(), []int{22}
 }
 
 func (x *SyncTMEntry) GetId() string {
@@ -1327,7 +1970,7 @@ type SyncMedia struct {
 
 func (x *SyncMedia) Reset() {
 	*x = SyncMedia{}
-	mi := &file_platform_proto_v1_sync_proto_msgTypes[14]
+	mi := &file_proto_v1_sync_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1339,7 +1982,7 @@ func (x *SyncMedia) String() string {
 func (*SyncMedia) ProtoMessage() {}
 
 func (x *SyncMedia) ProtoReflect() protoreflect.Message {
-	mi := &file_platform_proto_v1_sync_proto_msgTypes[14]
+	mi := &file_proto_v1_sync_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1352,7 +1995,7 @@ func (x *SyncMedia) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SyncMedia.ProtoReflect.Descriptor instead.
 func (*SyncMedia) Descriptor() ([]byte, []int) {
-	return file_platform_proto_v1_sync_proto_rawDescGZIP(), []int{14}
+	return file_proto_v1_sync_proto_rawDescGZIP(), []int{23}
 }
 
 func (x *SyncMedia) GetId() string {
@@ -1455,7 +2098,7 @@ type SyncItemMeta struct {
 
 func (x *SyncItemMeta) Reset() {
 	*x = SyncItemMeta{}
-	mi := &file_platform_proto_v1_sync_proto_msgTypes[15]
+	mi := &file_proto_v1_sync_proto_msgTypes[24]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1467,7 +2110,7 @@ func (x *SyncItemMeta) String() string {
 func (*SyncItemMeta) ProtoMessage() {}
 
 func (x *SyncItemMeta) ProtoReflect() protoreflect.Message {
-	mi := &file_platform_proto_v1_sync_proto_msgTypes[15]
+	mi := &file_proto_v1_sync_proto_msgTypes[24]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1480,7 +2123,7 @@ func (x *SyncItemMeta) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SyncItemMeta.ProtoReflect.Descriptor instead.
 func (*SyncItemMeta) Descriptor() ([]byte, []int) {
-	return file_platform_proto_v1_sync_proto_rawDescGZIP(), []int{15}
+	return file_proto_v1_sync_proto_rawDescGZIP(), []int{24}
 }
 
 func (x *SyncItemMeta) GetName() string {
@@ -1553,7 +2196,7 @@ type SyncPullRequest struct {
 
 func (x *SyncPullRequest) Reset() {
 	*x = SyncPullRequest{}
-	mi := &file_platform_proto_v1_sync_proto_msgTypes[16]
+	mi := &file_proto_v1_sync_proto_msgTypes[25]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1565,7 +2208,7 @@ func (x *SyncPullRequest) String() string {
 func (*SyncPullRequest) ProtoMessage() {}
 
 func (x *SyncPullRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_platform_proto_v1_sync_proto_msgTypes[16]
+	mi := &file_proto_v1_sync_proto_msgTypes[25]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1578,7 +2221,7 @@ func (x *SyncPullRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SyncPullRequest.ProtoReflect.Descriptor instead.
 func (*SyncPullRequest) Descriptor() ([]byte, []int) {
-	return file_platform_proto_v1_sync_proto_rawDescGZIP(), []int{16}
+	return file_proto_v1_sync_proto_rawDescGZIP(), []int{25}
 }
 
 func (x *SyncPullRequest) GetProjectId() string {
@@ -1638,7 +2281,7 @@ type SyncPullResponse struct {
 
 func (x *SyncPullResponse) Reset() {
 	*x = SyncPullResponse{}
-	mi := &file_platform_proto_v1_sync_proto_msgTypes[17]
+	mi := &file_proto_v1_sync_proto_msgTypes[26]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1650,7 +2293,7 @@ func (x *SyncPullResponse) String() string {
 func (*SyncPullResponse) ProtoMessage() {}
 
 func (x *SyncPullResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_platform_proto_v1_sync_proto_msgTypes[17]
+	mi := &file_proto_v1_sync_proto_msgTypes[26]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1663,7 +2306,7 @@ func (x *SyncPullResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SyncPullResponse.ProtoReflect.Descriptor instead.
 func (*SyncPullResponse) Descriptor() ([]byte, []int) {
-	return file_platform_proto_v1_sync_proto_rawDescGZIP(), []int{17}
+	return file_proto_v1_sync_proto_rawDescGZIP(), []int{26}
 }
 
 func (x *SyncPullResponse) GetCursor() int64 {
@@ -1708,11 +2351,11 @@ func (x *SyncPullResponse) GetMedia() []*SyncMedia {
 	return nil
 }
 
-var File_platform_proto_v1_sync_proto protoreflect.FileDescriptor
+var File_proto_v1_sync_proto protoreflect.FileDescriptor
 
-const file_platform_proto_v1_sync_proto_rawDesc = "" +
+const file_proto_v1_sync_proto_rawDesc = "" +
 	"\n" +
-	"\x1cplatform/proto/v1/sync.proto\x12\x11neokapi.server.v1\"\xd0\x02\n" +
+	"\x13proto/v1/sync.proto\x12\x11neokapi.server.v1\"\xd0\x02\n" +
 	"\fSyncPushInit\x12\x1d\n" +
 	"\n" +
 	"project_id\x18\x01 \x01(\tR\tprojectId\x12\x16\n" +
@@ -1811,27 +2454,76 @@ const file_platform_proto_v1_sync_proto_rawDesc = "" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\x1a@\n" +
 	"\x12ConnectorDataEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\x92\x02\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xdc\x01\n" +
 	"\vSyncSegment\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
-	"\x04text\x18\x02 \x01(\tR\x04text\x12\x1d\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12.\n" +
+	"\x04runs\x18\x02 \x03(\v2\x1a.neokapi.server.v1.SyncRunR\x04runs\x12N\n" +
 	"\n" +
-	"coded_text\x18\x03 \x01(\tR\tcodedText\x121\n" +
-	"\x05spans\x18\x04 \x03(\v2\x1b.neokapi.server.v1.SyncSpanR\x05spans\x12N\n" +
-	"\n" +
-	"properties\x18\x05 \x03(\v2..neokapi.server.v1.SyncSegment.PropertiesEntryR\n" +
+	"properties\x18\x03 \x03(\v2..neokapi.server.v1.SyncSegment.PropertiesEntryR\n" +
 	"properties\x1a=\n" +
 	"\x0fPropertiesEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"M\n" +
 	"\x0fSyncSegmentList\x12:\n" +
-	"\bsegments\x18\x01 \x03(\v2\x1e.neokapi.server.v1.SyncSegmentR\bsegments\"z\n" +
-	"\bSyncSpan\x12\x0e\n" +
+	"\bsegments\x18\x01 \x03(\v2\x1e.neokapi.server.v1.SyncSegmentR\bsegments\"r\n" +
+	"\x12SyncRunConstraints\x12\x1c\n" +
+	"\tdeletable\x18\x01 \x01(\bR\tdeletable\x12\x1c\n" +
+	"\tcloneable\x18\x02 \x01(\bR\tcloneable\x12 \n" +
+	"\vreorderable\x18\x03 \x01(\bR\vreorderable\"!\n" +
+	"\vSyncTextRun\x12\x12\n" +
+	"\x04text\x18\x01 \x01(\tR\x04text\"\xda\x01\n" +
+	"\x12SyncPlaceholderRun\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04type\x18\x02 \x01(\tR\x04type\x12\x19\n" +
-	"\bsub_type\x18\x03 \x01(\tR\asubType\x12\x1b\n" +
-	"\tspan_type\x18\x04 \x01(\tR\bspanType\x12\x12\n" +
-	"\x04data\x18\x05 \x01(\tR\x04data\"\xba\x03\n" +
+	"\bsub_type\x18\x03 \x01(\tR\asubType\x12\x12\n" +
+	"\x04data\x18\x04 \x01(\tR\x04data\x12\x14\n" +
+	"\x05equiv\x18\x05 \x01(\tR\x05equiv\x12\x12\n" +
+	"\x04disp\x18\x06 \x01(\tR\x04disp\x12G\n" +
+	"\vconstraints\x18\a \x01(\v2%.neokapi.server.v1.SyncRunConstraintsR\vconstraints\"\xd5\x01\n" +
+	"\rSyncPcOpenRun\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
+	"\x04type\x18\x02 \x01(\tR\x04type\x12\x19\n" +
+	"\bsub_type\x18\x03 \x01(\tR\asubType\x12\x12\n" +
+	"\x04data\x18\x04 \x01(\tR\x04data\x12\x14\n" +
+	"\x05equiv\x18\x05 \x01(\tR\x05equiv\x12\x12\n" +
+	"\x04disp\x18\x06 \x01(\tR\x04disp\x12G\n" +
+	"\vconstraints\x18\a \x01(\v2%.neokapi.server.v1.SyncRunConstraintsR\vconstraints\"y\n" +
+	"\x0eSyncPcCloseRun\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
+	"\x04type\x18\x02 \x01(\tR\x04type\x12\x19\n" +
+	"\bsub_type\x18\x03 \x01(\tR\asubType\x12\x12\n" +
+	"\x04data\x18\x04 \x01(\tR\x04data\x12\x14\n" +
+	"\x05equiv\x18\x05 \x01(\tR\x05equiv\"D\n" +
+	"\n" +
+	"SyncSubRun\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x10\n" +
+	"\x03ref\x18\x02 \x01(\tR\x03ref\x12\x14\n" +
+	"\x05equiv\x18\x03 \x01(\tR\x05equiv\"\xc2\x01\n" +
+	"\rSyncPluralRun\x12\x14\n" +
+	"\x05pivot\x18\x01 \x01(\tR\x05pivot\x12A\n" +
+	"\x05forms\x18\x02 \x03(\v2+.neokapi.server.v1.SyncPluralRun.FormsEntryR\x05forms\x1aX\n" +
+	"\n" +
+	"FormsEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x124\n" +
+	"\x05value\x18\x02 \x01(\v2\x1e.neokapi.server.v1.SyncRunListR\x05value:\x028\x01\"\xc2\x01\n" +
+	"\rSyncSelectRun\x12\x14\n" +
+	"\x05pivot\x18\x01 \x01(\tR\x05pivot\x12A\n" +
+	"\x05cases\x18\x02 \x03(\v2+.neokapi.server.v1.SyncSelectRun.CasesEntryR\x05cases\x1aX\n" +
+	"\n" +
+	"CasesEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x124\n" +
+	"\x05value\x18\x02 \x01(\v2\x1e.neokapi.server.v1.SyncRunListR\x05value:\x028\x01\"=\n" +
+	"\vSyncRunList\x12.\n" +
+	"\x04runs\x18\x01 \x03(\v2\x1a.neokapi.server.v1.SyncRunR\x04runs\"\xa8\x03\n" +
+	"\aSyncRun\x124\n" +
+	"\x04text\x18\x01 \x01(\v2\x1e.neokapi.server.v1.SyncTextRunH\x00R\x04text\x127\n" +
+	"\x02ph\x18\x02 \x01(\v2%.neokapi.server.v1.SyncPlaceholderRunH\x00R\x02ph\x12;\n" +
+	"\apc_open\x18\x03 \x01(\v2 .neokapi.server.v1.SyncPcOpenRunH\x00R\x06pcOpen\x12>\n" +
+	"\bpc_close\x18\x04 \x01(\v2!.neokapi.server.v1.SyncPcCloseRunH\x00R\apcClose\x121\n" +
+	"\x03sub\x18\x05 \x01(\v2\x1d.neokapi.server.v1.SyncSubRunH\x00R\x03sub\x12:\n" +
+	"\x06plural\x18\x06 \x01(\v2 .neokapi.server.v1.SyncPluralRunH\x00R\x06plural\x12:\n" +
+	"\x06select\x18\a \x01(\v2 .neokapi.server.v1.SyncSelectRunH\x00R\x06selectB\x06\n" +
+	"\x04kind\"\xba\x03\n" +
 	"\bSyncTerm\x12\x1d\n" +
 	"\n" +
 	"concept_id\x18\x01 \x01(\tR\tconceptId\x12\x1f\n" +
@@ -1925,19 +2617,19 @@ const file_platform_proto_v1_sync_proto_rawDesc = "" +
 	"\x05media\x18\r \x03(\v2\x1c.neokapi.server.v1.SyncMediaR\x05mediaB6Z4github.com/neokapi/neokapi/bowrain/proto/v1;serverv1b\x06proto3"
 
 var (
-	file_platform_proto_v1_sync_proto_rawDescOnce sync.Once
-	file_platform_proto_v1_sync_proto_rawDescData []byte
+	file_proto_v1_sync_proto_rawDescOnce sync.Once
+	file_proto_v1_sync_proto_rawDescData []byte
 )
 
-func file_platform_proto_v1_sync_proto_rawDescGZIP() []byte {
-	file_platform_proto_v1_sync_proto_rawDescOnce.Do(func() {
-		file_platform_proto_v1_sync_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_platform_proto_v1_sync_proto_rawDesc), len(file_platform_proto_v1_sync_proto_rawDesc)))
+func file_proto_v1_sync_proto_rawDescGZIP() []byte {
+	file_proto_v1_sync_proto_rawDescOnce.Do(func() {
+		file_proto_v1_sync_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_proto_v1_sync_proto_rawDesc), len(file_proto_v1_sync_proto_rawDesc)))
 	})
-	return file_platform_proto_v1_sync_proto_rawDescData
+	return file_proto_v1_sync_proto_rawDescData
 }
 
-var file_platform_proto_v1_sync_proto_msgTypes = make([]protoimpl.MessageInfo, 29)
-var file_platform_proto_v1_sync_proto_goTypes = []any{
+var file_proto_v1_sync_proto_msgTypes = make([]protoimpl.MessageInfo, 40)
+var file_proto_v1_sync_proto_goTypes = []any{
 	(*SyncPushInit)(nil),         // 0: neokapi.server.v1.SyncPushInit
 	(*SyncPushInitResponse)(nil), // 1: neokapi.server.v1.SyncPushInitResponse
 	(*SyncItemDiff)(nil),         // 2: neokapi.server.v1.SyncItemDiff
@@ -1948,80 +2640,114 @@ var file_platform_proto_v1_sync_proto_goTypes = []any{
 	(*SyncBlock)(nil),            // 7: neokapi.server.v1.SyncBlock
 	(*SyncSegment)(nil),          // 8: neokapi.server.v1.SyncSegment
 	(*SyncSegmentList)(nil),      // 9: neokapi.server.v1.SyncSegmentList
-	(*SyncSpan)(nil),             // 10: neokapi.server.v1.SyncSpan
-	(*SyncTerm)(nil),             // 11: neokapi.server.v1.SyncTerm
-	(*SyncTermTranslation)(nil),  // 12: neokapi.server.v1.SyncTermTranslation
-	(*SyncTMEntry)(nil),          // 13: neokapi.server.v1.SyncTMEntry
-	(*SyncMedia)(nil),            // 14: neokapi.server.v1.SyncMedia
-	(*SyncItemMeta)(nil),         // 15: neokapi.server.v1.SyncItemMeta
-	(*SyncPullRequest)(nil),      // 16: neokapi.server.v1.SyncPullRequest
-	(*SyncPullResponse)(nil),     // 17: neokapi.server.v1.SyncPullResponse
-	nil,                          // 18: neokapi.server.v1.SyncPushInit.ItemHashesEntry
-	nil,                          // 19: neokapi.server.v1.SyncItemDiff.BlockHashesEntry
-	nil,                          // 20: neokapi.server.v1.SyncManifest.ContextEntry
-	nil,                          // 21: neokapi.server.v1.SyncBlock.TargetsEntry
-	nil,                          // 22: neokapi.server.v1.SyncBlock.PropertiesEntry
-	nil,                          // 23: neokapi.server.v1.SyncBlock.ConnectorDataEntry
-	nil,                          // 24: neokapi.server.v1.SyncSegment.PropertiesEntry
-	nil,                          // 25: neokapi.server.v1.SyncTerm.PropertiesEntry
-	nil,                          // 26: neokapi.server.v1.SyncTMEntry.PropertiesEntry
-	nil,                          // 27: neokapi.server.v1.SyncMedia.PropertiesEntry
-	nil,                          // 28: neokapi.server.v1.SyncItemMeta.ConnectorDataEntry
+	(*SyncRunConstraints)(nil),   // 10: neokapi.server.v1.SyncRunConstraints
+	(*SyncTextRun)(nil),          // 11: neokapi.server.v1.SyncTextRun
+	(*SyncPlaceholderRun)(nil),   // 12: neokapi.server.v1.SyncPlaceholderRun
+	(*SyncPcOpenRun)(nil),        // 13: neokapi.server.v1.SyncPcOpenRun
+	(*SyncPcCloseRun)(nil),       // 14: neokapi.server.v1.SyncPcCloseRun
+	(*SyncSubRun)(nil),           // 15: neokapi.server.v1.SyncSubRun
+	(*SyncPluralRun)(nil),        // 16: neokapi.server.v1.SyncPluralRun
+	(*SyncSelectRun)(nil),        // 17: neokapi.server.v1.SyncSelectRun
+	(*SyncRunList)(nil),          // 18: neokapi.server.v1.SyncRunList
+	(*SyncRun)(nil),              // 19: neokapi.server.v1.SyncRun
+	(*SyncTerm)(nil),             // 20: neokapi.server.v1.SyncTerm
+	(*SyncTermTranslation)(nil),  // 21: neokapi.server.v1.SyncTermTranslation
+	(*SyncTMEntry)(nil),          // 22: neokapi.server.v1.SyncTMEntry
+	(*SyncMedia)(nil),            // 23: neokapi.server.v1.SyncMedia
+	(*SyncItemMeta)(nil),         // 24: neokapi.server.v1.SyncItemMeta
+	(*SyncPullRequest)(nil),      // 25: neokapi.server.v1.SyncPullRequest
+	(*SyncPullResponse)(nil),     // 26: neokapi.server.v1.SyncPullResponse
+	nil,                          // 27: neokapi.server.v1.SyncPushInit.ItemHashesEntry
+	nil,                          // 28: neokapi.server.v1.SyncItemDiff.BlockHashesEntry
+	nil,                          // 29: neokapi.server.v1.SyncManifest.ContextEntry
+	nil,                          // 30: neokapi.server.v1.SyncBlock.TargetsEntry
+	nil,                          // 31: neokapi.server.v1.SyncBlock.PropertiesEntry
+	nil,                          // 32: neokapi.server.v1.SyncBlock.ConnectorDataEntry
+	nil,                          // 33: neokapi.server.v1.SyncSegment.PropertiesEntry
+	nil,                          // 34: neokapi.server.v1.SyncPluralRun.FormsEntry
+	nil,                          // 35: neokapi.server.v1.SyncSelectRun.CasesEntry
+	nil,                          // 36: neokapi.server.v1.SyncTerm.PropertiesEntry
+	nil,                          // 37: neokapi.server.v1.SyncTMEntry.PropertiesEntry
+	nil,                          // 38: neokapi.server.v1.SyncMedia.PropertiesEntry
+	nil,                          // 39: neokapi.server.v1.SyncItemMeta.ConnectorDataEntry
 }
-var file_platform_proto_v1_sync_proto_depIdxs = []int32{
-	18, // 0: neokapi.server.v1.SyncPushInit.item_hashes:type_name -> neokapi.server.v1.SyncPushInit.ItemHashesEntry
-	19, // 1: neokapi.server.v1.SyncItemDiff.block_hashes:type_name -> neokapi.server.v1.SyncItemDiff.BlockHashesEntry
+var file_proto_v1_sync_proto_depIdxs = []int32{
+	27, // 0: neokapi.server.v1.SyncPushInit.item_hashes:type_name -> neokapi.server.v1.SyncPushInit.ItemHashesEntry
+	28, // 1: neokapi.server.v1.SyncItemDiff.block_hashes:type_name -> neokapi.server.v1.SyncItemDiff.BlockHashesEntry
 	5,  // 2: neokapi.server.v1.SyncManifest.chunks:type_name -> neokapi.server.v1.ChunkRef
-	15, // 3: neokapi.server.v1.SyncManifest.items:type_name -> neokapi.server.v1.SyncItemMeta
-	20, // 4: neokapi.server.v1.SyncManifest.context:type_name -> neokapi.server.v1.SyncManifest.ContextEntry
+	24, // 3: neokapi.server.v1.SyncManifest.items:type_name -> neokapi.server.v1.SyncItemMeta
+	29, // 4: neokapi.server.v1.SyncManifest.context:type_name -> neokapi.server.v1.SyncManifest.ContextEntry
 	7,  // 5: neokapi.server.v1.SyncChunk.blocks:type_name -> neokapi.server.v1.SyncBlock
-	11, // 6: neokapi.server.v1.SyncChunk.terms:type_name -> neokapi.server.v1.SyncTerm
-	13, // 7: neokapi.server.v1.SyncChunk.tm_entries:type_name -> neokapi.server.v1.SyncTMEntry
-	14, // 8: neokapi.server.v1.SyncChunk.media:type_name -> neokapi.server.v1.SyncMedia
+	20, // 6: neokapi.server.v1.SyncChunk.terms:type_name -> neokapi.server.v1.SyncTerm
+	22, // 7: neokapi.server.v1.SyncChunk.tm_entries:type_name -> neokapi.server.v1.SyncTMEntry
+	23, // 8: neokapi.server.v1.SyncChunk.media:type_name -> neokapi.server.v1.SyncMedia
 	8,  // 9: neokapi.server.v1.SyncBlock.source:type_name -> neokapi.server.v1.SyncSegment
-	21, // 10: neokapi.server.v1.SyncBlock.targets:type_name -> neokapi.server.v1.SyncBlock.TargetsEntry
-	22, // 11: neokapi.server.v1.SyncBlock.properties:type_name -> neokapi.server.v1.SyncBlock.PropertiesEntry
-	23, // 12: neokapi.server.v1.SyncBlock.connector_data:type_name -> neokapi.server.v1.SyncBlock.ConnectorDataEntry
-	10, // 13: neokapi.server.v1.SyncSegment.spans:type_name -> neokapi.server.v1.SyncSpan
-	24, // 14: neokapi.server.v1.SyncSegment.properties:type_name -> neokapi.server.v1.SyncSegment.PropertiesEntry
+	30, // 10: neokapi.server.v1.SyncBlock.targets:type_name -> neokapi.server.v1.SyncBlock.TargetsEntry
+	31, // 11: neokapi.server.v1.SyncBlock.properties:type_name -> neokapi.server.v1.SyncBlock.PropertiesEntry
+	32, // 12: neokapi.server.v1.SyncBlock.connector_data:type_name -> neokapi.server.v1.SyncBlock.ConnectorDataEntry
+	19, // 13: neokapi.server.v1.SyncSegment.runs:type_name -> neokapi.server.v1.SyncRun
+	33, // 14: neokapi.server.v1.SyncSegment.properties:type_name -> neokapi.server.v1.SyncSegment.PropertiesEntry
 	8,  // 15: neokapi.server.v1.SyncSegmentList.segments:type_name -> neokapi.server.v1.SyncSegment
-	12, // 16: neokapi.server.v1.SyncTerm.translations:type_name -> neokapi.server.v1.SyncTermTranslation
-	25, // 17: neokapi.server.v1.SyncTerm.properties:type_name -> neokapi.server.v1.SyncTerm.PropertiesEntry
-	26, // 18: neokapi.server.v1.SyncTMEntry.properties:type_name -> neokapi.server.v1.SyncTMEntry.PropertiesEntry
-	27, // 19: neokapi.server.v1.SyncMedia.properties:type_name -> neokapi.server.v1.SyncMedia.PropertiesEntry
-	28, // 20: neokapi.server.v1.SyncItemMeta.connector_data:type_name -> neokapi.server.v1.SyncItemMeta.ConnectorDataEntry
-	7,  // 21: neokapi.server.v1.SyncPullResponse.blocks:type_name -> neokapi.server.v1.SyncBlock
-	11, // 22: neokapi.server.v1.SyncPullResponse.terms:type_name -> neokapi.server.v1.SyncTerm
-	13, // 23: neokapi.server.v1.SyncPullResponse.tm_entries:type_name -> neokapi.server.v1.SyncTMEntry
-	14, // 24: neokapi.server.v1.SyncPullResponse.media:type_name -> neokapi.server.v1.SyncMedia
-	9,  // 25: neokapi.server.v1.SyncBlock.TargetsEntry.value:type_name -> neokapi.server.v1.SyncSegmentList
-	26, // [26:26] is the sub-list for method output_type
-	26, // [26:26] is the sub-list for method input_type
-	26, // [26:26] is the sub-list for extension type_name
-	26, // [26:26] is the sub-list for extension extendee
-	0,  // [0:26] is the sub-list for field type_name
+	10, // 16: neokapi.server.v1.SyncPlaceholderRun.constraints:type_name -> neokapi.server.v1.SyncRunConstraints
+	10, // 17: neokapi.server.v1.SyncPcOpenRun.constraints:type_name -> neokapi.server.v1.SyncRunConstraints
+	34, // 18: neokapi.server.v1.SyncPluralRun.forms:type_name -> neokapi.server.v1.SyncPluralRun.FormsEntry
+	35, // 19: neokapi.server.v1.SyncSelectRun.cases:type_name -> neokapi.server.v1.SyncSelectRun.CasesEntry
+	19, // 20: neokapi.server.v1.SyncRunList.runs:type_name -> neokapi.server.v1.SyncRun
+	11, // 21: neokapi.server.v1.SyncRun.text:type_name -> neokapi.server.v1.SyncTextRun
+	12, // 22: neokapi.server.v1.SyncRun.ph:type_name -> neokapi.server.v1.SyncPlaceholderRun
+	13, // 23: neokapi.server.v1.SyncRun.pc_open:type_name -> neokapi.server.v1.SyncPcOpenRun
+	14, // 24: neokapi.server.v1.SyncRun.pc_close:type_name -> neokapi.server.v1.SyncPcCloseRun
+	15, // 25: neokapi.server.v1.SyncRun.sub:type_name -> neokapi.server.v1.SyncSubRun
+	16, // 26: neokapi.server.v1.SyncRun.plural:type_name -> neokapi.server.v1.SyncPluralRun
+	17, // 27: neokapi.server.v1.SyncRun.select:type_name -> neokapi.server.v1.SyncSelectRun
+	21, // 28: neokapi.server.v1.SyncTerm.translations:type_name -> neokapi.server.v1.SyncTermTranslation
+	36, // 29: neokapi.server.v1.SyncTerm.properties:type_name -> neokapi.server.v1.SyncTerm.PropertiesEntry
+	37, // 30: neokapi.server.v1.SyncTMEntry.properties:type_name -> neokapi.server.v1.SyncTMEntry.PropertiesEntry
+	38, // 31: neokapi.server.v1.SyncMedia.properties:type_name -> neokapi.server.v1.SyncMedia.PropertiesEntry
+	39, // 32: neokapi.server.v1.SyncItemMeta.connector_data:type_name -> neokapi.server.v1.SyncItemMeta.ConnectorDataEntry
+	7,  // 33: neokapi.server.v1.SyncPullResponse.blocks:type_name -> neokapi.server.v1.SyncBlock
+	20, // 34: neokapi.server.v1.SyncPullResponse.terms:type_name -> neokapi.server.v1.SyncTerm
+	22, // 35: neokapi.server.v1.SyncPullResponse.tm_entries:type_name -> neokapi.server.v1.SyncTMEntry
+	23, // 36: neokapi.server.v1.SyncPullResponse.media:type_name -> neokapi.server.v1.SyncMedia
+	9,  // 37: neokapi.server.v1.SyncBlock.TargetsEntry.value:type_name -> neokapi.server.v1.SyncSegmentList
+	18, // 38: neokapi.server.v1.SyncPluralRun.FormsEntry.value:type_name -> neokapi.server.v1.SyncRunList
+	18, // 39: neokapi.server.v1.SyncSelectRun.CasesEntry.value:type_name -> neokapi.server.v1.SyncRunList
+	40, // [40:40] is the sub-list for method output_type
+	40, // [40:40] is the sub-list for method input_type
+	40, // [40:40] is the sub-list for extension type_name
+	40, // [40:40] is the sub-list for extension extendee
+	0,  // [0:40] is the sub-list for field type_name
 }
 
-func init() { file_platform_proto_v1_sync_proto_init() }
-func file_platform_proto_v1_sync_proto_init() {
-	if File_platform_proto_v1_sync_proto != nil {
+func init() { file_proto_v1_sync_proto_init() }
+func file_proto_v1_sync_proto_init() {
+	if File_proto_v1_sync_proto != nil {
 		return
+	}
+	file_proto_v1_sync_proto_msgTypes[19].OneofWrappers = []any{
+		(*SyncRun_Text)(nil),
+		(*SyncRun_Ph)(nil),
+		(*SyncRun_PcOpen)(nil),
+		(*SyncRun_PcClose)(nil),
+		(*SyncRun_Sub)(nil),
+		(*SyncRun_Plural)(nil),
+		(*SyncRun_Select)(nil),
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
-			RawDescriptor: unsafe.Slice(unsafe.StringData(file_platform_proto_v1_sync_proto_rawDesc), len(file_platform_proto_v1_sync_proto_rawDesc)),
+			RawDescriptor: unsafe.Slice(unsafe.StringData(file_proto_v1_sync_proto_rawDesc), len(file_proto_v1_sync_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   29,
+			NumMessages:   40,
 			NumExtensions: 0,
 			NumServices:   0,
 		},
-		GoTypes:           file_platform_proto_v1_sync_proto_goTypes,
-		DependencyIndexes: file_platform_proto_v1_sync_proto_depIdxs,
-		MessageInfos:      file_platform_proto_v1_sync_proto_msgTypes,
+		GoTypes:           file_proto_v1_sync_proto_goTypes,
+		DependencyIndexes: file_proto_v1_sync_proto_depIdxs,
+		MessageInfos:      file_proto_v1_sync_proto_msgTypes,
 	}.Build()
-	File_platform_proto_v1_sync_proto = out.File
-	file_platform_proto_v1_sync_proto_goTypes = nil
-	file_platform_proto_v1_sync_proto_depIdxs = nil
+	File_proto_v1_sync_proto = out.File
+	file_proto_v1_sync_proto_goTypes = nil
+	file_proto_v1_sync_proto_depIdxs = nil
 }
