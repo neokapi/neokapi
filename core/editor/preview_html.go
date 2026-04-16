@@ -75,7 +75,7 @@ func RenderBlockContentHTML(block *model.Block) string {
 
 	var buf strings.Builder
 	for _, seg := range block.Source {
-		RenderFragmentToHTML(&buf, seg.Fragment())
+		RenderFragmentToHTML(&buf, model.RunsToFragment(seg.Runs))
 	}
 	return buf.String()
 }

@@ -393,13 +393,13 @@ func (a *App) PseudoTranslateItem(projectID, itemName, targetLocale string) (*Tr
 			return part, nil
 		}
 		locale := model.LocaleID(targetLocale)
-		frag := block.FirstFragment()
-		if frag != nil && frag.HasSpans() {
-			// Pseudo-translate coded text, preserving span markers
+		seg := block.FirstSegment()
+		if seg != nil && seg.HasInlineCodes() {
+			frag := model.RunsToFragment(seg.Runs)
 			pseudoCoded := "[" + pseudoAccent(frag.CodedText) + "]"
 			targetFrag := frag.Clone()
 			targetFrag.CodedText = pseudoCoded
-			block.SetTargetFragment(locale, targetFrag)
+			block.SetTargetRuns(locale, model.FragmentToRuns(targetFrag))
 		} else {
 			src := block.SourceText()
 			pseudo := "[" + pseudoAccent(src) + "]"

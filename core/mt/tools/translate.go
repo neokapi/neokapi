@@ -57,10 +57,11 @@ func (t *MTTranslateTool) handleBlock(part *model.Part) (*model.Part, error) {
 		return part, nil
 	}
 
-	// Check if the source fragment has inline spans.
-	frag := block.FirstFragment()
-	if frag != nil && frag.HasSpans() {
-		return t.handleBlockWithSpans(part, block, frag)
+	// Route through the HTML-preserving path when the source has any
+	// non-text runs (inline codes).
+	sourceRuns := block.SourceRuns()
+	if hasInlineCodes(sourceRuns) {
+		return t.handleBlockWithInlineCodes(part, block, sourceRuns)
 	}
 
 	// Plain text translation.
@@ -77,10 +78,13 @@ func (t *MTTranslateTool) handleBlock(part *model.Part) (*model.Part, error) {
 	return part, nil
 }
 
-// handleBlockWithSpans translates a block that contains inline spans.
-// Uses SemanticHTML for MT APIs that handle HTML tags natively.
-func (t *MTTranslateTool) handleBlockWithSpans(part *model.Part, block *model.Block, frag *model.Fragment) (*model.Part, error) {
-	// Render as semantic HTML — MT APIs preserve HTML tags natively.
+// handleBlockWithInlineCodes translates a block whose source contains
+// inline codes. Source and target round-trip through the legacy
+// Fragment/SemanticHTML representation — MT APIs preserve HTML tags
+// natively, so rendering through semantic tags is the most robust
+// format for this pipeline.
+func (t *MTTranslateTool) handleBlockWithInlineCodes(part *model.Part, block *model.Block, sourceRuns []model.Run) (*model.Part, error) {
+	frag := model.RunsToFragment(sourceRuns)
 	sourceHTML := frag.SemanticHTML(t.vocab)
 
 	resp, err := t.provider.Translate(context.Background(), mtprovider.TranslateRequest{
@@ -92,8 +96,18 @@ func (t *MTTranslateTool) handleBlockWithSpans(part *model.Part, block *model.Bl
 		return nil, fmt.Errorf("%s-translate: %w", string(t.provider.Name()), err)
 	}
 
-	// Reconstruct Fragment from the HTML response.
 	targetFrag := model.ParseSemanticHTML(resp.Translation, frag.Spans, t.vocab)
-	block.SetTargetFragment(t.targetLocale, targetFrag)
+	block.SetTargetRuns(t.targetLocale, model.FragmentToRuns(targetFrag))
 	return part, nil
+}
+
+// hasInlineCodes reports whether a Run sequence contains any non-text
+// run (Ph / PcOpen / PcClose / Sub / Plural / Select).
+func hasInlineCodes(runs []model.Run) bool {
+	for _, r := range runs {
+		if r.Text == nil {
+			return true
+		}
+	}
+	return false
 }

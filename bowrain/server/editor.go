@@ -666,7 +666,7 @@ func editorUpdateBlockTargetCoded(ctx context.Context, cs store.ContentStore, pr
 	for _, si := range req.Spans {
 		frag.Spans = append(frag.Spans, editorInfoToSpan(si))
 	}
-	sb.Block.SetTargetFragment(model.LocaleID(req.TargetLocale), frag)
+	sb.Block.SetTargetRuns(model.LocaleID(req.TargetLocale), model.FragmentToRuns(frag))
 
 	return cs.StoreBlocks(ctx, projectID, stream, []*model.Block{sb.Block})
 }
@@ -695,12 +695,13 @@ func editorPseudoTranslate(ctx context.Context, cs store.ContentStore, projectID
 			return part, nil
 		}
 		locale := model.LocaleID(targetLocale)
-		frag := block.FirstFragment()
-		if frag != nil && frag.HasSpans() {
+		seg := block.FirstSegment()
+		if seg != nil && seg.HasInlineCodes() {
+			frag := model.RunsToFragment(seg.Runs)
 			pseudoCoded := "[" + editorPseudoAccent(frag.CodedText) + "]"
 			targetFrag := frag.Clone()
 			targetFrag.CodedText = pseudoCoded
-			block.SetTargetFragment(locale, targetFrag)
+			block.SetTargetRuns(locale, model.FragmentToRuns(targetFrag))
 		} else {
 			src := block.SourceText()
 			pseudo := "[" + editorPseudoAccent(src) + "]"
@@ -1124,30 +1125,29 @@ func storedBlockToInfoResponse(sb *store.StoredBlock, targetLocales []string) Bl
 }
 
 func enrichBlockInfoResponse(bi *BlockInfoResponse, block *model.Block, targetLocales []string) {
-	if len(block.Source) == 0 || block.Source[0].Fragment() == nil {
+	if len(block.Source) == 0 || len(block.Source[0].Runs) == 0 {
 		return
 	}
-	frag := block.Source[0].Fragment()
-	if !frag.HasSpans() {
+	coded, spans := model.AsCodedText(block.Source[0].Runs)
+	if len(spans) == 0 {
 		return
 	}
 
 	bi.HasSpans = true
-	bi.SourceCoded = frag.CodedText
-	bi.SourceSpans = make([]SpanInfoResponse, len(frag.Spans))
-	for i, s := range frag.Spans {
+	bi.SourceCoded = coded
+	bi.SourceSpans = make([]SpanInfoResponse, len(spans))
+	for i, s := range spans {
 		bi.SourceSpans[i] = editorSpanToInfo(s)
 	}
 
 	bi.TargetsCoded = make(map[string]string, len(targetLocales))
 	for _, locale := range targetLocales {
 		segs, ok := block.Targets[model.LocaleID(locale)]
-		if !ok || len(segs) == 0 {
+		if !ok || len(segs) == 0 || len(segs[0].Runs) == 0 {
 			continue
 		}
-		if segs[0].Fragment() != nil {
-			bi.TargetsCoded[locale] = segs[0].Fragment().CodedText
-		}
+		targetCoded, _ := model.AsCodedText(segs[0].Runs)
+		bi.TargetsCoded[locale] = targetCoded
 	}
 }
 
