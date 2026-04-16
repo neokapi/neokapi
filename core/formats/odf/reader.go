@@ -383,7 +383,7 @@ func (r *Reader) parseODFContent(ctx context.Context, ch chan<- model.PartResult
 	// Track nesting for context
 	var elementStack []xml.Name
 	var b *runBuilder
-	var spanCounter int
+	var idCounter int
 	inTranslatable := false
 	var translatableDepth int
 	// For skeleton: buffer the start element of a translatable block
@@ -403,20 +403,20 @@ func (r *Reader) parseODFContent(ctx context.Context, ch chan<- model.PartResult
 				inTranslatable = true
 				translatableDepth = len(elementStack)
 				b = newRunBuilder()
-				spanCounter = 0
+				idCounter = 0
 				translatableStart = t.Copy()
 			} else if inTranslatable {
 				// Handle inline formatting elements
 				if isInlineFormattingElement(t.Name) {
 					spanType := inlineSpanType(t.Name)
 					if spanType != "" {
-						spanCounter++
-						b.AddPcOpen(fmt.Sprintf("s%d", spanCounter), spanType, "")
+						idCounter++
+						b.AddPcOpen(fmt.Sprintf("s%d", idCounter), spanType, "")
 					}
 				} else if t.Name.Space == nsText && t.Name.Local == "a" {
 					// Hyperlink — the text inside is still translatable
-					spanCounter++
-					b.AddPcOpen(fmt.Sprintf("s%d", spanCounter), TypeHyperlink, getAttr(t, nsXLink, "href"))
+					idCounter++
+					b.AddPcOpen(fmt.Sprintf("s%d", idCounter), TypeHyperlink, getAttr(t, nsXLink, "href"))
 				} else if t.Name.Space == nsText && t.Name.Local == "line-break" {
 					b.AddText("\n")
 				} else if t.Name.Space == nsText && t.Name.Local == "tab" {
@@ -447,12 +447,12 @@ func (r *Reader) parseODFContent(ctx context.Context, ch chan<- model.PartResult
 				if isInlineFormattingElement(t.Name) {
 					spanType := inlineSpanType(t.Name)
 					if spanType != "" {
-						spanCounter++
-						b.AddPcClose(fmt.Sprintf("s%d", spanCounter), spanType)
+						idCounter++
+						b.AddPcClose(fmt.Sprintf("s%d", idCounter), spanType)
 					}
 				} else if t.Name.Space == nsText && t.Name.Local == "a" {
-					spanCounter++
-					b.AddPcClose(fmt.Sprintf("s%d", spanCounter), TypeHyperlink)
+					idCounter++
+					b.AddPcClose(fmt.Sprintf("s%d", idCounter), TypeHyperlink)
 				}
 
 				if len(elementStack) == translatableDepth {

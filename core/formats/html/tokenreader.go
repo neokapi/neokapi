@@ -325,7 +325,7 @@ func (s *tokenReaderState) processLeafBlock(tokenizer *html.Tokenizer, tag strin
 
 	// Collect tokens until matching close tag.
 	b := newRunBuilder()
-	spanCounter := 0
+	idCounter := 0
 	depth := 1
 
 	var closeTagRaw []byte
@@ -342,9 +342,9 @@ func (s *tokenReaderState) processLeafBlock(tokenizer *html.Tokenizer, tag strin
 			b.AddText(string(tokenRaw))
 
 		case html.CommentToken:
-			spanCounter++
+			idCounter++
 			b.AddPh(
-				strconv.Itoa(spanCounter),
+				strconv.Itoa(idCounter),
 				"code:comment",
 				"html:comment",
 				string(tokenRaw), // includes <!-- -->
@@ -364,11 +364,11 @@ func (s *tokenReaderState) processLeafBlock(tokenizer *html.Tokenizer, tag strin
 			s.extractTokenAttrsNoSkeleton(childTag, childAtom, childAttrs, ctx, ch)
 
 			if nonTranslatableElements[childAtom] {
-				spanCounter++
+				idCounter++
 				// Consume until close, capture raw.
 				innerRaw := s.consumeRawUntilClose(tokenizer, childTag)
 				b.AddPh(
-					strconv.Itoa(spanCounter),
+					strconv.Itoa(idCounter),
 					"code:markup",
 					"html:"+childTag,
 					string(tokenRaw)+string(innerRaw),
@@ -385,10 +385,10 @@ func (s *tokenReaderState) processLeafBlock(tokenizer *html.Tokenizer, tag strin
 			if isInlineAtom(childAtom) {
 				if childTranslateNo {
 					// Whole inline is non-translatable: consume as placeholder.
-					spanCounter++
+					idCounter++
 					innerRaw := s.consumeRawUntilClose(tokenizer, childTag)
 					b.AddPh(
-						strconv.Itoa(spanCounter),
+						strconv.Itoa(idCounter),
 						"code:markup",
 						"html:"+childTag,
 						string(tokenRaw)+string(innerRaw),
@@ -401,10 +401,10 @@ func (s *tokenReaderState) processLeafBlock(tokenizer *html.Tokenizer, tag strin
 				subType := "html:" + childTag
 
 				if selfClosingElements[childAtom] {
-					spanCounter++
+					idCounter++
 					info := s.vocab.LookupOrFallback(semType)
 					b.AddPh(
-						strconv.Itoa(spanCounter),
+						strconv.Itoa(idCounter),
 						semType,
 						subType,
 						string(tokenRaw),
@@ -417,8 +417,8 @@ func (s *tokenReaderState) processLeafBlock(tokenizer *html.Tokenizer, tag strin
 						},
 					)
 				} else {
-					spanCounter++
-					spanID := strconv.Itoa(spanCounter)
+					idCounter++
+					spanID := strconv.Itoa(idCounter)
 					info := s.vocab.LookupOrFallback(semType)
 					b.AddPcOpen(
 						spanID,
@@ -434,7 +434,7 @@ func (s *tokenReaderState) processLeafBlock(tokenizer *html.Tokenizer, tag strin
 						},
 					)
 					// Recursively collect inline content.
-					s.collectInlineTokens(tokenizer, childTag, b, &spanCounter, info)
+					s.collectInlineTokens(tokenizer, childTag, b, &idCounter, info)
 				}
 			} else {
 				// Nested block element inside a "leaf" — shouldn't happen
@@ -465,10 +465,10 @@ func (s *tokenReaderState) processLeafBlock(tokenizer *html.Tokenizer, tag strin
 
 			semType := htmlSemanticType(childTag)
 			subType := "html:" + childTag
-			spanCounter++
+			idCounter++
 			info := s.vocab.LookupOrFallback(semType)
 			b.AddPh(
-				strconv.Itoa(spanCounter),
+				strconv.Itoa(idCounter),
 				semType,
 				subType,
 				string(tokenRaw),
@@ -519,7 +519,7 @@ func (s *tokenReaderState) processLeafBlock(tokenizer *html.Tokenizer, tag strin
 
 // collectInlineTokens recursively collects inline content into a runBuilder
 // until the matching close tag for parentTag is found.
-func (s *tokenReaderState) collectInlineTokens(tokenizer *html.Tokenizer, parentTag string, b *runBuilder, spanCounter *int, parentInfo *model.SpanTypeInfo) {
+func (s *tokenReaderState) collectInlineTokens(tokenizer *html.Tokenizer, parentTag string, b *runBuilder, idCounter *int, parentInfo *model.SpanTypeInfo) {
 	for {
 		tt := tokenizer.Next()
 		if tt == html.ErrorToken {
@@ -532,9 +532,9 @@ func (s *tokenReaderState) collectInlineTokens(tokenizer *html.Tokenizer, parent
 			b.AddText(string(tokenRaw))
 
 		case html.CommentToken:
-			*spanCounter++
+			*idCounter++
 			b.AddPh(
-				strconv.Itoa(*spanCounter),
+				strconv.Itoa(*idCounter),
 				"code:comment",
 				"html:comment",
 				string(tokenRaw),
@@ -551,10 +551,10 @@ func (s *tokenReaderState) collectInlineTokens(tokenizer *html.Tokenizer, parent
 			}
 
 			if nonTranslatableElements[childAtom] {
-				*spanCounter++
+				*idCounter++
 				innerRaw := s.consumeRawUntilClose(tokenizer, childTag)
 				b.AddPh(
-					strconv.Itoa(*spanCounter),
+					strconv.Itoa(*idCounter),
 					"code:markup",
 					"html:"+childTag,
 					string(tokenRaw)+string(innerRaw),
@@ -565,10 +565,10 @@ func (s *tokenReaderState) collectInlineTokens(tokenizer *html.Tokenizer, parent
 
 			childTranslateNo := getTokenAttr(childAttrs, "translate") == "no"
 			if childTranslateNo {
-				*spanCounter++
+				*idCounter++
 				innerRaw := s.consumeRawUntilClose(tokenizer, childTag)
 				b.AddPh(
-					strconv.Itoa(*spanCounter),
+					strconv.Itoa(*idCounter),
 					"code:markup",
 					"html:"+childTag,
 					string(tokenRaw)+string(innerRaw),
@@ -582,10 +582,10 @@ func (s *tokenReaderState) collectInlineTokens(tokenizer *html.Tokenizer, parent
 				subType := "html:" + childTag
 
 				if selfClosingElements[childAtom] {
-					*spanCounter++
+					*idCounter++
 					info := s.vocab.LookupOrFallback(semType)
 					b.AddPh(
-						strconv.Itoa(*spanCounter),
+						strconv.Itoa(*idCounter),
 						semType,
 						subType,
 						string(tokenRaw),
@@ -598,8 +598,8 @@ func (s *tokenReaderState) collectInlineTokens(tokenizer *html.Tokenizer, parent
 						},
 					)
 				} else {
-					*spanCounter++
-					spanID := strconv.Itoa(*spanCounter)
+					*idCounter++
+					spanID := strconv.Itoa(*idCounter)
 					info := s.vocab.LookupOrFallback(semType)
 					b.AddPcOpen(
 						spanID,
@@ -614,7 +614,7 @@ func (s *tokenReaderState) collectInlineTokens(tokenizer *html.Tokenizer, parent
 							Reorderable: info.Constraints.Reorderable,
 						},
 					)
-					s.collectInlineTokens(tokenizer, childTag, b, spanCounter, info)
+					s.collectInlineTokens(tokenizer, childTag, b, idCounter, info)
 				}
 			}
 
@@ -645,10 +645,10 @@ func (s *tokenReaderState) collectInlineTokens(tokenizer *html.Tokenizer, parent
 
 			semType := htmlSemanticType(childTag)
 			subType := "html:" + childTag
-			*spanCounter++
+			*idCounter++
 			info := s.vocab.LookupOrFallback(semType)
 			b.AddPh(
-				strconv.Itoa(*spanCounter),
+				strconv.Itoa(*idCounter),
 				semType,
 				subType,
 				string(tokenRaw),

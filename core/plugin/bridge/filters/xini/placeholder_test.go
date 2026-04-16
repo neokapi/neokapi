@@ -33,14 +33,14 @@ func TestPlaceholder_PlaceholdersBecomeCodes(t *testing.T) {
 	require.NotEmpty(t, blocks, "should extract translatable blocks")
 
 	// At least one block should have inline code spans from placeholders.
-	hasSpans := false
+	hasInlineCodes := false
 	for _, b := range blocks {
-		if spanCount(b) > 0 {
-			hasSpans = true
+		if inlineCodeCount(b) > 0 {
+			hasInlineCodes = true
 			break
 		}
 	}
-	assert.True(t, hasSpans, "placeholders should produce inline code spans in at least one block")
+	assert.True(t, hasInlineCodes, "placeholders should produce inline code spans in at least one block")
 }
 
 // okapi: XINIFilterPlaceholderTest#isolatedPlaceholdersBecomeCodes

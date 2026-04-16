@@ -88,7 +88,7 @@ func TestFormatting_TagsBecomeCodes(t *testing.T) {
 	require.NotNil(t, b, "should find block with 'Bold text'")
 
 	// The formatting tags should become inline code spans.
-	assert.Greater(t, spanCount(b), 0, "formatting tags should produce inline code spans")
+	assert.Greater(t, inlineCodeCount(b), 0, "formatting tags should produce inline code spans")
 
 	// Should have opening and closing span types.
 	assert.True(t, hasSpanOfType(b, model.SpanOpening) || hasSpanOfType(b, model.SpanPlaceholder),

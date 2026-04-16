@@ -4,7 +4,6 @@ package html
 
 import (
 	"bytes"
-	"context"
 	"io"
 	"os"
 	"testing"

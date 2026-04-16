@@ -54,11 +54,9 @@ func TestSnippet_BasicWithUT(t *testing.T) {
 	assert.Contains(t, srcText, "text")
 	assert.Contains(t, srcText, "bold")
 
-	// Should have inline spans for the <br/>, <b>, </b> codes.
+	// Should have inline-code runs for the <br/>, <b>, </b> codes.
 	require.NotEmpty(t, b.Source)
-	if b.Source[0].Content != nil {
-		assert.NotEmpty(t, b.Source[0].Spans(), "should have spans for inline codes")
-	}
+	assert.True(t, bridgetest.HasInlineCode(b.Source[0].Runs), "should have inline-code runs")
 }
 
 // okapi: TTXFilterTest#testBasicNoTU

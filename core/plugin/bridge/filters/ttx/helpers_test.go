@@ -4,7 +4,6 @@ package ttx
 
 import (
 	"bytes"
-	"context"
 	"io"
 	"os"
 	"testing"

@@ -4,7 +4,6 @@ package mif
 
 import (
 	"bytes"
-	"context"
 	"io"
 	"testing"
 
@@ -112,11 +111,20 @@ func TestExtraction_CodeAtTheFront(t *testing.T) {
 
 	// Blocks that start with inline codes should still have valid text.
 	for _, b := range blocks {
-		if b.Source != nil && len(b.Source) > 0 && b.Source[0].Content != nil {
-			if len(b.Source[0].Spans()) > 0 {
-				// Having spans at the front is valid.
-				assert.NotNil(t, b.Source[0].Content, "block with leading code should have content")
+		if len(b.Source) == 0 || len(b.Source[0].Runs) == 0 {
+			continue
+		}
+		var hasInlineCode bool
+		for _, r := range b.Source[0].Runs {
+			if r.Text == nil {
+				hasInlineCode = true
+				break
 			}
+		}
+		if hasInlineCode {
+			// Having inline-code runs at the front is valid; the
+			// segment should still carry content.
+			assert.NotEmpty(t, b.Source[0].Runs, "block with leading code should have content")
 		}
 	}
 }

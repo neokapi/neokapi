@@ -147,8 +147,8 @@ func countPartsByType(parts []*model.Part, pt model.PartType) int {
 	return n
 }
 
-// blocksWithSpans returns blocks that have at least one inline-code run in their source.
-func blocksWithSpans(blocks []*model.Block) []*model.Block {
+// blocksWithInlineCodes returns blocks that have at least one inline-code run in their source.
+func blocksWithInlineCodes(blocks []*model.Block) []*model.Block {
 	var result []*model.Block
 	for _, b := range blocks {
 		runs := b.SourceRuns()

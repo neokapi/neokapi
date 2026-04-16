@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
@@ -71,11 +72,11 @@ func recordBlockHistory(ctx context.Context, tx *sql.Tx, projectID, stream, bloc
 // recordTargetHistory checks for target changes and records history entries.
 func recordTargetHistory(ctx context.Context, tx *sql.Tx, projectID, stream string, blockID string, oldTargets map[model.LocaleID][]*model.Segment, newTargets map[model.LocaleID][]*model.Segment) error {
 	for locale, newSegs := range newTargets {
-		newText := segmentsText(newSegs)
-		newCoded := segmentsMarshalled(newSegs)
+		newText := segmentsPlainText(newSegs)
+		newCoded := segmentsCoded(newSegs)
 
 		oldSegs := oldTargets[locale]
-		oldText := segmentsText(oldSegs)
+		oldText := segmentsPlainText(oldSegs)
 
 		if newText == oldText {
 			continue
@@ -93,18 +94,26 @@ func recordTargetHistory(ctx context.Context, tx *sql.Tx, projectID, stream stri
 	return nil
 }
 
-// segmentsText extracts plain text from segments.
-func segmentsText(segs []*model.Segment) string {
-	if len(segs) == 0 || len(segs[0].Runs) == 0 {
+// segmentsPlainText concatenates the plain text of every segment in
+// the slice. Mirrors the behaviour of model.Block.TargetText so that
+// history-row deduplication compares the same string the rest of the
+// app sees.
+func segmentsPlainText(segs []*model.Segment) string {
+	if len(segs) == 0 {
 		return ""
 	}
-	return segs[0].Text()
+	var buf strings.Builder
+	for _, s := range segs {
+		buf.WriteString(s.Text())
+	}
+	return buf.String()
 }
 
-// segmentsMarshalled returns the legacy PUA-marker coded form of the
-// first segment, used for the block_history.coded_text column. The
-// column name persists for backwards compatibility with existing rows.
-func segmentsMarshalled(segs []*model.Segment) string {
+// segmentsCoded returns the legacy PUA-marker coded form of the first
+// segment, used for the block_history.coded_text column. Multi-segment
+// blocks only persist the first segment's coded form here — the column
+// is a debugging aid for editor history, not the canonical store.
+func segmentsCoded(segs []*model.Segment) string {
 	if len(segs) == 0 || len(segs[0].Runs) == 0 {
 		return ""
 	}

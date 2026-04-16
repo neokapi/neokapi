@@ -141,12 +141,12 @@ func (w *domWalker) walkElement(n *html.Node, translateNo bool) {
 			preserveWS := w.cfg.PreserveWhitespace || preserveWhitespaceElements[n.DataAtom]
 
 			// Walk inline content to count spans and advance attribute counters.
-			spanCounter := 0
-			w.walkInlineChildren(n, &spanCounter, elemTranslateNo)
+			idCounter := 0
+			w.walkInlineChildren(n, &idCounter, elemTranslateNo)
 
 			hasID := getAttr(n, "id") != ""
 			text := collectPlainText(n, preserveWS)
-			if text != "" || spanCounter > 0 || hasID {
+			if text != "" || idCounter > 0 || hasID {
 				w.visitor.onBlockElement(w.nextBlockID(), n, preserveWS)
 				return
 			}
@@ -243,7 +243,7 @@ func (w *domWalker) processBlockWithMixedContent(n *html.Node, translateNo bool)
 	for child := n.FirstChild; child != nil; child = child.NextSibling {
 		if child.Type == html.TextNode || (child.Type == html.ElementNode && isInlineElement(child)) {
 			var textBuf strings.Builder
-			spanCounter := 0
+			idCounter := 0
 			runStart := child
 			for child != nil && (child.Type == html.TextNode ||
 				child.Type == html.CommentNode ||
@@ -252,10 +252,10 @@ func (w *domWalker) processBlockWithMixedContent(n *html.Node, translateNo bool)
 				case html.TextNode:
 					textBuf.WriteString(child.Data)
 				case html.CommentNode:
-					spanCounter++
+					idCounter++
 				case html.ElementNode:
 					w.extractTranslatableAttributes(child, translateNo)
-					w.walkInlineChildren(child, &spanCounter, translateNo)
+					w.walkInlineChildren(child, &idCounter, translateNo)
 				}
 				child = child.NextSibling
 			}
@@ -265,7 +265,7 @@ func (w *domWalker) processBlockWithMixedContent(n *html.Node, translateNo bool)
 				text = collapseWhitespace(text)
 				text = strings.TrimFunc(text, isHTMLWhitespace)
 			}
-			if text != "" || spanCounter > 0 {
+			if text != "" || idCounter > 0 {
 				w.visitor.onMixedContentBlock(w.nextBlockID(), n, runStart, child, preserveWS)
 			}
 
@@ -280,17 +280,17 @@ func (w *domWalker) processBlockWithMixedContent(n *html.Node, translateNo bool)
 
 // walkInlineChildren traverses inline content, counting spans and advancing
 // attribute block counters. This mirrors collectFromNode's traversal order.
-func (w *domWalker) walkInlineChildren(n *html.Node, spanCounter *int, translateNo bool) {
+func (w *domWalker) walkInlineChildren(n *html.Node, idCounter *int, translateNo bool) {
 	for child := n.FirstChild; child != nil; child = child.NextSibling {
 		switch child.Type {
 		case html.CommentNode:
-			*spanCounter++
+			*idCounter++
 
 		case html.ElementNode:
 			w.extractTranslatableAttributes(child, translateNo)
 
 			if nonTranslatableElements[child.DataAtom] {
-				*spanCounter++
+				*idCounter++
 				continue
 			}
 
@@ -305,16 +305,16 @@ func (w *domWalker) walkInlineChildren(n *html.Node, spanCounter *int, translate
 
 			if isInlineElement(child) {
 				if childTranslateNo && !translateNo && !hasDescendantTranslateYes(child) {
-					*spanCounter++
+					*idCounter++
 					continue
 				}
 
 				if selfClosingElements[child.DataAtom] {
-					*spanCounter++
+					*idCounter++
 				} else {
-					*spanCounter++ // opening
-					w.walkInlineChildren(child, spanCounter, childTranslateNo)
-					*spanCounter++ // closing
+					*idCounter++ // opening
+					w.walkInlineChildren(child, idCounter, childTranslateNo)
+					*idCounter++ // closing
 				}
 			}
 		}

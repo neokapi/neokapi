@@ -82,14 +82,14 @@ func TestRainbowkit_TextSplitTagCodeNumbering(t *testing.T) {
 	require.NotEmpty(t, blocks, "should extract translatable blocks from contents.xini via RainbowKit reader")
 
 	// The blocks should have inline codes from sph/eph/ph elements.
-	hasSpans := false
+	hasInlineCodes := false
 	for _, b := range blocks {
-		if spanCount(b) > 0 {
-			hasSpans = true
+		if inlineCodeCount(b) > 0 {
+			hasInlineCodes = true
 			break
 		}
 	}
-	assert.True(t, hasSpans, "blocks should have inline code spans from tag elements")
+	assert.True(t, hasInlineCodes, "blocks should have inline code spans from tag elements")
 }
 
 // okapi: XINIRainbowKitReaderTest#textSplitTagCodeNumberingDescending

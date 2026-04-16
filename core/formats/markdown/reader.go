@@ -381,7 +381,7 @@ func (r *Reader) emitHeading(ctx context.Context, ch chan<- model.PartResult, n 
 	block.Name = fmt.Sprintf("heading%d", r.blockCounter)
 	block.Type = "heading"
 	block.Properties["level"] = strconv.Itoa(n.Level)
-	r.addInlineSpans(block, n, source)
+	r.addInlineRuns(block, n, source)
 
 	absStart, _ := fullNodeAbsRange(n, source, baseOffset)
 	lineStart, lineEnd := nodeAbsRange(n, source, baseOffset)
@@ -404,7 +404,7 @@ func (r *Reader) emitParagraph(ctx context.Context, ch chan<- model.PartResult, 
 	textContent := r.extractInlineText(n, source)
 	block := model.NewBlock(blockID, textContent)
 	block.Name = fmt.Sprintf("para%d", r.blockCounter)
-	r.addInlineSpans(block, n, source)
+	r.addInlineRuns(block, n, source)
 
 	lineStart, lineEnd := nodeAbsRange(n, source, baseOffset)
 
@@ -439,11 +439,11 @@ func (r *Reader) emitListItem(ctx context.Context, ch chan<- model.PartResult, n
 
 	for child := n.FirstChild(); child != nil; child = child.NextSibling() {
 		if p, ok := child.(*ast.Paragraph); ok {
-			r.addInlineSpans(block, p, source)
+			r.addInlineRuns(block, p, source)
 			break
 		}
 		if _, ok := child.(*ast.TextBlock); ok {
-			r.addInlineSpans(block, child, source)
+			r.addInlineRuns(block, child, source)
 			break
 		}
 	}
@@ -696,7 +696,7 @@ func (r *Reader) emitTable(ctx context.Context, ch chan<- model.PartResult, node
 					block := model.NewBlock(blockID, cellText)
 					block.Name = fmt.Sprintf("cell%d", r.blockCounter)
 					block.Type = "table-cell"
-					r.addInlineSpans(block, cell, source)
+					r.addInlineRuns(block, cell, source)
 					cellBlocks = append(cellBlocks, block)
 				}
 			}
@@ -801,18 +801,18 @@ func (r *Reader) extractRawLines(node ast.Node, source []byte) string {
 	return buf.String()
 }
 
-// --- Inline span building ---
+// --- Inline run building ---
 
-func (r *Reader) addInlineSpans(block *model.Block, node ast.Node, source []byte) {
+func (r *Reader) addInlineRuns(block *model.Block, node ast.Node, source []byte) {
 	b := newRunBuilder()
-	spanCounter := 0
-	r.buildCodedRuns(b, node, source, &spanCounter)
-	if b.HasSpans() {
+	idCounter := 0
+	r.buildCodedRuns(b, node, source, &idCounter)
+	if b.HasInlineCodes() {
 		block.Source = []*model.Segment{model.NewRunsSegment("s1", b.Runs())}
 	}
 }
 
-func (r *Reader) buildCodedRuns(b *runBuilder, node ast.Node, source []byte, spanCounter *int) {
+func (r *Reader) buildCodedRuns(b *runBuilder, node ast.Node, source []byte, idCounter *int) {
 	for child := node.FirstChild(); child != nil; child = child.NextSibling() {
 		switch n := child.(type) {
 		case *ast.Text:
@@ -827,34 +827,34 @@ func (r *Reader) buildCodedRuns(b *runBuilder, node ast.Node, source []byte, spa
 			b.AddText(string(n.Value))
 
 		case *ast.Emphasis:
-			r.buildEmphasisRuns(b, n, source, spanCounter)
+			r.buildEmphasisRuns(b, n, source, idCounter)
 
 		case *ast.CodeSpan:
-			r.buildCodeSpanRuns(b, n, source, spanCounter)
+			r.buildCodeSpanRuns(b, n, source, idCounter)
 
 		case *ast.Link:
-			r.buildLinkRuns(b, n, source, spanCounter)
+			r.buildLinkRuns(b, n, source, idCounter)
 
 		case *ast.Image:
-			r.buildImageRuns(b, n, source, spanCounter)
+			r.buildImageRuns(b, n, source, idCounter)
 
 		case *ast.AutoLink:
-			r.buildAutoLinkRuns(b, n, source, spanCounter)
+			r.buildAutoLinkRuns(b, n, source, idCounter)
 
 		case *ast.RawHTML:
-			r.buildRawHTMLRuns(b, n, source, spanCounter)
+			r.buildRawHTMLRuns(b, n, source, idCounter)
 
 		default:
 			if child.Kind() == east.KindStrikethrough {
-				r.buildStrikethroughRuns(b, child, source, spanCounter)
+				r.buildStrikethroughRuns(b, child, source, idCounter)
 			} else {
-				r.buildCodedRuns(b, child, source, spanCounter)
+				r.buildCodedRuns(b, child, source, idCounter)
 			}
 		}
 	}
 }
 
-func (r *Reader) buildEmphasisRuns(b *runBuilder, n *ast.Emphasis, source []byte, spanCounter *int) {
+func (r *Reader) buildEmphasisRuns(b *runBuilder, n *ast.Emphasis, source []byte, idCounter *int) {
 	var semType, subType, data string
 	if n.Level == 2 {
 		semType = "fmt:bold"
@@ -865,18 +865,18 @@ func (r *Reader) buildEmphasisRuns(b *runBuilder, n *ast.Emphasis, source []byte
 		subType = "md:emphasis"
 		data = "*"
 	}
-	*spanCounter++
-	id := strconv.Itoa(*spanCounter)
+	*idCounter++
+	id := strconv.Itoa(*idCounter)
 	info := r.vocab.LookupOrFallback(semType)
 	b.AddPcOpen(id, semType, subType, data, info.Display.Open, info.Equiv,
 		info.Constraints.Deletable, info.Constraints.Cloneable, info.Constraints.Reorderable)
-	r.buildCodedRuns(b, n, source, spanCounter)
+	r.buildCodedRuns(b, n, source, idCounter)
 	b.AddPcClose(id, semType, subType, data, info.Equiv)
 }
 
-func (r *Reader) buildCodeSpanRuns(b *runBuilder, n *ast.CodeSpan, source []byte, spanCounter *int) {
-	*spanCounter++
-	id := strconv.Itoa(*spanCounter)
+func (r *Reader) buildCodeSpanRuns(b *runBuilder, n *ast.CodeSpan, source []byte, idCounter *int) {
+	*idCounter++
+	id := strconv.Itoa(*idCounter)
 	info := r.vocab.LookupOrFallback("fmt:code")
 	b.AddPcOpen(id, "fmt:code", "md:code", "`", info.Display.Open, info.Equiv,
 		info.Constraints.Deletable, info.Constraints.Cloneable, info.Constraints.Reorderable)
@@ -888,9 +888,9 @@ func (r *Reader) buildCodeSpanRuns(b *runBuilder, n *ast.CodeSpan, source []byte
 	b.AddPcClose(id, "fmt:code", "md:code", "`", info.Equiv)
 }
 
-func (r *Reader) buildLinkRuns(b *runBuilder, n *ast.Link, source []byte, spanCounter *int) {
-	*spanCounter++
-	id := strconv.Itoa(*spanCounter)
+func (r *Reader) buildLinkRuns(b *runBuilder, n *ast.Link, source []byte, idCounter *int) {
+	*idCounter++
+	id := strconv.Itoa(*idCounter)
 	info := r.vocab.LookupOrFallback("link:hyperlink")
 
 	closingData := "](" + string(n.Destination)
@@ -901,13 +901,13 @@ func (r *Reader) buildLinkRuns(b *runBuilder, n *ast.Link, source []byte, spanCo
 
 	b.AddPcOpen(id, "link:hyperlink", "md:link", "[", info.Display.Open, info.Equiv,
 		info.Constraints.Deletable, info.Constraints.Cloneable, info.Constraints.Reorderable)
-	r.buildCodedRuns(b, n, source, spanCounter)
+	r.buildCodedRuns(b, n, source, idCounter)
 	b.AddPcClose(id, "link:hyperlink", "md:link", closingData, info.Equiv)
 }
 
-func (r *Reader) buildImageRuns(b *runBuilder, n *ast.Image, source []byte, spanCounter *int) {
-	*spanCounter++
-	id := strconv.Itoa(*spanCounter)
+func (r *Reader) buildImageRuns(b *runBuilder, n *ast.Image, source []byte, idCounter *int) {
+	*idCounter++
+	id := strconv.Itoa(*idCounter)
 	info := r.vocab.LookupOrFallback("link:image")
 
 	closingData := "](" + string(n.Destination)
@@ -919,14 +919,14 @@ func (r *Reader) buildImageRuns(b *runBuilder, n *ast.Image, source []byte, span
 	b.AddPcOpen(id, "link:image", "md:image", "![", info.Display.Open, info.Equiv,
 		info.Constraints.Deletable, info.Constraints.Cloneable, info.Constraints.Reorderable)
 	if r.cfg.TranslateImageAlt() {
-		r.buildCodedRuns(b, n, source, spanCounter)
+		r.buildCodedRuns(b, n, source, idCounter)
 	}
 	b.AddPcClose(id, "link:image", "md:image", closingData, info.Equiv)
 }
 
-func (r *Reader) buildAutoLinkRuns(b *runBuilder, n *ast.AutoLink, source []byte, spanCounter *int) {
-	*spanCounter++
-	id := strconv.Itoa(*spanCounter)
+func (r *Reader) buildAutoLinkRuns(b *runBuilder, n *ast.AutoLink, source []byte, idCounter *int) {
+	*idCounter++
+	id := strconv.Itoa(*idCounter)
 	info := r.vocab.LookupOrFallback("link:hyperlink")
 	url := string(n.URL(source))
 	b.AddPcOpen(id, "link:hyperlink", "md:autolink", "<", info.Display.Open, info.Equiv,
@@ -935,9 +935,9 @@ func (r *Reader) buildAutoLinkRuns(b *runBuilder, n *ast.AutoLink, source []byte
 	b.AddPcClose(id, "link:hyperlink", "md:autolink", ">", info.Equiv)
 }
 
-func (r *Reader) buildRawHTMLRuns(b *runBuilder, n *ast.RawHTML, source []byte, spanCounter *int) {
-	*spanCounter++
-	id := strconv.Itoa(*spanCounter)
+func (r *Reader) buildRawHTMLRuns(b *runBuilder, n *ast.RawHTML, source []byte, idCounter *int) {
+	*idCounter++
+	id := strconv.Itoa(*idCounter)
 
 	var htmlContent strings.Builder
 	for i := range n.Segments.Len() {
@@ -954,13 +954,13 @@ func (r *Reader) buildRawHTMLRuns(b *runBuilder, n *ast.RawHTML, source []byte, 
 	b.AddPcClose(id, "fmt:html", "md:html-inline", "", "")
 }
 
-func (r *Reader) buildStrikethroughRuns(b *runBuilder, node ast.Node, source []byte, spanCounter *int) {
-	*spanCounter++
-	id := strconv.Itoa(*spanCounter)
+func (r *Reader) buildStrikethroughRuns(b *runBuilder, node ast.Node, source []byte, idCounter *int) {
+	*idCounter++
+	id := strconv.Itoa(*idCounter)
 	info := r.vocab.LookupOrFallback("fmt:strike")
 	b.AddPcOpen(id, "fmt:strike", "md:strikethrough", "~~", info.Display.Open, info.Equiv,
 		info.Constraints.Deletable, info.Constraints.Cloneable, info.Constraints.Reorderable)
-	r.buildCodedRuns(b, node, source, spanCounter)
+	r.buildCodedRuns(b, node, source, idCounter)
 	b.AddPcClose(id, "fmt:strike", "md:strikethrough", "~~", info.Equiv)
 }
 

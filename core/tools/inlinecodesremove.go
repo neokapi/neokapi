@@ -39,12 +39,13 @@ func (c *InlineCodesRemoveConfig) Validate() error {
 	return nil
 }
 
-// NewInlineCodesRemoveTool creates a new tool that strips inline codes/spans
-// from fragment content, producing clean plain text.
+// NewInlineCodesRemoveTool creates a new tool that strips inline-code
+// runs (Ph / PcOpen / PcClose) from segment content, producing clean
+// plain text.
 func NewInlineCodesRemoveTool(cfg *InlineCodesRemoveConfig) *tool.BaseTool {
 	t := &tool.BaseTool{
 		ToolName:        "inline-codes-remove",
-		ToolDescription: "Strips inline codes/spans from fragment content, producing clean plain text",
+		ToolDescription: "Strips inline-code runs from segment content, producing clean plain text",
 		Cfg:             cfg,
 	}
 	t.HandleBlockFn = func(part *model.Part) (*model.Part, error) {

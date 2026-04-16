@@ -4,7 +4,6 @@ package tmx
 
 import (
 	"bytes"
-	"context"
 	"io"
 	"os"
 	"strings"
@@ -1370,8 +1369,12 @@ func TestExtract_SmallComplete(t *testing.T) {
 	b := blocks[0]
 	require.NotNil(t, b.Source)
 	require.NotEmpty(t, b.Source)
-	frag := b.Source[0].Content
-	require.NotNil(t, frag)
 	// The small_complete TMX has inline codes.
-	assert.NotEmpty(t, frag.Spans, "should have inline code spans")
+	var inlineCodes int
+	for _, r := range b.Source[0].Runs {
+		if r.Text == nil {
+			inlineCodes++
+		}
+	}
+	assert.Greater(t, inlineCodes, 0, "should have inline code runs")
 }

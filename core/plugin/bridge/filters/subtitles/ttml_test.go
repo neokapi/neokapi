@@ -208,33 +208,28 @@ func TestExtract_CodeFinder(t *testing.T) {
 	require.GreaterOrEqual(t, len(blocks), 2, "should extract text units with code finder enabled")
 
 	// First subtitle: text should be "Thanks everyone for joining us today."
-	// with <span> tags as inline codes.
+	// with <span> tags as inline-code runs.
 	b1 := blocks[0]
 	assert.Equal(t, "Thanks everyone for joining us today.", b1.SourceText())
-	// Verify spans are created for the inline codes.
-	if b1.Source[0].Content != nil {
-		assert.NotEmpty(t, b1.Source[0].Spans(), "should have spans for <span> inline codes")
-		// Look for span data containing the opening and closing tags.
-		foundOpen := false
-		foundClose := false
-		for _, s := range b1.Source[0].Spans() {
-			if strings.Contains(s.Data, "<span") {
-				foundOpen = true
-			}
-			if strings.Contains(s.Data, "</span>") {
-				foundClose = true
-			}
+	// Verify inline-code runs carry the <span> tag data.
+	assert.True(t, bridgetest.HasInlineCode(b1.Source[0].Runs), "should have inline-code runs for <span>")
+	foundOpen := false
+	foundClose := false
+	for _, r := range b1.Source[0].Runs {
+		switch {
+		case r.PcOpen != nil && strings.Contains(r.PcOpen.Data, "<span"):
+			foundOpen = true
+		case r.PcClose != nil && strings.Contains(r.PcClose.Data, "</span>"):
+			foundClose = true
 		}
-		assert.True(t, foundOpen, "should find opening <span> tag as inline code")
-		assert.True(t, foundClose, "should find closing </span> tag as inline code")
 	}
+	assert.True(t, foundOpen, "should find opening <span> tag as inline-code run")
+	assert.True(t, foundClose, "should find closing </span> tag as inline-code run")
 
 	// Second subtitle: "I am so excited to be with you."
 	b2 := blocks[1]
 	assert.Equal(t, "I am so excited to be with you.", b2.SourceText())
-	if b2.Source[0].Content != nil {
-		assert.NotEmpty(t, b2.Source[0].Spans(), "should have spans for <span> inline codes in second subtitle")
-	}
+	assert.True(t, bridgetest.HasInlineCode(b2.Source[0].Runs), "should have inline-code runs for <span> in second subtitle")
 }
 
 // okapi: TTMLFilterTest#testProcessTextUnitNonEscapeBrMode

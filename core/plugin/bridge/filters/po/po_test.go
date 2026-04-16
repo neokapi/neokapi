@@ -402,12 +402,10 @@ func TestExtract_Inlines(t *testing.T) {
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.NotEmpty(t, blocks)
 
-	// Source should have spans for the inline codes.
+	// Source should have inline-code runs for the inline codes.
 	b := blocks[0]
 	require.NotEmpty(t, b.Source)
-	if b.Source[0].Content != nil {
-		assert.NotEmpty(t, b.Source[0].Spans(), "should have spans for inline codes")
-	}
+	assert.True(t, bridgetest.HasInlineCode(b.Source[0].Runs), "should have inline-code runs")
 }
 
 // okapi: POFilterTest#testWithLetterCodes

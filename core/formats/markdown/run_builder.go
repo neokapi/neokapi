@@ -11,8 +11,8 @@ import "github.com/neokapi/neokapi/core/model"
 // markdown reader emit the Runs shape directly, avoiding a Fragment
 // round-trip on every parse.
 type runBuilder struct {
-	runs     []model.Run
-	hasSpans bool
+	runs           []model.Run
+	hasInlineCodes bool
 }
 
 // newRunBuilder returns a fresh runBuilder.
@@ -37,7 +37,7 @@ func (b *runBuilder) AddText(text string) {
 // and editing constraints. Mirrors the shape MarshalRuns would
 // produce for a model.Span with SpanType == SpanPlaceholder.
 func (b *runBuilder) AddPh(id, semType, subType, data, disp, equiv string, deletable, cloneable, reorderable bool) {
-	b.hasSpans = true
+	b.hasInlineCodes = true
 	b.runs = append(b.runs, model.Run{Ph: &model.PlaceholderRun{
 		ID:      id,
 		Type:    semType,
@@ -57,7 +57,7 @@ func (b *runBuilder) AddPh(id, semType, subType, data, disp, equiv string, delet
 // shape MarshalRuns would produce for a model.Span with
 // SpanType == SpanOpening.
 func (b *runBuilder) AddPcOpen(id, semType, subType, data, disp, equiv string, deletable, cloneable, reorderable bool) {
-	b.hasSpans = true
+	b.hasInlineCodes = true
 	b.runs = append(b.runs, model.Run{PcOpen: &model.PcOpenRun{
 		ID:      id,
 		Type:    semType,
@@ -77,7 +77,7 @@ func (b *runBuilder) AddPcOpen(id, semType, subType, data, disp, equiv string, d
 // no Disp or Constraints fields — the closing half inherits behaviour
 // from the opening and mirrors MarshalRuns for SpanClosing spans.
 func (b *runBuilder) AddPcClose(id, semType, subType, data, equiv string) {
-	b.hasSpans = true
+	b.hasInlineCodes = true
 	b.runs = append(b.runs, model.Run{PcClose: &model.PcCloseRun{
 		ID:      id,
 		Type:    semType,
@@ -87,11 +87,11 @@ func (b *runBuilder) AddPcClose(id, semType, subType, data, equiv string) {
 	}})
 }
 
-// HasSpans reports whether any non-text run (placeholder, paired code
-// open/close) has been accumulated. Mirrors Fragment.HasSpans — used
-// by the reader to decide whether to emit a runs-backed segment.
-func (b *runBuilder) HasSpans() bool {
-	return b.hasSpans
+// HasInlineCodes reports whether any non-text run (placeholder, paired
+// code open/close) has been accumulated. Used by the reader to decide
+// whether to emit a runs-backed segment.
+func (b *runBuilder) HasInlineCodes() bool {
+	return b.hasInlineCodes
 }
 
 // Runs returns the accumulated run slice. Always returns a non-nil
