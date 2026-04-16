@@ -1,7 +1,7 @@
 import { defineConfig } from "vite-plus";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
-import neokapi from "@neokapi/react/vite";
+import neokapi from "@neokapi/kapi-react/vite";
 
 export default defineConfig({
   plugins: [neokapi({ mode: "runtime" }), react(), tailwindcss()],

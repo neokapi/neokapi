@@ -69,7 +69,7 @@ export class AddConceptRequest {
 /**
  * AddTMEntryRequest is the request to add a new multilingual TM entry.
  * Callers populate Variants with one VariantInput per locale; the server
- * rebuilds Fragments from CodedText + Spans or falls back to plain Text.
+ * rebuilds Run sequences from the coded form + spans or falls back to plain Text.
  */
 export class AddTMEntryRequest {
     /**

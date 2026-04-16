@@ -2,1318 +2,1870 @@
   "sourceLocale": "en",
   "strings": [
     {
-      "hash": "p47cX",
-      "text": "neokapi",
-      "context": "div > div > img[alt]",
-      "src": "src/components/AppHome.tsx:869"
-    },
-    {
-      "hash": "3Yxt8l",
-      "text": "Welcome to Kapi",
+      "hash": "33Mncx",
+      "text": "AI Credentials",
       "context": "div > div > div > h1",
-      "src": "src/components/AppHome.tsx:976"
+      "src": "src/stories/CredentialsPage.stories.tsx:21955"
     },
     {
-      "hash": "2Mfz71",
-      "text": "Localization plumbing and glue for people, elves, and agents.",
+      "hash": "3Z3yLl",
+      "text": "API keys are stored in your OS keychain",
       "context": "div > div > div > p",
-      "src": "src/components/AppHome.tsx:1045"
-    },
-    {
-      "hash": "4zNoD3",
-      "text": "New to Kapi? Try a sample project",
-      "context": "div > div > div > span",
-      "src": "src/components/AppHome.tsx:1488"
-    },
-    {
-      "hash": "1rT796",
-      "text": "A realistic localization project with docs, store UI, Office documents, and templates — 4 content collections, 5 target languages, 1000+ TM entries. No plugins needed.",
-      "context": "div > div > div > Button > p",
-      "src": "src/components/AppHome.tsx:2286"
-    },
-    {
-      "hash": "4usNv7",
-      "text": "Same store files processed through Okapi Java filters. Requires the okapi-bridge plugin.",
-      "context": "div > div > div > Button > p",
-      "src": "src/components/AppHome.tsx:2992"
-    },
-    {
-      "hash": "D1QYU",
-      "text": "Recent Projects",
-      "context": "div > section > h2",
-      "src": "src/components/AppHome.tsx:5408"
-    },
-    {
-      "hash": "3urkO2",
-      "text": "{length}",
-      "context": "div > div > Button > span",
-      "src": "src/components/ContentPage.tsx:17247"
-    },
-    {
-      "hash": "3pbdfK",
-      "text": "{\"key\": \"value\"}",
-      "context": "div > div > div > textarea[placeholder]",
-      "src": "src/components/ContentPage.tsx:17528"
-    },
-    {
-      "hash": "2wUfzo",
-      "text": "JSON config passed to the format reader/writer.",
-      "context": "div > div > div > p",
-      "src": "src/components/ContentPage.tsx:18629"
-    },
-    {
-      "hash": "3cDD56",
-      "text": "Content",
-      "context": "div > div > h1",
-      "src": "src/components/ContentPage.tsx:19006"
-    },
-    {
-      "hash": "l8Dfy",
-      "text": "All paths relative to {value}",
-      "context": "div > div > p",
-      "src": "src/components/ContentPage.tsx:19090"
-    },
-    {
-      "hash": "XOfXj",
-      "text": "Collection name",
-      "context": "div > div > section > div > ItemCard > div > div > input[placeholder]",
-      "src": "src/components/ContentPage.tsx:21666"
-    },
-    {
-      "hash": "3L8n3Q",
-      "text": "Edit language overrides",
-      "context": "div > div > section > div > ItemCard > div > div > button[title]",
-      "src": "src/components/ContentPage.tsx:22349"
-    },
-    {
-      "hash": "29MbI5",
-      "text": "{value}",
-      "context": "div > div > section > div > ItemCard > div > div > button > span",
-      "src": "src/components/ContentPage.tsx:23055"
-    },
-    {
-      "hash": "ounNV",
-      "text": "→",
-      "context": "div > div > section > div > ItemCard > div > div > button > span",
-      "src": "src/components/ContentPage.tsx:23217"
-    },
-    {
-      "hash": "1LlEC5",
-      "text": "No content patterns. Add a collection to map your source files.",
-      "context": "div > div > section > div > p",
-      "src": "src/components/ContentPage.tsx:29077"
-    },
-    {
-      "hash": "YVw1j",
-      "text": "Files {=m0}",
-      "context": "div > div > section > div > h2",
-      "src": "src/components/ContentPage.tsx:29455"
-    },
-    {
-      "hash": "3LsNig",
-      "text": "({matches.length} matched {value} {value_2})",
-      "context": "div > div > section > div > h2 > span",
-      "src": "src/components/ContentPage.tsx:29599"
-    },
-    {
-      "hash": "cY9Aj",
-      "text": "{value}",
-      "context": "div > div > section > div > div > p",
-      "src": "src/components/ContentPage.tsx:31720"
-    },
-    {
-      "hash": "1DBfJU",
-      "text": "{collName} {=m1}",
-      "context": "div > div > section > div > div > div > h3",
-      "src": "src/components/ContentPage.tsx:32332"
-    },
-    {
-      "hash": "1bmj6K",
-      "text": "({collFiles.length})",
-      "context": "div > div > section > div > div > div > h3 > span",
-      "src": "src/components/ContentPage.tsx:32488"
-    },
-    {
-      "hash": "4c2zCa",
-      "text": "File",
-      "context": "div > div > section > div > div > div > Card > table > thead > tr > th",
-      "src": "src/components/ContentPage.tsx:32860"
-    },
-    {
-      "hash": "RC9E1",
-      "text": "Format",
-      "context": "div > div > section > div > div > div > Card > table > thead > tr > th",
-      "src": "src/components/ContentPage.tsx:32938"
-    },
-    {
-      "hash": "3ccOUd",
-      "text": "Pattern",
-      "context": "div > div > section > div > div > div > Card > table > thead > tr > th",
-      "src": "src/components/ContentPage.tsx:33018"
-    },
-    {
-      "hash": "juZdj",
-      "text": "{=m0}",
-      "context": "div > div > section > div > div > div > Card > table > tbody > tr > td",
-      "src": "src/components/ContentPage.tsx:33465"
-    },
-    {
-      "hash": "39oKMc",
-      "text": "{m.pattern}",
-      "context": "div > div > section > div > div > div > Card > table > tbody > tr > td",
-      "src": "src/components/ContentPage.tsx:34150"
-    },
-    {
-      "hash": "4cZB4u",
-      "text": "Other files {=m0}",
-      "context": "div > div > section > div > div > div > h3",
-      "src": "src/components/ContentPage.tsx:34609"
-    },
-    {
-      "hash": "1mpHgc",
-      "text": "({unmatchedFiles.length})",
-      "context": "div > div > section > div > div > div > h3 > span",
-      "src": "src/components/ContentPage.tsx:34762"
-    },
-    {
-      "hash": "Kpfy7",
-      "text": "Size",
-      "context": "div > div > section > div > div > div > Card > table > thead > tr > th",
-      "src": "src/components/ContentPage.tsx:35279"
-    },
-    {
-      "hash": "285jGf",
-      "text": "{value}",
-      "context": "div > div > section > div > div > div > Card > table > tbody > tr > td",
-      "src": "src/components/ContentPage.tsx:36096"
-    },
-    {
-      "hash": "2Ys3YI",
-      "text": "—",
-      "context": "div > div > section > div > div > div > Card > table > tbody > tr > td > span",
-      "src": "src/components/ContentPage.tsx:36323"
-    },
-    {
-      "hash": "2wkcIm",
-      "text": "{error}",
-      "context": "div > p",
-      "src": "src/components/CredentialsPage.tsx:40124"
+      "src": "src/stories/CredentialsPage.stories.tsx:22023"
     },
     {
       "hash": "3K004X",
       "text": "{provider.name}",
       "context": "div > div > Card > div > div > span",
-      "src": "src/components/CredentialsPage.tsx:40672"
+      "src": "src/stories/CredentialsPage.stories.tsx:22613"
     },
     {
       "hash": "3y4M70",
       "text": "Model: {provider.model}",
       "context": "div > div > Card > div > p",
-      "src": "src/components/CredentialsPage.tsx:40990"
+      "src": "src/stories/CredentialsPage.stories.tsx:23111"
     },
     {
-      "hash": "2oWRjW",
-      "text": "{value}",
-      "context": "div > Card > CardContent > h3",
-      "src": "src/components/CredentialsPage.tsx:42152"
+      "hash": "3BPy78",
+      "text": "New Provider",
+      "context": "div > Card > h3",
+      "src": "src/stories/CredentialsPage.stories.tsx:24140"
     },
     {
-      "hash": "2vPQrr",
+      "hash": "4FTFgi",
       "text": "{t.label}",
-      "context": "div > Card > CardContent > div > div > select > option",
-      "src": "src/components/CredentialsPage.tsx:43483"
+      "context": "div > Card > div > div > select > option",
+      "src": "src/stories/CredentialsPage.stories.tsx:25190"
     },
     {
-      "hash": "CbXe5",
-      "text": "{title}",
-      "context": "div > Button > span",
-      "src": "src/components/DocsPanel.tsx:53282"
+      "hash": "4DQHps",
+      "text": "Click the info icons to see parameter help:",
+      "context": "div > p",
+      "src": "src/stories/DocsPanel.stories.tsx:30041"
     },
     {
-      "hash": "Nx3Ye",
-      "text": "{badge}",
-      "context": "div > Button > span",
-      "src": "src/components/DocsPanel.tsx:53397"
+      "hash": "1SXrbh",
+      "text": "inlineCodes",
+      "context": "div > div > span",
+      "src": "src/stories/DocsPanel.stories.tsx:30192"
     },
     {
-      "hash": "3qTxmQ",
-      "text": "{value}",
-      "context": "div > div > div > span",
-      "src": "src/components/DocsPanel.tsx:54418"
+      "hash": "h9Lrz",
+      "text": "extraction.extractAll",
+      "context": "div > div > span",
+      "src": "src/stories/DocsPanel.stories.tsx:30408"
     },
     {
-      "hash": "an3bg",
-      "text": "{doc.introducedIn}",
-      "context": "div > div > div > div > div > span",
-      "src": "src/components/DocsPanel.tsx:55006"
+      "hash": "14545O",
+      "text": "nonexistent (no tooltip)",
+      "context": "div > div > span",
+      "src": "src/stories/DocsPanel.stories.tsx:30644"
     },
     {
-      "hash": "2yvPJU",
-      "text": "{dep.condition}",
-      "context": "div > div > div > div > div > span > span",
-      "src": "src/components/DocsPanel.tsx:56444"
-    },
-    {
-      "hash": "Yomcm",
-      "text": "{example.title}",
-      "context": "div > div > h4",
-      "src": "src/components/DocsPanel.tsx:57261"
-    },
-    {
-      "hash": "2EdQHE",
-      "text": "Input",
-      "context": "div > div > div > span",
-      "src": "src/components/DocsPanel.tsx:57755"
-    },
-    {
-      "hash": "11Qvh7",
-      "text": "Output",
-      "context": "div > div > div > span",
-      "src": "src/components/DocsPanel.tsx:58233"
-    },
-    {
-      "hash": "2BJlCo",
-      "text": "{entry.message}",
-      "context": "div > div > p",
-      "src": "src/components/ErrorBanner.tsx:66906"
-    },
-    {
-      "hash": "2PnBtp",
-      "text": "{selectedId}",
-      "context": "div > div > h1",
-      "src": "src/components/FlowsPage.tsx:82855"
-    },
-    {
-      "hash": "49NpJ3",
-      "text": "New Flow",
-      "context": "div > div > div > h2",
-      "src": "src/components/FlowsPage.tsx:86835"
-    },
-    {
-      "hash": "3Zk2o0",
-      "text": "You can start from a template in the editor.",
-      "context": "div > div > div > p",
-      "src": "src/components/FlowsPage.tsx:87366"
-    },
-    {
-      "hash": "2UkTpY",
-      "text": "Import Flow",
-      "context": "div > div > div > div > h2",
-      "src": "src/components/FlowsPage.tsx:88448"
-    },
-    {
-      "hash": "1tgBL2",
-      "text": "Copy a built-in or user flow into this project. The flow will be independent — changes won't affect the original.",
-      "context": "div > div > div > p",
-      "src": "src/components/FlowsPage.tsx:88687"
-    },
-    {
-      "hash": "Y7Kki",
-      "text": "No flows available to import.",
-      "context": "div > div > div > p",
-      "src": "src/components/FlowsPage.tsx:88955"
-    },
-    {
-      "hash": "2mooJm",
-      "text": "{item.name}",
-      "context": "div > div > div > ScrollArea > div > Button > div > div > span",
-      "src": "src/components/FlowsPage.tsx:89808"
-    },
-    {
-      "hash": "3HxOzg",
-      "text": "{item.source}",
-      "context": "div > div > div > ScrollArea > div > Button > div > div > span",
-      "src": "src/components/FlowsPage.tsx:89902"
-    },
-    {
-      "hash": "1SnI3",
-      "text": "{item.stepCount} steps",
-      "context": "div > div > div > ScrollArea > div > Button > span",
-      "src": "src/components/FlowsPage.tsx:90400"
-    },
-    {
-      "hash": "44U15v",
-      "text": "{item.name}",
-      "context": "ItemCard > div > div > div > span",
-      "src": "src/components/FlowsPage.tsx:92012"
-    },
-    {
-      "hash": "Fe2SQ",
-      "text": "built-in",
-      "context": "ItemCard > div > div > div > span",
-      "src": "src/components/FlowsPage.tsx:92226"
-    },
-    {
-      "hash": "dcu5M",
-      "text": "{item.stepCount} step{value}",
-      "context": "ItemCard > div > div > div > span",
-      "src": "src/components/FlowsPage.tsx:92678"
-    },
-    {
-      "hash": "blv9y",
-      "text": "{value}",
+      "hash": "3w6YUz",
+      "text": "{id}",
       "context": "div > div > h3",
-      "src": "src/components/FormatConfigEditor.tsx:94513"
+      "src": "src/stories/DocsPanel.stories.tsx:31079"
     },
     {
-      "hash": "44gfmn",
-      "text": "{schema.description}",
-      "context": "div > div > p",
-      "src": "src/components/FormatConfigEditor.tsx:94639"
-    },
-    {
-      "hash": "3SHByA",
-      "text": "{ext}",
-      "context": "div > div > div > span",
-      "src": "src/components/FormatConfigEditor.tsx:94936"
-    },
-    {
-      "hash": "3CLUws",
-      "text": "{mt}",
-      "context": "div > div > div > span",
-      "src": "src/components/FormatConfigEditor.tsx:95220"
-    },
-    {
-      "hash": "4nkHS2",
-      "text": "Search formats by name or extension...",
-      "context": "div > div > input[placeholder]",
-      "src": "src/components/FormatsPage.tsx:99783"
-    },
-    {
-      "hash": "13MpeO",
-      "text": "{value}",
-      "context": "div > div > p",
-      "src": "src/components/FormatsPage.tsx:102077"
-    },
-    {
-      "hash": "2Z5KAE",
-      "text": "{title}",
-      "context": "div > h2",
-      "src": "src/components/FormatsPage.tsx:102783"
-    },
-    {
-      "hash": "1cIhDb",
-      "text": "{value}",
-      "context": "div > div > ItemCard > div > div > div > span",
-      "src": "src/components/FormatsPage.tsx:103601"
-    },
-    {
-      "hash": "1D1HqC",
-      "text": "{f.name}",
-      "context": "div > div > ItemCard > div > div > div > span",
-      "src": "src/components/FormatsPage.tsx:103850"
-    },
-    {
-      "hash": "1p26Pw",
-      "text": "{filterDoc.overview}",
-      "context": "div > div > ItemCard > div > div > p",
-      "src": "src/components/FormatsPage.tsx:104373"
-    },
-    {
-      "hash": "keG0j",
-      "text": "{ext}",
-      "context": "div > div > ItemCard > div > div > div > span",
-      "src": "src/components/FormatsPage.tsx:104749"
-    },
-    {
-      "hash": "KEp87",
-      "text": "{value}",
-      "context": "div > div > div > h1",
-      "src": "src/components/FormatsPage.tsx:112329"
-    },
-    {
-      "hash": "2eCWQQ",
-      "text": "{ext}",
-      "context": "div > div > div > div > span",
-      "src": "src/components/FormatsPage.tsx:112587"
-    },
-    {
-      "hash": "35wrcv",
-      "text": "{mt}",
-      "context": "div > div > div > div > span",
-      "src": "src/components/FormatsPage.tsx:112862"
-    },
-    {
-      "hash": "yUL6R",
-      "text": "Presets",
-      "context": "div > div > div > h2",
-      "src": "src/components/FormatsPage.tsx:114833"
-    },
-    {
-      "hash": "4DGd7Z",
-      "text": "({p.source})",
-      "context": "div > div > div > div > Button > span",
-      "src": "src/components/FormatsPage.tsx:115908"
-    },
-    {
-      "hash": "f5eiM",
-      "text": "— {p.description}",
-      "context": "div > div > div > div > Button > span",
-      "src": "src/components/FormatsPage.tsx:116032"
-    },
-    {
-      "hash": "2GpPZe",
-      "text": "Save as Preset",
-      "context": "div > Card > CardContent > h3",
-      "src": "src/components/FormatsPage.tsx:116974"
-    },
-    {
-      "hash": "1iUKgR",
-      "text": "{yamlError}",
-      "context": "div > Tabs > TabsContent > div > p",
-      "src": "src/components/FormatsPage.tsx:121222"
-    },
-    {
-      "hash": "1nDb29",
-      "text": "Test",
-      "context": "div > div > h2",
-      "src": "src/components/FormatsPage.tsx:121948"
-    },
-    {
-      "hash": "2HnO5Y",
-      "text": "{runnerParts.length} part{value} extracted",
-      "context": "div > div > div > span",
-      "src": "src/components/FormatsPage.tsx:122545"
-    },
-    {
-      "hash": "PNYNN",
-      "text": "{part.type}",
+      "hash": "1QKkjx",
+      "text": "{selected}",
       "context": "div > div > span",
-      "src": "src/components/FormatsPage.tsx:124371"
+      "src": "src/stories/FlowsPage.stories.tsx:34791"
     },
     {
-      "hash": "1ZT8oR",
-      "text": "{part.id}",
-      "context": "div > div > span",
-      "src": "src/components/FormatsPage.tsx:124642"
-    },
-    {
-      "hash": "2O6zB",
-      "text": "{part.summary}",
-      "context": "div > div > span",
-      "src": "src/components/FormatsPage.tsx:124812"
-    },
-    {
-      "hash": "2t7uDq",
-      "text": "Source:",
-      "context": "div > div > div > span",
-      "src": "src/components/FormatsPage.tsx:125404"
-    },
-    {
-      "hash": "GA9Rw",
-      "text": "Properties:",
-      "context": "div > div > div > span",
-      "src": "src/components/FormatsPage.tsx:125817"
-    },
-    {
-      "hash": "1lgQH7",
-      "text": "{k}: {v}",
-      "context": "div > div > div > div > span",
-      "src": "src/components/FormatsPage.tsx:126089"
-    },
-    {
-      "hash": "z1N0O",
-      "text": "{displayName}",
+      "hash": "1FdIRL",
+      "text": "Project Flows",
       "context": "div > div > h1",
-      "src": "src/components/HomePage.tsx:129398"
+      "src": "src/stories/FlowsPage.stories.tsx:35216"
     },
     {
-      "hash": "49OIKu",
-      "text": "{name} {value}",
-      "context": "div > div > div > span > span",
-      "src": "src/components/HomePage.tsx:130232"
+      "hash": "3s9FVp",
+      "text": "{flow.step_count} step{value}",
+      "context": "div > div > Card > div > div > div > span",
+      "src": "src/stories/FlowsPage.stories.tsx:36462"
     },
     {
-      "hash": "2xKZKb",
-      "text": "{spec.framework_version}",
-      "context": "div > div > div > span > span > span",
-      "src": "src/components/HomePage.tsx:130351"
-    },
-    {
-      "hash": "3K5OJB",
-      "text": "Plugin requirements not met",
-      "context": "div > div > div > div > p",
-      "src": "src/components/HomePage.tsx:130928"
-    },
-    {
-      "hash": "4lNilC",
-      "text": "This project requires plugins that are not installed or have incompatible versions. Content and flow features are disabled until this is resolved.",
-      "context": "div > div > div > div > p",
-      "src": "src/components/HomePage.tsx:131009"
-    },
-    {
-      "hash": "1Dyx95",
-      "text": "not installed",
-      "context": "div > div > div > div > ul > li > span",
-      "src": "src/components/HomePage.tsx:131645"
-    },
-    {
-      "hash": "3t7HJg",
-      "text": "requires {issue.required}, installed {issue.installed_version}",
-      "context": "div > div > div > div > ul > li > span",
-      "src": "src/components/HomePage.tsx:131754"
-    },
-    {
-      "hash": "1XvK4n",
-      "text": "{name}",
-      "context": "div > section > div > Card > div > div > span",
-      "src": "src/components/HomePage.tsx:135027"
-    },
-    {
-      "hash": "3IhU58",
-      "text": "→",
-      "context": "div > section > div > Card > div > div > span > span",
-      "src": "src/components/HomePage.tsx:135598"
-    },
-    {
-      "hash": "2ijoBH",
-      "text": "{item.icon}",
-      "context": "aside > nav > button",
-      "src": "src/components/IconSidebar.tsx:141064"
-    },
-    {
-      "hash": "2xug0Y",
-      "text": "App Settings",
-      "context": "aside > div > button[aria-label]",
-      "src": "src/components/IconSidebar.tsx:141831"
-    },
-    {
-      "hash": "3sIQXe",
-      "text": "App Settings",
-      "context": "aside > div > button[title]",
-      "src": "src/components/IconSidebar.tsx:141831"
-    },
-    {
-      "hash": "3UKz8w",
-      "text": "{length}",
+      "hash": "3Di1JS",
+      "text": "{jobs.length}",
       "context": "div > Button > span",
-      "src": "src/components/JobFeedButton.tsx:145343"
+      "src": "src/stories/JobFeedButton.stories.tsx:50240"
     },
     {
       "hash": "2ArptX",
       "text": "Jobs",
       "context": "div > div > div > span",
-      "src": "src/components/JobFeedButton.tsx:145938"
+      "src": "src/stories/JobFeedButton.stories.tsx:50742"
     },
     {
-      "hash": "2dL65c",
-      "text": "Clear completed",
-      "context": "div > div > div > div > button[title]",
-      "src": "src/components/JobFeedButton.tsx:146141"
-    },
-    {
-      "hash": "3sSPab",
-      "text": "{value}",
-      "context": "div > div > ScrollArea > div > div > div > span",
-      "src": "src/components/JobFeedButton.tsx:147400"
-    },
-    {
-      "hash": "3azEps",
-      "text": "{job.fileCount} files",
-      "context": "div > div > ScrollArea > div > div > div > span",
-      "src": "src/components/JobFeedButton.tsx:148249"
-    },
-    {
-      "hash": "4bnmP3",
+      "hash": "1sqGE6",
       "text": "{current}/{total}",
-      "context": "div > div > ScrollArea > div > div > div > div > span",
-      "src": "src/components/JobFeedButton.tsx:148822"
+      "context": "div > div > ScrollArea > div > div > div > div > div > span",
+      "src": "src/stories/JobFeedButton.stories.tsx:52279"
     },
     {
-      "hash": "3RgBTr",
+      "hash": "1HDiMv",
       "text": "{value}%",
-      "context": "div > div > ScrollArea > div > div > div > div > span",
-      "src": "src/components/JobFeedButton.tsx:148961"
+      "context": "div > div > ScrollArea > div > div > div > div > div > span",
+      "src": "src/stories/JobFeedButton.stories.tsx:52424"
     },
     {
-      "hash": "2WyTbr",
-      "text": "Dismiss",
-      "context": "div > div > ScrollArea > div > div > div > button",
-      "src": "src/components/JobFeedButton.tsx:150672"
+      "hash": "3eXZKC",
+      "text": "Preview",
+      "context": "div > PanelHeader > span",
+      "src": "src/stories/LayoutComponents.stories.tsx:61099"
     },
     {
-      "hash": "1z1FGJ",
-      "text": "{item.displayName}",
-      "context": "span",
-      "src": "src/components/LocaleSettings.tsx:151989"
+      "hash": "1IFWb5",
+      "text": "source.json",
+      "context": "div > PanelHeader > span",
+      "src": "src/stories/LayoutComponents.stories.tsx:61184"
     },
     {
-      "hash": "34apZP",
-      "text": "{item.code}",
-      "context": "span",
-      "src": "src/components/LocaleSettings.tsx:152091"
-    },
-    {
-      "hash": "2T0Uos",
-      "text": "Locales",
+      "hash": "3S0CbL",
+      "text": "my-project",
       "context": "div > div > div > h1",
-      "src": "src/components/LocaleSettings.tsx:156701"
+      "src": "src/stories/MemoriesPage.stories.tsx:68176"
     },
     {
-      "hash": "3UqDtH",
-      "text": "{value} active, {hiddenCount} hidden {value_2}",
-      "context": "div > div > div > p",
-      "src": "src/components/LocaleSettings.tsx:156762"
+      "hash": "3n5h7a",
+      "text": "Translation Memories",
+      "context": "div > div > h1",
+      "src": "src/stories/MemoriesPage.stories.tsx:68727"
     },
     {
-      "hash": "1KAIFw",
-      "text": "{addError}",
-      "context": "div > div > Card > CardContent > p",
-      "src": "src/components/LocaleSettings.tsx:158494"
-    },
-    {
-      "hash": "4EmPYZ",
-      "text": "No translation memories found. Create one or open a .db file.",
-      "context": "div > Card > CardContent > p",
-      "src": "src/components/MemoriesPage.tsx:170041"
-    },
-    {
-      "hash": "26fbsv",
-      "text": "New Translation Memory",
-      "context": "div > div > div > h2",
-      "src": "src/components/MemoriesPage.tsx:170830"
-    },
-    {
-      "hash": "23q8O0",
-      "text": "Corrupt Translation Memory",
-      "context": "div > div > div > div > h2",
-      "src": "src/components/MemoriesPage.tsx:172129"
-    },
-    {
-      "hash": "et2VR",
-      "text": "{=m0} could not be opened. The database may be corrupt.",
-      "context": "div > div > div > p",
-      "src": "src/components/MemoriesPage.tsx:172232"
-    },
-    {
-      "hash": "I5TDk",
-      "text": "{corruptName}",
-      "context": "div > div > div > p > strong",
-      "src": "src/components/MemoriesPage.tsx:172297"
-    },
-    {
-      "hash": "3N2KTB",
-      "text": "Ad-hoc",
-      "context": "div > button",
-      "src": "src/components/ModeToggle.tsx:173614"
-    },
-    {
-      "hash": "36tCJY",
-      "text": "Project",
-      "context": "div > button",
-      "src": "src/components/ModeToggle.tsx:173938"
-    },
-    {
-      "hash": "1AZFCd",
-      "text": "New Project",
-      "context": "div > div > h2",
-      "src": "src/components/NewProjectDialog.tsx:175661"
-    },
-    {
-      "hash": "272vWp",
-      "text": "Invalid directory name",
-      "context": "div > div > div > div > p",
-      "src": "src/components/NewProjectDialog.tsx:178534"
-    },
-    {
-      "hash": "1MrDXM",
-      "text": "{saveDir}",
-      "context": "div > div > div > div > p",
-      "src": "src/components/NewProjectDialog.tsx:178648"
-    },
-    {
-      "hash": "1cU2Nl",
-      "text": "{snapshot.parts_out}/{snapshot.parts_in}",
-      "context": "Badge > span",
-      "src": "src/components/PipelineProgress.tsx:181764"
-    },
-    {
-      "hash": "1FhZsx",
-      "text": "→",
-      "context": "div > div > span",
-      "src": "src/components/PipelineProgress.tsx:182860"
+      "hash": "2NlFat",
+      "text": "{value}",
+      "context": "div > p",
+      "src": "src/stories/PipelineProgress.stories.tsx:77795"
     },
     {
       "hash": "jcFnI",
       "text": "Plugins",
       "context": "div > div > h1",
-      "src": "src/components/PluginManager.tsx:190446"
+      "src": "src/stories/PluginManager.stories.tsx:81176"
+    },
+    {
+      "hash": "3t0qN7",
+      "text": "{plugin.name}",
+      "context": "div > div > Card > div > div > div > span",
+      "src": "src/stories/PluginManager.stories.tsx:82536"
+    },
+    {
+      "hash": "4emsMS",
+      "text": "{plugin.description}",
+      "context": "div > div > Card > div > div > p",
+      "src": "src/stories/PluginManager.stories.tsx:82772"
+    },
+    {
+      "hash": "25yCaN",
+      "text": "Heading 1",
+      "context": "div > h1",
+      "src": "src/stories/Primitives.stories.tsx:87992"
+    },
+    {
+      "hash": "4d7Wu0",
+      "text": "Heading 2",
+      "context": "div > h2",
+      "src": "src/stories/Primitives.stories.tsx:88063"
+    },
+    {
+      "hash": "1hyi2l",
+      "text": "Heading 3",
+      "context": "div > h3",
+      "src": "src/stories/Primitives.stories.tsx:88122"
+    },
+    {
+      "hash": "12kAST",
+      "text": "Body text in foreground color.",
+      "context": "div > p",
+      "src": "src/stories/Primitives.stories.tsx:88179"
+    },
+    {
+      "hash": "19jJkV",
+      "text": "Muted text for secondary content.",
+      "context": "div > p",
+      "src": "src/stories/Primitives.stories.tsx:88259"
+    },
+    {
+      "hash": "S3fL5",
+      "text": "Small caption text.",
+      "context": "div > p",
+      "src": "src/stories/Primitives.stories.tsx:88348"
+    },
+    {
+      "hash": "n45S4",
+      "text": "Theme Colors",
+      "context": "div > h3",
+      "src": "src/stories/Primitives.stories.tsx:88528"
+    },
+    {
+      "hash": "DcR6p",
+      "text": "{name}",
+      "context": "div > div > div > span",
+      "src": "src/stories/Primitives.stories.tsx:89229"
+    },
+    {
+      "hash": "Sog9D",
+      "text": "Run: {flowName}",
+      "context": "div > div > h2",
+      "src": "src/stories/RunnerPage.stories.tsx:99859"
+    },
+    {
+      "hash": "V1ssF",
+      "text": "{value}s",
+      "context": "div > div > span",
+      "src": "src/stories/RunnerPage.stories.tsx:100002"
+    },
+    {
+      "hash": "41gmNO",
+      "text": "Pipeline",
+      "context": "div > Card > h3",
+      "src": "src/stories/RunnerPage.stories.tsx:100208"
+    },
+    {
+      "hash": "3qTxmQ",
+      "text": "{value}",
+      "context": "div > div > div > span",
+      "src": "src/stories/RunnerPage.stories.tsx:101592"
+    },
+    {
+      "hash": "365nVb",
+      "text": "{progressPct}%",
+      "context": "div > div > div > span",
+      "src": "src/stories/RunnerPage.stories.tsx:101682"
+    },
+    {
+      "hash": "4BqMM7",
+      "text": "Output ({events.length} events)",
+      "context": "div > Card > h3",
+      "src": "src/stories/RunnerPage.stories.tsx:102264"
+    },
+    {
+      "hash": "3AnsIi",
+      "text": "my-glossary",
+      "context": "div > div > div > h1",
+      "src": "src/stories/TermbasesPage.stories.tsx:111256"
+    },
+    {
+      "hash": "oKSie",
+      "text": "Termbases",
+      "context": "div > div > h1",
+      "src": "src/stories/TermbasesPage.stories.tsx:111695"
+    },
+    {
+      "hash": "2wp5b2",
+      "text": "Schema not found.",
+      "context": "p",
+      "src": "src/stories/tools/b-o-m-conversion.stories.tsx:117567"
+    },
+    {
+      "hash": "44gfmn",
+      "text": "{schema.description}",
+      "context": "div > div > p",
+      "src": "src/stories/tools/b-o-m-conversion.stories.tsx:117948"
+    },
+    {
+      "hash": "4an42u",
+      "text": "No configurable parameters.",
+      "context": "div > div > p",
+      "src": "src/stories/tools/b-o-m-conversion.stories.tsx:118158"
+    },
+    {
+      "hash": "3TBNvC",
+      "text": "Schema",
+      "context": "div > div > h4",
+      "src": "src/stories/tools/b-o-m-conversion.stories.tsx:118303"
+    },
+    {
+      "hash": "1DEUwR",
+      "text": "Values",
+      "context": "div > div > h4",
+      "src": "src/stories/tools/b-o-m-conversion.stories.tsx:118637"
+    },
+    {
+      "hash": "4jh89E",
+      "text": "{description}",
+      "context": "div > div > p",
+      "src": "src/stories/schema-language/ConditionalVisibility.stories.tsx:337936"
+    },
+    {
+      "hash": "KiBeU",
+      "text": "Current Values",
+      "context": "div > div > h4",
+      "src": "src/stories/schema-language/ConditionalVisibility.stories.tsx:338138"
+    },
+    {
+      "hash": "3bNCSH",
+      "text": "formatMeta",
+      "context": "div > div > h4",
+      "src": "src/stories/schema-language/FormatMetadata.stories.tsx:345323"
+    },
+    {
+      "hash": "1IwMTP",
+      "text": "Active Preset Values",
+      "context": "div > div > h4",
+      "src": "src/stories/schema-language/PresetsAndDefaults.stories.tsx:357516"
+    },
+    {
+      "hash": "2WRugU",
+      "text": "Schema (JSON)",
+      "context": "div > div > h4",
+      "src": "src/stories/schema-language/PropertyTypes.stories.tsx:361726"
+    },
+    {
+      "hash": "4c3GBG",
+      "text": "{value}",
+      "context": "div > div > div > div > span",
+      "src": "src/stories/schema-language/ToolMetadata.stories.tsx:370328"
+    },
+    {
+      "hash": "1Ltgn6",
+      "text": "{meta.category}",
+      "context": "div > div > div > div > span",
+      "src": "src/stories/schema-language/ToolMetadata.stories.tsx:370523"
+    },
+    {
+      "hash": "226PWm",
+      "text": "{meta.description}",
+      "context": "div > div > div > p",
+      "src": "src/stories/schema-language/ToolMetadata.stories.tsx:370771"
+    },
+    {
+      "hash": "2mp9ae",
+      "text": "in: {i}",
+      "context": "div > div > div > div > span",
+      "src": "src/stories/schema-language/ToolMetadata.stories.tsx:370999"
+    },
+    {
+      "hash": "216eeo",
+      "text": "out: {o}",
+      "context": "div > div > div > div > span",
+      "src": "src/stories/schema-language/ToolMetadata.stories.tsx:371205"
+    },
+    {
+      "hash": "3ebyMv",
+      "text": "#{t}",
+      "context": "div > div > div > div > span",
+      "src": "src/stories/schema-language/ToolMetadata.stories.tsx:371409"
+    },
+    {
+      "hash": "1wlo8F",
+      "text": "requires: {r}",
+      "context": "div > div > div > div > span",
+      "src": "src/stories/schema-language/ToolMetadata.stories.tsx:371613"
+    },
+    {
+      "hash": "1N1Sit",
+      "text": "Tool Metadata",
+      "context": "div > div > h4",
+      "src": "src/stories/schema-language/ToolMetadata.stories.tsx:371952"
+    },
+    {
+      "hash": "2vcCR3",
+      "text": "Schemas not found.",
+      "context": "p",
+      "src": "src/stories/formats/doxygen.stories.tsx:401119"
+    },
+    {
+      "hash": "4r9YWm",
+      "text": "native: {np} params",
+      "context": "div > div > span",
+      "src": "src/stories/formats/doxygen.stories.tsx:401405"
+    },
+    {
+      "hash": "cDpjc",
+      "text": "okapi: {op} params",
+      "context": "div > div > span",
+      "src": "src/stories/formats/doxygen.stories.tsx:401550"
+    },
+    {
+      "hash": "2azm5C",
+      "text": "{=m0} neokapi native",
+      "context": "div > div > div > h3",
+      "src": "src/stories/formats/doxygen.stories.tsx:402023"
+    },
+    {
+      "hash": "1MIqfC",
+      "text": "No parameters.",
+      "context": "div > div > div > div > p",
+      "src": "src/stories/formats/doxygen.stories.tsx:402439"
+    },
+    {
+      "hash": "vRGtm",
+      "text": "{=m0} okapi bridge",
+      "context": "div > div > div > h3",
+      "src": "src/stories/formats/doxygen.stories.tsx:402787"
+    },
+    {
+      "hash": "2zkgwZ",
+      "text": "No schema available for this format.",
+      "context": "div > div > div > p",
+      "src": "src/stories/browsers/FormatBrowser.stories.tsx:586204"
+    },
+    {
+      "hash": "lLRP2",
+      "text": "Schema (JSON)",
+      "context": "div > div > div > h4",
+      "src": "src/stories/browsers/FormatBrowser.stories.tsx:586402"
+    },
+    {
+      "hash": "2gUIKQ",
+      "text": "Config Values",
+      "context": "div > div > div > h4",
+      "src": "src/stories/browsers/FormatBrowser.stories.tsx:586743"
+    },
+    {
+      "hash": "1qJOty",
+      "text": "{f.displayName}",
+      "context": "div > div > Button > div > span",
+      "src": "src/stories/browsers/FormatBrowser.stories.tsx:588711"
+    },
+    {
+      "hash": "3ICjA7",
+      "text": "{value}",
+      "context": "div > div > Button > div > span",
+      "src": "src/stories/browsers/FormatBrowser.stories.tsx:588786"
+    },
+    {
+      "hash": "1bYHLX",
+      "text": "+{value}",
+      "context": "div > div > Button > div > span",
+      "src": "src/stories/browsers/FormatBrowser.stories.tsx:589554"
+    },
+    {
+      "hash": "gFOyP",
+      "text": "No schema",
+      "context": "div > div > Button > span",
+      "src": "src/stories/browsers/FormatBrowser.stories.tsx:589754"
+    },
+    {
+      "hash": "wBH2Z",
+      "text": "{selectedPreset.formatId} / {selectedPreset.presetId}",
+      "context": "div > h3",
+      "src": "src/stories/browsers/PresetBrowser.stories.tsx:593275"
+    },
+    {
+      "hash": "JBj7p",
+      "text": "Differences from default ({diffs.length} parameter{value})",
+      "context": "div > div > h4",
+      "src": "src/stories/browsers/PresetBrowser.stories.tsx:593474"
+    },
+    {
+      "hash": "HRhHU",
+      "text": "All Values",
+      "context": "div > h4",
+      "src": "src/stories/browsers/PresetBrowser.stories.tsx:594376"
+    },
+    {
+      "hash": "3u7k74",
+      "text": "{selectedFormat} — {presetNames.length} preset{value}",
+      "context": "div > h3",
+      "src": "src/stories/browsers/PresetBrowser.stories.tsx:595226"
+    },
+    {
+      "hash": "Lf7O0",
+      "text": "{paramCount} params",
+      "context": "div > div > Button > div > div > span",
+      "src": "src/stories/browsers/PresetBrowser.stories.tsx:596425"
+    },
+    {
+      "hash": "3BdOgs",
+      "text": "{diffCount} diff{value} from default",
+      "context": "div > div > Button > div > div > span",
+      "src": "src/stories/browsers/PresetBrowser.stories.tsx:596520"
+    },
+    {
+      "hash": "1fLddh",
+      "text": "{totalPresets} presets across {formatIds.length} formats",
+      "context": "div > p",
+      "src": "src/stories/browsers/PresetBrowser.stories.tsx:597106"
+    },
+    {
+      "hash": "3sfy2m",
+      "text": "{presetCount} preset{value}",
+      "context": "div > div > Button > div > span",
+      "src": "src/stories/browsers/PresetBrowser.stories.tsx:597895"
+    },
+    {
+      "hash": "3ZPFZu",
+      "text": "{selected.displayName}",
+      "context": "div > Card > div > h3",
+      "src": "src/stories/browsers/ToolBrowser.stories.tsx:602653"
+    },
+    {
+      "hash": "qE0Xg",
+      "text": "{selected.category}",
+      "context": "div > Card > div > span",
+      "src": "src/stories/browsers/ToolBrowser.stories.tsx:602731"
+    },
+    {
+      "hash": "2RHut4",
+      "text": "{value}",
+      "context": "div > Card > div > span",
+      "src": "src/stories/browsers/ToolBrowser.stories.tsx:602945"
+    },
+    {
+      "hash": "1l92PO",
+      "text": "{selected.description}",
+      "context": "div > Card > p",
+      "src": "src/stories/browsers/ToolBrowser.stories.tsx:603358"
+    },
+    {
+      "hash": "1MFJv8",
+      "text": "#{t}",
+      "context": "div > Card > div > span",
+      "src": "src/stories/browsers/ToolBrowser.stories.tsx:603588"
+    },
+    {
+      "hash": "4gmUGf",
+      "text": "{value}",
+      "context": "div > div > div > p",
+      "src": "src/stories/browsers/ToolBrowser.stories.tsx:604252"
+    },
+    {
+      "hash": "OwRLy",
+      "text": "All sources",
+      "context": "div > div > select > option",
+      "src": "src/stories/browsers/ToolBrowser.stories.tsx:605876"
+    },
+    {
+      "hash": "3eSGsi",
+      "text": "Built-in",
+      "context": "div > div > select > option",
+      "src": "src/stories/browsers/ToolBrowser.stories.tsx:605927"
+    },
+    {
+      "hash": "40TDmB",
+      "text": "Okapi",
+      "context": "div > div > select > option",
+      "src": "src/stories/browsers/ToolBrowser.stories.tsx:605980"
+    },
+    {
+      "hash": "2luolA",
+      "text": "{category} ({catTools.length})",
+      "context": "div > div > h3",
+      "src": "src/stories/browsers/ToolBrowser.stories.tsx:607195"
+    },
+    {
+      "hash": "rH0M7",
+      "text": "{value}",
+      "context": "div > div > div > Button > div > div > span",
+      "src": "src/stories/browsers/ToolBrowser.stories.tsx:607937"
+    },
+    {
+      "hash": "4yPw1t",
+      "text": "no schema",
+      "context": "div > div > div > Button > div > span",
+      "src": "src/stories/browsers/ToolBrowser.stories.tsx:608414"
+    },
+    {
+      "hash": "4GhTzS",
+      "text": "{t.description}",
+      "context": "div > div > div > Button > p",
+      "src": "src/stories/browsers/ToolBrowser.stories.tsx:608584"
+    },
+    {
+      "hash": "p47cX",
+      "text": "neokapi",
+      "context": "div > div > img[alt]",
+      "src": "src/components/AppHome.tsx:619263"
+    },
+    {
+      "hash": "3Yxt8l",
+      "text": "Welcome to Kapi",
+      "context": "div > div > div > h1",
+      "src": "src/components/AppHome.tsx:619370"
+    },
+    {
+      "hash": "2Mfz71",
+      "text": "Localization plumbing and glue for people, elves, and agents.",
+      "context": "div > div > div > p",
+      "src": "src/components/AppHome.tsx:619439"
+    },
+    {
+      "hash": "4zNoD3",
+      "text": "New to Kapi? Try a sample project",
+      "context": "div > div > div > span",
+      "src": "src/components/AppHome.tsx:619882"
+    },
+    {
+      "hash": "1rT796",
+      "text": "A realistic localization project with docs, store UI, Office documents, and templates — 4 content collections, 5 target languages, 1000+ TM entries. No plugins needed.",
+      "context": "div > div > div > Button > p",
+      "src": "src/components/AppHome.tsx:620680"
+    },
+    {
+      "hash": "4usNv7",
+      "text": "Same store files processed through Okapi Java filters. Requires the okapi-bridge plugin.",
+      "context": "div > div > div > Button > p",
+      "src": "src/components/AppHome.tsx:621386"
+    },
+    {
+      "hash": "D1QYU",
+      "text": "Recent Projects",
+      "context": "div > section > h2",
+      "src": "src/components/AppHome.tsx:623802"
+    },
+    {
+      "hash": "3urkO2",
+      "text": "{length}",
+      "context": "div > div > Button > span",
+      "src": "src/components/ContentPage.tsx:635641"
+    },
+    {
+      "hash": "3pbdfK",
+      "text": "{\"key\": \"value\"}",
+      "context": "div > div > div > textarea[placeholder]",
+      "src": "src/components/ContentPage.tsx:635922"
+    },
+    {
+      "hash": "2wUfzo",
+      "text": "JSON config passed to the format reader/writer.",
+      "context": "div > div > div > p",
+      "src": "src/components/ContentPage.tsx:637023"
+    },
+    {
+      "hash": "3cDD56",
+      "text": "Content",
+      "context": "div > div > h1",
+      "src": "src/components/ContentPage.tsx:637400"
+    },
+    {
+      "hash": "l8Dfy",
+      "text": "All paths relative to {value}",
+      "context": "div > div > p",
+      "src": "src/components/ContentPage.tsx:637484"
+    },
+    {
+      "hash": "XOfXj",
+      "text": "Collection name",
+      "context": "div > div > section > div > ItemCard > div > div > input[placeholder]",
+      "src": "src/components/ContentPage.tsx:640060"
+    },
+    {
+      "hash": "3L8n3Q",
+      "text": "Edit language overrides",
+      "context": "div > div > section > div > ItemCard > div > div > button[title]",
+      "src": "src/components/ContentPage.tsx:640743"
+    },
+    {
+      "hash": "29MbI5",
+      "text": "{value}",
+      "context": "div > div > section > div > ItemCard > div > div > button > span",
+      "src": "src/components/ContentPage.tsx:641449"
+    },
+    {
+      "hash": "ounNV",
+      "text": "→",
+      "context": "div > div > section > div > ItemCard > div > div > button > span",
+      "src": "src/components/ContentPage.tsx:641611"
+    },
+    {
+      "hash": "1LlEC5",
+      "text": "No content patterns. Add a collection to map your source files.",
+      "context": "div > div > section > div > p",
+      "src": "src/components/ContentPage.tsx:647471"
+    },
+    {
+      "hash": "YVw1j",
+      "text": "Files {=m0}",
+      "context": "div > div > section > div > h2",
+      "src": "src/components/ContentPage.tsx:647849"
+    },
+    {
+      "hash": "3LsNig",
+      "text": "({matches.length} matched {value} {value_2})",
+      "context": "div > div > section > div > h2 > span",
+      "src": "src/components/ContentPage.tsx:647993"
+    },
+    {
+      "hash": "cY9Aj",
+      "text": "{value}",
+      "context": "div > div > section > div > div > p",
+      "src": "src/components/ContentPage.tsx:650114"
+    },
+    {
+      "hash": "1DBfJU",
+      "text": "{collName} {=m1}",
+      "context": "div > div > section > div > div > div > h3",
+      "src": "src/components/ContentPage.tsx:650726"
+    },
+    {
+      "hash": "1bmj6K",
+      "text": "({collFiles.length})",
+      "context": "div > div > section > div > div > div > h3 > span",
+      "src": "src/components/ContentPage.tsx:650882"
+    },
+    {
+      "hash": "4c2zCa",
+      "text": "File",
+      "context": "div > div > section > div > div > div > Card > table > thead > tr > th",
+      "src": "src/components/ContentPage.tsx:651254"
+    },
+    {
+      "hash": "RC9E1",
+      "text": "Format",
+      "context": "div > div > section > div > div > div > Card > table > thead > tr > th",
+      "src": "src/components/ContentPage.tsx:651332"
+    },
+    {
+      "hash": "3ccOUd",
+      "text": "Pattern",
+      "context": "div > div > section > div > div > div > Card > table > thead > tr > th",
+      "src": "src/components/ContentPage.tsx:651412"
+    },
+    {
+      "hash": "juZdj",
+      "text": "{=m0}",
+      "context": "div > div > section > div > div > div > Card > table > tbody > tr > td",
+      "src": "src/components/ContentPage.tsx:651859"
+    },
+    {
+      "hash": "39oKMc",
+      "text": "{m.pattern}",
+      "context": "div > div > section > div > div > div > Card > table > tbody > tr > td",
+      "src": "src/components/ContentPage.tsx:652544"
+    },
+    {
+      "hash": "4cZB4u",
+      "text": "Other files {=m0}",
+      "context": "div > div > section > div > div > div > h3",
+      "src": "src/components/ContentPage.tsx:653003"
+    },
+    {
+      "hash": "1mpHgc",
+      "text": "({unmatchedFiles.length})",
+      "context": "div > div > section > div > div > div > h3 > span",
+      "src": "src/components/ContentPage.tsx:653156"
+    },
+    {
+      "hash": "Kpfy7",
+      "text": "Size",
+      "context": "div > div > section > div > div > div > Card > table > thead > tr > th",
+      "src": "src/components/ContentPage.tsx:653673"
+    },
+    {
+      "hash": "285jGf",
+      "text": "{value}",
+      "context": "div > div > section > div > div > div > Card > table > tbody > tr > td",
+      "src": "src/components/ContentPage.tsx:654490"
+    },
+    {
+      "hash": "2Ys3YI",
+      "text": "—",
+      "context": "div > div > section > div > div > div > Card > table > tbody > tr > td > span",
+      "src": "src/components/ContentPage.tsx:654717"
+    },
+    {
+      "hash": "2wkcIm",
+      "text": "{error}",
+      "context": "div > p",
+      "src": "src/components/CredentialsPage.tsx:658518"
+    },
+    {
+      "hash": "2oWRjW",
+      "text": "{value}",
+      "context": "div > Card > CardContent > h3",
+      "src": "src/components/CredentialsPage.tsx:660546"
+    },
+    {
+      "hash": "2vPQrr",
+      "text": "{t.label}",
+      "context": "div > Card > CardContent > div > div > select > option",
+      "src": "src/components/CredentialsPage.tsx:661877"
+    },
+    {
+      "hash": "CbXe5",
+      "text": "{title}",
+      "context": "div > Button > span",
+      "src": "src/components/DocsPanel.tsx:671676"
+    },
+    {
+      "hash": "Nx3Ye",
+      "text": "{badge}",
+      "context": "div > Button > span",
+      "src": "src/components/DocsPanel.tsx:671791"
+    },
+    {
+      "hash": "an3bg",
+      "text": "{doc.introducedIn}",
+      "context": "div > div > div > div > div > span",
+      "src": "src/components/DocsPanel.tsx:673400"
+    },
+    {
+      "hash": "2yvPJU",
+      "text": "{dep.condition}",
+      "context": "div > div > div > div > div > span > span",
+      "src": "src/components/DocsPanel.tsx:674838"
+    },
+    {
+      "hash": "Yomcm",
+      "text": "{example.title}",
+      "context": "div > div > h4",
+      "src": "src/components/DocsPanel.tsx:675655"
+    },
+    {
+      "hash": "2EdQHE",
+      "text": "Input",
+      "context": "div > div > div > span",
+      "src": "src/components/DocsPanel.tsx:676149"
+    },
+    {
+      "hash": "11Qvh7",
+      "text": "Output",
+      "context": "div > div > div > span",
+      "src": "src/components/DocsPanel.tsx:676627"
+    },
+    {
+      "hash": "2BJlCo",
+      "text": "{entry.message}",
+      "context": "div > div > p",
+      "src": "src/components/ErrorBanner.tsx:685300"
+    },
+    {
+      "hash": "2PnBtp",
+      "text": "{selectedId}",
+      "context": "div > div > h1",
+      "src": "src/components/FlowsPage.tsx:701249"
+    },
+    {
+      "hash": "49NpJ3",
+      "text": "New Flow",
+      "context": "div > div > div > h2",
+      "src": "src/components/FlowsPage.tsx:705229"
+    },
+    {
+      "hash": "3Zk2o0",
+      "text": "You can start from a template in the editor.",
+      "context": "div > div > div > p",
+      "src": "src/components/FlowsPage.tsx:705760"
+    },
+    {
+      "hash": "2UkTpY",
+      "text": "Import Flow",
+      "context": "div > div > div > div > h2",
+      "src": "src/components/FlowsPage.tsx:706842"
+    },
+    {
+      "hash": "1tgBL2",
+      "text": "Copy a built-in or user flow into this project. The flow will be independent — changes won't affect the original.",
+      "context": "div > div > div > p",
+      "src": "src/components/FlowsPage.tsx:707081"
+    },
+    {
+      "hash": "Y7Kki",
+      "text": "No flows available to import.",
+      "context": "div > div > div > p",
+      "src": "src/components/FlowsPage.tsx:707349"
+    },
+    {
+      "hash": "2mooJm",
+      "text": "{item.name}",
+      "context": "div > div > div > ScrollArea > div > Button > div > div > span",
+      "src": "src/components/FlowsPage.tsx:708202"
+    },
+    {
+      "hash": "3HxOzg",
+      "text": "{item.source}",
+      "context": "div > div > div > ScrollArea > div > Button > div > div > span",
+      "src": "src/components/FlowsPage.tsx:708296"
+    },
+    {
+      "hash": "1SnI3",
+      "text": "{item.stepCount} steps",
+      "context": "div > div > div > ScrollArea > div > Button > span",
+      "src": "src/components/FlowsPage.tsx:708794"
+    },
+    {
+      "hash": "44U15v",
+      "text": "{item.name}",
+      "context": "ItemCard > div > div > div > span",
+      "src": "src/components/FlowsPage.tsx:710406"
+    },
+    {
+      "hash": "Fe2SQ",
+      "text": "built-in",
+      "context": "ItemCard > div > div > div > span",
+      "src": "src/components/FlowsPage.tsx:710620"
+    },
+    {
+      "hash": "dcu5M",
+      "text": "{item.stepCount} step{value}",
+      "context": "ItemCard > div > div > div > span",
+      "src": "src/components/FlowsPage.tsx:711072"
+    },
+    {
+      "hash": "blv9y",
+      "text": "{value}",
+      "context": "div > div > h3",
+      "src": "src/components/FormatConfigEditor.tsx:712907"
+    },
+    {
+      "hash": "3SHByA",
+      "text": "{ext}",
+      "context": "div > div > div > span",
+      "src": "src/components/FormatConfigEditor.tsx:713330"
+    },
+    {
+      "hash": "3CLUws",
+      "text": "{mt}",
+      "context": "div > div > div > span",
+      "src": "src/components/FormatConfigEditor.tsx:713614"
+    },
+    {
+      "hash": "4nkHS2",
+      "text": "Search formats by name or extension...",
+      "context": "div > div > input[placeholder]",
+      "src": "src/components/FormatsPage.tsx:718177"
+    },
+    {
+      "hash": "13MpeO",
+      "text": "{value}",
+      "context": "div > div > p",
+      "src": "src/components/FormatsPage.tsx:720471"
+    },
+    {
+      "hash": "2Z5KAE",
+      "text": "{title}",
+      "context": "div > h2",
+      "src": "src/components/FormatsPage.tsx:721177"
+    },
+    {
+      "hash": "1cIhDb",
+      "text": "{value}",
+      "context": "div > div > ItemCard > div > div > div > span",
+      "src": "src/components/FormatsPage.tsx:721995"
+    },
+    {
+      "hash": "1D1HqC",
+      "text": "{f.name}",
+      "context": "div > div > ItemCard > div > div > div > span",
+      "src": "src/components/FormatsPage.tsx:722244"
+    },
+    {
+      "hash": "1p26Pw",
+      "text": "{filterDoc.overview}",
+      "context": "div > div > ItemCard > div > div > p",
+      "src": "src/components/FormatsPage.tsx:722767"
+    },
+    {
+      "hash": "keG0j",
+      "text": "{ext}",
+      "context": "div > div > ItemCard > div > div > div > span",
+      "src": "src/components/FormatsPage.tsx:723143"
+    },
+    {
+      "hash": "KEp87",
+      "text": "{value}",
+      "context": "div > div > div > h1",
+      "src": "src/components/FormatsPage.tsx:730723"
+    },
+    {
+      "hash": "2eCWQQ",
+      "text": "{ext}",
+      "context": "div > div > div > div > span",
+      "src": "src/components/FormatsPage.tsx:730981"
+    },
+    {
+      "hash": "35wrcv",
+      "text": "{mt}",
+      "context": "div > div > div > div > span",
+      "src": "src/components/FormatsPage.tsx:731256"
+    },
+    {
+      "hash": "yUL6R",
+      "text": "Presets",
+      "context": "div > div > div > h2",
+      "src": "src/components/FormatsPage.tsx:733227"
+    },
+    {
+      "hash": "4DGd7Z",
+      "text": "({p.source})",
+      "context": "div > div > div > div > Button > span",
+      "src": "src/components/FormatsPage.tsx:734302"
+    },
+    {
+      "hash": "f5eiM",
+      "text": "— {p.description}",
+      "context": "div > div > div > div > Button > span",
+      "src": "src/components/FormatsPage.tsx:734426"
+    },
+    {
+      "hash": "2GpPZe",
+      "text": "Save as Preset",
+      "context": "div > Card > CardContent > h3",
+      "src": "src/components/FormatsPage.tsx:735368"
+    },
+    {
+      "hash": "1iUKgR",
+      "text": "{yamlError}",
+      "context": "div > Tabs > TabsContent > div > p",
+      "src": "src/components/FormatsPage.tsx:739616"
+    },
+    {
+      "hash": "1nDb29",
+      "text": "Test",
+      "context": "div > div > h2",
+      "src": "src/components/FormatsPage.tsx:740342"
+    },
+    {
+      "hash": "2HnO5Y",
+      "text": "{runnerParts.length} part{value} extracted",
+      "context": "div > div > div > span",
+      "src": "src/components/FormatsPage.tsx:740939"
+    },
+    {
+      "hash": "PNYNN",
+      "text": "{part.type}",
+      "context": "div > div > span",
+      "src": "src/components/FormatsPage.tsx:742765"
+    },
+    {
+      "hash": "1ZT8oR",
+      "text": "{part.id}",
+      "context": "div > div > span",
+      "src": "src/components/FormatsPage.tsx:743036"
+    },
+    {
+      "hash": "2O6zB",
+      "text": "{part.summary}",
+      "context": "div > div > span",
+      "src": "src/components/FormatsPage.tsx:743206"
+    },
+    {
+      "hash": "2t7uDq",
+      "text": "Source:",
+      "context": "div > div > div > span",
+      "src": "src/components/FormatsPage.tsx:743798"
+    },
+    {
+      "hash": "GA9Rw",
+      "text": "Properties:",
+      "context": "div > div > div > span",
+      "src": "src/components/FormatsPage.tsx:744211"
+    },
+    {
+      "hash": "1lgQH7",
+      "text": "{k}: {v}",
+      "context": "div > div > div > div > span",
+      "src": "src/components/FormatsPage.tsx:744483"
+    },
+    {
+      "hash": "z1N0O",
+      "text": "{displayName}",
+      "context": "div > div > h1",
+      "src": "src/components/HomePage.tsx:747792"
+    },
+    {
+      "hash": "49OIKu",
+      "text": "{name} {value}",
+      "context": "div > div > div > span > span",
+      "src": "src/components/HomePage.tsx:748626"
+    },
+    {
+      "hash": "2xKZKb",
+      "text": "{spec.framework_version}",
+      "context": "div > div > div > span > span > span",
+      "src": "src/components/HomePage.tsx:748745"
+    },
+    {
+      "hash": "3K5OJB",
+      "text": "Plugin requirements not met",
+      "context": "div > div > div > div > p",
+      "src": "src/components/HomePage.tsx:749322"
+    },
+    {
+      "hash": "4lNilC",
+      "text": "This project requires plugins that are not installed or have incompatible versions. Content and flow features are disabled until this is resolved.",
+      "context": "div > div > div > div > p",
+      "src": "src/components/HomePage.tsx:749403"
+    },
+    {
+      "hash": "1Dyx95",
+      "text": "not installed",
+      "context": "div > div > div > div > ul > li > span",
+      "src": "src/components/HomePage.tsx:750039"
+    },
+    {
+      "hash": "3t7HJg",
+      "text": "requires {issue.required}, installed {issue.installed_version}",
+      "context": "div > div > div > div > ul > li > span",
+      "src": "src/components/HomePage.tsx:750148"
+    },
+    {
+      "hash": "1XvK4n",
+      "text": "{name}",
+      "context": "div > section > div > Card > div > div > span",
+      "src": "src/components/HomePage.tsx:753421"
+    },
+    {
+      "hash": "3IhU58",
+      "text": "→",
+      "context": "div > section > div > Card > div > div > span > span",
+      "src": "src/components/HomePage.tsx:753992"
+    },
+    {
+      "hash": "2ijoBH",
+      "text": "{item.icon}",
+      "context": "aside > nav > button",
+      "src": "src/components/IconSidebar.tsx:759458"
+    },
+    {
+      "hash": "2xug0Y",
+      "text": "App Settings",
+      "context": "aside > div > button[aria-label]",
+      "src": "src/components/IconSidebar.tsx:760225"
+    },
+    {
+      "hash": "3sIQXe",
+      "text": "App Settings",
+      "context": "aside > div > button[title]",
+      "src": "src/components/IconSidebar.tsx:760225"
+    },
+    {
+      "hash": "3UKz8w",
+      "text": "{length}",
+      "context": "div > Button > span",
+      "src": "src/components/JobFeedButton.tsx:763737"
+    },
+    {
+      "hash": "2dL65c",
+      "text": "Clear completed",
+      "context": "div > div > div > div > button[title]",
+      "src": "src/components/JobFeedButton.tsx:764535"
+    },
+    {
+      "hash": "3sSPab",
+      "text": "{value}",
+      "context": "div > div > ScrollArea > div > div > div > span",
+      "src": "src/components/JobFeedButton.tsx:765794"
+    },
+    {
+      "hash": "3azEps",
+      "text": "{job.fileCount} files",
+      "context": "div > div > ScrollArea > div > div > div > span",
+      "src": "src/components/JobFeedButton.tsx:766643"
+    },
+    {
+      "hash": "4bnmP3",
+      "text": "{current}/{total}",
+      "context": "div > div > ScrollArea > div > div > div > div > span",
+      "src": "src/components/JobFeedButton.tsx:767216"
+    },
+    {
+      "hash": "3RgBTr",
+      "text": "{value}%",
+      "context": "div > div > ScrollArea > div > div > div > div > span",
+      "src": "src/components/JobFeedButton.tsx:767355"
+    },
+    {
+      "hash": "2WyTbr",
+      "text": "Dismiss",
+      "context": "div > div > ScrollArea > div > div > div > button",
+      "src": "src/components/JobFeedButton.tsx:769066"
+    },
+    {
+      "hash": "1z1FGJ",
+      "text": "{item.displayName}",
+      "context": "span",
+      "src": "src/components/LocaleSettings.tsx:770383"
+    },
+    {
+      "hash": "34apZP",
+      "text": "{item.code}",
+      "context": "span",
+      "src": "src/components/LocaleSettings.tsx:770485"
+    },
+    {
+      "hash": "2T0Uos",
+      "text": "Locales",
+      "context": "div > div > div > h1",
+      "src": "src/components/LocaleSettings.tsx:775095"
+    },
+    {
+      "hash": "3UqDtH",
+      "text": "{value} active, {hiddenCount} hidden {value_2}",
+      "context": "div > div > div > p",
+      "src": "src/components/LocaleSettings.tsx:775156"
+    },
+    {
+      "hash": "1KAIFw",
+      "text": "{addError}",
+      "context": "div > div > Card > CardContent > p",
+      "src": "src/components/LocaleSettings.tsx:776888"
+    },
+    {
+      "hash": "4EmPYZ",
+      "text": "No translation memories found. Create one or open a .db file.",
+      "context": "div > Card > CardContent > p",
+      "src": "src/components/MemoriesPage.tsx:788435"
+    },
+    {
+      "hash": "26fbsv",
+      "text": "New Translation Memory",
+      "context": "div > div > div > h2",
+      "src": "src/components/MemoriesPage.tsx:789224"
+    },
+    {
+      "hash": "23q8O0",
+      "text": "Corrupt Translation Memory",
+      "context": "div > div > div > div > h2",
+      "src": "src/components/MemoriesPage.tsx:790523"
+    },
+    {
+      "hash": "et2VR",
+      "text": "{=m0} could not be opened. The database may be corrupt.",
+      "context": "div > div > div > p",
+      "src": "src/components/MemoriesPage.tsx:790626"
+    },
+    {
+      "hash": "I5TDk",
+      "text": "{corruptName}",
+      "context": "div > div > div > p > strong",
+      "src": "src/components/MemoriesPage.tsx:790691"
+    },
+    {
+      "hash": "3N2KTB",
+      "text": "Ad-hoc",
+      "context": "div > button",
+      "src": "src/components/ModeToggle.tsx:792008"
+    },
+    {
+      "hash": "36tCJY",
+      "text": "Project",
+      "context": "div > button",
+      "src": "src/components/ModeToggle.tsx:792332"
+    },
+    {
+      "hash": "1AZFCd",
+      "text": "New Project",
+      "context": "div > div > h2",
+      "src": "src/components/NewProjectDialog.tsx:794055"
+    },
+    {
+      "hash": "272vWp",
+      "text": "Invalid directory name",
+      "context": "div > div > div > div > p",
+      "src": "src/components/NewProjectDialog.tsx:796928"
+    },
+    {
+      "hash": "1MrDXM",
+      "text": "{saveDir}",
+      "context": "div > div > div > div > p",
+      "src": "src/components/NewProjectDialog.tsx:797042"
+    },
+    {
+      "hash": "1cU2Nl",
+      "text": "{snapshot.parts_out}/{snapshot.parts_in}",
+      "context": "Badge > span",
+      "src": "src/components/PipelineProgress.tsx:800158"
+    },
+    {
+      "hash": "1FhZsx",
+      "text": "→",
+      "context": "div > div > span",
+      "src": "src/components/PipelineProgress.tsx:801254"
     },
     {
       "hash": "1dUWig",
       "text": "{error}",
       "context": "div > Tabs > p",
-      "src": "src/components/PluginManager.tsx:192007"
+      "src": "src/components/PluginManager.tsx:810401"
     },
     {
       "hash": "tIK9A",
       "text": "No plugins installed.",
       "context": "div > Tabs > TabsContent > div > div > p",
-      "src": "src/components/PluginManager.tsx:193238"
+      "src": "src/components/PluginManager.tsx:811632"
     },
     {
       "hash": "LLmEi",
       "text": "{plugin.name}",
       "context": "div > Tabs > TabsContent > div > ItemCard > div > div > span",
-      "src": "src/components/PluginManager.tsx:194344"
+      "src": "src/components/PluginManager.tsx:812738"
     },
     {
       "hash": "eC0tr",
       "text": "Installed",
       "context": "div > Tabs > TabsContent > div > ItemCard > span",
-      "src": "src/components/PluginManager.tsx:195492"
+      "src": "src/components/PluginManager.tsx:813886"
     },
     {
       "hash": "1Gere7",
       "text": "{value}",
       "context": "div > Tabs > TabsContent > div > ItemCard > div > span",
-      "src": "src/components/PluginManager.tsx:196131"
+      "src": "src/components/PluginManager.tsx:814525"
     },
     {
       "hash": "4hKfQC",
       "text": "{value}",
       "context": "div > Tabs > TabsContent > div > p",
-      "src": "src/components/PluginManager.tsx:196806"
+      "src": "src/components/PluginManager.tsx:815200"
     },
     {
       "hash": "2gAqCL",
       "text": "{plugin.name}",
       "context": "ItemCard > div > div > div > span",
-      "src": "src/components/PluginManager.tsx:198075"
+      "src": "src/components/PluginManager.tsx:816469"
     },
     {
       "hash": "1AG0LJ",
       "text": "{f}",
       "context": "ItemCard > div > div > div > span",
-      "src": "src/components/PluginManager.tsx:198847"
+      "src": "src/components/PluginManager.tsx:817241"
     },
     {
       "hash": "4r0Slt",
       "text": "+{value} more",
       "context": "ItemCard > div > div > div > span",
-      "src": "src/components/PluginManager.tsx:199127"
+      "src": "src/components/PluginManager.tsx:817521"
     },
     {
       "hash": "2fhNT6",
       "text": "Updated",
       "context": "ItemCard > div > div > span",
-      "src": "src/components/PluginManager.tsx:200543"
+      "src": "src/components/PluginManager.tsx:818937"
     },
     {
       "hash": "1lQv5b",
       "text": "{value}",
       "context": "ItemCard > div > div > div > span",
-      "src": "src/components/PluginManager.tsx:200781"
+      "src": "src/components/PluginManager.tsx:819175"
     },
     {
       "hash": "3toF2d",
       "text": "{value} {value_2}",
       "context": "ItemCard > div > div > div > span",
-      "src": "src/components/PluginManager.tsx:203025"
+      "src": "src/components/PluginManager.tsx:821419"
     },
     {
       "hash": "2UtbSt",
       "text": "{value}",
       "context": "ItemCard > div > div > div > span > span",
-      "src": "src/components/PluginManager.tsx:203322"
+      "src": "src/components/PluginManager.tsx:821716"
     },
     {
       "hash": "2uKqKj",
       "text": "Name",
       "context": "div > div > Card > table > thead > tr > th",
-      "src": "src/components/ProjectFilesPage.tsx:208320"
+      "src": "src/components/ProjectFilesPage.tsx:826714"
     },
     {
       "hash": "4wy3JI",
       "text": "Format",
       "context": "div > div > Card > table > thead > tr > th",
-      "src": "src/components/ProjectFilesPage.tsx:208386"
+      "src": "src/components/ProjectFilesPage.tsx:826780"
     },
     {
       "hash": "3rnae2",
       "text": "Size",
       "context": "div > div > Card > table > thead > tr > th",
-      "src": "src/components/ProjectFilesPage.tsx:208454"
+      "src": "src/components/ProjectFilesPage.tsx:826848"
     },
     {
       "hash": "1ISvqB",
       "text": "{=m0}",
       "context": "div > div > Card > table > tbody > tr > td",
-      "src": "src/components/ProjectFilesPage.tsx:208809"
+      "src": "src/components/ProjectFilesPage.tsx:827203"
     },
     {
       "hash": "cpgXh",
       "text": "—",
       "context": "div > div > Card > table > tbody > tr > td",
-      "src": "src/components/ProjectFilesPage.tsx:209112"
+      "src": "src/components/ProjectFilesPage.tsx:827506"
     },
     {
       "hash": "3xmuSn",
       "text": "{value}",
       "context": "div > div > Card > table > tbody > tr > td",
-      "src": "src/components/ProjectFilesPage.tsx:209843"
+      "src": "src/components/ProjectFilesPage.tsx:828237"
     },
     {
       "hash": "4feSh9",
       "text": "—",
       "context": "div > div > Card > table > tbody > tr > td > span",
-      "src": "src/components/ProjectFilesPage.tsx:210030"
+      "src": "src/components/ProjectFilesPage.tsx:828424"
     },
     {
       "hash": "3xG3OV",
       "text": "Drop files here or click {=m0} to add them to the project.",
       "context": "div > div > div > p",
-      "src": "src/components/ProjectFilesPage.tsx:210582"
+      "src": "src/components/ProjectFilesPage.tsx:828976"
     },
     {
       "hash": "3CNsZW",
       "text": "Add Files",
       "context": "div > div > div > p > strong",
-      "src": "src/components/ProjectFilesPage.tsx:210667"
+      "src": "src/components/ProjectFilesPage.tsx:829061"
     },
     {
       "hash": "21lSXB",
       "text": "{name}",
       "context": "div > div > div > div > h1",
-      "src": "src/components/ProjectPage.tsx:214251"
+      "src": "src/components/ProjectPage.tsx:832645"
     },
     {
       "hash": "1qP0zZ",
       "text": "{projectPath}",
       "context": "div > div > div > p",
-      "src": "src/components/ProjectPage.tsx:214689"
+      "src": "src/components/ProjectPage.tsx:833083"
     },
     {
       "hash": "19MQoW",
       "text": "Not yet saved to disk",
       "context": "div > div > div > p",
-      "src": "src/components/ProjectPage.tsx:214785"
+      "src": "src/components/ProjectPage.tsx:833179"
     },
     {
       "hash": "15n6Qj",
       "text": "Source:",
       "context": "div > div > Card > CardContent > div > div > span",
-      "src": "src/components/ProjectPage.tsx:215748"
+      "src": "src/components/ProjectPage.tsx:834142"
     },
     {
       "hash": "3l0gBL",
       "text": "{value}",
       "context": "div > div > Card > CardContent > div > div > span",
-      "src": "src/components/ProjectPage.tsx:215820"
+      "src": "src/components/ProjectPage.tsx:834214"
     },
     {
       "hash": "4BVZHW",
       "text": "Targets:",
       "context": "div > div > Card > CardContent > div > div > span",
-      "src": "src/components/ProjectPage.tsx:215930"
+      "src": "src/components/ProjectPage.tsx:834324"
     },
     {
       "hash": "2RvccG",
       "text": "({name})",
       "context": "div > div > Card > CardContent > div > div > span",
-      "src": "src/components/ProjectPage.tsx:216965"
+      "src": "src/components/ProjectPage.tsx:835359"
     },
     {
       "hash": "1I28ab",
       "text": "({length} item {value})",
       "context": "div > div > Card > CardContent > div > div > span",
-      "src": "src/components/ProjectPage.tsx:217261"
+      "src": "src/components/ProjectPage.tsx:835655"
     },
     {
       "hash": "4ahYdH",
       "text": "No content patterns",
       "context": "div > div > Card > CardContent > div > p",
-      "src": "src/components/ProjectPage.tsx:217558"
+      "src": "src/components/ProjectPage.tsx:835952"
     },
     {
       "hash": "4CBtG",
       "text": "({length} step{value})",
       "context": "div > div > Card > CardContent > div > div > span",
-      "src": "src/components/ProjectPage.tsx:218339"
+      "src": "src/components/ProjectPage.tsx:836733"
     },
     {
       "hash": "1XZ6SR",
       "text": "No flows defined",
       "context": "div > div > Card > CardContent > div > p",
-      "src": "src/components/ProjectPage.tsx:218564"
+      "src": "src/components/ProjectPage.tsx:836958"
     },
     {
       "hash": "rHWFN",
       "text": "Preset:",
       "context": "div > div > div > span",
-      "src": "src/components/ProjectPage.tsx:218920"
+      "src": "src/components/ProjectPage.tsx:837314"
     },
     {
       "hash": "8WsRS",
       "text": "Plugins:",
       "context": "div > div > div > span",
-      "src": "src/components/ProjectPage.tsx:219154"
+      "src": "src/components/ProjectPage.tsx:837548"
     },
     {
       "hash": "3vmNko",
       "text": "Configure Project",
       "context": "div > div > h1",
-      "src": "src/components/ProjectPresetPage.tsx:220880"
+      "src": "src/components/ProjectPresetPage.tsx:839274"
     },
     {
       "hash": "4zKevx",
       "text": "We detected an existing codebase. Apply a preset to configure content patterns and workflows automatically.",
       "context": "div > div > p",
-      "src": "src/components/ProjectPresetPage.tsx:220966"
+      "src": "src/components/ProjectPresetPage.tsx:839360"
     },
     {
       "hash": "2q9zb2",
       "text": "Recommended",
       "context": "div > div > div > p",
-      "src": "src/components/ProjectPresetPage.tsx:221261"
+      "src": "src/components/ProjectPresetPage.tsx:839655"
     },
     {
       "hash": "3IViO1",
       "text": "Other presets",
       "context": "div > div > div > p",
-      "src": "src/components/ProjectPresetPage.tsx:221988"
+      "src": "src/components/ProjectPresetPage.tsx:840382"
     },
     {
       "hash": "1H4ifv",
       "text": "Project Settings",
       "context": "div > h1",
-      "src": "src/components/ProjectSettingsPage.tsx:226932"
+      "src": "src/components/ProjectSettingsPage.tsx:845326"
     },
     {
       "hash": "3m2UpA",
       "text": "Determines locale code style in file paths and tool output.",
       "context": "div > div > section > Card > CardContent > div > p",
-      "src": "src/components/ProjectSettingsPage.tsx:229091"
+      "src": "src/components/ProjectSettingsPage.tsx:847485"
     },
     {
       "hash": "MHj5U",
       "text": "Plugin requirements not met",
       "context": "div > div > section > div > div > div > p",
-      "src": "src/components/ProjectSettingsPage.tsx:229954"
+      "src": "src/components/ProjectSettingsPage.tsx:848348"
     },
     {
       "hash": "2Aghwk",
       "text": "Content and flow features are disabled. Resolve by installing missing plugins or adjusting version constraints below, then save.",
       "context": "div > div > section > div > div > div > p",
-      "src": "src/components/ProjectSettingsPage.tsx:230039"
+      "src": "src/components/ProjectSettingsPage.tsx:848433"
     },
     {
       "hash": "4kQtd9",
       "text": "not installed",
       "context": "div > div > section > div > div > div > ul > li > span",
-      "src": "src/components/ProjectSettingsPage.tsx:230707"
+      "src": "src/components/ProjectSettingsPage.tsx:849101"
     },
     {
       "hash": "3tnKUZ",
       "text": "requires {issue.required}, have {issue.installed_version}",
       "context": "div > div > section > div > div > div > ul > li > span",
-      "src": "src/components/ProjectSettingsPage.tsx:230837"
+      "src": "src/components/ProjectSettingsPage.tsx:849231"
     },
     {
       "hash": "2DcScS",
       "text": "{value}:{value_2} {value_3}",
       "context": "div > div > section > div > div > p",
-      "src": "src/components/ProjectSettingsPage.tsx:231499"
+      "src": "src/components/ProjectSettingsPage.tsx:849893"
     },
     {
       "hash": "ihKux",
       "text": "This project requires plugins that are not installed. Install them from the Plugins manager in app Settings.",
       "context": "div > div > section > div > div > p",
-      "src": "src/components/ProjectSettingsPage.tsx:231719"
+      "src": "src/components/ProjectSettingsPage.tsx:850113"
     },
     {
       "hash": "OuREz",
       "text": "{name}",
       "context": "div > div > section > Card > CardContent > div > div > label > span",
-      "src": "src/components/ProjectSettingsPage.tsx:233608"
+      "src": "src/components/ProjectSettingsPage.tsx:852002"
     },
     {
       "hash": "48NqJp",
       "text": "{info.description}",
       "context": "div > div > section > Card > CardContent > div > p",
-      "src": "src/components/ProjectSettingsPage.tsx:236528"
+      "src": "src/components/ProjectSettingsPage.tsx:854922"
     },
     {
       "hash": "3RgBVG",
       "text": "No plugins installed. Install plugins from the Plugins manager in app Settings.",
       "context": "div > div > section > Card > CardContent > p",
-      "src": "src/components/ProjectSettingsPage.tsx:236754"
+      "src": "src/components/ProjectSettingsPage.tsx:855148"
     },
     {
       "hash": "pCREu",
       "text": "Files processed concurrently. Leave empty for auto.",
       "context": "div > div > section > Card > CardContent > div > div > p",
-      "src": "src/components/ProjectSettingsPage.tsx:238037"
+      "src": "src/components/ProjectSettingsPage.tsx:856431"
     },
     {
       "hash": "43JB0j",
       "text": "Blocks sent in parallel within a single tool step.",
       "context": "div > div > section > Card > CardContent > div > div > p",
-      "src": "src/components/ProjectSettingsPage.tsx:238963"
+      "src": "src/components/ProjectSettingsPage.tsx:857357"
     },
     {
       "hash": "3q77HL",
       "text": "Character encoding for reading and writing files.",
       "context": "div > div > section > Card > CardContent > div > p",
-      "src": "src/components/ProjectSettingsPage.tsx:240061"
+      "src": "src/components/ProjectSettingsPage.tsx:858455"
     },
     {
       "hash": "3v4PVS",
       "text": "Default settings applied to all content items using a given format.",
       "context": "div > div > section > Card > CardContent > p",
-      "src": "src/components/ProjectSettingsPage.tsx:240680"
+      "src": "src/components/ProjectSettingsPage.tsx:859074"
     },
     {
       "hash": "3lgMxA",
       "text": "{value}",
       "context": "div > div > section > Card > CardContent > div > div > div > span",
-      "src": "src/components/ProjectSettingsPage.tsx:242661"
+      "src": "src/components/ProjectSettingsPage.tsx:861055"
     },
     {
       "hash": "35VBmp",
       "text": "→",
       "context": "div > span",
-      "src": "src/components/ProjectSetupPage.tsx:243467"
+      "src": "src/components/ProjectSetupPage.tsx:861861"
     },
     {
       "hash": "127uPZ",
       "text": "Get Started",
       "context": "div > div > h1",
-      "src": "src/components/ProjectSetupPage.tsx:244385"
+      "src": "src/components/ProjectSetupPage.tsx:862779"
     },
     {
       "hash": "447BHY",
       "text": "Choose a template to set up your project structure.",
       "context": "div > div > p",
-      "src": "src/components/ProjectSetupPage.tsx:244465"
+      "src": "src/components/ProjectSetupPage.tsx:862859"
     },
     {
       "hash": "27zz7b",
       "text": "{progress.current} / {progress.total} files",
       "context": "div > div > div > span",
-      "src": "src/components/RunnerPage.tsx:254652"
+      "src": "src/components/RunnerPage.tsx:873046"
     },
     {
       "hash": "K4Qpq",
       "text": "{value}%",
       "context": "div > div > div > span",
-      "src": "src/components/RunnerPage.tsx:254749"
+      "src": "src/components/RunnerPage.tsx:873143"
     },
     {
       "hash": "2nAKiY",
       "text": "Flow Running",
       "context": "div > div > h2",
-      "src": "src/components/RunningFlowDialog.tsx:257133"
+      "src": "src/components/RunningFlowDialog.tsx:875527"
     },
     {
       "hash": "QkJeW",
       "text": "A flow is still running. Do you want to cancel it and close, or keep it running?",
       "context": "div > div > p",
-      "src": "src/components/RunningFlowDialog.tsx:257202"
+      "src": "src/components/RunningFlowDialog.tsx:875596"
     },
     {
       "hash": "1Md8If",
       "text": "Settings",
       "context": "Tabs > TabsContent > div > h1",
-      "src": "src/components/SettingsPage.tsx:262529"
+      "src": "src/components/SettingsPage.tsx:880928"
     },
     {
       "hash": "udeyN",
       "text": "System follows your operating system's appearance setting.",
       "context": "Tabs > TabsContent > div > div > Card > CardContent > p",
-      "src": "src/components/SettingsPage.tsx:263846"
+      "src": "src/components/SettingsPage.tsx:882245"
     },
     {
       "hash": "1oWy6E",
       "text": "Pseudo English expands strings and adds accents — useful for localization QA.",
       "context": "Tabs > TabsContent > div > div > Card > CardContent > p",
-      "src": "src/components/SettingsPage.tsx:265013"
+      "src": "src/components/SettingsPage.tsx:883412"
     },
     {
       "hash": "Rfyk7",
       "text": "Rename project",
       "context": "div > div > input[aria-label]",
-      "src": "src/components/TabBar.tsx:267421"
+      "src": "src/components/TabBar.tsx:885820"
     },
     {
       "hash": "3aCcPs",
       "text": "{tab.name}",
       "context": "div > div > span",
-      "src": "src/components/TabBar.tsx:267962"
+      "src": "src/components/TabBar.tsx:886361"
     },
     {
       "hash": "2Mf00e",
       "text": "New Termbase",
       "context": "div > div > div > h2",
-      "src": "src/components/TermbasesPage.tsx:282155"
+      "src": "src/components/TermbasesPage.tsx:900554"
     },
     {
       "hash": "2cwCrk",
       "text": "Corrupt Termbase",
       "context": "div > div > div > div > h2",
-      "src": "src/components/TermbasesPage.tsx:283404"
+      "src": "src/components/TermbasesPage.tsx:901803"
     },
     {
       "hash": "2239kY",
       "text": "{=m0} could not be opened.",
       "context": "div > div > div > p",
-      "src": "src/components/TermbasesPage.tsx:283497"
+      "src": "src/components/TermbasesPage.tsx:901896"
     },
     {
       "hash": "3T4IyB",
       "text": "Search tools...",
       "context": "div > div > div > div > input[placeholder]",
-      "src": "src/components/ToolRunnerPage.tsx:288770"
+      "src": "src/components/ToolRunnerPage.tsx:907169"
     },
     {
       "hash": "p0oPr",
       "text": "{value}",
       "context": "div > div > ScrollArea > div > div > div > div > div > div > span",
-      "src": "src/components/ToolRunnerPage.tsx:291824"
+      "src": "src/components/ToolRunnerPage.tsx:910223"
     },
     {
       "hash": "13FF8T",
       "text": "{tool.description}",
       "context": "div > div > ScrollArea > div > div > div > div > div > p",
-      "src": "src/components/ToolRunnerPage.tsx:292919"
+      "src": "src/components/ToolRunnerPage.tsx:911318"
     },
     {
       "hash": "1TXHaL",
       "text": "{value}",
       "context": "div > div > ScrollArea > div > div > p",
-      "src": "src/components/ToolRunnerPage.tsx:294187"
+      "src": "src/components/ToolRunnerPage.tsx:912586"
     },
     {
       "hash": "9tgCv",
       "text": "Select a tool to view details and run it",
       "context": "div > ScrollArea > div > div > p",
-      "src": "src/components/ToolRunnerPage.tsx:294886"
+      "src": "src/components/ToolRunnerPage.tsx:913285"
     },
     {
       "hash": "1U3GUL",
       "text": "{tools.length} tools available across {categories.size} categories",
       "context": "div > ScrollArea > div > div > p",
-      "src": "src/components/ToolRunnerPage.tsx:294968"
+      "src": "src/components/ToolRunnerPage.tsx:913367"
     },
     {
       "hash": "4p4xT8",
       "text": "{value}",
       "context": "div > div > div > h2",
-      "src": "src/components/ToolRunnerPage.tsx:297586"
+      "src": "src/components/ToolRunnerPage.tsx:915985"
     },
     {
       "hash": "2Yn0cy",
       "text": "{tool.description}",
       "context": "div > div > div > p",
-      "src": "src/components/ToolRunnerPage.tsx:297712"
+      "src": "src/components/ToolRunnerPage.tsx:916111"
     },
     {
       "hash": "426DCX",
       "text": "{meta.label}",
       "context": "div > div > div > div > span",
-      "src": "src/components/ToolRunnerPage.tsx:297856"
+      "src": "src/components/ToolRunnerPage.tsx:916255"
     },
     {
       "hash": "30ZgWc",
       "text": "{error}",
       "context": "div > div > Card > CardContent > p",
-      "src": "src/components/ToolRunnerPage.tsx:301008"
+      "src": "src/components/ToolRunnerPage.tsx:919407"
     },
     {
       "hash": "1Xfgcb",
       "text": "Unsaved Changes",
       "context": "div > div > h2",
-      "src": "src/components/UnsavedDialog.tsx:303871"
+      "src": "src/components/UnsavedDialog.tsx:922270"
     },
     {
       "hash": "21IgNu",
       "text": "Do you want to save changes before closing?",
       "context": "div > div > p",
-      "src": "src/components/UnsavedDialog.tsx:303943"
+      "src": "src/components/UnsavedDialog.tsx:922342"
     },
     {
       "hash": "2bsmZ8",
       "text": "neokapi",
       "context": "div > ScrollArea > div > div > img[alt]",
-      "src": "src/components/WelcomePage.tsx:316131"
+      "src": "src/components/WelcomePage.tsx:934530"
     },
     {
       "hash": "2JA263",
       "text": "Kapi",
       "context": "div > ScrollArea > div > div > h1",
-      "src": "src/components/WelcomePage.tsx:316231"
+      "src": "src/components/WelcomePage.tsx:934630"
     },
     {
       "hash": "1XRn89",
       "text": "Localization plumbing and glue for people, elves, and agents.",
       "context": "div > ScrollArea > div > div > p",
-      "src": "src/components/WelcomePage.tsx:316308"
+      "src": "src/components/WelcomePage.tsx:934707"
     },
     {
       "hash": "18JAK8",
       "text": "✕",
       "context": "div > ScrollArea > div > div > div > div > div > Button > span",
-      "src": "src/components/WelcomePage.tsx:318489"
+      "src": "src/components/WelcomePage.tsx:936888"
     },
     {
       "hash": "2zMqv",
       "text": "Invalid directory name",
       "context": "div > ScrollArea > div > div > div > div > p",
-      "src": "src/components/WelcomePage.tsx:318777"
+      "src": "src/components/WelcomePage.tsx:937176"
     },
     {
       "hash": "riPo1",
       "text": "{savePath}",
       "context": "div > ScrollArea > div > div > div > div > p",
-      "src": "src/components/WelcomePage.tsx:318958"
+      "src": "src/components/WelcomePage.tsx:937357"
     },
     {
       "hash": "32QOfG",
       "text": "{error}",
       "context": "div > ScrollArea > div > div > p",
-      "src": "src/components/WelcomePage.tsx:320317"
+      "src": "src/components/WelcomePage.tsx:938716"
     },
     {
       "hash": "UC34S",
       "text": "Get Started",
       "context": "div > ScrollArea > div > section > h2",
-      "src": "src/components/WelcomePage.tsx:320532"
+      "src": "src/components/WelcomePage.tsx:938931"
     },
     {
       "hash": "3xUaGi",
       "text": "{item.title}",
       "context": "div > ScrollArea > div > section > div > Button > div > h3",
-      "src": "src/components/WelcomePage.tsx:321395"
+      "src": "src/components/WelcomePage.tsx:939794"
     },
     {
       "hash": "1q2eoN",
       "text": "{item.description}",
       "context": "div > ScrollArea > div > section > div > Button > p",
-      "src": "src/components/WelcomePage.tsx:321492"
+      "src": "src/components/WelcomePage.tsx:939891"
     },
     {
       "hash": "Oxknz",
       "text": "Recent Projects",
       "context": "div > ScrollArea > div > section > h2",
-      "src": "src/components/WelcomePage.tsx:321767"
+      "src": "src/components/WelcomePage.tsx:940166"
     },
     {
       "hash": "4vRSRa",
       "text": "No recent projects yet. Create a new project or open an existing Kapi project to get started.",
       "context": "div > ScrollArea > div > section > div > p",
-      "src": "src/components/WelcomePage.tsx:323014"
+      "src": "src/components/WelcomePage.tsx:941413"
     },
     {
       "hash": "353Ect",
       "text": "Kapi is part of {=m0}, the open-source localization framework.",
       "context": "div > ScrollArea > div > footer > p",
-      "src": "src/components/WelcomePage.tsx:323358"
+      "src": "src/components/WelcomePage.tsx:941757"
     },
     {
       "hash": "1ZyDqt",
       "text": "neokapi",
       "context": "div > ScrollArea > div > footer > p > span",
-      "src": "src/components/WelcomePage.tsx:323434"
+      "src": "src/components/WelcomePage.tsx:941833"
+    },
+    {
+      "hash": "qTmiI",
+      "text": "{length}",
+      "context": "div > span",
+      "src": "src/__tests__/JobFeedContext.test.tsx:970230"
+    },
+    {
+      "hash": "2mEeA",
+      "text": "{value}",
+      "context": "div > span",
+      "src": "src/__tests__/JobFeedContext.test.tsx:970292"
+    },
+    {
+      "hash": "3Fpb9k",
+      "text": "{flowName}",
+      "context": "div > span",
+      "src": "src/__tests__/JobFeedContext.test.tsx:970380"
+    },
+    {
+      "hash": "3j21jW",
+      "text": "{j.status}",
+      "context": "div > span",
+      "src": "src/__tests__/JobFeedContext.test.tsx:970484"
     }
   ]
 }
