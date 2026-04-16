@@ -460,7 +460,7 @@ type tuvData struct {
 
 // segContent holds the parsed content of a <seg> element.
 type segContent struct {
-	frag *model.Fragment
+	runs []model.Run
 }
 
 // inlineState tracks an inline element being built.
@@ -474,27 +474,32 @@ type inlineState struct {
 
 // segContentBuilder builds a segContent with inline codes.
 type segContentBuilder struct {
-	frag          *model.Fragment
+	runs          []model.Run
 	currentInline *inlineState
 	inSub         bool
 	spanCounter   int
 }
 
 func newSegContentBuilder() *segContentBuilder {
-	return &segContentBuilder{
-		frag: &model.Fragment{},
-	}
+	return &segContentBuilder{}
 }
 
 func (b *segContentBuilder) addText(text string) {
 	if b.currentInline != nil {
 		b.currentInline.data.WriteString(text)
 		if b.inSub {
-			return // sub text goes into inline data only
+			return
 		}
 		return
 	}
-	b.frag.AppendText(text)
+	if text == "" {
+		return
+	}
+	if n := len(b.runs); n > 0 && b.runs[n-1].Text != nil {
+		b.runs[n-1].Text.Text += text
+		return
+	}
+	b.runs = append(b.runs, model.Run{Text: &model.TextRun{Text: text}})
 }
 
 func (b *segContentBuilder) startInline(elemType, id, spanType string) {
@@ -518,57 +523,48 @@ func (b *segContentBuilder) endInline(elemType string) {
 		spanID = fmt.Sprintf("c%d", b.spanCounter)
 	}
 
+	data := inline.data.String()
 	switch inline.elemType {
 	case "bpt":
-		b.frag.AppendSpan(&model.Span{
-			SpanType: model.SpanOpening,
-			ID:       spanID,
-			Type:     inline.spanType,
-			Data:     inline.data.String(),
-		})
+		b.runs = append(b.runs, model.Run{PcOpen: &model.PcOpenRun{
+			ID: spanID, Type: inline.spanType, Data: data,
+		}})
 	case "ept":
-		b.frag.AppendSpan(&model.Span{
-			SpanType: model.SpanClosing,
-			ID:       spanID,
-			Data:     inline.data.String(),
-		})
+		b.runs = append(b.runs, model.Run{PcClose: &model.PcCloseRun{
+			ID: spanID, Data: data,
+		}})
 	case "ph":
-		b.frag.AppendSpan(&model.Span{
-			SpanType: model.SpanPlaceholder,
-			ID:       spanID,
-			Type:     inline.spanType,
-			Data:     inline.data.String(),
-		})
+		b.runs = append(b.runs, model.Run{Ph: &model.PlaceholderRun{
+			ID: spanID, Type: inline.spanType, Data: data,
+		}})
 	case "it":
-		st := model.SpanPlaceholder
-		if inline.pos == "begin" {
-			st = model.SpanOpening
-		} else if inline.pos == "end" {
-			st = model.SpanClosing
+		switch inline.pos {
+		case "begin":
+			b.runs = append(b.runs, model.Run{PcOpen: &model.PcOpenRun{
+				ID: spanID, Type: inline.spanType, Data: data,
+			}})
+		case "end":
+			b.runs = append(b.runs, model.Run{PcClose: &model.PcCloseRun{
+				ID: spanID, Type: inline.spanType, Data: data,
+			}})
+		default:
+			b.runs = append(b.runs, model.Run{Ph: &model.PlaceholderRun{
+				ID: spanID, Type: inline.spanType, Data: data,
+			}})
 		}
-		b.frag.AppendSpan(&model.Span{
-			SpanType: st,
-			ID:       spanID,
-			Type:     inline.spanType,
-			Data:     inline.data.String(),
-		})
 	case "hi":
-		// <hi> is a paired highlight — emit opening span, then text is added
-		// by addText, then endInline adds closing span. Since we capture all
-		// text inside <hi> as inline data, we need to emit the text as
-		// regular text and use opening/closing spans.
-		hiText := inline.data.String()
-		b.frag.AppendSpan(&model.Span{
-			SpanType: model.SpanOpening,
-			ID:       spanID,
-			Type:     inline.spanType,
-		})
-		b.frag.AppendText(hiText)
-		b.frag.AppendSpan(&model.Span{
-			SpanType: model.SpanClosing,
-			ID:       spanID,
-		})
-		return // already handled
+		// <hi> is a paired highlight. TMX captures all text inside
+		// <hi> as inline data, so we emit an opening run, a text
+		// run for the captured body, and a closing run.
+		b.runs = append(b.runs, model.Run{PcOpen: &model.PcOpenRun{
+			ID: spanID, Type: inline.spanType,
+		}})
+		if data != "" {
+			b.runs = append(b.runs, model.Run{Text: &model.TextRun{Text: data}})
+		}
+		b.runs = append(b.runs, model.Run{PcClose: &model.PcCloseRun{
+			ID: spanID,
+		}})
 	}
 }
 
@@ -581,7 +577,7 @@ func (b *segContentBuilder) endSub() {
 }
 
 func (b *segContentBuilder) build() *segContent {
-	return &segContent{frag: b.frag}
+	return &segContent{runs: b.runs}
 }
 
 // xmlNamespace is the standard XML namespace URI for xml:lang etc.
@@ -657,7 +653,7 @@ func (r *Reader) buildBlock(tuID string, tu *tuState, srcLang string, locale mod
 		tuvLangLower := strings.ToLower(tuv.lang)
 		if langMatches(tuvLangLower, srcLangLower) {
 			if tuv.seg != nil {
-				block.Source = []*model.Segment{{ID: "s1", Content: tuv.seg.frag}}
+				block.Source = []*model.Segment{model.NewRunsSegment("s1", tuv.seg.runs)}
 			} else {
 				block.Source = []*model.Segment{{ID: "s1", Content: model.NewFragment("")}}
 			}
@@ -670,7 +666,7 @@ func (r *Reader) buildBlock(tuID string, tu *tuState, srcLang string, locale mod
 	if !sourceFound && len(tu.tuvs) > 0 {
 		tuv := tu.tuvs[0]
 		if tuv.seg != nil {
-			block.Source = []*model.Segment{{ID: "s1", Content: tuv.seg.frag}}
+			block.Source = []*model.Segment{model.NewRunsSegment("s1", tuv.seg.runs)}
 		} else {
 			block.Source = []*model.Segment{{ID: "s1", Content: model.NewFragment("")}}
 		}
@@ -692,7 +688,7 @@ func (r *Reader) buildBlock(tuID string, tu *tuState, srcLang string, locale mod
 			continue
 		}
 		if tuv.seg != nil {
-			block.Targets[model.LocaleID(tuv.lang)] = []*model.Segment{{ID: "s1", Content: tuv.seg.frag}}
+			block.Targets[model.LocaleID(tuv.lang)] = []*model.Segment{model.NewRunsSegment("s1", tuv.seg.runs)}
 		} else {
 			block.SetTargetText(model.LocaleID(tuv.lang), "")
 		}
