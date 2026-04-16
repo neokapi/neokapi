@@ -9,74 +9,35 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestSpanRoundtrip(t *testing.T) {
-	span := &model.Span{
-		SpanType:  model.SpanOpening,
-		Type:      "bold",
-		ID:        "s1",
-		Data:      "<b>",
-		OuterData: "</b>",
-		Deletable: true,
-		Cloneable: false,
+func TestRunRoundtrip(t *testing.T) {
+	runs := []model.Run{
+		{Text: &model.TextRun{Text: "Hello "}},
+		{PcOpen: &model.PcOpenRun{ID: "s1", Type: "fmt:bold", Data: "<b>"}},
+		{Text: &model.TextRun{Text: "world"}},
+		{PcClose: &model.PcCloseRun{ID: "s1", Type: "fmt:bold", Data: "</b>"}},
 	}
+	dtos := shared.RunsToDTO(runs)
+	require.Len(t, dtos, 4)
+	assert.NotNil(t, dtos[0].Text)
+	assert.NotNil(t, dtos[1].PcOpen)
+	assert.NotNil(t, dtos[2].Text)
+	assert.NotNil(t, dtos[3].PcClose)
 
-	dto := shared.SpanToDTO(span)
-	assert.Equal(t, int(model.SpanOpening), dto.SpanType)
-	assert.Equal(t, "bold", dto.Type)
-	assert.Equal(t, "s1", dto.ID)
-	assert.Equal(t, "<b>", dto.Data)
-	assert.Equal(t, "</b>", dto.OuterData)
-	assert.True(t, dto.Deletable)
-	assert.False(t, dto.Cloneable)
-
-	result := shared.DTOToSpan(dto)
-	assert.Equal(t, span.SpanType, result.SpanType)
-	assert.Equal(t, span.Type, result.Type)
-	assert.Equal(t, span.ID, result.ID)
-	assert.Equal(t, span.Data, result.Data)
-	assert.Equal(t, span.OuterData, result.OuterData)
-	assert.Equal(t, span.Deletable, result.Deletable)
-	assert.Equal(t, span.Cloneable, result.Cloneable)
-}
-
-func TestFragmentRoundtrip(t *testing.T) {
-	frag := &model.Fragment{
-		CodedText: "Hello \uE101world\uE102",
-		Spans: []*model.Span{
-			{SpanType: model.SpanOpening, ID: "s1", Data: "<b>"},
-			{SpanType: model.SpanClosing, ID: "s1", Data: "</b>"},
-		},
-	}
-
-	dto := shared.FragmentToDTO(frag)
-	assert.Equal(t, frag.CodedText, dto.CodedText)
-	assert.Len(t, dto.Spans, 2)
-
-	result := shared.DTOToFragment(dto)
-	assert.Equal(t, frag.CodedText, result.CodedText)
-	require.Len(t, result.Spans, 2)
-	assert.Equal(t, model.SpanOpening, result.Spans[0].SpanType)
-	assert.Equal(t, model.SpanClosing, result.Spans[1].SpanType)
-}
-
-func TestFragmentNilRoundtrip(t *testing.T) {
-	dto := shared.FragmentToDTO(nil)
-	assert.Empty(t, dto.CodedText)
-	assert.Nil(t, dto.Spans)
+	roundtrip := shared.DTOToRuns(dtos)
+	assert.Equal(t, runs, roundtrip)
 }
 
 func TestSegmentRoundtrip(t *testing.T) {
-	seg := &model.Segment{
-		ID:      "seg1",
-		Content: model.NewFragment("Hello world"),
-	}
+	seg := model.NewRunsSegment("seg1", []model.Run{{Text: &model.TextRun{Text: "Hello world"}}})
 
 	dto := shared.SegmentToDTO(seg)
 	assert.Equal(t, "seg1", dto.ID)
+	require.Len(t, dto.Runs, 1)
+	assert.Equal(t, "Hello world", dto.Runs[0].Text.Text)
 
 	result := shared.DTOToSegment(dto)
 	assert.Equal(t, "seg1", result.ID)
-	assert.Equal(t, seg.Content.CodedText, result.Content.CodedText)
+	assert.Equal(t, seg.Runs(), result.Runs())
 }
 
 func TestBlockRoundtrip(t *testing.T) {

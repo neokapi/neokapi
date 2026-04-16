@@ -201,79 +201,137 @@ func ProtoToDisplayHint(msg *pb.DisplayHintMessage) *model.DisplayHint {
 }
 
 // ────────────────────────────────────────────────────────────────────────────
-// Proto ↔ Model: Span
+// Proto ↔ Model: Run
 // ────────────────────────────────────────────────────────────────────────────
 
-// SpanToProto converts a model.Span to a proto SpanMessage.
-func SpanToProto(s *model.Span) *pb.SpanMessage {
-	return &pb.SpanMessage{
-		SpanType:    int32(s.SpanType),
-		Type:        s.Type,
-		SubType:     s.SubType,
-		Id:          s.ID,
-		Data:        s.Data,
-		OuterData:   s.OuterData,
-		Deletable:   s.Deletable,
-		Cloneable:   s.Cloneable,
-		OriginalId:  s.OriginalID,
-		DisplayText: s.DisplayText,
-		Flags:       int32(s.Flags),
-		EquivText:   s.EquivText,
-		CanReorder:  s.CanReorder,
-		Annotations: AnnotationsToProto(s.Annotations),
+// RunToProto converts a model.Run to a proto RunMessage, dispatching
+// on the discriminator set on r.
+func RunToProto(r model.Run) *pb.RunMessage {
+	switch {
+	case r.Text != nil:
+		return &pb.RunMessage{Kind: &pb.RunMessage_Text{Text: &pb.TextRunMessage{Text: r.Text.Text}}}
+	case r.Ph != nil:
+		return &pb.RunMessage{Kind: &pb.RunMessage_Ph{Ph: &pb.PlaceholderRunMessage{
+			Id: r.Ph.ID, Type: r.Ph.Type, SubType: r.Ph.SubType,
+			Data: r.Ph.Data, Equiv: r.Ph.Equiv, Disp: r.Ph.Disp,
+			Constraints: constraintsToProto(r.Ph.Constraints),
+		}}}
+	case r.PcOpen != nil:
+		return &pb.RunMessage{Kind: &pb.RunMessage_PcOpen{PcOpen: &pb.PcOpenRunMessage{
+			Id: r.PcOpen.ID, Type: r.PcOpen.Type, SubType: r.PcOpen.SubType,
+			Data: r.PcOpen.Data, Equiv: r.PcOpen.Equiv, Disp: r.PcOpen.Disp,
+			Constraints: constraintsToProto(r.PcOpen.Constraints),
+		}}}
+	case r.PcClose != nil:
+		return &pb.RunMessage{Kind: &pb.RunMessage_PcClose{PcClose: &pb.PcCloseRunMessage{
+			Id: r.PcClose.ID, Type: r.PcClose.Type, SubType: r.PcClose.SubType,
+			Data: r.PcClose.Data, Equiv: r.PcClose.Equiv,
+		}}}
+	case r.Sub != nil:
+		return &pb.RunMessage{Kind: &pb.RunMessage_Sub{Sub: &pb.SubRunMessage{
+			Id: r.Sub.ID, Ref: r.Sub.Ref, Equiv: r.Sub.Equiv,
+		}}}
+	case r.Plural != nil:
+		forms := make(map[string]*pb.RunList, len(r.Plural.Forms))
+		for form, runs := range r.Plural.Forms {
+			forms[string(form)] = &pb.RunList{Runs: RunsToProto(runs)}
+		}
+		return &pb.RunMessage{Kind: &pb.RunMessage_Plural{Plural: &pb.PluralRunMessage{
+			Pivot: r.Plural.Pivot, Forms: forms,
+		}}}
+	case r.Select != nil:
+		cases := make(map[string]*pb.RunList, len(r.Select.Cases))
+		for key, runs := range r.Select.Cases {
+			cases[key] = &pb.RunList{Runs: RunsToProto(runs)}
+		}
+		return &pb.RunMessage{Kind: &pb.RunMessage_Select{Select: &pb.SelectRunMessage{
+			Pivot: r.Select.Pivot, Cases: cases,
+		}}}
 	}
+	return nil
 }
 
-// ProtoToSpan converts a proto SpanMessage to a model.Span.
-func ProtoToSpan(msg *pb.SpanMessage) *model.Span {
-	return &model.Span{
-		SpanType:    model.SpanType(msg.SpanType),
-		Type:        msg.Type,
-		SubType:     msg.SubType,
-		ID:          msg.Id,
-		Data:        msg.Data,
-		OuterData:   msg.OuterData,
-		Deletable:   msg.Deletable,
-		Cloneable:   msg.Cloneable,
-		OriginalID:  msg.OriginalId,
-		DisplayText: msg.DisplayText,
-		Flags:       int(msg.Flags),
-		EquivText:   msg.EquivText,
-		CanReorder:  msg.CanReorder,
-		Annotations: ProtoToAnnotations(msg.Annotations),
+// ProtoToRun converts a proto RunMessage into its model.Run form.
+func ProtoToRun(msg *pb.RunMessage) model.Run {
+	if msg == nil {
+		return model.Run{}
 	}
+	switch k := msg.Kind.(type) {
+	case *pb.RunMessage_Text:
+		return model.Run{Text: &model.TextRun{Text: k.Text.GetText()}}
+	case *pb.RunMessage_Ph:
+		return model.Run{Ph: &model.PlaceholderRun{
+			ID: k.Ph.GetId(), Type: k.Ph.GetType(), SubType: k.Ph.GetSubType(),
+			Data: k.Ph.GetData(), Equiv: k.Ph.GetEquiv(), Disp: k.Ph.GetDisp(),
+			Constraints: protoToConstraints(k.Ph.GetConstraints()),
+		}}
+	case *pb.RunMessage_PcOpen:
+		return model.Run{PcOpen: &model.PcOpenRun{
+			ID: k.PcOpen.GetId(), Type: k.PcOpen.GetType(), SubType: k.PcOpen.GetSubType(),
+			Data: k.PcOpen.GetData(), Equiv: k.PcOpen.GetEquiv(), Disp: k.PcOpen.GetDisp(),
+			Constraints: protoToConstraints(k.PcOpen.GetConstraints()),
+		}}
+	case *pb.RunMessage_PcClose:
+		return model.Run{PcClose: &model.PcCloseRun{
+			ID: k.PcClose.GetId(), Type: k.PcClose.GetType(), SubType: k.PcClose.GetSubType(),
+			Data: k.PcClose.GetData(), Equiv: k.PcClose.GetEquiv(),
+		}}
+	case *pb.RunMessage_Sub:
+		return model.Run{Sub: &model.SubRun{
+			ID: k.Sub.GetId(), Ref: k.Sub.GetRef(), Equiv: k.Sub.GetEquiv(),
+		}}
+	case *pb.RunMessage_Plural:
+		forms := make(map[model.PluralForm][]model.Run, len(k.Plural.GetForms()))
+		for form, runList := range k.Plural.GetForms() {
+			forms[model.PluralForm(form)] = ProtoToRuns(runList.GetRuns())
+		}
+		return model.Run{Plural: &model.PluralRun{Pivot: k.Plural.GetPivot(), Forms: forms}}
+	case *pb.RunMessage_Select:
+		cases := make(map[string][]model.Run, len(k.Select.GetCases()))
+		for key, runList := range k.Select.GetCases() {
+			cases[key] = ProtoToRuns(runList.GetRuns())
+		}
+		return model.Run{Select: &model.SelectRun{Pivot: k.Select.GetPivot(), Cases: cases}}
+	}
+	return model.Run{}
 }
 
-// ────────────────────────────────────────────────────────────────────────────
-// Proto ↔ Model: Fragment
-// ────────────────────────────────────────────────────────────────────────────
-
-// FragmentToProto converts a model.Fragment to a proto FragmentMessage.
-func FragmentToProto(f *model.Fragment) *pb.FragmentMessage {
-	if f == nil {
+// RunsToProto converts a slice of model.Run to proto RunMessages.
+func RunsToProto(runs []model.Run) []*pb.RunMessage {
+	if len(runs) == 0 {
 		return nil
 	}
-	msg := &pb.FragmentMessage{
-		CodedText: f.CodedText,
+	out := make([]*pb.RunMessage, len(runs))
+	for i, r := range runs {
+		out[i] = RunToProto(r)
 	}
-	for _, s := range f.Spans {
-		msg.Spans = append(msg.Spans, SpanToProto(s))
-	}
-	return msg
+	return out
 }
 
-// ProtoToFragment converts a proto FragmentMessage to a model.Fragment.
-func ProtoToFragment(msg *pb.FragmentMessage) *model.Fragment {
+// ProtoToRuns converts proto RunMessages to a slice of model.Run.
+func ProtoToRuns(msgs []*pb.RunMessage) []model.Run {
+	if len(msgs) == 0 {
+		return nil
+	}
+	out := make([]model.Run, len(msgs))
+	for i, m := range msgs {
+		out[i] = ProtoToRun(m)
+	}
+	return out
+}
+
+func constraintsToProto(c *model.RunConstraints) *pb.RunConstraints {
+	if c == nil {
+		return nil
+	}
+	return &pb.RunConstraints{Deletable: c.Deletable, Cloneable: c.Cloneable, Reorderable: c.Reorderable}
+}
+
+func protoToConstraints(msg *pb.RunConstraints) *model.RunConstraints {
 	if msg == nil {
 		return nil
 	}
-	f := &model.Fragment{
-		CodedText: msg.CodedText,
-	}
-	for _, s := range msg.Spans {
-		f.Spans = append(f.Spans, ProtoToSpan(s))
-	}
-	return f
+	return &model.RunConstraints{Deletable: msg.GetDeletable(), Cloneable: msg.GetCloneable(), Reorderable: msg.GetReorderable()}
 }
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -284,18 +342,19 @@ func ProtoToFragment(msg *pb.FragmentMessage) *model.Fragment {
 func SegmentToProto(s *model.Segment) *pb.SegmentMessage {
 	return &pb.SegmentMessage{
 		Id:         s.ID,
-		Content:    FragmentToProto(s.Content),
+		Runs:       RunsToProto(s.Runs()),
 		Properties: s.Properties,
 	}
 }
 
 // ProtoToSegment converts a proto SegmentMessage to a model.Segment.
 func ProtoToSegment(msg *pb.SegmentMessage) *model.Segment {
-	return &model.Segment{
+	seg := &model.Segment{
 		ID:         msg.Id,
-		Content:    ProtoToFragment(msg.Content),
 		Properties: msg.Properties,
 	}
+	seg.SetRuns(ProtoToRuns(msg.Runs))
+	return seg
 }
 
 // ────────────────────────────────────────────────────────────────────────────
