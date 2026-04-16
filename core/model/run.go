@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 )
 
 // This file defines the Run-based content model introduced by RFC
@@ -495,6 +496,56 @@ func FlattenRuns(runs []Run) string {
 	var b []rune
 	flattenRunsTo(&b, runs)
 	return string(b)
+}
+
+// RenderRunsWithData writes the Run sequence as markup-preserving
+// text: TextRun content verbatim, and inline-code runs re-emit their
+// captured Data string (the original tag/token the reader extracted).
+// Plural / Select runs recurse into the 'other' branch (or the first
+// branch present). Sub runs emit their Ref string.
+//
+// This is the canonical rendering path for format writers that only
+// need to splice opaque inline markup back into a flat string — HTML,
+// XML, and markdown writers all use this helper.
+func RenderRunsWithData(runs []Run) string {
+	var b strings.Builder
+	renderRunsDataTo(&b, runs)
+	return b.String()
+}
+
+func renderRunsDataTo(buf *strings.Builder, runs []Run) {
+	for _, r := range runs {
+		switch {
+		case r.Text != nil:
+			buf.WriteString(r.Text.Text)
+		case r.Ph != nil:
+			buf.WriteString(r.Ph.Data)
+		case r.PcOpen != nil:
+			buf.WriteString(r.PcOpen.Data)
+		case r.PcClose != nil:
+			buf.WriteString(r.PcClose.Data)
+		case r.Sub != nil:
+			buf.WriteString(r.Sub.Ref)
+		case r.Plural != nil:
+			if form, ok := r.Plural.Forms[PluralOther]; ok {
+				renderRunsDataTo(buf, form)
+				continue
+			}
+			for _, form := range r.Plural.Forms {
+				renderRunsDataTo(buf, form)
+				break
+			}
+		case r.Select != nil:
+			if form, ok := r.Select.Cases["other"]; ok {
+				renderRunsDataTo(buf, form)
+				continue
+			}
+			for _, form := range r.Select.Cases {
+				renderRunsDataTo(buf, form)
+				break
+			}
+		}
+	}
 }
 
 func flattenRunsTo(buf *[]rune, runs []Run) {

@@ -140,48 +140,24 @@ func (w *Writer) writeFromBlocks(blocks []*model.Block) error {
 // blockText returns the rendered text for a block, preferring the target
 // locale's translation if available, falling back to source.
 func (w *Writer) blockText(block *model.Block) string {
-	frag := w.getFragment(block)
-	if frag == nil {
+	runs := w.blockRuns(block)
+	if runs == nil {
 		return ""
 	}
-	return renderFragment(frag)
+	return model.RenderRunsWithData(runs)
 }
 
-// getFragment returns the target fragment for the configured locale,
-// or the source fragment if no target is available.
-func (w *Writer) getFragment(block *model.Block) *model.Fragment {
+// blockRuns returns the target Run sequence for the configured locale,
+// or the source Run sequence if no target is available.
+func (w *Writer) blockRuns(block *model.Block) []model.Run {
 	if !w.Locale.IsEmpty() && block.HasTarget(w.Locale) {
 		segs := block.Targets[w.Locale]
 		if len(segs) > 0 && len(segs[0].Runs) > 0 {
-			return model.RunsToFragment(segs[0].Runs)
+			return segs[0].Runs
 		}
 	}
 	if len(block.Source) > 0 && len(block.Source[0].Runs) > 0 {
-		return model.RunsToFragment(block.Source[0].Runs)
+		return block.Source[0].Runs
 	}
 	return nil
-}
-
-// renderFragment renders a Fragment by iterating CodedText and emitting
-// Span.Data at marker positions. This preserves the original markup.
-func renderFragment(frag *model.Fragment) string {
-	if !frag.HasSpans() {
-		return frag.Text()
-	}
-	var buf strings.Builder
-	spanIdx := 0
-	for _, r := range frag.CodedText {
-		if isMarker(r) && spanIdx < len(frag.Spans) {
-			buf.WriteString(frag.Spans[spanIdx].Data)
-			spanIdx++
-		} else {
-			buf.WriteRune(r)
-		}
-	}
-	return buf.String()
-}
-
-// isMarker returns true if the rune is a span marker character.
-func isMarker(r rune) bool {
-	return r >= '\uE001' && r <= '\uE003'
 }

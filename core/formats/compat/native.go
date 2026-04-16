@@ -143,23 +143,7 @@ func blockTexts(parts []*model.Part, normalizeText func(string) string) []string
 func renderSourceText(b *model.Block) string {
 	var buf strings.Builder
 	for _, seg := range b.Source {
-		if len(seg.Runs) == 0 {
-			continue
-		}
-		frag := model.RunsToFragment(seg.Runs)
-		if !frag.HasSpans() {
-			buf.WriteString(frag.CodedText)
-			continue
-		}
-		spanIdx := 0
-		for _, r := range frag.CodedText {
-			if (r == model.MarkerOpening || r == model.MarkerClosing || r == model.MarkerPlaceholder) && spanIdx < len(frag.Spans) {
-				buf.WriteString(frag.Spans[spanIdx].Data)
-				spanIdx++
-			} else {
-				buf.WriteRune(r)
-			}
-		}
+		buf.WriteString(model.RenderRunsWithData(seg.Runs))
 	}
 	return buf.String()
 }
