@@ -685,26 +685,25 @@ func (r *Reader) applyCodeFinder(block *model.Block) {
 		}
 
 		// Rebuild fragment with coded text markers
-		newFrag := &model.Fragment{}
+		var runs []model.Run
 		lastEnd := 0
 		spanID := 1
 		for _, m := range matches {
 			if m.start > lastEnd {
-				newFrag.AppendText(text[lastEnd:m.start])
+				runs = append(runs, model.Run{Text: &model.TextRun{Text: text[lastEnd:m.start]}})
 			}
-			newFrag.AppendSpan(&model.Span{
-				ID:       fmt.Sprintf("c%d", spanID),
-				SpanType: model.SpanPlaceholder,
-				Type:     "code",
-				Data:     text[m.start:m.end],
-			})
+			runs = append(runs, model.Run{Ph: &model.PlaceholderRun{
+				ID:   fmt.Sprintf("c%d", spanID),
+				Type: "code",
+				Data: text[m.start:m.end],
+			}})
 			lastEnd = m.end
 			spanID++
 		}
 		if lastEnd < len(text) {
-			newFrag.AppendText(text[lastEnd:])
+			runs = append(runs, model.Run{Text: &model.TextRun{Text: text[lastEnd:]}})
 		}
-		seg.Content = newFrag
+		seg.SetRuns(runs)
 	}
 }
 
