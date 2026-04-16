@@ -484,14 +484,13 @@ func (r *Reader) parseODFContent(ctx context.Context, ch chan<- model.PartResult
 
 						var block *model.Block
 						if len(spans) > 0 {
-							frag := &model.Fragment{
-								CodedText: textBuf.String(),
-								Spans:     spans,
-							}
+							// Convert the PUA-coded text + ordered span
+							// list into a Run sequence.
+							runs := model.AsRuns(textBuf.String(), spans)
 							block = &model.Block{
 								ID:           blockID,
 								Translatable: true,
-								Source:       []*model.Segment{{ID: "s1", Content: frag}},
+								Source:       []*model.Segment{model.NewRunsSegment("s1", runs)},
 								Targets:      make(map[model.LocaleID][]*model.Segment),
 								Properties: map[string]string{
 									"partPath": partPath,
