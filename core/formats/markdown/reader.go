@@ -804,57 +804,57 @@ func (r *Reader) extractRawLines(node ast.Node, source []byte) string {
 // --- Inline span building ---
 
 func (r *Reader) addInlineSpans(block *model.Block, node ast.Node, source []byte) {
-	frag := &model.Fragment{}
+	b := newRunBuilder()
 	spanCounter := 0
-	r.buildCodedFragment(frag, node, source, &spanCounter)
-	if frag.HasSpans() {
-		block.Source = []*model.Segment{model.NewRunsSegment("s1", model.FragmentToRuns(frag))}
+	r.buildCodedRuns(b, node, source, &spanCounter)
+	if b.HasSpans() {
+		block.Source = []*model.Segment{model.NewRunsSegment("s1", b.Runs())}
 	}
 }
 
-func (r *Reader) buildCodedFragment(frag *model.Fragment, node ast.Node, source []byte, spanCounter *int) {
+func (r *Reader) buildCodedRuns(b *runBuilder, node ast.Node, source []byte, spanCounter *int) {
 	for child := node.FirstChild(); child != nil; child = child.NextSibling() {
 		switch n := child.(type) {
 		case *ast.Text:
-			frag.AppendText(string(n.Segment.Value(source)))
+			b.AppendText(string(n.Segment.Value(source)))
 			if n.SoftLineBreak() {
-				frag.AppendText(" ")
+				b.AppendText(" ")
 			}
 			if n.HardLineBreak() {
-				frag.AppendText("\n")
+				b.AppendText("\n")
 			}
 		case *ast.String:
-			frag.AppendText(string(n.Value))
+			b.AppendText(string(n.Value))
 
 		case *ast.Emphasis:
-			r.buildEmphasisSpan(frag, n, source, spanCounter)
+			r.buildEmphasisRuns(b, n, source, spanCounter)
 
 		case *ast.CodeSpan:
-			r.buildCodeSpan(frag, n, source, spanCounter)
+			r.buildCodeSpanRuns(b, n, source, spanCounter)
 
 		case *ast.Link:
-			r.buildLinkSpan(frag, n, source, spanCounter)
+			r.buildLinkRuns(b, n, source, spanCounter)
 
 		case *ast.Image:
-			r.buildImageSpan(frag, n, source, spanCounter)
+			r.buildImageRuns(b, n, source, spanCounter)
 
 		case *ast.AutoLink:
-			r.buildAutoLinkSpan(frag, n, source, spanCounter)
+			r.buildAutoLinkRuns(b, n, source, spanCounter)
 
 		case *ast.RawHTML:
-			r.buildRawHTMLSpan(frag, n, source, spanCounter)
+			r.buildRawHTMLRuns(b, n, source, spanCounter)
 
 		default:
 			if child.Kind() == east.KindStrikethrough {
-				r.buildStrikethroughSpan(frag, child, source, spanCounter)
+				r.buildStrikethroughRuns(b, child, source, spanCounter)
 			} else {
-				r.buildCodedFragment(frag, child, source, spanCounter)
+				r.buildCodedRuns(b, child, source, spanCounter)
 			}
 		}
 	}
 }
 
-func (r *Reader) buildEmphasisSpan(frag *model.Fragment, n *ast.Emphasis, source []byte, spanCounter *int) {
+func (r *Reader) buildEmphasisRuns(b *runBuilder, n *ast.Emphasis, source []byte, spanCounter *int) {
 	var semType, subType, data string
 	if n.Level == 2 {
 		semType = "fmt:bold"
@@ -868,69 +868,27 @@ func (r *Reader) buildEmphasisSpan(frag *model.Fragment, n *ast.Emphasis, source
 	*spanCounter++
 	id := strconv.Itoa(*spanCounter)
 	info := r.vocab.LookupOrFallback(semType)
-	frag.AppendSpan(&model.Span{
-		SpanType:    model.SpanOpening,
-		Type:        semType,
-		SubType:     subType,
-		ID:          id,
-		Data:        data,
-		DisplayText: info.Display.Open,
-		EquivText:   info.Equiv,
-		Deletable:   info.Constraints.Deletable,
-		Cloneable:   info.Constraints.Cloneable,
-		CanReorder:  info.Constraints.Reorderable,
-	})
-	r.buildCodedFragment(frag, n, source, spanCounter)
-	frag.AppendSpan(&model.Span{
-		SpanType:    model.SpanClosing,
-		Type:        semType,
-		SubType:     subType,
-		ID:          id,
-		Data:        data,
-		DisplayText: info.Display.Close,
-		EquivText:   info.Equiv,
-		Deletable:   info.Constraints.Deletable,
-		Cloneable:   info.Constraints.Cloneable,
-		CanReorder:  info.Constraints.Reorderable,
-	})
+	b.AppendPcOpen(id, semType, subType, data, info.Display.Open, info.Equiv,
+		info.Constraints.Deletable, info.Constraints.Cloneable, info.Constraints.Reorderable)
+	r.buildCodedRuns(b, n, source, spanCounter)
+	b.AppendPcClose(id, semType, subType, data, info.Equiv)
 }
 
-func (r *Reader) buildCodeSpan(frag *model.Fragment, n *ast.CodeSpan, source []byte, spanCounter *int) {
+func (r *Reader) buildCodeSpanRuns(b *runBuilder, n *ast.CodeSpan, source []byte, spanCounter *int) {
 	*spanCounter++
 	id := strconv.Itoa(*spanCounter)
 	info := r.vocab.LookupOrFallback("fmt:code")
-	frag.AppendSpan(&model.Span{
-		SpanType:    model.SpanOpening,
-		Type:        "fmt:code",
-		SubType:     "md:code",
-		ID:          id,
-		Data:        "`",
-		DisplayText: info.Display.Open,
-		EquivText:   info.Equiv,
-		Deletable:   info.Constraints.Deletable,
-		Cloneable:   info.Constraints.Cloneable,
-		CanReorder:  info.Constraints.Reorderable,
-	})
+	b.AppendPcOpen(id, "fmt:code", "md:code", "`", info.Display.Open, info.Equiv,
+		info.Constraints.Deletable, info.Constraints.Cloneable, info.Constraints.Reorderable)
 	for gc := n.FirstChild(); gc != nil; gc = gc.NextSibling() {
 		if t, ok := gc.(*ast.Text); ok {
-			frag.AppendText(string(t.Segment.Value(source)))
+			b.AppendText(string(t.Segment.Value(source)))
 		}
 	}
-	frag.AppendSpan(&model.Span{
-		SpanType:    model.SpanClosing,
-		Type:        "fmt:code",
-		SubType:     "md:code",
-		ID:          id,
-		Data:        "`",
-		DisplayText: info.Display.Close,
-		EquivText:   info.Equiv,
-		Deletable:   info.Constraints.Deletable,
-		Cloneable:   info.Constraints.Cloneable,
-		CanReorder:  info.Constraints.Reorderable,
-	})
+	b.AppendPcClose(id, "fmt:code", "md:code", "`", info.Equiv)
 }
 
-func (r *Reader) buildLinkSpan(frag *model.Fragment, n *ast.Link, source []byte, spanCounter *int) {
+func (r *Reader) buildLinkRuns(b *runBuilder, n *ast.Link, source []byte, spanCounter *int) {
 	*spanCounter++
 	id := strconv.Itoa(*spanCounter)
 	info := r.vocab.LookupOrFallback("link:hyperlink")
@@ -941,34 +899,13 @@ func (r *Reader) buildLinkSpan(frag *model.Fragment, n *ast.Link, source []byte,
 	}
 	closingData += ")"
 
-	frag.AppendSpan(&model.Span{
-		SpanType:    model.SpanOpening,
-		Type:        "link:hyperlink",
-		SubType:     "md:link",
-		ID:          id,
-		Data:        "[",
-		DisplayText: info.Display.Open,
-		EquivText:   info.Equiv,
-		Deletable:   info.Constraints.Deletable,
-		Cloneable:   info.Constraints.Cloneable,
-		CanReorder:  info.Constraints.Reorderable,
-	})
-	r.buildCodedFragment(frag, n, source, spanCounter)
-	frag.AppendSpan(&model.Span{
-		SpanType:    model.SpanClosing,
-		Type:        "link:hyperlink",
-		SubType:     "md:link",
-		ID:          id,
-		Data:        closingData,
-		DisplayText: info.Display.Close,
-		EquivText:   info.Equiv,
-		Deletable:   info.Constraints.Deletable,
-		Cloneable:   info.Constraints.Cloneable,
-		CanReorder:  info.Constraints.Reorderable,
-	})
+	b.AppendPcOpen(id, "link:hyperlink", "md:link", "[", info.Display.Open, info.Equiv,
+		info.Constraints.Deletable, info.Constraints.Cloneable, info.Constraints.Reorderable)
+	r.buildCodedRuns(b, n, source, spanCounter)
+	b.AppendPcClose(id, "link:hyperlink", "md:link", closingData, info.Equiv)
 }
 
-func (r *Reader) buildImageSpan(frag *model.Fragment, n *ast.Image, source []byte, spanCounter *int) {
+func (r *Reader) buildImageRuns(b *runBuilder, n *ast.Image, source []byte, spanCounter *int) {
 	*spanCounter++
 	id := strconv.Itoa(*spanCounter)
 	info := r.vocab.LookupOrFallback("link:image")
@@ -979,68 +916,26 @@ func (r *Reader) buildImageSpan(frag *model.Fragment, n *ast.Image, source []byt
 	}
 	closingData += ")"
 
-	frag.AppendSpan(&model.Span{
-		SpanType:    model.SpanOpening,
-		Type:        "link:image",
-		SubType:     "md:image",
-		ID:          id,
-		Data:        "![",
-		DisplayText: info.Display.Open,
-		EquivText:   info.Equiv,
-		Deletable:   info.Constraints.Deletable,
-		Cloneable:   info.Constraints.Cloneable,
-		CanReorder:  info.Constraints.Reorderable,
-	})
+	b.AppendPcOpen(id, "link:image", "md:image", "![", info.Display.Open, info.Equiv,
+		info.Constraints.Deletable, info.Constraints.Cloneable, info.Constraints.Reorderable)
 	if r.cfg.TranslateImageAlt() {
-		r.buildCodedFragment(frag, n, source, spanCounter)
+		r.buildCodedRuns(b, n, source, spanCounter)
 	}
-	frag.AppendSpan(&model.Span{
-		SpanType:    model.SpanClosing,
-		Type:        "link:image",
-		SubType:     "md:image",
-		ID:          id,
-		Data:        closingData,
-		DisplayText: info.Display.Close,
-		EquivText:   info.Equiv,
-		Deletable:   info.Constraints.Deletable,
-		Cloneable:   info.Constraints.Cloneable,
-		CanReorder:  info.Constraints.Reorderable,
-	})
+	b.AppendPcClose(id, "link:image", "md:image", closingData, info.Equiv)
 }
 
-func (r *Reader) buildAutoLinkSpan(frag *model.Fragment, n *ast.AutoLink, source []byte, spanCounter *int) {
+func (r *Reader) buildAutoLinkRuns(b *runBuilder, n *ast.AutoLink, source []byte, spanCounter *int) {
 	*spanCounter++
 	id := strconv.Itoa(*spanCounter)
 	info := r.vocab.LookupOrFallback("link:hyperlink")
 	url := string(n.URL(source))
-	frag.AppendSpan(&model.Span{
-		SpanType:    model.SpanOpening,
-		Type:        "link:hyperlink",
-		SubType:     "md:autolink",
-		ID:          id,
-		Data:        "<",
-		DisplayText: info.Display.Open,
-		EquivText:   info.Equiv,
-		Deletable:   info.Constraints.Deletable,
-		Cloneable:   info.Constraints.Cloneable,
-		CanReorder:  info.Constraints.Reorderable,
-	})
-	frag.AppendText(url)
-	frag.AppendSpan(&model.Span{
-		SpanType:    model.SpanClosing,
-		Type:        "link:hyperlink",
-		SubType:     "md:autolink",
-		ID:          id,
-		Data:        ">",
-		DisplayText: info.Display.Close,
-		EquivText:   info.Equiv,
-		Deletable:   info.Constraints.Deletable,
-		Cloneable:   info.Constraints.Cloneable,
-		CanReorder:  info.Constraints.Reorderable,
-	})
+	b.AppendPcOpen(id, "link:hyperlink", "md:autolink", "<", info.Display.Open, info.Equiv,
+		info.Constraints.Deletable, info.Constraints.Cloneable, info.Constraints.Reorderable)
+	b.AppendText(url)
+	b.AppendPcClose(id, "link:hyperlink", "md:autolink", ">", info.Equiv)
 }
 
-func (r *Reader) buildRawHTMLSpan(frag *model.Fragment, n *ast.RawHTML, source []byte, spanCounter *int) {
+func (r *Reader) buildRawHTMLRuns(b *runBuilder, n *ast.RawHTML, source []byte, spanCounter *int) {
 	*spanCounter++
 	id := strconv.Itoa(*spanCounter)
 
@@ -1051,51 +946,22 @@ func (r *Reader) buildRawHTMLSpan(frag *model.Fragment, n *ast.RawHTML, source [
 	}
 	tag := htmlContent.String()
 
-	frag.AppendSpan(&model.Span{
-		SpanType: model.SpanOpening,
-		Type:     "fmt:html",
-		SubType:  "md:html-inline",
-		ID:       id,
-		Data:     tag,
-	})
-	frag.AppendSpan(&model.Span{
-		SpanType: model.SpanClosing,
-		Type:     "fmt:html",
-		SubType:  "md:html-inline",
-		ID:       id,
-		Data:     "",
-	})
+	// Raw inline HTML has no vocabulary entry in the original Fragment
+	// path, so emit with empty display/equiv and zero-valued constraints
+	// (mirrors the default all-false RunConstraints that FragmentToRuns
+	// produces for a Span with unset Deletable/Cloneable/CanReorder).
+	b.AppendPcOpen(id, "fmt:html", "md:html-inline", tag, "", "", false, false, false)
+	b.AppendPcClose(id, "fmt:html", "md:html-inline", "", "")
 }
 
-func (r *Reader) buildStrikethroughSpan(frag *model.Fragment, node ast.Node, source []byte, spanCounter *int) {
+func (r *Reader) buildStrikethroughRuns(b *runBuilder, node ast.Node, source []byte, spanCounter *int) {
 	*spanCounter++
 	id := strconv.Itoa(*spanCounter)
 	info := r.vocab.LookupOrFallback("fmt:strike")
-	frag.AppendSpan(&model.Span{
-		SpanType:    model.SpanOpening,
-		Type:        "fmt:strike",
-		SubType:     "md:strikethrough",
-		ID:          id,
-		Data:        "~~",
-		DisplayText: info.Display.Open,
-		EquivText:   info.Equiv,
-		Deletable:   info.Constraints.Deletable,
-		Cloneable:   info.Constraints.Cloneable,
-		CanReorder:  info.Constraints.Reorderable,
-	})
-	r.buildCodedFragment(frag, node, source, spanCounter)
-	frag.AppendSpan(&model.Span{
-		SpanType:    model.SpanClosing,
-		Type:        "fmt:strike",
-		SubType:     "md:strikethrough",
-		ID:          id,
-		Data:        "~~",
-		DisplayText: info.Display.Close,
-		EquivText:   info.Equiv,
-		Deletable:   info.Constraints.Deletable,
-		Cloneable:   info.Constraints.Cloneable,
-		CanReorder:  info.Constraints.Reorderable,
-	})
+	b.AppendPcOpen(id, "fmt:strike", "md:strikethrough", "~~", info.Display.Open, info.Equiv,
+		info.Constraints.Deletable, info.Constraints.Cloneable, info.Constraints.Reorderable)
+	r.buildCodedRuns(b, node, source, spanCounter)
+	b.AppendPcClose(id, "fmt:strike", "md:strikethrough", "~~", info.Equiv)
 }
 
 // --- Emit helper ---
