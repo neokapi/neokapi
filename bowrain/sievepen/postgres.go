@@ -280,10 +280,9 @@ func (tm *PostgresTM) AddWithStream(entry fw.TMEntry, stream string) error {
 		if err != nil {
 			return fmt.Errorf("marshal variant %s: %w", loc, err)
 		}
-		frag := model.RunsToFragment(runs)
-		plain := fw.NormalizeText(frag.Text())
-		sk := fw.NormalizeText(frag.StructuralText())
-		gk := fw.NormalizeText(frag.GeneralizedText())
+		plain := fw.NormalizeText(model.FlattenRuns(runs))
+		sk := fw.NormalizeText(model.RunsStructuralText(runs))
+		gk := fw.NormalizeText(model.RunsGeneralizedText(runs))
 		if _, err := tm.db.ExecContext(ctx, `INSERT INTO tm_variants
 			(workspace_id, entry_id, locale, coded, plain, struct_key, general_key)
 			VALUES ($1, $2, $3, $4, $5, $6, $7)`,
@@ -372,10 +371,9 @@ func (tm *PostgresTM) Lookup(source *model.Block, sourceLocale, targetLocale mod
 	if seg == nil || len(seg.Runs) == 0 {
 		return nil, nil
 	}
-	frag := model.RunsToFragment(seg.Runs)
-	plainKey := fw.NormalizeText(frag.Text())
-	structKey := fw.NormalizeText(frag.StructuralText())
-	generalKey := fw.NormalizeText(frag.GeneralizedText())
+	plainKey := fw.NormalizeText(model.FlattenRuns(seg.Runs))
+	structKey := fw.NormalizeText(model.RunsStructuralText(seg.Runs))
+	generalKey := fw.NormalizeText(model.RunsGeneralizedText(seg.Runs))
 	entityAnnotations := fw.ExtractEntityAnnotations(source)
 	return tm.tieredLookup(plainKey, structKey, generalKey, entityAnnotations, sourceLocale, targetLocale, opts)
 }
@@ -458,25 +456,24 @@ func (tm *PostgresTM) tieredLookup(plainKey, structKey, generalKey string, entit
 		if len(srcRuns) == 0 {
 			continue
 		}
-		srcVariant := model.RunsToFragment(srcRuns)
 		var bestScore float64
 		var bestType fw.MatchType
 		if modeEnabled[fw.MatchModeGeneralized] {
-			s := fw.LevenshteinRatio(generalKey, fw.NormalizeText(srcVariant.GeneralizedText()))
+			s := fw.LevenshteinRatio(generalKey, fw.NormalizeText(model.RunsGeneralizedText(srcRuns)))
 			if s >= opts.MinScore && s > bestScore {
 				bestScore = s
 				bestType = fw.MatchGeneralizedFuzzy
 			}
 		}
 		if modeEnabled[fw.MatchModeStructural] {
-			s := fw.LevenshteinRatio(structKey, fw.NormalizeText(srcVariant.StructuralText()))
+			s := fw.LevenshteinRatio(structKey, fw.NormalizeText(model.RunsStructuralText(srcRuns)))
 			if s >= opts.MinScore && s > bestScore {
 				bestScore = s
 				bestType = fw.MatchStructuralFuzzy
 			}
 		}
 		if modeEnabled[fw.MatchModePlain] {
-			s := fw.LevenshteinRatio(plainKey, fw.NormalizeText(srcVariant.Text()))
+			s := fw.LevenshteinRatio(plainKey, fw.NormalizeText(model.FlattenRuns(srcRuns)))
 			if s >= opts.MinScore && s > bestScore {
 				bestScore = s
 				bestType = fw.MatchFuzzy
