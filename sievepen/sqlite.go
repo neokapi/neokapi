@@ -408,9 +408,14 @@ func (s *bulkStmts) addEntry(entry *TMEntry, stream string) error {
 	}
 
 	hasCodes := 0
-	for _, frag := range entry.Variants {
-		if frag != nil && len(frag.Spans) > 0 {
-			hasCodes = 1
+	for _, runs := range entry.Variants {
+		for _, r := range runs {
+			if r.Text == nil {
+				hasCodes = 1
+				break
+			}
+		}
+		if hasCodes == 1 {
 			break
 		}
 	}
@@ -427,27 +432,28 @@ func (s *bulkStmts) addEntry(entry *TMEntry, stream string) error {
 		return fmt.Errorf("delete variants: %w", err)
 	}
 
-	for locale, frag := range entry.Variants {
-		if frag == nil {
+	for locale, runs := range entry.Variants {
+		if len(runs) == 0 {
 			continue
 		}
-		// Fast path: spanless fragments are stored as raw plain text —
-		// TMX imports are overwhelmingly plain text, and skipping the
-		// JSON wrapper cuts both CPU time and row size meaningfully.
-		// On read the spanless storage form is detected by the absence
-		// of a leading '{' brace.
+		// Fast path: runs that are a single TextRun are stored as raw
+		// plain text — TMX imports are overwhelmingly plain text, and
+		// skipping the JSON wrapper cuts both CPU time and row size
+		// meaningfully. On read the plain-text storage form is detected
+		// by the absence of a leading '[' bracket.
 		var coded, plain, structKey, generalKey string
-		if len(frag.Spans) == 0 {
-			plain = NormalizeText(frag.CodedText)
+		if isPlainTextRuns(runs) {
+			plain = NormalizeText(runs[0].Text.Text)
 			coded = plain
 			structKey = plain
 			generalKey = plain
 		} else {
-			b, err := json.Marshal(frag)
+			b, err := json.Marshal(runs)
 			if err != nil {
 				return fmt.Errorf("marshal variant %s: %w", locale, err)
 			}
 			coded = string(b)
+			frag := model.RunsToFragment(runs)
 			plain = NormalizeText(frag.Text())
 			structKey = NormalizeText(frag.StructuralText())
 			generalKey = NormalizeText(frag.GeneralizedText())
@@ -525,9 +531,14 @@ func (tm *SQLiteTM) addInTx(tx *sql.Tx, entry TMEntry, stream string) error {
 	}
 
 	hasCodes := 0
-	for _, frag := range entry.Variants {
-		if frag != nil && len(frag.Spans) > 0 {
-			hasCodes = 1
+	for _, runs := range entry.Variants {
+		for _, r := range runs {
+			if r.Text == nil {
+				hasCodes = 1
+				break
+			}
+		}
+		if hasCodes == 1 {
 			break
 		}
 	}
@@ -561,14 +572,15 @@ func (tm *SQLiteTM) addInTx(tx *sql.Tx, entry TMEntry, stream string) error {
 		return fmt.Errorf("delete variant_trigram: %w", err)
 	}
 
-	for locale, frag := range entry.Variants {
-		if frag == nil {
+	for locale, runs := range entry.Variants {
+		if len(runs) == 0 {
 			continue
 		}
-		coded, err := json.Marshal(frag)
+		coded, err := json.Marshal(runs)
 		if err != nil {
 			return fmt.Errorf("marshal variant %s: %w", locale, err)
 		}
+		frag := model.RunsToFragment(runs)
 		plain := NormalizeText(frag.Text())
 		structKey := NormalizeText(frag.StructuralText())
 		generalKey := NormalizeText(frag.GeneralizedText())
@@ -766,10 +778,11 @@ func (tm *SQLiteTM) tieredLookup(plainKey, structKey, generalKey string, entityA
 		if seen[entry.ID] {
 			continue
 		}
-		srcVariant := entry.Variant(sourceLocale)
-		if srcVariant == nil {
+		srcRuns := entry.Variant(sourceLocale)
+		if len(srcRuns) == 0 {
 			continue
 		}
+		srcVariant := model.RunsToFragment(srcRuns)
 		var bestScore float64
 		var bestType MatchType
 		if modeEnabled[MatchModeGeneralized] {
@@ -1049,7 +1062,7 @@ func (tm *SQLiteTM) scanEntriesWithChildren(rows interface {
 		if propsJSON != "" {
 			_ = json.Unmarshal([]byte(propsJSON), &e.Properties)
 		}
-		e.Variants = make(map[model.LocaleID]*model.Fragment)
+		e.Variants = make(map[model.LocaleID][]model.Run)
 		entries = append(entries, e)
 	}
 	if err := rows.Err(); err != nil {
@@ -1068,10 +1081,10 @@ func (tm *SQLiteTM) scanEntriesWithChildren(rows interface {
 	placeholders := strings.Repeat("?,", len(entries)-1) + "?"
 
 	// Variants. The `coded` column may be either:
-	//   - A JSON-encoded Fragment (when there are inline spans), identified
-	//     by a leading '{' character.
-	//   - A plain-text string (spanless fast-path used by bulk imports),
-	//     stored as-is.
+	//   - A JSON-encoded []Run (when there are inline codes), identified
+	//     by a leading '[' character.
+	//   - A plain-text string (fast path used by bulk imports), stored
+	//     as-is and materialised as a single TextRun on read.
 	varRows, err := tm.db.QueryContext(context.Background(), `SELECT entry_id, locale, coded FROM tm_variants
 		WHERE entry_id IN (`+placeholders+`) ORDER BY entry_id, locale`, idArgs...)
 	if err == nil {
@@ -1080,17 +1093,9 @@ func (tm *SQLiteTM) scanEntriesWithChildren(rows interface {
 			if err := varRows.Scan(&eid, &loc, &coded); err != nil {
 				continue
 			}
-			var frag *model.Fragment
-			if len(coded) > 0 && coded[0] == '{' {
-				frag = &model.Fragment{}
-				if err := json.Unmarshal([]byte(coded), frag); err != nil {
-					frag = model.NewFragment(coded)
-				}
-			} else {
-				frag = model.NewFragment(coded)
-			}
+			runs := decodeVariantRuns(coded)
 			if idx, ok := byID[eid]; ok {
-				entries[idx].Variants[model.LocaleID(loc)] = frag
+				entries[idx].Variants[model.LocaleID(loc)] = runs
 			}
 		}
 		varRows.Close()

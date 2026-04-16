@@ -191,7 +191,7 @@ func ImportTMXSession(store TMStore, reader io.Reader, opts ImportTMXOptions) (s
 	// 7. Walk TUs, build one multilingual entry per TU.
 	entries := make([]TMEntry, 0, len(doc.TUs))
 	for i, tu := range doc.TUs {
-		variants := make(map[model.LocaleID]*model.Fragment)
+		variants := make(map[model.LocaleID][]model.Run)
 		var hintLang model.LocaleID
 		if tu.SrcLang != "" {
 			hintLang = model.LocaleID(tu.SrcLang)
@@ -211,7 +211,7 @@ func ImportTMXSession(store TMStore, reader io.Reader, opts ImportTMXOptions) (s
 			if _, exists := variants[loc]; exists {
 				continue
 			}
-			variants[loc] = tuv.Fragment
+			variants[loc] = model.FragmentToRuns(tuv.Fragment)
 			if firstSrcRef == "" {
 				if ref := tuv.Properties["source-document"]; ref != "" && loc == hintLang {
 					firstSrcRef = ref

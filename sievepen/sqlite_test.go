@@ -13,10 +13,10 @@ import (
 func trilingual(id, en, fr, de string) sievepen.TMEntry {
 	return sievepen.TMEntry{
 		ID: id,
-		Variants: map[model.LocaleID]*model.Fragment{
-			"en": model.NewFragment(en),
-			"fr": model.NewFragment(fr),
-			"de": model.NewFragment(de),
+		Variants: map[model.LocaleID][]model.Run{
+			"en": []model.Run{{Text: &model.TextRun{Text: en}}},
+			"fr": []model.Run{{Text: &model.TextRun{Text: fr}}},
+			"de": []model.Run{{Text: &model.TextRun{Text: de}}},
 		},
 		HintSrcLang: "en",
 	}
@@ -49,10 +49,10 @@ func TestSQLiteTM_MultilingualUpdate(t *testing.T) {
 	// Replace: add Italian, drop German.
 	entry := sievepen.TMEntry{
 		ID: "e1",
-		Variants: map[model.LocaleID]*model.Fragment{
-			"en": model.NewFragment("Hello"),
-			"fr": model.NewFragment("Bonjour"),
-			"it": model.NewFragment("Ciao"),
+		Variants: map[model.LocaleID][]model.Run{
+			"en": {{Text: &model.TextRun{Text: "Hello"}}},
+			"fr": {{Text: &model.TextRun{Text: "Bonjour"}}},
+			"it": {{Text: &model.TextRun{Text: "Ciao"}}},
 		},
 	}
 	require.NoError(t, tm.Add(entry))
@@ -114,9 +114,9 @@ func TestSQLiteTM_LookupMissingTarget(t *testing.T) {
 	defer tm.Close()
 	require.NoError(t, tm.Add(sievepen.TMEntry{
 		ID: "e1",
-		Variants: map[model.LocaleID]*model.Fragment{
-			"en": model.NewFragment("Save"),
-			"fr": model.NewFragment("Enregistrer"),
+		Variants: map[model.LocaleID][]model.Run{
+			"en": {{Text: &model.TextRun{Text: "Save"}}},
+			"fr": {{Text: &model.TextRun{Text: "Enregistrer"}}},
 		},
 	}))
 
@@ -171,15 +171,15 @@ func TestSQLiteTM_SearchRequireLocale(t *testing.T) {
 
 	require.NoError(t, tm.Add(sievepen.TMEntry{
 		ID: "e1",
-		Variants: map[model.LocaleID]*model.Fragment{
-			"en": model.NewFragment("hello"),
-			"fr": model.NewFragment("bonjour"),
+		Variants: map[model.LocaleID][]model.Run{
+			"en": {{Text: &model.TextRun{Text: "hello"}}},
+			"fr": {{Text: &model.TextRun{Text: "bonjour"}}},
 		},
 	}))
 	require.NoError(t, tm.Add(sievepen.TMEntry{
 		ID: "e2",
-		Variants: map[model.LocaleID]*model.Fragment{
-			"en": model.NewFragment("hello"),
+		Variants: map[model.LocaleID][]model.Run{
+			"en": {{Text: &model.TextRun{Text: "hello"}}},
 		},
 	}))
 
@@ -224,9 +224,9 @@ func TestSQLiteTM_FacetLocales(t *testing.T) {
 	require.NoError(t, tm.Add(trilingual("e1", "a", "b", "c")))
 	require.NoError(t, tm.Add(sievepen.TMEntry{
 		ID: "e2",
-		Variants: map[model.LocaleID]*model.Fragment{
-			"en": model.NewFragment("d"),
-			"fr": model.NewFragment("e"),
+		Variants: map[model.LocaleID][]model.Run{
+			"en": {{Text: &model.TextRun{Text: "d"}}},
+			"fr": {{Text: &model.TextRun{Text: "e"}}},
 		},
 	}))
 
@@ -381,17 +381,17 @@ func TestSQLiteTM_SearchCJK(t *testing.T) {
 
 	require.NoError(t, tm.Add(sievepen.TMEntry{
 		ID: "e1",
-		Variants: map[model.LocaleID]*model.Fragment{
-			"zh-CN": model.NewFragment("中国经济发展报告"),
-			"en":    model.NewFragment("China economic development report"),
+		Variants: map[model.LocaleID][]model.Run{
+			"zh-CN": {{Text: &model.TextRun{Text: "中国经济发展报告"}}},
+			"en":    {{Text: &model.TextRun{Text: "China economic development report"}}},
 		},
 		HintSrcLang: "zh-CN",
 	}))
 	require.NoError(t, tm.Add(sievepen.TMEntry{
 		ID: "e2",
-		Variants: map[model.LocaleID]*model.Fragment{
-			"zh-CN": model.NewFragment("国际贸易协定"),
-			"en":    model.NewFragment("International trade agreement"),
+		Variants: map[model.LocaleID][]model.Run{
+			"zh-CN": {{Text: &model.TextRun{Text: "国际贸易协定"}}},
+			"en":    {{Text: &model.TextRun{Text: "International trade agreement"}}},
 		},
 		HintSrcLang: "zh-CN",
 	}))
@@ -418,9 +418,9 @@ func TestSQLiteTM_SearchJapanese(t *testing.T) {
 
 	require.NoError(t, tm.Add(sievepen.TMEntry{
 		ID: "e1",
-		Variants: map[model.LocaleID]*model.Fragment{
-			"ja-JP": model.NewFragment("日本語のテストです"),
-			"en":    model.NewFragment("This is a Japanese test"),
+		Variants: map[model.LocaleID][]model.Run{
+			"ja-JP": {{Text: &model.TextRun{Text: "日本語のテストです"}}},
+			"en":    {{Text: &model.TextRun{Text: "This is a Japanese test"}}},
 		},
 		HintSrcLang: "ja-JP",
 	}))
@@ -439,9 +439,9 @@ func TestSQLiteTM_SearchThai(t *testing.T) {
 
 	require.NoError(t, tm.Add(sievepen.TMEntry{
 		ID: "e1",
-		Variants: map[model.LocaleID]*model.Fragment{
-			"th-TH": model.NewFragment("การทดสอบภาษาไทยในระบบค้นหา"),
-			"en":    model.NewFragment("Testing Thai language in the search system"),
+		Variants: map[model.LocaleID][]model.Run{
+			"th-TH": {{Text: &model.TextRun{Text: "การทดสอบภาษาไทยในระบบค้นหา"}}},
+			"en":    {{Text: &model.TextRun{Text: "Testing Thai language in the search system"}}},
 		},
 		HintSrcLang: "th-TH",
 	}))
@@ -460,9 +460,9 @@ func TestSQLiteTM_SearchArabic(t *testing.T) {
 
 	require.NoError(t, tm.Add(sievepen.TMEntry{
 		ID: "e1",
-		Variants: map[model.LocaleID]*model.Fragment{
-			"ar-SA": model.NewFragment("اختبار البحث باللغة العربية"),
-			"en":    model.NewFragment("Arabic language search test"),
+		Variants: map[model.LocaleID][]model.Run{
+			"ar-SA": {{Text: &model.TextRun{Text: "اختبار البحث باللغة العربية"}}},
+			"en":    {{Text: &model.TextRun{Text: "Arabic language search test"}}},
 		},
 		HintSrcLang: "ar-SA",
 	}))
@@ -481,9 +481,9 @@ func TestSQLiteTM_SearchKorean(t *testing.T) {
 
 	require.NoError(t, tm.Add(sievepen.TMEntry{
 		ID: "e1",
-		Variants: map[model.LocaleID]*model.Fragment{
-			"ko-KR": model.NewFragment("한국어 번역 테스트입니다"),
-			"en":    model.NewFragment("Korean translation test"),
+		Variants: map[model.LocaleID][]model.Run{
+			"ko-KR": {{Text: &model.TextRun{Text: "한국어 번역 테스트입니다"}}},
+			"en":    {{Text: &model.TextRun{Text: "Korean translation test"}}},
 		},
 		HintSrcLang: "ko-KR",
 	}))

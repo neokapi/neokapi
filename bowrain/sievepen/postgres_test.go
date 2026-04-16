@@ -42,10 +42,10 @@ func openTestPostgresTM(t *testing.T) *pgtm.PostgresTM {
 func trilingual(id, en, fr, de string) sievepen.TMEntry {
 	return sievepen.TMEntry{
 		ID: id,
-		Variants: map[model.LocaleID]*model.Fragment{
-			"en": model.NewFragment(en),
-			"fr": model.NewFragment(fr),
-			"de": model.NewFragment(de),
+		Variants: map[model.LocaleID][]model.Run{
+			"en": []model.Run{{Text: &model.TextRun{Text: en}}},
+			"fr": []model.Run{{Text: &model.TextRun{Text: fr}}},
+			"de": []model.Run{{Text: &model.TextRun{Text: de}}},
 		},
 		HintSrcLang: "en",
 	}
@@ -77,15 +77,15 @@ func TestPostgresTM_SearchRequireLocale(t *testing.T) {
 	tm := openTestPostgresTM(t)
 	require.NoError(t, tm.Add(sievepen.TMEntry{
 		ID: "e1",
-		Variants: map[model.LocaleID]*model.Fragment{
-			"en": model.NewFragment("hello"),
-			"fr": model.NewFragment("bonjour"),
+		Variants: map[model.LocaleID][]model.Run{
+			"en": {{Text: &model.TextRun{Text: "hello"}}},
+			"fr": {{Text: &model.TextRun{Text: "bonjour"}}},
 		},
 	}))
 	require.NoError(t, tm.Add(sievepen.TMEntry{
 		ID: "e2",
-		Variants: map[model.LocaleID]*model.Fragment{
-			"en": model.NewFragment("hello"),
+		Variants: map[model.LocaleID][]model.Run{
+			"en": {{Text: &model.TextRun{Text: "hello"}}},
 		},
 	}))
 	entries, total := tm.SearchEntries("hello", "en", "fr", 0, 10)
@@ -99,9 +99,9 @@ func TestPostgresTM_FacetLocales(t *testing.T) {
 	require.NoError(t, tm.Add(trilingual("e1", "a", "b", "c")))
 	require.NoError(t, tm.Add(sievepen.TMEntry{
 		ID: "e2",
-		Variants: map[model.LocaleID]*model.Fragment{
-			"en": model.NewFragment("d"),
-			"fr": model.NewFragment("e"),
+		Variants: map[model.LocaleID][]model.Run{
+			"en": {{Text: &model.TextRun{Text: "d"}}},
+			"fr": {{Text: &model.TextRun{Text: "e"}}},
 		},
 	}))
 	f := tm.FacetStats()

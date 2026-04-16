@@ -41,9 +41,9 @@ func TestInMemoryTM_LookupMissingTarget(t *testing.T) {
 	tm := sievepen.NewInMemoryTM()
 	require.NoError(t, tm.Add(sievepen.TMEntry{
 		ID: "e1",
-		Variants: map[model.LocaleID]*model.Fragment{
-			"en": model.NewFragment("Save"),
-			"fr": model.NewFragment("Enregistrer"),
+		Variants: map[model.LocaleID][]model.Run{
+			"en": {{Text: &model.TextRun{Text: "Save"}}},
+			"fr": {{Text: &model.TextRun{Text: "Enregistrer"}}},
 		},
 	}))
 	matches, _ := tm.LookupText("Save", "en", "de", sievepen.DefaultLookupOptions())
@@ -78,15 +78,15 @@ func TestInMemoryTM_SearchRequireLocale(t *testing.T) {
 	tm := sievepen.NewInMemoryTM()
 	require.NoError(t, tm.Add(sievepen.TMEntry{
 		ID: "e1",
-		Variants: map[model.LocaleID]*model.Fragment{
-			"en": model.NewFragment("hello"),
-			"fr": model.NewFragment("bonjour"),
+		Variants: map[model.LocaleID][]model.Run{
+			"en": {{Text: &model.TextRun{Text: "hello"}}},
+			"fr": {{Text: &model.TextRun{Text: "bonjour"}}},
 		},
 	}))
 	require.NoError(t, tm.Add(sievepen.TMEntry{
 		ID: "e2",
-		Variants: map[model.LocaleID]*model.Fragment{
-			"en": model.NewFragment("hello"),
+		Variants: map[model.LocaleID][]model.Run{
+			"en": {{Text: &model.TextRun{Text: "hello"}}},
 		},
 	}))
 	entries, total := tm.SearchEntries("hello", "en", "fr", 0, 10)
@@ -107,9 +107,9 @@ func TestInMemoryTM_FacetStats(t *testing.T) {
 	require.NoError(t, tm.Add(trilingual("e1", "a", "b", "c")))
 	require.NoError(t, tm.Add(sievepen.TMEntry{
 		ID: "e2",
-		Variants: map[model.LocaleID]*model.Fragment{
-			"en": model.NewFragment("d"),
-			"fr": model.NewFragment("e"),
+		Variants: map[model.LocaleID][]model.Run{
+			"en": {{Text: &model.TextRun{Text: "d"}}},
+			"fr": {{Text: &model.TextRun{Text: "e"}}},
 		},
 	}))
 	facets := tm.FacetStats()

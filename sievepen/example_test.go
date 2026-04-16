@@ -13,9 +13,9 @@ func ExampleNewInMemoryTM() {
 	// Add a multilingual translation entry with two variants.
 	err := tm.Add(sievepen.TMEntry{
 		ID: "e1",
-		Variants: map[model.LocaleID]*model.Fragment{
-			"en": model.NewFragment("Save"),
-			"fr": model.NewFragment("Enregistrer"),
+		Variants: map[model.LocaleID][]model.Run{
+			"en": {{Text: &model.TextRun{Text: "Save"}}},
+			"fr": {{Text: &model.TextRun{Text: "Enregistrer"}}},
 		},
 		HintSrcLang: "en",
 	})
@@ -46,9 +46,9 @@ func ExampleNewInMemoryTM_fuzzyMatch() {
 
 	_ = tm.Add(sievepen.TMEntry{
 		ID: "e1",
-		Variants: map[model.LocaleID]*model.Fragment{
-			"en": model.NewFragment("Save the document"),
-			"fr": model.NewFragment("Enregistrer le document"),
+		Variants: map[model.LocaleID][]model.Run{
+			"en": {{Text: &model.TextRun{Text: "Save the document"}}},
+			"fr": {{Text: &model.TextRun{Text: "Enregistrer le document"}}},
 		},
 		HintSrcLang: "en",
 	})

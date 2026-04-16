@@ -73,7 +73,7 @@ func TestImportTMX_ElementPH(t *testing.T) {
 	_, n := importString(t, tm, body, sievepen.ImportTMXOptions{})
 	assert.Equal(t, 1, n)
 	e := tm.Entries()[0]
-	frag := e.Variant("en")
+	frag := model.RunsToFragment(e.Variant("en"))
 	require.NotNil(t, frag)
 	assert.True(t, frag.HasSpans())
 	assert.Equal(t, "Click  to continue", frag.Text())
@@ -92,7 +92,7 @@ func TestImportTMX_ElementBPT_EPT(t *testing.T) {
 	_, n := importString(t, tm, body, sievepen.ImportTMXOptions{})
 	assert.Equal(t, 1, n)
 	e := tm.Entries()[0]
-	frag := e.Variant("en")
+	frag := model.RunsToFragment(e.Variant("en"))
 	require.NotNil(t, frag)
 	require.Len(t, frag.Spans, 2)
 	assert.Equal(t, "tmx:bpt", frag.Spans[0].SubType)
@@ -112,7 +112,7 @@ func TestImportTMX_ElementIT(t *testing.T) {
 	_, n := importString(t, tm, body, sievepen.ImportTMXOptions{})
 	assert.Equal(t, 1, n)
 	e := tm.Entries()[0]
-	frag := e.Variant("en")
+	frag := model.RunsToFragment(e.Variant("en"))
 	require.Len(t, frag.Spans, 2)
 	assert.Equal(t, model.SpanOpening, frag.Spans[0].SpanType)
 	assert.Equal(t, model.SpanClosing, frag.Spans[1].SpanType)
@@ -127,7 +127,7 @@ func TestImportTMX_ElementHI(t *testing.T) {
 	_, n := importString(t, tm, body, sievepen.ImportTMXOptions{})
 	assert.Equal(t, 1, n)
 	e := tm.Entries()[0]
-	frag := e.Variant("en")
+	frag := model.RunsToFragment(e.Variant("en"))
 	require.Len(t, frag.Spans, 2)
 	assert.Equal(t, "tmx:hi", frag.Spans[0].SubType)
 	assert.Equal(t, "tmx:hi", frag.Spans[1].SubType)
@@ -143,7 +143,7 @@ func TestImportTMX_ElementUT(t *testing.T) {
 	_, n := importString(t, tm, body, sievepen.ImportTMXOptions{})
 	assert.Equal(t, 1, n)
 	e := tm.Entries()[0]
-	frag := e.Variant("en")
+	frag := model.RunsToFragment(e.Variant("en"))
 	require.Len(t, frag.Spans, 1)
 	assert.Equal(t, "tmx:ut", frag.Spans[0].SubType)
 }

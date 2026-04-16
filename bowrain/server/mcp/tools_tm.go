@@ -127,9 +127,9 @@ func (s *MCPServer) handleTMImport(ctx context.Context, req *mcp.CallToolRequest
 	for i, e := range input.Entries {
 		entry := sievepen.TMEntry{
 			ID: fmt.Sprintf("mcp-import-%d-%d", now.UnixNano(), i),
-			Variants: map[model.LocaleID]*model.Fragment{
-				srcLoc: model.NewFragment(e.Source),
-				tgtLoc: model.NewFragment(e.Target),
+			Variants: map[model.LocaleID][]model.Run{
+				srcLoc: {{Text: &model.TextRun{Text: e.Source}}},
+				tgtLoc: {{Text: &model.TextRun{Text: e.Target}}},
 			},
 			HintSrcLang: srcLoc,
 			CreatedAt:   now,

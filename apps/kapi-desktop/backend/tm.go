@@ -408,8 +408,8 @@ func entitiesFromDTO(in []EntityMappingDTO) []sievepen.EntityMapping {
 
 func tmEntryToDTO(entry sievepen.TMEntry) TMEntryDTO {
 	variants := make(map[string]VariantDTO, len(entry.Variants))
-	for loc, frag := range entry.Variants {
-		variants[string(loc)] = fragmentToVariantDTO(loc, frag)
+	for loc, runs := range entry.Variants {
+		variants[string(loc)] = fragmentToVariantDTO(loc, model.RunsToFragment(runs))
 	}
 	return TMEntryDTO{
 		ID:          entry.ID,
@@ -425,13 +425,13 @@ func tmEntryToDTO(entry sievepen.TMEntry) TMEntryDTO {
 	}
 }
 
-func variantsFromInput(in map[string]VariantInputDTO) map[model.LocaleID]*model.Fragment {
-	out := make(map[model.LocaleID]*model.Fragment, len(in))
+func variantsFromInput(in map[string]VariantInputDTO) map[model.LocaleID][]model.Run {
+	out := make(map[model.LocaleID][]model.Run, len(in))
 	for loc, v := range in {
 		if loc == "" {
 			continue
 		}
-		out[model.LocaleID(loc)] = fragmentFromVariantInput(v)
+		out[model.LocaleID(loc)] = model.FragmentToRuns(fragmentFromVariantInput(v))
 	}
 	return out
 }
@@ -1004,14 +1004,14 @@ func (a *App) AnnotateEntities(handle string, req AnnotateEntitiesRequest) (*Ann
 		}
 
 		anyHit := false
-		newVariants := make(map[model.LocaleID]*model.Fragment, len(entry.Variants))
+		newVariants := make(map[model.LocaleID][]model.Run, len(entry.Variants))
 		perLocaleCounts := make(map[model.LocaleID]int)
-		for loc, frag := range entry.Variants {
-			if frag == nil {
+		for loc, runs := range entry.Variants {
+			if len(runs) == 0 {
 				continue
 			}
-			newFrag, n := rebuildWithEntities(frag, req.Patterns)
-			newVariants[loc] = newFrag
+			newFrag, n := rebuildWithEntities(model.RunsToFragment(runs), req.Patterns)
+			newVariants[loc] = model.FragmentToRuns(newFrag)
 			if n > 0 {
 				anyHit = true
 				perLocaleCounts[loc] = n
@@ -1021,7 +1021,7 @@ func (a *App) AnnotateEntities(handle string, req AnnotateEntitiesRequest) (*Ann
 			continue
 		}
 		entry.Variants = newVariants
-		entry.Entities = buildEntityMappingsFromVariants(entry.Variants)
+		entry.Entities = buildEntityMappingsFromVariantRuns(entry.Variants)
 		if tb != nil {
 			resolveConceptIDs(entry.Entities, tb)
 		}
@@ -1158,10 +1158,11 @@ func findPatternOccurrences(text, pattern string, caseSensitive bool) []int {
 	return positions
 }
 
-// buildEntityMappingsFromVariants walks every variant's entity spans and
-// produces a unified EntityMapping list indexed by PlaceholderID. Values
-// are populated per locale from the corresponding variant's entity span.
-func buildEntityMappingsFromVariants(variants map[model.LocaleID]*model.Fragment) []sievepen.EntityMapping {
+// buildEntityMappingsFromVariantRuns walks every variant's entity spans
+// (materialised on demand from its Run sequence) and produces a unified
+// EntityMapping list indexed by PlaceholderID. Values are populated per
+// locale from the corresponding variant's entity span.
+func buildEntityMappingsFromVariantRuns(variants map[model.LocaleID][]model.Run) []sievepen.EntityMapping {
 	if len(variants) == 0 {
 		return nil
 	}
@@ -1171,10 +1172,11 @@ func buildEntityMappingsFromVariants(variants map[model.LocaleID]*model.Fragment
 	}
 	byKey := make(map[entKey]*sievepen.EntityMapping)
 	var order []entKey
-	for loc, frag := range variants {
-		if frag == nil {
+	for loc, runs := range variants {
+		if len(runs) == 0 {
 			continue
 		}
+		frag := model.RunsToFragment(runs)
 		for _, s := range frag.EntitySpans() {
 			if !model.IsEntityTypeString(s.Type) {
 				continue

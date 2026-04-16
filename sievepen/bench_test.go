@@ -33,9 +33,9 @@ func BenchmarkSQLiteTM_LookupExact(b *testing.B) {
 		base := sentences[i%len(sentences)]
 		err := tm.Add(sievepen.TMEntry{
 			ID: fmt.Sprintf("entry-%d", i),
-			Variants: map[model.LocaleID]*model.Fragment{
-				model.LocaleEnglish: model.NewFragment(fmt.Sprintf("%s (variant %d)", base, i)),
-				model.LocaleFrench:  model.NewFragment(fmt.Sprintf("Translated: %s %d", base, i)),
+			Variants: map[model.LocaleID][]model.Run{
+				model.LocaleEnglish: []model.Run{{Text: &model.TextRun{Text: fmt.Sprintf("%s (variant %d)", base, i)}}},
+				model.LocaleFrench:  []model.Run{{Text: &model.TextRun{Text: fmt.Sprintf("Translated: %s %d", base, i)}}},
 			},
 			HintSrcLang: model.LocaleEnglish,
 		})
@@ -76,9 +76,9 @@ func BenchmarkTMMatch(b *testing.B) {
 		base := sentences[i%len(sentences)]
 		err := tm.Add(sievepen.TMEntry{
 			ID: fmt.Sprintf("entry-%d", i),
-			Variants: map[model.LocaleID]*model.Fragment{
-				model.LocaleEnglish: model.NewFragment(fmt.Sprintf("%s (variant %d)", base, i)),
-				model.LocaleFrench:  model.NewFragment(fmt.Sprintf("Translated: %s %d", base, i)),
+			Variants: map[model.LocaleID][]model.Run{
+				model.LocaleEnglish: []model.Run{{Text: &model.TextRun{Text: fmt.Sprintf("%s (variant %d)", base, i)}}},
+				model.LocaleFrench:  []model.Run{{Text: &model.TextRun{Text: fmt.Sprintf("Translated: %s %d", base, i)}}},
 			},
 			HintSrcLang: model.LocaleEnglish,
 		})

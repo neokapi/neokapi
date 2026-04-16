@@ -107,7 +107,7 @@ type ImportSession struct {
 }
 
 // TMEntry is a multilingual translation memory entry. Each language
-// variant is stored as a peer fragment in Variants; there is no
+// variant is stored as a peer Run sequence in Variants; there is no
 // authoritative "source" at the persistence layer. HintSrcLang records
 // which locale the author treated as canonical (for example the TMX
 // header's srclang, or the locale chosen by a translator adding a new
@@ -115,7 +115,7 @@ type ImportSession struct {
 type TMEntry struct {
 	ID          string
 	ProjectID   string
-	Variants    map[model.LocaleID]*model.Fragment
+	Variants    map[model.LocaleID][]model.Run
 	HintSrcLang model.LocaleID
 	Entities    []EntityMapping
 	Properties  map[string]string
@@ -125,8 +125,9 @@ type TMEntry struct {
 	UpdatedAt   time.Time
 }
 
-// Variant returns the fragment for a given locale, or nil if not present.
-func (e *TMEntry) Variant(locale model.LocaleID) *model.Fragment {
+// Variant returns the Run sequence for a given locale, or nil if not
+// present.
+func (e *TMEntry) Variant(locale model.LocaleID) []model.Run {
 	if e == nil || e.Variants == nil {
 		return nil
 	}
@@ -136,31 +137,31 @@ func (e *TMEntry) Variant(locale model.LocaleID) *model.Fragment {
 // VariantText returns the plain text of the variant for a given locale,
 // or the empty string if the locale has no variant.
 func (e *TMEntry) VariantText(locale model.LocaleID) string {
-	f := e.Variant(locale)
-	if f == nil {
+	runs := e.Variant(locale)
+	if runs == nil {
 		return ""
 	}
-	return f.Text()
+	return model.FlattenRuns(runs)
 }
 
 // VariantStructural returns the structural key (inline codes preserved
 // as placeholders) of the variant for a given locale.
 func (e *TMEntry) VariantStructural(locale model.LocaleID) string {
-	f := e.Variant(locale)
-	if f == nil {
+	runs := e.Variant(locale)
+	if runs == nil {
 		return ""
 	}
-	return f.StructuralText()
+	return model.RunsToFragment(runs).StructuralText()
 }
 
 // VariantGeneralized returns the generalized key (entities replaced with
 // typed placeholders) of the variant for a given locale.
 func (e *TMEntry) VariantGeneralized(locale model.LocaleID) string {
-	f := e.Variant(locale)
-	if f == nil {
+	runs := e.Variant(locale)
+	if runs == nil {
 		return ""
 	}
-	return f.GeneralizedText()
+	return model.RunsToFragment(runs).GeneralizedText()
 }
 
 // HasLocale reports whether the entry has a variant for the given locale.
