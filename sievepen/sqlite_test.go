@@ -14,9 +14,9 @@ func trilingual(id, en, fr, de string) sievepen.TMEntry {
 	return sievepen.TMEntry{
 		ID: id,
 		Variants: map[model.LocaleID][]model.Run{
-			"en": []model.Run{{Text: &model.TextRun{Text: en}}},
-			"fr": []model.Run{{Text: &model.TextRun{Text: fr}}},
-			"de": []model.Run{{Text: &model.TextRun{Text: de}}},
+			"en": {{Text: &model.TextRun{Text: en}}},
+			"fr": {{Text: &model.TextRun{Text: fr}}},
+			"de": {{Text: &model.TextRun{Text: de}}},
 		},
 		HintSrcLang: "en",
 	}

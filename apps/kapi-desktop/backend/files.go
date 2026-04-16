@@ -277,4 +277,3 @@ func (a *App) AddFilesDialog(tabID, destDir string) ([]string, error) {
 	}
 	return results, nil
 }
-

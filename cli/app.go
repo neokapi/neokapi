@@ -12,6 +12,7 @@ import (
 	"github.com/neokapi/neokapi/cli/config"
 	"github.com/neokapi/neokapi/cli/credentials"
 	"github.com/neokapi/neokapi/cli/output"
+	aitools "github.com/neokapi/neokapi/core/ai/tools"
 	neokapiconfig "github.com/neokapi/neokapi/core/config"
 	"github.com/neokapi/neokapi/core/format/schema"
 	"github.com/neokapi/neokapi/core/formats"
@@ -19,7 +20,6 @@ import (
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/registry"
 	"github.com/neokapi/neokapi/core/tool"
-	aitools "github.com/neokapi/neokapi/core/ai/tools"
 	libtools "github.com/neokapi/neokapi/core/tools"
 	"github.com/spf13/cobra"
 )

@@ -349,7 +349,7 @@ func TestAllowedTools_BuiltInOnly(t *testing.T) {
 
 	allTools := []registry.ToolInfo{
 		{Name: "pseudo-translate", Source: registry.SourceBuiltIn},
-		{Name: "qa-check", Source: ""},  // empty = built-in
+		{Name: "qa-check", Source: ""}, // empty = built-in
 		{Name: "okf-step", Source: "okapi-bridge"},
 	}
 
@@ -514,8 +514,8 @@ type stubConfig struct {
 }
 
 func (c *stubConfig) FormatName() string { return "stub" }
-func (c *stubConfig) Reset()            {}
-func (c *stubConfig) Validate() error   { return nil }
+func (c *stubConfig) Reset()             {}
+func (c *stubConfig) Validate() error    { return nil }
 func (c *stubConfig) ApplyMap(values map[string]any) error {
 	for k, v := range values {
 		c.applied[k] = v

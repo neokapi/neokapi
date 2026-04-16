@@ -37,7 +37,7 @@ type ToolInfo struct {
 
 	// IO contract fields (AD-043)
 	Cardinality   schema.LocaleCardinality `json:"cardinality,omitempty"`
-	DefaultLocale model.LocaleID            `json:"default_locale,omitempty"`
+	DefaultLocale model.LocaleID           `json:"default_locale,omitempty"`
 	Produces      []schema.AnnotationType  `json:"produces,omitempty"`
 	SideEffects   []schema.SideEffect      `json:"side_effects,omitempty"`
 

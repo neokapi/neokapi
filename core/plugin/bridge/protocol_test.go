@@ -83,10 +83,10 @@ func TestExtractParamTypes_EmptyParams(t *testing.T) {
 func TestExtractParamTypes_MatchesSchemaTypes(t *testing.T) {
 	s := &schema.ComponentSchema{
 		Properties: map[string]schema.PropertySchema{
-			"regEx":    {Type: "boolean"},
-			"count":    {Type: "integer"},
-			"search0":  {Type: "string"},
-			"logPath":  {Type: "string"},
+			"regEx":   {Type: "boolean"},
+			"count":   {Type: "integer"},
+			"search0": {Type: "string"},
+			"logPath": {Type: "string"},
 		},
 	}
 	params := map[string]any{
