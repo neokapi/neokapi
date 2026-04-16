@@ -39,7 +39,7 @@ func TestRunMarshalUnmarshalRoundTrip(t *testing.T) {
 func TestRunRejectsBadShapes(t *testing.T) {
 	var r Run
 	require.Error(t, r.UnmarshalJSON([]byte(`{}`)))
-	require.Error(t, r.UnmarshalJSON([]byte(`{"text":{"text":"x"},"ph":{"id":"1","type":"t","data":"d","equiv":"e"}}`)))
+	require.Error(t, r.UnmarshalJSON([]byte(`{"text":"x","ph":{"id":"1","type":"t","data":"d","equiv":"e"}}`)))
 }
 
 func TestFlattenRuns(t *testing.T) {
