@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"strings"
 
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/model"
@@ -169,40 +168,18 @@ func (w *Writer) writeData(part *model.Part) error {
 
 // blockText returns the text to write for a block, expanding inline codes.
 func (w *Writer) blockText(block *model.Block) string {
-	var frag *model.Fragment
+	var runs []model.Run
 	if !w.Locale.IsEmpty() && block.HasTarget(w.Locale) {
 		segs := block.Targets[w.Locale]
 		if len(segs) > 0 && len(segs[0].Runs) > 0 {
-			frag = model.RunsToFragment(segs[0].Runs)
+			runs = segs[0].Runs
 		}
 	}
-	if frag == nil && len(block.Source) > 0 && len(block.Source[0].Runs) > 0 {
-		frag = model.RunsToFragment(block.Source[0].Runs)
+	if runs == nil && len(block.Source) > 0 && len(block.Source[0].Runs) > 0 {
+		runs = block.Source[0].Runs
 	}
-	if frag == nil {
+	if runs == nil {
 		return ""
 	}
-
-	// If no spans, just return the text
-	if !frag.HasSpans() {
-		return frag.CodedText
-	}
-
-	// Expand coded text: replace markers with span data
-	var buf strings.Builder
-	spanIdx := 0
-	for _, r := range frag.CodedText {
-		if isMarker(r) && spanIdx < len(frag.Spans) {
-			buf.WriteString(frag.Spans[spanIdx].Data)
-			spanIdx++
-		} else {
-			buf.WriteRune(r)
-		}
-	}
-	return buf.String()
-}
-
-// isMarker returns true if the rune is a span marker character.
-func isMarker(r rune) bool {
-	return r >= '\uE001' && r <= '\uE003'
+	return model.RenderRunsWithData(runs)
 }

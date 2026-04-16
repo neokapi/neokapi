@@ -144,45 +144,35 @@ func (w *Writer) renderBlockXML(block *model.Block) string {
 	}
 	var buf strings.Builder
 	for _, seg := range segs {
-		if len(seg.Runs) == 0 {
-			continue
-		}
-		w.renderFragmentXML(&buf, model.RunsToFragment(seg.Runs))
+		writeRunsXML(&buf, seg.Runs)
 	}
 	return buf.String()
 }
 
-// renderFragmentXML writes a fragment with XML-escaped text parts and raw span Data.
-func (w *Writer) renderFragmentXML(buf *strings.Builder, frag *model.Fragment) {
-	if frag == nil {
-		return
-	}
-	if !frag.HasSpans() {
-		buf.WriteString(xmlEscapeString(frag.CodedText))
-		return
-	}
-
-	spanIdx := 0
-	var textBuf strings.Builder
-	for _, r := range frag.CodedText {
-		if r == model.MarkerOpening || r == model.MarkerClosing || r == model.MarkerPlaceholder {
-			// Flush accumulated text (XML-escaped).
-			if textBuf.Len() > 0 {
-				buf.WriteString(xmlEscapeString(textBuf.String()))
-				textBuf.Reset()
+// writeRunsXML walks a Run sequence, XML-escaping TextRun content
+// while writing inline-code Data verbatim (already valid XML).
+func writeRunsXML(buf *strings.Builder, runs []model.Run) {
+	for _, r := range runs {
+		switch {
+		case r.Text != nil:
+			buf.WriteString(xmlEscapeString(r.Text.Text))
+		case r.Ph != nil:
+			buf.WriteString(r.Ph.Data)
+		case r.PcOpen != nil:
+			buf.WriteString(r.PcOpen.Data)
+		case r.PcClose != nil:
+			buf.WriteString(r.PcClose.Data)
+		case r.Sub != nil:
+			buf.WriteString(r.Sub.Ref)
+		case r.Plural != nil:
+			if form, ok := r.Plural.Forms[model.PluralOther]; ok {
+				writeRunsXML(buf, form)
 			}
-			// Write span data as-is (already valid XML).
-			if spanIdx < len(frag.Spans) {
-				buf.WriteString(frag.Spans[spanIdx].Data)
-				spanIdx++
+		case r.Select != nil:
+			if form, ok := r.Select.Cases["other"]; ok {
+				writeRunsXML(buf, form)
 			}
-		} else {
-			textBuf.WriteRune(r)
 		}
-	}
-	// Flush remaining text.
-	if textBuf.Len() > 0 {
-		buf.WriteString(xmlEscapeString(textBuf.String()))
 	}
 }
 
@@ -283,33 +273,7 @@ func (w *Writer) blockText(block *model.Block) string {
 func (w *Writer) renderSegments(segs []*model.Segment) string {
 	var buf strings.Builder
 	for _, seg := range segs {
-		if len(seg.Runs) == 0 {
-			continue
-		}
-		w.renderFragment(&buf, model.RunsToFragment(seg.Runs))
+		buf.WriteString(model.RenderRunsWithData(seg.Runs))
 	}
 	return buf.String()
-}
-
-// renderFragment writes a fragment's coded text, replacing span markers with their raw Data.
-func (w *Writer) renderFragment(buf *strings.Builder, frag *model.Fragment) {
-	if frag == nil {
-		return
-	}
-	if !frag.HasSpans() {
-		buf.WriteString(frag.CodedText)
-		return
-	}
-
-	spanIdx := 0
-	for _, r := range frag.CodedText {
-		if r == model.MarkerOpening || r == model.MarkerClosing || r == model.MarkerPlaceholder {
-			if spanIdx < len(frag.Spans) {
-				buf.WriteString(frag.Spans[spanIdx].Data)
-				spanIdx++
-			}
-		} else {
-			buf.WriteRune(r)
-		}
-	}
 }

@@ -319,10 +319,7 @@ func (w *Writer) getCodedText(block *model.Block, locale model.LocaleID) string 
 	}
 	var buf strings.Builder
 	for _, seg := range segs {
-		if len(seg.Runs) == 0 {
-			continue
-		}
-		w.renderFragment(&buf, model.RunsToFragment(seg.Runs))
+		buf.WriteString(model.RenderRunsWithData(seg.Runs))
 	}
 	return buf.String()
 }
@@ -330,31 +327,9 @@ func (w *Writer) getCodedText(block *model.Block, locale model.LocaleID) string 
 func (w *Writer) getSourceCodedText(block *model.Block) string {
 	var buf strings.Builder
 	for _, seg := range block.Source {
-		if len(seg.Runs) == 0 {
-			continue
-		}
-		w.renderFragment(&buf, model.RunsToFragment(seg.Runs))
+		buf.WriteString(model.RenderRunsWithData(seg.Runs))
 	}
 	return buf.String()
-}
-
-func (w *Writer) renderFragment(buf *strings.Builder, frag *model.Fragment) {
-	if !frag.HasSpans() {
-		buf.WriteString(frag.CodedText)
-		return
-	}
-
-	spanIdx := 0
-	for _, r := range frag.CodedText {
-		if model.MarkerOpening == r || model.MarkerClosing == r || model.MarkerPlaceholder == r {
-			if spanIdx < len(frag.Spans) {
-				buf.WriteString(frag.Spans[spanIdx].Data)
-				spanIdx++
-			}
-		} else {
-			buf.WriteRune(r)
-		}
-	}
 }
 
 // setAttr sets an attribute value on an HTML node, adding it if not present.
