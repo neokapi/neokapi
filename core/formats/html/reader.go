@@ -241,16 +241,16 @@ func (v *readerVisitor) onMetaBlock(blockID string, n *html.Node) {
 }
 
 func (v *readerVisitor) onBlockElement(blockID string, n *html.Node, preserveWS bool) {
-	// Collect inline content into a Fragment. This is a second pass over
-	// the inline children — the walker already advanced all counters.
-	frag := v.collectInlineContent(n, preserveWS)
+	// Collect inline content into a Runs builder. This is a second pass
+	// over the inline children — the walker already advanced all counters.
+	runs := v.collectInlineContent(n, preserveWS)
 
 	hasID := getAttr(n, "id") != ""
-	if frag == nil && !hasID {
+	if runs == nil && !hasID {
 		return
 	}
-	if frag == nil {
-		frag = &model.Fragment{}
+	if runs == nil {
+		runs = []model.Run{}
 	}
 
 	block := &model.Block{
@@ -259,7 +259,7 @@ func (v *readerVisitor) onBlockElement(blockID string, n *html.Node, preserveWS 
 		Type:               v.reader.blockType(n),
 		Translatable:       true,
 		PreserveWhitespace: preserveWS,
-		Source:             []*model.Segment{model.NewRunsSegment("s1", model.FragmentToRuns(frag))},
+		Source:             []*model.Segment{model.NewRunsSegment("s1", runs)},
 		Targets:            make(map[model.LocaleID][]*model.Segment),
 		Properties:         v.reader.extractBlockProperties(n),
 		Annotations:        make(map[string]model.Annotation),
@@ -276,9 +276,9 @@ func (v *readerVisitor) onBlockElement(blockID string, n *html.Node, preserveWS 
 }
 
 func (v *readerVisitor) onMixedContentBlock(blockID string, parent *html.Node, runStart, runEnd *html.Node, preserveWS bool) {
-	// Collect inline content from the run into a Fragment.
-	frag := v.collectMixedRunContent(parent, runStart, runEnd, preserveWS)
-	if frag == nil {
+	// Collect inline content from the run into a Runs slice.
+	runs := v.collectMixedRunContent(parent, runStart, runEnd, preserveWS)
+	if runs == nil {
 		return
 	}
 
@@ -288,7 +288,7 @@ func (v *readerVisitor) onMixedContentBlock(blockID string, parent *html.Node, r
 		Type:               v.reader.blockType(parent),
 		Translatable:       true,
 		PreserveWhitespace: preserveWS,
-		Source:             []*model.Segment{model.NewRunsSegment("s1", model.FragmentToRuns(frag))},
+		Source:             []*model.Segment{model.NewRunsSegment("s1", runs)},
 		Targets:            make(map[model.LocaleID][]*model.Segment),
 		Properties:         v.reader.extractBlockProperties(parent),
 		Annotations:        make(map[string]model.Annotation),
@@ -296,77 +296,92 @@ func (v *readerVisitor) onMixedContentBlock(blockID string, parent *html.Node, r
 	v.reader.emit(v.ctx, v.ch, &model.Part{Type: model.PartBlock, Resource: block})
 }
 
-// collectInlineContent builds a Fragment from a block element's inline children.
-// This is a pure fragment-building pass — no counter advancement.
-func (v *readerVisitor) collectInlineContent(n *html.Node, preserveWS bool) *model.Fragment {
-	frag := &model.Fragment{}
+// collectInlineContent builds a Runs slice from a block element's inline
+// children. This is a pure content-building pass — no counter advancement.
+// Returns nil when the collected content is empty.
+func (v *readerVisitor) collectInlineContent(n *html.Node, preserveWS bool) []model.Run {
+	b := newRunBuilder()
 	spanCounter := 0
-	v.collectFromNode(n, frag, &spanCounter, preserveWS, false)
+	v.collectFromNode(n, b, &spanCounter, preserveWS, false)
 
+	runs := b.Runs()
 	if !preserveWS {
-		frag.CodedText = collapseWhitespaceCodedText(frag.CodedText)
-		frag.CodedText = trimCodedText(frag.CodedText)
+		runs = collapseWhitespaceRuns(runs)
+		runs = trimWhitespaceRuns(runs)
 	}
 
-	if frag.IsEmpty() {
+	if len(runs) == 0 {
 		return nil
 	}
-	return frag
+	return runs
 }
 
-// collectMixedRunContent builds a Fragment from a run of inline nodes.
-func (v *readerVisitor) collectMixedRunContent(parent *html.Node, runStart, runEnd *html.Node, preserveWS bool) *model.Fragment {
-	frag := &model.Fragment{}
+// collectMixedRunContent builds a Runs slice from a run of inline nodes.
+func (v *readerVisitor) collectMixedRunContent(parent *html.Node, runStart, runEnd *html.Node, preserveWS bool) []model.Run {
+	b := newRunBuilder()
 	spanCounter := 0
 
 	for child := runStart; child != nil && child != runEnd; child = child.NextSibling {
 		switch child.Type {
 		case html.TextNode:
-			frag.AppendText(child.Data)
+			b.AppendText(child.Data)
 		case html.CommentNode:
 			spanCounter++
-			frag.AppendSpan(&model.Span{
-				SpanType: model.SpanPlaceholder,
-				Type:     "code:comment",
-				SubType:  "html:comment",
-				ID:       strconv.Itoa(spanCounter),
-				Data:     "<!--" + child.Data + "-->",
-			})
+			b.AppendPh(
+				strconv.Itoa(spanCounter),
+				"code:comment",
+				"html:comment",
+				"<!--"+child.Data+"-->",
+				"", "", model.RunConstraints{},
+			)
 		case html.ElementNode:
 			// Skip extractTranslatableAttributes — walker already handled it.
-			v.collectFromNode(child, frag, &spanCounter, preserveWS, false)
+			v.collectFromNode(child, b, &spanCounter, preserveWS, false)
 		}
 	}
 
+	runs := b.Runs()
 	if !preserveWS {
-		frag.CodedText = collapseWhitespaceCodedText(frag.CodedText)
-		frag.CodedText = trimCodedText(frag.CodedText)
+		runs = collapseWhitespaceRuns(runs)
+		runs = trimWhitespaceRuns(runs)
 	}
 
-	text := frag.Text()
-	if text == "" && !frag.HasSpans() {
+	// Match legacy "text empty AND no spans" early-out (avoid emitting a
+	// block that would serialize to nothing translatable).
+	hasText := false
+	hasNonText := false
+	for _, r := range runs {
+		if r.Text != nil {
+			if r.Text.Text != "" {
+				hasText = true
+			}
+		} else {
+			hasNonText = true
+		}
+	}
+	if !hasText && !hasNonText {
 		return nil
 	}
-	return frag
+	return runs
 }
 
-// collectFromNode builds Fragment content from inline children.
-func (v *readerVisitor) collectFromNode(n *html.Node, frag *model.Fragment, spanCounter *int, preserveWS bool, translateNo bool) {
+// collectFromNode builds Run content from inline children.
+func (v *readerVisitor) collectFromNode(n *html.Node, b *runBuilder, spanCounter *int, preserveWS bool, translateNo bool) {
 	for child := n.FirstChild; child != nil; child = child.NextSibling {
 		switch child.Type {
 		case html.TextNode:
-			frag.AppendText(child.Data)
+			b.AppendText(child.Data)
 
 		case html.CommentNode:
 			*spanCounter++
 			id := strconv.Itoa(*spanCounter)
-			frag.AppendSpan(&model.Span{
-				SpanType: model.SpanPlaceholder,
-				Type:     "code:comment",
-				SubType:  "html:comment",
-				ID:       id,
-				Data:     "<!--" + child.Data + "-->",
-			})
+			b.AppendPh(
+				id,
+				"code:comment",
+				"html:comment",
+				"<!--"+child.Data+"-->",
+				"", "", model.RunConstraints{},
+			)
 
 		case html.ElementNode:
 			// Note: translatable attributes on inline children are already
@@ -375,13 +390,13 @@ func (v *readerVisitor) collectFromNode(n *html.Node, frag *model.Fragment, span
 			if nonTranslatableElements[child.DataAtom] {
 				*spanCounter++
 				id := strconv.Itoa(*spanCounter)
-				frag.AppendSpan(&model.Span{
-					SpanType: model.SpanPlaceholder,
-					Type:     "code:markup",
-					SubType:  "html:" + child.Data,
-					ID:       id,
-					Data:     renderNodeHTML(child),
-				})
+				b.AppendPh(
+					id,
+					"code:markup",
+					"html:"+child.Data,
+					renderNodeHTML(child),
+					"", "", model.RunConstraints{},
+				)
 				continue
 			}
 
@@ -398,13 +413,13 @@ func (v *readerVisitor) collectFromNode(n *html.Node, frag *model.Fragment, span
 				if childTranslateNo && !translateNo && !hasDescendantTranslateYes(child) {
 					*spanCounter++
 					id := strconv.Itoa(*spanCounter)
-					frag.AppendSpan(&model.Span{
-						SpanType: model.SpanPlaceholder,
-						Type:     "code:markup",
-						SubType:  "html:" + child.Data,
-						ID:       id,
-						Data:     renderNodeHTML(child),
-					})
+					b.AppendPh(
+						id,
+						"code:markup",
+						"html:"+child.Data,
+						renderNodeHTML(child),
+						"", "", model.RunConstraints{},
+					)
 					continue
 				}
 
@@ -415,47 +430,44 @@ func (v *readerVisitor) collectFromNode(n *html.Node, frag *model.Fragment, span
 					*spanCounter++
 					id := strconv.Itoa(*spanCounter)
 					info := v.reader.vocab.LookupOrFallback(semType)
-					frag.AppendSpan(&model.Span{
-						SpanType:    model.SpanPlaceholder,
-						Type:        semType,
-						SubType:     subType,
-						ID:          id,
-						Data:        v.reader.renderTag(child),
-						DisplayText: info.Display.Placeholder,
-						EquivText:   info.Equiv,
-						Deletable:   info.Constraints.Deletable,
-						Cloneable:   info.Constraints.Cloneable,
-						CanReorder:  info.Constraints.Reorderable,
-					})
+					b.AppendPh(
+						id,
+						semType,
+						subType,
+						v.reader.renderTag(child),
+						info.Display.Placeholder,
+						info.Equiv,
+						model.RunConstraints{
+							Deletable:   info.Constraints.Deletable,
+							Cloneable:   info.Constraints.Cloneable,
+							Reorderable: info.Constraints.Reorderable,
+						},
+					)
 				} else {
 					*spanCounter++
 					id := strconv.Itoa(*spanCounter)
 					info := v.reader.vocab.LookupOrFallback(semType)
-					frag.AppendSpan(&model.Span{
-						SpanType:    model.SpanOpening,
-						Type:        semType,
-						SubType:     subType,
-						ID:          id,
-						Data:        v.reader.renderOpenTag(child),
-						DisplayText: info.Display.Open,
-						EquivText:   info.Equiv,
-						Deletable:   info.Constraints.Deletable,
-						Cloneable:   info.Constraints.Cloneable,
-						CanReorder:  info.Constraints.Reorderable,
-					})
-					v.collectFromNode(child, frag, spanCounter, preserveWS, childTranslateNo)
-					frag.AppendSpan(&model.Span{
-						SpanType:    model.SpanClosing,
-						Type:        semType,
-						SubType:     subType,
-						ID:          id,
-						Data:        fmt.Sprintf("</%s>", child.Data),
-						DisplayText: info.Display.Close,
-						EquivText:   info.Equiv,
-						Deletable:   info.Constraints.Deletable,
-						Cloneable:   info.Constraints.Cloneable,
-						CanReorder:  info.Constraints.Reorderable,
-					})
+					b.AppendPcOpen(
+						id,
+						semType,
+						subType,
+						v.reader.renderOpenTag(child),
+						info.Display.Open,
+						info.Equiv,
+						model.RunConstraints{
+							Deletable:   info.Constraints.Deletable,
+							Cloneable:   info.Constraints.Cloneable,
+							Reorderable: info.Constraints.Reorderable,
+						},
+					)
+					v.collectFromNode(child, b, spanCounter, preserveWS, childTranslateNo)
+					b.AppendPcClose(
+						id,
+						semType,
+						subType,
+						fmt.Sprintf("</%s>", child.Data),
+						info.Equiv,
+					)
 				}
 			}
 		}
@@ -508,63 +520,10 @@ func collapseWhitespace(s string) string {
 	return buf.String()
 }
 
-// collapseWhitespaceCodedText collapses HTML whitespace in coded text, preserving span markers.
-func collapseWhitespaceCodedText(s string) string {
-	var buf strings.Builder
-	inSpace := false
-	for _, r := range s {
-		if r == model.MarkerOpening || r == model.MarkerClosing || r == model.MarkerPlaceholder {
-			buf.WriteRune(r)
-			continue
-		}
-		if isHTMLWhitespace(r) {
-			if !inSpace {
-				buf.WriteRune(' ')
-				inSpace = true
-			}
-		} else {
-			buf.WriteRune(r)
-			inSpace = false
-		}
-	}
-	return buf.String()
-}
-
 // isHTMLWhitespace returns true for HTML whitespace characters (space, tab, newline, carriage return, form feed).
 // Unlike unicode.IsSpace, this does NOT include non-breaking space (\u00A0).
 func isHTMLWhitespace(r rune) bool {
 	return r == ' ' || r == '\t' || r == '\n' || r == '\r' || r == '\f'
-}
-
-// trimCodedText trims leading and trailing HTML whitespace from coded text,
-// preserving span markers at the boundaries.
-func trimCodedText(s string) string {
-	runes := []rune(s)
-	start := 0
-	end := len(runes)
-	for start < end {
-		r := runes[start]
-		if r == model.MarkerOpening || r == model.MarkerClosing || r == model.MarkerPlaceholder {
-			break
-		}
-		if isHTMLWhitespace(r) {
-			start++
-		} else {
-			break
-		}
-	}
-	for end > start {
-		r := runes[end-1]
-		if r == model.MarkerOpening || r == model.MarkerClosing || r == model.MarkerPlaceholder {
-			break
-		}
-		if isHTMLWhitespace(r) {
-			end--
-		} else {
-			break
-		}
-	}
-	return string(runes[start:end])
 }
 
 func (r *Reader) renderOpenTag(n *html.Node) string {
