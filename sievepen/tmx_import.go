@@ -47,7 +47,7 @@ type tmxTU struct {
 
 type tmxTUV struct {
 	Lang       string
-	Fragment   *model.Fragment
+	Runs       []model.Run
 	Properties map[string]string
 }
 
@@ -201,7 +201,7 @@ func ImportTMXSession(store TMStore, reader io.Reader, opts ImportTMXOptions) (s
 
 		var firstSrcRef string
 		for _, tuv := range tu.TUVs {
-			if tuv.Fragment == nil {
+			if tuv.Runs == nil {
 				continue
 			}
 			loc := model.LocaleID(tuv.Lang)
@@ -211,7 +211,7 @@ func ImportTMXSession(store TMStore, reader io.Reader, opts ImportTMXOptions) (s
 			if _, exists := variants[loc]; exists {
 				continue
 			}
-			variants[loc] = model.FragmentToRuns(tuv.Fragment)
+			variants[loc] = tuv.Runs
 			if firstSrcRef == "" {
 				if ref := tuv.Properties["source-document"]; ref != "" && loc == hintLang {
 					firstSrcRef = ref
@@ -486,11 +486,11 @@ func parseTMXTUV(dec *xml.Decoder, start xml.StartElement, mapping *TMXMapping) 
 					tuv.Properties[propType] = val
 				}
 			case "seg":
-				frag, err := parseTMXSeg(dec, mapping)
+				runs, err := parseTMXSeg(dec, mapping)
 				if err != nil {
 					return tuv, err
 				}
-				tuv.Fragment = frag
+				tuv.Runs = runs
 			default:
 				if err := dec.Skip(); err != nil {
 					return tuv, err
@@ -505,11 +505,14 @@ func parseTMXTUV(dec *xml.Decoder, start xml.StartElement, mapping *TMXMapping) 
 }
 
 // parseTMXSeg walks the token stream for the current <seg> element and
-// builds a Fragment with inline Spans. Handles ph, bpt, ept, it, hi, sub, ut.
-// Any unknown child element is round-tripped as a raw placeholder so that
-// no content is silently lost.
-func parseTMXSeg(dec *xml.Decoder, mapping *TMXMapping) (*model.Fragment, error) {
-	frag := &model.Fragment{}
+// builds a Run sequence. Handles ph, bpt, ept, it, hi, sub, ut. Any
+// unknown child element is round-tripped as a raw placeholder so that no
+// content is silently lost.
+//
+// Always returns a non-nil slice (possibly empty) so callers can tell
+// "seg seen but empty" apart from "seg not seen at all".
+func parseTMXSeg(dec *xml.Decoder, mapping *TMXMapping) ([]model.Run, error) {
+	b := &runBuilder{}
 	// pairedIDs maps a bpt `i` attr value to the resolved semantic type so
 	// that the matching ept picks up the same type.
 	pairedIDs := make(map[string]string)
@@ -526,39 +529,39 @@ func parseTMXSeg(dec *xml.Decoder, mapping *TMXMapping) (*model.Fragment, error)
 		}
 		switch t := tok.(type) {
 		case xml.CharData:
-			frag.AppendText(string(t))
+			b.AppendText(string(t))
 		case xml.EndElement:
 			if t.Name.Local == "seg" {
-				return frag, nil
+				return b.Runs(), nil
 			}
 		case xml.StartElement:
 			switch t.Name.Local {
 			case "ph":
-				if err := handlePH(dec, t, frag, mapping, nextID); err != nil {
+				if err := handlePH(dec, t, b, mapping, nextID); err != nil {
 					return nil, err
 				}
 			case "bpt":
-				if err := handleBPT(dec, t, frag, mapping, pairedIDs, nextID); err != nil {
+				if err := handleBPT(dec, t, b, mapping, pairedIDs, nextID); err != nil {
 					return nil, err
 				}
 			case "ept":
-				if err := handleEPT(dec, t, frag, mapping, pairedIDs, nextID); err != nil {
+				if err := handleEPT(dec, t, b, mapping, pairedIDs, nextID); err != nil {
 					return nil, err
 				}
 			case "it":
-				if err := handleIT(dec, t, frag, mapping, nextID); err != nil {
+				if err := handleIT(dec, t, b, mapping, nextID); err != nil {
 					return nil, err
 				}
 			case "hi":
-				if err := handleHI(dec, t, frag, mapping, nextID); err != nil {
+				if err := handleHI(dec, t, b, mapping, nextID); err != nil {
 					return nil, err
 				}
 			case "sub":
-				if err := handleSUB(dec, t, frag, mapping, nextID); err != nil {
+				if err := handleSUB(dec, t, b, mapping, nextID); err != nil {
 					return nil, err
 				}
 			case "ut":
-				if err := handleUT(dec, t, frag, mapping, nextID); err != nil {
+				if err := handleUT(dec, t, b, mapping, nextID); err != nil {
 					return nil, err
 				}
 			default:
@@ -567,19 +570,13 @@ func parseTMXSeg(dec *xml.Decoder, mapping *TMXMapping) (*model.Fragment, error)
 				if err != nil {
 					return nil, err
 				}
-				frag.AppendSpan(&model.Span{
-					SpanType: model.SpanPlaceholder,
-					Type:     mapping.Fallback,
-					SubType:  "tmx:raw",
-					ID:       nextID(),
-					Data:     raw,
-				})
+				b.AppendPh(nextID(), mapping.Fallback, "tmx:raw", raw)
 			}
 		}
 	}
 }
 
-func handlePH(dec *xml.Decoder, start xml.StartElement, frag *model.Fragment, mapping *TMXMapping, nextID func() string) error {
+func handlePH(dec *xml.Decoder, start xml.StartElement, b *runBuilder, mapping *TMXMapping, nextID func() string) error {
 	typeAttr := findAttr(start.Attr, "type")
 	xid := findAttr(start.Attr, "x")
 	data, err := decodeText(dec, "ph")
@@ -590,17 +587,11 @@ func handlePH(dec *xml.Decoder, start xml.StartElement, frag *model.Fragment, ma
 	if id == "" {
 		id = nextID()
 	}
-	frag.AppendSpan(&model.Span{
-		SpanType: model.SpanPlaceholder,
-		Type:     mapping.Resolve("ph", typeAttr),
-		SubType:  "tmx:ph",
-		ID:       id,
-		Data:     data,
-	})
+	b.AppendPh(id, mapping.Resolve("ph", typeAttr), "tmx:ph", data)
 	return nil
 }
 
-func handleBPT(dec *xml.Decoder, start xml.StartElement, frag *model.Fragment, mapping *TMXMapping, pairedIDs map[string]string, nextID func() string) error {
+func handleBPT(dec *xml.Decoder, start xml.StartElement, b *runBuilder, mapping *TMXMapping, pairedIDs map[string]string, nextID func() string) error {
 	typeAttr := findAttr(start.Attr, "type")
 	iAttr := findAttr(start.Attr, "i")
 	data, err := decodeText(dec, "bpt")
@@ -615,17 +606,11 @@ func handleBPT(dec *xml.Decoder, start xml.StartElement, frag *model.Fragment, m
 	if id == "" {
 		id = nextID()
 	}
-	frag.AppendSpan(&model.Span{
-		SpanType: model.SpanOpening,
-		Type:     semType,
-		SubType:  "tmx:bpt",
-		ID:       id,
-		Data:     data,
-	})
+	b.AppendPcOpen(id, semType, "tmx:bpt", data)
 	return nil
 }
 
-func handleEPT(dec *xml.Decoder, start xml.StartElement, frag *model.Fragment, mapping *TMXMapping, pairedIDs map[string]string, nextID func() string) error {
+func handleEPT(dec *xml.Decoder, start xml.StartElement, b *runBuilder, mapping *TMXMapping, pairedIDs map[string]string, nextID func() string) error {
 	iAttr := findAttr(start.Attr, "i")
 	data, err := decodeText(dec, "ept")
 	if err != nil {
@@ -645,48 +630,32 @@ func handleEPT(dec *xml.Decoder, start xml.StartElement, frag *model.Fragment, m
 	if id == "" {
 		id = nextID()
 	}
-	frag.AppendSpan(&model.Span{
-		SpanType: model.SpanClosing,
-		Type:     semType,
-		SubType:  "tmx:ept",
-		ID:       id,
-		Data:     data,
-	})
+	b.AppendPcClose(id, semType, "tmx:ept", data)
 	return nil
 }
 
-func handleIT(dec *xml.Decoder, start xml.StartElement, frag *model.Fragment, mapping *TMXMapping, nextID func() string) error {
+func handleIT(dec *xml.Decoder, start xml.StartElement, b *runBuilder, mapping *TMXMapping, nextID func() string) error {
 	typeAttr := findAttr(start.Attr, "type")
 	pos := findAttr(start.Attr, "pos")
 	data, err := decodeText(dec, "it")
 	if err != nil {
 		return err
 	}
-	spanType := model.SpanOpening
+	semType := mapping.Resolve("it", typeAttr)
+	id := nextID()
 	if pos == "end" {
-		spanType = model.SpanClosing
+		b.AppendPcClose(id, semType, "tmx:it", data)
+	} else {
+		b.AppendPcOpen(id, semType, "tmx:it", data)
 	}
-	frag.AppendSpan(&model.Span{
-		SpanType: spanType,
-		Type:     mapping.Resolve("it", typeAttr),
-		SubType:  "tmx:it",
-		ID:       nextID(),
-		Data:     data,
-	})
 	return nil
 }
 
-func handleHI(dec *xml.Decoder, start xml.StartElement, frag *model.Fragment, mapping *TMXMapping, nextID func() string) error {
+func handleHI(dec *xml.Decoder, start xml.StartElement, b *runBuilder, mapping *TMXMapping, nextID func() string) error {
 	typeAttr := findAttr(start.Attr, "type")
 	semType := mapping.Resolve("hi", typeAttr)
 	id := nextID()
-	frag.AppendSpan(&model.Span{
-		SpanType: model.SpanOpening,
-		Type:     semType,
-		SubType:  "tmx:hi",
-		ID:       id,
-		Data:     "",
-	})
+	b.AppendPcOpen(id, semType, "tmx:hi", "")
 	// Recursively parse children (text + inline elements).
 	for {
 		tok, err := dec.Token()
@@ -695,46 +664,40 @@ func handleHI(dec *xml.Decoder, start xml.StartElement, frag *model.Fragment, ma
 		}
 		switch t := tok.(type) {
 		case xml.CharData:
-			frag.AppendText(string(t))
+			b.AppendText(string(t))
 		case xml.EndElement:
 			if t.Name.Local == "hi" {
-				frag.AppendSpan(&model.Span{
-					SpanType: model.SpanClosing,
-					Type:     semType,
-					SubType:  "tmx:hi",
-					ID:       id,
-					Data:     "",
-				})
+				b.AppendPcClose(id, semType, "tmx:hi", "")
 				return nil
 			}
 		case xml.StartElement:
 			switch t.Name.Local {
 			case "ph":
-				if err := handlePH(dec, t, frag, mapping, nextID); err != nil {
+				if err := handlePH(dec, t, b, mapping, nextID); err != nil {
 					return err
 				}
 			case "bpt":
-				if err := handleBPT(dec, t, frag, mapping, map[string]string{}, nextID); err != nil {
+				if err := handleBPT(dec, t, b, mapping, map[string]string{}, nextID); err != nil {
 					return err
 				}
 			case "ept":
-				if err := handleEPT(dec, t, frag, mapping, map[string]string{}, nextID); err != nil {
+				if err := handleEPT(dec, t, b, mapping, map[string]string{}, nextID); err != nil {
 					return err
 				}
 			case "it":
-				if err := handleIT(dec, t, frag, mapping, nextID); err != nil {
+				if err := handleIT(dec, t, b, mapping, nextID); err != nil {
 					return err
 				}
 			case "hi":
-				if err := handleHI(dec, t, frag, mapping, nextID); err != nil {
+				if err := handleHI(dec, t, b, mapping, nextID); err != nil {
 					return err
 				}
 			case "sub":
-				if err := handleSUB(dec, t, frag, mapping, nextID); err != nil {
+				if err := handleSUB(dec, t, b, mapping, nextID); err != nil {
 					return err
 				}
 			case "ut":
-				if err := handleUT(dec, t, frag, mapping, nextID); err != nil {
+				if err := handleUT(dec, t, b, mapping, nextID); err != nil {
 					return err
 				}
 			default:
@@ -742,47 +705,29 @@ func handleHI(dec *xml.Decoder, start xml.StartElement, frag *model.Fragment, ma
 				if err != nil {
 					return err
 				}
-				frag.AppendSpan(&model.Span{
-					SpanType: model.SpanPlaceholder,
-					Type:     mapping.Fallback,
-					SubType:  "tmx:raw",
-					ID:       nextID(),
-					Data:     raw,
-				})
+				b.AppendPh(nextID(), mapping.Fallback, "tmx:raw", raw)
 			}
 		}
 	}
 }
 
-func handleSUB(dec *xml.Decoder, start xml.StartElement, frag *model.Fragment, mapping *TMXMapping, nextID func() string) error {
+func handleSUB(dec *xml.Decoder, start xml.StartElement, b *runBuilder, mapping *TMXMapping, nextID func() string) error {
 	raw, err := captureRawXML(dec, start)
 	if err != nil {
 		return err
 	}
 	typeAttr := findAttr(start.Attr, "type")
-	frag.AppendSpan(&model.Span{
-		SpanType: model.SpanPlaceholder,
-		Type:     mapping.Resolve("sub", typeAttr),
-		SubType:  "tmx:sub",
-		ID:       nextID(),
-		Data:     raw,
-	})
+	b.AppendPh(nextID(), mapping.Resolve("sub", typeAttr), "tmx:sub", raw)
 	return nil
 }
 
-func handleUT(dec *xml.Decoder, start xml.StartElement, frag *model.Fragment, mapping *TMXMapping, nextID func() string) error {
+func handleUT(dec *xml.Decoder, start xml.StartElement, b *runBuilder, mapping *TMXMapping, nextID func() string) error {
 	typeAttr := findAttr(start.Attr, "type")
 	data, err := decodeText(dec, "ut")
 	if err != nil {
 		return err
 	}
-	frag.AppendSpan(&model.Span{
-		SpanType: model.SpanPlaceholder,
-		Type:     mapping.Resolve("ut", typeAttr),
-		SubType:  "tmx:ut",
-		ID:       nextID(),
-		Data:     data,
-	})
+	b.AppendPh(nextID(), mapping.Resolve("ut", typeAttr), "tmx:ut", data)
 	return nil
 }
 
