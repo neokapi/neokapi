@@ -58,7 +58,7 @@ func TestRejectsUnknownKind(t *testing.T) {
 }
 
 func TestRejectsMultipleDiscriminators(t *testing.T) {
-	bad := []byte(`{"text":{"text":"hi"},"ph":{"id":"1","type":"jsx:var","data":"x","equiv":"x"}}`)
+	bad := []byte(`{"text":"hi","ph":{"id":"1","type":"jsx:var","data":"x","equiv":"x"}}`)
 	var r Run
 	err := r.UnmarshalJSON(bad)
 	require.Error(t, err)

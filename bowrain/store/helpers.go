@@ -135,15 +135,12 @@ func deserializeAnnotations(jsonStr string) map[string]model.Annotation {
 }
 
 // countWordsFromSourceJSON counts words from the serialized source
-// segments JSON. Segments now carry a Runs slice; we flatten each
-// TextRun into the word-count input without fully deserializing the
-// structured run hierarchy.
+// segments JSON. Text runs serialize as `{"text":"..."}` per AD-045,
+// so we decode the text key as a bare string.
 func countWordsFromSourceJSON(sourceJSON string) int {
 	var segments []struct {
 		Runs []struct {
-			Text *struct {
-				Text string `json:"text"`
-			} `json:"text,omitempty"`
+			Text *string `json:"text,omitempty"`
 		} `json:"Runs"`
 	}
 	if err := json.Unmarshal([]byte(sourceJSON), &segments); err != nil {
@@ -153,7 +150,7 @@ func countWordsFromSourceJSON(sourceJSON string) int {
 	for _, seg := range segments {
 		for _, r := range seg.Runs {
 			if r.Text != nil {
-				count += countWords(r.Text.Text)
+				count += countWords(*r.Text)
 			}
 		}
 	}
