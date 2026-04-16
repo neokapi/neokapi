@@ -217,7 +217,7 @@ func ResolveAnchor(block *Block, anchor AnnotationAnchor) AnchorResolution {
 		if walked == nil {
 			return AnchorResolution{OK: false, Err: ReasonPathOutOfBounds}
 		}
-		id := walked.ID()
+		id := walked.RunID()
 		if id == "" {
 			return AnchorResolution{OK: false, Err: ReasonPathWrongKind}
 		}
