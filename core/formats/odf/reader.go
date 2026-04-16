@@ -382,8 +382,8 @@ func (r *Reader) parseODFContent(ctx context.Context, ch chan<- model.PartResult
 
 	// Track nesting for context
 	var elementStack []xml.Name
-	var textBuf strings.Builder
-	var spans []*model.Span
+	var b *runBuilder
+	var spanCounter int
 	inTranslatable := false
 	var translatableDepth int
 	// For skeleton: buffer the start element of a translatable block
@@ -402,32 +402,25 @@ func (r *Reader) parseODFContent(ctx context.Context, ch chan<- model.PartResult
 			if isTranslatableElement(t.Name) && !inTranslatable {
 				inTranslatable = true
 				translatableDepth = len(elementStack)
-				textBuf.Reset()
-				spans = nil
+				b = newRunBuilder()
+				spanCounter = 0
 				translatableStart = t.Copy()
 			} else if inTranslatable {
 				// Handle inline formatting elements
 				if isInlineFormattingElement(t.Name) {
 					spanType := inlineSpanType(t.Name)
 					if spanType != "" {
-						spans = append(spans, &model.Span{
-							ID:   fmt.Sprintf("s%d", len(spans)+1),
-							Type: spanType,
-						})
-						textBuf.WriteRune(model.MarkerOpening)
+						spanCounter++
+						b.AppendPcOpen(fmt.Sprintf("s%d", spanCounter), spanType, "")
 					}
 				} else if t.Name.Space == nsText && t.Name.Local == "a" {
 					// Hyperlink — the text inside is still translatable
-					spans = append(spans, &model.Span{
-						ID:   fmt.Sprintf("s%d", len(spans)+1),
-						Type: TypeHyperlink,
-						Data: getAttr(t, nsXLink, "href"),
-					})
-					textBuf.WriteRune(model.MarkerOpening)
+					spanCounter++
+					b.AppendPcOpen(fmt.Sprintf("s%d", spanCounter), TypeHyperlink, getAttr(t, nsXLink, "href"))
 				} else if t.Name.Space == nsText && t.Name.Local == "line-break" {
-					textBuf.WriteString("\n")
+					b.AppendText("\n")
 				} else if t.Name.Space == nsText && t.Name.Local == "tab" {
-					textBuf.WriteString("\t")
+					b.AppendText("\t")
 				} else if t.Name.Space == nsText && t.Name.Local == "s" {
 					// text:s = space(s)
 					count := 1
@@ -436,9 +429,7 @@ func (r *Reader) parseODFContent(ctx context.Context, ch chan<- model.PartResult
 							_, _ = fmt.Sscanf(a.Value, "%d", &count)
 						}
 					}
-					for range count {
-						textBuf.WriteRune(' ')
-					}
+					b.AppendText(strings.Repeat(" ", count))
 				}
 			} else {
 				p.skelWriteStartElement(t)
@@ -446,7 +437,7 @@ func (r *Reader) parseODFContent(ctx context.Context, ch chan<- model.PartResult
 
 		case xml.CharData:
 			if inTranslatable {
-				textBuf.Write(t)
+				b.AppendText(string(t))
 			} else {
 				p.skelText(odfXMLEscape(string(t)))
 			}
@@ -456,24 +447,18 @@ func (r *Reader) parseODFContent(ctx context.Context, ch chan<- model.PartResult
 				if isInlineFormattingElement(t.Name) {
 					spanType := inlineSpanType(t.Name)
 					if spanType != "" {
-						spans = append(spans, &model.Span{
-							ID:   fmt.Sprintf("s%d", len(spans)+1),
-							Type: spanType,
-						})
-						textBuf.WriteRune(model.MarkerClosing)
+						spanCounter++
+						b.AppendPcClose(fmt.Sprintf("s%d", spanCounter), spanType)
 					}
 				} else if t.Name.Space == nsText && t.Name.Local == "a" {
-					spans = append(spans, &model.Span{
-						ID:   fmt.Sprintf("s%d", len(spans)+1),
-						Type: TypeHyperlink,
-					})
-					textBuf.WriteRune(model.MarkerClosing)
+					spanCounter++
+					b.AppendPcClose(fmt.Sprintf("s%d", spanCounter), TypeHyperlink)
 				}
 
 				if len(elementStack) == translatableDepth {
 					// End of translatable element
-					text := strings.TrimSpace(textBuf.String())
-					if text != "" {
+					plain := strings.TrimSpace(b.PlainText())
+					if plain != "" {
 						*blockCounter++
 						blockID := fmt.Sprintf("tu%d", *blockCounter)
 
@@ -482,11 +467,9 @@ func (r *Reader) parseODFContent(ctx context.Context, ch chan<- model.PartResult
 						p.skelRef(blockID)
 						p.skelWriteEndElement(t)
 
+						runs := b.Runs()
 						var block *model.Block
-						if len(spans) > 0 {
-							// Convert the PUA-coded text + ordered span
-							// list into a Run sequence.
-							runs := model.AsRuns(textBuf.String(), spans)
+						if len(runs) > 0 && hasInlineCodeRuns(runs) {
 							block = &model.Block{
 								ID:           blockID,
 								Translatable: true,
@@ -499,7 +482,7 @@ func (r *Reader) parseODFContent(ctx context.Context, ch chan<- model.PartResult
 								Annotations: make(map[string]model.Annotation),
 							}
 						} else {
-							block = model.NewBlock(blockID, text)
+							block = model.NewBlock(blockID, plain)
 							block.Properties["partPath"] = partPath
 							block.Properties["element"] = t.Name.Local
 						}
@@ -508,7 +491,7 @@ func (r *Reader) parseODFContent(ctx context.Context, ch chan<- model.PartResult
 					} else {
 						// Empty translatable element — pass through to skeleton
 						p.skelWriteStartElement(translatableStart)
-						p.skelText(odfXMLEscape(textBuf.String()))
+						p.skelText(odfXMLEscape(b.PlainText()))
 						p.skelWriteEndElement(t)
 					}
 					inTranslatable = false

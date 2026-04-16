@@ -1,9 +1,62 @@
 package model
 
 import (
+	"regexp"
 	"strconv"
 	"strings"
 )
+
+// semanticHTMLTagRe matches opening, closing, and self-closing HTML tags.
+var semanticHTMLTagRe = regexp.MustCompile(`<(/?)(\w+)([^>]*?)(/?)>`)
+
+// tagNameRe extracts a tag name from an HTML opening / placeholder snippet.
+var tagNameRe = regexp.MustCompile(`<(\w+)`)
+
+// isSelfClosingTag returns true for HTML void elements.
+func isSelfClosingTag(tag string) bool {
+	switch strings.ToLower(tag) {
+	case "br", "hr", "img", "input", "meta", "link", "area", "base",
+		"col", "embed", "source", "track", "wbr":
+		return true
+	default:
+		return false
+	}
+}
+
+// buildHTMLToTypeMap creates a reverse map from HTML tag names to
+// semantic types using the vocabulary registry.
+func buildHTMLToTypeMap(reg *VocabularyRegistry) map[string]string {
+	if reg == nil {
+		return make(map[string]string)
+	}
+	allTypes := reg.AllTypes()
+	m := make(map[string]string, len(allTypes))
+	for _, typeName := range allTypes {
+		info := reg.Lookup(typeName)
+		if info == nil {
+			continue
+		}
+		if info.HTML.Open != "" {
+			if tag := extractTagName(info.HTML.Open); tag != "" {
+				m[tag] = typeName
+			}
+		}
+		if info.HTML.Placeholder != "" {
+			if tag := extractTagName(info.HTML.Placeholder); tag != "" {
+				m[tag] = typeName
+			}
+		}
+	}
+	return m
+}
+
+func extractTagName(html string) string {
+	m := tagNameRe.FindStringSubmatch(html)
+	if len(m) > 1 {
+		return m[1]
+	}
+	return ""
+}
 
 // RunsSemanticHTML renders a Run sequence as semantic HTML using the
 // vocabulary registry to map run types to HTML elements. This is the

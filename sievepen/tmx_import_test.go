@@ -73,14 +73,18 @@ func TestImportTMX_ElementPH(t *testing.T) {
 	_, n := importString(t, tm, body, sievepen.ImportTMXOptions{})
 	assert.Equal(t, 1, n)
 	e := tm.Entries()[0]
-	frag := model.RunsToFragment(e.Variant("en"))
-	require.NotNil(t, frag)
-	assert.True(t, frag.HasSpans())
-	assert.Equal(t, "Click  to continue", frag.Text())
-	// Placeholder span.
-	require.Len(t, frag.Spans, 1)
-	assert.Equal(t, "tmx:ph", frag.Spans[0].SubType)
-	assert.Equal(t, "{0}", frag.Spans[0].Data)
+	runs := e.Variant("en")
+	require.NotNil(t, runs)
+	codeCount := 0
+	for _, r := range runs {
+		if r.Ph != nil {
+			codeCount++
+			assert.Equal(t, "tmx:ph", r.Ph.SubType)
+			assert.Equal(t, "{0}", r.Ph.Data)
+		}
+	}
+	assert.Equal(t, 1, codeCount)
+	assert.Equal(t, "Click  to continue", model.RunsPlainText(runs))
 }
 
 func TestImportTMX_ElementBPT_EPT(t *testing.T) {
@@ -92,15 +96,24 @@ func TestImportTMX_ElementBPT_EPT(t *testing.T) {
 	_, n := importString(t, tm, body, sievepen.ImportTMXOptions{})
 	assert.Equal(t, 1, n)
 	e := tm.Entries()[0]
-	frag := model.RunsToFragment(e.Variant("en"))
-	require.NotNil(t, frag)
-	require.Len(t, frag.Spans, 2)
-	assert.Equal(t, "tmx:bpt", frag.Spans[0].SubType)
-	assert.Equal(t, "tmx:ept", frag.Spans[1].SubType)
-	assert.Equal(t, model.SpanOpening, frag.Spans[0].SpanType)
-	assert.Equal(t, model.SpanClosing, frag.Spans[1].SpanType)
-	assert.Equal(t, "<b>", frag.Spans[0].Data)
-	assert.Equal(t, "</b>", frag.Spans[1].Data)
+	runs := e.Variant("en")
+	require.NotNil(t, runs)
+	var open *model.PcOpenRun
+	var cls *model.PcCloseRun
+	for _, r := range runs {
+		if r.PcOpen != nil {
+			open = r.PcOpen
+		}
+		if r.PcClose != nil {
+			cls = r.PcClose
+		}
+	}
+	require.NotNil(t, open)
+	require.NotNil(t, cls)
+	assert.Equal(t, "tmx:bpt", open.SubType)
+	assert.Equal(t, "tmx:ept", cls.SubType)
+	assert.Equal(t, "<b>", open.Data)
+	assert.Equal(t, "</b>", cls.Data)
 }
 
 func TestImportTMX_ElementIT(t *testing.T) {
@@ -112,10 +125,18 @@ func TestImportTMX_ElementIT(t *testing.T) {
 	_, n := importString(t, tm, body, sievepen.ImportTMXOptions{})
 	assert.Equal(t, 1, n)
 	e := tm.Entries()[0]
-	frag := model.RunsToFragment(e.Variant("en"))
-	require.Len(t, frag.Spans, 2)
-	assert.Equal(t, model.SpanOpening, frag.Spans[0].SpanType)
-	assert.Equal(t, model.SpanClosing, frag.Spans[1].SpanType)
+	runs := e.Variant("en")
+	var pcOpens, pcCloses int
+	for _, r := range runs {
+		if r.PcOpen != nil {
+			pcOpens++
+		}
+		if r.PcClose != nil {
+			pcCloses++
+		}
+	}
+	assert.Equal(t, 1, pcOpens)
+	assert.Equal(t, 1, pcCloses)
 }
 
 func TestImportTMX_ElementHI(t *testing.T) {
@@ -127,11 +148,18 @@ func TestImportTMX_ElementHI(t *testing.T) {
 	_, n := importString(t, tm, body, sievepen.ImportTMXOptions{})
 	assert.Equal(t, 1, n)
 	e := tm.Entries()[0]
-	frag := model.RunsToFragment(e.Variant("en"))
-	require.Len(t, frag.Spans, 2)
-	assert.Equal(t, "tmx:hi", frag.Spans[0].SubType)
-	assert.Equal(t, "tmx:hi", frag.Spans[1].SubType)
-	assert.Contains(t, frag.Text(), "important")
+	runs := e.Variant("en")
+	var hiSubTypes int
+	for _, r := range runs {
+		if r.PcOpen != nil && r.PcOpen.SubType == "tmx:hi" {
+			hiSubTypes++
+		}
+		if r.PcClose != nil && r.PcClose.SubType == "tmx:hi" {
+			hiSubTypes++
+		}
+	}
+	assert.Equal(t, 2, hiSubTypes)
+	assert.Contains(t, model.RunsPlainText(runs), "important")
 }
 
 func TestImportTMX_ElementUT(t *testing.T) {
@@ -143,9 +171,15 @@ func TestImportTMX_ElementUT(t *testing.T) {
 	_, n := importString(t, tm, body, sievepen.ImportTMXOptions{})
 	assert.Equal(t, 1, n)
 	e := tm.Entries()[0]
-	frag := model.RunsToFragment(e.Variant("en"))
-	require.Len(t, frag.Spans, 1)
-	assert.Equal(t, "tmx:ut", frag.Spans[0].SubType)
+	runs := e.Variant("en")
+	var phs int
+	for _, r := range runs {
+		if r.Ph != nil {
+			phs++
+			assert.Equal(t, "tmx:ut", r.Ph.SubType)
+		}
+	}
+	assert.Equal(t, 1, phs)
 }
 
 func TestImportTMX_HeaderMetadata(t *testing.T) {

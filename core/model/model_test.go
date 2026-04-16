@@ -96,66 +96,9 @@ func TestBlockMultipleSegments(t *testing.T) {
 	assert.Equal(t, "Hello world", block.SourceText())
 }
 
-func TestFragmentPlainText(t *testing.T) {
-	frag := model.NewFragment("Hello world")
-	assert.Equal(t, "Hello world", frag.Text())
-	assert.Equal(t, "Hello world", frag.CodedText)
-	assert.False(t, frag.HasSpans())
-	assert.False(t, frag.IsEmpty())
-	assert.Equal(t, 11, frag.Length())
-}
-
-func TestFragmentWithSpans(t *testing.T) {
-	frag := model.NewFragment("")
-	frag.AppendText("Click ")
-	frag.AppendSpan(&model.Span{SpanType: model.SpanOpening, Type: "bold", Data: "<b>"})
-	frag.AppendText("here")
-	frag.AppendSpan(&model.Span{SpanType: model.SpanClosing, Type: "bold", Data: "</b>"})
-	frag.AppendText(" for info")
-
-	assert.Equal(t, "Click here for info", frag.Text())
-	assert.True(t, frag.HasSpans())
-	assert.Len(t, frag.Spans, 2)
-	assert.Equal(t, model.SpanOpening, frag.Spans[0].SpanType)
-	assert.Equal(t, "<b>", frag.Spans[0].Data)
-	assert.Equal(t, model.SpanClosing, frag.Spans[1].SpanType)
-}
-
-func TestFragmentEmpty(t *testing.T) {
-	frag := model.NewFragment("")
-	assert.True(t, frag.IsEmpty())
-	assert.Equal(t, 0, frag.Length())
-	assert.Equal(t, "", frag.Text())
-}
-
-func TestFragmentClone(t *testing.T) {
-	original := model.NewFragment("")
-	original.AppendText("Hello ")
-	original.AppendSpan(&model.Span{SpanType: model.SpanOpening, Type: "bold", Data: "<b>"})
-	original.AppendText("world")
-
-	clone := original.Clone()
-	assert.Equal(t, original.Text(), clone.Text())
-	assert.Equal(t, original.CodedText, clone.CodedText)
-	assert.Len(t, clone.Spans, len(original.Spans))
-
-	// Modifying clone doesn't affect original
-	clone.Spans[0].Data = "<strong>"
-	assert.Equal(t, "<b>", original.Spans[0].Data)
-}
-
-func TestFragmentAppendText(t *testing.T) {
-	frag := model.NewFragment("Hello")
-	frag.AppendText(" world")
-	assert.Equal(t, "Hello world", frag.Text())
-}
-
-func TestSpanTypeString(t *testing.T) {
-	assert.Equal(t, "Opening", model.SpanOpening.String())
-	assert.Equal(t, "Closing", model.SpanClosing.String())
-	assert.Equal(t, "Placeholder", model.SpanPlaceholder.String())
-	assert.Equal(t, "Unknown", model.SpanType(99).String())
-}
+// Fragment / Span tests previously lived here; the bridge type is now
+// internal to coded_text.go and its behaviour is exercised via the
+// FragmentToRuns / RunsToFragment / AsCodedText round-trip in run_test.go.
 
 func TestLayerRoot(t *testing.T) {
 	layer := &model.Layer{
@@ -336,17 +279,6 @@ func TestLayerJSONSerialization(t *testing.T) {
 	assert.Equal(t, model.LocaleEnglish, decoded.Locale)
 }
 
-func TestFragmentPlaceholderSpan(t *testing.T) {
-	frag := model.NewFragment("")
-	frag.AppendText("Line one")
-	frag.AppendSpan(&model.Span{SpanType: model.SpanPlaceholder, Type: "break", Data: "<br/>"})
-	frag.AppendText("Line two")
-
-	assert.Equal(t, "Line oneLine two", frag.Text())
-	assert.True(t, frag.HasSpans())
-	assert.Len(t, frag.Spans, 1)
-	assert.Equal(t, model.SpanPlaceholder, frag.Spans[0].SpanType)
-}
 
 // --- Block uniform locale access (AD-043) ---
 
