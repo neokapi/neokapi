@@ -877,7 +877,6 @@ func runsHaveInlineCodes(runs []model.Run) bool {
 
 // collapseRunsWhitespace applies whitespace collapsing to a run
 // sequence, preserving inline-code runs and their positions.
-// Mirrors the legacy collapseFragmentWhitespace semantics.
 func collapseRunsWhitespace(runs []model.Run) []model.Run {
 	if len(runs) == 0 {
 		return runs

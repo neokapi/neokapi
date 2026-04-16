@@ -6,14 +6,9 @@ import (
 	"github.com/neokapi/neokapi/core/model"
 )
 
-// runBuilder accumulates a []model.Run while walking the HTML AST or token
-// stream. It coalesces adjacent TextRuns so consecutive text chunks produce
-// a single text run; mirrors the runBuilder pattern used by other format readers.
-//
-// The builder is intentionally unexported — it lives alongside the HTML
-// reader so that DOM and tokenizer walkers can emit the Runs shape directly,
-// avoiding a Fragment round-trip at read time. Mirrors the pattern
-// established by sievepen/run_builder.go.
+// runBuilder accumulates a []model.Run while walking the HTML AST or
+// token stream. It coalesces adjacent TextRuns so consecutive text
+// chunks produce a single text run.
 type runBuilder struct {
 	runs []model.Run
 }
@@ -94,9 +89,8 @@ func (b *runBuilder) IsEmpty() bool {
 	return len(b.runs) == 0
 }
 
-// HasNonText reports whether any non-text run (Ph, PcOpen, PcClose) has been
-// appended. Mirrors model.Fragment.HasSpans for callers that previously
-// checked whether the Fragment carried any inline markup.
+// HasNonText reports whether any non-text run (Ph, PcOpen, PcClose)
+// has been appended.
 func (b *runBuilder) HasNonText() bool {
 	for _, r := range b.runs {
 		if r.Text == nil {
@@ -106,8 +100,8 @@ func (b *runBuilder) HasNonText() bool {
 	return false
 }
 
-// PlainText returns the concatenated TextRun content, dropping any non-text
-// runs. Mirrors model.Fragment.Text().
+// PlainText returns the concatenated TextRun content, dropping any
+// non-text runs.
 func (b *runBuilder) PlainText() string {
 	var n int
 	for _, r := range b.runs {

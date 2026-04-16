@@ -53,8 +53,8 @@ const (
 )
 
 // BlockType is the coarse classification of a Block per RFC 0001.
-// model.Block.Type is a free-form legacy string, so the klf enum
-// value type stays distinct.
+// Kept distinct from the free-form model.Block.Type string so the
+// RFC enum values don't clash with format-specific type tags.
 type BlockType string
 
 const (

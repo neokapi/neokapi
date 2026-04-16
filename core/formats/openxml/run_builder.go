@@ -4,14 +4,7 @@ import "github.com/neokapi/neokapi/core/model"
 
 // runBuilder accumulates a []model.Run while parsing OpenXML inline
 // content. It coalesces adjacent TextRuns so consecutive text chunks
-// produce a single text run, matching the behavior of
-// the runBuilder pattern used by other format readers.
-//
-// The builder is intentionally unexported — it exists only to let the
-// WML / DML / SML parsers emit the Runs shape directly, avoiding a
-// Fragment round-trip at import time. Each Append* method mirrors the
-// Run that model.MarshalRuns would produce for the equivalent
-// Fragment + Span pair.
+// produce a single text run.
 type runBuilder struct {
 	runs []model.Run
 }

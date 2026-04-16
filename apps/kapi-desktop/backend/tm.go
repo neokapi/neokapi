@@ -297,8 +297,8 @@ func runsFromVariantInput(in VariantInputDTO) []model.Run {
 }
 
 // spanDTOToRun maps a marker + SpanDTO to a single Run. Constraints
-// default to the legacy span behaviour (deletable + reorderable, not
-// cloneable) since the editor DTO does not carry per-span constraints.
+// default to deletable + reorderable (not cloneable) since the editor
+// DTO does not carry per-span constraints.
 func spanDTOToRun(marker rune, s SpanDTO) model.Run {
 	defaultConstraints := &model.RunConstraints{Deletable: true, Reorderable: true}
 	switch marker {
