@@ -655,7 +655,7 @@ func (r *Reader) buildBlock(tuID string, tu *tuState, srcLang string, locale mod
 			if tuv.seg != nil {
 				block.Source = []*model.Segment{model.NewRunsSegment("s1", tuv.seg.runs)}
 			} else {
-				block.Source = []*model.Segment{{ID: "s1", Content: model.NewFragment("")}}
+				block.Source = []*model.Segment{model.NewRunsSegment("s1", []model.Run{{Text: &model.TextRun{Text: ""}}})}
 			}
 			sourceFound = true
 			break
@@ -668,13 +668,13 @@ func (r *Reader) buildBlock(tuID string, tu *tuState, srcLang string, locale mod
 		if tuv.seg != nil {
 			block.Source = []*model.Segment{model.NewRunsSegment("s1", tuv.seg.runs)}
 		} else {
-			block.Source = []*model.Segment{{ID: "s1", Content: model.NewFragment("")}}
+			block.Source = []*model.Segment{model.NewRunsSegment("s1", []model.Run{{Text: &model.TextRun{Text: ""}}})}
 		}
 	}
 
 	// If still no source, set empty
 	if block.Source == nil {
-		block.Source = []*model.Segment{{ID: "s1", Content: model.NewFragment("")}}
+		block.Source = []*model.Segment{model.NewRunsSegment("s1", []model.Run{{Text: &model.TextRun{Text: ""}}})}
 	}
 
 	// Add targets
