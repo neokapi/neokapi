@@ -308,26 +308,81 @@ export type PlaceholderKind =
   | 'node' // {cond && <X/>} — ReactNode-valued expression
   | 'icu-pivot'; // variable driving a plural / select construct
 
-// ─── Document wrapper ─────────────────────────────────────────────
+// ─── Document + File envelope ─────────────────────────────────────
 
 /**
- * Top-level extraction output. One per source file. Blocks inside
- * the document are distinguished by `Block.properties.component`
- * and related fields.
+ * The .klf file envelope version. Incremented on non-backward-
+ * compatible schema changes. Consumers MUST reject unknown major
+ * versions and SHOULD accept unknown minor versions of their major.
  */
-export interface ExtractedDocument {
-  schemaVersion: '0.1.0';
-  sourceLocale: LocaleID;
+export const SchemaVersion = '1.0' as const;
 
-  /** Relative path to the source file. */
-  file: string;
+/**
+ * The .klf file kind discriminator. Lets a consumer confirm a JSON
+ * blob is a KLF document before parsing, rather than a same-shaped
+ * structure from a different producer.
+ */
+export const Kind = 'kapi-localization-format' as const;
 
-  /**
-   * Format of the source document, so consumers know which
-   * preview builder and extractor apply. Currently always "jsx"
-   * for neokapi-react output.
-   */
-  documentType: 'jsx';
+/** Format of an extracted document's source. */
+export type DocumentType = 'jsx' | 'html' | 'markdown' | 'generic';
 
+/**
+ * Non-authoritative skeleton reference. The extractor's `merge()`
+ * consumes the skeleton to reconstruct the original source file
+ * with translated content substituted in.
+ */
+export interface Skeleton {
+  ref: string;
+  digest?: string;
+}
+
+/**
+ * One extracted source file, with its blocks. A .klf File wraps
+ * one or more Documents.
+ */
+export interface Document {
+  id: string;
+  documentType: DocumentType;
+  path: string;
+  sourceHash?: string;
+  skeleton?: Skeleton;
   blocks: Block[];
+}
+
+/** Identifies the extractor that produced a .klf. */
+export interface Generator {
+  id: string;
+  version: string;
+  capabilities?: string[];
+}
+
+/** Identifies the project a .klf belongs to. */
+export interface Project {
+  id: string;
+  sourceLocale: LocaleID;
+}
+
+/**
+ * Vocabulary declarations: the list of vocabulary packs whose span
+ * type entries this file's runs expect consumers to have loaded.
+ */
+export interface Vocabulary {
+  extends?: string[];
+}
+
+/**
+ * Top-level .klf JSON envelope. This is what `marshalFile` emits
+ * and what `core/klf.Unmarshal` parses on the Go side. Field order
+ * and shape are normative; deterministic serialization is what
+ * makes the manifest SHA-256 stable across languages.
+ */
+export interface File {
+  schemaVersion: typeof SchemaVersion;
+  kind: typeof Kind;
+  created?: string;
+  generator: Generator;
+  project: Project;
+  vocabulary?: Vocabulary;
+  documents: Document[];
 }

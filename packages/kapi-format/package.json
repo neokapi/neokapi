@@ -12,13 +12,22 @@
     "./vocabulary": "./src/vocabulary.ts",
     "./preview": "./src/preview.ts",
     "./annotation": "./src/annotation.ts",
+    "./klf": "./src/klf.ts",
+    "./klz": "./src/klz.ts",
     "./package.json": "./package.json"
   },
   "scripts": {
     "typecheck": "vpx tsc --noEmit",
-    "validate": "node --experimental-strip-types examples/validate.ts"
+    "validate": "node --experimental-strip-types examples/validate.ts",
+    "test": "vitest run"
   },
   "engines": {
     "node": ">=22"
+  },
+  "dependencies": {
+    "fflate": "^0.8.2"
+  },
+  "devDependencies": {
+    "vitest": "^3.2.4"
   }
 }
