@@ -653,9 +653,9 @@ func (r *Reader) emitParts(ctx context.Context, ch chan<- model.PartResult, toke
 				break
 			}
 
-			// Build the fragment with inline codes
-			frag := r.buildFragment(parts)
-			text := frag.Text()
+			// Build the segment content as Runs with inline codes.
+			runs := r.buildRuns(parts)
+			text := model.FlattenRuns(runs)
 
 			// Skip empty or whitespace-only strings
 			if strings.TrimSpace(text) == "" {
@@ -708,7 +708,7 @@ func (r *Reader) emitParts(ctx context.Context, ch chan<- model.PartResult, toke
 			block := &model.Block{
 				ID:           blockID,
 				Translatable: true,
-				Source:       []*model.Segment{{ID: "s1", Content: frag}},
+				Source:       []*model.Segment{model.NewRunsSegment("s1", runs)},
 				Targets:      make(map[model.LocaleID][]*model.Segment),
 				Properties:   make(map[string]string),
 				Annotations:  make(map[string]model.Annotation),
@@ -762,21 +762,20 @@ func (r *Reader) skipNextString(tokens []token, i int) int {
 	return i
 }
 
-// buildFragment builds a Fragment from one or more string tokens, adding inline codes
+// buildRuns builds a Run sequence from one or more string tokens, adding inline codes
 // for HTML tags, PHP variables, and escape sequences.
-func (r *Reader) buildFragment(tokens []token) *model.Fragment {
-	// First, join the string values
+func (r *Reader) buildRuns(tokens []token) []model.Run {
+	// First, join the string values.
 	var combined strings.Builder
 	for _, tok := range tokens {
 		combined.WriteString(tok.value)
 	}
 	text := combined.String()
 
-	frag := &model.Fragment{}
 	spanID := 1
 
-	// Determine if we need to process inline codes
-	// (only double-quoted strings and heredocs can have variables and escape sequences)
+	// Only double-quoted strings and heredocs can have PHP
+	// variables and escape sequences.
 	hasDoubleQuoted := false
 	for _, tok := range tokens {
 		if tok.quoteType == '"' || tok.quoteType == 'h' {
@@ -785,66 +784,59 @@ func (r *Reader) buildFragment(tokens []token) *model.Fragment {
 		}
 	}
 
-	// Find all inline code positions
+	// Find all inline code positions.
 	var matches []inlineCode
-
-	// HTML tags
 	for _, loc := range htmlTagPattern.FindAllStringIndex(text, -1) {
 		matches = append(matches, inlineCode{start: loc[0], end: loc[1], data: text[loc[0]:loc[1]], typ: "html"})
 	}
-
-	// PHP variables (only in double-quoted or heredoc context)
 	if hasDoubleQuoted {
 		for _, loc := range phpVarPattern.FindAllStringIndex(text, -1) {
 			matches = append(matches, inlineCode{start: loc[0], end: loc[1], data: text[loc[0]:loc[1]], typ: "php:variable"})
 		}
-
-		// Escape sequences
 		for _, loc := range escapePattern.FindAllStringIndex(text, -1) {
 			matches = append(matches, inlineCode{start: loc[0], end: loc[1], data: text[loc[0]:loc[1]], typ: "php:escape"})
 		}
 	}
 
 	if len(matches) == 0 {
-		frag.CodedText = text
-		return frag
+		if text == "" {
+			return nil
+		}
+		return []model.Run{{Text: &model.TextRun{Text: text}}}
 	}
 
-	// Sort matches by position, remove overlaps
 	matches = r.sortAndDedup(matches)
 
+	var runs []model.Run
 	lastEnd := 0
 	for _, m := range matches {
 		if m.start > lastEnd {
-			frag.AppendText(text[lastEnd:m.start])
+			runs = append(runs, model.Run{Text: &model.TextRun{Text: text[lastEnd:m.start]}})
 		}
-
-		spanType := model.SpanPlaceholder
-		if m.typ == "html" {
-			data := m.data
-			if strings.HasPrefix(data, "</") {
-				spanType = model.SpanClosing
-			} else if strings.HasSuffix(data, "/>") {
-				spanType = model.SpanPlaceholder
-			} else {
-				spanType = model.SpanOpening
-			}
-		}
-
-		frag.AppendSpan(&model.Span{
-			ID:       fmt.Sprintf("c%d", spanID),
-			SpanType: spanType,
-			Type:     m.typ,
-			Data:     m.data,
-		})
+		// HTML tags map to PcOpen / PcClose / Ph depending on
+		// whether the match is an opening, closing, or
+		// self-closing element; every other code kind is a
+		// self-closing placeholder.
+		id := fmt.Sprintf("c%d", spanID)
 		spanID++
 		lastEnd = m.end
+		if m.typ == "html" {
+			switch {
+			case strings.HasPrefix(m.data, "</"):
+				runs = append(runs, model.Run{PcClose: &model.PcCloseRun{ID: id, Type: "html", Data: m.data}})
+			case strings.HasSuffix(m.data, "/>"):
+				runs = append(runs, model.Run{Ph: &model.PlaceholderRun{ID: id, Type: "html", Data: m.data}})
+			default:
+				runs = append(runs, model.Run{PcOpen: &model.PcOpenRun{ID: id, Type: "html", Data: m.data}})
+			}
+		} else {
+			runs = append(runs, model.Run{Ph: &model.PlaceholderRun{ID: id, Type: m.typ, Data: m.data}})
+		}
 	}
 	if lastEnd < len(text) {
-		frag.AppendText(text[lastEnd:])
+		runs = append(runs, model.Run{Text: &model.TextRun{Text: text[lastEnd:]}})
 	}
-
-	return frag
+	return runs
 }
 
 // sortAndDedup sorts code matches by position and removes overlapping matches.
