@@ -130,7 +130,7 @@ type EntityAnnotationDTO struct {
 
 // AddTMEntryRequest is the request to add a new multilingual TM entry.
 // Callers populate Variants with one VariantInput per locale; the server
-// rebuilds Fragments from CodedText + Spans or falls back to plain Text.
+// rebuilds Run sequences from CodedText + Spans or falls back to plain Text.
 type AddTMEntryRequest struct {
 	Variants    map[string]VariantInputDTO `json:"variants"`
 	HintSrcLang string                     `json:"hint_src_lang"`
@@ -258,55 +258,93 @@ type EntityValueFilter struct {
 
 // --- Conversion helpers ---
 
-func spanTypeStr(st model.SpanType) string {
-	switch st {
-	case model.SpanOpening:
-		return "opening"
-	case model.SpanClosing:
-		return "closing"
-	default:
-		return "placeholder"
-	}
-}
-
-func parseSpanType(s string) model.SpanType {
-	switch s {
-	case "opening":
-		return model.SpanOpening
-	case "closing":
-		return model.SpanClosing
-	default:
-		return model.SpanPlaceholder
-	}
-}
-
-// fragmentFromVariantInput builds a model.Fragment from the frontend variant
-// input. If Coded is empty, the fragment is built from Text via NewFragment.
-func fragmentFromVariantInput(in VariantInputDTO) *model.Fragment {
+// runsFromVariantInput builds a Run sequence from the frontend variant
+// input. If Coded is empty, the result is a single TextRun (or empty for
+// empty Text). When Coded carries PUA markers, each marker consumes the
+// next entry in Spans and emits the matching Run kind.
+func runsFromVariantInput(in VariantInputDTO) []model.Run {
 	if in.Coded == "" {
-		return model.NewFragment(in.Text)
+		if in.Text == "" {
+			return nil
+		}
+		return []model.Run{{Text: &model.TextRun{Text: in.Text}}}
 	}
-	frag := &model.Fragment{CodedText: in.Coded}
-	for _, s := range in.Spans {
-		frag.Spans = append(frag.Spans, &model.Span{
-			SpanType:    parseSpanType(s.SpanType),
+	var runs []model.Run
+	var text []rune
+	flushText := func() {
+		if len(text) > 0 {
+			runs = append(runs, model.Run{Text: &model.TextRun{Text: string(text)}})
+			text = text[:0]
+		}
+	}
+	spanIdx := 0
+	for _, r := range in.Coded {
+		switch r {
+		case model.MarkerOpening, model.MarkerClosing, model.MarkerPlaceholder:
+			flushText()
+			if spanIdx >= len(in.Spans) {
+				continue
+			}
+			s := in.Spans[spanIdx]
+			spanIdx++
+			runs = append(runs, spanDTOToRun(r, s))
+		default:
+			text = append(text, r)
+		}
+	}
+	flushText()
+	return runs
+}
+
+// spanDTOToRun maps a marker + SpanDTO to a single Run. Constraints
+// default to the legacy span behaviour (deletable + reorderable, not
+// cloneable) since the editor DTO does not carry per-span constraints.
+func spanDTOToRun(marker rune, s SpanDTO) model.Run {
+	defaultConstraints := &model.RunConstraints{Deletable: true, Reorderable: true}
+	switch marker {
+	case model.MarkerOpening:
+		return model.Run{PcOpen: &model.PcOpenRun{
 			Type:        s.Type,
 			Data:        s.Data,
-			DisplayText: s.DisplayText,
-		})
+			Disp:        s.DisplayText,
+			Constraints: defaultConstraints,
+		}}
+	case model.MarkerClosing:
+		return model.Run{PcClose: &model.PcCloseRun{
+			Type: s.Type,
+			Data: s.Data,
+		}}
+	default:
+		return model.Run{Ph: &model.PlaceholderRun{
+			Type:        s.Type,
+			Data:        s.Data,
+			Disp:        s.DisplayText,
+			Constraints: defaultConstraints,
+		}}
 	}
-	return frag
 }
 
-// fragmentToVariantDTO converts a stored fragment to the frontend shape.
-func fragmentToVariantDTO(locale model.LocaleID, frag *model.Fragment) VariantDTO {
-	if frag == nil {
+// runsToVariantDTO converts a Run sequence into the frontend shape. The
+// coded view is materialised on demand via AsCodedText so the wire shape
+// stays unchanged.
+func runsToVariantDTO(locale model.LocaleID, runs []model.Run) VariantDTO {
+	if len(runs) == 0 {
 		return VariantDTO{Locale: string(locale)}
 	}
-	spans := make([]SpanDTO, 0, len(frag.Spans))
-	for _, s := range frag.Spans {
-		spans = append(spans, SpanDTO{
-			SpanType:    spanTypeStr(s.SpanType),
+	coded, spans := model.AsCodedText(runs)
+	dtos := make([]SpanDTO, 0, len(spans))
+	for _, s := range spans {
+		var st string
+		switch s.SpanType {
+		case model.SpanOpening:
+			st = "opening"
+		case model.SpanClosing:
+			st = "closing"
+		default:
+			st = "placeholder"
+		}
+		dtos = append(dtos, SpanDTO{
+			SpanType:    st,
 			Type:        s.Type,
 			Data:        s.Data,
 			DisplayText: s.DisplayText,
@@ -314,9 +352,9 @@ func fragmentToVariantDTO(locale model.LocaleID, frag *model.Fragment) VariantDT
 	}
 	return VariantDTO{
 		Locale: string(locale),
-		Text:   frag.Text(),
-		Coded:  frag.CodedText,
-		Spans:  spans,
+		Text:   model.FlattenRuns(runs),
+		Coded:  coded,
+		Spans:  dtos,
 	}
 }
 
@@ -409,7 +447,7 @@ func entitiesFromDTO(in []EntityMappingDTO) []sievepen.EntityMapping {
 func tmEntryToDTO(entry sievepen.TMEntry) TMEntryDTO {
 	variants := make(map[string]VariantDTO, len(entry.Variants))
 	for loc, runs := range entry.Variants {
-		variants[string(loc)] = fragmentToVariantDTO(loc, model.RunsToFragment(runs))
+		variants[string(loc)] = runsToVariantDTO(loc, runs)
 	}
 	return TMEntryDTO{
 		ID:          entry.ID,
@@ -431,7 +469,7 @@ func variantsFromInput(in map[string]VariantInputDTO) map[model.LocaleID][]model
 		if loc == "" {
 			continue
 		}
-		out[model.LocaleID(loc)] = model.FragmentToRuns(fragmentFromVariantInput(v))
+		out[model.LocaleID(loc)] = runsFromVariantInput(v)
 	}
 	return out
 }
@@ -688,11 +726,11 @@ func (a *App) LookupTM(handle string, req LookupTMRequest) []TMMatchDTO {
 		return nil
 	}
 
-	frag := buildFragmentWithEntities(req.Text, req.Entities)
+	runs := buildRunsWithEntities(req.Text, req.Entities)
 	block := &model.Block{
 		ID:           "lookup",
 		Translatable: true,
-		Source:       []*model.Segment{{ID: "s1", Runs: model.FragmentToRuns(frag)}},
+		Source:       []*model.Segment{{ID: "s1", Runs: runs}},
 		Annotations:  make(map[string]model.Annotation),
 	}
 	for i, ea := range req.Entities {
@@ -741,10 +779,15 @@ func (a *App) LookupTM(handle string, req LookupTMRequest) []TMMatchDTO {
 	return result
 }
 
-// buildFragmentWithEntities constructs a Fragment from plain text + entity annotations.
-func buildFragmentWithEntities(text string, entities []EntityAnnotationDTO) *model.Fragment {
+// buildRunsWithEntities builds a Run sequence from plain text + entity
+// annotations. Entity ranges become PlaceholderRuns; the surrounding
+// text is split into TextRuns.
+func buildRunsWithEntities(text string, entities []EntityAnnotationDTO) []model.Run {
 	if len(entities) == 0 {
-		return model.NewFragment(text)
+		if text == "" {
+			return nil
+		}
+		return []model.Run{{Text: &model.TextRun{Text: text}}}
 	}
 
 	sorted := make([]EntityAnnotationDTO, len(entities))
@@ -754,28 +797,33 @@ func buildFragmentWithEntities(text string, entities []EntityAnnotationDTO) *mod
 	})
 
 	runes := []rune(text)
-	frag := &model.Fragment{}
+	var runs []model.Run
 	pos := 0
+	appendText := func(s string) {
+		if s == "" {
+			return
+		}
+		runs = append(runs, model.Run{Text: &model.TextRun{Text: s}})
+	}
 
 	for i, ea := range sorted {
 		if ea.Start < pos || ea.Start >= len(runes) || ea.End > len(runes) {
 			continue
 		}
 		if ea.Start > pos {
-			frag.AppendText(string(runes[pos:ea.Start]))
+			appendText(string(runes[pos:ea.Start]))
 		}
-		frag.AppendSpan(&model.Span{
-			SpanType: model.SpanPlaceholder,
-			Type:     ea.Type,
-			ID:       fmt.Sprintf("e%d", i+1),
-			Data:     ea.Text,
-		})
+		runs = append(runs, model.Run{Ph: &model.PlaceholderRun{
+			ID:   fmt.Sprintf("e%d", i+1),
+			Type: ea.Type,
+			Data: ea.Text,
+		}})
 		pos = ea.End
 	}
 	if pos < len(runes) {
-		frag.AppendText(string(runes[pos:]))
+		appendText(string(runes[pos:]))
 	}
-	return frag
+	return runs
 }
 
 // --- Import / Export ---
@@ -1010,8 +1058,8 @@ func (a *App) AnnotateEntities(handle string, req AnnotateEntitiesRequest) (*Ann
 			if len(runs) == 0 {
 				continue
 			}
-			newFrag, n := rebuildWithEntities(model.RunsToFragment(runs), req.Patterns)
-			newVariants[loc] = model.FragmentToRuns(newFrag)
+			newRuns, n := rebuildRunsWithEntities(runs, req.Patterns)
+			newVariants[loc] = newRuns
 			if n > 0 {
 				anyHit = true
 				perLocaleCounts[loc] = n
@@ -1081,12 +1129,14 @@ func (a *App) ResolveEntityConcepts(tmHandle, tbHandle string, entryIDs []string
 	return updated, nil
 }
 
-// rebuildWithEntities creates a new Fragment with entity spans inserted for pattern matches.
-func rebuildWithEntities(frag *model.Fragment, patterns []EntityPatternRequest) (*model.Fragment, int) {
-	if frag == nil {
-		return nil, 0
-	}
-	text := frag.Text()
+// rebuildRunsWithEntities walks a Run sequence's flat text, locates
+// pattern occurrences, and emits a new Run sequence with PlaceholderRuns
+// inserted at the matched ranges. Returns the new sequence and the
+// number of entity hits inserted. Inline-code runs in the input are
+// dropped — pattern matching is only meaningful against the textual
+// projection.
+func rebuildRunsWithEntities(runs []model.Run, patterns []EntityPatternRequest) ([]model.Run, int) {
+	text := model.FlattenRuns(runs)
 
 	type entityHit struct {
 		start      int
@@ -1127,7 +1177,7 @@ func rebuildWithEntities(frag *model.Fragment, patterns []EntityPatternRequest) 
 			End:   h.end,
 		}
 	}
-	return buildFragmentWithEntities(text, dtos), len(filtered)
+	return buildRunsWithEntities(text, dtos), len(filtered)
 }
 
 // findPatternOccurrences returns rune positions of all non-overlapping occurrences.
