@@ -295,13 +295,19 @@ kapi-desktop-frontend-test: kapi-desktop-frontend-deps ## Run Kapi Desktop front
 kapi-desktop-frontend-check: kapi-desktop-frontend-deps ## Lint + format + typecheck Kapi Desktop frontend
 	cd $(KAPI_DESKTOP_DIR)/frontend && vp check
 
-kapi-desktop-extract: kapi-desktop-frontend-deps ## Extract translatable strings from Kapi Desktop (@neokapi/kapi-react)
+kapi-desktop-extract: kapi-desktop-frontend-deps ## Extract translatable blocks to i18n/extracted.klz
 	cd $(KAPI_DESKTOP_DIR)/frontend && vp run extract
 
-kapi-desktop-pseudo-translate: ## Pseudo-translate extracted strings → public/translations/qps.json
-	cd $(KAPI_DESKTOP_DIR)/frontend && vp run pseudo-translate
+kapi-desktop-pseudo-translate: kapi-desktop-extract bin/kapi ## Pseudo-translate extracted.klz → translated.klz
+	./bin/kapi pseudo-translate $(KAPI_DESKTOP_DIR)/frontend/i18n/extracted.klz \
+		--target-lang qps \
+		-o $(KAPI_DESKTOP_DIR)/frontend/i18n/translated.klz \
+		-q
 
-kapi-desktop-translations: kapi-desktop-extract kapi-desktop-pseudo-translate ## Extract + pseudo-translate Kapi Desktop strings in one shot
+kapi-desktop-compile: ## Compile translated.klz → public/translations/<locale>.json for the kapi-react runtime
+	cd $(KAPI_DESKTOP_DIR)/frontend && vp run compile
+
+kapi-desktop-translations: kapi-desktop-pseudo-translate kapi-desktop-compile ## Extract → kapi pseudo-translate → kapi-react compile
 
 storybook-fixtures: ## Generate Storybook fixtures from real format/tool data
 	@./scripts/gen-storybook-fixtures.sh
@@ -540,7 +546,7 @@ help: ## Show this help
         build-kapi-desktop kapi-desktop-dev kapi-desktop-test \
         kapi-desktop-frontend-deps kapi-desktop-frontend-dev kapi-desktop-frontend-build \
         kapi-desktop-frontend-test kapi-desktop-frontend-check kapi-desktop-extract \
-        kapi-desktop-pseudo-translate kapi-desktop-translations \
+        kapi-desktop-pseudo-translate kapi-desktop-compile kapi-desktop-translations \
         flow-editor-deps flow-editor-check flow-editor-test \
         kapi-storybook kapi-storybook-build bowrain-storybook bowrain-storybook-build \
         cover test-e2e test-e2e-kapi test-e2e-bowrain test-e2e-cloud test-e2e-dev \

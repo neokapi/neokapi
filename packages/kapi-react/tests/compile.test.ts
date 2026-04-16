@@ -49,7 +49,13 @@ function translatedFile(): File {
             placeholders: [
               { name: 'name', kind: 'variable', sourceExpr: 'name' },
             ],
-            properties: { file: 'App.tsx' },
+            properties: {
+              file: 'App.tsx',
+              line: 1,
+              component: 'App',
+              jsxPath: 'h1',
+              element: 'h1',
+            },
           },
         ],
       },
