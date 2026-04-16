@@ -186,7 +186,7 @@ func (w *Writer) flush() error {
 			if trgSegs, ok := block.Targets[targetLang]; ok {
 				for _, ts := range trgSegs {
 					if ts.ID == seg.ID {
-						s.Target = &xmlTarget{Content: ts.Fragment().Text()}
+						s.Target = &xmlTarget{Content: ts.Text()}
 						break
 					}
 				}

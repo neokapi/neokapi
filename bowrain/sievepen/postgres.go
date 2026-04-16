@@ -367,10 +367,11 @@ func (tm *PostgresTM) Lookup(source *model.Block, sourceLocale, targetLocale mod
 		return nil, nil
 	}
 	opts = fw.ApplyDefaults(opts)
-	frag := source.FirstFragment()
-	if frag == nil {
+	seg := source.FirstSegment()
+	if seg == nil || len(seg.Runs) == 0 {
 		return nil, nil
 	}
+	frag := model.RunsToFragment(seg.Runs)
 	plainKey := fw.NormalizeText(frag.Text())
 	structKey := fw.NormalizeText(frag.StructuralText())
 	generalKey := fw.NormalizeText(frag.GeneralizedText())

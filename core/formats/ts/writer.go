@@ -152,12 +152,14 @@ func (w *Writer) writeFromSkeleton() error {
 			var text string
 			switch elemType {
 			case "source":
-				text = w.fragmentToXML(block.FirstFragment())
+				if seg := block.FirstSegment(); seg != nil && len(seg.Runs) > 0 {
+					text = w.fragmentToXML(model.RunsToFragment(seg.Runs))
+				}
 			case "translation":
 				if block.HasTarget(targetLocale) {
 					targetSegs := block.Targets[targetLocale]
-					if len(targetSegs) > 0 && targetSegs[0].Fragment() != nil {
-						text = w.fragmentToXML(targetSegs[0].Fragment())
+					if len(targetSegs) > 0 && len(targetSegs[0].Runs) > 0 {
+						text = w.fragmentToXML(model.RunsToFragment(targetSegs[0].Runs))
 					}
 				}
 			}
@@ -252,7 +254,10 @@ func (w *Writer) writeMessage(block *model.Block, targetLocale model.LocaleID) e
 	}
 
 	// Write source
-	sourceText := w.fragmentToXML(block.FirstFragment())
+	var sourceText string
+	if seg := block.FirstSegment(); seg != nil && len(seg.Runs) > 0 {
+		sourceText = w.fragmentToXML(model.RunsToFragment(seg.Runs))
+	}
 	if _, err := fmt.Fprintf(w.Output, "        <source>%s</source>\n", sourceText); err != nil {
 		return err
 	}
@@ -316,8 +321,8 @@ func (w *Writer) writeMessage(block *model.Block, targetLocale model.LocaleID) e
 
 		if block.HasTarget(targetLocale) {
 			targetSegs := block.Targets[targetLocale]
-			if len(targetSegs) > 0 && targetSegs[0].Fragment() != nil {
-				targetXML := w.fragmentToXML(targetSegs[0].Fragment())
+			if len(targetSegs) > 0 && len(targetSegs[0].Runs) > 0 {
+				targetXML := w.fragmentToXML(model.RunsToFragment(targetSegs[0].Runs))
 				transOpen += fmt.Sprintf(">%s</translation>\n", targetXML)
 			} else {
 				transOpen += "></translation>\n"
