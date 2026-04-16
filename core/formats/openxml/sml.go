@@ -368,40 +368,34 @@ func (p *smlParser) renderSI(runs []textRun) string {
 
 // buildBlock creates a model.Block from shared string text runs.
 func (p *smlParser) buildBlock(id string, runs []textRun, partPath string, siIndex int) *model.Block {
-	frag := &model.Fragment{}
+	b := &runBuilder{}
 	spanCounter := 0
 	var activeProps *runProps
 
 	for _, run := range runs {
 		if activeProps == nil || !activeProps.equal(run.props) {
 			if activeProps != nil && !activeProps.isEmpty() {
-				for _, s := range activeProps.closingSpans(&spanCounter) {
-					frag.AppendSpan(s)
-				}
+				activeProps.appendClosingRuns(b, &spanCounter)
 			}
 			if !run.props.isEmpty() {
-				for _, s := range run.props.openingSpans(&spanCounter) {
-					frag.AppendSpan(s)
-				}
+				run.props.appendOpeningRuns(b, &spanCounter)
 			}
 			propsCopy := run.props
 			activeProps = &propsCopy
 		}
 
-		frag.AppendText(run.text)
+		b.AppendText(run.text)
 	}
 
 	if activeProps != nil && !activeProps.isEmpty() {
-		for _, s := range activeProps.closingSpans(&spanCounter) {
-			frag.AppendSpan(s)
-		}
+		activeProps.appendClosingRuns(b, &spanCounter)
 	}
 
 	return &model.Block{
 		ID:           id,
 		Type:         "shared-string",
 		Translatable: true,
-		Source:       []*model.Segment{model.NewRunsSegment("s1", model.FragmentToRuns(frag))},
+		Source:       []*model.Segment{model.NewRunsSegment("s1", b.Runs())},
 		Targets:      make(map[model.LocaleID][]*model.Segment),
 		Properties: map[string]string{
 			"partPath": partPath,

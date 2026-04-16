@@ -32,21 +32,26 @@ func newCodeFinder(rules []string) (*codeFinder, error) {
 	return cf, nil
 }
 
-// apply scans a Fragment's plain text for regex matches and wraps them as
-// placeholder spans. Only works on fragments without existing spans (code
-// finder applies to raw text before formatting spans are added in Okapi's model,
-// but here we apply it after since our Fragment is already built).
-func (cf *codeFinder) apply(frag *model.Fragment, spanCounter *int) {
-	if len(cf.patterns) == 0 || frag == nil {
-		return
+// applyToRuns scans a plain-text run sequence for regex matches and
+// wraps them as placeholder runs. Only applies when the sequence is a
+// single TextRun (no inline codes) — mirroring the original Fragment
+// behaviour that skipped fragments with spans.
+//
+// Returns the (possibly rewritten) run slice. If no patterns match, or
+// the sequence contains anything other than a single TextRun, the
+// input is returned unchanged.
+func (cf *codeFinder) applyToRuns(runs []model.Run, spanCounter *int) []model.Run {
+	if len(cf.patterns) == 0 {
+		return runs
 	}
 
-	// Only apply to plain text fragments (no existing spans)
-	if frag.HasSpans() {
-		return
+	// Only apply when the run sequence is a single TextRun. Matches
+	// the original Fragment check (no existing spans).
+	if len(runs) != 1 || runs[0].Text == nil {
+		return runs
 	}
 
-	text := frag.CodedText
+	text := runs[0].Text.Text
 
 	// Find all matches across all patterns
 	var matches []codeMatch
@@ -61,46 +66,37 @@ func (cf *codeFinder) apply(frag *model.Fragment, spanCounter *int) {
 	}
 
 	if len(matches) == 0 {
-		return
+		return runs
 	}
 
 	// Sort by position, remove overlaps (first match wins)
 	sortCodeMatches(matches)
 	matches = removeCodeOverlaps(matches)
 
-	// Rebuild the fragment with placeholder spans at match positions
-	newFrag := &model.Fragment{}
+	// Rebuild the run sequence with placeholder runs at match
+	// positions, using a runBuilder so adjacent text chunks coalesce.
+	b := &runBuilder{}
 	pos := 0
 
 	for _, m := range matches {
-		// Add text before this match
 		if pos < m.start {
-			newFrag.AppendText(text[pos:m.start])
+			b.AppendText(text[pos:m.start])
 		}
 
-		// Add placeholder span for the match
 		*spanCounter++
-		newFrag.AppendSpan(&model.Span{
-			SpanType:  model.SpanPlaceholder,
-			Type:      "fmt:code",
-			SubType:   "openxml:codeFinder",
-			ID:        fmt.Sprintf("c%d", *spanCounter),
-			Data:      m.text,
-			EquivText: m.text,
-			Deletable: false,
-		})
+		b.AppendPh(fmt.Sprintf("c%d", *spanCounter),
+			"fmt:code", "openxml:codeFinder",
+			m.text, m.text, "",
+			false, false, false)
 
 		pos = m.end
 	}
 
-	// Add remaining text
 	if pos < len(text) {
-		newFrag.AppendText(text[pos:])
+		b.AppendText(text[pos:])
 	}
 
-	// Replace the original fragment's content
-	frag.CodedText = newFrag.CodedText
-	frag.Spans = newFrag.Spans
+	return b.Runs()
 }
 
 // sortCodeMatches sorts matches by start position using insertion sort.

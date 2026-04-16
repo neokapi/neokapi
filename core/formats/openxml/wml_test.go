@@ -98,20 +98,28 @@ func TestRunPropsEqual(t *testing.T) {
 	assert.False(t, a.equal(c))
 }
 
-func TestRunPropsOpeningClosingSpans(t *testing.T) {
+func TestRunPropsOpeningClosingRuns(t *testing.T) {
 	props := runProps{bold: true, italic: true}
 	counter := 0
 
-	opening := props.openingSpans(&counter)
+	b := &runBuilder{}
+	props.appendOpeningRuns(b, &counter)
+	opening := b.Runs()
 	assert.Len(t, opening, 2)
-	assert.Equal(t, TypeBold, opening[0].Type)
-	assert.Equal(t, TypeItalic, opening[1].Type)
+	assert.NotNil(t, opening[0].PcOpen)
+	assert.NotNil(t, opening[1].PcOpen)
+	assert.Equal(t, TypeBold, opening[0].PcOpen.Type)
+	assert.Equal(t, TypeItalic, opening[1].PcOpen.Type)
 
-	closing := props.closingSpans(&counter)
+	cb := &runBuilder{}
+	props.appendClosingRuns(cb, &counter)
+	closing := cb.Runs()
 	assert.Len(t, closing, 2)
+	assert.NotNil(t, closing[0].PcClose)
+	assert.NotNil(t, closing[1].PcClose)
 	// Closing should be in reverse order
-	assert.Equal(t, TypeItalic, closing[0].Type)
-	assert.Equal(t, TypeBold, closing[1].Type)
+	assert.Equal(t, TypeItalic, closing[0].PcClose.Type)
+	assert.Equal(t, TypeBold, closing[1].PcClose.Type)
 }
 
 func TestMergeRuns(t *testing.T) {

@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"slices"
 	"strings"
-
-	"github.com/neokapi/neokapi/core/model"
 )
 
 // runProps holds normalized run properties extracted from <w:rPr>.
@@ -41,81 +39,57 @@ func (rp runProps) isEmpty() bool {
 		!rp.strike && rp.vertAlign == "" && !rp.vanish
 }
 
-// openingSpans returns the Span opening tags for this run's formatting.
-func (rp runProps) openingSpans(idCounter *int) []*model.Span {
-	var spans []*model.Span
-	add := func(typ, subType, data string) {
+// appendOpeningRuns emits PcOpen runs for this run's formatting.
+func (rp runProps) appendOpeningRuns(b *runBuilder, idCounter *int) {
+	emit := func(typ, subType, data string) {
 		*idCounter++
-		spans = append(spans, &model.Span{
-			SpanType:   model.SpanOpening,
-			Type:       typ,
-			SubType:    subType,
-			ID:         idStr(*idCounter),
-			Data:       data,
-			Deletable:  true,
-			Cloneable:  true,
-			CanReorder: true,
-		})
+		b.AppendPcOpen(idStr(*idCounter), typ, subType, data, "", "", true, true, true)
 	}
-
 	if rp.bold {
-		add(TypeBold, SubTypeBold, "<w:b/>")
+		emit(TypeBold, SubTypeBold, "<w:b/>")
 	}
 	if rp.italic {
-		add(TypeItalic, SubTypeItalic, "<w:i/>")
+		emit(TypeItalic, SubTypeItalic, "<w:i/>")
 	}
 	if rp.underline != "" {
-		add(TypeUnderline, SubTypeUnderline, "<w:u w:val=\""+rp.underline+"\"/>")
+		emit(TypeUnderline, SubTypeUnderline, "<w:u w:val=\""+rp.underline+"\"/>")
 	}
 	if rp.strike {
-		add(TypeStrikethrough, SubTypeStrikethrough, "<w:strike/>")
+		emit(TypeStrikethrough, SubTypeStrikethrough, "<w:strike/>")
 	}
 	if rp.vertAlign == "superscript" {
-		add(TypeSuperscript, SubTypeSuperscript, "<w:vertAlign w:val=\"superscript\"/>")
+		emit(TypeSuperscript, SubTypeSuperscript, "<w:vertAlign w:val=\"superscript\"/>")
 	}
 	if rp.vertAlign == "subscript" {
-		add(TypeSubscript, SubTypeSubscript, "<w:vertAlign w:val=\"subscript\"/>")
+		emit(TypeSubscript, SubTypeSubscript, "<w:vertAlign w:val=\"subscript\"/>")
 	}
-	return spans
 }
 
-// closingSpans returns closing Span tags in reverse order.
-func (rp runProps) closingSpans(idCounter *int) []*model.Span {
-	var spans []*model.Span
-	add := func(typ, subType, data string) {
+// appendClosingRuns emits PcClose runs for this run's formatting in
+// reverse order.
+func (rp runProps) appendClosingRuns(b *runBuilder, idCounter *int) {
+	emit := func(typ, subType, data string) {
 		*idCounter++
-		spans = append(spans, &model.Span{
-			SpanType:   model.SpanClosing,
-			Type:       typ,
-			SubType:    subType,
-			ID:         idStr(*idCounter),
-			Data:       data,
-			Deletable:  true,
-			Cloneable:  true,
-			CanReorder: true,
-		})
+		b.AppendPcClose(idStr(*idCounter), typ, subType, data, "")
 	}
-
-	// Close in reverse order
 	if rp.vertAlign == "subscript" {
-		add(TypeSubscript, SubTypeSubscript, "</w:vertAlign>")
+		emit(TypeSubscript, SubTypeSubscript, "</w:vertAlign>")
 	}
 	if rp.vertAlign == "superscript" {
-		add(TypeSuperscript, SubTypeSuperscript, "</w:vertAlign>")
+		emit(TypeSuperscript, SubTypeSuperscript, "</w:vertAlign>")
 	}
 	if rp.strike {
-		add(TypeStrikethrough, SubTypeStrikethrough, "</w:strike>")
+		emit(TypeStrikethrough, SubTypeStrikethrough, "</w:strike>")
 	}
 	if rp.underline != "" {
-		add(TypeUnderline, SubTypeUnderline, "</w:u>")
+		emit(TypeUnderline, SubTypeUnderline, "</w:u>")
 	}
 	if rp.italic {
-		add(TypeItalic, SubTypeItalic, "</w:i>")
+		emit(TypeItalic, SubTypeItalic, "</w:i>")
 	}
 	if rp.bold {
-		add(TypeBold, SubTypeBold, "</w:b>")
+		emit(TypeBold, SubTypeBold, "</w:b>")
 	}
-	return spans
 }
 
 func idStr(n int) string {
