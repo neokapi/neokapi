@@ -29,7 +29,7 @@ GO := go
 # ICU requirement: The FTS5 ICU tokenizer requires ICU development libraries.
 #   Linux:  sudo apt-get install libicu-dev pkg-config
 #   macOS:  brew install icu4c && export PKG_CONFIG_PATH="/opt/homebrew/opt/icu4c@78/lib/pkgconfig"
-GOTAGS  := -tags fts5
+GOTAGS  := -tags "fts5 klzcache"
 
 # macOS Homebrew ICU: expose to pkg-config if not already on the path.
 ifeq ($(shell uname -s),Darwin)
