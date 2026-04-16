@@ -611,12 +611,12 @@ func (w *Writer) removeSMLProp(props []string, spanType string) []string {
 func (w *Writer) getFragment(block *model.Block) *model.Fragment {
 	if !w.Locale.IsEmpty() && block.HasTarget(w.Locale) {
 		segs := block.Targets[w.Locale]
-		if len(segs) > 0 && segs[0].Content != nil {
-			return segs[0].Content
+		if len(segs) > 0 && segs[0].Fragment() != nil {
+			return segs[0].Fragment()
 		}
 	}
 	if len(block.Source) > 0 {
-		return block.Source[0].Content
+		return block.Source[0].Fragment()
 	}
 	return nil
 }

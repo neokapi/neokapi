@@ -239,7 +239,7 @@ func TestComplexFieldExtraction(t *testing.T) {
 
 		blocks := parseDocXML(t, docXML, cfg)
 		require.Len(t, blocks, 1)
-		text := blocks[0].Source[0].Content.Text()
+		text := blocks[0].Source[0].Text()
 		assert.Contains(t, text, "Before ")
 		assert.Contains(t, text, "Link Text")
 		assert.Contains(t, text, " after")
@@ -253,7 +253,7 @@ func TestComplexFieldExtraction(t *testing.T) {
 
 		blocks := parseDocXML(t, docXML, cfg)
 		require.Len(t, blocks, 1)
-		text := blocks[0].Source[0].Content.Text()
+		text := blocks[0].Source[0].Text()
 		assert.Contains(t, text, "Before ")
 		assert.NotContains(t, text, "Link Text")
 		assert.Contains(t, text, " after")
@@ -266,7 +266,7 @@ func TestComplexFieldExtraction(t *testing.T) {
 
 		blocks := parseDocXML(t, docXML, cfg)
 		require.Len(t, blocks, 1)
-		text := blocks[0].Source[0].Content.Text()
+		text := blocks[0].Source[0].Text()
 		assert.Contains(t, text, "Link Text")
 	})
 }
@@ -308,7 +308,7 @@ func TestComplexFieldNested(t *testing.T) {
 
 		blocks := parseDocXML(t, docXML, cfg)
 		require.Len(t, blocks, 1)
-		text := blocks[0].Source[0].Content.Text()
+		text := blocks[0].Source[0].Text()
 		assert.Contains(t, text, "Chapter 1")
 	})
 }
@@ -338,7 +338,7 @@ func TestStyleOptimization(t *testing.T) {
 	blocks := parseDocXMLWithStyles(t, docXML, cfg, styles)
 	require.Len(t, blocks, 1)
 	// Bold should be subtracted (inherited from style) → no spans
-	assert.False(t, blocks[0].Source[0].Content.HasSpans())
+	assert.False(t, blocks[0].Source[0].HasInlineCodes())
 }
 
 func TestStyleOptimizationWithInheritance(t *testing.T) {
@@ -376,10 +376,10 @@ func TestFontMappingMergesRuns(t *testing.T) {
 	blocks := parseDocXML(t, docXML, cfg)
 	require.Len(t, blocks, 1)
 	// After font mapping, both runs have same fontName "sans-serif" → should merge
-	text := blocks[0].Source[0].Content.Text()
+	text := blocks[0].Source[0].Text()
 	assert.Equal(t, "Hello World", text)
 	// Should have no spans since the merged font is "other" property, not a formatting span
-	assert.False(t, blocks[0].Source[0].Content.HasSpans())
+	assert.False(t, blocks[0].Source[0].HasInlineCodes())
 }
 
 // --- Code finder tests ---
@@ -399,7 +399,7 @@ func TestCodeFinderBasic(t *testing.T) {
 
 	blocks := parseDocXML(t, docXML, cfg)
 	require.Len(t, blocks, 1)
-	frag := blocks[0].Source[0].Content
+	frag := blocks[0].Source[0].Fragment()
 	assert.True(t, frag.HasSpans(), "should have code finder spans")
 }
 
@@ -417,7 +417,7 @@ func TestCodeFinderDisabled(t *testing.T) {
 
 	blocks := parseDocXML(t, docXML, cfg)
 	require.Len(t, blocks, 1)
-	assert.False(t, blocks[0].Source[0].Content.HasSpans(), "no spans when code finder disabled")
+	assert.False(t, blocks[0].Source[0].HasInlineCodes(), "no spans when code finder disabled")
 }
 
 // --- Extract run fonts info tests ---

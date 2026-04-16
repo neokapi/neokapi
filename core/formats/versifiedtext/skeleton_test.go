@@ -150,9 +150,9 @@ func TestSkeletonStore_WithTranslation(t *testing.T) {
 			b := p.Resource.(*model.Block)
 			switch b.SourceText() {
 			case "Hello":
-				b.Targets[locale] = []*model.Segment{{ID: "s1", Content: model.NewFragment("Bonjour")}}
+				b.Targets[locale] = []*model.Segment{{ID: "s1", Runs: []model.Run{{Text: &model.TextRun{Text: "Bonjour"}}}}}
 			case "World":
-				b.Targets[locale] = []*model.Segment{{ID: "s1", Content: model.NewFragment("Monde")}}
+				b.Targets[locale] = []*model.Segment{{ID: "s1", Runs: []model.Run{{Text: &model.TextRun{Text: "Monde"}}}}}
 			}
 		}
 	}
@@ -193,9 +193,9 @@ func TestSkeletonStore_WithTranslation_CRLF(t *testing.T) {
 			b := p.Resource.(*model.Block)
 			switch b.SourceText() {
 			case "Hello":
-				b.Targets[locale] = []*model.Segment{{ID: "s1", Content: model.NewFragment("Hallo")}}
+				b.Targets[locale] = []*model.Segment{{ID: "s1", Runs: []model.Run{{Text: &model.TextRun{Text: "Hallo"}}}}}
 			case "World":
-				b.Targets[locale] = []*model.Segment{{ID: "s1", Content: model.NewFragment("Welt")}}
+				b.Targets[locale] = []*model.Segment{{ID: "s1", Runs: []model.Run{{Text: &model.TextRun{Text: "Welt"}}}}}
 			}
 		}
 	}
@@ -236,9 +236,9 @@ func TestSkeletonStore_WithTranslation_NonVerse(t *testing.T) {
 			b := p.Resource.(*model.Block)
 			switch b.SourceText() {
 			case "Title line":
-				b.Targets[locale] = []*model.Segment{{ID: "s1", Content: model.NewFragment("Ligne de titre")}}
+				b.Targets[locale] = []*model.Segment{{ID: "s1", Runs: []model.Run{{Text: &model.TextRun{Text: "Ligne de titre"}}}}}
 			case "Hello":
-				b.Targets[locale] = []*model.Segment{{ID: "s1", Content: model.NewFragment("Bonjour")}}
+				b.Targets[locale] = []*model.Segment{{ID: "s1", Runs: []model.Run{{Text: &model.TextRun{Text: "Bonjour"}}}}}
 			}
 		}
 	}

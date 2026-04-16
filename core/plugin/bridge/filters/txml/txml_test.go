@@ -99,8 +99,8 @@ func TestExtract_EntryWithCodes(t *testing.T) {
 	// The second segment should have inline spans for the <ut> codes.
 	require.GreaterOrEqual(t, len(b.Source), 2, "should have at least 2 segments")
 	seg2 := b.Source[1]
-	if seg2.Content != nil {
-		assert.NotEmpty(t, seg2.Content.Spans, "second segment should have spans for inline codes")
+	if seg2.Fragment() != nil {
+		assert.NotEmpty(t, seg2.Spans(), "second segment should have spans for inline codes")
 	}
 }
 

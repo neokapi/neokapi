@@ -672,10 +672,10 @@ func (r *Reader) applyCodeFinder(block *model.Block) {
 	}
 
 	for _, seg := range block.Source {
-		if seg.Content == nil {
+		if len(seg.Runs) == 0 {
 			continue
 		}
-		text := seg.Content.Text()
+		text := seg.Text()
 
 		type matchRange struct {
 			start, end int

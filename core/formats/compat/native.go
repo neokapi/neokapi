@@ -143,7 +143,7 @@ func blockTexts(parts []*model.Part, normalizeText func(string) string) []string
 func renderSourceText(b *model.Block) string {
 	var buf strings.Builder
 	for _, seg := range b.Source {
-		frag := seg.Content
+		frag := seg.Fragment()
 		if !frag.HasSpans() {
 			buf.WriteString(frag.CodedText)
 			continue

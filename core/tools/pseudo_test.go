@@ -145,7 +145,7 @@ func TestPseudoTranslateToolPreservesSpans(t *testing.T) {
 	block := &model.Block{
 		ID:           "tu1",
 		Translatable: true,
-		Source:       []*model.Segment{{ID: "s1", Content: frag}},
+		Source:       []*model.Segment{{ID: "s1", Runs: model.FragmentToRuns(frag)}},
 		Targets:      make(map[model.LocaleID][]*model.Segment),
 	}
 	part := &model.Part{Type: model.PartBlock, Resource: block}
@@ -158,7 +158,7 @@ func TestPseudoTranslateToolPreservesSpans(t *testing.T) {
 	targetSegs := resultBlock.Targets["qps"]
 	require.Len(t, targetSegs, 1)
 
-	targetFrag := targetSegs[0].Content
+	targetFrag := targetSegs[0].Fragment()
 	require.NotNil(t, targetFrag)
 
 	// Coded text should contain the markers
@@ -198,7 +198,7 @@ func TestPseudoTranslateToolSpansWithExpansion(t *testing.T) {
 	block := &model.Block{
 		ID:           "tu1",
 		Translatable: true,
-		Source:       []*model.Segment{{ID: "s1", Content: frag}},
+		Source:       []*model.Segment{{ID: "s1", Runs: model.FragmentToRuns(frag)}},
 		Targets:      make(map[model.LocaleID][]*model.Segment),
 	}
 	part := &model.Part{Type: model.PartBlock, Resource: block}
@@ -206,7 +206,7 @@ func TestPseudoTranslateToolSpansWithExpansion(t *testing.T) {
 
 	resultBlock := result.Resource.(*model.Block)
 	targetSegs := resultBlock.Targets["qps"]
-	targetFrag := targetSegs[0].Content
+	targetFrag := targetSegs[0].Fragment()
 
 	// Expansion padding should be based on text length, not marker count
 	plainText := targetFrag.Text()

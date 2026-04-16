@@ -30,9 +30,9 @@ func TestInlineCodesRemoveToolTarget(t *testing.T) {
 	block := &model.Block{
 		ID:           "tu1",
 		Translatable: true,
-		Source:       []*model.Segment{{ID: "s1", Content: model.NewFragment("Click here")}},
+		Source:       []*model.Segment{{ID: "s1", Runs: []model.Run{{Text: &model.TextRun{Text: "Click here"}}}}},
 		Targets: map[model.LocaleID][]*model.Segment{
-			model.LocaleFrench: {{ID: "s1", Content: frag}},
+			model.LocaleFrench: {{ID: "s1", Runs: model.FragmentToRuns(frag)}},
 		},
 		Properties: make(map[string]string),
 	}
@@ -43,7 +43,7 @@ func TestInlineCodesRemoveToolTarget(t *testing.T) {
 	targetSegs := resultBlock.Targets[model.LocaleFrench]
 	require.Len(t, targetSegs, 1)
 
-	targetFrag := targetSegs[0].Content
+	targetFrag := targetSegs[0].Fragment()
 	assert.Equal(t, "Cliquez ici", targetFrag.CodedText)
 	assert.False(t, targetFrag.HasSpans())
 }
@@ -67,7 +67,7 @@ func TestInlineCodesRemoveToolSource(t *testing.T) {
 	block := &model.Block{
 		ID:           "tu1",
 		Translatable: true,
-		Source:       []*model.Segment{{ID: "s1", Content: frag}},
+		Source:       []*model.Segment{{ID: "s1", Runs: model.FragmentToRuns(frag)}},
 		Targets:      make(map[model.LocaleID][]*model.Segment),
 		Properties:   make(map[string]string),
 	}
@@ -75,7 +75,7 @@ func TestInlineCodesRemoveToolSource(t *testing.T) {
 	result := processPart(t, tl, part)
 
 	resultBlock := result.Resource.(*model.Block)
-	sourceFrag := resultBlock.Source[0].Content
+	sourceFrag := resultBlock.Source[0].Fragment()
 	assert.Equal(t, "Click here", sourceFrag.CodedText)
 	assert.False(t, sourceFrag.HasSpans())
 }
@@ -103,7 +103,7 @@ func TestInlineCodesRemoveToolFragmentWithSpansBecomesPlainText(t *testing.T) {
 	block := &model.Block{
 		ID:           "tu1",
 		Translatable: true,
-		Source:       []*model.Segment{{ID: "s1", Content: frag}},
+		Source:       []*model.Segment{{ID: "s1", Runs: model.FragmentToRuns(frag)}},
 		Targets:      make(map[model.LocaleID][]*model.Segment),
 		Properties:   make(map[string]string),
 	}
@@ -111,7 +111,7 @@ func TestInlineCodesRemoveToolFragmentWithSpansBecomesPlainText(t *testing.T) {
 	result := processPart(t, tl, part)
 
 	resultBlock := result.Resource.(*model.Block)
-	sourceFrag := resultBlock.Source[0].Content
+	sourceFrag := resultBlock.Source[0].Fragment()
 	assert.Equal(t, "Hello world and ", sourceFrag.CodedText)
 	assert.False(t, sourceFrag.HasSpans())
 	assert.Equal(t, sourceFrag.Text(), sourceFrag.CodedText)
@@ -135,7 +135,7 @@ func TestInlineCodesRemoveToolSkipsNonTranslatable(t *testing.T) {
 	block := &model.Block{
 		ID:           "tu1",
 		Translatable: false,
-		Source:       []*model.Segment{{ID: "s1", Content: frag}},
+		Source:       []*model.Segment{{ID: "s1", Runs: model.FragmentToRuns(frag)}},
 		Targets:      make(map[model.LocaleID][]*model.Segment),
 		Properties:   make(map[string]string),
 	}
@@ -144,8 +144,8 @@ func TestInlineCodesRemoveToolSkipsNonTranslatable(t *testing.T) {
 
 	resultBlock := result.Resource.(*model.Block)
 	// Spans should still be present since block is non-translatable.
-	assert.True(t, resultBlock.Source[0].Content.HasSpans())
-	assert.Len(t, resultBlock.Source[0].Content.Spans, 2)
+	assert.True(t, resultBlock.Source[0].HasInlineCodes())
+	assert.Len(t, resultBlock.Source[0].Spans(), 2)
 }
 
 func TestInlineCodesRemoveConfigValidation(t *testing.T) {

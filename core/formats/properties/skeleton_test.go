@@ -172,9 +172,9 @@ func TestSkeletonStore_WithTranslation(t *testing.T) {
 			b := p.Resource.(*model.Block)
 			switch b.SourceText() {
 			case "Hello":
-				b.Targets[locale] = []*model.Segment{{ID: "s1", Content: model.NewFragment("Bonjour")}}
+				b.Targets[locale] = []*model.Segment{{ID: "s1", Runs: []model.Run{{Text: &model.TextRun{Text: "Bonjour"}}}}}
 			case "Goodbye":
-				b.Targets[locale] = []*model.Segment{{ID: "s1", Content: model.NewFragment("Au revoir")}}
+				b.Targets[locale] = []*model.Segment{{ID: "s1", Runs: []model.Run{{Text: &model.TextRun{Text: "Au revoir"}}}}}
 			}
 		}
 	}
@@ -212,7 +212,7 @@ func TestSkeletonStore_WithTranslation_UnicodeOutput(t *testing.T) {
 	for _, p := range parts {
 		if p.Type == model.PartBlock {
 			b := p.Resource.(*model.Block)
-			b.Targets[locale] = []*model.Segment{{ID: "s1", Content: model.NewFragment("\u3053\u3093\u306B\u3061\u306F")}}
+			b.Targets[locale] = []*model.Segment{{ID: "s1", Runs: []model.Run{{Text: &model.TextRun{Text: "\u3053\u3093\u306B\u3061\u306F"}}}}}
 		}
 	}
 
@@ -250,7 +250,7 @@ func TestSkeletonStore_WithTranslation_PreservesStructure(t *testing.T) {
 	for _, p := range parts {
 		if p.Type == model.PartBlock {
 			b := p.Resource.(*model.Block)
-			b.Targets[locale] = []*model.Segment{{ID: "s1", Content: model.NewFragment("Hallo")}}
+			b.Targets[locale] = []*model.Segment{{ID: "s1", Runs: []model.Run{{Text: &model.TextRun{Text: "Hallo"}}}}}
 		}
 	}
 

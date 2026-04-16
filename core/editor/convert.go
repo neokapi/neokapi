@@ -67,7 +67,7 @@ func BuildBlockIndex(parts []*model.Part, sourceLocale, format, itemName string)
 				if len(segs) > 0 {
 					var buf strings.Builder
 					for _, seg := range segs {
-						buf.WriteString(seg.Content.Text())
+						buf.WriteString(seg.Text())
 					}
 					b.Targets[string(locale)] = buf.String()
 				}

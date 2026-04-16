@@ -243,7 +243,7 @@ func blockToJS(vm *goja.Runtime, block *model.Block) *goja.Object {
 	for _, seg := range block.Source {
 		segObj := vm.NewObject()
 		contentObj := vm.NewObject()
-		_ = contentObj.Set("text", seg.Content.Text())
+		_ = contentObj.Set("text", seg.Text())
 		_ = segObj.Set("content", contentObj)
 		source = append(source, segObj)
 	}
@@ -256,7 +256,7 @@ func blockToJS(vm *goja.Runtime, block *model.Block) *goja.Object {
 		for _, seg := range segs {
 			segObj := vm.NewObject()
 			contentObj := vm.NewObject()
-			_ = contentObj.Set("text", seg.Content.Text())
+			_ = contentObj.Set("text", seg.Text())
 			_ = segObj.Set("content", contentObj)
 			localeSegs = append(localeSegs, segObj)
 		}

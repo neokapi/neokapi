@@ -86,7 +86,7 @@ func TestBridgeFormatReaderOpenAndRead(t *testing.T) {
 	assert.Equal(t, "tu1", block.ID)
 	assert.True(t, block.Translatable)
 	require.Len(t, block.Source, 1)
-	assert.Equal(t, "Hello", block.Source[0].Content.CodedText)
+	assert.Equal(t, "Hello", block.Source[0].CodedText())
 }
 
 func TestBridgeProcessorExecute(t *testing.T) {

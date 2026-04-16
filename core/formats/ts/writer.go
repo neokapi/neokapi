@@ -156,8 +156,8 @@ func (w *Writer) writeFromSkeleton() error {
 			case "translation":
 				if block.HasTarget(targetLocale) {
 					targetSegs := block.Targets[targetLocale]
-					if len(targetSegs) > 0 && targetSegs[0].Content != nil {
-						text = w.fragmentToXML(targetSegs[0].Content)
+					if len(targetSegs) > 0 && targetSegs[0].Fragment() != nil {
+						text = w.fragmentToXML(targetSegs[0].Fragment())
 					}
 				}
 			}
@@ -316,8 +316,8 @@ func (w *Writer) writeMessage(block *model.Block, targetLocale model.LocaleID) e
 
 		if block.HasTarget(targetLocale) {
 			targetSegs := block.Targets[targetLocale]
-			if len(targetSegs) > 0 && targetSegs[0].Content != nil {
-				targetXML := w.fragmentToXML(targetSegs[0].Content)
+			if len(targetSegs) > 0 && targetSegs[0].Fragment() != nil {
+				targetXML := w.fragmentToXML(targetSegs[0].Fragment())
 				transOpen += fmt.Sprintf(">%s</translation>\n", targetXML)
 			} else {
 				transOpen += "></translation>\n"

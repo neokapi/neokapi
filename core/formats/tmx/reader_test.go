@@ -1902,7 +1902,7 @@ func TestTargetFragmentWithSpans(t *testing.T) {
 	assert.True(t, blocks[0].HasTarget("fr"))
 	targetSegs := blocks[0].Targets["fr"]
 	require.NotEmpty(t, targetSegs)
-	frag := targetSegs[0].Content
+	frag := targetSegs[0].Fragment()
 	require.NotNil(t, frag)
 	assert.True(t, frag.HasSpans())
 	assert.Equal(t, "cible", frag.Text())

@@ -80,8 +80,8 @@ func BenchmarkBlock_Clone(b *testing.B) {
 
 	// Add a second source segment to exercise multi-segment cloning.
 	block.Source = append(block.Source, &model.Segment{
-		ID:      "s2",
-		Content: model.NewFragment("A second segment with more content for realism."),
+		ID:   "s2",
+		Runs: []model.Run{{Text: &model.TextRun{Text: "A second segment with more content for realism."}}},
 	})
 
 	b.ReportAllocs()
@@ -100,16 +100,16 @@ func BenchmarkBlock_Clone(b *testing.B) {
 		}
 		for i, seg := range block.Source {
 			clone.Source[i] = &model.Segment{
-				ID:      seg.ID,
-				Content: seg.Content.Clone(),
+				ID:   seg.ID,
+				Runs: append([]model.Run(nil), seg.Runs...),
 			}
 		}
 		for locale, segs := range block.Targets {
 			cloneSegs := make([]*model.Segment, len(segs))
 			for i, seg := range segs {
 				cloneSegs[i] = &model.Segment{
-					ID:      seg.ID,
-					Content: seg.Content.Clone(),
+					ID:   seg.ID,
+					Runs: append([]model.Run(nil), seg.Runs...),
 				}
 			}
 			clone.Targets[locale] = cloneSegs

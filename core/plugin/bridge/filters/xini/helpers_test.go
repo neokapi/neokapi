@@ -112,8 +112,8 @@ func groupEnds(parts []*model.Part) []*model.GroupEnd {
 func spanCount(b *model.Block) int {
 	n := 0
 	for _, seg := range b.Source {
-		if seg.Content != nil {
-			n += len(seg.Content.Spans)
+		if seg.Fragment() != nil {
+			n += len(seg.Spans())
 		}
 	}
 	return n
@@ -122,8 +122,8 @@ func spanCount(b *model.Block) int {
 // hasSpanOfType checks if any source segment of a block has a span of the given type.
 func hasSpanOfType(b *model.Block, st model.SpanType) bool {
 	for _, seg := range b.Source {
-		if seg.Content != nil {
-			for _, s := range seg.Content.Spans {
+		if seg.Fragment() != nil {
+			for _, s := range seg.Spans() {
 				if s.SpanType == st {
 					return true
 				}

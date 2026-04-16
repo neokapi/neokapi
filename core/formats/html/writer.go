@@ -319,7 +319,7 @@ func (w *Writer) getCodedText(block *model.Block, locale model.LocaleID) string 
 	}
 	var buf strings.Builder
 	for _, seg := range segs {
-		w.renderFragment(&buf, seg.Content)
+		w.renderFragment(&buf, seg.Fragment())
 	}
 	return buf.String()
 }
@@ -327,7 +327,7 @@ func (w *Writer) getCodedText(block *model.Block, locale model.LocaleID) string 
 func (w *Writer) getSourceCodedText(block *model.Block) string {
 	var buf strings.Builder
 	for _, seg := range block.Source {
-		w.renderFragment(&buf, seg.Content)
+		w.renderFragment(&buf, seg.Fragment())
 	}
 	return buf.String()
 }

@@ -166,7 +166,7 @@ func TestIntegrationSearchAndReplaceRegex(t *testing.T) {
 		if p.Type == model.PartBlock {
 			block := p.Resource.(*model.Block)
 			for _, seg := range block.Source {
-				text := seg.Content.Text()
+				text := seg.Text()
 				if text != "" {
 					assert.NotContains(t, text, "{nb}")
 					assert.NotContains(t, text, "{tab}")

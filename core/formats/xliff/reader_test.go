@@ -1124,7 +1124,7 @@ func TestExtract_Segmentation(t *testing.T) {
 	require.GreaterOrEqual(t, len(b.Source), 2)
 	for _, seg := range b.Source {
 		assert.NotEmpty(t, seg.ID)
-		assert.NotNil(t, seg.Content)
+		assert.NotNil(t, seg.Fragment())
 	}
 }
 

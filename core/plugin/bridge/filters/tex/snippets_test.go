@@ -788,7 +788,7 @@ Hello world.
 		require.NotEmpty(t, b.Source, "block should have source segments")
 		for _, seg := range b.Source {
 			assert.NotEmpty(t, seg.ID, "segment should have an ID")
-			assert.NotNil(t, seg.Content, "segment should have content")
+			assert.NotNil(t, seg.Fragment(), "segment should have content")
 		}
 	}
 }

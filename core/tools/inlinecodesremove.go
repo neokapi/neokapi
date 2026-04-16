@@ -61,7 +61,7 @@ func NewInlineCodesRemoveTool(cfg *InlineCodesRemoveConfig) *tool.BaseTool {
 
 		if conf.ApplySource {
 			for _, seg := range block.Source {
-				seg.SetRuns(stripInlineRuns(seg.Runs(), conf.ReplaceWithSpace))
+				seg.SetRuns(stripInlineRuns(seg.Runs, conf.ReplaceWithSpace))
 			}
 		}
 
@@ -69,7 +69,7 @@ func NewInlineCodesRemoveTool(cfg *InlineCodesRemoveConfig) *tool.BaseTool {
 			segs, ok := block.Targets[conf.TargetLocale]
 			if ok {
 				for _, seg := range segs {
-					seg.SetRuns(stripInlineRuns(seg.Runs(), conf.ReplaceWithSpace))
+					seg.SetRuns(stripInlineRuns(seg.Runs, conf.ReplaceWithSpace))
 				}
 			}
 		}

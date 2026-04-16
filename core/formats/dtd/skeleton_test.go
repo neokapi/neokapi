@@ -148,9 +148,9 @@ func TestSkeletonStore_WithTranslation(t *testing.T) {
 			b := p.Resource.(*model.Block)
 			switch b.SourceText() {
 			case "Hello":
-				b.Targets[locale] = []*model.Segment{{ID: "s1", Content: model.NewFragment("Bonjour")}}
+				b.Targets[locale] = []*model.Segment{{ID: "s1", Runs: []model.Run{{Text: &model.TextRun{Text: "Bonjour"}}}}}
 			case "Goodbye":
-				b.Targets[locale] = []*model.Segment{{ID: "s1", Content: model.NewFragment("Au revoir")}}
+				b.Targets[locale] = []*model.Segment{{ID: "s1", Runs: []model.Run{{Text: &model.TextRun{Text: "Au revoir"}}}}}
 			}
 		}
 	}
@@ -190,7 +190,7 @@ func TestSkeletonStore_WithTranslation_Escaping(t *testing.T) {
 		if p.Type == model.PartBlock {
 			b := p.Resource.(*model.Block)
 			// Translation contains characters that need DTD escaping
-			b.Targets[locale] = []*model.Segment{{ID: "s1", Content: model.NewFragment("A & B < C")}}
+			b.Targets[locale] = []*model.Segment{{ID: "s1", Runs: []model.Run{{Text: &model.TextRun{Text: "A & B < C"}}}}}
 		}
 	}
 

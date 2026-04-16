@@ -102,7 +102,7 @@ func TestExtract_SubFilterContent(t *testing.T) {
 		text := b.SourceText()
 		if strings.Contains(text, "text") && strings.Contains(text, "text.") {
 			// This is the link row - verify it has inline codes (spans).
-			if len(b.Source) > 0 && b.Source[0].Content != nil && len(b.Source[0].Content.Spans) > 0 {
+			if len(b.Source) > 0 && b.Source[0].Content != nil && len(b.Source[0].Spans()) > 0 {
 				foundLink = true
 			}
 			break
@@ -162,7 +162,7 @@ func TestExtract_TwoSubFilterContent(t *testing.T) {
 		"block[0] text from Markdown sub-filter")
 	// Should have inline code (span) for the **bold** markup.
 	if len(b0.Source) > 0 && b0.Source[0].Content != nil {
-		assert.NotEmpty(t, b0.Source[0].Content.Spans,
+		assert.NotEmpty(t, b0.Source[0].Spans(),
 			"block[0] should have spans for Markdown bold")
 	}
 
@@ -171,7 +171,7 @@ func TestExtract_TwoSubFilterContent(t *testing.T) {
 	assert.Equal(t, "HTML bold and more", b1.SourceText(),
 		"block[1] text from HTML sub-filter")
 	if len(b1.Source) > 0 && b1.Source[0].Content != nil {
-		assert.NotEmpty(t, b1.Source[0].Content.Spans,
+		assert.NotEmpty(t, b1.Source[0].Spans(),
 			"block[1] should have spans for HTML bold tag")
 	}
 

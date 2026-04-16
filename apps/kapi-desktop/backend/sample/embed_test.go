@@ -35,11 +35,11 @@ func TestScaffoldKapiMart(t *testing.T) {
 	assert.Equal(t, []model.LocaleID{"de-DE", "fr-FR", "ja-JP", "nb-NO", "ar-SA"}, proj.Defaults.TargetLanguages)
 
 	// 4 named content collections.
-	require.Len(t, proj.Content, 4)
-	assert.Equal(t, "Website", proj.Content[0].Name)
-	assert.Equal(t, "Online Store", proj.Content[1].Name)
-	assert.Equal(t, "Contracts", proj.Content[2].Name)
-	assert.Equal(t, "Templates", proj.Content[3].Name)
+	require.Len(t, proj.Fragment(), 4)
+	assert.Equal(t, "Website", proj.Fragment()[0].Name)
+	assert.Equal(t, "Online Store", proj.Fragment()[1].Name)
+	assert.Equal(t, "Contracts", proj.Fragment()[2].Name)
+	assert.Equal(t, "Templates", proj.Fragment()[3].Name)
 
 	// 3 flows.
 	assert.NotEmpty(t, proj.Flows)
