@@ -303,10 +303,13 @@ func isKLZArchive(data []byte) bool {
 	return len(data) >= 4 && bytes.Equal(data[:4], []byte{0x50, 0x4B, 0x03, 0x04})
 }
 
-// toModelBlock lifts a klf.Block into the existing model.Block
-// shape while stashing the canonical Runs in a KLFAnnotation.
+// toModelBlock lifts a klf.Block into a model.Block with Runs as
+// first-class content. The KLFAnnotation sidecar carries extra
+// wire-level metadata (Hash, DocumentID, DocumentPath, Placeholders,
+// Preview) that the legacy model.Block doesn't have first-class
+// fields for; writers read it back to reconstruct the archive.
 func toModelBlock(doc *klf.Document, b *klf.Block) *model.Block {
-	mb := model.NewBlock(b.ID, FlattenRuns(b.Source))
+	mb := model.NewRunsBlock(b.ID, cloneRuns(b.Source))
 	mb.Translatable = b.Translatable
 	mb.Type = string(b.Type)
 	if b.Properties.File != "" {
@@ -324,12 +327,8 @@ func toModelBlock(doc *klf.Document, b *klf.Block) *model.Block {
 	if b.Properties.LocNote != "" {
 		mb.Properties["locNote"] = b.Properties.LocNote
 	}
-	// Pre-populate targets with flattened text for each locale
-	// carried by the block. Downstream tools that operate on
-	// model.Block targets see them immediately; the full
-	// structured runs stay available via the annotation.
 	for locale, runs := range b.Targets {
-		mb.SetTargetText(model.LocaleID(locale), FlattenRuns(runs))
+		mb.SetTargetRuns(model.LocaleID(locale), cloneRuns(runs))
 	}
 	ann := &KLFAnnotation{
 		Source:       cloneRuns(b.Source),
