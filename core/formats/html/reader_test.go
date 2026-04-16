@@ -53,22 +53,29 @@ func TestReadInlineSpans(t *testing.T) {
 	blocks := testutil.CollectBlocks(t, reader.Read(ctx))
 	require.GreaterOrEqual(t, len(blocks), 1)
 
-	frag := blocks[0].FirstFragment()
-	require.NotNil(t, frag)
-	assert.Equal(t, "Click here for info", frag.Text())
-	assert.True(t, frag.HasSpans())
-	require.Len(t, frag.Spans, 2)
-	assert.Equal(t, model.SpanOpening, frag.Spans[0].SpanType)
-	assert.Equal(t, "fmt:bold", frag.Spans[0].Type)
-	assert.Equal(t, "html:b", frag.Spans[0].SubType)
-	assert.Equal(t, "1", frag.Spans[0].ID)
-	assert.Equal(t, "<b>", frag.Spans[0].Data)
-	assert.Equal(t, "[B]", frag.Spans[0].DisplayText)
-	assert.True(t, frag.Spans[0].Deletable)
-	assert.Equal(t, model.SpanClosing, frag.Spans[1].SpanType)
-	assert.Equal(t, "fmt:bold", frag.Spans[1].Type)
-	assert.Equal(t, "1", frag.Spans[1].ID) // same ID as opening
-	assert.Equal(t, "</b>", frag.Spans[1].Data)
+	runs := blocks[0].SourceRuns()
+	require.NotEmpty(t, runs)
+	assert.Equal(t, "Click here for info", model.RunsPlainText(runs))
+
+	var inlineRuns []model.Run
+	for _, r := range runs {
+		if r.Text == nil {
+			inlineRuns = append(inlineRuns, r)
+		}
+	}
+	require.Len(t, inlineRuns, 2)
+	require.NotNil(t, inlineRuns[0].PcOpen)
+	assert.Equal(t, "fmt:bold", inlineRuns[0].PcOpen.Type)
+	assert.Equal(t, "html:b", inlineRuns[0].PcOpen.SubType)
+	assert.Equal(t, "1", inlineRuns[0].PcOpen.ID)
+	assert.Equal(t, "<b>", inlineRuns[0].PcOpen.Data)
+	assert.Equal(t, "[B]", inlineRuns[0].PcOpen.Disp)
+	require.NotNil(t, inlineRuns[0].PcOpen.Constraints)
+	assert.True(t, inlineRuns[0].PcOpen.Constraints.Deletable)
+	require.NotNil(t, inlineRuns[1].PcClose)
+	assert.Equal(t, "fmt:bold", inlineRuns[1].PcClose.Type)
+	assert.Equal(t, "1", inlineRuns[1].PcClose.ID) // same ID as opening
+	assert.Equal(t, "</b>", inlineRuns[1].PcClose.Data)
 }
 
 // okapi: HtmlSnippetsTest#testHref
@@ -82,26 +89,26 @@ func TestReadLinkSpan(t *testing.T) {
 	blocks := testutil.CollectBlocks(t, reader.Read(ctx))
 	require.GreaterOrEqual(t, len(blocks), 1)
 
-	frag := blocks[0].FirstFragment()
-	assert.Equal(t, "Visit our site", frag.Text())
-	assert.True(t, frag.HasSpans())
+	runs := blocks[0].SourceRuns()
+	assert.Equal(t, "Visit our site", model.RunsPlainText(runs))
 
-	// Should have opening and closing link:hyperlink spans
-	var openingSpan, closingSpan *model.Span
-	for _, s := range frag.Spans {
-		if s.SpanType == model.SpanOpening && s.Type == "link:hyperlink" {
-			openingSpan = s
+	// Should have opening and closing link:hyperlink runs
+	var openingRun *model.PcOpenRun
+	var closingRun *model.PcCloseRun
+	for _, r := range runs {
+		if r.PcOpen != nil && r.PcOpen.Type == "link:hyperlink" {
+			openingRun = r.PcOpen
 		}
-		if s.SpanType == model.SpanClosing && s.Type == "link:hyperlink" {
-			closingSpan = s
+		if r.PcClose != nil && r.PcClose.Type == "link:hyperlink" {
+			closingRun = r.PcClose
 		}
 	}
-	require.NotNil(t, openingSpan)
-	require.NotNil(t, closingSpan)
-	assert.Contains(t, openingSpan.Data, "href")
-	assert.Equal(t, "html:a", openingSpan.SubType)
-	assert.Equal(t, "1", openingSpan.ID)
-	assert.Equal(t, openingSpan.ID, closingSpan.ID)
+	require.NotNil(t, openingRun)
+	require.NotNil(t, closingRun)
+	assert.Contains(t, openingRun.Data, "href")
+	assert.Equal(t, "html:a", openingRun.SubType)
+	assert.Equal(t, "1", openingRun.ID)
+	assert.Equal(t, openingRun.ID, closingRun.ID)
 }
 
 // okapi: HtmlSnippetsTest#paraWithBreak
@@ -115,20 +122,19 @@ func TestReadPlaceholderSpan(t *testing.T) {
 	blocks := testutil.CollectBlocks(t, reader.Read(ctx))
 	require.GreaterOrEqual(t, len(blocks), 1)
 
-	frag := blocks[0].FirstFragment()
-	assert.Equal(t, "Line oneLine two", frag.Text())
-	assert.True(t, frag.HasSpans())
+	runs := blocks[0].SourceRuns()
+	assert.Equal(t, "Line oneLine two", model.RunsPlainText(runs))
 
-	// br should be a placeholder span with semantic type
+	// br should be a placeholder run with semantic type
 	found := false
-	for _, s := range frag.Spans {
-		if s.SpanType == model.SpanPlaceholder && s.Type == "struct:break" {
+	for _, r := range runs {
+		if r.Ph != nil && r.Ph.Type == "struct:break" {
 			found = true
-			assert.Equal(t, "html:br", s.SubType)
-			assert.Equal(t, "1", s.ID)
+			assert.Equal(t, "html:br", r.Ph.SubType)
+			assert.Equal(t, "1", r.Ph.ID)
 		}
 	}
-	assert.True(t, found, "expected <br/> to be a placeholder span")
+	assert.True(t, found, "expected <br/> to be a placeholder run")
 }
 
 // okapi: HtmlFullFileTest#testSkippedScriptandStyleElements

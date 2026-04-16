@@ -6,7 +6,6 @@ import (
 	"os"
 	"testing"
 
-	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/plugin/bridge/filters/bridgetest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -42,12 +41,12 @@ func TestCodeFinder_CreatesInlineCodes(t *testing.T) {
 	// the escaped HTML tags in the source text should be recognized as inline codes.
 	var foundInlineCodes bool
 	for _, b := range blocks {
-		frag := b.FirstFragment()
-		if frag == nil {
+		runs := b.SourceRuns()
+		if len(runs) == 0 {
 			continue
 		}
-		for _, s := range frag.Spans {
-			if s.SpanType == model.SpanPlaceholder || s.SpanType == model.SpanOpening || s.SpanType == model.SpanClosing {
+		for _, r := range runs {
+			if r.Ph != nil || r.PcOpen != nil || r.PcClose != nil {
 				foundInlineCodes = true
 				break
 			}

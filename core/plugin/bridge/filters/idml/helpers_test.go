@@ -147,13 +147,16 @@ func countPartsByType(parts []*model.Part, pt model.PartType) int {
 	return n
 }
 
-// blocksWithSpans returns blocks that have at least one span in their first fragment.
+// blocksWithSpans returns blocks that have at least one inline-code run in their source.
 func blocksWithSpans(blocks []*model.Block) []*model.Block {
 	var result []*model.Block
 	for _, b := range blocks {
-		frag := b.FirstFragment()
-		if frag != nil && len(frag.Spans) > 0 {
-			result = append(result, b)
+		runs := b.SourceRuns()
+		for _, r := range runs {
+			if r.Text == nil && r.Plural == nil && r.Select == nil {
+				result = append(result, b)
+				break
+			}
 		}
 	}
 	return result

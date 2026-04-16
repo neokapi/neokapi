@@ -97,6 +97,47 @@ func roundtrip(t *testing.T, content string) string {
 	return buf.String()
 }
 
+// inlineCodeRuns returns only the inline-code runs (Ph, PcOpen, PcClose, Sub).
+func inlineCodeRuns(runs []model.Run) []model.Run {
+	var out []model.Run
+	for _, r := range runs {
+		if r.Text == nil && r.Plural == nil && r.Select == nil {
+			out = append(out, r)
+		}
+	}
+	return out
+}
+
+// hasOpeningRun reports whether any run is a PcOpen.
+func hasOpeningRun(runs []model.Run) bool {
+	for _, r := range runs {
+		if r.PcOpen != nil {
+			return true
+		}
+	}
+	return false
+}
+
+// hasClosingRun reports whether any run is a PcClose.
+func hasClosingRun(runs []model.Run) bool {
+	for _, r := range runs {
+		if r.PcClose != nil {
+			return true
+		}
+	}
+	return false
+}
+
+// hasPlaceholderRun reports whether any run is a Ph.
+func hasPlaceholderRun(runs []model.Run) bool {
+	for _, r := range runs {
+		if r.Ph != nil {
+			return true
+		}
+	}
+	return false
+}
+
 // findBlockContaining returns the first block whose source text contains substr.
 func findBlockContaining(blocks []*model.Block, substr string) *model.Block { //nolint:unused // reserved for future test use
 	for _, b := range blocks {
@@ -728,9 +769,8 @@ func TestExtract_InlineCodes(t *testing.T) {
       </trans-unit>`, "htmlbody")
 	blocks := readXLIFFBlocks(t, xlf)
 	require.NotEmpty(t, blocks)
-	frag := blocks[0].FirstFragment()
-	require.NotNil(t, frag)
-	assert.GreaterOrEqual(t, len(frag.Spans), 2, "should have spans for <g> elements")
+	codes := inlineCodeRuns(blocks[0].SourceRuns())
+	assert.GreaterOrEqual(t, len(codes), 2, "should have inline-code runs for <g> elements")
 }
 
 func TestExtract_InlineX(t *testing.T) {
@@ -740,16 +780,8 @@ func TestExtract_InlineX(t *testing.T) {
       </trans-unit>`)
 	blocks := readXLIFFBlocks(t, xlf)
 	require.NotEmpty(t, blocks)
-	frag := blocks[0].FirstFragment()
-	require.NotNil(t, frag)
-	var hasPlaceholder bool
-	for _, s := range frag.Spans {
-		if s.SpanType == model.SpanPlaceholder {
-			hasPlaceholder = true
-			break
-		}
-	}
-	assert.True(t, hasPlaceholder, "should have a placeholder span for <x/>")
+	assert.True(t, hasPlaceholderRun(blocks[0].SourceRuns()),
+		"should have a placeholder run for <x/>")
 }
 
 // okapi: XLIFFFilterTest#testBPTTypeTransUnit
@@ -760,21 +792,11 @@ func TestExtract_InlineBpt_Ept(t *testing.T) {
       </trans-unit>`, "htmlbody")
 	blocks := readXLIFFBlocks(t, xlf)
 	require.NotEmpty(t, blocks)
-	frag := blocks[0].FirstFragment()
-	require.NotNil(t, frag)
-	require.GreaterOrEqual(t, len(frag.Spans), 2)
+	runs := blocks[0].SourceRuns()
+	require.GreaterOrEqual(t, len(inlineCodeRuns(runs)), 2)
 
-	var hasOpening, hasClosing bool
-	for _, s := range frag.Spans {
-		if s.SpanType == model.SpanOpening {
-			hasOpening = true
-		}
-		if s.SpanType == model.SpanClosing {
-			hasClosing = true
-		}
-	}
-	assert.True(t, hasOpening, "should have opening span from <bpt>")
-	assert.True(t, hasClosing, "should have closing span from <ept>")
+	assert.True(t, hasOpeningRun(runs), "should have opening run from <bpt>")
+	assert.True(t, hasClosingRun(runs), "should have closing run from <ept>")
 }
 
 // okapi: XLIFFFilterTest#testOutputBPTTypeTransUnit
@@ -815,9 +837,7 @@ func TestExtract_EmptyCodes(t *testing.T) {
       </trans-unit>`)
 	blocks := readXLIFFBlocks(t, xlf)
 	require.NotEmpty(t, blocks)
-	frag := blocks[0].FirstFragment()
-	require.NotNil(t, frag)
-	assert.GreaterOrEqual(t, len(frag.Spans), 1)
+	assert.GreaterOrEqual(t, len(inlineCodeRuns(blocks[0].SourceRuns())), 1)
 }
 
 // okapi: XLIFFFilterTest#testCodeOriginalIDs
@@ -828,9 +848,7 @@ func TestExtract_CodeOriginalIDs(t *testing.T) {
       </trans-unit>`)
 	blocks := readXLIFFBlocks(t, xlf)
 	require.NotEmpty(t, blocks)
-	frag := blocks[0].FirstFragment()
-	require.NotNil(t, frag)
-	require.NotEmpty(t, frag.Spans)
+	require.NotEmpty(t, inlineCodeRuns(blocks[0].SourceRuns()))
 }
 
 // okapi: XLIFFFilterTest#testComplexSUB
@@ -941,19 +959,9 @@ func TestExtract_InlineBxEx(t *testing.T) {
       </trans-unit>`)
 	blocks := readXLIFFBlocks(t, xlf)
 	require.NotEmpty(t, blocks)
-	frag := blocks[0].FirstFragment()
-	require.NotNil(t, frag)
-	var hasOpening, hasClosing bool
-	for _, s := range frag.Spans {
-		if s.SpanType == model.SpanOpening {
-			hasOpening = true
-		}
-		if s.SpanType == model.SpanClosing {
-			hasClosing = true
-		}
-	}
-	assert.True(t, hasOpening)
-	assert.True(t, hasClosing)
+	runs := blocks[0].SourceRuns()
+	assert.True(t, hasOpeningRun(runs))
+	assert.True(t, hasClosingRun(runs))
 }
 
 // --- Inline code: ph ---
@@ -965,15 +973,7 @@ func TestExtract_InlinePh(t *testing.T) {
       </trans-unit>`)
 	blocks := readXLIFFBlocks(t, xlf)
 	require.NotEmpty(t, blocks)
-	frag := blocks[0].FirstFragment()
-	require.NotNil(t, frag)
-	var hasPlaceholder bool
-	for _, s := range frag.Spans {
-		if s.SpanType == model.SpanPlaceholder {
-			hasPlaceholder = true
-		}
-	}
-	assert.True(t, hasPlaceholder)
+	assert.True(t, hasPlaceholderRun(blocks[0].SourceRuns()))
 }
 
 // --- Inline code: it ---
@@ -1040,11 +1040,9 @@ func TestExtract_CtypeBold(t *testing.T) {
       </trans-unit>`)
 	blocks := readXLIFFBlocks(t, xlf)
 	require.NotEmpty(t, blocks)
-	frag := blocks[0].FirstFragment()
-	require.NotNil(t, frag)
 	var found bool
-	for _, s := range frag.Spans {
-		if s.SpanType == model.SpanOpening && s.Type == "fmt:bold" {
+	for _, r := range blocks[0].SourceRuns() {
+		if r.PcOpen != nil && r.PcOpen.Type == "fmt:bold" {
 			found = true
 		}
 	}
@@ -1058,11 +1056,9 @@ func TestExtract_CtypeItalic(t *testing.T) {
       </trans-unit>`)
 	blocks := readXLIFFBlocks(t, xlf)
 	require.NotEmpty(t, blocks)
-	frag := blocks[0].FirstFragment()
-	require.NotNil(t, frag)
 	var found bool
-	for _, s := range frag.Spans {
-		if s.SpanType == model.SpanOpening && s.Type == "fmt:italic" {
+	for _, r := range blocks[0].SourceRuns() {
+		if r.PcOpen != nil && r.PcOpen.Type == "fmt:italic" {
 			found = true
 		}
 	}
@@ -1076,11 +1072,9 @@ func TestExtract_CtypeLink(t *testing.T) {
       </trans-unit>`)
 	blocks := readXLIFFBlocks(t, xlf)
 	require.NotEmpty(t, blocks)
-	frag := blocks[0].FirstFragment()
-	require.NotNil(t, frag)
 	var found bool
-	for _, s := range frag.Spans {
-		if s.SpanType == model.SpanOpening && s.Type == "link:hyperlink" {
+	for _, r := range blocks[0].SourceRuns() {
+		if r.PcOpen != nil && r.PcOpen.Type == "link:hyperlink" {
 			found = true
 		}
 	}
@@ -1094,11 +1088,9 @@ func TestExtract_CtypeLb(t *testing.T) {
       </trans-unit>`)
 	blocks := readXLIFFBlocks(t, xlf)
 	require.NotEmpty(t, blocks)
-	frag := blocks[0].FirstFragment()
-	require.NotNil(t, frag)
 	var found bool
-	for _, s := range frag.Spans {
-		if s.SpanType == model.SpanPlaceholder && s.Type == "struct:break" {
+	for _, r := range blocks[0].SourceRuns() {
+		if r.Ph != nil && r.Ph.Type == "struct:break" {
 			found = true
 		}
 	}
@@ -1124,7 +1116,7 @@ func TestExtract_Segmentation(t *testing.T) {
 	require.GreaterOrEqual(t, len(b.Source), 2)
 	for _, seg := range b.Source {
 		assert.NotEmpty(t, seg.ID)
-		assert.NotNil(t, seg.Fragment())
+		assert.NotNil(t, seg.Runs)
 	}
 }
 
@@ -2244,10 +2236,11 @@ func TestExtract_EquivText(t *testing.T) {
       </trans-unit>`)
 	blocks := readXLIFFBlocks(t, xlf)
 	require.NotEmpty(t, blocks)
-	frag := blocks[0].FirstFragment()
-	require.NotNil(t, frag)
-	require.NotEmpty(t, frag.Spans)
-	assert.Equal(t, "[BR]", frag.Spans[0].EquivText)
+	codes := inlineCodeRuns(blocks[0].SourceRuns())
+	require.NotEmpty(t, codes)
+	// First inline-code run is a placeholder for <x equiv-text="[BR]"/>.
+	require.NotNil(t, codes[0].Ph)
+	assert.Equal(t, "[BR]", codes[0].Ph.Equiv)
 }
 
 // --- Data in bpt/ept ---
@@ -2259,16 +2252,13 @@ func TestExtract_BptEptData(t *testing.T) {
       </trans-unit>`)
 	blocks := readXLIFFBlocks(t, xlf)
 	require.NotEmpty(t, blocks)
-	frag := blocks[0].FirstFragment()
-	require.NotNil(t, frag)
-
 	var openingData, closingData string
-	for _, s := range frag.Spans {
-		if s.SpanType == model.SpanOpening {
-			openingData = s.Data
+	for _, r := range blocks[0].SourceRuns() {
+		if r.PcOpen != nil {
+			openingData = r.PcOpen.Data
 		}
-		if s.SpanType == model.SpanClosing {
-			closingData = s.Data
+		if r.PcClose != nil {
+			closingData = r.PcClose.Data
 		}
 	}
 	assert.Equal(t, "<b>", openingData)
@@ -2284,15 +2274,8 @@ func TestExtract_ItPosOpen(t *testing.T) {
       </trans-unit>`)
 	blocks := readXLIFFBlocks(t, xlf)
 	require.NotEmpty(t, blocks)
-	frag := blocks[0].FirstFragment()
-	require.NotNil(t, frag)
-	var hasOpening bool
-	for _, s := range frag.Spans {
-		if s.SpanType == model.SpanOpening {
-			hasOpening = true
-		}
-	}
-	assert.True(t, hasOpening, "it pos=open should produce SpanOpening")
+	assert.True(t, hasOpeningRun(blocks[0].SourceRuns()),
+		"it pos=open should produce a PcOpen run")
 }
 
 func TestExtract_ItPosClose(t *testing.T) {
@@ -2302,15 +2285,8 @@ func TestExtract_ItPosClose(t *testing.T) {
       </trans-unit>`)
 	blocks := readXLIFFBlocks(t, xlf)
 	require.NotEmpty(t, blocks)
-	frag := blocks[0].FirstFragment()
-	require.NotNil(t, frag)
-	var hasClosing bool
-	for _, s := range frag.Spans {
-		if s.SpanType == model.SpanClosing {
-			hasClosing = true
-		}
-	}
-	assert.True(t, hasClosing, "it pos=close should produce SpanClosing")
+	assert.True(t, hasClosingRun(blocks[0].SourceRuns()),
+		"it pos=close should produce a PcClose run")
 }
 
 // --- G element tests ---
@@ -2322,20 +2298,9 @@ func TestExtract_GElement(t *testing.T) {
       </trans-unit>`)
 	blocks := readXLIFFBlocks(t, xlf)
 	require.NotEmpty(t, blocks)
-	frag := blocks[0].FirstFragment()
-	require.NotNil(t, frag)
-
-	var hasOpening, hasClosing bool
-	for _, s := range frag.Spans {
-		if s.SpanType == model.SpanOpening {
-			hasOpening = true
-		}
-		if s.SpanType == model.SpanClosing {
-			hasClosing = true
-		}
-	}
-	assert.True(t, hasOpening, "g should produce opening span")
-	assert.True(t, hasClosing, "g end should produce closing span")
+	runs := blocks[0].SourceRuns()
+	assert.True(t, hasOpeningRun(runs), "g should produce an opening run")
+	assert.True(t, hasClosingRun(runs), "g end should produce a closing run")
 }
 
 // --- XML space inheritance ---

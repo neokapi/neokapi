@@ -72,16 +72,15 @@ func TestODF_ITSMarkup(t *testing.T) {
 	}
 	assert.True(t, foundLocale, "should find ITS locale filter text unit")
 
-	// Verify some blocks have inline codes (spans) from ITS annotations.
-	hasSpans := false
+	// Verify some blocks have inline-code runs from ITS annotations.
+	hasCodes := false
 	for _, b := range blocks {
-		frag := b.FirstFragment()
-		if frag != nil && len(frag.Spans) > 0 {
-			hasSpans = true
+		if bridgetest.HasInlineCode(b.SourceRuns()) {
+			hasCodes = true
 			break
 		}
 	}
-	assert.True(t, hasSpans, "ITS markup should produce inline codes (spans)")
+	assert.True(t, hasCodes, "ITS markup should produce inline-code runs")
 }
 
 // okapi: ODFFilterTest#testDoubleExtraction

@@ -29,7 +29,7 @@ func (s *PostgresStore) GetBlockHistory(ctx context.Context, projectID, stream, 
 	var entries []platstore.BlockHistoryEntry
 	for rows.Next() {
 		var e platstore.BlockHistoryEntry
-		if err := rows.Scan(&e.Seq, &e.ChangeType, &e.Text, &e.CodedText, &e.Origin, &e.Author, &e.Timestamp); err != nil {
+		if err := rows.Scan(&e.Seq, &e.ChangeType, &e.Text, &e.Coded, &e.Origin, &e.Author, &e.Timestamp); err != nil {
 			return nil, fmt.Errorf("scan block history entry: %w", err)
 		}
 		entries = append(entries, e)

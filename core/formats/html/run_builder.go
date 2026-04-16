@@ -8,7 +8,7 @@ import (
 
 // runBuilder accumulates a []model.Run while walking the HTML AST or token
 // stream. It coalesces adjacent TextRuns so consecutive text chunks produce
-// a single text run, matching the behavior of model.Fragment.AppendText.
+// a single text run; mirrors the runBuilder pattern used by other format readers.
 //
 // The builder is intentionally unexported — it lives alongside the HTML
 // reader so that DOM and tokenizer walkers can emit the Runs shape directly,
@@ -25,7 +25,7 @@ func newRunBuilder() *runBuilder {
 
 // AppendText adds plain text. If the previous run is a TextRun, the new
 // text is appended to it rather than emitting a second adjacent TextRun.
-func (b *runBuilder) AppendText(text string) {
+func (b *runBuilder) AddText(text string) {
 	if text == "" {
 		return
 	}
@@ -40,7 +40,7 @@ func (b *runBuilder) AppendText(text string) {
 // match the HTML reader's vocabulary-driven span metadata; pass zero-values
 // for spans that were never looked up in the vocabulary (e.g. comments, raw
 // markup, non-translatable placeholders).
-func (b *runBuilder) AppendPh(id, semType, subType, data, disp, equiv string, constraints model.RunConstraints) {
+func (b *runBuilder) AddPh(id, semType, subType, data, disp, equiv string, constraints model.RunConstraints) {
 	b.runs = append(b.runs, model.Run{Ph: &model.PlaceholderRun{
 		ID:          id,
 		Type:        semType,
@@ -53,7 +53,7 @@ func (b *runBuilder) AppendPh(id, semType, subType, data, disp, equiv string, co
 }
 
 // AppendPcOpen emits the opening half of a paired code.
-func (b *runBuilder) AppendPcOpen(id, semType, subType, data, disp, equiv string, constraints model.RunConstraints) {
+func (b *runBuilder) AddPcOpen(id, semType, subType, data, disp, equiv string, constraints model.RunConstraints) {
 	b.runs = append(b.runs, model.Run{PcOpen: &model.PcOpenRun{
 		ID:          id,
 		Type:        semType,
@@ -67,9 +67,9 @@ func (b *runBuilder) AppendPcOpen(id, semType, subType, data, disp, equiv string
 
 // AppendPcClose emits the closing half of a paired code. PcCloseRun has no
 // Constraints field — the closing half inherits behavior from its opener —
-// and FragmentToRuns drops Disp when emitting a close, so we match that
+// and MarshalRuns drops Disp when emitting a close, so we match that
 // behavior here (callers may pass disp but it is ignored).
-func (b *runBuilder) AppendPcClose(id, semType, subType, data, equiv string) {
+func (b *runBuilder) AddPcClose(id, semType, subType, data, equiv string) {
 	b.runs = append(b.runs, model.Run{PcClose: &model.PcCloseRun{
 		ID:      id,
 		Type:    semType,
@@ -130,7 +130,7 @@ func (b *runBuilder) PlainText() string {
 // collapseWhitespaceRuns collapses runs of HTML whitespace inside TextRuns to
 // a single space, with non-text runs acting as transparent boundaries — i.e.
 // consecutive whitespace split by a span marker collapses across the marker,
-// matching the behavior of collapseWhitespaceCodedText on a PUA-coded string.
+// matching the behavior of collapseWhitespaceCoded on a PUA-coded string.
 //
 // The input slice is not modified; a new slice is returned.
 func collapseWhitespaceRuns(runs []model.Run) []model.Run {
@@ -168,7 +168,7 @@ func collapseWhitespaceRuns(runs []model.Run) []model.Run {
 }
 
 // trimWhitespaceRuns trims leading and trailing HTML whitespace from the Run
-// sequence, stopping at the first non-text run (matches trimCodedText, which
+// sequence, stopping at the first non-text run (matches trimCoded, which
 // stops at a PUA marker).
 //
 // The input slice is not modified; a new slice is returned when trimming

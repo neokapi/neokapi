@@ -67,6 +67,25 @@ func findBlockContaining(blocks []*model.Block, substr string) *model.Block {
 	return nil
 }
 
+func hasInlineCodeRun(runs []model.Run) bool {
+	for _, r := range runs {
+		if r.Text == nil {
+			return true
+		}
+	}
+	return false
+}
+
+func countInlineCodeRuns(runs []model.Run) int {
+	n := 0
+	for _, r := range runs {
+		if r.Text == nil {
+			n++
+		}
+	}
+	return n
+}
+
 func blockTextsContain(texts []string, substr string) bool {
 	for _, txt := range texts {
 		if strings.Contains(txt, substr) {
@@ -167,9 +186,8 @@ func TestSnippets_Href(t *testing.T) {
 	text := b.SourceText()
 	assert.Contains(t, text, "see")
 	assert.Contains(t, text, "yahoo")
-	frag := b.FirstFragment()
-	require.NotNil(t, frag)
-	assert.NotEmpty(t, frag.Spans, "should have spans for the <a> tag")
+	runs := b.SourceRuns()
+	assert.True(t, hasInlineCodeRun(runs), "should have inline-code runs for the <a> tag")
 }
 
 // okapi: HtmlSnippetsTest#testButton
@@ -181,9 +199,8 @@ func TestSnippets_Button(t *testing.T) {
 	b := blocks[0]
 	text := b.SourceText()
 	assert.Contains(t, text, "text")
-	frag := b.FirstFragment()
-	require.NotNil(t, frag)
-	assert.NotEmpty(t, frag.Spans, "should have spans for the <button> tags")
+	runs := b.SourceRuns()
+	assert.True(t, hasInlineCodeRun(runs), "should have inline-code runs for the <button> tags")
 }
 
 // okapi: HtmlSnippetsTest#testInlineCodesStorage
@@ -192,11 +209,17 @@ func TestSnippets_InlineCodesStorage(t *testing.T) {
 	blocks := translatableBlocks(parts)
 	require.NotEmpty(t, blocks)
 
-	frag := blocks[0].FirstFragment()
-	require.NotNil(t, frag)
-	require.NotEmpty(t, frag.Spans, "should have inline spans")
-	for _, span := range frag.Spans {
-		assert.NotEmpty(t, span.Data, "span data should not be empty")
+	runs := blocks[0].SourceRuns()
+	require.True(t, hasInlineCodeRun(runs), "should have inline-code runs")
+	for _, r := range runs {
+		switch {
+		case r.PcOpen != nil:
+			assert.NotEmpty(t, r.PcOpen.Data, "pcOpen data should not be empty")
+		case r.PcClose != nil:
+			assert.NotEmpty(t, r.PcClose.Data, "pcClose data should not be empty")
+		case r.Ph != nil:
+			assert.NotEmpty(t, r.Ph.Data, "placeholder data should not be empty")
+		}
 	}
 }
 
@@ -220,16 +243,15 @@ func TestSnippets_AltInImg(t *testing.T) {
 
 	b := findBlockContaining(blocks, "Text1")
 	require.NotNil(t, b, "should have a block containing Text1")
-	frag := b.FirstFragment()
-	require.NotNil(t, frag)
+	runs := b.SourceRuns()
 	hasPlaceholder := false
-	for _, s := range frag.Spans {
-		if s.SpanType == model.SpanPlaceholder {
+	for _, r := range runs {
+		if r.Ph != nil {
 			hasPlaceholder = true
 			break
 		}
 	}
-	assert.True(t, hasPlaceholder, "should have a placeholder span for <img>")
+	assert.True(t, hasPlaceholder, "should have a placeholder run for <img>")
 }
 
 // okapi: HtmlSnippetsTest#testNoExtractValueInInput
@@ -265,11 +287,12 @@ func TestSnippets_HtmlNonWellFormedEmptyTag(t *testing.T) {
 	blocks := translatableBlocks(parts)
 	require.NotEmpty(t, blocks)
 
-	frag := blocks[0].FirstFragment()
-	require.NotNil(t, frag)
-	for _, span := range frag.Spans {
-		assert.Equal(t, model.SpanPlaceholder, span.SpanType,
-			"br tags should be placeholders")
+	runs := blocks[0].SourceRuns()
+	for _, r := range runs {
+		if r.Text != nil {
+			continue
+		}
+		assert.NotNil(t, r.Ph, "br tags should be placeholder runs")
 	}
 }
 
@@ -451,9 +474,8 @@ func TestSnippets_NestedInlineTranslateAttribute1(t *testing.T) {
 	text := b.SourceText()
 	assert.Contains(t, text, "Text")
 	assert.Contains(t, text, ".")
-	frag := b.FirstFragment()
-	require.NotNil(t, frag)
-	assert.NotEmpty(t, frag.Spans, "should have spans for nested inline elements")
+	runs := b.SourceRuns()
+	assert.True(t, hasInlineCodeRun(runs), "should have inline-code runs for nested inline elements")
 }
 
 // okapi: HtmlSnippetsTest#testNestedInlineTranslateAttribute4
@@ -482,11 +504,10 @@ func TestSnippets_InlineTranslateNo(t *testing.T) {
 	text := b.SourceText()
 	assert.Contains(t, text, "Shopping cart contains two items")
 	assert.Contains(t, text, "full amount will be charged.")
-	frag := b.FirstFragment()
-	require.NotNil(t, frag)
+	runs := b.SourceRuns()
 	hasPlaceholder := false
-	for _, s := range frag.Spans {
-		if s.SpanType == model.SpanPlaceholder {
+	for _, r := range runs {
+		if r.Ph != nil {
 			hasPlaceholder = true
 			break
 		}
@@ -668,25 +689,24 @@ func TestEvents_PWithInlines(t *testing.T) {
 	assert.Contains(t, text, "bold")
 	assert.Contains(t, text, "after.")
 
-	frag := paraBlock.FirstFragment()
-	require.NotNil(t, frag)
-	require.GreaterOrEqual(t, len(frag.Spans), 3,
-		"should have at least 3 spans: <b> opening, </b> closing, <a/> placeholder")
+	runs := paraBlock.SourceRuns()
+	require.GreaterOrEqual(t, countInlineCodeRuns(runs), 3,
+		"should have at least 3 inline-code runs: <b> open, </b> close, <a/> placeholder")
 
 	var hasOpening, hasClosing bool
-	for _, s := range frag.Spans {
-		switch s.SpanType {
-		case model.SpanOpening:
+	for _, r := range runs {
+		switch {
+		case r.PcOpen != nil:
 			hasOpening = true
-		case model.SpanClosing:
+		case r.PcClose != nil:
 			hasClosing = true
 		}
 	}
-	assert.True(t, hasOpening, "should have opening span for <b>")
-	assert.True(t, hasClosing, "should have closing span for </b>")
+	assert.True(t, hasOpening, "should have pcOpen run for <b>")
+	assert.True(t, hasClosing, "should have pcClose run for </b>")
 	// Note: <a href="there"/> is not self-closing in HTML5.
 	// Go's HTML parser treats it as <a href="there"> with children,
-	// so it produces opening/closing spans rather than a placeholder.
+	// so it produces open/close runs rather than a placeholder.
 }
 
 // okapi: HtmlEventTest#testPWithInlines2
@@ -727,16 +747,15 @@ func TestEvents_PWithComment(t *testing.T) {
 	assert.Contains(t, text, "Before")
 	assert.Contains(t, text, "after.")
 
-	frag := b.FirstFragment()
-	require.NotNil(t, frag)
+	runs := b.SourceRuns()
 	var hasPlaceholder bool
-	for _, s := range frag.Spans {
-		if s.SpanType == model.SpanPlaceholder {
+	for _, r := range runs {
+		if r.Ph != nil {
 			hasPlaceholder = true
 			break
 		}
 	}
-	assert.True(t, hasPlaceholder, "HTML comment should produce a placeholder span")
+	assert.True(t, hasPlaceholder, "HTML comment should produce a placeholder run")
 }
 
 // okapi: HtmlEventTest#testTableGroups
@@ -846,40 +865,44 @@ func TestConfig_GenericCodeTypes(t *testing.T) {
 	blocks := translatableBlocks(parts)
 	require.NotEmpty(t, blocks, "should extract blocks with inline elements")
 
-	var blockWithSpans *model.Block
+	var blockWithRuns *model.Block
 	for _, b := range blocks {
-		frag := b.FirstFragment()
-		if frag != nil && len(frag.Spans) > 0 {
-			blockWithSpans = b
+		if hasInlineCodeRun(b.SourceRuns()) {
+			blockWithRuns = b
 			break
 		}
 	}
-	require.NotNil(t, blockWithSpans, "should have at least one block with inline spans")
+	require.NotNil(t, blockWithRuns, "should have at least one block with inline-code runs")
 
-	frag := blockWithSpans.FirstFragment()
-	spanTypes := make(map[string]bool)
-	for _, s := range frag.Spans {
-		if s.Type != "" {
-			spanTypes[s.Type] = true
+	runs := blockWithRuns.SourceRuns()
+	codeTypes := make(map[string]bool)
+	for _, r := range runs {
+		switch {
+		case r.PcOpen != nil && r.PcOpen.Type != "":
+			codeTypes[r.PcOpen.Type] = true
+		case r.PcClose != nil && r.PcClose.Type != "":
+			codeTypes[r.PcClose.Type] = true
+		case r.Ph != nil && r.Ph.Type != "":
+			codeTypes[r.Ph.Type] = true
 		}
 	}
-	assert.Greater(t, len(spanTypes), 1,
-		"should have multiple distinct span types for b, i, u, a, img elements")
+	assert.Greater(t, len(codeTypes), 1,
+		"should have multiple distinct inline-code types for b, i, u, a, img elements")
 
 	var hasOpening, hasClosing, hasPlaceholder bool
-	for _, s := range frag.Spans {
-		switch s.SpanType {
-		case model.SpanOpening:
+	for _, r := range runs {
+		switch {
+		case r.PcOpen != nil:
 			hasOpening = true
-		case model.SpanClosing:
+		case r.PcClose != nil:
 			hasClosing = true
-		case model.SpanPlaceholder:
+		case r.Ph != nil:
 			hasPlaceholder = true
 		}
 	}
-	assert.True(t, hasOpening, "should have opening spans")
-	assert.True(t, hasClosing, "should have closing spans")
-	assert.True(t, hasPlaceholder, "should have placeholder span for <img>")
+	assert.True(t, hasOpening, "should have pcOpen runs")
+	assert.True(t, hasClosing, "should have pcClose runs")
+	assert.True(t, hasPlaceholder, "should have placeholder run for <img>")
 }
 
 // okapi: HtmlConfigurationTest#collapseWhitespace

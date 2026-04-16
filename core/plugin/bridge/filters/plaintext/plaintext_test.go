@@ -654,7 +654,7 @@ func TestExtract_SegmentIDs(t *testing.T) {
 		require.NotEmpty(t, b.Source, "block should have source segments")
 		for _, seg := range b.Source {
 			assert.NotEmpty(t, seg.ID, "segment should have an ID")
-			assert.NotNil(t, seg.Fragment(), "segment should have content")
+			assert.NotEmpty(t, seg.Runs, "segment should have content")
 		}
 	}
 }
@@ -667,10 +667,8 @@ func TestExtract_NoSpans(t *testing.T) {
 	require.NotEmpty(t, blocks)
 
 	for _, b := range blocks {
-		frag := b.FirstFragment()
-		if frag != nil {
-			assert.Empty(t, frag.Spans, "plain text should have no inline spans")
-		}
+		assert.False(t, bridgetest.HasInlineCode(b.SourceRuns()),
+			"plain text should have no inline-code runs")
 	}
 }
 

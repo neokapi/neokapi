@@ -122,19 +122,19 @@ func TestExtract_EntryWithEntities(t *testing.T) {
 
 	// The Java test verifies that &ent1; and %pent1; are extracted as inline codes.
 	b := blocks[0]
-	frag := b.FirstFragment()
-	require.NotNil(t, frag)
+	runs := b.SourceRuns()
+	require.NotEmpty(t, runs)
 
-	// Count placeholder spans — entity references should become inline codes.
+	// Count Ph runs — entity references should become inline codes.
 	var placeholderCount int
 	var placeholderData []string
-	for _, s := range frag.Spans {
-		if s.SpanType == model.SpanPlaceholder {
+	for _, r := range runs {
+		if r.Ph != nil {
 			placeholderCount++
-			placeholderData = append(placeholderData, s.Data)
+			placeholderData = append(placeholderData, r.Ph.Data)
 		}
 	}
-	assert.Equal(t, 2, placeholderCount, "should have 2 placeholder spans for &ent1; and %%pent1;")
+	assert.Equal(t, 2, placeholderCount, "should have 2 Ph runs for &ent1; and %%pent1;")
 
 	// Verify the entity reference data is preserved.
 	assert.Contains(t, placeholderData, "&ent1;")

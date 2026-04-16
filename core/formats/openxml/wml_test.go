@@ -407,8 +407,7 @@ func TestCodeFinderBasic(t *testing.T) {
 
 	blocks := parseDocXML(t, docXML, cfg)
 	require.Len(t, blocks, 1)
-	frag := blocks[0].Source[0].Fragment()
-	assert.True(t, frag.HasSpans(), "should have code finder spans")
+	assert.True(t, blocks[0].Source[0].HasInlineCodes(), "should have code finder inline-code runs")
 }
 
 func TestCodeFinderDisabled(t *testing.T) {

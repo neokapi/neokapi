@@ -384,7 +384,7 @@ func (p *smlParser) buildBlock(id string, runs []textRun, partPath string, siInd
 			activeProps = &propsCopy
 		}
 
-		b.AppendText(run.text)
+		b.AddText(run.text)
 	}
 
 	if activeProps != nil && !activeProps.isEmpty() {

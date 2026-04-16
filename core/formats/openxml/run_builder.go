@@ -5,12 +5,12 @@ import "github.com/neokapi/neokapi/core/model"
 // runBuilder accumulates a []model.Run while parsing OpenXML inline
 // content. It coalesces adjacent TextRuns so consecutive text chunks
 // produce a single text run, matching the behavior of
-// model.Fragment.AppendText.
+// the runBuilder pattern used by other format readers.
 //
 // The builder is intentionally unexported — it exists only to let the
 // WML / DML / SML parsers emit the Runs shape directly, avoiding a
 // Fragment round-trip at import time. Each Append* method mirrors the
-// Run that model.FragmentToRuns would produce for the equivalent
+// Run that model.MarshalRuns would produce for the equivalent
 // Fragment + Span pair.
 type runBuilder struct {
 	runs []model.Run
@@ -19,7 +19,7 @@ type runBuilder struct {
 // AppendText adds plain text. If the previous run is a TextRun, the
 // new text is appended to it rather than emitting a second adjacent
 // TextRun.
-func (b *runBuilder) AppendText(text string) {
+func (b *runBuilder) AddText(text string) {
 	if text == "" {
 		return
 	}
@@ -33,8 +33,8 @@ func (b *runBuilder) AppendText(text string) {
 // AppendPh emits a PlaceholderRun mirroring a SpanPlaceholder. The
 // constraint booleans map directly onto RunConstraints (Deletable,
 // Cloneable, Reorderable), preserving the behavior of
-// FragmentToRuns on a matching Span.
-func (b *runBuilder) AppendPh(id, semType, subType, data, equiv, disp string, deletable, cloneable, reorderable bool) {
+// MarshalRuns on a matching Span.
+func (b *runBuilder) AddPh(id, semType, subType, data, equiv, disp string, deletable, cloneable, reorderable bool) {
 	b.runs = append(b.runs, model.Run{Ph: &model.PlaceholderRun{
 		ID:      id,
 		Type:    semType,
@@ -52,7 +52,7 @@ func (b *runBuilder) AppendPh(id, semType, subType, data, equiv, disp string, de
 
 // AppendPcOpen emits the opening half of a paired code mirroring a
 // SpanOpening.
-func (b *runBuilder) AppendPcOpen(id, semType, subType, data, equiv, disp string, deletable, cloneable, reorderable bool) {
+func (b *runBuilder) AddPcOpen(id, semType, subType, data, equiv, disp string, deletable, cloneable, reorderable bool) {
 	b.runs = append(b.runs, model.Run{PcOpen: &model.PcOpenRun{
 		ID:      id,
 		Type:    semType,
@@ -71,7 +71,7 @@ func (b *runBuilder) AppendPcOpen(id, semType, subType, data, equiv, disp string
 // AppendPcClose emits the closing half of a paired code mirroring a
 // SpanClosing. PcCloseRun has no Constraints field — the closing half
 // inherits behavior from the opening.
-func (b *runBuilder) AppendPcClose(id, semType, subType, data, equiv string) {
+func (b *runBuilder) AddPcClose(id, semType, subType, data, equiv string) {
 	b.runs = append(b.runs, model.Run{PcClose: &model.PcCloseRun{
 		ID:      id,
 		Type:    semType,

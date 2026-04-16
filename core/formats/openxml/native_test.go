@@ -1216,15 +1216,18 @@ func TestNative_DocxInlineCodes(t *testing.T) {
 	blocks := translatableBlocks(parts)
 	require.NotEmpty(t, blocks)
 
-	var withSpans int
+	var withInlineCodes int
 	for _, b := range blocks {
-		frag := b.FirstFragment()
-		if frag != nil && len(frag.Spans) > 0 {
-			withSpans++
+		runs := b.SourceRuns()
+		for _, r := range runs {
+			if r.Text == nil {
+				withInlineCodes++
+				break
+			}
 		}
 	}
-	if withSpans > 0 {
-		t.Logf("found %d blocks with inline codes", withSpans)
+	if withInlineCodes > 0 {
+		t.Logf("found %d blocks with inline codes", withInlineCodes)
 	}
 }
 
@@ -1241,7 +1244,7 @@ func TestNative_DocxSegmentIDs(t *testing.T) {
 		require.NotEmpty(t, b.Source, "block should have source segments")
 		for _, seg := range b.Source {
 			assert.NotEmpty(t, seg.ID, "segment should have an ID")
-			assert.NotNil(t, seg.Fragment(), "segment should have content")
+			assert.NotEmpty(t, seg.Runs, "segment should have content")
 		}
 	}
 }
@@ -1257,15 +1260,19 @@ func TestNative_PptxLineBreaksAsTags(t *testing.T) {
 	blocks := translatableBlocks(parts)
 	require.NotEmpty(t, blocks)
 
-	hasSpans := false
+	hasInlineCodes := false
 	for _, b := range blocks {
-		frag := b.FirstFragment()
-		if frag != nil && len(frag.Spans) > 0 {
-			hasSpans = true
+		for _, r := range b.SourceRuns() {
+			if r.Text == nil {
+				hasInlineCodes = true
+				break
+			}
+		}
+		if hasInlineCodes {
 			break
 		}
 	}
-	assert.True(t, hasSpans, "line breaks should be represented as inline codes")
+	assert.True(t, hasInlineCodes, "line breaks should be represented as inline codes")
 }
 
 // --- XLSX cross-sheet references ---

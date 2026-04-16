@@ -150,12 +150,12 @@ func (w *Writer) writeFromSkeleton(blocks []*model.Block) error {
 
 	// Walk the XML and replace Content text.
 	// We use an offset-based approach: find each <Content> text and replace it.
-	type contentSpan struct {
+	type contentRange struct {
 		textStart int
 		textEnd   int
 		text      string
 	}
-	var spans []contentSpan
+	var spans []contentRange
 
 	decoder := xml.NewDecoder(strings.NewReader(w.docContent))
 	inContent := false
@@ -182,7 +182,7 @@ func (w *Writer) writeFromSkeleton(blocks []*model.Block) error {
 				endOffset := decoder.InputOffset()
 				// The char data ends at endOffset; it starts at offset
 				// (the offset before reading this token).
-				spans = append(spans, contentSpan{
+				spans = append(spans, contentRange{
 					textStart: int(offset),
 					textEnd:   int(endOffset),
 					text:      text,

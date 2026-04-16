@@ -4,7 +4,7 @@ import "github.com/neokapi/neokapi/core/model"
 
 // runBuilder accumulates a []model.Run while parsing TMX inline content.
 // It coalesces adjacent TextRuns so consecutive xml.CharData chunks produce
-// a single text run, matching the behavior of model.Fragment.AppendText.
+// a single text run; mirrors the runBuilder pattern used by other format readers.
 //
 // The builder is intentionally unexported — it exists only to let the TMX
 // parser emit the Runs shape directly, avoiding a Fragment round-trip at
@@ -15,7 +15,7 @@ type runBuilder struct {
 
 // AppendText adds plain text. If the previous run is a TextRun, the new
 // text is appended to it rather than emitting a second adjacent TextRun.
-func (b *runBuilder) AppendText(text string) {
+func (b *runBuilder) AddText(text string) {
 	if text == "" {
 		return
 	}
@@ -27,9 +27,9 @@ func (b *runBuilder) AppendText(text string) {
 }
 
 // AppendPh emits a PlaceholderRun with the default zero-valued constraints
-// used by the Fragment→Runs bridge (matches FragmentToRuns for spans whose
+// used by the Fragment→Runs bridge (matches MarshalRuns for spans whose
 // Deletable/Cloneable/CanReorder are all false).
-func (b *runBuilder) AppendPh(id, semType, subType, data string) {
+func (b *runBuilder) AddPh(id, semType, subType, data string) {
 	b.runs = append(b.runs, model.Run{Ph: &model.PlaceholderRun{
 		ID:          id,
 		Type:        semType,
@@ -40,7 +40,7 @@ func (b *runBuilder) AppendPh(id, semType, subType, data string) {
 }
 
 // AppendPcOpen emits the opening half of a paired code.
-func (b *runBuilder) AppendPcOpen(id, semType, subType, data string) {
+func (b *runBuilder) AddPcOpen(id, semType, subType, data string) {
 	b.runs = append(b.runs, model.Run{PcOpen: &model.PcOpenRun{
 		ID:          id,
 		Type:        semType,
@@ -52,7 +52,7 @@ func (b *runBuilder) AppendPcOpen(id, semType, subType, data string) {
 
 // AppendPcClose emits the closing half of a paired code. PcCloseRun has no
 // Constraints field — the closing half inherits behavior from the opening.
-func (b *runBuilder) AppendPcClose(id, semType, subType, data string) {
+func (b *runBuilder) AddPcClose(id, semType, subType, data string) {
 	b.runs = append(b.runs, model.Run{PcClose: &model.PcCloseRun{
 		ID:      id,
 		Type:    semType,

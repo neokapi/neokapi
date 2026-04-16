@@ -248,12 +248,12 @@ func TestExtract_ItalicCommand(t *testing.T) {
 	assert.True(t, blockTextsContain(texts, "arg"),
 		"should contain 'arg', got %v", texts)
 
-	// The block containing "italic" should have inline spans (coded text).
+	// The block containing "italic" should have inline runs (non-text runs).
 	b := findBlockContaining(blocks, "italic")
 	if b != nil {
-		frag := b.FirstFragment()
-		if frag != nil && len(frag.Spans) > 0 {
-			t.Logf("inline spans found for italic command: %d spans", len(frag.Spans))
+		runs := b.SourceRuns()
+		if n := bridgetest.CountInlineCodes(runs); n > 0 {
+			t.Logf("inline runs found for italic command: %d", n)
 		}
 	}
 }
@@ -285,14 +285,12 @@ func TestExtract_HtmlBoldCommand(t *testing.T) {
 	assert.True(t, blockTextsContain(texts, "bold"),
 		"should contain 'bold', got %v", texts)
 
-	// The bold tag should produce inline spans.
+	// The bold tag should produce inline runs.
 	b := findBlockContaining(blocks, "bold")
 	if b != nil {
-		frag := b.FirstFragment()
-		if frag != nil {
-			assert.NotEmpty(t, frag.Spans,
-				"HTML <b> tag should produce inline spans")
-		}
+		runs := b.SourceRuns()
+		assert.True(t, bridgetest.HasInlineCode(runs),
+			"HTML <b> tag should produce inline runs")
 	}
 }
 

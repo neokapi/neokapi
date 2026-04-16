@@ -525,7 +525,7 @@ func (p *wmlParser) buildBlock(id string, runs []textRun, partPath string) *mode
 		if strings.HasPrefix(run.text, "\uE100") {
 			// Tab placeholder
 			spanCounter++
-			b.AppendPh(fmt.Sprintf("c%d", spanCounter),
+			b.AddPh(fmt.Sprintf("c%d", spanCounter),
 				TypeTab, SubTypeTab,
 				"<w:tab/>", "\t", "",
 				false, false, false)
@@ -534,7 +534,7 @@ func (p *wmlParser) buildBlock(id string, runs []textRun, partPath string) *mode
 		if strings.HasPrefix(run.text, "\uE101") {
 			// Image/drawing placeholder
 			spanCounter++
-			b.AppendPh(fmt.Sprintf("c%d", spanCounter),
+			b.AddPh(fmt.Sprintf("c%d", spanCounter),
 				TypeImage, SubTypeImage,
 				"<w:drawing/>", "", "",
 				false, false, false)
@@ -544,7 +544,7 @@ func (p *wmlParser) buildBlock(id string, runs []textRun, partPath string) *mode
 			// Footnote/endnote reference
 			noteID := strings.TrimPrefix(run.text, "\uE102:")
 			spanCounter++
-			b.AppendPh(fmt.Sprintf("c%d", spanCounter),
+			b.AddPh(fmt.Sprintf("c%d", spanCounter),
 				TypeFootnoteRef, SubTypeFootnoteRef,
 				fmt.Sprintf(`<w:footnoteReference w:id="%s"/>`, noteID),
 				"",
@@ -556,7 +556,7 @@ func (p *wmlParser) buildBlock(id string, runs []textRun, partPath string) *mode
 			// Hyperlink open
 			data := strings.TrimPrefix(run.text, "\uE103:")
 			spanCounter++
-			b.AppendPcOpen(fmt.Sprintf("c%d", spanCounter),
+			b.AddPcOpen(fmt.Sprintf("c%d", spanCounter),
 				TypeHyperlink, SubTypeHyperlink,
 				data, "", "",
 				true, true, true)
@@ -570,7 +570,7 @@ func (p *wmlParser) buildBlock(id string, runs []textRun, partPath string) *mode
 				activeProps = nil
 			}
 			spanCounter++
-			b.AppendPcClose(fmt.Sprintf("c%d", spanCounter),
+			b.AddPcClose(fmt.Sprintf("c%d", spanCounter),
 				TypeHyperlink, SubTypeHyperlink,
 				"</w:hyperlink>", "")
 			continue
@@ -579,7 +579,7 @@ func (p *wmlParser) buildBlock(id string, runs []textRun, partPath string) *mode
 		// Handle line break
 		if run.text == "\n" {
 			spanCounter++
-			b.AppendPh(fmt.Sprintf("c%d", spanCounter),
+			b.AddPh(fmt.Sprintf("c%d", spanCounter),
 				TypeBreak, SubTypeBreak,
 				"<w:br/>", "\n", "",
 				false, false, false)
@@ -600,7 +600,7 @@ func (p *wmlParser) buildBlock(id string, runs []textRun, partPath string) *mode
 			activeProps = &propsCopy
 		}
 
-		b.AppendText(run.text)
+		b.AddText(run.text)
 	}
 
 	// Close any remaining open formatting

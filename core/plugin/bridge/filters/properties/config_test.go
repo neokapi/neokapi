@@ -5,7 +5,6 @@ package properties
 import (
 	"testing"
 
-	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/plugin/bridge/filters/bridgetest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -50,9 +49,7 @@ func TestSubfilter_EmbeddedMessagePlaceholders(t *testing.T) {
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.NotEmpty(t, blocks)
 
-	frag := blocks[0].FirstFragment()
-	require.NotNil(t, frag)
-	assert.GreaterOrEqual(t, len(frag.Spans), 4)
+	assert.GreaterOrEqual(t, bridgetest.CountInlineCodes(blocks[0].SourceRuns()), 4)
 }
 
 // okapi: PropertiesFilterTest#testWithSubfilterWithHTMLEscapes
@@ -63,9 +60,7 @@ func TestSubfilter_HTMLEscapes(t *testing.T) {
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.NotEmpty(t, blocks)
 
-	frag := blocks[0].FirstFragment()
-	require.NotNil(t, frag)
-	assert.GreaterOrEqual(t, len(frag.Spans), 2)
+	assert.GreaterOrEqual(t, bridgetest.CountInlineCodes(blocks[0].SourceRuns()), 2)
 }
 
 // okapi: PropertiesFilterTest#testWithSubfilterOutput
@@ -108,9 +103,7 @@ func TestSubfilter_EmbeddedEscapedMessagePlaceholders(t *testing.T) {
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.NotEmpty(t, blocks)
 
-	frag := blocks[0].FirstFragment()
-	require.NotNil(t, frag)
-	assert.Equal(t, 2, len(frag.Spans))
+	assert.Equal(t, 2, bridgetest.CountInlineCodes(blocks[0].SourceRuns()))
 }
 
 // containsText checks if any of the texts equal the given string.
@@ -121,15 +114,4 @@ func containsText(texts []string, s string) bool {
 		}
 	}
 	return false
-}
-
-// countSpansByType counts spans of the given type in a fragment.
-func countSpansByType(frag *model.Fragment, spanType model.SpanType) int {
-	count := 0
-	for _, s := range frag.Spans {
-		if s.SpanType == spanType {
-			count++
-		}
-	}
-	return count
 }

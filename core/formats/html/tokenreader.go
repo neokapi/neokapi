@@ -339,11 +339,11 @@ func (s *tokenReaderState) processLeafBlock(tokenizer *html.Tokenizer, tag strin
 
 		switch tt {
 		case html.TextToken:
-			b.AppendText(string(tokenRaw))
+			b.AddText(string(tokenRaw))
 
 		case html.CommentToken:
 			spanCounter++
-			b.AppendPh(
+			b.AddPh(
 				strconv.Itoa(spanCounter),
 				"code:comment",
 				"html:comment",
@@ -367,7 +367,7 @@ func (s *tokenReaderState) processLeafBlock(tokenizer *html.Tokenizer, tag strin
 				spanCounter++
 				// Consume until close, capture raw.
 				innerRaw := s.consumeRawUntilClose(tokenizer, childTag)
-				b.AppendPh(
+				b.AddPh(
 					strconv.Itoa(spanCounter),
 					"code:markup",
 					"html:"+childTag,
@@ -387,7 +387,7 @@ func (s *tokenReaderState) processLeafBlock(tokenizer *html.Tokenizer, tag strin
 					// Whole inline is non-translatable: consume as placeholder.
 					spanCounter++
 					innerRaw := s.consumeRawUntilClose(tokenizer, childTag)
-					b.AppendPh(
+					b.AddPh(
 						strconv.Itoa(spanCounter),
 						"code:markup",
 						"html:"+childTag,
@@ -403,7 +403,7 @@ func (s *tokenReaderState) processLeafBlock(tokenizer *html.Tokenizer, tag strin
 				if selfClosingElements[childAtom] {
 					spanCounter++
 					info := s.vocab.LookupOrFallback(semType)
-					b.AppendPh(
+					b.AddPh(
 						strconv.Itoa(spanCounter),
 						semType,
 						subType,
@@ -420,7 +420,7 @@ func (s *tokenReaderState) processLeafBlock(tokenizer *html.Tokenizer, tag strin
 					spanCounter++
 					spanID := strconv.Itoa(spanCounter)
 					info := s.vocab.LookupOrFallback(semType)
-					b.AppendPcOpen(
+					b.AddPcOpen(
 						spanID,
 						semType,
 						subType,
@@ -467,7 +467,7 @@ func (s *tokenReaderState) processLeafBlock(tokenizer *html.Tokenizer, tag strin
 			subType := "html:" + childTag
 			spanCounter++
 			info := s.vocab.LookupOrFallback(semType)
-			b.AppendPh(
+			b.AddPh(
 				strconv.Itoa(spanCounter),
 				semType,
 				subType,
@@ -529,11 +529,11 @@ func (s *tokenReaderState) collectInlineTokens(tokenizer *html.Tokenizer, parent
 
 		switch tt {
 		case html.TextToken:
-			b.AppendText(string(tokenRaw))
+			b.AddText(string(tokenRaw))
 
 		case html.CommentToken:
 			*spanCounter++
-			b.AppendPh(
+			b.AddPh(
 				strconv.Itoa(*spanCounter),
 				"code:comment",
 				"html:comment",
@@ -553,7 +553,7 @@ func (s *tokenReaderState) collectInlineTokens(tokenizer *html.Tokenizer, parent
 			if nonTranslatableElements[childAtom] {
 				*spanCounter++
 				innerRaw := s.consumeRawUntilClose(tokenizer, childTag)
-				b.AppendPh(
+				b.AddPh(
 					strconv.Itoa(*spanCounter),
 					"code:markup",
 					"html:"+childTag,
@@ -567,7 +567,7 @@ func (s *tokenReaderState) collectInlineTokens(tokenizer *html.Tokenizer, parent
 			if childTranslateNo {
 				*spanCounter++
 				innerRaw := s.consumeRawUntilClose(tokenizer, childTag)
-				b.AppendPh(
+				b.AddPh(
 					strconv.Itoa(*spanCounter),
 					"code:markup",
 					"html:"+childTag,
@@ -584,7 +584,7 @@ func (s *tokenReaderState) collectInlineTokens(tokenizer *html.Tokenizer, parent
 				if selfClosingElements[childAtom] {
 					*spanCounter++
 					info := s.vocab.LookupOrFallback(semType)
-					b.AppendPh(
+					b.AddPh(
 						strconv.Itoa(*spanCounter),
 						semType,
 						subType,
@@ -601,7 +601,7 @@ func (s *tokenReaderState) collectInlineTokens(tokenizer *html.Tokenizer, parent
 					*spanCounter++
 					spanID := strconv.Itoa(*spanCounter)
 					info := s.vocab.LookupOrFallback(semType)
-					b.AppendPcOpen(
+					b.AddPcOpen(
 						spanID,
 						semType,
 						subType,
@@ -626,7 +626,7 @@ func (s *tokenReaderState) collectInlineTokens(tokenizer *html.Tokenizer, parent
 				// opener so the pair can be reassembled downstream.
 				semType := htmlSemanticType(parentTag)
 				subType := "html:" + parentTag
-				b.AppendPcClose(
+				b.AddPcClose(
 					findOpeningRunID(b, semType),
 					semType,
 					subType,
@@ -647,7 +647,7 @@ func (s *tokenReaderState) collectInlineTokens(tokenizer *html.Tokenizer, parent
 			subType := "html:" + childTag
 			*spanCounter++
 			info := s.vocab.LookupOrFallback(semType)
-			b.AppendPh(
+			b.AddPh(
 				strconv.Itoa(*spanCounter),
 				semType,
 				subType,

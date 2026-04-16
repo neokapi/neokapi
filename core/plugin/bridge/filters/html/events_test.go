@@ -273,26 +273,14 @@ func TestEvents_PWithInlines(t *testing.T) {
 	assert.Contains(t, text, "bold")
 	assert.Contains(t, text, "after.")
 
-	// The fragment should have inline spans for <b>, </b>, and <a/>.
-	frag := paraBlock.FirstFragment()
-	require.NotNil(t, frag)
-	require.GreaterOrEqual(t, len(frag.Spans), 3,
-		"should have at least 3 spans: <b> opening, </b> closing, <a/> placeholder")
+	// The runs should have inline-code runs for <b>, </b>, and <a/>.
+	runs := paraBlock.SourceRuns()
+	require.GreaterOrEqual(t, bridgetest.CountInlineCodes(runs), 3,
+		"should have at least 3 inline-code runs: <b> open, </b> close, <a/> ph")
 
-	var hasOpening, hasClosing, hasPlaceholder bool
-	for _, s := range frag.Spans {
-		switch s.SpanType {
-		case model.SpanOpening:
-			hasOpening = true
-		case model.SpanClosing:
-			hasClosing = true
-		case model.SpanPlaceholder:
-			hasPlaceholder = true
-		}
-	}
-	assert.True(t, hasOpening, "should have opening span for <b>")
-	assert.True(t, hasClosing, "should have closing span for </b>")
-	assert.True(t, hasPlaceholder, "should have placeholder span for <a/>")
+	assert.True(t, bridgetest.HasPcOpen(runs), "should have PcOpen run for <b>")
+	assert.True(t, bridgetest.HasPcClose(runs), "should have PcClose run for </b>")
+	assert.True(t, bridgetest.HasPlaceholder(runs), "should have Ph run for <a/>")
 }
 
 // TestEvents_PWithInlineAnchorAndAmpersand verifies that an anchor with
@@ -313,17 +301,9 @@ func TestEvents_PWithInlineAnchorAndAmpersand(t *testing.T) {
 	assert.Contains(t, text, "Before")
 	assert.Contains(t, text, "after.")
 
-	// The anchor should appear as a placeholder span in the fragment.
-	frag := paraBlock.FirstFragment()
-	require.NotNil(t, frag)
-	var hasPlaceholder bool
-	for _, s := range frag.Spans {
-		if s.SpanType == model.SpanPlaceholder {
-			hasPlaceholder = true
-			break
-		}
-	}
-	assert.True(t, hasPlaceholder, "anchor should produce a placeholder span")
+	// The anchor should appear as a Ph run.
+	assert.True(t, bridgetest.HasPlaceholder(paraBlock.SourceRuns()),
+		"anchor should produce a Ph run")
 }
 
 // TestEvents_PWithComment verifies that an HTML comment inside a paragraph
@@ -342,18 +322,9 @@ func TestEvents_PWithComment(t *testing.T) {
 	assert.Contains(t, text, "Before")
 	assert.Contains(t, text, "after.")
 
-	// The comment should be represented as a placeholder span in the fragment.
-	frag := b.FirstFragment()
-	require.NotNil(t, frag)
-
-	var hasPlaceholder bool
-	for _, s := range frag.Spans {
-		if s.SpanType == model.SpanPlaceholder {
-			hasPlaceholder = true
-			break
-		}
-	}
-	assert.True(t, hasPlaceholder, "HTML comment should produce a placeholder span")
+	// The comment should be represented as a Ph run.
+	assert.True(t, bridgetest.HasPlaceholder(b.SourceRuns()),
+		"HTML comment should produce a Ph run")
 }
 
 // TestEvents_PWithProcessingInstruction verifies that a processing instruction
@@ -372,18 +343,9 @@ func TestEvents_PWithProcessingInstruction(t *testing.T) {
 	assert.Contains(t, text, "Before")
 	assert.Contains(t, text, "after.")
 
-	// The PI should be represented as a placeholder span.
-	frag := b.FirstFragment()
-	require.NotNil(t, frag)
-
-	var hasPlaceholder bool
-	for _, s := range frag.Spans {
-		if s.SpanType == model.SpanPlaceholder {
-			hasPlaceholder = true
-			break
-		}
-	}
-	assert.True(t, hasPlaceholder, "processing instruction should produce a placeholder span")
+	// The PI should be represented as a Ph run.
+	assert.True(t, bridgetest.HasPlaceholder(b.SourceRuns()),
+		"processing instruction should produce a Ph run")
 }
 
 // TestEvents_METATagWithLanguage verifies that a meta Content-Language tag
@@ -447,26 +409,14 @@ func TestEvents_PWithInlines2(t *testing.T) {
 	assert.Contains(t, paraText, "bold")
 	assert.Contains(t, paraText, "after.")
 
-	// The paragraph fragment should have spans for <b>, </b>, and <img/>.
-	frag := paraBlock.FirstFragment()
-	require.NotNil(t, frag)
-	require.GreaterOrEqual(t, len(frag.Spans), 3,
-		"should have spans for <b>, </b>, and <img/>")
+	// The paragraph runs should have inline-code runs for <b>, </b>, and <img/>.
+	runs := paraBlock.SourceRuns()
+	require.GreaterOrEqual(t, bridgetest.CountInlineCodes(runs), 3,
+		"should have inline-code runs for <b>, </b>, and <img/>")
 
-	var hasOpening, hasClosing, hasPlaceholder bool
-	for _, s := range frag.Spans {
-		switch s.SpanType {
-		case model.SpanOpening:
-			hasOpening = true
-		case model.SpanClosing:
-			hasClosing = true
-		case model.SpanPlaceholder:
-			hasPlaceholder = true
-		}
-	}
-	assert.True(t, hasOpening, "should have opening span for <b>")
-	assert.True(t, hasClosing, "should have closing span for </b>")
-	assert.True(t, hasPlaceholder, "should have placeholder span for <img/>")
+	assert.True(t, bridgetest.HasPcOpen(runs), "should have PcOpen run for <b>")
+	assert.True(t, bridgetest.HasPcClose(runs), "should have PcClose run for </b>")
+	assert.True(t, bridgetest.HasPlaceholder(runs), "should have Ph run for <img/>")
 
 	// The alt block should be a referent with type "alt".
 	for _, b := range blocks {

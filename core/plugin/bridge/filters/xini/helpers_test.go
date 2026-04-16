@@ -108,23 +108,41 @@ func groupEnds(parts []*model.Part) []*model.GroupEnd {
 	return result
 }
 
-// spanCount counts the total spans across all source segments of a block.
+// spanCount counts the total inline-code runs across all source segments of a block.
 func spanCount(b *model.Block) int {
 	n := 0
 	for _, seg := range b.Source {
-		if seg.Fragment() != nil {
-			n += len(seg.Spans())
+		if seg == nil {
+			continue
+		}
+		for _, r := range seg.Runs {
+			if r.Text == nil {
+				n++
+			}
 		}
 	}
 	return n
 }
 
-// hasSpanOfType checks if any source segment of a block has a span of the given type.
+// hasSpanOfType checks if any source segment of a block has an inline-code
+// run matching the given legacy SpanType.
 func hasSpanOfType(b *model.Block, st model.SpanType) bool {
 	for _, seg := range b.Source {
-		if seg.Fragment() != nil {
-			for _, s := range seg.Spans() {
-				if s.SpanType == st {
+		if seg == nil {
+			continue
+		}
+		for _, r := range seg.Runs {
+			switch st {
+			case model.SpanOpening:
+				if r.PcOpen != nil {
+					return true
+				}
+			case model.SpanClosing:
+				if r.PcClose != nil {
+					return true
+				}
+			case model.SpanPlaceholder:
+				if r.Ph != nil {
 					return true
 				}
 			}

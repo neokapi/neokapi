@@ -6,7 +6,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/plugin/bridge/filters/bridgetest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -173,17 +172,9 @@ func TestParser_FormattedMessage(t *testing.T) {
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.NotEmpty(t, blocks)
 
-	// Should have placeholders for the formatted arguments.
-	frag := blocks[0].FirstFragment()
-	require.NotNil(t, frag)
-
-	var placeholderCount int
-	for _, s := range frag.Spans {
-		if s.SpanType == model.SpanPlaceholder {
-			placeholderCount++
-		}
-	}
-	assert.GreaterOrEqual(t, placeholderCount, 3, "should have placeholders for {0,date}, {0,time}, {1}, {2,number}")
+	// Should have Ph runs for the formatted arguments.
+	assert.GreaterOrEqual(t, bridgetest.CountPlaceholders(blocks[0].SourceRuns()), 3,
+		"should have Ph runs for {0,date}, {0,time}, {1}, {2,number}")
 }
 
 // okapi: MessageFormatParserTest#testChoiceMessage

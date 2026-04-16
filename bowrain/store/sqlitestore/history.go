@@ -38,7 +38,7 @@ func (s *SQLiteStore) GetBlockHistory(ctx context.Context, projectID, stream, bl
 	for rows.Next() {
 		var e platstore.BlockHistoryEntry
 		var createdStr string
-		if err := rows.Scan(&e.Seq, &e.ChangeType, &e.Text, &e.CodedText, &e.Origin, &e.Author, &createdStr); err != nil {
+		if err := rows.Scan(&e.Seq, &e.ChangeType, &e.Text, &e.Coded, &e.Origin, &e.Author, &createdStr); err != nil {
 			return nil, fmt.Errorf("scan block history entry: %w", err)
 		}
 		e.Timestamp, _ = time.Parse(time.RFC3339, createdStr)
@@ -59,12 +59,12 @@ func (s *SQLiteStore) GetBlockHistory(ctx context.Context, projectID, stream, bl
 }
 
 // recordBlockHistory inserts a history entry within a transaction.
-func recordBlockHistory(ctx context.Context, tx *sql.Tx, projectID, stream, blockID, locale, changeType, text, codedText, origin, author string) error {
+func recordBlockHistory(ctx context.Context, tx *sql.Tx, projectID, stream, blockID, locale, changeType, text, coded, origin, author string) error {
 	now := time.Now().UTC().Format(time.RFC3339)
 	_, err := tx.ExecContext(ctx,
 		`INSERT INTO block_history (project_id, stream, block_id, locale, change_type, text, coded_text, origin, author, created_at)
 		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		projectID, stream, blockID, locale, changeType, text, codedText, origin, author, now)
+		projectID, stream, blockID, locale, changeType, text, coded, origin, author, now)
 	return err
 }
 
@@ -72,7 +72,7 @@ func recordBlockHistory(ctx context.Context, tx *sql.Tx, projectID, stream, bloc
 func recordTargetHistory(ctx context.Context, tx *sql.Tx, projectID, stream string, blockID string, oldTargets map[model.LocaleID][]*model.Segment, newTargets map[model.LocaleID][]*model.Segment) error {
 	for locale, newSegs := range newTargets {
 		newText := segmentsText(newSegs)
-		newCoded := segmentsCodedText(newSegs)
+		newCoded := segmentsMarshalled(newSegs)
 
 		oldSegs := oldTargets[locale]
 		oldText := segmentsText(oldSegs)
@@ -101,12 +101,14 @@ func segmentsText(segs []*model.Segment) string {
 	return segs[0].Text()
 }
 
-// segmentsCodedText extracts coded text from segments.
-func segmentsCodedText(segs []*model.Segment) string {
+// segmentsMarshalled returns the legacy PUA-marker coded form of the
+// first segment, used for the block_history.coded_text column. The
+// column name persists for backwards compatibility with existing rows.
+func segmentsMarshalled(segs []*model.Segment) string {
 	if len(segs) == 0 || len(segs[0].Runs) == 0 {
 		return ""
 	}
-	coded, _ := model.AsCodedText(segs[0].Runs)
+	coded, _ := model.MarshalRuns(segs[0].Runs)
 	return coded
 }
 

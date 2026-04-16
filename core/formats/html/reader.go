@@ -324,10 +324,10 @@ func (v *readerVisitor) collectMixedRunContent(parent *html.Node, runStart, runE
 	for child := runStart; child != nil && child != runEnd; child = child.NextSibling {
 		switch child.Type {
 		case html.TextNode:
-			b.AppendText(child.Data)
+			b.AddText(child.Data)
 		case html.CommentNode:
 			spanCounter++
-			b.AppendPh(
+			b.AddPh(
 				strconv.Itoa(spanCounter),
 				"code:comment",
 				"html:comment",
@@ -370,12 +370,12 @@ func (v *readerVisitor) collectFromNode(n *html.Node, b *runBuilder, spanCounter
 	for child := n.FirstChild; child != nil; child = child.NextSibling {
 		switch child.Type {
 		case html.TextNode:
-			b.AppendText(child.Data)
+			b.AddText(child.Data)
 
 		case html.CommentNode:
 			*spanCounter++
 			id := strconv.Itoa(*spanCounter)
-			b.AppendPh(
+			b.AddPh(
 				id,
 				"code:comment",
 				"html:comment",
@@ -390,7 +390,7 @@ func (v *readerVisitor) collectFromNode(n *html.Node, b *runBuilder, spanCounter
 			if nonTranslatableElements[child.DataAtom] {
 				*spanCounter++
 				id := strconv.Itoa(*spanCounter)
-				b.AppendPh(
+				b.AddPh(
 					id,
 					"code:markup",
 					"html:"+child.Data,
@@ -413,7 +413,7 @@ func (v *readerVisitor) collectFromNode(n *html.Node, b *runBuilder, spanCounter
 				if childTranslateNo && !translateNo && !hasDescendantTranslateYes(child) {
 					*spanCounter++
 					id := strconv.Itoa(*spanCounter)
-					b.AppendPh(
+					b.AddPh(
 						id,
 						"code:markup",
 						"html:"+child.Data,
@@ -430,7 +430,7 @@ func (v *readerVisitor) collectFromNode(n *html.Node, b *runBuilder, spanCounter
 					*spanCounter++
 					id := strconv.Itoa(*spanCounter)
 					info := v.reader.vocab.LookupOrFallback(semType)
-					b.AppendPh(
+					b.AddPh(
 						id,
 						semType,
 						subType,
@@ -447,7 +447,7 @@ func (v *readerVisitor) collectFromNode(n *html.Node, b *runBuilder, spanCounter
 					*spanCounter++
 					id := strconv.Itoa(*spanCounter)
 					info := v.reader.vocab.LookupOrFallback(semType)
-					b.AppendPcOpen(
+					b.AddPcOpen(
 						id,
 						semType,
 						subType,
@@ -461,7 +461,7 @@ func (v *readerVisitor) collectFromNode(n *html.Node, b *runBuilder, spanCounter
 						},
 					)
 					v.collectFromNode(child, b, spanCounter, preserveWS, childTranslateNo)
-					b.AppendPcClose(
+					b.AddPcClose(
 						id,
 						semType,
 						subType,

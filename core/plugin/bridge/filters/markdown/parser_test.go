@@ -97,9 +97,8 @@ func TestParse_Emphasis1(t *testing.T) {
 	require.NotEmpty(t, blocks)
 	found := findBlockContaining(blocks, "italic text")
 	require.NotNil(t, found)
-	frag := found.FirstFragment()
-	require.NotNil(t, frag)
-	assert.NotEmpty(t, frag.Spans, "emphasis should produce spans")
+	assert.True(t, bridgetest.HasInlineCode(found.SourceRuns()),
+		"emphasis should produce inline-code runs")
 }
 
 // okapi: MarkdownParserTest#testEmphasis2
@@ -118,9 +117,8 @@ func TestParse_StrongEmphasis1(t *testing.T) {
 	require.NotEmpty(t, blocks)
 	found := findBlockContaining(blocks, "bold text")
 	require.NotNil(t, found)
-	frag := found.FirstFragment()
-	require.NotNil(t, frag)
-	assert.NotEmpty(t, frag.Spans, "strong emphasis should produce spans")
+	assert.True(t, bridgetest.HasInlineCode(found.SourceRuns()),
+		"strong emphasis should produce inline-code runs")
 }
 
 // okapi: MarkdownParserTest#testStrongEmphasis2

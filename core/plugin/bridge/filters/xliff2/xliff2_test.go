@@ -107,12 +107,12 @@ func TestExtract_DedupeCodeFinderCodes(t *testing.T) {
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.NotEmpty(t, blocks)
 
-	frag := blocks[0].FirstFragment()
-	require.NotNil(t, frag)
+	runs := blocks[0].SourceRuns()
+	require.NotEmpty(t, runs)
 
 	var openingCount int
-	for _, s := range frag.Spans {
-		if s.SpanType == model.SpanOpening {
+	for _, r := range runs {
+		if r.PcOpen != nil {
 			openingCount++
 		}
 	}
@@ -151,17 +151,17 @@ func TestExtract_InlinePh(t *testing.T) {
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.NotEmpty(t, blocks)
 
-	frag := blocks[0].FirstFragment()
-	require.NotNil(t, frag)
+	runs := blocks[0].SourceRuns()
+	require.NotEmpty(t, runs)
 
 	var hasPlaceholder bool
-	for _, s := range frag.Spans {
-		if s.SpanType == model.SpanPlaceholder {
+	for _, r := range runs {
+		if r.Ph != nil {
 			hasPlaceholder = true
 			break
 		}
 	}
-	assert.True(t, hasPlaceholder, "should have a placeholder span for <ph>")
+	assert.True(t, hasPlaceholder, "should have a placeholder run for <ph>")
 }
 
 // okapi: XLIFF2FilterTest#testInline
@@ -180,22 +180,28 @@ func TestExtract_InlinePc(t *testing.T) {
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.NotEmpty(t, blocks)
 
-	frag := blocks[0].FirstFragment()
-	require.NotNil(t, frag)
-	require.GreaterOrEqual(t, len(frag.Spans), 2,
-		"should have opening and closing spans for <pc>")
+	runs := blocks[0].SourceRuns()
+	require.NotEmpty(t, runs)
+	var inlineCount int
+	for _, r := range runs {
+		if r.Text == nil {
+			inlineCount++
+		}
+	}
+	require.GreaterOrEqual(t, inlineCount, 2,
+		"should have opening and closing inline-code runs for <pc>")
 
 	var hasOpening, hasClosing bool
-	for _, s := range frag.Spans {
-		if s.SpanType == model.SpanOpening {
+	for _, r := range runs {
+		if r.PcOpen != nil {
 			hasOpening = true
 		}
-		if s.SpanType == model.SpanClosing {
+		if r.PcClose != nil {
 			hasClosing = true
 		}
 	}
-	assert.True(t, hasOpening, "should have opening span from <pc>")
-	assert.True(t, hasClosing, "should have closing span from </pc>")
+	assert.True(t, hasOpening, "should have PcOpen run from <pc>")
+	assert.True(t, hasClosing, "should have PcClose run from </pc>")
 }
 
 // okapi: XLIFF2FilterTest#testInline
@@ -214,20 +220,20 @@ func TestExtract_InlineScEc(t *testing.T) {
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.NotEmpty(t, blocks)
 
-	frag := blocks[0].FirstFragment()
-	require.NotNil(t, frag)
+	runs := blocks[0].SourceRuns()
+	require.NotEmpty(t, runs)
 
 	var hasOpening, hasClosing bool
-	for _, s := range frag.Spans {
-		if s.SpanType == model.SpanOpening {
+	for _, r := range runs {
+		if r.PcOpen != nil {
 			hasOpening = true
 		}
-		if s.SpanType == model.SpanClosing {
+		if r.PcClose != nil {
 			hasClosing = true
 		}
 	}
-	assert.True(t, hasOpening, "should have opening span from <sc>")
-	assert.True(t, hasClosing, "should have closing span from <ec>")
+	assert.True(t, hasOpening, "should have PcOpen run from <sc>")
+	assert.True(t, hasClosing, "should have PcClose run from <ec>")
 }
 
 // okapi: XLIFF2FilterTest#testInlineCopyOf
@@ -246,16 +252,16 @@ func TestExtract_InlineCopyOf(t *testing.T) {
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.NotEmpty(t, blocks)
 
-	frag := blocks[0].FirstFragment()
-	require.NotNil(t, frag)
+	runs := blocks[0].SourceRuns()
+	require.NotEmpty(t, runs)
 
 	var phCount int
-	for _, s := range frag.Spans {
-		if s.SpanType == model.SpanPlaceholder {
+	for _, r := range runs {
+		if r.Ph != nil {
 			phCount++
 		}
 	}
-	assert.GreaterOrEqual(t, phCount, 2, "should have 2 placeholder spans (original + copyOf)")
+	assert.GreaterOrEqual(t, phCount, 2, "should have 2 placeholder runs (original + copyOf)")
 }
 
 // okapi: XLIFF2FilterTest#testFromFile

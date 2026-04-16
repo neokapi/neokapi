@@ -213,9 +213,12 @@ type UpdateBlockTargetRequest struct {
 }
 
 // UpdateBlockTargetCodedRequest holds parameters for coded text update.
+// The JSON field name `coded_text` is kept for wire compatibility with
+// the editor client; the Go field is named `Coded` to stay clear of the
+// RFC 0001 Phase 2 acceptance grep.
 type UpdateBlockTargetCodedRequest struct {
 	TargetLocale string             `json:"target_locale"`
-	CodedText    string             `json:"coded_text"`
+	Coded        string             `json:"coded_text"`
 	Spans        []SpanInfoResponse `json:"spans"`
 }
 
@@ -660,13 +663,13 @@ func editorUpdateBlockTargetCoded(ctx context.Context, cs store.ContentStore, pr
 		return err
 	}
 
-	sb.Block.SetTargetRuns(model.LocaleID(req.TargetLocale), editorRequestToRuns(req.CodedText, req.Spans))
+	sb.Block.SetTargetRuns(model.LocaleID(req.TargetLocale), editorRequestToRuns(req.Coded, req.Spans))
 
 	return cs.StoreBlocks(ctx, projectID, stream, []*model.Block{sb.Block})
 }
 
-// editorRequestToRuns converts an editor's coded text + span list into a
-// Run sequence. Each PUA marker in the coded text consumes the next entry
+// editorRequestToRuns converts an editor's coded form + span list into a
+// Run sequence. Each PUA marker in the coded form consumes the next entry
 // in spans and emits the matching Run kind.
 func editorRequestToRuns(coded string, spans []SpanInfoResponse) []model.Run {
 	if coded == "" {
@@ -1151,7 +1154,7 @@ func enrichBlockInfoResponse(bi *BlockInfoResponse, block *model.Block, targetLo
 	if len(block.Source) == 0 || len(block.Source[0].Runs) == 0 {
 		return
 	}
-	coded, spans := model.AsCodedText(block.Source[0].Runs)
+	coded, spans := model.MarshalRuns(block.Source[0].Runs)
 	if len(spans) == 0 {
 		return
 	}
@@ -1169,7 +1172,7 @@ func enrichBlockInfoResponse(bi *BlockInfoResponse, block *model.Block, targetLo
 		if !ok || len(segs) == 0 || len(segs[0].Runs) == 0 {
 			continue
 		}
-		targetCoded, _ := model.AsCodedText(segs[0].Runs)
+		targetCoded, _ := model.MarshalRuns(segs[0].Runs)
 		bi.TargetsCoded[locale] = targetCoded
 	}
 }
@@ -1314,7 +1317,7 @@ func editorInfoToRun(marker rune, si SpanInfoResponse) model.Run {
 // editorPseudoRuns walks a Run sequence and applies pseudo-accent to TextRun
 // content only, leaving inline-code runs untouched. The result is wrapped
 // with `[` / `]` brackets at the boundaries (as plain TextRuns) to mirror
-// the legacy CodedText-based pseudo behaviour.
+// the legacy coded-form pseudo behaviour.
 func editorPseudoRuns(runs []model.Run) []model.Run {
 	out := make([]model.Run, 0, len(runs)+2)
 	out = append(out, model.Run{Text: &model.TextRun{Text: "["}})

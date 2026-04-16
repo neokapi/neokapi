@@ -137,9 +137,8 @@ func TestSnippets_Href(t *testing.T) {
 	text := b.SourceText()
 	assert.Contains(t, text, "see")
 	assert.Contains(t, text, "yahoo")
-	frag := b.FirstFragment()
-	require.NotNil(t, frag)
-	assert.NotEmpty(t, frag.Spans, "should have spans for the <a> tag")
+	assert.True(t, bridgetest.HasInlineCode(b.SourceRuns()),
+		"should have inline-code runs for the <a> tag")
 }
 
 // okapi: HtmlSnippetsTest#testButton
@@ -152,9 +151,8 @@ func TestSnippets_Button(t *testing.T) {
 	b := blocks[0]
 	text := b.SourceText()
 	assert.Contains(t, text, "text")
-	frag := b.FirstFragment()
-	require.NotNil(t, frag)
-	assert.NotEmpty(t, frag.Spans, "should have spans for the <button> tags")
+	assert.True(t, bridgetest.HasInlineCode(b.SourceRuns()),
+		"should have inline-code runs for the <button> tags")
 }
 
 // okapi: HtmlSnippetsTest#testCleanupHtmlOption
@@ -174,11 +172,17 @@ func TestSnippets_InlineCodesStorage(t *testing.T) {
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.NotEmpty(t, blocks)
 
-	frag := blocks[0].FirstFragment()
-	require.NotNil(t, frag)
-	require.NotEmpty(t, frag.Spans, "should have inline spans")
-	for _, span := range frag.Spans {
-		assert.NotEmpty(t, span.Data, "span data should not be empty")
+	runs := blocks[0].SourceRuns()
+	require.True(t, bridgetest.HasInlineCode(runs), "should have inline-code runs")
+	for _, r := range runs {
+		switch {
+		case r.PcOpen != nil:
+			assert.NotEmpty(t, r.PcOpen.Data, "PcOpen data should not be empty")
+		case r.PcClose != nil:
+			assert.NotEmpty(t, r.PcClose.Data, "PcClose data should not be empty")
+		case r.Ph != nil:
+			assert.NotEmpty(t, r.Ph.Data, "Ph data should not be empty")
+		}
 	}
 }
 
@@ -204,16 +208,8 @@ func TestSnippets_AltInImg(t *testing.T) {
 
 	b := findBlockContaining(blocks, "Text1")
 	require.NotNil(t, b, "should have a block containing Text1")
-	frag := b.FirstFragment()
-	require.NotNil(t, frag)
-	hasPlaceholder := false
-	for _, s := range frag.Spans {
-		if s.SpanType == model.SpanPlaceholder {
-			hasPlaceholder = true
-			break
-		}
-	}
-	assert.True(t, hasPlaceholder, "should have a placeholder span for <img>")
+	assert.True(t, bridgetest.HasPlaceholder(b.SourceRuns()),
+		"should have a Ph run for <img>")
 }
 
 // okapi: HtmlSnippetsTest#imgStartTagOnlyHandledWithWellFormedConfiguration
@@ -223,9 +219,8 @@ func TestSnippets_ImgStartTagOnlyHandledWithWellFormedConfiguration(t *testing.T
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.NotEmpty(t, blocks)
 
-	frag := blocks[0].FirstFragment()
-	require.NotNil(t, frag)
-	assert.NotEmpty(t, frag.Spans, "should have inline spans")
+	assert.True(t, bridgetest.HasInlineCode(blocks[0].SourceRuns()),
+		"should have inline-code runs")
 }
 
 // okapi: HtmlSnippetsTest#paramStartTagOnlyHandledWithWellFormedConfiguration
@@ -260,10 +255,9 @@ func TestSnippets_NoExtractValueInInput(t *testing.T) {
 	require.NotEmpty(t, blocks)
 
 	b := blocks[0]
-	frag := b.FirstFragment()
-	require.NotNil(t, frag)
-	assert.Contains(t, frag.Text(), ".")
-	assert.NotEmpty(t, frag.Spans, "should have placeholder span for <input>")
+	runs := b.SourceRuns()
+	assert.Contains(t, model.RunsPlainText(runs), ".")
+	assert.True(t, bridgetest.HasInlineCode(runs), "should have inline-code run for <input>")
 }
 
 // okapi: HtmlSnippetsTest#testExtractValueInInput
@@ -294,11 +288,11 @@ func TestSnippets_HtmlNonWellFormedEmptyTag(t *testing.T) {
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.NotEmpty(t, blocks)
 
-	frag := blocks[0].FirstFragment()
-	require.NotNil(t, frag)
-	for _, span := range frag.Spans {
-		assert.Equal(t, model.SpanPlaceholder, span.SpanType,
-			"br tags should be placeholders in non-wellformed mode")
+	for _, r := range blocks[0].SourceRuns() {
+		if r.Text == nil {
+			assert.NotNil(t, r.Ph,
+				"br tags should be Ph runs in non-wellformed mode (got kind %q)", r.Kind())
+		}
 	}
 }
 
@@ -925,9 +919,8 @@ func TestSnippets_NestedInlineTranslateAttribute1(t *testing.T) {
 	text := b.SourceText()
 	assert.Contains(t, text, "Text")
 	assert.Contains(t, text, ".")
-	frag := b.FirstFragment()
-	require.NotNil(t, frag)
-	assert.NotEmpty(t, frag.Spans, "should have spans for nested inline elements")
+	assert.True(t, bridgetest.HasInlineCode(b.SourceRuns()),
+		"should have inline-code runs for nested inline elements")
 }
 
 // okapi: HtmlSnippetsTest#testNestedInlineTranslateAttribute2_1
@@ -941,9 +934,8 @@ func TestSnippets_NestedInlineTranslateAttribute2_1(t *testing.T) {
 	text := b.SourceText()
 	assert.Contains(t, text, "a")
 	assert.Contains(t, text, "b")
-	frag := b.FirstFragment()
-	require.NotNil(t, frag)
-	assert.NotEmpty(t, frag.Spans, "should have inline spans")
+	assert.True(t, bridgetest.HasInlineCode(b.SourceRuns()),
+		"should have inline-code runs")
 }
 
 // okapi: HtmlSnippetsTest#testNestedInlineTranslateAttribute2_2
@@ -957,9 +949,8 @@ func TestSnippets_NestedInlineTranslateAttribute2_2(t *testing.T) {
 	text := b.SourceText()
 	assert.Contains(t, text, "a")
 	assert.Contains(t, text, "b")
-	frag := b.FirstFragment()
-	require.NotNil(t, frag)
-	assert.NotEmpty(t, frag.Spans, "should have inline spans")
+	assert.True(t, bridgetest.HasInlineCode(b.SourceRuns()),
+		"should have inline-code runs")
 }
 
 // okapi: HtmlSnippetsTest#testNestedInlineTranslateAttribute3
@@ -974,9 +965,8 @@ func TestSnippets_NestedInlineTranslateAttribute3(t *testing.T) {
 	assert.Contains(t, text, "a")
 	assert.Contains(t, text, "b")
 	assert.Contains(t, text, "c")
-	frag := b.FirstFragment()
-	require.NotNil(t, frag)
-	assert.NotEmpty(t, frag.Spans, "should have inline spans for nested elements")
+	assert.True(t, bridgetest.HasInlineCode(b.SourceRuns()),
+		"should have inline-code runs for nested elements")
 }
 
 // okapi: HtmlSnippetsTest#testNestedInlineTranslateAttribute4
@@ -991,9 +981,8 @@ func TestSnippets_NestedInlineTranslateAttribute4(t *testing.T) {
 	assert.Contains(t, text, "a")
 	assert.Contains(t, text, "b")
 	assert.Contains(t, text, "d")
-	frag := b.FirstFragment()
-	require.NotNil(t, frag)
-	assert.NotEmpty(t, frag.Spans, "should have inline spans")
+	assert.True(t, bridgetest.HasInlineCode(b.SourceRuns()),
+		"should have inline-code runs")
 }
 
 // okapi: HtmlSnippetsTest#testNestedInlineTranslateAttribute5
@@ -1009,9 +998,8 @@ func TestSnippets_NestedInlineTranslateAttribute5(t *testing.T) {
 	assert.Contains(t, text, "b")
 	assert.Contains(t, text, "c")
 	assert.Contains(t, text, "e")
-	frag := b.FirstFragment()
-	require.NotNil(t, frag)
-	assert.NotEmpty(t, frag.Spans, "should have inline spans")
+	assert.True(t, bridgetest.HasInlineCode(b.SourceRuns()),
+		"should have inline-code runs")
 }
 
 // okapi: HtmlSnippetsTest#testNestedInlineTranslateAttribute6
@@ -1024,15 +1012,20 @@ func TestSnippets_NestedInlineTranslateAttribute6(t *testing.T) {
 	b := blocks[0]
 	text := b.SourceText()
 	assert.Contains(t, text, "this is some text")
-	frag := b.FirstFragment()
-	require.NotNil(t, frag)
-	assert.NotEmpty(t, frag.Spans, "should have inline spans")
-	require.GreaterOrEqual(t, len(frag.Spans), 4, "should have at least 4 spans")
-	// The bridge emits all spans as placeholders for translate attribute boundaries.
-	assert.Equal(t, model.SpanPlaceholder, frag.Spans[0].SpanType, "first span should be placeholder for translate=no <i>")
-	assert.Equal(t, model.SpanPlaceholder, frag.Spans[1].SpanType, "second span should be placeholder for translate=yes <b>")
-	assert.Equal(t, model.SpanPlaceholder, frag.Spans[2].SpanType, "third span should be placeholder for </i>")
-	assert.Equal(t, model.SpanPlaceholder, frag.Spans[3].SpanType, "fourth span should be placeholder for </b>")
+	runs := b.SourceRuns()
+	// Collect inline-code runs (non-text).
+	var codes []model.Run
+	for _, r := range runs {
+		if r.Text == nil {
+			codes = append(codes, r)
+		}
+	}
+	require.GreaterOrEqual(t, len(codes), 4, "should have at least 4 inline-code runs")
+	// The bridge emits all runs as Ph for translate attribute boundaries.
+	assert.NotNil(t, codes[0].Ph, "first inline-code run should be Ph for translate=no <i>")
+	assert.NotNil(t, codes[1].Ph, "second inline-code run should be Ph for translate=yes <b>")
+	assert.NotNil(t, codes[2].Ph, "third inline-code run should be Ph for </i>")
+	assert.NotNil(t, codes[3].Ph, "fourth inline-code run should be Ph for </b>")
 }
 
 // okapi: HtmlSnippetsTest#testFreeMarker
@@ -1084,16 +1077,8 @@ func TestSnippets_InlineTranslateNo(t *testing.T) {
 	text := b.SourceText()
 	assert.Contains(t, text, "Shopping cart contains two items")
 	assert.Contains(t, text, "full amount will be charged.")
-	frag := b.FirstFragment()
-	require.NotNil(t, frag)
-	hasPlaceholder := false
-	for _, s := range frag.Spans {
-		if s.SpanType == model.SpanPlaceholder {
-			hasPlaceholder = true
-			break
-		}
-	}
-	assert.True(t, hasPlaceholder, "translate=no content should become a placeholder")
+	assert.True(t, bridgetest.HasPlaceholder(b.SourceRuns()),
+		"translate=no content should become a Ph run")
 }
 
 // okapi: HtmlSnippetsTest#testInlineTranslateYes
@@ -1111,9 +1096,8 @@ func TestSnippets_InlineTranslateYes(t *testing.T) {
 	assert.Contains(t, text, "These two items are without any discount and")
 	assert.Contains(t, text, "summer sale")
 	assert.Contains(t, text, "full amount will be charged.")
-	frag := b.FirstFragment()
-	require.NotNil(t, frag)
-	assert.NotEmpty(t, frag.Spans, "should have inline spans")
+	assert.True(t, bridgetest.HasInlineCode(b.SourceRuns()),
+		"should have inline-code runs")
 }
 
 // okapi: HtmlSnippetsTest#testTagLowerCaseFix
@@ -1133,12 +1117,12 @@ func TestSnippets_InlineCdata(t *testing.T) {
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.NotEmpty(t, blocks)
 
-	frag := blocks[0].FirstFragment()
-	require.NotNil(t, frag)
-	text := frag.Text()
+	runs := blocks[0].SourceRuns()
+	text := model.RunsPlainText(runs)
 	assert.Contains(t, text, "Here is some")
 	assert.Contains(t, text, "for you.")
-	assert.GreaterOrEqual(t, len(frag.Spans), 2, "should have spans for CDATA markers")
+	assert.GreaterOrEqual(t, bridgetest.CountInlineCodes(runs), 2,
+		"should have inline-code runs for CDATA markers")
 }
 
 // okapi: HtmlSnippetsTest#testEmptyGroupAtEnd
@@ -1223,9 +1207,8 @@ func TestSnippets_OkapiMarkerInText(t *testing.T) {
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.NotEmpty(t, blocks)
 
-	frag := blocks[0].FirstFragment()
-	require.NotNil(t, frag)
-	assert.NotEmpty(t, frag.Spans, "should have spans for marker characters")
+	assert.True(t, bridgetest.HasInlineCode(blocks[0].SourceRuns()),
+		"should have inline-code runs for marker characters")
 
 	output := snippetRoundtripDefault(t, snippet)
 	assert.Equal(t, "Word \uE101\uE102\uE103 <span>end</span>!", output)

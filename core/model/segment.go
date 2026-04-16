@@ -82,37 +82,3 @@ func (s *Segment) HasInlineCodes() bool {
 func NewRunsSegment(id string, runs []Run) *Segment {
 	return &Segment{ID: id, Runs: runs}
 }
-
-// CodedText returns the segment's content as a PUA-marker coded
-// string — the flat-string hot-path form used by format writers and
-// substring-based analyses. Derived from Runs on every call via
-// AsCodedText; never persist the output.
-func (s *Segment) CodedText() string {
-	if s == nil {
-		return ""
-	}
-	coded, _ := AsCodedText(s.Runs)
-	return coded
-}
-
-// Spans returns the inline-code Span slice that lines up by position
-// with the PUA markers in CodedText(). Derived from Runs on every
-// call via AsCodedText.
-func (s *Segment) Spans() []*Span {
-	if s == nil {
-		return nil
-	}
-	_, spans := AsCodedText(s.Runs)
-	return spans
-}
-
-// Fragment materializes the segment's runs as a Fragment — the
-// PUA-marker + Span-list representation. Returns a fresh Fragment
-// each call; mutations on the returned value are not propagated back
-// into the segment.
-func (s *Segment) Fragment() *Fragment {
-	if s == nil {
-		return nil
-	}
-	return RunsToFragment(s.Runs)
-}

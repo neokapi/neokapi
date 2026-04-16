@@ -4,7 +4,6 @@ package messageformat
 
 import (
 	"bytes"
-	"context"
 	"io"
 	"strings"
 	"testing"
@@ -190,17 +189,9 @@ func TestExtract_Code1(t *testing.T) {
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.NotEmpty(t, blocks)
 
-	frag := blocks[0].FirstFragment()
-	require.NotNil(t, frag)
-
-	// {0} should be extracted as an inline code (placeholder span).
-	var placeholderCount int
-	for _, s := range frag.Spans {
-		if s.SpanType == model.SpanPlaceholder {
-			placeholderCount++
-		}
-	}
-	assert.GreaterOrEqual(t, placeholderCount, 1, "should have at least 1 placeholder span for {0}")
+	// {0} should be extracted as an inline code (Ph run).
+	assert.GreaterOrEqual(t, bridgetest.CountPlaceholders(blocks[0].SourceRuns()), 1,
+		"should have at least 1 Ph run for {0}")
 
 	text := blocks[0].SourceText()
 	assert.Contains(t, text, "Hello")
@@ -215,16 +206,8 @@ func TestExtract_Code2(t *testing.T) {
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.NotEmpty(t, blocks)
 
-	frag := blocks[0].FirstFragment()
-	require.NotNil(t, frag)
-
-	var placeholderCount int
-	for _, s := range frag.Spans {
-		if s.SpanType == model.SpanPlaceholder {
-			placeholderCount++
-		}
-	}
-	assert.GreaterOrEqual(t, placeholderCount, 1, "should have at least 1 placeholder span for {name}")
+	assert.GreaterOrEqual(t, bridgetest.CountPlaceholders(blocks[0].SourceRuns()), 1,
+		"should have at least 1 Ph run for {name}")
 }
 
 // okapi: MessageFormatFilterTest#testCode3
@@ -235,16 +218,8 @@ func TestExtract_Code3(t *testing.T) {
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.NotEmpty(t, blocks)
 
-	frag := blocks[0].FirstFragment()
-	require.NotNil(t, frag)
-
-	var placeholderCount int
-	for _, s := range frag.Spans {
-		if s.SpanType == model.SpanPlaceholder {
-			placeholderCount++
-		}
-	}
-	assert.GreaterOrEqual(t, placeholderCount, 1, "should have at least 1 placeholder span for {0,number,integer}")
+	assert.GreaterOrEqual(t, bridgetest.CountPlaceholders(blocks[0].SourceRuns()), 1,
+		"should have at least 1 Ph run for {0,number,integer}")
 }
 
 // okapi: MessageFormatFilterTest#testCode4
@@ -255,16 +230,8 @@ func TestExtract_Code4(t *testing.T) {
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.NotEmpty(t, blocks)
 
-	frag := blocks[0].FirstFragment()
-	require.NotNil(t, frag)
-
-	var placeholderCount int
-	for _, s := range frag.Spans {
-		if s.SpanType == model.SpanPlaceholder {
-			placeholderCount++
-		}
-	}
-	assert.GreaterOrEqual(t, placeholderCount, 1, "should have at least 1 placeholder span for {0,date,short}")
+	assert.GreaterOrEqual(t, bridgetest.CountPlaceholders(blocks[0].SourceRuns()), 1,
+		"should have at least 1 Ph run for {0,date,short}")
 }
 
 // okapi: MessageFormatFilterTest#testCode5
@@ -275,16 +242,8 @@ func TestExtract_Code5(t *testing.T) {
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.NotEmpty(t, blocks)
 
-	frag := blocks[0].FirstFragment()
-	require.NotNil(t, frag)
-
-	var placeholderCount int
-	for _, s := range frag.Spans {
-		if s.SpanType == model.SpanPlaceholder {
-			placeholderCount++
-		}
-	}
-	assert.GreaterOrEqual(t, placeholderCount, 1, "should have placeholder span for {0,time}")
+	assert.GreaterOrEqual(t, bridgetest.CountPlaceholders(blocks[0].SourceRuns()), 1,
+		"should have Ph run for {0,time}")
 }
 
 // okapi: MessageFormatFilterTest#testCode6
@@ -295,16 +254,8 @@ func TestExtract_Code6(t *testing.T) {
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.NotEmpty(t, blocks)
 
-	frag := blocks[0].FirstFragment()
-	require.NotNil(t, frag)
-
-	var placeholderCount int
-	for _, s := range frag.Spans {
-		if s.SpanType == model.SpanPlaceholder {
-			placeholderCount++
-		}
-	}
-	assert.GreaterOrEqual(t, placeholderCount, 1, "should have placeholder span for {0,number,#,###}")
+	assert.GreaterOrEqual(t, bridgetest.CountPlaceholders(blocks[0].SourceRuns()), 1,
+		"should have Ph run for {0,number,#,###}")
 }
 
 // okapi: MessageFormatFilterTest#testMultipleEmbedded
@@ -581,14 +532,13 @@ func TestExtract_InlineCodes(t *testing.T) {
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.NotEmpty(t, blocks, "inline codes in message format should produce text units")
 
-	// Check for inline codes (opening/closing spans for HTML tags).
-	var hasSpans bool
+	// Check for inline-code runs (opening/closing for HTML tags).
+	var hasCodes bool
 	for _, b := range blocks {
-		frag := b.FirstFragment()
-		if frag != nil && len(frag.Spans) > 0 {
-			hasSpans = true
+		if bridgetest.HasInlineCode(b.SourceRuns()) {
+			hasCodes = true
 			break
 		}
 	}
-	assert.True(t, hasSpans, "should have inline code spans from code finder")
+	assert.True(t, hasCodes, "should have inline-code runs from code finder")
 }

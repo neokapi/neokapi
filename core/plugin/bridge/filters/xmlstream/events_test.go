@@ -48,24 +48,30 @@ func TestEvents_PWithInlines(t *testing.T) {
 	require.NotNil(t, paraBlock)
 	assert.Equal(t, "paragraph", paraBlock.Type)
 
-	frag := paraBlock.FirstFragment()
-	require.NotNil(t, frag)
-	require.GreaterOrEqual(t, len(frag.Spans), 3)
+	runs := paraBlock.SourceRuns()
+	require.NotEmpty(t, runs)
+	var inlineCount int
+	for _, r := range runs {
+		if r.Text == nil {
+			inlineCount++
+		}
+	}
+	require.GreaterOrEqual(t, inlineCount, 3)
 
 	var hasOpening, hasClosing, hasPlaceholder bool
-	for _, s := range frag.Spans {
-		switch s.SpanType {
-		case model.SpanOpening:
+	for _, r := range runs {
+		switch {
+		case r.PcOpen != nil:
 			hasOpening = true
-		case model.SpanClosing:
+		case r.PcClose != nil:
 			hasClosing = true
-		case model.SpanPlaceholder:
+		case r.Ph != nil:
 			hasPlaceholder = true
 		}
 	}
-	assert.True(t, hasOpening, "should have opening span for <b>")
-	assert.True(t, hasClosing, "should have closing span for </b>")
-	assert.True(t, hasPlaceholder, "should have placeholder span for <a/>")
+	assert.True(t, hasOpening, "should have PcOpen run for <b>")
+	assert.True(t, hasClosing, "should have PcClose run for </b>")
+	assert.True(t, hasPlaceholder, "should have Ph run for <a/>")
 }
 
 // okapi: XmlStreamEventTest#testPWithInlines2
@@ -82,9 +88,15 @@ func TestEvents_PWithInlines2(t *testing.T) {
 	paraBlock := findBlockContaining(blocks, "Before")
 	require.NotNil(t, paraBlock)
 
-	frag := paraBlock.FirstFragment()
-	require.NotNil(t, frag)
-	require.GreaterOrEqual(t, len(frag.Spans), 3)
+	runs := paraBlock.SourceRuns()
+	require.NotEmpty(t, runs)
+	var inlineCount int
+	for _, r := range runs {
+		if r.Text == nil {
+			inlineCount++
+		}
+	}
+	require.GreaterOrEqual(t, inlineCount, 3)
 }
 
 // okapi: XmlStreamEventTest#testPWithAttributes
@@ -233,17 +245,17 @@ func TestEvents_PWithComment(t *testing.T) {
 	assert.Contains(t, text, "Before")
 	assert.Contains(t, text, "after.")
 
-	frag := b.FirstFragment()
-	require.NotNil(t, frag)
+	runs := b.SourceRuns()
+	require.NotEmpty(t, runs)
 
 	var hasPlaceholder bool
-	for _, s := range frag.Spans {
-		if s.SpanType == model.SpanPlaceholder {
+	for _, r := range runs {
+		if r.Ph != nil {
 			hasPlaceholder = true
 			break
 		}
 	}
-	assert.True(t, hasPlaceholder, "XML comment should produce a placeholder span")
+	assert.True(t, hasPlaceholder, "XML comment should produce a Ph run")
 }
 
 // okapi: XmlStreamEventTest#testPWithProcessingInstruction
@@ -260,17 +272,17 @@ func TestEvents_PWithProcessingInstruction(t *testing.T) {
 	assert.Contains(t, text, "Before")
 	assert.Contains(t, text, "after.")
 
-	frag := b.FirstFragment()
-	require.NotNil(t, frag)
+	runs := b.SourceRuns()
+	require.NotEmpty(t, runs)
 
 	var hasPlaceholder bool
-	for _, s := range frag.Spans {
-		if s.SpanType == model.SpanPlaceholder {
+	for _, r := range runs {
+		if r.Ph != nil {
 			hasPlaceholder = true
 			break
 		}
 	}
-	assert.True(t, hasPlaceholder, "processing instruction should produce a placeholder span")
+	assert.True(t, hasPlaceholder, "processing instruction should produce a Ph run")
 }
 
 // okapi: XmlStreamEventTest#testEntitiesInSkeletonParts

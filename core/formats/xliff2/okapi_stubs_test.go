@@ -178,9 +178,8 @@ func TestRoundTrip_DoubleExtraction(t *testing.T) {
 func TestRead_FromEscapedFile(t *testing.T) {
 	// Verify that escaped HTML entities in XLIFF 2.0 source content are decoded.
 	// The native reader uses xml:",innerxml" which preserves XML-escaped entities
-	// as literal text (e.g. &lt;p&gt; stays as &lt;p&gt; in the inner XML string),
-	// but model.NewFragment receives this as text. The Fragment.Text() returns
-	// the raw inner XML string.
+	// as literal text (e.g. &lt;p&gt; stays as &lt;p&gt; in the inner XML string).
+	// The block's source runs carry that decoded text verbatim.
 	xliff := `<?xml version="1.0" encoding="UTF-8"?>
 <xliff xmlns="urn:oasis:names:tc:xliff:document:2.0" version="2.0" srcLang="en" trgLang="fr">
   <file id="f1">

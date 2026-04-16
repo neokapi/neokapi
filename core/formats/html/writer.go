@@ -259,9 +259,9 @@ func (v *writerVisitor) replaceInlineRun(parent *html.Node, runStart, runEnd *ht
 // getBlockText returns the text content to write for a block.
 func (w *Writer) getBlockText(block *model.Block) string {
 	if !w.Locale.IsEmpty() && block.HasTarget(w.Locale) {
-		return w.getCodedText(block, w.Locale)
+		return w.renderTargetRuns(block, w.Locale)
 	}
-	return w.getSourceCodedText(block)
+	return w.renderSourceRuns(block)
 }
 
 // writeFallback writes blocks without original content (existing behavior).
@@ -311,11 +311,12 @@ func (w *Writer) writeFallback(blocks map[string]*model.Block) error {
 	return nil
 }
 
-// getCodedText reconstructs the full text from a block's target including span markup.
-func (w *Writer) getCodedText(block *model.Block, locale model.LocaleID) string {
+// renderTargetRuns reconstructs the full text from a block's target
+// runs, splicing inline-code Data back into the output.
+func (w *Writer) renderTargetRuns(block *model.Block, locale model.LocaleID) string {
 	segs := block.Targets[locale]
 	if len(segs) == 0 {
-		return w.getSourceCodedText(block)
+		return w.renderSourceRuns(block)
 	}
 	var buf strings.Builder
 	for _, seg := range segs {
@@ -324,7 +325,7 @@ func (w *Writer) getCodedText(block *model.Block, locale model.LocaleID) string 
 	return buf.String()
 }
 
-func (w *Writer) getSourceCodedText(block *model.Block) string {
+func (w *Writer) renderSourceRuns(block *model.Block) string {
 	var buf strings.Builder
 	for _, seg := range block.Source {
 		buf.WriteString(model.RenderRunsWithData(seg.Runs))

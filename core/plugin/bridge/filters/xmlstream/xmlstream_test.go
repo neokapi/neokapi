@@ -83,12 +83,17 @@ func TestExtract_InlineElements(t *testing.T) {
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.NotEmpty(t, blocks)
 
-	// Inline elements within text content should produce spans.
+	// Inline elements within text content should produce inline-code runs.
 	var found *model.Block
 	for _, b := range blocks {
-		frag := b.FirstFragment()
-		if frag != nil && len(frag.Spans) > 0 {
-			found = b
+		runs := b.SourceRuns()
+		for _, r := range runs {
+			if r.Text == nil {
+				found = b
+				break
+			}
+		}
+		if found != nil {
 			break
 		}
 	}

@@ -694,18 +694,18 @@ func TestConfigSupport_StartTagShouldBeOpenNotPlaceholder(t *testing.T) {
 	paraBlock := findBlockContaining(blocks, "text")
 	require.NotNil(t, paraBlock)
 
-	frag := paraBlock.FirstFragment()
-	require.NotNil(t, frag)
+	runs := paraBlock.SourceRuns()
+	require.NotEmpty(t, runs)
 
-	// <b> should produce an opening span, not a placeholder.
+	// <b> should produce an opening run, not a placeholder.
 	var hasOpening bool
-	for _, s := range frag.Spans {
-		if s.SpanType == model.SpanOpening {
+	for _, r := range runs {
+		if r.PcOpen != nil {
 			hasOpening = true
 			break
 		}
 	}
-	assert.True(t, hasOpening, "start tag <b> should produce an opening span, not placeholder")
+	assert.True(t, hasOpening, "start tag <b> should produce a PcOpen run, not Ph")
 }
 
 // ---------------------------------------------------------------------------
@@ -827,24 +827,34 @@ func TestConfig_GenericCodeTypes(t *testing.T) {
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.NotEmpty(t, blocks)
 
-	var blockWithSpans *model.Block
+	var blockWithCodes *model.Block
 	for _, b := range blocks {
-		frag := b.FirstFragment()
-		if frag != nil && len(frag.Spans) > 0 {
-			blockWithSpans = b
+		runs := b.SourceRuns()
+		for _, r := range runs {
+			if r.Text == nil {
+				blockWithCodes = b
+				break
+			}
+		}
+		if blockWithCodes != nil {
 			break
 		}
 	}
-	require.NotNil(t, blockWithSpans, "should have at least one block with inline spans")
+	require.NotNil(t, blockWithCodes, "should have at least one block with inline-code runs")
 
-	frag := blockWithSpans.FirstFragment()
-	spanTypes := make(map[string]bool)
-	for _, s := range frag.Spans {
-		if s.Type != "" {
-			spanTypes[s.Type] = true
+	runs := blockWithCodes.SourceRuns()
+	codeTypes := make(map[string]bool)
+	for _, r := range runs {
+		switch {
+		case r.PcOpen != nil && r.PcOpen.Type != "":
+			codeTypes[r.PcOpen.Type] = true
+		case r.PcClose != nil && r.PcClose.Type != "":
+			codeTypes[r.PcClose.Type] = true
+		case r.Ph != nil && r.Ph.Type != "":
+			codeTypes[r.Ph.Type] = true
 		}
 	}
-	assert.Greater(t, len(spanTypes), 0, "should have distinct span types for inline elements")
+	assert.Greater(t, len(codeTypes), 0, "should have distinct code types for inline elements")
 }
 
 // okapi: XmlStreamConfigurationTest#textUnitCodeTypes
@@ -885,16 +895,22 @@ func TestConfig_CodeFinderRules(t *testing.T) {
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.NotEmpty(t, blocks)
 
-	frag := blocks[0].FirstFragment()
-	require.NotNil(t, frag)
-	if len(frag.Spans) > 0 {
-		var codeFinderSpans int
-		for _, s := range frag.Spans {
-			if s.SpanType == model.SpanPlaceholder {
-				codeFinderSpans++
+	runs := blocks[0].SourceRuns()
+	require.NotEmpty(t, runs)
+	var inlineCount int
+	for _, r := range runs {
+		if r.Text == nil {
+			inlineCount++
+		}
+	}
+	if inlineCount > 0 {
+		var codeFinderRuns int
+		for _, r := range runs {
+			if r.Ph != nil {
+				codeFinderRuns++
 			}
 		}
-		assert.GreaterOrEqual(t, codeFinderSpans, 1)
+		assert.GreaterOrEqual(t, codeFinderRuns, 1)
 	}
 }
 
