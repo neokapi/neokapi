@@ -702,7 +702,7 @@ implementation.
 
 For neokapi-react the skeleton SHOULD be either (a) the original
 TSX source file verbatim, or (b) a serialized list of
-`TransformOp` ({offset, deleteCount, insert}) that can be
+`TransformOp` (`{offset, deleteCount, insert}`) that can be
 replayed against the source. The choice is up to the extractor.
 
 ### Annotation sidecars
