@@ -121,9 +121,7 @@ func applyEntityAdaptations(target []model.Run, adaptations []EntityAdaptation) 
 	}
 
 	out := make([]model.Run, len(target))
-	for i, r := range target {
-		out[i] = r
-	}
+	copy(out, target)
 	for _, adapt := range adaptations {
 		for i := range out {
 			if out[i].Text == nil {
