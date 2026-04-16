@@ -8,6 +8,13 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func newVocabRegistry(t *testing.T) *model.VocabularyRegistry {
+	t.Helper()
+	reg := model.NewVocabularyRegistry()
+	require.NoError(t, reg.LoadDefaults())
+	return reg
+}
+
 func TestRunsSemanticHTML(t *testing.T) {
 	reg := newVocabRegistry(t)
 

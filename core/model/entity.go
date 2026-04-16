@@ -25,6 +25,12 @@ func IsEntityTypeString(typeName string) bool {
 	return strings.HasPrefix(typeName, EntityPrefix)
 }
 
+// entityTypeLabel extracts the entity label from a type string.
+// "entity:person" → "PERSON", "entity:organization" → "ORGANIZATION".
+func entityTypeLabel(typeName string) string {
+	return strings.ToUpper(strings.TrimPrefix(typeName, EntityPrefix))
+}
+
 // EntityAnnotation carries a named entity with its position in source text.
 // Implements the Annotation interface. Used by entity-annotate tool,
 // TM generalization (ADR-010), and terminology management (ADR-016).

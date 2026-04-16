@@ -225,48 +225,79 @@ func compareBlocks(t *testing.T, prefix string, ep, ap *model.Part) {
 		for j := range eb.Source {
 			sp := fmt.Sprintf("%s.source[%d]", prefix, j)
 			assert.Equal(t, eb.Source[j].ID, ab.Source[j].ID, "%s: segment ID", sp)
-			// Compare via the Fragment materialisation so callers
-			// can still assert on span-level shape. The Fragment
-			// form is derived from Runs via AsCodedText.
-			eCoded, eSpans := model.AsCodedText(eb.Source[j].Runs)
-			aCoded, aSpans := model.AsCodedText(ab.Source[j].Runs)
-			ef := &model.Fragment{CodedText: eCoded, Spans: eSpans}
-			af := &model.Fragment{CodedText: aCoded, Spans: aSpans}
-			compareFragments(t, sp, ef, af)
+			compareRuns(t, sp, eb.Source[j].Runs, ab.Source[j].Runs)
 		}
 	}
 }
 
-func compareFragments(t *testing.T, prefix string, ef, af *model.Fragment) {
+// compareRuns asserts two Run sequences match in length, kind, and
+// per-kind metadata (id, type, data, equiv, disp, etc.). Plain text is
+// compared via the flattened TextRun projection, so coalescing
+// differences between expected and actual don't false-positive.
+func compareRuns(t *testing.T, prefix string, expected, actual []model.Run) {
 	t.Helper()
-	if ef == nil && af == nil {
+	assert.Equal(t, model.FlattenRuns(expected), model.FlattenRuns(actual), "%s: flat text", prefix)
+	if !assert.Equal(t, codeRunCount(expected), codeRunCount(actual), "%s: inline-code run count", prefix) {
 		return
 	}
-	if ef == nil || af == nil {
-		t.Errorf("%s: fragment nil mismatch (expected=%v actual=%v)", prefix, ef == nil, af == nil)
-		return
+	ei, ai := codeRuns(expected), codeRuns(actual)
+	for k := range ei {
+		sp := fmt.Sprintf("%s.code[%d]", prefix, k)
+		er, ar := ei[k], ai[k]
+		assert.Equal(t, er.Kind(), ar.Kind(), "%s: kind", sp)
+		switch {
+		case er.Ph != nil && ar.Ph != nil:
+			assert.Equal(t, er.Ph.ID, ar.Ph.ID, "%s: ph id", sp)
+			assert.Equal(t, er.Ph.Type, ar.Ph.Type, "%s: ph type", sp)
+			assert.Equal(t, er.Ph.SubType, ar.Ph.SubType, "%s: ph subType", sp)
+			assert.Equal(t, er.Ph.Data, ar.Ph.Data, "%s: ph data", sp)
+			assert.Equal(t, er.Ph.Equiv, ar.Ph.Equiv, "%s: ph equiv", sp)
+			assert.Equal(t, er.Ph.Disp, ar.Ph.Disp, "%s: ph disp", sp)
+		case er.PcOpen != nil && ar.PcOpen != nil:
+			assert.Equal(t, er.PcOpen.ID, ar.PcOpen.ID, "%s: pcOpen id", sp)
+			assert.Equal(t, er.PcOpen.Type, ar.PcOpen.Type, "%s: pcOpen type", sp)
+			assert.Equal(t, er.PcOpen.SubType, ar.PcOpen.SubType, "%s: pcOpen subType", sp)
+			assert.Equal(t, er.PcOpen.Data, ar.PcOpen.Data, "%s: pcOpen data", sp)
+			assert.Equal(t, er.PcOpen.Equiv, ar.PcOpen.Equiv, "%s: pcOpen equiv", sp)
+			assert.Equal(t, er.PcOpen.Disp, ar.PcOpen.Disp, "%s: pcOpen disp", sp)
+		case er.PcClose != nil && ar.PcClose != nil:
+			assert.Equal(t, er.PcClose.ID, ar.PcClose.ID, "%s: pcClose id", sp)
+			assert.Equal(t, er.PcClose.Type, ar.PcClose.Type, "%s: pcClose type", sp)
+			assert.Equal(t, er.PcClose.SubType, ar.PcClose.SubType, "%s: pcClose subType", sp)
+			assert.Equal(t, er.PcClose.Data, ar.PcClose.Data, "%s: pcClose data", sp)
+			assert.Equal(t, er.PcClose.Equiv, ar.PcClose.Equiv, "%s: pcClose equiv", sp)
+		case er.Sub != nil && ar.Sub != nil:
+			assert.Equal(t, er.Sub.ID, ar.Sub.ID, "%s: sub id", sp)
+			assert.Equal(t, er.Sub.Ref, ar.Sub.Ref, "%s: sub ref", sp)
+			assert.Equal(t, er.Sub.Equiv, ar.Sub.Equiv, "%s: sub equiv", sp)
+		}
 	}
-	assert.Equal(t, ef.Text(), af.Text(), "%s: fragment text", prefix)
-	assert.Equal(t, len(ef.Spans), len(af.Spans), "%s: span count", prefix)
+}
 
-	n := len(ef.Spans)
-	if len(af.Spans) < n {
-		n = len(af.Spans)
+// codeRuns returns the inline-code runs (Ph / PcOpen / PcClose / Sub)
+// in order, dropping TextRuns. Used by compareRuns to align the two
+// sequences for per-kind comparison without being thrown off by
+// coalescing differences in adjacent text.
+func codeRuns(runs []model.Run) []model.Run {
+	out := make([]model.Run, 0, len(runs))
+	for _, r := range runs {
+		if r.Text != nil {
+			continue
+		}
+		out = append(out, r)
 	}
-	for k := range n {
-		sp := fmt.Sprintf("%s.span[%d]", prefix, k)
-		es, as := ef.Spans[k], af.Spans[k]
-		assert.Equal(t, es.SpanType, as.SpanType, "%s: span type", sp)
-		assert.Equal(t, es.ID, as.ID, "%s: span ID", sp)
-		assert.Equal(t, es.Data, as.Data, "%s: span data", sp)
-		assert.Equal(t, es.Type, as.Type, "%s: span semantic type", sp)
-		assert.Equal(t, es.OuterData, as.OuterData, "%s: span outer data", sp)
-		assert.Equal(t, es.DisplayText, as.DisplayText, "%s: span display text", sp)
-		assert.Equal(t, es.OriginalID, as.OriginalID, "%s: span original ID", sp)
-		assert.Equal(t, es.Flags, as.Flags, "%s: span flags", sp)
-		assert.Equal(t, es.Deletable, as.Deletable, "%s: span deletable", sp)
-		assert.Equal(t, es.Cloneable, as.Cloneable, "%s: span cloneable", sp)
+	return out
+}
+
+// codeRunCount counts the non-text runs in the sequence.
+func codeRunCount(runs []model.Run) int {
+	n := 0
+	for _, r := range runs {
+		if r.Text == nil {
+			n++
+		}
 	}
+	return n
 }
 
 func compareLayers(t *testing.T, prefix string, ep, ap *model.Part) {

@@ -7,66 +7,64 @@ import (
 	"github.com/neokapi/neokapi/core/model"
 )
 
-// BenchmarkFragment_AppendText measures the cost of sequential text appends
-// to a Fragment, exercising the internal strings.Builder path.
-func BenchmarkFragment_AppendText(b *testing.B) {
+// BenchmarkRunBuilder_AppendText measures the cost of sequential text
+// appends to a Run sequence using direct slice growth.
+func BenchmarkRunBuilder_AppendText(b *testing.B) {
 	b.ReportAllocs()
 
 	for b.Loop() {
-		f := model.NewFragment("")
+		runs := make([]model.Run, 0, 100)
 		for i := range 100 {
-			f.AppendText(fmt.Sprintf("word%d ", i))
+			runs = append(runs, model.Run{Text: &model.TextRun{Text: fmt.Sprintf("word%d ", i)}})
 		}
+		_ = runs
 	}
 }
 
-// BenchmarkFragment_Text measures text extraction (stripping span markers)
-// from a Fragment with mixed content and inline spans.
-func BenchmarkFragment_Text(b *testing.B) {
-	f := model.NewFragment("")
+// BenchmarkRuns_FlattenText measures plain-text extraction from a Run
+// sequence with mixed text and inline-code runs.
+func BenchmarkRuns_FlattenText(b *testing.B) {
+	runs := make([]model.Run, 0, 100)
 	for i := range 50 {
-		f.AppendText(fmt.Sprintf("Some text content %d ", i))
-		f.AppendSpan(&model.Span{
-			SpanType: model.SpanPlaceholder,
-			ID:       fmt.Sprintf("ph%d", i),
-			Data:     fmt.Sprintf("<br id=\"%d\"/>", i),
-		})
+		runs = append(runs, model.Run{Text: &model.TextRun{Text: fmt.Sprintf("Some text content %d ", i)}})
+		runs = append(runs, model.Run{Ph: &model.PlaceholderRun{
+			ID:    fmt.Sprintf("ph%d", i),
+			Equiv: fmt.Sprintf("br%d", i),
+			Data:  fmt.Sprintf("<br id=\"%d\"/>", i),
+		}})
 	}
-	f.AppendText("Final text segment.")
+	runs = append(runs, model.Run{Text: &model.TextRun{Text: "Final text segment."}})
 
 	b.ReportAllocs()
 	b.ResetTimer()
 
 	for b.Loop() {
-		_ = f.Text()
+		_ = model.RunsPlainText(runs)
 	}
 }
 
-// BenchmarkFragment_Clone measures deep cloning of a Fragment with spans.
-func BenchmarkFragment_Clone(b *testing.B) {
-	f := model.NewFragment("")
+// BenchmarkRuns_Clone measures deep cloning of a Run sequence with
+// inline codes via a manual element-wise copy.
+func BenchmarkRuns_Clone(b *testing.B) {
+	runs := make([]model.Run, 0, 80)
 	for i := range 20 {
-		f.AppendText(fmt.Sprintf("Segment %d with content ", i))
-		f.AppendSpan(&model.Span{
-			SpanType: model.SpanOpening,
-			ID:       fmt.Sprintf("s%d", i),
-			Data:     "<b>",
-			Type:     "fmt:bold",
-		})
-		f.AppendText("bold text")
-		f.AppendSpan(&model.Span{
-			SpanType: model.SpanClosing,
-			ID:       fmt.Sprintf("s%d", i),
-			Data:     "</b>",
-			Type:     "fmt:bold",
-		})
+		runs = append(runs, model.Run{Text: &model.TextRun{Text: fmt.Sprintf("Segment %d with content ", i)}})
+		runs = append(runs, model.Run{PcOpen: &model.PcOpenRun{
+			ID: fmt.Sprintf("s%d", i), Type: "fmt:bold", Data: "<b>",
+		}})
+		runs = append(runs, model.Run{Text: &model.TextRun{Text: "bold text"}})
+		runs = append(runs, model.Run{PcClose: &model.PcCloseRun{
+			ID: fmt.Sprintf("s%d", i), Type: "fmt:bold", Data: "</b>",
+		}})
 	}
 
 	b.ReportAllocs()
 	b.ResetTimer()
 
 	for b.Loop() {
-		_ = f.Clone()
+		clone := make([]model.Run, len(runs))
+		copy(clone, runs)
+		_ = clone
 	}
 }
 

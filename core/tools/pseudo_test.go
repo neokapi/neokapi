@@ -124,6 +124,16 @@ func TestPseudoTranslateToolCustomPrefixSuffix(t *testing.T) {
 	assert.Equal(t, ">>", targetText[len(targetText)-2:])
 }
 
+// linkRuns builds the Run sequence for "Click <a>here</a>".
+func linkRuns() []model.Run {
+	return []model.Run{
+		{Text: &model.TextRun{Text: "Click "}},
+		{PcOpen: &model.PcOpenRun{ID: "1", Type: "link", Data: "<a>"}},
+		{Text: &model.TextRun{Text: "here"}},
+		{PcClose: &model.PcCloseRun{ID: "1", Type: "link", Data: "</a>"}},
+	}
+}
+
 func TestPseudoTranslateToolPreservesSpans(t *testing.T) {
 	t.Parallel()
 	cfg := &tools.PseudoConfig{
@@ -133,19 +143,10 @@ func TestPseudoTranslateToolPreservesSpans(t *testing.T) {
 	}
 	tl := tools.NewPseudoTranslateTool(cfg)
 
-	// Build a block with coded text: "Click <a>here</a>"
-	// represented as "Click \uE001here\uE002"
-	frag := &model.Fragment{
-		CodedText: "Click \uE001here\uE002",
-		Spans: []*model.Span{
-			{SpanType: model.SpanOpening, Type: "link", ID: "1", Data: "<a>"},
-			{SpanType: model.SpanClosing, Type: "link", ID: "1", Data: "</a>"},
-		},
-	}
 	block := &model.Block{
 		ID:           "tu1",
 		Translatable: true,
-		Source:       []*model.Segment{{ID: "s1", Runs: model.FragmentToRuns(frag)}},
+		Source:       []*model.Segment{{ID: "s1", Runs: linkRuns()}},
 		Targets:      make(map[model.LocaleID][]*model.Segment),
 	}
 	part := &model.Part{Type: model.PartBlock, Resource: block}
@@ -153,29 +154,37 @@ func TestPseudoTranslateToolPreservesSpans(t *testing.T) {
 
 	resultBlock := result.Resource.(*model.Block)
 
-	// Should have a target with spans preserved
 	require.True(t, resultBlock.HasTarget("qps"))
 	targetSegs := resultBlock.Targets["qps"]
 	require.Len(t, targetSegs, 1)
 
-	targetFrag := targetSegs[0].Fragment()
-	require.NotNil(t, targetFrag)
+	runs := targetSegs[0].Runs
 
-	// Coded text should contain the markers
-	assert.Contains(t, targetFrag.CodedText, string(model.MarkerOpening))
-	assert.Contains(t, targetFrag.CodedText, string(model.MarkerClosing))
+	// Inline-code runs should be preserved (PcOpen + PcClose).
+	var pcOpens, pcCloses int
+	var textParts []string
+	for _, r := range runs {
+		switch {
+		case r.PcOpen != nil:
+			pcOpens++
+			assert.Equal(t, "link", r.PcOpen.Type)
+			assert.Equal(t, "1", r.PcOpen.ID)
+		case r.PcClose != nil:
+			pcCloses++
+			assert.Equal(t, "1", r.PcClose.ID)
+		case r.Text != nil:
+			textParts = append(textParts, r.Text.Text)
+		}
+	}
+	assert.Equal(t, 1, pcOpens)
+	assert.Equal(t, 1, pcCloses)
 
-	// Should have the same number of spans
-	assert.Len(t, targetFrag.Spans, 2)
-	assert.Equal(t, model.SpanOpening, targetFrag.Spans[0].SpanType)
-	assert.Equal(t, model.SpanClosing, targetFrag.Spans[1].SpanType)
-
-	// Plain text should be wrapped in brackets and accented
-	plainText := targetFrag.Text()
-	assert.Equal(t, '[', rune(plainText[0]))
-	assert.Equal(t, ']', rune(plainText[len(plainText)-1]))
-	assert.NotContains(t, plainText, "Click")
-	assert.NotContains(t, plainText, "here")
+	// The TextRuns combined should be bracket-wrapped and accented.
+	plain := model.RunsPlainText(runs)
+	assert.Equal(t, '[', rune(plain[0]))
+	assert.Equal(t, ']', rune(plain[len(plain)-1]))
+	assert.NotContains(t, plain, "Click")
+	assert.NotContains(t, plain, "here")
 }
 
 func TestPseudoTranslateToolSpansWithExpansion(t *testing.T) {
@@ -188,33 +197,33 @@ func TestPseudoTranslateToolSpansWithExpansion(t *testing.T) {
 	}
 	tl := tools.NewPseudoTranslateTool(cfg)
 
-	frag := &model.Fragment{
-		CodedText: "Click \uE001here\uE002",
-		Spans: []*model.Span{
-			{SpanType: model.SpanOpening, Type: "link", ID: "1", Data: "<a>"},
-			{SpanType: model.SpanClosing, Type: "link", ID: "1", Data: "</a>"},
-		},
-	}
 	block := &model.Block{
 		ID:           "tu1",
 		Translatable: true,
-		Source:       []*model.Segment{{ID: "s1", Runs: model.FragmentToRuns(frag)}},
+		Source:       []*model.Segment{{ID: "s1", Runs: linkRuns()}},
 		Targets:      make(map[model.LocaleID][]*model.Segment),
 	}
 	part := &model.Part{Type: model.PartBlock, Resource: block}
 	result := processPart(t, tl, part)
 
 	resultBlock := result.Resource.(*model.Block)
-	targetSegs := resultBlock.Targets["qps"]
-	targetFrag := targetSegs[0].Fragment()
+	runs := resultBlock.Targets["qps"][0].Runs
 
-	// Expansion padding should be based on text length, not marker count
-	plainText := targetFrag.Text()
-	assert.Contains(t, plainText, "~~")
+	// Expansion padding should appear in the text projection.
+	assert.Contains(t, model.RunsPlainText(runs), "~~")
 
-	// Markers should still be present
-	assert.Contains(t, targetFrag.CodedText, string(model.MarkerOpening))
-	assert.Contains(t, targetFrag.CodedText, string(model.MarkerClosing))
+	// Inline-code runs preserved.
+	var pcOpens, pcCloses int
+	for _, r := range runs {
+		switch {
+		case r.PcOpen != nil:
+			pcOpens++
+		case r.PcClose != nil:
+			pcCloses++
+		}
+	}
+	assert.Equal(t, 1, pcOpens)
+	assert.Equal(t, 1, pcCloses)
 }
 
 func TestPseudoConfigValidation(t *testing.T) {

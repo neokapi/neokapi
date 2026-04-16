@@ -209,16 +209,17 @@ func TestHTMLPreview(t *testing.T) {
 
 func TestHTMLPreviewWithSpans(t *testing.T) {
 	t.Parallel()
-	frag := &model.Fragment{}
-	frag.AppendText("Hello ")
-	frag.AppendSpan(&model.Span{SpanType: model.SpanOpening, Type: "b", ID: "b", Data: "<b>"})
-	frag.AppendText("world")
-	frag.AppendSpan(&model.Span{SpanType: model.SpanClosing, Type: "b", ID: "b", Data: "</b>"})
+	runs := []model.Run{
+		{Text: &model.TextRun{Text: "Hello "}},
+		{PcOpen: &model.PcOpenRun{ID: "b", Type: "b", Data: "<b>"}},
+		{Text: &model.TextRun{Text: "world"}},
+		{PcClose: &model.PcCloseRun{ID: "b", Type: "b", Data: "</b>"}},
+	}
 
 	block := &model.Block{
 		ID:           "tu1",
 		Translatable: true,
-		Source:       []*model.Segment{{ID: "s1", Runs: model.FragmentToRuns(frag)}},
+		Source:       []*model.Segment{{ID: "s1", Runs: runs}},
 		Targets:      make(map[model.LocaleID][]*model.Segment),
 		Properties:   make(map[string]string),
 		Annotations:  make(map[string]model.Annotation),
@@ -287,16 +288,17 @@ func TestGenericPreview(t *testing.T) {
 
 func TestSourceHTMLWithSpans(t *testing.T) {
 	t.Parallel()
-	frag := &model.Fragment{}
-	frag.AppendText("Click ")
-	frag.AppendSpan(&model.Span{SpanType: model.SpanOpening, Type: "a", ID: "a", Data: `<a href="/">`})
-	frag.AppendText("here")
-	frag.AppendSpan(&model.Span{SpanType: model.SpanClosing, Type: "a", ID: "a", Data: "</a>"})
+	runs := []model.Run{
+		{Text: &model.TextRun{Text: "Click "}},
+		{PcOpen: &model.PcOpenRun{ID: "a", Type: "a", Data: `<a href="/">`}},
+		{Text: &model.TextRun{Text: "here"}},
+		{PcClose: &model.PcCloseRun{ID: "a", Type: "a", Data: "</a>"}},
+	}
 
 	block := &model.Block{
 		ID:           "tu1",
 		Translatable: true,
-		Source:       []*model.Segment{{ID: "s1", Runs: model.FragmentToRuns(frag)}},
+		Source:       []*model.Segment{{ID: "s1", Runs: runs}},
 		Targets:      make(map[model.LocaleID][]*model.Segment),
 		Properties:   make(map[string]string),
 		Annotations:  make(map[string]model.Annotation),
@@ -315,16 +317,17 @@ func TestRenderFragmentHTML(t *testing.T) {
 	block := model.NewBlock("tu1", "Hello world")
 	assert.Equal(t, "Hello world", renderFragmentHTML(block))
 
-	// With spans
-	frag := &model.Fragment{}
-	frag.AppendText("Hello ")
-	frag.AppendSpan(&model.Span{SpanType: model.SpanOpening, Type: "b", ID: "b", Data: "<b>"})
-	frag.AppendText("world")
-	frag.AppendSpan(&model.Span{SpanType: model.SpanClosing, Type: "b", ID: "b", Data: "</b>"})
+	// With inline-code runs
+	runs := []model.Run{
+		{Text: &model.TextRun{Text: "Hello "}},
+		{PcOpen: &model.PcOpenRun{ID: "b", Type: "b", Data: "<b>"}},
+		{Text: &model.TextRun{Text: "world"}},
+		{PcClose: &model.PcCloseRun{ID: "b", Type: "b", Data: "</b>"}},
+	}
 
 	block2 := &model.Block{
 		ID:     "tu2",
-		Source: []*model.Segment{{ID: "s1", Runs: model.FragmentToRuns(frag)}},
+		Source: []*model.Segment{{ID: "s1", Runs: runs}},
 	}
 	assert.Equal(t, "Hello <b>world</b>", renderFragmentHTML(block2))
 }

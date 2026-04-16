@@ -255,20 +255,24 @@ func TestQACheckToolNonDeletableSpanMissing(t *testing.T) {
 	cfg := tools.NewQACheckConfig(model.LocaleFrench)
 	tl := tools.NewQACheckTool(cfg)
 
-	// Source has a non-deletable break span.
-	sourceFrag := model.NewFragment("Hello\uE003world")
-	sourceFrag.Spans = []*model.Span{
-		{SpanType: model.SpanPlaceholder, Type: "struct:break", ID: "1", Data: "<br/>", Deletable: false},
+	// Source has a non-deletable break placeholder.
+	sourceRuns := []model.Run{
+		{Text: &model.TextRun{Text: "Hello"}},
+		{Ph: &model.PlaceholderRun{
+			ID: "1", Type: "struct:break", Data: "<br/>",
+			Constraints: &model.RunConstraints{Deletable: false},
+		}},
+		{Text: &model.TextRun{Text: "world"}},
 	}
 	block := &model.Block{
 		ID:           "tu1",
 		Translatable: true,
-		Source:       []*model.Segment{{ID: "s1", Runs: model.FragmentToRuns(sourceFrag)}},
+		Source:       []*model.Segment{{ID: "s1", Runs: sourceRuns}},
 		Targets:      make(map[model.LocaleID][]*model.Segment),
 		Properties:   make(map[string]string),
 		Annotations:  make(map[string]model.Annotation),
 	}
-	// Target is missing the break span.
+	// Target is missing the break placeholder.
 	block.SetTargetText(model.LocaleFrench, "Hello world")
 	part := &model.Part{Type: model.PartBlock, Resource: block}
 	result := processPart(t, tl, part)
@@ -295,26 +299,36 @@ func TestQACheckToolNonCloneableSpanDuplicated(t *testing.T) {
 	cfg := tools.NewQACheckConfig(model.LocaleFrench)
 	tl := tools.NewQACheckTool(cfg)
 
-	// Source has one non-cloneable variable span.
-	sourceFrag := model.NewFragment("Hello \uE003 world")
-	sourceFrag.Spans = []*model.Span{
-		{SpanType: model.SpanPlaceholder, Type: "code:variable", ID: "1", Data: "{name}", Cloneable: false},
+	nonCloneable := func() *model.PlaceholderRun {
+		return &model.PlaceholderRun{
+			ID: "1", Type: "code:variable", Data: "{name}",
+			Constraints: &model.RunConstraints{Cloneable: false},
+		}
+	}
+
+	// Source has one non-cloneable variable placeholder.
+	sourceRuns := []model.Run{
+		{Text: &model.TextRun{Text: "Hello "}},
+		{Ph: nonCloneable()},
+		{Text: &model.TextRun{Text: " world"}},
 	}
 	block := &model.Block{
 		ID:           "tu1",
 		Translatable: true,
-		Source:       []*model.Segment{{ID: "s1", Runs: model.FragmentToRuns(sourceFrag)}},
+		Source:       []*model.Segment{{ID: "s1", Runs: sourceRuns}},
 		Targets:      make(map[model.LocaleID][]*model.Segment),
 		Properties:   make(map[string]string),
 		Annotations:  make(map[string]model.Annotation),
 	}
-	// Target duplicates the variable span.
-	targetFrag := model.NewFragment("Bonjour \uE003 le \uE003 monde")
-	targetFrag.Spans = []*model.Span{
-		{SpanType: model.SpanPlaceholder, Type: "code:variable", ID: "1", Data: "{name}", Cloneable: false},
-		{SpanType: model.SpanPlaceholder, Type: "code:variable", ID: "1", Data: "{name}", Cloneable: false},
+	// Target duplicates the variable placeholder.
+	targetRuns := []model.Run{
+		{Text: &model.TextRun{Text: "Bonjour "}},
+		{Ph: nonCloneable()},
+		{Text: &model.TextRun{Text: " le "}},
+		{Ph: nonCloneable()},
+		{Text: &model.TextRun{Text: " monde"}},
 	}
-	block.SetTargetFragment(model.LocaleFrench, targetFrag)
+	block.SetTargetRuns(model.LocaleFrench, targetRuns)
 	part := &model.Part{Type: model.PartBlock, Resource: block}
 	result := processPart(t, tl, part)
 
@@ -340,21 +354,22 @@ func TestQACheckToolDeletableSpanMissingNoConstraintError(t *testing.T) {
 	cfg := tools.NewQACheckConfig(model.LocaleFrench)
 	tl := tools.NewQACheckTool(cfg)
 
-	// Source has a deletable bold span.
-	sourceFrag := model.NewFragment("\uE001Hello\uE002")
-	sourceFrag.Spans = []*model.Span{
-		{SpanType: model.SpanOpening, Type: "fmt:bold", ID: "1", Data: "<b>", Deletable: true},
-		{SpanType: model.SpanClosing, Type: "fmt:bold", ID: "1", Data: "</b>", Deletable: true},
+	// Source has a deletable bold pair.
+	deletable := &model.RunConstraints{Deletable: true}
+	sourceRuns := []model.Run{
+		{PcOpen: &model.PcOpenRun{ID: "1", Type: "fmt:bold", Data: "<b>", Constraints: deletable}},
+		{Text: &model.TextRun{Text: "Hello"}},
+		{PcClose: &model.PcCloseRun{ID: "1", Type: "fmt:bold", Data: "</b>"}},
 	}
 	block := &model.Block{
 		ID:           "tu1",
 		Translatable: true,
-		Source:       []*model.Segment{{ID: "s1", Runs: model.FragmentToRuns(sourceFrag)}},
+		Source:       []*model.Segment{{ID: "s1", Runs: sourceRuns}},
 		Targets:      make(map[model.LocaleID][]*model.Segment),
 		Properties:   make(map[string]string),
 		Annotations:  make(map[string]model.Annotation),
 	}
-	// Target is missing the bold spans (which are deletable).
+	// Target is missing the bold pair (which are deletable).
 	block.SetTargetText(model.LocaleFrench, "Bonjour")
 	part := &model.Part{Type: model.PartBlock, Resource: block}
 	result := processPart(t, tl, part)
@@ -374,20 +389,24 @@ func TestQACheckToolSpanConstraintsDisabled(t *testing.T) {
 	cfg.CheckSpanConstraints = false
 	tl := tools.NewQACheckTool(cfg)
 
-	// Source has a non-deletable break span.
-	sourceFrag := model.NewFragment("Hello\uE003world")
-	sourceFrag.Spans = []*model.Span{
-		{SpanType: model.SpanPlaceholder, Type: "struct:break", ID: "1", Data: "<br/>", Deletable: false},
+	// Source has a non-deletable break placeholder.
+	sourceRuns := []model.Run{
+		{Text: &model.TextRun{Text: "Hello"}},
+		{Ph: &model.PlaceholderRun{
+			ID: "1", Type: "struct:break", Data: "<br/>",
+			Constraints: &model.RunConstraints{Deletable: false},
+		}},
+		{Text: &model.TextRun{Text: "world"}},
 	}
 	block := &model.Block{
 		ID:           "tu1",
 		Translatable: true,
-		Source:       []*model.Segment{{ID: "s1", Runs: model.FragmentToRuns(sourceFrag)}},
+		Source:       []*model.Segment{{ID: "s1", Runs: sourceRuns}},
 		Targets:      make(map[model.LocaleID][]*model.Segment),
 		Properties:   make(map[string]string),
 		Annotations:  make(map[string]model.Annotation),
 	}
-	// Target is missing the break span, but check is disabled.
+	// Target is missing the break placeholder, but check is disabled.
 	block.SetTargetText(model.LocaleFrench, "Hello world")
 	part := &model.Part{Type: model.PartBlock, Resource: block}
 	result := processPart(t, tl, part)

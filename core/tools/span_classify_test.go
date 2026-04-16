@@ -8,18 +8,60 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// pairedRuns builds a `<open>middle</close>` Run sequence with the given
+// type and tag data, used by the span-classify tests.
+func pairedRuns(typ, openData, middle, closeData string) []model.Run {
+	return []model.Run{
+		{PcOpen: &model.PcOpenRun{ID: "1", Type: typ, Data: openData}},
+		{Text: &model.TextRun{Text: middle}},
+		{PcClose: &model.PcCloseRun{ID: "1", Type: typ, Data: closeData}},
+	}
+}
+
+// pairedRunsSubType is pairedRuns with a non-empty SubType on both halves.
+func pairedRunsSubType(typ, subType, openData, middle, closeData string) []model.Run {
+	return []model.Run{
+		{PcOpen: &model.PcOpenRun{ID: "1", Type: typ, SubType: subType, Data: openData}},
+		{Text: &model.TextRun{Text: middle}},
+		{PcClose: &model.PcCloseRun{ID: "1", Type: typ, SubType: subType, Data: closeData}},
+	}
+}
+
+// firstPcOpen returns the first PcOpenRun in a Run sequence, or nil.
+func firstPcOpen(runs []model.Run) *model.PcOpenRun {
+	for _, r := range runs {
+		if r.PcOpen != nil {
+			return r.PcOpen
+		}
+	}
+	return nil
+}
+
+// firstPcClose returns the first PcCloseRun in a Run sequence, or nil.
+func firstPcClose(runs []model.Run) *model.PcCloseRun {
+	for _, r := range runs {
+		if r.PcClose != nil {
+			return r.PcClose
+		}
+	}
+	return nil
+}
+
+// firstPh returns the first PlaceholderRun in a Run sequence, or nil.
+func firstPh(runs []model.Run) *model.PlaceholderRun {
+	for _, r := range runs {
+		if r.Ph != nil {
+			return r.Ph
+		}
+	}
+	return nil
+}
+
 func TestSpanClassifyFromData(t *testing.T) {
 	t.Parallel()
-	// Create a block with code:markup spans that have HTML in Data.
 	block := model.NewBlock("1", "")
-	frag := &model.Fragment{
-		CodedText: "\uE001Hello\uE002 world",
-		Spans: []*model.Span{
-			{SpanType: model.SpanOpening, Type: "code:markup", ID: "1", Data: "<b>"},
-			{SpanType: model.SpanClosing, Type: "code:markup", ID: "1", Data: "</b>"},
-		},
-	}
-	block.Source = []*model.Segment{{Runs: model.FragmentToRuns(frag)}}
+	block.Source = []*model.Segment{{Runs: pairedRuns("code:markup", "<b>", "Hello", "</b>")}}
+	block.Source[0].Runs = append(block.Source[0].Runs, model.Run{Text: &model.TextRun{Text: " world"}})
 	block.Translatable = true
 
 	part := &model.Part{Type: model.PartBlock, Resource: block}
@@ -28,13 +70,17 @@ func TestSpanClassifyFromData(t *testing.T) {
 	result, err := tool.HandleBlockFn(part)
 	require.NoError(t, err)
 
-	resultBlock := result.Resource.(*model.Block)
-	spans := resultBlock.Source[0].Spans()
+	runs := result.Resource.(*model.Block).Source[0].Runs
+	open := firstPcOpen(runs)
+	cls := firstPcClose(runs)
+	require.NotNil(t, open)
+	require.NotNil(t, cls)
 
-	assert.Equal(t, "fmt:bold", spans[0].Type)
-	assert.Equal(t, "fmt:bold", spans[1].Type)
-	assert.True(t, spans[0].Deletable)
-	assert.Equal(t, "[B]", spans[0].DisplayText)
+	assert.Equal(t, "fmt:bold", open.Type)
+	assert.Equal(t, "fmt:bold", cls.Type)
+	require.NotNil(t, open.Constraints)
+	assert.True(t, open.Constraints.Deletable)
+	assert.Equal(t, "[B]", open.Disp)
 	// PcClose runs don't carry Disp per RFC 0001 §Block model; the
 	// closing tag's display string is derived from the vocabulary at
 	// render time (see klf.RenderBlockHTML).
@@ -43,14 +89,7 @@ func TestSpanClassifyFromData(t *testing.T) {
 func TestSpanClassifyFromSubType(t *testing.T) {
 	t.Parallel()
 	block := model.NewBlock("1", "")
-	frag := &model.Fragment{
-		CodedText: "\uE001text\uE002",
-		Spans: []*model.Span{
-			{SpanType: model.SpanOpening, Type: "code:markup", SubType: "okapi:italic", ID: "1", Data: "<em>"},
-			{SpanType: model.SpanClosing, Type: "code:markup", SubType: "okapi:italic", ID: "1", Data: "</em>"},
-		},
-	}
-	block.Source = []*model.Segment{{Runs: model.FragmentToRuns(frag)}}
+	block.Source = []*model.Segment{{Runs: pairedRunsSubType("code:markup", "okapi:italic", "<em>", "text", "</em>")}}
 	block.Translatable = true
 
 	part := &model.Part{Type: model.PartBlock, Resource: block}
@@ -59,21 +98,23 @@ func TestSpanClassifyFromSubType(t *testing.T) {
 	result, err := tool.HandleBlockFn(part)
 	require.NoError(t, err)
 
-	spans := result.Resource.(*model.Block).Source[0].Spans()
-	assert.Equal(t, "fmt:italic", spans[0].Type)
-	assert.Equal(t, "fmt:italic", spans[1].Type)
+	runs := result.Resource.(*model.Block).Source[0].Runs
+	open := firstPcOpen(runs)
+	cls := firstPcClose(runs)
+	require.NotNil(t, open)
+	require.NotNil(t, cls)
+	assert.Equal(t, "fmt:italic", open.Type)
+	assert.Equal(t, "fmt:italic", cls.Type)
 }
 
 func TestSpanClassifyBreakPlaceholder(t *testing.T) {
 	t.Parallel()
 	block := model.NewBlock("1", "")
-	frag := &model.Fragment{
-		CodedText: "line one\uE003line two",
-		Spans: []*model.Span{
-			{SpanType: model.SpanPlaceholder, Type: "code:markup", ID: "1", Data: "<br/>"},
-		},
-	}
-	block.Source = []*model.Segment{{Runs: model.FragmentToRuns(frag)}}
+	block.Source = []*model.Segment{{Runs: []model.Run{
+		{Text: &model.TextRun{Text: "line one"}},
+		{Ph: &model.PlaceholderRun{ID: "1", Type: "code:markup", Data: "<br/>"}},
+		{Text: &model.TextRun{Text: "line two"}},
+	}}}
 	block.Translatable = true
 
 	part := &model.Part{Type: model.PartBlock, Resource: block}
@@ -82,23 +123,18 @@ func TestSpanClassifyBreakPlaceholder(t *testing.T) {
 	result, err := tool.HandleBlockFn(part)
 	require.NoError(t, err)
 
-	spans := result.Resource.(*model.Block).Source[0].Spans()
-	assert.Equal(t, "struct:break", spans[0].Type)
-	assert.False(t, spans[0].Deletable)
-	assert.Equal(t, "[BR]", spans[0].DisplayText)
+	ph := firstPh(result.Resource.(*model.Block).Source[0].Runs)
+	require.NotNil(t, ph)
+	assert.Equal(t, "struct:break", ph.Type)
+	require.NotNil(t, ph.Constraints)
+	assert.False(t, ph.Constraints.Deletable)
+	assert.Equal(t, "[BR]", ph.Disp)
 }
 
 func TestSpanClassifyUnknownType(t *testing.T) {
 	t.Parallel()
 	block := model.NewBlock("1", "")
-	frag := &model.Fragment{
-		CodedText: "\uE001content\uE002",
-		Spans: []*model.Span{
-			{SpanType: model.SpanOpening, Type: "code:markup", ID: "1", Data: "<custom-tag>"},
-			{SpanType: model.SpanClosing, Type: "code:markup", ID: "1", Data: "</custom-tag>"},
-		},
-	}
-	block.Source = []*model.Segment{{Runs: model.FragmentToRuns(frag)}}
+	block.Source = []*model.Segment{{Runs: pairedRuns("code:markup", "<custom-tag>", "content", "</custom-tag>")}}
 	block.Translatable = true
 
 	part := &model.Part{Type: model.PartBlock, Resource: block}
@@ -107,23 +143,20 @@ func TestSpanClassifyUnknownType(t *testing.T) {
 	result, err := tool.HandleBlockFn(part)
 	require.NoError(t, err)
 
+	runs := result.Resource.(*model.Block).Source[0].Runs
+	open := firstPcOpen(runs)
+	cls := firstPcClose(runs)
+	require.NotNil(t, open)
+	require.NotNil(t, cls)
 	// Unknown tags stay as code:markup.
-	spans := result.Resource.(*model.Block).Source[0].Spans()
-	assert.Equal(t, "code:markup", spans[0].Type)
-	assert.Equal(t, "code:markup", spans[1].Type)
+	assert.Equal(t, "code:markup", open.Type)
+	assert.Equal(t, "code:markup", cls.Type)
 }
 
 func TestSpanClassifySkipsNonMarkup(t *testing.T) {
 	t.Parallel()
 	block := model.NewBlock("1", "")
-	frag := &model.Fragment{
-		CodedText: "\uE001Hello\uE002",
-		Spans: []*model.Span{
-			{SpanType: model.SpanOpening, Type: "fmt:bold", ID: "1", Data: "<b>"},
-			{SpanType: model.SpanClosing, Type: "fmt:bold", ID: "1", Data: "</b>"},
-		},
-	}
-	block.Source = []*model.Segment{{Runs: model.FragmentToRuns(frag)}}
+	block.Source = []*model.Segment{{Runs: pairedRuns("fmt:bold", "<b>", "Hello", "</b>")}}
 	block.Translatable = true
 
 	part := &model.Part{Type: model.PartBlock, Resource: block}
@@ -132,10 +165,14 @@ func TestSpanClassifySkipsNonMarkup(t *testing.T) {
 	result, err := tool.HandleBlockFn(part)
 	require.NoError(t, err)
 
+	runs := result.Resource.(*model.Block).Source[0].Runs
+	open := firstPcOpen(runs)
+	cls := firstPcClose(runs)
+	require.NotNil(t, open)
+	require.NotNil(t, cls)
 	// Already classified spans are not modified.
-	spans := result.Resource.(*model.Block).Source[0].Spans()
-	assert.Equal(t, "fmt:bold", spans[0].Type)
-	assert.Equal(t, "fmt:bold", spans[1].Type)
+	assert.Equal(t, "fmt:bold", open.Type)
+	assert.Equal(t, "fmt:bold", cls.Type)
 }
 
 func TestSpanClassifyTargetFragments(t *testing.T) {
@@ -143,13 +180,7 @@ func TestSpanClassifyTargetFragments(t *testing.T) {
 	block := model.NewBlock("1", "")
 	block.Source = []*model.Segment{{Runs: []model.Run{{Text: &model.TextRun{Text: "Hello"}}}}}
 	block.Targets = map[model.LocaleID][]*model.Segment{
-		"fr": {{Runs: model.FragmentToRuns(&model.Fragment{
-			CodedText: "\uE001Bonjour\uE002",
-			Spans: []*model.Span{
-				{SpanType: model.SpanOpening, Type: "code:markup", ID: "1", Data: "<i>"},
-				{SpanType: model.SpanClosing, Type: "code:markup", ID: "1", Data: "</i>"},
-			},
-		})}},
+		"fr": {{Runs: pairedRuns("code:markup", "<i>", "Bonjour", "</i>")}},
 	}
 	block.Translatable = true
 
@@ -159,9 +190,13 @@ func TestSpanClassifyTargetFragments(t *testing.T) {
 	result, err := tool.HandleBlockFn(part)
 	require.NoError(t, err)
 
-	spans := result.Resource.(*model.Block).Targets["fr"][0].Spans()
-	assert.Equal(t, "fmt:italic", spans[0].Type)
-	assert.Equal(t, "fmt:italic", spans[1].Type)
+	runs := result.Resource.(*model.Block).Targets["fr"][0].Runs
+	open := firstPcOpen(runs)
+	cls := firstPcClose(runs)
+	require.NotNil(t, open)
+	require.NotNil(t, cls)
+	assert.Equal(t, "fmt:italic", open.Type)
+	assert.Equal(t, "fmt:italic", cls.Type)
 }
 
 func TestExtractTagName(t *testing.T) {

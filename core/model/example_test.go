@@ -19,19 +19,15 @@ func ExampleNewBlock() {
 	// 2
 }
 
-func ExampleNewFragment() {
-	frag := model.NewFragment("Click here to continue")
-	fmt.Println(frag.Text())
-	fmt.Println(frag.HasSpans())
+func ExampleRunsPlainText() {
+	runs := []model.Run{
+		{Text: &model.TextRun{Text: "Click "}},
+		{PcOpen: &model.PcOpenRun{ID: "1", Type: "a", Data: "<a>"}},
+		{Text: &model.TextRun{Text: "here"}},
+		{PcClose: &model.PcCloseRun{ID: "1", Type: "a", Data: "</a>"}},
+		{Text: &model.TextRun{Text: " to continue"}},
+	}
+	fmt.Println(model.RunsPlainText(runs))
 	// Output:
 	// Click here to continue
-	// false
-}
-
-func ExampleFragment_AppendText() {
-	frag := model.NewFragment("Hello")
-	frag.AppendText(", world!")
-	fmt.Println(frag.Text())
-	// Output:
-	// Hello, world!
 }

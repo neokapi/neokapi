@@ -9,6 +9,16 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// linkRunsFr is the French analogue of linkRuns: "Cliquez <a>ici</a>".
+func linkRunsFr() []model.Run {
+	return []model.Run{
+		{Text: &model.TextRun{Text: "Cliquez "}},
+		{PcOpen: &model.PcOpenRun{ID: "1", Type: "link", Data: "<a>"}},
+		{Text: &model.TextRun{Text: "ici"}},
+		{PcClose: &model.PcCloseRun{ID: "1", Type: "link", Data: "</a>"}},
+	}
+}
+
 func TestInlineCodesRemoveToolTarget(t *testing.T) {
 	t.Parallel()
 	cfg := &tools.InlineCodesRemoveConfig{
@@ -19,20 +29,12 @@ func TestInlineCodesRemoveToolTarget(t *testing.T) {
 
 	assert.Equal(t, "inline-codes-remove", tl.Name())
 
-	// Build a block with spans in target.
-	frag := &model.Fragment{
-		CodedText: "Cliquez \uE001ici\uE002",
-		Spans: []*model.Span{
-			{SpanType: model.SpanOpening, Type: "link", ID: "1", Data: "<a>"},
-			{SpanType: model.SpanClosing, Type: "link", ID: "1", Data: "</a>"},
-		},
-	}
 	block := &model.Block{
 		ID:           "tu1",
 		Translatable: true,
 		Source:       []*model.Segment{{ID: "s1", Runs: []model.Run{{Text: &model.TextRun{Text: "Click here"}}}}},
 		Targets: map[model.LocaleID][]*model.Segment{
-			model.LocaleFrench: {{ID: "s1", Runs: model.FragmentToRuns(frag)}},
+			model.LocaleFrench: {{ID: "s1", Runs: linkRunsFr()}},
 		},
 		Properties: make(map[string]string),
 	}
@@ -43,9 +45,9 @@ func TestInlineCodesRemoveToolTarget(t *testing.T) {
 	targetSegs := resultBlock.Targets[model.LocaleFrench]
 	require.Len(t, targetSegs, 1)
 
-	targetFrag := targetSegs[0].Fragment()
-	assert.Equal(t, "Cliquez ici", targetFrag.CodedText)
-	assert.False(t, targetFrag.HasSpans())
+	runs := targetSegs[0].Runs
+	assert.Equal(t, "Cliquez ici", model.RunsPlainText(runs))
+	assert.False(t, hasAnyInlineCode(runs))
 }
 
 func TestInlineCodesRemoveToolSource(t *testing.T) {
@@ -56,18 +58,10 @@ func TestInlineCodesRemoveToolSource(t *testing.T) {
 	}
 	tl := tools.NewInlineCodesRemoveTool(cfg)
 
-	// Build a block with spans in source.
-	frag := &model.Fragment{
-		CodedText: "Click \uE001here\uE002",
-		Spans: []*model.Span{
-			{SpanType: model.SpanOpening, Type: "link", ID: "1", Data: "<a>"},
-			{SpanType: model.SpanClosing, Type: "link", ID: "1", Data: "</a>"},
-		},
-	}
 	block := &model.Block{
 		ID:           "tu1",
 		Translatable: true,
-		Source:       []*model.Segment{{ID: "s1", Runs: model.FragmentToRuns(frag)}},
+		Source:       []*model.Segment{{ID: "s1", Runs: linkRuns()}},
 		Targets:      make(map[model.LocaleID][]*model.Segment),
 		Properties:   make(map[string]string),
 	}
@@ -75,12 +69,12 @@ func TestInlineCodesRemoveToolSource(t *testing.T) {
 	result := processPart(t, tl, part)
 
 	resultBlock := result.Resource.(*model.Block)
-	sourceFrag := resultBlock.Source[0].Fragment()
-	assert.Equal(t, "Click here", sourceFrag.CodedText)
-	assert.False(t, sourceFrag.HasSpans())
+	runs := resultBlock.Source[0].Runs
+	assert.Equal(t, "Click here", model.RunsPlainText(runs))
+	assert.False(t, hasAnyInlineCode(runs))
 }
 
-func TestInlineCodesRemoveToolFragmentWithSpansBecomesPlainText(t *testing.T) {
+func TestInlineCodesRemoveToolMixedRunsBecomesPlainText(t *testing.T) {
 	t.Parallel()
 	cfg := &tools.InlineCodesRemoveConfig{
 		ApplySource: true,
@@ -88,22 +82,21 @@ func TestInlineCodesRemoveToolFragmentWithSpansBecomesPlainText(t *testing.T) {
 	}
 	tl := tools.NewInlineCodesRemoveTool(cfg)
 
-	// Build fragment with multiple span types.
-	frag := &model.Fragment{CodedText: "", Spans: []*model.Span{}}
-	frag.AppendText("Hello ")
-	frag.AppendSpan(&model.Span{Type: "b", SpanType: model.SpanOpening})
-	frag.AppendText("world")
-	frag.AppendSpan(&model.Span{Type: "b", SpanType: model.SpanClosing})
-	frag.AppendText(" and ")
-	frag.AppendSpan(&model.Span{Type: "img", SpanType: model.SpanPlaceholder})
-
-	require.True(t, frag.HasSpans())
-	require.Len(t, frag.Spans, 3)
+	// "Hello <b>world</b> and <img/>"
+	runs := []model.Run{
+		{Text: &model.TextRun{Text: "Hello "}},
+		{PcOpen: &model.PcOpenRun{ID: "1", Type: "b"}},
+		{Text: &model.TextRun{Text: "world"}},
+		{PcClose: &model.PcCloseRun{ID: "1", Type: "b"}},
+		{Text: &model.TextRun{Text: " and "}},
+		{Ph: &model.PlaceholderRun{ID: "2", Type: "img"}},
+	}
+	require.True(t, hasAnyInlineCode(runs))
 
 	block := &model.Block{
 		ID:           "tu1",
 		Translatable: true,
-		Source:       []*model.Segment{{ID: "s1", Runs: model.FragmentToRuns(frag)}},
+		Source:       []*model.Segment{{ID: "s1", Runs: runs}},
 		Targets:      make(map[model.LocaleID][]*model.Segment),
 		Properties:   make(map[string]string),
 	}
@@ -111,10 +104,9 @@ func TestInlineCodesRemoveToolFragmentWithSpansBecomesPlainText(t *testing.T) {
 	result := processPart(t, tl, part)
 
 	resultBlock := result.Resource.(*model.Block)
-	sourceFrag := resultBlock.Source[0].Fragment()
-	assert.Equal(t, "Hello world and ", sourceFrag.CodedText)
-	assert.False(t, sourceFrag.HasSpans())
-	assert.Equal(t, sourceFrag.Text(), sourceFrag.CodedText)
+	out := resultBlock.Source[0].Runs
+	assert.Equal(t, "Hello world and ", model.RunsPlainText(out))
+	assert.False(t, hasAnyInlineCode(out))
 }
 
 func TestInlineCodesRemoveToolSkipsNonTranslatable(t *testing.T) {
@@ -125,17 +117,10 @@ func TestInlineCodesRemoveToolSkipsNonTranslatable(t *testing.T) {
 	}
 	tl := tools.NewInlineCodesRemoveTool(cfg)
 
-	frag := &model.Fragment{
-		CodedText: "Click \uE001here\uE002",
-		Spans: []*model.Span{
-			{SpanType: model.SpanOpening, Type: "link", ID: "1"},
-			{SpanType: model.SpanClosing, Type: "link", ID: "1"},
-		},
-	}
 	block := &model.Block{
 		ID:           "tu1",
 		Translatable: false,
-		Source:       []*model.Segment{{ID: "s1", Runs: model.FragmentToRuns(frag)}},
+		Source:       []*model.Segment{{ID: "s1", Runs: linkRuns()}},
 		Targets:      make(map[model.LocaleID][]*model.Segment),
 		Properties:   make(map[string]string),
 	}
@@ -143,9 +128,9 @@ func TestInlineCodesRemoveToolSkipsNonTranslatable(t *testing.T) {
 	result := processPart(t, tl, part)
 
 	resultBlock := result.Resource.(*model.Block)
-	// Spans should still be present since block is non-translatable.
+	// Inline codes should still be present since block is non-translatable.
 	assert.True(t, resultBlock.Source[0].HasInlineCodes())
-	assert.Len(t, resultBlock.Source[0].Spans(), 2)
+	assert.True(t, hasAnyInlineCode(resultBlock.Source[0].Runs))
 }
 
 func TestInlineCodesRemoveConfigValidation(t *testing.T) {
@@ -167,4 +152,15 @@ func TestInlineCodesRemoveConfigValidation(t *testing.T) {
 	cfg.ApplySource = true
 	err = cfg.Validate()
 	require.NoError(t, err)
+}
+
+// hasAnyInlineCode reports whether any run in the sequence is something
+// other than a TextRun.
+func hasAnyInlineCode(runs []model.Run) bool {
+	for _, r := range runs {
+		if r.Text == nil {
+			return true
+		}
+	}
+	return false
 }
