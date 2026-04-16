@@ -3,8 +3,6 @@ package klz
 import (
 	"context"
 	"encoding/json"
-	"errors"
-	"fmt"
 	"strings"
 	"time"
 
@@ -20,12 +18,6 @@ func CacheRoot() string { return db.CacheRoot() }
 // CacheEntryDir returns the cache directory for a given manifest
 // hash, sharded by the first two hex characters.
 func CacheEntryDir(manifestHash string) string { return db.EntryDir(manifestHash) }
-
-// ErrCacheNotBuilt is returned when query helpers are called before
-// the Phase-4 cache layer has been built. Only surfaced in builds
-// without the klzcache tag; with the tag, Build is called
-// transparently on first query.
-var ErrCacheNotBuilt = errors.New("klz: runtime cache is unavailable in this build (phase 4 feature)")
 
 // WarmCache eagerly builds the runtime cache entry for this archive.
 // When the klzcache build tag is set, the cache is populated and
@@ -213,6 +205,3 @@ func (s *readerSource) SourceLocale() string             { return s.locale }
 
 // compile-time check: readerSource satisfies db.Source.
 var _ db.Source = (*readerSource)(nil)
-
-// fmt reference used by cache-sourced error wrapping in query.go.
-var _ = fmt.Errorf

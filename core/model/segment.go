@@ -65,7 +65,6 @@ func (s *Segment) SetRunsText(text string) {
 }
 
 // HasInlineCodes reports whether the segment has any non-text run.
-// Replaces the legacy HasSpans() check.
 func (s *Segment) HasInlineCodes() bool {
 	if s == nil {
 		return false

@@ -2,14 +2,9 @@ package markdown
 
 import "github.com/neokapi/neokapi/core/model"
 
-// runBuilder accumulates a []model.Run while walking the Markdown AST.
-// It coalesces adjacent TextRuns so consecutive text nodes produce a
-// single text run; mirrors the runBuilder pattern used by other format readers
-// followed by model.MarshalRuns.
-//
-// The builder is intentionally unexported — it exists only to let the
-// markdown reader emit the Runs shape directly, avoiding a Fragment
-// round-trip on every parse.
+// runBuilder accumulates a []model.Run while walking the Markdown
+// AST. It coalesces adjacent TextRuns so consecutive text nodes
+// produce a single text run.
 type runBuilder struct {
 	runs           []model.Run
 	hasInlineCodes bool
@@ -33,9 +28,8 @@ func (b *runBuilder) AddText(text string) {
 	b.runs = append(b.runs, model.Run{Text: &model.TextRun{Text: text}})
 }
 
-// AppendPh emits a self-closing placeholder run with the given metadata
-// and editing constraints. Mirrors the shape MarshalRuns would
-// produce for a model.Span with SpanType == SpanPlaceholder.
+// AddPh emits a self-closing placeholder run with the given metadata
+// and editing constraints.
 func (b *runBuilder) AddPh(id, semType, subType, data, disp, equiv string, deletable, cloneable, reorderable bool) {
 	b.hasInlineCodes = true
 	b.runs = append(b.runs, model.Run{Ph: &model.PlaceholderRun{
@@ -53,9 +47,7 @@ func (b *runBuilder) AddPh(id, semType, subType, data, disp, equiv string, delet
 	}})
 }
 
-// AppendPcOpen emits the opening half of a paired code. Mirrors the
-// shape MarshalRuns would produce for a model.Span with
-// SpanType == SpanOpening.
+// AddPcOpen emits the opening half of a paired code.
 func (b *runBuilder) AddPcOpen(id, semType, subType, data, disp, equiv string, deletable, cloneable, reorderable bool) {
 	b.hasInlineCodes = true
 	b.runs = append(b.runs, model.Run{PcOpen: &model.PcOpenRun{
@@ -73,9 +65,9 @@ func (b *runBuilder) AddPcOpen(id, semType, subType, data, disp, equiv string, d
 	}})
 }
 
-// AppendPcClose emits the closing half of a paired code. PcCloseRun has
+// AddPcClose emits the closing half of a paired code. PcCloseRun has
 // no Disp or Constraints fields — the closing half inherits behaviour
-// from the opening and mirrors MarshalRuns for SpanClosing spans.
+// from the opening.
 func (b *runBuilder) AddPcClose(id, semType, subType, data, equiv string) {
 	b.hasInlineCodes = true
 	b.runs = append(b.runs, model.Run{PcClose: &model.PcCloseRun{

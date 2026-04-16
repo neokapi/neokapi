@@ -2,7 +2,6 @@ package cli
 
 import (
 	"bytes"
-	"context"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -45,9 +44,8 @@ session state.`,
 }
 
 // NewCacheCmd creates the `cache` command group — administer the
-// runtime acceleration cache referenced by RFC 0001. In Phase 1 the
-// commands cover info / path / clear; warm and gc surface Phase-4
-// stubs that explain why the cache layer isn't built yet.
+// content-addressed SQLite cache that accelerates random-access
+// queries on .klz archives (RFC 0001).
 func (a *App) NewCacheCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "cache",
@@ -401,11 +399,11 @@ func (a *App) newKLZMergeCmd() *cobra.Command {
 			}
 			defer r.Close()
 			gen := r.Manifest().Generator.ID
-			// Phase 1 has no Go-side Extractor registry yet; merge
-			// intentionally surfaces this as a deferred operation
-			// and prints the generator id so tooling around kapi
-			// (CI jobs, external extractors) can route the work.
-			return fmt.Errorf("klz merge is delegated to extractor %q which is not registered in this build; see RFC 0001 §Extractor interface (phase 1)", gen)
+			// Merge delegates to the generator's Extractor.Merge().
+			// The Go-side Extractor registry is not yet wired, so the
+			// generator id is surfaced in the error for external
+			// tooling to route the work.
+			return fmt.Errorf("klz merge is delegated to extractor %q which is not registered in this build; see RFC 0001 §Extractor interface", gen)
 		},
 	}
 	cmd.Flags().StringVar(&locale, "locale", "", "target locale to merge (e.g. de)")
@@ -622,11 +620,7 @@ func (a *App) newCacheWarmCmd() *cobra.Command {
 				return err
 			}
 			defer r.Close()
-			// Phase 1 surfaces WarmCache() which returns a deferred
-			// error explaining that the cache layer lands in
-			// Phase 4. The CLI wiring stays stable across that
-			// bump.
-			return r.WarmCache(context.Background())
+			return r.WarmCache(cmd.Context())
 		},
 	}
 }

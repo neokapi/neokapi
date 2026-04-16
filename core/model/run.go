@@ -7,15 +7,9 @@ import (
 	"strings"
 )
 
-// This file defines the Run-based content model introduced by RFC
-// 0001 Phase 2. A Run is one element in a Block's flat inline
-// content sequence. Discriminated union keyed by the present field.
-//
-// Phase 2 migration note: the existing Fragment / Span model still
-// exists and provides converters to/from Runs. Readers, writers,
-// and tools migrate one at a time; once none of them references
-// Fragment/Span anymore the old types will be removed in a final
-// cleanup commit.
+// This file defines the Run-based content model from RFC 0001. A Run
+// is one element in a Block's flat inline content sequence:
+// discriminated union keyed by the present field.
 
 // PluralForm enumerates ICU plural forms.
 type PluralForm string
@@ -29,9 +23,9 @@ const (
 	PluralOther PluralForm = "other"
 )
 
-// BlockContentType classifies a Block per RFC 0001. Distinct from
-// the legacy Block.Type string so the two shapes can coexist during
-// the Phase-2 migration without clashing on the field name.
+// BlockContentType classifies a Block per RFC 0001. Kept distinct
+// from the free-form Block.Type string so the RFC enum values and the
+// format-specific type tag don't clash on one field.
 type BlockContentType string
 
 const (
