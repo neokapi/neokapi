@@ -263,7 +263,7 @@ func TestQACheckToolNonDeletableSpanMissing(t *testing.T) {
 	block := &model.Block{
 		ID:           "tu1",
 		Translatable: true,
-		Source:       []*model.Segment{{ID: "s1", Content: sourceFrag}},
+		Source:       []*model.Segment{{ID: "s1", Runs: model.FragmentToRuns(sourceFrag)}},
 		Targets:      make(map[model.LocaleID][]*model.Segment),
 		Properties:   make(map[string]string),
 		Annotations:  make(map[string]model.Annotation),
@@ -303,7 +303,7 @@ func TestQACheckToolNonCloneableSpanDuplicated(t *testing.T) {
 	block := &model.Block{
 		ID:           "tu1",
 		Translatable: true,
-		Source:       []*model.Segment{{ID: "s1", Content: sourceFrag}},
+		Source:       []*model.Segment{{ID: "s1", Runs: model.FragmentToRuns(sourceFrag)}},
 		Targets:      make(map[model.LocaleID][]*model.Segment),
 		Properties:   make(map[string]string),
 		Annotations:  make(map[string]model.Annotation),
@@ -349,7 +349,7 @@ func TestQACheckToolDeletableSpanMissingNoConstraintError(t *testing.T) {
 	block := &model.Block{
 		ID:           "tu1",
 		Translatable: true,
-		Source:       []*model.Segment{{ID: "s1", Content: sourceFrag}},
+		Source:       []*model.Segment{{ID: "s1", Runs: model.FragmentToRuns(sourceFrag)}},
 		Targets:      make(map[model.LocaleID][]*model.Segment),
 		Properties:   make(map[string]string),
 		Annotations:  make(map[string]model.Annotation),
@@ -382,7 +382,7 @@ func TestQACheckToolSpanConstraintsDisabled(t *testing.T) {
 	block := &model.Block{
 		ID:           "tu1",
 		Translatable: true,
-		Source:       []*model.Segment{{ID: "s1", Content: sourceFrag}},
+		Source:       []*model.Segment{{ID: "s1", Runs: model.FragmentToRuns(sourceFrag)}},
 		Targets:      make(map[model.LocaleID][]*model.Segment),
 		Properties:   make(map[string]string),
 		Annotations:  make(map[string]model.Annotation),

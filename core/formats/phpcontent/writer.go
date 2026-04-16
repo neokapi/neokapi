@@ -173,11 +173,11 @@ func (w *Writer) blockText(block *model.Block) string {
 	if !w.Locale.IsEmpty() && block.HasTarget(w.Locale) {
 		segs := block.Targets[w.Locale]
 		if len(segs) > 0 {
-			frag = segs[0].Content
+			frag = segs[0].Fragment()
 		}
 	}
 	if frag == nil && len(block.Source) > 0 {
-		frag = block.Source[0].Content
+		frag = block.Source[0].Fragment()
 	}
 	if frag == nil {
 		return ""

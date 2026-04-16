@@ -113,7 +113,7 @@ func TestExtraction_CodeAtTheFront(t *testing.T) {
 	// Blocks that start with inline codes should still have valid text.
 	for _, b := range blocks {
 		if b.Source != nil && len(b.Source) > 0 && b.Source[0].Content != nil {
-			if len(b.Source[0].Content.Spans) > 0 {
+			if len(b.Source[0].Spans()) > 0 {
 				// Having spans at the front is valid.
 				assert.NotNil(t, b.Source[0].Content, "block with leading code should have content")
 			}

@@ -285,7 +285,7 @@ func dtoToRunConstraints(d *RunConstraintsDTO) *model.RunConstraints {
 func SegmentToDTO(s *model.Segment) SegmentDTO {
 	return SegmentDTO{
 		ID:         s.ID,
-		Runs:       RunsToDTO(s.Runs()),
+		Runs:       RunsToDTO(s.Runs),
 		Properties: s.Properties,
 	}
 }

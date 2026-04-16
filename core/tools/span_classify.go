@@ -70,13 +70,13 @@ func (t *SpanClassifyTool) handleBlock(part *model.Part) (*model.Part, error) {
 
 	// Classify inline codes in source segments.
 	for _, seg := range block.Source {
-		seg.SetRuns(t.classifyRuns(seg.Runs()))
+		seg.SetRuns(t.classifyRuns(seg.Runs))
 	}
 
 	// Classify inline codes in every target locale's segments.
 	for _, segs := range block.Targets {
 		for _, seg := range segs {
-			seg.SetRuns(t.classifyRuns(seg.Runs()))
+			seg.SetRuns(t.classifyRuns(seg.Runs))
 		}
 	}
 

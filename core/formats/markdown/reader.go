@@ -1123,10 +1123,10 @@ func (r *Reader) applyCodeFinder(block *model.Block) {
 	}
 
 	for _, seg := range block.Source {
-		if seg.Content == nil {
+		if len(seg.Runs) == 0 {
 			continue
 		}
-		text := seg.Content.Text()
+		text := seg.Text()
 
 		type matchRange struct {
 			start, end int
@@ -1148,26 +1148,25 @@ func (r *Reader) applyCodeFinder(block *model.Block) {
 			}
 		}
 
-		newFrag := &model.Fragment{}
+		var newRuns []model.Run
 		lastEnd := 0
 		spanID := 1
 		for _, m := range matches {
 			if m.start > lastEnd {
-				newFrag.AppendText(text[lastEnd:m.start])
+				newRuns = append(newRuns, model.Run{Text: &model.TextRun{Text: text[lastEnd:m.start]}})
 			}
-			newFrag.AppendSpan(&model.Span{
-				ID:       fmt.Sprintf("c%d", spanID),
-				SpanType: model.SpanPlaceholder,
-				Type:     "code",
-				Data:     text[m.start:m.end],
-			})
+			newRuns = append(newRuns, model.Run{Ph: &model.PlaceholderRun{
+				ID:   fmt.Sprintf("c%d", spanID),
+				Type: "code",
+				Data: text[m.start:m.end],
+			}})
 			lastEnd = m.end
 			spanID++
 		}
 		if lastEnd < len(text) {
-			newFrag.AppendText(text[lastEnd:])
+			newRuns = append(newRuns, model.Run{Text: &model.TextRun{Text: text[lastEnd:]}})
 		}
-		seg.Content = newFrag
+		seg.SetRuns(newRuns)
 	}
 }
 

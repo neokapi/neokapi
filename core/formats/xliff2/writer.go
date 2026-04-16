@@ -180,13 +180,13 @@ func (w *Writer) flush() error {
 		for _, seg := range block.Source {
 			s := xmlSegment{
 				ID:     seg.ID,
-				Source: xmlSource{Content: seg.Content.Text()},
+				Source: xmlSource{Content: seg.Text()},
 			}
 			// Check for target in the block's Targets map
 			if trgSegs, ok := block.Targets[targetLang]; ok {
 				for _, ts := range trgSegs {
 					if ts.ID == seg.ID {
-						s.Target = &xmlTarget{Content: ts.Content.Text()}
+						s.Target = &xmlTarget{Content: ts.Fragment().Text()}
 						break
 					}
 				}

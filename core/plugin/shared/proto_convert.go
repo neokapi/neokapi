@@ -342,7 +342,7 @@ func protoToConstraints(msg *pb.RunConstraints) *model.RunConstraints {
 func SegmentToProto(s *model.Segment) *pb.SegmentMessage {
 	return &pb.SegmentMessage{
 		Id:         s.ID,
-		Runs:       RunsToProto(s.Runs()),
+		Runs:       RunsToProto(s.Runs),
 		Properties: s.Properties,
 	}
 }

@@ -241,9 +241,9 @@ func (w *Writer) flush() error {
 func fragmentToXLIFF(segs []*model.Segment) string {
 	var buf strings.Builder
 	for _, seg := range segs {
-		if seg.Content != nil {
+		if len(seg.Runs) > 0 {
 			// Simple case: just use the text
-			buf.WriteString(xmlEscapeText(seg.Content.Text()))
+			buf.WriteString(xmlEscapeText(seg.Text()))
 		}
 	}
 	return buf.String()

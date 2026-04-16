@@ -406,7 +406,7 @@ func TestExtract_Inlines(t *testing.T) {
 	b := blocks[0]
 	require.NotEmpty(t, b.Source)
 	if b.Source[0].Content != nil {
-		assert.NotEmpty(t, b.Source[0].Content.Spans, "should have spans for inline codes")
+		assert.NotEmpty(t, b.Source[0].Spans(), "should have spans for inline codes")
 	}
 }
 

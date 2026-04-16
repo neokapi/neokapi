@@ -487,8 +487,8 @@ func (s *xliff2StreamState) finishSource() {
 	}
 	sourceText := strings.TrimSpace(s.sourceInnerXML.String())
 	s.sourceSegs = append(s.sourceSegs, &model.Segment{
-		ID:      sid,
-		Content: model.RunsToFragment([]model.Run{{Text: &model.TextRun{Text: sourceText}}}),
+		ID:   sid,
+		Runs: []model.Run{{Text: &model.TextRun{Text: sourceText}}},
 	})
 	s.inSource = false
 }
@@ -516,8 +516,8 @@ func (s *xliff2StreamState) finishTarget() {
 			sid = fmt.Sprintf("s%d", len(s.sourceSegs))
 		}
 		s.targets[tl] = append(s.targets[tl], &model.Segment{
-			ID:      sid,
-			Content: model.RunsToFragment([]model.Run{{Text: &model.TextRun{Text: targetText}}}),
+			ID:   sid,
+			Runs: []model.Run{{Text: &model.TextRun{Text: targetText}}},
 		})
 	}
 	s.inTarget = false
@@ -625,15 +625,15 @@ func (r *Reader) emitUnit(ctx context.Context, ch chan<- model.PartResult, unit 
 
 		sourceText := strings.TrimSpace(seg.Source.InnerXML)
 		sourceSegs = append(sourceSegs, &model.Segment{
-			ID:      segID,
-			Content: model.RunsToFragment([]model.Run{{Text: &model.TextRun{Text: sourceText}}}),
+			ID:   segID,
+			Runs: []model.Run{{Text: &model.TextRun{Text: sourceText}}},
 		})
 
 		targetText := strings.TrimSpace(seg.Target.InnerXML)
 		if targetText != "" && !trgLang.IsEmpty() {
 			targets[trgLang] = append(targets[trgLang], &model.Segment{
-				ID:      segID,
-				Content: model.RunsToFragment([]model.Run{{Text: &model.TextRun{Text: targetText}}}),
+				ID:   segID,
+				Runs: []model.Run{{Text: &model.TextRun{Text: targetText}}},
 			})
 		}
 	}

@@ -37,7 +37,7 @@ func TestSegmentRoundtrip(t *testing.T) {
 
 	result := shared.DTOToSegment(dto)
 	assert.Equal(t, "seg1", result.ID)
-	assert.Equal(t, seg.Runs(), result.Runs())
+	assert.Equal(t, seg.Runs, result.Runs)
 }
 
 func TestBlockRoundtrip(t *testing.T) {

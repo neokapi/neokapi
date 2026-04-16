@@ -225,7 +225,14 @@ func compareBlocks(t *testing.T, prefix string, ep, ap *model.Part) {
 		for j := range eb.Source {
 			sp := fmt.Sprintf("%s.source[%d]", prefix, j)
 			assert.Equal(t, eb.Source[j].ID, ab.Source[j].ID, "%s: segment ID", sp)
-			compareFragments(t, sp, eb.Source[j].Content, ab.Source[j].Content)
+			// Compare via the Fragment materialisation so callers
+			// can still assert on span-level shape. The Fragment
+			// form is derived from Runs via AsCodedText.
+			eCoded, eSpans := model.AsCodedText(eb.Source[j].Runs)
+			aCoded, aSpans := model.AsCodedText(ab.Source[j].Runs)
+			ef := &model.Fragment{CodedText: eCoded, Spans: eSpans}
+			af := &model.Fragment{CodedText: aCoded, Spans: aSpans}
+			compareFragments(t, sp, ef, af)
 		}
 	}
 }

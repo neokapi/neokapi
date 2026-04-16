@@ -57,7 +57,7 @@ func TestSnippet_BasicWithUT(t *testing.T) {
 	// Should have inline spans for the <br/>, <b>, </b> codes.
 	require.NotEmpty(t, b.Source)
 	if b.Source[0].Content != nil {
-		assert.NotEmpty(t, b.Source[0].Content.Spans, "should have spans for inline codes")
+		assert.NotEmpty(t, b.Source[0].Spans(), "should have spans for inline codes")
 	}
 }
 

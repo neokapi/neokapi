@@ -213,11 +213,11 @@ func TestExtract_CodeFinder(t *testing.T) {
 	assert.Equal(t, "Thanks everyone for joining us today.", b1.SourceText())
 	// Verify spans are created for the inline codes.
 	if b1.Source[0].Content != nil {
-		assert.NotEmpty(t, b1.Source[0].Content.Spans, "should have spans for <span> inline codes")
+		assert.NotEmpty(t, b1.Source[0].Spans(), "should have spans for <span> inline codes")
 		// Look for span data containing the opening and closing tags.
 		foundOpen := false
 		foundClose := false
-		for _, s := range b1.Source[0].Content.Spans {
+		for _, s := range b1.Source[0].Spans() {
 			if strings.Contains(s.Data, "<span") {
 				foundOpen = true
 			}
@@ -233,7 +233,7 @@ func TestExtract_CodeFinder(t *testing.T) {
 	b2 := blocks[1]
 	assert.Equal(t, "I am so excited to be with you.", b2.SourceText())
 	if b2.Source[0].Content != nil {
-		assert.NotEmpty(t, b2.Source[0].Content.Spans, "should have spans for <span> inline codes in second subtitle")
+		assert.NotEmpty(t, b2.Source[0].Spans(), "should have spans for <span> inline codes in second subtitle")
 	}
 }
 

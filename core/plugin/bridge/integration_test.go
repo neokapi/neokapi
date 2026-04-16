@@ -92,7 +92,7 @@ func TestIntegrationReadHTML(t *testing.T) {
 			block := p.Resource.(*model.Block)
 			assert.True(t, block.Translatable)
 			if len(block.Source) > 0 {
-				text := block.Source[0].Content.Text()
+				text := block.Source[0].Text()
 				assert.Contains(t, text, "Hello world")
 			}
 		}

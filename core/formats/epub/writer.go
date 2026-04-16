@@ -267,12 +267,12 @@ func (w *Writer) writeFromSkeleton(blocks map[string]*model.Block, childLayerVal
 func (w *Writer) renderBlockText(block *model.Block) string {
 	if !w.Locale.IsEmpty() && block.HasTarget(w.Locale) {
 		segs := block.Targets[w.Locale]
-		if len(segs) > 0 && segs[0].Content != nil {
-			return xmlEscape(segs[0].Content.Text())
+		if len(segs) > 0 && segs[0].Fragment() != nil {
+			return xmlEscape(segs[0].Text())
 		}
 	}
-	if len(block.Source) > 0 && block.Source[0].Content != nil {
-		return xmlEscape(block.Source[0].Content.Text())
+	if len(block.Source) > 0 && block.Source[0].Fragment() != nil {
+		return xmlEscape(block.Source[0].Fragment().Text())
 	}
 	return ""
 }

@@ -151,7 +151,7 @@ func TestExtract_BlocksWithInlineCodes(t *testing.T) {
 	// EPUB content has HTML tags that become inline codes.
 	spanCount := 0
 	for _, b := range blocks {
-		if len(b.Source) > 0 && b.Source[0].Content != nil && len(b.Source[0].Content.Spans) > 0 {
+		if len(b.Source) > 0 && b.Source[0].Content != nil && len(b.Source[0].Spans()) > 0 {
 			spanCount++
 		}
 	}
