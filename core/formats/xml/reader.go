@@ -850,11 +850,6 @@ func buildStartTag(se xml.StartElement) string {
 	return buf.String()
 }
 
-// isMarkerRune returns true if the rune is a span marker character.
-func isMarkerRune(r rune) bool {
-	return r == model.MarkerOpening || r == model.MarkerClosing || r == model.MarkerPlaceholder
-}
-
 // appendTextRun appends plain text to a run slice, coalescing with
 // the previous run if it is also a TextRun.
 func appendTextRun(runs []model.Run, text string) []model.Run {
