@@ -38,7 +38,7 @@ func TestBridgeFormatReaderOpenAndRead(t *testing.T) {
 			{PartType: int32(model.PartLayerStart), Layer: &pb.LayerMessage{Id: "doc1", Name: "test.html", Format: "html"}},
 			{PartType: int32(model.PartBlock), Block: &pb.BlockMessage{
 				Id: "tu1", Translatable: true,
-				Source: []*pb.SegmentMessage{{Id: "s1", Content: &pb.FragmentMessage{CodedText: "Hello"}}},
+				Source: []*pb.SegmentMessage{{Id: "s1", Runs: []*pb.RunMessage{{Kind: &pb.RunMessage_Text{Text: &pb.TextRunMessage{Text: "Hello"}}}}}},
 			}},
 			{PartType: int32(model.PartLayerEnd), Layer: &pb.LayerMessage{Id: "doc1"}},
 		},
@@ -95,7 +95,7 @@ func TestBridgeProcessorExecute(t *testing.T) {
 			{PartType: int32(model.PartLayerStart), Layer: &pb.LayerMessage{Id: "doc1"}},
 			{PartType: int32(model.PartBlock), Block: &pb.BlockMessage{
 				Id: "tu1", Translatable: true,
-				Source: []*pb.SegmentMessage{{Id: "s1", Content: &pb.FragmentMessage{CodedText: "Hello"}}},
+				Source: []*pb.SegmentMessage{{Id: "s1", Runs: []*pb.RunMessage{{Kind: &pb.RunMessage_Text{Text: &pb.TextRunMessage{Text: "Hello"}}}}}},
 			}},
 			{PartType: int32(model.PartLayerEnd), Layer: &pb.LayerMessage{Id: "doc1"}},
 		},

@@ -253,35 +253,23 @@ func TestPartsToDTO(t *testing.T) {
 	assert.Equal(t, model.PartLayerEnd, restored[2].Type)
 }
 
-// TestFragmentWithSpansRoundTrip verifies Fragment with Span serialization.
-func TestFragmentWithSpansRoundTrip(t *testing.T) {
-	frag := model.NewFragment("")
-	frag.AppendSpan(&model.Span{
-		SpanType: model.SpanOpening,
-		Type:     "bold",
-		ID:       "s1",
-		Data:     "<b>",
-	})
-	frag.AppendText("Hello")
-	frag.AppendSpan(&model.Span{
-		SpanType: model.SpanClosing,
-		Type:     "bold",
-		ID:       "s1",
-		Data:     "</b>",
-	})
+// TestRunsWithInlineCodesRoundTrip verifies a Run sequence with
+// paired inline codes serializes through the DTO layer intact.
+func TestRunsWithInlineCodesRoundTrip(t *testing.T) {
+	runs := []model.Run{
+		{PcOpen: &model.PcOpenRun{ID: "s1", Type: "bold", Data: "<b>"}},
+		{Text: &model.TextRun{Text: "Hello"}},
+		{PcClose: &model.PcCloseRun{ID: "s1", Type: "bold", Data: "</b>"}},
+	}
+	dtos := shared.RunsToDTO(runs)
+	require.Len(t, dtos, 3)
+	require.NotNil(t, dtos[0].PcOpen)
+	assert.Equal(t, "bold", dtos[0].PcOpen.Type)
+	require.NotNil(t, dtos[1].Text)
+	assert.Equal(t, "Hello", dtos[1].Text.Text)
 
-	dto := shared.FragmentToDTO(frag)
-	assert.Equal(t, frag.CodedText, dto.CodedText)
-	assert.Len(t, dto.Spans, 2)
-	assert.Equal(t, int(model.SpanOpening), dto.Spans[0].SpanType)
-	assert.Equal(t, "bold", dto.Spans[0].Type)
-
-	restored := shared.DTOToFragment(dto)
-	assert.Equal(t, frag.CodedText, restored.CodedText)
-	assert.Len(t, restored.Spans, 2)
-	assert.Equal(t, model.SpanOpening, restored.Spans[0].SpanType)
-	assert.Equal(t, "bold", restored.Spans[0].Type)
-	assert.Equal(t, "<b>", restored.Spans[0].Data)
+	restored := shared.DTOToRuns(dtos)
+	assert.Equal(t, runs, restored)
 }
 
 // TestFormatReaderClientInterface verifies that the client satisfies the interface.

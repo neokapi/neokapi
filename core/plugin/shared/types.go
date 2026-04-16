@@ -7,39 +7,95 @@
 // as an intermediate representation when converting between model and proto.
 package shared
 
-// SpanDTO is the wire representation of model.Span.
-type SpanDTO struct {
-	SpanType    int                      `json:"span_type"`
-	Type        string                   `json:"type"`
-	ID          string                   `json:"id"`
-	Data        string                   `json:"data"`
-	OuterData   string                   `json:"outer_data"`
-	Deletable   bool                     `json:"deletable"`
-	Cloneable   bool                     `json:"cloneable"`
-	OriginalID  string                   `json:"original_id,omitempty"`
-	DisplayText string                   `json:"display_text,omitempty"`
-	Flags       int                      `json:"flags,omitempty"`
-	EquivText   string                   `json:"equiv_text,omitempty"`
-	CanReorder  bool                     `json:"can_reorder,omitempty"`
-	Annotations map[string]AnnotationDTO `json:"annotations,omitempty"`
-}
-
 // AnnotationDTO is a typed annotation with a JSON-encoded payload.
 type AnnotationDTO struct {
 	Type string `json:"type"`
 	Data []byte `json:"data"` // JSON-encoded type-specific payload
 }
 
-// FragmentDTO is the wire representation of model.Fragment.
-type FragmentDTO struct {
-	CodedText string    `json:"coded_text"`
-	Spans     []SpanDTO `json:"spans,omitempty"`
+// RunConstraintsDTO mirrors model.RunConstraints on the wire.
+type RunConstraintsDTO struct {
+	Deletable   bool `json:"deletable,omitempty"`
+	Cloneable   bool `json:"cloneable,omitempty"`
+	Reorderable bool `json:"reorderable,omitempty"`
+}
+
+// TextRunDTO is the wire representation of a text run.
+type TextRunDTO struct {
+	Text string `json:"text"`
+}
+
+// PlaceholderRunDTO is the wire representation of a self-closing
+// placeholder run (variable, conditional node, icon, etc.).
+type PlaceholderRunDTO struct {
+	ID          string             `json:"id"`
+	Type        string             `json:"type"`
+	SubType     string             `json:"subType,omitempty"`
+	Data        string             `json:"data"`
+	Equiv       string             `json:"equiv"`
+	Disp        string             `json:"disp,omitempty"`
+	Constraints *RunConstraintsDTO `json:"constraints,omitempty"`
+}
+
+// PcOpenRunDTO is the wire representation of the opening half of a
+// paired inline code.
+type PcOpenRunDTO struct {
+	ID          string             `json:"id"`
+	Type        string             `json:"type"`
+	SubType     string             `json:"subType,omitempty"`
+	Data        string             `json:"data"`
+	Equiv       string             `json:"equiv"`
+	Disp        string             `json:"disp,omitempty"`
+	Constraints *RunConstraintsDTO `json:"constraints,omitempty"`
+}
+
+// PcCloseRunDTO is the wire representation of the closing half of a
+// paired inline code.
+type PcCloseRunDTO struct {
+	ID      string `json:"id"`
+	Type    string `json:"type"`
+	SubType string `json:"subType,omitempty"`
+	Data    string `json:"data"`
+	Equiv   string `json:"equiv,omitempty"`
+}
+
+// SubRunDTO is the wire representation of a sub-filter reference.
+type SubRunDTO struct {
+	ID    string `json:"id"`
+	Ref   string `json:"ref"`
+	Equiv string `json:"equiv"`
+}
+
+// PluralRunDTO is the wire representation of a structured plural
+// construct. Keys of Forms are ICU plural forms.
+type PluralRunDTO struct {
+	Pivot string              `json:"pivot"`
+	Forms map[string][]RunDTO `json:"forms"`
+}
+
+// SelectRunDTO is the wire representation of a structured select
+// construct.
+type SelectRunDTO struct {
+	Pivot string              `json:"pivot"`
+	Cases map[string][]RunDTO `json:"cases"`
+}
+
+// RunDTO is the wire representation of a model.Run. Exactly one of
+// the pointer fields is non-nil per record.
+type RunDTO struct {
+	Text    *TextRunDTO        `json:"text,omitempty"`
+	Ph      *PlaceholderRunDTO `json:"ph,omitempty"`
+	PcOpen  *PcOpenRunDTO      `json:"pcOpen,omitempty"`
+	PcClose *PcCloseRunDTO     `json:"pcClose,omitempty"`
+	Sub     *SubRunDTO         `json:"sub,omitempty"`
+	Plural  *PluralRunDTO      `json:"plural,omitempty"`
+	Select  *SelectRunDTO      `json:"select,omitempty"`
 }
 
 // SegmentDTO is the wire representation of model.Segment.
 type SegmentDTO struct {
 	ID         string            `json:"id"`
-	Content    FragmentDTO       `json:"content"`
+	Runs       []RunDTO          `json:"runs,omitempty"`
 	Properties map[string]string `json:"properties,omitempty"`
 }
 

@@ -155,74 +155,126 @@ func DTOToDisplayHint(d *DisplayHintDTO) *model.DisplayHint {
 }
 
 // ────────────────────────────────────────────────────────────────────────────
-// Span conversions
+// Run conversions
 // ────────────────────────────────────────────────────────────────────────────
 
-// SpanToDTO converts a model.Span to a SpanDTO.
-func SpanToDTO(s *model.Span) SpanDTO {
-	return SpanDTO{
-		SpanType:    int(s.SpanType),
-		Type:        s.Type,
-		ID:          s.ID,
-		Data:        s.Data,
-		OuterData:   s.OuterData,
-		Deletable:   s.Deletable,
-		Cloneable:   s.Cloneable,
-		OriginalID:  s.OriginalID,
-		DisplayText: s.DisplayText,
-		Flags:       s.Flags,
-		EquivText:   s.EquivText,
-		CanReorder:  s.CanReorder,
-		Annotations: AnnotationsToDTO(s.Annotations),
+// RunToDTO converts a model.Run to a RunDTO, dispatching on the
+// discriminator set on r.
+func RunToDTO(r model.Run) RunDTO {
+	switch {
+	case r.Text != nil:
+		return RunDTO{Text: &TextRunDTO{Text: r.Text.Text}}
+	case r.Ph != nil:
+		return RunDTO{Ph: &PlaceholderRunDTO{
+			ID: r.Ph.ID, Type: r.Ph.Type, SubType: r.Ph.SubType,
+			Data: r.Ph.Data, Equiv: r.Ph.Equiv, Disp: r.Ph.Disp,
+			Constraints: runConstraintsToDTO(r.Ph.Constraints),
+		}}
+	case r.PcOpen != nil:
+		return RunDTO{PcOpen: &PcOpenRunDTO{
+			ID: r.PcOpen.ID, Type: r.PcOpen.Type, SubType: r.PcOpen.SubType,
+			Data: r.PcOpen.Data, Equiv: r.PcOpen.Equiv, Disp: r.PcOpen.Disp,
+			Constraints: runConstraintsToDTO(r.PcOpen.Constraints),
+		}}
+	case r.PcClose != nil:
+		return RunDTO{PcClose: &PcCloseRunDTO{
+			ID: r.PcClose.ID, Type: r.PcClose.Type, SubType: r.PcClose.SubType,
+			Data: r.PcClose.Data, Equiv: r.PcClose.Equiv,
+		}}
+	case r.Sub != nil:
+		return RunDTO{Sub: &SubRunDTO{ID: r.Sub.ID, Ref: r.Sub.Ref, Equiv: r.Sub.Equiv}}
+	case r.Plural != nil:
+		forms := make(map[string][]RunDTO, len(r.Plural.Forms))
+		for form, runs := range r.Plural.Forms {
+			forms[string(form)] = RunsToDTO(runs)
+		}
+		return RunDTO{Plural: &PluralRunDTO{Pivot: r.Plural.Pivot, Forms: forms}}
+	case r.Select != nil:
+		cases := make(map[string][]RunDTO, len(r.Select.Cases))
+		for key, runs := range r.Select.Cases {
+			cases[key] = RunsToDTO(runs)
+		}
+		return RunDTO{Select: &SelectRunDTO{Pivot: r.Select.Pivot, Cases: cases}}
 	}
+	return RunDTO{}
 }
 
-// DTOToSpan converts a SpanDTO to a model.Span.
-func DTOToSpan(d SpanDTO) *model.Span {
-	return &model.Span{
-		SpanType:    model.SpanType(d.SpanType),
-		Type:        d.Type,
-		ID:          d.ID,
-		Data:        d.Data,
-		OuterData:   d.OuterData,
-		Deletable:   d.Deletable,
-		Cloneable:   d.Cloneable,
-		OriginalID:  d.OriginalID,
-		DisplayText: d.DisplayText,
-		Flags:       d.Flags,
-		EquivText:   d.EquivText,
-		CanReorder:  d.CanReorder,
-		Annotations: DTOToAnnotations(d.Annotations),
+// DTOToRun converts a RunDTO into its model.Run form.
+func DTOToRun(d RunDTO) model.Run {
+	switch {
+	case d.Text != nil:
+		return model.Run{Text: &model.TextRun{Text: d.Text.Text}}
+	case d.Ph != nil:
+		return model.Run{Ph: &model.PlaceholderRun{
+			ID: d.Ph.ID, Type: d.Ph.Type, SubType: d.Ph.SubType,
+			Data: d.Ph.Data, Equiv: d.Ph.Equiv, Disp: d.Ph.Disp,
+			Constraints: dtoToRunConstraints(d.Ph.Constraints),
+		}}
+	case d.PcOpen != nil:
+		return model.Run{PcOpen: &model.PcOpenRun{
+			ID: d.PcOpen.ID, Type: d.PcOpen.Type, SubType: d.PcOpen.SubType,
+			Data: d.PcOpen.Data, Equiv: d.PcOpen.Equiv, Disp: d.PcOpen.Disp,
+			Constraints: dtoToRunConstraints(d.PcOpen.Constraints),
+		}}
+	case d.PcClose != nil:
+		return model.Run{PcClose: &model.PcCloseRun{
+			ID: d.PcClose.ID, Type: d.PcClose.Type, SubType: d.PcClose.SubType,
+			Data: d.PcClose.Data, Equiv: d.PcClose.Equiv,
+		}}
+	case d.Sub != nil:
+		return model.Run{Sub: &model.SubRun{ID: d.Sub.ID, Ref: d.Sub.Ref, Equiv: d.Sub.Equiv}}
+	case d.Plural != nil:
+		forms := make(map[model.PluralForm][]model.Run, len(d.Plural.Forms))
+		for form, runs := range d.Plural.Forms {
+			forms[model.PluralForm(form)] = DTOToRuns(runs)
+		}
+		return model.Run{Plural: &model.PluralRun{Pivot: d.Plural.Pivot, Forms: forms}}
+	case d.Select != nil:
+		cases := make(map[string][]model.Run, len(d.Select.Cases))
+		for key, runs := range d.Select.Cases {
+			cases[key] = DTOToRuns(runs)
+		}
+		return model.Run{Select: &model.SelectRun{Pivot: d.Select.Pivot, Cases: cases}}
 	}
+	return model.Run{}
 }
 
-// ────────────────────────────────────────────────────────────────────────────
-// Fragment conversions
-// ────────────────────────────────────────────────────────────────────────────
-
-// FragmentToDTO converts a model.Fragment to a FragmentDTO.
-func FragmentToDTO(f *model.Fragment) FragmentDTO {
-	if f == nil {
-		return FragmentDTO{}
+// RunsToDTO converts a slice of model.Run to RunDTOs.
+func RunsToDTO(runs []model.Run) []RunDTO {
+	if len(runs) == 0 {
+		return nil
 	}
-	dto := FragmentDTO{
-		CodedText: f.CodedText,
+	out := make([]RunDTO, len(runs))
+	for i, r := range runs {
+		out[i] = RunToDTO(r)
 	}
-	for _, s := range f.Spans {
-		dto.Spans = append(dto.Spans, SpanToDTO(s))
-	}
-	return dto
+	return out
 }
 
-// DTOToFragment converts a FragmentDTO to a model.Fragment.
-func DTOToFragment(d FragmentDTO) *model.Fragment {
-	f := &model.Fragment{
-		CodedText: d.CodedText,
+// DTOToRuns converts RunDTOs to a slice of model.Run.
+func DTOToRuns(dtos []RunDTO) []model.Run {
+	if len(dtos) == 0 {
+		return nil
 	}
-	for _, s := range d.Spans {
-		f.Spans = append(f.Spans, DTOToSpan(s))
+	out := make([]model.Run, len(dtos))
+	for i, d := range dtos {
+		out[i] = DTOToRun(d)
 	}
-	return f
+	return out
+}
+
+func runConstraintsToDTO(c *model.RunConstraints) *RunConstraintsDTO {
+	if c == nil {
+		return nil
+	}
+	return &RunConstraintsDTO{Deletable: c.Deletable, Cloneable: c.Cloneable, Reorderable: c.Reorderable}
+}
+
+func dtoToRunConstraints(d *RunConstraintsDTO) *model.RunConstraints {
+	if d == nil {
+		return nil
+	}
+	return &model.RunConstraints{Deletable: d.Deletable, Cloneable: d.Cloneable, Reorderable: d.Reorderable}
 }
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -233,18 +285,19 @@ func DTOToFragment(d FragmentDTO) *model.Fragment {
 func SegmentToDTO(s *model.Segment) SegmentDTO {
 	return SegmentDTO{
 		ID:         s.ID,
-		Content:    FragmentToDTO(s.Content),
+		Runs:       RunsToDTO(s.Runs()),
 		Properties: s.Properties,
 	}
 }
 
 // DTOToSegment converts a SegmentDTO to a model.Segment.
 func DTOToSegment(d SegmentDTO) *model.Segment {
-	return &model.Segment{
+	seg := &model.Segment{
 		ID:         d.ID,
-		Content:    DTOToFragment(d.Content),
 		Properties: d.Properties,
 	}
+	seg.SetRuns(DTOToRuns(d.Runs))
+	return seg
 }
 
 // ────────────────────────────────────────────────────────────────────────────
