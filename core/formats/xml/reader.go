@@ -101,10 +101,27 @@ type elementFrame struct {
 	isInline         bool
 	isExcluded       bool
 	preserveWS       bool
-	frag             *model.Fragment
+	runs             []model.Run // nil means no content accumulator yet (inline element parent w/o text frame)
+	hasRuns          bool        // true once the frame has been initialised as a text accumulator
 	spanID           int
 	hasContent       bool // true if inline element had any child content
 	contentByteStart int  // byte offset where element content begins (after '>'), for skeleton
+}
+
+// initRuns marks the frame as a text accumulator. Subsequent addText /
+// inline-code events append into frame.runs.
+func (f *elementFrame) initRuns() {
+	if !f.hasRuns {
+		f.runs = nil
+		f.hasRuns = true
+	}
+}
+
+// resetRuns clears the frame's accumulator after its content has been
+// emitted (or when the frame is discarded).
+func (f *elementFrame) resetRuns() {
+	f.runs = nil
+	f.hasRuns = false
 }
 
 func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
@@ -243,22 +260,22 @@ func (s *xmlParseState) isTranslatable(frame *elementFrame) bool {
 // The frame has already been popped from stack, so we pass the path separately.
 // endTagOffset is the byte offset of the end tag (for skeleton tracking).
 func (s *xmlParseState) flushBlock(frame *elementFrame, path string, endTagOffset int) {
-	if frame == nil || frame.frag == nil {
+	if frame == nil || !frame.hasRuns {
 		return
 	}
 
-	var finalFrag *model.Fragment
+	var finalRuns []model.Run
 	if frame.preserveWS || s.contentRanges != nil {
 		// In skeleton mode, preserve whitespace as-is for byte-exact roundtrip.
 		// The skeleton ref covers the raw bytes, and XML-escaping the decoded
 		// text will reproduce the original encoding.
-		finalFrag = frame.frag
+		finalRuns = frame.runs
 	} else {
-		finalFrag = collapseFragmentWhitespace(frame.frag)
+		finalRuns = collapseRunsWhitespace(frame.runs)
 	}
 
-	text := finalFrag.Text()
-	if text == "" && !finalFrag.HasSpans() {
+	text := model.FlattenRuns(finalRuns)
+	if text == "" && !runsHaveInlineCodes(finalRuns) {
 		return
 	}
 
@@ -276,7 +293,7 @@ func (s *xmlParseState) flushBlock(frame *elementFrame, path string, endTagOffse
 	// Check for subfilter
 	if mapping := s.reader.matchSubfilter(path); mapping != nil && s.reader.resolver != nil {
 		s.reader.emitSubfiltered(s.ctx, s.ch, text, path, s.layer.ID, mapping, &s.blockCounter, &s.dataCounter)
-		frame.frag = nil
+		frame.resetRuns()
 		return
 	}
 
@@ -285,13 +302,10 @@ func (s *xmlParseState) flushBlock(frame *elementFrame, path string, endTagOffse
 	block := &model.Block{
 		ID:           blockID,
 		Translatable: true,
-		Source: []*model.Segment{{
-			ID:      "s1",
-			Content: finalFrag,
-		}},
-		Targets:     make(map[model.LocaleID][]*model.Segment),
-		Properties:  make(map[string]string),
-		Annotations: make(map[string]model.Annotation),
+		Source:       []*model.Segment{model.NewRunsSegment("s1", finalRuns)},
+		Targets:      make(map[model.LocaleID][]*model.Segment),
+		Properties:   make(map[string]string),
+		Annotations:  make(map[string]model.Annotation),
 	}
 
 	block.Name = path
@@ -329,7 +343,7 @@ func (s *xmlParseState) flushBlock(frame *elementFrame, path string, endTagOffse
 		}
 	}
 
-	frame.frag = nil
+	frame.resetRuns()
 }
 
 // emitTranslatableAttrs emits translatable attributes as blocks and tracks skeleton ranges.
@@ -439,19 +453,19 @@ func (s *xmlParseState) handleStartElement(t xml.StartElement, tokOffset int) {
 		}
 		// For inline elements, add opening span to parent's fragment
 		parent := s.findTextFrame()
-		if parent != nil && parent.frag != nil && !parent.isExcluded {
+		if parent != nil && parent.hasRuns && !parent.isExcluded {
 			s.spanCounter++
-			parent.frag.AppendSpan(&model.Span{
-				SpanType: model.SpanOpening,
-				ID:       strconv.Itoa(s.spanCounter),
-				Data:     buildStartTag(t),
-				Type:     "fmt:" + t.Name.Local,
-			})
+			id := strconv.Itoa(s.spanCounter)
+			parent.runs = append(parent.runs, model.Run{PcOpen: &model.PcOpenRun{
+				ID:   id,
+				Type: "fmt:" + t.Name.Local,
+				Data: buildStartTag(t),
+			}})
 			frame.spanID = s.spanCounter
 		}
 	} else {
-		// Start a new text accumulator for this block element
-		frame.frag = model.NewFragment("")
+		// Start a new text accumulator for this block element.
+		frame.initRuns()
 	}
 
 	s.stack = append(s.stack, frame)
@@ -478,29 +492,27 @@ func (s *xmlParseState) handleEndElement(t xml.EndElement) {
 
 	if frame.isInline {
 		parent := s.findTextFrame()
-		if parent != nil && parent.frag != nil && !parent.isExcluded {
+		if parent != nil && parent.hasRuns && !parent.isExcluded {
 			if !frame.hasContent {
-				// Self-closing / empty inline: replace the opening span with a placeholder
+				// Self-closing / empty inline: replace the opening run with a Ph.
 				spanID := strconv.Itoa(frame.spanID)
-				for i, sp := range parent.frag.Spans {
-					if sp.ID == spanID && sp.SpanType == model.SpanOpening {
-						parent.frag.Spans[i] = &model.Span{
-							SpanType: model.SpanPlaceholder,
-							ID:       spanID,
-							Data:     sp.Data,
-							Type:     sp.Type,
-						}
+				for i, r := range parent.runs {
+					if r.PcOpen != nil && r.PcOpen.ID == spanID {
+						parent.runs[i] = model.Run{Ph: &model.PlaceholderRun{
+							ID:   spanID,
+							Type: r.PcOpen.Type,
+							Data: r.PcOpen.Data,
+						}}
 						break
 					}
 				}
 			} else {
-				// Add closing span to parent's fragment
-				parent.frag.AppendSpan(&model.Span{
-					SpanType: model.SpanClosing,
-					ID:       strconv.Itoa(frame.spanID),
-					Data:     "</" + t.Name.Local + ">",
-					Type:     "fmt:" + t.Name.Local,
-				})
+				// Add closing run to parent's accumulator.
+				parent.runs = append(parent.runs, model.Run{PcClose: &model.PcCloseRun{
+					ID:   strconv.Itoa(frame.spanID),
+					Type: "fmt:" + t.Name.Local,
+					Data: "</" + t.Name.Local + ">",
+				}})
 			}
 		}
 	} else if !frame.isExcluded {
@@ -544,11 +556,9 @@ func (s *xmlParseState) handleCharData(t xml.CharData) {
 				break
 			}
 		}
-		// Accumulate text in the current text frame
-		if textFrame.frag == nil {
-			textFrame.frag = model.NewFragment("")
-		}
-		textFrame.frag.AppendText(text)
+		// Accumulate text in the current text frame.
+		textFrame.initRuns()
+		textFrame.runs = appendTextRun(textFrame.runs, text)
 		return
 	}
 
@@ -567,19 +577,18 @@ func (s *xmlParseState) handleCharData(t xml.CharData) {
 // handleProcInst processes an xml.ProcInst token.
 func (s *xmlParseState) handleProcInst(t xml.ProcInst) {
 	textFrame := s.findTextFrame()
-	if textFrame != nil && textFrame.frag != nil {
+	if textFrame != nil && textFrame.hasRuns {
 		s.spanCounter++
 		piData := "<?" + t.Target
 		if len(t.Inst) > 0 {
 			piData += " " + string(t.Inst)
 		}
 		piData += "?>"
-		textFrame.frag.AppendSpan(&model.Span{
-			SpanType: model.SpanPlaceholder,
-			ID:       strconv.Itoa(s.spanCounter),
-			Data:     piData,
-			Type:     "xml:pi",
-		})
+		textFrame.runs = append(textFrame.runs, model.Run{Ph: &model.PlaceholderRun{
+			ID:   strconv.Itoa(s.spanCounter),
+			Type: "xml:pi",
+			Data: piData,
+		}})
 	} else {
 		s.dataCounter++
 		data := &model.Data{
@@ -593,14 +602,13 @@ func (s *xmlParseState) handleProcInst(t xml.ProcInst) {
 // handleComment processes an xml.Comment token.
 func (s *xmlParseState) handleComment(t xml.Comment) {
 	textFrame := s.findTextFrame()
-	if textFrame != nil && textFrame.frag != nil {
+	if textFrame != nil && textFrame.hasRuns {
 		s.spanCounter++
-		textFrame.frag.AppendSpan(&model.Span{
-			SpanType: model.SpanPlaceholder,
-			ID:       strconv.Itoa(s.spanCounter),
-			Data:     "<!--" + string(t) + "-->",
-			Type:     "xml:comment",
-		})
+		textFrame.runs = append(textFrame.runs, model.Run{Ph: &model.PlaceholderRun{
+			ID:   strconv.Itoa(s.spanCounter),
+			Type: "xml:comment",
+			Data: "<!--" + string(t) + "-->",
+		}})
 	} else {
 		s.dataCounter++
 		data := &model.Data{
@@ -847,42 +855,77 @@ func isMarkerRune(r rune) bool {
 	return r == model.MarkerOpening || r == model.MarkerClosing || r == model.MarkerPlaceholder
 }
 
-// collapseFragmentWhitespace applies whitespace collapsing to a fragment,
-// preserving span markers and their positions.
-func collapseFragmentWhitespace(f *model.Fragment) *model.Fragment {
-	if f == nil {
-		return nil
+// appendTextRun appends plain text to a run slice, coalescing with
+// the previous run if it is also a TextRun.
+func appendTextRun(runs []model.Run, text string) []model.Run {
+	if text == "" {
+		return runs
 	}
-	result := &model.Fragment{
-		Spans: f.Spans,
+	if n := len(runs); n > 0 && runs[n-1].Text != nil {
+		runs[n-1].Text.Text += text
+		return runs
 	}
-	var buf strings.Builder
-	inSpace := false
-	started := false
+	return append(runs, model.Run{Text: &model.TextRun{Text: text}})
+}
 
-	for _, r := range f.CodedText {
-		if isMarkerRune(r) {
-			if inSpace && started {
-				buf.WriteByte(' ')
-				inSpace = false
-			}
-			buf.WriteRune(r)
-			started = true
-		} else if r == ' ' || r == '\t' || r == '\n' || r == '\r' {
-			if started {
-				inSpace = true
-			}
-		} else {
-			if inSpace {
-				buf.WriteByte(' ')
-				inSpace = false
-			}
-			buf.WriteRune(r)
-			started = true
+// runsHaveInlineCodes reports whether the run slice contains any
+// non-text run. Used by flushBlock to decide whether a segment with
+// no flattened text is still worth emitting (e.g. a <br/> run alone).
+func runsHaveInlineCodes(runs []model.Run) bool {
+	for _, r := range runs {
+		if r.Text == nil {
+			return true
 		}
 	}
-	result.CodedText = buf.String()
-	return result
+	return false
+}
+
+// collapseRunsWhitespace applies whitespace collapsing to a run
+// sequence, preserving inline-code runs and their positions.
+// Mirrors the legacy collapseFragmentWhitespace semantics.
+func collapseRunsWhitespace(runs []model.Run) []model.Run {
+	if len(runs) == 0 {
+		return runs
+	}
+	// Walk TextRuns and collapse whitespace across the entire
+	// sequence. Track "in space" across run boundaries so an inline
+	// code between two whitespace-padded text runs doesn't suppress
+	// the single space we want to emit.
+	out := make([]model.Run, 0, len(runs))
+	inSpace := false
+	started := false
+	for _, r := range runs {
+		if r.Text == nil {
+			// Non-text run: if we have a pending space and any text
+			// has already been emitted, flush a single space first.
+			if inSpace && started {
+				out = appendTextRun(out, " ")
+				inSpace = false
+			}
+			started = true
+			out = append(out, r)
+			continue
+		}
+		var buf strings.Builder
+		for _, ch := range r.Text.Text {
+			if ch == ' ' || ch == '\t' || ch == '\n' || ch == '\r' {
+				if started {
+					inSpace = true
+				}
+			} else {
+				if inSpace {
+					buf.WriteByte(' ')
+					inSpace = false
+				}
+				buf.WriteRune(ch)
+				started = true
+			}
+		}
+		if buf.Len() > 0 {
+			out = appendTextRun(out, buf.String())
+		}
+	}
+	return out
 }
 
 func (r *Reader) emit(ctx context.Context, ch chan<- model.PartResult, part *model.Part) bool {
