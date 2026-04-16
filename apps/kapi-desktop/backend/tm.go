@@ -1173,26 +1173,22 @@ func buildEntityMappingsFromVariantRuns(variants map[model.LocaleID][]model.Run)
 	byKey := make(map[entKey]*sievepen.EntityMapping)
 	var order []entKey
 	for loc, runs := range variants {
-		if len(runs) == 0 {
-			continue
-		}
-		frag := model.RunsToFragment(runs)
-		for _, s := range frag.EntitySpans() {
-			if !model.IsEntityTypeString(s.Type) {
+		for _, r := range runs {
+			if r.Ph == nil || !model.IsEntityTypeString(r.Ph.Type) {
 				continue
 			}
-			key := entKey{id: s.ID, eType: s.Type}
+			key := entKey{id: r.Ph.ID, eType: r.Ph.Type}
 			em, ok := byKey[key]
 			if !ok {
 				em = &sievepen.EntityMapping{
-					PlaceholderID: s.ID,
-					Type:          model.EntityType(s.Type),
+					PlaceholderID: r.Ph.ID,
+					Type:          model.EntityType(r.Ph.Type),
 					Values:        make(map[model.LocaleID]sievepen.EntityValue),
 				}
 				byKey[key] = em
 				order = append(order, key)
 			}
-			em.Values[loc] = sievepen.EntityValue{Text: s.Data}
+			em.Values[loc] = sievepen.EntityValue{Text: r.Ph.Data}
 		}
 	}
 	out := make([]sievepen.EntityMapping, 0, len(order))
