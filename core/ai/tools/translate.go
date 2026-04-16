@@ -334,7 +334,7 @@ func (t *AITranslateTool) annotateTranslation(block *model.Block, resp *aiprovid
 		block.Annotations = make(map[string]model.Annotation)
 	}
 	block.Annotations["alt-translations"] = &model.AltTranslation{
-		Target:    model.NewFragment(resp.Translation),
+		Target:    []model.Run{{Text: &model.TextRun{Text: resp.Translation}}},
 		Locale:    t.targetLocale,
 		Origin:    "ai:" + string(t.provider.Name()),
 		Score:     resp.Confidence,

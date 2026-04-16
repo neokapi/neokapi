@@ -274,15 +274,15 @@ func TestLocaleID(t *testing.T) {
 
 func TestAltTranslation(t *testing.T) {
 	alt := &model.AltTranslation{
-		Source:    model.NewFragment("Hello"),
-		Target:    model.NewFragment("Bonjour"),
+		Source:    []model.Run{{Text: &model.TextRun{Text: "Hello"}}},
+		Target:    []model.Run{{Text: &model.TextRun{Text: "Bonjour"}}},
 		Locale:    model.LocaleFrench,
 		Origin:    "tm",
 		Score:     0.95,
 		MatchType: model.MatchFuzzy,
 	}
 	assert.Equal(t, "alt-translation", alt.AnnotationType())
-	assert.Equal(t, "Bonjour", alt.Target.Text())
+	assert.Equal(t, "Bonjour", model.FlattenRuns(alt.Target))
 }
 
 func TestPartResult(t *testing.T) {

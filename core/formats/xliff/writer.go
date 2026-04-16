@@ -218,12 +218,12 @@ func (w *Writer) flush() error {
 						fmt.Fprintf(w.Output, ` origin="%s"`, xmlEscapeAttr(alt.Origin))
 					}
 					fmt.Fprintf(w.Output, ">\n")
-					if alt.Source != nil {
-						fmt.Fprintf(w.Output, "          <source>%s</source>\n", xmlEscapeText(alt.Source.Text()))
+					if len(alt.Source) > 0 {
+						fmt.Fprintf(w.Output, "          <source>%s</source>\n", xmlEscapeText(model.FlattenRuns(alt.Source)))
 					}
-					if alt.Target != nil {
+					if len(alt.Target) > 0 {
 						fmt.Fprintf(w.Output, `          <target xml:lang="%s">%s</target>`+"\n",
-							xmlEscapeAttr(string(targetLang)), xmlEscapeText(alt.Target.Text()))
+							xmlEscapeAttr(string(targetLang)), xmlEscapeText(model.FlattenRuns(alt.Target)))
 					}
 					fmt.Fprintf(w.Output, "        </alt-trans>\n")
 				}

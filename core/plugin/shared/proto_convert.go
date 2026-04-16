@@ -83,10 +83,10 @@ func populateAnnotation(typeName string, a model.Annotation, m map[string]any) m
 	case *model.AltTranslation:
 		// Source/Target come as plain text strings from the bridge.
 		if s, ok := m["source"].(string); ok && s != "" {
-			v.Source = model.NewFragment(s)
+			v.Source = []model.Run{{Text: &model.TextRun{Text: s}}}
 		}
 		if s, ok := m["target"].(string); ok && s != "" {
-			v.Target = model.NewFragment(s)
+			v.Target = []model.Run{{Text: &model.TextRun{Text: s}}}
 		}
 		if loc, ok := m["locale"].(string); ok {
 			v.Locale = model.LocaleID(loc)
