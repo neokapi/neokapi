@@ -129,12 +129,12 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 		transCommentBuilder strings.Builder
 		contextNameBuilder  strings.Builder
 		numerusForms        []string
-		sourceFrag          *model.Fragment
+		sourceRuns          []model.Run
 		sourceByteElems     []byteElem
 		transByteElems      []byteElem
 		buildingSourceFrag  bool
 		buildingTransFrag   bool
-		transFrag           *model.Fragment
+		transRuns           []model.Run
 	)
 
 	layer := &model.Layer{
@@ -211,8 +211,8 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 				extraCommentBuilder.Reset()
 				transCommentBuilder.Reset()
 				numerusForms = nil
-				sourceFrag = nil
-				transFrag = nil
+				sourceRuns = nil
+				transRuns = nil
 				sourceByteElems = nil
 				transByteElems = nil
 				buildingSourceFrag = false
@@ -230,7 +230,7 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 				if inMessage {
 					inSource = true
 					sourceBuilder.Reset()
-					sourceFrag = &model.Fragment{}
+					sourceRuns = nil
 					sourceByteElems = nil
 					buildingSourceFrag = true
 					elemStartOff = decoder.InputOffset()
@@ -240,7 +240,7 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 				if inMessage {
 					inTranslation = true
 					transBuilder.Reset()
-					transFrag = &model.Fragment{}
+					transRuns = nil
 					transByteElems = nil
 					buildingTransFrag = true
 					for _, attr := range t.Attr {
@@ -286,21 +286,18 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 					be := byteElem{value: byteVal}
 					if buildingSourceFrag && inSource {
 						sourceByteElems = append(sourceByteElems, be)
-						// Add a placeholder span for the byte element
-						sourceFrag.AppendSpan(&model.Span{
-							SpanType: model.SpanPlaceholder,
-							ID:       fmt.Sprintf("b%d", len(sourceByteElems)),
-							Type:     "byte",
-							Data:     fmt.Sprintf(`<byte value="%s"/>`, byteVal),
-						})
+						sourceRuns = append(sourceRuns, model.Run{Ph: &model.PlaceholderRun{
+							ID:   fmt.Sprintf("b%d", len(sourceByteElems)),
+							Type: "byte",
+							Data: fmt.Sprintf(`<byte value="%s"/>`, byteVal),
+						}})
 					} else if buildingTransFrag && inTranslation && !inNumerusForm {
 						transByteElems = append(transByteElems, be)
-						transFrag.AppendSpan(&model.Span{
-							SpanType: model.SpanPlaceholder,
-							ID:       fmt.Sprintf("b%d", len(transByteElems)),
-							Type:     "byte",
-							Data:     fmt.Sprintf(`<byte value="%s"/>`, byteVal),
-						})
+						transRuns = append(transRuns, model.Run{Ph: &model.PlaceholderRun{
+							ID:   fmt.Sprintf("b%d", len(transByteElems)),
+							Type: "byte",
+							Data: fmt.Sprintf(`<byte value="%s"/>`, byteVal),
+						}})
 					}
 				}
 			}
@@ -413,14 +410,12 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 
 					// Build block
 					var block *model.Block
-					if sourceFrag != nil && sourceFrag.HasSpans() {
-						// Source has inline elements (byte codes)
-						sourceFrag.AppendText("") // ensure coded text is set
+					if hasInlineCodes(sourceRuns) {
 						block = &model.Block{
 							ID:           blockID,
 							Name:         contextName,
 							Translatable: transType != "obsolete",
-							Source:       []*model.Segment{{ID: "s1", Content: sourceFrag}},
+							Source:       []*model.Segment{model.NewRunsSegment("s1", sourceRuns)},
 							Targets:      make(map[model.LocaleID][]*model.Segment),
 							Properties:   make(map[string]string),
 							Annotations:  make(map[string]model.Annotation),
@@ -465,8 +460,8 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 					} else {
 						targetText := transBuilder.String()
 						if targetText != "" || transType == "unfinished" {
-							if transFrag != nil && transFrag.HasSpans() {
-								block.SetTargetFragment(targetLocale, transFrag)
+							if hasInlineCodes(transRuns) {
+								block.SetTargetRuns(targetLocale, transRuns)
 							} else {
 								block.SetTargetText(targetLocale, targetText)
 							}
@@ -514,13 +509,13 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 			} else if inSource {
 				sourceBuilder.WriteString(text)
 				if buildingSourceFrag {
-					sourceFrag.AppendText(text)
+					sourceRuns = appendTSTextRun(sourceRuns, text)
 				}
 			} else if inTranslation {
 				if !inNumerusForm {
 					transBuilder.WriteString(text)
 					if buildingTransFrag {
-						transFrag.AppendText(text)
+						transRuns = appendTSTextRun(transRuns, text)
 					}
 				}
 			} else if inComment {
@@ -602,4 +597,29 @@ func (r *Reader) Close() error {
 		return r.Doc.Reader.Close()
 	}
 	return nil
+}
+
+// hasInlineCodes reports whether a run sequence contains any Ph /
+// PcOpen / PcClose / Sub run — i.e. the block needs the structured
+// Run path instead of the plain-text path.
+func hasInlineCodes(runs []model.Run) bool {
+	for _, r := range runs {
+		if r.Text == nil {
+			return true
+		}
+	}
+	return false
+}
+
+// appendTSTextRun appends text to the run sequence, coalescing with
+// a trailing TextRun.
+func appendTSTextRun(runs []model.Run, text string) []model.Run {
+	if text == "" {
+		return runs
+	}
+	if n := len(runs); n > 0 && runs[n-1].Text != nil {
+		runs[n-1].Text.Text += text
+		return runs
+	}
+	return append(runs, model.Run{Text: &model.TextRun{Text: text}})
 }
