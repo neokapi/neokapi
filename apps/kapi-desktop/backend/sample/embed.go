@@ -187,17 +187,16 @@ func seedTermbasev2(dbPath string) error {
 	return nil
 }
 
-
 // --- Enriched TM entries (structural + entity) ---
 
 // enrichedEntry defines a TM entry with inline codes and/or entity placeholders.
 // The source is always in en-US; targets maps each supported locale to a
-// Fragment factory. Entities, when set, carry the placeholder ID, type, and
-// the en-US value; per-locale entity values are not defined separately for
-// sample data.
+// Run-sequence factory. Entities, when set, carry the placeholder ID, type,
+// and the en-US value; per-locale entity values are not defined separately
+// for sample data.
 type enrichedEntry struct {
-	source   func() *model.Fragment
-	targets  map[model.LocaleID]func() *model.Fragment
+	source   func() []model.Run
+	targets  map[model.LocaleID]func() []model.Run
 	entities []enrichedEntity
 }
 
@@ -219,11 +218,11 @@ func seedEnrichedEntries(tm *sievepen.SQLiteTM) error {
 	now := time.Now()
 	for i, def := range entries {
 		variants := map[model.LocaleID][]model.Run{
-			"en-US": model.FragmentToRuns(def.source()),
+			"en-US": def.source(),
 		}
 		for _, tgt := range v2Targets {
 			if fn, ok := def.targets[tgt]; ok {
-				variants[tgt] = model.FragmentToRuns(fn())
+				variants[tgt] = fn()
 			}
 		}
 		entity := make([]sievepen.EntityMapping, 0, len(def.entities))
@@ -258,73 +257,86 @@ func seedEnrichedEntries(tm *sievepen.SQLiteTM) error {
 	return nil
 }
 
-// Helper: create a Fragment with bold-wrapped text.
-func boldFrag(before, bold, after string) *model.Fragment {
-	f := &model.Fragment{}
-	f.AppendText(before)
-	f.AppendSpan(&model.Span{SpanType: model.SpanOpening, ID: "1", Type: "fmt:bold", Data: "<b>"})
-	f.AppendText(bold)
-	f.AppendSpan(&model.Span{SpanType: model.SpanClosing, ID: "1", Type: "fmt:bold", Data: "</b>"})
-	f.AppendText(after)
-	return f
+// textRun returns a TextRun unless the input is empty, in which case it
+// returns nil so the caller can omit the slot.
+func textRun(s string) (model.Run, bool) {
+	if s == "" {
+		return model.Run{}, false
+	}
+	return model.Run{Text: &model.TextRun{Text: s}}, true
 }
 
-// Helper: create a Fragment with a link-wrapped text segment.
-func linkFrag(before, linkText, after string) *model.Fragment {
-	f := &model.Fragment{}
-	f.AppendText(before)
-	f.AppendSpan(&model.Span{SpanType: model.SpanOpening, ID: "1", Type: "link:hyperlink", Data: "<a>"})
-	f.AppendText(linkText)
-	f.AppendSpan(&model.Span{SpanType: model.SpanClosing, ID: "1", Type: "link:hyperlink", Data: "</a>"})
-	f.AppendText(after)
-	return f
+func appendText(runs []model.Run, s string) []model.Run {
+	if r, ok := textRun(s); ok {
+		return append(runs, r)
+	}
+	return runs
 }
 
-// Helper: create a Fragment with an entity placeholder.
-func entityFrag(before string, entityType, entityValue string, after string) *model.Fragment {
-	f := &model.Fragment{}
-	f.AppendText(before)
-	f.AppendSpan(&model.Span{SpanType: model.SpanPlaceholder, ID: "1", Type: "entity:" + entityType, Data: entityValue})
-	f.AppendText(after)
-	return f
+// Helper: bold-wrapped text as a Run sequence.
+func boldRuns(before, bold, after string) []model.Run {
+	runs := appendText(nil, before)
+	runs = append(runs, model.Run{PcOpen: &model.PcOpenRun{ID: "1", Type: "fmt:bold", Data: "<b>"}})
+	runs = appendText(runs, bold)
+	runs = append(runs, model.Run{PcClose: &model.PcCloseRun{ID: "1", Type: "fmt:bold", Data: "</b>"}})
+	return appendText(runs, after)
 }
 
-// Helper: create a Fragment with bold + entity.
-func boldEntityFrag(before, bold, mid string, entityType, entityValue, after string) *model.Fragment {
-	f := &model.Fragment{}
-	f.AppendText(before)
-	f.AppendSpan(&model.Span{SpanType: model.SpanOpening, ID: "1", Type: "fmt:bold", Data: "<b>"})
-	f.AppendText(bold)
-	f.AppendSpan(&model.Span{SpanType: model.SpanClosing, ID: "1", Type: "fmt:bold", Data: "</b>"})
-	f.AppendText(mid)
-	f.AppendSpan(&model.Span{SpanType: model.SpanPlaceholder, ID: "2", Type: "entity:" + entityType, Data: entityValue})
-	f.AppendText(after)
-	return f
+// Helper: link-wrapped text as a Run sequence.
+func linkRuns(before, linkText, after string) []model.Run {
+	runs := appendText(nil, before)
+	runs = append(runs, model.Run{PcOpen: &model.PcOpenRun{ID: "1", Type: "link:hyperlink", Data: "<a>"}})
+	runs = appendText(runs, linkText)
+	runs = append(runs, model.Run{PcClose: &model.PcCloseRun{ID: "1", Type: "link:hyperlink", Data: "</a>"}})
+	return appendText(runs, after)
 }
 
-// Helper: plain text fragment.
-func plain(text string) func() *model.Fragment {
-	return func() *model.Fragment { return model.NewFragment(text) }
+// Helper: entity placeholder as a Run sequence.
+func entityRuns(before, entityType, entityValue, after string) []model.Run {
+	runs := appendText(nil, before)
+	runs = append(runs, model.Run{Ph: &model.PlaceholderRun{ID: "1", Type: "entity:" + entityType, Data: entityValue}})
+	return appendText(runs, after)
 }
 
-// Helper: bold fragment factory.
-func boldF(before, bold, after string) func() *model.Fragment {
-	return func() *model.Fragment { return boldFrag(before, bold, after) }
+// Helper: bold + entity as a Run sequence.
+func boldEntityRuns(before, bold, mid, entityType, entityValue, after string) []model.Run {
+	runs := appendText(nil, before)
+	runs = append(runs, model.Run{PcOpen: &model.PcOpenRun{ID: "1", Type: "fmt:bold", Data: "<b>"}})
+	runs = appendText(runs, bold)
+	runs = append(runs, model.Run{PcClose: &model.PcCloseRun{ID: "1", Type: "fmt:bold", Data: "</b>"}})
+	runs = appendText(runs, mid)
+	runs = append(runs, model.Run{Ph: &model.PlaceholderRun{ID: "2", Type: "entity:" + entityType, Data: entityValue}})
+	return appendText(runs, after)
 }
 
-// Helper: link fragment factory.
-func linkF(before, link, after string) func() *model.Fragment {
-	return func() *model.Fragment { return linkFrag(before, link, after) }
+// Helper: plain text Run-sequence factory.
+func plain(text string) func() []model.Run {
+	return func() []model.Run {
+		if text == "" {
+			return nil
+		}
+		return []model.Run{{Text: &model.TextRun{Text: text}}}
+	}
 }
 
-// Helper: entity fragment factory.
-func entityF(before, eType, eVal, after string) func() *model.Fragment {
-	return func() *model.Fragment { return entityFrag(before, eType, eVal, after) }
+// Helper: bold Run-sequence factory.
+func boldF(before, bold, after string) func() []model.Run {
+	return func() []model.Run { return boldRuns(before, bold, after) }
 }
 
-// Helper: bold+entity fragment factory.
-func boldEntityF(before, bold, mid, eType, eVal, after string) func() *model.Fragment {
-	return func() *model.Fragment { return boldEntityFrag(before, bold, mid, eType, eVal, after) }
+// Helper: link Run-sequence factory.
+func linkF(before, link, after string) func() []model.Run {
+	return func() []model.Run { return linkRuns(before, link, after) }
+}
+
+// Helper: entity Run-sequence factory.
+func entityF(before, eType, eVal, after string) func() []model.Run {
+	return func() []model.Run { return entityRuns(before, eType, eVal, after) }
+}
+
+// Helper: bold+entity Run-sequence factory.
+func boldEntityF(before, bold, mid, eType, eVal, after string) func() []model.Run {
+	return func() []model.Run { return boldEntityRuns(before, bold, mid, eType, eVal, after) }
 }
 
 func enrichedEntryDefs() []enrichedEntry {
@@ -332,7 +344,7 @@ func enrichedEntryDefs() []enrichedEntry {
 		// --- Structural entries (bold) ---
 		{
 			source: boldF("Click ", "here", " to view your order."),
-			targets: map[model.LocaleID]func() *model.Fragment{
+			targets: map[model.LocaleID]func() []model.Run{
 				"de-DE": boldF("Klicken Sie ", "hier", ", um Ihre Bestellung anzuzeigen."),
 				"fr-FR": boldF("Cliquez ", "ici", " pour voir votre commande."),
 				"ja-JP": boldF("注文を表示するには", "こちら", "をクリックしてください。"),
@@ -342,7 +354,7 @@ func enrichedEntryDefs() []enrichedEntry {
 		},
 		{
 			source: boldF("Your ", "payment", " has been processed successfully."),
-			targets: map[model.LocaleID]func() *model.Fragment{
+			targets: map[model.LocaleID]func() []model.Run{
 				"de-DE": boldF("Ihre ", "Zahlung", " wurde erfolgreich verarbeitet."),
 				"fr-FR": boldF("Votre ", "paiement", " a été traité avec succès."),
 				"ja-JP": boldF("お", "支払い", "は正常に処理されました。"),
@@ -352,7 +364,7 @@ func enrichedEntryDefs() []enrichedEntry {
 		},
 		{
 			source: boldF("Free shipping", "", " on all orders over $50!"),
-			targets: map[model.LocaleID]func() *model.Fragment{
+			targets: map[model.LocaleID]func() []model.Run{
 				"de-DE": boldF("Kostenloser Versand", "", " für alle Bestellungen über 50 $!"),
 				"fr-FR": boldF("Livraison gratuite", "", " pour toutes les commandes de plus de 50 $ !"),
 				"ja-JP": boldF("送料無料", "", " — 50ドル以上のご注文が対象です！"),
@@ -362,7 +374,7 @@ func enrichedEntryDefs() []enrichedEntry {
 		},
 		{
 			source: boldF("Important:", " ", "Your account will be deactivated in 30 days."),
-			targets: map[model.LocaleID]func() *model.Fragment{
+			targets: map[model.LocaleID]func() []model.Run{
 				"de-DE": boldF("Wichtig:", " ", "Ihr Konto wird in 30 Tagen deaktiviert."),
 				"fr-FR": boldF("Important :", " ", "Votre compte sera désactivé dans 30 jours."),
 				"ja-JP": boldF("重要：", "", "アカウントは30日後に無効になります。"),
@@ -372,7 +384,7 @@ func enrichedEntryDefs() []enrichedEntry {
 		},
 		{
 			source: boldF("New!", " ", "Check out our summer collection."),
-			targets: map[model.LocaleID]func() *model.Fragment{
+			targets: map[model.LocaleID]func() []model.Run{
 				"de-DE": boldF("Neu!", " ", "Entdecken Sie unsere Sommerkollektion."),
 				"fr-FR": boldF("Nouveau !", " ", "Découvrez notre collection d'été."),
 				"ja-JP": boldF("新着！", "", "サマーコレクションをご覧ください。"),
@@ -382,7 +394,7 @@ func enrichedEntryDefs() []enrichedEntry {
 		},
 		{
 			source: boldF("Save 20%", "", " when you subscribe to our newsletter."),
-			targets: map[model.LocaleID]func() *model.Fragment{
+			targets: map[model.LocaleID]func() []model.Run{
 				"de-DE": boldF("Sparen Sie 20 %", "", ", wenn Sie unseren Newsletter abonnieren."),
 				"fr-FR": boldF("Économisez 20 %", "", " en vous abonnant à notre newsletter."),
 				"ja-JP": boldF("20% 割引", "", " — ニュースレターに登録するとお得です。"),
@@ -392,7 +404,7 @@ func enrichedEntryDefs() []enrichedEntry {
 		},
 		{
 			source: boldF("Warning:", " ", "This action cannot be undone."),
-			targets: map[model.LocaleID]func() *model.Fragment{
+			targets: map[model.LocaleID]func() []model.Run{
 				"de-DE": boldF("Warnung:", " ", "Diese Aktion kann nicht rückgängig gemacht werden."),
 				"fr-FR": boldF("Attention :", " ", "Cette action est irréversible."),
 				"ja-JP": boldF("警告：", "", "この操作は元に戻せません。"),
@@ -402,7 +414,7 @@ func enrichedEntryDefs() []enrichedEntry {
 		},
 		{
 			source: boldF("Your order ", "#12345", " has been confirmed."),
-			targets: map[model.LocaleID]func() *model.Fragment{
+			targets: map[model.LocaleID]func() []model.Run{
 				"de-DE": boldF("Ihre Bestellung ", "#12345", " wurde bestätigt."),
 				"fr-FR": boldF("Votre commande ", "#12345", " a été confirmée."),
 				"ja-JP": boldF("ご注文 ", "#12345", " が確認されました。"),
@@ -413,7 +425,7 @@ func enrichedEntryDefs() []enrichedEntry {
 		// --- Structural entries (links) ---
 		{
 			source: linkF("Visit our ", "Help Center", " for more information."),
-			targets: map[model.LocaleID]func() *model.Fragment{
+			targets: map[model.LocaleID]func() []model.Run{
 				"de-DE": linkF("Besuchen Sie unser ", "Hilfezentrum", " für weitere Informationen."),
 				"fr-FR": linkF("Visitez notre ", "Centre d'aide", " pour plus d'informations."),
 				"ja-JP": linkF("詳しくは", "ヘルプセンター", "をご覧ください。"),
@@ -423,7 +435,7 @@ func enrichedEntryDefs() []enrichedEntry {
 		},
 		{
 			source: linkF("Read our ", "Terms of Service", " before continuing."),
-			targets: map[model.LocaleID]func() *model.Fragment{
+			targets: map[model.LocaleID]func() []model.Run{
 				"de-DE": linkF("Lesen Sie unsere ", "Nutzungsbedingungen", ", bevor Sie fortfahren."),
 				"fr-FR": linkF("Lisez nos ", "Conditions d'utilisation", " avant de continuer."),
 				"ja-JP": linkF("続行する前に", "利用規約", "をお読みください。"),
@@ -433,7 +445,7 @@ func enrichedEntryDefs() []enrichedEntry {
 		},
 		{
 			source: linkF("Contact ", "Customer Support", " if you need assistance."),
-			targets: map[model.LocaleID]func() *model.Fragment{
+			targets: map[model.LocaleID]func() []model.Run{
 				"de-DE": linkF("Kontaktieren Sie den ", "Kundendienst", ", wenn Sie Hilfe benötigen."),
 				"fr-FR": linkF("Contactez le ", "Service client", " si vous avez besoin d'aide."),
 				"ja-JP": linkF("サポートが必要な場合は", "カスタマーサポート", "にお問い合わせください。"),
@@ -443,7 +455,7 @@ func enrichedEntryDefs() []enrichedEntry {
 		},
 		{
 			source: linkF("Download the ", "SDK documentation", " to get started."),
-			targets: map[model.LocaleID]func() *model.Fragment{
+			targets: map[model.LocaleID]func() []model.Run{
 				"de-DE": linkF("Laden Sie die ", "SDK-Dokumentation", " herunter, um zu beginnen."),
 				"fr-FR": linkF("Téléchargez la ", "documentation du SDK", " pour commencer."),
 				"ja-JP": linkF("開始するには", "SDKドキュメント", "をダウンロードしてください。"),
@@ -453,9 +465,9 @@ func enrichedEntryDefs() []enrichedEntry {
 		},
 		// --- Entity entries (person) ---
 		{
-			source:  entityF("Dear ", "person", "John", ", your order has shipped."),
+			source:   entityF("Dear ", "person", "John", ", your order has shipped."),
 			entities: []enrichedEntity{{PlaceholderID: "1", Type: model.EntityPerson, SourceValue: "John"}},
-			targets: map[model.LocaleID]func() *model.Fragment{
+			targets: map[model.LocaleID]func() []model.Run{
 				"de-DE": entityF("Sehr geehrte/r ", "person", "John", ", Ihre Bestellung wurde versandt."),
 				"fr-FR": entityF("Cher/Chère ", "person", "John", ", votre commande a été expédiée."),
 				"ja-JP": entityF("", "person", "John", " 様、ご注文が発送されました。"),
@@ -464,9 +476,9 @@ func enrichedEntryDefs() []enrichedEntry {
 			},
 		},
 		{
-			source:  entityF("Hi ", "person", "Sarah", ", welcome to KapiMart!"),
+			source:   entityF("Hi ", "person", "Sarah", ", welcome to KapiMart!"),
 			entities: []enrichedEntity{{PlaceholderID: "1", Type: model.EntityPerson, SourceValue: "Sarah"}},
-			targets: map[model.LocaleID]func() *model.Fragment{
+			targets: map[model.LocaleID]func() []model.Run{
 				"de-DE": entityF("Hallo ", "person", "Sarah", ", willkommen bei KapiMart!"),
 				"fr-FR": entityF("Bonjour ", "person", "Sarah", ", bienvenue sur KapiMart !"),
 				"ja-JP": entityF("こんにちは ", "person", "Sarah", " さん、KapiMartへようこそ！"),
@@ -475,9 +487,9 @@ func enrichedEntryDefs() []enrichedEntry {
 			},
 		},
 		{
-			source:  entityF("Thank you, ", "person", "Alex", ". Your review has been submitted."),
+			source:   entityF("Thank you, ", "person", "Alex", ". Your review has been submitted."),
 			entities: []enrichedEntity{{PlaceholderID: "1", Type: model.EntityPerson, SourceValue: "Alex"}},
-			targets: map[model.LocaleID]func() *model.Fragment{
+			targets: map[model.LocaleID]func() []model.Run{
 				"de-DE": entityF("Vielen Dank, ", "person", "Alex", ". Ihre Bewertung wurde eingereicht."),
 				"fr-FR": entityF("Merci, ", "person", "Alex", ". Votre avis a été soumis."),
 				"ja-JP": entityF("ありがとうございます、", "person", "Alex", " さん。レビューが送信されました。"),
@@ -487,9 +499,9 @@ func enrichedEntryDefs() []enrichedEntry {
 		},
 		// --- Entity entries (product) ---
 		{
-			source:  entityF("The ", "product", "Wireless Headphones", " are now back in stock."),
+			source:   entityF("The ", "product", "Wireless Headphones", " are now back in stock."),
 			entities: []enrichedEntity{{PlaceholderID: "1", Type: model.EntityProduct, SourceValue: "Wireless Headphones"}},
-			targets: map[model.LocaleID]func() *model.Fragment{
+			targets: map[model.LocaleID]func() []model.Run{
 				"de-DE": entityF("Die ", "product", "Kabellose Kopfhörer", " sind wieder verfügbar."),
 				"fr-FR": entityF("Les ", "product", "Écouteurs sans fil", " sont de nouveau en stock."),
 				"ja-JP": entityF("", "product", "ワイヤレスヘッドフォン", " の在庫が補充されました。"),
@@ -498,9 +510,9 @@ func enrichedEntryDefs() []enrichedEntry {
 			},
 		},
 		{
-			source:  entityF("You saved $20 on ", "product", "Smart Home Hub", "!"),
+			source:   entityF("You saved $20 on ", "product", "Smart Home Hub", "!"),
 			entities: []enrichedEntity{{PlaceholderID: "1", Type: model.EntityProduct, SourceValue: "Smart Home Hub"}},
-			targets: map[model.LocaleID]func() *model.Fragment{
+			targets: map[model.LocaleID]func() []model.Run{
 				"de-DE": entityF("Sie haben 20 $ beim ", "product", "Smart Home Hub", " gespart!"),
 				"fr-FR": entityF("Vous avez économisé 20 $ sur le ", "product", "Hub domotique", " !"),
 				"ja-JP": entityF("", "product", "スマートホームハブ", " で20ドルお得です！"),
@@ -510,9 +522,9 @@ func enrichedEntryDefs() []enrichedEntry {
 		},
 		// --- Entity entries (organization) ---
 		{
-			source:  entityF("Shipped by ", "organization", "FastPost", " via express delivery."),
+			source:   entityF("Shipped by ", "organization", "FastPost", " via express delivery."),
 			entities: []enrichedEntity{{PlaceholderID: "1", Type: model.EntityOrganization, SourceValue: "FastPost"}},
-			targets: map[model.LocaleID]func() *model.Fragment{
+			targets: map[model.LocaleID]func() []model.Run{
 				"de-DE": entityF("Versandt durch ", "organization", "FastPost", " per Expresslieferung."),
 				"fr-FR": entityF("Expédié par ", "organization", "FastPost", " en livraison express."),
 				"ja-JP": entityF("", "organization", "FastPost", " による速達便で発送されました。"),
@@ -522,9 +534,9 @@ func enrichedEntryDefs() []enrichedEntry {
 		},
 		// --- Entity entries (currency) ---
 		{
-			source:  entityF("Your refund of ", "currency", "$49.99", " has been processed."),
+			source:   entityF("Your refund of ", "currency", "$49.99", " has been processed."),
 			entities: []enrichedEntity{{PlaceholderID: "1", Type: model.EntityCurrency, SourceValue: "$49.99"}},
-			targets: map[model.LocaleID]func() *model.Fragment{
+			targets: map[model.LocaleID]func() []model.Run{
 				"de-DE": entityF("Ihre Erstattung von ", "currency", "49,99 $", " wurde verarbeitet."),
 				"fr-FR": entityF("Votre remboursement de ", "currency", "49,99 $", " a été traité."),
 				"ja-JP": entityF("", "currency", "49.99ドル", " の返金が処理されました。"),
@@ -534,9 +546,9 @@ func enrichedEntryDefs() []enrichedEntry {
 		},
 		// --- Combined: bold + entity ---
 		{
-			source:  boldEntityF("Hi ", "there", "! Your ", "product", "Travel Backpack", " is on its way."),
+			source:   boldEntityF("Hi ", "there", "! Your ", "product", "Travel Backpack", " is on its way."),
 			entities: []enrichedEntity{{PlaceholderID: "2", Type: model.EntityProduct, SourceValue: "Travel Backpack"}},
-			targets: map[model.LocaleID]func() *model.Fragment{
+			targets: map[model.LocaleID]func() []model.Run{
 				"de-DE": boldEntityF("Hallo", "", "! Ihr ", "product", "Reiserucksack", " ist unterwegs."),
 				"fr-FR": boldEntityF("Bonjour", "", " ! Votre ", "product", "Sac à dos de voyage", " est en route."),
 				"ja-JP": boldEntityF("こんにちは", "", "！ご注文の", "product", "トラベルバックパック", "は配送中です。"),
@@ -545,9 +557,9 @@ func enrichedEntryDefs() []enrichedEntry {
 			},
 		},
 		{
-			source:  boldEntityF("Dear ", "Customer", ", ", "organization", "KapiMart", " values your feedback."),
+			source:   boldEntityF("Dear ", "Customer", ", ", "organization", "KapiMart", " values your feedback."),
 			entities: []enrichedEntity{{PlaceholderID: "2", Type: model.EntityOrganization, SourceValue: "KapiMart"}},
-			targets: map[model.LocaleID]func() *model.Fragment{
+			targets: map[model.LocaleID]func() []model.Run{
 				"de-DE": boldEntityF("Sehr geehrter ", "Kunde", ", ", "organization", "KapiMart", " schätzt Ihr Feedback."),
 				"fr-FR": boldEntityF("Cher ", "Client", ", ", "organization", "KapiMart", " apprécie vos commentaires."),
 				"ja-JP": boldEntityF("お客様", "各位", "、", "organization", "KapiMart", " はお客様のご意見を大切にしています。"),
@@ -556,9 +568,9 @@ func enrichedEntryDefs() []enrichedEntry {
 			},
 		},
 		{
-			source:  boldEntityF("Order ", "confirmed", " for ", "person", "Emily", ". Check your email for details."),
+			source:   boldEntityF("Order ", "confirmed", " for ", "person", "Emily", ". Check your email for details."),
 			entities: []enrichedEntity{{PlaceholderID: "2", Type: model.EntityPerson, SourceValue: "Emily"}},
-			targets: map[model.LocaleID]func() *model.Fragment{
+			targets: map[model.LocaleID]func() []model.Run{
 				"de-DE": boldEntityF("Bestellung ", "bestätigt", " für ", "person", "Emily", ". Details finden Sie in Ihrer E-Mail."),
 				"fr-FR": boldEntityF("Commande ", "confirmée", " pour ", "person", "Emily", ". Consultez votre e-mail pour les détails."),
 				"ja-JP": boldEntityF("注文", "確認済み", " — ", "person", "Emily", " さん、詳細はメールをご確認ください。"),
@@ -567,9 +579,9 @@ func enrichedEntryDefs() []enrichedEntry {
 			},
 		},
 		{
-			source:  boldEntityF("", "Flash Sale", ": Save big on ", "product", "Fitness Tracker Watch", " today!"),
+			source:   boldEntityF("", "Flash Sale", ": Save big on ", "product", "Fitness Tracker Watch", " today!"),
 			entities: []enrichedEntity{{PlaceholderID: "2", Type: model.EntityProduct, SourceValue: "Fitness Tracker Watch"}},
-			targets: map[model.LocaleID]func() *model.Fragment{
+			targets: map[model.LocaleID]func() []model.Run{
 				"de-DE": boldEntityF("", "Blitzangebot", ": Sparen Sie heute beim ", "product", "Fitness-Tracker", "!"),
 				"fr-FR": boldEntityF("", "Vente flash", " : Profitez de la ", "product", "Montre connectée", " aujourd'hui !"),
 				"ja-JP": boldEntityF("", "タイムセール", "：本日の", "product", "フィットネストラッカー", "がお買い得！"),
