@@ -269,38 +269,36 @@ func (r *Reader) createBlock(id string, seg segment, pl parsedLine) *model.Block
 // createBlockWithSpans creates a Block with inline placeholder spans for
 // argument references like {name}, {0,date,short}, and #.
 func (r *Reader) createBlockWithSpans(id string, seg segment, nodes []node) *model.Block {
-	frag := &model.Fragment{}
+	var runs []model.Run
 	spanID := 0
 
 	for _, n := range nodes {
 		switch n.typ {
 		case nodeText:
-			frag.AppendText(n.text)
+			runs = append(runs, model.Run{Text: &model.TextRun{Text: n.text}})
 		case nodeHash:
 			spanID++
-			frag.AppendSpan(&model.Span{
-				SpanType:    model.SpanPlaceholder,
-				Type:        "icu:number",
-				ID:          fmt.Sprintf("h%d", spanID),
-				Data:        "#",
-				DisplayText: "#",
-			})
+			runs = append(runs, model.Run{Ph: &model.PlaceholderRun{
+				Type: "icu:number",
+				ID:   fmt.Sprintf("h%d", spanID),
+				Data: "#",
+				Disp: "#",
+			}})
 		case nodeArg:
 			spanID++
-			frag.AppendSpan(&model.Span{
-				SpanType:    model.SpanPlaceholder,
-				Type:        "icu:argument",
-				ID:          fmt.Sprintf("p%d", spanID),
-				Data:        n.text,
-				DisplayText: n.text,
-			})
+			runs = append(runs, model.Run{Ph: &model.PlaceholderRun{
+				Type: "icu:argument",
+				ID:   fmt.Sprintf("p%d", spanID),
+				Data: n.text,
+				Disp: n.text,
+			}})
 		}
 	}
 
 	block := &model.Block{
 		ID:           id,
 		Translatable: true,
-		Source:       []*model.Segment{{ID: "s1", Content: frag}},
+		Source:       []*model.Segment{model.NewRunsSegment("s1", runs)},
 		Targets:      make(map[model.LocaleID][]*model.Segment),
 		Properties:   make(map[string]string),
 		Annotations:  make(map[string]model.Annotation),
