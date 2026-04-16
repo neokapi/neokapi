@@ -404,7 +404,7 @@ func (p *smlParser) buildBlock(id string, runs []textRun, partPath string, siInd
 		ID:           id,
 		Type:         "shared-string",
 		Translatable: true,
-		Source:       []*model.Segment{{ID: "s1", Content: frag}},
+		Source:       []*model.Segment{model.NewRunsSegment("s1", model.FragmentToRuns(frag))},
 		Targets:      make(map[model.LocaleID][]*model.Segment),
 		Properties: map[string]string{
 			"partPath": partPath,
