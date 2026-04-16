@@ -87,8 +87,8 @@ func TestBlockMultipleSegments(t *testing.T) {
 		ID:           "tu1",
 		Translatable: true,
 		Source: []*model.Segment{
-			{ID: "s1", Content: model.NewFragment("Hello ")},
-			{ID: "s2", Content: model.NewFragment("world")},
+			{ID: "s1", Runs: []model.Run{{Text: &model.TextRun{Text: "Hello "}}}},
+			{ID: "s2", Runs: []model.Run{{Text: &model.TextRun{Text: "world"}}}},
 		},
 		Targets: make(map[model.LocaleID][]*model.Segment),
 	}
