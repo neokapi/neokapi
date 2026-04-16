@@ -228,9 +228,9 @@ func TestApplyTemplateInputOutput(t *testing.T) {
 
 	// Content pattern should be set.
 	proj := app.GetProject(tab.ID)
-	require.Len(t, proj.Fragment(), 1)
-	assert.Equal(t, "input/*", proj.Fragment()[0].Path)
-	assert.Equal(t, "output/{lang}/*", proj.Fragment()[0].Target)
+	require.Len(t, proj.Content, 1)
+	assert.Equal(t, "input/*", proj.Content[0].Path)
+	assert.Equal(t, "output/{lang}/*", proj.Content[0].Target)
 }
 
 func TestApplyTemplateEmpty(t *testing.T) {
@@ -244,7 +244,7 @@ func TestApplyTemplateEmpty(t *testing.T) {
 	require.NoError(t, app.ApplyTemplate(tab.ID, "empty"))
 
 	proj := app.GetProject(tab.ID)
-	assert.Empty(t, proj.Fragment())
+	assert.Empty(t, proj.Content)
 }
 
 func TestCopyFileToProject(t *testing.T) {
