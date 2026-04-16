@@ -95,24 +95,19 @@ func recordTargetHistory(ctx context.Context, tx *sql.Tx, projectID, stream stri
 
 // segmentsText extracts plain text from segments.
 func segmentsText(segs []*model.Segment) string {
-	if len(segs) == 0 {
+	if len(segs) == 0 || len(segs[0].Runs) == 0 {
 		return ""
 	}
-	if segs[0].Fragment() != nil {
-		return segs[0].Text()
-	}
-	return ""
+	return segs[0].Text()
 }
 
 // segmentsCodedText extracts coded text from segments.
 func segmentsCodedText(segs []*model.Segment) string {
-	if len(segs) == 0 {
+	if len(segs) == 0 || len(segs[0].Runs) == 0 {
 		return ""
 	}
-	if segs[0].Fragment() != nil {
-		return segs[0].Fragment().CodedText
-	}
-	return ""
+	coded, _ := model.AsCodedText(segs[0].Runs)
+	return coded
 }
 
 // loadExistingTargets fetches existing targets JSON for a block within a transaction.

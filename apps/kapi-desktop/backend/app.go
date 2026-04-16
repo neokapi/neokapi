@@ -1322,8 +1322,8 @@ func blockProperties(b *model.Block) map[string]string {
 	props := make(map[string]string)
 	for _, seg := range b.Source {
 		if len(seg.Runs) > 0 && seg.HasInlineCodes() {
-			count := len(seg.Fragment().Spans)
-			props["inline_codes"] = fmt.Sprintf("%d", count)
+			_, spans := model.AsCodedText(seg.Runs)
+			props["inline_codes"] = fmt.Sprintf("%d", len(spans))
 			break
 		}
 	}

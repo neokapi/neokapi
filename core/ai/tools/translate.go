@@ -201,10 +201,12 @@ func (t *AITranslateTool) handleBlock(part *model.Part) (*model.Part, error) {
 
 	t.blockIndex.Add(1)
 
-	// Check if the source fragment has inline spans.
-	frag := block.FirstFragment()
-	if frag != nil && frag.HasSpans() {
-		return t.handleBlockWithSpans(part, block, frag)
+	// If the source has inline codes, route through the
+	// placeholder-preserving LLM path so the model can keep them
+	// intact.
+	sourceRuns := block.SourceRuns()
+	if hasInlineCodes(sourceRuns) {
+		return t.handleBlockWithInlineCodes(part, block, sourceRuns)
 	}
 
 	// Plain text translation.
@@ -267,11 +269,12 @@ func (t *AITranslateTool) translateBlock(ctx context.Context, req aiprovider.Tra
 	}, nil
 }
 
-// handleBlockWithSpans translates a block that contains inline spans.
-// Uses PlaceholderText to preserve span structure through the LLM.
-func (t *AITranslateTool) handleBlockWithSpans(part *model.Part, block *model.Block, frag *model.Fragment) (*model.Part, error) {
-	// Use placeholder text so the LLM can preserve tag positions.
-	sourceText := frag.PlaceholderText()
+// handleBlockWithInlineCodes translates a block that contains
+// inline codes. Renders source runs as placeholder-tagged text so
+// the LLM can preserve tag positions, then reconstructs the target
+// Run sequence from the response via ParseRunsPlaceholderText.
+func (t *AITranslateTool) handleBlockWithInlineCodes(part *model.Part, block *model.Block, sourceRuns []model.Run) (*model.Part, error) {
+	sourceText := model.RunsPlaceholderText(sourceRuns)
 
 	prompt := fmt.Sprintf(
 		"Translate the following text from %s to %s. Preserve all XML tags exactly as they appear (do not modify, add, or remove any tags). Return only the translated text with tags.\n\n%s",
@@ -289,13 +292,23 @@ func (t *AITranslateTool) handleBlockWithSpans(part *model.Part, block *model.Bl
 	}
 	t.addUsage(resp.Usage)
 
-	// Reconstruct Fragment from the LLM response.
-	targetFrag := model.ParsePlaceholderText(resp.Translation, frag.Spans)
-	block.SetTargetFragment(t.targetLocale, targetFrag)
+	targetRuns := model.ParseRunsPlaceholderText(resp.Translation, sourceRuns)
+	block.SetTargetRuns(t.targetLocale, targetRuns)
 	t.annotateTranslation(block, resp)
 
 	t.emitProgress(true, "")
 	return part, nil
+}
+
+// hasInlineCodes reports whether a Run sequence contains any
+// non-text run.
+func hasInlineCodes(runs []model.Run) bool {
+	for _, r := range runs {
+		if r.Text == nil {
+			return true
+		}
+	}
+	return false
 }
 
 // SetTotalBlocks sets the total number of translatable blocks for progress
@@ -335,12 +348,12 @@ func (t *AITranslateTool) annotateTranslation(block *model.Block, resp *aiprovid
 
 // blockEntry tracks a translatable block within the batch pipeline.
 type blockEntry struct {
-	index      int             // position in the original parts slice
-	part       *model.Part     // the Part containing the block
-	block      *model.Block    // the Block resource
-	sourceText string          // text to send to the LLM
-	hasSpans   bool            // whether the source has inline spans
-	frag       *model.Fragment // source fragment (for span reconstruction)
+	index          int          // position in the original parts slice
+	part           *model.Part  // the Part containing the block
+	block          *model.Block // the Block resource
+	sourceText     string       // text to send to the LLM (placeholder-rendered when inline codes present)
+	hasInlineCodes bool         // whether the source has inline codes (Ph/PcOpen/PcClose/Sub)
+	sourceRuns     []model.Run  // source Run sequence (for placeholder reconstruction)
 }
 
 // processBatched drains all input parts, groups translatable blocks into
@@ -370,15 +383,15 @@ func (t *AITranslateTool) processBatched(ctx context.Context, in <-chan *model.P
 		if src == "" {
 			continue
 		}
-		frag := block.FirstFragment()
-		hasSpans := frag != nil && frag.HasSpans()
+		sourceRuns := block.SourceRuns()
+		inline := hasInlineCodes(sourceRuns)
 		text := src
-		if hasSpans {
-			text = frag.PlaceholderText()
+		if inline {
+			text = model.RunsPlaceholderText(sourceRuns)
 		}
 		entries = append(entries, blockEntry{
 			index: i, part: part, block: block,
-			sourceText: text, hasSpans: hasSpans, frag: frag,
+			sourceText: text, hasInlineCodes: inline, sourceRuns: sourceRuns,
 		})
 	}
 
@@ -548,9 +561,9 @@ func (t *AITranslateTool) translateBatch(ctx context.Context, entries []blockEnt
 			continue
 		}
 
-		if entry.hasSpans {
-			targetFrag := model.ParsePlaceholderText(text, entry.frag.Spans)
-			entry.block.SetTargetFragment(t.targetLocale, targetFrag)
+		if entry.hasInlineCodes {
+			targetRuns := model.ParseRunsPlaceholderText(text, entry.sourceRuns)
+			entry.block.SetTargetRuns(t.targetLocale, targetRuns)
 		} else {
 			entry.block.SetTargetText(t.targetLocale, text)
 		}

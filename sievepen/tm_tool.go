@@ -91,7 +91,7 @@ func (t *TMLeverageTool) handleBlock(part *model.Part) (*model.Part, error) {
 	// For exact matches (any tier), apply the target directly.
 	if best.MatchType.IsExact() {
 		adapted := applyEntityAdaptations(targetVariant, best.EntityAdaptations)
-		block.SetTargetFragment(t.cfg.TargetLocale, adapted)
+		block.SetTargetRuns(t.cfg.TargetLocale, model.FragmentToRuns(adapted))
 	}
 
 	// Add the best match as an AltTranslation annotation.

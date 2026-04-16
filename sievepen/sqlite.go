@@ -675,10 +675,11 @@ func (tm *SQLiteTM) Lookup(source *model.Block, sourceLocale, targetLocale model
 	}
 
 	opts = ApplyDefaults(opts)
-	frag := source.FirstFragment()
-	if frag == nil {
+	seg := source.FirstSegment()
+	if seg == nil || len(seg.Runs) == 0 {
 		return nil, nil
 	}
+	frag := model.RunsToFragment(seg.Runs)
 
 	plainKey := NormalizeText(frag.Text())
 	structKey := NormalizeText(frag.StructuralText())

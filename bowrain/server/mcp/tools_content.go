@@ -177,7 +177,7 @@ func (s *MCPServer) handleListBlocks(ctx context.Context, req *mcp.CallToolReque
 	for _, b := range blocks {
 		src := ""
 		if b.Block != nil && len(b.Block.Source) > 0 {
-			src = b.Block.Source[0].Fragment().Text()
+			src = b.Block.Source[0].Text()
 		}
 		summaries = append(summaries, blockSummary{
 			ID:       b.Block.ID,
@@ -207,7 +207,7 @@ func (s *MCPServer) handleGetBlock(ctx context.Context, req *mcp.CallToolRequest
 	}
 	src := ""
 	if b.Block != nil && len(b.Block.Source) > 0 {
-		src = b.Block.Source[0].Fragment().Text()
+		src = b.Block.Source[0].Text()
 	}
 	targets := make(map[string]string)
 	if b.Block != nil {
