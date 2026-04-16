@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { Sun, Moon, Monitor, Languages, FlaskConical } from "lucide-react";
-import { loadTranslations, setTranslations } from "@neokapi/react/runtime";
+import { loadTranslations, setTranslations } from "@neokapi/kapi-react/runtime";
 import { api } from "../hooks/useApi";
 import { useError } from "./ErrorBanner";
 import {

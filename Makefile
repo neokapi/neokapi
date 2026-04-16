@@ -295,6 +295,14 @@ kapi-desktop-frontend-test: kapi-desktop-frontend-deps ## Run Kapi Desktop front
 kapi-desktop-frontend-check: kapi-desktop-frontend-deps ## Lint + format + typecheck Kapi Desktop frontend
 	cd $(KAPI_DESKTOP_DIR)/frontend && vp check
 
+kapi-desktop-extract: kapi-desktop-frontend-deps ## Extract translatable strings from Kapi Desktop (@neokapi/kapi-react)
+	cd $(KAPI_DESKTOP_DIR)/frontend && vp run extract
+
+kapi-desktop-pseudo-translate: ## Pseudo-translate extracted strings → public/translations/qps.json
+	cd $(KAPI_DESKTOP_DIR)/frontend && vp run pseudo-translate
+
+kapi-desktop-translations: kapi-desktop-extract kapi-desktop-pseudo-translate ## Extract + pseudo-translate Kapi Desktop strings in one shot
+
 storybook-fixtures: ## Generate Storybook fixtures from real format/tool data
 	@./scripts/gen-storybook-fixtures.sh
 
@@ -531,7 +539,8 @@ help: ## Show this help
         frontend-check-all \
         build-kapi-desktop kapi-desktop-dev kapi-desktop-test \
         kapi-desktop-frontend-deps kapi-desktop-frontend-dev kapi-desktop-frontend-build \
-        kapi-desktop-frontend-test kapi-desktop-frontend-check \
+        kapi-desktop-frontend-test kapi-desktop-frontend-check kapi-desktop-extract \
+        kapi-desktop-pseudo-translate kapi-desktop-translations \
         flow-editor-deps flow-editor-check flow-editor-test \
         kapi-storybook kapi-storybook-build bowrain-storybook bowrain-storybook-build \
         cover test-e2e test-e2e-kapi test-e2e-bowrain test-e2e-cloud test-e2e-dev \

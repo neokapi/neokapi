@@ -3,7 +3,7 @@ import "@fontsource-variable/jetbrains-mono";
 import "./index.css";
 import React from "react";
 import ReactDOM from "react-dom/client";
-import { loadTranslations } from "@neokapi/react/runtime";
+import { loadTranslations } from "@neokapi/kapi-react/runtime";
 import App from "./App";
 import { api } from "./hooks/useApi";
 
