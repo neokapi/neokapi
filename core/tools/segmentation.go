@@ -294,10 +294,7 @@ func NewSegmentationTool(cfg *SegmentationConfig) *tool.BaseTool {
 					segments := segmentText(sourceText, compiled)
 					newSource := make([]*model.Segment, len(segments))
 					for i, seg := range segments {
-						newSource[i] = &model.Segment{
-							ID:      fmt.Sprintf("s%d", i+1),
-							Content: model.NewFragment(seg),
-						}
+						newSource[i] = model.NewRunsSegment(fmt.Sprintf("s%d", i+1), []model.Run{{Text: &model.TextRun{Text: seg}}})
 					}
 					block.Source = newSource
 					block.Properties[PropSegmentCount] = strconv.Itoa(len(segments))
@@ -315,10 +312,7 @@ func NewSegmentationTool(cfg *SegmentationConfig) *tool.BaseTool {
 					segments := segmentText(targetText, compiled)
 					newTarget := make([]*model.Segment, len(segments))
 					for i, seg := range segments {
-						newTarget[i] = &model.Segment{
-							ID:      fmt.Sprintf("s%d", i+1),
-							Content: model.NewFragment(seg),
-						}
+						newTarget[i] = model.NewRunsSegment(fmt.Sprintf("s%d", i+1), []model.Run{{Text: &model.TextRun{Text: seg}}})
 					}
 					block.Targets[conf.TargetLocale] = newTarget
 				}
