@@ -26,26 +26,21 @@ type Block struct {
 // ResourceID returns the Block's unique identifier.
 func (b *Block) ResourceID() string { return b.ID }
 
-// SourceText returns the plain text of all source segments concatenated.
+// SourceText returns the plain text of all source segments
+// concatenated (TextRun content only — inline-code runs contribute
+// nothing).
 func (b *Block) SourceText() string {
 	var buf strings.Builder
 	for _, seg := range b.Source {
-		buf.WriteString(seg.Content.Text())
+		buf.WriteString(seg.Text())
 	}
 	return buf.String()
 }
 
-// FirstFragment returns the Fragment of the first source segment.
-func (b *Block) FirstFragment() *Fragment {
-	if len(b.Source) == 0 {
-		return nil
-	}
-	return b.Source[0].Content
-}
-
-// SetSourceText replaces all source content with a single unsegmented Fragment.
+// SetSourceText replaces all source content with a single
+// unsegmented TextRun.
 func (b *Block) SetSourceText(text string) {
-	b.Source = []*Segment{{ID: "s1", Content: NewFragment(text)}}
+	b.Source = []*Segment{{ID: "s1", Runs: []Run{{Text: &TextRun{Text: text}}}}}
 }
 
 // HasTarget returns true if target segments exist for the given locale.
@@ -62,26 +57,18 @@ func (b *Block) TargetText(locale LocaleID) string {
 	}
 	var buf strings.Builder
 	for _, seg := range segs {
-		buf.WriteString(seg.Content.Text())
+		buf.WriteString(seg.Text())
 	}
 	return buf.String()
 }
 
-// SetTargetText sets the target text for a locale as a single unsegmented Fragment.
+// SetTargetText sets the target text for a locale as a single
+// unsegmented TextRun.
 func (b *Block) SetTargetText(locale LocaleID, text string) {
 	if b.Targets == nil {
 		b.Targets = make(map[LocaleID][]*Segment)
 	}
-	b.Targets[locale] = []*Segment{{ID: "s1", Content: NewFragment(text)}}
-}
-
-// SetTargetFragment sets the target for a locale using a pre-built Fragment,
-// preserving inline span data instead of creating a plain-text-only fragment.
-func (b *Block) SetTargetFragment(locale LocaleID, frag *Fragment) {
-	if b.Targets == nil {
-		b.Targets = make(map[LocaleID][]*Segment)
-	}
-	b.Targets[locale] = []*Segment{{ID: "s1", Content: frag}}
+	b.Targets[locale] = []*Segment{{ID: "s1", Runs: []Run{{Text: &TextRun{Text: text}}}}}
 }
 
 // Text returns the plain text for a locale. If the locale matches SourceLocale,
@@ -125,12 +112,13 @@ func (b *Block) WordCount() int {
 	return len(strings.Fields(text))
 }
 
-// NewBlock creates a new translatable Block with the given ID and source text.
+// NewBlock creates a new translatable Block with the given ID and
+// plain source text. Produces a single TextRun segment.
 func NewBlock(id, text string) *Block {
 	return &Block{
 		ID:           id,
 		Translatable: true,
-		Source:       []*Segment{{ID: "s1", Content: NewFragment(text)}},
+		Source:       []*Segment{{ID: "s1", Runs: []Run{{Text: &TextRun{Text: text}}}}},
 		Targets:      make(map[LocaleID][]*Segment),
 		Properties:   make(map[string]string),
 		Annotations:  make(map[string]Annotation),
@@ -156,7 +144,7 @@ func NewRunsBlock(id string, runs []Run) *Block {
 func (b *Block) SourceRuns() []Run {
 	var out []Run
 	for _, s := range b.Source {
-		out = append(out, s.Runs()...)
+		out = append(out, s.Runs...)
 	}
 	return out
 }
@@ -170,7 +158,7 @@ func (b *Block) TargetRuns(locale LocaleID) []Run {
 	}
 	var out []Run
 	for _, s := range segs {
-		out = append(out, s.Runs()...)
+		out = append(out, s.Runs...)
 	}
 	return out
 }
@@ -197,4 +185,33 @@ func (b *Block) SetTargetRuns(locale LocaleID, runs []Run) {
 // acceptance criterion.
 func (b *Block) AsCodedText() (string, []*Span) {
 	return AsCodedText(b.SourceRuns())
+}
+
+// FirstSegment returns the first source segment or nil if the block
+// has no source content.
+func (b *Block) FirstSegment() *Segment {
+	if len(b.Source) == 0 {
+		return nil
+	}
+	return b.Source[0]
+}
+
+// FirstFragment is a migration shim that materializes the block's
+// first source segment as a legacy Fragment (CodedText + Spans).
+// Runs are the canonical representation — callers should migrate to
+// SourceRuns / TargetRuns / AsCodedText and let FirstFragment fall
+// out of use.
+func (b *Block) FirstFragment() *Fragment {
+	if len(b.Source) == 0 {
+		return nil
+	}
+	return RunsToFragment(b.Source[0].Runs)
+}
+
+// SetTargetFragment is a migration helper: callers holding a legacy
+// Fragment can still install target content without manually
+// converting via FragmentToRuns. The Fragment form is translated to
+// Runs at the call site.
+func (b *Block) SetTargetFragment(locale LocaleID, frag *Fragment) {
+	b.SetTargetRuns(locale, FragmentToRuns(frag))
 }
