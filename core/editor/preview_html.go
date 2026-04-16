@@ -66,7 +66,7 @@ func writeHTMLDataPreview(buf *strings.Builder, data *model.Data) {
 }
 
 // RenderBlockContentHTML renders a block's source content as HTML,
-// expanding inline span markers to their original markup.
+// expanding inline codes to their original markup.
 // Exported for use by format reader PreviewBuilder implementations.
 func RenderBlockContentHTML(block *model.Block) string {
 	if len(block.Source) == 0 {
@@ -75,33 +75,7 @@ func RenderBlockContentHTML(block *model.Block) string {
 
 	var buf strings.Builder
 	for _, seg := range block.Source {
-		RenderFragmentToHTML(&buf, model.RunsToFragment(seg.Runs))
+		buf.WriteString(model.RenderRunsWithData(seg.Runs))
 	}
 	return buf.String()
-}
-
-// RenderFragmentToHTML renders a Fragment to HTML, replacing Unicode markers
-// with their corresponding span markup.
-// Exported for use by format reader PreviewBuilder implementations.
-func RenderFragmentToHTML(buf *strings.Builder, frag *model.Fragment) {
-	if frag == nil {
-		return
-	}
-	if !frag.HasSpans() {
-		buf.WriteString(frag.CodedText)
-		return
-	}
-
-	spanIdx := 0
-	for _, r := range frag.CodedText {
-		switch r {
-		case model.MarkerOpening, model.MarkerClosing, model.MarkerPlaceholder:
-			if spanIdx < len(frag.Spans) {
-				buf.WriteString(frag.Spans[spanIdx].Data)
-				spanIdx++
-			}
-		default:
-			buf.WriteRune(r)
-		}
-	}
 }
