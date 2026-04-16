@@ -61,7 +61,7 @@ func NewInlineCodesRemoveTool(cfg *InlineCodesRemoveConfig) *tool.BaseTool {
 
 		if conf.ApplySource {
 			for _, seg := range block.Source {
-				stripSpans(seg.Content)
+				seg.SetRuns(stripInlineRuns(seg.Runs(), conf.ReplaceWithSpace))
 			}
 		}
 
@@ -69,7 +69,7 @@ func NewInlineCodesRemoveTool(cfg *InlineCodesRemoveConfig) *tool.BaseTool {
 			segs, ok := block.Targets[conf.TargetLocale]
 			if ok {
 				for _, seg := range segs {
-					stripSpans(seg.Content)
+					seg.SetRuns(stripInlineRuns(seg.Runs(), conf.ReplaceWithSpace))
 				}
 			}
 		}
@@ -79,12 +79,70 @@ func NewInlineCodesRemoveTool(cfg *InlineCodesRemoveConfig) *tool.BaseTool {
 	return t
 }
 
-// stripSpans removes all span markers from the fragment's coded text
-// and clears the Spans slice, leaving only plain text.
-func stripSpans(frag *model.Fragment) {
-	if frag == nil || !frag.HasSpans() {
-		return
+// stripInlineRuns walks a run sequence and removes every non-text
+// run (placeholder, paired code, sub). Consecutive text runs are
+// coalesced. When replaceWithSpace is true, line-break-style codes
+// contribute a single space so "foo<br/>bar" collapses to "foo bar"
+// rather than "foobar".
+//
+// Plural and select runs recurse through their forms/cases so
+// inline codes inside structured constructs are also stripped.
+func stripInlineRuns(runs []model.Run, replaceWithSpace bool) []model.Run {
+	var out []model.Run
+	var buf string
+	flush := func() {
+		if buf == "" {
+			return
+		}
+		out = append(out, model.Run{Text: &model.TextRun{Text: buf}})
+		buf = ""
 	}
-	frag.CodedText = frag.Text()
-	frag.Spans = nil
+	for _, r := range runs {
+		switch {
+		case r.Text != nil:
+			buf += r.Text.Text
+		case r.Ph != nil:
+			if replaceWithSpace && isLineBreakType(r.Ph.Type, r.Ph.SubType) {
+				buf += " "
+			}
+		case r.PcOpen != nil, r.PcClose != nil:
+			// Drop paired codes; their content (text runs between
+			// them) is already in the stream.
+		case r.Sub != nil:
+			if replaceWithSpace {
+				buf += " "
+			}
+		case r.Plural != nil:
+			flush()
+			forms := make(map[model.PluralForm][]model.Run, len(r.Plural.Forms))
+			for k, v := range r.Plural.Forms {
+				forms[k] = stripInlineRuns(v, replaceWithSpace)
+			}
+			out = append(out, model.Run{Plural: &model.PluralRun{Pivot: r.Plural.Pivot, Forms: forms}})
+		case r.Select != nil:
+			flush()
+			cases := make(map[string][]model.Run, len(r.Select.Cases))
+			for k, v := range r.Select.Cases {
+				cases[k] = stripInlineRuns(v, replaceWithSpace)
+			}
+			out = append(out, model.Run{Select: &model.SelectRun{Pivot: r.Select.Pivot, Cases: cases}})
+		}
+	}
+	flush()
+	return out
+}
+
+// isLineBreakType returns true when a placeholder run represents a
+// line break (so stripping can replace it with a space to preserve
+// token boundaries).
+func isLineBreakType(typ, subType string) bool {
+	switch typ {
+	case "html:br", "md:break", "break", "line-break":
+		return true
+	}
+	switch subType {
+	case "br", "line-break":
+		return true
+	}
+	return false
 }

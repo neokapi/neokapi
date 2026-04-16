@@ -68,76 +68,133 @@ func (t *SpanClassifyTool) handleBlock(part *model.Part) (*model.Part, error) {
 		return part, nil
 	}
 
-	// Classify spans in source fragments.
+	// Classify inline codes in source segments.
 	for _, seg := range block.Source {
-		if seg.Content != nil {
-			t.classifyFragmentSpans(seg.Content)
-		}
+		seg.SetRuns(t.classifyRuns(seg.Runs()))
 	}
 
-	// Classify spans in all target fragments.
+	// Classify inline codes in every target locale's segments.
 	for _, segs := range block.Targets {
 		for _, seg := range segs {
-			if seg.Content != nil {
-				t.classifyFragmentSpans(seg.Content)
-			}
+			seg.SetRuns(t.classifyRuns(seg.Runs()))
 		}
 	}
 
 	return part, nil
 }
 
-func (t *SpanClassifyTool) classifyFragmentSpans(frag *model.Fragment) {
-	for _, s := range frag.Spans {
-		if s.Type != "code:markup" {
-			continue
-		}
-
-		// Strategy 1: Check SubType against known Okapi type strings.
-		if s.SubType != "" {
-			if semType, ok := okapiSubTypeMap[s.SubType]; ok {
-				t.applyClassification(s, semType)
-				continue
+// classifyRuns walks a run sequence and reclassifies any "code:markup"
+// placeholder / paired-code runs into proper vocabulary types,
+// following the same strategies as the legacy Span-based classifier:
+// first the Okapi sub-type map, then HTML-element parsing from the
+// raw Data field.
+func (t *SpanClassifyTool) classifyRuns(runs []model.Run) []model.Run {
+	out := make([]model.Run, len(runs))
+	for i, r := range runs {
+		switch {
+		case r.Ph != nil:
+			out[i] = model.Run{Ph: t.classifyPh(r.Ph)}
+		case r.PcOpen != nil:
+			out[i] = model.Run{PcOpen: t.classifyPcOpen(r.PcOpen)}
+		case r.PcClose != nil:
+			out[i] = model.Run{PcClose: t.classifyPcClose(r.PcClose)}
+		case r.Plural != nil:
+			forms := make(map[model.PluralForm][]model.Run, len(r.Plural.Forms))
+			for k, v := range r.Plural.Forms {
+				forms[k] = t.classifyRuns(v)
 			}
-		}
-
-		// Strategy 2: Parse Data to extract HTML element name.
-		tagName := extractTagName(s.Data)
-		if tagName != "" {
-			if semType, ok := htmlToSemanticType[strings.ToLower(tagName)]; ok {
-				t.applyClassification(s, semType)
-				continue
+			out[i] = model.Run{Plural: &model.PluralRun{Pivot: r.Plural.Pivot, Forms: forms}}
+		case r.Select != nil:
+			cases := make(map[string][]model.Run, len(r.Select.Cases))
+			for k, v := range r.Select.Cases {
+				cases[k] = t.classifyRuns(v)
 			}
+			out[i] = model.Run{Select: &model.SelectRun{Pivot: r.Select.Pivot, Cases: cases}}
+		default:
+			out[i] = r
 		}
-
-		// Strategy 3: Leave as code:markup (no classification possible).
 	}
+	return out
 }
 
-func (t *SpanClassifyTool) applyClassification(s *model.Span, semType string) {
-	s.Type = semType
-
-	// Populate display metadata from vocabulary.
+func (t *SpanClassifyTool) classifyPh(ph *model.PlaceholderRun) *model.PlaceholderRun {
+	semType := t.resolveSemanticType(ph.Type, ph.SubType, ph.Data)
+	if semType == "" {
+		return ph
+	}
 	info := t.vocab.Lookup(semType)
-	if info == nil {
-		return
+	copy := *ph
+	copy.Type = semType
+	if info != nil {
+		copy.Constraints = &model.RunConstraints{
+			Deletable:   info.Constraints.Deletable,
+			Cloneable:   info.Constraints.Cloneable,
+			Reorderable: info.Constraints.Reorderable,
+		}
+		copy.Disp = info.Display.Placeholder
+		if copy.Equiv == "" {
+			copy.Equiv = info.Equiv
+		}
 	}
+	return &copy
+}
 
-	s.Deletable = info.Constraints.Deletable
-	s.Cloneable = info.Constraints.Cloneable
-	s.CanReorder = info.Constraints.Reorderable
-
-	switch s.SpanType {
-	case model.SpanOpening:
-		s.DisplayText = info.Display.Open
-		s.EquivText = info.Equiv
-	case model.SpanClosing:
-		s.DisplayText = info.Display.Close
-		s.EquivText = info.Equiv
-	case model.SpanPlaceholder:
-		s.DisplayText = info.Display.Placeholder
-		s.EquivText = info.Equiv
+func (t *SpanClassifyTool) classifyPcOpen(pc *model.PcOpenRun) *model.PcOpenRun {
+	semType := t.resolveSemanticType(pc.Type, pc.SubType, pc.Data)
+	if semType == "" {
+		return pc
 	}
+	info := t.vocab.Lookup(semType)
+	copy := *pc
+	copy.Type = semType
+	if info != nil {
+		copy.Constraints = &model.RunConstraints{
+			Deletable:   info.Constraints.Deletable,
+			Cloneable:   info.Constraints.Cloneable,
+			Reorderable: info.Constraints.Reorderable,
+		}
+		copy.Disp = info.Display.Open
+		if copy.Equiv == "" {
+			copy.Equiv = info.Equiv
+		}
+	}
+	return &copy
+}
+
+func (t *SpanClassifyTool) classifyPcClose(pc *model.PcCloseRun) *model.PcCloseRun {
+	semType := t.resolveSemanticType(pc.Type, pc.SubType, pc.Data)
+	if semType == "" {
+		return pc
+	}
+	info := t.vocab.Lookup(semType)
+	copy := *pc
+	copy.Type = semType
+	if info != nil && copy.Equiv == "" {
+		copy.Equiv = info.Equiv
+	}
+	return &copy
+}
+
+// resolveSemanticType returns the vocabulary-aware type for a
+// run whose legacy type was "code:markup", using the same strategies
+// as the old Span-based classifier: Okapi sub-type map, then
+// HTML-element name parsed out of the raw Data field. Returns the
+// empty string when no classification is possible.
+func (t *SpanClassifyTool) resolveSemanticType(typ, subType, data string) string {
+	if typ != "code:markup" {
+		return ""
+	}
+	if subType != "" {
+		if semType, ok := okapiSubTypeMap[subType]; ok {
+			return semType
+		}
+	}
+	if tagName := extractTagName(data); tagName != "" {
+		if semType, ok := htmlToSemanticType[strings.ToLower(tagName)]; ok {
+			return semType
+		}
+	}
+	return ""
 }
 
 // extractTagName extracts the HTML element name from raw markup data.
