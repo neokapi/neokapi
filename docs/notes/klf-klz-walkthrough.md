@@ -4,7 +4,7 @@ Implementation notes for [AD-045](/docs/ad/045-klf-klz-spec). An
 end-to-end framework-level lifecycle of the `.klf` / `.klz` formats
 — what a developer, a CI pipeline, and a neokapi tool see as a
 `.klz` flows through the system. Uses the three example Blocks in
-[`packages/format/examples/`](https://github.com/neokapi/neokapi/tree/main/packages/format/examples)
+[`packages/kapi-format/examples/`](https://github.com/neokapi/neokapi/tree/main/packages/kapi-format/examples)
 so every file and SQL result is real, not pseudocode.
 
 The walkthrough stays at the framework layer throughout: it

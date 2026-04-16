@@ -25,6 +25,7 @@ jobs:
       bowrain: ${{ github.event_name == 'push' || steps.filter.outputs.bowrain }}
       frontend: ${{ github.event_name == 'push' || steps.filter.outputs.frontend }}
       kapi_desktop: ${{ github.event_name == 'push' || steps.filter.outputs.kapi_desktop }}
+      kapi_react: ${{ github.event_name == 'push' || steps.filter.outputs.kapi_react }}
       workflows: ${{ github.event_name == 'push' || steps.filter.outputs.workflows }}
       any_go: ${{ github.event_name == 'push' || steps.filter.outputs.framework || steps.filter.outputs.cli || steps.filter.outputs.platform || steps.filter.outputs.kapi || steps.filter.outputs.bowrain_cli || steps.filter.outputs.bowrain }}
     steps:
@@ -70,6 +71,7 @@ jobs:
           fi
           check_paths frontend  '^bowrain/apps/(web|bowrain/frontend)/' '^bowrain/packages/ui/'
           check_paths kapi_desktop '^apps/kapi-desktop/' '^packages/(ui|flow-editor)/'
+          check_paths kapi_react '^packages/kapi-(format|react)/'
           check_paths workflows '^\.github/workflows/'
 
   # ── Frontend checks & builds ─────────────────────────────────────────────
@@ -138,6 +140,36 @@ jobs:
 
       - name: Run Kapi Desktop Go backend tests
         run: make kapi-desktop-test
+
+  # ── Kapi React (TS extractor + schema) ──────────────────────────────────
+  kapi-react:
+    name: Kapi React
+    runs-on: ubuntu-latest
+    needs: changes
+    if: needs.changes.outputs.kapi_react == 'true'
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/setup-node-ui
+
+      - name: Typecheck kapi-format
+        working-directory: packages/kapi-format
+        run: vp run typecheck
+
+      - name: Validate kapi-format golden fixtures
+        working-directory: packages/kapi-format
+        run: vp run validate
+
+      - name: Typecheck kapi-react
+        working-directory: packages/kapi-react
+        run: vp run typecheck
+
+      - name: Test kapi-react
+        working-directory: packages/kapi-react
+        run: vp run test
+
+      - name: Build kapi-react
+        working-directory: packages/kapi-react
+        run: npm run build
 
   # ── Go tests (parallel per module) ────────────────────────────────────────
   test-framework:

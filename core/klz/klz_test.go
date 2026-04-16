@@ -53,8 +53,8 @@ func buildExampleArchive(t *testing.T) []byte {
 	t.Helper()
 
 	w := NewWriter(WriterOptions{
-		Generator: ManifestGenerator{ID: "@neokapi/format-examples", Version: "0.0.1"},
-		Project:   ManifestProject{ID: "neokapi-format-examples", SourceLocale: "en", TargetLocales: []string{"de"}},
+		Generator: ManifestGenerator{ID: "@neokapi/kapi-format-examples", Version: "0.0.1"},
+		Project:   ManifestProject{ID: "neokapi-kapi-format-examples", SourceLocale: "en", TargetLocales: []string{"de"}},
 		Created:   "2026-04-15T10:00:00Z",
 	})
 
@@ -83,7 +83,7 @@ func TestWriterReaderRoundTrip(t *testing.T) {
 	defer r.Close()
 
 	assert.Equal(t, ManifestVersion, r.Manifest().KapiLocalizationFormat)
-	assert.Equal(t, "@neokapi/format-examples", r.Manifest().Generator.ID)
+	assert.Equal(t, "@neokapi/kapi-format-examples", r.Manifest().Generator.ID)
 
 	// Manifest hash must be deterministic and consistent across
 	// Reader instances over the same byte payload — that's the
@@ -219,8 +219,8 @@ func exampleDocument() *klf.File {
 	return &klf.File{
 		SchemaVersion: klf.SchemaVersion,
 		Kind:          klf.Kind,
-		Generator:     klf.GeneratorInfo{ID: "@neokapi/format-examples", Version: "0.0.1"},
-		Project:       klf.ProjectInfo{ID: "neokapi-format-examples", SourceLocale: "en"},
+		Generator:     klf.GeneratorInfo{ID: "@neokapi/kapi-format-examples", Version: "0.0.1"},
+		Project:       klf.ProjectInfo{ID: "neokapi-kapi-format-examples", SourceLocale: "en"},
 		Documents: []klf.Document{
 			{
 				ID:           "examples",
@@ -268,8 +268,8 @@ func exampleTargetDocument() *klf.File {
 	return &klf.File{
 		SchemaVersion: klf.SchemaVersion,
 		Kind:          klf.Kind,
-		Generator:     klf.GeneratorInfo{ID: "@neokapi/format-examples", Version: "0.0.1"},
-		Project:       klf.ProjectInfo{ID: "neokapi-format-examples", SourceLocale: "en"},
+		Generator:     klf.GeneratorInfo{ID: "@neokapi/kapi-format-examples", Version: "0.0.1"},
+		Project:       klf.ProjectInfo{ID: "neokapi-kapi-format-examples", SourceLocale: "en"},
 		Documents: []klf.Document{
 			{
 				ID:           "examples",
@@ -291,7 +291,7 @@ func exampleAnnotationFile() *klf.AnnotationFile {
 			AnnotationType:    "@neokapi/example",
 			AnnotationVersion: "1.0.0",
 			Producer: klf.AnnotationProducer{
-				ID: "@neokapi/format-examples", Version: "0.0.1",
+				ID: "@neokapi/kapi-format-examples", Version: "0.0.1",
 			},
 			Created:       "2026-04-15T12:00:00Z",
 			TargetArchive: "sha256:deadbeef",

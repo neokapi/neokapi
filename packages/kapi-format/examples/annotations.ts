@@ -22,7 +22,7 @@ export const exampleAnnotations: AnnotationFile = {
     annotationType: '@neokapi/example',
     annotationVersion: '1.0.0',
     producer: {
-      id: '@neokapi/format-examples',
+      id: '@neokapi/kapi-format-examples',
       version: '0.0.1',
     },
     created: '2026-04-15T12:00:00Z',

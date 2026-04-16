@@ -1,5 +1,5 @@
 /**
- * @neokapi/format — annotation sidecars.
+ * @neokapi/kapi-format — annotation sidecars.
  *
  * Annotations are non-authoritative analytical overlays on a
  * Block/Run graph. They describe properties of content (protected

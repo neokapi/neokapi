@@ -162,7 +162,7 @@ func (s *RunPathStep) UnmarshalJSON(data []byte) error {
 
 // AnchorResolveReason is a machine-readable reason an anchor didn't
 // resolve. Mirrors the six reasons in
-// packages/format/src/annotation.ts.
+// packages/kapi-format/src/annotation.ts.
 type AnchorResolveReason string
 
 const (
@@ -197,7 +197,7 @@ type AnchorResolution struct {
 // ResolveAnchor resolves an annotation anchor against a Block and
 // returns either the resolved entity or a machine-readable failure
 // reason. Mirrors resolveAnchor in
-// packages/format/src/annotation.ts.
+// packages/kapi-format/src/annotation.ts.
 func ResolveAnchor(block *Block, anchor AnnotationAnchor) AnchorResolution {
 	if block == nil || anchor.Block != block.ID {
 		return AnchorResolution{OK: false, Err: ReasonBlockNotFound}
@@ -323,7 +323,7 @@ func utf16Length(s string) int {
 }
 
 // AnnotationValidationError mirrors
-// packages/format/src/annotation.ts's AnnotationValidationError.
+// packages/kapi-format/src/annotation.ts's AnnotationValidationError.
 type AnnotationValidationError struct {
 	AnnotationID string
 	BlockID      string

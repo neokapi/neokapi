@@ -1,0 +1,105 @@
+{
+  "name": "@neokapi/kapi-react",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Zero-config i18n for React. Transforms vanilla JSX at build time using W3C HTML5 translatability rules. Supports build-time inlining (zero runtime) and OTA dynamic loading. Extracts translatable content as KLF/KLZ (AD-045).",
+  "keywords": [
+    "i18n",
+    "l10n",
+    "react",
+    "internationalization",
+    "localization",
+    "translation",
+    "vite",
+    "webpack",
+    "nextjs"
+  ],
+  "license": "Apache-2.0",
+  "type": "module",
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/plugin/index.d.ts",
+      "default": "./dist/plugin/index.js"
+    },
+    "./vite": {
+      "types": "./dist/plugin/vite.d.ts",
+      "default": "./dist/plugin/vite.js"
+    },
+    "./webpack": {
+      "types": "./dist/plugin/webpack.d.ts",
+      "default": "./dist/plugin/webpack.js"
+    },
+    "./rollup": {
+      "types": "./dist/plugin/rollup.d.ts",
+      "default": "./dist/plugin/rollup.js"
+    },
+    "./esbuild": {
+      "types": "./dist/plugin/esbuild.d.ts",
+      "default": "./dist/plugin/esbuild.js"
+    },
+    "./runtime": {
+      "types": "./dist/runtime/index.d.ts",
+      "default": "./dist/runtime/index.js"
+    },
+    "./storybook": {
+      "types": "./dist/storybook/index.d.ts",
+      "default": "./dist/storybook/index.js"
+    }
+  },
+  "bin": {
+    "kapi-react": "./dist/cli.js"
+  },
+  "scripts": {
+    "build": "node build.mjs",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "vpx tsc --noEmit",
+    "lint": "vp lint",
+    "fmt": "vpx oxfmt --write src/ tests/",
+    "fmt:check": "vpx oxfmt --check src/ tests/",
+    "check": "npm run typecheck && npm run lint && npm run fmt:check && npm run test"
+  },
+  "dependencies": {
+    "@neokapi/kapi-format": "*",
+    "@swc/core": "^1.12.0",
+    "unplugin": "^2.0.0"
+  },
+  "peerDependencies": {
+    "@babel/core": "^7.29.0",
+    "@storybook/react-vite": "^10.0.0",
+    "react": "^18.0.0 || ^19.0.0",
+    "storybook": "^10.0.0"
+  },
+  "peerDependenciesMeta": {
+    "@babel/core": {
+      "optional": true
+    },
+    "@storybook/react-vite": {
+      "optional": true
+    },
+    "storybook": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@babel/core": "^7.29.0",
+    "@babel/plugin-syntax-jsx": "^7.28.0",
+    "@babel/preset-typescript": "^7.28.0",
+    "@babel/types": "^7.29.0",
+    "@storybook/react-vite": "^10.3.5",
+    "@types/node": "^25.6.0",
+    "@types/react": "^19.0.0",
+    "esbuild": "^0.27.7",
+    "react": "^19.0.0",
+    "typescript": "^5.8.0",
+    "vitest": "^3.2.0"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

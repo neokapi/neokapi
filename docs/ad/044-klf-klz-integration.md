@@ -39,7 +39,7 @@ See [AD-045](045-klf-klz-spec.md) for the normative spec.
 neokapi grows three new framework-level packages and one vocabulary
 file. Nothing already in the repository is refactored.
 
-- **`core/klf`** — Go types mirroring `@neokapi/format/src/block.ts`,
+- **`core/klf`** — Go types mirroring `@neokapi/kapi-format/src/block.ts`,
   a deterministic JSON reader/writer, a placeholder-preservation
   validator, a well-formed-runs checker, a reference preview
   renderer (`RenderBlockHTML`), and the annotation sidecar layer
@@ -171,7 +171,7 @@ such caller).
   the commands up early.
 - `ResolveAnchor` lives in Go now, mirrored against the reference
   implementation in
-  `packages/format/src/annotation.ts`. Both sides are exercised by
+  `packages/kapi-format/src/annotation.ts`. Both sides are exercised by
   shared golden fixtures.
 
 ### Negative
@@ -193,5 +193,5 @@ such caller).
 
 - [AD-045: KLF / KLZ Format Specification](045-klf-klz-spec.md) — the normative spec.
 - [KLF / KLZ walkthrough](/docs/notes/klf-klz-walkthrough) — end-to-end lifecycle with real file contents.
-- [`packages/format/`](https://github.com/neokapi/neokapi/tree/main/packages/format) — `@neokapi/format`, the TypeScript schema.
+- [`packages/kapi-format/`](https://github.com/neokapi/neokapi/tree/main/packages/kapi-format) — `@neokapi/kapi-format`, the TypeScript schema.
 - Issue [#368](https://github.com/neokapi/neokapi/issues/368)

@@ -2,7 +2,8 @@
   "private": true,
   "workspaces": [
     "packages/ui",
-    "packages/format",
+    "packages/kapi-format",
+    "packages/kapi-react",
     "packages/flow-editor",
     "packages/storybook-config",
     "storybook",

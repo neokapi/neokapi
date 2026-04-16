@@ -8,7 +8,7 @@ import (
 
 // VocabularyEntry describes how a Run type renders across HTML,
 // plain-text display, and CAT-tool chips. Mirrors VocabularyEntry in
-// packages/format/src/vocabulary.ts.
+// packages/kapi-format/src/vocabulary.ts.
 type VocabularyEntry struct {
 	Key         string
 	Category    string
@@ -48,7 +48,7 @@ type ChipColor struct {
 }
 
 // JSXVocabulary mirrors the hand-curated default JSX vocabulary in
-// packages/format/src/vocabulary.ts — the three span types the Go
+// packages/kapi-format/src/vocabulary.ts — the three span types the Go
 // side needs to render Level-1 previews without loading the JSON
 // vocabulary file. Kept in sync by a round-trip test against the
 // embedded rich-jsx.json.
@@ -128,7 +128,7 @@ func DefaultJSXVocabulary() VocabularyLookup {
 // RenderBlockHTML wraps renderRuns in a <kat-block> marker — the
 // same interactive wrapper neokapi's existing preview builders emit
 // for every format. Matches renderBlockHtml in
-// packages/format/src/preview.ts.
+// packages/kapi-format/src/preview.ts.
 func RenderBlockHTML(b *Block, vocab VocabularyLookup) string {
 	if vocab == nil {
 		vocab = DefaultJSXVocabulary()
@@ -139,7 +139,7 @@ func RenderBlockHTML(b *Block, vocab VocabularyLookup) string {
 
 // RenderRuns walks a run sequence in order and renders each run to
 // its HTML form, recursing into plural / select forms. Mirrors
-// renderRuns in packages/format/src/preview.ts.
+// renderRuns in packages/kapi-format/src/preview.ts.
 func RenderRuns(runs []Run, vocab VocabularyLookup) string {
 	var out strings.Builder
 	for _, r := range runs {
@@ -274,7 +274,7 @@ func orderedSelectKeys(m map[string][]Run) []string {
 
 // expandTemplate replaces `{field}` placeholders in a vocabulary
 // template with values from a context map. Matches expandTemplate
-// in packages/format/src/vocabulary.ts.
+// in packages/kapi-format/src/vocabulary.ts.
 func expandTemplate(tmpl string, ctx map[string]string) string {
 	var out strings.Builder
 	out.Grow(len(tmpl))

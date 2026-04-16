@@ -1,4 +1,4 @@
-# @neokapi/format — canonical Block/Run schema
+# @neokapi/kapi-format — canonical Block/Run schema
 
 TypeScript port of the KLF/KLZ content model. Paired with `core/klf`
 in Go so both languages round-trip the same bytes through the same

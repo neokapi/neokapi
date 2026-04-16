@@ -1,0 +1,19 @@
+{
+  "name": "neokapi-sample-rspack",
+  "private": true,
+  "scripts": {
+    "dev": "rspack serve",
+    "build": "rspack build",
+    "build:de": "LOCALE=de rspack build",
+    "extract": "kapi-react extract"
+  },
+  "dependencies": {
+    "@neokapi/kapi-react": "workspace:*",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@rspack/cli": "^1.0.0",
+    "@rspack/core": "^1.0.0"
+  }
+}

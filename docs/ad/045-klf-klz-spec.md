@@ -6,8 +6,8 @@ title: "AD-045: KLF / KLZ Format Specification"
 
 # AD-045: KLF / KLZ Format Specification
 
-- **Scope:** neokapi framework (Go library) + `@neokapi/format` (TypeScript schema, `packages/format/`). Concerns that belong to an external tool built on top of neokapi — translation management systems (TMSs), CAT tools, custom editors, agency portals — are out of scope. Persistent content stores, interactive editor UIs, servers, sync protocols, and multi-user auth remain the responsibility of those external tools.
-- **Affects:** `core/klf`, `core/klz`, `core/formats/jsx`, `packages/format/`, `neokapi/neokapi-react` (extractor), future extractors
+- **Scope:** neokapi framework (Go library) + `@neokapi/kapi-format` (TypeScript schema, `packages/kapi-format/`). Concerns that belong to an external tool built on top of neokapi — translation management systems (TMSs), CAT tools, custom editors, agency portals — are out of scope. Persistent content stores, interactive editor UIs, servers, sync protocols, and multi-user auth remain the responsibility of those external tools.
+- **Affects:** `core/klf`, `core/klz`, `core/formats/jsx`, `packages/kapi-format/`, `neokapi/neokapi-react` (extractor), future extractors
 - **Related:** [AD-044](044-klf-klz-integration.md) — neokapi's framework-scoped integration of this spec.
 
 ## Summary
@@ -197,7 +197,7 @@ is its own architecture, and out of scope here.
 
 ### The canonical data model
 
-Defined in `@neokapi/format/src/block.ts`. Normative for this RFC:
+Defined in `@neokapi/kapi-format/src/block.ts`. Normative for this RFC:
 
 - **Block** — the unit of translation tracking. Holds
   `source: Run[]`, optional `targets: Record<LocaleID, Run[]>`,
@@ -241,7 +241,7 @@ Defined in `@neokapi/format/src/block.ts`. Normative for this RFC:
   version, source locale, source file path, document type, and
   `blocks[]`.
 
-See `@neokapi/format`'s `src/block.ts` for the full definitions.
+See `@neokapi/kapi-format`'s `src/block.ts` for the full definitions.
 This RFC specifies how that model is serialized; the types
 specify the in-memory shape.
 
@@ -667,7 +667,7 @@ out:
 ### Extractor interface
 
 External tools that produce `.klz` implement the `Extractor`
-interface. It lives in `@neokapi/format` on the TypeScript side
+interface. It lives in `@neokapi/kapi-format` on the TypeScript side
 and as a small Go interface in `core/format`:
 
 ```go
@@ -1237,8 +1237,8 @@ serialization, same lifecycle.
 
 ## Unresolved questions
 
-1. ~~**Ownership of `@neokapi/format`.**~~ Resolved: the TypeScript
-   schema lives in this monorepo at `packages/format/` alongside
+1. ~~**Ownership of `@neokapi/kapi-format`.**~~ Resolved: the TypeScript
+   schema lives in this monorepo at `packages/kapi-format/` alongside
    `core/klf` (Go). One release cadence; cross-language changes
    land atomically.
 2. **JS-to-Go sync.** Hand-port serializers, codegen from TS
@@ -1248,12 +1248,12 @@ serialization, same lifecycle.
 3. ~~**Vocabulary home.**~~ Resolved: JSON in neokapi
    (`core/model/vocabularies/rich-jsx.json`), loaded the same way
    as existing vocabularies; the TS side mirrors the entries in
-   `packages/format/src/vocabulary.ts` for the reference renderer.
+   `packages/kapi-format/src/vocabulary.ts` for the reference renderer.
 4. **Cache GC policy.** LRU, size-limit, age-limit, or some
    combination? What's the default limit? Lean: max total size
    (default 2 GiB) with LRU eviction, overridable via config.
 5. **Streaming writer API shape.** What does the
-   `@neokapi/format` writer look like when a producer wants to
+   `@neokapi/kapi-format` writer look like when a producer wants to
    emit one block at a time without holding everything in
    memory?
 6. **Target overlay file shape.** A target overlay is a sparse
@@ -1268,7 +1268,7 @@ serialization, same lifecycle.
    archive)? Deferred to a future RFC.
 8. **LLM-friendly flat export.** Derive a `.klf → flat.json`
    shape with just `{hash: renderedText}` for LLM routing and
-   quick previews? Lean: provide a helper in `@neokapi/format`,
+   quick previews? Lean: provide a helper in `@neokapi/kapi-format`,
    not a separate file format.
 
 ## Future possibilities

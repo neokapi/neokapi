@@ -1,0 +1,19 @@
+{
+  "name": "neokapi-sample-esbuild",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsx build.ts",
+    "build:de": "LOCALE=de tsx build.ts",
+    "extract": "kapi-react extract"
+  },
+  "dependencies": {
+    "@neokapi/kapi-react": "workspace:*",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "esbuild": "^0.25.0",
+    "tsx": "^4.0.0"
+  }
+}

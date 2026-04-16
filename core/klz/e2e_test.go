@@ -81,7 +81,7 @@ func TestEndToEnd_VerifyAnnotateOrphanCheckMerge(t *testing.T) {
 	// extractor named in the manifest. With no registered extractor
 	// we can at least verify the manifest carries the generator id
 	// a kapi klz merge subcommand would look up.
-	assert.Equal(t, "@neokapi/format-examples", r.Manifest().Generator.ID)
+	assert.Equal(t, "@neokapi/kapi-format-examples", r.Manifest().Generator.ID)
 }
 
 // mutateDropBlock rewrites the example archive with tag-chip
