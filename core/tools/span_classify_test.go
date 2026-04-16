@@ -35,7 +35,9 @@ func TestSpanClassifyFromData(t *testing.T) {
 	assert.Equal(t, "fmt:bold", spans[1].Type)
 	assert.True(t, spans[0].Deletable)
 	assert.Equal(t, "[B]", spans[0].DisplayText)
-	assert.Equal(t, "[/B]", spans[1].DisplayText)
+	// PcClose runs don't carry Disp per RFC 0001 §Block model; the
+	// closing tag's display string is derived from the vocabulary at
+	// render time (see klf.RenderBlockHTML).
 }
 
 func TestSpanClassifyFromSubType(t *testing.T) {
