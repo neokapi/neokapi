@@ -84,9 +84,9 @@ func NewRunsSegment(id string, runs []Run) *Segment {
 }
 
 // CodedText returns the segment's content as a PUA-marker coded
-// string — the legacy hot-path form expected by format writers that
-// haven't been ported to walk Runs directly. Materialized on demand
-// via AsCodedText; never persist the output.
+// string — the flat-string hot-path form used by format writers and
+// substring-based analyses. Derived from Runs on every call via
+// AsCodedText; never persist the output.
 func (s *Segment) CodedText() string {
 	if s == nil {
 		return ""
@@ -95,9 +95,9 @@ func (s *Segment) CodedText() string {
 	return coded
 }
 
-// Spans returns the legacy Span slice form of the segment's inline
-// codes. Materialized on demand via AsCodedText; positions line up
-// with the PUA markers in CodedText().
+// Spans returns the inline-code Span slice that lines up by position
+// with the PUA markers in CodedText(). Derived from Runs on every
+// call via AsCodedText.
 func (s *Segment) Spans() []*Span {
 	if s == nil {
 		return nil
@@ -106,12 +106,10 @@ func (s *Segment) Spans() []*Span {
 	return spans
 }
 
-// Fragment materializes the segment's runs as a legacy Fragment —
-// the hot-path representation with PUA markers and a parallel Span
-// list. Used by writers that still walk Fragment internally while
-// the per-format port lands. Returns a fresh Fragment each call;
-// mutations on the returned value are not propagated back into the
-// segment.
+// Fragment materializes the segment's runs as a Fragment — the
+// PUA-marker + Span-list representation. Returns a fresh Fragment
+// each call; mutations on the returned value are not propagated back
+// into the segment.
 func (s *Segment) Fragment() *Fragment {
 	if s == nil {
 		return nil
