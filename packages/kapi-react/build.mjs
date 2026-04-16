@@ -8,6 +8,8 @@ rmSync('dist', { recursive: true, force: true });
 
 const entryPoints = [
   'src/cli.ts',
+  'src/commands/extract.ts',
+  'src/commands/compile.ts',
   'src/extract.ts',
   'src/types.ts',
   'src/plugin/index.ts',
