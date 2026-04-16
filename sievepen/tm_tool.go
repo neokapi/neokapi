@@ -84,14 +84,14 @@ func (t *TMLeverageTool) handleBlock(part *model.Part) (*model.Part, error) {
 
 	sourceVariant := best.Entry.Variant(t.cfg.SourceLocale)
 	targetVariant := best.Entry.Variant(t.cfg.TargetLocale)
-	if targetVariant == nil {
+	if len(targetVariant) == 0 {
 		return part, nil
 	}
 
 	// For exact matches (any tier), apply the target directly.
 	if best.MatchType.IsExact() {
 		adapted := applyEntityAdaptations(targetVariant, best.EntityAdaptations)
-		block.SetTargetRuns(t.cfg.TargetLocale, model.FragmentToRuns(adapted))
+		block.SetTargetRuns(t.cfg.TargetLocale, adapted)
 	}
 
 	// Add the best match as an AltTranslation annotation.
@@ -99,8 +99,8 @@ func (t *TMLeverageTool) handleBlock(part *model.Part) (*model.Part, error) {
 		block.Annotations = make(map[string]model.Annotation)
 	}
 	block.Annotations["alt-translation"] = &model.AltTranslation{
-		Source:    model.FragmentToRuns(sourceVariant),
-		Target:    model.FragmentToRuns(targetVariant),
+		Source:    sourceVariant,
+		Target:    targetVariant,
 		Locale:    t.cfg.TargetLocale,
 		Origin:    "tm:sievepen",
 		Score:     best.Score,
@@ -110,31 +110,32 @@ func (t *TMLeverageTool) handleBlock(part *model.Part) (*model.Part, error) {
 	return part, nil
 }
 
-// applyEntityAdaptations substitutes entity values in a target Fragment
-// based on the adaptations computed during matching. Returns a new Fragment
-// with adapted values. Preserves inline spans by operating on CodedText
-// directly (replacing text segments while keeping marker runes intact).
-func applyEntityAdaptations(target *model.Fragment, adaptations []EntityAdaptation) *model.Fragment {
-	if target == nil || len(adaptations) == 0 {
+// applyEntityAdaptations substitutes entity values in a target Run
+// sequence based on the adaptations computed during matching. Returns
+// a new Run sequence with adapted values; source runs are not mutated.
+// Text is substituted inside TextRun only; Ph/PcOpen/PcClose payloads
+// (Data, DisplayText, etc.) are passed through unchanged.
+func applyEntityAdaptations(target []model.Run, adaptations []EntityAdaptation) []model.Run {
+	if len(target) == 0 || len(adaptations) == 0 {
 		return target
 	}
 
-	// Clone to avoid mutating the stored TM entry.
-	result := target.Clone()
-
-	// Apply adaptations to entity span Data values (for placeholder entities)
-	// and to the plain text segments of CodedText.
+	out := make([]model.Run, len(target))
+	for i, r := range target {
+		out[i] = r
+	}
 	for _, adapt := range adaptations {
-		// Update span Data for entity placeholder spans.
-		for _, s := range result.Spans {
-			if model.IsEntityTypeString(s.Type) && s.Data == adapt.StoredValue {
-				s.Data = adapt.CurrentValue
+		for i := range out {
+			if out[i].Text == nil {
+				continue
+			}
+			if strings.Contains(out[i].Text.Text, adapt.StoredValue) {
+				newRun := *out[i].Text
+				newRun.Text = strings.Replace(newRun.Text, adapt.StoredValue, adapt.CurrentValue, 1)
+				out[i] = model.Run{Text: &newRun}
+				break
 			}
 		}
-
-		// Update text segments in CodedText (between markers).
-		result.CodedText = strings.Replace(result.CodedText, adapt.StoredValue, adapt.CurrentValue, 1)
 	}
-
-	return result
+	return out
 }

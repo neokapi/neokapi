@@ -114,9 +114,9 @@ func TestTM_GetFacets_LocalesAndSessions(t *testing.T) {
 	}))
 	require.NoError(t, tm.Add(sievepen.TMEntry{
 		ID: "e1",
-		Variants: map[model.LocaleID]*model.Fragment{
-			"en-US": model.NewFragment("hi"),
-			"fr-FR": model.NewFragment("salut"),
+		Variants: map[model.LocaleID][]model.Run{
+			"en-US": {{Text: &model.TextRun{Text: "hi"}}},
+			"fr-FR": {{Text: &model.TextRun{Text: "salut"}}},
 		},
 		Origins: []sievepen.Origin{{Source: "import", SessionID: "s1"}},
 	}))
@@ -155,9 +155,9 @@ func TestTM_DeleteImportSession_KeepsEntries(t *testing.T) {
 	}))
 	require.NoError(t, tm.Add(sievepen.TMEntry{
 		ID: "e1",
-		Variants: map[model.LocaleID]*model.Fragment{
-			"en-US": model.NewFragment("hi"),
-			"fr-FR": model.NewFragment("salut"),
+		Variants: map[model.LocaleID][]model.Run{
+			"en-US": {{Text: &model.TextRun{Text: "hi"}}},
+			"fr-FR": {{Text: &model.TextRun{Text: "salut"}}},
 		},
 		Origins: []sievepen.Origin{{Source: "import", SessionID: "s1"}},
 	}))
@@ -228,8 +228,8 @@ func TestTM_ResolveEntityConcepts(t *testing.T) {
 	tm, _ := app.tmHandles.Get(tmHandle)
 	require.NoError(t, tm.Add(sievepen.TMEntry{
 		ID: "e1",
-		Variants: map[model.LocaleID]*model.Fragment{
-			"en-US": model.NewFragment("hello"),
+		Variants: map[model.LocaleID][]model.Run{
+			"en-US": {{Text: &model.TextRun{Text: "hello"}}},
 		},
 		Entities: []sievepen.EntityMapping{{
 			PlaceholderID: "e1",

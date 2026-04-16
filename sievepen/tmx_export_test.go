@@ -52,9 +52,9 @@ func TestExportTMX_EscapesSpecialChars(t *testing.T) {
 	tm := sievepen.NewInMemoryTM()
 	require.NoError(t, tm.Add(sievepen.TMEntry{
 		ID: "e1",
-		Variants: map[model.LocaleID]*model.Fragment{
-			"en": model.NewFragment("A & B < C > D"),
-			"fr": model.NewFragment("A et B"),
+		Variants: map[model.LocaleID][]model.Run{
+			"en": {{Text: &model.TextRun{Text: "A & B < C > D"}}},
+			"fr": {{Text: &model.TextRun{Text: "A et B"}}},
 		},
 	}))
 	var buf bytes.Buffer

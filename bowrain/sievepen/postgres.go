@@ -272,14 +272,15 @@ func (tm *PostgresTM) AddWithStream(entry fw.TMEntry, stream string) error {
 		tm.workspaceID, entry.ID); err != nil {
 		return fmt.Errorf("delete variants: %w", err)
 	}
-	for loc, frag := range entry.Variants {
-		if frag == nil {
+	for loc, runs := range entry.Variants {
+		if len(runs) == 0 {
 			continue
 		}
-		coded, err := json.Marshal(frag)
+		coded, err := json.Marshal(runs)
 		if err != nil {
 			return fmt.Errorf("marshal variant %s: %w", loc, err)
 		}
+		frag := model.RunsToFragment(runs)
 		plain := fw.NormalizeText(frag.Text())
 		sk := fw.NormalizeText(frag.StructuralText())
 		gk := fw.NormalizeText(frag.GeneralizedText())
@@ -453,10 +454,11 @@ func (tm *PostgresTM) tieredLookup(plainKey, structKey, generalKey string, entit
 		if seen[entry.ID] {
 			continue
 		}
-		srcVariant := entry.Variant(sourceLocale)
-		if srcVariant == nil {
+		srcRuns := entry.Variant(sourceLocale)
+		if len(srcRuns) == 0 {
 			continue
 		}
+		srcVariant := model.RunsToFragment(srcRuns)
 		var bestScore float64
 		var bestType fw.MatchType
 		if modeEnabled[fw.MatchModeGeneralized] {
@@ -646,7 +648,7 @@ func (tm *PostgresTM) loadEntriesByIDs(ids []string) ([]fw.TMEntry, error) {
 		if propsJSON != "" && propsJSON != "{}" {
 			_ = json.Unmarshal([]byte(propsJSON), &e.Properties)
 		}
-		e.Variants = make(map[model.LocaleID]*model.Fragment)
+		e.Variants = make(map[model.LocaleID][]model.Run)
 		entries = append(entries, e)
 	}
 	if err := rows.Err(); err != nil {
@@ -672,10 +674,10 @@ func (tm *PostgresTM) loadEntriesByIDs(ids []string) ([]fw.TMEntry, error) {
 			if err := varRows.Scan(&eid, &loc, &coded); err != nil {
 				continue
 			}
-			frag := &model.Fragment{}
-			if err := json.Unmarshal([]byte(coded), frag); err == nil {
+			var runs []model.Run
+			if err := json.Unmarshal([]byte(coded), &runs); err == nil {
 				if idx, ok := byID[eid]; ok {
-					entries[idx].Variants[model.LocaleID(loc)] = frag
+					entries[idx].Variants[model.LocaleID(loc)] = runs
 				}
 			}
 		}

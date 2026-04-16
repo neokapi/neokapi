@@ -115,10 +115,11 @@ func (tm *InMemoryTM) AddWithStream(entry TMEntry, _ string) error {
 
 func buildVariantKeys(entry TMEntry) map[model.LocaleID]variantKeys {
 	keys := make(map[model.LocaleID]variantKeys, len(entry.Variants))
-	for loc, frag := range entry.Variants {
-		if frag == nil {
+	for loc, runs := range entry.Variants {
+		if len(runs) == 0 {
 			continue
 		}
+		frag := model.RunsToFragment(runs)
 		keys[loc] = variantKeys{
 			plain:       NormalizeText(frag.Text()),
 			structural:  NormalizeText(frag.StructuralText()),
@@ -428,17 +429,17 @@ func (tm *InMemoryTM) searchInternal(query, anyLocale, requireLocale, _ string, 
 // variant is consulted.
 func variantTextContains(e TMEntry, anyLocale, needle string) bool {
 	if anyLocale != "" {
-		frag := e.Variant(model.LocaleID(anyLocale))
-		if frag == nil {
+		runs := e.Variant(model.LocaleID(anyLocale))
+		if runs == nil {
 			return false
 		}
-		return strings.Contains(strings.ToLower(frag.Text()), needle)
+		return strings.Contains(strings.ToLower(model.FlattenRuns(runs)), needle)
 	}
-	for _, frag := range e.Variants {
-		if frag == nil {
+	for _, runs := range e.Variants {
+		if len(runs) == 0 {
 			continue
 		}
-		if strings.Contains(strings.ToLower(frag.Text()), needle) {
+		if strings.Contains(strings.ToLower(model.FlattenRuns(runs)), needle) {
 			return true
 		}
 	}
@@ -519,12 +520,11 @@ func matchesSearchFilter(entry TMEntry, filter SearchFilter) bool {
 }
 
 func entryHasCodes(entry TMEntry) bool {
-	for _, frag := range entry.Variants {
-		if frag == nil {
-			continue
-		}
-		if len(frag.Spans) > 0 || strings.ContainsAny(frag.CodedText, "\uE001\uE002\uE003") {
-			return true
+	for _, runs := range entry.Variants {
+		for _, r := range runs {
+			if r.Text == nil {
+				return true
+			}
 		}
 	}
 	return false

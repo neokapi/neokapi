@@ -218,12 +218,12 @@ func seedEnrichedEntries(tm *sievepen.SQLiteTM) error {
 	entries := enrichedEntryDefs()
 	now := time.Now()
 	for i, def := range entries {
-		variants := map[model.LocaleID]*model.Fragment{
-			"en-US": def.source(),
+		variants := map[model.LocaleID][]model.Run{
+			"en-US": model.FragmentToRuns(def.source()),
 		}
 		for _, tgt := range v2Targets {
 			if fn, ok := def.targets[tgt]; ok {
-				variants[tgt] = fn()
+				variants[tgt] = model.FragmentToRuns(fn())
 			}
 		}
 		entity := make([]sievepen.EntityMapping, 0, len(def.entities))

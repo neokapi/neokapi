@@ -366,9 +366,9 @@ func (g *EditorGRPCServer) AddTMEntry(ctx context.Context, req *pb.AddTMEntryReq
 	tgtLoc := model.LocaleID(req.TargetLocale)
 	entry := sievepen.TMEntry{
 		ID: id.New(),
-		Variants: map[model.LocaleID]*model.Fragment{
-			srcLoc: {CodedText: req.Source},
-			tgtLoc: {CodedText: req.Target},
+		Variants: map[model.LocaleID][]model.Run{
+			srcLoc: {{Text: &model.TextRun{Text: req.Source}}},
+			tgtLoc: {{Text: &model.TextRun{Text: req.Target}}},
 		},
 		HintSrcLang: srcLoc,
 		ProjectID:   req.ProjectId,
@@ -409,10 +409,10 @@ func (g *EditorGRPCServer) UpdateTMEntry(ctx context.Context, req *pb.UpdateTMEn
 	srcLoc := model.LocaleID(req.SourceLocale)
 	tgtLoc := model.LocaleID(req.TargetLocale)
 	if existing.Variants == nil {
-		existing.Variants = make(map[model.LocaleID]*model.Fragment)
+		existing.Variants = make(map[model.LocaleID][]model.Run)
 	}
-	existing.Variants[srcLoc] = &model.Fragment{CodedText: req.Source}
-	existing.Variants[tgtLoc] = &model.Fragment{CodedText: req.Target}
+	existing.Variants[srcLoc] = []model.Run{{Text: &model.TextRun{Text: req.Source}}}
+	existing.Variants[tgtLoc] = []model.Run{{Text: &model.TextRun{Text: req.Target}}}
 	if existing.HintSrcLang == "" {
 		existing.HintSrcLang = srcLoc
 	}

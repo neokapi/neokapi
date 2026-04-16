@@ -166,10 +166,10 @@ func (a *App) UpdateTMEntry(req TMUpdateRequest) error {
 	srcLoc := model.LocaleID(req.SourceLocale)
 	tgtLoc := model.LocaleID(req.TargetLocale)
 	if entry.Variants == nil {
-		entry.Variants = make(map[model.LocaleID]*model.Fragment)
+		entry.Variants = make(map[model.LocaleID][]model.Run)
 	}
-	entry.Variants[srcLoc] = model.NewFragment(req.Source)
-	entry.Variants[tgtLoc] = model.NewFragment(req.Target)
+	entry.Variants[srcLoc] = []model.Run{{Text: &model.TextRun{Text: req.Source}}}
+	entry.Variants[tgtLoc] = []model.Run{{Text: &model.TextRun{Text: req.Target}}}
 	if entry.HintSrcLang == "" {
 		entry.HintSrcLang = srcLoc
 	}
@@ -233,9 +233,9 @@ func (a *App) AddTMEntry(projectID, source, target, sourceLocale, targetLocale s
 	tgtLoc := model.LocaleID(targetLocale)
 	entry := sievepen.TMEntry{
 		ID: id.New(),
-		Variants: map[model.LocaleID]*model.Fragment{
-			srcLoc: model.NewFragment(source),
-			tgtLoc: model.NewFragment(target),
+		Variants: map[model.LocaleID][]model.Run{
+			srcLoc: {{Text: &model.TextRun{Text: source}}},
+			tgtLoc: {{Text: &model.TextRun{Text: target}}},
 		},
 		HintSrcLang: srcLoc,
 		CreatedAt:   now,

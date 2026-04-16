@@ -97,13 +97,13 @@ func ExportTMX(tm TranslationMemory, writer io.Writer, locales []model.LocaleID)
 		}
 
 		for _, loc := range locales {
-			frag := entry.Variants[loc]
-			if frag == nil {
+			runs := entry.Variants[loc]
+			if len(runs) == 0 {
 				continue
 			}
 			fmt.Fprintf(bw, `      <tuv xml:lang="%s">`+"\n", xmlAttr(string(loc)))
 			_, _ = bw.WriteString(`        <seg>`)
-			if err := fragmentToTMXSeg(bw, frag); err != nil {
+			if err := fragmentToTMXSeg(bw, model.RunsToFragment(runs)); err != nil {
 				return err
 			}
 			_, _ = bw.WriteString("</seg>\n")
