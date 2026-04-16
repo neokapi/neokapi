@@ -79,13 +79,11 @@ func (t *MTTranslateTool) handleBlock(part *model.Part) (*model.Part, error) {
 }
 
 // handleBlockWithInlineCodes translates a block whose source contains
-// inline codes. Source and target round-trip through the legacy
-// Fragment/SemanticHTML representation — MT APIs preserve HTML tags
-// natively, so rendering through semantic tags is the most robust
-// format for this pipeline.
+// inline codes. Source and target round-trip through RunsSemanticHTML —
+// MT APIs preserve HTML tags natively, so rendering through semantic
+// tags is the most robust format for this pipeline.
 func (t *MTTranslateTool) handleBlockWithInlineCodes(part *model.Part, block *model.Block, sourceRuns []model.Run) (*model.Part, error) {
-	frag := model.RunsToFragment(sourceRuns)
-	sourceHTML := frag.SemanticHTML(t.vocab)
+	sourceHTML := model.RunsSemanticHTML(sourceRuns, t.vocab)
 
 	resp, err := t.provider.Translate(context.Background(), mtprovider.TranslateRequest{
 		Source:       sourceHTML,
@@ -96,8 +94,8 @@ func (t *MTTranslateTool) handleBlockWithInlineCodes(part *model.Part, block *mo
 		return nil, fmt.Errorf("%s-translate: %w", string(t.provider.Name()), err)
 	}
 
-	targetFrag := model.ParseSemanticHTML(resp.Translation, frag.Spans, t.vocab)
-	block.SetTargetRuns(t.targetLocale, model.FragmentToRuns(targetFrag))
+	targetRuns := model.ParseRunsSemanticHTML(resp.Translation, sourceRuns, t.vocab)
+	block.SetTargetRuns(t.targetLocale, targetRuns)
 	return part, nil
 }
 
