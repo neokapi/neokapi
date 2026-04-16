@@ -493,8 +493,9 @@ func (r *Reader) consumePendingState(state *readState, block *model.Block) {
 	state.pendingMaxwidth = -1
 }
 
-// applyCodeFinder applies code finder patterns to a block's fragments.
-// It rebuilds the CodedText with markers for matched patterns.
+// applyCodeFinder applies code finder patterns to a block's segments,
+// rewriting their Run sequences with placeholder runs at matched
+// positions.
 func (r *Reader) applyCodeFinder(block *model.Block) {
 	patterns := r.cfg.GetCodeFinderPatterns()
 	if len(patterns) == 0 {
@@ -528,8 +529,7 @@ func (r *Reader) applyCodeFinder(block *model.Block) {
 
 		// Rebuild segment content as Runs: text between matches
 		// becomes TextRuns; each matched inline code becomes a Ph
-		// run, preserving the code-regex behavior from the legacy
-		// Fragment/Span emission.
+		// run.
 		var runs []model.Run
 		lastEnd := 0
 		spanID := 1

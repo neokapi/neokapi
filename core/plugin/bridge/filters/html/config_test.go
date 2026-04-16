@@ -773,50 +773,60 @@ func TestConfig_GenericCodeTypes(t *testing.T) {
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.NotEmpty(t, blocks, "should extract blocks with inline elements")
 
-	// Find a block that has spans (inline codes).
-	var blockWithSpans *model.Block
+	// Find a block that has inline-code runs.
+	var blockWithCodes *model.Block
 	for _, b := range blocks {
-		frag := b.FirstFragment()
-		if frag != nil && len(frag.Spans) > 0 {
-			blockWithSpans = b
+		if bridgetest.HasInlineCode(b.SourceRuns()) {
+			blockWithCodes = b
 			break
 		}
 	}
-	require.NotNil(t, blockWithSpans,
-		"should have at least one block with inline spans")
+	require.NotNil(t, blockWithCodes,
+		"should have at least one block with inline-code runs")
 
-	frag := blockWithSpans.FirstFragment()
+	runs := blockWithCodes.SourceRuns()
 
-	// Collect all span types to verify the generic code type mapping.
-	spanTypes := make(map[string]bool)
-	for _, s := range frag.Spans {
-		if s.Type != "" {
-			spanTypes[s.Type] = true
+	// Collect all run types to verify the generic code type mapping.
+	runTypes := make(map[string]bool)
+	for _, r := range runs {
+		switch {
+		case r.PcOpen != nil:
+			if r.PcOpen.Type != "" {
+				runTypes[r.PcOpen.Type] = true
+			}
+		case r.PcClose != nil:
+			if r.PcClose.Type != "" {
+				runTypes[r.PcClose.Type] = true
+			}
+		case r.Ph != nil:
+			if r.Ph.Type != "" {
+				runTypes[r.Ph.Type] = true
+			}
 		}
 	}
 
 	// Verify that known generic code types are present. The bridge maps
 	// HTML elements to semantic types like "fmt:bold", "fmt:italic", etc.
-	// At minimum, we expect multiple distinct span types for the different
+	// At minimum, we expect multiple distinct run types for the different
 	// inline elements.
-	assert.Greater(t, len(spanTypes), 1,
-		"should have multiple distinct span types for b, i, u, a, img elements")
+	assert.Greater(t, len(runTypes), 1,
+		"should have multiple distinct run types for b, i, u, a, img elements")
 
-	// Also verify that opening/closing span pairs exist for paired elements.
+	// Also verify that opening/closing pc pairs exist for paired elements.
 	var hasOpening, hasClosing, hasPlaceholder bool
-	for _, s := range frag.Spans {
-		switch s.SpanType {
-		case model.SpanOpening:
+	for _, r := range runs {
+		switch {
+		case r.PcOpen != nil:
 			hasOpening = true
-		case model.SpanClosing:
+		case r.PcClose != nil:
 			hasClosing = true
-		case model.SpanPlaceholder:
+		case r.Ph != nil:
 			hasPlaceholder = true
 		}
 	}
-	assert.True(t, hasOpening, "should have opening spans for <b>, <i>, <u>, <a>")
-	assert.True(t, hasClosing, "should have closing spans for </b>, </i>, </u>, </a>")
-	assert.True(t, hasPlaceholder, "should have placeholder span for <img>")
+	assert.True(t, hasOpening, "should have PcOpen runs for <b>, <i>, <u>, <a>")
+	assert.True(t, hasClosing, "should have PcClose runs for </b>, </i>, </u>, </a>")
+	assert.True(t, hasPlaceholder, "should have Ph run for <img>")
 }
 
 // TestConfig_TextUnitCodeTypes verifies that with the well-formed configuration,
@@ -918,19 +928,13 @@ func TestConfig_CodeFinderRules(t *testing.T) {
 	require.NotEmpty(t, blocks, "should extract blocks with code finder rules")
 
 	// With code finder enabled, VAR1 and VAR2 should be converted to inline codes.
-	frag := blocks[0].FirstFragment()
-	require.NotNil(t, frag, "block should have a fragment")
+	runs := blocks[0].SourceRuns()
+	require.NotEmpty(t, runs, "block should have runs")
 
-	// If code finder rules are applied, we expect placeholder spans for VAR1/VAR2.
-	if len(frag.Spans) > 0 {
-		var codeFinderSpans int
-		for _, s := range frag.Spans {
-			if s.SpanType == model.SpanPlaceholder {
-				codeFinderSpans++
-			}
-		}
-		assert.GreaterOrEqual(t, codeFinderSpans, 1,
-			"code finder should produce placeholder spans for VAR patterns")
+	// If code finder rules are applied, we expect Ph runs for VAR1/VAR2.
+	if bridgetest.HasInlineCode(runs) {
+		assert.GreaterOrEqual(t, bridgetest.CountPlaceholders(runs), 1,
+			"code finder should produce Ph runs for VAR patterns")
 	}
 
 	// At minimum, the text should contain the non-code parts.

@@ -284,10 +284,16 @@ func TestReadInlineFormatting(t *testing.T) {
 
 	require.Len(t, blocks, 1)
 
-	frag := blocks[0].FirstFragment()
-	require.NotNil(t, frag)
-	assert.True(t, frag.HasSpans(), "inline formatting should produce spans")
-	assert.Equal(t, "Normal bold text", frag.Text())
+	runs := blocks[0].SourceRuns()
+	hasInline := false
+	for _, r := range runs {
+		if r.Text == nil {
+			hasInline = true
+			break
+		}
+	}
+	assert.True(t, hasInline, "inline formatting should produce inline-code runs")
+	assert.Equal(t, "Normal bold text", model.RunsPlainText(runs))
 }
 
 func TestReadHyperlink(t *testing.T) {
@@ -305,10 +311,16 @@ func TestReadHyperlink(t *testing.T) {
 	blocks := testutil.FilterBlocks(parts)
 
 	require.Len(t, blocks, 1)
-	frag := blocks[0].FirstFragment()
-	require.NotNil(t, frag)
-	assert.True(t, frag.HasSpans())
-	assert.Equal(t, "Click here for more", frag.Text())
+	runs := blocks[0].SourceRuns()
+	hasInline := false
+	for _, r := range runs {
+		if r.Text == nil {
+			hasInline = true
+			break
+		}
+	}
+	assert.True(t, hasInline, "hyperlink should produce inline-code runs")
+	assert.Equal(t, "Click here for more", model.RunsPlainText(runs))
 }
 
 func TestReadEmptyParagraphs(t *testing.T) {

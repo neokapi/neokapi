@@ -816,15 +816,15 @@ func (r *Reader) buildCodedRuns(b *runBuilder, node ast.Node, source []byte, spa
 	for child := node.FirstChild(); child != nil; child = child.NextSibling() {
 		switch n := child.(type) {
 		case *ast.Text:
-			b.AppendText(string(n.Segment.Value(source)))
+			b.AddText(string(n.Segment.Value(source)))
 			if n.SoftLineBreak() {
-				b.AppendText(" ")
+				b.AddText(" ")
 			}
 			if n.HardLineBreak() {
-				b.AppendText("\n")
+				b.AddText("\n")
 			}
 		case *ast.String:
-			b.AppendText(string(n.Value))
+			b.AddText(string(n.Value))
 
 		case *ast.Emphasis:
 			r.buildEmphasisRuns(b, n, source, spanCounter)
@@ -868,24 +868,24 @@ func (r *Reader) buildEmphasisRuns(b *runBuilder, n *ast.Emphasis, source []byte
 	*spanCounter++
 	id := strconv.Itoa(*spanCounter)
 	info := r.vocab.LookupOrFallback(semType)
-	b.AppendPcOpen(id, semType, subType, data, info.Display.Open, info.Equiv,
+	b.AddPcOpen(id, semType, subType, data, info.Display.Open, info.Equiv,
 		info.Constraints.Deletable, info.Constraints.Cloneable, info.Constraints.Reorderable)
 	r.buildCodedRuns(b, n, source, spanCounter)
-	b.AppendPcClose(id, semType, subType, data, info.Equiv)
+	b.AddPcClose(id, semType, subType, data, info.Equiv)
 }
 
 func (r *Reader) buildCodeSpanRuns(b *runBuilder, n *ast.CodeSpan, source []byte, spanCounter *int) {
 	*spanCounter++
 	id := strconv.Itoa(*spanCounter)
 	info := r.vocab.LookupOrFallback("fmt:code")
-	b.AppendPcOpen(id, "fmt:code", "md:code", "`", info.Display.Open, info.Equiv,
+	b.AddPcOpen(id, "fmt:code", "md:code", "`", info.Display.Open, info.Equiv,
 		info.Constraints.Deletable, info.Constraints.Cloneable, info.Constraints.Reorderable)
 	for gc := n.FirstChild(); gc != nil; gc = gc.NextSibling() {
 		if t, ok := gc.(*ast.Text); ok {
-			b.AppendText(string(t.Segment.Value(source)))
+			b.AddText(string(t.Segment.Value(source)))
 		}
 	}
-	b.AppendPcClose(id, "fmt:code", "md:code", "`", info.Equiv)
+	b.AddPcClose(id, "fmt:code", "md:code", "`", info.Equiv)
 }
 
 func (r *Reader) buildLinkRuns(b *runBuilder, n *ast.Link, source []byte, spanCounter *int) {
@@ -899,10 +899,10 @@ func (r *Reader) buildLinkRuns(b *runBuilder, n *ast.Link, source []byte, spanCo
 	}
 	closingData += ")"
 
-	b.AppendPcOpen(id, "link:hyperlink", "md:link", "[", info.Display.Open, info.Equiv,
+	b.AddPcOpen(id, "link:hyperlink", "md:link", "[", info.Display.Open, info.Equiv,
 		info.Constraints.Deletable, info.Constraints.Cloneable, info.Constraints.Reorderable)
 	r.buildCodedRuns(b, n, source, spanCounter)
-	b.AppendPcClose(id, "link:hyperlink", "md:link", closingData, info.Equiv)
+	b.AddPcClose(id, "link:hyperlink", "md:link", closingData, info.Equiv)
 }
 
 func (r *Reader) buildImageRuns(b *runBuilder, n *ast.Image, source []byte, spanCounter *int) {
@@ -916,12 +916,12 @@ func (r *Reader) buildImageRuns(b *runBuilder, n *ast.Image, source []byte, span
 	}
 	closingData += ")"
 
-	b.AppendPcOpen(id, "link:image", "md:image", "![", info.Display.Open, info.Equiv,
+	b.AddPcOpen(id, "link:image", "md:image", "![", info.Display.Open, info.Equiv,
 		info.Constraints.Deletable, info.Constraints.Cloneable, info.Constraints.Reorderable)
 	if r.cfg.TranslateImageAlt() {
 		r.buildCodedRuns(b, n, source, spanCounter)
 	}
-	b.AppendPcClose(id, "link:image", "md:image", closingData, info.Equiv)
+	b.AddPcClose(id, "link:image", "md:image", closingData, info.Equiv)
 }
 
 func (r *Reader) buildAutoLinkRuns(b *runBuilder, n *ast.AutoLink, source []byte, spanCounter *int) {
@@ -929,10 +929,10 @@ func (r *Reader) buildAutoLinkRuns(b *runBuilder, n *ast.AutoLink, source []byte
 	id := strconv.Itoa(*spanCounter)
 	info := r.vocab.LookupOrFallback("link:hyperlink")
 	url := string(n.URL(source))
-	b.AppendPcOpen(id, "link:hyperlink", "md:autolink", "<", info.Display.Open, info.Equiv,
+	b.AddPcOpen(id, "link:hyperlink", "md:autolink", "<", info.Display.Open, info.Equiv,
 		info.Constraints.Deletable, info.Constraints.Cloneable, info.Constraints.Reorderable)
-	b.AppendText(url)
-	b.AppendPcClose(id, "link:hyperlink", "md:autolink", ">", info.Equiv)
+	b.AddText(url)
+	b.AddPcClose(id, "link:hyperlink", "md:autolink", ">", info.Equiv)
 }
 
 func (r *Reader) buildRawHTMLRuns(b *runBuilder, n *ast.RawHTML, source []byte, spanCounter *int) {
@@ -948,20 +948,20 @@ func (r *Reader) buildRawHTMLRuns(b *runBuilder, n *ast.RawHTML, source []byte, 
 
 	// Raw inline HTML has no vocabulary entry in the original Fragment
 	// path, so emit with empty display/equiv and zero-valued constraints
-	// (mirrors the default all-false RunConstraints that FragmentToRuns
+	// (mirrors the default all-false RunConstraints that MarshalRuns
 	// produces for a Span with unset Deletable/Cloneable/CanReorder).
-	b.AppendPcOpen(id, "fmt:html", "md:html-inline", tag, "", "", false, false, false)
-	b.AppendPcClose(id, "fmt:html", "md:html-inline", "", "")
+	b.AddPcOpen(id, "fmt:html", "md:html-inline", tag, "", "", false, false, false)
+	b.AddPcClose(id, "fmt:html", "md:html-inline", "", "")
 }
 
 func (r *Reader) buildStrikethroughRuns(b *runBuilder, node ast.Node, source []byte, spanCounter *int) {
 	*spanCounter++
 	id := strconv.Itoa(*spanCounter)
 	info := r.vocab.LookupOrFallback("fmt:strike")
-	b.AppendPcOpen(id, "fmt:strike", "md:strikethrough", "~~", info.Display.Open, info.Equiv,
+	b.AddPcOpen(id, "fmt:strike", "md:strikethrough", "~~", info.Display.Open, info.Equiv,
 		info.Constraints.Deletable, info.Constraints.Cloneable, info.Constraints.Reorderable)
 	r.buildCodedRuns(b, node, source, spanCounter)
-	b.AppendPcClose(id, "fmt:strike", "md:strikethrough", "~~", info.Equiv)
+	b.AddPcClose(id, "fmt:strike", "md:strikethrough", "~~", info.Equiv)
 }
 
 // --- Emit helper ---

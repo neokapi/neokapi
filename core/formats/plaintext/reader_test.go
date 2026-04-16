@@ -801,9 +801,12 @@ func TestRead_NoSpans(t *testing.T) {
 	require.NotEmpty(t, blocks)
 
 	for _, b := range blocks {
-		frag := b.FirstFragment()
-		require.NotNil(t, frag)
-		assert.Empty(t, frag.Spans, "plain text should have no inline spans")
+		runs := b.SourceRuns()
+		for _, r := range runs {
+			assert.Nil(t, r.Ph, "plain text should have no placeholder runs")
+			assert.Nil(t, r.PcOpen, "plain text should have no opening inline-code runs")
+			assert.Nil(t, r.PcClose, "plain text should have no closing inline-code runs")
+		}
 	}
 }
 
@@ -818,7 +821,7 @@ func TestRead_SegmentIDs(t *testing.T) {
 		require.NotEmpty(t, b.Source, "block should have source segments")
 		for _, seg := range b.Source {
 			assert.NotEmpty(t, seg.ID, "segment should have an ID")
-			assert.NotNil(t, seg.Fragment(), "segment should have content")
+			assert.NotEmpty(t, seg.Runs, "segment should have content")
 		}
 	}
 }

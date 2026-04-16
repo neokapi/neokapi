@@ -131,7 +131,7 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 		// Skeleton mode: collect translatable scalar spans, then build skeleton
 		// from raw bytes.
 		lineOffsets := buildLineOffsets(content)
-		var spans []scalarSpan
+		var spans []scalarRange
 
 		for {
 			var node yamlv3.Node
@@ -164,8 +164,8 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 	r.emit(ctx, ch, &model.Part{Type: model.PartLayerEnd, Resource: layer})
 }
 
-// scalarSpan records the byte range of a translatable scalar in the raw YAML content.
-type scalarSpan struct {
+// scalarRange records the byte range of a translatable scalar in the raw YAML content.
+type scalarRange struct {
 	start   int    // byte offset of the scalar value representation (including quotes)
 	end     int    // byte offset past the scalar
 	blockID string // block ID (e.g. "tu1")
@@ -197,7 +197,7 @@ func lineColToOffset(lineOffsets []int, line, col int) int {
 // but additionally records byte positions for skeleton construction.
 func (r *Reader) collectSpans(ctx context.Context, ch chan<- model.PartResult,
 	node *yamlv3.Node, path []string, blockCounter *int,
-	content []byte, lineOffsets []int, spans *[]scalarSpan) {
+	content []byte, lineOffsets []int, spans *[]scalarRange) {
 
 	switch node.Kind {
 	case yamlv3.DocumentNode:
@@ -233,7 +233,7 @@ func (r *Reader) collectSpans(ctx context.Context, ch chan<- model.PartResult,
 // collectScalarSpan checks if a scalar should be extracted and records its span.
 func (r *Reader) collectScalarSpan(ctx context.Context, ch chan<- model.PartResult,
 	node *yamlv3.Node, path []string, blockCounter *int,
-	content []byte, lineOffsets []int, spans *[]scalarSpan) {
+	content []byte, lineOffsets []int, spans *[]scalarRange) {
 
 	isString := node.Tag == "!!str" || node.Tag == ""
 	if !isString && !r.cfg.ExtractNonStrings {
@@ -284,7 +284,7 @@ func (r *Reader) collectScalarSpan(ctx context.Context, ch chan<- model.PartResu
 		r.applyCodeFinder(block)
 	}
 
-	*spans = append(*spans, scalarSpan{
+	*spans = append(*spans, scalarRange{
 		start:   start,
 		end:     end,
 		blockID: blockID,
@@ -512,7 +512,7 @@ func scalarStyleName(style yamlv3.Style) string {
 }
 
 // buildSkeleton constructs skeleton entries from raw bytes and sorted scalar spans.
-func (r *Reader) buildSkeleton(content []byte, spans []scalarSpan) {
+func (r *Reader) buildSkeleton(content []byte, spans []scalarRange) {
 	// Sort spans by start offset (they should already be in order from tree walk).
 	for i := 1; i < len(spans); i++ {
 		for j := i; j > 0 && spans[j].start < spans[j-1].start; j-- {
@@ -649,8 +649,9 @@ func (r *Reader) emit(ctx context.Context, ch chan<- model.PartResult, part *mod
 	}
 }
 
-// applyCodeFinder applies code finder patterns to a block's fragments.
-// It rebuilds the CodedText with markers for matched patterns.
+// applyCodeFinder applies code finder patterns to a block's segments,
+// rewriting their Run sequences with placeholder runs at matched
+// positions.
 func (r *Reader) applyCodeFinder(block *model.Block) {
 	patterns := r.cfg.GetCodeFinderPatterns()
 	if len(patterns) == 0 {

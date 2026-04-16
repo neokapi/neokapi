@@ -80,11 +80,11 @@ func (cf *codeFinder) applyToRuns(runs []model.Run, spanCounter *int) []model.Ru
 
 	for _, m := range matches {
 		if pos < m.start {
-			b.AppendText(text[pos:m.start])
+			b.AddText(text[pos:m.start])
 		}
 
 		*spanCounter++
-		b.AppendPh(fmt.Sprintf("c%d", *spanCounter),
+		b.AddPh(fmt.Sprintf("c%d", *spanCounter),
 			"fmt:code", "openxml:codeFinder",
 			m.text, m.text, "",
 			false, false, false)
@@ -93,7 +93,7 @@ func (cf *codeFinder) applyToRuns(runs []model.Run, spanCounter *int) []model.Ru
 	}
 
 	if pos < len(text) {
-		b.AppendText(text[pos:])
+		b.AddText(text[pos:])
 	}
 
 	return b.Runs()

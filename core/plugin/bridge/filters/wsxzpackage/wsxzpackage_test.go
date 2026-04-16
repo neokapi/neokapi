@@ -35,7 +35,7 @@ func TestSimpleRead(t *testing.T) {
 		assert.NotEmpty(t, b.ID, "block should have an ID")
 		require.NotEmpty(t, b.Source, "block should have source segments")
 		for _, seg := range b.Source {
-			assert.NotNil(t, seg.Fragment(), "segment should have content")
+			assert.NotNil(t, seg, "segment should not be nil")
 		}
 	}
 }

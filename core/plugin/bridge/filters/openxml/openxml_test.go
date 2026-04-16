@@ -563,16 +563,15 @@ func TestExtract_DocxInlineCodes(t *testing.T) {
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.NotEmpty(t, blocks)
 
-	// Check that at least some blocks have spans (inline codes from formatting runs).
-	var withSpans int
+	// Check that at least some blocks have inline-code runs from formatting runs.
+	var withCodes int
 	for _, b := range blocks {
-		frag := b.FirstFragment()
-		if frag != nil && len(frag.Spans) > 0 {
-			withSpans++
+		if bridgetest.HasInlineCode(b.SourceRuns()) {
+			withCodes++
 		}
 	}
-	if withSpans > 0 {
-		t.Logf("found %d blocks with inline codes", withSpans)
+	if withCodes > 0 {
+		t.Logf("found %d blocks with inline-code runs", withCodes)
 	}
 }
 
@@ -591,7 +590,7 @@ func TestExtract_DocxSegmentIDs(t *testing.T) {
 		require.NotEmpty(t, b.Source, "block should have source segments")
 		for _, seg := range b.Source {
 			assert.NotEmpty(t, seg.ID, "segment should have an ID")
-			assert.NotNil(t, seg.Fragment(), "segment should have content")
+			assert.NotEmpty(t, seg.Runs, "segment should have content")
 		}
 	}
 }
@@ -898,17 +897,30 @@ func TestExtract_SpanData(t *testing.T) {
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.NotEmpty(t, blocks)
 
-	// Check span metadata for blocks with inline codes.
+	// Check inline-code metadata for blocks with inline codes.
 	for _, b := range blocks {
-		frag := b.FirstFragment()
-		if frag == nil || len(frag.Spans) == 0 {
+		runs := b.SourceRuns()
+		if !bridgetest.HasInlineCode(runs) {
 			continue
 		}
-		for j, s := range frag.Spans {
-			assert.NotEmpty(t, s.ID,
-				fmt.Sprintf("block %s span[%d] should have an ID", b.ID, j))
+		j := 0
+		for _, r := range runs {
+			switch {
+			case r.PcOpen != nil:
+				assert.NotEmpty(t, r.PcOpen.ID,
+					fmt.Sprintf("block %s run[%d] PcOpen should have an ID", b.ID, j))
+				j++
+			case r.PcClose != nil:
+				assert.NotEmpty(t, r.PcClose.ID,
+					fmt.Sprintf("block %s run[%d] PcClose should have an ID", b.ID, j))
+				j++
+			case r.Ph != nil:
+				assert.NotEmpty(t, r.Ph.ID,
+					fmt.Sprintf("block %s run[%d] Ph should have an ID", b.ID, j))
+				j++
+			}
 		}
-		return // Found a block with spans, test passes.
+		return // Found a block with inline-code runs, test passes.
 	}
 }
 
@@ -1246,16 +1258,15 @@ func TestExtract_PptxLineBreaksAsTags(t *testing.T) {
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.NotEmpty(t, blocks, "PPTX with line breaks should produce blocks")
 
-	// Line breaks should appear as inline codes (spans).
-	hasSpans := false
+	// Line breaks should appear as inline-code runs.
+	hasCodes := false
 	for _, b := range blocks {
-		frag := b.FirstFragment()
-		if frag != nil && len(frag.Spans) > 0 {
-			hasSpans = true
+		if bridgetest.HasInlineCode(b.SourceRuns()) {
+			hasCodes = true
 			break
 		}
 	}
-	assert.True(t, hasSpans, "line breaks should be represented as inline codes")
+	assert.True(t, hasCodes, "line breaks should be represented as inline-code runs")
 }
 
 // --- Additional XLSX extraction tests (OpenXmlXlsxTest) ---

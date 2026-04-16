@@ -163,6 +163,27 @@ func findBlockContaining(blocks []*model.Block, substr string) *model.Block {
 	return nil
 }
 
+// inlineCodeRuns returns only the inline-code runs (Ph, PcOpen, PcClose, Sub).
+func inlineCodeRuns(runs []model.Run) []model.Run {
+	var out []model.Run
+	for _, r := range runs {
+		if r.Text == nil && r.Plural == nil && r.Select == nil {
+			out = append(out, r)
+		}
+	}
+	return out
+}
+
+// hasInlineCodeRun reports whether any run is a non-text/non-plural/non-select run.
+func hasInlineCodeRun(runs []model.Run) bool {
+	for _, r := range runs {
+		if r.Text == nil && r.Plural == nil && r.Select == nil {
+			return true
+		}
+	}
+	return false
+}
+
 // --- Filter metadata tests ---
 
 // okapi: TmxFilterTest#testDefaultInfo
@@ -892,11 +913,10 @@ func TestUtInSeg(t *testing.T) {
 	assert.Contains(t, text, "start")
 	assert.Contains(t, text, "to")
 
-	// Verify inline codes are captured as spans
-	frag := blocks[0].FirstFragment()
-	require.NotNil(t, frag)
-	assert.True(t, frag.HasSpans(), "should have inline code spans")
-	assert.GreaterOrEqual(t, len(frag.Spans), 5, "should have at least 5 spans (it, bpt, ph, hi open+close, ept)")
+	// Verify inline codes are captured as runs.
+	codes := inlineCodeRuns(blocks[0].SourceRuns())
+	assert.NotEmpty(t, codes, "should have inline-code runs")
+	assert.GreaterOrEqual(t, len(codes), 5, "should have at least 5 inline-code runs (it, bpt, ph, hi open+close, ept)")
 }
 
 // okapi: TmxFilterTest#testUtInSub
@@ -951,11 +971,10 @@ func TestUtInHi(t *testing.T) {
 	assert.Contains(t, text, "a part highlighted")
 	assert.Contains(t, text, ".")
 
-	// Verify hi creates opening/closing spans
-	frag := blocks[0].FirstFragment()
-	require.NotNil(t, frag)
-	assert.True(t, frag.HasSpans())
-	assert.Len(t, frag.Spans, 2, "hi should create opening+closing span pair")
+	// Verify hi creates opening/closing runs.
+	codes := inlineCodeRuns(blocks[0].SourceRuns())
+	assert.NotEmpty(t, codes)
+	assert.Len(t, codes, 2, "hi should create opening+closing run pair")
 }
 
 // okapi: TmxFilterTest#testIsolatedCodes
@@ -984,11 +1003,10 @@ func TestIsolatedCodes(t *testing.T) {
 	assert.Contains(t, text, "First")
 	assert.Contains(t, text, "sentence")
 
-	// Verify the <it> element is captured as a span
-	frag := blocks[0].FirstFragment()
-	require.NotNil(t, frag)
-	assert.True(t, frag.HasSpans())
-	assert.Equal(t, model.SpanOpening, frag.Spans[0].SpanType, "it pos=begin should be opening span")
+	// Verify the <it> element is captured as a PcOpen run.
+	codes := inlineCodeRuns(blocks[0].SourceRuns())
+	require.NotEmpty(t, codes)
+	assert.NotNil(t, codes[0].PcOpen, "it pos=begin should be a PcOpen run")
 }
 
 // --- Stream handling ---
@@ -1543,14 +1561,13 @@ func TestBptEptPair(t *testing.T) {
 	require.NotEmpty(t, blocks)
 	assert.Equal(t, "bold text", blocks[0].SourceText())
 
-	frag := blocks[0].FirstFragment()
-	require.NotNil(t, frag)
-	require.Len(t, frag.Spans, 2)
-	assert.Equal(t, model.SpanOpening, frag.Spans[0].SpanType)
-	assert.Equal(t, "bold", frag.Spans[0].Type)
-	assert.Equal(t, "<b>", frag.Spans[0].Data)
-	assert.Equal(t, model.SpanClosing, frag.Spans[1].SpanType)
-	assert.Equal(t, "</b>", frag.Spans[1].Data)
+	codes := inlineCodeRuns(blocks[0].SourceRuns())
+	require.Len(t, codes, 2)
+	require.NotNil(t, codes[0].PcOpen)
+	assert.Equal(t, "bold", codes[0].PcOpen.Type)
+	assert.Equal(t, "<b>", codes[0].PcOpen.Data)
+	require.NotNil(t, codes[1].PcClose)
+	assert.Equal(t, "</b>", codes[1].PcClose.Data)
 }
 
 func TestPhPlaceholder(t *testing.T) {
@@ -1568,11 +1585,10 @@ func TestPhPlaceholder(t *testing.T) {
 	text := blocks[0].SourceText()
 	assert.Equal(t, "Click  here", text)
 
-	frag := blocks[0].FirstFragment()
-	require.NotNil(t, frag)
-	require.Len(t, frag.Spans, 1)
-	assert.Equal(t, model.SpanPlaceholder, frag.Spans[0].SpanType)
-	assert.Equal(t, "image", frag.Spans[0].Type)
+	codes := inlineCodeRuns(blocks[0].SourceRuns())
+	require.Len(t, codes, 1)
+	require.NotNil(t, codes[0].Ph)
+	assert.Equal(t, "image", codes[0].Ph.Type)
 }
 
 func TestItIsolatedBeginEnd(t *testing.T) {
@@ -1588,11 +1604,10 @@ func TestItIsolatedBeginEnd(t *testing.T) {
 	blocks := readTMXBlocks(t, input)
 	require.NotEmpty(t, blocks)
 
-	frag := blocks[0].FirstFragment()
-	require.NotNil(t, frag)
-	require.Len(t, frag.Spans, 2)
-	assert.Equal(t, model.SpanOpening, frag.Spans[0].SpanType, "it pos=begin should be opening")
-	assert.Equal(t, model.SpanClosing, frag.Spans[1].SpanType, "it pos=end should be closing")
+	codes := inlineCodeRuns(blocks[0].SourceRuns())
+	require.Len(t, codes, 2)
+	assert.NotNil(t, codes[0].PcOpen, "it pos=begin should be a PcOpen run")
+	assert.NotNil(t, codes[1].PcClose, "it pos=end should be a PcClose run")
 }
 
 func TestHiHighlight(t *testing.T) {
@@ -1609,12 +1624,11 @@ func TestHiHighlight(t *testing.T) {
 	require.NotEmpty(t, blocks)
 	assert.Contains(t, blocks[0].SourceText(), "highlighted")
 
-	frag := blocks[0].FirstFragment()
-	require.NotNil(t, frag)
-	require.Len(t, frag.Spans, 2, "hi should produce open+close pair")
-	assert.Equal(t, model.SpanOpening, frag.Spans[0].SpanType)
-	assert.Equal(t, "term", frag.Spans[0].Type)
-	assert.Equal(t, model.SpanClosing, frag.Spans[1].SpanType)
+	codes := inlineCodeRuns(blocks[0].SourceRuns())
+	require.Len(t, codes, 2, "hi should produce open+close pair")
+	require.NotNil(t, codes[0].PcOpen)
+	assert.Equal(t, "term", codes[0].PcOpen.Type)
+	assert.NotNil(t, codes[1].PcClose)
 }
 
 func TestSubInsidePh(t *testing.T) {
@@ -1754,9 +1768,8 @@ func TestMixedInlineCodes(t *testing.T) {
 	assert.Contains(t, text, "Bold")
 	assert.Contains(t, text, "italic")
 
-	frag := blocks[0].FirstFragment()
-	require.NotNil(t, frag)
-	assert.GreaterOrEqual(t, len(frag.Spans), 4, "should have bpt, ph, it, ept spans")
+	codes := inlineCodeRuns(blocks[0].SourceRuns())
+	assert.GreaterOrEqual(t, len(codes), 4, "should have bpt, ph, it, ept inline-code runs")
 }
 
 func TestLargeTMX(t *testing.T) {
@@ -1898,14 +1911,13 @@ func TestTargetFragmentWithSpans(t *testing.T) {
 	blocks := readTMXBlocks(t, input)
 	require.NotEmpty(t, blocks)
 
-	// Verify target also has spans
+	// Verify target also has inline-code runs.
 	assert.True(t, blocks[0].HasTarget("fr"))
 	targetSegs := blocks[0].Targets["fr"]
 	require.NotEmpty(t, targetSegs)
-	frag := targetSegs[0].Fragment()
-	require.NotNil(t, frag)
-	assert.True(t, frag.HasSpans())
-	assert.Equal(t, "cible", frag.Text())
+	targetRuns := targetSegs[0].Runs
+	assert.True(t, hasInlineCodeRun(targetRuns))
+	assert.Equal(t, "cible", model.RunsPlainText(targetRuns))
 }
 
 func TestNestedHiElements(t *testing.T) {
@@ -1925,8 +1937,8 @@ func TestNestedHiElements(t *testing.T) {
 	assert.Contains(t, text, "translation memory")
 	assert.Contains(t, text, "terminology")
 
-	frag := blocks[0].FirstFragment()
-	assert.Len(t, frag.Spans, 4, "two hi elements = 4 spans (2 open + 2 close)")
+	codes := inlineCodeRuns(blocks[0].SourceRuns())
+	assert.Len(t, codes, 4, "two hi elements = 4 inline-code runs (2 open + 2 close)")
 }
 
 func TestBlockTranslatable(t *testing.T) {

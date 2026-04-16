@@ -4,7 +4,6 @@ package mosestext
 
 import (
 	"bytes"
-	"context"
 	"io"
 	"strings"
 	"testing"
@@ -168,10 +167,9 @@ func TestExtract_Code1(t *testing.T) {
 	text := b.SourceText()
 	assert.Contains(t, text, "Text")
 
-	// Should have an inline span for the <x/> code.
-	frag := b.FirstFragment()
-	require.NotNil(t, frag)
-	assert.NotEmpty(t, frag.Spans, "should have inline spans for <x id='1'/>")
+	// Should have an inline-code run for the <x/> code.
+	assert.True(t, bridgetest.HasInlineCode(b.SourceRuns()),
+		"should have inline-code runs for <x id='1'/>")
 }
 
 // okapi: MosesTextFilterTest#testCode2
@@ -188,10 +186,9 @@ func TestExtract_Code2(t *testing.T) {
 	text := b.SourceText()
 	assert.Contains(t, text, "Text")
 
-	// Should have spans for <g>...</g> and <x/> codes.
-	frag := b.FirstFragment()
-	require.NotNil(t, frag)
-	assert.NotEmpty(t, frag.Spans, "should have inline spans for <g> and <x/> codes")
+	// Should have inline-code runs for <g>...</g> and <x/> codes.
+	assert.True(t, bridgetest.HasInlineCode(b.SourceRuns()),
+		"should have inline-code runs for <g> and <x/> codes")
 }
 
 // okapi: MosesTextFilterTest#testCode3
@@ -210,10 +207,9 @@ func TestExtract_Code3(t *testing.T) {
 	assert.Contains(t, text, "t2")
 	assert.Contains(t, text, "t3")
 
-	// Should have multiple nested inline spans.
-	frag := b.FirstFragment()
-	require.NotNil(t, frag)
-	assert.NotEmpty(t, frag.Spans, "should have inline spans for complex nested codes")
+	// Should have multiple nested inline-code runs.
+	assert.True(t, bridgetest.HasInlineCode(b.SourceRuns()),
+		"should have inline-code runs for complex nested codes")
 }
 
 // okapi: MosesTextFilterTest#testCode4
@@ -231,10 +227,9 @@ func TestExtract_Code4(t *testing.T) {
 	assert.Contains(t, text, "T1")
 	assert.Contains(t, text, "T2")
 
-	// Should have spans for bx, x, and ex codes.
-	frag := b.FirstFragment()
-	require.NotNil(t, frag)
-	assert.NotEmpty(t, frag.Spans, "should have inline spans for bx/x/ex codes")
+	// Should have inline-code runs for bx, x, and ex codes.
+	assert.True(t, bridgetest.HasInlineCode(b.SourceRuns()),
+		"should have inline-code runs for bx/x/ex codes")
 }
 
 // okapi: MosesTextFilterTest#testSpecialChars
@@ -467,12 +462,12 @@ func TestExtract_SegmentIDs(t *testing.T) {
 		require.NotEmpty(t, b.Source, "block should have source segments")
 		for _, seg := range b.Source {
 			assert.NotEmpty(t, seg.ID, "segment should have an ID")
-			assert.NotNil(t, seg.Fragment(), "segment should have content")
+			assert.NotEmpty(t, seg.Runs, "segment should have content")
 		}
 	}
 }
 
-// okapi: MosesTextFilterTest#testCode1 (no spans for plain text)
+// okapi: MosesTextFilterTest#testCode1 (no inline-code runs for plain text)
 func TestExtract_NoSpansForPlainText(t *testing.T) {
 	parts := readMosesTextDefault(t, "Simple plain text")
 
@@ -480,10 +475,8 @@ func TestExtract_NoSpansForPlainText(t *testing.T) {
 	require.NotEmpty(t, blocks)
 
 	for _, b := range blocks {
-		frag := b.FirstFragment()
-		if frag != nil {
-			assert.Empty(t, frag.Spans, "plain text without codes should have no inline spans")
-		}
+		assert.False(t, bridgetest.HasInlineCode(b.SourceRuns()),
+			"plain text without codes should have no inline-code runs")
 	}
 }
 

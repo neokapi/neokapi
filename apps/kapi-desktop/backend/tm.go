@@ -130,7 +130,7 @@ type EntityAnnotationDTO struct {
 
 // AddTMEntryRequest is the request to add a new multilingual TM entry.
 // Callers populate Variants with one VariantInput per locale; the server
-// rebuilds Run sequences from CodedText + Spans or falls back to plain Text.
+// rebuilds Run sequences from the coded form + spans or falls back to plain Text.
 type AddTMEntryRequest struct {
 	Variants    map[string]VariantInputDTO `json:"variants"`
 	HintSrcLang string                     `json:"hint_src_lang"`
@@ -325,13 +325,13 @@ func spanDTOToRun(marker rune, s SpanDTO) model.Run {
 }
 
 // runsToVariantDTO converts a Run sequence into the frontend shape. The
-// coded view is materialised on demand via AsCodedText so the wire shape
+// coded view is materialised on demand via MarshalRuns so the wire shape
 // stays unchanged.
 func runsToVariantDTO(locale model.LocaleID, runs []model.Run) VariantDTO {
 	if len(runs) == 0 {
 		return VariantDTO{Locale: string(locale)}
 	}
-	coded, spans := model.AsCodedText(runs)
+	coded, spans := model.MarshalRuns(runs)
 	dtos := make([]SpanDTO, 0, len(spans))
 	for _, s := range spans {
 		var st string

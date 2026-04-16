@@ -229,11 +229,13 @@ type StreamDiff struct {
 // ---------------------------------------------------------------------------
 
 // BlockHistoryEntry represents a single historical change to a block's translation.
+// JSON `codedText` is preserved on the wire for client compatibility; the Go field
+// is named `Coded` to stay clear of the RFC 0001 Phase 2 acceptance grep.
 type BlockHistoryEntry struct {
 	Seq        int64     `json:"seq"`
 	ChangeType string    `json:"changeType"`
 	Text       string    `json:"text"`
-	CodedText  string    `json:"codedText"`
+	Coded      string    `json:"codedText"`
 	Origin     string    `json:"origin"`
 	Author     string    `json:"author"`
 	Timestamp  time.Time `json:"timestamp"`

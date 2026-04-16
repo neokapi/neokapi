@@ -5,6 +5,7 @@ package xliff
 import (
 	"testing"
 
+	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/plugin/bridge/filters/bridgetest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -27,9 +28,9 @@ func TestBalancing_WithCTypes(t *testing.T) {
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.NotEmpty(t, blocks)
 	b := blocks[0]
-	frag := b.FirstFragment()
-	require.NotNil(t, frag)
-	assert.NotEmpty(t, frag.Text(), "should extract text content from XLIFF with ctypes")
+	runs := b.SourceRuns()
+	require.NotEmpty(t, runs)
+	assert.NotEmpty(t, model.RunsPlainText(runs), "should extract text content from XLIFF with ctypes")
 }
 
 // okapi: XLIFFFilterBalancingTest#testValidBalancingOverMultipleSegmentsAfterJoinAll
@@ -54,9 +55,9 @@ func TestBalancing_WithBxAndGTags(t *testing.T) {
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.NotEmpty(t, blocks)
 	b := blocks[0]
-	frag := b.FirstFragment()
-	require.NotNil(t, frag)
-	assert.NotEmpty(t, frag.Text(), "should extract text content from XLIFF with mixed bx/g tags")
+	runs := b.SourceRuns()
+	require.NotEmpty(t, runs)
+	assert.NotEmpty(t, model.RunsPlainText(runs), "should extract text content from XLIFF with mixed bx/g tags")
 }
 
 // okapi: XLIFFFilterBalancingTest#testValidBalancingWithNestedGTagsAfterJoinAll
@@ -65,9 +66,9 @@ func TestBalancing_WithNestedGTags(t *testing.T) {
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.NotEmpty(t, blocks)
 	b := blocks[0]
-	frag := b.FirstFragment()
-	require.NotNil(t, frag)
-	assert.NotEmpty(t, frag.Text(), "should extract text content from XLIFF with nested g tags")
+	runs := b.SourceRuns()
+	require.NotEmpty(t, runs)
+	assert.NotEmpty(t, model.RunsPlainText(runs), "should extract text content from XLIFF with nested g tags")
 }
 
 // okapi: XLIFFFilterBalancingTest#testValidBalancingWithNestedGTagsOnThreeLevelsAfterJoinAll
@@ -76,9 +77,9 @@ func TestBalancing_WithNestedGTagsOnThreeLevels(t *testing.T) {
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.NotEmpty(t, blocks)
 	b := blocks[0]
-	frag := b.FirstFragment()
-	require.NotNil(t, frag)
-	assert.NotEmpty(t, frag.Text(), "should extract text content from XLIFF with 3-level nested g tags")
+	runs := b.SourceRuns()
+	require.NotEmpty(t, runs)
+	assert.NotEmpty(t, model.RunsPlainText(runs), "should extract text content from XLIFF with 3-level nested g tags")
 }
 
 // okapi: XLIFFFilterBalancingTest#testValidBalancingWithNestedGTagsOnThreeLevelsAfterJoinAllWithNamespaces
@@ -87,9 +88,9 @@ func TestBalancing_WithNestedGTagsOnThreeLevelsWithNamespaces(t *testing.T) {
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.NotEmpty(t, blocks)
 	b := blocks[0]
-	frag := b.FirstFragment()
-	require.NotNil(t, frag)
-	assert.NotEmpty(t, frag.Text(), "should extract text content from XLIFF with 3-level nested g tags with namespaces")
+	runs := b.SourceRuns()
+	require.NotEmpty(t, runs)
+	assert.NotEmpty(t, model.RunsPlainText(runs), "should extract text content from XLIFF with 3-level nested g tags with namespaces")
 }
 
 // okapi: XLIFFFilterBalancingTest#testDifferentCTypes
@@ -98,9 +99,9 @@ func TestBalancing_DifferentCTypes(t *testing.T) {
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.NotEmpty(t, blocks)
 	b := blocks[0]
-	frag := b.FirstFragment()
-	require.NotNil(t, frag)
-	assert.NotEmpty(t, frag.Text(), "should extract text content from XLIFF with different ctypes")
+	runs := b.SourceRuns()
+	require.NotEmpty(t, runs)
+	assert.NotEmpty(t, model.RunsPlainText(runs), "should extract text content from XLIFF with different ctypes")
 }
 
 // okapi: XLIFFFilterBalancingTest#testDifferentCTypesWithBreakingMrk
@@ -109,7 +110,7 @@ func TestBalancing_DifferentCTypesWithBreakingMrk(t *testing.T) {
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.NotEmpty(t, blocks)
 	b := blocks[0]
-	frag := b.FirstFragment()
-	require.NotNil(t, frag)
-	assert.NotEmpty(t, frag.Text(), "should extract text content from XLIFF with different ctypes and breaking mrk")
+	runs := b.SourceRuns()
+	require.NotEmpty(t, runs)
+	assert.NotEmpty(t, model.RunsPlainText(runs), "should extract text content from XLIFF with different ctypes and breaking mrk")
 }

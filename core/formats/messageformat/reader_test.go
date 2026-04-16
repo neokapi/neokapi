@@ -108,12 +108,11 @@ func TestExtract_Code1(t *testing.T) {
 	blocks := readBlocks(t, "Hello {0} world")
 	require.NotEmpty(t, blocks)
 
-	frag := blocks[0].FirstFragment()
-	require.NotNil(t, frag)
+	runs := blocks[0].SourceRuns()
 
 	var placeholderCount int
-	for _, s := range frag.Spans {
-		if s.SpanType == model.SpanPlaceholder {
+	for _, r := range runs {
+		if r.Ph != nil {
 			placeholderCount++
 		}
 	}
@@ -130,12 +129,11 @@ func TestExtract_Code2(t *testing.T) {
 	blocks := readBlocks(t, "Hello {name} world")
 	require.NotEmpty(t, blocks)
 
-	frag := blocks[0].FirstFragment()
-	require.NotNil(t, frag)
+	runs := blocks[0].SourceRuns()
 
 	var placeholderCount int
-	for _, s := range frag.Spans {
-		if s.SpanType == model.SpanPlaceholder {
+	for _, r := range runs {
+		if r.Ph != nil {
 			placeholderCount++
 		}
 	}
@@ -148,12 +146,11 @@ func TestExtract_Code3(t *testing.T) {
 	blocks := readBlocks(t, "There are {0,number,integer} files.")
 	require.NotEmpty(t, blocks)
 
-	frag := blocks[0].FirstFragment()
-	require.NotNil(t, frag)
+	runs := blocks[0].SourceRuns()
 
 	var placeholderCount int
-	for _, s := range frag.Spans {
-		if s.SpanType == model.SpanPlaceholder {
+	for _, r := range runs {
+		if r.Ph != nil {
 			placeholderCount++
 		}
 	}
@@ -166,12 +163,11 @@ func TestExtract_Code4(t *testing.T) {
 	blocks := readBlocks(t, "The date is {0,date,short}.")
 	require.NotEmpty(t, blocks)
 
-	frag := blocks[0].FirstFragment()
-	require.NotNil(t, frag)
+	runs := blocks[0].SourceRuns()
 
 	var placeholderCount int
-	for _, s := range frag.Spans {
-		if s.SpanType == model.SpanPlaceholder {
+	for _, r := range runs {
+		if r.Ph != nil {
 			placeholderCount++
 		}
 	}
@@ -184,12 +180,11 @@ func TestExtract_Code5(t *testing.T) {
 	blocks := readBlocks(t, "The time is {0,time}.")
 	require.NotEmpty(t, blocks)
 
-	frag := blocks[0].FirstFragment()
-	require.NotNil(t, frag)
+	runs := blocks[0].SourceRuns()
 
 	var placeholderCount int
-	for _, s := range frag.Spans {
-		if s.SpanType == model.SpanPlaceholder {
+	for _, r := range runs {
+		if r.Ph != nil {
 			placeholderCount++
 		}
 	}
@@ -202,12 +197,11 @@ func TestExtract_Code6(t *testing.T) {
 	blocks := readBlocks(t, "Value is {0,number,#,###}.")
 	require.NotEmpty(t, blocks)
 
-	frag := blocks[0].FirstFragment()
-	require.NotNil(t, frag)
+	runs := blocks[0].SourceRuns()
 
 	var placeholderCount int
-	for _, s := range frag.Spans {
-		if s.SpanType == model.SpanPlaceholder {
+	for _, r := range runs {
+		if r.Ph != nil {
 			placeholderCount++
 		}
 	}
@@ -470,12 +464,11 @@ func TestParser_FormattedMessage(t *testing.T) {
 	blocks := readBlocks(t, input)
 	require.NotEmpty(t, blocks)
 
-	frag := blocks[0].FirstFragment()
-	require.NotNil(t, frag)
+	runs := blocks[0].SourceRuns()
 
 	var placeholderCount int
-	for _, s := range frag.Spans {
-		if s.SpanType == model.SpanPlaceholder {
+	for _, r := range runs {
+		if r.Ph != nil {
 			placeholderCount++
 		}
 	}
@@ -687,13 +680,12 @@ func TestHashAsPlaceholder(t *testing.T) {
 	blocks := readBlocks(t, input)
 	require.NotEmpty(t, blocks)
 
-	// Each block in a plural context should have # as a placeholder span
+	// Each block in a plural context should have # as a placeholder run
 	for _, b := range blocks {
-		frag := b.FirstFragment()
-		require.NotNil(t, frag)
+		runs := b.SourceRuns()
 		var hasHash bool
-		for _, s := range frag.Spans {
-			if s.SpanType == model.SpanPlaceholder && s.Data == "#" {
+		for _, r := range runs {
+			if r.Ph != nil && r.Ph.Data == "#" {
 				hasHash = true
 			}
 		}

@@ -162,7 +162,6 @@ func TestPseudoTranslateToolPreservesSpans(t *testing.T) {
 
 	// Inline-code runs should be preserved (PcOpen + PcClose).
 	var pcOpens, pcCloses int
-	var textParts []string
 	for _, r := range runs {
 		switch {
 		case r.PcOpen != nil:
@@ -172,8 +171,6 @@ func TestPseudoTranslateToolPreservesSpans(t *testing.T) {
 		case r.PcClose != nil:
 			pcCloses++
 			assert.Equal(t, "1", r.PcClose.ID)
-		case r.Text != nil:
-			textParts = append(textParts, r.Text.Text)
 		}
 	}
 	assert.Equal(t, 1, pcOpens)

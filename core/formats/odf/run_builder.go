@@ -13,7 +13,7 @@ func newRunBuilder() *runBuilder {
 	return &runBuilder{}
 }
 
-func (b *runBuilder) AppendText(text string) {
+func (b *runBuilder) AddText(text string) {
 	if text == "" {
 		return
 	}
@@ -24,7 +24,7 @@ func (b *runBuilder) AppendText(text string) {
 	b.runs = append(b.runs, model.Run{Text: &model.TextRun{Text: text}})
 }
 
-func (b *runBuilder) AppendPcOpen(id, semType, data string) {
+func (b *runBuilder) AddPcOpen(id, semType, data string) {
 	b.runs = append(b.runs, model.Run{PcOpen: &model.PcOpenRun{
 		ID:   id,
 		Type: semType,
@@ -32,7 +32,7 @@ func (b *runBuilder) AppendPcOpen(id, semType, data string) {
 	}})
 }
 
-func (b *runBuilder) AppendPcClose(id, semType string) {
+func (b *runBuilder) AddPcClose(id, semType string) {
 	b.runs = append(b.runs, model.Run{PcClose: &model.PcCloseRun{
 		ID:   id,
 		Type: semType,

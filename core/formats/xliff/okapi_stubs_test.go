@@ -13,6 +13,59 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// hasInlineCodeRun reports whether the run sequence contains any non-text run.
+func hasInlineCodeRun(runs []model.Run) bool {
+	for _, r := range runs {
+		if r.Text == nil {
+			return true
+		}
+	}
+	return false
+}
+
+// countInlineCodeRuns returns the number of non-text runs.
+func countInlineCodeRuns(runs []model.Run) int {
+	n := 0
+	for _, r := range runs {
+		if r.Text == nil {
+			n++
+		}
+	}
+	return n
+}
+
+// firstInlineEquiv returns the equiv field of the first inline-code run.
+// Returns empty string if no inline-code run is present.
+func firstInlineEquiv(runs []model.Run) string {
+	for _, r := range runs {
+		switch {
+		case r.Ph != nil:
+			return r.Ph.Equiv
+		case r.PcOpen != nil:
+			return r.PcOpen.Equiv
+		case r.PcClose != nil:
+			return r.PcClose.Equiv
+		}
+	}
+	return ""
+}
+
+// inlineEquivs returns the equiv fields of all inline-code runs in order.
+func inlineEquivs(runs []model.Run) []string {
+	var out []string
+	for _, r := range runs {
+		switch {
+		case r.Ph != nil:
+			out = append(out, r.Ph.Equiv)
+		case r.PcOpen != nil:
+			out = append(out, r.PcOpen.Equiv)
+		case r.PcClose != nil:
+			out = append(out, r.PcClose.Equiv)
+		}
+	}
+	return out
+}
+
 // ---- XLIFFFilterTest (Java-internal / bridge-only) ----
 
 // okapi-unmapped: XLIFFFilterTest#testAddedCloneCode — Java clone API
@@ -120,15 +173,14 @@ func TestCtype_KeepCtypeG(t *testing.T) {
       </trans-unit>`, "x-test")
 	blocks := readXLIFFBlocks(t, xlf)
 	require.NotEmpty(t, blocks)
-	frag := blocks[0].FirstFragment()
-	require.NotNil(t, frag)
+	runs := blocks[0].SourceRuns()
 	var found bool
-	for _, s := range frag.Spans {
-		if s.SpanType == model.SpanOpening && s.Type == "fmt:bold" {
+	for _, r := range runs {
+		if r.PcOpen != nil && r.PcOpen.Type == "fmt:bold" {
 			found = true
 		}
 	}
-	assert.True(t, found, "g ctype=bold should produce a fmt:bold span")
+	assert.True(t, found, "g ctype=bold should produce a fmt:bold pcOpen run")
 }
 
 // okapi: XLIFFFilterCtypeTest#testKeepCtypeBx
@@ -139,15 +191,14 @@ func TestCtype_KeepCtypeBx(t *testing.T) {
       </trans-unit>`, "x-test")
 	blocks := readXLIFFBlocks(t, xlf)
 	require.NotEmpty(t, blocks)
-	frag := blocks[0].FirstFragment()
-	require.NotNil(t, frag)
+	runs := blocks[0].SourceRuns()
 	var hasOpening bool
-	for _, s := range frag.Spans {
-		if s.SpanType == model.SpanOpening && s.Type == "fmt:bold" {
+	for _, r := range runs {
+		if r.PcOpen != nil && r.PcOpen.Type == "fmt:bold" {
 			hasOpening = true
 		}
 	}
-	assert.True(t, hasOpening, "bx ctype=bold should produce a fmt:bold opening span")
+	assert.True(t, hasOpening, "bx ctype=bold should produce a fmt:bold pcOpen run")
 }
 
 // okapi: XLIFFFilterCtypeTest#testKeepCtypeBxRid
@@ -158,9 +209,8 @@ func TestCtype_KeepCtypeBxRid(t *testing.T) {
       </trans-unit>`, "x-test")
 	blocks := readXLIFFBlocks(t, xlf)
 	require.NotEmpty(t, blocks)
-	frag := blocks[0].FirstFragment()
-	require.NotNil(t, frag)
-	require.GreaterOrEqual(t, len(frag.Spans), 2, "should have opening and closing spans")
+	require.GreaterOrEqual(t, countInlineCodeRuns(blocks[0].SourceRuns()), 2,
+		"should have open and close inline-code runs")
 }
 
 // okapi: XLIFFFilterCtypeTest#testKeepCtypeBpt
@@ -171,15 +221,14 @@ func TestCtype_KeepCtypeBpt(t *testing.T) {
       </trans-unit>`, "x-test")
 	blocks := readXLIFFBlocks(t, xlf)
 	require.NotEmpty(t, blocks)
-	frag := blocks[0].FirstFragment()
-	require.NotNil(t, frag)
+	runs := blocks[0].SourceRuns()
 	var found bool
-	for _, s := range frag.Spans {
-		if s.SpanType == model.SpanOpening && s.Type == "fmt:bold" {
+	for _, r := range runs {
+		if r.PcOpen != nil && r.PcOpen.Type == "fmt:bold" {
 			found = true
 		}
 	}
-	assert.True(t, found, "bpt ctype=bold should produce a fmt:bold opening span")
+	assert.True(t, found, "bpt ctype=bold should produce a fmt:bold pcOpen run")
 }
 
 // okapi: XLIFFFilterCtypeTest#testKeepCtypeBptRid
@@ -190,9 +239,8 @@ func TestCtype_KeepCtypeBptRid(t *testing.T) {
       </trans-unit>`, "x-test")
 	blocks := readXLIFFBlocks(t, xlf)
 	require.NotEmpty(t, blocks)
-	frag := blocks[0].FirstFragment()
-	require.NotNil(t, frag)
-	require.GreaterOrEqual(t, len(frag.Spans), 2, "should have opening and closing spans")
+	require.GreaterOrEqual(t, countInlineCodeRuns(blocks[0].SourceRuns()), 2,
+		"should have open and close inline-code runs")
 }
 
 // okapi: XLIFFFilterCtypeTest#testKeepCtypeX
@@ -203,15 +251,14 @@ func TestCtype_KeepCtypeX(t *testing.T) {
       </trans-unit>`, "x-test")
 	blocks := readXLIFFBlocks(t, xlf)
 	require.NotEmpty(t, blocks)
-	frag := blocks[0].FirstFragment()
-	require.NotNil(t, frag)
+	runs := blocks[0].SourceRuns()
 	var found bool
-	for _, s := range frag.Spans {
-		if s.SpanType == model.SpanPlaceholder && s.Type == "struct:break" {
+	for _, r := range runs {
+		if r.Ph != nil && r.Ph.Type == "struct:break" {
 			found = true
 		}
 	}
-	assert.True(t, found, "x ctype=lb should produce a struct:break placeholder span")
+	assert.True(t, found, "x ctype=lb should produce a struct:break placeholder run")
 }
 
 // okapi: XLIFFFilterCtypeTest#testKeepCtypeXBoldAsXBold
@@ -222,9 +269,7 @@ func TestCtype_KeepCtypeXBoldAsXBold(t *testing.T) {
       </trans-unit>`, "x-test")
 	blocks := readXLIFFBlocks(t, xlf)
 	require.NotEmpty(t, blocks)
-	frag := blocks[0].FirstFragment()
-	require.NotNil(t, frag)
-	require.NotEmpty(t, frag.Spans)
+	require.True(t, hasInlineCodeRun(blocks[0].SourceRuns()))
 }
 
 // okapi: XLIFFFilterCtypeTest#testTargetIsSegmentedIdsAreNumbers
@@ -275,10 +320,9 @@ func TestEquivText_KeepGHello(t *testing.T) {
       </trans-unit>`, "x-test")
 	blocks := readXLIFFBlocks(t, xlf)
 	require.NotEmpty(t, blocks)
-	frag := blocks[0].FirstFragment()
-	require.NotNil(t, frag)
-	require.NotEmpty(t, frag.Spans)
-	assert.Equal(t, "hello", frag.Spans[0].EquivText)
+	runs := blocks[0].SourceRuns()
+	require.True(t, hasInlineCodeRun(runs))
+	assert.Equal(t, "hello", firstInlineEquiv(runs))
 }
 
 // okapi: XLIFFFilterEquivTextTest#testKeepEquivTextGCustom
@@ -289,10 +333,9 @@ func TestEquivText_KeepGCustom(t *testing.T) {
       </trans-unit>`, "x-test")
 	blocks := readXLIFFBlocks(t, xlf)
 	require.NotEmpty(t, blocks)
-	frag := blocks[0].FirstFragment()
-	require.NotNil(t, frag)
-	require.NotEmpty(t, frag.Spans)
-	assert.Equal(t, "x-custom", frag.Spans[0].EquivText)
+	runs := blocks[0].SourceRuns()
+	require.True(t, hasInlineCodeRun(runs))
+	assert.Equal(t, "x-custom", firstInlineEquiv(runs))
 }
 
 // okapi: XLIFFFilterEquivTextTest#testKeepEquivTextX
@@ -303,10 +346,9 @@ func TestEquivText_KeepX(t *testing.T) {
       </trans-unit>`, "x-test")
 	blocks := readXLIFFBlocks(t, xlf)
 	require.NotEmpty(t, blocks)
-	frag := blocks[0].FirstFragment()
-	require.NotNil(t, frag)
-	require.NotEmpty(t, frag.Spans)
-	assert.Equal(t, "hello", frag.Spans[0].EquivText)
+	runs := blocks[0].SourceRuns()
+	require.True(t, hasInlineCodeRun(runs))
+	assert.Equal(t, "hello", firstInlineEquiv(runs))
 }
 
 // okapi: XLIFFFilterEquivTextTest#testKeepEquivTextXWithEscapedContent
@@ -317,11 +359,10 @@ func TestEquivText_KeepXWithEscapedContent(t *testing.T) {
       </trans-unit>`, "x-test")
 	blocks := readXLIFFBlocks(t, xlf)
 	require.NotEmpty(t, blocks)
-	frag := blocks[0].FirstFragment()
-	require.NotNil(t, frag)
-	require.NotEmpty(t, frag.Spans)
+	runs := blocks[0].SourceRuns()
+	require.True(t, hasInlineCodeRun(runs))
 	// XML parser unescapes &quot; to "
-	assert.Equal(t, `{"hello"}`, frag.Spans[0].EquivText)
+	assert.Equal(t, `{"hello"}`, firstInlineEquiv(runs))
 }
 
 // okapi: XLIFFFilterEquivTextTest#testKeepEquivTextBx
@@ -332,10 +373,9 @@ func TestEquivText_KeepBx(t *testing.T) {
       </trans-unit>`, "x-test")
 	blocks := readXLIFFBlocks(t, xlf)
 	require.NotEmpty(t, blocks)
-	frag := blocks[0].FirstFragment()
-	require.NotNil(t, frag)
-	require.NotEmpty(t, frag.Spans)
-	assert.Equal(t, "hello", frag.Spans[0].EquivText)
+	runs := blocks[0].SourceRuns()
+	require.True(t, hasInlineCodeRun(runs))
+	assert.Equal(t, "hello", firstInlineEquiv(runs))
 }
 
 // okapi: XLIFFFilterEquivTextTest#testKeepEquivTextEx
@@ -346,10 +386,9 @@ func TestEquivText_KeepEx(t *testing.T) {
       </trans-unit>`, "x-test")
 	blocks := readXLIFFBlocks(t, xlf)
 	require.NotEmpty(t, blocks)
-	frag := blocks[0].FirstFragment()
-	require.NotNil(t, frag)
-	require.NotEmpty(t, frag.Spans)
-	assert.Equal(t, "hello", frag.Spans[0].EquivText)
+	runs := blocks[0].SourceRuns()
+	require.True(t, hasInlineCodeRun(runs))
+	assert.Equal(t, "hello", firstInlineEquiv(runs))
 }
 
 // okapi: XLIFFFilterEquivTextTest#testKeepEquivTextBxEx
@@ -360,11 +399,11 @@ func TestEquivText_KeepBxEx(t *testing.T) {
       </trans-unit>`, "x-test")
 	blocks := readXLIFFBlocks(t, xlf)
 	require.NotEmpty(t, blocks)
-	frag := blocks[0].FirstFragment()
-	require.NotNil(t, frag)
-	require.GreaterOrEqual(t, len(frag.Spans), 2)
-	assert.Equal(t, "hello", frag.Spans[0].EquivText)
-	assert.Equal(t, "world", frag.Spans[1].EquivText)
+	runs := blocks[0].SourceRuns()
+	equivs := inlineEquivs(runs)
+	require.GreaterOrEqual(t, len(equivs), 2)
+	assert.Equal(t, "hello", equivs[0])
+	assert.Equal(t, "world", equivs[1])
 }
 
 // okapi: XLIFFFilterEquivTextTest#testKeepEquivTextBpt
@@ -375,10 +414,9 @@ func TestEquivText_KeepBpt(t *testing.T) {
       </trans-unit>`, "x-test")
 	blocks := readXLIFFBlocks(t, xlf)
 	require.NotEmpty(t, blocks)
-	frag := blocks[0].FirstFragment()
-	require.NotNil(t, frag)
-	require.NotEmpty(t, frag.Spans)
-	assert.Equal(t, "hello", frag.Spans[0].EquivText)
+	runs := blocks[0].SourceRuns()
+	require.True(t, hasInlineCodeRun(runs))
+	assert.Equal(t, "hello", firstInlineEquiv(runs))
 }
 
 // okapi: XLIFFFilterEquivTextTest#testKeepEquivTextEpt
@@ -389,10 +427,9 @@ func TestEquivText_KeepEpt(t *testing.T) {
       </trans-unit>`, "x-test")
 	blocks := readXLIFFBlocks(t, xlf)
 	require.NotEmpty(t, blocks)
-	frag := blocks[0].FirstFragment()
-	require.NotNil(t, frag)
-	require.NotEmpty(t, frag.Spans)
-	assert.Equal(t, "hello", frag.Spans[0].EquivText)
+	runs := blocks[0].SourceRuns()
+	require.True(t, hasInlineCodeRun(runs))
+	assert.Equal(t, "hello", firstInlineEquiv(runs))
 }
 
 // okapi: XLIFFFilterEquivTextTest#testKeepEquivTextPh
@@ -403,10 +440,9 @@ func TestEquivText_KeepPh(t *testing.T) {
       </trans-unit>`, "x-test")
 	blocks := readXLIFFBlocks(t, xlf)
 	require.NotEmpty(t, blocks)
-	frag := blocks[0].FirstFragment()
-	require.NotNil(t, frag)
-	require.NotEmpty(t, frag.Spans)
-	assert.Equal(t, "hello", frag.Spans[0].EquivText)
+	runs := blocks[0].SourceRuns()
+	require.True(t, hasInlineCodeRun(runs))
+	assert.Equal(t, "hello", firstInlineEquiv(runs))
 }
 
 // okapi: XLIFFFilterEquivTextTest#testKeepEquivTextIt
@@ -417,10 +453,9 @@ func TestEquivText_KeepIt(t *testing.T) {
       </trans-unit>`, "x-test")
 	blocks := readXLIFFBlocks(t, xlf)
 	require.NotEmpty(t, blocks)
-	frag := blocks[0].FirstFragment()
-	require.NotNil(t, frag)
-	require.NotEmpty(t, frag.Spans)
-	assert.Equal(t, "hello", frag.Spans[0].EquivText)
+	runs := blocks[0].SourceRuns()
+	require.True(t, hasInlineCodeRun(runs))
+	assert.Equal(t, "hello", firstInlineEquiv(runs))
 }
 
 // ---- XLIFFFilterLengthConstraintsTest (3 tests) ----
@@ -559,9 +594,7 @@ func TestBalancing_WithBxAndGTags(t *testing.T) {
       </trans-unit>`)
 	blocks := readXLIFFBlocks(t, xlf)
 	require.NotEmpty(t, blocks)
-	frag := blocks[0].FirstFragment()
-	require.NotNil(t, frag)
-	assert.Contains(t, frag.Text(), "text")
+	assert.Contains(t, model.RunsPlainText(blocks[0].SourceRuns()), "text")
 }
 
 // okapi: XLIFFFilterBalancingTest#testValidBalancingWithNestedGTagsAfterJoinAll

@@ -7,7 +7,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/plugin/bridge/filters/bridgetest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -305,17 +304,23 @@ func TestSnippets_CodeFinder(t *testing.T) {
 
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.NotEmpty(t, blocks)
-	frag := blocks[0].FirstFragment()
-	require.NotNil(t, frag)
-	// Code finder should produce placeholder spans for matched patterns.
-	if len(frag.Spans) > 0 {
-		var codeSpans int
-		for _, s := range frag.Spans {
-			if s.SpanType == model.SpanPlaceholder {
-				codeSpans++
+	runs := blocks[0].SourceRuns()
+	require.NotEmpty(t, runs)
+	// Code finder should produce placeholder runs for matched patterns.
+	var inlineCount int
+	for _, r := range runs {
+		if r.Text == nil {
+			inlineCount++
+		}
+	}
+	if inlineCount > 0 {
+		var codeRuns int
+		for _, r := range runs {
+			if r.Ph != nil {
+				codeRuns++
 			}
 		}
-		assert.GreaterOrEqual(t, codeSpans, 1, "code finder should produce placeholder spans")
+		assert.GreaterOrEqual(t, codeRuns, 1, "code finder should produce Ph runs")
 	}
 }
 
@@ -692,28 +697,33 @@ func TestSnippets_BadCodeIdsAfterRenumber(t *testing.T) {
 
 	b := findBlockContaining(blocks, "bold1")
 	require.NotNil(t, b)
-	frag := b.FirstFragment()
-	require.NotNil(t, frag)
+	runs := b.SourceRuns()
+	require.NotEmpty(t, runs)
 
 	// Bridge limitation: the Okapi bridge's code renumbering produces
-	// duplicate span IDs for paired inline codes. For <b>bold1</b> text
+	// duplicate run IDs for paired inline codes. For <b>bold1</b> text
 	// <b>bold2</b>, both <b> pairs get IDs "1" and "2" (opening+closing),
-	// resulting in four spans with only two unique IDs. The original Okapi
-	// Java test (testBadCodeIdsAfterRenumber) verified this was fixed in
-	// Okapi, but the bridge's gRPC mapping does not preserve the fix.
+	// resulting in four inline-code runs with only two unique IDs. The
+	// original Okapi Java test (testBadCodeIdsAfterRenumber) verified
+	// this was fixed in Okapi, but the bridge's gRPC mapping does not
+	// preserve the fix.
 	//
-	// Verify the structure is correct: we should have opening/closing spans
-	// for both <b> elements, even if IDs are duplicated.
+	// Verify the structure is correct: we should have opening/closing
+	// runs for both <b> elements, even if IDs are duplicated.
 	ids := make(map[string]int)
-	for _, s := range frag.Spans {
-		if s.ID != "" {
-			ids[s.ID]++
+	var inlineCount int
+	for _, r := range runs {
+		if r.Text == nil {
+			inlineCount++
+			if id := r.RunID(); id != "" {
+				ids[id]++
+			}
 		}
 	}
 	// We expect at least 2 distinct IDs (one per <b> pair), but the bridge
-	// reuses IDs across pairs. Verify spans are present.
-	assert.GreaterOrEqual(t, len(ids), 1, "should have at least one span ID")
-	assert.GreaterOrEqual(t, len(frag.Spans), 4, "should have spans for both <b> pairs")
+	// reuses IDs across pairs. Verify runs are present.
+	assert.GreaterOrEqual(t, len(ids), 1, "should have at least one run ID")
+	assert.GreaterOrEqual(t, inlineCount, 4, "should have inline-code runs for both <b> pairs")
 }
 
 // okapi: XmlSnippetsTest#testWSPreserveStackAfterExcluded

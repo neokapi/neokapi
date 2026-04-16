@@ -164,18 +164,14 @@ func TestExtract_SimpleRead(t *testing.T) {
 		src := b.SourceText()
 		if strings.Contains(src, "bold") {
 			foundSpan = true
-			// Should have inline spans for <span>
-			frag := b.FirstFragment()
-			require.NotNil(t, frag)
-			assert.Greater(t, len(frag.Spans), 0,
-				"paragraph with <span> should have inline spans")
+			// Should have inline-code runs for <span>
+			assert.True(t, bridgetest.HasInlineCode(b.SourceRuns()),
+				"paragraph with <span> should have inline-code runs")
 		}
 		if strings.Contains(src, "italics") {
 			foundItalic = true
-			frag := b.FirstFragment()
-			require.NotNil(t, frag)
-			assert.Greater(t, len(frag.Spans), 0,
-				"paragraph with <i> should have inline spans")
+			assert.True(t, bridgetest.HasInlineCode(b.SourceRuns()),
+				"paragraph with <i> should have inline-code runs")
 		}
 	}
 	assert.True(t, foundSpan, "should find block with 'bold' text")
@@ -363,11 +359,8 @@ func TestExtract_EmptyElements(t *testing.T) {
 	// Find the paragraph block and verify it has inline spans for the empty <span>.
 	paraBlock := findBlockContaining(blocks, "Text")
 	if paraBlock != nil {
-		frag := paraBlock.FirstFragment()
-		if frag != nil {
-			assert.Greater(t, len(frag.Spans), 0,
-				"empty <span></span> should produce inline spans")
-		}
+		assert.True(t, bridgetest.HasInlineCode(paraBlock.SourceRuns()),
+			"empty <span></span> should produce inline-code runs")
 	}
 }
 
@@ -421,17 +414,12 @@ func TestDefaults_WithinText(t *testing.T) {
 	// The <span> should remain inline, producing codes in its parent block.
 	spanBlock := findBlockContaining(blocks, "bold content")
 	if spanBlock != nil {
-		frag := spanBlock.FirstFragment()
-		if frag != nil && len(frag.Spans) > 0 {
-			// Count opening+closing spans for <span>.
-			var codeCount int
-			for _, s := range frag.Spans {
-				if s.SpanType == model.SpanOpening || s.SpanType == model.SpanClosing {
-					codeCount++
-				}
-			}
+		runs := spanBlock.SourceRuns()
+		if bridgetest.HasInlineCode(runs) {
+			// Count paired-code runs for <span>.
+			codeCount := bridgetest.CountPcOpen(runs) + bridgetest.CountPcClose(runs)
 			assert.GreaterOrEqual(t, codeCount, 2,
-				"span content should have at least 2 codes (opening+closing)")
+				"span content should have at least 2 paired-code runs (open+close)")
 		}
 	}
 }

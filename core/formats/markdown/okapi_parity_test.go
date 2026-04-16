@@ -111,8 +111,7 @@ func TestRead_ExtractImageTitleButNotAltText(t *testing.T) {
 	})
 	require.NotEmpty(t, blocks)
 	// Alt text should not appear in translatable text
-	frag := blocks[0].FirstFragment()
-	require.NotNil(t, frag)
+	_ = blocks[0].SourceRuns()
 	assert.NotContains(t, blocks[0].SourceText(), "My Alt")
 }
 
@@ -249,9 +248,7 @@ func TestRead_InlineHtmlTag(t *testing.T) {
 	require.NotEmpty(t, blocks)
 	found := findBlock(blocks, "inline")
 	require.NotNil(t, found)
-	frag := found.FirstFragment()
-	require.NotNil(t, frag)
-	assert.True(t, frag.HasSpans(), "inline HTML tags should produce spans")
+	assert.True(t, hasInlineCodeRun(found.SourceRuns()), "inline HTML tags should produce inline-code runs")
 }
 
 // okapi: MarkdownFilterTest#testLinkRef
@@ -268,9 +265,7 @@ func TestRead_LinkRefAsPairedCode(t *testing.T) {
 	require.NotEmpty(t, blocks)
 	found := findBlock(blocks, "Link text")
 	require.NotNil(t, found)
-	frag := found.FirstFragment()
-	require.NotNil(t, frag)
-	assert.True(t, frag.HasSpans(), "reference link should produce link spans")
+	assert.True(t, hasInlineCodeRun(found.SourceRuns()), "reference link should produce link inline-code runs")
 }
 
 // okapi: MarkdownFilterTest#testLinkSubflow
@@ -332,9 +327,7 @@ func TestRead_NativeCodeTypes(t *testing.T) {
 	require.NotEmpty(t, blocks)
 	found := findBlock(blocks, "code")
 	require.NotNil(t, found)
-	frag := found.FirstFragment()
-	require.NotNil(t, frag)
-	assert.True(t, frag.HasSpans(), "should produce native code type spans")
+	assert.True(t, hasInlineCodeRun(found.SourceRuns()), "should produce native code type runs")
 }
 
 // okapi: MarkdownFilterTest#testNestedBulletWithFencedCodeBlockCRLF
@@ -376,9 +369,7 @@ func TestRead_TabIndentedCodeBlock(t *testing.T) {
 func TestRead_UnderlinedTextWithinAsterisks(t *testing.T) {
 	blocks := readBlocks(t, "***underlined bold***\n")
 	require.NotEmpty(t, blocks)
-	frag := blocks[0].FirstFragment()
-	require.NotNil(t, frag)
-	assert.True(t, frag.HasSpans(), "bold+italic should produce spans")
+	assert.True(t, hasInlineCodeRun(blocks[0].SourceRuns()), "bold+italic should produce inline-code runs")
 }
 
 // ============================================================================
@@ -513,9 +504,7 @@ func TestParse_Emphasis1(t *testing.T) {
 	require.NotEmpty(t, blocks)
 	found := findBlock(blocks, "italic text")
 	require.NotNil(t, found)
-	frag := found.FirstFragment()
-	require.NotNil(t, frag)
-	assert.NotEmpty(t, frag.Spans, "emphasis should produce spans")
+	assert.True(t, hasInlineCodeRun(found.SourceRuns()), "emphasis should produce inline-code runs")
 }
 
 // okapi: MarkdownParserTest#testEmphasis2
@@ -862,9 +851,7 @@ func TestParse_StrongEmphasis1(t *testing.T) {
 	require.NotEmpty(t, blocks)
 	found := findBlock(blocks, "bold text")
 	require.NotNil(t, found)
-	frag := found.FirstFragment()
-	require.NotNil(t, frag)
-	assert.NotEmpty(t, frag.Spans, "strong emphasis should produce spans")
+	assert.True(t, hasInlineCodeRun(found.SourceRuns()), "strong emphasis should produce inline-code runs")
 }
 
 // okapi: MarkdownParserTest#testStrongEmphasis2

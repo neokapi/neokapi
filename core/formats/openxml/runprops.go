@@ -43,7 +43,7 @@ func (rp runProps) isEmpty() bool {
 func (rp runProps) appendOpeningRuns(b *runBuilder, idCounter *int) {
 	emit := func(typ, subType, data string) {
 		*idCounter++
-		b.AppendPcOpen(idStr(*idCounter), typ, subType, data, "", "", true, true, true)
+		b.AddPcOpen(idStr(*idCounter), typ, subType, data, "", "", true, true, true)
 	}
 	if rp.bold {
 		emit(TypeBold, SubTypeBold, "<w:b/>")
@@ -70,7 +70,7 @@ func (rp runProps) appendOpeningRuns(b *runBuilder, idCounter *int) {
 func (rp runProps) appendClosingRuns(b *runBuilder, idCounter *int) {
 	emit := func(typ, subType, data string) {
 		*idCounter++
-		b.AppendPcClose(idStr(*idCounter), typ, subType, data, "")
+		b.AddPcClose(idStr(*idCounter), typ, subType, data, "")
 	}
 	if rp.vertAlign == "subscript" {
 		emit(TypeSubscript, SubTypeSubscript, "</w:vertAlign>")

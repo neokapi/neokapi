@@ -118,10 +118,16 @@ func TestExtract_InlineCodes(t *testing.T) {
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.NotEmpty(t, blocks)
 
-	frag := blocks[0].FirstFragment()
-	require.NotNil(t, frag)
-	// Inline <g> elements should produce spans.
-	assert.GreaterOrEqual(t, len(frag.Spans), 2, "should have spans for <g> elements")
+	runs := blocks[0].SourceRuns()
+	require.NotEmpty(t, runs)
+	// Inline <g> elements should produce inline-code runs.
+	var inlineCount int
+	for _, r := range runs {
+		if r.Text == nil {
+			inlineCount++
+		}
+	}
+	assert.GreaterOrEqual(t, inlineCount, 2, "should have inline-code runs for <g> elements")
 }
 
 // okapi: XLIFFFilterTest#testSegmentedTarget
@@ -475,11 +481,11 @@ func TestExtract_AltTranslation(t *testing.T) {
 	assert.Equal(t, "TM", alt.Origin)
 	assert.Equal(t, 95.0, alt.CombinedScore)
 	assert.Equal(t, "FUZZY", alt.MatchType)
-	// Source and target text should be preserved as fragments.
-	require.NotNil(t, alt.Source, "alt-trans source should not be nil")
-	assert.Equal(t, "Hello", alt.Source.Text())
-	require.NotNil(t, alt.Target, "alt-trans target should not be nil")
-	assert.Equal(t, "Salut", alt.Target.Text())
+	// Source and target text should be preserved as runs.
+	require.NotEmpty(t, alt.Source, "alt-trans source should not be empty")
+	assert.Equal(t, "Hello", model.RunsPlainText(alt.Source))
+	require.NotEmpty(t, alt.Target, "alt-trans target should not be empty")
+	assert.Equal(t, "Salut", model.RunsPlainText(alt.Target))
 }
 
 func TestExtract_MultipleAltTranslations(t *testing.T) {
@@ -607,7 +613,7 @@ func TestExtract_Segmentation(t *testing.T) {
 	// Each segment should have an ID.
 	for _, seg := range b.Source {
 		assert.NotEmpty(t, seg.ID, "segment should have an ID")
-		assert.NotNil(t, seg.Fragment(), "segment should have content")
+		assert.NotNil(t, seg, "segment should not be nil")
 	}
 }
 
@@ -632,18 +638,18 @@ func TestExtract_InlineX(t *testing.T) {
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.NotEmpty(t, blocks)
 
-	frag := blocks[0].FirstFragment()
-	require.NotNil(t, frag)
+	runs := blocks[0].SourceRuns()
+	require.NotEmpty(t, runs)
 
-	// <x/> should produce a placeholder span.
+	// <x/> should produce a placeholder run.
 	var hasPlaceholder bool
-	for _, s := range frag.Spans {
-		if s.SpanType == model.SpanPlaceholder {
+	for _, r := range runs {
+		if r.Ph != nil {
 			hasPlaceholder = true
 			break
 		}
 	}
-	assert.True(t, hasPlaceholder, "should have a placeholder span for <x/>")
+	assert.True(t, hasPlaceholder, "should have a placeholder run for <x/>")
 }
 
 func TestExtract_InlineBpt_Ept(t *testing.T) {
@@ -667,23 +673,29 @@ func TestExtract_InlineBpt_Ept(t *testing.T) {
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.NotEmpty(t, blocks)
 
-	frag := blocks[0].FirstFragment()
-	require.NotNil(t, frag)
-	require.GreaterOrEqual(t, len(frag.Spans), 2,
-		"should have at least opening and closing spans for <bpt>/<ept>")
+	runs := blocks[0].SourceRuns()
+	require.NotEmpty(t, runs)
+	var inlineCount int
+	for _, r := range runs {
+		if r.Text == nil {
+			inlineCount++
+		}
+	}
+	require.GreaterOrEqual(t, inlineCount, 2,
+		"should have at least opening and closing inline-code runs for <bpt>/<ept>")
 
-	// Should have opening and closing spans.
+	// Should have opening and closing runs.
 	var hasOpening, hasClosing bool
-	for _, s := range frag.Spans {
-		if s.SpanType == model.SpanOpening {
+	for _, r := range runs {
+		if r.PcOpen != nil {
 			hasOpening = true
 		}
-		if s.SpanType == model.SpanClosing {
+		if r.PcClose != nil {
 			hasClosing = true
 		}
 	}
-	assert.True(t, hasOpening, "should have opening span from <bpt>")
-	assert.True(t, hasClosing, "should have closing span from <ept>")
+	assert.True(t, hasOpening, "should have PcOpen run from <bpt>")
+	assert.True(t, hasClosing, "should have PcClose run from <ept>")
 }
 
 func TestExtract_BlockSkeleton(t *testing.T) {

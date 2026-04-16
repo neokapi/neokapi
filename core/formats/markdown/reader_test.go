@@ -14,6 +14,29 @@ import (
 
 // --- Helpers ---
 
+func hasInlineCodeRun(runs []model.Run) bool {
+	for _, r := range runs {
+		if r.Text == nil {
+			return true
+		}
+	}
+	return false
+}
+
+func runHasCodeType(runs []model.Run, codeType string) bool {
+	for _, r := range runs {
+		switch {
+		case r.PcOpen != nil && r.PcOpen.Type == codeType:
+			return true
+		case r.PcClose != nil && r.PcClose.Type == codeType:
+			return true
+		case r.Ph != nil && r.Ph.Type == codeType:
+			return true
+		}
+	}
+	return false
+}
+
 // readBlocks reads markdown input and returns the extracted blocks.
 func readBlocks(t *testing.T, input string) []*model.Block {
 	t.Helper()
@@ -176,9 +199,8 @@ func TestReadBoldItalicInline(t *testing.T) {
 	require.Len(t, blocks, 1)
 	assert.Equal(t, "This has bold and italic text", blocks[0].SourceText())
 
-	frag := blocks[0].FirstFragment()
-	require.NotNil(t, frag)
-	assert.True(t, frag.HasSpans())
+	runs := blocks[0].SourceRuns()
+	assert.True(t, hasInlineCodeRun(runs))
 }
 
 // okapi: MarkdownFilterTest#testDontTranslateFencedCodeBlocks
@@ -398,17 +420,10 @@ func TestRead_Emphasis(t *testing.T) {
 	blocks := readBlocks(t, "This is *emphasized* text")
 	require.Len(t, blocks, 1)
 	assert.Equal(t, "This is emphasized text", blocks[0].SourceText())
-	frag := blocks[0].FirstFragment()
-	require.NotNil(t, frag)
-	assert.True(t, frag.HasSpans())
-	// Should have opening and closing spans for italic
-	var hasItalic bool
-	for _, s := range frag.Spans {
-		if s.Type == "fmt:italic" {
-			hasItalic = true
-		}
-	}
-	assert.True(t, hasItalic, "should have italic span")
+	runs := blocks[0].SourceRuns()
+	assert.True(t, hasInlineCodeRun(runs))
+	// Should have opening and closing inline-code runs for italic
+	assert.True(t, runHasCodeType(runs, "fmt:italic"), "should have italic inline code")
 }
 
 // okapi: MarkdownFilterTest#testEmphasisAcrossLines
@@ -416,9 +431,8 @@ func TestRead_EmphasisAcrossLines(t *testing.T) {
 	blocks := readBlocks(t, "This *spans\nacross* lines")
 	require.Len(t, blocks, 1)
 	assert.Equal(t, "This spans across lines", blocks[0].SourceText())
-	frag := blocks[0].FirstFragment()
-	require.NotNil(t, frag)
-	assert.True(t, frag.HasSpans())
+	runs := blocks[0].SourceRuns()
+	assert.True(t, hasInlineCodeRun(runs))
 }
 
 // okapi: MarkdownFilterTest#testEmphasisAtParaStart
@@ -426,9 +440,8 @@ func TestRead_EmphasisAtParaStart(t *testing.T) {
 	blocks := readBlocks(t, "*Bold start* then normal")
 	require.Len(t, blocks, 1)
 	assert.Equal(t, "Bold start then normal", blocks[0].SourceText())
-	frag := blocks[0].FirstFragment()
-	require.NotNil(t, frag)
-	assert.True(t, frag.HasSpans())
+	runs := blocks[0].SourceRuns()
+	assert.True(t, hasInlineCodeRun(runs))
 }
 
 // --- Code Tests ---
@@ -438,36 +451,19 @@ func TestRead_Code(t *testing.T) {
 	blocks := readBlocks(t, "Use the `code` function")
 	require.Len(t, blocks, 1)
 	assert.Equal(t, "Use the code function", blocks[0].SourceText())
-	frag := blocks[0].FirstFragment()
-	require.NotNil(t, frag)
-	assert.True(t, frag.HasSpans())
-	var hasCode bool
-	for _, s := range frag.Spans {
-		if s.Type == "fmt:code" {
-			hasCode = true
-		}
-	}
-	assert.True(t, hasCode, "should have code span")
+	runs := blocks[0].SourceRuns()
+	assert.True(t, hasInlineCodeRun(runs))
+	assert.True(t, runHasCodeType(runs, "fmt:code"), "should have code inline run")
 }
 
 // okapi: MarkdownFilterTest#testCodeAndEmphasis
 func TestRead_CodeAndEmphasis(t *testing.T) {
 	blocks := readBlocks(t, "Use `code` and *emphasis* here")
 	require.Len(t, blocks, 1)
-	frag := blocks[0].FirstFragment()
-	require.NotNil(t, frag)
-	assert.True(t, frag.HasSpans())
-	var hasCode, hasItalic bool
-	for _, s := range frag.Spans {
-		if s.Type == "fmt:code" {
-			hasCode = true
-		}
-		if s.Type == "fmt:italic" {
-			hasItalic = true
-		}
-	}
-	assert.True(t, hasCode, "should have code span")
-	assert.True(t, hasItalic, "should have italic span")
+	runs := blocks[0].SourceRuns()
+	assert.True(t, hasInlineCodeRun(runs))
+	assert.True(t, runHasCodeType(runs, "fmt:code"), "should have code inline run")
+	assert.True(t, runHasCodeType(runs, "fmt:italic"), "should have italic inline run")
 }
 
 // --- Fenced Code Block Tests ---
@@ -534,16 +530,9 @@ func TestRead_Link(t *testing.T) {
 	blocks := readBlocks(t, "Click [here](https://example.com) please")
 	require.Len(t, blocks, 1)
 	assert.Equal(t, "Click here please", blocks[0].SourceText())
-	frag := blocks[0].FirstFragment()
-	require.NotNil(t, frag)
-	assert.True(t, frag.HasSpans())
-	var hasLink bool
-	for _, s := range frag.Spans {
-		if s.Type == "link:hyperlink" {
-			hasLink = true
-		}
-	}
-	assert.True(t, hasLink, "should have link span")
+	runs := blocks[0].SourceRuns()
+	assert.True(t, hasInlineCodeRun(runs))
+	assert.True(t, runHasCodeType(runs, "link:hyperlink"), "should have hyperlink inline run")
 }
 
 // okapi: MarkdownFilterTest#testLinkWithTitle
@@ -551,12 +540,11 @@ func TestRead_LinkWithTitle(t *testing.T) {
 	blocks := readBlocks(t, `Click [here](https://example.com "Example") please`)
 	require.Len(t, blocks, 1)
 	assert.Equal(t, "Click here please", blocks[0].SourceText())
-	frag := blocks[0].FirstFragment()
-	require.NotNil(t, frag)
-	// Verify the closing span contains the title
-	for _, s := range frag.Spans {
-		if s.Type == "link:hyperlink" && s.SpanType == model.SpanClosing {
-			assert.Contains(t, s.Data, "Example")
+	runs := blocks[0].SourceRuns()
+	// Verify the closing run contains the title
+	for _, r := range runs {
+		if r.PcClose != nil && r.PcClose.Type == "link:hyperlink" {
+			assert.Contains(t, r.PcClose.Data, "Example")
 		}
 	}
 }
@@ -575,15 +563,8 @@ func TestRead_Image(t *testing.T) {
 	blocks := readBlocks(t, "See ![alt text](image.png) here")
 	require.Len(t, blocks, 1)
 	assert.Equal(t, "See alt text here", blocks[0].SourceText())
-	frag := blocks[0].FirstFragment()
-	require.NotNil(t, frag)
-	var hasImage bool
-	for _, s := range frag.Spans {
-		if s.Type == "link:image" {
-			hasImage = true
-		}
-	}
-	assert.True(t, hasImage, "should have image span")
+	runs := blocks[0].SourceRuns()
+	assert.True(t, runHasCodeType(runs, "link:image"), "should have image inline run")
 }
 
 // okapi: MarkdownFilterTest#testExtractImageTitleAndAltText
@@ -591,12 +572,11 @@ func TestRead_ExtractImageTitleAndAltText(t *testing.T) {
 	blocks := readBlocks(t, `![alt](image.png "title")`)
 	require.Len(t, blocks, 1)
 	assert.Contains(t, blocks[0].SourceText(), "alt")
-	frag := blocks[0].FirstFragment()
-	require.NotNil(t, frag)
-	// Verify image closing span includes title
-	for _, s := range frag.Spans {
-		if s.Type == "link:image" && s.SpanType == model.SpanClosing {
-			assert.Contains(t, s.Data, "title")
+	runs := blocks[0].SourceRuns()
+	// Verify image closing run includes title
+	for _, r := range runs {
+		if r.PcClose != nil && r.PcClose.Type == "link:image" {
+			assert.Contains(t, r.PcClose.Data, "title")
 		}
 	}
 }
@@ -735,16 +715,9 @@ func TestRead_StrikethroughSubscript(t *testing.T) {
 	blocks := readBlocks(t, "This is ~~deleted~~ text")
 	require.Len(t, blocks, 1)
 	assert.Equal(t, "This is deleted text", blocks[0].SourceText())
-	frag := blocks[0].FirstFragment()
-	require.NotNil(t, frag)
-	assert.True(t, frag.HasSpans())
-	var hasStrike bool
-	for _, s := range frag.Spans {
-		if s.Type == "fmt:strike" {
-			hasStrike = true
-		}
-	}
-	assert.True(t, hasStrike, "should have strikethrough span")
+	runs := blocks[0].SourceRuns()
+	assert.True(t, hasInlineCodeRun(runs))
+	assert.True(t, runHasCodeType(runs, "fmt:strike"), "should have strikethrough inline run")
 }
 
 // --- Hard Line Break Tests ---
@@ -787,9 +760,8 @@ func TestRead_HtmlInline(t *testing.T) {
 	blocks := readBlocks(t, "Text with <b>bold</b> HTML")
 	require.Len(t, blocks, 1)
 	assert.Contains(t, blocks[0].SourceText(), "bold")
-	frag := blocks[0].FirstFragment()
-	require.NotNil(t, frag)
-	assert.True(t, frag.HasSpans(), "inline HTML should produce spans")
+	runs := blocks[0].SourceRuns()
+	assert.True(t, hasInlineCodeRun(runs), "inline HTML should produce inline-code runs")
 }
 
 // --- HTML Entities ---
@@ -819,10 +791,8 @@ func TestRead_UnescapeBackslashes(t *testing.T) {
 	blocks := readBlocks(t, `This is \*not emphasis\*`)
 	require.Len(t, blocks, 1)
 	// Backslash-escaped characters should not be emphasis
-	frag := blocks[0].FirstFragment()
-	if frag != nil {
-		assert.False(t, frag.HasSpans(), "escaped asterisks should not be emphasis")
-	}
+	runs := blocks[0].SourceRuns()
+	assert.False(t, hasInlineCodeRun(runs), "escaped asterisks should not be emphasis")
 }
 
 // --- Mixed HTML and Markdown ---
@@ -831,9 +801,8 @@ func TestRead_UnescapeBackslashes(t *testing.T) {
 func TestRead_MixedHtmlInlineAndMarkdown(t *testing.T) {
 	blocks := readBlocks(t, "Text **bold** and <em>italic</em> together")
 	require.Len(t, blocks, 1)
-	frag := blocks[0].FirstFragment()
-	require.NotNil(t, frag)
-	assert.True(t, frag.HasSpans())
+	runs := blocks[0].SourceRuns()
+	assert.True(t, hasInlineCodeRun(runs))
 }
 
 // --- Ordered Lists ---
@@ -904,9 +873,8 @@ func TestRead_NeighboringMarks(t *testing.T) {
 	blocks := readBlocks(t, "**bold***italic*")
 	require.Len(t, blocks, 1)
 	assert.Equal(t, "bolditalic", blocks[0].SourceText())
-	frag := blocks[0].FirstFragment()
-	require.NotNil(t, frag)
-	assert.True(t, frag.HasSpans())
+	runs := blocks[0].SourceRuns()
+	assert.True(t, hasInlineCodeRun(runs))
 }
 
 // --- HTML Emphasis with HTML tags ---

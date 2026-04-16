@@ -1321,9 +1321,12 @@ func blockSourceText(b *model.Block) string {
 func blockProperties(b *model.Block) map[string]string {
 	props := make(map[string]string)
 	for _, seg := range b.Source {
-		if len(seg.Runs) > 0 && seg.HasInlineCodes() {
-			_, spans := model.AsCodedText(seg.Runs)
-			props["inline_codes"] = fmt.Sprintf("%d", len(spans))
+		if len(seg.Runs) == 0 {
+			continue
+		}
+		n := countInlineCodeRuns(seg.Runs)
+		if n > 0 {
+			props["inline_codes"] = fmt.Sprintf("%d", n)
 			break
 		}
 	}
@@ -1333,6 +1336,18 @@ func blockProperties(b *model.Block) map[string]string {
 		}
 	}
 	return props
+}
+
+// countInlineCodeRuns counts non-text runs (Ph / PcOpen / PcClose / Sub /
+// Plural / Select) in a Run sequence.
+func countInlineCodeRuns(runs []model.Run) int {
+	n := 0
+	for _, r := range runs {
+		if r.Text == nil {
+			n++
+		}
+	}
+	return n
 }
 
 // --- Plugin operations ---

@@ -116,17 +116,9 @@ func TestSnippets_LineBreakAsCode(t *testing.T) {
 	require.NotEmpty(t, blocks)
 	b := findBlockContaining(blocks, "Line 1")
 	require.NotNil(t, b)
-	frag := b.FirstFragment()
-	require.NotNil(t, frag)
-	// br as withinText should produce an inline code
-	var hasPlaceholder bool
-	for _, s := range frag.Spans {
-		if s.SpanType == model.SpanPlaceholder {
-			hasPlaceholder = true
-			break
-		}
-	}
-	assert.True(t, hasPlaceholder, "br element should produce an inline placeholder span")
+	// br as withinText should produce a Ph run
+	assert.True(t, bridgetest.HasPlaceholder(b.SourceRuns()),
+		"br element should produce an inline Ph run")
 }
 
 // okapi: XMLFilterTest#testDeclaredEntities

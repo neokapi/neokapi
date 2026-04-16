@@ -57,13 +57,27 @@ func findBlockContaining(blocks []*model.Block, substr string) *model.Block {
 	return nil
 }
 
-// countSpans counts the total number of spans in a block's first fragment.
+// countSpans counts the total number of inline-code runs in a block's
+// first source segment.
 func countSpans(b *model.Block) int {
-	frag := b.FirstFragment()
-	if frag == nil {
-		return 0
+	return bridgetest.CountInlineCodes(b.SourceRuns())
+}
+
+// codeData returns a slice of inline-code run Data strings (in run order)
+// across PcOpen / PcClose / Ph runs. Plain text runs are skipped.
+func codeData(runs []model.Run) []string {
+	var out []string
+	for _, r := range runs {
+		switch {
+		case r.PcOpen != nil:
+			out = append(out, r.PcOpen.Data)
+		case r.PcClose != nil:
+			out = append(out, r.PcClose.Data)
+		case r.Ph != nil:
+			out = append(out, r.Ph.Data)
+		}
 	}
-	return len(frag.Spans)
+	return out
 }
 
 // ---------------------------------------------------------------------------
@@ -108,10 +122,9 @@ func TestSnippet_ConcatSQStrings(t *testing.T) {
 	// SourceText() returns plain text with inline code markers stripped.
 	assert.Equal(t, "t1t2", tu.SourceText())
 
-	frag := tu.FirstFragment()
-	require.NotNil(t, frag)
-	require.Equal(t, 1, len(frag.Spans), "should have 1 span for concat operator")
-	assert.Equal(t, "' \r. '", frag.Spans[0].Data)
+	codes := codeData(tu.SourceRuns())
+	require.Equal(t, 1, len(codes), "should have 1 inline-code run for concat operator")
+	assert.Equal(t, "' \r. '", codes[0])
 
 	assert.Equal(t, "x-singlequoted", tu.Type)
 }
@@ -126,12 +139,11 @@ func TestSnippet_ConcatDQStringsWithCodesAndVariable(t *testing.T) {
 	// SourceText() returns plain text only; <b>, variable, and </b> are inline codes.
 	assert.Equal(t, "t1t2", tu.SourceText())
 
-	frag := tu.FirstFragment()
-	require.NotNil(t, frag)
-	require.Equal(t, 3, len(frag.Spans), "should have 3 inline codes: <b>, variable, </b>")
-	assert.Equal(t, "<b>", frag.Spans[0].Data)
-	assert.Equal(t, "\".$_CONFIG[\"site\"].\"", frag.Spans[1].Data)
-	assert.Equal(t, "</b>", frag.Spans[2].Data)
+	codes := codeData(tu.SourceRuns())
+	require.Equal(t, 3, len(codes), "should have 3 inline codes: <b>, variable, </b>")
+	assert.Equal(t, "<b>", codes[0])
+	assert.Equal(t, "\".$_CONFIG[\"site\"].\"", codes[1])
+	assert.Equal(t, "</b>", codes[2])
 }
 
 // okapi: PHPContentFilterTest#testCommaCaseWithConcat
@@ -148,10 +160,9 @@ func TestSnippet_CommaCaseWithConcat(t *testing.T) {
 	assert.Equal(t, "t2 and t3", tu2.SourceText())
 	assert.Equal(t, "x-mixed", tu2.Type)
 
-	frag := tu2.FirstFragment()
-	require.NotNil(t, frag)
-	require.Equal(t, 1, len(frag.Spans), "should have 1 span for quote-switch concat")
-	assert.Equal(t, "'.\"", frag.Spans[0].Data)
+	codes := codeData(tu2.SourceRuns())
+	require.Equal(t, 1, len(codes), "should have 1 inline-code run for quote-switch concat")
+	assert.Equal(t, "'.\"", codes[0])
 }
 
 // okapi: PHPContentFilterTest#testConcatWithVariable
@@ -164,10 +175,9 @@ func TestSnippet_ConcatWithVariable(t *testing.T) {
 	// The concat+variable expression becomes an inline code.
 	assert.Equal(t, "t1 t2", tu.SourceText())
 
-	frag := tu.FirstFragment()
-	require.NotNil(t, frag)
-	require.Equal(t, 1, len(frag.Spans), "should have 1 span for concat+variable")
-	assert.Equal(t, "' \r.$b.'", frag.Spans[0].Data)
+	codes := codeData(tu.SourceRuns())
+	require.Equal(t, 1, len(codes), "should have 1 inline-code run for concat+variable")
+	assert.Equal(t, "' \r.$b.'", codes[0])
 }
 
 // okapi: PHPContentFilterTest#testConcatMultipleStrings
@@ -181,11 +191,10 @@ func TestSnippet_ConcatMultipleStrings(t *testing.T) {
 	assert.Equal(t, "t1 t2 t3 ", tu.SourceText())
 	assert.Equal(t, "x-mixed", tu.Type)
 
-	frag := tu.FirstFragment()
-	require.NotNil(t, frag)
-	require.Equal(t, 2, len(frag.Spans), "should have 2 spans for multiple concat operators")
-	assert.Equal(t, "' \r.$b.'", frag.Spans[0].Data)
-	assert.Equal(t, "' . $c.\"", frag.Spans[1].Data)
+	codes := codeData(tu.SourceRuns())
+	require.Equal(t, 2, len(codes), "should have 2 inline-code runs for multiple concat operators")
+	assert.Equal(t, "' \r.$b.'", codes[0])
+	assert.Equal(t, "' . $c.\"", codes[1])
 }
 
 // okapi: PHPContentFilterTest#testConcatWithEndings
@@ -198,11 +207,10 @@ func TestSnippet_ConcatWithEndings(t *testing.T) {
 	// Leading $z and trailing $d are stripped; concat operators become inline codes.
 	assert.Equal(t, "t1 t2 t3 ", tu.SourceText())
 
-	frag := tu.FirstFragment()
-	require.NotNil(t, frag)
-	require.Equal(t, 2, len(frag.Spans), "should have 2 spans for concat operators")
-	assert.Equal(t, "' \r.$b.'", frag.Spans[0].Data)
-	assert.Equal(t, "' . $c.\"", frag.Spans[1].Data)
+	codes := codeData(tu.SourceRuns())
+	require.Equal(t, 2, len(codes), "should have 2 inline-code runs for concat operators")
+	assert.Equal(t, "' \r.$b.'", codes[0])
+	assert.Equal(t, "' . $c.\"", codes[1])
 }
 
 // okapi: PHPContentFilterTest#testConcatSGAndDQStrings
@@ -216,10 +224,9 @@ func TestSnippet_ConcatSGAndDQStrings(t *testing.T) {
 	assert.Equal(t, "t1t2", tu.SourceText())
 	assert.Equal(t, "x-mixed", tu.Type)
 
-	frag := tu.FirstFragment()
-	require.NotNil(t, frag)
-	require.Equal(t, 1, len(frag.Spans), "should have 1 span for quote-switch concat")
-	assert.Equal(t, "' . \"", frag.Spans[0].Data)
+	codes := codeData(tu.SourceRuns())
+	require.Equal(t, 1, len(codes), "should have 1 inline-code run for quote-switch concat")
+	assert.Equal(t, "' . \"", codes[0])
 }
 
 // okapi: PHPContentFilterTest#testEntryWithCodes
@@ -232,10 +239,9 @@ func TestSnippet_EntryWithCodes(t *testing.T) {
 	// {$abc} becomes an inline code; SourceText() returns plain text only.
 	assert.Equal(t, "=text", tu.SourceText())
 
-	frag := tu.FirstFragment()
-	require.NotNil(t, frag)
-	require.Equal(t, 1, len(frag.Spans), "should have 1 span for {$abc}")
-	assert.Equal(t, "{$abc}", frag.Spans[0].Data)
+	codes := codeData(tu.SourceRuns())
+	require.Equal(t, 1, len(codes), "should have 1 inline-code run for {$abc}")
+	assert.Equal(t, "{$abc}", codes[0])
 }
 
 // okapi: PHPContentFilterTest#testSimpleHTMLCodes
@@ -248,12 +254,11 @@ func TestSnippet_SimpleHTMLCodes(t *testing.T) {
 	// HTML tags become inline codes; SourceText() returns plain text only.
 	assert.Equal(t, "tttt", tu.SourceText())
 
-	frag := tu.FirstFragment()
-	require.NotNil(t, frag)
-	require.Equal(t, 3, len(frag.Spans), "should have 3 spans for <a>, </a>, <a attr/>")
-	assert.Equal(t, "<a>", frag.Spans[0].Data)
-	assert.Equal(t, "</a>", frag.Spans[1].Data)
-	assert.Equal(t, "<a attr=\"val\"/>", frag.Spans[2].Data)
+	codes := codeData(tu.SourceRuns())
+	require.Equal(t, 3, len(codes), "should have 3 inline-code runs for <a>, </a>, <a attr/>")
+	assert.Equal(t, "<a>", codes[0])
+	assert.Equal(t, "</a>", codes[1])
+	assert.Equal(t, "<a attr=\"val\"/>", codes[2])
 }
 
 // okapi: PHPContentFilterTest#testParitalStartingHTMLCodes
@@ -266,10 +271,9 @@ func TestSnippet_PartialStartingHTMLCodes(t *testing.T) {
 	// <br/> becomes an inline code; the partial opening tag text is plain text.
 	assert.Equal(t, "c attr=\"val\"> text ", tu.SourceText())
 
-	frag := tu.FirstFragment()
-	require.NotNil(t, frag)
-	require.Equal(t, 1, len(frag.Spans), "should have 1 span for <br/>")
-	assert.Equal(t, "<br/>", frag.Spans[0].Data)
+	codes := codeData(tu.SourceRuns())
+	require.Equal(t, 1, len(codes), "should have 1 inline-code run for <br/>")
+	assert.Equal(t, "<br/>", codes[0])
 }
 
 // okapi: PHPContentFilterTest#testParitalClosingHTMLCodes
@@ -282,10 +286,9 @@ func TestSnippet_PartialClosingHTMLCodes(t *testing.T) {
 	// <br/> becomes an inline code; partial closing tag text remains as plain text.
 	assert.Equal(t, " text <a href=\"...", tu.SourceText())
 
-	frag := tu.FirstFragment()
-	require.NotNil(t, frag)
-	require.Equal(t, 1, len(frag.Spans), "should have 1 span for <br/>")
-	assert.Equal(t, "<br/>", frag.Spans[0].Data)
+	codes := codeData(tu.SourceRuns())
+	require.Equal(t, 1, len(codes), "should have 1 inline-code run for <br/>")
+	assert.Equal(t, "<br/>", codes[0])
 }
 
 // okapi: PHPContentFilterTest#testSpecialHTMLCodes
@@ -298,11 +301,10 @@ func TestSnippet_SpecialHTMLCodes(t *testing.T) {
 	// DOCTYPE and PI become inline codes; SourceText() returns plain text only.
 	assert.Equal(t, " t  t", tu.SourceText())
 
-	frag := tu.FirstFragment()
-	require.NotNil(t, frag)
-	require.Equal(t, 2, len(frag.Spans), "should have 2 spans for DOCTYPE and PI")
-	assert.Equal(t, "<!DOCTYPE...>", frag.Spans[0].Data)
-	assert.Equal(t, "<?pi attr=\"val\"?>", frag.Spans[1].Data)
+	codes := codeData(tu.SourceRuns())
+	require.Equal(t, 2, len(codes), "should have 2 inline-code runs for DOCTYPE and PI")
+	assert.Equal(t, "<!DOCTYPE...>", codes[0])
+	assert.Equal(t, "<?pi attr=\"val\"?>", codes[1])
 }
 
 // okapi: PHPContentFilterTest#testEscapeCodes
@@ -315,15 +317,14 @@ func TestSnippet_EscapeCodes(t *testing.T) {
 	// Escape sequences become inline codes; SourceText() returns plain text only.
 	assert.Equal(t, " t  t  t  t ", tu.SourceText())
 
-	frag := tu.FirstFragment()
-	require.NotNil(t, frag)
-	require.Equal(t, 6, len(frag.Spans), "should have 6 spans for escape codes")
-	assert.Equal(t, "\\n", frag.Spans[0].Data)
-	assert.Equal(t, "\\r", frag.Spans[1].Data)
-	assert.Equal(t, "\\n", frag.Spans[2].Data)
-	assert.Equal(t, "\\r", frag.Spans[3].Data)
-	assert.Equal(t, "\\v", frag.Spans[4].Data)
-	assert.Equal(t, "\\a", frag.Spans[5].Data)
+	codes := codeData(tu.SourceRuns())
+	require.Equal(t, 6, len(codes), "should have 6 inline-code runs for escape codes")
+	assert.Equal(t, "\\n", codes[0])
+	assert.Equal(t, "\\r", codes[1])
+	assert.Equal(t, "\\n", codes[2])
+	assert.Equal(t, "\\r", codes[3])
+	assert.Equal(t, "\\v", codes[4])
+	assert.Equal(t, "\\a", codes[5])
 }
 
 // okapi: PHPContentFilterTest#testLinefeedCodes
@@ -345,12 +346,11 @@ func TestSnippet_VariableCodes(t *testing.T) {
 	// Variable references become inline codes; SourceText() returns plain text only.
 	assert.Equal(t, "t  t  t  t", tu.SourceText())
 
-	frag := tu.FirstFragment()
-	require.NotNil(t, frag)
-	require.Equal(t, 3, len(frag.Spans), "should have 3 spans for [var1], {var2}, {$var3}")
-	assert.Equal(t, "[var1]", frag.Spans[0].Data)
-	assert.Equal(t, "{var2}", frag.Spans[1].Data)
-	assert.Equal(t, "{$var3}", frag.Spans[2].Data)
+	codes := codeData(tu.SourceRuns())
+	require.Equal(t, 3, len(codes), "should have 3 inline-code runs for [var1], {var2}, {$var3}")
+	assert.Equal(t, "[var1]", codes[0])
+	assert.Equal(t, "{var2}", codes[1])
+	assert.Equal(t, "{$var3}", codes[2])
 }
 
 // okapi: PHPContentFilterTest#testCommentsSingleLine
@@ -502,10 +502,9 @@ func TestSnippet_SingleQuotedString(t *testing.T) {
 
 	// First TU: the bridge treats \t as an escape code inline, leaving \ext\' as text.
 	assert.Equal(t, "\\ext\\'", blocks[0].SourceText())
-	frag := blocks[0].FirstFragment()
-	require.NotNil(t, frag)
-	require.Equal(t, 1, len(frag.Spans), "should have 1 span for \\t escape")
-	assert.Equal(t, "\\t", frag.Spans[0].Data)
+	codes := codeData(blocks[0].SourceRuns())
+	require.Equal(t, 1, len(codes), "should have 1 inline-code run for \\t escape")
+	assert.Equal(t, "\\t", codes[0])
 
 	// Second TU: \'\"text\" — no inline codes.
 	assert.Equal(t, "\\'\"text\"", blocks[1].SourceText())
@@ -679,9 +678,7 @@ func TestSnippet_FilteringOfHtmlLikeTags(t *testing.T) {
 			parts := readPHPDefault(t, tc.snippet)
 			blocks := bridgetest.TranslatableBlocks(parts)
 			require.NotEmpty(t, blocks, "should produce at least one translatable block")
-			frag := blocks[0].FirstFragment()
-			require.NotNil(t, frag)
-			assert.Equal(t, tc.wantText, frag.Text())
+			assert.Equal(t, tc.wantText, model.RunsPlainText(blocks[0].SourceRuns()))
 		})
 	}
 }

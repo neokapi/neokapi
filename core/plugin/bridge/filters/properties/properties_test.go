@@ -125,16 +125,16 @@ func TestExtract_MessagePlaceholders(t *testing.T) {
 	require.NotEmpty(t, blocks)
 
 	// The Java test verifies {1} and {2} are extracted as inline codes.
-	frag := blocks[0].FirstFragment()
-	require.NotNil(t, frag)
+	runs := blocks[0].SourceRuns()
+	require.NotEmpty(t, runs)
 
 	var placeholderCount int
-	for _, s := range frag.Spans {
-		if s.SpanType == model.SpanPlaceholder {
+	for _, r := range runs {
+		if r.Ph != nil {
 			placeholderCount++
 		}
 	}
-	assert.Equal(t, 2, placeholderCount, "should have 2 placeholder spans for {1} and {2}")
+	assert.Equal(t, 2, placeholderCount, "should have 2 placeholder runs for {1} and {2}")
 
 	text := blocks[0].SourceText()
 	assert.Contains(t, text, "Text1")
@@ -149,16 +149,16 @@ func TestExtract_MessagePlaceholdersEscaped(t *testing.T) {
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.NotEmpty(t, blocks)
 
-	frag := blocks[0].FirstFragment()
-	require.NotNil(t, frag)
+	runs := blocks[0].SourceRuns()
+	require.NotEmpty(t, runs)
 
 	var placeholderCount int
-	for _, s := range frag.Spans {
-		if s.SpanType == model.SpanPlaceholder {
+	for _, r := range runs {
+		if r.Ph != nil {
 			placeholderCount++
 		}
 	}
-	assert.Equal(t, 2, placeholderCount, "should have 2 placeholder spans for {1} and {2}")
+	assert.Equal(t, 2, placeholderCount, "should have 2 placeholder runs for {1} and {2}")
 }
 
 // okapi: PropertiesFilterTest#testLocDirectives_Skip

@@ -312,9 +312,8 @@ func TestExtract_CodeAndEmphasis(t *testing.T) {
 	require.NotEmpty(t, blocks)
 	found := findBlockContaining(blocks, "code")
 	require.NotNil(t, found, "should extract block with code and emphasis")
-	frag := found.FirstFragment()
-	require.NotNil(t, frag)
-	assert.GreaterOrEqual(t, len(frag.Spans), 2, "should have spans for code and emphasis")
+	assert.GreaterOrEqual(t, bridgetest.CountInlineCodes(found.SourceRuns()), 2,
+		"should have inline-code runs for code and emphasis")
 }
 
 // okapi: MarkdownFilterTest#testCodeFinder
@@ -340,9 +339,8 @@ func TestExtract_InlineFormatting(t *testing.T) {
 		}
 	}
 	require.NotNil(t, found, "should find block with inline formatting")
-	frag := found.FirstFragment()
-	require.NotNil(t, frag)
-	assert.GreaterOrEqual(t, len(frag.Spans), 2, "should have spans for bold/italic")
+	assert.GreaterOrEqual(t, bridgetest.CountInlineCodes(found.SourceRuns()), 2,
+		"should have inline-code runs for bold/italic")
 }
 
 // okapi: MarkdownFilterTest#testEmphasisAcrossLines
@@ -361,9 +359,8 @@ func TestExtract_EmphasisAtParaStart(t *testing.T) {
 	require.NotEmpty(t, blocks)
 	found := findBlockContaining(blocks, "Emphasis")
 	require.NotNil(t, found)
-	frag := found.FirstFragment()
-	require.NotNil(t, frag)
-	assert.NotEmpty(t, frag.Spans, "should have span for emphasis at start")
+	assert.True(t, bridgetest.HasInlineCode(found.SourceRuns()),
+		"should have inline-code run for emphasis at start")
 }
 
 // okapi: MarkdownFilterTest#testFencedCodeBlock
@@ -549,9 +546,8 @@ func TestExtract_HtmlEmphasisAndStrong(t *testing.T) {
 	require.NotEmpty(t, blocks)
 	found := findBlockContaining(blocks, "emphasis")
 	require.NotNil(t, found)
-	frag := found.FirstFragment()
-	require.NotNil(t, frag)
-	assert.GreaterOrEqual(t, len(frag.Spans), 2, "should have spans for HTML em/strong")
+	assert.GreaterOrEqual(t, bridgetest.CountInlineCodes(found.SourceRuns()), 2,
+		"should have inline-code runs for HTML em/strong")
 }
 
 // okapi: MarkdownFilterTest#testHtmlEntities
@@ -718,8 +714,7 @@ func TestExtract_LinkRefAsPairedCode(t *testing.T) {
 	require.NotEmpty(t, blocks)
 	found := findBlockContaining(blocks, "Link text")
 	require.NotNil(t, found)
-	frag := found.FirstFragment()
-	require.NotNil(t, frag)
+	require.NotEmpty(t, found.SourceRuns())
 }
 
 // okapi: MarkdownFilterTest#testReferenceDefinition
@@ -735,9 +730,8 @@ func TestExtract_InlineHtmlTag(t *testing.T) {
 	require.NotEmpty(t, blocks)
 	found := findBlockContaining(blocks, "inline")
 	require.NotNil(t, found)
-	frag := found.FirstFragment()
-	require.NotNil(t, frag)
-	assert.NotEmpty(t, frag.Spans, "inline HTML tags should produce spans")
+	assert.True(t, bridgetest.HasInlineCode(found.SourceRuns()),
+		"inline HTML tags should produce inline-code runs")
 }
 
 // okapi: MarkdownFilterTest#testNestedInlineHtmlTag
@@ -915,9 +909,8 @@ func TestExtract_NativeCodeTypes(t *testing.T) {
 	require.NotEmpty(t, blocks)
 	found := findBlockContaining(blocks, "code")
 	require.NotNil(t, found)
-	frag := found.FirstFragment()
-	require.NotNil(t, frag)
-	assert.NotEmpty(t, frag.Spans, "should produce native code type spans")
+	assert.True(t, bridgetest.HasInlineCode(found.SourceRuns()),
+		"should produce native code type inline runs")
 }
 
 // okapi: MarkdownFilterTest#testNestedBulletWithFencedCodeBlock

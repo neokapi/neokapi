@@ -16,7 +16,7 @@ const (
 )
 
 // AltTranslation holds an alternative translation with metadata.
-// Source and Target are Run sequences — use FlattenRuns or AsCodedText
+// Source and Target are Run sequences — use FlattenRuns or MarshalRuns
 // to materialise a string representation when needed.
 type AltTranslation struct {
 	Source        []Run     `json:"source,omitempty"`

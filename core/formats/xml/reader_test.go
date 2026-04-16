@@ -314,24 +314,24 @@ func TestInline_BasicBoldAnchor(t *testing.T) {
 	b := findBlockContaining(blocks, "Before")
 	require.NotNil(t, b)
 
-	frag := b.FirstFragment()
-	require.NotNil(t, frag)
-	require.GreaterOrEqual(t, len(frag.Spans), 3, "should have opening, closing, and placeholder spans")
+	runs := b.SourceRuns()
+	codes := inlineCodeRuns(runs)
+	require.GreaterOrEqual(t, len(codes), 3, "should have opening, closing, and placeholder inline-code runs")
 
 	var hasOpening, hasClosing, hasPlaceholder bool
-	for _, s := range frag.Spans {
-		switch s.SpanType {
-		case model.SpanOpening:
+	for _, r := range codes {
+		switch {
+		case r.PcOpen != nil:
 			hasOpening = true
-		case model.SpanClosing:
+		case r.PcClose != nil:
 			hasClosing = true
-		case model.SpanPlaceholder:
+		case r.Ph != nil:
 			hasPlaceholder = true
 		}
 	}
-	assert.True(t, hasOpening, "should have opening span for <b>")
-	assert.True(t, hasClosing, "should have closing span for </b>")
-	assert.True(t, hasPlaceholder, "should have placeholder span for <a/>")
+	assert.True(t, hasOpening, "should have opening run for <b>")
+	assert.True(t, hasClosing, "should have closing run for </b>")
+	assert.True(t, hasPlaceholder, "should have placeholder run for <a/>")
 }
 
 // okapi: XmlStreamEventTest#testPWithInlines2
@@ -393,9 +393,8 @@ func TestInline_MultipleInlinePairs(t *testing.T) {
 	require.NotEmpty(t, blocks)
 	b := findBlockContaining(blocks, "bold1")
 	require.NotNil(t, b)
-	frag := b.FirstFragment()
-	require.NotNil(t, frag)
-	assert.GreaterOrEqual(t, len(frag.Spans), 4, "should have spans for both <b> pairs")
+	codes := inlineCodeRuns(b.SourceRuns())
+	assert.GreaterOrEqual(t, len(codes), 4, "should have inline-code runs for both <b> pairs")
 }
 
 // ---------------------------------------------------------------------------
@@ -1335,17 +1334,9 @@ func TestStartTag_OpenNotPlaceholder(t *testing.T) {
 
 	paraBlock := findBlockContaining(blocks, "text")
 	require.NotNil(t, paraBlock)
-	frag := paraBlock.FirstFragment()
-	require.NotNil(t, frag)
 
-	var hasOpening bool
-	for _, s := range frag.Spans {
-		if s.SpanType == model.SpanOpening {
-			hasOpening = true
-			break
-		}
-	}
-	assert.True(t, hasOpening, "start tag <b> should produce an opening span, not placeholder")
+	assert.True(t, hasOpeningRun(paraBlock.SourceRuns()),
+		"start tag <b> should produce an opening run, not placeholder")
 }
 
 // ---------------------------------------------------------------------------
@@ -1365,16 +1356,8 @@ func TestComment_AsPlaceholderSpan(t *testing.T) {
 	assert.Contains(t, text, "Before")
 	assert.Contains(t, text, "after.")
 
-	frag := b.FirstFragment()
-	require.NotNil(t, frag)
-	var hasPlaceholder bool
-	for _, s := range frag.Spans {
-		if s.SpanType == model.SpanPlaceholder {
-			hasPlaceholder = true
-			break
-		}
-	}
-	assert.True(t, hasPlaceholder, "XML comment should produce a placeholder span")
+	assert.True(t, hasPlaceholderRun(b.SourceRuns()),
+		"XML comment should produce a placeholder run")
 }
 
 // okapi: XmlStreamEventTest#testPWithProcessingInstruction
@@ -1390,16 +1373,8 @@ func TestPI_AsPlaceholderSpan(t *testing.T) {
 	assert.Contains(t, text, "Before")
 	assert.Contains(t, text, "after.")
 
-	frag := b.FirstFragment()
-	require.NotNil(t, frag)
-	var hasPlaceholder bool
-	for _, s := range frag.Spans {
-		if s.SpanType == model.SpanPlaceholder {
-			hasPlaceholder = true
-			break
-		}
-	}
-	assert.True(t, hasPlaceholder, "processing instruction should produce a placeholder span")
+	assert.True(t, hasPlaceholderRun(b.SourceRuns()),
+		"processing instruction should produce a placeholder run")
 }
 
 // ---------------------------------------------------------------------------
@@ -1770,24 +1745,33 @@ func TestSpanTypes_Generic(t *testing.T) {
 	blocks := filterBlocks(parts)
 	require.NotEmpty(t, blocks)
 
-	var blockWithSpans *model.Block
+	var blockWithCodes *model.Block
 	for _, b := range blocks {
-		frag := b.FirstFragment()
-		if frag != nil && len(frag.Spans) > 0 {
-			blockWithSpans = b
+		if len(inlineCodeRuns(b.SourceRuns())) > 0 {
+			blockWithCodes = b
 			break
 		}
 	}
-	require.NotNil(t, blockWithSpans)
+	require.NotNil(t, blockWithCodes)
 
-	frag := blockWithSpans.FirstFragment()
-	spanTypes := make(map[string]bool)
-	for _, s := range frag.Spans {
-		if s.Type != "" {
-			spanTypes[s.Type] = true
+	codeTypes := make(map[string]bool)
+	for _, r := range inlineCodeRuns(blockWithCodes.SourceRuns()) {
+		switch {
+		case r.PcOpen != nil:
+			if r.PcOpen.Type != "" {
+				codeTypes[r.PcOpen.Type] = true
+			}
+		case r.PcClose != nil:
+			if r.PcClose.Type != "" {
+				codeTypes[r.PcClose.Type] = true
+			}
+		case r.Ph != nil:
+			if r.Ph.Type != "" {
+				codeTypes[r.Ph.Type] = true
+			}
 		}
 	}
-	assert.Greater(t, len(spanTypes), 0, "should have distinct span types")
+	assert.Greater(t, len(codeTypes), 0, "should have distinct inline-code types")
 }
 
 // ---------------------------------------------------------------------------
@@ -2397,6 +2381,37 @@ func findBlockContaining(blocks []*model.Block, substr string) *model.Block {
 		}
 	}
 	return nil
+}
+
+// inlineCodeRuns returns only the inline-code runs (Ph, PcOpen, PcClose, Sub).
+func inlineCodeRuns(runs []model.Run) []model.Run {
+	var out []model.Run
+	for _, r := range runs {
+		if r.Text == nil && r.Plural == nil && r.Select == nil {
+			out = append(out, r)
+		}
+	}
+	return out
+}
+
+// hasOpeningRun reports whether any run is a PcOpen.
+func hasOpeningRun(runs []model.Run) bool {
+	for _, r := range runs {
+		if r.PcOpen != nil {
+			return true
+		}
+	}
+	return false
+}
+
+// hasPlaceholderRun reports whether any run is a Ph.
+func hasPlaceholderRun(runs []model.Run) bool {
+	for _, r := range runs {
+		if r.Ph != nil {
+			return true
+		}
+	}
+	return false
 }
 
 // findDataPartWithProperty finds the first Data part that has the given property key.

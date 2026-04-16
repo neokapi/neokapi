@@ -71,15 +71,15 @@ func TestBlockSetSourceText(t *testing.T) {
 	assert.Equal(t, "s1", block.Source[0].ID)
 }
 
-func TestBlockFirstFragment(t *testing.T) {
+func TestBlockFirstSegment(t *testing.T) {
 	block := model.NewBlock("tu1", "Hello")
-	frag := block.FirstFragment()
-	require.NotNil(t, frag)
-	assert.Equal(t, "Hello", frag.Text())
+	seg := block.FirstSegment()
+	require.NotNil(t, seg)
+	assert.Equal(t, "Hello", model.RunsPlainText(seg.Runs))
 
 	// Empty block
 	emptyBlock := &model.Block{}
-	assert.Nil(t, emptyBlock.FirstFragment())
+	assert.Nil(t, emptyBlock.FirstSegment())
 }
 
 func TestBlockMultipleSegments(t *testing.T) {
@@ -98,7 +98,7 @@ func TestBlockMultipleSegments(t *testing.T) {
 
 // Fragment / Span tests previously lived here; the bridge type is now
 // internal to coded_text.go and its behaviour is exercised via the
-// FragmentToRuns / RunsToFragment / AsCodedText round-trip in run_test.go.
+// MarshalRuns / UnmarshalRuns round-trip in coded_text_test.go.
 
 func TestLayerRoot(t *testing.T) {
 	layer := &model.Layer{
@@ -278,7 +278,6 @@ func TestLayerJSONSerialization(t *testing.T) {
 	assert.Equal(t, "html", decoded.Format)
 	assert.Equal(t, model.LocaleEnglish, decoded.Locale)
 }
-
 
 // --- Block uniform locale access (AD-043) ---
 

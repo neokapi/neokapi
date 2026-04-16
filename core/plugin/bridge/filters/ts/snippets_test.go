@@ -269,10 +269,16 @@ func TestSnippet_InlineCodes(t *testing.T) {
 	assert.Contains(t, text, "hello", "source should contain 'hello'")
 	assert.Contains(t, text, "world", "source should contain 'world'")
 
-	// The <byte> element should appear as an inline code (span) in the fragment.
-	frag := b.FirstFragment()
-	require.NotNil(t, frag, "block should have a fragment")
-	assert.NotEmpty(t, frag.Spans, "fragment should have spans for <byte> inline code")
+	// The <byte> element should appear as an inline code (run) in the source.
+	runs := b.SourceRuns()
+	require.NotEmpty(t, runs, "block should have runs")
+	var inlineCount int
+	for _, r := range runs {
+		if r.Text == nil {
+			inlineCount++
+		}
+	}
+	assert.NotZero(t, inlineCount, "block should have inline-code runs for <byte>")
 }
 
 // okapi: TsFilterTest#testInlineCodesOutput
@@ -320,9 +326,15 @@ func TestSnippet_DecodeByteFalse(t *testing.T) {
 
 	// The byte element should be handled as an inline code.
 	b := blocks[0]
-	frag := b.FirstFragment()
-	require.NotNil(t, frag)
-	assert.NotEmpty(t, frag.Spans, "<byte> should produce inline spans")
+	runs := b.SourceRuns()
+	require.NotEmpty(t, runs)
+	var inlineCount int
+	for _, r := range runs {
+		if r.Text == nil {
+			inlineCount++
+		}
+	}
+	assert.NotZero(t, inlineCount, "<byte> should produce inline-code runs")
 }
 
 // okapi: TsFilterTest#TestDecodeByteTrueDec

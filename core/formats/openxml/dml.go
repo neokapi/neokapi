@@ -251,7 +251,7 @@ func (p *dmlParser) buildBlock(id string, runs []textRun, partPath string) *mode
 	for _, run := range runs {
 		if run.text == "\n" {
 			spanCounter++
-			b.AppendPh(fmt.Sprintf("c%d", spanCounter),
+			b.AddPh(fmt.Sprintf("c%d", spanCounter),
 				TypeBreak, SubTypeBreak,
 				"<a:br/>", "\n", "",
 				false, false, false)
@@ -269,7 +269,7 @@ func (p *dmlParser) buildBlock(id string, runs []textRun, partPath string) *mode
 			activeProps = &propsCopy
 		}
 
-		b.AppendText(run.text)
+		b.AddText(run.text)
 	}
 
 	if activeProps != nil && !activeProps.isEmpty() {

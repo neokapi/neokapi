@@ -91,9 +91,15 @@ func TestExtract_BilingualInlines(t *testing.T) {
 	parts := readXLIFFDefault(t, xliff)
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.NotEmpty(t, blocks)
-	frag := blocks[0].FirstFragment()
-	require.NotNil(t, frag)
-	assert.GreaterOrEqual(t, len(frag.Spans), 2)
+	runs := blocks[0].SourceRuns()
+	require.NotEmpty(t, runs)
+	var inlineCount int
+	for _, r := range runs {
+		if r.Text == nil {
+			inlineCount++
+		}
+	}
+	assert.GreaterOrEqual(t, inlineCount, 2)
 }
 
 // okapi: XLIFFFilterTest#testBPTTypeTransUnit
@@ -104,14 +110,14 @@ func TestExtract_BPTTypeTransUnit(t *testing.T) {
 	parts := readXLIFFDefault(t, xliff)
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.NotEmpty(t, blocks)
-	frag := blocks[0].FirstFragment()
-	require.NotNil(t, frag)
+	runs := blocks[0].SourceRuns()
+	require.NotEmpty(t, runs)
 	var hasOpening, hasClosing bool
-	for _, s := range frag.Spans {
-		if s.SpanType == model.SpanOpening {
+	for _, r := range runs {
+		if r.PcOpen != nil {
 			hasOpening = true
 		}
-		if s.SpanType == model.SpanClosing {
+		if r.PcClose != nil {
 			hasClosing = true
 		}
 	}
@@ -195,9 +201,15 @@ func TestExtract_EmptyCodes(t *testing.T) {
 	parts := readXLIFFDefault(t, xliff)
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.NotEmpty(t, blocks)
-	frag := blocks[0].FirstFragment()
-	require.NotNil(t, frag)
-	assert.GreaterOrEqual(t, len(frag.Spans), 1)
+	runs := blocks[0].SourceRuns()
+	require.NotEmpty(t, runs)
+	var inlineCount int
+	for _, r := range runs {
+		if r.Text == nil {
+			inlineCount++
+		}
+	}
+	assert.GreaterOrEqual(t, inlineCount, 1)
 }
 
 // okapi: XLIFFFilterTest#testNotes
@@ -922,9 +934,15 @@ func TestExtract_CodeOriginalIDs(t *testing.T) {
 	parts := readXLIFFDefault(t, xliff)
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.NotEmpty(t, blocks)
-	frag := blocks[0].FirstFragment()
-	require.NotNil(t, frag)
-	require.NotEmpty(t, frag.Spans)
+	runs := blocks[0].SourceRuns()
+	require.NotEmpty(t, runs)
+	var inlineCount int
+	for _, r := range runs {
+		if r.Text == nil {
+			inlineCount++
+		}
+	}
+	require.NotZero(t, inlineCount, "expected inline-code runs")
 }
 
 // okapi: XLIFFFilterTest#corruptCodeIdsAfterJoinAll

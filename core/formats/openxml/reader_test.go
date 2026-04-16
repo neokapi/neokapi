@@ -50,6 +50,27 @@ func blockTexts(blocks []*model.Block) []string {
 	return texts
 }
 
+func hasInlineCodeRun(runs []model.Run) bool {
+	for _, r := range runs {
+		if r.Text == nil {
+			return true
+		}
+	}
+	return false
+}
+
+func runHasType(r model.Run, codeType string) bool {
+	switch {
+	case r.PcOpen != nil:
+		return r.PcOpen.Type == codeType
+	case r.PcClose != nil:
+		return r.PcClose.Type == codeType
+	case r.Ph != nil:
+		return r.Ph.Type == codeType
+	}
+	return false
+}
+
 // okapi-filter: openxml
 
 // --- Basic Reader Tests ---
@@ -94,42 +115,39 @@ func TestReadInlineFormatting(t *testing.T) {
 
 	require.Len(t, blocks, 3)
 
-	// First block: plain text, no spans
-	frag := blocks[0].FirstFragment()
-	require.NotNil(t, frag)
-	assert.False(t, frag.HasSpans(), "simple text should have no spans")
-	assert.Equal(t, "Hello, World!", frag.CodedText)
+	// First block: plain text, no inline-code runs
+	runs := blocks[0].SourceRuns()
+	assert.False(t, hasInlineCodeRun(runs), "simple text should have no inline-code runs")
+	assert.Equal(t, "Hello, World!", model.RunsPlainText(runs))
 
-	// Second block: bold text + normal text → should have spans
-	frag = blocks[1].FirstFragment()
-	require.NotNil(t, frag)
-	assert.True(t, frag.HasSpans(), "bold+normal should have spans")
-	assert.Equal(t, "Bold text and normal text", frag.Text())
+	// Second block: bold text + normal text → should have inline-code runs
+	runs = blocks[1].SourceRuns()
+	assert.True(t, hasInlineCodeRun(runs), "bold+normal should have inline-code runs")
+	assert.Equal(t, "Bold text and normal text", model.RunsPlainText(runs))
 
-	// Verify bold spans exist
+	// Verify bold inline-code runs exist
 	hasBold := false
-	for _, s := range frag.Spans {
-		if s.Type == TypeBold {
+	for _, r := range runs {
+		if runHasType(r, TypeBold) {
 			hasBold = true
 			break
 		}
 	}
-	assert.True(t, hasBold, "should have bold span")
+	assert.True(t, hasBold, "should have bold inline-code run")
 
 	// Third block: italic, normal, bold+italic
-	frag = blocks[2].FirstFragment()
-	require.NotNil(t, frag)
-	assert.True(t, frag.HasSpans())
-	assert.Equal(t, "Italic then bold italic", frag.Text())
+	runs = blocks[2].SourceRuns()
+	assert.True(t, hasInlineCodeRun(runs))
+	assert.Equal(t, "Italic then bold italic", model.RunsPlainText(runs))
 
 	hasItalic := false
-	for _, s := range frag.Spans {
-		if s.Type == TypeItalic {
+	for _, r := range runs {
+		if runHasType(r, TypeItalic) {
 			hasItalic = true
 			break
 		}
 	}
-	assert.True(t, hasItalic, "should have italic span")
+	assert.True(t, hasItalic, "should have italic inline-code run")
 }
 
 func TestReadFormattedDocx(t *testing.T) {
@@ -158,21 +176,20 @@ func TestReadBoldUnderline(t *testing.T) {
 	}
 	require.NotNil(t, found, "should find 'Bold underlined' block")
 
-	frag := found.FirstFragment()
-	require.NotNil(t, frag)
+	runs := found.SourceRuns()
 
 	hasBold := false
 	hasUnderline := false
-	for _, s := range frag.Spans {
-		if s.Type == TypeBold {
+	for _, r := range runs {
+		if runHasType(r, TypeBold) {
 			hasBold = true
 		}
-		if s.Type == TypeUnderline {
+		if runHasType(r, TypeUnderline) {
 			hasUnderline = true
 		}
 	}
-	assert.True(t, hasBold, "should have bold span")
-	assert.True(t, hasUnderline, "should have underline span")
+	assert.True(t, hasBold, "should have bold inline-code run")
+	assert.True(t, hasUnderline, "should have underline inline-code run")
 }
 
 func TestReadHyperlink(t *testing.T) {
@@ -190,18 +207,17 @@ func TestReadHyperlink(t *testing.T) {
 	}
 	require.NotNil(t, found, "should find hyperlink block")
 
-	frag := found.FirstFragment()
-	require.NotNil(t, frag)
-	assert.True(t, frag.HasSpans())
+	runs := found.SourceRuns()
+	assert.True(t, hasInlineCodeRun(runs))
 
 	hasHyperlink := false
-	for _, s := range frag.Spans {
-		if s.Type == TypeHyperlink {
+	for _, r := range runs {
+		if runHasType(r, TypeHyperlink) {
 			hasHyperlink = true
 			break
 		}
 	}
-	assert.True(t, hasHyperlink, "should have hyperlink span")
+	assert.True(t, hasHyperlink, "should have hyperlink inline-code run")
 }
 
 func TestReadLineBreak(t *testing.T) {
@@ -219,17 +235,16 @@ func TestReadLineBreak(t *testing.T) {
 	}
 	require.NotNil(t, found, "should find line break block")
 
-	frag := found.FirstFragment()
-	require.NotNil(t, frag)
+	runs := found.SourceRuns()
 
 	hasBreak := false
-	for _, s := range frag.Spans {
-		if s.Type == TypeBreak {
+	for _, r := range runs {
+		if runHasType(r, TypeBreak) {
 			hasBreak = true
 			break
 		}
 	}
-	assert.True(t, hasBreak, "should have break span")
+	assert.True(t, hasBreak, "should have break inline-code run")
 }
 
 func TestReadStrikethroughAndSuperscript(t *testing.T) {
@@ -245,21 +260,20 @@ func TestReadStrikethroughAndSuperscript(t *testing.T) {
 	}
 	require.NotNil(t, found, "should find strikethrough block")
 
-	frag := found.FirstFragment()
-	require.NotNil(t, frag)
+	runs := found.SourceRuns()
 
 	hasStrike := false
 	hasSuper := false
-	for _, s := range frag.Spans {
-		if s.Type == TypeStrikethrough {
+	for _, r := range runs {
+		if runHasType(r, TypeStrikethrough) {
 			hasStrike = true
 		}
-		if s.Type == TypeSuperscript {
+		if runHasType(r, TypeSuperscript) {
 			hasSuper = true
 		}
 	}
-	assert.True(t, hasStrike, "should have strikethrough span")
-	assert.True(t, hasSuper, "should have superscript span")
+	assert.True(t, hasStrike, "should have strikethrough inline-code run")
+	assert.True(t, hasSuper, "should have superscript inline-code run")
 }
 
 func TestReadHiddenTextSkipped(t *testing.T) {

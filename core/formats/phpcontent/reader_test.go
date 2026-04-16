@@ -12,6 +12,17 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// --- Test helpers ---
+
+func hasInlineCodeRun(runs []model.Run) bool {
+	for _, r := range runs {
+		if r.Text == nil {
+			return true
+		}
+	}
+	return false
+}
+
 // --- Basic string extraction ---
 
 // okapi: PHPContentFilterTest#testSingleQuotedString
@@ -169,9 +180,7 @@ func TestConcatDQStringsWithCodesAndVariable(t *testing.T) {
 	require.Len(t, blocks, 1)
 	// $name becomes an inline code
 	assert.Equal(t, "Hello  welcome", blocks[0].SourceText())
-	frag := blocks[0].FirstFragment()
-	require.NotNil(t, frag)
-	assert.True(t, frag.HasSpans())
+	assert.True(t, hasInlineCodeRun(blocks[0].SourceRuns()))
 }
 
 // okapi: PHPContentFilterTest#testConcatMultipleStrings
@@ -260,9 +269,7 @@ func TestEntryWithCodes(t *testing.T) {
 	blocks := testutil.CollectBlocks(t, reader.Read(ctx))
 	require.Len(t, blocks, 1)
 	assert.Equal(t, "Click here now", blocks[0].SourceText())
-	frag := blocks[0].FirstFragment()
-	require.NotNil(t, frag)
-	assert.True(t, frag.HasSpans())
+	assert.True(t, hasInlineCodeRun(blocks[0].SourceRuns()))
 }
 
 // okapi: PHPContentFilterTest#testSimpleHTMLCodes
@@ -277,15 +284,20 @@ func TestSimpleHTMLCodes(t *testing.T) {
 	blocks := testutil.CollectBlocks(t, reader.Read(ctx))
 	require.Len(t, blocks, 1)
 	assert.Equal(t, "This is bold text", blocks[0].SourceText())
-	frag := blocks[0].FirstFragment()
-	require.NotNil(t, frag)
-	assert.True(t, frag.HasSpans())
-	// Should have <b> and </b> as spans
-	require.Len(t, frag.Spans, 2)
-	assert.Equal(t, "<b>", frag.Spans[0].Data)
-	assert.Equal(t, model.SpanOpening, frag.Spans[0].SpanType)
-	assert.Equal(t, "</b>", frag.Spans[1].Data)
-	assert.Equal(t, model.SpanClosing, frag.Spans[1].SpanType)
+	runs := blocks[0].SourceRuns()
+	assert.True(t, hasInlineCodeRun(runs))
+	// Should have <b> open and </b> close runs
+	var inline []model.Run
+	for _, r := range runs {
+		if r.Text == nil {
+			inline = append(inline, r)
+		}
+	}
+	require.Len(t, inline, 2)
+	require.NotNil(t, inline[0].PcOpen)
+	assert.Equal(t, "<b>", inline[0].PcOpen.Data)
+	require.NotNil(t, inline[1].PcClose)
+	assert.Equal(t, "</b>", inline[1].PcClose.Data)
 }
 
 // okapi: PHPContentFilterTest#testParitalStartingHTMLCodes
@@ -300,9 +312,7 @@ func TestPartialStartingHTMLCodes(t *testing.T) {
 	blocks := testutil.CollectBlocks(t, reader.Read(ctx))
 	require.Len(t, blocks, 1)
 	assert.Equal(t, "Bold text", blocks[0].SourceText())
-	frag := blocks[0].FirstFragment()
-	require.NotNil(t, frag)
-	assert.True(t, frag.HasSpans())
+	assert.True(t, hasInlineCodeRun(blocks[0].SourceRuns()))
 }
 
 // okapi: PHPContentFilterTest#testParitalClosingHTMLCodes
@@ -331,11 +341,15 @@ func TestSpecialHTMLCodes(t *testing.T) {
 	blocks := testutil.CollectBlocks(t, reader.Read(ctx))
 	require.Len(t, blocks, 1)
 	assert.Equal(t, "Linebreak", blocks[0].SourceText())
-	frag := blocks[0].FirstFragment()
-	require.NotNil(t, frag)
-	assert.True(t, frag.HasSpans())
-	require.Len(t, frag.Spans, 1)
-	assert.Equal(t, model.SpanPlaceholder, frag.Spans[0].SpanType)
+	runs := blocks[0].SourceRuns()
+	var inline []model.Run
+	for _, r := range runs {
+		if r.Text == nil {
+			inline = append(inline, r)
+		}
+	}
+	require.Len(t, inline, 1)
+	assert.NotNil(t, inline[0].Ph, "expected placeholder run for <br/>")
 }
 
 // okapi: PHPContentFilterTest#testEscapeCodes
@@ -350,9 +364,7 @@ func TestEscapeCodes(t *testing.T) {
 	blocks := testutil.CollectBlocks(t, reader.Read(ctx))
 	require.Len(t, blocks, 1)
 	assert.Equal(t, "HelloWorld", blocks[0].SourceText())
-	frag := blocks[0].FirstFragment()
-	require.NotNil(t, frag)
-	assert.True(t, frag.HasSpans())
+	assert.True(t, hasInlineCodeRun(blocks[0].SourceRuns()))
 }
 
 // okapi: PHPContentFilterTest#testLinefeedCodes
@@ -367,10 +379,15 @@ func TestLinefeedCodes(t *testing.T) {
 	blocks := testutil.CollectBlocks(t, reader.Read(ctx))
 	require.Len(t, blocks, 1)
 	assert.Equal(t, "Line1Line2Line3", blocks[0].SourceText())
-	frag := blocks[0].FirstFragment()
-	require.NotNil(t, frag)
-	// Should have 2 \n escape spans
-	assert.GreaterOrEqual(t, len(frag.Spans), 2)
+	runs := blocks[0].SourceRuns()
+	var inline int
+	for _, r := range runs {
+		if r.Text == nil {
+			inline++
+		}
+	}
+	// Should have 2 \n escape inline-code runs
+	assert.GreaterOrEqual(t, inline, 2)
 }
 
 // okapi: PHPContentFilterTest#testOutputLinefeedCodes
@@ -412,13 +429,22 @@ func TestVariableCodes(t *testing.T) {
 	blocks := testutil.CollectBlocks(t, reader.Read(ctx))
 	require.Len(t, blocks, 1)
 	assert.Equal(t, "Hello , welcome to ", blocks[0].SourceText())
-	frag := blocks[0].FirstFragment()
-	require.NotNil(t, frag)
-	assert.True(t, frag.HasSpans())
+	runs := blocks[0].SourceRuns()
 	// $name and $app should be inline codes
-	require.Len(t, frag.Spans, 2)
-	assert.Equal(t, "$name", frag.Spans[0].Data)
-	assert.Equal(t, "$app", frag.Spans[1].Data)
+	var inlineData []string
+	for _, r := range runs {
+		switch {
+		case r.Ph != nil:
+			inlineData = append(inlineData, r.Ph.Data)
+		case r.PcOpen != nil:
+			inlineData = append(inlineData, r.PcOpen.Data)
+		case r.PcClose != nil:
+			inlineData = append(inlineData, r.PcClose.Data)
+		}
+	}
+	require.Len(t, inlineData, 2)
+	assert.Equal(t, "$name", inlineData[0])
+	assert.Equal(t, "$app", inlineData[1])
 }
 
 // --- Comments ---
@@ -809,9 +835,7 @@ func TestFilteringOfHtmlLikeTags(t *testing.T) {
 	blocks := testutil.CollectBlocks(t, reader.Read(ctx))
 	require.Len(t, blocks, 1)
 	assert.Equal(t, "Use emphasis here", blocks[0].SourceText())
-	frag := blocks[0].FirstFragment()
-	require.NotNil(t, frag)
-	assert.True(t, frag.HasSpans())
+	assert.True(t, hasInlineCodeRun(blocks[0].SourceRuns()))
 }
 
 // --- Output / Roundtrip ---

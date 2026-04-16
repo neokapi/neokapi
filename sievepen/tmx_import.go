@@ -529,7 +529,7 @@ func parseTMXSeg(dec *xml.Decoder, mapping *TMXMapping) ([]model.Run, error) {
 		}
 		switch t := tok.(type) {
 		case xml.CharData:
-			b.AppendText(string(t))
+			b.AddText(string(t))
 		case xml.EndElement:
 			if t.Name.Local == "seg" {
 				return b.Runs(), nil
@@ -570,7 +570,7 @@ func parseTMXSeg(dec *xml.Decoder, mapping *TMXMapping) ([]model.Run, error) {
 				if err != nil {
 					return nil, err
 				}
-				b.AppendPh(nextID(), mapping.Fallback, "tmx:raw", raw)
+				b.AddPh(nextID(), mapping.Fallback, "tmx:raw", raw)
 			}
 		}
 	}
@@ -587,7 +587,7 @@ func handlePH(dec *xml.Decoder, start xml.StartElement, b *runBuilder, mapping *
 	if id == "" {
 		id = nextID()
 	}
-	b.AppendPh(id, mapping.Resolve("ph", typeAttr), "tmx:ph", data)
+	b.AddPh(id, mapping.Resolve("ph", typeAttr), "tmx:ph", data)
 	return nil
 }
 
@@ -606,7 +606,7 @@ func handleBPT(dec *xml.Decoder, start xml.StartElement, b *runBuilder, mapping 
 	if id == "" {
 		id = nextID()
 	}
-	b.AppendPcOpen(id, semType, "tmx:bpt", data)
+	b.AddPcOpen(id, semType, "tmx:bpt", data)
 	return nil
 }
 
@@ -630,7 +630,7 @@ func handleEPT(dec *xml.Decoder, start xml.StartElement, b *runBuilder, mapping 
 	if id == "" {
 		id = nextID()
 	}
-	b.AppendPcClose(id, semType, "tmx:ept", data)
+	b.AddPcClose(id, semType, "tmx:ept", data)
 	return nil
 }
 
@@ -644,9 +644,9 @@ func handleIT(dec *xml.Decoder, start xml.StartElement, b *runBuilder, mapping *
 	semType := mapping.Resolve("it", typeAttr)
 	id := nextID()
 	if pos == "end" {
-		b.AppendPcClose(id, semType, "tmx:it", data)
+		b.AddPcClose(id, semType, "tmx:it", data)
 	} else {
-		b.AppendPcOpen(id, semType, "tmx:it", data)
+		b.AddPcOpen(id, semType, "tmx:it", data)
 	}
 	return nil
 }
@@ -655,7 +655,7 @@ func handleHI(dec *xml.Decoder, start xml.StartElement, b *runBuilder, mapping *
 	typeAttr := findAttr(start.Attr, "type")
 	semType := mapping.Resolve("hi", typeAttr)
 	id := nextID()
-	b.AppendPcOpen(id, semType, "tmx:hi", "")
+	b.AddPcOpen(id, semType, "tmx:hi", "")
 	// Recursively parse children (text + inline elements).
 	for {
 		tok, err := dec.Token()
@@ -664,10 +664,10 @@ func handleHI(dec *xml.Decoder, start xml.StartElement, b *runBuilder, mapping *
 		}
 		switch t := tok.(type) {
 		case xml.CharData:
-			b.AppendText(string(t))
+			b.AddText(string(t))
 		case xml.EndElement:
 			if t.Name.Local == "hi" {
-				b.AppendPcClose(id, semType, "tmx:hi", "")
+				b.AddPcClose(id, semType, "tmx:hi", "")
 				return nil
 			}
 		case xml.StartElement:
@@ -705,7 +705,7 @@ func handleHI(dec *xml.Decoder, start xml.StartElement, b *runBuilder, mapping *
 				if err != nil {
 					return err
 				}
-				b.AppendPh(nextID(), mapping.Fallback, "tmx:raw", raw)
+				b.AddPh(nextID(), mapping.Fallback, "tmx:raw", raw)
 			}
 		}
 	}
@@ -717,7 +717,7 @@ func handleSUB(dec *xml.Decoder, start xml.StartElement, b *runBuilder, mapping 
 		return err
 	}
 	typeAttr := findAttr(start.Attr, "type")
-	b.AppendPh(nextID(), mapping.Resolve("sub", typeAttr), "tmx:sub", raw)
+	b.AddPh(nextID(), mapping.Resolve("sub", typeAttr), "tmx:sub", raw)
 	return nil
 }
 
@@ -727,7 +727,7 @@ func handleUT(dec *xml.Decoder, start xml.StartElement, b *runBuilder, mapping *
 	if err != nil {
 		return err
 	}
-	b.AppendPh(nextID(), mapping.Resolve("ut", typeAttr), "tmx:ut", data)
+	b.AddPh(nextID(), mapping.Resolve("ut", typeAttr), "tmx:ut", data)
 	return nil
 }
 

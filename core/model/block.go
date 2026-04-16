@@ -178,15 +178,6 @@ func (b *Block) SetTargetRuns(locale LocaleID, runs []Run) {
 	b.Targets[locale] = []*Segment{NewRunsSegment("s1", runs)}
 }
 
-// AsCodedText flattens the Block's source into the legacy PUA-marker
-// coded string + Span list form. Hot-path helper for tools that need
-// O(1) substring operations on a flat string; never persist the
-// output, always derive on demand. Matches the RFC 0001 §Phase 2
-// acceptance criterion.
-func (b *Block) AsCodedText() (string, []*Span) {
-	return AsCodedText(b.SourceRuns())
-}
-
 // FirstSegment returns the first source segment or nil if the block
 // has no source content.
 func (b *Block) FirstSegment() *Segment {
@@ -194,23 +185,4 @@ func (b *Block) FirstSegment() *Segment {
 		return nil
 	}
 	return b.Source[0]
-}
-
-// FirstFragment materializes the block's first source segment as a
-// Fragment (CodedText + Span list) — the PUA-marker representation
-// used by writers and assertions that operate on a flat string. Runs
-// are the canonical form; the Fragment is derived on demand from
-// Source[0].Runs and should never be persisted.
-func (b *Block) FirstFragment() *Fragment {
-	if len(b.Source) == 0 {
-		return nil
-	}
-	return RunsToFragment(b.Source[0].Runs)
-}
-
-// SetTargetFragment installs a single-segment target for a locale
-// from a Fragment. The Fragment is translated to Runs — callers that
-// already hold Runs should prefer SetTargetRuns directly.
-func (b *Block) SetTargetFragment(locale LocaleID, frag *Fragment) {
-	b.SetTargetRuns(locale, FragmentToRuns(frag))
 }
