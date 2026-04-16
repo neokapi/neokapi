@@ -808,7 +808,7 @@ func (r *Reader) addInlineSpans(block *model.Block, node ast.Node, source []byte
 	spanCounter := 0
 	r.buildCodedFragment(frag, node, source, &spanCounter)
 	if frag.HasSpans() {
-		block.Source = []*model.Segment{{ID: "s1", Content: frag}}
+		block.Source = []*model.Segment{model.NewRunsSegment("s1", model.FragmentToRuns(frag))}
 	}
 }
 
