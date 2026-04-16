@@ -13,9 +13,9 @@
  */
 
 import { createHash } from 'node:crypto';
-import { zipSync } from 'fflate';
+import { unzipSync, zipSync } from 'fflate';
 
-import type { File } from './block.ts';
+import type { Block, File, Run } from './block.ts';
 import { marshalFile } from './klf.ts';
 
 /** The well-known name of the archive manifest. */
@@ -329,4 +329,133 @@ function posixClean(p: string): string {
 
 function sha256Hex(data: Uint8Array): string {
   return createHash('sha256').update(data).digest('hex');
+}
+
+// ─── Reader ──────────────────────────────────────────────────────
+
+export interface KlzReaderOptions {
+  /** Verify each part's SHA-256 on access. Defaults to true. */
+  verifyHashes?: boolean;
+}
+
+/**
+ * Parse a .klz archive into an in-memory structure. Decompresses
+ * lazily on `read`; the manifest is decoded eagerly so `documents()`,
+ * `targets()`, and hash checks work without re-inflating.
+ */
+export class KlzReader {
+  private readonly entries: Record<string, Uint8Array>;
+  readonly manifest: Manifest;
+  private readonly verifyHashes: boolean;
+
+  constructor(archive: Uint8Array, opts: KlzReaderOptions = {}) {
+    this.entries = unzipSync(archive);
+    const manifestBytes = this.entries[MANIFEST_PATH];
+    if (!manifestBytes) {
+      throw new Error('klz: archive is missing manifest.json');
+    }
+    this.manifest = JSON.parse(new TextDecoder().decode(manifestBytes)) as Manifest;
+    this.verifyHashes = opts.verifyHashes ?? true;
+  }
+
+  /** Raw bytes for a manifested part. Verifies SHA-256 if enabled. */
+  read(partPath: string): Uint8Array {
+    const entry = this.manifest.parts.find((p) => p.path === partPath);
+    if (!entry) {
+      throw new Error(`klz: part ${JSON.stringify(partPath)} not in manifest`);
+    }
+    const bytes = this.entries[partPath];
+    if (!bytes) {
+      throw new Error(`klz: part ${JSON.stringify(partPath)} missing from archive`);
+    }
+    if (this.verifyHashes) {
+      const got = sha256Hex(bytes);
+      if (got !== entry.sha256) {
+        throw new Error(
+          `klz: part ${JSON.stringify(partPath)} hash mismatch — manifest ${entry.sha256}, actual ${got}`,
+        );
+      }
+    }
+    return bytes;
+  }
+
+  /** All source documents parsed from `documents/*.klf` parts. */
+  documents(): File[] {
+    return this.partsByRole('document').map((p) => this.parseFile(p.path));
+  }
+
+  /** Target overlays for a given locale parsed from `targets/{locale}/*.klf`. */
+  targets(locale: string): File[] {
+    const prefix = `targets/${locale}/`;
+    return this.partsByRole('target')
+      .filter((p) => p.path.startsWith(prefix))
+      .map((p) => this.parseFile(p.path));
+  }
+
+  /** Bytes for every annotation sidecar (`annotations/*.klfl`). */
+  annotationFiles(): Uint8Array[] {
+    return this.partsByRole('annotation').map((p) => this.read(p.path));
+  }
+
+  /**
+   * Iterate every source Block across every document. Mirrors the
+   * Go `core/klz` iteration helper; consumers that want to flatten
+   * targets per locale loop over the yield.
+   */
+  *blocks(): IterableIterator<{ file: File; block: Block }> {
+    for (const file of this.documents()) {
+      for (const doc of file.documents) {
+        for (const block of doc.blocks) {
+          yield { file, block };
+        }
+      }
+    }
+  }
+
+  private partsByRole(role: PartRole): ManifestPartInfo[] {
+    return this.manifest.parts.filter((p) => p.role === role);
+  }
+
+  private parseFile(partPath: string): File {
+    const bytes = this.read(partPath);
+    return JSON.parse(new TextDecoder().decode(bytes)) as File;
+  }
+}
+
+// ─── Run flattening (runtime dict encoding) ─────────────────────
+
+/**
+ * Flatten a Run sequence to the string shape the kapi-react runtime
+ * consumes via `t()` and `tx()`: placeholders become `{equiv}`
+ * tokens, paired codes keep their content with `{=<id>...}` markers
+ * for `tx()` to re-attach elements, subblocks become `[equiv]`.
+ * Plural / select emit ICU syntax so the runtime's resolveICU picks
+ * the right form at render time.
+ */
+export function flattenRuns(runs: Run[]): string {
+  let out = '';
+  for (const r of runs) {
+    if ('text' in r) {
+      out += r.text;
+    } else if ('ph' in r) {
+      out += `{${r.ph.equiv || r.ph.id}}`;
+    } else if ('pcOpen' in r) {
+      out += `{=m${r.pcOpen.id}}`;
+    } else if ('pcClose' in r) {
+      out += `{/=m${r.pcClose.id}}`;
+    } else if ('sub' in r) {
+      out += `[${r.sub.equiv || r.sub.id}]`;
+    } else if ('plural' in r) {
+      const forms = Object.entries(r.plural.forms)
+        .map(([k, v]) => `${k} {${flattenRuns(v)}}`)
+        .join(' ');
+      out += `{${r.plural.pivot}, plural, ${forms}}`;
+    } else if ('select' in r) {
+      const cases = Object.entries(r.select.cases)
+        .map(([k, v]) => `${k} {${flattenRuns(v)}}`)
+        .join(' ');
+      out += `{${r.select.pivot}, select, ${cases}}`;
+    }
+  }
+  return out;
 }

@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest';
 import { unzipSync } from 'fflate';
 
 import {
+  flattenRuns,
   Kind,
+  KlzReader,
   KlzWriter,
   MANIFEST_PATH,
   ManifestVersion,
@@ -125,6 +127,105 @@ describe('KlzWriter.build', () => {
     // Byte-for-byte identical across invocations (DEFLATE + zeroed
     // mtime + stable part order + deterministic manifest).
     expect(make()).toEqual(make());
+  });
+});
+
+describe('KlzReader', () => {
+  it('round-trips Writer output and exposes documents', () => {
+    const w = new KlzWriter({
+      generator: { id: '@neokapi/kapi-react', version: '0.1.0' },
+      project: { id: 'sample-app', sourceLocale: 'en' },
+    });
+    w.addDocument('documents/App.klf', sampleFile);
+    w.addSkeleton('skeletons/App.skl', new TextEncoder().encode('opaque'));
+    const archive = w.build();
+
+    const r = new KlzReader(archive);
+    expect(r.manifest.generator.id).toBe('@neokapi/kapi-react');
+    const docs = r.documents();
+    expect(docs).toHaveLength(1);
+    expect(docs[0].documents[0].blocks.map((b) => b.id)).toEqual([
+      'files-heading',
+      'tag-chip',
+      'shopping-cart-plural',
+    ]);
+  });
+
+  it('detects hash tampering', () => {
+    const w = new KlzWriter({
+      generator: { id: 'g', version: '1' },
+      project: { id: 'p', sourceLocale: 'en' },
+    });
+    w.addDocument('documents/App.klf', sampleFile);
+    const archive = w.build();
+
+    // Tamper with the document inside the archive by rebuilding the
+    // ZIP with altered bytes but the original manifest.
+    const r1 = new KlzReader(archive, { verifyHashes: false });
+    const tamperedDoc = new TextDecoder().decode(r1.read('documents/App.klf')).replace(
+      'files-heading',
+      'tampered',
+    );
+    // Can't easily modify zipSync output byte-in-place, so reconstruct:
+    const w2 = new KlzWriter({
+      generator: r1.manifest.generator,
+      project: r1.manifest.project,
+    });
+    w2.addDocumentBytes('documents/App.klf', new TextEncoder().encode(tamperedDoc));
+    const tamperedArchive = w2.build();
+
+    // A second reader reads the tampered archive fine (manifest was
+    // re-hashed by the Writer), but if we splice the original
+    // manifest's SHA into the new archive, read() must fail.
+    const legit = new KlzReader(archive);
+    const legitSha = legit.manifest.parts[0].sha256;
+
+    const tamperedReader = new KlzReader(tamperedArchive);
+    tamperedReader.manifest.parts[0].sha256 = legitSha;
+    expect(() => tamperedReader.read('documents/App.klf')).toThrow(/hash mismatch/);
+  });
+
+  it('iterates blocks via the generator', () => {
+    const w = new KlzWriter({
+      generator: { id: 'g', version: '1' },
+      project: { id: 'p', sourceLocale: 'en' },
+    });
+    w.addDocument('documents/App.klf', sampleFile);
+    const r = new KlzReader(w.build());
+    const ids: string[] = [];
+    for (const { block } of r.blocks()) ids.push(block.id);
+    expect(ids).toEqual(['files-heading', 'tag-chip', 'shopping-cart-plural']);
+  });
+});
+
+describe('flattenRuns', () => {
+  it('flattens text + placeholders + paired codes to the runtime dict shape', () => {
+    expect(
+      flattenRuns([
+        { text: 'Files ' },
+        { pcOpen: { id: '1', type: 'jsx:element', data: '<span>', equiv: 'muted' } },
+        { text: '(' },
+        { ph: { id: '2', type: 'jsx:var', data: '{count}', equiv: 'count' } },
+        { text: ' matched)' },
+        { pcClose: { id: '1', type: 'jsx:element', data: '</span>', equiv: 'muted' } },
+      ]),
+    ).toBe('Files {=m1}({count} matched){/=m1}');
+  });
+
+  it('emits ICU for plural constructs', () => {
+    expect(
+      flattenRuns([
+        {
+          plural: {
+            pivot: 'count',
+            forms: {
+              one: [{ text: '1 item' }],
+              other: [{ ph: { id: '1', type: 'jsx:var', data: '{count}', equiv: 'count' } }, { text: ' items' }],
+            },
+          },
+        },
+      ]),
+    ).toBe('{count, plural, one {1 item} other {{count} items}}');
   });
 });
 
