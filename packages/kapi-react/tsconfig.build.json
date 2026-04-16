@@ -8,5 +8,5 @@
     "rewriteRelativeImportExtensions": true
   },
   "include": ["src/**/*.ts", "src/**/*.tsx"],
-  "exclude": ["node_modules", "samples", "tests"]
+  "exclude": ["node_modules", "tests"]
 }
