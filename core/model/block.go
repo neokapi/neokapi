@@ -196,11 +196,11 @@ func (b *Block) FirstSegment() *Segment {
 	return b.Source[0]
 }
 
-// FirstFragment is a migration shim that materializes the block's
-// first source segment as a legacy Fragment (CodedText + Spans).
-// Runs are the canonical representation — callers should migrate to
-// SourceRuns / TargetRuns / AsCodedText and let FirstFragment fall
-// out of use.
+// FirstFragment materializes the block's first source segment as a
+// Fragment (CodedText + Span list) — the PUA-marker representation
+// used by writers and assertions that operate on a flat string. Runs
+// are the canonical form; the Fragment is derived on demand from
+// Source[0].Runs and should never be persisted.
 func (b *Block) FirstFragment() *Fragment {
 	if len(b.Source) == 0 {
 		return nil
@@ -208,10 +208,9 @@ func (b *Block) FirstFragment() *Fragment {
 	return RunsToFragment(b.Source[0].Runs)
 }
 
-// SetTargetFragment is a migration helper: callers holding a legacy
-// Fragment can still install target content without manually
-// converting via FragmentToRuns. The Fragment form is translated to
-// Runs at the call site.
+// SetTargetFragment installs a single-segment target for a locale
+// from a Fragment. The Fragment is translated to Runs — callers that
+// already hold Runs should prefer SetTargetRuns directly.
 func (b *Block) SetTargetFragment(locale LocaleID, frag *Fragment) {
 	b.SetTargetRuns(locale, FragmentToRuns(frag))
 }
