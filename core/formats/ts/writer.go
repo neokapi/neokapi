@@ -153,13 +153,13 @@ func (w *Writer) writeFromSkeleton() error {
 			switch elemType {
 			case "source":
 				if seg := block.FirstSegment(); seg != nil && len(seg.Runs) > 0 {
-					text = w.fragmentToXML(model.RunsToFragment(seg.Runs))
+					text = w.runsToXML(seg.Runs)
 				}
 			case "translation":
 				if block.HasTarget(targetLocale) {
 					targetSegs := block.Targets[targetLocale]
 					if len(targetSegs) > 0 && len(targetSegs[0].Runs) > 0 {
-						text = w.fragmentToXML(model.RunsToFragment(targetSegs[0].Runs))
+						text = w.runsToXML(targetSegs[0].Runs)
 					}
 				}
 			}
@@ -256,7 +256,7 @@ func (w *Writer) writeMessage(block *model.Block, targetLocale model.LocaleID) e
 	// Write source
 	var sourceText string
 	if seg := block.FirstSegment(); seg != nil && len(seg.Runs) > 0 {
-		sourceText = w.fragmentToXML(model.RunsToFragment(seg.Runs))
+		sourceText = w.runsToXML(seg.Runs)
 	}
 	if _, err := fmt.Fprintf(w.Output, "        <source>%s</source>\n", sourceText); err != nil {
 		return err
@@ -322,7 +322,7 @@ func (w *Writer) writeMessage(block *model.Block, targetLocale model.LocaleID) e
 		if block.HasTarget(targetLocale) {
 			targetSegs := block.Targets[targetLocale]
 			if len(targetSegs) > 0 && len(targetSegs[0].Runs) > 0 {
-				targetXML := w.fragmentToXML(model.RunsToFragment(targetSegs[0].Runs))
+				targetXML := w.runsToXML(targetSegs[0].Runs)
 				transOpen += fmt.Sprintf(">%s</translation>\n", targetXML)
 			} else {
 				transOpen += "></translation>\n"
@@ -342,29 +342,41 @@ func (w *Writer) writeMessage(block *model.Block, targetLocale model.LocaleID) e
 	return nil
 }
 
-// fragmentToXML converts a Fragment back to XML string, preserving byte elements.
-func (w *Writer) fragmentToXML(frag *model.Fragment) string {
-	if frag == nil {
-		return ""
-	}
-	if !frag.HasSpans() {
-		return xmlEscape(frag.Text())
-	}
-
+// runsToXML walks a Run sequence and returns an XML fragment —
+// TextRun content XML-escaped, inline-code runs re-emitting the
+// original Data (byte elements, <source>/<target> preserve this
+// verbatim).
+func (w *Writer) runsToXML(runs []model.Run) string {
 	var buf strings.Builder
-	spanIdx := 0
-	for _, r := range frag.CodedText {
-		if r == model.MarkerOpening || r == model.MarkerClosing || r == model.MarkerPlaceholder {
-			if spanIdx < len(frag.Spans) {
-				span := frag.Spans[spanIdx]
-				spanIdx++
-				buf.WriteString(span.Data)
+	writeTSRunsXML(&buf, runs)
+	return buf.String()
+}
+
+func writeTSRunsXML(buf *strings.Builder, runs []model.Run) {
+	for _, r := range runs {
+		switch {
+		case r.Text != nil:
+			for _, rr := range r.Text.Text {
+				buf.WriteString(xmlEscapeRune(rr))
 			}
-		} else {
-			buf.WriteString(xmlEscapeRune(r))
+		case r.Ph != nil:
+			buf.WriteString(r.Ph.Data)
+		case r.PcOpen != nil:
+			buf.WriteString(r.PcOpen.Data)
+		case r.PcClose != nil:
+			buf.WriteString(r.PcClose.Data)
+		case r.Sub != nil:
+			buf.WriteString(r.Sub.Ref)
+		case r.Plural != nil:
+			if form, ok := r.Plural.Forms[model.PluralOther]; ok {
+				writeTSRunsXML(buf, form)
+			}
+		case r.Select != nil:
+			if form, ok := r.Select.Cases["other"]; ok {
+				writeTSRunsXML(buf, form)
+			}
 		}
 	}
-	return buf.String()
 }
 
 // xmlEscape escapes special XML characters.
