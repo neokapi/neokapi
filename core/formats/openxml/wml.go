@@ -515,7 +515,7 @@ func (p *wmlParser) wrapHyperlinkRuns(runs []textRun, relID string) []textRun {
 
 // buildBlock builds a model.Block from a list of merged text runs.
 func (p *wmlParser) buildBlock(id string, runs []textRun, partPath string) *model.Block {
-	frag := &model.Fragment{}
+	b := &runBuilder{}
 	spanCounter := 0
 
 	var activeProps *runProps
@@ -525,96 +525,64 @@ func (p *wmlParser) buildBlock(id string, runs []textRun, partPath string) *mode
 		if strings.HasPrefix(run.text, "\uE100") {
 			// Tab placeholder
 			spanCounter++
-			frag.AppendSpan(&model.Span{
-				SpanType:  model.SpanPlaceholder,
-				Type:      TypeTab,
-				SubType:   SubTypeTab,
-				ID:        fmt.Sprintf("c%d", spanCounter),
-				Data:      "<w:tab/>",
-				Deletable: false,
-				EquivText: "\t",
-			})
+			b.AppendPh(fmt.Sprintf("c%d", spanCounter),
+				TypeTab, SubTypeTab,
+				"<w:tab/>", "\t", "",
+				false, false, false)
 			continue
 		}
 		if strings.HasPrefix(run.text, "\uE101") {
 			// Image/drawing placeholder
 			spanCounter++
-			frag.AppendSpan(&model.Span{
-				SpanType:  model.SpanPlaceholder,
-				Type:      TypeImage,
-				SubType:   SubTypeImage,
-				ID:        fmt.Sprintf("c%d", spanCounter),
-				Data:      "<w:drawing/>",
-				Deletable: false,
-			})
+			b.AppendPh(fmt.Sprintf("c%d", spanCounter),
+				TypeImage, SubTypeImage,
+				"<w:drawing/>", "", "",
+				false, false, false)
 			continue
 		}
 		if strings.HasPrefix(run.text, "\uE102:") {
 			// Footnote/endnote reference
 			noteID := strings.TrimPrefix(run.text, "\uE102:")
 			spanCounter++
-			frag.AppendSpan(&model.Span{
-				SpanType:    model.SpanPlaceholder,
-				Type:        TypeFootnoteRef,
-				SubType:     SubTypeFootnoteRef,
-				ID:          fmt.Sprintf("c%d", spanCounter),
-				Data:        fmt.Sprintf(`<w:footnoteReference w:id="%s"/>`, noteID),
-				DisplayText: fmt.Sprintf("[%s]", noteID),
-				Deletable:   false,
-			})
+			b.AppendPh(fmt.Sprintf("c%d", spanCounter),
+				TypeFootnoteRef, SubTypeFootnoteRef,
+				fmt.Sprintf(`<w:footnoteReference w:id="%s"/>`, noteID),
+				"",
+				fmt.Sprintf("[%s]", noteID),
+				false, false, false)
 			continue
 		}
 		if strings.HasPrefix(run.text, "\uE103:") {
 			// Hyperlink open
 			data := strings.TrimPrefix(run.text, "\uE103:")
 			spanCounter++
-			frag.AppendSpan(&model.Span{
-				SpanType:   model.SpanOpening,
-				Type:       TypeHyperlink,
-				SubType:    SubTypeHyperlink,
-				ID:         fmt.Sprintf("c%d", spanCounter),
-				Data:       data,
-				Deletable:  true,
-				Cloneable:  true,
-				CanReorder: true,
-			})
+			b.AppendPcOpen(fmt.Sprintf("c%d", spanCounter),
+				TypeHyperlink, SubTypeHyperlink,
+				data, "", "",
+				true, true, true)
 			continue
 		}
 		if strings.HasPrefix(run.text, "\uE104:") {
 			// Hyperlink close
 			if activeProps != nil && !activeProps.isEmpty() {
 				// Close formatting before hyperlink close
-				for _, s := range activeProps.closingSpans(&spanCounter) {
-					frag.AppendSpan(s)
-				}
+				activeProps.appendClosingRuns(b, &spanCounter)
 				activeProps = nil
 			}
 			spanCounter++
-			frag.AppendSpan(&model.Span{
-				SpanType:   model.SpanClosing,
-				Type:       TypeHyperlink,
-				SubType:    SubTypeHyperlink,
-				ID:         fmt.Sprintf("c%d", spanCounter),
-				Data:       "</w:hyperlink>",
-				Deletable:  true,
-				Cloneable:  true,
-				CanReorder: true,
-			})
+			b.AppendPcClose(fmt.Sprintf("c%d", spanCounter),
+				TypeHyperlink, SubTypeHyperlink,
+				"</w:hyperlink>", "")
 			continue
 		}
 
 		// Handle line break
 		if run.text == "\n" {
 			spanCounter++
-			frag.AppendSpan(&model.Span{
-				SpanType:  model.SpanPlaceholder,
-				Type:      TypeBreak,
-				SubType:   SubTypeBreak,
-				ID:        fmt.Sprintf("c%d", spanCounter),
-				Data:      "<w:br/>",
-				EquivText: "\n",
-				Deletable: false,
-			})
+			b.AppendPh(fmt.Sprintf("c%d", spanCounter),
+				TypeBreak, SubTypeBreak,
+				"<w:br/>", "\n", "",
+				false, false, false)
 			continue
 		}
 
@@ -622,41 +590,37 @@ func (p *wmlParser) buildBlock(id string, runs []textRun, partPath string) *mode
 		if activeProps == nil || !activeProps.equal(run.props) {
 			// Close previous formatting
 			if activeProps != nil && !activeProps.isEmpty() {
-				for _, s := range activeProps.closingSpans(&spanCounter) {
-					frag.AppendSpan(s)
-				}
+				activeProps.appendClosingRuns(b, &spanCounter)
 			}
 			// Open new formatting
 			if !run.props.isEmpty() {
-				for _, s := range run.props.openingSpans(&spanCounter) {
-					frag.AppendSpan(s)
-				}
+				run.props.appendOpeningRuns(b, &spanCounter)
 			}
 			propsCopy := run.props
 			activeProps = &propsCopy
 		}
 
-		frag.AppendText(run.text)
+		b.AppendText(run.text)
 	}
 
 	// Close any remaining open formatting
 	if activeProps != nil && !activeProps.isEmpty() {
-		for _, s := range activeProps.closingSpans(&spanCounter) {
-			frag.AppendSpan(s)
-		}
+		activeProps.appendClosingRuns(b, &spanCounter)
 	}
 
-	// Apply code finder before block construction so the Run
-	// conversion sees the placeholder spans the finder inserts.
+	// Apply code finder before block construction so the placeholder
+	// runs it inserts land in the builder's run sequence alongside the
+	// formatting runs.
+	blockRuns := b.Runs()
 	if p.codeFinder != nil {
-		p.codeFinder.apply(frag, &spanCounter)
+		blockRuns = p.codeFinder.applyToRuns(blockRuns, &spanCounter)
 	}
 
 	block := &model.Block{
 		ID:           id,
 		Type:         "paragraph",
 		Translatable: true,
-		Source:       []*model.Segment{model.NewRunsSegment("s1", model.FragmentToRuns(frag))},
+		Source:       []*model.Segment{model.NewRunsSegment("s1", blockRuns)},
 		Targets:      make(map[model.LocaleID][]*model.Segment),
 		Properties:   map[string]string{"partPath": partPath},
 		Annotations:  make(map[string]model.Annotation),

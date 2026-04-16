@@ -240,106 +240,108 @@ func (w *Writer) writeFromReparse(origZR *zip.Reader, zw *zip.Writer, buf *bytes
 
 // renderBlock converts a block's content back to the appropriate XML dialect.
 func (w *Writer) renderBlock(block *model.Block, dt docType) string {
-	frag := w.getFragment(block)
-	if frag == nil {
+	runs := w.preferredRuns(block)
+	if runs == nil {
 		return ""
 	}
 
 	// Core properties and table column names are plain text (no XML wrapping needed).
 	if block.Type == "property" || block.Type == "table-column" {
-		return xmlEscapeAttr(frag.Text())
+		return xmlEscapeAttr(model.FlattenRuns(runs))
 	}
 
 	switch dt {
 	case docTypeDOCX:
-		return w.renderWMLBlock(frag)
+		return w.renderWMLBlock(runs)
 	case docTypePPTX:
-		return w.renderDMLBlock(frag)
+		return w.renderDMLBlock(runs)
 	case docTypeXLSX:
-		return w.renderSMLBlock(frag, block)
+		return w.renderSMLBlock(runs, block)
 	default:
-		return w.renderWMLBlock(frag)
+		return w.renderWMLBlock(runs)
 	}
 }
 
-// renderWMLBlock renders a fragment as WordprocessingML runs.
-func (w *Writer) renderWMLBlock(frag *model.Fragment) string {
-	if !frag.HasSpans() {
-		return `<w:r><w:t xml:space="preserve">` + xmlEscape(frag.CodedText) + `</w:t></w:r>`
+// runsHaveInlineCodes reports whether the run sequence contains any
+// non-text runs (placeholders or paired codes). The fast path for a
+// plain-text block short-circuits the walker below.
+func runsHaveInlineCodes(runs []model.Run) bool {
+	for _, r := range runs {
+		if r.Text == nil {
+			return true
+		}
+	}
+	return false
+}
+
+// renderWMLBlock renders a run sequence as WordprocessingML runs.
+func (w *Writer) renderWMLBlock(runs []model.Run) string {
+	if !runsHaveInlineCodes(runs) {
+		return `<w:r><w:t xml:space="preserve">` + xmlEscape(model.FlattenRuns(runs)) + `</w:t></w:r>`
 	}
 
 	var buf strings.Builder
 	var inRun bool
 	var runProps string
-	spanIdx := 0
 
-	for _, r := range frag.CodedText {
-		switch r {
-		case model.MarkerOpening:
-			span := frag.Spans[spanIdx]
-			spanIdx++
-			if span.Type == TypeHyperlink {
-				if inRun {
-					buf.WriteString(`</w:t></w:r>`)
-					inRun = false
+	closeRun := func() {
+		if inRun {
+			buf.WriteString(`</w:t></w:r>`)
+			inRun = false
+		}
+	}
+
+	for _, r := range runs {
+		switch {
+		case r.Text != nil:
+			for _, ch := range r.Text.Text {
+				if !inRun {
+					buf.WriteString(`<w:r>`)
+					if runProps != "" {
+						buf.WriteString(`<w:rPr>`)
+						buf.WriteString(runProps)
+						buf.WriteString(`</w:rPr>`)
+					}
+					buf.WriteString(`<w:t xml:space="preserve">`)
+					inRun = true
 				}
-				buf.WriteString(span.Data)
-			} else {
-				// Accumulate formatting for next run's rPr
-				runProps = w.addWMLProp(runProps, span.Type)
+				xmlEscapeRune(&buf, ch)
 			}
 
-		case model.MarkerClosing:
-			span := frag.Spans[spanIdx]
-			spanIdx++
-			if span.Type == TypeHyperlink {
-				if inRun {
-					buf.WriteString(`</w:t></w:r>`)
-					inRun = false
-				}
-				buf.WriteString(span.Data)
+		case r.PcOpen != nil:
+			if r.PcOpen.Type == TypeHyperlink {
+				closeRun()
+				buf.WriteString(r.PcOpen.Data)
 			} else {
-				runProps = w.removeWMLProp(runProps, span.Type)
+				runProps = w.addWMLProp(runProps, r.PcOpen.Type)
 			}
 
-		case model.MarkerPlaceholder:
-			span := frag.Spans[spanIdx]
-			spanIdx++
-			if inRun {
-				buf.WriteString(`</w:t></w:r>`)
-				inRun = false
+		case r.PcClose != nil:
+			if r.PcClose.Type == TypeHyperlink {
+				closeRun()
+				buf.WriteString(r.PcClose.Data)
+			} else {
+				runProps = w.removeWMLProp(runProps, r.PcClose.Type)
 			}
-			switch span.Type {
+
+		case r.Ph != nil:
+			closeRun()
+			switch r.Ph.Type {
 			case TypeBreak:
 				buf.WriteString(`<w:r><w:br/></w:r>`)
 			case TypeTab:
 				buf.WriteString(`<w:r><w:tab/></w:r>`)
 			case TypeImage:
-				buf.WriteString(`<w:r>` + span.Data + `</w:r>`)
+				buf.WriteString(`<w:r>` + r.Ph.Data + `</w:r>`)
 			case TypeFootnoteRef:
-				buf.WriteString(`<w:r>` + span.Data + `</w:r>`)
+				buf.WriteString(`<w:r>` + r.Ph.Data + `</w:r>`)
 			default:
-				buf.WriteString(span.Data)
+				buf.WriteString(r.Ph.Data)
 			}
-
-		default:
-			if !inRun {
-				buf.WriteString(`<w:r>`)
-				if runProps != "" {
-					buf.WriteString(`<w:rPr>`)
-					buf.WriteString(runProps)
-					buf.WriteString(`</w:rPr>`)
-				}
-				buf.WriteString(`<w:t xml:space="preserve">`)
-				inRun = true
-			}
-			xmlEscapeRune(&buf, r)
 		}
 	}
 
-	if inRun {
-		buf.WriteString(`</w:t></w:r>`)
-	}
+	closeRun()
 	return buf.String()
 }
 
@@ -381,64 +383,58 @@ func (w *Writer) removeWMLProp(current, spanType string) string {
 	return current
 }
 
-// renderDMLBlock renders a fragment as DrawingML runs.
-func (w *Writer) renderDMLBlock(frag *model.Fragment) string {
-	if !frag.HasSpans() {
-		return `<a:r><a:t>` + xmlEscape(frag.CodedText) + `</a:t></a:r>`
+// renderDMLBlock renders a run sequence as DrawingML runs.
+func (w *Writer) renderDMLBlock(runs []model.Run) string {
+	if !runsHaveInlineCodes(runs) {
+		return `<a:r><a:t>` + xmlEscape(model.FlattenRuns(runs)) + `</a:t></a:r>`
 	}
 
 	var buf strings.Builder
 	var inRun bool
 	var runPropsAttrs []string
-	spanIdx := 0
 
-	for _, r := range frag.CodedText {
-		switch r {
-		case model.MarkerOpening:
-			span := frag.Spans[spanIdx]
-			spanIdx++
-			runPropsAttrs = w.addDMLProp(runPropsAttrs, span.Type)
-
-		case model.MarkerClosing:
-			span := frag.Spans[spanIdx]
-			spanIdx++
-			if inRun {
-				buf.WriteString(`</a:t></a:r>`)
-				inRun = false
-			}
-			runPropsAttrs = w.removeDMLProp(runPropsAttrs, span.Type)
-
-		case model.MarkerPlaceholder:
-			span := frag.Spans[spanIdx]
-			spanIdx++
-			if inRun {
-				buf.WriteString(`</a:t></a:r>`)
-				inRun = false
-			}
-			if span.Type == TypeBreak {
-				buf.WriteString(`<a:br/>`)
-			} else {
-				buf.WriteString(span.Data)
-			}
-
-		default:
-			if !inRun {
-				buf.WriteString(`<a:r>`)
-				if len(runPropsAttrs) > 0 {
-					buf.WriteString(`<a:rPr `)
-					buf.WriteString(strings.Join(runPropsAttrs, " "))
-					buf.WriteString(`/>`)
-				}
-				buf.WriteString(`<a:t>`)
-				inRun = true
-			}
-			xmlEscapeRune(&buf, r)
+	closeRun := func() {
+		if inRun {
+			buf.WriteString(`</a:t></a:r>`)
+			inRun = false
 		}
 	}
 
-	if inRun {
-		buf.WriteString(`</a:t></a:r>`)
+	for _, r := range runs {
+		switch {
+		case r.Text != nil:
+			for _, ch := range r.Text.Text {
+				if !inRun {
+					buf.WriteString(`<a:r>`)
+					if len(runPropsAttrs) > 0 {
+						buf.WriteString(`<a:rPr `)
+						buf.WriteString(strings.Join(runPropsAttrs, " "))
+						buf.WriteString(`/>`)
+					}
+					buf.WriteString(`<a:t>`)
+					inRun = true
+				}
+				xmlEscapeRune(&buf, ch)
+			}
+
+		case r.PcOpen != nil:
+			runPropsAttrs = w.addDMLProp(runPropsAttrs, r.PcOpen.Type)
+
+		case r.PcClose != nil:
+			closeRun()
+			runPropsAttrs = w.removeDMLProp(runPropsAttrs, r.PcClose.Type)
+
+		case r.Ph != nil:
+			closeRun()
+			if r.Ph.Type == TypeBreak {
+				buf.WriteString(`<a:br/>`)
+			} else {
+				buf.WriteString(r.Ph.Data)
+			}
+		}
 	}
+
+	closeRun()
 	return buf.String()
 }
 
@@ -487,78 +483,69 @@ func (w *Writer) removeDMLProp(attrs []string, spanType string) []string {
 	return result
 }
 
-// renderSMLBlock renders a fragment as SpreadsheetML content.
-func (w *Writer) renderSMLBlock(frag *model.Fragment, block *model.Block) string {
-	blockType := block.Type
-
-	if blockType == "shared-string" {
-		return w.renderSMLSharedString(frag)
+// renderSMLBlock renders a run sequence as SpreadsheetML content.
+func (w *Writer) renderSMLBlock(runs []model.Run, block *model.Block) string {
+	if block.Type == "shared-string" {
+		return w.renderSMLSharedString(runs)
 	}
 
-	// Cell content — wrap in <v> element as inline string type
-	text := frag.CodedText
-	if frag.HasSpans() {
-		text = frag.Text()
-	}
-	return `<v>` + xmlEscape(text) + `</v>`
+	// Cell content — wrap in <v> element as inline string type. Flatten
+	// to plain text: inline codes in cell values are rare and the legacy
+	// path stripped markers via Fragment.Text().
+	return `<v>` + xmlEscape(model.FlattenRuns(runs)) + `</v>`
 }
 
-// renderSMLSharedString renders a fragment as a shared string <si> content.
-func (w *Writer) renderSMLSharedString(frag *model.Fragment) string {
-	if !frag.HasSpans() {
-		return `<t>` + xmlEscape(frag.CodedText) + `</t>`
+// renderSMLSharedString renders a run sequence as shared string <si> content.
+func (w *Writer) renderSMLSharedString(runs []model.Run) string {
+	if !runsHaveInlineCodes(runs) {
+		return `<t>` + xmlEscape(model.FlattenRuns(runs)) + `</t>`
 	}
 
 	// Rich text shared string — emit <r> elements
 	var buf strings.Builder
 	var inRun bool
 	var currentProps []string
-	spanIdx := 0
 
-	for _, r := range frag.CodedText {
-		switch r {
-		case model.MarkerOpening:
-			span := frag.Spans[spanIdx]
-			spanIdx++
-			if inRun {
-				buf.WriteString(`</t></r>`)
-				inRun = false
-			}
-			currentProps = w.addSMLProp(currentProps, span.Type)
-
-		case model.MarkerClosing:
-			span := frag.Spans[spanIdx]
-			spanIdx++
-			if inRun {
-				buf.WriteString(`</t></r>`)
-				inRun = false
-			}
-			currentProps = w.removeSMLProp(currentProps, span.Type)
-
-		case model.MarkerPlaceholder:
-			// Skip placeholders in shared strings
-			spanIdx++
-
-		default:
-			if !inRun {
-				buf.WriteString(`<r>`)
-				if len(currentProps) > 0 {
-					buf.WriteString(`<rPr>`)
-					for _, p := range currentProps {
-						buf.WriteString(p)
-					}
-					buf.WriteString(`</rPr>`)
-				}
-				buf.WriteString(`<t>`)
-				inRun = true
-			}
-			xmlEscapeRune(&buf, r)
+	closeRun := func() {
+		if inRun {
+			buf.WriteString(`</t></r>`)
+			inRun = false
 		}
 	}
 
-	if inRun {
-		buf.WriteString(`</t></r>`)
+	for _, r := range runs {
+		switch {
+		case r.Text != nil:
+			for _, ch := range r.Text.Text {
+				if !inRun {
+					buf.WriteString(`<r>`)
+					if len(currentProps) > 0 {
+						buf.WriteString(`<rPr>`)
+						for _, p := range currentProps {
+							buf.WriteString(p)
+						}
+						buf.WriteString(`</rPr>`)
+					}
+					buf.WriteString(`<t>`)
+					inRun = true
+				}
+				xmlEscapeRune(&buf, ch)
+			}
+
+		case r.PcOpen != nil:
+			closeRun()
+			currentProps = w.addSMLProp(currentProps, r.PcOpen.Type)
+
+		case r.PcClose != nil:
+			closeRun()
+			currentProps = w.removeSMLProp(currentProps, r.PcClose.Type)
+
+		case r.Ph != nil:
+			// Placeholders are skipped in shared strings (legacy behaviour).
+		}
 	}
+
+	closeRun()
 	return buf.String()
 }
 
@@ -607,16 +594,18 @@ func (w *Writer) removeSMLProp(props []string, spanType string) []string {
 	return result
 }
 
-// getFragment returns the appropriate fragment (target or source) for a block.
-func (w *Writer) getFragment(block *model.Block) *model.Fragment {
+// preferredRuns returns the target runs for the writer's locale when
+// present, falling back to the source runs. Returns nil if neither is
+// available, matching the earlier getFragment contract.
+func (w *Writer) preferredRuns(block *model.Block) []model.Run {
 	if !w.Locale.IsEmpty() && block.HasTarget(w.Locale) {
 		segs := block.Targets[w.Locale]
 		if len(segs) > 0 && len(segs[0].Runs) > 0 {
-			return model.RunsToFragment(segs[0].Runs)
+			return segs[0].Runs
 		}
 	}
 	if len(block.Source) > 0 && len(block.Source[0].Runs) > 0 {
-		return model.RunsToFragment(block.Source[0].Runs)
+		return block.Source[0].Runs
 	}
 	return nil
 }

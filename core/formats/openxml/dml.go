@@ -244,54 +244,43 @@ func parseDMLRunProps(el xml.StartElement) runProps {
 
 // buildBlock creates a model.Block from text runs.
 func (p *dmlParser) buildBlock(id string, runs []textRun, partPath string) *model.Block {
-	frag := &model.Fragment{}
+	b := &runBuilder{}
 	spanCounter := 0
 	var activeProps *runProps
 
 	for _, run := range runs {
 		if run.text == "\n" {
 			spanCounter++
-			frag.AppendSpan(&model.Span{
-				SpanType:  model.SpanPlaceholder,
-				Type:      TypeBreak,
-				SubType:   SubTypeBreak,
-				ID:        fmt.Sprintf("c%d", spanCounter),
-				Data:      "<a:br/>",
-				EquivText: "\n",
-				Deletable: false,
-			})
+			b.AppendPh(fmt.Sprintf("c%d", spanCounter),
+				TypeBreak, SubTypeBreak,
+				"<a:br/>", "\n", "",
+				false, false, false)
 			continue
 		}
 
 		if activeProps == nil || !activeProps.equal(run.props) {
 			if activeProps != nil && !activeProps.isEmpty() {
-				for _, s := range activeProps.closingSpans(&spanCounter) {
-					frag.AppendSpan(s)
-				}
+				activeProps.appendClosingRuns(b, &spanCounter)
 			}
 			if !run.props.isEmpty() {
-				for _, s := range run.props.openingSpans(&spanCounter) {
-					frag.AppendSpan(s)
-				}
+				run.props.appendOpeningRuns(b, &spanCounter)
 			}
 			propsCopy := run.props
 			activeProps = &propsCopy
 		}
 
-		frag.AppendText(run.text)
+		b.AppendText(run.text)
 	}
 
 	if activeProps != nil && !activeProps.isEmpty() {
-		for _, s := range activeProps.closingSpans(&spanCounter) {
-			frag.AppendSpan(s)
-		}
+		activeProps.appendClosingRuns(b, &spanCounter)
 	}
 
 	return &model.Block{
 		ID:           id,
 		Type:         "paragraph",
 		Translatable: true,
-		Source:       []*model.Segment{model.NewRunsSegment("s1", model.FragmentToRuns(frag))},
+		Source:       []*model.Segment{model.NewRunsSegment("s1", b.Runs())},
 		Targets:      make(map[model.LocaleID][]*model.Segment),
 		Properties:   map[string]string{"partPath": partPath},
 		Annotations:  make(map[string]model.Annotation),
