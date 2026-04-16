@@ -33,9 +33,9 @@ func (mt MatchType) IsExact() bool {
 // An entry can have multiple origins if the same source text was ingested
 // from multiple locations (common TM deduplication case).
 type Origin struct {
-	Source    string    // "file", "tool", "import", "user"
-	Key       string    // e.g. "errors.notFound" for keyed formats, or file path
-	Reference string    // optional: git commit, job ID, URL, crawl URL
+	Source    string // "file", "tool", "import", "user"
+	Key       string // e.g. "errors.notFound" for keyed formats, or file path
+	Reference string // optional: git commit, job ID, URL, crawl URL
 	AddedAt   time.Time
 	AddedBy   string // user ID or tool name
 	SessionID string // FK to ImportSession.ID (empty for non-imported origins)
@@ -151,7 +151,7 @@ func (e *TMEntry) VariantStructural(locale model.LocaleID) string {
 	if runs == nil {
 		return ""
 	}
-	return model.RunsToFragment(runs).StructuralText()
+	return model.RunsStructuralText(runs)
 }
 
 // VariantGeneralized returns the generalized key (entities replaced with
@@ -161,7 +161,7 @@ func (e *TMEntry) VariantGeneralized(locale model.LocaleID) string {
 	if runs == nil {
 		return ""
 	}
-	return model.RunsToFragment(runs).GeneralizedText()
+	return model.RunsGeneralizedText(runs)
 }
 
 // HasLocale reports whether the entry has a variant for the given locale.

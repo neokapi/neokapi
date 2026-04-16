@@ -19,11 +19,11 @@ import (
 
 // Sentinel errors for TM entry validation.
 var (
-	ErrEntryIDRequired    = errors.New("entry ID is required")
-	ErrEntryNoVariants    = errors.New("entry must have at least one variant")
-	ErrSessionIDRequired  = errors.New("import session ID is required")
-	ErrSessionFileKey     = errors.New("import session file_key is required")
-	ErrImportSessionMiss  = errors.New("import session not found")
+	ErrEntryIDRequired   = errors.New("entry ID is required")
+	ErrEntryNoVariants   = errors.New("entry must have at least one variant")
+	ErrSessionIDRequired = errors.New("import session ID is required")
+	ErrSessionFileKey    = errors.New("import session file_key is required")
+	ErrImportSessionMiss = errors.New("import session not found")
 )
 
 // SQLiteTM is a multilingual, persistent translation memory backed by SQLite.
@@ -453,10 +453,9 @@ func (s *bulkStmts) addEntry(entry *TMEntry, stream string) error {
 				return fmt.Errorf("marshal variant %s: %w", locale, err)
 			}
 			coded = string(b)
-			frag := model.RunsToFragment(runs)
-			plain = NormalizeText(frag.Text())
-			structKey = NormalizeText(frag.StructuralText())
-			generalKey = NormalizeText(frag.GeneralizedText())
+			plain = NormalizeText(model.FlattenRuns(runs))
+			structKey = NormalizeText(model.RunsStructuralText(runs))
+			generalKey = NormalizeText(model.RunsGeneralizedText(runs))
 		}
 
 		if _, err := s.insVariant.ExecContext(context.Background(), entry.ID, string(locale), coded, plain, structKey, generalKey); err != nil {
@@ -580,10 +579,9 @@ func (tm *SQLiteTM) addInTx(tx *sql.Tx, entry TMEntry, stream string) error {
 		if err != nil {
 			return fmt.Errorf("marshal variant %s: %w", locale, err)
 		}
-		frag := model.RunsToFragment(runs)
-		plain := NormalizeText(frag.Text())
-		structKey := NormalizeText(frag.StructuralText())
-		generalKey := NormalizeText(frag.GeneralizedText())
+		plain := NormalizeText(model.FlattenRuns(runs))
+		structKey := NormalizeText(model.RunsStructuralText(runs))
+		generalKey := NormalizeText(model.RunsGeneralizedText(runs))
 
 		if _, err := tx.ExecContext(context.Background(), `INSERT INTO tm_variants
 			(entry_id, locale, coded, plain, struct_key, general_key)
@@ -691,11 +689,10 @@ func (tm *SQLiteTM) Lookup(source *model.Block, sourceLocale, targetLocale model
 	if seg == nil || len(seg.Runs) == 0 {
 		return nil, nil
 	}
-	frag := model.RunsToFragment(seg.Runs)
 
-	plainKey := NormalizeText(frag.Text())
-	structKey := NormalizeText(frag.StructuralText())
-	generalKey := NormalizeText(frag.GeneralizedText())
+	plainKey := NormalizeText(model.FlattenRuns(seg.Runs))
+	structKey := NormalizeText(model.RunsStructuralText(seg.Runs))
+	generalKey := NormalizeText(model.RunsGeneralizedText(seg.Runs))
 	entityAnnotations := ExtractEntityAnnotations(source)
 
 	return tm.tieredLookup(plainKey, structKey, generalKey, entityAnnotations, sourceLocale, targetLocale, opts)
@@ -782,25 +779,24 @@ func (tm *SQLiteTM) tieredLookup(plainKey, structKey, generalKey string, entityA
 		if len(srcRuns) == 0 {
 			continue
 		}
-		srcVariant := model.RunsToFragment(srcRuns)
 		var bestScore float64
 		var bestType MatchType
 		if modeEnabled[MatchModeGeneralized] {
-			s := LevenshteinRatio(generalKey, NormalizeText(srcVariant.GeneralizedText()))
+			s := LevenshteinRatio(generalKey, NormalizeText(model.RunsGeneralizedText(srcRuns)))
 			if s >= opts.MinScore && s > bestScore {
 				bestScore = s
 				bestType = MatchGeneralizedFuzzy
 			}
 		}
 		if modeEnabled[MatchModeStructural] {
-			s := LevenshteinRatio(structKey, NormalizeText(srcVariant.StructuralText()))
+			s := LevenshteinRatio(structKey, NormalizeText(model.RunsStructuralText(srcRuns)))
 			if s >= opts.MinScore && s > bestScore {
 				bestScore = s
 				bestType = MatchStructuralFuzzy
 			}
 		}
 		if modeEnabled[MatchModePlain] {
-			s := LevenshteinRatio(plainKey, NormalizeText(srcVariant.Text()))
+			s := LevenshteinRatio(plainKey, NormalizeText(model.FlattenRuns(srcRuns)))
 			if s >= opts.MinScore && s > bestScore {
 				bestScore = s
 				bestType = MatchFuzzy

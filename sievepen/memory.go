@@ -19,8 +19,8 @@ const DefaultMaxEntries = 0
 // variantKeys caches the pre-computed normalized text forms for one variant
 // of an entry, avoiding repeated NormalizeText calls during lookup scans.
 type variantKeys struct {
-	plain      string
-	structural string
+	plain       string
+	structural  string
 	generalized string
 }
 
@@ -119,11 +119,10 @@ func buildVariantKeys(entry TMEntry) map[model.LocaleID]variantKeys {
 		if len(runs) == 0 {
 			continue
 		}
-		frag := model.RunsToFragment(runs)
 		keys[loc] = variantKeys{
-			plain:       NormalizeText(frag.Text()),
-			structural:  NormalizeText(frag.StructuralText()),
-			generalized: NormalizeText(frag.GeneralizedText()),
+			plain:       NormalizeText(model.FlattenRuns(runs)),
+			structural:  NormalizeText(model.RunsStructuralText(runs)),
+			generalized: NormalizeText(model.RunsGeneralizedText(runs)),
 		}
 	}
 	return keys
@@ -174,10 +173,9 @@ func (tm *InMemoryTM) Lookup(source *model.Block, sourceLocale, targetLocale mod
 	if seg == nil || len(seg.Runs) == 0 {
 		return nil, nil
 	}
-	frag := model.RunsToFragment(seg.Runs)
-	plainKey := NormalizeText(frag.Text())
-	structKey := NormalizeText(frag.StructuralText())
-	generalKey := NormalizeText(frag.GeneralizedText())
+	plainKey := NormalizeText(model.FlattenRuns(seg.Runs))
+	structKey := NormalizeText(model.RunsStructuralText(seg.Runs))
+	generalKey := NormalizeText(model.RunsGeneralizedText(seg.Runs))
 	entityAnnotations := ExtractEntityAnnotations(source)
 	tm.mu.RLock()
 	defer tm.mu.RUnlock()
