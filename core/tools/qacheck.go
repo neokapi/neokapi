@@ -341,25 +341,19 @@ func (h *qaCheckHandler) checkPatternAndCodeIssues(conf *QACheckConfig, block *m
 
 	// Check: inline code differences.
 	if conf.CheckCodeDifference {
-		sourceFrag := block.FirstFragment()
-		if sourceFrag != nil && sourceFrag.HasSpans() && block.HasTarget(conf.TargetLocale) {
-			targetSegs := block.Targets[conf.TargetLocale]
-			if len(targetSegs) > 0 {
-				targetFrag := targetSegs[0].Content
-				issues = append(issues, checkCodeDifferences(sourceFrag, targetFrag, conf.StrictCodeOrder)...)
-			}
+		sourceRuns := block.SourceRuns()
+		if runsHaveInline(sourceRuns) && block.HasTarget(conf.TargetLocale) {
+			targetRuns := block.TargetRuns(conf.TargetLocale)
+			issues = append(issues, checkCodeDifferencesRuns(sourceRuns, targetRuns, conf.StrictCodeOrder)...)
 		}
 	}
 
-	// Check: span constraint violations.
+	// Check: run constraint violations.
 	if conf.CheckSpanConstraints {
-		sourceFrag := block.FirstFragment()
-		if sourceFrag != nil && sourceFrag.HasSpans() && block.HasTarget(conf.TargetLocale) {
-			targetSegs := block.Targets[conf.TargetLocale]
-			if len(targetSegs) > 0 {
-				targetFrag := targetSegs[0].Content
-				issues = append(issues, checkSpanConstraints(sourceFrag, targetFrag)...)
-			}
+		sourceRuns := block.SourceRuns()
+		if runsHaveInline(sourceRuns) && block.HasTarget(conf.TargetLocale) {
+			targetRuns := block.TargetRuns(conf.TargetLocale)
+			issues = append(issues, checkRunConstraints(sourceRuns, targetRuns)...)
 		}
 	}
 
@@ -420,68 +414,189 @@ func NewQACheckTool(cfg *QACheckConfig) *tool.BaseTool {
 	return t
 }
 
-// spanFingerprint returns a string key for matching spans: "type|spanType".
-func spanFingerprint(s *model.Span) string {
-	return s.Type + "|" + s.SpanType.String()
+// runFingerprint returns a string key for matching runs: "type|kind".
+// Kind is one of ph / pcOpen / pcClose / sub, mirroring the old
+// Span fingerprint ("type|SpanType") shape.
+func runFingerprint(r model.Run) (key string, ok bool) {
+	switch {
+	case r.Ph != nil:
+		return r.Ph.Type + "|ph", true
+	case r.PcOpen != nil:
+		return r.PcOpen.Type + "|pcOpen", true
+	case r.PcClose != nil:
+		return r.PcClose.Type + "|pcClose", true
+	case r.Sub != nil:
+		return "sub|sub", true
+	}
+	return "", false
 }
 
-// checkSpanConstraints compares source and target span counts, reporting
-// violations where non-deletable spans are missing or non-cloneable spans
-// are duplicated.
-func checkSpanConstraints(source, target *model.Fragment) []QAIssue {
-	sourceCounts := spanFingerprints(source.Spans)
-	targetCounts := spanFingerprints(target.Spans)
-
-	// Build a map from fingerprint → Span (for constraint lookup).
-	spanByKey := make(map[string]*model.Span)
-	for _, s := range source.Spans {
-		spanByKey[spanFingerprint(s)] = s
+// runConstraints returns (deletable, cloneable) for a run, reading
+// the per-run RunConstraints when present and falling back to
+// "inline codes mirror source structure" defaults otherwise. For
+// PcClose runs, which don't carry their own Constraints per RFC
+// 0001, we look up the matching PcOpen in the reference run list
+// so the closing half inherits the opening half's constraints.
+func runConstraints(r model.Run, reference []model.Run) (deletable, cloneable bool) {
+	var c *model.RunConstraints
+	switch {
+	case r.Ph != nil:
+		c = r.Ph.Constraints
+	case r.PcOpen != nil:
+		c = r.PcOpen.Constraints
+	case r.PcClose != nil:
+		// Find the matching PcOpen by ID in the same runs scope so
+		// the pair shares constraint metadata.
+		if paired := findPcOpen(reference, r.PcClose.ID); paired != nil {
+			c = paired.Constraints
+		}
 	}
+	if c == nil {
+		return false, false
+	}
+	return c.Deletable, c.Cloneable
+}
+
+// findPcOpen walks `runs` looking for a PcOpen with the given id.
+// Recurses into plural / select forms so the search respects the
+// same scope rules as the rest of the QA checks.
+func findPcOpen(runs []model.Run, id string) *model.PcOpenRun {
+	for _, r := range runs {
+		if r.PcOpen != nil && r.PcOpen.ID == id {
+			return r.PcOpen
+		}
+		if r.Plural != nil {
+			for _, form := range r.Plural.Forms {
+				if p := findPcOpen(form, id); p != nil {
+					return p
+				}
+			}
+		}
+		if r.Select != nil {
+			for _, form := range r.Select.Cases {
+				if p := findPcOpen(form, id); p != nil {
+					return p
+				}
+			}
+		}
+	}
+	return nil
+}
+
+// checkRunConstraints compares source and target inline-code counts
+// by (type, kind) fingerprint and reports violations where a
+// non-deletable code is missing from the target or a non-cloneable
+// code is duplicated. Direct Run-native port of checkSpanConstraints.
+func checkRunConstraints(source, target []model.Run) []QAIssue {
+	sourceCounts, sourceRuns := inlineCodeFingerprints(source)
+	targetCounts, _ := inlineCodeFingerprints(target)
 
 	var issues []QAIssue
 
-	// Non-deletable span missing from target.
+	// Non-deletable missing from target.
 	for key, srcCount := range sourceCounts {
 		tgtCount := targetCounts[key]
-		if tgtCount < srcCount {
-			s := spanByKey[key]
-			if s != nil && !s.Deletable {
-				missing := srcCount - tgtCount
-				issues = append(issues, QAIssue{
-					Type:     "non-deletable-span-missing",
-					Severity: QASeverityError,
-					Message:  fmt.Sprintf("Non-deletable %s span %q is missing from target (%d missing)", s.SpanType, s.Type, missing),
-				})
-			}
+		if tgtCount >= srcCount {
+			continue
 		}
+		r := sourceRuns[key]
+		deletable, _ := runConstraints(r, source)
+		if deletable {
+			continue
+		}
+		kind, typ := splitFingerprint(key)
+		missing := srcCount - tgtCount
+		issues = append(issues, QAIssue{
+			Type:     "non-deletable-span-missing",
+			Severity: QASeverityError,
+			Message:  fmt.Sprintf("Non-deletable %s span %q is missing from target (%d missing)", kind, typ, missing),
+		})
 	}
 
-	// Non-cloneable span duplicated in target.
+	// Non-cloneable duplicated in target.
 	for key, tgtCount := range targetCounts {
 		srcCount := sourceCounts[key]
-		if tgtCount > srcCount {
-			s := spanByKey[key]
-			if s != nil && !s.Cloneable {
-				extra := tgtCount - srcCount
-				issues = append(issues, QAIssue{
-					Type:     "non-cloneable-span-duplicated",
-					Severity: QASeverityError,
-					Message:  fmt.Sprintf("Non-cloneable %s span %q was duplicated in target (%d extra)", s.SpanType, s.Type, extra),
-				})
-			}
+		if tgtCount <= srcCount {
+			continue
 		}
+		r, ok := sourceRuns[key]
+		if !ok {
+			continue
+		}
+		_, cloneable := runConstraints(r, source)
+		if cloneable {
+			continue
+		}
+		kind, typ := splitFingerprint(key)
+		extra := tgtCount - srcCount
+		issues = append(issues, QAIssue{
+			Type:     "non-cloneable-span-duplicated",
+			Severity: QASeverityError,
+			Message:  fmt.Sprintf("Non-cloneable %s span %q was duplicated in target (%d extra)", kind, typ, extra),
+		})
 	}
 
 	return issues
 }
 
-// spanFingerprints counts spans by type|spanType fingerprint.
-func spanFingerprints(spans []*model.Span) map[string]int {
+// inlineCodeFingerprints counts inline-code runs by fingerprint and
+// also returns the exemplar run for each fingerprint (used to look
+// up constraints).
+func inlineCodeFingerprints(runs []model.Run) (map[string]int, map[string]model.Run) {
 	counts := make(map[string]int)
-	for _, s := range spans {
-		counts[spanFingerprint(s)]++
+	exemplars := make(map[string]model.Run)
+	var walk func(rs []model.Run)
+	walk = func(rs []model.Run) {
+		for _, r := range rs {
+			if key, ok := runFingerprint(r); ok {
+				counts[key]++
+				if _, seen := exemplars[key]; !seen {
+					exemplars[key] = r
+				}
+			}
+			if r.Plural != nil {
+				for _, form := range r.Plural.Forms {
+					walk(form)
+				}
+			}
+			if r.Select != nil {
+				for _, form := range r.Select.Cases {
+					walk(form)
+				}
+			}
+		}
 	}
-	return counts
+	walk(runs)
+	return counts, exemplars
+}
+
+// splitFingerprint decomposes "type|kind" into its two halves. Used
+// by the QA issue message formatters.
+func splitFingerprint(key string) (kind, typ string) {
+	for i := len(key) - 1; i >= 0; i-- {
+		if key[i] == '|' {
+			return mapKindToSpanName(key[i+1:]), key[:i]
+		}
+	}
+	return "", key
+}
+
+// mapKindToSpanName renders a Run kind back to the human-friendly
+// SpanType name the QA messages used to print ("Opening" / "Closing"
+// / "Placeholder") so migrating tests only need to care about the
+// issue Type field, not the exact wording.
+func mapKindToSpanName(kind string) string {
+	switch kind {
+	case "pcOpen":
+		return "Opening"
+	case "pcClose":
+		return "Closing"
+	case "ph":
+		return "Placeholder"
+	case "sub":
+		return "Sub"
+	}
+	return kind
 }
 
 // storeQAIssues writes QA findings to Block.Properties.
@@ -635,18 +750,14 @@ func checkPatterns(sourceText, targetText string, patterns []QAPattern) []QAIssu
 	return issues
 }
 
-// checkCodeDifferences compares source and target inline codes by type.
-func checkCodeDifferences(source, target *model.Fragment, strictOrder bool) []QAIssue {
-	if source == nil || target == nil {
-		return nil
-	}
-
-	sourceTypes := spanTypeList(source.Spans)
-	targetTypes := spanTypeList(target.Spans)
+// checkCodeDifferencesRuns compares source and target inline codes
+// by type, walking Run sequences. Direct Run-native port of
+// checkCodeDifferences.
+func checkCodeDifferencesRuns(source, target []model.Run, strictOrder bool) []QAIssue {
+	sourceTypes := inlineCodeTypes(source)
+	targetTypes := inlineCodeTypes(target)
 
 	var issues []QAIssue
-
-	// Check for missing and extra codes.
 	sourceCounts := countStrings(sourceTypes)
 	targetCounts := countStrings(targetTypes)
 
@@ -671,7 +782,6 @@ func checkCodeDifferences(source, target *model.Fragment, strictOrder bool) []QA
 		}
 	}
 
-	// Strict order check.
 	if strictOrder && len(issues) == 0 {
 		minLen := len(sourceTypes)
 		if len(targetTypes) < minLen {
@@ -692,12 +802,49 @@ func checkCodeDifferences(source, target *model.Fragment, strictOrder bool) []QA
 	return issues
 }
 
-// spanTypeList returns an ordered list of span Type strings.
-func spanTypeList(spans []*model.Span) []string {
-	types := make([]string, len(spans))
-	for i, s := range spans {
-		types[i] = s.Type
+// inlineCodeTypes returns an ordered list of inline-code Type strings
+// walking text-adjacent Ph / PcOpen / PcClose / Sub runs (skipping
+// TextRuns but recursing through plural / select forms).
+func inlineCodeTypes(runs []model.Run) []string {
+	var types []string
+	var walk func(rs []model.Run)
+	walk = func(rs []model.Run) {
+		for _, r := range rs {
+			switch {
+			case r.Ph != nil:
+				types = append(types, r.Ph.Type)
+			case r.PcOpen != nil:
+				types = append(types, r.PcOpen.Type)
+			case r.PcClose != nil:
+				types = append(types, r.PcClose.Type)
+			case r.Sub != nil:
+				types = append(types, "sub")
+			case r.Plural != nil:
+				// Walk in a canonical plural-form order so the list
+				// is deterministic across maps.
+				for _, f := range []model.PluralForm{model.PluralZero, model.PluralOne, model.PluralTwo, model.PluralFew, model.PluralMany, model.PluralOther} {
+					if form, ok := r.Plural.Forms[f]; ok {
+						walk(form)
+					}
+				}
+			case r.Select != nil:
+				if form, ok := r.Select.Cases["other"]; ok {
+					walk(form)
+				}
+				// Sort-stable iteration over the remaining keys.
+				keys := make([]string, 0, len(r.Select.Cases))
+				for k := range r.Select.Cases {
+					if k != "other" {
+						keys = append(keys, k)
+					}
+				}
+				for _, k := range keys {
+					walk(r.Select.Cases[k])
+				}
+			}
+		}
 	}
+	walk(runs)
 	return types
 }
 
