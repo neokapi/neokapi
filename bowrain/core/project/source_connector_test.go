@@ -190,12 +190,12 @@ func mockSyncBlock(id, name, itemName, source string, targets map[string]string)
 		ItemName:   itemName,
 		Name:       name,
 		SourceText: source,
-		Source:     []apiclient.SyncSegment{{ID: "s1", Text: source}},
+		Source:     []apiclient.SyncSegment{{ID: "s1", Runs: []apiclient.SyncRun{{Text: &apiclient.SyncTextRun{Text: source}}}}},
 	}
 	if len(targets) > 0 {
 		sb.Targets = make(map[string][]apiclient.SyncSegment)
 		for loc, text := range targets {
-			sb.Targets[loc] = []apiclient.SyncSegment{{ID: "s1", Text: text}}
+			sb.Targets[loc] = []apiclient.SyncSegment{{ID: "s1", Runs: []apiclient.SyncRun{{Text: &apiclient.SyncTextRun{Text: text}}}}}
 		}
 	}
 	return sb

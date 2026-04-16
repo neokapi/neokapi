@@ -134,20 +134,28 @@ func deserializeAnnotations(jsonStr string) map[string]model.Annotation {
 	return result
 }
 
-// countWordsFromSourceJSON counts words from serialized source segments JSON
-// without fully deserializing Span objects.
+// countWordsFromSourceJSON counts words from the serialized source
+// segments JSON. Segments now carry a Runs slice; we flatten each
+// TextRun into the word-count input without fully deserializing the
+// structured run hierarchy.
 func countWordsFromSourceJSON(sourceJSON string) int {
 	var segments []struct {
-		Content struct {
-			CodedText string `json:"coded_text"`
-		} `json:"Content"`
+		Runs []struct {
+			Text *struct {
+				Text string `json:"text"`
+			} `json:"text,omitempty"`
+		} `json:"Runs"`
 	}
 	if err := json.Unmarshal([]byte(sourceJSON), &segments); err != nil {
 		return 0
 	}
 	count := 0
 	for _, seg := range segments {
-		count += countWords(seg.Content.CodedText)
+		for _, r := range seg.Runs {
+			if r.Text != nil {
+				count += countWords(r.Text.Text)
+			}
+		}
 	}
 	return count
 }

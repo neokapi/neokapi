@@ -28,19 +28,76 @@ type SyncBlock struct {
 // SyncSegment represents a segment within a SyncBlock.
 type SyncSegment struct {
 	ID         string            `json:"id"`
-	Text       string            `json:"text"`
-	CodedText  string            `json:"coded_text,omitempty"`
-	Spans      []SyncSpan        `json:"spans,omitempty"`
+	Runs       []SyncRun         `json:"runs,omitempty"`
 	Properties map[string]string `json:"properties,omitempty"`
 }
 
-// SyncSpan represents an inline span within a segment.
-type SyncSpan struct {
-	ID       string `json:"id"`
-	Type     string `json:"type"`
-	SubType  string `json:"sub_type,omitempty"`
-	SpanType string `json:"span_type"`
-	Data     string `json:"data,omitempty"`
+// SyncRunConstraints mirrors model.RunConstraints on the sync wire.
+type SyncRunConstraints struct {
+	Deletable   bool `json:"deletable,omitempty"`
+	Cloneable   bool `json:"cloneable,omitempty"`
+	Reorderable bool `json:"reorderable,omitempty"`
+}
+
+type SyncTextRun struct {
+	Text string `json:"text"`
+}
+
+type SyncPlaceholderRun struct {
+	ID          string              `json:"id"`
+	Type        string              `json:"type"`
+	SubType     string              `json:"subType,omitempty"`
+	Data        string              `json:"data"`
+	Equiv       string              `json:"equiv"`
+	Disp        string              `json:"disp,omitempty"`
+	Constraints *SyncRunConstraints `json:"constraints,omitempty"`
+}
+
+type SyncPcOpenRun struct {
+	ID          string              `json:"id"`
+	Type        string              `json:"type"`
+	SubType     string              `json:"subType,omitempty"`
+	Data        string              `json:"data"`
+	Equiv       string              `json:"equiv"`
+	Disp        string              `json:"disp,omitempty"`
+	Constraints *SyncRunConstraints `json:"constraints,omitempty"`
+}
+
+type SyncPcCloseRun struct {
+	ID      string `json:"id"`
+	Type    string `json:"type"`
+	SubType string `json:"subType,omitempty"`
+	Data    string `json:"data"`
+	Equiv   string `json:"equiv,omitempty"`
+}
+
+type SyncSubRun struct {
+	ID    string `json:"id"`
+	Ref   string `json:"ref"`
+	Equiv string `json:"equiv"`
+}
+
+type SyncPluralRun struct {
+	Pivot string               `json:"pivot"`
+	Forms map[string][]SyncRun `json:"forms"`
+}
+
+type SyncSelectRun struct {
+	Pivot string               `json:"pivot"`
+	Cases map[string][]SyncRun `json:"cases"`
+}
+
+// SyncRun is the discriminated-union inline-content primitive on
+// the sync wire. Exactly one of the pointer fields is non-nil per
+// record.
+type SyncRun struct {
+	Text    *SyncTextRun        `json:"text,omitempty"`
+	Ph      *SyncPlaceholderRun `json:"ph,omitempty"`
+	PcOpen  *SyncPcOpenRun      `json:"pcOpen,omitempty"`
+	PcClose *SyncPcCloseRun     `json:"pcClose,omitempty"`
+	Sub     *SyncSubRun         `json:"sub,omitempty"`
+	Plural  *SyncPluralRun      `json:"plural,omitempty"`
+	Select  *SyncSelectRun      `json:"select,omitempty"`
 }
 
 // SyncTerm carries terminology entries through the sync boundary.

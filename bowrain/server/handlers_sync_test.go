@@ -169,8 +169,10 @@ func TestSyncGetBlocks(t *testing.T) {
 	assert.Len(t, sourceMap["World"].ID, 8)
 	assert.NotEqual(t, "b2", sourceMap["World"].ID)
 	// Verify source segments are populated.
-	assert.NotEmpty(t, sourceMap["Hello"].Source, "source segments should be populated")
-	assert.Equal(t, "Hello", sourceMap["Hello"].Source[0].Text)
+	require.NotEmpty(t, sourceMap["Hello"].Source, "source segments should be populated")
+	require.Len(t, sourceMap["Hello"].Source[0].Runs, 1, "source segment should have one run")
+	require.NotNil(t, sourceMap["Hello"].Source[0].Runs[0].Text, "source run should be a text run")
+	assert.Equal(t, "Hello", sourceMap["Hello"].Source[0].Runs[0].Text.Text)
 }
 
 func TestSyncGetBlocks_Empty(t *testing.T) {

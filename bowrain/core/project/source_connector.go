@@ -543,11 +543,17 @@ func (c *BowrainSourceConnector) Pull(ctx context.Context, opts connector.PullOp
 				targetMap := map[string]string{} // blockID → translated text
 				for _, b := range blocks {
 					if segs, ok := b.Targets[loc]; ok {
-						// Extract plain text from segments.
+						// Extract plain text from segments (flatten
+						// TextRuns only — inline codes and structured
+						// runs contribute nothing at export time).
 						var text string
 						var textSb546 strings.Builder
 						for _, seg := range segs {
-							textSb546.WriteString(seg.Text)
+							for _, r := range seg.Runs {
+								if r.Text != nil {
+									textSb546.WriteString(r.Text.Text)
+								}
+							}
 						}
 						text += textSb546.String()
 						if text != "" {

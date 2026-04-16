@@ -1,8 +1,8 @@
 package backend
 
 import (
-	"strings"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/neokapi/neokapi/bowrain/core/store"
