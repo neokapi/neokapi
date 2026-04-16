@@ -736,17 +736,11 @@ func (r *Reader) buildBlock(tu *parsedTransUnit, sourceLang, targetLang model.Lo
 		// Use seg-source segments
 		block.Source = make([]*model.Segment, len(tu.segSource))
 		for i, seg := range tu.segSource {
-			block.Source[i] = &model.Segment{
-				ID:      seg.mid,
-				Content: parseInlineContent(seg.text),
-			}
+			block.Source[i] = model.NewRunsSegment(seg.mid, parseInlineContent(seg.text))
 		}
 	} else {
 		// Use <source> content
-		block.Source = []*model.Segment{{
-			ID:      "s1",
-			Content: parseInlineContent(tu.source),
-		}}
+		block.Source = []*model.Segment{model.NewRunsSegment("s1", parseInlineContent(tu.source))}
 	}
 
 	// Build target segments
@@ -757,17 +751,11 @@ func (r *Reader) buildBlock(tu *parsedTransUnit, sourceLang, targetLang model.Lo
 		if len(targetSegs) > 0 {
 			tgtSegs := make([]*model.Segment, len(targetSegs))
 			for i, seg := range targetSegs {
-				tgtSegs[i] = &model.Segment{
-					ID:      seg.mid,
-					Content: parseInlineContent(seg.text),
-				}
+				tgtSegs[i] = model.NewRunsSegment(seg.mid, parseInlineContent(seg.text))
 			}
 			block.Targets[targetLang] = tgtSegs
 		} else {
-			block.Targets[targetLang] = []*model.Segment{{
-				ID:      "s1",
-				Content: parseInlineContent(targetContent),
-			}}
+			block.Targets[targetLang] = []*model.Segment{model.NewRunsSegment("s1", parseInlineContent(targetContent))}
 		}
 	}
 
@@ -820,27 +808,30 @@ func (r *Reader) buildBlock(tu *parsedTransUnit, sourceLang, targetLang model.Lo
 // Annotation is an alias for model.Annotation to make things cleaner.
 type Annotation = model.Annotation
 
-// parseInlineContent parses XLIFF 1.2 inline elements and returns a Fragment.
-func parseInlineContent(innerXML string) *model.Fragment {
+// parseInlineContent parses XLIFF 1.2 inline elements and returns
+// a Run sequence with text interleaved with Ph / PcOpen / PcClose /
+// Sub inline codes.
+func parseInlineContent(innerXML string) []model.Run {
 	if innerXML == "" {
-		return model.NewFragment("")
+		return nil
 	}
 
-	// Try parsing as XML to handle inline codes
-	frag := model.NewFragment("")
-	frag.Spans = nil // Clear default
-
-	// Wrap in a root element for parsing
+	// Wrap in a root element for parsing.
 	wrapped := "<root>" + innerXML + "</root>"
 	decoder := xml.NewDecoder(strings.NewReader(wrapped))
 	decoder.Strict = false
 
+	var runs []model.Run
 	var textBuf strings.Builder
-	var spans []*model.Span
+	var gStack []string // stack of open <g> ids so the closing </g> knows which pcOpen to match
 	depth := 0
 
 	flushText := func() {
-		// Text is accumulated in textBuf and set at the end — nothing to flush mid-parse
+		if textBuf.Len() == 0 {
+			return
+		}
+		runs = append(runs, model.Run{Text: &model.TextRun{Text: textBuf.String()}})
+		textBuf.Reset()
 	}
 
 	for {
@@ -858,123 +849,99 @@ func parseInlineContent(innerXML string) *model.Fragment {
 
 			switch t.Name.Local {
 			case "bpt":
-				// Beginning paired tag — opening code
 				id := attrVal(t.Attr, "id")
 				data := readElementText(decoder)
-				depth-- // readElementText consumed end
+				depth--
 				flushText()
-				spans = append(spans, &model.Span{
-					SpanType:  model.SpanOpening,
-					Type:      ctypeToSpanType(attrVal(t.Attr, "ctype")),
-					ID:        id,
-					Data:      data,
-					EquivText: attrVal(t.Attr, "equiv-text"),
-				})
+				runs = append(runs, model.Run{PcOpen: &model.PcOpenRun{
+					ID: id, Type: ctypeToSpanType(attrVal(t.Attr, "ctype")),
+					Data: data, Equiv: attrVal(t.Attr, "equiv-text"),
+				}})
 
 			case "ept":
-				// Ending paired tag — closing code
 				id := attrVal(t.Attr, "id")
 				data := readElementText(decoder)
 				depth--
 				flushText()
-				spans = append(spans, &model.Span{
-					SpanType:  model.SpanClosing,
-					Type:      ctypeToSpanType(attrVal(t.Attr, "ctype")),
-					ID:        id,
-					Data:      data,
-					EquivText: attrVal(t.Attr, "equiv-text"),
-				})
+				runs = append(runs, model.Run{PcClose: &model.PcCloseRun{
+					ID: id, Type: ctypeToSpanType(attrVal(t.Attr, "ctype")),
+					Data: data, Equiv: attrVal(t.Attr, "equiv-text"),
+				}})
 
 			case "ph":
-				// Placeholder — standalone code
 				id := attrVal(t.Attr, "id")
 				data := readElementText(decoder)
 				depth--
 				flushText()
-				spans = append(spans, &model.Span{
-					SpanType:  model.SpanPlaceholder,
-					Type:      ctypeToSpanType(attrVal(t.Attr, "ctype")),
-					ID:        id,
-					Data:      data,
-					EquivText: attrVal(t.Attr, "equiv-text"),
-				})
+				runs = append(runs, model.Run{Ph: &model.PlaceholderRun{
+					ID: id, Type: ctypeToSpanType(attrVal(t.Attr, "ctype")),
+					Data: data, Equiv: attrVal(t.Attr, "equiv-text"),
+				}})
 
 			case "x":
-				// Standalone code (self-closing)
 				id := attrVal(t.Attr, "id")
 				flushText()
-				spans = append(spans, &model.Span{
-					SpanType:  model.SpanPlaceholder,
-					Type:      ctypeToSpanType(attrVal(t.Attr, "ctype")),
-					ID:        id,
-					EquivText: attrVal(t.Attr, "equiv-text"),
-				})
+				runs = append(runs, model.Run{Ph: &model.PlaceholderRun{
+					ID: id, Type: ctypeToSpanType(attrVal(t.Attr, "ctype")),
+					Equiv: attrVal(t.Attr, "equiv-text"),
+				}})
 
 			case "bx":
-				// Beginning of paired code (self-closing form)
 				id := attrVal(t.Attr, "id")
 				flushText()
-				spans = append(spans, &model.Span{
-					SpanType:  model.SpanOpening,
-					Type:      ctypeToSpanType(attrVal(t.Attr, "ctype")),
-					ID:        id,
-					EquivText: attrVal(t.Attr, "equiv-text"),
-				})
+				runs = append(runs, model.Run{PcOpen: &model.PcOpenRun{
+					ID: id, Type: ctypeToSpanType(attrVal(t.Attr, "ctype")),
+					Equiv: attrVal(t.Attr, "equiv-text"),
+				}})
 
 			case "ex":
-				// End of paired code (self-closing form)
 				id := attrVal(t.Attr, "id")
 				flushText()
-				spans = append(spans, &model.Span{
-					SpanType:  model.SpanClosing,
-					Type:      ctypeToSpanType(attrVal(t.Attr, "ctype")),
-					ID:        id,
-					EquivText: attrVal(t.Attr, "equiv-text"),
-				})
+				runs = append(runs, model.Run{PcClose: &model.PcCloseRun{
+					ID: id, Type: ctypeToSpanType(attrVal(t.Attr, "ctype")),
+					Equiv: attrVal(t.Attr, "equiv-text"),
+				}})
 
 			case "g":
-				// Generic group inline element — treated as opening
 				id := attrVal(t.Attr, "id")
 				flushText()
-				spans = append(spans, &model.Span{
-					SpanType:  model.SpanOpening,
-					Type:      ctypeToSpanType(attrVal(t.Attr, "ctype")),
-					ID:        id,
-					EquivText: attrVal(t.Attr, "equiv-text"),
-				})
+				runs = append(runs, model.Run{PcOpen: &model.PcOpenRun{
+					ID: id, Type: ctypeToSpanType(attrVal(t.Attr, "ctype")),
+					Equiv: attrVal(t.Attr, "equiv-text"),
+				}})
+				gStack = append(gStack, id)
 
 			case "it":
-				// Isolated code (opening or closing depending on pos)
 				id := attrVal(t.Attr, "id")
 				pos := attrVal(t.Attr, "pos")
 				data := readElementText(decoder)
 				depth--
 				flushText()
-				spanType := model.SpanPlaceholder
-				if pos == "open" {
-					spanType = model.SpanOpening
-				} else if pos == "close" {
-					spanType = model.SpanClosing
+				typ := ctypeToSpanType(attrVal(t.Attr, "ctype"))
+				equiv := attrVal(t.Attr, "equiv-text")
+				switch pos {
+				case "open":
+					runs = append(runs, model.Run{PcOpen: &model.PcOpenRun{
+						ID: id, Type: typ, Data: data, Equiv: equiv,
+					}})
+				case "close":
+					runs = append(runs, model.Run{PcClose: &model.PcCloseRun{
+						ID: id, Type: typ, Data: data, Equiv: equiv,
+					}})
+				default:
+					runs = append(runs, model.Run{Ph: &model.PlaceholderRun{
+						ID: id, Type: typ, Data: data, Equiv: equiv,
+					}})
 				}
-				spans = append(spans, &model.Span{
-					SpanType:  spanType,
-					Type:      ctypeToSpanType(attrVal(t.Attr, "ctype")),
-					ID:        id,
-					Data:      data,
-					EquivText: attrVal(t.Attr, "equiv-text"),
-				})
 
 			case "mrk":
-				// mrk elements in source/target (non-seg mrk like mtype="term", "protected", etc.)
-				// Treat as an annotation span — opening
 				id := attrVal(t.Attr, "mid")
 				mtype := attrVal(t.Attr, "mtype")
 				flushText()
-				spans = append(spans, &model.Span{
-					SpanType: model.SpanOpening,
-					Type:     "xliff:mrk:" + mtype,
-					ID:       id,
-				})
+				runs = append(runs, model.Run{PcOpen: &model.PcOpenRun{
+					ID: id, Type: "xliff:mrk:" + mtype,
+				}})
+				gStack = append(gStack, id)
 
 			case "sub":
 				// Translatable sub-flow inside inline codes. Read content.
@@ -982,7 +949,7 @@ func parseInlineContent(innerXML string) *model.Fragment {
 				depth--
 
 			default:
-				// Unknown inline element — skip content
+				// Unknown inline element — skip content.
 			}
 
 		case xml.EndElement:
@@ -991,27 +958,22 @@ func parseInlineContent(innerXML string) *model.Fragment {
 				// Root end
 				continue
 			}
-			// Check for end of <g> — emit closing span
 			if t.Name.Local == "g" {
 				flushText()
-				// Find the matching opening span to get its ID
-				var gID string
-				for i := len(spans) - 1; i >= 0; i-- {
-					if spans[i].SpanType == model.SpanOpening && spans[i].ID != "" {
-						gID = spans[i].ID
-						break
-					}
+				id := ""
+				if n := len(gStack); n > 0 {
+					id = gStack[n-1]
+					gStack = gStack[:n-1]
 				}
-				spans = append(spans, &model.Span{
-					SpanType: model.SpanClosing,
-					ID:       gID,
-				})
+				runs = append(runs, model.Run{PcClose: &model.PcCloseRun{ID: id}})
 			} else if t.Name.Local == "mrk" {
 				flushText()
-				spans = append(spans, &model.Span{
-					SpanType: model.SpanClosing,
-					Type:     "xliff:mrk",
-				})
+				id := ""
+				if n := len(gStack); n > 0 {
+					id = gStack[n-1]
+					gStack = gStack[:n-1]
+				}
+				runs = append(runs, model.Run{PcClose: &model.PcCloseRun{ID: id, Type: "xliff:mrk"}})
 			}
 
 		case xml.CharData:
@@ -1020,10 +982,8 @@ func parseInlineContent(innerXML string) *model.Fragment {
 			}
 		}
 	}
-
-	result := model.NewFragment(textBuf.String())
-	result.Spans = spans
-	return result
+	flushText()
+	return runs
 }
 
 // readElementText reads text content of an element until its end tag.
