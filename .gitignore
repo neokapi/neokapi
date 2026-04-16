@@ -33,6 +33,12 @@ dist/
 *.tsbuildinfo
 **/public/version.json
 
+# Extraction artifacts — regenerated via `make kapi-desktop-translations`.
+# The per-locale runtime dictionaries under public/translations/ are
+# committed so the app ships with translations; the intermediate .klz
+# archives aren't.
+apps/kapi-desktop/frontend/i18n/*.klz
+
 # Wails
 **/build/bin/
 **/build/darwin/

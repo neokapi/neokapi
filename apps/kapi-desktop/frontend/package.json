@@ -13,9 +13,8 @@
     "fmt": "vp fmt",
     "test": "vp test",
     "test:watch": "vp test watch",
-    "extract": "vpx kapi-react extract",
-    "pseudo-translate": "node scripts/gen-qps-translations.mjs i18n/strings.json public/translations/qps.json",
-    "translations": "npm run extract && npm run pseudo-translate"
+    "extract": "vpx kapi-react extract --out i18n/extracted.klz --target-locale qps",
+    "compile": "vpx kapi-react compile i18n/translated.klz --out public/translations"
   },
   "dependencies": {
     "@fontsource-variable/inter": "^5.2.8",
