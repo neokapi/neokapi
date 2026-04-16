@@ -660,15 +660,42 @@ func editorUpdateBlockTargetCoded(ctx context.Context, cs store.ContentStore, pr
 		return err
 	}
 
-	frag := &model.Fragment{
-		CodedText: req.CodedText,
-	}
-	for _, si := range req.Spans {
-		frag.Spans = append(frag.Spans, editorInfoToSpan(si))
-	}
-	sb.Block.SetTargetRuns(model.LocaleID(req.TargetLocale), model.FragmentToRuns(frag))
+	sb.Block.SetTargetRuns(model.LocaleID(req.TargetLocale), editorRequestToRuns(req.CodedText, req.Spans))
 
 	return cs.StoreBlocks(ctx, projectID, stream, []*model.Block{sb.Block})
+}
+
+// editorRequestToRuns converts an editor's coded text + span list into a
+// Run sequence. Each PUA marker in the coded text consumes the next entry
+// in spans and emits the matching Run kind.
+func editorRequestToRuns(coded string, spans []SpanInfoResponse) []model.Run {
+	if coded == "" {
+		return nil
+	}
+	var runs []model.Run
+	var text []rune
+	flushText := func() {
+		if len(text) > 0 {
+			runs = append(runs, model.Run{Text: &model.TextRun{Text: string(text)}})
+			text = text[:0]
+		}
+	}
+	idx := 0
+	for _, r := range coded {
+		switch r {
+		case model.MarkerOpening, model.MarkerClosing, model.MarkerPlaceholder:
+			flushText()
+			if idx >= len(spans) {
+				continue
+			}
+			runs = append(runs, editorInfoToRun(r, spans[idx]))
+			idx++
+		default:
+			text = append(text, r)
+		}
+	}
+	flushText()
+	return runs
 }
 
 // editorPseudoTranslate pseudo-translates all blocks for an item.
@@ -697,11 +724,7 @@ func editorPseudoTranslate(ctx context.Context, cs store.ContentStore, projectID
 		locale := model.LocaleID(targetLocale)
 		seg := block.FirstSegment()
 		if seg != nil && seg.HasInlineCodes() {
-			frag := model.RunsToFragment(seg.Runs)
-			pseudoCoded := "[" + editorPseudoAccent(frag.CodedText) + "]"
-			targetFrag := frag.Clone()
-			targetFrag.CodedText = pseudoCoded
-			block.SetTargetRuns(locale, model.FragmentToRuns(targetFrag))
+			block.SetTargetRuns(locale, editorPseudoRuns(seg.Runs))
 		} else {
 			src := block.SourceText()
 			pseudo := "[" + editorPseudoAccent(src) + "]"
@@ -1245,28 +1268,65 @@ func editorSpanToInfo(s *model.Span) SpanInfoResponse {
 	}
 }
 
-func editorInfoToSpan(si SpanInfoResponse) *model.Span {
-	var st model.SpanType
-	switch si.SpanType {
-	case "opening":
-		st = model.SpanOpening
-	case "closing":
-		st = model.SpanClosing
-	case "placeholder":
-		st = model.SpanPlaceholder
-	}
-	return &model.Span{
-		SpanType:    st,
-		Type:        si.Type,
-		ID:          si.ID,
-		Data:        si.Data,
-		SubType:     si.SubType,
-		DisplayText: si.DisplayText,
-		EquivText:   si.EquivText,
+// editorInfoToRun converts a single SpanInfoResponse + marker into a Run.
+// The marker (one of MarkerOpening / MarkerClosing / MarkerPlaceholder) is
+// the wire-level discriminator that selects the Run kind; the response's
+// SpanType field, while informative, is not authoritative — readers always
+// trust the marker.
+func editorInfoToRun(marker rune, si SpanInfoResponse) model.Run {
+	constraints := &model.RunConstraints{
 		Deletable:   si.Deletable,
 		Cloneable:   si.Cloneable,
-		CanReorder:  si.CanReorder,
+		Reorderable: si.CanReorder,
 	}
+	switch marker {
+	case model.MarkerOpening:
+		return model.Run{PcOpen: &model.PcOpenRun{
+			ID:          si.ID,
+			Type:        si.Type,
+			SubType:     si.SubType,
+			Data:        si.Data,
+			Equiv:       si.EquivText,
+			Disp:        si.DisplayText,
+			Constraints: constraints,
+		}}
+	case model.MarkerClosing:
+		return model.Run{PcClose: &model.PcCloseRun{
+			ID:      si.ID,
+			Type:    si.Type,
+			SubType: si.SubType,
+			Data:    si.Data,
+			Equiv:   si.EquivText,
+		}}
+	default:
+		return model.Run{Ph: &model.PlaceholderRun{
+			ID:          si.ID,
+			Type:        si.Type,
+			SubType:     si.SubType,
+			Data:        si.Data,
+			Equiv:       si.EquivText,
+			Disp:        si.DisplayText,
+			Constraints: constraints,
+		}}
+	}
+}
+
+// editorPseudoRuns walks a Run sequence and applies pseudo-accent to TextRun
+// content only, leaving inline-code runs untouched. The result is wrapped
+// with `[` / `]` brackets at the boundaries (as plain TextRuns) to mirror
+// the legacy CodedText-based pseudo behaviour.
+func editorPseudoRuns(runs []model.Run) []model.Run {
+	out := make([]model.Run, 0, len(runs)+2)
+	out = append(out, model.Run{Text: &model.TextRun{Text: "["}})
+	for _, r := range runs {
+		if r.Text != nil {
+			out = append(out, model.Run{Text: &model.TextRun{Text: editorPseudoAccent(r.Text.Text)}})
+			continue
+		}
+		out = append(out, r)
+	}
+	out = append(out, model.Run{Text: &model.TextRun{Text: "]"}})
+	return out
 }
 
 func editorComputeStats(parts []*model.Part, targetLocale string) *TranslationStatsResponse {

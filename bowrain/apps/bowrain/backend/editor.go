@@ -395,11 +395,7 @@ func (a *App) PseudoTranslateItem(projectID, itemName, targetLocale string) (*Tr
 		locale := model.LocaleID(targetLocale)
 		seg := block.FirstSegment()
 		if seg != nil && seg.HasInlineCodes() {
-			frag := model.RunsToFragment(seg.Runs)
-			pseudoCoded := "[" + pseudoAccent(frag.CodedText) + "]"
-			targetFrag := frag.Clone()
-			targetFrag.CodedText = pseudoCoded
-			block.SetTargetRuns(locale, model.FragmentToRuns(targetFrag))
+			block.SetTargetRuns(locale, pseudoRuns(seg.Runs))
 		} else {
 			src := block.SourceText()
 			pseudo := "[" + pseudoAccent(src) + "]"
@@ -756,6 +752,23 @@ func pseudoAccent(text string) string {
 		}
 	}
 	return buf.String()
+}
+
+// pseudoRuns walks a Run sequence and applies pseudo-accent to TextRun
+// content only, leaving inline-code runs untouched. The result is
+// bracketed with `[` / `]` as plain TextRuns at the boundaries.
+func pseudoRuns(runs []model.Run) []model.Run {
+	out := make([]model.Run, 0, len(runs)+2)
+	out = append(out, model.Run{Text: &model.TextRun{Text: "["}})
+	for _, r := range runs {
+		if r.Text != nil {
+			out = append(out, model.Run{Text: &model.TextRun{Text: pseudoAccent(r.Text.Text)}})
+			continue
+		}
+		out = append(out, r)
+	}
+	out = append(out, model.Run{Text: &model.TextRun{Text: "]"}})
+	return out
 }
 
 var accentMap = map[rune]rune{
