@@ -192,6 +192,6 @@ such caller).
 ## References
 
 - [AD-045: KLF / KLZ Format Specification](045-klf-klz-spec.md) — the normative spec.
-- [KLF / KLZ walkthrough](../notes/klf-klz-walkthrough.md) — end-to-end lifecycle with real file contents.
-- [`packages/format/`](../../packages/format/) — `@neokapi/format`, the TypeScript schema.
+- [KLF / KLZ walkthrough](/docs/notes/klf-klz-walkthrough) — end-to-end lifecycle with real file contents.
+- [`packages/format/`](https://github.com/neokapi/neokapi/tree/main/packages/format) — `@neokapi/format`, the TypeScript schema.
 - Issue [#368](https://github.com/neokapi/neokapi/issues/368)

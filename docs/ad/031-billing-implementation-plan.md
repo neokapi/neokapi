@@ -1,3 +1,9 @@
+---
+id: 031-billing-implementation-plan
+sidebar_position: 31
+title: "AD-031: Billing Implementation Plan"
+---
+
 # AD-031: Billing Implementation Plan — Landing Full Plan, Billing & Metering Support
 
 ## Status: Plan (pending review)

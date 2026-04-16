@@ -1,3 +1,9 @@
+---
+id: 030-billing-plans
+sidebar_position: 30
+title: "AD-030: Billing, Plans & Usage Quotas (Stripe + PostHog)"
+---
+
 # AD-030: Billing, Plans & Usage Quotas (Stripe + PostHog)
 
 ## Context
