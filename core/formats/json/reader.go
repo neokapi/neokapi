@@ -526,27 +526,29 @@ func (r *Reader) applyCodeFinder(block *model.Block) {
 			return a.start - b.start
 		})
 
-		// Rebuild fragment with coded text markers
-		newFrag := &model.Fragment{}
+		// Rebuild segment content as Runs: text between matches
+		// becomes TextRuns; each matched inline code becomes a Ph
+		// run, preserving the code-regex behavior from the legacy
+		// Fragment/Span emission.
+		var runs []model.Run
 		lastEnd := 0
 		spanID := 1
 		for _, m := range matches {
 			if m.start > lastEnd {
-				newFrag.AppendText(text[lastEnd:m.start])
+				runs = append(runs, model.Run{Text: &model.TextRun{Text: text[lastEnd:m.start]}})
 			}
-			newFrag.AppendSpan(&model.Span{
-				ID:       "c" + strconv.Itoa(spanID),
-				SpanType: model.SpanPlaceholder,
-				Type:     "code",
-				Data:     text[m.start:m.end],
-			})
+			runs = append(runs, model.Run{Ph: &model.PlaceholderRun{
+				ID:   "c" + strconv.Itoa(spanID),
+				Type: "code",
+				Data: text[m.start:m.end],
+			}})
 			lastEnd = m.end
 			spanID++
 		}
 		if lastEnd < len(text) {
-			newFrag.AppendText(text[lastEnd:])
+			runs = append(runs, model.Run{Text: &model.TextRun{Text: text[lastEnd:]}})
 		}
-		seg.Content = newFrag
+		seg.SetRuns(runs)
 	}
 }
 
