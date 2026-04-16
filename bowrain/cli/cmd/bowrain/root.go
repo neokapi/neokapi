@@ -44,6 +44,12 @@ run quality checks, and manage terminology.`,
 }
 
 func init() {
+	// Populate tool + format registries up front so NewToolCommands can
+	// see every built-in tool before cobra's init runs. PersistentPreRun
+	// calls Init() later to do the flag-dependent work (plugins,
+	// credentials, config load).
+	app.InitRegistries()
+
 	app.AddPersistentFlags(rootCmd)
 	app.AddCommandGroups(rootCmd)
 

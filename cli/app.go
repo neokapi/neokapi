@@ -80,15 +80,15 @@ func (a *App) AddProcessingFlags(cmd *cobra.Command) {
 	cmd.Flags().StringVar(&a.TargetLang, "target-lang", "", "target language (e.g. fr, de-DE)")
 }
 
-// Init initializes the format registry and loads plugins.
-// Call this in PersistentPreRun after setting a.Config.
-//
-// Built-in formats are registered with static metadata — no reader/writer
-// instances are created. Schemas and config decoders are registered in the
-// same pass for formats that support them. Plugin metadata is loaded from
-// a pre-computed cache file ({plugin_dir}/plugin-cache.json) built at
-// install time, avoiding directory scanning and manifest parsing.
-func (a *App) Init() {
+// InitRegistries populates FormatReg, SchemaReg, and ToolReg with every
+// built-in format, schema, and tool. It has no flag or config dependency
+// and is safe to call at cobra `init()` time — specifically, before
+// NewToolCommands() walks the tool registry to build subcommand trees.
+// Idempotent: repeat calls are a no-op once the registries exist.
+func (a *App) InitRegistries() {
+	if a.ToolReg != nil {
+		return
+	}
 	a.FormatReg = registry.NewFormatRegistry()
 	a.SchemaReg = schema.NewSchemaRegistry()
 
@@ -101,6 +101,14 @@ func (a *App) Init() {
 	a.ToolReg = registry.NewToolRegistry()
 	libtools.RegisterAll(a.ToolReg)
 	aitools.RegisterAll(a.ToolReg)
+}
+
+// Init finishes app initialization after flag parsing: credentials,
+// config load, plugin scan + schema merge. Call this in PersistentPreRun.
+// InitRegistries runs first (idempotently) so Init is safe even when
+// the CLI entry point already called InitRegistries at init() time.
+func (a *App) Init() {
+	a.InitRegistries()
 
 	// Initialize the shared credential store and wire credential resolution
 	// into the tool registry so AI tools auto-resolve from saved credentials.

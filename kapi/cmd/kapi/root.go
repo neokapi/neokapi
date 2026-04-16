@@ -25,6 +25,12 @@ translate with AI, and run quality checks across a wide range of file types.`,
 }
 
 func init() {
+	// Populate tool + format registries up front so NewToolCommands can
+	// see every built-in tool before cobra's init runs. PersistentPreRun
+	// calls Init() later to do the flag-dependent work (plugins,
+	// credentials, config load).
+	app.InitRegistries()
+
 	app.AddPersistentFlags(rootCmd)
 	app.AddCommandGroups(rootCmd)
 
