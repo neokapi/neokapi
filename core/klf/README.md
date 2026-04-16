@@ -1,7 +1,10 @@
 # core/klf
 
-Go port of [`@neokapi/format`](https://github.com/neokapi/neokapi-format)
-canonical Block / Run model defined by [RFC 0001](https://github.com/neokapi/neokapi-format/blob/main/docs/rfcs/0001-klf-klz.md).
+Go implementation of the canonical Block / Run model specified in
+[AD-045](../../docs/ad/045-klf-klz-spec.md). Paired with
+[`packages/format/`](../../packages/format/) (`@neokapi/format`) —
+the TypeScript port — via shared golden fixtures so both languages
+render the same bytes.
 
 ## Package entry points
 
@@ -51,7 +54,7 @@ html := klf.RenderBlockHTML(block, klf.DefaultJSXVocabulary())
 Reference Level-1 preview renderer that walks a block's Runs and
 emits the same `<kat-block>` HTML envelope neokapi's existing HTML
 and Markdown preview builders produce. Byte-for-byte compatible with
-`neokapi-format/src/preview.ts`'s `renderBlockHtml`.
+`packages/format/src/preview.ts`'s `renderBlockHtml`.
 
 ### Annotations (`annotation.go`)
 
@@ -70,31 +73,21 @@ per-select-case metadata. `ResolveAnchor` returns one of six
 machine-readable failure reasons (`ReasonBlockNotFound`,
 `ReasonPathOutOfBounds`, `ReasonPathWrongKind`, `ReasonRunIDMismatch`,
 `ReasonRangeOutOfBounds`, `ReasonFormNotFound`), matching
-`neokapi-format/src/annotation.ts` exactly.
+`packages/format/src/annotation.ts` exactly.
 
-## Relationship to neokapi-format
+## Relationship to packages/format
 
-The package is a hand-port of
-[`@neokapi/format`](https://github.com/neokapi/neokapi-format)'s
-TypeScript reference. Drift is prevented by shared golden fixtures:
-every Go test that round-trips a block also renders it through
-`RenderBlockHTML` and compares against the hand-computed expected
-HTML from `neokapi-format/examples/*`. Any schema change must land
-on both sides together.
-
-## Phase 1 scope
-
-This package is strictly additive. It does not touch
-`core/model/fragment.go` or any existing format reader. Phase 2 of
-[RFC 0001](https://github.com/neokapi/neokapi-format/blob/main/docs/rfcs/0001-klf-klz.md)
-migrates `model.Block` to a first-class `Runs []Run` field and ports
-every built-in reader/writer; until then, the jsx format reader
-carries the canonical Runs as a `KLFAnnotation` attached to each
-emitted `model.Block`.
+The package mirrors the TypeScript reference in
+[`packages/format/`](../../packages/format/). Drift is prevented by
+shared golden fixtures: every Go test that round-trips a block also
+renders it through `RenderBlockHTML` and compares against the
+hand-computed expected HTML from `packages/format/examples/*`. Any
+schema change must land on both sides in the same PR.
 
 ## See also
 
 - [AD-044: KLF / KLZ Format Integration](../../docs/ad/044-klf-klz-integration.md)
+- [AD-045: KLF / KLZ Format Specification](../../docs/ad/045-klf-klz-spec.md)
 - [`core/klz`](../klz/) — .klz archive reader/writer
 - [`core/formats/jsx`](../formats/jsx/) — DataFormatReader / Writer
   + PreviewBuilder that wraps this package

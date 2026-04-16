@@ -30,9 +30,7 @@ content-addressed SQLite database `core/klz` builds on demand per
 `.klz` — that is not a file format and never crosses trust
 boundaries.
 
-See
-[neokapi-format/docs/rfcs/0001-klf-klz.md](https://github.com/neokapi/neokapi-format/blob/main/docs/rfcs/0001-klf-klz.md)
-for the normative spec.
+See [AD-045](045-klf-klz-spec.md) for the normative spec.
 
 ## Decision
 
@@ -173,7 +171,7 @@ such caller).
   the commands up early.
 - `ResolveAnchor` lives in Go now, mirrored against the reference
   implementation in
-  `neokapi-format/src/annotation.ts`. Both sides are exercised by
+  `packages/format/src/annotation.ts`. Both sides are exercised by
   shared golden fixtures.
 
 ### Negative
@@ -193,7 +191,7 @@ such caller).
 
 ## References
 
-- [RFC 0001](https://github.com/neokapi/neokapi-format/blob/main/docs/rfcs/0001-klf-klz.md)
-- [neokapi-integration.md](https://github.com/neokapi/neokapi-format/blob/main/docs/neokapi-integration.md)
-- [Walkthrough](https://github.com/neokapi/neokapi-format/blob/main/docs/walkthrough.md)
+- [AD-045: KLF / KLZ Format Specification](045-klf-klz-spec.md) — the normative spec.
+- [KLF / KLZ walkthrough](../notes/klf-klz-walkthrough.md) — end-to-end lifecycle with real file contents.
+- [`packages/format/`](../../packages/format/) — `@neokapi/format`, the TypeScript schema.
 - Issue [#368](https://github.com/neokapi/neokapi/issues/368)

@@ -307,7 +307,7 @@ func TestAnnotationFileRoundTrip(t *testing.T) {
 }
 
 func TestAnnotationFileResolvesAgainstFixtures(t *testing.T) {
-	// Mirror neokapi-format/examples/validate.ts: every annotation
+	// Mirror packages/format/examples/validate.ts: every annotation
 	// in the example file must resolve against the example blocks.
 	blocks := map[string]*Block{
 		"files-heading":        filesHeading(),
@@ -358,7 +358,7 @@ func TestMarshalIsStableAcrossWrites(t *testing.T) {
 }
 
 // exampleAnnotationFile mirrors
-// neokapi-format/examples/annotations.ts — four records covering
+// packages/format/examples/annotations.ts — four records covering
 // all four anchor kinds.
 func exampleAnnotationFile() *AnnotationFile {
 	return &AnnotationFile{
