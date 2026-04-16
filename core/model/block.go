@@ -136,3 +136,65 @@ func NewBlock(id, text string) *Block {
 		Annotations:  make(map[string]Annotation),
 	}
 }
+
+// NewRunsBlock creates a Block whose source is a single segment
+// populated from the given Run sequence. Companion to NewBlock for
+// readers that emit Runs natively.
+func NewRunsBlock(id string, runs []Run) *Block {
+	return &Block{
+		ID:           id,
+		Translatable: true,
+		Source:       []*Segment{NewRunsSegment("s1", runs)},
+		Targets:      make(map[LocaleID][]*Segment),
+		Properties:   make(map[string]string),
+		Annotations:  make(map[string]Annotation),
+	}
+}
+
+// SourceRuns returns the Block's source content as a flat Run
+// sequence (concatenated across segments).
+func (b *Block) SourceRuns() []Run {
+	var out []Run
+	for _, s := range b.Source {
+		out = append(out, s.Runs()...)
+	}
+	return out
+}
+
+// TargetRuns returns the Block's target content for a given locale
+// as a flat Run sequence.
+func (b *Block) TargetRuns(locale LocaleID) []Run {
+	segs, ok := b.Targets[locale]
+	if !ok {
+		return nil
+	}
+	var out []Run
+	for _, s := range segs {
+		out = append(out, s.Runs()...)
+	}
+	return out
+}
+
+// SetSourceRuns replaces the Block's source with a single segment
+// carrying the given Run sequence. Companion to SetSourceText.
+func (b *Block) SetSourceRuns(runs []Run) {
+	b.Source = []*Segment{NewRunsSegment("s1", runs)}
+}
+
+// SetTargetRuns replaces the Block's target content for a locale
+// with a single segment carrying the given Run sequence.
+func (b *Block) SetTargetRuns(locale LocaleID, runs []Run) {
+	if b.Targets == nil {
+		b.Targets = make(map[LocaleID][]*Segment)
+	}
+	b.Targets[locale] = []*Segment{NewRunsSegment("s1", runs)}
+}
+
+// AsCodedText flattens the Block's source into the legacy PUA-marker
+// coded string + Span list form. Hot-path helper for tools that need
+// O(1) substring operations on a flat string; never persist the
+// output, always derive on demand. Matches the RFC 0001 §Phase 2
+// acceptance criterion.
+func (b *Block) AsCodedText() (string, []*Span) {
+	return AsCodedText(b.SourceRuns())
+}

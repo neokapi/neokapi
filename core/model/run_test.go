@@ -132,3 +132,34 @@ func TestAsCodedTextRoundTrip(t *testing.T) {
 	assert.Equal(t, original.CodedText, coded)
 	require.Len(t, spans, 2)
 }
+
+func TestBlockRunsRoundTrip(t *testing.T) {
+	runs := []Run{
+		{Text: &TextRun{Text: "Files "}},
+		{PcOpen: &PcOpenRun{ID: "1", Type: "jsx:element", SubType: "span", Data: "<span>", Equiv: "span"}},
+		{Text: &TextRun{Text: "("}},
+		{Ph: &PlaceholderRun{ID: "2", Type: "jsx:var", Data: "{count}", Equiv: "count"}},
+		{Text: &TextRun{Text: " matched)"}},
+		{PcClose: &PcCloseRun{ID: "1", Type: "jsx:element", SubType: "span", Data: "</span>"}},
+	}
+	b := NewRunsBlock("block-1", runs)
+	got := b.SourceRuns()
+	assert.Equal(t, len(runs), len(got))
+	assert.Equal(t, "Files ", got[0].Text.Text)
+
+	// Round-trip through AsCodedText.
+	coded, spans := b.AsCodedText()
+	assert.NotEmpty(t, coded)
+	assert.Len(t, spans, 3)
+}
+
+func TestBlockSetTargetRuns(t *testing.T) {
+	b := NewBlock("b1", "hello")
+	target := []Run{{Text: &TextRun{Text: "hallo"}}}
+	b.SetTargetRuns("de", target)
+	assert.True(t, b.HasTarget("de"))
+	assert.Equal(t, "hallo", b.TargetText("de"))
+	got := b.TargetRuns("de")
+	require.Len(t, got, 1)
+	assert.Equal(t, "hallo", got[0].Text.Text)
+}
