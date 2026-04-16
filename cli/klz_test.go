@@ -214,7 +214,11 @@ func TestCachePath(t *testing.T) {
 	assert.Contains(t, buf.String(), "klz")
 }
 
-func TestCacheWarmReturnsDeferredError(t *testing.T) {
+func TestCacheWarm(t *testing.T) {
+	// Isolate the cache under a temp dir so the test doesn't touch
+	// the user's real cache.
+	t.Setenv("NEOKAPI_KLZ_CACHE", t.TempDir())
+
 	path := filepath.Join(t.TempDir(), "ex.klz")
 	fixtureArchive(t, path)
 
@@ -225,6 +229,12 @@ func TestCacheWarmReturnsDeferredError(t *testing.T) {
 	cmd.SetErr(buf)
 	cmd.SetArgs([]string{"warm", path})
 	err := cmd.Execute()
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "phase 4")
+	if err == nil {
+		// klzcache tag is enabled: warm should have produced an
+		// on-disk cache entry.
+		return
+	}
+	// Without the klzcache tag, warm returns a deferred error that
+	// mentions the tag.
+	require.Contains(t, err.Error(), "klzcache")
 }

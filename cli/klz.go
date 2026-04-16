@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/neokapi/neokapi/core/klf"
 	"github.com/neokapi/neokapi/core/klz"
@@ -574,8 +575,12 @@ func (a *App) newCacheInfoCmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			root := klz.CacheRoot()
 			fmt.Fprintf(cmd.OutOrStdout(), "Cache root: %s\n", root)
-			count, size := cacheStats(root)
-			fmt.Fprintf(cmd.OutOrStdout(), "Entries:    %d\n", count)
+			entries, _ := klz.CacheEntries()
+			var size int64
+			for _, e := range entries {
+				size += e.Bytes
+			}
+			fmt.Fprintf(cmd.OutOrStdout(), "Entries:    %d\n", len(entries))
 			fmt.Fprintf(cmd.OutOrStdout(), "Total size: %d bytes\n", size)
 			return nil
 		},
@@ -628,15 +633,70 @@ func (a *App) newCacheWarmCmd() *cobra.Command {
 
 func (a *App) newCacheGCCmd() *cobra.Command {
 	var maxSize string
+	var maxAge time.Duration
 	cmd := &cobra.Command{
 		Use:   "gc",
 		Short: "LRU-evict cache entries to a size cap",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return fmt.Errorf("cache gc requires the klzcache build tag (phase 4, see RFC 0001); cap=%q", maxSize)
+			n, err := parseByteSize(maxSize)
+			if err != nil {
+				return err
+			}
+			report, err := klz.CacheGC(cmd.Context(), n, maxAge)
+			if err != nil {
+				return err
+			}
+			fmt.Fprintf(cmd.OutOrStdout(),
+				"root=%s entries=%d total=%d evicted=%d (%d bytes)\n",
+				report.Root, report.TotalEntries, report.TotalBytes,
+				report.EvictedEntries, report.EvictedBytes)
+			return nil
 		},
 	}
-	cmd.Flags().StringVar(&maxSize, "max-size", "2GB", "target size cap")
+	cmd.Flags().StringVar(&maxSize, "max-size", "2GiB", "target size cap (e.g. 2GiB, 500MB)")
+	cmd.Flags().DurationVar(&maxAge, "max-age", 0, "also prune entries older than this duration")
 	return cmd
+}
+
+// parseByteSize accepts short-form size literals (e.g. 2GiB, 500MB,
+// 1024) and returns the equivalent byte count. Used by `kapi cache
+// gc --max-size`.
+func parseByteSize(s string) (int64, error) {
+	s = strings.TrimSpace(s)
+	if s == "" {
+		return 0, nil
+	}
+	// Split into numeric prefix + unit suffix.
+	i := 0
+	for i < len(s) && (s[i] == '.' || (s[i] >= '0' && s[i] <= '9')) {
+		i++
+	}
+	numStr := s[:i]
+	unit := strings.ToLower(strings.TrimSpace(s[i:]))
+	var num float64
+	if _, err := fmt.Sscanf(numStr, "%f", &num); err != nil {
+		return 0, fmt.Errorf("parse size %q: %w", s, err)
+	}
+	var mult float64
+	switch unit {
+	case "", "b":
+		mult = 1
+	case "k", "kb":
+		mult = 1e3
+	case "ki", "kib":
+		mult = 1 << 10
+	case "m", "mb":
+		mult = 1e6
+	case "mi", "mib":
+		mult = 1 << 20
+	case "g", "gb":
+		mult = 1e9
+	case "gi", "gib":
+		mult = 1 << 30
+	default:
+		return 0, fmt.Errorf("unknown size unit %q", unit)
+	}
+	return int64(num * mult), nil
 }
 
 func (a *App) newCacheClearCmd() *cobra.Command {
@@ -654,23 +714,6 @@ func (a *App) newCacheClearCmd() *cobra.Command {
 			return nil
 		},
 	}
-}
-
-func cacheStats(root string) (count int, size int64) {
-	_ = filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
-		if err != nil || info == nil {
-			return nil
-		}
-		if info.IsDir() {
-			if path != root && info.Name()[0] != '.' {
-				count++
-			}
-			return nil
-		}
-		size += info.Size()
-		return nil
-	})
-	return count, size
 }
 
 // writeFileAtomic writes data to path via a temp file + rename.
