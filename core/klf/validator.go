@@ -109,7 +109,7 @@ func walkFormScopes(blockID string, runs []Run, errs *[]ValidationError) {
 // is valid.
 //
 // Mirrors validateTargetAgainstSource from
-// neokapi-format/src/preview.ts.
+// packages/format/src/preview.ts.
 func ValidateTargetAgainstSource(src *Block, target []Run) []ValidationError {
 	var errs []ValidationError
 	names := collectRunEquivs(target)

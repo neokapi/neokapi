@@ -1,7 +1,7 @@
 package klf
 
-// Phase 1 shared fixtures, ported line-for-line from
-// neokapi-format/examples/{files-heading,tag-chip,shopping-cart,annotations}.ts.
+// Shared fixtures, ported line-for-line from
+// packages/format/examples/{files-heading,tag-chip,shopping-cart,annotations}.ts.
 // These are the golden blocks that must round-trip through the Go
 // reader/writer byte-for-byte equivalent to the TypeScript side.
 

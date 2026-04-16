@@ -200,7 +200,7 @@ func collectBlocks(t *testing.T, r *Reader) []*model.Block {
 
 // makeKLFFile builds an in-memory .klf with the three canonical
 // example blocks. This is the Go-side mirror of the TS fixtures in
-// neokapi-format/examples.
+// packages/format/examples.
 func makeKLFFile() *klf.File {
 	return &klf.File{
 		SchemaVersion: klf.SchemaVersion,
