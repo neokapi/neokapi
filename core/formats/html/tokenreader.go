@@ -313,8 +313,8 @@ func (s *tokenReaderState) processTokenStream(tokenizer *html.Tokenizer, ctx con
 }
 
 // processLeafBlock collects tokens until the element's closing tag, builds a
-// Fragment, and emits the block. The start tag raw bytes and closing tag raw
-// bytes go into the skeleton; the fragment content is the block reference.
+// Runs sequence, and emits the block. The start tag raw bytes and closing tag
+// raw bytes go into the skeleton; the fragment content is the block reference.
 func (s *tokenReaderState) processLeafBlock(tokenizer *html.Tokenizer, tag string, a atom.Atom, attrs []html.Attribute, preserveWS bool, ctx context.Context, ch chan<- model.PartResult) {
 	blockID := s.nextBlockID()
 
@@ -324,7 +324,7 @@ func (s *tokenReaderState) processLeafBlock(tokenizer *html.Tokenizer, tag strin
 	// skeleton (preserving byte-exact roundtrip).
 
 	// Collect tokens until matching close tag.
-	frag := &model.Fragment{}
+	b := newRunBuilder()
 	spanCounter := 0
 	depth := 1
 
@@ -339,17 +339,17 @@ func (s *tokenReaderState) processLeafBlock(tokenizer *html.Tokenizer, tag strin
 
 		switch tt {
 		case html.TextToken:
-			frag.AppendText(string(tokenRaw))
+			b.AppendText(string(tokenRaw))
 
 		case html.CommentToken:
 			spanCounter++
-			frag.AppendSpan(&model.Span{
-				SpanType: model.SpanPlaceholder,
-				Type:     "code:comment",
-				SubType:  "html:comment",
-				ID:       strconv.Itoa(spanCounter),
-				Data:     string(tokenRaw), // includes <!-- -->
-			})
+			b.AppendPh(
+				strconv.Itoa(spanCounter),
+				"code:comment",
+				"html:comment",
+				string(tokenRaw), // includes <!-- -->
+				"", "", model.RunConstraints{},
+			)
 
 		case html.StartTagToken:
 			childTagName, hasAttr := tokenizer.TagName()
@@ -367,13 +367,13 @@ func (s *tokenReaderState) processLeafBlock(tokenizer *html.Tokenizer, tag strin
 				spanCounter++
 				// Consume until close, capture raw.
 				innerRaw := s.consumeRawUntilClose(tokenizer, childTag)
-				frag.AppendSpan(&model.Span{
-					SpanType: model.SpanPlaceholder,
-					Type:     "code:markup",
-					SubType:  "html:" + childTag,
-					ID:       strconv.Itoa(spanCounter),
-					Data:     string(tokenRaw) + string(innerRaw),
-				})
+				b.AppendPh(
+					strconv.Itoa(spanCounter),
+					"code:markup",
+					"html:"+childTag,
+					string(tokenRaw)+string(innerRaw),
+					"", "", model.RunConstraints{},
+				)
 				continue
 			}
 
@@ -387,13 +387,13 @@ func (s *tokenReaderState) processLeafBlock(tokenizer *html.Tokenizer, tag strin
 					// Whole inline is non-translatable: consume as placeholder.
 					spanCounter++
 					innerRaw := s.consumeRawUntilClose(tokenizer, childTag)
-					frag.AppendSpan(&model.Span{
-						SpanType: model.SpanPlaceholder,
-						Type:     "code:markup",
-						SubType:  "html:" + childTag,
-						ID:       strconv.Itoa(spanCounter),
-						Data:     string(tokenRaw) + string(innerRaw),
-					})
+					b.AppendPh(
+						strconv.Itoa(spanCounter),
+						"code:markup",
+						"html:"+childTag,
+						string(tokenRaw)+string(innerRaw),
+						"", "", model.RunConstraints{},
+					)
 					continue
 				}
 
@@ -403,36 +403,38 @@ func (s *tokenReaderState) processLeafBlock(tokenizer *html.Tokenizer, tag strin
 				if selfClosingElements[childAtom] {
 					spanCounter++
 					info := s.vocab.LookupOrFallback(semType)
-					frag.AppendSpan(&model.Span{
-						SpanType:    model.SpanPlaceholder,
-						Type:        semType,
-						SubType:     subType,
-						ID:          strconv.Itoa(spanCounter),
-						Data:        string(tokenRaw),
-						DisplayText: info.Display.Placeholder,
-						EquivText:   info.Equiv,
-						Deletable:   info.Constraints.Deletable,
-						Cloneable:   info.Constraints.Cloneable,
-						CanReorder:  info.Constraints.Reorderable,
-					})
+					b.AppendPh(
+						strconv.Itoa(spanCounter),
+						semType,
+						subType,
+						string(tokenRaw),
+						info.Display.Placeholder,
+						info.Equiv,
+						model.RunConstraints{
+							Deletable:   info.Constraints.Deletable,
+							Cloneable:   info.Constraints.Cloneable,
+							Reorderable: info.Constraints.Reorderable,
+						},
+					)
 				} else {
 					spanCounter++
 					spanID := strconv.Itoa(spanCounter)
 					info := s.vocab.LookupOrFallback(semType)
-					frag.AppendSpan(&model.Span{
-						SpanType:    model.SpanOpening,
-						Type:        semType,
-						SubType:     subType,
-						ID:          spanID,
-						Data:        string(tokenRaw),
-						DisplayText: info.Display.Open,
-						EquivText:   info.Equiv,
-						Deletable:   info.Constraints.Deletable,
-						Cloneable:   info.Constraints.Cloneable,
-						CanReorder:  info.Constraints.Reorderable,
-					})
+					b.AppendPcOpen(
+						spanID,
+						semType,
+						subType,
+						string(tokenRaw),
+						info.Display.Open,
+						info.Equiv,
+						model.RunConstraints{
+							Deletable:   info.Constraints.Deletable,
+							Cloneable:   info.Constraints.Cloneable,
+							Reorderable: info.Constraints.Reorderable,
+						},
+					)
 					// Recursively collect inline content.
-					s.collectInlineTokens(tokenizer, childTag, frag, &spanCounter, info)
+					s.collectInlineTokens(tokenizer, childTag, b, &spanCounter, info)
 				}
 			} else {
 				// Nested block element inside a "leaf" — shouldn't happen
@@ -465,18 +467,19 @@ func (s *tokenReaderState) processLeafBlock(tokenizer *html.Tokenizer, tag strin
 			subType := "html:" + childTag
 			spanCounter++
 			info := s.vocab.LookupOrFallback(semType)
-			frag.AppendSpan(&model.Span{
-				SpanType:    model.SpanPlaceholder,
-				Type:        semType,
-				SubType:     subType,
-				ID:          strconv.Itoa(spanCounter),
-				Data:        string(tokenRaw),
-				DisplayText: info.Display.Placeholder,
-				EquivText:   info.Equiv,
-				Deletable:   info.Constraints.Deletable,
-				Cloneable:   info.Constraints.Cloneable,
-				CanReorder:  info.Constraints.Reorderable,
-			})
+			b.AppendPh(
+				strconv.Itoa(spanCounter),
+				semType,
+				subType,
+				string(tokenRaw),
+				info.Display.Placeholder,
+				info.Equiv,
+				model.RunConstraints{
+					Deletable:   info.Constraints.Deletable,
+					Cloneable:   info.Constraints.Cloneable,
+					Reorderable: info.Constraints.Reorderable,
+				},
+			)
 		}
 	}
 
@@ -486,21 +489,21 @@ func (s *tokenReaderState) processLeafBlock(tokenizer *html.Tokenizer, tag strin
 	// The block's PreserveWhitespace flag tells downstream tools whether
 	// they need to normalize the text for translation.
 	//
-	// NOTE: collapseWhitespaceCodedText / trimCodedText are applied in
+	// NOTE: collapseWhitespaceRuns / trimWhitespaceRuns are applied in
 	// the DOM-based reader path (reader.go) which does not use skeleton.
 
 	_ = s.store.WriteRef(blockID)
 
 	// Emit block if it has content.
 	hasID := getTokenAttr(attrs, "id") != ""
-	if !frag.IsEmpty() || hasID {
+	if !b.IsEmpty() || hasID {
 		block := &model.Block{
 			ID:                 blockID,
 			Name:               blockNameFromToken(tag, attrs),
 			Type:               blockTypeFromTag(tag),
 			Translatable:       true,
 			PreserveWhitespace: preserveWS,
-			Source:             []*model.Segment{model.NewRunsSegment("s1", model.FragmentToRuns(frag))},
+			Source:             []*model.Segment{model.NewRunsSegment("s1", b.Runs())},
 			Targets:            make(map[model.LocaleID][]*model.Segment),
 			Properties:         extractBlockPropsFromToken(attrs),
 			Annotations:        make(map[string]model.Annotation),
@@ -514,9 +517,9 @@ func (s *tokenReaderState) processLeafBlock(tokenizer *html.Tokenizer, tag strin
 	}
 }
 
-// collectInlineTokens recursively collects inline content into a Fragment
+// collectInlineTokens recursively collects inline content into a runBuilder
 // until the matching close tag for parentTag is found.
-func (s *tokenReaderState) collectInlineTokens(tokenizer *html.Tokenizer, parentTag string, frag *model.Fragment, spanCounter *int, parentInfo *model.SpanTypeInfo) {
+func (s *tokenReaderState) collectInlineTokens(tokenizer *html.Tokenizer, parentTag string, b *runBuilder, spanCounter *int, parentInfo *model.SpanTypeInfo) {
 	for {
 		tt := tokenizer.Next()
 		if tt == html.ErrorToken {
@@ -526,17 +529,17 @@ func (s *tokenReaderState) collectInlineTokens(tokenizer *html.Tokenizer, parent
 
 		switch tt {
 		case html.TextToken:
-			frag.AppendText(string(tokenRaw))
+			b.AppendText(string(tokenRaw))
 
 		case html.CommentToken:
 			*spanCounter++
-			frag.AppendSpan(&model.Span{
-				SpanType: model.SpanPlaceholder,
-				Type:     "code:comment",
-				SubType:  "html:comment",
-				ID:       strconv.Itoa(*spanCounter),
-				Data:     string(tokenRaw),
-			})
+			b.AppendPh(
+				strconv.Itoa(*spanCounter),
+				"code:comment",
+				"html:comment",
+				string(tokenRaw),
+				"", "", model.RunConstraints{},
+			)
 
 		case html.StartTagToken:
 			childTagName, hasAttr := tokenizer.TagName()
@@ -550,13 +553,13 @@ func (s *tokenReaderState) collectInlineTokens(tokenizer *html.Tokenizer, parent
 			if nonTranslatableElements[childAtom] {
 				*spanCounter++
 				innerRaw := s.consumeRawUntilClose(tokenizer, childTag)
-				frag.AppendSpan(&model.Span{
-					SpanType: model.SpanPlaceholder,
-					Type:     "code:markup",
-					SubType:  "html:" + childTag,
-					ID:       strconv.Itoa(*spanCounter),
-					Data:     string(tokenRaw) + string(innerRaw),
-				})
+				b.AppendPh(
+					strconv.Itoa(*spanCounter),
+					"code:markup",
+					"html:"+childTag,
+					string(tokenRaw)+string(innerRaw),
+					"", "", model.RunConstraints{},
+				)
 				continue
 			}
 
@@ -564,13 +567,13 @@ func (s *tokenReaderState) collectInlineTokens(tokenizer *html.Tokenizer, parent
 			if childTranslateNo {
 				*spanCounter++
 				innerRaw := s.consumeRawUntilClose(tokenizer, childTag)
-				frag.AppendSpan(&model.Span{
-					SpanType: model.SpanPlaceholder,
-					Type:     "code:markup",
-					SubType:  "html:" + childTag,
-					ID:       strconv.Itoa(*spanCounter),
-					Data:     string(tokenRaw) + string(innerRaw),
-				})
+				b.AppendPh(
+					strconv.Itoa(*spanCounter),
+					"code:markup",
+					"html:"+childTag,
+					string(tokenRaw)+string(innerRaw),
+					"", "", model.RunConstraints{},
+				)
 				continue
 			}
 
@@ -581,35 +584,37 @@ func (s *tokenReaderState) collectInlineTokens(tokenizer *html.Tokenizer, parent
 				if selfClosingElements[childAtom] {
 					*spanCounter++
 					info := s.vocab.LookupOrFallback(semType)
-					frag.AppendSpan(&model.Span{
-						SpanType:    model.SpanPlaceholder,
-						Type:        semType,
-						SubType:     subType,
-						ID:          strconv.Itoa(*spanCounter),
-						Data:        string(tokenRaw),
-						DisplayText: info.Display.Placeholder,
-						EquivText:   info.Equiv,
-						Deletable:   info.Constraints.Deletable,
-						Cloneable:   info.Constraints.Cloneable,
-						CanReorder:  info.Constraints.Reorderable,
-					})
+					b.AppendPh(
+						strconv.Itoa(*spanCounter),
+						semType,
+						subType,
+						string(tokenRaw),
+						info.Display.Placeholder,
+						info.Equiv,
+						model.RunConstraints{
+							Deletable:   info.Constraints.Deletable,
+							Cloneable:   info.Constraints.Cloneable,
+							Reorderable: info.Constraints.Reorderable,
+						},
+					)
 				} else {
 					*spanCounter++
 					spanID := strconv.Itoa(*spanCounter)
 					info := s.vocab.LookupOrFallback(semType)
-					frag.AppendSpan(&model.Span{
-						SpanType:    model.SpanOpening,
-						Type:        semType,
-						SubType:     subType,
-						ID:          spanID,
-						Data:        string(tokenRaw),
-						DisplayText: info.Display.Open,
-						EquivText:   info.Equiv,
-						Deletable:   info.Constraints.Deletable,
-						Cloneable:   info.Constraints.Cloneable,
-						CanReorder:  info.Constraints.Reorderable,
-					})
-					s.collectInlineTokens(tokenizer, childTag, frag, spanCounter, info)
+					b.AppendPcOpen(
+						spanID,
+						semType,
+						subType,
+						string(tokenRaw),
+						info.Display.Open,
+						info.Equiv,
+						model.RunConstraints{
+							Deletable:   info.Constraints.Deletable,
+							Cloneable:   info.Constraints.Cloneable,
+							Reorderable: info.Constraints.Reorderable,
+						},
+					)
+					s.collectInlineTokens(tokenizer, childTag, b, spanCounter, info)
 				}
 			}
 
@@ -617,24 +622,17 @@ func (s *tokenReaderState) collectInlineTokens(tokenizer *html.Tokenizer, parent
 			endTagName, _ := tokenizer.TagName()
 			endTag := string(endTagName)
 			if endTag == parentTag {
-				// Emit closing span.
+				// Emit closing run. Use the same span ID as the matching
+				// opener so the pair can be reassembled downstream.
 				semType := htmlSemanticType(parentTag)
 				subType := "html:" + parentTag
-				// Use the same span ID as the opening (current value of counter).
-				// Actually, get the ID from the parentInfo context — it was the
-				// counter value when opening was created.
-				frag.AppendSpan(&model.Span{
-					SpanType:    model.SpanClosing,
-					Type:        semType,
-					SubType:     subType,
-					ID:          findOpeningSpanID(frag, semType),
-					Data:        string(tokenRaw),
-					DisplayText: parentInfo.Display.Close,
-					EquivText:   parentInfo.Equiv,
-					Deletable:   parentInfo.Constraints.Deletable,
-					Cloneable:   parentInfo.Constraints.Cloneable,
-					CanReorder:  parentInfo.Constraints.Reorderable,
-				})
+				b.AppendPcClose(
+					findOpeningRunID(b, semType),
+					semType,
+					subType,
+					string(tokenRaw),
+					parentInfo.Equiv,
+				)
 				return
 			}
 
@@ -649,39 +647,37 @@ func (s *tokenReaderState) collectInlineTokens(tokenizer *html.Tokenizer, parent
 			subType := "html:" + childTag
 			*spanCounter++
 			info := s.vocab.LookupOrFallback(semType)
-			frag.AppendSpan(&model.Span{
-				SpanType:    model.SpanPlaceholder,
-				Type:        semType,
-				SubType:     subType,
-				ID:          strconv.Itoa(*spanCounter),
-				Data:        string(tokenRaw),
-				DisplayText: info.Display.Placeholder,
-				EquivText:   info.Equiv,
-				Deletable:   info.Constraints.Deletable,
-				Cloneable:   info.Constraints.Cloneable,
-				CanReorder:  info.Constraints.Reorderable,
-			})
+			b.AppendPh(
+				strconv.Itoa(*spanCounter),
+				semType,
+				subType,
+				string(tokenRaw),
+				info.Display.Placeholder,
+				info.Equiv,
+				model.RunConstraints{
+					Deletable:   info.Constraints.Deletable,
+					Cloneable:   info.Constraints.Cloneable,
+					Reorderable: info.Constraints.Reorderable,
+				},
+			)
 		}
 	}
 }
 
-// findOpeningSpanID finds the ID of the last unmatched opening span with the given type.
-func findOpeningSpanID(frag *model.Fragment, semType string) string {
-	// Walk backwards through spans to find the matching opening span.
+// findOpeningRunID finds the ID of the last unmatched PcOpen run whose Type
+// matches semType. Mirrors the legacy findOpeningSpanID but walks Runs.
+func findOpeningRunID(b *runBuilder, semType string) string {
 	openCount := make(map[string]int)
-	for i := len(frag.Spans) - 1; i >= 0; i-- {
-		sp := frag.Spans[i]
-		if sp.Type != semType {
-			continue
-		}
-		switch sp.SpanType {
-		case model.SpanClosing:
-			openCount[sp.ID]++
-		case model.SpanOpening:
-			if openCount[sp.ID] > 0 {
-				openCount[sp.ID]--
+	for i := len(b.runs) - 1; i >= 0; i-- {
+		r := b.runs[i]
+		switch {
+		case r.PcClose != nil && r.PcClose.Type == semType:
+			openCount[r.PcClose.ID]++
+		case r.PcOpen != nil && r.PcOpen.Type == semType:
+			if openCount[r.PcOpen.ID] > 0 {
+				openCount[r.PcOpen.ID]--
 			} else {
-				return sp.ID
+				return r.PcOpen.ID
 			}
 		}
 	}
