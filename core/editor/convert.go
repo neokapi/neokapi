@@ -96,33 +96,59 @@ func BuildBlockIndex(parts []*model.Part, sourceLocale, format, itemName string)
 	return index
 }
 
-// renderFragmentHTML renders a block's source fragment with inline span markup as HTML.
+// renderFragmentHTML renders a block's source content with inline
+// markup as HTML. Walks the block's Runs directly: TextRun content
+// is emitted verbatim; Ph / PcOpen / PcClose / Sub runs emit their
+// raw Data payload; Plural / Select recurse through their forms or
+// cases (using the 'other' branch, then any branch if 'other' is
+// absent) so flattened HTML stays non-empty.
 func renderFragmentHTML(block *model.Block) string {
-	if len(block.Source) == 0 {
+	if block == nil {
 		return ""
 	}
-	frag := block.Source[0].Content
-	if frag == nil {
+	runs := block.SourceRuns()
+	if len(runs) == 0 {
 		return ""
 	}
-	if !frag.HasSpans() {
-		return frag.CodedText
-	}
-
 	var buf strings.Builder
-	spanIdx := 0
-	for _, r := range frag.CodedText {
-		switch r {
-		case model.MarkerOpening, model.MarkerClosing, model.MarkerPlaceholder:
-			if spanIdx < len(frag.Spans) {
-				buf.WriteString(frag.Spans[spanIdx].Data)
-				spanIdx++
+	renderRunsHTML(&buf, runs)
+	return buf.String()
+}
+
+func renderRunsHTML(buf *strings.Builder, runs []model.Run) {
+	for _, r := range runs {
+		switch {
+		case r.Text != nil:
+			buf.WriteString(r.Text.Text)
+		case r.Ph != nil:
+			buf.WriteString(r.Ph.Data)
+		case r.PcOpen != nil:
+			buf.WriteString(r.PcOpen.Data)
+		case r.PcClose != nil:
+			buf.WriteString(r.PcClose.Data)
+		case r.Sub != nil:
+			// Subblock references render as their equiv label.
+			buf.WriteString(r.Sub.Equiv)
+		case r.Plural != nil:
+			if form, ok := r.Plural.Forms[model.PluralOther]; ok {
+				renderRunsHTML(buf, form)
+				continue
 			}
-		default:
-			buf.WriteRune(r)
+			for _, form := range r.Plural.Forms {
+				renderRunsHTML(buf, form)
+				break
+			}
+		case r.Select != nil:
+			if form, ok := r.Select.Cases["other"]; ok {
+				renderRunsHTML(buf, form)
+				continue
+			}
+			for _, form := range r.Select.Cases {
+				renderRunsHTML(buf, form)
+				break
+			}
 		}
 	}
-	return buf.String()
 }
 
 // convertSkeleton converts a model.Skeleton to a serializable SkeletonData.
