@@ -103,7 +103,7 @@ func ExportTMX(tm TranslationMemory, writer io.Writer, locales []model.LocaleID)
 			}
 			fmt.Fprintf(bw, `      <tuv xml:lang="%s">`+"\n", xmlAttr(string(loc)))
 			_, _ = bw.WriteString(`        <seg>`)
-			if err := fragmentToTMXSeg(bw, model.RunsToFragment(runs)); err != nil {
+			if err := runsToTMXSeg(bw, runs); err != nil {
 				return err
 			}
 			_, _ = bw.WriteString("</seg>\n")
@@ -125,27 +125,33 @@ func ExportTMXBilingual(tm TranslationMemory, writer io.Writer, src, tgt model.L
 	return ExportTMX(tm, writer, []model.LocaleID{src, tgt})
 }
 
-// fragmentToTMXSeg serializes a Fragment's CodedText + Spans back to TMX
-// inline markup. Dispatches on Span.SubType for TMX-native spans and
-// falls back to <ph type="..."> for cross-format spans.
-func fragmentToTMXSeg(w *bufio.Writer, frag *model.Fragment) error {
-	if frag == nil {
-		return nil
-	}
-	spanIdx := 0
-	for _, r := range frag.CodedText {
-		switch r {
-		case '\uE001', '\uE002', '\uE003':
-			if spanIdx >= len(frag.Spans) {
-				continue
-			}
-			s := frag.Spans[spanIdx]
-			spanIdx++
-			if err := writeSpanAsTMX(w, s); err != nil {
+// runsToTMXSeg serializes a Run sequence back to TMX inline markup.
+// Dispatches on the run's SubType for TMX-native spans and falls
+// back to <ph type="..."> for cross-format spans.
+func runsToTMXSeg(w *bufio.Writer, runs []model.Run) error {
+	for _, r := range runs {
+		switch {
+		case r.Text != nil:
+			if _, err := w.WriteString(xmlEscape(r.Text.Text)); err != nil {
 				return err
 			}
-		default:
-			if _, err := w.WriteString(xmlEscape(string(r))); err != nil {
+		case r.Ph != nil:
+			if err := writePhAsTMX(w, r.Ph); err != nil {
+				return err
+			}
+		case r.PcOpen != nil:
+			if err := writePcOpenAsTMX(w, r.PcOpen); err != nil {
+				return err
+			}
+		case r.PcClose != nil:
+			if err := writePcCloseAsTMX(w, r.PcClose); err != nil {
+				return err
+			}
+		case r.Sub != nil:
+			// Sub refs materialize as <sub ref="..."/>; TMX natively
+			// serialises sub content inline so the ref string carries
+			// the full <sub>...</sub> markup.
+			if _, err := w.WriteString(r.Sub.Ref); err != nil {
 				return err
 			}
 		}
@@ -153,53 +159,88 @@ func fragmentToTMXSeg(w *bufio.Writer, frag *model.Fragment) error {
 	return nil
 }
 
-func writeSpanAsTMX(w *bufio.Writer, s *model.Span) error {
-	subType := s.SubType
-	switch subType {
+func writePhAsTMX(w *bufio.Writer, ph *model.PlaceholderRun) error {
+	switch ph.SubType {
 	case "tmx:ph":
-		fmt.Fprintf(w, `<ph x="%s">%s</ph>`, xmlAttr(s.ID), xmlEscape(s.Data))
-	case "tmx:bpt":
-		fmt.Fprintf(w, `<bpt i="%s">%s</bpt>`, xmlAttr(s.ID), xmlEscape(s.Data))
-	case "tmx:ept":
-		fmt.Fprintf(w, `<ept i="%s">%s</ept>`, xmlAttr(s.ID), xmlEscape(s.Data))
-	case "tmx:it":
-		pos := "begin"
-		if s.SpanType == model.SpanClosing {
-			pos = "end"
-		}
-		fmt.Fprintf(w, `<it pos="%s">%s</it>`, pos, xmlEscape(s.Data))
-	case "tmx:hi":
-		if s.SpanType == model.SpanOpening {
-			if s.Type != "" {
-				fmt.Fprintf(w, `<hi type="%s">`, xmlAttr(s.Type))
-			} else {
-				_, _ = w.WriteString(`<hi>`)
-			}
-		} else if s.SpanType == model.SpanClosing {
-			_, _ = w.WriteString(`</hi>`)
-		}
-	case "tmx:sub":
-		// Data already contains the serialized <sub>...</sub> markup.
-		_, _ = w.WriteString(s.Data)
+		fmt.Fprintf(w, `<ph x="%s">%s</ph>`, xmlAttr(ph.ID), xmlEscape(ph.Data))
 	case "tmx:ut":
-		fmt.Fprintf(w, `<ut>%s</ut>`, xmlEscape(s.Data))
+		fmt.Fprintf(w, `<ut>%s</ut>`, xmlEscape(ph.Data))
+	case "tmx:sub":
+		_, _ = w.WriteString(ph.Data)
 	case "tmx:raw":
-		// Raw XML round-trip.
-		_, _ = w.WriteString(s.Data)
+		_, _ = w.WriteString(ph.Data)
 	default:
-		// Non-TMX span (e.g. from HTML/XLIFF readers) — encode as <ph> with
-		// the vocabulary type recorded so that round-trip retains the type.
-		id := s.ID
+		id := ph.ID
 		if id == "" {
 			id = "1"
 		}
-		typeAttr := s.Type
+		typeAttr := ph.Type
 		if typeAttr == "" {
 			typeAttr = "code:markup"
 		}
-		data := s.Data
+		data := ph.Data
 		if data == "" {
-			data = s.EquivText
+			data = ph.Equiv
+		}
+		fmt.Fprintf(w, `<ph x="%s" type="%s">%s</ph>`, xmlAttr(id), xmlAttr(typeAttr), xmlEscape(data))
+	}
+	return nil
+}
+
+func writePcOpenAsTMX(w *bufio.Writer, o *model.PcOpenRun) error {
+	switch o.SubType {
+	case "tmx:bpt":
+		fmt.Fprintf(w, `<bpt i="%s">%s</bpt>`, xmlAttr(o.ID), xmlEscape(o.Data))
+	case "tmx:it":
+		fmt.Fprintf(w, `<it pos="begin">%s</it>`, xmlEscape(o.Data))
+	case "tmx:hi":
+		if o.Type != "" {
+			fmt.Fprintf(w, `<hi type="%s">`, xmlAttr(o.Type))
+		} else {
+			_, _ = w.WriteString(`<hi>`)
+		}
+	case "tmx:raw":
+		_, _ = w.WriteString(o.Data)
+	default:
+		id := o.ID
+		if id == "" {
+			id = "1"
+		}
+		typeAttr := o.Type
+		if typeAttr == "" {
+			typeAttr = "code:markup"
+		}
+		data := o.Data
+		if data == "" {
+			data = o.Equiv
+		}
+		fmt.Fprintf(w, `<ph x="%s" type="%s">%s</ph>`, xmlAttr(id), xmlAttr(typeAttr), xmlEscape(data))
+	}
+	return nil
+}
+
+func writePcCloseAsTMX(w *bufio.Writer, c *model.PcCloseRun) error {
+	switch c.SubType {
+	case "tmx:ept":
+		fmt.Fprintf(w, `<ept i="%s">%s</ept>`, xmlAttr(c.ID), xmlEscape(c.Data))
+	case "tmx:it":
+		fmt.Fprintf(w, `<it pos="end">%s</it>`, xmlEscape(c.Data))
+	case "tmx:hi":
+		_, _ = w.WriteString(`</hi>`)
+	case "tmx:raw":
+		_, _ = w.WriteString(c.Data)
+	default:
+		id := c.ID
+		if id == "" {
+			id = "1"
+		}
+		typeAttr := c.Type
+		if typeAttr == "" {
+			typeAttr = "code:markup"
+		}
+		data := c.Data
+		if data == "" {
+			data = c.Equiv
 		}
 		fmt.Fprintf(w, `<ph x="%s" type="%s">%s</ph>`, xmlAttr(id), xmlAttr(typeAttr), xmlEscape(data))
 	}
