@@ -1,8 +1,8 @@
 /**
- * @neokapi/format — canonical extraction/translation-unit schema.
+ * @neokapi/kapi-format — canonical extraction/translation-unit schema.
  *
  * Defines the in-memory shape of translatable content shared between
- * neokapi-react (TS), neokapi (Go), and CAT-tool adapters. Field
+ * @neokapi/kapi-react (TS), neokapi (Go), and CAT-tool adapters. Field
  * names match what the Go port in neokapi's core/model/ will use
  * so codegen / hand-port is mechanical.
  *

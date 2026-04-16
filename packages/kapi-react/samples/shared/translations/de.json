@@ -1,0 +1,7 @@
+{
+  "2XYZAB": "Willkommen, {user.name}!",
+  "3DEFGH": "{count, plural, one {Sie haben {count} ungelesene Nachricht.} other {Sie haben {count} ungelesene Nachrichten.}}",
+  "4IJKLM": "Klicken Sie {=m0}, um Ihr Konto zu verwalten.",
+  "5NOPQR": "Nachrichten suchen...",
+  "6STUVW": "Anderungen speichern"
+}

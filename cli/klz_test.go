@@ -19,15 +19,15 @@ func fixtureArchive(t *testing.T, path string) {
 	t.Helper()
 
 	w := klz.NewWriter(klz.WriterOptions{
-		Generator: klz.ManifestGenerator{ID: "@neokapi/format-examples", Version: "0.0.1"},
-		Project:   klz.ManifestProject{ID: "neokapi-format-examples", SourceLocale: "en", TargetLocales: []string{"de"}},
+		Generator: klz.ManifestGenerator{ID: "@neokapi/kapi-format-examples", Version: "0.0.1"},
+		Project:   klz.ManifestProject{ID: "neokapi-kapi-format-examples", SourceLocale: "en", TargetLocales: []string{"de"}},
 		Created:   "2026-04-15T10:00:00Z",
 	})
 	doc := &klf.File{
 		SchemaVersion: klf.SchemaVersion,
 		Kind:          klf.Kind,
-		Generator:     klf.GeneratorInfo{ID: "@neokapi/format-examples", Version: "0.0.1"},
-		Project:       klf.ProjectInfo{ID: "neokapi-format-examples", SourceLocale: "en"},
+		Generator:     klf.GeneratorInfo{ID: "@neokapi/kapi-format-examples", Version: "0.0.1"},
+		Project:       klf.ProjectInfo{ID: "neokapi-kapi-format-examples", SourceLocale: "en"},
 		Documents: []klf.Document{
 			{
 				ID:           "examples",
@@ -68,7 +68,7 @@ func fixtureArchive(t *testing.T, path string) {
 	annFile := &klf.AnnotationFile{
 		Header: klf.AnnotationFileHeader{
 			Type: "header", AnnotationType: "@neokapi/example", AnnotationVersion: "1.0.0",
-			Producer: klf.AnnotationProducer{ID: "@neokapi/format-examples", Version: "0.0.1"},
+			Producer: klf.AnnotationProducer{ID: "@neokapi/kapi-format-examples", Version: "0.0.1"},
 			Created:  "2026-04-15T12:00:00Z", TargetArchive: "sha256:deadbeef",
 		},
 		Annotations: []klf.Annotation{
@@ -97,7 +97,7 @@ func TestKLZInspect(t *testing.T) {
 	cmd.SetArgs([]string{"inspect", path})
 	require.NoError(t, cmd.Execute())
 	out := buf.String()
-	assert.Contains(t, out, "@neokapi/format-examples")
+	assert.Contains(t, out, "@neokapi/kapi-format-examples")
 	assert.Contains(t, out, "documents/examples.klf")
 	assert.Contains(t, out, "Documents:")
 }

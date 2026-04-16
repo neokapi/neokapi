@@ -2,7 +2,7 @@
 
 Go implementation of the canonical Block / Run model specified in
 [AD-045](../../docs/ad/045-klf-klz-spec.md). Paired with
-[`packages/format/`](../../packages/format/) (`@neokapi/format`) —
+[`packages/kapi-format/`](../../packages/kapi-format/) (`@neokapi/kapi-format`) —
 the TypeScript port — via shared golden fixtures so both languages
 render the same bytes.
 
@@ -54,7 +54,7 @@ html := klf.RenderBlockHTML(block, klf.DefaultJSXVocabulary())
 Reference Level-1 preview renderer that walks a block's Runs and
 emits the same `<kat-block>` HTML envelope neokapi's existing HTML
 and Markdown preview builders produce. Byte-for-byte compatible with
-`packages/format/src/preview.ts`'s `renderBlockHtml`.
+`packages/kapi-format/src/preview.ts`'s `renderBlockHtml`.
 
 ### Annotations (`annotation.go`)
 
@@ -73,15 +73,15 @@ per-select-case metadata. `ResolveAnchor` returns one of six
 machine-readable failure reasons (`ReasonBlockNotFound`,
 `ReasonPathOutOfBounds`, `ReasonPathWrongKind`, `ReasonRunIDMismatch`,
 `ReasonRangeOutOfBounds`, `ReasonFormNotFound`), matching
-`packages/format/src/annotation.ts` exactly.
+`packages/kapi-format/src/annotation.ts` exactly.
 
-## Relationship to packages/format
+## Relationship to packages/kapi-format
 
 The package mirrors the TypeScript reference in
-[`packages/format/`](../../packages/format/). Drift is prevented by
+[`packages/kapi-format/`](../../packages/kapi-format/). Drift is prevented by
 shared golden fixtures: every Go test that round-trips a block also
 renders it through `RenderBlockHTML` and compares against the
-hand-computed expected HTML from `packages/format/examples/*`. Any
+hand-computed expected HTML from `packages/kapi-format/examples/*`. Any
 schema change must land on both sides in the same PR.
 
 ## See also

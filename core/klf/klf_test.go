@@ -307,7 +307,7 @@ func TestAnnotationFileRoundTrip(t *testing.T) {
 }
 
 func TestAnnotationFileResolvesAgainstFixtures(t *testing.T) {
-	// Mirror packages/format/examples/validate.ts: every annotation
+	// Mirror packages/kapi-format/examples/validate.ts: every annotation
 	// in the example file must resolve against the example blocks.
 	blocks := map[string]*Block{
 		"files-heading":        filesHeading(),
@@ -358,7 +358,7 @@ func TestMarshalIsStableAcrossWrites(t *testing.T) {
 }
 
 // exampleAnnotationFile mirrors
-// packages/format/examples/annotations.ts — four records covering
+// packages/kapi-format/examples/annotations.ts — four records covering
 // all four anchor kinds.
 func exampleAnnotationFile() *AnnotationFile {
 	return &AnnotationFile{
@@ -367,7 +367,7 @@ func exampleAnnotationFile() *AnnotationFile {
 			AnnotationType:    "@neokapi/example",
 			AnnotationVersion: "1.0.0",
 			Producer: AnnotationProducer{
-				ID: "@neokapi/format-examples", Version: "0.0.1",
+				ID: "@neokapi/kapi-format-examples", Version: "0.0.1",
 			},
 			Created:       "2026-04-15T12:00:00Z",
 			TargetArchive: "sha256:deadbeef",

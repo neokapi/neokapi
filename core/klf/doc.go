@@ -9,13 +9,13 @@
 // reference, or structured plural/select construct.
 //
 // This package is the Go half of the format. The TypeScript half
-// lives in packages/format (@neokapi/format). Data shapes match
-// packages/format/src/block.ts byte-for-byte after JSON
+// lives in packages/kapi-format (@neokapi/kapi-format). Data shapes match
+// packages/kapi-format/src/block.ts byte-for-byte after JSON
 // serialization, enforced by shared golden fixtures under
-// packages/format/examples.
+// packages/kapi-format/examples.
 //
 // The package also implements the annotation sidecar layer
-// (packages/format/src/annotation.ts): AnnotationFile, Annotation,
+// (packages/kapi-format/src/annotation.ts): AnnotationFile, Annotation,
 // four AnnotationAnchor shapes (block/run/range/form), RunPath,
 // ResolveAnchor and ValidateAnchor with six machine-readable failure
 // reasons.

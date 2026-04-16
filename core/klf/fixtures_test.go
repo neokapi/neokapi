@@ -1,7 +1,7 @@
 package klf
 
 // Shared fixtures, ported line-for-line from
-// packages/format/examples/{files-heading,tag-chip,shopping-cart,annotations}.ts.
+// packages/kapi-format/examples/{files-heading,tag-chip,shopping-cart,annotations}.ts.
 // These are the golden blocks that must round-trip through the Go
 // reader/writer byte-for-byte equivalent to the TypeScript side.
 
@@ -172,12 +172,12 @@ func fixtureDocument() *File {
 		Kind:          Kind,
 		Created:       "2026-04-15T10:00:00Z",
 		Generator: GeneratorInfo{
-			ID:           "@neokapi/format-examples",
+			ID:           "@neokapi/kapi-format-examples",
 			Version:      "0.0.1",
 			Capabilities: []string{"extract", "preview"},
 		},
 		Project: ProjectInfo{
-			ID:           "neokapi-format-examples",
+			ID:           "neokapi-kapi-format-examples",
 			SourceLocale: "en",
 		},
 		Vocabulary: &Vocabulary{Extends: []string{"common-formatting", "rich-html", "rich-jsx"}},
