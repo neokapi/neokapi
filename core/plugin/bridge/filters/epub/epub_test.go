@@ -148,14 +148,25 @@ func TestExtract_BlocksWithInlineCodes(t *testing.T) {
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.NotEmpty(t, blocks)
 
-	// EPUB content has HTML tags that become inline codes.
-	spanCount := 0
+	// EPUB content has HTML tags that become inline-code runs.
+	blocksWithCodes := 0
 	for _, b := range blocks {
-		if len(b.Source) > 0 && b.Source[0].Content != nil && len(b.Source[0].Spans()) > 0 {
-			spanCount++
+		if len(b.Source) > 0 && hasInlineCodeRuns(b.Source[0].Runs) {
+			blocksWithCodes++
 		}
 	}
-	assert.Greater(t, spanCount, 0, "some blocks should have inline code spans from HTML markup")
+	assert.Greater(t, blocksWithCodes, 0, "some blocks should have inline-code runs from HTML markup")
+}
+
+// hasInlineCodeRuns reports whether any non-text run is present in the
+// given Run sequence.
+func hasInlineCodeRuns(runs []model.Run) bool {
+	for _, r := range runs {
+		if r.Text == nil {
+			return true
+		}
+	}
+	return false
 }
 
 // TestExtract_KnownContent verifies that known text from the test EPUB

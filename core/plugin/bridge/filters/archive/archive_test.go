@@ -4,7 +4,6 @@ package archive
 
 import (
 	"bytes"
-	"context"
 	"io"
 	"os"
 	"testing"

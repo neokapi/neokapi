@@ -147,8 +147,8 @@ func TestExtraction_CodeFinderApplied(t *testing.T) {
 	require.NotEmpty(t, blocks, "codefinder file should produce translatable blocks")
 
 	// With codeFinderRules active, HTML-like tags should become inline codes (spans).
-	withSpans := blocksWithSpans(blocks)
-	assert.NotEmpty(t, withSpans, "code finder should produce blocks with inline spans")
+	withInlineCodes := blocksWithInlineCodes(blocks)
+	assert.NotEmpty(t, withInlineCodes, "code finder should produce blocks with inline spans")
 }
 
 // okapi: ExtractionTest#specialCharacterPatternApplied
@@ -306,8 +306,8 @@ func TestExtraction_DoesNotMergeTagsThatDifferByKerning(t *testing.T) {
 	require.NotEmpty(t, blocks, "kerning file should produce translatable blocks")
 
 	// Without ignorance thresholds, kerning differences create separate inline codes.
-	withSpans := blocksWithSpans(blocks)
-	assert.NotEmpty(t, withSpans,
+	withInlineCodes := blocksWithInlineCodes(blocks)
+	assert.NotEmpty(t, withInlineCodes,
 		"without kerning ignorance, blocks should have inline codes from kerning differences")
 }
 
@@ -372,8 +372,8 @@ func TestExtraction_DoesNotMergeTagsThatDifferByTracking(t *testing.T) {
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.NotEmpty(t, blocks, "tracking file should produce translatable blocks")
 
-	withSpans := blocksWithSpans(blocks)
-	assert.NotEmpty(t, withSpans,
+	withInlineCodes := blocksWithInlineCodes(blocks)
+	assert.NotEmpty(t, withInlineCodes,
 		"without tracking ignorance, blocks should have inline codes from tracking differences")
 }
 
@@ -438,8 +438,8 @@ func TestExtraction_DoesNotMergeTagsThatDifferByLeading(t *testing.T) {
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.NotEmpty(t, blocks, "leading file should produce translatable blocks")
 
-	withSpans := blocksWithSpans(blocks)
-	assert.NotEmpty(t, withSpans,
+	withInlineCodes := blocksWithInlineCodes(blocks)
+	assert.NotEmpty(t, withInlineCodes,
 		"without leading ignorance, blocks should have inline codes from leading differences")
 }
 
@@ -504,8 +504,8 @@ func TestExtraction_DoesNotMergeTagsThatDifferByBaselineShift(t *testing.T) {
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.NotEmpty(t, blocks, "baseline shift file should produce translatable blocks")
 
-	withSpans := blocksWithSpans(blocks)
-	assert.NotEmpty(t, withSpans,
+	withInlineCodes := blocksWithInlineCodes(blocks)
+	assert.NotEmpty(t, withInlineCodes,
 		"without baseline shift ignorance, blocks should have inline codes")
 }
 

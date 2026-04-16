@@ -48,7 +48,10 @@ var okapiSubTypeMap = map[string]string{
 	"okapi:image":         "media:image",
 }
 
-// NewSpanClassifyTool creates a new span classification tool.
+// NewSpanClassifyTool creates a new inline-code classification tool.
+// The tool name (span-classify) is kept for backwards compatibility
+// with existing flow definitions; internally it reclassifies the Type
+// field on inline-code runs (Ph / PcOpen / PcClose).
 func NewSpanClassifyTool(cfg *SpanClassifyConfig) *SpanClassifyTool {
 	vocab := model.NewVocabularyRegistry()
 	_ = vocab.LoadDefaults()
@@ -57,7 +60,7 @@ func NewSpanClassifyTool(cfg *SpanClassifyConfig) *SpanClassifyTool {
 		vocab: vocab,
 	}
 	t.ToolName = "span-classify"
-	t.ToolDescription = "Reclassifies code:markup spans into semantic vocabulary types"
+	t.ToolDescription = "Reclassifies code:markup inline-code runs into semantic vocabulary types"
 	t.HandleBlockFn = t.handleBlock
 	return t
 }

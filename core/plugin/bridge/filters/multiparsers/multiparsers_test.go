@@ -101,8 +101,8 @@ func TestExtract_SubFilterContent(t *testing.T) {
 	for _, b := range blocks {
 		text := b.SourceText()
 		if strings.Contains(text, "text") && strings.Contains(text, "text.") {
-			// This is the link row - verify it has inline codes (spans).
-			if len(b.Source) > 0 && b.Source[0].Content != nil && len(b.Source[0].Spans()) > 0 {
+			// This is the link row - verify it has inline-code runs.
+			if len(b.Source) > 0 && bridgetest.HasInlineCode(b.Source[0].Runs) {
 				foundLink = true
 			}
 			break
@@ -160,19 +160,19 @@ func TestExtract_TwoSubFilterContent(t *testing.T) {
 	b0 := blocks[0]
 	assert.Equal(t, "Text bold and more", b0.SourceText(),
 		"block[0] text from Markdown sub-filter")
-	// Should have inline code (span) for the **bold** markup.
-	if len(b0.Source) > 0 && b0.Source[0].Content != nil {
-		assert.NotEmpty(t, b0.Source[0].Spans(),
-			"block[0] should have spans for Markdown bold")
+	// Should have inline-code runs for the **bold** markup.
+	if len(b0.Source) > 0 {
+		assert.True(t, bridgetest.HasInlineCode(b0.Source[0].Runs),
+			"block[0] should have inline-code runs for Markdown bold")
 	}
 
 	// Block 1: HTML "HTML <b>bold</b> and more" -> "HTML bold and more" with inline code
 	b1 := blocks[1]
 	assert.Equal(t, "HTML bold and more", b1.SourceText(),
 		"block[1] text from HTML sub-filter")
-	if len(b1.Source) > 0 && b1.Source[0].Content != nil {
-		assert.NotEmpty(t, b1.Source[0].Spans(),
-			"block[1] should have spans for HTML bold tag")
+	if len(b1.Source) > 0 {
+		assert.True(t, bridgetest.HasInlineCode(b1.Source[0].Runs),
+			"block[1] should have inline-code runs for HTML bold tag")
 	}
 
 	// Block 2: Plain text "Plain text R&D" (col 2 is not a sub-filter col)

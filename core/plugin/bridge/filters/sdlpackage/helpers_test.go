@@ -4,7 +4,6 @@ package sdlpackage
 
 import (
 	"bytes"
-	"context"
 	"io"
 	"os"
 	"testing"

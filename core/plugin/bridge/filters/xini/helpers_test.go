@@ -108,8 +108,8 @@ func groupEnds(parts []*model.Part) []*model.GroupEnd {
 	return result
 }
 
-// spanCount counts the total inline-code runs across all source segments of a block.
-func spanCount(b *model.Block) int {
+// inlineCodeCount counts the total inline-code runs across all source segments of a block.
+func inlineCodeCount(b *model.Block) int {
 	n := 0
 	for _, seg := range b.Source {
 		if seg == nil {

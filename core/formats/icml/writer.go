@@ -155,7 +155,7 @@ func (w *Writer) writeFromSkeleton(blocks []*model.Block) error {
 		textEnd   int
 		text      string
 	}
-	var spans []contentRange
+	var ranges []contentRange
 
 	decoder := xml.NewDecoder(strings.NewReader(w.docContent))
 	inContent := false
@@ -182,7 +182,7 @@ func (w *Writer) writeFromSkeleton(blocks []*model.Block) error {
 				endOffset := decoder.InputOffset()
 				// The char data ends at endOffset; it starts at offset
 				// (the offset before reading this token).
-				spans = append(spans, contentRange{
+				ranges = append(ranges, contentRange{
 					textStart: int(offset),
 					textEnd:   int(endOffset),
 					text:      text,
@@ -192,15 +192,16 @@ func (w *Writer) writeFromSkeleton(blocks []*model.Block) error {
 		_ = offset
 	}
 
-	// Build the output by walking the original content and replacing spans.
+	// Build the output by walking the original content and replacing each
+	// Content text range. Process in reverse order so earlier offsets stay
+	// valid as we splice replacements into later positions.
 	output := w.docContent
-	// Process spans in reverse order to preserve offsets.
-	for i := len(spans) - 1; i >= 0; i-- {
-		span := spans[i]
-		// Check if we have a translation for text that contains this span.
+	for i := len(ranges) - 1; i >= 0; i-- {
+		cr := ranges[i]
+		// Check if we have a translation for text that contains this range.
 		// We need to match accumulated paragraph text to individual Content texts.
-		if replacement, ok := translations[span.text]; ok {
-			output = output[:span.textStart] + xmlEscape(replacement) + output[span.textEnd:]
+		if replacement, ok := translations[cr.text]; ok {
+			output = output[:cr.textStart] + xmlEscape(replacement) + output[cr.textEnd:]
 		}
 	}
 

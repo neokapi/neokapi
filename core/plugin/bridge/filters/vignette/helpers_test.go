@@ -4,7 +4,6 @@ package vignette
 
 import (
 	"bytes"
-	"context"
 	"io"
 	"os"
 	"testing"

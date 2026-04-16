@@ -4,7 +4,6 @@ package yaml
 
 import (
 	"bytes"
-	"context"
 	"io"
 	"os"
 	"strings"

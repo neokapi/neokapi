@@ -128,10 +128,10 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 	decoder := yamlv3.NewDecoder(strings.NewReader(string(content)))
 
 	if r.skeletonStore != nil {
-		// Skeleton mode: collect translatable scalar spans, then build skeleton
-		// from raw bytes.
+		// Skeleton mode: collect translatable scalar byte ranges, then
+		// build skeleton from raw bytes.
 		lineOffsets := buildLineOffsets(content)
-		var spans []scalarRange
+		var ranges []scalarRange
 
 		for {
 			var node yamlv3.Node
@@ -142,11 +142,11 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 				ch <- model.PartResult{Error: fmt.Errorf("yaml: parsing: %w", err)}
 				return
 			}
-			r.collectSpans(ctx, ch, &node, nil, &blockCounter, content, lineOffsets, &spans)
+			r.collectScalarRanges(ctx, ch, &node, nil, &blockCounter, content, lineOffsets, &ranges)
 		}
 
-		// Build skeleton from raw bytes and collected spans.
-		r.buildSkeleton(content, spans)
+		// Build skeleton from raw bytes and collected ranges.
+		r.buildSkeleton(content, ranges)
 	} else {
 		for {
 			var node yamlv3.Node
@@ -192,17 +192,18 @@ func lineColToOffset(lineOffsets []int, line, col int) int {
 	return lineOffsets[line-1] + col - 1
 }
 
-// collectSpans walks the yaml.v3 node tree and collects translatable scalar
-// spans while also emitting Part events to the channel. This mirrors walkNode
-// but additionally records byte positions for skeleton construction.
-func (r *Reader) collectSpans(ctx context.Context, ch chan<- model.PartResult,
+// collectScalarRanges walks the yaml.v3 node tree and collects translatable
+// scalar byte ranges while also emitting Part events to the channel. This
+// mirrors walkNode but additionally records byte positions for skeleton
+// construction.
+func (r *Reader) collectScalarRanges(ctx context.Context, ch chan<- model.PartResult,
 	node *yamlv3.Node, path []string, blockCounter *int,
-	content []byte, lineOffsets []int, spans *[]scalarRange) {
+	content []byte, lineOffsets []int, ranges *[]scalarRange) {
 
 	switch node.Kind {
 	case yamlv3.DocumentNode:
 		for _, child := range node.Content {
-			r.collectSpans(ctx, ch, child, path, blockCounter, content, lineOffsets, spans)
+			r.collectScalarRanges(ctx, ch, child, path, blockCounter, content, lineOffsets, ranges)
 		}
 
 	case yamlv3.MappingNode:
@@ -211,29 +212,30 @@ func (r *Reader) collectSpans(ctx context.Context, ch chan<- model.PartResult,
 			valNode := node.Content[i+1]
 			key := keyNode.Value
 			newPath := append(append([]string{}, path...), key)
-			r.collectSpans(ctx, ch, valNode, newPath, blockCounter, content, lineOffsets, spans)
+			r.collectScalarRanges(ctx, ch, valNode, newPath, blockCounter, content, lineOffsets, ranges)
 		}
 
 	case yamlv3.SequenceNode:
 		for i, child := range node.Content {
 			indexPath := append(append([]string{}, path...), fmt.Sprintf("[%d]", i))
-			r.collectSpans(ctx, ch, child, indexPath, blockCounter, content, lineOffsets, spans)
+			r.collectScalarRanges(ctx, ch, child, indexPath, blockCounter, content, lineOffsets, ranges)
 		}
 
 	case yamlv3.ScalarNode:
-		r.collectScalarSpan(ctx, ch, node, path, blockCounter, content, lineOffsets, spans)
+		r.collectScalarRange(ctx, ch, node, path, blockCounter, content, lineOffsets, ranges)
 
 	case yamlv3.AliasNode:
 		if node.Alias != nil {
-			r.collectSpans(ctx, ch, node.Alias, path, blockCounter, content, lineOffsets, spans)
+			r.collectScalarRanges(ctx, ch, node.Alias, path, blockCounter, content, lineOffsets, ranges)
 		}
 	}
 }
 
-// collectScalarSpan checks if a scalar should be extracted and records its span.
-func (r *Reader) collectScalarSpan(ctx context.Context, ch chan<- model.PartResult,
+// collectScalarRange checks if a scalar should be extracted and records
+// its byte range.
+func (r *Reader) collectScalarRange(ctx context.Context, ch chan<- model.PartResult,
 	node *yamlv3.Node, path []string, blockCounter *int,
-	content []byte, lineOffsets []int, spans *[]scalarRange) {
+	content []byte, lineOffsets []int, ranges *[]scalarRange) {
 
 	isString := node.Tag == "!!str" || node.Tag == ""
 	if !isString && !r.cfg.ExtractNonStrings {
@@ -284,7 +286,7 @@ func (r *Reader) collectScalarSpan(ctx context.Context, ch chan<- model.PartResu
 		r.applyCodeFinder(block)
 	}
 
-	*spans = append(*spans, scalarRange{
+	*ranges = append(*ranges, scalarRange{
 		start:   start,
 		end:     end,
 		blockID: blockID,
@@ -511,22 +513,23 @@ func scalarStyleName(style yamlv3.Style) string {
 	}
 }
 
-// buildSkeleton constructs skeleton entries from raw bytes and sorted scalar spans.
-func (r *Reader) buildSkeleton(content []byte, spans []scalarRange) {
-	// Sort spans by start offset (they should already be in order from tree walk).
-	for i := 1; i < len(spans); i++ {
-		for j := i; j > 0 && spans[j].start < spans[j-1].start; j-- {
-			spans[j], spans[j-1] = spans[j-1], spans[j]
+// buildSkeleton constructs skeleton entries from raw bytes and sorted
+// scalar byte ranges.
+func (r *Reader) buildSkeleton(content []byte, ranges []scalarRange) {
+	// Sort by start offset (they should already be in order from tree walk).
+	for i := 1; i < len(ranges); i++ {
+		for j := i; j > 0 && ranges[j].start < ranges[j-1].start; j-- {
+			ranges[j], ranges[j-1] = ranges[j-1], ranges[j]
 		}
 	}
 
 	pos := 0
-	for _, sp := range spans {
-		if sp.start > pos {
-			r.skelBytes(content[pos:sp.start])
+	for _, sr := range ranges {
+		if sr.start > pos {
+			r.skelBytes(content[pos:sr.start])
 		}
-		r.skelRef(sp.blockID)
-		pos = sp.end
+		r.skelRef(sr.blockID)
+		pos = sr.end
 	}
 	// Trailing content
 	if pos < len(content) {

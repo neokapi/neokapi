@@ -251,7 +251,7 @@ func (r *Reader) createBlock(id string, seg segment, pl parsedLine) *model.Block
 	branchNodes := findBranchNodes(pl.nodes, seg.path)
 
 	if branchNodes != nil && nodesHavePlaceholders(branchNodes) {
-		return r.createBlockWithSpans(id, seg, branchNodes)
+		return r.createBlockWithRuns(id, seg, branchNodes)
 	}
 
 	block := model.NewBlock(id, seg.text)
@@ -266,9 +266,9 @@ func (r *Reader) createBlock(id string, seg segment, pl parsedLine) *model.Block
 	return block
 }
 
-// createBlockWithSpans creates a Block with inline placeholder spans for
+// createBlockWithRuns creates a Block with inline placeholder runs for
 // argument references like {name}, {0,date,short}, and #.
-func (r *Reader) createBlockWithSpans(id string, seg segment, nodes []node) *model.Block {
+func (r *Reader) createBlockWithRuns(id string, seg segment, nodes []node) *model.Block {
 	var runs []model.Run
 	spanID := 0
 

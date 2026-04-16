@@ -169,7 +169,7 @@ func TestSegmentation_CodesNotMovedIntoAttributes(t *testing.T) {
 	// The block should still have inline codes.
 	hasAnySpan := false
 	for _, b := range blocks {
-		if spanCount(b) > 0 {
+		if inlineCodeCount(b) > 0 {
 			hasAnySpan = true
 			break
 		}

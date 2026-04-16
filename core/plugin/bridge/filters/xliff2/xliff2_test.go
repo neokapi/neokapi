@@ -4,7 +4,6 @@ package xliff2
 
 import (
 	"bytes"
-	"context"
 	"io"
 	"os"
 	"strings"

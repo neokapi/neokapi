@@ -132,8 +132,8 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 		sourceRuns          []model.Run
 		sourceByteElems     []byteElem
 		transByteElems      []byteElem
-		buildingSourceFrag  bool
-		buildingTransFrag   bool
+		buildingSource      bool
+		buildingTrans       bool
 		transRuns           []model.Run
 	)
 
@@ -215,8 +215,8 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 				transRuns = nil
 				sourceByteElems = nil
 				transByteElems = nil
-				buildingSourceFrag = false
-				buildingTransFrag = false
+				buildingSource = false
+				buildingTrans = false
 				for _, attr := range t.Attr {
 					switch attr.Name.Local {
 					case "id":
@@ -232,7 +232,7 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 					sourceBuilder.Reset()
 					sourceRuns = nil
 					sourceByteElems = nil
-					buildingSourceFrag = true
+					buildingSource = true
 					elemStartOff = decoder.InputOffset()
 				}
 
@@ -242,7 +242,7 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 					transBuilder.Reset()
 					transRuns = nil
 					transByteElems = nil
-					buildingTransFrag = true
+					buildingTrans = true
 					for _, attr := range t.Attr {
 						if attr.Name.Local == "type" {
 							transType = attr.Value
@@ -284,14 +284,14 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 						}
 					}
 					be := byteElem{value: byteVal}
-					if buildingSourceFrag && inSource {
+					if buildingSource && inSource {
 						sourceByteElems = append(sourceByteElems, be)
 						sourceRuns = append(sourceRuns, model.Run{Ph: &model.PlaceholderRun{
 							ID:   fmt.Sprintf("b%d", len(sourceByteElems)),
 							Type: "byte",
 							Data: fmt.Sprintf(`<byte value="%s"/>`, byteVal),
 						}})
-					} else if buildingTransFrag && inTranslation && !inNumerusForm {
+					} else if buildingTrans && inTranslation && !inNumerusForm {
 						transByteElems = append(transByteElems, be)
 						transRuns = append(transRuns, model.Run{Ph: &model.PlaceholderRun{
 							ID:   fmt.Sprintf("b%d", len(transByteElems)),
@@ -349,7 +349,7 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 						})
 					}
 					inSource = false
-					buildingSourceFrag = false
+					buildingSource = false
 				}
 
 			case "translation":
@@ -369,7 +369,7 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 						})
 					}
 					inTranslation = false
-					buildingTransFrag = false
+					buildingTrans = false
 				}
 
 			case "numerusform":
@@ -508,13 +508,13 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 				transBuilder.WriteString(text)
 			} else if inSource {
 				sourceBuilder.WriteString(text)
-				if buildingSourceFrag {
+				if buildingSource {
 					sourceRuns = appendTSTextRun(sourceRuns, text)
 				}
 			} else if inTranslation {
 				if !inNumerusForm {
 					transBuilder.WriteString(text)
-					if buildingTransFrag {
+					if buildingTrans {
 						transRuns = appendTSTextRun(transRuns, text)
 					}
 				}
