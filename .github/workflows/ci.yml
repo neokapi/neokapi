@@ -159,6 +159,10 @@ jobs:
         working-directory: packages/kapi-format
         run: vp run validate
 
+      - name: Test kapi-format
+        working-directory: packages/kapi-format
+        run: vp run test
+
       - name: Typecheck kapi-react
         working-directory: packages/kapi-react
         run: vp run typecheck
