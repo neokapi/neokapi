@@ -31,9 +31,9 @@ const (
 
 // DeepLConfig holds configuration for the DeepL provider.
 type DeepLConfig struct {
-	APIKey    string `schema:"description=DeepL API authentication key,widget=password"`
+	APIKey    string    `schema:"description=DeepL API authentication key,widget=password"`
 	Formality Formality `schema:"description=Formality level for translations,enum=default|more|less|prefer_more|prefer_less,default=default"`
-	BaseURL   string `schema:"description=API base URL override for testing"`                                                               // Override for testing
+	BaseURL   string    `schema:"description=API base URL override for testing"` // Override for testing
 }
 
 // Validate checks configuration validity.

@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"github.com/neokapi/neokapi/cli/credentials"
+	aitools "github.com/neokapi/neokapi/core/ai/tools"
 	"github.com/neokapi/neokapi/core/flow"
 	fmtschema "github.com/neokapi/neokapi/core/format/schema"
 	"github.com/neokapi/neokapi/core/formats"
@@ -28,7 +29,6 @@ import (
 	"github.com/neokapi/neokapi/core/preset"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/registry"
-	aitools "github.com/neokapi/neokapi/core/ai/tools"
 	libtools "github.com/neokapi/neokapi/core/tools"
 	"github.com/neokapi/neokapi/core/version"
 	"github.com/neokapi/neokapi/sievepen"
@@ -481,17 +481,17 @@ func (a *App) getOpenProject(tabID string) *openProject {
 
 // FlowInfo is the frontend-facing flow summary.
 type FlowInfo struct {
-	Name        string            `json:"name"`
-	Description string            `json:"description"`
-	StepCount   int               `json:"step_count"`
-	Valid       bool              `json:"valid"`
-	Issues      []FlowIssueInfo   `json:"issues,omitempty"`
+	Name        string          `json:"name"`
+	Description string          `json:"description"`
+	StepCount   int             `json:"step_count"`
+	Valid       bool            `json:"valid"`
+	Issues      []FlowIssueInfo `json:"issues,omitempty"`
 }
 
 // FlowIssueInfo is a validation issue for a flow step.
 type FlowIssueInfo struct {
 	Tool    string `json:"tool"`
-	Type    string `json:"type"`    // "unknown" or "undeclared_plugin"
+	Type    string `json:"type"` // "unknown" or "undeclared_plugin"
 	Message string `json:"message"`
 }
 

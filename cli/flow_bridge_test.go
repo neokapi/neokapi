@@ -153,10 +153,10 @@ func TestBuildToolByName_RegistryWithConfigFactory(t *testing.T) {
 	}
 
 	config := map[string]any{
-		"source_locale":  "en",
-		"target_locale":  "de",
-		"segmentSource":  true,
-		"segmentTarget":  false,
+		"source_locale": "en",
+		"target_locale": "de",
+		"segmentSource": true,
+		"segmentTarget": false,
 	}
 	tools, _, err := app.buildToolByName("segmentation", config)
 	require.NoError(t, err)

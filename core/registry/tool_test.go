@@ -248,10 +248,10 @@ func TestRegisterWithSchema_PropagatesIOContract(t *testing.T) {
 	reg.RegisterWithSchema("io-tool", func() tool.Tool { return &stubTool{} }, &schema.ComponentSchema{
 		Title: "IO Tool",
 		ToolMeta: &schema.ToolMeta{
-			ID:            "io-tool",
-			Cardinality:   schema.Multilingual,
-			Produces:      []schema.AnnotationType{schema.AnnotationComparison},
-			SideEffects:   []schema.SideEffect{schema.SideEffectAnalytics},
+			ID:          "io-tool",
+			Cardinality: schema.Multilingual,
+			Produces:    []schema.AnnotationType{schema.AnnotationComparison},
+			SideEffects: []schema.SideEffect{schema.SideEffectAnalytics},
 		},
 	})
 

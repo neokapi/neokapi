@@ -105,7 +105,7 @@ type ContentCollection struct {
 	Name            string           `yaml:"name,omitempty" json:"name,omitempty"`
 	SourceLanguage  model.LocaleID   `yaml:"source_language,omitempty" json:"source_language,omitempty"`
 	TargetLanguages []model.LocaleID `yaml:"target_languages,omitempty" json:"target_languages,omitempty"`
-	Items           []ContentItem `yaml:"items,omitempty" json:"items,omitempty"`
+	Items           []ContentItem    `yaml:"items,omitempty" json:"items,omitempty"`
 
 	// Bare entry fields (short form — promoted from ContentItem).
 	Path   string      `yaml:"path,omitempty" json:"path,omitempty"`
