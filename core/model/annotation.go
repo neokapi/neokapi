@@ -16,9 +16,11 @@ const (
 )
 
 // AltTranslation holds an alternative translation with metadata.
+// Source and Target are Run sequences — use FlattenRuns or AsCodedText
+// to materialise a string representation when needed.
 type AltTranslation struct {
-	Source        *Fragment `json:"source,omitempty"`
-	Target        *Fragment `json:"target,omitempty"`
+	Source        []Run     `json:"source,omitempty"`
+	Target        []Run     `json:"target,omitempty"`
 	Locale        LocaleID  `json:"locale,omitempty"`
 	Origin        string    `json:"origin,omitempty"`         // Where this translation came from (TM, MT, etc.)
 	Score         float64   `json:"score,omitempty"`          // Match quality (0.0 - 1.0)

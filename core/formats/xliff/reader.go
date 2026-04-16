@@ -794,10 +794,10 @@ func (r *Reader) buildBlock(tu *parsedTransUnit, sourceLang, targetLang model.Lo
 			FromOriginal:  true,
 		}
 		if at.source != "" {
-			alt.Source = model.NewFragment(at.source)
+			alt.Source = []model.Run{{Text: &model.TextRun{Text: at.source}}}
 		}
 		if at.target != "" {
-			alt.Target = model.NewFragment(at.target)
+			alt.Target = []model.Run{{Text: &model.TextRun{Text: at.target}}}
 		}
 		block.Annotations[key] = alt
 	}

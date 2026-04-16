@@ -99,8 +99,8 @@ func (t *TMLeverageTool) handleBlock(part *model.Part) (*model.Part, error) {
 		block.Annotations = make(map[string]model.Annotation)
 	}
 	block.Annotations["alt-translation"] = &model.AltTranslation{
-		Source:    sourceVariant,
-		Target:    targetVariant,
+		Source:    model.FragmentToRuns(sourceVariant),
+		Target:    model.FragmentToRuns(targetVariant),
 		Locale:    t.cfg.TargetLocale,
 		Origin:    "tm:sievepen",
 		Score:     best.Score,

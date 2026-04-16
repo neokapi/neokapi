@@ -592,10 +592,10 @@ func TestExtract_AltTranslation(t *testing.T) {
 	assert.Equal(t, "TM", alt.Origin)
 	assert.Equal(t, 95.0, alt.CombinedScore)
 	assert.Equal(t, model.MatchFuzzy, alt.MatchType)
-	require.NotNil(t, alt.Source)
-	assert.Equal(t, "Hello", alt.Source.Text())
-	require.NotNil(t, alt.Target)
-	assert.Equal(t, "Salut", alt.Target.Text())
+	require.NotEmpty(t, alt.Source)
+	assert.Equal(t, "Hello", model.FlattenRuns(alt.Source))
+	require.NotEmpty(t, alt.Target)
+	assert.Equal(t, "Salut", model.FlattenRuns(alt.Target))
 }
 
 func TestExtract_MultipleAltTranslations(t *testing.T) {
