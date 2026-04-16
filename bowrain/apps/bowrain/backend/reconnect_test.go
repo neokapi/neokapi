@@ -203,7 +203,7 @@ func TestOfflineQueueIntegrationWithUpdateBlockTarget(t *testing.T) {
 	// Verify local update.
 	blocks, err = app.GetItemBlocks(proj.ID, "hello.txt")
 	require.NoError(t, err)
-	assert.Equal(t, "Bonjour le monde", blocks[0].Targets["fr"])
+	assert.Equal(t, "Bonjour le monde", flattenTargetRuns(blocks[0], "fr"))
 
 	// Verify queued.
 	assert.Equal(t, 1, q.PendingCount())

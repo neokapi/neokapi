@@ -45,15 +45,16 @@ func TestBlockWithTargets(t *testing.T) {
 	b := &model.Block{ID: "b1", Translatable: true}
 	b.SetSourceText("Hello")
 	b.Targets = map[model.LocaleID][]*model.Segment{
-		"fr": {{Content: &model.Fragment{CodedText: "Bonjour"}}},
-		"de": {{Content: &model.Fragment{CodedText: "Hallo"}}},
+		"fr": {model.NewRunsSegment("s1", []model.Run{{Text: &model.TextRun{Text: "Bonjour"}}})},
+		"de": {model.NewRunsSegment("s1", []model.Run{{Text: &model.TextRun{Text: "Hallo"}}})},
 	}
 
 	pb := BlockToProto(b, "en.json")
 	require.NotNil(t, pb.Targets)
 	assert.Len(t, pb.Targets, 2)
-	assert.Len(t, pb.Targets["fr"].Segments, 1)
-	assert.Equal(t, "Bonjour", pb.Targets["fr"].Segments[0].Text)
+	require.Len(t, pb.Targets["fr"].Segments, 1)
+	require.Len(t, pb.Targets["fr"].Segments[0].Runs, 1)
+	assert.Equal(t, "Bonjour", pb.Targets["fr"].Segments[0].Runs[0].GetText().GetText())
 
 	b2 := ProtoToBlock(pb)
 	assert.Equal(t, "Bonjour", b2.TargetText("fr"))

@@ -168,22 +168,84 @@ message SyncBlock {
 
 message SyncSegment {
   string id = 1;
-  string text = 2;           // plain text
-  string coded_text = 3;     // text with PUA markers for inline spans
-  repeated SyncSpan spans = 4;
-  map<string, string> properties = 5;
+  repeated SyncRun runs = 2;
+  map<string, string> properties = 3;
 }
 
 message SyncSegmentList {
   repeated SyncSegment segments = 1;
 }
 
-message SyncSpan {
+// SyncRunConstraints mirrors model.RunConstraints.
+message SyncRunConstraints {
+  bool deletable = 1;
+  bool cloneable = 2;
+  bool reorderable = 3;
+}
+
+message SyncTextRun {
+  string text = 1;
+}
+
+message SyncPlaceholderRun {
   string id = 1;
-  string type = 2;           // semantic type from vocabulary
-  string sub_type = 3;       // format-specific refinement
-  string span_type = 4;      // "opening", "closing", "placeholder"
-  string data = 5;           // original markup
+  string type = 2;
+  string sub_type = 3;
+  string data = 4;
+  string equiv = 5;
+  string disp = 6;
+  SyncRunConstraints constraints = 7;
+}
+
+message SyncPcOpenRun {
+  string id = 1;
+  string type = 2;
+  string sub_type = 3;
+  string data = 4;
+  string equiv = 5;
+  string disp = 6;
+  SyncRunConstraints constraints = 7;
+}
+
+message SyncPcCloseRun {
+  string id = 1;
+  string type = 2;
+  string sub_type = 3;
+  string data = 4;
+  string equiv = 5;
+}
+
+message SyncSubRun {
+  string id = 1;
+  string ref = 2;
+  string equiv = 3;
+}
+
+message SyncPluralRun {
+  string pivot = 1;
+  map<string, SyncRunList> forms = 2;
+}
+
+message SyncSelectRun {
+  string pivot = 1;
+  map<string, SyncRunList> cases = 2;
+}
+
+message SyncRunList {
+  repeated SyncRun runs = 1;
+}
+
+// SyncRun is the discriminated-union inline-content primitive.
+message SyncRun {
+  oneof kind {
+    SyncTextRun text = 1;
+    SyncPlaceholderRun ph = 2;
+    SyncPcOpenRun pc_open = 3;
+    SyncPcCloseRun pc_close = 4;
+    SyncSubRun sub = 5;
+    SyncPluralRun plural = 6;
+    SyncSelectRun select = 7;
+  }
 }
 
 // SyncTerm carries a terminology concept with translations.

@@ -154,8 +154,9 @@ func (c *ServerClient) GetBlocks(wsSlug, projectID, itemName string) ([]BlockInf
 	return blocks, nil
 }
 
-// UpdateBlockTarget updates a block's target text on the server.
-func (c *ServerClient) UpdateBlockTarget(wsSlug, projectID, blockID, targetLocale, text, codedText string, spans []SpanInfo) error {
+// UpdateBlockTarget updates a block's target content on the server
+// with a structured Run sequence.
+func (c *ServerClient) UpdateBlockTarget(wsSlug, projectID, blockID, targetLocale string, runs []RunInfo) error {
 	ctx, cancel := c.ctxWithTimeout(10 * time.Second)
 	defer cancel()
 	req := &pb.UpdateBlockTargetRequest{
@@ -163,19 +164,138 @@ func (c *ServerClient) UpdateBlockTarget(wsSlug, projectID, blockID, targetLocal
 		ProjectId:     projectID,
 		BlockId:       blockID,
 		TargetLocale:  targetLocale,
-		Text:          text,
-		CodedText:     codedText,
-	}
-	for _, s := range spans {
-		req.Spans = append(req.Spans, &pb.SpanInfo{
-			SpanType: s.SpanType,
-			Type:     s.Type,
-			Id:       s.ID,
-			Data:     s.Data,
-		})
+		Runs:          runInfosToEditorProto(runs),
 	}
 	_, err := c.editor.UpdateBlockTarget(ctx, req)
 	return err
+}
+
+// runInfosToEditorProto converts the frontend-facing RunInfo
+// representation to the gRPC EditorRun oneof shape.
+func runInfosToEditorProto(infos []RunInfo) []*pb.EditorRun {
+	if len(infos) == 0 {
+		return nil
+	}
+	out := make([]*pb.EditorRun, len(infos))
+	for i, ri := range infos {
+		out[i] = runInfoToEditorProto(ri)
+	}
+	return out
+}
+
+// editorProtoToRunInfos reverses runInfosToEditorProto.
+func editorProtoToRunInfos(msgs []*pb.EditorRun) []RunInfo {
+	if len(msgs) == 0 {
+		return nil
+	}
+	out := make([]RunInfo, len(msgs))
+	for i, m := range msgs {
+		out[i] = editorProtoToRunInfo(m)
+	}
+	return out
+}
+
+func runInfoToEditorProto(ri RunInfo) *pb.EditorRun {
+	switch {
+	case ri.Text != nil:
+		return &pb.EditorRun{Kind: &pb.EditorRun_Text{Text: &pb.EditorTextRun{Text: ri.Text.Text}}}
+	case ri.Ph != nil:
+		return &pb.EditorRun{Kind: &pb.EditorRun_Ph{Ph: &pb.EditorPlaceholderRun{
+			Id: ri.Ph.ID, Type: ri.Ph.Type, SubType: ri.Ph.SubType,
+			Data: ri.Ph.Data, Equiv: ri.Ph.Equiv, Disp: ri.Ph.Disp,
+			Constraints: runConstraintsInfoToEditorProto(ri.Ph.Constraints),
+		}}}
+	case ri.PcOpen != nil:
+		return &pb.EditorRun{Kind: &pb.EditorRun_PcOpen{PcOpen: &pb.EditorPcOpenRun{
+			Id: ri.PcOpen.ID, Type: ri.PcOpen.Type, SubType: ri.PcOpen.SubType,
+			Data: ri.PcOpen.Data, Equiv: ri.PcOpen.Equiv, Disp: ri.PcOpen.Disp,
+			Constraints: runConstraintsInfoToEditorProto(ri.PcOpen.Constraints),
+		}}}
+	case ri.PcClose != nil:
+		return &pb.EditorRun{Kind: &pb.EditorRun_PcClose{PcClose: &pb.EditorPcCloseRun{
+			Id: ri.PcClose.ID, Type: ri.PcClose.Type, SubType: ri.PcClose.SubType,
+			Data: ri.PcClose.Data, Equiv: ri.PcClose.Equiv,
+		}}}
+	case ri.Sub != nil:
+		return &pb.EditorRun{Kind: &pb.EditorRun_Sub{Sub: &pb.EditorSubRun{
+			Id: ri.Sub.ID, Ref: ri.Sub.Ref, Equiv: ri.Sub.Equiv,
+		}}}
+	case ri.Plural != nil:
+		forms := make(map[string]*pb.EditorRunList, len(ri.Plural.Forms))
+		for form, runs := range ri.Plural.Forms {
+			forms[form] = &pb.EditorRunList{Runs: runInfosToEditorProto(runs)}
+		}
+		return &pb.EditorRun{Kind: &pb.EditorRun_Plural{Plural: &pb.EditorPluralRun{
+			Pivot: ri.Plural.Pivot, Forms: forms,
+		}}}
+	case ri.Select != nil:
+		cases := make(map[string]*pb.EditorRunList, len(ri.Select.Cases))
+		for key, runs := range ri.Select.Cases {
+			cases[key] = &pb.EditorRunList{Runs: runInfosToEditorProto(runs)}
+		}
+		return &pb.EditorRun{Kind: &pb.EditorRun_Select{Select: &pb.EditorSelectRun{
+			Pivot: ri.Select.Pivot, Cases: cases,
+		}}}
+	}
+	return nil
+}
+
+func editorProtoToRunInfo(msg *pb.EditorRun) RunInfo {
+	if msg == nil {
+		return RunInfo{}
+	}
+	switch k := msg.Kind.(type) {
+	case *pb.EditorRun_Text:
+		return RunInfo{Text: &TextRunInfo{Text: k.Text.GetText()}}
+	case *pb.EditorRun_Ph:
+		return RunInfo{Ph: &PlaceholderRunInfo{
+			ID: k.Ph.GetId(), Type: k.Ph.GetType(), SubType: k.Ph.GetSubType(),
+			Data: k.Ph.GetData(), Equiv: k.Ph.GetEquiv(), Disp: k.Ph.GetDisp(),
+			Constraints: editorProtoToRunConstraintsInfo(k.Ph.GetConstraints()),
+		}}
+	case *pb.EditorRun_PcOpen:
+		return RunInfo{PcOpen: &PcOpenRunInfo{
+			ID: k.PcOpen.GetId(), Type: k.PcOpen.GetType(), SubType: k.PcOpen.GetSubType(),
+			Data: k.PcOpen.GetData(), Equiv: k.PcOpen.GetEquiv(), Disp: k.PcOpen.GetDisp(),
+			Constraints: editorProtoToRunConstraintsInfo(k.PcOpen.GetConstraints()),
+		}}
+	case *pb.EditorRun_PcClose:
+		return RunInfo{PcClose: &PcCloseRunInfo{
+			ID: k.PcClose.GetId(), Type: k.PcClose.GetType(), SubType: k.PcClose.GetSubType(),
+			Data: k.PcClose.GetData(), Equiv: k.PcClose.GetEquiv(),
+		}}
+	case *pb.EditorRun_Sub:
+		return RunInfo{Sub: &SubRunInfo{
+			ID: k.Sub.GetId(), Ref: k.Sub.GetRef(), Equiv: k.Sub.GetEquiv(),
+		}}
+	case *pb.EditorRun_Plural:
+		forms := make(map[string][]RunInfo, len(k.Plural.GetForms()))
+		for form, runList := range k.Plural.GetForms() {
+			forms[form] = editorProtoToRunInfos(runList.GetRuns())
+		}
+		return RunInfo{Plural: &PluralRunInfo{Pivot: k.Plural.GetPivot(), Forms: forms}}
+	case *pb.EditorRun_Select:
+		cases := make(map[string][]RunInfo, len(k.Select.GetCases()))
+		for key, runList := range k.Select.GetCases() {
+			cases[key] = editorProtoToRunInfos(runList.GetRuns())
+		}
+		return RunInfo{Select: &SelectRunInfo{Pivot: k.Select.GetPivot(), Cases: cases}}
+	}
+	return RunInfo{}
+}
+
+func runConstraintsInfoToEditorProto(ri *RunConstraintsInfo) *pb.EditorRunConstraints {
+	if ri == nil {
+		return nil
+	}
+	return &pb.EditorRunConstraints{Deletable: ri.Deletable, Cloneable: ri.Cloneable, Reorderable: ri.Reorderable}
+}
+
+func editorProtoToRunConstraintsInfo(msg *pb.EditorRunConstraints) *RunConstraintsInfo {
+	if msg == nil {
+		return nil
+	}
+	return &RunConstraintsInfo{Deletable: msg.GetDeletable(), Cloneable: msg.GetCloneable(), Reorderable: msg.GetReorderable()}
 }
 
 // ReviewBlock sets or clears the reviewed status on a block.
@@ -593,24 +713,15 @@ func protoProjectToInfo(p *pb.EditorProjectInfo) ProjectInfo {
 }
 
 func protoBlockToInfo(b *pb.BlockInfo) BlockInfo {
-	var sourceSpans []SpanInfo
-	for _, s := range b.SourceSpans {
-		sourceSpans = append(sourceSpans, SpanInfo{
-			SpanType: s.SpanType,
-			Type:     s.Type,
-			ID:       s.Id,
-			Data:     s.Data,
-		})
+	targetRuns := make(map[string][]RunInfo, len(b.TargetRuns))
+	for locale, rl := range b.TargetRuns {
+		targetRuns[locale] = editorProtoToRunInfos(rl.GetRuns())
 	}
 	return BlockInfo{
 		ID:           b.Id,
-		Source:       b.Source,
-		SourceCoded:  b.SourceCoded,
-		SourceSpans:  sourceSpans,
-		Targets:      b.Targets,
-		TargetsCoded: b.TargetsCoded,
+		SourceRuns:   editorProtoToRunInfos(b.SourceRuns),
+		TargetRuns:   targetRuns,
 		Translatable: b.Translatable,
-		HasSpans:     b.HasSpans,
 		Properties:   b.Properties,
 	}
 }

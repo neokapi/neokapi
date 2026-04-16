@@ -40,31 +40,87 @@ type ProjectItem struct {
 	WordCount  int    `json:"word_count"`
 }
 
-// SpanInfo describes an inline span element for the frontend.
-type SpanInfo struct {
-	SpanType    string `json:"span_type"` // "opening", "closing", "placeholder"
-	Type        string `json:"type"`      // Semantic type from vocabulary (e.g., "fmt:bold")
-	ID          string `json:"id"`
-	Data        string `json:"data"`                   // original markup: "<b>", "</b>", "<br/>"
-	SubType     string `json:"sub_type,omitempty"`     // Format-specific refinement (e.g., "html:b")
-	DisplayText string `json:"display_text,omitempty"` // Human-readable label (e.g., "[B]")
-	EquivText   string `json:"equiv_text,omitempty"`   // Plain text equivalent
-	Deletable   bool   `json:"deletable,omitempty"`
-	Cloneable   bool   `json:"cloneable,omitempty"`
-	CanReorder  bool   `json:"can_reorder,omitempty"`
+// RunConstraintsInfo mirrors model.RunConstraints for the frontend.
+type RunConstraintsInfo struct {
+	Deletable   bool `json:"deletable,omitempty"`
+	Cloneable   bool `json:"cloneable,omitempty"`
+	Reorderable bool `json:"reorderable,omitempty"`
+}
+
+// TextRunInfo is a plain text chunk.
+type TextRunInfo struct {
+	Text string `json:"text"`
+}
+
+// PlaceholderRunInfo is a self-closing inline code.
+type PlaceholderRunInfo struct {
+	ID          string              `json:"id"`
+	Type        string              `json:"type"`
+	SubType     string              `json:"subType,omitempty"`
+	Data        string              `json:"data"`
+	Equiv       string              `json:"equiv"`
+	Disp        string              `json:"disp,omitempty"`
+	Constraints *RunConstraintsInfo `json:"constraints,omitempty"`
+}
+
+// PcOpenRunInfo is the opening half of a paired inline code.
+type PcOpenRunInfo struct {
+	ID          string              `json:"id"`
+	Type        string              `json:"type"`
+	SubType     string              `json:"subType,omitempty"`
+	Data        string              `json:"data"`
+	Equiv       string              `json:"equiv"`
+	Disp        string              `json:"disp,omitempty"`
+	Constraints *RunConstraintsInfo `json:"constraints,omitempty"`
+}
+
+// PcCloseRunInfo is the closing half of a paired inline code.
+type PcCloseRunInfo struct {
+	ID      string `json:"id"`
+	Type    string `json:"type"`
+	SubType string `json:"subType,omitempty"`
+	Data    string `json:"data"`
+	Equiv   string `json:"equiv,omitempty"`
+}
+
+// SubRunInfo is a sub-filter reference.
+type SubRunInfo struct {
+	ID    string `json:"id"`
+	Ref   string `json:"ref"`
+	Equiv string `json:"equiv"`
+}
+
+// PluralRunInfo is a structured plural construct.
+type PluralRunInfo struct {
+	Pivot string                `json:"pivot"`
+	Forms map[string][]RunInfo `json:"forms"`
+}
+
+// SelectRunInfo is a structured select construct.
+type SelectRunInfo struct {
+	Pivot string                `json:"pivot"`
+	Cases map[string][]RunInfo `json:"cases"`
+}
+
+// RunInfo describes one inline-content primitive for the frontend.
+// Exactly one of the pointer fields is non-nil per record.
+type RunInfo struct {
+	Text    *TextRunInfo        `json:"text,omitempty"`
+	Ph      *PlaceholderRunInfo `json:"ph,omitempty"`
+	PcOpen  *PcOpenRunInfo      `json:"pcOpen,omitempty"`
+	PcClose *PcCloseRunInfo     `json:"pcClose,omitempty"`
+	Sub     *SubRunInfo         `json:"sub,omitempty"`
+	Plural  *PluralRunInfo      `json:"plural,omitempty"`
+	Select  *SelectRunInfo      `json:"select,omitempty"`
 }
 
 // BlockInfo is a serializable representation of a translatable block.
 type BlockInfo struct {
-	ID           string            `json:"id"`
-	Source       string            `json:"source"`
-	SourceCoded  string            `json:"source_coded,omitempty"`
-	SourceSpans  []SpanInfo        `json:"source_spans,omitempty"`
-	Targets      map[string]string `json:"targets"`
-	TargetsCoded map[string]string `json:"targets_coded,omitempty"`
-	Translatable bool              `json:"translatable"`
-	HasSpans     bool              `json:"has_spans"`
-	Properties   map[string]string `json:"properties"`
+	ID           string                `json:"id"`
+	SourceRuns   []RunInfo             `json:"sourceRuns,omitempty"`
+	TargetRuns   map[string][]RunInfo  `json:"targetRuns,omitempty"`
+	Translatable bool                  `json:"translatable"`
+	Properties   map[string]string     `json:"properties"`
 }
 
 // UpdateBlockRequest holds parameters for updating a block target.
@@ -76,14 +132,14 @@ type UpdateBlockRequest struct {
 	Text         string `json:"text"`
 }
 
-// UpdateBlockTargetCodedRequest holds parameters for updating a block target with coded text and spans.
-type UpdateBlockTargetCodedRequest struct {
-	ProjectID    string     `json:"project_id"`
-	ItemName     string     `json:"item_name"`
-	BlockID      string     `json:"block_id"`
-	TargetLocale string     `json:"target_locale"`
-	CodedText    string     `json:"coded_text"`
-	Spans        []SpanInfo `json:"spans"`
+// UpdateBlockTargetRunsRequest holds parameters for updating a
+// block target with a structured Run sequence.
+type UpdateBlockTargetRunsRequest struct {
+	ProjectID    string    `json:"project_id"`
+	ItemName     string    `json:"item_name"`
+	BlockID      string    `json:"block_id"`
+	TargetLocale string    `json:"target_locale"`
+	Runs         []RunInfo `json:"runs"`
 }
 
 // TranslationStats holds statistics about a translation operation.
@@ -394,4 +450,63 @@ func countChars(text string) int {
 func fileExtension(path string) string {
 	ext := filepath.Ext(path)
 	return strings.TrimPrefix(strings.ToLower(ext), ".")
+}
+
+// flattenTargetRuns returns the plain-text flattening of a block's
+// target-locale runs. Used by the editor/backend tests so they
+// don't each reimplement the walker.
+func flattenTargetRuns(b BlockInfo, locale string) string {
+	return b.FlattenTarget(locale)
+}
+
+// FlattenSource returns the plain-text flattening of SourceRuns.
+func (b BlockInfo) FlattenSource() string {
+	return flattenRunInfos(b.SourceRuns)
+}
+
+// FlattenTarget returns the plain-text flattening of target runs.
+func (b BlockInfo) FlattenTarget(locale string) string {
+	return flattenRunInfos(b.TargetRuns[locale])
+}
+
+// flattenRunInfos flattens a RunInfo slice into plain text.
+func flattenRunInfos(runs []RunInfo) string {
+	var buf []rune
+	flattenRunInfosTo(&buf, runs)
+	return string(buf)
+}
+
+func flattenRunInfosTo(buf *[]rune, runs []RunInfo) {
+	for _, r := range runs {
+		switch {
+		case r.Text != nil:
+			*buf = append(*buf, []rune(r.Text.Text)...)
+		case r.Ph != nil:
+			*buf = append(*buf, '{')
+			*buf = append(*buf, []rune(r.Ph.Equiv)...)
+			*buf = append(*buf, '}')
+		case r.Sub != nil:
+			*buf = append(*buf, '[')
+			*buf = append(*buf, []rune(r.Sub.Equiv)...)
+			*buf = append(*buf, ']')
+		case r.Plural != nil:
+			if form, ok := r.Plural.Forms["other"]; ok {
+				flattenRunInfosTo(buf, form)
+				continue
+			}
+			for _, form := range r.Plural.Forms {
+				flattenRunInfosTo(buf, form)
+				break
+			}
+		case r.Select != nil:
+			if form, ok := r.Select.Cases["other"]; ok {
+				flattenRunInfosTo(buf, form)
+				continue
+			}
+			for _, form := range r.Select.Cases {
+				flattenRunInfosTo(buf, form)
+				break
+			}
+		}
+	}
 }

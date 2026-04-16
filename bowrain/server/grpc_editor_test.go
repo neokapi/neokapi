@@ -116,8 +116,21 @@ func TestEditorGRPCGetBlocks(t *testing.T) {
 		}
 	}
 	require.NotNil(t, hello)
-	assert.Equal(t, "Hello", hello.Source)
-	assert.Equal(t, "Bonjour", hello.Targets["fr"])
+	assert.Equal(t, "Hello", flattenEditorRuns(hello.SourceRuns))
+	require.NotNil(t, hello.TargetRuns["fr"])
+	assert.Equal(t, "Bonjour", flattenEditorRuns(hello.TargetRuns["fr"].Runs))
+}
+
+// flattenEditorRuns returns the plain-text flattening of EditorRun
+// sequence — used in tests that assert on block content.
+func flattenEditorRuns(runs []*pb.EditorRun) string {
+	var s string
+	for _, r := range runs {
+		if t, ok := r.GetKind().(*pb.EditorRun_Text); ok {
+			s += t.Text.GetText()
+		}
+	}
+	return s
 }
 
 func TestEditorGRPCUpdateBlockTarget(t *testing.T) {
@@ -143,7 +156,9 @@ func TestEditorGRPCUpdateBlockTarget(t *testing.T) {
 		ProjectId:    proj.Id,
 		BlockId:      "b1",
 		TargetLocale: "fr",
-		Text:         "Bonjour",
+		Runs: []*pb.EditorRun{{
+			Kind: &pb.EditorRun_Text{Text: &pb.EditorTextRun{Text: "Bonjour"}},
+		}},
 	})
 	require.NoError(t, err)
 
@@ -153,7 +168,8 @@ func TestEditorGRPCUpdateBlockTarget(t *testing.T) {
 	})
 	require.NoError(t, err)
 	require.Len(t, resp.Blocks, 1)
-	assert.Equal(t, "Bonjour", resp.Blocks[0].Targets["fr"])
+	require.NotNil(t, resp.Blocks[0].TargetRuns["fr"])
+	assert.Equal(t, "Bonjour", flattenEditorRuns(resp.Blocks[0].TargetRuns["fr"].Runs))
 	assert.Equal(t, "human", resp.Blocks[0].Properties["translation-origin"])
 }
 

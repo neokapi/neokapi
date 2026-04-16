@@ -136,16 +136,17 @@ func (a *App) replayChange(change PendingChange) error {
 		if err := json.Unmarshal([]byte(change.Payload), &req); err != nil {
 			return err
 		}
-		return client.UpdateBlockTarget(ws, req.ProjectID, req.BlockID, req.TargetLocale, req.Text, "", nil)
+		// Plain-text replay: emit a single TextRun so the server
+		// receives the canonical Run sequence.
+		runs := []RunInfo{{Text: &TextRunInfo{Text: req.Text}}}
+		return client.UpdateBlockTarget(ws, req.ProjectID, req.BlockID, req.TargetLocale, runs)
 
-	case "update_block_target_coded":
-		var req UpdateBlockTargetCodedRequest
+	case "update_block_target_runs":
+		var req UpdateBlockTargetRunsRequest
 		if err := json.Unmarshal([]byte(change.Payload), &req); err != nil {
 			return err
 		}
-		spans := make([]SpanInfo, len(req.Spans))
-		copy(spans, req.Spans)
-		return client.UpdateBlockTarget(ws, req.ProjectID, req.BlockID, req.TargetLocale, "", req.CodedText, spans)
+		return client.UpdateBlockTarget(ws, req.ProjectID, req.BlockID, req.TargetLocale, req.Runs)
 
 	case "review_block":
 		var req reviewBlockPayload

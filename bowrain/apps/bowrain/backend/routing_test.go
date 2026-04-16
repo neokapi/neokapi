@@ -104,7 +104,7 @@ func TestUpdateBlockTargetOffline(t *testing.T) {
 	// Verify the update persisted.
 	blocks, err = app.GetItemBlocks(proj.ID, "hello.txt")
 	require.NoError(t, err)
-	assert.Equal(t, "Bonjour le monde", blocks[0].Targets["fr"])
+	assert.Equal(t, "Bonjour le monde", flattenTargetRuns(blocks[0], "fr"))
 }
 
 func TestReviewBlockOffline(t *testing.T) {

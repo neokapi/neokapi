@@ -95,7 +95,7 @@ func TestRenderBlockHTML_Source(t *testing.T) {
 	html, err := app.RenderBlockHTML(info.ID, "hello.txt", blockID, "")
 	require.NoError(t, err)
 	assert.NotEmpty(t, html)
-	assert.Equal(t, blocks[0].Source, html)
+	assert.Equal(t, blocks[0].FlattenSource(), html)
 }
 
 func TestRenderBlockHTML_WithTarget(t *testing.T) {

@@ -102,117 +102,155 @@ func blockInfoToBlock(bi BlockInfo) *model.Block {
 		ID:           bi.ID,
 		Translatable: bi.Translatable,
 		Properties:   bi.Properties,
+		Targets:      make(map[model.LocaleID][]*model.Segment),
 	}
-
-	// Set source.
-	if bi.HasSpans && bi.SourceCoded != "" {
-		frag := &model.Fragment{CodedText: bi.SourceCoded}
-		for _, si := range bi.SourceSpans {
-			frag.Spans = append(frag.Spans, infoToSpan(si))
-		}
-		b.Source = []*model.Segment{{Content: frag}}
-	} else if bi.Source != "" {
-		b.Source = []*model.Segment{{Content: model.NewFragment(bi.Source)}}
+	b.SetSourceRuns(runInfosToRuns(bi.SourceRuns))
+	for locale, runs := range bi.TargetRuns {
+		b.SetTargetRuns(model.LocaleID(locale), runInfosToRuns(runs))
 	}
-
-	// Set targets.
-	if len(bi.Targets) > 0 {
-		b.Targets = make(map[model.LocaleID][]*model.Segment)
-		for locale, text := range bi.Targets {
-			lid := model.LocaleID(locale)
-			if bi.TargetsCoded != nil {
-				if coded, ok := bi.TargetsCoded[locale]; ok && coded != "" {
-					b.Targets[lid] = []*model.Segment{{Content: &model.Fragment{CodedText: coded}}}
-					continue
-				}
-			}
-			b.Targets[lid] = []*model.Segment{{Content: model.NewFragment(text)}}
-		}
-	}
-
 	return b
 }
 
 // storedBlockToBlockInfo converts a StoredBlock to a BlockInfo.
 func storedBlockToBlockInfo(sb *store.StoredBlock, targetLocales []string) BlockInfo {
-	targets := make(map[string]string)
+	targetRuns := make(map[string][]RunInfo, len(targetLocales))
 	for _, locale := range targetLocales {
-		if t := sb.Block.TargetText(model.LocaleID(locale)); t != "" {
-			targets[locale] = t
+		runs := sb.Block.TargetRuns(model.LocaleID(locale))
+		if len(runs) == 0 {
+			continue
 		}
+		targetRuns[locale] = runsToRunInfos(runs)
 	}
 
-	props := make(map[string]string)
+	props := make(map[string]string, len(sb.Block.Properties))
 	for k, v := range sb.Block.Properties {
 		props[k] = v
 	}
 
-	bi := BlockInfo{
+	return BlockInfo{
 		ID:           sb.Block.ID,
-		Source:       sb.Block.SourceText(),
-		Targets:      targets,
+		SourceRuns:   runsToRunInfos(sb.Block.SourceRuns()),
+		TargetRuns:   targetRuns,
 		Translatable: sb.Block.Translatable,
 		Properties:   props,
 	}
-
-	enrichBlockInfo(&bi, sb.Block, targetLocales)
-	return bi
 }
 
-// enrichBlockInfo populates coded text and span metadata on a BlockInfo
-// from the underlying model.Block, if spans are present.
-func enrichBlockInfo(bi *BlockInfo, block *model.Block, targetLocales []string) {
-	if len(block.Source) == 0 || block.Source[0].Content == nil {
-		return
+// runsToRunInfos converts a run sequence to the frontend-facing
+// RunInfo representation.
+func runsToRunInfos(runs []model.Run) []RunInfo {
+	if len(runs) == 0 {
+		return nil
 	}
-	frag := block.Source[0].Content
-	if !frag.HasSpans() {
-		return
+	out := make([]RunInfo, len(runs))
+	for i, r := range runs {
+		out[i] = runToRunInfo(r)
 	}
-
-	bi.HasSpans = true
-	bi.SourceCoded = frag.CodedText
-	bi.SourceSpans = make([]SpanInfo, len(frag.Spans))
-	for i, s := range frag.Spans {
-		bi.SourceSpans[i] = spanToInfo(s)
-	}
-
-	// Extract target coded text per locale
-	bi.TargetsCoded = make(map[string]string)
-	for _, locale := range targetLocales {
-		segs, ok := block.Targets[model.LocaleID(locale)]
-		if !ok || len(segs) == 0 {
-			continue
-		}
-		if segs[0].Content != nil {
-			bi.TargetsCoded[locale] = segs[0].Content.CodedText
-		}
-	}
+	return out
 }
 
-// spanToInfo converts a model.Span to a SpanInfo for frontend serialization.
-func spanToInfo(s *model.Span) SpanInfo {
-	var spanType string
-	switch s.SpanType {
-	case model.SpanOpening:
-		spanType = "opening"
-	case model.SpanClosing:
-		spanType = "closing"
-	case model.SpanPlaceholder:
-		spanType = "placeholder"
+// runInfosToRuns reverses runsToRunInfos.
+func runInfosToRuns(infos []RunInfo) []model.Run {
+	if len(infos) == 0 {
+		return nil
 	}
-	return SpanInfo{
-		SpanType:    spanType,
-		Type:        s.Type,
-		ID:          s.ID,
-		Data:        s.Data,
-		SubType:     s.SubType,
-		DisplayText: s.DisplayText,
-		EquivText:   s.EquivText,
-		Deletable:   s.Deletable,
-		Cloneable:   s.Cloneable,
-		CanReorder:  s.CanReorder,
+	out := make([]model.Run, len(infos))
+	for i, ri := range infos {
+		out[i] = runInfoToRun(ri)
 	}
+	return out
+}
+
+func runToRunInfo(r model.Run) RunInfo {
+	switch {
+	case r.Text != nil:
+		return RunInfo{Text: &TextRunInfo{Text: r.Text.Text}}
+	case r.Ph != nil:
+		return RunInfo{Ph: &PlaceholderRunInfo{
+			ID: r.Ph.ID, Type: r.Ph.Type, SubType: r.Ph.SubType,
+			Data: r.Ph.Data, Equiv: r.Ph.Equiv, Disp: r.Ph.Disp,
+			Constraints: runConstraintsToInfo(r.Ph.Constraints),
+		}}
+	case r.PcOpen != nil:
+		return RunInfo{PcOpen: &PcOpenRunInfo{
+			ID: r.PcOpen.ID, Type: r.PcOpen.Type, SubType: r.PcOpen.SubType,
+			Data: r.PcOpen.Data, Equiv: r.PcOpen.Equiv, Disp: r.PcOpen.Disp,
+			Constraints: runConstraintsToInfo(r.PcOpen.Constraints),
+		}}
+	case r.PcClose != nil:
+		return RunInfo{PcClose: &PcCloseRunInfo{
+			ID: r.PcClose.ID, Type: r.PcClose.Type, SubType: r.PcClose.SubType,
+			Data: r.PcClose.Data, Equiv: r.PcClose.Equiv,
+		}}
+	case r.Sub != nil:
+		return RunInfo{Sub: &SubRunInfo{ID: r.Sub.ID, Ref: r.Sub.Ref, Equiv: r.Sub.Equiv}}
+	case r.Plural != nil:
+		forms := make(map[string][]RunInfo, len(r.Plural.Forms))
+		for form, runs := range r.Plural.Forms {
+			forms[string(form)] = runsToRunInfos(runs)
+		}
+		return RunInfo{Plural: &PluralRunInfo{Pivot: r.Plural.Pivot, Forms: forms}}
+	case r.Select != nil:
+		cases := make(map[string][]RunInfo, len(r.Select.Cases))
+		for key, runs := range r.Select.Cases {
+			cases[key] = runsToRunInfos(runs)
+		}
+		return RunInfo{Select: &SelectRunInfo{Pivot: r.Select.Pivot, Cases: cases}}
+	}
+	return RunInfo{}
+}
+
+func runInfoToRun(ri RunInfo) model.Run {
+	switch {
+	case ri.Text != nil:
+		return model.Run{Text: &model.TextRun{Text: ri.Text.Text}}
+	case ri.Ph != nil:
+		return model.Run{Ph: &model.PlaceholderRun{
+			ID: ri.Ph.ID, Type: ri.Ph.Type, SubType: ri.Ph.SubType,
+			Data: ri.Ph.Data, Equiv: ri.Ph.Equiv, Disp: ri.Ph.Disp,
+			Constraints: runConstraintsFromInfo(ri.Ph.Constraints),
+		}}
+	case ri.PcOpen != nil:
+		return model.Run{PcOpen: &model.PcOpenRun{
+			ID: ri.PcOpen.ID, Type: ri.PcOpen.Type, SubType: ri.PcOpen.SubType,
+			Data: ri.PcOpen.Data, Equiv: ri.PcOpen.Equiv, Disp: ri.PcOpen.Disp,
+			Constraints: runConstraintsFromInfo(ri.PcOpen.Constraints),
+		}}
+	case ri.PcClose != nil:
+		return model.Run{PcClose: &model.PcCloseRun{
+			ID: ri.PcClose.ID, Type: ri.PcClose.Type, SubType: ri.PcClose.SubType,
+			Data: ri.PcClose.Data, Equiv: ri.PcClose.Equiv,
+		}}
+	case ri.Sub != nil:
+		return model.Run{Sub: &model.SubRun{ID: ri.Sub.ID, Ref: ri.Sub.Ref, Equiv: ri.Sub.Equiv}}
+	case ri.Plural != nil:
+		forms := make(map[model.PluralForm][]model.Run, len(ri.Plural.Forms))
+		for form, runs := range ri.Plural.Forms {
+			forms[model.PluralForm(form)] = runInfosToRuns(runs)
+		}
+		return model.Run{Plural: &model.PluralRun{Pivot: ri.Plural.Pivot, Forms: forms}}
+	case ri.Select != nil:
+		cases := make(map[string][]model.Run, len(ri.Select.Cases))
+		for key, runs := range ri.Select.Cases {
+			cases[key] = runInfosToRuns(runs)
+		}
+		return model.Run{Select: &model.SelectRun{Pivot: ri.Select.Pivot, Cases: cases}}
+	}
+	return model.Run{}
+}
+
+func runConstraintsToInfo(c *model.RunConstraints) *RunConstraintsInfo {
+	if c == nil {
+		return nil
+	}
+	return &RunConstraintsInfo{Deletable: c.Deletable, Cloneable: c.Cloneable, Reorderable: c.Reorderable}
+}
+
+func runConstraintsFromInfo(ri *RunConstraintsInfo) *model.RunConstraints {
+	if ri == nil {
+		return nil
+	}
+	return &model.RunConstraints{Deletable: ri.Deletable, Cloneable: ri.Cloneable, Reorderable: ri.Reorderable}
 }
 
 // UpdateBlockTarget updates the target text for a specific block.
@@ -222,7 +260,10 @@ func (a *App) UpdateBlockTarget(req UpdateBlockRequest) error {
 		a.mu.RLock()
 		ws := a.activeWS
 		a.mu.RUnlock()
-		err := a.remote.UpdateBlockTarget(ws, req.ProjectID, req.BlockID, req.TargetLocale, req.Text, "", nil)
+		// Wrap the plain-text update in a single TextRun so the
+		// server sees the canonical Run sequence.
+		runs := []RunInfo{{Text: &TextRunInfo{Text: req.Text}}}
+		err := a.remote.UpdateBlockTarget(ws, req.ProjectID, req.BlockID, req.TargetLocale, runs)
 		if err != nil {
 			a.goOffline()
 			a.enqueue("update_block_target", req)
@@ -252,44 +293,35 @@ func (a *App) updateBlockTargetLocal(projectID, blockID, targetLocale, text stri
 	return a.store.StoreBlocks(ctx, projectID, "main", []*model.Block{sb.Block})
 }
 
-// UpdateBlockTargetCoded updates the target for a block using coded text with span data.
-func (a *App) UpdateBlockTargetCoded(req UpdateBlockTargetCodedRequest) error {
+// UpdateBlockTargetRuns updates the target for a block using a
+// structured Run sequence.
+func (a *App) UpdateBlockTargetRuns(req UpdateBlockTargetRunsRequest) error {
 	if a.isConnected() {
 		a.mu.RLock()
 		ws := a.activeWS
 		a.mu.RUnlock()
-		spans := make([]SpanInfo, len(req.Spans))
-		copy(spans, req.Spans)
-		err := a.remote.UpdateBlockTarget(ws, req.ProjectID, req.BlockID, req.TargetLocale, "", req.CodedText, spans)
+		err := a.remote.UpdateBlockTarget(ws, req.ProjectID, req.BlockID, req.TargetLocale, req.Runs)
 		if err != nil {
 			a.goOffline()
-			a.enqueue("update_block_target_coded", req)
+			a.enqueue("update_block_target_runs", req)
 		} else {
-			a.updateBlockTargetCodedLocal(req)
+			a.updateBlockTargetRunsLocal(req)
 			return nil
 		}
 	} else if a.isOffline() {
-		a.enqueue("update_block_target_coded", req)
+		a.enqueue("update_block_target_runs", req)
 	}
 
-	return a.updateBlockTargetCodedLocal(req)
+	return a.updateBlockTargetRunsLocal(req)
 }
 
-func (a *App) updateBlockTargetCodedLocal(req UpdateBlockTargetCodedRequest) error {
+func (a *App) updateBlockTargetRunsLocal(req UpdateBlockTargetRunsRequest) error {
 	ctx := context.Background()
 	sb, err := a.store.GetBlock(ctx, req.ProjectID, "main", req.BlockID)
 	if err != nil {
 		return err
 	}
-
-	frag := &model.Fragment{
-		CodedText: req.CodedText,
-	}
-	for _, si := range req.Spans {
-		frag.Spans = append(frag.Spans, infoToSpan(si))
-	}
-	sb.Block.SetTargetFragment(model.LocaleID(req.TargetLocale), frag)
-
+	sb.Block.SetTargetRuns(model.LocaleID(req.TargetLocale), runInfosToRuns(req.Runs))
 	return a.store.StoreBlocks(ctx, req.ProjectID, "main", []*model.Block{sb.Block})
 }
 
@@ -337,41 +369,6 @@ func (a *App) reviewBlockLocal(projectID, blockID string, reviewed bool) error {
 	return a.store.StoreBlocks(ctx, projectID, "main", []*model.Block{sb.Block})
 }
 
-// stripMarkers removes Unicode span markers from coded text, returning plain text.
-func stripMarkers(coded string) string {
-	var buf []byte
-	for _, r := range coded {
-		if r < '\uE001' || r > '\uE003' {
-			buf = append(buf, []byte(string(r))...)
-		}
-	}
-	return string(buf)
-}
-
-// infoToSpan converts a SpanInfo from the frontend back to a model.Span.
-func infoToSpan(si SpanInfo) *model.Span {
-	var st model.SpanType
-	switch si.SpanType {
-	case "opening":
-		st = model.SpanOpening
-	case "closing":
-		st = model.SpanClosing
-	case "placeholder":
-		st = model.SpanPlaceholder
-	}
-	return &model.Span{
-		SpanType:    st,
-		Type:        si.Type,
-		ID:          si.ID,
-		Data:        si.Data,
-		SubType:     si.SubType,
-		DisplayText: si.DisplayText,
-		EquivText:   si.EquivText,
-		Deletable:   si.Deletable,
-		Cloneable:   si.Cloneable,
-		CanReorder:  si.CanReorder,
-	}
-}
 
 // PseudoTranslateItem pseudo-translates all blocks in an item.
 func (a *App) PseudoTranslateItem(projectID, itemName, targetLocale string) (*TranslationStats, error) {

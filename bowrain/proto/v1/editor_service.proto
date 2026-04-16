@@ -218,30 +218,91 @@ message DiffStreamResponse {
 }
 
 // --- Block messages (stream-scoped) ---
+//
+// Content travels as structured Run sequences (RFC 0001). The
+// legacy SpanInfo/coded_text/span flat shape was retired; every
+// editor client must consume Runs directly.
 
-message SpanInfo {
-  string span_type = 1;      // "opening", "closing", "placeholder"
-  string type = 2;            // Semantic type from vocabulary (e.g., "fmt:bold")
-  string id = 3;
-  string data = 4;            // Original markup (e.g., "<b>")
-  string sub_type = 5;        // Format-specific refinement (e.g., "html:b")
-  string display_text = 6;    // Human-readable label (e.g., "[B]")
-  string equiv_text = 7;      // Plain text equivalent (e.g., "\n" for breaks)
-  bool deletable = 8;
-  bool cloneable = 9;
-  bool can_reorder = 10;
+message EditorRunConstraints {
+  bool deletable = 1;
+  bool cloneable = 2;
+  bool reorderable = 3;
+}
+
+message EditorTextRun {
+  string text = 1;
+}
+
+message EditorPlaceholderRun {
+  string id = 1;
+  string type = 2;
+  string sub_type = 3;
+  string data = 4;
+  string equiv = 5;
+  string disp = 6;
+  EditorRunConstraints constraints = 7;
+}
+
+message EditorPcOpenRun {
+  string id = 1;
+  string type = 2;
+  string sub_type = 3;
+  string data = 4;
+  string equiv = 5;
+  string disp = 6;
+  EditorRunConstraints constraints = 7;
+}
+
+message EditorPcCloseRun {
+  string id = 1;
+  string type = 2;
+  string sub_type = 3;
+  string data = 4;
+  string equiv = 5;
+}
+
+message EditorSubRun {
+  string id = 1;
+  string ref = 2;
+  string equiv = 3;
+}
+
+message EditorPluralRun {
+  string pivot = 1;
+  map<string, EditorRunList> forms = 2;
+}
+
+message EditorSelectRun {
+  string pivot = 1;
+  map<string, EditorRunList> cases = 2;
+}
+
+message EditorRunList {
+  repeated EditorRun runs = 1;
+}
+
+message EditorRun {
+  oneof kind {
+    EditorTextRun text = 1;
+    EditorPlaceholderRun ph = 2;
+    EditorPcOpenRun pc_open = 3;
+    EditorPcCloseRun pc_close = 4;
+    EditorSubRun sub = 5;
+    EditorPluralRun plural = 6;
+    EditorSelectRun select = 7;
+  }
+}
+
+message EditorRuns {
+  repeated EditorRun runs = 1;
 }
 
 message BlockInfo {
   string id = 1;
-  string source = 2;
-  string source_coded = 3;
-  repeated SpanInfo source_spans = 4;
-  map<string, string> targets = 5;
-  map<string, string> targets_coded = 6;
-  bool translatable = 7;
-  bool has_spans = 8;
-  map<string, string> properties = 9;
+  repeated EditorRun source_runs = 2;
+  map<string, EditorRuns> target_runs = 3;
+  bool translatable = 4;
+  map<string, string> properties = 5;
 }
 
 message GetBlocksRequest {
@@ -260,10 +321,8 @@ message UpdateBlockTargetRequest {
   string project_id = 2;
   string block_id = 3;
   string target_locale = 4;
-  string text = 5;          // plain text (no spans)
-  string coded_text = 6;    // coded text with PUA markers (optional)
-  repeated SpanInfo spans = 7;  // spans for coded text (optional)
-  string stream = 8;            // stream scope (empty = "main")
+  repeated EditorRun runs = 5;  // new target content as a Run sequence
+  string stream = 6;            // stream scope (empty = "main")
 }
 
 message ReviewBlockRequest {

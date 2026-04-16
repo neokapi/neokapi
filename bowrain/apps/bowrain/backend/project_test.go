@@ -192,7 +192,7 @@ func TestGetFileBlocks(t *testing.T) {
 
 	// Check that blocks have source text
 	for _, b := range blocks {
-		assert.NotEmpty(t, b.Source)
+		assert.NotEmpty(t, b.FlattenSource())
 		assert.NotEmpty(t, b.ID)
 	}
 }
