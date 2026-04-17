@@ -4,16 +4,18 @@ import { unzipSync } from 'fflate';
 import {
   flattenRuns,
   Kind,
-  KlzReader,
-  KlzWriter,
-  MANIFEST_PATH,
-  ManifestVersion,
   type File,
   marshalFile,
   newFile,
   SchemaVersion,
-  validatePartPath,
 } from '../src/index.ts';
+import {
+  KlzReader,
+  KlzWriter,
+  MANIFEST_PATH,
+  ManifestVersion,
+  validatePartPath,
+} from '../src/klz.ts';
 import { filesHeading } from '../examples/files-heading.ts';
 import { tagChip } from '../examples/tag-chip.ts';
 import { shoppingCart } from '../examples/shopping-cart.ts';

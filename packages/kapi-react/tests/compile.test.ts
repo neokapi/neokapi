@@ -4,7 +4,8 @@ import { join } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 import type { File } from '@neokapi/kapi-format';
-import { KlzWriter, newFile } from '@neokapi/kapi-format';
+import { newFile } from '@neokapi/kapi-format';
+import { KlzWriter } from '@neokapi/kapi-format/klz';
 
 import { runCompile } from '../src/commands/compile.ts';
 
