@@ -113,12 +113,45 @@ The runtime cache must:
   system) — any application built on top of neokapi, such as a
   TMS, a CAT tool, an IDE extension, or an agency portal.
 
+### File naming conventions
+
+A single `.klz` is multilingual by default. Each `Block` carries a
+shared `source` plus an optional `targets: map[LocaleID]Run[]`, so
+one archive accumulates as many target locales as the project
+needs. Tool commands (`kapi ai-translate`, `kapi pseudo-translate`,
+`kapi qa`, …) read a `.klz`, append the target locale they're
+producing, and write back to the **same file** by default — the
+writer is locale-additive, so existing targets stay put.
+
+The canonical layout is therefore one file per project:
+
+```
+i18n/myproject.klz    # source + every target locale
+```
+
+Per-locale bilingual files (`myproject.fr.klz`, `myproject.de.klz`)
+remain valid and useful for parallel-translator workflows where
+per-locale PRs or CAT-tool scoping matters, but they're opt-in.
+When multiple translators edit the same multilingual archive
+concurrently a `kapi split` / `kapi merge` helper pair is the
+recommended escape valve.
+
+The file naming convention is therefore:
+
+- `<name>.klz` — canonical, multilingual (source + 0..N targets).
+- `<name>.<locale>.klz` — bilingual (source + one target locale)
+  for parallel-translator workflows.
+
+Extension stays `.klz` in both cases; the manifest inside tells
+you which locales are present. There is no separate "template"
+extension — a `.klz` with no targets *is* the template.
+
 ### Lifecycle from a framework view
 
 A developer working on a React app runs:
 
 ```bash
-npx neokapi-react extract --out dist/project.klz
+npx neokapi-react extract --out i18n/myproject.klz
 ```
 
 `@neokapi/react` is a neokapi `Extractor`: it walks the source
@@ -168,10 +201,25 @@ manifest hash changes, a fresh cache entry is built on the next
 query, and the stale entry ages out under normal cache GC.
 Staleness is a non-issue: the cache key is the staleness check.
 
+Each translation tool writes the requested target locale back
+into the same archive:
+
+```bash
+kapi ai-translate i18n/myproject.klz --target-lang fr
+kapi ai-translate i18n/myproject.klz --target-lang de
+kapi pseudo-translate i18n/myproject.klz --target-lang qps
+```
+
+The writer preserves every existing target and appends (or
+updates) the requested one, so the natural workflow is to
+accumulate locales in a single `.klz` rather than fanning out
+to per-invocation output files. `-o` is available when an
+explicit redirect is wanted, but omitting it is the common case.
+
 Later, the developer runs:
 
 ```bash
-kapi klz merge dist/project.klz --locale de --out src-de/
+kapi klz merge i18n/myproject.klz --locale de --out src-de/
 ```
 
 `kapi klz merge` reads `manifest.generator.id` → `@neokapi/react`,
