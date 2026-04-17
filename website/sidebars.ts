@@ -24,6 +24,7 @@ const sidebars: SidebarsConfig = {
         "kapi-react/modes",
         "kapi-react/translating-with-kapi",
         "kapi-react/configuration",
+        "kapi-react/alternatives",
       ],
     },
     {

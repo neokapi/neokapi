@@ -65,19 +65,6 @@ The source text is the identifier. When the copy changes, you change the JSX —
 - **A proper exchange format** — KLF/KLZ (see [AD-045](/docs/ad/045-klf-klz-spec)) — that carries structural context, placeholders, plural forms, and annotation sidecars. Not a flat key-value JSON.
 - **Full integration with `kapi`** for pseudo-translation, AI translation, QA, TM leverage, and terminology. The same toolchain that handles XLIFF, JSON, Markdown, HTML, and every other format kapi supports.
 
-## How this differs from react-i18next, FormatJS, lingui
-
-| | react-i18next / FormatJS | lingui (macro-based) | **kapi-react** |
-|---|---|---|---|
-| Source identifier | Developer-invented key | Source text (macro-rewritten) | **Source text + structural context (auto)** |
-| JSX wrapping required | Yes (`t("key")`, `<Trans>`) | Macro-rewritten at build | **No — plain JSX is translatable** |
-| Extraction | Manual or via CLI | Macro + CLI | **Plugin during normal build** |
-| Runtime mode | Dict lookup at render | Dict lookup at render | **Dict lookup (OTA) or inline (zero runtime)** |
-| Format | Flat JSON / XLIFF | Flat JSON / PO | **KLF/KLZ with structural context + plural + placeholders** |
-| Translator context | Manual notes | Macro `comment` option | **jsxPath + placeholder equivs + optional `data-i18n-note`** |
-
-Lingui's macro approach is the closest — it also uses source text as the key. kapi-react goes further: no macro invocation either, just JSX.
-
 ## When kapi-react isn't the right fit
 
 - **Server-rendered HTML pipelines without a React build step.** If you're outputting raw HTML from a non-React framework, use kapi's HTML / XLIFF filters directly instead.
@@ -92,3 +79,5 @@ For everything else — product UI, marketing sites, internal dashboards, extens
 - [Writing translatable components](./writing-components) — what gets picked up automatically, and when a warning fires.
 - [`t()` escape hatch](./t-escape-hatch) — marking strings that live outside JSX.
 - [Extract → translate → compile](./pipeline) — the full end-to-end flow with `kapi`.
+
+Already using another React i18n library? See [Alternatives](./alternatives) for how kapi-react compares.
