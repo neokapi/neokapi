@@ -248,7 +248,7 @@ export interface Block {
   preview?: BlockPreviewHints;
 }
 
-export type BlockType = 'jsx:element' | 'jsx:attribute';
+export type BlockType = 'jsx:element' | 'jsx:attribute' | 'js:t';
 
 export type LocaleID = string; // BCP-47 tag, e.g. "de", "ja-JP", "qps"
 

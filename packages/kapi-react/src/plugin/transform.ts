@@ -36,6 +36,7 @@ import {
   isAllInlineContent,
   resolvePolicy,
 } from '../extract/translatable.ts';
+import { collectTIdentifiers, walkTCalls } from '../extract/messages.ts';
 import {
   createWarningCollector,
   formatWarning,
@@ -234,6 +235,34 @@ export function transform(
     return { skipChildren: r.consumed };
   });
 
+  // User-facing `t("text", params?)` calls: rewrite to
+  // `__t("hash", "text", params)` so runtime dict lookup applies.
+  // Same matching rule as JSX extraction — only calls bound to
+  // the runtime import are touched, not a random local `t()`.
+  //
+  // Note on inline mode: for JSX, inline mode inlines the
+  // translated string verbatim (zero runtime lookup). For t()
+  // calls the savings are marginal and implementing both paths
+  // doubles the test surface, so we always emit __t() here. In
+  // inline mode the plugin still ships the hash-keyed dict as
+  // part of the runtime bundle, same as today.
+  const tNames = collectTIdentifiers(ast);
+  const sourceSlice = (start: number, end: number): string =>
+    code.slice(s(start), s(end));
+  for (const call of walkTCalls(ast, tNames, sourceSlice)) {
+    const hash = hashKey(call.text, `t${CONTEXT_SEPARATOR}`);
+    const fallbackLiteral = JSON.stringify(call.text);
+    const args = call.paramsSrc
+      ? `"${hash}", ${fallbackLiteral}, ${call.paramsSrc}`
+      : `"${hash}", ${fallbackLiteral}`;
+    ops.push({
+      offset: s(call.node.span.start),
+      deleteCount: s(call.node.span.end) - s(call.node.span.start),
+      insert: `__t(${args})`,
+    });
+    needsT = true;
+  }
+
   // Flush warnings. console.warn by default so the dev-server
   // pipeline surfaces them; consumers can opt out of the stderr
   // noise by providing their own `onWarning` hook.
@@ -275,7 +304,7 @@ export function transform(
   let result = Buffer.concat(parts).toString('utf8');
 
   if (needsT || needsTx) {
-    const imports = [needsT ? 't as __t' : '', needsTx ? 'tx as __tx' : '']
+    const imports = [needsT ? '__t' : '', needsTx ? '__tx' : '']
       .filter(Boolean)
       .join(', ');
     result = `import { ${imports} } from '@neokapi/kapi-react/runtime';\n${result}`;

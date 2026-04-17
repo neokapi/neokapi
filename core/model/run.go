@@ -31,6 +31,12 @@ type BlockContentType string
 const (
 	BlockContentJSXElement   BlockContentType = "jsx:element"
 	BlockContentJSXAttribute BlockContentType = "jsx:attribute"
+	// BlockContentJST is an explicit t() call from a JS/TS context
+	// (e.g. label strings stored in data arrays). The extracted
+	// source is the literal first argument; the block is hashed
+	// with the "t" channel so it doesn't collide with JSX blocks
+	// carrying the same text.
+	BlockContentJST BlockContentType = "js:t"
 )
 
 // PlaceholderKind discriminates how a placeholder was extracted.

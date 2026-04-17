@@ -14,6 +14,7 @@ import type { Block, Document, Run } from '@neokapi/kapi-format';
 
 import { getStringAttr, getTagName, lineFromOffset, resolveHTMLElement } from './ast.ts';
 import { buildJSXPath } from './jsx-path.ts';
+import { collectTIdentifiers, walkTCalls } from './messages.ts';
 import { buildRuns } from './runs.ts';
 import { hasTranslatableText, isAllInlineContent, resolvePolicy } from './translatable.ts';
 import type { Warning, WarningCollector } from './warnings.ts';
@@ -53,6 +54,13 @@ export function extractDocument(code: string, opts: WalkerOptions): Document | n
   walkJsx(ast, (el, ancestors, component) =>
     collector.visit(el, ancestors, component || fallbackComponent),
   );
+
+  const tNames = collectTIdentifiers(ast);
+  for (const call of walkTCalls(ast, tNames, (start, end) =>
+    code.slice(start - findBaseOffset(ast), end - findBaseOffset(ast)),
+  )) {
+    collector.visitTCall(call.text, call.node, fallbackComponent);
+  }
 
   const blocks = collector.blocks();
   if (blocks.length === 0) return null;
@@ -177,6 +185,45 @@ class BlockCollector {
     const lines = this.code.split('\n');
     const raw = (lines[line - 1] ?? '').trim();
     return raw.length > 80 ? `${raw.slice(0, 80)}…` : raw;
+  }
+
+  // ─── t() calls ───────────────────────────────────────────────
+
+  /**
+   * Emit a Block for a user-facing `t("text", params?)` call. The
+   * "t" desc channel prefix keeps these hashes from colliding with
+   * identically-worded JSX blocks — translators should be able to
+   * change a `t("Save")` translation without also touching every
+   * `<Button>Save</Button>`.
+   */
+  visitTCall(
+    text: string,
+    node: { span: { start: number; end: number } },
+    component: string,
+  ): void {
+    if (text === '') return;
+
+    const desc = `t${CONTEXT_SEPARATOR}`;
+    const hash = hashKey(text, desc);
+    if (this.seenHashes.has(hash)) return;
+    this.seenHashes.add(hash);
+
+    const line = lineFromOffset(this.code, node.span.start);
+    this.out.push({
+      id: `${this.filename}:${line}:t`,
+      hash,
+      translatable: true,
+      type: 'js:t',
+      source: [{ text }] as Run[],
+      placeholders: [],
+      properties: {
+        file: this.filename,
+        line,
+        component,
+        jsxPath: 't()',
+        element: 't',
+      },
+    });
   }
 
   // ─── Element blocks ─────────────────────────────────────────

@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { Sun, Moon, Monitor, Languages, FlaskConical } from "lucide-react";
-import { loadTranslations, setTranslations } from "@neokapi/kapi-react/runtime";
+import { loadTranslations, setTranslations, t } from "@neokapi/kapi-react/runtime";
 import { api } from "../hooks/useApi";
 import { useError } from "./ErrorBanner";
 import {
@@ -20,8 +20,8 @@ export type ThemeMode = "system" | "light" | "dark";
 export type UILanguage = "en" | "qps";
 
 const UI_LANGUAGES: { value: UILanguage; label: string; icon: typeof Languages }[] = [
-  { value: "en", label: "English", icon: Languages },
-  { value: "qps", label: "Pseudo English (qps)", icon: FlaskConical },
+  { value: "en", label: t("English"), icon: Languages },
+  { value: "qps", label: t("Pseudo English (qps)"), icon: FlaskConical },
 ];
 
 /** Apply theme to document — resolves "system" to the OS preference. */
@@ -132,9 +132,9 @@ export function SettingsPage({ theme: propTheme, uiLanguage: propLang }: Setting
                 <div className="mb-3 text-sm font-medium">Appearance</div>
                 <div className="flex gap-2">
                   {[
-                    { value: "system" as ThemeMode, icon: Monitor, label: "System" },
-                    { value: "light" as ThemeMode, icon: Sun, label: "Light" },
-                    { value: "dark" as ThemeMode, icon: Moon, label: "Dark" },
+                    { value: "system" as ThemeMode, icon: Monitor, label: t("System") },
+                    { value: "light" as ThemeMode, icon: Sun, label: t("Light") },
+                    { value: "dark" as ThemeMode, icon: Moon, label: t("Dark") },
                   ].map(({ value, icon: Icon, label }) => (
                     <button
                       key={value}
