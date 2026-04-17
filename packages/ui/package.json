@@ -17,6 +17,7 @@
   },
   "dependencies": {
     "@base-ui/react": "^1.3.0",
+    "@neokapi/kapi-format": "*",
     "@codemirror/lang-javascript": "^6.2.5",
     "@codemirror/lang-json": "^6.0.2",
     "@codemirror/language": "^6.12.3",

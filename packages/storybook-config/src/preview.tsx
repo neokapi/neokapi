@@ -4,7 +4,7 @@ import {
   neokapiDecorator,
   neokapiGlobalType,
   type NeokapiStorybookOptions,
-} from "@neokapi/react/storybook";
+} from "@neokapi/kapi-react/storybook";
 import { themes } from "storybook/theming";
 import React from "react";
 
@@ -37,7 +37,7 @@ export interface CreatePreviewOptions {
   /** Additional decorators inserted before theme decorators. */
   decorators?: Decorator[];
   /**
-   * Enable a locale toolbar driven by @neokapi/react. Pair with `i18n: true`
+   * Enable a locale toolbar driven by @neokapi/kapi-react. Pair with `i18n: true`
    * in createMainConfig() so stories receive the runtime transform.
    */
   i18n?: I18nOptions;
