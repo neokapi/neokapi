@@ -72,6 +72,11 @@ type ToolRunConfig struct {
 	NoWarn         bool
 	Progress       bool
 	OutputTemplate string
+	// InPlace: write back to the input file path instead of expanding
+	// OutputTemplate. Enabled automatically when all inputs are KLZ
+	// archives and -o was omitted — KLZ writers are locale-additive,
+	// so in-place accumulates translations rather than clobbering.
+	InPlace        bool
 	TargetLang     string
 	TracePath      string // write flow trace JSON to this file
 	ParallelBlocks int    // fan out block processing across N goroutines (0 = off)
@@ -227,7 +232,7 @@ func (a *App) processOneFile(ctx context.Context, cfg ToolRunConfig, filePath st
 
 	// Create writer early so we can wire skeleton store before reading.
 	var writer format.DataFormatWriter
-	if cfg.OutputTemplate != "" {
+	if cfg.OutputTemplate != "" || cfg.InPlace {
 		var err error
 		writer, err = a.FormatReg.NewWriter(registry.FormatID(registryName))
 		if err != nil {
@@ -413,8 +418,13 @@ func (a *App) processOneFile(ctx context.Context, cfg ToolRunConfig, filePath st
 		}
 	}
 
-	if cfg.OutputTemplate != "" && writer != nil {
-		outputPath := expandOutputPath(cfg.OutputTemplate, filePath, commonDir, cfg.TargetLang)
+	if (cfg.OutputTemplate != "" || cfg.InPlace) && writer != nil {
+		var outputPath string
+		if cfg.InPlace {
+			outputPath = filePath
+		} else {
+			outputPath = expandOutputPath(cfg.OutputTemplate, filePath, commonDir, cfg.TargetLang)
+		}
 
 		if err := writer.SetOutput(outputPath); err != nil {
 			return fmt.Errorf("set output %s: %w", outputPath, err)
