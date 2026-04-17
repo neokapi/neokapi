@@ -132,12 +132,13 @@ class BlockCollector {
 
     // Attribute blocks come out regardless of whether the element's
     // children are translatable — an <input placeholder="…" /> still
-    // earns an attribute block. Skipped for unmapped components: we
-    // can't reliably tell which attributes are translatable without
-    // knowing the underlying HTML element.
-    if (!unmappedComponent) {
-      this.emitAttributeBlocks(el, ancestors, policy.locNote, component);
-    }
+    // earns an attribute block. Unmapped components also get their
+    // translatable-by-convention props extracted (title, subtitle,
+    // description, label, …) so <PageHeader title="Termbases" />
+    // works without needing a componentMap entry. jsxPath uses the
+    // raw tag for unmapped components, so hash parity holds across
+    // extract + transform.
+    this.emitAttributeBlocks(el, ancestors, policy.locNote, component);
 
     if (!policy.translate) return false;
     if (!hasTranslatableText(el)) return false;

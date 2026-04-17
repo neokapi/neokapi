@@ -88,6 +88,14 @@ const FIXTURES: ReadonlyArray<{ name: string; code: string }> = [
     name: 'unmapped PascalCase component with direct text',
     code: '<TabsTrigger value="general">General</TabsTrigger>',
   },
+  {
+    name: 'unmapped component with translatable prop (no children)',
+    code: '<PageHeader title="Termbases" />',
+  },
+  {
+    name: 'unmapped component with multiple translatable props',
+    code: '<PageHeader title="Termbases" subtitle="Glossaries you can use in flows" description="Manage term collections" />',
+  },
 ];
 
 function hashesFromTransform(code: string): Set<string> {
