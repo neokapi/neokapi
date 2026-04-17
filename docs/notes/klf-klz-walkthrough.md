@@ -1,18 +1,27 @@
 # KLF / KLZ walkthrough
 
 Implementation notes for [AD-045](/docs/ad/045-klf-klz-spec). An
-end-to-end framework-level lifecycle of the `.klf` / `.klz` formats
-— what a developer, a CI pipeline, and a neokapi tool see as a
-`.klz` flows through the system. Uses the three example Blocks in
+end-to-end lifecycle of the `.klf` / `.klz` formats — what a
+developer, a CI pipeline, and a neokapi tool see as a `.klz`
+flows through the system. Uses the three example Blocks in
 [`packages/kapi-format/examples/`](https://github.com/neokapi/neokapi/tree/main/packages/kapi-format/examples)
-so every file and SQL result is real, not pseudocode.
+so every file is real, not pseudocode.
 
-The walkthrough stays at the framework layer throughout: it
-shows `@neokapi/react`, the `kapi` CLI, and neokapi Go tools. It
-does not show an interactive editor, a server upload, or a
-translator typing in a UI — those belong to an external tool
-(TMS, CAT tool, custom editor) consuming the format, which is
-out of scope for this repo.
+The three moving parts:
+
+- **`@neokapi/kapi-react`** — TypeScript; scans JSX/TSX sources and
+  emits `.klz` at build time. Its `compile` subcommand reads a
+  translated `.klz` back and writes the per-locale runtime
+  dictionaries kapi-react's `t()` / `tx()` load at runtime.
+- **`kapi`** — Go CLI; runs `pseudo-translate`, `ai-translate`,
+  `qa-check`, TM, term — every tool that reads a `.klz` and writes
+  one back.
+- **The `.klz` archive** — the exchange unit. JSON + manifest + SHA.
+  Human-diffable once unzipped; no binary state.
+
+An interactive editor, a server upload, or a translator typing in a
+UI belong to an external tool (TMS, CAT tool, custom editor)
+consuming the format — out of scope for this repo.
 
 ## Scenario
 
@@ -24,28 +33,27 @@ translatable components live in `src/`:
 - `src/ShoppingCart.tsx` — a line that says "0 / 1 / N items in your cart"
 
 The team translates to German (`de`) and pseudo-English (`qps`)
-using `@neokapi/react` as a neokapi extractor, the `kapi` CLI,
-and a small CI pipeline.
+using `@neokapi/kapi-react` as the extractor + compiler, the
+`kapi` CLI, and a small CI pipeline.
 
 ## Step 1 — Developer runs extract
 
 ```bash
 $ cd my-app
-$ npx neokapi-react extract --out dist/project.klz
+$ vpx kapi-react extract --out i18n/extracted.klz --target-locale de --target-locale qps
+Scanning 47 files...
+Extracted 42 blocks from 18 files → i18n/extracted.klz
+```
 
-[@neokapi/react] scanning src/**/*.{tsx,jsx}
-[@neokapi/react] extracted 3 documents / 3 blocks / 6 placeholders
-[@neokapi/react] packing dist/project.klz
-  documents/src-FilesHeading-tsx.klf    1.2 KB
-  documents/src-TagChip-tsx.klf         1.8 KB
-  documents/src-ShoppingCart-tsx.klf    1.9 KB
-  skeletons/src-FilesHeading-tsx.skl    312 B   (TransformOp list)
-  skeletons/src-TagChip-tsx.skl         487 B
-  skeletons/src-ShoppingCart-tsx.skl    411 B
-  vocabulary/rich-jsx.json              2.1 KB
-  manifest.json                         1.4 KB
-  meta.json                             218 B
-[@neokapi/react] wrote dist/project.klz (7.8 KB, JSON + skeletons only)
+The resulting archive:
+
+```
+i18n/extracted.klz
+├── manifest.json
+└── documents/
+    ├── src-FilesHeading-tsx.klf
+    ├── src-TagChip-tsx.klf
+    └── src-ShoppingCart-tsx.klf
 ```
 
 What just happened:
@@ -211,8 +219,8 @@ The team's CI runs a neokapi-framework check on every PR:
 
 ```bash
 # .github/workflows/i18n.yml (snippet)
-- run: npx neokapi-react extract --out dist/project.klz
-- run: kapi klz verify dist/project.klz --strict
+- run: vpx kapi-react extract --out i18n/extracted.klz
+- run: kapi klz verify i18n/extracted.klz --strict
 ```
 
 `kapi klz verify` is a stateless one-shot command that lives in
@@ -416,7 +424,7 @@ of `core/klz`'s query helpers; no tool has to know it exists.
 A week later, a new component is added that uses the same
 "N items in your cart" pattern. When the pipeline runs again:
 
-1. `neokapi-react extract` produces a new `project.klz` with the
+1. `kapi-react extract` produces a new `extracted.klz` with the
    additional block. Its `manifest.json` contents — and therefore
    its manifest SHA-256 — are different from the previous
    archive's.
@@ -579,13 +587,15 @@ in RFC 0001.
 
 | Lifecycle stage | Actor (framework-level) | Touches |
 |---|---|---|
-| Extract source | `@neokapi/react` extractor | reads `src/**/*.tsx`; writes `.klz` documents + skeletons + vocabulary + manifest |
+| Extract source | `vpx kapi-react extract` | reads `src/**/*.tsx`; writes `.klz` documents + manifest |
 | Inspect | `unzip`, `jq`, anyone | reads `.klz` parts individually |
 | Verify in CI | `kapi klz verify` | reads `.klz`; SQLite-free; exits non-zero on failure |
 | Annotate | `kapi klz annotate` or any namespaced producer | reads `.klz` documents; writes `annotations/<producer>.klfl` sidecar (non-authoritative) |
+| Translate (pseudo / AI / TM) | `kapi pseudo-translate`, `kapi ai-translate`, `kapi tm-leverage` | reads source `.klz`; writes translated `.klz` with `block.targets` populated |
 | Streaming pipeline | a neokapi tool using `core/flow` | reads `.klz` as `format.DataFormatReader`; writes `.klz` via writer |
+| Compile to runtime dict | `vpx kapi-react compile` | reads translated `.klz`; writes `public/translations/<locale>.json` — the shape the runtime loader fetches via `loadTranslations()` |
 | TM lookup / block-by-id | a tool calling `reader.TM()` or `reader.BlockByID()` | reads `.klz`; transparently warms a local cache on first query |
-| Merge back | `kapi klz merge` → extractor's `Merge()` | reads `.klz`; writes translated source tree |
+| Merge back to source | `kapi klz merge` → extractor's `Merge()` | reads `.klz`; writes translated source tree (for inline-mode builds) |
 | PR review | human | reads `.klf` JSON with `git diff` |
 | Cache admin (debug) | `kapi cache info` / `kapi cache path` / `kapi cache clear` / `kapi cache gc` | reads/manages `$XDG_CACHE_HOME/neokapi/klz/` |
 
