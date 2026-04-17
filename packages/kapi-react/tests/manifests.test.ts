@@ -8,7 +8,7 @@ import {
 } from '../src/plugin/manifests.ts';
 
 function parse(code: string) {
-  return parseSync(code, { syntax: 'typescript', tsx: true, jsx: true });
+  return parseSync(code, { syntax: 'typescript', tsx: true });
 }
 
 describe('collectImports', () => {
