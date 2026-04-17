@@ -152,6 +152,65 @@ func TestWriterEmitsKLZ(t *testing.T) {
 	require.Len(t, docs[0].Documents[0].Blocks, 3)
 }
 
+func TestWriterPreservesStructuredTargetRuns(t *testing.T) {
+	// Regression for #376: `materializeBlock` used to flatten the
+	// target to a single TextRun via `mb.TargetText()`, dropping
+	// every Ph / PcOpen / PcClose run a tool had placed via
+	// `SetTargetRuns`. A tag-chip target with three Ph runs plus
+	// two Text separators must round-trip with all five runs intact.
+	inDoc := makeKLFFile()
+	inBuf, err := klf.Marshal(inDoc)
+	require.NoError(t, err)
+
+	r := NewReader()
+	require.NoError(t, r.Open(context.Background(), &model.RawDocument{
+		URI:    "in.klf",
+		Reader: io.NopCloser(bytes.NewReader(inBuf)),
+	}))
+	blocks := collectBlocks(t, r)
+	require.NotEmpty(t, blocks)
+
+	// Inject a structured target on every block: text + ph + text.
+	for _, b := range blocks {
+		b.SetTargetRuns("qps", []model.Run{
+			{Text: &model.TextRun{Text: "[accented] "}},
+			{Ph: &model.PlaceholderRun{ID: "1", Type: "jsx:var", Data: "{x}", Equiv: "x"}},
+			{Text: &model.TextRun{Text: " tail"}},
+		})
+	}
+
+	outPath := filepath.Join(t.TempDir(), "with-targets.klz")
+	w := NewWriter()
+	w.SetLocale("qps")
+	require.NoError(t, w.SetOutput(outPath))
+	ch := make(chan *model.Part, len(blocks)+2)
+	for _, b := range blocks {
+		ch <- &model.Part{Type: model.PartBlock, Resource: b}
+	}
+	close(ch)
+	require.NoError(t, w.Write(context.Background(), ch))
+	require.NoError(t, w.Close())
+
+	archive, err := klz.Open(outPath)
+	require.NoError(t, err)
+	defer archive.Close()
+	docs, err := archive.Documents()
+	require.NoError(t, err)
+	require.NotEmpty(t, docs)
+
+	for _, d := range docs {
+		for _, dd := range d.Documents {
+			for _, block := range dd.Blocks {
+				target, ok := block.Targets["qps"]
+				require.True(t, ok, "block %q missing qps target", block.ID)
+				require.Len(t, target, 3, "block %q target runs flattened — should be text+ph+text", block.ID)
+				require.NotNil(t, target[1].Ph, "block %q second run should be Ph", block.ID)
+				assert.Equal(t, "x", target[1].Ph.Equiv)
+			}
+		}
+	}
+}
+
 func TestPreviewBuilder(t *testing.T) {
 	doc := makeKLFFile()
 	buf, err := klf.Marshal(doc)

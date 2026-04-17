@@ -483,10 +483,11 @@ func (w *Writer) materializeBlock(mb *model.Block) (klf.Block, string, string) {
 			}
 			// Update only if the annotation didn't already carry a
 			// target for this locale — preserves upstream structure.
+			// Carry the model.Block's structured Runs across so
+			// placeholders / paired codes survive tools that populate
+			// targets via SetTargetRuns (e.g. pseudo-translate).
 			if _, hasExisting := b.Targets[klf.LocaleID(w.locale)]; !hasExisting {
-				b.Targets[klf.LocaleID(w.locale)] = []klf.Run{
-					{Text: &klf.TextRun{Text: mb.TargetText(w.locale)}},
-				}
+				b.Targets[klf.LocaleID(w.locale)] = runsFromModel(mb.TargetRuns(model.LocaleID(w.locale)))
 			}
 		}
 		return b, ann.DocumentID, ann.DocumentPath
@@ -502,10 +503,26 @@ func (w *Writer) materializeBlock(mb *model.Block) (klf.Block, string, string) {
 	}
 	if w.locale != "" && mb.HasTarget(w.locale) {
 		b.Targets = map[klf.LocaleID][]klf.Run{
-			klf.LocaleID(w.locale): {{Text: &klf.TextRun{Text: mb.TargetText(w.locale)}}},
+			klf.LocaleID(w.locale): runsFromModel(mb.TargetRuns(model.LocaleID(w.locale))),
 		}
 	}
 	return b, "synthesized", "synthesized"
+}
+
+// runsFromModel is the model.Run → klf.Run adapter used when a
+// tool populated block.Targets with structured Runs. Runs are
+// preserved verbatim, including placeholders and paired codes.
+func runsFromModel(runs []model.Run) []klf.Run {
+	if len(runs) == 0 {
+		return nil
+	}
+	// klf.Run is a type alias for model.Run today; the cast is
+	// effectively a no-op but keeps the site explicit and lets us
+	// insert a deep clone or shape mapping here if the types ever
+	// diverge.
+	out := make([]klf.Run, len(runs))
+	copy(out, runs)
+	return out
 }
 
 // Close flushes the accumulated blocks to the configured output.
