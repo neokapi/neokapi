@@ -35,7 +35,13 @@ import type {
 
 import type { Placeholder, PlaceholderRun, Run, TextRun } from '@neokapi/kapi-format';
 
-import { dedupName, exprToName, getTagName, resolveHTMLElement } from './ast.ts';
+import {
+  containsJSX,
+  dedupName,
+  exprToName,
+  getTagName,
+  resolveHTMLElement,
+} from './ast.ts';
 
 export interface BuildRunsOptions {
   componentMap: Record<string, string>;
@@ -210,31 +216,6 @@ function nextId(state: BuilderState): string {
 function recordPlaceholder(state: BuilderState, placeholder: Placeholder): void {
   if (state.placeholders.has(placeholder.name)) return;
   state.placeholders.set(placeholder.name, placeholder);
-}
-
-/**
- * Detects whether an expression tree contains a JSX element or
- * fragment. Used to route `{cond && <X/>}` to a `jsx:node`
- * placeholder instead of a `jsx:var` one. Mirrors the plugin
- * transform's detection so both sides agree.
- */
-function containsJSX(expr: Expression): boolean {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  function walk(node: any): boolean {
-    if (!node || typeof node !== 'object') return false;
-    if (node.type === 'JSXElement' || node.type === 'JSXFragment') return true;
-    for (const key of Object.keys(node)) {
-      if (key === 'span' || key === 'type') continue;
-      const val = node[key];
-      if (Array.isArray(val)) {
-        for (const item of val) if (walk(item)) return true;
-      } else if (val && typeof val === 'object' && 'type' in val) {
-        if (walk(val)) return true;
-      }
-    }
-    return false;
-  }
-  return walk(expr);
 }
 
 /**

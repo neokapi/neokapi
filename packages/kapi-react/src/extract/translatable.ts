@@ -11,7 +11,7 @@ import type { JSXElement } from '@swc/core';
 
 import { getTranslatability, inlineElements } from '../plugin/defaults.ts';
 import type { PluginOptions } from '../types.ts';
-import { getStringAttr, getTagName, resolveHTMLElement } from './ast.ts';
+import { getStringAttr, getTagName, hasAttr, resolveHTMLElement } from './ast.ts';
 
 export type Rule = NonNullable<PluginOptions['rules']>[number];
 
@@ -45,14 +45,29 @@ export function resolvePolicy(
   return { translate, locNote };
 }
 
+/**
+ * Selector shapes:
+ *   - `tag`           matches by HTML element name
+ *   - `.className`    matches when className list contains the name
+ *   - `[attr]`        matches when the attribute is present
+ *   - `[attr="val"]`  matches when the attribute's string literal equals val
+ */
 function matchesRule(rule: Rule, htmlElement: string, el: JSXElement): boolean {
-  if (rule.selector.startsWith('.')) {
-    const className = rule.selector.slice(1);
+  const selector = rule.selector;
+  if (selector.startsWith('.')) {
+    const className = selector.slice(1);
     const classAttr = getStringAttr(el, 'className');
-    if (!classAttr) return false;
-    return classAttr.split(/\s+/).includes(className);
+    return !!classAttr && classAttr.split(/\s+/).includes(className);
   }
-  return rule.selector === htmlElement;
+  if (selector.startsWith('[') && selector.endsWith(']')) {
+    const inner = selector.slice(1, -1);
+    const eq = inner.indexOf('=');
+    if (eq < 0) return hasAttr(el, inner);
+    const name = inner.slice(0, eq);
+    const want = inner.slice(eq + 1).replace(/^["']|["']$/g, '');
+    return getStringAttr(el, name) === want;
+  }
+  return selector === htmlElement;
 }
 
 /**

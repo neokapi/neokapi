@@ -61,24 +61,22 @@ describe('extractDocument — element blocks', () => {
     expect(block.hash).toBe(hashKey('Hello, {name}!', 'h1'));
   });
 
-  it('flattens inline elements to a single jsx:element placeholder so hash matches the plugin transform', () => {
+  it('flattens inline elements to a single jsx:element placeholder, consuming their content', () => {
     const doc = extract('<h2>Files <span>{count} matched</span></h2>');
-    // Parent block carries only the `{=m0}` flattened reference — the
-    // span's content becomes its own nested block. This mirrors what
-    // plugin/transform.ts does when emitting tx() calls.
-    const parent = doc.blocks.find((b) => b.properties.jsxPath === 'h2');
-    expect(parent).toBeTruthy();
-    expect(parent?.source).toHaveLength(2);
-    expect(textRun(parent?.source[0]).text).toBe('Files ');
-    const outerPh = phRun(parent?.source[1]).ph;
+    // Parent block carries `"Files {=m0}"` with the span as a ph.
+    // The span's content is opaque at runtime (tx() splices the
+    // whole React element back in), so we do NOT emit a separate
+    // block for it — that would be a translator ghost entry the
+    // runtime never looks up.
+    expect(doc.blocks).toHaveLength(1);
+    const parent = doc.blocks[0];
+    expect(parent.properties.jsxPath).toBe('h2');
+    expect(parent.source).toHaveLength(2);
+    expect(textRun(parent.source[0]).text).toBe('Files ');
+    const outerPh = phRun(parent.source[1]).ph;
     expect(outerPh.type).toBe('jsx:element');
     expect(outerPh.subType).toBe('span');
-    expect(parent?.hash).toBe(hashKey('Files {=m0}', 'h2'));
-
-    const nested = doc.blocks.find((b) => b.properties.jsxPath === 'h2 > span');
-    expect(nested).toBeTruthy();
-    expect(phRun(nested?.source[0]).ph.equiv).toBe('count');
-    expect(nested?.hash).toBe(hashKey('{count} matched', 'h2 > span'));
+    expect(parent.hash).toBe(hashKey('Files {=m0}', 'h2'));
   });
 
   it('emits jsx:element placeholder for `<Icon/>`', () => {
