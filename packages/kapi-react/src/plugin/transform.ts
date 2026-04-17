@@ -343,12 +343,12 @@ function processElement(
 
   const policy = resolvePolicy(htmlElement, el, rules, componentMap);
 
-  // Skip attribute handling on unmapped components — we don't know
-  // which attributes are translatable without the HTML element.
-  let usedRuntime: 'runtime-t' | 'runtime-tx' | null = !unmappedComponent
-    && processAttributes(el, ancestors, componentMap, mode, dict, policy.locNote, s, ops)
-    ? 'runtime-t'
-    : null;
+  // Extract translatable attributes from every element (mapped or
+  // not) — `translatableAttributes` is keyed on prop name, not host
+  // element, so `<PageHeader title="Termbases" />` just works.
+  let usedRuntime: 'runtime-t' | 'runtime-tx' | null = processAttributes(
+    el, ancestors, componentMap, mode, dict, policy.locNote, s, ops,
+  ) ? 'runtime-t' : null;
 
   if (!policy.translate) return { runtime: usedRuntime, consumed: false };
   if (!hasTranslatableText(el)) return { runtime: usedRuntime, consumed: false };

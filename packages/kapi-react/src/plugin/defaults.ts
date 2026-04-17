@@ -123,6 +123,24 @@ export const containerElements = new Set([
   'template',
 ]);
 
+/**
+ * Attributes extracted as translatable string literals regardless of
+ * the host element. Three buckets:
+ *
+ *   1. HTML standard: alt, title, placeholder — user-visible text
+ *      on standard elements.
+ *   2. ARIA: aria-label / aria-description / aria-placeholder /
+ *      aria-roledescription / aria-valuetext — always user-visible.
+ *   3. React-component conventions: subtitle, description, label,
+ *      heading, caption, helpText, helperText, errorMessage, hint,
+ *      tooltip. These are the prop names UI libraries (shadcn,
+ *      mui, radix wrappers, our own `<PageHeader>` / `<EmptyState>`
+ *      / `<LoadingSpinner>`) use for visible text. Adding them to
+ *      the default set means `<PageHeader title="Translation
+ *      Memories" />` just works.
+ *
+ * Opt out a specific site with `translate="no"` or a rule selector.
+ */
 export const translatableAttributes = new Set([
   'alt',
   'title',
@@ -132,6 +150,16 @@ export const translatableAttributes = new Set([
   'aria-placeholder',
   'aria-roledescription',
   'aria-valuetext',
+  'subtitle',
+  'description',
+  'label',
+  'heading',
+  'caption',
+  'helpText',
+  'helperText',
+  'errorMessage',
+  'hint',
+  'tooltip',
 ]);
 
 export function getTranslatability(

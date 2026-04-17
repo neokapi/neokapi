@@ -179,6 +179,19 @@ describe('extractDocument — skip rules', () => {
     ).toBeNull();
   });
 
+  it('extracts translatable props on unmapped components', () => {
+    // `<PageHeader title="Translation Memories" />` is the dominant
+    // page-heading pattern — title/subtitle/description/… should
+    // extract without a componentMap entry.
+    const doc = extractDocument(
+      '<PageHeader title="Translation Memories" subtitle="Glossaries" />',
+      { filename: 'Test.tsx' },
+    );
+    const attrBlocks = doc?.blocks.filter((b) => b.type === 'jsx:attribute') ?? [];
+    const texts = attrBlocks.map((b) => (b.source[0] as { text: string }).text).sort();
+    expect(texts).toEqual(['Glossaries', 'Translation Memories']);
+  });
+
   it('respects `translate="no"`', () => {
     expect(extractDocument('<h1 translate="no">Skip</h1>', { filename: 'Test.tsx' })).toBeNull();
   });
