@@ -15,3 +15,5 @@
 
 export { extractDocument } from './walker.ts';
 export type { ExtractOptions, WalkerOptions } from './walker.ts';
+export { createWarningCollector, formatWarning } from './warnings.ts';
+export type { Warning, WarningCollector, WarningKind } from './warnings.ts';

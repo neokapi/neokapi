@@ -521,6 +521,43 @@ The plugin automatically determines what to translate using W3C HTML5 defaults:
 
 **Translatable attributes:** `alt`, `title`, `placeholder`, `aria-label`, `aria-description`
 
+### Auto-promotion for containers
+
+Strict W3C semantics would mean `<div>Hello</div>` is never translated — divs
+are "containers", not text elements. In practice React codebases write a lot
+of `<div>Label</div>`, `<section>Intro copy</section>`, and so on, and dropping
+that text silently is the wrong default.
+
+kapi-react **auto-promotes** any container-classified element (including
+unmapped PascalCase components) to translatable when it has:
+
+1. At least one direct non-whitespace JSXText child, AND
+2. Only inline children (no nested block-level elements).
+
+When the plugin promotes an element it prints a warning so you know what
+happened:
+
+```
+[neokapi] src/Settings.tsx:42: <div> contains translatable text — extracted.
+  Add translate="no" on the element to opt out.
+  ↳ <div className="mb-3 text-sm font-medium">Appearance</div>
+```
+
+For **unmapped PascalCase components** the warning also suggests a
+`componentMap` entry — important because adding it later changes the
+underlying hash of every affected block:
+
+```
+[neokapi] src/Settings.tsx:19: <TabsTrigger> is an unmapped component with
+  translatable text — extracted. Add a componentMap entry to stabilise hashes:
+  { TabsTrigger: '<underlying-html-tag>' }.
+  ↳ <TabsTrigger value="general">General</TabsTrigger>
+```
+
+To opt out of promotion for a specific element, use standard HTML
+`translate="no"` or a rule selector. Route warnings somewhere other
+than the console with the `onWarning` plugin option.
+
 ### Opt out with standard HTML
 
 ```jsx

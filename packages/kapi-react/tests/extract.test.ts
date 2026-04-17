@@ -155,8 +155,28 @@ describe('extractDocument — skip rules', () => {
     expect(extractDocument('<code>x = 1</code>', { filename: 'Test.tsx' })).toBeNull();
   });
 
-  it('skips <div> content (container element)', () => {
-    expect(extractDocument('<div>text</div>', { filename: 'Test.tsx' })).toBeNull();
+  it('extracts <div> with direct text (container auto-promoted)', () => {
+    // Container elements (div, section, …) classify as non-translatable
+    // per W3C, but `<div>Text</div>` is too common a React idiom to
+    // silently drop. Promotion kicks in when the element has direct
+    // text + all-inline children.
+    const doc = extractDocument('<div>text</div>', { filename: 'Test.tsx' });
+    expect(doc?.blocks).toHaveLength(1);
+    expect(doc?.blocks[0].source).toEqual([{ text: 'text' }]);
+  });
+
+  it('does NOT promote a container whose children include a nested block', () => {
+    // When a div mixes text with block-level children, the nested
+    // block gets its own Block; the outer div stays non-translatable.
+    const doc = extractDocument('<div>lead<p>body</p></div>', { filename: 'Test.tsx' });
+    // <p>body</p> → 1 block; the div itself is not promoted.
+    expect(doc?.blocks.map((b) => b.properties.element)).toEqual(['p']);
+  });
+
+  it('still respects `translate="no"` on a container', () => {
+    expect(
+      extractDocument('<div translate="no">text</div>', { filename: 'Test.tsx' }),
+    ).toBeNull();
   });
 
   it('respects `translate="no"`', () => {

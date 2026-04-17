@@ -20,6 +20,7 @@ import {
   exprToName,
   getStringAttr,
   getTagName,
+  lineFromOffset,
   resolveHTMLElement,
 } from '../extract/ast.ts';
 import { buildJSXPath } from '../extract/jsx-path.ts';
@@ -35,6 +36,11 @@ import {
   isAllInlineContent,
   resolvePolicy,
 } from '../extract/translatable.ts';
+import {
+  createWarningCollector,
+  formatWarning,
+  type WarningCollector,
+} from '../extract/warnings.ts';
 import { translatableAttributes } from './defaults.ts';
 import { hashKey } from './hash.ts';
 import { CONTEXT_SEPARATOR, type PluginOptions } from '../types.ts';
@@ -65,6 +71,17 @@ type ProcessResult = {
  */
 function bslice(buf: Buffer, start: number, end: number): string {
   return buf.toString('utf8', start, end);
+}
+
+/**
+ * Line-based snippet: returns the source line containing `line`,
+ * trimmed to 80 chars. Line lookup avoids SWC byte-span off-by-N
+ * quirks across parse bases.
+ */
+function snippetOf(code: string, line: number): string {
+  const lines = code.split('\n');
+  const raw = (lines[line - 1] ?? '').trim();
+  return raw.length > 80 ? `${raw.slice(0, 80)}…` : raw;
 }
 
 /**
@@ -204,17 +221,24 @@ export function transform(
   const s = makeOffsetConverter(ast, code);
   const buf = Buffer.from(code, 'utf8');
   const ops: TransformOp[] = [];
+  const warnings = createWarningCollector();
   let needsT = false;
   let needsTx = false;
 
   walkModule(ast, (el, ancestors) => {
     const r = processElement(
-      el, ancestors, buf, filename, componentMap, rules, mode, dict, options, s, ops,
+      el, ancestors, buf, filename, componentMap, rules, mode, dict, options, s, ops, warnings, code,
     );
     if (r.runtime === 'runtime-t') needsT = true;
     if (r.runtime === 'runtime-tx') { needsT = true; needsTx = true; }
     return { skipChildren: r.consumed };
   });
+
+  // Flush warnings. console.warn by default so the dev-server
+  // pipeline surfaces them; consumers can opt out of the stderr
+  // noise by providing their own `onWarning` hook.
+  const flush = options.onWarning ?? ((msg: string) => console.warn(msg));
+  for (const w of warnings.list()) flush(formatWarning(w));
 
   if (ops.length === 0) return null;
 
@@ -303,23 +327,56 @@ function processElement(
   options: PluginOptions,
   s: (offset: number) => number,
   ops: TransformOp[],
+  warnings: WarningCollector,
+  code: string,
 ): ProcessResult {
   const tagName = getTagName(el);
   if (!tagName) return { runtime: null, consumed: false };
   if (getStringAttr(el, 'translate') === 'no') return { runtime: null, consumed: false };
 
-  const htmlElement = resolveHTMLElement(tagName, componentMap);
-  if (!htmlElement) return { runtime: null, consumed: false };
+  // Mirror walker.ts: fall back to the raw tag for unmapped
+  // PascalCase components so resolvePolicy's container-promotion
+  // rule can kick in when they have direct translatable text.
+  const mapped = resolveHTMLElement(tagName, componentMap);
+  const htmlElement = mapped ?? tagName;
+  const unmappedComponent = mapped === null;
 
-  const policy = resolvePolicy(htmlElement, el, rules);
+  const policy = resolvePolicy(htmlElement, el, rules, componentMap);
 
-  let usedRuntime: 'runtime-t' | 'runtime-tx' | null = processAttributes(
-    el, ancestors, componentMap, mode, dict, policy.locNote, s, ops,
-  ) ? 'runtime-t' : null;
+  // Skip attribute handling on unmapped components — we don't know
+  // which attributes are translatable without the HTML element.
+  let usedRuntime: 'runtime-t' | 'runtime-tx' | null = !unmappedComponent
+    && processAttributes(el, ancestors, componentMap, mode, dict, policy.locNote, s, ops)
+    ? 'runtime-t'
+    : null;
 
   if (!policy.translate) return { runtime: usedRuntime, consumed: false };
   if (!hasTranslatableText(el)) return { runtime: usedRuntime, consumed: false };
   if (!isAllInlineContent(el, componentMap)) return { runtime: usedRuntime, consumed: false };
+
+  // Record warnings for elements whose translatability had to be
+  // inferred. Must happen after all gating checks so we don't
+  // warn about elements we end up skipping. Unmapped components
+  // always trigger the promotion path, so prefer the more specific
+  // unknown-component warning over the generic container one.
+  const warnLine = lineFromOffset(code, s(el.span.start));
+  if (unmappedComponent) {
+    warnings.add({
+      kind: 'unknown-component',
+      filename,
+      line: warnLine,
+      tag: tagName,
+      snippet: snippetOf(code, warnLine),
+    });
+  } else if (policy.promoted) {
+    warnings.add({
+      kind: 'container-promoted',
+      filename,
+      line: warnLine,
+      tag: tagName,
+      snippet: snippetOf(code, warnLine),
+    });
+  }
 
   const jsxPath = buildJSXPath(ancestors, el, componentMap);
   const locNote = policy.locNote;

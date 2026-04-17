@@ -17,6 +17,7 @@ const entryPoints = [
   'src/extract/jsx-path.ts',
   'src/extract/ast.ts',
   'src/extract/plural.ts',
+  'src/extract/warnings.ts',
   'src/types.ts',
   'src/plugin/index.ts',
   'src/plugin/vite.ts',

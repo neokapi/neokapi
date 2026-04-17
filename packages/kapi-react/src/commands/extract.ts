@@ -15,7 +15,11 @@ import type { Document, File } from '@neokapi/kapi-format';
 import { newFile } from '@neokapi/kapi-format';
 import { KlzWriter } from '@neokapi/kapi-format/klz';
 
-import { extractDocument } from '../extract/index.ts';
+import {
+  createWarningCollector,
+  extractDocument,
+  formatWarning,
+} from '../extract/index.ts';
 import type { PluginOptions } from '../types.ts';
 
 type ExtractConfig = Pick<PluginOptions, 'componentMap' | 'rules'>;
@@ -123,11 +127,15 @@ function loadConfig(path: string | null): ExtractConfig {
 
 function extractAllDocuments(files: readonly string[], config: ExtractConfig): Document[] {
   const out: Document[] = [];
+  const warnings = createWarningCollector();
   for (const file of files) {
     const code = readFileSync(file, 'utf-8');
     const filename = relative(process.cwd(), file);
-    const doc = extractDocument(code, { filename, ...config });
+    const doc = extractDocument(code, { filename, warnings, ...config });
     if (doc) out.push(doc);
+  }
+  for (const w of warnings.list()) {
+    console.warn(formatWarning(w));
   }
   return out;
 }
