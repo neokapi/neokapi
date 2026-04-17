@@ -118,6 +118,10 @@ jobs:
       - uses: actions/checkout@v6
       - uses: ./.github/actions/setup-node-ui
 
+      - name: Build kapi-react (vite.config imports from dist)
+        working-directory: packages/kapi-react
+        run: npm run build
+
       - name: Run flow-editor tests
         working-directory: packages/flow-editor
         run: vp test
