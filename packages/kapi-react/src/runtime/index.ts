@@ -179,3 +179,20 @@ export function useNeokapi() {
     loadTranslations,
   };
 }
+
+// ─── Plural / Select authoring components ────────────────────
+
+export {
+  Plural,
+  Select,
+  Case,
+  Zero,
+  One,
+  Two,
+  Few,
+  Many,
+  Other,
+  pluralKeyFor,
+} from './plural.tsx';
+
+export type { PluralProps, PluralFormKey, SelectProps, CaseProps } from './plural.tsx';

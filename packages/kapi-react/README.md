@@ -198,6 +198,62 @@ Output — pure translated JSX, zero runtime:
 <input placeholder="Suchen..." />
 ```
 
+## Plurals and Select
+
+When a locale needs different text per count or per category, author
+it with the `<Plural>` / `<Select>` components from
+`@neokapi/kapi-react/runtime`. Each form is a child component
+(`<Zero>`, `<One>`, `<Two>`, `<Few>`, `<Many>`, `<Other>` for plural,
+`<Case when="…">` / `<Other>` for select) and each form's body is
+fully typed JSX — inline elements, variables, and conditional
+expressions inside a form stay structured, not stringified.
+
+```tsx
+import { Plural, Zero, One, Other } from '@neokapi/kapi-react/runtime';
+
+<p>
+  <Plural count={items.length}>
+    <Zero>Your cart is empty</Zero>
+    <One>1 item in your cart</One>
+    <Other><strong>{items.length}</strong> items in your cart</Other>
+  </Plural>
+</p>
+```
+
+```tsx
+import { Select, Case, Other } from '@neokapi/kapi-react/runtime';
+
+<p>
+  <Select value={user.role}>
+    <Case when="admin">Welcome, admin</Case>
+    <Case when="guest">You're browsing as a guest</Case>
+    <Other>Welcome, {user.name}!</Other>
+  </Select>
+</p>
+```
+
+At build time the plugin rewrites these into an ICU template in the
+runtime call:
+
+```js
+__tx(
+  "3mUQVu",
+  "{items.length, plural, zero {Your cart is empty} one {1 item in your cart} other {{=m0} items in your cart}}",
+  { "=m0": <strong>{items.length}</strong> },
+  { "items.length": items.length },
+)
+```
+
+The compiled `translations/<locale>.json` keeps the same ICU shape —
+translators get per-form text with inline markup preserved. The
+runtime's `Intl.PluralRules` picks the right form at render time, and
+`<strong>` etc. splice back in via `{=mN}` tokens so the final HTML
+is identical to whatever the untranslated source would render.
+
+Pivot variables (`count`, `value`) are marked in the extracted Block
+as `kind: 'icu-pivot'` so validators know they must not be dropped
+from any target locale.
+
 ## Three Modes
 
 ### Dev mode (default)
