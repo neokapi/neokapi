@@ -13,6 +13,21 @@ const sidebars: SidebarsConfig = {
     },
     {
       type: "category",
+      label: "kapi-react (React i18n)",
+      items: [
+        "kapi-react/introduction",
+        "kapi-react/quickstart",
+        "kapi-react/writing-components",
+        "kapi-react/t-escape-hatch",
+        "kapi-react/plurals-and-select",
+        "kapi-react/pipeline",
+        "kapi-react/modes",
+        "kapi-react/translating-with-kapi",
+        "kapi-react/configuration",
+      ],
+    },
+    {
+      type: "category",
       label: "Kapi CLI",
       items: [
         "kapi-cli/overview",

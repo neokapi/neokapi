@@ -1,0 +1,94 @@
+---
+sidebar_position: 1
+title: Introduction
+slug: /kapi-react/introduction
+---
+
+# kapi-react
+
+Zero-toil internationalisation for React.
+
+## The problem with traditional i18n
+
+Localising a React app usually means wrapping every user-visible string in a translation call:
+
+```tsx
+// The traditional way
+<h1>{t("welcome.heading")}</h1>
+<p>{t("welcome.description")}</p>
+<button>{t("welcome.getStarted")}</button>
+```
+
+That creates three kinds of toil:
+
+- **Writing the wrapper** — every string in your app gets `t(...)` around it, every prop that might ever be translated is now an expression instead of a literal.
+- **Inventing and maintaining keys** — `welcome.heading`, `welcome.description`, `welcome.getStarted`. You pick them, you rename them when the copy changes, you hunt for collisions, you diff them in review.
+- **Keeping them in sync** — the translation file, the call sites, the docs. When any of them drifts, the app shows `welcome.heading` to the user or (worse) renders the wrong text.
+
+You pay that cost on day one, the day a new engineer joins, and every time a designer changes a word of copy.
+
+## What kapi-react does differently
+
+kapi-react extracts translatable content from the JSX you already write — no wrappers, no keys.
+
+```tsx
+// The kapi-react way
+<h1>Welcome</h1>
+<p>Ship your product in every language your users speak.</p>
+<button>Get started</button>
+```
+
+At build time a [SWC](https://swc.rs/)-based Vite / webpack / Rollup / esbuild plugin:
+
+1. Walks your JSX and finds everything that ought to be translated (heading, button, attribute values, …).
+2. Computes a stable hash from the source text + its structural context.
+3. Emits a `.klz` archive — the exchange format your translators (or an AI) consume.
+4. Rewrites the JSX to look up the hash at render time when a translation is loaded, or inlines the translated text at build time for zero-runtime-lookup mode.
+
+The source text is the identifier. When the copy changes, you change the JSX — no key to rename, no translation table to keep in sync. Translations that already exist still resolve; new strings get a fresh hash, and your extract pipeline picks them up automatically.
+
+## What "no-toil" means in practice
+
+- **No `t()` wrapping for normal JSX.** `<h1>Welcome</h1>` is translatable as written. So is `<div>Label</div>`, `<PageHeader title="Settings" />`, `<TabsTrigger>General</TabsTrigger>`, `<Card description="..." />`.
+- **No key invention.** The hash of the source text + structural context is the key. The runtime dict is `{ "aB3": "Bienvenue", ... }` — not `{ "welcome.heading": "Bienvenue", ... }`.
+- **No translation-file edits from developers.** Developers write JSX. Translators write translations. The `.klz` archive is the contract between them.
+- **One explicit marker — `t()` — for strings that legitimately live in JS data** (button-label arrays, error messages returned from reducers, refs). That's it.
+
+## What you get in the box
+
+- **Automatic JSX extraction** with W3C HTML5 translatability rules — headings, paragraphs, buttons, labels, options, `<span>`, `<strong>`, `<em>`, links, ARIA-backed attributes.
+- **Smart defaults for idiomatic React** — `<div>Label</div>`, `<section>...</section>`, and unmapped components like `<TabsTrigger>General</TabsTrigger>` auto-extract with a warning, not a silent drop.
+- **Translatable props on any component** — `title`, `subtitle`, `description`, `label`, `helpText`, `errorMessage`, `tooltip`, and the usual HTML+ARIA set. `<PageHeader title="Translation Memories" />` just works.
+- **`<Plural>` / `<Select>` authoring components** with CLDR-aware runtime resolution via `Intl.PluralRules`.
+- **`t()` escape hatch** for the small set of strings that genuinely belong in data.
+- **Two build modes** — inline (zero runtime, builds per locale) and runtime (single bundle, dict loaded OTA).
+- **A proper exchange format** — KLF/KLZ (see [AD-045](/docs/ad/045-klf-klz-spec)) — that carries structural context, placeholders, plural forms, and annotation sidecars. Not a flat key-value JSON.
+- **Full integration with `kapi`** for pseudo-translation, AI translation, QA, TM leverage, and terminology. The same toolchain that handles XLIFF, JSON, Markdown, HTML, and every other format kapi supports.
+
+## How this differs from react-i18next, FormatJS, lingui
+
+| | react-i18next / FormatJS | lingui (macro-based) | **kapi-react** |
+|---|---|---|---|
+| Source identifier | Developer-invented key | Source text (macro-rewritten) | **Source text + structural context (auto)** |
+| JSX wrapping required | Yes (`t("key")`, `<Trans>`) | Macro-rewritten at build | **No — plain JSX is translatable** |
+| Extraction | Manual or via CLI | Macro + CLI | **Plugin during normal build** |
+| Runtime mode | Dict lookup at render | Dict lookup at render | **Dict lookup (OTA) or inline (zero runtime)** |
+| Format | Flat JSON / XLIFF | Flat JSON / PO | **KLF/KLZ with structural context + plural + placeholders** |
+| Translator context | Manual notes | Macro `comment` option | **jsxPath + placeholder equivs + optional `data-i18n-note`** |
+
+Lingui's macro approach is the closest — it also uses source text as the key. kapi-react goes further: no macro invocation either, just JSX.
+
+## When kapi-react isn't the right fit
+
+- **Server-rendered HTML pipelines without a React build step.** If you're outputting raw HTML from a non-React framework, use kapi's HTML / XLIFF filters directly instead.
+- **Large string catalogs with heavy programmatic composition.** If 80% of your strings are assembled from programmatic templates — `t("error.code." + code)` — the source-text-as-key model fights you. kapi-react is happiest when strings are visible in the source.
+- **Need for multi-vendor TMS round-tripping with pre-existing translation keys.** If your workflow already depends on specific translation keys inherited from another system, kapi-react's hash model would require a migration.
+
+For everything else — product UI, marketing sites, internal dashboards, extension pages, embedded apps — kapi-react removes the i18n tax entirely.
+
+## Next steps
+
+- [Quick start](./quickstart) — add kapi-react to a Vite + React project in 5 minutes.
+- [Writing translatable components](./writing-components) — what gets picked up automatically, and when a warning fires.
+- [`t()` escape hatch](./t-escape-hatch) — marking strings that live outside JSX.
+- [Extract → translate → compile](./pipeline) — the full end-to-end flow with `kapi`.
