@@ -613,9 +613,15 @@ function getAttrValue(el: JSXElement, attrName: string): string | null {
 }
 
 function hasTranslatableText(el: JSXElement): boolean {
+  // An element is translatable only when its children carry real
+  // static text or inline translatable structure. A lone expression
+  // container ({variable}, {icon}) isn't text — it's a runtime value
+  // the translator can't meaningfully modify, and coercing it
+  // through `t(hash, "{icon}")` produces [object Object] for
+  // React-element values. Skip those here so the plugin emits the
+  // JSX unchanged.
   for (const child of el.children || []) {
     if (child.type === 'JSXText' && child.value.trim().length > 0) return true;
-    if (child.type === 'JSXExpressionContainer' && child.expression.type !== 'JSXEmptyExpression') return true;
     if (child.type === 'JSXElement') {
       const tag = getTagName(child);
       if (tag && inlineElements.has(tag) && hasTranslatableText(child)) return true;

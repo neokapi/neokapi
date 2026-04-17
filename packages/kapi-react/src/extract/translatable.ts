@@ -83,18 +83,17 @@ export function isAllInlineContent(
 
 /**
  * True when the element carries at least one translatable child:
- * non-whitespace text, a non-empty expression, or an inline JSX
- * element that itself holds translatable content.
+ * non-whitespace JSX text, or an inline JSX element that itself
+ * holds translatable content. Expression containers alone don't
+ * count — a lone `{variable}` or `{icon}` isn't something a
+ * translator can edit, and at runtime `t()` would stringify
+ * a React-element value to "[object Object]". Plugin-side
+ * `hasTranslatableText` applies the same rule so extract and
+ * transform stay aligned.
  */
 export function hasTranslatableText(el: JSXElement): boolean {
   for (const child of el.children ?? []) {
     if (child.type === 'JSXText' && child.value.trim().length > 0) return true;
-    if (
-      child.type === 'JSXExpressionContainer' &&
-      child.expression.type !== 'JSXEmptyExpression'
-    ) {
-      return true;
-    }
     if (child.type === 'JSXElement') {
       const tag = getTagName(child);
       if (tag && inlineElements.has(tag) && hasTranslatableText(child)) return true;
