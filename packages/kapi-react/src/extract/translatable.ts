@@ -22,28 +22,63 @@ export interface ElementPolicy {
   translate: boolean;
   /** Translator-facing note from a rule or `data-i18n-note`. */
   locNote: string | undefined;
+  /**
+   * True when `translate` was flipped from false to true by the
+   * auto-promotion rule for containers / unknown components with
+   * direct text. The walker records a warning for these so the
+   * developer sees the inference.
+   */
+  promoted: boolean;
 }
 
 /**
  * Applies the default table + any matching user rules. Returns the
  * final decision for this element.
+ *
+ * Promotion: the W3C tables classify `<div>`, `<section>`, and other
+ * container-level elements as non-translatable by default, because
+ * spec-wise their direct content should be flow (not phrasing).
+ * In real React codebases `<div>Label</div>` is extremely common,
+ * and silently dropping the text is the wrong default. So we
+ * promote any element classified as `container` (including unmapped
+ * PascalCase components passed through as-is) to `translate: true`
+ * when it has direct translatable text + only inline children. The
+ * walker / transform record a warning so developers know which
+ * elements were auto-promoted and can opt out with `translate="no"`
+ * or add a `componentMap` entry for hash stability.
+ *
+ * User rules still win (`translate: false` on a matching selector
+ * flips promoted elements back off).
  */
 export function resolvePolicy(
   htmlElement: string,
   el: JSXElement,
   rules: readonly Rule[],
+  componentMap: Record<string, string> = {},
 ): ElementPolicy {
-  let translate = getTranslatability(htmlElement) === 'yes';
-  let locNote: string | undefined;
+  const classification = getTranslatability(htmlElement);
+  let translate = classification === 'yes';
+  let promoted = false;
 
+  if (!translate && classification === 'container') {
+    if (hasTranslatableText(el) && isAllInlineContent(el, componentMap)) {
+      translate = true;
+      promoted = true;
+    }
+  }
+
+  let locNote: string | undefined;
   for (const rule of rules) {
     if (!matchesRule(rule, htmlElement, el)) continue;
-    if (rule.translate !== undefined) translate = rule.translate;
+    if (rule.translate !== undefined) {
+      translate = rule.translate;
+      promoted = false;
+    }
     if (rule.locNote) locNote = rule.locNote;
   }
 
   locNote ??= getStringAttr(el, 'data-i18n-note') ?? undefined;
-  return { translate, locNote };
+  return { translate, locNote, promoted };
 }
 
 /**

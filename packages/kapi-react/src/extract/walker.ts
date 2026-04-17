@@ -16,6 +16,7 @@ import { getStringAttr, getTagName, lineFromOffset, resolveHTMLElement } from '.
 import { buildJSXPath } from './jsx-path.ts';
 import { buildRuns } from './runs.ts';
 import { hasTranslatableText, isAllInlineContent, resolvePolicy } from './translatable.ts';
+import type { Warning, WarningCollector } from './warnings.ts';
 
 import { translatableAttributes } from '../plugin/defaults.ts';
 import { hashKey } from '../plugin/hash.ts';
@@ -29,6 +30,12 @@ export interface WalkerOptions extends ExtractOptions {
    * prefix of every block id. Use a forward-slash path.
    */
   filename: string;
+  /**
+   * Optional collector the walker pushes warnings into when it
+   * auto-promotes a container or extracts from an unmapped
+   * PascalCase component.
+   */
+  warnings?: WarningCollector;
 }
 
 /**
@@ -72,6 +79,7 @@ class BlockCollector {
   private readonly componentMap: Record<string, string>;
   private readonly rules: NonNullable<ExtractOptions['rules']>;
   private readonly filename: string;
+  private readonly warnings: WarningCollector | undefined;
   private readonly out: Block[] = [];
   private readonly seenHashes = new Set<string>();
   /**
@@ -86,6 +94,7 @@ class BlockCollector {
     this.componentMap = opts.componentMap ?? {};
     this.rules = opts.rules ?? [];
     this.filename = opts.filename;
+    this.warnings = opts.warnings;
   }
 
   setSpanBase(base: number): void {
@@ -109,22 +118,64 @@ class BlockCollector {
     if (!tag) return false;
     if (getStringAttr(el, 'translate') === 'no') return false;
 
-    const htmlElement = resolveHTMLElement(tag, this.componentMap);
-    if (!htmlElement) return false;
+    // For unmapped PascalCase components we still want to consider
+    // their direct text — the user's source is the ground truth,
+    // not an arbitrary componentMap-coverage requirement. We pass
+    // the raw tag through as if it were an HTML element; it
+    // classifies as `container`, which lets resolvePolicy's
+    // promotion rule kick in if the component has direct text.
+    const mapped = resolveHTMLElement(tag, this.componentMap);
+    const htmlElement = mapped ?? tag;
+    const unmappedComponent = mapped === null;
 
-    const policy = resolvePolicy(htmlElement, el, this.rules);
+    const policy = resolvePolicy(htmlElement, el, this.rules, this.componentMap);
 
     // Attribute blocks come out regardless of whether the element's
     // children are translatable — an <input placeholder="…" /> still
-    // earns an attribute block.
-    this.emitAttributeBlocks(el, ancestors, policy.locNote, component);
+    // earns an attribute block. Skipped for unmapped components: we
+    // can't reliably tell which attributes are translatable without
+    // knowing the underlying HTML element.
+    if (!unmappedComponent) {
+      this.emitAttributeBlocks(el, ancestors, policy.locNote, component);
+    }
 
     if (!policy.translate) return false;
     if (!hasTranslatableText(el)) return false;
     if (!isAllInlineContent(el, this.componentMap)) return false;
 
+    // An unmapped PascalCase component always implies a promotion
+    // (tags default to 'container'), so emit only the more specific
+    // warning that points the dev at componentMap.
+    if (unmappedComponent) {
+      this.warn('unknown-component', tag, el);
+    } else if (policy.promoted) {
+      this.warn('container-promoted', tag, el);
+    }
+
     this.emitElementBlock(el, ancestors, policy.locNote, component);
     return true;
+  }
+
+  private warn(
+    kind: Warning['kind'],
+    tag: string,
+    el: JSXElement,
+  ): void {
+    if (!this.warnings) return;
+    const line = lineFromOffset(this.code, el.span.start);
+    this.warnings.add({
+      kind,
+      filename: this.filename,
+      line,
+      tag,
+      snippet: this.snippet(line),
+    });
+  }
+
+  private snippet(line: number): string {
+    const lines = this.code.split('\n');
+    const raw = (lines[line - 1] ?? '').trim();
+    return raw.length > 80 ? `${raw.slice(0, 80)}…` : raw;
   }
 
   // ─── Element blocks ─────────────────────────────────────────

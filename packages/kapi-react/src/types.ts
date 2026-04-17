@@ -35,6 +35,13 @@ export type PluginOptions = {
   warnUnmapped?: boolean;
 
   /**
+   * Override how translatability warnings (auto-promoted containers,
+   * unmapped components) are surfaced. Defaults to `console.warn`.
+   * Useful for tests or to integrate with a project's logger.
+   */
+  onWarning?: (message: string) => void;
+
+  /**
    * How to handle missing translations during inline builds.
    *   'warn'  — log a warning and fall back to source text (default)
    *   'error' — throw a build error

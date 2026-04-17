@@ -1,8 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import { transform } from '../src/plugin/transform.ts';
+import type { PluginOptions } from '../src/types.ts';
 
-function t(code: string, options = {}): string | null {
-  return transform(code, 'Test.tsx', { mode: 'runtime' as const, ...options })?.code ?? null;
+function t(code: string, options: Partial<PluginOptions> = {}): string | null {
+  return transform(code, 'Test.tsx', { mode: 'runtime', ...options })?.code ?? null;
 }
 
 describe('neokapi-react SWC transform', () => {
@@ -37,9 +38,13 @@ describe('neokapi-react SWC transform', () => {
       expect(result).toBeNull();
     });
 
-    it('does NOT transform <div> (container)', () => {
+    it('promotes <div> with direct text', () => {
       const result = t('<div>Just a div</div>');
-      expect(result).toBeNull();
+      expect(result).toContain('__t(');
+    });
+
+    it('still skips <div> marked translate="no"', () => {
+      expect(t('<div translate="no">skip</div>')).toBeNull();
     });
 
     it('respects translate="no"', () => {
@@ -219,9 +224,13 @@ describe('neokapi-react SWC transform', () => {
     });
 
     it('does NOT transform className', () => {
+      // className isn't in translatableAttributes; the div's "text"
+      // content IS picked up by the auto-promotion rule, but the
+      // className literal must stay verbatim.
       const result = t('<div className="foo">text</div>');
-      // div is container, no transform
-      expect(result).toBeNull();
+      expect(result).toContain('__t(');
+      expect(result).toContain('className="foo"');
+      expect(result).not.toContain('__t("foo"');
     });
   });
 
@@ -381,9 +390,28 @@ describe('neokapi-react SWC transform', () => {
       expect(result).toContain('__t(');
     });
 
-    it('ignores unmapped components', () => {
-      const result = t('<MyWidget>text</MyWidget>');
-      expect(result).toBeNull();
+    it('extracts text from unmapped components (auto-promoted)', () => {
+      // Unmapped PascalCase components fall through to container
+      // semantics so their direct text still becomes translatable.
+      // A warning is surfaced so the dev can stabilise hashes by
+      // adding the component to componentMap.
+      const warnings: string[] = [];
+      const result = t('<MyWidget>text</MyWidget>', {
+        onWarning: (msg) => warnings.push(msg),
+      });
+      expect(result).toContain('__t(');
+      expect(warnings.join('\n')).toContain('<MyWidget>');
+      expect(warnings.join('\n')).toContain('unmapped component');
+    });
+
+    it('emits a warning when auto-promoting a container element', () => {
+      const warnings: string[] = [];
+      const result = t('<div>Label</div>', {
+        onWarning: (msg) => warnings.push(msg),
+      });
+      expect(result).toContain('__t(');
+      expect(warnings.join('\n')).toContain('<div>');
+      expect(warnings.join('\n')).toContain('translatable text');
     });
   });
 

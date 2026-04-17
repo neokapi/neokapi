@@ -76,10 +76,25 @@ const FIXTURES: ReadonlyArray<{ name: string; code: string }> = [
       <Other>User</Other>
     </Select></p>`,
   },
+  {
+    name: 'container auto-promoted (div with direct text)',
+    code: '<div className="mb-3 text-sm font-medium">Appearance</div>',
+  },
+  {
+    name: 'container with inline child auto-promoted',
+    code: '<div>Click <strong>here</strong> to continue</div>',
+  },
+  {
+    name: 'unmapped PascalCase component with direct text',
+    code: '<TabsTrigger value="general">General</TabsTrigger>',
+  },
 ];
 
 function hashesFromTransform(code: string): Set<string> {
-  const out = transform(code, 'Test.tsx', { mode: 'runtime' });
+  const out = transform(code, 'Test.tsx', {
+    mode: 'runtime',
+    onWarning: () => {},
+  });
   if (!out?.code) return new Set();
   // __t("hash", …)  and  __tx("hash", …)
   const hashes = new Set<string>();
