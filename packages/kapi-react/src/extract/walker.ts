@@ -21,9 +21,13 @@ import type { Warning, WarningCollector } from './warnings.ts';
 
 import { translatableAttributes } from '../plugin/defaults.ts';
 import { hashKey } from '../plugin/hash.ts';
+import { resolveLibraryComponentMap } from '../plugin/manifests.ts';
 import { CONTEXT_SEPARATOR, type PluginOptions } from '../types.ts';
 
-export type ExtractOptions = Pick<PluginOptions, 'componentMap' | 'rules'>;
+export type ExtractOptions = Pick<
+  PluginOptions,
+  'componentMap' | 'rules' | 'communityManifestDir'
+>;
 
 export interface WalkerOptions extends ExtractOptions {
   /**
@@ -31,6 +35,12 @@ export interface WalkerOptions extends ExtractOptions {
    * prefix of every block id. Use a forward-slash path.
    */
   filename: string;
+  /**
+   * Project root directory for resolving library i18n manifests +
+   * falling back to `.d.ts` parsing for component → HTML element
+   * detection. Defaults to `process.cwd()` when omitted.
+   */
+  projectRoot?: string;
   /**
    * Optional collector the walker pushes warnings into when it
    * auto-promotes a container or extracts from an unmapped
@@ -48,8 +58,21 @@ export function extractDocument(code: string, opts: WalkerOptions): Document | n
   const ast = tryParse(code, opts.filename);
   if (!ast) return null;
 
+  // Auto-resolve library manifests (+ .d.ts fallback) for every
+  // non-relative import. User-supplied componentMap wins on key
+  // collisions so explicit overrides still take precedence.
+  const libraryMap = resolveLibraryComponentMap(
+    ast,
+    opts.projectRoot ?? process.cwd(),
+    opts.communityManifestDir,
+  );
+  const effectiveMap: Record<string, string> = {
+    ...libraryMap,
+    ...(opts.componentMap ?? {}),
+  };
+
   const fallbackComponent = basename(opts.filename);
-  const collector = new BlockCollector(code, opts);
+  const collector = new BlockCollector(code, { ...opts, componentMap: effectiveMap });
   collector.setSpanBase(findBaseOffset(ast));
   walkJsx(ast, (el, ancestors, component) =>
     collector.visit(el, ancestors, component || fallbackComponent),

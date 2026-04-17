@@ -31,6 +31,14 @@ export type PluginOptions = {
   /** Path to community-maintained i18n manifests for third-party libraries. */
   communityManifestDir?: string;
 
+  /**
+   * Project root for resolving library i18n manifests. Used by the
+   * auto-detection pipeline when falling back to parsing `.d.ts`
+   * files for `RefAttributes<HTMLXxxElement>` hints. Defaults to
+   * `process.cwd()`.
+   */
+  projectRoot?: string;
+
   /** Warn about unmapped components with translatable text. Default: true in dev. */
   warnUnmapped?: boolean;
 
