@@ -24,6 +24,13 @@ import {
 } from '../extract/ast.ts';
 import { buildJSXPath } from '../extract/jsx-path.ts';
 import {
+  isPluralTag,
+  isSelectTag,
+  parsePlural,
+  parseSelect,
+  type PluralFormKey,
+} from '../extract/plural.ts';
+import {
   hasTranslatableText,
   isAllInlineContent,
   resolvePolicy,
@@ -396,32 +403,57 @@ type ParamInfo = {
  * its subtree. Used to detect expression containers whose runtime value
  * is a ReactNode rather than a string (see #5).
  */
+interface TemplateState {
+  paramList: ParamInfo[];
+  paramNames: Set<string>;
+  /**
+   * Running counter for positional `{=mN}` tokens. Bumps once per
+   * expression-container or JSXElement child — regardless of
+   * whether the child ends up with an `=m` name or a named param —
+   * so extract and transform agree on the N values for the same
+   * inline JSX placement. Pivot props of `<Plural>` / `<Select>` do
+   * NOT bump this counter; they're registered separately by
+   * `registerPivot` and kept out of the element-numbering stream.
+   */
+  elementIndex: number;
+}
+
 function extractTextTemplate(
   el: JSXElement,
   s: (offset: number) => number,
 ): { text: string; paramList: ParamInfo[] } {
-  let text = '';
-  const paramList: ParamInfo[] = [];
-  const paramNames = new Set<string>();
+  const state: TemplateState = {
+    paramList: [],
+    paramNames: new Set(),
+    elementIndex: 0,
+  };
+  const text = walkChildrenForTemplate(el.children ?? [], state, s);
+  return { text: text.trim(), paramList: state.paramList };
+}
 
-  for (const child of el.children || []) {
+function walkChildrenForTemplate(
+  children: readonly import('@swc/core').JSXElementChild[],
+  state: TemplateState,
+  s: (offset: number) => number,
+): string {
+  let text = '';
+  for (const child of children) {
     if (child.type === 'JSXText') {
       text += child.value.replace(/\s+/g, ' ');
-    } else if (child.type === 'JSXExpressionContainer') {
+      continue;
+    }
+    if (child.type === 'JSXExpressionContainer') {
       if (child.expression.type === 'JSXEmptyExpression') continue;
+      const expr = child.expression as { span: { start: number; end: number } };
+      const myIndex = state.elementIndex++;
 
       // If the expression contains JSX anywhere (e.g. `cond && <X/>`,
-      // `a ? <X/> : <Y/>`, `fn(<X/>)`), its runtime value is a ReactNode
-      // and must be captured as an element token — otherwise t() would
-      // stringify it to "[object Object]" via template literal
-      // interpolation. See #5. We slice the inner expression (not the
-      // surrounding `{...}`) so the emitted elements map is a valid
-      // object literal value.
+      // `a ? <X/> : <Y/>`, `fn(<X/>)`), its runtime value is a
+      // ReactNode and must be captured as an element token. See #5.
       if (containsJSX(child.expression)) {
-        const implicitName = `=m${paramList.length}`;
+        const implicitName = `=m${myIndex}`;
         text += `{${implicitName}}`;
-        const expr = child.expression as { span: { start: number; end: number } };
-        paramList.push({
+        state.paramList.push({
           name: implicitName,
           exprStart: s(expr.span.start),
           exprEnd: s(expr.span.end),
@@ -432,33 +464,155 @@ function extractTextTemplate(
       }
 
       const rawName = exprToName(child.expression);
-      const name = dedupName(rawName, paramNames);
+      const name = dedupName(rawName, state.paramNames);
       text += `{${name}}`;
-      const expr = child.expression as { span: { start: number; end: number } };
-      paramList.push({
+      state.paramList.push({
         name,
         exprStart: s(expr.span.start),
         exprEnd: s(expr.span.end),
         fullStart: s(child.span.start),
         fullEnd: s(child.span.end),
       });
-    } else if (child.type === 'JSXElement') {
-      const childStart = s(child.span.start);
-      const childEnd = s(child.span.end);
-      const implicitName = `=m${paramList.length}`;
-      text += `{${implicitName}}`;
+      continue;
+    }
+    if (child.type !== 'JSXElement') continue;
+
+    const tag = getTagName(child);
+    // Plural/Select don't consume an `=mN` slot — they produce the
+    // ICU sub-template inline. Their pivot is registered separately.
+    if (tag && isPluralTag(tag)) {
+      const icu = buildPluralTemplate(child, state, s);
+      if (icu) {
+        text += icu;
+        continue;
+      }
+    }
+    if (tag && isSelectTag(tag)) {
+      const icu = buildSelectTemplate(child, state, s);
+      if (icu) {
+        text += icu;
+        continue;
+      }
+    }
+
+    const childStart = s(child.span.start);
+    const childEnd = s(child.span.end);
+    const implicitName = `=m${state.elementIndex++}`;
+    text += `{${implicitName}}`;
+    state.paramList.push({
+      name: implicitName,
+      exprStart: childStart,
+      exprEnd: childEnd,
+      fullStart: childStart,
+      fullEnd: childEnd,
+    });
+  }
+  return text;
+}
+
+/**
+ * Build the ICU `{pivot, plural, ...}` template for a `<Plural>`
+ * element, inlining each form's content through the same walker so
+ * inline elements (`<strong>`) inside a form become `{=mN}` tokens
+ * in the paramList. The pivot variable is registered as a named
+ * param so the runtime can pass it at call time.
+ */
+function buildPluralTemplate(
+  el: JSXElement,
+  state: TemplateState,
+  s: (offset: number) => number,
+): string | null {
+  const info = parsePlural(el);
+  if (!info) return null;
+  const pivotName = registerPivot(el, 'count', info.pivotName, state.paramList, state.paramNames, s);
+  if (!pivotName) return null;
+  const parts: string[] = [];
+  for (const form of info.forms) {
+    const formText = walkChildrenForTemplate(form.el.children ?? [], state, s);
+    parts.push(`${form.key} {${formText.trim()}}`);
+  }
+  return `{${pivotName}, plural, ${parts.join(' ')}}`;
+}
+
+function buildSelectTemplate(
+  el: JSXElement,
+  state: TemplateState,
+  s: (offset: number) => number,
+): string | null {
+  const info = parseSelect(el);
+  if (!info) return null;
+  const pivotName = registerPivot(el, 'value', info.pivotName, state.paramList, state.paramNames, s);
+  if (!pivotName) return null;
+  const parts: string[] = [];
+  for (const c of info.cases) {
+    const formText = walkChildrenForTemplate(c.el.children ?? [], state, s);
+    parts.push(`${c.key} {${formText.trim()}}`);
+  }
+  if (info.otherEl) {
+    const formText = walkChildrenForTemplate(info.otherEl.children ?? [], state, s);
+    parts.push(`other {${formText.trim()}}`);
+  }
+  return `{${pivotName}, select, ${parts.join(' ')}}`;
+}
+
+/**
+ * Registers the pivot prop of a `<Plural>` / `<Select>` as a named
+ * param so the plugin emits `{ count: items.length }` in the runtime
+ * call and the runtime's `resolveICU` can evaluate the rule.
+ */
+/**
+ * Pivot is NOT added to `paramNames`. Form bodies commonly reference
+ * the pivot variable (`<Other>{count} items</Other>`); we want that
+ * `{count}` to resolve to the pivot's value, not a deduped
+ * `count_2`. The pivot param entry is emitted once here — if form
+ * bodies reference the same name, they'll push a duplicate
+ * ParamInfo that happens to share the name. That's fine: the
+ * emitted params object ends up with `{ count: count }` the first
+ * time and benign repeats after. Runtime substitution walks the
+ * template tokens, not the paramList.
+ */
+function registerPivot(
+  el: JSXElement,
+  propName: 'count' | 'value',
+  pivotName: string,
+  paramList: ParamInfo[],
+  _paramNames: Set<string>,
+  s: (offset: number) => number,
+): string | null {
+  for (const attr of el.opening.attributes ?? []) {
+    if (attr.type !== 'JSXAttribute' || attr.name.type !== 'Identifier') continue;
+    if (attr.name.value !== propName) continue;
+    const value = attr.value;
+    if (!value) return null;
+    if (value.type === 'JSXExpressionContainer') {
+      const expr = value.expression as { span: { start: number; end: number } };
       paramList.push({
-        name: implicitName,
-        exprStart: childStart,
-        exprEnd: childEnd,
-        fullStart: childStart,
-        fullEnd: childEnd,
+        name: pivotName,
+        exprStart: s(expr.span.start),
+        exprEnd: s(expr.span.end),
+        fullStart: s(expr.span.start),
+        fullEnd: s(expr.span.end),
       });
+      return pivotName;
+    }
+    if (value.type === 'StringLiteral') {
+      paramList.push({
+        name: pivotName,
+        exprStart: s(value.span.start),
+        exprEnd: s(value.span.end),
+        fullStart: s(value.span.start),
+        fullEnd: s(value.span.end),
+      });
+      return pivotName;
     }
   }
-
-  return { text: text.trim(), paramList };
+  return null;
 }
+
+// Silence unused-import warnings when only a subset of plural helpers
+// is referenced in a tsc context — keeps the lint narrow to real usage.
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+type _PluralFormKeyUsed = PluralFormKey;
 
 // ─── Inline Translation ──────────────────────────────────────
 

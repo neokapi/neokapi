@@ -30,7 +30,25 @@ translatable components live in `src/`:
 
 - `src/FilesHeading.tsx` — a section heading with an inline `<span>` and a variable
 - `src/TagChip.tsx` — a chip with conditional icons (optional `badge` + `required` marker)
-- `src/ShoppingCart.tsx` — a line that says "0 / 1 / N items in your cart"
+- `src/ShoppingCart.tsx` — a line that says "0 / 1 / N items in your cart" using `<Plural>`:
+
+  ```tsx
+  import { Plural, Zero, One, Other } from '@neokapi/kapi-react/runtime';
+
+  <p>
+    <Plural count={items.length}>
+      <Zero>Your cart is empty</Zero>
+      <One>1 item in your cart</One>
+      <Other><strong>{items.length}</strong> items in your cart</Other>
+    </Plural>
+  </p>
+  ```
+
+  Extract turns this into a single Block whose `source` is a
+  `PluralRun` with three typed forms — inline `<strong>` inside
+  `<Other>` stays a `jsx:element` placeholder so CAT tools see the
+  structure, and the pivot (`items.length`) is marked
+  `kind: 'icu-pivot'` so validators know targets must keep it.
 
 The team translates to German (`de`) and pseudo-English (`qps`)
 using `@neokapi/kapi-react` as the extractor + compiler, the

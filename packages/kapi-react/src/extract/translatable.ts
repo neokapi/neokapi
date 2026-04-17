@@ -12,6 +12,7 @@ import type { JSXElement } from '@swc/core';
 import { getTranslatability, inlineElements } from '../plugin/defaults.ts';
 import type { PluginOptions } from '../types.ts';
 import { getStringAttr, getTagName, hasAttr, resolveHTMLElement } from './ast.ts';
+import { isPluralTag, isSelectTag } from './plural.ts';
 
 export type Rule = NonNullable<PluginOptions['rules']>[number];
 
@@ -72,10 +73,11 @@ function matchesRule(rule: Rule, htmlElement: string, el: JSXElement): boolean {
 
 /**
  * A JSX element produces a Block only when its children are all
- * inline — text, expression containers, or elements that belong to
- * the shared `inlineElements` table. Any block-level child (another
- * paragraph, a list, a fragment) disqualifies it so the nested block
- * gets its own walk instead.
+ * inline — text, expression containers, elements from the shared
+ * `inlineElements` table, or a `<Plural>` / `<Select>` authoring
+ * component (whose forms produce typed runs inline). Any block-level
+ * child (another paragraph, a list, a fragment) disqualifies it so
+ * the nested block gets its own walk instead.
  */
 export function isAllInlineContent(
   el: JSXElement,
@@ -86,6 +88,7 @@ export function isAllInlineContent(
     if (child.type === 'JSXElement') {
       const tag = getTagName(child);
       if (!tag) return false;
+      if (isPluralTag(tag) || isSelectTag(tag)) continue;
       const html = resolveHTMLElement(tag, componentMap);
       if (html && inlineElements.has(html)) continue;
       return false;
@@ -98,11 +101,12 @@ export function isAllInlineContent(
 
 /**
  * True when the element carries at least one translatable child:
- * non-whitespace JSX text, or an inline JSX element that itself
- * holds translatable content. Expression containers alone don't
- * count — a lone `{variable}` or `{icon}` isn't something a
- * translator can edit, and at runtime `t()` would stringify
- * a React-element value to "[object Object]". Plugin-side
+ * non-whitespace JSX text, an inline JSX element that itself holds
+ * text, or a `<Plural>` / `<Select>` authoring component (whose
+ * forms are always translatable by construction). Lone expression
+ * containers don't count — `{variable}` isn't something a
+ * translator can edit, and at runtime `t()` would stringify a
+ * React-element value to "[object Object]". Plugin-side
  * `hasTranslatableText` applies the same rule so extract and
  * transform stay aligned.
  */
@@ -111,7 +115,9 @@ export function hasTranslatableText(el: JSXElement): boolean {
     if (child.type === 'JSXText' && child.value.trim().length > 0) return true;
     if (child.type === 'JSXElement') {
       const tag = getTagName(child);
-      if (tag && inlineElements.has(tag) && hasTranslatableText(child)) return true;
+      if (!tag) continue;
+      if (isPluralTag(tag) || isSelectTag(tag)) return true;
+      if (inlineElements.has(tag) && hasTranslatableText(child)) return true;
     }
   }
   return false;

@@ -33,7 +33,14 @@ import type {
   JSXExpressionContainer,
 } from '@swc/core';
 
-import type { Placeholder, PlaceholderRun, Run, TextRun } from '@neokapi/kapi-format';
+import type {
+  Placeholder,
+  PlaceholderRun,
+  PluralRunWrapper,
+  Run,
+  SelectRunWrapper,
+  TextRun,
+} from '@neokapi/kapi-format';
 
 import {
   containsJSX,
@@ -42,6 +49,15 @@ import {
   getTagName,
   resolveHTMLElement,
 } from './ast.ts';
+import {
+  isPluralTag,
+  isSelectTag,
+  parsePlural,
+  parseSelect,
+  type PluralFormKey,
+  type PluralInfo,
+  type SelectInfo,
+} from './plural.ts';
 
 export interface BuildRunsOptions {
   componentMap: Record<string, string>;
@@ -182,6 +198,25 @@ function appendExpression(state: BuilderState, node: JSXExpressionContainer): vo
 function appendJsxElement(state: BuilderState, el: JSXElement): void {
   const tag = getTagName(el);
   if (!tag) return;
+
+  // Structured plural / select components get special handling —
+  // the children carry form contents that must become typed Run[]
+  // inside a PluralRun / SelectRun. Everything else falls through
+  // to the default `jsx:element` placeholder.
+  if (isPluralTag(tag)) {
+    const info = parsePlural(el);
+    if (info) {
+      appendPluralRun(state, el, info);
+      return;
+    }
+  } else if (isSelectTag(tag)) {
+    const info = parseSelect(el);
+    if (info) {
+      appendSelectRun(state, el, info);
+      return;
+    }
+  }
+
   const resolved = resolveHTMLElement(tag, state.componentMap);
   const subType = resolved ?? tag;
 
@@ -204,6 +239,125 @@ function appendJsxElement(state: BuilderState, el: JSXElement): void {
     jsType: 'ReactNode',
     sourceExpr: src,
   });
+}
+
+// ─── Plural / Select ─────────────────────────────────────────────
+
+function appendPluralRun(state: BuilderState, el: JSXElement, info: PluralInfo): void {
+  // Pivot is NOT added to usedNames: form bodies often reference the
+  // pivot variable (`<Other>{count} items</Other>`), and we want that
+  // `{count}` token to resolve to the pivot, not a deduped `count_2`.
+  const pivotEquiv = info.pivotName;
+  recordPlaceholder(state, {
+    name: pivotEquiv,
+    kind: 'icu-pivot',
+    jsType: 'number',
+    sourceExpr: pivotSourceFromEl(state, el, info.pivotSource),
+  });
+
+  const forms: Partial<Record<PluralFormKey, Run[]>> = {};
+  const formFlat = new Map<PluralFormKey, string>();
+  for (const { key, el: formEl } of info.forms) {
+    const { runs: formRuns, flatText } = buildNestedFormRuns(state, formEl.children ?? []);
+    forms[key] = formRuns;
+    formFlat.set(key, flatText);
+  }
+
+  state.runs.push({
+    plural: { pivot: pivotEquiv, forms },
+  } satisfies PluralRunWrapper);
+  state.flatText += icuPluralTemplate(pivotEquiv, info.forms.map((f) => f.key), formFlat);
+}
+
+function appendSelectRun(state: BuilderState, el: JSXElement, info: SelectInfo): void {
+  const pivotEquiv = info.pivotName;
+  recordPlaceholder(state, {
+    name: pivotEquiv,
+    kind: 'icu-pivot',
+    jsType: 'string',
+    sourceExpr: pivotSourceFromEl(state, el, info.pivotSource),
+  });
+
+  const cases: Record<string, Run[]> = {};
+  const caseFlat = new Map<string, string>();
+  for (const { key, el: caseEl } of info.cases) {
+    const { runs, flatText } = buildNestedFormRuns(state, caseEl.children ?? []);
+    cases[key] = runs;
+    caseFlat.set(key, flatText);
+  }
+  if (info.otherEl) {
+    const { runs, flatText } = buildNestedFormRuns(state, info.otherEl.children ?? []);
+    cases.other = runs;
+    caseFlat.set('other', flatText);
+  }
+
+  state.runs.push({
+    select: { pivot: pivotEquiv, cases },
+  } satisfies SelectRunWrapper);
+  state.flatText += icuSelectTemplate(pivotEquiv, Array.from(caseFlat.keys()), caseFlat);
+}
+
+/**
+ * Runs the form's children through the same builder so inline
+ * elements, expression containers, and text inside a form are
+ * typed runs — `<strong>3</strong>` inside `<Other>` becomes a
+ * `jsx:element` ph, not a literal string. The `idSeq` and
+ * `usedNames` caches carry across forms so `=mN` tokens stay
+ * globally unique within the block (hash input invariant).
+ */
+function buildNestedFormRuns(
+  state: BuilderState,
+  children: readonly import('@swc/core').JSXElementChild[],
+): { runs: Run[]; flatText: string } {
+  const savedRuns = state.runs;
+  const savedFlat = state.flatText;
+  state.runs = [];
+  state.flatText = '';
+  walkChildren(children, state);
+  const runs = trimEdgeWhitespace(state.runs);
+  const flatText = state.flatText.trim();
+  state.runs = savedRuns;
+  state.flatText = savedFlat;
+  return { runs, flatText };
+}
+
+function pivotSourceFromEl(state: BuilderState, el: JSXElement, fallback: string): string {
+  // Walk opening attributes to find the pivot attr's expression span.
+  // Falls back to the fallback source if the attribute layout is unusual.
+  for (const attr of el.opening.attributes ?? []) {
+    if (attr.type !== 'JSXAttribute' || attr.name.type !== 'Identifier') continue;
+    const name = attr.name.value;
+    if (name !== 'count' && name !== 'value') continue;
+    const value = attr.value;
+    if (!value) continue;
+    if (value.type === 'JSXExpressionContainer') {
+      return spanSlice(value.expression, state);
+    }
+    if (value.type === 'StringLiteral') {
+      return state.sourceSlice(value.span.start, value.span.end);
+    }
+  }
+  return fallback;
+}
+
+function icuPluralTemplate(
+  pivot: string,
+  order: readonly PluralFormKey[],
+  flat: Map<PluralFormKey, string>,
+): string {
+  const parts: string[] = [];
+  for (const key of order) parts.push(`${key} {${flat.get(key) ?? ''}}`);
+  return `{${pivot}, plural, ${parts.join(' ')}}`;
+}
+
+function icuSelectTemplate(
+  pivot: string,
+  order: readonly string[],
+  flat: Map<string, string>,
+): string {
+  const parts: string[] = [];
+  for (const key of order) parts.push(`${key} {${flat.get(key) ?? ''}}`);
+  return `{${pivot}, select, ${parts.join(' ')}}`;
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────

@@ -53,6 +53,29 @@ const FIXTURES: ReadonlyArray<{ name: string; code: string }> = [
     name: 'nested blocks',
     code: '<section><h2>Title</h2><p>Body</p></section>',
   },
+  {
+    name: 'Plural with flat text forms',
+    code: `<p><Plural count={n}>
+      <One>1 item</One>
+      <Other>{n} items</Other>
+    </Plural></p>`,
+  },
+  {
+    name: 'Plural with inline JSX inside a form',
+    code: `<p><Plural count={items.length}>
+      <Zero>Your cart is empty</Zero>
+      <One>1 item</One>
+      <Other><strong>{items.length}</strong> items in your cart</Other>
+    </Plural></p>`,
+  },
+  {
+    name: 'Select with literal cases',
+    code: `<p><Select value={role}>
+      <Case when="admin">Admin</Case>
+      <Case when="guest">Guest</Case>
+      <Other>User</Other>
+    </Select></p>`,
+  },
 ];
 
 function hashesFromTransform(code: string): Set<string> {

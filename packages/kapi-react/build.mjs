@@ -28,6 +28,7 @@ const entryPoints = [
   'src/plugin/manifests.ts',
   'src/runtime/index.ts',
   'src/runtime/icu.ts',
+  'src/runtime/plural.tsx',
   'src/storybook/index.ts',
 ];
 

@@ -345,13 +345,15 @@ function pascal(name: string | undefined): string | null {
 }
 
 /**
- * SWC offsets are global across parses; the first span of the module
- * gives us the base to subtract.
+ * SWC reports `BytePos` offsets on the 1-based scheme Rust's source-map
+ * crate uses. Position `1` corresponds to byte 0 of the input, so a
+ * slice of the JS input requires subtracting 1 from every span
+ * bound. The value is a constant regardless of leading whitespace
+ * in the module — `module.span.start` is NOT the right base because
+ * it skips any leading whitespace.
  */
-function findBaseOffset(module: Module): number {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const span = (module as any).span as { start?: number } | undefined;
-  return span?.start ?? 0;
+function findBaseOffset(_module: Module): number {
+  return 1;
 }
 
 function tryParse(code: string, filename: string): Module | null {

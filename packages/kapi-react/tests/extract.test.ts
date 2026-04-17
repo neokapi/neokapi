@@ -8,7 +8,14 @@
 
 import { describe, expect, it } from 'vitest';
 
-import type { Block, Document, PlaceholderRun, TextRun } from '@neokapi/kapi-format';
+import type {
+  Block,
+  Document,
+  PlaceholderRun,
+  PluralRunWrapper,
+  SelectRunWrapper,
+  TextRun,
+} from '@neokapi/kapi-format';
 
 import { extractDocument } from '../src/extract/index.ts';
 import { hashKey } from '../src/plugin/hash.ts';
@@ -206,5 +213,107 @@ describe('extractDocument — multiple blocks', () => {
     // Two identical h1s at the same jsxPath yield one block.
     const doc = extract('<div><h1>Hello</h1><h1>Hello</h1></div>');
     expect(doc.blocks).toHaveLength(1);
+  });
+});
+
+describe('extractDocument — <Plural>', () => {
+  function extractPlural(code: string) {
+    const block = onlyBlock(extract(code));
+    const run = block.source[0];
+    if (!run || !('plural' in run)) {
+      throw new Error(`expected PluralRun, got ${JSON.stringify(run)}`);
+    }
+    return { block, plural: (run as PluralRunWrapper).plural };
+  }
+
+  it('emits a PluralRun with typed forms for each child', () => {
+    const { plural } = extractPlural(
+      `<p><Plural count={count}>
+        <One>1 item</One>
+        <Other>{count} items</Other>
+      </Plural></p>`,
+    );
+    expect(plural.pivot).toBe('count');
+    expect(plural.forms.one).toBeTruthy();
+    expect(plural.forms.other).toBeTruthy();
+    expect(textRun(plural.forms.one?.[0]).text).toBe('1 item');
+    const otherFirst = plural.forms.other?.[0];
+    expect(otherFirst).toBeTruthy();
+    expect('ph' in (otherFirst as object)).toBe(true);
+  });
+
+  it('preserves inline JSX inside a form as a typed placeholder', () => {
+    const { plural } = extractPlural(
+      `<p><Plural count={n}>
+        <One>1 item</One>
+        <Other><strong>{n}</strong> items</Other>
+      </Plural></p>`,
+    );
+    const otherRuns = plural.forms.other ?? [];
+    expect(otherRuns).toHaveLength(2);
+    const ph = phRun(otherRuns[0]).ph;
+    expect(ph.type).toBe('jsx:element');
+    expect(ph.subType).toBe('strong');
+    expect(textRun(otherRuns[1]).text).toBe(' items');
+  });
+
+  it('marks the pivot placeholder with kind `icu-pivot`', () => {
+    const { block } = extractPlural(
+      `<p><Plural count={items.length}>
+        <One>1 item</One>
+        <Other>{items.length} items</Other>
+      </Plural></p>`,
+    );
+    const pivot = block.placeholders.find((p) => p.name === 'items.length');
+    expect(pivot?.kind).toBe('icu-pivot');
+    expect(pivot?.jsType).toBe('number');
+  });
+
+  it('hashes against the equivalent ICU template', () => {
+    const { block } = extractPlural(
+      `<p><Plural count={n}>
+        <One>1 item</One>
+        <Other>{n} items</Other>
+      </Plural></p>`,
+    );
+    const icuTemplate = '{n, plural, one {1 item} other {{n} items}}';
+    expect(block.hash).toBe(hashKey(icuTemplate, 'p'));
+  });
+});
+
+describe('extractDocument — <Select>', () => {
+  function extractSelect(code: string) {
+    const block = onlyBlock(extract(code));
+    const run = block.source[0];
+    if (!run || !('select' in run)) {
+      throw new Error(`expected SelectRun, got ${JSON.stringify(run)}`);
+    }
+    return { block, select: (run as SelectRunWrapper).select };
+  }
+
+  it('emits a SelectRun with cases keyed by `when`', () => {
+    const { select } = extractSelect(
+      `<p><Select value={role}>
+        <Case when="admin">Admin</Case>
+        <Case when="guest">Guest</Case>
+        <Other>User</Other>
+      </Select></p>`,
+    );
+    expect(select.pivot).toBe('role');
+    expect(Object.keys(select.cases).sort()).toEqual(['admin', 'guest', 'other']);
+    expect(textRun(select.cases.admin?.[0]).text).toBe('Admin');
+    expect(textRun(select.cases.other?.[0]).text).toBe('User');
+  });
+
+  it('marks the pivot placeholder with kind `icu-pivot`', () => {
+    const { block } = extractSelect(
+      `<p><Select value={user.role}>
+        <Case when="admin">Admin</Case>
+        <Other>User</Other>
+      </Select></p>`,
+    );
+    const pivot = block.placeholders.find((p) => p.name === 'user.role');
+    expect(pivot?.kind).toBe('icu-pivot');
+    expect(pivot?.jsType).toBe('string');
   });
 });
