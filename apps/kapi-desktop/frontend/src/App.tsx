@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { useNeokapi } from "@neokapi/kapi-react/runtime";
 import type { KapiProject } from "./types/api";
 import { api } from "./hooks/useApi";
 import { useProjectHistory } from "./hooks/useProjectHistory";
@@ -31,6 +32,13 @@ export default function App() {
 }
 
 function AppInner() {
+  // Subscribe the root to kapi-react's translation store so the tree
+  // re-renders when the user toggles UI language from Settings —
+  // plugin-injected __t/__tx calls read the module-level dict, so a
+  // root re-render is enough to roll out the new language without
+  // waiting for navigation.
+  useNeokapi();
+
   const shortenHome = useShortenHome();
   const { recentFiles, samplesDismissed, refreshRecent, dismissSamples } = useAppInit();
   const tm = useTabManager();
