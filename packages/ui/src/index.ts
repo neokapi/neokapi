@@ -274,6 +274,11 @@ export { TagValidationBar } from "./components/editor/TagValidationBar";
 export { InlineCodeLegend } from "./components/editor/InlineCodeLegend";
 export { InlinePreview } from "./components/editor/InlinePreview";
 
+// Plural / Select target editor — flat ↔ per-form upgrade affordance
+export { PluralTargetEditor } from "./components/plural/PluralTargetEditor";
+export type { PluralTargetEditorProps } from "./components/plural/PluralTargetEditor";
+export { runsToText, textToRuns } from "./components/plural/runs-text";
+
 // Resource browser — TM and Termbase management
 export {
   TMBrowser,

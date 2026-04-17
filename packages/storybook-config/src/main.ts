@@ -17,7 +17,7 @@ export interface CreateMainConfigOptions {
   /** Optional base path for GitHub Pages deployment (e.g. "/storybook/"). */
   basePath?: string;
   /**
-   * Enable @neokapi/react runtime-mode transform so stories pick up
+   * Enable @neokapi/kapi-react runtime-mode transform so stories pick up
    * the locale toolbar. Pair with `i18n` in createPreview().
    *
    * Pass `true` to transform every .tsx in the build graph, or pass an
@@ -52,7 +52,7 @@ export function createMainConfig(
       config.plugins.push(tailwindcss());
 
       if (options.i18n) {
-        const neokapi = (await import("@neokapi/react/vite")).default;
+        const neokapi = (await import("@neokapi/kapi-react/vite")).default;
         const raw = neokapi({ mode: "runtime" }) as {
           name: string;
           transform?: (this: unknown, code: string, id: string) => unknown;
