@@ -131,35 +131,49 @@ module.exports = {
 
 </details>
 
-### 2. Extract translatable strings
+### 2. Extract translatable content
 
 ```bash
-npx kapi-react extract
+vpx kapi-react extract --out i18n/extracted.klz
 ```
 
-This scans your `src/` directory and produces `i18n/strings.json`:
+This scans your `src/` directory and produces a `.klz` archive —
+the AD-045 exchange format. Each translatable JSX element becomes
+a `Block` with structured `Run[]` that preserves inline markup,
+variable tokens, and conditional placeholders:
 
-```json
-{
-  "sourceLocale": "en",
-  "strings": [
-    { "hash": "3kF", "text": "Welcome back, {user.name}!", "context": "h1", "src": "App.tsx:5" },
-    { "hash": "7xQ", "text": "Save changes", "context": "button", "src": "App.tsx:12" },
-    { "hash": "xY2", "text": "Search...", "context": "input[placeholder]", "src": "App.tsx:13" }
-  ]
-}
 ```
+documents/
+  src-App.tsx.klf         # one .klf per source file, Block[] with typed Runs
+  src-Sidebar.tsx.klf
+manifest.json             # SHA-256 + per-part metadata
+```
+
+`.klz` is a JSON-inside-ZIP archive — you can `unzip -p app.klz
+documents/src-App.tsx.klf | jq .` to inspect any block.
 
 ### 3. Translate (or pseudo-translate for testing)
 
 ```bash
 # Pseudo-translate for visual QA:
-kapi pseudo-translate -i i18n/strings.json --target-lang qps --expansion-percent 20
+kapi pseudo-translate i18n/extracted.klz --target-lang qps -o i18n/translated.klz
 
-# Or send to your TMS / translators → get back translations/{locale}.json
+# Or hand off to your TMS / translators → get back a translated .klz
 ```
 
-Translation files are simple `{hash: text}` JSON:
+The translated `.klz` has per-locale target runs populated on every
+`Block`; pseudo-translate leaves placeholders intact and only
+rewrites text runs. Inline codes stay protected.
+
+### 4. Compile to the runtime dictionary
+
+```bash
+vpx kapi-react compile i18n/translated.klz --out public/translations
+```
+
+Produces one `<locale>.json` file per target locale with the
+`{hash: flattened-text}` shape the runtime loader fetches via
+`loadTranslations()`:
 
 ```json
 // translations/de.json
@@ -561,31 +575,55 @@ pay nothing for the import.
 
 ## CLI
 
+Two subcommands, run via `vp run` or `vpx kapi-react`:
+
 ```bash
-npx kapi-react extract [options]
+vpx kapi-react extract [options]
 
 Options:
-  --src <glob>     Source files to scan (default: "src/**/*.{tsx,jsx}")
-  --out <path>     Output file (default: "i18n/strings.json")
-  --config <path>  Config file with componentMap, rules, etc.
+  --src <glob>            Source files to scan (default: "src/**/*.{tsx,jsx}")
+  --out <path>            Output archive (default: "i18n/extracted.klz")
+  --config <path>         Config file with componentMap, rules, …
+  --project <id>          Project id stamped into manifest.project
+  --source-locale <bcp>   Source locale (default: "en")
+  --target-locale <bcp>   Declared target locale (repeat for multiple)
+
+vpx kapi-react compile <input.klz> [options]
+
+Options:
+  --locale <bcp>          Compile only this locale (repeat for multiple).
+                          Defaults to every locale found on block.targets
+                          and in manifest.project.targetLocales.
+  --out <dir>             Output directory (default: "public/translations")
 ```
+
+The boundary is: `kapi-react` extracts to `.klz` and compiles translated
+`.klz` back to the runtime dictionary. Everything in between — pseudo-
+translate, AI translate, TM matching, QA, review — goes through the
+`kapi` CLI (AD-045).
 
 ## Pseudo-Translation Workflow
 
-Test your UI with pseudo-translated text to catch truncation, layout issues, and hardcoded strings:
+Test your UI with pseudo-translated text to catch truncation, layout
+issues, and hardcoded strings:
 
 ```bash
-# 1. Extract strings
-npx kapi-react extract
+# 1. Extract to a .klz archive
+vpx kapi-react extract --out i18n/extracted.klz --target-locale qps
 
 # 2. Pseudo-translate with kapi
-kapi pseudo-translate -i i18n/strings.json --target-lang qps --expansion-percent 20
+kapi pseudo-translate i18n/extracted.klz --target-lang qps -o i18n/translated.klz
 
-# 3. Build or dev with pseudo-locale
-LOCALE=qps npm run dev
+# 3. Compile the translated .klz to public/translations/qps.json
+vpx kapi-react compile i18n/translated.klz
+
+# 4. Build or dev with the pseudo-locale
+LOCALE=qps npm run dev   # (or set the locale via your UI language picker)
 ```
 
-All translatable text becomes `[àccéntéd ànd pàddéd]` — instantly visible in the UI.
+All translatable text becomes `[àccéntéd ànd pàddéd]` — instantly
+visible in the UI. Placeholders like `{user.name}` and inline elements
+like `<a>here</a>` are preserved through every step.
 
 ## How It Compares
 
