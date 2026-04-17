@@ -3,7 +3,9 @@ package cli
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"slices"
+	"strings"
 
 	"github.com/mattn/go-isatty"
 	"github.com/neokapi/neokapi/core/flow"
@@ -13,6 +15,22 @@ import (
 	aiprovider "github.com/neokapi/neokapi/providers/ai"
 	"github.com/spf13/cobra"
 )
+
+// allKLZ returns true when every positional input path carries the
+// `.klz` extension. Used to decide whether a tool run defaults to
+// in-place output (KLZ writers are locale-additive) or the sibling
+// `./out/...` template (every other format).
+func allKLZ(paths []string) bool {
+	if len(paths) == 0 {
+		return false
+	}
+	for _, p := range paths {
+		if !strings.EqualFold(filepath.Ext(p), ".klz") {
+			return false
+		}
+	}
+	return true
+}
 
 // CollectorFactories maps tool names to streaming collector factories.
 // Only tools that aggregate results across files need a collector.
@@ -109,10 +127,20 @@ func (a *App) NewToolCommands() []*cobra.Command {
 				}
 
 				var outputTmpl string
+				var inPlace bool
 				if info.WritesOutput {
 					outputTmpl, _ = cmd.Flags().GetString("output")
 					if outputTmpl == "" {
-						outputTmpl = "./out/{name}.{ext}"
+						// KLZ writers are locale-additive: reading and
+						// writing back to the same file accumulates
+						// translations. For that case the natural default
+						// is in-place. Other formats keep the sibling-dir
+						// template so input and output can't collide.
+						if allKLZ(args) {
+							inPlace = true
+						} else {
+							outputTmpl = "./out/{name}.{ext}"
+						}
 					}
 				}
 
@@ -150,6 +178,7 @@ func (a *App) NewToolCommands() []*cobra.Command {
 					NoWarn:         noWarn,
 					Progress:       progress,
 					OutputTemplate: outputTmpl,
+					InPlace:        inPlace,
 					TargetLang:     effectiveLang,
 					TracePath:      tracePath,
 					ParallelBlocks: parallelBlocks,
