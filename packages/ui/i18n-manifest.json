@@ -1,0 +1,94 @@
+{
+  "$schema": "https://neokapi.com/schemas/i18n-manifest.json",
+  "components": {
+    "Badge": "span",
+    "Button": "button",
+    "ConfirmDeleteButton": "button",
+
+    "Card": "div",
+    "CardHeader": "header",
+    "CardTitle": "h3",
+    "CardDescription": "p",
+    "CardContent": "div",
+    "CardFooter": "footer",
+    "CardAction": "div",
+
+    "Alert": "div",
+    "AlertTitle": "h3",
+    "AlertDescription": "p",
+    "AlertAction": "button",
+
+    "DialogTitle": "h2",
+    "DialogDescription": "p",
+
+    "SheetTitle": "h2",
+    "SheetDescription": "p",
+
+    "PopoverTitle": "h3",
+    "PopoverDescription": "p",
+    "PopoverHeader": "header",
+
+    "TooltipContent": "span",
+
+    "Label": "label",
+    "FormLabel": "label",
+    "FormDescription": "p",
+    "FormMessage": "p",
+    "FormHelpText": "p",
+
+    "Tabs": "div",
+    "TabsList": "div",
+    "TabsTrigger": "button",
+    "TabsContent": "div",
+
+    "Select": "select",
+    "SelectItem": "option",
+    "SelectLabel": "label",
+    "SelectGroup": "optgroup",
+
+    "DropdownMenuItem": "button",
+    "DropdownMenuLabel": "label",
+    "DropdownMenuCheckboxItem": "button",
+    "DropdownMenuRadioItem": "button",
+    "DropdownMenuSubTrigger": "button",
+    "DropdownMenuShortcut": "span",
+
+    "CommandItem": "button",
+    "CommandShortcut": "span",
+
+    "ComboboxItem": "option",
+    "ComboboxLabel": "label",
+
+    "SidebarMenuButton": "button",
+    "SidebarMenuSubButton": "button",
+    "SidebarMenuBadge": "span",
+    "SidebarGroupLabel": "label",
+
+    "BreadcrumbPage": "span",
+    "BreadcrumbLink": "a",
+
+    "TableCaption": "caption",
+    "TableHead": "th",
+    "TableCell": "td",
+
+    "PanelHeader": "header",
+    "PageHeader": "header",
+    "EmptyState": "div",
+    "LoadingSpinner": "span",
+
+    "Avatar": null,
+    "AvatarImage": null,
+    "AvatarFallback": "span",
+    "Skeleton": null,
+    "Progress": null,
+    "Separator": null,
+
+    "Input": null,
+    "Textarea": null,
+    "Checkbox": null,
+    "Switch": null,
+
+    "Toggle": "button",
+    "ToggleGroupItem": "button"
+  }
+}

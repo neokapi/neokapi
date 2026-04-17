@@ -25,7 +25,10 @@
 
 import type { Module } from '@swc/core';
 import { existsSync, readFileSync } from 'node:fs';
+import { createRequire } from 'node:module';
 import { dirname, join } from 'node:path';
+
+const requireFromCwd = createRequire(join(process.cwd(), '__placeholder__'));
 
 export type AutoManifest = {
   components: Record<string, string | null>;
@@ -147,9 +150,21 @@ function resolvePackageDir(
     return directPath;
   }
 
-  // Try require.resolve to handle pnpm, yarn PnP, etc.
+  // Walk up ancestor node_modules directories (npm/yarn workspaces
+  // often hoist deps to the repo root instead of the sub-package).
+  let dir = projectRoot;
+  while (true) {
+    const candidate = join(dir, 'node_modules', packageName, 'package.json');
+    if (existsSync(candidate)) return dirname(candidate);
+    const parent = dirname(dir);
+    if (parent === dir) break;
+    dir = parent;
+  }
+
+  // Try require.resolve as a last resort (handles pnpm hoist,
+  // yarn PnP, etc). ESM-safe via createRequire.
   try {
-    const entryPoint = require.resolve(`${packageName}/package.json`, {
+    const entryPoint = requireFromCwd.resolve(`${packageName}/package.json`, {
       paths: [projectRoot],
     });
     return dirname(entryPoint);
