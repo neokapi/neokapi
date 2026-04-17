@@ -487,7 +487,7 @@ func (w *Writer) materializeBlock(mb *model.Block) (klf.Block, string, string) {
 			// placeholders / paired codes survive tools that populate
 			// targets via SetTargetRuns (e.g. pseudo-translate).
 			if _, hasExisting := b.Targets[klf.LocaleID(w.locale)]; !hasExisting {
-				b.Targets[klf.LocaleID(w.locale)] = runsFromModel(mb.TargetRuns(model.LocaleID(w.locale)))
+				b.Targets[klf.LocaleID(w.locale)] = runsFromModel(mb.TargetRuns(w.locale))
 			}
 		}
 		return b, ann.DocumentID, ann.DocumentPath
@@ -503,7 +503,7 @@ func (w *Writer) materializeBlock(mb *model.Block) (klf.Block, string, string) {
 	}
 	if w.locale != "" && mb.HasTarget(w.locale) {
 		b.Targets = map[klf.LocaleID][]klf.Run{
-			klf.LocaleID(w.locale): runsFromModel(mb.TargetRuns(model.LocaleID(w.locale))),
+			klf.LocaleID(w.locale): runsFromModel(mb.TargetRuns(w.locale)),
 		}
 	}
 	return b, "synthesized", "synthesized"
