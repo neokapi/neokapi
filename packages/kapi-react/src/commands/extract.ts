@@ -12,7 +12,8 @@ import { dirname, relative } from 'node:path';
 import { glob } from 'node:fs/promises';
 
 import type { Document, File } from '@neokapi/kapi-format';
-import { KlzWriter, newFile } from '@neokapi/kapi-format';
+import { newFile } from '@neokapi/kapi-format';
+import { KlzWriter } from '@neokapi/kapi-format/klz';
 
 import { extractDocument } from '../extract/index.ts';
 import type { PluginOptions } from '../types.ts';

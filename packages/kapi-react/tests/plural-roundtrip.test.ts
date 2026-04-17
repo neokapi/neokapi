@@ -15,7 +15,9 @@
 
 import { describe, expect, it } from 'vitest';
 
-import { KlzWriter, newFile, type PluralRunWrapper } from '@neokapi/kapi-format';
+import type { PluralRunWrapper } from '@neokapi/kapi-format';
+import { newFile } from '@neokapi/kapi-format';
+import { KlzWriter } from '@neokapi/kapi-format/klz';
 
 import { runCompile } from '../src/commands/compile.ts';
 import { extractDocument } from '../src/extract/index.ts';

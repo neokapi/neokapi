@@ -14,7 +14,8 @@
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 
-import { flattenRuns, KlzReader } from '@neokapi/kapi-format';
+import { flattenRuns } from '@neokapi/kapi-format';
+import { KlzReader } from '@neokapi/kapi-format/klz';
 
 export async function runCompile(args: string[]) {
   let input: string | null = null;
