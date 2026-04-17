@@ -34,7 +34,7 @@ export interface WalkerOptions extends ExtractOptions {
   /**
    * Optional collector the walker pushes warnings into when it
    * auto-promotes a container or extracts from an unmapped
-   * PascalCase component.
+   * React component.
    */
   warnings?: WarningCollector;
 }
@@ -126,7 +126,7 @@ class BlockCollector {
     if (!tag) return false;
     if (getStringAttr(el, 'translate') === 'no') return false;
 
-    // For unmapped PascalCase components we still want to consider
+    // For unmapped React components we still want to consider
     // their direct text — the user's source is the ground truth,
     // not an arbitrary componentMap-coverage requirement. We pass
     // the raw tag through as if it were an HTML element; it
@@ -152,7 +152,7 @@ class BlockCollector {
     if (!hasTranslatableText(el)) return false;
     if (!isAllInlineContent(el, this.componentMap)) return false;
 
-    // An unmapped PascalCase component always implies a promotion
+    // An unmapped React component always implies a promotion
     // (tags default to 'container'), so emit only the more specific
     // warning that points the dev at componentMap.
     if (unmappedComponent) {

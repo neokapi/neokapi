@@ -365,7 +365,7 @@ function processElement(
   if (getStringAttr(el, 'translate') === 'no') return { runtime: null, consumed: false };
 
   // Mirror walker.ts: fall back to the raw tag for unmapped
-  // PascalCase components so resolvePolicy's container-promotion
+  // React components so resolvePolicy's container-promotion
   // rule can kick in when they have direct translatable text.
   const mapped = resolveHTMLElement(tagName, componentMap);
   const htmlElement = mapped ?? tagName;

@@ -54,7 +54,7 @@ Directory holding `<locale>.json` files. Default: `./translations`.
 
 ### `componentMap`
 
-Maps unmapped PascalCase components to their underlying HTML element so hashes stay stable across refactors:
+Maps React components to their underlying HTML element so hashes stay stable across refactors:
 
 ```ts
 neokapi({

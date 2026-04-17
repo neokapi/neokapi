@@ -11,7 +11,7 @@ Almost everything you already write is translatable. This page walks through the
 
 - **JSX text inside a translatable element** → extracted.
 - **Direct text inside a container (`<div>`, `<section>`, …)** → extracted, with a warning.
-- **Direct text inside an unmapped PascalCase component** → extracted, with a warning and a suggestion to add a `componentMap` entry.
+- **Direct text inside an unmapped React component** → extracted, with a warning and a suggestion to add a `componentMap` entry.
 - **Inline elements** (`<strong>`, `<a>`, `<em>`, `<span>`, …) **mixed with text** → captured as one translatable block, children replaced with position tokens the translator can reorder.
 - **A set of attributes** — `title`, `subtitle`, `description`, `label`, `placeholder`, `alt`, `helpText`, `tooltip`, `aria-*` — on any element → extracted.
 - **Non-translatable elements** (`<code>`, `<pre>`, `<kbd>`, `<var>`, `<script>`, `<style>`) → skipped.
@@ -75,7 +75,7 @@ neokapi({
 
 ### Unknown components
 
-Component libraries like shadcn, Radix, MUI, and your own internal components render to HTML but kapi-react can't know which one. By default, an unmapped PascalCase component with direct translatable text is extracted anyway, with a warning that suggests how to stabilise the hash:
+Component libraries like shadcn, Radix, MUI, and your own internal components render to HTML but kapi-react can't know which one. By default, an unmapped React component with direct translatable text is extracted anyway, with a warning that suggests how to stabilise the hash:
 
 ```tsx
 <TabsTrigger value="general">General</TabsTrigger>
