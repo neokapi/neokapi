@@ -13,11 +13,22 @@
 import { readFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { parseSync, type JSXElement, type Module } from '@swc/core';
+
 import {
-  getTranslatability,
-  inlineElements,
-  translatableAttributes,
-} from './defaults.ts';
+  containsJSX,
+  dedupName,
+  exprToName,
+  getStringAttr,
+  getTagName,
+  resolveHTMLElement,
+} from '../extract/ast.ts';
+import { buildJSXPath } from '../extract/jsx-path.ts';
+import {
+  hasTranslatableText,
+  isAllInlineContent,
+  resolvePolicy,
+} from '../extract/translatable.ts';
+import { translatableAttributes } from './defaults.ts';
 import { hashKey } from './hash.ts';
 import { CONTEXT_SEPARATOR, type PluginOptions } from '../types.ts';
 
@@ -288,30 +299,23 @@ function processElement(
 ): ProcessResult {
   const tagName = getTagName(el);
   if (!tagName) return { runtime: null, consumed: false };
-  if (getAttrValue(el, 'translate') === 'no') return { runtime: null, consumed: false };
+  if (getStringAttr(el, 'translate') === 'no') return { runtime: null, consumed: false };
 
   const htmlElement = resolveHTMLElement(tagName, componentMap);
   if (!htmlElement) return { runtime: null, consumed: false };
 
-  const overrides = checkRules(htmlElement, el, rules);
-
-  let shouldTranslate: boolean;
-  if (overrides.translate !== undefined) {
-    shouldTranslate = overrides.translate;
-  } else {
-    shouldTranslate = getTranslatability(htmlElement) === 'yes';
-  }
+  const policy = resolvePolicy(htmlElement, el, rules);
 
   let usedRuntime: 'runtime-t' | 'runtime-tx' | null = processAttributes(
-    el, ancestors, componentMap, mode, dict, overrides.locNote, s, ops,
+    el, ancestors, componentMap, mode, dict, policy.locNote, s, ops,
   ) ? 'runtime-t' : null;
 
-  if (!shouldTranslate) return { runtime: usedRuntime, consumed: false };
+  if (!policy.translate) return { runtime: usedRuntime, consumed: false };
   if (!hasTranslatableText(el)) return { runtime: usedRuntime, consumed: false };
   if (!isAllInlineContent(el, componentMap)) return { runtime: usedRuntime, consumed: false };
 
   const jsxPath = buildJSXPath(ancestors, el, componentMap);
-  const locNote = overrides.locNote || getAttrValue(el, 'data-i18n-note');
+  const locNote = policy.locNote;
   const desc = locNote ? `${jsxPath}${CONTEXT_SEPARATOR}${locNote}` : jsxPath;
 
   const contentStart = getOpeningTagEnd(el, s);
@@ -392,21 +396,6 @@ type ParamInfo = {
  * its subtree. Used to detect expression containers whose runtime value
  * is a ReactNode rather than a string (see #5).
  */
-function containsJSX(node: any): boolean {
-  if (!node || typeof node !== 'object') return false;
-  if (node.type === 'JSXElement' || node.type === 'JSXFragment') return true;
-  for (const key of Object.keys(node)) {
-    if (key === 'span' || key === 'type') continue;
-    const val = node[key];
-    if (Array.isArray(val)) {
-      for (const item of val) if (containsJSX(item)) return true;
-    } else if (val && typeof val === 'object' && containsJSX(val)) {
-      return true;
-    }
-  }
-  return false;
-}
-
 function extractTextTemplate(
   el: JSXElement,
   s: (offset: number) => number,
@@ -443,7 +432,7 @@ function extractTextTemplate(
       }
 
       const rawName = exprToName(child.expression);
-      const name = dedup(rawName, paramNames);
+      const name = dedupName(rawName, paramNames);
       text += `{${name}}`;
       const expr = child.expression as { span: { start: number; end: number } };
       paramList.push({
@@ -578,115 +567,10 @@ function processAttributes(
   return usedRuntime;
 }
 
-// ─── AST Helpers ─────────────────────────────────────────────
-
-function getTagName(el: JSXElement): string | null {
-  const name = el.opening?.name;
-  if (!name) return null;
-  if (name.type === 'Identifier') return name.value;
-  if (name.type === 'JSXMemberExpression') {
-    return `${(name.object as any).value || (name.object as any).name}.${name.property.value}`;
-  }
-  if (name.type === 'JSXNamespacedName') {
-    return `${name.namespace.value}:${name.name.value}`;
-  }
-  return null;
-}
-
-function resolveHTMLElement(tagName: string, componentMap: Record<string, string>): string | null {
-  if (tagName[0] === tagName[0].toLowerCase()) return tagName;
-  return componentMap[tagName] || null;
-}
-
-function getAttrValue(el: JSXElement, attrName: string): string | null {
-  for (const attr of el.opening.attributes || []) {
-    if (attr.type !== 'JSXAttribute') continue;
-    if (attr.name.type === 'Identifier' && attr.name.value === attrName) {
-      if (!attr.value) return '';
-      if (attr.value.type === 'StringLiteral') return attr.value.value;
-      if (attr.value.type === 'JSXExpressionContainer' && attr.value.expression.type === 'StringLiteral') {
-        return attr.value.expression.value;
-      }
-    }
-  }
-  return null;
-}
-
-function hasTranslatableText(el: JSXElement): boolean {
-  // An element is translatable only when its children carry real
-  // static text or inline translatable structure. A lone expression
-  // container ({variable}, {icon}) isn't text — it's a runtime value
-  // the translator can't meaningfully modify, and coercing it
-  // through `t(hash, "{icon}")` produces [object Object] for
-  // React-element values. Skip those here so the plugin emits the
-  // JSX unchanged.
-  for (const child of el.children || []) {
-    if (child.type === 'JSXText' && child.value.trim().length > 0) return true;
-    if (child.type === 'JSXElement') {
-      const tag = getTagName(child);
-      if (tag && inlineElements.has(tag) && hasTranslatableText(child)) return true;
-    }
-  }
-  return false;
-}
-
-function isAllInlineContent(el: JSXElement, componentMap: Record<string, string>): boolean {
-  for (const child of el.children || []) {
-    if (child.type === 'JSXText' || child.type === 'JSXExpressionContainer') continue;
-    if (child.type === 'JSXElement') {
-      const tag = getTagName(child);
-      if (!tag) return false;
-      const html = resolveHTMLElement(tag, componentMap);
-      if (html && inlineElements.has(html)) continue;
-      return false;
-    }
-    if (child.type === 'JSXSpreadChild' || child.type === 'JSXFragment') return false;
-  }
-  return true;
-}
-
-function buildJSXPath(ancestors: JSXElement[], current: JSXElement, componentMap: Record<string, string>): string {
-  const parts: string[] = [];
-  for (const anc of ancestors) {
-    const tag = getTagName(anc);
-    if (tag) parts.push(resolveHTMLElement(tag, componentMap) || tag);
-  }
-  const tag = getTagName(current);
-  if (tag) parts.push(resolveHTMLElement(tag, componentMap) || tag);
-  return parts.join(' > ');
-}
-
-function checkRules(
-  htmlElement: string, el: JSXElement,
-  rules: Array<{ selector: string; translate?: boolean; locNote?: string }>,
-): { translate?: boolean; locNote?: string } {
-  let result: { translate?: boolean; locNote?: string } = {};
-  for (const rule of rules) {
-    let matches = false;
-    if (rule.selector.startsWith('.')) {
-      const className = rule.selector.slice(1);
-      const classAttr = getAttrValue(el, 'className');
-      if (classAttr && classAttr.split(/\s+/).includes(className)) matches = true;
-    } else if (rule.selector.startsWith('[') && rule.selector.endsWith(']')) {
-      const inner = rule.selector.slice(1, -1);
-      const eqIdx = inner.indexOf('=');
-      if (eqIdx >= 0) {
-        const name = inner.slice(0, eqIdx);
-        const val = inner.slice(eqIdx + 1).replace(/^["']|["']$/g, '');
-        if (getAttrValue(el, name) === val) matches = true;
-      } else {
-        for (const a of el.opening.attributes || []) {
-          if (a.type === 'JSXAttribute' && a.name.type === 'Identifier' && a.name.value === inner) { matches = true; break; }
-        }
-      }
-    } else if (rule.selector === htmlElement) matches = true;
-    if (matches) {
-      if (rule.translate !== undefined) result.translate = rule.translate;
-      if (rule.locNote) result.locNote = rule.locNote;
-    }
-  }
-  return result;
-}
+// ─── Local helpers ───────────────────────────────────────────
+// Transform-specific span helpers. The AST + translatability
+// utilities are imported from ../extract/… so extract and transform
+// stay in lock-step.
 
 function getOpeningTagEnd(el: JSXElement, s: (n: number) => number): number | null {
   return el.opening?.span ? s(el.opening.span.end) : null;
@@ -694,37 +578,6 @@ function getOpeningTagEnd(el: JSXElement, s: (n: number) => number): number | nu
 
 function getClosingTagStart(el: JSXElement, s: (n: number) => number): number | null {
   return el.closing?.span ? s(el.closing.span.start) : null;
-}
-
-/**
- * Derive a parameter name from a JSX expression.
- * Returns a valid JS identifier (no dots, no brackets).
- * The full dotted path is used in the text template for readability,
- * but the object key must be a valid identifier.
- */
-function exprToName(expr: any): string {
-  if (expr.type === 'Identifier') return expr.value;
-  if (expr.type === 'MemberExpression' && expr.property?.type === 'Identifier') {
-    // Use the full dotted path for template readability: {user.name}
-    // This is safe in text templates and JSON.stringify handles the key
-    if (expr.object?.type === 'Identifier') return `${expr.object.value}.${expr.property.value}`;
-    return expr.property.value;
-  }
-  if (expr.type === 'CallExpression') {
-    if (expr.callee?.type === 'Identifier') return expr.callee.value;
-    if (expr.callee?.type === 'MemberExpression' && expr.callee.property?.type === 'Identifier') {
-      return expr.callee.property.value;
-    }
-  }
-  return 'value';
-}
-
-function dedup(name: string, used: Set<string>): string {
-  let result = name;
-  let counter = 2;
-  while (used.has(result)) result = `${name}_${counter++}`;
-  used.add(result);
-  return result;
 }
 
 function removeDataI18nAttrs(el: JSXElement, buf: Buffer, s: (n: number) => number, ops: TransformOp[]) {

@@ -96,13 +96,21 @@ class BlockCollector {
     return this.out;
   }
 
-  visit(el: JSXElement, ancestors: readonly JSXElement[], component: string): void {
+  /**
+   * Visits one JSX element. Returns true when an element-level block
+   * was emitted — the walker uses that signal to skip re-descending
+   * into its direct inline JSX children (they're consumed by the
+   * parent's flat-text template). Expression-container children are
+   * still visited so conditional JSX inside them (`{cond && <X/>}`)
+   * can surface as its own block.
+   */
+  visit(el: JSXElement, ancestors: readonly JSXElement[], component: string): boolean {
     const tag = getTagName(el);
-    if (!tag) return;
-    if (getStringAttr(el, 'translate') === 'no') return;
+    if (!tag) return false;
+    if (getStringAttr(el, 'translate') === 'no') return false;
 
     const htmlElement = resolveHTMLElement(tag, this.componentMap);
-    if (!htmlElement) return;
+    if (!htmlElement) return false;
 
     const policy = resolvePolicy(htmlElement, el, this.rules);
 
@@ -111,11 +119,12 @@ class BlockCollector {
     // earns an attribute block.
     this.emitAttributeBlocks(el, ancestors, policy.locNote, component);
 
-    if (!policy.translate) return;
-    if (!hasTranslatableText(el)) return;
-    if (!isAllInlineContent(el, this.componentMap)) return;
+    if (!policy.translate) return false;
+    if (!hasTranslatableText(el)) return false;
+    if (!isAllInlineContent(el, this.componentMap)) return false;
 
     this.emitElementBlock(el, ancestors, policy.locNote, component);
+    return true;
   }
 
   // ─── Element blocks ─────────────────────────────────────────
@@ -233,7 +242,7 @@ function blockProperties(
  */
 function walkJsx(
   module: Module,
-  visit: (el: JSXElement, ancestors: readonly JSXElement[], component: string) => void,
+  visit: (el: JSXElement, ancestors: readonly JSXElement[], component: string) => boolean,
 ): void {
   const base = findBaseOffset(module);
   const ancestors: JSXElement[] = [];
@@ -253,16 +262,23 @@ function walkJsx(
     if (node.type === 'JSXElement') {
       const el = node as JSXElement;
       const currentComponent = components[components.length - 1] ?? '';
-      visit(el, [...ancestors], currentComponent);
+      const emitted = visit(el, [...ancestors], currentComponent);
 
-      // Descend into every child regardless of whether the parent
-      // emitted a block. Inline elements inside a translatable
-      // parent get flattened to a single `ph` run (see runs.ts), so
-      // their own translatable content must surface as a nested
-      // Block through normal descent. Hash invariants match the
-      // plugin transform precisely because of this two-level shape.
+      // If a block was emitted for el, its inline JSX children were
+      // consumed by the parent's flat text template (a single `ph`
+      // per inline child). Re-visiting them would emit duplicate
+      // blocks the plugin transform will never look up at runtime.
+      // Expression-container children still need visits so
+      // `{cond && <X/>}`-style conditional JSX can surface inner
+      // translatable text as its own block.
       ancestors.push(el);
-      for (const child of el.children ?? []) descend(child);
+      if (emitted) {
+        for (const child of el.children ?? []) {
+          if (child.type === 'JSXExpressionContainer') descend(child);
+        }
+      } else {
+        for (const child of el.children ?? []) descend(child);
+      }
       if (el.opening) descend(el.opening);
       if (el.closing) descend(el.closing);
       ancestors.pop();

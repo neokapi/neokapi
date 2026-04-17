@@ -7,9 +7,10 @@ import type { Expression, JSXElement } from '@swc/core';
 
 /**
  * Returns the JSX element's tag name as seen in source:
- *   <h1> → "h1"
- *   <Button> → "Button"
- *   <Icons.Plus> → "Icons.Plus"
+ *   <h1>            → "h1"
+ *   <Button>        → "Button"
+ *   <Icons.Plus>    → "Icons.Plus"
+ *   <svg:path>      → "svg:path"
  *
  * Fragments and unnamed elements return null.
  */
@@ -20,6 +21,9 @@ export function getTagName(el: JSXElement): string | null {
   if (name.type === 'JSXMemberExpression') {
     const obj = name.object as { value?: string; name?: string };
     return `${obj.value ?? obj.name ?? ''}.${name.property.value}`;
+  }
+  if (name.type === 'JSXNamespacedName') {
+    return `${name.namespace.value}:${name.name.value}`;
   }
   return null;
 }
@@ -42,7 +46,9 @@ export function resolveHTMLElement(
 /**
  * Reads a string-literal attribute value. Returns null when the
  * attribute is absent; returns an empty string when it's present
- * without a value (`<div translate>`).
+ * without a value (`<div translate>`). Also accepts
+ * `foo={"bar"}` (a StringLiteral inside a JSXExpressionContainer)
+ * as equivalent to `foo="bar"`.
  */
 export function getStringAttr(el: JSXElement, name: string): string | null {
   for (const attr of el.opening.attributes ?? []) {
@@ -50,26 +56,60 @@ export function getStringAttr(el: JSXElement, name: string): string | null {
     if (attr.name.value !== name) continue;
     if (!attr.value) return '';
     if (attr.value.type === 'StringLiteral') return attr.value.value;
+    if (
+      attr.value.type === 'JSXExpressionContainer' &&
+      attr.value.expression.type === 'StringLiteral'
+    ) {
+      return attr.value.expression.value;
+    }
   }
   return null;
 }
 
 /**
+ * True when any attribute with the given name is present on the
+ * element, regardless of its value shape. Used for attribute
+ * selectors like `[data-tag-chip]`.
+ */
+export function hasAttr(el: JSXElement, name: string): boolean {
+  for (const attr of el.opening.attributes ?? []) {
+    if (attr.type !== 'JSXAttribute' || attr.name.type !== 'Identifier') continue;
+    if (attr.name.value === name) return true;
+  }
+  return false;
+}
+
+/**
  * Computes a short reference name for an expression used inside a JSX
- * container: `{count}` → "count"; `{user.name}` → "user.name"; anything
- * else falls back to "value" and callers are expected to disambiguate
- * via `dedupName`.
+ * container:
+ *   {count}           → "count"
+ *   {user.name}       → "user.name"
+ *   {formatDate(d)}   → "formatDate"
+ *   {fmt.date(d)}     → "date"
+ *
+ * Other shapes fall back to "value"; callers disambiguate collisions
+ * through `dedupName`. Extract and transform must agree on this
+ * mapping, since it feeds the hash input template.
  */
 export function exprToName(expr: Expression): string {
-  if (expr.type === 'Identifier') return expr.value;
-  if (expr.type === 'MemberExpression') {
-    const prop = expr.property as { type?: string; value?: string };
-    if (prop.type === 'Identifier') {
-      const obj = expr.object as { type?: string; value?: string };
-      if (obj.type === 'Identifier' && obj.value) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const anyExpr = expr as any;
+  if (anyExpr.type === 'Identifier') return anyExpr.value;
+  if (anyExpr.type === 'MemberExpression') {
+    const prop = anyExpr.property;
+    if (prop?.type === 'Identifier') {
+      const obj = anyExpr.object;
+      if (obj?.type === 'Identifier' && obj.value) {
         return `${obj.value}.${prop.value}`;
       }
       return prop.value ?? 'value';
+    }
+  }
+  if (anyExpr.type === 'CallExpression') {
+    const callee = anyExpr.callee;
+    if (callee?.type === 'Identifier') return callee.value;
+    if (callee?.type === 'MemberExpression' && callee.property?.type === 'Identifier') {
+      return callee.property.value;
     }
   }
   return 'value';
@@ -101,4 +141,28 @@ export function lineFromOffset(code: string, offset: number): number {
     if (code.charCodeAt(i) === 10) line++;
   }
   return line;
+}
+
+/**
+ * True when the AST subtree rooted at `node` contains a `JSXElement`
+ * or `JSXFragment` anywhere. Drives the plugin's `__tx` routing for
+ * expressions like `{ok && <X/>}` and the extractor's classification
+ * of `JSXExpressionContainer` children as `jsx:node` placeholders
+ * vs `jsx:var`. Both sides must agree byte-for-byte, so the logic
+ * lives here.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function containsJSX(node: any): boolean {
+  if (!node || typeof node !== 'object') return false;
+  if (node.type === 'JSXElement' || node.type === 'JSXFragment') return true;
+  for (const key of Object.keys(node)) {
+    if (key === 'span' || key === 'type') continue;
+    const val = (node as Record<string, unknown>)[key];
+    if (Array.isArray(val)) {
+      for (const item of val) if (containsJSX(item)) return true;
+    } else if (val && typeof val === 'object' && containsJSX(val)) {
+      return true;
+    }
+  }
+  return false;
 }
