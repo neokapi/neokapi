@@ -178,10 +178,21 @@ export function useNeokapi() {
 /**
  * Mark a standalone string for extraction + translation outside JSX.
  *
- * Use when a label or message needs to live in a data structure
- * (`label: t("English")`), a ref, or anywhere JSX children aren't
- * an option. The kapi-react plugin rewrites every `t("text")` /
- * `t("text", { name })` call into a hash-based lookup at build
+ * Usage:
+ *
+ *     t("English")
+ *     t("English", "UI Language")                  // with context
+ *     t("Hello, {name}!", { name })                // with params
+ *     t("State", "US state", { stateCode: "CA" })  // context + params
+ *
+ * Context disambiguates identically-worded strings with different
+ * meanings (gettext's msgctxt). It's hashed into the Block's
+ * descriptor so the English source "State" under `"US state"`
+ * and the same source under `"workflow status"` get different
+ * translations.
+ *
+ * The kapi-react plugin rewrites every `t(...)` call bound to
+ * `@neokapi/kapi-react/runtime` into a hash-based lookup at build
  * time, so runtime lookups resolve through the same dict loaded
  * by `loadTranslations()`.
  *
@@ -189,10 +200,25 @@ export function useNeokapi() {
  * returns the source text with `{name}` substitutions applied —
  * so you can use it unconditionally.
  */
-export function t(text: string, params?: Record<string, string | number>): string {
-  if (!params) return text;
+export function t(
+  text: string,
+  context?: string,
+  params?: Record<string, string | number>,
+): string;
+export function t(
+  text: string,
+  params: Record<string, string | number>,
+): string;
+export function t(
+  text: string,
+  contextOrParams?: string | Record<string, string | number>,
+  params?: Record<string, string | number>,
+): string {
+  const actualParams =
+    typeof contextOrParams === 'object' ? contextOrParams : params;
+  if (!actualParams) return text;
   let out = text;
-  for (const [k, v] of Object.entries(params)) {
+  for (const [k, v] of Object.entries(actualParams)) {
     out = out.replaceAll(`{${k}}`, String(v));
   }
   return out;

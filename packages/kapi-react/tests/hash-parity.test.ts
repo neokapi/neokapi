@@ -113,6 +113,20 @@ const FIXTURES: ReadonlyArray<{ name: string; code: string }> = [
       const greeting = t('Hello, {name}!', { name: 'Alice' });
     `,
   },
+  {
+    name: 't() with context',
+    code: `
+      import { t } from '@neokapi/kapi-react/runtime';
+      const label = t('English', 'UI Language');
+    `,
+  },
+  {
+    name: 't() with context and params',
+    code: `
+      import { t } from '@neokapi/kapi-react/runtime';
+      const msg = t('Hello, {name}!', 'greeting', { name: 'Alice' });
+    `,
+  },
 ];
 
 function hashesFromTransform(code: string): Set<string> {

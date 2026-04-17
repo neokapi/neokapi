@@ -59,7 +59,7 @@ export function extractDocument(code: string, opts: WalkerOptions): Document | n
   for (const call of walkTCalls(ast, tNames, (start, end) =>
     code.slice(start - findBaseOffset(ast), end - findBaseOffset(ast)),
   )) {
-    collector.visitTCall(call.text, call.node, fallbackComponent);
+    collector.visitTCall(call.text, call.context, call.node, fallbackComponent);
   }
 
   const blocks = collector.blocks();
@@ -190,25 +190,39 @@ class BlockCollector {
   // ─── t() calls ───────────────────────────────────────────────
 
   /**
-   * Emit a Block for a user-facing `t("text", params?)` call. The
-   * "t" desc channel prefix keeps these hashes from colliding with
-   * identically-worded JSX blocks — translators should be able to
-   * change a `t("Save")` translation without also touching every
-   * `<Button>Save</Button>`.
+   * Emit a Block for a user-facing `t("text", context?, params?)`
+   * call. The "t" desc channel prefix keeps these hashes from
+   * colliding with identically-worded JSX blocks — translators
+   * should be able to change a `t("Save")` translation without
+   * also touching every `<Button>Save</Button>`.
+   *
+   * When context is non-null it enters the descriptor so the same
+   * source text with different meanings (gettext's msgctxt) hashes
+   * distinctly.
    */
   visitTCall(
     text: string,
+    context: string | null,
     node: { span: { start: number; end: number } },
     component: string,
   ): void {
     if (text === '') return;
 
-    const desc = `t${CONTEXT_SEPARATOR}`;
+    const desc = `t${CONTEXT_SEPARATOR}${context ?? ''}`;
     const hash = hashKey(text, desc);
     if (this.seenHashes.has(hash)) return;
     this.seenHashes.add(hash);
 
     const line = lineFromOffset(this.code, node.span.start);
+    const properties: Block['properties'] = {
+      file: this.filename,
+      line,
+      component,
+      jsxPath: 't()',
+      element: 't',
+    };
+    if (context) properties.locNote = context;
+
     this.out.push({
       id: `${this.filename}:${line}:t`,
       hash,
@@ -216,13 +230,7 @@ class BlockCollector {
       type: 'js:t',
       source: [{ text }] as Run[],
       placeholders: [],
-      properties: {
-        file: this.filename,
-        line,
-        component,
-        jsxPath: 't()',
-        element: 't',
-      },
+      properties,
     });
   }
 

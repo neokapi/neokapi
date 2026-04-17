@@ -250,7 +250,8 @@ export function transform(
   const sourceSlice = (start: number, end: number): string =>
     code.slice(s(start), s(end));
   for (const call of walkTCalls(ast, tNames, sourceSlice)) {
-    const hash = hashKey(call.text, `t${CONTEXT_SEPARATOR}`);
+    const desc = `t${CONTEXT_SEPARATOR}${call.context ?? ''}`;
+    const hash = hashKey(call.text, desc);
     const fallbackLiteral = JSON.stringify(call.text);
     const args = call.paramsSrc
       ? `"${hash}", ${fallbackLiteral}, ${call.paramsSrc}`

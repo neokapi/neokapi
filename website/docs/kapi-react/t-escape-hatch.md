@@ -58,6 +58,30 @@ t("Hello, {name}!", { name: "Alice" })
 
 Parameter syntax mirrors what the JSX extractor uses (`{name}`), so a translator editing an entry sees the same placeholder shape whether it came from JSX or `t()`.
 
+## Context — disambiguating identical source strings
+
+Some strings are spelled the same in English but mean different things. A CAT tool showing "State" out of nowhere gives a translator no way to know whether it means a US state, a workflow status, or a physics state.
+
+Pass a positional context as the second argument:
+
+```tsx
+t("State", "US state")          // → address form field
+t("State", "workflow status")   // → task lifecycle
+t("State", "physics lecture")   // → h / cold / gas / plasma
+```
+
+Each of those is a **separate block** with a different hash, so translators can give each one its own target string.
+
+With params, context comes first:
+
+```tsx
+t("Hello, {name}!", "greeting", { name: user.name })
+```
+
+Context only affects the hash at extract / transform time. It's stripped from the emitted `__t()` call and never ships to the runtime — the hash already encodes the disambiguation.
+
+Context mirrors gettext's `msgctxt` for teams familiar with the pattern.
+
 ## Import-name tracking
 
 The plugin only rewrites `t` identifiers bound to `@neokapi/kapi-react/runtime`. A local helper named `t` or a `t` imported from a different library is left alone:
