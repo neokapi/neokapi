@@ -572,8 +572,8 @@ explicit marker. Import `t` from the runtime:
 import { t } from '@neokapi/kapi-react/runtime';
 
 const UI_LANGUAGES = [
-  { value: 'en',  label: t('English') },
-  { value: 'qps', label: t('Pseudo English (qps)') },
+  { value: 'en',  label: t('English', 'UI Language') },
+  { value: 'qps', label: t('Pseudo English (qps)', 'UI Language') },
 ];
 
 const THEMES = [
@@ -583,7 +583,13 @@ const THEMES = [
 ];
 
 const greeting = t('Hello, {name}!', { name: user.name });
+
+// Same English text, different meanings → different hashes
+t('State', 'US state')
+t('State', 'workflow status')
 ```
+
+Signature: `t(text, context?, params?)`. Context (optional, 2nd arg) disambiguates identically-worded source strings by entering the hash descriptor — equivalent to gettext's `msgctxt`. Params (optional, 2nd or 3rd arg depending on whether context is present) carry `{name}` substitutions.
 
 The plugin rewrites every `t("...")` call into a hash-based lookup at
 build time; without the plugin (tests, dev-mode builds) `t` just

@@ -20,8 +20,8 @@ export type ThemeMode = "system" | "light" | "dark";
 export type UILanguage = "en" | "qps";
 
 const UI_LANGUAGES: { value: UILanguage; label: string; icon: typeof Languages }[] = [
-  { value: "en", label: t("English"), icon: Languages },
-  { value: "qps", label: t("Pseudo English (qps)"), icon: FlaskConical },
+  { value: "en", label: t("English", "UI Language"), icon: Languages },
+  { value: "qps", label: t("Pseudo English (qps)", "UI Language"), icon: FlaskConical },
 ];
 
 /** Apply theme to document — resolves "system" to the OS preference. */

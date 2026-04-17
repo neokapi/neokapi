@@ -78,6 +78,19 @@ describe('t() — user-facing escape hatch (dev-mode fallback)', () => {
     expect(t('Hello, {name}!', { name: 'Alice' })).toBe('Hello, Alice!');
   });
 
+  it('accepts an optional positional context (ignored at runtime)', () => {
+    // Context enters the hash at build time via the plugin; the
+    // runtime fallback has no dict lookup so it just returns the
+    // source text.
+    expect(t('English', 'UI Language')).toBe('English');
+  });
+
+  it('accepts context + params together', () => {
+    expect(
+      t('Hello, {name}!', 'greeting', { name: 'Alice' }),
+    ).toBe('Hello, Alice!');
+  });
+
   it('ignores the runtime dict (plugin rewrites to __t)', () => {
     // Source text returns verbatim even when a hash-keyed entry
     // exists for the same text — the plugin is the only thing

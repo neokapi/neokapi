@@ -49,9 +49,17 @@ export interface TCall {
   /** The literal first argument — the source text. */
   text: string;
   /**
-   * Raw source expression of the second argument (params) if
-   * present, else null. Preserved verbatim so the transform can
-   * forward it to `__t(hash, text, <params>)` unchanged.
+   * Context string from the second argument when it's a string
+   * literal. Disambiguates identically-worded source strings with
+   * different meanings — enters the hash descriptor.
+   */
+  context: string | null;
+  /**
+   * Raw source expression of the params object argument if present,
+   * else null. Preserved verbatim so the transform can forward it
+   * to `__t(hash, text, <params>)` unchanged. Accepts two shapes:
+   *   t("text", { name })                 → params at arg 1
+   *   t("text", "context", { name })      → params at arg 2
    */
   paramsSrc: string | null;
   /** Name of the identifier referenced as the callee (post-alias). */
@@ -63,6 +71,12 @@ export interface TCall {
  * first argument isn't a StringLiteral are skipped — there's no
  * source text to extract, so they pass through at runtime as-is
  * via the fallback runtime implementation.
+ *
+ * Supported argument shapes (2nd arg disambiguates by type):
+ *   t("text")
+ *   t("text", "context")
+ *   t("text", { params })
+ *   t("text", "context", { params })
  */
 export function* walkTCalls(
   mod: Module,
@@ -86,13 +100,25 @@ function* descend(
     if (callee?.type === 'Identifier' && names.has(callee.value)) {
       const first = node.arguments?.[0]?.expression;
       const second = node.arguments?.[1]?.expression;
+      const third = node.arguments?.[2]?.expression;
       if (first?.type === 'StringLiteral') {
+        let context: string | null = null;
+        let paramsNode: { span?: { start: number; end: number } } | null = null;
+
+        if (second?.type === 'StringLiteral') {
+          context = second.value as string;
+          paramsNode = third ?? null;
+        } else if (second) {
+          paramsNode = second;
+        }
+
         yield {
           node: node as CallExpression,
           text: first.value as string,
+          context,
           paramsSrc:
-            second?.span
-              ? sourceSlice(second.span.start, second.span.end)
+            paramsNode?.span
+              ? sourceSlice(paramsNode.span.start, paramsNode.span.end)
               : null,
           callee: callee.value,
         };
