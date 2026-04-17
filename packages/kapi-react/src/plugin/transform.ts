@@ -37,6 +37,7 @@ import {
   resolvePolicy,
 } from '../extract/translatable.ts';
 import { collectTIdentifiers, walkTCalls } from '../extract/messages.ts';
+import { resolveLibraryComponentMap } from './manifests.ts';
 import {
   createWarningCollector,
   formatWarning,
@@ -201,7 +202,6 @@ export function transform(
   filename: string,
   options: PluginOptions,
 ): { code: string } | null {
-  const componentMap = options.componentMap || {};
   const rules = options.rules || [];
   const mode = options.mode || (options.locale ? 'inline' : undefined);
   if (!mode) return null;
@@ -218,6 +218,21 @@ export function transform(
   } catch {
     return null;
   }
+
+  // Mirror walker.ts: auto-resolve library manifests (+ .d.ts
+  // fallback) for every non-relative import, then layer the user's
+  // componentMap on top. Ensures hashes match across extract /
+  // transform without requiring manual componentMap entries for
+  // shadcn / radix / MUI components that ship proper types.
+  const libraryMap = resolveLibraryComponentMap(
+    ast,
+    options.projectRoot ?? process.cwd(),
+    options.communityManifestDir,
+  );
+  const componentMap: Record<string, string> = {
+    ...libraryMap,
+    ...(options.componentMap ?? {}),
+  };
 
   const s = makeOffsetConverter(ast, code);
   const buf = Buffer.from(code, 'utf8');

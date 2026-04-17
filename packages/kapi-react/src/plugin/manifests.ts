@@ -23,6 +23,7 @@
  *   }
  */
 
+import type { Module } from '@swc/core';
 import { existsSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 
@@ -244,4 +245,110 @@ function tryLoadJSON<T>(filePath: string): T | null {
   } catch {
     return null;
   }
+}
+
+// ─── Import scanning ─────────────────────────────────────────
+
+/**
+ * Collects every non-relative import in a parsed module, grouped by
+ * source. Used by `resolveLibraryManifests` to decide which library
+ * manifests (or .d.ts files) to consult.
+ *
+ * Returned shape: `source → importedName → localName`. The imported
+ * name is the library's own export name (`Trigger`); the local
+ * name is what the file uses (`TabsTrigger` after aliasing).
+ */
+export function collectImports(mod: Module): Map<string, Map<string, string>> {
+  const out = new Map<string, Map<string, string>>();
+  for (const item of mod.body) {
+    if (item.type !== 'ImportDeclaration') continue;
+    const source = item.source.value;
+    if (!source || source.startsWith('.') || source.startsWith('/')) continue;
+    let names = out.get(source);
+    if (!names) {
+      names = new Map();
+      out.set(source, names);
+    }
+    for (const spec of item.specifiers) {
+      if (spec.type !== 'ImportSpecifier') continue;
+      const imported = spec.imported?.value ?? spec.local.value;
+      names.set(imported, spec.local.value);
+    }
+  }
+  return out;
+}
+
+// ─── Per-build cache ─────────────────────────────────────────
+
+/**
+ * Build-scoped cache of resolved library → componentMap slices. The
+ * key is `projectRoot|communityManifestDir` so simultaneous plugin
+ * runs with different roots don't cross-contaminate. Cache lives for
+ * the life of the Node process, so a long-running dev server shares
+ * it across reloads.
+ */
+const libraryMapCache = new Map<string, Map<string, Record<string, string>>>();
+
+/**
+ * Resolves library manifests for a module's imports, memoising per
+ * `(projectRoot, communityManifestDir, source)` triplet so that a
+ * 500-file Vite build parses each library's .d.ts at most once.
+ */
+export function resolveLibraryComponentMap(
+  mod: Module,
+  projectRoot: string,
+  communityManifestDir?: string,
+): Record<string, string> {
+  const cacheKey = `${projectRoot}|${communityManifestDir ?? ''}`;
+  let perSource = libraryMapCache.get(cacheKey);
+  if (!perSource) {
+    perSource = new Map();
+    libraryMapCache.set(cacheKey, perSource);
+  }
+
+  const merged: Record<string, string> = {};
+  const imports = collectImports(mod);
+  for (const [source, names] of imports) {
+    let sourceMap = perSource.get(source);
+    if (!sourceMap) {
+      sourceMap = resolveSingleLibrary(source, projectRoot, communityManifestDir);
+      perSource.set(source, sourceMap);
+    }
+    // Remap the library's canonical names to the file's local
+    // identifiers. e.g. `import { Trigger as TabsTrigger } …`
+    // needs `TabsTrigger → button` in the merged map.
+    for (const [importedName, localName] of names) {
+      const htmlTag = sourceMap[importedName];
+      if (htmlTag) merged[localName] = htmlTag;
+    }
+  }
+  return merged;
+}
+
+function resolveSingleLibrary(
+  source: string,
+  projectRoot: string,
+  communityManifestDir?: string,
+): Record<string, string> {
+  const single = new Map<string, Map<string, string>>();
+  single.set(source, new Map());
+  const manifest = loadManifest(source, projectRoot, communityManifestDir);
+  if (!manifest) return {};
+
+  const out: Record<string, string> = {};
+  const aliasToCanonical = new Map<string, string>();
+  if (manifest.aliases) {
+    for (const [alias, canonical] of Object.entries(manifest.aliases)) {
+      aliasToCanonical.set(alias, canonical);
+    }
+  }
+  for (const [name, tag] of Object.entries(manifest.components)) {
+    if (tag) out[name] = tag;
+  }
+  for (const [alias, canonical] of aliasToCanonical) {
+    if (manifest.components[canonical]) {
+      out[alias] = manifest.components[canonical] as string;
+    }
+  }
+  return out;
 }
