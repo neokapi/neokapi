@@ -235,9 +235,9 @@ describe('neokapi-react SWC transform', () => {
   });
 
   describe('runtime mode — imports', () => {
-    it('adds runtime import when t() is used', () => {
+    it('adds runtime import when __t() is used', () => {
       const result = t('<h1>Hello</h1>');
-      expect(result).toContain("import { t as __t } from '@neokapi/kapi-react/runtime'");
+      expect(result).toContain("import { __t } from '@neokapi/kapi-react/runtime'");
     });
   });
 
@@ -446,7 +446,7 @@ describe('neokapi-react SWC transform', () => {
           <p>Click <a href="/x">here</a> now.</p>
         </div>
       `);
-      expect(result).toContain('import { t as __t, tx as __tx }');
+      expect(result).toContain('import { __t, __tx }');
     });
 
     it('emits t() (not tx) for text without inline elements', () => {

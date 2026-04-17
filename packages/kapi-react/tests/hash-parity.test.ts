@@ -96,6 +96,23 @@ const FIXTURES: ReadonlyArray<{ name: string; code: string }> = [
     name: 'unmapped component with multiple translatable props',
     code: '<PageHeader title="Termbases" subtitle="Glossaries you can use in flows" description="Manage term collections" />',
   },
+  {
+    name: 'user-facing t() call in JS data',
+    code: `
+      import { t } from '@neokapi/kapi-react/runtime';
+      const LANGS = [
+        { value: 'en',  label: t('English') },
+        { value: 'qps', label: t('Pseudo English (qps)') },
+      ];
+    `,
+  },
+  {
+    name: 't() with params',
+    code: `
+      import { t } from '@neokapi/kapi-react/runtime';
+      const greeting = t('Hello, {name}!', { name: 'Alice' });
+    `,
+  },
 ];
 
 function hashesFromTransform(code: string): Set<string> {

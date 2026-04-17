@@ -562,6 +562,39 @@ To opt out of promotion for a specific element, use standard HTML
 `translate="no"` or a rule selector. Route warnings somewhere other
 than the console with the `onWarning` plugin option.
 
+### `t()` — escape hatch for JS strings outside JSX
+
+Not every string lives in JSX. Buttons rendered from a data array,
+error messages in a reducer, a title stored in a ref — these need an
+explicit marker. Import `t` from the runtime:
+
+```tsx
+import { t } from '@neokapi/kapi-react/runtime';
+
+const UI_LANGUAGES = [
+  { value: 'en',  label: t('English') },
+  { value: 'qps', label: t('Pseudo English (qps)') },
+];
+
+const THEMES = [
+  { value: 'system', icon: Monitor, label: t('System') },
+  { value: 'light',  icon: Sun,     label: t('Light') },
+  { value: 'dark',   icon: Moon,    label: t('Dark') },
+];
+
+const greeting = t('Hello, {name}!', { name: user.name });
+```
+
+The plugin rewrites every `t("...")` call into a hash-based lookup at
+build time; without the plugin (tests, dev-mode builds) `t` just
+returns the source text verbatim, with `{name}` substitutions
+applied. Only calls bound to `@neokapi/kapi-react/runtime` are
+rewritten — a local `t()` helper elsewhere in the file is left
+alone.
+
+Prefer inline JSX (`<button>English</button>`) when natural; reach
+for `t()` when the string genuinely belongs in data.
+
 ### Opt out with standard HTML
 
 ```jsx

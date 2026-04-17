@@ -60,6 +60,7 @@ type BlockType string
 const (
 	BlockTypeJSXElement   BlockType = BlockType(model.BlockContentJSXElement)
 	BlockTypeJSXAttribute BlockType = BlockType(model.BlockContentJSXAttribute)
+	BlockTypeJST          BlockType = BlockType(model.BlockContentJST)
 )
 
 // Block is the unit of translation tracking on the wire. Structurally
