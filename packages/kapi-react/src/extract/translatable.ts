@@ -41,7 +41,7 @@ export interface ElementPolicy {
  * In real React codebases `<div>Label</div>` is extremely common,
  * and silently dropping the text is the wrong default. So we
  * promote any element classified as `container` (including unmapped
- * PascalCase components passed through as-is) to `translate: true`
+ * React components passed through as-is) to `translate: true`
  * when it has direct translatable text + only inline children. The
  * walker / transform record a warning so developers know which
  * elements were auto-promoted and can opt out with `translate="no"`

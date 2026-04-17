@@ -4,7 +4,7 @@
  * Both sides of the pipeline (kapi-react's vite plugin and the
  * standalone `kapi-react extract` CLI) walk the same AST. When they
  * decide to translate something the developer didn't explicitly opt
- * into (e.g. a `<div>` with direct text, or an unmapped PascalCase
+ * into (e.g. a `<div>` with direct text, or an unmapped React
  * component that contains translatable text), they record a warning
  * so the developer sees what's happening and can opt out with
  * `translate="no"` or stabilise hashes with a `componentMap` entry.

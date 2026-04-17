@@ -533,7 +533,7 @@ of `<div>Label</div>`, `<section>Intro copy</section>`, and so on, and dropping
 that text silently is the wrong default.
 
 kapi-react **auto-promotes** any container-classified element (including
-unmapped PascalCase components) to translatable when it has:
+unmapped React components) to translatable when it has:
 
 1. At least one direct non-whitespace JSXText child, AND
 2. Only inline children (no nested block-level elements).
@@ -547,7 +547,7 @@ happened:
   ↳ <div className="mb-3 text-sm font-medium">Appearance</div>
 ```
 
-For **unmapped PascalCase components** the warning also suggests a
+For **unmapped React components** the warning also suggests a
 `componentMap` entry — important because adding it later changes the
 underlying hash of every affected block:
 
