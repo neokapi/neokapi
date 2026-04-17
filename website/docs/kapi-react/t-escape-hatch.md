@@ -1,6 +1,7 @@
 ---
 sidebar_position: 4
-title: The `t()` escape hatch
+title: The t() escape hatch
+sidebar_label: The t() escape hatch
 ---
 
 # The `t()` escape hatch
