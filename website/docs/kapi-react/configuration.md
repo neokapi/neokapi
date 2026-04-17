@@ -59,12 +59,6 @@ Maps React components to their underlying HTML element so hashes stay stable acr
 ```ts
 neokapi({
   componentMap: {
-    // shadcn / Radix wrappers
-    TabsTrigger: "button",
-    TabsList: "div",
-    DialogTitle: "h2",
-    DialogDescription: "p",
-
     // Internal components
     PageHeader: "header",
     Heading: "h2",
@@ -72,7 +66,46 @@ neokapi({
 });
 ```
 
-Unmapped components still auto-extract via the promotion rule, but each one fires a warning. Adding the entry silences the warning and re-keys the block's hash from `Component` to the underlying HTML tag.
+Before consulting this option, the plugin **auto-resolves** mappings for every non-relative import it sees, in three stages:
+
+1. **Library-shipped manifest** — `<package>/i18n-manifest.json`. This is the first-priority source and the pattern we recommend for library authors; see [Authoring i18n manifests](#authoring-i18n-manifests-for-libraries).
+2. **Community manifest directory** — `<communityManifestDir>/<package-name>.json`, if you've configured one.
+3. **`.d.ts` heuristic** — regex-match for `React.ForwardRefExoticComponent<... & RefAttributes<HTMLXxxElement>>` in the package's declared types. Picks up most pre-React-19 shadcn / Radix / MUI components for free.
+
+Your `componentMap` entries merge on top of the auto-resolved map, so explicit overrides always win. The common case — using shadcn-style components from a library with proper types or a shipped manifest — needs no `componentMap` entry at all.
+
+Unmapped components still auto-extract via the promotion rule, but each one fires a warning. Adding an entry silences the warning and re-keys the block's hash from `Component` to the underlying HTML tag.
+
+### Authoring i18n manifests for libraries
+
+Ship an `i18n-manifest.json` at the root of your component library so consumers don't need to maintain `componentMap` entries:
+
+```json title="packages/ui/i18n-manifest.json"
+{
+  "components": {
+    "Button": "button",
+    "Badge": "span",
+    "CardTitle": "h3",
+    "CardDescription": "p",
+    "Label": "label",
+    "TabsTrigger": "button",
+    "SelectItem": "option",
+
+    "Input": null,
+    "Textarea": null,
+    "Skeleton": null
+  },
+  "aliases": {
+    "Trigger": "TabsTrigger"
+  }
+}
+```
+
+- Keys are the exported component names.
+- Values are the underlying HTML element name — or `null` to explicitly opt out of translation.
+- `aliases` map alternative export names onto canonical ones (useful for Radix-style namespace re-exports like `Tabs.Trigger`).
+
+The plugin loads this file automatically when any file imports from the library. See [`@neokapi/ui-primitives/i18n-manifest.json`](https://github.com/neokapi/neokapi/blob/main/packages/ui/i18n-manifest.json) for a production reference.
 
 ### `rules`
 

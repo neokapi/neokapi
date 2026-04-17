@@ -12,10 +12,10 @@ title: Translating with kapi
 Pseudo-translation is the fastest way to see what's been picked up for translation — and what hasn't.
 
 ```bash
-kapi pseudo-translate i18n/extracted.klz \
-  --target-lang qps \
-  -o i18n/translated.klz
+kapi pseudo-translate i18n/myproject.klz --target-lang qps
 ```
+
+No `-o` — the default for KLZ inputs is in-place: the `qps` target is added to the same archive. Run again with `--target-lang fr` to add another locale; the writer is locale-additive and existing targets stay put.
 
 Source `Welcome to Acme` becomes `[Ŵéḷçőḿé tő Âçmé]`:
 
@@ -47,11 +47,12 @@ Add it to CI as a UI-layout smoke test:
 For actual translations, `kapi ai-translate` feeds the `.klz` through an LLM. It preserves placeholders, inline element tokens, and plural / select structure:
 
 ```bash
-kapi ai-translate i18n/extracted.klz \
-  --source-lang en \
-  --target-lang fr \
-  -o i18n/translated-fr.klz
+kapi ai-translate i18n/myproject.klz --target-lang fr
+kapi ai-translate i18n/myproject.klz --target-lang de
+kapi ai-translate i18n/myproject.klz --target-lang ja
 ```
+
+Each call accumulates a target locale in place. To redirect output to a different file, pass `-o target.klz` — the input stays untouched.
 
 Supported providers (configured in `kapi.yaml` or via flags):
 
@@ -159,10 +160,10 @@ A complete Makefile / package-scripts setup for a multi-locale app:
 ```json title="package.json"
 {
   "scripts": {
-    "i18n:extract": "kapi-react extract --out i18n/extracted.klz",
-    "i18n:pseudo":  "kapi pseudo-translate i18n/extracted.klz --target-lang qps -o i18n/pseudo.klz",
-    "i18n:ai":      "for lang in fr de ja; do kapi ai-translate i18n/extracted.klz --target-lang $lang -o i18n/translated-$lang.klz; done",
-    "i18n:compile": "kapi-react compile i18n/translated.klz --out public/translations"
+    "i18n:extract": "kapi-react extract --out i18n/myproject.klz",
+    "i18n:pseudo":  "kapi pseudo-translate i18n/myproject.klz --target-lang qps",
+    "i18n:ai":      "for lang in fr de ja; do kapi ai-translate i18n/myproject.klz --target-lang $lang; done",
+    "i18n:compile": "kapi-react compile i18n/myproject.klz --out public/translations"
   }
 }
 ```

@@ -155,20 +155,26 @@ documents/src-App.tsx.klf | jq .` to inspect any block.
 ### 3. Translate (or pseudo-translate for testing)
 
 ```bash
-# Pseudo-translate for visual QA:
-kapi pseudo-translate i18n/extracted.klz --target-lang qps -o i18n/translated.klz
+# Pseudo-translate for visual QA (writes back to the same file).
+kapi pseudo-translate i18n/myproject.klz --target-lang qps
 
-# Or hand off to your TMS / translators → get back a translated .klz
+# Real translations — each call accumulates a target locale:
+kapi ai-translate i18n/myproject.klz --target-lang fr
+kapi ai-translate i18n/myproject.klz --target-lang de
+
+# Or hand off to your TMS / translators → get back the updated .klz
 ```
 
-The translated `.klz` has per-locale target runs populated on every
-`Block`; pseudo-translate leaves placeholders intact and only
-rewrites text runs. Inline codes stay protected.
+`kapi` tool commands default to in-place for KLZ inputs: the writer
+preserves every existing target and appends (or updates) the one
+you're translating. Pass `-o other.klz` when you want an explicit
+redirect. The single `myproject.klz` carries source + every target
+through the whole round-trip.
 
 ### 4. Compile to the runtime dictionary
 
 ```bash
-vpx kapi-react compile i18n/translated.klz --out public/translations
+vpx kapi-react compile i18n/myproject.klz --out public/translations
 ```
 
 Produces one `<locale>.json` file per target locale with the
@@ -745,13 +751,13 @@ issues, and hardcoded strings:
 
 ```bash
 # 1. Extract to a .klz archive
-vpx kapi-react extract --out i18n/extracted.klz --target-locale qps
+vpx kapi-react extract --out i18n/myproject.klz --target-locale qps
 
-# 2. Pseudo-translate with kapi
-kapi pseudo-translate i18n/extracted.klz --target-lang qps -o i18n/translated.klz
+# 2. Pseudo-translate with kapi (writes back to the same file)
+kapi pseudo-translate i18n/myproject.klz --target-lang qps
 
 # 3. Compile the translated .klz to public/translations/qps.json
-vpx kapi-react compile i18n/translated.klz
+vpx kapi-react compile i18n/myproject.klz
 
 # 4. Build or dev with the pseudo-locale
 LOCALE=qps npm run dev   # (or set the locale via your UI language picker)
