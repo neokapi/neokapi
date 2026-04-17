@@ -62,26 +62,21 @@ describe('neokapi-react SWC transform', () => {
       expect(result).toContain('user.name');
     });
 
-    // Test matrix from issue #1
-    it('handles bare identifier', () => {
-      const result = t('<p>{name}</p>');
-      expect(result).toContain('__t(');
-      expect(result).toContain('name');
-      expect(result).not.toContain('${}');
+    // Expression-only children are left untouched — a lone
+    // `{variable}` / `{formatDate()}` holds no translator-editable
+    // text, and wrapping it in `__t()` coerces React-element values
+    // to "[object Object]" at runtime. Mixed content (see below)
+    // still transforms normally.
+    it('leaves bare identifier `<p>{name}</p>` untransformed', () => {
+      expect(t('<p>{name}</p>')).toBeNull();
     });
 
-    it('handles deep member access {a.b.c}', () => {
-      const result = t('<p>{a.b.c}</p>');
-      expect(result).toContain('__t(');
-      expect(result).toContain('a.b.c');
-      expect(result).not.toContain('${}');
+    it('leaves deep member access `<p>{a.b.c}</p>` untransformed', () => {
+      expect(t('<p>{a.b.c}</p>')).toBeNull();
     });
 
-    it('handles call expression {formatDate(d)}', () => {
-      const result = t('<p>{formatDate(d)}</p>');
-      expect(result).toContain('__t(');
-      expect(result).toContain('formatDate(d)');
-      expect(result).not.toContain('${}');
+    it('leaves call expression `<p>{formatDate(d)}</p>` untransformed', () => {
+      expect(t('<p>{formatDate(d)}</p>')).toBeNull();
     });
 
     it('handles expression + trailing text: {value}%', () => {
@@ -185,21 +180,18 @@ describe('neokapi-react SWC transform', () => {
       expect(result).not.toContain('<p>Hello world.</p>');
     });
 
-    it('handles member access + em-dash together', () => {
-      const code = '// — prelude\nexport const X = <p>{user.name}</p>;';
+    it('handles member access + em-dash in a surrounding text context', () => {
+      const code = '// — prelude\nexport const X = <p>Hello, {user.name}!</p>;';
       const result = t(code);
       expect(result).toContain('__t(');
       expect(result).toContain('user.name');
       expect(result).toContain('// — prelude');
-      expect(result).not.toContain('<p>{user.name}</p>');
     });
 
-    it('produces valid JS output for all expression types', () => {
+    it('produces valid JS output for mixed-content expression cases', () => {
+      // Expression-only children no longer transform — text must
+      // anchor the block. These are the realistic patterns.
       const cases = [
-        '<p>{name}</p>',
-        '<p>{user.name}</p>',
-        '<p>{a.b.c}</p>',
-        '<p>{formatDate(d)}</p>',
         '<span>{value}%</span>',
         '<span>{current}/{total}</span>',
         '<p>{count} of {total} items</p>',
@@ -208,9 +200,7 @@ describe('neokapi-react SWC transform', () => {
       for (const input of cases) {
         const result = t(input);
         expect(result, `Failed for input: ${input}`).not.toBeNull();
-        // Must not contain empty template expressions
         expect(result, `Empty template expr in: ${input}`).not.toContain('${}');
-        // Must not contain unquoted dotted keys like { user.name: }
         expect(result, `Unquoted dotted key in: ${input}`).not.toMatch(/\{\s*\w+\.\w+:/);
       }
     });
@@ -327,35 +317,32 @@ describe('neokapi-react SWC transform', () => {
     });
   });
 
-  // Regression matrix from issue #5 — expression containers whose
-  // value evaluates to JSX were classified as string params and
-  // stringified to "[object Object]" at runtime. They must instead
-  // be captured as element tokens so tx() can render them.
+  // A parent whose only child is an expression container has no
+  // translator-editable text anchor, so we leave it alone. When the
+  // expression evaluates to JSX, the inner translatable elements
+  // get picked up by the walker through normal descent.
   describe('runtime mode — conditional JSX in expression containers', () => {
-    it('conditional: {ok && <strong>yes</strong>}', () => {
+    it('leaves `<p>{ok && <strong>yes</strong>}</p>` untransformed, but `yes` still becomes a `__t()` call', () => {
       const result = t('<p>{ok && <strong>yes</strong>}</p>');
       expect(result).not.toBeNull();
-      expect(result).toContain('__tx(');
-      // Must NOT build a fallback template that interpolates the JSX
-      expect(result).not.toMatch(/`\$\{ok &&/);
-      // Element token captured verbatim
-      expect(result).toContain('"=m0": ok && <strong>yes</strong>');
+      expect(result).not.toContain('__tx(');
+      // Inner <strong> is translatable on its own.
+      expect(result).toContain('__t(');
+      expect(result).toContain('"yes"');
     });
 
-    it('ternary: {loading ? <Spinner /> : <Done />}', () => {
+    it('leaves `<p>{loading ? <Spinner /> : <Done />}</p>` untransformed (no inner text)', () => {
       const result = t('<p>{loading ? <Spinner /> : <Done />}</p>');
-      expect(result).not.toBeNull();
-      expect(result).toContain('__tx(');
-      expect(result).toContain('"=m0": loading ? <Spinner /> : <Done />');
+      // No translatable text anywhere — JSX renders unchanged.
+      expect(result).toBeNull();
     });
 
-    it('mixed text + conditional JSX + expression', () => {
+    it('mixed text + conditional JSX: parent uses tx(), JSX captured as element token', () => {
       const result = t('<p>Hello {name}, {isAdmin && <Badge>admin</Badge>}!</p>');
       expect(result).not.toBeNull();
       expect(result).toContain('__tx(');
-      // name is a string param (no JSX in expression)
       expect(result).toContain('"name": name');
-      // isAdmin && ... is an element token
+      // isAdmin && ... is the element token
       expect(result).toContain('"=m1": isAdmin && <Badge>admin</Badge>');
     });
 
@@ -368,32 +355,21 @@ describe('neokapi-react SWC transform', () => {
         '</span>',
       ].join('\n');
       const result = t(code, { rules: [{ selector: '[data-tag-chip]', translate: true }] });
+      // Outer `data-tag-chip` span has only expression-container
+      // children — no translator-editable text — so it's left alone.
+      // The inner `<span className="required">*</span>` still has
+      // the "*" text anchor and gets a __t() call of its own.
       expect(result).not.toBeNull();
-      expect(result).toContain('__tx(');
-      expect(result).not.toContain('__t("');  // no plain t() for the conditional expressions
-      // Both conditional JSX expressions captured verbatim
-      expect(result).toContain('index !== undefined && <span className="badge">{index}</span>');
-      expect(result).toContain('!deletable && <span className="required">*</span>');
-      // label is a regular string param
-      expect(result).toContain('"label": label');
+      expect(result).not.toContain('__tx(');
+      expect(result).toContain('__t(');
+      expect(result).toContain('"*"');
     });
 
-    it('logical OR fallback: {name || <em>anonymous</em>}', () => {
+    it('leaves `<p>{name || <em>anonymous</em>}</p>` outer untransformed, inner em translated', () => {
       const result = t('<p>{name || <em>anonymous</em>}</p>');
       expect(result).not.toBeNull();
-      expect(result).toContain('__tx(');
-      expect(result).toContain('"=m0": name || <em>anonymous</em>');
-    });
-
-    it('plain function call (no AST-level JSX) is still a string param', () => {
-      // Conservative: we can only detect JSX statically. A function
-      // call like {formatDate(d)} has no JSX in its AST, so it stays
-      // a string param. Users who return JSX from a helper should
-      // inline it or bind to a variable.
-      const result = t('<p>{formatDate(d)}</p>');
-      expect(result).not.toBeNull();
-      expect(result).toContain('__t(');
       expect(result).not.toContain('__tx(');
+      expect(result).toContain('"anonymous"');
     });
   });
 

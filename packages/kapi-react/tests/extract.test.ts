@@ -95,15 +95,17 @@ describe('extractDocument — element blocks', () => {
     expect(block.placeholders.find((p) => p.kind === 'element')).toBeTruthy();
   });
 
-  it('marks `{cond && <X/>}` placeholders as optional jsx:node', () => {
+  it('skips expression-only parents, extracts the nested JSX text', () => {
+    // `<button>{show && <span>Save</span>}</button>` has no
+    // translator-editable text at the button level. The walker
+    // extracts the inner `<span>Save</span>` as its own block so
+    // "Save" still ends up in the dictionary; the outer button
+    // renders as vanilla JSX at runtime.
     const doc = extract('<button>{show && <span>Save</span>}</button>');
-    // Outer `<button>` captures the conditional as a jsx:node; the
-    // inner `<span>` surfaces as its own nested block because its
-    // content is still translatable independently.
-    const outer = doc.blocks.find((b) => b.properties.jsxPath === 'button');
-    const ph = phRun(outer?.source[0]).ph;
-    expect(ph.type).toBe('jsx:node');
-    expect(outer?.placeholders.find((p) => p.kind === 'node')?.optional).toBe(true);
+    expect(doc.blocks.find((b) => b.properties.jsxPath === 'button')).toBeUndefined();
+    const inner = doc.blocks.find((b) => b.properties.jsxPath === 'button > span');
+    expect(inner).toBeTruthy();
+    expect(textRun(inner?.source[0]).text).toBe('Save');
   });
 
   it('deduplicates placeholder equivs across a single block', () => {
