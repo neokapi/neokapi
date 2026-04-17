@@ -174,6 +174,76 @@ func TestEditorGRPCUpdateBlockTarget(t *testing.T) {
 	assert.Equal(t, "human", resp.Blocks[0].Properties["translation-origin"])
 }
 
+// TestEditorGRPCUpdateBlockTargetPluralRoundTrip verifies a
+// translator can upgrade a flat target into a structured PluralRun
+// by sending a `plural` oneof through UpdateBlockTarget. The server
+// must round-trip it through ContentStore and return it intact on
+// GetBlocks — this is the wire-level leg of #377 Track B.
+func TestEditorGRPCUpdateBlockTargetPluralRoundTrip(t *testing.T) {
+	editor, neokapi := setupBothClients(t)
+	ctx := t.Context()
+
+	proj, err := neokapi.CreateProject(ctx, &pb.CreateProjectRequest{
+		Name:          "Plural Target",
+		SourceLocale:  "en",
+		TargetLocales: []string{"de"},
+	})
+	require.NoError(t, err)
+
+	_, err = neokapi.StoreBlocks(ctx, &pb.StoreBlocksRequest{
+		ProjectId: proj.Id,
+		Blocks:    []*pb.BlockMessage{{Id: "b1", Source: "{count} items"}},
+	})
+	require.NoError(t, err)
+
+	// Translator-authored plural target: wrap in a PluralRun whose
+	// forms reuse the pivot variable `count`.
+	pluralRun := &pb.EditorRun{
+		Kind: &pb.EditorRun_Plural{
+			Plural: &pb.EditorPluralRun{
+				Pivot: "count",
+				Forms: map[string]*pb.EditorRunList{
+					"one": {Runs: []*pb.EditorRun{
+						{Kind: &pb.EditorRun_Text{Text: &pb.EditorTextRun{Text: "1 Nachricht"}}},
+					}},
+					"other": {Runs: []*pb.EditorRun{
+						{Kind: &pb.EditorRun_Ph{Ph: &pb.EditorPlaceholderRun{
+							Id: "1", Type: "jsx:var", Data: "{count}", Equiv: "count",
+						}}},
+						{Kind: &pb.EditorRun_Text{Text: &pb.EditorTextRun{Text: " Nachrichten"}}},
+					}},
+				},
+			},
+		},
+	}
+
+	_, err = editor.UpdateBlockTarget(ctx, &pb.UpdateBlockTargetRequest{
+		ProjectId:    proj.Id,
+		BlockId:      "b1",
+		TargetLocale: "de",
+		Runs:         []*pb.EditorRun{pluralRun},
+	})
+	require.NoError(t, err)
+
+	resp, err := editor.GetBlocks(ctx, &pb.GetBlocksRequest{ProjectId: proj.Id})
+	require.NoError(t, err)
+	require.Len(t, resp.Blocks, 1)
+	runs := resp.Blocks[0].TargetRuns["de"].Runs
+	require.Len(t, runs, 1, "target should round-trip as a single PluralRun")
+	plural, ok := runs[0].Kind.(*pb.EditorRun_Plural)
+	require.True(t, ok, "run kind should be plural, got %T", runs[0].Kind)
+	assert.Equal(t, "count", plural.Plural.Pivot)
+
+	oneForm := plural.Plural.Forms["one"].Runs
+	require.Len(t, oneForm, 1)
+	assert.Equal(t, "1 Nachricht", oneForm[0].GetText().GetText())
+
+	otherForm := plural.Plural.Forms["other"].Runs
+	require.Len(t, otherForm, 2)
+	assert.Equal(t, "count", otherForm[0].GetPh().GetEquiv())
+	assert.Equal(t, " Nachrichten", otherForm[1].GetText().GetText())
+}
+
 func TestEditorGRPCReviewBlock(t *testing.T) {
 	editor, neokapi := setupBothClients(t)
 	ctx := t.Context()
