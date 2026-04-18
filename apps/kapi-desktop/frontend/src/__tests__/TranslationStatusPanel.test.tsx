@@ -1,10 +1,11 @@
-import { describe, it, expect } from "vitest";
-import { render, screen, within } from "@testing-library/react";
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import { render, screen, within, fireEvent, waitFor } from "@testing-library/react";
 
 import {
   TranslationStatusPanel,
   type ProjectStatus,
 } from "../components/TranslationStatusPanel";
+import { api } from "../hooks/useApi";
 
 function statusFixture(overrides: Partial<ProjectStatus> = {}): ProjectStatus {
   return {
@@ -91,5 +92,65 @@ describe("TranslationStatusPanel", () => {
       />,
     );
     expect(screen.getByText(/file-based flow/i)).toBeInTheDocument();
+  });
+
+  describe("Re-extract action", () => {
+    beforeEach(() => {
+      vi.restoreAllMocks();
+    });
+
+    it("renders the Re-extract button only when at least one collection declares an archive", () => {
+      render(
+        <TranslationStatusPanel
+          tabID="t1"
+          status={statusFixture({
+            collections: [
+              {
+                name: "legacy",
+                archive: "",
+                archiveExists: false,
+                blockCount: 0,
+                coverage: {},
+                targetLanguages: [],
+              },
+            ],
+          })}
+        />,
+      );
+      expect(
+        document.querySelector("[data-slot='translation-status-reextract']"),
+      ).toBeNull();
+    });
+
+    it("invokes api.runExtract and surfaces the log", async () => {
+      const runExtract = vi
+        .spyOn(api, "runExtract")
+        .mockResolvedValue({ log: "  ui → @neokapi/kapi-react (3 file(s))\n  i18n/ui.klz ← 12 blocks across 3 documents\n" });
+
+      render(<TranslationStatusPanel tabID="t1" status={statusFixture()} />);
+      const button = document.querySelector(
+        "[data-slot='translation-status-reextract']",
+      ) as HTMLButtonElement;
+      expect(button).not.toBeNull();
+
+      fireEvent.click(button);
+      await waitFor(() => expect(runExtract).toHaveBeenCalledWith("t1"));
+      await waitFor(() => {
+        const log = document.querySelector("[data-slot='translation-status-log']");
+        expect(log?.textContent).toContain("12 blocks across 3 documents");
+      });
+    });
+
+    it("surfaces errors returned by api.runExtract", async () => {
+      vi.spyOn(api, "runExtract").mockRejectedValue(new Error("extractor crashed"));
+      render(<TranslationStatusPanel tabID="t1" status={statusFixture()} />);
+      const button = document.querySelector(
+        "[data-slot='translation-status-reextract']",
+      ) as HTMLButtonElement;
+      fireEvent.click(button);
+      await waitFor(() =>
+        expect(screen.getByText(/extractor crashed/i)).toBeInTheDocument(),
+      );
+    });
   });
 });

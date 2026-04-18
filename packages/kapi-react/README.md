@@ -744,6 +744,36 @@ The boundary is: `kapi-react` extracts to `.klz` and compiles translated
 translate, AI translate, TM matching, QA, review — goes through the
 `kapi` CLI (AD-045).
 
+### Two integration modes
+
+- **Standalone CLI.** `kapi-react extract --out i18n/ui.klz` produces
+  the archive directly, no `kapi` required. Best for JS-only teams
+  or CI pipelines that don't have the Go toolchain.
+- **kapi plugin.** When a `.kapi` project is in play, `kapi extract -p
+  project.kapi` auto-discovers `@neokapi/kapi-react` from the
+  project's `node_modules` and dispatches to it via the plugin
+  contract — NUL-separated paths on stdin, NDJSON blocks on stdout.
+  No manual install. Same SWC walker, same hashes, one `.klz` shared
+  across every source format in the project.
+
+The plugin descriptor lives in `package.json#kapi-plugin`:
+
+```json
+{
+  "kapi-plugin": {
+    "extensions": [".tsx", ".jsx"],
+    "extract": {
+      "exec": ["npx", "--no-install", "kapi-react", "extract", "--blocks-stream"],
+      "stdin": "paths-nul-separated"
+    }
+  }
+}
+```
+
+kapi hands stdin + captures stdout; the extract CLI's `--blocks-stream`
+flag switches it into plugin-mode output (no `.klz` on its own,
+just the NDJSON).
+
 ## Pseudo-Translation Workflow
 
 Test your UI with pseudo-translated text to catch truncation, layout

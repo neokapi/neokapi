@@ -161,6 +161,15 @@ func PlanExtract(projectPath string) ([]ExtractPlan, error) {
 	return plans, nil
 }
 
+// RunExtractInProcess is the exported form of the kapi extract CLI
+// logic — useful for callers (kapi-desktop) that want to run the
+// same orchestration without shelling out to the binary. Uses the
+// default 5-minute per-subprocess timeout; pass a context with a
+// shorter deadline to bound externally.
+func RunExtractInProcess(ctx context.Context, w io.Writer, projectPath string) error {
+	return runExtract(ctx, w, projectPath, 5*time.Minute)
+}
+
 func runExtract(ctx context.Context, w io.Writer, projectPath string, timeout time.Duration) error {
 	plans, err := PlanExtract(projectPath)
 	if err != nil {

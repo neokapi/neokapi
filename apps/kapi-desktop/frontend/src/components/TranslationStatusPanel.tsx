@@ -1,5 +1,6 @@
-import { useEffect, useState } from "react";
-import { Card, CardContent } from "@neokapi/ui-primitives";
+import { useCallback, useEffect, useState } from "react";
+import { Button, Card, CardContent } from "@neokapi/ui-primitives";
+import { Loader2, RefreshCw } from "lucide-react";
 import { api } from "../hooks/useApi";
 
 export interface CollectionStatus {
@@ -31,8 +32,10 @@ export interface TranslationStatusPanelProps {
 export function TranslationStatusPanel({ tabID, status: propStatus }: TranslationStatusPanelProps) {
   const [status, setStatus] = useState<ProjectStatus | null>(propStatus ?? null);
   const [error, setError] = useState<string | null>(null);
+  const [extracting, setExtracting] = useState(false);
+  const [extractLog, setExtractLog] = useState<string | null>(null);
 
-  useEffect(() => {
+  const refreshStatus = useCallback(() => {
     if (propStatus) return;
     let cancelled = false;
     api
@@ -48,7 +51,25 @@ export function TranslationStatusPanel({ tabID, status: propStatus }: Translatio
     };
   }, [tabID, propStatus]);
 
-  if (error) {
+  useEffect(() => {
+    refreshStatus();
+  }, [refreshStatus]);
+
+  const runExtract = useCallback(async () => {
+    setExtracting(true);
+    setError(null);
+    try {
+      const result = await api.runExtract(tabID);
+      setExtractLog(result.log);
+      refreshStatus();
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setExtracting(false);
+    }
+  }, [tabID, refreshStatus]);
+
+  if (error && !status) {
     return (
       <div className="p-4 text-sm text-destructive" data-slot="translation-status-error">
         {error}
@@ -63,8 +84,37 @@ export function TranslationStatusPanel({ tabID, status: propStatus }: Translatio
     );
   }
 
+  const hasExtractable = status.collections.some((c) => c.archive);
+
   return (
     <div className="space-y-3" data-slot="translation-status-panel">
+      <div className="flex items-center justify-between">
+        <div className="text-xs text-muted-foreground">
+          {extractLog && !extracting && "Last extract output available below."}
+        </div>
+        {hasExtractable && (
+          <Button
+            variant="outline"
+            size="xs"
+            onClick={() => void runExtract()}
+            disabled={extracting}
+            data-slot="translation-status-reextract"
+            aria-label="Re-extract translatable content"
+          >
+            {extracting ? (
+              <Loader2 size={12} className="animate-spin" />
+            ) : (
+              <RefreshCw size={12} />
+            )}
+            {extracting ? "Extracting…" : "Re-extract"}
+          </Button>
+        )}
+      </div>
+      {error && (
+        <div className="rounded-md border border-destructive/50 bg-destructive/10 p-3 text-xs text-destructive">
+          {error}
+        </div>
+      )}
       {status.collections.length === 0 && (
         <div className="p-4 text-sm text-muted-foreground">
           No content collections defined in this project.
@@ -73,6 +123,14 @@ export function TranslationStatusPanel({ tabID, status: propStatus }: Translatio
       {status.collections.map((collection) => (
         <CollectionCard key={`${collection.name}|${collection.archive}`} collection={collection} />
       ))}
+      {extractLog && (
+        <pre
+          className="max-h-48 overflow-auto rounded-md border border-border bg-muted/30 p-3 font-mono text-[11px] text-muted-foreground"
+          data-slot="translation-status-log"
+        >
+          {extractLog.trim()}
+        </pre>
+      )}
     </div>
   );
 }

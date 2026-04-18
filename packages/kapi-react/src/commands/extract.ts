@@ -24,27 +24,55 @@ import type { PluginOptions } from '../types.ts';
 
 type ExtractConfig = Pick<PluginOptions, 'componentMap' | 'rules'>;
 
-export async function runExtract(args: string[]): Promise<void> {
+export interface RunExtractIO {
+  /** Source of NUL-separated paths for --blocks-stream mode. */
+  stdin?: NodeJS.ReadableStream;
+  /** Sink for NDJSON block records in --blocks-stream mode. */
+  stdout?: NodeJS.WritableStream;
+}
+
+export async function runExtract(args: string[], io: RunExtractIO = {}): Promise<void> {
   const opts = parseArgs(args);
   if (opts.help) {
     console.log(usage);
     return;
   }
 
+  const stdin = io.stdin ?? process.stdin;
+  const stdout = io.stdout ?? process.stdout;
+
   const config = loadConfig(opts.configPath);
 
-  const files: string[] = [];
-  for await (const file of glob(opts.srcGlob)) files.push(file);
+  const files = opts.blocksStream
+    ? await readPathsFromStdin(stdin)
+    : await expandGlob(opts.srcGlob);
   files.sort();
 
   if (files.length === 0) {
-    console.warn(`No files found matching "${opts.srcGlob}"`);
+    if (!opts.blocksStream) console.warn(`No files found matching "${opts.srcGlob}"`);
     return;
   }
 
-  console.log(`Scanning ${files.length} files...`);
+  if (!opts.blocksStream) {
+    console.log(`Scanning ${files.length} files...`);
+  }
 
   const documents = extractAllDocuments(files, config);
+
+  if (opts.blocksStream) {
+    // NDJSON block stream on stdout — consumed by `kapi extract` as
+    // the exec-extractor protocol. No archive is written here; kapi
+    // owns the klz. Warnings still flow to stderr.
+    for (const doc of documents) {
+      for (const block of doc.blocks) {
+        stdout.write(
+          JSON.stringify({ type: 'block', document: doc.path, block }) + '\n',
+        );
+      }
+    }
+    return;
+  }
+
   if (documents.length === 0) {
     console.warn('No translatable content found.');
     return;
@@ -58,6 +86,30 @@ export async function runExtract(args: string[]): Promise<void> {
   console.log(`Extracted ${blockCount} blocks from ${documents.length} files → ${opts.outFile}`);
 }
 
+async function expandGlob(pattern: string): Promise<string[]> {
+  const files: string[] = [];
+  for await (const file of glob(pattern)) files.push(file);
+  return files;
+}
+
+// readPathsFromStdin consumes NUL-separated paths from the given
+// readable stream — the protocol kapi uses when invoking an
+// exec-extractor. Filters empty segments and trims whitespace so a
+// trailing newline or stray NUL doesn't produce a phantom path.
+async function readPathsFromStdin(stdin: NodeJS.ReadableStream): Promise<string[]> {
+  const chunks: Buffer[] = [];
+  for await (const chunk of stdin) {
+    if (Buffer.isBuffer(chunk)) chunks.push(chunk);
+    else if (typeof chunk === 'string') chunks.push(Buffer.from(chunk, 'utf8'));
+    else chunks.push(Buffer.from(chunk as unknown as ArrayBuffer));
+  }
+  const raw = Buffer.concat(chunks).toString('utf8');
+  return raw
+    .split('\0')
+    .map((s) => s.trim())
+    .filter((s) => s.length > 0);
+}
+
 // ─── Internals ────────────────────────────────────────────────────
 
 interface ExtractArgs {
@@ -67,6 +119,11 @@ interface ExtractArgs {
   projectId: string;
   sourceLocale: string;
   targetLocales: string[];
+  // blocksStream switches the command into the exec-extractor
+  // protocol: read NUL-separated paths from stdin, emit NDJSON
+  // block records to stdout, never write a .klz. Used by
+  // `kapi extract` when dispatching to the kapi-react plugin.
+  blocksStream: boolean;
   help: boolean;
 }
 
@@ -78,6 +135,7 @@ function parseArgs(args: string[]): ExtractArgs {
     projectId: 'app',
     sourceLocale: 'en',
     targetLocales: [],
+    blocksStream: false,
     help: false,
   };
 
@@ -106,6 +164,9 @@ function parseArgs(args: string[]): ExtractArgs {
         break;
       case '--target-locale':
         if (value) parsed.targetLocales.push(args[++i]);
+        break;
+      case '--blocks-stream':
+        parsed.blocksStream = true;
         break;
       default:
         console.warn(`unknown flag: ${flag}`);
