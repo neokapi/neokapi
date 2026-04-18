@@ -17,7 +17,7 @@ import (
 // as the `command:` target in tests — avoids needing a real
 // kapi-react.
 //
-// Uses /usr/bin/env bash explicitly because `read -d ''` is a
+// Uses /usr/bin/env bash explicitly because `read -d ”` is a
 // bash-ism; Ubuntu's default /bin/sh (dash) doesn't support it and
 // the test would spin forever.
 func fakeExtractorScript(t *testing.T, dir, name string) string {

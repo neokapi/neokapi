@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/version"
@@ -236,16 +237,24 @@ func resolveLayoutFromFlag(flag string) (project.Layout, error) {
 }
 
 func scaffoldRecipe(name, sourceLocale string, targetLocales []string) []byte {
-	out := "version: v1\n"
-	out += "id: " + name + "\n"
-	out += "name: " + name + "\n"
-	out += "sourceLocale: " + sourceLocale + "\n"
+	var b strings.Builder
+	b.WriteString("version: v1\n")
+	b.WriteString("id: ")
+	b.WriteString(name)
+	b.WriteString("\nname: ")
+	b.WriteString(name)
+	b.WriteString("\nsourceLocale: ")
+	b.WriteString(sourceLocale)
+	b.WriteByte('\n')
 	if len(targetLocales) > 0 {
-		out += "targetLocales:\n"
+		b.WriteString("targetLocales:\n")
 		for _, t := range targetLocales {
-			out += "  - " + t + "\n"
+			b.WriteString("  - ")
+			b.WriteString(t)
+			b.WriteByte('\n')
 		}
 	}
+	out := b.String()
 	out += `
 # Define content collections — sources kapi will extract from, and
 # writer outputs for translated files. See docs/kapi-project-model
