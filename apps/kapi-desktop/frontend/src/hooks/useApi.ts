@@ -76,6 +76,19 @@ export const api = {
   updateProject: (tabID: string, project: KapiProject) =>
     call<void>("UpdateProject", tabID, project),
   getProjectPath: (tabID: string) => call<string>("GetProjectPath", tabID),
+  getProjectStatus: (tabID: string) =>
+    call<{
+      projectPath: string;
+      projectName: string;
+      collections: Array<{
+        name: string;
+        archive: string;
+        archiveExists: boolean;
+        blockCount: number;
+        coverage: Record<string, number>;
+        targetLanguages: string[];
+      }>;
+    }>("GetProjectStatus", tabID),
 
   // Flows (scoped to tab)
   listFlows: (tabID: string) => call<FlowInfo[]>("ListFlows", tabID),
