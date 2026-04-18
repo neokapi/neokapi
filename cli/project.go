@@ -252,6 +252,122 @@ func localeIn(locales []model.LocaleID, target model.LocaleID) bool {
 	return false
 }
 
+// NewShowCmd returns `kapi show <hash>` — looks up a single block
+// across every archive declared in a .kapi project and pretty-prints
+// its source, per-locale targets, and properties. Useful for
+// investigating a hash that surfaced in a translator complaint, a QA
+// error log, or a warning trace.
+func (a *App) NewShowCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:     "show <hash>",
+		Short:   "Show a single block from the project's archives",
+		GroupID: "content",
+		Args:    cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			projectPath, _ := cmd.Flags().GetString("project")
+			if projectPath == "" {
+				return errors.New("required flag: --project / -p <project.kapi>")
+			}
+			return runShow(cmd.OutOrStdout(), projectPath, args[0])
+		},
+	}
+	cmd.Flags().StringP("project", "p", "", "path to .kapi project file")
+	return cmd
+}
+
+func runShow(w io.Writer, projectPath, hash string) error {
+	proj, err := project.Load(projectPath)
+	if err != nil {
+		return fmt.Errorf("load project: %w", err)
+	}
+	projDir := filepath.Dir(projectPath)
+
+	for i := range proj.Content {
+		coll := &proj.Content[i]
+		if coll.Archive == "" {
+			continue
+		}
+		archivePath := filepath.Join(projDir, coll.Archive)
+		data, err := os.ReadFile(archivePath)
+		if err != nil {
+			continue
+		}
+		reader, err := klz.NewReader(bytes.NewReader(data), int64(len(data)))
+		if err != nil {
+			continue
+		}
+		docs, err := reader.Documents()
+		_ = reader.Close()
+		if err != nil {
+			continue
+		}
+		for _, file := range docs {
+			for _, doc := range file.Documents {
+				for _, block := range doc.Blocks {
+					if block.Hash != hash {
+						continue
+					}
+					fmt.Fprintf(w, "%s (%s)\n", hash, coll.Name)
+					fmt.Fprintf(w, "  archive:  %s\n", coll.Archive)
+					fmt.Fprintf(w, "  document: %s\n", doc.Path)
+					fmt.Fprintf(w, "  element:  %s\n", block.Properties.Element)
+					if block.Properties.JSXPath != "" {
+						fmt.Fprintf(w, "  jsxPath:  %s\n", block.Properties.JSXPath)
+					}
+					if block.Properties.LocNote != "" {
+						fmt.Fprintf(w, "  note:     %s\n", block.Properties.LocNote)
+					}
+					fmt.Fprintf(w, "  source:   %s\n", renderRuns(block.Source))
+					if len(block.Targets) == 0 {
+						fmt.Fprintln(w, "  targets:  (none)")
+						return nil
+					}
+					locales := make([]klf.LocaleID, 0, len(block.Targets))
+					for loc := range block.Targets {
+						locales = append(locales, loc)
+					}
+					sort.Slice(locales, func(i, j int) bool {
+						return locales[i] < locales[j]
+					})
+					fmt.Fprintln(w, "  targets:")
+					for _, loc := range locales {
+						fmt.Fprintf(w, "    %-6s %s\n", loc+":", renderRuns(block.Targets[loc]))
+					}
+					return nil
+				}
+			}
+		}
+	}
+	return fmt.Errorf("hash %q not found in any declared archive", hash)
+}
+
+// renderRuns flattens a Run sequence into a human-readable one-line
+// preview for `kapi show`. Placeholders use their equiv token,
+// paired codes surface as `<tag>` / `</tag>`, plural / select are
+// collapsed to their pivot for brevity.
+func renderRuns(runs []klf.Run) string {
+	var b bytes.Buffer
+	for _, r := range runs {
+		switch {
+		case r.Text != nil:
+			b.WriteString(r.Text.Text)
+		case r.Ph != nil:
+			fmt.Fprintf(&b, "{%s}", r.Ph.Equiv)
+		case r.PcOpen != nil:
+			fmt.Fprintf(&b, "<%s>", r.PcOpen.Equiv)
+		case r.PcClose != nil:
+			fmt.Fprintf(&b, "</%s>", r.PcClose.Equiv)
+		case r.Sub != nil:
+			fmt.Fprintf(&b, "[%s]", r.Sub.Equiv)
+		case r.Plural != nil:
+			fmt.Fprintf(&b, "{%s, plural, …}", r.Plural.Pivot)
+		case r.Select != nil:
+			fmt.Fprintf(&b, "{%s, select, …}", r.Select.Pivot)
+		}
+	}
+	return b.String()
+}
+
 // NewSyncCmd returns `kapi sync` — orchestrates translation top-ups
 // for every ContentCollection in a .kapi project that declares an
 // archive. For each (collection, target-locale) pair whose archive
