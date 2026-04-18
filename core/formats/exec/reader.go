@@ -1,17 +1,28 @@
-// Package extractor runs exec-based source extractors — subprocesses
-// that accept NUL-separated file paths on stdin and emit NDJSON
-// block records on stdout. The protocol is the lightweight
-// counterpart to the gRPC DataFormatReader plugin: one-shot, batch,
-// transparent to debug, trivial to write in any language.
+// Package exec implements kapi's `exec` format — a declarative
+// extractor wrapper around any subprocess that accepts NUL-separated
+// file paths on stdin and emits NDJSON block records on stdout.
 //
-// The NDJSON payload format:
+// Projects opt in via a FormatSpec in their .kapi:
+//
+//	format:
+//	  name: exec
+//	  config:
+//	    command: "vp kapi-react extract --stream"
+//
+// `kapi extract -p project.kapi` runs the declared command once per
+// collection with every matched file path on stdin, then packs the
+// streamed blocks into the collection's .klz. The protocol is
+// transparent to debug (plain JSON), trivial to write in any
+// language, and carries no kapi-specific schema beyond the klf.Block
+// shape the subprocess emits.
+//
+// Records look like:
 //
 //	{"type":"block","document":"<path>","block":{ ...klf.Block... }}
 //
-// Per-line records. Any other lines on stdout are ignored.
-// Non-zero exit status surfaces to the caller as an error with the
-// captured stderr attached.
-package extractor
+// Per-line. Other lines on stdout are ignored. Non-zero exit status
+// surfaces as an error with captured stderr attached.
+package exec
 
 import (
 	"bufio"
@@ -21,16 +32,21 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"os/exec"
+	gexec "os/exec"
 	"strings"
 	"time"
 
 	"github.com/neokapi/neokapi/core/klf"
 )
 
-// Spec declares how to launch an exec extractor. Populated from a
-// kapi-plugin.json descriptor or an explicit extractor: stanza in a
-// .kapi content collection.
+// FormatName is the name under which this format is declared in a
+// .kapi project (`format: { name: exec, ... }`). Exposed as a
+// constant so the CLI can dispatch without stringly-typing it.
+const FormatName = "exec"
+
+// Spec declares how to launch the extractor subprocess. Populated
+// from the FormatSpec.Config.command field in a .kapi content
+// declaration.
 type Spec struct {
 	// Exec is the argv for the subprocess. First element is the
 	// binary (looked up on PATH unless absolute); remaining elements
@@ -71,7 +87,7 @@ func Run(ctx context.Context, spec Spec, paths []string) ([]Record, error) {
 		defer cancel()
 	}
 
-	cmd := exec.CommandContext(runCtx, spec.Exec[0], spec.Exec[1:]...) // #nosec G204 — argv supplied by trusted project config
+	cmd := gexec.CommandContext(runCtx, spec.Exec[0], spec.Exec[1:]...) // #nosec G204 — argv supplied by trusted project config
 	cmd.Dir = spec.WorkDir
 	cmd.Stdin = bytes.NewReader(joinNUL(paths))
 
@@ -96,6 +112,23 @@ func Run(ctx context.Context, spec Spec, paths []string) ([]Record, error) {
 		return records, fmt.Errorf("extractor: parse stdout: %w", parseErr)
 	}
 	return records, nil
+}
+
+// DecodeLine parses one raw NDJSON line into a Record. Blank lines
+// and lines that don't start with `{` are treated as noise and
+// yield ok=false with nil error so callers can scan uniformly.
+// Malformed JSON on an otherwise record-shaped line returns an
+// error. Shared with `kapi pack` for stdin-mode ingestion.
+func DecodeLine(line []byte) (Record, bool, error) {
+	trimmed := bytes.TrimSpace(line)
+	if len(trimmed) == 0 || trimmed[0] != '{' {
+		return Record{}, false, nil
+	}
+	var rec Record
+	if err := json.Unmarshal(trimmed, &rec); err != nil {
+		return Record{}, false, fmt.Errorf("malformed NDJSON: %q: %w", string(trimmed), err)
+	}
+	return rec, true, nil
 }
 
 // parseNDJSON reads line-delimited JSON records from r. A blank line

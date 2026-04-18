@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"bufio"
 	"context"
 	"errors"
 	"fmt"
@@ -13,37 +14,35 @@ import (
 
 	"github.com/bmatcuk/doublestar/v4"
 
+	"github.com/neokapi/neokapi/core/formats/exec"
 	"github.com/neokapi/neokapi/core/klf"
 	"github.com/neokapi/neokapi/core/klz"
-	"github.com/neokapi/neokapi/core/plugin/extractor"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/spf13/cobra"
 )
 
-// NewExtractCmd returns `kapi extract` — the unified entry point for
-// source → .klz extraction. Walks every archive-declared collection
-// in a .kapi project, dispatches each file to a registered extractor
-// (based on extension or explicit `extractor:` override), and writes
-// the resulting blocks into each collection's declared archive.
+// NewExtractCmd returns `kapi extract` — the project-level entry
+// point for source → .klz extraction. Walks every archive-declared
+// collection in a .kapi project, runs the FormatSpec declared on
+// each item, and packs the resulting blocks into each collection's
+// .klz.
+//
+// Today the only content-generating format supported via this
+// command is `exec` (see core/formats/exec). Built-in file-reader
+// formats (markdown, xliff, …) still go through `kapi run` flows.
 func (a *App) NewExtractCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "extract",
-		Short:   "Extract translatable content into the project's .klz archives",
+		Short:   "Run declared extractors into each collection's .klz",
 		GroupID: "content",
-		Long: `kapi extract -p project.kapi walks every content collection
-that declares an archive: path and populates it by dispatching
-matched files to the right extractor:
+		Long: `kapi extract -p project.kapi looks at every content collection
+that declares an archive: path, runs the format's extractor
+(format: name: exec with a command, today), and packs the streamed
+blocks into the collection's archive.
 
-  1. The collection's explicit extractor: stanza wins.
-  2. Otherwise, a kapi-plugin.json descriptor in the project's
-     node_modules tree that claims the file's extension.
-  3. Otherwise, the extension is skipped with a warning — no
-     built-in extractor exists for source files yet (that path is
-     reserved for pipeline-level format filters that read AND
-     write source).
-
-The extractor protocol is NUL-separated paths on stdin, NDJSON
-block records on stdout. See core/plugin/extractor for details.`,
+To override the argv per run without editing the project file,
+use KAPI_EXEC_OVERRIDE=<command> — useful for CI where the
+canonical command differs from local invocation.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			projectPath, _ := cmd.Flags().GetString("project")
 			if projectPath == "" {
@@ -58,38 +57,54 @@ block records on stdout. See core/plugin/extractor for details.`,
 	return cmd
 }
 
-// ExtractPlan is one batch the extractor runner will execute. Built
-// from the declared collections so callers can inspect the plan
-// before we spawn subprocesses.
+// NewPackCmd returns `kapi pack` — reads NDJSON block records from
+// stdin or a directory of .klf files and writes a single .klz
+// archive. The standalone counterpart to `kapi extract -p` for
+// pipelines that produce streams directly (no .kapi required).
+//
+//	vp kapi-react extract --stream | kapi pack --out i18n/ui.klz
+//	kapi pack --in i18n/klf/ --out i18n/ui.klz
+func (a *App) NewPackCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:     "pack",
+		Short:   "Pack NDJSON blocks or a directory of .klf files into a .klz",
+		GroupID: "content",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			outPath, _ := cmd.Flags().GetString("out")
+			if outPath == "" {
+				return errors.New("required flag: --out <archive.klz>")
+			}
+			inDir, _ := cmd.Flags().GetString("in")
+			return runPack(cmd.Context(), cmd.InOrStdin(), cmd.OutOrStdout(), inDir, outPath)
+		},
+	}
+	cmd.Flags().String("out", "", "output archive path (.klz)")
+	cmd.Flags().String("in", "", "directory of .klf files (omit to read NDJSON from stdin)")
+	return cmd
+}
+
+// ExtractPlan is one batch the extract command will execute. Built
+// from the declared collections so callers (kapi-desktop, tests)
+// can inspect the plan before spawning subprocesses.
 type ExtractPlan struct {
 	Collection string
 	Archive    string
-	// Extractor identifies the extractor that will handle each
-	// extension group. Multiple extensions can map to the same
-	// extractor (eg .tsx + .jsx → kapi-react).
-	Extractor extractor.Spec
-	// PackageName is filled in for discovered extractors so progress
-	// + error messages reference the package.
-	PackageName string
-	// Files matched for this extractor, relative to the project dir.
+	// Command is the argv declared via `format: exec` config.command.
+	Command []string
+	// Files matched for this collection (project-relative paths).
 	Files []string
 }
 
-// PlanExtract resolves every (collection, extractor) pair that
-// kapi extract will run for a project. Returns an empty plan when
-// the project has no archive-declared collections.
+// PlanExtract reads the .kapi project and produces one ExtractPlan
+// per archive-declared collection whose items use `format: exec`.
+// Collections without an archive, or items whose format isn't exec,
+// are ignored — they're out of scope for this command.
 func PlanExtract(projectPath string) ([]ExtractPlan, error) {
 	proj, err := project.Load(projectPath)
 	if err != nil {
 		return nil, fmt.Errorf("load project: %w", err)
 	}
 	projDir := filepath.Dir(projectPath)
-
-	discovered, err := extractor.Discover(projDir)
-	if err != nil {
-		return nil, fmt.Errorf("discover plugins: %w", err)
-	}
-	byExt := extractor.ByExtension(discovered)
 
 	var plans []ExtractPlan
 	for i := range proj.Content {
@@ -98,76 +113,59 @@ func PlanExtract(projectPath string) ([]ExtractPlan, error) {
 			continue
 		}
 
-		// Group matched files by extension.
-		byExtForColl := map[string][]string{}
-		for _, item := range coll.EffectiveItems() {
-			matches, err := globMatches(projDir, item.Path)
-			if err != nil {
-				return nil, fmt.Errorf("glob %q: %w", item.Path, err)
-			}
-			for _, m := range matches {
-				ext := strings.ToLower(filepath.Ext(m))
-				byExtForColl[ext] = append(byExtForColl[ext], m)
-			}
+		command, files, err := collectExecInputs(projDir, coll)
+		if err != nil {
+			return plans, fmt.Errorf("collection %q: %w", collectionLabel(coll), err)
 		}
-		if len(byExtForColl) == 0 {
+		if command == nil {
 			continue
 		}
-
-		// An explicit extractor: stanza handles every file in the
-		// collection, regardless of extension.
-		if coll.Extractor != nil && len(coll.Extractor.Exec) > 0 {
-			var all []string
-			for _, fs := range byExtForColl {
-				all = append(all, fs...)
-			}
-			sort.Strings(all)
-			plans = append(plans, ExtractPlan{
-				Collection: collectionLabel(coll),
-				Archive:    coll.Archive,
-				Extractor:  extractor.Spec{Exec: coll.Extractor.Exec, WorkDir: projDir},
-				Files:      all,
-			})
-			continue
-		}
-
-		// Otherwise, one plan per extension that has a discovered
-		// extractor. Extensions without coverage are reported in the
-		// error payload below.
-		var unhandled []string
-		for ext, fs := range byExtForColl {
-			disc, ok := byExt[ext]
-			if !ok || disc.Descriptor.Extract == nil {
-				unhandled = append(unhandled, ext)
-				continue
-			}
-			sort.Strings(fs)
-			plans = append(plans, ExtractPlan{
-				Collection:  collectionLabel(coll),
-				Archive:     coll.Archive,
-				Extractor:   extractor.Spec{Exec: disc.Descriptor.Extract.Exec, WorkDir: projDir},
-				PackageName: disc.PackageName,
-				Files:       fs,
-			})
-		}
-		if len(unhandled) > 0 {
-			sort.Strings(unhandled)
-			return plans, fmt.Errorf(
-				"collection %q has %d file(s) with no registered extractor: %s",
-				collectionLabel(coll), countFiles(byExtForColl, unhandled),
-				strings.Join(unhandled, ", "))
-		}
+		plans = append(plans, ExtractPlan{
+			Collection: collectionLabel(coll),
+			Archive:    coll.Archive,
+			Command:    command,
+			Files:      files,
+		})
 	}
 	return plans, nil
 }
 
-// RunExtractInProcess is the exported form of the kapi extract CLI
-// logic — useful for callers (kapi-desktop) that want to run the
-// same orchestration without shelling out to the binary. Uses the
-// default 5-minute per-subprocess timeout; pass a context with a
-// shorter deadline to bound externally.
-func RunExtractInProcess(ctx context.Context, w io.Writer, projectPath string) error {
-	return runExtract(ctx, w, projectPath, 5*time.Minute)
+// collectExecInputs scans a collection's items and returns the
+// single `exec` command argv + aggregated matched files, or nil
+// when the collection has no exec items. Returns an error if the
+// collection mixes exec + non-exec formats (ambiguous — keep it
+// simple: one format per archive-declared collection).
+func collectExecInputs(projDir string, coll *project.ContentCollection) ([]string, []string, error) {
+	var command []string
+	var files []string
+	for _, item := range coll.EffectiveItems() {
+		matches, err := globMatches(projDir, item.Path)
+		if err != nil {
+			return nil, nil, fmt.Errorf("glob %q: %w", item.Path, err)
+		}
+		if item.Format == nil || item.Format.Name != exec.FormatName {
+			// Not an exec item — contributes no files to this
+			// extraction. A future `kapi extract` pass can handle
+			// file-reader formats via the standard pipeline.
+			continue
+		}
+		cmdString, _ := item.Format.Config["command"].(string)
+		if cmdString == "" {
+			return nil, nil, fmt.Errorf("item %q declares format: exec but no config.command", item.Path)
+		}
+		argv := splitCommand(cmdString)
+		if override := os.Getenv("KAPI_EXEC_OVERRIDE"); override != "" {
+			argv = splitCommand(override)
+		}
+		if command == nil {
+			command = argv
+		} else if !stringSliceEq(command, argv) {
+			return nil, nil, errors.New("multiple items declare different exec commands; split into separate collections")
+		}
+		files = append(files, matches...)
+	}
+	sort.Strings(files)
+	return command, files, nil
 }
 
 func runExtract(ctx context.Context, w io.Writer, projectPath string, timeout time.Duration) error {
@@ -176,87 +174,128 @@ func runExtract(ctx context.Context, w io.Writer, projectPath string, timeout ti
 		return err
 	}
 	if len(plans) == 0 {
-		fmt.Fprintf(w, "%s: no archive-declared collections to extract.\n", projectPath)
+		fmt.Fprintf(w, "%s: no exec-format collections to extract.\n", projectPath)
 		return nil
 	}
 	projDir := filepath.Dir(projectPath)
 
-	// Group plans by archive so we aggregate all blocks from every
-	// extractor that feeds the same .klz before writing.
-	byArchive := map[string][]ExtractPlan{}
-	for _, p := range plans {
-		byArchive[p.Archive] = append(byArchive[p.Archive], p)
-	}
-
-	archives := make([]string, 0, len(byArchive))
-	for a := range byArchive {
-		archives = append(archives, a)
-	}
-	sort.Strings(archives)
-
-	for _, archiveRel := range archives {
-		archivePath := filepath.Join(projDir, archiveRel)
-		blocks := map[string][]klf.Block{} // document path → blocks
-		total := 0
-		for _, plan := range byArchive[archiveRel] {
-			if len(plan.Files) == 0 {
-				continue
-			}
-			label := plan.PackageName
-			if label == "" && len(plan.Extractor.Exec) > 0 {
-				label = plan.Extractor.Exec[0]
-			}
-			fmt.Fprintf(w, "  %s → %s (%d file(s))\n", plan.Collection, label, len(plan.Files))
-
-			spec := plan.Extractor
-			if spec.Timeout == 0 {
-				spec.Timeout = timeout
-			}
-			records, err := extractor.Run(ctx, spec, plan.Files)
-			if err != nil {
-				return fmt.Errorf("extract %s via %s: %w", plan.Collection, label, err)
-			}
-			for _, r := range records {
-				if r.Type != "block" {
-					continue
-				}
-				blocks[r.Document] = append(blocks[r.Document], r.Block)
-				total++
-			}
+	for _, plan := range plans {
+		if len(plan.Files) == 0 {
+			fmt.Fprintf(w, "  %s (no matching files)\n", plan.Collection)
+			continue
 		}
-		if err := writeArchive(archivePath, blocks); err != nil {
+		fmt.Fprintf(w, "  %s → %s (%d file(s))\n", plan.Collection, plan.Command[0], len(plan.Files))
+
+		records, err := exec.Run(ctx, exec.Spec{
+			Exec:    plan.Command,
+			WorkDir: projDir,
+			Timeout: timeout,
+		}, plan.Files)
+		if err != nil {
+			return fmt.Errorf("extract %s: %w", plan.Collection, err)
+		}
+
+		archivePath := filepath.Join(projDir, plan.Archive)
+		blocks, total := groupBlocks(records)
+		if err := writeArchiveFromBlocks(archivePath, blocks); err != nil {
 			return fmt.Errorf("write archive %s: %w", archivePath, err)
 		}
 		fmt.Fprintf(w, "  %s ← %d block(s) across %d document(s)\n",
-			archiveRel, total, len(blocks))
+			plan.Archive, total, len(blocks))
 	}
 	return nil
 }
 
-// globMatches expands one pattern relative to projDir. Returns
-// project-relative paths (matching the existing content.items.path
-// convention).
-func globMatches(projDir, pattern string) ([]string, error) {
-	abs := filepath.Join(projDir, pattern)
-	// doublestar is already a transitive dep of kapi; using the
-	// same globber as the content matcher keeps behaviour aligned.
-	matches, err := doublestar.FilepathGlob(abs, doublestar.WithFilesOnly())
-	if err != nil {
-		return nil, err
-	}
-	rel := make([]string, 0, len(matches))
-	for _, m := range matches {
-		r, err := filepath.Rel(projDir, m)
+func runPack(_ context.Context, r io.Reader, w io.Writer, inDir, outPath string) error {
+	var records []exec.Record
+	if inDir != "" {
+		recs, err := readKLFDir(inDir)
 		if err != nil {
-			return nil, err
+			return fmt.Errorf("read klf dir: %w", err)
 		}
-		rel = append(rel, filepath.ToSlash(r))
+		records = recs
+	} else {
+		recs, err := readNDJSON(r)
+		if err != nil {
+			return fmt.Errorf("read ndjson stdin: %w", err)
+		}
+		records = recs
 	}
-	sort.Strings(rel)
-	return rel, nil
+
+	blocks, total := groupBlocks(records)
+	if err := writeArchiveFromBlocks(outPath, blocks); err != nil {
+		return fmt.Errorf("write archive %s: %w", outPath, err)
+	}
+	fmt.Fprintf(w, "%s ← %d block(s) across %d document(s)\n", outPath, total, len(blocks))
+	return nil
 }
 
-func writeArchive(archivePath string, blocks map[string][]klf.Block) error {
+// readKLFDir loads every `*.klf` file under dir and converts its
+// blocks into exec.Record for unified packing downstream.
+func readKLFDir(dir string) ([]exec.Record, error) {
+	var out []exec.Record
+	err := filepath.WalkDir(dir, func(path string, d os.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if d.IsDir() || !strings.EqualFold(filepath.Ext(path), ".klf") {
+			return nil
+		}
+		data, err := os.ReadFile(path) // #nosec G304 — caller-provided dir
+		if err != nil {
+			return fmt.Errorf("read %s: %w", path, err)
+		}
+		file, err := klf.Unmarshal(data)
+		if err != nil {
+			return fmt.Errorf("parse %s: %w", path, err)
+		}
+		for _, doc := range file.Documents {
+			for _, block := range doc.Blocks {
+				out = append(out, exec.Record{
+					Type:     "block",
+					Document: doc.Path,
+					Block:    block,
+				})
+			}
+		}
+		return nil
+	})
+	return out, err
+}
+
+// readNDJSON consumes NDJSON from r and returns every parsed record.
+// Non-{ lines are skipped (matches the exec reader's noise-tolerance
+// rules).
+func readNDJSON(r io.Reader) ([]exec.Record, error) {
+	var out []exec.Record
+	scanner := bufio.NewScanner(r)
+	scanner.Buffer(make([]byte, 64*1024), 8*1024*1024)
+	for scanner.Scan() {
+		rec, ok, err := exec.DecodeLine(scanner.Bytes())
+		if err != nil {
+			return out, err
+		}
+		if ok {
+			out = append(out, rec)
+		}
+	}
+	return out, scanner.Err()
+}
+
+func groupBlocks(records []exec.Record) (map[string][]klf.Block, int) {
+	blocks := map[string][]klf.Block{}
+	total := 0
+	for _, r := range records {
+		if r.Type != "block" {
+			continue
+		}
+		blocks[r.Document] = append(blocks[r.Document], r.Block)
+		total++
+	}
+	return blocks, total
+}
+
+func writeArchiveFromBlocks(archivePath string, blocks map[string][]klf.Block) error {
 	if err := os.MkdirAll(filepath.Dir(archivePath), 0o755); err != nil {
 		return err
 	}
@@ -302,16 +341,76 @@ func writeArchive(archivePath string, blocks map[string][]klf.Block) error {
 	return nil
 }
 
+// RunExtractInProcess runs the extract flow directly (used by
+// kapi-desktop). Bounded at a 5-minute subprocess timeout.
+func RunExtractInProcess(ctx context.Context, w io.Writer, projectPath string) error {
+	return runExtract(ctx, w, projectPath, 5*time.Minute)
+}
+
+// globMatches expands one pattern relative to projDir. Returns
+// project-relative paths (matching the existing content.items.path
+// convention).
+func globMatches(projDir, pattern string) ([]string, error) {
+	abs := filepath.Join(projDir, pattern)
+	matches, err := doublestar.FilepathGlob(abs, doublestar.WithFilesOnly())
+	if err != nil {
+		return nil, err
+	}
+	rel := make([]string, 0, len(matches))
+	for _, m := range matches {
+		r, err := filepath.Rel(projDir, m)
+		if err != nil {
+			return nil, err
+		}
+		rel = append(rel, filepath.ToSlash(r))
+	}
+	sort.Strings(rel)
+	return rel, nil
+}
+
+// splitCommand tokenises a shell-ish command string: single- and
+// double-quoted segments are preserved, everything else splits on
+// whitespace. Not a full shell — backslash escapes and operators
+// aren't supported — but matches the expectations of
+// `command: "vp kapi-react extract --stream"` in a .kapi file.
+func splitCommand(s string) []string {
+	var out []string
+	var cur strings.Builder
+	inSingle, inDouble := false, false
+	for _, r := range s {
+		switch {
+		case r == '\'' && !inDouble:
+			inSingle = !inSingle
+		case r == '"' && !inSingle:
+			inDouble = !inDouble
+		case (r == ' ' || r == '\t') && !inSingle && !inDouble:
+			if cur.Len() > 0 {
+				out = append(out, cur.String())
+				cur.Reset()
+			}
+		default:
+			cur.WriteRune(r)
+		}
+	}
+	if cur.Len() > 0 {
+		out = append(out, cur.String())
+	}
+	return out
+}
+
+func stringSliceEq(a, b []string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+	return true
+}
+
 func slugify(path string) string {
 	replacer := strings.NewReplacer("/", "-", "\\", "-", " ", "_")
 	return replacer.Replace(path)
 }
-
-func countFiles(byExt map[string][]string, exts []string) int {
-	n := 0
-	for _, e := range exts {
-		n += len(byExt[e])
-	}
-	return n
-}
-
