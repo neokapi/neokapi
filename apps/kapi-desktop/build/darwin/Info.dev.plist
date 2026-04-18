@@ -28,5 +28,32 @@
             <key>NSAllowsLocalNetworking</key>
             <true/>
         </dict>
+        <key>CFBundleDocumentTypes</key>
+        <array>
+            <dict>
+                <key>CFBundleTypeName</key>
+                <string>Kapi Project</string>
+                <key>CFBundleTypeExtensions</key>
+                <array>
+                    <string>kapi</string>
+                </array>
+                <key>CFBundleTypeRole</key>
+                <string>Editor</string>
+                <key>LSHandlerRank</key>
+                <string>Owner</string>
+            </dict>
+            <dict>
+                <key>CFBundleTypeName</key>
+                <string>Kapi Localization Archive</string>
+                <key>CFBundleTypeExtensions</key>
+                <array>
+                    <string>klz</string>
+                </array>
+                <key>CFBundleTypeRole</key>
+                <string>Viewer</string>
+                <key>LSHandlerRank</key>
+                <string>Owner</string>
+            </dict>
+        </array>
     </dict>
 </plist>
