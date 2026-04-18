@@ -76,6 +76,26 @@ a Next.js app with JSX-in-source (archive) plus a legacy
 `locales/*.json` tree (file-based) can use one `.kapi` file for
 both.
 
+**Extractor dispatch.** For archive-backed collections, `kapi extract`
+decides which extractor processes each file in three stages:
+
+1. An explicit `extractor: { exec: [...] }` stanza on the collection
+   wins. Pin dispatch when the default choice is wrong, or when a
+   project has two plugins that both claim the same extension.
+2. Otherwise, kapi scans the project's `node_modules` (walking up
+   ancestor directories for workspace hoists) for packages that
+   declare a `kapi-plugin` object in their `package.json`. The
+   package's `extensions` array + `extract.exec` argv tell kapi
+   how to launch the extractor.
+3. Otherwise, the file's extension has no registered extractor and
+   `kapi extract` surfaces an error listing the uncovered types.
+
+The extractor protocol is NUL-separated paths on stdin, NDJSON
+block records on stdout — see AD-045 and `core/plugin/extractor`.
+`@neokapi/kapi-react` ships the reference implementation and is
+auto-discovered in any project that installs it as an npm
+dependency.
+
 **Key properties:**
 
 - **Self-contained** — languages, content patterns, flows, tool configs, plugin requirements in one file
@@ -128,6 +148,12 @@ and two top-level commands drive the round-trip:
   set. The `kapi` writer is locale-additive, so repeated sync runs
   accumulate new locales without clobbering existing ones. Pass
   `--dry-run` to print the plan without executing.
+
+- **`kapi extract -p project.kapi`** — dispatches every file in an
+  archive-declared collection to its registered extractor (see
+  "Extractor dispatch" above), streams NDJSON blocks back into
+  each collection's `.klz`. Use this for the source half of the
+  round-trip; `kapi sync` covers the translate half.
 
 Both commands are stateless — they re-derive coverage from the
 `.klz` on every invocation, and the `.klz` itself is the state

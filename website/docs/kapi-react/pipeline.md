@@ -148,7 +148,7 @@ A single `myproject.klz` with N target locales is the default and recommended la
 
 ### Project-driven flow with `.kapi`
 
-If you already use a [`.kapi` project file](/docs/ad/041-kapi-desktop) to define your workflow, the `archive:` field on a content collection turns the round-trip into two commands:
+If you already use a [`.kapi` project file](/docs/ad/041-kapi-desktop) to define your workflow, the `archive:` field on a content collection turns the round-trip into three commands:
 
 ```yaml title="translation.kapi"
 version: v1
@@ -164,19 +164,19 @@ content:
 ```
 
 ```bash
-# Show project translation state (per-locale coverage, missing archives).
+# 1. Extract — kapi auto-discovers the @neokapi/kapi-react
+#    extractor from node_modules and runs it via the plugin
+#    contract (NUL-separated paths in, NDJSON blocks out).
+kapi extract -p translation.kapi
+
+# 2. Status — read-only coverage report.
 kapi status -p translation.kapi
 
-# Top up every (archive, missing-locale) pair in one call.
+# 3. Sync — top up every (archive, missing-locale) pair.
 kapi sync -p translation.kapi --tool ai-translate
 ```
 
-`kapi sync` walks the same coverage diff `kapi status` prints, then
-runs the named tool against each archive for each incomplete locale.
-Pass `--dry-run` to preview the plan first. Use the imperative form
-from the rest of this page when you're not using `.kapi`; the two
-surfaces compose — nothing blocks you from mixing `kapi sync` with
-a one-off `kapi pseudo-translate myproject.klz --target-lang qps`.
+`kapi extract` covers the source-side half: every collection with an `archive:` is populated by dispatching its matched files to the right extractor (auto-discovered via `kapi-plugin.json` in `node_modules`, or pinned via an explicit `extractor:` on the collection). `kapi sync` then runs the named translation tool against each archive for each incomplete locale. Use the imperative form from the rest of this page when you're not using `.kapi`; the two surfaces compose — nothing blocks you from mixing `kapi sync` with a one-off `kapi pseudo-translate myproject.klz --target-lang qps`.
 
 ## Phase 3: compile
 

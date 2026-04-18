@@ -89,6 +89,7 @@ export const api = {
         targetLanguages: string[];
       }>;
     }>("GetProjectStatus", tabID),
+  runExtract: (tabID: string) => call<{ log: string }>("RunExtract", tabID),
 
   // Flows (scoped to tab)
   listFlows: (tabID: string) => call<FlowInfo[]>("ListFlows", tabID),

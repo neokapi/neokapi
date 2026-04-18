@@ -201,8 +201,16 @@ manifest hash changes, a fresh cache entry is built on the next
 query, and the stale entry ages out under normal cache GC.
 Staleness is a non-issue: the cache key is the staleness check.
 
-Each translation tool writes the requested target locale back
-into the same archive:
+Extractors feed the archive via `kapi extract -p project.kapi`.
+Each extractor is a subprocess that accepts NUL-separated paths
+on stdin and emits NDJSON block records on stdout. kapi owns
+`.klz` writing; extractors only emit blocks. The protocol is
+fully described in `core/plugin/extractor`. `@neokapi/kapi-react`
+is the reference extractor plugin — installed as an npm package,
+auto-discovered via its `kapi-plugin` field in `package.json`.
+
+Each translation tool then writes the requested target locale
+back into the same archive:
 
 ```bash
 kapi ai-translate i18n/myproject.klz --target-lang fr
