@@ -1,0 +1,164 @@
+// Package blockstore defines the substrate for kapi flows: a
+// block-addressed, append-only sidecar store with multiple providers
+// (memory, klzdb-on-disk, zip-archive, remote). Tools operate against
+// a Session opened on a Store; the executor wires the right provider
+// based on a project's declared store.
+//
+// See AD-046 (docs/ad/046-kapi-project-as-klz.md) for the design.
+//
+// Design summary:
+//   - Blocks are content-addressed by hash. Once written, they are
+//     immutable. Flows don't rewrite them; they append sidecars.
+//   - Sidecars are append layers keyed by (kind, blockHash). "kind"
+//     is a namespace string ("targets", "annotations/termbase", …).
+//     Different tools write different kinds in parallel.
+//   - Every provider supports forward-only streaming via
+//     Session.Blocks. Random access (GetBlock, GetSidecar) is
+//     optional and declared via Capabilities.RandomAccess.
+//   - Transactional semantics: Begin → Put*/Get* → Commit or
+//     Rollback. Providers that don't support rollback (memory, zip)
+//     commit-on-close.
+package blockstore
+
+import (
+	"context"
+	"errors"
+	"iter"
+
+	"github.com/neokapi/neokapi/core/klf"
+)
+
+// Block is the unit of translation tracking. Aliased from core/klf
+// so the store speaks the same type extractors produce.
+type Block = klf.Block
+
+// Capabilities advertises what a provider supports. Tools that need
+// more than bare streaming probe this at Session.Capabilities() and
+// fail fast when missing.
+type Capabilities struct {
+	// RandomAccess: GetBlock / GetSidecar / ListSidecars are O(log n)
+	// or better. memory and klzdb: yes. zip-read: yes. zip-write:
+	// no (write-only). remote stores: true but remote latency applies.
+	RandomAccess bool
+	// Concurrent: multiple Sessions can write different sidecar kinds
+	// in parallel without corrupting state. klzdb (SQLite WAL): yes.
+	// memory: no (single goroutine). zip: no. remote: depends on
+	// server-side semantics.
+	Concurrent bool
+	// Remote: provider is network-backed. Hint for tools to prefer
+	// batched reads/writes and avoid per-block RTTs.
+	Remote bool
+	// Writable: PutBlock / PutSidecar are allowed. zip in read-only
+	// mode is false; everything else defaults true.
+	Writable bool
+}
+
+// Store is the top-level provider handle. A Store is opened once per
+// kapi process against a project's declared location, then each flow
+// opens Sessions on it.
+type Store interface {
+	// Begin opens a Session. Sessions hold the transaction scope:
+	// every Put* is buffered until Commit succeeds (or discarded
+	// on Rollback/Close-without-Commit). For streaming read-only
+	// work, Commit is a no-op.
+	Begin(ctx context.Context) (Session, error)
+
+	// Capabilities advertises what this provider supports. Safe to
+	// call before Begin.
+	Capabilities() Capabilities
+
+	// Close releases any long-lived resources (DB handle, open
+	// zip). Safe to call multiple times.
+	Close() error
+}
+
+// Sidecar is one append-layer entry for a block. Opaque JSON-serialisable
+// payload; schema is owned by the tool kind ("targets", "annotations/qa",
+// …).
+type Sidecar struct {
+	// Kind namespaces the sidecar. Conventions:
+	//   "targets/<locale>"            → translated targets
+	//   "annotations/<name>"          → term matches, TM fuzzies, QA
+	//   "skeletons/<format>"          → round-trip skeletons
+	// Dots and slashes in Kind are allowed; stores must not interpret
+	// them beyond indexing.
+	Kind string
+	// BlockHash is the content-addressed key.
+	BlockHash string
+	// Payload is the tool-owned JSON body.
+	Payload []byte
+	// UpdatedAt in UTC. Zero value means the store picks (usually
+	// time.Now()).
+	UpdatedAt int64 // Unix seconds
+}
+
+// BlockFilter scopes a Blocks iteration. Providers that support
+// random access can push the filter down; streaming providers iterate
+// everything and apply it client-side.
+type BlockFilter struct {
+	// Collection restricts to one collection by name. Empty = all.
+	Collection string
+	// Translatable, if set, restricts to blocks where
+	// Block.Translatable matches the flag value.
+	Translatable *bool
+	// Limit caps the number of blocks returned. 0 = no limit.
+	Limit int
+}
+
+// Session is the transaction handle on a Store. One Session per flow
+// run (or per logical unit of work). Close-without-Commit is treated
+// as Rollback.
+type Session interface {
+	Capabilities() Capabilities
+
+	// Blocks streams every block visible to this session, filtered.
+	// Providers with RandomAccess may push the filter down; others
+	// iterate everything. Order is stable within one session but
+	// otherwise unspecified.
+	Blocks(filter BlockFilter) iter.Seq2[*Block, error]
+
+	// GetBlock returns a single block by hash. Requires RandomAccess.
+	// Returns (nil, ErrNotFound) when the hash is unknown.
+	GetBlock(hash string) (*Block, error)
+
+	// PutBlock writes or replaces a block. Provider may coalesce;
+	// visible after Commit.
+	PutBlock(collection string, b *Block) error
+
+	// GetSidecar returns one sidecar by (kind, blockHash). Returns
+	// ErrNotFound when absent. Requires RandomAccess.
+	GetSidecar(kind, blockHash string) (Sidecar, error)
+
+	// PutSidecar appends or replaces a sidecar. Idempotent per
+	// (kind, blockHash).
+	PutSidecar(s Sidecar) error
+
+	// ListSidecars streams every sidecar of a given kind.
+	ListSidecars(kind string) iter.Seq2[Sidecar, error]
+
+	// Commit makes buffered writes visible. After Commit the session
+	// is closed; further Put* calls return ErrClosed.
+	Commit() error
+
+	// Rollback discards buffered writes and closes the session.
+	Rollback() error
+
+	// Close releases the session. Equivalent to Rollback if not
+	// already committed. Safe to call multiple times.
+	Close() error
+}
+
+// Sentinel errors returned by Store/Session implementations.
+var (
+	// ErrNotFound indicates a block hash or sidecar (kind,hash) not
+	// present in the store.
+	ErrNotFound = errors.New("blockstore: not found")
+	// ErrClosed indicates an operation on a session that has already
+	// been committed, rolled back, or closed.
+	ErrClosed = errors.New("blockstore: session closed")
+	// ErrReadOnly indicates a write attempt against a read-only store.
+	ErrReadOnly = errors.New("blockstore: read-only")
+	// ErrCapability indicates an operation requiring a capability the
+	// provider doesn't advertise (e.g. GetBlock without RandomAccess).
+	ErrCapability = errors.New("blockstore: capability not supported")
+)
