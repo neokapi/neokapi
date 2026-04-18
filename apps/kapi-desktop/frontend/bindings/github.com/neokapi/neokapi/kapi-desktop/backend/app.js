@@ -1227,6 +1227,23 @@ export function ResolveEntityConcepts(tmHandle, tbHandle, entryIDs, force) {
 }
 
 /**
+ * RunExtract runs `kapi extract -p <project>` for the given tab and
+ * returns the captured progress output. The UI's Re-extract button
+ * fires this, then refreshes the status panel.
+ * 
+ * Tool time is bounded at 5 minutes per extractor subprocess — the
+ * default on `kapi extract --timeout`, enough for reasonable
+ * projects, prevents a runaway from hanging the desktop app.
+ * @param {string} tabID
+ * @returns {$CancellablePromise<$models.ExtractResult | null>}
+ */
+export function RunExtract(tabID) {
+    return $Call.ByID(4222482902, tabID).then(/** @type {($result: any) => any} */(($result) => {
+        return $$createType82($result);
+    }));
+}
+
+/**
  * RunFlow executes a flow by name from the current project. Target locales
  * are inferred from the flow's tool chain metadata (AD-043) — the frontend
  * passes project target languages as a fallback, but ResolveFlowLocales
@@ -1250,7 +1267,7 @@ export function RunFlow(tabID, flowName, inputPaths, targetLangs) {
  */
 export function RunFormatReader(formatName, filePath, config) {
     return $Call.ByID(2298675461, formatName, filePath, config).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType82($result);
+        return $$createType84($result);
     }));
 }
 
@@ -1262,7 +1279,7 @@ export function RunFormatReader(formatName, filePath, config) {
  */
 export function RunFormatReaderDialog(formatName, config) {
     return $Call.ByID(3765990169, formatName, config).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType82($result);
+        return $$createType84($result);
     }));
 }
 
@@ -1337,7 +1354,7 @@ export function SaveProjectDialog(tabID) {
  */
 export function SaveProvider(req) {
     return $Call.ByID(990642140, req).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType83($result);
+        return $$createType85($result);
     }));
 }
 
@@ -1384,7 +1401,7 @@ export function SearchPlugins(query) {
  */
 export function SearchTMEntries(handle, query, anyLocale, requireLocale, offset, limit) {
     return $Call.ByID(2364570829, handle, query, anyLocale, requireLocale, offset, limit).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType85($result);
+        return $$createType87($result);
     }));
 }
 
@@ -1401,7 +1418,7 @@ export function SearchTMEntries(handle, query, anyLocale, requireLocale, offset,
  */
 export function SearchTMEntriesFiltered(handle, query, anyLocale, requireLocale, filter, offset, limit) {
     return $Call.ByID(1068746654, handle, query, anyLocale, requireLocale, filter, offset, limit).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType85($result);
+        return $$createType87($result);
     }));
 }
 
@@ -1417,7 +1434,7 @@ export function SearchTMEntriesFiltered(handle, query, anyLocale, requireLocale,
  */
 export function SearchTerms(handle, query, srcLocale, tgtLocale, offset, limit) {
     return $Call.ByID(556247463, handle, query, srcLocale, tgtLocale, offset, limit).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType87($result);
+        return $$createType89($result);
     }));
 }
 
@@ -1515,7 +1532,7 @@ export function ValidateContentPath(path) {
  */
 export function ValidateProjectFlows(tabID) {
     return $Call.ByID(3090313048, tabID).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType89($result);
+        return $$createType91($result);
     }));
 }
 
@@ -1601,12 +1618,14 @@ const $$createType77 = $models.FileMatch.createFrom;
 const $$createType78 = $Create.Array($$createType77);
 const $$createType79 = $models.PreviewResult.createFrom;
 const $$createType80 = $Create.Nullable($$createType79);
-const $$createType81 = $models.FormatPartInfo.createFrom;
-const $$createType82 = $Create.Array($$createType81);
-const $$createType83 = $Create.Nullable($$createType67);
-const $$createType84 = $models.TMSearchResult.createFrom;
-const $$createType85 = $Create.Nullable($$createType84);
-const $$createType86 = $models.TermSearchResult.createFrom;
+const $$createType81 = $models.ExtractResult.createFrom;
+const $$createType82 = $Create.Nullable($$createType81);
+const $$createType83 = $models.FormatPartInfo.createFrom;
+const $$createType84 = $Create.Array($$createType83);
+const $$createType85 = $Create.Nullable($$createType67);
+const $$createType86 = $models.TMSearchResult.createFrom;
 const $$createType87 = $Create.Nullable($$createType86);
-const $$createType88 = project$0.FlowValidationIssue.createFrom;
-const $$createType89 = $Create.Array($$createType88);
+const $$createType88 = $models.TermSearchResult.createFrom;
+const $$createType89 = $Create.Nullable($$createType88);
+const $$createType90 = project$0.FlowValidationIssue.createFrom;
+const $$createType91 = $Create.Array($$createType90);
