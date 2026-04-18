@@ -295,28 +295,31 @@ func TestContentCollectionArchive(t *testing.T) {
 	assert.Equal(t, content, back)
 }
 
-func TestContentCollectionExtractor(t *testing.T) {
+func TestContentCollectionExecFormat(t *testing.T) {
 	yamlContent := `
 - name: ui
   archive: i18n/ui.klz
-  extractor:
-    exec: ["vp", "run", "kapi-react", "extract", "--blocks-stream"]
   items:
     - path: "src/**/*.tsx"
+      format:
+        name: exec
+        config:
+          command: "vp kapi-react extract --stream"
 `
 	var content []ContentCollection
 	require.NoError(t, yaml.Unmarshal([]byte(yamlContent), &content))
 	require.Len(t, content, 1)
-	require.NotNil(t, content[0].Extractor)
-	assert.Equal(t,
-		[]string{"vp", "run", "kapi-react", "extract", "--blocks-stream"},
-		content[0].Extractor.Exec)
+	require.Len(t, content[0].Items, 1)
+	require.NotNil(t, content[0].Items[0].Format)
+	assert.Equal(t, "exec", content[0].Items[0].Format.Name)
+	assert.Equal(t, "vp kapi-react extract --stream",
+		content[0].Items[0].Format.Config["command"])
 
 	out, err := yaml.Marshal(content)
 	require.NoError(t, err)
 	var back []ContentCollection
 	require.NoError(t, yaml.Unmarshal(out, &back))
-	assert.Equal(t, content, back, "extractor: round-trips cleanly")
+	assert.Equal(t, content, back, "exec format spec round-trips cleanly")
 }
 
 func TestLanguageResolution(t *testing.T) {
