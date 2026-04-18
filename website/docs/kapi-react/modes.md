@@ -133,7 +133,7 @@ A common pattern is to inline the primary locale at build time (so the default m
 neokapi({ mode: "inline", locale: "en" });
 
 // Secondary locales still get an OTA dict loaded via loadTranslations
-// when the user switches, compiled from the same extracted.klz.
+// when the user switches, compiled from the same .klz.
 ```
 
 Mixing modes within a single build is not supported — you pick one per deploy.

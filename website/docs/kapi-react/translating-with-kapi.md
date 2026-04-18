@@ -26,7 +26,7 @@ Source `Welcome to Acme` becomes `[Ŵéḷçőḿé tő Âçmé]`:
 Then `kapi-react compile` it + load as any other locale:
 
 ```bash
-kapi-react compile i18n/translated.klz --out public/translations
+kapi-react compile i18n/myproject.klz --out public/translations
 ```
 
 Your dev server now has a `qps` locale — wire a language picker and ship pseudo-translated screenshots to design review.
@@ -36,9 +36,9 @@ Your dev server now has a `qps` locale — wire a language picker and ship pseud
 Add it to CI as a UI-layout smoke test:
 
 ```yaml title=".github/workflows/ui-qa.yml"
-- run: npm run extract
-- run: kapi pseudo-translate i18n/extracted.klz --target-lang qps -o i18n/pseudo.klz
-- run: kapi-react compile i18n/pseudo.klz --out public/translations
+- run: vp kapi-react extract --stream | kapi pack --out i18n/myproject.klz
+- run: kapi pseudo-translate i18n/myproject.klz --target-lang qps
+- run: vp kapi-react compile i18n/myproject.klz --out public/translations
 - run: npm run test:e2e     # runs against ?locale=qps
 ```
 
@@ -80,13 +80,13 @@ Every block in the `.klz` carries its `jsxPath` (e.g. `"div > button"`), its com
 
 ### Translate a subset
 
-For incremental translations (only the strings that changed), extract and diff against the current `translated.klz`:
+For incremental translations (only the strings that changed), extract and diff against the existing archive:
 
 ```bash
-kapi-react extract --out i18n/new.klz
-kapi diff i18n/new.klz i18n/translated.klz --only-new -o i18n/delta.klz
+vp kapi-react extract --stream | kapi pack --out i18n/new.klz
+kapi diff i18n/new.klz i18n/myproject.klz --only-new -o i18n/delta.klz
 kapi ai-translate i18n/delta.klz --target-lang fr -o i18n/delta-fr.klz
-kapi merge i18n/translated-fr.klz i18n/delta-fr.klz -o i18n/translated-fr.klz
+kapi merge i18n/myproject.klz i18n/delta-fr.klz -o i18n/myproject.klz
 ```
 
 ## Quality assurance
@@ -94,7 +94,7 @@ kapi merge i18n/translated-fr.klz i18n/delta-fr.klz -o i18n/translated-fr.klz
 `kapi qa` runs terminology, placeholder, and consistency checks against a translated `.klz`:
 
 ```bash
-kapi qa i18n/translated-fr.klz \
+kapi qa i18n/myproject.klz \
   --termbase fr-termbase.csv \
   --target-lang fr
 ```
@@ -119,7 +119,7 @@ kapi tm import historical-translations.xliff --source-lang en --target-lang fr
 Then when you translate a new `.klz`:
 
 ```bash
-kapi ai-translate i18n/extracted.klz --target-lang fr --tm-leverage
+kapi ai-translate i18n/myproject.klz --target-lang fr --tm-leverage
 ```
 
 Segments that match (or fuzzy-match) past translations come through pre-populated — the AI only translates what's new.
@@ -131,7 +131,7 @@ See [Translation memory](/docs/features/translation-memory) for more.
 For apps with a large product vocabulary, pre-translate terminology before the AI pass so terms are consistently rendered:
 
 ```bash
-kapi tools terminology-pretranslation i18n/extracted.klz \
+kapi tools terminology-pretranslation i18n/myproject.klz \
   --termbase product-terms.csv \
   --target-lang fr \
   -o i18n/pre-translated.klz
@@ -146,9 +146,9 @@ See [Terminology](/docs/features/terminology).
 For apps with a translation platform behind them, Bowrain ingests the extracted `.klz` directly:
 
 ```bash
-bowrain push i18n/extracted.klz    # upload to Bowrain backend
+bowrain push i18n/myproject.klz    # upload to Bowrain backend
 # …translators work in the web editor…
-bowrain pull -o i18n/translated.klz   # download finished translations
+bowrain pull -o i18n/myproject.klz   # download finished translations
 ```
 
 See [Bowrain CLI](/bowrain/cli/overview) for the project-level workflow.
@@ -160,10 +160,10 @@ A complete Makefile / package-scripts setup for a multi-locale app:
 ```json title="package.json"
 {
   "scripts": {
-    "i18n:extract": "kapi-react extract --out i18n/myproject.klz",
+    "i18n:extract": "vp kapi-react extract --stream | kapi pack --out i18n/myproject.klz",
     "i18n:pseudo":  "kapi pseudo-translate i18n/myproject.klz --target-lang qps",
     "i18n:ai":      "for lang in fr de ja; do kapi ai-translate i18n/myproject.klz --target-lang $lang; done",
-    "i18n:compile": "kapi-react compile i18n/myproject.klz --out public/translations"
+    "i18n:compile": "vp kapi-react compile i18n/myproject.klz --out public/translations"
   }
 }
 ```
@@ -175,9 +175,9 @@ If you have a [`.kapi` project file](/docs/ad/041-kapi-desktop) with the collect
 ```json title="package.json"
 {
   "scripts": {
-    "i18n:extract": "kapi-react extract --out i18n/myproject.klz",
+    "i18n:extract": "kapi extract -p translation.kapi",
     "i18n:sync":    "kapi sync -p translation.kapi --tool ai-translate",
-    "i18n:compile": "kapi-react compile i18n/myproject.klz --out public/translations"
+    "i18n:compile": "vp kapi-react compile i18n/myproject.klz --out public/translations"
   }
 }
 ```

@@ -62,13 +62,13 @@ No `t(...)` calls, no keys. The plugin walks the JSX at build time and rewrites 
 
 ## 4. Extract to a KLZ archive
 
-Wire the extractor into your package scripts:
+Wire the extractor + pack into your package scripts:
 
 ```json title="package.json"
 {
   "scripts": {
-    "extract": "kapi-react extract --out i18n/extracted.klz",
-    "compile": "kapi-react compile i18n/translated.klz --out public/translations"
+    "extract": "vp kapi-react extract --stream | kapi pack --out i18n/myproject.klz",
+    "compile": "vp kapi-react compile i18n/myproject.klz --out public/translations"
   }
 }
 ```
@@ -82,20 +82,23 @@ npm run extract
 Output:
 
 ```
-Scanning 1 files...
-Extracted 3 blocks from 1 files → i18n/extracted.klz
+i18n/myproject.klz ← 3 block(s) across 1 document(s)
 ```
 
-`i18n/extracted.klz` is a ZIP archive carrying one `.klf` document per source file, plus a content-addressed manifest. The three blocks are "Welcome to Acme", the paragraph, and "Get started".
+`i18n/myproject.klz` is a ZIP archive carrying one `.klf` document per source file plus a content-addressed manifest. The three blocks are "Welcome to Acme", the paragraph, and "Get started".
+
+Prefer per-file `.klf` on disk for inspection / git? Drop `--stream | kapi pack`:
+
+```bash
+vp kapi-react extract   # writes i18n/src/App.klf
+```
 
 ## 5. Pseudo-translate with `kapi`
 
 Pseudo-translation generates `[Wëlcömé tö Âcmé]`-style accented strings that make it obvious what's been picked up for translation — and which strings are still English. Perfect first pass.
 
 ```bash
-kapi pseudo-translate i18n/extracted.klz \
-  --target-lang qps \
-  -o i18n/translated.klz
+kapi pseudo-translate i18n/myproject.klz --target-lang qps
 ```
 
 ## 6. Compile to a runtime dict

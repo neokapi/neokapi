@@ -31,16 +31,23 @@ Each phase has a single tool; none of them are coupled to the others. You can sw
 
 ## Phase 1: extract
 
-The extractor walks every `.jsx` / `.tsx` file in your project, emits one `Document` per file, and bundles them all into a single `.klz` archive.
+The extractor walks every `.jsx` / `.tsx` file in your project and produces translatable blocks. Two output modes:
+
+- **Default** — per-file `.klf` under `--out` (default `i18n/`). Human-readable, git-diffable.
+- **`--stream`** — NDJSON block records on stdout, reads NUL-separated paths on stdin. For pipes.
 
 ```bash
-kapi-react extract \
+# Default: write .klf files for inspection / commit.
+vp kapi-react extract \
   --src "src/**/*.{tsx,jsx}" \
-  --out i18n/extracted.klz \
+  --out i18n \
   --source-locale en \
   --target-locale fr \
   --target-locale de \
   --target-locale ja
+
+# Or pipe straight into a .klz:
+vp kapi-react extract --stream | kapi pack --out i18n/myproject.klz
 ```
 
 Flags:
@@ -48,10 +55,11 @@ Flags:
 | Flag | Default | Purpose |
 |---|---|---|
 | `--src` | `src/**/*.{tsx,jsx}` | Glob of source files to scan. |
-| `--out` | `i18n/extracted.klz` | Output archive path. |
+| `--out` | `i18n` | Output directory for `.klf` files. |
+| `--stream` | off | Emit NDJSON blocks on stdout instead of writing `.klf`. |
 | `--config` | — | Path to a JSON config file (componentMap, rules). |
-| `--project` | `app` | Project id stamped into the archive's manifest. |
-| `--source-locale` | `en` | Source locale in the archive metadata. |
+| `--project` | `app` | Project id stamped into `.klf.project`. |
+| `--source-locale` | `en` | Source locale in file metadata. |
 | `--target-locale` | — | Declared target locale (repeatable). |
 
 The extractor also **prints warnings** for auto-promoted containers and unmapped components so you can decide which to add to `componentMap`:
@@ -60,7 +68,7 @@ The extractor also **prints warnings** for auto-promoted containers and unmapped
 Scanning 186 files...
 [neokapi] src/components/AppHome.tsx:61: <div> contains translatable text — extracted. …
 [neokapi] src/components/Settings.tsx:19: <TabsTrigger> is an unmapped component with translatable text — extracted. Add a componentMap entry: { TabsTrigger: 'button' }.
-Extracted 1007 blocks from 186 files → i18n/extracted.klz
+Extracted 1007 blocks from 186 files → i18n/
 ```
 
 Wire it into your package scripts and CI:
@@ -68,8 +76,8 @@ Wire it into your package scripts and CI:
 ```json title="package.json"
 {
   "scripts": {
-    "extract": "kapi-react extract",
-    "check:i18n": "kapi-react extract --out /tmp/check.klz && diff -q i18n/extracted.klz /tmp/check.klz"
+    "extract": "vp kapi-react extract",
+    "pack":    "vp kapi-react extract --stream | kapi pack --out i18n/myproject.klz"
   }
 }
 ```

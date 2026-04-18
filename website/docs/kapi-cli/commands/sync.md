@@ -55,10 +55,10 @@ kapi sync -p translation.kapi --tool pseudo-translate
 Drop into CI as a post-extract step:
 
 ```yaml
-- run: kapi-react extract --out i18n/ui.klz
+- run: kapi extract -p translation.kapi
 - run: kapi sync -p translation.kapi --dry-run
 - run: kapi sync -p translation.kapi
-- run: kapi-react compile i18n/ui.klz --out public/translations
+- run: vp kapi-react compile i18n/ui.klz --out public/translations
 ```
 
 The `--dry-run` line gives a readable plan in the CI log before the actual run.

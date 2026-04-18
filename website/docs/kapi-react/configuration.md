@@ -164,19 +164,22 @@ Useful for tests (suppress noise) or to integrate with a project logger.
 ```bash
 kapi-react extract \
   --src "src/**/*.{tsx,jsx}" \
-  --out i18n/extracted.klz \
+  --out i18n \
   --config i18n.config.json \
   --project my-app \
   --source-locale en \
   --target-locale fr \
   --target-locale de
+
+# or stream mode for pipes:
+kapi-react extract --stream | kapi pack --out i18n/myproject.klz
 ```
 
-`kapi-react compile`:
+`kapi-react compile` (accepts `.klz`, `.klf` directory, or `-` for NDJSON stdin):
 
 ```bash
 kapi-react compile \
-  i18n/translated.klz \
+  i18n/myproject.klz \
   --out public/translations \
   --locale fr            # optional — filter to a single locale
 ```
