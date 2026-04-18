@@ -48,8 +48,16 @@ export async function runExtract(args: string[], io: RunExtractIO = {}): Promise
 
   const config = loadConfig(opts.configPath);
 
+  // Stream mode accepts two shapes of file discovery, picked
+  // automatically: when stdin is piped (e.g. kapi's exec format
+  // sends NUL-separated paths), we consume it; otherwise we fall
+  // back to the --src glob so a developer can just pipe our stdout
+  // without also wiring up stdin (`vp kapi-react extract --stream
+  // | kapi pack --out ui.klz`).
   const files = opts.stream
-    ? await readPathsFromStdin(stdin)
+    ? stdinHasInput(stdin)
+      ? await readPathsFromStdin(stdin)
+      : await expandGlob(opts.srcGlob)
     : await expandGlob(opts.srcGlob);
   files.sort();
 
@@ -102,6 +110,26 @@ async function expandGlob(pattern: string): Promise<string[]> {
   const files: string[] = [];
   for await (const file of glob(pattern)) files.push(file);
   return files;
+}
+
+// stdinHasInput returns true when stdin is piped / redirected — a
+// signal from the shell that the caller has data for us. Falsey
+// when stdin is inherited from a terminal (a user running the
+// command interactively), in which case reading would block
+// forever. Node sets `isTTY` on standard streams for us; falling
+// back to the global process.stdin lets us probe without consuming.
+function stdinHasInput(stdin: NodeJS.ReadableStream): boolean {
+  // Test stream we were given first (unit tests pass a Readable
+  // that has no isTTY flag — treat that as "has input" so tests
+  // exercise the stdin path).
+  const streamIsTTY = (stdin as { isTTY?: boolean }).isTTY;
+  if (streamIsTTY === true) return false;
+  if (streamIsTTY === false) return true;
+  // No isTTY property (mock streams, Duplex wrappers): fall back
+  // to the real process.stdin if we were passed it, otherwise
+  // assume the caller piped something.
+  if (stdin === process.stdin) return !process.stdin.isTTY;
+  return true;
 }
 
 // readPathsFromStdin consumes NUL-separated paths from the given

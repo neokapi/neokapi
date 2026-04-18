@@ -34,7 +34,7 @@ Each phase has a single tool; none of them are coupled to the others. You can sw
 The extractor walks every `.jsx` / `.tsx` file in your project and produces translatable blocks. Two output modes:
 
 - **Default** — per-file `.klf` under `--out` (default `i18n/`). Human-readable, git-diffable.
-- **`--stream`** — NDJSON block records on stdout, reads NUL-separated paths on stdin. For pipes.
+- **`--stream`** — NDJSON block records on stdout. File discovery happens via `--src` glob when stdin is a terminal; kapi's exec format can pipe NUL-separated paths to stdin for batch-controlled extraction.
 
 ```bash
 # Default: write .klf files for inspection / commit.
