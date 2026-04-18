@@ -4,6 +4,7 @@
     "packages/ui",
     "packages/kapi-format",
     "packages/kapi-react",
+    "packages/kapi-react-lint",
     "packages/flow-editor",
     "packages/storybook-config",
     "storybook",

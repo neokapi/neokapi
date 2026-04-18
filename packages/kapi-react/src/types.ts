@@ -56,6 +56,19 @@ export type PluginOptions = {
    *   false   — silently fall back to source text
    */
   strict?: 'warn' | 'error' | false;
+
+  /**
+   * Promote extraction-time warnings (e.g. `unknown-component`) to
+   * build errors. Orthogonal to `strict` above: `strict` is about
+   * translation completeness at inline time, `warningsAsErrors` is
+   * about authoring-time issues the walker records.
+   *
+   * The `kapi-react extract --strict` CLI flag sets this.
+   * Defaults to `false`; honours `process.env.CI` only when the caller
+   * explicitly opts in (we don't force-promote warnings just because
+   * CI=true — too easy to break unrelated builds).
+   */
+  warningsAsErrors?: boolean;
 };
 
 /** Unit Separator — delimits context from translator note in hash computation. */

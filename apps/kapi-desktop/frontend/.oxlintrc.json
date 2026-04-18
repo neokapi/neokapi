@@ -1,0 +1,11 @@
+{
+  "ignorePatterns": ["bindings/**", "dist/**", "storybook-static/**"],
+  "jsPlugins": ["@neokapi/kapi-react-lint/oxlint"],
+  "rules": {
+    "kapi-react/t-literal-first-arg": "warn",
+    "kapi-react/t-no-concat": "warn",
+    "kapi-react/no-concat-in-translatable-attr": "warn",
+    "kapi-react/no-string-literal-jsx-expr": "warn"
+  }
+}
+

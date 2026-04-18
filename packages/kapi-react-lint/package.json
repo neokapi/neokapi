@@ -1,0 +1,73 @@
+{
+  "name": "@neokapi/kapi-react-lint",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Authoring-time lint rules for kapi-react. Same rule objects run under ESLint and oxlint (via jsPlugins). Catches unextractable patterns (t(variable), string concat in translatable attrs, label strings hidden in data arrays) that the build-time extractor can't see.",
+  "keywords": [
+    "i18n",
+    "kapi-react",
+    "eslint",
+    "oxlint",
+    "lint",
+    "react"
+  ],
+  "license": "Apache-2.0",
+  "type": "module",
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./eslint": {
+      "types": "./dist/eslint.d.ts",
+      "default": "./dist/eslint.js"
+    },
+    "./oxlint": {
+      "types": "./dist/oxlint.d.ts",
+      "default": "./dist/oxlint.js"
+    },
+    "./recommended": {
+      "types": "./dist/configs/recommended.d.ts",
+      "default": "./dist/configs/recommended.js"
+    },
+    "./recommended-strict": {
+      "types": "./dist/configs/recommended-strict.d.ts",
+      "default": "./dist/configs/recommended-strict.js"
+    }
+  },
+  "scripts": {
+    "build": "node build.mjs",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "vpx tsc --noEmit",
+    "lint": "vp lint",
+    "fmt": "vpx oxfmt --write src/ tests/",
+    "fmt:check": "vpx oxfmt --check src/ tests/",
+    "check": "npm run typecheck && npm run lint && npm run fmt:check && npm run test"
+  },
+  "peerDependencies": {
+    "eslint": "^8.57.0 || ^9.0.0"
+  },
+  "peerDependenciesMeta": {
+    "eslint": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@types/eslint": "^9.6.0",
+    "@types/estree": "^1.0.0",
+    "@types/node": "^25.6.0",
+    "esbuild": "^0.27.7",
+    "eslint": "^9.0.0",
+    "typescript": "^5.8.0",
+    "vitest": "^3.2.0"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

@@ -70,7 +70,7 @@ export async function runExtract(args: string[], io: RunExtractIO = {}): Promise
     console.log(`Scanning ${files.length} files...`);
   }
 
-  const documents = extractAllDocuments(files, config);
+  const documents = extractAllDocuments(files, config, { strict: opts.strict });
 
   if (opts.stream) {
     // NDJSON block stream on stdout — consumed by `kapi extract`
@@ -163,6 +163,9 @@ interface ExtractArgs {
   // paths from stdin, never writes files. Used by `kapi extract`
   // (exec format) and `kapi pack`-driven pipelines.
   stream: boolean;
+  // --strict makes any recorded warning fail the run with a non-zero
+  // exit. Intended for CI — see the lint plan in issue #381.
+  strict: boolean;
   help: boolean;
 }
 
@@ -175,6 +178,7 @@ function parseArgs(args: string[]): ExtractArgs {
     sourceLocale: 'en',
     targetLocales: [],
     stream: false,
+    strict: false,
     help: false,
   };
 
@@ -207,6 +211,9 @@ function parseArgs(args: string[]): ExtractArgs {
       case '--stream':
         parsed.stream = true;
         break;
+      case '--strict':
+        parsed.strict = true;
+        break;
       default:
         console.warn(`unknown flag: ${flag}`);
     }
@@ -225,7 +232,11 @@ function loadConfig(path: string | null): ExtractConfig {
   }
 }
 
-function extractAllDocuments(files: readonly string[], config: ExtractConfig): Document[] {
+function extractAllDocuments(
+  files: readonly string[],
+  config: ExtractConfig,
+  { strict }: { strict: boolean } = { strict: false },
+): Document[] {
   const out: Document[] = [];
   const warnings = createWarningCollector();
   for (const file of files) {
@@ -234,8 +245,15 @@ function extractAllDocuments(files: readonly string[], config: ExtractConfig): D
     const doc = extractDocument(code, { filename, warnings, ...config });
     if (doc) out.push(doc);
   }
-  for (const w of warnings.list()) {
+  const list = warnings.list();
+  for (const w of list) {
     console.warn(formatWarning(w));
+  }
+  if (strict && list.length > 0) {
+    console.error(
+      `[neokapi] --strict: ${list.length} warning${list.length === 1 ? '' : 's'} treated as errors. Exiting non-zero.`,
+    );
+    process.exit(1);
   }
   return out;
 }
@@ -285,6 +303,8 @@ Options:
   --stream                Emit NDJSON block records on stdout instead
                           of writing .klf files. Reads NUL-separated
                           paths on stdin instead of expanding --src.
+  --strict                Treat any recorded warning (e.g. unknown
+                          component) as an error — exits non-zero.
   --config <path>         Config file with componentMap, rules, …
   --project <id>          Project id stamped into .klf.project (default: "app")
   --source-locale <bcp>   Manifest source locale (default: "en")

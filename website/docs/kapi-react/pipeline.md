@@ -57,6 +57,7 @@ Flags:
 | `--src` | `src/**/*.{tsx,jsx}` | Glob of source files to scan. |
 | `--out` | `i18n` | Output directory for `.klf` files. |
 | `--stream` | off | Emit NDJSON blocks on stdout instead of writing `.klf`. |
+| `--strict` | off | Exit non-zero if any warning was recorded (CI enforcement). |
 | `--config` | — | Path to a JSON config file (componentMap, rules). |
 | `--project` | `app` | Project id stamped into `.klf.project`. |
 | `--source-locale` | `en` | Source locale in file metadata. |
@@ -75,11 +76,14 @@ Wire it into your package scripts and CI:
 ```json title="package.json"
 {
   "scripts": {
-    "extract": "vp kapi-react extract",
-    "pack":    "vp kapi-react extract --stream | kapi pack --out i18n/myproject.klz"
+    "extract":    "vp kapi-react extract",
+    "extract:ci": "vp kapi-react extract --strict",
+    "pack":       "vp kapi-react extract --stream | kapi pack --out i18n/myproject.klz"
   }
 }
 ```
+
+For full authoring-time coverage, pair this with [`@neokapi/kapi-react-lint`](./linting) — editor squigglies for `t(variable)`, `<img alt={'Logo ' + x} />`, and the other patterns the build-time transform can't catch.
 
 ### What's in the `.klz`
 

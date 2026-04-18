@@ -152,22 +152,9 @@ In dev (plugin not active), `t(text, params)` does:
 
 Both return a `string`. No ReactNode result — for that you need the JSX path.
 
-## ESLint: keep `t()` honest
+## ESLint / oxlint: keep `t()` honest
 
-A recommended ESLint rule:
-
-```js
-// .eslintrc
-"no-restricted-syntax": [
-  "error",
-  {
-    selector: "CallExpression[callee.name='t'] > :not(Literal)",
-    message: "kapi-react: t() must take a string literal as its first argument — otherwise the extractor can't see it.",
-  },
-]
-```
-
-`t(someVariable)` defeats the point — the extractor has no text to hash. Lint against it.
+`t(someVariable)` defeats the point — the extractor has no text to hash. Install [`@neokapi/kapi-react-lint`](./linting) which ships rules for both ESLint and oxlint that catch this and the related pitfalls (`t('Hello ' + name)`, `<img alt={'Logo ' + brand} />`, string literals hidden in JSX expression containers).
 
 ## Next
 
