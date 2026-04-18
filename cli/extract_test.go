@@ -16,9 +16,13 @@ import (
 // paths from stdin and emits one fake NDJSON block per path. Used
 // as the `command:` target in tests — avoids needing a real
 // kapi-react.
+//
+// Uses /usr/bin/env bash explicitly because `read -d ''` is a
+// bash-ism; Ubuntu's default /bin/sh (dash) doesn't support it and
+// the test would spin forever.
 func fakeExtractorScript(t *testing.T, dir, name string) string {
 	t.Helper()
-	script := `#!/bin/sh
+	script := `#!/usr/bin/env bash
 set -e
 n=0
 while IFS= read -r -d '' path; do
