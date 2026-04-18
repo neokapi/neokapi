@@ -114,4 +114,27 @@ describe('kapi-react extract', () => {
     );
     expect(sink.read()).toBe('');
   });
+
+  it('falls back to --src glob when --stream is used without piped stdin', async () => {
+    const dir = tempProject();
+    const cwd = process.cwd();
+    process.chdir(dir);
+    try {
+      // Simulate a TTY (no stdin input) — the CLI should glob --src
+      // instead of hanging on stdin.
+      const ttyStdin = Object.assign(Readable.from([]), { isTTY: true });
+      const sink = stringSink();
+      await runExtract(
+        ['--stream', '--src', 'src/**/*.tsx'],
+        { stdin: ttyStdin, stdout: sink.stream },
+      );
+      const records = sink
+        .read()
+        .split('\n')
+        .filter((l) => l.startsWith('{'));
+      expect(records.length).toBeGreaterThan(0);
+    } finally {
+      process.chdir(cwd);
+    }
+  });
 });

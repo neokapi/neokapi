@@ -740,8 +740,10 @@ Options:
   --src <glob>            Source files to scan (default: "src/**/*.{tsx,jsx}")
   --out <dir>             Output directory for .klf files (default: "i18n")
   --stream                Emit NDJSON block records on stdout instead of
-                          writing .klf files. Reads NUL-separated paths
-                          on stdin.
+                          writing .klf files. File discovery uses --src
+                          by default; reads NUL-separated paths on stdin
+                          when stdin is piped (kapi's exec format does
+                          this automatically).
   --config <path>         Config file with componentMap, rules, …
   --project <id>          Project id stamped into .klf.project
   --source-locale <bcp>   Source locale (default: "en")
