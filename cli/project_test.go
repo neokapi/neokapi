@@ -187,6 +187,45 @@ content:
 	assert.ElementsMatch(t, []string{"fr", "de", "ja"}, locales)
 }
 
+func TestRunShowFindsBlock(t *testing.T) {
+	dir := t.TempDir()
+	fixtureProjectArchive(t, filepath.Join(dir, "i18n", "ui.klz"))
+	proj := writeProject(t, dir, `
+version: v1
+content:
+  - name: ui
+    archive: i18n/ui.klz
+    items:
+      - path: "src/**/*.tsx"
+`)
+
+	var out bytes.Buffer
+	require.NoError(t, runShow(&out, proj, "abc"))
+	s := out.String()
+	assert.Contains(t, s, "abc")
+	assert.Contains(t, s, "Hello", "source text rendered")
+	assert.Contains(t, s, "fr:", "locale-keyed target listed")
+	assert.Contains(t, s, "Bonjour", "target text rendered")
+}
+
+func TestRunShowUnknownHash(t *testing.T) {
+	dir := t.TempDir()
+	fixtureProjectArchive(t, filepath.Join(dir, "i18n", "ui.klz"))
+	proj := writeProject(t, dir, `
+version: v1
+content:
+  - name: ui
+    archive: i18n/ui.klz
+    items:
+      - path: "src/**/*.tsx"
+`)
+
+	var out bytes.Buffer
+	err := runShow(&out, proj, "unknownhash")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "not found")
+}
+
 func TestRunSyncDryRun(t *testing.T) {
 	dir := t.TempDir()
 	fixtureProjectArchive(t, filepath.Join(dir, "i18n", "ui.klz"))
