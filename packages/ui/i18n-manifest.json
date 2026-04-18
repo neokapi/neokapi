@@ -55,6 +55,7 @@
 
     "CommandItem": "button",
     "CommandShortcut": "span",
+    "CommandEmpty": "div",
 
     "ComboboxItem": "option",
     "ComboboxLabel": "label",
