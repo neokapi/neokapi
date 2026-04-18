@@ -29,6 +29,10 @@ func TestRegisterAllReaders(t *testing.T) {
 		"icml", "idml", "fixedwidth",
 		"transtable", "paraplaintext", "splicedlines", "versifiedtext", "vignette",
 		"odf", "archive", "epub", "rtf", "mif", "ttx", "txml", "pdf",
+		// Declarative pseudo-format: registered so it shows up in the
+		// format list / UI. Open() intentionally errors — actual exec
+		// extraction runs via `kapi extract -p` (AD-045).
+		"exec",
 	}
 
 	for _, name := range expectedFormats {
