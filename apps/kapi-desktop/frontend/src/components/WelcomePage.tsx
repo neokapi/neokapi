@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { FolderOpen, FilePlus, Workflow, Wrench, Puzzle, Settings } from "lucide-react";
 import { Button, Label, Input, ScrollArea } from "@neokapi/ui-primitives";
+import { t } from "@neokapi/kapi-react/runtime";
 import type { KapiProject, TabInfo } from "../types/api";
 import { api } from "../hooks/useApi";
 import { useShortenHome } from "../hooks/useShortenHome";
@@ -302,7 +303,7 @@ export function WelcomePage({ onOpen, onNew, onSettings }: WelcomePageProps) {
                     variant="outline"
                     onClick={() => handleOpenRecent(file.path)}
                     className="flex w-full h-auto items-center gap-3 rounded-lg p-3 text-left hover:bg-accent/30"
-                    aria-label={`Open ${file.name}`}
+                    aria-label={t("Open {name}", { name: file.name })}
                   >
                     <FolderOpen size={16} className="shrink-0 text-muted-foreground" />
                     <div className="flex-1 truncate">

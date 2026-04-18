@@ -262,8 +262,12 @@ export function transform(
   // inline mode the plugin still ships the hash-keyed dict as
   // part of the runtime bundle, same as today.
   const tNames = collectTIdentifiers(ast);
+  // Slice via the UTF-8 buffer, not code.slice — SWC spans are byte
+  // offsets; code.slice is UTF-16 code-unit indexed. Any non-ASCII
+  // char (e.g. em-dash in a comment) above the t() call shifts the
+  // real offset and produces corrupted paramsSrc (see #382).
   const sourceSlice = (start: number, end: number): string =>
-    code.slice(s(start), s(end));
+    bslice(buf, s(start), s(end));
   for (const call of walkTCalls(ast, tNames, sourceSlice)) {
     const desc = `t${CONTEXT_SEPARATOR}${call.context ?? ''}`;
     const hash = hashKey(call.text, desc);

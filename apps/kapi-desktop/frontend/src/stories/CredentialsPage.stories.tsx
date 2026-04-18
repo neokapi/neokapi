@@ -2,6 +2,7 @@ import type { Meta, StoryObj } from "@storybook/react-vite";
 import { useState, useCallback } from "react";
 import { Plus, Trash2, TestTube, KeyRound, Loader2, CheckCircle2, XCircle } from "lucide-react";
 import { Button, Badge, Card, Label, Input } from "@neokapi/ui-primitives";
+import { t } from "@neokapi/kapi-react/runtime";
 import { CredentialsPage } from "../components/CredentialsPage";
 
 const PROVIDER_TYPES = [
@@ -116,7 +117,7 @@ function SimulatedCredentials() {
               size="icon-sm"
               onClick={() => handleTest(provider.id)}
               disabled={provider.testResult === "testing"}
-              aria-label={`Test ${provider.name}`}
+              aria-label={t("Test {name}", { name: provider.name })}
             >
               {provider.testResult === "testing" ? (
                 <Loader2 size={14} className="animate-spin" />
@@ -129,7 +130,7 @@ function SimulatedCredentials() {
               size="icon-sm"
               onClick={() => handleDelete(provider.id)}
               className="hover:bg-destructive/10 hover:text-destructive"
-              aria-label={`Delete ${provider.name}`}
+              aria-label={t("Delete {name}", { name: provider.name })}
             >
               <Trash2 size={14} />
             </Button>

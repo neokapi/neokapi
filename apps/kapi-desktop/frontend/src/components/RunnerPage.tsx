@@ -19,6 +19,7 @@ import {
   ScrollArea,
   PageHeader,
 } from "@neokapi/ui-primitives";
+import { t } from "@neokapi/kapi-react/runtime";
 import type { FlowSpec, KapiProject } from "../types/api";
 import { api } from "../hooks/useApi";
 import { useJobFeed, type RunEvent } from "../context/JobFeedContext";
@@ -130,7 +131,7 @@ export function RunnerPage({ tabID, flowName, flow, onClose, project, autoRun }:
   return (
     <div className="p-6">
       <PageHeader
-        title={`Run: ${flowName}`}
+        title={t("Run: {name}", { name: flowName })}
         className="mb-4"
         actions={
           <div className="flex items-center gap-2">

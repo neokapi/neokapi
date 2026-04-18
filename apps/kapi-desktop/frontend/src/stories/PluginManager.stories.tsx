@@ -2,6 +2,7 @@ import type { Meta, StoryObj } from "@storybook/react-vite";
 import { useState, useCallback } from "react";
 import { Download, RefreshCw, Search, Package, Loader2, CheckCircle2, Trash2 } from "lucide-react";
 import { Button, Badge, Card, Input } from "@neokapi/ui-primitives";
+import { t } from "@neokapi/kapi-react/runtime";
 import { PluginManager } from "../components/PluginManager";
 
 interface Plugin {
@@ -172,7 +173,7 @@ function SimulatedPluginManager() {
                     size="icon-xs"
                     onClick={() => handleUninstall(plugin.name)}
                     className="hover:bg-destructive/10 hover:text-destructive"
-                    aria-label={`Uninstall ${plugin.name}`}
+                    aria-label={t("Uninstall {name}", { name: plugin.name })}
                   >
                     <Trash2 size={12} />
                   </Button>
@@ -181,7 +182,7 @@ function SimulatedPluginManager() {
                 <Button
                   size="sm"
                   onClick={() => handleInstall(plugin.name)}
-                  aria-label={`Install ${plugin.name}`}
+                  aria-label={t("Install {name}", { name: plugin.name })}
                 >
                   <Download size={12} />
                   Install

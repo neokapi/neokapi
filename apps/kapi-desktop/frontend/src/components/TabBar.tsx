@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { X } from "lucide-react";
 import { Button } from "@neokapi/ui-primitives";
+import { t } from "@neokapi/kapi-react/runtime";
 import type { TabInfo } from "../types/api";
 
 interface TabBarProps {
@@ -81,7 +82,7 @@ export function TabBar({ tabs, activeTabID, onSelect, onClose, onRename }: TabBa
                 onClose(tab.id);
               }}
               className="h-4 w-4 opacity-0 group-hover:opacity-100"
-              aria-label={`Close ${tab.name}`}
+              aria-label={t("Close {name}", { name: tab.name })}
             >
               <X size={10} />
             </Button>

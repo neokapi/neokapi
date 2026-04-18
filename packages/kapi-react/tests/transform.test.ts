@@ -193,6 +193,25 @@ describe('neokapi-react SWC transform', () => {
       expect(result).toContain('// — prelude');
     });
 
+    it('preserves paramsSrc when a t() call follows non-ASCII (#382)', () => {
+      // Repro for a real bug: SWC spans are UTF-8 byte offsets, but
+      // sourceSlice was using `code.slice` (UTF-16 code units). An
+      // em-dash in the comment above the call shifted the object
+      // literal's slice so the emitted `__t(...)` dropped the leading
+      // `{` of the params object — producing syntactically invalid JS.
+      const code = [
+        'import { t } from "@neokapi/kapi-react/runtime";',
+        '/** Pre-loaded providers for Storybook — skips api. */',
+        'export function X({ provider }) {',
+        '  return <button aria-label={t("Delete {name}", { name: provider.name })}>Go</button>;',
+        '}',
+      ].join('\n');
+      const result = t(code);
+      expect(result).toContain('__t(');
+      // The params object must survive intact — leading `{` included.
+      expect(result).toMatch(/__t\("[^"]+", "Delete \{name\}", \{ name: provider\.name \}\)/);
+    });
+
     it('produces valid JS output for mixed-content expression cases', () => {
       // Expression-only children no longer transform — text must
       // anchor the block. These are the realistic patterns.
