@@ -12,13 +12,14 @@ title: "AD-046: Kapi Project as KLZ + BlockStore Providers"
 
 ## Summary
 
-Collapse three currently-separate concepts — the `.kapi` project, the `.klz` archive, and the in-flight block stream — into a single coherent model:
+Collapse three currently-separate concepts — the `.kapi` project, the `.klz` archive, and the in-flight block stream — into a single coherent model, while keeping the user-facing click-to-open experience intact:
 
-- A kapi project is a folder with a `.kapi/` directory that holds its working state (manifest + block store + sidecars). **Zipping that folder produces a `.klz`.** Unzipping a `.klz` produces a working project.
+- A kapi project has two physical parts side-by-side: a **`{project}.kapi` file** at the project root (the recipe — what users edit, what they double-click to open in Kapi Desktop, what they commit to git as the project identity), and a **`.kapi/` folder** adjacent to it (kapi's working state — manifest bookkeeping, block store, sidecars).
 - The block state is accessed through a `BlockStore` interface with pluggable providers: `memory`, `klzdb` (SQLite in `.kapi/cache.db`), `zip` (read-only `.klz`), and `bowrain` (REST against a bowrain-server). Flows and tools operate against the interface, not directly against channels.
 - Sources (authored content) live outside `.kapi/`. Translated outputs (generated) live outside too, at paths the manifest declares. `.kapi/` contains kapi's working state only; it never carries files users author or runtime consumers load.
+- A `.klz` snapshot is a zip of the `{project}.kapi` file **plus** the adjacent `.kapi/` folder, not a byte-for-byte mirror of one or the other. The relationship between project and KLZ is logical (same content, content-addressed) rather than structural (same zip root layout).
 
-The streaming model becomes the `memory` provider. KLZ becomes one provider *and* the portable snapshot format. `.kapi` gains a single `store:` declaration per collection (default `klzdb`).
+The streaming model becomes the `memory` provider. KLZ becomes one provider *and* the portable snapshot format. `{project}.kapi` gains a single `store:` declaration per collection (default `klzdb`).
 
 ## Context
 
@@ -90,12 +91,13 @@ A fifth provider, `format-reader`, wraps any `format.DataFormatReader` as a read
 
 ### 3. Project layout
 
-A kapi project is a folder. The manifest and working state both live in `.kapi/`. Sources live wherever the user authored them. Generated translations live wherever the manifest declares their writer output path.
+A kapi project has three ownership zones with a clear boundary:
 
 ```
 my-app/
-├── .kapi/
-│   ├── manifest.yaml        ← project recipe + block manifest (see §4)
+├── my-app.kapi              ← RECIPE (user edits, click-to-open handle)
+├── .kapi/                   ← WORKING STATE (kapi maintains)
+│   ├── manifest.yaml        ← block bookkeeping — counts, checksums, times
 │   ├── cache.db             ← klzdb provider (default store)
 │   ├── collections/         ← sidecars per collection
 │   │   └── ui/
@@ -108,66 +110,96 @@ my-app/
 │   │       │   └── qa.json
 │   │       └── skeletons/
 │   └── cache/               ← disposable; gitignore'd
-├── src/                     ← user-authored sources (outside .kapi/)
+├── src/                     ← user-authored sources
 │   └── **/*.tsx
-├── i18n/                    ← generated translations (outside .kapi/)
+├── i18n/                    ← generated translations
 │   ├── de.json              ← format writer output; runtime consumes these
 │   └── fr.json
 └── package.json
 ```
 
-Everything under `.kapi/` is kapi's. Everything under `src/` is the user's. Everything under `i18n/` (or wherever the writer points) is generated output consumers load at runtime.
+Ownership:
 
-Zipping `.kapi/` **is** a `.klz`. The KLZ spec becomes: "a zip whose root is the contents of a `.kapi/` folder, with `manifest.yaml` required and `cache.db` optional." An unzip of a `.klz` into `my-app/.kapi/` gives you a working project.
+- **`{project}.kapi`** — the user's. Hand-edited YAML. The click-to-open handle for Kapi Desktop. Committed to git. See §4.
+- **`.kapi/`** — kapi's. Managed by kapi tools. `cache.db` and `collections/**` hold the block state and sidecars; `manifest.yaml` records bookkeeping derived from that state. Safe to gitignore if blocks are re-extractable; opt in to commit when you want reproducibility.
+- **`src/**`** — the user's authored content. Referenced by the recipe; never moved into `.kapi/`.
+- **Writer outputs** — e.g. `i18n/{locale}.json` — produced by format writers the recipe declares. Runtime (kapi-react, the app) consumes these; kapi doesn't.
 
-### 4. Manifest: `.kapi/manifest.yaml`
+The name pair (`{project}.kapi` file + `.kapi/` folder) mirrors git's pattern: `.gitignore` file + `.git/` folder at the same root. Different slot, shared prefix.
 
-`manifest.yaml` replaces both today's `project.kapi` (recipe) and today's KLZ `manifest.json` (block metadata). It has two top-level sections so each can be validated independently:
+**`.klz` snapshot shape.** A `.klz` is a zip of `{project}.kapi` + `.kapi/` together. The zip root has a single `{project}.kapi` file and a `.kapi/` directory — unzipping into an empty folder reproduces a working project. The zip is a snapshot container, not a semantic mirror of any one of them; the relationship between project and KLZ is logical (same content, same content-addressing) rather than a byte-for-byte folder-is-the-zip equivalence. That frees us to evolve either side independently.
+
+**File association.** Kapi Desktop registers `.kapi` as a file extension. Double-clicking `my-app.kapi` launches the app with that path; the app reads the recipe, looks for a sibling `.kapi/` folder, and either loads state from it or treats the project as fresh (creating `.kapi/` on first persist). Opening a `.klz` unzips to a chosen location and opens the contained `.kapi` file the same way.
+
+### 4. Two manifests, one source of truth each
+
+The recipe and the block bookkeeping are kept in separate files so each has a single clear author:
+
+**`{project}.kapi`** — human-authored recipe. The project identity, collections, flows, store choices. This is the file users edit and commit.
+
+```yaml
+# my-app.kapi
+schemaVersion: 1
+kind: kapi-project
+
+id: my-app
+sourceLocale: en
+targetLocales: [de, fr, qps]
+
+collections:
+  - name: ui
+    store:
+      type: klzdb                 # default; omittable
+      path: .kapi/cache.db        # default; omittable
+    items:
+      - src: src/**/*.{tsx,jsx}
+        format:
+          name: exec
+          config:
+            command: vp kapi-react extract --stream
+    writers:
+      - format: json
+        out: i18n/{locale}.json
+
+flows:
+  prepare-handoff:
+    steps:
+      - extract
+      - termbase-match: { termbase: terms.db }
+      - tm-match: { tm: tm.db, threshold: 75 }
+```
+
+**`.kapi/manifest.yaml`** — kapi-maintained bookkeeping. Block counts, content hashes, generator identity, last-extract timestamps. Derived from the store. Users never edit it by hand; kapi recomputes it whenever the store changes.
 
 ```yaml
 # .kapi/manifest.yaml
 schemaVersion: 1
-kind: kapi-project
+kind: kapi-state
+generator: { id: kapi, version: 0.5.0 }
+project: { id: my-app, path: ../my-app.kapi }
 
-project:
-  id: my-app
-  sourceLocale: en
-  targetLocales: [de, fr, qps]
+blocks:
+  ui:
+    count: 1007
+    sha256: 3f8a…                 # hash of the sorted block index
+    sources:                      # per-source hash for staleness detection
+      - path: src/components/App.tsx
+        sha256: 7e12…
+        blocks: 14
 
-  collections:
-    - name: ui
-      store:
-        type: klzdb                 # default; omittable
-        path: .kapi/cache.db        # default; omittable
-      items:
-        - src: src/**/*.{tsx,jsx}
-          format:
-            name: exec
-            config:
-              command: vp kapi-react extract --stream
-      writers:
-        - format: json
-          out: i18n/{locale}.json
-
-  flows:
-    prepare-handoff:
-      steps:
-        - extract
-        - termbase-match: { termbase: terms.db }
-        - tm-match: { tm: tm.db, threshold: 75 }
-
-manifest:
-  generator: { id: kapi, version: 0.5.0 }
-  blocks:
-    ui:
-      count: 1007
-      sha256: 3f8a…                 # hash of the sorted block index
-  updatedAt: 2026-04-18T15:00:00Z
+updatedAt: 2026-04-18T15:00:00Z
 ```
 
-The `project:` section is editable by humans — collection defs, flow chains, store choices. The `manifest:` section is maintained by kapi: block counts, content hashes, generator identity, timestamps. A CLI like `kapi manifest recompute` refreshes it from the store.
+The `.kapi/manifest.yaml` is content-addressed bookkeeping: every entry keyed by block hash or source file hash, safe to regenerate from the `cache.db` if deleted or corrupted. `kapi manifest recompute` rebuilds it.
 
-Tool discovery is git-style: walk up from the current directory until `.kapi/manifest.yaml` is found. No top-level `project.kapi` needed; no env vars to point at a config file.
+**Tool discovery.** Walk up from the current directory looking for either:
+
+1. A single `*.kapi` file at a given directory level (that's the recipe; the adjacent `.kapi/` folder is the state), or
+2. A `.kapi/` folder (from which the recipe path is read via the `project.path` entry in `.kapi/manifest.yaml`).
+
+In practice users always land on (1) because the recipe file is the project identity. Case (2) is a fallback when tools are invoked from inside `.kapi/` itself (e.g. an automation running against the state folder).
+
+If a directory contains multiple `*.kapi` files (monorepo with several projects side-by-side), kapi requires `-p <path>` to disambiguate. The `.kapi/` folder is one-per-recipe; two recipes in the same directory means two adjacent `.kapi/` folders, which we disallow (use subdirectories instead).
 
 ### 5. Flow executor operates against `Session`
 
@@ -201,11 +233,24 @@ Tools that still want streaming iterate `s.Blocks()`. Tools that need random acc
 
 Three verbs, clearly separated:
 
-- `kapi snapshot` — zip `.kapi/` into a `.klz`. Portable full-state export. Default excludes cache/**. Optional `--include-sources` copies the project's `src/**` into the zip for fully-self-contained handoff.
-- `kapi open <file.klz>` — inverse of snapshot. Unzip into a working project directory.
-- `kapi run <flow>` — run a flow; outputs go wherever the manifest's writers declare (typically outside `.kapi/`).
+- **`kapi snapshot`** — zip the recipe (`{project}.kapi`) plus `.kapi/` into a `.klz`. Portable full-state export. Default excludes `.kapi/cache/**` (rebuildable). Optional `--include-sources` copies the project's declared source globs (`src/**`) into the zip for fully-self-contained handoff.
+- **`kapi open <file.klz>`** — inverse of snapshot. Unzip into a chosen directory; the recipe file lands at the new directory's root and `.kapi/` lands beside it.
+- **`kapi run <flow>`** — run a flow; writer outputs land wherever the recipe's `writers:` declare (typically outside `.kapi/`).
 
 CAT-tool handoff is unchanged: a writer step in the flow emits `.xliff`/`.po`/etc. at a declared path. KLZ is not used for this — it's for kapi-to-kapi transport only.
+
+**Zip layout of a `.klz`:**
+
+```
+my-app.klz:
+├── my-app.kapi              ← recipe
+└── .kapi/
+    ├── manifest.yaml
+    ├── cache.db
+    └── collections/**
+```
+
+`my-app.kapi` lives at the zip root so the opening logic is trivial: list zip members, find the single `*.kapi` entry, adjacent `.kapi/` is the state folder. No index file or special header needed in the zip.
 
 ### 7. Bowrain push/pull through `BowrainStore`
 
@@ -255,15 +300,23 @@ Every flow run reads/writes a `.klz` on disk. Simple and consistent, but slow (z
 
 ### C. Keep `.kapi` and `.klz` separate; add BlockStore without the folder unification
 
-Land `BlockStore` + providers, but leave `.kapi` projects at the root file and `.klz` as a standalone archive. Rejected on symmetry grounds: it leaves the project-as-container idea unimplemented, and "zip the project to hand it off" becomes an ad-hoc operation rather than a first-class verb. The folder unification is cheap (it's mostly a spec decision) and removes an entire layer of mental model.
+Land `BlockStore` + providers, but leave `.kapi` projects at the root file and `.klz` as a standalone archive. Rejected on symmetry grounds: it leaves the project-as-container idea unimplemented, and "zip the project to hand it off" becomes an ad-hoc operation rather than a first-class verb. The folder + file pair is cheap (it's mostly a spec decision) and removes an entire layer of mental model.
 
-### D. Top-level `project.kapi` file instead of `.kapi/manifest.yaml`
+### D. Single manifest — fold the recipe into `.kapi/manifest.yaml`
 
-More conventional for project discoverability (think `package.json`, `Cargo.toml`). Rejected: it breaks the "zip `.kapi/` = KLZ" equivalence, or forces the zip layout to special-case the manifest path at the zip root. The git-style parent-walk for `.kapi/` is a small cost for a cleaner spec.
+Earlier draft of this AD put everything (recipe + bookkeeping) in `.kapi/manifest.yaml` with no top-level file, git-style. Rejected once the desktop file-association UX was factored in: users clicking a file to open a project is a strong, concrete need. Kapi Desktop needs a specific file to register for the `.kapi` extension; `.kapi/manifest.yaml` buried in a hidden folder can't serve that. Splitting into `{project}.kapi` (recipe) + `.kapi/manifest.yaml` (bookkeeping) costs one file but gives:
+
+- A click-to-open handle that works like `.code-workspace`, `.sln`, `.xcworkspace`.
+- A clean author boundary — recipe is user-owned, bookkeeping is kapi-owned, neither overwrites the other.
+- A more natural zip shape (recipe file at zip root, state folder beside it) than nesting everything in `.kapi/`.
 
 ### E. Sources inside `.kapi/`
 
 A fully self-contained `.kapi/` including a copy of `src/**`. Rejected: sources are authored artifacts that belong next to the rest of the codebase (git, IDE, build tools). Putting them inside `.kapi/` either duplicates them or implies `.kapi/` is the project root — both worse than keeping them separate.
+
+### F. Byte-for-byte "zip the `.kapi/` folder = KLZ"
+
+An earlier framing tried to make the project folder and the KLZ zip be byte-identical trees (`.kapi/` folder contents at zip root). Rejected once the top-level recipe file was kept: the `.klz` zip now needs the recipe at its root and `.kapi/` alongside, which is not a literal mirror of either physical form. That's fine — the relationship is **logical** (same content, same content-addressing, round-trip lossless) rather than **structural**. It lets recipe and state evolve independently without spec breakage.
 
 ## Rollout
 
