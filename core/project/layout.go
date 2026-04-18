@@ -1,0 +1,157 @@
+package project
+
+import (
+	"errors"
+	"fmt"
+	"io/fs"
+	"os"
+	"path/filepath"
+)
+
+// Layout describes the on-disk shape of a kapi project per AD-046:
+// a `{project}.kapi` recipe file plus an adjacent `.kapi/` state
+// folder, co-located at the same directory. Both paths are absolute.
+type Layout struct {
+	// Root is the directory that holds both RecipePath and StateDir.
+	Root string
+	// RecipePath is the absolute path to `{project}.kapi`.
+	RecipePath string
+	// StateDir is the absolute path to `.kapi/`. The directory is
+	// guaranteed to exist when returned by ResolveLayout; callers
+	// that are scaffolding a fresh project should call EnsureLayout
+	// instead.
+	StateDir string
+}
+
+// StateDirName is the hidden directory that holds kapi's working
+// state (manifest bookkeeping, blockstore cache, sidecar layers).
+const StateDirName = ".kapi"
+
+// RecipeExt is the file extension users click to open a project.
+const RecipeExt = ".kapi"
+
+// ResolveLayout walks up from `start` looking for a kapi project.
+// The recognised shape is exactly one `*.kapi` file at a directory
+// level plus an adjacent `.kapi/` subdirectory. Multiple `.kapi`
+// files at the same level return ErrAmbiguousLayout; the caller must
+// resolve by passing an explicit recipe path.
+//
+// If only the `.kapi/` state folder is found (no sibling recipe),
+// returns ErrRecipeMissing. This keeps the contract explicit:
+// consuming tools know which half is missing.
+func ResolveLayout(start string) (Layout, error) {
+	abs, err := filepath.Abs(start)
+	if err != nil {
+		return Layout{}, fmt.Errorf("project: resolve start path: %w", err)
+	}
+
+	// If `start` is itself a file, walk from its parent directory.
+	if info, err := os.Stat(abs); err == nil && !info.IsDir() {
+		abs = filepath.Dir(abs)
+	}
+
+	dir := abs
+	for {
+		layout, err := layoutAtDir(dir)
+		if err == nil {
+			return layout, nil
+		}
+		if !errors.Is(err, errLayoutNotHere) {
+			return Layout{}, err
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			return Layout{}, ErrNoProject
+		}
+		dir = parent
+	}
+}
+
+// LayoutFor returns the Layout for an explicit recipe file. The
+// recipe must already exist; the `.kapi/` folder is auto-created
+// adjacent to it if absent.
+func LayoutFor(recipePath string) (Layout, error) {
+	abs, err := filepath.Abs(recipePath)
+	if err != nil {
+		return Layout{}, fmt.Errorf("project: abs recipe path: %w", err)
+	}
+	if filepath.Ext(abs) != RecipeExt {
+		return Layout{}, fmt.Errorf("project: recipe must end in %s, got %q", RecipeExt, abs)
+	}
+	if info, err := os.Stat(abs); err != nil {
+		return Layout{}, fmt.Errorf("project: stat recipe: %w", err)
+	} else if info.IsDir() {
+		return Layout{}, fmt.Errorf("project: %q is a directory, not a recipe file", abs)
+	}
+	root := filepath.Dir(abs)
+	return Layout{
+		Root:       root,
+		RecipePath: abs,
+		StateDir:   filepath.Join(root, StateDirName),
+	}, nil
+}
+
+// EnsureLayout creates the `.kapi/` state directory if it doesn't
+// exist. Idempotent; safe to call on an existing project.
+func EnsureLayout(layout Layout) error {
+	if err := os.MkdirAll(layout.StateDir, 0o755); err != nil {
+		return fmt.Errorf("project: create state dir: %w", err)
+	}
+	return nil
+}
+
+// ─── internals ──────────────────────────────────────────────────
+
+var (
+	// ErrNoProject is returned when walking the directory tree finds
+	// no kapi project.
+	ErrNoProject = errors.New("project: no kapi project found")
+	// ErrAmbiguousLayout indicates multiple recipe files at the same
+	// directory level — the caller must pass an explicit -p <path>.
+	ErrAmbiguousLayout = errors.New("project: multiple recipe files in the same directory — pass an explicit recipe path")
+	// ErrRecipeMissing indicates a `.kapi/` state dir with no sibling
+	// recipe file. Means the project's identity was lost; user must
+	// restore the recipe or reinitialize.
+	ErrRecipeMissing = errors.New("project: .kapi/ state dir found but no adjacent *.kapi recipe file")
+
+	errLayoutNotHere = errors.New("no layout at this directory")
+)
+
+func layoutAtDir(dir string) (Layout, error) {
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		if errors.Is(err, fs.ErrNotExist) {
+			return Layout{}, errLayoutNotHere
+		}
+		return Layout{}, fmt.Errorf("project: read dir %s: %w", dir, err)
+	}
+
+	var recipes []string
+	hasState := false
+	for _, e := range entries {
+		name := e.Name()
+		if e.IsDir() && name == StateDirName {
+			hasState = true
+			continue
+		}
+		if !e.IsDir() && filepath.Ext(name) == RecipeExt {
+			recipes = append(recipes, name)
+		}
+	}
+
+	switch {
+	case len(recipes) == 0 && !hasState:
+		return Layout{}, errLayoutNotHere
+	case len(recipes) == 0 && hasState:
+		return Layout{}, ErrRecipeMissing
+	case len(recipes) > 1:
+		return Layout{}, ErrAmbiguousLayout
+	}
+
+	// Exactly one recipe. State dir is optional (may be scaffolded later).
+	return Layout{
+		Root:       dir,
+		RecipePath: filepath.Join(dir, recipes[0]),
+		StateDir:   filepath.Join(dir, StateDirName),
+	}, nil
+}
