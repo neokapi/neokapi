@@ -54,6 +54,7 @@ linters:
         path: bowrain/core/client/
     paths:
       - apps/bowrain
+      - node_modules/
       - third_party$
       - builtin$
       - examples/

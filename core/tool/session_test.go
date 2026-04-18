@@ -21,9 +21,9 @@ type annotatingTool struct {
 	cfg tool.ToolConfig
 }
 
-func (t *annotatingTool) Name() string                       { return "annotating" }
-func (t *annotatingTool) Description() string                { return "test SessionTool" }
-func (t *annotatingTool) Config() tool.ToolConfig            { return t.cfg }
+func (t *annotatingTool) Name() string                        { return "annotating" }
+func (t *annotatingTool) Description() string                 { return "test SessionTool" }
+func (t *annotatingTool) Config() tool.ToolConfig             { return t.cfg }
 func (t *annotatingTool) SetConfig(cfg tool.ToolConfig) error { t.cfg = cfg; return nil }
 
 func (t *annotatingTool) Process(ctx context.Context, in <-chan *model.Part, out chan<- *model.Part) error {

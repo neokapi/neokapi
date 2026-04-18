@@ -2,7 +2,6 @@ package blockstore_test
 
 import (
 	"context"
-	"errors"
 	"path/filepath"
 	"testing"
 
@@ -51,7 +50,7 @@ func runStoreSuite(t *testing.T, makeStore func() blockstore.Store) {
 		require.NoError(t, err)
 		defer sess.Close()
 		_, err = sess.GetBlock("nope")
-		assert.True(t, errors.Is(err, blockstore.ErrNotFound), "got %v", err)
+		assert.ErrorIs(t, err, blockstore.ErrNotFound)
 	})
 
 	t.Run("Blocks iterates everything; filter by collection", func(t *testing.T) {
@@ -110,7 +109,7 @@ func runStoreSuite(t *testing.T, makeStore func() blockstore.Store) {
 		require.NoError(t, err)
 		defer sess2.Close()
 		_, err = sess2.GetBlock("ephemeral")
-		assert.True(t, errors.Is(err, blockstore.ErrNotFound), "got %v", err)
+		assert.ErrorIs(t, err, blockstore.ErrNotFound)
 	})
 
 	t.Run("Sidecar put / get / list", func(t *testing.T) {
@@ -182,7 +181,7 @@ func runStoreSuite(t *testing.T, makeStore func() blockstore.Store) {
 		require.NoError(t, sess.Commit())
 
 		err = sess.PutBlock("ui", &blockstore.Block{Hash: "late"})
-		assert.True(t, errors.Is(err, blockstore.ErrClosed), "got %v", err)
+		assert.ErrorIs(t, err, blockstore.ErrClosed)
 	})
 
 	t.Run("empty block hash is rejected", func(t *testing.T) {

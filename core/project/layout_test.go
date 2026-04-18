@@ -2,7 +2,6 @@ package project_test
 
 import (
 	"bytes"
-	"errors"
 	"os"
 	"path/filepath"
 	"testing"
@@ -28,7 +27,7 @@ func TestResolveLayout_walksUpFromSubdirectory(t *testing.T) {
 func TestResolveLayout_noProjectFound(t *testing.T) {
 	root := t.TempDir()
 	_, err := project.ResolveLayout(root)
-	assert.True(t, errors.Is(err, project.ErrNoProject), "got %v", err)
+	assert.ErrorIs(t, err, project.ErrNoProject)
 }
 
 func TestResolveLayout_ambiguousMultipleRecipes(t *testing.T) {
@@ -37,14 +36,14 @@ func TestResolveLayout_ambiguousMultipleRecipes(t *testing.T) {
 	require.NoError(t, os.WriteFile(filepath.Join(root, "two.kapi"), []byte("id: two\n"), 0o644))
 
 	_, err := project.ResolveLayout(root)
-	assert.True(t, errors.Is(err, project.ErrAmbiguousLayout), "got %v", err)
+	assert.ErrorIs(t, err, project.ErrAmbiguousLayout)
 }
 
 func TestResolveLayout_stateWithoutRecipe(t *testing.T) {
 	root := t.TempDir()
 	require.NoError(t, os.MkdirAll(filepath.Join(root, ".kapi"), 0o755))
 	_, err := project.ResolveLayout(root)
-	assert.True(t, errors.Is(err, project.ErrRecipeMissing), "got %v", err)
+	assert.ErrorIs(t, err, project.ErrRecipeMissing)
 }
 
 func TestResolveLayout_startIsAFile(t *testing.T) {
@@ -195,7 +194,7 @@ func TestOpen_rejectsNonEmptyTarget(t *testing.T) {
 	require.NoError(t, project.Snapshot(layout, &buf, project.SnapshotOptions{}))
 
 	_, err = project.Open(bytes.NewReader(buf.Bytes()), int64(buf.Len()), target)
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "not empty")
 }
 
