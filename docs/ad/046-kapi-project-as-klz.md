@@ -127,13 +127,13 @@ Ownership:
 
 The name pair (`{project}.kapi` file + `.kapi/` folder) mirrors git's pattern: `.gitignore` file + `.git/` folder at the same root. Different slot, shared prefix.
 
-**`.klz` snapshot shape.** A `.klz` is a zip of `{project}.kapi` + `.kapi/` together. The zip root has a single `{project}.kapi` file and a `.kapi/` directory — unzipping into an empty folder reproduces a working project. The zip is a snapshot container, not a semantic mirror of any one of them; the relationship between project and KLZ is logical (same content, same content-addressing) rather than a byte-for-byte folder-is-the-zip equivalence. That frees us to evolve either side independently.
+**`.klz` snapshot shape.** A `.klz` is a canonical archive, **not** a zip-of-the-project-folder. Inside a `.klz` there is no `.kapi/` prefix and no `{project}.kapi` file — those names are user-facing affordances of the extracted working copy. The archive has its own fixed, well-known layout (see §6) so any tool that cracks open a `.klz` finds its manifest in a predictable place without scanning. The relationship between project folder and `.klz` is **logical** (same content, same content-addressing, round-trip lossless) rather than byte-for-byte structural.
 
 **File association.** Kapi Desktop registers `.kapi` as a file extension. Double-clicking `my-app.kapi` launches the app with that path; the app reads the recipe, looks for a sibling `.kapi/` folder, and either loads state from it or treats the project as fresh (creating `.kapi/` on first persist). Opening a `.klz` unzips to a chosen location and opens the contained `.kapi` file the same way.
 
-### 4. Two manifests, one source of truth each
+### 4. Two manifests in the working copy, one in the archive
 
-The recipe and the block bookkeeping are kept in separate files so each has a single clear author:
+In the **project folder** the recipe and the block bookkeeping are split so each has a single clear author. In a **`.klz` archive** they are merged into one canonical manifest file because the archive is an atomic snapshot — no ongoing editing, no author boundary to preserve.
 
 **`{project}.kapi`** — human-authored recipe. The project identity, collections, flows, store choices. This is the file users edit and commit.
 
@@ -239,18 +239,56 @@ Three verbs, clearly separated:
 
 CAT-tool handoff is unchanged: a writer step in the flow emits `.xliff`/`.po`/etc. at a declared path. KLZ is not used for this — it's for kapi-to-kapi transport only.
 
-**Zip layout of a `.klz`:**
+**`.klz` archive layout.** Canonical and well-known — independent of the extracted project's user-facing layout:
 
 ```
 my-app.klz:
-├── my-app.kapi              ← recipe
-└── .kapi/
-    ├── manifest.yaml
-    ├── cache.db
-    └── collections/**
+├── manifest.yaml            ← CANONICAL name at zip root, always
+├── cache.db                 ← optional: klzdb snapshot (omitted if empty / rebuildable)
+├── collections/
+│   └── ui/
+│       ├── targets/{fr,de}.json
+│       ├── annotations/{terms,tm-matches,qa}.json
+│       └── skeletons/
+└── sources/                 ← optional: included only when --include-sources
+    └── **
 ```
 
-`my-app.kapi` lives at the zip root so the opening logic is trivial: list zip members, find the single `*.kapi` entry, adjacent `.kapi/` is the state folder. No index file or special header needed in the zip.
+No hidden `.kapi/` prefix anywhere in the zip. No `{project}.kapi` file — the zip root **is** the project in archive form. Finding the manifest is "open zip, read `manifest.yaml` at root." No scanning, no extension-pattern matching, no conventions beyond the well-known name.
+
+The `manifest.yaml` at the zip root has both the `project:` section (merged from the extracted recipe) and a `state:` section (merged from the extracted bookkeeping), in one file:
+
+```yaml
+# manifest.yaml (inside .klz root)
+schemaVersion: 1
+kind: kapi-archive
+project:
+  id: my-app
+  sourceLocale: en
+  targetLocales: [de, fr, qps]
+  collections: [ ... ]
+  flows: { ... }
+state:
+  generator: { id: kapi, version: 0.5.0 }
+  blocks: { ui: { count: 1007, sha256: 3f8a…, sources: [ ... ] } }
+  snapshotAt: 2026-04-18T15:00:00Z
+```
+
+**Transform on snapshot (project → `.klz`):**
+
+1. Read `{project}.kapi` (recipe) + `.kapi/manifest.yaml` (bookkeeping).
+2. Merge into one `manifest.yaml` with `project:` / `state:` sections.
+3. Copy `.kapi/cache.db` to `cache.db` at zip root.
+4. Copy `.kapi/collections/**` to `collections/**` at zip root.
+5. (Optional) Copy declared sources to `sources/**`.
+
+**Transform on open (`.klz` → project):**
+
+1. Read zip's `manifest.yaml`.
+2. Write `project:` section to `{project.id}.kapi` at the target directory root.
+3. Write `state:` section to `.kapi/manifest.yaml` beside it.
+4. Copy zip's `cache.db` → `.kapi/cache.db`; zip's `collections/**` → `.kapi/collections/**`.
+5. Extracted recipe filename comes from `project.id` (e.g. `my-app.kapi`). Users can rename freely.
 
 ### 7. Bowrain push/pull through `BowrainStore`
 
@@ -316,7 +354,11 @@ A fully self-contained `.kapi/` including a copy of `src/**`. Rejected: sources 
 
 ### F. Byte-for-byte "zip the `.kapi/` folder = KLZ"
 
-An earlier framing tried to make the project folder and the KLZ zip be byte-identical trees (`.kapi/` folder contents at zip root). Rejected once the top-level recipe file was kept: the `.klz` zip now needs the recipe at its root and `.kapi/` alongside, which is not a literal mirror of either physical form. That's fine — the relationship is **logical** (same content, same content-addressing, round-trip lossless) rather than **structural**. It lets recipe and state evolve independently without spec breakage.
+An earlier framing tried to make the project folder and the KLZ zip be byte-identical trees. Rejected. The working copy and the archive serve different audiences: the folder is optimised for users and IDEs (visible recipe file, hidden state folder, sources and outputs alongside), the archive is optimised for tools (one canonical manifest name, no user-facing hidden-folder prefix, no source dependency by default). Forcing them to share a layout either burdens the folder with archive conventions or burdens the archive with user-facing folder conventions. Better: keep the relationship **logical** (same content, same content-addressing, round-trip lossless) rather than structural, and document the transform clearly.
+
+### G. Well-known-but-hidden-prefix zip layout (`.kapi/manifest.yaml` inside the archive)
+
+Put `.kapi/` inside the `.klz` to mirror the project folder. Rejected: the hidden-folder prefix is a user-facing convention — it exists in the project folder so editors, IDEs, and file browsers collapse it away from user attention. Inside an archive there's no "user attention" to collapse away; the prefix is pure overhead that makes every manifest path longer and tools slightly harder to write.
 
 ## Rollout
 
