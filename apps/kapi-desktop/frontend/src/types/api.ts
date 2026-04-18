@@ -43,6 +43,15 @@ export interface ContentCollection {
   target_languages?: string[];
   items?: ContentItem[];
 
+  /**
+   * Project-relative path to the .klz that carries this collection's
+   * extracted content + translations. When set, `kapi status` and
+   * `kapi sync` know where to read/write and the TranslationStatusPanel
+   * shows per-locale coverage. Omit for file-based flows that never
+   * materialise a .klz.
+   */
+  archive?: string;
+
   // Bare entry fields (short form — promoted from ContentItem).
   path?: string;
   format?: FormatSpec;

@@ -41,6 +41,7 @@ import type {
 } from "../types/api";
 import { isBareEntry, effectiveItems } from "../types/api";
 import { api } from "../hooks/useApi";
+import { TranslationStatusPanel } from "./TranslationStatusPanel";
 import { useError } from "./ErrorBanner";
 import { useShortenHome } from "../hooks/useShortenHome";
 import { useWailsEvent } from "../hooks/useWailsEvent";
@@ -405,6 +406,15 @@ export function ContentPage({
         )}
       </div>
 
+      {content.some((c) => c.archive) && (
+        <section className="mb-4">
+          <h2 className="mb-2 flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+            Translation state
+          </h2>
+          <TranslationStatusPanel tabID={tabID} />
+        </section>
+      )}
+
       <div className="grid min-h-0 flex-1 grid-cols-2 gap-6">
         {/* Left column: File Patterns */}
         <section className="flex min-h-0 flex-col overflow-auto">
@@ -558,6 +568,23 @@ export function ContentPage({
                               }
                             />
                           </div>
+                        </div>
+                        <div className="mt-3">
+                          <Label className="mb-0.5 block text-xs text-muted-foreground">
+                            Archive (.klz)
+                          </Label>
+                          <input
+                            type="text"
+                            value={coll.archive ?? ""}
+                            onChange={(e) =>
+                              handleUpdateCollection(ci, {
+                                ...coll,
+                                archive: e.target.value || undefined,
+                              })
+                            }
+                            placeholder="i18n/ui.klz (optional — leave blank for file-based flow)"
+                            className="w-full rounded-md border border-input bg-background px-2 py-1 text-xs font-mono outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                          />
                         </div>
                       </div>
                     )}
