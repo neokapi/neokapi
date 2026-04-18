@@ -14,7 +14,14 @@
  */
 
 import type { ReactNode } from 'react';
-import { createElement, useSyncExternalStore, useCallback } from 'react';
+import {
+  createElement,
+  cloneElement,
+  isValidElement,
+  Fragment,
+  useSyncExternalStore,
+  useCallback,
+} from 'react';
 import { resolveICU } from './icu.ts';
 
 // ─── Translation store ───────────────────────────────────────
@@ -139,12 +146,24 @@ export function __tx(
     return parts.join('');
   }
 
-  // Return a fragment with keyed children
+  // Return a React Fragment — NOT a wrapping <span>. A wrapper
+  // collapses multi-child content (`<Play /> Run`) into a single
+  // flex item of the enclosing inline-flex container, which breaks
+  // shadcn-style buttons that rely on `items-center gap-N` between
+  // direct children. Fragment is transparent to layout.
+  //
+  // Embedded elements get a cloned `key` for stable reconciliation
+  // across re-renders; strings don't need keys because they flow as
+  // individual children arguments.
   return createElement(
-    'span',
-    { 'data-neokapi': '' },
+    Fragment,
+    null,
     ...parts.map((part, i) =>
-      typeof part === 'string' ? part : createElement('span', { key: i }, part),
+      typeof part === 'string'
+        ? part
+        : isValidElement(part)
+          ? cloneElement(part, { key: i })
+          : createElement(Fragment, { key: i }, part),
     ),
   );
 }

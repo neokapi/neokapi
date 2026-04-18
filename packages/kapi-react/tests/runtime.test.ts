@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
+import { createElement, isValidElement, Fragment } from 'react';
 import { __t, __tx, setTranslations, t } from '../src/runtime/index.ts';
 
 beforeEach(() => {
@@ -66,6 +67,18 @@ describe('__tx() — hash-based JSX lookup', () => {
     const link = '<a>hier</a>';
     const result = __tx('hash1', '{name} clicks {=m0}', { '=m0': link }, { name: 'Alice' });
     expect(typeof result).toBe('object');
+  });
+
+  it('returns a transparent Fragment, not a wrapping <span>, for element children', () => {
+    // Regression: shadcn <Button> uses `inline-flex items-center gap-2`
+    // and relies on the icon + text being *direct* children. A
+    // wrapping <span> collapses them into a single flex item, which
+    // loses the gap and can wrap to two lines.
+    const icon = createElement('svg', { key: 'icon' });
+    const result = __tx('hash1', '{=m0} Run', { '=m0': icon });
+    // Must be a React element; must be a Fragment (type === Fragment symbol).
+    expect(isValidElement(result)).toBe(true);
+    expect((result as { type: unknown }).type).toBe(Fragment);
   });
 });
 
