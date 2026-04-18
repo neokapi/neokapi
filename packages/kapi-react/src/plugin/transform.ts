@@ -228,6 +228,7 @@ export function transform(
     ast,
     options.projectRoot ?? process.cwd(),
     options.communityManifestDir,
+    filename,
   );
   const componentMap: Record<string, string> = {
     ...libraryMap,

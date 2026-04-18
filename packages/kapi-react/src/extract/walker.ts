@@ -65,6 +65,7 @@ export function extractDocument(code: string, opts: WalkerOptions): Document | n
     ast,
     opts.projectRoot ?? process.cwd(),
     opts.communityManifestDir,
+    opts.filename,
   );
   const effectiveMap: Record<string, string> = {
     ...libraryMap,

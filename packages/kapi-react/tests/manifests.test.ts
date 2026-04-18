@@ -67,12 +67,47 @@ describe('resolveLibraryComponentMap', () => {
     expect(map).toEqual({});
   });
 
-  it('skips relative imports entirely', () => {
+  it('skips relative imports entirely when no filename is provided', () => {
     const mod = parse(`
       import { Foo } from './foo';
       import { Bar } from '../bar';
     `);
     const map = resolveLibraryComponentMap(mod, process.cwd());
+    expect(map).toEqual({});
+  });
+
+  it('applies the owning package manifest when filename is provided', () => {
+    // packages/ui ships its own i18n-manifest.json — passing a file
+    // inside it should expose the mappings for relative imports
+    // (the library-manifest resolver otherwise skips those).
+    const mod = parse(`
+      import { Button } from './button';
+      import { Label } from './label';
+      export function Panel() {
+        return <div><Label>Email</Label><Button>Save</Button></div>;
+      }
+    `);
+    const uiFile =
+      new URL('../../ui/src/components/ui/dialog.tsx', import.meta.url).pathname;
+    const map = resolveLibraryComponentMap(
+      mod,
+      process.cwd(),
+      undefined,
+      uiFile,
+    );
+    expect(map.Button).toBe('button');
+    expect(map.Label).toBe('label');
+  });
+
+  it('does not cross package boundaries — a file outside the package gets no entries', () => {
+    const mod = parse(`import { Button } from './button';`);
+    // A path that isn't inside any package with a manifest.
+    const map = resolveLibraryComponentMap(
+      mod,
+      process.cwd(),
+      undefined,
+      '/tmp/unrelated/file.tsx',
+    );
     expect(map).toEqual({});
   });
 });
