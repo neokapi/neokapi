@@ -264,6 +264,7 @@ func (a *App) AddCommandGroups(cmd *cobra.Command) {
 		&cobra.Group{ID: "quality", Title: "Quality:"},
 		&cobra.Group{ID: "analysis", Title: "Analysis:"},
 		&cobra.Group{ID: "text-processing", Title: "Text Processing:"},
+		&cobra.Group{ID: "content", Title: "Project & Content:"},
 		&cobra.Group{ID: "management", Title: "Info & Management:"},
 	)
 }

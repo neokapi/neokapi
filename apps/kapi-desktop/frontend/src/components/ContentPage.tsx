@@ -303,8 +303,45 @@ export function ContentPage({
           </div>
         </div>
 
+        {/* Exec extractor command — shortcut for format:exec's
+            config.command field so users don't have to open the
+            Format Config JSON editor for the common case. */}
+        {fmt === "exec" && (
+          <div>
+            <Label className="mb-0.5 block text-xs text-muted-foreground">
+              Extractor command
+            </Label>
+            <input
+              type="text"
+              value={
+                typeof item.format?.config?.command === "string"
+                  ? item.format.config.command
+                  : ""
+              }
+              onChange={(e) =>
+                onItemChange({
+                  ...item,
+                  format: {
+                    ...item.format!,
+                    config: {
+                      ...(item.format?.config ?? {}),
+                      command: e.target.value || undefined,
+                    },
+                  },
+                })
+              }
+              placeholder="vp kapi-react extract --stream"
+              className="w-full rounded-md border border-input bg-background px-2 py-1 font-mono text-xs outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            />
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              `kapi extract -p` runs this command; NUL-separated paths on stdin, NDJSON
+              blocks on stdout.
+            </p>
+          </div>
+        )}
+
         {/* Format preset */}
-        {fmt && (
+        {fmt && fmt !== "exec" && (
           <div>
             <Label className="mb-0.5 block text-xs text-muted-foreground">Format Preset</Label>
             <Select

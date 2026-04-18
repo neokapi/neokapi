@@ -13,6 +13,7 @@ import (
 	"github.com/neokapi/neokapi/core/formats/doxygen"
 	dtdfmt "github.com/neokapi/neokapi/core/formats/dtd"
 	"github.com/neokapi/neokapi/core/formats/epub"
+	execfmt "github.com/neokapi/neokapi/core/formats/exec"
 	"github.com/neokapi/neokapi/core/formats/fixedwidth"
 	"github.com/neokapi/neokapi/core/formats/html"
 	"github.com/neokapi/neokapi/core/formats/icml"
@@ -495,6 +496,18 @@ func RegisterAll(reg *registry.FormatRegistry, opts ...RegisterOptions) {
 		}, "Trados XML")
 	reg.RegisterWriter("txml", func() format.DataFormatWriter { return txml.NewWriter() })
 	registerSchemaAndDecoder(o, reg, "txml", func() format.DataFormatReader { return txml.NewReader() })
+
+	// Exec — declarative subprocess extractor. Registered here so
+	// kapi-desktop's FormatSelect (and other UI surfaces) can list
+	// it; actual execution is orchestrated by `kapi extract -p`,
+	// which reads FormatSpec.Config.command from the .kapi and
+	// invokes the subprocess once per collection. The registry
+	// entry is a stub — opening a raw file with this reader
+	// returns an instructive error.
+	reg.RegisterReader(execfmt.FormatName,
+		func() format.DataFormatReader { return execfmt.NewReader() },
+		format.FormatSignature{},
+		"Exec (subprocess extractor)")
 
 	// JSX / KLF / KLZ — Kapi Localization Format (RFC 0001)
 	reg.RegisterReader("jsx",

@@ -70,6 +70,10 @@ export class ContentCollection {
              * this collection's extracted content + translations. When set,
              * `kapi status` and `kapi sync` know where to read/write. Omit
              * for file-based flows that never materialise a .klz.
+             * 
+             * Custom extraction (e.g. JSX → klf blocks) is expressed via a
+             * `format: { name: exec, config: { command } }` on the item,
+             * not via a separate field. See core/formats/exec.
              * @member
              * @type {string | undefined}
              */

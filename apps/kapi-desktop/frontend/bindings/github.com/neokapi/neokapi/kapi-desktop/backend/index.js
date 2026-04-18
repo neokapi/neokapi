@@ -24,6 +24,7 @@ export {
     EntityTypeFacetDTO,
     EntityValueDTO,
     EntityValueFilter,
+    ExtractResult,
     FileMatch,
     FlowInfo,
     FlowIssueInfo,

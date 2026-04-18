@@ -897,6 +897,39 @@ export class EntityValueFilter {
 }
 
 /**
+ * ExtractResult summarises one invocation of RunExtract for the UI.
+ * The log is the captured stdout/stderr of `kapi extract` so the
+ * user sees which plugins ran and how many blocks each produced.
+ */
+export class ExtractResult {
+    /**
+     * Creates a new ExtractResult instance.
+     * @param {Partial<ExtractResult>} [$$source = {}] - The source object to create the ExtractResult.
+     */
+    constructor($$source = {}) {
+        if (!("log" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["log"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ExtractResult instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {ExtractResult}
+     */
+    static createFrom($$source = {}) {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new ExtractResult(/** @type {Partial<ExtractResult>} */($$parsedSource));
+    }
+}
+
+/**
  * FileMatch represents a file matched by content patterns.
  */
 export class FileMatch {
