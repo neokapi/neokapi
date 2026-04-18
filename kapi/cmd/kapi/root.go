@@ -41,6 +41,7 @@ func init() {
 	rootCmd.AddCommand(app.NewStatusCmd())
 	rootCmd.AddCommand(app.NewSyncCmd())
 	rootCmd.AddCommand(app.NewShowCmd())
+	rootCmd.AddCommand(app.NewExtractCmd())
 
 	// Management commands.
 	rootCmd.AddCommand(app.NewFlowsCmd(cli.FlowCmdOptions{}))
