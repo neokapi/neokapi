@@ -33,6 +33,11 @@ source_language: en-US
 target_languages: [fr-FR, de-DE, ja-JP]
 
 content:
+  - name: ui
+    archive: i18n/ui.klz         # managed .klz artifact
+    items:
+      - path: "src/**/*.tsx"
+        format: jsx
   - path: "src/locales/en/*.json"
     format: json
     target: "src/locales/{lang}/*.json"
@@ -60,6 +65,17 @@ defaults:
   parallel_blocks: 3
 ```
 
+**Archive-backed vs. file-based collections.** A `ContentCollection`
+that declares `archive:` is the project's translation state for
+those content patterns — a single `.klz` accumulates source Blocks
++ every target locale, and `kapi status` / `kapi sync` drive the
+round-trip. Collections without `archive:` stay file-based: tools
+read the matched files, write translated siblings, and never
+materialise a `.klz`. Both shapes coexist in the same project, so
+a Next.js app with JSX-in-source (archive) plus a legacy
+`locales/*.json` tree (file-based) can use one `.kapi` file for
+both.
+
 **Key properties:**
 
 - **Self-contained** — languages, content patterns, flows, tool configs, plugin requirements in one file
@@ -84,6 +100,38 @@ The `.kapi` format uses the same flow steps format as `.bowrain/flows/` ([flow-s
 | Desktop    | Kapi                        | Bowrain Desktop                        |
 
 The upsell path from kapi to bowrain is about **managed AI projects** — team collaboration, server-side automation, connector integrations — not technical migration. Users who outgrow standalone file processing adopt bowrain for its platform features.
+
+### Lifecycle: status + sync
+
+For archive-backed collections, the project file points at a `.klz`
+and two top-level commands drive the round-trip:
+
+- **`kapi status -p project.kapi`** — reads each declared archive,
+  reports block count per archive, coverage per declared target
+  locale, and flags archives that don't exist on disk yet.
+
+  ```
+  translation.kapi (My App Localization)
+
+    ui → i18n/ui.klz
+      2 blocks
+      de: not translated
+      fr: 1/2 translated
+
+    legacy
+      (no archive — file-based flow)
+  ```
+
+- **`kapi sync -p project.kapi --tool ai-translate`** — iterates
+  every (archive, target-locale) pair whose coverage is incomplete
+  and runs the named tool against that archive with `--target-lang`
+  set. The `kapi` writer is locale-additive, so repeated sync runs
+  accumulate new locales without clobbering existing ones. Pass
+  `--dry-run` to print the plan without executing.
+
+Both commands are stateless — they re-derive coverage from the
+`.klz` on every invocation, and the `.klz` itself is the state
+store. No `.kapi` sidecar directory, no sync cursors.
 
 ### Kapi App
 

@@ -146,6 +146,38 @@ For apps built on [Bowrain](/bowrain/introduction), this is transparent — the 
 
 A single `myproject.klz` with N target locales is the default and recommended layout — simpler to version, one file to ship, all translations stay together. Per-locale files (`myproject.fr.klz`, `myproject.de.klz`) are supported when you want parallel translator workflows without merge conflicts; use them sparingly. See [AD-045](/docs/ad/045-klf-klz-spec#file-naming-conventions) for the full convention.
 
+### Project-driven flow with `.kapi`
+
+If you already use a [`.kapi` project file](/docs/ad/041-kapi-desktop) to define your workflow, the `archive:` field on a content collection turns the round-trip into two commands:
+
+```yaml title="translation.kapi"
+version: v1
+name: MyApp
+defaults:
+  source_language: en
+  target_languages: [fr, de, ja]
+content:
+  - name: ui
+    archive: i18n/myapp.klz
+    items:
+      - path: "src/**/*.tsx"
+```
+
+```bash
+# Show project translation state (per-locale coverage, missing archives).
+kapi status -p translation.kapi
+
+# Top up every (archive, missing-locale) pair in one call.
+kapi sync -p translation.kapi --tool ai-translate
+```
+
+`kapi sync` walks the same coverage diff `kapi status` prints, then
+runs the named tool against each archive for each incomplete locale.
+Pass `--dry-run` to preview the plan first. Use the imperative form
+from the rest of this page when you're not using `.kapi`; the two
+surfaces compose — nothing blocks you from mixing `kapi sync` with
+a one-off `kapi pseudo-translate myproject.klz --target-lang qps`.
+
 ## Phase 3: compile
 
 `kapi-react compile` reads the translated `.klz` and emits one JSON dict per locale:

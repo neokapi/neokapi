@@ -168,6 +168,22 @@ A complete Makefile / package-scripts setup for a multi-locale app:
 }
 ```
 
+## Project-driven alternative
+
+If you have a [`.kapi` project file](/docs/ad/041-kapi-desktop) with the collection's `archive:` pointing at `i18n/myproject.klz`, the scripts collapse to one sync call:
+
+```json title="package.json"
+{
+  "scripts": {
+    "i18n:extract": "kapi-react extract --out i18n/myproject.klz",
+    "i18n:sync":    "kapi sync -p translation.kapi --tool ai-translate",
+    "i18n:compile": "kapi-react compile i18n/myproject.klz --out public/translations"
+  }
+}
+```
+
+`kapi sync` iterates every (archive, missing-locale) pair from the project's declared target languages and runs the given tool. `kapi status -p translation.kapi` gives a quick coverage check without running anything.
+
 ## Next
 
 - [Configuration](./configuration) — componentMap, rules, Storybook, warnings.

@@ -42,6 +42,8 @@ const sidebars: SidebarsConfig = {
             "kapi-cli/commands/plugins",
             "kapi-cli/commands/presets",
             "kapi-cli/commands/pseudo-translate",
+            "kapi-cli/commands/status",
+            "kapi-cli/commands/sync",
             "kapi-cli/commands/termbase",
             "kapi-cli/commands/tm",
             "kapi-cli/commands/word-count",
