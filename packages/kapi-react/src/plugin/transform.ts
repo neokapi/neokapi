@@ -281,9 +281,15 @@ export function transform(
 
   // Flush warnings. console.warn by default so the dev-server
   // pipeline surfaces them; consumers can opt out of the stderr
-  // noise by providing their own `onWarning` hook.
+  // noise by providing their own `onWarning` hook. When
+  // `warningsAsErrors` is on, the first warning becomes a thrown
+  // build error — CI-friendly failure mode.
+  const list = warnings.list();
+  if (list.length > 0 && options.warningsAsErrors) {
+    throw new Error(formatWarning(list[0]));
+  }
   const flush = options.onWarning ?? ((msg: string) => console.warn(msg));
-  for (const w of warnings.list()) flush(formatWarning(w));
+  for (const w of list) flush(formatWarning(w));
 
   if (ops.length === 0) return null;
 

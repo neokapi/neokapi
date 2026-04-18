@@ -1,5 +1,5 @@
 ---
-sidebar_position: 9
+sidebar_position: 10
 title: Configuration
 ---
 
@@ -157,6 +157,18 @@ neokapi({
 
 Useful for tests (suppress noise) or to integrate with a project logger.
 
+### `warningsAsErrors`
+
+Promote extraction-time warnings (currently: `unknown-component`) to a thrown build error. Orthogonal to `strict` above — `strict` is about missing translations at inline time, this is about authoring-time issues the walker records.
+
+```ts
+neokapi({
+  warningsAsErrors: process.env.CI === "true",
+});
+```
+
+Pair with [`@neokapi/kapi-react-lint`](./linting) to get a fully-enforced "no authoring mistakes land on main" story.
+
 ## CLI flags
 
 `kapi-react extract`:
@@ -173,6 +185,9 @@ kapi-react extract \
 
 # or stream mode for pipes:
 kapi-react extract --stream | kapi pack --out i18n/myproject.klz
+
+# CI-friendly: fail on any recorded warning.
+kapi-react extract --strict
 ```
 
 `kapi-react compile` (accepts `.klz`, `.klf` directory, or `-` for NDJSON stdin):
