@@ -202,12 +202,28 @@ query, and the stale entry ages out under normal cache GC.
 Staleness is a non-issue: the cache key is the staleness check.
 
 Extractors feed the archive via `kapi extract -p project.kapi`.
-Each extractor is a subprocess that accepts NUL-separated paths
-on stdin and emits NDJSON block records on stdout. kapi owns
-`.klz` writing; extractors only emit blocks. The protocol is
-fully described in `core/plugin/extractor`. `@neokapi/kapi-react`
-is the reference extractor plugin — installed as an npm package,
-auto-discovered via its `kapi-plugin` field in `package.json`.
+Collections declare extraction through the standard `FormatSpec`
+with `name: exec` and a `command` in `config`; kapi runs the
+command with NUL-separated paths on stdin, parses NDJSON block
+records from stdout, and packs the archive. kapi owns `.klz`
+writing; extractors only emit blocks. The protocol is specified
+in `core/formats/exec/reader.go`. The developer's package
+manager drives invocation — `vp`, `pnpm`, `npm`, `yarn`, or a
+direct binary path; kapi makes no assumptions.
+
+An alternative standalone flow produces the same shape without
+a `.kapi`:
+
+```bash
+vp kapi-react extract --stream | kapi pack --out i18n/ui.klz
+```
+
+Or, for debugging / git-diffable intermediate state:
+
+```bash
+vp kapi-react extract --out i18n/klf/   # writes per-file *.klf
+kapi pack --in i18n/klf/ --out i18n/ui.klz
+```
 
 Each translation tool then writes the requested target locale
 back into the same archive:

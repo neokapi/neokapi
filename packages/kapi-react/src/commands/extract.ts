@@ -1,19 +1,24 @@
 /**
- * kapi-react extract — walk every matched JSX/TSX file and write a
- * single `.klz` archive carrying one `Document` per source file.
+ * kapi-react extract — walk every matched JSX/TSX file and emit
+ * translatable content in one of two shapes:
  *
- * The archive is what `kapi` (pseudo-translate, ai-translate, QA, …)
- * consumes for further processing and what `kapi-react compile` reads
- * back to produce the per-locale runtime dictionaries.
+ *   1. Default: per-file .klf JSON under --out (default `./i18n/`).
+ *      Human-readable, git-diffable, self-contained per source.
+ *   2. --stream: NDJSON block records on stdout, one per block,
+ *      for piping into `kapi pack` or `kapi extract -p` (the exec
+ *      format reader). No file output.
+ *
+ * Both shapes carry the same Block data; --stream is just the wire
+ * form for a pipe. Warnings (auto-promotion, unknown components)
+ * are always routed to stderr.
  */
 
-import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
-import { dirname, relative } from 'node:path';
+import { readFileSync, mkdirSync, writeFileSync } from 'node:fs';
+import { dirname, join, relative } from 'node:path';
 import { glob } from 'node:fs/promises';
 
-import type { Document, File } from '@neokapi/kapi-format';
-import { newFile } from '@neokapi/kapi-format';
-import { KlzWriter } from '@neokapi/kapi-format/klz';
+import type { Document } from '@neokapi/kapi-format';
+import { marshalFile } from '@neokapi/kapi-format';
 
 import {
   createWarningCollector,
@@ -25,9 +30,9 @@ import type { PluginOptions } from '../types.ts';
 type ExtractConfig = Pick<PluginOptions, 'componentMap' | 'rules'>;
 
 export interface RunExtractIO {
-  /** Source of NUL-separated paths for --blocks-stream mode. */
+  /** Source of NUL-separated paths for --stream mode. */
   stdin?: NodeJS.ReadableStream;
-  /** Sink for NDJSON block records in --blocks-stream mode. */
+  /** Sink for NDJSON block records in --stream mode. */
   stdout?: NodeJS.WritableStream;
 }
 
@@ -43,26 +48,25 @@ export async function runExtract(args: string[], io: RunExtractIO = {}): Promise
 
   const config = loadConfig(opts.configPath);
 
-  const files = opts.blocksStream
+  const files = opts.stream
     ? await readPathsFromStdin(stdin)
     : await expandGlob(opts.srcGlob);
   files.sort();
 
   if (files.length === 0) {
-    if (!opts.blocksStream) console.warn(`No files found matching "${opts.srcGlob}"`);
+    if (!opts.stream) console.warn(`No files found matching "${opts.srcGlob}"`);
     return;
   }
 
-  if (!opts.blocksStream) {
+  if (!opts.stream) {
     console.log(`Scanning ${files.length} files...`);
   }
 
   const documents = extractAllDocuments(files, config);
 
-  if (opts.blocksStream) {
-    // NDJSON block stream on stdout — consumed by `kapi extract` as
-    // the exec-extractor protocol. No archive is written here; kapi
-    // owns the klz. Warnings still flow to stderr.
+  if (opts.stream) {
+    // NDJSON block stream on stdout — consumed by `kapi extract`
+    // (exec format reader) or `kapi pack`. No files written here.
     for (const doc of documents) {
       for (const block of doc.blocks) {
         stdout.write(
@@ -78,12 +82,20 @@ export async function runExtract(args: string[], io: RunExtractIO = {}): Promise
     return;
   }
 
-  const archive = buildArchive(documents, opts);
-  mkdirSync(dirname(opts.outFile), { recursive: true });
-  writeFileSync(opts.outFile, archive);
-
+  // Per-file KLF under --out. One file per source document — the
+  // human-readable, git-diffable on-disk shape. `kapi pack --in`
+  // reassembles them into a .klz when handoff is needed.
+  mkdirSync(opts.outDir, { recursive: true });
+  for (const doc of documents) {
+    const klf = buildKLF(doc, opts);
+    const path = join(opts.outDir, klfFilename(doc));
+    mkdirSync(dirname(path), { recursive: true });
+    writeFileSync(path, marshalFile(klf));
+  }
   const blockCount = documents.reduce((n, d) => n + d.blocks.length, 0);
-  console.log(`Extracted ${blockCount} blocks from ${documents.length} files → ${opts.outFile}`);
+  console.log(
+    `Extracted ${blockCount} blocks from ${documents.length} files → ${opts.outDir}/`,
+  );
 }
 
 async function expandGlob(pattern: string): Promise<string[]> {
@@ -114,28 +126,27 @@ async function readPathsFromStdin(stdin: NodeJS.ReadableStream): Promise<string[
 
 interface ExtractArgs {
   srcGlob: string;
-  outFile: string;
+  outDir: string;
   configPath: string | null;
   projectId: string;
   sourceLocale: string;
   targetLocales: string[];
-  // blocksStream switches the command into the exec-extractor
-  // protocol: read NUL-separated paths from stdin, emit NDJSON
-  // block records to stdout, never write a .klz. Used by
-  // `kapi extract` when dispatching to the kapi-react plugin.
-  blocksStream: boolean;
+  // stream switches to NDJSON-on-stdout mode: reads NUL-separated
+  // paths from stdin, never writes files. Used by `kapi extract`
+  // (exec format) and `kapi pack`-driven pipelines.
+  stream: boolean;
   help: boolean;
 }
 
 function parseArgs(args: string[]): ExtractArgs {
   const parsed: ExtractArgs = {
     srcGlob: 'src/**/*.{tsx,jsx}',
-    outFile: 'i18n/extracted.klz',
+    outDir: 'i18n',
     configPath: null,
     projectId: 'app',
     sourceLocale: 'en',
     targetLocales: [],
-    blocksStream: false,
+    stream: false,
     help: false,
   };
 
@@ -151,7 +162,7 @@ function parseArgs(args: string[]): ExtractArgs {
         if (value) parsed.srcGlob = args[++i];
         break;
       case '--out':
-        if (value) parsed.outFile = args[++i];
+        if (value) parsed.outDir = args[++i];
         break;
       case '--config':
         if (value) parsed.configPath = args[++i];
@@ -165,8 +176,8 @@ function parseArgs(args: string[]): ExtractArgs {
       case '--target-locale':
         if (value) parsed.targetLocales.push(args[++i]);
         break;
-      case '--blocks-stream':
-        parsed.blocksStream = true;
+      case '--stream':
+        parsed.stream = true;
         break;
       default:
         console.warn(`unknown flag: ${flag}`);
@@ -201,40 +212,24 @@ function extractAllDocuments(files: readonly string[], config: ExtractConfig): D
   return out;
 }
 
-function buildArchive(documents: readonly Document[], opts: ExtractArgs): Uint8Array {
-  const file: File = newFile({
+function buildKLF(doc: Document, opts: ExtractArgs) {
+  return {
+    schemaVersion: '1.0' as const,
+    kind: 'kapi-localization-format' as const,
     generator: { id: '@neokapi/kapi-react', version: readPackageVersion() },
-    project: {
-      id: opts.projectId,
-      sourceLocale: opts.sourceLocale,
-    },
-    documents: [...documents],
-  });
-
-  const writer = new KlzWriter({
-    generator: file.generator,
     project: {
       id: opts.projectId,
       sourceLocale: opts.sourceLocale,
       ...(opts.targetLocales.length > 0 ? { targetLocales: opts.targetLocales } : {}),
     },
-    created: new Date().toISOString(),
-  });
-
-  // One `documents/<slug>.klf` per source file so consumers can stream
-  // per-document without re-decoding the whole archive.
-  for (const doc of documents) {
-    const slug = slugify(doc.path);
-    writer.addDocument(`documents/${slug}.klf`, {
-      ...file,
-      documents: [doc],
-    });
-  }
-  return writer.build();
+    documents: [doc],
+  };
 }
 
-function slugify(path: string): string {
-  return path.replace(/[^\w./-]+/g, '_').replace(/\//g, '-');
+function klfFilename(doc: Document): string {
+  // Keep the source file's path shape inside --out so translators
+  // scanning the directory see a 1:1 reflection of the source tree.
+  return doc.path.replace(/\.(tsx|jsx|ts|js)$/, '') + '.klf';
 }
 
 function readPackageVersion(): string {
@@ -248,16 +243,22 @@ function readPackageVersion(): string {
 }
 
 const usage = `
-kapi-react extract — scan JSX/TSX files and write a .klz archive.
+kapi-react extract — scan JSX/TSX files and emit translatable blocks.
 
 Usage:
   kapi-react extract [options]
 
+By default, writes one .klf file per source document under --out.
+Pass --stream to emit NDJSON block records to stdout for piping.
+
 Options:
   --src <glob>            Source files to scan (default: "src/**/*.{tsx,jsx}")
-  --out <path>            Output archive path (default: "i18n/extracted.klz")
+  --out <dir>             Output directory for .klf files (default: "i18n")
+  --stream                Emit NDJSON block records on stdout instead
+                          of writing .klf files. Reads NUL-separated
+                          paths on stdin instead of expanding --src.
   --config <path>         Config file with componentMap, rules, …
-  --project <id>          Project id stamped into manifest.project (default: "app")
+  --project <id>          Project id stamped into .klf.project (default: "app")
   --source-locale <bcp>   Manifest source locale (default: "en")
   --target-locale <bcp>   Declared target locale (repeatable, informational)
 `;

@@ -148,7 +148,7 @@ A single `myproject.klz` with N target locales is the default and recommended la
 
 ### Project-driven flow with `.kapi`
 
-If you already use a [`.kapi` project file](/docs/ad/041-kapi-desktop) to define your workflow, the `archive:` field on a content collection turns the round-trip into three commands:
+If you already use a [`.kapi` project file](/docs/ad/041-kapi-desktop) to define your workflow, declare each archive-backed collection with an `exec` format pointing at kapi-react (or any other extractor):
 
 ```yaml title="translation.kapi"
 version: v1
@@ -161,12 +161,15 @@ content:
     archive: i18n/myapp.klz
     items:
       - path: "src/**/*.tsx"
+        format:
+          name: exec
+          config:
+            command: "vp kapi-react extract --stream"
 ```
 
 ```bash
-# 1. Extract — kapi auto-discovers the @neokapi/kapi-react
-#    extractor from node_modules and runs it via the plugin
-#    contract (NUL-separated paths in, NDJSON blocks out).
+# 1. Extract — kapi runs the declared command for each collection,
+#    streams NDJSON blocks into the collection's .klz.
 kapi extract -p translation.kapi
 
 # 2. Status — read-only coverage report.
@@ -176,7 +179,19 @@ kapi status -p translation.kapi
 kapi sync -p translation.kapi --tool ai-translate
 ```
 
-`kapi extract` covers the source-side half: every collection with an `archive:` is populated by dispatching its matched files to the right extractor (auto-discovered via `kapi-plugin.json` in `node_modules`, or pinned via an explicit `extractor:` on the collection). `kapi sync` then runs the named translation tool against each archive for each incomplete locale. Use the imperative form from the rest of this page when you're not using `.kapi`; the two surfaces compose — nothing blocks you from mixing `kapi sync` with a one-off `kapi pseudo-translate myproject.klz --target-lang qps`.
+The `command` string picks the package manager — `vp`, `pnpm`, `npm`, `yarn`, or a direct binary path — so the project declares its preferences explicitly without kapi making assumptions. `kapi sync` then runs the named translation tool against each archive for each incomplete locale.
+
+### Standalone pipe (no `.kapi`)
+
+For ad-hoc projects, skip `.kapi` entirely and compose with Unix pipes:
+
+```bash
+vp kapi-react extract --stream | kapi pack --out i18n/ui.klz
+kapi pseudo-translate i18n/ui.klz --target-lang qps
+vp kapi-react compile i18n/ui.klz --out public/translations
+```
+
+Same underlying wire format (NDJSON on the extract stage, KLZ from there on) — the declarative `.kapi` form just factors the pipe into the project file.
 
 ## Phase 3: compile
 

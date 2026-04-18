@@ -76,25 +76,34 @@ a Next.js app with JSX-in-source (archive) plus a legacy
 `locales/*.json` tree (file-based) can use one `.kapi` file for
 both.
 
-**Extractor dispatch.** For archive-backed collections, `kapi extract`
-decides which extractor processes each file in three stages:
+**Extractor declaration.** Archive-backed collections declare how
+their content is extracted via the standard `FormatSpec`. For
+subprocess-based extractors (JSX via kapi-react, bespoke DSL
+walkers, etc.), the format is `exec`:
 
-1. An explicit `extractor: { exec: [...] }` stanza on the collection
-   wins. Pin dispatch when the default choice is wrong, or when a
-   project has two plugins that both claim the same extension.
-2. Otherwise, kapi scans the project's `node_modules` (walking up
-   ancestor directories for workspace hoists) for packages that
-   declare a `kapi-plugin` object in their `package.json`. The
-   package's `extensions` array + `extract.exec` argv tell kapi
-   how to launch the extractor.
-3. Otherwise, the file's extension has no registered extractor and
-   `kapi extract` surfaces an error listing the uncovered types.
+```yaml
+content:
+  - name: ui
+    archive: i18n/ui.klz
+    items:
+      - path: "src/**/*.tsx"
+        format:
+          name: exec
+          config:
+            command: "vp kapi-react extract --stream"
+```
 
-The extractor protocol is NUL-separated paths on stdin, NDJSON
-block records on stdout — see AD-045 and `core/plugin/extractor`.
-`@neokapi/kapi-react` ships the reference implementation and is
-auto-discovered in any project that installs it as an npm
-dependency.
+`kapi extract -p project.kapi` runs the declared command once per
+collection with every matched file path streamed on stdin (NUL-
+separated), reads NDJSON block records from stdout, and packs the
+results into the collection's `.klz`. The developer picks the
+package manager (`vp`, `pnpm`, `npm`, `yarn`, or a direct binary
+path) — kapi runs whatever the `command` says verbatim.
+
+The exec format protocol is specified in
+`core/formats/exec/reader.go` and mirrored in AD-045. The
+reference JSX extractor (`@neokapi/kapi-react`) speaks it via
+its `--stream` flag.
 
 **Key properties:**
 

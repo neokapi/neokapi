@@ -739,40 +739,39 @@ Options:
   --out <dir>             Output directory (default: "public/translations")
 ```
 
-The boundary is: `kapi-react` extracts to `.klz` and compiles translated
-`.klz` back to the runtime dictionary. Everything in between — pseudo-
-translate, AI translate, TM matching, QA, review — goes through the
-`kapi` CLI (AD-045).
+The boundary is: `kapi-react` emits extracted blocks (as KLF files
+or an NDJSON stream) and compiles translated archives back to the
+runtime dictionary. `.klz` packing happens in `kapi`. Everything in
+between — pseudo-translate, AI translate, TM matching, QA, review —
+goes through the `kapi` CLI (AD-045).
 
-### Two integration modes
+### Two output modes for extract
 
-- **Standalone CLI.** `kapi-react extract --out i18n/ui.klz` produces
-  the archive directly, no `kapi` required. Best for JS-only teams
-  or CI pipelines that don't have the Go toolchain.
-- **kapi plugin.** When a `.kapi` project is in play, `kapi extract -p
-  project.kapi` auto-discovers `@neokapi/kapi-react` from the
-  project's `node_modules` and dispatches to it via the plugin
-  contract — NUL-separated paths on stdin, NDJSON blocks on stdout.
-  No manual install. Same SWC walker, same hashes, one `.klz` shared
-  across every source format in the project.
+- **Default: per-file KLF under `--out`.**
+  `vp kapi-react extract` writes one `.klf` per source file into
+  `./i18n/` (override with `--out <dir>`). Human-readable, git-
+  diffable, inspectable with `cat` or `jq`. Feed into `kapi pack`
+  when you want a `.klz`, or ship directly to a translator who
+  accepts KLF.
 
-The plugin descriptor lives in `package.json#kapi-plugin`:
+- **`--stream`: NDJSON block records on stdout.**
+  `vp kapi-react extract --stream` reads NUL-separated paths from
+  stdin and writes one JSON block record per line to stdout. The
+  wire form a `.kapi` project uses when it declares
+  `format: { name: exec, config: { command: "vp kapi-react extract --stream" } }`,
+  and the shape to pipe into `kapi pack` for a zero-intermediate-file
+  pipeline.
 
-```json
-{
-  "kapi-plugin": {
-    "extensions": [".tsx", ".jsx"],
-    "extract": {
-      "exec": ["npx", "--no-install", "kapi-react", "extract", "--blocks-stream"],
-      "stdin": "paths-nul-separated"
-    }
-  }
-}
-```
+Both modes share the SWC walker — same hashes, same block content.
+`--stream` is just the inlined-pipe form of the default.
 
-kapi hands stdin + captures stdout; the extract CLI's `--blocks-stream`
-flag switches it into plugin-mode output (no `.klz` on its own,
-just the NDJSON).
+### Compile accepts three inputs
+
+- `vp kapi-react compile ui.klz` — a `.klz` archive.
+- `vp kapi-react compile i18n/klf/` — a directory of `.klf` files.
+- `vp kapi-react compile -` — NDJSON block records on stdin.
+
+Pick whichever is convenient at the hand-off point.
 
 ## Pseudo-Translation Workflow
 
