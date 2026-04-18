@@ -1,10 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, within, fireEvent, waitFor } from "@testing-library/react";
 
-import {
-  TranslationStatusPanel,
-  type ProjectStatus,
-} from "../components/TranslationStatusPanel";
+import { TranslationStatusPanel, type ProjectStatus } from "../components/TranslationStatusPanel";
 import { api } from "../hooks/useApi";
 
 function statusFixture(overrides: Partial<ProjectStatus> = {}): ProjectStatus {
@@ -117,15 +114,13 @@ describe("TranslationStatusPanel", () => {
           })}
         />,
       );
-      expect(
-        document.querySelector("[data-slot='translation-status-reextract']"),
-      ).toBeNull();
+      expect(document.querySelector("[data-slot='translation-status-reextract']")).toBeNull();
     });
 
     it("invokes api.runExtract and surfaces the log", async () => {
-      const runExtract = vi
-        .spyOn(api, "runExtract")
-        .mockResolvedValue({ log: "  ui → @neokapi/kapi-react (3 file(s))\n  i18n/ui.klz ← 12 blocks across 3 documents\n" });
+      const runExtract = vi.spyOn(api, "runExtract").mockResolvedValue({
+        log: "  ui → @neokapi/kapi-react (3 file(s))\n  i18n/ui.klz ← 12 blocks across 3 documents\n",
+      });
 
       render(<TranslationStatusPanel tabID="t1" status={statusFixture()} />);
       const button = document.querySelector(
@@ -148,9 +143,7 @@ describe("TranslationStatusPanel", () => {
         "[data-slot='translation-status-reextract']",
       ) as HTMLButtonElement;
       fireEvent.click(button);
-      await waitFor(() =>
-        expect(screen.getByText(/extractor crashed/i)).toBeInTheDocument(),
-      );
+      await waitFor(() => expect(screen.getByText(/extractor crashed/i)).toBeInTheDocument());
     });
   });
 });

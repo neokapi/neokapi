@@ -1,8 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import {
-  TranslationStatusPanel,
-  type ProjectStatus,
-} from "../components/TranslationStatusPanel";
+import { TranslationStatusPanel, type ProjectStatus } from "../components/TranslationStatusPanel";
 
 const meta: Meta<typeof TranslationStatusPanel> = {
   title: "Project/TranslationStatusPanel",

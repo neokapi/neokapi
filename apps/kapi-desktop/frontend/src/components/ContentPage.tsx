@@ -308,15 +308,11 @@ export function ContentPage({
             Format Config JSON editor for the common case. */}
         {fmt === "exec" && (
           <div>
-            <Label className="mb-0.5 block text-xs text-muted-foreground">
-              Extractor command
-            </Label>
+            <Label className="mb-0.5 block text-xs text-muted-foreground">Extractor command</Label>
             <input
               type="text"
               value={
-                typeof item.format?.config?.command === "string"
-                  ? item.format.config.command
-                  : ""
+                typeof item.format?.config?.command === "string" ? item.format.config.command : ""
               }
               onChange={(e) =>
                 onItemChange({
@@ -324,7 +320,7 @@ export function ContentPage({
                   format: {
                     ...item.format!,
                     config: {
-                      ...(item.format?.config ?? {}),
+                      ...item.format?.config,
                       command: e.target.value || undefined,
                     },
                   },
@@ -334,8 +330,8 @@ export function ContentPage({
               className="w-full rounded-md border border-input bg-background px-2 py-1 font-mono text-xs outline-none focus-visible:ring-2 focus-visible:ring-ring"
             />
             <p className="mt-0.5 text-xs text-muted-foreground">
-              `kapi extract -p` runs this command; NUL-separated paths on stdin, NDJSON
-              blocks on stdout.
+              `kapi extract -p` runs this command; NUL-separated paths on stdin, NDJSON blocks on
+              stdout.
             </p>
           </div>
         )}

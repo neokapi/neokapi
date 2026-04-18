@@ -101,11 +101,7 @@ export function TranslationStatusPanel({ tabID, status: propStatus }: Translatio
             data-slot="translation-status-reextract"
             aria-label="Re-extract translatable content"
           >
-            {extracting ? (
-              <Loader2 size={12} className="animate-spin" />
-            ) : (
-              <RefreshCw size={12} />
-            )}
+            {extracting ? <Loader2 size={12} className="animate-spin" /> : <RefreshCw size={12} />}
             {extracting ? "Extracting…" : "Re-extract"}
           </Button>
         )}
