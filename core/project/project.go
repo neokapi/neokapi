@@ -113,6 +113,14 @@ type ContentCollection struct {
 	// for file-based flows that never materialise a .klz.
 	Archive string `yaml:"archive,omitempty" json:"archive,omitempty"`
 
+	// Extractor overrides the auto-discovered source extractor for
+	// this collection. Use when multiple plugins handle the same
+	// extension or the dispatch decision should be pinned in the
+	// project file. Omit to let `kapi extract` dispatch via the
+	// kapi-plugin.json-discovered registry + the built-in format
+	// reader fallback.
+	Extractor *ExtractorSpec `yaml:"extractor,omitempty" json:"extractor,omitempty"`
+
 	// Bare entry fields (short form — promoted from ContentItem).
 	Path   string      `yaml:"path,omitempty" json:"path,omitempty"`
 	Format *FormatSpec `yaml:"format,omitempty" json:"format,omitempty"`
@@ -168,6 +176,18 @@ func (item *ContentItem) ResolvedTargetLanguages(coll *ContentCollection, defaul
 		return coll.TargetLanguages
 	}
 	return defaults.TargetLanguages
+}
+
+// ExtractorSpec pins which extractor runs for a collection when
+// `kapi extract` dispatches. Currently only the `exec:` form is
+// supported — argv for a subprocess that accepts NUL-separated
+// paths on stdin and emits NDJSON block records on stdout. See
+// core/plugin/extractor for the protocol contract.
+//
+//	extractor:
+//	  exec: ["vp", "run", "kapi-react", "extract", "--blocks-stream"]
+type ExtractorSpec struct {
+	Exec []string `yaml:"exec,omitempty" json:"exec,omitempty"`
 }
 
 // FormatSpec is the per-item format override.
