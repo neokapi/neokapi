@@ -1,22 +1,24 @@
 /**
- * Round-trip: run kapi-react extract with --blocks-stream, parse the
- * NDJSON output, assert the stream + the archive-writing path agree
- * on block count + block hashes. Guards the exec-extractor contract
- * expected by core/plugin/extractor (NUL-separated paths on stdin,
- * NDJSON block records on stdout).
+ * kapi-react extract has two modes:
+ *   1. Default — writes per-file .klf under --out.
+ *   2. --stream — NDJSON block records to stdout, reads NUL-separated
+ *      paths from stdin. This is the exec-format wire protocol.
+ *
+ * These tests round-trip both modes and confirm they agree on block
+ * count + hashes against the same source tree.
  */
 
 import { describe, expect, it } from 'vitest';
-import { mkdtempSync, mkdirSync, writeFileSync, readFileSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, readdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { Readable, Writable } from 'node:stream';
 
-import { KlzReader } from '@neokapi/kapi-format/klz';
+import type { File } from '@neokapi/kapi-format';
 import { runExtract } from '../src/commands/extract.ts';
 
 function tempProject() {
-  const dir = mkdtempSync(join(tmpdir(), 'kapi-react-blocks-stream-'));
+  const dir = mkdtempSync(join(tmpdir(), 'kapi-react-extract-'));
   mkdirSync(join(dir, 'src'));
   writeFileSync(
     join(dir, 'src', 'App.tsx'),
@@ -45,25 +47,43 @@ function stringSink(): { stream: Writable; read: () => string } {
   return { stream, read: () => Buffer.concat(chunks).toString('utf8') };
 }
 
-describe('kapi-react extract --blocks-stream', () => {
-  it('emits NDJSON block records that match the archive-written set', async () => {
+describe('kapi-react extract', () => {
+  it('writes per-file .klf under --out by default', async () => {
     const dir = tempProject();
     const cwd = process.cwd();
     process.chdir(dir);
     try {
-      // 1. Archive-writing path — reference set of hashes.
-      await runExtract(['--src', 'src/**/*.tsx', '--out', 'i18n/reference.klz']);
-      const archiveBytes = readFileSync(join(dir, 'i18n', 'reference.klz'));
-      const reader = new KlzReader(new Uint8Array(archiveBytes));
-      const archiveBlocks = reader
-        .documents()
-        .flatMap((file) => file.documents.flatMap((doc) => doc.blocks));
+      await runExtract(['--src', 'src/**/*.tsx', '--out', 'i18n']);
+      const entries = readdirSync(join(dir, 'i18n', 'src'));
+      expect(entries).toContain('App.klf');
 
-      // 2. Blocks-stream path — paths on stdin, NDJSON on stdout.
+      const raw = readFileSync(join(dir, 'i18n', 'src', 'App.klf'), 'utf8');
+      const file = JSON.parse(raw) as File;
+      expect(file.kind).toBe('kapi-localization-format');
+      expect(file.documents).toHaveLength(1);
+      expect(file.documents[0].path).toBe('src/App.tsx');
+      expect(file.documents[0].blocks.length).toBeGreaterThan(0);
+    } finally {
+      process.chdir(cwd);
+    }
+  });
+
+  it('emits NDJSON block records that match the KLF-written set', async () => {
+    const dir = tempProject();
+    const cwd = process.cwd();
+    process.chdir(dir);
+    try {
+      // KLF-default path — reference set of hashes.
+      await runExtract(['--src', 'src/**/*.tsx', '--out', 'i18n']);
+      const raw = readFileSync(join(dir, 'i18n', 'src', 'App.klf'), 'utf8');
+      const file = JSON.parse(raw) as File;
+      const klfBlocks = file.documents.flatMap((d) => d.blocks);
+
+      // Stream path — paths on stdin, NDJSON on stdout.
       const sink = stringSink();
       const paths = 'src/App.tsx\0';
       await runExtract(
-        ['--blocks-stream'],
+        ['--stream'],
         { stdin: Readable.from([Buffer.from(paths, 'utf8')]), stdout: sink.stream },
       );
 
@@ -73,10 +93,9 @@ describe('kapi-react extract --blocks-stream', () => {
         .filter((l) => l.startsWith('{'))
         .map((l) => JSON.parse(l) as { type: string; document: string; block: { hash: string } });
 
-      // 3. Same block count, same hashes, same document attribution.
-      expect(streamed).toHaveLength(archiveBlocks.length);
+      expect(streamed).toHaveLength(klfBlocks.length);
       expect(new Set(streamed.map((r) => r.block.hash))).toEqual(
-        new Set(archiveBlocks.map((b) => b.hash)),
+        new Set(klfBlocks.map((b) => b.hash)),
       );
       for (const rec of streamed) {
         expect(rec.type).toBe('block');
@@ -87,10 +106,10 @@ describe('kapi-react extract --blocks-stream', () => {
     }
   });
 
-  it('writes nothing to stdout when no paths are supplied', async () => {
+  it('writes nothing to stdout when --stream is passed with no paths', async () => {
     const sink = stringSink();
     await runExtract(
-      ['--blocks-stream'],
+      ['--stream'],
       { stdin: Readable.from([Buffer.alloc(0)]), stdout: sink.stream },
     );
     expect(sink.read()).toBe('');

@@ -108,4 +108,21 @@ describe('runCompile', () => {
     const written = readdirSync(outDir);
     expect(written).toEqual(['qps.json']);
   });
+
+  it('compiles from a directory of .klf files', async () => {
+    const dir = tempDir('compile-klf-dir');
+    const klfDir = join(dir, 'klf');
+    const outDir = join(dir, 'out');
+    const { writeFileSync, mkdirSync } = await import('node:fs');
+    const { marshalFile } = await import('@neokapi/kapi-format');
+    mkdirSync(klfDir, { recursive: true });
+    writeFileSync(join(klfDir, 'App.klf'), marshalFile(translatedFile()));
+
+    await runCompile([klfDir, '--out', outDir]);
+
+    const written = readdirSync(outDir).sort();
+    expect(written).toEqual(['de.json', 'qps.json']);
+    const qps = JSON.parse(readFileSync(join(outDir, 'qps.json'), 'utf-8'));
+    expect(qps['h-welcome']).toBeTruthy();
+  });
 });

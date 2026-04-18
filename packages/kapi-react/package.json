@@ -54,13 +54,6 @@
   "bin": {
     "kapi-react": "./dist/cli.js"
   },
-  "kapi-plugin": {
-    "extensions": [".tsx", ".jsx"],
-    "extract": {
-      "exec": ["npx", "--no-install", "kapi-react", "extract", "--blocks-stream"],
-      "stdin": "paths-nul-separated"
-    }
-  },
   "scripts": {
     "build": "node build.mjs",
     "test": "vitest run",
