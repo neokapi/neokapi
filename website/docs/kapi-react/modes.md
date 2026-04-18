@@ -154,7 +154,7 @@ Mixing modes within a single build is not supported — you pick one per deploy.
 - The extractor (`kapi-react extract`) produces the same `.klz` regardless of mode.
 - Hashes are mode-independent.
 - `<Plural>` / `<Select>` / `t()` all work the same in authoring.
-- Warnings (auto-promotion, unmapped components) fire identically.
+- Unmapped-component warnings fire identically.
 
 The mode decision is purely about how the translated output lands in the user's browser.
 

@@ -144,7 +144,7 @@ How the plugin handles missing translations in inline mode:
 
 ### `onWarning`
 
-Override where auto-promotion and unmapped-component warnings go. Defaults to `console.warn`.
+Override where unmapped-component warnings go. Defaults to `console.warn`.
 
 ```ts
 neokapi({

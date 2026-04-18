@@ -558,18 +558,11 @@ unmapped React components) to translatable when it has:
 1. At least one direct non-whitespace JSXText child, AND
 2. Only inline children (no nested block-level elements).
 
-When the plugin promotes an element it prints a warning so you know what
-happened:
-
-```
-[neokapi] src/Settings.tsx:42: <div> contains translatable text — extracted.
-  Add translate="no" on the element to opt out.
-  ↳ <div className="mb-3 text-sm font-medium">Appearance</div>
-```
-
-For **unmapped React components** the warning also suggests a
-`componentMap` entry — important because adding it later changes the
-underlying hash of every affected block:
+Container promotion (e.g. `<div>Appearance</div>`) is silent — it's the
+expected default for the dominant React idiom. For **unmapped React
+components** the plugin emits a warning that suggests a `componentMap`
+entry, because adding one later changes the underlying hash of every
+affected block:
 
 ```
 [neokapi] src/Settings.tsx:19: <TabsTrigger> is an unmapped component with

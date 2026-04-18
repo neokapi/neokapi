@@ -62,11 +62,10 @@ Flags:
 | `--source-locale` | `en` | Source locale in file metadata. |
 | `--target-locale` | — | Declared target locale (repeatable). |
 
-The extractor also **prints warnings** for auto-promoted containers and unmapped components so you can decide which to add to `componentMap`:
+The extractor also **prints warnings** for unmapped React components, so you know which ones to add to `componentMap` for hash stability:
 
 ```text
 Scanning 186 files...
-[neokapi] src/components/AppHome.tsx:61: <div> contains translatable text — extracted. …
 [neokapi] src/components/Settings.tsx:19: <TabsTrigger> is an unmapped component with translatable text — extracted. Add a componentMap entry: { TabsTrigger: 'button' }.
 Extracted 1007 blocks from 186 files → i18n/
 ```
