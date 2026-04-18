@@ -134,23 +134,37 @@ module.exports = {
 ### 2. Extract translatable content
 
 ```bash
-vpx kapi-react extract --out i18n/extracted.klz
+vp kapi-react extract
 ```
 
-This scans your `src/` directory and produces a `.klz` archive —
-the AD-045 exchange format. Each translatable JSX element becomes
-a `Block` with structured `Run[]` that preserves inline markup,
-variable tokens, and conditional placeholders:
+This scans your `src/` directory and produces one `.klf` file per
+source document under `i18n/` (override with `--out <dir>`). Each
+translatable JSX element becomes a `Block` with structured `Run[]`
+that preserves inline markup, variable tokens, and conditional
+placeholders:
 
 ```
-documents/
-  src-App.tsx.klf         # one .klf per source file, Block[] with typed Runs
-  src-Sidebar.tsx.klf
-manifest.json             # SHA-256 + per-part metadata
+i18n/
+  src/
+    App.klf         # one .klf per source file, Block[] with typed Runs
+    Sidebar.klf
 ```
 
-`.klz` is a JSON-inside-ZIP archive — you can `unzip -p app.klz
-documents/src-App.tsx.klf | jq .` to inspect any block.
+Pack them into a `.klz` archive when handoff is needed:
+
+```bash
+kapi pack --in i18n/ --out i18n/myproject.klz
+```
+
+Or skip the intermediate files and pipe straight into a `.klz`:
+
+```bash
+vp kapi-react extract --stream | kapi pack --out i18n/myproject.klz
+```
+
+`.klz` is a JSON-inside-ZIP archive — you can
+`unzip -p myproject.klz documents/src-App.tsx.klf | jq .` to
+inspect any block.
 
 ### 3. Translate (or pseudo-translate for testing)
 
@@ -724,9 +738,12 @@ vpx kapi-react extract [options]
 
 Options:
   --src <glob>            Source files to scan (default: "src/**/*.{tsx,jsx}")
-  --out <path>            Output archive (default: "i18n/extracted.klz")
+  --out <dir>             Output directory for .klf files (default: "i18n")
+  --stream                Emit NDJSON block records on stdout instead of
+                          writing .klf files. Reads NUL-separated paths
+                          on stdin.
   --config <path>         Config file with componentMap, rules, …
-  --project <id>          Project id stamped into manifest.project
+  --project <id>          Project id stamped into .klf.project
   --source-locale <bcp>   Source locale (default: "en")
   --target-locale <bcp>   Declared target locale (repeat for multiple)
 
@@ -779,14 +796,14 @@ Test your UI with pseudo-translated text to catch truncation, layout
 issues, and hardcoded strings:
 
 ```bash
-# 1. Extract to a .klz archive
-vpx kapi-react extract --out i18n/myproject.klz --target-locale qps
+# 1. Extract → pack into a .klz in one pipe
+vp kapi-react extract --stream --target-locale qps | kapi pack --out i18n/myproject.klz
 
 # 2. Pseudo-translate with kapi (writes back to the same file)
 kapi pseudo-translate i18n/myproject.klz --target-lang qps
 
 # 3. Compile the translated .klz to public/translations/qps.json
-vpx kapi-react compile i18n/myproject.klz
+vp kapi-react compile i18n/myproject.klz
 
 # 4. Build or dev with the pseudo-locale
 LOCALE=qps npm run dev   # (or set the locale via your UI language picker)

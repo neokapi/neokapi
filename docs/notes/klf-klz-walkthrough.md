@@ -58,30 +58,48 @@ using `@neokapi/kapi-react` as the extractor + compiler, the
 
 ```bash
 $ cd my-app
-$ vpx kapi-react extract --out i18n/extracted.klz --target-locale de --target-locale qps
+$ vp kapi-react extract --target-locale de --target-locale qps
 Scanning 47 files...
-Extracted 42 blocks from 18 files → i18n/extracted.klz
+Extracted 42 blocks from 18 files → i18n/
 ```
 
-The resulting archive:
+The resulting directory:
 
 ```
-i18n/extracted.klz
-├── manifest.json
-└── documents/
-    ├── src-FilesHeading-tsx.klf
-    ├── src-TagChip-tsx.klf
-    └── src-ShoppingCart-tsx.klf
+i18n/
+├── src/
+│   ├── FilesHeading.klf
+│   ├── TagChip.klf
+│   └── ShoppingCart.klf
+```
+
+Each `.klf` is a single source document's worth of Blocks as
+JSON — human-readable, git-diffable, inspectable with `cat` or
+`jq`. One translator can eyeball exactly what was extracted from
+which source file.
+
+When handoff to a TMS is needed, pack to a `.klz`:
+
+```bash
+$ kapi pack --in i18n/ --out i18n/myproject.klz
+```
+
+Or, in a single pipe if you don't need the intermediate `.klf`
+files:
+
+```bash
+$ vp kapi-react extract --stream | kapi pack --out i18n/myproject.klz
 ```
 
 What just happened:
 
-1. `neokapi-react` is registered as a neokapi `Extractor`
-   implementation (generator id `@neokapi/react`).
-2. It walked the source tree via its own SWC-based AST walker,
-   producing Blocks for every translatable JSX element.
-3. It emitted one `.klf` per source file, each holding the Blocks
-   for that file.
+1. `@neokapi/kapi-react` walked the source tree via its
+   SWC-based AST walker, producing Blocks for every translatable
+   JSX element.
+2. By default it wrote one `.klf` per source file; with
+   `--stream` it emits NDJSON block records on stdout instead.
+3. `kapi pack` aggregates either shape into a single `.klz`
+   archive.
 4. It captured the per-file TransformOp list as the skeleton (so
    its `merge()` can replay the transform with translated strings
    later).
@@ -237,8 +255,8 @@ The team's CI runs a neokapi-framework check on every PR:
 
 ```bash
 # .github/workflows/i18n.yml (snippet)
-- run: vpx kapi-react extract --out i18n/extracted.klz
-- run: kapi klz verify i18n/extracted.klz --strict
+- run: vp kapi-react extract --stream | kapi pack --out i18n/myproject.klz
+- run: kapi klz verify i18n/myproject.klz --strict
 ```
 
 `kapi klz verify` is a stateless one-shot command that lives in
@@ -442,7 +460,7 @@ of `core/klz`'s query helpers; no tool has to know it exists.
 A week later, a new component is added that uses the same
 "N items in your cart" pattern. When the pipeline runs again:
 
-1. `kapi-react extract` produces a new `extracted.klz` with the
+1. The CI pipeline produces a new `myproject.klz` with the
    additional block. Its `manifest.json` contents — and therefore
    its manifest SHA-256 — are different from the previous
    archive's.
@@ -605,7 +623,8 @@ in RFC 0001.
 
 | Lifecycle stage | Actor (framework-level) | Touches |
 |---|---|---|
-| Extract source | `vpx kapi-react extract` | reads `src/**/*.tsx`; writes `.klz` documents + manifest |
+| Extract source | `vp kapi-react extract` (KLF files) or `--stream \| kapi pack` | reads `src/**/*.tsx`; writes per-file KLF or NDJSON to stdout |
+| Pack extracted blocks | `kapi pack` | reads NDJSON stdin or KLF dir; writes `.klz` |
 | Inspect | `unzip`, `jq`, anyone | reads `.klz` parts individually |
 | Verify in CI | `kapi klz verify` | reads `.klz`; SQLite-free; exits non-zero on failure |
 | Annotate | `kapi klz annotate` or any namespaced producer | reads `.klz` documents; writes `annotations/<producer>.klfl` sidecar (non-authoritative) |

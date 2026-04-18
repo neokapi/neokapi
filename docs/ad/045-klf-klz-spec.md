@@ -151,15 +151,23 @@ extension — a `.klz` with no targets *is* the template.
 A developer working on a React app runs:
 
 ```bash
-npx neokapi-react extract --out i18n/myproject.klz
+kapi extract -p project.kapi       # project-driven
+# or, without a .kapi:
+vp kapi-react extract --stream | kapi pack --out i18n/myproject.klz
+# or, for git-diffable intermediate state:
+vp kapi-react extract --out i18n/klf/
+kapi pack --in i18n/klf/ --out i18n/myproject.klz
 ```
 
-`@neokapi/react` is a neokapi `Extractor`: it walks the source
-tree, produces Blocks for every translatable element, packs them
-into `.klf` JSON files, and writes everything into a ZIP archive
-named `project.klz`. The archive is self-contained — the
-developer can commit it, ship it, email it, feed it to any
-neokapi tool, or hand it to a downstream TMS or CAT tool.
+`@neokapi/kapi-react` is a neokapi `Extractor`: it walks the
+source tree, produces Blocks for every translatable element, and
+either writes one `.klf` per source document (default) or
+emits NDJSON block records on stdout (`--stream`). The
+project's `.kapi` declares the extractor via
+`format: { name: exec, config: { command } }`; kapi owns
+`.klz` assembly. The archive is self-contained — the developer
+can commit it, ship it, email it, feed it to any neokapi tool,
+or hand it to a downstream TMS or CAT tool.
 
 **The `.klz` is pure JSON and skeletons.** Nothing in it needs
 SQLite; nothing in it is binary except opaque asset files and
