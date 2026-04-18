@@ -11,6 +11,7 @@ import {
   AlertTriangle,
 } from "lucide-react";
 import { Button, Badge, Card, EmptyState, ActionCard } from "@neokapi/ui-primitives";
+import { t } from "@neokapi/kapi-react/runtime";
 import type { KapiProject, FlowSpec, FlowInfo, PluginIssue } from "../types/api";
 import { isBareEntry, effectiveItems } from "../types/api";
 import { api } from "../hooks/useApi";
@@ -237,7 +238,7 @@ export function HomePage({
                     size="sm"
                     onClick={() => handleRunFlow(name)}
                     disabled={!canRun}
-                    aria-label={`Run flow ${name}`}
+                    aria-label={t("Run flow {name}", { name })}
                     title={runTitle}
                   >
                     {activeJob?.flowName === name ? (

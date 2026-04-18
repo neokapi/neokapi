@@ -25,7 +25,6 @@ function statusFixture(overrides: Partial<ProjectStatus> = {}): ProjectStatus {
 describe("TranslationStatusPanel", () => {
   it("renders a coverage row per declared locale", () => {
     render(<TranslationStatusPanel tabID="t1" status={statusFixture()} />);
-    const panel = screen.getByText("ui").closest("[data-slot='locale-coverage']");
     // The panel contains <li data-locale>...</li> items — find them by attribute.
     const list = document.querySelector("[data-slot='locale-coverage']") as HTMLElement;
     expect(list).not.toBeNull();

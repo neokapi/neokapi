@@ -11,6 +11,7 @@ import {
   EmptyState,
   LoadingSpinner,
 } from "@neokapi/ui-primitives";
+import { t } from "@neokapi/kapi-react/runtime";
 import type { ProviderConfig } from "../types/api";
 import { api } from "../hooks/useApi";
 import { useError } from "./ErrorBanner";
@@ -147,7 +148,7 @@ export function CredentialsPage({
                 variant="ghost"
                 size="icon-sm"
                 onClick={() => handleTest(provider.id)}
-                aria-label={`Test connection for ${provider.name}`}
+                aria-label={t("Test connection for {name}", { name: provider.name })}
               >
                 <TestTube size={14} />
               </Button>
@@ -156,7 +157,7 @@ export function CredentialsPage({
                 size="icon-sm"
                 onClick={() => handleDelete(provider.id)}
                 className="hover:bg-destructive/10 hover:text-destructive"
-                aria-label={`Delete ${provider.name}`}
+                aria-label={t("Delete {name}", { name: provider.name })}
               >
                 <Trash2 size={14} />
               </Button>
