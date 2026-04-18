@@ -405,17 +405,13 @@ function processElement(
   // always trigger the promotion path, so prefer the more specific
   // unknown-component warning over the generic container one.
   const warnLine = lineFromOffset(code, s(el.span.start));
+  // See walker.ts: container-element promotion (<div> with direct
+  // text) is the expected default and no longer warns. Only
+  // unmapped components emit a warning — those are actionable
+  // (add a componentMap entry for hash stability).
   if (unmappedComponent) {
     warnings.add({
       kind: 'unknown-component',
-      filename,
-      line: warnLine,
-      tag: tagName,
-      snippet: snippetOf(code, warnLine),
-    });
-  } else if (policy.promoted) {
-    warnings.add({
-      kind: 'container-promoted',
       filename,
       line: warnLine,
       tag: tagName,

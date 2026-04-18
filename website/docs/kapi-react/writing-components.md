@@ -55,13 +55,9 @@ kapi-react **auto-promotes** container elements when they have:
 1. At least one direct non-whitespace JSXText child, AND
 2. Only inline children (no nested block-level elements).
 
-When promotion fires the plugin logs a warning so you know what happened:
-
-```text
-[neokapi] src/Settings.tsx:42: <div> contains translatable text — extracted.
-  Add translate="no" on the element to opt out.
-  ↳ <div className="mb-3 text-sm font-medium">Appearance</div>
-```
+Promotion is silent — `<div>Label</div>` is the dominant idiom and warning
+on every occurrence would just be noise. (Unmapped React components still
+warn; see below.)
 
 To opt out: `<div translate="no">...</div>` or a rule:
 
@@ -151,7 +147,7 @@ Standard HTML — works on any element:
 
 ### Rules for recurring patterns
 
-For patterns where you don't want to sprinkle `translate="no"` or rely on promotion warnings, use rules in your plugin config:
+For patterns where you don't want to sprinkle `translate="no"` everywhere, use rules in your plugin config:
 
 ```ts
 neokapi({
@@ -204,7 +200,7 @@ rules: [
 | Source pattern | Extracted? | Notes |
 |---|---|---|
 | `<h1>Hello</h1>` | ✓ | standard translatable element |
-| `<div>Hello</div>` | ✓ | auto-promoted, warning |
+| `<div>Hello</div>` | ✓ | auto-promoted silently |
 | `<TabsTrigger>Hello</TabsTrigger>` | ✓ | warning suggests `componentMap` |
 | `<PageHeader title="Hi" />` | ✓ | `title` in the translatable-attributes set |
 | `<MyComp description="Hi" />` | ✓ | `description` too |

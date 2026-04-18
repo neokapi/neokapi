@@ -404,14 +404,17 @@ describe('neokapi-react SWC transform', () => {
       expect(warnings.join('\n')).toContain('unmapped component');
     });
 
-    it('emits a warning when auto-promoting a container element', () => {
+    it('auto-promotes container elements silently — no warning for <div>Label</div>', () => {
+      // `<div>` with direct text is mainstream React; warning on
+      // every promotion drowned stderr in noise during normal
+      // builds. Promotion still happens; it just doesn't announce
+      // itself.
       const warnings: string[] = [];
       const result = t('<div>Label</div>', {
         onWarning: (msg) => warnings.push(msg),
       });
       expect(result).toContain('__t(');
-      expect(warnings.join('\n')).toContain('<div>');
-      expect(warnings.join('\n')).toContain('translatable text');
+      expect(warnings).toEqual([]);
     });
   });
 

@@ -175,13 +175,13 @@ class BlockCollector {
     if (!hasTranslatableText(el)) return false;
     if (!isAllInlineContent(el, this.componentMap)) return false;
 
-    // An unmapped React component always implies a promotion
-    // (tags default to 'container'), so emit only the more specific
-    // warning that points the dev at componentMap.
+    // Unknown components get a warning pointing the dev at
+    // componentMap for hash stability. Container-element promotion
+    // (e.g. `<div>Label</div>`) doesn't warn — it's the expected
+    // default for the dominant React idiom, and warnings added
+    // noise without any actionable follow-up.
     if (unmappedComponent) {
       this.warn('unknown-component', tag, el);
-    } else if (policy.promoted) {
-      this.warn('container-promoted', tag, el);
     }
 
     this.emitElementBlock(el, ancestors, policy.locNote, component);

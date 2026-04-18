@@ -10,7 +10,7 @@
  * `translate="no"` or stabilise hashes with a `componentMap` entry.
  */
 
-export type WarningKind = 'container-promoted' | 'unknown-component';
+export type WarningKind = 'unknown-component';
 
 export interface Warning {
   kind: WarningKind;
@@ -47,13 +47,6 @@ export function createWarningCollector(): WarningCollector {
 /** Renders a warning as a short stderr-friendly line. */
 export function formatWarning(w: Warning): string {
   const loc = `${w.filename}:${w.line}`;
-  if (w.kind === 'container-promoted') {
-    return (
-      `[neokapi] ${loc}: <${w.tag}> contains translatable text — ` +
-      `extracted. Add translate="no" on the element to opt out.\n` +
-      `  ↳ ${w.snippet}`
-    );
-  }
   return (
     `[neokapi] ${loc}: <${w.tag}> is an unmapped component with ` +
     `translatable text — extracted. Add a componentMap entry to ` +
