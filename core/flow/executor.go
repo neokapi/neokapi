@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"runtime"
 
+	"github.com/neokapi/neokapi/core/blockstore"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/tool"
 	"golang.org/x/sync/errgroup"
@@ -27,6 +28,11 @@ type ExecutorConfig struct {
 	ChannelSize    int         // default 64
 	FailFast       bool        // default true; cancel remaining on first error
 	Collectors     []Collector // aggregators fed after each document completes
+	// Store backs the BlockStore session each item is processed
+	// against. Tools that implement tool.SessionTool receive the
+	// session; stream-only tools are unaffected. Defaults to
+	// blockstore.NewMemoryStore() (ephemeral).
+	Store blockstore.Store
 }
 
 // ExecutorOption is a functional option for configuring a DefaultExecutor.
@@ -64,6 +70,16 @@ func WithCollectors(c ...Collector) ExecutorOption {
 	}
 }
 
+// WithBlockStore sets the BlockStore used for SessionTool dispatch.
+// Defaults to blockstore.NewMemoryStore(). Pass a persistent store
+// (e.g. NewCacheStore for a project's .kapi/cache.db) to enable
+// incremental work across runs.
+func WithBlockStore(store blockstore.Store) ExecutorOption {
+	return func(cfg *ExecutorConfig) {
+		cfg.Store = store
+	}
+}
+
 // DefaultExecutor runs tools concurrently using goroutines and channels.
 type DefaultExecutor struct {
 	config ExecutorConfig
@@ -84,6 +100,9 @@ func NewExecutor(opts ...ExecutorOption) *DefaultExecutor {
 	}
 	for _, opt := range opts {
 		opt(&cfg)
+	}
+	if cfg.Store == nil {
+		cfg.Store = blockstore.NewMemoryStore()
 	}
 	return &DefaultExecutor{config: cfg}
 }
@@ -166,6 +185,16 @@ func (e *DefaultExecutor) processItemCollect(ctx context.Context, f *Flow, item 
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
+	// Open a session for this item. Each item gets its own session so
+	// parallel items don't share write state; the default MemoryStore
+	// supports concurrent sessions. Tools that implement SessionTool
+	// receive the session for random access; stream-only tools are
+	// unaffected. Commit on success, Rollback on any tool error.
+	session, err := e.config.Store.Begin(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("open blockstore session: %w", err)
+	}
+
 	g, ctx := errgroup.WithContext(ctx)
 
 	// Create channels: one input, one between each pair of tools, one output
@@ -181,7 +210,7 @@ func (e *DefaultExecutor) processItemCollect(ctx context.Context, f *Flow, item 
 
 		g.Go(func() error {
 			defer close(out)
-			if err := t.Process(ctx, in, out); err != nil {
+			if err := runTool(ctx, t, session, in, out); err != nil {
 				return fmt.Errorf("tool %s: %w", t.Name(), err)
 			}
 			return nil
@@ -209,12 +238,33 @@ func (e *DefaultExecutor) processItemCollect(ctx context.Context, f *Flow, item 
 	<-done // wait for collector goroutine
 
 	if err != nil {
+		_ = session.Rollback()
 		return nil, fmt.Errorf("execute tool chain: %w", err)
 	}
 	if collectErr != nil {
+		_ = session.Rollback()
 		return nil, fmt.Errorf("collect output: %w", collectErr)
 	}
+	if err := session.Commit(); err != nil {
+		return nil, fmt.Errorf("commit session: %w", err)
+	}
 	return parts, nil
+}
+
+// runTool dispatches a tool invocation through the right contract —
+// SessionTool.SessionProcess when the tool opts in, otherwise the
+// legacy streaming Tool.Process.
+func runTool(
+	ctx context.Context,
+	t tool.Tool,
+	session blockstore.Session,
+	in <-chan *model.Part,
+	out chan<- *model.Part,
+) error {
+	if st, ok := t.(tool.SessionTool); ok {
+		return st.SessionProcess(ctx, session, in, out)
+	}
+	return t.Process(ctx, in, out)
 }
 
 // resolveTools returns the tools to use for processing.
@@ -257,6 +307,14 @@ func (e *DefaultExecutor) ExecuteWithChannels(ctx context.Context, f *Flow) (in 
 	ctx, cancel := context.WithCancel(ctx)
 	g, ctx := errgroup.WithContext(ctx)
 
+	session, err := e.config.Store.Begin(ctx)
+	if err != nil {
+		ch := make(chan *model.Part, e.config.ChannelSize)
+		close(ch)
+		cancel()
+		return ch, ch, func() error { return fmt.Errorf("open blockstore session: %w", err) }
+	}
+
 	channels := make([]chan *model.Part, len(f.Tools)+1)
 	for i := range channels {
 		channels[i] = make(chan *model.Part, e.config.ChannelSize)
@@ -268,7 +326,7 @@ func (e *DefaultExecutor) ExecuteWithChannels(ctx context.Context, f *Flow) (in 
 
 		g.Go(func() error {
 			defer close(outCh)
-			if err := t.Process(ctx, inCh, outCh); err != nil {
+			if err := runTool(ctx, t, session, inCh, outCh); err != nil {
 				return fmt.Errorf("tool %s: %w", t.Name(), err)
 			}
 			return nil
@@ -278,6 +336,13 @@ func (e *DefaultExecutor) ExecuteWithChannels(ctx context.Context, f *Flow) (in 
 	return channels[0], channels[len(channels)-1], func() error {
 		err := g.Wait()
 		cancel()
-		return err
+		if err != nil {
+			_ = session.Rollback()
+			return err
+		}
+		if cerr := session.Commit(); cerr != nil {
+			return fmt.Errorf("commit session: %w", cerr)
+		}
+		return nil
 	}
 }
