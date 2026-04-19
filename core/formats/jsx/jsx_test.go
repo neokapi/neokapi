@@ -223,7 +223,6 @@ func makeKLFFile() *klf.File {
 	}
 }
 
-
 // ───────── fixture blocks (local copies — kept close to the test
 // file so every package can assert against the same canonical
 // shape without cross-package dependencies) ─────────
@@ -332,4 +331,3 @@ func shoppingCart() *klf.Block {
 		},
 	}
 }
-

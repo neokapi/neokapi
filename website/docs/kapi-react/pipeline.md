@@ -5,14 +5,14 @@ title: Extract → translate → compile
 
 # The extract → translate → compile pipeline
 
-Three phases, one contract: the `.klz` archive.
+Three phases, one contract: the KLF directory archive.
 
 ```
 Your source code
       │
       │  kapi-react extract
       ▼
-   myproject.klz ─── (send to translators / AI / TMS) ───┐
+   i18n/ ─── (send to translators / AI / TMS) ───┐
       ▲                                                  │
       │                                                  ▼
       │  kapi ai-translate / pseudo-translate / qa / ai-review
@@ -25,9 +25,9 @@ Your source code
 public/translations/{locale}.json  ────►  loaded at runtime by your app
 ```
 
-The same `myproject.klz` is the source-of-truth artifact through the whole round-trip. Translation tools read it, append the target locale they're producing, and write back to the same file — so you accumulate locales rather than juggling per-run output files. One file in the repo, one file to ship to translators, one file to compile.
+The same `i18n/` is the source-of-truth artifact through the whole round-trip. Translation tools read it, append the target locale they're producing, and write back to the same file — so you accumulate locales rather than juggling per-run output files. One file in the repo, one file to ship to translators, one file to compile.
 
-Each phase has a single tool; none of them are coupled to the others. You can swap out the translator step for any process that preserves the KLZ contract — human translators working in a CAT tool, AI translation, pre-existing TMS.
+Each phase has a single tool; none of them are coupled to the others. You can swap out the translator step for any process that preserves the KLF contract — human translators working in a CAT tool, AI translation, pre-existing TMS.
 
 ## Phase 1: extract
 
@@ -46,8 +46,8 @@ vp kapi-react extract \
   --target-locale de \
   --target-locale ja
 
-# Or pipe straight into a .klz:
-vp kapi-react extract --stream | kapi pack --out i18n/myproject.klz
+# Or stream NDJSON blocks to stdout for piping:
+vp kapi-react extract --stream > i18n/blocks.ndjson
 ```
 
 Flags:
@@ -78,14 +78,14 @@ Wire it into your package scripts and CI:
   "scripts": {
     "extract":    "vp kapi-react extract",
     "extract:ci": "vp kapi-react extract --strict",
-    "pack":       "vp kapi-react extract --stream | kapi pack --out i18n/myproject.klz"
+    "pack":       "vp kapi-react extract --stream > i18n/blocks.ndjson"
   }
 }
 ```
 
 For full authoring-time coverage, pair this with [`@neokapi/kapi-react-lint`](./linting) — editor squigglies for `t(variable)`, `<img alt={'Logo ' + x} />`, and the other patterns the build-time transform can't catch.
 
-### What's in the `.klz`
+### What's in the KLF directory
 
 A ZIP archive with:
 
@@ -93,7 +93,7 @@ A ZIP archive with:
 - `documents/<slug>.klf` — one file per source file, each carrying its `Block`s.
 - Optional targets / skeleton / annotation sidecars (added by translators).
 
-See [AD-045](/docs/ad/045-klf-klz-spec) for the full schema.
+See [AD-046](/docs/ad/046-kapi-project-model) for the full schema.
 
 ### One block per
 
@@ -111,19 +111,19 @@ Each block carries:
 
 ## Phase 2: translate
 
-The `.klz` is the translator's deliverable. Three common paths:
+The `.klf` is the translator's deliverable. Three common paths:
 
 ### Path A: AI translation
 
 Run a full translation pass with `kapi ai-translate`:
 
 ```bash
-kapi ai-translate i18n/myproject.klz --target-lang fr
-kapi ai-translate i18n/myproject.klz --target-lang de
-kapi ai-translate i18n/myproject.klz --target-lang ja
+kapi ai-translate i18n/ --target-lang fr
+kapi ai-translate i18n/ --target-lang de
+kapi ai-translate i18n/ --target-lang ja
 ```
 
-Each run **accumulates** a target locale into the same `.klz`. The writer is locale-additive by design — existing targets stay put, the requested locale is added or updated in place. No `-o` needed unless you want to redirect output.
+Each run **accumulates** a target locale into the same `.klf`. The writer is locale-additive by design — existing targets stay put, the requested locale is added or updated in place. No `-o` needed unless you want to redirect output.
 
 `kapi` supports Anthropic, OpenAI, Azure OpenAI, Google Gemini, and Ollama. It preserves placeholders, inline element tokens, and plural/select structure — AI providers that mangle them are automatically wrapped with recovery logic.
 
@@ -132,30 +132,30 @@ Each run **accumulates** a target locale into the same `.klz`. The writer is loc
 For UI-layout QA, pseudo-translation generates visibly-altered strings without any real translation:
 
 ```bash
-kapi pseudo-translate i18n/myproject.klz --target-lang qps
+kapi pseudo-translate i18n/ --target-lang qps
 ```
 
 `Welcome` becomes `[Ŵéḷçőḿé]`, padded and accented. Missing translations stand out instantly, and strings that wrap too aggressively (or too narrowly) show up in layout testing.
 
 ### Path C: CAT tools / TMS / human translators
 
-The `.klz` is the exchange format. A translator's workflow might be:
+The `.klf` is the exchange format. A translator's workflow might be:
 
-1. Open the `.klz` in a CAT tool (Phrase, Smartcat, Trados, Bowrain's web editor, …).
+1. Open the KLF directory in a CAT tool (Phrase, Smartcat, Trados, Bowrain's web editor, …).
 2. Translate every block, leveraging their existing TM.
-3. Save back to the same `myproject.klz`.
+3. Save back to the same `i18n/`.
 
 Structural context (the `jsxPath`, the translator note, the inline element tokens) renders as rich context in modern CAT tools.
 
-For apps built on [Bowrain](/bowrain/introduction), this is transparent — the dashboard ingests `myproject.klz`, shows translators a React-shaped view of each block, and writes the updated archive back when they're done.
+For apps built on [Bowrain](/bowrain/introduction), this is transparent — the dashboard ingests `i18n/`, shows translators a React-shaped view of each block, and writes the updated archive back when they're done.
 
 ### In-place default vs. explicit redirect
 
-`kapi` tool commands default to in-place for KLZ inputs — `kapi pseudo-translate proj.klz --target-lang qps` reads and writes the same file. Pass `-o other.klz` to redirect without touching the original. Non-KLZ formats (JSON, XLIFF, …) still default to `./out/{name}.{ext}` since they're not locale-additive.
+`kapi` tool commands default to in-place for KLF inputs — `kapi pseudo-translate i18n/ --target-lang qps` reads and writes the same files. Pass `-o other-dir/` to redirect without touching the originals. Non-KLF formats (JSON, XLIFF, …) still default to `./out/{name}.{ext}` since they're not locale-additive.
 
-### Multilingual vs. per-locale files
+### Multiple locales in one `i18n/`
 
-A single `myproject.klz` with N target locales is the default and recommended layout — simpler to version, one file to ship, all translations stay together. Per-locale files (`myproject.fr.klz`, `myproject.de.klz`) are supported when you want parallel translator workflows without merge conflicts; use them sparingly. See [AD-045](/docs/ad/045-klf-klz-spec#file-naming-conventions) for the full convention.
+A single `i18n/` tree with N target locales on each block is the default and recommended layout — simpler to version, all translations stay together. See [AD-046](/docs/ad/046-kapi-project-model) for the project model.
 
 ### Project-driven flow with `.kapi`
 
@@ -169,7 +169,7 @@ defaults:
   target_languages: [fr, de, ja]
 content:
   - name: ui
-    archive: i18n/myapp.klz
+    # Block state lives in .kapi/cache.db (default cache store).
     items:
       - path: "src/**/*.tsx"
         format:
@@ -180,7 +180,7 @@ content:
 
 ```bash
 # 1. Extract — kapi runs the declared command for each collection,
-#    streams NDJSON blocks into the collection's .klz.
+#    streams NDJSON blocks into the collection's block store.
 kapi extract -p translation.kapi
 
 # 2. Status — read-only coverage report.
@@ -197,19 +197,19 @@ The `command` string picks the package manager — `vp`, `pnpm`, `npm`, `yarn`, 
 For ad-hoc projects, skip `.kapi` entirely and compose with Unix pipes:
 
 ```bash
-vp kapi-react extract --stream | kapi pack --out i18n/ui.klz
-kapi pseudo-translate i18n/ui.klz --target-lang qps
-vp kapi-react compile i18n/ui.klz --out public/translations
+vp kapi-react extract --stream > i18n/blocks.ndjson
+kapi pseudo-translate i18n/ --target-lang qps
+vp kapi-react compile i18n/ --out public/translations
 ```
 
-Same underlying wire format (NDJSON on the extract stage, KLZ from there on) — the declarative `.kapi` form just factors the pipe into the project file.
+Same underlying wire format (NDJSON on the extract stage, KLF from there on) — the declarative `.kapi` form just factors the pipe into the project file.
 
 ## Phase 3: compile
 
-`kapi-react compile` reads the translated `.klz` and emits one JSON dict per locale:
+`kapi-react compile` reads the translated `.klf` and emits one JSON dict per locale:
 
 ```bash
-kapi-react compile i18n/myproject.klz \
+kapi-react compile i18n/ \
   --out public/translations
 ```
 
@@ -230,15 +230,15 @@ src/App.tsx        <h1>Welcome</h1>
                           │
                           │ extract (source only)
                           ▼
-myproject.klz      Block { hash: "aB3", source: [{text: "Welcome"}] }
+i18n/      Block { hash: "aB3", source: [{text: "Welcome"}] }
                           │
                           │ kapi ai-translate --target-lang fr
                           ▼
-myproject.klz      Block { hash: "aB3", source: […], targets: { fr: […] } }
+i18n/      Block { hash: "aB3", source: […], targets: { fr: […] } }
                           │
                           │ kapi ai-translate --target-lang de (additive)
                           ▼
-myproject.klz      Block { hash: "aB3", source: […], targets: { fr, de } }
+i18n/      Block { hash: "aB3", source: […], targets: { fr, de } }
                           │
                           │ compile
                           ▼
@@ -261,8 +261,8 @@ The extract is deterministic, so CI can use the archive hash as a contract:
 
 - name: Fail if translators need to re-open the file
   run: |
-    git diff --exit-code i18n/myproject.klz || {
-      echo "::error::i18n/myproject.klz drifted. Re-extract locally and commit."
+    git diff --exit-code i18n/ || {
+      echo "::error::i18n/ drifted. Re-extract locally and commit."
       exit 1
     }
 ```
@@ -271,7 +271,7 @@ For apps with a translation backend, you'd instead push the archive to that back
 
 ## Incremental extracts
 
-The extractor is stateless — it always produces the same `.klz` for the same source + config. For an incremental pipeline (only translate what changed), diff two archives on the translation side. Each block's hash tells you whether its source shifted.
+The extractor is stateless — it always produces the same `.klf` for the same source + config. For an incremental pipeline (only translate what changed), diff two archives on the translation side. Each block's hash tells you whether its source shifted.
 
 ## Next
 

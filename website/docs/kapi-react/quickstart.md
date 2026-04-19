@@ -15,7 +15,7 @@ npm install -D @neokapi/kapi-react
 
 The package ships a Vite plugin, extract + compile CLI subcommands, and the tiny runtime (~2 kB). No peer dependencies beyond React 18+.
 
-The [`kapi` CLI](/docs/kapi-cli/overview) is the translation pipeline that produces pseudo-translations from the KLZ archive kapi-react extracts. Install it too:
+The [`kapi` CLI](/docs/kapi-cli/overview) is the translation pipeline that produces pseudo-translations from the KLF directory kapi-react extracts. Install it too:
 
 ```bash
 # macOS
@@ -60,15 +60,15 @@ export default function App() {
 
 No `t(...)` calls, no keys. The plugin walks the JSX at build time and rewrites each translatable site to a hash-based lookup.
 
-## 4. Extract to a KLZ archive
+## 4. Extract to a KLF directory
 
 Wire the extractor + pack into your package scripts:
 
 ```json title="package.json"
 {
   "scripts": {
-    "extract": "vp kapi-react extract --stream | kapi pack --out i18n/myproject.klz",
-    "compile": "vp kapi-react compile i18n/myproject.klz --out public/translations"
+    "extract": "vp kapi-react extract",
+    "compile": "vp kapi-react compile i18n/ --out public/translations"
   }
 }
 ```
@@ -82,12 +82,12 @@ npm run extract
 Output:
 
 ```
-i18n/myproject.klz ← 3 block(s) across 1 document(s)
+i18n/ ← 3 block(s) across 1 document(s)
 ```
 
-`i18n/myproject.klz` is a ZIP archive carrying one `.klf` document per source file plus a content-addressed manifest. The three blocks are "Welcome to Acme", the paragraph, and "Get started".
+`i18n/` is a ZIP archive carrying one `.klf` document per source file plus a content-addressed manifest. The three blocks are "Welcome to Acme", the paragraph, and "Get started".
 
-Prefer per-file `.klf` on disk for inspection / git? Drop `--stream | kapi pack`:
+Prefer per-file `.klf` on disk for inspection / git? Drop ``:
 
 ```bash
 vp kapi-react extract   # writes i18n/src/App.klf
@@ -98,12 +98,12 @@ vp kapi-react extract   # writes i18n/src/App.klf
 Pseudo-translation generates `[Wëlcömé tö Âcmé]`-style accented strings that make it obvious what's been picked up for translation — and which strings are still English. Perfect first pass.
 
 ```bash
-kapi pseudo-translate i18n/myproject.klz --target-lang qps
+kapi pseudo-translate i18n/ --target-lang qps
 ```
 
 ## 6. Compile to a runtime dict
 
-`kapi-react compile` turns the translated KLZ into a `{locale}.json` file per locale:
+`kapi-react compile` turns the translated KLF into a `{locale}.json` file per locale:
 
 ```bash
 npm run compile
@@ -165,8 +165,8 @@ export function LocaleSwitcher() {
 
 - **Zero wrappers** — you wrote normal JSX.
 - **Plugin extracted** every translatable element at build time, computed stable hashes, and rewrote the JSX to look them up at render time.
-- **kapi pseudo-translated** the KLZ → another KLZ with `qps` targets populated.
-- **kapi-react compiled** that KLZ to a JSON dict your app loads.
+- **kapi pseudo-translated** the KLF → another KLF with `qps` targets populated.
+- **kapi-react compiled** that KLF to a JSON dict your app loads.
 - **The runtime** resolved each hash on render; unknown hashes fall back to the JSX source text, so the app never shows raw identifiers.
 
 ## Next steps

@@ -47,8 +47,7 @@ const sidebars: SidebarsConfig = {
     "041-kapi-desktop",
     "042-project-context",
     "043-tool-io-model",
-    "044-klf-klz-integration",
-    "045-klf-klz-spec",
+    "046-kapi-project-model",
   ],
 };
 

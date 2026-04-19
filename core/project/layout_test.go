@@ -124,4 +124,3 @@ func TestLoadState_missingFileReturnsNil(t *testing.T) {
 	require.NoError(t, err)
 	assert.Nil(t, got)
 }
-

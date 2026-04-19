@@ -16,6 +16,7 @@
 package jsx
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -160,30 +161,9 @@ func (r *Reader) Signature() format.FormatSignature {
 		MIMETypes:  MimeTypes,
 		Extensions: Extensions,
 		Sniff: func(data []byte) bool {
-			return containsMarker(data, `"kapi-localization-format"`)
+			return bytes.Contains(data, []byte(`"kapi-localization-format"`))
 		},
 	}
-}
-
-// containsMarker is a cheap substring check kept inline to avoid a
-// bytes dependency just for format detection.
-func containsMarker(data []byte, marker string) bool {
-	if len(data) < len(marker) {
-		return false
-	}
-	for i := 0; i+len(marker) <= len(data); i++ {
-		match := true
-		for j := 0; j < len(marker); j++ {
-			if data[i+j] != marker[j] {
-				match = false
-				break
-			}
-		}
-		if match {
-			return true
-		}
-	}
-	return false
 }
 
 // Open opens a RawDocument for reading.
@@ -593,4 +573,3 @@ func htmlEscape(s string) string {
 	}
 	return out.String()
 }
-

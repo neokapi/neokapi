@@ -183,18 +183,18 @@ kapi-react extract \
   --target-locale fr \
   --target-locale de
 
-# or stream mode for pipes:
-kapi-react extract --stream | kapi pack --out i18n/myproject.klz
+# or stream mode for pipes into any kapi-aware consumer:
+kapi-react extract --stream | any-kapi-tool
 
 # CI-friendly: fail on any recorded warning.
 kapi-react extract --strict
 ```
 
-`kapi-react compile` (accepts `.klz`, `.klf` directory, or `-` for NDJSON stdin):
+`kapi-react compile` (accepts `.klf`, `.klf` directory, or `-` for NDJSON stdin):
 
 ```bash
 kapi-react compile \
-  i18n/myproject.klz \
+  i18n/ \
   --out public/translations \
   --locale fr            # optional — filter to a single locale
 ```
@@ -280,13 +280,13 @@ There's no built-in "don't translate this prop" — the assumption is that props
 
 ### Per file (glob-based)
 
-Use the CLI `--src` flag to scope extraction. The plugin still runs for the Vite build, but omitted files produce no `.klz` entries.
+Use the CLI `--src` flag to scope extraction. The plugin still runs for the Vite build, but omitted files produce no `.klf` entries.
 
 ## Debugging
 
 ### "I changed a string but translations still load the old text"
 
-Hash changed; run `kapi-react extract` and update the translation dict. A stale `.klz` means stale hashes.
+Hash changed; run `kapi-react extract` and update the translation dict. A stale `.klf` means stale hashes.
 
 ### "My custom component's text isn't getting translated"
 
@@ -306,5 +306,5 @@ Almost always a `componentMap` desync — the Vite plugin and the CLI must use t
 
 ## Next
 
-- [AD-045 KLF/KLZ format](/docs/ad/045-klf-klz-spec) — the on-disk schema, for TMS integrators.
-- [kapi CLI overview](/docs/kapi-cli/overview) — translation commands that consume your `.klz`.
+- [AD-046 Kapi Project Model](/docs/ad/046-kapi-project-model) — project layout and block store.
+- [kapi CLI overview](/docs/kapi-cli/overview) — translation commands that consume your `.klf`.
