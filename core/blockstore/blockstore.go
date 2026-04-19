@@ -1,10 +1,10 @@
 // Package blockstore defines the substrate for kapi flows: a
 // block-addressed, append-only sidecar store with multiple providers
-// (memory, klzdb-on-disk, zip-archive, remote). Tools operate against
-// a Session opened on a Store; the executor wires the right provider
-// based on a project's declared store.
+// (in-memory, local sqlite cache, remote). Tools operate against a
+// Session opened on a Store; the executor wires the right provider
+// based on the project's declared store.
 //
-// See AD-046 (docs/ad/046-kapi-project-as-klz.md) for the design.
+// See AD-046 (docs/ad/046-kapi-project-model.md) for the design.
 //
 // Design summary:
 //   - Blocks are content-addressed by hash. Once written, they are
@@ -16,7 +16,7 @@
 //     Session.Blocks. Random access (GetBlock, GetSidecar) is
 //     optional and declared via Capabilities.RandomAccess.
 //   - Transactional semantics: Begin → Put*/Get* → Commit or
-//     Rollback. Providers that don't support rollback (memory, zip)
+//     Rollback. Providers that don't support rollback (memory)
 //     commit-on-close.
 package blockstore
 
@@ -37,19 +37,17 @@ type Block = klf.Block
 // fail fast when missing.
 type Capabilities struct {
 	// RandomAccess: GetBlock / GetSidecar / ListSidecars are O(log n)
-	// or better. memory and klzdb: yes. zip-read: yes. zip-write:
-	// no (write-only). remote stores: true but remote latency applies.
+	// or better. memory and cache: yes. remote: server-dependent.
 	RandomAccess bool
 	// Concurrent: multiple Sessions can write different sidecar kinds
-	// in parallel without corrupting state. klzdb (SQLite WAL): yes.
-	// memory: no (single goroutine). zip: no. remote: depends on
-	// server-side semantics.
+	// in parallel without corrupting state. cache (SQLite WAL): yes.
+	// memory: no (single goroutine). remote: depends on server-side
+	// semantics.
 	Concurrent bool
 	// Remote: provider is network-backed. Hint for tools to prefer
 	// batched reads/writes and avoid per-block RTTs.
 	Remote bool
-	// Writable: PutBlock / PutSidecar are allowed. zip in read-only
-	// mode is false; everything else defaults true.
+	// Writable: PutBlock / PutSidecar are allowed.
 	Writable bool
 }
 

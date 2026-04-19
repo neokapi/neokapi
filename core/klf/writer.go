@@ -10,8 +10,7 @@ import (
 
 // Marshal encodes a File to deterministic UTF-8 JSON: 2-space indent,
 // no HTML escaping, trailing newline. Deterministic output is what
-// makes .klf git-diffable and what lets the .klz manifest hash be
-// stable across writes. The .klz writer builds on this contract.
+// makes .klf git-diffable and hashable.
 func Marshal(f *File) ([]byte, error) {
 	if f == nil {
 		return nil, errors.New("klf: marshal nil file")

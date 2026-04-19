@@ -29,7 +29,7 @@ GO := go
 # ICU requirement: The FTS5 ICU tokenizer requires ICU development libraries.
 #   Linux:  sudo apt-get install libicu-dev pkg-config
 #   macOS:  brew install icu4c && export PKG_CONFIG_PATH="/opt/homebrew/opt/icu4c@78/lib/pkgconfig"
-GOTAGS  := -tags "fts5 klzcache"
+GOTAGS  := -tags "fts5"
 
 # macOS Homebrew ICU: expose to pkg-config if not already on the path.
 ifeq ($(shell uname -s),Darwin)
@@ -295,19 +295,19 @@ kapi-desktop-frontend-test: kapi-desktop-frontend-deps ## Run Kapi Desktop front
 kapi-desktop-frontend-check: kapi-desktop-frontend-deps ## Lint + format + typecheck Kapi Desktop frontend
 	cd $(KAPI_DESKTOP_DIR)/frontend && vp check
 
-kapi-desktop-extract: kapi-desktop-frontend-deps ## Extract translatable blocks to i18n/extracted.klz
+kapi-desktop-extract: kapi-desktop-frontend-deps ## Extract translatable blocks to i18n/ (per-file .klf)
 	cd $(KAPI_DESKTOP_DIR)/frontend && vp run extract
 
-kapi-desktop-pseudo-translate: kapi-desktop-extract bin/kapi ## Pseudo-translate extracted.klz → translated.klz
-	./bin/kapi pseudo-translate $(KAPI_DESKTOP_DIR)/frontend/i18n/extracted.klz \
+kapi-desktop-pseudo-translate: kapi-desktop-extract bin/kapi ## Pseudo-translate i18n/ → i18n-qps/
+	./bin/kapi pseudo-translate $(KAPI_DESKTOP_DIR)/frontend/i18n \
 		--target-lang qps \
-		-o $(KAPI_DESKTOP_DIR)/frontend/i18n/translated.klz \
+		-o $(KAPI_DESKTOP_DIR)/frontend/i18n-qps \
 		-q
 
-kapi-desktop-compile: ## Compile translated.klz → public/translations/<locale>.json for the kapi-react runtime
+kapi-desktop-compile: ## Compile i18n/ → public/translations/<locale>.json for the kapi-react runtime
 	cd $(KAPI_DESKTOP_DIR)/frontend && vp run compile
 
-kapi-desktop-translations: kapi-desktop-pseudo-translate kapi-desktop-compile ## Extract → kapi pseudo-translate → kapi-react compile
+kapi-desktop-translations: kapi-desktop-pseudo-translate kapi-desktop-compile ## Extract → pseudo-translate → compile
 
 storybook-fixtures: ## Generate Storybook fixtures from real format/tool data
 	@./scripts/gen-storybook-fixtures.sh

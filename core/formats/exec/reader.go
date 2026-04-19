@@ -9,12 +9,12 @@
 //	  config:
 //	    command: "vp kapi-react extract --stream"
 //
-// `kapi extract -p project.kapi` runs the declared command once per
-// collection with every matched file path on stdin, then packs the
-// streamed blocks into the collection's .klz. The protocol is
-// transparent to debug (plain JSON), trivial to write in any
-// language, and carries no kapi-specific schema beyond the klf.Block
-// shape the subprocess emits.
+// A flow runs the declared command once per collection with every
+// matched file path on stdin and streams the emitted blocks through
+// the rest of the pipeline. The protocol is transparent to debug
+// (plain JSON), trivial to write in any language, and carries no
+// kapi-specific schema beyond the klf.Block shape the subprocess
+// emits.
 //
 // Records look like:
 //
