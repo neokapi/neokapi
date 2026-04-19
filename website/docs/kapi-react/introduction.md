@@ -42,7 +42,7 @@ At build time a [SWC](https://swc.rs/)-based Vite / webpack / Rollup / esbuild p
 
 1. Walks your JSX and finds everything that ought to be translated (heading, button, attribute values, …).
 2. Computes a stable hash from the source text + its structural context.
-3. Emits a `.klz` archive — the exchange format your translators (or an AI) consume.
+3. Emits a KLF directory archive — the exchange format your translators (or an AI) consume.
 4. Rewrites the JSX to look up the hash at render time when a translation is loaded, or inlines the translated text at build time for zero-runtime-lookup mode.
 
 The source text is the identifier. When the copy changes, you change the JSX — no key to rename, no translation table to keep in sync. Translations that already exist still resolve; new strings get a fresh hash, and your extract pipeline picks them up automatically.
@@ -51,7 +51,7 @@ The source text is the identifier. When the copy changes, you change the JSX —
 
 - **No `t()` wrapping for normal JSX.** `<h1>Welcome</h1>` is translatable as written. So is `<div>Label</div>`, `<PageHeader title="Settings" />`, `<TabsTrigger>General</TabsTrigger>`, `<Card description="..." />`.
 - **No key invention.** The hash of the source text + structural context is the key. The runtime dict is `{ "aB3": "Bienvenue", ... }` — not `{ "welcome.heading": "Bienvenue", ... }`.
-- **No translation-file edits from developers.** Developers write JSX. Translators write translations. The `.klz` archive is the contract between them.
+- **No translation-file edits from developers.** Developers write JSX. Translators write translations. The `.klf` archive is the contract between them.
 - **One explicit marker — `t()` — for strings that legitimately live in JS data** (button-label arrays, error messages returned from reducers, refs). That's it.
 
 ## What you get in the box
@@ -62,7 +62,7 @@ The source text is the identifier. When the copy changes, you change the JSX —
 - **`<Plural>` / `<Select>` authoring components** with CLDR-aware runtime resolution via `Intl.PluralRules`.
 - **`t()` escape hatch** for the small set of strings that genuinely belong in data.
 - **Two build modes** — inline (zero runtime, builds per locale) and runtime (single bundle, dict loaded OTA).
-- **A proper exchange format** — KLF/KLZ (see [AD-045](/docs/ad/045-klf-klz-spec)) — that carries structural context, placeholders, plural forms, and annotation sidecars. Not a flat key-value JSON.
+- **A proper exchange format** — KLF/KLF (see [AD-046](/docs/ad/046-kapi-project-model)) — that carries structural context, placeholders, plural forms, and annotation sidecars. Not a flat key-value JSON.
 - **Full integration with `kapi`** for pseudo-translation, AI translation, QA, TM leverage, and terminology. The same toolchain that handles XLIFF, JSON, Markdown, HTML, and every other format kapi supports.
 
 ## When kapi-react isn't the right fit

@@ -73,4 +73,3 @@ func TestInitCmd_refusesExistingRecipe(t *testing.T) {
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "refusing to overwrite")
 }
-

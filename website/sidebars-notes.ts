@@ -20,7 +20,6 @@ const sidebars: SidebarsConfig = {
     "kapi-project-file",
     "kapi-sync-protocol",
     "keycloak-theming",
-    "klf-klz-walkthrough",
     "mcp-tools-reference",
     "media-asset-storage",
     "npm-workspaces",

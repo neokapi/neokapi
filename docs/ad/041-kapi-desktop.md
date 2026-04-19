@@ -34,10 +34,12 @@ target_languages: [fr-FR, de-DE, ja-JP]
 
 content:
   - name: ui
-    archive: i18n/ui.klz         # managed .klz artifact
     items:
       - path: "src/**/*.tsx"
-        format: jsx
+        format:
+          name: exec
+          config:
+            command: "vp kapi-react extract --stream"
   - path: "src/locales/en/*.json"
     format: json
     target: "src/locales/{lang}/*.json"
@@ -65,26 +67,20 @@ defaults:
   parallel_blocks: 3
 ```
 
-**Archive-backed vs. file-based collections.** A `ContentCollection`
-that declares `archive:` is the project's translation state for
-those content patterns — a single `.klz` accumulates source Blocks
-+ every target locale, and `kapi status` / `kapi sync` drive the
-round-trip. Collections without `archive:` stay file-based: tools
-read the matched files, write translated siblings, and never
-materialise a `.klz`. Both shapes coexist in the same project, so
-a Next.js app with JSX-in-source (archive) plus a legacy
-`locales/*.json` tree (file-based) can use one `.kapi` file for
-both.
+**Collections.** A `ContentCollection` lists the source patterns
+kapi extracts from and the format reader used for each. Extracted
+blocks flow through the project's flow executor; persistent block
+state (hashes, per-locale targets, annotations) lives in the
+project's local block store at `.kapi/cache.db` (see AD-046).
+Generated translations are written via declared format writers
+(e.g. `format: json` with a `target:` path).
 
-**Extractor declaration.** Archive-backed collections declare how
-their content is extracted via the standard `FormatSpec`. For
-subprocess-based extractors (JSX via kapi-react, bespoke DSL
-walkers, etc.), the format is `exec`:
+**Extractor declaration.** For subprocess-based extractors (JSX
+via kapi-react, bespoke DSL walkers, etc.), the format is `exec`:
 
 ```yaml
 content:
   - name: ui
-    archive: i18n/ui.klz
     items:
       - path: "src/**/*.tsx"
         format:
@@ -93,17 +89,13 @@ content:
             command: "vp kapi-react extract --stream"
 ```
 
-`kapi extract -p project.kapi` runs the declared command once per
-collection with every matched file path streamed on stdin (NUL-
-separated), reads NDJSON block records from stdout, and packs the
-results into the collection's `.klz`. The developer picks the
-package manager (`vp`, `pnpm`, `npm`, `yarn`, or a direct binary
-path) — kapi runs whatever the `command` says verbatim.
-
-The exec format protocol is specified in
-`core/formats/exec/reader.go` and mirrored in AD-045. The
-reference JSX extractor (`@neokapi/kapi-react`) speaks it via
-its `--stream` flag.
+Kapi runs the declared command once per collection with every
+matched file path streamed on stdin (NUL-separated) and reads
+NDJSON block records from stdout. The developer picks the package
+manager (`vp`, `pnpm`, `npm`, `yarn`, or a direct binary path) —
+kapi runs whatever the `command` says verbatim. The reference JSX
+extractor (`@neokapi/kapi-react`) speaks this protocol via its
+`--stream` flag.
 
 **Key properties:**
 
@@ -130,43 +122,20 @@ The `.kapi` format uses the same flow steps format as `.bowrain/flows/` ([flow-s
 
 The upsell path from kapi to bowrain is about **managed AI projects** — team collaboration, server-side automation, connector integrations — not technical migration. Users who outgrow standalone file processing adopt bowrain for its platform features.
 
-### Lifecycle: status + sync
+### Lifecycle
 
-For archive-backed collections, the project file points at a `.klz`
-and two top-level commands drive the round-trip:
+The project folder's `.kapi/` directory holds the project's
+working state (see AD-046): `cache.db` for the block store,
+`collections/<name>/**` for sidecars (translation targets, term
+matches, QA findings, skeletons). Tools operate against a block
+store session; the recipe declares the sources and the flows.
+Generated translations land where the recipe's writers point
+(typically outside `.kapi/`, e.g. `i18n/{locale}.json`).
 
-- **`kapi status -p project.kapi`** — reads each declared archive,
-  reports block count per archive, coverage per declared target
-  locale, and flags archives that don't exist on disk yet.
-
-  ```
-  translation.kapi (My App Localization)
-
-    ui → i18n/ui.klz
-      2 blocks
-      de: not translated
-      fr: 1/2 translated
-
-    legacy
-      (no archive — file-based flow)
-  ```
-
-- **`kapi sync -p project.kapi --tool ai-translate`** — iterates
-  every (archive, target-locale) pair whose coverage is incomplete
-  and runs the named tool against that archive with `--target-lang`
-  set. The `kapi` writer is locale-additive, so repeated sync runs
-  accumulate new locales without clobbering existing ones. Pass
-  `--dry-run` to print the plan without executing.
-
-- **`kapi extract -p project.kapi`** — dispatches every file in an
-  archive-declared collection to its registered extractor (see
-  "Extractor dispatch" above), streams NDJSON blocks back into
-  each collection's `.klz`. Use this for the source half of the
-  round-trip; `kapi sync` covers the translate half.
-
-Both commands are stateless — they re-derive coverage from the
-`.klz` on every invocation, and the `.klz` itself is the state
-store. No `.kapi` sidecar directory, no sync cursors.
+Kapi ships with `kapi init` to scaffold a new project
+(`{name}.kapi` + `.kapi/`), plus the standard tool commands
+(`kapi ai-translate`, `kapi pseudo-translate`, `kapi run <flow>`)
+that read from and write to the project's stores and writers.
 
 ### Kapi App
 
