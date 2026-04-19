@@ -1,7 +1,7 @@
 # core/klf
 
-Go implementation of the canonical Block / Run model specified in
-[AD-045](../../docs/ad/045-klf-klz-spec.md). Paired with
+Go implementation of the canonical Block / Run model — the Kapi
+Localization Format. Paired with
 [`packages/kapi-format/`](../../packages/kapi-format/) (`@neokapi/kapi-format`) —
 the TypeScript port — via shared golden fixtures so both languages
 render the same bytes.
@@ -31,8 +31,8 @@ data, err := klf.Marshal(file)          // deterministic .klf JSON
 ```
 
 The writer is deterministic (2-space indent, no HTML escaping,
-trailing newline) — the raw bytes feed into the .klz manifest hash
-that `core/klz` content-addresses cache entries by.
+trailing newline) — the byte output is stable for hashing and
+git diffing.
 
 ### Validator (`validator.go`)
 
@@ -86,8 +86,7 @@ schema change must land on both sides in the same PR.
 
 ## See also
 
-- [AD-044: KLF / KLZ Format Integration](../../docs/ad/044-klf-klz-integration.md)
-- [AD-045: KLF / KLZ Format Specification](../../docs/ad/045-klf-klz-spec.md)
-- [`core/klz`](../klz/) — .klz archive reader/writer
 - [`core/formats/jsx`](../formats/jsx/) — DataFormatReader / Writer
-  + PreviewBuilder that wraps this package
+  + PreviewBuilder that wraps this package.
+- [`core/blockstore`](../blockstore/) — the block-addressed store
+  that a kapi project persists KLF-shaped blocks into.

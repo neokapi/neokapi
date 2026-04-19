@@ -207,20 +207,20 @@ func TestMemoryStore_Capabilities(t *testing.T) {
 	assert.False(t, caps.Remote)
 }
 
-func TestKLZDBStore(t *testing.T) {
+func TestCacheStore(t *testing.T) {
 	runStoreSuite(t, func() blockstore.Store {
 		path := filepath.Join(t.TempDir(), "cache.db")
-		store, err := blockstore.NewKLZDBStore(path)
+		store, err := blockstore.NewCacheStore(path)
 		require.NoError(t, err)
 		return store
 	})
 }
 
-func TestKLZDBStore_PersistenceAcrossOpens(t *testing.T) {
+func TestCacheStore_PersistenceAcrossOpens(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "cache.db")
 
 	// First process: write a block.
-	s1, err := blockstore.NewKLZDBStore(path)
+	s1, err := blockstore.NewCacheStore(path)
 	require.NoError(t, err)
 	sess, err := s1.Begin(context.Background())
 	require.NoError(t, err)
@@ -229,7 +229,7 @@ func TestKLZDBStore_PersistenceAcrossOpens(t *testing.T) {
 	require.NoError(t, s1.Close())
 
 	// Second process: read it back.
-	s2, err := blockstore.NewKLZDBStore(path)
+	s2, err := blockstore.NewCacheStore(path)
 	require.NoError(t, err)
 	defer s2.Close()
 	sess2, err := s2.Begin(context.Background())
@@ -240,9 +240,9 @@ func TestKLZDBStore_PersistenceAcrossOpens(t *testing.T) {
 	assert.Equal(t, "persisted", got.Hash)
 }
 
-func TestKLZDBStore_Capabilities(t *testing.T) {
+func TestCacheStore_Capabilities(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "cache.db")
-	s, err := blockstore.NewKLZDBStore(path)
+	s, err := blockstore.NewCacheStore(path)
 	require.NoError(t, err)
 	defer s.Close()
 	caps := s.Capabilities()

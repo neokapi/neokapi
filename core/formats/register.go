@@ -509,24 +509,16 @@ func RegisterAll(reg *registry.FormatRegistry, opts ...RegisterOptions) {
 		format.FormatSignature{},
 		"Exec (subprocess extractor)")
 
-	// JSX / KLF / KLZ — Kapi Localization Format (RFC 0001)
+	// JSX / KLF — Kapi Localization Format
 	reg.RegisterReader("jsx",
 		func() format.DataFormatReader { return jsx.NewReader() },
 		format.FormatSignature{
-			MIMETypes:  []string{"application/vnd.neokapi.klf+json", "application/vnd.neokapi.klz+zip"},
-			Extensions: []string{".klf", ".klz"},
-			MagicBytes: [][]byte{{0x50, 0x4B, 0x03, 0x04}},
+			MIMETypes:  []string{"application/vnd.neokapi.klf+json"},
+			Extensions: []string{".klf"},
 			Sniff: func(data []byte) bool {
-				if bytes.Contains(data, []byte(`"kapi-localization-format"`)) {
-					return true
-				}
-				if len(data) >= 4 && bytes.Equal(data[:4], []byte{0x50, 0x4B, 0x03, 0x04}) {
-					return bytes.Contains(data, []byte("manifest.json")) &&
-						bytes.Contains(data, []byte("kapiLocalizationFormat"))
-				}
-				return false
+				return bytes.Contains(data, []byte(`"kapi-localization-format"`))
 			},
-		}, "Kapi Localization Format (KLF/KLZ)")
+		}, "Kapi Localization Format (KLF)")
 	reg.RegisterWriter("jsx", func() format.DataFormatWriter { return jsx.NewWriter() })
 
 	// PDF (extraction only)

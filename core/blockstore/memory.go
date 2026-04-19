@@ -47,8 +47,8 @@ func (m *memoryStore) Begin(ctx context.Context) (Session, error) {
 	}
 	if m.active {
 		// Keep semantics simple: one session at a time. Tests that
-		// want "concurrent reads" use NewKLZDBStore.
-		return nil, errors.New("blockstore: memory store already has an active session")
+		// want "concurrent reads" use NewCacheStore.
+		return nil, errors.New("blockstore: single-session cap hit")
 	}
 	m.active = true
 	// Snapshot-on-begin: Sessions work against a fresh copy and only

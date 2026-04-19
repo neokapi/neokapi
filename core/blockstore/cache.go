@@ -14,44 +14,44 @@ import (
 	"github.com/neokapi/neokapi/core/storage"
 )
 
-// NewKLZDBStore opens (or creates) a SQLite-backed block store at the
+// NewCacheStore opens (or creates) a SQLite-backed block store at the
 // given path. Intended use: project-local persistence at
 // `.kapi/cache.db`, full random access, append-friendly for concurrent
 // sidecar writes.
 //
 // The database schema is internal to this package and versioned by
-// `klzdb_migrations`. Safe to delete and rebuild from another source
+// `cache_migrations`. Safe to delete and rebuild from another source
 // (the file is a cache in the "easily reconstructable" sense).
-func NewKLZDBStore(path string) (Store, error) {
+func NewCacheStore(path string) (Store, error) {
 	db, err := storage.Open(path)
 	if err != nil {
-		return nil, fmt.Errorf("blockstore: open klzdb: %w", err)
+		return nil, fmt.Errorf("blockstore: open cache: %w", err)
 	}
-	if err := storage.Migrate(db, "klzdb_migrations", klzdbMigrations); err != nil {
+	if err := storage.Migrate(db, "cache_migrations", cacheMigrations); err != nil {
 		_ = db.Close()
-		return nil, fmt.Errorf("blockstore: migrate klzdb: %w", err)
+		return nil, fmt.Errorf("blockstore: migrate cache: %w", err)
 	}
-	return &klzdbStore{db: db}, nil
+	return &cacheStore{db: db}, nil
 }
 
-type klzdbStore struct {
+type cacheStore struct {
 	db *storage.DB
 	mu sync.Mutex // guards Close; write transactions serialize via SQLite WAL
 }
 
-func (k *klzdbStore) Capabilities() Capabilities {
+func (k *cacheStore) Capabilities() Capabilities {
 	return Capabilities{RandomAccess: true, Concurrent: true, Writable: true}
 }
 
-func (k *klzdbStore) Begin(ctx context.Context) (Session, error) {
+func (k *cacheStore) Begin(ctx context.Context) (Session, error) {
 	tx, err := k.db.BeginTx(ctx, nil)
 	if err != nil {
 		return nil, fmt.Errorf("blockstore: begin tx: %w", err)
 	}
-	return &klzdbSession{store: k, tx: tx, ctx: ctx}, nil
+	return &cacheSession{store: k, tx: tx, ctx: ctx}, nil
 }
 
-func (k *klzdbStore) Close() error {
+func (k *cacheStore) Close() error {
 	k.mu.Lock()
 	defer k.mu.Unlock()
 	if k.db == nil {
@@ -64,16 +64,16 @@ func (k *klzdbStore) Close() error {
 
 // ─── Session ────────────────────────────────────────────────────
 
-type klzdbSession struct {
-	store *klzdbStore
+type cacheSession struct {
+	store *cacheStore
 	tx    *sql.Tx
 	ctx   context.Context
 	done  bool
 }
 
-func (s *klzdbSession) Capabilities() Capabilities { return s.store.Capabilities() }
+func (s *cacheSession) Capabilities() Capabilities { return s.store.Capabilities() }
 
-func (s *klzdbSession) Blocks(filter BlockFilter) iter.Seq2[*Block, error] {
+func (s *cacheSession) Blocks(filter BlockFilter) iter.Seq2[*Block, error] {
 	return func(yield func(*Block, error) bool) {
 		if s.done {
 			yield(nil, ErrClosed)
@@ -122,7 +122,7 @@ func (s *klzdbSession) Blocks(filter BlockFilter) iter.Seq2[*Block, error] {
 	}
 }
 
-func (s *klzdbSession) GetBlock(hash string) (*Block, error) {
+func (s *cacheSession) GetBlock(hash string) (*Block, error) {
 	if s.done {
 		return nil, ErrClosed
 	}
@@ -141,7 +141,7 @@ func (s *klzdbSession) GetBlock(hash string) (*Block, error) {
 	return &b, nil
 }
 
-func (s *klzdbSession) PutBlock(collection string, b *Block) error {
+func (s *cacheSession) PutBlock(collection string, b *Block) error {
 	if s.done {
 		return ErrClosed
 	}
@@ -166,7 +166,7 @@ func (s *klzdbSession) PutBlock(collection string, b *Block) error {
 	return nil
 }
 
-func (s *klzdbSession) GetSidecar(kind, blockHash string) (Sidecar, error) {
+func (s *cacheSession) GetSidecar(kind, blockHash string) (Sidecar, error) {
 	if s.done {
 		return Sidecar{}, ErrClosed
 	}
@@ -184,7 +184,7 @@ func (s *klzdbSession) GetSidecar(kind, blockHash string) (Sidecar, error) {
 	return sc, nil
 }
 
-func (s *klzdbSession) PutSidecar(sc Sidecar) error {
+func (s *cacheSession) PutSidecar(sc Sidecar) error {
 	if s.done {
 		return ErrClosed
 	}
@@ -207,7 +207,7 @@ func (s *klzdbSession) PutSidecar(sc Sidecar) error {
 	return nil
 }
 
-func (s *klzdbSession) ListSidecars(kind string) iter.Seq2[Sidecar, error] {
+func (s *cacheSession) ListSidecars(kind string) iter.Seq2[Sidecar, error] {
 	return func(yield func(Sidecar, error) bool) {
 		if s.done {
 			yield(Sidecar{}, ErrClosed)
@@ -238,7 +238,7 @@ func (s *klzdbSession) ListSidecars(kind string) iter.Seq2[Sidecar, error] {
 	}
 }
 
-func (s *klzdbSession) Commit() error {
+func (s *cacheSession) Commit() error {
 	if s.done {
 		return ErrClosed
 	}
@@ -246,7 +246,7 @@ func (s *klzdbSession) Commit() error {
 	return s.tx.Commit()
 }
 
-func (s *klzdbSession) Rollback() error {
+func (s *cacheSession) Rollback() error {
 	if s.done {
 		return nil
 	}
@@ -254,7 +254,7 @@ func (s *klzdbSession) Rollback() error {
 	return s.tx.Rollback()
 }
 
-func (s *klzdbSession) Close() error {
+func (s *cacheSession) Close() error {
 	if !s.done {
 		return s.Rollback()
 	}
@@ -263,7 +263,7 @@ func (s *klzdbSession) Close() error {
 
 // ─── Migrations ─────────────────────────────────────────────────
 
-var klzdbMigrations = []storage.Migration{
+var cacheMigrations = []storage.Migration{
 	{
 		Version:     1,
 		Description: "blocks + sidecars",

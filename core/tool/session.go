@@ -17,7 +17,7 @@ import (
 // translations), or incrementally skip work that's already done
 // can't do it through the stream alone. SessionTool gives them a
 // `blockstore.Session` opened by the executor on whichever provider
-// the project declares (`memory`, `klzdb`, remote).
+// the project declares (`memory`, `cache`, remote).
 //
 // Lifecycle:
 //
