@@ -1,36 +1,35 @@
 package backend
 
 import (
-	"bytes"
-	"context"
 	"fmt"
-	"time"
-
-	"github.com/neokapi/neokapi/cli"
 )
 
-// CollectionStatus mirrors cli.CollectionStatus but uses plain
-// strings for the Wails boundary — JSON-serialisable, no model.LocaleID
-// dependency for the frontend.
+// CollectionStatus is the JSON-serialisable summary the UI renders
+// on the project status panel. Stays lean; richer per-block stats
+// come from the blockstore layer when the executor migration lands.
 type CollectionStatus struct {
 	Name            string         `json:"name"`
-	Archive         string         `json:"archive"`
-	ArchiveExists   bool           `json:"archiveExists"`
 	BlockCount      int            `json:"blockCount"`
 	Coverage        map[string]int `json:"coverage"`
 	TargetLanguages []string       `json:"targetLanguages"`
 }
 
-// ProjectStatus is the full per-project bundle returned to the UI.
+// ProjectStatus bundles the per-collection summaries.
 type ProjectStatus struct {
 	ProjectPath string             `json:"projectPath"`
 	ProjectName string             `json:"projectName"`
 	Collections []CollectionStatus `json:"collections"`
 }
 
-// GetProjectStatus reads the project at the given tab's path and
-// returns the archive-backed translation state. The UI renders this
-// as a coverage panel on the project view.
+// GetProjectStatus returns the current per-collection state for a
+// project tab. Under the new model, rich coverage/block-count data
+// flows from a blockstore.Session against the project's cache.db —
+// that's wired up in a follow-up. For now the status surface is
+// intentionally sparse: recipe identity + the list of declared
+// collections + their declared target languages. The frontend uses
+// it to draw the shell of the status panel; cells that depend on
+// blockstore data render as pending until the session integration
+// lands.
 func (a *App) GetProjectStatus(tabID string) (*ProjectStatus, error) {
 	a.mu.RLock()
 	op, ok := a.projects[tabID]
@@ -39,72 +38,51 @@ func (a *App) GetProjectStatus(tabID string) (*ProjectStatus, error) {
 		return nil, fmt.Errorf("project tab %q not found", tabID)
 	}
 
-	internal, err := cli.CollectProjectStatus(op.Path)
-	if err != nil {
-		return nil, err
-	}
-
 	out := &ProjectStatus{
-		ProjectPath: internal.ProjectPath,
-		ProjectName: internal.ProjectName,
-		Collections: make([]CollectionStatus, 0, len(internal.Collections)),
+		ProjectPath: op.Path,
 	}
-	for _, cs := range internal.Collections {
-		coverage := make(map[string]int, len(cs.Coverage))
-		for loc, n := range cs.Coverage {
-			coverage[string(loc)] = n
+	if op.Project != nil {
+		out.ProjectName = op.Project.Name
+		for _, coll := range op.Project.Content {
+			targets := make([]string, 0, len(coll.TargetLanguages))
+			for _, loc := range coll.TargetLanguages {
+				targets = append(targets, string(loc))
+			}
+			out.Collections = append(out.Collections, CollectionStatus{
+				Name:            collectionLabel(coll.Name),
+				TargetLanguages: targets,
+			})
 		}
-		targets := make([]string, 0, len(cs.TargetLanguages))
-		for _, loc := range cs.TargetLanguages {
-			targets = append(targets, string(loc))
-		}
-		out.Collections = append(out.Collections, CollectionStatus{
-			Name:            cs.Name,
-			Archive:         cs.Archive,
-			ArchiveExists:   cs.ArchiveExists,
-			BlockCount:      cs.BlockCount,
-			Coverage:        coverage,
-			TargetLanguages: targets,
-		})
 	}
 	return out, nil
 }
 
-// ExtractResult summarises one invocation of RunExtract for the UI.
-// The log is the captured stdout/stderr of `kapi extract` so the
-// user sees which plugins ran and how many blocks each produced.
+// ExtractResult summarises one re-extract request from the UI.
 type ExtractResult struct {
 	Log string `json:"log"`
 }
 
-// RunExtract runs `kapi extract -p <project>` for the given tab and
-// returns the captured progress output. The UI's Re-extract button
-// fires this, then refreshes the status panel.
-//
-// Tool time is bounded at 5 minutes per extractor subprocess — the
-// default on `kapi extract --timeout`, enough for reasonable
-// projects, prevents a runaway from hanging the desktop app.
+// RunExtract is a placeholder for the desktop's "Re-extract" button.
+// Under the new project model extraction is driven by the per-tool
+// flow executor (`kapi run`) and by upstream extractors such as
+// `kapi-react extract`. A future change re-wires this to run the
+// project's declared flow against a session on the project's
+// blockstore. For now we return a friendly no-op so existing frontend
+// wiring still compiles.
 func (a *App) RunExtract(tabID string) (*ExtractResult, error) {
 	a.mu.RLock()
-	op, ok := a.projects[tabID]
+	_, ok := a.projects[tabID]
 	a.mu.RUnlock()
 	if !ok {
 		return nil, fmt.Errorf("project tab %q not found", tabID)
 	}
+	return &ExtractResult{Log: "Re-extract: run the project's extract flow from your tool chain " +
+		"(e.g. `vp kapi-react extract` in the package directory).\n"}, nil
+}
 
-	var buf bytes.Buffer
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
-	defer cancel()
-
-	// runExtract lives in the cli package but isn't exported
-	// verbatim; piggyback on the thin wrapper that matches
-	// `kapi extract`'s UX. We call it indirectly by invoking the
-	// binary via os/exec would require PATH assumptions we can't
-	// make inside a desktop app. Instead, reuse the in-process
-	// planner + runner from the cli package so everything lives
-	// inside one Go binary.
-	if err := cli.RunExtractInProcess(ctx, &buf, op.Path); err != nil {
-		return &ExtractResult{Log: buf.String()}, err
+func collectionLabel(name string) string {
+	if name == "" {
+		return "(unnamed)"
 	}
-	return &ExtractResult{Log: buf.String()}, nil
+	return name
 }

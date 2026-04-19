@@ -38,14 +38,7 @@ func init() {
 	runCmd := app.NewRunCmd(cli.RunCmdOptions{})
 	runCmd.GroupID = "processing"
 	rootCmd.AddCommand(runCmd)
-	rootCmd.AddCommand(app.NewStatusCmd())
-	rootCmd.AddCommand(app.NewSyncCmd())
-	rootCmd.AddCommand(app.NewShowCmd())
-	rootCmd.AddCommand(app.NewExtractCmd())
-	rootCmd.AddCommand(app.NewPackCmd())
 	rootCmd.AddCommand(app.NewInitCmd())
-	rootCmd.AddCommand(app.NewSnapshotCmd())
-	rootCmd.AddCommand(app.NewOpenCmd())
 
 	// Management commands.
 	rootCmd.AddCommand(app.NewFlowsCmd(cli.FlowCmdOptions{}))
@@ -57,8 +50,6 @@ func init() {
 	rootCmd.AddCommand(app.NewTermbaseCmd())
 	rootCmd.AddCommand(app.NewTMCmd())
 	rootCmd.AddCommand(app.NewCredentialsCmd())
-	rootCmd.AddCommand(app.NewKLZCmd())
-	rootCmd.AddCommand(app.NewCacheCmd())
 	rootCmd.AddCommand(app.NewVersionCmd("kapi"))
 	rootCmd.AddCommand(app.NewCompletionCmd())
 

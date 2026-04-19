@@ -74,8 +74,6 @@ func init() {
 
 	rootCmd.AddCommand(app.NewTermbaseCmd())
 	rootCmd.AddCommand(app.NewTMCmd())
-	rootCmd.AddCommand(app.NewKLZCmd())
-	rootCmd.AddCommand(app.NewCacheCmd())
 	rootCmd.AddCommand(app.NewVersionCmd("bowrain"))
 	rootCmd.AddCommand(app.NewCompletionCmd())
 

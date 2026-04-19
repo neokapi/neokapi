@@ -269,36 +269,9 @@ func TestContentCollectionBareVsCollection(t *testing.T) {
 	assert.Equal(t, "marketing/*.html", items[0].Path)
 }
 
-func TestContentCollectionArchive(t *testing.T) {
-	yamlContent := `
-- name: ui
-  archive: i18n/ui.klz
-  items:
-    - path: "src/**/*.tsx"
-- name: legacy
-  items:
-    - path: "legacy/**/*.json"
-`
-	var content []ContentCollection
-	require.NoError(t, yaml.Unmarshal([]byte(yamlContent), &content))
-	require.Len(t, content, 2)
-	assert.Equal(t, "i18n/ui.klz", content[0].Archive,
-		"explicit archive path is preserved")
-	assert.Empty(t, content[1].Archive,
-		"collections without archive: fall through to file-based flows")
-
-	// Round-trip: marshal + reparse keeps the field.
-	out, err := yaml.Marshal(content)
-	require.NoError(t, err)
-	var back []ContentCollection
-	require.NoError(t, yaml.Unmarshal(out, &back))
-	assert.Equal(t, content, back)
-}
-
 func TestContentCollectionExecFormat(t *testing.T) {
 	yamlContent := `
 - name: ui
-  archive: i18n/ui.klz
   items:
     - path: "src/**/*.tsx"
       format:

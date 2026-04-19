@@ -1,7 +1,6 @@
 package project_test
 
 import (
-	"bytes"
 	"os"
 	"path/filepath"
 	"testing"
@@ -126,80 +125,3 @@ func TestLoadState_missingFileReturnsNil(t *testing.T) {
 	assert.Nil(t, got)
 }
 
-// Snapshot / Open round-trip.
-func TestSnapshotOpen_roundTrip(t *testing.T) {
-	// Build a project with recipe + state + a sidecar file.
-	src := t.TempDir()
-	recipePath := filepath.Join(src, "my-app.kapi")
-	require.NoError(t, os.WriteFile(recipePath, []byte(
-		"version: v1\n"+
-			"id: my-app\n"+
-			"sourceLocale: en\n"+
-			"targetLocales: [fr, de]\n"+
-			"content:\n"+
-			"  - collection: ui\n",
-	), 0o644))
-
-	srcLayout, err := project.LayoutFor(recipePath)
-	require.NoError(t, err)
-	require.NoError(t, project.EnsureLayout(srcLayout))
-
-	// Drop a sidecar into collections/ui/targets/fr.json.
-	sidecarDir := filepath.Join(srcLayout.StateDir, "collections", "ui", "targets")
-	require.NoError(t, os.MkdirAll(sidecarDir, 0o755))
-	require.NoError(t, os.WriteFile(filepath.Join(sidecarDir, "fr.json"), []byte(`{"h1":"bonjour"}`), 0o644))
-
-	// Snapshot.
-	var buf bytes.Buffer
-	require.NoError(t, project.Snapshot(srcLayout, &buf, project.SnapshotOptions{}))
-	require.NotZero(t, buf.Len())
-
-	// Open into a fresh directory.
-	target := t.TempDir()
-	reader := bytes.NewReader(buf.Bytes())
-	layout, err := project.Open(reader, int64(buf.Len()), target)
-	require.NoError(t, err)
-
-	// Recipe landed with the project id as filename stem.
-	assert.Equal(t, filepath.Join(target, "my-app.kapi"), layout.RecipePath)
-	recipeData, err := os.ReadFile(layout.RecipePath)
-	require.NoError(t, err)
-	assert.Contains(t, string(recipeData), "id: my-app")
-	assert.Contains(t, string(recipeData), "sourceLocale: en")
-
-	// State manifest landed.
-	state, err := project.LoadState(layout)
-	require.NoError(t, err)
-	require.NotNil(t, state)
-	assert.Equal(t, "my-app", state.Project.ID)
-
-	// Sidecar survived round-trip.
-	sidecar, err := os.ReadFile(filepath.Join(layout.StateDir, "collections", "ui", "targets", "fr.json"))
-	require.NoError(t, err)
-	assert.Equal(t, `{"h1":"bonjour"}`, string(sidecar))
-}
-
-func TestOpen_rejectsNonEmptyTarget(t *testing.T) {
-	target := t.TempDir()
-	require.NoError(t, os.WriteFile(filepath.Join(target, "existing.txt"), []byte("x"), 0o644))
-
-	// Build a minimal zip in memory.
-	src := t.TempDir()
-	recipe := filepath.Join(src, "my-app.kapi")
-	require.NoError(t, os.WriteFile(recipe, []byte("id: my-app\n"), 0o644))
-	layout, err := project.LayoutFor(recipe)
-	require.NoError(t, err)
-	require.NoError(t, project.EnsureLayout(layout))
-	var buf bytes.Buffer
-	require.NoError(t, project.Snapshot(layout, &buf, project.SnapshotOptions{}))
-
-	_, err = project.Open(bytes.NewReader(buf.Bytes()), int64(buf.Len()), target)
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "not empty")
-}
-
-func TestArchiveManifest_kindValidation(t *testing.T) {
-	bad := []byte("schemaVersion: 1\nkind: wrong\n")
-	_, err := project.DecodeArchiveManifest(bad)
-	assert.Error(t, err)
-}
