@@ -3,14 +3,14 @@
 /**
  * kapi-react CLI.
  *
- *   kapi-react extract   Walk JSX/TSX source and produce i18n/strings.json
- *                        (also .klz once the AST walker learns to emit
- *                        structured Runs; tracked separately).
+ *   kapi-react extract   Walk JSX/TSX source and produce one .klf per
+ *                        source file under --out (default: i18n/).
  *
- *   kapi-react compile   Consume a translated .klz (kapi or another tool
- *                        filled in block.targets[locale]), flatten each
- *                        block's target runs into the {hash: text} shape
- *                        the runtime loader reads via fetch() + setTranslations().
+ *   kapi-react compile   Consume a translated .klf directory (kapi or
+ *                        another tool filled in block.targets[locale]),
+ *                        flatten each block's target runs into the
+ *                        {hash: text} shape the runtime loader reads
+ *                        via fetch() + setTranslations().
  *
  * The boundary: kapi-react extracts and compiles; everything in between
  * (pseudo-translate, AI translate, TM, QA, …) goes through `kapi`.
@@ -48,7 +48,7 @@ kapi-react — zero-config i18n for React
 
 Commands:
   extract    Extract translatable strings from JSX/TSX source files
-  compile    Flatten a translated .klz into runtime dictionaries
+  compile    Flatten a translated .klf directory into runtime dictionaries
 
 Run \`kapi-react <command> --help\` for per-command options.
 `);

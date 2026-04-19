@@ -3,7 +3,7 @@
  * Block / Run sequences per AD-045. The flat-string extraction
  * that used to live alongside has been removed; the runtime
  * dictionary is produced by `kapi-react compile` from a translated
- * .klz, not directly by extract.
+ * klf writer, not directly by extract.
  */
 
 import { describe, expect, it } from 'vitest';

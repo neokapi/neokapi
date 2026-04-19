@@ -3,7 +3,8 @@
  *
  * Consumers:
  *   - CLI (`kapi-react extract`) walks a glob, calls `extractDocument`
- *     per file, and bundles results into a `.klz` via @neokapi/kapi-format.
+ *     per file, and writes one `.klf` per source document via
+ *     @neokapi/kapi-format.
  *   - Tests call `extractDocument` with a single-source fixture and
  *     assert on `Block[]` / `Run[]` structure.
  *

@@ -602,23 +602,6 @@ export function ContentPage({
                             />
                           </div>
                         </div>
-                        <div className="mt-3">
-                          <Label className="mb-0.5 block text-xs text-muted-foreground">
-                            Archive (.klz)
-                          </Label>
-                          <input
-                            type="text"
-                            value={coll.archive ?? ""}
-                            onChange={(e) =>
-                              handleUpdateCollection(ci, {
-                                ...coll,
-                                archive: e.target.value || undefined,
-                              })
-                            }
-                            placeholder="i18n/ui.klz (optional — leave blank for file-based flow)"
-                            className="w-full rounded-md border border-input bg-background px-2 py-1 text-xs font-mono outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                          />
-                        </div>
                       </div>
                     )}
 

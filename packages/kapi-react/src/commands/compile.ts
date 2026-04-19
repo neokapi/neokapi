@@ -3,12 +3,11 @@
  *
  * Accepts any of three input shapes:
  *
- *   1. A `.klz` archive (legacy + the canonical handoff format).
- *   2. A directory of `.klf` files (the KLF-default output of
+ *   1. A single `.klf` file.
+ *   2. A directory of `.klf` files (the default output of
  *      `kapi-react extract`).
  *   3. NDJSON block records on stdin (pass `-` as input) — for
- *      one-shot pipelines like
- *      `kapi extract-stream ... | kapi-react compile - --out ...`.
+ *      one-shot pipelines.
  *
  * Output: one `<locale>.json` dictionary per target locale, shape
  * `{ "<block.hash>": "<flattened target>" }`.
@@ -19,7 +18,6 @@ import { dirname, extname, join } from 'node:path';
 
 import type { Block, File } from '@neokapi/kapi-format';
 import { flattenRuns } from '@neokapi/kapi-format';
-import { KlzReader } from '@neokapi/kapi-format/klz';
 
 interface BlockRecord {
   block: Block;
@@ -43,7 +41,7 @@ export async function runCompile(args: string[]) {
   }
 
   if (!input) {
-    console.error('error: missing input (.klz, .klf directory, or - for stdin)\n');
+    console.error('error: missing input (.klf file, .klf directory, or - for stdin)\n');
     console.log(usage);
     process.exit(1);
   }
@@ -93,22 +91,7 @@ async function loadBlocks(input: string): Promise<{
   if (input === '-') return loadBlocksFromStdin();
   const stat = statSync(input);
   if (stat.isDirectory()) return loadBlocksFromKLFDir(input);
-  if (extname(input).toLowerCase() === '.klf') return loadBlocksFromKLF(input);
-  return loadBlocksFromKLZ(input);
-}
-
-function loadBlocksFromKLZ(path: string): {
-  blocks: BlockRecord[];
-  declaredTargets: string[];
-} {
-  const archive = readFileSync(path);
-  const reader = new KlzReader(new Uint8Array(archive));
-  const blocks: BlockRecord[] = [];
-  for (const { block } of reader.blocks()) blocks.push({ block });
-  return {
-    blocks,
-    declaredTargets: reader.manifest.project.targetLocales ?? [],
-  };
+  return loadBlocksFromKLF(input);
 }
 
 function loadBlocksFromKLF(path: string): {
@@ -121,8 +104,8 @@ function loadBlocksFromKLF(path: string): {
   for (const doc of file.documents ?? []) {
     for (const block of doc.blocks ?? []) blocks.push({ block });
   }
-  // KLF's Project doesn't declare target locales — that lives on
-  // the KLZ manifest. Infer from block.targets instead.
+  // KLF's Project doesn't declare target locales explicitly — infer
+  // from block.targets below.
   return { blocks, declaredTargets: [] };
 }
 
@@ -176,14 +159,13 @@ Usage:
   kapi-react compile <input> [--locale <lang>]... [--out <dir>]
 
 <input> can be:
-  <file.klz>           a .klz archive
   <dir/>               a directory of .klf files (recursive)
   <file.klf>           a single .klf file
   -                    NDJSON block records on stdin
 
 Options:
   --locale <lang>   Emit a dictionary for this locale (repeat for multiple).
-                    If omitted, every locale present in block.targets or the
-                    manifest/file's targetLocales is emitted.
+                    If omitted, every locale present in block.targets is
+                    emitted.
   --out <dir>       Output directory (default: public/translations)
 `;

@@ -5,12 +5,12 @@
  *   1. Default: per-file .klf JSON under --out (default `./i18n/`).
  *      Human-readable, git-diffable, self-contained per source.
  *   2. --stream: NDJSON block records on stdout, one per block,
- *      for piping into `kapi pack` or `kapi extract -p` (the exec
+ *      for piping into any kapi-aware consumer (e.g. kapi's exec
  *      format reader). No file output.
  *
  * Both shapes carry the same Block data; --stream is just the wire
- * form for a pipe. Warnings (auto-promotion, unknown components)
- * are always routed to stderr.
+ * form for a pipe. Warnings (unknown components) are always routed
+ * to stderr.
  */
 
 import { readFileSync, mkdirSync, writeFileSync } from 'node:fs';
@@ -52,8 +52,7 @@ export async function runExtract(args: string[], io: RunExtractIO = {}): Promise
   // automatically: when stdin is piped (e.g. kapi's exec format
   // sends NUL-separated paths), we consume it; otherwise we fall
   // back to the --src glob so a developer can just pipe our stdout
-  // without also wiring up stdin (`vp kapi-react extract --stream
-  // | kapi pack --out ui.klz`).
+  // without also wiring up stdin.
   const files = opts.stream
     ? stdinHasInput(stdin)
       ? await readPathsFromStdin(stdin)
@@ -73,8 +72,9 @@ export async function runExtract(args: string[], io: RunExtractIO = {}): Promise
   const documents = extractAllDocuments(files, config, { strict: opts.strict });
 
   if (opts.stream) {
-    // NDJSON block stream on stdout — consumed by `kapi extract`
-    // (exec format reader) or `kapi pack`. No files written here.
+    // NDJSON block stream on stdout — consumed by kapi's exec
+    // format reader or any other kapi-aware pipeline. No files
+    // written here.
     for (const doc of documents) {
       for (const block of doc.blocks) {
         stdout.write(
@@ -91,8 +91,8 @@ export async function runExtract(args: string[], io: RunExtractIO = {}): Promise
   }
 
   // Per-file KLF under --out. One file per source document — the
-  // human-readable, git-diffable on-disk shape. `kapi pack --in`
-  // reassembles them into a .klz when handoff is needed.
+  // human-readable, git-diffable on-disk shape. Kapi reads these
+  // directly for translation / compile / QA flows.
   mkdirSync(opts.outDir, { recursive: true });
   for (const doc of documents) {
     const klf = buildKLF(doc, opts);
@@ -161,7 +161,7 @@ interface ExtractArgs {
   targetLocales: string[];
   // stream switches to NDJSON-on-stdout mode: reads NUL-separated
   // paths from stdin, never writes files. Used by `kapi extract`
-  // (exec format) and `kapi pack`-driven pipelines.
+  // (exec format) and other kapi-aware pipelines.
   stream: boolean;
   // --strict makes any recorded warning fail the run with a non-zero
   // exit. Intended for CI — see the lint plan in issue #381.
