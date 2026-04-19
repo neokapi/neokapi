@@ -203,6 +203,7 @@ func TestMemoryStore_Capabilities(t *testing.T) {
 	s := blockstore.NewMemoryStore()
 	caps := s.Capabilities()
 	assert.True(t, caps.RandomAccess)
+	assert.True(t, caps.Concurrent)
 	assert.True(t, caps.Writable)
 	assert.False(t, caps.Remote)
 }

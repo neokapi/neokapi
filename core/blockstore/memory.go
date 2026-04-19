@@ -9,12 +9,15 @@ import (
 )
 
 // NewMemoryStore returns a Store that keeps everything in Go maps.
-// Always RandomAccess + Writable; not Concurrent (a single Session
-// at a time) and not Remote.
+// RandomAccess + Writable; Concurrent (multiple sessions supported
+// simultaneously, each working against a snapshot taken at Begin;
+// commit replaces the store's state with the session's state —
+// last-writer-wins). Not Remote.
 //
-// Intended for: streaming flows (current default), tests, one-shot
-// CLI invocations. Equivalent to "no persistence" from the user's
-// point of view — when the Store is Closed, the state is gone.
+// Intended for: streaming flows (the executor default when no
+// persistent store is declared), tests, one-shot CLI invocations.
+// Equivalent to "no persistence" from the user's point of view —
+// when the Store is Closed, the state is gone.
 func NewMemoryStore() Store {
 	return &memoryStore{
 		blocks:   make(map[string]memBlock),
@@ -31,12 +34,11 @@ type memoryStore struct {
 	mu       sync.Mutex
 	blocks   map[string]memBlock // key: block hash
 	sidecars map[string]Sidecar  // key: kind+"\x00"+blockHash
-	active   bool                // a Session is in progress
 	closed   bool
 }
 
 func (m *memoryStore) Capabilities() Capabilities {
-	return Capabilities{RandomAccess: true, Writable: true}
+	return Capabilities{RandomAccess: true, Concurrent: true, Writable: true}
 }
 
 func (m *memoryStore) Begin(ctx context.Context) (Session, error) {
@@ -45,15 +47,10 @@ func (m *memoryStore) Begin(ctx context.Context) (Session, error) {
 	if m.closed {
 		return nil, errors.New("blockstore: memory store closed")
 	}
-	if m.active {
-		// Keep semantics simple: one session at a time. Tests that
-		// want "concurrent reads" use NewCacheStore.
-		return nil, errors.New("blockstore: single-session cap hit")
-	}
-	m.active = true
-	// Snapshot-on-begin: Sessions work against a fresh copy and only
-	// merge back on Commit. Gives us clean Rollback semantics without
-	// a write-ahead log.
+	// Snapshot-on-begin: each Session works against its own copy.
+	// On Commit the session's state replaces the store's state
+	// (last-writer-wins across concurrent sessions). Rollback
+	// discards the session's copy without touching the store.
 	s := &memorySession{
 		store:    m,
 		blocks:   copyBlocks(m.blocks),
@@ -178,18 +175,11 @@ func (s *memorySession) Commit() error {
 	defer s.store.mu.Unlock()
 	s.store.blocks = s.blocks
 	s.store.sidecars = s.sidecars
-	s.store.active = false
 	s.done = true
 	return nil
 }
 
 func (s *memorySession) Rollback() error {
-	if s.done {
-		return nil
-	}
-	s.store.mu.Lock()
-	defer s.store.mu.Unlock()
-	s.store.active = false
 	s.done = true
 	return nil
 }
