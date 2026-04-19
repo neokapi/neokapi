@@ -3,16 +3,21 @@ package tools
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 	"sync"
 	"sync/atomic"
 
+	"github.com/neokapi/neokapi/core/blockstore"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/schema"
 	"github.com/neokapi/neokapi/core/tool"
 	"github.com/neokapi/neokapi/providers/ai"
 )
+
+// Compile-time assertion: this tool implements SessionTool.
+var _ tool.SessionTool = (*AITranslateTool)(nil)
 
 // AITranslateTool translates untranslated Blocks using an LLM provider.
 type AITranslateTool struct {
@@ -174,6 +179,222 @@ func (t *AITranslateTool) Process(ctx context.Context, in <-chan *model.Part, ou
 		return t.BaseTool.Process(ctx, in, out)
 	}
 	return t.processBatched(ctx, in, out)
+}
+
+// SessionProcess consults the session's `targets/<locale>` sidecars
+// before calling the LLM. A block whose target is already cached
+// gets hydrated from the sidecar and skipped — key for incremental
+// AI translation runs where re-calling the model is expensive.
+// After a fresh translation, the resulting target is written back
+// to the session so the next run can skip it.
+//
+// Batch + concurrent paths remain unchanged — they route through
+// Process without session involvement. Users who want session-aware
+// translation run with batchSize/concurrency at defaults (1) so the
+// block-by-block path applies.
+func (t *AITranslateTool) SessionProcess(
+	ctx context.Context,
+	sess blockstore.Session,
+	in <-chan *model.Part,
+	out chan<- *model.Part,
+) error {
+	if t.batchSize > 1 || t.concurrency > 1 {
+		// Batched path has its own goroutine fan-out; session-aware
+		// hydration is a sequential optimisation. Let the batch
+		// path run and write sidecars on the way out.
+		return t.processBatchedWithSession(ctx, sess, in, out)
+	}
+
+	sidecarKind := "targets/" + string(t.targetLocale)
+	caps := sess.Capabilities()
+	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case part, ok := <-in:
+			if !ok {
+				return nil
+			}
+			if err := t.sessionHandleBlock(ctx, sess, caps.RandomAccess, sidecarKind, part); err != nil {
+				return err
+			}
+			select {
+			case out <- part:
+			case <-ctx.Done():
+				return ctx.Err()
+			}
+		}
+	}
+}
+
+// sessionHandleBlock wraps handleBlock with a sidecar lookup before
+// and a sidecar write after. Falls back to pass-through for non-
+// Block parts.
+func (t *AITranslateTool) sessionHandleBlock(
+	ctx context.Context,
+	sess blockstore.Session,
+	randomAccess bool,
+	sidecarKind string,
+	part *model.Part,
+) error {
+	block, ok := part.Resource.(*model.Block)
+	if !ok || block == nil {
+		return nil
+	}
+	if !block.Translatable {
+		return nil
+	}
+	hash := block.ID
+	if hash == "" {
+		if _, err := t.handleBlock(part); err != nil {
+			return err
+		}
+		return nil
+	}
+
+	// Skip if already cached.
+	if randomAccess {
+		if sc, err := sess.GetSidecar(sidecarKind, hash); err == nil && len(sc.Payload) > 0 {
+			var cached aiTargetCache
+			if err := json.Unmarshal(sc.Payload, &cached); err == nil && cached.Text != "" {
+				block.SetTargetText(t.targetLocale, cached.Text)
+				return nil
+			}
+		}
+	}
+
+	if _, err := t.handleBlock(part); err != nil {
+		return err
+	}
+
+	if target := block.TargetText(t.targetLocale); target != "" {
+		payload, err := json.Marshal(aiTargetCache{
+			Text:     target,
+			Provider: string(t.provider.Name()),
+		})
+		if err != nil {
+			return fmt.Errorf("ai-translate: encode sidecar: %w", err)
+		}
+		if err := sess.PutSidecar(blockstore.Sidecar{
+			Kind:      sidecarKind,
+			BlockHash: hash,
+			Payload:   payload,
+		}); err != nil && !errors.Is(err, blockstore.ErrReadOnly) {
+			return fmt.Errorf("ai-translate: write sidecar: %w", err)
+		}
+	}
+	_ = ctx // ctx reserved for future streaming hooks
+	return nil
+}
+
+// processBatchedWithSession funnels the batched path through the
+// same sidecar-aware gate. We pre-filter the input channel: blocks
+// whose target is cached get hydrated + forwarded immediately;
+// everything else goes through processBatched, then the results
+// get sidecar-written before they're forwarded.
+func (t *AITranslateTool) processBatchedWithSession(
+	ctx context.Context,
+	sess blockstore.Session,
+	in <-chan *model.Part,
+	out chan<- *model.Part,
+) error {
+	sidecarKind := "targets/" + string(t.targetLocale)
+	caps := sess.Capabilities()
+
+	// Filter: split cached vs. needs-translation.
+	toTranslate := make(chan *model.Part, t.batchSize*2)
+	translated := make(chan *model.Part, t.batchSize*2)
+
+	var filterErr error
+	go func() {
+		defer close(toTranslate)
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case part, ok := <-in:
+				if !ok {
+					return
+				}
+				block, ok := part.Resource.(*model.Block)
+				if !ok || block == nil || !block.Translatable || block.ID == "" {
+					toTranslate <- part
+					continue
+				}
+				if caps.RandomAccess {
+					if sc, err := sess.GetSidecar(sidecarKind, block.ID); err == nil && len(sc.Payload) > 0 {
+						var cached aiTargetCache
+						if err := json.Unmarshal(sc.Payload, &cached); err == nil && cached.Text != "" {
+							block.SetTargetText(t.targetLocale, cached.Text)
+							select {
+							case out <- part:
+							case <-ctx.Done():
+								return
+							}
+							continue
+						}
+					}
+				}
+				toTranslate <- part
+			}
+		}
+	}()
+
+	// Capture translated parts and write sidecars before forwarding.
+	go func() {
+		defer close(translated)
+		for part := range translated {
+			out <- part
+		}
+	}()
+
+	// processBatched writes to `translated`; we need the sidecar write
+	// wrapped around its output. Simpler: collect translated parts
+	// inline rather than adding a second goroutine chain.
+	batchOut := make(chan *model.Part, t.batchSize*2)
+	done := make(chan error, 1)
+	go func() {
+		done <- t.processBatched(ctx, toTranslate, batchOut)
+		close(batchOut)
+	}()
+
+	for part := range batchOut {
+		if block, ok := part.Resource.(*model.Block); ok && block != nil && block.ID != "" {
+			if target := block.TargetText(t.targetLocale); target != "" {
+				payload, err := json.Marshal(aiTargetCache{
+					Text:     target,
+					Provider: string(t.provider.Name()),
+				})
+				if err == nil {
+					if werr := sess.PutSidecar(blockstore.Sidecar{
+						Kind:      sidecarKind,
+						BlockHash: block.ID,
+						Payload:   payload,
+					}); werr != nil && !errors.Is(werr, blockstore.ErrReadOnly) {
+						return fmt.Errorf("ai-translate: write sidecar: %w", werr)
+					}
+				}
+			}
+		}
+		select {
+		case out <- part:
+		case <-ctx.Done():
+			return ctx.Err()
+		}
+	}
+	if err := <-done; err != nil {
+		return err
+	}
+	_ = filterErr
+	return nil
+}
+
+// aiTargetCache is the payload stored in `targets/<locale>` sidecars
+// written by ai-translate. Kept small and JSON-compatible with
+// other translators so sessions can interop freely.
+type aiTargetCache struct {
+	Text     string `json:"text"`
+	Provider string `json:"provider,omitempty"`
 }
 
 // ---------------------------------------------------------------------------
