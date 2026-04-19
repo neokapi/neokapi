@@ -21,6 +21,7 @@ const sidebars: SidebarsConfig = {
     "kapi-sync-protocol",
     "keycloak-theming",
     "mcp-tools-reference",
+    "session-tool-authoring",
     "media-asset-storage",
     "npm-workspaces",
     "plugin-bridge-protocol",
