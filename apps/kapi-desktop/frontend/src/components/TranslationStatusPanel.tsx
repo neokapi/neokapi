@@ -5,10 +5,8 @@ import { api } from "../hooks/useApi";
 
 export interface CollectionStatus {
   name: string;
-  archive: string;
-  archiveExists: boolean;
-  blockCount: number;
-  coverage: Record<string, number>;
+  blockCount?: number;
+  coverage?: Record<string, number>;
   targetLanguages: string[];
 }
 
@@ -25,9 +23,12 @@ export interface TranslationStatusPanelProps {
 }
 
 /**
- * Renders the translation-state panel for a .kapi project: one
- * section per ContentCollection, showing archive path and per-locale
- * coverage bars. Data mirrors `kapi status` output.
+ * Renders the translation-state panel for a kapi project: one
+ * section per ContentCollection, with target locales and (once the
+ * blockstore session wiring lands in kapi-desktop) per-locale
+ * coverage bars. Currently driven by the recipe's declared target
+ * languages only — coverage data becomes available after the
+ * blockstore integration step.
  */
 export function TranslationStatusPanel({ tabID, status: propStatus }: TranslationStatusPanelProps) {
   const [status, setStatus] = useState<ProjectStatus | null>(propStatus ?? null);
@@ -84,7 +85,7 @@ export function TranslationStatusPanel({ tabID, status: propStatus }: Translatio
     );
   }
 
-  const hasExtractable = status.collections.some((c) => c.archive);
+  const hasCollections = status.collections.length > 0;
 
   return (
     <div className="space-y-3" data-slot="translation-status-panel">
@@ -92,7 +93,7 @@ export function TranslationStatusPanel({ tabID, status: propStatus }: Translatio
         <div className="text-xs text-muted-foreground">
           {extractLog && !extracting && "Last extract output available below."}
         </div>
-        {hasExtractable && (
+        {hasCollections && (
           <Button
             variant="outline"
             size="xs"
@@ -117,7 +118,7 @@ export function TranslationStatusPanel({ tabID, status: propStatus }: Translatio
         </div>
       )}
       {status.collections.map((collection) => (
-        <CollectionCard key={`${collection.name}|${collection.archive}`} collection={collection} />
+        <CollectionCard key={collection.name} collection={collection} />
       ))}
       {extractLog && (
         <pre
@@ -132,44 +133,25 @@ export function TranslationStatusPanel({ tabID, status: propStatus }: Translatio
 }
 
 function CollectionCard({ collection }: { collection: CollectionStatus }) {
-  if (!collection.archive) {
-    return (
-      <Card>
-        <CardContent className="space-y-1 p-4">
-          <h3 className="text-sm font-medium">{collection.name}</h3>
-          <p className="text-xs text-muted-foreground">
-            No archive — this collection uses a file-based flow. Nothing to report.
-          </p>
-        </CardContent>
-      </Card>
-    );
-  }
-
   return (
     <Card>
       <CardContent className="space-y-3 p-4">
         <header className="flex items-baseline justify-between gap-2">
           <h3 className="text-sm font-medium">{collection.name}</h3>
-          <code className="text-xs text-muted-foreground">{collection.archive}</code>
+          {typeof collection.blockCount === "number" && (
+            <span className="text-xs text-muted-foreground">{collection.blockCount} blocks</span>
+          )}
         </header>
-        {!collection.archiveExists ? (
-          <p className="text-xs text-destructive">
-            Archive missing — run <code>kapi-react extract</code> to create it.
-          </p>
-        ) : (
-          <>
-            <p className="text-xs text-muted-foreground">{collection.blockCount} blocks</p>
-            <LocaleCoverage collection={collection} />
-          </>
-        )}
+        <LocaleCoverage collection={collection} />
       </CardContent>
     </Card>
   );
 }
 
 function LocaleCoverage({ collection }: { collection: CollectionStatus }) {
+  const coverage = collection.coverage ?? {};
   const locales = Array.from(
-    new Set([...collection.targetLanguages, ...Object.keys(collection.coverage)]),
+    new Set([...collection.targetLanguages, ...Object.keys(coverage)]),
   ).sort();
 
   if (locales.length === 0) {
@@ -179,8 +161,9 @@ function LocaleCoverage({ collection }: { collection: CollectionStatus }) {
   return (
     <ul className="space-y-1.5" data-slot="locale-coverage">
       {locales.map((loc) => {
-        const translated = collection.coverage[loc] ?? 0;
-        const pct = collection.blockCount > 0 ? (translated / collection.blockCount) * 100 : 0;
+        const translated = coverage[loc] ?? 0;
+        const total = collection.blockCount ?? 0;
+        const pct = total > 0 ? (translated / total) * 100 : 0;
         const state = translated === 0 ? "empty" : pct >= 100 ? "complete" : "partial";
         return (
           <li key={loc} className="flex items-center gap-2 text-xs" data-locale={loc}>
@@ -199,11 +182,13 @@ function LocaleCoverage({ collection }: { collection: CollectionStatus }) {
               />
             </div>
             <span className="w-24 shrink-0 text-right tabular-nums text-muted-foreground">
-              {translated === 0
-                ? "not translated"
-                : translated === collection.blockCount
-                  ? `${translated}/${collection.blockCount} · complete`
-                  : `${translated}/${collection.blockCount}`}
+              {total === 0
+                ? "pending"
+                : translated === 0
+                  ? "not translated"
+                  : translated === total
+                    ? `${translated}/${total} · complete`
+                    : `${translated}/${total}`}
             </span>
           </li>
         );

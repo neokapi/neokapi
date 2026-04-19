@@ -2,7 +2,7 @@
   "name": "@neokapi/kapi-format",
   "version": "0.1.0",
   "private": true,
-  "description": "Canonical TypeScript schema for KLF/KLZ (AD-045). Block/Run content model, reference Level-1 preview renderer, target validator, annotation sidecar resolver. Mirrors core/klf in Go byte-for-byte against shared golden fixtures.",
+  "description": "Canonical TypeScript schema for the Kapi Localization Format (KLF). Block/Run content model, reference Level-1 preview renderer, target validator, annotation sidecar resolver. Mirrors core/klf in Go byte-for-byte against shared golden fixtures.",
   "type": "module",
   "main": "src/index.ts",
   "types": "src/index.ts",
@@ -13,7 +13,6 @@
     "./preview": "./src/preview.ts",
     "./annotation": "./src/annotation.ts",
     "./klf": "./src/klf.ts",
-    "./klz": "./src/klz.ts",
     "./target-plural": "./src/target-plural.ts",
     "./package.json": "./package.json"
   },
@@ -24,9 +23,6 @@
   },
   "engines": {
     "node": ">=22"
-  },
-  "dependencies": {
-    "fflate": "^0.8.2"
   },
   "devDependencies": {
     "vitest": "^3.2.4"

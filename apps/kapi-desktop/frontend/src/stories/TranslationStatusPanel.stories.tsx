@@ -23,35 +23,19 @@ const mixedStatus: ProjectStatus = {
   collections: [
     {
       name: "ui",
-      archive: "i18n/ui.klz",
-      archiveExists: true,
       blockCount: 1007,
       coverage: { fr: 987, ja: 1007 },
       targetLanguages: ["fr", "de", "ja"],
     },
     {
       name: "marketing",
-      archive: "i18n/marketing.klz",
-      archiveExists: true,
       blockCount: 42,
       coverage: {},
       targetLanguages: ["fr", "de"],
     },
     {
       name: "docs",
-      archive: "i18n/docs.klz",
-      archiveExists: false,
-      blockCount: 0,
-      coverage: {},
       targetLanguages: ["fr", "de"],
-    },
-    {
-      name: "legacy",
-      archive: "",
-      archiveExists: false,
-      blockCount: 0,
-      coverage: {},
-      targetLanguages: [],
     },
   ],
 };
@@ -69,8 +53,6 @@ export const AllComplete: Story = {
       collections: [
         {
           name: "ui",
-          archive: "i18n/ui.klz",
-          archiveExists: true,
           blockCount: 250,
           coverage: { fr: 250, de: 250, ja: 250 },
           targetLanguages: ["fr", "de", "ja"],

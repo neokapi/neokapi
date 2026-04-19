@@ -3,8 +3,7 @@
  *
  *   JSX source
  *     → kapi-react extract (walker emits PluralRun)
- *     → writes .klz archive
- *     → read back through kapi-format's KlzReader
+ *     → writes a .klf file
  *     → kapi-react compile (flattens target runs into runtime dict)
  *
  * We assert that the ICU template in the compiled dict matches what
@@ -16,12 +15,11 @@
 import { describe, expect, it } from 'vitest';
 
 import type { PluralRunWrapper } from '@neokapi/kapi-format';
-import { newFile } from '@neokapi/kapi-format';
-import { KlzWriter } from '@neokapi/kapi-format/klz';
+import { newFile, marshalFile } from '@neokapi/kapi-format';
 
 import { runCompile } from '../src/commands/compile.ts';
 import { extractDocument } from '../src/extract/index.ts';
-import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -46,7 +44,7 @@ function tempDir(prefix: string): string {
 }
 
 describe('plural round-trip', () => {
-  it('extracts ShoppingCart into a .klz with a PluralRun, compiles it to an ICU runtime dict', async () => {
+  it('extracts ShoppingCart into a .klf with a PluralRun, compiles it to an ICU runtime dict', async () => {
     // 1. Extract
     const doc = extractDocument(SHOPPING_CART, { filename: 'ShoppingCart.tsx' });
     expect(doc).toBeTruthy();
@@ -78,26 +76,25 @@ describe('plural round-trip', () => {
     };
     block.targets = { qps: [targetPlural] };
 
-    // 3. Write to .klz
+    // 3. Write to a .klf file.
     const dir = tempDir('plural-roundtrip');
-    const archivePath = join(dir, 'shopping-cart.klz');
-    const writer = new KlzWriter({
-      generator: { id: '@neokapi/kapi-react', version: '0.1.0' },
-      project: { id: 'test', sourceLocale: 'en', targetLocales: ['qps'] },
-    });
-    writer.addDocument(
-      'documents/ShoppingCart.klf',
-      newFile({
-        generator: { id: '@neokapi/kapi-react', version: '0.1.0' },
-        project: { id: 'test', sourceLocale: 'en' },
-        documents: [doc!],
-      }),
+    const klfDir = join(dir, 'i18n');
+    mkdirSync(klfDir, { recursive: true });
+    const klfPath = join(klfDir, 'ShoppingCart.klf');
+    writeFileSync(
+      klfPath,
+      marshalFile(
+        newFile({
+          generator: { id: '@neokapi/kapi-react', version: '0.1.0' },
+          project: { id: 'test', sourceLocale: 'en' },
+          documents: [doc!],
+        }),
+      ),
     );
-    writeFileSync(archivePath, writer.build());
 
-    // 4. Compile the .klz → runtime dict
+    // 4. Compile the .klf dir → runtime dict.
     const outDir = join(dir, 'translations');
-    await runCompile([archivePath, '--locale', 'qps', '--out', outDir]);
+    await runCompile([klfDir, '--locale', 'qps', '--out', outDir]);
 
     const qps = JSON.parse(readFileSync(join(outDir, 'qps.json'), 'utf-8'));
 

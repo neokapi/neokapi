@@ -1,8 +1,8 @@
 # @neokapi/kapi-format — canonical Block/Run schema
 
-TypeScript port of the KLF/KLZ content model. Paired with `core/klf`
-in Go so both languages round-trip the same bytes through the same
-shared golden fixtures (`examples/`).
+TypeScript port of the **Kapi Localization Format (KLF)** content
+model. Paired with `core/klf` in Go so both languages round-trip the
+same bytes through the same shared golden fixtures (`examples/`).
 
 This package is the home of:
 
@@ -14,10 +14,6 @@ This package is the home of:
   ([`src/preview.ts`](src/preview.ts))
 - The annotation sidecar resolver + orphan validator
   ([`src/annotation.ts`](src/annotation.ts))
-
-The normative spec lives at
-[AD-045](../../docs/ad/045-klf-klz-spec.md). AD-044 describes how
-neokapi integrates the format.
 
 ## Running the examples
 

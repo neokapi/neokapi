@@ -150,45 +150,34 @@ i18n/
     Sidebar.klf
 ```
 
-Pack them into a `.klz` archive when handoff is needed:
-
-```bash
-kapi pack --in i18n/ --out i18n/myproject.klz
-```
-
-Or skip the intermediate files and pipe straight into a `.klz`:
-
-```bash
-vp kapi-react extract --stream | kapi pack --out i18n/myproject.klz
-```
-
-`.klz` is a JSON-inside-ZIP archive — you can
-`unzip -p myproject.klz documents/src-App.tsx.klf | jq .` to
-inspect any block.
+Each `.klf` is plain JSON — `jq . i18n/src/App.klf` to inspect any
+block.
 
 ### 3. Translate (or pseudo-translate for testing)
 
+Kapi reads the KLF directory directly; every command appends or
+updates a target locale on each block in place:
+
 ```bash
-# Pseudo-translate for visual QA (writes back to the same file).
-kapi pseudo-translate i18n/myproject.klz --target-lang qps
+# Pseudo-translate for visual QA.
+kapi pseudo-translate i18n/ --target-lang qps
 
 # Real translations — each call accumulates a target locale:
-kapi ai-translate i18n/myproject.klz --target-lang fr
-kapi ai-translate i18n/myproject.klz --target-lang de
+kapi ai-translate i18n/ --target-lang fr
+kapi ai-translate i18n/ --target-lang de
 
-# Or hand off to your TMS / translators → get back the updated .klz
+# Or hand off to your TMS / translators → they update block.targets
+# in each .klf. Commit the directory and you're done.
 ```
 
-`kapi` tool commands default to in-place for KLZ inputs: the writer
-preserves every existing target and appends (or updates) the one
-you're translating. Pass `-o other.klz` when you want an explicit
-redirect. The single `myproject.klz` carries source + every target
-through the whole round-trip.
+The KLF tree in `i18n/` carries source + every target through the
+whole round-trip. It's git-diffable, review-friendly, and the shape
+translators can open in any editor.
 
 ### 4. Compile to the runtime dictionary
 
 ```bash
-vpx kapi-react compile i18n/myproject.klz --out public/translations
+vpx kapi-react compile i18n/ --out public/translations
 ```
 
 Produces one `<locale>.json` file per target locale with the
@@ -742,7 +731,7 @@ Options:
   --source-locale <bcp>   Source locale (default: "en")
   --target-locale <bcp>   Declared target locale (repeat for multiple)
 
-vpx kapi-react compile <input.klz> [options]
+vpx kapi-react compile <input> [options]
 
 Options:
   --locale <bcp>          Compile only this locale (repeat for multiple).
@@ -752,35 +741,31 @@ Options:
 ```
 
 The boundary is: `kapi-react` emits extracted blocks (as KLF files
-or an NDJSON stream) and compiles translated archives back to the
-runtime dictionary. `.klz` packing happens in `kapi`. Everything in
-between — pseudo-translate, AI translate, TM matching, QA, review —
-goes through the `kapi` CLI (AD-045).
+or an NDJSON stream) and compiles translated KLFs back to the
+runtime dictionary. Everything in between — pseudo-translate, AI
+translate, TM matching, QA, review — goes through the `kapi` CLI.
 
 ### Two output modes for extract
 
 - **Default: per-file KLF under `--out`.**
   `vp kapi-react extract` writes one `.klf` per source file into
-  `./i18n/` (override with `--out <dir>`). Human-readable, git-
-  diffable, inspectable with `cat` or `jq`. Feed into `kapi pack`
-  when you want a `.klz`, or ship directly to a translator who
-  accepts KLF.
+  `./i18n/` (override with `--out <dir>`). Human-readable,
+  git-diffable, inspectable with `cat` or `jq`. Every kapi CLI
+  command reads this layout directly.
 
 - **`--stream`: NDJSON block records on stdout.**
   `vp kapi-react extract --stream` reads NUL-separated paths from
   stdin and writes one JSON block record per line to stdout. The
   wire form a `.kapi` project uses when it declares
-  `format: { name: exec, config: { command: "vp kapi-react extract --stream" } }`,
-  and the shape to pipe into `kapi pack` for a zero-intermediate-file
-  pipeline.
+  `format: { name: exec, config: { command: "vp kapi-react extract --stream" } }`.
 
 Both modes share the SWC walker — same hashes, same block content.
 `--stream` is just the inlined-pipe form of the default.
 
 ### Compile accepts three inputs
 
-- `vp kapi-react compile ui.klz` — a `.klz` archive.
-- `vp kapi-react compile i18n/klf/` — a directory of `.klf` files.
+- `vp kapi-react compile i18n/` — a directory of `.klf` files.
+- `vp kapi-react compile i18n/src/App.klf` — a single `.klf` file.
 - `vp kapi-react compile -` — NDJSON block records on stdin.
 
 Pick whichever is convenient at the hand-off point.
@@ -791,14 +776,14 @@ Test your UI with pseudo-translated text to catch truncation, layout
 issues, and hardcoded strings:
 
 ```bash
-# 1. Extract → pack into a .klz in one pipe
-vp kapi-react extract --stream --target-locale qps | kapi pack --out i18n/myproject.klz
+# 1. Extract to i18n/ as per-file .klf
+vp kapi-react extract --target-locale qps
 
-# 2. Pseudo-translate with kapi (writes back to the same file)
-kapi pseudo-translate i18n/myproject.klz --target-lang qps
+# 2. Pseudo-translate in place — every .klf gains a qps target
+kapi pseudo-translate i18n/ --target-lang qps
 
-# 3. Compile the translated .klz to public/translations/qps.json
-vp kapi-react compile i18n/myproject.klz
+# 3. Compile to public/translations/qps.json
+vp kapi-react compile i18n/
 
 # 4. Build or dev with the pseudo-locale
 LOCALE=qps npm run dev   # (or set the locale via your UI language picker)

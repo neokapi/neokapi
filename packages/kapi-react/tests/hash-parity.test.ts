@@ -1,7 +1,7 @@
 /**
  * Hash parity regression test.
  *
- * `Block.hash` in the .klz extract output must equal the `hash`
+ * `Block.hash` in the .klf extract output must equal the `hash`
  * argument the plugin transform stamps into every `__t()` / `__tx()`
  * call at build time. If they drift, the kapi-react runtime dict
  * loaded via `loadTranslations()` stops resolving. The test walks a

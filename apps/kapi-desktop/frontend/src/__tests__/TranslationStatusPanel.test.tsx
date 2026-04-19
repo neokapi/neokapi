@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, within, fireEvent, waitFor } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 
 import { TranslationStatusPanel, type ProjectStatus } from "../components/TranslationStatusPanel";
 import { api } from "../hooks/useApi";
@@ -11,10 +11,6 @@ function statusFixture(overrides: Partial<ProjectStatus> = {}): ProjectStatus {
     collections: [
       {
         name: "ui",
-        archive: "i18n/ui.klz",
-        archiveExists: true,
-        blockCount: 100,
-        coverage: { fr: 50, ja: 100 },
         targetLanguages: ["fr", "de", "ja"],
       },
     ],
@@ -23,32 +19,20 @@ function statusFixture(overrides: Partial<ProjectStatus> = {}): ProjectStatus {
 }
 
 describe("TranslationStatusPanel", () => {
-  it("renders a coverage row per declared locale", () => {
+  it("renders one row per declared target locale", () => {
     render(<TranslationStatusPanel tabID="t1" status={statusFixture()} />);
-    // The panel contains <li data-locale>...</li> items — find them by attribute.
     const list = document.querySelector("[data-slot='locale-coverage']") as HTMLElement;
     expect(list).not.toBeNull();
     expect(list.querySelectorAll("[data-locale]")).toHaveLength(3);
   });
 
-  it("labels partially-translated locales with the count", () => {
+  it("shows 'pending' when no blockstore coverage data is available yet", () => {
     render(<TranslationStatusPanel tabID="t1" status={statusFixture()} />);
-    expect(screen.getByText("50/100")).toBeInTheDocument();
+    const pending = screen.getAllByText("pending");
+    expect(pending.length).toBeGreaterThanOrEqual(3);
   });
 
-  it("marks fully-translated locales complete", () => {
-    render(<TranslationStatusPanel tabID="t1" status={statusFixture()} />);
-    expect(screen.getByText("100/100 · complete")).toBeInTheDocument();
-  });
-
-  it("shows 'not translated' for locales with zero coverage", () => {
-    render(<TranslationStatusPanel tabID="t1" status={statusFixture()} />);
-    const de = document.querySelector("[data-locale='de']") as HTMLElement;
-    expect(de).not.toBeNull();
-    expect(within(de).getByText("not translated")).toBeInTheDocument();
-  });
-
-  it("flags missing archives", () => {
+  it("shows per-locale coverage when blockCount is available", () => {
     render(
       <TranslationStatusPanel
         tabID="t1"
@@ -56,38 +40,22 @@ describe("TranslationStatusPanel", () => {
           collections: [
             {
               name: "ui",
-              archive: "i18n/ui.klz",
-              archiveExists: false,
-              blockCount: 0,
-              coverage: {},
-              targetLanguages: ["fr"],
+              blockCount: 100,
+              coverage: { fr: 50, ja: 100 },
+              targetLanguages: ["fr", "de", "ja"],
             },
           ],
         })}
       />,
     );
-    expect(screen.getByText(/archive missing/i)).toBeInTheDocument();
+    expect(screen.getByText("50/100")).toBeInTheDocument();
+    expect(screen.getByText("100/100 · complete")).toBeInTheDocument();
+    expect(screen.getByText("not translated")).toBeInTheDocument();
   });
 
-  it("treats collections without archive as file-based", () => {
-    render(
-      <TranslationStatusPanel
-        tabID="t1"
-        status={statusFixture({
-          collections: [
-            {
-              name: "legacy",
-              archive: "",
-              archiveExists: false,
-              blockCount: 0,
-              coverage: {},
-              targetLanguages: [],
-            },
-          ],
-        })}
-      />,
-    );
-    expect(screen.getByText(/file-based flow/i)).toBeInTheDocument();
+  it("reports an empty project when the recipe declares no collections", () => {
+    render(<TranslationStatusPanel tabID="t1" status={statusFixture({ collections: [] })} />);
+    expect(screen.getByText(/No content collections defined/)).toBeInTheDocument();
   });
 
   describe("Re-extract action", () => {
@@ -95,30 +63,14 @@ describe("TranslationStatusPanel", () => {
       vi.restoreAllMocks();
     });
 
-    it("renders the Re-extract button only when at least one collection declares an archive", () => {
-      render(
-        <TranslationStatusPanel
-          tabID="t1"
-          status={statusFixture({
-            collections: [
-              {
-                name: "legacy",
-                archive: "",
-                archiveExists: false,
-                blockCount: 0,
-                coverage: {},
-                targetLanguages: [],
-              },
-            ],
-          })}
-        />,
-      );
+    it("hides the Re-extract button when the project has no collections", () => {
+      render(<TranslationStatusPanel tabID="t1" status={statusFixture({ collections: [] })} />);
       expect(document.querySelector("[data-slot='translation-status-reextract']")).toBeNull();
     });
 
     it("invokes api.runExtract and surfaces the log", async () => {
       const runExtract = vi.spyOn(api, "runExtract").mockResolvedValue({
-        log: "  ui → @neokapi/kapi-react (3 file(s))\n  i18n/ui.klz ← 12 blocks across 3 documents\n",
+        log: "  ui → @neokapi/kapi-react (3 file(s))\n",
       });
 
       render(<TranslationStatusPanel tabID="t1" status={statusFixture()} />);
@@ -131,7 +83,7 @@ describe("TranslationStatusPanel", () => {
       await waitFor(() => expect(runExtract).toHaveBeenCalledWith("t1"));
       await waitFor(() => {
         const log = document.querySelector("[data-slot='translation-status-log']");
-        expect(log?.textContent).toContain("12 blocks across 3 documents");
+        expect(log?.textContent).toContain("3 file(s)");
       });
     });
 

@@ -1,6 +1,6 @@
 /**
  * File-level walker: parses one source file with SWC, walks its JSX
- * tree, and emits a `Document` ready to be dropped into a `.klz`.
+ * tree, and emits a `Document` ready to be serialised as a `.klf`.
  *
  * One Block per translatable JSX element plus one Block per
  * translatable attribute. Hashes match the plugin transform's output
