@@ -2,10 +2,13 @@
 package tools
 
 import (
+	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
 
+	"github.com/neokapi/neokapi/core/blockstore"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/schema"
 	"github.com/neokapi/neokapi/core/tool"
@@ -124,48 +127,178 @@ func NewPseudoTranslateFromConfig(config map[string]any, targetLang string) (too
 // NewPseudoTranslateTool creates a new pseudo-translation tool.
 // It replaces ASCII characters with accented equivalents, wraps text
 // with brackets, and adds padding for string length testing.
-func NewPseudoTranslateTool(cfg *PseudoConfig) *tool.BaseTool {
+// PseudoTranslateTool implements both tool.Tool (via embedded
+// tool.BaseTool) and tool.SessionTool. When the executor opens a
+// session, SessionProcess routes through it: for each block we
+// check a `targets/<locale>` sidecar first (skip if present), emit
+// the pseudo-translated block, and write a sidecar so downstream
+// sessions can see the target without re-running the tool. When
+// there's no session (pure streaming callers), BaseTool.Process
+// handles the work unchanged.
+type PseudoTranslateTool struct {
+	*tool.BaseTool
+	cfg *PseudoConfig
+}
+
+// Compile-time assertion: this type satisfies SessionTool.
+var _ tool.SessionTool = (*PseudoTranslateTool)(nil)
+
+// NewPseudoTranslateTool creates a new pseudo-translation tool.
+// It replaces ASCII characters with accented equivalents, wraps text
+// with brackets, and adds padding for string length testing.
+func NewPseudoTranslateTool(cfg *PseudoConfig) *PseudoTranslateTool {
 	if cfg.Prefix == "" && cfg.Suffix == "" {
 		cfg.Prefix = "["
 		cfg.Suffix = "]"
 	}
 
-	t := &tool.BaseTool{
+	base := &tool.BaseTool{
 		ToolName:        "pseudo-translate",
 		ToolDescription: "Generates pseudo-translations for testing localization readiness",
 		Cfg:             cfg,
 	}
-	t.HandleBlockFn = func(part *model.Part) (*model.Part, error) {
-		block, ok := part.Resource.(*model.Block)
-		if !ok {
-			return part, nil
-		}
-		if !block.Translatable {
-			return part, nil
-		}
+	base.HandleBlockFn = func(part *model.Part) (*model.Part, error) {
+		return applyPseudo(part, cfg)
+	}
+	return &PseudoTranslateTool{BaseTool: base, cfg: cfg}
+}
 
-		conf := t.Cfg.(*PseudoConfig)
-		runs := block.SourceRuns()
-		if len(runs) == 0 {
-			return part, nil
-		}
-		if runsHaveInline(runs) {
-			// Pseudo-translate text runs in place, leaving paired
-			// codes and placeholders untouched per RFC 0001 §Phase 2
-			// (Runs are first-class and inline markup is protected).
-			targetRuns := pseudoTranslateRuns(runs, conf)
-			block.SetTargetRuns(conf.TargetLocale, targetRuns)
-		} else {
-			sourceText := block.SourceText()
-			if sourceText == "" {
-				return part, nil
-			}
-			pseudoText := pseudoTranslate(sourceText, conf)
-			block.SetTargetText(conf.TargetLocale, pseudoText)
-		}
+// applyPseudo runs the deterministic pseudo-translation on a block
+// part. Factored out so SessionProcess can call it after checking
+// the sidecar cache.
+func applyPseudo(part *model.Part, conf *PseudoConfig) (*model.Part, error) {
+	block, ok := part.Resource.(*model.Block)
+	if !ok {
 		return part, nil
 	}
-	return t
+	if !block.Translatable {
+		return part, nil
+	}
+	runs := block.SourceRuns()
+	if len(runs) == 0 {
+		return part, nil
+	}
+	if runsHaveInline(runs) {
+		// Pseudo-translate text runs in place, leaving paired
+		// codes and placeholders untouched (inline markup is
+		// protected).
+		targetRuns := pseudoTranslateRuns(runs, conf)
+		block.SetTargetRuns(conf.TargetLocale, targetRuns)
+	} else {
+		sourceText := block.SourceText()
+		if sourceText == "" {
+			return part, nil
+		}
+		pseudoText := pseudoTranslate(sourceText, conf)
+		block.SetTargetText(conf.TargetLocale, pseudoText)
+	}
+	return part, nil
+}
+
+// SessionProcess reads prior targets/<locale> sidecars to skip
+// already-translated blocks, runs the pseudo translator, and writes
+// the target back as a sidecar so subsequent sessions can consult
+// it.
+func (t *PseudoTranslateTool) SessionProcess(
+	ctx context.Context,
+	sess blockstore.Session,
+	in <-chan *model.Part,
+	out chan<- *model.Part,
+) error {
+	sidecarKind := pseudoSidecarKind(t.cfg.TargetLocale)
+	caps := sess.Capabilities()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case part, ok := <-in:
+			if !ok {
+				return nil
+			}
+			if err := t.processOne(sess, caps.RandomAccess, sidecarKind, part); err != nil {
+				return err
+			}
+			select {
+			case out <- part:
+			case <-ctx.Done():
+				return ctx.Err()
+			}
+		}
+	}
+}
+
+func (t *PseudoTranslateTool) processOne(
+	sess blockstore.Session,
+	randomAccess bool,
+	sidecarKind string,
+	part *model.Part,
+) error {
+	block, ok := part.Resource.(*model.Block)
+	if !ok || block == nil || !block.Translatable {
+		// Pass through unchanged.
+		_, err := applyPseudo(part, t.cfg)
+		return err
+	}
+	hash := block.ID
+	if hash == "" {
+		_, err := applyPseudo(part, t.cfg)
+		return err
+	}
+
+	// Consult existing sidecar when the provider supports random
+	// access. If one exists, hydrate the block from it and skip the
+	// translator.
+	if randomAccess {
+		if sc, err := sess.GetSidecar(sidecarKind, hash); err == nil && len(sc.Payload) > 0 {
+			var cached pseudoCache
+			if err := json.Unmarshal(sc.Payload, &cached); err == nil && cached.Target != "" {
+				block.SetTargetText(t.cfg.TargetLocale, cached.Target)
+				return nil
+			}
+		}
+	}
+
+	if _, err := applyPseudo(part, t.cfg); err != nil {
+		return err
+	}
+
+	// Write the freshly-computed target back as a sidecar so future
+	// runs can skip the work. Pure text cache — runs-level targets
+	// round-trip through the block model itself.
+	if target := block.TargetText(t.cfg.TargetLocale); target != "" {
+		payload, err := json.Marshal(pseudoCache{Target: target})
+		if err != nil {
+			return fmt.Errorf("pseudo-translate: encode sidecar: %w", err)
+		}
+		if err := sess.PutSidecar(blockstore.Sidecar{
+			Kind:      sidecarKind,
+			BlockHash: hash,
+			Payload:   payload,
+		}); err != nil {
+			// Ignore read-only stores (e.g. FormatReaderStore) — the
+			// in-flight block already carries the target; the sidecar
+			// write is best-effort caching for next time.
+			if !errors.Is(err, blockstore.ErrReadOnly) {
+				return fmt.Errorf("pseudo-translate: write sidecar: %w", err)
+			}
+		}
+	}
+	return nil
+}
+
+// pseudoSidecarKind returns the "targets/<locale>" kind used for the
+// sidecar written by pseudo-translate. Shared with AI translate /
+// MT translate so any locale target is discoverable under one key.
+func pseudoSidecarKind(locale model.LocaleID) string {
+	return "targets/" + string(locale)
+}
+
+// pseudoCache is the JSON payload stored in a pseudo-translate
+// sidecar. Small and focused; richer fields (runs, provenance) are
+// a follow-up.
+type pseudoCache struct {
+	Target string `json:"target"`
 }
 
 // runsHaveInline reports whether the run sequence contains any
