@@ -1,40 +1,31 @@
 // Package jsx implements the DataFormatReader / DataFormatWriter
-// pair for the Kapi Localization Format (.klf single-document JSON)
-// and the Kapi Localization arcHive (.klz ZIP bundle) defined in
-// RFC 0001.
+// pair for the Kapi Localization Format (.klf single-document JSON).
 //
-// The reader routes an input document to either core/klf (for .klf)
-// or core/klz (for .klz) and emits one model.Block per canonical
-// RFC 0001 Block. The flattened source text lives on the
-// model.Block; the full structured Run[] graph travels along in a
-// KLFAnnotation so writers and tools can reconstruct the archive
-// without going back to disk. Phase 2 of RFC 0001 replaces this
-// annotation-carried Runs trick with first-class Run fields on
-// model.Block; until then the annotation is the bridge.
+// The reader routes an input document through core/klf and emits
+// one model.Block per canonical Block. The flattened source text
+// lives on the model.Block; the full structured Run[] graph travels
+// along in a KLFAnnotation so writers and tools can reconstruct the
+// source without going back to disk.
 //
 // The writer reverses the process: it reads KLFAnnotation off each
-// incoming block, reassembles the klf.File / klz archive, and
-// writes to the configured output path. If a block arrives without
-// a KLFAnnotation (e.g. inserted by an intermediate tool) the
-// writer synthesizes a minimal text-only Run sequence from the
-// block's plain text so the archive stays well-formed.
+// incoming block, reassembles the klf.File, and writes to the
+// configured output path. If a block arrives without a KLFAnnotation
+// (e.g. inserted by an intermediate tool) the writer synthesizes a
+// minimal text-only Run sequence from the block's plain text so the
+// file stays well-formed.
 package jsx
 
 import (
-	"archive/zip"
-	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"os"
-	"path/filepath"
 	"strings"
 
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/klf"
-	"github.com/neokapi/neokapi/core/klz"
 	"github.com/neokapi/neokapi/core/model"
 )
 
@@ -46,14 +37,12 @@ const AnnotationType = "neokapi-klf-block"
 // FormatName is the registry ID this format registers under.
 const FormatName = "jsx"
 
-// Extensions this reader responds to. Includes both .klf and .klz
-// because a single reader covers both framings per RFC 0001.
-var Extensions = []string{".klf", ".klz"}
+// Extensions this reader responds to.
+var Extensions = []string{".klf"}
 
 // MimeTypes advertised for this format.
 var MimeTypes = []string{
 	"application/vnd.neokapi.klf+json",
-	"application/vnd.neokapi.klz+zip",
 }
 
 // KLFAnnotation travels alongside a model.Block and carries the
@@ -147,47 +136,54 @@ func flatten(out *strings.Builder, runs []klf.Run) {
 
 // ───────── Reader ─────────
 
-// Reader implements format.DataFormatReader for .klf and .klz.
+// Reader implements format.DataFormatReader for .klf.
 type Reader struct {
 	format.BaseFormatReader
 }
 
-// NewReader creates a new jsx (KLF/KLZ) reader.
+// NewReader creates a new jsx (KLF) reader.
 func NewReader() *Reader {
 	return &Reader{
 		BaseFormatReader: format.BaseFormatReader{
 			FormatName:        FormatName,
-			FormatDisplayName: "Kapi Localization Format (KLF/KLZ)",
+			FormatDisplayName: "Kapi Localization Format (KLF)",
 			FormatMimeType:    MimeTypes[0],
 			FormatExtensions:  Extensions,
 		},
 	}
 }
 
-// Signature returns detection metadata — both .klf (JSON) and .klz
-// (ZIP with application/vnd.neokapi.klz+zip MIME) map to this
-// reader per RFC 0001 §Concrete package additions.
+// Signature returns detection metadata — .klf files are JSON
+// bearing the canonical `kapi-localization-format` kind marker.
 func (r *Reader) Signature() format.FormatSignature {
 	return format.FormatSignature{
 		MIMETypes:  MimeTypes,
 		Extensions: Extensions,
-		MagicBytes: [][]byte{{0x50, 0x4B, 0x03, 0x04}},
 		Sniff: func(data []byte) bool {
-			// A .klf is JSON — look for the kind marker near the
-			// top. This keeps the sniff cheap and precise.
-			if bytes.Contains(data, []byte(`"kapi-localization-format"`)) {
-				return true
-			}
-			// A .klz is a ZIP; the signature's MagicBytes catch
-			// the PK\x03\x04 prefix, but we only want to claim
-			// ZIPs that contain a manifest.json entry.
-			if len(data) >= 4 && bytes.Equal(data[:4], []byte{0x50, 0x4B, 0x03, 0x04}) {
-				return bytes.Contains(data, []byte("manifest.json")) &&
-					bytes.Contains(data, []byte("kapiLocalizationFormat"))
-			}
-			return false
+			return containsMarker(data, `"kapi-localization-format"`)
 		},
 	}
+}
+
+// containsMarker is a cheap substring check kept inline to avoid a
+// bytes dependency just for format detection.
+func containsMarker(data []byte, marker string) bool {
+	if len(data) < len(marker) {
+		return false
+	}
+	for i := 0; i+len(marker) <= len(data); i++ {
+		match := true
+		for j := 0; j < len(marker); j++ {
+			if data[i+j] != marker[j] {
+				match = false
+				break
+			}
+		}
+		if match {
+			return true
+		}
+	}
+	return false
 }
 
 // Open opens a RawDocument for reading.
@@ -240,11 +236,7 @@ func (r *Reader) stream(ctx context.Context, ch chan<- model.PartResult) {
 		return
 	}
 
-	if isKLZArchive(body) {
-		r.streamKLZ(ctx, ch, body)
-	} else {
-		r.streamKLF(ctx, ch, body)
-	}
+	r.streamKLF(ctx, ch, body)
 
 	r.emit(ctx, ch, &model.Part{Type: model.PartLayerEnd, Resource: layer})
 }
@@ -272,35 +264,6 @@ func (r *Reader) streamKLF(ctx context.Context, ch chan<- model.PartResult, data
 			}
 		}
 	}
-}
-
-func (r *Reader) streamKLZ(ctx context.Context, ch chan<- model.PartResult, data []byte) {
-	archive, err := klz.NewReader(bytes.NewReader(data), int64(len(data)))
-	if err != nil {
-		ch <- model.PartResult{Error: fmt.Errorf("jsx: open klz: %w", err)}
-		return
-	}
-	defer archive.Close()
-
-	docs, err := archive.Documents()
-	if err != nil {
-		ch <- model.PartResult{Error: fmt.Errorf("jsx: read klz documents: %w", err)}
-		return
-	}
-	for _, file := range docs {
-		for _, doc := range file.Documents {
-			for i := range doc.Blocks {
-				mblock := toModelBlock(&doc, &doc.Blocks[i])
-				if !r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: mblock}) {
-					return
-				}
-			}
-		}
-	}
-}
-
-func isKLZArchive(data []byte) bool {
-	return len(data) >= 4 && bytes.Equal(data[:4], []byte{0x50, 0x4B, 0x03, 0x04})
 }
 
 // toModelBlock lifts a klf.Block into a model.Block with Runs as
@@ -364,7 +327,7 @@ func cloneTargets(in map[klf.LocaleID][]klf.Run) map[klf.LocaleID][]klf.Run {
 
 // ───────── Writer ─────────
 
-// Writer implements format.DataFormatWriter for .klf and .klz.
+// Writer implements format.DataFormatWriter for .klf.
 // Mode (klf vs. klz) is chosen by output file extension.
 type Writer struct {
 	outPath string
@@ -404,10 +367,7 @@ func (w *Writer) SetOutput(path string) error {
 	return nil
 }
 
-// SetOutputWriter configures an io.Writer as output. When used with
-// an io.Writer rather than a path, the writer always emits a .klf
-// (standalone JSON) payload because a .klz requires a random-access
-// sink.
+// SetOutputWriter configures an io.Writer as output.
 func (w *Writer) SetOutputWriter(out io.Writer) error {
 	w.out = out
 	return nil
@@ -416,7 +376,7 @@ func (w *Writer) SetOutputWriter(out io.Writer) error {
 // SetLocale sets the target locale.
 func (w *Writer) SetLocale(locale model.LocaleID) { w.locale = locale }
 
-// SetEncoding is a no-op — .klf and .klz are always UTF-8.
+// SetEncoding is a no-op — .klf is always UTF-8.
 func (w *Writer) SetEncoding(_ string) {}
 
 // Write consumes blocks from the channel and accumulates them.
@@ -526,8 +486,8 @@ func runsFromModel(runs []model.Run) []klf.Run {
 }
 
 // Close flushes the accumulated blocks to the configured output.
-// Chooses .klf (JSON) or .klz (ZIP) based on the outPath extension;
-// when writing to a raw io.Writer, always emits .klf.
+// Emits .klf (JSON) either to the configured io.Writer or the
+// configured output path.
 func (w *Writer) Close() error {
 	file := w.buildKLF()
 	if w.outFile != nil {
@@ -542,12 +502,7 @@ func (w *Writer) Close() error {
 	if w.outPath == "" {
 		return nil
 	}
-	switch strings.ToLower(filepath.Ext(w.outPath)) {
-	case ".klz":
-		return w.writeKLZ(file)
-	default:
-		return w.writeKLF(file)
-	}
+	return w.writeKLF(file)
 }
 
 func (w *Writer) buildKLF() *klf.File {
@@ -575,63 +530,6 @@ func (w *Writer) writeKLF(file *klf.File) error {
 		return err
 	}
 	return os.WriteFile(w.outPath, data, 0o644)
-}
-
-func (w *Writer) writeKLZ(file *klf.File) error {
-	f, err := os.Create(w.outPath)
-	if err != nil {
-		return fmt.Errorf("jsx: create klz %q: %w", w.outPath, err)
-	}
-	defer f.Close()
-
-	aw := klz.NewWriter(klz.WriterOptions{
-		Generator: klz.ManifestGenerator{ID: file.Generator.ID, Version: file.Generator.Version},
-		Project:   klz.ManifestProject{ID: file.Project.ID, SourceLocale: file.Project.SourceLocale},
-	})
-	// Emit one document part per enclosing .klf Document so the
-	// archive layout mirrors what extractors typically produce.
-	for i, doc := range file.Documents {
-		partPath := fmt.Sprintf("documents/%s.klf", safePartID(doc.ID, i))
-		single := &klf.File{
-			SchemaVersion: file.SchemaVersion,
-			Kind:          file.Kind,
-			Generator:     file.Generator,
-			Project:       file.Project,
-			Documents:     []klf.Document{doc},
-		}
-		if err := aw.AddDocument(partPath, single, nil); err != nil {
-			return err
-		}
-	}
-	if _, err := aw.Write(f); err != nil {
-		return err
-	}
-	return nil
-}
-
-// safePartID sanitizes a document id for use as a ZIP entry name.
-// Replaces characters that would violate validatePartPath with `-`.
-func safePartID(id string, fallback int) string {
-	if id == "" {
-		return fmt.Sprintf("doc-%d", fallback)
-	}
-	var out strings.Builder
-	for _, r := range id {
-		switch {
-		case (r >= 'a' && r <= 'z'),
-			(r >= 'A' && r <= 'Z'),
-			(r >= '0' && r <= '9'),
-			r == '-', r == '_', r == '.':
-			out.WriteRune(r)
-		default:
-			out.WriteByte('-')
-		}
-	}
-	s := out.String()
-	if s == "" || s == "." || s == ".." {
-		return fmt.Sprintf("doc-%d", fallback)
-	}
-	return s
 }
 
 // ───────── PreviewBuilder ─────────
@@ -696,29 +594,3 @@ func htmlEscape(s string) string {
 	return out.String()
 }
 
-// ───────── archive sniff helper ─────────
-
-// quickSniffZip returns true when the first 4 bytes of data match
-// the ZIP local file header magic. Used by format detection paths
-// that have only a prefix of the file.
-func quickSniffZip(data []byte) bool {
-	return len(data) >= 4 && bytes.Equal(data[:4], []byte{0x50, 0x4B, 0x03, 0x04})
-}
-
-// ensureZipBufferFromReader reads the whole RawDocument into memory
-// so archive/zip can use it as a ReaderAt. Used for .klz input.
-func ensureZipBufferFromReader(r io.Reader) ([]byte, error) {
-	var buf bytes.Buffer
-	if _, err := io.Copy(&buf, r); err != nil {
-		return nil, err
-	}
-	return buf.Bytes(), nil
-}
-
-// compile-time guard that archive/zip, os.File and json are all
-// still used once the file is assembled.
-var (
-	_ = zip.NewReader
-	_ = quickSniffZip
-	_ = ensureZipBufferFromReader
-)

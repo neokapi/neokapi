@@ -143,11 +143,7 @@ func main() {
 		})
 		for _, filePath := range files {
 			go func(path string) {
-				// OpenPath dispatches on extension: .kapi → open
-				// directly; .klz → extract then open the contained
-				// recipe. Users double-clicking either get the
-				// right behaviour.
-				tab, err := appService.OpenPath(path)
+				tab, err := appService.OpenProject(path)
 				if err != nil {
 					slog.Info("open file", "error", err)
 					return

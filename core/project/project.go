@@ -107,16 +107,6 @@ type ContentCollection struct {
 	TargetLanguages []model.LocaleID `yaml:"target_languages,omitempty" json:"target_languages,omitempty"`
 	Items           []ContentItem    `yaml:"items,omitempty" json:"items,omitempty"`
 
-	// Archive is the project-relative path to the .klz that carries
-	// this collection's extracted content + translations. When set,
-	// `kapi status` and `kapi sync` know where to read/write. Omit
-	// for file-based flows that never materialise a .klz.
-	//
-	// Custom extraction (e.g. JSX → klf blocks) is expressed via a
-	// `format: { name: exec, config: { command } }` on the item,
-	// not via a separate field. See core/formats/exec.
-	Archive string `yaml:"archive,omitempty" json:"archive,omitempty"`
-
 	// Bare entry fields (short form — promoted from ContentItem).
 	Path   string      `yaml:"path,omitempty" json:"path,omitempty"`
 	Format *FormatSpec `yaml:"format,omitempty" json:"format,omitempty"`

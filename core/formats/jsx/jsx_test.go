@@ -6,11 +6,9 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 
 	"github.com/neokapi/neokapi/core/klf"
-	"github.com/neokapi/neokapi/core/klz"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -66,24 +64,6 @@ func TestReaderReadsKLF(t *testing.T) {
 	assert.Equal(t, "files-heading", blocks[0].ID)
 }
 
-func TestReaderReadsKLZ(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "example.klz")
-	writeExampleKLZ(t, path)
-
-	f, err := os.Open(path)
-	require.NoError(t, err)
-	defer f.Close()
-
-	r := NewReader()
-	raw := &model.RawDocument{
-		URI:    path,
-		Reader: f,
-	}
-	require.NoError(t, r.Open(context.Background(), raw))
-	blocks := collectBlocks(t, r)
-	require.GreaterOrEqual(t, len(blocks), 3)
-}
-
 func TestWriterRoundTripKLF(t *testing.T) {
 	// Build → read → write → read again; all three blocks must be
 	// present with their KLFAnnotations intact after the round trip.
@@ -121,37 +101,6 @@ func TestWriterRoundTripKLF(t *testing.T) {
 	assert.Equal(t, klf.BlockTypeJSXElement, roundTrip.Documents[0].Blocks[0].Type)
 }
 
-func TestWriterEmitsKLZ(t *testing.T) {
-	inDoc := makeKLFFile()
-	inBuf, err := klf.Marshal(inDoc)
-	require.NoError(t, err)
-
-	r := NewReader()
-	require.NoError(t, r.Open(context.Background(), &model.RawDocument{URI: "in.klf", Reader: io.NopCloser(bytes.NewReader(inBuf))}))
-	blocks := collectBlocks(t, r)
-
-	outPath := filepath.Join(t.TempDir(), "out.klz")
-	w := NewWriter()
-	require.NoError(t, w.SetOutput(outPath))
-	ch := make(chan *model.Part, len(blocks)+2)
-	for _, b := range blocks {
-		ch <- &model.Part{Type: model.PartBlock, Resource: b}
-	}
-	close(ch)
-	require.NoError(t, w.Write(context.Background(), ch))
-	require.NoError(t, w.Close())
-
-	// Re-open with the klz reader — archive must be well-formed.
-	archive, err := klz.Open(outPath)
-	require.NoError(t, err)
-	defer archive.Close()
-	assert.Empty(t, archive.VerifyAll())
-	docs, err := archive.Documents()
-	require.NoError(t, err)
-	require.Len(t, docs, 1)
-	require.Len(t, docs[0].Documents[0].Blocks, 3)
-}
-
 func TestWriterPreservesStructuredTargetRuns(t *testing.T) {
 	// Regression for #376: `materializeBlock` used to flatten the
 	// target to a single TextRun via `mb.TargetText()`, dropping
@@ -179,7 +128,7 @@ func TestWriterPreservesStructuredTargetRuns(t *testing.T) {
 		})
 	}
 
-	outPath := filepath.Join(t.TempDir(), "with-targets.klz")
+	outPath := filepath.Join(t.TempDir(), "with-targets.klf")
 	w := NewWriter()
 	w.SetLocale("qps")
 	require.NoError(t, w.SetOutput(outPath))
@@ -191,22 +140,18 @@ func TestWriterPreservesStructuredTargetRuns(t *testing.T) {
 	require.NoError(t, w.Write(context.Background(), ch))
 	require.NoError(t, w.Close())
 
-	archive, err := klz.Open(outPath)
+	data, err := os.ReadFile(outPath)
 	require.NoError(t, err)
-	defer archive.Close()
-	docs, err := archive.Documents()
+	file, err := klf.Unmarshal(data)
 	require.NoError(t, err)
-	require.NotEmpty(t, docs)
-
-	for _, d := range docs {
-		for _, dd := range d.Documents {
-			for _, block := range dd.Blocks {
-				target, ok := block.Targets["qps"]
-				require.True(t, ok, "block %q missing qps target", block.ID)
-				require.Len(t, target, 3, "block %q target runs flattened — should be text+ph+text", block.ID)
-				require.NotNil(t, target[1].Ph, "block %q second run should be Ph", block.ID)
-				assert.Equal(t, "x", target[1].Ph.Equiv)
-			}
+	require.NotEmpty(t, file.Documents)
+	for _, d := range file.Documents {
+		for _, block := range d.Blocks {
+			target, ok := block.Targets["qps"]
+			require.True(t, ok, "block %q missing qps target", block.ID)
+			require.Len(t, target, 3, "block %q target runs flattened — should be text+ph+text", block.ID)
+			require.NotNil(t, target[1].Ph, "block %q second run should be Ph", block.ID)
+			assert.Equal(t, "x", target[1].Ph.Equiv)
 		}
 	}
 }
@@ -234,9 +179,6 @@ func TestReaderSniffsKLFEnvelope(t *testing.T) {
 	assert.True(t, sig.Sniff([]byte(`{"schemaVersion":"1.0","kind":"kapi-localization-format"}`)))
 	// Random JSON isn't a match.
 	assert.False(t, sig.Sniff([]byte(`{"foo":1}`)))
-	// Plain ZIP without a manifest.json isn't a match.
-	zipOnly := []byte{0x50, 0x4B, 0x03, 0x04, 0x00, 0x00}
-	assert.False(t, sig.Sniff(zipOnly))
 }
 
 // ───────── helpers ─────────
@@ -281,20 +223,6 @@ func makeKLFFile() *klf.File {
 	}
 }
 
-func writeExampleKLZ(t *testing.T, path string) {
-	t.Helper()
-	file := makeKLFFile()
-	w := klz.NewWriter(klz.WriterOptions{
-		Generator: klz.ManifestGenerator{ID: file.Generator.ID, Version: file.Generator.Version},
-		Project:   klz.ManifestProject{ID: file.Project.ID, SourceLocale: file.Project.SourceLocale},
-	})
-	require.NoError(t, w.AddDocument("documents/examples.klf", file, nil))
-	f, err := os.Create(path)
-	require.NoError(t, err)
-	defer f.Close()
-	_, err = w.Write(f)
-	require.NoError(t, err)
-}
 
 // ───────── fixture blocks (local copies — kept close to the test
 // file so every package can assert against the same canonical
@@ -405,12 +333,3 @@ func shoppingCart() *klf.Block {
 	}
 }
 
-// ensureZipBufferFromReader smoke test so coverage marks it as
-// exercised even though the production path uses archive/zip
-// directly. Helps keep the helper visible to maintainers.
-func TestEnsureZipBufferFromReader(t *testing.T) {
-	data := []byte("hello")
-	buf, err := ensureZipBufferFromReader(io.NopCloser(strings.NewReader(string(data))))
-	require.NoError(t, err)
-	assert.Equal(t, data, buf)
-}
