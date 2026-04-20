@@ -5,7 +5,7 @@ title: "Bravo Agent Implementation"
 
 # Bravo Agent Implementation
 
-This note provides implementation details for [AD-028](/docs/ad/028-bravo-agent). The agent runtime uses [ZeroClaw](https://github.com/zeroclaw-labs/zeroclaw), a lightweight Rust-based agent framework, running in Docker containers with Azure OpenAI for model inference (swappable to any provider).
+This note provides implementation details for [AD-016](/bowrain/architecture-decisions/016-bravo-agent). The agent runtime uses [ZeroClaw](https://github.com/zeroclaw-labs/zeroclaw), a lightweight Rust-based agent framework, running in Docker containers with Azure OpenAI for model inference (swappable to any provider).
 
 ## Database Schema
 

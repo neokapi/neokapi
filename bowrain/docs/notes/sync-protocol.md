@@ -5,7 +5,7 @@ title: "Bowrain Sync Protocol"
 
 # Bowrain Sync Protocol
 
-This note provides implementation details for [AD-016](/docs/ad/016-kapi-project-model).
+This note provides implementation details for [AD-009](/bowrain/architecture-decisions/009-sync-protocol) and [AD-010](/bowrain/architecture-decisions/010-bowrain-cli-and-project-model).
 
 ## `config.yaml` Full Schema
 
@@ -62,7 +62,7 @@ flows:
 **Field descriptions:**
 
 - **`url`** -- Compound URL encoding server, workspace, and project ID. Parsed on demand via `ParseProjectURL()`. Accessor methods: `ServerURL()`, `ProjectID()`, `Workspace()`, `HasServer()`. Claim tokens for anonymous projects are stored in `.sync-cache` (gitignored), not in the URL.
-- **`stream`** -- Content stream name. Defaults to `$auto` (auto-detect from git branch or CI environment variables). Set to a specific name like `v2.0` to pin the stream. See [AD-024](/docs/ad/024-streams) for full stream design.
+- **`stream`** -- Content stream name. Defaults to `$auto` (auto-detect from git branch or CI environment variables). Set to a specific name like `v2.0` to pin the stream. See [AD-005](/bowrain/architecture-decisions/005-streams) for full stream design.
 - **`defaults.source_language`** -- BCP-47 tag for the project's default source language (e.g., `en-US`)
 - **`defaults.target_languages`** -- Array of BCP-47 tags for target languages. When empty, the CLI falls back to server-side target locales (cached in `.sync-cache`).
 - **`defaults.collection`** -- Default collection for organizing content on the server
@@ -210,7 +210,7 @@ The append-only change log with sync cursors follows the industry-standard patte
 
 ## Server API Endpoints
 
-When `url` is configured, Bowrain CLI uses the Bowrain Server REST API ([AD-013](/docs/ad/013-cli-and-server)):
+When `url` is configured, Bowrain CLI uses the Bowrain Server REST API ([AD-011](/bowrain/architecture-decisions/011-rest-api)):
 
 **Sync API endpoints:**
 
@@ -224,7 +224,7 @@ POST /api/v1/projects/:id/sync/translate   # Create translation job for pushed c
 GET  /api/v1/projects/:id/changes          # Raw change log query
 ```
 
-**Stream API endpoints** ([AD-024](/docs/ad/024-streams)):
+**Stream API endpoints** ([AD-005](/bowrain/architecture-decisions/005-streams)):
 
 ```
 GET    /api/v1/projects/:id/streams                    # List streams
@@ -274,4 +274,4 @@ Workspace-scoped equivalents are also available at `/api/v1/workspaces/:ws/proje
 
 The server maintains an append-only change log (`change_log` table) that records every mutation to a project's blocks. Each entry has a monotonic sequence number (`seq`). Sync queries are O(changes) via indexed cursor lookup -- the server never needs to diff entire version snapshots.
 
-Authentication uses the token from `bowrain auth login` stored at `~/.config/bowrain/auth.json` ([AD-015](/docs/ad/015-auth-and-workspaces)).
+Authentication uses the token from `bowrain auth login` stored at `~/.config/bowrain/auth.json` ([AD-002](/bowrain/architecture-decisions/002-authentication-and-workspaces)).

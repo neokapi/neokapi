@@ -5,7 +5,7 @@ title: Automation Run Visibility
 
 # Automation Run Visibility
 
-Implementation details for [AD-035](/docs/ad/035-automation-run-visibility).
+Implementation details for [AD-013](/bowrain/architecture-decisions/013-automation-engine).
 
 ## Database Schema
 

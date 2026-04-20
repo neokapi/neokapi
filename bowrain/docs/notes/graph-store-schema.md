@@ -5,7 +5,7 @@ title: "Graph Store Schema"
 
 # Graph Store Schema
 
-This note provides implementation details for [AD-026](/docs/ad/026-graph-concept-management).
+This note provides implementation details for [AD-006](/bowrain/architecture-decisions/006-graph-concept-storage).
 
 ## Framework: SQLite Adjacency Table DDL
 

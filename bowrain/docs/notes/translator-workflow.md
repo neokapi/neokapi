@@ -6,7 +6,7 @@ title: Translator Workflow
 # Translator Workflow
 
 Implementation details for the translator workflow described in
-[AD-034](/docs/ad/034-translator-workflow).
+[AD-014](/bowrain/architecture-decisions/014-translator-workflow).
 
 ## New Event Types
 

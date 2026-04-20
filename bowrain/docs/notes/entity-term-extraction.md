@@ -5,7 +5,7 @@ title: "Entity & Term Extraction"
 
 # Entity & Term Extraction
 
-Implementation details for [AD-022](/docs/ad/022-entity-term-extraction).
+Implementation details for [AD-015](/bowrain/architecture-decisions/015-server-ai-operations).
 
 ## LLM Extraction Schema
 
@@ -166,7 +166,7 @@ Batch: up to 25 documents per request, 5120 characters each.
 
 ### spaCy (via Plugin Bridge)
 
-Uses the Java/Python plugin bridge ([AD-007](/docs/ad/007-plugin-system)). spaCy NER models output:
+Uses the Java/Python plugin bridge ([Framework AD-007](/docs/ad/007-plugin-system)). spaCy NER models output:
 
 | spaCy Label                          | model.EntityType   |
 | ------------------------------------ | ------------------ |

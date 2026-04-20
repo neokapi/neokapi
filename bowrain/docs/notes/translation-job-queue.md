@@ -6,7 +6,7 @@ title: Translation Job Queue
 # Translation Job Queue
 
 Implementation details for the server-side async translation service
-described in [AD-008](/docs/ad/008-ai-integration).
+described in [AD-015](/bowrain/architecture-decisions/015-server-ai-operations).
 
 ## Job Model
 
@@ -168,7 +168,7 @@ in-memory channel queue (suitable only for single-instance development).
 ## Automation Integration
 
 Translation jobs are triggered automatically via built-in automation
-rules ([AD-011](/docs/ad/011-automation)):
+rules ([AD-013](/bowrain/architecture-decisions/013-automation-engine)):
 
 - `auto-translate-on-push`: on `push.completed`, creates one job per
   (item, locale) pair pushed. Links via `push_id`.

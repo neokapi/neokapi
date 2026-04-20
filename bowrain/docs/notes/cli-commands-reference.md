@@ -5,7 +5,7 @@ title: "CLI Commands Reference"
 
 # CLI Commands Reference
 
-This note provides implementation details for [AD-013](/docs/ad/013-cli-and-server).
+This note provides implementation details for [AD-010](/bowrain/architecture-decisions/010-bowrain-cli-and-project-model) and [AD-011](/bowrain/architecture-decisions/011-rest-api).
 
 ## Bowrain CLI Command Tree
 
@@ -275,7 +275,7 @@ service EditorService {
 }
 ```
 
-gRPC and REST are multiplexed on the same port via h2c (HTTP/2 cleartext). gRPC streaming enables real-time flow progress, block updates, presence tracking, and event subscriptions for the Bowrain desktop app ([AD-012](/docs/ad/012-bowrain)).
+gRPC and REST are multiplexed on the same port via h2c (HTTP/2 cleartext). gRPC streaming enables real-time flow progress, block updates, presence tracking, and event subscriptions for the Bowrain desktop app ([AD-017](/bowrain/architecture-decisions/017-bowrain-apps)).
 
 ## CI/CD Integration
 

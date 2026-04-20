@@ -5,7 +5,7 @@ title: "Connector Interfaces"
 
 # Connector Interfaces
 
-This note provides implementation details for [AD-005](/docs/ad/005-connector-system).
+This note provides implementation details for [AD-008](/bowrain/architecture-decisions/008-connector-system).
 
 ## IntegrationConnector (Server-Side)
 
@@ -146,4 +146,4 @@ func (r *Registry) NewConnector(name string, config map[string]string) (Integrat
 func (r *Registry) List() []Info
 ```
 
-Built-in connectors register via `init()`. Plugin connectors register at runtime via gRPC discovery ([AD-007](/docs/ad/007-plugin-system)). The bowrain CLI does not interact with the Registry -- it is a file-based tool that syncs with the server via API.
+Built-in connectors register via `init()`. Plugin connectors register at runtime via gRPC discovery ([Framework AD-007](/docs/ad/007-plugin-system)). The bowrain CLI does not interact with the Registry -- it is a file-based tool that syncs with the server via API.

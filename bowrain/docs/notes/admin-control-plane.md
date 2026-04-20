@@ -5,7 +5,7 @@ title: "Admin Control Plane"
 
 # Admin Control Plane
 
-Implementation details for [AD-039](/docs/ad/039-admin-control-plane).
+Implementation details for [AD-017](/bowrain/architecture-decisions/017-bowrain-apps).
 
 ## Admin API Endpoints
 

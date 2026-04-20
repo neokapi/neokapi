@@ -5,7 +5,7 @@ title: "Brand Voice Data Model"
 
 # Brand Voice Data Model
 
-This note provides implementation details for [AD-025](/docs/ad/025-brand-voice-governance).
+This note provides implementation details for [AD-015](/bowrain/architecture-decisions/015-server-ai-operations).
 
 ## Go Struct Definitions
 

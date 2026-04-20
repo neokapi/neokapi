@@ -5,7 +5,7 @@ title: "Media Asset Storage"
 
 # Media Asset Storage
 
-This note provides implementation details for [AD-029](/docs/ad/029-media-asset-localization).
+This note provides implementation details for [AD-007](/bowrain/architecture-decisions/007-media-and-blob-storage).
 
 ## BlobStore Interface
 

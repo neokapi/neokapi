@@ -5,11 +5,11 @@ title: "Content Store Schema"
 
 # Content Store Schema
 
-This note provides implementation details for [AD-003](/docs/ad/003-content-store).
+This note provides implementation details for [AD-004](/bowrain/architecture-decisions/004-content-store).
 
 ## Database Schema
 
-The Content Store schema is shared across SQLite (CLI) and PostgreSQL (server) backends, with the Sievepen TM system ([AD-009](/docs/ad/009-translation-memory)) and TermBase ([AD-010](/docs/ad/010-terminology)). The schema below shows the table definitions using SQLite syntax for readability; server backends use equivalent types with `$N` parameter placeholders instead of `?`.
+The Content Store schema is shared across SQLite (CLI) and PostgreSQL (server) backends, with the Sievepen TM system ([Framework AD-009](/docs/ad/009-translation-memory)) and TermBase ([Framework AD-010](/docs/ad/010-terminology)). The schema below shows the table definitions using SQLite syntax for readability; server backends use equivalent types with `$N` parameter placeholders instead of `?`.
 
 ```sql
 CREATE TABLE projects (
@@ -106,7 +106,7 @@ PostgreSQL is the server's storage backend, supporting connection pooling, concu
 
 ## REST API Routes
 
-The ContentStore is exposed via Bowrain Server's REST API ([AD-013](/docs/ad/013-cli-and-server)):
+The ContentStore is exposed via Bowrain Server's REST API ([AD-011](/bowrain/architecture-decisions/011-rest-api)):
 
 ```
 # Project operations (JWT-protected)
@@ -138,7 +138,7 @@ GET    /api/v1/workspaces/:ws/projects/:id/sync/blocks
 GET    /api/v1/workspaces/:ws/projects/:id/sync/status
 ```
 
-Bowrain CLI interacts with the store via API, not directly. The `bowrain pull/push` commands call the sync endpoints, which query the ContentStore, compute diffs, and return only changed blocks ([AD-016](/docs/ad/016-kapi-project-model)).
+Bowrain CLI interacts with the store via API, not directly. The `bowrain pull/push` commands call the sync endpoints, which query the ContentStore, compute diffs, and return only changed blocks ([AD-009](/bowrain/architecture-decisions/009-sync-protocol)).
 
 ## Migration Strategy
 
