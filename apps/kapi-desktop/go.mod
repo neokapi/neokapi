@@ -3,6 +3,7 @@ module github.com/neokapi/neokapi/kapi-desktop
 go 1.26.0
 
 require (
+	github.com/leonelquinteros/gotext v1.7.2
 	github.com/neokapi/neokapi v0.0.0
 	github.com/neokapi/neokapi/cli v0.0.0-00010101000000-000000000000
 	github.com/stretchr/testify v1.11.1

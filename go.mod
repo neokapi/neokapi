@@ -5,6 +5,7 @@ go 1.26.0
 require (
 	github.com/dop251/goja v0.0.0-20260311135729-065cd970411c
 	github.com/hashicorp/go-plugin v1.7.0
+	github.com/leonelquinteros/gotext v1.7.2
 	github.com/mattn/go-sqlite3 v1.14.42
 	github.com/pmezard/go-difflib v1.0.0
 	github.com/stretchr/testify v1.11.1
@@ -28,7 +29,6 @@ require (
 	github.com/hashicorp/go-hclog v1.6.3 // indirect
 	github.com/hashicorp/yamux v0.1.2 // indirect
 	github.com/kr/pretty v0.3.1 // indirect
-	github.com/leonelquinteros/gotext v1.7.2 // indirect
 	github.com/mattn/go-colorable v0.1.14 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/oklog/run v1.1.0 // indirect
