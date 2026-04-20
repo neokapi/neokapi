@@ -319,7 +319,7 @@ func (s *Server) HandleCreateStreamTag(c echo.Context) error {
 
 	var req struct {
 		Name     string            `json:"name"`
-		Stream   string            `json:"stream"` // AD-040: stream specified in body, not URL
+		Stream   string            `json:"stream"` // Bowrain AD-011: stream specified in body, not URL
 		Kind     string            `json:"kind"`
 		Metadata map[string]string `json:"metadata"`
 	}
@@ -329,7 +329,7 @@ func (s *Server) HandleCreateStreamTag(c echo.Context) error {
 	if req.Name == "" {
 		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "tag name is required"})
 	}
-	// AD-040: stream comes from body (tags are project-level peers to streams).
+	// Bowrain AD-011: stream comes from body (tags are project-level peers to streams).
 	// Fall back to :stream param for backward compat with old nested routes.
 	streamName := req.Stream
 	if streamName == "" {
@@ -371,7 +371,7 @@ func (s *Server) HandleCreateStreamTag(c echo.Context) error {
 }
 
 // HandleGetStreamTag returns a single tag.
-// AD-040: GET /:ws/:id/tags/:tag (project-level, no stream in URL)
+// Bowrain AD-011: GET /:ws/:id/tags/:tag (project-level, no stream in URL)
 func (s *Server) HandleGetStreamTag(c echo.Context) error {
 	if s.ContentStore == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "store not configured"})
@@ -390,7 +390,7 @@ func (s *Server) HandleGetStreamTag(c echo.Context) error {
 }
 
 // HandleDeleteStreamTag removes a tag.
-// AD-040: DELETE /:ws/:id/tags/:tag (project-level, no stream in URL)
+// Bowrain AD-011: DELETE /:ws/:id/tags/:tag (project-level, no stream in URL)
 func (s *Server) HandleDeleteStreamTag(c echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermManageStreams); err != nil {
 		return err

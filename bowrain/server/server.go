@@ -165,7 +165,7 @@ type Server struct {
 	// pushCompletionTracker monitors automation jobs per push and emits push.automations.completed. Nil when not configured.
 	pushCompletionTracker *event.PushCompletionTracker
 
-	// AutomationRunStore persists automation runs, steps, and logs (AD-035). Nil when not configured.
+	// AutomationRunStore persists automation runs, steps, and logs (Bowrain AD-013). Nil when not configured.
 	AutomationRunStore *bstore.AutomationRunStore
 
 	// stepCompletionTracker monitors async automation steps. Nil when not configured.
@@ -174,7 +174,7 @@ type Server struct {
 	// runHub manages SSE connections for live automation run updates. Always initialized.
 	runHub *automationRunHub
 
-	// SyncCache is the optional Redis hash cache for sync diff engine (AD-038).
+	// SyncCache is the optional Redis hash cache for sync diff engine (Bowrain AD-009).
 	SyncCache bowsync.HashCache
 
 	// ExtractionJobStore persists extraction job state. Nil when job system is not configured.
@@ -189,23 +189,23 @@ type Server struct {
 	// pulseCache caches Pulse public dashboard responses with TTL-based expiry.
 	pulseCache *pulseCache
 
-	// AgentStore persists @bravo agent conversations, messages, and config (AD-028).
+	// AgentStore persists @bravo agent conversations, messages, and config (Bowrain AD-016).
 	// Nil when agent system is not configured.
 	AgentStore platagent.AgentStore
 
-	// AgentService orchestrates @bravo agent lifecycle (AD-028).
+	// AgentService orchestrates @bravo agent lifecycle (Bowrain AD-016).
 	// Nil when agent system is not configured.
 	AgentService *service.AgentService
 
-	// BillingStore persists subscription and credit data (AD-030).
+	// BillingStore persists subscription and credit data (Bowrain AD-018).
 	// Nil when billing is not configured.
 	BillingStore billing.BillingStore
 
-	// StripeClient manages Stripe API interactions (AD-030).
+	// StripeClient manages Stripe API interactions (Bowrain AD-018).
 	// Nil when STRIPE_SECRET_KEY is not set.
 	StripeClient *billing.StripeClient
 
-	// PostHogClient captures product analytics events (AD-030).
+	// PostHogClient captures product analytics events (Bowrain AD-018).
 	// Nil when POSTHOG_API_KEY is not set.
 	PostHogClient *analytics.PostHogClient
 
@@ -213,11 +213,11 @@ type Server struct {
 	// Nil-safe: all methods are no-ops on a nil receiver.
 	BillingHooks *billing.UsageHooks
 
-	// WebhookHandler processes Stripe webhook events (AD-030).
+	// WebhookHandler processes Stripe webhook events (Bowrain AD-018).
 	// Nil when Stripe is not configured.
 	WebhookHandler *billing.WebhookHandler
 
-	// AdminVerifier validates ID tokens from the admin OIDC realm (AD-030).
+	// AdminVerifier validates ID tokens from the admin OIDC realm (Bowrain AD-018).
 	// Nil when admin OIDC is not configured.
 	AdminVerifier *oidc.IDTokenVerifier
 
@@ -228,7 +228,7 @@ type Server struct {
 }
 
 // NewServer creates a new Server with the given configuration.
-// createEventBus selects the event bus backend based on configuration (AD-036).
+// createEventBus selects the event bus backend based on configuration (Bowrain AD-012).
 func createEventBus(cfg Config) platev.EventBus {
 	if cfg.ServiceBusConnection != "" {
 		bus, err := event.NewServiceBusEventBus(cfg.ServiceBusConnection)
@@ -284,7 +284,7 @@ func NewServer(cfg Config) *Server {
 			slog.Info("session store configured", "backend", "redis", "redis_url", cfg.RedisURL)
 		}
 
-		// Wire Redis hash cache for sync diff engine (AD-038).
+		// Wire Redis hash cache for sync diff engine (Bowrain AD-009).
 		redisOpts, err := redis.ParseURL(cfg.RedisURL)
 		if err == nil {
 			if cfg.RedisPassword != "" {
@@ -361,7 +361,7 @@ func NewServer(cfg Config) *Server {
 		}
 	}
 
-	// Initialize blob storage (AD-029).
+	// Initialize blob storage (Bowrain AD-007).
 	s.initBlobStore(cfg)
 
 	// Wrap ContentStore with EventEmittingStore so all mutations publish events.
@@ -376,19 +376,19 @@ func NewServer(cfg Config) *Server {
 		}
 	}
 
-	// Wire up automation engine with run manager (AD-035).
+	// Wire up automation engine with run manager (Bowrain AD-013).
 	s.runHub = newAutomationRunHub()
 
 	runManager := event.NewAutomationRunManager(s.AutomationRunStore, s.executeAutomationAction)
 	s.AutomationEngine = event.NewAutomationEngine(s.EventBus, runManager.Execute)
 	s.registerDefaultAutomations()
 
-	// Wire up activity recorder (AD-027).
+	// Wire up activity recorder (Bowrain AD-014).
 	if s.ActivityStore != nil {
 		s.ActivityRecorder = event.NewActivityRecorder(s.ActivityStore, s.EventBus)
 	}
 
-	// Wire up notification dispatcher (AD-027).
+	// Wire up notification dispatcher (Bowrain AD-014).
 	if s.NotificationStore != nil {
 		// targetFn resolves which users should receive a project event notification.
 		// It queries workspace members (excluding the actor who triggered the event).
@@ -410,7 +410,7 @@ func NewServer(cfg Config) *Server {
 		}
 	}
 
-	// Wire up digest workers (AD-027).
+	// Wire up digest workers (Bowrain AD-014).
 	if s.DigestStore != nil && s.Mailer != nil {
 		// resolveEmail converts a user ID to their email address.
 		var resolveEmail event.UserEmailResolver
@@ -439,18 +439,18 @@ func NewServer(cfg Config) *Server {
 		s.WeeklyDigestWorker.Start()
 	}
 
-	// Wire up deadline checker (AD-027).
+	// Wire up deadline checker (Bowrain AD-014).
 	if s.TaskStore != nil && s.NotificationDispatcher != nil {
 		s.deadlineChecker = event.NewDeadlineChecker(s.TaskStore, s.NotificationDispatcher, 1*time.Hour)
 		s.deadlineChecker.Start()
 	}
 
-	// Wire up progress milestone tracker (AD-027).
+	// Wire up progress milestone tracker (Bowrain AD-014).
 	if s.ContentStore != nil && s.NotificationDispatcher != nil {
 		s.progressTracker = event.NewProgressTracker(s.ContentStore, s.NotificationDispatcher, s.EventBus)
 	}
 
-	// Wire up push completion tracker (AD-034).
+	// Wire up push completion tracker (Bowrain AD-014).
 	if s.EventBus != nil && s.JobStore != nil {
 		s.pushCompletionTracker = event.NewPushCompletionTracker(
 			s.EventBus, s.JobStore, s.ExtractionJobStore, s.ContentStore,
@@ -460,7 +460,7 @@ func NewServer(cfg Config) *Server {
 		}
 	}
 
-	// Wire up step completion tracker (AD-035).
+	// Wire up step completion tracker (Bowrain AD-013).
 	if s.AutomationRunStore != nil && s.JobStore != nil {
 		s.stepCompletionTracker = event.NewStepCompletionTracker(
 			s.AutomationRunStore, s.JobStore, s.ExtractionJobStore,
@@ -473,7 +473,7 @@ func NewServer(cfg Config) *Server {
 		}
 	}
 
-	// Wire up run retention cleaner (AD-035): delete runs older than 30 days, check daily.
+	// Wire up run retention cleaner (Bowrain AD-013): delete runs older than 30 days, check daily.
 	if s.AutomationRunStore != nil {
 		_ = event.NewRunRetentionCleaner(s.AutomationRunStore, 30*24*time.Hour, 24*time.Hour)
 	}
@@ -514,7 +514,7 @@ func NewServer(cfg Config) *Server {
 		}
 	}
 
-	// Initialize agent service (AD-028).
+	// Initialize agent service (Bowrain AD-016).
 	if s.AgentStore != nil {
 		s.AgentService = service.NewAgentService(s.AgentStore, s.EventBus)
 
@@ -540,7 +540,7 @@ func NewServer(cfg Config) *Server {
 		}
 	}
 
-	// Initialize Stripe client (AD-030).
+	// Initialize Stripe client (Bowrain AD-018).
 	if cfg.StripeSecretKey != "" {
 		s.StripeClient = billing.NewStripeClient(cfg.StripeSecretKey)
 		if cfg.StripeWebhookSecret != "" && s.BillingStore != nil {
@@ -554,7 +554,7 @@ func NewServer(cfg Config) *Server {
 		slog.Info("Stripe billing enabled")
 	}
 
-	// Initialize PostHog client (AD-030).
+	// Initialize PostHog client (Bowrain AD-018).
 	if cfg.PostHogAPIKey != "" {
 		host := cfg.PostHogHost
 		if host == "" {
@@ -574,7 +574,7 @@ func NewServer(cfg Config) *Server {
 		s.WebhookHandler.SetEventTracker(s.PostHogClient)
 	}
 
-	// Initialize admin OIDC verifier (AD-030).
+	// Initialize admin OIDC verifier (Bowrain AD-018).
 	if cfg.AdminOIDCIssuerURL != "" && cfg.AdminOIDCClientID != "" {
 		ctx := context.Background()
 		verifier, err := auth.NewOIDCVerifier(ctx, cfg.AdminOIDCIssuerURL, cfg.AdminOIDCClientID)
@@ -593,7 +593,7 @@ func NewServer(cfg Config) *Server {
 		}
 	}
 
-	// Build billing hooks for credit deduction + Stripe meter reporting (AD-030).
+	// Build billing hooks for credit deduction + Stripe meter reporting (Bowrain AD-018).
 	// Must be after Stripe client init so StripeClient is available.
 	if s.BillingStore != nil {
 		// Build billing notifier for email notifications.
@@ -669,7 +669,7 @@ func (s *Server) SetupRoutes(e *echo.Echo) {
 	v1.GET("/info", s.HandleInfo)
 	v1.GET("/badges/:proj", s.HandleProjectBadge)
 
-	// Pulse public activity dashboard (AD-033).
+	// Pulse public activity dashboard (Bowrain AD-017).
 	// No auth required — access gated by workspace/project dashboard_visibility.
 	v1.GET("/pulse", s.HandlePulseFrontPage)
 	if s.AuthStore != nil {
@@ -729,7 +729,7 @@ func (s *Server) SetupRoutes(e *echo.Echo) {
 		jwtProtected.POST("/join/:code", s.HandleAcceptInvite)
 
 		// Flat sync routes for unclaimed projects (claim-token or JWT auth).
-		// AD-040: /api/v1/projects/:id/sync/:ref/*
+		// Bowrain AD-011: /api/v1/projects/:id/sync/:ref/*
 		if s.AuthStore != nil {
 			syncRateLimit := RateLimitSyncPush(10, 3)
 			flatSyncGroup := v1.Group("/projects/:id/sync/:ref")
@@ -744,14 +744,14 @@ func (s *Server) SetupRoutes(e *echo.Echo) {
 		}
 
 		// Workspace collection routes: list and create (require auth).
-		// AD-040: /api/v1/workspaces (collection noun for list/create)
+		// Bowrain AD-011: /api/v1/workspaces (collection noun for list/create)
 		wsCollectionGroup := v1.Group("/workspaces")
 		wsCollectionGroup.Use(AuthMiddleware(s.Config.JWTSecret, s.AuthStore))
 		wsCollectionGroup.POST("", s.HandleCreateWorkspace)
 		wsCollectionGroup.GET("", s.HandleListWorkspaces)
 
 		// Workspace-specific routes: bare slug at /:ws (require auth + membership).
-		// AD-040: /api/v1/:ws (bare workspace slug)
+		// Bowrain AD-011: /api/v1/:ws (bare workspace slug)
 		wsSpecific := v1.Group("/:ws")
 		wsSpecific.Use(AuthMiddleware(s.Config.JWTSecret, s.AuthStore))
 		if s.AuthStore != nil {
@@ -787,10 +787,10 @@ func (s *Server) SetupRoutes(e *echo.Echo) {
 
 		s.registerWorkspaceContentRoutes(wsSpecific)
 
-		// @bravo agent routes (AD-028) with QuotaGuard for credit-consuming operations.
+		// @bravo agent routes (Bowrain AD-016) with QuotaGuard for credit-consuming operations.
 		s.registerBravoRoutes(wsSpecific)
 
-		// Billing routes (AD-030, workspace-scoped)
+		// Billing routes (Bowrain AD-018, workspace-scoped)
 		billingGroup := wsSpecific.Group("/billing")
 		billingGroup.GET("", s.HandleGetBilling)
 		billingGroup.GET("/usage", s.HandleGetBillingUsage)
@@ -801,10 +801,10 @@ func (s *Server) SetupRoutes(e *echo.Echo) {
 		billingGroup.POST("/buy-credits", s.HandleBuyCredits)
 	}
 
-	// Stripe webhook (no auth, signature-verified) (AD-030).
+	// Stripe webhook (no auth, signature-verified) (Bowrain AD-018).
 	e.POST("/api/webhooks/stripe", s.HandleStripeWebhook)
 
-	// Admin routes (admin realm auth) (AD-030).
+	// Admin routes (admin realm auth) (Bowrain AD-018).
 	// When no admin OIDC verifier is configured (dev/test), fall back to
 	// JWT auth so admin routes remain accessible for operational tasks.
 	if s.AdminVerifier != nil || s.Config.JWTSecret != "" {
@@ -889,7 +889,7 @@ func serveSPAFile(c echo.Context, dir string) error {
 // registerWorkspaceContentRoutes registers all workspace-scoped content routes
 // on the given route group (mounted at /:ws).
 //
-// AD-040 URL patterns:
+// Bowrain AD-011 URL patterns:
 //   - Workspace-level: /:ws/translation-memory, /:ws/terms, /:ws/providers, etc.
 //   - Project collection: /:ws/projects (list/create)
 //   - Project-specific: /:ws/:id (bare slug, get/update/delete)
@@ -914,14 +914,14 @@ func (s *Server) registerWorkspaceContentRoutes(g *echo.Group) {
 	// Workspace-level resources (no project context)
 	// -----------------------------------------------------------------------
 
-	// TM CRUD — AD-040: /:ws/translation-memory
+	// TM CRUD — Bowrain AD-011: /:ws/translation-memory
 	g.GET("/translation-memory", s.HandleGetTMEntries)
 	g.GET("/translation-memory/count", s.HandleGetTMCount)
 	g.POST("/translation-memory", s.HandleAddTMEntry)
 	g.PUT("/translation-memory/:eid", s.HandleUpdateTMEntry)
 	g.DELETE("/translation-memory/:eid", s.HandleDeleteTMEntry)
 
-	// Terminology CRUD — AD-040: /:ws/terms
+	// Terminology CRUD — Bowrain AD-011: /:ws/terms
 	g.GET("/terms", s.HandleGetTerms)
 	g.GET("/terms/count", s.HandleGetTermCount)
 	g.POST("/terms", s.HandleAddConcept)
@@ -931,13 +931,13 @@ func (s *Server) registerWorkspaceContentRoutes(g *echo.Group) {
 	g.POST("/terms/import/json", s.HandleImportTermsJSON)
 	g.GET("/terms/export/json", s.HandleExportTermsJSON)
 
-	// Provider configs — AD-040: /:ws/providers
+	// Provider configs — Bowrain AD-011: /:ws/providers
 	g.GET("/providers", s.HandleListProviderConfigs)
 	g.POST("/providers", s.HandleSaveProviderConfig)
 	g.DELETE("/providers/:id", s.HandleDeleteProviderConfig)
 	g.POST("/providers/test", s.HandleTestProviderConfig)
 
-	// Connectors — AD-040: /:ws/connectors (moved from public)
+	// Connectors — Bowrain AD-011: /:ws/connectors (moved from public)
 	g.GET("/connectors", s.HandleListActiveConnectors)
 	g.POST("/connectors", s.HandleAddConnector)
 	g.DELETE("/connectors/:id", s.HandleRemoveConnector)
@@ -945,7 +945,7 @@ func (s *Server) registerWorkspaceContentRoutes(g *echo.Group) {
 	g.POST("/connectors/:id/fetch", s.HandleFetch)
 	g.POST("/connectors/:id/publish", s.HandlePublish)
 
-	// Brand profiles — AD-040: /:ws/brand-profiles
+	// Brand profiles — Bowrain AD-011: /:ws/brand-profiles
 	g.GET("/brand-profiles", s.HandleListBrandProfiles)
 	g.POST("/brand-profiles", s.HandleCreateBrandProfile)
 	g.GET("/brand-profiles/:id", s.HandleGetBrandProfile)
@@ -956,20 +956,20 @@ func (s *Server) registerWorkspaceContentRoutes(g *echo.Group) {
 	g.GET("/brand-profiles/suggested-rules", s.HandleGetSuggestedRules)
 	g.GET("/brand-profiles/starter-packs", s.HandleListStarterPacks)
 
-	// Translation jobs — AD-040: /:ws/jobs
+	// Translation jobs — Bowrain AD-011: /:ws/jobs
 	g.POST("/jobs/translate", s.HandleCreateTranslationJob)
 	g.GET("/jobs", s.HandleListJobs)
 	g.GET("/jobs/:id", s.HandleGetJob)
 	g.DELETE("/jobs/:id", s.HandleDeleteJob)
 	g.GET("/ai-usage", s.HandleGetAIUsage)
 
-	// Graph — AD-040: /:ws/graph
+	// Graph — Bowrain AD-011: /:ws/graph
 	g.GET("/graph/concepts", s.HandleGetConceptHierarchy)
 	g.GET("/graph/nodes/:nodeId/neighbors", s.HandleGetGraphNeighbors)
 	g.GET("/graph/nodes/:nodeId/edges", s.HandleGetGraphEdges)
 	g.GET("/graph/shortest-path", s.HandleGetShortestPath)
 
-	// Notifications — AD-040: /:ws/notifications
+	// Notifications — Bowrain AD-011: /:ws/notifications
 	g.GET("/notifications", s.HandleListNotifications)
 	g.POST("/notifications/:nid/read", s.HandleMarkNotificationRead)
 	g.POST("/notifications/read-all", s.HandleMarkAllNotificationsRead)
@@ -980,11 +980,11 @@ func (s *Server) registerWorkspaceContentRoutes(g *echo.Group) {
 	g.GET("/digest-settings", s.HandleGetDigestSettings)
 	g.PUT("/digest-settings", s.HandleUpdateDigestSettings)
 
-	// Activities — AD-040: /:ws/activities
+	// Activities — Bowrain AD-011: /:ws/activities
 	g.GET("/activities", s.HandleListActivities)
 	g.POST("/activities/seen", s.HandleMarkActivitiesSeen)
 
-	// Tasks — AD-040: /:ws/tasks (no more /my/tasks, use ?assignee_id=me)
+	// Tasks — Bowrain AD-011: /:ws/tasks (no more /my/tasks, use ?assignee_id=me)
 	g.GET("/tasks", s.HandleListTasks)
 	g.POST("/tasks", s.HandleCreateTask)
 	g.GET("/tasks/:taskId", s.HandleGetTask)
@@ -994,10 +994,10 @@ func (s *Server) registerWorkspaceContentRoutes(g *echo.Group) {
 	g.POST("/tasks/:taskId/complete", s.HandleCompleteTask)
 	g.POST("/tasks/:taskId/cancel", s.HandleCancelTask)
 
-	// Workspace audit log — AD-040: /:ws/audit-log
+	// Workspace audit log — Bowrain AD-011: /:ws/audit-log
 	g.GET("/audit-log", s.HandleListWorkspaceAuditLog)
 
-	// Archived projects — AD-040: /:ws/archived-projects
+	// Archived projects — Bowrain AD-011: /:ws/archived-projects
 	g.GET("/archived-projects", s.HandleListArchivedProjects)
 
 	// -----------------------------------------------------------------------
@@ -1009,7 +1009,7 @@ func (s *Server) registerWorkspaceContentRoutes(g *echo.Group) {
 
 	// -----------------------------------------------------------------------
 	// Project-specific routes: /:ws/:id
-	// AD-040: bare project slug, no /p/ prefix
+	// Bowrain AD-011: bare project slug, no /p/ prefix
 	// -----------------------------------------------------------------------
 
 	// Project CRUD
@@ -1020,20 +1020,20 @@ func (s *Server) registerWorkspaceContentRoutes(g *echo.Group) {
 	g.POST("/:id/restore", s.HandleRestoreProject)
 	g.DELETE("/:id/permanent", s.HandlePermanentlyDeleteProject)
 
-	// Project members — AD-040: /:ws/:id/members
+	// Project members — Bowrain AD-011: /:ws/:id/members
 	g.GET("/:id/members", s.HandleListProjectMembers)
 	g.POST("/:id/members", s.HandleAddProjectMember)
 	g.PUT("/:id/members/:uid", s.HandleUpdateProjectMember)
 	g.DELETE("/:id/members/:uid", s.HandleRemoveProjectMember)
 
-	// Project settings — AD-040: /:ws/:id/settings
+	// Project settings — Bowrain AD-011: /:ws/:id/settings
 	g.GET("/:id/settings/extraction", s.HandleGetExtractionSettings)
 	g.PUT("/:id/settings/extraction", s.HandleUpdateExtractionSettings)
 
-	// Project audit log — AD-040: /:ws/:id/audit-log
+	// Project audit log — Bowrain AD-011: /:ws/:id/audit-log
 	g.GET("/:id/audit-log", s.HandleListAuditLog)
 
-	// Automations — AD-040: /:ws/:id/automations
+	// Automations — Bowrain AD-011: /:ws/:id/automations
 	g.GET("/:id/automations", s.HandleListAutomationRules)
 	g.POST("/:id/automations", s.HandleCreateAutomationRule)
 	g.PUT("/:id/automations/:ruleId", s.HandleUpdateAutomationRule)
@@ -1042,7 +1042,7 @@ func (s *Server) registerWorkspaceContentRoutes(g *echo.Group) {
 	g.GET("/:id/automations/events", s.HandleListAutomationEvents)
 	g.GET("/:id/automations/history", s.HandleListAutomationHistory)
 
-	// Automation runs — AD-040: /:ws/:id/automations/runs (nested)
+	// Automation runs — Bowrain AD-011: /:ws/:id/automations/runs (nested)
 	g.GET("/:id/automations/runs", s.HandleListAutomationRuns)
 	g.GET("/:id/automations/runs/:runId", s.HandleGetAutomationRun)
 	g.GET("/:id/automations/runs/:runId/steps", s.HandleListAutomationRunSteps)
@@ -1050,7 +1050,7 @@ func (s *Server) registerWorkspaceContentRoutes(g *echo.Group) {
 	g.POST("/:id/automations/runs/:runId/cancel", s.HandleCancelAutomationRun)
 	g.GET("/:id/automations/runs/:runId/events", s.HandleAutomationRunSSE)
 
-	// Stream management — AD-040: /:ws/:id/streams
+	// Stream management — Bowrain AD-011: /:ws/:id/streams
 	g.GET("/:id/streams", s.HandleListStreams)
 	g.POST("/:id/streams", s.HandleCreateStream)
 	g.GET("/:id/streams/:stream", s.HandleGetStream)
@@ -1062,28 +1062,28 @@ func (s *Server) registerWorkspaceContentRoutes(g *echo.Group) {
 	g.POST("/:id/streams/:stream/lock", s.HandleLockStream)
 	g.POST("/:id/streams/:stream/unlock", s.HandleUnlockStream)
 
-	// Tags — AD-040: /:ws/:id/tags (peer to streams)
+	// Tags — Bowrain AD-011: /:ws/:id/tags (peer to streams)
 	g.GET("/:id/tags", s.HandleListProjectTags)
 	g.POST("/:id/tags", s.HandleCreateStreamTag)
 	g.GET("/:id/tags/:tag", s.HandleGetStreamTag)
 	g.DELETE("/:id/tags/:tag", s.HandleDeleteStreamTag)
 
-	// Refs — AD-040: /:ws/:id/refs (unified listing)
+	// Refs — Bowrain AD-011: /:ws/:id/refs (unified listing)
 	g.GET("/:id/refs", s.HandleListProjectTags) // TODO: implement unified ref listing
 
 	// -----------------------------------------------------------------------
 	// Ref-scoped content routes: /:ws/:id/<resource>/:ref
-	// AD-040: resource-first ref pattern (GitHub-style)
+	// Bowrain AD-011: resource-first ref pattern (GitHub-style)
 	// -----------------------------------------------------------------------
 
 	syncRateLimit := RateLimitSyncPush(10, 3) // 10 pushes/min, burst of 3
 
-	// Items — AD-040: /:ws/:id/items/:ref
+	// Items — Bowrain AD-011: /:ws/:id/items/:ref
 	g.GET("/:id/items/:ref", s.HandleGetFileBlocks) // list items
 	g.POST("/:id/items/:ref", s.HandleUploadFiles)
 	g.DELETE("/:id/items/:ref", s.HandleRemoveFile) // ?item=path/to/file
 
-	// Blocks — AD-040: /:ws/:id/blocks/:ref
+	// Blocks — Bowrain AD-011: /:ws/:id/blocks/:ref
 	g.GET("/:id/blocks/:ref", s.HandleGetFileBlocks)
 	g.PUT("/:id/blocks/:ref/:bid", s.HandleUpdateBlockTarget)
 	g.PUT("/:id/blocks/:ref/:bid/coded", s.HandleUpdateBlockTargetCoded)
@@ -1095,13 +1095,13 @@ func (s *Server) registerWorkspaceContentRoutes(g *echo.Group) {
 	g.GET("/:id/blocks/:ref/:bid/term-matches", s.HandleLookupTermsForBlock)
 	g.GET("/:id/blocks/:ref/:bid/html", s.HandleRenderBlockHTML)
 
-	// Entities on blocks — AD-040: /:ws/:id/blocks/:ref/:bid/entities
+	// Entities on blocks — Bowrain AD-011: /:ws/:id/blocks/:ref/:bid/entities
 	g.POST("/:id/blocks/:ref/:bid/entities", s.HandleCreateEntity)
 	g.PUT("/:id/blocks/:ref/:bid/entities/:idx", s.HandleUpdateEntity)
 	g.DELETE("/:id/blocks/:ref/:bid/entities/:idx", s.HandleDeleteEntity)
 	g.POST("/:id/blocks/:ref/:bid/entities/:idx/promote", s.HandlePromoteEntity)
 
-	// Actions — AD-040: /:ws/:id/actions/:ref/<verb>
+	// Actions — Bowrain AD-011: /:ws/:id/actions/:ref/<verb>
 	g.POST("/:id/actions/:ref/pseudo-translate", s.HandlePseudoTranslate)
 	g.POST("/:id/actions/:ref/ai-translate", s.HandleAITranslate, billing.QuotaGuard(s.BillingStore, s.billingGuardEvent()))
 	g.POST("/:id/actions/:ref/tm-translate", s.HandleTMTranslate)
@@ -1109,14 +1109,14 @@ func (s *Server) registerWorkspaceContentRoutes(g *echo.Group) {
 	g.POST("/:id/actions/:ref/qa-check", s.HandleQACheckFile)
 	g.POST("/:id/actions/:ref/qa-check-block", s.HandleQACheckBlock)
 
-	// Preview and word count — AD-040: /:ws/:id/preview/:ref, /:ws/:id/word-count/:ref
+	// Preview and word count — Bowrain AD-011: /:ws/:id/preview/:ref, /:ws/:id/word-count/:ref
 	g.GET("/:id/preview/:ref", s.HandleRenderDocumentPreview)
 	g.GET("/:id/word-count/:ref", s.HandleGetWordCount)
 
-	// Dashboard — AD-040: /:ws/:id/dashboard/:ref
+	// Dashboard — Bowrain AD-011: /:ws/:id/dashboard/:ref
 	g.GET("/:id/dashboard/:ref", s.HandleGetTranslationDashboard)
 
-	// Sync — AD-040: /:ws/:id/sync/:ref
+	// Sync — Bowrain AD-011: /:ws/:id/sync/:ref
 	g.GET("/:id/sync/:ref/pull", s.HandleSyncPull)
 	g.GET("/:id/sync/:ref/blocks", s.HandleSyncGetBlocks)
 	g.GET("/:id/sync/:ref/status", s.HandleSyncPushStatus)
@@ -1126,7 +1126,7 @@ func (s *Server) registerWorkspaceContentRoutes(g *echo.Group) {
 	g.PUT("/:id/sync/:ref/push/chunks/:uploadId/:chunkIndex", s.HandleSyncProxyChunkUpload)
 	g.POST("/:id/sync/:ref/translate", s.HandleCreateProjectTranslationJob)
 
-	// Collections — AD-040: /:ws/:id/collections/:ref
+	// Collections — Bowrain AD-011: /:ws/:id/collections/:ref
 	g.GET("/:id/collections/:ref", s.HandleListCollections)
 	g.POST("/:id/collections/:ref", s.HandleCreateCollection)
 	g.GET("/:id/collections/:ref/:cid", s.HandleGetCollection)
@@ -1134,7 +1134,7 @@ func (s *Server) registerWorkspaceContentRoutes(g *echo.Group) {
 	g.DELETE("/:id/collections/:ref/:cid", s.HandleDeleteCollection)
 	g.POST("/:id/collections/:ref/:cid/items", s.HandleUploadToCollection)
 
-	// Assets — AD-040: /:ws/:id/assets/:ref
+	// Assets — Bowrain AD-011: /:ws/:id/assets/:ref
 	g.POST("/:id/assets/:ref/upload-url", s.HandleAssetUploadURL)
 	g.GET("/:id/assets/:ref", s.HandleListAssets)
 	g.POST("/:id/assets/:ref", s.HandleCreateAsset)
@@ -1144,7 +1144,7 @@ func (s *Server) registerWorkspaceContentRoutes(g *echo.Group) {
 	g.GET("/:id/assets/:ref/:aid/variants", s.HandleListVariants)
 	g.POST("/:id/assets/:ref/:aid/variants", s.HandleCreateVariant)
 
-	// Review queue — AD-040: /:ws/:id/review-queue/:ref
+	// Review queue — Bowrain AD-011: /:ws/:id/review-queue/:ref
 	g.GET("/:id/review-queue/:ref", s.HandleListReviewQueue)
 	g.GET("/:id/review-queue/:ref/:itemId", s.HandleGetReviewQueueItem)
 	g.POST("/:id/review-queue/:ref/:itemId/decide", s.HandleDecideReviewItem)
@@ -1153,13 +1153,13 @@ func (s *Server) registerWorkspaceContentRoutes(g *echo.Group) {
 	g.POST("/:id/review-queue/:ref/batch-decide", s.HandleBatchDecideReviewItems)
 	g.POST("/:id/review-queue/:ref/sync", s.HandleSyncReviewDecisions)
 
-	// Brand voice — AD-040: /:ws/:id/brand-voice/:ref
+	// Brand voice — Bowrain AD-011: /:ws/:id/brand-voice/:ref
 	g.GET("/:id/brand-voice/:ref/scores", s.HandleGetBrandVoiceScores)
 	g.GET("/:id/brand-voice/:ref/scores/:locale", s.HandleGetBrandVoiceScoresByLocale)
 	g.GET("/:id/brand-voice/:ref/trends", s.HandleGetBrandVoiceTrends)
 	g.POST("/:id/brand-voice/:ref/corrections", s.HandleCreateBrandVoiceCorrection)
 
-	// Collab — AD-040: /:ws/:id/collab/:ref
+	// Collab — Bowrain AD-011: /:ws/:id/collab/:ref
 	g.GET("/:id/collab/:ref", s.HandleCollabWebSocket)
 }
 

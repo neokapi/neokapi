@@ -126,7 +126,7 @@ func runWorker(dbURL string) error {
 		QuotaStore:   pgQS,
 	}
 
-	// Configure blob store for async sync push processing (AD-037).
+	// Configure blob store for async sync push processing (Bowrain AD-009).
 	var blobStore corestorage.BlobStore
 	if azureStorageURL := os.Getenv("AZURE_STORAGE_ACCOUNT_URL"); azureStorageURL != "" {
 		container := envOrDefault("AZURE_STORAGE_CONTAINER", "bowrain-assets")
@@ -153,7 +153,7 @@ func runWorker(dbURL string) error {
 	}
 	translationDeps.BlobStore = blobStore
 
-	// Configure event bus for publishing EventPushCompleted after sync push (AD-037).
+	// Configure event bus for publishing EventPushCompleted after sync push (Bowrain AD-009).
 	if serviceBusConn != "" {
 		bus, err := bowevent.NewServiceBusEventBus(serviceBusConn)
 		if err != nil {

@@ -670,7 +670,7 @@ export class WailsApiAdapter implements ApiAdapter {
     return [];
   }
 
-  // --- Automation Runs (AD-035, not yet supported in desktop) ---
+  // --- Automation Runs (Bowrain AD-013, not yet supported in desktop) ---
   async listAutomationRuns(
     _ws: string,
     _projectId: string,
@@ -794,7 +794,7 @@ export class WailsApiAdapter implements ApiAdapter {
     throw new Error("not implemented in desktop app");
   }
 
-  // --- Activities (AD-027, not yet supported in desktop) ---
+  // --- Activities (Bowrain AD-014, not yet supported in desktop) ---
   async listActivities(
     _ws: string,
     _query?: {
@@ -811,7 +811,7 @@ export class WailsApiAdapter implements ApiAdapter {
 
   async markActivitiesSeen(_ws: string): Promise<void> {}
 
-  // --- Tasks (AD-027, not yet supported in desktop) ---
+  // --- Tasks (Bowrain AD-014, not yet supported in desktop) ---
   async listTasks(
     _ws: string,
     _query?: {
@@ -858,7 +858,7 @@ export class WailsApiAdapter implements ApiAdapter {
     return { tasks: [], next_cursor: "" };
   }
 
-  // --- Notification preferences (AD-027, not yet supported in desktop) ---
+  // --- Notification preferences (Bowrain AD-014, not yet supported in desktop) ---
   async getNotificationPreferences(
     _ws: string,
   ): Promise<{ preferences: NotificationPreference[] }> {

@@ -25,7 +25,7 @@ type ResolvedRef struct {
 // (read-write) or a tag (read-only snapshot). It sets the resolved ref on the
 // echo context for downstream handlers.
 //
-// AD-040: Streams and tags share a namespace. Resolution order:
+// Bowrain AD-011: Streams and tags share a namespace. Resolution order:
 //  1. Exact stream name match → read-write
 //  2. Exact tag name match → read-only
 //  3. 404

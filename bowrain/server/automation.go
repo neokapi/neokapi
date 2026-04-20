@@ -51,7 +51,7 @@ func (s *Server) registerDefaultAutomations() {
 		},
 	})
 
-	// Rule 4: Create review tasks when automations complete (AD-034).
+	// Rule 4: Create review tasks when automations complete (Bowrain AD-014).
 	// This rule is registered but only fires for projects that have it enabled
 	// via stored rules. The built-in version serves as a template.
 	s.AutomationEngine.AddRule(event.AutomationRule{
@@ -62,7 +62,7 @@ func (s *Server) registerDefaultAutomations() {
 		},
 	})
 
-	// Rule 5: Fan out review tasks after source review (AD-034).
+	// Rule 5: Fan out review tasks after source review (Bowrain AD-014).
 	s.AutomationEngine.AddRule(event.AutomationRule{
 		Name:      "fan-out-after-source-review",
 		EventType: platev.EventSourceReviewCompleted,
@@ -408,7 +408,7 @@ func (s *Server) triggerAutoTranslateNewLocales(ctx context.Context, projectID s
 	s.triggerAutoTranslate(ctx, projectID, itemNames, locales, pushID, wsSlug, "")
 }
 
-// createReviewTasks creates per-locale review or translate tasks for project members (AD-034).
+// createReviewTasks creates per-locale review or translate tasks for project members (Bowrain AD-014).
 func (s *Server) createReviewTasks(ctx context.Context, action event.AutomationAction, ev platev.Event, stepID string) {
 	if s.ContentStore == nil || s.TaskStore == nil || s.AuthStore == nil {
 		return
@@ -524,7 +524,7 @@ func (s *Server) createReviewTasks(ctx context.Context, action event.AutomationA
 	}
 }
 
-// createSourceReviewTask creates a source review task before language fan-out (AD-034).
+// createSourceReviewTask creates a source review task before language fan-out (Bowrain AD-014).
 func (s *Server) createSourceReviewTask(ctx context.Context, action event.AutomationAction, ev platev.Event, stepID string) {
 	if s.ContentStore == nil || s.TaskStore == nil {
 		return

@@ -50,7 +50,7 @@ type Config struct {
 	// --- Font mappings ---
 	FontMappings map[string]string // Font name → script group (e.g., "MS Gothic": "ja")
 
-	// --- Media extraction (AD-029) ---
+	// --- Media extraction (Bowrain AD-007) ---
 	ExtractMedia bool // Emit PartMedia parts for embedded images/objects from word/media/
 
 	// --- Advanced ---

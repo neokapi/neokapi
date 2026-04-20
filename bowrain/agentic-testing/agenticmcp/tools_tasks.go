@@ -12,7 +12,7 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
-// registerTaskTools registers Bowrain task API tools for persona agents (AD-034).
+// registerTaskTools registers Bowrain task API tools for persona agents (Bowrain AD-014).
 func (s *Server) registerTaskTools() {
 	mcp.AddTool(s.server, &mcp.Tool{
 		Name:        "list_my_tasks",

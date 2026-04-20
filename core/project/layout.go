@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 )
 
-// Layout describes the on-disk shape of a kapi project per AD-046:
+// Layout describes the on-disk shape of a kapi project per Framework AD-008:
 // a `{project}.kapi` recipe file plus an adjacent `.kapi/` state
 // folder, co-located at the same directory. Both paths are absolute.
 type Layout struct {

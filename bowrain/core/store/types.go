@@ -259,7 +259,7 @@ type ChangeSet struct {
 }
 
 // ---------------------------------------------------------------------------
-// Assets (binary media content — AD-029)
+// Assets (binary media content — Bowrain AD-007)
 // ---------------------------------------------------------------------------
 
 // Asset represents a binary asset (image, audio, video) stored in BlobStore
@@ -300,7 +300,7 @@ type AssetVariant struct {
 // ---------------------------------------------------------------------------
 
 // ---------------------------------------------------------------------------
-// Pulse Dashboard Types (public activity dashboard — AD-033)
+// Pulse Dashboard Types (public activity dashboard — Bowrain AD-017)
 // ---------------------------------------------------------------------------
 
 // PulseOverview is the top-level response for a workspace's public dashboard.

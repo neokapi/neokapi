@@ -361,7 +361,7 @@ func TestWorkflowEndToEnd(t *testing.T) {
 	frUser := addProjectMember(t, srv, wsID, projID, "reviewer", []string{"fr-FR"})
 	deUser := addProjectMember(t, srv, wsID, projID, "reviewer", []string{"de-DE"})
 
-	// Wire up the automation engine via RunManager (AD-035).
+	// Wire up the automation engine via RunManager (Bowrain AD-013).
 	rm := event.NewAutomationRunManager(nil, srv.executeAutomationAction)
 	engine := event.NewAutomationEngine(srv.EventBus, rm.Execute)
 	defer engine.Close()

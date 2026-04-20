@@ -113,7 +113,7 @@ func (s *Store) Exists(_ context.Context, key string) (bool, error) {
 }
 
 // ---------------------------------------------------------------------------
-// ChunkedBlobStore implementation (AD-038)
+// ChunkedBlobStore implementation (Bowrain AD-009)
 // ---------------------------------------------------------------------------
 
 func (s *Store) InitUpload(_ context.Context, uploadKey string) (string, error) {

@@ -35,7 +35,7 @@ type ExtractionWorkerDeps struct {
 	KnownTermsLoader   KnownTermsLoader                                            // optional; nil disables known term filtering
 	NERProvider        ner.Provider                                                // optional; nil disables NER pass
 	Platform           *PlatformProviderConfig                                     // optional; nil disables platform provider
-	LogFunc            func(stepID, level, message string, data map[string]string) // optional (AD-035)
+	LogFunc            func(stepID, level, message string, data map[string]string) // optional (Bowrain AD-013)
 }
 
 // ReviewQueueCreator creates review queue items from extraction results.

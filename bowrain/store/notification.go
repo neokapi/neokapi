@@ -71,7 +71,7 @@ type Notification struct {
 	Read      bool             `json:"read"`
 	CreatedAt time.Time        `json:"created_at"`
 
-	// Extended fields (AD-027)
+	// Extended fields (Bowrain AD-014)
 	Category  string `json:"category,omitempty"`   // preference category for routing
 	GroupKey  string `json:"group_key,omitempty"`  // for grouping related notifications
 	ActorID   string `json:"actor_id,omitempty"`   // who triggered the notification

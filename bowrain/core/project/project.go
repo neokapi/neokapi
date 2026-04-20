@@ -175,10 +175,10 @@ type Config struct {
 	// Automations defines local automation rules (pre-push, post-push, etc.)
 	Automations []AutomationConfig `yaml:"automations,omitempty"`
 
-	// Assets configures project-wide media asset sync behavior (AD-029).
+	// Assets configures project-wide media asset sync behavior (Bowrain AD-007).
 	Assets *AssetConfig `yaml:"assets,omitempty"`
 
-	// BrandVoice configures brand voice profile bindings for this project (AD-025).
+	// BrandVoice configures brand voice profile bindings for this project (Bowrain AD-015).
 	BrandVoice *BrandVoiceProjectConfig `yaml:"brand_voice,omitempty" json:"brand_voice,omitempty"`
 }
 

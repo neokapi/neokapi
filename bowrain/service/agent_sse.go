@@ -39,7 +39,7 @@ func (s SSEWriter) WriteEvent(event string, data any) error {
 	return nil
 }
 
-// SSE event types matching the AD-028 protocol.
+// SSE event types matching the Bowrain AD-016 protocol.
 const (
 	SSEMessageStart  = "message_start"
 	SSEContentDelta  = "content_delta"

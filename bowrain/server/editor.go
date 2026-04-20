@@ -413,7 +413,7 @@ func (r SaveProviderConfigRequest) toCredentials() credentials.ProviderConfig {
 // It checks the URL path param first (stream-scoped routes), then falls back
 // to a query param, then defaults to "main".
 // refParam extracts the ref (stream or tag) from the request.
-// AD-040: resource-first ref pattern — ref comes from :ref path param.
+// Bowrain AD-011: resource-first ref pattern — ref comes from :ref path param.
 // Falls back to :stream (legacy) and ?stream= query param for backward compat.
 func refParam(c echo.Context) string {
 	if s := c.Param("ref"); s != "" {
@@ -457,7 +457,7 @@ func streamParamWithProject(c echo.Context, p *store.Project) string {
 }
 
 // projectParam extracts the project ID from either :id or :pid path parameter.
-// AD-040 uses :id consistently, but some handlers historically use :pid.
+// Bowrain AD-011 uses :id consistently, but some handlers historically use :pid.
 func projectParam(c echo.Context) string {
 	if id := c.Param("id"); id != "" {
 		return id
@@ -1027,7 +1027,7 @@ func buildStreamChain(ctx context.Context, cs store.ContentStore, projectID, str
 // ---------------------------------------------------------------------------
 
 // fileParam extracts the item/file path from the request.
-// AD-040: uses ?item= query param. Falls back to wildcard (*) for legacy routes.
+// Bowrain AD-011: uses ?item= query param. Falls back to wildcard (*) for legacy routes.
 func fileParam(c echo.Context) string {
 	if item := c.QueryParam("item"); item != "" {
 		return item

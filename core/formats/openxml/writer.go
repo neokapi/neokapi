@@ -21,7 +21,7 @@ type Writer struct {
 	originalContent []byte
 
 	// mediaReplacements maps ZIP entry paths (e.g., "word/media/image1.png")
-	// to replacement binary content for locale-variant media substitution (AD-029).
+	// to replacement binary content for locale-variant media substitution (Bowrain AD-007).
 	mediaReplacements map[string][]byte
 }
 
@@ -168,7 +168,7 @@ func (w *Writer) writeFromSkeleton(origZR *zip.Reader, zw *zip.Writer, buf *byte
 	}
 
 	// Write output ZIP: replace translatable parts with skeleton-reconstructed content,
-	// and substitute locale-variant media files (AD-029).
+	// and substitute locale-variant media files (Bowrain AD-007).
 	for _, f := range origZR.File {
 		if content, ok := partContents[f.Name]; ok && len(content) > 0 {
 			// Replace with skeleton-reconstructed content
@@ -186,7 +186,7 @@ func (w *Writer) writeFromSkeleton(origZR *zip.Reader, zw *zip.Writer, buf *byte
 				return err
 			}
 		} else if replacement, ok := w.mediaReplacements[f.Name]; ok {
-			// Replace with locale-variant media (AD-029).
+			// Replace with locale-variant media (Bowrain AD-007).
 			fh := f.FileHeader
 			fh.Method = zip.Deflate
 			fh.CompressedSize64 = 0
@@ -210,7 +210,7 @@ func (w *Writer) writeFromSkeleton(origZR *zip.Reader, zw *zip.Writer, buf *byte
 	return zw.Close()
 }
 
-// writeFromReparse copies the original ZIP, substituting locale-variant media (AD-029).
+// writeFromReparse copies the original ZIP, substituting locale-variant media (Bowrain AD-007).
 func (w *Writer) writeFromReparse(origZR *zip.Reader, zw *zip.Writer, buf *bytes.Buffer,
 	blocks map[string]*model.Block) error {
 

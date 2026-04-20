@@ -4,7 +4,7 @@
 // Session opened on a Store; the executor wires the right provider
 // based on the project's declared store.
 //
-// See AD-046 (docs/ad/046-kapi-project-model.md) for the design.
+// See Framework AD-008 for the design.
 //
 // Design summary:
 //   - Blocks are content-addressed by hash. Once written, they are

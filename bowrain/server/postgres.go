@@ -91,7 +91,7 @@ func initPostgresStores(db *storage.PgDB) (*pgStores, error) {
 		stores.GraphStore = gs
 	}
 
-	// Initialize agent store (AD-028).
+	// Initialize agent store (Bowrain AD-016).
 	ags, err := bragent.NewStore(db)
 	if err != nil {
 		slog.Warn("failed to init agent store (agent features disabled)", "error", err)
@@ -99,7 +99,7 @@ func initPostgresStores(db *storage.PgDB) (*pgStores, error) {
 		stores.Agent = ags
 	}
 
-	// Initialize billing store (AD-030).
+	// Initialize billing store (Bowrain AD-018).
 	bils, err := billing.NewPgBillingStore(db)
 	if err != nil {
 		slog.Warn("failed to init billing store (billing features disabled)", "error", err)

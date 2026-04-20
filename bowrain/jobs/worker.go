@@ -37,13 +37,13 @@ type WorkerDeps struct {
 	QuotaStore   QuotaStore              // optional; nil disables quota enforcement
 	Platform     *PlatformProviderConfig // optional; nil disables platform provider
 	BillingHooks *billing.UsageHooks     // optional; nil disables billing credit deduction
-	// LogFunc is called to emit structured automation logs (AD-035).
+	// LogFunc is called to emit structured automation logs (Bowrain AD-013).
 	// Signature: func(stepID, level, message string, data map[string]string).
 	// Optional; nil disables run logging.
 	LogFunc func(stepID, level, message string, data map[string]string)
 	// BlobStore provides access to push payloads for sync processing.
 	BlobStore corestorage.BlobStore
-	// Decompressor for zstd-compressed sync chunks (AD-038). Optional.
+	// Decompressor for zstd-compressed sync chunks (Bowrain AD-009). Optional.
 	Decompressor interface {
 		Decompress(data []byte) ([]byte, error)
 	}

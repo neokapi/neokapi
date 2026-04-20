@@ -196,7 +196,7 @@ var storeMigrations = []storage.Migration{
 				PRIMARY KEY (version_id, block_id)
 			);
 
-			-- Assets (AD-029)
+			-- Assets (Bowrain AD-007)
 			CREATE TABLE assets (
 				id                TEXT PRIMARY KEY,
 				project_id        TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
@@ -269,7 +269,7 @@ var storeMigrations = []storage.Migration{
 			CREATE INDEX idx_automation_history_project ON automation_history(project_id);
 			CREATE INDEX idx_automation_history_rule ON automation_history(rule_id);
 
-			-- Automation runs (AD-035)
+			-- Automation runs (Bowrain AD-013)
 			CREATE TABLE automation_runs (
 				id           TEXT PRIMARY KEY,
 				project_id   TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
