@@ -7,7 +7,7 @@ title: Implementing Formats
 
 Step-by-step guide for implementing new neokapi format readers/writers or
 migrating existing Okapi filters. Parent AD:
-[AD-005](/docs/ad/005-connector-system).
+[AD-005](/docs/ad/005-format-system).
 
 ## Terminology Mapping from Okapi
 

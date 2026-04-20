@@ -306,5 +306,5 @@ Almost always a `componentMap` desync — the Vite plugin and the CLI must use t
 
 ## Next
 
-- [AD-046 Kapi Project Model](/docs/ad/046-kapi-project-model) — project layout and block store.
+- [AD-008 Kapi Project Model](/docs/ad/008-project-model) — project layout and block store.
 - [kapi CLI overview](/docs/kapi-cli/overview) — translation commands that consume your `.klf`.

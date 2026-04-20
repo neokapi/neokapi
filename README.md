@@ -32,7 +32,7 @@ Six Go modules coordinated by `go.work`:
 | **Bowrain CLI** | `bowrain-cli/` | Project sync companion CLI (init, push, pull, auth, status)                               |
 | **Bowrain**     | `bowrain/`     | Server, desktop app, SQLite storage, auth, connectors                                     |
 
-See [AD-018](docs/ad/018-four-module-architecture.md) for the full rationale.
+See [AD-001](docs/architecture-decisions/001-vision-and-modules.md) for the full rationale.
 
 ## Development Setup
 

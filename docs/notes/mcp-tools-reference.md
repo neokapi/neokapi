@@ -5,7 +5,7 @@ title: "MCP Tools Reference"
 
 # MCP Tools Reference
 
-This note provides implementation details for [AD-021](/docs/ad/021-mcp-integration).
+This note provides implementation details for [AD-013](/docs/ad/013-kapi-cli).
 
 ## Kapi MCP Server
 
