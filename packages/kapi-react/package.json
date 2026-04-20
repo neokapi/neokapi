@@ -67,7 +67,7 @@
   "dependencies": {
     "@neokapi/kapi-format": "*",
     "@swc/core": "^1.12.0",
-    "unplugin": "^2.0.0"
+    "unplugin": "^3.0.0"
   },
   "peerDependencies": {
     "@babel/core": "^7.29.0",
