@@ -308,7 +308,6 @@ func cloneTargets(in map[klf.LocaleID][]klf.Run) map[klf.LocaleID][]klf.Run {
 // ───────── Writer ─────────
 
 // Writer implements format.DataFormatWriter for .klf.
-// Mode (klf vs. klz) is chosen by output file extension.
 type Writer struct {
 	outPath string
 	out     io.Writer

@@ -3,9 +3,9 @@
  *
  * Produces the same bytes `core/klf.Marshal` produces in Go: 2-space
  * indent, no HTML escaping, trailing newline, fields emitted in the
- * struct-definition order the spec pins down. The byte output feeds
- * directly into the .klz manifest SHA-256, so any drift here is a
- * cache-key change. AD-045 is the normative reference.
+ * struct-definition order the spec pins down. The byte output is
+ * stable for hashing and git diffing across runs, machines, and
+ * language implementations.
  */
 
 import type {
@@ -22,9 +22,9 @@ import type {
 import { Kind, SchemaVersion } from './block.ts';
 
 /**
- * Serialize a .klf File to UTF-8 bytes ready to land in a `.klz`
- * archive part. Deterministic: identical input yields identical
- * bytes across runs, machines, and language implementations.
+ * Serialize a .klf File to UTF-8 bytes. Deterministic: identical
+ * input yields identical bytes across runs, machines, and language
+ * implementations.
  */
 export function marshalFile(file: File): Uint8Array {
   const canon = canonicalFile(file);

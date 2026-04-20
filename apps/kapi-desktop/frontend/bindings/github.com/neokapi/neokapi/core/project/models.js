@@ -66,21 +66,6 @@ export class ContentCollection {
         }
         if (/** @type {any} */(false)) {
             /**
-             * Archive is the project-relative path to the .klz that carries
-             * this collection's extracted content + translations. When set,
-             * `kapi status` and `kapi sync` know where to read/write. Omit
-             * for file-based flows that never materialise a .klz.
-             * 
-             * Custom extraction (e.g. JSX → klf blocks) is expressed via a
-             * `format: { name: exec, config: { command } }` on the item,
-             * not via a separate field. See core/formats/exec.
-             * @member
-             * @type {string | undefined}
-             */
-            this["archive"] = undefined;
-        }
-        if (/** @type {any} */(false)) {
-            /**
              * Bare entry fields (short form — promoted from ContentItem).
              * @member
              * @type {string | undefined}
@@ -113,7 +98,7 @@ export class ContentCollection {
     static createFrom($$source = {}) {
         const $$createField2_0 = $$createType0;
         const $$createField3_0 = $$createType2;
-        const $$createField6_0 = $$createType4;
+        const $$createField5_0 = $$createType4;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("target_languages" in $$parsedSource) {
             $$parsedSource["target_languages"] = $$createField2_0($$parsedSource["target_languages"]);
@@ -122,7 +107,7 @@ export class ContentCollection {
             $$parsedSource["items"] = $$createField3_0($$parsedSource["items"]);
         }
         if ("format" in $$parsedSource) {
-            $$parsedSource["format"] = $$createField6_0($$parsedSource["format"]);
+            $$parsedSource["format"] = $$createField5_0($$parsedSource["format"]);
         }
         return new ContentCollection(/** @type {Partial<ContentCollection>} */($$parsedSource));
     }

@@ -359,9 +359,9 @@ export class AvailablePlugin {
 }
 
 /**
- * CollectionStatus mirrors cli.CollectionStatus but uses plain
- * strings for the Wails boundary — JSON-serialisable, no model.LocaleID
- * dependency for the frontend.
+ * CollectionStatus is the JSON-serialisable summary the UI renders
+ * on the project status panel. Stays lean; richer per-block stats
+ * come from the blockstore layer when the executor migration lands.
  */
 export class CollectionStatus {
     /**
@@ -375,20 +375,6 @@ export class CollectionStatus {
              * @type {string}
              */
             this["name"] = "";
-        }
-        if (!("archive" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["archive"] = "";
-        }
-        if (!("archiveExists" in $$source)) {
-            /**
-             * @member
-             * @type {boolean}
-             */
-            this["archiveExists"] = false;
         }
         if (!("blockCount" in $$source)) {
             /**
@@ -421,14 +407,14 @@ export class CollectionStatus {
      * @returns {CollectionStatus}
      */
     static createFrom($$source = {}) {
-        const $$createField4_0 = $$createType11;
-        const $$createField5_0 = $$createType6;
+        const $$createField2_0 = $$createType11;
+        const $$createField3_0 = $$createType6;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("coverage" in $$parsedSource) {
-            $$parsedSource["coverage"] = $$createField4_0($$parsedSource["coverage"]);
+            $$parsedSource["coverage"] = $$createField2_0($$parsedSource["coverage"]);
         }
         if ("targetLanguages" in $$parsedSource) {
-            $$parsedSource["targetLanguages"] = $$createField5_0($$parsedSource["targetLanguages"]);
+            $$parsedSource["targetLanguages"] = $$createField3_0($$parsedSource["targetLanguages"]);
         }
         return new CollectionStatus(/** @type {Partial<CollectionStatus>} */($$parsedSource));
     }
@@ -897,9 +883,7 @@ export class EntityValueFilter {
 }
 
 /**
- * ExtractResult summarises one invocation of RunExtract for the UI.
- * The log is the captured stdout/stderr of `kapi extract` so the
- * user sees which plugins ran and how many blocks each produced.
+ * ExtractResult summarises one re-extract request from the UI.
  */
 export class ExtractResult {
     /**
@@ -2118,7 +2102,7 @@ export class ProjectFileInfo {
 }
 
 /**
- * ProjectStatus is the full per-project bundle returned to the UI.
+ * ProjectStatus bundles the per-collection summaries.
  */
 export class ProjectStatus {
     /**
