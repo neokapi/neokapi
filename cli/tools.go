@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/neokapi/neokapi/cli/output"
+	"github.com/neokapi/neokapi/core/i18n"
 	"github.com/neokapi/neokapi/core/registry"
 	"github.com/spf13/cobra"
 )
@@ -47,18 +48,22 @@ func (a *App) listTools(cmd *cobra.Command) error {
 		return output.Print(cmd, output.ToolsListOutput{})
 	}
 
+	t := a.T()
 	var tools []output.ToolInfo
 	for _, entry := range a.ToolReg.CLITools() {
 		source := entry.Info.Source
 		if source == registry.SourceBuiltIn {
 			source = "builtin"
 		}
-		desc := entry.Info.Description
+		name := string(entry.Info.Name)
+		scope := "tools." + name
+		displayName := t.T(i18n.Scope(scope+".displayName"), entry.Info.DisplayName)
+		desc := t.T(i18n.Scope(scope+".description"), entry.Info.Description)
 		if desc == "" {
-			desc = entry.Info.DisplayName
+			desc = displayName
 		}
 		tools = append(tools, output.ToolInfo{
-			Name:        string(entry.Info.Name),
+			Name:        name,
 			Description: desc,
 			Category:    entry.Info.Category,
 			Source:      source,

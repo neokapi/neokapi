@@ -309,6 +309,18 @@ kapi-desktop-compile: ## Compile i18n/ → public/translations/<locale>.json for
 
 kapi-desktop-translations: kapi-desktop-pseudo-translate kapi-desktop-compile ## Extract → pseudo-translate → compile
 
+kapi-i18n-generate: ## Regenerate core/i18n/builtins/metadata.json from Go registries
+	go generate ./core/i18n/...
+
+kapi-i18n-pseudo-translate: kapi-i18n-generate bin/kapi ## Pseudo-translate builtins into core/i18n/catalogs/qps.mo
+	./bin/kapi pseudo-translate core/i18n/builtins/metadata.json \
+		--target-lang qps \
+		-f json \
+		-o core/i18n/catalogs/qps.mo \
+		-q
+
+kapi-i18n-translations: kapi-i18n-pseudo-translate ## Regenerate + pseudo-translate builtin metadata → MO
+
 storybook-fixtures: ## Generate Storybook fixtures from real format/tool data
 	@./scripts/gen-storybook-fixtures.sh
 
@@ -547,6 +559,7 @@ help: ## Show this help
         kapi-desktop-frontend-deps kapi-desktop-frontend-dev kapi-desktop-frontend-build \
         kapi-desktop-frontend-test kapi-desktop-frontend-check kapi-desktop-extract \
         kapi-desktop-pseudo-translate kapi-desktop-compile kapi-desktop-translations \
+        kapi-i18n-generate kapi-i18n-pseudo-translate kapi-i18n-translations \
         flow-editor-deps flow-editor-check flow-editor-test \
         kapi-storybook kapi-storybook-build bowrain-storybook bowrain-storybook-build \
         cover test-e2e test-e2e-kapi test-e2e-bowrain test-e2e-cloud test-e2e-dev \

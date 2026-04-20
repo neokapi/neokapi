@@ -9,6 +9,7 @@ import (
 	"github.com/neokapi/neokapi/cli/output"
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/format/schema"
+	"github.com/neokapi/neokapi/core/i18n"
 	"github.com/neokapi/neokapi/core/registry"
 	"github.com/spf13/cobra"
 )
@@ -43,14 +44,16 @@ Use --mime or --ext to filter by MIME type or file extension.`,
 			// list clean — users see "okf_html" rather than duplicates.
 			infos = deduplicateVersionedFormats(infos)
 
+			t := a.T()
 			out := output.FormatsListOutput{
 				Formats: make([]output.FormatInfo, 0, len(infos)),
 				Total:   len(infos),
 			}
 			for _, info := range infos {
+				name := string(info.Name)
 				out.Formats = append(out.Formats, output.FormatInfo{
-					Name:        string(info.Name),
-					DisplayName: info.DisplayName,
+					Name:        name,
+					DisplayName: t.T(i18n.Scope("formats."+name+".displayName"), info.DisplayName),
 					HasReader:   info.HasReader,
 					HasWriter:   info.HasWriter,
 					Source:      info.Source,

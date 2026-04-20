@@ -1,0 +1,3 @@
+Compiled MO catalogs land here — one per locale, produced by
+`make kapi-i18n-compile` (KLF reader → MO writer). Embedded into the
+framework binary via //go:embed in ../embed.go.

@@ -32,7 +32,7 @@ func TestRegisterAllReaders(t *testing.T) {
 		// Declarative pseudo-format: registered so it shows up in the
 		// format list / UI. Open() intentionally errors — actual exec
 		// extraction runs via `kapi extract -p` (AD-045).
-		"exec",
+		"exec", "mo",
 	}
 
 	for _, name := range expectedFormats {
@@ -47,7 +47,7 @@ func TestRegisterAllWriters(t *testing.T) {
 
 	expectedFormats := []registry.FormatID{
 		"plaintext", "html", "xml", "xliff", "xliff2",
-		"yaml", "json", "jsx", "po", "properties",
+		"yaml", "json", "jsx", "po", "mo", "properties",
 		"markdown", "csv", "tsv", "srt", "ttml", "vtt", "tmx", "openxml",
 		"mosestext", "dtd", "ts", "wiki", "tex",
 		"regex", "doxygen", "messageformat", "phpcontent",

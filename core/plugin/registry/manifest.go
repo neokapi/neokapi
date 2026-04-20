@@ -128,6 +128,13 @@ type PluginManifest struct {
 	// Bundles typically declare many capabilities; standalone format/tool
 	// plugins may declare one or none (falling back to PluginType).
 	Capabilities []Capability `json:"capabilities,omitempty"`
+
+	// I18nDir is the path (relative to the plugin version directory) to the
+	// directory holding compiled gettext MO catalogs, one per locale
+	// (e.g. "i18n/fr-FR.mo"). When empty, the loader defaults to "i18n"
+	// if that directory exists. Plugins without any catalog simply omit
+	// the directory — absence is silent, not an error.
+	I18nDir string `json:"i18n_dir,omitempty"`
 }
 
 // IsBundle reports whether this plugin is a bundle (a collection of formats

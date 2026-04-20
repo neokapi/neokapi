@@ -594,11 +594,22 @@ func (a *App) processFlowFileNative(ctx context.Context, cmd *cobra.Command, flo
 
 	outputPath := a.resolveOutputPath(inputPath, outputTemplate)
 
+	// Writer format defaults to the reader's format (same-in / same-out
+	// round-trip) but a different output extension selects a different
+	// writer. This is how "convert file.json → file.klf → file.mo" works
+	// without a dedicated --writer flag — the output path is already the
+	// user's intent declaration.
+	writerFormatName := registryName
+	if ext := filepath.Ext(outputPath); ext != "" {
+		if det, err := a.FormatReg.DetectByExtension(ext); err == nil && det != "" {
+			writerFormatName = string(det)
+		}
+	}
 	// Reader is pre-created and pre-configured by processFlowFile.
 	// Pass it via RunFileWithReaderWriter since format detection already happened.
-	writer, err := a.FormatReg.NewWriter(registry.FormatID(registryName))
+	writer, err := a.FormatReg.NewWriter(registry.FormatID(writerFormatName))
 	if err != nil {
-		return traceNodes, fmt.Errorf("no writer for %q: %w", registryName, err)
+		return traceNodes, fmt.Errorf("no writer for %q: %w", writerFormatName, err)
 	}
 
 	runner := flow.NewFileRunner(flow.FileRunnerConfig{

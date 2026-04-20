@@ -1,0 +1,38 @@
+version: v1
+name: kapi-builtins-i18n
+defaults:
+  source_language: en
+content:
+  - name: builtin-manifest
+    items:
+      - path: builtins/manifest.json
+        format:
+          name: json
+          config:
+            extractAllPairs: false
+            useKeyAsName: true
+            useFullKeyPath: true
+            useLeadingSlashOnKeyPath: true
+            extractionRules: "(display_name|description|title|label)$"
+        target: "klf/{lang}/manifest.klf"
+  - name: builtin-schemas
+    items:
+      - path: builtins/schemas/*.json
+        format:
+          name: json
+          config:
+            extractAllPairs: false
+            useKeyAsName: true
+            useFullKeyPath: true
+            useLeadingSlashOnKeyPath: true
+            extractionRules: "(title|description|label)$"
+        target: "klf/{lang}/{name}.klf"
+flows:
+  # Custom flow names (avoid collision with built-in flow names like
+  # "pseudo-translate" and "ai-translate" — those bypass project content).
+  extract-pseudo:
+    steps:
+      - tool: pseudo-translate
+  extract-ai:
+    steps:
+      - tool: ai-translate

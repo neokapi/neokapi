@@ -21,6 +21,8 @@ import (
 	"github.com/neokapi/neokapi/core/flow"
 	fmtschema "github.com/neokapi/neokapi/core/format/schema"
 	"github.com/neokapi/neokapi/core/formats"
+	"github.com/leonelquinteros/gotext"
+	"github.com/neokapi/neokapi/core/i18n"
 	"github.com/neokapi/neokapi/core/id"
 	"github.com/neokapi/neokapi/core/model"
 	plugincache "github.com/neokapi/neokapi/core/plugin/cache"
@@ -44,6 +46,13 @@ type App struct {
 	toolReg      *registry.ToolRegistry
 	schemaReg    *fmtschema.SchemaRegistry
 	pluginLoader *loader.PluginLoader
+
+	// i18n — localizes metadata on the way out of Wails methods so the
+	// React frontend's tool palette and schema forms render in the
+	// user's chosen locale without the frontend having to know anything
+	// about the backend's string table. Built lazily on first SetLocale.
+	i18nMu     sync.RWMutex
+	translator i18n.Translator
 
 	// Open projects (multiple tabs)
 	mu       sync.RWMutex
@@ -167,6 +176,12 @@ func (a *App) SetApplication(app *application.App) {
 // LoadPlugins scans and loads plugins in the background.
 func (a *App) LoadPlugins() {
 	a.rescanPlugins()
+	// Prime the metadata Translator from the persisted UI language so
+	// tool/format listings come back localized on the very first
+	// ListTools/ListFormats call — before the frontend has a chance to
+	// invoke SetLocale. ScanMetadata has just run, so plugin catalogs
+	// are discoverable.
+	a.SetLocale(a.GetUILanguage())
 	a.emitEvent("plugins-loaded", nil)
 
 	// Watch the plugin cache file for external changes (e.g., CLI install/remove).
@@ -589,6 +604,41 @@ type ToolInfo struct {
 	SideEffects   []string `json:"side_effects,omitempty"`   // external interactions
 }
 
+// SetLocale configures the active locale for metadata Wails methods.
+// Called from the React frontend whenever the user changes UI language.
+// Empty or "en" disables localization; non-English locales load the
+// matching MO catalog (embedded builtins + installed plugin catalogs).
+// Returns the resolved locale so the frontend can confirm what took
+// effect — useful when the request was "auto" and the backend chose.
+func (a *App) SetLocale(locale string) string {
+	var cats []*gotext.Mo
+	if locale != "" && locale != "en" && a.pluginLoader != nil {
+		if c, err := a.pluginLoader.I18nCatalogs(model.LocaleID(locale)); err != nil {
+			a.logger.Printf("SetLocale: loading plugin i18n catalogs: %v", err)
+		} else {
+			cats = c
+		}
+	}
+	tr := i18n.Resolve(i18n.ResolveOptions{Flag: locale, PluginCatalogs: cats})
+	a.i18nMu.Lock()
+	a.translator = tr
+	a.i18nMu.Unlock()
+	return string(tr.Locale())
+}
+
+// T returns the active Translator. Safe to call before SetLocale —
+// returns a NoopTranslator that passes source text through unchanged.
+// Not exposed to Wails (lowercase methods are private); backend code
+// reaches for it directly.
+func (a *App) T() i18n.Translator {
+	a.i18nMu.RLock()
+	defer a.i18nMu.RUnlock()
+	if a.translator == nil {
+		return i18n.NoopTranslator{}
+	}
+	return a.translator
+}
+
 // ListTools returns all registered tools (built-in + plugin).
 func (a *App) ListTools() []ToolInfo {
 	return a.toolInfosFrom(a.toolReg.ListWithSchemas())
@@ -619,6 +669,7 @@ func (a *App) ValidateProjectFlows(tabID string) []project.FlowValidationIssue {
 }
 
 func (a *App) toolInfosFrom(all []registry.ToolInfo) []ToolInfo {
+	t := a.T()
 	infos := make([]ToolInfo, len(all))
 	for i, info := range all {
 		var produces []string
@@ -629,10 +680,12 @@ func (a *App) toolInfosFrom(all []registry.ToolInfo) []ToolInfo {
 		for _, s := range info.SideEffects {
 			sideEffects = append(sideEffects, string(s))
 		}
+		name := string(info.Name)
+		scope := "tools." + name
 		infos[i] = ToolInfo{
-			Name:          string(info.Name),
-			DisplayName:   info.DisplayName,
-			Description:   info.Description,
+			Name:          name,
+			DisplayName:   t.T(i18n.Scope(scope+".displayName"), info.DisplayName),
+			Description:   t.T(i18n.Scope(scope+".description"), info.Description),
 			Category:      info.Category,
 			Source:        info.Source,
 			HasSchema:     info.HasSchema,
@@ -774,6 +827,7 @@ func (a *App) ListFormats() []FormatInfo {
 		}
 	}
 
+	t := a.T()
 	var infos []FormatInfo
 	for _, fi := range allInfos {
 		name := string(fi.Name)
@@ -785,7 +839,7 @@ func (a *App) ListFormats() []FormatInfo {
 		_, hasSchema := a.schemaReg.GetSchema(name)
 		infos = append(infos, FormatInfo{
 			Name:        name,
-			DisplayName: fi.DisplayName,
+			DisplayName: t.T(i18n.Scope("formats."+name+".displayName"), fi.DisplayName),
 			Extensions:  fi.Extensions,
 			MimeTypes:   fi.MimeTypes,
 			HasReader:   fi.HasReader,
