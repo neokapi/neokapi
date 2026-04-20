@@ -1,7 +1,7 @@
 /**
  * Pure Run encoders. No Node-specific deps so the kapi-react runtime
- * (browser) can pull these in without dragging the klz archive
- * toolchain (node:crypto, fflate) into the bundle.
+ * (browser) can pull these in without dragging any Node-only
+ * toolchain into the bundle.
  */
 
 import type { Run } from './block.ts';

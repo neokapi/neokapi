@@ -35,9 +35,9 @@ dist/
 
 # Extraction artifacts — regenerated via `make kapi-desktop-translations`.
 # The per-locale runtime dictionaries under public/translations/ are
-# committed so the app ships with translations; the intermediate .klz
-# archives aren't.
-apps/kapi-desktop/frontend/i18n/*.klz
+# committed so the app ships with translations; the intermediate
+# per-file .klf extract output is ephemeral and gitignored.
+apps/kapi-desktop/frontend/i18n/
 
 # Wails
 **/build/bin/
@@ -49,8 +49,8 @@ apps/kapi-desktop/frontend/i18n/*.klz
 !framework/apps/kapi-desktop/build/appicon.png
 **/frontend/wailsjs/
 **/frontend/bindings/
-!platform/apps/bowrain/frontend/bindings/
-!framework/apps/kapi-desktop/frontend/bindings/
+!bowrain/apps/bowrain/frontend/bindings/
+!apps/kapi-desktop/frontend/bindings/
 **/frontend/package.json.md5
 **/.task/
 

@@ -551,9 +551,15 @@ export function GetProjectPath(tabID) {
 }
 
 /**
- * GetProjectStatus reads the project at the given tab's path and
- * returns the archive-backed translation state. The UI renders this
- * as a coverage panel on the project view.
+ * GetProjectStatus returns the current per-collection state for a
+ * project tab. Under the new model, rich coverage/block-count data
+ * flows from a blockstore.Session against the project's cache.db —
+ * that's wired up in a follow-up. For now the status surface is
+ * intentionally sparse: recipe identity + the list of declared
+ * collections + their declared target languages. The frontend uses
+ * it to draw the shell of the status panel; cells that depend on
+ * blockstore data render as pending until the session integration
+ * lands.
  * @param {string} tabID
  * @returns {$CancellablePromise<$models.ProjectStatus | null>}
  */
@@ -1227,13 +1233,13 @@ export function ResolveEntityConcepts(tmHandle, tbHandle, entryIDs, force) {
 }
 
 /**
- * RunExtract runs `kapi extract -p <project>` for the given tab and
- * returns the captured progress output. The UI's Re-extract button
- * fires this, then refreshes the status panel.
- * 
- * Tool time is bounded at 5 minutes per extractor subprocess — the
- * default on `kapi extract --timeout`, enough for reasonable
- * projects, prevents a runaway from hanging the desktop app.
+ * RunExtract is a placeholder for the desktop's "Re-extract" button.
+ * Under the new project model extraction is driven by the per-tool
+ * flow executor (`kapi run`) and by upstream extractors such as
+ * `kapi-react extract`. A future change re-wires this to run the
+ * project's declared flow against a session on the project's
+ * blockstore. For now we return a friendly no-op so existing frontend
+ * wiring still compiles.
  * @param {string} tabID
  * @returns {$CancellablePromise<$models.ExtractResult | null>}
  */

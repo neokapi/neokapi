@@ -16,16 +16,17 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// allKLZ returns true when every positional input path carries the
-// `.klz` extension. Used to decide whether a tool run defaults to
-// in-place output (KLZ writers are locale-additive) or the sibling
-// `./out/...` template (every other format).
-func allKLZ(paths []string) bool {
+// allKLF returns true when every positional input path carries the
+// `.klf` extension. Used to decide whether a tool run defaults to
+// in-place output (the KLF writer is locale-additive — accumulates
+// target translations on each block) or the sibling `./out/...`
+// template (every other format).
+func allKLF(paths []string) bool {
 	if len(paths) == 0 {
 		return false
 	}
 	for _, p := range paths {
-		if !strings.EqualFold(filepath.Ext(p), ".klz") {
+		if !strings.EqualFold(filepath.Ext(p), ".klf") {
 			return false
 		}
 	}
@@ -131,12 +132,12 @@ func (a *App) NewToolCommands() []*cobra.Command {
 				if info.WritesOutput {
 					outputTmpl, _ = cmd.Flags().GetString("output")
 					if outputTmpl == "" {
-						// KLZ writers are locale-additive: reading and
+						// KLF writers are locale-additive: reading and
 						// writing back to the same file accumulates
 						// translations. For that case the natural default
 						// is in-place. Other formats keep the sibling-dir
 						// template so input and output can't collide.
-						if allKLZ(args) {
+						if allKLF(args) {
 							inPlace = true
 						} else {
 							outputTmpl = "./out/{name}.{ext}"

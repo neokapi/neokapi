@@ -9,15 +9,15 @@
  * annotation type MUST ignore it and process the authoritative
  * content correctly.
  *
- * Annotations live as sidecar files under `annotations/` inside a
- * `.klz` archive:
+ * Annotations live as sidecar files on disk under
+ * `.kapi/collections/<name>/annotations/<producer-namespace>.klfl`
+ * (inside a kapi project) or as Session.PutSidecar calls keyed by
+ * (kind, blockHash) when running through a BlockStore session.
  *
- *   annotations/<producer-namespace>.klfl
- *
- * Each file is JSON Lines. The first line is a header record; the
- * rest are annotation records. Multiple annotation files can
- * coexist in the same archive without coordination — different
- * producers own different files.
+ * Each `.klfl` file is JSON Lines. The first line is a header
+ * record; the rest are annotation records. Multiple annotation
+ * files can coexist without coordination — different producers own
+ * different files.
  *
  * Lifecycle rules:
  *
@@ -26,8 +26,8 @@
  *   2. Annotations are layered. Producers write independent files;
  *      no cross-file merge semantics.
  *   3. Annotations are derivable. Losing an annotation file costs
- *      only regeneration; the authoritative content in
- *      `documents/` is unchanged.
+ *      only regeneration; the authoritative content in the
+ *      `.klf` blocks is unchanged.
  *   4. Annotations can become stale when blocks change. Validators
  *      detect orphans (anchors that no longer resolve) and flag
  *      them. Producers re-run to refresh.
