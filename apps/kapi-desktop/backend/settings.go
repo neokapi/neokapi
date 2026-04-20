@@ -109,12 +109,18 @@ func (a *App) GetUILanguage() string {
 	return a.settings.settings.UILanguage
 }
 
-// SetUILanguage updates the UI language preference.
+// SetUILanguage updates the UI language preference and rebuilds the
+// metadata Translator so the very next ListTools/ListFormats/etc. call
+// returns strings in the new locale — no desktop restart needed.
+// Frontend updates are single-threaded (one user toggling settings);
+// the SetLocale call re-resolves catalogs, which is cheap (cached MO
+// reads).
 func (a *App) SetUILanguage(lang string) {
 	a.settings.mu.Lock()
-	defer a.settings.mu.Unlock()
 	a.settings.settings.UILanguage = lang
 	a.settings.save()
+	a.settings.mu.Unlock()
+	a.SetLocale(lang)
 }
 
 // DismissSamples marks the sample project cards as dismissed.

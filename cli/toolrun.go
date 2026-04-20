@@ -231,10 +231,24 @@ func (a *App) processOneFile(ctx context.Context, cfg ToolRunConfig, filePath st
 	}
 
 	// Create writer early so we can wire skeleton store before reading.
+	// Writer format defaults to the reader's format (same-in / same-out
+	// round-trip) but a different output extension selects a different
+	// writer — that's how "convert .json → .klf → .mo" works without a
+	// dedicated --writer flag. The output path's extension IS the user's
+	// intent declaration.
 	var writer format.DataFormatWriter
 	if cfg.OutputTemplate != "" || cfg.InPlace {
+		writerFormatName := registryName
+		if !cfg.InPlace {
+			probeOut := expandOutputPath(cfg.OutputTemplate, filePath, commonDir, cfg.TargetLang)
+			if ext := filepath.Ext(probeOut); ext != "" {
+				if det, err := a.FormatReg.DetectByExtension(ext); err == nil && det != "" {
+					writerFormatName = string(det)
+				}
+			}
+		}
 		var err error
-		writer, err = a.FormatReg.NewWriter(registry.FormatID(registryName))
+		writer, err = a.FormatReg.NewWriter(registry.FormatID(writerFormatName))
 		if err != nil {
 			if !cfg.FailOnUnknown {
 				if !cfg.NoWarn {
@@ -242,7 +256,7 @@ func (a *App) processOneFile(ctx context.Context, cfg ToolRunConfig, filePath st
 				}
 				return nil
 			}
-			return fmt.Errorf("no writer for format %q: %w", fmtName, err)
+			return fmt.Errorf("no writer for format %q: %w", writerFormatName, err)
 		}
 	}
 

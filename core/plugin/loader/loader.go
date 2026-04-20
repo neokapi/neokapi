@@ -18,8 +18,11 @@ import (
 	"strings"
 	"time"
 
+	"github.com/leonelquinteros/gotext"
+
 	"github.com/neokapi/neokapi/core/format"
 	fmtschema "github.com/neokapi/neokapi/core/format/schema"
+	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/plugin/bridge"
 	plugincache "github.com/neokapi/neokapi/core/plugin/cache"
 	"github.com/neokapi/neokapi/core/plugin/host"
@@ -877,6 +880,60 @@ func (l *PluginLoader) Plugins() []PluginInfo {
 // Dir returns the plugin directory path.
 func (l *PluginLoader) Dir() string {
 	return l.dir
+}
+
+// I18nCatalogs returns the set of gettext MO catalogs contributed by
+// installed plugins for the given locale. Each plugin that ships a
+// compiled catalog at `<pluginDir>/<name>/<version>/i18n/<locale>.mo`
+// (or at a custom path set via PluginManifest.I18nDir) gets one entry.
+// Missing files are silently skipped — absence of a translation is
+// normal, not an error. Callers (typically cli/app.go during Init) merge
+// the returned slice into i18n.ResolveOptions.PluginCatalogs.
+//
+// Safe to call after ScanMetadata. Returns nil and no error when dir is
+// empty or no plugin ships a matching catalog.
+func (l *PluginLoader) I18nCatalogs(locale model.LocaleID) ([]*gotext.Mo, error) {
+	if locale.IsEmpty() || locale == "en" || l.dir == "" {
+		return nil, nil
+	}
+	var catalogs []*gotext.Mo
+	for _, p := range l.plugins {
+		if p.Name == "" || p.Version == "" {
+			continue
+		}
+		// Convention: pluginRoot/<name>/<version>/i18n/<locale>.mo.
+		// The I18nDir override on PluginManifest isn't threaded through
+		// PluginInfo yet — if a plugin needs a non-default dir, we read
+		// that during ScanMetadata and surface it via PluginInfo in a
+		// follow-up. For v1 every plugin we ship (and okapi-bridge)
+		// uses the convention.
+		versionDir := filepath.Join(l.dir, p.Name, p.Version)
+		path := filepath.Join(versionDir, "i18n", string(locale)+".mo")
+		mo, err := loadMoFile(path)
+		if err != nil {
+			l.logf("plugin %s: loading i18n catalog %s: %v", p.Name, path, err)
+			continue
+		}
+		if mo != nil {
+			catalogs = append(catalogs, mo)
+		}
+	}
+	return catalogs, nil
+}
+
+// loadMoFile reads and parses a gettext MO file. Returns (nil, nil) when
+// the file is absent; returns an error only on I/O or parse failure.
+func loadMoFile(path string) (*gotext.Mo, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	mo := gotext.NewMo()
+	mo.Parse(data)
+	return mo, nil
 }
 
 // Schemas returns the schema registry for filter parameters.

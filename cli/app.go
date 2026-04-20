@@ -16,6 +16,7 @@ import (
 	neokapiconfig "github.com/neokapi/neokapi/core/config"
 	"github.com/neokapi/neokapi/core/format/schema"
 	"github.com/neokapi/neokapi/core/formats"
+	"github.com/neokapi/neokapi/core/i18n"
 	"github.com/neokapi/neokapi/core/plugin/loader"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/registry"
@@ -39,6 +40,7 @@ type App struct {
 	CfgFile        string
 	PluginDir      string
 	DisablePlugins string // comma-separated plugin names to skip
+	Lang           string // --lang / KAPI_LANG; feeds i18n.Resolve
 
 	// Processing flags bound by AddProcessingFlags.
 	FormatFlag string
@@ -60,6 +62,21 @@ type App struct {
 	// projectFlowTools is set temporarily by runProjectSteps to override
 	// buildFlowTools for project-defined flows.
 	projectFlowTools []tool.Tool
+
+	// translator localizes tool/format/plugin metadata at API egress.
+	// Built during Init from --lang / KAPI_LANG / config / POSIX env.
+	// Never nil after Init — unresolved locales get a NoopTranslator
+	// so T() calls are always safe.
+	translator i18n.Translator
+}
+
+// T returns the active metadata Translator. Safe to call before Init —
+// returns a NoopTranslator that passes source text through unchanged.
+func (a *App) T() i18n.Translator {
+	if a.translator == nil {
+		return i18n.NoopTranslator{}
+	}
+	return a.translator
 }
 
 // AddPersistentFlags registers global flags on the root command.
@@ -69,6 +86,7 @@ func (a *App) AddPersistentFlags(cmd *cobra.Command) {
 	cmd.PersistentFlags().BoolVarP(&a.Quiet, "quiet", "q", false, "suppress output")
 	cmd.PersistentFlags().StringVar(&a.PluginDir, "plugin-dir", "", "plugin directory")
 	cmd.PersistentFlags().StringVar(&a.DisablePlugins, "disable-plugins", "", "comma-separated plugin names to skip (e.g. okapi)")
+	cmd.PersistentFlags().StringVar(&a.Lang, "lang", "", "UI locale for tool/format/plugin metadata (BCP-47, e.g. fr-FR); falls back to KAPI_LANG / LC_ALL / LANG")
 	output.AddPersistentFlags(cmd)
 }
 
@@ -165,6 +183,25 @@ func (a *App) Init() {
 
 	// Apply format priority overrides from configuration.
 	a.applyFormatPriorities(a.Config.FormatPriorities())
+
+	// Build the metadata Translator. Plugin catalogs are merged in after
+	// the locale is resolved so we only read MO files we'll actually use.
+	resolveOpts := i18n.ResolveOptions{
+		Flag:           a.Lang,
+		ConfigLanguage: a.Config.Language(),
+	}
+	// Peek the locale first so we skip plugin catalog I/O for en/empty.
+	// i18n.Resolve does this internally too, but doing it here lets us
+	// avoid the extra file-stat loop for the common case.
+	peek := i18n.Resolve(resolveOpts)
+	if peek.Locale() != "" && peek.Locale() != "en" {
+		if cats, err := a.PluginLoader.I18nCatalogs(peek.Locale()); err == nil {
+			resolveOpts.PluginCatalogs = cats
+		} else if !a.Quiet {
+			fmt.Fprintf(os.Stderr, "Warning: loading plugin i18n catalogs: %v\n", err)
+		}
+	}
+	a.translator = i18n.Resolve(resolveOpts)
 
 	// Lazy bridge loading: bridges start only when a non-built-in
 	// format is requested for the first time.

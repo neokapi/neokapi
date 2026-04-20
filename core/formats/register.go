@@ -23,6 +23,7 @@ import (
 	"github.com/neokapi/neokapi/core/formats/markdown"
 	"github.com/neokapi/neokapi/core/formats/messageformat"
 	"github.com/neokapi/neokapi/core/formats/mif"
+	"github.com/neokapi/neokapi/core/formats/mo"
 	"github.com/neokapi/neokapi/core/formats/mosestext"
 	"github.com/neokapi/neokapi/core/formats/odf"
 	"github.com/neokapi/neokapi/core/formats/openxml"
@@ -162,6 +163,29 @@ func RegisterAll(reg *registry.FormatRegistry, opts ...RegisterOptions) {
 		}, "PO (Gettext)")
 	reg.RegisterWriter("po", func() format.DataFormatWriter { return po.NewWriter() })
 	registerSchemaAndDecoder(o, reg, "po", func() format.DataFormatReader { return po.NewReader() })
+
+	// MO (GNU gettext, binary — compiled runtime catalog). A stub reader
+	// is registered purely so DetectByExtension(".mo") resolves to this
+	// format and `-o file.mo` picks the MO writer. The stub errors on
+	// Open — runtime consumers load MO via github.com/leonelquinteros/gotext,
+	// never through the pipeline.
+	reg.RegisterReader("mo",
+		func() format.DataFormatReader { return mo.NewReader() },
+		format.FormatSignature{
+			MIMETypes:  []string{"application/x-gettext-translation"},
+			Extensions: []string{".mo"},
+		}, "MO (Gettext, binary)")
+	reg.RegisterWriter("mo", func() format.DataFormatWriter { return mo.NewWriter() })
+	if o.ConfigReg != nil {
+		o.ConfigReg.Register(config.FormatConfigKind("mo"), config.SpecDecoderFunc(func(spec map[string]any) (any, error) {
+			c := &mo.Config{}
+			c.Reset()
+			if err := c.ApplyMap(spec); err != nil {
+				return nil, err
+			}
+			return c, nil
+		}))
+	}
 
 	// Java Properties
 	reg.RegisterReader("properties",

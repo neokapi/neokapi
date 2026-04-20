@@ -28,6 +28,7 @@ require (
 	github.com/hashicorp/go-hclog v1.6.3 // indirect
 	github.com/hashicorp/yamux v0.1.2 // indirect
 	github.com/kr/pretty v0.3.1 // indirect
+	github.com/leonelquinteros/gotext v1.7.2 // indirect
 	github.com/mattn/go-colorable v0.1.14 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/oklog/run v1.1.0 // indirect

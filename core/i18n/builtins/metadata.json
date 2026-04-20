@@ -1,0 +1,1820 @@
+{
+  "tools": {
+    "ai-qa": {
+      "displayName": "AI QA Check",
+      "description": "Check translation quality using an LLM provider",
+      "category": "quality",
+      "properties": {
+        "apiKey": {
+          "title": "API Key",
+          "description": "API key for the AI provider"
+        },
+        "checks": {
+          "title": "Quality Checks",
+          "description": "Quality checks to perform (e.g. terminology fluency accuracy consistency)"
+        },
+        "model": {
+          "title": "Model",
+          "description": "AI model name"
+        },
+        "provider": {
+          "title": "AI Provider",
+          "description": "AI provider",
+          "options": {
+            "anthropic": {
+              "label": "Anthropic"
+            },
+            "azureopenai": {
+              "label": "Azure OpenAI"
+            },
+            "gemini": {
+              "label": "Gemini"
+            },
+            "ollama": {
+              "label": "Ollama"
+            },
+            "openai": {
+              "label": "OpenAI"
+            }
+          }
+        }
+      },
+      "groups": {
+        "provider": {
+          "label": "Provider"
+        }
+      }
+    },
+    "ai-review": {
+      "displayName": "AI Review",
+      "description": "Review translations with scoring using an LLM provider",
+      "category": "quality",
+      "properties": {
+        "apiKey": {
+          "title": "API Key",
+          "description": "API key for the AI provider"
+        },
+        "model": {
+          "title": "Model",
+          "description": "AI model name"
+        },
+        "provider": {
+          "title": "AI Provider",
+          "description": "AI provider",
+          "options": {
+            "anthropic": {
+              "label": "Anthropic"
+            },
+            "azureopenai": {
+              "label": "Azure OpenAI"
+            },
+            "gemini": {
+              "label": "Gemini"
+            },
+            "ollama": {
+              "label": "Ollama"
+            },
+            "openai": {
+              "label": "OpenAI"
+            }
+          }
+        }
+      },
+      "groups": {
+        "provider": {
+          "label": "Provider"
+        }
+      }
+    },
+    "ai-translate": {
+      "displayName": "AI Translate",
+      "description": "Translate content using an LLM provider",
+      "category": "translation",
+      "properties": {
+        "apiKey": {
+          "title": "API Key",
+          "description": "API key for the AI provider"
+        },
+        "batchConcurrency": {
+          "title": "Batch Concurrency",
+          "description": "Number of concurrent batch calls (0 or 1 = sequential)"
+        },
+        "batchSize": {
+          "title": "Batch Size",
+          "description": "Number of blocks per LLM call"
+        },
+        "model": {
+          "title": "Model",
+          "description": "AI model name"
+        },
+        "provider": {
+          "title": "AI Provider",
+          "description": "AI provider",
+          "options": {
+            "anthropic": {
+              "label": "Anthropic"
+            },
+            "azureopenai": {
+              "label": "Azure OpenAI"
+            },
+            "gemini": {
+              "label": "Gemini"
+            },
+            "ollama": {
+              "label": "Ollama"
+            },
+            "openai": {
+              "label": "OpenAI"
+            }
+          }
+        },
+        "skipMatched": {
+          "title": "Skip Matched",
+          "description": "Skip blocks that already have a target translation"
+        }
+      },
+      "groups": {
+        "provider": {
+          "label": "Provider"
+        }
+      }
+    },
+    "case-transform": {
+      "displayName": "Case Transform",
+      "category": "text-processing",
+      "properties": {
+        "applySource": {
+          "title": "Apply to Source",
+          "description": "Apply to source text"
+        },
+        "applyTarget": {
+          "title": "Apply to Target",
+          "description": "Apply to target text"
+        },
+        "mode": {
+          "title": "Transformation Mode",
+          "description": "Case transformation mode",
+          "options": {
+            "lower": {
+              "label": "lower"
+            },
+            "title": {
+              "label": "title"
+            },
+            "upper": {
+              "label": "upper"
+            }
+          }
+        }
+      }
+    },
+    "char-count": {
+      "displayName": "Character Count",
+      "category": "analysis",
+      "properties": {
+        "countInline": {
+          "title": "Count Inline Codes",
+          "description": "Include inline code content in character counts"
+        },
+        "countSource": {
+          "title": "Count Source",
+          "description": "Count characters in source text"
+        },
+        "countTarget": {
+          "title": "Count Target",
+          "description": "Count characters in target text"
+        }
+      }
+    },
+    "chars-check": {
+      "displayName": "Characters Check",
+      "category": "quality",
+      "properties": {
+        "charset": {
+          "title": "Character Set Encoding",
+          "description": "Name of the character set encoding to check against (e.g. ISO-8859-1)"
+        },
+        "checkCharset": {
+          "title": "Check Against Charset Encoding",
+          "description": "Warn if a character is not included in the specified character set encoding"
+        },
+        "checkCorrupted": {
+          "title": "Check Corrupted Characters",
+          "description": "Check for common corruption patterns such as mojibake"
+        },
+        "forbiddenChars": {
+          "title": "Forbidden Characters",
+          "description": "Characters that should not appear in target text (e.g. {}[])"
+        },
+        "requiredChars": {
+          "title": "Required Characters",
+          "description": "Characters that must appear in target if present in source (e.g. punctuation)"
+        }
+      }
+    },
+    "chars-listing": {
+      "displayName": "Characters Listing",
+      "category": "analysis",
+      "properties": {
+        "includeSource": {
+          "title": "Include Source",
+          "description": "Include source text in character listing"
+        },
+        "includeTarget": {
+          "title": "Include Target",
+          "description": "Include target text in character listing"
+        }
+      }
+    },
+    "diff-leverage": {
+      "displayName": "Diff Leverage",
+      "category": "translation",
+      "properties": {
+        "caseSensitive": {
+          "title": "Case Sensitive",
+          "description": "Whether comparison is case-sensitive"
+        },
+        "fuzzyMatch": {
+          "title": "Fuzzy Match",
+          "description": "Enable fuzzy matching for similar texts"
+        }
+      }
+    },
+    "encoding-detect": {
+      "displayName": "Encoding Detect",
+      "category": "analysis"
+    },
+    "inconsistency-check": {
+      "displayName": "Inconsistency Check",
+      "category": "quality",
+      "properties": {
+        "caseSensitive": {
+          "title": "Case Sensitive",
+          "description": "Whether comparison is case-sensitive"
+        },
+        "checkPerFile": {
+          "title": "Per-File Checking",
+          "description": "Process each input file individually instead of comparing segments across all documents"
+        },
+        "checkSourceInconsistency": {
+          "title": "Check Source Inconsistency",
+          "description": "Flag when different sources share the same translation"
+        },
+        "checkTargetInconsistency": {
+          "title": "Check Target Inconsistency",
+          "description": "Flag when the same source has different translations"
+        },
+        "displayOption": {
+          "title": "Inline Code Display",
+          "description": "Controls how inline codes are represented: original codes or generic markers or plain text",
+          "options": {
+            "generic": {
+              "label": "generic"
+            },
+            "original": {
+              "label": "original"
+            },
+            "plain": {
+              "label": "plain"
+            }
+          }
+        }
+      }
+    },
+    "length-check": {
+      "displayName": "Length Check",
+      "category": "quality",
+      "properties": {
+        "checkMaxCharLength": {
+          "title": "Check Maximum Length Ratio",
+          "description": "Warn if target exceeds a percentage of source character length"
+        },
+        "checkMinCharLength": {
+          "title": "Check Minimum Length Ratio",
+          "description": "Warn if target is shorter than a percentage of source character length"
+        },
+        "maxCharLengthAbove": {
+          "title": "Percentage for Long Text (Max)",
+          "description": "Max percentage of source length allowed for long text"
+        },
+        "maxCharLengthBelow": {
+          "title": "Percentage for Short Text (Max)",
+          "description": "Max percentage of source length allowed for short text"
+        },
+        "maxCharLengthBreak": {
+          "title": "Short/Long Threshold (Max)",
+          "description": "Character count threshold between short and long text for max check"
+        },
+        "maxChars": {
+          "title": "Maximum Characters",
+          "description": "Absolute maximum character count for target text (0 = disabled)"
+        },
+        "maxPercentage": {
+          "title": "Maximum Length Percentage",
+          "description": "Maximum target/source length ratio as percentage (0 = disabled)"
+        },
+        "maxWords": {
+          "title": "Maximum Words",
+          "description": "Maximum word count for target text (0 = disabled)"
+        },
+        "minCharLengthAbove": {
+          "title": "Percentage for Long Text (Min)",
+          "description": "Min percentage of source length allowed for long text"
+        },
+        "minCharLengthBelow": {
+          "title": "Percentage for Short Text (Min)",
+          "description": "Min percentage of source length allowed for short text"
+        },
+        "minCharLengthBreak": {
+          "title": "Short/Long Threshold (Min)",
+          "description": "Character count threshold between short and long text for min check"
+        },
+        "minPercentage": {
+          "title": "Minimum Length Percentage",
+          "description": "Minimum target/source length ratio as percentage (0 = disabled)"
+        }
+      }
+    },
+    "pattern-check": {
+      "displayName": "Pattern Check",
+      "category": "quality"
+    },
+    "pseudo-translate": {
+      "displayName": "Pseudo Translate",
+      "category": "translation",
+      "properties": {
+        "expansionPercent": {
+          "title": "Expansion Percent",
+          "description": "Extra padding percentage added to simulate translation expansion (0 = no padding)"
+        },
+        "prefix": {
+          "title": "Prefix",
+          "description": "Characters prepended before each translated segment"
+        },
+        "suffix": {
+          "title": "Suffix",
+          "description": "Characters appended after each translated segment"
+        }
+      }
+    },
+    "qa-check": {
+      "displayName": "QA Check",
+      "category": "quality",
+      "properties": {
+        "absoluteMaxCharLength": {
+          "title": "Absolute Maximum Characters",
+          "description": "Maximum number of characters allowed in any target segment"
+        },
+        "checkAbsoluteMaxCharLength": {
+          "title": "Check Absolute Maximum Length",
+          "description": "Flag target segments that exceed an absolute character count limit"
+        },
+        "checkCodeDifference": {
+          "title": "Check Code Differences",
+          "description": "Verify that target segments have the same inline codes as source segments"
+        },
+        "checkCorruptedCharacters": {
+          "title": "Check Corrupted Characters",
+          "description": "Check for patterns indicating encoding corruption (e.g. UTF-8 opened as ISO-8859-1)"
+        },
+        "checkDoubleSpaces": {
+          "title": "Check Double Spaces",
+          "description": "Check for double spaces in target text"
+        },
+        "checkDoubledWord": {
+          "title": "Warn on Doubled Words",
+          "description": "Check for consecutive repeated words in target text"
+        },
+        "checkEmptySource": {
+          "title": "Warn on Non-Empty Target with Empty Source",
+          "description": "Check for non-empty target when source is empty"
+        },
+        "checkEmptyTarget": {
+          "title": "Warn on Empty Target",
+          "description": "Check for empty target when source has content"
+        },
+        "checkLeadingWhitespace": {
+          "title": "Check Leading Whitespace",
+          "description": "Check for leading whitespace mismatches between source and target"
+        },
+        "checkMaxCharLength": {
+          "title": "Check Maximum Length Ratio",
+          "description": "Flag targets longer than a percentage of source character length"
+        },
+        "checkMinCharLength": {
+          "title": "Check Minimum Length Ratio",
+          "description": "Flag targets shorter than a percentage of source character length"
+        },
+        "checkPatterns": {
+          "title": "Check Patterns",
+          "description": "Verify that source patterns have expected corresponding content in the target"
+        },
+        "checkSpanConstraints": {
+          "title": "Check Span Constraints",
+          "description": "Check non-deletable and non-cloneable span constraint violations"
+        },
+        "checkTargetSameAsSource": {
+          "title": "Warn on Target Same as Source",
+          "description": "Check when target text is identical to source text"
+        },
+        "checkTerminology": {
+          "title": "Verify Terminology",
+          "description": "Enable terminology checks"
+        },
+        "checkTrailingWhitespace": {
+          "title": "Check Trailing Whitespace",
+          "description": "Check for trailing whitespace mismatches between source and target"
+        },
+        "doubledWordExceptions": {
+          "title": "Doubled Word Exceptions",
+          "description": "Semicolon-separated list of words allowed to repeat (e.g. sie;vous;nous)"
+        },
+        "maxCharLengthAbove": {
+          "title": "Percentage for Long Text (Max)",
+          "description": "Maximum allowed percentage of source length for long text"
+        },
+        "maxCharLengthBelow": {
+          "title": "Percentage for Short Text (Max)",
+          "description": "Maximum allowed percentage of source length for short text"
+        },
+        "maxCharLengthBreak": {
+          "title": "Short/Long Threshold (Max)",
+          "description": "Character count above which text is considered long for the maximum length check"
+        },
+        "minCharLengthAbove": {
+          "title": "Percentage for Long Text (Min)",
+          "description": "Minimum required percentage of source length for long text"
+        },
+        "minCharLengthBelow": {
+          "title": "Percentage for Short Text (Min)",
+          "description": "Minimum required percentage of source length for short text"
+        },
+        "minCharLengthBreak": {
+          "title": "Short/Long Threshold (Min)",
+          "description": "Character count above which text is considered long for the minimum length check"
+        },
+        "strictCodeOrder": {
+          "title": "Enforce Strict Code Order",
+          "description": "Flag differences when codes appear in a different order between source and target"
+        },
+        "targetSameAsSourceWithCodes": {
+          "title": "Include Codes in Comparison",
+          "description": "Include inline codes when comparing source and target for identity"
+        },
+        "targetSameAsSourceWithNumbers": {
+          "title": "Include Number-Only Segments",
+          "description": "Include number-only segments in same-as-source comparison"
+        }
+      },
+      "groups": {
+        "characters": {
+          "label": "Characters"
+        },
+        "general": {
+          "label": "General"
+        },
+        "inlineCodes": {
+          "label": "InlineCodes"
+        },
+        "length": {
+          "label": "Length"
+        },
+        "patterns": {
+          "label": "Patterns"
+        }
+      }
+    },
+    "repetition-analysis": {
+      "displayName": "Repetition Analysis",
+      "category": "analysis",
+      "properties": {
+        "caseSensitive": {
+          "title": "Case Sensitive",
+          "description": "Whether comparison is case-sensitive"
+        }
+      }
+    },
+    "scoping-report": {
+      "displayName": "Scoping Report",
+      "category": "analysis"
+    },
+    "script": {
+      "displayName": "Script",
+      "category": "text-processing",
+      "properties": {
+        "code": {
+          "title": "Inline Code",
+          "description": "Inline ES5 JavaScript code"
+        },
+        "scriptFile": {
+          "title": "Script File",
+          "description": "Path to a .js file"
+        },
+        "source": {
+          "title": "Script Source",
+          "description": "Script source mode",
+          "options": {
+            "file": {
+              "label": "file"
+            },
+            "inline": {
+              "label": "inline"
+            }
+          }
+        }
+      }
+    },
+    "search-replace": {
+      "displayName": "Search and Replace",
+      "category": "text-processing",
+      "properties": {
+        "dotAll": {
+          "title": "Dot Also Matches Line-Feed",
+          "description": "Make the period character match every character including line-feed"
+        },
+        "ignoreCase": {
+          "title": "Ignore Case Differences",
+          "description": "Ignore case when matching search patterns"
+        },
+        "multiLine": {
+          "title": "Multiline Mode",
+          "description": "Make ^ and $ match at the beginning and end of each line"
+        },
+        "regEx": {
+          "title": "Use Regular Expressions",
+          "description": "Enable regular expression mode for all search patterns"
+        },
+        "replaceAll": {
+          "title": "Replace All Instances",
+          "description": "Replace all matches instead of only the first"
+        },
+        "source": {
+          "title": "Replace in Source Content",
+          "description": "Perform search and replace on source content"
+        },
+        "target": {
+          "title": "Replace in Target Content",
+          "description": "Perform search and replace on target content"
+        }
+      }
+    },
+    "segment-count": {
+      "displayName": "Segment Count",
+      "category": "analysis"
+    },
+    "segmentation": {
+      "displayName": "Segmentation",
+      "category": "text-processing",
+      "properties": {
+        "overwriteSegmentation": {
+          "title": "Overwrite Existing Segmentation",
+          "description": "Re-segment already-segmented text units replacing previous segmentation"
+        },
+        "renumberCodes": {
+          "title": "Renumber Code IDs",
+          "description": "Renumber inline code IDs in each segment to start at 1"
+        },
+        "segmentSource": {
+          "title": "Segment Source Text",
+          "description": "Segment the source text using SRX rules"
+        },
+        "segmentTarget": {
+          "title": "Segment Target Text",
+          "description": "Segment existing target text using SRX rules"
+        },
+        "sourceSrxPath": {
+          "title": "Source SRX Rules Path",
+          "description": "Path to SRX segmentation rules file for source text"
+        },
+        "targetSrxPath": {
+          "title": "Target SRX Rules Path",
+          "description": "Path to SRX segmentation rules file for target text"
+        },
+        "treatIsolatedCodesAsWhitespace": {
+          "title": "Treat Isolated Codes as Whitespace",
+          "description": "Treat isolated inline codes as whitespace during segmentation"
+        }
+      }
+    },
+    "term-check": {
+      "displayName": "Terminology Check",
+      "category": "quality",
+      "properties": {
+        "caseSensitive": {
+          "title": "Case Sensitive",
+          "description": "Whether term matching is case-sensitive"
+        }
+      }
+    },
+    "tm-leverage": {
+      "displayName": "TM Leverage",
+      "category": "translation",
+      "properties": {
+        "downgradeIdenticalBestMatches": {
+          "title": "Downgrade Identical Exact Matches",
+          "description": "Reduce score by 1%% when multiple identical exact matches are returned"
+        },
+        "fillIfTargetIsEmpty": {
+          "title": "Only If Target Is Empty",
+          "description": "Fill the target only when it has no existing content"
+        },
+        "fillTarget": {
+          "title": "Fill Target with Translation",
+          "description": "Copy the best translation candidate into the target content"
+        },
+        "fillTargetThreshold": {
+          "title": "Fill Target Threshold",
+          "description": "Minimum match score required to fill the target"
+        },
+        "fuzzyThreshold": {
+          "title": "Fuzzy Match Threshold",
+          "description": "Minimum score for fuzzy matches (0-100)"
+        },
+        "makeTmx": {
+          "title": "Generate TMX Document",
+          "description": "Create a TMX file with all leveraged matches"
+        },
+        "noQueryThreshold": {
+          "title": "No-Query Threshold",
+          "description": "Skip TM query if existing candidate scores at or above this value (101 = always query)"
+        },
+        "tmxPath": {
+          "title": "TMX Output Path",
+          "description": "File path for the generated TMX document"
+        }
+      }
+    },
+    "translation-comparison": {
+      "displayName": "Translation Comparison",
+      "category": "analysis",
+      "properties": {
+        "caseSensitive": {
+          "title": "Case Sensitive",
+          "description": "Take case differences into account when comparing"
+        },
+        "document1Label": {
+          "title": "Document 1 Label",
+          "description": "Label for the first translation in reports"
+        },
+        "document2Label": {
+          "title": "Document 2 Label",
+          "description": "Label for the second translation in reports"
+        },
+        "genericCodes": {
+          "title": "Use Generic Codes",
+          "description": "Use generic numbered tags (e.g. \u003c1\u003e...\u003c/1\u003e) instead of original inline codes in reports"
+        },
+        "punctuationSensitive": {
+          "title": "Punctuation Sensitive",
+          "description": "Take punctuation differences into account when comparing"
+        },
+        "whitespaceSensitive": {
+          "title": "Whitespace Sensitive",
+          "description": "Take whitespace differences into account when comparing"
+        }
+      }
+    },
+    "word-count": {
+      "displayName": "Word Count",
+      "category": "analysis",
+      "properties": {
+        "countInline": {
+          "title": "Count Inline Codes",
+          "description": "Include inline code content in word counts"
+        },
+        "countSource": {
+          "title": "Count Source",
+          "description": "Count words in source text"
+        },
+        "countTarget": {
+          "title": "Count Target",
+          "description": "Count words in target text"
+        }
+      }
+    }
+  },
+  "formats": {
+    "archive": {
+      "displayName": "ZIP Archive",
+      "extensions": [
+        ".zip"
+      ],
+      "mimeTypes": [
+        "application/zip",
+        "application/x-zip-compressed"
+      ]
+    },
+    "csv": {
+      "displayName": "CSV",
+      "extensions": [
+        ".csv"
+      ],
+      "mimeTypes": [
+        "text/csv"
+      ],
+      "properties": {
+        "codeFinderRules": {
+          "title": "Code Finder Rules",
+          "description": "Regex patterns that match inline codes within translatable text"
+        },
+        "columnNamesRow": {
+          "title": "Column Names Row",
+          "description": "1-based row number containing column names. 0 means auto-detect."
+        },
+        "commentColumns": {
+          "title": "Comment Columns",
+          "description": "Column indices (0-based) that contain comments or notes"
+        },
+        "hasHeader": {
+          "title": "Has Header Row",
+          "description": "If true, the first row is treated as headers (non-translatable)"
+        },
+        "keyColumns": {
+          "title": "Key Columns",
+          "description": "Column indices (0-based) that provide the block ID (source ID / record ID)"
+        },
+        "separator": {
+          "title": "Field Delimiter",
+          "description": "Field delimiter character (comma for CSV, tab for TSV)"
+        },
+        "textQualifier": {
+          "title": "Text Qualifier",
+          "description": "Character used to quote field values containing delimiters or newlines"
+        },
+        "translatableColumns": {
+          "title": "Translatable Columns",
+          "description": "Column indices (0-based) to extract as translatable content. If empty, all columns are translatable."
+        },
+        "trimValues": {
+          "title": "Trim Values",
+          "description": "If true, leading and trailing whitespace is removed from cell values"
+        },
+        "useCodeFinder": {
+          "title": "Enable Inline Code Detection",
+          "description": "Enable regex-based inline code detection within cell values"
+        },
+        "valuesStartRow": {
+          "title": "Values Start Row",
+          "description": "1-based row number where data values begin. 0 means auto-detect."
+        }
+      }
+    },
+    "doxygen": {
+      "displayName": "Doxygen Comments",
+      "extensions": [
+        ".c",
+        ".cpp",
+        ".h",
+        ".java",
+        ".m",
+        ".py"
+      ],
+      "mimeTypes": [
+        "text/x-doxygen-txt"
+      ],
+      "properties": {
+        "codeFinderRules": {
+          "title": "Code finder rules",
+          "description": "Regex patterns that match inline codes within translatable text"
+        },
+        "preserveWhitespace": {
+          "title": "Preserve whitespace",
+          "description": "Preserve original whitespace in extracted comment text instead of normalizing it"
+        },
+        "useCodeFinder": {
+          "title": "Enable inline code detection",
+          "description": "Enable regex-based detection of inline codes within translatable text"
+        }
+      }
+    },
+    "dtd": {
+      "displayName": "DTD",
+      "extensions": [
+        ".dtd"
+      ],
+      "mimeTypes": [
+        "application/xml-dtd"
+      ]
+    },
+    "epub": {
+      "displayName": "EPUB E-Book",
+      "extensions": [
+        ".epub"
+      ],
+      "mimeTypes": [
+        "application/epub+zip"
+      ]
+    },
+    "exec": {
+      "displayName": "Exec (subprocess extractor)"
+    },
+    "fixedwidth": {
+      "displayName": "Fixed-Width",
+      "extensions": [
+        ".dat",
+        ".fixed"
+      ]
+    },
+    "html": {
+      "displayName": "HTML",
+      "extensions": [
+        ".html",
+        ".htm",
+        ".xhtml"
+      ],
+      "mimeTypes": [
+        "text/html",
+        "application/xhtml+xml"
+      ],
+      "properties": {
+        "attributes": {
+          "title": "Attribute Rules",
+          "description": "Global attribute extraction rules -- maps attribute names to their rule configuration (ruleTypes, allElementsExcept, onlyTheseElements, conditions)"
+        },
+        "codeFinderRules": {
+          "title": "Code finder rules",
+          "description": "Regex patterns that match inline codes within translatable text"
+        },
+        "elements": {
+          "title": "Element Rules",
+          "description": "Element extraction rules -- maps element names to their rule configuration (ruleTypes, conditions, idAttributes, translatableAttributes)"
+        },
+        "parser": {
+          "title": "Parser behavior",
+          "description": "Settings that control how the HTML parser reads input"
+        },
+        "useCodeFinder": {
+          "title": "Enable inline code detection",
+          "description": "Enable regex-based detection of inline codes (placeholders, variables, tags) within translatable text"
+        }
+      }
+    },
+    "icml": {
+      "displayName": "ICML (Adobe InCopy)",
+      "extensions": [
+        ".icml",
+        ".wcml"
+      ],
+      "mimeTypes": [
+        "application/x-icml+xml"
+      ]
+    },
+    "idml": {
+      "displayName": "Adobe InDesign Markup Language",
+      "extensions": [
+        ".idml"
+      ],
+      "mimeTypes": [
+        "application/vnd.adobe.indesign-idml-package"
+      ]
+    },
+    "json": {
+      "displayName": "JSON",
+      "extensions": [
+        ".json"
+      ],
+      "mimeTypes": [
+        "application/json"
+      ],
+      "properties": {
+        "codeFinderRules": {
+          "title": "Code Finder Rules",
+          "description": "Regex patterns that match inline codes within translatable text."
+        },
+        "escapeForwardSlashes": {
+          "title": "Escape forward slashes",
+          "description": "Escape forward slashes in output JSON (\\/)."
+        },
+        "exceptions": {
+          "title": "Key exception pattern",
+          "description": "Regex pattern for key names. When extractAllPairs is true, matching keys are excluded. When false, matching keys are included."
+        },
+        "extractAllPairs": {
+          "title": "Extract all key/string pairs",
+          "description": "Extract all key-value pairs for translation. When false, use extractionRules to specify which paths to extract."
+        },
+        "extractIsolatedStrings": {
+          "title": "Extract strings without associated key",
+          "description": "Extract string values in arrays (without keys) as translatable blocks."
+        },
+        "extractionRules": {
+          "title": "Extraction rules",
+          "description": "Regex pattern for JSON paths to extract. Overrides extractAllPairs when specified."
+        },
+        "genericMetaRules": {
+          "title": "Generic metadata rules",
+          "description": "Regex for keys whose values become generic metadata."
+        },
+        "idRules": {
+          "title": "ID rules",
+          "description": "Regex for keys whose values become Block IDs (overrides useKeyAsName)."
+        },
+        "maxwidthRules": {
+          "title": "Maxwidth rules",
+          "description": "Regex for keys whose values set max width constraints."
+        },
+        "maxwidthSizeUnit": {
+          "title": "Maxwidth size unit",
+          "description": "Size unit for maxwidth.",
+          "options": {
+            "char": {
+              "label": "Character"
+            },
+            "pixel": {
+              "label": "Pixel"
+            }
+          }
+        },
+        "noteRules": {
+          "title": "Note rules",
+          "description": "Regex for keys whose values become translator notes."
+        },
+        "subfilter": {
+          "title": "Subfilter format",
+          "description": "Global subfilter format name (e.g., 'html') applied to all or matching extracted strings."
+        },
+        "subfilterRules": {
+          "title": "Sub-filter rules",
+          "description": "Regex matching keys for which values should be processed with the sub-filter."
+        },
+        "subfilters": {
+          "title": "Subfilter mappings",
+          "description": "Array of {pattern, format} mappings for embedded content in specific keys."
+        },
+        "useCodeFinder": {
+          "title": "Enable Inline Code Detection",
+          "description": "Enable pattern-based detection of inline codes (placeholders, tags, etc.)."
+        },
+        "useFullKeyPath": {
+          "title": "Use the full key path",
+          "description": "Use full path (/key1/key2) instead of immediate key as name."
+        },
+        "useIdStack": {
+          "title": "Use the full path of IDs for resname",
+          "description": "Build TextUnit IDs from nested key stack."
+        },
+        "useKeyAsName": {
+          "title": "Use the key as the resname",
+          "description": "Use JSON key as the Block (TextUnit) name for reference."
+        },
+        "useLeadingSlashOnKeyPath": {
+          "title": "Include leading \"/\" on key path",
+          "description": "Include leading slash in key path names."
+        }
+      }
+    },
+    "jsx": {
+      "displayName": "Kapi Localization Format (KLF)",
+      "extensions": [
+        ".klf"
+      ],
+      "mimeTypes": [
+        "application/vnd.neokapi.klf+json"
+      ]
+    },
+    "markdown": {
+      "displayName": "Markdown",
+      "extensions": [
+        ".md",
+        ".markdown"
+      ],
+      "mimeTypes": [
+        "text/markdown",
+        "text/x-markdown"
+      ],
+      "properties": {
+        "codeFinderRules": {
+          "title": "Code Finder Rules",
+          "description": "Regex patterns that match inline codes within translatable text"
+        },
+        "subfilter": {
+          "title": "HTML Subfilter",
+          "description": "Subfilter format to apply to HTML content within Markdown (e.g., 'html')"
+        },
+        "translateBlockQuotes": {
+          "title": "Translate Block Quotes",
+          "description": "If true, blockquote content is translatable."
+        },
+        "translateCodeBlocks": {
+          "title": "Translate Code Blocks",
+          "description": "If true, fenced and indented code blocks are translatable. If false, emitted as non-translatable data."
+        },
+        "translateFrontMatter": {
+          "title": "Translate YAML Front Matter",
+          "description": "If true, YAML front matter values are translatable. If false, emitted as non-translatable data."
+        },
+        "translateHTMLBlocks": {
+          "title": "Translate HTML Blocks",
+          "description": "If true, raw HTML blocks are translatable. If false, emitted as non-translatable data."
+        },
+        "translateImageAlt": {
+          "title": "Translate Image Alt Text",
+          "description": "If true, image alt text is included in translatable content."
+        },
+        "translateURLs": {
+          "title": "Translate Hyperlink URLs",
+          "description": "If true, link and image URLs are translatable."
+        },
+        "unescapeBackslashCharacters": {
+          "title": "Support Backslash Escaping",
+          "description": "Parse backslash-escaped punctuation in source documents"
+        },
+        "useCodeFinder": {
+          "title": "Enable Inline Code Detection",
+          "description": "Enable regex-based inline code detection within translatable text"
+        }
+      }
+    },
+    "messageformat": {
+      "displayName": "ICU MessageFormat",
+      "extensions": [
+        ".mf",
+        ".messageformat"
+      ],
+      "mimeTypes": [
+        "text/x-messageformat"
+      ]
+    },
+    "mif": {
+      "displayName": "Adobe FrameMaker MIF",
+      "extensions": [
+        ".mif"
+      ],
+      "mimeTypes": [
+        "application/x-mif",
+        "application/vnd.mif"
+      ]
+    },
+    "mo": {
+      "displayName": "MO (Gettext, binary)",
+      "extensions": [
+        ".mo"
+      ],
+      "mimeTypes": [
+        "application/x-gettext-translation"
+      ]
+    },
+    "mosestext": {
+      "displayName": "Moses Text",
+      "mimeTypes": [
+        "text/x-mosestext"
+      ]
+    },
+    "odf": {
+      "displayName": "Open Document Format",
+      "extensions": [
+        ".odt",
+        ".ods",
+        ".odp",
+        ".odg",
+        ".odf"
+      ],
+      "mimeTypes": [
+        "application/vnd.oasis.opendocument.text",
+        "application/vnd.oasis.opendocument.spreadsheet",
+        "application/vnd.oasis.opendocument.presentation"
+      ]
+    },
+    "openxml": {
+      "displayName": "Office Open XML",
+      "extensions": [
+        ".docx",
+        ".docm",
+        ".dotx",
+        ".dotm",
+        ".xlsx",
+        ".xlsm",
+        ".xltx",
+        ".xltm",
+        ".pptx",
+        ".pptm",
+        ".ppsx",
+        ".potx"
+      ],
+      "mimeTypes": [
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+      ],
+      "properties": {
+        "aggressiveCleanup": {
+          "title": "Aggressive code cleanup",
+          "description": "Strip revision IDs, proofing errors, and other noise before merging runs."
+        },
+        "automaticallyAcceptRevisions": {
+          "title": "Accept revisions automatically",
+          "description": "Automatically accept tracked changes before extraction."
+        },
+        "codeFinderRules": {
+          "title": "Code Finder Rules",
+          "description": "Regex patterns that match inline codes within translatable text."
+        },
+        "complexFieldDefinitionsToExtract": {
+          "title": "Complex field definitions to extract",
+          "description": "Field instruction prefixes to extract (e.g., \"HYPERLINK\", \"REF\")."
+        },
+        "excludeColors": {
+          "title": "Exclude specific font colors",
+          "description": "Font colors to exclude (hex RGB, e.g., \"FF0000\" for red)."
+        },
+        "excludeHighlightColors": {
+          "title": "Exclude highlight colors",
+          "description": "Highlight colors to exclude (e.g., \"yellow\", \"red\")."
+        },
+        "excludeStyles": {
+          "title": "Exclude styles",
+          "description": "Paragraph/character style names to exclude."
+        },
+        "excludedColumns": {
+          "title": "Excluded columns",
+          "description": "Column letters to exclude (e.g., \"A\", \"C\", \"AA\")."
+        },
+        "excludedSheets": {
+          "title": "Excluded sheets",
+          "description": "Sheet names to exclude from extraction."
+        },
+        "extractRunFontsInfo": {
+          "title": "Extract run fonts info",
+          "description": "Emit font metadata as annotations on blocks."
+        },
+        "fontMappings": {
+          "title": "Font mappings",
+          "description": "Font name to script group mapping (e.g., \"MS Gothic\": \"ja\")."
+        },
+        "ignoreSoftHyphenTag": {
+          "title": "Ignore soft hyphen tags",
+          "description": "Ignore soft hyphen tags in the document."
+        },
+        "includeHighlightColors": {
+          "title": "Include highlight colors",
+          "description": "If non-empty, only extract text with these highlight colors."
+        },
+        "includeStyles": {
+          "title": "Include styles",
+          "description": "If non-empty, only extract text with these styles."
+        },
+        "includedSlides": {
+          "title": "Included slide numbers",
+          "description": "If non-empty, only extract these slide numbers (1-based)."
+        },
+        "lineSeparatorReplacement": {
+          "title": "Line separator replacement string",
+          "description": "Replacement string for line separator characters."
+        },
+        "optimiseWordStyles": {
+          "title": "Allow style optimization",
+          "description": "Resolve style inheritance and strip redundant run properties."
+        },
+        "replaceLineSeparator": {
+          "title": "Add line separator as character",
+          "description": "Replace Unicode line separator (U+2028) in output."
+        },
+        "replaceNoBreakHyphenTag": {
+          "title": "Replace no-break hyphen tags",
+          "description": "Replace no-break hyphen tags with the non-breaking hyphen character."
+        },
+        "tabAsCharacter": {
+          "title": "Add tab as character",
+          "description": "Treat tab elements as tab characters instead of placeholder spans."
+        },
+        "translateCharts": {
+          "title": "Translate chart text",
+          "description": "Extract strings from embedded charts."
+        },
+        "translateComments": {
+          "title": "Translate comments",
+          "description": "Extract comment text from Word documents."
+        },
+        "translateDiagrams": {
+          "title": "Translate diagram data",
+          "description": "Extract text from SmartArt diagrams."
+        },
+        "translateDocProperties": {
+          "title": "Translate document properties",
+          "description": "Extract title, subject, keywords from document properties."
+        },
+        "translateFootnotes": {
+          "title": "Translate footnotes and endnotes",
+          "description": "Extract footnotes and endnotes from Word documents."
+        },
+        "translateHeadersFooters": {
+          "title": "Translate headers and footers",
+          "description": "Extract text from headers and footers in Word documents."
+        },
+        "translateHiddenSlides": {
+          "title": "Translate hidden slides",
+          "description": "Extract content from hidden slides in PowerPoint."
+        },
+        "translateHiddenText": {
+          "title": "Translate hidden text",
+          "description": "Extract text with the vanish (hidden) property in Word documents."
+        },
+        "translateHyperlinks": {
+          "title": "Extract external hyperlinks",
+          "description": "Extract hyperlink text for translation."
+        },
+        "translateSharedStrings": {
+          "title": "Translate shared strings",
+          "description": "Extract shared strings from Excel workbooks."
+        },
+        "translateSheetNames": {
+          "title": "Translate sheet names",
+          "description": "Extract sheet names in Excel workbooks."
+        },
+        "translateSlideMasters": {
+          "title": "Translate master slides",
+          "description": "Extract text from slide masters in PowerPoint."
+        },
+        "translateSlideNotes": {
+          "title": "Translate slide notes",
+          "description": "Extract speaker notes in PowerPoint presentations."
+        },
+        "useCodeFinder": {
+          "title": "Enable Inline Code Detection",
+          "description": "Enable pattern-based detection of inline codes (placeholders, tags, etc.)."
+        }
+      }
+    },
+    "paraplaintext": {
+      "displayName": "Paragraph Plain Text"
+    },
+    "pdf": {
+      "displayName": "PDF Text Extraction",
+      "extensions": [
+        ".pdf"
+      ],
+      "mimeTypes": [
+        "application/pdf"
+      ]
+    },
+    "phpcontent": {
+      "displayName": "PHP Content",
+      "extensions": [
+        ".php",
+        ".phpcnt"
+      ],
+      "mimeTypes": [
+        "application/x-php"
+      ],
+      "properties": {
+        "extractOutsideDirectives": {
+          "title": "Extract outside the scope of the directives",
+          "description": "Extract translatable strings found outside directive-controlled regions."
+        },
+        "useDirectives": {
+          "title": "Use localization directives",
+          "description": "Honor //okapi: skip/text directives in PHP source to control extraction scope."
+        }
+      }
+    },
+    "plaintext": {
+      "displayName": "Plain Text",
+      "extensions": [
+        ".txt",
+        ".text"
+      ],
+      "mimeTypes": [
+        "text/plain"
+      ],
+      "properties": {
+        "segmentByLine": {
+          "description": "If true, each line becomes a separate block. If false, paragraphs (separated by blank lines) are blocks."
+        }
+      }
+    },
+    "po": {
+      "displayName": "PO (Gettext)",
+      "extensions": [
+        ".po",
+        ".pot"
+      ],
+      "mimeTypes": [
+        "text/x-gettext-translation"
+      ],
+      "properties": {
+        "allowEmptyOutputTarget": {
+          "title": "Allow Empty Target Output",
+          "description": "Allow empty target in output when no translation is available"
+        },
+        "bilingualMode": {
+          "title": "Bilingual Mode",
+          "description": "In bilingual mode (default), msgid is the source text and msgstr is the target. In monolingual mode, msgid is treated as an ID."
+        },
+        "codeFinderRules": {
+          "title": "Code Finder Rules",
+          "description": "Regex patterns that match inline codes within translatable text"
+        },
+        "preserveUntranslated": {
+          "title": "Preserve Untranslated Entries",
+          "description": "If true, entries with empty msgstr are emitted as blocks. If false, they are skipped."
+        },
+        "useCodeFinder": {
+          "title": "Enable Inline Code Detection",
+          "description": "Enable regex-based inline code detection within PO message text"
+        },
+        "wrapContent": {
+          "title": "Wrap Long Content Lines",
+          "description": "Wrap long content lines in output at approximately 80 characters"
+        }
+      }
+    },
+    "properties": {
+      "displayName": "Java Properties",
+      "extensions": [
+        ".properties"
+      ],
+      "mimeTypes": [
+        "text/x-java-properties"
+      ],
+      "properties": {
+        "codeFinderRules": {
+          "title": "Code Finder Rules",
+          "description": "Regex patterns that match inline codes within translatable text"
+        },
+        "commentsAreNotes": {
+          "title": "Comments as Notes",
+          "description": "Treat comments as translator notes attached to the following entry"
+        },
+        "escapeExtendedChars": {
+          "title": "Escape Extended Characters",
+          "description": "Escape extended Unicode characters (non-ASCII) in output using \\uXXXX notation"
+        },
+        "extraComments": {
+          "title": "Additional Comment Markers",
+          "description": "Recognize semicolon and double-slash comment styles in addition to standard # and ! markers"
+        },
+        "extractOnlyMatchingKey": {
+          "title": "Extract Only Matching Keys",
+          "description": "When enabled, extract only entries whose keys match the condition; otherwise exclude matching keys"
+        },
+        "keyCondition": {
+          "title": "Key Condition Pattern",
+          "description": "Regular expression pattern to test against property keys for extraction filtering"
+        },
+        "separator": {
+          "title": "Separator",
+          "description": "Key-value separator character (typically '=' or ':')"
+        },
+        "useCodeFinder": {
+          "title": "Enable Inline Code Detection",
+          "description": "Enable regex-based inline code detection within property values"
+        },
+        "useJavaEscapes": {
+          "title": "Retain Java Escapes",
+          "description": "Keep Java property escape sequences (\\: \\= \\# \\!) in extracted text instead of resolving them"
+        },
+        "useKeyCondition": {
+          "title": "Enable Key Condition",
+          "description": "Filter entries for extraction based on a regex condition applied to their keys"
+        }
+      }
+    },
+    "regex": {
+      "displayName": "Regex Extraction",
+      "extensions": [
+        ".strings",
+        ".ini",
+        ".info",
+        ".rls"
+      ],
+      "mimeTypes": [
+        "text/x-regex"
+      ]
+    },
+    "rtf": {
+      "displayName": "Rich Text Format",
+      "extensions": [
+        ".rtf"
+      ],
+      "mimeTypes": [
+        "application/rtf",
+        "text/rtf"
+      ]
+    },
+    "splicedlines": {
+      "displayName": "Spliced Lines"
+    },
+    "srt": {
+      "displayName": "SRT Subtitles",
+      "extensions": [
+        ".srt"
+      ],
+      "mimeTypes": [
+        "application/x-subrip",
+        "text/srt"
+      ]
+    },
+    "tex": {
+      "displayName": "TeX/LaTeX",
+      "extensions": [
+        ".tex",
+        ".latex"
+      ],
+      "mimeTypes": [
+        "application/x-tex",
+        "text/x-tex"
+      ]
+    },
+    "tmx": {
+      "displayName": "TMX",
+      "extensions": [
+        ".tmx"
+      ],
+      "mimeTypes": [
+        "application/x-tmx+xml"
+      ],
+      "properties": {
+        "codeFinderRules": {
+          "title": "Code finder rules",
+          "description": "Regex patterns that match inline codes within translatable text"
+        },
+        "escapeGT": {
+          "title": "Escape greater-than characters",
+          "description": "Escape \u003e as \u0026gt; in output XML"
+        },
+        "exitOnInvalid": {
+          "title": "Exit on invalid TUs",
+          "description": "Stop processing when encountering invalid TUs. When false, invalid TUs are skipped."
+        },
+        "processAllTargets": {
+          "title": "Read all target entries",
+          "description": "Read all target language TUVs from each TU. When false, only the first target is read."
+        },
+        "useCodeFinder": {
+          "title": "Enable inline code detection",
+          "description": "Enable regex-based inline code detection in translatable text"
+        }
+      }
+    },
+    "transtable": {
+      "displayName": "Translation Table",
+      "extensions": [
+        ".tab",
+        ".tsv"
+      ],
+      "mimeTypes": [
+        "text/tab-separated-values"
+      ]
+    },
+    "ts": {
+      "displayName": "Qt TS",
+      "mimeTypes": [
+        "application/x-ts",
+        "application/x-linguist"
+      ]
+    },
+    "tsv": {
+      "displayName": "TSV",
+      "extensions": [
+        ".tsv"
+      ],
+      "mimeTypes": [
+        "text/tab-separated-values"
+      ]
+    },
+    "ttml": {
+      "displayName": "TTML Subtitles",
+      "extensions": [
+        ".ttml",
+        ".dfxp"
+      ],
+      "mimeTypes": [
+        "application/ttml+xml"
+      ],
+      "properties": {
+        "cjkCharsPerLine": {
+          "title": "Max characters per line for CJK",
+          "description": "Maximum number of characters per line for CJK languages. Set to 0 to disable."
+        },
+        "escapeBR": {
+          "title": "Escape line breaks",
+          "description": "When true, \u003cbr/\u003e elements are removed and text is joined with spaces; when false, \u003cbr/\u003e is preserved as literal text."
+        },
+        "maxCharsPerLine": {
+          "title": "Max characters per line",
+          "description": "Maximum number of characters per line in output. Set to 0 to disable."
+        },
+        "maxLinesPerCaption": {
+          "title": "Max lines per caption",
+          "description": "Maximum number of lines per caption in output. Set to 0 to disable."
+        },
+        "mergeAdjacentCaptions": {
+          "title": "Merge adjacent captions",
+          "description": "Merge adjacent \u003cp\u003e elements ending with trailing punctuation into one block."
+        },
+        "splitWords": {
+          "title": "Split words at character limit",
+          "description": "Split words so that they don't go over the character limit per line."
+        }
+      }
+    },
+    "ttx": {
+      "displayName": "Trados TagEditor TTX",
+      "extensions": [
+        ".ttx"
+      ],
+      "mimeTypes": [
+        "application/x-ttx+xml"
+      ]
+    },
+    "txml": {
+      "displayName": "Trados XML",
+      "extensions": [
+        ".txml"
+      ],
+      "mimeTypes": [
+        "application/x-txml+xml"
+      ]
+    },
+    "versifiedtext": {
+      "displayName": "Versified Text",
+      "extensions": [
+        ".ver"
+      ]
+    },
+    "vignette": {
+      "displayName": "R Vignette",
+      "extensions": [
+        ".Rmd",
+        ".Rnw"
+      ],
+      "mimeTypes": [
+        "text/x-r-markdown"
+      ]
+    },
+    "vtt": {
+      "displayName": "WebVTT",
+      "extensions": [
+        ".vtt"
+      ],
+      "mimeTypes": [
+        "text/vtt"
+      ],
+      "properties": {
+        "cjkCharsPerLine": {
+          "title": "Max characters per line for CJK",
+          "description": "Maximum number of characters per line for CJK languages. Set to 0 to disable."
+        },
+        "maxCharsPerLine": {
+          "title": "Max characters per line",
+          "description": "Maximum number of characters per line in output. Set to 0 to disable."
+        },
+        "maxLinesPerCaption": {
+          "title": "Max lines per caption",
+          "description": "Maximum number of lines per caption in output. Set to 0 to disable."
+        },
+        "splitWords": {
+          "title": "Split words at character limit",
+          "description": "Split words so that they don't go over the character limit per line."
+        }
+      }
+    },
+    "wiki": {
+      "displayName": "Wiki",
+      "extensions": [
+        ".wiki",
+        ".mediawiki"
+      ],
+      "mimeTypes": [
+        "text/x-wiki"
+      ],
+      "properties": {
+        "preserveWhitespace": {
+          "title": "Preserve Whitespace",
+          "description": "Preserve original whitespace in wiki markup instead of normalizing it."
+        },
+        "variant": {
+          "title": "Wiki variant",
+          "description": "Wiki markup variant: mediawiki or dokuwiki.",
+          "options": {
+            "dokuwiki": {
+              "label": "DokuWiki"
+            },
+            "mediawiki": {
+              "label": "MediaWiki"
+            }
+          }
+        }
+      }
+    },
+    "xliff": {
+      "displayName": "XLIFF 1.2",
+      "extensions": [
+        ".xlf",
+        ".xliff"
+      ],
+      "mimeTypes": [
+        "application/xliff+xml",
+        "application/x-xliff+xml"
+      ],
+      "properties": {
+        "addAltTrans": {
+          "title": "Add alt-trans elements",
+          "description": "Allow addition of new alt-trans elements"
+        },
+        "addTargetLanguage": {
+          "title": "Add target-language attribute",
+          "description": "Add the target-language attribute to file elements if not already present"
+        },
+        "allowEmptyTargets": {
+          "title": "Allow empty targets",
+          "description": "Allow target elements with empty content to be written"
+        },
+        "alwaysAddTargets": {
+          "title": "Add targets for monolingual XLIFF",
+          "description": "Add target elements for monolingual XLIFF files that have no target in the source"
+        },
+        "codeFinderRules": {
+          "title": "Code finder rules",
+          "description": "Regex patterns that match inline codes within translatable text"
+        },
+        "editAltTrans": {
+          "title": "Edit alt-trans elements",
+          "description": "Allow editing of existing alt-trans elements"
+        },
+        "fallbackToID": {
+          "title": "Use trans-unit ID as name if no resname",
+          "description": "Use the trans-unit id attribute as the block name when no resname attribute is present"
+        },
+        "forceUniqueIds": {
+          "title": "Enforce unique trans-unit IDs",
+          "description": "Rewrite trans-unit IDs to enforce uniqueness across the file"
+        },
+        "ignoreInputSegmentation": {
+          "title": "Ignore input segmentation",
+          "description": "Ignore seg-source/mrk segmentation from the input XLIFF and treat the full source as a single segment"
+        },
+        "includeExtensions": {
+          "title": "Include XLIFF extension elements",
+          "description": "Include non-standard namespace extension elements in extracted content"
+        },
+        "includeIts": {
+          "title": "Include ITS markup",
+          "description": "Include ITS (Internationalization Tag Set) markup in extracted content"
+        },
+        "overrideTargetLanguage": {
+          "title": "Override target language",
+          "description": "Override the target-language attribute in the output document with the pipeline target locale"
+        },
+        "preserveSpaceByDefault": {
+          "title": "Preserve whitespace by default",
+          "description": "Treat all content as xml:space=\"preserve\" unless explicitly overridden"
+        },
+        "targetStateValue": {
+          "title": "Target state value",
+          "description": "State value to set on target elements when useTranslationTargetState is enabled"
+        },
+        "useCodeFinder": {
+          "title": "Enable inline code detection",
+          "description": "Enable regex-based inline code detection in translatable text"
+        },
+        "useTranslationTargetState": {
+          "title": "Update target state attribute",
+          "description": "Update the state attribute on target elements when writing translated XLIFF"
+        }
+      }
+    },
+    "xliff2": {
+      "displayName": "XLIFF 2.0",
+      "extensions": [
+        ".xlf",
+        ".xliff"
+      ],
+      "mimeTypes": [
+        "application/xliff+xml"
+      ],
+      "properties": {
+        "codeFinderRules": {
+          "title": "Code finder rules",
+          "description": "Regex patterns that match inline codes within translatable text"
+        },
+        "discardInvalidTargets": {
+          "title": "Discard invalid targets",
+          "description": "Discard targets that fail validation rather than rejecting the entire file"
+        },
+        "forceUniqueIds": {
+          "title": "Ensure unique tag IDs",
+          "description": "Ensure inline tag IDs are unique within each unit"
+        },
+        "ignoreTagTypeMatch": {
+          "title": "Ignore tag type mismatch",
+          "description": "Ignore tag type mismatch between source and target segments"
+        },
+        "useCodeFinder": {
+          "title": "Enable inline code detection",
+          "description": "Enable regex-based inline code detection in translatable text"
+        },
+        "writeOriginalData": {
+          "title": "Include original data in output",
+          "description": "Output includes original data when available"
+        }
+      }
+    },
+    "xml": {
+      "displayName": "XML",
+      "extensions": [
+        ".xml"
+      ],
+      "mimeTypes": [
+        "text/xml",
+        "application/xml"
+      ],
+      "properties": {
+        "attributes": {
+          "title": "Attribute rules",
+          "description": "Advanced attribute-specific processing rules with element scope constraints"
+        },
+        "blockTypeMap": {
+          "title": "Block type map",
+          "description": "Map of element names to block type strings for semantic type annotation"
+        },
+        "codeFinderRules": {
+          "title": "Code finder rules",
+          "description": "Regex patterns that match inline codes within translatable text"
+        },
+        "elements": {
+          "title": "Element rules",
+          "description": "Advanced element-specific processing rules with conditions, inline marking, and translatable attribute mappings"
+        },
+        "excludeByDefault": {
+          "title": "Exclude by default",
+          "description": "Exclude all elements unless explicitly included by an element rule with INCLUDE"
+        },
+        "excludedElements": {
+          "title": "Excluded elements",
+          "description": "Element names whose content is excluded from extraction"
+        },
+        "groupElements": {
+          "title": "Group elements",
+          "description": "Element names that produce group/layer boundaries in the output"
+        },
+        "idAttributes": {
+          "title": "ID attributes",
+          "description": "Attribute names used to extract block IDs from elements"
+        },
+        "inlineElements": {
+          "title": "Inline elements",
+          "description": "Element names treated as inline (spans within text) rather than block-level"
+        },
+        "preserveWhitespace": {
+          "title": "Preserve whitespace",
+          "description": "Preserve original whitespace in text content instead of collapsing it"
+        },
+        "preserveWhitespaceElements": {
+          "title": "Preserve whitespace elements",
+          "description": "Element names that preserve whitespace regardless of the global setting"
+        },
+        "subfilters": {
+          "title": "Subfilters",
+          "description": "Array of {pattern, format} mappings for embedded content. Patterns use dot-separated element paths with glob support."
+        },
+        "translatableAttributes": {
+          "title": "Translatable attributes",
+          "description": "Attribute names that are translatable across all elements"
+        },
+        "translatableElements": {
+          "title": "Translatable elements",
+          "description": "Element names whose text content is translatable. If empty, all text content is translatable."
+        },
+        "useCodeFinder": {
+          "title": "Enable inline code detection",
+          "description": "Enable regex-based detection of inline codes within translatable text"
+        }
+      }
+    },
+    "yaml": {
+      "displayName": "YAML",
+      "extensions": [
+        ".yaml",
+        ".yml"
+      ],
+      "mimeTypes": [
+        "application/yaml",
+        "text/yaml",
+        "application/x-yaml"
+      ],
+      "properties": {
+        "codeFinderRules": {
+          "title": "Code Finder Rules",
+          "description": "Regex patterns that match inline codes within translatable text"
+        },
+        "extractNonStrings": {
+          "title": "Extract Non-String Values",
+          "description": "Extract non-string scalar values (booleans, numbers, nulls) as translatable blocks"
+        },
+        "keyPathPatterns": {
+          "title": "Key Path Patterns",
+          "description": "When non-empty, only keys matching one of these glob patterns are extracted. Supports * (single key) and ** (any depth)."
+        },
+        "subfilter": {
+          "title": "Subfilter Format",
+          "description": "Sub-filter to apply to scalar values (e.g., 'html' to process HTML within YAML values)"
+        },
+        "useCodeFinder": {
+          "title": "Enable Inline Code Detection",
+          "description": "Enable regex-based inline code detection within string values"
+        }
+      }
+    }
+  }
+}

@@ -111,6 +111,13 @@ func (c *AppConfig) PluginDirectory() string {
 	return c.v.GetString("plugins.directory")
 }
 
+// Language returns the configured target locale for CLI/UI output
+// (BCP-47, e.g. "fr-FR"). Empty when unset — the i18n.Resolve chain
+// then falls back to KAPI_LANG / LC_ALL / LANG.
+func (c *AppConfig) Language() string {
+	return c.v.GetString("language")
+}
+
 // RegistryURL returns the URL of the remote plugin registry.
 func (c *AppConfig) RegistryURL() string {
 	return c.v.GetString("plugins.registry")
