@@ -34,7 +34,7 @@ shadcn/ui frontend, and a Go backend that proxies to bowrain-server.
 
 **Connector-driven workflow.** The primary flow is Browse CMS → Select
 items → Pull → Translate → Push. Connectors
-([AD-005](008-connector-system.md)) provide the integration; the desktop app
+([AD-008: Connector System](008-connector-system.md)) provide the integration; the desktop app
 renders the same UI regardless of whether content came from a CMS, a
 design tool, a git repository, or the local filesystem.
 
@@ -307,7 +307,7 @@ Door; the API base URL derives from the hostname
 ## Related
 
 - [AD-003: Identity and Permissions](003-permissions.md) — JWT, realms, roles
-- [AD-005: Connectors](008-connector-system.md) — content source abstraction
+- [AD-008: Connector System](008-connector-system.md) — content source abstraction
 - [AD-011: REST API](011-rest-api.md) — server endpoints consumed by the apps
 - [AD-014: Translator Workflow](014-translator-workflow.md) — tasks, activities, notifications surfaced in the UI
 - [AD-016: Bravo Agent](016-bravo-agent.md) — assistant panel in the desktop and web apps

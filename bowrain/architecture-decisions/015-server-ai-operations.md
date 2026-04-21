@@ -10,7 +10,7 @@ title: "AD-015: Server-Side AI Operations"
 
 Three server-side AI subsystems run on top of the framework's
 `LLMProvider` interface
-([AD-framework-008](/docs/ad/011-ai-providers)):
+([AD-framework-011: AI Providers](/docs/ad/011-ai-providers)):
 asynchronous **translation jobs** with per-workspace quotas, **entity
 and term extraction** combining LLM reasoning with NER detection, and
 **brand voice governance** with MQM-inspired scoring. All three surface
@@ -269,7 +269,7 @@ Severity weights: `neutral` = 0, `minor` = 1, `major` = 5,
 Overall score = 100 − total penalties across dimensions.
 
 **AI-powered compliance checking.** The `brand-voice-check` tool
-([AD-framework-008](/docs/ad/011-ai-providers))
+([AD-framework-011: AI Providers](/docs/ad/011-ai-providers))
 uses `ChatStructured` with a JSON Schema specifying dimension,
 severity, message, and suggestion. Results become `BrandVoiceAnnotation`
 entries and `brand-voice-score` / `brand-voice-findings` block
@@ -292,7 +292,7 @@ call.
 
 **Terminology integration.** Brand vocabulary flows through the same
 pipeline as standard terminology
-([AD-framework-010](/docs/ad/010-terminology)).
+([AD-framework-010: Terminology](/docs/ad/010-terminology)).
 `TermSource` distinguishes `"terminology"` from `"brand_vocabulary"`.
 `CompetitorTerm` marks competitor brand terms. `SourceFilter` on
 `LookupOptions` filters lookups by source, so the same `term-lookup`
@@ -341,7 +341,7 @@ bowrain:
 
 ## Related
 
-- [AD-framework-008: AI Integration](/docs/ad/011-ai-providers) — `LLMProvider` interface
+- [AD-framework-011: AI Providers](/docs/ad/011-ai-providers) — `LLMProvider` interface
 - [AD-framework-010: Terminology](/docs/ad/010-terminology) — terminology pipeline
 - [AD-013: Automation Engine](013-automation-engine.md) — triggers for translation and extraction
 - [AD-014: Translator Workflow](014-translator-workflow.md) — review queue, tasks, notifications

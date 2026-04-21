@@ -100,7 +100,7 @@ CREATE INDEX idx_changelog_project_locale ON change_log(project_id, locale, seq)
 CREATE INDEX idx_changelog_stream ON change_log(project_id, stream, seq);
 ```
 
-Blocks are scoped to projects with a composite primary key `(project_id, id)`. The `source_id` column tracks the format-reader-assigned ID (e.g., "tu1" from PO format), with a unique index ensuring no duplicates within an item. The `version_blocks` join table associates blocks with version snapshots. The `streams` table tracks content branches within a project ([AD-024](/bowrain/architecture-decisions/005-streams)). The append-only `change_log` enables cursor-based incremental sync, with a `stream` column scoping changes to their branch.
+Blocks are scoped to projects with a composite primary key `(project_id, id)`. The `source_id` column tracks the format-reader-assigned ID (e.g., "tu1" from PO format), with a unique index ensuring no duplicates within an item. The `version_blocks` join table associates blocks with version snapshots. The `streams` table tracks content branches within a project ([AD-005: Streams](/bowrain/architecture-decisions/005-streams)). The append-only `change_log` enables cursor-based incremental sync, with a `stream` column scoping changes to their branch.
 
 PostgreSQL is the server's storage backend, supporting connection pooling, concurrent writes, and multi-instance deployments where multiple server replicas share a central database.
 
