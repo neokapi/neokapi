@@ -3327,7 +3327,7 @@ export class ToolInfo {
         }
         if (/** @type {any} */(false)) {
             /**
-             * IO contract fields (AD-043)
+             * IO contract fields (Framework AD-006)
              * "monolingual", "bilingual", "multilingual"
              * @member
              * @type {string | undefined}
