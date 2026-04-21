@@ -37,7 +37,7 @@ The `bowrain` CLI is built as a separate Go module (`bowrain/cli/`) that
 depends on the framework module and the shared CLI base. It shares
 command factories (formats, plugins, tools, flows, presets, termbase, TM,
 version) with the open-source `kapi` CLI described in
-[AD-framework-013](/docs/ad/013-kapi-cli),
+[AD-framework-013: Kapi CLI](/docs/ad/013-kapi-cli),
 and extends them with project-aware behavior.
 
 All `bowrain` commands require a `.bowrain/` project. Commands search
@@ -66,7 +66,7 @@ Ownership:
 - **`config.yaml`** — hand-edited, committed to git. The single source of
   truth for project configuration.
 - **`flows/*.yaml`** — hand-edited, committed. Same flow syntax as
-  [AD-framework-006](/docs/ad/006-tool-system).
+  [AD-framework-006: Tool System](/docs/ad/006-tool-system).
 - **`.sync-cache`** — CLI-owned, gitignored. JSON document tracking the
   last known server state, per-file block hashes, sync cursor, and cached
   server metadata.
@@ -281,7 +281,7 @@ AI agents operate a project without shell access.
 ### Relationship to `.kapi` project files
 
 The framework defines `.kapi` project files
-([AD-framework-008](/docs/ad/008-project-model))
+([AD-framework-008: Kapi Project Model](/docs/ad/008-project-model))
 as portable, single-file YAML recipes for local workflows. `.kapi` and
 `.bowrain/` are complementary:
 
