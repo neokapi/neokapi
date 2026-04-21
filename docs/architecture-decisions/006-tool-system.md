@@ -70,6 +70,46 @@ and set only the handlers they need. Tools that need access to the full
 stream (e.g., segmentation spanning multiple Blocks) can override
 `Process` directly.
 
+### SessionTool extension
+
+The channel-based `Tool.Process` is a forward-only transform. Some tools
+need random access to the project's block state — lookup by content hash,
+reading prior sidecars (TM matches, QA findings, previously-produced
+targets) to skip work that's already done, or writing annotations that
+downstream tools in the same or a later run will consult. Those tools
+opt into the `SessionTool` interface alongside `Tool`:
+
+```go
+type SessionTool interface {
+    Tool
+
+    SessionProcess(
+        ctx context.Context,
+        sess blockstore.Session,
+        in <-chan *Part,
+        out chan<- *Part,
+    ) error
+}
+```
+
+Lifecycle (owned by the executor, not the tool):
+
+1. At flow start the executor opens a `blockstore.Session` against the
+   project's declared store backend (`memory`, `cache`, remote — see
+   [AD-008: Kapi Project Model](008-project-model.md)).
+2. For each tool the executor calls `SessionProcess` when the tool
+   implements `SessionTool`, otherwise the plain streaming `Process`.
+   Hybrid implementations are allowed: `SessionProcess` can read from
+   `in`, enrich via the session, and emit to `out`.
+3. The executor commits the session on success or rolls back on error.
+   Tools MUST NOT call `Commit` / `Rollback` themselves.
+
+SessionTool is additive — every SessionTool also implements Tool so
+flow composition (chaining steps that may or may not use the session)
+keeps working. See [the SessionTool authoring guide](/docs/notes/session-tool-authoring)
+for idiomatic patterns (skip-if-cached, sidecar conventions, provider
+selection).
+
 ### Tool categories
 
 Tools fall into four categories that set expectations for idempotency and
