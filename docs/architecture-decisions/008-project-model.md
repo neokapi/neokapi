@@ -394,7 +394,7 @@ as documents and operates on the project folder.
 ## Related
 
 - [AD-002: Content Model](002-content-model.md) — Block, Fragment, Span
-- [AD-003: Content Store](003-content-store.md) — block-level storage primitives
+- [AD-004: Content Store (Bowrain)](/bowrain/architecture-decisions/004-content-store) — block-level storage primitives
 - [AD-004: Processing Engine](004-processing-engine.md) — flow execution
 - [AD-006: Tool System](006-tool-system.md) — Tool and SessionTool interfaces
 - [AD-013: Kapi CLI](013-kapi-cli.md) — CLI use of projects

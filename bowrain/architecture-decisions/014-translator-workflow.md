@@ -318,4 +318,4 @@ desktop app, and future mobile surfaces render the same primitives.
 - [AD-013: Automation Engine](013-automation-engine.md) — action types, run visibility
 - [AD-015: Server-Side AI Operations](015-server-ai-operations.md) — job completion feeds the tracker
 - [AD-016: Bravo Agent](016-bravo-agent.md) — MCP consumer of tasks
-- [Translator Workflow](/docs/notes/translator-workflow) — detailed algorithms
+- [Translator Workflow](/bowrain/notes/translator-workflow) — detailed algorithms

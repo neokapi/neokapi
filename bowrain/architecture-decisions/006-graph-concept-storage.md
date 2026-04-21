@@ -344,4 +344,4 @@ plan transitions without destructive updates.
 
 - [AD-004: Content Store and Versioning](004-content-store.md)
 - [AD-005: Streams](005-streams.md)
-- [AD-framework-010: Terminology](../../docs/architecture-decisions/010-terminology.md)
+- [AD-framework-010: Terminology](/docs/ad/010-terminology)

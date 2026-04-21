@@ -110,7 +110,7 @@ mode's authority. The user can elevate a single-session grant during
 the conversation — "allow me to push to GitHub during this task" —
 which records an explicit grant with a short TTL. On conversation end,
 all session-scoped grants revoke. See
-[AD-003](003-identity-and-permissions.md) for the permission model
+[AD-003](003-permissions.md) for the permission model
 itself.
 
 ### Approval flow
@@ -286,6 +286,6 @@ primitives. Tool call visualization is status-aware:
 - [AD-013: Automation Engine](013-automation-engine.md) — `run_bravo` action
 - [AD-014: Translator Workflow](014-translator-workflow.md) — task MCP tools, activity events
 - [AD-015: Server-Side AI Operations](015-server-ai-operations.md) — AI quota accounting
-- [AD-003: Identity and Permissions](003-identity-and-permissions.md) — token scopes, session grants
+- [AD-003: Identity and Permissions](003-permissions.md) — token scopes, session grants
 - [AD-018: Billing and Plans](018-billing-and-plans.md) — @bravo quota and plan gating
-- [Bravo Agent Implementation](/docs/notes/bravo-agent-implementation) — schemas and container details
+- [Bravo Agent Implementation](/bowrain/notes/bravo-agent-implementation) — schemas and container details
