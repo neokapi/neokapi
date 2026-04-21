@@ -56,18 +56,23 @@ const config: Config = {
       "@docusaurus/plugin-content-docs",
       {
         id: "bowrain",
+        // Path must NOT be a parent of bowrain-ad/bowrain-notes path —
+        // Docusaurus 3.9.2's webpack mdx-loader chain conflates plugin
+        // options when file paths overlap, causing every file in the
+        // child plugins to fail with a misleading FunctionDeclaration
+        // error. Keeping architecture-decisions/ and notes/ as siblings
+        // of bowrain/docs/ (not children) eliminates the overlap.
         path: "../bowrain/docs",
         routeBasePath: "bowrain",
         sidebarPath: "./sidebars-bowrain.ts",
         editUrl: "https://github.com/neokapi/neokapi/tree/main/",
-        exclude: ["architecture-decisions/**", "notes/**"],
       },
     ],
     [
       "@docusaurus/plugin-content-docs",
       {
         id: "bowrain-ad",
-        path: "../bowrain/docs/architecture-decisions",
+        path: "../bowrain/architecture-decisions",
         routeBasePath: "bowrain/architecture-decisions",
         sidebarPath: "./sidebars-bowrain-ad.ts",
         editUrl: "https://github.com/neokapi/neokapi/tree/main/",
@@ -77,7 +82,7 @@ const config: Config = {
       "@docusaurus/plugin-content-docs",
       {
         id: "bowrain-notes",
-        path: "../bowrain/docs/notes",
+        path: "../bowrain/notes",
         routeBasePath: "bowrain/notes",
         sidebarPath: "./sidebars-bowrain-notes.ts",
         editUrl: "https://github.com/neokapi/neokapi/tree/main/",

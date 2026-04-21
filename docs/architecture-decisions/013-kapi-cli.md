@@ -324,7 +324,7 @@ build time; `make web-build` produces the assets before `make build`.
   loaded by `-p`
 - [AD-011: AI Providers](011-ai-providers.md) — provider credentials
 - [AD-014: Kapi Desktop](014-kapi-desktop.md) — GUI companion
-- [CLI Commands Reference](/docs/notes/cli-commands-reference) — full
+- [CLI Commands Reference](/bowrain/notes/cli-commands-reference) — full
   command tree with flags
 - [MCP Tools Reference](/docs/notes/mcp-tools-reference) — MCP tool
   input/output schemas

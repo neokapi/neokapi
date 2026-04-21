@@ -422,4 +422,4 @@ limits.
 - [AD-004: Content Store and Versioning](004-content-store.md)
 - [AD-008: Connector System](008-connector-system.md)
 - [AD-009: Sync Protocol](009-sync-protocol.md)
-- [AD-framework-002: Content Model](../../docs/architecture-decisions/002-content-model.md)
+- [AD-framework-002: Content Model](/docs/ad/002-content-model)

@@ -281,4 +281,4 @@ gates. The two are complementary:
 - [AD-015: Server-Side AI Operations](015-server-ai-operations.md) — spawned translation and extraction jobs
 - [AD-016: Bravo Agent](016-bravo-agent.md) — `run_bravo` action
 - [AD-010: Bowrain CLI and Project Model](010-bowrain-cli-and-project-model.md) — local automation hooks
-- [Automation Run Visibility](/docs/notes/automation-run-visibility) — schema, tracker details
+- [Automation Run Visibility](/bowrain/notes/automation-run-visibility) — schema, tracker details

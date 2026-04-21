@@ -182,4 +182,4 @@ real behavior use NATS via Docker Compose.
 - [AD-013: Automation Engine](013-automation-engine.md) — primary event consumer
 - [AD-014: Translator Workflow](014-translator-workflow.md) — activities, tasks, notifications
 - [AD-015: Server-Side AI Operations](015-server-ai-operations.md) — translation job queue sibling
-- [AD-framework-004: Processing Engine](../../../docs/architecture-decisions/004-processing-engine.md) — in-process pipeline model
+- [AD-framework-004: Processing Engine](/docs/ad/004-processing-engine) — in-process pipeline model
