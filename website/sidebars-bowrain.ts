@@ -103,11 +103,21 @@ const sidebars: SidebarsConfig = {
     {
       type: "link",
       label: "Architecture Decisions",
-      href: "/docs/ad/index",
+      href: "/bowrain/architecture-decisions/index",
     },
     {
       type: "link",
       label: "Implementation Notes",
+      href: "/bowrain/notes/index",
+    },
+    {
+      type: "link",
+      label: "Framework Architecture Decisions",
+      href: "/docs/ad/index",
+    },
+    {
+      type: "link",
+      label: "Framework Implementation Notes",
       href: "/docs/notes/index",
     },
     {

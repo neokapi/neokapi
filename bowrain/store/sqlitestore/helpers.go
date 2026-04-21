@@ -6,7 +6,7 @@ import (
 )
 
 // countWordsFromSourceJSON counts words from serialized source segments
-// JSON. Text runs serialize as `{"text":"..."}` per AD-045, so we decode
+// JSON. Text runs serialize as `{"text":"..."}` per Framework AD-002, so we decode
 // the text key as a bare string. Other run kinds contribute nothing.
 // Unicode space boundaries define word breaks.
 func countWordsFromSourceJSON(sourceJSON string) int {

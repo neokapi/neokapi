@@ -135,7 +135,7 @@ func deserializeAnnotations(jsonStr string) map[string]model.Annotation {
 }
 
 // countWordsFromSourceJSON counts words from the serialized source
-// segments JSON. Text runs serialize as `{"text":"..."}` per AD-045,
+// segments JSON. Text runs serialize as `{"text":"..."}` per Framework AD-002,
 // so we decode the text key as a bare string.
 func countWordsFromSourceJSON(sourceJSON string) int {
 	var segments []struct {

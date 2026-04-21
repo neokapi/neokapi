@@ -680,7 +680,7 @@ export interface AutomationHistoryEntry {
 }
 
 // ---------------------------------------------------------------------------
-// Automation Runs (AD-035)
+// Automation Runs (Bowrain AD-013)
 // ---------------------------------------------------------------------------
 
 export type RunStatus = "pending" | "running" | "completed" | "failed" | "partial";
@@ -730,7 +730,7 @@ export interface AutomationLogEntry {
 }
 
 // ---------------------------------------------------------------------------
-// Activity & Task types (AD-027)
+// Activity & Task types (Bowrain AD-014)
 // ---------------------------------------------------------------------------
 
 /** Activity feed entry */
@@ -860,7 +860,7 @@ export interface FlowDefinitionInfo {
 }
 
 // ---------------------------------------------------------------------------
-// @bravo Agent (AD-028)
+// @bravo Agent (Bowrain AD-016)
 // ---------------------------------------------------------------------------
 
 /** Bravo conversation */
@@ -1015,7 +1015,7 @@ export interface BravoSSEHandler {
 }
 
 // ---------------------------------------------------------------------------
-// Billing types (AD-030)
+// Billing types (Bowrain AD-018)
 // ---------------------------------------------------------------------------
 
 /** Billing plan tier */

@@ -1,5 +1,5 @@
 // Package sync provides converters between the Go content model and the
-// sync protocol protobuf types (AD-038).
+// sync protocol protobuf types (Bowrain AD-009).
 package sync
 
 import (

@@ -8,7 +8,7 @@ import (
 )
 
 // DiffEngine computes the difference between client and server state
-// using the Merkle tree hash model (AD-038).
+// using the Merkle tree hash model (Bowrain AD-009).
 type DiffEngine struct {
 	contentStore platstore.ContentStore
 	cache        HashCache // optional; nil = always query DB

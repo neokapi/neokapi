@@ -96,11 +96,11 @@ const (
 	EventBrandVoiceCorrected      EventType = "brand.voice.corrected"
 	EventBrandProfileUpdated      EventType = "brand.profile.updated"
 
-	// Workflow events (AD-034)
+	// Workflow events (Bowrain AD-014)
 	EventPushAutomationsCompleted EventType = "push.automations.completed"
 	EventSourceReviewCompleted    EventType = "source.review.completed"
 
-	// Agent events (AD-028)
+	// Agent events (Bowrain AD-016)
 	EventAgentConversationCreated EventType = "agent.conversation.created"
 	EventAgentMessageSent         EventType = "agent.message.sent"
 	EventAgentToolExecuted        EventType = "agent.tool.executed"

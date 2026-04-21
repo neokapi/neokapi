@@ -196,7 +196,7 @@ func (r *Run) UnmarshalJSON(data []byte) error {
 	for key, val := range raw {
 		switch key {
 		case "text":
-			// Per AD-045, text runs are a bare string: `{"text":"..."}`.
+			// Per Framework AD-002, text runs are a bare string: `{"text":"..."}`.
 			r.Text = &TextRun{}
 			if err := json.Unmarshal(val, &r.Text.Text); err != nil {
 				return fmt.Errorf("model: decode text run: %w", err)
@@ -256,7 +256,7 @@ func (r Run) MarshalJSON() ([]byte, error) {
 	case "":
 		return nil, errors.New("model: run has no discriminator")
 	case RunKindText:
-		// Per AD-045 §Block contents: text runs serialize flat —
+		// Per Framework AD-002 §Block contents: text runs serialize flat —
 		// `{"text":"literal"}` — not as a nested object. Every
 		// other run kind nests its struct under its discriminator
 		// key; text is the exception the spec calls out explicitly.

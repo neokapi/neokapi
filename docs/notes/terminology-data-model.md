@@ -80,7 +80,7 @@ Two pipeline tools integrate terminology into the streaming pipeline ([AD-006](/
 
 Additional tools planned but not yet implemented:
 
-**`term-extract`** (Enrich, AI) -- LLM extraction of candidate terms with `status: proposed`. Uses AI provider from [AD-008](/docs/ad/008-ai-integration).
+**`term-extract`** (Enrich, AI) -- LLM extraction of candidate terms with `status: proposed`. Uses AI provider from [AD-011](/docs/ad/011-ai-providers).
 
 **`entity-annotate`** (Enrich, AI) -- Named entity annotation (people, organizations, products, dates, locations). Serves multiple purposes: TM generalization in Sievepen ([AD-009](/docs/ad/009-translation-memory)), do-not-translate markers, localization hints, and terminology candidate discovery. Should run early in the pipeline -- before `tm-leverage`.
 
@@ -91,7 +91,7 @@ Additional tools planned but not yet implemented:
 
 ## Concept Relations (Phase 2)
 
-broader/narrower, related, supersedes, see-also. Enables concept graph navigation in Bowrain ([AD-012](/docs/ad/012-bowrain)).
+broader/narrower, related, supersedes, see-also. Enables concept graph navigation in Bowrain ([Bowrain AD-017](/bowrain/architecture-decisions/017-bowrain-apps)).
 
 ```go
 type Stream struct {
@@ -108,7 +108,7 @@ Named what-if experiments for terminology changes. Streams isolate changes from 
 
 ## Content Model Extensions
 
-Two annotation types implement the `Annotation` interface with character-level `TextRange` positions for precise inline highlighting in Bowrain ([AD-012](/docs/ad/012-bowrain)):
+Two annotation types implement the `Annotation` interface with character-level `TextRange` positions for precise inline highlighting in Bowrain ([Bowrain AD-017](/bowrain/architecture-decisions/017-bowrain-apps)):
 
 - `TermAnnotation` -- matched term with concept, target terms, and position
 - `EntityAnnotation` -- named entity with type, DNT flag, and position

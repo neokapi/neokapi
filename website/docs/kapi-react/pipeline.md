@@ -93,7 +93,7 @@ A ZIP archive with:
 - `documents/<slug>.klf` — one file per source file, each carrying its `Block`s.
 - Optional targets / skeleton / annotation sidecars (added by translators).
 
-See [AD-046](/docs/ad/046-kapi-project-model) for the full schema.
+See [AD-008](/docs/ad/008-project-model) for the full schema.
 
 ### One block per
 
@@ -155,11 +155,11 @@ For apps built on [Bowrain](/bowrain/introduction), this is transparent — the 
 
 ### Multiple locales in one `i18n/`
 
-A single `i18n/` tree with N target locales on each block is the default and recommended layout — simpler to version, all translations stay together. See [AD-046](/docs/ad/046-kapi-project-model) for the project model.
+A single `i18n/` tree with N target locales on each block is the default and recommended layout — simpler to version, all translations stay together. See [AD-008](/docs/ad/008-project-model) for the project model.
 
 ### Project-driven flow with `.kapi`
 
-If you already use a [`.kapi` project file](/docs/ad/041-kapi-desktop) to define your workflow, declare each archive-backed collection with an `exec` format pointing at kapi-react (or any other extractor):
+If you already use a [`.kapi` project file](/docs/ad/008-project-model) to define your workflow, declare each archive-backed collection with an `exec` format pointing at kapi-react (or any other extractor):
 
 ```yaml title="translation.kapi"
 version: v1

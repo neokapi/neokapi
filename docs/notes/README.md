@@ -4,31 +4,25 @@ title: Overview
 slug: index
 ---
 
-# Implementation Notes
+# Implementation Notes — neokapi Framework
 
-Implementation notes contain tactical details -- some extracted from
-[Architecture Decisions](/docs/ad/index), others standalone. These include
-SQL schemas, API routes, algorithm pseudocode, Go interface definitions,
-and other reference material.
+Implementation notes contain tactical details for the neokapi framework
+(Apache-2.0): SQL schemas, wire protocols, algorithm pseudocode, Go interface
+signatures, and other reference material. They exist alongside the
+[Architecture Decisions](/docs/ad/index), which describe the design choices;
+notes describe the implementation.
 
-| Note                                                      | Parent AD                                        | Content                                                              |
-| --------------------------------------------------------- | ------------------------------------------------ | -------------------------------------------------------------------- |
-| [Content Store Schema](content-store-schema.md)           | [AD-003](/docs/ad/003-content-store)             | SQL schemas, migrations, API routes                                  |
-| [Connector Interfaces](connector-interfaces.md)           | [AD-005](/docs/ad/005-connector-system)          | Go structs, method signatures                                        |
-| [Plugin Bridge Protocol](plugin-bridge-protocol.md)       | [AD-007](/docs/ad/007-plugin-system)             | gRPC protocol, bridge descriptor                                     |
-| [TM Matching Algorithm](tm-matching-algorithm.md)         | [AD-009](/docs/ad/009-translation-memory)        | Tiered matching, TMX mapping                                         |
-| [Terminology Data Model](terminology-data-model.md)       | [AD-010](/docs/ad/010-terminology)               | Go structs, TermBase interface                                       |
-| [Bowrain UI Components](bowrain-ui-components.md)         | [AD-012](/docs/ad/012-bowrain)                   | Editor modes, component library                                      |
-| [CLI Commands Reference](cli-commands-reference.md)       | [AD-013](/docs/ad/013-cli-and-server)            | Command tree, REST routes, gRPC                                      |
-| [Bowrain Sync Protocol](kapi-sync-protocol.md)            | [AD-016](/docs/ad/016-kapi-project-model)        | Config schema, sync algorithms                                       |
-| [Glass UI Theme](glass-ui-theme.md)                       | --                                               | shadcn-glass-ui, OKLCH tokens, 3 themes                              |
-| [Keycloak Theming](keycloak-theming.md)                   | --                                               | Keycloakify v11, custom login pages                                  |
-| [NPM Workspaces](npm-workspaces.md)                       | --                                               | Workspace config, build order, lock files                            |
-| [Docker Compose](docker-compose.md)                       | --                                               | Dev deps, Keycloak + Mailpit, e2e support                            |
-| [MCP Tools Reference](mcp-tools-reference.md)             | [AD-021](/docs/ad/021-mcp-integration)           | Tool specs, input/output schemas, testing                            |
-| [Skeleton Store](skeleton-store.md)                       | [AD-005](/docs/ad/005-connector-system)          | SkeletonStore binary format, streaming HTML reader/writer            |
-| [Implementing Formats](implementing-formats.md)           | [AD-005](/docs/ad/005-connector-system)          | Step-by-step guide for new format readers/writers                    |
-| [Entity & Term Extraction](entity-term-extraction.md)     | [AD-022](/docs/ad/022-entity-term-extraction)    | NER interface, extraction flow, review queue schema                  |
-| [Translation Job Queue](translation-job-queue.md)         | [AD-008](/docs/ad/008-ai-integration)            | Job model, worker algorithm, quota schema, queue backends            |
-| [Translator Workflow](translator-workflow.md)             | [AD-034](/docs/ad/034-translator-workflow)       | PushCompletionTracker, task fan-out, source review, MCP tools        |
-| [Automation Run Visibility](automation-run-visibility.md) | [AD-035](/docs/ad/035-automation-run-visibility) | Run/step/log model, RunManager, StepCompletionTracker, SSE, REST API |
+Bowrain-specific notes (content store schema, sync protocol, translation
+queues, etc.) live in [`bowrain/docs/notes/`](/bowrain/notes/index).
+
+| Note                                                  | Parent AD                                        | Content                                             |
+| ----------------------------------------------------- | ------------------------------------------------ | --------------------------------------------------- |
+| [Implementing Formats](implementing-formats.md)       | [AD-005](/docs/ad/005-format-system)             | Step-by-step guide for new format readers/writers   |
+| [Skeleton Store](skeleton-store.md)                   | [AD-005](/docs/ad/005-format-system)             | SkeletonStore binary format, streaming HTML support |
+| [Flow Steps Format](flow-steps-format.md)             | [AD-006](/docs/ad/006-tool-system)               | YAML step list, fan-out, script steps               |
+| [Session-Scoped Tool Authoring](session-tool-authoring.md) | [AD-006](/docs/ad/006-tool-system)          | Guide for writing tools against BlockStore          |
+| [Plugin Bridge Protocol](plugin-bridge-protocol.md)   | [AD-007](/docs/ad/007-plugin-system)             | gRPC protocol, bridge descriptor                    |
+| [Kapi Project File](kapi-project-file.md)             | [AD-008](/docs/ad/008-project-model)             | `.kapi` recipe schema and examples                  |
+| [TM Matching Algorithm](tm-matching-algorithm.md)     | [AD-009](/docs/ad/009-translation-memory)        | Tiered matching, TMX mapping                        |
+| [Terminology Data Model](terminology-data-model.md)   | [AD-010](/docs/ad/010-terminology)               | Go structs, TermBase interface                      |
+| [MCP Tools Reference](mcp-tools-reference.md)         | [AD-013](/docs/ad/013-kapi-cli)                  | Tool specs, input/output schemas                    |

@@ -334,7 +334,7 @@ func (c *BowrainSourceConnector) Push(ctx context.Context, opts connector.PushOp
 	// Fetch and cache server metadata (best-effort).
 	c.fetchAndCacheMetadata(ctx)
 
-	// Push assets (AD-029): upload changed media to blob storage.
+	// Push assets (Bowrain AD-007): upload changed media to blob storage.
 	assetsPushed := 0
 	if c.client != nil && len(mediaMap) > 0 {
 		assetsPushed = c.pushAssets(ctx, mediaHashMap, mediaMap, opts.Force)
@@ -576,7 +576,7 @@ func (c *BowrainSourceConnector) Pull(ctx context.Context, opts connector.PullOp
 					continue
 				}
 
-				// Fetch locale-variant media for this item (AD-029).
+				// Fetch locale-variant media for this item (Bowrain AD-007).
 				var mediaRepl []MediaReplacement
 				if c.project.Config.AssetsEnabled() {
 					mediaRepl = c.fetchMediaReplacements(ctx, itemName, loc)
@@ -997,7 +997,7 @@ func (c *BowrainSourceConnector) writeTranslatedFile(ctx context.Context, source
 		ocs.SetOriginalContent(srcBytes)
 	}
 
-	// Apply locale-variant media replacements (AD-029).
+	// Apply locale-variant media replacements (Bowrain AD-007).
 	if mrs, ok := writer.(MediaReplacementSetter); ok {
 		for _, mr := range mediaReplacements {
 			mrs.SetMediaReplacement(mr.ZipPath, mr.Data)

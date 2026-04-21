@@ -279,7 +279,7 @@ func TestLayerJSONSerialization(t *testing.T) {
 	assert.Equal(t, model.LocaleEnglish, decoded.Locale)
 }
 
-// --- Block uniform locale access (AD-043) ---
+// --- Block uniform locale access (Framework AD-006) ---
 
 func TestBlockText_SourceLocale(t *testing.T) {
 	b := model.NewBlock("b1", "Hello")

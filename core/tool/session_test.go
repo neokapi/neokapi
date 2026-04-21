@@ -118,7 +118,7 @@ func TestSessionTool_writesSidecarsViaSession(t *testing.T) {
 // how a real flow wires a session to whichever contract a tool
 // implements. The production flow executor can grow a similar
 // dispatch once every built-in tool has been evaluated for
-// SessionTool adoption (follow-up per AD-046 rollout).
+// SessionTool adoption (follow-up per Framework AD-008 rollout).
 func TestRunWithSession_dispatchesSessionToolWhenAvailable(t *testing.T) {
 	store := blockstore.NewMemoryStore()
 	defer store.Close()

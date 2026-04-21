@@ -1342,7 +1342,7 @@ export class RestApiAdapter implements ApiAdapter {
     return this.fetchJSON(`${this.automationsEp(workspaceSlug, projectId)}/history`);
   }
 
-  // ── Automation Runs (AD-035) ──────────────────────────────────────────
+  // ── Automation Runs (Bowrain AD-013) ──────────────────────────────────────────
 
   async listAutomationRuns(
     workspaceSlug: string,
@@ -1561,7 +1561,7 @@ export class RestApiAdapter implements ApiAdapter {
     });
   }
 
-  // ── Activities (AD-027) ─────────────────────────────────────────────────
+  // ── Activities (Bowrain AD-014) ─────────────────────────────────────────────────
 
   async listActivities(
     workspaceSlug: string,
@@ -1591,7 +1591,7 @@ export class RestApiAdapter implements ApiAdapter {
     });
   }
 
-  // ── Tasks (AD-027) ────────────────────────────────────────────────────
+  // ── Tasks (Bowrain AD-014) ────────────────────────────────────────────────────
 
   private tasksEp(ws: string) {
     return `/api/v1/${ws}/tasks`;
@@ -1680,7 +1680,7 @@ export class RestApiAdapter implements ApiAdapter {
     return this.fetchJSON(`/api/v1/${workspaceSlug}/my/tasks${qs ? `?${qs}` : ""}`);
   }
 
-  // ── Notification Preferences (AD-027) ─────────────────────────────────
+  // ── Notification Preferences (Bowrain AD-014) ─────────────────────────────────
 
   async getNotificationPreferences(
     workspaceSlug: string,
@@ -1712,7 +1712,7 @@ export class RestApiAdapter implements ApiAdapter {
     return this.fetchJSON(`/api/v1/${workspaceSlug}/audit-log${qs ? `?${qs}` : ""}`);
   }
 
-  // ── @bravo Agent (AD-028) ────────────────────────────────────────────────
+  // ── @bravo Agent (Bowrain AD-016) ────────────────────────────────────────────────
 
   private bravoEp(ws: string) {
     return `/api/v1/${ws}/bravo`;
@@ -1962,7 +1962,7 @@ export class RestApiAdapter implements ApiAdapter {
     return controller;
   }
 
-  // ── Billing (AD-030) ────────────────────────────────────────────────────
+  // ── Billing (Bowrain AD-018) ────────────────────────────────────────────────────
 
   private billingEp(ws: string) {
     return `/api/v1/${ws}/billing`;

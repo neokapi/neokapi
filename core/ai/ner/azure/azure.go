@@ -3,7 +3,7 @@
 // Azure NER supports 45+ entity types across 70+ languages via the Text Analytics API.
 // This implementation uses the /language/:analyze-text endpoint (API version 2024-11-01).
 //
-// See AD-022 for the hybrid LLM + NER extraction architecture.
+// See Bowrain AD-015 for the hybrid LLM + NER extraction architecture.
 package azure
 
 import (

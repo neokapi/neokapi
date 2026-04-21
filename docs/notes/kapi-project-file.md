@@ -1,6 +1,6 @@
 # .kapi Project File Format
 
-Implementation notes for the `.kapi` project file format. See [AD-041](/docs/ad/041-kapi-desktop) for the architectural decision.
+Implementation notes for the `.kapi` project file format. See [AD-008](/docs/ad/008-project-model) for the architectural decision.
 
 ## Schema
 

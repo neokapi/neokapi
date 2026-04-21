@@ -225,7 +225,7 @@ var storeMigrations = []storage.Migration{
 	},
 	{
 		Version:     13,
-		Description: "create review queue tables (AD-022)",
+		Description: "create review queue tables (Bowrain AD-015)",
 		SQL: `
 			CREATE TABLE review_items (
 				id            TEXT PRIMARY KEY,
@@ -556,7 +556,7 @@ var storeMigrations = []storage.Migration{
 	},
 	{
 		Version:     25,
-		Description: "create asset tables (AD-029)",
+		Description: "create asset tables (Bowrain AD-007)",
 		SQL: `
 			CREATE TABLE assets (
 				id                TEXT PRIMARY KEY,
@@ -710,7 +710,7 @@ var storeMigrations = []storage.Migration{
 	},
 	{
 		Version:     31,
-		Description: "create automation_runs, automation_steps, automation_logs tables (AD-035)",
+		Description: "create automation_runs, automation_steps, automation_logs tables (Bowrain AD-013)",
 		SQL: `
 			CREATE TABLE automation_runs (
 				id           TEXT PRIMARY KEY,

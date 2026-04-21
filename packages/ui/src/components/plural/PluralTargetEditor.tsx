@@ -1,6 +1,6 @@
 /**
  * `<PluralTargetEditor>` — the translator-facing affordance for
- * authoring plural targets on top of AD-045 Blocks.
+ * authoring plural targets on top of Framework AD-002 Blocks.
  *
  * Two renders, one state:
  *   - Flat: single textarea, Upgrade to plural… button.

@@ -489,7 +489,7 @@ export interface ApiAdapter {
     projectId: string,
   ): Promise<AutomationHistoryEntry[]>;
 
-  // Automation Runs (AD-035)
+  // Automation Runs (Bowrain AD-013)
   listAutomationRuns(
     workspaceSlug: string,
     projectId: string,
@@ -576,7 +576,7 @@ export interface ApiAdapter {
   // Audit log
   listWorkspaceAuditLog(workspaceSlug: string, query?: AuditQuery): Promise<AuditEntry[]>;
 
-  // Activities (AD-027)
+  // Activities (Bowrain AD-014)
   listActivities(
     workspaceSlug: string,
     query?: {
@@ -591,7 +591,7 @@ export interface ApiAdapter {
 
   markActivitiesSeen(workspaceSlug: string): Promise<void>;
 
-  // Tasks (AD-027)
+  // Tasks (Bowrain AD-014)
   listTasks(
     workspaceSlug: string,
     query?: {
@@ -620,7 +620,7 @@ export interface ApiAdapter {
     query?: { status?: string; cursor?: string; limit?: number },
   ): Promise<{ tasks: TaskInfo[]; next_cursor: string }>;
 
-  // Notification preferences (AD-027)
+  // Notification preferences (Bowrain AD-014)
   getNotificationPreferences(
     workspaceSlug: string,
   ): Promise<{ preferences: NotificationPreference[] }>;

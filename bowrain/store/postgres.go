@@ -1020,7 +1020,7 @@ func logChange(ctx context.Context, tx *sql.Tx, projectID, stream, blockID, chan
 }
 
 // ---------------------------------------------------------------------------
-// Asset CRUD (AD-029)
+// Asset CRUD (Bowrain AD-007)
 // ---------------------------------------------------------------------------
 
 func (s *PostgresStore) StoreAsset(ctx context.Context, projectID, stream string, asset *platstore.Asset) error {
@@ -1171,7 +1171,7 @@ func scanAsset(row assetScanner) (*platstore.Asset, error) {
 }
 
 // ---------------------------------------------------------------------------
-// Asset Variants (AD-029)
+// Asset Variants (Bowrain AD-007)
 // ---------------------------------------------------------------------------
 
 func (s *PostgresStore) StoreAssetVariant(ctx context.Context, projectID string, variant *platstore.AssetVariant) error {

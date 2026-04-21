@@ -72,7 +72,7 @@ func NewProjectBearerClient(serverURL, projectID, authToken string) *BowrainClie
 }
 
 // projectPrefix returns the URL prefix for project-scoped endpoints.
-// AD-040: workspace project uses bare slug /:ws/:pid, unclaimed uses /projects/:pid.
+// Bowrain AD-011: workspace project uses bare slug /:ws/:pid, unclaimed uses /projects/:pid.
 func (c *BowrainClient) projectPrefix() string {
 	if c.workspace != "" {
 		return fmt.Sprintf("%s/api/v1/%s/%s", c.baseURL, c.workspace, c.projectID)
@@ -89,13 +89,13 @@ func (c *BowrainClient) ref() string {
 }
 
 // streamPrefix returns the URL prefix for sync-scoped endpoints.
-// AD-040: resource-first ref pattern — /:ws/:pid/sync/:ref
+// Bowrain AD-011: resource-first ref pattern — /:ws/:pid/sync/:ref
 func (c *BowrainClient) streamPrefix() string {
 	return c.projectPrefix() + "/sync/" + c.ref()
 }
 
 // assetPrefix returns the URL prefix for asset-scoped endpoints.
-// AD-040: resource-first ref pattern — /:ws/:pid/assets/:ref
+// Bowrain AD-011: resource-first ref pattern — /:ws/:pid/assets/:ref
 func (c *BowrainClient) assetPrefix() string {
 	return c.projectPrefix() + "/assets/" + c.ref()
 }
@@ -929,7 +929,7 @@ func (c *BowrainClient) ArchiveStream(ctx context.Context, streamName string) er
 }
 
 // ---------------------------------------------------------------------------
-// Asset sync (AD-029)
+// Asset sync (Bowrain AD-007)
 // ---------------------------------------------------------------------------
 
 // AssetInput represents an asset to push to the server.

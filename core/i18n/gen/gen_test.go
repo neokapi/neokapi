@@ -54,9 +54,9 @@ func TestGenerate_ReplacesStaleArtifacts(t *testing.T) {
 	_, err := os.Stat(filepath.Join(dir, "stale.json"))
 	assert.True(t, os.IsNotExist(err), "stale.json should have been removed")
 	_, err = os.Stat(filepath.Join(dir, ".gitkeep"))
-	assert.NoError(t, err, ".gitkeep must be preserved")
+	require.NoError(t, err, ".gitkeep must be preserved")
 	_, err = os.Stat(filepath.Join(dir, "metadata.json"))
-	assert.NoError(t, err, "metadata.json must exist")
+	require.NoError(t, err, "metadata.json must exist")
 }
 
 // walk reads every regular file under root into a map keyed by the path

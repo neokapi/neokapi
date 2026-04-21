@@ -3,7 +3,7 @@
  * walker (emits `PluralRun` / `SelectRun` into `Block.source`) and
  * the plugin transform (emits the ICU template into `__tx()`).
  *
- * Children-based shape (AD-045):
+ * Children-based shape (Framework AD-002):
  *
  *   <Plural count={items.length}>
  *     <Zero>Your cart is empty</Zero>

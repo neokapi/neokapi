@@ -1,4 +1,4 @@
-// sync.proto — Sync protocol messages (AD-038).
+// sync.proto — Sync protocol messages (Bowrain AD-009).
 // Defines the content layer for chunked, diff-based content sync.
 
 syntax = "proto3";

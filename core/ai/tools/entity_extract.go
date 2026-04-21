@@ -15,7 +15,7 @@ import (
 
 // AIEntityExtractTool extracts named entities and term candidates from Blocks
 // using an LLM provider (via ChatStructured) and an optional NER provider for
-// fast entity detection. Follows the hybrid extraction approach from AD-022.
+// fast entity detection. Follows the hybrid extraction approach from Bowrain AD-015.
 type AIEntityExtractTool struct {
 	tool.BaseTool
 	usageAccumulator

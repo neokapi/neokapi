@@ -3,6 +3,7 @@ module github.com/neokapi/neokapi/cli
 go 1.26.0
 
 require (
+	github.com/leonelquinteros/gotext v1.7.2
 	github.com/mattn/go-isatty v0.0.20
 	github.com/neokapi/neokapi v0.0.0
 	github.com/spf13/cobra v1.10.2

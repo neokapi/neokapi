@@ -36,7 +36,7 @@ const config: Config = {
       "@docusaurus/plugin-content-docs",
       {
         id: "ad",
-        path: "../docs/ad",
+        path: "../docs/architecture-decisions",
         routeBasePath: "docs/ad",
         sidebarPath: "./sidebars-ad.ts",
         editUrl: "https://github.com/neokapi/neokapi/tree/main/",
@@ -59,6 +59,27 @@ const config: Config = {
         path: "../bowrain/docs",
         routeBasePath: "bowrain",
         sidebarPath: "./sidebars-bowrain.ts",
+        editUrl: "https://github.com/neokapi/neokapi/tree/main/",
+        exclude: ["architecture-decisions/**", "notes/**"],
+      },
+    ],
+    [
+      "@docusaurus/plugin-content-docs",
+      {
+        id: "bowrain-ad",
+        path: "../bowrain/docs/architecture-decisions",
+        routeBasePath: "bowrain/architecture-decisions",
+        sidebarPath: "./sidebars-bowrain-ad.ts",
+        editUrl: "https://github.com/neokapi/neokapi/tree/main/",
+      },
+    ],
+    [
+      "@docusaurus/plugin-content-docs",
+      {
+        id: "bowrain-notes",
+        path: "../bowrain/docs/notes",
+        routeBasePath: "bowrain/notes",
+        sidebarPath: "./sidebars-bowrain-notes.ts",
         editUrl: "https://github.com/neokapi/neokapi/tree/main/",
       },
     ],

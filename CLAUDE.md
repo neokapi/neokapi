@@ -229,7 +229,7 @@ neokapi/
 
 ### Bowrain Project Model (.bowrain/ Directories)
 
-Bowrain CLI uses a git-like project model with `.bowrain/` directories ([AD-016](docs/ad/016-kapi-project-model.md)):
+Bowrain CLI uses a git-like project model with `.bowrain/` directories ([Bowrain AD-010](bowrain/docs/architecture-decisions/010-bowrain-cli-and-project-model.md)):
 
 ```
 my-app/
@@ -278,7 +278,7 @@ kapi run translate -p myproject.kapi
 kapi run translate-and-qa -p myproject.kapi --target-lang de
 ```
 
-`.kapi` files are portable YAML documents — see [AD-041](docs/ad/041-kapi-desktop.md). They work with both kapi CLI (`-p` flag) and Kapi (open/edit/save as documents).
+`.kapi` files are portable YAML documents — see [AD-008](docs/architecture-decisions/008-project-model.md). They work with both kapi CLI (`-p` flag) and Kapi (open/edit/save as documents).
 
 **Role Separation:**
 

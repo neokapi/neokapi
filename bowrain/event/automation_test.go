@@ -238,5 +238,5 @@ func TestAutomationBrandVoiceRule(t *testing.T) {
 	mu.Unlock()
 }
 
-// Leader gating test removed — AD-036 replaces leader election with
+// Leader gating test removed — Bowrain AD-012 replaces leader election with
 // distributed event bus (consumer groups handle exactly-once delivery).

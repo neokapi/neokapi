@@ -62,14 +62,14 @@ type Config struct {
 	// When set, requests to the pulse subdomain are served from this directory.
 	PulseUIDir string
 
-	// Blob storage (AD-029)
+	// Blob storage (Bowrain AD-007)
 	BlobBackend            string // "azure", "local" (default: "local")
 	AzureStorageAccountURL string // Azure Blob Storage account URL
 	AzureStorageContainer  string // Azure Blob Storage container name (default: "bowrain-assets")
 	AzureStorageConnStr    string // Azure connection string (dev/Azurite fallback)
 	BlobStorageLocalDir    string // Local blob storage root directory
 
-	// Sync protocol (AD-038)
+	// Sync protocol (Bowrain AD-009)
 	MaxPushBytes int64 // Max total upload size per push (default: 256MB)
 
 	// External services
@@ -105,7 +105,7 @@ type Config struct {
 	AgentModelAPIBase  string // provider API base URL
 	AgentModelAPIKey   string // provider API key
 
-	// Billing (AD-030)
+	// Billing (Bowrain AD-018)
 	StripeSecretKey     string
 	StripeWebhookSecret string
 	StripeProPriceID    string
@@ -114,7 +114,7 @@ type Config struct {
 	PostHogAPIKey       string
 	PostHogHost         string
 
-	// Admin control plane (AD-030)
+	// Admin control plane (Bowrain AD-018)
 	AdminOIDCIssuerURL    string
 	AdminOIDCClientID     string
 	AdminOIDCClientSecret string

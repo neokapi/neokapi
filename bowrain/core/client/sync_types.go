@@ -2,7 +2,7 @@ package client
 
 import "encoding/json"
 
-// SyncBlock carries the full block model through the sync boundary (AD-038 Phase 7).
+// SyncBlock carries the full block model through the sync boundary (Bowrain AD-009 Phase 7).
 // Unlike BlockContent which only carries plain text, SyncBlock preserves structured
 // segments with inline spans, annotations, skeleton, display hints, and metadata.
 type SyncBlock struct {
@@ -133,7 +133,7 @@ type SyncMedia struct {
 	Properties    map[string]string `json:"properties,omitempty"`
 }
 
-// RichPullResponse is the response from a rich pull (AD-038 Phase 7).
+// RichPullResponse is the response from a rich pull (Bowrain AD-009 Phase 7).
 // It carries full content (blocks, terms, media) instead of change log entries.
 type RichPullResponse struct {
 	Cursor  int64       `json:"cursor"`

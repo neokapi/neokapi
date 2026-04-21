@@ -281,7 +281,7 @@ func readBody(c echo.Context, maxBytes int64) ([]byte, error) {
 }
 
 // HandleSyncPull returns full blocks, terms, and media for a project since the
-// given cursor. The response is a RichPullResponse (AD-038 Phase 7) with structured
+// given cursor. The response is a RichPullResponse (Bowrain AD-009 Phase 7) with structured
 // SyncBlock records instead of raw change log entries. When the client sends
 // Accept-Encoding: zstd, the response is zstd-compressed.
 func (s *Server) HandleSyncPull(c echo.Context) error {

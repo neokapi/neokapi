@@ -170,7 +170,7 @@ A complete Makefile / package-scripts setup for a multi-locale app:
 
 ## Project-driven alternative
 
-If you have a [`.kapi` project file](/docs/ad/041-kapi-desktop) with the collection's `archive:` pointing at `i18n/`, the scripts collapse to one sync call:
+If you have a [`.kapi` project file](/docs/ad/008-project-model) with the collection's `archive:` pointing at `i18n/`, the scripts collapse to one sync call:
 
 ```json title="package.json"
 {
