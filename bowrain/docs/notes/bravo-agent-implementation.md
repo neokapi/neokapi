@@ -328,7 +328,7 @@ type ContainerConfig struct {
 
 type AgentContainer struct {
     ID             string
-    GatewayURL     string    // "http://10.0.1.42:42617"
+    GatewayURL     string    // e.g. http://10.0.1.42:42617
     ConversationID string
     WorkspaceID    string
     UserID         string
@@ -443,7 +443,7 @@ Swap to self-hosted Ollama (no code changes):
 [model]
 provider = "ollama"
 model = "llama3:70b"
-api_base = "http://ollama.internal:11434"
+api_base = "http://ollama.internal:11434/"
 ```
 
 ### Resource footprint

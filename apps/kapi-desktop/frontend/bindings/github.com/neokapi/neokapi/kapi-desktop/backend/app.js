@@ -16,6 +16,9 @@ import { Call as $Call, CancellablePromise as $CancellablePromise, Create as $Cr
 import * as flow$0 from "../../core/flow/models.js";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
+import * as i18n$0 from "../../core/i18n/models.js";
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore: Unused imports
 import * as locale$0 from "../../core/locale/models.js";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
@@ -1251,7 +1254,7 @@ export function RunExtract(tabID) {
 
 /**
  * RunFlow executes a flow by name from the current project. Target locales
- * are inferred from the flow's tool chain metadata (AD-043) — the frontend
+ * are inferred from the flow's tool chain metadata (Framework AD-006) — the frontend
  * passes project target languages as a fallback, but ResolveFlowLocales
  * determines the actual locale passes based on tool cardinality.
  * @param {string} tabID
@@ -1454,6 +1457,20 @@ export function SetApplication(app) {
 }
 
 /**
+ * SetLocale configures the active locale for metadata Wails methods.
+ * Called from the React frontend whenever the user changes UI language.
+ * Empty or "en" disables localization; non-English locales load the
+ * matching MO catalog (embedded builtins + installed plugin catalogs).
+ * Returns the resolved locale so the frontend can confirm what took
+ * effect — useful when the request was "auto" and the backend chose.
+ * @param {string} locale
+ * @returns {$CancellablePromise<string>}
+ */
+export function SetLocale(locale) {
+    return $Call.ByID(1458810066, locale);
+}
+
+/**
  * SetTheme updates the theme preference.
  * @param {string} theme
  * @returns {$CancellablePromise<void>}
@@ -1463,12 +1480,28 @@ export function SetTheme(theme) {
 }
 
 /**
- * SetUILanguage updates the UI language preference.
+ * SetUILanguage updates the UI language preference and rebuilds the
+ * metadata Translator so the very next ListTools/ListFormats/etc. call
+ * returns strings in the new locale — no desktop restart needed.
+ * Frontend updates are single-threaded (one user toggling settings);
+ * the SetLocale call re-resolves catalogs, which is cheap (cached MO
+ * reads).
  * @param {string} lang
  * @returns {$CancellablePromise<void>}
  */
 export function SetUILanguage(lang) {
     return $Call.ByID(950373336, lang);
+}
+
+/**
+ * T returns the active Translator. Safe to call before SetLocale —
+ * returns a NoopTranslator that passes source text through unchanged.
+ * Not exposed to Wails (lowercase methods are private); backend code
+ * reaches for it directly.
+ * @returns {$CancellablePromise<i18n$0.Translator>}
+ */
+export function T() {
+    return $Call.ByID(3661835348);
 }
 
 /**
