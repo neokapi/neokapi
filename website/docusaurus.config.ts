@@ -115,17 +115,53 @@ const config: Config = {
       },
       items: [
         {
-          type: "docSidebar",
-          sidebarId: "neokapiSidebar",
-          position: "left",
+          type: "dropdown",
           label: "Neokapi",
+          position: "left",
+          items: [
+            {
+              type: "docSidebar",
+              sidebarId: "neokapiSidebar",
+              label: "Documentation",
+            },
+            {
+              type: "docSidebar",
+              docsPluginId: "ad",
+              sidebarId: "ad",
+              label: "Architecture Decisions",
+            },
+            {
+              type: "docSidebar",
+              docsPluginId: "notes",
+              sidebarId: "notes",
+              label: "Implementation Notes",
+            },
+          ],
         },
         {
-          type: "docSidebar",
-          docsPluginId: "bowrain",
-          sidebarId: "bowrainSidebar",
-          position: "left",
+          type: "dropdown",
           label: "Bowrain",
+          position: "left",
+          items: [
+            {
+              type: "docSidebar",
+              docsPluginId: "bowrain",
+              sidebarId: "bowrainSidebar",
+              label: "Documentation",
+            },
+            {
+              type: "docSidebar",
+              docsPluginId: "bowrain-ad",
+              sidebarId: "bowrainAd",
+              label: "Architecture Decisions",
+            },
+            {
+              type: "docSidebar",
+              docsPluginId: "bowrain-notes",
+              sidebarId: "bowrainNotes",
+              label: "Implementation Notes",
+            },
+          ],
         },
         {
           href: "https://github.com/neokapi/neokapi",
