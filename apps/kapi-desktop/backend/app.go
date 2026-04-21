@@ -597,7 +597,7 @@ type ToolInfo struct {
 	Tags        []string `json:"tags,omitempty"`
 	Requires    []string `json:"requires,omitempty"`
 
-	// IO contract fields (AD-043)
+	// IO contract fields (Framework AD-006)
 	Cardinality   string   `json:"cardinality,omitempty"`    // "monolingual", "bilingual", "multilingual"
 	DefaultLocale string   `json:"default_locale,omitempty"` // e.g., "qps" for pseudo-translate
 	Produces      []string `json:"produces,omitempty"`       // annotation types

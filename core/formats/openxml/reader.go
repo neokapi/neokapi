@@ -131,7 +131,7 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 		return
 	}
 
-	// Extract embedded media files as PartMedia (AD-029).
+	// Extract embedded media files as PartMedia (Bowrain AD-007).
 	if r.cfg.ExtractMedia {
 		r.emitMediaParts(ctx, ch, zr, info)
 	}

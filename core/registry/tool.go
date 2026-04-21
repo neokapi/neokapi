@@ -35,7 +35,7 @@ type ToolInfo struct {
 	Tags        []string `json:"tags,omitempty"`     // freeform labels: "ai-powered","regex","batch"
 	Requires    []string `json:"requires,omitempty"` // runtime requirements: "target-language","credentials","tm"
 
-	// IO contract fields (AD-043)
+	// IO contract fields (Framework AD-006)
 	Cardinality   schema.LocaleCardinality `json:"cardinality,omitempty"`
 	DefaultLocale model.LocaleID           `json:"default_locale,omitempty"`
 	Produces      []schema.AnnotationType  `json:"produces,omitempty"`

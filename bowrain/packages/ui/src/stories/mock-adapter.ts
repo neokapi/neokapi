@@ -595,11 +595,11 @@ export function createMockAdapter(blocks?: BlockInfo[]): ApiAdapter {
       total_source_words: 0,
     }),
 
-    // --- Activities (AD-027) ------------------------------------------------
+    // --- Activities (Bowrain AD-014) ------------------------------------------------
     listActivities: async () => ({ activities: [], next_cursor: "", new_count: 0 }),
     markActivitiesSeen: async () => {},
 
-    // --- Tasks (AD-027) -----------------------------------------------------
+    // --- Tasks (Bowrain AD-014) -----------------------------------------------------
     listTasks: async () => ({ tasks: [], next_cursor: "" }),
     createTask: async (_ws, task) => ({
       id: `task-${Date.now()}`,
@@ -625,11 +625,11 @@ export function createMockAdapter(blocks?: BlockInfo[]): ApiAdapter {
     cancelTask: noop,
     listMyTasks: async () => ({ tasks: [], next_cursor: "" }),
 
-    // --- Notification Preferences (AD-027) ----------------------------------
+    // --- Notification Preferences (Bowrain AD-014) ----------------------------------
     getNotificationPreferences: async () => ({ preferences: [] }),
     updateNotificationPreferences: noop,
 
-    // --- @bravo Agent (AD-028) ----------------------------------------------
+    // --- @bravo Agent (Bowrain AD-016) ----------------------------------------------
     bravoCreateConversation: async () => ({
       id: "conv-mock",
       workspace_id: "ws-1",
@@ -701,7 +701,7 @@ export function createMockAdapter(blocks?: BlockInfo[]): ApiAdapter {
     }),
     bravoSendMessageSSE: () => new AbortController(),
 
-    // --- Billing (AD-030) ---------------------------------------------------
+    // --- Billing (Bowrain AD-018) ---------------------------------------------------
     billingGetOverview: async () => ({
       subscription: {
         plan: "pro" as const,

@@ -190,7 +190,7 @@ func run() error {
 		cfg.AgentModelAPIKey = v
 	}
 
-	// Billing (AD-030).
+	// Billing (Bowrain AD-018).
 	if v := os.Getenv("STRIPE_SECRET_KEY"); v != "" {
 		cfg.StripeSecretKey = v
 	}
@@ -213,7 +213,7 @@ func run() error {
 		cfg.PostHogHost = v
 	}
 
-	// Admin control plane (AD-030).
+	// Admin control plane (Bowrain AD-018).
 	if v := os.Getenv("BOWRAIN_ADMIN_OIDC_ISSUER_URL"); v != "" {
 		cfg.AdminOIDCIssuerURL = v
 	}

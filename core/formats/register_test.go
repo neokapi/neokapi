@@ -31,7 +31,7 @@ func TestRegisterAllReaders(t *testing.T) {
 		"odf", "archive", "epub", "rtf", "mif", "ttx", "txml", "pdf",
 		// Declarative pseudo-format: registered so it shows up in the
 		// format list / UI. Open() intentionally errors — actual exec
-		// extraction runs via `kapi extract -p` (AD-045).
+		// extraction runs via `kapi extract -p` (Framework AD-002).
 		"exec", "mo",
 	}
 

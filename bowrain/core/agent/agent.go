@@ -1,5 +1,5 @@
 // Package agent defines the domain types and store interface for the
-// @bravo AI agent system (AD-028).
+// @bravo AI agent system (Bowrain AD-016).
 package agent
 
 import (

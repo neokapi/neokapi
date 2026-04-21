@@ -66,7 +66,7 @@ func newRunner() *runner {
 }
 
 // RunFlow executes a flow by name from the current project. Target locales
-// are inferred from the flow's tool chain metadata (AD-043) — the frontend
+// are inferred from the flow's tool chain metadata (Framework AD-006) — the frontend
 // passes project target languages as a fallback, but ResolveFlowLocales
 // determines the actual locale passes based on tool cardinality.
 func (a *App) RunFlow(tabID, flowName string, inputPaths []string, targetLangs []string) error {
@@ -103,7 +103,7 @@ func (a *App) RunFlow(tabID, flowName string, inputPaths []string, targetLangs [
 
 	pctx := project.NewProjectContext(op.Project, op.Path)
 
-	// Resolve locale passes from tool chain metadata (AD-043).
+	// Resolve locale passes from tool chain metadata (Framework AD-006).
 	// Falls back to project target languages for bilingual tools without defaults.
 	toolInfoMap := flow.BuildToolInfoMap(a.toolReg)
 	localePasses := flow.ResolveFlowLocales(spec, toolInfoMap, string(pctx.SourceLocale), targetLangs)

@@ -1,4 +1,4 @@
-// Package compression provides zstd compression for sync protocol chunks (AD-038).
+// Package compression provides zstd compression for sync protocol chunks (Bowrain AD-009).
 // Uses encoder/decoder pools for zero-allocation reuse across requests.
 package compression
 

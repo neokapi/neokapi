@@ -225,7 +225,7 @@ type readSeekNopCloser struct {
 func (readSeekNopCloser) Close() error { return nil }
 
 // ---------------------------------------------------------------------------
-// ChunkedBlobStore implementation (AD-038)
+// ChunkedBlobStore implementation (Bowrain AD-009)
 // ---------------------------------------------------------------------------
 
 // InitUpload prepares a chunked upload session. For Azure Block Blobs,

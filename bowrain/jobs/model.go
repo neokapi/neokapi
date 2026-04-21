@@ -23,7 +23,7 @@ type TranslationJob struct {
 	ProviderConfigID string    `json:"provider_config_id"`
 	Model            string    `json:"model,omitempty"` // deployment/model name (e.g. "gpt-4o", "gpt-4o-mini")
 	PushID           string    `json:"push_id,omitempty"`
-	StepID           string    `json:"step_id,omitempty"` // automation step ID for run visibility (AD-035)
+	StepID           string    `json:"step_id,omitempty"` // automation step ID for run visibility (Bowrain AD-013)
 	Status           JobStatus `json:"status"`
 	Progress         int       `json:"progress"` // 0-100
 	TotalBlocks      int       `json:"total_blocks"`

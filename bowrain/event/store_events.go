@@ -477,7 +477,7 @@ func (s *EventEmittingStore) Close() error {
 }
 
 // ---------------------------------------------------------------------------
-// Asset CRUD (AD-029) — delegate to inner store
+// Asset CRUD (Bowrain AD-007) — delegate to inner store
 // ---------------------------------------------------------------------------
 
 func (s *EventEmittingStore) StoreAsset(ctx context.Context, projectID, stream string, asset *store.Asset) error {

@@ -1,6 +1,6 @@
 /**
  * kapi-react extract tests — the AST walker emits structured
- * Block / Run sequences per AD-045. The flat-string extraction
+ * Block / Run sequences per Framework AD-002. The flat-string extraction
  * that used to live alongside has been removed; the runtime
  * dictionary is produced by `kapi-react compile` from a translated
  * klf writer, not directly by extract.

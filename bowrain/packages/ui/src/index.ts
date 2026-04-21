@@ -573,7 +573,7 @@ export {
 export { FilterConfigEditor, SchemaConfigEditor } from "./components/filter";
 export type { FilterSchema, FilterParamsValue } from "./components/filter";
 
-// Pulse public dashboard components (AD-033)
+// Pulse public dashboard components (Bowrain AD-017)
 export {
   CompletionRing,
   RisingStarBadge,

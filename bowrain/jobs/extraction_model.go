@@ -20,7 +20,7 @@ type ExtractionJob struct {
 	ItemName      string              `json:"item_name"`
 	Locale        string              `json:"locale"`
 	PushID        string              `json:"push_id,omitempty"`
-	StepID        string              `json:"step_id,omitempty"` // automation step ID (AD-035)
+	StepID        string              `json:"step_id,omitempty"` // automation step ID (Bowrain AD-013)
 	Model         string              `json:"model,omitempty"`
 	Status        ExtractionJobStatus `json:"status"`
 	TotalBlocks   int                 `json:"total_blocks"`

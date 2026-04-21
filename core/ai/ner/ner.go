@@ -4,7 +4,7 @@
 // in text using ML models or cloud services. They complement LLM-based extraction
 // by providing fast, cheap, deterministic entity recognition for obvious entity types.
 //
-// See AD-022 for the hybrid LLM + NER extraction architecture.
+// See Bowrain AD-015 for the hybrid LLM + NER extraction architecture.
 package ner
 
 import (

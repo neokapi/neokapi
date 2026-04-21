@@ -38,7 +38,7 @@ type syncChunkRef struct {
 	ByteSize    int64  `json:"byte_size"`
 }
 
-// processSyncPushJob handles the sync protocol push (AD-038).
+// processSyncPushJob handles the sync protocol push (Bowrain AD-009).
 // It reads the manifest, downloads chunks, deserializes protobuf,
 // and stores content via the full model.
 func processSyncPushJob(ctx context.Context, deps *WorkerDeps, job *TranslationJob) error {

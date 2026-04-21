@@ -700,7 +700,7 @@ func TestExtractTargetLocales(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
-// Asset CRUD (AD-029)
+// Asset CRUD (Bowrain AD-007)
 // ---------------------------------------------------------------------------
 
 func TestAssetCRUD(t *testing.T) {

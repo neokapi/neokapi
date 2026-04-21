@@ -150,7 +150,7 @@ func NewMCPServerWithStore(brandStore corebrand.BrandStore, contentStore store.C
 	ms.registerPhase2Tools()
 	ms.registerPrompts()
 
-	// Register expanded tools for @bravo agent (AD-028).
+	// Register expanded tools for @bravo agent (Bowrain AD-016).
 	if contentStore != nil {
 		ms.registerContentTools()
 		ms.registerFlowTools()
