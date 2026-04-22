@@ -152,12 +152,7 @@ class BlockCollector {
     const tag = getTagName(el);
     if (!tag) return false;
     if (getStringAttr(el, "translate") === "no") return false;
-
-    // Scan direct expression children for `{obj.label}`-style
-    // patterns before we decide whether to extract the element —
-    // even elements whose only content is `{item.title}` (and thus
-    // don't get a block at all) need flagging.
-    this.scanForLabelSplice(el);
+    if (ancestors.some((a) => getStringAttr(a, "translate") === "no")) return false;
 
     // For unmapped React components we still want to consider
     // their direct text — the user's source is the ground truth,
@@ -181,9 +176,18 @@ class BlockCollector {
     // extract + transform.
     this.emitAttributeBlocks(el, ancestors, policy.locNote, component);
 
-    if (!policy.translate) return false;
-    if (!hasTranslatableText(el)) return false;
-    if (!isAllInlineContent(el, this.componentMap)) return false;
+    const willEmit =
+      policy.translate && hasTranslatableText(el) && isAllInlineContent(el, this.componentMap);
+
+    // Only flag `{obj.label}`-style splice risks when the parent
+    // ISN'T going to emit a block. When it does, the expression
+    // becomes a `jsx:var` placeholder inside the block — the
+    // label's value flows through runtime substitution and is
+    // translated as part of the enclosing block. Firing the splice
+    // warning there would be a false positive.
+    if (!willEmit) this.scanForLabelSplice(el);
+
+    if (!willEmit) return false;
 
     // Unknown components get a warning pointing the dev at
     // componentMap for hash stability. Container-element promotion
@@ -358,14 +362,17 @@ class BlockCollector {
         attr.value.expression.type === "ConditionalExpression"
       ) {
         const cond = attr.value.expression;
-        if (cond.consequent.type === "StringLiteral" && cond.alternate.type === "StringLiteral") {
+        const cLit = cond.consequent.type === "StringLiteral";
+        const aLit = cond.alternate.type === "StringLiteral";
+        if (cLit && aLit) {
+          // Both string literals — extract one block per branch.
           this.emitOneAttributeBlock(
             el,
             ancestors,
             locNote,
             component,
             name,
-            cond.consequent.value,
+            (cond.consequent as { value: string }).value,
             0,
           );
           this.emitOneAttributeBlock(
@@ -374,15 +381,19 @@ class BlockCollector {
             locNote,
             component,
             name,
-            cond.alternate.value,
+            (cond.alternate as { value: string }).value,
             1,
           );
           continue;
         }
-        // Branches aren't both string literals — nothing we can
-        // statically extract. Flag it so the dev knows the attr
-        // content silently bypasses translation.
-        this.warn("ternary-attr-complex", `${name}`, el);
+        // Only warn when exactly one branch is a string literal —
+        // the other half is unextractable, so the attr's translation
+        // state is half-broken. When both are non-literals (e.g.
+        // `cond ? t("A") : t("B")`) the t()-call walker handles them
+        // separately; no warning needed.
+        if (cLit !== aLit) {
+          this.warn("ternary-attr-complex", `${name}`, el);
+        }
       }
     }
   }
