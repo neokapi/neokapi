@@ -108,11 +108,19 @@ export function ToolRunnerPage({
       .finally(() => setLoading(false));
   }, [showError, propDocs, propTools, tabID]);
 
-  // Group tools by category
+  // Group tools by category. Category strings the UI doesn't have a
+  // label / icon for collapse into `utility` so we don't render N
+  // separate "Utility" chips for each unknown category emitted by the
+  // registry (other, analysis, text-processing, …). Filter + group
+  // must share this normalisation so clicking a chip always yields
+  // the same set of tools it counted.
+  const normalizeCategory = (raw: string | undefined): string =>
+    raw && categoryMeta[raw] ? raw : "utility";
+
   const categories = useMemo(() => {
     const cats = new Map<string, ToolInfo[]>();
     for (const tool of tools) {
-      const cat = tool.category || "utility";
+      const cat = normalizeCategory(tool.category);
       if (!cats.has(cat)) cats.set(cat, []);
       cats.get(cat)!.push(tool);
     }
@@ -123,7 +131,7 @@ export function ToolRunnerPage({
   const filteredTools = useMemo(() => {
     let result = tools;
     if (filterCategory) {
-      result = result.filter((t) => (t.category || "utility") === filterCategory);
+      result = result.filter((t) => normalizeCategory(t.category) === filterCategory);
     }
     if (search) {
       const q = search.toLowerCase();
