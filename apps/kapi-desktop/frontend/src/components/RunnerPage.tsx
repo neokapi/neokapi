@@ -137,7 +137,7 @@ export function RunnerPage({ tabID, flowName, flow, onClose, project, autoRun }:
           <div className="flex items-center gap-2">
             {stateIcon[state]}
             <Button variant="outline" size="sm" onClick={onClose} aria-label="Back">
-              {state === "complete" || state === "error" ? "Done" : "Back"}
+              {state === "complete" || state === "error" ? t("Done") : t("Back")}
             </Button>
           </div>
         }
@@ -171,7 +171,9 @@ export function RunnerPage({ tabID, flowName, flow, onClose, project, autoRun }:
               aria-label="Select input files for flow"
             >
               <FileText size={16} />
-              {inputFiles.length > 0 ? `${inputFiles.length} file(s) selected` : "Select files..."}
+              {inputFiles.length > 0
+                ? t("{count} file(s) selected", { count: inputFiles.length })
+                : t("Select files...")}
             </Button>
           </div>
           <div>

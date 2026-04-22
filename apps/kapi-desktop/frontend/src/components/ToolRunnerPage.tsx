@@ -277,7 +277,7 @@ export function ToolRunnerPage({
                 })}
                 {filteredTools.length === 0 && !loading && (
                   <p className="px-3 py-4 text-xs text-muted-foreground text-center">
-                    {search ? "No tools match your search." : "No tools available."}
+                    {search ? t("No tools match your search.") : t("No tools available.")}
                   </p>
                 )}
               </div>
@@ -489,7 +489,9 @@ function ToolDetail({ tool, docs }: { tool: ToolInfo; docs: PluginDocs | null })
               disabled={running || (tool.requires?.includes("target-language") && !targetLang)}
             >
               {running ? <Loader2 size={14} className="animate-spin" /> : <Play size={14} />}
-              {running ? "Running..." : `Run ${tool.display_name || tool.name}`}
+              {running
+                ? t("Running...")
+                : t("Run {name}", { name: tool.display_name || tool.name })}
             </Button>
           </CardContent>
         </Card>

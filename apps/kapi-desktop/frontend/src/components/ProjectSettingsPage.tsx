@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { t } from "@neokapi/kapi-react/runtime";
 import { Globe, Plug, Cpu, FileType, AlertTriangle } from "lucide-react";
 import {
   Card,
@@ -238,7 +239,7 @@ export function ProjectSettingsPage({
                 <AlertTriangle size={14} className="mt-0.5 shrink-0 text-amber-500" />
                 <div className="flex-1">
                   <p className="text-xs font-medium">
-                    {missingPlugins.length === 1 ? "Missing plugin" : "Missing plugins"}:{" "}
+                    {missingPlugins.length === 1 ? t("Missing plugin") : t("Missing plugins")}:{" "}
                     {missingPlugins.join(", ")}
                   </p>
                   <p className="mt-0.5 text-[10px] text-muted-foreground">
@@ -494,7 +495,9 @@ export function ProjectSettingsPage({
                       <div>
                         <Label className="mb-0.5 block text-xs text-muted-foreground">Config</Label>
                         <span className="text-xs text-muted-foreground">
-                          {fd.config ? `${Object.keys(fd.config).length} keys` : "none"}
+                          {fd.config
+                            ? t("{count} keys", { count: Object.keys(fd.config).length })
+                            : t("none")}
                         </span>
                       </div>
                     </div>

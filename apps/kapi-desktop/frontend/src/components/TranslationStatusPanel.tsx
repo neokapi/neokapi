@@ -184,11 +184,11 @@ function LocaleCoverage({ collection }: { collection: CollectionStatus }) {
             </div>
             <span className="w-24 shrink-0 text-right tabular-nums text-muted-foreground">
               {total === 0
-                ? "pending"
+                ? t("pending")
                 : translated === 0
-                  ? "not translated"
+                  ? t("not translated")
                   : translated === total
-                    ? `${translated}/${total} · complete`
+                    ? t("{translated}/{total} · complete", { translated, total })
                     : `${translated}/${total}`}
             </span>
           </li>

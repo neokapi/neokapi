@@ -185,7 +185,7 @@ export function WelcomePage({ onOpen, onNew, onSettings }: WelcomePageProps) {
               <div className="w-full max-w-sm space-y-3">
                 <div>
                   <Label className="mb-1 block text-left text-xs text-muted-foreground">
-                    {customPath ? "Location" : "Name"}
+                    {customPath ? t("Location") : t("Name")}
                   </Label>
                   <div className="flex items-center gap-1.5">
                     <Input
@@ -246,7 +246,7 @@ export function WelcomePage({ onOpen, onNew, onSettings }: WelcomePageProps) {
                     disabled={!canCreate || creating}
                     className="flex-1"
                   >
-                    {creating ? "Creating..." : "Create Project"}
+                    {creating ? t("Creating...") : t("Create Project")}
                   </Button>
                   <Button variant="outline" onClick={() => setShowNewForm(false)}>
                     Cancel

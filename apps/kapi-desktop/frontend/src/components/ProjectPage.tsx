@@ -1,6 +1,7 @@
 import { useState, useCallback } from "react";
 import { Globe, FileText, Workflow, Save, Loader2, Pencil } from "lucide-react";
 import { Button, Badge, Card, CardHeader, CardTitle, CardContent } from "@neokapi/ui-primitives";
+import { t } from "@neokapi/kapi-react/runtime";
 import type { KapiProject, TabInfo } from "../types/api";
 import { isBareEntry, effectiveItems } from "../types/api";
 import { api } from "../hooks/useApi";
@@ -123,7 +124,7 @@ export function ProjectPage({
           aria-label={projectPath ? "Save project" : "Save project as"}
         >
           {saving ? <Loader2 size={12} className="animate-spin" /> : <Save size={12} />}
-          {projectPath ? "Save" : "Save As..."}
+          {projectPath ? t("Save") : t("Save As...")}
         </Button>
       </div>
 
@@ -147,7 +148,7 @@ export function ProjectPage({
                 <span>
                   {defaults.target_languages?.length
                     ? defaults.target_languages.join(", ")
-                    : "None"}
+                    : t("None")}
                 </span>
               </div>
             </div>
@@ -176,10 +177,9 @@ export function ProjectPage({
                   }
                   return (
                     <div key={i} className="text-muted-foreground">
-                      {coll.name || "Unnamed"}
+                      {coll.name || t("Unnamed")}
                       <span className="ml-1 text-xs">
-                        ({effectiveItems(coll).length} item
-                        {effectiveItems(coll).length !== 1 ? "s" : ""})
+                        {t("({count} item(s))", { count: effectiveItems(coll).length })}
                       </span>
                     </div>
                   );
@@ -206,7 +206,7 @@ export function ProjectPage({
                   <div key={name} className="text-muted-foreground">
                     {name}
                     <span className="ml-1 text-xs">
-                      ({spec.steps.length} step{spec.steps.length !== 1 ? "s" : ""})
+                      {t("({count} step(s))", { count: spec.steps.length })}
                     </span>
                   </div>
                 ))
@@ -231,7 +231,7 @@ export function ProjectPage({
             <div>
               <span className="text-muted-foreground">Plugins: </span>
               {Object.entries(plugins).map(([name, spec]) => (
-                <Badge key={name} variant="secondary" className="mr-1">
+                <Badge key={name} variant="secondary" className="mr-1" translate="no">
                   {name}
                   {spec.version && spec.version !== "*" ? ` ${spec.version}` : ""}
                 </Badge>

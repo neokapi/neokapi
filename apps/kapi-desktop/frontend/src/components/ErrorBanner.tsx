@@ -9,6 +9,7 @@ import {
 } from "react";
 import { AlertCircle, X, Copy, ChevronDown } from "lucide-react";
 import { Button } from "@neokapi/ui-primitives";
+import { t } from "@neokapi/kapi-react/runtime";
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
@@ -196,7 +197,7 @@ function ErrorBannerItem({
             className="px-0 h-auto text-[11px] text-muted-foreground hover:text-foreground"
           >
             <Copy size={10} />
-            {copied ? "Copied" : "Copy Details"}
+            {copied ? t("Copied") : t("Copy Details")}
           </Button>
         </div>
       )}

@@ -21,6 +21,9 @@ describe("no-ternary-literals-in-jsx-child", () => {
         { code: `<div translate="no"><p>{cond ? "A" : "B"}</p></div>` },
         // Attribute position — out of scope (covered by no-ternary-in-translatable-attr).
         { code: `<input placeholder={cond ? "A" : "B"} />` },
+        // Format-only templates (no alphabetic text) aren't translatable copy.
+        { code: "<span>{cond ? `${pct}%` : t('Loading...')}</span>" },
+        { code: "<span>{cond ? `v${version}` : t('Update')}</span>" },
       ],
       invalid: [
         {

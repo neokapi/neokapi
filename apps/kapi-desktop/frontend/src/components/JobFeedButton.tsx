@@ -145,9 +145,8 @@ export function JobFeedButton({ onViewJob }: { onViewJob?: (job: Job) => void })
                         {jobTitle(job)}
                       </span>
                       <span className="text-[10px] text-muted-foreground shrink-0">
-                        {job.status === "complete" || job.status === "error"
-                          ? relativeTime(job.startTime)
-                          : ""}
+                        {(job.status === "complete" || job.status === "error") &&
+                          relativeTime(job.startTime)}
                       </span>
                     </div>
 

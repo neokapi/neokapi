@@ -6,8 +6,17 @@
     "kapi-react/t-no-concat": "error",
     "kapi-react/no-concat-in-translatable-attr": "error",
     "kapi-react/no-ternary-in-translatable-attr": "error",
-    "kapi-react/no-ternary-literals-in-jsx-child": "warn",
+    "kapi-react/no-ternary-literals-in-jsx-child": "error",
     "kapi-react/no-string-literal-jsx-expr": "warn",
     "kapi-react/prefer-t-for-label-expr": "warn"
-  }
+  },
+  "overrides": [
+    {
+      "files": ["src/stories/**"],
+      "rules": {
+        "kapi-react/no-ternary-literals-in-jsx-child": "off",
+        "kapi-react/prefer-t-for-label-expr": "off"
+      }
+    }
+  ]
 }

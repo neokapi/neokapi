@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { t } from "@neokapi/kapi-react/runtime";
 import { Database, Plus, FolderOpen, X, Upload, Download, AlertTriangle } from "lucide-react";
 import {
   Button,
@@ -405,7 +406,7 @@ export function MemoriesPage({
                 onClick={() => void handleRecover()}
                 disabled={recovering}
               >
-                {recovering ? "Recovering..." : "Recover"}
+                {recovering ? t("Recovering...") : t("Recover")}
               </Button>
               <Button
                 variant="outline"

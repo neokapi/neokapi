@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
+import { t } from "@neokapi/kapi-react/runtime";
 import { Workflow, Plus, X, Save, Copy, Lock, Import, FolderOpen, Download } from "lucide-react";
 import {
   Button,
@@ -620,9 +621,7 @@ function FlowCard({
             </div>
           )}
           <div className="mt-2 flex items-center gap-3 text-[11px] text-muted-foreground">
-            <span>
-              {item.stepCount} step{item.stepCount !== 1 ? "s" : ""}
-            </span>
+            <span>{t("{count} step(s)", { count: item.stepCount })}</span>
           </div>
         </div>
 
