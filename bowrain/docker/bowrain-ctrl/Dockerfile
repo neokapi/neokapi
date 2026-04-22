@@ -3,10 +3,14 @@ WORKDIR /src
 
 # Install vite-plus (vp + vpx) — matches the setup-vp GitHub Action
 # that CI uses. Package build scripts call `vpx tsc` + `vp build`.
+# Symlinks into /usr/local/bin so the binaries resolve even when npm
+# reshuffles PATH between lifecycle scripts.
 RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certificates \
     && curl -fsSL https://viteplus.dev/install.sh | bash \
+    && ln -sf /root/.vite-plus/bin/vp /usr/local/bin/vp \
+    && ln -sf /root/.vite-plus/bin/vpx /usr/local/bin/vpx \
+    && ln -sf /root/.vite-plus/bin/vpr /usr/local/bin/vpr \
     && rm -rf /var/lib/apt/lists/*
-ENV PATH="/root/.vite-plus/bin:${PATH}"
 COPY package.json package-lock.json ./
 COPY packages/kapi-format/package.json packages/kapi-format/
 COPY packages/ui/package.json packages/ui/
