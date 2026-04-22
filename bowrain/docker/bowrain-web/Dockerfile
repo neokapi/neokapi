@@ -9,6 +9,13 @@
 FROM node:24-slim AS web-builder
 WORKDIR /src
 
+# Install vite-plus (vp + vpx) which the package build scripts call into.
+# The global install matches the setup-vp GitHub Action that CI uses.
+RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certificates \
+    && curl -fsSL https://viteplus.dev/install.sh | bash \
+    && rm -rf /var/lib/apt/lists/*
+ENV PATH="/root/.vite-plus/bin:${PATH}"
+
 # Copy workspace root (lock file + workspace config) and package.json files
 # for all workspaces to leverage Docker layer caching for npm ci.
 COPY package.json package-lock.json ./

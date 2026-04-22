@@ -1,5 +1,12 @@
 FROM node:24-slim AS build
 WORKDIR /src
+
+# Install vite-plus (vp + vpx) — matches the setup-vp GitHub Action
+# that CI uses. Package build scripts call `vpx tsc` + `vp build`.
+RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certificates \
+    && curl -fsSL https://viteplus.dev/install.sh | bash \
+    && rm -rf /var/lib/apt/lists/*
+ENV PATH="/root/.vite-plus/bin:${PATH}"
 COPY package.json package-lock.json ./
 COPY packages/kapi-format/package.json packages/kapi-format/
 COPY packages/ui/package.json packages/ui/
