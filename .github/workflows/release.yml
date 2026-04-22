@@ -445,7 +445,7 @@ jobs:
 
       - name: Upload DMG to release
         if: runner.os == 'macOS'
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           files: "bowrain-${{ steps.version.outputs.VERSION }}-macOS-universal.dmg"
 
@@ -458,7 +458,7 @@ jobs:
 
       - name: Upload ZIP to release
         if: runner.os == 'Windows'
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           files: "bowrain-${{ steps.version.outputs.VERSION }}-windows-${{ matrix.build.arch }}.zip"
 
@@ -471,7 +471,7 @@ jobs:
 
       - name: Upload tarball to release
         if: runner.os == 'Linux'
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           files: "bowrain-${{ steps.version.outputs.VERSION }}-linux-${{ matrix.build.arch }}.tar.gz"
 
@@ -692,7 +692,7 @@ jobs:
 
       - name: Upload DMG to release
         if: runner.os == 'macOS'
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           files: "kapi-desktop-${{ steps.version.outputs.VERSION }}-macOS-universal.dmg"
 
@@ -704,7 +704,7 @@ jobs:
 
       - name: Upload ZIP to release
         if: runner.os == 'Windows'
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           files: "kapi-desktop-${{ steps.version.outputs.VERSION }}-windows-${{ matrix.build.arch }}.zip"
 
@@ -716,7 +716,7 @@ jobs:
 
       - name: Upload tarball to release
         if: runner.os == 'Linux'
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           files: "kapi-desktop-${{ steps.version.outputs.VERSION }}-linux-${{ matrix.build.arch }}.tar.gz"
 
