@@ -504,6 +504,11 @@ func resolveFiles(patterns []string) ([]string, error) {
 				return nil, fmt.Errorf("stat %q: %w", m, err)
 			}
 			if info.IsDir() {
+				walked, err := walkDirFiles(m)
+				if err != nil {
+					return nil, err
+				}
+				files = append(files, walked...)
 				continue
 			}
 			if isJunkFile(filepath.Base(m)) {
@@ -511,6 +516,35 @@ func resolveFiles(patterns []string) ([]string, error) {
 			}
 			files = append(files, m)
 		}
+	}
+	return files, nil
+}
+
+// walkDirFiles recursively collects regular files under root, skipping
+// hidden directories and junk files. Order is lexicographic for
+// determinism.
+func walkDirFiles(root string) ([]string, error) {
+	var files []string
+	err := filepath.WalkDir(root, func(path string, d os.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		name := d.Name()
+		if d.IsDir() {
+			// Skip hidden directories (e.g. .git) but never the root itself.
+			if path != root && strings.HasPrefix(name, ".") {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		if isJunkFile(name) {
+			return nil
+		}
+		files = append(files, path)
+		return nil
+	})
+	if err != nil {
+		return nil, fmt.Errorf("walk %q: %w", root, err)
 	}
 	return files, nil
 }
