@@ -5,17 +5,19 @@ title: Writing translatable components
 
 # Writing translatable components
 
-Almost everything you already write is translatable. This page walks through the rules the plugin applies and the warnings it fires when it makes a judgement call you should know about.
+Almost everything you already write is translatable. This page walks through the rules the plugin applies, the warnings it fires when it makes a judgement call you should know about, and the half-dozen patterns that break extraction silently.
 
 ## The short version
 
 - **JSX text inside a translatable element** → extracted.
-- **Direct text inside a container (`<div>`, `<section>`, …)** → extracted, with a warning.
+- **Direct text inside a container (`<div>`, `<section>`, …)** → extracted (auto-promotion, silent).
 - **Direct text inside an unmapped React component** → extracted, with a warning and a suggestion to add a `componentMap` entry.
-- **Inline elements** (`<strong>`, `<a>`, `<em>`, `<span>`, …) **mixed with text** → captured as one translatable block, children replaced with position tokens the translator can reorder.
+- **Inline elements** (`<strong>`, `<a>`, `<em>`, `<span>`, …) **mixed with text** → captured as one translatable block; children replaced with position tokens the translator can reorder.
+- **Zero-children unmapped components** (`<Icon/>`, `<Spinner/>`, `<Badge/>`) **alongside text** → treated as opaque inline; the surrounding text still extracts.
 - **A set of attributes** — `title`, `subtitle`, `description`, `label`, `placeholder`, `alt`, `helpText`, `tooltip`, `aria-*` — on any element → extracted.
-- **Non-translatable elements** (`<code>`, `<pre>`, `<kbd>`, `<var>`, `<script>`, `<style>`) → skipped.
-- **Elements marked `translate="no"`** → skipped.
+- **Translatable attributes with string-literal ternaries** (`title={cond ? "A" : "B"}`) → each branch extracted as its own block.
+- **Non-translatable elements** (`<code>`, `<pre>`, `<kbd>`, `<var>`, `<script>`, `<style>`, `<textarea>`) → skipped.
+- **Elements marked `translate="no"`** (or any ancestor) → skipped.
 
 ## The detail
 
@@ -46,6 +48,21 @@ The extractor stores this as `"Click {=m0} to read the docs."` with `{=m0}` boun
 
 Inline elements include `<span>`, `<strong>`, `<em>`, `<b>`, `<i>`, `<a>`, `<code>`, `<kbd>`, `<small>`, `<sub>`, `<sup>`, `<time>`, `<u>`, `<var>`, `<wbr>`, `<del>`, `<ins>`.
 
+### Icon-tolerant inline check
+
+Lots of real React UI looks like `<Button><Icon />Open File...</Button>` — a component body that's an unmapped icon component followed by text. Without any componentMap configuration, kapi-react recognises this idiom and treats **zero-children unmapped components** (self-closing JSX or empty elements) as opaque inline. The surrounding text still extracts; the icon becomes a `jsx:element` placeholder.
+
+```tsx
+<Button>
+  <FolderOpen size={12} />
+  Open File...
+</Button>
+```
+
+Extracts as `"{=m0} Open File..."` with `{=m0}` bound to the `<FolderOpen />` element. Works the same for Radix icons, lucide-react, Heroicons, custom `<Spinner />` components — anything with no children.
+
+The heuristic is intentionally narrow: unmapped components *with* children are still treated as block-level and skipped. That prevents false positives on custom block-level components (`<Panel><Heading>…</Heading></Panel>`).
+
 ### Auto-promoted containers
 
 Strict W3C semantics would skip `<div>Hello</div>` — divs are classified as containers, not text. In real React codebases that's wrong: `<div>Label</div>`, `<section>Intro copy</section>` are everywhere.
@@ -55,9 +72,7 @@ kapi-react **auto-promotes** container elements when they have:
 1. At least one direct non-whitespace JSXText child, AND
 2. Only inline children (no nested block-level elements).
 
-Promotion is silent — `<div>Label</div>` is the dominant idiom and warning
-on every occurrence would just be noise. (Unmapped React components still
-warn; see below.)
+Promotion is silent — `<div>Label</div>` is the dominant idiom and warning on every occurrence would just be noise. (Unmapped React components still warn; see below.)
 
 To opt out: `<div translate="no">...</div>` or a rule:
 
@@ -123,6 +138,26 @@ So these all work out of the box:
 
 Each attribute becomes its own translatable block.
 
+### Ternary attribute values
+
+When a translatable attribute's value is a ternary with *both branches as plain string literals*, each branch extracts as its own block:
+
+```tsx
+<PageHeader title={isProjectMode ? "Project Flows" : "Flows"} />
+```
+
+Both `"Project Flows"` and `"Flows"` get extracted (with `::0` / `::1` suffixes on the context to keep the hashes distinct). At runtime the transform rewrites each literal branch with its own `__t()` lookup; the condition still fires at render time.
+
+Mixed-shape ternaries (one literal, one computed, or both templates) *aren't* statically extractable — the lint rule [`no-ternary-in-translatable-attr`](./linting#no-ternary-in-translatable-attr) flags them. Fix by wrapping both branches with `t()` so the t-call walker picks them up:
+
+```tsx
+// ✗ extractor can't see the template-literal branch
+<Input placeholder={disabled ? `Disabled (${reason})` : "Enabled"} />
+
+// ✓ both branches flow through the t() extraction path
+<Input placeholder={disabled ? t("Disabled ({reason})", { reason }) : t("Enabled")} />
+```
+
 ### Non-translatable elements
 
 These render text-as-text, not natural language, so they're skipped:
@@ -138,12 +173,20 @@ To flip one specific site: `<code translate="yes">...</code>`.
 
 ### Opting out with `translate="no"`
 
-Standard HTML — works on any element:
+Standard HTML — works on any element and its descendants:
 
 ```tsx
-<h1 translate="no">API_KEY_PREFIX</h1>    // ✗ not extracted
-<p>Your key starts with <code>ak-</code>…</p>
+<h1 translate="no">API_KEY_PREFIX</h1>         // ✗ not extracted
+
+<section translate="no">
+  <h2>Debug payload</h2>                       // ✗ not extracted
+  <pre>{json}</pre>                            // ✗ not extracted
+</section>
 ```
+
+Both the extractor and every lint rule in `@neokapi/kapi-react-lint` walk up the ancestor chain looking for `translate="no"`. A single marker at the top of a subtree silences everything inside — no need to sprinkle it on every element.
+
+`translate="no"` is also the right answer when you're intentionally rendering an already-translated value (see "Module-level `t()` gotcha" below), or when your content is code-like and shouldn't be flagged as missing translation.
 
 ### Rules for recurring patterns
 
@@ -161,15 +204,16 @@ neokapi({
 
 Selectors: plain tag (`code`), class (`.code-block`), attribute presence (`[data-testid]`), or attribute value (`[role="alert"]`).
 
-## What still needs `t()`
+## What still needs explicit handling
 
-The one pattern where the extractor can't help is strings stored in JS data structures and fed to JSX as expressions:
+The extractor can only see what it can statically reason about. These patterns slip through — each has a canonical fix.
+
+### Strings in JS data structures
 
 ```tsx
 const THEMES = [
   { value: "system", label: "System" },   // ✗ not extractable
   { value: "light",  label: "Light" },
-  { value: "dark",   label: "Dark" },
 ];
 
 return THEMES.map(({ value, label }) => (
@@ -177,7 +221,94 @@ return THEMES.map(({ value, label }) => (
 ));
 ```
 
-For this, use the [`t()` escape hatch](./t-escape-hatch).
+Fix with the [`t()` escape hatch](./t-escape-hatch):
+
+```tsx
+const THEMES = [
+  { value: "system", label: t("System") },
+  { value: "light",  label: t("Light") },
+];
+```
+
+Caught by the `prefer-t-for-label-props` lint rule (off by default; opt in via `recommendedStrict`).
+
+### Dynamic label expressions
+
+The render-side mirror of the above: `{obj.label}` / `{item.title}` rendered as JSX text. The extractor sees an expression container and emits a placeholder; the string it resolves to at runtime never becomes a translation unit.
+
+```tsx
+// ✗ meta.label is invisible to extraction
+<h1>{meta.label}</h1>
+```
+
+Fix by wrapping the *source* data with `t()` (same as "Strings in JS data structures" above). The lint rule [`prefer-t-for-label-expr`](./linting#prefer-t-for-label-expr) flags the render site to prompt the refactor.
+
+### Ternary with string literals as JSX children
+
+```tsx
+// ✗ neither "Saving..." nor "Save" gets extracted
+<Button>{saving ? "Saving..." : "Save"}</Button>
+```
+
+kapi-react treats the whole ternary as a single opaque placeholder — it never looks inside at the branches. Wrap each branch with `t()`:
+
+```tsx
+<Button>{saving ? t("Saving...") : t("Save")}</Button>
+```
+
+Caught by [`no-ternary-literals-in-jsx-child`](./linting#no-ternary-literals-in-jsx-child). Same fix applies to template literals with actual copy: `` `Loading ${n}...` `` → `t("Loading {n}...", { n })`.
+
+### Module-level `t()` gotcha
+
+`t()` reads the active dictionary **at call time**. A module-level const evaluates once, at import time — typically *before* `loadTranslations()` has finished. The const freezes at the fallback language forever.
+
+```tsx
+// ✗ "Utility" will still say "Utility" in pseudo.
+const categoryMeta = {
+  utility: { label: t("Utility") },
+  pipeline: { label: t("Pipeline") },
+};
+```
+
+Fix: wrap the lookup in a function that runs per render.
+
+```tsx
+// ✓ each render resolves the label against the current dict.
+function categoryMeta(cat: string) {
+  switch (cat) {
+    case "utility":  return { label: t("Utility") };
+    case "pipeline": return { label: t("Pipeline") };
+    // …
+  }
+}
+
+function Chip({ cat }: { cat: string }) {
+  const meta = categoryMeta(cat);
+  return <span>{meta.label}</span>;
+}
+```
+
+### Double-translation: already-translated values inside translatable blocks
+
+A subtle pattern that only shows up in pseudo. If you render a `t()`-resolved string as a child of an element the extractor also wraps as a block, pseudo-translation gets applied *twice* — the inner `t()` adds its markers, and the outer element's translation wraps around them:
+
+```tsx
+<Button>
+  {meta.label} ({catTools.length})
+</Button>
+// Pseudo renders: ▒ ▒ Utility ▒ (32) ▒   ← two layers of wrapping
+```
+
+Fix: mark the outer element `translate="no"` so the inner `t()` call owns the translation.
+
+```tsx
+<Button translate="no">
+  {meta.label} ({catTools.length})
+</Button>
+// Pseudo renders: ▒ Utility ▒ (32)       ← the inner t() wrap is the only one
+```
+
+Alternative: lift the whole string into a single `t()` call with placeholders — but that's awkward when one half is a translated label and the other is a numeric count.
 
 ## Translator notes
 
@@ -201,17 +332,22 @@ rules: [
 |---|---|---|
 | `<h1>Hello</h1>` | ✓ | standard translatable element |
 | `<div>Hello</div>` | ✓ | auto-promoted silently |
+| `<Button><Icon/>Save</Button>` | ✓ | icon-tolerant inline — "Save" extracts with `{=m0}` for the icon |
 | `<TabsTrigger>Hello</TabsTrigger>` | ✓ | warning suggests `componentMap` |
 | `<PageHeader title="Hi" />` | ✓ | `title` in the translatable-attributes set |
+| `<PageHeader title={cond ? "A" : "B"} />` | ✓ | both branches — one block each |
 | `<MyComp description="Hi" />` | ✓ | `description` too |
 | `<p>Click <a>here</a></p>` | ✓ | one block with `{=m0}` token |
 | `<code>foo</code>` | ✗ | non-translatable element |
-| `<h1 translate="no">X</h1>` | ✗ | explicit opt-out |
-| `<button>{label}</button>` | ✗ | expression — use `t()` |
-| `<div>{condition && 'Hi'}</div>` | ✗ | expression — use `t()` |
+| `<h1 translate="no">X</h1>` | ✗ | explicit opt-out (suppresses lint too) |
+| `<button>{label}</button>` | ✗ | bare expression — use `t()` on the source |
+| `<button>{obj.label}</button>` | ✗ | flagged by `prefer-t-for-label-expr` — wrap the source |
+| `<button>{cond ? "A" : "B"}</button>` | ✗ | flagged by `no-ternary-literals-in-jsx-child` — wrap branches with `t()` |
+| `<div>{cond && 'Hi'}</div>` | ✗ | expression — use `t()` |
 
 ## Next
 
-- [`t()` escape hatch](./t-escape-hatch) — for the JS-data-string pattern.
+- [`t()` escape hatch](./t-escape-hatch) — for the JS-data-string and ternary-in-JSX patterns.
 - [Plurals and select](./plurals-and-select) — count-aware and choice-based text.
+- [Linting](./linting) — editor squigglies for every anti-pattern on this page.
 - [Extract pipeline](./pipeline) — how the plugin ships this to translators.
