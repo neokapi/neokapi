@@ -1,5 +1,6 @@
 import type { Rule } from "eslint";
 import { TRANSLATABLE_ATTRS } from "../shared/translatable-attrs.ts";
+import { hasTranslateNoAncestor } from "../shared/translate-no.ts";
 
 /**
  * Sibling of `no-concat-in-translatable-attr`. Flags a translatable
@@ -35,6 +36,7 @@ export const rule: Rule.RuleModule = {
         const attr = node as unknown as {
           name: { type: string; name?: string };
           value: unknown;
+          parent?: unknown;
         };
         const attrName = readAttrName(attr.name);
         if (!attrName || !TRANSLATABLE_ATTRS.has(attrName)) return;
@@ -57,6 +59,10 @@ export const rule: Rule.RuleModule = {
         // values, `t()` calls, etc.) — also skip; likely intentional.
         if (!cBranch && !aBranch) return;
 
+        // Respect W3C `translate="no"` on the element itself or any
+        // JSX ancestor — same semantics as the extractor skip rule.
+        if (hasTranslateNoAncestor(attr.parent)) return;
+
         context.report({
           node: node as unknown as Rule.Node,
           messageId: "mixed",
@@ -66,6 +72,7 @@ export const rule: Rule.RuleModule = {
     };
   },
 };
+
 
 function readAttrName(name: { type: string; name?: string }): string | null {
   if (name.type === "JSXIdentifier") return name.name ?? null;

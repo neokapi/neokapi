@@ -17,6 +17,8 @@ describe("no-ternary-in-translatable-attr", () => {
         // Both branches non-literal — rule assumes intentional computed logic.
         { code: `<PageHeader title={cond ? t("A") : t("B")} />` },
         { code: `<PageHeader title={cond ? fn() : gn()} />` },
+        // translate="no" on the same element suppresses the check.
+        { code: `<PageHeader translate="no" title={cond ? fn() : "B"} />` },
       ],
       invalid: [
         {

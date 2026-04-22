@@ -33,16 +33,21 @@ export const TRANSLATABLE_ATTRS: ReadonlySet<string> = new Set([
  * checking data-array patterns like `const ITEMS = [{ label: 'Foo' }]`.
  * Intentionally narrower than TRANSLATABLE_ATTRS — must be a strong
  * signal to keep false positives low.
+ *
+ * Explicitly excluded: `name`, `description`, `text`, `message`. Those
+ * overwhelmingly name backend / runtime data in real React apps
+ * (plugin.name, error.message, schema.description, file.name, …) that
+ * isn't authoring-time translatable, so flagging them fires mostly
+ * false positives. The remaining set skews strongly toward hardcoded
+ * UI copy.
  */
 export const LIKELY_LABEL_KEYS: ReadonlySet<string> = new Set([
   "label",
   "title",
   "heading",
   "caption",
-  "description",
   "subtitle",
   "tooltip",
   "placeholder",
-  "text",
-  "name",
+  "summary",
 ]);

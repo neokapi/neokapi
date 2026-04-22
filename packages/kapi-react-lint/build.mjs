@@ -18,6 +18,7 @@ const entryPoints = [
   'src/rules/prefer-t-for-label-props.ts',
   'src/rules/prefer-t-for-label-expr.ts',
   'src/shared/translatable-attrs.ts',
+  'src/shared/translate-no.ts',
   'src/shared/t-import.ts',
   'src/configs/recommended.ts',
   'src/configs/recommended-strict.ts',

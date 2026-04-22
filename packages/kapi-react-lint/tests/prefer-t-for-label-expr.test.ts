@@ -20,6 +20,12 @@ describe("prefer-t-for-label-expr", () => {
         { code: `<img alt={meta.label} />` },
         // Already wrapped with t().
         { code: `const el = <div>{t(meta.label)}</div>;` },
+        // translate="no" on the enclosing element suppresses the check.
+        { code: `const el = <div translate="no">{meta.label}</div>;` },
+        // translate="no" on an ancestor also suppresses.
+        {
+          code: `const el = <section translate="no"><div><span>{meta.label}</span></div></section>;`,
+        },
       ],
       invalid: [
         {
@@ -31,9 +37,9 @@ describe("prefer-t-for-label-expr", () => {
           errors: [{ messageId: "dynLabel", data: { expr: "item.title", key: "title" } }],
         },
         {
-          code: `const el = <p>{entry.description}</p>;`,
+          code: `const el = <p>{entry.caption}</p>;`,
           errors: [
-            { messageId: "dynLabel", data: { expr: "entry.description", key: "description" } },
+            { messageId: "dynLabel", data: { expr: "entry.caption", key: "caption" } },
           ],
         },
         // Nested member — display uses the nearest identifier.
