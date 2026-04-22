@@ -52,8 +52,8 @@ export async function runExtract(args: string[], io: RunExtractIO = {}): Promise
   const files = opts.stream
     ? stdinHasInput(stdin)
       ? await readPathsFromStdin(stdin)
-      : await expandGlob(opts.srcGlob)
-    : await expandGlob(opts.srcGlob);
+      : await expandGlob(opts.srcGlob, opts.ignoreGlobs)
+    : await expandGlob(opts.srcGlob, opts.ignoreGlobs);
   files.sort();
 
   if (files.length === 0) {
@@ -98,9 +98,12 @@ export async function runExtract(args: string[], io: RunExtractIO = {}): Promise
   console.log(`Extracted ${blockCount} blocks from ${documents.length} files → ${opts.outDir}/`);
 }
 
-async function expandGlob(pattern: string): Promise<string[]> {
+async function expandGlob(pattern: string, ignore: readonly string[] = []): Promise<string[]> {
+  // Node 22+'s `fs/promises.glob` accepts `{ exclude }` as a glob
+  // pattern list. Pass our `--ignore` flags through untouched.
+  const options = ignore.length > 0 ? { exclude: [...ignore] } : undefined;
   const files: string[] = [];
-  for await (const file of glob(pattern)) files.push(file);
+  for await (const file of glob(pattern, options)) files.push(file);
   return files;
 }
 
@@ -146,6 +149,7 @@ async function readPathsFromStdin(stdin: NodeJS.ReadableStream): Promise<string[
 
 interface ExtractArgs {
   srcGlob: string;
+  ignoreGlobs: string[];
   outDir: string;
   configPath: string | null;
   projectId: string;
@@ -164,6 +168,7 @@ interface ExtractArgs {
 function parseArgs(args: string[]): ExtractArgs {
   const parsed: ExtractArgs = {
     srcGlob: "src/**/*.{tsx,jsx}",
+    ignoreGlobs: [],
     outDir: "i18n",
     configPath: null,
     projectId: "app",
@@ -184,6 +189,9 @@ function parseArgs(args: string[]): ExtractArgs {
         return parsed;
       case "--src":
         if (value) parsed.srcGlob = args[++i];
+        break;
+      case "--ignore":
+        if (value) parsed.ignoreGlobs.push(args[++i]);
         break;
       case "--out":
         if (value) parsed.outDir = args[++i];
@@ -291,6 +299,7 @@ Pass --stream to emit NDJSON block records to stdout for piping.
 
 Options:
   --src <glob>            Source files to scan (default: "src/**/*.{tsx,jsx}")
+  --ignore <glob>         Exclude pattern (repeatable). E.g. --ignore "src/stories/**"
   --out <dir>             Output directory for .klf files (default: "i18n")
   --stream                Emit NDJSON block records on stdout instead
                           of writing .klf files. Reads NUL-separated

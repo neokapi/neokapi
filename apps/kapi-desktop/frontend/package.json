@@ -13,7 +13,7 @@
     "fmt": "vp fmt",
     "test": "vp test",
     "test:watch": "vp test watch",
-    "extract": "vpx kapi-react extract --out i18n/ --target-locale qps",
+    "extract": "vpx kapi-react extract --out i18n/ --target-locale qps --ignore src/stories/**",
     "compile": "vpx kapi-react compile i18n-qps/ --out public/translations"
   },
   "dependencies": {
