@@ -164,8 +164,8 @@ func RegisterAll(reg *registry.ToolRegistry) {
 	// ── Transform ───────────────────────────────────────────────────
 
 	reg.RegisterWithSchema("pseudo-translate", func() tool.Tool {
-		return NewPseudoTranslateTool(&PseudoConfig{Prefix: "[", Suffix: "]", TargetLocale: "qps"})
-	}, toolSchema(&PseudoConfig{Prefix: "[", Suffix: "]"}, toolMeta("pseudo-translate", "Pseudo Translate", schema.CategoryTranslation,
+		return NewPseudoTranslateTool(&PseudoConfig{Prefix: "\u2592 ", Suffix: " \u2592", TargetLocale: "qps"})
+	}, toolSchema(&PseudoConfig{Prefix: "\u2592 ", Suffix: " \u2592"}, toolMeta("pseudo-translate", "Pseudo Translate", schema.CategoryTranslation,
 		withInputs(B), withTags("translation"), withAliases("pseudo"), withWritesOutput(), withRequires("target-language"), withCardinality(schema.Bilingual), withDefaultLocale(model.LocaleID("qps")), withProduces(schema.AnnotationTranslation))))
 
 	reg.RegisterWithSchema("search-replace", func() tool.Tool {

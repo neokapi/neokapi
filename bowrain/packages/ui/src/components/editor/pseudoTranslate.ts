@@ -67,7 +67,7 @@ export function pseudoTranslate(text: string): string {
   for (const ch of text) {
     result += accentMap[ch] ?? ch;
   }
-  return "[" + result + "]";
+  return "\u2592 " + result + " \u2592";
 }
 
 /**
@@ -84,5 +84,5 @@ export function pseudoTranslateCoded(coded: string): string {
       result += accentMap[ch] ?? ch;
     }
   }
-  return "[" + result + "]";
+  return "\u2592 " + result + " \u2592";
 }

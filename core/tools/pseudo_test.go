@@ -2,6 +2,7 @@ package tools_test
 
 import (
 	"context"
+	"strings"
 	"testing"
 
 	"github.com/neokapi/neokapi/core/model"
@@ -132,6 +133,58 @@ func linkRuns() []model.Run {
 		{Text: &model.TextRun{Text: "here"}},
 		{PcClose: &model.PcCloseRun{ID: "1", Type: "link", Data: "</a>"}},
 	}
+}
+
+// placeholderRuns builds the Run sequence for "{count} items found"
+// with count as an inline placeholder — mirrors what kapi-react's
+// extractor emits for `<span>{count} items found</span>`.
+func placeholderRuns() []model.Run {
+	return []model.Run{
+		{Ph: &model.PlaceholderRun{ID: "1", Type: "jsx:var", Data: "{count}", Equiv: "count"}},
+		{Text: &model.TextRun{Text: " items found"}},
+	}
+}
+
+func TestPseudoTranslateToolWrapsPlaceholderRunsOnce(t *testing.T) {
+	t.Parallel()
+	// Regression: pseudoTranslateRuns used to wrap EACH text run
+	// with prefix/suffix, so a block like "{count} items" rendered
+	// as "{count}▒ items ▒" — looking like a splice bug. The wrap
+	// must happen once, around the whole sequence.
+	cfg := &tools.PseudoConfig{
+		Prefix:       "\u2592 ",
+		Suffix:       " \u2592",
+		TargetLocale: "qps",
+	}
+	tl := tools.NewPseudoTranslateTool(cfg)
+
+	block := &model.Block{
+		ID:           "tu1",
+		Translatable: true,
+		Source:       []*model.Segment{{ID: "s1", Runs: placeholderRuns()}},
+		Targets:      make(map[model.LocaleID][]*model.Segment),
+	}
+	part := &model.Part{Type: model.PartBlock, Resource: block}
+	result := processPart(t, tl, part)
+
+	runs := result.Resource.(*model.Block).Targets["qps"][0].Runs
+
+	// Placeholder survives verbatim.
+	var phs int
+	for _, r := range runs {
+		if r.Ph != nil {
+			phs++
+			assert.Equal(t, "count", r.Ph.Equiv)
+		}
+	}
+	assert.Equal(t, 1, phs)
+
+	// Exactly ONE shade marker opens the sequence and ONE closes it —
+	// no per-text-run wrapping.
+	plain := model.RunsPlainText(runs)
+	assert.Equal(t, 2, strings.Count(plain, "\u2592"), "expected exactly two shade markers in %q", plain)
+	assert.True(t, strings.HasPrefix(plain, "\u2592 "), "plain should start with shade+space: %q", plain)
+	assert.True(t, strings.HasSuffix(plain, " \u2592"), "plain should end with space+shade: %q", plain)
 }
 
 func TestPseudoTranslateToolPreservesSpans(t *testing.T) {
