@@ -12,13 +12,17 @@ WORKDIR /src
 # Copy workspace root (lock file + workspace config) and package.json files
 # for all workspaces to leverage Docker layer caching for npm ci.
 COPY package.json package-lock.json ./
+COPY packages/kapi-format/package.json packages/kapi-format/
 COPY packages/ui/package.json packages/ui/
 COPY bowrain/packages/ui/package.json bowrain/packages/ui/
 COPY bowrain/apps/web/package.json bowrain/apps/web/
 COPY bowrain/apps/bowrain/frontend/package.json bowrain/apps/bowrain/frontend/
 RUN npm ci
 
-# Build shared UI package
+# Build shared UI package — needs source from kapi-format too since
+# @neokapi/ui-primitives type-imports from `@neokapi/kapi-format` and
+# tsc follows those into the package's TS source.
+COPY packages/kapi-format/ packages/kapi-format/
 COPY packages/ui/ packages/ui/
 COPY bowrain/packages/ui/ bowrain/packages/ui/
 RUN cd bowrain/packages/ui && npx tsc
