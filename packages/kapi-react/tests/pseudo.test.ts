@@ -35,16 +35,52 @@ describe("pseudoTransform", () => {
     expect(out.endsWith("]")).toBe(true);
   });
 
-  it("adds expansion padding at the configured percent", () => {
+  it("inserts expansion characters between source characters at the configured rate", () => {
+    // 4 letters at 100% expansion → 4 filler chars between them
+    // (one filler after each letter). Default filler is `·`.
     const out = pseudoTransform("Save", { expansion: 100 });
-    // accented length is 4 chars → 100% padding ~= 4 tildes
-    expect(out).toMatch(/~~~~/);
+    // After every accented letter we should see a `·`.
+    const fillerCount = (out.match(/\u00b7/g) ?? []).length;
+    expect(fillerCount).toBe(4);
   });
 
-  it("turns off accents when accent: false", () => {
-    const out = pseudoTransform("Hello", { accent: false });
+  it("spreads expansion evenly at fractional rates", () => {
+    // 50% on 4 letters → 2 fillers (every other position)
+    const out = pseudoTransform("Save", { expansion: 50 });
+    const fillerCount = (out.match(/\u00b7/g) ?? []).length;
+    expect(fillerCount).toBe(2);
+  });
+
+  it("honours a custom expansionChar", () => {
+    const out = pseudoTransform("Save", { expansion: 100, expansionChar: "-" });
+    // With insert-between, 4 letters at 100% → 4 dashes interleaved.
+    const dashCount = (out.match(/-/g) ?? []).length;
+    expect(dashCount).toBe(4);
+    expect(out).not.toContain("\u00b7");
+  });
+
+  it("doesn't insert fillers inside {placeholder} braces", () => {
+    const out = pseudoTransform("{count} items", { expansion: 100 });
+    expect(out).toContain("{count}"); // braces preserved literally
+  });
+
+  it("selects the wobbly alphabet when asked", () => {
+    const out = pseudoTransform("Save", { alphabet: "wobbly" });
+    // wobbly maps 'S' → Š (U+0160), 'a' → ā (U+0101), 'v' → ṽ (U+1E7D), 'e' → ě (U+011B)
+    expect(out).toContain("\u0160");
+    expect(out).toContain("\u0101");
+    expect(out).toContain("\u011b");
+  });
+
+  it("passes letters through unchanged with alphabet: none", () => {
+    const out = pseudoTransform("Hello", { alphabet: "none" });
     expect(out).toContain("Hello");
-    expect(out).not.toContain("\u0124"); // Ĥ
+    expect(out).not.toContain("\u0124"); // no Ĥ
+  });
+
+  it("accepts a custom alphabet map", () => {
+    const out = pseudoTransform("abc", { alphabet: { a: "x", b: "y", c: "z" } });
+    expect(out).toContain("xyz");
   });
 });
 

@@ -2,37 +2,70 @@
  * Dev-only control panel for runtime pseudo-translation.
  *
  * Talks to `@neokapi/kapi-react/runtime/pseudo` via a dynamic import
- * so the accent map never ships in production builds. Renders
+ * so the accent maps never ship in production builds. Renders
  * nothing at all outside `import.meta.env.DEV`.
  *
  * State shape lives in localStorage under the same key the toggle in
  * `main.tsx` writes (`kapi.dev.pseudo`), so the console handle
  * (`window.kapi.pseudo(...)`) and this UI stay in sync across reloads.
+ *
+ * The whole panel is `translate="no"` — without that, the pseudo
+ * transform would recursively accent the UI's own labels and make
+ * them wiggle with whatever expansion / alphabet is active.
  */
 import { useCallback, useEffect, useState } from "react";
 import { FlaskConical } from "lucide-react";
-import { t } from "@neokapi/kapi-react/runtime";
 import { Card, CardContent, Switch, Label, Input } from "@neokapi/ui-primitives";
+
+type AlphabetName = "accented" | "wobbly" | "none";
 
 interface PseudoConfig {
   prefix?: string;
   suffix?: string;
   expansion?: number;
-  accent?: boolean;
+  expansionChar?: string;
+  alphabet?: AlphabetName;
 }
 
 const STORAGE_KEY = "kapi.dev.pseudo";
 const DEFAULT_PREFIX = "\u2592 "; // ▒ + space
 const DEFAULT_SUFFIX = " \u2592";
+const DEFAULT_EXPANSION_CHAR = "\u00b7"; // ·
 
 type SetMode = (cfg: PseudoConfig | null) => void;
+
+const ALPHABET_OPTIONS: ReadonlyArray<{
+  value: AlphabetName;
+  label: string;
+  sample: string;
+}> = [
+  { value: "accented", label: "Accented (uniform)", sample: "Ĥéļļö ŵöŕļđ" },
+  { value: "wobbly", label: "Wobbly (varied)", sample: "Ḧěľľǒ ŵǒřľď" },
+  { value: "none", label: "None (plain)", sample: "Hello world" },
+];
+
+const EXPANSION_CHAR_OPTIONS: ReadonlyArray<{ value: string; label: string }> = [
+  { value: "\u00b7", label: "· Middle dot" },
+  { value: "\u2022", label: "• Bullet" },
+  { value: "\u2219", label: "∙ Bullet operator" },
+  { value: "\u2003", label: "␣ Em space" },
+  { value: "\u2009", label: "▪ Thin space" },
+  { value: "\u2500", label: "─ Box line" },
+  { value: "~", label: "~ Tilde" },
+  { value: "-", label: "- Hyphen" },
+  { value: "_", label: "_ Underscore" },
+];
 
 function readStoredConfig(): PseudoConfig | null {
   if (typeof localStorage === "undefined") return null;
   const raw = localStorage.getItem(STORAGE_KEY);
   if (!raw) return null;
   try {
-    return JSON.parse(raw) as PseudoConfig;
+    const parsed = JSON.parse(raw) as PseudoConfig & { accent?: boolean };
+    // Migrate older `accent: false` stored configs to `alphabet: "none"`.
+    if (parsed.accent === false && !parsed.alphabet) parsed.alphabet = "none";
+    delete parsed.accent;
+    return parsed;
   } catch {
     localStorage.removeItem(STORAGE_KEY);
     return null;
@@ -54,7 +87,10 @@ export function DevPseudoCard() {
   const [prefix, setPrefix] = useState(initial?.prefix ?? DEFAULT_PREFIX);
   const [suffix, setSuffix] = useState(initial?.suffix ?? DEFAULT_SUFFIX);
   const [expansion, setExpansion] = useState(initial?.expansion ?? 0);
-  const [accent, setAccent] = useState(initial?.accent ?? true);
+  const [expansionChar, setExpansionChar] = useState(
+    initial?.expansionChar ?? DEFAULT_EXPANSION_CHAR,
+  );
+  const [alphabet, setAlphabet] = useState<AlphabetName>(initial?.alphabet ?? "accented");
   const [setMode, setSetMode] = useState<SetMode | null>(null);
 
   // Dynamic import so the accent map (+ pseudo-translate code) only
@@ -87,48 +123,75 @@ export function DevPseudoCard() {
       apply(null);
       return;
     }
-    apply({ prefix, suffix, expansion, accent });
-  }, [setMode, enabled, prefix, suffix, expansion, accent, apply]);
+    apply({ prefix, suffix, expansion, expansionChar, alphabet });
+  }, [setMode, enabled, prefix, suffix, expansion, expansionChar, alphabet, apply]);
 
   const previewSample = enabled
-    ? applyPreview("Sample translatable string", { prefix, suffix, expansion, accent })
+    ? applyPreview("Sample translatable string", {
+        prefix,
+        suffix,
+        expansion,
+        expansionChar,
+        alphabet,
+      })
     : "Sample translatable string";
 
   return (
-    <Card>
+    // translate="no" on the card root keeps the pseudo transform
+    // from recursively accenting the panel's own labels.
+    <Card translate="no">
       <CardContent className="space-y-4 p-4">
         <div className="flex items-start justify-between gap-4">
           <div>
             <div className="flex items-center gap-2 text-sm font-medium">
               <FlaskConical size={14} className="text-muted-foreground" />
-              {t("Runtime pseudo-translation")}
-              <span
-                className="rounded bg-muted px-1.5 py-0.5 text-[9px] uppercase tracking-wider text-muted-foreground"
-                translate="no"
-              >
+              Runtime pseudo-translation
+              <span className="rounded bg-muted px-1.5 py-0.5 text-[9px] uppercase tracking-wider text-muted-foreground">
                 dev
               </span>
             </div>
             <p className="mt-1 text-[10px] text-muted-foreground">
-              {t(
-                "Applies pseudo to every translatable string on the fly — works without a loaded catalog. Useful for QAing layout expansion and spotting strings that bypass translation.",
-              )}
+              Applies pseudo to every translatable string on the fly — works without a loaded
+              catalog. Useful for QAing layout expansion and spotting strings that bypass
+              translation.
             </p>
           </div>
           <Switch
             checked={enabled}
             onCheckedChange={setEnabled}
-            aria-label={t("Enable runtime pseudo")}
+            aria-label="Enable runtime pseudo"
           />
         </div>
 
         <div
-          className={`space-y-4 transition-opacity ${enabled ? "opacity-100" : "pointer-events-none opacity-40"}`}
+          className={`space-y-4 transition-opacity ${
+            enabled ? "opacity-100" : "pointer-events-none opacity-40"
+          }`}
         >
           <div>
+            <Label className="mb-1 block text-xs text-muted-foreground">Alphabet</Label>
+            <select
+              value={alphabet}
+              disabled={!enabled}
+              onChange={(e) => setAlphabet(e.target.value as AlphabetName)}
+              className="h-8 w-full rounded-md border border-input bg-transparent px-2 text-xs outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              {ALPHABET_OPTIONS.map((opt) => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.label} — {opt.sample}
+                </option>
+              ))}
+            </select>
+            <p className="mt-1 text-[10px] text-muted-foreground">
+              Wobbly uses a varied mix of diacritics per letter — good for noticing layout that
+              depends on consistent letter heights.
+            </p>
+          </div>
+
+          <div>
             <div className="mb-2 flex items-center justify-between">
-              <Label className="text-xs text-muted-foreground">{t("Expansion")}</Label>
-              <span className="text-[10px] font-medium tabular-nums text-foreground" translate="no">
+              <Label className="text-xs text-muted-foreground">Expansion</Label>
+              <span className="text-[10px] font-medium tabular-nums text-foreground">
                 +{expansion}%
               </span>
             </div>
@@ -141,58 +204,70 @@ export function DevPseudoCard() {
               disabled={!enabled}
               onChange={(e) => setExpansion(parseInt(e.target.value, 10))}
               className="w-full accent-primary"
-              aria-label={t("Expansion percent")}
+              aria-label="Expansion percent"
             />
             <p className="mt-1 text-[10px] text-muted-foreground">
-              {t("Extra padding appended to each string, relative to its length.")}
+              Inserts a filler character between source characters so the added length shows up
+              inside words, not just tacked on the end.
             </p>
           </div>
 
-          <div className="flex items-start justify-between gap-4">
-            <div className="flex-1">
-              <Label className="mb-1 block text-xs text-muted-foreground">
-                {t("Accent ASCII letters")}
-              </Label>
-              <p className="text-[10px] text-muted-foreground">
-                {t("Replace a–z / A–Z with accented equivalents. Turn off for padding-only mode.")}
-              </p>
+          <div>
+            <Label className="mb-1 block text-xs text-muted-foreground">Expansion character</Label>
+            <div className="flex gap-2">
+              <select
+                value={
+                  EXPANSION_CHAR_OPTIONS.some((o) => o.value === expansionChar)
+                    ? expansionChar
+                    : "__custom__"
+                }
+                disabled={!enabled}
+                onChange={(e) => {
+                  if (e.target.value !== "__custom__") setExpansionChar(e.target.value);
+                }}
+                className="h-8 flex-1 rounded-md border border-input bg-transparent px-2 text-xs outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                {EXPANSION_CHAR_OPTIONS.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+                <option value="__custom__">Custom…</option>
+              </select>
+              <Input
+                value={expansionChar}
+                onChange={(e) => setExpansionChar(e.target.value)}
+                disabled={!enabled}
+                className="w-20 text-center font-mono text-xs"
+                aria-label="Expansion character override"
+              />
             </div>
-            <Switch
-              checked={accent}
-              onCheckedChange={setAccent}
-              aria-label={t("Toggle accent pass")}
-            />
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <Label className="mb-1 block text-xs text-muted-foreground">{t("Prefix")}</Label>
+              <Label className="mb-1 block text-xs text-muted-foreground">Prefix</Label>
               <Input
                 value={prefix}
                 onChange={(e) => setPrefix(e.target.value)}
                 disabled={!enabled}
                 className="font-mono text-xs"
-                translate="no"
               />
             </div>
             <div>
-              <Label className="mb-1 block text-xs text-muted-foreground">{t("Suffix")}</Label>
+              <Label className="mb-1 block text-xs text-muted-foreground">Suffix</Label>
               <Input
                 value={suffix}
                 onChange={(e) => setSuffix(e.target.value)}
                 disabled={!enabled}
                 className="font-mono text-xs"
-                translate="no"
               />
             </div>
           </div>
 
           <div>
-            <Label className="mb-1 block text-xs text-muted-foreground">{t("Preview")}</Label>
-            <div
-              className="rounded-md border border-border bg-muted/40 p-2 font-mono text-xs"
-              translate="no"
-            >
+            <Label className="mb-1 block text-xs text-muted-foreground">Preview</Label>
+            <div className="rounded-md border border-border bg-muted/40 p-2 font-mono text-xs">
               {previewSample}
             </div>
           </div>
@@ -206,7 +281,7 @@ export function DevPseudoCard() {
 // duplicated here only to render the preview without forcing a
 // dynamic import on every keystroke. Stays in lockstep with the
 // real transform because both use the same constants + approach.
-const ACCENT_MAP: Record<string, string> = {
+const ACCENTED: Record<string, string> = {
   a: "\u00e0",
   b: "\u0183",
   c: "\u00e7",
@@ -260,11 +335,72 @@ const ACCENT_MAP: Record<string, string> = {
   Y: "\u00dd",
   Z: "\u017d",
 };
+const WOBBLY: Record<string, string> = {
+  a: "\u0101",
+  b: "\u1e03",
+  c: "\u0109",
+  d: "\u010f",
+  e: "\u011b",
+  f: "\u1e1f",
+  g: "\u01e7",
+  h: "\u1e27",
+  i: "\u01d0",
+  j: "\u0135",
+  k: "\u01e9",
+  l: "\u013a",
+  m: "\u1e41",
+  n: "\u01f9",
+  o: "\u01d2",
+  p: "\u1e55",
+  q: "\u024b",
+  r: "\u0159",
+  s: "\u0161",
+  t: "\u0165",
+  u: "\u01d4",
+  v: "\u1e7d",
+  w: "\u0175",
+  x: "\u1e8d",
+  y: "\u1ef3",
+  z: "\u017e",
+  A: "\u0100",
+  B: "\u1e02",
+  C: "\u0108",
+  D: "\u010e",
+  E: "\u011a",
+  F: "\u1e1e",
+  G: "\u01e6",
+  H: "\u1e26",
+  I: "\u01cf",
+  J: "\u0134",
+  K: "\u01e8",
+  L: "\u0139",
+  M: "\u1e40",
+  N: "\u01f8",
+  O: "\u01d1",
+  P: "\u1e54",
+  Q: "\u024a",
+  R: "\u0158",
+  S: "\u0160",
+  T: "\u0164",
+  U: "\u01d3",
+  V: "\u1e7c",
+  W: "\u0174",
+  X: "\u1e8c",
+  Y: "\u1ef2",
+  Z: "\u017d",
+};
+const ALPHABETS: Record<AlphabetName, Record<string, string>> = {
+  accented: ACCENTED,
+  wobbly: WOBBLY,
+  none: {},
+};
 
 function applyPreview(text: string, cfg: Required<PseudoConfig>): string {
+  const alphabet = ALPHABETS[cfg.alphabet];
+  const rate = Math.max(0, Math.min(100, cfg.expansion)) / 100;
   let out = "";
   let depth = 0;
-  let textLen = 0;
+  let accum = 0;
   for (const ch of text) {
     if (ch === "{") {
       depth++;
@@ -280,12 +416,14 @@ function applyPreview(text: string, cfg: Required<PseudoConfig>): string {
       out += ch;
       continue;
     }
-    out += cfg.accent ? (ACCENT_MAP[ch] ?? ch) : ch;
-    textLen++;
-  }
-  if (cfg.expansion > 0 && textLen > 0) {
-    const pad = Math.floor((textLen * cfg.expansion) / 100);
-    if (pad > 0) out += " " + "~".repeat(pad);
+    out += alphabet[ch] ?? ch;
+    if (rate > 0 && cfg.expansionChar) {
+      accum += rate;
+      while (accum >= 1) {
+        out += cfg.expansionChar;
+        accum -= 1;
+      }
+    }
   }
   return cfg.prefix + out + cfg.suffix;
 }
