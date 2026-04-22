@@ -12,32 +12,48 @@ interface WelcomePageProps {
   onSettings?: () => void;
 }
 
-const GET_STARTED = [
-  {
-    icon: <FilePlus size={18} />,
-    title: "Create a project",
-    description:
-      "Define source and target languages, map your content files, and save as a portable Kapi project.",
-  },
-  {
-    icon: <Workflow size={18} />,
-    title: "Build a flow",
-    description:
-      "Chain tools into reusable pipelines — AI translation, quality checks, pseudo-translation, and more.",
-  },
-  {
-    icon: <Wrench size={18} />,
-    title: "Run tools",
-    description:
-      "Translate files with AI, pseudo-translate for testing, run QA checks, leverage TM — all with live progress.",
-  },
-  {
-    icon: <Puzzle size={18} />,
-    title: "Add plugins",
-    description:
-      "Install the Okapi Bridge for plugging into Okapi's filters and steps, or browse the registry.",
-  },
+// Static icons + computed title/description. Title/description live in
+// a function so `t()` re-evaluates per render with the active locale;
+// baking them into a module-level object would freeze at the fallback.
+const GET_STARTED_ICONS = [
+  <FilePlus size={18} />,
+  <Workflow size={18} />,
+  <Wrench size={18} />,
+  <Puzzle size={18} />,
 ];
+
+function getStartedItems() {
+  return [
+    {
+      icon: GET_STARTED_ICONS[0],
+      title: t("Create a project"),
+      description: t(
+        "Define source and target languages, map your content files, and save as a portable Kapi project.",
+      ),
+    },
+    {
+      icon: GET_STARTED_ICONS[1],
+      title: t("Build a flow"),
+      description: t(
+        "Chain tools into reusable pipelines — AI translation, quality checks, pseudo-translation, and more.",
+      ),
+    },
+    {
+      icon: GET_STARTED_ICONS[2],
+      title: t("Run tools"),
+      description: t(
+        "Translate files with AI, pseudo-translate for testing, run QA checks, leverage TM — all with live progress.",
+      ),
+    },
+    {
+      icon: GET_STARTED_ICONS[3],
+      title: t("Add plugins"),
+      description: t(
+        "Install the Okapi Bridge for plugging into Okapi's filters and steps, or browse the registry.",
+      ),
+    },
+  ];
+}
 
 // Characters not allowed in directory names.
 // eslint-disable-next-line no-control-regex -- intentional check for control characters in filenames
@@ -268,7 +284,7 @@ export function WelcomePage({ onOpen, onNew, onSettings }: WelcomePageProps) {
               Get Started
             </h2>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              {GET_STARTED.map((item) => (
+              {getStartedItems().map((item) => (
                 <Button
                   key={item.title}
                   variant="outline"
@@ -280,7 +296,10 @@ export function WelcomePage({ onOpen, onNew, onSettings }: WelcomePageProps) {
                     <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
                       {item.icon}
                     </div>
-                    <h3 className="text-sm font-medium">{item.title}</h3>
+                    {/* item.title is pre-resolved via t() in getStartedItems(). */}
+                    <h3 className="text-sm font-medium" translate="no">
+                      {item.title}
+                    </h3>
                   </div>
                   <p className="text-xs leading-relaxed text-muted-foreground">
                     {item.description}

@@ -202,7 +202,7 @@ export function CredentialsPage({
                   className="h-8 w-full rounded-lg border border-input bg-transparent px-2 py-1 text-base md:text-sm outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30"
                 >
                   {providerTypes.map((t) => (
-                    <option key={t.name} value={t.name}>
+                    <option key={t.name} value={t.name} translate="no">
                       {t.label}
                     </option>
                   ))}

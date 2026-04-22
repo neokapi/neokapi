@@ -150,8 +150,11 @@ export function HomePage({
           title="Content"
           description={
             hasContent
-              ? `${contentCount} collection${contentCount !== 1 ? "s" : ""}, ${itemCount} pattern${itemCount !== 1 ? "s" : ""}`
-              : "Configure file patterns"
+              ? t("{contentCount} collection(s), {itemCount} pattern(s)", {
+                  contentCount,
+                  itemCount,
+                })
+              : t("Configure file patterns")
           }
           onClick={() => onNavigate("content")}
         />
@@ -160,8 +163,8 @@ export function HomePage({
           title="Flows"
           description={
             flowNames.length > 0
-              ? `${flowNames.length} flow${flowNames.length !== 1 ? "s" : ""} defined`
-              : "Build your first flow"
+              ? t("{count} flow(s) defined", { count: flowNames.length })
+              : t("Build your first flow")
           }
           onClick={() => onNavigate("flows")}
         />

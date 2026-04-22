@@ -349,7 +349,8 @@ function ExampleEntry({
 }) {
   return (
     <div className="rounded-md border border-border/60 bg-background/50 overflow-hidden">
-      <div className="px-3 py-2">
+      {/* example.title/description come from plugin docs manifests; source-controlled, not UI copy. */}
+      <div className="px-3 py-2" translate="no">
         <h4 className="text-[11px] font-semibold text-foreground">{example.title}</h4>
         {example.description && (
           <div className="mt-0.5 text-[11px] text-foreground/70">
