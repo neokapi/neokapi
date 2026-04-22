@@ -275,7 +275,7 @@ Two ways to fail the build on warnings:
 vp lint                  # or: oxlint / eslint
 ```
 
-Non-zero exit when any rule at severity `error` fires. Most teams run this alongside typecheck as part of `make check` or a CI workflow.
+Non-zero exit when any rule at severity `error` fires. Wire it alongside your typecheck step in CI (or run it from a Git pre-commit hook).
 
 **Extract CLI:**
 

@@ -319,14 +319,13 @@ Usually one of these three:
 1. **Stale Vite dep cache** — the plugin got cached from before a
    change. Kill any running dev server and `rm -rf node_modules/.vite`
    before restarting.
-2. **Linked workspace package** — kapi-desktop's extract only walks
-   its own `src/**`; a JSX string in `packages/flow-editor/src/…`
-   gets the runtime `__t()` rewrite (via Vite's plugin) but never
-   an extracted catalog entry, so the lookup falls back to source.
-   Add another `--src` glob for each workspace package you want
-   extracted, or run each package's extract into a shared `i18n/`
-   directory.
-3. **Double-wrap detection** — see "Translate content shows `▒ ▒ … ▒ ▒`
+2. **Linked workspace package** — your app's extract only walks
+   its own `src/**` by default. A JSX string in a linked workspace
+   package gets the runtime `__t()` rewrite (via Vite's plugin)
+   but no extracted catalog entry, so the lookup falls back to
+   source. Pass another `--src` glob for each package, or run
+   each package's extract into a shared `i18n/` directory.
+3. **Double-wrap detection** — see "Translated content shows `▒ ▒ … ▒ ▒`
    in pseudo" below.
 
 ### "Translated content shows `▒ ▒ … ▒ ▒` in pseudo"
@@ -353,9 +352,10 @@ Mark the outer element `translate="no"` so only the inner `t()` wraps:
 
 ### "A `{placeholder}` name is rendering as `{ᴘʟᴀᴄᴇʜᴏʟᴅᴇʀ}` in pseudo"
 
-Fixed in pseudo-translate; accent transform preserves `{…}` contents
-verbatim now. Regenerate the catalog (`make kapi-desktop-translations`
-or equivalent) to pick up the fix.
+Fixed in kapi's pseudo-translate tool; the accent transform preserves
+`{…}` contents verbatim. Regenerate the catalog to pick up the fix
+(typically `npm run extract && kapi pseudo-translate … && npm run
+compile`, or whatever script your project wires up).
 
 ## Next
 
