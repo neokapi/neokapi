@@ -6,6 +6,7 @@ import { rule as noStringLiteralJsxExpr } from "./rules/no-string-literal-jsx-ex
 import { rule as preferTForLabelProps } from "./rules/prefer-t-for-label-props.ts";
 import { rule as preferTForLabelExpr } from "./rules/prefer-t-for-label-expr.ts";
 import { rule as noTernaryInTranslatableAttr } from "./rules/no-ternary-in-translatable-attr.ts";
+import { rule as noTernaryLiteralsInJsxChild } from "./rules/no-ternary-literals-in-jsx-child.ts";
 
 /**
  * The plugin object. The exact same object works for both ESLint
@@ -26,6 +27,7 @@ export const plugin = {
     "no-concat-in-translatable-attr": noConcatInTranslatableAttr,
     "no-string-literal-jsx-expr": noStringLiteralJsxExpr,
     "no-ternary-in-translatable-attr": noTernaryInTranslatableAttr,
+    "no-ternary-literals-in-jsx-child": noTernaryLiteralsInJsxChild,
     "prefer-t-for-label-props": preferTForLabelProps,
     "prefer-t-for-label-expr": preferTForLabelExpr,
   } satisfies Record<string, Rule.RuleModule>,

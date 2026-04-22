@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Button, Label, Input } from "@neokapi/ui-primitives";
+import { t } from "@neokapi/kapi-react/runtime";
 import { api } from "../hooks/useApi";
 
 interface NewProjectDialogProps {
@@ -35,7 +36,7 @@ export function NewProjectDialog({ onCreate, onCancel, shortenHome }: NewProject
         <div className="space-y-3">
           <div>
             <Label className="mb-1 block text-xs text-muted-foreground">
-              {customPath ? "Location" : "Name"}
+              {customPath ? t("Location") : t("Name")}
             </Label>
             <div className="flex items-center gap-1.5">
               <Input

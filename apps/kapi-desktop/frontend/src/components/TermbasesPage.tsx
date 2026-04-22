@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { t } from "@neokapi/kapi-react/runtime";
 import { BookOpen, Plus, FolderOpen, X, Upload, AlertTriangle } from "lucide-react";
 import {
   Button,
@@ -455,7 +456,7 @@ export function TermbasesPage({
             </p>
             <div className="flex gap-2">
               <Button size="sm" onClick={() => void handleRecover()} disabled={recovering}>
-                {recovering ? "Recovering..." : "Create Fresh Termbase"}
+                {recovering ? t("Recovering...") : t("Create Fresh Termbase")}
               </Button>
               <Button
                 variant="outline"

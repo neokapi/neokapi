@@ -692,7 +692,7 @@ export function ContentPage({
                 title={hideUnmatched ? "Show all files" : "Hide unmatched files"}
               >
                 {hideUnmatched ? <Eye size={12} /> : <EyeOff size={12} />}
-                {hideUnmatched ? "Show all" : "Matched only"}
+                {hideUnmatched ? t("Show all") : t("Matched only")}
               </Button>
               <Button variant="outline" size="sm" onClick={handleAddFiles} aria-label="Add files">
                 <Plus size={12} />

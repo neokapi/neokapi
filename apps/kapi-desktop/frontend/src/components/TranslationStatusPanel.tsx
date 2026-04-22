@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { Button, Card, CardContent } from "@neokapi/ui-primitives";
+import { t } from "@neokapi/kapi-react/runtime";
 import { Loader2, RefreshCw } from "lucide-react";
 import { api } from "../hooks/useApi";
 
@@ -103,7 +104,7 @@ export function TranslationStatusPanel({ tabID, status: propStatus }: Translatio
             aria-label="Re-extract translatable content"
           >
             {extracting ? <Loader2 size={12} className="animate-spin" /> : <RefreshCw size={12} />}
-            {extracting ? "Extracting…" : "Re-extract"}
+            {extracting ? t("Extracting…") : t("Re-extract")}
           </Button>
         )}
       </div>
