@@ -265,6 +265,60 @@ export default {
 
 A globe icon appears in the Storybook toolbar; switching locale re-renders every story. Useful for design review, translator QA, and RTL layout testing.
 
+## HTML `lang` and `dir` attributes
+
+`setTranslations()` and `loadTranslations()` push the locale onto the document root automatically:
+
+```html
+<!-- before -->
+<html lang="en" dir="ltr">
+
+<!-- after loadTranslations("ar-SA", …) -->
+<html lang="ar-SA" dir="rtl">
+```
+
+The runtime also swaps `dir="rtl"` for the common RTL primary subtags (`ar`, `dv`, `fa`, `he`, `ku`, `ps`, `sd`, `ur`, `yi`, and a few more). Everything else defaults to `dir="ltr"`. The attribute drives browser-level hyphenation, spelling, font fallbacks, and — most importantly — screen-reader language announcements.
+
+### Initial page load
+
+Your `index.html` renders with whatever `lang` you hard-code, typically `en`. When `loadTranslations()` resolves (async, happens after initial paint), the runtime syncs the attribute. A user on the default locale sees no flash; a user whose language is loaded at boot sees a very brief `en` → `<their-locale>` flip on first render. If that matters, set `lang` on the server to match the user's cookie / header before serving the HTML.
+
+### Opting out
+
+If your app manages `<html lang>` itself (SSR with preset lang, framework-owned locale routing, multi-locale surfaces on one page), pass `syncDocumentLocale: false`:
+
+```ts
+import { setTranslations } from "@neokapi/kapi-react/runtime";
+
+setTranslations("ja-JP", dict, { syncDocumentLocale: false });
+// or:
+await loadTranslations("ja-JP", "/translations/ja-JP.json", {
+  syncDocumentLocale: false,
+});
+```
+
+SSR is handled automatically — the option defaults to `true` when `document` is defined and `false` otherwise, so `setTranslations` is safe to call from Node.
+
+### Manual sync
+
+When you need to push locale state without swapping the dict (e.g. your app has the dict inlined and you only want to set `<html lang>`), use `syncDocumentLocale` directly:
+
+```ts
+import { syncDocumentLocale } from "@neokapi/kapi-react/runtime";
+
+syncDocumentLocale("fr-FR");
+```
+
+### Custom RTL detection
+
+The built-in RTL set covers the common cases. If you need a different mapping (sparse script for a specific project, custom pseudo-locale that should render RTL, etc.), manage `<html dir>` yourself with `syncDocumentLocale: false`:
+
+```ts
+setTranslations(locale, dict, { syncDocumentLocale: false });
+document.documentElement.setAttribute("lang", locale);
+document.documentElement.setAttribute("dir", myRTLPolicy(locale) ? "rtl" : "ltr");
+```
+
 ## Opt-out and override patterns
 
 ### Per element

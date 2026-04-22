@@ -110,3 +110,4 @@ describe("t() — user-facing escape hatch (dev-mode fallback)", () => {
     expect(t("Hello")).toBe("Hello");
   });
 });
+

@@ -36,23 +36,86 @@ function notify() {
   listeners.forEach((fn) => fn());
 }
 
+export interface SetTranslationsOptions {
+  /**
+   * Sync `<html lang="…" dir="…">` to match the new locale.
+   * Defaults to `true` in a browser environment, `false` under SSR
+   * (where `document` isn't defined). Pass `false` when you render
+   * multiple locales on one page (e.g. a demo switcher that only
+   * localises a subtree) or when your app manages these attributes
+   * itself.
+   */
+  syncDocumentLocale?: boolean;
+}
+
 /**
  * Set the active translation dictionary. Triggers re-render of all
- * components using useNeokapi().
+ * components using useNeokapi(), and — by default — pushes the
+ * locale onto `<html lang="…">` plus a matching `dir="ltr|rtl"`
+ * attribute.
  */
-export function setTranslations(locale: string, translations: Record<string, string>) {
+export function setTranslations(
+  locale: string,
+  translations: Record<string, string>,
+  options: SetTranslationsOptions = {},
+) {
   currentLocale = locale;
   dict = translations;
+  const sync = options.syncDocumentLocale ?? typeof document !== "undefined";
+  if (sync) syncDocumentLocale(locale);
   notify();
 }
 
 /**
- * Fetch a translation file from a URL and activate it.
+ * Fetch a translation file from a URL and activate it. Forwards
+ * `syncDocumentLocale` to `setTranslations`.
  */
-export async function loadTranslations(locale: string, url: string): Promise<void> {
+export async function loadTranslations(
+  locale: string,
+  url: string,
+  options: SetTranslationsOptions = {},
+): Promise<void> {
   const response = await fetch(url);
   const translations = await response.json();
-  setTranslations(locale, translations);
+  setTranslations(locale, translations, options);
+}
+
+// Writing-direction defaults per primary language subtag. Covers
+// the common RTL scripts — Arabic, Hebrew, Farsi, Urdu, Yiddish,
+// Pashto, Sindhi, Divehi, Kurdish (Sorani), Aramaic, Samaritan.
+// Add more via the second arg to `setTranslations` / `loadTranslations`
+// if you need to override.
+const RTL_LANGS = new Set([
+  "ar",
+  "dv",
+  "fa",
+  "he",
+  "ku",
+  "ps",
+  "sd",
+  "ur",
+  "yi",
+  "arc",
+  "sam",
+]);
+
+function isRTL(locale: string): boolean {
+  const primary = locale.split(/[-_]/)[0].toLowerCase();
+  return RTL_LANGS.has(primary);
+}
+
+/**
+ * Push the locale onto `document.documentElement` — `lang` for
+ * assistive tech + browser defaults (fonts, hyphenation, spelling),
+ * `dir` for writing direction. Exposed so advanced callers can
+ * invoke it without also swapping the dict (unusual).
+ */
+export function syncDocumentLocale(locale: string): void {
+  if (typeof document === "undefined") return;
+  const html = document.documentElement;
+  if (!html) return;
+  html.setAttribute("lang", locale);
+  html.setAttribute("dir", isRTL(locale) ? "rtl" : "ltr");
 }
 
 // ─── String translation ──────────────────────────────────────
