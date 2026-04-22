@@ -1,15 +1,15 @@
 FROM node:24-slim AS build
 WORKDIR /src
 
-# Install vite-plus (vp + vpx) — matches the setup-vp GitHub Action
-# that CI uses. Package build scripts call `vpx tsc` + `vp build`.
-# Symlinks into /usr/local/bin so the binaries resolve even when npm
-# reshuffles PATH between lifecycle scripts.
+# Install vite-plus (vp) which the package build scripts call into.
+# Shim `vpx` → `npx` since the install script only ships `vp`; both
+# just run a tool from the workspace node_modules.
 RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certificates \
     && curl -fsSL https://viteplus.dev/install.sh | bash \
-    && ln -sf /root/.vite-plus/bin/vp /usr/local/bin/vp \
-    && ln -sf /root/.vite-plus/bin/vpx /usr/local/bin/vpx \
-    && ln -sf /root/.vite-plus/bin/vpr /usr/local/bin/vpr \
+    && cp /root/.vite-plus/bin/vp /usr/local/bin/vp \
+    && chmod +x /usr/local/bin/vp \
+    && printf '#!/bin/sh\nexec npx "$@"\n' > /usr/local/bin/vpx \
+    && chmod +x /usr/local/bin/vpx \
     && rm -rf /var/lib/apt/lists/*
 COPY package.json package-lock.json ./
 COPY packages/kapi-format/package.json packages/kapi-format/
