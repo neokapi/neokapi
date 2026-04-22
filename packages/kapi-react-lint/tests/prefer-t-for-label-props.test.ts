@@ -25,11 +25,10 @@ describe("prefer-t-for-label-props", () => {
           errors: [{ messageId: "useT", data: { key: "label" } }],
         },
         {
+          // `description` was dropped from the default key list (too
+          // noisy on backend data) — only `title` fires here now.
           code: `const X = { title: 'Welcome', description: 'Get started' };`,
-          errors: [
-            { messageId: "useT", data: { key: "title" } },
-            { messageId: "useT", data: { key: "description" } },
-          ],
+          errors: [{ messageId: "useT", data: { key: "title" } }],
         },
         // Custom keys via options.
         {

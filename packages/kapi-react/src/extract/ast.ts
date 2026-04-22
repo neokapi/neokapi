@@ -155,14 +155,12 @@ export function lineFromOffset(code: string, offset: number): number {
 const LABEL_LIKE_PROPS = new Set([
   "label",
   "title",
-  "description",
   "heading",
   "caption",
-  "tooltip",
-  "message",
-  "summary",
   "subtitle",
+  "tooltip",
   "placeholder",
+  "summary",
 ]);
 
 /**

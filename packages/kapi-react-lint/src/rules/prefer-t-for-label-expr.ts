@@ -1,5 +1,6 @@
 import type { Rule } from "eslint";
 import { LIKELY_LABEL_KEYS } from "../shared/translatable-attrs.ts";
+import { hasTranslateNoAncestor } from "../shared/translate-no.ts";
 
 /**
  * Complement of `prefer-t-for-label-props`: that rule flags the
@@ -46,19 +47,25 @@ export const rule: Rule.RuleModule = {
     return {
       JSXExpressionContainer(node: Rule.Node) {
         const container = node as unknown as {
-          parent: { type: string };
+          parent: unknown;
           expression: { type: string };
         };
         // Only JSX children, not attribute values — attributes have
         // their own extraction path and separate lint rules.
-        if (container.parent?.type !== "JSXElement" && container.parent?.type !== "JSXFragment") {
-          return;
-        }
+        const parent = container.parent as { type?: string } | undefined;
+        if (parent?.type !== "JSXElement" && parent?.type !== "JSXFragment") return;
+
         const expr = container.expression;
         if (!expr) return;
 
         const match = labelLikeMember(expr, keys);
         if (!match) return;
+
+        // Respect the W3C `translate="no"` hint on any JSX ancestor —
+        // developers use it to mark dynamic / code-like / non-copy
+        // content; surfacing a "needs translation" warning on it is
+        // noise.
+        if (hasTranslateNoAncestor(container.parent)) return;
 
         context.report({
           node: node as unknown as Rule.Node,
@@ -69,6 +76,7 @@ export const rule: Rule.RuleModule = {
     };
   },
 };
+
 
 interface LabelMatch {
   key: string;
