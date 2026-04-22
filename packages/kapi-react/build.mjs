@@ -32,6 +32,7 @@ const entryPoints = [
   "src/runtime/index.ts",
   "src/runtime/icu.ts",
   "src/runtime/plural.tsx",
+  "src/runtime/pseudo.ts",
   "src/storybook/index.ts",
 ];
 

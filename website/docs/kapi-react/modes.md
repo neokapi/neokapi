@@ -60,6 +60,32 @@ For a locale switcher UI: call `loadTranslations` or `setTranslations("en", {})`
 
 Both also push the new locale onto `<html lang>` and `<html dir>` automatically — handy for screen readers, fonts, hyphenation, and RTL support. Opt out with `{ syncDocumentLocale: false }` if your app owns those attributes. Details: [Configuration → HTML `lang` and `dir`](./configuration#html-lang-and-dir-attributes).
 
+### Runtime pseudo-translation
+
+Runtime mode can apply pseudo-translation **on the fly**, no build step, no catalog — useful for dev ergonomics, layout QA, and debugging which strings flow through the translation system:
+
+```tsx
+import { setPseudoMode } from "@neokapi/kapi-react/runtime/pseudo";
+
+// Turn on with defaults (▒-wrapped, accented)
+setPseudoMode({});
+
+// Tune
+setPseudoMode({
+  prefix: "« ",
+  suffix: " »",
+  expansion: 30,      // +30% padding to test layout
+  accent: true,       // ASCII → accented variants
+});
+
+// Off
+setPseudoMode(null);
+```
+
+The transform stacks on top of whatever's in the runtime dict — so you can load a real French catalog and THEN flip pseudo on to see what French looks like at +30% length, with markers showing which strings got translated vs. which fell through to source. `{param}` / `{=m0}` tokens are preserved verbatim so param substitution still works.
+
+The pseudo module lives at a separate subpath (`@neokapi/kapi-react/runtime/pseudo`) so importing it is opt-in — the main runtime stays ~2 kB. Internally it uses `setStringTransform`, a general post-lookup hook also exported from the main runtime for custom transforms (debug markers, letter-spacing audits, etc.).
+
 ## Inline mode
 
 ```ts

@@ -118,6 +118,25 @@ export function syncDocumentLocale(locale: string): void {
   html.setAttribute("dir", isRTL(locale) ? "rtl" : "ltr");
 }
 
+// ─── Runtime string transform hook ───────────────────────────
+
+/**
+ * Optional post-lookup transform applied to every translated string
+ * before parameter substitution. Set to non-null to install a
+ * transform — the runtime `@neokapi/kapi-react/runtime/pseudo`
+ * subpath uses this to wire on-the-fly pseudo-translation.
+ *
+ * Runs AFTER dict lookup + ICU resolution but BEFORE `{param}`
+ * substitution, so the transform sees `{foo}` / `{=m0}` tokens
+ * still in place and can choose to preserve them.
+ */
+let stringTransform: ((text: string) => string) | null = null;
+
+export function setStringTransform(fn: ((text: string) => string) | null): void {
+  stringTransform = fn;
+  notify();
+}
+
 // ─── String translation ──────────────────────────────────────
 
 /**
@@ -136,6 +155,11 @@ export function __t(
   if (text.includes(", plural,") || text.includes(", select,")) {
     text = resolveICU(text, params, currentLocale);
   }
+
+  // Post-lookup runtime transform (pseudo-translation, debug
+  // markers, etc.). Runs before {param} substitution so the
+  // transform can choose to preserve placeholder names.
+  if (stringTransform) text = stringTransform(text);
 
   // Substitute {param} tokens
   if (params) {
@@ -166,6 +190,13 @@ export function __tx(
   if (text.includes(", plural,") || text.includes(", select,")) {
     text = resolveICU(text, params, currentLocale);
   }
+
+  // Post-lookup runtime transform — same hook used by __t so a
+  // pseudo mode applies uniformly across plain-text and
+  // element-bearing translations. Runs before placeholder
+  // substitution; transforms that want to protect {=m0}-style
+  // element tokens need to look for them.
+  if (stringTransform) text = stringTransform(text);
 
   // Substitute string params first (not element tokens)
   if (params) {

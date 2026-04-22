@@ -49,6 +49,10 @@
       "types": "./dist/runtime/index.d.ts",
       "default": "./dist/runtime/index.js"
     },
+    "./runtime/pseudo": {
+      "types": "./dist/runtime/pseudo.d.ts",
+      "default": "./dist/runtime/pseudo.js"
+    },
     "./storybook": {
       "types": "./dist/storybook/index.d.ts",
       "default": "./dist/storybook/index.js"
