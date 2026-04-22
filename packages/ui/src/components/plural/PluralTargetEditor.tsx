@@ -17,15 +17,10 @@
  * presentation only.
  */
 
-import type { ReactElement } from 'react';
-import { useMemo, useState } from 'react';
+import type { ReactElement } from "react";
+import { useMemo, useState } from "react";
 
-import type {
-  Block,
-  Placeholder,
-  PluralForm,
-  Run,
-} from '@neokapi/kapi-format';
+import type { Block, PluralForm, Run } from "@neokapi/kapi-format";
 import {
   downgradePluralTarget,
   isPlural,
@@ -33,13 +28,13 @@ import {
   pluralTargetPivot,
   setPluralForm,
   upgradeTargetToPlural,
-} from '@neokapi/kapi-format';
+} from "@neokapi/kapi-format";
 
-import { cn } from '../../lib/utils';
-import { runsToText, textToRuns } from './runs-text';
+import { cn } from "../../lib/utils";
+import { runsToText, textToRuns } from "./runs-text";
 
 /** Default CLDR plural-form order presented to translators. */
-const DEFAULT_FORMS: readonly PluralForm[] = ['zero', 'one', 'two', 'few', 'many', 'other'];
+const DEFAULT_FORMS: readonly PluralForm[] = ["zero", "one", "two", "few", "many", "other"];
 
 export interface PluralTargetEditorProps {
   /**
@@ -47,7 +42,7 @@ export interface PluralTargetEditorProps {
    * resolution + placeholder metadata when parsing translator edits
    * back into typed runs. Source target isn't mutated.
    */
-  block: Pick<Block, 'source' | 'placeholders'>;
+  block: Pick<Block, "source" | "placeholders">;
   /** Current translation for the active locale. */
   target: readonly Run[];
   /** Called with the new Run[] whenever the translator edits any form. */
@@ -78,7 +73,7 @@ function FlatTarget({
 }: PluralTargetEditorProps & { forms: readonly PluralForm[] }) {
   const candidates = useMemo(() => pluralPivotCandidates(block as Block), [block]);
   const text = useMemo(() => runsToText(target), [target]);
-  const preselectedPivot = candidates[0]?.name ?? '';
+  const preselectedPivot = candidates[0]?.name ?? "";
 
   const [chosenPivot, setChosenPivot] = useState(preselectedPivot);
 
@@ -92,7 +87,7 @@ function FlatTarget({
   };
 
   return (
-    <div className={cn('space-y-2', className)} data-neokapi-plural-editor="flat">
+    <div className={cn("space-y-2", className)} data-neokapi-plural-editor="flat">
       <textarea
         className={textareaClass}
         value={text}
@@ -112,16 +107,11 @@ function FlatTarget({
             {candidates.map((c) => (
               <option key={c.name} value={c.name}>
                 {c.label}
-                {c.sourcePivot ? ' — source pivot' : ''}
+                {c.sourcePivot ? " — source pivot" : ""}
               </option>
             ))}
           </select>
-          <button
-            type="button"
-            className={buttonClass}
-            onClick={upgrade}
-            disabled={!chosenPivot}
-          >
+          <button type="button" className={buttonClass} onClick={upgrade} disabled={!chosenPivot}>
             Upgrade to plural…
           </button>
         </div>
@@ -139,10 +129,11 @@ function PluralForms({
   forms,
   className,
 }: PluralTargetEditorProps & { forms: readonly PluralForm[] }) {
-  const pivot = pluralTargetPivot(target) ?? '';
+  const pivot = pluralTargetPivot(target) ?? "";
   const formTexts = useMemo(() => {
     const out = new Map<PluralForm, string>();
-    const runs = (target[0] as { plural: { forms: Partial<Record<PluralForm, Run[]>> } }).plural.forms;
+    const runs = (target[0] as { plural: { forms: Partial<Record<PluralForm, Run[]>> } }).plural
+      .forms;
     for (const form of forms) out.set(form, runsToText(runs[form] ?? []));
     return out;
   }, [target, forms]);
@@ -155,7 +146,7 @@ function PluralForms({
   const downgrade = () => onChange(downgradePluralTarget(target));
 
   return (
-    <div className={cn('space-y-3', className)} data-neokapi-plural-editor="plural">
+    <div className={cn("space-y-3", className)} data-neokapi-plural-editor="plural">
       <div className="flex items-center justify-between gap-2 text-sm">
         <span className="text-muted-foreground">
           Plural pivot: <span className="font-mono">{pivot}</span>
@@ -174,7 +165,7 @@ function PluralForms({
           <FormRow
             key={form}
             form={form}
-            value={formTexts.get(form) ?? ''}
+            value={formTexts.get(form) ?? ""}
             onEdit={(v) => editForm(form, v)}
           />
         ))}
@@ -211,22 +202,22 @@ function FormRow({
 // ─── Small styling helpers ───────────────────────────────────────
 
 const textareaClass = cn(
-  'min-h-[2.5rem] w-full resize-y rounded-md border border-input bg-background',
-  'px-3 py-2 font-mono text-sm placeholder:text-muted-foreground',
-  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+  "min-h-[2.5rem] w-full resize-y rounded-md border border-input bg-background",
+  "px-3 py-2 font-mono text-sm placeholder:text-muted-foreground",
+  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
 );
 
 const selectClass = cn(
-  'h-8 rounded-md border border-input bg-background px-2 text-sm',
-  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+  "h-8 rounded-md border border-input bg-background px-2 text-sm",
+  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
 );
 
 const buttonClass = cn(
-  'h-8 rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground',
-  'transition-colors hover:bg-primary/90 disabled:opacity-50 disabled:pointer-events-none',
+  "h-8 rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground",
+  "transition-colors hover:bg-primary/90 disabled:opacity-50 disabled:pointer-events-none",
 );
 
 const ghostButtonClass = cn(
-  'h-8 rounded-md px-3 text-sm text-muted-foreground',
-  'hover:bg-accent hover:text-foreground',
+  "h-8 rounded-md px-3 text-sm text-muted-foreground",
+  "hover:bg-accent hover:text-foreground",
 );
