@@ -76,10 +76,10 @@ export function HomePage({
         <div className="mt-2 flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
           <span className="flex items-center gap-1.5">
             <Globe size={14} />
-            {defaults.source_language || "No source"} &rarr;{" "}
+            {defaults.source_language || t("No source")} &rarr;{" "}
             {defaults.target_languages?.length
               ? defaults.target_languages.join(", ")
-              : "No targets"}
+              : t("No targets")}
           </span>
           {project.preset && (
             <Badge variant="secondary" className="text-xs">

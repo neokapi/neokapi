@@ -248,7 +248,9 @@ export function PluginManager({ plugins: propPlugins }: PluginManagerProps = {})
           {updates.length > 0 && (
             <Button size="sm" onClick={handleUpdateAll} disabled={updatingAll}>
               <ArrowUpCircle size={12} />
-              {updatingAll ? "Updating..." : `Update All (${updates.length})`}
+              {updatingAll
+                ? t("Updating...")
+                : t("Update All ({count})", { count: updates.length })}
             </Button>
           )}
           <Button
@@ -258,7 +260,7 @@ export function PluginManager({ plugins: propPlugins }: PluginManagerProps = {})
             disabled={checkingUpdates}
           >
             <RefreshCw size={12} className={checkingUpdates ? "animate-spin" : ""} />
-            {checkingUpdates ? "Checking..." : "Check Updates"}
+            {checkingUpdates ? t("Checking...") : t("Check Updates")}
           </Button>
         </div>
       </div>
@@ -359,7 +361,7 @@ export function PluginManager({ plugins: propPlugins }: PluginManagerProps = {})
                     ) : status?.state === "downloading" ? (
                       <div className="flex items-center gap-1 text-xs text-muted-foreground">
                         <Loader2 size={12} className="animate-spin" />
-                        {status.percent !== undefined ? `${status.percent}%` : "Downloading..."}
+                        {status.percent !== undefined ? `${status.percent}%` : t("Downloading...")}
                       </div>
                     ) : status?.state === "error" ? (
                       <div className="flex items-center gap-1">
@@ -380,7 +382,7 @@ export function PluginManager({ plugins: propPlugins }: PluginManagerProps = {})
               })}
               {available.length === 0 && (
                 <p className="py-8 text-center text-sm text-muted-foreground">
-                  {search ? "No plugins match your search." : "No plugins available."}
+                  {search ? t("No plugins match your search.") : t("No plugins available.")}
                 </p>
               )}
             </div>
@@ -479,7 +481,7 @@ function InstalledPluginCard({
           {updateStatus?.state === "downloading" ? (
             <div className="flex items-center gap-1 text-xs text-primary">
               <Loader2 size={12} className="animate-spin" />
-              {updateStatus.percent !== undefined ? `${updateStatus.percent}%` : "Updating..."}
+              {updateStatus.percent !== undefined ? `${updateStatus.percent}%` : t("Updating...")}
             </div>
           ) : updateStatus?.state === "done" ? (
             <span className="text-[10px] text-primary px-2 py-0.5 rounded bg-primary/10">
@@ -503,7 +505,7 @@ function InstalledPluginCard({
               title={t("Update to v{version}", { version: updateAvailable.latest_version })}
             >
               <ArrowUpCircle size={11} />
-              {updateAvailable.latest_version ? `v${updateAvailable.latest_version}` : "Update"}
+              {updateAvailable.latest_version ? `v${updateAvailable.latest_version}` : t("Update")}
             </Button>
           ) : null}
           {/* Remove */}

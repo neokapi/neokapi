@@ -356,7 +356,7 @@ export function ContentPage({
               <SelectContent>
                 <SelectItem value="__default__">Default</SelectItem>
                 {presetOptions.map((p) => (
-                  <SelectItem key={p.name} value={p.name}>
+                  <SelectItem key={p.name} value={p.name} translate="no">
                     {p.name}
                     {p.description ? ` \u2014 ${p.description}` : ""}
                   </SelectItem>
@@ -727,8 +727,8 @@ export function ContentPage({
                 <Upload size={24} className="mb-3 text-muted-foreground/50" />
                 <p className="text-sm text-muted-foreground">
                   {content.length > 0
-                    ? "No files matched the configured patterns."
-                    : "Drop files here or click Add Files to add them to the project."}
+                    ? t("No files matched the configured patterns.")
+                    : t("Drop files here or click Add Files to add them to the project.")}
                 </p>
               </div>
             ) : (

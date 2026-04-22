@@ -176,7 +176,7 @@ export function CredentialsPage({
         <Card className="mt-4">
           <CardContent className="p-4">
             <h3 className="mb-3 text-sm font-medium">
-              {editing.id ? "Edit Provider" : "New Provider"}
+              {editing.id ? t("Edit Provider") : t("New Provider")}
             </h3>
             <div className="grid grid-cols-2 gap-3">
               <div>
@@ -240,7 +240,7 @@ export function CredentialsPage({
                 disabled={!editing.name || !editing.provider_type || saving}
               >
                 {saving && <Loader2 size={12} className="animate-spin" />}
-                {saving ? "Saving..." : "Save"}
+                {saving ? t("Saving...") : t("Save")}
               </Button>
               <Button
                 variant="outline"

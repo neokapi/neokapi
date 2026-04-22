@@ -794,7 +794,7 @@ function FormatDetail({
             </Button>
             {runnerParts !== null && (
               <span className="text-[10px] text-muted-foreground">
-                {runnerParts.length} part{runnerParts.length !== 1 ? "s" : ""} extracted
+                {t("{count} part(s) extracted", { count: runnerParts.length })}
               </span>
             )}
           </div>

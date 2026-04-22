@@ -74,9 +74,21 @@ export const rule: Rule.RuleModule = {
 
 function stringyKind(node: unknown): "literal" | "template" | null {
   if (!node || typeof node !== "object") return null;
-  const n = node as { type?: string; value?: unknown; expressions?: unknown[] };
+  const n = node as {
+    type?: string;
+    value?: unknown;
+    quasis?: { value?: { raw?: string; cooked?: string } }[];
+  };
   if (n.type === "Literal" && typeof n.value === "string") return "literal";
-  if (n.type === "TemplateLiteral") return "template";
+  if (n.type === "TemplateLiteral") {
+    // Only flag when the template has translatable-looking text —
+    // at least one quasi with alphabetic characters. Pure formatting
+    // like `${pct}%` or `v${version}` is code-level, not UI copy,
+    // and shouldn't be flagged.
+    const quasis = n.quasis ?? [];
+    const hasWord = quasis.some((q) => /[A-Za-z]{2,}/.test(q.value?.cooked ?? q.value?.raw ?? ""));
+    return hasWord ? "template" : null;
+  }
   return null;
 }
 
