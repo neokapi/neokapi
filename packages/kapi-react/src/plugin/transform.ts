@@ -277,7 +277,23 @@ export function transform(
   // char (e.g. em-dash in a comment) above the t() call shifts the
   // real offset and produces corrupted paramsSrc (see #382).
   const sourceSlice = (start: number, end: number): string => bslice(buf, s(start), s(end));
+  // Any element-extraction op already queued covers the bytes of
+  // every `t()` call embedded inside it (the whole element body
+  // gets replaced with a single `__tx(…)`). Record those ranges so
+  // we skip the inner-t rewrite — otherwise the two ops overlap
+  // and the final op-disjoint check throws. The element's `__tx`
+  // renders the t()-call result via its param list, so no
+  // translation is lost.
+  const elementOpRanges = ops.map((op) => [op.offset, op.offset + op.deleteCount] as const);
+  const coveredByElementOp = (start: number, end: number): boolean => {
+    for (const [a, b] of elementOpRanges) if (start >= a && end <= b) return true;
+    return false;
+  };
   for (const call of walkTCalls(ast, tNames, sourceSlice)) {
+    const callStart = s(call.node.span.start);
+    const callEnd = s(call.node.span.end);
+    if (coveredByElementOp(callStart, callEnd)) continue;
+
     const desc = `t${CONTEXT_SEPARATOR}${call.context ?? ""}`;
     const hash = hashKey(call.text, desc);
     const fallbackLiteral = JSON.stringify(call.text);
@@ -285,8 +301,8 @@ export function transform(
       ? `"${hash}", ${fallbackLiteral}, ${call.paramsSrc}`
       : `"${hash}", ${fallbackLiteral}`;
     ops.push({
-      offset: s(call.node.span.start),
-      deleteCount: s(call.node.span.end) - s(call.node.span.start),
+      offset: callStart,
+      deleteCount: callEnd - callStart,
       insert: `__t(${args})`,
     });
     needsT = true;
