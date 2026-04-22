@@ -9,18 +9,16 @@
 FROM node:24-slim AS web-builder
 WORKDIR /src
 
-# Install vite-plus (vp + vpx) which the package build scripts call into.
-# The global install matches the setup-vp GitHub Action that CI uses.
-# Symlink into /usr/local/bin so the binaries resolve even when npm
-# reshuffles PATH between lifecycle scripts.
+# Install vite-plus (vp) which the package build scripts call into.
+# The install script only ships `vp`; `vpx` is a companion tool that
+# normally comes from `vp env use`, but for deterministic builds we
+# just shim `vpx` → `npx` (same effect: run a tool from node_modules).
 RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certificates \
     && curl -fsSL https://viteplus.dev/install.sh | bash \
-    && ls -la /root/.vite-plus/bin/ \
     && cp /root/.vite-plus/bin/vp /usr/local/bin/vp \
-    && cp /root/.vite-plus/bin/vpx /usr/local/bin/vpx \
-    && cp /root/.vite-plus/bin/vpr /usr/local/bin/vpr \
-    && chmod +x /usr/local/bin/vp /usr/local/bin/vpx /usr/local/bin/vpr \
-    && which vpx && vpx --help > /dev/null 2>&1 || echo "vpx test exit=$?" \
+    && chmod +x /usr/local/bin/vp \
+    && printf '#!/bin/sh\nexec npx "$@"\n' > /usr/local/bin/vpx \
+    && chmod +x /usr/local/bin/vpx \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy workspace root (lock file + workspace config) and package.json files
