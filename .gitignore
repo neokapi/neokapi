@@ -38,6 +38,7 @@ dist/
 # committed so the app ships with translations; the intermediate
 # per-file .klf extract output is ephemeral and gitignored.
 apps/kapi-desktop/frontend/i18n/
+apps/kapi-desktop/frontend/i18n-qps/
 
 # Wails
 **/build/bin/
