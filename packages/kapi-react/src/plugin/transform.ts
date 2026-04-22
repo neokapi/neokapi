@@ -18,9 +18,9 @@ import {
   containsJSX,
   dedupName,
   exprToName,
-  getStringAttr,
   getTagName,
   lineFromOffset,
+  nearestTranslate,
   resolveHTMLElement,
 } from "../extract/ast.ts";
 import { buildJSXPath } from "../extract/jsx-path.ts";
@@ -417,7 +417,11 @@ function processElement(
 ): ProcessResult {
   const tagName = getTagName(el);
   if (!tagName) return { runtime: null, consumed: false };
-  if (getStringAttr(el, "translate") === "no") return { runtime: null, consumed: false };
+  // W3C translate inheritance: nearest explicit setting on self or
+  // an ancestor wins. `translate="yes"` on a child re-enables
+  // translation inside a `translate="no"` subtree. Mirrored in
+  // extract/walker.ts.
+  if (nearestTranslate(el, ancestors) === "no") return { runtime: null, consumed: false };
 
   // Mirror walker.ts: fall back to the raw tag for unmapped
   // React components so resolvePolicy's container-promotion
