@@ -10,13 +10,17 @@
  * `translate="no"` or stabilise hashes with a `componentMap` entry.
  */
 
-export type WarningKind = 'unknown-component';
+export type WarningKind = "unknown-component" | "dyn-label-splice" | "ternary-attr-complex";
 
 export interface Warning {
   kind: WarningKind;
   filename: string;
   line: number;
-  /** The source tag as written (div, section, TabsTrigger, …). */
+  /**
+   * For `unknown-component`: the source tag (div, section, TabsTrigger, …).
+   * For `dyn-label-splice`: the expression source (`meta.label`, `item.title`, …).
+   * For `ternary-attr-complex`: the attribute name (title, placeholder, …).
+   */
   tag: string;
   /** Short snippet so the developer can locate it visually. */
   snippet: string;
@@ -47,10 +51,29 @@ export function createWarningCollector(): WarningCollector {
 /** Renders a warning as a short stderr-friendly line. */
 export function formatWarning(w: Warning): string {
   const loc = `${w.filename}:${w.line}`;
-  return (
-    `[neokapi] ${loc}: <${w.tag}> is an unmapped component with ` +
-    `translatable text — extracted. Add a componentMap entry to ` +
-    `stabilise hashes: { ${w.tag}: '<underlying-html-tag>' }.\n` +
-    `  ↳ ${w.snippet}`
-  );
+  switch (w.kind) {
+    case "unknown-component":
+      return (
+        `[neokapi] ${loc}: <${w.tag}> is an unmapped component with ` +
+        `translatable text — extracted. Add a componentMap entry to ` +
+        `stabilise hashes: { ${w.tag}: '<underlying-html-tag>' }.\n` +
+        `  ↳ ${w.snippet}`
+      );
+    case "dyn-label-splice":
+      return (
+        `[neokapi] ${loc}: {${w.tag}} is rendered as JSX text — the ` +
+        `property name suggests a user-visible string that won't be ` +
+        `translated. Extract the label (e.g. t("key") or <T>…</T>) or ` +
+        `mark the parent translate="no" if intentional.\n` +
+        `  ↳ ${w.snippet}`
+      );
+    case "ternary-attr-complex":
+      return (
+        `[neokapi] ${loc}: ${w.tag}={…} uses a conditional whose ` +
+        `branches aren't both plain string literals — can't extract. ` +
+        `Lift the strings to the branches (cond ? "A" : "B") or use ` +
+        `t() explicitly.\n` +
+        `  ↳ ${w.snippet}`
+      );
+  }
 }

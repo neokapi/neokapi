@@ -13,21 +13,17 @@
  * to stderr.
  */
 
-import { readFileSync, mkdirSync, writeFileSync } from 'node:fs';
-import { dirname, join, relative } from 'node:path';
-import { glob } from 'node:fs/promises';
+import { readFileSync, mkdirSync, writeFileSync } from "node:fs";
+import { dirname, join, relative } from "node:path";
+import { glob } from "node:fs/promises";
 
-import type { Document } from '@neokapi/kapi-format';
-import { marshalFile } from '@neokapi/kapi-format';
+import type { Document } from "@neokapi/kapi-format";
+import { marshalFile } from "@neokapi/kapi-format";
 
-import {
-  createWarningCollector,
-  extractDocument,
-  formatWarning,
-} from '../extract/index.ts';
-import type { PluginOptions } from '../types.ts';
+import { createWarningCollector, extractDocument, formatWarning } from "../extract/index.ts";
+import type { PluginOptions } from "../types.ts";
 
-type ExtractConfig = Pick<PluginOptions, 'componentMap' | 'rules'>;
+type ExtractConfig = Pick<PluginOptions, "componentMap" | "rules">;
 
 export interface RunExtractIO {
   /** Source of NUL-separated paths for --stream mode. */
@@ -77,16 +73,14 @@ export async function runExtract(args: string[], io: RunExtractIO = {}): Promise
     // written here.
     for (const doc of documents) {
       for (const block of doc.blocks) {
-        stdout.write(
-          JSON.stringify({ type: 'block', document: doc.path, block }) + '\n',
-        );
+        stdout.write(JSON.stringify({ type: "block", document: doc.path, block }) + "\n");
       }
     }
     return;
   }
 
   if (documents.length === 0) {
-    console.warn('No translatable content found.');
+    console.warn("No translatable content found.");
     return;
   }
 
@@ -101,9 +95,7 @@ export async function runExtract(args: string[], io: RunExtractIO = {}): Promise
     writeFileSync(path, marshalFile(klf));
   }
   const blockCount = documents.reduce((n, d) => n + d.blocks.length, 0);
-  console.log(
-    `Extracted ${blockCount} blocks from ${documents.length} files → ${opts.outDir}/`,
-  );
+  console.log(`Extracted ${blockCount} blocks from ${documents.length} files → ${opts.outDir}/`);
 }
 
 async function expandGlob(pattern: string): Promise<string[]> {
@@ -140,12 +132,12 @@ async function readPathsFromStdin(stdin: NodeJS.ReadableStream): Promise<string[
   const chunks: Buffer[] = [];
   for await (const chunk of stdin) {
     if (Buffer.isBuffer(chunk)) chunks.push(chunk);
-    else if (typeof chunk === 'string') chunks.push(Buffer.from(chunk, 'utf8'));
+    else if (typeof chunk === "string") chunks.push(Buffer.from(chunk, "utf8"));
     else chunks.push(Buffer.from(chunk as unknown as ArrayBuffer));
   }
-  const raw = Buffer.concat(chunks).toString('utf8');
+  const raw = Buffer.concat(chunks).toString("utf8");
   return raw
-    .split('\0')
+    .split("\0")
     .map((s) => s.trim())
     .filter((s) => s.length > 0);
 }
@@ -171,11 +163,11 @@ interface ExtractArgs {
 
 function parseArgs(args: string[]): ExtractArgs {
   const parsed: ExtractArgs = {
-    srcGlob: 'src/**/*.{tsx,jsx}',
-    outDir: 'i18n',
+    srcGlob: "src/**/*.{tsx,jsx}",
+    outDir: "i18n",
     configPath: null,
-    projectId: 'app',
-    sourceLocale: 'en',
+    projectId: "app",
+    sourceLocale: "en",
     targetLocales: [],
     stream: false,
     strict: false,
@@ -186,32 +178,32 @@ function parseArgs(args: string[]): ExtractArgs {
     const flag = args[i];
     const value = args[i + 1];
     switch (flag) {
-      case '--help':
-      case '-h':
+      case "--help":
+      case "-h":
         parsed.help = true;
         return parsed;
-      case '--src':
+      case "--src":
         if (value) parsed.srcGlob = args[++i];
         break;
-      case '--out':
+      case "--out":
         if (value) parsed.outDir = args[++i];
         break;
-      case '--config':
+      case "--config":
         if (value) parsed.configPath = args[++i];
         break;
-      case '--project':
+      case "--project":
         if (value) parsed.projectId = args[++i];
         break;
-      case '--source-locale':
+      case "--source-locale":
         if (value) parsed.sourceLocale = args[++i];
         break;
-      case '--target-locale':
+      case "--target-locale":
         if (value) parsed.targetLocales.push(args[++i]);
         break;
-      case '--stream':
+      case "--stream":
         parsed.stream = true;
         break;
-      case '--strict':
+      case "--strict":
         parsed.strict = true;
         break;
       default:
@@ -225,7 +217,7 @@ function parseArgs(args: string[]): ExtractArgs {
 function loadConfig(path: string | null): ExtractConfig {
   if (!path) return {};
   try {
-    return JSON.parse(readFileSync(path, 'utf-8')) as ExtractConfig;
+    return JSON.parse(readFileSync(path, "utf-8")) as ExtractConfig;
   } catch (e) {
     console.error(`Failed to load config from ${path}:`, e);
     process.exit(1);
@@ -240,7 +232,7 @@ function extractAllDocuments(
   const out: Document[] = [];
   const warnings = createWarningCollector();
   for (const file of files) {
-    const code = readFileSync(file, 'utf-8');
+    const code = readFileSync(file, "utf-8");
     const filename = relative(process.cwd(), file);
     const doc = extractDocument(code, { filename, warnings, ...config });
     if (doc) out.push(doc);
@@ -251,7 +243,7 @@ function extractAllDocuments(
   }
   if (strict && list.length > 0) {
     console.error(
-      `[neokapi] --strict: ${list.length} warning${list.length === 1 ? '' : 's'} treated as errors. Exiting non-zero.`,
+      `[neokapi] --strict: ${list.length} warning${list.length === 1 ? "" : "s"} treated as errors. Exiting non-zero.`,
     );
     process.exit(1);
   }
@@ -260,9 +252,9 @@ function extractAllDocuments(
 
 function buildKLF(doc: Document, opts: ExtractArgs) {
   return {
-    schemaVersion: '1.0' as const,
-    kind: 'kapi-localization-format' as const,
-    generator: { id: '@neokapi/kapi-react', version: readPackageVersion() },
+    schemaVersion: "1.0" as const,
+    kind: "kapi-localization-format" as const,
+    generator: { id: "@neokapi/kapi-react", version: readPackageVersion() },
     project: {
       id: opts.projectId,
       sourceLocale: opts.sourceLocale,
@@ -275,16 +267,16 @@ function buildKLF(doc: Document, opts: ExtractArgs) {
 function klfFilename(doc: Document): string {
   // Keep the source file's path shape inside --out so translators
   // scanning the directory see a 1:1 reflection of the source tree.
-  return doc.path.replace(/\.(tsx|jsx|ts|js)$/, '') + '.klf';
+  return doc.path.replace(/\.(tsx|jsx|ts|js)$/, "") + ".klf";
 }
 
 function readPackageVersion(): string {
   try {
-    const url = new URL('../../package.json', import.meta.url);
-    const pkg = JSON.parse(readFileSync(url, 'utf-8')) as { version?: string };
-    return pkg.version ?? '0.0.0';
+    const url = new URL("../../package.json", import.meta.url);
+    const pkg = JSON.parse(readFileSync(url, "utf-8")) as { version?: string };
+    return pkg.version ?? "0.0.0";
   } catch {
-    return '0.0.0';
+    return "0.0.0";
   }
 }
 

@@ -24,28 +24,28 @@
  * (or Select case matching) at runtime.
  */
 
-import type { Expression, JSXElement } from '@swc/core';
+import type { Expression, JSXElement } from "@swc/core";
 
-import { exprToName, getTagName } from './ast.ts';
+import { exprToName, getTagName } from "./ast.ts";
 
-export type PluralFormKey = 'zero' | 'one' | 'two' | 'few' | 'many' | 'other';
+export type PluralFormKey = "zero" | "one" | "two" | "few" | "many" | "other";
 
 /** Map of child tag → plural form key. */
 const PLURAL_FORMS: Record<string, PluralFormKey> = {
-  Zero: 'zero',
-  One: 'one',
-  Two: 'two',
-  Few: 'few',
-  Many: 'many',
-  Other: 'other',
+  Zero: "zero",
+  One: "one",
+  Two: "two",
+  Few: "few",
+  Many: "many",
+  Other: "other",
 };
 
 export function isPluralTag(tag: string): boolean {
-  return tag === 'Plural';
+  return tag === "Plural";
 }
 
 export function isSelectTag(tag: string): boolean {
-  return tag === 'Select';
+  return tag === "Select";
 }
 
 /** Resolved info about a `<Plural>` opening. */
@@ -84,11 +84,11 @@ export interface SelectCaseChild {
  * when the opening tag lacks a recognizable `count` prop.
  */
 export function parsePlural(el: JSXElement): PluralInfo | null {
-  const pivot = readExpressionAttr(el, 'count');
+  const pivot = readExpressionAttr(el, "count");
   if (!pivot) return null;
   const forms: PluralFormChild[] = [];
   for (const child of el.children ?? []) {
-    if (child.type !== 'JSXElement') continue;
+    if (child.type !== "JSXElement") continue;
     const tag = getTagName(child);
     if (!tag) continue;
     const key = PLURAL_FORMS[tag];
@@ -103,19 +103,19 @@ export function parsePlural(el: JSXElement): PluralInfo | null {
  * when the opening tag lacks a `value` prop.
  */
 export function parseSelect(el: JSXElement): SelectInfo | null {
-  const pivot = readExpressionAttr(el, 'value');
+  const pivot = readExpressionAttr(el, "value");
   if (!pivot) return null;
   const cases: SelectCaseChild[] = [];
   let otherEl: JSXElement | undefined;
   for (const child of el.children ?? []) {
-    if (child.type !== 'JSXElement') continue;
+    if (child.type !== "JSXElement") continue;
     const tag = getTagName(child);
     if (!tag) continue;
-    if (tag === 'Case') {
-      const key = readStringAttr(child, 'when');
+    if (tag === "Case") {
+      const key = readStringAttr(child, "when");
       if (key == null) continue;
       cases.push({ key, el: child });
-    } else if (tag === 'Other') {
+    } else if (tag === "Other") {
       otherEl = child;
     }
   }
@@ -131,20 +131,20 @@ interface PivotAttr {
 
 function readExpressionAttr(el: JSXElement, attrName: string): PivotAttr | null {
   for (const attr of el.opening.attributes ?? []) {
-    if (attr.type !== 'JSXAttribute' || attr.name.type !== 'Identifier') continue;
+    if (attr.type !== "JSXAttribute" || attr.name.type !== "Identifier") continue;
     if (attr.name.value !== attrName) continue;
     const value = attr.value;
     if (!value) return null;
-    if (value.type === 'JSXExpressionContainer') {
-      if (value.expression.type === 'JSXEmptyExpression') return null;
+    if (value.type === "JSXExpressionContainer") {
+      if (value.expression.type === "JSXEmptyExpression") return null;
       return {
         name: exprToName(value.expression as Expression),
         source: spanSlice(value.expression),
       };
     }
-    if (value.type === 'StringLiteral') {
+    if (value.type === "StringLiteral") {
       // `<Plural count="3">` — uncommon but valid if literal.
-      return { name: 'value', source: JSON.stringify(value.value) };
+      return { name: "value", source: JSON.stringify(value.value) };
     }
   }
   return null;
@@ -152,15 +152,12 @@ function readExpressionAttr(el: JSXElement, attrName: string): PivotAttr | null 
 
 function readStringAttr(el: JSXElement, attrName: string): string | null {
   for (const attr of el.opening.attributes ?? []) {
-    if (attr.type !== 'JSXAttribute' || attr.name.type !== 'Identifier') continue;
+    if (attr.type !== "JSXAttribute" || attr.name.type !== "Identifier") continue;
     if (attr.name.value !== attrName) continue;
     const value = attr.value;
     if (!value) return null;
-    if (value.type === 'StringLiteral') return value.value;
-    if (
-      value.type === 'JSXExpressionContainer' &&
-      value.expression.type === 'StringLiteral'
-    ) {
+    if (value.type === "StringLiteral") return value.value;
+    if (value.type === "JSXExpressionContainer" && value.expression.type === "StringLiteral") {
       return value.expression.value;
     }
   }
@@ -173,5 +170,5 @@ function spanSlice(node: unknown): string {
   // the caller can slice it. The walker hands buildRuns its
   // sourceSlice; here we return an empty string and let the walker
   // enrich the Placeholder metadata with the real slice.
-  return span ? '' : '';
+  return span ? "" : "";
 }

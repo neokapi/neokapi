@@ -16,22 +16,22 @@
  * (pseudo-translate, AI translate, TM, QA, …) goes through `kapi`.
  */
 
-import { runExtract } from './commands/extract.ts';
-import { runCompile } from './commands/compile.ts';
+import { runExtract } from "./commands/extract.ts";
+import { runCompile } from "./commands/compile.ts";
 
 const [, , command, ...rest] = process.argv;
 
 async function main() {
   switch (command) {
-    case 'extract':
+    case "extract":
       await runExtract(rest);
       return;
-    case 'compile':
+    case "compile":
       await runCompile(rest);
       return;
     case undefined:
-    case '--help':
-    case '-h':
+    case "--help":
+    case "-h":
       usage();
       process.exit(command ? 0 : 1);
       return;

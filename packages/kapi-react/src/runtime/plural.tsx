@@ -22,8 +22,8 @@
  * the UI renders the correct form without requiring a build.
  */
 
-import type { ReactElement, ReactNode } from 'react';
-import { Children, isValidElement } from 'react';
+import type { ReactElement, ReactNode } from "react";
+import { Children, isValidElement } from "react";
 
 // ─── Plural ──────────────────────────────────────────────────
 
@@ -31,7 +31,7 @@ import { Children, isValidElement } from 'react';
  * ICU plural-rule keywords. `'other'` is the required catch-all;
  * every plural form the runtime can receive is one of these.
  */
-export type PluralFormKey = 'zero' | 'one' | 'two' | 'few' | 'many' | 'other';
+export type PluralFormKey = "zero" | "one" | "two" | "few" | "many" | "other";
 
 export interface PluralProps {
   /** The integer that drives form selection (CLDR plural rules). */
@@ -52,7 +52,7 @@ export function Plural(props: PluralProps): ReactNode {
   return pickForm(props.children, key, PluralFormTags);
 }
 
-Plural.displayName = 'Plural';
+Plural.displayName = "Plural";
 
 // Per-form sub-components — each is a passthrough renderer. The
 // extractor + plugin recognize them by tag name; the runtime recognizes
@@ -64,20 +64,20 @@ function makeFormComponent(tag: string) {
   return Component;
 }
 
-export const Zero = makeFormComponent('Zero');
-export const One = makeFormComponent('One');
-export const Two = makeFormComponent('Two');
-export const Few = makeFormComponent('Few');
-export const Many = makeFormComponent('Many');
-export const Other = makeFormComponent('Other');
+export const Zero = makeFormComponent("Zero");
+export const One = makeFormComponent("One");
+export const Two = makeFormComponent("Two");
+export const Few = makeFormComponent("Few");
+export const Many = makeFormComponent("Many");
+export const Other = makeFormComponent("Other");
 
 const PluralFormTags: Record<string, PluralFormKey> = {
-  Zero: 'zero',
-  One: 'one',
-  Two: 'two',
-  Few: 'few',
-  Many: 'many',
-  Other: 'other',
+  Zero: "zero",
+  One: "one",
+  Two: "two",
+  Few: "few",
+  Many: "many",
+  Other: "other",
 };
 
 // ─── Select ──────────────────────────────────────────────────
@@ -92,7 +92,7 @@ export function Select(props: SelectProps): ReactNode {
   return pickCase(props.children, props.value);
 }
 
-Select.displayName = 'Select';
+Select.displayName = "Select";
 
 export interface CaseProps {
   /** The value this case matches. */
@@ -104,7 +104,7 @@ export function Case({ children }: CaseProps): ReactNode {
   return <>{children}</>;
 }
 
-Case.displayName = 'Case';
+Case.displayName = "Case";
 
 // ─── Form / case selection ────────────────────────────────────
 
@@ -123,7 +123,7 @@ function pickForm(
     const formKey = tagMap[name];
     if (!formKey) continue;
     if (formKey === targetKey) return (child as FormChild).props.children ?? null;
-    if (formKey === 'other') fallback = (child as FormChild).props.children ?? null;
+    if (formKey === "other") fallback = (child as FormChild).props.children ?? null;
   }
   return fallback;
 }
@@ -133,10 +133,10 @@ function pickCase(children: ReactNode, value: string): ReactNode {
   for (const child of Children.toArray(children)) {
     if (!isValidElement(child)) continue;
     const name = componentDisplayName(child);
-    if (name === 'Case') {
+    if (name === "Case") {
       const props = (child as ReactElement<CaseProps>).props;
       if (props.when === value) return props.children ?? null;
-    } else if (name === 'Other') {
+    } else if (name === "Other") {
       fallback = (child as FormChild).props.children ?? null;
     }
   }
@@ -145,7 +145,7 @@ function pickCase(children: ReactNode, value: string): ReactNode {
 
 function componentDisplayName(el: ReactElement): string | undefined {
   const type = el.type as { displayName?: string; name?: string } | string;
-  if (typeof type === 'string') return type;
+  if (typeof type === "string") return type;
   return type.displayName ?? type.name;
 }
 
@@ -164,21 +164,21 @@ export function pluralKeyFor(n: number, locale?: string): PluralFormKey {
     return rules.select(n) as PluralFormKey;
   } catch {
     // Minimal English fallback.
-    if (n === 0) return 'zero';
-    if (n === 1) return 'one';
-    return 'other';
+    if (n === 0) return "zero";
+    if (n === 1) return "one";
+    return "other";
   }
 }
 
 function inferLocale(): string {
-  if (typeof document !== 'undefined') {
+  if (typeof document !== "undefined") {
     const lang = document.documentElement?.lang;
     if (lang) return lang;
   }
-  if (typeof navigator !== 'undefined') {
+  if (typeof navigator !== "undefined") {
     const langs = navigator.languages;
     if (langs && langs.length > 0) return langs[0];
     if (navigator.language) return navigator.language;
   }
-  return 'en';
+  return "en";
 }

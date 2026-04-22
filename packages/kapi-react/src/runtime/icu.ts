@@ -20,7 +20,7 @@ export function resolveICU(
   locale?: string,
 ): string {
   if (!params) return text;
-  return parseAndResolve(text, params, locale || 'en');
+  return parseAndResolve(text, params, locale || "en");
 }
 
 function parseAndResolve(
@@ -28,11 +28,11 @@ function parseAndResolve(
   params: Record<string, string | number>,
   locale: string,
 ): string {
-  let result = '';
+  let result = "";
   let i = 0;
 
   while (i < text.length) {
-    if (text[i] === '{') {
+    if (text[i] === "{") {
       const parsed = parseExpression(text, i, params, locale);
       result += parsed.value;
       i = parsed.end;
@@ -56,43 +56,42 @@ function parseExpression(
 
   // Read the variable name
   const varStart = i;
-  while (i < text.length && text[i] !== ',' && text[i] !== '}') i++;
+  while (i < text.length && text[i] !== "," && text[i] !== "}") i++;
   const varName = text.slice(varStart, i).trim();
 
-  if (text[i] === '}') {
+  if (text[i] === "}") {
     // Simple substitution: {varName}
-    const value = varName === '#'
-      ? String(params._count ?? '')
-      : String(params[varName] ?? `{${varName}}`);
+    const value =
+      varName === "#" ? String(params._count ?? "") : String(params[varName] ?? `{${varName}}`);
     return { value, end: i + 1 };
   }
 
   // Skip comma
   i++;
   // Read the type (plural, select, selectordinal)
-  while (i < text.length && text[i] === ' ') i++;
+  while (i < text.length && text[i] === " ") i++;
   const typeStart = i;
-  while (i < text.length && text[i] !== ',') i++;
+  while (i < text.length && text[i] !== ",") i++;
   const type = text.slice(typeStart, i).trim();
   i++; // skip comma
 
   // Parse the branches
   const branches: Record<string, string> = {};
-  while (i < text.length && text[i] !== '}') {
+  while (i < text.length && text[i] !== "}") {
     // Skip whitespace
-    while (i < text.length && (text[i] === ' ' || text[i] === '\n')) i++;
-    if (text[i] === '}') break;
+    while (i < text.length && (text[i] === " " || text[i] === "\n")) i++;
+    if (text[i] === "}") break;
 
     // Read branch key (one, other, male, female, =0, etc.)
     const keyStart = i;
-    while (i < text.length && text[i] !== ' ' && text[i] !== '{') i++;
+    while (i < text.length && text[i] !== " " && text[i] !== "{") i++;
     const key = text.slice(keyStart, i).trim();
 
     // Skip whitespace
-    while (i < text.length && text[i] === ' ') i++;
+    while (i < text.length && text[i] === " ") i++;
 
     // Read branch value (balanced braces)
-    if (text[i] === '{') {
+    if (text[i] === "{") {
       const branchContent = readBalancedBraces(text, i);
       branches[key] = branchContent.content;
       i = branchContent.end;
@@ -100,30 +99,30 @@ function parseExpression(
   }
 
   // Skip closing }
-  if (i < text.length && text[i] === '}') i++;
+  if (i < text.length && text[i] === "}") i++;
 
   // Resolve the correct branch
   const paramValue = params[varName];
   let selectedBranch: string;
 
-  if (type === 'plural' || type === 'selectordinal') {
-    const count = typeof paramValue === 'number' ? paramValue : Number(paramValue);
+  if (type === "plural" || type === "selectordinal") {
+    const count = typeof paramValue === "number" ? paramValue : Number(paramValue);
     // Check for exact match first (=0, =1, =2, etc.)
     if (branches[`=${count}`] !== undefined) {
       selectedBranch = branches[`=${count}`];
     } else {
       // Use Intl.PluralRules
       const rules = new Intl.PluralRules(locale, {
-        type: type === 'selectordinal' ? 'ordinal' : 'cardinal',
+        type: type === "selectordinal" ? "ordinal" : "cardinal",
       });
       const category = rules.select(count);
-      selectedBranch = branches[category] ?? branches['other'] ?? '';
+      selectedBranch = branches[category] ?? branches["other"] ?? "";
     }
     // Resolve # as the count value
-    selectedBranch = selectedBranch.replaceAll('#', String(count));
+    selectedBranch = selectedBranch.replaceAll("#", String(count));
   } else {
     // select: exact string match
-    selectedBranch = branches[String(paramValue)] ?? branches['other'] ?? '';
+    selectedBranch = branches[String(paramValue)] ?? branches["other"] ?? "";
   }
 
   // Recursively resolve any nested expressions
@@ -136,16 +135,13 @@ function parseExpression(
  * Read content inside balanced braces: {content}
  * Handles nested braces.
  */
-function readBalancedBraces(
-  text: string,
-  start: number,
-): { content: string; end: number } {
+function readBalancedBraces(text: string, start: number): { content: string; end: number } {
   let depth = 0;
   let i = start;
 
   while (i < text.length) {
-    if (text[i] === '{') depth++;
-    else if (text[i] === '}') {
+    if (text[i] === "{") depth++;
+    else if (text[i] === "}") {
       depth--;
       if (depth === 0) {
         return {

@@ -1,2 +1,2 @@
-import { unplugin } from './index.ts';
+import { unplugin } from "./index.ts";
 export default unplugin.esbuild;

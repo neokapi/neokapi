@@ -13,11 +13,11 @@
  * `{ "<block.hash>": "<flattened target>" }`.
  */
 
-import { readFileSync, writeFileSync, mkdirSync, readdirSync, statSync } from 'node:fs';
-import { dirname, extname, join } from 'node:path';
+import { readFileSync, writeFileSync, mkdirSync, readdirSync, statSync } from "node:fs";
+import { dirname, extname, join } from "node:path";
 
-import type { Block, File } from '@neokapi/kapi-format';
-import { flattenRuns } from '@neokapi/kapi-format';
+import type { Block, File } from "@neokapi/kapi-format";
+import { flattenRuns } from "@neokapi/kapi-format";
 
 interface BlockRecord {
   block: Block;
@@ -26,22 +26,22 @@ interface BlockRecord {
 export async function runCompile(args: string[]) {
   let input: string | null = null;
   const locales: string[] = [];
-  let outDir = 'public/translations';
+  let outDir = "public/translations";
 
   for (let i = 0; i < args.length; i++) {
     const flag = args[i];
     const value = args[i + 1];
-    if (flag === '--help' || flag === '-h') {
+    if (flag === "--help" || flag === "-h") {
       console.log(usage);
       return;
     }
-    if (flag === '--out' && value) outDir = args[++i];
-    else if (flag === '--locale' && value) locales.push(args[++i]);
-    else if (!flag.startsWith('--')) input = flag;
+    if (flag === "--out" && value) outDir = args[++i];
+    else if (flag === "--locale" && value) locales.push(args[++i]);
+    else if (!flag.startsWith("--")) input = flag;
   }
 
   if (!input) {
-    console.error('error: missing input (.klf file, .klf directory, or - for stdin)\n');
+    console.error("error: missing input (.klf file, .klf directory, or - for stdin)\n");
     console.log(usage);
     process.exit(1);
   }
@@ -58,7 +58,7 @@ export async function runCompile(args: string[]) {
   }
 
   if (targetLocales.size === 0) {
-    console.error('error: input has no target locales; pass --locale explicitly');
+    console.error("error: input has no target locales; pass --locale explicitly");
     process.exit(1);
   }
 
@@ -80,7 +80,7 @@ export async function runCompile(args: string[]) {
   }
 
   if (totalCompiled === 0) {
-    console.warn('warning: no translated blocks found for any target locale');
+    console.warn("warning: no translated blocks found for any target locale");
   }
 }
 
@@ -88,7 +88,7 @@ async function loadBlocks(input: string): Promise<{
   blocks: BlockRecord[];
   declaredTargets: string[];
 }> {
-  if (input === '-') return loadBlocksFromStdin();
+  if (input === "-") return loadBlocksFromStdin();
   const stat = statSync(input);
   if (stat.isDirectory()) return loadBlocksFromKLFDir(input);
   return loadBlocksFromKLF(input);
@@ -98,7 +98,7 @@ function loadBlocksFromKLF(path: string): {
   blocks: BlockRecord[];
   declaredTargets: string[];
 } {
-  const raw = readFileSync(path, 'utf-8');
+  const raw = readFileSync(path, "utf-8");
   const file = JSON.parse(raw) as File;
   const blocks: BlockRecord[] = [];
   for (const doc of file.documents ?? []) {
@@ -127,7 +127,7 @@ function walkKLFs(dir: string, visit: (path: string) => void) {
   for (const entry of readdirSync(dir, { withFileTypes: true })) {
     const path = join(dir, entry.name);
     if (entry.isDirectory()) walkKLFs(path, visit);
-    else if (entry.isFile() && extname(path).toLowerCase() === '.klf') visit(path);
+    else if (entry.isFile() && extname(path).toLowerCase() === ".klf") visit(path);
   }
 }
 
@@ -138,16 +138,16 @@ async function loadBlocksFromStdin(): Promise<{
   const chunks: Buffer[] = [];
   for await (const chunk of process.stdin) {
     if (Buffer.isBuffer(chunk)) chunks.push(chunk);
-    else if (typeof chunk === 'string') chunks.push(Buffer.from(chunk, 'utf8'));
+    else if (typeof chunk === "string") chunks.push(Buffer.from(chunk, "utf8"));
     else chunks.push(Buffer.from(chunk as unknown as ArrayBuffer));
   }
-  const text = Buffer.concat(chunks).toString('utf8');
+  const text = Buffer.concat(chunks).toString("utf8");
   const blocks: BlockRecord[] = [];
-  for (const line of text.split('\n')) {
+  for (const line of text.split("\n")) {
     const trimmed = line.trim();
-    if (!trimmed.startsWith('{')) continue;
+    if (!trimmed.startsWith("{")) continue;
     const rec = JSON.parse(trimmed) as { type: string; block?: Block };
-    if (rec.type === 'block' && rec.block) blocks.push({ block: rec.block });
+    if (rec.type === "block" && rec.block) blocks.push({ block: rec.block });
   }
   return { blocks, declaredTargets: [] };
 }

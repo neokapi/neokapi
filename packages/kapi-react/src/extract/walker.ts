@@ -8,26 +8,29 @@
  * what `__t()` / `__tx()` look up at render time.
  */
 
-import { parseSync, type JSXElement, type Module } from '@swc/core';
+import { parseSync, type JSXElement, type Module } from "@swc/core";
 
-import type { Block, Document, Run } from '@neokapi/kapi-format';
+import type { Block, Document, Run } from "@neokapi/kapi-format";
 
-import { getStringAttr, getTagName, lineFromOffset, resolveHTMLElement } from './ast.ts';
-import { buildJSXPath } from './jsx-path.ts';
-import { collectTIdentifiers, walkTCalls } from './messages.ts';
-import { buildRuns } from './runs.ts';
-import { hasTranslatableText, isAllInlineContent, resolvePolicy } from './translatable.ts';
-import type { Warning, WarningCollector } from './warnings.ts';
+import {
+  getStringAttr,
+  getTagName,
+  labelLikeMemberExpr,
+  lineFromOffset,
+  resolveHTMLElement,
+} from "./ast.ts";
+import { buildJSXPath } from "./jsx-path.ts";
+import { collectTIdentifiers, walkTCalls } from "./messages.ts";
+import { buildRuns } from "./runs.ts";
+import { hasTranslatableText, isAllInlineContent, resolvePolicy } from "./translatable.ts";
+import type { Warning, WarningCollector } from "./warnings.ts";
 
-import { translatableAttributes } from '../plugin/defaults.ts';
-import { hashKey } from '../plugin/hash.ts';
-import { resolveLibraryComponentMap } from '../plugin/manifests.ts';
-import { CONTEXT_SEPARATOR, type PluginOptions } from '../types.ts';
+import { translatableAttributes } from "../plugin/defaults.ts";
+import { hashKey } from "../plugin/hash.ts";
+import { resolveLibraryComponentMap } from "../plugin/manifests.ts";
+import { CONTEXT_SEPARATOR, type PluginOptions } from "../types.ts";
 
-export type ExtractOptions = Pick<
-  PluginOptions,
-  'componentMap' | 'rules' | 'communityManifestDir'
->;
+export type ExtractOptions = Pick<PluginOptions, "componentMap" | "rules" | "communityManifestDir">;
 
 export interface WalkerOptions extends ExtractOptions {
   /**
@@ -69,7 +72,7 @@ export function extractDocument(code: string, opts: WalkerOptions): Document | n
   );
   const effectiveMap: Record<string, string> = {
     ...libraryMap,
-    ...(opts.componentMap ?? {}),
+    ...opts.componentMap,
   };
 
   const fallbackComponent = basename(opts.filename);
@@ -91,16 +94,16 @@ export function extractDocument(code: string, opts: WalkerOptions): Document | n
 
   return {
     id: opts.filename,
-    documentType: 'jsx',
+    documentType: "jsx",
     path: opts.filename,
     blocks,
   };
 }
 
 function basename(filename: string): string {
-  const slash = Math.max(filename.lastIndexOf('/'), filename.lastIndexOf('\\'));
+  const slash = Math.max(filename.lastIndexOf("/"), filename.lastIndexOf("\\"));
   const stem = slash >= 0 ? filename.slice(slash + 1) : filename;
-  const dot = stem.lastIndexOf('.');
+  const dot = stem.lastIndexOf(".");
   return dot >= 0 ? stem.slice(0, dot) : stem;
 }
 
@@ -109,7 +112,7 @@ function basename(filename: string): string {
 class BlockCollector {
   private readonly code: string;
   private readonly componentMap: Record<string, string>;
-  private readonly rules: NonNullable<ExtractOptions['rules']>;
+  private readonly rules: NonNullable<ExtractOptions["rules"]>;
   private readonly filename: string;
   private readonly warnings: WarningCollector | undefined;
   private readonly out: Block[] = [];
@@ -148,7 +151,13 @@ class BlockCollector {
   visit(el: JSXElement, ancestors: readonly JSXElement[], component: string): boolean {
     const tag = getTagName(el);
     if (!tag) return false;
-    if (getStringAttr(el, 'translate') === 'no') return false;
+    if (getStringAttr(el, "translate") === "no") return false;
+
+    // Scan direct expression children for `{obj.label}`-style
+    // patterns before we decide whether to extract the element —
+    // even elements whose only content is `{item.title}` (and thus
+    // don't get a block at all) need flagging.
+    this.scanForLabelSplice(el);
 
     // For unmapped React components we still want to consider
     // their direct text — the user's source is the ground truth,
@@ -182,18 +191,14 @@ class BlockCollector {
     // default for the dominant React idiom, and warnings added
     // noise without any actionable follow-up.
     if (unmappedComponent) {
-      this.warn('unknown-component', tag, el);
+      this.warn("unknown-component", tag, el);
     }
 
     this.emitElementBlock(el, ancestors, policy.locNote, component);
     return true;
   }
 
-  private warn(
-    kind: Warning['kind'],
-    tag: string,
-    el: JSXElement,
-  ): void {
+  private warn(kind: Warning["kind"], tag: string, el: JSXElement): void {
     if (!this.warnings) return;
     const line = lineFromOffset(this.code, el.span.start);
     this.warnings.add({
@@ -205,9 +210,42 @@ class BlockCollector {
     });
   }
 
+  /**
+   * Walks `el`'s direct JSX children and flags any expression
+   * container that dereferences a label-like property
+   * (`{meta.label}`, `{item.title}`, …). Fires before the walker
+   * recurses, so the warning surfaces whether or not the enclosing
+   * element ends up as a translatable block.
+   *
+   * visit() runs before the walker descends into `el`, so child
+   * expression spans are still in raw SWC-base coordinates;
+   * subtract spanBase to align with `code`.
+   */
+  private scanForLabelSplice(el: JSXElement): void {
+    if (!this.warnings) return;
+    for (const child of el.children ?? []) {
+      if (child.type !== "JSXExpressionContainer") continue;
+      if (child.expression.type === "JSXEmptyExpression") continue;
+      const expr = child.expression;
+      const labelExpr = labelLikeMemberExpr(expr as never);
+      if (!labelExpr) continue;
+
+      const rawStart = (expr as { span?: { start: number } }).span?.start ?? 0;
+      const offset = Math.max(0, rawStart - this.spanBase);
+      const line = lineFromOffset(this.code, offset);
+      this.warnings.add({
+        kind: "dyn-label-splice",
+        filename: this.filename,
+        line,
+        tag: labelExpr,
+        snippet: this.snippet(line),
+      });
+    }
+  }
+
   private snippet(line: number): string {
-    const lines = this.code.split('\n');
-    const raw = (lines[line - 1] ?? '').trim();
+    const lines = this.code.split("\n");
+    const raw = (lines[line - 1] ?? "").trim();
     return raw.length > 80 ? `${raw.slice(0, 80)}…` : raw;
   }
 
@@ -230,20 +268,20 @@ class BlockCollector {
     node: { span: { start: number; end: number } },
     component: string,
   ): void {
-    if (text === '') return;
+    if (text === "") return;
 
-    const desc = `t${CONTEXT_SEPARATOR}${context ?? ''}`;
+    const desc = `t${CONTEXT_SEPARATOR}${context ?? ""}`;
     const hash = hashKey(text, desc);
     if (this.seenHashes.has(hash)) return;
     this.seenHashes.add(hash);
 
     const line = lineFromOffset(this.code, node.span.start);
-    const properties: Block['properties'] = {
+    const properties: Block["properties"] = {
       file: this.filename,
       line,
       component,
-      jsxPath: 't()',
-      element: 't',
+      jsxPath: "t()",
+      element: "t",
     };
     if (context) properties.locNote = context;
 
@@ -251,7 +289,7 @@ class BlockCollector {
       id: `${this.filename}:${line}:t`,
       hash,
       translatable: true,
-      type: 'js:t',
+      type: "js:t",
       source: [{ text }] as Run[],
       placeholders: [],
       properties,
@@ -272,7 +310,7 @@ class BlockCollector {
       componentMap: this.componentMap,
       sourceSlice: (start, end) => this.sliceSource(start, end),
     });
-    if (flatText === '') return;
+    if (flatText === "") return;
 
     const hash = hashKey(flatText, desc);
     if (this.seenHashes.has(hash)) return;
@@ -282,7 +320,7 @@ class BlockCollector {
       id: `${this.filename}:${lineFromOffset(this.code, el.span.start)}:${this.out.length}`,
       hash,
       translatable: true,
-      type: 'jsx:element',
+      type: "jsx:element",
       source: runs,
       placeholders,
       properties: blockProperties(this.filename, el, this.code, jsxPath, component, locNote),
@@ -298,31 +336,86 @@ class BlockCollector {
     component: string,
   ): void {
     for (const attr of el.opening.attributes ?? []) {
-      if (attr.type !== 'JSXAttribute') continue;
-      if (attr.name.type !== 'Identifier') continue;
+      if (attr.type !== "JSXAttribute") continue;
+      if (attr.name.type !== "Identifier") continue;
       const name = attr.name.value;
       if (!translatableAttributes.has(name)) continue;
-      if (!attr.value || attr.value.type !== 'StringLiteral') continue;
-      const text = attr.value.value;
-      if (!text.trim()) continue;
+      if (!attr.value) continue;
 
-      const jsxPath = buildJSXPath(ancestors, el, this.componentMap);
-      const context = `${jsxPath}[${name}]`;
-      const desc = locNote ? `${context}${CONTEXT_SEPARATOR}${locNote}` : context;
-      const hash = hashKey(text, desc);
-      if (this.seenHashes.has(hash)) continue;
-      this.seenHashes.add(hash);
+      // Plain string literal: single block (the dominant case).
+      if (attr.value.type === "StringLiteral") {
+        this.emitOneAttributeBlock(el, ancestors, locNote, component, name, attr.value.value, null);
+        continue;
+      }
 
-      this.out.push({
-        id: `${this.filename}:${lineFromOffset(this.code, el.span.start)}:${name}`,
-        hash,
-        translatable: true,
-        type: 'jsx:attribute',
-        source: [{ text }] as Run[],
-        placeholders: [],
-        properties: blockProperties(this.filename, el, this.code, context, component, locNote),
-      });
+      // `title={cond ? "A" : "B"}` — extract both branches so neither
+      // silently bypasses translation. Branches disambiguate via a
+      // branch index (::0 / ::1) appended to the attribute context;
+      // transform rewrites each branch to its own __t() call using
+      // the same suffix scheme.
+      if (
+        attr.value.type === "JSXExpressionContainer" &&
+        attr.value.expression.type === "ConditionalExpression"
+      ) {
+        const cond = attr.value.expression;
+        if (cond.consequent.type === "StringLiteral" && cond.alternate.type === "StringLiteral") {
+          this.emitOneAttributeBlock(
+            el,
+            ancestors,
+            locNote,
+            component,
+            name,
+            cond.consequent.value,
+            0,
+          );
+          this.emitOneAttributeBlock(
+            el,
+            ancestors,
+            locNote,
+            component,
+            name,
+            cond.alternate.value,
+            1,
+          );
+          continue;
+        }
+        // Branches aren't both string literals — nothing we can
+        // statically extract. Flag it so the dev knows the attr
+        // content silently bypasses translation.
+        this.warn("ternary-attr-complex", `${name}`, el);
+      }
     }
+  }
+
+  private emitOneAttributeBlock(
+    el: JSXElement,
+    ancestors: readonly JSXElement[],
+    locNote: string | undefined,
+    component: string,
+    name: string,
+    text: string,
+    branchIndex: number | null,
+  ): void {
+    if (!text.trim()) return;
+
+    const jsxPath = buildJSXPath(ancestors, el, this.componentMap);
+    const context =
+      branchIndex === null ? `${jsxPath}[${name}]` : `${jsxPath}[${name}::${branchIndex}]`;
+    const desc = locNote ? `${context}${CONTEXT_SEPARATOR}${locNote}` : context;
+    const hash = hashKey(text, desc);
+    if (this.seenHashes.has(hash)) return;
+    this.seenHashes.add(hash);
+
+    const idSuffix = branchIndex === null ? name : `${name}:${branchIndex}`;
+    this.out.push({
+      id: `${this.filename}:${lineFromOffset(this.code, el.span.start)}:${idSuffix}`,
+      hash,
+      translatable: true,
+      type: "jsx:attribute",
+      source: [{ text }] as Run[],
+      placeholders: [],
+      properties: blockProperties(this.filename, el, this.code, context, component, locNote),
+    });
   }
 
   // ─── Source helpers ─────────────────────────────────────────
@@ -330,7 +423,7 @@ class BlockCollector {
   private sliceSource(start: number, end: number): string {
     const a = start - this.spanBase;
     const b = end - this.spanBase;
-    if (a < 0 || b <= a) return '';
+    if (a < 0 || b <= a) return "";
     return this.code.slice(a, b);
   }
 }
@@ -344,13 +437,13 @@ function blockProperties(
   jsxPath: string,
   component: string,
   locNote: string | undefined,
-): Block['properties'] {
-  const properties: Block['properties'] = {
+): Block["properties"] {
+  const properties: Block["properties"] = {
     file: filename,
     line: lineFromOffset(code, el.span.start),
     component,
     jsxPath,
-    element: getTagName(el) ?? '',
+    element: getTagName(el) ?? "",
   };
   if (locNote) properties.locNote = locNote;
   return properties;
@@ -381,18 +474,18 @@ function walkJsx(
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   function descend(node: any): void {
-    if (!node || typeof node !== 'object') return;
+    if (!node || typeof node !== "object") return;
 
-    if (node.span && typeof node.span.start === 'number' && base > 0) {
+    if (node.span && typeof node.span.start === "number" && base > 0) {
       node.span.start -= base;
       node.span.end -= base;
     }
 
     const pushedComponent = enterComponentScope(node, components);
 
-    if (node.type === 'JSXElement') {
+    if (node.type === "JSXElement") {
       const el = node as JSXElement;
-      const currentComponent = components[components.length - 1] ?? '';
+      const currentComponent = components[components.length - 1] ?? "";
       const emitted = visit(el, [...ancestors], currentComponent);
 
       // If a block was emitted for el, its inline JSX children were
@@ -405,7 +498,7 @@ function walkJsx(
       ancestors.push(el);
       if (emitted) {
         for (const child of el.children ?? []) {
-          if (child.type === 'JSXExpressionContainer') descend(child);
+          if (child.type === "JSXExpressionContainer") descend(child);
         }
       } else {
         for (const child of el.children ?? []) descend(child);
@@ -415,10 +508,10 @@ function walkJsx(
       ancestors.pop();
     } else {
       for (const key of Object.keys(node)) {
-        if (key === 'type') continue;
+        if (key === "type") continue;
         const val = (node as Record<string, unknown>)[key];
         if (Array.isArray(val)) for (const item of val) descend(item);
-        else if (val && typeof val === 'object' && 'type' in val) descend(val);
+        else if (val && typeof val === "object" && "type" in val) descend(val);
       }
     }
 
@@ -447,18 +540,18 @@ function enterComponentScope(
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function componentNameFromNode(node: any): string | null {
   switch (node.type) {
-    case 'FunctionDeclaration':
+    case "FunctionDeclaration":
       return pascal(node.identifier?.value);
-    case 'ExportDefaultDeclaration': {
+    case "ExportDefaultDeclaration": {
       // Anonymous default export — we leave the name blank; the
       // walker will fall back to the file's basename.
       return null;
     }
-    case 'VariableDeclarator': {
+    case "VariableDeclarator": {
       const nameValue = node.id?.value;
       const init = node.init;
       if (!init) return null;
-      if (init.type !== 'ArrowFunctionExpression' && init.type !== 'FunctionExpression') {
+      if (init.type !== "ArrowFunctionExpression" && init.type !== "FunctionExpression") {
         return null;
       }
       return pascal(nameValue);
@@ -471,26 +564,33 @@ function componentNameFromNode(node: any): string | null {
 function pascal(name: string | undefined): string | null {
   if (!name) return null;
   const first = name[0];
-  if (first >= 'A' && first <= 'Z') return name;
+  if (first >= "A" && first <= "Z") return name;
   return null;
 }
 
 /**
- * SWC reports `BytePos` offsets on the 1-based scheme Rust's source-map
- * crate uses. Position `1` corresponds to byte 0 of the input, so a
- * slice of the JS input requires subtracting 1 from every span
- * bound. The value is a constant regardless of leading whitespace
- * in the module — `module.span.start` is NOT the right base because
- * it skips any leading whitespace.
+ * SWC reports `BytePos` offsets anchored to a process-global base that
+ * grows with every `parseSync` call. For the first parse of a fresh
+ * process the base is 1 (position 1 → byte 0); for subsequent parses
+ * the base can be in the thousands, so we can't hardcode it.
+ *
+ * `module.span.start` points at the first non-whitespace byte, so it's
+ * off by any leading whitespace — but leading whitespace doesn't
+ * affect the line count used in warnings (a newline in whitespace
+ * gets counted either way since lineFromOffset counts over the
+ * input `code`, not the SWC view of it), and it's robust across
+ * test-vs-standalone invocations. Accurate source slicing via
+ * `sourceSlice` stays correct because each span is normalised by
+ * the same offset.
  */
-function findBaseOffset(_module: Module): number {
-  return 1;
+function findBaseOffset(module: Module): number {
+  return module.span?.start ?? 1;
 }
 
 function tryParse(code: string, filename: string): Module | null {
   try {
     return parseSync(code, {
-      syntax: filename.endsWith('.tsx') ? 'typescript' : 'ecmascript',
+      syntax: filename.endsWith(".tsx") ? "typescript" : "ecmascript",
       tsx: true,
       jsx: true,
     });

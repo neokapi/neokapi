@@ -23,12 +23,12 @@
  *   }
  */
 
-import type { Module } from '@swc/core';
-import { existsSync, readFileSync } from 'node:fs';
-import { createRequire } from 'node:module';
-import { dirname, join } from 'node:path';
+import type { Module } from "@swc/core";
+import { existsSync, readFileSync } from "node:fs";
+import { createRequire } from "node:module";
+import { dirname, join } from "node:path";
 
-const requireFromCwd = createRequire(join(process.cwd(), '__placeholder__'));
+const requireFromCwd = createRequire(join(process.cwd(), "__placeholder__"));
 
 export type AutoManifest = {
   components: Record<string, string | null>;
@@ -39,21 +39,21 @@ export type AutoManifest = {
  * Maps HTMLXxxElement type names to HTML tag names.
  */
 const HTML_TYPE_TO_TAG: Record<string, string> = {
-  Anchor: 'a',
-  Button: 'button',
-  Div: 'div',
-  Form: 'form',
-  Heading: 'h2',
-  Image: 'img',
-  Input: 'input',
-  Label: 'label',
-  LI: 'li',
-  Nav: 'nav',
-  OList: 'ol',
-  Paragraph: 'p',
-  Select: 'select',
-  Span: 'span',
-  UList: 'ul',
+  Anchor: "a",
+  Button: "button",
+  Div: "div",
+  Form: "form",
+  Heading: "h2",
+  Image: "img",
+  Input: "input",
+  Label: "label",
+  LI: "li",
+  Nav: "nav",
+  OList: "ol",
+  Paragraph: "p",
+  Select: "select",
+  Span: "span",
+  UList: "ul",
 };
 
 /**
@@ -74,7 +74,7 @@ export function resolveLibraryManifests(
 
   for (const [source, importedNames] of importSources) {
     // Skip relative imports (handled by same-file deduction)
-    if (source.startsWith('.') || source.startsWith('/')) continue;
+    if (source.startsWith(".") || source.startsWith("/")) continue;
 
     const manifest = loadManifest(source, projectRoot, communityManifestDir);
     if (!manifest) continue;
@@ -114,16 +114,14 @@ function loadManifest(
   // Strategy 1: Library ships its own manifest
   const packageDir = resolvePackageDir(packageName, projectRoot);
   if (packageDir) {
-    const libManifest = tryLoadJSON<AutoManifest>(
-      join(packageDir, 'i18n-manifest.json'),
-    );
+    const libManifest = tryLoadJSON<AutoManifest>(join(packageDir, "i18n-manifest.json"));
     if (libManifest) return libManifest;
   }
 
   // Strategy 2: Community-maintained manifest
   if (communityManifestDir) {
     // Convert @radix-ui/react-tabs → radix-ui/react-tabs.json
-    const normalizedName = packageName.replace(/^@/, '');
+    const normalizedName = packageName.replace(/^@/, "");
     const communityPath = join(communityManifestDir, `${normalizedName}.json`);
     const communityManifest = tryLoadJSON<AutoManifest>(communityPath);
     if (communityManifest) return communityManifest;
@@ -140,13 +138,10 @@ function loadManifest(
 /**
  * Resolve the directory of an installed package.
  */
-function resolvePackageDir(
-  packageName: string,
-  projectRoot: string,
-): string | null {
+function resolvePackageDir(packageName: string, projectRoot: string): string | null {
   // Try direct node_modules path
-  const directPath = join(projectRoot, 'node_modules', packageName);
-  if (existsSync(join(directPath, 'package.json'))) {
+  const directPath = join(projectRoot, "node_modules", packageName);
+  if (existsSync(join(directPath, "package.json"))) {
     return directPath;
   }
 
@@ -154,7 +149,7 @@ function resolvePackageDir(
   // often hoist deps to the repo root instead of the sub-package).
   let dir = projectRoot;
   while (true) {
-    const candidate = join(dir, 'node_modules', packageName, 'package.json');
+    const candidate = join(dir, "node_modules", packageName, "package.json");
     if (existsSync(candidate)) return dirname(candidate);
     const parent = dirname(dir);
     if (parent === dir) break;
@@ -182,7 +177,7 @@ function autoGenerateManifest(packageDir: string): AutoManifest | null {
     types?: string;
     typings?: string;
     exports?: Record<string, any>;
-  }>(join(packageDir, 'package.json'));
+  }>(join(packageDir, "package.json"));
 
   if (!pkgJson) return null;
 
@@ -194,8 +189,8 @@ function autoGenerateManifest(packageDir: string): AutoManifest | null {
     typesPath = join(packageDir, pkgJson.typings);
   } else if (pkgJson.exports) {
     // Check exports['.'].types
-    const rootExport = pkgJson.exports['.'];
-    if (rootExport && typeof rootExport === 'object' && rootExport.types) {
+    const rootExport = pkgJson.exports["."];
+    if (rootExport && typeof rootExport === "object" && rootExport.types) {
       typesPath = join(packageDir, rootExport.types);
     }
   }
@@ -204,7 +199,7 @@ function autoGenerateManifest(packageDir: string): AutoManifest | null {
 
   let dtsContent: string;
   try {
-    dtsContent = readFileSync(typesPath, 'utf-8');
+    dtsContent = readFileSync(typesPath, "utf-8");
   } catch {
     return null;
   }
@@ -238,8 +233,7 @@ export function parseManifestFromDTS(dtsContent: string): AutoManifest | null {
   }
 
   // Match type alias re-exports: export declare const Root: typeof Tabs;
-  const aliasRegex =
-    /export\s+(?:declare\s+)?(?:const|var|let)\s+(\w+)\s*:\s*typeof\s+(\w+)\s*;/g;
+  const aliasRegex = /export\s+(?:declare\s+)?(?:const|var|let)\s+(\w+)\s*:\s*typeof\s+(\w+)\s*;/g;
   while ((match = aliasRegex.exec(dtsContent)) !== null) {
     const [, alias, canonical] = match;
     if (alias !== canonical && components[canonical]) {
@@ -255,7 +249,7 @@ export function parseManifestFromDTS(dtsContent: string): AutoManifest | null {
 function tryLoadJSON<T>(filePath: string): T | null {
   try {
     if (!existsSync(filePath)) return null;
-    const content = readFileSync(filePath, 'utf-8');
+    const content = readFileSync(filePath, "utf-8");
     return JSON.parse(content) as T;
   } catch {
     return null;
@@ -276,16 +270,16 @@ function tryLoadJSON<T>(filePath: string): T | null {
 export function collectImports(mod: Module): Map<string, Map<string, string>> {
   const out = new Map<string, Map<string, string>>();
   for (const item of mod.body) {
-    if (item.type !== 'ImportDeclaration') continue;
+    if (item.type !== "ImportDeclaration") continue;
     const source = item.source.value;
-    if (!source || source.startsWith('.') || source.startsWith('/')) continue;
+    if (!source || source.startsWith(".") || source.startsWith("/")) continue;
     let names = out.get(source);
     if (!names) {
       names = new Map();
       out.set(source, names);
     }
     for (const spec of item.specifiers) {
-      if (spec.type !== 'ImportSpecifier') continue;
+      if (spec.type !== "ImportSpecifier") continue;
       const imported = spec.imported?.value ?? spec.local.value;
       names.set(imported, spec.local.value);
     }
@@ -323,7 +317,7 @@ export function resolveLibraryComponentMap(
   communityManifestDir?: string,
   filename?: string,
 ): Record<string, string> {
-  const cacheKey = `${projectRoot}|${communityManifestDir ?? ''}`;
+  const cacheKey = `${projectRoot}|${communityManifestDir ?? ""}`;
   let perSource = libraryMapCache.get(cacheKey);
   if (!perSource) {
     perSource = new Map();
@@ -386,9 +380,7 @@ function resolveOwnPackageManifest(filename: string): Record<string, string> {
   const cached = ownPackageCache.get(packageDir);
   if (cached) return cached;
 
-  const manifest = tryLoadJSON<AutoManifest>(
-    join(packageDir, 'i18n-manifest.json'),
-  );
+  const manifest = tryLoadJSON<AutoManifest>(join(packageDir, "i18n-manifest.json"));
   const out: Record<string, string> = {};
   if (manifest) {
     for (const [name, tag] of Object.entries(manifest.components)) {
@@ -411,7 +403,7 @@ function findOwningPackageDir(filename: string): string | null {
 
   let dir = dirname(filename);
   while (true) {
-    if (existsSync(join(dir, 'package.json'))) {
+    if (existsSync(join(dir, "package.json"))) {
       fileOwningPackageCache.set(filename, dir);
       return dir;
     }

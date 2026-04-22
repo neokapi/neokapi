@@ -8,15 +8,15 @@
  *   // or: from '@neokapi/kapi-react/esbuild'
  */
 
-import { createUnplugin } from 'unplugin';
-import { transform } from './transform.ts';
-import type { PluginOptions } from '../types.ts';
+import { createUnplugin } from "unplugin";
+import { transform } from "./transform.ts";
+import type { PluginOptions } from "../types.ts";
 
 export type { PluginOptions };
 
 export const unpluginFactory = (options: PluginOptions = {}) => ({
-  name: 'neokapi-react',
-  enforce: 'pre' as const,
+  name: "neokapi-react",
+  enforce: "pre" as const,
 
   transformInclude(id: string) {
     return /\.[jt]sx$/.test(id);
@@ -24,7 +24,7 @@ export const unpluginFactory = (options: PluginOptions = {}) => ({
 
   transform(code: string, id: string) {
     // Dev mode: no locale and no runtime mode → no-op
-    if (!options.locale && options.mode !== 'runtime') return null;
+    if (!options.locale && options.mode !== "runtime") return null;
     return transform(code, id, options);
   },
 });

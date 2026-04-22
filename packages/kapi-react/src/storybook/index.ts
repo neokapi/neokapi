@@ -20,7 +20,7 @@
  *   };
  */
 
-import type { Decorator } from '@storybook/react-vite';
+import type { Decorator } from "@storybook/react-vite";
 
 export interface NeokapiLocale {
   /** BCP-47 locale code, e.g. "en", "qps". */
@@ -43,7 +43,7 @@ export interface NeokapiStorybookOptions {
  * nothing for importing this module.
  */
 async function getRuntime() {
-  return (await import('../runtime/index.ts')) as {
+  return (await import("../runtime/index.ts")) as {
     setTranslations: (locale: string, dict: Record<string, string>) => void;
     loadTranslations: (locale: string, url: string) => Promise<void>;
   };
@@ -60,15 +60,14 @@ export function neokapiDecorator(opts: NeokapiStorybookOptions): Decorator {
   let lastApplied: string | null = null;
 
   return (Story, context) => {
-    const value =
-      (context.globals.locale as string | undefined) ?? opts.locales[0]?.value;
+    const value = (context.globals.locale as string | undefined) ?? opts.locales[0]?.value;
 
     if (value && value !== lastApplied) {
       lastApplied = value;
       void (async () => {
         const runtime = await getRuntime();
         const locale = byValue.get(value);
-        if (!locale?.url || typeof fetch === 'undefined') {
+        if (!locale?.url || typeof fetch === "undefined") {
           runtime.setTranslations(value, {});
           return;
         }
@@ -90,11 +89,11 @@ export function neokapiDecorator(opts: NeokapiStorybookOptions): Decorator {
  */
 export function neokapiGlobalType(opts: NeokapiStorybookOptions) {
   return {
-    name: 'Language',
-    description: 'UI language',
-    defaultValue: opts.locales[0]?.value ?? 'en',
+    name: "Language",
+    description: "UI language",
+    defaultValue: opts.locales[0]?.value ?? "en",
     toolbar: {
-      icon: 'globe',
+      icon: "globe",
       items: opts.locales.map((l) => ({ value: l.value, title: l.title })),
       dynamicTitle: true,
     },

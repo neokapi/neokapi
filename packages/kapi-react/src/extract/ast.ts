@@ -3,7 +3,7 @@
  * Kept minimal — every helper is called from the main walker.
  */
 
-import type { Expression, JSXElement } from '@swc/core';
+import type { Expression, JSXElement } from "@swc/core";
 
 /**
  * Returns the JSX element's tag name as seen in source:
@@ -17,12 +17,12 @@ import type { Expression, JSXElement } from '@swc/core';
 export function getTagName(el: JSXElement): string | null {
   const name = el.opening?.name;
   if (!name) return null;
-  if (name.type === 'Identifier') return name.value;
-  if (name.type === 'JSXMemberExpression') {
+  if (name.type === "Identifier") return name.value;
+  if (name.type === "JSXMemberExpression") {
     const obj = name.object as { value?: string; name?: string };
-    return `${obj.value ?? obj.name ?? ''}.${name.property.value}`;
+    return `${obj.value ?? obj.name ?? ""}.${name.property.value}`;
   }
-  if (name.type === 'JSXNamespacedName') {
+  if (name.type === "JSXNamespacedName") {
     return `${name.namespace.value}:${name.name.value}`;
   }
   return null;
@@ -52,13 +52,13 @@ export function resolveHTMLElement(
  */
 export function getStringAttr(el: JSXElement, name: string): string | null {
   for (const attr of el.opening.attributes ?? []) {
-    if (attr.type !== 'JSXAttribute' || attr.name.type !== 'Identifier') continue;
+    if (attr.type !== "JSXAttribute" || attr.name.type !== "Identifier") continue;
     if (attr.name.value !== name) continue;
-    if (!attr.value) return '';
-    if (attr.value.type === 'StringLiteral') return attr.value.value;
+    if (!attr.value) return "";
+    if (attr.value.type === "StringLiteral") return attr.value.value;
     if (
-      attr.value.type === 'JSXExpressionContainer' &&
-      attr.value.expression.type === 'StringLiteral'
+      attr.value.type === "JSXExpressionContainer" &&
+      attr.value.expression.type === "StringLiteral"
     ) {
       return attr.value.expression.value;
     }
@@ -73,7 +73,7 @@ export function getStringAttr(el: JSXElement, name: string): string | null {
  */
 export function hasAttr(el: JSXElement, name: string): boolean {
   for (const attr of el.opening.attributes ?? []) {
-    if (attr.type !== 'JSXAttribute' || attr.name.type !== 'Identifier') continue;
+    if (attr.type !== "JSXAttribute" || attr.name.type !== "Identifier") continue;
     if (attr.name.value === name) return true;
   }
   return false;
@@ -94,25 +94,25 @@ export function hasAttr(el: JSXElement, name: string): boolean {
 export function exprToName(expr: Expression): string {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const anyExpr = expr as any;
-  if (anyExpr.type === 'Identifier') return anyExpr.value;
-  if (anyExpr.type === 'MemberExpression') {
+  if (anyExpr.type === "Identifier") return anyExpr.value;
+  if (anyExpr.type === "MemberExpression") {
     const prop = anyExpr.property;
-    if (prop?.type === 'Identifier') {
+    if (prop?.type === "Identifier") {
       const obj = anyExpr.object;
-      if (obj?.type === 'Identifier' && obj.value) {
+      if (obj?.type === "Identifier" && obj.value) {
         return `${obj.value}.${prop.value}`;
       }
-      return prop.value ?? 'value';
+      return prop.value ?? "value";
     }
   }
-  if (anyExpr.type === 'CallExpression') {
+  if (anyExpr.type === "CallExpression") {
     const callee = anyExpr.callee;
-    if (callee?.type === 'Identifier') return callee.value;
-    if (callee?.type === 'MemberExpression' && callee.property?.type === 'Identifier') {
+    if (callee?.type === "Identifier") return callee.value;
+    if (callee?.type === "MemberExpression" && callee.property?.type === "Identifier") {
       return callee.property.value;
     }
   }
-  return 'value';
+  return "value";
 }
 
 /**
@@ -144,6 +144,58 @@ export function lineFromOffset(code: string, offset: number): number {
 }
 
 /**
+ * Property names that strongly suggest the dereferenced value is a
+ * user-visible string needing translation. When such a property is
+ * dereferenced from an object expression and dropped straight into
+ * JSX text — e.g. `<div>{meta.label}</div>` — the label almost
+ * certainly lives in a hardcoded lookup table and won't ever be
+ * translated. The extractor flags these so devs either extract the
+ * strings explicitly or opt out with translate="no".
+ */
+const LABEL_LIKE_PROPS = new Set([
+  "label",
+  "title",
+  "description",
+  "heading",
+  "caption",
+  "tooltip",
+  "message",
+  "summary",
+  "subtitle",
+  "placeholder",
+]);
+
+/**
+ * True when `expr` is a member-access whose property name matches a
+ * label-like prop (label, title, description, …). Used by the runs
+ * builder to emit a `dyn-label-splice` warning on patterns like
+ * `{meta.label}` inside translatable JSX text.
+ *
+ * Returns the source-readable expression string so the warning can
+ * echo it back ("…renders {meta.label}…"). Returns null when the
+ * expression doesn't match.
+ */
+export function labelLikeMemberExpr(expr: Expression): string | null {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const anyExpr = expr as any;
+  if (anyExpr.type !== "MemberExpression") return null;
+  const prop = anyExpr.property;
+  if (!prop || prop.type !== "Identifier") return null;
+  const name = prop.value as string;
+  if (!LABEL_LIKE_PROPS.has(name)) return null;
+
+  // Build a best-effort source string (object.prop or prop) so the
+  // warning is human-readable. We don't try to render the full
+  // expression for deep chains — keep it cheap.
+  const obj = anyExpr.object;
+  if (obj?.type === "Identifier" && obj.value) return `${obj.value}.${name}`;
+  if (obj?.type === "MemberExpression" && obj.property?.type === "Identifier") {
+    return `${obj.property.value}.${name}`;
+  }
+  return name;
+}
+
+/**
  * True when the AST subtree rooted at `node` contains a `JSXElement`
  * or `JSXFragment` anywhere. Drives the plugin's `__tx` routing for
  * expressions like `{ok && <X/>}` and the extractor's classification
@@ -153,14 +205,14 @@ export function lineFromOffset(code: string, offset: number): number {
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function containsJSX(node: any): boolean {
-  if (!node || typeof node !== 'object') return false;
-  if (node.type === 'JSXElement' || node.type === 'JSXFragment') return true;
+  if (!node || typeof node !== "object") return false;
+  if (node.type === "JSXElement" || node.type === "JSXFragment") return true;
   for (const key of Object.keys(node)) {
-    if (key === 'span' || key === 'type') continue;
+    if (key === "span" || key === "type") continue;
     const val = (node as Record<string, unknown>)[key];
     if (Array.isArray(val)) {
       for (const item of val) if (containsJSX(item)) return true;
-    } else if (val && typeof val === 'object' && containsJSX(val)) {
+    } else if (val && typeof val === "object" && containsJSX(val)) {
       return true;
     }
   }

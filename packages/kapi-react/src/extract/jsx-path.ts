@@ -6,9 +6,9 @@
  * hashes and the runtime dict won't resolve.
  */
 
-import type { JSXElement } from '@swc/core';
+import type { JSXElement } from "@swc/core";
 
-import { getTagName, resolveHTMLElement } from './ast.ts';
+import { getTagName, resolveHTMLElement } from "./ast.ts";
 
 /**
  * Joins ancestor tag names + the element's own tag into a path like
@@ -25,7 +25,7 @@ export function buildJSXPath(
   const parts: string[] = [];
   for (const anc of ancestors) appendResolvedTag(parts, anc, componentMap);
   appendResolvedTag(parts, current, componentMap);
-  return parts.join(' > ');
+  return parts.join(" > ");
 }
 
 function appendResolvedTag(
