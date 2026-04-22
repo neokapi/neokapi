@@ -11,13 +11,15 @@ WORKDIR /src
 COPY go.work go.mod go.sum ./
 COPY cli/go.mod cli/go.sum ./cli/
 COPY kapi/go.mod kapi/go.sum ./kapi/
+COPY apps/kapi-desktop/go.mod apps/kapi-desktop/go.sum ./apps/kapi-desktop/
 COPY bowrain/go.mod bowrain/go.sum ./bowrain/
 COPY bowrain/core/go.mod bowrain/core/go.sum ./bowrain/core/
 COPY bowrain/cli/go.mod bowrain/cli/go.sum ./bowrain/cli/
 RUN go mod download \
     && cd cli && go mod download \
     && cd ../kapi && go mod download \
-    && cd ../bowrain && go mod download \
+    && cd ../apps/kapi-desktop && go mod download \
+    && cd ../../bowrain && go mod download \
     && cd core && go mod download \
     && cd ../cli && go mod download
 
