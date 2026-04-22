@@ -359,6 +359,13 @@ function walkModule(
       const { skipChildren } = visitor(el, jsxAncestors);
       if (skipChildren) return;
       const newAncestors = [...jsxAncestors, el];
+      // Descend into the opening tag too so JSX nested inside an
+      // attribute value (e.g. `actions={<div><Button>…</Button></div>}`)
+      // gets visited. Without this, blocks inside prop JSX extract fine
+      // but never receive their runtime `__t` / `__tx` call, so the
+      // rendered UI stays in the source language. Mirrors the extract
+      // walker (walker.ts) which already descends into `el.opening`.
+      if (el.opening) walk(el.opening, newAncestors);
       for (const child of el.children || []) walk(child, newAncestors);
       return;
     }
