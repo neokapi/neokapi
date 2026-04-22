@@ -20,9 +20,7 @@ function toUtf8(str: string) {
       );
     } else {
       i++;
-      charcode =
-        0x1_00_00 +
-        (((charcode & 0x3_ff) << 10) | (str.charCodeAt(i) & 0x3_ff));
+      charcode = 0x1_00_00 + (((charcode & 0x3_ff) << 10) | (str.charCodeAt(i) & 0x3_ff));
       result.push(
         0xf0 | (charcode >> 18),
         0x80 | ((charcode >> 12) & 0x3f),
@@ -49,13 +47,12 @@ function jenkinsHash(str: string): number {
   return hash;
 }
 
-const BaseNSymbols =
-  '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
+const BaseNSymbols = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
 
 function uintToBaseN(numberArg: number, base: number) {
   let number = numberArg;
-  if (base < 2 || base > 62 || number < 0) return '';
-  let output = '';
+  if (base < 2 || base > 62 || number < 0) return "";
+  let output = "";
   do {
     output = BaseNSymbols.charAt(number % base).concat(output);
     number = Math.floor(number / base);
@@ -68,6 +65,6 @@ function uintToBaseN(numberArg: number, base: number) {
  * Compute the hash key from text and description.
  */
 export function hashKey(text: string, desc: string): string {
-  const key = JSON.stringify(text) + '|' + desc;
+  const key = JSON.stringify(text) + "|" + desc;
   return uintToBaseN(jenkinsHash(key), 62);
 }

@@ -9,34 +9,34 @@
  * every extract-side hash exists in the transform output.
  */
 
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from "vitest";
 
-import { extractDocument } from '../src/extract/index.ts';
-import { transform } from '../src/plugin/transform.ts';
+import { extractDocument } from "../src/extract/index.ts";
+import { transform } from "../src/plugin/transform.ts";
 
 const FIXTURES: ReadonlyArray<{ name: string; code: string }> = [
   {
-    name: 'plain text',
-    code: '<h1>Hello World</h1>',
+    name: "plain text",
+    code: "<h1>Hello World</h1>",
   },
   {
-    name: 'text with variable',
-    code: '<h1>Hello, {name}!</h1>',
+    name: "text with variable",
+    code: "<h1>Hello, {name}!</h1>",
   },
   {
-    name: 'text with member expression',
-    code: '<p>Welcome, {user.name}!</p>',
+    name: "text with member expression",
+    code: "<p>Welcome, {user.name}!</p>",
   },
   {
-    name: 'text with inline element',
+    name: "text with inline element",
     code: '<p>Click <a href="/x">here</a> to continue.</p>',
   },
   {
-    name: 'attribute translation',
+    name: "attribute translation",
     code: '<input placeholder="Search..." />',
   },
   {
-    name: 'multiple blocks in one file',
+    name: "multiple blocks in one file",
     code: `
       <div>
         <h1>Title</h1>
@@ -46,22 +46,22 @@ const FIXTURES: ReadonlyArray<{ name: string; code: string }> = [
     `,
   },
   {
-    name: 'inline child with own text',
-    code: '<p>Press <kbd>Cmd</kbd>+<kbd>K</kbd> to search.</p>',
+    name: "inline child with own text",
+    code: "<p>Press <kbd>Cmd</kbd>+<kbd>K</kbd> to search.</p>",
   },
   {
-    name: 'nested blocks',
-    code: '<section><h2>Title</h2><p>Body</p></section>',
+    name: "nested blocks",
+    code: "<section><h2>Title</h2><p>Body</p></section>",
   },
   {
-    name: 'Plural with flat text forms',
+    name: "Plural with flat text forms",
     code: `<p><Plural count={n}>
       <One>1 item</One>
       <Other>{n} items</Other>
     </Plural></p>`,
   },
   {
-    name: 'Plural with inline JSX inside a form',
+    name: "Plural with inline JSX inside a form",
     code: `<p><Plural count={items.length}>
       <Zero>Your cart is empty</Zero>
       <One>1 item</One>
@@ -69,7 +69,7 @@ const FIXTURES: ReadonlyArray<{ name: string; code: string }> = [
     </Plural></p>`,
   },
   {
-    name: 'Select with literal cases',
+    name: "Select with literal cases",
     code: `<p><Select value={role}>
       <Case when="admin">Admin</Case>
       <Case when="guest">Guest</Case>
@@ -77,27 +77,27 @@ const FIXTURES: ReadonlyArray<{ name: string; code: string }> = [
     </Select></p>`,
   },
   {
-    name: 'container auto-promoted (div with direct text)',
+    name: "container auto-promoted (div with direct text)",
     code: '<div className="mb-3 text-sm font-medium">Appearance</div>',
   },
   {
-    name: 'container with inline child auto-promoted',
-    code: '<div>Click <strong>here</strong> to continue</div>',
+    name: "container with inline child auto-promoted",
+    code: "<div>Click <strong>here</strong> to continue</div>",
   },
   {
-    name: 'unmapped PascalCase component with direct text',
+    name: "unmapped PascalCase component with direct text",
     code: '<TabsTrigger value="general">General</TabsTrigger>',
   },
   {
-    name: 'unmapped component with translatable prop (no children)',
+    name: "unmapped component with translatable prop (no children)",
     code: '<PageHeader title="Termbases" />',
   },
   {
-    name: 'unmapped component with multiple translatable props',
+    name: "unmapped component with multiple translatable props",
     code: '<PageHeader title="Termbases" subtitle="Glossaries you can use in flows" description="Manage term collections" />',
   },
   {
-    name: 'user-facing t() call in JS data',
+    name: "user-facing t() call in JS data",
     code: `
       import { t } from '@neokapi/kapi-react/runtime';
       const LANGS = [
@@ -107,31 +107,39 @@ const FIXTURES: ReadonlyArray<{ name: string; code: string }> = [
     `,
   },
   {
-    name: 't() with params',
+    name: "t() with params",
     code: `
       import { t } from '@neokapi/kapi-react/runtime';
       const greeting = t('Hello, {name}!', { name: 'Alice' });
     `,
   },
   {
-    name: 't() with context',
+    name: "t() with context",
     code: `
       import { t } from '@neokapi/kapi-react/runtime';
       const label = t('English', 'UI Language');
     `,
   },
   {
-    name: 't() with context and params',
+    name: "t() with context and params",
     code: `
       import { t } from '@neokapi/kapi-react/runtime';
       const msg = t('Hello, {name}!', 'greeting', { name: 'Alice' });
     `,
   },
+  {
+    name: "ternary attribute with string-literal branches",
+    code: '<PageHeader title={cond ? "Project Flows" : "Flows"} />',
+  },
+  {
+    name: "unmapped component with self-closing icon child + text",
+    code: "<Button><FolderOpen size={12} />Open File...</Button>",
+  },
 ];
 
 function hashesFromTransform(code: string): Set<string> {
-  const out = transform(code, 'Test.tsx', {
-    mode: 'runtime',
+  const out = transform(code, "Test.tsx", {
+    mode: "runtime",
     onWarning: () => {},
   });
   if (!out?.code) return new Set();
@@ -144,11 +152,11 @@ function hashesFromTransform(code: string): Set<string> {
 }
 
 function hashesFromExtract(code: string): Set<string> {
-  const doc = extractDocument(code, { filename: 'Test.tsx' });
+  const doc = extractDocument(code, { filename: "Test.tsx" });
   return new Set(doc?.blocks.map((b) => b.hash) ?? []);
 }
 
-describe('hash parity between extract and transform', () => {
+describe("hash parity between extract and transform", () => {
   for (const { name, code } of FIXTURES) {
     it(`emits the same hashes for "${name}"`, () => {
       const extracted = hashesFromExtract(code);
@@ -171,7 +179,7 @@ describe('hash parity between extract and transform', () => {
     });
   }
 
-  it('covers every fixture — regression guard', () => {
+  it("covers every fixture — regression guard", () => {
     // Sanity: we're not shipping an empty fixture set.
     expect(FIXTURES.length).toBeGreaterThan(5);
   });

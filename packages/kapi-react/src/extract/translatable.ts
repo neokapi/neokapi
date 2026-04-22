@@ -7,14 +7,14 @@
  * and the build-time transform make the same calls.
  */
 
-import type { JSXElement } from '@swc/core';
+import type { JSXElement } from "@swc/core";
 
-import { getTranslatability, inlineElements } from '../plugin/defaults.ts';
-import type { PluginOptions } from '../types.ts';
-import { getStringAttr, getTagName, hasAttr, resolveHTMLElement } from './ast.ts';
-import { isPluralTag, isSelectTag } from './plural.ts';
+import { getTranslatability, inlineElements } from "../plugin/defaults.ts";
+import type { PluginOptions } from "../types.ts";
+import { getStringAttr, getTagName, hasAttr, resolveHTMLElement } from "./ast.ts";
+import { isPluralTag, isSelectTag } from "./plural.ts";
 
-export type Rule = NonNullable<PluginOptions['rules']>[number];
+export type Rule = NonNullable<PluginOptions["rules"]>[number];
 
 /** Resolved policy for one JSX element. */
 export interface ElementPolicy {
@@ -57,10 +57,10 @@ export function resolvePolicy(
   componentMap: Record<string, string> = {},
 ): ElementPolicy {
   const classification = getTranslatability(htmlElement);
-  let translate = classification === 'yes';
+  let translate = classification === "yes";
   let promoted = false;
 
-  if (!translate && classification === 'container') {
+  if (!translate && classification === "container") {
     if (hasTranslatableText(el) && isAllInlineContent(el, componentMap)) {
       translate = true;
       promoted = true;
@@ -77,7 +77,7 @@ export function resolvePolicy(
     if (rule.locNote) locNote = rule.locNote;
   }
 
-  locNote ??= getStringAttr(el, 'data-i18n-note') ?? undefined;
+  locNote ??= getStringAttr(el, "data-i18n-note") ?? undefined;
   return { translate, locNote, promoted };
 }
 
@@ -90,17 +90,17 @@ export function resolvePolicy(
  */
 function matchesRule(rule: Rule, htmlElement: string, el: JSXElement): boolean {
   const selector = rule.selector;
-  if (selector.startsWith('.')) {
+  if (selector.startsWith(".")) {
     const className = selector.slice(1);
-    const classAttr = getStringAttr(el, 'className');
+    const classAttr = getStringAttr(el, "className");
     return !!classAttr && classAttr.split(/\s+/).includes(className);
   }
-  if (selector.startsWith('[') && selector.endsWith(']')) {
+  if (selector.startsWith("[") && selector.endsWith("]")) {
     const inner = selector.slice(1, -1);
-    const eq = inner.indexOf('=');
+    const eq = inner.indexOf("=");
     if (eq < 0) return hasAttr(el, inner);
     const name = inner.slice(0, eq);
-    const want = inner.slice(eq + 1).replace(/^["']|["']$/g, '');
+    const want = inner.slice(eq + 1).replace(/^["']|["']$/g, "");
     return getStringAttr(el, name) === want;
   }
   return selector === htmlElement;
@@ -113,22 +113,40 @@ function matchesRule(rule: Rule, htmlElement: string, el: JSXElement): boolean {
  * component (whose forms produce typed runs inline). Any block-level
  * child (another paragraph, a list, a fragment) disqualifies it so
  * the nested block gets its own walk instead.
+ *
+ * Zero-children (self-closing or empty) unmapped components are also
+ * treated as inline — almost universally icons/badges/spinners
+ * (`<FolderOpen />`, `<Spinner/>`), and without this relaxation the
+ * surrounding text gets silently dropped. They flatten to an opaque
+ * `jsx:element` placeholder in the parent's runs, same as any other
+ * inline element.
  */
-export function isAllInlineContent(
-  el: JSXElement,
-  componentMap: Record<string, string>,
-): boolean {
+export function isAllInlineContent(el: JSXElement, componentMap: Record<string, string>): boolean {
   for (const child of el.children ?? []) {
-    if (child.type === 'JSXText' || child.type === 'JSXExpressionContainer') continue;
-    if (child.type === 'JSXElement') {
+    if (child.type === "JSXText" || child.type === "JSXExpressionContainer") continue;
+    if (child.type === "JSXElement") {
       const tag = getTagName(child);
       if (!tag) return false;
       if (isPluralTag(tag) || isSelectTag(tag)) continue;
       const html = resolveHTMLElement(tag, componentMap);
       if (html && inlineElements.has(html)) continue;
+      // Zero-children unmapped component → treat as opaque inline.
+      // `<FolderOpen />`, `<Icon size={12} />`, `<Badge />` all look
+      // like this. A block-level custom component would typically
+      // have children, so the heuristic rarely misfires.
+      if (html === null && isChildless(child)) continue;
       return false;
     }
     // JSXSpreadChild, JSXFragment → not representable as runs.
+    return false;
+  }
+  return true;
+}
+
+function isChildless(el: JSXElement): boolean {
+  if (el.opening?.selfClosing) return true;
+  for (const child of el.children ?? []) {
+    if (child.type === "JSXText" && child.value.trim() === "") continue;
     return false;
   }
   return true;
@@ -147,8 +165,8 @@ export function isAllInlineContent(
  */
 export function hasTranslatableText(el: JSXElement): boolean {
   for (const child of el.children ?? []) {
-    if (child.type === 'JSXText' && child.value.trim().length > 0) return true;
-    if (child.type === 'JSXElement') {
+    if (child.type === "JSXText" && child.value.trim().length > 0) return true;
+    if (child.type === "JSXElement") {
       const tag = getTagName(child);
       if (!tag) continue;
       if (isPluralTag(tag) || isSelectTag(tag)) return true;

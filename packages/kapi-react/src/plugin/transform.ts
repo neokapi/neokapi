@@ -10,9 +10,9 @@
  * to keep the output as JSX for the downstream React plugin.
  */
 
-import { readFileSync, existsSync } from 'node:fs';
-import { join } from 'node:path';
-import { parseSync, type JSXElement, type Module } from '@swc/core';
+import { readFileSync, existsSync } from "node:fs";
+import { join } from "node:path";
+import { parseSync, type JSXElement, type Module } from "@swc/core";
 
 import {
   containsJSX,
@@ -22,30 +22,26 @@ import {
   getTagName,
   lineFromOffset,
   resolveHTMLElement,
-} from '../extract/ast.ts';
-import { buildJSXPath } from '../extract/jsx-path.ts';
+} from "../extract/ast.ts";
+import { buildJSXPath } from "../extract/jsx-path.ts";
 import {
   isPluralTag,
   isSelectTag,
   parsePlural,
   parseSelect,
   type PluralFormKey,
-} from '../extract/plural.ts';
-import {
-  hasTranslatableText,
-  isAllInlineContent,
-  resolvePolicy,
-} from '../extract/translatable.ts';
-import { collectTIdentifiers, walkTCalls } from '../extract/messages.ts';
-import { resolveLibraryComponentMap } from './manifests.ts';
+} from "../extract/plural.ts";
+import { hasTranslatableText, isAllInlineContent, resolvePolicy } from "../extract/translatable.ts";
+import { collectTIdentifiers, walkTCalls } from "../extract/messages.ts";
+import { resolveLibraryComponentMap } from "./manifests.ts";
 import {
   createWarningCollector,
   formatWarning,
   type WarningCollector,
-} from '../extract/warnings.ts';
-import { translatableAttributes } from './defaults.ts';
-import { hashKey } from './hash.ts';
-import { CONTEXT_SEPARATOR, type PluginOptions } from '../types.ts';
+} from "../extract/warnings.ts";
+import { translatableAttributes } from "./defaults.ts";
+import { hashKey } from "./hash.ts";
+import { CONTEXT_SEPARATOR, type PluginOptions } from "../types.ts";
 
 type TransformOp = {
   offset: number;
@@ -55,7 +51,7 @@ type TransformOp = {
 
 type ProcessResult = {
   /** Runtime helper used by this element, if any (used to decide which imports to add). */
-  runtime: 'runtime-t' | 'runtime-tx' | null;
+  runtime: "runtime-t" | "runtime-tx" | null;
   /**
    * True when the element's content range was transformed as a translation
    * unit (inline or tx/t) and its children were captured verbatim into
@@ -72,7 +68,7 @@ type ProcessResult = {
  * offsets corrupts non-ASCII input. Use this instead.
  */
 function bslice(buf: Buffer, start: number, end: number): string {
-  return buf.toString('utf8', start, end);
+  return buf.toString("utf8", start, end);
 }
 
 /**
@@ -81,8 +77,8 @@ function bslice(buf: Buffer, start: number, end: number): string {
  * quirks across parse bases.
  */
 function snippetOf(code: string, line: number): string {
-  const lines = code.split('\n');
-  const raw = (lines[line - 1] ?? '').trim();
+  const lines = code.split("\n");
+  const raw = (lines[line - 1] ?? "").trim();
   return raw.length > 80 ? `${raw.slice(0, 80)}…` : raw;
 }
 
@@ -94,7 +90,7 @@ function snippetOf(code: string, line: number): string {
  * derive the per-parse base.
  */
 function findFirstTokenByteOffset(source: string): number {
-  const buf = Buffer.from(source, 'utf8');
+  const buf = Buffer.from(source, "utf8");
   const len = buf.length;
   let i = 0;
 
@@ -106,7 +102,10 @@ function findFirstTokenByteOffset(source: string): number {
 
   while (i < len) {
     const c = buf[i];
-    if (c === 0x20 || c === 0x09 || c === 0x0a || c === 0x0d) { i++; continue; }
+    if (c === 0x20 || c === 0x09 || c === 0x0a || c === 0x0d) {
+      i++;
+      continue;
+    }
     if (c === 0x2f && buf[i + 1] === 0x2f) {
       while (i < len && buf[i] !== 0x0a) i++;
       continue;
@@ -142,14 +141,11 @@ let translationCache: Record<string, Record<string, string>> = {};
 /**
  * Load a single translation JSON file. Returns flat {hash: text} dict.
  */
-function loadSingleDict(
-  dir: string,
-  locale: string,
-): Record<string, string> | null {
+function loadSingleDict(dir: string, locale: string): Record<string, string> | null {
   const filePath = join(dir, `${locale}.json`);
   if (!existsSync(filePath)) return null;
   try {
-    const raw = readFileSync(filePath, 'utf-8');
+    const raw = readFileSync(filePath, "utf-8");
     const data = JSON.parse(raw);
     return data[locale] || data;
   } catch {
@@ -162,15 +158,13 @@ function loadSingleDict(
  * Merges: fallback[n] < ... < fallback[0] < primary locale
  * (primary wins over fallbacks)
  */
-function loadTranslationDict(
-  options: PluginOptions,
-): Record<string, string> | null {
+function loadTranslationDict(options: PluginOptions): Record<string, string> | null {
   if (!options.locale) return null;
 
-  const cacheKey = `${options.locale}:${options.fallbackLocales?.join(',') || ''}:${options.translationsDir || ''}`;
+  const cacheKey = `${options.locale}:${options.fallbackLocales?.join(",") || ""}:${options.translationsDir || ""}`;
   if (translationCache[cacheKey]) return translationCache[cacheKey];
 
-  const dir = options.translationsDir || './translations';
+  const dir = options.translationsDir || "./translations";
 
   // Load fallback locales first (lower priority)
   let merged: Record<string, string> = {};
@@ -203,15 +197,15 @@ export function transform(
   options: PluginOptions,
 ): { code: string } | null {
   const rules = options.rules || [];
-  const mode = options.mode || (options.locale ? 'inline' : undefined);
+  const mode = options.mode || (options.locale ? "inline" : undefined);
   if (!mode) return null;
 
-  const dict = mode === 'inline' ? loadTranslationDict(options) : null;
+  const dict = mode === "inline" ? loadTranslationDict(options) : null;
 
   let ast: Module;
   try {
     ast = parseSync(code, {
-      syntax: filename.endsWith('.tsx') ? 'typescript' : 'ecmascript',
+      syntax: filename.endsWith(".tsx") ? "typescript" : "ecmascript",
       tsx: true,
       jsx: true,
     });
@@ -232,11 +226,11 @@ export function transform(
   );
   const componentMap: Record<string, string> = {
     ...libraryMap,
-    ...(options.componentMap ?? {}),
+    ...options.componentMap,
   };
 
   const s = makeOffsetConverter(ast, code);
-  const buf = Buffer.from(code, 'utf8');
+  const buf = Buffer.from(code, "utf8");
   const ops: TransformOp[] = [];
   const warnings = createWarningCollector();
   let needsT = false;
@@ -244,10 +238,25 @@ export function transform(
 
   walkModule(ast, (el, ancestors) => {
     const r = processElement(
-      el, ancestors, buf, filename, componentMap, rules, mode, dict, options, s, ops, warnings, code,
+      el,
+      ancestors,
+      buf,
+      filename,
+      componentMap,
+      rules,
+      mode,
+      dict,
+      options,
+      s,
+      ops,
+      warnings,
+      code,
     );
-    if (r.runtime === 'runtime-t') needsT = true;
-    if (r.runtime === 'runtime-tx') { needsT = true; needsTx = true; }
+    if (r.runtime === "runtime-t") needsT = true;
+    if (r.runtime === "runtime-tx") {
+      needsT = true;
+      needsTx = true;
+    }
     return { skipChildren: r.consumed };
   });
 
@@ -267,10 +276,9 @@ export function transform(
   // offsets; code.slice is UTF-16 code-unit indexed. Any non-ASCII
   // char (e.g. em-dash in a comment) above the t() call shifts the
   // real offset and produces corrupted paramsSrc (see #382).
-  const sourceSlice = (start: number, end: number): string =>
-    bslice(buf, s(start), s(end));
+  const sourceSlice = (start: number, end: number): string => bslice(buf, s(start), s(end));
   for (const call of walkTCalls(ast, tNames, sourceSlice)) {
-    const desc = `t${CONTEXT_SEPARATOR}${call.context ?? ''}`;
+    const desc = `t${CONTEXT_SEPARATOR}${call.context ?? ""}`;
     const hash = hashKey(call.text, desc);
     const fallbackLiteral = JSON.stringify(call.text);
     const args = call.paramsSrc
@@ -314,8 +322,8 @@ export function transform(
     if (prev.offset + prev.deleteCount > curr.offset) {
       throw new Error(
         `[neokapi] overlapping transform ops in ${filename}: ` +
-        `[${prev.offset}, ${prev.offset + prev.deleteCount}) and ` +
-        `[${curr.offset}, ${curr.offset + curr.deleteCount})`,
+          `[${prev.offset}, ${prev.offset + prev.deleteCount}) and ` +
+          `[${curr.offset}, ${curr.offset + curr.deleteCount})`,
       );
     }
   }
@@ -324,16 +332,14 @@ export function transform(
   let pos = 0;
   for (const op of ops) {
     parts.push(buf.subarray(pos, op.offset));
-    parts.push(Buffer.from(op.insert, 'utf8'));
+    parts.push(Buffer.from(op.insert, "utf8"));
     pos = op.offset + op.deleteCount;
   }
   parts.push(buf.subarray(pos));
-  let result = Buffer.concat(parts).toString('utf8');
+  let result = Buffer.concat(parts).toString("utf8");
 
   if (needsT || needsTx) {
-    const imports = [needsT ? '__t' : '', needsTx ? '__tx' : '']
-      .filter(Boolean)
-      .join(', ');
+    const imports = [needsT ? "__t" : "", needsTx ? "__tx" : ""].filter(Boolean).join(", ");
     result = `import { ${imports} } from '@neokapi/kapi-react/runtime';\n${result}`;
   }
 
@@ -347,8 +353,8 @@ function walkModule(
   visitor: (el: JSXElement, ancestors: JSXElement[]) => { skipChildren: boolean },
 ) {
   function walk(node: any, jsxAncestors: JSXElement[]) {
-    if (!node || typeof node !== 'object') return;
-    if (node.type === 'JSXElement') {
+    if (!node || typeof node !== "object") return;
+    if (node.type === "JSXElement") {
       const el = node as JSXElement;
       const { skipChildren } = visitor(el, jsxAncestors);
       if (skipChildren) return;
@@ -357,11 +363,11 @@ function walkModule(
       return;
     }
     for (const key of Object.keys(node)) {
-      if (key === 'span' || key === 'type') continue;
+      if (key === "span" || key === "type") continue;
       const val = node[key];
       if (Array.isArray(val)) {
         for (const item of val) walk(item, jsxAncestors);
-      } else if (val && typeof val === 'object' && val.type) {
+      } else if (val && typeof val === "object" && val.type) {
         walk(val, jsxAncestors);
       }
     }
@@ -377,8 +383,8 @@ function processElement(
   buf: Buffer,
   filename: string,
   componentMap: Record<string, string>,
-  rules: NonNullable<PluginOptions['rules']>,
-  mode: 'inline' | 'runtime',
+  rules: NonNullable<PluginOptions["rules"]>,
+  mode: "inline" | "runtime",
   dict: Record<string, string> | null,
   options: PluginOptions,
   s: (offset: number) => number,
@@ -388,7 +394,7 @@ function processElement(
 ): ProcessResult {
   const tagName = getTagName(el);
   if (!tagName) return { runtime: null, consumed: false };
-  if (getStringAttr(el, 'translate') === 'no') return { runtime: null, consumed: false };
+  if (getStringAttr(el, "translate") === "no") return { runtime: null, consumed: false };
 
   // Mirror walker.ts: fall back to the raw tag for unmapped
   // React components so resolvePolicy's container-promotion
@@ -402,9 +408,18 @@ function processElement(
   // Extract translatable attributes from every element (mapped or
   // not) — `translatableAttributes` is keyed on prop name, not host
   // element, so `<PageHeader title="Termbases" />` just works.
-  let usedRuntime: 'runtime-t' | 'runtime-tx' | null = processAttributes(
-    el, ancestors, componentMap, mode, dict, policy.locNote, s, ops,
-  ) ? 'runtime-t' : null;
+  let usedRuntime: "runtime-t" | "runtime-tx" | null = processAttributes(
+    el,
+    ancestors,
+    componentMap,
+    mode,
+    dict,
+    policy.locNote,
+    s,
+    ops,
+  )
+    ? "runtime-t"
+    : null;
 
   if (!policy.translate) return { runtime: usedRuntime, consumed: false };
   if (!hasTranslatableText(el)) return { runtime: usedRuntime, consumed: false };
@@ -422,7 +437,7 @@ function processElement(
   // (add a componentMap entry for hash stability).
   if (unmappedComponent) {
     warnings.add({
-      kind: 'unknown-component',
+      kind: "unknown-component",
       filename,
       line: warnLine,
       tag: tagName,
@@ -436,20 +451,21 @@ function processElement(
 
   const contentStart = getOpeningTagEnd(el, s);
   const contentEnd = getClosingTagStart(el, s);
-  if (contentStart === null || contentEnd === null) return { runtime: usedRuntime, consumed: false };
+  if (contentStart === null || contentEnd === null)
+    return { runtime: usedRuntime, consumed: false };
 
   const { text, paramList } = extractTextTemplate(el, s);
   const hk = hashKey(text, desc);
 
-  const hasInlineElements = paramList.some(p => p.name.startsWith('='));
+  const hasInlineElements = paramList.some((p) => p.name.startsWith("="));
 
-  if (mode === 'inline') {
+  if (mode === "inline") {
     const translated = dict?.[hk];
 
     // Missing translation detection
     if (!translated && options.strict !== false) {
       const msg = `[neokapi] Missing translation for "${text}" (hash: ${hk}, locale: ${options.locale})`;
-      if (options.strict === 'error') {
+      if (options.strict === "error") {
         throw new Error(msg);
       } else {
         console.warn(msg);
@@ -464,33 +480,35 @@ function processElement(
     });
   } else if (hasInlineElements) {
     // ── Runtime mode with inline elements → use tx() ──
-    const regularParams = paramList.filter(p => !p.name.startsWith('='));
-    const elementParams = paramList.filter(p => p.name.startsWith('='));
+    const regularParams = paramList.filter((p) => !p.name.startsWith("="));
+    const elementParams = paramList.filter((p) => p.name.startsWith("="));
 
-    const elementsObj = `{ ${elementParams.map(p => `${JSON.stringify(p.name)}: ${bslice(buf, p.fullStart, p.fullEnd)}`).join(', ')} }`;
-    const paramsObj = regularParams.length > 0
-      ? `, { ${regularParams.map(p => `${JSON.stringify(p.name)}: ${bslice(buf, p.exprStart, p.exprEnd)}`).join(', ')} }`
-      : '';
-    const fallbackText = `"${text.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
+    const elementsObj = `{ ${elementParams.map((p) => `${JSON.stringify(p.name)}: ${bslice(buf, p.fullStart, p.fullEnd)}`).join(", ")} }`;
+    const paramsObj =
+      regularParams.length > 0
+        ? `, { ${regularParams.map((p) => `${JSON.stringify(p.name)}: ${bslice(buf, p.exprStart, p.exprEnd)}`).join(", ")} }`
+        : "";
+    const fallbackText = `"${text.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`;
 
     ops.push({
       offset: contentStart,
       deleteCount: contentEnd - contentStart,
       insert: `{__tx("${hk}", ${fallbackText}, ${elementsObj}${paramsObj})}`,
     });
-    usedRuntime = 'runtime-tx';
+    usedRuntime = "runtime-tx";
   } else {
     // ── Runtime mode, text only → use t() ──
-    const paramsObj = paramList.length > 0
-      ? `, { ${paramList.map(p => `${JSON.stringify(p.name)}: ${bslice(buf, p.exprStart, p.exprEnd)}`).join(', ')} }`
-      : '';
+    const paramsObj =
+      paramList.length > 0
+        ? `, { ${paramList.map((p) => `${JSON.stringify(p.name)}: ${bslice(buf, p.exprStart, p.exprEnd)}`).join(", ")} }`
+        : "";
     const fallbackExpr = buildFallbackExpr(text, paramList, buf);
     ops.push({
       offset: contentStart,
       deleteCount: contentEnd - contentStart,
       insert: `{__t("${hk}", ${fallbackExpr}${paramsObj})}`,
     });
-    usedRuntime = 'runtime-t';
+    usedRuntime = "runtime-t";
   }
 
   removeDataI18nAttrs(el, buf, s, ops);
@@ -541,18 +559,18 @@ function extractTextTemplate(
 }
 
 function walkChildrenForTemplate(
-  children: readonly import('@swc/core').JSXElementChild[],
+  children: readonly import("@swc/core").JSXElementChild[],
   state: TemplateState,
   s: (offset: number) => number,
 ): string {
-  let text = '';
+  let text = "";
   for (const child of children) {
-    if (child.type === 'JSXText') {
-      text += child.value.replace(/\s+/g, ' ');
+    if (child.type === "JSXText") {
+      text += child.value.replace(/\s+/g, " ");
       continue;
     }
-    if (child.type === 'JSXExpressionContainer') {
-      if (child.expression.type === 'JSXEmptyExpression') continue;
+    if (child.type === "JSXExpressionContainer") {
+      if (child.expression.type === "JSXEmptyExpression") continue;
       const expr = child.expression as { span: { start: number; end: number } };
       const myIndex = state.elementIndex++;
 
@@ -584,7 +602,7 @@ function walkChildrenForTemplate(
       });
       continue;
     }
-    if (child.type !== 'JSXElement') continue;
+    if (child.type !== "JSXElement") continue;
 
     const tag = getTagName(child);
     // Plural/Select don't consume an `=mN` slot — they produce the
@@ -633,14 +651,21 @@ function buildPluralTemplate(
 ): string | null {
   const info = parsePlural(el);
   if (!info) return null;
-  const pivotName = registerPivot(el, 'count', info.pivotName, state.paramList, state.paramNames, s);
+  const pivotName = registerPivot(
+    el,
+    "count",
+    info.pivotName,
+    state.paramList,
+    state.paramNames,
+    s,
+  );
   if (!pivotName) return null;
   const parts: string[] = [];
   for (const form of info.forms) {
     const formText = walkChildrenForTemplate(form.el.children ?? [], state, s);
     parts.push(`${form.key} {${formText.trim()}}`);
   }
-  return `{${pivotName}, plural, ${parts.join(' ')}}`;
+  return `{${pivotName}, plural, ${parts.join(" ")}}`;
 }
 
 function buildSelectTemplate(
@@ -650,7 +675,14 @@ function buildSelectTemplate(
 ): string | null {
   const info = parseSelect(el);
   if (!info) return null;
-  const pivotName = registerPivot(el, 'value', info.pivotName, state.paramList, state.paramNames, s);
+  const pivotName = registerPivot(
+    el,
+    "value",
+    info.pivotName,
+    state.paramList,
+    state.paramNames,
+    s,
+  );
   if (!pivotName) return null;
   const parts: string[] = [];
   for (const c of info.cases) {
@@ -661,7 +693,7 @@ function buildSelectTemplate(
     const formText = walkChildrenForTemplate(info.otherEl.children ?? [], state, s);
     parts.push(`other {${formText.trim()}}`);
   }
-  return `{${pivotName}, select, ${parts.join(' ')}}`;
+  return `{${pivotName}, select, ${parts.join(" ")}}`;
 }
 
 /**
@@ -682,18 +714,18 @@ function buildSelectTemplate(
  */
 function registerPivot(
   el: JSXElement,
-  propName: 'count' | 'value',
+  propName: "count" | "value",
   pivotName: string,
   paramList: ParamInfo[],
   _paramNames: Set<string>,
   s: (offset: number) => number,
 ): string | null {
   for (const attr of el.opening.attributes ?? []) {
-    if (attr.type !== 'JSXAttribute' || attr.name.type !== 'Identifier') continue;
+    if (attr.type !== "JSXAttribute" || attr.name.type !== "Identifier") continue;
     if (attr.name.value !== propName) continue;
     const value = attr.value;
     if (!value) return null;
-    if (value.type === 'JSXExpressionContainer') {
+    if (value.type === "JSXExpressionContainer") {
       const expr = value.expression as { span: { start: number; end: number } };
       paramList.push({
         name: pivotName,
@@ -704,7 +736,7 @@ function registerPivot(
       });
       return pivotName;
     }
-    if (value.type === 'StringLiteral') {
+    if (value.type === "StringLiteral") {
       paramList.push({
         name: pivotName,
         exprStart: s(value.span.start),
@@ -725,14 +757,10 @@ type _PluralFormKeyUsed = PluralFormKey;
 
 // ─── Inline Translation ──────────────────────────────────────
 
-function inlineTranslation(
-  translatedText: string,
-  paramList: ParamInfo[],
-  buf: Buffer,
-): string {
+function inlineTranslation(translatedText: string, paramList: ParamInfo[], buf: Buffer): string {
   const tokenMap = new Map<string, string>();
   for (const param of paramList) {
-    if (param.name.startsWith('=')) {
+    if (param.name.startsWith("=")) {
       tokenMap.set(param.name, bslice(buf, param.fullStart, param.fullEnd));
     } else {
       tokenMap.set(param.name, `{${bslice(buf, param.exprStart, param.exprEnd)}}`);
@@ -746,33 +774,29 @@ function inlineTranslation(
 
 // ─── Runtime Fallback Expression ─────────────────────────────
 
-function buildFallbackExpr(
-  text: string,
-  paramList: ParamInfo[],
-  buf: Buffer,
-): string {
+function buildFallbackExpr(text: string, paramList: ParamInfo[], buf: Buffer): string {
   if (paramList.length === 0) {
-    return `"${text.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
+    return `"${text.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`;
   }
 
-  let template = '`';
+  let template = "`";
   const tokenRegex = /\{([^}]+)\}/g;
   let lastIndex = 0;
   let match;
 
   while ((match = tokenRegex.exec(text)) !== null) {
-    template += text.slice(lastIndex, match.index).replace(/`/g, '\\`');
+    template += text.slice(lastIndex, match.index).replace(/`/g, "\\`");
     const tokenName = match[1];
-    const param = paramList.find(p => p.name === tokenName);
-    if (param && !param.name.startsWith('=')) {
+    const param = paramList.find((p) => p.name === tokenName);
+    if (param && !param.name.startsWith("=")) {
       template += `\${${bslice(buf, param.exprStart, param.exprEnd)}}`;
     } else {
       template += match[0];
     }
     lastIndex = match.index + match[0].length;
   }
-  template += text.slice(lastIndex).replace(/`/g, '\\`');
-  template += '`';
+  template += text.slice(lastIndex).replace(/`/g, "\\`");
+  template += "`";
 
   return template;
 }
@@ -783,7 +807,7 @@ function processAttributes(
   el: JSXElement,
   ancestors: JSXElement[],
   componentMap: Record<string, string>,
-  mode: 'inline' | 'runtime',
+  mode: "inline" | "runtime",
   dict: Record<string, string> | null,
   locNote: string | undefined,
   s: (offset: number) => number,
@@ -792,38 +816,85 @@ function processAttributes(
   let usedRuntime = false;
 
   for (const attr of el.opening.attributes || []) {
-    if (attr.type !== 'JSXAttribute') continue;
-    if (attr.name.type !== 'Identifier') continue;
+    if (attr.type !== "JSXAttribute") continue;
+    if (attr.name.type !== "Identifier") continue;
 
     const attrName = attr.name.value;
     if (!translatableAttributes.has(attrName)) continue;
-    if (!attr.value || attr.value.type !== 'StringLiteral') continue;
-
-    const text = attr.value.value;
-    if (!text.trim()) continue;
+    if (!attr.value) continue;
 
     const jsxPath = buildJSXPath(ancestors, el, componentMap);
-    const context = `${jsxPath}[${attrName}]`;
-    const desc = locNote ? `${context}${CONTEXT_SEPARATOR}${locNote}` : context;
-    const hk = hashKey(text, desc);
 
-    const valueStart = s(attr.value.span.start);
-    const valueEnd = s(attr.value.span.end);
+    // Plain `prop="literal"` — rewrite the whole value (including
+    // its surrounding quotes) to either an inline translation or a
+    // `{__t(...)}` lookup.
+    if (attr.value.type === "StringLiteral") {
+      const text = attr.value.value;
+      if (!text.trim()) continue;
+      const context = `${jsxPath}[${attrName}]`;
+      const desc = locNote ? `${context}${CONTEXT_SEPARATOR}${locNote}` : context;
+      const hk = hashKey(text, desc);
 
-    if (mode === 'inline') {
-      const translated = dict?.[hk] || text;
-      ops.push({
-        offset: valueStart,
-        deleteCount: valueEnd - valueStart,
-        insert: `"${translated}"`,
-      });
-    } else {
-      ops.push({
-        offset: valueStart,
-        deleteCount: valueEnd - valueStart,
-        insert: `{__t("${hk}", "${text.replace(/"/g, '\\"')}")}`,
-      });
-      usedRuntime = true;
+      const valueStart = s(attr.value.span.start);
+      const valueEnd = s(attr.value.span.end);
+      if (mode === "inline") {
+        const translated = dict?.[hk] || text;
+        ops.push({
+          offset: valueStart,
+          deleteCount: valueEnd - valueStart,
+          insert: `"${translated}"`,
+        });
+      } else {
+        ops.push({
+          offset: valueStart,
+          deleteCount: valueEnd - valueStart,
+          insert: `{__t("${hk}", "${text.replace(/"/g, '\\"')}")}`,
+        });
+        usedRuntime = true;
+      }
+      continue;
+    }
+
+    // `prop={cond ? "A" : "B"}` — rewrite each string-literal branch
+    // in place so the runtime evaluates the condition and looks up
+    // the branch-specific hash. Contexts mirror the extractor's
+    // `::0` / `::1` branch suffixes so hashes align.
+    if (
+      attr.value.type === "JSXExpressionContainer" &&
+      attr.value.expression.type === "ConditionalExpression"
+    ) {
+      const cond = attr.value.expression;
+      if (cond.consequent.type !== "StringLiteral" || cond.alternate.type !== "StringLiteral") {
+        continue;
+      }
+      for (const [branchIndex, literal] of [
+        [0, cond.consequent] as const,
+        [1, cond.alternate] as const,
+      ]) {
+        const text = literal.value;
+        if (!text.trim()) continue;
+        const context = `${jsxPath}[${attrName}::${branchIndex}]`;
+        const desc = locNote ? `${context}${CONTEXT_SEPARATOR}${locNote}` : context;
+        const hk = hashKey(text, desc);
+        const start = s(literal.span.start);
+        const end = s(literal.span.end);
+        if (mode === "inline") {
+          const translated = dict?.[hk] || text;
+          ops.push({
+            offset: start,
+            deleteCount: end - start,
+            insert: `"${translated}"`,
+          });
+        } else {
+          ops.push({
+            offset: start,
+            deleteCount: end - start,
+            insert: `__t("${hk}", "${text.replace(/"/g, '\\"')}")`,
+          });
+          usedRuntime = true;
+        }
+      }
+      continue;
     }
   }
 
@@ -843,15 +914,20 @@ function getClosingTagStart(el: JSXElement, s: (n: number) => number): number | 
   return el.closing?.span ? s(el.closing.span.start) : null;
 }
 
-function removeDataI18nAttrs(el: JSXElement, buf: Buffer, s: (n: number) => number, ops: TransformOp[]) {
+function removeDataI18nAttrs(
+  el: JSXElement,
+  buf: Buffer,
+  s: (n: number) => number,
+  ops: TransformOp[],
+) {
   for (const attr of el.opening.attributes || []) {
-    if (attr.type !== 'JSXAttribute' || attr.name.type !== 'Identifier') continue;
-    if (!attr.name.value.startsWith('data-i18n-')) continue;
+    if (attr.type !== "JSXAttribute" || attr.name.type !== "Identifier") continue;
+    if (!attr.name.value.startsWith("data-i18n-")) continue;
     const start = s(attr.span.start);
     const end = s(attr.span.end);
     // Walk back over leading ASCII spaces in byte space (0x20).
     let deleteStart = start;
     while (deleteStart > 0 && buf[deleteStart - 1] === 0x20) deleteStart--;
-    ops.push({ offset: deleteStart, deleteCount: end - deleteStart, insert: '' });
+    ops.push({ offset: deleteStart, deleteCount: end - deleteStart, insert: "" });
   }
 }

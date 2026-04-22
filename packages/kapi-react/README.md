@@ -30,15 +30,12 @@ npm install @neokapi/kapi-react
 
 ```ts
 // vite.config.ts
-import { defineConfig } from 'vite';
-import react from '@vitejs/plugin-react';      // or plugin-react-swc
-import neokapi from '@neokapi/kapi-react/vite';
+import { defineConfig } from "vite";
+import react from "@vitejs/plugin-react"; // or plugin-react-swc
+import neokapi from "@neokapi/kapi-react/vite";
 
 export default defineConfig({
-  plugins: [
-    neokapi({ locale: process.env.LOCALE }),
-    react(),
-  ],
+  plugins: [neokapi({ locale: process.env.LOCALE }), react()],
 });
 ```
 
@@ -49,12 +46,10 @@ export default defineConfig({
 
 ```js
 // webpack.config.js
-const neokapi = require('@neokapi/kapi-react/webpack');
+const neokapi = require("@neokapi/kapi-react/webpack");
 
 module.exports = {
-  plugins: [
-    neokapi({ locale: process.env.LOCALE }),
-  ],
+  plugins: [neokapi({ locale: process.env.LOCALE })],
 };
 ```
 
@@ -65,15 +60,15 @@ module.exports = {
 
 ```js
 // next.config.js
-const neokapi = require('@neokapi/kapi-react/webpack');
+const neokapi = require("@neokapi/kapi-react/webpack");
 
 module.exports = {
   webpack: (config) => {
     config.plugins.push(
       neokapi({
         locale: process.env.LOCALE,
-        translationsDir: './translations',
-      })
+        translationsDir: "./translations",
+      }),
     );
     return config;
   },
@@ -87,12 +82,10 @@ module.exports = {
 
 ```js
 // rollup.config.js
-import neokapi from '@neokapi/kapi-react/rollup';
+import neokapi from "@neokapi/kapi-react/rollup";
 
 export default {
-  plugins: [
-    neokapi({ locale: process.env.LOCALE }),
-  ],
+  plugins: [neokapi({ locale: process.env.LOCALE })],
 };
 ```
 
@@ -102,14 +95,12 @@ export default {
 <summary><strong>esbuild</strong></summary>
 
 ```ts
-import { build } from 'esbuild';
-import neokapi from '@neokapi/kapi-react/esbuild';
+import { build } from "esbuild";
+import neokapi from "@neokapi/kapi-react/esbuild";
 
 await build({
-  entryPoints: ['src/index.tsx'],
-  plugins: [
-    neokapi({ locale: process.env.LOCALE }),
-  ],
+  entryPoints: ["src/index.tsx"],
+  plugins: [neokapi({ locale: process.env.LOCALE })],
 });
 ```
 
@@ -120,12 +111,10 @@ await build({
 
 ```js
 // rspack.config.js
-const neokapi = require('@neokapi/kapi-react/webpack');  // Rspack uses webpack API
+const neokapi = require("@neokapi/kapi-react/webpack"); // Rspack uses webpack API
 
 module.exports = {
-  plugins: [
-    neokapi({ locale: process.env.LOCALE }),
-  ],
+  plugins: [neokapi({ locale: process.env.LOCALE })],
 };
 ```
 
@@ -218,19 +207,21 @@ fully typed JSX — inline elements, variables, and conditional
 expressions inside a form stay structured, not stringified.
 
 ```tsx
-import { Plural, Zero, One, Other } from '@neokapi/kapi-react/runtime';
+import { Plural, Zero, One, Other } from "@neokapi/kapi-react/runtime";
 
 <p>
   <Plural count={items.length}>
     <Zero>Your cart is empty</Zero>
     <One>1 item in your cart</One>
-    <Other><strong>{items.length}</strong> items in your cart</Other>
+    <Other>
+      <strong>{items.length}</strong> items in your cart
+    </Other>
   </Plural>
-</p>
+</p>;
 ```
 
 ```tsx
-import { Select, Case, Other } from '@neokapi/kapi-react/runtime';
+import { Select, Case, Other } from "@neokapi/kapi-react/runtime";
 
 <p>
   <Select value={user.role}>
@@ -238,7 +229,7 @@ import { Select, Case, Other } from '@neokapi/kapi-react/runtime';
     <Case when="guest">You're browsing as a guest</Case>
     <Other>Welcome, {user.name}!</Other>
   </Select>
-</p>
+</p>;
 ```
 
 At build time the plugin rewrites these into an ICU template in the
@@ -250,7 +241,7 @@ __tx(
   "{items.length, plural, zero {Your cart is empty} one {1 item in your cart} other {{=m0} items in your cart}}",
   { "=m0": <strong>{items.length}</strong> },
   { "items.length": items.length },
-)
+);
 ```
 
 The compiled `translations/<locale>.json` keeps the same ICU shape —
@@ -274,7 +265,7 @@ When no `locale` or `mode` is set, the plugin does nothing. Source text renders 
 Set `locale` to inline translations at build time. Output is pure translated JSX — **zero runtime shipped to the browser**.
 
 ```ts
-neokapi({ locale: 'de', translationsDir: './translations' })
+neokapi({ locale: "de", translationsDir: "./translations" });
 ```
 
 Ideal for SSR/SSG (Next.js, Remix, Astro) where the locale is known at build or request time.
@@ -284,16 +275,18 @@ Ideal for SSR/SSG (Next.js, Remix, Astro) where the locale is known at build or 
 Set `mode: 'runtime'` for apps that switch languages without rebuilding. The plugin emits lightweight `t()` and `tx()` calls (~2KB runtime).
 
 ```ts
-neokapi({ mode: 'runtime' })
+neokapi({ mode: "runtime" });
 ```
 
 ```tsx
 // The only code change needed — a language switcher:
-import { loadTranslations } from '@neokapi/kapi-react/runtime';
+import { loadTranslations } from "@neokapi/kapi-react/runtime";
 
 function LanguageSwitcher() {
   return (
-    <select onChange={e => loadTranslations(e.target.value, `/translations/${e.target.value}.json`)}>
+    <select
+      onChange={(e) => loadTranslations(e.target.value, `/translations/${e.target.value}.json`)}
+    >
       <option value="en">English</option>
       <option value="de">Deutsch</option>
       <option value="ja">Japanese</option>
@@ -338,9 +331,9 @@ The translator can reorder `{=m0}` tokens freely — the original JSX elements a
 The `locale` option in the plugin config is a **build-time target locale** — it tells the plugin which translation file to load from disk. It is **not** automatic browser locale detection.
 
 ```ts
-locale: 'de'        // → reads translations/de.json → inlines German text
-locale: 'qps'       // → reads translations/qps.json → inlines pseudo-translated text
-locale: undefined   // → no-op (dev mode, source text shown)
+locale: "de"; // → reads translations/de.json → inlines German text
+locale: "qps"; // → reads translations/qps.json → inlines pseudo-translated text
+locale: undefined; // → no-op (dev mode, source text shown)
 ```
 
 How the end user's locale reaches the plugin depends on your deployment model:
@@ -364,21 +357,21 @@ The framework determines the locale from the URL, cookie, or `Accept-Language` h
 
 ```js
 // next.config.js
-const neokapi = require('@neokapi/kapi-react/webpack');
+const neokapi = require("@neokapi/kapi-react/webpack");
 
 module.exports = {
   i18n: {
-    locales: ['en', 'de', 'ja'],
-    defaultLocale: 'en',
+    locales: ["en", "de", "ja"],
+    defaultLocale: "en",
   },
   webpack: (config, { nextRuntime }) => {
     // Next.js builds each locale separately.
     // Use LOCALE env var or fall back to default.
     config.plugins.push(
       neokapi({
-        locale: process.env.LOCALE || 'en',
-        translationsDir: './translations',
-      })
+        locale: process.env.LOCALE || "en",
+        translationsDir: "./translations",
+      }),
     );
     return config;
   },
@@ -410,40 +403,40 @@ LOCALE=de npm run build
 In runtime mode, the plugin doesn't use `locale` at all — translations load dynamically in the browser. Your app determines the user's locale and fetches the matching translations:
 
 ```tsx
-import { loadTranslations } from '@neokapi/kapi-react/runtime';
+import { loadTranslations } from "@neokapi/kapi-react/runtime";
 
 // On app startup — detect locale and load translations
 const userLocale = detectLocale();
-if (userLocale !== 'en') {
+if (userLocale !== "en") {
   loadTranslations(userLocale, `/translations/${userLocale}.json`);
 }
 
 function detectLocale(): string {
   // 1. Check user preference (saved in localStorage or cookie)
-  const saved = localStorage.getItem('locale');
+  const saved = localStorage.getItem("locale");
   if (saved) return saved;
 
   // 2. Check URL (e.g., /de/about → "de")
-  const fromUrl = window.location.pathname.split('/')[1];
-  if (['de', 'ja', 'fr'].includes(fromUrl)) return fromUrl;
+  const fromUrl = window.location.pathname.split("/")[1];
+  if (["de", "ja", "fr"].includes(fromUrl)) return fromUrl;
 
   // 3. Check browser language
-  const browserLang = navigator.language.split('-')[0];
-  if (['de', 'ja', 'fr'].includes(browserLang)) return browserLang;
+  const browserLang = navigator.language.split("-")[0];
+  if (["de", "ja", "fr"].includes(browserLang)) return browserLang;
 
   // 4. Default
-  return 'en';
+  return "en";
 }
 ```
 
 ### Summary
 
-| Deployment | Who detects locale | How locale reaches the plugin |
-|---|---|---|
-| Static build | Deploy script / CI | `LOCALE=de npm run build` |
-| SSR (Next.js) | Framework from URL/header | `process.env.LOCALE` in `next.config.js` |
-| SSG | Build script | One `npm run build` per locale |
-| SPA (runtime mode) | Your app at runtime | `loadTranslations(locale, url)` — plugin config uses `mode: 'runtime'` |
+| Deployment         | Who detects locale        | How locale reaches the plugin                                          |
+| ------------------ | ------------------------- | ---------------------------------------------------------------------- |
+| Static build       | Deploy script / CI        | `LOCALE=de npm run build`                                              |
+| SSR (Next.js)      | Framework from URL/header | `process.env.LOCALE` in `next.config.js`                               |
+| SSG                | Build script              | One `npm run build` per locale                                         |
+| SPA (runtime mode) | Your app at runtime       | `loadTranslations(locale, url)` — plugin config uses `mode: 'runtime'` |
 
 The plugin intentionally doesn't detect locale automatically — locale detection varies by framework, deployment, and business logic. The plugin's job is to translate; your app's job is to decide which language.
 
@@ -453,10 +446,10 @@ When a translation is missing in the primary locale, fall back through a chain o
 
 ```ts
 neokapi({
-  locale: 'de-AT',
-  fallbackLocales: ['de', 'en'],
+  locale: "de-AT",
+  fallbackLocales: ["de", "en"],
   // Merges: en.json < de.json < de-AT.json (most specific wins)
-})
+});
 ```
 
 This is useful for regional variants — Austrian German (`de-AT`) inherits from standard German (`de`), which inherits from English (`en`). Only strings that differ need to be in `de-AT.json`.
@@ -474,11 +467,11 @@ Catch untranslated strings at build time instead of shipping half-translated pag
 
 ```ts
 neokapi({
-  locale: 'de',
-  strict: 'warn',     // Log warning, fall back to source text (default)
+  locale: "de",
+  strict: "warn", // Log warning, fall back to source text (default)
   // strict: 'error', // Fail the build on missing translations
   // strict: false,   // Silent fallback
-})
+});
 ```
 
 In `strict: 'warn'` mode (default when locale is set), the build output shows:
@@ -497,7 +490,9 @@ Plurals and gender are **translator-driven**. The developer writes plain English
 ### Developer writes:
 
 ```jsx
-<p>{count} messages from {name}</p>
+<p>
+  {count} messages from {name}
+</p>
 ```
 
 ### German translator writes ICU plural:
@@ -522,11 +517,11 @@ The runtime resolves ICU using `Intl.PluralRules` (built into all browsers, zero
 
 The plugin automatically determines what to translate using W3C HTML5 defaults:
 
-| Translatable | Not translatable | Container (children traversed) |
-|---|---|---|
-| `h1`-`h6`, `p`, `li`, `td`, `th` | `code`, `pre`, `kbd`, `var` | `div`, `section`, `form`, `nav` |
-| `button`, `label`, `legend`, `option` | `script`, `style`, `textarea` | `header`, `footer`, `article` |
-| `span`, `strong`, `em`, `a`, `b`, `i` | | `table`, `ul`, `ol`, `dl` |
+| Translatable                          | Not translatable              | Container (children traversed)  |
+| ------------------------------------- | ----------------------------- | ------------------------------- |
+| `h1`-`h6`, `p`, `li`, `td`, `th`      | `code`, `pre`, `kbd`, `var`   | `div`, `section`, `form`, `nav` |
+| `button`, `label`, `legend`, `option` | `script`, `style`, `textarea` | `header`, `footer`, `article`   |
+| `span`, `strong`, `em`, `a`, `b`, `i` |                               | `table`, `ul`, `ol`, `dl`       |
 
 **Translatable attributes:** `alt`, `title`, `placeholder`, `aria-label`, `aria-description`,
 `aria-placeholder`, `aria-roledescription`, `aria-valuetext`, `subtitle`, `description`,
@@ -571,24 +566,24 @@ error messages in a reducer, a title stored in a ref — these need an
 explicit marker. Import `t` from the runtime:
 
 ```tsx
-import { t } from '@neokapi/kapi-react/runtime';
+import { t } from "@neokapi/kapi-react/runtime";
 
 const UI_LANGUAGES = [
-  { value: 'en',  label: t('English', 'UI Language') },
-  { value: 'qps', label: t('Pseudo English (qps)', 'UI Language') },
+  { value: "en", label: t("English", "UI Language") },
+  { value: "qps", label: t("Pseudo English (qps)", "UI Language") },
 ];
 
 const THEMES = [
-  { value: 'system', icon: Monitor, label: t('System') },
-  { value: 'light',  icon: Sun,     label: t('Light') },
-  { value: 'dark',   icon: Moon,    label: t('Dark') },
+  { value: "system", icon: Monitor, label: t("System") },
+  { value: "light", icon: Sun, label: t("Light") },
+  { value: "dark", icon: Moon, label: t("Dark") },
 ];
 
-const greeting = t('Hello, {name}!', { name: user.name });
+const greeting = t("Hello, {name}!", { name: user.name });
 
 // Same English text, different meanings → different hashes
-t('State', 'US state')
-t('State', 'workflow status')
+t("State", "US state");
+t("State", "workflow status");
 ```
 
 Signature: `t(text, context?, params?)`. Context (optional, 2nd arg) disambiguates identically-worded source strings by entering the hash descriptor — equivalent to gettext's `msgctxt`. Params (optional, 2nd or 3rd arg depending on whether context is present) carry `{name}` substitutions.
@@ -620,9 +615,9 @@ for `t()` when the string genuinely belongs in data.
 ```ts
 neokapi({
   rules: [
-    { selector: '.code-block', translate: false },
-    { selector: '.hero-text', translate: true },
-    { selector: '[data-testid]', translate: false },
+    { selector: ".code-block", translate: false },
+    { selector: ".hero-text", translate: true },
+    { selector: "[data-testid]", translate: false },
   ],
 });
 ```
@@ -646,8 +641,8 @@ For components that can't be auto-detected, use `componentMap`:
 ```ts
 neokapi({
   componentMap: {
-    'Card.Title': 'h2',
-    'Dialog.Description': 'p',
+    "Card.Title": "h2",
+    "Dialog.Description": "p",
   },
 });
 ```
@@ -656,19 +651,20 @@ neokapi({
 
 ```ts
 type PluginOptions = {
-  mode?: 'inline' | 'runtime';              // Default: 'inline' when locale set
-  locale?: string;                           // Target locale (e.g., "de", "qps")
-  fallbackLocales?: string[];                // Fallback chain (e.g., ['de', 'en'])
-  translationsDir?: string;                  // Default: "./translations"
-  strict?: 'warn' | 'error' | false;        // Missing translation handling (default: 'warn')
-  componentMap?: Record<string, string>;     // Component → HTML element mapping
-  rules?: Array<{                            // Override translatability rules
+  mode?: "inline" | "runtime"; // Default: 'inline' when locale set
+  locale?: string; // Target locale (e.g., "de", "qps")
+  fallbackLocales?: string[]; // Fallback chain (e.g., ['de', 'en'])
+  translationsDir?: string; // Default: "./translations"
+  strict?: "warn" | "error" | false; // Missing translation handling (default: 'warn')
+  componentMap?: Record<string, string>; // Component → HTML element mapping
+  rules?: Array<{
+    // Override translatability rules
     selector: string;
     translate?: boolean;
     locNote?: string;
   }>;
-  communityManifestDir?: string;             // Path to library i18n manifests
-  warnUnmapped?: boolean;                    // Warn about unmapped components (default: true in dev)
+  communityManifestDir?: string; // Path to library i18n manifests
+  warnUnmapped?: boolean; // Warn about unmapped components (default: true in dev)
 };
 ```
 
@@ -680,14 +676,14 @@ Preview your components in each locale via a toolbar dropdown. Wire up
 
 ```ts
 // .storybook/preview.ts
-import type { Preview } from '@storybook/react-vite';
-import { neokapiDecorator, neokapiGlobalType } from '@neokapi/kapi-react/storybook';
+import type { Preview } from "@storybook/react-vite";
+import { neokapiDecorator, neokapiGlobalType } from "@neokapi/kapi-react/storybook";
 
 const i18n = {
   locales: [
-    { value: 'en', title: 'English' },
-    { value: 'qps', title: 'Pseudo English', url: '/translations/qps.json' },
-    { value: 'de', title: 'Deutsch', url: '/translations/de.json' },
+    { value: "en", title: "English" },
+    { value: "qps", title: "Pseudo English", url: "/translations/qps.json" },
+    { value: "de", title: "Deutsch", url: "/translations/de.json" },
   ],
 };
 
@@ -795,15 +791,15 @@ like `<a>here</a>` are preserved through every step.
 
 ## How It Compares
 
-| | @neokapi/kapi-react | react-i18next | Lingui | fbtee |
-|---|:---:|:---:|:---:|:---:|
-| Source code changes | **None** | Every line | Every line | Every line |
-| Manual translation keys | **No** | Yes | No | No |
-| Build tool dependency | unplugin (any) | None | Babel/SWC | Babel |
-| Runtime bundle (inline) | **0 KB** | ~8 KB | ~3 KB | ~5 KB |
-| Runtime bundle (OTA) | **~2 KB** | ~8 KB | ~3 KB | ~5 KB |
-| Plural/gender | Translator-driven | Developer-driven | Developer-driven | Developer-driven |
-| React version | 18+ | 16.8+ | 16.14+ | 19 only |
+|                         | @neokapi/kapi-react |  react-i18next   |      Lingui      |      fbtee       |
+| ----------------------- | :-----------------: | :--------------: | :--------------: | :--------------: |
+| Source code changes     |      **None**       |    Every line    |    Every line    |    Every line    |
+| Manual translation keys |       **No**        |       Yes        |        No        |        No        |
+| Build tool dependency   |   unplugin (any)    |       None       |    Babel/SWC     |      Babel       |
+| Runtime bundle (inline) |      **0 KB**       |      ~8 KB       |      ~3 KB       |      ~5 KB       |
+| Runtime bundle (OTA)    |      **~2 KB**      |      ~8 KB       |      ~3 KB       |      ~5 KB       |
+| Plural/gender           |  Translator-driven  | Developer-driven | Developer-driven | Developer-driven |
+| React version           |         18+         |      16.8+       |      16.14+      |     19 only      |
 
 ## License
 

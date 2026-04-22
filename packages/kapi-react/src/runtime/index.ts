@@ -13,7 +13,7 @@
  * and should not be used directly from application code.
  */
 
-import type { ReactNode } from 'react';
+import type { ReactNode } from "react";
 import {
   createElement,
   cloneElement,
@@ -21,12 +21,12 @@ import {
   Fragment,
   useSyncExternalStore,
   useCallback,
-} from 'react';
-import { resolveICU } from './icu.ts';
+} from "react";
+import { resolveICU } from "./icu.ts";
 
 // ─── Translation store ───────────────────────────────────────
 
-let currentLocale = '';
+let currentLocale = "";
 let dict: Record<string, string> = {};
 let version = 0;
 const listeners = new Set<() => void>();
@@ -40,10 +40,7 @@ function notify() {
  * Set the active translation dictionary. Triggers re-render of all
  * components using useNeokapi().
  */
-export function setTranslations(
-  locale: string,
-  translations: Record<string, string>,
-) {
+export function setTranslations(locale: string, translations: Record<string, string>) {
   currentLocale = locale;
   dict = translations;
   notify();
@@ -52,10 +49,7 @@ export function setTranslations(
 /**
  * Fetch a translation file from a URL and activate it.
  */
-export async function loadTranslations(
-  locale: string,
-  url: string,
-): Promise<void> {
+export async function loadTranslations(locale: string, url: string): Promise<void> {
   const response = await fetch(url);
   const translations = await response.json();
   setTranslations(locale, translations);
@@ -76,7 +70,7 @@ export function __t(
   let text = dict[hash] ?? fallback;
 
   // Resolve ICU plural/select if present
-  if (text.includes(', plural,') || text.includes(', select,')) {
+  if (text.includes(", plural,") || text.includes(", select,")) {
     text = resolveICU(text, params, currentLocale);
   }
 
@@ -106,7 +100,7 @@ export function __tx(
   let text = dict[hash] ?? fallback;
 
   // Resolve ICU
-  if (text.includes(', plural,') || text.includes(', select,')) {
+  if (text.includes(", plural,") || text.includes(", select,")) {
     text = resolveICU(text, params, currentLocale);
   }
 
@@ -143,7 +137,7 @@ export function __tx(
   }
 
   if (!hasElements) {
-    return parts.join('');
+    return parts.join("");
   }
 
   // Return a React Fragment — NOT a wrapping <span>. A wrapper
@@ -159,7 +153,7 @@ export function __tx(
     Fragment,
     null,
     ...parts.map((part, i) =>
-      typeof part === 'string'
+      typeof part === "string"
         ? part
         : isValidElement(part)
           ? cloneElement(part, { key: i })
@@ -219,22 +213,14 @@ export function useNeokapi() {
  * returns the source text with `{name}` substitutions applied —
  * so you can use it unconditionally.
  */
-export function t(
-  text: string,
-  context?: string,
-  params?: Record<string, string | number>,
-): string;
-export function t(
-  text: string,
-  params: Record<string, string | number>,
-): string;
+export function t(text: string, context?: string, params?: Record<string, string | number>): string;
+export function t(text: string, params: Record<string, string | number>): string;
 export function t(
   text: string,
   contextOrParams?: string | Record<string, string | number>,
   params?: Record<string, string | number>,
 ): string {
-  const actualParams =
-    typeof contextOrParams === 'object' ? contextOrParams : params;
+  const actualParams = typeof contextOrParams === "object" ? contextOrParams : params;
   if (!actualParams) return text;
   let out = text;
   for (const [k, v] of Object.entries(actualParams)) {
@@ -245,17 +231,6 @@ export function t(
 
 // ─── Plural / Select authoring components ────────────────────
 
-export {
-  Plural,
-  Select,
-  Case,
-  Zero,
-  One,
-  Two,
-  Few,
-  Many,
-  Other,
-  pluralKeyFor,
-} from './plural.tsx';
+export { Plural, Select, Case, Zero, One, Two, Few, Many, Other, pluralKeyFor } from "./plural.tsx";
 
-export type { PluralProps, PluralFormKey, SelectProps, CaseProps } from './plural.tsx';
+export type { PluralProps, PluralFormKey, SelectProps, CaseProps } from "./plural.tsx";

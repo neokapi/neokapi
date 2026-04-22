@@ -1,6 +1,6 @@
 export type PluginOptions = {
   /** 'inline' = build-time (default when locale set), 'runtime' = OTA dynamic loading */
-  mode?: 'inline' | 'runtime';
+  mode?: "inline" | "runtime";
 
   /** Target locale for inline mode (e.g., "de", "ja", "qps"). */
   locale?: string;
@@ -55,7 +55,7 @@ export type PluginOptions = {
    *   'error' — throw a build error
    *   false   — silently fall back to source text
    */
-  strict?: 'warn' | 'error' | false;
+  strict?: "warn" | "error" | false;
 
   /**
    * Promote extraction-time warnings (e.g. `unknown-component`) to
@@ -72,4 +72,4 @@ export type PluginOptions = {
 };
 
 /** Unit Separator — delimits context from translator note in hash computation. */
-export const CONTEXT_SEPARATOR = '\x1F';
+export const CONTEXT_SEPARATOR = "\x1F";

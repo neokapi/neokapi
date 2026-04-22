@@ -26,12 +26,7 @@
  * tools rely on.
  */
 
-import type {
-  Expression,
-  JSXElement,
-  JSXElementChild,
-  JSXExpressionContainer,
-} from '@swc/core';
+import type { Expression, JSXElement, JSXElementChild, JSXExpressionContainer } from "@swc/core";
 
 import type {
   Placeholder,
@@ -40,15 +35,9 @@ import type {
   Run,
   SelectRunWrapper,
   TextRun,
-} from '@neokapi/kapi-format';
+} from "@neokapi/kapi-format";
 
-import {
-  containsJSX,
-  dedupName,
-  exprToName,
-  getTagName,
-  resolveHTMLElement,
-} from './ast.ts';
+import { containsJSX, dedupName, exprToName, getTagName, resolveHTMLElement } from "./ast.ts";
 import {
   isPluralTag,
   isSelectTag,
@@ -57,7 +46,7 @@ import {
   type PluralFormKey,
   type PluralInfo,
   type SelectInfo,
-} from './plural.ts';
+} from "./plural.ts";
 
 export interface BuildRunsOptions {
   componentMap: Record<string, string>;
@@ -91,7 +80,7 @@ interface BuilderState {
   /** dedup keyed by placeholder name for the metadata table. */
   placeholders: Map<string, Placeholder>;
   componentMap: Record<string, string>;
-  sourceSlice: BuildRunsOptions['sourceSlice'];
+  sourceSlice: BuildRunsOptions["sourceSlice"];
 }
 
 /**
@@ -101,7 +90,7 @@ interface BuilderState {
 export function buildRuns(el: JSXElement, opts: BuildRunsOptions): BuildRunsResult {
   const state: BuilderState = {
     runs: [],
-    flatText: '',
+    flatText: "",
     idSeq: 0,
     usedNames: new Set(),
     placeholders: new Map(),
@@ -118,11 +107,11 @@ export function buildRuns(el: JSXElement, opts: BuildRunsOptions): BuildRunsResu
 
 function walkChildren(children: readonly JSXElementChild[], state: BuilderState): void {
   for (const child of children) {
-    if (child.type === 'JSXText') {
-      appendText(state, child.value.replace(/\s+/g, ' '));
-    } else if (child.type === 'JSXExpressionContainer') {
+    if (child.type === "JSXText") {
+      appendText(state, child.value.replace(/\s+/g, " "));
+    } else if (child.type === "JSXExpressionContainer") {
       appendExpression(state, child);
-    } else if (child.type === 'JSXElement') {
+    } else if (child.type === "JSXElement") {
       appendJsxElement(state, child);
     }
     // JSXFragment and JSXSpreadChild are disallowed upstream by
@@ -137,7 +126,7 @@ function appendText(state: BuilderState, text: string): void {
   // Coalesce adjacent text runs so a chunked ABI doesn't produce
   // visually-identical neighbours.
   const last = state.runs[state.runs.length - 1];
-  if (last && 'text' in last) {
+  if (last && "text" in last) {
     last.text += text;
   } else {
     const run: { text: string } = { text };
@@ -147,7 +136,7 @@ function appendText(state: BuilderState, text: string): void {
 }
 
 function appendExpression(state: BuilderState, node: JSXExpressionContainer): void {
-  if (node.expression.type === 'JSXEmptyExpression') return;
+  if (node.expression.type === "JSXEmptyExpression") return;
 
   const id = nextId(state);
   const expr = node.expression;
@@ -161,7 +150,7 @@ function appendExpression(state: BuilderState, node: JSXExpressionContainer): vo
     state.runs.push({
       ph: {
         id,
-        type: 'jsx:node',
+        type: "jsx:node",
         data: src,
         equiv,
       },
@@ -169,8 +158,8 @@ function appendExpression(state: BuilderState, node: JSXExpressionContainer): vo
     state.flatText += `{${equiv}}`;
     recordPlaceholder(state, {
       name: equiv,
-      kind: 'node',
-      jsType: 'ReactNode',
+      kind: "node",
+      jsType: "ReactNode",
       sourceExpr: src,
       optional: true,
     });
@@ -182,7 +171,7 @@ function appendExpression(state: BuilderState, node: JSXExpressionContainer): vo
   state.runs.push({
     ph: {
       id,
-      type: 'jsx:var',
+      type: "jsx:var",
       data: `{${equiv}}`,
       equiv,
     },
@@ -190,7 +179,7 @@ function appendExpression(state: BuilderState, node: JSXExpressionContainer): vo
   state.flatText += `{${equiv}}`;
   recordPlaceholder(state, {
     name: equiv,
-    kind: 'variable',
+    kind: "variable",
     sourceExpr: src,
   });
 }
@@ -226,7 +215,7 @@ function appendJsxElement(state: BuilderState, el: JSXElement): void {
   state.runs.push({
     ph: {
       id,
-      type: 'jsx:element',
+      type: "jsx:element",
       subType,
       data: src,
       equiv,
@@ -235,8 +224,8 @@ function appendJsxElement(state: BuilderState, el: JSXElement): void {
   state.flatText += `{${equiv}}`;
   recordPlaceholder(state, {
     name: equiv,
-    kind: 'element',
-    jsType: 'ReactNode',
+    kind: "element",
+    jsType: "ReactNode",
     sourceExpr: src,
   });
 }
@@ -250,8 +239,8 @@ function appendPluralRun(state: BuilderState, el: JSXElement, info: PluralInfo):
   const pivotEquiv = info.pivotName;
   recordPlaceholder(state, {
     name: pivotEquiv,
-    kind: 'icu-pivot',
-    jsType: 'number',
+    kind: "icu-pivot",
+    jsType: "number",
     sourceExpr: pivotSourceFromEl(state, el, info.pivotSource),
   });
 
@@ -266,15 +255,19 @@ function appendPluralRun(state: BuilderState, el: JSXElement, info: PluralInfo):
   state.runs.push({
     plural: { pivot: pivotEquiv, forms },
   } satisfies PluralRunWrapper);
-  state.flatText += icuPluralTemplate(pivotEquiv, info.forms.map((f) => f.key), formFlat);
+  state.flatText += icuPluralTemplate(
+    pivotEquiv,
+    info.forms.map((f) => f.key),
+    formFlat,
+  );
 }
 
 function appendSelectRun(state: BuilderState, el: JSXElement, info: SelectInfo): void {
   const pivotEquiv = info.pivotName;
   recordPlaceholder(state, {
     name: pivotEquiv,
-    kind: 'icu-pivot',
-    jsType: 'string',
+    kind: "icu-pivot",
+    jsType: "string",
     sourceExpr: pivotSourceFromEl(state, el, info.pivotSource),
   });
 
@@ -288,7 +281,7 @@ function appendSelectRun(state: BuilderState, el: JSXElement, info: SelectInfo):
   if (info.otherEl) {
     const { runs, flatText } = buildNestedFormRuns(state, info.otherEl.children ?? []);
     cases.other = runs;
-    caseFlat.set('other', flatText);
+    caseFlat.set("other", flatText);
   }
 
   state.runs.push({
@@ -307,12 +300,12 @@ function appendSelectRun(state: BuilderState, el: JSXElement, info: SelectInfo):
  */
 function buildNestedFormRuns(
   state: BuilderState,
-  children: readonly import('@swc/core').JSXElementChild[],
+  children: readonly import("@swc/core").JSXElementChild[],
 ): { runs: Run[]; flatText: string } {
   const savedRuns = state.runs;
   const savedFlat = state.flatText;
   state.runs = [];
-  state.flatText = '';
+  state.flatText = "";
   walkChildren(children, state);
   const runs = trimEdgeWhitespace(state.runs);
   const flatText = state.flatText.trim();
@@ -325,15 +318,15 @@ function pivotSourceFromEl(state: BuilderState, el: JSXElement, fallback: string
   // Walk opening attributes to find the pivot attr's expression span.
   // Falls back to the fallback source if the attribute layout is unusual.
   for (const attr of el.opening.attributes ?? []) {
-    if (attr.type !== 'JSXAttribute' || attr.name.type !== 'Identifier') continue;
+    if (attr.type !== "JSXAttribute" || attr.name.type !== "Identifier") continue;
     const name = attr.name.value;
-    if (name !== 'count' && name !== 'value') continue;
+    if (name !== "count" && name !== "value") continue;
     const value = attr.value;
     if (!value) continue;
-    if (value.type === 'JSXExpressionContainer') {
+    if (value.type === "JSXExpressionContainer") {
       return spanSlice(value.expression, state);
     }
-    if (value.type === 'StringLiteral') {
+    if (value.type === "StringLiteral") {
       return state.sourceSlice(value.span.start, value.span.end);
     }
   }
@@ -346,8 +339,8 @@ function icuPluralTemplate(
   flat: Map<PluralFormKey, string>,
 ): string {
   const parts: string[] = [];
-  for (const key of order) parts.push(`${key} {${flat.get(key) ?? ''}}`);
-  return `{${pivot}, plural, ${parts.join(' ')}}`;
+  for (const key of order) parts.push(`${key} {${flat.get(key) ?? ""}}`);
+  return `{${pivot}, plural, ${parts.join(" ")}}`;
 }
 
 function icuSelectTemplate(
@@ -356,8 +349,8 @@ function icuSelectTemplate(
   flat: Map<string, string>,
 ): string {
   const parts: string[] = [];
-  for (const key of order) parts.push(`${key} {${flat.get(key) ?? ''}}`);
-  return `{${pivot}, select, ${parts.join(' ')}}`;
+  for (const key of order) parts.push(`${key} {${flat.get(key) ?? ""}}`);
+  return `{${pivot}, select, ${parts.join(" ")}}`;
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────
@@ -378,7 +371,7 @@ function recordPlaceholder(state: BuilderState, placeholder: Placeholder): void 
  */
 function spanSlice(node: unknown, state: BuilderState): string {
   const span = (node as { span?: { start: number; end: number } }).span;
-  if (!span) return '';
+  if (!span) return "";
   return state.sourceSlice(span.start, span.end);
 }
 
@@ -392,16 +385,16 @@ function trimEdgeWhitespace(runs: Run[]): Run[] {
   const trimmed = [...runs];
 
   const first = trimmed[0];
-  if (first && 'text' in first) {
-    const text = (first as TextRun).text.replace(/^\s+/, '');
-    if (text === '') trimmed.shift();
+  if (first && "text" in first) {
+    const text = (first as TextRun).text.replace(/^\s+/, "");
+    if (text === "") trimmed.shift();
     else (first as TextRun).text = text;
   }
 
   const last = trimmed[trimmed.length - 1];
-  if (last && 'text' in last) {
-    const text = (last as TextRun).text.replace(/\s+$/, '');
-    if (text === '') trimmed.pop();
+  if (last && "text" in last) {
+    const text = (last as TextRun).text.replace(/\s+$/, "");
+    if (text === "") trimmed.pop();
     else (last as TextRun).text = text;
   }
 

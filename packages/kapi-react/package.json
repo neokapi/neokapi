@@ -5,22 +5,25 @@
   "description": "Zero-config i18n for React. Transforms vanilla JSX at build time using W3C HTML5 translatability rules. Supports build-time inlining (zero runtime) and OTA dynamic loading. Extracts translatable content as Kapi Localization Format (KLF).",
   "keywords": [
     "i18n",
-    "l10n",
-    "react",
     "internationalization",
+    "l10n",
     "localization",
+    "nextjs",
+    "react",
     "translation",
     "vite",
-    "webpack",
-    "nextjs"
+    "webpack"
   ],
   "license": "Apache-2.0",
-  "type": "module",
+  "bin": {
+    "kapi-react": "./dist/cli.js"
+  },
   "files": [
     "dist",
     "README.md",
     "LICENSE"
   ],
+  "type": "module",
   "exports": {
     ".": {
       "types": "./dist/plugin/index.d.ts",
@@ -51,9 +54,6 @@
       "default": "./dist/storybook/index.js"
     }
   },
-  "bin": {
-    "kapi-react": "./dist/cli.js"
-  },
   "scripts": {
     "build": "node build.mjs",
     "test": "vitest run",
@@ -68,6 +68,19 @@
     "@neokapi/kapi-format": "*",
     "@swc/core": "^1.12.0",
     "unplugin": "^2.0.0"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.29.0",
+    "@babel/plugin-syntax-jsx": "^7.28.0",
+    "@babel/preset-typescript": "^7.28.0",
+    "@babel/types": "^7.29.0",
+    "@storybook/react-vite": "^10.3.5",
+    "@types/node": "^25.6.0",
+    "@types/react": "^19.0.0",
+    "esbuild": "^0.27.7",
+    "react": "^19.0.0",
+    "typescript": "^5.8.0",
+    "vitest": "^3.2.0"
   },
   "peerDependencies": {
     "@babel/core": "^7.29.0",
@@ -85,19 +98,6 @@
     "storybook": {
       "optional": true
     }
-  },
-  "devDependencies": {
-    "@babel/core": "^7.29.0",
-    "@babel/plugin-syntax-jsx": "^7.28.0",
-    "@babel/preset-typescript": "^7.28.0",
-    "@babel/types": "^7.29.0",
-    "@storybook/react-vite": "^10.3.5",
-    "@types/node": "^25.6.0",
-    "@types/react": "^19.0.0",
-    "esbuild": "^0.27.7",
-    "react": "^19.0.0",
-    "typescript": "^5.8.0",
-    "vitest": "^3.2.0"
   },
   "engines": {
     "node": ">=22"

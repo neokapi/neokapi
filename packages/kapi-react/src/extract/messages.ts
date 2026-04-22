@@ -22,9 +22,9 @@
  * transform stay hash-compatible.
  */
 
-import type { CallExpression, Module } from '@swc/core';
+import type { CallExpression, Module } from "@swc/core";
 
-const RUNTIME_IMPORT = '@neokapi/kapi-react/runtime';
+const RUNTIME_IMPORT = "@neokapi/kapi-react/runtime";
 
 /**
  * Collects every local identifier bound to the runtime `t` export.
@@ -33,12 +33,12 @@ const RUNTIME_IMPORT = '@neokapi/kapi-react/runtime';
 export function collectTIdentifiers(mod: Module): Set<string> {
   const names = new Set<string>();
   for (const item of mod.body) {
-    if (item.type !== 'ImportDeclaration') continue;
+    if (item.type !== "ImportDeclaration") continue;
     if (item.source.value !== RUNTIME_IMPORT) continue;
     for (const spec of item.specifiers) {
-      if (spec.type !== 'ImportSpecifier') continue;
+      if (spec.type !== "ImportSpecifier") continue;
       const imported = spec.imported?.value ?? spec.local.value;
-      if (imported === 't') names.add(spec.local.value);
+      if (imported === "t") names.add(spec.local.value);
     }
   }
   return names;
@@ -93,19 +93,19 @@ function* descend(
   names: ReadonlySet<string>,
   sourceSlice: (start: number, end: number) => string,
 ): Generator<TCall> {
-  if (!node || typeof node !== 'object') return;
+  if (!node || typeof node !== "object") return;
 
-  if (node.type === 'CallExpression') {
+  if (node.type === "CallExpression") {
     const callee = node.callee;
-    if (callee?.type === 'Identifier' && names.has(callee.value)) {
+    if (callee?.type === "Identifier" && names.has(callee.value)) {
       const first = node.arguments?.[0]?.expression;
       const second = node.arguments?.[1]?.expression;
       const third = node.arguments?.[2]?.expression;
-      if (first?.type === 'StringLiteral') {
+      if (first?.type === "StringLiteral") {
         let context: string | null = null;
         let paramsNode: { span?: { start: number; end: number } } | null = null;
 
-        if (second?.type === 'StringLiteral') {
+        if (second?.type === "StringLiteral") {
           context = second.value as string;
           paramsNode = third ?? null;
         } else if (second) {
@@ -116,10 +116,9 @@ function* descend(
           node: node as CallExpression,
           text: first.value as string,
           context,
-          paramsSrc:
-            paramsNode?.span
-              ? sourceSlice(paramsNode.span.start, paramsNode.span.end)
-              : null,
+          paramsSrc: paramsNode?.span
+            ? sourceSlice(paramsNode.span.start, paramsNode.span.end)
+            : null,
           callee: callee.value,
         };
       }
@@ -127,11 +126,11 @@ function* descend(
   }
 
   for (const key of Object.keys(node)) {
-    if (key === 'type' || key === 'span') continue;
+    if (key === "type" || key === "span") continue;
     const val = (node as Record<string, unknown>)[key];
     if (Array.isArray(val)) {
       for (const item of val) yield* descend(item, names, sourceSlice);
-    } else if (val && typeof val === 'object') {
+    } else if (val && typeof val === "object") {
       yield* descend(val, names, sourceSlice);
     }
   }
