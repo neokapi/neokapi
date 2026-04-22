@@ -114,6 +114,82 @@ hash = hashKey(text, "t\x1F")
 
 So `t("Save")` and `<button>Save</button>` produce **different** hashes. That's intentional: the JSX call site has structural context (inside a button, inside a form, etc.) that a standalone string doesn't. A translator might want German "Speichern" for the button and "Gespeichert!" for a toast's `t("Saved")` — separating channels lets them diverge.
 
+## Module-level `t()` gotcha
+
+`t()` reads the active dictionary **at call time**. A module-level
+const evaluates once, at import — typically *before* the app has
+finished calling `loadTranslations()`. The const freezes at the
+fallback language forever:
+
+```tsx
+// ✗ Frozen at load time. "Utility" still says "Utility" in pseudo.
+const categoryMeta = {
+  utility: { label: t("Utility") },
+  pipeline: { label: t("Pipeline") },
+};
+```
+
+Fix: wrap the lookup in a function that runs per render. Each call
+reads the current dict:
+
+```tsx
+// ✓ Per-render resolution.
+function categoryMeta(cat: string) {
+  switch (cat) {
+    case "utility":  return { label: t("Utility") };
+    case "pipeline": return { label: t("Pipeline") };
+    // …
+  }
+}
+
+function Chip({ cat }: { cat: string }) {
+  const meta = categoryMeta(cat);
+  return <span translate="no">{meta.label}</span>;
+  //           ^ prevents double-wrap; see below.
+}
+```
+
+**Why the `translate="no"`?** If the parent would be extractable on
+its own (has static text, inline children, etc.), it'd wrap the
+already-translated `meta.label` in a *second* translation layer,
+showing `▒ ▒ Utility ▒ ▒` in pseudo. `translate="no"` tells the
+extractor the inner `t()` is the single source of truth for this
+subtree. See [Writing components → Double-translation](./writing-components#double-translation-already-translated-values-inside-translatable-blocks).
+
+## Ternary children with string literals
+
+kapi-react treats the *whole* `JSXExpressionContainer` as one
+placeholder — it never looks inside a ternary at its branches:
+
+```tsx
+// ✗ Neither "Saving..." nor "Save" gets extracted.
+<Button>{saving ? "Saving..." : "Save"}</Button>
+```
+
+Wrap each branch with `t()`:
+
+```tsx
+<Button>{saving ? t("Saving...") : t("Save")}</Button>
+```
+
+Template literals with static copy inside: same treatment.
+
+```tsx
+// ✗ template never extracts
+<span>{count > 0 ? `Loading ${count}...` : "Idle"}</span>
+
+// ✓ placeholder-aware t()
+<span>
+  {count > 0 ? t("Loading {count}...", { count }) : t("Idle")}
+</span>
+```
+
+Purely-format templates (no alphabetic text: `` `${pct}%` ``,
+`` `v${version}` ``) don't need `t()` — they're code-level
+formatting, not UI copy — and the lint rule
+[`no-ternary-literals-in-jsx-child`](./linting#no-ternary-literals-in-jsx-child)
+knows not to flag them.
+
 ## When to use `t()` vs. refactor to JSX
 
 Sometimes the cleanest fix is to hoist the string into JSX instead:

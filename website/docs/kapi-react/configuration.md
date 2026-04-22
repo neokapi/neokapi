@@ -176,6 +176,8 @@ Pair with [`@neokapi/kapi-react-lint`](./linting) to get a fully-enforced "no au
 ```bash
 kapi-react extract \
   --src "src/**/*.{tsx,jsx}" \
+  --ignore "src/stories/**" \
+  --ignore "**/*.test.tsx" \
   --out i18n \
   --config i18n.config.json \
   --project my-app \
@@ -189,6 +191,12 @@ kapi-react extract --stream | any-kapi-tool
 # CI-friendly: fail on any recorded warning.
 kapi-react extract --strict
 ```
+
+`--ignore` is repeatable and accepts any glob; it's piped through to
+Node's `fs/promises.glob` `exclude` option. Use it to keep
+fixture-only code (`src/stories/**`, test helpers) out of the catalog
+— your lint config should agree (see [Linting → Excluding fixture
+code](./linting#excluding-fixture-code)).
 
 `kapi-react compile` (accepts `.klf`, `.klf` directory, or `-` for NDJSON stdin):
 
@@ -303,6 +311,51 @@ You're probably building Storybook or running tests with the plugin active. Rout
 ### "Hash mismatch between extract and transform"
 
 Almost always a `componentMap` desync — the Vite plugin and the CLI must use the same map. Either point both at a shared JSON config (`--config i18n.config.json`) or share a TS module both import from.
+
+### "A string renders in English in a pseudo build, but the component looks translatable"
+
+Usually one of these three:
+
+1. **Stale Vite dep cache** — the plugin got cached from before a
+   change. Kill any running dev server and `rm -rf node_modules/.vite`
+   before restarting.
+2. **Linked workspace package** — kapi-desktop's extract only walks
+   its own `src/**`; a JSX string in `packages/flow-editor/src/…`
+   gets the runtime `__t()` rewrite (via Vite's plugin) but never
+   an extracted catalog entry, so the lookup falls back to source.
+   Add another `--src` glob for each workspace package you want
+   extracted, or run each package's extract into a shared `i18n/`
+   directory.
+3. **Double-wrap detection** — see "Translate content shows `▒ ▒ … ▒ ▒`
+   in pseudo" below.
+
+### "Translated content shows `▒ ▒ … ▒ ▒` in pseudo"
+
+Two translation layers stacking: an inner `t()` call produces a
+pseudo-translated string, then an outer element wraps its whole body
+(including that already-translated string) as its own block, adding a
+second pair of markers. Common with dynamic label patterns:
+
+```tsx
+// meta.label is already a t()-resolved string from categoryMeta()
+<Button>{meta.label} ({catTools.length})</Button>
+// pseudo: ▒ ▒ Utility ▒ (32) ▒   ← double wrap
+```
+
+Mark the outer element `translate="no"` so only the inner `t()` wraps:
+
+```tsx
+<Button translate="no">
+  {meta.label} ({catTools.length})
+</Button>
+// pseudo: ▒ Utility ▒ (32)       ← single wrap
+```
+
+### "A `{placeholder}` name is rendering as `{ᴘʟᴀᴄᴇʜᴏʟᴅᴇʀ}` in pseudo"
+
+Fixed in pseudo-translate; accent transform preserves `{…}` contents
+verbatim now. Regenerate the catalog (`make kapi-desktop-translations`
+or equivalent) to pick up the fix.
 
 ## Next
 
