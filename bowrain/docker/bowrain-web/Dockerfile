@@ -6,7 +6,7 @@
 # Run:    docker run -p 3000:80 bowrain-web
 
 # ── Stage 1: Build web UI ──────────────────────────────────────────────────
-FROM node:22-slim AS web-builder
+FROM node:24-slim AS web-builder
 WORKDIR /src
 
 # Copy workspace root (lock file + workspace config) and package.json files

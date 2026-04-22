@@ -5,7 +5,7 @@
 #
 # Build: docker build -t ghcr.io/neokapi/bravo-sandbox-node:latest -f bowrain/docker/bravo-sandbox-node/Dockerfile .
 
-FROM node:22-slim
+FROM node:24-slim
 
 # Install localization-relevant libraries globally.
 RUN npm install -g --no-fund --no-audit \
