@@ -72,6 +72,8 @@ describe("pseudoTranslateCoded", () => {
     // All three marker types in sequence
     const coded = `a${OPENING}b${CLOSING}c${PLACEHOLDER}d`;
     const result = pseudoTranslateCoded(coded);
-    expect(result).toBe(`${OPEN}\u00e0${OPENING}\u0183${CLOSING}\u00e7${PLACEHOLDER}\u0111${CLOSE}`);
+    expect(result).toBe(
+      `${OPEN}\u00e0${OPENING}\u0183${CLOSING}\u00e7${PLACEHOLDER}\u0111${CLOSE}`,
+    );
   });
 });
