@@ -14,7 +14,9 @@ export const recommendedStrict = {
     "kapi-react/t-literal-first-arg": "error",
     "kapi-react/t-no-concat": "error",
     "kapi-react/no-concat-in-translatable-attr": "error",
+    "kapi-react/no-ternary-in-translatable-attr": "error",
     "kapi-react/no-string-literal-jsx-expr": "error",
     "kapi-react/prefer-t-for-label-props": "error",
+    "kapi-react/prefer-t-for-label-expr": "error",
   },
 } as const;
