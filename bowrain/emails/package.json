@@ -14,7 +14,7 @@
   },
   "devDependencies": {
     "@types/react": "19.2.14",
-    "react-email": "5.2.10",
+    "react-email": "6.0.0",
     "tsx": "^4.21.0",
     "typescript": "5.9.3"
   }
