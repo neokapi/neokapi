@@ -85,19 +85,7 @@ export async function loadTranslations(
 // Pashto, Sindhi, Divehi, Kurdish (Sorani), Aramaic, Samaritan.
 // Add more via the second arg to `setTranslations` / `loadTranslations`
 // if you need to override.
-const RTL_LANGS = new Set([
-  "ar",
-  "dv",
-  "fa",
-  "he",
-  "ku",
-  "ps",
-  "sd",
-  "ur",
-  "yi",
-  "arc",
-  "sam",
-]);
+const RTL_LANGS = new Set(["ar", "dv", "fa", "he", "ku", "ps", "sd", "ur", "yi", "arc", "sam"]);
 
 function isRTL(locale: string): boolean {
   const primary = locale.split(/[-_]/)[0].toLowerCase();

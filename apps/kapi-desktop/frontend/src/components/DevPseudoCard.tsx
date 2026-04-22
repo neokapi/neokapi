@@ -10,8 +10,10 @@
  * (`window.kapi.pseudo(...)`) and this UI stay in sync across reloads.
  *
  * The whole panel is `translate="no"` — without that, the pseudo
- * transform would recursively accent the UI's own labels and make
- * them wiggle with whatever expansion / alphabet is active.
+ * transform would recursively accent the UI's own labels. The
+ * kapi-react plugin inherits that setting down the subtree (matching
+ * the W3C `translate` attribute spec), so every descendant label is
+ * exempt.
  */
 import { useCallback, useEffect, useState } from "react";
 import { FlaskConical } from "lucide-react";
@@ -32,6 +34,8 @@ const DEFAULT_PREFIX = "\u2592 "; // ▒ + space
 const DEFAULT_SUFFIX = " \u2592";
 const DEFAULT_EXPANSION_CHAR = "\u00b7"; // ·
 
+const SAMPLE_TEXT = "Sample translatable string";
+
 type SetMode = (cfg: PseudoConfig | null) => void;
 
 const ALPHABET_OPTIONS: ReadonlyArray<{
@@ -40,7 +44,15 @@ const ALPHABET_OPTIONS: ReadonlyArray<{
   sample: string;
 }> = [
   { value: "accented", label: "Accented (uniform)", sample: "Ĥéļļö ŵöŕļđ" },
-  { value: "wobbly", label: "Wobbly (varied)", sample: "Ḧěľľǒ ŵǒřľď" },
+  {
+    value: "wobbly",
+    label: "Wobbly (mixed tilt)",
+    // "Hello world" rendered with the cycle italic→sans→script, so
+    // each letter sits at a visibly different angle.
+    sample:
+      "\u{1D5A7}\u{1D4BE}\u{1D463}\u{1D5CA}\u{1D4C1} " +
+      "\u{1D5C1}\u{1D4C1}\u{1D5BB}\u{1D4BE}\u{1D5BE}",
+  },
   { value: "none", label: "None (plain)", sample: "Hello world" },
 ];
 
@@ -55,6 +67,44 @@ const EXPANSION_CHAR_OPTIONS: ReadonlyArray<{ value: string; label: string }> = 
   { value: "-", label: "- Hyphen" },
   { value: "_", label: "_ Underscore" },
 ];
+
+// Paired prefix/suffix presets. The dropdown selects a wrapper
+// style; picking one updates both the prefix and suffix inputs.
+// Custom values (anything not in the list) are preserved and shown
+// as "Custom…" in the select.
+const WRAPPER_OPTIONS: ReadonlyArray<{
+  value: string;
+  label: string;
+  prefix: string;
+  suffix: string;
+}> = [
+  { value: "shade", label: "▒ text ▒  Medium shade", prefix: "\u2592 ", suffix: " \u2592" },
+  { value: "square", label: "[ text ]  Square brackets", prefix: "[", suffix: "]" },
+  { value: "guillemets", label: "« text »  Guillemets", prefix: "\u00ab ", suffix: " \u00bb" },
+  {
+    value: "single-guillemets",
+    label: "‹ text ›  Single guillemets",
+    prefix: "\u2039 ",
+    suffix: " \u203a",
+  },
+  { value: "angle", label: "⟨ text ⟩  Angle brackets", prefix: "\u27e8 ", suffix: " \u27e9" },
+  { value: "double-angle", label: "⟪ text ⟫  Double angle", prefix: "\u27ea ", suffix: " \u27eb" },
+  { value: "math", label: "⟦ text ⟧  White square", prefix: "\u27e6 ", suffix: " \u27e7" },
+  { value: "corner", label: "「 text 」  Corner brackets", prefix: "\u300c", suffix: "\u300d" },
+  {
+    value: "lenticular",
+    label: "【 text 】  Black lenticular",
+    prefix: "\u3010",
+    suffix: "\u3011",
+  },
+  { value: "pipes", label: "| text |  Pipes", prefix: "| ", suffix: " |" },
+  { value: "none", label: "No wrapper (bare)", prefix: "", suffix: "" },
+];
+
+function resolveWrapperPreset(prefix: string, suffix: string): string {
+  const match = WRAPPER_OPTIONS.find((w) => w.prefix === prefix && w.suffix === suffix);
+  return match?.value ?? "__custom__";
+}
 
 function readStoredConfig(): PseudoConfig | null {
   if (typeof localStorage === "undefined") return null;
@@ -127,18 +177,21 @@ export function DevPseudoCard() {
   }, [setMode, enabled, prefix, suffix, expansion, expansionChar, alphabet, apply]);
 
   const previewSample = enabled
-    ? applyPreview("Sample translatable string", {
+    ? applyPreview(SAMPLE_TEXT, {
         prefix,
         suffix,
         expansion,
         expansionChar,
         alphabet,
       })
-    : "Sample translatable string";
+    : SAMPLE_TEXT;
 
   return (
-    // translate="no" on the card root keeps the pseudo transform
-    // from recursively accenting the panel's own labels.
+    // translate="no" on the card root opts the whole subtree out of
+    // runtime pseudo-translation. Inheritance is rock-solid: the
+    // kapi-react plugin walks self + ancestors and the nearest
+    // explicit `translate` setting wins, matching the W3C spec. A
+    // descendant can opt back in with `translate="yes"`.
     <Card translate="no">
       <CardContent className="space-y-4 p-4">
         <div className="flex items-start justify-between gap-4">
@@ -183,8 +236,8 @@ export function DevPseudoCard() {
               ))}
             </select>
             <p className="mt-1 text-[10px] text-muted-foreground">
-              Wobbly uses a varied mix of diacritics per letter — good for noticing layout that
-              depends on consistent letter heights.
+              Wobbly cycles italic (right slant) → sans (upright) → script (flowy) per letter so
+              adjacent characters sit at different angles and weights.
             </p>
           </div>
 
@@ -242,6 +295,34 @@ export function DevPseudoCard() {
                 aria-label="Expansion character override"
               />
             </div>
+          </div>
+
+          <div>
+            <Label className="mb-1 block text-xs text-muted-foreground">Wrapper</Label>
+            <select
+              value={resolveWrapperPreset(prefix, suffix)}
+              disabled={!enabled}
+              onChange={(e) => {
+                if (e.target.value === "__custom__") return;
+                const preset = WRAPPER_OPTIONS.find((w) => w.value === e.target.value);
+                if (preset) {
+                  setPrefix(preset.prefix);
+                  setSuffix(preset.suffix);
+                }
+              }}
+              className="h-8 w-full rounded-md border border-input bg-transparent px-2 text-xs outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              {WRAPPER_OPTIONS.map((opt) => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.label}
+                </option>
+              ))}
+              <option value="__custom__">Custom…</option>
+            </select>
+            <p className="mt-1 text-[10px] text-muted-foreground">
+              Paired brackets or markers around every pseudo-translated string. Pick a preset or
+              edit prefix / suffix directly below for anything custom.
+            </p>
           </div>
 
           <div className="grid grid-cols-2 gap-3">
@@ -335,59 +416,64 @@ const ACCENTED: Record<string, string> = {
   Y: "\u00dd",
   Z: "\u017d",
 };
+// Mirror of the WOBBLY map in kapi-react/runtime/pseudo. Cycles
+// three Mathematical Alphanumeric blocks per letter (italic → sans
+// → script) so the preview renders with visibly mixed angles and
+// weights. Reserved codepoints use their Letterlike-Symbols
+// substitutes. Astral escapes iterate correctly via `for…of`.
 const WOBBLY: Record<string, string> = {
-  a: "\u0101",
-  b: "\u1e03",
-  c: "\u0109",
-  d: "\u010f",
-  e: "\u011b",
-  f: "\u1e1f",
-  g: "\u01e7",
-  h: "\u1e27",
-  i: "\u01d0",
-  j: "\u0135",
-  k: "\u01e9",
-  l: "\u013a",
-  m: "\u1e41",
-  n: "\u01f9",
-  o: "\u01d2",
-  p: "\u1e55",
-  q: "\u024b",
-  r: "\u0159",
-  s: "\u0161",
-  t: "\u0165",
-  u: "\u01d4",
-  v: "\u1e7d",
-  w: "\u0175",
-  x: "\u1e8d",
-  y: "\u1ef3",
-  z: "\u017e",
-  A: "\u0100",
-  B: "\u1e02",
-  C: "\u0108",
-  D: "\u010e",
-  E: "\u011a",
-  F: "\u1e1e",
-  G: "\u01e6",
-  H: "\u1e26",
-  I: "\u01cf",
-  J: "\u0134",
-  K: "\u01e8",
-  L: "\u0139",
-  M: "\u1e40",
-  N: "\u01f8",
-  O: "\u01d1",
-  P: "\u1e54",
-  Q: "\u024a",
-  R: "\u0158",
-  S: "\u0160",
-  T: "\u0164",
-  U: "\u01d3",
-  V: "\u1e7c",
-  W: "\u0174",
-  X: "\u1e8c",
-  Y: "\u1ef2",
-  Z: "\u017d",
+  a: "\u{1D44E}",
+  b: "\u{1D5BB}",
+  c: "\u{1D4B8}",
+  d: "\u{1D451}",
+  e: "\u{1D5BE}",
+  f: "\u{1D4BB}",
+  g: "\u{1D454}",
+  h: "\u{1D5C1}",
+  i: "\u{1D4BE}",
+  j: "\u{1D457}",
+  k: "\u{1D5C4}",
+  l: "\u{1D4C1}",
+  m: "\u{1D45A}",
+  n: "\u{1D5C7}",
+  o: "\u{2134}",
+  p: "\u{1D45D}",
+  q: "\u{1D5CA}",
+  r: "\u{1D4C7}",
+  s: "\u{1D460}",
+  t: "\u{1D5CD}",
+  u: "\u{1D4CA}",
+  v: "\u{1D463}",
+  w: "\u{1D5D0}",
+  x: "\u{1D4CD}",
+  y: "\u{1D466}",
+  z: "\u{1D5D3}",
+  A: "\u{1D434}",
+  B: "\u{1D5A1}",
+  C: "\u{1D49E}",
+  D: "\u{1D437}",
+  E: "\u{1D5A4}",
+  F: "\u{2131}",
+  G: "\u{1D43A}",
+  H: "\u{1D5A7}",
+  I: "\u{2110}",
+  J: "\u{1D43D}",
+  K: "\u{1D5AA}",
+  L: "\u{2112}",
+  M: "\u{1D440}",
+  N: "\u{1D5AD}",
+  O: "\u{1D4AA}",
+  P: "\u{1D443}",
+  Q: "\u{1D5B0}",
+  R: "\u{211B}",
+  S: "\u{1D446}",
+  T: "\u{1D5B3}",
+  U: "\u{1D4B0}",
+  V: "\u{1D449}",
+  W: "\u{1D5B6}",
+  X: "\u{1D4B3}",
+  Y: "\u{1D44C}",
+  Z: "\u{1D5B9}",
 };
 const ALPHABETS: Record<AlphabetName, Record<string, string>> = {
   accented: ACCENTED,
@@ -395,35 +481,86 @@ const ALPHABETS: Record<AlphabetName, Record<string, string>> = {
   none: {},
 };
 
+// Mirror of `pseudoTransform` in kapi-react/runtime/pseudo. Kept in
+// sync manually (one file, ~40 lines) so live preview updates
+// without forcing a dynamic import on every keystroke.
 function applyPreview(text: string, cfg: Required<PseudoConfig>): string {
   const alphabet = ALPHABETS[cfg.alphabet];
-  const rate = Math.max(0, Math.min(100, cfg.expansion)) / 100;
-  let out = "";
+  const expansion = Math.max(0, Math.min(100, cfg.expansion));
+  const chars: string[] = [];
+  const isLetter: boolean[] = [];
+  const isSpace: boolean[] = [];
   let depth = 0;
-  let accum = 0;
   for (const ch of text) {
     if (ch === "{") {
       depth++;
-      out += ch;
+      chars.push(ch);
+      isLetter.push(false);
+      isSpace.push(false);
       continue;
     }
     if (ch === "}") {
       if (depth > 0) depth--;
-      out += ch;
+      chars.push(ch);
+      isLetter.push(false);
+      isSpace.push(false);
       continue;
     }
     if (depth > 0) {
-      out += ch;
+      chars.push(ch);
+      isLetter.push(false);
+      isSpace.push(false);
       continue;
     }
-    out += alphabet[ch] ?? ch;
-    if (rate > 0 && cfg.expansionChar) {
+    const ws = ch === " " || ch === "\t" || ch === "\n";
+    chars.push(alphabet[ch] ?? ch);
+    isLetter.push(!ws);
+    isSpace.push(ws);
+  }
+
+  let body = "";
+  if (expansion === 0 || !cfg.expansionChar) {
+    body = chars.join("");
+  } else if (expansion >= 100) {
+    const rate = expansion / 100;
+    let accum = 0;
+    for (let i = 0; i < chars.length; i++) {
+      body += chars[i];
+      if (!isLetter[i]) continue;
       accum += rate;
       while (accum >= 1) {
-        out += cfg.expansionChar;
+        body += cfg.expansionChar;
         accum -= 1;
       }
     }
+  } else {
+    const letterCount = isLetter.reduce((n, b) => n + (b ? 1 : 0), 0);
+    const wanted = Math.round((letterCount * expansion) / 100);
+    const spaceIndices: number[] = [];
+    for (let i = 0; i < isSpace.length; i++) if (isSpace[i]) spaceIndices.push(i);
+    const insertAfter: number[] = Array.from({ length: chars.length }, () => 0);
+    let leading = 0;
+    let trailing = 0;
+    if (spaceIndices.length === 0) {
+      leading = Math.ceil(wanted / 2);
+      trailing = wanted - leading;
+    } else if (wanted <= spaceIndices.length) {
+      for (let k = 0; k < wanted; k++) {
+        const idx = spaceIndices[Math.floor((k * spaceIndices.length) / wanted)];
+        insertAfter[idx] += 1;
+      }
+    } else {
+      for (const idx of spaceIndices) insertAfter[idx] += 1;
+      const remaining = wanted - spaceIndices.length;
+      leading = Math.ceil(remaining / 2);
+      trailing = remaining - leading;
+    }
+    body += cfg.expansionChar.repeat(leading);
+    for (let i = 0; i < chars.length; i++) {
+      body += chars[i];
+      if (insertAfter[i] > 0) body += cfg.expansionChar.repeat(insertAfter[i]);
+    }
+    body += cfg.expansionChar.repeat(trailing);
   }
-  return cfg.prefix + out + cfg.suffix;
+  return cfg.prefix + body + cfg.suffix;
 }

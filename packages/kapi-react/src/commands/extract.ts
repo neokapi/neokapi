@@ -108,8 +108,10 @@ async function expandGlobs(
   ignore: readonly string[] = [],
 ): Promise<string[]> {
   // Node 22+'s `fs/promises.glob` accepts `{ exclude }` as a glob
-  // pattern list. Pass our `--ignore` flags through untouched.
-  const options = ignore.length > 0 ? { exclude: [...ignore] } : undefined;
+  // pattern list. Pass our `--ignore` flags through untouched. The
+  // options object is always non-undefined (even when empty) because
+  // the glob type signature doesn't accept `undefined`.
+  const options = { exclude: [...ignore] };
   const seen = new Set<string>();
   for (const pattern of patterns) {
     for await (const file of glob(pattern, options)) seen.add(file);

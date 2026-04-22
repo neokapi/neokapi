@@ -13,10 +13,10 @@ import { parseSync, type JSXElement, type Module } from "@swc/core";
 import type { Block, Document, Run } from "@neokapi/kapi-format";
 
 import {
-  getStringAttr,
   getTagName,
   labelLikeMemberExpr,
   lineFromOffset,
+  nearestTranslate,
   resolveHTMLElement,
 } from "./ast.ts";
 import { buildJSXPath } from "./jsx-path.ts";
@@ -151,8 +151,10 @@ class BlockCollector {
   visit(el: JSXElement, ancestors: readonly JSXElement[], component: string): boolean {
     const tag = getTagName(el);
     if (!tag) return false;
-    if (getStringAttr(el, "translate") === "no") return false;
-    if (ancestors.some((a) => getStringAttr(a, "translate") === "no")) return false;
+    // W3C translate inheritance: nearest explicit setting on self
+    // or an ancestor wins. `translate="yes"` re-enables translation
+    // inside a `translate="no"` subtree. Mirrored in plugin/transform.ts.
+    if (nearestTranslate(el, ancestors) === "no") return false;
 
     // For unmapped React components we still want to consider
     // their direct text — the user's source is the ground truth,

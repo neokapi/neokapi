@@ -194,6 +194,39 @@ describe("extractDocument — skip rules", () => {
     expect(extractDocument('<h1 translate="no">Skip</h1>', { filename: "Test.tsx" })).toBeNull();
   });
 
+  it('translate="no" inherits to deep descendants', () => {
+    expect(
+      extractDocument(
+        '<section translate="no"><div><article><h1>Skip</h1></article></div></section>',
+        { filename: "Test.tsx" },
+      ),
+    ).toBeNull();
+  });
+
+  it('`translate="yes"` on a descendant re-enables inside a `translate="no"` subtree', () => {
+    const doc = extractDocument(
+      '<section translate="no"><div><h1 translate="yes">Keep me</h1><h2>Skip</h2></div></section>',
+      { filename: "Test.tsx" },
+    );
+    expect(doc).not.toBeNull();
+    const texts = doc!.blocks.map((b) => (b.source[0] as { text: string }).text).sort();
+    expect(texts).toEqual(["Keep me"]);
+  });
+
+  it("nested no→yes→no toggles translation at each level", () => {
+    const doc = extractDocument(
+      '<div translate="no">' +
+        '<section translate="yes"><h1>Translate this</h1>' +
+        '<article translate="no"><h2>Skip this</h2></article>' +
+        "</section>" +
+        "</div>",
+      { filename: "Test.tsx" },
+    );
+    expect(doc).not.toBeNull();
+    const texts = doc!.blocks.map((b) => (b.source[0] as { text: string }).text).sort();
+    expect(texts).toEqual(["Translate this"]);
+  });
+
   it("ignores unparseable source", () => {
     expect(extractDocument("<h1 broken", { filename: "Test.tsx" })).toBeNull();
   });
@@ -512,10 +545,10 @@ describe("extractDocument — label-splice warnings", () => {
 
   it("respects translate='no' on an ancestor (no splice warning)", () => {
     const warnings = createWarningCollector();
-    extractDocument(
-      `<section translate="no"><div><h1>{item.title}</h1></div></section>`,
-      { filename: "T.tsx", warnings },
-    );
+    extractDocument(`<section translate="no"><div><h1>{item.title}</h1></div></section>`, {
+      filename: "T.tsx",
+      warnings,
+    });
     expect(warnings.list().filter((w) => w.kind === "dyn-label-splice")).toEqual([]);
   });
 });

@@ -67,6 +67,35 @@ export function getStringAttr(el: JSXElement, name: string): string | null {
 }
 
 /**
+ * W3C `translate` attribute resolution with inheritance. Walks from
+ * the element itself outward through its ancestors and returns the
+ * nearest explicit value:
+ *
+ *   - `"no"`  — element (or nearest explicit ancestor) opts out
+ *   - `"yes"` — element (or nearest explicit ancestor) opts back in,
+ *               overriding any farther `translate="no"`
+ *   - `null`  — no explicit value in the chain; default applies
+ *
+ * Matches the HTML spec: the nearest explicit setting wins, so
+ * `<Card translate="no"><span translate="yes">keep</span></Card>`
+ * translates the span even though Card opted out.
+ */
+export function nearestTranslate(
+  el: JSXElement,
+  ancestors: readonly JSXElement[],
+): "yes" | "no" | null {
+  const self = getStringAttr(el, "translate");
+  if (self === "yes" || self === "no") return self;
+  // Ancestors are ordered root → parent; walk from the nearest
+  // (deepest) outward so closer settings win.
+  for (let i = ancestors.length - 1; i >= 0; i--) {
+    const v = getStringAttr(ancestors[i], "translate");
+    if (v === "yes" || v === "no") return v;
+  }
+  return null;
+}
+
+/**
  * True when any attribute with the given name is present on the
  * element, regardless of its value shape. Used for attribute
  * selectors like `[data-tag-chip]`.

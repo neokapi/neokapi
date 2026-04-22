@@ -51,6 +51,46 @@ describe("neokapi-react SWC transform", () => {
       const result = t('<h1 translate="no">Skip this</h1>');
       expect(result).toBeNull();
     });
+
+    it('respects ancestor translate="no" on deep descendants', () => {
+      // Mirrors the DevPseudoCard layout: Card marked translate="no",
+      // deeply-nested text inside should NOT be wrapped in __t().
+      const result = t(
+        '<Card translate="no"><CardContent><div><span>Runtime pseudo-translation</span></div><button aria-label="Enable">Toggle</button></CardContent></Card>',
+      );
+      expect(result).toBeNull();
+    });
+
+    it('a descendant `translate="yes"` re-enables translation inside a no subtree', () => {
+      // W3C translate inheritance: nearest explicit setting wins. The
+      // inner span opts back in even though Card opted out.
+      const result = t(
+        '<Card translate="no"><div><span translate="yes">Please translate me</span><span>Skip me</span></div></Card>',
+      );
+      expect(result).not.toBeNull();
+      expect(result).toContain('"Please translate me"');
+      expect(result).not.toContain('"Skip me"');
+    });
+
+    it('nested no→yes→no turns translation off again at the innermost level', () => {
+      const result = t(
+        '<div translate="no">' +
+          '<section translate="yes">' +
+          '<article translate="no"><span>Innermost skip</span></article>' +
+          '<span>Middle translate</span>' +
+          "</section>" +
+          "</div>",
+      );
+      expect(result).not.toBeNull();
+      expect(result).toContain('"Middle translate"');
+      expect(result).not.toContain('"Innermost skip"');
+    });
+
+    it('`translate="yes"` without an ancestor `no` is a no-op (still translates)', () => {
+      const result = t('<h1 translate="yes">Hello</h1>');
+      expect(result).toContain("__t(");
+      expect(result).toContain('"Hello"');
+    });
   });
 
   describe("runtime mode — expressions", () => {

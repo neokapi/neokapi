@@ -1,17 +1,7 @@
 import { describe, it, expect, beforeEach } from "vitest";
 
-import {
-  __t,
-  __tx,
-  setTranslations,
-  t as jsT,
-  setStringTransform,
-} from "../src/runtime/index.ts";
-import {
-  pseudoTransform,
-  setPseudoMode,
-  getPseudoMode,
-} from "../src/runtime/pseudo.ts";
+import { __t, __tx, setTranslations, t as jsT, setStringTransform } from "../src/runtime/index.ts";
+import { pseudoTransform, setPseudoMode, getPseudoMode } from "../src/runtime/pseudo.ts";
 
 describe("pseudoTransform", () => {
   it("accents ASCII letters and wraps with default markers", () => {
@@ -35,27 +25,48 @@ describe("pseudoTransform", () => {
     expect(out.endsWith("]")).toBe(true);
   });
 
-  it("inserts expansion characters between source characters at the configured rate", () => {
-    // 4 letters at 100% expansion → 4 filler chars between them
-    // (one filler after each letter). Default filler is `·`.
+  it("at 100% expansion, interleaves a filler after every letter", () => {
+    // 4 letters at 100% → 4 fillers, one per letter.
     const out = pseudoTransform("Save", { expansion: 100 });
-    // After every accented letter we should see a `·`.
-    const fillerCount = (out.match(/\u00b7/g) ?? []).length;
-    expect(fillerCount).toBe(4);
+    expect((out.match(/\u00b7/g) ?? []).length).toBe(4);
   });
 
-  it("spreads expansion evenly at fractional rates", () => {
-    // 50% on 4 letters → 2 fillers (every other position)
+  it("at sub-100% with spaces, places fillers only at word boundaries", () => {
+    // "Hello world" has 1 space. 20% × 10 letters = 2 fillers wanted.
+    // 2 > 1 space → one at the space, one remaining split start/end.
+    const out = pseudoTransform("Hello world", { expansion: 20 });
+    // The word "Hello" should NOT have any mid-word middle-dot.
+    const body = out.slice("\u2592 ".length, -" \u2592".length);
+    // Letters of "Hello" in accented form — no filler between them.
+    const helloAccented = "\u0124\u00e9\u013c\u013c\u00f6"; // Ĥéļļö
+    expect(body).toContain(helloAccented);
+    // Two fillers in total.
+    expect((out.match(/\u00b7/g) ?? []).length).toBe(2);
+  });
+
+  it("at sub-100% with enough spaces, distributes among spaces only (no start/end pad)", () => {
+    // "a b c d e" — 4 spaces; 5 letters at 40% → 2 fillers wanted.
+    // Both land at spaces, none at start/end.
+    const out = pseudoTransform("a b c d e", { expansion: 40 });
+    expect(out.startsWith("\u2592 \u00e0")).toBe(true); // starts with accented 'a'
+    expect(out.endsWith("\u00e9 \u2592")).toBe(true); // ends with accented 'e'
+    expect((out.match(/\u00b7/g) ?? []).length).toBe(2);
+  });
+
+  it("at sub-100% with no spaces, pads start and end", () => {
+    // Single word, no space boundaries → fillers go outside the word.
     const out = pseudoTransform("Save", { expansion: 50 });
-    const fillerCount = (out.match(/\u00b7/g) ?? []).length;
-    expect(fillerCount).toBe(2);
+    // body between the prefix/suffix markers
+    const body = out.slice("\u2592 ".length, -" \u2592".length);
+    // Accented "Save" = "Šàṽé"; it should appear contiguous (no
+    // mid-word filler).
+    expect(body).toContain("\u0160\u00e0\u1e7d\u00e9"); // Šàṽé
+    expect(body.includes("\u0160\u00b7")).toBe(false); // no dot after Š
   });
 
   it("honours a custom expansionChar", () => {
     const out = pseudoTransform("Save", { expansion: 100, expansionChar: "-" });
-    // With insert-between, 4 letters at 100% → 4 dashes interleaved.
-    const dashCount = (out.match(/-/g) ?? []).length;
-    expect(dashCount).toBe(4);
+    expect((out.match(/-/g) ?? []).length).toBe(4);
     expect(out).not.toContain("\u00b7");
   });
 
@@ -66,10 +77,13 @@ describe("pseudoTransform", () => {
 
   it("selects the wobbly alphabet when asked", () => {
     const out = pseudoTransform("Save", { alphabet: "wobbly" });
-    // wobbly maps 'S' → Š (U+0160), 'a' → ā (U+0101), 'v' → ṽ (U+1E7D), 'e' → ě (U+011B)
-    expect(out).toContain("\u0160");
-    expect(out).toContain("\u0101");
-    expect(out).toContain("\u011b");
+    // Wobbly cycles Mathematical Italic → Sans-Serif → Script per
+    // letter position, so S/a/v (positions 0 mod 3) come out italic
+    // while e (position 4 → 1 mod 3) lands in the sans-serif block.
+    expect(out).toContain("\u{1D446}"); // S italic → 𝑆
+    expect(out).toContain("\u{1D44E}"); // a italic → 𝑎
+    expect(out).toContain("\u{1D463}"); // v italic → 𝑣
+    expect(out).toContain("\u{1D5BE}"); // e sans-serif → 𝖾
   });
 
   it("passes letters through unchanged with alphabet: none", () => {
