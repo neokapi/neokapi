@@ -403,10 +403,35 @@ func pseudoTranslate(text string, cfg *PseudoConfig) string {
 // accentTransform replaces ASCII letters with their accented
 // equivalents, leaving every other rune untouched. Shared by the
 // string and runs paths so both produce identical glyphs.
+//
+// Content inside `{...}` placeholder markers is passed through
+// verbatim — the braces + identifier are keys the runtime uses for
+// parameter substitution; accenting them would break the lookup
+// (e.g. `{count}` → `{çöüñţ}` means replaceAll("{count}", …) no
+// longer matches). ICU-style pluralization patterns like
+// `{count, plural, one {# step} other {# steps}}` also come
+// through correctly since the outer braces guard the directive.
 func accentTransform(text string) string {
 	var b strings.Builder
 	b.Grow(len(text))
+	depth := 0
 	for _, r := range text {
+		switch r {
+		case '{':
+			depth++
+			b.WriteRune(r)
+			continue
+		case '}':
+			if depth > 0 {
+				depth--
+			}
+			b.WriteRune(r)
+			continue
+		}
+		if depth > 0 {
+			b.WriteRune(r)
+			continue
+		}
 		if replacement, ok := accentMap[r]; ok {
 			b.WriteRune(replacement)
 		} else {

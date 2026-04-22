@@ -63,6 +63,27 @@ func TestPseudoTranslateTool(t *testing.T) {
 	assert.Contains(t, targetText, "\u00f6")
 }
 
+func TestPseudoTranslateToolPreservesPlaceholders(t *testing.T) {
+	t.Parallel()
+	// `{count}` is a runtime-substituted placeholder — the braces +
+	// identifier are a lookup key, not translator-facing copy.
+	// Accenting its characters breaks runtime replacement.
+	cfg := &tools.PseudoConfig{
+		Prefix:       "\u2592 ",
+		Suffix:       " \u2592",
+		TargetLocale: "qps",
+	}
+	tl := tools.NewPseudoTranslateTool(cfg)
+
+	block := model.NewBlock("tu1", "{count} step(s)")
+	part := &model.Part{Type: model.PartBlock, Resource: block}
+	result := processPart(t, tl, part)
+
+	target := result.Resource.(*model.Block).TargetText("qps")
+	assert.Contains(t, target, "{count}", "placeholder name must stay literal: %q", target)
+	assert.Contains(t, target, "šţéþ", "static text around the placeholder should still accent")
+}
+
 func TestPseudoTranslateToolWithExpansion(t *testing.T) {
 	t.Parallel()
 	cfg := &tools.PseudoConfig{
