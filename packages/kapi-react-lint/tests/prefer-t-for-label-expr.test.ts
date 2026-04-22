@@ -38,9 +38,7 @@ describe("prefer-t-for-label-expr", () => {
         },
         {
           code: `const el = <p>{entry.caption}</p>;`,
-          errors: [
-            { messageId: "dynLabel", data: { expr: "entry.caption", key: "caption" } },
-          ],
+          errors: [{ messageId: "dynLabel", data: { expr: "entry.caption", key: "caption" } }],
         },
         // Nested member — display uses the nearest identifier.
         {

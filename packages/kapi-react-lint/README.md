@@ -6,7 +6,7 @@ ESLint v9 compatible, so you install one package and wire it into whichever
 linter you already use.
 
 kapi-react's build-time transform catches a lot, but some authoring mistakes
-only show up *after* extraction:
+only show up _after_ extraction:
 
 - `t(variable)` — unextractable, the extractor only sees literals
 - `<img alt={'Logo ' + brand} />` — the attribute is translatable, the concat isn't
@@ -30,22 +30,22 @@ vp install -D @neokapi/kapi-react-lint
     "kapi-react/t-literal-first-arg": "error",
     "kapi-react/t-no-concat": "error",
     "kapi-react/no-concat-in-translatable-attr": "error",
-    "kapi-react/no-string-literal-jsx-expr": "warn"
-  }
+    "kapi-react/no-string-literal-jsx-expr": "warn",
+  },
 }
 ```
 
 ## ESLint (flat config)
 
 ```js title="eslint.config.js"
-import { recommended } from '@neokapi/kapi-react-lint/eslint';
+import { recommended } from "@neokapi/kapi-react-lint/eslint";
 
 export default [
   {
-    files: ['**/*.{ts,tsx,js,jsx}'],
+    files: ["**/*.{ts,tsx,js,jsx}"],
     languageOptions: {
       ecmaVersion: 2023,
-      sourceType: 'module',
+      sourceType: "module",
       parserOptions: { ecmaFeatures: { jsx: true } },
     },
   },
@@ -58,13 +58,13 @@ Also available: `recommendedStrict` (turns everything on as `error`, including
 
 ## Rules
 
-| Rule | In `recommended` | Description |
-|---|---|---|
-| `t-literal-first-arg` | `error` | `t()` first argument must be a string literal |
-| `t-no-concat` | `error` | No string concat / template interpolation in `t()` |
-| `no-concat-in-translatable-attr` | `error` | No concat in `alt` / `title` / `aria-label` / … |
-| `no-string-literal-jsx-expr` | `warn` | `<p>{'Hello'}</p>` should be `<p>Hello</p>` |
-| `prefer-t-for-label-props` | off | Suggest `t()` for label strings in data arrays |
+| Rule                             | In `recommended` | Description                                        |
+| -------------------------------- | ---------------- | -------------------------------------------------- |
+| `t-literal-first-arg`            | `error`          | `t()` first argument must be a string literal      |
+| `t-no-concat`                    | `error`          | No string concat / template interpolation in `t()` |
+| `no-concat-in-translatable-attr` | `error`          | No concat in `alt` / `title` / `aria-label` / …    |
+| `no-string-literal-jsx-expr`     | `warn`           | `<p>{'Hello'}</p>` should be `<p>Hello</p>`        |
+| `prefer-t-for-label-props`       | off              | Suggest `t()` for label strings in data arrays     |
 
 See the [full documentation](https://kapi-react.dev/docs/kapi-react/linting) for
 examples, FP notes, and the planned follow-up rules (type-info-aware,

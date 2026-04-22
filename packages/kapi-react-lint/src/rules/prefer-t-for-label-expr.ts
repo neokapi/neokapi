@@ -38,7 +38,7 @@ export const rule: Rule.RuleModule = {
     ],
     messages: {
       dynLabel:
-        "`{{expr}}` is rendered as JSX text — the `.{{key}}` property name suggests a user-visible string that won't be translated. Wrap the source data with `t()` or use an explicit `t(\"key\")` here.",
+        '`{{expr}}` is rendered as JSX text — the `.{{key}}` property name suggests a user-visible string that won\'t be translated. Wrap the source data with `t()` or use an explicit `t("key")` here.',
     },
   },
   create(context) {
@@ -76,7 +76,6 @@ export const rule: Rule.RuleModule = {
     };
   },
 };
-
 
 interface LabelMatch {
   key: string;
