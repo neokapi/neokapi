@@ -117,9 +117,7 @@ export function FormatSelect({
                     data-checked={f.name === value}
                   >
                     <div className="flex w-full items-start gap-3">
-                      <span className="min-w-0 flex-1 break-words">
-                        {f.display_name || f.name}
-                      </span>
+                      <span className="min-w-0 flex-1 break-words">{f.display_name || f.name}</span>
                       {f.extensions && f.extensions.length > 0 && (
                         <span className="shrink-0 max-w-[55%] text-right text-[10px] leading-relaxed text-muted-foreground">
                           {f.extensions.join(" ")}
@@ -144,9 +142,7 @@ export function FormatSelect({
                     data-checked={f.name === value}
                   >
                     <div className="flex w-full items-start gap-3">
-                      <span className="min-w-0 flex-1 break-words">
-                        {f.display_name || f.name}
-                      </span>
+                      <span className="min-w-0 flex-1 break-words">{f.display_name || f.name}</span>
                       <span className="shrink-0 max-w-[55%] text-right text-[10px] leading-relaxed text-muted-foreground">
                         {f.source}
                         {f.extensions?.length ? ` · ${f.extensions.join(" ")}` : ""}
