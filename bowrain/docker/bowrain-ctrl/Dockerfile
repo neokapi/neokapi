@@ -1,10 +1,12 @@
 FROM node:24-slim AS build
 WORKDIR /src
 COPY package.json package-lock.json ./
+COPY packages/kapi-format/package.json packages/kapi-format/
 COPY packages/ui/package.json packages/ui/
 COPY bowrain/packages/ui/package.json bowrain/packages/ui/
 COPY bowrain/apps/ctrl/package.json bowrain/apps/ctrl/
 RUN npm ci
+COPY packages/kapi-format/ packages/kapi-format/
 COPY packages/ui/ packages/ui/
 COPY bowrain/packages/ui/ bowrain/packages/ui/
 RUN cd bowrain/packages/ui && npx tsc
