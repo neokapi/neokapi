@@ -12,6 +12,7 @@ import {
   TabsContent,
   LoadingSpinner,
 } from "@neokapi/ui-primitives";
+import { DevPseudoCard } from "./DevPseudoCard";
 import { CredentialsPage } from "./CredentialsPage";
 import { PluginManager } from "./PluginManager";
 import { LocaleSettings } from "./LocaleSettings";
@@ -180,6 +181,8 @@ export function SettingsPage({ theme: propTheme, uiLanguage: propLang }: Setting
                 </p>
               </CardContent>
             </Card>
+
+            <DevPseudoCard />
           </div>
         </div>
       </TabsContent>
