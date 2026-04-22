@@ -15,9 +15,12 @@ WORKDIR /src
 # reshuffles PATH between lifecycle scripts.
 RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certificates \
     && curl -fsSL https://viteplus.dev/install.sh | bash \
-    && ln -sf /root/.vite-plus/bin/vp /usr/local/bin/vp \
-    && ln -sf /root/.vite-plus/bin/vpx /usr/local/bin/vpx \
-    && ln -sf /root/.vite-plus/bin/vpr /usr/local/bin/vpr \
+    && ls -la /root/.vite-plus/bin/ \
+    && cp /root/.vite-plus/bin/vp /usr/local/bin/vp \
+    && cp /root/.vite-plus/bin/vpx /usr/local/bin/vpx \
+    && cp /root/.vite-plus/bin/vpr /usr/local/bin/vpr \
+    && chmod +x /usr/local/bin/vp /usr/local/bin/vpx /usr/local/bin/vpr \
+    && which vpx && vpx --help > /dev/null 2>&1 || echo "vpx test exit=$?" \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy workspace root (lock file + workspace config) and package.json files
