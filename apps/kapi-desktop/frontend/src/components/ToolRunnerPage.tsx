@@ -177,14 +177,19 @@ export function ToolRunnerPage({
             </Button>
             {Array.from(categories.entries()).map(([cat, catTools]) => {
               const meta = categoryMeta(cat);
+              // The button body is NOT extracted as a block (translate="no")
+              // because `meta.label` is already a `t()`-resolved string from
+              // `categoryMeta()`. Extracting would wrap the whole body in a
+              // second translation, producing `▒ ▒ Utility ▒ (32) ▒` in
+              // pseudo. The count is numeric — no translation needed.
               return (
                 <Button
                   key={cat}
+                  translate="no"
                   variant={filterCategory === cat ? "default" : "secondary"}
                   size="xs"
                   onClick={() => setFilterCategory(filterCategory === cat ? null : cat)}
                 >
-                  {/* oxlint-disable-next-line kapi-react/prefer-t-for-label-expr -- meta.label is t()-wrapped in categoryMeta() */}
                   {meta.label} ({catTools.length})
                 </Button>
               );
