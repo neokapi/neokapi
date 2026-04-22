@@ -73,8 +73,8 @@ var accentMap = map[rune]rune{
 // PseudoConfig holds configuration for the pseudo-translation tool.
 type PseudoConfig struct {
 	ExpansionPercent int            `json:"expansionPercent,omitempty" schema:"title=Expansion Percent,description=Extra padding percentage added to simulate translation expansion (0 = no padding),default=0,min=0"`
-	Prefix           string         `json:"prefix,omitempty"           schema:"title=Prefix,description=Characters prepended before each translated segment,default=["`
-	Suffix           string         `json:"suffix,omitempty"           schema:"title=Suffix,description=Characters appended after each translated segment,default=]"`
+	Prefix           string         `json:"prefix,omitempty"           schema:"title=Prefix,description=Characters prepended before each translated segment"`
+	Suffix           string         `json:"suffix,omitempty"           schema:"title=Suffix,description=Characters appended after each translated segment"`
 	TargetLocale     model.LocaleID `json:"targetLocale,omitempty"     schema:"-"`
 }
 
@@ -84,8 +84,8 @@ func (c *PseudoConfig) ToolName() string { return "pseudo-translate" }
 // Reset restores default values.
 func (c *PseudoConfig) Reset() {
 	c.ExpansionPercent = 0
-	c.Prefix = "["
-	c.Suffix = "]"
+	c.Prefix = "\u2592 "
+	c.Suffix = " \u2592"
 	c.TargetLocale = ""
 }
 
@@ -148,8 +148,8 @@ var _ tool.SessionTool = (*PseudoTranslateTool)(nil)
 // with brackets, and adds padding for string length testing.
 func NewPseudoTranslateTool(cfg *PseudoConfig) *PseudoTranslateTool {
 	if cfg.Prefix == "" && cfg.Suffix == "" {
-		cfg.Prefix = "["
-		cfg.Suffix = "]"
+		cfg.Prefix = "\u2592 "
+		cfg.Suffix = " \u2592"
 	}
 
 	base := &tool.BaseTool{
@@ -318,47 +318,75 @@ func runsHaveInline(runs []model.Run) bool {
 // the text of TextRuns in place, leaving every other run type
 // unchanged. Also recurses into plural/select form runs so inline
 // markup stays protected inside structured constructs.
+//
+// Wrapping (prefix/suffix) is applied to the WHOLE sequence exactly
+// once — a block with placeholders renders as `▒ pre {ph} post ▒`,
+// not `▒ pre ▒ {ph} ▒ post ▒`. The old per-run wrapping created
+// false visual splices that looked like source-side concatenation
+// bugs.
 func pseudoTranslateRuns(runs []model.Run, cfg *PseudoConfig) []model.Run {
-	out := make([]model.Run, len(runs))
-	for i, r := range runs {
+	if len(runs) == 0 {
+		return runs
+	}
+
+	// Pass 1: accent-only transform per run. Each TextRun gets its
+	// characters replaced; plural/select forms recurse (and pick up
+	// their own wrapping there).
+	out := make([]model.Run, 0, len(runs)+2)
+	totalTextRunes := 0
+	for _, r := range runs {
 		switch {
 		case r.Text != nil:
-			rtext := pseudoTranslate(r.Text.Text, cfg)
-			out[i] = model.Run{Text: &model.TextRun{Text: rtext}}
+			accented := accentTransform(r.Text.Text)
+			totalTextRunes += len([]rune(accented))
+			out = append(out, model.Run{Text: &model.TextRun{Text: accented}})
 		case r.Plural != nil:
 			forms := make(map[model.PluralForm][]model.Run, len(r.Plural.Forms))
 			for k, v := range r.Plural.Forms {
 				forms[k] = pseudoTranslateRuns(v, cfg)
 			}
-			out[i] = model.Run{Plural: &model.PluralRun{Pivot: r.Plural.Pivot, Forms: forms}}
+			out = append(out, model.Run{Plural: &model.PluralRun{Pivot: r.Plural.Pivot, Forms: forms}})
 		case r.Select != nil:
 			cases := make(map[string][]model.Run, len(r.Select.Cases))
 			for k, v := range r.Select.Cases {
 				cases[k] = pseudoTranslateRuns(v, cfg)
 			}
-			out[i] = model.Run{Select: &model.SelectRun{Pivot: r.Select.Pivot, Cases: cases}}
+			out = append(out, model.Run{Select: &model.SelectRun{Pivot: r.Select.Pivot, Cases: cases}})
 		default:
-			out[i] = r
+			out = append(out, r)
 		}
 	}
+
+	// Pass 2: append expansion padding to the last text run (or add
+	// a new tail text run) so the padding sits inside the wrap.
+	if cfg.ExpansionPercent > 0 && totalTextRunes > 0 {
+		paddingLen := (totalTextRunes * cfg.ExpansionPercent) / 100
+		if paddingLen > 0 {
+			padding := " " + strings.Repeat("~", paddingLen)
+			last := out[len(out)-1]
+			if last.Text != nil {
+				last.Text.Text += padding
+				out[len(out)-1] = last
+			} else {
+				out = append(out, model.Run{Text: &model.TextRun{Text: padding}})
+			}
+		}
+	}
+
+	// Pass 3: wrap the whole sequence exactly once. Prefix goes in
+	// a new leading text run, suffix in a new trailing text run.
+	prefix, suffix := effectiveWrap(cfg)
+	out = append([]model.Run{{Text: &model.TextRun{Text: prefix}}}, out...)
+	out = append(out, model.Run{Text: &model.TextRun{Text: suffix}})
 	return out
 }
 
-// pseudoTranslate applies pseudo-translation transformations to text.
+// pseudoTranslate applies pseudo-translation transformations to a
+// single string (no placeholders). Used for simple blocks that
+// have no inline runs; the runs path uses pseudoTranslateRuns.
 func pseudoTranslate(text string, cfg *PseudoConfig) string {
-	// Step 1: Replace ASCII characters with accented equivalents.
-	var accented strings.Builder
-	for _, r := range text {
-		if replacement, ok := accentMap[r]; ok {
-			accented.WriteRune(replacement)
-		} else {
-			accented.WriteRune(r)
-		}
-	}
+	result := accentTransform(text)
 
-	result := accented.String()
-
-	// Step 2: Add expansion padding.
 	if cfg.ExpansionPercent > 0 {
 		originalLen := len([]rune(result))
 		paddingLen := (originalLen * cfg.ExpansionPercent) / 100
@@ -368,16 +396,37 @@ func pseudoTranslate(text string, cfg *PseudoConfig) string {
 		}
 	}
 
-	// Step 3: Wrap with prefix/suffix.
+	prefix, suffix := effectiveWrap(cfg)
+	return prefix + result + suffix
+}
+
+// accentTransform replaces ASCII letters with their accented
+// equivalents, leaving every other rune untouched. Shared by the
+// string and runs paths so both produce identical glyphs.
+func accentTransform(text string) string {
+	var b strings.Builder
+	b.Grow(len(text))
+	for _, r := range text {
+		if replacement, ok := accentMap[r]; ok {
+			b.WriteRune(replacement)
+		} else {
+			b.WriteRune(r)
+		}
+	}
+	return b.String()
+}
+
+// effectiveWrap resolves the prefix/suffix to actually emit,
+// falling back to the shade-marker default when the config leaves
+// them empty.
+func effectiveWrap(cfg *PseudoConfig) (string, string) {
 	prefix := cfg.Prefix
 	suffix := cfg.Suffix
 	if prefix == "" {
-		prefix = "["
+		prefix = "\u2592 "
 	}
 	if suffix == "" {
-		suffix = "]"
+		suffix = " \u2592"
 	}
-	result = prefix + result + suffix
-
-	return result
+	return prefix, suffix
 }
