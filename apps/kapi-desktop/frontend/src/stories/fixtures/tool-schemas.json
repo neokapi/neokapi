@@ -111,13 +111,13 @@
           "type": "string",
           "title": "Prefix",
           "description": "Characters prepended before each translated segment",
-          "default": "["
+          "default": "▒ "
         },
         "suffix": {
           "type": "string",
           "title": "Suffix",
           "description": "Characters appended after each translated segment",
-          "default": "]"
+          "default": " ▒"
         }
       },
       "x-source": "built-in",
@@ -8871,13 +8871,13 @@
           "type": "string",
           "title": "Prefix",
           "description": "Characters prepended before each translated segment",
-          "default": "["
+          "default": "▒ "
         },
         "suffix": {
           "type": "string",
           "title": "Suffix",
           "description": "Characters appended after each translated segment",
-          "default": "]"
+          "default": " ▒"
         }
       },
       "x-source": "built-in",
