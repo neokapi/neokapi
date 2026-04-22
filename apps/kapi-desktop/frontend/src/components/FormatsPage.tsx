@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
+import { t } from "@neokapi/kapi-react/runtime";
 import { useWailsEvent } from "../hooks/useWailsEvent";
 import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -205,7 +206,7 @@ export function FormatsPage({
           {filtered.length === 0 && (
             <div className="py-12 text-center text-muted-foreground">
               <p className="text-sm">
-                {search ? "No formats match your search." : "No formats available."}
+                {search ? t("No formats match your search.") : t("No formats available.")}
               </p>
             </div>
           )}
@@ -654,7 +655,7 @@ function FormatDetail({
                 onClick={handleSavePreset}
                 disabled={saving || !savePresetName.trim()}
               >
-                {saving ? "Saving..." : "Save"}
+                {saving ? t("Saving...") : t("Save")}
               </Button>
               <Button
                 variant="outline"
@@ -789,7 +790,7 @@ function FormatDetail({
               className="bg-card hover:border-primary/30 hover:text-primary"
             >
               <Play size={12} />
-              {runnerLoading ? "Running..." : "Open File..."}
+              {runnerLoading ? t("Running...") : t("Open File...")}
             </Button>
             {runnerParts !== null && (
               <span className="text-[10px] text-muted-foreground">

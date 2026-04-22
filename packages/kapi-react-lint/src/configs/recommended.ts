@@ -20,6 +20,7 @@ export const recommended = {
     "kapi-react/t-no-concat": "error",
     "kapi-react/no-concat-in-translatable-attr": "error",
     "kapi-react/no-ternary-in-translatable-attr": "error",
+    "kapi-react/no-ternary-literals-in-jsx-child": "error",
     "kapi-react/no-string-literal-jsx-expr": "warn",
     "kapi-react/prefer-t-for-label-expr": "warn",
   },

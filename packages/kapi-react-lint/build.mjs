@@ -14,6 +14,7 @@ const entryPoints = [
   'src/rules/t-no-concat.ts',
   'src/rules/no-concat-in-translatable-attr.ts',
   'src/rules/no-ternary-in-translatable-attr.ts',
+  'src/rules/no-ternary-literals-in-jsx-child.ts',
   'src/rules/no-string-literal-jsx-expr.ts',
   'src/rules/prefer-t-for-label-props.ts',
   'src/rules/prefer-t-for-label-expr.ts',
