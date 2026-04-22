@@ -417,9 +417,11 @@ describe("extractDocument — icon-tolerant inline content", () => {
 });
 
 describe("extractDocument — label-splice warnings", () => {
-  it("flags `{meta.label}` rendered as JSX text", () => {
+  it("flags `{meta.label}` when the parent element emits no block", () => {
+    // A `<Button>` whose only child is a label-like expression emits
+    // no block — the label silently bypasses translation.
     const warnings = createWarningCollector();
-    extractDocument("<Button>{meta.label} ({count})</Button>", {
+    extractDocument("<Button>{meta.label}</Button>", {
       filename: "Cat.tsx",
       warnings,
     });
@@ -427,6 +429,19 @@ describe("extractDocument — label-splice warnings", () => {
     expect(list).toHaveLength(1);
     expect(list[0].tag).toBe("meta.label");
     expect(list[0].filename).toBe("Cat.tsx");
+  });
+
+  it("does NOT flag `{obj.label}` when the parent emits a block (label becomes a placeholder)", () => {
+    // `<Button>{meta.label} ({count})</Button>` extracts as a block
+    // with meta.label as a jsx:var placeholder — the label flows
+    // through runtime substitution and IS translated as part of the
+    // block. Firing a splice warning would be a false positive.
+    const warnings = createWarningCollector();
+    extractDocument("<Button>{meta.label} ({count})</Button>", {
+      filename: "T.tsx",
+      warnings,
+    });
+    expect(warnings.list().filter((w) => w.kind === "dyn-label-splice")).toEqual([]);
   });
 
   it("flags elements whose only content is a label-like dereference (silently bypassed)", () => {
@@ -440,13 +455,13 @@ describe("extractDocument — label-splice warnings", () => {
     expect(list[0].tag).toBe("item.title");
   });
 
-  it("flags each label-like property independently (title, description, heading, …)", () => {
+  it("flags each label-like property independently (title, caption, tooltip, …)", () => {
     const warnings = createWarningCollector();
     extractDocument(
       `<div>
          <h1>{item.title}</h1>
-         <p>{item.description}</p>
-         <span>{item.caption}</span>
+         <p>{item.caption}</p>
+         <span>{item.heading}</span>
          <aside>{item.tooltip}</aside>
        </div>`,
       { filename: "T.tsx", warnings },
@@ -456,7 +471,7 @@ describe("extractDocument — label-splice warnings", () => {
       .filter((w) => w.kind === "dyn-label-splice")
       .map((w) => w.tag)
       .sort();
-    expect(tags).toEqual(["item.caption", "item.description", "item.title", "item.tooltip"]);
+    expect(tags).toEqual(["item.caption", "item.heading", "item.title", "item.tooltip"]);
   });
 
   it("does NOT flag expressions whose property name is not label-like", () => {
@@ -481,15 +496,26 @@ describe("extractDocument — label-splice warnings", () => {
   });
 
   it("reports the line of the expression, not the enclosing element", () => {
+    // The enclosing <h1> has no static text so nothing extracts.
+    // The line number should still point at the expression itself,
+    // not the opening tag.
     const warnings = createWarningCollector();
     extractDocument(
-      `<div>
-         prefix
+      `<h1>
          {meta.label}
-       </div>`,
+       </h1>`,
       { filename: "T.tsx", warnings },
     );
     const w = warnings.list().find((x) => x.kind === "dyn-label-splice");
-    expect(w?.line).toBe(3);
+    expect(w?.line).toBe(2);
+  });
+
+  it("respects translate='no' on an ancestor (no splice warning)", () => {
+    const warnings = createWarningCollector();
+    extractDocument(
+      `<section translate="no"><div><h1>{item.title}</h1></div></section>`,
+      { filename: "T.tsx", warnings },
+    );
+    expect(warnings.list().filter((w) => w.kind === "dyn-label-splice")).toEqual([]);
   });
 });

@@ -41,6 +41,10 @@
     "TabsTrigger": "button",
     "TabsContent": "div",
 
+    "Collapsible": "div",
+    "CollapsibleTrigger": "button",
+    "CollapsibleContent": "div",
+
     "Select": "select",
     "SelectItem": "option",
     "SelectLabel": "label",
