@@ -184,8 +184,12 @@ export function ProjectSettingsPage({
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="__bcp47__">BCP-47 (default)</SelectItem>
-                    <SelectItem value="posix">POSIX (underscores)</SelectItem>
+                    <SelectItem value="__bcp47__">
+                      <code>BCP-47</code> (default)
+                    </SelectItem>
+                    <SelectItem value="posix">
+                      <code>POSIX</code> (underscores)
+                    </SelectItem>
                   </SelectContent>
                 </Select>
                 <p className="mt-1 text-[10px] text-muted-foreground">
