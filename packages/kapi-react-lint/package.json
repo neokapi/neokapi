@@ -4,20 +4,20 @@
   "private": true,
   "description": "Authoring-time lint rules for kapi-react. Same rule objects run under ESLint and oxlint (via jsPlugins). Catches unextractable patterns (t(variable), string concat in translatable attrs, label strings hidden in data arrays) that the build-time extractor can't see.",
   "keywords": [
+    "eslint",
     "i18n",
     "kapi-react",
-    "eslint",
-    "oxlint",
     "lint",
+    "oxlint",
     "react"
   ],
   "license": "Apache-2.0",
-  "type": "module",
   "files": [
     "dist",
     "README.md",
     "LICENSE"
   ],
+  "type": "module",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
@@ -50,14 +50,6 @@
     "fmt:check": "vpx oxfmt --check src/ tests/",
     "check": "npm run typecheck && npm run lint && npm run fmt:check && npm run test"
   },
-  "peerDependencies": {
-    "eslint": "^8.57.0 || ^9.0.0"
-  },
-  "peerDependenciesMeta": {
-    "eslint": {
-      "optional": true
-    }
-  },
   "devDependencies": {
     "@types/eslint": "^9.6.0",
     "@types/estree": "^1.0.0",
@@ -66,6 +58,14 @@
     "eslint": "^9.0.0",
     "typescript": "^5.8.0",
     "vitest": "^3.2.0"
+  },
+  "peerDependencies": {
+    "eslint": "^8.57.0 || ^9.0.0"
+  },
+  "peerDependenciesMeta": {
+    "eslint": {
+      "optional": true
+    }
   },
   "engines": {
     "node": ">=22"

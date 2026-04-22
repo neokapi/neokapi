@@ -27,7 +27,7 @@ export const rule: Rule.RuleModule = {
     schema: [],
     messages: {
       mixed:
-        "Attribute `{{attr}}` uses a conditional whose branches aren't both plain string literals — can't be extracted. Lift strings to the branches (`cond ? \"A\" : \"B\"`) or wrap with `t(\"key\")` explicitly.",
+        'Attribute `{{attr}}` uses a conditional whose branches aren\'t both plain string literals — can\'t be extracted. Lift strings to the branches (`cond ? "A" : "B"`) or wrap with `t("key")` explicitly.',
     },
   },
   create(context) {
@@ -72,7 +72,6 @@ export const rule: Rule.RuleModule = {
     };
   },
 };
-
 
 function readAttrName(name: { type: string; name?: string }): string | null {
   if (name.type === "JSXIdentifier") return name.name ?? null;
