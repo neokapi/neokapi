@@ -44,6 +44,11 @@ export async function runExtract(args: string[], io: RunExtractIO = {}): Promise
 
   const config = loadConfig(opts.configPath);
 
+  // Default src when none specified. Can't set as a static default
+  // in parseArgs because we need to know whether the user gave us
+  // any --src themselves.
+  const srcGlobs = opts.srcGlobs.length > 0 ? opts.srcGlobs : ["src/**/*.{tsx,jsx}"];
+
   // Stream mode accepts two shapes of file discovery, picked
   // automatically: when stdin is piped (e.g. kapi's exec format
   // sends NUL-separated paths), we consume it; otherwise we fall
@@ -52,12 +57,12 @@ export async function runExtract(args: string[], io: RunExtractIO = {}): Promise
   const files = opts.stream
     ? stdinHasInput(stdin)
       ? await readPathsFromStdin(stdin)
-      : await expandGlob(opts.srcGlob, opts.ignoreGlobs)
-    : await expandGlob(opts.srcGlob, opts.ignoreGlobs);
+      : await expandGlobs(srcGlobs, opts.ignoreGlobs)
+    : await expandGlobs(srcGlobs, opts.ignoreGlobs);
   files.sort();
 
   if (files.length === 0) {
-    if (!opts.stream) console.warn(`No files found matching "${opts.srcGlob}"`);
+    if (!opts.stream) console.warn(`No files found matching ${JSON.stringify(srcGlobs)}`);
     return;
   }
 
@@ -98,13 +103,18 @@ export async function runExtract(args: string[], io: RunExtractIO = {}): Promise
   console.log(`Extracted ${blockCount} blocks from ${documents.length} files → ${opts.outDir}/`);
 }
 
-async function expandGlob(pattern: string, ignore: readonly string[] = []): Promise<string[]> {
+async function expandGlobs(
+  patterns: readonly string[],
+  ignore: readonly string[] = [],
+): Promise<string[]> {
   // Node 22+'s `fs/promises.glob` accepts `{ exclude }` as a glob
   // pattern list. Pass our `--ignore` flags through untouched.
   const options = ignore.length > 0 ? { exclude: [...ignore] } : undefined;
-  const files: string[] = [];
-  for await (const file of glob(pattern, options)) files.push(file);
-  return files;
+  const seen = new Set<string>();
+  for (const pattern of patterns) {
+    for await (const file of glob(pattern, options)) seen.add(file);
+  }
+  return [...seen];
 }
 
 // stdinHasInput returns true when stdin is piped / redirected — a
@@ -148,7 +158,7 @@ async function readPathsFromStdin(stdin: NodeJS.ReadableStream): Promise<string[
 // ─── Internals ────────────────────────────────────────────────────
 
 interface ExtractArgs {
-  srcGlob: string;
+  srcGlobs: string[];
   ignoreGlobs: string[];
   outDir: string;
   configPath: string | null;
@@ -167,7 +177,7 @@ interface ExtractArgs {
 
 function parseArgs(args: string[]): ExtractArgs {
   const parsed: ExtractArgs = {
-    srcGlob: "src/**/*.{tsx,jsx}",
+    srcGlobs: [],
     ignoreGlobs: [],
     outDir: "i18n",
     configPath: null,
@@ -188,7 +198,7 @@ function parseArgs(args: string[]): ExtractArgs {
         parsed.help = true;
         return parsed;
       case "--src":
-        if (value) parsed.srcGlob = args[++i];
+        if (value) parsed.srcGlobs.push(args[++i]);
         break;
       case "--ignore":
         if (value) parsed.ignoreGlobs.push(args[++i]);
@@ -298,7 +308,11 @@ By default, writes one .klf file per source document under --out.
 Pass --stream to emit NDJSON block records to stdout for piping.
 
 Options:
-  --src <glob>            Source files to scan (default: "src/**/*.{tsx,jsx}")
+  --src <glob>            Source files to scan (repeatable; default:
+                          "src/**/*.{tsx,jsx}"). Pass multiple when your
+                          app pulls translatable JSX from workspace
+                          packages, e.g. --src "src/**/*.tsx" --src
+                          "../../packages/ui/src/**/*.tsx"
   --ignore <glob>         Exclude pattern (repeatable). E.g. --ignore "src/stories/**"
   --out <dir>             Output directory for .klf files (default: "i18n")
   --stream                Emit NDJSON block records on stdout instead
