@@ -858,8 +858,10 @@ function PartRow({ part }: { part: FormatPartInfo }) {
           </span>
         )}
 
-        {/* Summary */}
-        <span className="flex-1 text-xs text-foreground truncate">{part.summary}</span>
+        {/* Summary — preview of parsed content, not UI copy. */}
+        <span className="flex-1 text-xs text-foreground truncate" translate="no">
+          {part.summary}
+        </span>
 
         {/* Expand toggle */}
         {hasDetails && (

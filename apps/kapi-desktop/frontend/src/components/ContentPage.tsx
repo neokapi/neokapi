@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, DragEvent, useMemo } from "react";
+import { t } from "@neokapi/kapi-react/runtime";
 import {
   Plus,
   FileText,
@@ -576,8 +577,10 @@ export function ContentPage({
                               locales={locales}
                               placeholder={
                                 project.defaults?.source_language
-                                  ? `Inherit (${project.defaults.source_language})`
-                                  : "Select source..."
+                                  ? t("Inherit ({source})", {
+                                      source: project.defaults.source_language,
+                                    })
+                                  : t("Select source...")
                               }
                             />
                           </div>
@@ -596,8 +599,10 @@ export function ContentPage({
                               locales={locales}
                               placeholder={
                                 project.defaults?.target_languages?.length
-                                  ? `Inherit (${project.defaults.target_languages.join(", ")})`
-                                  : "Add targets..."
+                                  ? t("Inherit ({targets})", {
+                                      targets: project.defaults.target_languages.join(", "),
+                                    })
+                                  : t("Add targets...")
                               }
                             />
                           </div>

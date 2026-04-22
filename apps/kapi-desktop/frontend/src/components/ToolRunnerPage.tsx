@@ -30,47 +30,46 @@ import {
   ScrollArea,
   LoadingSpinner,
 } from "@neokapi/ui-primitives";
+import { t } from "@neokapi/kapi-react/runtime";
 import { api } from "../hooks/useApi";
 import { useError } from "./ErrorBanner";
 
-// Category metadata for visual treatment
-const categoryMeta: Record<string, { icon: typeof Wrench; color: string; label: string }> = {
-  translate: {
-    icon: ArrowRightLeft,
-    color: "text-blue-500 bg-blue-500/10",
-    label: "Translation",
-  },
-  validate: {
-    icon: Shield,
-    color: "text-emerald-500 bg-emerald-500/10",
-    label: "Quality & Validation",
-  },
-  transform: {
-    icon: Repeat,
-    color: "text-amber-500 bg-amber-500/10",
-    label: "Transform",
-  },
-  convert: {
-    icon: ArrowRightLeft,
-    color: "text-purple-500 bg-purple-500/10",
-    label: "Conversion",
-  },
-  enrich: {
-    icon: Sparkles,
-    color: "text-rose-500 bg-rose-500/10",
-    label: "Enrichment",
-  },
-  pipeline: {
-    icon: Layers,
-    color: "text-cyan-500 bg-cyan-500/10",
-    label: "Pipeline",
-  },
-  utility: {
-    icon: Wrench,
-    color: "text-gray-500 bg-gray-500/10",
-    label: "Utility",
-  },
+// Category metadata for visual treatment. Labels resolve through `t()`
+// per-render so they pick up the active locale; if we baked them into
+// this module-level object they'd freeze at the fallback language.
+const categoryIcons: Record<string, { icon: typeof Wrench; color: string }> = {
+  translate: { icon: ArrowRightLeft, color: "text-blue-500 bg-blue-500/10" },
+  validate: { icon: Shield, color: "text-emerald-500 bg-emerald-500/10" },
+  transform: { icon: Repeat, color: "text-amber-500 bg-amber-500/10" },
+  convert: { icon: ArrowRightLeft, color: "text-purple-500 bg-purple-500/10" },
+  enrich: { icon: Sparkles, color: "text-rose-500 bg-rose-500/10" },
+  pipeline: { icon: Layers, color: "text-cyan-500 bg-cyan-500/10" },
+  utility: { icon: Wrench, color: "text-gray-500 bg-gray-500/10" },
 };
+
+function categoryLabel(cat: string): string {
+  switch (cat) {
+    case "translate":
+      return t("Translation");
+    case "validate":
+      return t("Quality & Validation");
+    case "transform":
+      return t("Transform");
+    case "convert":
+      return t("Conversion");
+    case "enrich":
+      return t("Enrichment");
+    case "pipeline":
+      return t("Pipeline");
+    default:
+      return t("Utility");
+  }
+}
+
+function categoryMeta(cat: string) {
+  const visual = categoryIcons[cat] ?? categoryIcons.utility;
+  return { ...visual, label: categoryLabel(cat) };
+}
 
 export interface ToolRunnerPageProps {
   /** Pre-loaded docs for Storybook. */
@@ -115,7 +114,7 @@ export function ToolRunnerPage({
   // must share this normalisation so clicking a chip always yields
   // the same set of tools it counted.
   const normalizeCategory = (raw: string | undefined): string =>
-    raw && categoryMeta[raw] ? raw : "utility";
+    raw && categoryIcons[raw] ? raw : "utility";
 
   const categories = useMemo(() => {
     const cats = new Map<string, ToolInfo[]>();
@@ -177,7 +176,7 @@ export function ToolRunnerPage({
               All ({tools.length})
             </Button>
             {Array.from(categories.entries()).map(([cat, catTools]) => {
-              const meta = categoryMeta[cat] || categoryMeta.utility;
+              const meta = categoryMeta(cat);
               return (
                 <Button
                   key={cat}
@@ -185,6 +184,7 @@ export function ToolRunnerPage({
                   size="xs"
                   onClick={() => setFilterCategory(filterCategory === cat ? null : cat)}
                 >
+                  {/* oxlint-disable-next-line kapi-react/prefer-t-for-label-expr -- meta.label is t()-wrapped in categoryMeta() */}
                   {meta.label} ({catTools.length})
                 </Button>
               );
@@ -201,7 +201,7 @@ export function ToolRunnerPage({
               <div className="space-y-0.5">
                 {filteredTools.map((tool) => {
                   const cat = tool.category || "utility";
-                  const meta = categoryMeta[cat] || categoryMeta.utility;
+                  const meta = categoryMeta(cat);
                   const Icon = meta.icon;
                   const hasStepDoc =
                     resolveStepDoc(tool.name, docs) || docsSummary?.stepIDs?.includes(tool.name);
@@ -323,7 +323,7 @@ function ToolDetail({ tool, docs }: { tool: ToolInfo; docs: PluginDocs | null })
     resolveStepDoc(tool.name, docs),
   );
   const cat = tool.category || "utility";
-  const meta = categoryMeta[cat] || categoryMeta.utility;
+  const meta = categoryMeta(cat);
   const Icon = meta.icon;
 
   // Fetch step doc on demand if not pre-loaded
@@ -382,7 +382,11 @@ function ToolDetail({ tool, docs }: { tool: ToolInfo; docs: PluginDocs | null })
           </h2>
           <p className="text-sm text-muted-foreground mt-0.5">{tool.description}</p>
           <div className="flex items-center gap-2 mt-2">
-            <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${meta.color}`}>
+            {/* meta.label is pre-resolved via t() in categoryMeta(). */}
+            <span
+              className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${meta.color}`}
+              translate="no"
+            >
               {meta.label}
             </span>
             {tool.tags?.map((tag) => (
