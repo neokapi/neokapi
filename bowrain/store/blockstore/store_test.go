@@ -2,6 +2,7 @@ package blockstore_test
 
 import (
 	"context"
+	"errors"
 	"path/filepath"
 	"testing"
 
@@ -224,7 +225,7 @@ func TestSession_OverlayNotFound(t *testing.T) {
 	defer sess.Close()
 
 	_, err := sess.GetOverlay("targets/fr", "nope")
-	if err != blockstore.ErrNotFound {
+	if !errors.Is(err, blockstore.ErrNotFound) {
 		t.Fatalf("expected ErrNotFound, got %v", err)
 	}
 }
@@ -235,7 +236,8 @@ func TestSession_ClosedRejects(t *testing.T) {
 	sess, _ := bs.Begin(ctx)
 	_ = sess.Commit()
 
-	if err := sess.PutOverlay(blockstore.Overlay{Kind: "k", BlockHash: "h", Payload: []byte("{}")}); err != blockstore.ErrClosed {
+	err := sess.PutOverlay(blockstore.Overlay{Kind: "k", BlockHash: "h", Payload: []byte("{}")})
+	if !errors.Is(err, blockstore.ErrClosed) {
 		t.Fatalf("expected ErrClosed after commit, got %v", err)
 	}
 }
