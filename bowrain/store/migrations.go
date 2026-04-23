@@ -489,4 +489,29 @@ var storeMigrations = []storage.Migration{
 			);
 		`,
 	},
+	{
+		Version:     2,
+		Description: "block_overlays catchall table for the blockstore adapter",
+		SQL: `
+			-- Overlay store keyed by (project, stream, block_id, kind).
+			-- Holds targets/<locale>, annotations/<name>, skeletons/<format>
+			-- and plugin-supplied kinds as opaque JSON payloads. Kind-specific
+			-- tables (translations, annotations, automation_runs) will take
+			-- over the hot kinds in a later migration (see #385 Phase 2);
+			-- overlays_ext remains the catchall for plugin kinds.
+			CREATE TABLE block_overlays (
+				project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+				stream     TEXT NOT NULL DEFAULT 'main',
+				block_id   TEXT NOT NULL,
+				kind       TEXT NOT NULL,
+				payload    JSONB NOT NULL DEFAULT '{}'::jsonb,
+				updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+				PRIMARY KEY (project_id, stream, block_id, kind)
+			);
+			CREATE INDEX idx_block_overlays_project_kind
+				ON block_overlays(project_id, stream, kind);
+			CREATE INDEX idx_block_overlays_project_block
+				ON block_overlays(project_id, stream, block_id);
+		`,
+	},
 }
