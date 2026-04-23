@@ -659,46 +659,6 @@ func TestCountWordsFromSourceJSON(t *testing.T) {
 	}
 }
 
-func TestExtractTargetLocales(t *testing.T) {
-	tests := []struct {
-		name     string
-		json     string
-		expected int // expected number of locales
-	}{
-		{
-			name:     "two locales with content",
-			json:     `{"fr-FR":[{"ID":"s1","Content":{"coded_text":"Bonjour"}}],"de-DE":[{"ID":"s1","Content":{"coded_text":"Hallo"}}]}`,
-			expected: 2,
-		},
-		{
-			name:     "one locale empty, one with content",
-			json:     `{"fr-FR":[{"ID":"s1","Content":{"coded_text":"Bonjour"}}],"de-DE":[]}`,
-			expected: 1,
-		},
-		{
-			name:     "all empty",
-			json:     `{"fr-FR":[],"de-DE":[]}`,
-			expected: 0,
-		},
-		{
-			name:     "empty object",
-			json:     `{}`,
-			expected: 0,
-		},
-		{
-			name:     "invalid json",
-			json:     `not-json`,
-			expected: 0,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			locales := extractTargetLocales(tt.json)
-			assert.Len(t, locales, tt.expected)
-		})
-	}
-}
-
 // ---------------------------------------------------------------------------
 // Asset CRUD (Bowrain AD-007)
 // ---------------------------------------------------------------------------

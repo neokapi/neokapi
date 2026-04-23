@@ -110,7 +110,10 @@ var storeMigrations = []storage.Migration{
 			CREATE INDEX idx_items_collection ON items(project_id, collection_id);
 			CREATE UNIQUE INDEX idx_items_id ON items(project_id, stream, id);
 
-			-- Blocks
+			-- Blocks hold source content + project metadata only.
+			-- Targets and annotations live in their own kind-specific
+			-- tables (#403/#405) so each access pattern gets the right
+			-- indexes and a single source of truth.
 			CREATE TABLE blocks (
 				id           TEXT NOT NULL,
 				project_id   TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
@@ -123,9 +126,7 @@ var storeMigrations = []storage.Migration{
 				content_hash TEXT NOT NULL DEFAULT '',
 				context_hash TEXT NOT NULL DEFAULT '',
 				source_json  TEXT NOT NULL DEFAULT '[]',
-				targets_json TEXT NOT NULL DEFAULT '{}',
 				properties   TEXT NOT NULL DEFAULT '{}',
-				annotations  TEXT NOT NULL DEFAULT '{}',
 				stored_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 				updated_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 				PRIMARY KEY (project_id, id)
@@ -508,14 +509,15 @@ var storeMigrations = []storage.Migration{
 			-- editor fetches, sync export. Indexes serve both
 			-- (project, locale, updated_at) feeds and per-block fetches.
 			CREATE TABLE translations (
-				project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
-				stream     TEXT NOT NULL DEFAULT 'main',
-				block_id   TEXT NOT NULL,
-				locale     TEXT NOT NULL,
-				text       TEXT NOT NULL DEFAULT '',
-				provider   TEXT NOT NULL DEFAULT '',
-				metadata   JSONB NOT NULL DEFAULT '{}'::jsonb,
-				updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+				project_id    TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+				stream        TEXT NOT NULL DEFAULT 'main',
+				block_id      TEXT NOT NULL,
+				locale        TEXT NOT NULL,
+				text          TEXT NOT NULL DEFAULT '',
+				segments_json JSONB NOT NULL DEFAULT '[]'::jsonb,
+				provider      TEXT NOT NULL DEFAULT '',
+				metadata      JSONB NOT NULL DEFAULT '{}'::jsonb,
+				updated_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 				PRIMARY KEY (project_id, stream, block_id, locale)
 			) PARTITION BY HASH (project_id);
 			CREATE TABLE translations_p0 PARTITION OF translations FOR VALUES WITH (MODULUS 8, REMAINDER 0);

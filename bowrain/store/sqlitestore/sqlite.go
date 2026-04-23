@@ -11,6 +11,7 @@ import (
 
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/bowrain/storage"
+	bstore "github.com/neokapi/neokapi/bowrain/store"
 	"github.com/neokapi/neokapi/core/id"
 	"github.com/neokapi/neokapi/core/model"
 )
@@ -488,22 +489,24 @@ func (s *SQLiteStore) storeBlocks(ctx context.Context, projectID, stream, itemNa
 
 	stmt, err := tx.PrepareContext(ctx,
 		`INSERT INTO blocks (id, project_id, item_name, source_id, name, type, mime_type, translatable, content_hash, context_hash,
-			source_json, targets_json, properties, annotations, stored_at, updated_at)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+			source_json, properties, stored_at, updated_at)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		 ON CONFLICT(project_id, id) DO UPDATE SET
 			name=excluded.name, type=excluded.type, mime_type=excluded.mime_type,
 			translatable=excluded.translatable, content_hash=excluded.content_hash,
 			context_hash=excluded.context_hash, source_json=excluded.source_json,
-			targets_json=CASE WHEN excluded.targets_json IN ('{}', 'null', '') THEN blocks.targets_json ELSE excluded.targets_json END,
-			properties=excluded.properties,
-			annotations=excluded.annotations, updated_at=excluded.updated_at`)
+			properties=excluded.properties, updated_at=excluded.updated_at`)
 	if err != nil {
 		return fmt.Errorf("prepare stmt: %w", err)
 	}
 	defer stmt.Close()
 
-	// Batch-load existing block hashes (replaces per-block SELECT).
-	existingHashes := map[string]string{} // block_id → content_hash
+	// Batch-load existing block hashes + existing target locales so
+	// we can diff against the new write for change-log purposes.
+	// Targets now live in the translations table (#403/#405); we
+	// query it directly here rather than parsing inline JSON.
+	existingHashes := map[string]string{}
+	existingLocales := map[string]map[string]struct{}{}
 	{
 		var hashQuery string
 		var hashArgs []any
@@ -518,6 +521,7 @@ func (s *SQLiteStore) storeBlocks(ctx context.Context, projectID, stream, itemNa
 		if err != nil {
 			return fmt.Errorf("batch hash lookup: %w", err)
 		}
+		var ids []string
 		for hashRows.Next() {
 			var bid, ch string
 			if err := hashRows.Scan(&bid, &ch); err != nil {
@@ -525,8 +529,23 @@ func (s *SQLiteStore) storeBlocks(ctx context.Context, projectID, stream, itemNa
 				return fmt.Errorf("scan hash: %w", err)
 			}
 			existingHashes[bid] = ch
+			ids = append(ids, bid)
 		}
 		hashRows.Close()
+
+		if len(ids) > 0 {
+			localeMap, err := bstore.LoadBlockTargetLocales(ctx, tx, "sqlite", projectID, stream, ids)
+			if err != nil {
+				return fmt.Errorf("batch locale lookup: %w", err)
+			}
+			for bid, locs := range localeMap {
+				set := make(map[string]struct{}, len(locs))
+				for _, l := range locs {
+					set[l] = struct{}{}
+				}
+				existingLocales[bid] = set
+			}
+		}
 	}
 
 	now := time.Now().UTC().Format(time.RFC3339)
@@ -563,17 +582,9 @@ func (s *SQLiteStore) storeBlocks(ctx context.Context, projectID, stream, itemNa
 		if err != nil {
 			return fmt.Errorf("marshal source for block %s: %w", internalID, err)
 		}
-		targetsJSON, err := json.Marshal(b.Targets)
-		if err != nil {
-			return fmt.Errorf("marshal targets for block %s: %w", internalID, err)
-		}
 		propsJSON, err := json.Marshal(b.Properties)
 		if err != nil {
 			return fmt.Errorf("marshal properties for block %s: %w", internalID, err)
-		}
-		annsJSON, err := serializeAnnotations(b.Annotations)
-		if err != nil {
-			return fmt.Errorf("marshal annotations for block %s: %w", internalID, err)
 		}
 
 		translatable := 0
@@ -584,10 +595,15 @@ func (s *SQLiteStore) storeBlocks(ctx context.Context, projectID, stream, itemNa
 		_, err = stmt.ExecContext(ctx,
 			internalID, projectID, itemName, sourceID, b.Name, b.Type, b.MimeType, translatable,
 			identity.ContentHash, identity.ContextHash,
-			string(sourceJSON), string(targetsJSON),
-			string(propsJSON), string(annsJSON), now, now)
+			string(sourceJSON), string(propsJSON), now, now)
 		if err != nil {
 			return fmt.Errorf("store block %s: %w", internalID, err)
+		}
+
+		// Write targets + annotations into the kind-specific tables.
+		nowTime, _ := time.Parse(time.RFC3339, now)
+		if err := bstore.SyncBlockOverlays(ctx, tx, "sqlite", projectID, stream, internalID, b.Targets, b.Annotations, nowTime); err != nil {
+			return err
 		}
 
 		// Append to change log.
@@ -607,25 +623,20 @@ func (s *SQLiteStore) storeBlocks(ctx context.Context, projectID, stream, itemNa
 					return fmt.Errorf("log change for block %s: %w", internalID, err)
 				}
 			}
-			// Log target changes by comparing old and new targets.
-			if len(b.Targets) > 0 {
-				oldTargets, loadErr := loadExistingTargets(ctx, tx, projectID, itemName, internalID)
-				if loadErr == nil {
-					for locale, newSegs := range b.Targets {
-						oldSegs, had := oldTargets[locale]
-						if !had {
-							if err := logChange(ctx, tx, projectID, stream, internalID, "target_added", string(locale), ""); err != nil {
-								return fmt.Errorf("log target change for block %s locale %s: %w", internalID, locale, err)
-							}
-						} else {
-							oldJSON, _ := json.Marshal(oldSegs)
-							newJSON, _ := json.Marshal(newSegs)
-							if string(oldJSON) != string(newJSON) {
-								if err := logChange(ctx, tx, projectID, stream, internalID, "target_modified", string(locale), ""); err != nil {
-									return fmt.Errorf("log target change for block %s locale %s: %w", internalID, locale, err)
-								}
-							}
-						}
+			// Log target changes — added vs modified based on whether the
+			// locale already had a row in the translations table. The
+			// payload diff (modified-but-same?) is a best-effort check:
+			// if the locale was already there and we're upserting, it's
+			// a modification worth logging.
+			prev := existingLocales[internalID]
+			for locale := range b.Targets {
+				if _, had := prev[string(locale)]; had {
+					if err := logChange(ctx, tx, projectID, stream, internalID, "target_modified", string(locale), ""); err != nil {
+						return fmt.Errorf("log target change for block %s locale %s: %w", internalID, locale, err)
+					}
+				} else {
+					if err := logChange(ctx, tx, projectID, stream, internalID, "target_added", string(locale), ""); err != nil {
+						return fmt.Errorf("log target change for block %s locale %s: %w", internalID, locale, err)
 					}
 				}
 			}
@@ -639,14 +650,17 @@ func (s *SQLiteStore) storeBlocks(ctx context.Context, projectID, stream, itemNa
 func newBlockID() string { return id.New() }
 
 func (s *SQLiteStore) GetBlock(ctx context.Context, projectID, stream, blockID string) (*platstore.StoredBlock, error) {
-	_ = defaultStream(stream) // stream not used for blocks table (content-addressed, shared)
+	stream = defaultStream(stream)
 	row := s.db.QueryRowContext(ctx,
 		`SELECT id, project_id, item_name, source_id, name, type, mime_type, translatable, content_hash, context_hash,
-			source_json, targets_json, properties, annotations, stored_at, updated_at
+			source_json, properties, stored_at, updated_at
 		 FROM blocks WHERE project_id=? AND id=?`, projectID, blockID)
 	sb, err := scanStoredBlock(row)
 	if err != nil {
 		return nil, fmt.Errorf("block %s not found in project %s", blockID, projectID)
+	}
+	if err := bstore.HydrateOverlays(ctx, s.db.DB, "sqlite", projectID, stream, []*platstore.StoredBlock{sb}); err != nil {
+		return nil, err
 	}
 	return sb, nil
 }
@@ -687,7 +701,7 @@ func (s *SQLiteStore) GetBlocks(ctx context.Context, query platstore.BlockQuery)
 
 	var qb strings.Builder
 	qb.WriteString(`SELECT id, project_id, item_name, source_id, name, type, mime_type, translatable, content_hash, context_hash,
-			source_json, targets_json, properties, annotations, stored_at, updated_at
+			source_json, properties, stored_at, updated_at
 		 FROM blocks WHERE `)
 	qb.WriteString(strings.Join(where, " AND "))
 	qb.WriteString(" ORDER BY id")
@@ -704,7 +718,14 @@ func (s *SQLiteStore) GetBlocks(ctx context.Context, query platstore.BlockQuery)
 	if err != nil {
 		return nil, fmt.Errorf("query blocks: %w", err)
 	}
-	return storage.ScanRows(rows, scanStoredBlock)
+	result, err := storage.ScanRows(rows, scanStoredBlock)
+	if err != nil {
+		return nil, err
+	}
+	if err := bstore.HydrateOverlays(ctx, s.db.DB, "sqlite", query.ProjectID, defaultStream(query.Stream), result); err != nil {
+		return nil, err
+	}
+	return result, nil
 }
 
 func (s *SQLiteStore) GetBlockStats(ctx context.Context, projectID, stream string) ([]platstore.BlockStatRow, error) {
@@ -728,7 +749,7 @@ func (s *SQLiteStore) GetBlockStats(ctx context.Context, projectID, stream strin
 	}
 
 	q := fmt.Sprintf(
-		`SELECT item_name, translatable, source_json, targets_json
+		`SELECT id, item_name, translatable, source_json
 		 FROM blocks WHERE project_id = ? AND item_name IN (%s)
 		 ORDER BY item_name, id`,
 		strings.Join(placeholders, ","))
@@ -739,21 +760,43 @@ func (s *SQLiteStore) GetBlockStats(ctx context.Context, projectID, stream strin
 	}
 	defer rows.Close()
 
-	var result []platstore.BlockStatRow
+	type pending struct {
+		blockID      string
+		itemName     string
+		translatable bool
+		sourceWords  int
+	}
+	var ordered []pending
+	var blockIDs []string
 	for rows.Next() {
-		var itemName, sourceJSON, targetsJSON string
+		var blockID, itemName, sourceJSON string
 		var translatable int
-		if err := rows.Scan(&itemName, &translatable, &sourceJSON, &targetsJSON); err != nil {
+		if err := rows.Scan(&blockID, &itemName, &translatable, &sourceJSON); err != nil {
 			return nil, fmt.Errorf("scan block stat: %w", err)
 		}
+		ordered = append(ordered, pending{
+			blockID: blockID, itemName: itemName, translatable: translatable == 1,
+			sourceWords: countWordsFromSourceJSON(sourceJSON),
+		})
+		blockIDs = append(blockIDs, blockID)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	locales, err := bstore.LoadBlockTargetLocales(ctx, s.db.DB, "sqlite", projectID, stream, blockIDs)
+	if err != nil {
+		return nil, err
+	}
+	var result []platstore.BlockStatRow
+	for _, p := range ordered {
 		result = append(result, platstore.BlockStatRow{
-			ItemName:      itemName,
-			Translatable:  translatable == 1,
-			SourceWords:   countWordsFromSourceJSON(sourceJSON),
-			TargetLocales: extractTargetLocales(targetsJSON),
+			ItemName:      p.itemName,
+			Translatable:  p.translatable,
+			SourceWords:   p.sourceWords,
+			TargetLocales: locales[p.blockID],
 		})
 	}
-	return result, rows.Err()
+	return result, nil
 }
 
 func (s *SQLiteStore) DeleteBlock(ctx context.Context, projectID, stream, blockID string) error {
@@ -991,12 +1034,12 @@ func scanStoredBlock(row scanner) (*platstore.StoredBlock, error) {
 	var sb platstore.StoredBlock
 	sb.Block = &model.Block{}
 	var translatable int
-	var sourceJSON, targetsJSON, propsJSON, annsJSON, storedStr, updatedStr string
+	var sourceJSON, propsJSON, storedStr, updatedStr string
 
 	err := row.Scan(
 		&sb.Block.ID, &sb.ProjectID, &sb.ItemName, &sb.SourceID, &sb.Block.Name, &sb.Block.Type,
 		&sb.Block.MimeType, &translatable, &sb.ContentHash, &sb.ContextHash,
-		&sourceJSON, &targetsJSON, &propsJSON, &annsJSON, &storedStr, &updatedStr)
+		&sourceJSON, &propsJSON, &storedStr, &updatedStr)
 	if err != nil {
 		return nil, fmt.Errorf("scan block: %w", err)
 	}
@@ -1008,14 +1051,13 @@ func scanStoredBlock(row scanner) (*platstore.StoredBlock, error) {
 	if err := json.Unmarshal([]byte(sourceJSON), &sb.Block.Source); err != nil {
 		sb.Block.Source = nil
 	}
-	if err := json.Unmarshal([]byte(targetsJSON), &sb.Block.Targets); err != nil {
-		sb.Block.Targets = make(map[model.LocaleID][]*model.Segment)
-	}
 	if err := json.Unmarshal([]byte(propsJSON), &sb.Block.Properties); err != nil {
 		sb.Block.Properties = make(map[string]string)
 	}
-	sb.Block.Annotations = deserializeAnnotations(annsJSON)
-
+	// Targets + Annotations hydrated via bstore.HydrateOverlays after
+	// the caller has scanned all rows. Leave empty here.
+	sb.Block.Targets = make(map[model.LocaleID][]*model.Segment)
+	sb.Block.Annotations = make(map[string]model.Annotation)
 	return &sb, nil
 }
 

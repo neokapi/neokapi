@@ -501,49 +501,68 @@ func (s *PostgresStore) storeBlocks(ctx context.Context, projectID, stream, item
 
 	stmt, err := tx.PrepareContext(ctx,
 		`INSERT INTO blocks (id, project_id, item_name, source_id, name, type, mime_type, translatable, content_hash, context_hash,
-			source_json, targets_json, properties, annotations, stored_at, updated_at)
-		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+			source_json, properties, stored_at, updated_at)
+		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
 		 ON CONFLICT(project_id, id) DO UPDATE SET
 			name=EXCLUDED.name, type=EXCLUDED.type, mime_type=EXCLUDED.mime_type,
 			translatable=EXCLUDED.translatable, content_hash=EXCLUDED.content_hash,
 			context_hash=EXCLUDED.context_hash, source_json=EXCLUDED.source_json,
-			targets_json=CASE WHEN EXCLUDED.targets_json IN ('{}', 'null', '') THEN blocks.targets_json ELSE EXCLUDED.targets_json END,
-			properties=EXCLUDED.properties,
-			annotations=EXCLUDED.annotations, updated_at=EXCLUDED.updated_at`)
+			properties=EXCLUDED.properties, updated_at=EXCLUDED.updated_at`)
 	if err != nil {
 		return fmt.Errorf("prepare stmt: %w", err)
 	}
 	defer stmt.Close()
 
-	// Batch-load existing block hashes (replaces per-block SELECT).
+	// Batch-load existing block source hashes + prior target locales
+	// for change-log diffing. Targets live in the translations table
+	// (#403/#405); we pull their locales here so logChange can
+	// distinguish target_added vs target_modified on upsert.
 	type existingBlock struct {
 		contentHash string
-		targetsJSON string
+		locales     map[string]struct{}
 	}
 	existingBlocks := map[string]existingBlock{}
 	{
 		var hashQuery string
 		var hashArgs []any
 		if itemName != "" {
-			hashQuery = `SELECT id, content_hash, targets_json FROM blocks WHERE project_id=$1 AND item_name=$2`
+			hashQuery = `SELECT id, content_hash FROM blocks WHERE project_id=$1 AND item_name=$2`
 			hashArgs = []any{projectID, itemName}
 		} else {
-			hashQuery = `SELECT id, content_hash, targets_json FROM blocks WHERE project_id=$1`
+			hashQuery = `SELECT id, content_hash FROM blocks WHERE project_id=$1`
 			hashArgs = []any{projectID}
 		}
 		hashRows, err := tx.QueryContext(ctx, hashQuery, hashArgs...)
 		if err != nil {
 			return fmt.Errorf("batch hash lookup: %w", err)
 		}
+		var ids []string
 		for hashRows.Next() {
-			var bid, ch, tj string
-			if err := hashRows.Scan(&bid, &ch, &tj); err != nil {
+			var bid, ch string
+			if err := hashRows.Scan(&bid, &ch); err != nil {
 				hashRows.Close()
 				return fmt.Errorf("scan hash: %w", err)
 			}
-			existingBlocks[bid] = existingBlock{contentHash: ch, targetsJSON: tj}
+			existingBlocks[bid] = existingBlock{contentHash: ch, locales: map[string]struct{}{}}
+			ids = append(ids, bid)
 		}
 		hashRows.Close()
+
+		// Load existing locales per block for target diff.
+		if len(ids) > 0 {
+			localeMap, err := LoadBlockTargetLocales(ctx, tx, "pg", projectID, stream, ids)
+			if err != nil {
+				return fmt.Errorf("batch locale lookup: %w", err)
+			}
+			for bid, locs := range localeMap {
+				if eb, ok := existingBlocks[bid]; ok {
+					for _, l := range locs {
+						eb.locales[l] = struct{}{}
+					}
+					existingBlocks[bid] = eb
+				}
+			}
+		}
 	}
 
 	now := time.Now().UTC()
@@ -567,33 +586,28 @@ func (s *PostgresStore) storeBlocks(ctx context.Context, projectID, stream, item
 		existing, isExisting := existingBlocks[internalID]
 		isNew := !isExisting
 		existingHash := existing.contentHash
-		existingTargetsJSON := existing.targetsJSON
 		_ = existingHash // used in change detection below
 
 		sourceJSON, err := json.Marshal(b.Source)
 		if err != nil {
 			return fmt.Errorf("marshal source for block %s: %w", internalID, err)
 		}
-		targetsJSON, err := json.Marshal(b.Targets)
-		if err != nil {
-			return fmt.Errorf("marshal targets for block %s: %w", internalID, err)
-		}
 		propsJSON, err := json.Marshal(b.Properties)
 		if err != nil {
 			return fmt.Errorf("marshal properties for block %s: %w", internalID, err)
-		}
-		annsJSON, err := serializeAnnotations(b.Annotations)
-		if err != nil {
-			return fmt.Errorf("marshal annotations for block %s: %w", internalID, err)
 		}
 
 		_, err = stmt.ExecContext(ctx,
 			internalID, projectID, itemName, sourceID, b.Name, b.Type, b.MimeType, b.Translatable,
 			identity.ContentHash, identity.ContextHash,
-			string(sourceJSON), string(targetsJSON),
-			string(propsJSON), string(annsJSON), now, now)
+			string(sourceJSON), string(propsJSON), now, now)
 		if err != nil {
 			return fmt.Errorf("store block %s: %w", internalID, err)
+		}
+
+		// Write targets + annotations into the kind-specific tables.
+		if err := SyncBlockOverlays(ctx, tx, "pg", projectID, stream, internalID, b.Targets, b.Annotations, now); err != nil {
+			return err
 		}
 
 		if isNew {
@@ -611,25 +625,14 @@ func (s *PostgresStore) storeBlocks(ctx context.Context, projectID, stream, item
 					return fmt.Errorf("log change for block %s: %w", internalID, err)
 				}
 			}
-			if len(b.Targets) > 0 {
-				var oldTargets map[model.LocaleID][]*model.Segment
-				if existingTargetsJSON != "" {
-					_ = json.Unmarshal([]byte(existingTargetsJSON), &oldTargets)
-				}
-				for locale, newSegs := range b.Targets {
-					oldSegs, had := oldTargets[locale]
-					if !had {
-						if err := logChange(ctx, tx, projectID, stream, internalID, "target_added", string(locale), ""); err != nil {
-							return fmt.Errorf("log target change for block %s locale %s: %w", internalID, locale, err)
-						}
-					} else {
-						oldJSON, _ := json.Marshal(oldSegs)
-						newJSON, _ := json.Marshal(newSegs)
-						if string(oldJSON) != string(newJSON) {
-							if err := logChange(ctx, tx, projectID, stream, internalID, "target_modified", string(locale), ""); err != nil {
-								return fmt.Errorf("log target change for block %s locale %s: %w", internalID, locale, err)
-							}
-						}
+			for locale := range b.Targets {
+				if _, had := existing.locales[string(locale)]; had {
+					if err := logChange(ctx, tx, projectID, stream, internalID, "target_modified", string(locale), ""); err != nil {
+						return fmt.Errorf("log target change for block %s locale %s: %w", internalID, locale, err)
+					}
+				} else {
+					if err := logChange(ctx, tx, projectID, stream, internalID, "target_added", string(locale), ""); err != nil {
+						return fmt.Errorf("log target change for block %s locale %s: %w", internalID, locale, err)
 					}
 				}
 			}
@@ -642,11 +645,15 @@ func (s *PostgresStore) storeBlocks(ctx context.Context, projectID, stream, item
 func (s *PostgresStore) GetBlock(ctx context.Context, projectID, stream, blockID string) (*platstore.StoredBlock, error) {
 	row := s.db.QueryRowContext(ctx,
 		`SELECT id, project_id, item_name, source_id, name, type, mime_type, translatable, content_hash, context_hash,
-			source_json, targets_json, properties, annotations, stored_at, updated_at
+			source_json, properties, stored_at, updated_at
 		 FROM blocks WHERE project_id=$1 AND id=$2`, projectID, blockID)
 	sb, err := scanStoredBlockPg(row)
 	if err != nil {
 		return nil, fmt.Errorf("block %s not found in project %s", blockID, projectID)
+	}
+	stream = defaultStream(stream)
+	if err := HydrateOverlays(ctx, s.db.DB, "pg", projectID, stream, []*platstore.StoredBlock{sb}); err != nil {
+		return nil, err
 	}
 	return sb, nil
 }
@@ -687,7 +694,7 @@ func (s *PostgresStore) GetBlocks(ctx context.Context, query platstore.BlockQuer
 
 	var qb strings.Builder
 	qb.WriteString(`SELECT id, project_id, item_name, source_id, name, type, mime_type, translatable, content_hash, context_hash,
-			source_json, targets_json, properties, annotations, stored_at, updated_at
+			source_json, properties, stored_at, updated_at
 		 FROM blocks WHERE `)
 	qb.WriteString(strings.Join(where, " AND "))
 	qb.WriteString(" ORDER BY id")
@@ -714,7 +721,13 @@ func (s *PostgresStore) GetBlocks(ctx context.Context, query platstore.BlockQuer
 		}
 		result = append(result, sb)
 	}
-	return result, rows.Err()
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	if err := HydrateOverlays(ctx, s.db.DB, "pg", query.ProjectID, defaultStream(query.Stream), result); err != nil {
+		return nil, err
+	}
+	return result, nil
 }
 
 func (s *PostgresStore) GetBlockStats(ctx context.Context, projectID, stream string) ([]platstore.BlockStatRow, error) {
@@ -738,7 +751,7 @@ func (s *PostgresStore) GetBlockStats(ctx context.Context, projectID, stream str
 	}
 
 	q := fmt.Sprintf(
-		`SELECT item_name, translatable, source_json, targets_json
+		`SELECT id, item_name, translatable, source_json
 		 FROM blocks WHERE project_id = $1 AND item_name IN (%s)
 		 ORDER BY item_name, id`,
 		strings.Join(placeholders, ","))
@@ -749,18 +762,40 @@ func (s *PostgresStore) GetBlockStats(ctx context.Context, projectID, stream str
 	}
 	defer rows.Close()
 
-	var result []platstore.BlockStatRow
+	type pending struct {
+		blockID      string
+		itemName     string
+		translatable bool
+		sourceWords  int
+	}
+	var ordered []pending
+	var blockIDs []string
 	for rows.Next() {
-		var itemName, sourceJSON, targetsJSON string
+		var blockID, itemName, sourceJSON string
 		var translatable bool
-		if err := rows.Scan(&itemName, &translatable, &sourceJSON, &targetsJSON); err != nil {
+		if err := rows.Scan(&blockID, &itemName, &translatable, &sourceJSON); err != nil {
 			return nil, fmt.Errorf("scan block stat: %w", err)
 		}
+		ordered = append(ordered, pending{
+			blockID: blockID, itemName: itemName, translatable: translatable,
+			sourceWords: countWordsFromSourceJSON(sourceJSON),
+		})
+		blockIDs = append(blockIDs, blockID)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	locales, err := LoadBlockTargetLocales(ctx, s.db.DB, "pg", projectID, stream, blockIDs)
+	if err != nil {
+		return nil, err
+	}
+	var result []platstore.BlockStatRow
+	for _, p := range ordered {
 		result = append(result, platstore.BlockStatRow{
-			ItemName:      itemName,
-			Translatable:  translatable,
-			SourceWords:   countWordsFromSourceJSON(sourceJSON),
-			TargetLocales: extractTargetLocales(targetsJSON),
+			ItemName:      p.itemName,
+			Translatable:  p.translatable,
+			SourceWords:   p.sourceWords,
+			TargetLocales: locales[p.blockID],
 		})
 	}
 	return result, rows.Err()
@@ -952,12 +987,12 @@ func scanItemPg(row scanner) (*platstore.Item, error) {
 func scanStoredBlockPg(row scanner) (*platstore.StoredBlock, error) {
 	var sb platstore.StoredBlock
 	sb.Block = &model.Block{}
-	var sourceJSON, targetsJSON, propsJSON, annsJSON string
+	var sourceJSON, propsJSON string
 
 	err := row.Scan(
 		&sb.Block.ID, &sb.ProjectID, &sb.ItemName, &sb.SourceID, &sb.Block.Name, &sb.Block.Type,
 		&sb.Block.MimeType, &sb.Block.Translatable, &sb.ContentHash, &sb.ContextHash,
-		&sourceJSON, &targetsJSON, &propsJSON, &annsJSON, &sb.StoredAt, &sb.UpdatedAt)
+		&sourceJSON, &propsJSON, &sb.StoredAt, &sb.UpdatedAt)
 	if err != nil {
 		return nil, fmt.Errorf("scan block: %w", err)
 	}
@@ -965,15 +1000,54 @@ func scanStoredBlockPg(row scanner) (*platstore.StoredBlock, error) {
 	if err := json.Unmarshal([]byte(sourceJSON), &sb.Block.Source); err != nil {
 		sb.Block.Source = nil
 	}
-	if err := json.Unmarshal([]byte(targetsJSON), &sb.Block.Targets); err != nil {
-		sb.Block.Targets = make(map[model.LocaleID][]*model.Segment)
-	}
 	if err := json.Unmarshal([]byte(propsJSON), &sb.Block.Properties); err != nil {
 		sb.Block.Properties = make(map[string]string)
 	}
-	sb.Block.Annotations = deserializeAnnotations(annsJSON)
-
+	// Targets + Annotations are hydrated separately via hydrateOverlays
+	// after all rows are scanned — see GetBlock / GetBlocks. Leave
+	// empty here.
+	sb.Block.Targets = make(map[model.LocaleID][]*model.Segment)
+	sb.Block.Annotations = make(map[string]model.Annotation)
 	return &sb, nil
+}
+
+// hydrateOverlays populates Targets + Annotations on the supplied
+// blocks from the kind-specific tables. Single round trip per table,
+// not per-block. Safe for empty input.
+func HydrateOverlays(
+	ctx context.Context,
+	db querier,
+	dialect string,
+	projectID, stream string,
+	blocks []*platstore.StoredBlock,
+) error {
+	if len(blocks) == 0 {
+		return nil
+	}
+	ids := make([]string, 0, len(blocks))
+	byID := make(map[string]*platstore.StoredBlock, len(blocks))
+	for _, sb := range blocks {
+		if sb == nil || sb.Block == nil {
+			continue
+		}
+		ids = append(ids, sb.Block.ID)
+		byID[sb.Block.ID] = sb
+	}
+	targets, annotations, err := LoadBlockOverlays(ctx, db, dialect, projectID, stream, ids)
+	if err != nil {
+		return fmt.Errorf("hydrate overlays: %w", err)
+	}
+	for id, locs := range targets {
+		if sb := byID[id]; sb != nil {
+			sb.Block.Targets = locs
+		}
+	}
+	for id, anns := range annotations {
+		if sb := byID[id]; sb != nil {
+			sb.Block.Annotations = anns
+		}
+	}
+	return nil
 }
 
 // queryVersionBlocks loads block_id→content_hash map for a version, using defer for cleanup.
