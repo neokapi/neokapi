@@ -159,6 +159,8 @@ export { FormattedFileName, formatIcon } from "./components/FormattedFileName";
 export { OpenInDesktop } from "./components/OpenInDesktop";
 export { TranslationEditor } from "./components/TranslationEditor";
 export { TranslationDashboard } from "./components/TranslationDashboard";
+export { PluralTargetCell, toKapiBlock } from "./components/PluralTargetCell";
+export type { PluralTargetCellProps } from "./components/PluralTargetCell";
 export { LanguageLabel, localeDisplayName } from "./components/LanguageLabel";
 export { LocaleCompletionChart } from "./components/LocaleCompletionChart";
 export { WordCountChart } from "./components/WordCountChart";

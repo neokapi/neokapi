@@ -37,6 +37,7 @@ import { VisualEditorLayout } from "./editor/VisualEditorLayout";
 import { DocumentPreview } from "./editor/DocumentPreview";
 import type { VisualEditorMode, PreviewContentMode } from "./editor/visual-editor-types";
 import { ArrowLeft, ArrowRight, ArrowUp, ArrowDown, AlertTriangle } from "./icons";
+import { PluralTargetCell } from "./PluralTargetCell";
 
 interface TranslationEditorProps {
   project: ProjectInfo;
@@ -135,6 +136,10 @@ export function TranslationEditor({
 
   // Context panel state
   const [showContextPanel, setShowContextPanel] = useState(false);
+  // Plural target dialog — opened from the toolbar for the currently
+  // selected block; save routes through the existing string-column
+  // updateBlockTarget path (ICU syntax is runtime-detected).
+  const [pluralDialogOpen, setPluralDialogOpen] = useState(false);
   const [tmMatches, setTmMatches] = useState<TMMatchInfo[]>([]);
   const [termMatches, setTermMatches] = useState<BlockTermMatch[]>([]);
   const [contextLoading, setContextLoading] = useState(false);
@@ -449,6 +454,28 @@ export function TranslationEditor({
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to save");
+    }
+  };
+
+  const handlePluralSave = async (nextText: string) => {
+    const block = filteredBlocks[selectedIndex];
+    if (!block) return;
+    try {
+      await api.updateBlockTarget({
+        project_id: project.id,
+        item_name: fileName,
+        block_id: block.id,
+        target_locale: targetLocale,
+        text: nextText,
+      });
+      setBlocks((prev) =>
+        prev.map((b) =>
+          b.id === block.id ? { ...b, targets: { ...b.targets, [targetLocale]: nextText } } : b,
+        ),
+      );
+      setPluralDialogOpen(false);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to save plural target");
     }
   };
 
@@ -1302,6 +1329,16 @@ export function TranslationEditor({
         >
           Reviewed
         </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setPluralDialogOpen(true)}
+          disabled={loading || selectedIndex < 0 || !filteredBlocks[selectedIndex]?.translatable}
+          data-testid="plurals-btn"
+          title="Author a plural target for the selected block"
+        >
+          Plurals…
+        </Button>
         <div className="w-px h-5 bg-border" />
         <Button
           variant="outline"
@@ -1625,6 +1662,15 @@ export function TranslationEditor({
           onCancel={() => setEntityMarkState(null)}
         />
       )}
+      {pluralDialogOpen && filteredBlocks[selectedIndex] ? (
+        <PluralTargetCell
+          block={filteredBlocks[selectedIndex]}
+          locale={targetLocale}
+          open={pluralDialogOpen}
+          onSave={handlePluralSave}
+          onCancel={() => setPluralDialogOpen(false)}
+        />
+      ) : null}
     </div>
   );
 }
