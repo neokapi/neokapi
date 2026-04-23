@@ -788,4 +788,23 @@ var storeMigrations = []storage.Migration{
 			);
 		`,
 	},
+	{
+		Version:     34,
+		Description: "block_overlays catchall table for the blockstore adapter",
+		SQL: `
+			CREATE TABLE block_overlays (
+				project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+				stream     TEXT NOT NULL DEFAULT 'main',
+				block_id   TEXT NOT NULL,
+				kind       TEXT NOT NULL,
+				payload    TEXT NOT NULL DEFAULT '{}',
+				updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+				PRIMARY KEY (project_id, stream, block_id, kind)
+			);
+			CREATE INDEX idx_block_overlays_project_kind
+				ON block_overlays(project_id, stream, kind);
+			CREATE INDEX idx_block_overlays_project_block
+				ON block_overlays(project_id, stream, block_id);
+		`,
+	},
 }
