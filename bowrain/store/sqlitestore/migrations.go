@@ -112,7 +112,9 @@ var storeMigrations = []storage.Migration{
 			CREATE INDEX idx_items_collection ON items(project_id, collection_id);
 			CREATE UNIQUE INDEX idx_items_id ON items(project_id, stream, id);
 
-			-- Blocks
+			-- Blocks hold source content + project metadata only.
+			-- Targets and annotations live in their own kind-specific
+			-- tables (#403/#405). Mirrors Postgres baseline.
 			CREATE TABLE blocks (
 				id           TEXT NOT NULL,
 				project_id   TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
@@ -125,9 +127,7 @@ var storeMigrations = []storage.Migration{
 				content_hash TEXT NOT NULL DEFAULT '',
 				context_hash TEXT NOT NULL DEFAULT '',
 				source_json  TEXT NOT NULL DEFAULT '[]',
-				targets_json TEXT NOT NULL DEFAULT '{}',
 				properties   TEXT NOT NULL DEFAULT '{}',
-				annotations  TEXT NOT NULL DEFAULT '{}',
 				stored_at    TEXT NOT NULL DEFAULT (datetime('now')),
 				updated_at   TEXT NOT NULL DEFAULT (datetime('now')),
 				PRIMARY KEY (project_id, id)
@@ -497,14 +497,15 @@ var storeMigrations = []storage.Migration{
 			-- indexes (#403). Mirrors the Postgres baseline with TEXT/JSON
 			-- → TEXT dialect translation.
 			CREATE TABLE translations (
-				project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
-				stream     TEXT NOT NULL DEFAULT 'main',
-				block_id   TEXT NOT NULL,
-				locale     TEXT NOT NULL,
-				text       TEXT NOT NULL DEFAULT '',
-				provider   TEXT NOT NULL DEFAULT '',
-				metadata   TEXT NOT NULL DEFAULT '{}',
-				updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+				project_id    TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+				stream        TEXT NOT NULL DEFAULT 'main',
+				block_id      TEXT NOT NULL,
+				locale        TEXT NOT NULL,
+				text          TEXT NOT NULL DEFAULT '',
+				segments_json TEXT NOT NULL DEFAULT '[]',
+				provider      TEXT NOT NULL DEFAULT '',
+				metadata      TEXT NOT NULL DEFAULT '{}',
+				updated_at    TEXT NOT NULL DEFAULT (datetime('now')),
 				PRIMARY KEY (project_id, stream, block_id, locale)
 			);
 			CREATE INDEX idx_translations_project_locale

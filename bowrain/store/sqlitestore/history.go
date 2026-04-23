@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -122,19 +121,37 @@ func segmentsCoded(segs []*model.Segment) string {
 }
 
 // loadExistingTargets fetches existing targets JSON for a block within a transaction.
+// loadExistingTargets returns the current per-locale target segments for a
+// block — used by recordTargetHistory before a StoreBlocks upsert. Reads
+// from the translations table (#405) instead of the former inline
+// blocks.targets_json column.
 func loadExistingTargets(ctx context.Context, tx *sql.Tx, projectID, _, blockID string) (map[model.LocaleID][]*model.Segment, error) {
-	var targetsJSON string
-	err := tx.QueryRowContext(ctx,
-		`SELECT targets_json FROM blocks WHERE project_id = ? AND id = ?`,
-		projectID, blockID).Scan(&targetsJSON)
-	if errors.Is(err, sql.ErrNoRows) {
-		return nil, nil
-	}
+	rows, err := tx.QueryContext(ctx,
+		`SELECT locale, segments_json FROM translations
+		 WHERE project_id = ? AND stream = 'main' AND block_id = ?`,
+		projectID, blockID)
 	if err != nil {
 		return nil, err
 	}
-	var targets map[model.LocaleID][]*model.Segment
-	if err := json.Unmarshal([]byte(targetsJSON), &targets); err != nil {
+	defer rows.Close()
+	targets := map[model.LocaleID][]*model.Segment{}
+	for rows.Next() {
+		var locale, segJSON string
+		if err := rows.Scan(&locale, &segJSON); err != nil {
+			return nil, err
+		}
+		var segs []*model.Segment
+		if segJSON != "" && segJSON != "[]" && segJSON != "null" {
+			if err := json.Unmarshal([]byte(segJSON), &segs); err != nil {
+				continue // skip malformed rows silently — same behaviour as the prior impl
+			}
+		}
+		targets[model.LocaleID(locale)] = segs
+	}
+	if rows.Err() != nil {
+		return nil, rows.Err()
+	}
+	if len(targets) == 0 {
 		return nil, nil
 	}
 	return targets, nil

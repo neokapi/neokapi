@@ -224,16 +224,18 @@ func (s *SQLiteStore) MergeStream(ctx context.Context, projectID, streamName str
 			continue
 		}
 
-		// Get the block's current targets.
-		var targetsJSON string
+		// Verify the block exists. The former path pulled targets_json
+		// for existence; targets now live in the translations table so
+		// we probe the id column directly.
+		var exists string
 		err := tx.QueryRowContext(ctx,
-			`SELECT targets_json FROM blocks WHERE project_id = ? AND id = ?`,
-			projectID, blockID).Scan(&targetsJSON)
+			`SELECT id FROM blocks WHERE project_id = ? AND id = ?`,
+			projectID, blockID).Scan(&exists)
 		if err != nil {
 			if errors.Is(err, sql.ErrNoRows) {
 				continue
 			}
-			return nil, fmt.Errorf("get block targets: %w", err)
+			return nil, fmt.Errorf("get block: %w", err)
 		}
 
 		// Log the change in the parent stream.

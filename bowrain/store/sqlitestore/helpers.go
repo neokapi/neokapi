@@ -29,23 +29,6 @@ func countWordsFromSourceJSON(sourceJSON string) int {
 	return count
 }
 
-// extractTargetLocales returns locale keys from a targets_json string
-// (which is a JSON object mapping locale → segments) without deserializing
-// the segment values. Only locales with non-empty segment arrays are included.
-func extractTargetLocales(targetsJSON string) []string {
-	var targets map[string]json.RawMessage
-	if err := json.Unmarshal([]byte(targetsJSON), &targets); err != nil {
-		return nil
-	}
-	var locales []string
-	for locale, raw := range targets {
-		if len(raw) > 2 {
-			locales = append(locales, locale)
-		}
-	}
-	return locales
-}
-
 // countWords counts whitespace-delimited words, skipping PUA marker runes.
 func countWords(text string) int {
 	count := 0

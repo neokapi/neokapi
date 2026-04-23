@@ -2,7 +2,6 @@ package jobs
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -13,9 +12,7 @@ import (
 	platev "github.com/neokapi/neokapi/bowrain/core/event"
 	"github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/bowrain/credentials"
-	bwblockstore "github.com/neokapi/neokapi/bowrain/store/blockstore"
 	"github.com/neokapi/neokapi/core/ai/tools"
-	coreblockstore "github.com/neokapi/neokapi/core/blockstore"
 	"github.com/neokapi/neokapi/core/model"
 	corestorage "github.com/neokapi/neokapi/core/storage"
 	"github.com/neokapi/neokapi/core/tool"
@@ -294,83 +291,20 @@ func executeTranslationWithDeps(ctx context.Context, deps *WorkerDeps, job *Tran
 	// Update total token usage on the job.
 	job.TokensUsed = totalTokensUsed
 
-	// Store translated blocks — they already have internal IDs from GetBlocks.
+	// Store translated blocks. Targets land in the `translations`
+	// overlay table via StoreBlocks (#405) — no separate overlay
+	// write is needed: `ContentStore.StoreBlocks` now extracts
+	// `block.Targets[locale]` and upserts to the translations table
+	// directly. The former #404 dual-write against
+	// blockstore.PutOverlay is retired along with `blocks.targets_json`.
 	blocks := partsToBlocks(allOutParts)
 	if len(blocks) > 0 {
 		if err := deps.ContentStore.StoreBlocks(ctx, job.ProjectID, "main", blocks); err != nil {
 			return fmt.Errorf("store blocks: %w", err)
 		}
-		// Also persist translations as overlays via the in-process
-		// blockstore adapter (#404). Parity criterion: a rule-driven
-		// auto_translate lands the same `kind: targets/<locale>` rows
-		// a CLI-run `ai-translate` would write against a Bowrain
-		// project. Callers that want overlay-only reads can consume
-		// these without waiting for the inline→overlay reader
-		// migration (tracked on #385/#403).
-		if err := writeTargetOverlays(ctx, deps, job, prov, blocks); err != nil {
-			// Logged but non-fatal — the inline targets_json write
-			// above is still the reader's source of truth today.
-			slog.WarnContext(ctx, "auto-translate: write overlays failed",
-				"job_id", job.ID, "project_id", job.ProjectID, "locale", job.TargetLocale, "error", err)
-		}
 	}
 
 	return nil
-}
-
-// writeTargetOverlays persists each translated block's target text as
-// a `targets/<locale>` overlay keyed by the block's Bowrain-internal
-// ID. Payload matches the CLI's `aiTargetCache` shape (`{text, provider}`)
-// so the two paths produce byte-identical overlay rows.
-func writeTargetOverlays(
-	ctx context.Context,
-	deps *WorkerDeps,
-	job *TranslationJob,
-	prov aiprovider.LLMProvider,
-	blocks []*model.Block,
-) error {
-	bs, err := bwblockstore.Open(deps.ContentStore, job.ProjectID, "main")
-	if err != nil {
-		return fmt.Errorf("open blockstore: %w", err)
-	}
-	defer func() { _ = bs.Close() }()
-
-	sess, err := bs.Begin(ctx)
-	if err != nil {
-		return fmt.Errorf("begin session: %w", err)
-	}
-	defer func() { _ = sess.Close() }()
-
-	kind := "targets/" + job.TargetLocale
-	providerName := ""
-	if prov != nil {
-		providerName = string(prov.Name())
-	}
-
-	for _, b := range blocks {
-		if b == nil || !b.Translatable {
-			continue
-		}
-		text := b.TargetText(model.LocaleID(job.TargetLocale))
-		if text == "" {
-			continue
-		}
-		payload, err := json.Marshal(struct {
-			Text     string `json:"text"`
-			Provider string `json:"provider,omitempty"`
-		}{Text: text, Provider: providerName})
-		if err != nil {
-			return fmt.Errorf("marshal overlay payload: %w", err)
-		}
-		if err := sess.PutOverlay(coreblockstore.Overlay{
-			Kind:      kind,
-			BlockHash: b.ID,
-			Payload:   payload,
-		}); err != nil {
-			return fmt.Errorf("put overlay block=%s: %w", b.ID, err)
-		}
-	}
-	return sess.Commit()
 }
 
 // resolveProvider creates the appropriate LLM provider for the job.
