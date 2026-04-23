@@ -51,30 +51,9 @@ func splitLocales(s string) []model.LocaleID {
 // and *sql.Rows. Used by the scanX helper functions.
 type scanner = storage.Scanner
 
-// annotationWrapper wraps an Annotation with a type discriminator for JSON storage.
-type annotationWrapper struct {
-	Type string `json:"type"`
-	Data any    `json:"data"`
-}
-
-// serializeAnnotations converts a map of typed Annotations into a JSON byte slice
-// with type discriminators for lossless round-trip deserialization.
-func serializeAnnotations(anns map[string]model.Annotation) ([]byte, error) {
-	if len(anns) == 0 {
-		return []byte("{}"), nil
-	}
-	wrapped := make(map[string]annotationWrapper, len(anns))
-	for key, ann := range anns {
-		wrapped[key] = annotationWrapper{
-			Type: ann.AnnotationType(),
-			Data: ann,
-		}
-	}
-	return json.Marshal(wrapped)
-}
-
 // deserializeAnnotations converts a JSON string into a map of typed Annotations.
 // The JSON format uses a type-discriminated wrapper: {"key": {"type": "...", "data": {...}}}.
+// Used by overlay_sync.go's deserializeSingleAnnotation (#405).
 func deserializeAnnotations(jsonStr string) map[string]model.Annotation {
 	result := make(map[string]model.Annotation)
 	if jsonStr == "" || jsonStr == "{}" || jsonStr == "null" {

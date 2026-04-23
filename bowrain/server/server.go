@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -1309,7 +1310,7 @@ func (s *Server) Shutdown(ctx context.Context) error {
 // See AD-013 and #385 for the design.
 func (s *Server) OpenBlockstore(projectID, stream string) (coreblockstore.Store, error) {
 	if s.ContentStore == nil {
-		return nil, fmt.Errorf("OpenBlockstore: ContentStore not configured")
+		return nil, errors.New("OpenBlockstore: ContentStore not configured")
 	}
 	return bwblockstore.Open(s.ContentStore, projectID, stream)
 }

@@ -264,7 +264,7 @@ func placeholderList(dialect string, startAt, count int) string {
 		return "NULL" // never matches, avoids syntax error
 	}
 	parts := make([]string, count)
-	for i := 0; i < count; i++ {
+	for i := range count {
 		parts[i] = placeholder(dialect, startAt+i)
 	}
 	return strings.Join(parts, ", ")

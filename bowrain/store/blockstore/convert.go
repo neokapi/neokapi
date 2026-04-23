@@ -1,8 +1,6 @@
 package blockstore
 
 import (
-	"strings"
-
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/core/klf"
 	"github.com/neokapi/neokapi/core/model"
@@ -87,15 +85,3 @@ func flattenSegments(segs []*model.Segment) []model.Run {
 	return out
 }
 
-// parseOverlayKind splits an overlay Kind into its namespace prefix
-// and sub-key. The blockstore convention is "<namespace>/<sub-key>":
-// "targets/en-US", "annotations/qa", "skeletons/xliff". The sub-key
-// may itself contain slashes; only the first slash is split. Returns
-// ("", "") for a kind with no slash.
-func parseOverlayKind(kind string) (namespace, subkey string) {
-	i := strings.IndexByte(kind, '/')
-	if i < 0 {
-		return kind, ""
-	}
-	return kind[:i], kind[i+1:]
-}
