@@ -1016,7 +1016,7 @@ func scanStoredBlockPg(row scanner) (*platstore.StoredBlock, error) {
 // not per-block. Safe for empty input.
 func HydrateOverlays(
 	ctx context.Context,
-	db querier,
+	db Querier,
 	dialect string,
 	projectID, stream string,
 	blocks []*platstore.StoredBlock,

@@ -172,6 +172,10 @@ CREATE TABLE items (
     PRIMARY KEY (project_id, name)
 );
 
+-- Blocks hold source content + project metadata only. Targets and
+-- annotations live in their own kind-specific tables (see below)
+-- so per-locale editing, QA-finding feeds, and automation-run logs
+-- each get the indexes their access patterns need.
 CREATE TABLE blocks (
     id           TEXT NOT NULL,
     project_id   TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
@@ -184,12 +188,49 @@ CREATE TABLE blocks (
     content_hash TEXT NOT NULL DEFAULT '',
     context_hash TEXT NOT NULL DEFAULT '',
     source_json  TEXT NOT NULL DEFAULT '[]',  -- serialized Fragment JSON
-    targets_json TEXT NOT NULL DEFAULT '{}',  -- locale → segments
     properties   TEXT NOT NULL DEFAULT '{}',
-    annotations  TEXT NOT NULL DEFAULT '{}',
     stored_at    TIMESTAMP NOT NULL,
     updated_at   TIMESTAMP NOT NULL,
     PRIMARY KEY (project_id, id)
+);
+
+-- Per-locale translation targets. Hot read path: dashboards, editor,
+-- sync export. Hash-partitioned by project_id on Postgres.
+CREATE TABLE translations (
+    project_id    TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+    stream        TEXT NOT NULL DEFAULT 'main',
+    block_id      TEXT NOT NULL,
+    locale        TEXT NOT NULL,
+    text          TEXT NOT NULL DEFAULT '',     -- flat text for simple queries
+    segments_json TEXT NOT NULL DEFAULT '[]',   -- rich []*Segment round-trip
+    provider      TEXT NOT NULL DEFAULT '',     -- source attribution (ai/human/webhook:deepl)
+    metadata      TEXT NOT NULL DEFAULT '{}',
+    updated_at    TIMESTAMP NOT NULL,
+    PRIMARY KEY (project_id, stream, block_id, locale)
+);
+
+-- Semantic annotations (TM hits, term hits, QA findings, translator notes).
+-- Access pattern: "all QA findings for this project, newest first".
+CREATE TABLE annotations (
+    project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+    stream     TEXT NOT NULL DEFAULT 'main',
+    block_id   TEXT NOT NULL,
+    kind       TEXT NOT NULL,
+    payload    TEXT NOT NULL DEFAULT '{}',
+    updated_at TIMESTAMP NOT NULL,
+    PRIMARY KEY (project_id, stream, block_id, kind)
+);
+
+-- Plugin catchall for overlay kinds that don't fit the purpose-built
+-- tables above (skeletons, custom plugin outputs, etc.).
+CREATE TABLE overlays_ext (
+    project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+    stream     TEXT NOT NULL DEFAULT 'main',
+    block_id   TEXT NOT NULL,
+    kind       TEXT NOT NULL,
+    payload    TEXT NOT NULL DEFAULT '{}',
+    updated_at TIMESTAMP NOT NULL,
+    PRIMARY KEY (project_id, stream, block_id, kind)
 );
 
 CREATE TABLE versions (
@@ -226,6 +267,16 @@ Blocks are scoped to projects with a composite primary key `(project_id,
 id)`. The `source_id` column tracks the format-reader-assigned ID (e.g.
 `tu1` from PO), with a unique index ensuring no duplicates within an item.
 The `version_blocks` join associates blocks with version snapshots.
+
+Targets and annotations sit in their own kind-specific tables. The
+`blockstore.Store` adapter (`bowrain/store/blockstore/`) dispatches by
+kind prefix: `targets/<locale>` → `translations`, `annotations/<name>`
+→ `annotations`, everything else → `overlays_ext`. Callers of the
+`ContentStore.StoreBlocks` / `GetBlocks` surface don't see the split
+— `StoredBlock.Targets` / `.Annotations` are populated via a batched
+join after the source rows are scanned. The three overlay tables are
+hash-partitioned by `project_id` (MODULUS 8) on Postgres so per-project
+queries hit one partition and drop-project is partition-DROP.
 
 The `streams` table and per-stream change log scoping are defined in
 [AD-005: Streams](005-streams.md). Asset tables are defined in

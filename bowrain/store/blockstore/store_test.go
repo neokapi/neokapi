@@ -74,7 +74,10 @@ func TestSession_PutGetBlock(t *testing.T) {
 		Type:         klf.BlockTypeJSXElement,
 		Source:       []klf.Run{{Text: &klf.TextRun{Text: "Hello"}}},
 	}
-	if err := sess.PutBlock("default", block); err != nil {
+	// Empty collection = project-level write; collection-scoped
+	// writes route through StoreBlocksForItem and get a generated
+	// internal ID (exercised in TestSession_PutBlock_CollectionScoped).
+	if err := sess.PutBlock("", block); err != nil {
 		t.Fatalf("put block: %v", err)
 	}
 	if err := sess.Commit(); err != nil {
@@ -328,5 +331,112 @@ func TestSession_Translations_PreservesOpaqueShape(t *testing.T) {
 	}
 	if string(got.Payload) != string(o.Payload) {
 		t.Fatalf("opaque payload didn't round-trip:\n  got %s\n want %s", got.Payload, o.Payload)
+	}
+}
+
+// TestSession_PutBlock_CollectionScoped exercises the collection arg:
+// a non-empty collection routes the write through StoreBlocksForItem
+// (creating the collection if needed), a later Blocks(filter.Collection)
+// iteration picks the block back up.
+func TestSession_PutBlock_CollectionScoped(t *testing.T) {
+	ctx := context.Background()
+	bs, _, _ := newTestStore(t)
+
+	sess, err := bs.Begin(ctx)
+	if err != nil {
+		t.Fatalf("begin: %v", err)
+	}
+	want := &blockstore.Block{
+		ID:           "src-1",
+		Translatable: true,
+		Source:       []klf.Run{{Text: &klf.TextRun{Text: "Scoped"}}},
+	}
+	if err := sess.PutBlock("greetings", want); err != nil {
+		t.Fatalf("put block in collection: %v", err)
+	}
+	if err := sess.Commit(); err != nil {
+		t.Fatalf("commit: %v", err)
+	}
+
+	// Filter by the collection name — should yield our block.
+	sess2, _ := bs.Begin(ctx)
+	defer sess2.Close()
+	var got int
+	for b, err := range sess2.Blocks(blockstore.BlockFilter{Collection: "greetings"}) {
+		if err != nil {
+			t.Fatalf("iterate: %v", err)
+		}
+		if b == nil {
+			continue
+		}
+		if len(b.Source) != 1 || b.Source[0].Text == nil || b.Source[0].Text.Text != "Scoped" {
+			t.Fatalf("wrong block streamed: %+v", b.Source)
+		}
+		got++
+	}
+	if got != 1 {
+		t.Fatalf("expected 1 block in collection, got %d", got)
+	}
+
+	// Filter by a collection that doesn't exist — no blocks, no error.
+	var gotNone int
+	for _, err := range sess2.Blocks(blockstore.BlockFilter{Collection: "nope"}) {
+		if err != nil {
+			t.Fatalf("iterate nope: %v", err)
+		}
+		gotNone++
+	}
+	if gotNone != 0 {
+		t.Fatalf("expected 0 blocks for nonexistent collection, got %d", gotNone)
+	}
+}
+
+// TestHydration_StoreBlocksRoundtripsTargets proves the #405 read path:
+// ContentStore.StoreBlocks landing a block with populated Targets +
+// Annotations produces rows in the kind-specific tables, and a
+// subsequent GetBlocks hydrates them back.
+func TestHydration_StoreBlocksRoundtripsTargets(t *testing.T) {
+	ctx := context.Background()
+	_, cs, projectID := newTestStore(t)
+
+	b := model.NewRunsBlock("blk-hello", []model.Run{{Text: &model.TextRun{Text: "Hello"}}})
+	b.SetTargetRuns("fr", []model.Run{{Text: &model.TextRun{Text: "Bonjour"}}})
+	b.SetTargetRuns("de", []model.Run{{Text: &model.TextRun{Text: "Hallo"}}})
+
+	require(t, cs.StoreBlocks(ctx, projectID, "main", []*model.Block{b}))
+
+	rows, err := cs.GetBlocks(ctx, platstore.BlockQuery{
+		ProjectID: projectID,
+		Stream:    "main",
+		IDs:       []string{"blk-hello"},
+	})
+	if err != nil {
+		t.Fatalf("GetBlocks: %v", err)
+	}
+	if len(rows) != 1 {
+		t.Fatalf("expected 1 block, got %d", len(rows))
+	}
+	got := rows[0].Block
+	if got.TargetText("fr") != "Bonjour" {
+		t.Fatalf("fr target didn't round-trip: %q", got.TargetText("fr"))
+	}
+	if got.TargetText("de") != "Hallo" {
+		t.Fatalf("de target didn't round-trip: %q", got.TargetText("de"))
+	}
+
+	// GetBlock (single) should do the same hydration.
+	single, err := cs.GetBlock(ctx, projectID, "main", "blk-hello")
+	if err != nil {
+		t.Fatalf("GetBlock: %v", err)
+	}
+	if single.Block.TargetText("fr") != "Bonjour" {
+		t.Fatalf("single-fetch fr didn't round-trip: %q", single.Block.TargetText("fr"))
+	}
+}
+
+func require(t *testing.T, err error) {
+	t.Helper()
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
 	}
 }
