@@ -89,11 +89,24 @@ publish          # push via a connector
 notify           # dispatch a notification (AD-014)
 webhook          # send signed HTTP POST to an external URL
 run_bravo        # invoke the Bravo agent (AD-016)
+write_overlay    # upsert a targets/annotations/plugin overlay on a block
 ```
 
 Actions execute server-side. Each action has a typed config object; the
 action executor receives the event payload plus the config and drives
 the underlying subsystem.
+
+### In-process BlockStore
+
+Actions that touch project content (`run_flow`, `write_overlay`,
+future `import_overlay`) reach the blockstore through
+`Server.OpenBlockstore(projectID, stream)`. This is the in-process
+adapter from [AD-004](004-content-store.md) that maps
+`blockstore.Store` onto the Bowrain content store — the automation
+engine shares one `Store` interface with the kapi CLI's local flows,
+so rule-driven `ai_translate` lands the same
+`translations` / `annotations` rows a CLI `kapi run translate` does.
+No HTTP loops through the REST API from inside the engine.
 
 ### Quality gates
 

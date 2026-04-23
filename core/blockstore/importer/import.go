@@ -117,17 +117,14 @@ func ImportDirect(
 		}
 		r.Matched++
 
-		if opts.OnConflict == SkipExisting {
-			kind := "targets/" + p.Locale
-			if _, err := sess.GetOverlay(kind, p.BlockHash); err == nil {
-				// Already have an overlay — skip.
-				r.SkippedByPolicy++
-				continue
-			} else if !errors.Is(err, blockstore.ErrNotFound) {
-				return r, fmt.Errorf("importer: probe existing overlay: %w", err)
-			}
+		skipped, err := skipByPolicy(sess, opts.OnConflict, "targets/"+p.Locale, p.BlockHash)
+		if err != nil {
+			return r, err
 		}
-
+		if skipped {
+			r.SkippedByPolicy++
+			continue
+		}
 		if err := writeTargetOverlay(sess, p, opts.Provider); err != nil {
 			return r, err
 		}
@@ -207,14 +204,13 @@ func ImportFromFormat(
 				continue
 			}
 
-			if opts.OnConflict == SkipExisting {
-				kind := "targets/" + string(locale)
-				if _, err := sess.GetOverlay(kind, blockHash); err == nil {
-					r.SkippedByPolicy++
-					continue
-				} else if !errors.Is(err, blockstore.ErrNotFound) {
-					return r, fmt.Errorf("importer: probe existing overlay: %w", err)
-				}
+			skipped, err := skipByPolicy(sess, opts.OnConflict, "targets/"+string(locale), blockHash)
+			if err != nil {
+				return r, err
+			}
+			if skipped {
+				r.SkippedByPolicy++
+				continue
 			}
 
 			if err := writeTargetOverlay(sess, ImportPair{
@@ -257,14 +253,35 @@ func buildSourceIndex(sess blockstore.Session) (map[string]string, error) {
 		// within one project are an authoring decision; the importer
 		// writes to one of them and surfaces the rest as Matched but
 		// doesn't write twice.
-		if _, ok := index[h]; !ok {
-			index[h] = b.Hash
-			if b.Hash == "" {
-				index[h] = b.ID
-			}
+		if _, ok := index[h]; ok {
+			continue
 		}
+		key := b.Hash
+		if key == "" {
+			key = b.ID
+		}
+		index[h] = key
 	}
 	return index, nil
+}
+
+// skipByPolicy probes whether a (kind, blockHash) overlay already
+// exists and returns true when the conflict policy says "leave it
+// alone". Returns false for ReplaceExisting (always overwrite) and
+// for SkipExisting when no existing overlay was found.
+func skipByPolicy(sess blockstore.Session, policy ConflictPolicy, kind, blockHash string) (bool, error) {
+	if policy != SkipExisting {
+		return false, nil
+	}
+	_, err := sess.GetOverlay(kind, blockHash)
+	switch {
+	case err == nil:
+		return true, nil
+	case errors.Is(err, blockstore.ErrNotFound):
+		return false, nil
+	default:
+		return false, fmt.Errorf("importer: probe existing overlay: %w", err)
+	}
 }
 
 // writeTargetOverlay persists one pair as a `targets/<locale>`
@@ -320,25 +337,11 @@ func plainSourceText(b *model.Block) string {
 	if b == nil {
 		return ""
 	}
-	var sb strings.Builder
-	for _, s := range b.Source {
-		if s == nil {
-			continue
-		}
-		for _, r := range s.Runs {
-			if r.Text != nil {
-				sb.WriteString(r.Text.Text)
-			}
-		}
-	}
-	return sb.String()
+	return plainSegmentsText(b.Source)
 }
 
-// plainSegmentsText extracts the flat text from a target segment list.
+// plainSegmentsText extracts the flat text from a segment list.
 func plainSegmentsText(segs []*model.Segment) string {
-	if len(segs) == 0 {
-		return ""
-	}
 	var sb strings.Builder
 	for _, s := range segs {
 		if s == nil {

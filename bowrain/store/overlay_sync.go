@@ -56,12 +56,12 @@ func SyncBlockOverlays(
 	return nil
 }
 
-// loadBlockOverlays hydrates a block's Targets + Annotations from the
+// LoadBlockOverlays hydrates a block's Targets + Annotations from the
 // kind-specific tables. Called by GetBlock(s) after the source row
 // is fetched.
 func LoadBlockOverlays(
 	ctx context.Context,
-	db querier,
+	db Querier,
 	dialect string,
 	projectID, stream string,
 	blockIDs []string,
@@ -132,12 +132,12 @@ func LoadBlockOverlays(
 	return targets, annotations, nil
 }
 
-// loadBlockTargetLocales returns the set of locales each block has a
+// LoadBlockTargetLocales returns the set of locales each block has a
 // translation for. Replaces the former extractTargetLocales path that
 // parsed targets_json inline.
 func LoadBlockTargetLocales(
 	ctx context.Context,
-	db querier,
+	db Querier,
 	dialect string,
 	projectID, stream string,
 	blockIDs []string,
@@ -163,8 +163,9 @@ func LoadBlockTargetLocales(
 	return out, rows.Err()
 }
 
-// querier abstracts *sql.DB and *sql.Tx so helpers work against both.
-type querier interface {
+// Querier abstracts *sql.DB and *sql.Tx so the overlay-sync helpers
+// work against both transaction-scoped and pooled connections.
+type Querier interface {
 	QueryContext(ctx context.Context, query string, args ...any) (*sql.Rows, error)
 }
 

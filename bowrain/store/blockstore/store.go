@@ -135,12 +135,52 @@ func (s *session) Blocks(filter blockstore.BlockFilter) iter.Seq2[*blockstore.Bl
 			t := *filter.Translatable
 			q.Translatable = &t
 		}
-		// Collection filter: Bowrain collections map to item groupings
-		// at the ContentStore level. The simplest correct mapping is
-		// to filter items by collection name, then fetch blocks per
-		// item. Until the collection filter is pushed into BlockQuery,
-		// we just return all blocks when a collection is requested —
-		// matching current ContentStore semantics.
+		// Collection filter: Bowrain collections group items; items own
+		// blocks. Resolve `collection name` → item names in that collection,
+		// then narrow the block query to those items. A nonexistent
+		// collection yields no blocks (empty iteration, no error —
+		// matches the interface contract's "empty filter = no results").
+		if filter.Collection != "" {
+			coll, err := s.opts.ContentStore.GetCollectionByName(s.ctx, s.opts.ProjectID, filter.Collection, s.opts.Stream)
+			if err != nil || coll == nil {
+				return
+			}
+			items, err := s.opts.ContentStore.ListItems(s.ctx, s.opts.ProjectID, s.opts.Stream)
+			if err != nil {
+				yield(nil, fmt.Errorf("bowrain/blockstore: list items for collection %q: %w", filter.Collection, err))
+				return
+			}
+			var itemNames []string
+			for _, it := range items {
+				if it != nil && it.CollectionID == coll.ID {
+					itemNames = append(itemNames, it.Name)
+				}
+			}
+			if len(itemNames) == 0 {
+				return
+			}
+			// Stream per item to keep memory bounded; ContentStore's
+			// BlockQuery takes a single ItemName, so we iterate.
+			for _, name := range itemNames {
+				iq := q
+				iq.ItemName = name
+				rows, err := s.opts.ContentStore.GetBlocks(s.ctx, iq)
+				if err != nil {
+					yield(nil, fmt.Errorf("bowrain/blockstore: list blocks for item %q: %w", name, err))
+					return
+				}
+				for _, sb := range rows {
+					kb := toKLF(sb)
+					if kb == nil {
+						continue
+					}
+					if !yield(kb, nil) {
+						return
+					}
+				}
+			}
+			return
+		}
 		rows, err := s.opts.ContentStore.GetBlocks(s.ctx, q)
 		if err != nil {
 			yield(nil, fmt.Errorf("bowrain/blockstore: list blocks: %w", err))
@@ -191,9 +231,64 @@ func (s *session) PutBlock(collection string, b *blockstore.Block) error {
 	if b == nil {
 		return errors.New("bowrain/blockstore: PutBlock: nil block")
 	}
-	_ = collection // reserved for future use once collections are first-class in BlockQuery
 	mb := fromKLF(b)
-	return s.opts.ContentStore.StoreBlocks(s.ctx, s.opts.ProjectID, s.opts.Stream, []*model.Block{mb})
+	// When a collection is supplied, route the block through
+	// StoreBlocksForItem so items-within-collection bookkeeping stays
+	// consistent — the collection is created on first use. Empty
+	// collection means "project-level write" and uses plain StoreBlocks.
+	if collection == "" {
+		return s.opts.ContentStore.StoreBlocks(s.ctx, s.opts.ProjectID, s.opts.Stream, []*model.Block{mb})
+	}
+	// Collection-scoped blocks live under a synthetic item named for
+	// the collection, with the item linked to the collection via
+	// CollectionID so subsequent filter.Collection lookups resolve.
+	// Callers wanting richer item layouts should use the ContentStore
+	// directly.
+	collID, err := s.ensureCollection(collection)
+	if err != nil {
+		return err
+	}
+	if err := s.ensureCollectionItem(collection, collID); err != nil {
+		return err
+	}
+	return s.opts.ContentStore.StoreBlocksForItem(s.ctx, s.opts.ProjectID, s.opts.Stream, collection, []*model.Block{mb})
+}
+
+// ensureCollection returns the ID of a collection with the given name,
+// creating it first if it doesn't exist. Idempotent.
+func (s *session) ensureCollection(name string) (string, error) {
+	if c, err := s.opts.ContentStore.GetCollectionByName(s.ctx, s.opts.ProjectID, name, s.opts.Stream); err == nil && c != nil {
+		return c.ID, nil
+	}
+	c := &platstore.Collection{
+		ID:        name,
+		ProjectID: s.opts.ProjectID,
+		Name:      name,
+		Kind:      "uploaded",
+		Stream:    s.opts.Stream,
+	}
+	if err := s.opts.ContentStore.CreateCollection(s.ctx, c); err != nil {
+		return "", fmt.Errorf("bowrain/blockstore: create collection %q: %w", name, err)
+	}
+	return c.ID, nil
+}
+
+// ensureCollectionItem makes sure an item with the given name exists
+// and is linked to the supplied collection ID — so StoreBlocksForItem
+// + filter.Collection queries round-trip.
+func (s *session) ensureCollectionItem(itemName, collectionID string) error {
+	existing, err := s.opts.ContentStore.GetItem(s.ctx, s.opts.ProjectID, s.opts.Stream, itemName)
+	if err == nil && existing != nil {
+		if existing.CollectionID == collectionID {
+			return nil
+		}
+		existing.CollectionID = collectionID
+		return s.opts.ContentStore.StoreItem(s.ctx, s.opts.ProjectID, s.opts.Stream, existing)
+	}
+	return s.opts.ContentStore.StoreItem(s.ctx, s.opts.ProjectID, s.opts.Stream, &platstore.Item{
+		Name:         itemName,
+		CollectionID: collectionID,
+	})
 }
 
 func (s *session) GetOverlay(kind, blockHash string) (blockstore.Overlay, error) {

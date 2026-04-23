@@ -202,13 +202,13 @@ func executeTranslationWithDeps(ctx context.Context, deps *WorkerDeps, job *Tran
 	}
 
 	// Default batch/concurrency for automation jobs if not explicitly set.
-	batchSz := job.BatchSize
-	concurrency := job.Concurrency
-	if batchSz < 1 {
-		batchSz = 20
+	batchSz := 20
+	if job.BatchSize > 0 {
+		batchSz = job.BatchSize
 	}
-	if concurrency < 1 {
-		concurrency = 5
+	concurrency := 5
+	if job.Concurrency > 0 {
+		concurrency = job.Concurrency
 	}
 
 	translateTool := tools.NewAITranslateTool(prov, tools.AITranslateConfig{

@@ -63,16 +63,28 @@ type translationPayload struct {
 // JSON body (e.g. a runs-shaped target from a rich editor) landed it
 // in the `metadata` column on write and we emit that verbatim here.
 func encodeTranslationPayload(text, provider string, metadata []byte) ([]byte, error) {
-	if text == "" && provider == "" && len(metadata) > 0 && string(metadata) != "{}" && string(metadata) != "null" {
+	hasMetadata := hasJSONBody(metadata)
+	opaqueOnly := text == "" && provider == "" && hasMetadata
+	if opaqueOnly {
 		// Payload was opaque JSON without a text field — return
 		// the original body so the caller gets byte-identical reads.
 		return metadata, nil
 	}
 	p := translationPayload{Text: text, Provider: provider}
-	if len(metadata) > 0 && string(metadata) != "{}" && string(metadata) != "null" {
+	if hasMetadata {
 		p.Metadata = metadata
 	}
 	return json.Marshal(p)
+}
+
+// hasJSONBody reports whether the bytes hold JSON content more
+// meaningful than an empty object or null.
+func hasJSONBody(b []byte) bool {
+	if len(b) == 0 {
+		return false
+	}
+	s := string(b)
+	return s != "{}" && s != "null"
 }
 
 // decodeTranslationPayload splits the incoming payload into the three
