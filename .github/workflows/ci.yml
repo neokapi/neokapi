@@ -505,6 +505,7 @@ jobs:
         uses: golangci/golangci-lint-action@v9
         with:
           install-mode: binary
+          verify: false
           version: v2.9.0
           working-directory: .
           only-new-issues: ${{ github.event_name == 'pull_request' }}
@@ -514,6 +515,7 @@ jobs:
         uses: golangci/golangci-lint-action@v9
         with:
           install-mode: binary
+          verify: false
           version: v2.9.0
           working-directory: cli
           only-new-issues: ${{ github.event_name == 'pull_request' }}
@@ -523,6 +525,7 @@ jobs:
         uses: golangci/golangci-lint-action@v9
         with:
           install-mode: binary
+          verify: false
           version: v2.9.0
           working-directory: kapi
           only-new-issues: ${{ github.event_name == 'pull_request' }}
@@ -553,6 +556,7 @@ jobs:
         uses: golangci/golangci-lint-action@v9
         with:
           install-mode: binary
+          verify: false
           version: v2.9.0
           working-directory: bowrain/core
           only-new-issues: ${{ github.event_name == 'pull_request' }}
@@ -562,6 +566,7 @@ jobs:
         uses: golangci/golangci-lint-action@v9
         with:
           install-mode: binary
+          verify: false
           version: v2.9.0
           working-directory: bowrain/cli
           only-new-issues: ${{ github.event_name == 'pull_request' }}
@@ -577,6 +582,7 @@ jobs:
         uses: golangci/golangci-lint-action@v9
         with:
           install-mode: binary
+          verify: false
           version: v2.9.0
           working-directory: bowrain
           only-new-issues: ${{ github.event_name == 'pull_request' }}
