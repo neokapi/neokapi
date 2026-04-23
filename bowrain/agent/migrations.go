@@ -2,11 +2,14 @@ package agent
 
 import "github.com/neokapi/neokapi/bowrain/storage"
 
-// PostgreSQL migrations for the agent store.
+// migrations defines the complete PostgreSQL agent-store schema.
+// Bowrain is not yet in production; there is no migration history to
+// preserve, so we keep a single baseline migration that represents
+// the current design.
 var migrations = []storage.Migration{
 	{
 		Version:     1,
-		Description: "create agent conversations table",
+		Description: "agent schema (baseline)",
 		SQL: `
 			CREATE TABLE agent_conversations (
 				id           TEXT PRIMARY KEY,
@@ -19,26 +22,18 @@ var migrations = []storage.Migration{
 				updated_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
 			);
 			CREATE INDEX idx_agent_conv_workspace_user ON agent_conversations(workspace_id, user_id);
-		`,
-	},
-	{
-		Version:     2,
-		Description: "create agent messages table",
-		SQL: `
+
 			CREATE TABLE agent_messages (
 				id              TEXT PRIMARY KEY,
 				conversation_id TEXT NOT NULL REFERENCES agent_conversations(id) ON DELETE CASCADE,
 				role            TEXT NOT NULL,
 				content         TEXT NOT NULL DEFAULT '',
+				input_tokens    INTEGER NOT NULL DEFAULT 0,
+				output_tokens   INTEGER NOT NULL DEFAULT 0,
 				created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
 			);
 			CREATE INDEX idx_agent_msg_conv ON agent_messages(conversation_id, created_at);
-		`,
-	},
-	{
-		Version:     3,
-		Description: "create agent tool calls table",
-		SQL: `
+
 			CREATE TABLE agent_tool_calls (
 				id         TEXT PRIMARY KEY,
 				message_id TEXT NOT NULL REFERENCES agent_messages(id) ON DELETE CASCADE,
@@ -50,12 +45,7 @@ var migrations = []storage.Migration{
 				error      TEXT NOT NULL DEFAULT ''
 			);
 			CREATE INDEX idx_agent_tc_msg ON agent_tool_calls(message_id);
-		`,
-	},
-	{
-		Version:     4,
-		Description: "create agent config table",
-		SQL: `
+
 			CREATE TABLE agent_config (
 				workspace_id      TEXT PRIMARY KEY,
 				enabled           BOOLEAN NOT NULL DEFAULT FALSE,
@@ -65,14 +55,6 @@ var migrations = []storage.Migration{
 				code_exec_enabled BOOLEAN NOT NULL DEFAULT FALSE,
 				max_concurrent    INTEGER NOT NULL DEFAULT 3
 			);
-		`,
-	},
-	{
-		Version:     5,
-		Description: "add token usage columns and agent_usage table",
-		SQL: `
-			ALTER TABLE agent_messages ADD COLUMN input_tokens INTEGER NOT NULL DEFAULT 0;
-			ALTER TABLE agent_messages ADD COLUMN output_tokens INTEGER NOT NULL DEFAULT 0;
 
 			CREATE TABLE agent_usage (
 				id              TEXT PRIMARY KEY,

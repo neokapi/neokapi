@@ -2,12 +2,14 @@ package auth
 
 import "github.com/neokapi/neokapi/bowrain/storage"
 
-// authMigrationsPg is a single clean PostgreSQL schema that represents the
-// final state of all 8 incremental SQLite auth migrations consolidated into one.
+// authMigrationsPg defines the complete PostgreSQL auth schema.
+// Bowrain is not yet in production; there is no migration history to
+// preserve, so we keep a single baseline migration that represents
+// the current design.
 var authMigrationsPg = []storage.Migration{
 	{
 		Version:     1,
-		Description: "create auth schema",
+		Description: "auth schema (baseline)",
 		SQL: `
 			CREATE TABLE users (
 				id         TEXT PRIMARY KEY,
@@ -20,14 +22,20 @@ var authMigrationsPg = []storage.Migration{
 			CREATE INDEX idx_users_oidc_sub ON users(oidc_sub);
 
 			CREATE TABLE workspaces (
-				id          TEXT PRIMARY KEY,
-				name        TEXT NOT NULL,
-				slug        TEXT UNIQUE NOT NULL,
-				description TEXT NOT NULL DEFAULT '',
-				logo_url    TEXT NOT NULL DEFAULT '',
-				type        TEXT NOT NULL DEFAULT 'team',
-				created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-				updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+				id                   TEXT PRIMARY KEY,
+				name                 TEXT NOT NULL,
+				slug                 TEXT UNIQUE NOT NULL,
+				description          TEXT NOT NULL DEFAULT '',
+				logo_url             TEXT NOT NULL DEFAULT '',
+				type                 TEXT NOT NULL DEFAULT 'team',
+				languages            TEXT NOT NULL DEFAULT '[]',
+				plan                 TEXT NOT NULL DEFAULT 'free',
+				stripe_customer_id   TEXT,
+				dashboard_visibility TEXT NOT NULL DEFAULT 'private',
+				pulse_term_sources   TEXT NOT NULL DEFAULT '{"terminology":true,"brand_vocabulary":false}',
+				pulse_access_key     TEXT NOT NULL DEFAULT '',
+				created_at           TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+				updated_at           TIMESTAMPTZ NOT NULL DEFAULT NOW()
 			);
 
 			CREATE TABLE workspace_members (
@@ -39,13 +47,13 @@ var authMigrationsPg = []storage.Migration{
 			);
 
 			CREATE TABLE unclaimed_projects (
-				project_id     TEXT PRIMARY KEY,
-				claim_token    TEXT UNIQUE NOT NULL,
-				name           TEXT NOT NULL,
-				source_locale  TEXT NOT NULL,
-				target_locales TEXT NOT NULL,
-				created_at     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-				expires_at     TIMESTAMPTZ NOT NULL
+				project_id               TEXT PRIMARY KEY,
+				claim_token              TEXT UNIQUE NOT NULL,
+				name                     TEXT NOT NULL,
+				default_source_language  TEXT NOT NULL,
+				target_languages         TEXT NOT NULL,
+				created_at               TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+				expires_at               TIMESTAMPTZ NOT NULL
 			);
 			CREATE INDEX idx_unclaimed_expires ON unclaimed_projects(expires_at);
 
@@ -70,12 +78,7 @@ var authMigrationsPg = []storage.Migration{
 				created_at TIMESTAMPTZ NOT NULL
 			);
 			CREATE INDEX idx_refresh_tokens_user ON refresh_tokens(user_id);
-		`,
-	},
-	{
-		Version:     2,
-		Description: "create api_tokens table",
-		SQL: `
+
 			CREATE TABLE api_tokens (
 				id           TEXT PRIMARY KEY,
 				user_id      TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -90,29 +93,7 @@ var authMigrationsPg = []storage.Migration{
 			);
 			CREATE INDEX idx_api_tokens_workspace ON api_tokens(workspace_id);
 			CREATE INDEX idx_api_tokens_user ON api_tokens(user_id);
-		`,
-	},
-	{
-		Version:     3,
-		Description: "add languages to workspaces and rename locale columns in unclaimed_projects",
-		SQL: `
-			ALTER TABLE workspaces ADD COLUMN languages TEXT NOT NULL DEFAULT '[]';
-			ALTER TABLE unclaimed_projects RENAME COLUMN source_locale TO default_source_language;
-			ALTER TABLE unclaimed_projects RENAME COLUMN target_locales TO target_languages;
-		`,
-	},
-	{
-		Version:     4,
-		Description: "add plan and stripe_customer_id to workspaces",
-		SQL: `
-			ALTER TABLE workspaces ADD COLUMN IF NOT EXISTS plan TEXT NOT NULL DEFAULT 'free';
-			ALTER TABLE workspaces ADD COLUMN IF NOT EXISTS stripe_customer_id TEXT;
-		`,
-	},
-	{
-		Version:     5,
-		Description: "create role_templates and project_members tables",
-		SQL: `
+
 			CREATE TABLE role_templates (
 				id           TEXT NOT NULL,
 				workspace_id TEXT NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
@@ -139,21 +120,6 @@ var authMigrationsPg = []storage.Migration{
 			);
 			CREATE INDEX idx_project_members_user ON project_members(user_id, workspace_id);
 			CREATE INDEX idx_project_members_role ON project_members(workspace_id, role_id);
-		`,
-	},
-	{
-		Version:     6,
-		Description: "add dashboard_visibility and pulse_term_sources to workspaces",
-		SQL: `
-			ALTER TABLE workspaces ADD COLUMN IF NOT EXISTS dashboard_visibility TEXT NOT NULL DEFAULT 'private';
-			ALTER TABLE workspaces ADD COLUMN IF NOT EXISTS pulse_term_sources TEXT NOT NULL DEFAULT '{"terminology":true,"brand_vocabulary":false}';
-		`,
-	},
-	{
-		Version:     7,
-		Description: "add pulse_access_key to workspaces for unlisted dashboard access",
-		SQL: `
-			ALTER TABLE workspaces ADD COLUMN IF NOT EXISTS pulse_access_key TEXT NOT NULL DEFAULT '';
 		`,
 	},
 }
