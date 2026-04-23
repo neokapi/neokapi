@@ -47,7 +47,9 @@ import (
 	mcpserver "github.com/neokapi/neokapi/bowrain/server/mcp"
 	"github.com/neokapi/neokapi/bowrain/service"
 	bstore "github.com/neokapi/neokapi/bowrain/store"
+	bwblockstore "github.com/neokapi/neokapi/bowrain/store/blockstore"
 	bowsync "github.com/neokapi/neokapi/bowrain/sync"
+	coreblockstore "github.com/neokapi/neokapi/core/blockstore"
 )
 
 // Server is the REST API server for neokapi.
@@ -1299,6 +1301,17 @@ func (s *Server) Shutdown(ctx context.Context) error {
 	}
 
 	return firstErr
+}
+
+// OpenBlockstore returns a `blockstore.Store` bound to the given
+// project/stream on this Server's ContentStore — the in-process
+// adapter used by automation actions and server-side flow execution.
+// See AD-013 and #385 for the design.
+func (s *Server) OpenBlockstore(projectID, stream string) (coreblockstore.Store, error) {
+	if s.ContentStore == nil {
+		return nil, fmt.Errorf("OpenBlockstore: ContentStore not configured")
+	}
+	return bwblockstore.Open(s.ContentStore, projectID, stream)
 }
 
 // GetEcho returns the underlying Echo instance. Useful for testing.

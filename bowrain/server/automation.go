@@ -12,6 +12,7 @@ import (
 	"github.com/neokapi/neokapi/bowrain/event"
 	"github.com/neokapi/neokapi/bowrain/jobs"
 	bstore "github.com/neokapi/neokapi/bowrain/store"
+	coreblockstore "github.com/neokapi/neokapi/core/blockstore"
 	"github.com/neokapi/neokapi/core/id"
 )
 
@@ -207,10 +208,102 @@ func (s *Server) doExecuteAction(action event.AutomationAction, ev platev.Event,
 			s.createSourceReviewTask(actionCtx, action, ev, stepID)
 		}()
 
+	case "write_overlay":
+		go func() {
+			defer cancel()
+			s.executeWriteOverlay(actionCtx, action, ev, stepID)
+		}()
+
 	default:
 		cancel()
 	}
 	return nil
+}
+
+// executeWriteOverlay persists an overlay (targets / annotations / plugin
+// kinds) against one or more blocks through the in-process blockstore
+// adapter (#385 foundation). Config keys:
+//
+//	kind      — required, e.g. "annotations/qa" or "targets/fr"
+//	payload   — required, JSON object written verbatim to the overlay
+//	stream    — optional, defaults to "main"
+//	block     — optional explicit block id; falls back to ev.Data["block_id"]
+//
+// This is the reference automation action that exercises the adapter
+// end-to-end: no HTTP round-trip, AutomationRun log entries match the
+// CLI flow-run UI shape.
+func (s *Server) executeWriteOverlay(ctx context.Context, action event.AutomationAction, ev platev.Event, stepID string) {
+	kind := action.Config["kind"]
+	payload := action.Config["payload"]
+	if kind == "" || payload == "" {
+		s.appendAutomationLog(ctx, stepID, "error", "write_overlay: missing kind or payload", nil)
+		return
+	}
+	stream := action.Config["stream"]
+	if stream == "" {
+		stream = "main"
+	}
+	blockID := action.Config["block"]
+	if blockID == "" {
+		blockID = ev.Data["block_id"]
+	}
+	if blockID == "" {
+		s.appendAutomationLog(ctx, stepID, "error", "write_overlay: no block id (check action config or event data)", nil)
+		return
+	}
+
+	bs, err := s.OpenBlockstore(ev.ProjectID, stream)
+	if err != nil {
+		s.appendAutomationLog(ctx, stepID, "error", "write_overlay: open blockstore: "+err.Error(), nil)
+		return
+	}
+	defer func() { _ = bs.Close() }()
+
+	sess, err := bs.Begin(ctx)
+	if err != nil {
+		s.appendAutomationLog(ctx, stepID, "error", "write_overlay: begin session: "+err.Error(), nil)
+		return
+	}
+	defer func() { _ = sess.Close() }()
+
+	if err := sess.PutOverlay(coreblockstore.Overlay{
+		Kind:      kind,
+		BlockHash: blockID,
+		Payload:   []byte(payload),
+	}); err != nil {
+		s.appendAutomationLog(ctx, stepID, "error", "write_overlay: put overlay: "+err.Error(), nil)
+		_ = sess.Rollback()
+		return
+	}
+	if err := sess.Commit(); err != nil {
+		s.appendAutomationLog(ctx, stepID, "error", "write_overlay: commit: "+err.Error(), nil)
+		return
+	}
+	s.appendAutomationLog(ctx, stepID, "info", "write_overlay: wrote "+kind+" on "+blockID, map[string]string{
+		"kind": kind, "block": blockID, "stream": stream,
+	})
+}
+
+// appendAutomationLog records one AutomationLog entry against a step
+// when the AutomationRunStore is wired up. Safe no-op otherwise.
+func (s *Server) appendAutomationLog(ctx context.Context, stepID, level, message string, data map[string]string) {
+	if s.AutomationRunStore == nil || stepID == "" {
+		return
+	}
+	step, err := s.AutomationRunStore.GetStep(ctx, stepID)
+	runID := ""
+	if err == nil && step != nil {
+		runID = step.RunID
+	}
+	_ = s.AutomationRunStore.AppendLogs(ctx, []bstore.AutomationLog{{
+		ID:        id.New(),
+		StepID:    stepID,
+		RunID:     runID,
+		Level:     level,
+		Message:   message,
+		Data:      data,
+		Timestamp: time.Now().UTC(),
+	}})
 }
 
 // triggerAutoTranslate creates translation jobs for each (item, locale) pair.
