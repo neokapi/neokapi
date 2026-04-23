@@ -4,7 +4,7 @@
  * toolchain into the bundle.
  */
 
-import type { Run } from './block.ts';
+import type { Run } from "./block.ts";
 
 /**
  * Flatten a Run sequence to the string shape the kapi-react runtime
@@ -15,27 +15,27 @@ import type { Run } from './block.ts';
  * the right form at render time.
  */
 export function flattenRuns(runs: Run[]): string {
-  let out = '';
+  let out = "";
   for (const r of runs) {
-    if ('text' in r) {
+    if ("text" in r) {
       out += r.text;
-    } else if ('ph' in r) {
+    } else if ("ph" in r) {
       out += `{${r.ph.equiv || r.ph.id}}`;
-    } else if ('pcOpen' in r) {
+    } else if ("pcOpen" in r) {
       out += `{=m${r.pcOpen.id}}`;
-    } else if ('pcClose' in r) {
+    } else if ("pcClose" in r) {
       out += `{/=m${r.pcClose.id}}`;
-    } else if ('sub' in r) {
+    } else if ("sub" in r) {
       out += `[${r.sub.equiv || r.sub.id}]`;
-    } else if ('plural' in r) {
+    } else if ("plural" in r) {
       const forms = Object.entries(r.plural.forms)
         .map(([k, v]) => `${k} {${flattenRuns(v)}}`)
-        .join(' ');
+        .join(" ");
       out += `{${r.plural.pivot}, plural, ${forms}}`;
-    } else if ('select' in r) {
+    } else if ("select" in r) {
       const cases = Object.entries(r.select.cases)
         .map(([k, v]) => `${k} {${flattenRuns(v)}}`)
-        .join(' ');
+        .join(" ");
       out += `{${r.select.pivot}, select, ${cases}}`;
     }
   }

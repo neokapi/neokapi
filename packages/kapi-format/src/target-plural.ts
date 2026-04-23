@@ -13,7 +13,7 @@
  * editor, and third-party CAT tools that embed the primitives.
  */
 
-import type { Block, PluralForm, PluralRunWrapper, Run } from './block.ts';
+import type { Block, PluralForm, PluralRunWrapper, Run } from "./block.ts";
 
 /** Candidates from a Block's placeholders for pivot selection. */
 export interface PluralPivotCandidate {
@@ -38,20 +38,20 @@ export function pluralPivotCandidates(block: Block): PluralPivotCandidate[] {
   for (const p of byPriority) {
     if (seen.has(p.name)) continue;
     seen.add(p.name);
-    const suffix = p.jsType ? ` (${p.jsType})` : '';
+    const suffix = p.jsType ? ` (${p.jsType})` : "";
     out.push({
       name: p.name,
       label: `${p.name}${suffix}`,
-      sourcePivot: p.kind === 'icu-pivot',
+      sourcePivot: p.kind === "icu-pivot",
     });
   }
   return out;
 }
 
 // Smaller rank → higher priority in the candidate picker.
-function rank(p: Block['placeholders'][number]): number {
-  if (p.kind === 'icu-pivot') return 0;
-  if (p.jsType === 'number') return 1;
+function rank(p: Block["placeholders"][number]): number {
+  if (p.kind === "icu-pivot") return 0;
+  if (p.jsType === "number") return 1;
   return 2;
 }
 
@@ -64,13 +64,13 @@ function rank(p: Block['placeholders'][number]): number {
 export function upgradeTargetToPlural(
   target: readonly Run[] | undefined,
   pivot: string,
-  forms: readonly PluralForm[] = ['zero', 'one', 'two', 'few', 'many', 'other'],
+  forms: readonly PluralForm[] = ["zero", "one", "two", "few", "many", "other"],
 ): Run[] {
   if (isPlural(target ?? [])) return [...(target ?? [])];
   const existing = target ? [...target] : [];
   const formsMap: Partial<Record<PluralForm, Run[]>> = {};
   for (const form of forms) {
-    formsMap[form] = form === 'other' ? existing : [];
+    formsMap[form] = form === "other" ? existing : [];
   }
   if (!formsMap.other) formsMap.other = existing;
   const wrapper: PluralRunWrapper = {
@@ -101,7 +101,7 @@ export function isPlural(target: readonly Run[]): boolean {
 }
 
 function isPluralWrapper(run: Run): run is PluralRunWrapper {
-  return 'plural' in run;
+  return "plural" in run;
 }
 
 /**
@@ -120,11 +120,7 @@ export function pluralTargetPivot(target: readonly Run[]): string | null {
  * array. Other forms, the pivot, and non-plural runs are untouched.
  * Creates the form if absent. No-ops when the target isn't plural.
  */
-export function setPluralForm(
-  target: readonly Run[],
-  form: PluralForm,
-  formRuns: Run[],
-): Run[] {
+export function setPluralForm(target: readonly Run[], form: PluralForm, formRuns: Run[]): Run[] {
   if (target.length === 0) return [...target];
   const first = target[0];
   if (!isPluralWrapper(first)) return [...target];

@@ -18,8 +18,8 @@ import type {
   Run,
   Skeleton,
   Vocabulary,
-} from './block.ts';
-import { Kind, SchemaVersion } from './block.ts';
+} from "./block.ts";
+import { Kind, SchemaVersion } from "./block.ts";
 
 /**
  * Serialize a .klf File to UTF-8 bytes. Deterministic: identical
@@ -122,9 +122,7 @@ function canonicalBlock(b: Block): unknown {
   });
 }
 
-function canonicalTargets(
-  t: Block['targets'] | undefined,
-): Record<string, unknown> | undefined {
+function canonicalTargets(t: Block["targets"] | undefined): Record<string, unknown> | undefined {
   if (!t) return undefined;
   const keys = Object.keys(t).sort();
   if (keys.length === 0) return undefined;
@@ -136,12 +134,12 @@ function canonicalTargets(
 }
 
 function canonicalRun(r: Run): unknown {
-  if ('text' in r) return { text: r.text };
-  if ('ph' in r) return { ph: omitUndefined({ ...r.ph }) };
-  if ('pcOpen' in r) return { pcOpen: omitUndefined({ ...r.pcOpen }) };
-  if ('pcClose' in r) return { pcClose: omitUndefined({ ...r.pcClose }) };
-  if ('sub' in r) return { sub: omitUndefined({ ...r.sub }) };
-  if ('plural' in r) {
+  if ("text" in r) return { text: r.text };
+  if ("ph" in r) return { ph: omitUndefined({ ...r.ph }) };
+  if ("pcOpen" in r) return { pcOpen: omitUndefined({ ...r.pcOpen }) };
+  if ("pcClose" in r) return { pcClose: omitUndefined({ ...r.pcClose }) };
+  if ("sub" in r) return { sub: omitUndefined({ ...r.sub }) };
+  if ("plural" in r) {
     const formsIn = r.plural.forms;
     const keys = Object.keys(formsIn).sort();
     const forms: Record<string, unknown> = {};
@@ -153,7 +151,7 @@ function canonicalRun(r: Run): unknown {
       }),
     };
   }
-  if ('select' in r) {
+  if ("select" in r) {
     const casesIn = r.select.cases;
     const keys = Object.keys(casesIn).sort();
     const cases: Record<string, unknown> = {};
@@ -162,7 +160,7 @@ function canonicalRun(r: Run): unknown {
       select: omitUndefined({ pivot: r.select.pivot, cases }),
     };
   }
-  throw new Error('klf: run has no recognized discriminator');
+  throw new Error("klf: run has no recognized discriminator");
 }
 
 function canonicalPlaceholder(p: Placeholder): unknown {

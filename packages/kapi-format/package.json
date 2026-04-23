@@ -21,10 +21,10 @@
     "validate": "node --experimental-strip-types examples/validate.ts",
     "test": "vitest run"
   },
-  "engines": {
-    "node": ">=22"
-  },
   "devDependencies": {
     "vitest": "^4.1.5"
+  },
+  "engines": {
+    "node": ">=22"
   }
 }
