@@ -491,13 +491,50 @@ var storeMigrations = []storage.Migration{
 				PRIMARY KEY (user_id, workspace_id)
 			);
 
--- Overlay store keyed by (project, stream, block_id, kind).
-			-- Holds targets/<locale>, annotations/<name>, skeletons/<format>
-			-- and plugin-supplied kinds as opaque JSON payloads. Kind-specific
-			-- tables (translations, annotations, automation_runs) will take
-			-- over the hot kinds in a later migration (see #385 Phase 2);
-			-- overlays_ext remains the catchall for plugin kinds.
-			CREATE TABLE block_overlays (
+-- Overlay storage, split by kind for access-pattern-specific
+			-- indexes (#403). The blockstore.Store interface routes by
+			-- kind prefix: targets/* → translations, annotations/* →
+			-- annotations, everything else → overlays_ext. Callers see
+			-- one polymorphic Store API; the server-side adapter does
+			-- the dispatch.
+
+			-- All three overlay tables are hash-partitioned on project_id so
+			-- per-project queries hit one partition and drop-project is
+			-- O(1) per partition. 8 partitions covers single-digit-millions
+			-- of rows per-kind-per-partition comfortably; bump via pg_repack
+			-- if needed later.
+
+			-- Per-locale translation targets. Hot read path: dashboards,
+			-- editor fetches, sync export. Indexes serve both
+			-- (project, locale, updated_at) feeds and per-block fetches.
+			CREATE TABLE translations (
+				project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+				stream     TEXT NOT NULL DEFAULT 'main',
+				block_id   TEXT NOT NULL,
+				locale     TEXT NOT NULL,
+				text       TEXT NOT NULL DEFAULT '',
+				provider   TEXT NOT NULL DEFAULT '',
+				metadata   JSONB NOT NULL DEFAULT '{}'::jsonb,
+				updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+				PRIMARY KEY (project_id, stream, block_id, locale)
+			) PARTITION BY HASH (project_id);
+			CREATE TABLE translations_p0 PARTITION OF translations FOR VALUES WITH (MODULUS 8, REMAINDER 0);
+			CREATE TABLE translations_p1 PARTITION OF translations FOR VALUES WITH (MODULUS 8, REMAINDER 1);
+			CREATE TABLE translations_p2 PARTITION OF translations FOR VALUES WITH (MODULUS 8, REMAINDER 2);
+			CREATE TABLE translations_p3 PARTITION OF translations FOR VALUES WITH (MODULUS 8, REMAINDER 3);
+			CREATE TABLE translations_p4 PARTITION OF translations FOR VALUES WITH (MODULUS 8, REMAINDER 4);
+			CREATE TABLE translations_p5 PARTITION OF translations FOR VALUES WITH (MODULUS 8, REMAINDER 5);
+			CREATE TABLE translations_p6 PARTITION OF translations FOR VALUES WITH (MODULUS 8, REMAINDER 6);
+			CREATE TABLE translations_p7 PARTITION OF translations FOR VALUES WITH (MODULUS 8, REMAINDER 7);
+			CREATE INDEX idx_translations_project_locale
+				ON translations(project_id, stream, locale, updated_at DESC);
+			CREATE INDEX idx_translations_project_block
+				ON translations(project_id, stream, block_id);
+
+			-- Semantic annotations (TM hits, term hits, QA findings,
+			-- translator notes). Grouped-by queries are the common
+			-- access pattern: "all QA findings for this project".
+			CREATE TABLE annotations (
 				project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
 				stream     TEXT NOT NULL DEFAULT 'main',
 				block_id   TEXT NOT NULL,
@@ -505,11 +542,44 @@ var storeMigrations = []storage.Migration{
 				payload    JSONB NOT NULL DEFAULT '{}'::jsonb,
 				updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 				PRIMARY KEY (project_id, stream, block_id, kind)
-			);
-			CREATE INDEX idx_block_overlays_project_kind
-				ON block_overlays(project_id, stream, kind);
-			CREATE INDEX idx_block_overlays_project_block
-				ON block_overlays(project_id, stream, block_id);
+			) PARTITION BY HASH (project_id);
+			CREATE TABLE annotations_p0 PARTITION OF annotations FOR VALUES WITH (MODULUS 8, REMAINDER 0);
+			CREATE TABLE annotations_p1 PARTITION OF annotations FOR VALUES WITH (MODULUS 8, REMAINDER 1);
+			CREATE TABLE annotations_p2 PARTITION OF annotations FOR VALUES WITH (MODULUS 8, REMAINDER 2);
+			CREATE TABLE annotations_p3 PARTITION OF annotations FOR VALUES WITH (MODULUS 8, REMAINDER 3);
+			CREATE TABLE annotations_p4 PARTITION OF annotations FOR VALUES WITH (MODULUS 8, REMAINDER 4);
+			CREATE TABLE annotations_p5 PARTITION OF annotations FOR VALUES WITH (MODULUS 8, REMAINDER 5);
+			CREATE TABLE annotations_p6 PARTITION OF annotations FOR VALUES WITH (MODULUS 8, REMAINDER 6);
+			CREATE TABLE annotations_p7 PARTITION OF annotations FOR VALUES WITH (MODULUS 8, REMAINDER 7);
+			CREATE INDEX idx_annotations_project_kind
+				ON annotations(project_id, stream, kind, updated_at DESC);
+			CREATE INDEX idx_annotations_project_block
+				ON annotations(project_id, stream, block_id);
+
+			-- Plugin catchall for overlay kinds that don't fit the
+			-- purpose-built tables above. Same schema shape as the
+			-- former block_overlays; renamed to signal "extension".
+			CREATE TABLE overlays_ext (
+				project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+				stream     TEXT NOT NULL DEFAULT 'main',
+				block_id   TEXT NOT NULL,
+				kind       TEXT NOT NULL,
+				payload    JSONB NOT NULL DEFAULT '{}'::jsonb,
+				updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+				PRIMARY KEY (project_id, stream, block_id, kind)
+			) PARTITION BY HASH (project_id);
+			CREATE TABLE overlays_ext_p0 PARTITION OF overlays_ext FOR VALUES WITH (MODULUS 8, REMAINDER 0);
+			CREATE TABLE overlays_ext_p1 PARTITION OF overlays_ext FOR VALUES WITH (MODULUS 8, REMAINDER 1);
+			CREATE TABLE overlays_ext_p2 PARTITION OF overlays_ext FOR VALUES WITH (MODULUS 8, REMAINDER 2);
+			CREATE TABLE overlays_ext_p3 PARTITION OF overlays_ext FOR VALUES WITH (MODULUS 8, REMAINDER 3);
+			CREATE TABLE overlays_ext_p4 PARTITION OF overlays_ext FOR VALUES WITH (MODULUS 8, REMAINDER 4);
+			CREATE TABLE overlays_ext_p5 PARTITION OF overlays_ext FOR VALUES WITH (MODULUS 8, REMAINDER 5);
+			CREATE TABLE overlays_ext_p6 PARTITION OF overlays_ext FOR VALUES WITH (MODULUS 8, REMAINDER 6);
+			CREATE TABLE overlays_ext_p7 PARTITION OF overlays_ext FOR VALUES WITH (MODULUS 8, REMAINDER 7);
+			CREATE INDEX idx_overlays_ext_project_kind
+				ON overlays_ext(project_id, stream, kind);
+			CREATE INDEX idx_overlays_ext_project_block
+				ON overlays_ext(project_id, stream, block_id);
 		`,
 	},
 }

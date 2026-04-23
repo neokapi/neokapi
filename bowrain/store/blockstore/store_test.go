@@ -239,3 +239,92 @@ func TestSession_ClosedRejects(t *testing.T) {
 		t.Fatalf("expected ErrClosed after commit, got %v", err)
 	}
 }
+
+// TestSession_DispatchByKind proves #403: overlay writes land in
+// different physical tables based on kind prefix (translations /
+// annotations / overlays_ext) even though the callers see one
+// polymorphic PutOverlay API.
+func TestSession_DispatchByKind(t *testing.T) {
+	ctx := context.Background()
+	bs, cs, projectID := newTestStore(t)
+
+	sess, err := bs.Begin(ctx)
+	if err != nil {
+		t.Fatalf("begin: %v", err)
+	}
+
+	writes := []blockstore.Overlay{
+		{Kind: "targets/fr", BlockHash: "h1", Payload: []byte(`{"text":"Bonjour","provider":"mock"}`)},
+		{Kind: "annotations/qa", BlockHash: "h1", Payload: []byte(`{"findings":[]}`)},
+		{Kind: "plugins/lint", BlockHash: "h1", Payload: []byte(`{"ruleId":"X"}`)},
+	}
+	for _, o := range writes {
+		if err := sess.PutOverlay(o); err != nil {
+			t.Fatalf("put %s: %v", o.Kind, err)
+		}
+	}
+	_ = sess.Commit()
+
+	// Direct SQL probe against each physical table to prove the
+	// dispatch picked the right destination.
+	db := cs.(*sqlitestore.SQLiteStore).DB()
+	mustRowCount := func(q string, args ...any) {
+		t.Helper()
+		var count int
+		if err := db.QueryRow(q, args...).Scan(&count); err != nil {
+			t.Fatalf("probe %q: %v", q, err)
+		}
+		if count != 1 {
+			t.Fatalf("expected 1 row from %q, got %d", q, count)
+		}
+	}
+	mustRowCount(`SELECT count(*) FROM translations WHERE project_id=? AND block_id=? AND locale=?`,
+		projectID, "h1", "fr")
+	mustRowCount(`SELECT count(*) FROM annotations WHERE project_id=? AND block_id=? AND kind=?`,
+		projectID, "h1", "annotations/qa")
+	mustRowCount(`SELECT count(*) FROM overlays_ext WHERE project_id=? AND block_id=? AND kind=?`,
+		projectID, "h1", "plugins/lint")
+
+	// Read-back round-trip through the polymorphic API.
+	sess2, _ := bs.Begin(ctx)
+	defer sess2.Close()
+	for _, o := range writes {
+		got, err := sess2.GetOverlay(o.Kind, o.BlockHash)
+		if err != nil {
+			t.Fatalf("get %s: %v", o.Kind, err)
+		}
+		if got.Kind != o.Kind || got.BlockHash != o.BlockHash {
+			t.Fatalf("%s key mismatch: got %+v", o.Kind, got)
+		}
+	}
+}
+
+// TestSession_Translations_PreservesOpaqueShape exercises the
+// graceful path where a caller writes `targets/*` with a payload that
+// doesn't fit the `{text, provider}` shape (e.g. a rich editor pushing
+// runs). The dispatcher preserves the body verbatim via metadata.
+func TestSession_Translations_PreservesOpaqueShape(t *testing.T) {
+	ctx := context.Background()
+	bs, _, _ := newTestStore(t)
+	sess, _ := bs.Begin(ctx)
+
+	o := blockstore.Overlay{
+		Kind:      "targets/de",
+		BlockHash: "h-opaque",
+		Payload:   []byte(`{"runs":[{"text":{"text":"Hallo"}}]}`),
+	}
+	if err := sess.PutOverlay(o); err != nil {
+		t.Fatalf("put: %v", err)
+	}
+	_ = sess.Commit()
+
+	sess2, _ := bs.Begin(ctx)
+	defer sess2.Close()
+	got, err := sess2.GetOverlay("targets/de", "h-opaque")
+	if err != nil {
+		t.Fatalf("get: %v", err)
+	}
+	if string(got.Payload) != string(o.Payload) {
+		t.Fatalf("opaque payload didn't round-trip:\n  got %s\n want %s", got.Payload, o.Payload)
+	}
+}
