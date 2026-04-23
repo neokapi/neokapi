@@ -6,8 +6,8 @@ title: SessionTool authoring guide
 # SessionTool authoring guide
 
 A `tool.SessionTool` is any tool that wants random access to the
-project's block state — block lookups by hash, sidecar reads for
-"skip if already done", sidecar writes for cross-run annotations.
+project's block state — block lookups by hash, overlay reads for
+"skip if already done", overlay writes for cross-run annotations.
 The existing `tool.Tool` streaming contract is unchanged;
 `SessionTool` is additive.
 
@@ -54,7 +54,7 @@ func (t *MyTool) SessionProcess(
     in <-chan *model.Part,
     out chan<- *model.Part,
 ) error {
-    sidecarKind := "targets/" + string(t.targetLocale)
+    overlayKind := "targets/" + string(t.targetLocale)
     caps := sess.Capabilities()
 
     for {
@@ -65,8 +65,8 @@ func (t *MyTool) SessionProcess(
             if !ok {
                 return nil
             }
-            // Skip logic, expensive work, sidecar write...
-            if err := t.handle(sess, caps.RandomAccess, sidecarKind, part); err != nil {
+            // Skip logic, expensive work, overlay write...
+            if err := t.handle(sess, caps.RandomAccess, overlayKind, part); err != nil {
                 return err
             }
             select {
@@ -79,8 +79,8 @@ func (t *MyTool) SessionProcess(
 }
 ```
 
-The per-block helper checks capabilities, consults the sidecar,
-runs the core work, writes the sidecar back:
+The per-block helper checks capabilities, consults the overlay,
+runs the core work, writes the overlay back:
 
 ```go
 func (t *MyTool) handle(sess blockstore.Session, ra bool, kind string, part *model.Part) error {
@@ -92,8 +92,8 @@ func (t *MyTool) handle(sess blockstore.Session, ra bool, kind string, part *mod
 
     // Hydrate from cache when possible.
     if ra {
-        if sc, err := sess.GetSidecar(kind, block.ID); err == nil && len(sc.Payload) > 0 {
-            var cached mySidecar
+        if sc, err := sess.GetOverlay(kind, block.ID); err == nil && len(sc.Payload) > 0 {
+            var cached myOverlay
             if json.Unmarshal(sc.Payload, &cached) == nil && cached.Text != "" {
                 block.SetTargetText(t.targetLocale, cached.Text)
                 return nil
@@ -108,20 +108,20 @@ func (t *MyTool) handle(sess blockstore.Session, ra bool, kind string, part *mod
 
     // Cache the result for next time.
     if target := block.TargetText(t.targetLocale); target != "" {
-        payload, _ := json.Marshal(mySidecar{Text: target})
-        if err := sess.PutSidecar(blockstore.Sidecar{
+        payload, _ := json.Marshal(myOverlay{Text: target})
+        if err := sess.PutOverlay(blockstore.Overlay{
             Kind:      kind,
             BlockHash: block.ID,
             Payload:   payload,
         }); err != nil && !errors.Is(err, blockstore.ErrReadOnly) {
-            return fmt.Errorf("my-tool: write sidecar: %w", err)
+            return fmt.Errorf("my-tool: write overlay: %w", err)
         }
     }
     return nil
 }
 ```
 
-## Sidecar conventions
+## Overlay conventions
 
 | Kind prefix | Used by | Payload shape |
 |---|---|---|
@@ -136,9 +136,9 @@ continued by another. Keep the payload small and JSON-compatible.
 ## Read-only stores
 
 The `FormatReaderStore` wraps a raw XLIFF / JSON / etc. file as a
-read-only BlockStore. Its `PutSidecar` returns
+read-only BlockStore. Its `PutOverlay` returns
 `blockstore.ErrReadOnly`. Tools should ignore this error on the
-sidecar-write path — the in-flight `*model.Block` already carries
+overlay-write path — the in-flight `*model.Block` already carries
 the result, and caching is best-effort for the *next* run. See the
 pattern in `core/tools/pseudo.go` and
 `core/ai/tools/translate.go`.
@@ -148,7 +148,7 @@ pattern in `core/tools/pseudo.go` and
 If your tool has a concurrent / batched path (like `ai-translate`
 with `batchSize > 1` or `concurrency > 1`), wrap the batched path
 with session filtering at the **input** (skip cached) and
-sidecar-write at the **output**. Example:
+overlay-write at the **output**. Example:
 `core/ai/tools/translate.go::processBatchedWithSession`.
 
 ## Registered store providers

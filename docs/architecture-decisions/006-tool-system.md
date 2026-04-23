@@ -74,7 +74,7 @@ stream (e.g., segmentation spanning multiple Blocks) can override
 
 The channel-based `Tool.Process` is a forward-only transform. Some tools
 need random access to the project's block state — lookup by content hash,
-reading prior sidecars (TM matches, QA findings, previously-produced
+reading prior overlays (TM matches, QA findings, previously-produced
 targets) to skip work that's already done, or writing annotations that
 downstream tools in the same or a later run will consult. Those tools
 opt into the `SessionTool` interface alongside `Tool`:
@@ -107,7 +107,7 @@ Lifecycle (owned by the executor, not the tool):
 SessionTool is additive — every SessionTool also implements Tool so
 flow composition (chaining steps that may or may not use the session)
 keeps working. See [the SessionTool authoring guide](/docs/notes/session-tool-authoring)
-for idiomatic patterns (skip-if-cached, sidecar conventions, provider
+for idiomatic patterns (skip-if-cached, overlay conventions, provider
 selection).
 
 ### Tool categories

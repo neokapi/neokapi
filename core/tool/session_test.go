@@ -14,7 +14,7 @@ import (
 
 // annotatingTool is a minimal example of a SessionTool that reads
 // each incoming Part from the stream but also consults the session
-// for a pre-existing termbase annotation, and writes a QA sidecar
+// for a pre-existing termbase annotation, and writes a QA overlay
 // per block. Purpose: assert the SessionTool contract composes with
 // the existing streaming contract end-to-end.
 type annotatingTool struct {
@@ -43,13 +43,13 @@ func (t *annotatingTool) SessionProcess(
 	in <-chan *model.Part,
 	out chan<- *model.Part,
 ) error {
-	// For each streamed Part, write a "annotations/qa" sidecar keyed
+	// For each streamed Part, write a "annotations/qa" overlay keyed
 	// on its block hash. Then pass through. Real tools would also
-	// read prior sidecars (termbase matches, TM) via sess.GetSidecar.
+	// read prior overlays (termbase matches, TM) via sess.GetOverlay.
 	for p := range in {
 		if p != nil {
 			if blk, ok := p.Resource.(*model.Block); ok && blk != nil {
-				if err := sess.PutSidecar(blockstore.Sidecar{
+				if err := sess.PutOverlay(blockstore.Overlay{
 					Kind:      "annotations/qa",
 					BlockHash: blk.ID,
 					Payload:   []byte(`{"ok":true}`),
@@ -78,7 +78,7 @@ func TestSessionTool_assignableAsTool(t *testing.T) {
 	assert.Equal(t, "annotating", base.Name())
 }
 
-func TestSessionTool_writesSidecarsViaSession(t *testing.T) {
+func TestSessionTool_writesOverlaysViaSession(t *testing.T) {
 	store := blockstore.NewMemoryStore()
 	defer store.Close()
 
@@ -103,11 +103,11 @@ func TestSessionTool_writesSidecarsViaSession(t *testing.T) {
 	}
 	assert.Equal(t, 2, count)
 
-	// Session has the sidecars the tool wrote.
-	sc, err := sess.GetSidecar("annotations/qa", "h1")
+	// Session has the overlays the tool wrote.
+	sc, err := sess.GetOverlay("annotations/qa", "h1")
 	require.NoError(t, err)
 	assert.Equal(t, `{"ok":true}`, string(sc.Payload))
-	sc, err = sess.GetSidecar("annotations/qa", "h2")
+	sc, err = sess.GetOverlay("annotations/qa", "h2")
 	require.NoError(t, err)
 	assert.Equal(t, `{"ok":true}`, string(sc.Payload))
 
@@ -135,7 +135,7 @@ func TestRunWithSession_dispatchesSessionToolWhenAvailable(t *testing.T) {
 	close(out)
 	<-out // drain
 
-	sc, err := sess.GetSidecar("annotations/qa", "hX")
+	sc, err := sess.GetOverlay("annotations/qa", "hX")
 	require.NoError(t, err)
 	assert.NotEmpty(t, sc.Payload)
 

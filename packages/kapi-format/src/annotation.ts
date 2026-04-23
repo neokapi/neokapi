@@ -1,5 +1,5 @@
 /**
- * @neokapi/kapi-format — annotation sidecars.
+ * @neokapi/kapi-format — annotation overlays.
  *
  * Annotations are non-authoritative analytical overlays on a
  * Block/Run graph. They describe properties of content (protected
@@ -9,9 +9,9 @@
  * annotation type MUST ignore it and process the authoritative
  * content correctly.
  *
- * Annotations live as sidecar files on disk under
+ * Annotations live as overlay files on disk under
  * `.kapi/collections/<name>/annotations/<producer-namespace>.klfl`
- * (inside a kapi project) or as Session.PutSidecar calls keyed by
+ * (inside a kapi project) or as Session.PutOverlay calls keyed by
  * (kind, blockHash) when running through a BlockStore session.
  *
  * Each `.klfl` file is JSON Lines. The first line is a header
@@ -36,7 +36,7 @@
  *
  * Inline annotations (markers that wrap a range inside the runs
  * sequence, the way XLIFF 2.0's <mrk> does) are a possible future
- * extension. The current spec is sidecar-only.
+ * extension. The current spec is overlay-only.
  */
 
 import type { Block, PluralForm, Run } from './block.ts';

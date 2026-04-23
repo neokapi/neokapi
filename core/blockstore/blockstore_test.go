@@ -112,7 +112,7 @@ func runStoreSuite(t *testing.T, makeStore func() blockstore.Store) {
 		assert.ErrorIs(t, err, blockstore.ErrNotFound)
 	})
 
-	t.Run("Sidecar put / get / list", func(t *testing.T) {
+	t.Run("Overlay put / get / list", func(t *testing.T) {
 		store := makeStore()
 		defer store.Close()
 		ctx := context.Background()
@@ -121,13 +121,13 @@ func runStoreSuite(t *testing.T, makeStore func() blockstore.Store) {
 		require.NoError(t, err)
 		require.NoError(t, sess.PutBlock("ui", &blockstore.Block{Hash: "h1"}))
 		require.NoError(t, sess.PutBlock("ui", &blockstore.Block{Hash: "h2"}))
-		require.NoError(t, sess.PutSidecar(blockstore.Sidecar{
+		require.NoError(t, sess.PutOverlay(blockstore.Overlay{
 			Kind: "targets/fr", BlockHash: "h1", Payload: []byte(`"bonjour"`),
 		}))
-		require.NoError(t, sess.PutSidecar(blockstore.Sidecar{
+		require.NoError(t, sess.PutOverlay(blockstore.Overlay{
 			Kind: "targets/fr", BlockHash: "h2", Payload: []byte(`"salut"`),
 		}))
-		require.NoError(t, sess.PutSidecar(blockstore.Sidecar{
+		require.NoError(t, sess.PutOverlay(blockstore.Overlay{
 			Kind: "annotations/qa", BlockHash: "h1", Payload: []byte(`{"ok":true}`),
 		}))
 		require.NoError(t, sess.Commit())
@@ -136,31 +136,31 @@ func runStoreSuite(t *testing.T, makeStore func() blockstore.Store) {
 		require.NoError(t, err)
 		defer sess2.Close()
 
-		got, err := sess2.GetSidecar("targets/fr", "h1")
+		got, err := sess2.GetOverlay("targets/fr", "h1")
 		require.NoError(t, err)
 		assert.Equal(t, `"bonjour"`, string(got.Payload))
 		assert.NotZero(t, got.UpdatedAt)
 
 		// List only targets/fr kind.
 		var locales []string
-		for sc, err := range sess2.ListSidecars("targets/fr") {
+		for sc, err := range sess2.ListOverlays("targets/fr") {
 			require.NoError(t, err)
 			locales = append(locales, sc.BlockHash)
 		}
 		assert.ElementsMatch(t, []string{"h1", "h2"}, locales)
 	})
 
-	t.Run("Sidecar update overwrites by (kind, hash)", func(t *testing.T) {
+	t.Run("Overlay update overwrites by (kind, hash)", func(t *testing.T) {
 		store := makeStore()
 		defer store.Close()
 		ctx := context.Background()
 
 		sess, err := store.Begin(ctx)
 		require.NoError(t, err)
-		require.NoError(t, sess.PutSidecar(blockstore.Sidecar{
+		require.NoError(t, sess.PutOverlay(blockstore.Overlay{
 			Kind: "targets/fr", BlockHash: "h1", Payload: []byte(`"v1"`),
 		}))
-		require.NoError(t, sess.PutSidecar(blockstore.Sidecar{
+		require.NoError(t, sess.PutOverlay(blockstore.Overlay{
 			Kind: "targets/fr", BlockHash: "h1", Payload: []byte(`"v2"`),
 		}))
 		require.NoError(t, sess.Commit())
@@ -168,7 +168,7 @@ func runStoreSuite(t *testing.T, makeStore func() blockstore.Store) {
 		sess2, err := store.Begin(ctx)
 		require.NoError(t, err)
 		defer sess2.Close()
-		got, err := sess2.GetSidecar("targets/fr", "h1")
+		got, err := sess2.GetOverlay("targets/fr", "h1")
 		require.NoError(t, err)
 		assert.Equal(t, `"v2"`, string(got.Payload))
 	})

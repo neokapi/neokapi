@@ -14,7 +14,7 @@
 // serialization, enforced by shared golden fixtures under
 // packages/kapi-format/examples.
 //
-// The package also implements the annotation sidecar layer
+// The package also implements the annotation overlay layer
 // (packages/kapi-format/src/annotation.ts): AnnotationFile, Annotation,
 // four AnnotationAnchor shapes (block/run/range/form), RunPath,
 // ResolveAnchor and ValidateAnchor with six machine-readable failure

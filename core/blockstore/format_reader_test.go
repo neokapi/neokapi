@@ -101,7 +101,7 @@ func TestFormatReaderStore_writesReturnReadOnly(t *testing.T) {
 
 	err = sess.PutBlock("ui", &blockstore.Block{Hash: "h1"})
 	require.ErrorIs(t, err, blockstore.ErrReadOnly)
-	err = sess.PutSidecar(blockstore.Sidecar{Kind: "targets/fr", BlockHash: "h1"})
+	err = sess.PutOverlay(blockstore.Overlay{Kind: "targets/fr", BlockHash: "h1"})
 	require.ErrorIs(t, err, blockstore.ErrReadOnly)
 }
 

@@ -499,7 +499,7 @@ external communication channels they need.
 - Submit translation → use `update_block` to set target text per locale
 - Git operations → `allowed_commands: ["git", "gh"]` in agent config.toml
 - GitHub Issues → `gh issue create --repo neokapi/agent-feedback ...` via command execution
-- Email → `email.send` / `email.listInbox` via standalone email MCP sidecar
+- Email → `email.send` / `email.listInbox` via standalone email MCP overlay
 
 ### Per-Agent Auth
 
@@ -507,7 +507,7 @@ Each ZeroClaw agent connects directly to the Bowrain server's MCP endpoint (`/mc
 using a per-agent JWT token — the same auth mechanism Bravo uses for interactive
 conversations.
 
-**No MCP sidecar needed.** The Bravo MCP server is built into bowrain-server itself
+**No MCP overlay needed.** The Bravo MCP server is built into bowrain-server itself
 (`platform/server/mcp/`). Each agent connects to the same server with its own token.
 
 ```toml
@@ -523,7 +523,7 @@ This is the exact config template from `platform/docker/bravo/config.toml.templa
 Agent tokens are workspace-scoped JWTs (30min TTL, auto-refreshed) created via
 the Bravo conversation API.
 
-**Key implication:** No per-agent MCP sidecar containers. Each agent has ONE container
+**Key implication:** No per-agent MCP overlay containers. Each agent has ONE container
 (ZeroClaw daemon) that connects directly to bowrain-server. This halves the container
 count from 14 to 7.
 
@@ -583,7 +583,7 @@ services:
   # === Agents ===
   # Each agent connects directly to bowrain-server's /mcp/ endpoint
   # using a per-agent JWT token (same auth as Bravo interactive sessions).
-  # No MCP sidecar needed — the MCP server is built into bowrain-server.
+  # No MCP overlay needed — the MCP server is built into bowrain-server.
 
   alex-developer:
     image: ghcr.io/zeroclaw-labs/zeroclaw:latest
@@ -612,7 +612,7 @@ services:
     depends_on: [bowrain-server]
 
   # ... same pattern for: maria-brand, katrin-de, yuki-ja, lisa-pm, taylor-qa
-  # Total: 7 agent containers + platform services (no sidecars)
+  # Total: 7 agent containers + platform services (no overlays)
 
   # === Optional: Release Walker ===
   release-walker:

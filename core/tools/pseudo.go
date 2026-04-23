@@ -130,8 +130,8 @@ func NewPseudoTranslateFromConfig(config map[string]any, targetLang string) (too
 // PseudoTranslateTool implements both tool.Tool (via embedded
 // tool.BaseTool) and tool.SessionTool. When the executor opens a
 // session, SessionProcess routes through it: for each block we
-// check a `targets/<locale>` sidecar first (skip if present), emit
-// the pseudo-translated block, and write a sidecar so downstream
+// check a `targets/<locale>` overlay first (skip if present), emit
+// the pseudo-translated block, and write an overlay so downstream
 // sessions can see the target without re-running the tool. When
 // there's no session (pure streaming callers), BaseTool.Process
 // handles the work unchanged.
@@ -165,7 +165,7 @@ func NewPseudoTranslateTool(cfg *PseudoConfig) *PseudoTranslateTool {
 
 // applyPseudo runs the deterministic pseudo-translation on a block
 // part. Factored out so SessionProcess can call it after checking
-// the sidecar cache.
+// the overlay cache.
 func applyPseudo(part *model.Part, conf *PseudoConfig) (*model.Part, error) {
 	block, ok := part.Resource.(*model.Block)
 	if !ok {
@@ -195,9 +195,9 @@ func applyPseudo(part *model.Part, conf *PseudoConfig) (*model.Part, error) {
 	return part, nil
 }
 
-// SessionProcess reads prior targets/<locale> sidecars to skip
+// SessionProcess reads prior targets/<locale> overlays to skip
 // already-translated blocks, runs the pseudo translator, and writes
-// the target back as a sidecar so subsequent sessions can consult
+// the target back as an overlay so subsequent sessions can consult
 // it.
 func (t *PseudoTranslateTool) SessionProcess(
 	ctx context.Context,
@@ -205,7 +205,7 @@ func (t *PseudoTranslateTool) SessionProcess(
 	in <-chan *model.Part,
 	out chan<- *model.Part,
 ) error {
-	sidecarKind := pseudoSidecarKind(t.cfg.TargetLocale)
+	overlayKind := pseudoOverlayKind(t.cfg.TargetLocale)
 	caps := sess.Capabilities()
 
 	for {
@@ -216,7 +216,7 @@ func (t *PseudoTranslateTool) SessionProcess(
 			if !ok {
 				return nil
 			}
-			if err := t.processOne(sess, caps.RandomAccess, sidecarKind, part); err != nil {
+			if err := t.processOne(sess, caps.RandomAccess, overlayKind, part); err != nil {
 				return err
 			}
 			select {
@@ -231,7 +231,7 @@ func (t *PseudoTranslateTool) SessionProcess(
 func (t *PseudoTranslateTool) processOne(
 	sess blockstore.Session,
 	randomAccess bool,
-	sidecarKind string,
+	overlayKind string,
 	part *model.Part,
 ) error {
 	block, ok := part.Resource.(*model.Block)
@@ -246,11 +246,11 @@ func (t *PseudoTranslateTool) processOne(
 		return err
 	}
 
-	// Consult existing sidecar when the provider supports random
+	// Consult existing overlay when the provider supports random
 	// access. If one exists, hydrate the block from it and skip the
 	// translator.
 	if randomAccess {
-		if sc, err := sess.GetSidecar(sidecarKind, hash); err == nil && len(sc.Payload) > 0 {
+		if sc, err := sess.GetOverlay(overlayKind, hash); err == nil && len(sc.Payload) > 0 {
 			var cached pseudoCache
 			if err := json.Unmarshal(sc.Payload, &cached); err == nil && cached.Target != "" {
 				block.SetTargetText(t.cfg.TargetLocale, cached.Target)
@@ -263,39 +263,39 @@ func (t *PseudoTranslateTool) processOne(
 		return err
 	}
 
-	// Write the freshly-computed target back as a sidecar so future
+	// Write the freshly-computed target back as an overlay so future
 	// runs can skip the work. Pure text cache — runs-level targets
 	// round-trip through the block model itself.
 	if target := block.TargetText(t.cfg.TargetLocale); target != "" {
 		payload, err := json.Marshal(pseudoCache{Target: target})
 		if err != nil {
-			return fmt.Errorf("pseudo-translate: encode sidecar: %w", err)
+			return fmt.Errorf("pseudo-translate: encode overlay: %w", err)
 		}
-		if err := sess.PutSidecar(blockstore.Sidecar{
-			Kind:      sidecarKind,
+		if err := sess.PutOverlay(blockstore.Overlay{
+			Kind:      overlayKind,
 			BlockHash: hash,
 			Payload:   payload,
 		}); err != nil {
 			// Ignore read-only stores (e.g. FormatReaderStore) — the
-			// in-flight block already carries the target; the sidecar
+			// in-flight block already carries the target; the overlay
 			// write is best-effort caching for next time.
 			if !errors.Is(err, blockstore.ErrReadOnly) {
-				return fmt.Errorf("pseudo-translate: write sidecar: %w", err)
+				return fmt.Errorf("pseudo-translate: write overlay: %w", err)
 			}
 		}
 	}
 	return nil
 }
 
-// pseudoSidecarKind returns the "targets/<locale>" kind used for the
-// sidecar written by pseudo-translate. Shared with AI translate /
+// pseudoOverlayKind returns the "targets/<locale>" kind used for the
+// overlay written by pseudo-translate. Shared with AI translate /
 // MT translate so any locale target is discoverable under one key.
-func pseudoSidecarKind(locale model.LocaleID) string {
+func pseudoOverlayKind(locale model.LocaleID) string {
 	return "targets/" + string(locale)
 }
 
 // pseudoCache is the JSON payload stored in a pseudo-translate
-// sidecar. Small and focused; richer fields (runs, provenance) are
+// overlay. Small and focused; richer fields (runs, provenance) are
 // a follow-up.
 type pseudoCache struct {
 	Target string `json:"target"`

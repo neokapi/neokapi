@@ -11,7 +11,7 @@ title: "AD-008: Kapi Project Model"
 A kapi project is a folder containing a `{name}.kapi` YAML recipe at its root
 and a sibling `.kapi/` state directory. The recipe captures the user's
 declarative intent — identity, content collections, flows, store selection —
-while `.kapi/` holds working state (block store, sidecar layers, bookkeeping).
+while `.kapi/` holds working state (block store, overlay layers, bookkeeping).
 A `ProjectContext` resolves the recipe into a runtime configuration, and a
 `BlockStore` interface with pluggable providers gives tools random-access
 storage beyond the streaming pipeline.
@@ -48,7 +48,7 @@ my-app/
 ├── .kapi/                  ← WORKING STATE (kapi maintains)
 │   ├── manifest.yaml       ← bookkeeping: block counts, fingerprints, timestamps
 │   ├── cache.db            ← block store (SQLite)
-│   └── collections/        ← sidecar layers per collection
+│   └── collections/        ← overlay layers per collection
 │       └── ui/
 │           ├── targets/{fr,de}.json
 │           ├── annotations/{terms,tm-matches,qa}.json
@@ -64,7 +64,7 @@ Ownership:
 - **`{name}.kapi`** — the user's. Hand-edited YAML. The click-to-open handle
   for kapi-desktop. Committed to git.
 - **`.kapi/`** — kapi's. `cache.db` and `collections/**` hold block state and
-  sidecar layers; `manifest.yaml` is bookkeeping derived from the store.
+  overlay layers; `manifest.yaml` is bookkeeping derived from the store.
   Gitignored by default; opt in to commit when cross-clone reproducibility
   matters.
 - **`src/**`** — user-authored content. Referenced by the recipe; never moved
@@ -177,7 +177,7 @@ timestamps. Users do not hand-edit it. Deleting it is safe — it rebuilds from
 
 ### BlockStore interface
 
-Flows and tools read and write blocks and sidecars through `BlockStore`
+Flows and tools read and write blocks and overlays through `BlockStore`
 (package `core/blockstore`), not through raw channels. The streaming contract
 is preserved as one capability among several.
 
@@ -192,9 +192,9 @@ type Session interface {
     Blocks(filter BlockFilter) iter.Seq2[*Block, error]
     GetBlock(hash string) (*Block, error)
     PutBlock(collection string, b *Block) error
-    GetSidecar(kind, blockHash string) (Sidecar, error)
-    PutSidecar(s Sidecar) error
-    ListSidecars(kind string) iter.Seq2[Sidecar, error]
+    GetOverlay(kind, blockHash string) (Overlay, error)
+    PutOverlay(s Overlay) error
+    ListOverlays(kind string) iter.Seq2[Overlay, error]
     Commit() error
     Rollback() error
     Close() error
@@ -380,7 +380,7 @@ as documents and operates on the project folder.
 - Incremental work: re-running a flow translates only blocks whose source hash
   is not already in `targets/<locale>`.
 - Concurrent tools: term match and TM lookup run in parallel, each writing an
-  independent sidecar layer.
+  independent overlay layer.
 - Multi-pass tools: compute statistics across the whole store, then use them
   in a second pass.
 - Same flow code runs against local SQLite (`cache`) or a remote bowrain-server

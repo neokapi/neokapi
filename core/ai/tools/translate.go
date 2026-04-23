@@ -181,9 +181,9 @@ func (t *AITranslateTool) Process(ctx context.Context, in <-chan *model.Part, ou
 	return t.processBatched(ctx, in, out)
 }
 
-// SessionProcess consults the session's `targets/<locale>` sidecars
+// SessionProcess consults the session's `targets/<locale>` overlays
 // before calling the LLM. A block whose target is already cached
-// gets hydrated from the sidecar and skipped — key for incremental
+// gets hydrated from the overlay and skipped — key for incremental
 // AI translation runs where re-calling the model is expensive.
 // After a fresh translation, the resulting target is written back
 // to the session so the next run can skip it.
@@ -201,11 +201,11 @@ func (t *AITranslateTool) SessionProcess(
 	if t.batchSize > 1 || t.concurrency > 1 {
 		// Batched path has its own goroutine fan-out; session-aware
 		// hydration is a sequential optimisation. Let the batch
-		// path run and write sidecars on the way out.
+		// path run and write overlays on the way out.
 		return t.processBatchedWithSession(ctx, sess, in, out)
 	}
 
-	sidecarKind := "targets/" + string(t.targetLocale)
+	overlayKind := "targets/" + string(t.targetLocale)
 	caps := sess.Capabilities()
 	for {
 		select {
@@ -215,7 +215,7 @@ func (t *AITranslateTool) SessionProcess(
 			if !ok {
 				return nil
 			}
-			if err := t.sessionHandleBlock(ctx, sess, caps.RandomAccess, sidecarKind, part); err != nil {
+			if err := t.sessionHandleBlock(ctx, sess, caps.RandomAccess, overlayKind, part); err != nil {
 				return err
 			}
 			select {
@@ -227,14 +227,14 @@ func (t *AITranslateTool) SessionProcess(
 	}
 }
 
-// sessionHandleBlock wraps handleBlock with a sidecar lookup before
-// and a sidecar write after. Falls back to pass-through for non-
+// sessionHandleBlock wraps handleBlock with an overlay lookup before
+// and an overlay write after. Falls back to pass-through for non-
 // Block parts.
 func (t *AITranslateTool) sessionHandleBlock(
 	ctx context.Context,
 	sess blockstore.Session,
 	randomAccess bool,
-	sidecarKind string,
+	overlayKind string,
 	part *model.Part,
 ) error {
 	block, ok := part.Resource.(*model.Block)
@@ -254,7 +254,7 @@ func (t *AITranslateTool) sessionHandleBlock(
 
 	// Skip if already cached.
 	if randomAccess {
-		if sc, err := sess.GetSidecar(sidecarKind, hash); err == nil && len(sc.Payload) > 0 {
+		if sc, err := sess.GetOverlay(overlayKind, hash); err == nil && len(sc.Payload) > 0 {
 			var cached aiTargetCache
 			if err := json.Unmarshal(sc.Payload, &cached); err == nil && cached.Text != "" {
 				block.SetTargetText(t.targetLocale, cached.Text)
@@ -273,14 +273,14 @@ func (t *AITranslateTool) sessionHandleBlock(
 			Provider: string(t.provider.Name()),
 		})
 		if err != nil {
-			return fmt.Errorf("ai-translate: encode sidecar: %w", err)
+			return fmt.Errorf("ai-translate: encode overlay: %w", err)
 		}
-		if err := sess.PutSidecar(blockstore.Sidecar{
-			Kind:      sidecarKind,
+		if err := sess.PutOverlay(blockstore.Overlay{
+			Kind:      overlayKind,
 			BlockHash: hash,
 			Payload:   payload,
 		}); err != nil && !errors.Is(err, blockstore.ErrReadOnly) {
-			return fmt.Errorf("ai-translate: write sidecar: %w", err)
+			return fmt.Errorf("ai-translate: write overlay: %w", err)
 		}
 	}
 	_ = ctx // ctx reserved for future streaming hooks
@@ -288,17 +288,17 @@ func (t *AITranslateTool) sessionHandleBlock(
 }
 
 // processBatchedWithSession funnels the batched path through the
-// same sidecar-aware gate. We pre-filter the input channel: blocks
+// same overlay-aware gate. We pre-filter the input channel: blocks
 // whose target is cached get hydrated + forwarded immediately;
 // everything else goes through processBatched, then the results
-// get sidecar-written before they're forwarded.
+// get overlay-written before they're forwarded.
 func (t *AITranslateTool) processBatchedWithSession(
 	ctx context.Context,
 	sess blockstore.Session,
 	in <-chan *model.Part,
 	out chan<- *model.Part,
 ) error {
-	sidecarKind := "targets/" + string(t.targetLocale)
+	overlayKind := "targets/" + string(t.targetLocale)
 	caps := sess.Capabilities()
 
 	// Filter: split cached vs. needs-translation.
@@ -322,7 +322,7 @@ func (t *AITranslateTool) processBatchedWithSession(
 					continue
 				}
 				if caps.RandomAccess {
-					if sc, err := sess.GetSidecar(sidecarKind, block.ID); err == nil && len(sc.Payload) > 0 {
+					if sc, err := sess.GetOverlay(overlayKind, block.ID); err == nil && len(sc.Payload) > 0 {
 						var cached aiTargetCache
 						if err := json.Unmarshal(sc.Payload, &cached); err == nil && cached.Text != "" {
 							block.SetTargetText(t.targetLocale, cached.Text)
@@ -340,7 +340,7 @@ func (t *AITranslateTool) processBatchedWithSession(
 		}
 	}()
 
-	// Capture translated parts and write sidecars before forwarding.
+	// Capture translated parts and write overlays before forwarding.
 	go func() {
 		defer close(translated)
 		for part := range translated {
@@ -348,7 +348,7 @@ func (t *AITranslateTool) processBatchedWithSession(
 		}
 	}()
 
-	// processBatched writes to `translated`; we need the sidecar write
+	// processBatched writes to `translated`; we need the overlay write
 	// wrapped around its output. Simpler: collect translated parts
 	// inline rather than adding a second goroutine chain.
 	batchOut := make(chan *model.Part, t.batchSize*2)
@@ -366,12 +366,12 @@ func (t *AITranslateTool) processBatchedWithSession(
 					Provider: string(t.provider.Name()),
 				})
 				if err == nil {
-					if werr := sess.PutSidecar(blockstore.Sidecar{
-						Kind:      sidecarKind,
+					if werr := sess.PutOverlay(blockstore.Overlay{
+						Kind:      overlayKind,
 						BlockHash: block.ID,
 						Payload:   payload,
 					}); werr != nil && !errors.Is(werr, blockstore.ErrReadOnly) {
-						return fmt.Errorf("ai-translate: write sidecar: %w", werr)
+						return fmt.Errorf("ai-translate: write overlay: %w", werr)
 					}
 				}
 			}
@@ -389,7 +389,7 @@ func (t *AITranslateTool) processBatchedWithSession(
 	return nil
 }
 
-// aiTargetCache is the payload stored in `targets/<locale>` sidecars
+// aiTargetCache is the payload stored in `targets/<locale>` overlays
 // written by ai-translate. Kept small and JSON-compatible with
 // other translators so sessions can interop freely.
 type aiTargetCache struct {
