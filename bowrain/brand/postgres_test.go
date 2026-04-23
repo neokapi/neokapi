@@ -51,9 +51,7 @@ func TestScanProfile_Roundtrip(t *testing.T) {
 }
 
 func TestBrandMigrations_NotEmpty(t *testing.T) {
-	assert.Len(t, brandMigrations, 2)
+	assert.Len(t, brandMigrations, 1)
 	assert.Equal(t, 1, brandMigrations[0].Version)
 	assert.NotEmpty(t, brandMigrations[0].SQL)
-	assert.Equal(t, 2, brandMigrations[1].Version)
-	assert.NotEmpty(t, brandMigrations[1].SQL)
 }

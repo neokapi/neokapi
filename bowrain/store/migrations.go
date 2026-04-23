@@ -2,11 +2,14 @@ package store
 
 import "github.com/neokapi/neokapi/bowrain/storage"
 
-// storeMigrations defines the PostgreSQL content store schema.
+// storeMigrations defines the complete PostgreSQL content store schema.
+// Bowrain is not yet in production; there is no migration history to
+// preserve, so we keep a single baseline migration that represents the
+// current design.
 var storeMigrations = []storage.Migration{
 	{
 		Version:     1,
-		Description: "content store schema",
+		Description: "content store schema (baseline)",
 		SQL: `
 			-- Projects
 			CREATE TABLE projects (
@@ -487,13 +490,8 @@ var storeMigrations = []storage.Migration{
 				last_seen_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 				PRIMARY KEY (user_id, workspace_id)
 			);
-		`,
-	},
-	{
-		Version:     2,
-		Description: "block_overlays catchall table for the blockstore adapter",
-		SQL: `
-			-- Overlay store keyed by (project, stream, block_id, kind).
+
+-- Overlay store keyed by (project, stream, block_id, kind).
 			-- Holds targets/<locale>, annotations/<name>, skeletons/<format>
 			-- and plugin-supplied kinds as opaque JSON payloads. Kind-specific
 			-- tables (translations, annotations, automation_runs) will take
