@@ -5,7 +5,7 @@ title: Extract → translate → compile
 
 # The extract → translate → compile pipeline
 
-Three phases, one contract: the KLF directory archive.
+Three phases, one contract: the KLF directory archive. A fourth optional phase — **split** — slices the compiled output along bundler chunk lines so code-split apps can lazy-load translations per route.
 
 ```
 Your source code
@@ -23,6 +23,10 @@ Your source code
       │  kapi-react compile
       ▼
 public/translations/{locale}.json  ────►  loaded at runtime by your app
+      │
+      │  kapi-react split  (optional — only if you code-split your bundle)
+      ▼
+dist/translations/{locale}/{chunk}.json  ────►  lazy-loaded per route
 ```
 
 The same `i18n/` is the source-of-truth artifact through the whole round-trip. Translation tools read it, append the target locale they're producing, and write back to the same file — so you accumulate locales rather than juggling per-run output files. One file in the repo, one file to ship to translators, one file to compile.
@@ -52,16 +56,16 @@ vp kapi-react extract --stream > i18n/blocks.ndjson
 
 Flags:
 
-| Flag | Default | Purpose |
-|---|---|---|
-| `--src` | `src/**/*.{tsx,jsx}` | Glob of source files to scan. |
-| `--out` | `i18n` | Output directory for `.klf` files. |
-| `--stream` | off | Emit NDJSON blocks on stdout instead of writing `.klf`. |
-| `--strict` | off | Exit non-zero if any warning was recorded (CI enforcement). |
-| `--config` | — | Path to a JSON config file (componentMap, rules). |
-| `--project` | `app` | Project id stamped into `.klf.project`. |
-| `--source-locale` | `en` | Source locale in file metadata. |
-| `--target-locale` | — | Declared target locale (repeatable). |
+| Flag              | Default              | Purpose                                                     |
+| ----------------- | -------------------- | ----------------------------------------------------------- |
+| `--src`           | `src/**/*.{tsx,jsx}` | Glob of source files to scan.                               |
+| `--out`           | `i18n`               | Output directory for `.klf` files.                          |
+| `--stream`        | off                  | Emit NDJSON blocks on stdout instead of writing `.klf`.     |
+| `--strict`        | off                  | Exit non-zero if any warning was recorded (CI enforcement). |
+| `--config`        | —                    | Path to a JSON config file (componentMap, rules).           |
+| `--project`       | `app`                | Project id stamped into `.klf.project`.                     |
+| `--source-locale` | `en`                 | Source locale in file metadata.                             |
+| `--target-locale` | —                    | Declared target locale (repeatable).                        |
 
 The extractor also **prints warnings** for unmapped React components, so you know which ones to add to `componentMap` for hash stability:
 
@@ -76,9 +80,9 @@ Wire it into your package scripts and CI:
 ```json title="package.json"
 {
   "scripts": {
-    "extract":    "vp kapi-react extract",
+    "extract": "vp kapi-react extract",
     "extract:ci": "vp kapi-react extract --strict",
-    "pack":       "vp kapi-react extract --stream > i18n/blocks.ndjson"
+    "pack": "vp kapi-react extract --stream > i18n/blocks.ndjson"
   }
 }
 ```
@@ -223,6 +227,61 @@ Compiled 1007 entries → public/translations/ja.json
 
 Each JSON file is a flat `{hash: renderedText}` map. The runtime `__t(hash, fallback, params)` looks up the hash; the renderer picks the plural / select form.
 
+## Phase 4: split (optional)
+
+For code-split apps, the compiled `{locale}.json` is one file per locale — the user downloads every string even for routes they never visit. The plugin + `kapi-react split` divide that catalog along bundler chunk boundaries so each chunk lands its own translation subset alongside its JS.
+
+Two inputs:
+
+- **`translations-manifest.json`** — emitted by the Vite/Rollup plugin's `generateBundle` hook when `mode: "runtime"`. Maps each output chunk to the set of hashes its modules reference.
+- **`public/translations/{locale}.json`** — the compiled master dict from Phase 3.
+
+```bash
+vite build                                       # emits dist/translations-manifest.json
+kapi-react compile i18n/ --out public/translations
+kapi-react split \
+  --manifest dist/translations-manifest.json \
+  --locales  public/translations \
+  --out      dist/translations
+```
+
+Output:
+
+```
+dist/translations/
+├── manifest.json                   ← copy of the chunk → hashes map
+└── {locale}/
+    ├── index.json                  ← hashes used by the main chunk
+    ├── SettingsPage.json
+    └── FlowEditor.json
+```
+
+Hashes shared across chunks are duplicated into each subset so every chunk file is independently loadable. Runtime wiring is a one-line addition to each lazy route:
+
+```tsx
+import { loadTranslationChunk } from "@neokapi/kapi-react/runtime";
+
+const routes = [
+  {
+    path: "/settings",
+    lazy: async () => {
+      const [mod] = await Promise.all([
+        import("./SettingsPage"),
+        loadTranslationChunk(
+          locale,
+          `/translations/${locale}/SettingsPage.json`,
+        ),
+      ]);
+      return { Component: mod.default };
+    },
+  },
+];
+```
+
+`loadTranslationChunk` merges the subset into the active dict; concurrent calls for the same `(locale, url)` share a single fetch. Missing hashes fall back to the source text baked into each `__t` / `__tx` call at build time — a late-arriving chunk never breaks render. See [Runtime mode → Lazy loading per route](./modes#lazy-loading-per-route-code-splitting) for the full runtime contract.
+
+Apps that ship a single bundle don't need this phase at all — keep using `loadTranslations(locale, url)` against the compiled master dict.
+
 ## Round-trip in one diagram
 
 ```
@@ -246,7 +305,17 @@ public/translations/
   fr.json          { "aB3": "Bienvenue" }
   de.json          { "aB3": "Willkommen" }
                           │
-                          │ loadTranslations("fr", "/translations/fr.json")
+                          ├─── loadTranslations("fr", "/translations/fr.json")
+                          │     (single bundle — one fetch, all strings)
+                          │
+                          │  kapi-react split  (optional)
+                          ▼
+dist/translations/fr/
+  index.json       { "aB3": "Bienvenue" }        ← main chunk
+  Settings.json    { …subset used by Settings }  ← lazy chunk
+                          │
+                          │  loadTranslationChunk("fr", "/translations/fr/Settings.json")
+                          │  (fires when React.lazy() resolves the Settings route)
                           ▼
 Your app           <h1>Welcome</h1>  renders as  "Bienvenue"
 ```
