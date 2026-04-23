@@ -60,6 +60,48 @@ For a locale switcher UI: call `loadTranslations` or `setTranslations("en", {})`
 
 Both also push the new locale onto `<html lang>` and `<html dir>` automatically — handy for screen readers, fonts, hyphenation, and RTL support. Opt out with `{ syncDocumentLocale: false }` if your app owns those attributes. Details: [Configuration → HTML `lang` and `dir`](./configuration#html-lang-and-dir-attributes).
 
+### Lazy loading per route (code splitting)
+
+For larger apps, the single-catalog-per-locale model downloads every string even for routes the user never visits. The plugin + runtime can split translations along the same lines the bundler splits code:
+
+1. In runtime mode, the Vite/Rollup plugin emits `translations-manifest.json` next to your JS chunks — a `{chunkName: hashes[]}` map of which strings each chunk needs.
+2. `kapi-react split` slices each master `{locale}.json` into per-chunk subsets (`{locale}/{chunkName}.json`), duplicating strings shared across chunks so each file is independently loadable.
+3. The runtime's `loadTranslationChunk(locale, url)` fetches one subset and merges it into the active dict. Concurrent requests for the same `(locale, url)` pair share a single fetch.
+
+Wire it into a React Router lazy route:
+
+```tsx
+import { loadTranslationChunk } from "@neokapi/kapi-react/runtime";
+
+const routes = [
+  {
+    path: "/settings",
+    lazy: async () => {
+      const [mod] = await Promise.all([
+        import("./SettingsPage"),
+        loadTranslationChunk(locale, `/translations/${locale}/SettingsPage.json`),
+      ]);
+      return { Component: mod.default };
+    },
+  },
+];
+```
+
+Build pipeline:
+
+```bash
+vite build                                       # emits dist/translations-manifest.json
+kapi-react compile i18n/ --out public/translations
+kapi-react split \
+  --manifest dist/translations-manifest.json \
+  --locales public/translations \
+  --out dist/translations
+```
+
+Missing hashes fall back to the source text baked into each `__t` / `__tx` call at build time — a late-arriving chunk is never fatal. Users see English for ~100ms while the chunk streams in, not a broken render.
+
+If `merge: true` is passed to `setTranslations` or `loadTranslations`, the incoming entries OR into the existing dict instead of replacing it. `loadTranslationChunk` uses this internally. Switching locale (without `merge`) drops any in-flight chunk loads for the previous locale so their payloads can't poison the new dict.
+
 ### Runtime pseudo-translation
 
 Runtime mode can apply pseudo-translation **on the fly**, no build step, no catalog — useful for dev ergonomics, layout QA, and debugging which strings flow through the translation system:

@@ -72,12 +72,12 @@ describe("neokapi-react SWC transform", () => {
       expect(result).not.toContain('"Skip me"');
     });
 
-    it('nested no→yes→no turns translation off again at the innermost level', () => {
+    it("nested no→yes→no turns translation off again at the innermost level", () => {
       const result = t(
         '<div translate="no">' +
           '<section translate="yes">' +
           '<article translate="no"><span>Innermost skip</span></article>' +
-          '<span>Middle translate</span>' +
+          "<span>Middle translate</span>" +
           "</section>" +
           "</div>",
       );
