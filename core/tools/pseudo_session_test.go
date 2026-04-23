@@ -13,7 +13,7 @@ import (
 )
 
 // Verify SessionTool: a block that already has a `targets/qps`
-// sidecar is hydrated from the cache instead of re-translated.
+// overlay is hydrated from the cache instead of re-translated.
 func TestPseudo_SessionSkipsCachedTarget(t *testing.T) {
 	ctx := context.Background()
 	store := blockstore.NewMemoryStore()
@@ -23,7 +23,7 @@ func TestPseudo_SessionSkipsCachedTarget(t *testing.T) {
 	sess1, err := store.Begin(ctx)
 	require.NoError(t, err)
 	payload, _ := json.Marshal(map[string]string{"target": "[pre-computed]"})
-	require.NoError(t, sess1.PutSidecar(blockstore.Sidecar{
+	require.NoError(t, sess1.PutOverlay(blockstore.Overlay{
 		Kind:      "targets/qps",
 		BlockHash: "h1",
 		Payload:   payload,
@@ -57,9 +57,9 @@ func TestPseudo_SessionSkipsCachedTarget(t *testing.T) {
 	assert.Equal(t, "[pre-computed]", blk.TargetText("qps"))
 }
 
-// Verify SessionTool: fresh run writes a targets/qps sidecar so the
+// Verify SessionTool: fresh run writes a targets/qps overlay so the
 // next run can skip.
-func TestPseudo_SessionWritesSidecar(t *testing.T) {
+func TestPseudo_SessionWritesOverlay(t *testing.T) {
 	ctx := context.Background()
 	store := blockstore.NewMemoryStore()
 	defer store.Close()
@@ -84,13 +84,13 @@ func TestPseudo_SessionWritesSidecar(t *testing.T) {
 	<-out // drain
 	require.NoError(t, sess.Commit())
 
-	// Confirm the sidecar was written.
+	// Confirm the overlay was written.
 	sess2, err := store.Begin(ctx)
 	require.NoError(t, err)
 	defer sess2.Close()
-	sc, err := sess2.GetSidecar("targets/qps", "h1")
+	sc, err := sess2.GetOverlay("targets/qps", "h1")
 	require.NoError(t, err)
 	var cached map[string]string
 	require.NoError(t, json.Unmarshal(sc.Payload, &cached))
-	assert.NotEmpty(t, cached["target"], "sidecar carries the translated text")
+	assert.NotEmpty(t, cached["target"], "overlay carries the translated text")
 }

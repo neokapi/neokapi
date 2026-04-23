@@ -1,5 +1,5 @@
 // Package blockstore defines the substrate for kapi flows: a
-// block-addressed, append-only sidecar store with multiple providers
+// block-addressed, append-only overlay store with multiple providers
 // (in-memory, local sqlite cache, remote). Tools operate against a
 // Session opened on a Store; the executor wires the right provider
 // based on the project's declared store.
@@ -8,12 +8,12 @@
 //
 // Design summary:
 //   - Blocks are content-addressed by hash. Once written, they are
-//     immutable. Flows don't rewrite them; they append sidecars.
-//   - Sidecars are append layers keyed by (kind, blockHash). "kind"
+//     immutable. Flows don't rewrite them; they append overlays.
+//   - Overlays are append layers keyed by (kind, blockHash). "kind"
 //     is a namespace string ("targets", "annotations/termbase", …).
 //     Different tools write different kinds in parallel.
 //   - Every provider supports forward-only streaming via
-//     Session.Blocks. Random access (GetBlock, GetSidecar) is
+//     Session.Blocks. Random access (GetBlock, GetOverlay) is
 //     optional and declared via Capabilities.RandomAccess.
 //   - Transactional semantics: Begin → Put*/Get* → Commit or
 //     Rollback. Providers that don't support rollback (memory)
@@ -36,10 +36,10 @@ type Block = klf.Block
 // more than bare streaming probe this at Session.Capabilities() and
 // fail fast when missing.
 type Capabilities struct {
-	// RandomAccess: GetBlock / GetSidecar / ListSidecars are O(log n)
+	// RandomAccess: GetBlock / GetOverlay / ListOverlays are O(log n)
 	// or better. memory and cache: yes. remote: server-dependent.
 	RandomAccess bool
-	// Concurrent: multiple Sessions can write different sidecar kinds
+	// Concurrent: multiple Sessions can write different overlay kinds
 	// in parallel without corrupting state. cache (SQLite WAL): yes.
 	// memory: no (single goroutine). remote: depends on server-side
 	// semantics.
@@ -47,7 +47,7 @@ type Capabilities struct {
 	// Remote: provider is network-backed. Hint for tools to prefer
 	// batched reads/writes and avoid per-block RTTs.
 	Remote bool
-	// Writable: PutBlock / PutSidecar are allowed.
+	// Writable: PutBlock / PutOverlay are allowed.
 	Writable bool
 }
 
@@ -70,11 +70,11 @@ type Store interface {
 	Close() error
 }
 
-// Sidecar is one append-layer entry for a block. Opaque JSON-serialisable
+// Overlay is one append-layer entry for a block. Opaque JSON-serialisable
 // payload; schema is owned by the tool kind ("targets", "annotations/qa",
 // …).
-type Sidecar struct {
-	// Kind namespaces the sidecar. Conventions:
+type Overlay struct {
+	// Kind namespaces the overlay. Conventions:
 	//   "targets/<locale>"            → translated targets
 	//   "annotations/<name>"          → term matches, TM fuzzies, QA
 	//   "skeletons/<format>"          → round-trip skeletons
@@ -123,16 +123,16 @@ type Session interface {
 	// visible after Commit.
 	PutBlock(collection string, b *Block) error
 
-	// GetSidecar returns one sidecar by (kind, blockHash). Returns
+	// GetOverlay returns one overlay by (kind, blockHash). Returns
 	// ErrNotFound when absent. Requires RandomAccess.
-	GetSidecar(kind, blockHash string) (Sidecar, error)
+	GetOverlay(kind, blockHash string) (Overlay, error)
 
-	// PutSidecar appends or replaces a sidecar. Idempotent per
+	// PutOverlay appends or replaces an overlay. Idempotent per
 	// (kind, blockHash).
-	PutSidecar(s Sidecar) error
+	PutOverlay(s Overlay) error
 
-	// ListSidecars streams every sidecar of a given kind.
-	ListSidecars(kind string) iter.Seq2[Sidecar, error]
+	// ListOverlays streams every overlay of a given kind.
+	ListOverlays(kind string) iter.Seq2[Overlay, error]
 
 	// Commit makes buffered writes visible. After Commit the session
 	// is closed; further Put* calls return ErrClosed.
@@ -148,7 +148,7 @@ type Session interface {
 
 // Sentinel errors returned by Store/Session implementations.
 var (
-	// ErrNotFound indicates a block hash or sidecar (kind,hash) not
+	// ErrNotFound indicates a block hash or overlay (kind,hash) not
 	// present in the store.
 	ErrNotFound = errors.New("blockstore: not found")
 	// ErrClosed indicates an operation on a session that has already

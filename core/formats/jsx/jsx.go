@@ -247,7 +247,7 @@ func (r *Reader) streamKLF(ctx context.Context, ch chan<- model.PartResult, data
 }
 
 // toModelBlock lifts a klf.Block into a model.Block with Runs as
-// first-class content. The KLFAnnotation sidecar carries extra
+// first-class content. The KLFAnnotation overlay carries extra
 // wire-level metadata (Hash, DocumentID, DocumentPath, Placeholders,
 // Preview) that the legacy model.Block doesn't have first-class
 // fields for; writers read it back to reconstruct the archive.

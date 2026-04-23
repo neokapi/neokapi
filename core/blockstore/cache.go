@@ -17,7 +17,7 @@ import (
 // NewCacheStore opens (or creates) a SQLite-backed block store at the
 // given path. Intended use: project-local persistence at
 // `.kapi/cache.db`, full random access, append-friendly for concurrent
-// sidecar writes.
+// overlay writes.
 //
 // The database schema is internal to this package and versioned by
 // `cache_migrations`. Safe to delete and rebuild from another source
@@ -166,66 +166,66 @@ func (s *cacheSession) PutBlock(collection string, b *Block) error {
 	return nil
 }
 
-func (s *cacheSession) GetSidecar(kind, blockHash string) (Sidecar, error) {
+func (s *cacheSession) GetOverlay(kind, blockHash string) (Overlay, error) {
 	if s.done {
-		return Sidecar{}, ErrClosed
+		return Overlay{}, ErrClosed
 	}
-	var sc Sidecar
+	var sc Overlay
 	err := s.tx.QueryRowContext(s.ctx, `
 		SELECT kind, block_hash, payload, updated_at
-		FROM sidecars WHERE kind = ? AND block_hash = ?
+		FROM overlays WHERE kind = ? AND block_hash = ?
 	`, kind, blockHash).Scan(&sc.Kind, &sc.BlockHash, &sc.Payload, &sc.UpdatedAt)
 	if errors.Is(err, sql.ErrNoRows) {
-		return Sidecar{}, ErrNotFound
+		return Overlay{}, ErrNotFound
 	}
 	if err != nil {
-		return Sidecar{}, fmt.Errorf("blockstore: get sidecar: %w", err)
+		return Overlay{}, fmt.Errorf("blockstore: get overlay: %w", err)
 	}
 	return sc, nil
 }
 
-func (s *cacheSession) PutSidecar(sc Sidecar) error {
+func (s *cacheSession) PutOverlay(sc Overlay) error {
 	if s.done {
 		return ErrClosed
 	}
 	if sc.Kind == "" || sc.BlockHash == "" {
-		return errors.New("blockstore: sidecar needs both Kind and BlockHash")
+		return errors.New("blockstore: overlay needs both Kind and BlockHash")
 	}
 	if sc.UpdatedAt == 0 {
 		sc.UpdatedAt = time.Now().Unix()
 	}
 	_, err := s.tx.ExecContext(s.ctx, `
-		INSERT INTO sidecars (kind, block_hash, payload, updated_at)
+		INSERT INTO overlays (kind, block_hash, payload, updated_at)
 		VALUES (?, ?, ?, ?)
 		ON CONFLICT(kind, block_hash) DO UPDATE SET
 			payload=excluded.payload,
 			updated_at=excluded.updated_at
 	`, sc.Kind, sc.BlockHash, sc.Payload, sc.UpdatedAt)
 	if err != nil {
-		return fmt.Errorf("blockstore: put sidecar: %w", err)
+		return fmt.Errorf("blockstore: put overlay: %w", err)
 	}
 	return nil
 }
 
-func (s *cacheSession) ListSidecars(kind string) iter.Seq2[Sidecar, error] {
-	return func(yield func(Sidecar, error) bool) {
+func (s *cacheSession) ListOverlays(kind string) iter.Seq2[Overlay, error] {
+	return func(yield func(Overlay, error) bool) {
 		if s.done {
-			yield(Sidecar{}, ErrClosed)
+			yield(Overlay{}, ErrClosed)
 			return
 		}
 		rows, err := s.tx.QueryContext(s.ctx, `
 			SELECT kind, block_hash, payload, updated_at
-			FROM sidecars WHERE kind = ? ORDER BY block_hash
+			FROM overlays WHERE kind = ? ORDER BY block_hash
 		`, kind)
 		if err != nil {
-			yield(Sidecar{}, fmt.Errorf("blockstore: list sidecars: %w", err))
+			yield(Overlay{}, fmt.Errorf("blockstore: list overlays: %w", err))
 			return
 		}
 		defer rows.Close()
 		for rows.Next() {
-			var sc Sidecar
+			var sc Overlay
 			if err := rows.Scan(&sc.Kind, &sc.BlockHash, &sc.Payload, &sc.UpdatedAt); err != nil {
-				yield(Sidecar{}, fmt.Errorf("blockstore: scan sidecar: %w", err))
+				yield(Overlay{}, fmt.Errorf("blockstore: scan overlay: %w", err))
 				return
 			}
 			if !yield(sc, nil) {
@@ -233,7 +233,7 @@ func (s *cacheSession) ListSidecars(kind string) iter.Seq2[Sidecar, error] {
 			}
 		}
 		if err := rows.Err(); err != nil {
-			yield(Sidecar{}, fmt.Errorf("blockstore: iterate sidecars: %w", err))
+			yield(Overlay{}, fmt.Errorf("blockstore: iterate overlays: %w", err))
 		}
 	}
 }
@@ -266,7 +266,7 @@ func (s *cacheSession) Close() error {
 var cacheMigrations = []storage.Migration{
 	{
 		Version:     1,
-		Description: "blocks + sidecars",
+		Description: "blocks + overlays",
 		SQL: `
 			CREATE TABLE blocks (
 				hash         TEXT PRIMARY KEY,
@@ -276,14 +276,14 @@ var cacheMigrations = []storage.Migration{
 			);
 			CREATE INDEX blocks_collection_idx ON blocks (collection);
 
-			CREATE TABLE sidecars (
+			CREATE TABLE overlays (
 				kind       TEXT NOT NULL,
 				block_hash TEXT NOT NULL,
 				payload    BLOB NOT NULL,
 				updated_at INTEGER NOT NULL,
 				PRIMARY KEY (kind, block_hash)
 			);
-			CREATE INDEX sidecars_hash_idx ON sidecars (block_hash);
+			CREATE INDEX overlays_hash_idx ON overlays (block_hash);
 		`,
 	},
 }

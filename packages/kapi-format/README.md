@@ -12,7 +12,7 @@ This package is the home of:
   ([`src/vocabulary.ts`](src/vocabulary.ts))
 - The Level-1 preview renderer + target validator
   ([`src/preview.ts`](src/preview.ts))
-- The annotation sidecar resolver + orphan validator
+- The annotation overlay resolver + orphan validator
   ([`src/annotation.ts`](src/annotation.ts))
 
 ## Running the examples
@@ -53,7 +53,7 @@ are the contract.
 | `src/block.ts`                | Core types: Block, Run (including structured plural/select), Placeholder, ExtractedDocument |
 | `src/vocabulary.ts`           | Vocabulary entries + template expander + default JSX vocabulary                     |
 | `src/preview.ts`              | Level-1 Run renderer + target validator                                             |
-| `src/annotation.ts`           | Annotation sidecar types + anchor resolution + orphan validator                     |
+| `src/annotation.ts`           | Annotation overlay types + anchor resolution + orphan validator                     |
 | `src/index.ts`                | Re-exports                                                                          |
 | `examples/files-heading.ts`   | Nested inline `<span>` + `{count}` variable                                         |
 | `examples/tag-chip.ts`        | Three conditional JSX placeholders + `optional` flag                                |

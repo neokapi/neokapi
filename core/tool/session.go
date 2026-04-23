@@ -13,7 +13,7 @@ import (
 //
 // Why this exists: the channel-based `Tool.Process` is a one-shot
 // forward-only transform. Tools that need to look up a block by
-// hash, read prior sidecars (TM matches, QA findings, prior target
+// hash, read prior overlays (TM matches, QA findings, prior target
 // translations), or incrementally skip work that's already done
 // can't do it through the stream alone. SessionTool gives them a
 // `blockstore.Session` opened by the executor on whichever provider
@@ -43,8 +43,8 @@ type SessionTool interface {
 	//   - Ignore the session entirely (falls back to Tool.Process
 	//     behaviour) — but then SessionTool isn't the right contract.
 	//   - Use the session exclusively (reading blocks via
-	//     session.Blocks instead of `in`, writing sidecars via
-	//     session.PutSidecar instead of emitting new Parts).
+	//     session.Blocks instead of `in`, writing overlays via
+	//     session.PutOverlay instead of emitting new Parts).
 	//   - Mix both (read from in, enrich via session, emit to out).
 	//
 	// Do NOT call Commit/Rollback on the session — the executor

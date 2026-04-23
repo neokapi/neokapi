@@ -116,7 +116,7 @@ func hasInlineCodes(runs []model.Run) bool {
 	return false
 }
 
-// SessionProcess consults `targets/<locale>` sidecars before hitting
+// SessionProcess consults `targets/<locale>` overlays before hitting
 // the MT API — same incremental-work story as ai-translate. MT is
 // often cheaper than LLMs but still rate-limited and billed per
 // request; skipping cached targets avoids both.
@@ -126,7 +126,7 @@ func (t *MTTranslateTool) SessionProcess(
 	in <-chan *model.Part,
 	out chan<- *model.Part,
 ) error {
-	sidecarKind := "targets/" + string(t.targetLocale)
+	overlayKind := "targets/" + string(t.targetLocale)
 	caps := sess.Capabilities()
 
 	for {
@@ -137,7 +137,7 @@ func (t *MTTranslateTool) SessionProcess(
 			if !ok {
 				return nil
 			}
-			if err := t.sessionHandleBlock(sess, caps.RandomAccess, sidecarKind, part); err != nil {
+			if err := t.sessionHandleBlock(sess, caps.RandomAccess, overlayKind, part); err != nil {
 				return err
 			}
 			select {
@@ -149,9 +149,9 @@ func (t *MTTranslateTool) SessionProcess(
 	}
 }
 
-// mtTargetCache is the payload stored in `targets/<locale>` sidecars
+// mtTargetCache is the payload stored in `targets/<locale>` overlays
 // written by MT translate. Shape-compatible with ai-translate's
-// sidecar so sessions can interop.
+// overlay so sessions can interop.
 type mtTargetCache struct {
 	Text     string `json:"text"`
 	Provider string `json:"provider,omitempty"`
@@ -160,7 +160,7 @@ type mtTargetCache struct {
 func (t *MTTranslateTool) sessionHandleBlock(
 	sess blockstore.Session,
 	randomAccess bool,
-	sidecarKind string,
+	overlayKind string,
 	part *model.Part,
 ) error {
 	block, ok := part.Resource.(*model.Block)
@@ -174,7 +174,7 @@ func (t *MTTranslateTool) sessionHandleBlock(
 	}
 
 	if randomAccess {
-		if sc, err := sess.GetSidecar(sidecarKind, hash); err == nil && len(sc.Payload) > 0 {
+		if sc, err := sess.GetOverlay(overlayKind, hash); err == nil && len(sc.Payload) > 0 {
 			var cached mtTargetCache
 			if err := json.Unmarshal(sc.Payload, &cached); err == nil && cached.Text != "" {
 				block.SetTargetText(t.targetLocale, cached.Text)
@@ -190,14 +190,14 @@ func (t *MTTranslateTool) sessionHandleBlock(
 	if target := block.TargetText(t.targetLocale); target != "" {
 		payload, err := json.Marshal(mtTargetCache{Text: target, Provider: string(t.provider.Name())})
 		if err != nil {
-			return fmt.Errorf("mt-translate: encode sidecar: %w", err)
+			return fmt.Errorf("mt-translate: encode overlay: %w", err)
 		}
-		if err := sess.PutSidecar(blockstore.Sidecar{
-			Kind:      sidecarKind,
+		if err := sess.PutOverlay(blockstore.Overlay{
+			Kind:      overlayKind,
 			BlockHash: hash,
 			Payload:   payload,
 		}); err != nil && !errors.Is(err, blockstore.ErrReadOnly) {
-			return fmt.Errorf("mt-translate: write sidecar: %w", err)
+			return fmt.Errorf("mt-translate: write overlay: %w", err)
 		}
 	}
 	return nil

@@ -21,7 +21,7 @@ import (
 func NewMemoryStore() Store {
 	return &memoryStore{
 		blocks:   make(map[string]memBlock),
-		sidecars: make(map[string]Sidecar),
+		overlays: make(map[string]Overlay),
 	}
 }
 
@@ -33,7 +33,7 @@ type memBlock struct {
 type memoryStore struct {
 	mu       sync.Mutex
 	blocks   map[string]memBlock // key: block hash
-	sidecars map[string]Sidecar  // key: kind+"\x00"+blockHash
+	overlays map[string]Overlay  // key: kind+"\x00"+blockHash
 	closed   bool
 }
 
@@ -54,7 +54,7 @@ func (m *memoryStore) Begin(ctx context.Context) (Session, error) {
 	s := &memorySession{
 		store:    m,
 		blocks:   copyBlocks(m.blocks),
-		sidecars: copySidecars(m.sidecars),
+		overlays: copyOverlays(m.overlays),
 	}
 	return s, nil
 }
@@ -69,7 +69,7 @@ func (m *memoryStore) Close() error {
 type memorySession struct {
 	store    *memoryStore
 	blocks   map[string]memBlock
-	sidecars map[string]Sidecar
+	overlays map[string]Overlay
 	done     bool // committed, rolled back, or closed
 }
 
@@ -125,39 +125,39 @@ func (s *memorySession) PutBlock(collection string, b *Block) error {
 	return nil
 }
 
-func (s *memorySession) GetSidecar(kind, blockHash string) (Sidecar, error) {
+func (s *memorySession) GetOverlay(kind, blockHash string) (Overlay, error) {
 	if s.done {
-		return Sidecar{}, ErrClosed
+		return Overlay{}, ErrClosed
 	}
-	sc, ok := s.sidecars[sidecarKey(kind, blockHash)]
+	sc, ok := s.overlays[overlayKey(kind, blockHash)]
 	if !ok {
-		return Sidecar{}, ErrNotFound
+		return Overlay{}, ErrNotFound
 	}
 	return sc, nil
 }
 
-func (s *memorySession) PutSidecar(sc Sidecar) error {
+func (s *memorySession) PutOverlay(sc Overlay) error {
 	if s.done {
 		return ErrClosed
 	}
 	if sc.Kind == "" || sc.BlockHash == "" {
-		return errors.New("blockstore: sidecar needs both Kind and BlockHash")
+		return errors.New("blockstore: overlay needs both Kind and BlockHash")
 	}
 	if sc.UpdatedAt == 0 {
 		sc.UpdatedAt = time.Now().Unix()
 	}
-	s.sidecars[sidecarKey(sc.Kind, sc.BlockHash)] = sc
+	s.overlays[overlayKey(sc.Kind, sc.BlockHash)] = sc
 	return nil
 }
 
-func (s *memorySession) ListSidecars(kind string) iter.Seq2[Sidecar, error] {
-	return func(yield func(Sidecar, error) bool) {
+func (s *memorySession) ListOverlays(kind string) iter.Seq2[Overlay, error] {
+	return func(yield func(Overlay, error) bool) {
 		if s.done {
-			yield(Sidecar{}, ErrClosed)
+			yield(Overlay{}, ErrClosed)
 			return
 		}
 		prefix := kind + "\x00"
-		for k, v := range s.sidecars {
+		for k, v := range s.overlays {
 			if len(k) >= len(prefix) && k[:len(prefix)] == prefix {
 				if !yield(v, nil) {
 					return
@@ -174,7 +174,7 @@ func (s *memorySession) Commit() error {
 	s.store.mu.Lock()
 	defer s.store.mu.Unlock()
 	s.store.blocks = s.blocks
-	s.store.sidecars = s.sidecars
+	s.store.overlays = s.overlays
 	s.done = true
 	return nil
 }
@@ -193,7 +193,7 @@ func (s *memorySession) Close() error {
 
 // ─── helpers ────────────────────────────────────────────────────
 
-func sidecarKey(kind, blockHash string) string {
+func overlayKey(kind, blockHash string) string {
 	return kind + "\x00" + blockHash
 }
 
@@ -205,8 +205,8 @@ func copyBlocks(in map[string]memBlock) map[string]memBlock {
 	return out
 }
 
-func copySidecars(in map[string]Sidecar) map[string]Sidecar {
-	out := make(map[string]Sidecar, len(in))
+func copyOverlays(in map[string]Overlay) map[string]Overlay {
+	out := make(map[string]Overlay, len(in))
 	for k, v := range in {
 		out[k] = v
 	}

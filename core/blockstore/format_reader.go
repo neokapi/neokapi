@@ -175,25 +175,25 @@ func (s *formatReaderSession) PutBlock(_ string, _ *Block) error {
 	return ErrReadOnly
 }
 
-func (s *formatReaderSession) GetSidecar(_, _ string) (Sidecar, error) {
+func (s *formatReaderSession) GetOverlay(_, _ string) (Overlay, error) {
 	if s.done {
-		return Sidecar{}, ErrClosed
+		return Overlay{}, ErrClosed
 	}
-	// Format readers don't emit sidecars; every lookup is "not found".
-	return Sidecar{}, ErrNotFound
+	// Format readers don't emit overlays; every lookup is "not found".
+	return Overlay{}, ErrNotFound
 }
 
-func (s *formatReaderSession) PutSidecar(_ Sidecar) error {
+func (s *formatReaderSession) PutOverlay(_ Overlay) error {
 	if s.done {
 		return ErrClosed
 	}
 	return ErrReadOnly
 }
 
-func (s *formatReaderSession) ListSidecars(_ string) iter.Seq2[Sidecar, error] {
-	return func(yield func(Sidecar, error) bool) {
+func (s *formatReaderSession) ListOverlays(_ string) iter.Seq2[Overlay, error] {
+	return func(yield func(Overlay, error) bool) {
 		if s.done {
-			yield(Sidecar{}, ErrClosed)
+			yield(Overlay{}, ErrClosed)
 			return
 		}
 		// Empty iterator — nothing to yield.

@@ -375,7 +375,7 @@ func messageFor(reason AnchorResolveReason, ann Annotation) string {
 
 // ───────── annotation file I/O (.klfl) ─────────
 
-// DecodeAnnotationFile parses a JSON-Lines annotation sidecar from r.
+// DecodeAnnotationFile parses a JSON-Lines annotation overlay from r.
 // The first non-empty line must be a header record; subsequent
 // non-empty lines are annotation records.
 func DecodeAnnotationFile(r io.Reader) (*AnnotationFile, error) {
@@ -440,7 +440,7 @@ func readJSONLine(br *bufio.Reader) ([]byte, error) {
 	}
 }
 
-// EncodeAnnotationFile writes a JSON-Lines annotation sidecar to w.
+// EncodeAnnotationFile writes a JSON-Lines annotation overlay to w.
 // Each line is compact JSON (no indentation) terminated by LF; this
 // keeps the file grep-friendly and diff-friendly as required by RFC
 // 0001.

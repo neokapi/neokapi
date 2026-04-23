@@ -91,7 +91,7 @@ A ZIP archive with:
 
 - `manifest.json` — project, source/target locales, SHA-256 of each part.
 - `documents/<slug>.klf` — one file per source file, each carrying its `Block`s.
-- Optional targets / skeleton / annotation sidecars (added by translators).
+- Optional targets / skeleton / annotation overlays (added by translators).
 
 See [AD-008](/docs/ad/008-project-model) for the full schema.
 

@@ -24,7 +24,7 @@ type Layout struct {
 }
 
 // StateDirName is the hidden directory that holds kapi's working
-// state (manifest bookkeeping, blockstore cache, sidecar layers).
+// state (manifest bookkeeping, blockstore cache, overlay layers).
 const StateDirName = ".kapi"
 
 // RecipeExt is the file extension users click to open a project.
