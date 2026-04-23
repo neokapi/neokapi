@@ -493,13 +493,26 @@ var storeMigrations = []storage.Migration{
 				PRIMARY KEY (user_id, workspace_id)
 			);
 
--- Overlay store keyed by (project, stream, block_id, kind).
-			-- Holds targets/<locale>, annotations/<name>, skeletons/<format>
-			-- and plugin-supplied kinds as opaque JSON payloads. Kind-specific
-			-- tables (translations, annotations, automation_runs) will take
-			-- over the hot kinds in a later migration (see #385 Phase 2);
-			-- overlays_ext remains the catchall for plugin kinds.
-			CREATE TABLE block_overlays (
+-- Overlay storage, split by kind for access-pattern-specific
+			-- indexes (#403). Mirrors the Postgres baseline with TEXT/JSON
+			-- → TEXT dialect translation.
+			CREATE TABLE translations (
+				project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+				stream     TEXT NOT NULL DEFAULT 'main',
+				block_id   TEXT NOT NULL,
+				locale     TEXT NOT NULL,
+				text       TEXT NOT NULL DEFAULT '',
+				provider   TEXT NOT NULL DEFAULT '',
+				metadata   TEXT NOT NULL DEFAULT '{}',
+				updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+				PRIMARY KEY (project_id, stream, block_id, locale)
+			);
+			CREATE INDEX idx_translations_project_locale
+				ON translations(project_id, stream, locale, updated_at DESC);
+			CREATE INDEX idx_translations_project_block
+				ON translations(project_id, stream, block_id);
+
+			CREATE TABLE annotations (
 				project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
 				stream     TEXT NOT NULL DEFAULT 'main',
 				block_id   TEXT NOT NULL,
@@ -508,10 +521,24 @@ var storeMigrations = []storage.Migration{
 				updated_at TEXT NOT NULL DEFAULT (datetime('now')),
 				PRIMARY KEY (project_id, stream, block_id, kind)
 			);
-			CREATE INDEX idx_block_overlays_project_kind
-				ON block_overlays(project_id, stream, kind);
-			CREATE INDEX idx_block_overlays_project_block
-				ON block_overlays(project_id, stream, block_id);
+			CREATE INDEX idx_annotations_project_kind
+				ON annotations(project_id, stream, kind, updated_at DESC);
+			CREATE INDEX idx_annotations_project_block
+				ON annotations(project_id, stream, block_id);
+
+			CREATE TABLE overlays_ext (
+				project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+				stream     TEXT NOT NULL DEFAULT 'main',
+				block_id   TEXT NOT NULL,
+				kind       TEXT NOT NULL,
+				payload    TEXT NOT NULL DEFAULT '{}',
+				updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+				PRIMARY KEY (project_id, stream, block_id, kind)
+			);
+			CREATE INDEX idx_overlays_ext_project_kind
+				ON overlays_ext(project_id, stream, kind);
+			CREATE INDEX idx_overlays_ext_project_block
+				ON overlays_ext(project_id, stream, block_id);
 		`,
 	},
 }
