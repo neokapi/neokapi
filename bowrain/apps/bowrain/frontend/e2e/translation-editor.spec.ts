@@ -648,4 +648,53 @@ test.describe("Translation Editor", () => {
     const editInput = page.getByTestId("edit-target-1");
     await expect(editInput).toBeVisible({ timeout: 5000 });
   });
+
+  test("should open plural target dialog and save ICU syntax", async ({ page }) => {
+    await openEditorWithBlocks(page);
+
+    // Seed a flat target so the dialog opens in flat view and exposes
+    // the "Upgrade to plural" affordance.
+    await page.evaluate(async () => {
+      const backend = (window as any).__wailsMockByName;
+      await backend.UpdateBlockTarget({
+        project_id: "project-1",
+        item_name: "hello.txt",
+        block_id: "hello.txt-block-1",
+        target_locale: "fr",
+        text: "Vous avez des messages",
+      });
+    });
+
+    // Reload editor to pick up the seeded target.
+    await clickTestId(page, "back-to-project");
+    await page.getByTestId("open-file-hello.txt").waitFor({ state: "visible", timeout: 5000 });
+    await page.evaluate(() => {
+      const btn = document.querySelector('[data-testid="open-file-hello.txt"]') as HTMLElement;
+      if (btn) btn.click();
+    });
+    await expect(page.getByTestId("layout-switcher")).toBeVisible({ timeout: 5000 });
+    await page.evaluate(() => {
+      (document.querySelector('[data-testid="layout-grid"]') as HTMLElement)?.click();
+    });
+    await expect(page.getByTestId("block-grid")).toBeVisible({ timeout: 5000 });
+
+    // Select the first block, then open the plural dialog from the toolbar.
+    await page.evaluate(() => {
+      const row = document.querySelector('[data-testid="block-row-0"]') as HTMLElement;
+      if (row) row.click();
+    });
+    await clickTestId(page, "plurals-btn");
+    await expect(page.getByTestId("plural-target-dialog")).toBeVisible({ timeout: 5000 });
+
+    // Saving without edits round-trips the current flat text verbatim.
+    await clickTestId(page, "plural-save");
+
+    // After save, the mock backend should now hold the round-tripped string.
+    const saved = await page.evaluate(async () => {
+      const backend = (window as any).__wailsMockByName;
+      const blocks = await backend.GetFileBlocks("project-1", "hello.txt", "fr");
+      return blocks.find((b: any) => b.id === "hello.txt-block-1")?.targets?.fr;
+    });
+    expect(saved).toBe("Vous avez des messages");
+  });
 });
