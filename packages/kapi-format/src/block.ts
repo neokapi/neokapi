@@ -183,13 +183,7 @@ export interface SelectRun {
   cases: Record<string, Run[]>;
 }
 
-export type PluralForm =
-  | 'zero'
-  | 'one'
-  | 'two'
-  | 'few'
-  | 'many'
-  | 'other';
+export type PluralForm = "zero" | "one" | "two" | "few" | "many" | "other";
 
 export interface RunConstraints {
   /**
@@ -248,7 +242,7 @@ export interface Block {
   preview?: BlockPreviewHints;
 }
 
-export type BlockType = 'jsx:element' | 'jsx:attribute' | 'js:t';
+export type BlockType = "jsx:element" | "jsx:attribute" | "js:t";
 
 export type LocaleID = string; // BCP-47 tag, e.g. "de", "ja-JP", "qps"
 
@@ -291,7 +285,7 @@ export interface Placeholder {
    * Type of the expression at the call site, when known. "number"
    * is a hint that this placeholder may drive plural selection.
    */
-  jsType?: 'string' | 'number' | 'boolean' | 'Date' | 'ReactNode' | string;
+  jsType?: "string" | "number" | "boolean" | "Date" | "ReactNode" | string;
   /** Raw source expression, e.g. "user.name". */
   sourceExpr: string;
   /**
@@ -303,10 +297,10 @@ export interface Placeholder {
 }
 
 export type PlaceholderKind =
-  | 'variable' // {name}, {user.name}
-  | 'element' // an inline JSX element captured as a pair of runs
-  | 'node' // {cond && <X/>} — ReactNode-valued expression
-  | 'icu-pivot'; // variable driving a plural / select construct
+  | "variable" // {name}, {user.name}
+  | "element" // an inline JSX element captured as a pair of runs
+  | "node" // {cond && <X/>} — ReactNode-valued expression
+  | "icu-pivot"; // variable driving a plural / select construct
 
 // ─── Document + File envelope ─────────────────────────────────────
 
@@ -315,17 +309,17 @@ export type PlaceholderKind =
  * compatible schema changes. Consumers MUST reject unknown major
  * versions and SHOULD accept unknown minor versions of their major.
  */
-export const SchemaVersion = '1.0' as const;
+export const SchemaVersion = "1.0" as const;
 
 /**
  * The .klf file kind discriminator. Lets a consumer confirm a JSON
  * blob is a KLF document before parsing, rather than a same-shaped
  * structure from a different producer.
  */
-export const Kind = 'kapi-localization-format' as const;
+export const Kind = "kapi-localization-format" as const;
 
 /** Format of an extracted document's source. */
-export type DocumentType = 'jsx' | 'html' | 'markdown' | 'generic';
+export type DocumentType = "jsx" | "html" | "markdown" | "generic";
 
 /**
  * Non-authoritative skeleton reference. The extractor's `merge()`

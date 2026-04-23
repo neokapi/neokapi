@@ -14,36 +14,36 @@
  * JSON-Lines parsing: one header record, N annotation records.
  */
 
-import type { AnnotationFile } from '../src/annotation.ts';
+import type { AnnotationFile } from "../src/annotation.ts";
 
 export const exampleAnnotations: AnnotationFile = {
   header: {
-    type: 'header',
-    annotationType: '@neokapi/example',
-    annotationVersion: '1.0.0',
+    type: "header",
+    annotationType: "@neokapi/example",
+    annotationVersion: "1.0.0",
     producer: {
-      id: '@neokapi/kapi-format-examples',
-      version: '0.0.1',
+      id: "@neokapi/kapi-format-examples",
+      version: "0.0.1",
     },
-    created: '2026-04-15T12:00:00Z',
-    targetArchive: 'sha256:deadbeef',
+    created: "2026-04-15T12:00:00Z",
+    targetArchive: "sha256:deadbeef",
   },
 
   annotations: [
     // Block-level: FilesHeading has been reviewed and approved for de.
     {
-      type: 'annotation',
-      id: 'review-1',
+      type: "annotation",
+      id: "review-1",
       anchor: {
-        kind: 'block',
-        block: 'files-heading',
+        kind: "block",
+        block: "files-heading",
       },
       data: {
-        kind: 'review',
-        locale: 'de',
-        status: 'approved',
-        reviewer: 'alice@example.com',
-        approvedAt: '2026-04-15T11:45:00Z',
+        kind: "review",
+        locale: "de",
+        status: "approved",
+        reviewer: "alice@example.com",
+        approvedAt: "2026-04-15T11:45:00Z",
       },
     },
 
@@ -59,19 +59,19 @@ export const exampleAnnotations: AnnotationFile = {
     //   index 4: ph "3" (required)
     // So the correct path is [2].
     {
-      type: 'annotation',
-      id: 'term-1',
+      type: "annotation",
+      id: "term-1",
       anchor: {
-        kind: 'run',
-        block: 'tag-chip',
+        kind: "run",
+        block: "tag-chip",
         path: [2],
-        runId: '2',
+        runId: "2",
       },
       data: {
-        kind: 'protected-term',
-        term: 'label',
-        termbaseEntry: 'ui-terminology:label',
-        action: 'preserve-placeholder',
+        kind: "protected-term",
+        term: "label",
+        termbaseEntry: "ui-terminology:label",
+        action: "preserve-placeholder",
         confidence: 1.0,
       },
     },
@@ -81,19 +81,19 @@ export const exampleAnnotations: AnnotationFile = {
     // at the single top-level run of block.source (the plural
     // run itself); the key "other" selects the 'other' form.
     {
-      type: 'annotation',
-      id: 'mt-1',
+      type: "annotation",
+      id: "mt-1",
       anchor: {
-        kind: 'form',
-        block: 'shopping-cart-plural',
+        kind: "form",
+        block: "shopping-cart-plural",
         path: [0],
-        key: 'other',
+        key: "other",
       },
       data: {
-        kind: 'mt-confidence',
-        locale: 'de',
-        engine: 'deepl',
-        model: 'v2',
+        kind: "mt-confidence",
+        locale: "de",
+        engine: "deepl",
+        model: "v2",
         confidence: 0.87,
       },
     },
@@ -102,22 +102,22 @@ export const exampleAnnotations: AnnotationFile = {
     // FilesHeading block ("Files ") — 5 characters is "Files".
     // In practice this would flag a glossary match on "Files".
     {
-      type: 'annotation',
-      id: 'term-2',
+      type: "annotation",
+      id: "term-2",
       anchor: {
-        kind: 'range',
-        block: 'files-heading',
+        kind: "range",
+        block: "files-heading",
         path: [0],
         offset: 0,
         length: 5,
       },
       data: {
-        kind: 'glossary-match',
-        term: 'Files',
-        termbaseEntry: 'ui-terminology:files',
+        kind: "glossary-match",
+        term: "Files",
+        termbaseEntry: "ui-terminology:files",
         targetLocaleSuggestions: {
-          de: 'Dateien',
-          ja: 'ファイル',
+          de: "Dateien",
+          ja: "ファイル",
         },
       },
     },

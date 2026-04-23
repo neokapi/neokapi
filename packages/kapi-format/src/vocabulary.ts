@@ -11,7 +11,7 @@
  * consistently across formats without per-format rendering code.
  */
 
-import type { RunConstraints } from './block.ts';
+import type { RunConstraints } from "./block.ts";
 
 export interface VocabularyEntry {
   /** Same value as the `type` field on a Run, e.g. "jsx:element". */
@@ -34,12 +34,12 @@ export interface VocabularyEntry {
 }
 
 export type VocabularyCategory =
-  | 'format'       // bold, italic, underline (inline formatting)
-  | 'structure'    // link, image, button (block-level)
-  | 'variable'     // placeholder for a runtime value
-  | 'node'         // placeholder for a runtime ReactNode
-  | 'code'         // inline code span, keyword, identifier
-  | 'entity';      // named entity (person, product)
+  | "format" // bold, italic, underline (inline formatting)
+  | "structure" // link, image, button (block-level)
+  | "variable" // placeholder for a runtime value
+  | "node" // placeholder for a runtime ReactNode
+  | "code" // inline code span, keyword, identifier
+  | "entity"; // named entity (person, product)
 
 export interface HTMLRendering {
   /** Returned for PcOpen runs. May contain `{data}` or `{subType}` templates. */
@@ -77,78 +77,77 @@ export interface ChipRendering {
  */
 export const JSX_VOCABULARY: VocabularyEntry[] = [
   {
-    key: 'jsx:element',
-    category: 'structure',
+    key: "jsx:element",
+    category: "structure",
     html: {
       // Rendered with the actual tag name from `subType` so <a>,
       // <strong>, <span>, custom components all preview as
       // themselves. Consumers that sandbox the preview may
       // whitelist a safe subset of tags.
       open: '<{subType} data-neokapi-span="{id}">',
-      close: '</{subType}>',
-      placeholder: '',
+      close: "</{subType}>",
+      placeholder: "",
     },
     display: {
-      open: '<{subType}>',
-      close: '</{subType}>',
-      placeholder: '',
+      open: "<{subType}>",
+      close: "</{subType}>",
+      placeholder: "",
     },
     chip: {
-      label: '{subType}',
-      color: { bg: '#e2e8f0', border: '#94a3b8', text: '#1e293b' },
+      label: "{subType}",
+      color: { bg: "#e2e8f0", border: "#94a3b8", text: "#1e293b" },
     },
     constraints: {
-      deletable: false,    // element tokens mirror source structure
+      deletable: false, // element tokens mirror source structure
       cloneable: false,
       reorderable: true,
     },
   },
   {
-    key: 'jsx:var',
-    category: 'variable',
+    key: "jsx:var",
+    category: "variable",
     html: {
-      open: '',
-      close: '',
+      open: "",
+      close: "",
       placeholder:
         '<span class="neokapi-var" data-var="{equiv}" data-type="{subType}">{equiv}</span>',
     },
     display: {
-      open: '',
-      close: '',
-      placeholder: '{{equiv}}',
+      open: "",
+      close: "",
+      placeholder: "{{equiv}}",
     },
     chip: {
-      label: '{equiv}',
-      color: { bg: '#dbeafe', border: '#3b82f6', text: '#1e40af' },
+      label: "{equiv}",
+      color: { bg: "#dbeafe", border: "#3b82f6", text: "#1e40af" },
     },
     constraints: {
-      deletable: false,    // variables must survive translation
-      cloneable: true,     // languages that repeat the value (formal/informal)
+      deletable: false, // variables must survive translation
+      cloneable: true, // languages that repeat the value (formal/informal)
       reorderable: true,
     },
   },
   {
-    key: 'jsx:node',
-    category: 'node',
+    key: "jsx:node",
+    category: "node",
     html: {
-      open: '',
-      close: '',
-      placeholder:
-        '<span class="neokapi-node" data-node="{id}" title="{data}">{equiv}</span>',
+      open: "",
+      close: "",
+      placeholder: '<span class="neokapi-node" data-node="{id}" title="{data}">{equiv}</span>',
     },
     display: {
-      open: '',
-      close: '',
+      open: "",
+      close: "",
       // Rendered as a guillemet-wrapped label so LLMs/translators see
       // it as an opaque token but still know its semantic role.
-      placeholder: '«{equiv}»',
+      placeholder: "«{equiv}»",
     },
     chip: {
-      label: '⟨⟩',
-      color: { bg: '#fef3c7', border: '#f59e0b', text: '#92400e' },
+      label: "⟨⟩",
+      color: { bg: "#fef3c7", border: "#f59e0b", text: "#92400e" },
     },
     constraints: {
-      deletable: true,     // conditional nodes may drop in some languages
+      deletable: true, // conditional nodes may drop in some languages
       cloneable: false,
       reorderable: true,
     },
@@ -163,9 +162,6 @@ export const JSX_VOCABULARY: VocabularyEntry[] = [
  * builders and by this package's reference renderer; exported here
  * so tests can exercise it without pulling in the full framework.
  */
-export function expandTemplate(
-  template: string,
-  context: Record<string, string>,
-): string {
-  return template.replace(/\{(\w+)\}/g, (_, key) => context[key] ?? '');
+export function expandTemplate(template: string, context: Record<string, string>): string {
+  return template.replace(/\{(\w+)\}/g, (_, key) => context[key] ?? "");
 }

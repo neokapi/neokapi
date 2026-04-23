@@ -27,70 +27,70 @@
  * placeholder run between the two pairs.
  */
 
-import type { Block } from '../src/block.ts';
+import type { Block } from "../src/block.ts";
 
 export const filesHeading: Block = {
-  id: 'files-heading',
-  hash: '2xykvb',
+  id: "files-heading",
+  hash: "2xykvb",
   translatable: true,
-  type: 'jsx:element',
+  type: "jsx:element",
 
   source: [
-    { text: 'Files ' },
+    { text: "Files " },
     {
       pcOpen: {
-        id: '1',
-        type: 'jsx:element',
-        subType: 'span',
+        id: "1",
+        type: "jsx:element",
+        subType: "span",
         data: '<span className="muted">',
-        equiv: 'muted',
-        disp: 'span',
+        equiv: "muted",
+        disp: "span",
       },
     },
-    { text: '(' },
+    { text: "(" },
     {
       ph: {
-        id: '2',
-        type: 'jsx:var',
-        subType: 'number',
-        data: '{count}',
-        equiv: 'count',
-        disp: 'count',
+        id: "2",
+        type: "jsx:var",
+        subType: "number",
+        data: "{count}",
+        equiv: "count",
+        disp: "count",
       },
     },
-    { text: ' matched)' },
+    { text: " matched)" },
     {
       pcClose: {
-        id: '1',
-        type: 'jsx:element',
-        subType: 'span',
-        data: '</span>',
-        equiv: 'muted',
+        id: "1",
+        type: "jsx:element",
+        subType: "span",
+        data: "</span>",
+        equiv: "muted",
       },
     },
   ],
 
   placeholders: [
     {
-      name: 'muted',
-      kind: 'element',
+      name: "muted",
+      kind: "element",
       sourceExpr: '<span className="muted">...</span>',
-      jsType: 'ReactNode',
+      jsType: "ReactNode",
     },
     {
-      name: 'count',
-      kind: 'variable',
-      sourceExpr: 'count',
-      jsType: 'number',
+      name: "count",
+      kind: "variable",
+      sourceExpr: "count",
+      jsType: "number",
     },
   ],
 
   properties: {
-    file: 'src/FilesHeading.tsx',
+    file: "src/FilesHeading.tsx",
     line: 4,
-    component: 'FilesHeading',
-    jsxPath: 'FilesHeading > h2',
-    element: 'h2',
+    component: "FilesHeading",
+    jsxPath: "FilesHeading > h2",
+    element: "h2",
   },
 
   preview: {
@@ -106,5 +106,5 @@ export const filesHeadingExpectedHtml =
   '<kat-block id="files-heading" data-type="jsx:element">' +
   'Files <span data-neokapi-span="1">(' +
   '<span class="neokapi-var" data-var="count" data-type="number">count</span>' +
-  ' matched)</span>' +
-  '</kat-block>';
+  " matched)</span>" +
+  "</kat-block>";

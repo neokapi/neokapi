@@ -33,33 +33,33 @@
  * other text.
  */
 
-import type { Block } from '../src/block.ts';
+import type { Block } from "../src/block.ts";
 
 export const shoppingCart: Block = {
-  id: 'shopping-cart-plural',
-  hash: '9QpZ11',
+  id: "shopping-cart-plural",
+  hash: "9QpZ11",
   translatable: true,
-  type: 'jsx:element',
+  type: "jsx:element",
 
   source: [
     {
       plural: {
-        pivot: 'count',
+        pivot: "count",
         forms: {
-          zero: [{ text: 'Your cart is empty' }],
-          one: [{ text: '1 item in your cart' }],
+          zero: [{ text: "Your cart is empty" }],
+          one: [{ text: "1 item in your cart" }],
           other: [
             {
               ph: {
-                id: '1',
-                type: 'jsx:var',
-                subType: 'number',
-                data: '{count}',
-                equiv: 'count',
-                disp: 'count',
+                id: "1",
+                type: "jsx:var",
+                subType: "number",
+                data: "{count}",
+                equiv: "count",
+                disp: "count",
               },
             },
-            { text: ' items in your cart' },
+            { text: " items in your cart" },
           ],
         },
       },
@@ -72,19 +72,19 @@ export const shoppingCart: Block = {
       // so validators know it must be preserved in every target's
       // plural run (and so every target's plural or ICU expansion
       // references the same variable).
-      name: 'count',
-      kind: 'icu-pivot',
-      sourceExpr: 'items',
-      jsType: 'number',
+      name: "count",
+      kind: "icu-pivot",
+      sourceExpr: "items",
+      jsType: "number",
     },
   ],
 
   properties: {
-    file: 'src/ShoppingCart.tsx',
+    file: "src/ShoppingCart.tsx",
     line: 4,
-    component: 'ShoppingCart',
-    jsxPath: 'ShoppingCart > p > Plural',
-    element: 'Plural',
+    component: "ShoppingCart",
+    jsxPath: "ShoppingCart > p > Plural",
+    element: "Plural",
   },
 
   preview: {
@@ -97,16 +97,16 @@ export const shoppingCartExpectedHtml =
   '<span class="neokapi-plural" data-pivot="count">' +
   '<div class="neokapi-plural-form" data-form="zero">' +
   '<span class="neokapi-plural-form-label">plural:zero</span>' +
-  'Your cart is empty' +
-  '</div>' +
+  "Your cart is empty" +
+  "</div>" +
   '<div class="neokapi-plural-form" data-form="one">' +
   '<span class="neokapi-plural-form-label">plural:one</span>' +
-  '1 item in your cart' +
-  '</div>' +
+  "1 item in your cart" +
+  "</div>" +
   '<div class="neokapi-plural-form" data-form="other">' +
   '<span class="neokapi-plural-form-label">plural:other</span>' +
   '<span class="neokapi-var" data-var="count" data-type="number">count</span>' +
-  ' items in your cart' +
-  '</div>' +
-  '</span>' +
-  '</kat-block>';
+  " items in your cart" +
+  "</div>" +
+  "</span>" +
+  "</kat-block>";

@@ -39,7 +39,7 @@
  * extension. The current spec is overlay-only.
  */
 
-import type { Block, PluralForm, Run } from './block.ts';
+import type { Block, PluralForm, Run } from "./block.ts";
 
 // ─── Annotation file shape ────────────────────────────────────────
 
@@ -59,7 +59,7 @@ export interface AnnotationFile {
  * was produced against.
  */
 export interface AnnotationFileHeader {
-  type: 'header';
+  type: "header";
   /**
    * Namespaced annotation type, e.g. `@neokapi/term-detector`,
    * `acme/glossary-v2`, `bowrain/review-status`. No central registry
@@ -87,7 +87,7 @@ export interface AnnotationFileHeader {
  * One annotation record. Subsequent lines in the .klfl file.
  */
 export interface Annotation {
-  type: 'annotation';
+  type: "annotation";
   /** Stable within the file. Not required to be globally unique. */
   id: string;
   anchor: AnnotationAnchor;
@@ -105,18 +105,14 @@ export interface Annotation {
  * Where an annotation is attached. Four shapes, discriminated by
  * `kind`.
  */
-export type AnnotationAnchor =
-  | BlockAnchor
-  | RunAnchor
-  | RangeAnchor
-  | FormAnchor;
+export type AnnotationAnchor = BlockAnchor | RunAnchor | RangeAnchor | FormAnchor;
 
 /**
  * Attach to a whole block. Used for block-level metadata like
  * review status, MT confidence, or "this block contains PII".
  */
 export interface BlockAnchor {
-  kind: 'block';
+  kind: "block";
   block: string;
 }
 
@@ -131,7 +127,7 @@ export interface BlockAnchor {
  * originally described.
  */
 export interface RunAnchor {
-  kind: 'run';
+  kind: "run";
   block: string;
   path: RunPath;
   runId: string;
@@ -148,7 +144,7 @@ export interface RunAnchor {
  * each time the block changes.
  */
 export interface RangeAnchor {
-  kind: 'range';
+  kind: "range";
   block: string;
   path: RunPath;
   offset: number;
@@ -162,7 +158,7 @@ export interface RangeAnchor {
  * "this 'female' case is flagged by QA".
  */
 export interface FormAnchor {
-  kind: 'form';
+  kind: "form";
   block: string;
   /** Path to the containing plural or select run. */
   path: RunPath;
@@ -186,10 +182,7 @@ export type RunPath = RunPathStep[];
  * - `{ plural: PluralForm }` — step into a `plural` run's form.
  * - `{ select: string }` — step into a `select` run's case.
  */
-export type RunPathStep =
-  | number
-  | { plural: PluralForm }
-  | { select: string };
+export type RunPathStep = number | { plural: PluralForm } | { select: string };
 
 // ─── Anchor resolution ────────────────────────────────────────────
 
@@ -199,19 +192,19 @@ export type RunPathStep =
  * is a machine-readable tag indicating why.
  */
 export type AnchorResolution =
-  | { ok: true; kind: 'block'; block: Block }
-  | { ok: true; kind: 'run'; run: Run }
-  | { ok: true; kind: 'range'; text: string; offset: number; length: number }
-  | { ok: true; kind: 'form'; runs: Run[] }
+  | { ok: true; kind: "block"; block: Block }
+  | { ok: true; kind: "run"; run: Run }
+  | { ok: true; kind: "range"; text: string; offset: number; length: number }
+  | { ok: true; kind: "form"; runs: Run[] }
   | {
       ok: false;
       reason:
-        | 'block-not-found'
-        | 'path-out-of-bounds'
-        | 'path-wrong-kind'
-        | 'run-id-mismatch'
-        | 'range-out-of-bounds'
-        | 'form-not-found';
+        | "block-not-found"
+        | "path-out-of-bounds"
+        | "path-wrong-kind"
+        | "run-id-mismatch"
+        | "range-out-of-bounds"
+        | "form-not-found";
     };
 
 /**
@@ -219,46 +212,40 @@ export type AnchorResolution =
  * either the resolved entity or a machine-readable failure reason
  * suitable for orphan-detection validators.
  */
-export function resolveAnchor(
-  block: Block,
-  anchor: AnnotationAnchor,
-): AnchorResolution {
+export function resolveAnchor(block: Block, anchor: AnnotationAnchor): AnchorResolution {
   if (anchor.block !== block.id) {
-    return { ok: false, reason: 'block-not-found' };
+    return { ok: false, reason: "block-not-found" };
   }
 
-  if (anchor.kind === 'block') {
-    return { ok: true, kind: 'block', block };
+  if (anchor.kind === "block") {
+    return { ok: true, kind: "block", block };
   }
 
   // Walk the path except the last step, then handle the final
   // step according to the anchor kind.
   const runs = walkPath(block.source, anchor.path);
-  if (runs === null) return { ok: false, reason: 'path-out-of-bounds' };
+  if (runs === null) return { ok: false, reason: "path-out-of-bounds" };
 
-  if (anchor.kind === 'run') {
+  if (anchor.kind === "run") {
     const run = runs.run;
-    if (run === null) return { ok: false, reason: 'path-out-of-bounds' };
+    if (run === null) return { ok: false, reason: "path-out-of-bounds" };
     const id = runIdOf(run);
-    if (id === null) return { ok: false, reason: 'path-wrong-kind' };
-    if (id !== anchor.runId) return { ok: false, reason: 'run-id-mismatch' };
-    return { ok: true, kind: 'run', run };
+    if (id === null) return { ok: false, reason: "path-wrong-kind" };
+    if (id !== anchor.runId) return { ok: false, reason: "run-id-mismatch" };
+    return { ok: true, kind: "run", run };
   }
 
-  if (anchor.kind === 'range') {
+  if (anchor.kind === "range") {
     const run = runs.run;
-    if (run === null || !('text' in run)) {
-      return { ok: false, reason: 'path-wrong-kind' };
+    if (run === null || !("text" in run)) {
+      return { ok: false, reason: "path-wrong-kind" };
     }
-    if (
-      anchor.offset < 0 ||
-      anchor.offset + anchor.length > run.text.length
-    ) {
-      return { ok: false, reason: 'range-out-of-bounds' };
+    if (anchor.offset < 0 || anchor.offset + anchor.length > run.text.length) {
+      return { ok: false, reason: "range-out-of-bounds" };
     }
     return {
       ok: true,
-      kind: 'range',
+      kind: "range",
       text: run.text,
       offset: anchor.offset,
       length: anchor.length,
@@ -268,18 +255,18 @@ export function resolveAnchor(
   // FormAnchor — the path points at a plural/select run; step into
   // its matching form/case.
   const run = runs.run;
-  if (run === null) return { ok: false, reason: 'path-out-of-bounds' };
-  if ('plural' in run) {
+  if (run === null) return { ok: false, reason: "path-out-of-bounds" };
+  if ("plural" in run) {
     const form = run.plural.forms[anchor.key as PluralForm];
-    if (!form) return { ok: false, reason: 'form-not-found' };
-    return { ok: true, kind: 'form', runs: form };
+    if (!form) return { ok: false, reason: "form-not-found" };
+    return { ok: true, kind: "form", runs: form };
   }
-  if ('select' in run) {
+  if ("select" in run) {
     const caseRuns = run.select.cases[anchor.key];
-    if (!caseRuns) return { ok: false, reason: 'form-not-found' };
-    return { ok: true, kind: 'form', runs: caseRuns };
+    if (!caseRuns) return { ok: false, reason: "form-not-found" };
+    return { ok: true, kind: "form", runs: caseRuns };
   }
-  return { ok: false, reason: 'path-wrong-kind' };
+  return { ok: false, reason: "path-wrong-kind" };
 }
 
 interface WalkResult {
@@ -301,7 +288,7 @@ function walkPath(topRuns: Run[], path: RunPath): WalkResult | null {
 
   for (let i = 0; i < path.length; i++) {
     const step = path[i];
-    if (typeof step === 'number') {
+    if (typeof step === "number") {
       if (step < 0 || step >= currentRuns.length) return null;
       currentRun = currentRuns[step];
       // The next step, if any, will be stepping into the current
@@ -309,15 +296,15 @@ function walkPath(topRuns: Run[], path: RunPath): WalkResult | null {
       // children, which only makes sense for plural/select runs.
       // currentRuns is updated at the next iteration only if the
       // next step is a plural / select descent.
-    } else if ('plural' in step) {
-      if (currentRun === null || !('plural' in currentRun)) return null;
+    } else if ("plural" in step) {
+      if (currentRun === null || !("plural" in currentRun)) return null;
       const form = currentRun.plural.forms[step.plural];
       if (!form) return null;
       currentRuns = form;
       currentRun = null;
     } else {
       // { select: string }
-      if (currentRun === null || !('select' in currentRun)) return null;
+      if (currentRun === null || !("select" in currentRun)) return null;
       const caseRuns = currentRun.select.cases[step.select];
       if (!caseRuns) return null;
       currentRuns = caseRuns;
@@ -329,9 +316,9 @@ function walkPath(topRuns: Run[], path: RunPath): WalkResult | null {
 }
 
 function runIdOf(run: Run): string | null {
-  if ('ph' in run) return run.ph.id;
-  if ('pcOpen' in run) return run.pcOpen.id;
-  if ('sub' in run) return run.sub.id;
+  if ("ph" in run) return run.ph.id;
+  if ("pcOpen" in run) return run.pcOpen.id;
+  if ("sub" in run) return run.sub.id;
   return null;
 }
 
@@ -358,21 +345,21 @@ export function validateAnchor(
 }
 
 function messageFor(
-  reason: (AnchorResolution & { ok: false })['reason'],
+  reason: (AnchorResolution & { ok: false })["reason"],
   annotation: Annotation,
 ): string {
   switch (reason) {
-    case 'block-not-found':
+    case "block-not-found":
       return `annotation "${annotation.id}" targets block "${annotation.anchor.block}" which does not match`;
-    case 'path-out-of-bounds':
+    case "path-out-of-bounds":
       return `annotation "${annotation.id}" path is out of bounds in block "${annotation.anchor.block}"`;
-    case 'path-wrong-kind':
+    case "path-wrong-kind":
       return `annotation "${annotation.id}" path lands on a run of the wrong kind for its anchor`;
-    case 'run-id-mismatch':
+    case "run-id-mismatch":
       return `annotation "${annotation.id}" resolves to a run whose id does not match the recorded id (possible orphan)`;
-    case 'range-out-of-bounds':
+    case "range-out-of-bounds":
       return `annotation "${annotation.id}" character range exceeds the target text run`;
-    case 'form-not-found':
+    case "form-not-found":
       return `annotation "${annotation.id}" targets a plural form or select case that does not exist on the block`;
   }
 }
@@ -380,6 +367,6 @@ function messageFor(
 export interface AnnotationValidationError {
   annotationId: string;
   blockId: string;
-  reason: (AnchorResolution & { ok: false })['reason'];
+  reason: (AnchorResolution & { ok: false })["reason"];
   message: string;
 }

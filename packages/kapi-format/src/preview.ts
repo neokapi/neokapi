@@ -16,9 +16,9 @@
  *      and Go sides in lockstep via shared fixtures.
  */
 
-import type { Block, Run } from './block.ts';
-import type { VocabularyEntry } from './vocabulary.ts';
-import { JSX_VOCABULARY, expandTemplate } from './vocabulary.ts';
+import type { Block, Run } from "./block.ts";
+import type { VocabularyEntry } from "./vocabulary.ts";
+import { JSX_VOCABULARY, expandTemplate } from "./vocabulary.ts";
 
 export type VocabularyLookup = (type: string) => VocabularyEntry | undefined;
 
@@ -34,40 +34,37 @@ export function createVocabulary(entries: VocabularyEntry[]): VocabularyLookup {
  * dispatching each run to its vocabulary entry. Recurses into
  * plural / select forms, which hold their own Run[] sub-sequences.
  */
-export function renderRuns(
-  runs: Run[],
-  vocab: VocabularyLookup,
-): string {
-  let out = '';
+export function renderRuns(runs: Run[], vocab: VocabularyLookup): string {
+  let out = "";
   for (const run of runs) {
-    if ('text' in run) {
+    if ("text" in run) {
       out += escapeHtml(run.text);
-    } else if ('ph' in run) {
-      out += renderEntry(vocab, run.ph.type, 'placeholder', {
+    } else if ("ph" in run) {
+      out += renderEntry(vocab, run.ph.type, "placeholder", {
         id: run.ph.id,
-        subType: run.ph.subType ?? '',
+        subType: run.ph.subType ?? "",
         data: run.ph.data,
         equiv: run.ph.equiv,
       });
-    } else if ('pcOpen' in run) {
-      out += renderEntry(vocab, run.pcOpen.type, 'open', {
+    } else if ("pcOpen" in run) {
+      out += renderEntry(vocab, run.pcOpen.type, "open", {
         id: run.pcOpen.id,
-        subType: run.pcOpen.subType ?? '',
+        subType: run.pcOpen.subType ?? "",
         data: run.pcOpen.data,
         equiv: run.pcOpen.equiv,
       });
-    } else if ('pcClose' in run) {
-      out += renderEntry(vocab, run.pcClose.type, 'close', {
+    } else if ("pcClose" in run) {
+      out += renderEntry(vocab, run.pcClose.type, "close", {
         id: run.pcClose.id,
-        subType: run.pcClose.subType ?? '',
+        subType: run.pcClose.subType ?? "",
         data: run.pcClose.data,
-        equiv: run.pcClose.equiv ?? '',
+        equiv: run.pcClose.equiv ?? "",
       });
-    } else if ('sub' in run) {
+    } else if ("sub" in run) {
       out += `<span class="neokapi-sub" data-ref="${escapeHtml(run.sub.ref)}">${escapeHtml(run.sub.equiv)}</span>`;
-    } else if ('plural' in run) {
+    } else if ("plural" in run) {
       out += renderPluralRun(run.plural, vocab);
-    } else if ('select' in run) {
+    } else if ("select" in run) {
       out += renderSelectRun(run.select, vocab);
     }
   }
@@ -89,10 +86,8 @@ function renderPluralRun(
         `<span class="neokapi-plural-form-label">${escapeHtml(label)}</span>${body}</div>`
       );
     })
-    .join('');
-  return (
-    `<span class="neokapi-plural" data-pivot="${pivot}">${inner}</span>`
-  );
+    .join("");
+  return `<span class="neokapi-plural" data-pivot="${pivot}">${inner}</span>`;
 }
 
 function renderSelectRun(
@@ -109,16 +104,14 @@ function renderSelectRun(
         `<span class="neokapi-select-case-label">${escapeHtml(label)}</span>${body}</div>`
       );
     })
-    .join('');
-  return (
-    `<span class="neokapi-select" data-pivot="${pivot}">${inner}</span>`
-  );
+    .join("");
+  return `<span class="neokapi-select" data-pivot="${pivot}">${inner}</span>`;
 }
 
 function renderEntry(
   vocab: VocabularyLookup,
   type: string,
-  kind: 'open' | 'close' | 'placeholder',
+  kind: "open" | "close" | "placeholder",
   context: { id: string; subType: string; data: string; equiv: string },
 ): string {
   const entry = vocab(type);
@@ -128,9 +121,9 @@ function renderEntry(
     return `<span class="neokapi-unknown">${escapeHtml(context.data)}</span>`;
   }
   const template =
-    kind === 'open'
+    kind === "open"
       ? entry.html.open
-      : kind === 'close'
+      : kind === "close"
         ? entry.html.close
         : entry.html.placeholder;
   return expandTemplate(template, {
@@ -159,10 +152,10 @@ export function renderBlockHtml(
 
 function escapeHtml(s: string): string {
   return s
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
 }
 
 // ─── Validation ───────────────────────────────────────────────────
@@ -187,7 +180,7 @@ export function validateTargetAgainstSource(
     if (!targetNames.has(placeholder.name)) {
       errors.push({
         blockId: sourceBlock.id,
-        kind: 'missing-placeholder',
+        kind: "missing-placeholder",
         placeholder: placeholder.name,
         message: `target is missing required placeholder "${placeholder.name}"`,
       });
@@ -207,15 +200,15 @@ function collectRunEquivs(runs: Run[]): Set<string> {
   const names = new Set<string>();
   const visit = (rs: Run[]) => {
     for (const run of rs) {
-      if ('ph' in run) names.add(run.ph.equiv);
-      else if ('pcOpen' in run) names.add(run.pcOpen.equiv);
-      else if ('sub' in run) names.add(run.sub.equiv);
-      else if ('plural' in run) {
+      if ("ph" in run) names.add(run.ph.equiv);
+      else if ("pcOpen" in run) names.add(run.pcOpen.equiv);
+      else if ("sub" in run) names.add(run.sub.equiv);
+      else if ("plural" in run) {
         names.add(run.plural.pivot);
         for (const formRuns of Object.values(run.plural.forms)) {
           if (formRuns) visit(formRuns);
         }
-      } else if ('select' in run) {
+      } else if ("select" in run) {
         names.add(run.select.pivot);
         for (const caseRuns of Object.values(run.select.cases)) {
           visit(caseRuns);
@@ -229,7 +222,7 @@ function collectRunEquivs(runs: Run[]): Set<string> {
 
 export interface ValidationError {
   blockId: string;
-  kind: 'missing-placeholder' | 'extra-placeholder' | 'malformed-runs';
+  kind: "missing-placeholder" | "extra-placeholder" | "malformed-runs";
   placeholder?: string;
   message: string;
 }
