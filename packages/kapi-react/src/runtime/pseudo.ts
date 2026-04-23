@@ -156,25 +156,59 @@ const ACCENTED: Record<string, string> = {
 // source and iterated correctly by `for...of`.
 const WOBBLY: Record<string, string> = {
   // Lowercase a–z, cycle italic → sans-serif → script.
-  a: "\u{1D44E}", b: "\u{1D5BB}", c: "\u{1D4B8}",
-  d: "\u{1D451}", e: "\u{1D5BE}", f: "\u{1D4BB}",
-  g: "\u{1D454}", h: "\u{1D5C1}", i: "\u{1D4BE}",
-  j: "\u{1D457}", k: "\u{1D5C4}", l: "\u{1D4C1}",
-  m: "\u{1D45A}", n: "\u{1D5C7}", o: "\u{2134}", // script o reserved → ℴ
-  p: "\u{1D45D}", q: "\u{1D5CA}", r: "\u{1D4C7}",
-  s: "\u{1D460}", t: "\u{1D5CD}", u: "\u{1D4CA}",
-  v: "\u{1D463}", w: "\u{1D5D0}", x: "\u{1D4CD}",
-  y: "\u{1D466}", z: "\u{1D5D3}",
+  a: "\u{1D44E}",
+  b: "\u{1D5BB}",
+  c: "\u{1D4B8}",
+  d: "\u{1D451}",
+  e: "\u{1D5BE}",
+  f: "\u{1D4BB}",
+  g: "\u{1D454}",
+  h: "\u{1D5C1}",
+  i: "\u{1D4BE}",
+  j: "\u{1D457}",
+  k: "\u{1D5C4}",
+  l: "\u{1D4C1}",
+  m: "\u{1D45A}",
+  n: "\u{1D5C7}",
+  o: "\u{2134}", // script o reserved → ℴ
+  p: "\u{1D45D}",
+  q: "\u{1D5CA}",
+  r: "\u{1D4C7}",
+  s: "\u{1D460}",
+  t: "\u{1D5CD}",
+  u: "\u{1D4CA}",
+  v: "\u{1D463}",
+  w: "\u{1D5D0}",
+  x: "\u{1D4CD}",
+  y: "\u{1D466}",
+  z: "\u{1D5D3}",
   // Uppercase A–Z, same cycle.
-  A: "\u{1D434}", B: "\u{1D5A1}", C: "\u{1D49E}",
-  D: "\u{1D437}", E: "\u{1D5A4}", F: "\u{2131}", // script F reserved → ℱ
-  G: "\u{1D43A}", H: "\u{1D5A7}", I: "\u{2110}", // script I reserved → ℐ
-  J: "\u{1D43D}", K: "\u{1D5AA}", L: "\u{2112}", // script L reserved → ℒ
-  M: "\u{1D440}", N: "\u{1D5AD}", O: "\u{1D4AA}",
-  P: "\u{1D443}", Q: "\u{1D5B0}", R: "\u{211B}", // script R reserved → ℛ
-  S: "\u{1D446}", T: "\u{1D5B3}", U: "\u{1D4B0}",
-  V: "\u{1D449}", W: "\u{1D5B6}", X: "\u{1D4B3}",
-  Y: "\u{1D44C}", Z: "\u{1D5B9}",
+  A: "\u{1D434}",
+  B: "\u{1D5A1}",
+  C: "\u{1D49E}",
+  D: "\u{1D437}",
+  E: "\u{1D5A4}",
+  F: "\u{2131}", // script F reserved → ℱ
+  G: "\u{1D43A}",
+  H: "\u{1D5A7}",
+  I: "\u{2110}", // script I reserved → ℐ
+  J: "\u{1D43D}",
+  K: "\u{1D5AA}",
+  L: "\u{2112}", // script L reserved → ℒ
+  M: "\u{1D440}",
+  N: "\u{1D5AD}",
+  O: "\u{1D4AA}",
+  P: "\u{1D443}",
+  Q: "\u{1D5B0}",
+  R: "\u{211B}", // script R reserved → ℛ
+  S: "\u{1D446}",
+  T: "\u{1D5B3}",
+  U: "\u{1D4B0}",
+  V: "\u{1D449}",
+  W: "\u{1D5B6}",
+  X: "\u{1D4B3}",
+  Y: "\u{1D44C}",
+  Z: "\u{1D5B9}",
 };
 
 /**

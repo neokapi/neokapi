@@ -191,11 +191,22 @@ function loadTranslationDict(options: PluginOptions): Record<string, string> | n
 
 // ─── Main transform ──────────────────────────────────────────
 
+/**
+ * Result of a single-file transform.
+ *
+ *   code    — the rewritten source.
+ *   hashes  — every hash this file emitted into a `__t` / `__tx` call.
+ *             Populated in `mode === "runtime"` only; inline builds
+ *             bake translations in and don't need a runtime manifest.
+ *             The bundler-level `generateBundle` hook unions these
+ *             across each output chunk to produce
+ *             `translations-manifest.json` (issue #406).
+ */
 export function transform(
   code: string,
   filename: string,
   options: PluginOptions,
-): { code: string } | null {
+): { code: string; hashes: string[] } | null {
   const rules = options.rules || [];
   const mode = options.mode || (options.locale ? "inline" : undefined);
   if (!mode) return null;
@@ -233,6 +244,11 @@ export function transform(
   const buf = Buffer.from(code, "utf8");
   const ops: TransformOp[] = [];
   const warnings = createWarningCollector();
+  // Collects every hash written into a `__t(...)` / `__tx(...)` call
+  // so the bundler-level `generateBundle` hook can emit a per-chunk
+  // manifest (issue #406). Inline builds stay at zero — baked strings
+  // don't hit the runtime dict.
+  const hashes = new Set<string>();
   let needsT = false;
   let needsTx = false;
 
@@ -251,6 +267,7 @@ export function transform(
       ops,
       warnings,
       code,
+      hashes,
     );
     if (r.runtime === "runtime-t") needsT = true;
     if (r.runtime === "runtime-tx") {
@@ -305,6 +322,7 @@ export function transform(
       deleteCount: callEnd - callStart,
       insert: `__t(${args})`,
     });
+    hashes.add(hash);
     needsT = true;
   }
 
@@ -359,7 +377,7 @@ export function transform(
     result = `import { ${imports} } from '@neokapi/kapi-react/runtime';\n${result}`;
   }
 
-  return { code: result };
+  return { code: result, hashes: Array.from(hashes) };
 }
 
 // ─── AST Walking ─────────────────────────────────────────────
@@ -414,6 +432,7 @@ function processElement(
   ops: TransformOp[],
   warnings: WarningCollector,
   code: string,
+  hashes: Set<string>,
 ): ProcessResult {
   const tagName = getTagName(el);
   if (!tagName) return { runtime: null, consumed: false };
@@ -444,6 +463,7 @@ function processElement(
     policy.locNote,
     s,
     ops,
+    hashes,
   )
     ? "runtime-t"
     : null;
@@ -522,6 +542,7 @@ function processElement(
       deleteCount: contentEnd - contentStart,
       insert: `{__tx("${hk}", ${fallbackText}, ${elementsObj}${paramsObj})}`,
     });
+    hashes.add(hk);
     usedRuntime = "runtime-tx";
   } else {
     // ── Runtime mode, text only → use t() ──
@@ -535,6 +556,7 @@ function processElement(
       deleteCount: contentEnd - contentStart,
       insert: `{__t("${hk}", ${fallbackExpr}${paramsObj})}`,
     });
+    hashes.add(hk);
     usedRuntime = "runtime-t";
   }
 
@@ -839,6 +861,7 @@ function processAttributes(
   locNote: string | undefined,
   s: (offset: number) => number,
   ops: TransformOp[],
+  hashes: Set<string>,
 ): boolean {
   let usedRuntime = false;
 
@@ -877,6 +900,7 @@ function processAttributes(
           deleteCount: valueEnd - valueStart,
           insert: `{__t("${hk}", "${text.replace(/"/g, '\\"')}")}`,
         });
+        hashes.add(hk);
         usedRuntime = true;
       }
       continue;
@@ -918,6 +942,7 @@ function processAttributes(
             deleteCount: end - start,
             insert: `__t("${hk}", "${text.replace(/"/g, '\\"')}")`,
           });
+          hashes.add(hk);
           usedRuntime = true;
         }
       }

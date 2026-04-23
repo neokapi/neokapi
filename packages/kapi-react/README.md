@@ -300,14 +300,64 @@ All other components remain vanilla JSX — no i18n imports, no wrappers.
 The runtime provides:
 
 ```ts
-import { t, tx, useNeokapi, setTranslations, loadTranslations } from '@neokapi/kapi-react/runtime';
+import {
+  t,
+  tx,
+  useNeokapi,
+  setTranslations,
+  loadTranslations,
+  loadTranslationChunk,
+} from "@neokapi/kapi-react/runtime";
 
-t(hash, fallback, params?)            // String translation with ICU support
-tx(hash, fallback, elements, params?) // Rich JSX translation (inline elements preserved)
-useNeokapi()                          // React hook — re-renders on translation change
-setTranslations(locale, dict)         // Set translations synchronously
-loadTranslations(locale, url)         // Fetch and activate translations from URL
+t(hash, fallback, params?)                        // String translation with ICU support
+tx(hash, fallback, elements, params?)             // Rich JSX translation (inline elements preserved)
+useNeokapi()                                      // React hook — re-renders on translation change
+setTranslations(locale, dict, { merge? })         // Set/merge translations synchronously
+loadTranslations(locale, url, { merge? })         // Fetch and activate (or merge) translations from URL
+loadTranslationChunk(locale, url)                 // Fetch one chunk and merge (deduped per locale+url)
 ```
+
+### Code splitting — lazy-load translations per route
+
+For large SPAs, you can split the runtime catalog along the same lines the bundler splits code. The Vite/Rollup plugin emits a `translations-manifest.json` listing the hashes each output chunk needs; the `kapi-react split` CLI turns a master `{locale}.json` into per-chunk subsets; the runtime's `loadTranslationChunk()` helper fetches them lazily and merges each subset into the active dict.
+
+```tsx
+// routes.tsx — React Router v6+ lazy routes
+import { loadTranslationChunk } from "@neokapi/kapi-react/runtime";
+
+export const routes = [
+  {
+    path: "/settings",
+    lazy: async () => {
+      const [mod] = await Promise.all([
+        import("./SettingsPage"),
+        loadTranslationChunk(currentLocale, `/translations/${currentLocale}/SettingsPage.json`),
+      ]);
+      return { Component: mod.default };
+    },
+  },
+];
+```
+
+**Build pipeline:**
+
+```bash
+# 1. Build app — plugin emits dist/translations-manifest.json alongside JS chunks.
+vite build
+
+# 2. Compile translated .klf files into master {locale}.json dicts.
+kapi-react compile i18n/ --out public/translations
+
+# 3. Slice master dicts into per-chunk subsets matching the manifest.
+kapi-react split \
+  --manifest dist/translations-manifest.json \
+  --locales public/translations \
+  --out dist/translations
+```
+
+The runtime's `loadTranslationChunk()` dedupes concurrent requests for the same `(locale, url)` pair, so three sub-routes requesting the same chunk cause one network round trip. Missing hashes fall back to the source text at each `__t`/`__tx` call site, so a late-arriving chunk is never fatal — users see English for ~100ms while the chunk streams in.
+
+For app-wide loading (no code splitting), keep using `loadTranslations(locale, url)` as before — it's unchanged.
 
 ### Inline elements in runtime mode
 

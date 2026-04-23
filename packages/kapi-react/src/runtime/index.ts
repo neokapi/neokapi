@@ -31,6 +31,12 @@ let dict: Record<string, string> = {};
 let version = 0;
 const listeners = new Set<() => void>();
 
+// Deduplicates concurrent `loadTranslationChunk` calls for the same
+// `(locale, url)` pair. Cleared whenever the active locale changes so
+// fetches racing a locale switch can't write into the new locale's
+// dict (#406).
+const inflightChunks = new Map<string, Promise<void>>();
+
 function notify() {
   version++;
   listeners.forEach((fn) => fn());
@@ -46,6 +52,19 @@ export interface SetTranslationsOptions {
    * itself.
    */
   syncDocumentLocale?: boolean;
+
+  /**
+   * OR the incoming entries into the existing dict instead of
+   * replacing it. Intended for chunk-loading (#406) where each
+   * lazy route adds its own subset. Defaults to `false` — full
+   * locale swaps should remain atomic.
+   *
+   * When `merge: true` and the locale argument differs from the
+   * active locale, the call is a no-op: merging into a different
+   * locale would corrupt the active dict. Switch locale first
+   * (with `merge` left unset), then load chunks.
+   */
+  merge?: boolean;
 }
 
 /**
@@ -53,14 +72,33 @@ export interface SetTranslationsOptions {
  * components using useNeokapi(), and — by default — pushes the
  * locale onto `<html lang="…">` plus a matching `dir="ltr|rtl"`
  * attribute.
+ *
+ * With `{ merge: true }`, the incoming entries are OR'd into the
+ * existing dict instead of replacing it — used by chunk loads where
+ * each lazy route contributes its slice of the catalog. A merge into
+ * a non-active locale is silently dropped to keep the dict coherent.
  */
 export function setTranslations(
   locale: string,
   translations: Record<string, string>,
   options: SetTranslationsOptions = {},
 ) {
+  const merge = options.merge === true;
+  if (merge) {
+    if (locale !== currentLocale) return; // raced a locale switch
+    dict = { ...dict, ...translations };
+    notify();
+    return;
+  }
+  const localeChanged = locale !== currentLocale;
   currentLocale = locale;
   dict = translations;
+  if (localeChanged) {
+    // Drop any in-flight chunk loads for the previous locale —
+    // their resolved payloads would merge into the new locale's
+    // dict otherwise.
+    inflightChunks.clear();
+  }
   const sync = options.syncDocumentLocale ?? typeof document !== "undefined";
   if (sync) syncDocumentLocale(locale);
   notify();
@@ -68,7 +106,7 @@ export function setTranslations(
 
 /**
  * Fetch a translation file from a URL and activate it. Forwards
- * `syncDocumentLocale` to `setTranslations`.
+ * `syncDocumentLocale` and `merge` to `setTranslations`.
  */
 export async function loadTranslations(
   locale: string,
@@ -78,6 +116,56 @@ export async function loadTranslations(
   const response = await fetch(url);
   const translations = await response.json();
   setTranslations(locale, translations, options);
+}
+
+/**
+ * Fetch one chunk of a locale catalog and merge it into the active
+ * dict. Intended for lazy-route wiring (#406):
+ *
+ *     const routes = [{
+ *       path: '/settings',
+ *       lazy: async () => {
+ *         const [mod] = await Promise.all([
+ *           import('./SettingsPage'),
+ *           loadTranslationChunk(locale, `/translations/${locale}/SettingsPage.json`),
+ *         ]);
+ *         return { Component: mod.default };
+ *       },
+ *     }];
+ *
+ * Concurrent calls for the same `(locale, url)` share a single fetch
+ * so three sub-routes requesting the same chunk cause one network
+ * round trip. If the active locale changes while the fetch is in
+ * flight, the resolved payload is dropped on arrival.
+ *
+ * Missing hashes fall back to the `fallback` argument at every
+ * `__t`/`__tx` call site — a late-arriving chunk is never fatal.
+ */
+export async function loadTranslationChunk(locale: string, url: string): Promise<void> {
+  const key = `${locale}|${url}`;
+  const existing = inflightChunks.get(key);
+  if (existing) return existing;
+
+  const promise = (async () => {
+    const response = await fetch(url);
+    if (!response.ok) {
+      throw new Error(
+        `loadTranslationChunk: ${url} responded ${response.status} ${response.statusText}`,
+      );
+    }
+    const translations = (await response.json()) as Record<string, string>;
+    setTranslations(locale, translations, { merge: true });
+  })();
+
+  inflightChunks.set(key, promise);
+  try {
+    await promise;
+  } finally {
+    // Clear whether resolved or rejected — callers can retry on error.
+    // Guard against clear-by-locale-switch: only delete if our key
+    // survived and still points at this promise.
+    if (inflightChunks.get(key) === promise) inflightChunks.delete(key);
+  }
 }
 
 // Writing-direction defaults per primary language subtag. Covers
@@ -265,6 +353,7 @@ export function useNeokapi() {
     locale: currentLocale,
     setTranslations,
     loadTranslations,
+    loadTranslationChunk,
   };
 }
 
