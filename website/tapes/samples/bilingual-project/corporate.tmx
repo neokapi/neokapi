@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<tmx version="1.4">
+  <header creationtool="neokapi-demo" creationtoolversion="1.0"
+          segtype="sentence" o-tmf="unknown" adminlang="en"
+          srclang="en" datatype="plaintext"/>
+  <body>
+    <!-- Exact matches for messages.json (demonstrates TM pre-fill leverage). -->
+    <tu>
+      <tuv xml:lang="en-US"><seg>Save</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Enregistrer</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Speichern</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>Cancel</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Annuler</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Abbrechen</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>Settings</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Paramètres</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Einstellungen</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>Welcome back!</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Content de vous revoir !</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Willkommen zurück!</seg></tuv>
+    </tu>
+    <!-- Extra TU that does not appear in messages.json — pre-existing noise. -->
+    <tu>
+      <tuv xml:lang="en-US"><seg>File upload</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Téléversement de fichier</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Dateiupload</seg></tuv>
+    </tu>
+  </body>
+</tmx>

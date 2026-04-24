@@ -26,6 +26,7 @@ type xliff2Doc struct {
 
 type xliff2File struct {
 	ID     string        `xml:"id,attr"`
+	Notes  []xliff2Note  `xml:"notes>note"`
 	Groups []xliff2Group `xml:"group"`
 	Units  []xliff2Unit  `xml:"unit"`
 }
@@ -54,8 +55,21 @@ type xliff2Segment struct {
 }
 
 type xliff2Note struct {
-	Content string `xml:",chardata"`
+	ID       string `xml:"id,attr,omitempty"`
+	Category string `xml:"category,attr,omitempty"`
+	Content  string `xml:",chardata"`
 }
+
+// FileNotePropertyKey is the layer.Properties key used to surface a
+// file-level <note> parsed from an XLIFF 2 <file>. One key is written per
+// note, combining category + id so multiple notes coexist:
+//
+//	file-note:<category>:<id>   (empty category and/or id are kept empty)
+//
+// The kapi batch id, emitted by kapi extract, is carried as
+// "file-note:kapi:batch-id" and read back by kapi merge via
+// BatchIDFromLayer.
+const FileNotePropertyPrefix = "file-note:"
 
 type xliff2Content struct {
 	InnerXML string `xml:",innerxml"`
@@ -179,6 +193,7 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 			layer.Properties["xliff-version"] = version
 		}
 		setExtraXliffAttrs(layer, doc.Attrs)
+		setFileNoteProperties(layer, file.Notes)
 		if !r.emit(ctx, ch, &model.Part{Type: model.PartLayerStart, Resource: layer}) {
 			return
 		}

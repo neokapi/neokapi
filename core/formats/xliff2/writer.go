@@ -24,6 +24,8 @@ type Writer struct {
 	fileID         string
 	inputVersion   string
 	inputExtraAttr []xml.Attr
+	fileNotes      []FileNote
+	layerFileNotes []FileNote
 }
 
 // Ensure Writer implements SkeletonStoreConsumer.
@@ -72,6 +74,22 @@ func (w *Writer) SetSkeletonStore(store *format.SkeletonStore) {
 	w.skeletonStore = store
 }
 
+// SetFileNotes stamps a list of file-level <note> elements onto the first
+// <file> in the output. Callers (e.g. kapi extract) use this to carry
+// bookkeeping metadata such as the extraction batch id and source file
+// path/hash — see BatchIDNote, SourceFileNote, SourceHashNote. Notes set
+// this way are appended to any notes already present on the incoming
+// layer (from a prior reader pass), so round-tripping is lossless.
+func (w *Writer) SetFileNotes(notes []FileNote) {
+	w.fileNotes = append(w.fileNotes[:0], notes...)
+}
+
+// AddFileNote appends a single file-level note. Equivalent to SetFileNotes
+// but avoids a slice construction at the call site.
+func (w *Writer) AddFileNote(note FileNote) {
+	w.fileNotes = append(w.fileNotes, note)
+}
+
 // Write consumes Parts from a channel and writes XLIFF 2.x output.
 func (w *Writer) Write(ctx context.Context, parts <-chan *model.Part) error {
 	for {
@@ -101,6 +119,7 @@ func (w *Writer) Write(ctx context.Context, parts <-chan *model.Part) error {
 						w.inputVersion = v
 					}
 					w.inputExtraAttr = extraAttrsFromLayer(layer)
+					w.layerFileNotes = fileNotesFromLayer(layer)
 				}
 			}
 		}
@@ -196,9 +215,20 @@ func (w *Writer) flush() error {
 		Name     string       `xml:"name,attr,omitempty"`
 		Segments []xmlSegment `xml:"segment"`
 	}
+	type xmlNote struct {
+		XMLName  xml.Name `xml:"note"`
+		ID       string   `xml:"id,attr,omitempty"`
+		Category string   `xml:"category,attr,omitempty"`
+		Content  string   `xml:",chardata"`
+	}
+	type xmlNotes struct {
+		XMLName xml.Name  `xml:"notes"`
+		Notes   []xmlNote `xml:"note"`
+	}
 	type xmlFile struct {
 		XMLName xml.Name  `xml:"file"`
 		ID      string    `xml:"id,attr"`
+		Notes   *xmlNotes `xml:"notes,omitempty"`
 		Units   []xmlUnit `xml:"unit"`
 	}
 	type xmlXliff struct {
@@ -238,6 +268,21 @@ func (w *Writer) flush() error {
 	}
 
 	version := w.resolveVersion()
+
+	// File-level notes: preserve any on the incoming layer and append any
+	// that extract stamped directly via SetFileNotes/AddFileNote. A
+	// (category, id) key already set by an explicit call overrides the
+	// layer-carried one so re-extraction overwrites stale batch ids.
+	mergedNotes := mergeFileNotes(w.layerFileNotes, w.fileNotes)
+	var filePtr *xmlNotes
+	if len(mergedNotes) > 0 {
+		xn := make([]xmlNote, 0, len(mergedNotes))
+		for _, n := range mergedNotes {
+			xn = append(xn, xmlNote{ID: n.ID, Category: n.Category, Content: n.Content})
+		}
+		filePtr = &xmlNotes{Notes: xn}
+	}
+
 	doc := xmlXliff{
 		Version: version,
 		Xmlns:   NamespaceForVersion(version),
@@ -247,6 +292,7 @@ func (w *Writer) flush() error {
 		Files: []xmlFile{
 			{
 				ID:    w.fileID,
+				Notes: filePtr,
 				Units: units,
 			},
 		},

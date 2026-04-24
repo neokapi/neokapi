@@ -182,6 +182,26 @@ func (tm *InMemoryTM) Lookup(source *model.Block, sourceLocale, targetLocale mod
 	return tm.tieredLookup(plainKey, structKey, generalKey, entityAnnotations, sourceLocale, targetLocale, opts), nil
 }
 
+// LookupSegment searches for matches against a specific segment of the
+// source block. See TranslationMemory.LookupSegment for the contract.
+func (tm *InMemoryTM) LookupSegment(source *model.Block, segmentIdx int, sourceLocale, targetLocale model.LocaleID, opts LookupOptions) ([]TMMatch, error) {
+	if source == nil || segmentIdx < 0 || segmentIdx >= len(source.Source) {
+		return nil, nil
+	}
+	seg := source.Source[segmentIdx]
+	if seg == nil || len(seg.Runs) == 0 {
+		return nil, nil
+	}
+	opts = ApplyDefaults(opts)
+	plainKey := NormalizeText(model.FlattenRuns(seg.Runs))
+	structKey := NormalizeText(model.RunsStructuralText(seg.Runs))
+	generalKey := NormalizeText(model.RunsGeneralizedText(seg.Runs))
+	entityAnnotations := ExtractEntityAnnotations(source)
+	tm.mu.RLock()
+	defer tm.mu.RUnlock()
+	return tm.tieredLookup(plainKey, structKey, generalKey, entityAnnotations, sourceLocale, targetLocale, opts), nil
+}
+
 // LookupText searches for matches using plain text only.
 func (tm *InMemoryTM) LookupText(source string, sourceLocale, targetLocale model.LocaleID, opts LookupOptions) ([]TMMatch, error) {
 	opts = ApplyDefaults(opts)

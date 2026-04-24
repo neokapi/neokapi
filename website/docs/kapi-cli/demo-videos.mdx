@@ -71,6 +71,33 @@ kapi qa-check -i translated.json -o qa_report.json \
   --source-lang en --target-lang fr --termbase product-terms
 ```
 
+## Bilingual Round-Trip
+
+End-to-end extract → translate → merge with the project TM on both
+sides of the loop ([Bilingual Workflow](./bilingual-workflow) guide,
+[AD-017](/docs/ad/017-bilingual-format-interop)).
+
+<video controls autoPlay loop muted width="100%" style={{ maxWidth: "900px" }}>
+  <source src="/video/kapi/bilingual-workflow.webm" type="video/webm" />
+</video>
+
+```bash
+# 1. One-time: seed the project TM from a corporate TMX.
+kapi tm import corporate.tmx --file .kapi/tm.db --all-pairs
+
+# 2. Extract — one XLIFF per target locale, pre-filled from TM.
+kapi extract
+
+# 3. Translator fills the <target>s (simulated here).
+./fake-translator.sh out/*.xliff
+
+# 4. Merge — apply the returns, absorb into TM with batch provenance.
+kapi merge -i out/
+
+# 5. Audit — trace what this merge wrote into the TM.
+kapi tm audit --file .kapi/tm.db --batch <batch-id> --limit 10
+```
+
 ## Pre-Translation Pipeline
 
 Full pre-translation workflow: import TM and termbase, leverage TM, translate remaining segments, verify terminology compliance.
