@@ -245,6 +245,9 @@ export type { SpanTypeInfo, ColorScheme, SpanConstraints } from "./vocabularies"
 export { TagChipComponent } from "./components/editor/TagChipComponent";
 export { parseCodedSegments, segmentsToCodedText, spanLabel } from "./components/editor/codedText";
 export type { CodedSegment } from "./components/editor/codedText";
+export { codedToRuns, runsToCoded } from "./components/editor/runsCodedBridge";
+export { parsePluralFormForChips } from "./components/editor/pluralCellPreview";
+export type { PluralCellPreview } from "./components/editor/pluralCellPreview";
 export {
   tagNameFromData,
   tagColors,

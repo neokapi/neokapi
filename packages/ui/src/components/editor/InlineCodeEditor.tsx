@@ -39,6 +39,14 @@ export interface InlineCodeEditorProps {
   sourceSpans: SpanInfo[];
   onSave: (codedText: string, spans: SpanInfo[]) => void;
   onCancel: () => void;
+  /**
+   * Optional change callback fired on every editor edit. Lets a parent
+   * capture the live coded text + spans without committing through
+   * `onSave` — e.g. when a wrapper needs to persist state across
+   * remounts (form-tab switching in `UnifiedTargetEditor`). Backward-
+   * compatible: callers that don't pass it observe identical behaviour.
+   */
+  onChange?: (codedText: string, spans: SpanInfo[]) => void;
   /** When true, hides the tag palette and preview for compact inline editing. */
   compact?: boolean;
 }
@@ -256,6 +264,7 @@ export function InlineCodeEditor({
   sourceSpans,
   onSave,
   onCancel,
+  onChange,
   compact,
 }: InlineCodeEditorProps) {
   const editorRef = useRef<LexicalEditor | null>(null);
@@ -288,8 +297,9 @@ export function InlineCodeEditor({
       setCurrentCodedText(codedText);
       setCurrentSpans(spans);
       setValidation(val);
+      onChange?.(codedText, spans);
     },
-    [],
+    [onChange],
   );
 
   const initialConfig = {

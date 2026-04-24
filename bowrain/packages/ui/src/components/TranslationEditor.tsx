@@ -30,14 +30,15 @@ import { useWorkspace } from "../context/WorkspaceContext";
 import { useLocales } from "../hooks/useLocales";
 import { useSetBreadcrumb } from "../context/BreadcrumbContext";
 import { FormattedSourceDisplay } from "./editor/FormattedSourceDisplay";
-import { InlineCodeEditor as TargetCellEditor, validateTags } from "@neokapi/ui-primitives";
+import { validateTags } from "@neokapi/ui-primitives";
 import { HighlightedSource, entityLabel } from "./editor/HighlightedSource";
 import { EntityMarkPopover } from "./editor/EntityMarkPopover";
 import { VisualEditorLayout } from "./editor/VisualEditorLayout";
 import { DocumentPreview } from "./editor/DocumentPreview";
 import type { VisualEditorMode, PreviewContentMode } from "./editor/visual-editor-types";
 import { ArrowLeft, ArrowRight, ArrowUp, ArrowDown, AlertTriangle } from "./icons";
-import { PluralTargetCell } from "./PluralTargetCell";
+import { UnifiedTargetEditor, type UnifiedSaveResult } from "./UnifiedTargetEditor";
+import { parsePluralFormForChips } from "@neokapi/ui-primitives";
 
 interface TranslationEditorProps {
   project: ProjectInfo;
@@ -122,7 +123,6 @@ export function TranslationEditor({
   const [blocks, setBlocks] = useState<BlockInfo[]>([]);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
-  const [editValue, setEditValue] = useState("");
   const [targetLocale, setTargetLocale] = useState(project.target_languages[0] || "");
   const [wordCount, setWordCount] = useState<WordCountResult | null>(null);
   const [loading, setLoading] = useState(false);
@@ -132,14 +132,9 @@ export function TranslationEditor({
   const [layoutMode, setLayoutMode] = useState<LayoutMode>("visual");
   const [editorMode, setEditorMode] = useState<VisualEditorMode>("translate");
   const [previewContentMode, setPreviewContentMode] = useState<PreviewContentMode>("source");
-  const [focusEditValue, setFocusEditValue] = useState("");
 
   // Context panel state
   const [showContextPanel, setShowContextPanel] = useState(false);
-  // Plural target dialog — opened from the toolbar for the currently
-  // selected block; save routes through the existing string-column
-  // updateBlockTarget path (ICU syntax is runtime-detected).
-  const [pluralDialogOpen, setPluralDialogOpen] = useState(false);
   const [tmMatches, setTmMatches] = useState<TMMatchInfo[]>([]);
   const [termMatches, setTermMatches] = useState<BlockTermMatch[]>([]);
   const [contextLoading, setContextLoading] = useState(false);
@@ -182,7 +177,6 @@ export function TranslationEditor({
 
   const api = useEditorApi();
   const { getFileBlocks, getWordCount: getWordCountApi } = api;
-  const editInputRef = useRef<HTMLTextAreaElement>(null);
   const blockListRef = useRef<HTMLDivElement>(null);
 
   // Load blocks
@@ -254,11 +248,11 @@ export function TranslationEditor({
     const handleKeyDown = (e: KeyboardEvent) => {
       if (layoutMode === "visual") return;
       if (editingIndex !== null) {
+        // Editing — let UnifiedTargetEditor own its own keystrokes
+        // (Escape / Enter / chip palette shortcuts). Only top-level
+        // navigation keys are intercepted here.
         if (e.key === "Escape") {
           setEditingIndex(null);
-        } else if (e.key === "Enter" && !e.shiftKey) {
-          e.preventDefault();
-          void handleSaveEdit();
         }
         return;
       }
@@ -312,13 +306,6 @@ export function TranslationEditor({
       row.scrollIntoView({ block: "nearest", behavior: "smooth" });
     }
   }, [selectedIndex]);
-
-  // Focus textarea on edit
-  useEffect(() => {
-    if (editingIndex !== null && editInputRef.current) {
-      editInputRef.current.focus();
-    }
-  }, [editingIndex]);
 
   // Load TM and term matches when selected block changes (if panel open or visual mode)
   useEffect(() => {
@@ -375,26 +362,12 @@ export function TranslationEditor({
       .catch(() => setBlockNotes([]));
   }, [layoutMode, selectedIndex, filteredBlocks, targetLocale, project.id, api]);
 
-  // Update focusEditValue when selectedIndex changes and we're in focus mode
-  useEffect(() => {
-    if (layoutMode === "focus") {
-      const block = filteredBlocks[selectedIndex];
-      if (block) {
-        setFocusEditValue(block.targets[targetLocale] || "");
-      }
-    }
-  }, [layoutMode, selectedIndex, filteredBlocks, targetLocale]);
-
   const startEditing = (index: number) => {
     const block = filteredBlocks[index];
     if (!block || !block.translatable) return;
+    // UnifiedTargetEditor owns its own initial state, seeded from
+    // the block + locale on mount. No per-mode seed required here.
     setEditingIndex(index);
-    if (block.has_spans) {
-      // For coded text editing, the TargetCellEditor handles its own state
-      setEditValue("");
-    } else {
-      setEditValue(block.targets[targetLocale] || "");
-    }
   };
   startEditingRef.current = startEditing;
 
@@ -426,97 +399,73 @@ export function TranslationEditor({
     [entityMarkState, selectedIndex, filteredBlocks, fullApi, wsSlug, project.id, fileName],
   );
 
-  const handleSaveEdit = async () => {
-    if (editingIndex === null) return;
-    const block = filteredBlocks[editingIndex];
+  // Single dispatcher for the UnifiedTargetEditor — flat results go
+  // through `updateBlockTargetCoded`, plural results write the ICU
+  // string to `targets[locale]` and clear `targets_coded[locale]` so
+  // the grid's collapsed-cell renderer falls through to the
+  // plural-aware preview path. See AD #408 / #409.
+  const handleUnifiedSave = async (index: number, result: UnifiedSaveResult) => {
+    const block = filteredBlocks[index];
     if (!block) return;
-
     try {
-      await api.updateBlockTarget({
-        project_id: project.id,
-        item_name: fileName,
-        block_id: block.id,
-        target_locale: targetLocale,
-        text: editValue,
-      });
-
-      // Update local state
-      setBlocks((prev) =>
-        prev.map((b) =>
-          b.id === block.id ? { ...b, targets: { ...b.targets, [targetLocale]: editValue } } : b,
-        ),
-      );
-
-      const nextIndex = editingIndex + 1;
+      if (result.kind === "flat") {
+        await api.updateBlockTargetCoded({
+          project_id: project.id,
+          item_name: fileName,
+          block_id: block.id,
+          target_locale: targetLocale,
+          coded_text: result.codedText,
+          spans: result.spans,
+        });
+        const plainText = result.codedText.replace(/[\uE001-\uE003]/g, "");
+        setBlocks((prev) =>
+          prev.map((b) =>
+            b.id === block.id
+              ? {
+                  ...b,
+                  targets: { ...b.targets, [targetLocale]: plainText },
+                  targets_coded: { ...b.targets_coded, [targetLocale]: result.codedText },
+                }
+              : b,
+          ),
+        );
+      } else {
+        // Plural — write ICU to `targets`, clear the coded column so
+        // the collapsed-cell renderer reads from `targets`.
+        await api.updateBlockTargetCoded({
+          project_id: project.id,
+          item_name: fileName,
+          block_id: block.id,
+          target_locale: targetLocale,
+          coded_text: "",
+          spans: [],
+        });
+        await api.updateBlockTarget({
+          project_id: project.id,
+          item_name: fileName,
+          block_id: block.id,
+          target_locale: targetLocale,
+          text: result.text,
+        });
+        setBlocks((prev) =>
+          prev.map((b) =>
+            b.id === block.id
+              ? {
+                  ...b,
+                  targets: { ...b.targets, [targetLocale]: result.text },
+                  targets_coded: { ...b.targets_coded, [targetLocale]: "" },
+                }
+              : b,
+          ),
+        );
+      }
+      const nextIndex = index + 1;
       setEditingIndex(null);
       if (nextIndex < filteredBlocks.length) {
         setSelectedIndex(nextIndex);
       }
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to save");
-    }
-  };
-
-  const handlePluralSave = async (nextText: string) => {
-    const block = filteredBlocks[selectedIndex];
-    if (!block) return;
-    try {
-      await api.updateBlockTarget({
-        project_id: project.id,
-        item_name: fileName,
-        block_id: block.id,
-        target_locale: targetLocale,
-        text: nextText,
-      });
-      setBlocks((prev) =>
-        prev.map((b) =>
-          b.id === block.id ? { ...b, targets: { ...b.targets, [targetLocale]: nextText } } : b,
-        ),
-      );
-      setPluralDialogOpen(false);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to save plural target");
-    }
-  };
-
-  const handleSaveCodedEdit = async (codedText: string, spans: SpanInfo[]) => {
-    if (editingIndex === null) return;
-    const block = filteredBlocks[editingIndex];
-    if (!block) return;
-
-    try {
-      await api.updateBlockTargetCoded({
-        project_id: project.id,
-        item_name: fileName,
-        block_id: block.id,
-        target_locale: targetLocale,
-        coded_text: codedText,
-        spans,
-      });
-
-      // Strip markers to get plain text for the targets display
-      const plainText = codedText.replace(/[\uE001-\uE003]/g, "");
-
-      // Update local state
-      setBlocks((prev) =>
-        prev.map((b) =>
-          b.id === block.id
-            ? {
-                ...b,
-                targets: { ...b.targets, [targetLocale]: plainText },
-                targets_coded: { ...b.targets_coded, [targetLocale]: codedText },
-              }
-            : b,
-        ),
-      );
-
-      const nextIndex = editingIndex + 1;
-      setEditingIndex(null);
-      if (nextIndex < filteredBlocks.length) {
-        setSelectedIndex(nextIndex);
-      }
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to save");
+      setError(e instanceof Error ? e.message : "Failed to save target");
     }
   };
 
@@ -614,68 +563,17 @@ export function TranslationEditor({
     }
   };
 
-  const handleFocusSave = async () => {
-    const block = filteredBlocks[selectedIndex];
-    if (!block || !block.translatable) return;
-    if (focusEditValue === (block.targets[targetLocale] || "")) return;
-    try {
-      await api.updateBlockTarget({
-        project_id: project.id,
-        item_name: fileName,
-        block_id: block.id,
-        target_locale: targetLocale,
-        text: focusEditValue,
-      });
-      setBlocks((prev) =>
-        prev.map((b) =>
-          b.id === block.id
-            ? { ...b, targets: { ...b.targets, [targetLocale]: focusEditValue } }
-            : b,
-        ),
-      );
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to save");
-    }
-  };
-
-  // Visual mode handlers
+  // Visual mode handlers — delegate straight to the unified save
+  // dispatcher. VisualEditorCard mounts the same UnifiedTargetEditor
+  // as the grid + focus modes, so its onSave already carries the
+  // UnifiedSaveResult shape.
   const handleVisualSave = useCallback(
-    async (codedText: string, spans: SpanInfo[]) => {
+    async (result: UnifiedSaveResult) => {
       if (editingIndex === null) return;
-      const block = filteredBlocks[editingIndex];
-      if (!block) return;
-
-      if (block.has_spans) {
-        await handleSaveCodedEdit(codedText, spans);
-      } else {
-        // For non-coded blocks, codedText is plain text
-        const plainText = codedText.replace(/[\uE001-\uE003]/g, "");
-        try {
-          await api.updateBlockTarget({
-            project_id: project.id,
-            item_name: fileName,
-            block_id: block.id,
-            target_locale: targetLocale,
-            text: plainText,
-          });
-          setBlocks((prev) =>
-            prev.map((b) =>
-              b.id === block.id
-                ? { ...b, targets: { ...b.targets, [targetLocale]: plainText } }
-                : b,
-            ),
-          );
-          const nextIndex = editingIndex + 1;
-          setEditingIndex(null);
-          if (nextIndex < filteredBlocks.length) {
-            setSelectedIndex(nextIndex);
-          }
-        } catch (e) {
-          setError(e instanceof Error ? e.message : "Failed to save");
-        }
-      }
+      await handleUnifiedSave(editingIndex, result);
     },
-    [editingIndex, filteredBlocks, handleSaveCodedEdit, api, project.id, fileName, targetLocale],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [editingIndex],
   );
 
   const handleVisualApprove = useCallback(() => {
@@ -730,7 +628,7 @@ export function TranslationEditor({
   );
 
   const handleVisualInsertTerm = useCallback((_text: string) => {
-    // Term insertion is handled by the VisualEditorCard's TargetCellEditor
+    // Term insertion is handled by the embedded UnifiedTargetEditor.
   }, []);
 
   const handleRunFileQA = useCallback(() => {
@@ -885,51 +783,18 @@ export function TranslationEditor({
               }}
             >
               {editingIndex === index ? (
-                block.has_spans && block.source_spans ? (
-                  <TargetCellEditor
-                    initialCodedText={block.targets_coded?.[targetLocale] || ""}
-                    initialSpans={block.source_spans}
-                    sourceSpans={block.source_spans}
-                    onSave={handleSaveCodedEdit}
-                    onCancel={() => setEditingIndex(null)}
-                  />
-                ) : (
-                  <textarea
-                    ref={editInputRef}
-                    value={editValue}
-                    onChange={(e) => setEditValue(e.target.value)}
-                    onBlur={handleSaveEdit}
-                    className="w-full flex-1 min-h-[44px] p-1.5 bg-muted border border-primary rounded text-foreground text-sm leading-relaxed resize-y outline-none font-[inherit]"
-                    data-testid={`edit-target-${index}`}
-                  />
-                )
+                <UnifiedTargetEditor
+                  block={block}
+                  locale={targetLocale}
+                  onSave={(result) => void handleUnifiedSave(index, result)}
+                  onCancel={() => setEditingIndex(null)}
+                />
               ) : (
-                <span
-                  className={cn(
-                    block.targets[targetLocale]
-                      ? "text-foreground"
-                      : "text-muted-foreground italic",
-                  )}
-                  data-testid={`target-text-${index}`}
-                >
-                  {block.has_spans && block.targets_coded?.[targetLocale] ? (
-                    <>
-                      <FormattedSourceDisplay
-                        codedText={block.targets_coded[targetLocale]}
-                        spans={block.source_spans || []}
-                      />
-                      {block.source_spans && (
-                        <RowTagWarning
-                          sourceSpans={block.source_spans}
-                          targetCodedText={block.targets_coded[targetLocale]}
-                        />
-                      )}
-                    </>
-                  ) : (
-                    block.targets[targetLocale] ||
-                    (block.translatable ? "Click to translate..." : "")
-                  )}
-                </span>
+                <CollapsedTargetCell
+                  block={block}
+                  locale={targetLocale}
+                  testId={`target-text-${index}`}
+                />
               )}
             </div>
           </div>
@@ -1050,24 +915,13 @@ export function TranslationEditor({
           </div>
         </div>
         <div data-testid="focus-target">
-          {currentBlock.has_spans && currentBlock.source_spans ? (
-            <TargetCellEditor
-              key={`focus-${currentBlock.id}-${targetLocale}`}
-              initialCodedText={currentBlock.targets_coded?.[targetLocale] || ""}
-              initialSpans={currentBlock.source_spans}
-              sourceSpans={currentBlock.source_spans}
-              onSave={handleSaveCodedEdit}
-              onCancel={() => {}}
-            />
-          ) : (
-            <textarea
-              value={focusEditValue}
-              onChange={(e) => setFocusEditValue(e.target.value)}
-              onBlur={handleFocusSave}
-              className="w-full flex-1 min-h-[120px] p-1.5 bg-muted border border-primary rounded text-foreground text-sm leading-relaxed resize-y outline-none font-[inherit]"
-              data-testid="focus-edit-target"
-            />
-          )}
+          <UnifiedTargetEditor
+            key={`focus-${currentBlock.id}-${targetLocale}`}
+            block={currentBlock}
+            locale={targetLocale}
+            onSave={(result) => void handleUnifiedSave(selectedIndex, result)}
+            onCancel={() => {}}
+          />
         </div>
       </div>
 
@@ -1328,16 +1182,6 @@ export function TranslationEditor({
           data-testid="mark-reviewed-btn"
         >
           Reviewed
-        </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => setPluralDialogOpen(true)}
-          disabled={loading || selectedIndex < 0 || !filteredBlocks[selectedIndex]?.translatable}
-          data-testid="plurals-btn"
-          title="Author a plural target for the selected block"
-        >
-          Plurals…
         </Button>
         <div className="w-px h-5 bg-border" />
         <Button
@@ -1662,20 +1506,75 @@ export function TranslationEditor({
           onCancel={() => setEntityMarkState(null)}
         />
       )}
-      {pluralDialogOpen && filteredBlocks[selectedIndex] ? (
-        <PluralTargetCell
-          block={filteredBlocks[selectedIndex]}
-          locale={targetLocale}
-          open={pluralDialogOpen}
-          onSave={handlePluralSave}
-          onCancel={() => setPluralDialogOpen(false)}
-        />
-      ) : null}
     </div>
   );
 }
 
 /** Row-level validation indicator for tag mismatches. */
+/**
+ * Collapsed-cell renderer for a target. Handles three shapes
+ * uniformly (AD #408 / #409):
+ *
+ *   1. Plural target (`targets[locale]` is ICU plural syntax)
+ *      → render the `other` form's chips via FormattedSourceDisplay,
+ *        with a "▾ plural" badge so the row signals there are more
+ *        forms behind the click-to-edit.
+ *   2. Single target with inline codes (`has_spans` + `targets_coded`)
+ *      → existing chip rendering.
+ *   3. Plain target (`targets[locale]`) → text.
+ */
+function CollapsedTargetCell({
+  block,
+  locale,
+  testId,
+}: {
+  block: BlockInfo;
+  locale: string;
+  testId: string;
+}) {
+  const sourceSpans = block.source_spans ?? [];
+  const rawTarget = block.targets[locale] ?? "";
+  const codedTarget = block.targets_coded?.[locale] ?? "";
+
+  // Plural takes priority — it lives in `targets[locale]` only.
+  const pluralPreview = useMemo(
+    () => (rawTarget ? parsePluralFormForChips(rawTarget, sourceSpans) : null),
+    [rawTarget, sourceSpans],
+  );
+
+  if (pluralPreview) {
+    return (
+      <span className="text-foreground" data-testid={testId} data-plural-preview="true">
+        <FormattedSourceDisplay codedText={pluralPreview.codedText} spans={pluralPreview.spans} />
+        <span
+          className="ml-2 inline-flex items-center rounded bg-muted px-1.5 py-0.5 text-xs uppercase tracking-wide text-muted-foreground"
+          title={`Plural target — showing "${pluralPreview.shownForm}" of ${pluralPreview.availableForms.length} form(s)`}
+        >
+          plural · {pluralPreview.shownForm}
+        </span>
+      </span>
+    );
+  }
+
+  if (block.has_spans && codedTarget) {
+    return (
+      <span className="text-foreground" data-testid={testId}>
+        <FormattedSourceDisplay codedText={codedTarget} spans={sourceSpans} />
+        <RowTagWarning sourceSpans={sourceSpans} targetCodedText={codedTarget} />
+      </span>
+    );
+  }
+
+  return (
+    <span
+      className={cn(rawTarget ? "text-foreground" : "text-muted-foreground italic")}
+      data-testid={testId}
+    >
+      {rawTarget || (block.translatable ? "Click to translate..." : "")}
+    </span>
+  );
+}
+
 function RowTagWarning({
   sourceSpans,
   targetCodedText,
