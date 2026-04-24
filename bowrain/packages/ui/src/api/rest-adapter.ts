@@ -2026,16 +2026,12 @@ export class RestApiAdapter implements ApiAdapter {
   // ── Utility ──────────────────────────────────────────────────────────────
 
   async getKnownLocales(): Promise<LocaleInfo[]> {
-    const info = await this.fetchJSON<{ locales: LocaleInfo[] }>(
-      "/api/v1/info",
-    );
+    const info = await this.fetchJSON<{ locales: LocaleInfo[] }>("/api/v1/info");
     return info.locales;
   }
 
   async listFormats(): Promise<FormatInfo[]> {
-    const info = await this.fetchJSON<{ formats: FormatInfo[] }>(
-      "/api/v1/info",
-    );
+    const info = await this.fetchJSON<{ formats: FormatInfo[] }>("/api/v1/info");
     return info.formats;
   }
 
