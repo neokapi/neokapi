@@ -215,11 +215,13 @@ export class BowrainAPI {
   }
 
   async listFormats(): Promise<unknown[]> {
-    return this.get("/formats");
+    const info = await this.info();
+    return (info as unknown as { formats: unknown[] }).formats ?? [];
   }
 
   async listTools(): Promise<unknown[]> {
-    return this.get("/tools");
+    const info = await this.info();
+    return (info as unknown as { tools: unknown[] }).tools ?? [];
   }
 
   // -----------------------------------------------------------------------

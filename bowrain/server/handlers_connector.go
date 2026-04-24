@@ -27,14 +27,6 @@ type PublishRequest struct {
 	Message     string `json:"message,omitempty"`
 }
 
-func (s *Server) HandleListConnectorTypes(c echo.Context) error {
-	if s.Services == nil {
-		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "store not configured"})
-	}
-	types := s.Services.Connector.ListConnectorTypes()
-	return c.JSON(http.StatusOK, types)
-}
-
 func (s *Server) HandleListActiveConnectors(c echo.Context) error {
 	if s.Services == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "store not configured"})
