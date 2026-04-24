@@ -169,3 +169,52 @@ func TestLevenshteinRatio_Basic(t *testing.T) {
 	r = sievepen.LevenshteinRatio("hello", "world")
 	assert.Less(t, r, 0.5)
 }
+
+// LookupSegment — AD-017/AD-009 (issue #417).
+
+func TestInMemoryTM_LookupSegment_ExactMatchOnSpecificSegment(t *testing.T) {
+	tm := sievepen.NewInMemoryTM()
+	require.NoError(t, tm.Add(trilingual("e1", "Save the file.", "Enregistrer le fichier.", "Datei speichern.")))
+	require.NoError(t, tm.Add(trilingual("e2", "It was successful.", "C'était un succès.", "Es war erfolgreich.")))
+
+	// Two-segment source block mirroring a post-segmentation state.
+	block := &model.Block{
+		ID: "u1",
+		Source: []*model.Segment{
+			{ID: "s1", Runs: []model.Run{{Text: &model.TextRun{Text: "Save the file."}}}},
+			{ID: "s2", Runs: []model.Run{{Text: &model.TextRun{Text: "It was successful."}}}},
+		},
+	}
+
+	// Segment 0 matches entry e1.
+	matches, err := tm.LookupSegment(block, 0, "en", "fr", sievepen.LookupOptions{MinScore: 0.9, MaxResults: 5})
+	require.NoError(t, err)
+	require.Len(t, matches, 1)
+	assert.Equal(t, "Enregistrer le fichier.", matches[0].Entry.VariantText("fr"))
+
+	// Segment 1 matches entry e2.
+	matches, err = tm.LookupSegment(block, 1, "en", "fr", sievepen.LookupOptions{MinScore: 0.9, MaxResults: 5})
+	require.NoError(t, err)
+	require.Len(t, matches, 1)
+	assert.Equal(t, "C'était un succès.", matches[0].Entry.VariantText("fr"))
+}
+
+func TestInMemoryTM_LookupSegment_OutOfRange(t *testing.T) {
+	tm := sievepen.NewInMemoryTM()
+	require.NoError(t, tm.Add(trilingual("e1", "hi", "salut", "hallo")))
+	block := &model.Block{
+		ID:     "u1",
+		Source: []*model.Segment{{ID: "s1", Runs: []model.Run{{Text: &model.TextRun{Text: "hi"}}}}},
+	}
+	matches, err := tm.LookupSegment(block, 5, "en", "fr", sievepen.DefaultLookupOptions())
+	require.NoError(t, err)
+	assert.Empty(t, matches)
+
+	matches, err = tm.LookupSegment(block, -1, "en", "fr", sievepen.DefaultLookupOptions())
+	require.NoError(t, err)
+	assert.Empty(t, matches)
+
+	matches, err = tm.LookupSegment(nil, 0, "en", "fr", sievepen.DefaultLookupOptions())
+	require.NoError(t, err)
+	assert.Empty(t, matches)
+}
