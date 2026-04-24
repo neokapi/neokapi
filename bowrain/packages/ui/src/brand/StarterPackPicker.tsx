@@ -18,7 +18,7 @@ export function StarterPackPicker({
 }: StarterPackPickerProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-5xl">
+      <DialogContent className="sm:max-w-5xl">
         <DialogHeader>
           <DialogTitle>Choose a Starting Point</DialogTitle>
           <p className="text-sm text-muted-foreground">
