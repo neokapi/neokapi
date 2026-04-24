@@ -48,6 +48,12 @@ my-app/
 ├── .kapi/                  ← WORKING STATE (kapi maintains)
 │   ├── manifest.yaml       ← bookkeeping: block counts, fingerprints, timestamps
 │   ├── cache.db            ← block store (SQLite)
+│   ├── tm.db               ← project translation memory (AD-009)
+│   ├── extractions/        ← per-extract batch state (AD-017)
+│   │   └── <batch-id>/
+│   │       ├── manifest.yaml         ← source→output pairs, leverage, hashes
+│   │       ├── skel-<src-hash>.bin   ← per-source skeleton for merge
+│   │       └── suggestions.jsonl     ← sub-threshold TM matches
 │   └── collections/        ← overlay layers per collection
 │       └── ui/
 │           ├── targets/{fr,de}.json
@@ -174,6 +180,25 @@ outside `.kapi/`.
 fingerprints for staleness detection, generator identity, and last-updated
 timestamps. Users do not hand-edit it. Deleting it is safe — it rebuilds from
 `cache.db`; nothing authoritative lives only in the manifest.
+
+### Extraction manifests
+
+`.kapi/extractions/<batch-id>/manifest.yaml` records each `kapi extract`
+run (see [AD-017](017-bilingual-format-interop.md)): the emitted
+source→output pairs, per-file source SHA-256, TM leverage counts, the
+XLIFF / PO version, and skeleton filenames. The batch id is stamped in
+each emitted bilingual file so `kapi merge` can resolve a returning
+file back to the right extraction without guessing from the filename.
+Stale segments on merge are detected by comparing the manifest's
+recorded source hash against the current source content.
+
+The `Defaults.Merge` section of the recipe (`conflict_policy`) governs
+how merge applies a translator's target when an on-disk target or TM
+TU already exists. The `Defaults.TM` section (`fuzzy_threshold`,
+`read`) governs TM pre-fill on extract. The `Defaults.Segmentation`
+section (`source`, `srx`) toggles the SRX segmentation overlay — block
+identity is stable across toggles, so a project can change these
+fields between extractions safely.
 
 ### BlockStore interface
 

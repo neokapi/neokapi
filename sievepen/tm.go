@@ -320,7 +320,19 @@ type TranslationMemory interface {
 	// Matches are found among entries whose Variants[sourceLocale] exists
 	// and matches the source. Returned TMMatch.Entry.Variant(targetLocale)
 	// is the translation. Entries lacking the target locale are skipped.
+	//
+	// Lookup keys on the block's *first* segment, which is correct when
+	// segmentation is off (one segment per Block — the verbatim lookup
+	// case). For sentence-level leverage when segmentation is on, use
+	// LookupSegment.
 	Lookup(source *model.Block, sourceLocale, targetLocale model.LocaleID, opts LookupOptions) ([]TMMatch, error)
+
+	// LookupSegment searches for matches using a specific segment of the
+	// source block, for sentence-level TM leverage when segmentation is
+	// on. Returns nil, nil if segmentIdx is out of range or the segment
+	// has no content. The block's entity annotations are reused so
+	// generalized (entity-aware) matching still works inside a segment.
+	LookupSegment(source *model.Block, segmentIdx int, sourceLocale, targetLocale model.LocaleID, opts LookupOptions) ([]TMMatch, error)
 
 	// LookupText searches for matches using plain text only.
 	// This is a convenience method for cases where no Block is available.

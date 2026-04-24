@@ -547,3 +547,127 @@ func TestEffectiveItems(t *testing.T) {
 		assert.Len(t, items, 2)
 	})
 }
+
+// Bilingual interop defaults — AD-017 (issue #414).
+
+func TestDefaults_MergeTMSegmentation_RoundTrip(t *testing.T) {
+	proj := &KapiProject{
+		Version: "v1",
+		Name:    "Interop",
+		Defaults: Defaults{
+			SourceLanguage:  "en-US",
+			TargetLanguages: []model.LocaleID{"fr-FR"},
+			Merge:           MergeDefaults{ConflictPolicy: ConflictPolicyExistingWins},
+			TM: TMDefaults{
+				FuzzyThreshold: 80,
+				Read:           []string{"/opt/corporate-en-fr.tmx", "./legacy.tmx"},
+			},
+			Segmentation: SegmentationDefaults{Source: true, SRX: "rules.srx"},
+		},
+	}
+
+	dir := t.TempDir()
+	path := filepath.Join(dir, "test.kapi")
+	require.NoError(t, Save(path, proj))
+
+	loaded, err := Load(path)
+	require.NoError(t, err)
+
+	assert.Equal(t, ConflictPolicyExistingWins, loaded.Defaults.Merge.ConflictPolicy)
+	assert.Equal(t, 80, loaded.Defaults.TM.FuzzyThreshold)
+	assert.Equal(t, []string{"/opt/corporate-en-fr.tmx", "./legacy.tmx"}, loaded.Defaults.TM.Read)
+	assert.True(t, loaded.Defaults.Segmentation.Source)
+	assert.Equal(t, "rules.srx", loaded.Defaults.Segmentation.SRX)
+}
+
+func TestDefaults_MergeTM_Defaults(t *testing.T) {
+	var m MergeDefaults
+	assert.Equal(t, ConflictPolicyTranslatorWins, m.ResolvedConflictPolicy())
+	m.ConflictPolicy = ConflictPolicyNewestWins
+	assert.Equal(t, ConflictPolicyNewestWins, m.ResolvedConflictPolicy())
+
+	var tm TMDefaults
+	assert.Equal(t, DefaultFuzzyThreshold, tm.ResolvedFuzzyThreshold())
+	tm.FuzzyThreshold = 60
+	assert.Equal(t, 60, tm.ResolvedFuzzyThreshold())
+}
+
+func TestValidate_MergeConflictPolicy(t *testing.T) {
+	tests := []struct {
+		name    string
+		policy  string
+		wantErr bool
+	}{
+		{"empty is ok (defaults apply)", "", false},
+		{"translator-wins", ConflictPolicyTranslatorWins, false},
+		{"existing-wins", ConflictPolicyExistingWins, false},
+		{"newest-wins", ConflictPolicyNewestWins, false},
+		{"unknown rejected", "translator-loses", true},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			proj := &KapiProject{Version: "v1", Defaults: Defaults{Merge: MergeDefaults{ConflictPolicy: tc.policy}}}
+			err := proj.Validate()
+			if tc.wantErr {
+				require.Error(t, err)
+				assert.Contains(t, err.Error(), "conflict_policy")
+			} else {
+				require.NoError(t, err)
+			}
+		})
+	}
+}
+
+func TestValidate_TMFuzzyThreshold(t *testing.T) {
+	tests := []struct {
+		name      string
+		threshold int
+		wantErr   bool
+	}{
+		{"zero is ok (default applies)", 0, false},
+		{"min", 1, false},
+		{"mid", 75, false},
+		{"max", 100, false},
+		{"negative rejected", -1, true},
+		{"over 100 rejected", 101, true},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			proj := &KapiProject{Version: "v1", Defaults: Defaults{TM: TMDefaults{FuzzyThreshold: tc.threshold}}}
+			err := proj.Validate()
+			if tc.wantErr {
+				require.Error(t, err)
+				assert.Contains(t, err.Error(), "fuzzy_threshold")
+			} else {
+				require.NoError(t, err)
+			}
+		})
+	}
+}
+
+func TestLoad_YAMLInteropSections(t *testing.T) {
+	yamlText := `version: v1
+name: YAML Interop
+defaults:
+  source_language: en
+  target_languages: [fr, de]
+  merge:
+    conflict_policy: newest-wins
+  tm:
+    fuzzy_threshold: 70
+    read:
+      - /shared/corp.tmx
+  segmentation:
+    source: true
+`
+	dir := t.TempDir()
+	path := filepath.Join(dir, "recipe.kapi")
+	require.NoError(t, os.WriteFile(path, []byte(yamlText), 0o644))
+
+	loaded, err := Load(path)
+	require.NoError(t, err)
+	assert.Equal(t, ConflictPolicyNewestWins, loaded.Defaults.Merge.ConflictPolicy)
+	assert.Equal(t, 70, loaded.Defaults.TM.FuzzyThreshold)
+	assert.Equal(t, []string{"/shared/corp.tmx"}, loaded.Defaults.TM.Read)
+	assert.True(t, loaded.Defaults.Segmentation.Source)
+}
