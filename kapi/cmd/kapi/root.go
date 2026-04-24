@@ -38,6 +38,7 @@ func init() {
 	runCmd := app.NewRunCmd(cli.RunCmdOptions{})
 	runCmd.GroupID = "processing"
 	rootCmd.AddCommand(runCmd)
+	rootCmd.AddCommand(app.NewExtractCmd(cli.ExtractCmdOptions{}))
 	rootCmd.AddCommand(app.NewInitCmd())
 
 	// Management commands.
