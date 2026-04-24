@@ -40,6 +40,7 @@ Default (no flag): same as --local (uses ./tm.db).`,
 	lookupCmd := a.newTMLookupCmd()
 	searchCmd := a.newTMSearchCmd()
 	statsCmd := a.newTMStatsCmd()
+	auditCmd := a.newTMAuditCmd()
 	listCmd := a.newTMListCmd()
 	sessionsCmd := a.newTMSessionsCmd(tmCmd)
 
@@ -47,7 +48,7 @@ Default (no flag): same as --local (uses ./tm.db).`,
 		AddResourceFlags(cmd)
 	}
 
-	tmCmd.AddCommand(importCmd, importDirCmd, exportCmd, lookupCmd, searchCmd, statsCmd, listCmd, sessionsCmd)
+	tmCmd.AddCommand(importCmd, importDirCmd, exportCmd, lookupCmd, searchCmd, statsCmd, auditCmd, listCmd, sessionsCmd)
 	return tmCmd
 }
 
