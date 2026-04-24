@@ -34,11 +34,14 @@ const sidebars: SidebarsConfig = {
       label: "Kapi CLI",
       items: [
         "kapi-cli/overview",
+        "kapi-cli/bilingual-workflow",
         {
           type: "category",
           label: "Commands",
           items: [
             "kapi-cli/commands/flow",
+            "kapi-cli/commands/extract",
+            "kapi-cli/commands/merge",
             "kapi-cli/commands/formats",
             "kapi-cli/commands/tools",
             "kapi-cli/commands/plugins",

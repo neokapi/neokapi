@@ -15,6 +15,7 @@ kapi tm export [flags]
 kapi tm lookup <text> [flags]
 kapi tm search <query> [flags]
 kapi tm stats [flags]
+kapi tm audit --batch <merge-batch-id> [flags]
 kapi tm list
 ```
 
@@ -87,6 +88,26 @@ Show translation memory statistics:
 kapi tm stats --name project-tm
 kapi tm stats                      # uses ./tm.db
 ```
+
+### audit
+
+Trace every TM entry written or updated by a specific
+[`kapi merge`](./merge) batch. Introduced by [AD-017: Bilingual Format
+Interop](/docs/ad/017-bilingual-format-interop) and the
+[Bilingual Workflow](../bilingual-workflow).
+
+```bash
+kapi tm audit --batch <merge-batch-id>
+kapi tm audit --batch <merge-batch-id> --limit 50
+```
+
+Output is a timestamp-sorted table with source file, block content
+hash, and the originating XLIFF filename — the answer to "what did
+this merge contribute to the TM?" without leaving the CLI.
+
+Filters on the origin provenance stamped by `kapi merge`
+(`Source="merge"`, `Reference=<batch-id>`). Works on any TM — the
+usual `--name` / `--local` / `--file` resource flags apply.
 
 ### list
 
