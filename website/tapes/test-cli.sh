@@ -125,6 +125,31 @@ test_cmd "qa-check pipeline" "kapi qa-check out/step2_translated.json -o out/ste
 rm -rf out
 echo ""
 
+# bilingual-workflow.tape commands
+echo "bilingual-workflow.tape commands:"
+BILINGUAL_DIR="samples/bilingual-project"
+for f in "$BILINGUAL_DIR/app.kapi" \
+         "$BILINGUAL_DIR/corporate.tmx" \
+         "$BILINGUAL_DIR/src/locales/en/messages.json" \
+         "$BILINGUAL_DIR/fake-translator.sh"; do
+  printf "  Checking: %-40s" "$f"
+  if [ -f "$f" ]; then echo -e "${GREEN}✓${NC}"; passed=$((passed + 1)); else echo -e "${RED}✗${NC}"; failed=$((failed + 1)); fi
+done
+# Run the full extract → simulate → merge round-trip against a scratch
+# copy of the fixture so we don't pollute the committed one.
+SCRATCH="$(mktemp -d)"
+cp -r "$BILINGUAL_DIR" "$SCRATCH/bilingual-project"
+pushd "$SCRATCH/bilingual-project" > /dev/null
+mkdir -p .kapi
+test_cmd "bilingual tm import"       "kapi tm import corporate.tmx --file .kapi/tm.db --all-pairs" "Imported 5 entries"
+test_cmd "bilingual extract"         "kapi extract -p app.kapi" "Aggregate TM leverage"
+test_cmd "bilingual fake-translator" "./fake-translator.sh out/*.xliff" "translated:"
+test_cmd "bilingual merge"           "kapi merge -p app.kapi -i out/ --no-tm-update" "Merge complete"
+test_cmd "bilingual fr output"       "grep -q 'Content de vous revoir' src/locales/fr-FR/messages.json" ""
+popd > /dev/null
+rm -rf "$SCRATCH"
+echo ""
+
 # Clean up
 rm -rf "$KAPI_CONFIG_DIR"
 

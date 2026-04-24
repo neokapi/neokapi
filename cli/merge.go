@@ -665,9 +665,19 @@ func absorbBlockIntoTM(tm *sievepen.SQLiteTM, block *model.Block, source, target
 	if srcText == "" || tgtText == "" {
 		return 0, 0
 	}
+	// block.Identity can be nil on blocks built by readers that don't
+	// compute content hashes eagerly; fall back to hashing the source
+	// text so the TU id is still deterministic.
+	contentHash := ""
+	if block.Identity != nil {
+		contentHash = block.Identity.ContentHash
+	}
+	if contentHash == "" {
+		contentHash = model.ComputeContentHash(srcText)
+	}
 	now := time.Now().UTC()
 	entry := sievepen.TMEntry{
-		ID: fmt.Sprintf("merge:%s:%s", batchID, block.Identity.ContentHash),
+		ID: fmt.Sprintf("merge:%s:%s", batchID, contentHash),
 		Variants: map[model.LocaleID][]model.Run{
 			source: {{Text: &model.TextRun{Text: srcText}}},
 			target: {{Text: &model.TextRun{Text: tgtText}}},
@@ -681,8 +691,8 @@ func absorbBlockIntoTM(tm *sievepen.SQLiteTM, block *model.Block, source, target
 			AddedBy:   "kapi-merge",
 		}},
 		Properties: map[string]string{
-			"kapi-merge:xliff-original":    filepath.Base(xliffPath),
-			"kapi-merge:block-content-hash": block.Identity.ContentHash,
+			"kapi-merge:xliff-original":     filepath.Base(xliffPath),
+			"kapi-merge:block-content-hash": contentHash,
 		},
 		CreatedAt: now,
 		UpdatedAt: now,
