@@ -13,7 +13,6 @@ import (
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	"github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/core/id"
-	"github.com/neokapi/neokapi/core/locale"
 	"github.com/neokapi/neokapi/core/model"
 	aiprovider "github.com/neokapi/neokapi/providers/ai"
 	"github.com/neokapi/neokapi/sievepen"
@@ -1201,12 +1200,6 @@ func (s *Server) HandleGetBlockHistory(c echo.Context) error {
 	}
 
 	return c.JSON(http.StatusOK, entries)
-}
-
-// HandleGetKnownLocales returns a curated list of BCP-47 locales.
-func (s *Server) HandleGetKnownLocales(c echo.Context) error {
-	locales := locale.WellKnownLocales()
-	return c.JSON(http.StatusOK, locales)
 }
 
 // HandleGetTranslationDashboard returns aggregated translation stats for a project.

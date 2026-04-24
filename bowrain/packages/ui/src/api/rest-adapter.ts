@@ -261,7 +261,7 @@ export class RestApiAdapter implements ApiAdapter {
   // ── Config ──────────────────────────────────────────────────────────────
 
   async getConfig(): Promise<ConfigResponse> {
-    return this.fetchJSON("/api/v1/config");
+    return this.fetchJSON("/api/v1/info");
   }
 
   // ── Auth ─────────────────────────────────────────────────────────────────
@@ -2026,14 +2026,21 @@ export class RestApiAdapter implements ApiAdapter {
   // ── Utility ──────────────────────────────────────────────────────────────
 
   async getKnownLocales(): Promise<LocaleInfo[]> {
-    return this.fetchJSON("/api/v1/locales");
+    const info = await this.fetchJSON<{ locales: LocaleInfo[] }>(
+      "/api/v1/info",
+    );
+    return info.locales;
   }
 
   async listFormats(): Promise<FormatInfo[]> {
-    return this.fetchJSON("/api/v1/formats");
+    const info = await this.fetchJSON<{ formats: FormatInfo[] }>(
+      "/api/v1/info",
+    );
+    return info.formats;
   }
 
   async listTools(): Promise<ToolInfo[]> {
-    return this.fetchJSON("/api/v1/tools");
+    const info = await this.fetchJSON<{ tools: ToolInfo[] }>("/api/v1/info");
+    return info.tools;
   }
 }

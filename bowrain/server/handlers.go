@@ -21,14 +21,6 @@ type HealthResponse struct {
 	BuildDate string `json:"build_date"`
 }
 
-// ConfigResponse reports the server's operating mode.
-type ConfigResponse struct {
-	Mode      string `json:"mode"` // "standalone" or "server"
-	Version   string `json:"version"`
-	Commit    string `json:"commit"`
-	BuildDate string `json:"build_date"`
-}
-
 // InfoResponse returns server info including mode, build metadata, and reference data.
 type InfoResponse struct {
 	Mode           string              `json:"mode"` // "standalone" or "server"
@@ -229,23 +221,8 @@ func (s *Server) checkEmail() ComponentStatus {
 	return ComponentStatus{Status: "up"}
 }
 
-// HandleConfig returns the server configuration mode.
-func (s *Server) HandleConfig(c echo.Context) error {
-	mode := "server"
-	if s.Config.JWTSecret == "" {
-		mode = "standalone"
-	}
-	return c.JSON(http.StatusOK, ConfigResponse{
-		Mode:      mode,
-		Version:   version.Version,
-		Commit:    version.Commit,
-		BuildDate: version.BuildDate,
-	})
-}
-
 // HandleInfo returns server info: mode, build metadata, and all reference data
-// (formats, tools, locales, connector types). This consolidates the former
-// /config, /formats, /tools, /locales, and /connectors/types endpoints.
+// (formats, tools, locales, connector types).
 func (s *Server) HandleInfo(c echo.Context) error {
 	mode := "server"
 	if s.Config.JWTSecret == "" {
@@ -306,43 +283,3 @@ func (s *Server) HandleInfo(c echo.Context) error {
 	})
 }
 
-// HandleListFormats lists all registered formats with reader/writer availability.
-func (s *Server) HandleListFormats(c echo.Context) error {
-	// Collect unique format names from both readers and writers.
-	nameSet := make(map[registry.FormatID]struct{})
-	for _, name := range s.FormatRegistry.ReaderNames() {
-		nameSet[name] = struct{}{}
-	}
-	for _, name := range s.FormatRegistry.WriterNames() {
-		nameSet[name] = struct{}{}
-	}
-
-	var formatList []FormatInfo
-	for name := range nameSet {
-		formatList = append(formatList, FormatInfo{
-			Name:      string(name),
-			HasReader: s.FormatRegistry.HasReader(name),
-			HasWriter: s.FormatRegistry.HasWriter(name),
-		})
-	}
-
-	// Sort for deterministic output.
-	slices.SortFunc(formatList, func(a, b FormatInfo) int {
-		return cmp.Compare(a.Name, b.Name)
-	})
-
-	return c.JSON(http.StatusOK, formatList)
-}
-
-// HandleListTools lists all registered tools.
-func (s *Server) HandleListTools(c echo.Context) error {
-	names := s.ToolRegistry.Names()
-	slices.Sort(names)
-
-	tools := make([]ToolInfo, len(names))
-	for i, name := range names {
-		tools[i] = ToolInfo{Name: string(name)}
-	}
-
-	return c.JSON(http.StatusOK, tools)
-}

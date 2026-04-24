@@ -12,6 +12,8 @@ import (
 var slugPattern = regexp.MustCompile(`^[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?$`)
 
 // reservedWorkspaceSlugs are top-level API route segments that cannot be used as workspace slugs.
+// Includes historical routes consolidated into /info (AD-040) so that stale clients get a
+// clearer "no such endpoint" response instead of "workspace not found".
 var reservedWorkspaceSlugs = map[string]bool{
 	"auth":       true,
 	"admin":      true,
@@ -25,6 +27,12 @@ var reservedWorkspaceSlugs = map[string]bool{
 	"workspaces": true,
 	"projects":   true,
 	"connectors": true,
+	"config":     true,
+	"formats":    true,
+	"tools":      true,
+	"locales":    true,
+	"fetch":      true,
+	"publish":    true,
 	"_":          true,
 }
 

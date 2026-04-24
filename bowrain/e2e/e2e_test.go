@@ -56,8 +56,8 @@ func TestHealth(t *testing.T) {
 	assert.Equal(t, "ok", result["status"])
 }
 
-func TestConfig(t *testing.T) {
-	resp := apiRequest(t, http.MethodGet, "/api/v1/config", "", "")
+func TestInfo(t *testing.T) {
+	resp := apiRequest(t, http.MethodGet, "/api/v1/info", "", "")
 	defer resp.Body.Close()
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
 	result := readJSON(t, resp)

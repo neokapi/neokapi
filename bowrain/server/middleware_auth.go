@@ -216,6 +216,14 @@ func WorkspaceAccessMiddleware(authStore auth.AuthStore) echo.MiddlewareFunc {
 				return next(c)
 			}
 
+			// Reject malformed or reserved slugs up front. This catches stale
+			// client calls to removed top-level routes (e.g. /api/v1/config)
+			// that would otherwise be swallowed by the /:ws catch-all and
+			// surface as a confusing "workspace not found".
+			if err := ValidateWorkspaceSlug(wsSlug); err != nil {
+				return c.JSON(http.StatusNotFound, ErrorResponse{Error: "no such endpoint"})
+			}
+
 			ctx := c.Request().Context()
 			w, err := authStore.GetWorkspaceBySlug(ctx, wsSlug)
 			if err != nil {
