@@ -137,7 +137,7 @@
 
 /* ── Brand-specific fonts and tracking ───────────────────── */
 @theme inline {
-  --font-sans: "DM Sans", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-sans: "DM Sans Variable", "DM Sans", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
   --font-mono: "DM Mono", ui-monospace, monospace;
   --tracking-normal: -0.025em;
 }

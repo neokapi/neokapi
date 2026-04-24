@@ -17,6 +17,8 @@
     "test:watch": "vp test watch"
   },
   "dependencies": {
+    "@fontsource-variable/dm-sans": "^5.2.8",
+    "@fontsource/dm-mono": "^5.2.7",
     "@lexical/react": "^0.42.0",
     "@neokapi/ui": "*",
     "@tailwindcss/vite": "^4.2.2",

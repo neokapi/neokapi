@@ -8,3 +8,6 @@ interface ImportMetaEnv {
 interface ImportMeta {
   readonly env: ImportMetaEnv;
 }
+
+declare module "@fontsource-variable/dm-sans";
+declare module "@fontsource/dm-mono/*";
