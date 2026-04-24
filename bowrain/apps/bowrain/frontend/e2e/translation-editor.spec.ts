@@ -175,9 +175,8 @@ test.describe("Translation Editor", () => {
       }
     });
 
-    // Verify edit textarea appears
-    const editInput = page.getByTestId("edit-target-0");
-    await expect(editInput).toBeVisible({ timeout: 5000 });
+    // Verify the unified editor mounts in place of the collapsed cell.
+    await expect(page.getByTestId("unified-target-editor")).toBeVisible({ timeout: 5000 });
 
     // Save a translation via the mock backend directly (since Playwright's
     // keyboard API hangs within this component due to CDP interaction issues)
@@ -605,9 +604,8 @@ test.describe("Translation Editor", () => {
       if (el) el.click();
     });
 
-    // Verify edit textarea appears
-    const editInput = page.getByTestId("edit-target-0");
-    await expect(editInput).toBeVisible({ timeout: 5000 });
+    // Verify the unified editor mounts in place of the collapsed cell.
+    await expect(page.getByTestId("unified-target-editor")).toBeVisible({ timeout: 5000 });
   });
 
   test("should enter edit mode on single click of a different target cell", async ({ page }) => {
@@ -619,9 +617,8 @@ test.describe("Translation Editor", () => {
       if (el) el.click();
     });
 
-    // Verify edit textarea appears for block 2
-    const editInput = page.getByTestId("edit-target-1");
-    await expect(editInput).toBeVisible({ timeout: 5000 });
+    // Verify the unified editor mounts for block 2.
+    await expect(page.getByTestId("unified-target-editor")).toBeVisible({ timeout: 5000 });
 
     // Verify block 2 is selected in status bar
     await expect(page.getByTestId("status-bar")).toContainText("Block 2 of");
@@ -644,16 +641,14 @@ test.describe("Translation Editor", () => {
     // Verify block 2 is selected
     await expect(page.getByTestId("status-bar")).toContainText("Block 2 of");
 
-    // Verify edit textarea appears for block 2 (index 1)
-    const editInput = page.getByTestId("edit-target-1");
-    await expect(editInput).toBeVisible({ timeout: 5000 });
+    // Verify the unified editor mounts for block 2.
+    await expect(page.getByTestId("unified-target-editor")).toBeVisible({ timeout: 5000 });
   });
 
-  test("should open plural target dialog and save ICU syntax", async ({ page }) => {
+  test("should mount UnifiedTargetEditor inline when editing a cell", async ({ page }) => {
     await openEditorWithBlocks(page);
 
-    // Seed a flat target so the dialog opens in flat view and exposes
-    // the "Upgrade to plural" affordance.
+    // Seed a flat target so the editor has something to open on.
     await page.evaluate(async () => {
       const backend = (window as any).__wailsMockByName;
       await backend.UpdateBlockTarget({
@@ -665,7 +660,7 @@ test.describe("Translation Editor", () => {
       });
     });
 
-    // Reload editor to pick up the seeded target.
+    // Reload so the seeded target lands in the grid.
     await clickTestId(page, "back-to-project");
     await page.getByTestId("open-file-hello.txt").waitFor({ state: "visible", timeout: 5000 });
     await page.evaluate(() => {
@@ -678,23 +673,110 @@ test.describe("Translation Editor", () => {
     });
     await expect(page.getByTestId("block-grid")).toBeVisible({ timeout: 5000 });
 
-    // Select the first block, then open the plural dialog from the toolbar.
+    // Double-click the cell to enter edit mode.
     await page.evaluate(() => {
       const row = document.querySelector('[data-testid="block-row-0"]') as HTMLElement;
-      if (row) row.click();
+      if (row) {
+        row.dispatchEvent(new MouseEvent("dblclick", { bubbles: true, cancelable: true }));
+      }
     });
-    await clickTestId(page, "plurals-btn");
-    await expect(page.getByTestId("plural-target-dialog")).toBeVisible({ timeout: 5000 });
 
-    // Saving without edits round-trips the current flat text verbatim.
-    await clickTestId(page, "plural-save");
+    // The unified editor mounts — data-mode=flat because the target
+    // is plain text.
+    const editor = page.getByTestId("unified-target-editor");
+    await expect(editor).toBeVisible({ timeout: 5000 });
+    await expect(editor).toHaveAttribute("data-mode", "flat");
 
-    // After save, the mock backend should now hold the round-tripped string.
+    // Save round-trips the current coded text verbatim.
+    await clickTestId(page, "unified-save");
+
     const saved = await page.evaluate(async () => {
       const backend = (window as any).__wailsMockByName;
       const blocks = await backend.GetFileBlocks("project-1", "hello.txt", "fr");
       return blocks.find((b: any) => b.id === "hello.txt-block-1")?.targets?.fr;
     });
     expect(saved).toBe("Vous avez des messages");
+  });
+
+  test("should render plural targets in collapsed-cell view with a plural badge", async ({
+    page,
+  }) => {
+    await openEditorWithBlocks(page);
+
+    // Seed an ICU plural target directly.
+    await page.evaluate(async () => {
+      const backend = (window as any).__wailsMockByName;
+      await backend.UpdateBlockTarget({
+        project_id: "project-1",
+        item_name: "hello.txt",
+        block_id: "hello.txt-block-1",
+        target_locale: "fr",
+        text: "{count, plural, one {Vous avez un message} other {Vous avez {count} messages}}",
+      });
+    });
+
+    await clickTestId(page, "back-to-project");
+    await page.getByTestId("open-file-hello.txt").waitFor({ state: "visible", timeout: 5000 });
+    await page.evaluate(() => {
+      const btn = document.querySelector('[data-testid="open-file-hello.txt"]') as HTMLElement;
+      if (btn) btn.click();
+    });
+    await expect(page.getByTestId("layout-switcher")).toBeVisible({ timeout: 5000 });
+    await page.evaluate(() => {
+      (document.querySelector('[data-testid="layout-grid"]') as HTMLElement)?.click();
+    });
+    await expect(page.getByTestId("block-grid")).toBeVisible({ timeout: 5000 });
+
+    // The collapsed cell renders the `other` form's content plus a
+    // "plural · other" badge so the row signals there are more forms.
+    const cell = page.getByTestId("target-text-0");
+    await expect(cell).toBeVisible();
+    await expect(cell).toHaveAttribute("data-plural-preview", "true");
+    await expect(cell).toContainText("plural · other");
+  });
+
+  test("should open UnifiedTargetEditor in plural mode for an ICU plural target", async ({
+    page,
+  }) => {
+    await openEditorWithBlocks(page);
+
+    await page.evaluate(async () => {
+      const backend = (window as any).__wailsMockByName;
+      await backend.UpdateBlockTarget({
+        project_id: "project-1",
+        item_name: "hello.txt",
+        block_id: "hello.txt-block-1",
+        target_locale: "fr",
+        text: "{count, plural, one {Vous avez un message} other {Vous avez {count} messages}}",
+      });
+    });
+
+    await clickTestId(page, "back-to-project");
+    await page.getByTestId("open-file-hello.txt").waitFor({ state: "visible", timeout: 5000 });
+    await page.evaluate(() => {
+      const btn = document.querySelector('[data-testid="open-file-hello.txt"]') as HTMLElement;
+      if (btn) btn.click();
+    });
+    await expect(page.getByTestId("layout-switcher")).toBeVisible({ timeout: 5000 });
+    await page.evaluate(() => {
+      (document.querySelector('[data-testid="layout-grid"]') as HTMLElement)?.click();
+    });
+    await expect(page.getByTestId("block-grid")).toBeVisible({ timeout: 5000 });
+
+    await page.evaluate(() => {
+      const row = document.querySelector('[data-testid="block-row-0"]') as HTMLElement;
+      if (row) {
+        row.dispatchEvent(new MouseEvent("dblclick", { bubbles: true, cancelable: true }));
+      }
+    });
+
+    const editor = page.getByTestId("unified-target-editor");
+    await expect(editor).toBeVisible({ timeout: 5000 });
+    await expect(editor).toHaveAttribute("data-mode", "plural");
+
+    // Form tabs are visible — one per CLDR form.
+    for (const form of ["zero", "one", "two", "few", "many", "other"]) {
+      await expect(page.getByTestId(`form-tab-${form}`)).toBeVisible();
+    }
   });
 });

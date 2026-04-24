@@ -5,7 +5,6 @@ import type {
   BlockInfo,
   TMMatchInfo,
   BlockTermMatch,
-  SpanInfo,
   BlockNote,
   QAIssue,
   BlockHistoryEntry,
@@ -15,6 +14,7 @@ import type {
 import type { VisualEditorMode, PreviewContentMode } from "./visual-editor-types";
 import { DocumentPreview } from "./DocumentPreview";
 import { VisualEditorCard } from "./VisualEditorCard";
+import type { UnifiedSaveResult } from "../UnifiedTargetEditor";
 import { TermSidebar } from "./TermSidebar";
 import { ProblemsPanel } from "./ProblemsPanel";
 import { useVisualEditorKeyboard } from "./useVisualEditorKeyboard";
@@ -37,7 +37,7 @@ interface VisualEditorLayoutProps {
   onPreviewContentModeChange: (mode: PreviewContentMode) => void;
   onNavigate: (index: number) => void;
   onStartEditing: () => void;
-  onSave: (codedText: string, spans: SpanInfo[]) => void;
+  onSave: (result: UnifiedSaveResult) => void | Promise<void>;
   onCancelEditing: () => void;
   onApprove: () => void;
   onReject: () => void;

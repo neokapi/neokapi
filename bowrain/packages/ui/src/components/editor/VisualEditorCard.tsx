@@ -14,7 +14,7 @@ import type {
 import type { VisualEditorMode } from "./visual-editor-types";
 import { SourceCellDisplay } from "./SourceCellDisplay";
 import { FormattedSourceDisplay } from "./FormattedSourceDisplay";
-import { InlineCodeEditor as TargetCellEditor } from "@neokapi/ui-primitives";
+import { UnifiedTargetEditor, type UnifiedSaveResult } from "../UnifiedTargetEditor";
 import { HighlightedSource } from "./HighlightedSource";
 import { VisualEditorToolbar } from "./VisualEditorToolbar";
 import { TermCreationPopover } from "./TermCreationPopover";
@@ -44,7 +44,7 @@ export interface VisualEditorCardProps {
   onEditorModeChange: (mode: VisualEditorMode) => void;
   isEditing: boolean;
   onStartEditing: () => void;
-  onSave: (codedText: string, spans: SpanInfo[]) => void;
+  onSave: (result: UnifiedSaveResult) => void | Promise<void>;
   onCancel: () => void;
   onApprove: () => void;
   onReject: () => void;
@@ -409,10 +409,9 @@ export function VisualEditorCard({
           Target ({targetLocale})
         </div>
         {editorMode === "translate" && isEditing ? (
-          <TargetCellEditor
-            initialCodedText={targetCodedText}
-            initialSpans={[]}
-            sourceSpans={sourceSpans}
+          <UnifiedTargetEditor
+            block={block}
+            locale={targetLocale}
             onSave={onSave}
             onCancel={onCancel}
           />
