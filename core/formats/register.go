@@ -120,7 +120,7 @@ func RegisterAll(reg *registry.FormatRegistry, opts ...RegisterOptions) {
 	reg.RegisterWriter("xliff", func() format.DataFormatWriter { return xliff.NewWriter() })
 	registerSchemaAndDecoder(o, reg, "xliff", func() format.DataFormatReader { return xliff.NewReader() })
 
-	// XLIFF 2.0
+	// XLIFF 2.x (2.0 / 2.1 / 2.2 — accepted as a compatible family)
 	reg.RegisterReader("xliff2",
 		func() format.DataFormatReader { return xliff2.NewReader() },
 		format.FormatSignature{
@@ -128,9 +128,16 @@ func RegisterAll(reg *registry.FormatRegistry, opts ...RegisterOptions) {
 			Extensions: []string{".xlf", ".xliff"},
 			Sniff: func(data []byte) bool {
 				s := string(data)
-				return strings.Contains(s, "<xliff") && strings.Contains(s, "version=\"2")
+				if !strings.Contains(s, "<xliff") {
+					return false
+				}
+				// Any OASIS 2.x document namespace, or any version="2.X" attr.
+				return strings.Contains(s, "urn:oasis:names:tc:xliff:document:2") ||
+					strings.Contains(s, `version="2.0"`) ||
+					strings.Contains(s, `version="2.1"`) ||
+					strings.Contains(s, `version="2.2"`)
 			},
-		}, "XLIFF 2.0")
+		}, "XLIFF 2.x")
 	reg.RegisterWriter("xliff2", func() format.DataFormatWriter { return xliff2.NewWriter() })
 	registerSchemaAndDecoder(o, reg, "xliff2", func() format.DataFormatReader { return xliff2.NewReader() })
 

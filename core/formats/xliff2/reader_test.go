@@ -146,7 +146,7 @@ func TestReaderSignature(t *testing.T) {
 func TestReaderMetadata(t *testing.T) {
 	reader := xliff2.NewReader()
 	assert.Equal(t, "xliff2", reader.Name())
-	assert.Equal(t, "XLIFF 2.0", reader.DisplayName())
+	assert.Equal(t, "XLIFF 2.x", reader.DisplayName())
 }
 
 func TestReadNilDocument(t *testing.T) {

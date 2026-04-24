@@ -6,11 +6,11 @@ import (
 	"github.com/neokapi/neokapi/core/format/schema"
 )
 
-// Schema returns the JSON Schema metadata for the XLIFF 2.0 format.
+// Schema returns the JSON Schema metadata for the XLIFF 2.x format.
 func (c *Config) Schema() *schema.FormatSchema {
 	return &schema.FormatSchema{
-		Title:       "XLIFF 2.0",
-		Description: "Configuration for the native XLIFF 2.0/2.1 bilingual exchange format reader/writer",
+		Title:       "XLIFF 2.x",
+		Description: "Configuration for the native XLIFF 2.0/2.1/2.2 bilingual exchange format reader/writer",
 		Type:        "object",
 		FormatMeta: schema.FormatMeta{
 			ID:         "xliff2",
@@ -18,6 +18,13 @@ func (c *Config) Schema() *schema.FormatSchema {
 			MimeTypes:  []string{"application/xliff+xml"},
 		},
 		Groups: []schema.ParameterGroup{
+			{
+				ID:    "output",
+				Label: "Output",
+				Fields: []string{
+					"version", "writeOriginalData",
+				},
+			},
 			{
 				ID:    "extraction",
 				Label: "Extraction",
@@ -33,13 +40,6 @@ func (c *Config) Schema() *schema.FormatSchema {
 				},
 			},
 			{
-				ID:    "output",
-				Label: "Output",
-				Fields: []string{
-					"writeOriginalData",
-				},
-			},
-			{
 				ID:    "inlineCodes",
 				Label: "Inline Codes",
 				Fields: []string{
@@ -48,6 +48,20 @@ func (c *Config) Schema() *schema.FormatSchema {
 			},
 		},
 		Properties: map[string]schema.PropertySchema{
+			// Output — version
+			"version": schema.Prop(coreschema.PropertySchema{
+				Type:        "string",
+				Default:     "",
+				Title:       "XLIFF version",
+				Description: "Target XLIFF 2.x version to emit. Empty means: preserve the input document version on roundtrip, otherwise default to " + DefaultXLIFFVersion + ".",
+				Options: []coreschema.OptionItem{
+					{Value: "", Label: "Auto (preserve input, default " + DefaultXLIFFVersion + ")"},
+					{Value: "2.0", Label: "XLIFF 2.0"},
+					{Value: "2.1", Label: "XLIFF 2.1"},
+					{Value: "2.2", Label: "XLIFF 2.2"},
+				},
+			}),
+
 			// Extraction
 			"forceUniqueIds": schema.Prop(coreschema.PropertySchema{
 				Type:        "boolean",
