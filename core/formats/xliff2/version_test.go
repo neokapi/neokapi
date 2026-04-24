@@ -104,7 +104,7 @@ func TestRoundTrip_DomPreservesInputVersion(t *testing.T) {
 			output := buf.String()
 			assert.Contains(t, output, fmt.Sprintf(`version="%s"`, version),
 				"DOM roundtrip should preserve the input version attribute")
-			assert.Contains(t, output, fmt.Sprintf("urn:oasis:names:tc:xliff:document:%s", version),
+			assert.Contains(t, output, "urn:oasis:names:tc:xliff:document:"+version,
 				"DOM roundtrip should preserve the matching XLIFF %s namespace", version)
 		})
 	}
@@ -163,7 +163,7 @@ func TestWriter_VersionOverride(t *testing.T) {
 			output := buf.String()
 			assert.Contains(t, output, fmt.Sprintf(`version="%s"`, version),
 				"writer override should emit version=%q", version)
-			assert.Contains(t, output, fmt.Sprintf("urn:oasis:names:tc:xliff:document:%s", version),
+			assert.Contains(t, output, "urn:oasis:names:tc:xliff:document:"+version,
 				"writer override should emit matching %s namespace", version)
 		})
 	}
@@ -173,14 +173,14 @@ func TestWriter_VersionOverride(t *testing.T) {
 // outside the supported 2.x family.
 func TestWriter_SetVersionRejectsUnknown(t *testing.T) {
 	writer := xliff2.NewWriter()
-	assert.Error(t, writer.SetVersion("1.2"))
-	assert.Error(t, writer.SetVersion("2.3"))
-	assert.Error(t, writer.SetVersion("nonsense"))
+	require.Error(t, writer.SetVersion("1.2"))
+	require.Error(t, writer.SetVersion("2.3"))
+	require.Error(t, writer.SetVersion("nonsense"))
 
 	// Empty string is valid (means auto-resolve).
-	assert.NoError(t, writer.SetVersion(""))
+	require.NoError(t, writer.SetVersion(""))
 	for _, v := range xliff2.SupportedXLIFFVersions {
-		assert.NoError(t, writer.SetVersion(v))
+		require.NoError(t, writer.SetVersion(v))
 	}
 }
 
@@ -195,8 +195,8 @@ func TestConfig_ApplyMapVersion(t *testing.T) {
 	require.NoError(t, c.ApplyMap(map[string]any{"version": ""}))
 	assert.Equal(t, "", c.Version)
 
-	assert.Error(t, c.ApplyMap(map[string]any{"version": "1.2"}))
-	assert.Error(t, c.ApplyMap(map[string]any{"version": 22}))
+	require.Error(t, c.ApplyMap(map[string]any{"version": "1.2"}))
+	require.Error(t, c.ApplyMap(map[string]any{"version": 22}))
 }
 
 // TestRead_UnknownAttrsRoundTripDom verifies that unknown 2.x attributes on
