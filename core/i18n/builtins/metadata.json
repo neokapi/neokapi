@@ -1675,7 +1675,7 @@
       }
     },
     "xliff2": {
-      "displayName": "XLIFF 2.0",
+      "displayName": "XLIFF 2.x",
       "extensions": [
         ".xlf",
         ".xliff"
@@ -1703,6 +1703,10 @@
         "useCodeFinder": {
           "title": "Enable inline code detection",
           "description": "Enable regex-based inline code detection in translatable text"
+        },
+        "version": {
+          "title": "XLIFF version",
+          "description": "Target XLIFF 2.x version to emit (2.0, 2.1, or 2.2). Empty preserves the input document's version on roundtrip, otherwise defaults to 2.2."
         },
         "writeOriginalData": {
           "title": "Include original data in output",

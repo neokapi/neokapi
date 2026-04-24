@@ -6,8 +6,13 @@ import (
 	"github.com/neokapi/neokapi/core/config"
 )
 
-// Config holds configuration for the XLIFF 2.0 format.
+// Config holds configuration for the XLIFF 2.x format.
 type Config struct {
+	// Version selects the XLIFF 2.x output version. Accepted values:
+	// "2.0", "2.1", "2.2". An empty value means "follow the input
+	// document version on roundtrip, otherwise default to 2.2".
+	Version string
+
 	// Extraction settings
 
 	// ForceUniqueIds ensures inline tag IDs are unique within units.
@@ -39,10 +44,40 @@ type Config struct {
 	CodeFinderRules []string
 }
 
+// DefaultXLIFFVersion is the version emitted when no explicit Version is
+// configured and no input document version is available (e.g. a new file
+// extracted from a non-XLIFF source).
+const DefaultXLIFFVersion = "2.2"
+
+// SupportedXLIFFVersions lists the XLIFF 2.x versions the reader accepts
+// as a compatible family and that the writer can emit.
+var SupportedXLIFFVersions = []string{"2.0", "2.1", "2.2"}
+
+// NamespaceForVersion returns the OASIS XLIFF document namespace URI for a
+// given 2.x version. Unknown versions fall back to the default namespace.
+func NamespaceForVersion(version string) string {
+	switch version {
+	case "2.0", "2.1", "2.2":
+		return "urn:oasis:names:tc:xliff:document:" + version
+	default:
+		return "urn:oasis:names:tc:xliff:document:" + DefaultXLIFFVersion
+	}
+}
+
+// IsSupportedVersion reports whether v is one of the supported XLIFF 2.x versions.
+func IsSupportedVersion(v string) bool {
+	for _, s := range SupportedXLIFFVersions {
+		if s == v {
+			return true
+		}
+	}
+	return false
+}
+
 // FormatName returns the format this config applies to.
 func (c *Config) FormatName() string { return "xliff2" }
 
-// ConfigKind returns the Kind for XLIFF 2.0 format config.
+// ConfigKind returns the Kind for XLIFF 2.x format config.
 func (c *Config) ConfigKind() config.Kind { return config.FormatConfigKind("xliff2") }
 
 // Reset restores default values.
@@ -59,6 +94,17 @@ func (c *Config) Validate() error { return nil }
 func (c *Config) ApplyMap(values map[string]any) error {
 	for key, val := range values {
 		switch key {
+		// Version
+		case "version":
+			s, ok := val.(string)
+			if !ok {
+				return fmt.Errorf("version: expected string, got %T", val)
+			}
+			if s != "" && !IsSupportedVersion(s) {
+				return fmt.Errorf("version: unsupported XLIFF 2.x version %q (expected one of %v)", s, SupportedXLIFFVersions)
+			}
+			c.Version = s
+
 		// Extraction
 		case "forceUniqueIds":
 			b, ok := val.(bool)

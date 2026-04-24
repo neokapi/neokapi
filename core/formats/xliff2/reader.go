@@ -13,10 +13,11 @@ import (
 	"github.com/neokapi/neokapi/core/model"
 )
 
-// XLIFF 2.0 XML structures (used for DOM-based parsing without skeleton)
+// XLIFF 2.x XML structures (used for DOM-based parsing without skeleton)
 
 type xliff2Doc struct {
 	XMLName xml.Name     `xml:"xliff"`
+	Attrs   []xml.Attr   `xml:",any,attr"`
 	Version string       `xml:"version,attr"`
 	SrcLang string       `xml:"srcLang,attr"`
 	TrgLang string       `xml:"trgLang,attr"`
@@ -60,7 +61,7 @@ type xliff2Content struct {
 	InnerXML string `xml:",innerxml"`
 }
 
-// Reader implements DataFormatReader for XLIFF 2.0 files.
+// Reader implements DataFormatReader for XLIFF 2.x files.
 type Reader struct {
 	format.BaseFormatReader
 	cfg           *Config
@@ -71,14 +72,15 @@ type Reader struct {
 // Ensure Reader implements SkeletonStoreEmitter.
 var _ format.SkeletonStoreEmitter = (*Reader)(nil)
 
-// NewReader creates a new XLIFF 2.0 reader.
+// NewReader creates a new XLIFF 2.x reader. The reader accepts the
+// OASIS 2.0, 2.1 and 2.2 document namespaces as a compatible family.
 func NewReader() *Reader {
 	cfg := &Config{}
 	cfg.Reset()
 	return &Reader{
 		BaseFormatReader: format.BaseFormatReader{
 			FormatName:        "xliff2",
-			FormatDisplayName: "XLIFF 2.0",
+			FormatDisplayName: "XLIFF 2.x",
 			FormatMimeType:    "application/xliff+xml",
 			FormatExtensions:  []string{".xlf", ".xliff"},
 			Cfg:               cfg,
@@ -92,14 +94,22 @@ func (r *Reader) SetSkeletonStore(store *format.SkeletonStore) {
 	r.skeletonStore = store
 }
 
-// Signature returns detection metadata for this format.
+// Signature returns detection metadata for this format. The Sniff function
+// accepts any OASIS XLIFF 2.x document (namespace …:2.0/2.1/2.2 or version
+// attribute 2.0/2.1/2.2).
 func (r *Reader) Signature() format.FormatSignature {
 	return format.FormatSignature{
 		MIMETypes:  []string{"application/xliff+xml"},
 		Extensions: []string{".xlf", ".xliff"},
 		Sniff: func(data []byte) bool {
 			s := string(data)
-			return strings.Contains(s, "<xliff") && strings.Contains(s, "version=\"2")
+			if !strings.Contains(s, "<xliff") {
+				return false
+			}
+			return strings.Contains(s, "urn:oasis:names:tc:xliff:document:2") ||
+				strings.Contains(s, `version="2.0"`) ||
+				strings.Contains(s, `version="2.1"`) ||
+				strings.Contains(s, `version="2.2"`)
 		},
 	}
 }
@@ -152,6 +162,7 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 
 	srcLang := model.LocaleID(doc.SrcLang)
 	trgLang := model.LocaleID(doc.TrgLang)
+	version := doc.Version
 
 	for _, file := range doc.Files {
 		layer := &model.Layer{
@@ -164,6 +175,10 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 				"target-language": string(trgLang),
 			},
 		}
+		if version != "" {
+			layer.Properties["xliff-version"] = version
+		}
+		setExtraXliffAttrs(layer, doc.Attrs)
 		if !r.emit(ctx, ch, &model.Part{Type: model.PartLayerStart, Resource: layer}) {
 			return
 		}
@@ -179,7 +194,7 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 	}
 }
 
-// xliff2StreamState holds the mutable state for streaming XLIFF 2.0 parsing.
+// xliff2StreamState holds the mutable state for streaming XLIFF 2.x parsing.
 type xliff2StreamState struct {
 	reader  *Reader
 	ctx     context.Context
@@ -189,6 +204,8 @@ type xliff2StreamState struct {
 
 	srcLang       string
 	trgLang       string
+	version       string
+	extraAttrs    []xml.Attr
 	fileID        string
 	inFile        bool
 	inUnit        bool
@@ -229,6 +246,12 @@ func (s *xliff2StreamState) handleStartElement(t xml.StartElement) {
 				s.srcLang = a.Value
 			case "trgLang":
 				s.trgLang = a.Value
+			case "version":
+				s.version = a.Value
+			default:
+				if isXliffExtraAttr(a) {
+					s.extraAttrs = append(s.extraAttrs, a)
+				}
 			}
 		}
 
@@ -249,6 +272,12 @@ func (s *xliff2StreamState) handleStartElement(t xml.StartElement) {
 			Properties: map[string]string{
 				"target-language": s.trgLang,
 			},
+		}
+		if s.version != "" {
+			layer.Properties["xliff-version"] = s.version
+		}
+		for i, a := range s.extraAttrs {
+			layer.Properties[extraAttrPropKey(i)] = encodeExtraAttr(a)
 		}
 		if !s.reader.emit(s.ctx, s.ch, &model.Part{Type: model.PartLayerStart, Resource: layer}) {
 			return
@@ -661,6 +690,90 @@ func (r *Reader) emitUnit(ctx context.Context, ch chan<- model.PartResult, unit 
 	}
 
 	r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block})
+}
+
+// extraAttrPropKeyPrefix prefixes Layer.Properties keys that carry XLIFF
+// root attributes the reader captured but didn't interpret. Kept short so
+// it doesn't visually dominate property dumps.
+const extraAttrPropKeyPrefix = "xliff-xattr-"
+
+// extraAttrPropKey returns the property key for the i-th captured extra attr.
+// Indices keep the original source order so the writer can re-emit attrs
+// in the order they appeared on the input document.
+func extraAttrPropKey(i int) string {
+	return fmt.Sprintf("%s%d", extraAttrPropKeyPrefix, i)
+}
+
+// encodeExtraAttr serializes an xml.Attr as "space|local=value". Space may
+// be empty. The delimiters ('|' and '=') are not valid in XML attribute
+// names, so round-tripping is unambiguous.
+func encodeExtraAttr(a xml.Attr) string {
+	return a.Name.Space + "|" + a.Name.Local + "=" + a.Value
+}
+
+// decodeExtraAttr inverts encodeExtraAttr.
+func decodeExtraAttr(s string) (xml.Attr, bool) {
+	bar := strings.IndexByte(s, '|')
+	if bar < 0 {
+		return xml.Attr{}, false
+	}
+	eq := strings.IndexByte(s[bar+1:], '=')
+	if eq < 0 {
+		return xml.Attr{}, false
+	}
+	space := s[:bar]
+	local := s[bar+1 : bar+1+eq]
+	value := s[bar+1+eq+1:]
+	return xml.Attr{Name: xml.Name{Space: space, Local: local}, Value: value}, true
+}
+
+// isXliffExtraAttr reports whether an attribute on the <xliff> root should
+// be preserved for round-trip. We skip attrs we interpret explicitly
+// (version, srcLang, trgLang) and the default-namespace xmlns declaration
+// (handled by the writer via the chosen version's namespace URI).
+func isXliffExtraAttr(a xml.Attr) bool {
+	if a.Name.Space == "" {
+		switch a.Name.Local {
+		case "version", "srcLang", "trgLang", "xmlns":
+			return false
+		}
+	}
+	// xmlns:xyz (namespace prefix declarations) use Space="xmlns" in Go's
+	// encoding/xml. Preserve those so custom namespace bindings survive
+	// roundtrip.
+	return true
+}
+
+// setExtraXliffAttrs copies reader-captured extra root-element attrs onto a
+// Layer's Properties map using the extraAttrPropKey() scheme.
+func setExtraXliffAttrs(layer *model.Layer, attrs []xml.Attr) {
+	n := 0
+	for _, a := range attrs {
+		if !isXliffExtraAttr(a) {
+			continue
+		}
+		layer.Properties[extraAttrPropKey(n)] = encodeExtraAttr(a)
+		n++
+	}
+}
+
+// extraAttrsFromLayer reconstructs captured extra attrs from a Layer's
+// Properties, preserving source order via the numeric index.
+func extraAttrsFromLayer(layer *model.Layer) []xml.Attr {
+	if layer == nil {
+		return nil
+	}
+	var out []xml.Attr
+	for i := 0; ; i++ {
+		v, ok := layer.Properties[extraAttrPropKey(i)]
+		if !ok {
+			break
+		}
+		if a, ok := decodeExtraAttr(v); ok {
+			out = append(out, a)
+		}
+	}
+	return out
 }
 
 // xmlEscapeText escapes XML special characters in text content.

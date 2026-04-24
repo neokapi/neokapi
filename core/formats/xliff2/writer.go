@@ -13,26 +13,58 @@ import (
 	"github.com/neokapi/neokapi/core/model"
 )
 
-// Writer implements DataFormatWriter for XLIFF 2.0 files.
+// Writer implements DataFormatWriter for XLIFF 2.x files.
 type Writer struct {
 	format.BaseFormatWriter
-	skeletonStore *format.SkeletonStore
-	blocks        []*model.Block
-	sourceLang    model.LocaleID
-	targetLang    model.LocaleID
-	fileID        string
+	cfg            *Config
+	skeletonStore  *format.SkeletonStore
+	blocks         []*model.Block
+	sourceLang     model.LocaleID
+	targetLang     model.LocaleID
+	fileID         string
+	inputVersion   string
+	inputExtraAttr []xml.Attr
 }
 
 // Ensure Writer implements SkeletonStoreConsumer.
 var _ format.SkeletonStoreConsumer = (*Writer)(nil)
 
-// NewWriter creates a new XLIFF 2.0 writer.
+// NewWriter creates a new XLIFF 2.x writer.
 func NewWriter() *Writer {
+	cfg := &Config{}
+	cfg.Reset()
 	return &Writer{
 		BaseFormatWriter: format.BaseFormatWriter{
 			FormatName: "xliff2",
 		},
+		cfg: cfg,
 	}
+}
+
+// Config returns the writer's configuration (mutable).
+func (w *Writer) Config() *Config { return w.cfg }
+
+// SetVersion overrides the emitted XLIFF 2.x version. Valid values are
+// "2.0", "2.1", "2.2". Empty resets to auto (preserve input, else default).
+// Returns an error if v is not a supported XLIFF 2.x version.
+func (w *Writer) SetVersion(v string) error {
+	if v != "" && !IsSupportedVersion(v) {
+		return fmt.Errorf("xliff2: unsupported XLIFF 2.x version %q (expected one of %v)", v, SupportedXLIFFVersions)
+	}
+	w.cfg.Version = v
+	return nil
+}
+
+// resolveVersion returns the version this writer should emit.
+// Precedence: explicit Config.Version → input document's version → DefaultXLIFFVersion.
+func (w *Writer) resolveVersion() string {
+	if w.cfg != nil && w.cfg.Version != "" {
+		return w.cfg.Version
+	}
+	if w.inputVersion != "" && IsSupportedVersion(w.inputVersion) {
+		return w.inputVersion
+	}
+	return DefaultXLIFFVersion
 }
 
 // SetSkeletonStore sets the skeleton store for byte-exact output.
@@ -40,7 +72,7 @@ func (w *Writer) SetSkeletonStore(store *format.SkeletonStore) {
 	w.skeletonStore = store
 }
 
-// Write consumes Parts from a channel and writes XLIFF 2.0 output.
+// Write consumes Parts from a channel and writes XLIFF 2.x output.
 func (w *Writer) Write(ctx context.Context, parts <-chan *model.Part) error {
 	for {
 		select {
@@ -65,6 +97,10 @@ func (w *Writer) Write(ctx context.Context, parts <-chan *model.Part) error {
 					if tl, ok := layer.Properties["target-language"]; ok {
 						w.targetLang = model.LocaleID(tl)
 					}
+					if v, ok := layer.Properties["xliff-version"]; ok {
+						w.inputVersion = v
+					}
+					w.inputExtraAttr = extraAttrsFromLayer(layer)
 				}
 			}
 		}
@@ -166,12 +202,13 @@ func (w *Writer) flush() error {
 		Units   []xmlUnit `xml:"unit"`
 	}
 	type xmlXliff struct {
-		XMLName xml.Name  `xml:"xliff"`
-		Version string    `xml:"version,attr"`
-		Xmlns   string    `xml:"xmlns,attr"`
-		SrcLang string    `xml:"srcLang,attr"`
-		TrgLang string    `xml:"trgLang,attr,omitempty"`
-		Files   []xmlFile `xml:"file"`
+		XMLName xml.Name   `xml:"xliff"`
+		Attrs   []xml.Attr `xml:",any,attr"`
+		Version string     `xml:"version,attr"`
+		Xmlns   string     `xml:"xmlns,attr"`
+		SrcLang string     `xml:"srcLang,attr"`
+		TrgLang string     `xml:"trgLang,attr,omitempty"`
+		Files   []xmlFile  `xml:"file"`
 	}
 
 	var units []xmlUnit
@@ -200,9 +237,11 @@ func (w *Writer) flush() error {
 		})
 	}
 
+	version := w.resolveVersion()
 	doc := xmlXliff{
-		Version: "2.0",
-		Xmlns:   "urn:oasis:names:tc:xliff:document:2.0",
+		Version: version,
+		Xmlns:   NamespaceForVersion(version),
+		Attrs:   w.inputExtraAttr,
 		SrcLang: string(w.sourceLang),
 		TrgLang: string(targetLang),
 		Files: []xmlFile{
