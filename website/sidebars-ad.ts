@@ -45,6 +45,12 @@ const sidebars: SidebarsConfig = {
     },
     {
       type: "category",
+      label: "Workflows",
+      collapsed: false,
+      items: ["017-bilingual-format-interop"],
+    },
+    {
+      type: "category",
       label: "Cross-Cutting",
       collapsed: false,
       items: ["015-testing-and-documentation", "016-metadata-i18n"],

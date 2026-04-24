@@ -122,6 +122,8 @@ type TranslationMemory interface {
     Add(entry TMEntry) error
     Lookup(source *model.Block, sourceLocale, targetLocale model.LocaleID,
         opts LookupOptions) ([]TMMatch, error)
+    LookupSegment(source *model.Block, segmentIdx int,
+        sourceLocale, targetLocale model.LocaleID, opts LookupOptions) ([]TMMatch, error)
     Delete(id string) error
     Count() int
     Close() error
@@ -131,6 +133,13 @@ type TranslationMemory interface {
 `Lookup` takes a `*model.Block` rather than a string. The Block carries the
 entity annotations needed to compute the generalized key and the Spans
 needed for the structural key; no separate pre-processing step is required.
+By default `Lookup` keys on the block's *first* segment, which is correct
+when segmentation is off (one segment per Block — the verbatim lookup case).
+
+`LookupSegment` selects a specific segment by index for the
+sentence-level TM leverage path used by `kapi extract` when the
+project's recipe sets `segmentation.source: true` (see
+[AD-017](017-bilingual-format-interop.md)).
 
 ### Backends
 

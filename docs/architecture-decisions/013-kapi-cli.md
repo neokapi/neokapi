@@ -65,6 +65,8 @@ subcommands:
 kapi
 ├── <tool>                   # run a tool directly (pseudo-translate, ai-translate, …)
 ├── run FLOW                 # execute a composed flow
+├── extract                  # emit XLIFF 2.x / PO for a translator (AD-017)
+├── merge                    # apply a translator's returned XLIFF / PO (AD-017)
 ├── init                     # scaffold a new .kapi project
 ├── tools                    # list available tools
 ├── flows                    # list available flows
@@ -82,8 +84,12 @@ kapi
 │   └── stats
 ├── tm                       # translation memory management
 │   ├── list
+│   ├── import
+│   ├── export
 │   ├── lookup
-│   └── stats
+│   ├── search
+│   ├── stats                # TU counts, locale breakdown, provenance (AD-017)
+│   └── audit                # trace a merge batch's TM impact (AD-017)
 ├── version                  # version info (set via ldflags)
 └── mcp                      # MCP server for AI agent integration
 ```
@@ -131,8 +137,22 @@ With `-p`:
 - Plugin scoping from `AllowedSources` narrows format detection to the
   project's declared plugins.
 
-Kapi does not auto-discover `.kapi` files in the current directory; `-p`
-is always explicit. This keeps the default one-shot behavior predictable.
+Every project-aware command resolves `-p` in this order, matching the
+git-style semantics a localization engineer expects when running
+commands from inside a project tree:
+
+1. Explicit `-p <path>` flag.
+2. `KAPI_PROJECT` env var (CI escape hatch).
+3. `project.ResolveLayout(cwd)` — walk upward for the `{name}.kapi`
+   recipe + adjacent `.kapi/` state directory.
+4. Fall through to one-shot mode (for commands that support it) or
+   return a "not a kapi project" error (for commands that require
+   one — e.g. `kapi merge`).
+
+`ErrAmbiguousLayout` (multiple `*.kapi` files in the same directory)
+surfaces as a CLI error asking for explicit `-p`. The resolution
+helper lives in `cli/project.go` once and is reused by `run`,
+`extract`, `merge`, and any future project-aware command.
 
 ### Output format flags
 
