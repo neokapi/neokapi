@@ -111,10 +111,19 @@ func (s *SkeletonStore) writeEntry(typ SkeletonEntryType, data []byte) error {
 	return err
 }
 
-// Flush finishes writing and prepares the store for reading.
+// Flush finishes writing and prepares the store for reading. On stores
+// opened via OpenSkeletonStore (already in read mode) this is a no-op.
 func (s *SkeletonStore) Flush() error {
-	if err := s.writer.Flush(); err != nil {
-		return err
+	if s.reader != nil && s.writer == nil {
+		// Already prepared for reading by OpenSkeletonStore — nothing to
+		// flush. The seek-to-start guarantee still holds since the file
+		// hasn't been read yet.
+		return nil
+	}
+	if s.writer != nil {
+		if err := s.writer.Flush(); err != nil {
+			return err
+		}
 	}
 	if _, err := s.file.Seek(0, io.SeekStart); err != nil {
 		return err
