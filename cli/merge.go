@@ -2,6 +2,7 @@ package cli
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -74,14 +75,14 @@ func (a *App) runMerge(cmd *cobra.Command) error {
 
 	inputs, _ := cmd.Flags().GetStringArray("input")
 	if len(inputs) == 0 {
-		return fmt.Errorf("merge: -i <file|glob|dir> is required (repeatable)")
+		return errors.New("merge: -i <file|glob|dir> is required (repeatable)")
 	}
 	expanded, err := expandMergeInputs(inputs, layout.Root)
 	if err != nil {
 		return err
 	}
 	if len(expanded) == 0 {
-		return fmt.Errorf("merge: no input files matched — check -i paths and globs")
+		return errors.New("merge: no input files matched — check -i paths and globs")
 	}
 
 	noTMUpdate, _ := cmd.Flags().GetBool("no-tm-update")
@@ -228,7 +229,7 @@ func (a *App) mergeOneXLIFF(ctx context.Context, task mergeTask) (mergeStats, er
 	if srcRel == "" {
 		return stats, fmt.Errorf("merge: no source-file note in %s", task.input)
 	}
-	targetLocale := model.LocaleID(strings.TrimSpace(string(layer.Properties["target-language"])))
+	targetLocale := model.LocaleID(strings.TrimSpace(layer.Properties["target-language"]))
 	if targetLocale == "" {
 		// Try to derive from XLIFF <xliff trgLang>
 		targetLocale = layer.Locale // fallback — reader sets srcLang on layer.Locale

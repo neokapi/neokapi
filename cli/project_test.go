@@ -130,7 +130,7 @@ func TestResolveProjectPath_AmbiguousLayoutWrapsError(t *testing.T) {
 	got, err := ResolveProjectPath(newTestCmd())
 	require.Error(t, err)
 	assert.Empty(t, got)
-	assert.ErrorIs(t, err, project.ErrAmbiguousLayout)
+	require.ErrorIs(t, err, project.ErrAmbiguousLayout)
 	assert.Contains(t, err.Error(), "-p")
 }
 

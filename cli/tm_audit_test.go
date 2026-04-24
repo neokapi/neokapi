@@ -130,7 +130,7 @@ func TestTMAudit_NonexistentDBErrors(t *testing.T) {
 	// Either the command errors (can't open) or returns "no entries".
 	// Accept either — the failure mode is graceful.
 	if err != nil {
-		assert.Error(t, err)
+		require.Error(t, err)
 	} else {
 		assert.Contains(t, out.String(), "No TM entries")
 	}

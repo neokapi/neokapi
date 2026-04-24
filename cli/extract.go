@@ -3,6 +3,7 @@ package cli
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -135,7 +136,7 @@ func (a *App) runExtract(cmd *cobra.Command) error {
 	}
 	files = filterFiles(files, only, pattern, layout.Root)
 	if len(files) == 0 {
-		return fmt.Errorf("extract: no source files matched — check content patterns / --only / --pattern")
+		return errors.New("extract: no source files matched — check content patterns / --only / --pattern")
 	}
 
 	outDir, _ := cmd.Flags().GetString("out-dir")
