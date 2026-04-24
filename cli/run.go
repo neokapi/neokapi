@@ -51,9 +51,12 @@ Use -p to run a flow from a .kapi project file:
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			flowName := args[0]
-			projectPath, _ := cmd.Flags().GetString("project")
+			projectPath, err := ResolveProjectPath(cmd)
+			if err != nil {
+				return err
+			}
 
-			// If a project file is specified, apply its defaults.
+			// If a project file is specified (or auto-discovered), apply its defaults.
 			if projectPath != "" {
 				return a.runFromProject(cmd, flowName, projectPath, opts)
 			}
@@ -76,7 +79,7 @@ Use -p to run a flow from a .kapi project file:
 		},
 	}
 
-	cmd.Flags().StringP("project", "p", "", "path to a .kapi project file")
+	AddProjectFlag(cmd)
 	a.addFlowRunFlags(cmd)
 	return cmd
 }
