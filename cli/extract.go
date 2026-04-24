@@ -17,6 +17,7 @@ import (
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/registry"
+	"github.com/neokapi/neokapi/core/tools"
 	"github.com/neokapi/neokapi/core/version"
 	"github.com/neokapi/neokapi/sievepen"
 	"github.com/spf13/cobra"
@@ -352,6 +353,16 @@ func (a *App) extractOne(ctx context.Context, task extractTask) (project.Extract
 		_ = skelStore.Close()
 	}
 
+	// Segmentation overlay: when the recipe opts in, run the SRX tool
+	// over each block's source before TM pre-fill. Block identity is
+	// preserved (hash is over SourceText(), which concatenates segments),
+	// so on/off toggles between extractions are safe.
+	if task.ctx.Project != nil && task.ctx.Project.Defaults.Segmentation.Source {
+		if err := applySegmentation(blocks, task.ctx.Project.Defaults.Segmentation); err != nil {
+			return project.ExtractionFile{}, fmt.Errorf("segmentation: %w", err)
+		}
+	}
+
 	// TM pre-fill: fill block.Targets[targetLocale] for any exact/fuzzy
 	// match. Leverage stats reflect one decision per block (counting the
 	// first segment's pre-fill outcome for that block).
@@ -496,6 +507,30 @@ func applyTMPrefill(tm sievepen.TranslationMemory, block *model.Block, source, t
 		return prefillExact
 	}
 	return prefillFuzzy
+}
+
+// applySegmentation runs the existing SRX segmentation tool over each
+// block's source — the overlay path from AD-017 / #417. The tool is a
+// regular kapi tool.Tool but we call its block handler directly here to
+// avoid wiring a one-stage channel pipeline into the extract flow.
+func applySegmentation(blocks []*model.Block, conf project.SegmentationDefaults) error {
+	cfg := &tools.SegmentationConfig{
+		SegmentSource: true,
+	}
+	if conf.SRX != "" {
+		cfg.SourceSrxPath = conf.SRX
+	}
+	t := tools.NewSegmentationTool(cfg)
+	for _, b := range blocks {
+		if t.HandleBlockFn == nil {
+			continue
+		}
+		part := &model.Part{Type: model.PartBlock, Resource: b}
+		if _, err := t.HandleBlockFn(part); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // --- helpers ---

@@ -301,3 +301,47 @@ var (
 	_ = registry.FormatID("")
 	_ = xliff2.FileNote{}
 )
+
+// Segmentation overlay — AD-017 / issue #417.
+
+func TestExtract_SegmentationSplitsSourceIntoMultipleSegments(t *testing.T) {
+	dir := t.TempDir()
+	real, err := filepath.EvalSymlinks(dir)
+	require.NoError(t, err)
+
+	recipe := filepath.Join(real, "app.kapi")
+	proj := &project.KapiProject{
+		Version: "v1",
+		Name:    "SegmentationOn",
+		Defaults: project.Defaults{
+			SourceLanguage:  "en-US",
+			TargetLanguages: []model.LocaleID{"fr-FR"},
+			Segmentation:    project.SegmentationDefaults{Source: true},
+		},
+		Content: []project.ContentCollection{
+			{
+				Path:   "src/locales/en/*.json",
+				Format: &project.FormatSpec{Name: "json"},
+			},
+		},
+	}
+	require.NoError(t, project.Save(recipe, proj))
+	require.NoError(t, os.MkdirAll(filepath.Join(real, project.StateDirName), 0o755))
+	writeJSONSource(t, real, "src/locales/en/app.json",
+		`{"k": "This is a sentence. Here is another one."}`)
+
+	_, err = runExtractCmd(t, recipe)
+	require.NoError(t, err)
+
+	entries, err := os.ReadDir(filepath.Join(real, "out"))
+	require.NoError(t, err)
+	require.Len(t, entries, 1)
+	out, err := os.ReadFile(filepath.Join(real, "out", entries[0].Name()))
+	require.NoError(t, err)
+
+	// With segmentation on, the unit should carry multiple <segment>
+	// children instead of a single one.
+	content := string(out)
+	count := strings.Count(content, "<segment ")
+	assert.GreaterOrEqual(t, count, 2, "expected multiple segments when segmentation.source=true, got %d in:\n%s", count, content)
+}
