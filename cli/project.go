@@ -76,7 +76,7 @@ func RequireProjectPath(cmd *cobra.Command) (string, error) {
 		return "", err
 	}
 	if path == "" {
-		return "", fmt.Errorf("no .kapi project found — pass -p <recipe> or run from inside a kapi project directory")
+		return "", errors.New("no .kapi project found — pass -p <recipe> or run from inside a kapi project directory")
 	}
 	return path, nil
 }

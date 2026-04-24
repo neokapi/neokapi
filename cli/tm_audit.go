@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"errors"
 	"fmt"
 	"sort"
 	"strings"
@@ -37,7 +38,7 @@ merge do?".
 		RunE: func(cmd *cobra.Command, args []string) error {
 			batch, _ := cmd.Flags().GetString("batch")
 			if batch == "" {
-				return fmt.Errorf("audit: --batch <merge-batch-id> is required")
+				return errors.New("audit: --batch <merge-batch-id> is required")
 			}
 			limit, _ := cmd.Flags().GetInt("limit")
 
