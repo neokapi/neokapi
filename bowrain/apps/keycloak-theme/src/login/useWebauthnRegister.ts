@@ -87,6 +87,14 @@ export function useWebauthnRegisterScript(params: {
   // We inject a patched version of the registration flow that:
   // 1. Calls registerByWebAuthn (standard credential creation)
   // 2. Intercepts window.prompt to return auto-generated label instead
+  //
+  // Keycloak's webauthnRegister.js always calls window.prompt(initLabelPrompt,
+  // initLabel) after credential creation, even when we pass an empty
+  // initLabelPrompt. To avoid that extra "name your passkey" dialog, we
+  // replace window.prompt wholesale while the registration flow is running
+  // and return our auto-generated label. The original prompt is restored
+  // after the request submits (or on failure) so nothing else is affected.
+  const autoLabel = generatePasskeyLabel();
   const { insertScriptTags } = useInsertScriptTags({
     componentOrHookName: "WebauthnRegisterAutoLabel",
     scriptTags: [
@@ -95,18 +103,18 @@ export function useWebauthnRegisterScript(params: {
         textContent: () => `
           import { registerByWebAuthn } from "${url.resourcesPath}/js/webauthnRegister.js";
 
-          // Patch window.prompt to auto-generate the passkey label.
-          const originalPrompt = window.prompt;
-          window.prompt = function(message, defaultValue) {
-            // Only intercept the passkey label prompt.
-            if (message && (message.includes("passkey") || message.includes("label") || message.includes("security key"))) {
-              return ${JSON.stringify(generatePasskeyLabel())};
-            }
-            return originalPrompt.call(this, message, defaultValue);
-          };
+          const AUTO_LABEL = ${JSON.stringify(autoLabel)};
 
           const registerButton = document.getElementById('${authButtonId}');
           registerButton.addEventListener("click", function() {
+            const originalPrompt = window.prompt;
+            window.prompt = function() { return AUTO_LABEL; };
+
+            const restorePrompt = function() { window.prompt = originalPrompt; };
+            // registerByWebAuthn submits the form on success and never resolves;
+            // on failure the button remains clickable, so restore after a tick.
+            setTimeout(restorePrompt, 30000);
+
             const input = {
               challenge : '${challenge}',
               userid : '${userid}',
@@ -120,7 +128,7 @@ export function useWebauthnRegisterScript(params: {
               userVerificationRequirement : ${JSON.stringify(userVerificationRequirement)},
               createTimeout : ${createTimeout},
               excludeCredentialIds : ${JSON.stringify(excludeCredentialIds)},
-              initLabel : ${JSON.stringify(generatePasskeyLabel())},
+              initLabel : AUTO_LABEL,
               initLabelPrompt : '',
               errmsg : 'Your browser does not support passkeys.'
             };
