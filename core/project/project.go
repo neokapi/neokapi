@@ -44,6 +44,16 @@ type Defaults struct {
 	ParallelBlocks  int                       `yaml:"parallel_blocks,omitempty" json:"parallel_blocks,omitempty"`
 	Encoding        string                    `yaml:"encoding,omitempty" json:"encoding,omitempty"`
 	Formats         map[string]FormatDefaults `yaml:"formats,omitempty" json:"formats,omitempty"`
+
+	// Merge governs kapi merge behavior (AD-017).
+	Merge MergeDefaults `yaml:"merge,omitempty" json:"merge,omitempty"`
+
+	// TM governs TM pre-fill on kapi extract and TM write-back on kapi merge (AD-017).
+	TM TMDefaults `yaml:"tm,omitempty" json:"tm,omitempty"`
+
+	// Segmentation governs the opt-in sentence-level segmentation overlay
+	// applied on extract (AD-017).
+	Segmentation SegmentationDefaults `yaml:"segmentation,omitempty" json:"segmentation,omitempty"`
 }
 
 // FormatDefaults holds project-level default settings for a specific format.
@@ -51,6 +61,84 @@ type FormatDefaults struct {
 	Preset   string         `yaml:"preset,omitempty" json:"preset,omitempty"`
 	Config   map[string]any `yaml:"config,omitempty" json:"config,omitempty"`
 	Priority int            `yaml:"priority,omitempty" json:"priority,omitempty"`
+}
+
+// Conflict policy values for Defaults.Merge.ConflictPolicy (AD-017).
+const (
+	ConflictPolicyTranslatorWins = "translator-wins"
+	ConflictPolicyExistingWins   = "existing-wins"
+	ConflictPolicyNewestWins     = "newest-wins"
+)
+
+// DefaultFuzzyThreshold is the TM fuzzy-match cutoff (percent) applied when
+// the recipe does not specify one (AD-017).
+const DefaultFuzzyThreshold = 75
+
+// MergeDefaults governs kapi merge behavior (AD-017).
+type MergeDefaults struct {
+	// ConflictPolicy governs how merge applies a translator's target when
+	// an existing on-disk target or TM TU already has a translation. Valid
+	// values: "translator-wins" (default), "existing-wins", "newest-wins".
+	ConflictPolicy string `yaml:"conflict_policy,omitempty" json:"conflict_policy,omitempty"`
+}
+
+// TMDefaults governs TM pre-fill on extract and TM write-back on merge (AD-017).
+type TMDefaults struct {
+	// FuzzyThreshold is the minimum fuzzy match score (0..100) to pre-fill
+	// the target on extract. Defaults to DefaultFuzzyThreshold when zero.
+	FuzzyThreshold int `yaml:"fuzzy_threshold,omitempty" json:"fuzzy_threshold,omitempty"`
+
+	// Read lists additional read-only TM files consulted during pre-fill on
+	// extract. Writes always go to the project TM, never to these.
+	Read []string `yaml:"read,omitempty" json:"read,omitempty"`
+}
+
+// SegmentationDefaults governs the opt-in SRX segmentation overlay (AD-017).
+type SegmentationDefaults struct {
+	// Source toggles sentence-level segmentation of source text on extract.
+	Source bool `yaml:"source,omitempty" json:"source,omitempty"`
+
+	// SRX optionally points at an SRX rules file. When empty, built-in
+	// default rules are used.
+	SRX string `yaml:"srx,omitempty" json:"srx,omitempty"`
+}
+
+// ResolvedConflictPolicy returns the effective conflict policy, applying the
+// default when the recipe does not set one.
+func (m MergeDefaults) ResolvedConflictPolicy() string {
+	if m.ConflictPolicy == "" {
+		return ConflictPolicyTranslatorWins
+	}
+	return m.ConflictPolicy
+}
+
+// ResolvedFuzzyThreshold returns the effective TM fuzzy threshold, applying
+// the default when the recipe does not set one.
+func (t TMDefaults) ResolvedFuzzyThreshold() int {
+	if t.FuzzyThreshold == 0 {
+		return DefaultFuzzyThreshold
+	}
+	return t.FuzzyThreshold
+}
+
+func (m MergeDefaults) validate() error {
+	switch m.ConflictPolicy {
+	case "", ConflictPolicyTranslatorWins, ConflictPolicyExistingWins, ConflictPolicyNewestWins:
+		return nil
+	default:
+		return fmt.Errorf("defaults.merge.conflict_policy: unknown value %q (expected one of %q, %q, %q)",
+			m.ConflictPolicy,
+			ConflictPolicyTranslatorWins,
+			ConflictPolicyExistingWins,
+			ConflictPolicyNewestWins)
+	}
+}
+
+func (t TMDefaults) validate() error {
+	if t.FuzzyThreshold < 0 || t.FuzzyThreshold > 100 {
+		return fmt.Errorf("defaults.tm.fuzzy_threshold: %d out of range (0..100)", t.FuzzyThreshold)
+	}
+	return nil
 }
 
 // PluginSpec describes a plugin dependency with version constraints and settings.
@@ -248,6 +336,12 @@ func (p *KapiProject) Validate() error {
 	}
 	if p.Version != CurrentVersion {
 		return fmt.Errorf("unsupported version %q (expected %q)", p.Version, CurrentVersion)
+	}
+	if err := p.Defaults.Merge.validate(); err != nil {
+		return err
+	}
+	if err := p.Defaults.TM.validate(); err != nil {
+		return err
 	}
 	for i, c := range p.Content {
 		if c.IsBareEntry() {
