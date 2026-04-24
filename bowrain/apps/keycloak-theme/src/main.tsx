@@ -1,6 +1,6 @@
 import { createRoot } from "react-dom/client";
 import { StrictMode } from "react";
-import { ThemeProvider } from "@neokapi/ui/context/ThemeContext";
+import { ThemeProvider } from "@neokapi/ui";
 import { KcPage } from "./kc.gen";
 
 // In dev mode, allow rendering any page via ?kcPageId= query parameter.
