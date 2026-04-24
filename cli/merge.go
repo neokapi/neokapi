@@ -163,11 +163,21 @@ func (s *mergeStats) accumulate(o mergeStats) {
 func (a *App) mergeOne(ctx context.Context, task mergeTask) (mergeStats, error) {
 	var stats mergeStats
 
-	// Only XLIFF 2 is wired today; PO follows.
 	ext := strings.ToLower(filepath.Ext(task.input))
-	if ext != ".xliff" && ext != ".xlf" {
-		return stats, fmt.Errorf("merge: unsupported input extension %q (supported: .xliff, .xlf)", ext)
+	switch ext {
+	case ".xliff", ".xlf":
+		return a.mergeOneXLIFF(ctx, task)
+	case ".po":
+		return a.mergeOnePO(ctx, task)
+	default:
+		return stats, fmt.Errorf("merge: unsupported input extension %q (supported: .xliff, .xlf, .po)", ext)
 	}
+}
+
+// mergeOneXLIFF is the original XLIFF 2 merge path. Split out from
+// mergeOne so the dispatch is a cheap switch on the extension.
+func (a *App) mergeOneXLIFF(ctx context.Context, task mergeTask) (mergeStats, error) {
+	var stats mergeStats
 
 	// 1. Read the incoming XLIFF — blocks + layer metadata.
 	reader := xliff2.NewReader()
@@ -331,6 +341,160 @@ func (a *App) mergeOne(ctx context.Context, task mergeTask) (mergeStats, error) 
 	}
 
 	return stats, nil
+}
+
+// mergeOnePO handles a returning PO (gettext) file. It shares all the
+// conflict policy, stale detection, and TM absorb machinery with
+// mergeOneXLIFF — the only differences are parsing and target-locale
+// discovery (PO has no intrinsic src/trg attribute; we pull the target
+// from the extraction manifest via the pair that named the PO output).
+func (a *App) mergeOnePO(ctx context.Context, task mergeTask) (mergeStats, error) {
+	var stats mergeStats
+
+	po, err := readPOForMerge(task.input)
+	if err != nil {
+		return stats, fmt.Errorf("po read: %w", err)
+	}
+	if po.BatchID == "" {
+		return stats, fmt.Errorf("merge: no kapi-batch comment in %s — was this file produced by kapi extract?", task.input)
+	}
+	manifest, err := project.LoadExtractionManifest(task.layout, po.BatchID)
+	if err != nil {
+		return stats, fmt.Errorf("merge: load extraction manifest for batch %s: %w", po.BatchID, err)
+	}
+	if po.SourceFile == "" {
+		return stats, fmt.Errorf("merge: no kapi-source-file comment in %s", task.input)
+	}
+
+	// Target locale: resolved by finding the pair whose files list
+	// contains this source path. PO has no inherent target-locale attr,
+	// so we trust the extraction manifest.
+	pair, entry, ok := findPOManifestEntry(manifest, po.SourceFile, task.input, task.layout.Root)
+	if !ok {
+		return stats, fmt.Errorf("merge: source %q not found in batch %s", po.SourceFile, po.BatchID)
+	}
+	targetLocale := pair.TargetLocale
+
+	// Re-read the current source.
+	sourceAbs := filepath.Join(task.layout.Root, entry.Source)
+	srcFormat := detectSourceFormat(a.FormatReg, task.ctx, entry.Source, sourceAbs)
+	if srcFormat == "" {
+		return stats, fmt.Errorf("merge: cannot detect format for source %s", sourceAbs)
+	}
+	currentSourceBlocks, _, err := readSourceBlocks(ctx, a.FormatReg, srcFormat, sourceAbs, task.ctx.SourceLocale, targetLocale)
+	if err != nil {
+		return stats, fmt.Errorf("re-read source %s: %w", sourceAbs, err)
+	}
+	currentByID := make(map[string]*model.Block, len(currentSourceBlocks))
+	for _, b := range currentSourceBlocks {
+		currentByID[b.ID] = b
+	}
+
+	// Apply per-entry.
+	for _, mb := range po.Blocks {
+		if mb.MsgStr == "" {
+			stats.Skipped++
+			continue
+		}
+		if mb.BlockID == "" {
+			// No kapi-block hint — we can't correlate cleanly. Skip
+			// rather than risk misapplying.
+			stats.Skipped++
+			continue
+		}
+		srcBlock, ok := currentByID[mb.BlockID]
+		if !ok {
+			stats.Stale++
+			continue
+		}
+		// Per-block staleness: compare source text between extract-time
+		// (carried in the PO's msgid) and the current source.
+		if mb.MsgID != srcBlock.SourceText() {
+			stats.Stale++
+			continue
+		}
+		// Conflict policy.
+		existing, hasExisting := srcBlock.Targets[targetLocale]
+		apply := true
+		switch task.policy {
+		case project.ConflictPolicyExistingWins:
+			if hasExisting && hasAnyText(existing) {
+				apply = false
+			}
+		case project.ConflictPolicyNewestWins:
+			if hasExisting && hasAnyText(existing) {
+				srcInfo, _ := os.Stat(sourceAbs)
+				poInfo, _ := os.Stat(task.input)
+				if srcInfo != nil && poInfo != nil && !poInfo.ModTime().After(srcInfo.ModTime()) {
+					apply = false
+				}
+			}
+		}
+		if !apply {
+			stats.Skipped++
+			continue
+		}
+		// Stash target text as a single-segment target (PO v1 = one
+		// msgid per block; the segmentation-on case is deferred per
+		// writePOExtract).
+		if srcBlock.Targets == nil {
+			srcBlock.Targets = map[model.LocaleID][]*model.Segment{}
+		}
+		segID := "s1"
+		if len(srcBlock.Source) > 0 {
+			segID = srcBlock.Source[0].ID
+		}
+		srcBlock.Targets[targetLocale] = []*model.Segment{
+			{ID: segID, Runs: []model.Run{{Text: &model.TextRun{Text: mb.MsgStr}}}},
+		}
+		stats.Applied++
+
+		if task.tm != nil {
+			added, updated := absorbBlockIntoTM(task.tm, srcBlock, task.ctx.SourceLocale, targetLocale, po.BatchID, entry.Source, task.input)
+			stats.TMNew += added
+			stats.TMUpdated += updated
+		}
+	}
+
+	// Write merged target via source format writer + captured skeleton.
+	targetPath := resolveMergeOutputPath(entry, task.ctx.Project, task.layout.Root, targetLocale)
+	if err := writeMergedSource(ctx, a.FormatReg, srcFormat, sourceAbs, targetPath, task.layout, po.BatchID, entry, targetLocale, currentSourceBlocks); err != nil {
+		return stats, fmt.Errorf("write merged target %s: %w", targetPath, err)
+	}
+	return stats, nil
+}
+
+// findPOManifestEntry is the PO counterpart to findManifestEntry. Since
+// PO files carry no trgLang attribute, we locate the pair by matching
+// the output path (or falling back to the source file path) in the
+// manifest — whichever pair claims this PO as its output wins.
+func findPOManifestEntry(m *project.ExtractionManifest, sourceRel, inputPath, root string) (*project.ExtractionPair, *project.ExtractionFile, bool) {
+	absInput, _ := filepath.Abs(inputPath)
+	for i := range m.Pairs {
+		p := &m.Pairs[i]
+		// Primary: match by the pair's output path.
+		if p.Output != "" {
+			absOut := p.Output
+			if !filepath.IsAbs(absOut) {
+				absOut = filepath.Join(root, p.Output)
+			}
+			if absOut == absInput {
+				for j := range p.Files {
+					if p.Files[j].Source == sourceRel {
+						return p, &p.Files[j], true
+					}
+				}
+			}
+		}
+		// Fallback: source-file match within the pair (useful for
+		// single-source projects where the pair output is the only file).
+		for j := range p.Files {
+			if p.Files[j].Source == sourceRel {
+				return p, &p.Files[j], true
+			}
+		}
+	}
+	return nil, nil, false
 }
 
 func findManifestEntry(m *project.ExtractionManifest, sourceRel string, target model.LocaleID) (*project.ExtractionPair, *project.ExtractionFile, bool) {
@@ -557,7 +721,7 @@ func expandMergeInputs(inputs []string, root string) ([]string, error) {
 				}
 				name := e.Name()
 				ext := strings.ToLower(filepath.Ext(name))
-				if ext != ".xliff" && ext != ".xlf" {
+				if ext != ".xliff" && ext != ".xlf" && ext != ".po" {
 					continue
 				}
 				p := filepath.Join(abs, name)

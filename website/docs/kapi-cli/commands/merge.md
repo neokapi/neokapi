@@ -18,7 +18,9 @@ kapi merge -i <input> [-i <input> …] [flags]
 ```
 
 `-i` is repeatable and accepts a **file**, a **glob**, or a
-**directory** (all `.xliff` / `.xlf` files inside are processed).
+**directory** (all `.xliff` / `.xlf` / `.po` files inside are
+processed — mixed XLIFF + PO per batch is fine; format is detected
+per input).
 
 ## Options
 

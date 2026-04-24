@@ -209,11 +209,29 @@ leaving the CLI.
 
 ## PO (gettext) alternative
 
+Same flow, different exchange format:
+
+```bash
+kapi extract --format po                       # emits .po files
+kapi merge -i vendor-return/app.en-US-to-fr-FR.po
+```
+
+PO output carries kapi's bookkeeping as extracted comments:
+
+- File-level (on the header entry): `#. kapi-batch:`,
+  `#. kapi-source-file:`, `#. kapi-source-hash:`
+- Per-entry: `#. kapi-block: <block-id>` for merge correlation
+- `#, fuzzy` on entries pre-filled from fuzzy TM matches
+
+A single `kapi merge -i` invocation can mix XLIFF and PO inputs from
+the same batch — useful when different vendors ship in different
+formats.
+
 :::note
-PO output on extract and PO input on merge are tracked as a
-follow-up to v1. Today the XLIFF 2.x path is the complete story; PO
-ships behind the same `--format po` flag surface once the extract
-writer and merge reader are wired up.
+PO output is one entry per block (matches the segmentation-off case).
+Enabling `defaults.segmentation.source: true` together with
+`--format po` errors early; emit XLIFF for projects that rely on
+sentence-level segmentation.
 :::
 
 ## Deeper reading

@@ -107,12 +107,10 @@ func (a *App) runExtract(cmd *cobra.Command) error {
 
 	format, _ := cmd.Flags().GetString("format")
 	switch format {
-	case ExtractFormatXLIFF2:
+	case ExtractFormatXLIFF2, ExtractFormatPO:
 		// ok
-	case ExtractFormatPO:
-		return fmt.Errorf("extract: PO output is tracked as a follow-up to #415; use --format %s for v1", ExtractFormatXLIFF2)
 	default:
-		return fmt.Errorf("extract: unknown --format %q (supported: %s)", format, ExtractFormatXLIFF2)
+		return fmt.Errorf("extract: unknown --format %q (supported: %s, %s)", format, ExtractFormatXLIFF2, ExtractFormatPO)
 	}
 	xliffVersion, _ := cmd.Flags().GetString("xliff-version")
 	if xliffVersion != "" && !xliff2.IsSupportedVersion(xliffVersion) {
@@ -219,6 +217,7 @@ func (a *App) runExtract(cmd *cobra.Command) error {
 				outputPath:   outPath,
 				batchDir:     batchDir,
 				batchID:      batchID,
+				format:       format,
 				xliffVersion: xliffVersion,
 				tm:           tm,
 			})
@@ -274,6 +273,7 @@ type extractTask struct {
 	outputPath   string
 	batchDir     string
 	batchID      string
+	format       string // xliff2 | po
 	xliffVersion string
 	tm           sievepen.TranslationMemory
 }
@@ -383,7 +383,7 @@ func (a *App) extractOne(ctx context.Context, task extractTask) (project.Extract
 		}
 	}
 
-	// Write XLIFF 2.x output.
+	// Write the bilingual output file in the requested format.
 	if err := os.MkdirAll(filepath.Dir(task.outputPath), 0o755); err != nil {
 		return project.ExtractionFile{}, fmt.Errorf("mkdir output: %w", err)
 	}
@@ -392,46 +392,56 @@ func (a *App) extractOne(ctx context.Context, task extractTask) (project.Extract
 		return project.ExtractionFile{}, fmt.Errorf("create %s: %w", task.outputPath, err)
 	}
 
-	writer := xliff2.NewWriter()
-	if err := writer.SetOutputWriter(outFile); err != nil {
-		_ = outFile.Close()
-		return project.ExtractionFile{}, err
-	}
-	if task.xliffVersion != "" {
-		if err := writer.SetVersion(task.xliffVersion); err != nil {
+	switch task.format {
+	case ExtractFormatPO:
+		if err := writePOExtract(outFile, task.targetLocale, task.batchID, task.source.Relative, task.sourceHash, blocks); err != nil {
+			_ = outFile.Close()
+			_ = os.Remove(task.outputPath)
+			return project.ExtractionFile{}, fmt.Errorf("po writer: %w", err)
+		}
+	default: // xliff2
+		writer := xliff2.NewWriter()
+		if err := writer.SetOutputWriter(outFile); err != nil {
 			_ = outFile.Close()
 			return project.ExtractionFile{}, err
 		}
-	}
-	writer.SetLocale(task.targetLocale)
-	writer.SetFileNotes([]xliff2.FileNote{
-		xliff2.BatchIDNote(task.batchID),
-		xliff2.SourceFileNote(task.source.Relative),
-		xliff2.SourceHashNote(task.sourceHash),
-	})
+		if task.xliffVersion != "" {
+			if err := writer.SetVersion(task.xliffVersion); err != nil {
+				_ = outFile.Close()
+				return project.ExtractionFile{}, err
+			}
+		}
+		writer.SetLocale(task.targetLocale)
+		writer.SetFileNotes([]xliff2.FileNote{
+			xliff2.BatchIDNote(task.batchID),
+			xliff2.SourceFileNote(task.source.Relative),
+			xliff2.SourceHashNote(task.sourceHash),
+		})
 
-	// Feed parts: emit a synthetic Layer (so writer picks up source lang +
-	// target lang) then the blocks.
-	parts := make(chan *model.Part, len(blocks)+1)
-	parts <- &model.Part{Type: model.PartLayerStart, Resource: &model.Layer{
-		ID:             "file-" + sanitizeFileID(task.source.Relative),
-		Name:           sanitizeFileID(task.source.Relative),
-		Format:         "xliff2",
-		Locale:         task.ctx.SourceLocale,
-		IsMultilingual: true,
-		Properties: map[string]string{
-			"target-language": string(task.targetLocale),
-		},
-	}}
-	for _, b := range blocks {
-		parts <- &model.Part{Type: model.PartBlock, Resource: b}
-	}
-	close(parts)
+		// Feed parts: emit a synthetic Layer (so writer picks up source lang +
+		// target lang) then the blocks.
+		parts := make(chan *model.Part, len(blocks)+1)
+		parts <- &model.Part{Type: model.PartLayerStart, Resource: &model.Layer{
+			ID:             "file-" + sanitizeFileID(task.source.Relative),
+			Name:           sanitizeFileID(task.source.Relative),
+			Format:         "xliff2",
+			Locale:         task.ctx.SourceLocale,
+			IsMultilingual: true,
+			Properties: map[string]string{
+				"target-language": string(task.targetLocale),
+			},
+		}}
+		for _, b := range blocks {
+			parts <- &model.Part{Type: model.PartBlock, Resource: b}
+		}
+		close(parts)
 
-	if err := writer.Write(ctx, parts); err != nil {
-		_ = outFile.Close()
-		return project.ExtractionFile{}, fmt.Errorf("writer.Write: %w", err)
+		if err := writer.Write(ctx, parts); err != nil {
+			_ = outFile.Close()
+			return project.ExtractionFile{}, fmt.Errorf("writer.Write: %w", err)
+		}
 	}
+
 	if err := outFile.Close(); err != nil {
 		return project.ExtractionFile{}, err
 	}
@@ -444,7 +454,7 @@ func (a *App) extractOne(ctx context.Context, task extractTask) (project.Extract
 	return project.ExtractionFile{
 		Source:     task.source.Relative,
 		SourceHash: task.sourceHash,
-		Format:     ExtractFormatXLIFF2,
+		Format:     task.format,
 		Blocks:     len(blocks),
 		Segments:   segments,
 		Leverage:   leverage,
@@ -503,9 +513,17 @@ func applyTMPrefill(tm sievepen.TranslationMemory, block *model.Block, source, t
 		block.Targets = make(map[model.LocaleID][]*model.Segment, 1)
 	}
 	block.Targets[target] = targetSegs
+	// Stash the match type on the block so downstream writers can surface
+	// it in format-appropriate ways (PO's `#, fuzzy` flag; XLIFF 2's
+	// segment state — not yet emitted, tracked as a follow-up).
+	if block.Properties == nil {
+		block.Properties = make(map[string]string, 1)
+	}
 	if anyExact && matched == len(block.Source) {
+		block.Properties["kapi-tm-match"] = "exact"
 		return prefillExact
 	}
+	block.Properties["kapi-tm-match"] = "fuzzy"
 	return prefillFuzzy
 }
 
