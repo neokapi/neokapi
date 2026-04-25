@@ -87,7 +87,12 @@ website/static/img/web-app/
 website/static/video/
 website/static/data/test-comparison.json
 bowrain/apps/bowrain/frontend/recordings-output/
-bowrain/website/
+bowrain/website/build/
+bowrain/website/.docusaurus/
+bowrain/website/node_modules/
+bowrain/website/static/img/bowrain/
+bowrain/website/static/img/web-app/
+bowrain/website/static/video/
 website/tapes/output/
 website/tapes/out/
 website/tapes/.server-token
