@@ -4,6 +4,45 @@ export interface User {
   email: string;
   name: string;
   avatar_url: string;
+  /** Set once the user has completed onboarding. Null/undefined = needs /welcome. */
+  onboarded_at?: string | null;
+}
+
+/** Response from GET /api/v1/auth/me/onboarding. */
+export interface OnboardingStatus {
+  needs_onboarding: boolean;
+  /** Email-derived suggestion to pre-fill the slug input. */
+  suggested_slug?: string;
+  email: string;
+  display_name?: string;
+}
+
+/** Response from GET /api/v1/auth/check-slug. */
+export interface SlugCheckResponse {
+  available: boolean;
+  /** "invalid" | "reserved" | "taken" when not available. */
+  reason?: string;
+}
+
+/** Response from POST /api/v1/auth/me/email (verification email sent). */
+export interface EmailChangeRequestResponse {
+  status: string;
+  new_email: string;
+  expires_at: string;
+}
+
+/** Response from POST /api/v1/auth/email/confirm. */
+export interface EmailChangeConfirmResponse {
+  status: string;
+  new_email: string;
+}
+
+/** Active slug rename reservation (admin view). */
+export interface SlugReservation {
+  slug: string;
+  workspace_id: string;
+  reserved_until: string;
+  created_at: string;
 }
 
 /** Controls public access to the Pulse activity dashboard */

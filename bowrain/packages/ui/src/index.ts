@@ -431,6 +431,11 @@ export type {
   ModelUsage,
   ModelUsageResponse,
   RunnerUsage,
+  OnboardingStatus,
+  SlugCheckResponse,
+  EmailChangeRequestResponse,
+  EmailChangeConfirmResponse,
+  SlugReservation,
 } from "./types/api";
 export type { View, NavItem } from "./components/AppSidebar";
 
