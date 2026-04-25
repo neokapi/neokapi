@@ -1,5 +1,8 @@
 import { test, expect, type Page } from "@playwright/test";
-import { TEST_IDS } from "@neokapi/ui";
+// Direct path — Playwright's Node-ESM loader doesn't follow @neokapi/ui
+// barrel exports cleanly (.ts extensions, transitive JSON imports), so
+// reach into the registry file directly.
+import { TEST_IDS } from "../../../packages/ui/src/test-ids";
 import {
   authenticate,
   getOrCreateWorkspace,
