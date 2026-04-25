@@ -1,13 +1,12 @@
 /*
  * Bowrain Storybook CSS entry point.
- * Imports the bowrain theme and adds @source directives so Tailwind
- * can detect utility classes across all packages included in this Storybook.
+ * @neokapi/ui-primitives and @neokapi/ui self-register via their own @source
+ * directives; this file only adds the sources Storybook needs that aren't
+ * already declared by a package (flow-editor + the consuming apps).
  */
 @import "../../packages/ui/src/styles/globals.css";
 
-@source "../../../packages/ui/src";
 @source "../../../packages/flow-editor/src";
-@source "../../packages/ui/src";
 @source "../../apps/bowrain/frontend/src";
 @source "../../emails/src";
 @source "../../apps/keycloak-theme/src";

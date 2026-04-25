@@ -3,6 +3,8 @@
 @import "shadcn/tailwind.css";
 @import "@neokapi/ui-primitives/styles/theme-tokens.css";
 
+@source "../";
+
 @custom-variant dark (&:is(.dark *));
 
 /*

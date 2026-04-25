@@ -1,10 +1,13 @@
 /*
- * Shared structural mapping — maps CSS custom properties to Tailwind tokens.
- * Each app provides its own :root/.dark color values; this file only wires
- * the CSS variable names to Tailwind's theme system.
+ * Shared structural mapping — maps CSS custom properties to Tailwind tokens
+ * and registers @neokapi/ui-primitives/src as a Tailwind @source so consumers
+ * of this package don't have to add the @source themselves. Each app provides
+ * its own :root/.dark color values.
  *
  * Import this AFTER tailwindcss + shadcn/tailwind.css in each app's CSS.
  */
+
+@source "../";
 
 @theme inline {
   /* ── Colors ──────────────────────────────────────────────── */
