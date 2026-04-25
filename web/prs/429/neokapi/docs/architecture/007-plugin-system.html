@@ -1,0 +1,308 @@
+<!doctype html>
+<html lang="en" dir="ltr" class="docs-wrapper plugin-docs plugin-id-default docs-version-current docs-doc-page docs-doc-id-architecture/007-plugin-system" data-has-hydrated="false">
+<head>
+<meta charset="UTF-8">
+<meta name="generator" content="Docusaurus v3.10.0">
+<title data-rh="true">AD-007: Plugin System and Okapi Bridge | neokapi</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://neokapi.github.io/web/neokapi/docs/architecture/007-plugin-system"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="AD-007: Plugin System and Okapi Bridge | neokapi"><meta data-rh="true" name="description" content="Summary"><meta data-rh="true" property="og:description" content="Summary"><link data-rh="true" rel="icon" href="/web/neokapi/img/favicon.png"><link data-rh="true" rel="canonical" href="https://neokapi.github.io/web/neokapi/docs/architecture/007-plugin-system"><link data-rh="true" rel="alternate" href="https://neokapi.github.io/web/neokapi/docs/architecture/007-plugin-system" hreflang="en"><link data-rh="true" rel="alternate" href="https://neokapi.github.io/web/neokapi/docs/architecture/007-plugin-system" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"AD-007: Plugin System and Okapi Bridge","item":"https://neokapi.github.io/web/neokapi/docs/architecture/007-plugin-system"}]}</script><link rel="stylesheet" href="/web/neokapi/assets/css/styles.0d5fbce5.css">
+<script src="/web/neokapi/assets/js/runtime~main.513f621c.js" defer="defer"></script>
+<script src="/web/neokapi/assets/js/main.a5de17df.js" defer="defer"></script>
+</head>
+<body>
+<svg style="display: none;"><defs>
+<symbol id="theme-svg-external-link" viewBox="0 0 24 24"><path fill="currentColor" d="M21 13v10h-21v-19h12v2h-10v15h17v-8h2zm3-12h-10.988l4.035 4-6.977 7.07 2.828 2.828 6.977-7.07 4.125 4.172v-11z"/></symbol>
+</defs></svg>
+<script>!function(){var t=function(){try{return new URLSearchParams(window.location.search).get("docusaurus-theme")}catch(t){}}()||function(){try{return window.localStorage.getItem("theme")}catch(t){}}();document.documentElement.setAttribute("data-theme",t||"light"),document.documentElement.setAttribute("data-theme-choice",t||"light")}(),function(){try{const c=new URLSearchParams(window.location.search).entries();for(var[t,e]of c)if(t.startsWith("docusaurus-data-")){var a=t.replace("docusaurus-data-","data-");document.documentElement.setAttribute(a,e)}}catch(t){}}()</script><div id="__docusaurus"><link rel="preload" as="image" href="/web/neokapi/img/logo.png"><div role="region" aria-label="Skip to main content"><a class="skipToContent_fXgn" href="#__docusaurus_skipToContent_fallback">Skip to main content</a></div><nav aria-label="Main" class="theme-layout-navbar navbar navbar--fixed-top"><div class="navbar__inner"><div class="theme-layout-navbar-left navbar__items"><button aria-label="Toggle navigation bar" aria-expanded="false" class="navbar__toggle clean-btn" type="button"><svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true"><path stroke="currentColor" stroke-linecap="round" stroke-miterlimit="10" stroke-width="2" d="M4 7h22M4 15h22M4 23h22"></path></svg></button><a class="navbar__brand" href="/web/neokapi/"><div class="navbar__logo"><img src="/web/neokapi/img/logo.png" alt="neokapi" class="themedComponent_mlkZ themedComponent--light_NVdE"><img src="/web/neokapi/img/logo.png" alt="neokapi" class="themedComponent_mlkZ themedComponent--dark_xIcU"></div><b class="navbar__title text--truncate">neokapi</b></a><a aria-current="page" class="navbar__item navbar__link navbar__link--active" href="/web/neokapi/docs/getting-started/introduction">Documentation</a></div><div class="theme-layout-navbar-right navbar__items navbar__items--right"><a href="https://github.com/neokapi/neokapi" target="_blank" rel="noopener noreferrer" class="navbar__item navbar__link">GitHub<svg width="13.5" height="13.5" aria-label="(opens in new tab)" class="iconExternalLink_nPIU"><use href="#theme-svg-external-link"></use></svg></a><div class="toggle_vylO colorModeToggle_DEke"><button class="clean-btn toggleButton_gllP toggleButtonDisabled_aARS" type="button" disabled="" title="system mode" aria-label="Switch between dark and light mode (currently system mode)"><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" class="toggleIcon_g3eP lightToggleIcon_pyhR"><path fill="currentColor" d="M12,9c1.65,0,3,1.35,3,3s-1.35,3-3,3s-3-1.35-3-3S10.35,9,12,9 M12,7c-2.76,0-5,2.24-5,5s2.24,5,5,5s5-2.24,5-5 S14.76,7,12,7L12,7z M2,13l2,0c0.55,0,1-0.45,1-1s-0.45-1-1-1l-2,0c-0.55,0-1,0.45-1,1S1.45,13,2,13z M20,13l2,0c0.55,0,1-0.45,1-1 s-0.45-1-1-1l-2,0c-0.55,0-1,0.45-1,1S19.45,13,20,13z M11,2v2c0,0.55,0.45,1,1,1s1-0.45,1-1V2c0-0.55-0.45-1-1-1S11,1.45,11,2z M11,20v2c0,0.55,0.45,1,1,1s1-0.45,1-1v-2c0-0.55-0.45-1-1-1C11.45,19,11,19.45,11,20z M5.99,4.58c-0.39-0.39-1.03-0.39-1.41,0 c-0.39,0.39-0.39,1.03,0,1.41l1.06,1.06c0.39,0.39,1.03,0.39,1.41,0s0.39-1.03,0-1.41L5.99,4.58z M18.36,16.95 c-0.39-0.39-1.03-0.39-1.41,0c-0.39,0.39-0.39,1.03,0,1.41l1.06,1.06c0.39,0.39,1.03,0.39,1.41,0c0.39-0.39,0.39-1.03,0-1.41 L18.36,16.95z M19.42,5.99c0.39-0.39,0.39-1.03,0-1.41c-0.39-0.39-1.03-0.39-1.41,0l-1.06,1.06c-0.39,0.39-0.39,1.03,0,1.41 s1.03,0.39,1.41,0L19.42,5.99z M7.05,18.36c0.39-0.39,0.39-1.03,0-1.41c-0.39-0.39-1.03-0.39-1.41,0l-1.06,1.06 c-0.39,0.39-0.39,1.03,0,1.41s1.03,0.39,1.41,0L7.05,18.36z"></path></svg><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" class="toggleIcon_g3eP darkToggleIcon_wfgR"><path fill="currentColor" d="M9.37,5.51C9.19,6.15,9.1,6.82,9.1,7.5c0,4.08,3.32,7.4,7.4,7.4c0.68,0,1.35-0.09,1.99-0.27C17.45,17.19,14.93,19,12,19 c-3.86,0-7-3.14-7-7C5,9.07,6.81,6.55,9.37,5.51z M12,3c-4.97,0-9,4.03-9,9s4.03,9,9,9s9-4.03,9-9c0-0.46-0.04-0.92-0.1-1.36 c-0.98,1.37-2.58,2.26-4.4,2.26c-2.98,0-5.4-2.42-5.4-5.4c0-1.81,0.89-3.42,2.26-4.4C12.92,3.04,12.46,3,12,3L12,3z"></path></svg><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" class="toggleIcon_g3eP systemToggleIcon_QzmC"><path fill="currentColor" d="m12 21c4.971 0 9-4.029 9-9s-4.029-9-9-9-9 4.029-9 9 4.029 9 9 9zm4.95-13.95c1.313 1.313 2.05 3.093 2.05 4.95s-0.738 3.637-2.05 4.95c-1.313 1.313-3.093 2.05-4.95 2.05v-14c1.857 0 3.637 0.737 4.95 2.05z"></path></svg></button></div><div class="navbarSearchContainer_Bca1"></div></div></div><div role="presentation" class="navbar-sidebar__backdrop"></div></nav><div id="__docusaurus_skipToContent_fallback" class="theme-layout-main main-wrapper mainWrapper_z2l0"><div class="docsWrapper_hBAB"><button aria-label="Scroll back to top" class="clean-btn theme-back-to-top-button backToTopButton_sjWU" type="button"></button><div class="docRoot_UBD9"><aside class="theme-doc-sidebar-container docSidebarContainer_YfHR"><div class="sidebarViewport_aRkj"><div class="sidebar_njMd"><nav aria-label="Docs sidebar" class="menu thin-scrollbar menu_SIkG"><ul class="theme-doc-sidebar-menu menu__list"><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-1 menu__list-item menu__list-item--collapsed"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="false" href="/web/neokapi/docs/getting-started/introduction"><span title="Getting Started" class="categoryLinkLabel_W154">Getting Started</span></a></div></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-1 menu__list-item menu__list-item--collapsed"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="false" href="/web/neokapi/docs/kapi-react/introduction"><span title="kapi-react (React i18n)" class="categoryLinkLabel_W154">kapi-react (React i18n)</span></a></div></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-1 menu__list-item menu__list-item--collapsed"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="false" href="/web/neokapi/docs/kapi-cli/overview"><span title="Kapi CLI" class="categoryLinkLabel_W154">Kapi CLI</span></a></div></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-1 menu__list-item menu__list-item--collapsed"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="false" href="/web/neokapi/docs/features/formats"><span title="Features" class="categoryLinkLabel_W154">Features</span></a></div></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-1 menu__list-item menu__list-item--collapsed"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="false" href="/web/neokapi/docs/guides/tool-authoring"><span title="Guides" class="categoryLinkLabel_W154">Guides</span></a></div></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-1 menu__list-item menu__list-item--collapsed"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="false" href="/web/neokapi/docs/developer/architecture"><span title="Framework" class="categoryLinkLabel_W154">Framework</span></a></div></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-1 menu__list-item menu__list-item--collapsed"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="false" href="/web/neokapi/docs/walkthroughs/kapi-bilingual-workflow"><span title="Walkthroughs" class="categoryLinkLabel_W154">Walkthroughs</span></a></div></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-1 menu__list-item"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--sublist-caret menu__link--active" role="button" aria-expanded="true" href="/web/neokapi/docs/architecture/index"><span title="Architecture" class="categoryLinkLabel_W154">Architecture</span></a></div><ul class="menu__list"><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/web/neokapi/docs/architecture/index"><span title="Overview" class="linkLabel_WmDU">Overview</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/web/neokapi/docs/architecture/001-vision-and-modules"><span title="AD-001: Vision and Module Architecture" class="linkLabel_WmDU">AD-001: Vision and Module Architecture</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/web/neokapi/docs/architecture/002-content-model"><span title="AD-002: Content Model" class="linkLabel_WmDU">AD-002: Content Model</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/web/neokapi/docs/architecture/003-identity"><span title="AD-003: Identity" class="linkLabel_WmDU">AD-003: Identity</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/web/neokapi/docs/architecture/004-processing-engine"><span title="AD-004: Processing Engine" class="linkLabel_WmDU">AD-004: Processing Engine</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/web/neokapi/docs/architecture/005-format-system"><span title="AD-005: Format System" class="linkLabel_WmDU">AD-005: Format System</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/web/neokapi/docs/architecture/006-tool-system"><span title="AD-006: Tool System" class="linkLabel_WmDU">AD-006: Tool System</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link menu__link--active" aria-current="page" tabindex="0" href="/web/neokapi/docs/architecture/007-plugin-system"><span title="AD-007: Plugin System and Okapi Bridge" class="linkLabel_WmDU">AD-007: Plugin System and Okapi Bridge</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/web/neokapi/docs/architecture/008-project-model"><span title="AD-008: Kapi Project Model" class="linkLabel_WmDU">AD-008: Kapi Project Model</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/web/neokapi/docs/architecture/009-translation-memory"><span title="AD-009: Translation Memory (Sievepen)" class="linkLabel_WmDU">AD-009: Translation Memory (Sievepen)</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/web/neokapi/docs/architecture/010-terminology"><span title="AD-010: Terminology" class="linkLabel_WmDU">AD-010: Terminology</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/web/neokapi/docs/architecture/011-ai-providers"><span title="AD-011: AI Providers" class="linkLabel_WmDU">AD-011: AI Providers</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/web/neokapi/docs/architecture/012-mt-providers"><span title="AD-012: Machine Translation Providers" class="linkLabel_WmDU">AD-012: Machine Translation Providers</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/web/neokapi/docs/architecture/013-kapi-cli"><span title="AD-013: Kapi CLI" class="linkLabel_WmDU">AD-013: Kapi CLI</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/web/neokapi/docs/architecture/014-kapi-desktop"><span title="AD-014: Kapi Desktop" class="linkLabel_WmDU">AD-014: Kapi Desktop</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/web/neokapi/docs/architecture/015-testing-and-documentation"><span title="AD-015: Testing and Documentation" class="linkLabel_WmDU">AD-015: Testing and Documentation</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/web/neokapi/docs/architecture/016-metadata-i18n"><span title="AD-016: Metadata i18n for Go Surfaces" class="linkLabel_WmDU">AD-016: Metadata i18n for Go Surfaces</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/web/neokapi/docs/architecture/017-bilingual-format-interop"><span title="AD-017: Bilingual Format Interop" class="linkLabel_WmDU">AD-017: Bilingual Format Interop</span></a></li></ul></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-1 menu__list-item menu__list-item--collapsed"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="false" href="/web/neokapi/docs/notes-internal/index"><span title="Implementation Notes" class="categoryLinkLabel_W154">Implementation Notes</span></a></div></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/web/neokapi/formats"><span title="Format Reference" class="linkLabel_WmDU">Format Reference</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/web/neokapi/pseudobench"><span title="Benchmarks" class="linkLabel_WmDU">Benchmarks</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/web/neokapi/test-comparison"><span title="Test Results" class="linkLabel_WmDU">Test Results</span></a></li></ul></nav></div></div></aside><main class="docMainContainer_TBSr"><div class="container padding-top--md padding-bottom--lg"><div class="row"><div class="col docItemCol_VOVn"><div class="docItemContainer_Djhp"><article><nav class="theme-doc-breadcrumbs breadcrumbsContainer_Z_bl" aria-label="Breadcrumbs"><ul class="breadcrumbs"><li class="breadcrumbs__item"><a aria-label="Home page" class="breadcrumbs__link" href="/web/neokapi/"><svg viewBox="0 0 24 24" class="breadcrumbHomeIcon_YNFT"><path d="M10 19v-5h4v5c0 .55.45 1 1 1h3c.55 0 1-.45 1-1v-7h1.7c.46 0 .68-.57.33-.87L12.67 3.6c-.38-.34-.96-.34-1.34 0l-8.36 7.53c-.34.3-.13.87.33.87H5v7c0 .55.45 1 1 1h3c.55 0 1-.45 1-1z" fill="currentColor"></path></svg></a></li><li class="breadcrumbs__item"><span class="breadcrumbs__link">Architecture</span></li><li class="breadcrumbs__item breadcrumbs__item--active"><span class="breadcrumbs__link">AD-007: Plugin System and Okapi Bridge</span></li></ul></nav><div class="tocCollapsible_ETCw theme-doc-toc-mobile tocMobile_ITEo"><button type="button" class="clean-btn tocCollapsibleButton_TO0P">On this page</button></div><div class="theme-doc-markdown markdown"><header><h1>AD-007: Plugin System and Okapi Bridge</h1></header>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="summary">Summary<a href="#summary" class="hash-link" aria-label="Direct link to Summary" title="Direct link to Summary" translate="no">​</a></h2>
+<p>Plugins are out-of-process executables communicated with via gRPC, giving
+crash isolation and language agnosticism. Go binary plugins use HashiCorp
+<code>go-plugin</code>&#x27;s magic-cookie handshake; bridge plugins (like the Okapi
+bridge) run a long-lived gRPC server and the framework connects as a
+client. Plugins come in five kinds — Bundle, Format, Tool, Connector,
+Provider — and are discovered in two phases: <code>ScanMetadata</code> reads
+manifests and schemas from disk so <code>kapi formats list</code> never launches a
+subprocess, and <code>LoadBridges</code> starts processes lazily when a flow
+actually needs them. Multiple versions of the same plugin coexist in
+versioned directories; format references use the syntax
+<code>name[@version][:preset]</code>. Plugin registries serve installable plugin
+archives; multiple registries can be configured at project and global
+level.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="context">Context<a href="#context" class="hash-link" aria-label="Direct link to Context" title="Direct link to Context" translate="no">​</a></h2>
+<p>Plugins enable third-party formats, tools, connectors, and providers to
+evolve independently of the framework. Key requirements:</p>
+<ul>
+<li class=""><strong>Crash isolation</strong> — a buggy plugin must not crash the host process.</li>
+<li class=""><strong>Language agnosticism</strong> — plugins may be written in Go, Java, Python,
+or Rust.</li>
+<li class=""><strong>Versioned protocol</strong> — host and plugin negotiate capabilities
+explicitly.</li>
+<li class=""><strong>Multi-version support</strong> — different projects may need different
+plugin versions.</li>
+<li class=""><strong>Simple discovery</strong> — scan a directory for executables matching
+naming conventions.</li>
+</ul>
+<p>Okapi provides 40+ production-proven format filters (DOCX, XLSX, EPUB,
+IDML, PDF, and more) that represent years of development. Rewriting them
+all in Go is not practical; they need to be accessible from Go with
+minimal overhead.</p>
+<p>Go&#x27;s standard <code>plugin</code> package loads shared objects into the same
+process, offering no crash isolation and limited platform support. It is
+unsuitable.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="decision">Decision<a href="#decision" class="hash-link" aria-label="Direct link to Decision" title="Direct link to Decision" translate="no">​</a></h2>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="out-of-process-plugins">Out-of-process plugins<a href="#out-of-process-plugins" class="hash-link" aria-label="Direct link to Out-of-process plugins" title="Direct link to Out-of-process plugins" translate="no">​</a></h3>
+<p>The framework uses <a href="https://github.com/hashicorp/go-plugin" target="_blank" rel="noopener noreferrer" class="">HashiCorp go-plugin</a>
+for Go binary plugins and direct gRPC for bridge plugins. Go binary
+plugins communicate over stdin/stdout with a magic-cookie handshake.
+Bridge plugins run a gRPC server and the Go side connects as a client;
+protocol-buffer definitions specify the service contract.</p>
+<p>Plugins run as separate processes. A plugin crash does not affect the
+host; credentials are passed via environment variables, not shared
+memory.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="plugin-types">Plugin types<a href="#plugin-types" class="hash-link" aria-label="Direct link to Plugin types" title="Direct link to Plugin types" translate="no">​</a></h3>
+<table><thead><tr><th>Type</th><th>What it adds</th><th>Example</th></tr></thead><tbody><tr><td><strong>Bundle</strong></td><td>Collection of formats and/or tools</td><td>Okapi bridge (40+ formats)</td></tr><tr><td><strong>Format</strong></td><td>Reader + Writer for a file format</td><td><code>neokapi-plugin-docx</code></td></tr><tr><td><strong>Tool</strong></td><td>Processing step in a flow</td><td><code>neokapi-plugin-terminology</code></td></tr><tr><td><strong>Connector</strong></td><td>Bidirectional system integration</td><td><code>neokapi-plugin-contentful</code></td></tr><tr><td><strong>Provider</strong></td><td>AI/LLM or MT backend</td><td><code>neokapi-plugin-deepl-v2</code></td></tr></tbody></table>
+<p>Go binary plugins are discovered by scanning for executables named
+<code>neokapi-plugin-*</code> in versioned directories. Bridge plugins are
+discovered via <code>manifest.json</code> files in their version directories.</p>
+<p>A <strong>bundle</strong> packages multiple formats and/or tools into a single
+distributable unit. The Okapi bridge is the canonical bundle — one JAR,
+40+ format filters, several processing tools. Bundles install and version
+as a unit, but their individual capabilities register separately into the
+core registries, so callers of the FormatRegistry cannot tell that two
+formats share a JAR.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="two-phase-discovery">Two-phase discovery<a href="#two-phase-discovery" class="hash-link" aria-label="Direct link to Two-phase discovery" title="Direct link to Two-phase discovery" translate="no">​</a></h3>
+<p>Plugin discovery avoids launching external processes until they are
+actually needed:</p>
+<ol>
+<li class=""><strong><code>ScanMetadata</code></strong> — walks versioned plugin directories and reads
+<code>manifest.json</code> files and parameter schemas from disk. Format
+metadata (names, MIME types, extensions, capabilities) is registered
+into the format registry so that <code>kapi formats list</code> works without
+starting any external process.</li>
+<li class=""><strong><code>LoadBridges</code></strong> — called lazily when a flow actually needs a bridge
+format. Creates the shared <code>BridgePool</code> and registers reader/writer
+factories that acquire a bridge instance on demand.</li>
+</ol>
+<p>Listing installed plugins and formats is instant; JVM startup cost is
+only paid when processing files.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="multi-version-support">Multi-version support<a href="#multi-version-support" class="hash-link" aria-label="Direct link to Multi-version support" title="Direct link to Multi-version support" translate="no">​</a></h3>
+<p>Multiple versions of the same plugin install side-by-side using a
+versioned directory layout:</p>
+<div class="language-text codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#393A34;--prism-background-color:#f6f8fa"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-text codeBlock_bY9V thin-scrollbar" style="color:#393A34;background-color:#f6f8fa"><code class="codeBlockLines_e6Vv"><div class="token-line" style="color:#393A34"><span class="token plain">~/.config/kapi/plugins/</span><br></div><div class="token-line" style="color:#393A34"><span class="token plain">  okapi/</span><br></div><div class="token-line" style="color:#393A34"><span class="token plain">    1.46.0/</span><br></div><div class="token-line" style="color:#393A34"><span class="token plain">      version.json</span><br></div><div class="token-line" style="color:#393A34"><span class="token plain">      manifest.json</span><br></div><div class="token-line" style="color:#393A34"><span class="token plain">      schemas/</span><br></div><div class="token-line" style="color:#393A34"><span class="token plain">      neokapi-okapi-bridge.jar</span><br></div><div class="token-line" style="color:#393A34"><span class="token plain">    1.47.0/</span><br></div><div class="token-line" style="color:#393A34"><span class="token plain">      version.json</span><br></div><div class="token-line" style="color:#393A34"><span class="token plain">      manifest.json</span><br></div><div class="token-line" style="color:#393A34"><span class="token plain">      schemas/</span><br></div><div class="token-line" style="color:#393A34"><span class="token plain">      neokapi-okapi-bridge.jar</span><br></div></code></pre></div></div>
+<p>Each version directory contains:</p>
+<ul>
+<li class=""><code>version.json</code> — name, version, install type</li>
+<li class=""><code>manifest.json</code> — capabilities, command configuration, plugin type</li>
+<li class=""><code>schemas/</code> — filter parameter schemas (bridge plugins), readable without
+starting the JVM</li>
+</ul>
+<p>The plugin loader scans all version directories and registers capabilities
+with versioned names:</p>
+<ul>
+<li class=""><code>okapi-html@1.46.0</code> — specific version</li>
+<li class=""><code>okapi-html</code> — bare alias pointing to the latest installed version</li>
+</ul>
+<p>Semver comparison determines &quot;latest&quot;. Bare-name aliases register only if
+no explicit bare-name registration exists, preventing conflicts.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="format-reference-syntax">Format reference syntax<a href="#format-reference-syntax" class="hash-link" aria-label="Direct link to Format reference syntax" title="Direct link to Format reference syntax" translate="no">​</a></h3>
+<p>Format references use separate delimiters for version and preset:</p>
+<ul>
+<li class=""><code>@</code> denotes a <strong>version pin</strong> (<code>okf_html@1.46.0</code>)</li>
+<li class=""><code>:</code> denotes a <strong>preset reference</strong> (<code>okf_html:wellFormed</code>)</li>
+<li class="">Both combine: <code>okf_openxml@0.38:wellFormed</code></li>
+</ul>
+<table><thead><tr><th>Reference</th><th>Version</th><th>Preset</th></tr></thead><tbody><tr><td><code>okf_openxml</code></td><td>latest</td><td>default</td></tr><tr><td><code>okf_openxml@0.38</code></td><td>0.38</td><td>default</td></tr><tr><td><code>okf_openxml:wellFormed</code></td><td>latest</td><td>wellFormed</td></tr><tr><td><code>okf_openxml@0.38:wellFormed</code></td><td>0.38</td><td>wellFormed</td></tr></tbody></table>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="presets-as-a-capability">Presets as a capability<a href="#presets-as-a-capability" class="hash-link" aria-label="Direct link to Presets as a capability" title="Direct link to Presets as a capability" translate="no">​</a></h3>
+<p>A <strong>preset</strong> is a named parameter configuration. Presets are a capability,
+not a plugin type — existing plugin types (bundles, formats) declare
+preset capabilities via <code>presets.yaml</code> files. Three sources supply format
+presets:</p>
+<ul>
+<li class=""><strong>Bridge configurations</strong> — auto-surfaced from <code>x-filter.configurations</code>
+in composite schemas. For example, <code>okf_html-wellFormed</code> becomes preset
+<code>wellFormed</code> for format <code>okf_html</code>.</li>
+<li class=""><strong>Plugin presets</strong> — defined in <code>presets.yaml</code> within plugin version
+directories.</li>
+<li class=""><strong>Local presets</strong> — defined in project or user config under
+<code>format_presets:</code>.</li>
+</ul>
+<p>Configuration resolution follows a three-layer model:</p>
+<div class="language-text codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#393A34;--prism-background-color:#f6f8fa"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-text codeBlock_bY9V thin-scrollbar" style="color:#393A34;background-color:#f6f8fa"><code class="codeBlockLines_e6Vv"><div class="token-line" style="color:#393A34"><span class="token plain">Format defaults → Preset config → Local overrides</span><br></div></code></pre></div></div>
+<p>Deep map merge at each layer: maps merge recursively, scalar values
+replace. Presets provide comprehensive defaults while users override
+specific values per mapping.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="plugin-loader">Plugin loader<a href="#plugin-loader" class="hash-link" aria-label="Direct link to Plugin loader" title="Direct link to Plugin loader" translate="no">​</a></h3>
+<p><code>PluginLoader</code> in <code>core/plugin/loader/</code> ties discovery together:</p>
+<ul>
+<li class=""><strong><code>ScanMetadata</code></strong> — scans versioned subdirectories, reads
+<code>manifest.json</code> and <code>schemas/</code> from disk, extracts presets, registers
+format metadata into registries — all without starting any external
+process.</li>
+<li class=""><strong><code>LoadBridges</code></strong> — starts the shared <code>BridgePool</code>, launches Go binary
+plugins via <code>host.PluginManager</code>, and registers reader/writer factories
+for bridge formats.</li>
+<li class=""><strong><code>LoadAll</code></strong> — convenience method that calls <code>ScanMetadata</code> then
+<code>LoadBridges</code>.</li>
+<li class="">Manages the shared bridge pool and plugin lifecycle (<code>Shutdown</code>,
+<code>WarmupBridges</code>).</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="okapi-bridge">Okapi bridge<a href="#okapi-bridge" class="hash-link" aria-label="Direct link to Okapi bridge" title="Direct link to Okapi bridge" translate="no">​</a></h3>
+<p>The <strong>Okapi bridge</strong> is a gRPC-based subprocess that hosts Okapi
+Framework filters. The Go side launches a JVM (or any process
+implementing the <code>BridgeService</code> gRPC contract), connects as a gRPC
+client, and translates between neokapi&#x27;s Part model and Okapi&#x27;s Event
+model. An adapter layer wraps the bridge behind standard
+<code>DataFormatReader</code> / <code>DataFormatWriter</code> interfaces — bridge-backed
+formats are indistinguishable from native Go formats at the registry
+level.</p>
+<p>The bridge protocol (<code>core/plugin/proto/v2/neokapi_bridge.proto</code>) defines
+a minimal unified streaming API:</p>
+<table><thead><tr><th>RPC</th><th>Direction</th><th>Purpose</th></tr></thead><tbody><tr><td><code>Process</code></td><td>Bidirectional-streaming</td><td>Complete read→process→write cycle</td></tr><tr><td><code>Shutdown</code></td><td>Unary</td><td>Gracefully stop the bridge process</td></tr></tbody></table>
+<p><code>Process</code> combines the entire document lifecycle into a single
+bidirectional stream:</p>
+<ul>
+<li class="">The Java side reads events from the Okapi filter, converts subscribed
+events to lightweight <code>ContentBlock</code> messages (no skeleton — ~10x
+smaller than full <code>BlockMessage</code> for typical XLSX cells), batches them
+into <code>ContentBlockBatch</code> messages (up to 1024 blocks), and streams
+them to Go.</li>
+<li class="">Go processes the blocks through its tool chain and sends them back
+individually.</li>
+<li class="">The Java side applies translations and writes output in a two-thread,
+single-pass pipeline (one filter read, no double I/O):<!-- -->
+<ul>
+<li class=""><strong>Reader thread</strong> — reads filter events, sends subscribed parts to
+Go via gRPC, enqueues events into a bounded queue for the writer
+thread.</li>
+<li class=""><strong>Writer thread</strong> — dequeues events, applies translations from a
+translation queue (fed by gRPC responses from Go), writes to the
+filter writer.</li>
+</ul>
+</li>
+</ul>
+<p>The <code>ProcessHeader.subscribe_parts</code> field controls which event types
+cross the gRPC boundary. Subscribing only to Block events (<code>[4]</code>) means
+structural events (Layer, Data, Group) are written directly by Java
+without gRPC round-trips — reducing message count from ~570K to ~157K on
+large XLSX files.</p>
+<p>Format metadata is not discovered via gRPC — the <code>PluginLoader</code> reads it
+from <code>manifest.json</code> and schema files on disk during <code>ScanMetadata</code>,
+avoiding JVM startup for format listing.</p>
+<p>See <a class="" href="/web/neokapi/docs/notes-internal/plugin-bridge-protocol">Plugin Bridge Protocol</a> for the
+full gRPC service definition, wire format, protobuf messages, and
+performance tuning notes.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="bridge-registry-and-concurrency">Bridge registry and concurrency<a href="#bridge-registry-and-concurrency" class="hash-link" aria-label="Direct link to Bridge registry and concurrency" title="Direct link to Bridge registry and concurrency" translate="no">​</a></h3>
+<p>A single process-wide <code>BridgeRegistry</code> manages bridge instances with
+semaphore-based concurrency control:</p>
+<ul>
+<li class=""><strong>Global semaphore</strong> bounds total concurrent streams across all JVMs.</li>
+<li class=""><strong>Per-JVM semaphore</strong> bounds concurrent streams on each JVM.</li>
+<li class=""><strong>Daemon mode</strong> (<code>KAPI_BRIDGE_DAEMON=1</code>): JVMs persist across kapi
+invocations, discovered via address files on disk.</li>
+<li class=""><strong>Pipeline semaphore</strong> on the Java side rejects excess streams with
+<code>RESOURCE_EXHAUSTED</code>.</li>
+</ul>
+<p>JVM count is bounded regardless of how many plugin versions are
+installed; different JARs share capacity fairly via eviction.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="plugin-configuration">Plugin configuration<a href="#plugin-configuration" class="hash-link" aria-label="Direct link to Plugin configuration" title="Direct link to Plugin configuration" translate="no">​</a></h3>
+<p>Plugins declare their configuration parameters via JSON schema files
+shipped in the <code>schemas/</code> directory of each plugin version. Schemas
+define parameter groups, defaults, and validation rules. The
+<code>SchemaRegistry</code> loads these from disk during <code>ScanMetadata</code> — no
+external process needed. Configuration is namespaced by plugin type and
+name in the project config file, integrated with the Viper-based layered
+configuration system (<a class="" href="/web/neokapi/docs/architecture/001-vision-and-modules">AD-001: Vision and Module Architecture</a>).
+On the CLI, plugin parameters become namespaced flags.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="plugin-registries">Plugin registries<a href="#plugin-registries" class="hash-link" aria-label="Direct link to Plugin registries" title="Direct link to Plugin registries" translate="no">​</a></h3>
+<p>Plugins are distributed via <strong>registries</strong> — JSON endpoints listing
+available plugins with versions, capabilities, and download URLs.
+Multiple registries can be configured, letting organizations host
+internal plugins alongside the official registry.</p>
+<p>Registry configuration follows a three-level resolution:</p>
+<ol>
+<li class=""><strong>Project config</strong> — <code>registries:</code> list. When present, overrides
+global config entirely (no merging).</li>
+<li class=""><strong>Global config</strong> (<code>~/.config/kapi/kapi.yaml</code>) — <code>registries:</code> list.
+Managed via <code>kapi registry add/remove/list</code>.</li>
+<li class=""><strong>Fallback</strong> — <code>plugins.registry</code> single URL, or the hardcoded
+official URL.</li>
+</ol>
+<div class="language-yaml codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#393A34;--prism-background-color:#f6f8fa"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-yaml codeBlock_bY9V thin-scrollbar" style="color:#393A34;background-color:#f6f8fa"><code class="codeBlockLines_e6Vv"><div class="token-line" style="color:#393A34"><span class="token key atrule" style="color:#00a4db">registries</span><span class="token punctuation" style="color:#393A34">:</span><span class="token plain"></span><br></div><div class="token-line" style="color:#393A34"><span class="token plain">  </span><span class="token punctuation" style="color:#393A34">-</span><span class="token plain"> </span><span class="token key atrule" style="color:#00a4db">name</span><span class="token punctuation" style="color:#393A34">:</span><span class="token plain"> official</span><br></div><div class="token-line" style="color:#393A34"><span class="token plain">    </span><span class="token key atrule" style="color:#00a4db">url</span><span class="token punctuation" style="color:#393A34">:</span><span class="token plain"> https</span><span class="token punctuation" style="color:#393A34">:</span><span class="token plain">//neokapi.github.io/registry/plugins.json</span><br></div><div class="token-line" style="color:#393A34"><span class="token plain">    </span><span class="token key atrule" style="color:#00a4db">channels</span><span class="token punctuation" style="color:#393A34">:</span><span class="token plain"> </span><span class="token punctuation" style="color:#393A34">[</span><span class="token plain">default</span><span class="token punctuation" style="color:#393A34">,</span><span class="token plain"> snapshot</span><span class="token punctuation" style="color:#393A34">]</span><span class="token plain"></span><br></div><div class="token-line" style="color:#393A34"><span class="token plain">  </span><span class="token punctuation" style="color:#393A34">-</span><span class="token plain"> </span><span class="token key atrule" style="color:#00a4db">name</span><span class="token punctuation" style="color:#393A34">:</span><span class="token plain"> company</span><br></div><div class="token-line" style="color:#393A34"><span class="token plain">    </span><span class="token key atrule" style="color:#00a4db">url</span><span class="token punctuation" style="color:#393A34">:</span><span class="token plain"> https</span><span class="token punctuation" style="color:#393A34">:</span><span class="token plain">//registry.example.com/plugins.json</span><br></div></code></pre></div></div>
+<p>Each registry entry declares its available <code>channels</code> — named release
+tracks (e.g., <code>snapshot</code> for pre-release builds). The <code>channels</code> field
+is informational, helping teams document which channels a registry
+provides.</p>
+<p>Resolution behavior:</p>
+<ul>
+<li class=""><strong>Install/update</strong> — iterate registries in order; first match wins.</li>
+<li class=""><strong>Search/list</strong> — merge results from all registries, deduplicating by
+name+version.</li>
+<li class=""><code>--registry &lt;name&gt;</code> pins to a specific named registry.</li>
+<li class=""><code>--channel &lt;name&gt;</code> derives channel-specific URLs (orthogonal to
+registry selection).</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="quality-tiers">Quality tiers<a href="#quality-tiers" class="hash-link" aria-label="Direct link to Quality tiers" title="Direct link to Quality tiers" translate="no">​</a></h3>
+<p>Not all plugins carry the same trust level:</p>
+<table><thead><tr><th>Tier</th><th>Source</th><th>Trust</th><th>Installation</th></tr></thead><tbody><tr><td><strong>Built-in</strong></td><td><code>formats/</code>, <code>tools/</code></td><td>Full</td><td>Ships with binary</td></tr><tr><td><strong>Official</strong></td><td>neokapi org registry</td><td>High</td><td><code>kapi plugins install</code></td></tr><tr><td><strong>Community</strong></td><td>Third-party registry</td><td>Medium</td><td><code>kapi plugins install --registry &lt;name&gt;</code></td></tr><tr><td><strong>Local</strong></td><td>User-built</td><td>User&#x27;s risk</td><td>Copy to plugin directory</td></tr></tbody></table>
+<p>Formats with broad usage (HTML, XML, JSON, YAML, XLIFF, PO, Markdown,
+CSV, SRT, VTT) are built-in. Specialized or proprietary formats (DOCX,
+IDML, InDesign, MIF, DITA) are plugins. Core tools (pseudo-translate, QA
+check, word count, segmentation, TM leverage) are built-in; integration
+tools (specific TMS connectors, custom MT engines) are plugins. AI
+providers (Anthropic, OpenAI, Ollama, Gemini) are built-in because AI
+translation is a core value proposition.</p>
+<p>The test: if removing it makes neokapi feel incomplete for the common
+case, it is built-in.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="protocol-stability">Protocol stability<a href="#protocol-stability" class="hash-link" aria-label="Direct link to Protocol stability" title="Direct link to Protocol stability" translate="no">​</a></h3>
+<p>The v1 protocol (defined in <code>plugin/proto/v1/neokapi.proto</code>) is frozen.
+New fields can be added (protobuf is forward-compatible), but existing
+fields cannot change or be removed. New capabilities require a new
+protocol version (v2, v3, etc.). The host supports at least two protocol
+versions simultaneously, giving plugin authors time to migrate.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="security">Security<a href="#security" class="hash-link" aria-label="Direct link to Security" title="Direct link to Security" translate="no">​</a></h3>
+<ul>
+<li class=""><strong>Plugins run out of process.</strong> A plugin crash does not affect the
+host.</li>
+<li class=""><strong>Credentials are passed via environment variables</strong>, not shared
+memory or files readable by other processes.</li>
+<li class=""><strong>Plugin scope is enforced by the RPC boundary</strong> — plugins cannot
+modify core behavior; they can only respond to framework-defined RPC
+calls.</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="consequences">Consequences<a href="#consequences" class="hash-link" aria-label="Direct link to Consequences" title="Direct link to Consequences" translate="no">​</a></h2>
+<ul>
+<li class="">Plugins run out-of-process: crashes do not affect the host.</li>
+<li class="">Any language that can implement a gRPC server works as a plugin.</li>
+<li class="">Protocol versioning in the handshake prevents incompatible plugins from
+loading.</li>
+<li class="">Multiple versions of the same plugin coexist without conflict.</li>
+<li class="">All 40+ Okapi filters are accessible without Go rewrites via the Okapi
+bridge.</li>
+<li class="">JVM count is bounded regardless of plugin-version count; different JARs
+share capacity fairly.</li>
+<li class="">Bundles package multiple formats and tools as a single installable
+unit, simplifying distribution while allowing individual capability
+registration.</li>
+<li class="">Multiple registries can be configured at project or global level,
+enabling organizations to host internal plugins alongside the official
+registry.</li>
+<li class="">The CLI searches both standalone plugins and bundles; <code>--bundle</code>,
+<code>--format</code>, and <code>--tool</code> flags narrow results by plugin kind.</li>
+<li class="">Plugin configuration integrates cleanly with the Viper config system
+(<a class="" href="/web/neokapi/docs/architecture/001-vision-and-modules">AD-001: Vision and Module Architecture</a>);
+namespaced flags prevent collisions.</li>
+<li class="">Plugin scope is enforced by the RPC boundary — plugins cannot modify
+core behavior.</li>
+<li class="">The built-in vs plugin split keeps the out-of-box experience complete
+while allowing specialization through plugins.</li>
+<li class="">Two-phase discovery makes <code>kapi formats list</code> and <code>kapi plugins list</code>
+instant; JVM startup cost is paid only when files are actually
+processed.</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="related">Related<a href="#related" class="hash-link" aria-label="Direct link to Related" title="Direct link to Related" translate="no">​</a></h2>
+<ul>
+<li class=""><a class="" href="/web/neokapi/docs/architecture/001-vision-and-modules">AD-001: Vision and Module Architecture</a> — config system, module layout</li>
+<li class=""><a class="" href="/web/neokapi/docs/architecture/005-format-system">AD-005: Format System</a> — how plugin formats register alongside native formats</li>
+<li class=""><a class="" href="/web/neokapi/docs/architecture/006-tool-system">AD-006: Tool System</a> — plugin tools use the same Tool interface</li>
+<li class=""><a class="" href="/web/neokapi/docs/notes-internal/plugin-bridge-protocol">Plugin Bridge Protocol</a> — full gRPC service definition, wire format, and performance tuning</li>
+</ul></div><footer class="theme-doc-footer docusaurus-mt-lg"><div class="row margin-top--sm theme-doc-footer-edit-meta-row"><div class="col noPrint_WFHX"><a href="https://github.com/neokapi/neokapi/tree/main/website/docs/architecture/007-plugin-system.md" target="_blank" rel="noopener noreferrer" class="theme-edit-this-page"><svg fill="currentColor" height="20" width="20" viewBox="0 0 40 40" class="iconEdit_Z9Sw" aria-hidden="true"><g><path d="m34.5 11.7l-3 3.1-6.3-6.3 3.1-3q0.5-0.5 1.2-0.5t1.1 0.5l3.9 3.9q0.5 0.4 0.5 1.1t-0.5 1.2z m-29.5 17.1l18.4-18.5 6.3 6.3-18.4 18.4h-6.3v-6.2z"></path></g></svg>Edit this page</a></div><div class="col lastUpdated_JAkA"></div></div></footer></article><nav class="docusaurus-mt-lg pagination-nav" aria-label="Docs pages"><a class="pagination-nav__link pagination-nav__link--prev" href="/web/neokapi/docs/architecture/006-tool-system"><div class="pagination-nav__sublabel">Previous</div><div class="pagination-nav__label">AD-006: Tool System</div></a><a class="pagination-nav__link pagination-nav__link--next" href="/web/neokapi/docs/architecture/008-project-model"><div class="pagination-nav__sublabel">Next</div><div class="pagination-nav__label">AD-008: Kapi Project Model</div></a></nav></div></div><div class="col col--3"><div class="tableOfContents_bqdL thin-scrollbar theme-doc-toc-desktop"><ul class="table-of-contents table-of-contents__left-border"><li><a href="#summary" class="table-of-contents__link toc-highlight">Summary</a></li><li><a href="#context" class="table-of-contents__link toc-highlight">Context</a></li><li><a href="#decision" class="table-of-contents__link toc-highlight">Decision</a><ul><li><a href="#out-of-process-plugins" class="table-of-contents__link toc-highlight">Out-of-process plugins</a></li><li><a href="#plugin-types" class="table-of-contents__link toc-highlight">Plugin types</a></li><li><a href="#two-phase-discovery" class="table-of-contents__link toc-highlight">Two-phase discovery</a></li><li><a href="#multi-version-support" class="table-of-contents__link toc-highlight">Multi-version support</a></li><li><a href="#format-reference-syntax" class="table-of-contents__link toc-highlight">Format reference syntax</a></li><li><a href="#presets-as-a-capability" class="table-of-contents__link toc-highlight">Presets as a capability</a></li><li><a href="#plugin-loader" class="table-of-contents__link toc-highlight">Plugin loader</a></li><li><a href="#okapi-bridge" class="table-of-contents__link toc-highlight">Okapi bridge</a></li><li><a href="#bridge-registry-and-concurrency" class="table-of-contents__link toc-highlight">Bridge registry and concurrency</a></li><li><a href="#plugin-configuration" class="table-of-contents__link toc-highlight">Plugin configuration</a></li><li><a href="#plugin-registries" class="table-of-contents__link toc-highlight">Plugin registries</a></li><li><a href="#quality-tiers" class="table-of-contents__link toc-highlight">Quality tiers</a></li><li><a href="#protocol-stability" class="table-of-contents__link toc-highlight">Protocol stability</a></li><li><a href="#security" class="table-of-contents__link toc-highlight">Security</a></li></ul></li><li><a href="#consequences" class="table-of-contents__link toc-highlight">Consequences</a></li><li><a href="#related" class="table-of-contents__link toc-highlight">Related</a></li></ul></div></div></div></div></main></div></div></div><footer class="theme-layout-footer footer footer--dark"><div class="container container-fluid"><div class="row footer__links"><div class="theme-layout-footer-column col footer__col"><div class="footer__title">Neokapi</div><ul class="footer__items clean-list"><li class="footer__item"><a class="footer__link-item" href="/web/neokapi/docs/getting-started/introduction">Getting Started</a></li><li class="footer__item"><a class="footer__link-item" href="/web/neokapi/docs/kapi-cli/overview">Kapi CLI</a></li><li class="footer__item"><a class="footer__link-item" href="/web/neokapi/docs/developer/architecture">Framework</a></li></ul></div><div class="theme-layout-footer-column col footer__col"><div class="footer__title">More</div><ul class="footer__items clean-list"><li class="footer__item"><a href="https://github.com/neokapi/neokapi" target="_blank" rel="noopener noreferrer" class="footer__link-item">GitHub<svg width="13.5" height="13.5" aria-label="(opens in new tab)" class="iconExternalLink_nPIU"><use href="#theme-svg-external-link"></use></svg></a></li><li class="footer__item"><a href="https://github.com/neokapi/homebrew-tap" target="_blank" rel="noopener noreferrer" class="footer__link-item">Homebrew Tap<svg width="13.5" height="13.5" aria-label="(opens in new tab)" class="iconExternalLink_nPIU"><use href="#theme-svg-external-link"></use></svg></a></li></ul></div></div><div class="footer__bottom text--center"><div class="footer__copyright">Copyright © 2026 neokapi contributors. Built with Docusaurus.</div></div></div></footer></div>
+</body>
+</html>
