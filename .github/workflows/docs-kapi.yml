@@ -87,7 +87,7 @@ jobs:
         run: vp install
 
       - name: Download recorded scenes
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v8
         with:
           name: kapi-scenes
           path: website/static/video/kapi
