@@ -1,0 +1,9 @@
+/*
+ * Registers @neokapi/flow-editor/src as a Tailwind @source so consumers
+ * of this package don't have to add the @source themselves.
+ *
+ * Import this from any CSS file that processes Tailwind utilities and
+ * renders @neokapi/flow-editor components.
+ */
+
+@source "../";

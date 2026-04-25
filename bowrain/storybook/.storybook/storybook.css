@@ -1,12 +1,12 @@
 /*
  * Bowrain Storybook CSS entry point.
- * @neokapi/ui-primitives and @neokapi/ui self-register via their own @source
- * directives; this file only adds the sources Storybook needs that aren't
- * already declared by a package (flow-editor + the consuming apps).
+ * @neokapi/ui-primitives, @neokapi/ui, and @neokapi/flow-editor self-register
+ * via their own @source directives; this file only adds the sources Storybook
+ * needs from the consuming apps.
  */
 @import "../../packages/ui/src/styles/globals.css";
+@import "@neokapi/flow-editor/styles/sources.css";
 
-@source "../../../packages/flow-editor/src";
 @source "../../apps/bowrain/frontend/src";
 @source "../../emails/src";
 @source "../../apps/keycloak-theme/src";
