@@ -7,6 +7,7 @@ name: Storybook
 #   /storybook/prs/{N}/{kapi,bowrain}/ (PR previews)
 
 on:
+  workflow_dispatch:
   pull_request:
     types: [opened, synchronize, reopened]
     paths:

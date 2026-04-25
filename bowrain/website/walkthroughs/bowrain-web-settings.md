@@ -14,13 +14,12 @@ scenes:
 
 ## Story
 
-Workspace owner navigates to settings to update the workspace name, view billing/usage, and manage team members.
+Workspace owner opens the workspace settings page to confirm the workspace's name and slug, check their role, and toggle Pulse Dashboard sharing. The settings page is the same surface team members use to view what they have access to in this workspace.
 
 ## Scene 1 — settings (web)
 
-User clicks Settings in the sidebar. The settings page loads with tabs for general, billing, and members. Owner edits the workspace name, saves, and the rail updates.
+User navigates to `/{workspace}/settings`. The General card renders with workspace details — Name, Slug, Description, Your Role — and the Pulse Dashboard section appears below for owners. The recording holds on the General card so the reader can see the layout.
 
 ## Closing
 
-See the [getting-started walkthrough](/walkthroughs/bowrain-getting-started)
-for the broader CLI workflow.
+For the broader workflow that includes pushing translatable files into this workspace, see the [getting-started walkthrough](/walkthroughs/bowrain-getting-started).
