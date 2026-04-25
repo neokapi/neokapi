@@ -413,5 +413,5 @@ compile`, or whatever script your project wires up).
 
 ## Next
 
-- [AD-008 Kapi Project Model](/docs/ad/008-project-model) — project layout and block store.
+- [AD-008 Kapi Project Model](/docs/architecture/008-project-model) — project layout and block store.
 - [kapi CLI overview](/docs/kapi-cli/overview) — translation commands that consume your `.klf`.

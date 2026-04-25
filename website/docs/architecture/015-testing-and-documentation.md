@@ -11,9 +11,7 @@ title: "AD-015: Testing and Documentation"
 neokapi follows a three-tier test pyramid (unit via testify, integration
 via format roundtrips and flow E2E, application E2E via Playwright for
 GUIs). Documentation is a Docusaurus 3 site with separate plugin
-instances for user docs, framework ADs, bowrain ADs, and implementation
 notes. Screenshots and recordings are generated from real systems —
-Keycloak, bowrain-server, local SQLite — never from mocks. All assets
 regenerate on UI changes and land under `website/static/`.
 
 ## Context
@@ -133,8 +131,6 @@ sources separate while serving them from a single deployment:
 - **Main docs** — `website/docs/` at `/`.
 - **Framework ADs** — `docs/architecture-decisions/` at
   `/architecture-decisions/`. Apache-2.0 framework scope.
-- **Bowrain ADs** — `bowrain/docs/architecture-decisions/` at
-  `/bowrain/architecture-decisions/`. AGPL-3.0 platform scope.
 - **Notes** — `docs/notes/` at `/docs/notes/`. Implementation details
   extracted from ADs.
 
@@ -172,8 +168,6 @@ Screenshots are captured via Playwright and written directly to
    `apps/kapi-desktop/frontend/e2e/screenshots.spec.ts`. Self-contained
    (auto-starts a Vite dev server). Output:
    `website/static/img/kapi-desktop/{dark,light}/`.
-2. **Bowrain screenshots** — in the bowrain repo, described by the
-   bowrain ADs. Output: `website/static/img/bowrain/{dark,light}/` and
    `website/static/img/web-app/{dark,light}/`.
 
 Each screenshot spec runs in dark and light themes. Test suites capture
@@ -189,11 +183,7 @@ Four independent recording pipelines:
 2. **Kapi CLI** — [VHS](https://github.com/charmbracelet/vhs) terminal
    recordings from `.tape` files in `website/tapes/`. No server
    required.
-3. **Bowrain Desktop** — Playwright video capture in the bowrain repo,
-   run against real bowrain-server via Wails dev mode.
-4. **Bowrain CLI** — VHS recordings from `bowrain/e2e/tapes/`.
-
-VHS tape files are declarative:
+4.VHS tape files are declarative:
 
 ```tape
 Output output/convert.webm
@@ -233,9 +223,7 @@ All screenshots and recordings run against real neokapi infrastructure:
 
 - **Authentication and identity** — the real Keycloak OIDC provider via
   `compose.yaml`. Never mock the auth flow.
-- **bowrain-server** — the real server binary (locally built). Never a
   mock API server.
-- **Database and storage** — a real SQLite database (bowrain-server
   creates one automatically).
 - **External integrations** outside the scope of neokapi (third-party MT
   providers, external LLM APIs) may be mocked for isolation.
@@ -251,7 +239,6 @@ All documentation assets regenerate via Make targets:
 make screenshots                   # kapi-desktop screenshots
 make recordings                    # kapi-desktop recordings
 make kapi-recordings               # kapi CLI tapes → webm/gif
-make bowrain-cli-recordings        # bowrain CLI tapes → webm/gif
 make docs-assets                   # all of the above
 make fetch-docs-assets             # download pre-built tarball
 ```
@@ -297,10 +284,8 @@ Before committing any UI-related change:
   release workflow.
 - The test pyramid enforces coverage at every level with appropriate
   speed and cost tradeoffs.
-- Running asset generation against real Keycloak + bowrain-server
   means breaking changes in auth or the server API cause recording
   failures — a useful canary for integration regressions.
-- The cross-module nature of this AD (framework + kapi + bowrain all
   share the same testing and documentation stack) keeps the
   documentation single-sourced and avoids duplicated infrastructure.
 

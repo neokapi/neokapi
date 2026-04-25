@@ -6,10 +6,10 @@ const sidebars: SidebarsConfig = {
       type: "category",
       label: "Getting Started",
       items: [
-        "getting-started/introduction",
+        // intro is at slug: / (the site root); not in the sidebar tree
         "getting-started/installation",
         "getting-started/quickstart",
-        "getting-started/walkthrough",
+        // walkthrough.mdx replaced by walkthroughs/bowrain-getting-started.mdx
       ],
     },
     {

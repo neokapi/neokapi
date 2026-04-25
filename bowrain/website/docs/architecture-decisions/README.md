@@ -13,7 +13,7 @@ All content here is AGPL-3.0 licensed.
 Bowrain builds on the neokapi framework. Framework-level decisions
 (content model, processing pipeline, tools, plugins, AI/MT provider interfaces,
 the kapi project model) live in the framework's
-[Architecture Decisions](/docs/ad/index). This directory describes
+[Architecture Decisions](https://neokapi.github.io/web/neokapi/docs/architecture/index). This directory describes
 bowrain-specific choices: the content store, sync protocol, multi-tenant auth,
 connectors, event bus, server-side AI operations, agent runtime, apps, and
 billing.

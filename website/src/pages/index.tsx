@@ -19,12 +19,8 @@ function HomepageHeader() {
           <Link
             className="button button--secondary button--lg"
             to="/docs/getting-started/introduction"
-            style={{ marginRight: "1rem" }}
           >
-            Neokapi Framework
-          </Link>
-          <Link className="button button--secondary button--lg" to="/bowrain/introduction">
-            Bowrain Platform
+            Get Started
           </Link>
         </div>
       </div>
@@ -63,30 +59,6 @@ const NeokapiFeatures: ProductItem[] = [
   },
 ];
 
-const BowrainFeatures: ProductItem[] = [
-  {
-    title: "Bowrain CLI",
-    description:
-      "Git-like project management for localization. One command to push, translate, and pull: bowrain sync. Run flows, manage terminology, and integrate with CI/CD.",
-    link: "/bowrain/cli/overview",
-    linkText: "Bowrain CLI",
-  },
-  {
-    title: "Visual Editor",
-    description:
-      "Translation editor with split preview, focus view, translation memory, and terminology. Available as a web app and native desktop app.",
-    link: "/bowrain/server/web-overview",
-    linkText: "Bowrain Web",
-  },
-  {
-    title: "Automation & Connectors",
-    description:
-      "Configurable automation rules locally in YAML and visually on the server. Event-driven triggers, quality gates, webhooks, and CI integration. Bidirectional connectors sync content from CMS, code repos, and design tools.",
-    link: "/bowrain/server/automation",
-    linkText: "Automation",
-  },
-];
-
 function ProductCard({ title, description, link, linkText }: ProductItem) {
   return (
     <div className={clsx("col col--4")}>
@@ -112,21 +84,6 @@ function HomepageFeatures() {
         </p>
         <div className="row margin-bottom--xl">
           {NeokapiFeatures.map((props, idx) => (
-            <ProductCard key={idx} {...props} />
-          ))}
-        </div>
-
-        <hr />
-
-        <Heading as="h2" className="text--center margin-top--lg margin-bottom--lg">
-          Bowrain Platform
-        </Heading>
-        <p className="text--center margin-bottom--lg">
-          Full-stack localization platform with <Link to="/bowrain/cli/overview">Bowrain CLI</Link>,
-          visual editor, and server.
-        </p>
-        <div className="row">
-          {BowrainFeatures.map((props, idx) => (
             <ProductCard key={idx} {...props} />
           ))}
         </div>

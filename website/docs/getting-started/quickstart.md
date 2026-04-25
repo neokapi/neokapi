@@ -65,4 +65,3 @@ kapi termbase lookup "authentication module" -s en -t fr
 - [Formats](/docs/kapi-cli/commands/formats) — supported file formats
 - [Run Command](/docs/kapi-cli/commands/flow) — composed flows and tool commands
 - [Features](/docs/features/formats) — detailed feature documentation
-- [Bowrain Platform](/bowrain/introduction) — team collaboration with project management and server sync

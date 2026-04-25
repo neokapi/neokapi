@@ -266,4 +266,4 @@ Current behavior: hooks are documented in config but not executed.
 - [Custom Flows](/cli/flows/custom-flows)
 - [Push Command](/cli/commands/push)
 - [Pull Command](/cli/commands/pull)
-- [QA Checks](/docs/features/qa-checks)
+- [QA Checks](https://neokapi.github.io/web/neokapi/docs/features/qa-checks)

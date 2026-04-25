@@ -7,7 +7,7 @@ title: Implementing Formats
 
 Step-by-step guide for implementing new neokapi format readers/writers or
 migrating existing Okapi filters. Parent AD:
-[AD-005](/docs/ad/005-format-system).
+[AD-005](/docs/architecture/005-format-system).
 
 ## Terminology Mapping from Okapi
 
@@ -300,7 +300,7 @@ documents. The reader writes skeleton entries as it parses; the writer reads
 them to reconstruct the output. Tools in between only see blocks — they never
 touch the skeleton.
 
-See [Skeleton Store](/docs/notes/skeleton-store) for binary format and API
+See [Skeleton Store](/docs/notes-internal/skeleton-store) for binary format and API
 details.
 
 ### Reader Side: Coalescing Buffer Pattern

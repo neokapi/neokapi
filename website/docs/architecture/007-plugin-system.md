@@ -238,7 +238,7 @@ Format metadata is not discovered via gRPC — the `PluginLoader` reads it
 from `manifest.json` and schema files on disk during `ScanMetadata`,
 avoiding JVM startup for format listing.
 
-See [Plugin Bridge Protocol](/docs/notes/plugin-bridge-protocol) for the
+See [Plugin Bridge Protocol](/docs/notes-internal/plugin-bridge-protocol) for the
 full gRPC service definition, wire format, protobuf messages, and
 performance tuning notes.
 
@@ -382,4 +382,4 @@ versions simultaneously, giving plugin authors time to migrate.
 - [AD-001: Vision and Module Architecture](001-vision-and-modules.md) — config system, module layout
 - [AD-005: Format System](005-format-system.md) — how plugin formats register alongside native formats
 - [AD-006: Tool System](006-tool-system.md) — plugin tools use the same Tool interface
-- [Plugin Bridge Protocol](/docs/notes/plugin-bridge-protocol) — full gRPC service definition, wire format, and performance tuning
+- [Plugin Bridge Protocol](/docs/notes-internal/plugin-bridge-protocol) — full gRPC service definition, wire format, and performance tuning

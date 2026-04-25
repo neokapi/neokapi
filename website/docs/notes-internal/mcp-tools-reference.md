@@ -5,7 +5,7 @@ title: "MCP Tools Reference"
 
 # MCP Tools Reference
 
-This note provides implementation details for [AD-013](/docs/ad/013-kapi-cli).
+This note provides implementation details for [AD-013](/docs/architecture/013-kapi-cli).
 
 ## Kapi MCP Server
 
@@ -183,16 +183,8 @@ List all available processing tools (built-in and plugin-provided).
 ```
 
 ---
-
-## Bowrain CLI MCP Server
-
-Started via `bowrain mcp`. Requires a `.bowrain/` project directory (discovered by searching upward from the current directory).
-
-**Server info:** `{"name": "bowrain", "version": "<version>"}`
-
 ### `project_config`
 
-Read project configuration from `.bowrain/config.yaml`.
 
 **Input:** none
 
@@ -201,16 +193,12 @@ Read project configuration from `.bowrain/config.yaml`.
 ```json
 {
   "root": "/path/to/project",
-  "config_path": "/path/to/project/.bowrain/config.yaml",
   "source_language": "en",
   "target_languages": ["fr", "de", "ja"],
-  "server_url": "https://bowrain.example.com",
   "project_id": "proj-123",
   "content_count": 2
 }
 ```
-
-`server_url` and `project_id` are only present when a Bowrain Server is configured.
 
 ### `project_status`
 
@@ -224,8 +212,6 @@ Show project sync status including pending push/pull counts and server connectio
 {
   "project": {
     "root": "/path/to/project",
-    "config_dir": "/path/to/project/.bowrain/config.yaml",
-    "server": "https://bowrain.example.com",
     "project_id": "proj-123"
   },
   "item_count": 150,
@@ -279,8 +265,6 @@ When `stats` is false, the handler uses a fast path that only expands globs and 
 
 ### `project_push`
 
-Upload local changes to the Bowrain Server.
-
 **Input:**
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
@@ -303,8 +287,6 @@ When `dry_run` is true, the output includes `"dry_run": true` instead of `up_to_
 
 ### `project_pull`
 
-Download translations from the Bowrain Server and update local files.
-
 **Input:**
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
@@ -325,7 +307,6 @@ Download translations from the Bowrain Server and update local files.
 
 ### `list_flows`
 
-List available processing flows (built-in and project-defined from `.bowrain/flows/`).
 
 **Input:** none
 
@@ -361,13 +342,9 @@ Project-defined flows include a `steps` count. Built-in flows always have `sourc
 | `kapi/cmd/kapi/mcp_cmd.go`                  | Cobra subcommand, server bootstrap      |
 | `kapi/cmd/kapi/mcp_tools.go`                | 8 tool handlers + input/output types    |
 | `kapi/cmd/kapi/mcp_tools_test.go`           | Unit tests for kapi MCP handlers        |
-| `bowrain-cli/cmd/bowrain/mcp_cmd.go`        | Cobra subcommand, server bootstrap      |
-| `bowrain-cli/cmd/bowrain/mcp_tools.go`      | 6 tool handlers + input/output types    |
-| `bowrain-cli/cmd/bowrain/mcp_tools_test.go` | Unit tests for Bowrain CLI MCP handlers |
 
 ## Testing
 
-MCP handlers are tested by calling the handler functions directly with test fixtures — no MCP transport needed. Kapi tests use format fixture files from `core/formats/json/testdata/`. Bowrain CLI tests create temporary `.bowrain/` projects via `project.InitProject()`.
 
 The MCP handshake can be verified manually:
 

@@ -1,7 +1,5 @@
 # Azure Deployment
 
-This document covers setting up and running the Bowrain Azure deployment pipeline.
-
 ## Architecture overview
 
 The deployment creates a full Bowrain stack on Azure Container Apps:

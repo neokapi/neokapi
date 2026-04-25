@@ -64,7 +64,6 @@ Use Kapi CLI when you:
 
 For a visual interface, use [Kapi](/docs/kapi-desktop/overview) — the GUI companion for building flows, managing plugins, and running tools with live progress.
 
-For project management, server sync, and team collaboration, use the [Bowrain CLI](/bowrain/cli/overview) instead.
 
 ## Installation
 

@@ -94,7 +94,7 @@ defaults:
 
 ### Flow Steps
 
-Each flow contains an ordered list of steps. See [Flow Steps Format](/docs/notes/flow-steps-format) for the full specification.
+Each flow contains an ordered list of steps. See [Flow Steps Format](/docs/notes-internal/flow-steps-format) for the full specification.
 
 ```yaml
 flows:

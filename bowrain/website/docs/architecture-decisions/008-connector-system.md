@@ -255,7 +255,7 @@ func (r *Registry) List() []Info
 
 Built-in connectors register via `init()`. Plugin connectors register at
 runtime via gRPC discovery — see
-[AD-framework-007: Plugin System](/docs/ad/007-plugin-system).
+[AD-framework-007: Plugin System](https://neokapi.github.io/web/neokapi/docs/architecture/007-plugin-system).
 
 The bowrain CLI does not interact with the server-side registry. It is
 a file-based `SourceConnector` that syncs via REST.
@@ -299,7 +299,7 @@ The connector management panel in `bowrain/apps/bowrain/` and
 
 Both server-side and client-side connectors use the framework's
 three-tier format system — see
-[AD-framework-005: Formats](/docs/ad/005-format-system):
+[AD-framework-005: Formats](https://neokapi.github.io/web/neokapi/docs/architecture/005-format-system):
 
 1. **Native formats** (Go): 15 built-in — HTML, XML, XLIFF, XLIFF 2,
    JSON, YAML, PO, Properties, Plaintext, Markdown, CSV, SRT, VTT,
@@ -353,5 +353,5 @@ translation experience within native tools.
 - [AD-004: Content Store and Versioning](004-content-store.md)
 - [AD-007: Media and Blob Storage](007-media-and-blob-storage.md)
 - [AD-009: Sync Protocol](009-sync-protocol.md)
-- [AD-framework-005: Formats](/docs/ad/005-format-system)
-- [AD-framework-007: Plugin System](/docs/ad/007-plugin-system)
+- [AD-framework-005: Formats](https://neokapi.github.io/web/neokapi/docs/architecture/005-format-system)
+- [AD-framework-007: Plugin System](https://neokapi.github.io/web/neokapi/docs/architecture/007-plugin-system)

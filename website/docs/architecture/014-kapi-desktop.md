@@ -12,7 +12,6 @@ Kapi Desktop is a Wails v3 desktop application at `apps/kapi-desktop/` that
 provides a visual companion to the kapi CLI. It opens `.kapi` project files
 as documents, offers a flow editor with live runner progress, manages
 plugins, and surfaces the OS-keychain credential vault. The module depends
-on the framework and the shared CLI base only — no bowrain, no server — and
 reuses `@neokapi/ui-primitives` and `@neokapi/flow-editor` from the
 monorepo's npm workspaces.
 
@@ -76,7 +75,6 @@ The module depends on:
 - `github.com/zalando/go-keyring` — OS keychain.
 
 Module isolation is verified by `GOWORK=off bash -c "cd apps/kapi-desktop && go build ./..."`.
-There is no bowrain dependency.
 
 ### Backend services
 
@@ -147,7 +145,6 @@ presentational (dynamic forms, event streaming, live progress).
 
 ### Shared frontend packages
 
-Two npm workspace packages are shared with bowrain apps and the
 Storybook:
 
 - **`@neokapi/ui-primitives`** (`packages/ui/`) — shadcn/ui
@@ -156,7 +153,6 @@ Storybook:
   PanelHeader, LoadingSpinner).
 - **`@neokapi/flow-editor`** (`packages/flow-editor/`) — a React flow
   editor component library built on xyflow, used by both kapi-desktop
-  and bowrain.
 
 Both packages resolve via npm workspace symlinks; no path aliases are
 needed. `vp install` at the repo root installs the entire workspace.
@@ -164,11 +160,8 @@ needed. `vp install` at the repo root installs the entire workspace.
 ### Opening projects with different block stores
 
 Kapi Desktop opens any `.kapi` project, including projects that declare
-the `bowrain` block store provider. The desktop itself remains
-framework-only; the `bowrain` provider is loaded as an implementation
 of the `BlockStore` interface by the project machinery, not by the
 desktop app directly. This keeps the desktop's dependency footprint
-free of bowrain while enabling users to open bowrain-backed projects
 without switching tools.
 
 ### Distribution
@@ -183,12 +176,10 @@ without switching tools.
 ## Consequences
 
 - Kapi Desktop provides a visual GUI for every kapi CLI capability
-  without requiring bowrain or a server.
 - `.kapi` files are shareable workflow documents — open, edit, save,
   commit to git; no hidden state travels with the document.
 - The OS keychain integration makes the desktop the preferred way for
   non-engineering users to configure AI and MT providers.
-- Kapi Desktop and the bowrain desktop app share the same technology
   stack and frontend packages, reducing duplication and keeping
   shadcn primitives consistent.
 - Separate Go modules keep Wails and keyring dependencies out of the

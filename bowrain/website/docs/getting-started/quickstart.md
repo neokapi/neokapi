@@ -103,7 +103,7 @@ bowrain run my-flow
 
 ## Next Steps
 
-- **Full walkthrough**: See [Walkthrough](/walkthrough)
+- **Full walkthrough**: See [Walkthrough](/walkthroughs/bowrain-getting-started)
 - **Connect to server**: Use interactive `bowrain init` and choose "Sign in to Bowrain"
 - **Explore flows and tools**: `bowrain flows` and `bowrain tools`
 - **CLI reference**: [Bowrain CLI](/cli/commands/init)

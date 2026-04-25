@@ -93,7 +93,7 @@ kapi tm stats                      # uses ./tm.db
 
 Trace every TM entry written or updated by a specific
 [`kapi merge`](./merge) batch. Introduced by [AD-017: Bilingual Format
-Interop](/docs/ad/017-bilingual-format-interop) and the
+Interop](/docs/architecture/017-bilingual-format-interop) and the
 [Bilingual Workflow](../bilingual-workflow).
 
 ```bash
