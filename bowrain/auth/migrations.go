@@ -12,12 +12,13 @@ var authMigrationsPg = []storage.Migration{
 		Description: "auth schema (baseline)",
 		SQL: `
 			CREATE TABLE users (
-				id         TEXT PRIMARY KEY,
-				email      TEXT UNIQUE NOT NULL,
-				name       TEXT NOT NULL,
-				avatar_url TEXT NOT NULL DEFAULT '',
-				oidc_sub   TEXT NOT NULL DEFAULT '',
-				created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+				id            TEXT PRIMARY KEY,
+				email         TEXT UNIQUE NOT NULL,
+				name          TEXT NOT NULL,
+				avatar_url    TEXT NOT NULL DEFAULT '',
+				oidc_sub      TEXT NOT NULL DEFAULT '',
+				onboarded_at  TIMESTAMPTZ,
+				created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
 			);
 			CREATE INDEX idx_users_oidc_sub ON users(oidc_sub);
 
@@ -120,6 +121,31 @@ var authMigrationsPg = []storage.Migration{
 			);
 			CREATE INDEX idx_project_members_user ON project_members(user_id, workspace_id);
 			CREATE INDEX idx_project_members_role ON project_members(workspace_id, role_id);
+
+			-- Slug rename history: when a workspace is renamed, the old slug is
+			-- reserved for a grace period (default 30d) so it cannot be reused
+			-- for impersonation. Reservations are GC'd after expiry.
+			CREATE TABLE workspace_slug_reservations (
+				slug           TEXT PRIMARY KEY,
+				workspace_id   TEXT NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
+				reserved_until TIMESTAMPTZ NOT NULL,
+				created_at     TIMESTAMPTZ NOT NULL DEFAULT NOW()
+			);
+			CREATE INDEX idx_slug_reservations_until ON workspace_slug_reservations(reserved_until);
+
+			-- Email-change requests: a verification token is sent to the new
+			-- address. Confirmation writes the new email through to Keycloak
+			-- via the admin API and updates users.email.
+			CREATE TABLE email_change_requests (
+				id         TEXT PRIMARY KEY,
+				user_id    TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+				new_email  TEXT NOT NULL,
+				token_hash TEXT UNIQUE NOT NULL,
+				expires_at TIMESTAMPTZ NOT NULL,
+				created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+			);
+			CREATE INDEX idx_email_change_user ON email_change_requests(user_id);
+			CREATE INDEX idx_email_change_expires ON email_change_requests(expires_at);
 		`,
 	},
 }

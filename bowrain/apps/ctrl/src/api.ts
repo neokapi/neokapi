@@ -281,3 +281,25 @@ export function addMemberToWorkspace(
     body: JSON.stringify({ user_id: userId, role }),
   });
 }
+
+// ---------------------------------------------------------------------------
+// Workspace slug reservations (rename grace period)
+// ---------------------------------------------------------------------------
+
+export interface SlugReservation {
+  slug: string;
+  workspace_id: string;
+  reserved_until: string;
+  created_at: string;
+}
+
+export function listSlugReservations(): Promise<SlugReservation[]> {
+  return request<SlugReservation[]>("/slug-reservations");
+}
+
+export function releaseSlugReservation(slug: string): Promise<void> {
+  return request("/slug-reservations/release", {
+    method: "POST",
+    body: JSON.stringify({ slug }),
+  });
+}

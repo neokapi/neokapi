@@ -108,6 +108,18 @@ func run() error {
 	if envPublic := os.Getenv("BOWRAIN_OIDC_PUBLIC_URL"); envPublic != "" {
 		cfg.OIDCPublicURL = envPublic
 	}
+	if v := os.Getenv("BOWRAIN_KEYCLOAK_ADMIN_URL"); v != "" {
+		cfg.KeycloakAdminURL = v
+	}
+	if v := os.Getenv("BOWRAIN_KEYCLOAK_REALM"); v != "" {
+		cfg.KeycloakRealm = v
+	}
+	if v := os.Getenv("BOWRAIN_KEYCLOAK_ADMIN_CLIENT_ID"); v != "" {
+		cfg.KeycloakAdminClientID = v
+	}
+	if v := os.Getenv("BOWRAIN_KEYCLOAK_ADMIN_CLIENT_SECRET"); v != "" {
+		cfg.KeycloakAdminClientSecret = v
+	}
 	if envSMTPHost := os.Getenv("BOWRAIN_SMTP_HOST"); envSMTPHost != "" {
 		cfg.SMTPHost = envSMTPHost
 	}

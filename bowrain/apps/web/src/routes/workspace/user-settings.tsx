@@ -1,5 +1,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { NotificationSettings, useWorkspace, useApi, type DigestSettingsDTO } from "@neokapi/ui";
+import { ProfileEmailCard } from "../../auth/ProfileEmailCard";
+import { ProfileHandleCard } from "../../auth/ProfileHandleCard";
 
 export function UserSettingsRoute() {
   const { activeWorkspace } = useWorkspace();
@@ -38,23 +40,23 @@ export function UserSettingsRoute() {
     [api, activeWorkspace],
   );
 
-  if (!settings) {
-    return (
-      <div className="mx-auto w-full max-w-xl py-8 text-sm text-muted-foreground text-center">
-        Loading settings...
-      </div>
-    );
-  }
-
   return (
     <div className="mx-auto w-full max-w-xl space-y-6 py-4">
       <div>
         <h1 className="text-lg font-semibold">User Settings</h1>
         <p className="text-sm text-muted-foreground">
-          Notification preferences for this workspace.
+          Profile, handle, and notification preferences for your Bowrain account.
         </p>
       </div>
-      <NotificationSettings settings={settings} onChange={handleChange} saving={saving} />
+
+      <ProfileEmailCard />
+      <ProfileHandleCard />
+
+      {settings ? (
+        <NotificationSettings settings={settings} onChange={handleChange} saving={saving} />
+      ) : (
+        <div className="text-sm text-muted-foreground">Loading notification settings…</div>
+      )}
     </div>
   );
 }

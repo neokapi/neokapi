@@ -30,6 +30,8 @@ import { JoinRoute } from "./auth/join";
 import { ClaimRoute } from "./auth/claim";
 import { DeviceVerifyRoute } from "./auth/device-verify";
 import { DeviceAuthorizedRoute } from "./auth/device-authorized";
+import { WelcomeRoute } from "./auth/welcome";
+import { ConfirmEmailRoute } from "./auth/confirm-email";
 import { useUIStore } from "../stores/ui-store";
 import {
   configQueryOptions,
@@ -87,6 +89,15 @@ const indexRoute = createRoute({
     if (!user) {
       window.location.href = "/api/v1/auth/login";
       await new Promise(() => {}); // Prevent render while redirecting
+      throw new Error("unreachable");
+    }
+
+    // First-run users have no personal workspace yet — route them through
+    // /welcome to pick a handle. We bias to the user's onboarded_at flag
+    // (set by CompleteOnboarding) and fall back to "no workspaces" so older
+    // accounts that predate the flag still resolve.
+    if (!user.onboarded_at && (!workspaces || workspaces.length === 0)) {
+      throw redirect({ to: "/welcome", replace: true });
     }
 
     if (!workspaces || workspaces.length === 0) {
@@ -144,6 +155,21 @@ const deviceAuthorizedRoute = createRoute({
   component: DeviceAuthorizedRoute,
 });
 
+const welcomeRoute = createRoute({
+  getParentRoute: () => authLayout,
+  path: "welcome",
+  component: WelcomeRoute,
+});
+
+const confirmEmailRoute = createRoute({
+  getParentRoute: () => authLayout,
+  path: "account/confirm-email",
+  validateSearch: (search: Record<string, unknown>): { token?: string } => ({
+    token: typeof search.token === "string" ? search.token : undefined,
+  }),
+  component: ConfirmEmailRoute,
+});
+
 // ---------------------------------------------------------------------------
 // Workspace routes
 // ---------------------------------------------------------------------------
@@ -183,6 +209,12 @@ const workspaceRoute = createRoute({
         window.location.href = "/api/v1/auth/login";
         await new Promise(() => {});
         throw new Error("unreachable");
+      }
+
+      // Bounce un-onboarded users to /welcome before they can access any
+      // workspace URL. This handles direct navigation/bookmarks.
+      if (!fetchedUser.onboarded_at && (!fetchedWorkspaces || fetchedWorkspaces.length === 0)) {
+        throw redirect({ to: "/welcome", replace: true });
       }
 
       user = fetchedUser;
@@ -478,6 +510,8 @@ const routeTree = rootRoute.addChildren([
     claimRoute,
     deviceVerifyRoute,
     deviceAuthorizedRoute,
+    welcomeRoute,
+    confirmEmailRoute,
     pricingRoute,
   ]),
   workspaceRoute.addChildren([

@@ -77,6 +77,27 @@ type AuthStore interface {
 	RemoveProjectMember(ctx context.Context, projectID, userID string) error
 	ResolveProjectPermissions(ctx context.Context, projectID, userID string) (*platauth.ResolvedPermission, error)
 
+	// Workspace slug reservations (rename grace period).
+	// ReserveSlug records that `slug` was previously held by `workspaceID` and
+	// must not be reused until `until`. IsSlugReserved returns the workspace
+	// that previously held the slug, if any reservation is still active.
+	ReserveSlug(ctx context.Context, workspaceID, slug string, until time.Time) error
+	IsSlugReserved(ctx context.Context, slug string) (workspaceID string, reservedUntil time.Time, ok bool, err error)
+	// ListTakenSlugs returns the subset of `candidates` currently unavailable
+	// because they're either active workspace slugs or live rename
+	// reservations. Used by suggestion logic to test many candidates in one
+	// round trip.
+	ListTakenSlugs(ctx context.Context, candidates []string) (map[string]bool, error)
+	ListSlugReservations(ctx context.Context) ([]*platauth.SlugReservation, error)
+	ReleaseSlugReservation(ctx context.Context, slug string) error
+	PurgeExpiredSlugReservations(ctx context.Context) (int, error)
+
+	// Email change requests.
+	CreateEmailChangeRequest(ctx context.Context, req *platauth.EmailChangeRequest, tokenHash string) error
+	GetEmailChangeRequestByToken(ctx context.Context, tokenHash string) (*platauth.EmailChangeRequest, error)
+	DeleteEmailChangeRequestsForUser(ctx context.Context, userID string) error
+	PurgeExpiredEmailChangeRequests(ctx context.Context) (int, error)
+
 	// Lifecycle
 	Close() error
 }
