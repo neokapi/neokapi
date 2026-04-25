@@ -1,7 +1,7 @@
-# VHS Tape: kapi overview demo
-# Quick overview of kapi CLI capabilities
+# VHS tape — generated from website/walkthroughs/kapi-overview.md
+# Scene 1: overview (terminal). Do not edit by hand.
 
-Output output/overview.webm
+Output "01-overview.webm"
 
 Set FontSize 16
 Set Width 1000

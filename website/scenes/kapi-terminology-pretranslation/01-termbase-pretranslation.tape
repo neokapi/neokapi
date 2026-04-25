@@ -1,8 +1,7 @@
-# VHS Tape: kapi termbase pre-translation demo
-# Demonstrates the full pre-translation pipeline:
-# import TM + termbase → TM leverage → pseudo-translate remaining → QA check.
+# VHS tape — generated from website/walkthroughs/kapi-terminology-pretranslation.md
+# Scene 1: termbase-pretranslation (terminal). Do not edit by hand.
 
-Output output/termbase-pretranslation.webm
+Output "01-termbase-pretranslation.webm"
 
 Set FontSize 16
 Set Width 1000
@@ -14,11 +13,11 @@ Type "# Set up language assets: termbase + translation memory"
 Enter
 Sleep 500ms
 
-Type "kapi termbase import samples/glossary.csv --name product-terms --format csv -s en -t fr --header"
+Type "kapi termbase import fixtures/glossary.csv --name product-terms --format csv -s en -t fr --header"
 Enter
 Sleep 1500ms
 
-Type "kapi tm import samples/project.tmx --name project-tm -s en -t fr"
+Type "kapi tm import fixtures/project.tmx --name project-tm -s en -t fr"
 Enter
 Sleep 1500ms
 
@@ -30,7 +29,7 @@ Type "# Source file to translate"
 Enter
 Sleep 500ms
 
-Type "cat samples/messages_en.json"
+Type "cat fixtures/messages_en.json"
 Enter
 Sleep 1500ms
 
@@ -42,7 +41,7 @@ Type "# Step 1: Leverage translation memory"
 Enter
 Sleep 500ms
 
-Type "kapi tm-leverage -i samples/messages_en.json -o out/step1_tm.json --source-lang en --target-lang fr --tm project-tm"
+Type "kapi tm-leverage -i fixtures/messages_en.json -o out/step1_tm.json --source-lang en --target-lang fr --tm project-tm"
 Enter
 Sleep 2s
 
