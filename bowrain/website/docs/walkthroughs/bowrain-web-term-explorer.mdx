@@ -2,8 +2,7 @@
 id: bowrain-web-term-explorer
 title: "Browse and edit terminology"
 sidebar_label: "Term explorer (web)"
-description: "User navigates to the term explorer, finds a term, edits its target translation, saves, and the affected projects panel updates to show the propagation."
-draft: true
+description: "User navigates to the term explorer to browse the workspace glossary and manage terms."
 ---
 
 import { ThemedVideo } from "@neokapi/docs-shared";
@@ -11,21 +10,19 @@ import { ThemedVideo } from "@neokapi/docs-shared";
 # Browse and edit terminology
 
 > Generated from [`walkthroughs/bowrain-web-term-explorer.md`](https://github.com/neokapi/neokapi/blob/main/bowrain/website/walkthroughs/bowrain-web-term-explorer.md). Do not edit by hand — change the prompt and regenerate.
->
-> **Status: scaffold.** The scene `.spec.ts` exists but is currently `test.skip`'d — full Playwright validation against the real backend is a #425 followup.
 
 Translator opens the term explorer to browse the workspace glossary, edit a translation, and see where the term is used across projects.
 
 ## Scene 1 — browse
 
-{/* <ThemedVideo
+<ThemedVideo
   sources={{
-    light: "/video/bowrain/browse.webm",
-    dark: "/video/bowrain/browse.webm",
+    light: "/video/bowrain/bowrain-web-term-explorer/01-browse.webm",
+    dark: "/video/bowrain/bowrain-web-term-explorer/01-browse.webm",
   }}
-/> */}
+/>
 
-User navigates to the term explorer, finds a term, edits its target translation, saves, and the affected projects panel updates to show the propagation.
+User navigates to the term explorer at `/{workspace}/termbase`. The term explorer panel renders ready for glossary entries.
 
 ## Next
 

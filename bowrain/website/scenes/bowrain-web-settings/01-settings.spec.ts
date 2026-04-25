@@ -2,26 +2,23 @@
  * Walkthrough: bowrain-web-settings
  * Scene 1: settings (web)
  *
- * Generated from bowrain/website/walkthroughs/bowrain-web-settings.md.
- * Do not edit by hand — change the prompt and regenerate via /walkthrough-scenes.
- *
- * Scaffold pending real-backend validation. Run against BOWRAIN_BACKEND_URL
- * with a seeded workspace via BowrainAPI; cleanup in afterAll.
+ * Records the workspace settings landing — Settings page with General card.
  */
 
 import { test, expect } from "@playwright/test";
-import { TEST_IDS } from "@neokapi/ui/test-ids";
-
-const BACKEND_URL = process.env.BOWRAIN_BACKEND_URL || "https://dev.bowrain.cloud";
+import { BACKEND_URL, injectAuthCookie, getMyWorkspaceSlug, saveSceneVideo } from "../_helpers";
 
 test.describe("walkthrough: bowrain-web-settings", () => {
-  test.use({ viewport: { width: 1280, height: 800 } });
-
-  // TODO(#425): seed via BowrainAPI; cleanup in afterAll.
-
   test("settings [scene]", async ({ page }) => {
-    test.skip(true, "scaffold — needs real backend validation per #425 followup");
-    expect(BACKEND_URL).toBeTruthy();
-    expect(TEST_IDS).toBeTruthy();
+    await injectAuthCookie(page);
+    const slug = await getMyWorkspaceSlug();
+    await page.goto(`${BACKEND_URL}/${slug}/settings`);
+    // settings-heading testid added in this PR; fall back to the unique
+    // "General" card title on older builds (until the deploy lands).
+    await expect(
+      page.getByTestId("settings-heading").or(page.getByText("General", { exact: true })),
+    ).toBeVisible({ timeout: 15000 });
+    await page.waitForTimeout(2000);
   });
+  test.afterEach(async ({ page }, testInfo) => saveSceneVideo(page, testInfo, "01-settings.webm"));
 });

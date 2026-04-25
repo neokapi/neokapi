@@ -56,7 +56,7 @@ export function SettingsIndexRoute() {
   const isAdmin = activeWorkspace.role === "owner" || activeWorkspace.role === "admin";
 
   return (
-    <div className="mx-auto w-full max-w-3xl space-y-6 py-4">
+    <div className="mx-auto w-full max-w-3xl space-y-6 py-4" data-testid="settings-heading">
       <Card>
         <CardHeader>
           <CardTitle>General</CardTitle>
