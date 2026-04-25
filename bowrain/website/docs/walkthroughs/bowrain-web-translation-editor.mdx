@@ -1,0 +1,32 @@
+---
+id: bowrain-web-translation-editor
+title: "Translation editor — split view editing"
+sidebar_label: "Translation editor (web)"
+description: "User picks a file from the project, clicks into the editor, types a translation in the target column, saves, and sees the toast confirmation. The TM panel suggests a near-match for one of the strings."
+draft: true
+---
+
+import { ThemedVideo } from "@neokapi/docs-shared";
+
+# Translation editor — split view editing
+
+> Generated from [`walkthroughs/bowrain-web-translation-editor.md`](https://github.com/neokapi/neokapi/blob/main/bowrain/website/walkthroughs/bowrain-web-translation-editor.md). Do not edit by hand — change the prompt and regenerate.
+>
+> **Status: scaffold.** The scene `.spec.ts` exists but is currently `test.skip`'d — full Playwright validation against the real backend is a #425 followup.
+
+Translator opens a project, navigates into a file, and uses the split-view editor to translate strings. Demonstrates source/target columns, save, and inline TM/term hints.
+
+## Scene 1 — editor
+
+{/* <ThemedVideo
+  sources={{
+    light: "/video/bowrain/editor.webm",
+    dark: "/video/bowrain/editor.webm",
+  }}
+/> */}
+
+User picks a file from the project, clicks into the editor, types a translation in the target column, saves, and sees the toast confirmation. The TM panel suggests a near-match for one of the strings.
+
+## Next
+
+See the [getting-started walkthrough](/walkthroughs/bowrain-getting-started) for the broader workflow.
