@@ -148,4 +148,38 @@ var authMigrationsPg = []storage.Migration{
 			CREATE INDEX idx_email_change_expires ON email_change_requests(expires_at);
 		`,
 	},
+	// PR #428 added onboarded_at, workspace_slug_reservations, and
+	// email_change_requests in the v1 baseline. Existing dev DBs already
+	// have v1 applied without these, so roll them forward idempotently.
+	// Issue #430.
+	{
+		Version:     2,
+		Description: "add onboarded_at + slug reservations + email-change requests (#428 catch-up)",
+		SQL: `
+			ALTER TABLE users
+				ADD COLUMN IF NOT EXISTS onboarded_at TIMESTAMPTZ;
+
+			CREATE TABLE IF NOT EXISTS workspace_slug_reservations (
+				slug           TEXT PRIMARY KEY,
+				workspace_id   TEXT NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
+				reserved_until TIMESTAMPTZ NOT NULL,
+				created_at     TIMESTAMPTZ NOT NULL DEFAULT NOW()
+			);
+			CREATE INDEX IF NOT EXISTS idx_slug_reservations_until
+				ON workspace_slug_reservations(reserved_until);
+
+			CREATE TABLE IF NOT EXISTS email_change_requests (
+				id         TEXT PRIMARY KEY,
+				user_id    TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+				new_email  TEXT NOT NULL,
+				token_hash TEXT UNIQUE NOT NULL,
+				expires_at TIMESTAMPTZ NOT NULL,
+				created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+			);
+			CREATE INDEX IF NOT EXISTS idx_email_change_user
+				ON email_change_requests(user_id);
+			CREATE INDEX IF NOT EXISTS idx_email_change_expires
+				ON email_change_requests(expires_at);
+		`,
+	},
 }
