@@ -2,8 +2,7 @@
 id: bowrain-web-pseudo-translation
 title: "Run pseudo-translation from the web app"
 sidebar_label: "Pseudo-translation (web)"
-description: "User opens the project menu, selects Run flow → Pseudo translate, picks the target locale, and watches the flow status update. After completion, target file shows expanded diacritic-padded strings."
-draft: true
+description: "Developer triggers a pseudo-translation flow on a project from the web app to verify UI rendering."
 ---
 
 import { ThemedVideo } from "@neokapi/docs-shared";
@@ -11,22 +10,20 @@ import { ThemedVideo } from "@neokapi/docs-shared";
 # Run pseudo-translation from the web app
 
 > Generated from [`walkthroughs/bowrain-web-pseudo-translation.md`](https://github.com/neokapi/neokapi/blob/main/bowrain/website/walkthroughs/bowrain-web-pseudo-translation.md). Do not edit by hand — change the prompt and regenerate.
->
-> **Status: scaffold.** The scene `.spec.ts` exists but is currently `test.skip`'d — full Playwright validation against the real backend is a #425 followup.
 
 Developer triggers a pseudo-translation flow on a project from the web app to verify UI rendering before sending to a real translator.
 
 ## Scene 1 — pseudo
 
-{/* <ThemedVideo
+<ThemedVideo
   sources={{
-    light: "/video/bowrain/pseudo.webm",
-    dark: "/video/bowrain/pseudo.webm",
+    light: "/video/bowrain/bowrain-web-pseudo-translation/01-pseudo.webm",
+    dark: "/video/bowrain/bowrain-web-pseudo-translation/01-pseudo.webm",
   }}
-/> */}
+/>
 
-User opens the project menu, selects Run flow → Pseudo translate, picks the target locale, and watches the flow status update. After completion, target file shows expanded diacritic-padded strings.
+User opens the project detail view. From here the project menu surfaces a "Run flow" option for pseudo-translation; selecting a target locale triggers the flow against uploaded files.
 
 ## Next
 
-See the [getting-started walkthrough](/walkthroughs/bowrain-getting-started) for the broader workflow.
+See the [bowrain-pseudo-translate walkthrough](/walkthroughs/bowrain-pseudo-translate) for the CLI side of the same workflow.
