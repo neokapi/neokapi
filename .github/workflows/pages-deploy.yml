@@ -16,13 +16,15 @@ on:
     workflows:
       - "Docs — kapi"
       - "Docs — bowrain"
+      - "Storybook"
     types: [completed]
   workflow_dispatch:
 
-# NOTE: Storybook artifact slots (kapi_storybook_dest / bowrain_storybook_dest)
-# are wired below but the existing `Storybook` workflow currently does its own
-# GH Pages deployment and is not yet feeding artifacts into this workflow.
-# Migrating storybook to the artifact-upload model is tracked under #425.
+# Storybook artifacts (kapi-storybook, bowrain-storybook) are uploaded by
+# storybook-preview.yml in addition to its existing neokapi.github.io
+# deploy. The slot logic below picks them up from the workflow_run
+# artifacts when present. Once this path is verified, the legacy
+# neokapi.github.io deploy in storybook-preview.yml can be removed.
 
 permissions:
   contents: write

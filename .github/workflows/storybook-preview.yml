@@ -66,6 +66,24 @@ jobs:
           STORYBOOK_BASE_PATH: /kapi/storybook/
         run: vpx storybook build -o storybook-static
 
+      # Upload as artifacts so pages-deploy.yml can slot them under
+      # /storybook/{kapi,bowrain}/ in the merged gh-pages tree.
+      # The existing neokapi.github.io repo deploy below remains as the
+      # primary delivery path until pages-deploy is verified end-to-end.
+      - name: Upload bowrain storybook artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: bowrain-storybook
+          path: bowrain/storybook/storybook-static
+          retention-days: 7
+
+      - name: Upload kapi storybook artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: kapi-storybook
+          path: storybook/storybook-static
+          retention-days: 7
+
       - name: Deploy to GitHub Pages
         env:
           SSH_DEPLOY_KEY: ${{ secrets.PAGES_DEPLOY_KEY }}
@@ -122,6 +140,20 @@ jobs:
         env:
           STORYBOOK_BASE_PATH: /kapi/storybook/pr-${{ github.event.pull_request.number }}/
         run: vpx storybook build -o storybook-static
+
+      - name: Upload bowrain storybook artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: bowrain-storybook
+          path: bowrain/storybook/storybook-static
+          retention-days: 7
+
+      - name: Upload kapi storybook artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: kapi-storybook
+          path: storybook/storybook-static
+          retention-days: 7
 
       - name: Deploy to GitHub Pages
         env:

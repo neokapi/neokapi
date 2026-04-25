@@ -92,21 +92,11 @@ jobs:
           name: kapi-scenes
           path: website/static/video/kapi
 
-      - name: Fetch last-known-good docs assets (kapi only)
-        env:
-          GH_TOKEN: ${{ github.token }}
+      - name: Stub test-comparison.json
+        # CI's test-comparison job uploads the real artifact; this stub keeps
+        # the build green when the artifact isn't available (e.g. on PRs that
+        # don't touch the bridge tests).
         run: |
-          if gh release view docs-assets > /dev/null 2>&1; then
-            if gh release download docs-assets --pattern 'docs-assets.tar.gz' --dir /tmp 2>/dev/null; then
-              # Extract only kapi-relevant assets to avoid leaking bowrain content
-              # into the kapi site. Other assets are owned by docs-bowrain.yml.
-              mkdir -p website/static
-              tar xzf /tmp/docs-assets.tar.gz -C website/static --wildcards \
-                'img/kapi*' 'video/kapi*' 2>/dev/null || true
-            fi
-          fi
-
-          # Stub test-comparison.json until walkthrough engine emits it
           mkdir -p website/static/data
           if [ ! -f website/static/data/test-comparison.json ]; then
             echo '{"generatedAt":"","okapiVersion":"","neokapiVersion":"","filters":[],"summary":{"totalFiltersOkapi":0,"totalFiltersBridge":0,"totalFiltersNative":0,"totalFiltersBoth":0,"totalTestsOkapi":0,"totalTestsBridge":0,"totalTestsNative":0,"coveragePct":0}}' > website/static/data/test-comparison.json
