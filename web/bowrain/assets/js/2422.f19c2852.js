@@ -1,0 +1,1 @@
+"use strict";(globalThis.webpackChunkbowrain_docs=globalThis.webpackChunkbowrain_docs||[]).push([[2422],{2422(a,s,c){c.d(s,{createRadarServices:()=>e.f});var e=c(2480);c(2519)}}]);
