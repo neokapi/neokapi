@@ -1,4 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
+import { TEST_IDS } from "@neokapi/ui";
 import {
   authenticate,
   getOrCreateWorkspace,
@@ -47,7 +48,7 @@ test.describe("Claim Flow", () => {
     // Should show the "Sign in to claim" page.
     await expect(page.getByText("Claim Project")).toBeVisible({ timeout: 10000 });
     await expect(page.getByText("Sign in to claim this project")).toBeVisible();
-    await expect(page.getByRole("button", { name: "Sign in to claim" })).toBeVisible();
+    await expect(page.getByTestId(TEST_IDS.auth.claimSubmit)).toBeVisible();
   });
 
   test("auto-claims project when authenticated", async ({ page }) => {

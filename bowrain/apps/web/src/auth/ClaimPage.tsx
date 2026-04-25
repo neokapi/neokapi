@@ -15,6 +15,7 @@ import {
   CircleCheck,
   Loader2,
   type ClaimProjectResponse,
+  TEST_IDS,
 } from "@neokapi/ui";
 
 interface ClaimPageProps {
@@ -118,6 +119,7 @@ export function ClaimPage({ token, onClaimed }: ClaimPageProps) {
                 }}
                 className="w-full"
                 size="lg"
+                data-testid={TEST_IDS.auth.claimSubmit}
               >
                 Sign in to claim
               </Button>
