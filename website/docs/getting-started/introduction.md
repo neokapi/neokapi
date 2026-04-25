@@ -13,9 +13,7 @@ neokapi is an open-source localization framework in Go. It provides format-aware
 neokapi consists of two products:
 
 - **Neokapi Framework + Kapi CLI** — open-source localization engine and command-line tool for file processing
-- **Bowrain Platform** — full-stack localization platform with web editor, desktop app, and server
 
-This section covers the framework and kapi CLI. For the Bowrain platform, see [Bowrain Introduction](/bowrain/introduction).
 
 ## Kapi CLI
 
@@ -78,10 +76,8 @@ If you're familiar with the Okapi Framework, here's how concepts map:
 | Code                       | Span                       |
 | StartSubDocument/SubFilter | Child Layer                |
 | Tikal                      | kapi (CLI)                 |
-| Rainbow                    | Bowrain (desktop app)      |
 
 ## Next Steps
 
 - [Installation](/docs/getting-started/installation) — install kapi CLI
 - [Quick Start](/docs/getting-started/quickstart) — process your first file
-- [Bowrain Platform](/bowrain/introduction) — team collaboration with Bowrain CLI, web editor, and server

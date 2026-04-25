@@ -9,7 +9,7 @@ This note provides implementation details for [AD-004](/architecture-decisions/0
 
 ## Database Schema
 
-The Content Store schema is shared across SQLite (CLI) and PostgreSQL (server) backends, with the Sievepen TM system ([Framework AD-009](/docs/ad/009-translation-memory)) and TermBase ([Framework AD-010](/docs/ad/010-terminology)). The schema below shows the table definitions using SQLite syntax for readability; server backends use equivalent types with `$N` parameter placeholders instead of `?`.
+The Content Store schema is shared across SQLite (CLI) and PostgreSQL (server) backends, with the Sievepen TM system ([Framework AD-009](https://neokapi.github.io/web/neokapi/docs/architecture/009-translation-memory)) and TermBase ([Framework AD-010](https://neokapi.github.io/web/neokapi/docs/architecture/010-terminology)). The schema below shows the table definitions using SQLite syntax for readability; server backends use equivalent types with `$N` parameter placeholders instead of `?`.
 
 ```sql
 CREATE TABLE projects (

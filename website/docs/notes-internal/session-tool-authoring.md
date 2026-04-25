@@ -12,7 +12,7 @@ The existing `tool.Tool` streaming contract is unchanged;
 `SessionTool` is additive.
 
 This note walks through when to implement it and what the wire
-conventions are. See [AD-008](/docs/ad/008-project-model) for
+conventions are. See [AD-008](/docs/architecture/008-project-model) for
 the design rationale.
 
 ## When to implement
@@ -161,7 +161,6 @@ overlay-write at the **output**. Example:
 - `format-reader` — wraps a `format.DataFormatReader` as a read-only
   store. Useful for ad-hoc CLI flows (`kapi ai-translate -i
   file.xliff`). RandomAccess=true, Writable=false.
-- `bowrain` (forthcoming) — REST against a bowrain-server for
   collaborative projects.
 
 The executor receives the store via `flow.WithBlockStore(s)`; tools

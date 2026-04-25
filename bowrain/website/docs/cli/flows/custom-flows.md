@@ -250,5 +250,5 @@ bowrain run my-flow --verbose
 
 - [Flow Hooks](/cli/flows/hooks)
 - [Run Command](/cli/commands/run)
-- [Available Formats](/docs/features/formats)
-- [AI Translation](/docs/features/ai-translation)
+- [Available Formats](https://neokapi.github.io/web/neokapi/docs/features/formats)
+- [AI Translation](https://neokapi.github.io/web/neokapi/docs/features/ai-translation)

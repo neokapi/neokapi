@@ -75,9 +75,9 @@ The developer initializes a `.bowrain/` project, runs `bowrain sync` to push sou
 
 - [Installation](/installation) — install Bowrain CLI, Bowrain Desktop, or Bowrain Server
 - [Quick Start](/quickstart) — initialize a project and sync with Bowrain
-- [Walkthrough](/walkthrough) — complete guide from init to automated CI/CD
+- [Walkthrough](/walkthroughs/bowrain-getting-started) — complete guide from init to automated CI/CD
 - [`bowrain sync` command](/cli/commands/sync) — the flagship one-command workflow
 
 ## Standalone File Processing
 
-For standalone file processing without a server (format conversion, pseudo-translation, word counting, QA checks), use the [kapi CLI](/docs/getting-started/introduction) instead. Kapi operates directly on files without requiring a project or server.
+For standalone file processing without a server (format conversion, pseudo-translation, word counting, QA checks), use the [kapi CLI](https://neokapi.github.io/web/neokapi/docs/getting-started/introduction) instead. Kapi operates directly on files without requiring a project or server.

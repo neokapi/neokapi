@@ -50,7 +50,3 @@ brew install --cask neokapi/tap/kapi-desktop
 ```
 
 Or download the DMG/ZIP from [GitHub Releases](https://github.com/neokapi/neokapi/releases). See the [Kapi overview](/docs/kapi-desktop/overview) for details.
-
-## Bowrain Platform
-
-For the Bowrain platform (Bowrain CLI, desktop app, server), see [Bowrain Installation](/bowrain/installation).

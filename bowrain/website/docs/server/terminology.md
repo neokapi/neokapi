@@ -141,4 +141,4 @@ The terminology system is concept-oriented, inspired by the TBX (TermBase eXchan
 - Terms have **metadata**: lifecycle status, domain, and notes
 - Concepts are scoped to the workspace and shared across all projects
 
-For more on the terminology system architecture, see [Terminology](/docs/features/terminology) in the User Guide.
+For more on the terminology system architecture, see [Terminology](https://neokapi.github.io/web/neokapi/docs/features/terminology) in the User Guide.

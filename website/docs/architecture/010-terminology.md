@@ -102,7 +102,6 @@ Import and export are standalone functions rather than interface methods:
   tools. Pure Go via `modernc.org/sqlite`.
 
 A PostgreSQL backend with workspace isolation, terminology streams, and
-project scoping lives in the bowrain platform. The framework only defines
 the interface.
 
 ### Tiered lookup
@@ -129,7 +128,6 @@ without changing the lookup pipeline.
 ### UI search
 
 Distinct from lookup, the Search method powers the termbase browser in
-kapi-desktop and the bowrain platform. SQLite uses FTS5 with the trigram
 tokenizer to support substring search ranked by match quality, rather
 than unranked `LIKE '%...%'` queries.
 
@@ -213,13 +211,11 @@ relations, term status, and context fields.
 - Terminology is a first-class pipeline citizen, not a bolt-on
   post-processing step.
 - Character-level annotation positions enable precise inline UI
-  highlighting in kapi-desktop and the bowrain editor.
 - Entity annotations drive both terminology extraction and TM
   generalization — a single annotation pass serves multiple consumers.
 - Concept relations give UIs a graph substrate for browsing terminology
   without requiring a separate graph database in the framework.
 - `CompetitorTerm` gives the framework a minimal hook for brand governance
-  workflows; the full brand voice model lives in the bowrain platform.
 - The same storage backends as TM (in-memory, SQLite) keep the CLI
   dependency footprint small and cross-compilation simple.
 
@@ -231,5 +227,5 @@ relations, term status, and context fields.
   matching infrastructure, entity annotation input
 - [AD-011: AI Providers](011-ai-providers.md) — LLM-based term extraction
   and entity annotation
-- [Terminology Data Model](/docs/notes/terminology-data-model) — full Go
+- [Terminology Data Model](/docs/notes-internal/terminology-data-model) — full Go
   struct definitions, pipeline tool catalog, relations

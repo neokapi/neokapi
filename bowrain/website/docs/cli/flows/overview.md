@@ -232,6 +232,6 @@ Benefits:
 
 - [Create Custom Flows](/cli/flows/custom-flows)
 - [Configure Hooks](/cli/flows/hooks)
-- [Available Formats](/docs/features/formats)
+- [Available Formats](https://neokapi.github.io/web/neokapi/docs/features/formats)
 - [Run Command Reference](/cli/commands/run)
 - [Server-Side Flows](/server/flows)

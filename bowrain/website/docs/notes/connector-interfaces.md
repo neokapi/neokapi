@@ -146,4 +146,4 @@ func (r *Registry) NewConnector(name string, config map[string]string) (Integrat
 func (r *Registry) List() []Info
 ```
 
-Built-in connectors register via `init()`. Plugin connectors register at runtime via gRPC discovery ([Framework AD-007](/docs/ad/007-plugin-system)). The bowrain CLI does not interact with the Registry -- it is a file-based tool that syncs with the server via API.
+Built-in connectors register via `init()`. Plugin connectors register at runtime via gRPC discovery ([Framework AD-007](https://neokapi.github.io/web/neokapi/docs/architecture/007-plugin-system)). The bowrain CLI does not interact with the Registry -- it is a file-based tool that syncs with the server via API.

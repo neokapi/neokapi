@@ -18,7 +18,7 @@ bowrain mcp
 This launches a JSON-RPC server on stdio. You don't run it manually — your AI tool starts it as a subprocess. The server requires a `.bowrain/` project directory (it searches upward from the working directory, like git).
 
 :::tip
-For ad-hoc file processing without a project, use the [Kapi MCP server](/docs/kapi-cli/mcp) instead.
+For ad-hoc file processing without a project, use the [Kapi MCP server](https://neokapi.github.io/web/neokapi/docs/kapi-cli/mcp) instead.
 :::
 
 ## Setup
@@ -258,4 +258,4 @@ No server process, ports, or authentication needed. Your AI tool launches `bowra
 - [Bowrain CLI Overview](/cli/overview)
 - [Project Model](/cli/project-model)
 - [Commands Reference](/cli/commands/init)
-- [Kapi CLI MCP Server](/docs/kapi-cli/mcp) — for standalone file processing
+- [Kapi CLI MCP Server](https://neokapi.github.io/web/neokapi/docs/kapi-cli/mcp) — for standalone file processing

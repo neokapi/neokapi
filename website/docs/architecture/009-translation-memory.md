@@ -13,7 +13,6 @@ Sievepen is neokapi's built-in translation memory library, living in
 rather than plain strings, and uses a tiered matching pipeline (generalized
 exact, structural exact, plain exact, fuzzy) to maximize reuse. The framework
 ships in-memory and SQLite backends; a PostgreSQL backend is provided by the
-bowrain platform for multi-user deployments.
 
 ## Context
 
@@ -153,8 +152,6 @@ The framework provides two tiers:
   for cross-compilation.
 
 A PostgreSQL backend with workspace-scoped isolation, project scoping, and
-stream branching lives in the bowrain platform and is described in the
-bowrain ADs.
 
 ### Fuzzy candidate retrieval
 
@@ -241,5 +238,5 @@ accumulates richer data over time.
   annotations
 - [AD-006: Tool System](006-tool-system.md) — `tm-leverage` tool
 - [AD-010: Terminology](010-terminology.md) — shares matching infrastructure
-- [TM Matching Algorithm](/docs/notes/tm-matching-algorithm) — trigram
+- [TM Matching Algorithm](/docs/notes-internal/tm-matching-algorithm) — trigram
   construction, performance table, TMX element mapping

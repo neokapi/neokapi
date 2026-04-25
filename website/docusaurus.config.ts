@@ -14,11 +14,7 @@ const config: Config = {
   projectName: "neokapi",
   trailingSlash: false,
 
-  // Set to "warn" during the website split (issue #425, Phase 0). Existing
-  // kapi MDX content still has /bowrain/... cross-links that need to be
-  // converted to BowrainLink components (or removed per the framework/platform
-  // separation rule). Restore "throw" once those are cleaned up.
-  onBrokenLinks: "warn",
+  onBrokenLinks: "throw",
 
   i18n: {
     defaultLocale: "en",

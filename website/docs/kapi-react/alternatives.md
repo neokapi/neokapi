@@ -54,7 +54,6 @@ Typed, per-message functions generated at build time. A message `welcome` become
 |---|---|---|
 | Source identifier | Developer-invented message id | Source text + structural context |
 | JSX wrapping | Generated function call (`m.welcome()`) | Plain JSX |
-| Editor integration | Inlang VSCode + web editor | CAT tool / Bowrain web editor / any KLF consumer |
 | Tree-shakeability | Every message is a function — excellent tree-shaking | Dict lookup — dict is one object |
 
 Paraglide's typed-function model gives strong refactoring support but requires the ids-as-function-names model. kapi-react is source-text-as-key; the two can coexist in a codebase if needed, but usually you pick one.

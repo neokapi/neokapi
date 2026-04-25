@@ -19,10 +19,7 @@ const config: Config = {
   projectName: "neokapi",
   trailingSlash: false,
 
-  // Set to "warn" during the website split (issue #425, Phase 0). Bowrain
-  // MDX still has /docs/... links pointing at kapi-site content that need
-  // to be rewritten as <KapiLink/> imports. Restore "throw" once cleaned up.
-  onBrokenLinks: "warn",
+  onBrokenLinks: "throw",
 
   i18n: {
     defaultLocale: "en",
@@ -92,7 +89,7 @@ const config: Config = {
         {
           title: "Bowrain",
           items: [
-            { label: "Getting Started", to: "/getting-started/introduction" },
+            { label: "Getting Started", to: "/" },
             { label: "Bowrain CLI", to: "/cli/overview" },
             { label: "Bowrain Web", to: "/server/web-overview" },
           ],

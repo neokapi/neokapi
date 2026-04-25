@@ -435,34 +435,18 @@ pulse-build pulse-dev pulse-check:
 	$(MAKE) -C bowrain $@
 
 # ── Documentation Assets ────────────────────────────────────────────────────
+#
+# Walkthrough engine (issue #425): scenes are recorded by docs-kapi.yml /
+# docs-bowrain.yml workflows from website/scenes/ and bowrain/website/scenes/.
+# The legacy screenshots/recordings/cli-recordings/docs-assets/Remotion
+# pipeline is removed — see commit history for what was here.
 
-screenshots recordings bowrain-cli-recordings:
-	$(MAKE) -C bowrain $@
-
-kapi-recordings: build ## Generate kapi CLI demo videos (VHS)
-	./website/tapes/generate.sh
-
-cli-recordings: kapi-recordings bowrain-cli-recordings ## Generate all CLI demo videos
-
-docs-assets: screenshots recordings cli-recordings ## Generate all documentation assets
-
-fetch-docs-assets: ## Download pre-built docs assets from GitHub release
+fetch-docs-assets: ## Download legacy docs assets (transitional, until walkthrough engine fully covers)
 	@gh release download docs-assets --pattern 'docs-assets.tar.gz' --dir /tmp --clobber
 	@mkdir -p website/static
 	@tar xzf /tmp/docs-assets.tar.gz -C website/static
 	@rm -f /tmp/docs-assets.tar.gz
 	@du -sh website/static/img website/static/video 2>/dev/null || true
-
-# ── Polished Videos (Remotion) ──────────────────────────────────────────────
-
-VIDEOS_DIR := website/videos
-
-videos-deps: ; cd $(VIDEOS_DIR) && vp install --frozen-lockfile
-videos-setup: videos-deps ; cd $(VIDEOS_DIR) && vp run setup-raw
-videos-studio: videos-setup ; cd $(VIDEOS_DIR) && vp run studio
-videos-render: videos-setup ## Render all polished demo videos
-	cd $(VIDEOS_DIR) && vp run build
-	cd $(VIDEOS_DIR) && vp run publish
 
 # ── Generate (scripts at root) ──────────────────────────────────────────────
 
@@ -565,8 +549,7 @@ help: ## Show this help
         cover test-e2e test-e2e-kapi test-e2e-bowrain test-e2e-cloud test-e2e-dev \
         fetch-bridge-jar fetch-bridge-testdata test-bridge-filters test-bridge-pool test-bridge-json test-native-json \
         bench bench-build bench-generate bench-run bench-run-bridge bench-run-collection bench-run-all bench-versions \
-        screenshots recordings kapi-recordings bowrain-cli-recordings cli-recordings docs-assets fetch-docs-assets \
-        videos-deps videos-setup videos-studio videos-render \
+        fetch-docs-assets \
         fetch-okapi-surefire generate-test-comparison generate-format-docs generate-test-stubs \
         docs-deps docs-dev docs-build docs-serve \
         tools setup-remote gha-lint clean \

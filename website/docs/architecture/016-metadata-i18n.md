@@ -12,7 +12,6 @@ The frontend packages ([AD-014](014-kapi-desktop.md)) are localized
 through the KLF pipeline: extract translatable blocks from source, run
 them through `kapi pseudo-translate` / `kapi ai-translate`, and compile
 per-locale runtime catalogs. The Go backends serving those frontends —
-kapi CLI, kapi-desktop Wails backend, bowrain server — expose the same
 metadata surface (tool / format / plugin `displayName`, `description`,
 parameter `title` / `description` / enum labels / group labels) and
 need matching localization, so the backend-sourced half of every
@@ -56,7 +55,7 @@ stay stable when tools are added or removed.
 ### 3. KLF is the authoring format; gettext MO is the runtime format
 
 KLF is the platform's authoring / exchange format — rich, placeholder-
-aware, Bowrain-reviewable. It is the wrong shape for runtime lookup:
+It is the wrong shape for runtime lookup:
 MO's binary hash-indexed catalog with `msgctxt` for disambiguation
 maps directly onto the `(scope, source)` lookup, and
 [`github.com/leonelquinteros/gotext`](https://github.com/leonelquinteros/gotext)
@@ -70,7 +69,6 @@ One pass at metadata egress — `i18n.LocalizeComponentSchema(s, t)` and
 `i18n.LocalizeCapability(c, t)` — centralizes translation instead of
 scattering `T(...)` calls through tool constructors. The surface is
 finite and centralized (CLI `tools` / `formats` / `plugins`, Wails
-`ListTools` / `ListFormats`, bowrain REST), so a few wraps cover every
 reader.
 
 ## End state
@@ -159,7 +157,6 @@ many tools) stay isolated.
 
 - **Same authoring workflow for frontend and backend translators.**
   Both sides ship `.po`-editable (via `msgunfmt` / Poedit) or
-  KLF-native content through Bowrain's review tooling.
 - **Adding a locale is one `make kapi-i18n-translations` run + commit.**
   No tool registration changes, no schema edits.
 - **Plugins contribute their own localizations.** The platform does

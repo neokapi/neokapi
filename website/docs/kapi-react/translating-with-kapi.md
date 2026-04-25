@@ -141,17 +141,13 @@ Then pass `i18n-pre/` to `kapi ai-translate`, which respects the pre-translated 
 
 See [Terminology](/docs/features/terminology).
 
-## Round-trip with Bowrain
 
-For apps with a translation platform behind them, Bowrain ingests the extracted `.klf` directly:
+klf` directly:
 
 ```bash
-bowrain push i18n/    # upload to Bowrain backend
 # …translators work in the web editor…
-bowrain pull -o i18n/   # download finished translations
 ```
 
-See [Bowrain CLI](/bowrain/cli/overview) for the project-level workflow.
 
 ## Putting it together
 
@@ -170,7 +166,7 @@ A complete Makefile / package-scripts setup for a multi-locale app:
 
 ## Project-driven alternative
 
-If you have a [`.kapi` project file](/docs/ad/008-project-model) with the collection's `archive:` pointing at `i18n/`, the scripts collapse to one sync call:
+If you have a [`.kapi` project file](/docs/architecture/008-project-model) with the collection's `archive:` pointing at `i18n/`, the scripts collapse to one sync call:
 
 ```json title="package.json"
 {

@@ -202,12 +202,9 @@ kapi flow run my-flow.yaml -i input.json
 kapi flows
 ```
 
-### From a Bowrain project
 
-Place YAML files in `.bowrain/flows/` and run by name:
 
 ```bash
-bowrain run my-flow -i src/locales/en-US.json
 ```
 
 ### Programmatically

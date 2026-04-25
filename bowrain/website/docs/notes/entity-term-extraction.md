@@ -166,7 +166,7 @@ Batch: up to 25 documents per request, 5120 characters each.
 
 ### spaCy (via Plugin Bridge)
 
-Uses the Java/Python plugin bridge ([Framework AD-007](/docs/ad/007-plugin-system)). spaCy NER models output:
+Uses the Java/Python plugin bridge ([Framework AD-007](https://neokapi.github.io/web/neokapi/docs/architecture/007-plugin-system)). spaCy NER models output:
 
 | spaCy Label                          | model.EntityType   |
 | ------------------------------------ | ------------------ |

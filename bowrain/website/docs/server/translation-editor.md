@@ -98,7 +98,7 @@ When editing translations with inline tags:
 - Use **Ctrl+1** through **Ctrl+9** to insert tags from the tag palette
 - Click the **tag summary badge** in the header to expand the inline code legend, which lists all tag types with their constraints
 
-The editor provides the same seamless experience regardless of file format — HTML, Markdown, XLIFF, and all other formats present tags identically because they share the same vocabulary system. See [Inline Formatting](/docs/features/inline-formatting) for more details.
+The editor provides the same seamless experience regardless of file format — HTML, Markdown, XLIFF, and all other formats present tags identically because they share the same vocabulary system. See [Inline Formatting](https://neokapi.github.io/web/neokapi/docs/features/inline-formatting) for more details.
 
 ## Context Panel
 

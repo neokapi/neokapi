@@ -112,4 +112,4 @@ plugins:
     version: "1.47.0"
 ```
 
-See [Plugin System](/docs/developer/plugins) for details on writing plugins and bundles.
+See [Plugin System](https://neokapi.github.io/web/neokapi/docs/developer/plugins) for details on writing plugins and bundles.

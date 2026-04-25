@@ -239,12 +239,8 @@ type Capabilities struct {
 | --------- | ---------------------------- | ------------------------------------------------ |
 | `memory`  | Go maps                      | ephemeral flows, tests, ad-hoc CLI invocations   |
 | `cache`   | SQLite at `.kapi/cache.db`   | default for kapi projects, long-lived local work |
-| `bowrain` | REST against bowrain-server  | multi-user and cloud projects                    |
 
 Tools never open `cache.db` directly — they operate on a session. Swapping
-the `cache` provider for `bowrain` moves the same flows onto a server-backed
-store without changing recipe or tool code. The `bowrain` provider itself is
-an integration concern documented in the bowrain ADs; the framework only
 defines the interface.
 
 ### Flow executor operates on a Session
@@ -408,21 +404,16 @@ as documents and operates on the project folder.
   independent overlay layer.
 - Multi-pass tools: compute statistics across the whole store, then use them
   in a second pass.
-- Same flow code runs against local SQLite (`cache`) or a remote bowrain-server
-  (`bowrain`) — the interface is the contract.
 - Transaction semantics vary per provider: SQLite transaction for `cache`,
-  server ACID for `bowrain`, no-op for `memory`.
-- Remote latency for the `bowrain` provider requires batched reads and writes;
   tools calling `GetBlock` per-block are slow against remote stores.
 - The project file is always free of credentials — safe for commit and sharing.
 
 ## Related
 
 - [AD-002: Content Model](002-content-model.md) — Block, Fragment, Span
-- [AD-004: Content Store (Bowrain)](/bowrain/architecture-decisions/004-content-store) — block-level storage primitives
 - [AD-004: Processing Engine](004-processing-engine.md) — flow execution
 - [AD-006: Tool System](006-tool-system.md) — Tool and SessionTool interfaces
 - [AD-013: Kapi CLI](013-kapi-cli.md) — CLI use of projects
 - [AD-014: Kapi Desktop](014-kapi-desktop.md) — desktop app use of projects
-- [Flow Steps Format](/docs/notes/flow-steps-format) — shared flow syntax
-- [.kapi Project File](/docs/notes/kapi-project-file) — schema reference
+- [Flow Steps Format](/docs/notes-internal/flow-steps-format) — shared flow syntax
+- [.kapi Project File](/docs/notes-internal/kapi-project-file) — schema reference

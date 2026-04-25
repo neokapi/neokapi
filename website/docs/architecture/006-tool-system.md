@@ -106,7 +106,7 @@ Lifecycle (owned by the executor, not the tool):
 
 SessionTool is additive — every SessionTool also implements Tool so
 flow composition (chaining steps that may or may not use the session)
-keeps working. See [the SessionTool authoring guide](/docs/notes/session-tool-authoring)
+keeps working. See [the SessionTool authoring guide](/docs/notes-internal/session-tool-authoring)
 for idiomatic patterns (skip-if-cached, overlay conventions, provider
 selection).
 

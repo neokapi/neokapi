@@ -77,7 +77,7 @@ shared types don't need to import the heavy `bowrain/store/` implementation.
 
 Blocks are keyed by content hash, computed from `BlockIdentity` in the
 framework content model — see
-[AD-framework-002: Content Model](/docs/ad/002-content-model).
+[AD-framework-002: Content Model](https://neokapi.github.io/web/neokapi/docs/architecture/002-content-model).
 Identical content produces the same hash and is stored once.
 
 This gives:
@@ -409,4 +409,4 @@ see exactly what moved.
 - [AD-007: Media and Blob Storage](007-media-and-blob-storage.md)
 - [AD-008: Connector System](008-connector-system.md)
 - [AD-009: Sync Protocol](009-sync-protocol.md)
-- [AD-framework-002: Content Model](/docs/ad/002-content-model)
+- [AD-framework-002: Content Model](https://neokapi.github.io/web/neokapi/docs/architecture/002-content-model)

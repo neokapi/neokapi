@@ -11,7 +11,6 @@ title: "AD-013: Kapi CLI"
 `kapi` is a standalone file-processing CLI that demonstrates the neokapi
 framework. Most commands are one-shot and require no project; the `-p` flag
 enables project mode with a `.kapi` recipe. Kapi shares a command base
-(`cli/` module) with the bowrain CLI, owns a Viper-based app config at
 `~/.config/kapi/`, and uses an OS-keychain credential store. A `kapi mcp`
 subcommand exposes tools over stdio JSON-RPC for AI agents.
 
@@ -32,7 +31,6 @@ differ in invocation style. A single binary with progressive complexity
 covers all three: run a tool directly, run a flow from a recipe, or
 expose the same tools over MCP.
 
-The bowrain CLI has similar command surface (formats, tools, flows,
 plugins, presets) but is project-sync-centric. The common surface lives in
 a shared CLI base; each CLI selects which commands to register and adds
 its own behavior.
@@ -43,7 +41,6 @@ its own behavior.
 
 `kapi` is a Go binary at `kapi/cmd/kapi/`, part of the `kapi` module. It
 depends on the framework and the shared CLI base (`cli/`). It has no
-dependency on bowrain or on Wails.
 
 ```
 kapi/
@@ -216,7 +213,6 @@ structured objects:
 ### Credential store
 
 The credential store lives in `cli/credentials/` and is shared by kapi and
-the bowrain CLI. Provider configurations are stored as JSON at
 `~/.config/kapi/providers.json`; API keys are stored in the OS keychain
 under the service name `"kapi"`.
 
@@ -317,7 +313,6 @@ build time; `make web-build` produces the assets before `make build`.
 
 - A single binary handles one-shot processing, project-based workflows,
   and AI-agent integration without feature flags or separate builds.
-- The shared CLI base keeps kapi and the bowrain CLI consistent: same
   commands for formats, tools, flows, plugins, presets, termbase,
   version.
 - Output format consistency makes `jq`, `yq`, and language-specific
@@ -344,7 +339,6 @@ build time; `make web-build` produces the assets before `make build`.
   loaded by `-p`
 - [AD-011: AI Providers](011-ai-providers.md) — provider credentials
 - [AD-014: Kapi Desktop](014-kapi-desktop.md) — GUI companion
-- [CLI Commands Reference](/bowrain/notes/cli-commands-reference) — full
   command tree with flags
-- [MCP Tools Reference](/docs/notes/mcp-tools-reference) — MCP tool
+- [MCP Tools Reference](/docs/notes-internal/mcp-tools-reference) — MCP tool
   input/output schemas

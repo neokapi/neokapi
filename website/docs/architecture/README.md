@@ -13,19 +13,15 @@ shared CLI base (`github.com/neokapi/neokapi/cli`), the kapi CLI
 (`github.com/neokapi/neokapi/kapi`), and Kapi Desktop
 (`github.com/neokapi/neokapi/kapi-desktop`).
 
-Bowrain platform decisions live separately in
-[`bowrain/docs/architecture-decisions/`](/bowrain/architecture-decisions/index).
-The framework never depends on bowrain; bowrain builds on the framework through
 the interfaces described here.
 
 Tactical implementation details (SQL schemas, wire protocols, algorithm
-pseudocode) are separated into [Implementation Notes](/docs/notes/index).
+pseudocode) are separated into [Implementation Notes](/docs/notes-internal/index).
 
 ## Foundation
 
 | AD                                                     | Title                          | Scope                                                                                |
 | ------------------------------------------------------ | ------------------------------ | ------------------------------------------------------------------------------------ |
-| [001](001-vision-and-modules.md)                       | Vision and Module Architecture | Framework identity, Apache-2.0 boundary, four-module layout, relationship to bowrain |
 | [002](002-content-model.md)                            | Content Model                  | Part/Resource, Block, Fragment, Span, semantic vocabulary, Layers                    |
 | [003](003-identity.md)                                 | Identity                       | Base62 IDs, dual block identity                                                      |
 

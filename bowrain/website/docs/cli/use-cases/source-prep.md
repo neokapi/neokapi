@@ -174,6 +174,6 @@ This catches source-language issues at the PR stage, before they propagate to tr
 ## Related
 
 - [Translation Flows](/cli/flows/overview) — available tools and flow configuration
-- [Terminology](/docs/features/terminology) — managing termbases
-- [QA Checks](/docs/features/qa-checks) — rule-based quality checks
+- [Terminology](https://neokapi.github.io/web/neokapi/docs/features/terminology) — managing termbases
+- [QA Checks](https://neokapi.github.io/web/neokapi/docs/features/qa-checks) — rule-based quality checks
 - [GitHub Actions](/cli/use-cases/github-actions) — CI/CD integration

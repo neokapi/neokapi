@@ -5,7 +5,7 @@ title: "TM Matching Algorithm"
 
 # TM Matching Algorithm
 
-This note provides implementation details for [AD-009](/docs/ad/009-translation-memory).
+This note provides implementation details for [AD-009](/docs/architecture/009-translation-memory).
 
 ## Derived Matching Keys
 
@@ -44,7 +44,7 @@ type TMMatch struct {
 }
 ```
 
-The `tm-leverage` tool ([AD-006](/docs/ad/006-tool-system)) applies adaptations automatically -- translators receive pre-adapted targets with correct entity values.
+The `tm-leverage` tool ([AD-006](/docs/architecture/006-tool-system)) applies adaptations automatically -- translators receive pre-adapted targets with correct entity values.
 
 ## Fuzzy Candidate Retrieval
 

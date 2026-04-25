@@ -229,4 +229,3 @@ AI-powered tools like `ai-translate` require API keys and are not available thro
 - [Kapi CLI Overview](/docs/kapi-cli/overview)
 - [Run Command](/docs/kapi-cli/commands/flow)
 - [Formats](/docs/kapi-cli/commands/formats)
-- [Bowrain CLI MCP Server](/bowrain/cli/mcp) — for project-based workflows

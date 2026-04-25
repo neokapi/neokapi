@@ -5,7 +5,7 @@ title: "Terminology Data Model"
 
 # Terminology Data Model
 
-This note provides implementation details for [AD-010](/docs/ad/010-terminology).
+This note provides implementation details for [AD-010](/docs/architecture/010-terminology).
 
 ## Data Model: Concept-Oriented
 
@@ -72,7 +72,7 @@ Text normalization applies Unicode NFC (`golang.org/x/text/unicode/norm`) via `N
 
 ## Pipeline Tools
 
-Two pipeline tools integrate terminology into the streaming pipeline ([AD-006](/docs/ad/006-tool-system)):
+Two pipeline tools integrate terminology into the streaming pipeline ([AD-006](/docs/architecture/006-tool-system)):
 
 **`term-lookup`** (Enrich) -- Scans source text for known terms, attaches `TermAnnotation` with `TextRange` character positions. Downstream tools (AI translate, QA) use these annotations for context.
 
@@ -80,18 +80,17 @@ Two pipeline tools integrate terminology into the streaming pipeline ([AD-006](/
 
 Additional tools planned but not yet implemented:
 
-**`term-extract`** (Enrich, AI) -- LLM extraction of candidate terms with `status: proposed`. Uses AI provider from [AD-011](/docs/ad/011-ai-providers).
+**`term-extract`** (Enrich, AI) -- LLM extraction of candidate terms with `status: proposed`. Uses AI provider from [AD-011](/docs/architecture/011-ai-providers).
 
-**`entity-annotate`** (Enrich, AI) -- Named entity annotation (people, organizations, products, dates, locations). Serves multiple purposes: TM generalization in Sievepen ([AD-009](/docs/ad/009-translation-memory)), do-not-translate markers, localization hints, and terminology candidate discovery. Should run early in the pipeline -- before `tm-leverage`.
+**`entity-annotate`** (Enrich, AI) -- Named entity annotation (people, organizations, products, dates, locations). Serves multiple purposes: TM generalization in Sievepen ([AD-009](/docs/architecture/009-translation-memory)), do-not-translate markers, localization hints, and terminology candidate discovery. Should run early in the pipeline -- before `tm-leverage`.
 
-**`redact`** (Transform) -- Privacy tool replacing entity values with typed placeholders (e.g., "John" -> `\{PERSON\}`) before external services. Orthogonal to TM generalization, which handles matching natively via derived keys ([AD-009](/docs/ad/009-translation-memory)).
+**`redact`** (Transform) -- Privacy tool replacing entity values with typed placeholders (e.g., "John" -> `\{PERSON\}`) before external services. Orthogonal to TM generalization, which handles matching natively via derived keys ([AD-009](/docs/architecture/009-translation-memory)).
 
 **`unredact`** (Transform) -- Restores original entity values after external processing. Paired with `redact`:
 `reader -> entity-annotate -> redact -> [external MT] -> unredact -> writer`
 
 ## Concept Relations (Phase 2)
 
-broader/narrower, related, supersedes, see-also. Enables concept graph navigation in Bowrain ([Bowrain AD-017](/bowrain/architecture-decisions/017-bowrain-apps)).
 
 ```go
 type Stream struct {
@@ -104,13 +103,12 @@ type Stream struct {
 
 ## Terminology Streams (Phase 2)
 
-Named what-if experiments for terminology changes. Streams isolate changes from the active termbase until explicitly promoted. Side-by-side preview in Bowrain: current terms vs. stream terms applied to content. Promotion applies changes atomically.
+Named what-if experiments for terminology changes. Streams isolate changes from the active termbase until explicitly promoted.stream terms applied to content. Promotion applies changes atomically.
 
 ## Content Model Extensions
 
-Two annotation types implement the `Annotation` interface with character-level `TextRange` positions for precise inline highlighting in Bowrain ([Bowrain AD-017](/bowrain/architecture-decisions/017-bowrain-apps)):
 
 - `TermAnnotation` -- matched term with concept, target terms, and position
 - `EntityAnnotation` -- named entity with type, DNT flag, and position
 
-These join `AltTranslation` as first-class annotations on Blocks ([AD-002](/docs/ad/002-content-model)).
+These join `AltTranslation` as first-class annotations on Blocks ([AD-002](/docs/architecture/002-content-model)).

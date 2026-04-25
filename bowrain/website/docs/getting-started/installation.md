@@ -73,9 +73,9 @@ make build-all         # All binaries
 
 ## Kapi CLI (Standalone)
 
-For standalone file processing without a server, install the [kapi CLI](/docs/getting-started/installation) separately.
+For standalone file processing without a server, install the [kapi CLI](https://neokapi.github.io/web/neokapi/docs/getting-started/installation) separately.
 
 ## Next Steps
 
 - [Quick Start](/quickstart)
-- [Walkthrough](/walkthrough)
+- [Walkthrough](/walkthroughs/bowrain-getting-started)

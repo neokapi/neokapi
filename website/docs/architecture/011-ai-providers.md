@@ -224,8 +224,6 @@ project files.
 The framework's responsibility ends at the provider interface, the
 worker pool, and the pipeline tools. Server-side asynchronous job
 queues, multi-tenant quota enforcement, and workspace-scale translation
-orchestration live in the bowrain platform and are described in the
-bowrain ADs.
 
 ## Consequences
 

@@ -522,4 +522,4 @@ deployments pass `AZURE_STORAGE_ACCOUNT_URL` and
 - [AD-005: Streams](005-streams.md)
 - [AD-007: Media and Blob Storage](007-media-and-blob-storage.md)
 - [AD-008: Connector System](008-connector-system.md)
-- [AD-framework-002: Content Model](/docs/ad/002-content-model)
+- [AD-framework-002: Content Model](https://neokapi.github.io/web/neokapi/docs/architecture/002-content-model)

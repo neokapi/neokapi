@@ -48,18 +48,12 @@ Your workflow is saved as a Kapi project file that you can reopen, share, or run
 kapi run translate -p myproject.kapi
 ```
 
-## Kapi vs Bowrain Desktop
 
-|               | Kapi                               | Bowrain Desktop                |
 | ------------- | ---------------------------------- | ------------------------------ |
 | Purpose       | Standalone file processing         | Platform-connected editing     |
-| Server        | None required                      | Bowrain Server                 |
-| Projects      | Kapi project files                 | `.bowrain/` directories        |
 | Collaboration | Share Kapi projects via git        | Real-time multi-user editing   |
 | Automation    | Local flows                        | Server-side hooks + automation |
-| Install       | `brew install --cask kapi-desktop` | `brew install --cask bowrain`  |
 
-Kapi is for developers who want powerful localization tools without a server. When you need team collaboration, connector integrations, or server-side automation, upgrade to [Bowrain](/bowrain/introduction).
 
 ## Next Steps
 

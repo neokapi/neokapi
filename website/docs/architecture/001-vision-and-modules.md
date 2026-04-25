@@ -25,7 +25,7 @@ every binary to pull every dependency produces slow builds and bloated
 artifacts.
 
 At the same time, the framework is the Apache-licensed core of a broader
-product family, one of whose consumers (Bowrain, an AGPL-3.0 platform) must
+0 platform) must
 build on framework interfaces without polluting the framework with
 platform-specific dependencies. The license boundary is structural, not
 conventional: framework code never depends on AGPL code, and CI enforces it.
@@ -116,18 +116,13 @@ dependency declared in the module's `go.mod`.
 ### License boundary
 
 All four framework modules are Apache-2.0. The broader repository also hosts
-Bowrain — an AGPL-3.0 localization platform — in a separate `bowrain/`
-subdirectory with its own modules. Bowrain depends on framework interfaces
 (content model, tools, flows, formats), but no framework module ever imports
-Bowrain. The license gradient is one-directional:
+The license gradient is one-directional:
 
 ```
-Apache-2.0 (framework, cli, kapi, kapi-desktop)  →  AGPL-3.0 (bowrain)
 ```
 
 This is a structural property, not a convention. Because the framework
-modules have no way to express a Bowrain import (Bowrain is under
-`bowrain/...` import paths, and framework `go.mod` files do not declare it),
 accidental upward coupling is a compile error.
 
 ### Framework package layout
