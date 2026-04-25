@@ -1,8 +1,8 @@
-# VHS Tape: walkthrough part 6 — local automation rules
-# Shows automation rules in .bowrain/config.yaml
-# Requires: WALKTHROUGH_DIR set
+# VHS tape — generated from bowrain/website/walkthroughs/bowrain-automation.md
+# Scene 1: local-rules (terminal). Do not edit by hand.
+# Requires: WALKTHROUGH_DIR set with .bowrain/config.yaml containing automation rules.
 
-Output output/walkthrough-automation.webm
+Output "01-local-rules.webm"
 
 Set FontSize 16
 Set Width 1000
@@ -33,13 +33,5 @@ Sleep 500ms
 Type "bowrain push"
 Enter
 Sleep 5s
-
-Type ""
-Enter
-Sleep 500ms
-
-Type "bowrain status"
-Enter
-Sleep 3s
 
 Sleep 1s

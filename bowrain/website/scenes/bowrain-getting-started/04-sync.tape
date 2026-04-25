@@ -1,8 +1,8 @@
-# VHS Tape: walkthrough part 5 — sync
-# Runs bowrain sync (push + wait for translations + pull)
-# Requires: running bowrain-server, WALKTHROUGH_DIR set
+# VHS tape — generated from bowrain/website/walkthroughs/bowrain-getting-started.md
+# Scene 4: sync (terminal). Do not edit by hand.
+# Requires: WALKTHROUGH_DIR set, scenes 1+2+3 already run.
 
-Output output/walkthrough-sync.webm
+Output "04-sync.webm"
 
 Set FontSize 16
 Set Width 1000
@@ -33,13 +33,5 @@ Sleep 500ms
 Type "ls i18n/"
 Enter
 Sleep 2s
-
-Type ""
-Enter
-Sleep 500ms
-
-Type "head -20 i18n/nb/code.json"
-Enter
-Sleep 3s
 
 Sleep 1s
