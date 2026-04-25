@@ -477,6 +477,14 @@ function SidebarMenuButton({
   const Comp = asChild ? Slot.Root : "button";
   const { isMobile, state } = useSidebar();
 
+  // Use the tooltip string as aria-label so the button has an accessible
+  // name. The visible text is hidden when the sidebar is collapsed, and
+  // for icon-only buttons there's no other source of name. Caller-supplied
+  // aria-label takes precedence.
+  const ariaLabel =
+    (props as { "aria-label"?: string })["aria-label"] ??
+    (typeof tooltip === "string" ? tooltip : undefined);
+
   const button = (
     <Comp
       data-slot="sidebar-menu-button"
@@ -484,6 +492,7 @@ function SidebarMenuButton({
       data-size={size}
       data-active={isActive}
       className={cn(sidebarMenuButtonVariants({ variant, size }), className)}
+      aria-label={ariaLabel}
       {...props}
     />
   );

@@ -2,8 +2,7 @@
 id: bowrain-desktop-tm-explorer
 title: "TM explorer (desktop)"
 sidebar_label: "TM explorer (desktop)"
-description: "User navigates to TM explorer, scrolls entries, types a search, picks an entry to see provenance, then exports a CSV slice."
-draft: true
+description: "Translator opens the desktop app and clicks Memory in the sidebar to land on the Translation Memory view."
 ---
 
 import { ThemedVideo } from "@neokapi/docs-shared";
@@ -11,21 +10,19 @@ import { ThemedVideo } from "@neokapi/docs-shared";
 # TM explorer (desktop)
 
 > Generated from [`walkthroughs/bowrain-desktop-tm-explorer.md`](https://github.com/neokapi/neokapi/blob/main/bowrain/website/walkthroughs/bowrain-desktop-tm-explorer.md). Do not edit by hand — change the prompt and regenerate.
->
-> **Status: scaffold.** The scene `.spec.ts` exists but is currently `test.skip`'d — full Playwright validation against the real backend is a #425 followup.
 
-Translator opens the TM explorer to browse and search the workspace translation memory from the desktop app.
+The Translation Memory view is reached from the workspace sidebar of the Bowrain desktop app. Without a project selected, the view prompts the user to pick one — that's the entry point this scene records.
 
 ## Scene 1 — browse
 
-{/* <ThemedVideo
+<ThemedVideo
   sources={{
-    light: "/video/bowrain/browse.webm",
-    dark: "/video/bowrain/browse.webm",
+    light: "/video/bowrain/bowrain-desktop-tm-explorer/01-browse.webm",
+    dark: "/video/bowrain/bowrain-desktop-tm-explorer/01-browse.webm",
   }}
-/> */}
+/>
 
-User navigates to TM explorer, scrolls entries, types a search, picks an entry to see provenance, then exports a CSV slice.
+The walkthrough waits for the dashboard to render, clicks the **Memory** button in the workspace sidebar, and waits for the empty-state copy ("Select a project to explore its translation memory.") to appear.
 
 ## Next
 
