@@ -1,8 +1,8 @@
-# VHS Tape: walkthrough part 4 — pull
-# Pulls changes from Bowrain Server
-# Requires: running bowrain-server, WALKTHROUGH_DIR set
+# VHS tape — generated from bowrain/website/walkthroughs/bowrain-getting-started.md
+# Scene 3: pull (terminal). Do not edit by hand.
+# Requires: WALKTHROUGH_DIR set, scenes 1+2 already run.
 
-Output output/walkthrough-pull.webm
+Output "03-pull.webm"
 
 Set FontSize 16
 Set Width 1000

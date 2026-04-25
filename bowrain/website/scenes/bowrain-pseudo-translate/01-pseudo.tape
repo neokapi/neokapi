@@ -1,8 +1,8 @@
-# VHS Tape: walkthrough part 2 — pseudo-translate
-# Runs pseudo-translation flow on the project
-# Requires: WALKTHROUGH_DIR set
+# VHS tape — generated from bowrain/website/walkthroughs/bowrain-pseudo-translate.md
+# Scene 1: pseudo (terminal). Do not edit by hand.
+# Requires: WALKTHROUGH_DIR set with an initialized .bowrain/ project.
 
-Output output/walkthrough-pseudo.webm
+Output "01-pseudo.webm"
 
 Set FontSize 16
 Set Width 1000

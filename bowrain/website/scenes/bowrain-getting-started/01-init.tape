@@ -1,8 +1,8 @@
-# VHS Tape: walkthrough part 1 — project init
-# Initializes a bowrain project in an existing codebase
-# Requires: running bowrain-server, WALKTHROUGH_DIR set
+# VHS tape — generated from bowrain/website/walkthroughs/bowrain-getting-started.md
+# Scene 1: init (terminal). Do not edit by hand.
+# Requires: WALKTHROUGH_DIR set to a fresh project dir.
 
-Output output/walkthrough-init.webm
+Output "01-init.webm"
 
 Set FontSize 16
 Set Width 1000
@@ -37,13 +37,5 @@ Sleep 500ms
 Type "ls .bowrain/"
 Enter
 Sleep 2s
-
-Type ""
-Enter
-Sleep 500ms
-
-Type "bowrain status"
-Enter
-Sleep 3s
 
 Sleep 1s

@@ -1,7 +1,7 @@
-# VHS Tape: Bowrain CLI auth demo
-# Shows authentication commands
+# VHS tape — generated from bowrain/website/walkthroughs/bowrain-auth.md
+# Scene 1: auth (terminal). Do not edit by hand.
 
-Output output/auth.webm
+Output "01-auth.webm"
 
 Set FontSize 16
 Set Width 1000

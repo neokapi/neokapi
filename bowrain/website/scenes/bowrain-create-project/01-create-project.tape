@@ -1,7 +1,7 @@
-# VHS Tape: create-project demo
-# Shows creating a localization project from scratch
+# VHS tape — generated from bowrain/website/walkthroughs/bowrain-create-project.md
+# Scene 1: create-project (terminal). Do not edit by hand.
 
-Output output/create-project.webm
+Output "01-create-project.webm"
 
 Set FontSize 16
 Set Width 1000
@@ -13,7 +13,7 @@ Type "# Let's create a simple localization project"
 Enter
 Sleep 1s
 
-Type "cat samples/landing-page.html"
+Type "cat fixtures/landing-page.html"
 Enter
 Sleep 3s
 
@@ -25,7 +25,7 @@ Type "# Pseudo-translate to French"
 Enter
 Sleep 500ms
 
-Type "kapi pseudo-translate samples/landing-page.html --target-lang fr"
+Type "kapi pseudo-translate fixtures/landing-page.html --target-lang fr"
 Enter
 Sleep 3s
 
