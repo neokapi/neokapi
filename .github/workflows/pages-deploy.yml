@@ -31,6 +31,7 @@ permissions:
   pages: write
   id-token: write
   pull-requests: write
+  actions: read # required by actions/download-artifact for cross-workflow runs
 
 concurrency:
   group: pages-deploy
