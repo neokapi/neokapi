@@ -8,6 +8,8 @@ export interface PulseSettingsProps {
   accessKey?: string;
   pulseBaseUrl?: string;
   onVisibilityChange: (visibility: DashboardVisibility) => Promise<void>;
+  /** When set, locks visibility to private and disables the non-private options. */
+  disabledReason?: string;
 }
 
 const options: {
@@ -42,11 +44,13 @@ export function PulseSettings({
   accessKey,
   pulseBaseUrl,
   onVisibilityChange,
+  disabledReason,
 }: PulseSettingsProps) {
   const [saving, setSaving] = useState(false);
 
   async function handleSelect(value: DashboardVisibility) {
     if (value === visibility || saving) return;
+    if (disabledReason && value !== "private") return;
     setSaving(true);
     try {
       await onVisibilityChange(value);
@@ -72,22 +76,34 @@ export function PulseSettings({
         </p>
       </div>
 
+      {disabledReason && (
+        <div
+          className="rounded-lg border border-border bg-muted/50 p-3 text-xs text-muted-foreground"
+          role="note"
+        >
+          {disabledReason}
+        </div>
+      )}
+
       <div className="space-y-2" role="radiogroup" aria-label="Dashboard visibility">
         {options.map((opt) => {
           const Icon = opt.icon;
           const selected = current === opt.value;
+          const locked = Boolean(disabledReason) && opt.value !== "private";
+          const isDisabled = saving || locked;
           return (
             <button
               key={opt.value}
               role="radio"
               aria-checked={selected}
-              disabled={saving}
+              aria-disabled={locked}
+              disabled={isDisabled}
               onClick={() => handleSelect(opt.value)}
               className={`flex w-full items-start gap-3 rounded-lg border p-3 text-left transition-colors ${
                 selected
                   ? "border-primary bg-primary/5"
                   : "border-border hover:border-muted-foreground/30 hover:bg-accent/50"
-              } ${saving ? "opacity-60 cursor-wait" : "cursor-pointer"}`}
+              } ${saving ? "opacity-60 cursor-wait" : locked ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
             >
               <div
                 className={`mt-0.5 rounded-md p-1.5 ${

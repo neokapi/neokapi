@@ -91,3 +91,63 @@ func TestProjectCRUDEndpoints(t *testing.T) {
 	e.ServeHTTP(rec, req)
 	assert.Equal(t, http.StatusNoContent, rec.Code)
 }
+
+// TestPersonalWorkspaceBlocksPublicVisibility ensures that personal workspaces
+// cannot be exposed publicly — neither at the workspace level nor at the
+// project level.
+func TestPersonalWorkspaceBlocksPublicVisibility(t *testing.T) {
+	srv, token := newTestServer(t)
+	e := srv.GetEcho()
+	authHeader := "Bearer " + token
+
+	// Create a project in the (personal) test workspace.
+	body := `{"name":"Test","default_source_language":"en","target_languages":["fr"]}`
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/test/projects", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", authHeader)
+	rec := httptest.NewRecorder()
+	e.ServeHTTP(rec, req)
+	require.Equal(t, http.StatusCreated, rec.Code)
+	var project store.Project
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &project))
+
+	// Workspace-level: public visibility must be rejected.
+	req = httptest.NewRequest(http.MethodPatch, "/api/v1/test", strings.NewReader(`{"dashboard_visibility":"public"}`))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", authHeader)
+	rec = httptest.NewRecorder()
+	e.ServeHTTP(rec, req)
+	assert.Equal(t, http.StatusForbidden, rec.Code)
+
+	// Workspace-level: unlisted visibility must also be rejected.
+	req = httptest.NewRequest(http.MethodPatch, "/api/v1/test", strings.NewReader(`{"dashboard_visibility":"unlisted"}`))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", authHeader)
+	rec = httptest.NewRecorder()
+	e.ServeHTTP(rec, req)
+	assert.Equal(t, http.StatusForbidden, rec.Code)
+
+	// Workspace-level: private is still allowed.
+	req = httptest.NewRequest(http.MethodPatch, "/api/v1/test", strings.NewReader(`{"dashboard_visibility":"private"}`))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", authHeader)
+	rec = httptest.NewRecorder()
+	e.ServeHTTP(rec, req)
+	assert.Equal(t, http.StatusOK, rec.Code)
+
+	// Project-level: public visibility must be rejected.
+	req = httptest.NewRequest(http.MethodPut, "/api/v1/test/"+project.ID, strings.NewReader(`{"dashboard_visibility":"public"}`))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", authHeader)
+	rec = httptest.NewRecorder()
+	e.ServeHTTP(rec, req)
+	assert.Equal(t, http.StatusForbidden, rec.Code)
+
+	// Project-level: private is still allowed.
+	req = httptest.NewRequest(http.MethodPut, "/api/v1/test/"+project.ID, strings.NewReader(`{"dashboard_visibility":"private"}`))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", authHeader)
+	rec = httptest.NewRecorder()
+	e.ServeHTTP(rec, req)
+	assert.Equal(t, http.StatusOK, rec.Code)
+}
