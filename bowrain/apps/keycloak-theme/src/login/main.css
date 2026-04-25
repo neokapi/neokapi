@@ -1,5 +1,6 @@
 @import "@neokapi/ui/styles/globals.css";
 
+@source "../../../../../packages/ui/src";
 @source "../../../../packages/ui/src";
 
 html,
