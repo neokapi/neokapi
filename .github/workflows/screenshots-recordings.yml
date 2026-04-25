@@ -1,18 +1,16 @@
 name: Screenshots & Recordings
 
 on:
+  # Quarantined while the docs/recordings pipeline is rebuilt around walkthroughs
+  # (prompt-driven, walkthrough-first). Last-known-good assets in the docs-assets
+  # GitHub release continue to serve unmigrated docs. To run manually if needed,
+  # use the GitHub UI → Run workflow.
   workflow_dispatch:
     inputs:
       server_url:
         description: "Server URL. Default: https://dev.bowrain.cloud"
         required: false
         default: ""
-  schedule:
-    # Nightly at 2 AM UTC
-    - cron: "0 2 * * *"
-  push:
-    tags:
-      - "v*"
 
 permissions:
   contents: write # Needed to create/update releases
