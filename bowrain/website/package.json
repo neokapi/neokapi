@@ -1,5 +1,5 @@
 {
-  "name": "neokapi-docs",
+  "name": "bowrain-docs",
   "version": "0.0.0",
   "private": true,
   "scripts": {
@@ -19,7 +19,7 @@
     "@docusaurus/preset-classic": "^3.10.0",
     "@docusaurus/theme-mermaid": "^3.10.0",
     "@mdx-js/react": "^3.1.1",
-    "@neokapi/docs-shared": "file:../packages/docs-shared",
+    "@neokapi/docs-shared": "file:../../packages/docs-shared",
     "clsx": "^2.1.0",
     "prism-react-renderer": "^2.4.1",
     "react": "^19.2.4",
@@ -35,11 +35,7 @@
     "webpackbar": "^7.0.0"
   },
   "browserslist": {
-    "production": [
-      ">0.5%",
-      "not dead",
-      "not op_mini all"
-    ],
+    "production": [">0.5%", "not dead", "not op_mini all"],
     "development": [
       "last 3 chrome version",
       "last 3 firefox version",
@@ -47,6 +43,6 @@
     ]
   },
   "engines": {
-    "node": ">=18.0"
+    "node": ">=20.0"
   }
 }

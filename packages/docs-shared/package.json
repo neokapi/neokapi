@@ -1,0 +1,23 @@
+{
+  "name": "@neokapi/docs-shared",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./*": "./src/*",
+    "./package.json": "./package.json"
+  },
+  "peerDependencies": {
+    "@docusaurus/theme-common": "^3.9.2",
+    "react": "^19.0.0"
+  },
+  "devDependencies": {
+    "@docusaurus/theme-common": "^3.9.2",
+    "@types/react": "^19.0.0",
+    "react": "^19.2.4",
+    "typescript": "^6.0.3"
+  }
+}

@@ -8,13 +8,17 @@ const config: Config = {
   favicon: "img/favicon.png",
 
   url: "https://neokapi.github.io",
-  baseUrl: "/",
+  baseUrl: "/web/neokapi/",
 
   organizationName: "neokapi",
   projectName: "neokapi",
   trailingSlash: false,
 
-  onBrokenLinks: "throw",
+  // Set to "warn" during the website split (issue #425, Phase 0). Existing
+  // kapi MDX content still has /bowrain/... cross-links that need to be
+  // converted to BowrainLink components (or removed per the framework/platform
+  // separation rule). Restore "throw" once those are cleaned up.
+  onBrokenLinks: "warn",
 
   i18n: {
     defaultLocale: "en",
@@ -52,42 +56,6 @@ const config: Config = {
         editUrl: "https://github.com/neokapi/neokapi/tree/main/",
       },
     ],
-    [
-      "@docusaurus/plugin-content-docs",
-      {
-        id: "bowrain",
-        // Path must NOT be a parent of bowrain-ad/bowrain-notes path —
-        // Docusaurus 3.9.2's webpack mdx-loader chain conflates plugin
-        // options when file paths overlap, causing every file in the
-        // child plugins to fail with a misleading FunctionDeclaration
-        // error. Keeping architecture-decisions/ and notes/ as siblings
-        // of bowrain/docs/ (not children) eliminates the overlap.
-        path: "../bowrain/docs",
-        routeBasePath: "bowrain",
-        sidebarPath: "./sidebars-bowrain.ts",
-        editUrl: "https://github.com/neokapi/neokapi/tree/main/",
-      },
-    ],
-    [
-      "@docusaurus/plugin-content-docs",
-      {
-        id: "bowrain-ad",
-        path: "../bowrain/architecture-decisions",
-        routeBasePath: "bowrain/architecture-decisions",
-        sidebarPath: "./sidebars-bowrain-ad.ts",
-        editUrl: "https://github.com/neokapi/neokapi/tree/main/",
-      },
-    ],
-    [
-      "@docusaurus/plugin-content-docs",
-      {
-        id: "bowrain-notes",
-        path: "../bowrain/notes",
-        routeBasePath: "bowrain/notes",
-        sidebarPath: "./sidebars-bowrain-notes.ts",
-        editUrl: "https://github.com/neokapi/neokapi/tree/main/",
-      },
-    ],
   ],
 
   presets: [
@@ -115,53 +83,24 @@ const config: Config = {
       },
       items: [
         {
-          type: "dropdown",
-          label: "Neokapi",
+          type: "docSidebar",
+          sidebarId: "neokapiSidebar",
+          label: "Documentation",
           position: "left",
-          items: [
-            {
-              type: "docSidebar",
-              sidebarId: "neokapiSidebar",
-              label: "Documentation",
-            },
-            {
-              type: "docSidebar",
-              docsPluginId: "ad",
-              sidebarId: "ad",
-              label: "Architecture Decisions",
-            },
-            {
-              type: "docSidebar",
-              docsPluginId: "notes",
-              sidebarId: "notes",
-              label: "Implementation Notes",
-            },
-          ],
         },
         {
-          type: "dropdown",
-          label: "Bowrain",
+          type: "docSidebar",
+          docsPluginId: "ad",
+          sidebarId: "ad",
+          label: "Architecture",
           position: "left",
-          items: [
-            {
-              type: "docSidebar",
-              docsPluginId: "bowrain",
-              sidebarId: "bowrainSidebar",
-              label: "Documentation",
-            },
-            {
-              type: "docSidebar",
-              docsPluginId: "bowrain-ad",
-              sidebarId: "bowrainAd",
-              label: "Architecture Decisions",
-            },
-            {
-              type: "docSidebar",
-              docsPluginId: "bowrain-notes",
-              sidebarId: "bowrainNotes",
-              label: "Implementation Notes",
-            },
-          ],
+        },
+        {
+          type: "docSidebar",
+          docsPluginId: "notes",
+          sidebarId: "notes",
+          label: "Notes",
+          position: "left",
         },
         {
           href: "https://github.com/neokapi/neokapi",
@@ -187,23 +126,6 @@ const config: Config = {
             {
               label: "Framework",
               to: "/docs/developer/architecture",
-            },
-          ],
-        },
-        {
-          title: "Bowrain",
-          items: [
-            {
-              label: "Getting Started",
-              to: "/bowrain/introduction",
-            },
-            {
-              label: "Bowrain CLI",
-              to: "/bowrain/cli/overview",
-            },
-            {
-              label: "Bowrain Web",
-              to: "/bowrain/server/web-overview",
             },
           ],
         },

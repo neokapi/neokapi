@@ -7,6 +7,7 @@
     "packages/kapi-react-lint",
     "packages/flow-editor",
     "packages/storybook-config",
+    "packages/docs-shared",
     "storybook",
     "apps/kapi-desktop/frontend",
     "bowrain/packages/ui",

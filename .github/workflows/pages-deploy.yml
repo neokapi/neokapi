@@ -1,0 +1,124 @@
+name: Pages Deploy
+
+# Combines kapi and bowrain site (and storybook) artifacts into a single
+# GitHub Pages deployment under a path-based layout:
+#   /web/neokapi/        kapi/framework site (production)
+#   /web/bowrain/        bowrain site (production)
+#   /storybook/kapi/     kapi storybook (production)
+#   /storybook/bowrain/  bowrain storybook (production)
+#   /web/prs/{N}/...     PR previews (kept across deploys via keep_files)
+#
+# Triggered after docs-kapi or docs-bowrain (or storybook) workflow runs;
+# downloads their artifacts and assembles a merged tree.
+
+on:
+  workflow_run:
+    workflows:
+      - "Docs — kapi"
+      - "Docs — bowrain"
+    types: [completed]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+  pull-requests: write
+
+concurrency:
+  group: pages-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: gh-pages
+          path: gh-pages
+        continue-on-error: true
+
+      - name: Initialize gh-pages tree if missing
+        run: |
+          mkdir -p gh-pages/web/neokapi gh-pages/web/bowrain gh-pages/web/prs
+          mkdir -p gh-pages/storybook/kapi gh-pages/storybook/bowrain gh-pages/storybook/prs
+
+      - name: Download all artifacts from triggering run
+        if: ${{ github.event_name == 'workflow_run' }}
+        uses: actions/download-artifact@v5
+        with:
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ github.token }}
+          path: artifacts
+
+      - name: Determine target path (production vs PR preview)
+        id: target
+        env:
+          IS_PR: ${{ github.event.workflow_run.event == 'pull_request' }}
+          PR_NUMBER: ${{ github.event.workflow_run.pull_requests[0].number }}
+        run: |
+          if [ "$IS_PR" = "true" ] && [ -n "$PR_NUMBER" ]; then
+            echo "kapi_dest=web/prs/${PR_NUMBER}/neokapi" >> "$GITHUB_OUTPUT"
+            echo "bowrain_dest=web/prs/${PR_NUMBER}/bowrain" >> "$GITHUB_OUTPUT"
+            echo "is_pr=true" >> "$GITHUB_OUTPUT"
+            echo "pr_number=${PR_NUMBER}" >> "$GITHUB_OUTPUT"
+          else
+            echo "kapi_dest=web/neokapi" >> "$GITHUB_OUTPUT"
+            echo "bowrain_dest=web/bowrain" >> "$GITHUB_OUTPUT"
+            echo "is_pr=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Slot kapi site into gh-pages tree
+        if: ${{ hashFiles('artifacts/kapi-site/**') != '' }}
+        env:
+          DEST: ${{ steps.target.outputs.kapi_dest }}
+        run: |
+          rm -rf "gh-pages/${DEST}"
+          mkdir -p "gh-pages/${DEST}"
+          cp -r artifacts/kapi-site/* "gh-pages/${DEST}/"
+
+      - name: Slot bowrain site into gh-pages tree
+        if: ${{ hashFiles('artifacts/bowrain-site/**') != '' }}
+        env:
+          DEST: ${{ steps.target.outputs.bowrain_dest }}
+        run: |
+          rm -rf "gh-pages/${DEST}"
+          mkdir -p "gh-pages/${DEST}"
+          cp -r artifacts/bowrain-site/* "gh-pages/${DEST}/"
+
+      - name: Commit and push gh-pages
+        env:
+          IS_PR: ${{ steps.target.outputs.is_pr }}
+          PR_NUMBER: ${{ steps.target.outputs.pr_number }}
+        working-directory: gh-pages
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "No changes to deploy"
+            exit 0
+          fi
+          if [ "$IS_PR" = "true" ]; then
+            git commit -m "deploy: PR #${PR_NUMBER} preview"
+          else
+            git commit -m "deploy: production sites"
+          fi
+          git push origin HEAD:gh-pages
+
+      - name: Comment PR preview link
+        if: ${{ steps.target.outputs.is_pr == 'true' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ steps.target.outputs.pr_number }}
+          REPO: ${{ github.repository }}
+        run: |
+          OWNER=$(echo "$REPO" | cut -d/ -f1)
+          REPO_NAME=$(echo "$REPO" | cut -d/ -f2)
+          BASE_URL="https://${OWNER}.github.io/${REPO_NAME}"
+          BODY="📚 Docs preview deployed:
+          - kapi: ${BASE_URL}/web/prs/${PR_NUMBER}/neokapi/
+          - bowrain: ${BASE_URL}/web/prs/${PR_NUMBER}/bowrain/"
+          gh pr comment "$PR_NUMBER" --repo "$REPO" --body "$BODY"

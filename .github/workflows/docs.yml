@@ -1,13 +1,9 @@
-name: Deploy Docs
+name: Deploy Docs (legacy, superseded)
 
+# Superseded by docs-kapi.yml + docs-bowrain.yml + pages-deploy.yml.
+# Kept for one transition period in case of rollback. Manual dispatch only.
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
-    paths:
-      - "website/**"
-      - "docs/**"
-      - "bowrain/docs/**"
 
 permissions:
   contents: read
