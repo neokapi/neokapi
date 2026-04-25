@@ -22,8 +22,6 @@
 
 @custom-variant dark (&:is(.dark *));
 
-@source "../../../../packages/ui/src";
-
 /*
  * Kapi Desktop — "Kapi Blue" theme
  * Warm grays (not black), blue primary, pleasant and approachable.
