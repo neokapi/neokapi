@@ -102,8 +102,16 @@ jobs:
             echo '{"generatedAt":"","okapiVersion":"","neokapiVersion":"","filters":[],"summary":{"totalFiltersOkapi":0,"totalFiltersBridge":0,"totalFiltersNative":0,"totalFiltersBoth":0,"totalTestsOkapi":0,"totalTestsBridge":0,"totalTestsNative":0,"coveragePct":0}}' > website/static/data/test-comparison.json
           fi
 
+      # website/ is a standalone Docusaurus app (not in the npm workspace,
+      # by design — see PR #425). Install its deps locally and invoke the
+      # build script via npm directly so vp doesn't try to resolve a
+      # non-existent `neokapi-docs#build` workspace task.
+      - name: Install kapi docs site dependencies
+        run: npm install --no-audit --no-fund
+        working-directory: website
+
       - name: Build kapi Docusaurus site
-        run: vp run build
+        run: npm run build
         working-directory: website
 
       - name: Upload kapi site artifact
