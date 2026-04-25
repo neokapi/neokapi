@@ -72,7 +72,11 @@ test.describe("Open in Desktop", () => {
   test.beforeAll(async () => {
     await waitForServer();
     token = await authenticate();
-    const ws = await getOrCreateWorkspace(token, process.env.BOWRAIN_WORKSPACE_NAME || "Acme Inc.", process.env.BOWRAIN_WORKSPACE || "acme");
+    const ws = await getOrCreateWorkspace(
+      token,
+      process.env.BOWRAIN_WORKSPACE_NAME || "Acme Inc.",
+      process.env.BOWRAIN_WORKSPACE || "acme",
+    );
     wsSlug = ws.slug;
     await deleteAllEditorProjects(token, wsSlug);
 
@@ -88,7 +92,9 @@ test.describe("Open in Desktop", () => {
     await page.goto(`/${wsSlug}/p/${projectId}/s/main`);
 
     // The "Open in Bowrain Desktop" banner should appear in server mode.
-    await expect(page.getByTestId(TEST_IDS.editor.openInDesktopButton)).toBeVisible({ timeout: 10000 });
+    await expect(page.getByTestId(TEST_IDS.editor.openInDesktopButton)).toBeVisible({
+      timeout: 10000,
+    });
     await expect(page.getByTestId("open-in-desktop-btn")).toBeVisible();
   });
 
@@ -115,7 +121,9 @@ test.describe("Open in Desktop", () => {
     await page.goto(`/${wsSlug}/p/${projectId}/s/main`);
 
     // Banner should be visible.
-    await expect(page.getByTestId(TEST_IDS.editor.openInDesktopButton)).toBeVisible({ timeout: 10000 });
+    await expect(page.getByTestId(TEST_IDS.editor.openInDesktopButton)).toBeVisible({
+      timeout: 10000,
+    });
 
     // Dismiss the banner.
     await page.getByTestId("dismiss-open-in-desktop").click();
@@ -154,7 +162,9 @@ test.describe("Open in Desktop", () => {
     await page.getByTestId("open-in-desktop-btn").click();
 
     // After ~1.5s without window blur, the fallback should appear.
-    await expect(page.getByTestId(TEST_IDS.editor.desktopNotFoundMessage)).toBeVisible({ timeout: 5000 });
+    await expect(page.getByTestId(TEST_IDS.editor.desktopNotFoundMessage)).toBeVisible({
+      timeout: 5000,
+    });
     await expect(page.getByTestId(TEST_IDS.editor.desktopDownloadLink)).toBeVisible();
     await expect(page.getByTestId(TEST_IDS.editor.desktopDownloadLink)).toHaveAttribute(
       "href",

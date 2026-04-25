@@ -267,8 +267,21 @@ export class RestApiAdapter implements ApiAdapter {
   // ── Auth ─────────────────────────────────────────────────────────────────
 
   async getCurrentUser(): Promise<User | null> {
+    // Bypass the standard fetchJSON 401-handling path. fetchJSON treats 401
+    // as "session expired" and redirects via onSessionExpired, returning a
+    // never-resolving promise to suppress error flicker during navigation.
+    // That's wrong for getCurrentUser — this method IS the check for
+    // "do we have a session?", and an unauthenticated 401 is the expected
+    // negative answer, not a session-expiry. Returning null lets callers
+    // (ClaimPage, JoinPage) render their unauthenticated UI instead of
+    // hanging on the loading spinner forever.
     try {
-      return await this.fetchJSON("/api/v1/auth/me");
+      const resp = await fetch(`${this.baseUrl}/api/v1/auth/me`, {
+        headers: this.headers(),
+        credentials: "same-origin",
+      });
+      if (!resp.ok) return null;
+      return (await resp.json()) as User;
     } catch {
       return null;
     }

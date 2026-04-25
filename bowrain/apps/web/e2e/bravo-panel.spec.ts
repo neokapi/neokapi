@@ -28,7 +28,11 @@ test.describe("Bravo Panel", () => {
   test.beforeAll(async () => {
     await waitForServer();
     token = await authenticate();
-    const ws = await getOrCreateWorkspace(token, process.env.BOWRAIN_WORKSPACE_NAME || "Acme Inc.", process.env.BOWRAIN_WORKSPACE || "acme");
+    const ws = await getOrCreateWorkspace(
+      token,
+      process.env.BOWRAIN_WORKSPACE_NAME || "Acme Inc.",
+      process.env.BOWRAIN_WORKSPACE || "acme",
+    );
     wsSlug = ws.slug;
   });
 
@@ -52,7 +56,9 @@ test.describe("Bravo Panel", () => {
     await trigger.click();
 
     // Panel should show the "New conversation" button
-    await expect(page.getByTestId(TEST_IDS.bravo.newConversationHeader)).toBeVisible({ timeout: 5000 });
+    await expect(page.getByTestId(TEST_IDS.bravo.newConversationHeader)).toBeVisible({
+      timeout: 5000,
+    });
   });
 
   test("panel shows empty state when no conversations exist", async ({ page }) => {
@@ -64,7 +70,9 @@ test.describe("Bravo Panel", () => {
     await trigger.click();
 
     // Should show the empty state or "New conversation" button
-    await expect(page.getByTestId(TEST_IDS.bravo.newConversationHeader)).toBeVisible({ timeout: 5000 });
+    await expect(page.getByTestId(TEST_IDS.bravo.newConversationHeader)).toBeVisible({
+      timeout: 5000,
+    });
   });
 
   test("panel closes when trigger is clicked again", async ({ page }) => {
@@ -76,7 +84,9 @@ test.describe("Bravo Panel", () => {
 
     // Open
     await trigger.click();
-    await expect(page.getByTestId(TEST_IDS.bravo.newConversationHeader)).toBeVisible({ timeout: 5000 });
+    await expect(page.getByTestId(TEST_IDS.bravo.newConversationHeader)).toBeVisible({
+      timeout: 5000,
+    });
 
     // Close — click the trigger again
     await trigger.click();
