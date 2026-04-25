@@ -75,6 +75,22 @@ test-results/
 playwright-report/
 bowrain/website/scenes/.test-results/
 
+# Walkthrough scene assets — recordings + screenshots are build artifacts,
+# not source. Recorder scripts and AppleScripts are tracked; webm/png/etc.
+# are produced on demand and uploaded to releases (or regenerated locally).
+bowrain/website/scenes/**/*.webm
+bowrain/website/scenes/**/*.mp4
+bowrain/website/scenes/**/*.mov
+bowrain/website/scenes/**/*.gif
+bowrain/website/scenes/**/*.png
+bowrain/website/scenes/**/*.jpg
+website/scenes/**/*.webm
+website/scenes/**/*.mp4
+website/scenes/**/*.mov
+website/scenes/**/*.gif
+website/scenes/**/*.png
+website/scenes/**/*.jpg
+
 # Local TLS certs (mkcert)
 docker/traefik/certs/
 
