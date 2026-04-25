@@ -1,0 +1,4 @@
+import{n as e}from"./chunk-DnJy8xQt.js";import{t}from"./jsx-runtime-B-hFyic3.js";import{i as n,r}from"./schema-story-BnmQqeze.js";var i,a,o,s;e((()=>{n(),i=t(),a={title:`Formats & Tools/Tools/Analysis/Repetition Analysis`,parameters:{layout:`padded`}},o={name:`Native Configuration`,render:()=>(0,i.jsx)(r,{schemaName:`repetition-analysis`,source:`builtIn`})},o.parameters={...o.parameters,docs:{...o.parameters?.docs,source:{originalSource:`{
+  name: "Native Configuration",
+  render: () => <ToolConfig schemaName="repetition-analysis" source="builtIn" />
+}`,...o.parameters?.docs?.source}}},s=[`NativeConfig`]}))();export{o as NativeConfig,s as __namedExportsOrder,a as default};

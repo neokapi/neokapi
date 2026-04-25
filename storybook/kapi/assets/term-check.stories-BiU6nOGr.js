@@ -1,0 +1,4 @@
+import{n as e}from"./chunk-DnJy8xQt.js";import{t}from"./jsx-runtime-B-hFyic3.js";import{i as n,r}from"./schema-story-BnmQqeze.js";var i,a,o,s;e((()=>{n(),i=t(),a={title:`Formats & Tools/Tools/Quality Assurance/Terminology Check`,parameters:{layout:`padded`}},o={name:`Configuration`,render:()=>(0,i.jsx)(r,{schemaName:`term-check`,source:`builtIn`})},o.parameters={...o.parameters,docs:{...o.parameters?.docs,source:{originalSource:`{
+  name: "Configuration",
+  render: () => <ToolConfig schemaName="term-check" source="builtIn" />
+}`,...o.parameters?.docs?.source}}},s=[`NativeConfig`]}))();export{o as NativeConfig,s as __namedExportsOrder,a as default};
