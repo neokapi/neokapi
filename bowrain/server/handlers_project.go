@@ -163,6 +163,11 @@ func (s *Server) HandleUpdateProject(c echo.Context) error {
 		p.DefaultStream = *req.DefaultStream
 	}
 	if req.DashboardVisibility != "" {
+		if req.DashboardVisibility != string(platauth.DashboardPrivate) && s.AuthStore != nil {
+			if ws, wsErr := s.AuthStore.GetWorkspace(ctx, existing.WorkspaceID); wsErr == nil && ws.Type == platauth.WorkspaceTypePersonal {
+				return c.JSON(http.StatusForbidden, ErrorResponse{Error: "personal workspaces cannot expose projects publicly"})
+			}
+		}
 		p.DashboardVisibility = req.DashboardVisibility
 	}
 	if req.Workspace != "" && s.AuthStore != nil {

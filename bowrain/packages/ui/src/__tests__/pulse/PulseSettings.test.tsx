@@ -129,4 +129,29 @@ describe("PulseSettings", () => {
     expect(link.getAttribute("href")).toBe(`${BASE}/acme`);
     expect(link.getAttribute("target")).toBe("_blank");
   });
+
+  it("locks non-private options and shows the reason when disabledReason is set", async () => {
+    const user = userEvent.setup();
+    const handler = vi.fn(async () => {});
+    render(
+      <PulseSettings
+        workspaceSlug="acme"
+        visibility="private"
+        pulseBaseUrl={BASE}
+        onVisibilityChange={handler}
+        disabledReason="Personal workspaces can't be exposed publicly."
+      />,
+    );
+
+    expect(screen.getByText("Personal workspaces can't be exposed publicly.")).toBeTruthy();
+
+    const radios = screen.getAllByRole("radio");
+    // Order matches `options`: private, unlisted, public.
+    expect(radios[0]).not.toHaveAttribute("aria-disabled", "true");
+    expect(radios[1]).toHaveAttribute("aria-disabled", "true");
+    expect(radios[2]).toHaveAttribute("aria-disabled", "true");
+
+    await user.click(screen.getByText("Public"));
+    expect(handler).not.toHaveBeenCalled();
+  });
 });

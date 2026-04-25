@@ -154,6 +154,9 @@ func (s *Server) HandleUpdateWorkspace(c echo.Context) error {
 	if req.DashboardVisibility != "" {
 		if platauth.ValidDashboardVisibility[platauth.DashboardVisibility(req.DashboardVisibility)] {
 			newVis := platauth.DashboardVisibility(req.DashboardVisibility)
+			if w.Type == platauth.WorkspaceTypePersonal && newVis != platauth.DashboardPrivate {
+				return c.JSON(http.StatusForbidden, ErrorResponse{Error: "personal workspaces cannot be exposed publicly"})
+			}
 			w.DashboardVisibility = newVis
 			// Auto-generate an access key when switching to unlisted (if none exists).
 			if newVis == platauth.DashboardUnlisted && w.PulseAccessKey == "" {
