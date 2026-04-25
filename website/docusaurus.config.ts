@@ -35,28 +35,10 @@ const config: Config = {
 
   themes: ["@docusaurus/theme-mermaid"],
 
-  plugins: [
-    [
-      "@docusaurus/plugin-content-docs",
-      {
-        id: "ad",
-        path: "../docs/architecture-decisions",
-        routeBasePath: "docs/ad",
-        sidebarPath: "./sidebars-ad.ts",
-        editUrl: "https://github.com/neokapi/neokapi/tree/main/",
-      },
-    ],
-    [
-      "@docusaurus/plugin-content-docs",
-      {
-        id: "notes",
-        path: "../docs/notes",
-        routeBasePath: "docs/notes",
-        sidebarPath: "./sidebars-notes.ts",
-        editUrl: "https://github.com/neokapi/neokapi/tree/main/",
-      },
-    ],
-  ],
+  // Architecture docs and implementation notes were absorbed into the
+  // main docs tree (issue #425 followup). The `ad` and `notes` plugin
+  // instances are no longer needed.
+  plugins: [],
 
   presets: [
     [
@@ -86,20 +68,6 @@ const config: Config = {
           type: "docSidebar",
           sidebarId: "neokapiSidebar",
           label: "Documentation",
-          position: "left",
-        },
-        {
-          type: "docSidebar",
-          docsPluginId: "ad",
-          sidebarId: "ad",
-          label: "Architecture",
-          position: "left",
-        },
-        {
-          type: "docSidebar",
-          docsPluginId: "notes",
-          sidebarId: "notes",
-          label: "Notes",
           position: "left",
         },
         {

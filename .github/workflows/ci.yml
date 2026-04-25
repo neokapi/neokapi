@@ -747,23 +747,15 @@ jobs:
             -okapi-tag v1.48.0 \
             -out ../../website/static/data/test-comparison.json
 
-      - name: Upload to docs-assets release
+      - name: Upload test-comparison artifact
         if: steps.fetch-surefire.outcome == 'success'
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          # Upload test-comparison.json to the docs-assets release
-          # (delete old asset first if it exists)
-          gh release upload docs-assets \
-            website/static/data/test-comparison.json \
-            --clobber 2>/dev/null || \
-          gh release create docs-assets \
-            website/static/data/test-comparison.json \
-            --title "Documentation Assets" \
-            --notes "Auto-generated documentation assets (screenshots, recordings, test data)"
-
-      - name: Trigger docs deploy
-        if: steps.fetch-surefire.outcome == 'success'
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: gh workflow run docs.yml
+        uses: actions/upload-artifact@v7
+        with:
+          name: test-comparison
+          path: website/static/data/test-comparison.json
+          retention-days: 30
+      # Note: previously this step uploaded to the docs-assets GH release and
+      # triggered docs.yml (now deleted). The kapi site (docs-kapi.yml) still
+      # falls back to docs-assets for legacy assets during the walkthrough
+      # migration, but test-comparison.json is now a per-run artifact that
+      # the kapi site can fetch in a follow-up. See issue #425 followups.
