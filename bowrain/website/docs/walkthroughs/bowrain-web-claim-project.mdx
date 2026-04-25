@@ -1,0 +1,34 @@
+---
+id: bowrain-web-claim-project
+title: "Claim a project pushed from the CLI"
+sidebar_label: "Claim project (web)"
+description: "First-time user flow: developer pushes anonymous project from CLI; web app claim flow attaches it to their workspace."
+draft: true
+---
+
+import { ThemedVideo } from "@neokapi/docs-shared";
+
+# Claim a project pushed from the CLI
+
+> Generated from [`walkthroughs/bowrain-web-claim-project.md`](https://github.com/neokapi/neokapi/blob/main/bowrain/website/walkthroughs/bowrain-web-claim-project.md). Do not edit by hand — change the prompt and regenerate.
+>
+> **Status: scaffold.** The scene `.spec.ts` exists but is currently `test.skip`'d — full Playwright validation against the real backend is a #425 followup. The published page will populate once the recording is captured.
+
+A developer pushes their first project to Bowrain Server using `bowrain push`. Because they haven't created a workspace yet, the server creates the project as **anonymous** and returns a claim URL. The walkthrough shows the developer following that URL, signing in via SSO, and the claim-project flow attaching the project to their newly-claimed workspace.
+
+## Scene 1 — claim-project
+
+{/* <ThemedVideo
+  sources={{
+    light: "/video/bowrain/claim-project.webm",
+    dark: "/video/bowrain/claim-project.webm",
+  }}
+/> */}
+
+User opens the claim URL in a browser. They see the "Sign in to claim" landing page (unauthenticated state). After SSO, they land back on the claim page, which fetches workspace info and shows the green "Claim project" CTA. Click claims the project; user is redirected into the workspace dashboard with the new project visible.
+
+The recording covers the full flow: claim URL → sign in → claim → project visible in workspace.
+
+## Next
+
+For the CLI side of the same workflow, see the [bowrain-getting-started walkthrough](/walkthroughs/bowrain-getting-started) (scenes: init → push → pull).
