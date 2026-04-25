@@ -73,6 +73,7 @@ storybook-static/
 # Playwright
 test-results/
 playwright-report/
+bowrain/website/scenes/.test-results/
 
 # Local TLS certs (mkcert)
 docker/traefik/certs/

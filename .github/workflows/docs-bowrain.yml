@@ -103,6 +103,9 @@ jobs:
         run: npm install --no-audit --no-fund
         working-directory: bowrain/website
 
+      - name: Stage walkthrough scene .webm into static/video/bowrain/
+        run: bash bowrain/website/scripts/stage-scenes.sh
+
       - name: Build bowrain Docusaurus site
         run: npm run build
         working-directory: bowrain/website

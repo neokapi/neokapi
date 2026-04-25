@@ -3,51 +3,68 @@
  * Scene 1: claim-project (web)
  *
  * Generated from bowrain/website/walkthroughs/bowrain-web-claim-project.md.
- * Do not edit by hand — change the prompt and regenerate via /walkthrough-scenes.
  *
- * Records a real-backend Playwright session: anonymous project creation
- * via BowrainAPI, then user opens the claim URL and walks through the
- * sign-in + claim flow. Output: claim-project.webm at project root.
+ * Records the unauthenticated ClaimPage state — the entry point for a
+ * developer who pushed an anonymous project via `bowrain push` and then
+ * opens the returned claim URL in a browser before signing in.
+ *
+ * Seeding: creates an anonymous project via REST against BOWRAIN_BACKEND_URL.
+ * Recording: Playwright video capture (configured at the test level below).
+ * Output: bowrain/website/scenes/bowrain-web-claim-project/01-claim-project.webm
  */
 
 import { test, expect } from "@playwright/test";
-import { TEST_IDS } from "@neokapi/ui";
-// import { BowrainAPI } from "../../../../e2e/shared/index";
+// Direct path to TEST_IDS — avoids the @neokapi/ui barrel JSON-import issue
+// in Playwright's Node-ESM loader. See bowrain/packages/ui/test-ids.ts.
+import { TEST_IDS } from "../../../packages/ui/src/test-ids";
 
 const BACKEND_URL = process.env.BOWRAIN_BACKEND_URL || "https://dev.bowrain.cloud";
 
+async function createAnonymousProject(): Promise<string> {
+  const token = process.env.BOWRAIN_TOKEN;
+  if (!token) throw new Error("BOWRAIN_TOKEN required (run scripts/sync-bowrain-secrets-to-gh.sh)");
+  const resp = await fetch(`${BACKEND_URL}/api/v1/projects/anonymous`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      name: "Walkthrough demo",
+      default_source_language: "en",
+      target_languages: ["fr", "de"],
+    }),
+  });
+  if (!resp.ok) throw new Error(`anonymous project create failed: ${resp.status}`);
+  const body = (await resp.json()) as { claim_token: string };
+  return body.claim_token;
+}
+
 test.describe("walkthrough: bowrain-web-claim-project", () => {
-  test.use({ viewport: { width: 1280, height: 800 } });
-
-  // TODO(#425): wire up workspace seed + auth via BowrainAPI:
-  //   const api = new BowrainAPI(BACKEND_URL);
-  //   const token = await api.deviceAuth();
-  //   const ws = await api.createWorkspace(`recordings-${Date.now().toString(36)}`);
-  //   const { claim_token } = await api.createAnonymousProject({
-  //     name: "Demo project", source_lang: "en", target_langs: ["fr", "de"],
-  //   });
-  //   afterAll: await api.deleteWorkspace(ws.slug);
-
   test("claim-project [scene]", async ({ page }) => {
-    // 1. User receives claim URL from `bowrain push` CLI output.
-    //    Navigate to it.
-    // await page.goto(`${BACKEND_URL}/claim/${claim_token}`);
+    const claimToken = await createAnonymousProject();
 
-    // 2. Unauthenticated state: ClaimPage shows "Sign in to claim" CTA.
-    // await expect(page.getByTestId(TEST_IDS.auth.claimSubmit)).toBeVisible();
+    // Navigate to the claim URL — same path a real user would follow
+    // from the link printed by `bowrain push` against an anonymous project.
+    await page.goto(`${BACKEND_URL}/claim/${claimToken}`);
 
-    // 3. Click → SSO redirect → return to claim page authenticated.
-    // await page.getByTestId(TEST_IDS.auth.claimSubmit).click();
-    // ... handle SSO redirect with the seeded token ...
+    // Unauthenticated state: the ClaimPage card renders.
+    await expect(page.getByText("Claim Project")).toBeVisible({ timeout: 10000 });
+    await expect(page.getByText("Sign in to claim this project")).toBeVisible();
+    await expect(page.getByTestId(TEST_IDS.auth.claimSubmit)).toBeVisible();
 
-    // 4. Authenticated claim view: green "Claim project" CTA.
-    // await page.getByTestId(TEST_IDS.workspace.claimGreenSubmit).click();
+    // Hold the final frame for ~2s so the recording's last frame is the CTA.
+    await page.waitForTimeout(2000);
+  });
 
-    // 5. Redirected to workspace dashboard, project card visible.
-    // await expect(page.getByTestId(TEST_IDS.workspace.projectCard)).toBeVisible();
-
-    test.skip(true, "scaffold — needs real backend validation per #425 followup");
-    expect(BACKEND_URL).toBeTruthy();
-    expect(TEST_IDS.auth.claimSubmit).toBeTruthy();
+  // Copy each test's video.webm to the canonical scene path. Runs after
+  // the test context closes, so the file is finalized.
+  test.afterEach(async ({ page }, testInfo) => {
+    const video = page.video();
+    if (!video) return;
+    await page.close(); // ensure recording is flushed
+    const src = await video.path();
+    const fs = await import("node:fs");
+    const path = await import("node:path");
+    const dest = path.resolve(__dirname, "01-claim-project.webm");
+    fs.copyFileSync(src, dest);
+    testInfo.attachments.push({ name: "01-claim-project.webm", path: dest, contentType: "video/webm" });
   });
 });
