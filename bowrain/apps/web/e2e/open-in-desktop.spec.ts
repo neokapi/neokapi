@@ -1,4 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
+import { TEST_IDS } from "@neokapi/ui/test-ids";
 import {
   authenticate,
   getOrCreateWorkspace,
@@ -87,7 +88,7 @@ test.describe("Open in Desktop", () => {
     await page.goto(`/${wsSlug}/p/${projectId}/s/main`);
 
     // The "Open in Bowrain Desktop" banner should appear in server mode.
-    await expect(page.getByText("Open in Bowrain Desktop")).toBeVisible({ timeout: 10000 });
+    await expect(page.getByTestId(TEST_IDS.editor.openInDesktopButton)).toBeVisible({ timeout: 10000 });
     await expect(page.getByTestId("open-in-desktop-btn")).toBeVisible();
   });
 
@@ -114,13 +115,13 @@ test.describe("Open in Desktop", () => {
     await page.goto(`/${wsSlug}/p/${projectId}/s/main`);
 
     // Banner should be visible.
-    await expect(page.getByText("Open in Bowrain Desktop")).toBeVisible({ timeout: 10000 });
+    await expect(page.getByTestId(TEST_IDS.editor.openInDesktopButton)).toBeVisible({ timeout: 10000 });
 
     // Dismiss the banner.
     await page.getByTestId("dismiss-open-in-desktop").click();
 
     // Banner should disappear.
-    await expect(page.getByText("Open in Bowrain Desktop")).not.toBeVisible();
+    await expect(page.getByTestId(TEST_IDS.editor.openInDesktopButton)).not.toBeVisible();
 
     // Verify localStorage was set.
     const dismissed = await page.evaluate(() =>
@@ -134,7 +135,7 @@ test.describe("Open in Desktop", () => {
     await page.getByText("Desktop Test Project").first().click();
 
     // Banner should still be hidden.
-    await expect(page.getByText("Open in Bowrain Desktop")).not.toBeVisible();
+    await expect(page.getByTestId(TEST_IDS.editor.openInDesktopButton)).not.toBeVisible();
   });
 
   test("shows download fallback when app not installed", async ({ page }) => {
@@ -153,9 +154,9 @@ test.describe("Open in Desktop", () => {
     await page.getByTestId("open-in-desktop-btn").click();
 
     // After ~1.5s without window blur, the fallback should appear.
-    await expect(page.getByText("Bowrain Desktop not found.")).toBeVisible({ timeout: 5000 });
-    await expect(page.getByRole("link", { name: /Download/ })).toBeVisible();
-    await expect(page.getByRole("link", { name: /Download/ })).toHaveAttribute(
+    await expect(page.getByTestId(TEST_IDS.editor.desktopNotFoundMessage)).toBeVisible({ timeout: 5000 });
+    await expect(page.getByTestId(TEST_IDS.editor.desktopDownloadLink)).toBeVisible();
+    await expect(page.getByTestId(TEST_IDS.editor.desktopDownloadLink)).toHaveAttribute(
       "href",
       "https://bowrain.dev/download",
     );

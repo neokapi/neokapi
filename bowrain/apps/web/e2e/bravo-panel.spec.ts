@@ -1,4 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
+import { TEST_IDS } from "@neokapi/ui/test-ids";
 import { authenticate, getOrCreateWorkspace, waitForServer } from "./helpers/api-client";
 
 const BASE_URL = process.env.BOWRAIN_URL || "http://localhost:8080";
@@ -36,7 +37,7 @@ test.describe("Bravo Panel", () => {
     await page.goto(`/${wsSlug}`);
 
     // The @bravo trigger should be rendered in the top bar
-    const trigger = page.getByText("@bravo");
+    const trigger = page.getByTestId(TEST_IDS.bravo.trigger);
     await expect(trigger).toBeVisible({ timeout: 10000 });
   });
 
@@ -44,38 +45,38 @@ test.describe("Bravo Panel", () => {
     await injectAuthCookie(page, token);
     await page.goto(`/${wsSlug}`);
 
-    const trigger = page.getByText("@bravo");
+    const trigger = page.getByTestId(TEST_IDS.bravo.trigger);
     await expect(trigger).toBeVisible({ timeout: 10000 });
 
     // Click to open the panel
     await trigger.click();
 
     // Panel should show the "New conversation" button
-    await expect(page.getByText("New conversation")).toBeVisible({ timeout: 5000 });
+    await expect(page.getByTestId(TEST_IDS.bravo.newConversationHeader)).toBeVisible({ timeout: 5000 });
   });
 
   test("panel shows empty state when no conversations exist", async ({ page }) => {
     await injectAuthCookie(page, token);
     await page.goto(`/${wsSlug}`);
 
-    const trigger = page.getByText("@bravo");
+    const trigger = page.getByTestId(TEST_IDS.bravo.trigger);
     await expect(trigger).toBeVisible({ timeout: 10000 });
     await trigger.click();
 
     // Should show the empty state or "New conversation" button
-    await expect(page.getByText("New conversation")).toBeVisible({ timeout: 5000 });
+    await expect(page.getByTestId(TEST_IDS.bravo.newConversationHeader)).toBeVisible({ timeout: 5000 });
   });
 
   test("panel closes when trigger is clicked again", async ({ page }) => {
     await injectAuthCookie(page, token);
     await page.goto(`/${wsSlug}`);
 
-    const trigger = page.getByText("@bravo");
+    const trigger = page.getByTestId(TEST_IDS.bravo.trigger);
     await expect(trigger).toBeVisible({ timeout: 10000 });
 
     // Open
     await trigger.click();
-    await expect(page.getByText("New conversation")).toBeVisible({ timeout: 5000 });
+    await expect(page.getByTestId(TEST_IDS.bravo.newConversationHeader)).toBeVisible({ timeout: 5000 });
 
     // Close — click the trigger again
     await trigger.click();
@@ -90,7 +91,7 @@ test.describe("Bravo Panel", () => {
     await page.goto(`/${wsSlug}`);
 
     // The @bravo trigger should also be present on sub-pages
-    const trigger = page.getByText("@bravo");
+    const trigger = page.getByTestId(TEST_IDS.bravo.trigger);
     await expect(trigger).toBeVisible({ timeout: 10000 });
   });
 });

@@ -1,4 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
+import { TEST_IDS } from "@neokapi/ui/test-ids";
 import {
   authenticate,
   getOrCreateWorkspace,
@@ -104,7 +105,7 @@ test.describe("Routing", () => {
     await injectAuthCookie(page, token);
     await page.goto(`/${wsSlug}/settings`);
 
-    await expect(page.getByRole("heading", { name: "Settings" })).toBeVisible({ timeout: 10000 });
+    await expect(page.getByTestId(TEST_IDS.settings.heading)).toBeVisible({ timeout: 10000 });
     expect(page.url()).toContain("/settings");
   });
 
@@ -138,7 +139,7 @@ test.describe("Routing", () => {
 
     // Navigate to settings via sidebar
     await page.getByTestId("nav-settings").click();
-    await expect(page.getByRole("heading", { name: "Settings" })).toBeVisible({ timeout: 10000 });
+    await expect(page.getByTestId(TEST_IDS.settings.heading)).toBeVisible({ timeout: 10000 });
     expect(page.url()).toContain("/settings");
 
     // Navigate back to dashboard via sidebar

@@ -1,8 +1,8 @@
 import { test, expect, type Page } from "@playwright/test";
-// Direct path — Playwright's Node-ESM loader doesn't follow @neokapi/ui
-// barrel exports cleanly (.ts extensions, transitive JSON imports), so
-// reach into the registry file directly.
-import { TEST_IDS } from "../../../packages/ui/src/test-ids";
+// Leaf subpath export bypasses the @neokapi/ui barrel (which transitively
+// imports JSON vocabularies that break Node-ESM Playwright collection).
+// See bowrain/packages/ui/package.json `exports."./test-ids"`.
+import { TEST_IDS } from "@neokapi/ui/test-ids";
 import {
   authenticate,
   getOrCreateWorkspace,
