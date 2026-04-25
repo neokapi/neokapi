@@ -192,7 +192,36 @@ export function createMockAdapter(blocks?: BlockInfo[]): ApiAdapter {
       email: "translator@example.com",
       name: "Demo User",
       avatar_url: "",
+      onboarded_at: "2024-01-01T00:00:00Z",
     }),
+
+    // --- Account management --------------------------------------------
+    getOnboardingStatus: async () => ({
+      needs_onboarding: false,
+      email: "translator@example.com",
+      display_name: "Demo User",
+    }),
+    completeOnboarding: async () => ({
+      id: "ws-1",
+      name: "Demo",
+      slug: "demo",
+      description: "",
+      logo_url: "",
+      type: "personal",
+      role: "owner",
+    }),
+    checkSlug: async () => ({ available: true }),
+    requestEmailChange: async () => ({
+      status: "verification sent",
+      new_email: "new@example.com",
+      expires_at: new Date(Date.now() + 86_400_000).toISOString(),
+    }),
+    confirmEmailChange: async () => ({
+      status: "email updated",
+      new_email: "new@example.com",
+    }),
+    adminListSlugReservations: async () => [],
+    adminReleaseSlugReservation: notImpl,
 
     // --- Workspaces -----------------------------------------------------
     listWorkspaces: async () => [

@@ -31,6 +31,56 @@ workspace-scoped so multi-tenancy is enforced at the transport layer.
 
 ## Decision
 
+### User Identity
+
+Three concepts are kept distinct:
+
+- **User ID** (8-char base62, `users.id`) is the immutable internal handle.
+  All foreign keys reference it; the user never sees it.
+- **Email** is the login credential and notification address. It is
+  mutable: the user can change it from their profile, with verification.
+- **Handle** is the slug of the user's personal workspace. It doubles as the
+  user's public identifier in URLs (`app.bowrain.cloud/<handle>`) and is
+  user-chosen at onboarding rather than derived from the email. The handle
+  is renameable; the previous handle is reserved for 30 days to prevent
+  impersonation.
+
+On first sign-in, `GetOrCreateUser` creates the `users` row but no
+workspace. The web app routes the user to `/welcome`, where they pick a
+handle (pre-filled with an email-derived suggestion) and the server runs
+`CompleteOnboarding` to create the personal workspace and stamp
+`users.onboarded_at`. Existing users that predate this flow are lazily
+treated as onboarded once `users.onboarded_at` is set on first `/auth/me`
+fetch.
+
+### Email Change
+
+Email change is Bowrain-managed end-to-end. The user enters a new address in
+their profile; the server hashes a single-use token, stores it in
+`email_change_requests`, and sends a Bowrain-themed verification mail to the
+new address. Confirmation:
+
+1. Looks up the request by token hash, rejecting if expired (24h TTL).
+2. Calls Keycloak's Admin API (over an in-cluster URL — never the public
+   ingress) to set the new email and mark it verified.
+3. Updates `users.email` locally.
+4. Deletes the request and revokes all refresh tokens, forcing the user to
+   sign back in with the new email.
+
+Keycloak remains the source of truth for authentication; Bowrain owns the
+UX. The `oidc_sub` claim is unchanged by email rotation, so existing
+foreign-key relationships continue to resolve.
+
+### Slug Rename Reservations
+
+When a workspace is renamed, the old slug is inserted into
+`workspace_slug_reservations` with a 30-day TTL. While the reservation is
+active, the slug cannot be claimed by any workspace, including the
+originally renamed one. This buys time to update bookmarks/integrations and
+prevents an attacker from grabbing a recently freed handle. The
+`/api/admin/slug-reservations` endpoint (and the matching ctrl SaaS admin
+UI) lets an operator release a reservation early when needed.
+
 ### Workspace > Project Hierarchy
 
 Workspaces are the top-level organizational unit. Every project belongs to
@@ -221,11 +271,13 @@ Auth tables share the same PostgreSQL database as the content store
 
 ```sql
 CREATE TABLE users (
-    id         TEXT PRIMARY KEY,
-    email      TEXT UNIQUE NOT NULL,
-    name       TEXT NOT NULL,
-    avatar_url TEXT NOT NULL DEFAULT '',
-    created_at TIMESTAMPTZ NOT NULL
+    id            TEXT PRIMARY KEY,
+    email         TEXT UNIQUE NOT NULL,
+    name          TEXT NOT NULL,
+    avatar_url    TEXT NOT NULL DEFAULT '',
+    oidc_sub      TEXT NOT NULL DEFAULT '',
+    onboarded_at  TIMESTAMPTZ,            -- NULL until the user picks a handle
+    created_at    TIMESTAMPTZ NOT NULL
 );
 
 CREATE TABLE workspaces (
@@ -244,6 +296,25 @@ CREATE TABLE workspace_members (
     role         TEXT NOT NULL DEFAULT 'member',
     joined_at    TIMESTAMPTZ NOT NULL,
     PRIMARY KEY (workspace_id, user_id)
+);
+
+-- Old workspace slugs reserved during their 30-day rename grace period.
+CREATE TABLE workspace_slug_reservations (
+    slug           TEXT PRIMARY KEY,
+    workspace_id   TEXT NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
+    reserved_until TIMESTAMPTZ NOT NULL,
+    created_at     TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Pending email-change requests. Token plaintext is sent to the new address;
+-- only the SHA-256 hash is stored.
+CREATE TABLE email_change_requests (
+    id         TEXT PRIMARY KEY,
+    user_id    TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    new_email  TEXT NOT NULL,
+    token_hash TEXT UNIQUE NOT NULL,
+    expires_at TIMESTAMPTZ NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 ```
 

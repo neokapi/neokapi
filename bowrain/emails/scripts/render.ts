@@ -22,6 +22,7 @@ import PaymentFailedEmail from "../src/payment-failed.js";
 import SubscriptionChangedEmail from "../src/subscription-changed.js";
 import NotificationEmail from "../src/notification.js";
 import DigestEmail from "../src/digest.js";
+import EmailChangeVerifyEmail from "../src/email-change-verify.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -133,6 +134,18 @@ async function buildTemplates(): Promise<void> {
   );
   writeFileSync(resolve(outDir, "digest.html"), digestHtml, "utf-8");
   console.log("✓  Rendered digest.html");
+
+  // ── Email change verification ─────────────────────────────────────────────
+  const emailChangeHtml = await render(
+    EmailChangeVerifyEmail({
+      newEmail: "{{.NewEmail}}",
+      confirmURL: "{{.ConfirmURL}}",
+      expiresIn: "{{.ExpiresIn}}",
+    }),
+    { pretty: false },
+  );
+  writeFileSync(resolve(outDir, "email-change-verify.html"), emailChangeHtml, "utf-8");
+  console.log("✓  Rendered email-change-verify.html");
 
   console.log(`\nAll templates written to ${outDir}`);
 }

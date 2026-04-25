@@ -81,6 +81,11 @@ import type {
   RoleTemplate,
   ProjectMembership,
   DigestSettingsDTO,
+  OnboardingStatus,
+  SlugCheckResponse,
+  EmailChangeRequestResponse,
+  EmailChangeConfirmResponse,
+  SlugReservation,
 } from "../types/api";
 import type {
   VoiceProfile,
@@ -285,6 +290,52 @@ export class RestApiAdapter implements ApiAdapter {
     } catch {
       return null;
     }
+  }
+
+  // ── Account management ──────────────────────────────────────────────────
+  // Onboarding picks the personal-workspace handle on first sign-in. Email
+  // change is Bowrain-managed: a verification link is sent to the new
+  // address; confirmation writes through to Keycloak via its admin API and
+  // updates the local user record.
+
+  async getOnboardingStatus(): Promise<OnboardingStatus> {
+    return this.fetchJSON("/api/v1/auth/me/onboarding");
+  }
+
+  async completeOnboarding(slug: string, displayName?: string): Promise<Workspace> {
+    return this.fetchJSON("/api/v1/auth/me/onboarding", {
+      method: "POST",
+      body: JSON.stringify({ slug, display_name: displayName ?? "" }),
+    });
+  }
+
+  async checkSlug(slug: string): Promise<SlugCheckResponse> {
+    return this.fetchJSON(`/api/v1/auth/check-slug?slug=${encodeURIComponent(slug)}`);
+  }
+
+  async requestEmailChange(newEmail: string): Promise<EmailChangeRequestResponse> {
+    return this.fetchJSON("/api/v1/auth/me/email", {
+      method: "POST",
+      body: JSON.stringify({ new_email: newEmail }),
+    });
+  }
+
+  async confirmEmailChange(token: string): Promise<EmailChangeConfirmResponse> {
+    return this.fetchJSON("/api/v1/auth/email/confirm", {
+      method: "POST",
+      body: JSON.stringify({ token }),
+    });
+  }
+
+  async adminListSlugReservations(): Promise<SlugReservation[]> {
+    return this.fetchJSON("/api/admin/slug-reservations");
+  }
+
+  async adminReleaseSlugReservation(slug: string): Promise<void> {
+    await this.fetchJSON("/api/admin/slug-reservations/release", {
+      method: "POST",
+      body: JSON.stringify({ slug }),
+    });
   }
 
   // ── Workspaces ───────────────────────────────────────────────────────────

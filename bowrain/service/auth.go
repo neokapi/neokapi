@@ -28,7 +28,10 @@ func NewAuthService(store auth.AuthStore, jwtSecret string) *AuthService {
 
 // GetOrCreateUser finds a user by email, or creates one if not found.
 // Used during OIDC login to upsert the user record.
-// On first creation, a personal workspace is auto-created.
+//
+// On first creation, the user record is created but no personal workspace
+// is provisioned — the web app routes new users through /welcome where
+// they pick a handle, after which CompleteOnboarding creates the workspace.
 // If oidcSub is provided and the existing user lacks one, it is backfilled.
 func (s *AuthService) GetOrCreateUser(ctx context.Context, email, name, avatarURL, oidcSub string) (*platauth.User, error) {
 	if email == "" {
@@ -52,14 +55,132 @@ func (s *AuthService) GetOrCreateUser(ctx context.Context, email, name, avatarUR
 	if err := s.store.CreateUser(ctx, u); err != nil {
 		return nil, fmt.Errorf("create user: %w", err)
 	}
+	return u, nil
+}
 
-	// Auto-create personal workspace for new users.
-	slug := personalSlug(email)
-	slug, err = s.uniqueSlug(ctx, slug)
+// NeedsOnboarding reports whether the user has not yet completed onboarding
+// (chosen a handle and had their personal workspace created).
+//
+// Existing users created before the onboarding flow existed have OnboardedAt
+// nil but already have a personal workspace; they are lazily marked as
+// onboarded so they bypass /welcome.
+func (s *AuthService) NeedsOnboarding(ctx context.Context, userID string) (bool, error) {
+	u, err := s.store.GetUser(ctx, userID)
 	if err != nil {
-		return u, nil // user created, workspace creation is best-effort
+		return false, fmt.Errorf("get user: %w", err)
 	}
-	displayName := name
+	if u.OnboardedAt != nil {
+		return false, nil
+	}
+	workspaces, err := s.store.ListWorkspaces(ctx, userID)
+	if err != nil {
+		return false, fmt.Errorf("list workspaces: %w", err)
+	}
+	for _, w := range workspaces {
+		if w.Type == platauth.WorkspaceTypePersonal {
+			now := time.Now().UTC()
+			u.OnboardedAt = &now
+			_ = s.store.UpdateUser(ctx, u)
+			return false, nil
+		}
+	}
+	return true, nil
+}
+
+// SuggestSlug derives a candidate handle from an email address. The result
+// may collide with an existing workspace or reserved slug; callers should
+// resolve to a unique value via FindAvailableSlug or surface validation
+// errors to the user.
+func SuggestSlug(email string) string {
+	return platauth.SuggestSlug(email)
+}
+
+// findAvailableSlugMaxAttempts caps how many `base`, `base-2`, … `base-N`
+// candidates we evaluate before giving up. The whole batch is checked in one
+// query, so the cap is about UX (avoid suggesting "asgeirf-87"), not cost.
+const findAvailableSlugMaxAttempts = 100
+
+// FindAvailableSlug returns the first slug derived from `base` that is not
+// taken and not reserved, by appending -2, -3, etc. as needed.
+//
+// All candidates are tested in a single round trip via ListTakenSlugs, so
+// this stays at one DB query no matter how crowded the chosen base is.
+func (s *AuthService) FindAvailableSlug(ctx context.Context, base string) (string, error) {
+	if base == "" {
+		return "", errors.New("base slug is required")
+	}
+	candidates := make([]string, 0, findAvailableSlugMaxAttempts)
+	candidates = append(candidates, base)
+	for i := 2; i <= findAvailableSlugMaxAttempts; i++ {
+		candidates = append(candidates, fmt.Sprintf("%s-%d", base, i))
+	}
+	taken, err := s.store.ListTakenSlugs(ctx, candidates)
+	if err != nil {
+		return "", err
+	}
+	for _, c := range candidates {
+		if !taken[c] {
+			return c, nil
+		}
+	}
+	return "", fmt.Errorf("could not find unique slug for %s", base)
+}
+
+// IsSlugAvailable reports whether the given slug is well-formed and not in
+// use (either as an active workspace slug or as a reserved-on-rename slug).
+// The returned reason is a short tag suitable for client display
+// ("invalid", "reserved", "taken") when available is false.
+func (s *AuthService) IsSlugAvailable(ctx context.Context, slug string) (bool, string, error) {
+	if err := platauth.ValidateWorkspaceSlug(slug); err != nil {
+		return false, "invalid", nil
+	}
+	if _, err := s.store.GetWorkspaceBySlug(ctx, slug); err == nil {
+		return false, "taken", nil
+	}
+	if _, _, reserved, err := s.store.IsSlugReserved(ctx, slug); err != nil {
+		return false, "", fmt.Errorf("check reserved: %w", err)
+	} else if reserved {
+		return false, "reserved", nil
+	}
+	return true, "", nil
+}
+
+// CompleteOnboarding marks the user as onboarded and creates their personal
+// workspace with the chosen slug. If the user is already onboarded with a
+// personal workspace, it is returned without modification (idempotent).
+func (s *AuthService) CompleteOnboarding(ctx context.Context, userID, slug, displayName string) (*platauth.Workspace, error) {
+	if userID == "" {
+		return nil, errors.New("user ID is required")
+	}
+	if slug == "" {
+		return nil, errors.New("slug is required")
+	}
+	u, err := s.store.GetUser(ctx, userID)
+	if err != nil {
+		return nil, fmt.Errorf("get user: %w", err)
+	}
+	// Idempotent: if user already has a personal workspace, return it.
+	if existing, err := s.findPersonalWorkspace(ctx, userID); err == nil && existing != nil {
+		if u.OnboardedAt == nil {
+			now := time.Now().UTC()
+			u.OnboardedAt = &now
+			_ = s.store.UpdateUser(ctx, u)
+		}
+		return existing, nil
+	}
+	if err := platauth.ValidateWorkspaceSlug(slug); err != nil {
+		return nil, err
+	}
+	taken, err := s.isSlugTaken(ctx, slug)
+	if err != nil {
+		return nil, err
+	}
+	if taken {
+		return nil, fmt.Errorf("slug %q is not available", slug)
+	}
+	if displayName == "" {
+		displayName = u.Name
+	}
 	if displayName == "" {
 		displayName = slug
 	}
@@ -68,34 +189,42 @@ func (s *AuthService) GetOrCreateUser(ctx context.Context, email, name, avatarUR
 		Slug: slug,
 		Type: platauth.WorkspaceTypePersonal,
 	}
-	if createErr := s.CreateWorkspaceWithOwner(ctx, w, u.ID); createErr != nil {
-		// Log but don't fail — user was created successfully.
-		return u, nil
+	if err := s.CreateWorkspaceWithOwner(ctx, w, userID); err != nil {
+		return nil, err
 	}
-
-	return u, nil
+	now := time.Now().UTC()
+	u.OnboardedAt = &now
+	if err := s.store.UpdateUser(ctx, u); err != nil {
+		return w, fmt.Errorf("mark onboarded: %w", err)
+	}
+	return w, nil
 }
 
-// personalSlug derives a workspace slug from an email address.
-func personalSlug(email string) string {
-	local, _, _ := strings.Cut(email, "@")
-	slug := strings.ToLower(local)
-	// Replace common non-slug characters.
-	slug = strings.NewReplacer(".", "-", "_", "-", "+", "-").Replace(slug)
-	return slug
+// isSlugTaken reports whether `slug` is in use as an active workspace slug
+// or held by an active rename reservation.
+func (s *AuthService) isSlugTaken(ctx context.Context, slug string) (bool, error) {
+	if _, err := s.store.GetWorkspaceBySlug(ctx, slug); err == nil {
+		return true, nil
+	}
+	_, _, reserved, err := s.store.IsSlugReserved(ctx, slug)
+	if err != nil {
+		return false, fmt.Errorf("check reserved: %w", err)
+	}
+	return reserved, nil
 }
 
-// uniqueSlug checks if a slug is taken and appends -2, -3, etc. if needed.
-func (s *AuthService) uniqueSlug(ctx context.Context, base string) (string, error) {
-	slug := base
-	for i := 2; i <= 100; i++ {
-		_, err := s.store.GetWorkspaceBySlug(ctx, slug)
-		if err != nil {
-			return slug, nil // not found, slug is available
+// findPersonalWorkspace returns the user's personal workspace if any.
+func (s *AuthService) findPersonalWorkspace(ctx context.Context, userID string) (*platauth.Workspace, error) {
+	workspaces, err := s.store.ListWorkspaces(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+	for _, w := range workspaces {
+		if w.Type == platauth.WorkspaceTypePersonal {
+			return w, nil
 		}
-		slug = fmt.Sprintf("%s-%d", base, i)
 	}
-	return "", fmt.Errorf("could not find unique slug for %s", base)
+	return nil, nil
 }
 
 // GenerateToken creates a JWT for the given user.

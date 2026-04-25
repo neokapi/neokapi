@@ -7,6 +7,7 @@ import {
   ToggleLeft,
   TrendingUp,
   Shield,
+  Tag,
 } from "lucide-react";
 import {
   Sidebar,
@@ -34,6 +35,7 @@ const navItems: NavItem[] = [
   { path: "/events", label: "Events", icon: <Activity /> },
   { path: "/overrides", label: "Overrides", icon: <ToggleLeft /> },
   { path: "/upsells", label: "Upsells", icon: <TrendingUp /> },
+  { path: "/slug-reservations", label: "Slug Reservations", icon: <Tag /> },
 ];
 
 function isActive(pathname: string, path: string) {

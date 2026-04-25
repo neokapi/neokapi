@@ -81,6 +81,11 @@ type Server struct {
 	// EmailSender. Nil when email sending is not configured.
 	Mailer *mailer.Mailer
 
+	// KeycloakAdmin writes through identity changes (email, etc.) to Keycloak
+	// via its Admin API. Nil when Config.KeycloakAdminURL is unset, in which
+	// case Bowrain-managed email change is unavailable.
+	KeycloakAdmin *auth.KeycloakAdminClient
+
 	// collabHub manages collaborative editing WebSocket rooms.
 	collabHub *collabHub
 
@@ -306,6 +311,25 @@ func NewServer(cfg Config) *Server {
 
 	// Initialize email sender and mailer.
 	s.initMailer(cfg)
+
+	// Initialize Keycloak Admin client (used for write-through email change).
+	if cfg.KeycloakAdminURL != "" {
+		realm := cfg.KeycloakRealm
+		if realm == "" {
+			realm = "bowrain"
+		}
+		client, err := auth.NewKeycloakAdminClient(auth.KeycloakAdminConfig{
+			BaseURL:      cfg.KeycloakAdminURL,
+			Realm:        realm,
+			ClientID:     cfg.KeycloakAdminClientID,
+			ClientSecret: cfg.KeycloakAdminClientSecret,
+		})
+		if err != nil {
+			slog.Warn("keycloak admin client disabled", "error", err)
+		} else {
+			s.KeycloakAdmin = client
+		}
+	}
 
 	// Initialize stores from PostgreSQL DatabaseURL.
 	if cfg.DatabaseURL != "" {
@@ -718,10 +742,23 @@ func (s *Server) SetupRoutes(e *echo.Echo) {
 		// Back-channel logout (called server-to-server by Keycloak, unauthenticated)
 		authGroup.POST("/backchannel-logout", s.HandleBackChannelLogout)
 
+		// Slug availability check — public; reused by onboarding and the
+		// profile rename form. Format and reservation rules enforced here
+		// rather than the client.
+		authGroup.GET("/check-slug", s.HandleCheckSlug)
+
+		// Email-change confirmation — token-authenticated, intentionally
+		// outside the JWT-protected group so the link works in any browser
+		// session (incl. one without an active Bowrain login).
+		authGroup.POST("/email/confirm", s.HandleConfirmEmailChange)
+
 		// Protected auth routes (require valid token)
 		authProtected := authGroup.Group("")
 		authProtected.Use(AuthMiddleware(s.Config.JWTSecret, s.AuthStore))
 		authProtected.GET("/me", s.HandleAuthMe)
+		authProtected.GET("/me/onboarding", s.HandleGetOnboarding)
+		authProtected.POST("/me/onboarding", s.HandleCompleteOnboarding)
+		authProtected.POST("/me/email", s.HandleRequestEmailChange)
 		authProtected.POST("/logout", s.HandleAuthLogout)
 		authProtected.POST("/token/exchange", s.HandleTokenExchange)
 
@@ -840,6 +877,8 @@ func (s *Server) SetupRoutes(e *echo.Echo) {
 		adminGroup.GET("/events", s.HandleAdminListEvents)
 		adminGroup.GET("/upsells", s.HandleAdminGetUpsells)
 		adminGroup.GET("/overrides", s.HandleAdminListOverrides)
+		adminGroup.GET("/slug-reservations", s.HandleAdminListSlugReservations)
+		adminGroup.POST("/slug-reservations/release", s.HandleAdminReleaseSlugReservation)
 	}
 
 	// MCP server (brand voice resources, tools, prompts via Streamable HTTP).

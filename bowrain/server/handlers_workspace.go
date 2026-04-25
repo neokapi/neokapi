@@ -3,9 +3,12 @@ package server
 import (
 	"crypto/rand"
 	"encoding/hex"
+	"log/slog"
 	"net/http"
+	"time"
 
 	"github.com/labstack/echo/v4"
+	"github.com/neokapi/neokapi/bowrain/auth"
 	"github.com/neokapi/neokapi/bowrain/billing"
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	"github.com/neokapi/neokapi/bowrain/core/store"
@@ -142,7 +145,21 @@ func (s *Server) HandleUpdateWorkspace(c echo.Context) error {
 	if req.Name != "" {
 		w.Name = req.Name
 	}
-	if req.Slug != "" {
+	oldSlug := w.Slug
+	slugChanged := req.Slug != "" && req.Slug != oldSlug
+	if slugChanged {
+		ctx := c.Request().Context()
+		if err := platauth.ValidateWorkspaceSlug(req.Slug); err != nil {
+			return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
+		}
+		if existing, err := s.AuthStore.GetWorkspaceBySlug(ctx, req.Slug); err == nil && existing.ID != w.ID {
+			return c.JSON(http.StatusConflict, ErrorResponse{Error: "slug is already in use"})
+		}
+		if _, _, reserved, err := s.AuthStore.IsSlugReserved(ctx, req.Slug); err != nil {
+			return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "check reserved slug: " + err.Error()})
+		} else if reserved {
+			return c.JSON(http.StatusConflict, ErrorResponse{Error: "slug is reserved from a recent rename"})
+		}
 		w.Slug = req.Slug
 	}
 	if req.Description != "" {
@@ -173,6 +190,15 @@ func (s *Server) HandleUpdateWorkspace(c echo.Context) error {
 	}
 	if err := s.AuthStore.UpdateWorkspace(c.Request().Context(), w); err != nil {
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "update workspace: " + err.Error()})
+	}
+	// Reserve the old slug for the configured grace period so it cannot be
+	// reused for impersonation. Reservation failure does not undo the rename
+	// — log and continue; PurgeExpiredSlugReservations will GC stale entries.
+	if slugChanged {
+		until := time.Now().UTC().Add(auth.SlugReservationWindow)
+		if err := s.AuthStore.ReserveSlug(c.Request().Context(), w.ID, oldSlug, until); err != nil {
+			slog.WarnContext(c.Request().Context(), "reserve old workspace slug", "workspace_id", w.ID, "old_slug", oldSlug, "error", err)
+		}
 	}
 	// Enrich with the calling user's role so the frontend stays consistent.
 	if userID, ok := c.Get("user_id").(string); ok && userID != "" {

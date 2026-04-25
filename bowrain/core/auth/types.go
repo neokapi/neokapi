@@ -5,13 +5,37 @@ package auth
 import "time"
 
 // User represents an authenticated user.
+//
+// OnboardedAt is set when the user has completed onboarding (chosen a handle
+// and had their personal workspace created). Until then, the user has a
+// session but no workspace; the web app routes them through /welcome.
 type User struct {
+	ID          string     `json:"id"`
+	Email       string     `json:"email"`
+	Name        string     `json:"name"`
+	AvatarURL   string     `json:"avatar_url"`
+	OIDCSub     string     `json:"oidc_sub,omitempty"`
+	OnboardedAt *time.Time `json:"onboarded_at,omitempty"`
+	CreatedAt   time.Time  `json:"created_at"`
+}
+
+// EmailChangeRequest is a pending email-change request.
+// The plaintext token is sent to the new email address; the hash is stored.
+type EmailChangeRequest struct {
 	ID        string    `json:"id"`
-	Email     string    `json:"email"`
-	Name      string    `json:"name"`
-	AvatarURL string    `json:"avatar_url"`
-	OIDCSub   string    `json:"oidc_sub,omitempty"`
+	UserID    string    `json:"user_id"`
+	NewEmail  string    `json:"new_email"`
+	ExpiresAt time.Time `json:"expires_at"`
 	CreatedAt time.Time `json:"created_at"`
+}
+
+// SlugReservation records that a workspace slug is held during a rename grace
+// period and cannot be reused for another workspace until ReservedUntil.
+type SlugReservation struct {
+	Slug          string    `json:"slug"`
+	WorkspaceID   string    `json:"workspace_id"`
+	ReservedUntil time.Time `json:"reserved_until"`
+	CreatedAt     time.Time `json:"created_at"`
 }
 
 // WorkspaceType distinguishes personal from team workspaces.
