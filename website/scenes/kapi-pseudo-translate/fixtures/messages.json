@@ -1,0 +1,9 @@
+{
+  "greeting": "Hello, World!",
+  "welcome": "Welcome to our application",
+  "buttons": {
+    "save": "Save",
+    "cancel": "Cancel",
+    "submit": "Submit"
+  }
+}

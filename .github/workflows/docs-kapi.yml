@@ -18,7 +18,62 @@ permissions:
   contents: read
 
 jobs:
+  record-scenes:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-go@v6
+        with:
+          go-version: "1.26.0"
+          cache: true
+
+      - name: Build kapi binary
+        run: make build
+
+      - name: Install VHS + Xvfb
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg ttyd xvfb
+          curl -L "https://github.com/charmbracelet/vhs/releases/download/v0.9.0/vhs_0.9.0_amd64.deb" -o /tmp/vhs.deb
+          sudo dpkg -i /tmp/vhs.deb
+
+      - name: Record terminal scenes
+        env:
+          DISPLAY: ":99"
+        run: |
+          export PATH="$PWD/bin:$PATH"
+          Xvfb :99 -screen 0 1280x720x24 &
+          sleep 2
+          if [ -d website/scenes ]; then
+            for scene_dir in website/scenes/*/; do
+              wt=$(basename "$scene_dir")
+              for tape in "$scene_dir"*.tape; do
+                [ -f "$tape" ] || continue
+                echo "Recording $tape"
+                (cd "$scene_dir" && timeout 180 vhs "$(basename "$tape")") || echo "::warning::tape $tape failed"
+              done
+            done
+          fi
+
+      - name: Stage recorded assets under static/video/kapi/
+        run: |
+          mkdir -p website/static/video/kapi
+          if [ -d website/scenes ]; then
+            for webm in website/scenes/*/*.webm; do
+              [ -f "$webm" ] || continue
+              cp "$webm" "website/static/video/kapi/$(basename "$webm")"
+            done
+          fi
+
+      - name: Upload recorded scenes
+        uses: actions/upload-artifact@v7
+        with:
+          name: kapi-scenes
+          path: website/static/video/kapi
+          retention-days: 7
+
   build:
+    needs: record-scenes
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -30,6 +85,12 @@ jobs:
 
       - name: Install workspace dependencies
         run: vp install
+
+      - name: Download recorded scenes
+        uses: actions/download-artifact@v5
+        with:
+          name: kapi-scenes
+          path: website/static/video/kapi
 
       - name: Fetch last-known-good docs assets (kapi only)
         env:
