@@ -1,10 +1,9 @@
 /*
  * Kapi Storybook CSS entry point.
- * @neokapi/ui-primitives self-registers its @source via theme-tokens.css
- * (transitively imported by kapi-desktop's index.css); this file only adds
- * the sources Storybook needs that aren't already declared by a package.
+ * @neokapi/ui-primitives and @neokapi/flow-editor self-register their
+ * @source via files imported by kapi-desktop's index.css; this file only
+ * adds the sources Storybook needs from the consuming app.
  */
 @import "../../apps/kapi-desktop/frontend/src/index.css";
 
-@source "../../packages/flow-editor/src";
 @source "../../apps/kapi-desktop/frontend/src";
