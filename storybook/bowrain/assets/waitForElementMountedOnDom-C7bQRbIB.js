@@ -1,0 +1,1 @@
+import{n as e}from"./chunk-DnJy8xQt.js";async function t(e){let{elementId:t}=e,n=()=>document.getElementById(t);if(n()===null){let e,t=new Promise(t=>e=t),r=new MutationObserver(()=>{n()!==null&&(r.disconnect(),e())});r.observe(document.body,{childList:!0,subtree:!0}),await t}}var n=e((()=>{}));export{t as n,n as t};

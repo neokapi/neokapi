@@ -1,0 +1,9 @@
+import{n as e}from"./chunk-DnJy8xQt.js";import{t}from"./jsx-runtime-B-hFyic3.js";import{r as n,t as r}from"./runtime-B587fM_0.js";function i({mode:e,onChange:t}){return(0,a.jsxs)(`div`,{className:`flex rounded-lg bg-accent p-0.5 text-xs`,children:[(0,a.jsx)(`button`,{onClick:()=>t(`adhoc`),className:`rounded-md px-3 py-1 transition-colors ${e===`adhoc`?`bg-background text-foreground font-medium shadow-sm`:`text-muted-foreground hover:text-foreground`}`,children:r(`3N2KTB`,`Ad-hoc`)}),(0,a.jsx)(`button`,{onClick:()=>t(`projects`),className:`rounded-md px-3 py-1 transition-colors ${e===`projects`?`bg-background text-foreground font-medium shadow-sm`:`text-muted-foreground hover:text-foreground`}`,children:r(`36tCJY`,`Project`)})]})}var a,o=e((()=>{n(),a=t(),i.__docgenInfo={description:``,methods:[],displayName:`ModeToggle`,props:{mode:{required:!0,tsType:{name:`union`,raw:`"adhoc" | "projects"`,elements:[{name:`literal`,value:`"adhoc"`},{name:`literal`,value:`"projects"`}]},description:``},onChange:{required:!0,tsType:{name:`signature`,type:`function`,raw:`(mode: AppMode) => void`,signature:{arguments:[{type:{name:`union`,raw:`"adhoc" | "projects"`,elements:[{name:`literal`,value:`"adhoc"`},{name:`literal`,value:`"projects"`}]},name:`mode`}],return:{name:`void`}}},description:``}}}})),s,c,l,u,d;e((()=>{o(),{fn:s}=__STORYBOOK_MODULE_TEST__,c={title:`Components/ModeToggle`,component:i,tags:[`autodocs`],args:{onChange:s()}},l={args:{mode:`adhoc`}},u={args:{mode:`projects`}},l.parameters={...l.parameters,docs:{...l.parameters?.docs,source:{originalSource:`{
+  args: {
+    mode: "adhoc"
+  }
+}`,...l.parameters?.docs?.source}}},u.parameters={...u.parameters,docs:{...u.parameters?.docs,source:{originalSource:`{
+  args: {
+    mode: "projects"
+  }
+}`,...u.parameters?.docs?.source}}},d=[`AdhocMode`,`ProjectMode`]}))();export{l as AdhocMode,u as ProjectMode,d as __namedExportsOrder,c as default};

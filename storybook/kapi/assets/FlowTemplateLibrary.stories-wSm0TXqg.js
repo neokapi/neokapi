@@ -1,0 +1,5 @@
+import{n as e}from"./chunk-DnJy8xQt.js";import{t}from"./jsx-runtime-B-hFyic3.js";import{n,t as r}from"./FlowTemplateLibrary-C_Yxortl.js";var i,a,o,s,c,l;e((()=>{n(),i=t(),{fn:a}=__STORYBOOK_MODULE_TEST__,o={title:`Flow Editor/FlowTemplateLibrary`,component:r,tags:[`autodocs`],args:{onSelect:a(),onDismiss:a()},decorators:[e=>(0,i.jsx)(`div`,{style:{height:600,overflow:`auto`},children:(0,i.jsx)(e,{})})]},s={},c={args:{onDismiss:void 0}},s.parameters={...s.parameters,docs:{...s.parameters?.docs,source:{originalSource:`{}`,...s.parameters?.docs?.source}}},c.parameters={...c.parameters,docs:{...c.parameters?.docs,source:{originalSource:`{
+  args: {
+    onDismiss: undefined
+  }
+}`,...c.parameters?.docs?.source}}},l=[`Default`,`WithoutDismiss`]}))();export{s as Default,c as WithoutDismiss,l as __namedExportsOrder,o as default};

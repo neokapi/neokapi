@@ -1,0 +1,11 @@
+import{n as e}from"./chunk-DnJy8xQt.js";import{t}from"./jsx-runtime-B-hFyic3.js";import{J as n,V as r,t as i}from"./dist-M2wk2DTe.js";import{n as a,t as o}from"./bravo-thread-DyVJPc5Q.js";import{a as s,i as c,n as l,r as u,t as d}from"./fixtures-aui-C00XD-8s.js";function f({messages:e=[],isRunning:t=!1,coldStart:i=!1}){return(0,p.jsx)(r,{runtime:n({messages:e,isRunning:t,convertMessage:e=>e,onNew:async()=>{},onCancel:async()=>{}}),children:(0,p.jsx)(`div`,{className:`h-[500px] w-[400px] border rounded-lg overflow-hidden flex flex-col bg-background text-foreground`,children:(0,p.jsx)(o,{coldStart:i})})})}var p,m,h,g,_,v,y,b;e((()=>{i(),a(),d(),p=t(),m={title:`Bravo/BravoAssistantThread`,tags:[`autodocs`],parameters:{layout:`centered`}},h={render:()=>(0,p.jsx)(f,{messages:u})},g={render:()=>(0,p.jsx)(f,{messages:c,isRunning:!0})},_={render:()=>(0,p.jsx)(f,{messages:[s,l]})},v={render:()=>(0,p.jsx)(f,{})},y={render:()=>(0,p.jsx)(f,{messages:[s],coldStart:!0})},h.parameters={...h.parameters,docs:{...h.parameters?.docs,source:{originalSource:`{
+  render: () => <ThreadWithRuntime messages={sampleAuiMessages} />
+}`,...h.parameters?.docs?.source}}},g.parameters={...g.parameters,docs:{...g.parameters?.docs,source:{originalSource:`{
+  render: () => <ThreadWithRuntime messages={sampleAuiStreamingMessages} isRunning />
+}`,...g.parameters?.docs?.source}}},_.parameters={..._.parameters,docs:{..._.parameters?.docs,source:{originalSource:`{
+  render: () => <ThreadWithRuntime messages={[sampleAuiUserMessage, sampleAuiMarkdownMessage]} />
+}`,..._.parameters?.docs?.source}}},v.parameters={...v.parameters,docs:{...v.parameters?.docs,source:{originalSource:`{
+  render: () => <ThreadWithRuntime />
+}`,...v.parameters?.docs?.source}}},y.parameters={...y.parameters,docs:{...y.parameters?.docs,source:{originalSource:`{
+  render: () => <ThreadWithRuntime messages={[sampleAuiUserMessage]} coldStart />
+}`,...y.parameters?.docs?.source}}},b=[`WithMessages`,`Streaming`,`RichMarkdown`,`Empty`,`ColdStart`]}))();export{y as ColdStart,v as Empty,_ as RichMarkdown,g as Streaming,h as WithMessages,b as __namedExportsOrder,m as default};

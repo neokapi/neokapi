@@ -1,0 +1,1 @@
+import{n as e}from"./chunk-DnJy8xQt.js";function t(e){return!!e.path&&(!e.items||e.items.length===0)}function n(e){return t(e)?[{path:e.path,format:e.format,target:e.target}]:e.items??[]}var r=e((()=>{}));export{r as n,t as r,n as t};

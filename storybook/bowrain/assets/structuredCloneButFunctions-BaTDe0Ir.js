@@ -1,0 +1,1 @@
+import{n as e}from"./chunk-DnJy8xQt.js";import{t}from"./Object.fromEntries-DKdbtRHi.js";function n(e){return!(e instanceof Object)||typeof e==`function`?e:e instanceof Array?e.map(n):Object.fromEntries(Object.entries(e).map(([e,t])=>[e,n(t)]))}var r=e((()=>{t()}));export{n,r as t};
