@@ -1,23 +1,7 @@
-# VHS Tape: kapi extract → merge bilingual round-trip (AD-017, issue #421)
-#
-# Runs the end-to-end workflow narrated in
-# website/docs/kapi-cli/bilingual-workflow.md:
-#   1. Seed the project TM from a TMX corpus.
-#   2. kapi extract — emit XLIFF per target locale with TM pre-fill.
-#   3. Simulate a translator completing each XLIFF (fake-translator.sh).
-#   4. kapi merge — apply the translator's return back onto the source,
-#      absorbing into the TM with batch provenance.
-#   5. kapi tm audit --batch <id> — show what merge contributed.
-#
-# Fixture under samples/bilingual-project/:
-#   - app.kapi              recipe: en-US → {fr-FR, de-DE}, json content
-#   - corporate.tmx         5 TUs; 4 match messages.json for exact leverage
-#   - src/locales/en/messages.json (5 keys, one multi-sentence)
-#   - fake-translator.sh    inline Python that fills <target> per locale
-#
-# Invoked via website/tapes/generate.sh as part of `make kapi-recordings`.
+# VHS tape — generated from website/walkthroughs/kapi-bilingual-workflow.md
+# Scene 1: bilingual-workflow (terminal). Do not edit by hand.
 
-Output output/bilingual-workflow.webm
+Output "01-bilingual-workflow.webm"
 
 Set FontSize 16
 Set Width 1000
@@ -28,7 +12,7 @@ Set Padding 20
 # Reset the fixture to a clean state so the recording is reproducible —
 # kapi extract/merge mutate .kapi/ and src/locales/{fr-FR,de-DE}/.
 Hide
-Type "cd samples/bilingual-project && rm -rf .kapi out src/locales/fr-FR src/locales/de-DE && mkdir -p .kapi"
+Type "cd fixtures/bilingual-project && rm -rf .kapi out src/locales/fr-FR src/locales/de-DE && mkdir -p .kapi"
 Enter
 Sleep 300ms
 Show

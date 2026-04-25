@@ -1,7 +1,7 @@
-# VHS Tape: kapi word-count demo
-# Demonstrates word counting for localization estimation
+# VHS tape — generated from website/walkthroughs/kapi-word-count.md
+# Scene 1: word-count (terminal). Do not edit by hand.
 
-Output output/word-count.webm
+Output "01-word-count.webm"
 
 Set FontSize 16
 Set Width 900
@@ -13,7 +13,7 @@ Type "# Count words in a JSON file"
 Enter
 Sleep 500ms
 
-Type "kapi word-count samples/messages.json"
+Type "kapi word-count fixtures/messages.json"
 Enter
 Sleep 2s
 

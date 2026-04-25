@@ -1,8 +1,7 @@
-# VHS Tape: kapi termbase QA demo
-# Demonstrates terminology QA workflow: import glossary, look up terms,
-# run QA check with termbase enforcement.
+# VHS tape — generated from website/walkthroughs/kapi-terminology-qa.md
+# Scene 1: termbase-qa (terminal). Do not edit by hand.
 
-Output output/termbase-qa.webm
+Output "01-termbase-qa.webm"
 
 Set FontSize 16
 Set Width 1000
@@ -14,11 +13,11 @@ Type "# Import a glossary into a named termbase"
 Enter
 Sleep 500ms
 
-Type "cat samples/glossary.csv"
+Type "cat fixtures/glossary.csv"
 Enter
 Sleep 1500ms
 
-Type "kapi termbase import samples/glossary.csv --name product-terms --format csv -s en -t fr --header"
+Type "kapi termbase import fixtures/glossary.csv --name product-terms --format csv -s en -t fr --header"
 Enter
 Sleep 1500ms
 
@@ -66,7 +65,7 @@ Type "# Run QA with terminology enforcement"
 Enter
 Sleep 500ms
 
-Type "kapi pseudo-translate -i samples/messages_en.json -o out/pseudo_fr.json --target-lang fr"
+Type "kapi pseudo-translate -i fixtures/messages_en.json -o out/pseudo_fr.json --target-lang fr"
 Enter
 Sleep 1500ms
 
