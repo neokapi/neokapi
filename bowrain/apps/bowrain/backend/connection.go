@@ -140,6 +140,19 @@ func (a *App) connectWithToken(serverURL, token string) error {
 	// after the binary starts, so it may not exist yet. The frontend's
 	// setupServerApp helper handles workspace selection after seeding.
 	slog.Info("bowrain: auto-connected via BOWRAIN_TOKEN", "server_url", serverURL)
+
+	// Notify the frontend so its connection state hook re-fetches and the
+	// app transitions out of the connect screen. Without this, the React
+	// useEffect that ran connection.refresh() before this auto-connect
+	// completed has already set mode="connecting".
+	if a.app != nil {
+		a.app.Event.Emit("connection-state-changed", ConnectionInfo{
+			State:     StateConnected,
+			ServerURL: serverURL,
+			UserName:  "CI",
+			UserEmail: "ci@bowrain.cloud",
+		})
+	}
 	return nil
 }
 

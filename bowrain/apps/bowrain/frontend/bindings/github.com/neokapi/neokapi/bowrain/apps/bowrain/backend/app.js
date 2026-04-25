@@ -10,18 +10,14 @@
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
-import {
-  Call as $Call,
-  CancellablePromise as $CancellablePromise,
-  Create as $Create,
-} from "@wailsio/runtime";
+import { Call as $Call, CancellablePromise as $CancellablePromise, Create as $Create } from "@wailsio/runtime";
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
-import * as locale$0 from "../../../../core/locale/models.js";
+import * as store$0 from "../../../core/store/models.js";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
-import * as store$0 from "../../../../platform/store/models.js";
+import * as locale$0 from "../../../../core/locale/models.js";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
 import * as application$0 from "../../../../../../wailsapp/wails/v3/pkg/application/models.js";
@@ -36,13 +32,9 @@ import * as $models from "./models.js";
  * @returns {$CancellablePromise<$models.ConceptInfo | null>}
  */
 export function AddConcept(req) {
-  return $Call.ByID(1629877469, req).then(
-    /** @type {($result: any) => any} */ (
-      ($result) => {
+    return $Call.ByID(1629877469, req).then(/** @type {($result: any) => any} */(($result) => {
         return $$createType1($result);
-      }
-    ),
-  );
+    }));
 }
 
 /**
@@ -52,13 +44,9 @@ export function AddConcept(req) {
  * @returns {$CancellablePromise<$models.ProjectInfo | null>}
  */
 export function AddItems(projectID, filePaths) {
-  return $Call.ByID(3605832733, projectID, filePaths).then(
-    /** @type {($result: any) => any} */ (
-      ($result) => {
+    return $Call.ByID(3605832733, projectID, filePaths).then(/** @type {($result: any) => any} */(($result) => {
         return $$createType3($result);
-      }
-    ),
-  );
+    }));
 }
 
 /**
@@ -71,13 +59,9 @@ export function AddItems(projectID, filePaths) {
  * @returns {$CancellablePromise<$models.TMEntryInfo | null>}
  */
 export function AddTMEntry(projectID, source, target, sourceLocale, targetLocale) {
-  return $Call.ByID(2110941316, projectID, source, target, sourceLocale, targetLocale).then(
-    /** @type {($result: any) => any} */ (
-      ($result) => {
+    return $Call.ByID(2110941316, projectID, source, target, sourceLocale, targetLocale).then(/** @type {($result: any) => any} */(($result) => {
         return $$createType5($result);
-      }
-    ),
-  );
+    }));
 }
 
 /**
@@ -85,7 +69,7 @@ export function AddTMEntry(projectID, source, target, sourceLocale, targetLocale
  * @returns {$CancellablePromise<void>}
  */
 export function CancelLogin() {
-  return $Call.ByID(3730504007);
+    return $Call.ByID(3730504007);
 }
 
 /**
@@ -93,13 +77,9 @@ export function CancelLogin() {
  * @returns {$CancellablePromise<$models.PluginUpdateInfo[]>}
  */
 export function CheckPluginUpdates() {
-  return $Call.ByID(3156217699).then(
-    /** @type {($result: any) => any} */ (
-      ($result) => {
+    return $Call.ByID(3156217699).then(/** @type {($result: any) => any} */(($result) => {
         return $$createType7($result);
-      }
-    ),
-  );
+    }));
 }
 
 /**
@@ -108,7 +88,7 @@ export function CheckPluginUpdates() {
  * @returns {$CancellablePromise<void>}
  */
 export function CloseProject(projectID) {
-  return $Call.ByID(3843799473, projectID);
+    return $Call.ByID(3843799473, projectID);
 }
 
 /**
@@ -118,13 +98,9 @@ export function CloseProject(projectID) {
  * @returns {$CancellablePromise<$models.ConnectorInfo | null>}
  */
 export function ConfigureConnector(connectorType, config) {
-  return $Call.ByID(4176435679, connectorType, config).then(
-    /** @type {($result: any) => any} */ (
-      ($result) => {
+    return $Call.ByID(4176435679, connectorType, config).then(/** @type {($result: any) => any} */(($result) => {
         return $$createType9($result);
-      }
-    ),
-  );
+    }));
 }
 
 /**
@@ -135,7 +111,7 @@ export function ConfigureConnector(connectorType, config) {
  * @returns {$CancellablePromise<void>}
  */
 export function ConnectToServer(serverURL) {
-  return $Call.ByID(2777579616, serverURL);
+    return $Call.ByID(2777579616, serverURL);
 }
 
 /**
@@ -146,13 +122,9 @@ export function ConnectToServer(serverURL) {
  * @returns {$CancellablePromise<$models.ProjectInfo | null>}
  */
 export function CreateProject(name, sourceLang, targetLangs) {
-  return $Call.ByID(4069855585, name, sourceLang, targetLangs).then(
-    /** @type {($result: any) => any} */ (
-      ($result) => {
+    return $Call.ByID(4069855585, name, sourceLang, targetLangs).then(/** @type {($result: any) => any} */(($result) => {
         return $$createType3($result);
-      }
-    ),
-  );
+    }));
 }
 
 /**
@@ -163,13 +135,9 @@ export function CreateProject(name, sourceLang, targetLangs) {
  * @returns {$CancellablePromise<store$0.Version | null>}
  */
 export function CreateStoreVersion(projectID, label, description) {
-  return $Call.ByID(1139403919, projectID, label, description).then(
-    /** @type {($result: any) => any} */ (
-      ($result) => {
+    return $Call.ByID(1139403919, projectID, label, description).then(/** @type {($result: any) => any} */(($result) => {
         return $$createType11($result);
-      }
-    ),
-  );
+    }));
 }
 
 /**
@@ -179,7 +147,7 @@ export function CreateStoreVersion(projectID, label, description) {
  * @returns {$CancellablePromise<void>}
  */
 export function DeleteConcept(projectID, conceptID) {
-  return $Call.ByID(3557611909, projectID, conceptID);
+    return $Call.ByID(3557611909, projectID, conceptID);
 }
 
 /**
@@ -188,7 +156,7 @@ export function DeleteConcept(projectID, conceptID) {
  * @returns {$CancellablePromise<void>}
  */
 export function DeleteFlowDefinition(id) {
-  return $Call.ByID(1213282658, id);
+    return $Call.ByID(1213282658, id);
 }
 
 /**
@@ -197,7 +165,7 @@ export function DeleteFlowDefinition(id) {
  * @returns {$CancellablePromise<void>}
  */
 export function DeleteProviderConfig(id) {
-  return $Call.ByID(1970959020, id);
+    return $Call.ByID(1970959020, id);
 }
 
 /**
@@ -207,7 +175,7 @@ export function DeleteProviderConfig(id) {
  * @returns {$CancellablePromise<void>}
  */
 export function DeleteTMEntry(projectID, entryID) {
-  return $Call.ByID(3484082396, projectID, entryID);
+    return $Call.ByID(3484082396, projectID, entryID);
 }
 
 /**
@@ -216,7 +184,7 @@ export function DeleteTMEntry(projectID, entryID) {
  * @returns {$CancellablePromise<string>}
  */
 export function DetectFormat(filePath) {
-  return $Call.ByID(661014944, filePath);
+    return $Call.ByID(661014944, filePath);
 }
 
 /**
@@ -224,7 +192,7 @@ export function DetectFormat(filePath) {
  * @returns {$CancellablePromise<void>}
  */
 export function Disconnect() {
-  return $Call.ByID(668361826);
+    return $Call.ByID(668361826);
 }
 
 /**
@@ -234,18 +202,20 @@ export function Disconnect() {
  * @returns {$CancellablePromise<string>}
  */
 export function ExportTermsJSON(projectID, name) {
-  return $Call.ByID(2197315403, projectID, name);
+    return $Call.ByID(2197315403, projectID, name);
 }
 
 /**
- * ExportTranslatedItem writes the translated item to disk and returns the output path.
- * @param {string} projectID
+ * ExportTranslatedItem is no longer supported in the desktop app.
+ * Source bytes are no longer stored in the Item model. Use the CLI
+ * ('bowrain pull') for translated file export.
+ * @param {string} $0
  * @param {string} itemName
- * @param {string} targetLocale
+ * @param {string} $2
  * @returns {$CancellablePromise<string>}
  */
-export function ExportTranslatedItem(projectID, itemName, targetLocale) {
-  return $Call.ByID(794357047, projectID, itemName, targetLocale);
+export function ExportTranslatedItem($0, itemName, $2) {
+    return $Call.ByID(794357047, $0, itemName, $2);
 }
 
 /**
@@ -255,27 +225,21 @@ export function ExportTranslatedItem(projectID, itemName, targetLocale) {
  * @returns {$CancellablePromise<$models.ContentItemInfo[]>}
  */
 export function FetchContent(connectorID, projectID) {
-  return $Call.ByID(704585525, connectorID, projectID).then(
-    /** @type {($result: any) => any} */ (
-      ($result) => {
+    return $Call.ByID(704585525, connectorID, projectID).then(/** @type {($result: any) => any} */(($result) => {
         return $$createType13($result);
-      }
-    ),
-  );
+    }));
 }
 
 /**
  * GetConnectionState returns the current connection info.
+ * If BOWRAIN_TOKEN is set and no connection exists, auto-connects to the
+ * server (for CI/headless mode where interactive login is not possible).
  * @returns {$CancellablePromise<$models.ConnectionInfo>}
  */
 export function GetConnectionState() {
-  return $Call.ByID(3416146777).then(
-    /** @type {($result: any) => any} */ (
-      ($result) => {
+    return $Call.ByID(3416146777).then(/** @type {($result: any) => any} */(($result) => {
         return $$createType14($result);
-      }
-    ),
-  );
+    }));
 }
 
 /**
@@ -284,13 +248,9 @@ export function GetConnectionState() {
  * @returns {$CancellablePromise<$models.SyncStatusInfo | null>}
  */
 export function GetConnectorStatus(connectorID) {
-  return $Call.ByID(2803823489, connectorID).then(
-    /** @type {($result: any) => any} */ (
-      ($result) => {
+    return $Call.ByID(2803823489, connectorID).then(/** @type {($result: any) => any} */(($result) => {
         return $$createType16($result);
-      }
-    ),
-  );
+    }));
 }
 
 /**
@@ -298,13 +258,9 @@ export function GetConnectorStatus(connectorID) {
  * @returns {$CancellablePromise<$models.WorkspaceInfo>}
  */
 export function GetCurrentWorkspace() {
-  return $Call.ByID(1584343218).then(
-    /** @type {($result: any) => any} */ (
-      ($result) => {
+    return $Call.ByID(1584343218).then(/** @type {($result: any) => any} */(($result) => {
         return $$createType17($result);
-      }
-    ),
-  );
+    }));
 }
 
 /**
@@ -314,7 +270,7 @@ export function GetCurrentWorkspace() {
  * @returns {$CancellablePromise<string>}
  */
 export function GetDefaultServerURL() {
-  return $Call.ByID(3615231647);
+    return $Call.ByID(3615231647);
 }
 
 /**
@@ -323,13 +279,9 @@ export function GetDefaultServerURL() {
  * @returns {$CancellablePromise<$models.FlowDefinitionInfo | null>}
  */
 export function GetFlowDefinition(id) {
-  return $Call.ByID(1916918101, id).then(
-    /** @type {($result: any) => any} */ (
-      ($result) => {
+    return $Call.ByID(1916918101, id).then(/** @type {($result: any) => any} */(($result) => {
         return $$createType19($result);
-      }
-    ),
-  );
+    }));
 }
 
 /**
@@ -341,13 +293,9 @@ export function GetFlowDefinition(id) {
  * @returns {$CancellablePromise<$models.BlockInfo[]>}
  */
 export function GetItemBlocks(projectID, itemName) {
-  return $Call.ByID(3766337077, projectID, itemName).then(
-    /** @type {($result: any) => any} */ (
-      ($result) => {
+    return $Call.ByID(3766337077, projectID, itemName).then(/** @type {($result: any) => any} */(($result) => {
         return $$createType21($result);
-      }
-    ),
-  );
+    }));
 }
 
 /**
@@ -355,13 +303,9 @@ export function GetItemBlocks(projectID, itemName) {
  * @returns {$CancellablePromise<locale$0.LocaleInfo[]>}
  */
 export function GetKnownLocales() {
-  return $Call.ByID(2350617666).then(
-    /** @type {($result: any) => any} */ (
-      ($result) => {
+    return $Call.ByID(2350617666).then(/** @type {($result: any) => any} */(($result) => {
         return $$createType23($result);
-      }
-    ),
-  );
+    }));
 }
 
 /**
@@ -370,7 +314,7 @@ export function GetKnownLocales() {
  * @returns {$CancellablePromise<string>}
  */
 export function GetLocaleDisplayName(code) {
-  return $Call.ByID(4205376439, code);
+    return $Call.ByID(4205376439, code);
 }
 
 /**
@@ -379,7 +323,7 @@ export function GetLocaleDisplayName(code) {
  * @returns {$CancellablePromise<number>}
  */
 export function GetPendingChangesCount() {
-  return $Call.ByID(3204097911);
+    return $Call.ByID(3204097911);
 }
 
 /**
@@ -388,13 +332,9 @@ export function GetPendingChangesCount() {
  * @returns {$CancellablePromise<$models.ProjectInfo | null>}
  */
 export function GetProject(projectID) {
-  return $Call.ByID(999425817, projectID).then(
-    /** @type {($result: any) => any} */ (
-      ($result) => {
+    return $Call.ByID(999425817, projectID).then(/** @type {($result: any) => any} */(($result) => {
         return $$createType3($result);
-      }
-    ),
-  );
+    }));
 }
 
 /**
@@ -402,13 +342,9 @@ export function GetProject(projectID) {
  * @returns {$CancellablePromise<$models.WorkspaceInfo[]>}
  */
 export function GetServerWorkspaces() {
-  return $Call.ByID(3159397869).then(
-    /** @type {($result: any) => any} */ (
-      ($result) => {
+    return $Call.ByID(3159397869).then(/** @type {($result: any) => any} */(($result) => {
         return $$createType24($result);
-      }
-    ),
-  );
+    }));
 }
 
 /**
@@ -417,7 +353,7 @@ export function GetServerWorkspaces() {
  * @returns {$CancellablePromise<number>}
  */
 export function GetTMCount(projectID) {
-  return $Call.ByID(696825198, projectID);
+    return $Call.ByID(696825198, projectID);
 }
 
 /**
@@ -431,13 +367,9 @@ export function GetTMCount(projectID) {
  * @returns {$CancellablePromise<$models.TMSearchResult | null>}
  */
 export function GetTMEntries(projectID, query, sourceLocale, targetLocale, offset, limit) {
-  return $Call.ByID(2067629197, projectID, query, sourceLocale, targetLocale, offset, limit).then(
-    /** @type {($result: any) => any} */ (
-      ($result) => {
+    return $Call.ByID(2067629197, projectID, query, sourceLocale, targetLocale, offset, limit).then(/** @type {($result: any) => any} */(($result) => {
         return $$createType26($result);
-      }
-    ),
-  );
+    }));
 }
 
 /**
@@ -446,7 +378,7 @@ export function GetTMEntries(projectID, query, sourceLocale, targetLocale, offse
  * @returns {$CancellablePromise<number>}
  */
 export function GetTermCount(projectID) {
-  return $Call.ByID(2826518989, projectID);
+    return $Call.ByID(2826518989, projectID);
 }
 
 /**
@@ -460,13 +392,9 @@ export function GetTermCount(projectID) {
  * @returns {$CancellablePromise<$models.TermSearchResult | null>}
  */
 export function GetTerms(projectID, query, sourceLocale, targetLocale, offset, limit) {
-  return $Call.ByID(3424415079, projectID, query, sourceLocale, targetLocale, offset, limit).then(
-    /** @type {($result: any) => any} */ (
-      ($result) => {
+    return $Call.ByID(3424415079, projectID, query, sourceLocale, targetLocale, offset, limit).then(/** @type {($result: any) => any} */(($result) => {
         return $$createType28($result);
-      }
-    ),
-  );
+    }));
 }
 
 /**
@@ -474,13 +402,9 @@ export function GetTerms(projectID, query, sourceLocale, targetLocale, offset, l
  * @returns {$CancellablePromise<$models.VersionInfo>}
  */
 export function GetVersion() {
-  return $Call.ByID(663291304).then(
-    /** @type {($result: any) => any} */ (
-      ($result) => {
+    return $Call.ByID(663291304).then(/** @type {($result: any) => any} */(($result) => {
         return $$createType29($result);
-      }
-    ),
-  );
+    }));
 }
 
 /**
@@ -490,13 +414,9 @@ export function GetVersion() {
  * @returns {$CancellablePromise<$models.WordCountResult | null>}
  */
 export function GetWordCount(projectID, itemName) {
-  return $Call.ByID(1179732963, projectID, itemName).then(
-    /** @type {($result: any) => any} */ (
-      ($result) => {
+    return $Call.ByID(1179732963, projectID, itemName).then(/** @type {($result: any) => any} */(($result) => {
         return $$createType31($result);
-      }
-    ),
-  );
+    }));
 }
 
 /**
@@ -506,7 +426,7 @@ export function GetWordCount(projectID, itemName) {
  * @returns {$CancellablePromise<void>}
  */
 export function HandleAuthURL(rawURL) {
-  return $Call.ByID(3257686637, rawURL);
+    return $Call.ByID(3257686637, rawURL);
 }
 
 /**
@@ -517,7 +437,7 @@ export function HandleAuthURL(rawURL) {
  * @returns {$CancellablePromise<void>}
  */
 export function HandleDeepLink(webURL) {
-  return $Call.ByID(2634747220, webURL);
+    return $Call.ByID(2634747220, webURL);
 }
 
 /**
@@ -530,23 +450,8 @@ export function HandleDeepLink(webURL) {
  * @param {boolean} hasHeader
  * @returns {$CancellablePromise<number>}
  */
-export function ImportTermsCSV(
-  projectID,
-  csvContent,
-  sourceLocale,
-  targetLocale,
-  domain,
-  hasHeader,
-) {
-  return $Call.ByID(
-    1757479876,
-    projectID,
-    csvContent,
-    sourceLocale,
-    targetLocale,
-    domain,
-    hasHeader,
-  );
+export function ImportTermsCSV(projectID, csvContent, sourceLocale, targetLocale, domain, hasHeader) {
+    return $Call.ByID(1757479876, projectID, csvContent, sourceLocale, targetLocale, domain, hasHeader);
 }
 
 /**
@@ -556,7 +461,7 @@ export function ImportTermsCSV(
  * @returns {$CancellablePromise<number>}
  */
 export function ImportTermsJSON(projectID, jsonContent) {
-  return $Call.ByID(2593803262, projectID, jsonContent);
+    return $Call.ByID(2593803262, projectID, jsonContent);
 }
 
 /**
@@ -565,7 +470,7 @@ export function ImportTermsJSON(projectID, jsonContent) {
  * @returns {$CancellablePromise<void>}
  */
 export function InitContentStore(dbPath) {
-  return $Call.ByID(2593375276, dbPath);
+    return $Call.ByID(2593375276, dbPath);
 }
 
 /**
@@ -574,13 +479,9 @@ export function InitContentStore(dbPath) {
  * @returns {$CancellablePromise<$models.PluginInstallResult | null>}
  */
 export function InstallPlugin(name) {
-  return $Call.ByID(1116631856, name).then(
-    /** @type {($result: any) => any} */ (
-      ($result) => {
+    return $Call.ByID(1116631856, name).then(/** @type {($result: any) => any} */(($result) => {
         return $$createType33($result);
-      }
-    ),
-  );
+    }));
 }
 
 /**
@@ -588,13 +489,9 @@ export function InstallPlugin(name) {
  * @returns {$CancellablePromise<$models.PluginSearchResult[]>}
  */
 export function ListAvailablePlugins() {
-  return $Call.ByID(1166028921).then(
-    /** @type {($result: any) => any} */ (
-      ($result) => {
+    return $Call.ByID(1166028921).then(/** @type {($result: any) => any} */(($result) => {
         return $$createType35($result);
-      }
-    ),
-  );
+    }));
 }
 
 /**
@@ -602,13 +499,9 @@ export function ListAvailablePlugins() {
  * @returns {$CancellablePromise<string[]>}
  */
 export function ListConnectorTypes() {
-  return $Call.ByID(1554488048).then(
-    /** @type {($result: any) => any} */ (
-      ($result) => {
+    return $Call.ByID(1554488048).then(/** @type {($result: any) => any} */(($result) => {
         return $$createType36($result);
-      }
-    ),
-  );
+    }));
 }
 
 /**
@@ -616,13 +509,9 @@ export function ListConnectorTypes() {
  * @returns {$CancellablePromise<$models.ConnectorInfo[]>}
  */
 export function ListConnectors() {
-  return $Call.ByID(3954342840).then(
-    /** @type {($result: any) => any} */ (
-      ($result) => {
+    return $Call.ByID(3954342840).then(/** @type {($result: any) => any} */(($result) => {
         return $$createType37($result);
-      }
-    ),
-  );
+    }));
 }
 
 /**
@@ -631,13 +520,9 @@ export function ListConnectors() {
  * @returns {$CancellablePromise<$models.ContentItemInfo[]>}
  */
 export function ListContentItems(connectorID) {
-  return $Call.ByID(1917252895, connectorID).then(
-    /** @type {($result: any) => any} */ (
-      ($result) => {
+    return $Call.ByID(1917252895, connectorID).then(/** @type {($result: any) => any} */(($result) => {
         return $$createType13($result);
-      }
-    ),
-  );
+    }));
 }
 
 /**
@@ -645,13 +530,9 @@ export function ListContentItems(connectorID) {
  * @returns {$CancellablePromise<$models.FlowDefinitionInfo[]>}
  */
 export function ListFlowDefinitions() {
-  return $Call.ByID(92689182).then(
-    /** @type {($result: any) => any} */ (
-      ($result) => {
+    return $Call.ByID(92689182).then(/** @type {($result: any) => any} */(($result) => {
         return $$createType38($result);
-      }
-    ),
-  );
+    }));
 }
 
 /**
@@ -659,13 +540,9 @@ export function ListFlowDefinitions() {
  * @returns {$CancellablePromise<$models.FormatInfo[]>}
  */
 export function ListFormats() {
-  return $Call.ByID(2901617344).then(
-    /** @type {($result: any) => any} */ (
-      ($result) => {
+    return $Call.ByID(2901617344).then(/** @type {($result: any) => any} */(($result) => {
         return $$createType40($result);
-      }
-    ),
-  );
+    }));
 }
 
 /**
@@ -673,13 +550,9 @@ export function ListFormats() {
  * @returns {$CancellablePromise<$models.PluginInfo[]>}
  */
 export function ListPlugins() {
-  return $Call.ByID(776322992).then(
-    /** @type {($result: any) => any} */ (
-      ($result) => {
+    return $Call.ByID(776322992).then(/** @type {($result: any) => any} */(($result) => {
         return $$createType42($result);
-      }
-    ),
-  );
+    }));
 }
 
 /**
@@ -688,13 +561,9 @@ export function ListPlugins() {
  * @returns {$CancellablePromise<$models.ProjectItem[]>}
  */
 export function ListProjectFiles(projectID) {
-  return $Call.ByID(2403520224, projectID).then(
-    /** @type {($result: any) => any} */ (
-      ($result) => {
+    return $Call.ByID(2403520224, projectID).then(/** @type {($result: any) => any} */(($result) => {
         return $$createType44($result);
-      }
-    ),
-  );
+    }));
 }
 
 /**
@@ -702,13 +571,9 @@ export function ListProjectFiles(projectID) {
  * @returns {$CancellablePromise<$models.ProjectInfo[]>}
  */
 export function ListProjects() {
-  return $Call.ByID(371450674).then(
-    /** @type {($result: any) => any} */ (
-      ($result) => {
+    return $Call.ByID(371450674).then(/** @type {($result: any) => any} */(($result) => {
         return $$createType45($result);
-      }
-    ),
-  );
+    }));
 }
 
 /**
@@ -716,13 +581,9 @@ export function ListProjects() {
  * @returns {$CancellablePromise<$models.ProviderConfigInfo[]>}
  */
 export function ListProviderConfigs() {
-  return $Call.ByID(3735242532).then(
-    /** @type {($result: any) => any} */ (
-      ($result) => {
+    return $Call.ByID(3735242532).then(/** @type {($result: any) => any} */(($result) => {
         return $$createType47($result);
-      }
-    ),
-  );
+    }));
 }
 
 /**
@@ -730,13 +591,9 @@ export function ListProviderConfigs() {
  * @returns {$CancellablePromise<(store$0.Project | null)[]>}
  */
 export function ListStoreProjects() {
-  return $Call.ByID(4233071499).then(
-    /** @type {($result: any) => any} */ (
-      ($result) => {
+    return $Call.ByID(4233071499).then(/** @type {($result: any) => any} */(($result) => {
         return $$createType50($result);
-      }
-    ),
-  );
+    }));
 }
 
 /**
@@ -745,13 +602,9 @@ export function ListStoreProjects() {
  * @returns {$CancellablePromise<(store$0.Version | null)[]>}
  */
 export function ListStoreVersions(projectID) {
-  return $Call.ByID(1240071736, projectID).then(
-    /** @type {($result: any) => any} */ (
-      ($result) => {
+    return $Call.ByID(1240071736, projectID).then(/** @type {($result: any) => any} */(($result) => {
         return $$createType51($result);
-      }
-    ),
-  );
+    }));
 }
 
 /**
@@ -759,13 +612,9 @@ export function ListStoreVersions(projectID) {
  * @returns {$CancellablePromise<$models.ToolInfo[]>}
  */
 export function ListTools() {
-  return $Call.ByID(3952806715).then(
-    /** @type {($result: any) => any} */ (
-      ($result) => {
+    return $Call.ByID(3952806715).then(/** @type {($result: any) => any} */(($result) => {
         return $$createType53($result);
-      }
-    ),
-  );
+    }));
 }
 
 /**
@@ -775,13 +624,9 @@ export function ListTools() {
  * @returns {$CancellablePromise<$models.WorkspaceInfo[]>}
  */
 export function ListWorkspaces() {
-  return $Call.ByID(3303885562).then(
-    /** @type {($result: any) => any} */ (
-      ($result) => {
+    return $Call.ByID(3303885562).then(/** @type {($result: any) => any} */(($result) => {
         return $$createType24($result);
-      }
-    ),
-  );
+    }));
 }
 
 /**
@@ -791,7 +636,7 @@ export function ListWorkspaces() {
  * @returns {$CancellablePromise<void>}
  */
 export function LoadPlugins() {
-  return $Call.ByID(686613052);
+    return $Call.ByID(686613052);
 }
 
 /**
@@ -799,7 +644,7 @@ export function LoadPlugins() {
  * @returns {$CancellablePromise<void>}
  */
 export function Logout() {
-  return $Call.ByID(329111662);
+    return $Call.ByID(329111662);
 }
 
 /**
@@ -811,13 +656,9 @@ export function Logout() {
  * @returns {$CancellablePromise<$models.TMMatchInfo[]>}
  */
 export function LookupTMForBlock(projectID, itemName, blockID, targetLocale) {
-  return $Call.ByID(1469074117, projectID, itemName, blockID, targetLocale).then(
-    /** @type {($result: any) => any} */ (
-      ($result) => {
+    return $Call.ByID(1469074117, projectID, itemName, blockID, targetLocale).then(/** @type {($result: any) => any} */(($result) => {
         return $$createType55($result);
-      }
-    ),
-  );
+    }));
 }
 
 /**
@@ -829,13 +670,9 @@ export function LookupTMForBlock(projectID, itemName, blockID, targetLocale) {
  * @returns {$CancellablePromise<$models.TermLookupResult | null>}
  */
 export function LookupTerms(projectID, text, sourceLocale, targetLocale) {
-  return $Call.ByID(223814221, projectID, text, sourceLocale, targetLocale).then(
-    /** @type {($result: any) => any} */ (
-      ($result) => {
+    return $Call.ByID(223814221, projectID, text, sourceLocale, targetLocale).then(/** @type {($result: any) => any} */(($result) => {
         return $$createType57($result);
-      }
-    ),
-  );
+    }));
 }
 
 /**
@@ -847,13 +684,9 @@ export function LookupTerms(projectID, text, sourceLocale, targetLocale) {
  * @returns {$CancellablePromise<$models.BlockTermMatch[]>}
  */
 export function LookupTermsForBlock(projectID, itemName, blockID, targetLocale) {
-  return $Call.ByID(1112384681, projectID, itemName, blockID, targetLocale).then(
-    /** @type {($result: any) => any} */ (
-      ($result) => {
+    return $Call.ByID(1112384681, projectID, itemName, blockID, targetLocale).then(/** @type {($result: any) => any} */(($result) => {
         return $$createType59($result);
-      }
-    ),
-  );
+    }));
 }
 
 /**
@@ -862,7 +695,7 @@ export function LookupTermsForBlock(projectID, itemName, blockID, targetLocale) 
  * @returns {$CancellablePromise<void>}
  */
 export function OpenFileInOS(filePath) {
-  return $Call.ByID(3445961939, filePath);
+    return $Call.ByID(3445961939, filePath);
 }
 
 /**
@@ -870,7 +703,7 @@ export function OpenFileInOS(filePath) {
  * @returns {$CancellablePromise<string>}
  */
 export function PluginDir() {
-  return $Call.ByID(426528074);
+    return $Call.ByID(426528074);
 }
 
 /**
@@ -881,13 +714,9 @@ export function PluginDir() {
  * @returns {$CancellablePromise<$models.TranslationStats | null>}
  */
 export function PseudoTranslateItem(projectID, itemName, targetLocale) {
-  return $Call.ByID(274883483, projectID, itemName, targetLocale).then(
-    /** @type {($result: any) => any} */ (
-      ($result) => {
+    return $Call.ByID(274883483, projectID, itemName, targetLocale).then(/** @type {($result: any) => any} */(($result) => {
         return $$createType61($result);
-      }
-    ),
-  );
+    }));
 }
 
 /**
@@ -897,7 +726,7 @@ export function PseudoTranslateItem(projectID, itemName, targetLocale) {
  * @returns {$CancellablePromise<void>}
  */
 export function PublishContent(connectorID, projectID) {
-  return $Call.ByID(2672799444, connectorID, projectID);
+    return $Call.ByID(2672799444, connectorID, projectID);
 }
 
 /**
@@ -906,7 +735,7 @@ export function PublishContent(connectorID, projectID) {
  * @returns {$CancellablePromise<void>}
  */
 export function RemoveConnector(connectorID) {
-  return $Call.ByID(616177915, connectorID);
+    return $Call.ByID(616177915, connectorID);
 }
 
 /**
@@ -916,13 +745,9 @@ export function RemoveConnector(connectorID) {
  * @returns {$CancellablePromise<$models.ProjectInfo | null>}
  */
 export function RemoveItem(projectID, itemName) {
-  return $Call.ByID(2559376511, projectID, itemName).then(
-    /** @type {($result: any) => any} */ (
-      ($result) => {
+    return $Call.ByID(2559376511, projectID, itemName).then(/** @type {($result: any) => any} */(($result) => {
         return $$createType3($result);
-      }
-    ),
-  );
+    }));
 }
 
 /**
@@ -936,18 +761,20 @@ export function RemoveItem(projectID, itemName) {
  * @returns {$CancellablePromise<string>}
  */
 export function RenderBlockHTML(projectID, itemName, blockID, targetLocale) {
-  return $Call.ByID(3166545228, projectID, itemName, blockID, targetLocale);
+    return $Call.ByID(3166545228, projectID, itemName, blockID, targetLocale);
 }
 
 /**
  * RenderDocumentPreview returns pre-rendered HTML for an item.
+ * Uses stored PreviewHTML if available, falling back to generating
+ * a preview from the stored BlockIndex.
  * @param {string} projectID
  * @param {string} itemName
  * @param {string} targetLocale
  * @returns {$CancellablePromise<string>}
  */
 export function RenderDocumentPreview(projectID, itemName, targetLocale) {
-  return $Call.ByID(2234199739, projectID, itemName, targetLocale);
+    return $Call.ByID(2234199739, projectID, itemName, targetLocale);
 }
 
 /**
@@ -960,7 +787,7 @@ export function RenderDocumentPreview(projectID, itemName, targetLocale) {
  * @returns {$CancellablePromise<void>}
  */
 export function ReviewBlock(projectID, itemName, blockID, targetLocale, reviewed) {
-  return $Call.ByID(1353546789, projectID, itemName, blockID, targetLocale, reviewed);
+    return $Call.ByID(1353546789, projectID, itemName, blockID, targetLocale, reviewed);
 }
 
 /**
@@ -969,13 +796,9 @@ export function ReviewBlock(projectID, itemName, blockID, targetLocale, reviewed
  * @returns {$CancellablePromise<$models.FlowDefinitionInfo | null>}
  */
 export function SaveFlowDefinition(info) {
-  return $Call.ByID(1456548112, info).then(
-    /** @type {($result: any) => any} */ (
-      ($result) => {
+    return $Call.ByID(1456548112, info).then(/** @type {($result: any) => any} */(($result) => {
         return $$createType19($result);
-      }
-    ),
-  );
+    }));
 }
 
 /**
@@ -984,13 +807,9 @@ export function SaveFlowDefinition(info) {
  * @returns {$CancellablePromise<$models.ProviderConfigInfo | null>}
  */
 export function SaveProviderConfig(req) {
-  return $Call.ByID(832952266, req).then(
-    /** @type {($result: any) => any} */ (
-      ($result) => {
+    return $Call.ByID(832952266, req).then(/** @type {($result: any) => any} */(($result) => {
         return $$createType62($result);
-      }
-    ),
-  );
+    }));
 }
 
 /**
@@ -999,13 +818,9 @@ export function SaveProviderConfig(req) {
  * @returns {$CancellablePromise<$models.PluginSearchResult[]>}
  */
 export function SearchPlugins(query) {
-  return $Call.ByID(3626837420, query).then(
-    /** @type {($result: any) => any} */ (
-      ($result) => {
+    return $Call.ByID(3626837420, query).then(/** @type {($result: any) => any} */(($result) => {
         return $$createType35($result);
-      }
-    ),
-  );
+    }));
 }
 
 /**
@@ -1014,13 +829,9 @@ export function SearchPlugins(query) {
  * @returns {$CancellablePromise<$models.PluginSearchResult[]>}
  */
 export function SearchPluginsByMimeType(mimeType) {
-  return $Call.ByID(1251365601, mimeType).then(
-    /** @type {($result: any) => any} */ (
-      ($result) => {
+    return $Call.ByID(1251365601, mimeType).then(/** @type {($result: any) => any} */(($result) => {
         return $$createType35($result);
-      }
-    ),
-  );
+    }));
 }
 
 /**
@@ -1029,13 +840,9 @@ export function SearchPluginsByMimeType(mimeType) {
  * @returns {$CancellablePromise<$models.PluginSearchResult[]>}
  */
 export function SearchPluginsByType(capType) {
-  return $Call.ByID(3665916513, capType).then(
-    /** @type {($result: any) => any} */ (
-      ($result) => {
+    return $Call.ByID(3665916513, capType).then(/** @type {($result: any) => any} */(($result) => {
         return $$createType35($result);
-      }
-    ),
-  );
+    }));
 }
 
 /**
@@ -1044,7 +851,7 @@ export function SearchPluginsByType(capType) {
  * @returns {$CancellablePromise<void>}
  */
 export function SelectWorkspace(slug) {
-  return $Call.ByID(2510784253, slug);
+    return $Call.ByID(2510784253, slug);
 }
 
 /**
@@ -1053,7 +860,7 @@ export function SelectWorkspace(slug) {
  * @returns {$CancellablePromise<void>}
  */
 export function SetApplication(app) {
-  return $Call.ByID(1103546806, app);
+    return $Call.ByID(1103546806, app);
 }
 
 /**
@@ -1066,7 +873,7 @@ export function SetApplication(app) {
  * @returns {$CancellablePromise<void>}
  */
 export function StartLogin(serverURL) {
-  return $Call.ByID(1565988937, serverURL);
+    return $Call.ByID(1565988937, serverURL);
 }
 
 /**
@@ -1076,7 +883,7 @@ export function StartLogin(serverURL) {
  * @returns {$CancellablePromise<void>}
  */
 export function StartWatching(projectID) {
-  return $Call.ByID(378219921, projectID);
+    return $Call.ByID(378219921, projectID);
 }
 
 /**
@@ -1084,7 +891,7 @@ export function StartWatching(projectID) {
  * @returns {$CancellablePromise<void>}
  */
 export function StopWatching() {
-  return $Call.ByID(2958338237);
+    return $Call.ByID(2958338237);
 }
 
 /**
@@ -1095,13 +902,9 @@ export function StopWatching() {
  * @returns {$CancellablePromise<store$0.Project | null>}
  */
 export function StoreProject(name, sourceLocale, targetLocales) {
-  return $Call.ByID(1885409090, name, sourceLocale, targetLocales).then(
-    /** @type {($result: any) => any} */ (
-      ($result) => {
+    return $Call.ByID(1885409090, name, sourceLocale, targetLocales).then(/** @type {($result: any) => any} */(($result) => {
         return $$createType49($result);
-      }
-    ),
-  );
+    }));
 }
 
 /**
@@ -1112,13 +915,9 @@ export function StoreProject(name, sourceLocale, targetLocales) {
  * @returns {$CancellablePromise<$models.TranslationStats | null>}
  */
 export function TMTranslateItem(projectID, itemName, targetLocale) {
-  return $Call.ByID(1701277356, projectID, itemName, targetLocale).then(
-    /** @type {($result: any) => any} */ (
-      ($result) => {
+    return $Call.ByID(1701277356, projectID, itemName, targetLocale).then(/** @type {($result: any) => any} */(($result) => {
         return $$createType61($result);
-      }
-    ),
-  );
+    }));
 }
 
 /**
@@ -1129,13 +928,9 @@ export function TMTranslateItem(projectID, itemName, targetLocale) {
  * @returns {$CancellablePromise<$models.TermEnforceResult[]>}
  */
 export function TermEnforceItem(projectID, itemName, targetLocale) {
-  return $Call.ByID(88031319, projectID, itemName, targetLocale).then(
-    /** @type {($result: any) => any} */ (
-      ($result) => {
+    return $Call.ByID(88031319, projectID, itemName, targetLocale).then(/** @type {($result: any) => any} */(($result) => {
         return $$createType64($result);
-      }
-    ),
-  );
+    }));
 }
 
 /**
@@ -1144,7 +939,7 @@ export function TermEnforceItem(projectID, itemName, targetLocale) {
  * @returns {$CancellablePromise<void>}
  */
 export function TestProviderConfig(req) {
-  return $Call.ByID(3045289771, req);
+    return $Call.ByID(3045289771, req);
 }
 
 /**
@@ -1152,7 +947,7 @@ export function TestProviderConfig(req) {
  * @returns {$CancellablePromise<void>}
  */
 export function TryAutoConnect() {
-  return $Call.ByID(1058981368);
+    return $Call.ByID(1058981368);
 }
 
 /**
@@ -1162,16 +957,17 @@ export function TryAutoConnect() {
  * @returns {$CancellablePromise<void>}
  */
 export function UpdateBlockTarget(req) {
-  return $Call.ByID(3768121167, req);
+    return $Call.ByID(3768121167, req);
 }
 
 /**
- * UpdateBlockTargetCoded updates the target for a block using coded text with span data.
- * @param {$models.UpdateBlockTargetCodedRequest} req
+ * UpdateBlockTargetRuns updates the target for a block using a
+ * structured Run sequence.
+ * @param {$models.UpdateBlockTargetRunsRequest} req
  * @returns {$CancellablePromise<void>}
  */
-export function UpdateBlockTargetCoded(req) {
-  return $Call.ByID(1313135022, req);
+export function UpdateBlockTargetRuns(req) {
+    return $Call.ByID(3903261825, req);
 }
 
 /**
@@ -1180,7 +976,7 @@ export function UpdateBlockTargetCoded(req) {
  * @returns {$CancellablePromise<void>}
  */
 export function UpdateConcept(req) {
-  return $Call.ByID(3374190367, req);
+    return $Call.ByID(3374190367, req);
 }
 
 /**
@@ -1189,13 +985,9 @@ export function UpdateConcept(req) {
  * @returns {$CancellablePromise<$models.PluginInstallResult | null>}
  */
 export function UpdatePlugin(name) {
-  return $Call.ByID(3191396990, name).then(
-    /** @type {($result: any) => any} */ (
-      ($result) => {
+    return $Call.ByID(3191396990, name).then(/** @type {($result: any) => any} */(($result) => {
         return $$createType33($result);
-      }
-    ),
-  );
+    }));
 }
 
 /**
@@ -1206,7 +998,7 @@ export function UpdatePlugin(name) {
  * @returns {$CancellablePromise<void>}
  */
 export function UpdatePresence(projectID, itemName, blockID) {
-  return $Call.ByID(3401740472, projectID, itemName, blockID);
+    return $Call.ByID(3401740472, projectID, itemName, blockID);
 }
 
 /**
@@ -1215,7 +1007,7 @@ export function UpdatePresence(projectID, itemName, blockID) {
  * @returns {$CancellablePromise<void>}
  */
 export function UpdateTMEntry(req) {
-  return $Call.ByID(3731738086, req);
+    return $Call.ByID(3731738086, req);
 }
 
 /**
@@ -1224,7 +1016,7 @@ export function UpdateTMEntry(req) {
  * @returns {$CancellablePromise<boolean>}
  */
 export function WaitForLogin() {
-  return $Call.ByID(3244055841);
+    return $Call.ByID(3244055841);
 }
 
 // Private type creation functions

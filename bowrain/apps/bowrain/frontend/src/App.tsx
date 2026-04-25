@@ -130,6 +130,18 @@ function App() {
 
   // --- Connection flow ---
 
+  // Transition out of "connecting" once the backend reports "connected".
+  // This handles the auto-connect (BOWRAIN_TOKEN) race where the first
+  // refresh() may return "disconnected" because the autoconnect path
+  // hasn't completed yet — connectWithToken emits "connection-state-changed"
+  // when it succeeds, useConnection's listener calls refresh(), info updates,
+  // and this effect promotes mode to "ready".
+  useEffect(() => {
+    if (connection.info.state === "connected" && mode === "connecting") {
+      setMode("ready");
+    }
+  }, [connection.info.state, mode]);
+
   useEffect(() => {
     connection
       .refresh()
