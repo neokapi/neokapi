@@ -125,8 +125,13 @@ if [ -n "${BOWRAIN_ADMIN_TOKEN:-}" ]; then
 fi
 
 # ── Idempotent token revoke ──────────────────────────────────────────────
+# Tokens list endpoint returns a bare array on current bowrain-server; older
+# versions returned {tokens:[...]}. Handle both.
 existing="$(api_user "$WS_URL/tokens" 2>/dev/null \
-  | jq -r --arg n "$TOKEN_NAME" '.tokens[]? | select(.name==$n) | .id' || true)"
+  | jq -r --arg n "$TOKEN_NAME" '
+      (if type == "array" then . else (.tokens // []) end)
+      | .[]? | select(.name==$n) | .id
+    ' 2>/dev/null || true)"
 if [ -n "$existing" ]; then
   log "revoking existing tokens named '$TOKEN_NAME'"
   for tid in $existing; do
