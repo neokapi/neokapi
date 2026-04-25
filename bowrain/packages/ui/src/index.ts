@@ -592,3 +592,9 @@ export {
   ActivityHeatmap,
 } from "./components/pulse";
 export type { PulseSettingsProps } from "./components/pulse";
+
+// Typed registry of data-testid values for the bowrain UI. React components
+// import names from here; Playwright specs import the same so renaming a
+// testid is a single-line change. See test-ids.ts for rationale and the
+// convention. Issue #425 Phase 5.
+export { TEST_IDS, flattenTestIds } from "./test-ids";
