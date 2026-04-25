@@ -157,7 +157,16 @@ export function ProjectSettingsRoute() {
             Control whether this project appears on the public Pulse dashboard
           </CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-3">
+          {activeWorkspace.type === "personal" && (
+            <div
+              className="rounded-lg border border-border bg-muted/50 p-3 text-xs text-muted-foreground"
+              role="note"
+            >
+              Personal workspaces can't be exposed publicly. Create a team workspace to share this
+              project on Pulse.
+            </div>
+          )}
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium">Show on Pulse</p>
@@ -168,6 +177,7 @@ export function ProjectSettingsRoute() {
             <Switch
               checked={project.dashboard_visibility === "public"}
               onCheckedChange={handleTogglePulseVisibility}
+              disabled={activeWorkspace.type === "personal"}
               aria-label="Toggle Pulse visibility"
             />
           </div>

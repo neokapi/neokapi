@@ -87,6 +87,11 @@ export function SettingsIndexRoute() {
               visibility={activeWorkspace.dashboard_visibility ?? "private"}
               accessKey={activeWorkspace.pulse_access_key}
               onVisibilityChange={handleVisibilityChange}
+              disabledReason={
+                activeWorkspace.type === "personal"
+                  ? "Personal workspaces can't be exposed publicly. Create a team workspace to share a Pulse dashboard."
+                  : undefined
+              }
             />
           </CardContent>
         </Card>
