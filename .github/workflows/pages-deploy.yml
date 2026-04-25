@@ -19,6 +19,11 @@ on:
     types: [completed]
   workflow_dispatch:
 
+# NOTE: Storybook artifact slots (kapi_storybook_dest / bowrain_storybook_dest)
+# are wired below but the existing `Storybook` workflow currently does its own
+# GH Pages deployment and is not yet feeding artifacts into this workflow.
+# Migrating storybook to the artifact-upload model is tracked under #425.
+
 permissions:
   contents: write
   pages: write
@@ -62,11 +67,15 @@ jobs:
           if [ "$IS_PR" = "true" ] && [ -n "$PR_NUMBER" ]; then
             echo "kapi_dest=web/prs/${PR_NUMBER}/neokapi" >> "$GITHUB_OUTPUT"
             echo "bowrain_dest=web/prs/${PR_NUMBER}/bowrain" >> "$GITHUB_OUTPUT"
+            echo "kapi_storybook_dest=storybook/prs/${PR_NUMBER}/kapi" >> "$GITHUB_OUTPUT"
+            echo "bowrain_storybook_dest=storybook/prs/${PR_NUMBER}/bowrain" >> "$GITHUB_OUTPUT"
             echo "is_pr=true" >> "$GITHUB_OUTPUT"
             echo "pr_number=${PR_NUMBER}" >> "$GITHUB_OUTPUT"
           else
             echo "kapi_dest=web/neokapi" >> "$GITHUB_OUTPUT"
             echo "bowrain_dest=web/bowrain" >> "$GITHUB_OUTPUT"
+            echo "kapi_storybook_dest=storybook/kapi" >> "$GITHUB_OUTPUT"
+            echo "bowrain_storybook_dest=storybook/bowrain" >> "$GITHUB_OUTPUT"
             echo "is_pr=false" >> "$GITHUB_OUTPUT"
           fi
 
@@ -87,6 +96,24 @@ jobs:
           rm -rf "gh-pages/${DEST}"
           mkdir -p "gh-pages/${DEST}"
           cp -r artifacts/bowrain-site/* "gh-pages/${DEST}/"
+
+      - name: Slot kapi storybook into gh-pages tree
+        if: ${{ hashFiles('artifacts/kapi-storybook/**') != '' }}
+        env:
+          DEST: ${{ steps.target.outputs.kapi_storybook_dest }}
+        run: |
+          rm -rf "gh-pages/${DEST}"
+          mkdir -p "gh-pages/${DEST}"
+          cp -r artifacts/kapi-storybook/* "gh-pages/${DEST}/"
+
+      - name: Slot bowrain storybook into gh-pages tree
+        if: ${{ hashFiles('artifacts/bowrain-storybook/**') != '' }}
+        env:
+          DEST: ${{ steps.target.outputs.bowrain_storybook_dest }}
+        run: |
+          rm -rf "gh-pages/${DEST}"
+          mkdir -p "gh-pages/${DEST}"
+          cp -r artifacts/bowrain-storybook/* "gh-pages/${DEST}/"
 
       - name: Commit and push gh-pages
         env:
@@ -120,5 +147,7 @@ jobs:
           BASE_URL="https://${OWNER}.github.io/${REPO_NAME}"
           BODY="📚 Docs preview deployed:
           - kapi: ${BASE_URL}/web/prs/${PR_NUMBER}/neokapi/
-          - bowrain: ${BASE_URL}/web/prs/${PR_NUMBER}/bowrain/"
+          - bowrain: ${BASE_URL}/web/prs/${PR_NUMBER}/bowrain/
+          - kapi storybook: ${BASE_URL}/storybook/prs/${PR_NUMBER}/kapi/
+          - bowrain storybook: ${BASE_URL}/storybook/prs/${PR_NUMBER}/bowrain/"
           gh pr comment "$PR_NUMBER" --repo "$REPO" --body "$BODY"
