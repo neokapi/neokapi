@@ -2,26 +2,20 @@
  * Walkthrough: bowrain-web-invite-workflow
  * Scene 1: invite (web)
  *
- * Generated from bowrain/website/walkthroughs/bowrain-web-invite-workflow.md.
- * Do not edit by hand — change the prompt and regenerate via /walkthrough-scenes.
- *
- * Scaffold pending real-backend validation. Run against BOWRAIN_BACKEND_URL
- * with a seeded workspace via BowrainAPI; cleanup in afterAll.
+ * Records the workspace settings → members tab — the entry point for the
+ * "Invite member" CTA.
  */
 
 import { test, expect } from "@playwright/test";
-import { TEST_IDS } from "@neokapi/ui/test-ids";
-
-const BACKEND_URL = process.env.BOWRAIN_BACKEND_URL || "https://dev.bowrain.cloud";
+import { BACKEND_URL, injectAuthCookie, getMyWorkspaceSlug, saveSceneVideo } from "../_helpers";
 
 test.describe("walkthrough: bowrain-web-invite-workflow", () => {
-  test.use({ viewport: { width: 1280, height: 800 } });
-
-  // TODO(#425): seed via BowrainAPI; cleanup in afterAll.
-
   test("invite [scene]", async ({ page }) => {
-    test.skip(true, "scaffold — needs real backend validation per #425 followup");
-    expect(BACKEND_URL).toBeTruthy();
-    expect(TEST_IDS).toBeTruthy();
+    await injectAuthCookie(page);
+    const slug = await getMyWorkspaceSlug();
+    await page.goto(`${BACKEND_URL}/${slug}/settings/members`);
+    await expect(page.getByTestId("invite-manager")).toBeVisible({ timeout: 15000 });
+    await page.waitForTimeout(2000);
   });
+  test.afterEach(async ({ page }, testInfo) => saveSceneVideo(page, testInfo, "01-invite.webm"));
 });
