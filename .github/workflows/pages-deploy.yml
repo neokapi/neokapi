@@ -55,7 +55,7 @@ jobs:
 
       - name: Download all artifacts from triggering run
         if: ${{ github.event_name == 'workflow_run' }}
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v8
         with:
           run-id: ${{ github.event.workflow_run.id }}
           github-token: ${{ github.token }}

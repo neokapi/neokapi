@@ -90,7 +90,7 @@ jobs:
         run: vp install
 
       - name: Download recorded CLI scenes
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v8
         with:
           name: bowrain-cli-scenes
           path: bowrain/website/static/video/bowrain-cli
