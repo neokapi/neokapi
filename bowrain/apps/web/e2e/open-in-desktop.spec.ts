@@ -72,7 +72,7 @@ test.describe("Open in Desktop", () => {
   test.beforeAll(async () => {
     await waitForServer();
     token = await authenticate();
-    const ws = await getOrCreateWorkspace(token, "Acme Inc.", "acme");
+    const ws = await getOrCreateWorkspace(token, process.env.BOWRAIN_WORKSPACE_NAME || "Acme Inc.", process.env.BOWRAIN_WORKSPACE || "acme");
     wsSlug = ws.slug;
     await deleteAllEditorProjects(token, wsSlug);
 

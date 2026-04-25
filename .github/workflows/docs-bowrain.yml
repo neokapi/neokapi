@@ -95,18 +95,6 @@ jobs:
           name: bowrain-cli-scenes
           path: bowrain/website/static/video/bowrain-cli
 
-      - name: Fetch last-known-good docs assets (bowrain only)
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          if gh release view docs-assets > /dev/null 2>&1; then
-            if gh release download docs-assets --pattern 'docs-assets.tar.gz' --dir /tmp 2>/dev/null; then
-              mkdir -p bowrain/website/static
-              tar xzf /tmp/docs-assets.tar.gz -C bowrain/website/static --wildcards \
-                'img/bowrain*' 'img/web-app*' 'video/bowrain*' 'video/web-app*' 'video/bowrain-cli*' 2>/dev/null || true
-            fi
-          fi
-
       - name: Build bowrain Docusaurus site
         run: vp run build
         working-directory: bowrain/website
