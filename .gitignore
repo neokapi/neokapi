@@ -103,5 +103,6 @@ website/videos/public/raw/
 .java-version
 .claude/worktrees/
 .env
+.env.local
 platform/docker/traefik/certs
 .playwright-mcp/
