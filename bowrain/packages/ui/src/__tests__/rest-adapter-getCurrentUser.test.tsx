@@ -39,9 +39,7 @@ describe("RestApiAdapter.getCurrentUser", () => {
   });
 
   it("resolves to null on 4xx other than 401", async () => {
-    globalThis.fetch = vi.fn().mockResolvedValue(
-      new Response("Not found", { status: 404 }),
-    );
+    globalThis.fetch = vi.fn().mockResolvedValue(new Response("Not found", { status: 404 }));
 
     const adapter = new RestApiAdapter("https://api.example");
     expect(await adapter.getCurrentUser()).toBeNull();

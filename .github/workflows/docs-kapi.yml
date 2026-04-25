@@ -46,7 +46,6 @@ jobs:
           sleep 2
           if [ -d website/scenes ]; then
             for scene_dir in website/scenes/*/; do
-              wt=$(basename "$scene_dir")
               for tape in "$scene_dir"*.tape; do
                 [ -f "$tape" ] || continue
                 echo "Recording $tape"

@@ -68,18 +68,22 @@ jobs:
           PR_NUMBER: ${{ github.event.workflow_run.pull_requests[0].number }}
         run: |
           if [ "$IS_PR" = "true" ] && [ -n "$PR_NUMBER" ]; then
-            echo "kapi_dest=web/prs/${PR_NUMBER}/neokapi" >> "$GITHUB_OUTPUT"
-            echo "bowrain_dest=web/prs/${PR_NUMBER}/bowrain" >> "$GITHUB_OUTPUT"
-            echo "kapi_storybook_dest=storybook/prs/${PR_NUMBER}/kapi" >> "$GITHUB_OUTPUT"
-            echo "bowrain_storybook_dest=storybook/prs/${PR_NUMBER}/bowrain" >> "$GITHUB_OUTPUT"
-            echo "is_pr=true" >> "$GITHUB_OUTPUT"
-            echo "pr_number=${PR_NUMBER}" >> "$GITHUB_OUTPUT"
+            {
+              echo "kapi_dest=web/prs/${PR_NUMBER}/neokapi"
+              echo "bowrain_dest=web/prs/${PR_NUMBER}/bowrain"
+              echo "kapi_storybook_dest=storybook/prs/${PR_NUMBER}/kapi"
+              echo "bowrain_storybook_dest=storybook/prs/${PR_NUMBER}/bowrain"
+              echo "is_pr=true"
+              echo "pr_number=${PR_NUMBER}"
+            } >> "$GITHUB_OUTPUT"
           else
-            echo "kapi_dest=web/neokapi" >> "$GITHUB_OUTPUT"
-            echo "bowrain_dest=web/bowrain" >> "$GITHUB_OUTPUT"
-            echo "kapi_storybook_dest=storybook/kapi" >> "$GITHUB_OUTPUT"
-            echo "bowrain_storybook_dest=storybook/bowrain" >> "$GITHUB_OUTPUT"
-            echo "is_pr=false" >> "$GITHUB_OUTPUT"
+            {
+              echo "kapi_dest=web/neokapi"
+              echo "bowrain_dest=web/bowrain"
+              echo "kapi_storybook_dest=storybook/kapi"
+              echo "bowrain_storybook_dest=storybook/bowrain"
+              echo "is_pr=false"
+            } >> "$GITHUB_OUTPUT"
           fi
 
       - name: Slot kapi site into gh-pages tree
