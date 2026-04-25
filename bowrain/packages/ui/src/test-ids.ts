@@ -28,13 +28,13 @@
 export const TEST_IDS = {
   // ── Auth ──────────────────────────────────────────────────────────
   auth: {
-    loginEmailInput: "auth-login-email-input",
-    loginPasswordInput: "auth-login-password-input",
-    loginSubmit: "auth-login-submit",
-    loginGithub: "auth-login-github",
-    loginGoogle: "auth-login-google",
-    loginApple: "auth-login-apple",
-    registerLink: "auth-register-link",
+    loginSsoButton: "auth-login-sso-button",
+    joinForm: "auth-join-form",
+    joinEmailInput: "auth-join-email-input",
+    joinSubmit: "auth-join-submit",
+    claimForm: "auth-claim-form",
+    claimWorkspaceInput: "auth-claim-workspace-input",
+    claimSubmit: "auth-claim-submit",
   },
 
   // ── Workspace rail / dashboard ───────────────────────────────────

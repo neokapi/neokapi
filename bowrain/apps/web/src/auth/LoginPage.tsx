@@ -7,6 +7,7 @@ import {
   CardDescription,
   Button,
   LogIn,
+  TEST_IDS,
 } from "@neokapi/ui";
 
 export function LoginPage() {
@@ -30,7 +31,12 @@ export function LoginPage() {
             <CardDescription>Localization platform for modern teams</CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col gap-4">
-            <Button onClick={handleLogin} className="w-full" size="lg">
+            <Button
+              onClick={handleLogin}
+              className="w-full"
+              size="lg"
+              data-testid={TEST_IDS.auth.loginSsoButton}
+            >
               Sign in with SSO
             </Button>
             <p className="text-xs text-muted-foreground text-center">
