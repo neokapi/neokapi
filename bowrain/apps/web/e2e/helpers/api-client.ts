@@ -111,12 +111,20 @@ export async function getOrCreateWorkspace(
   name: string,
   slug: string,
 ): Promise<{ id: string; slug: string }> {
-  try {
-    const ws = await apiGet(`/workspaces/${slug}`, token);
+  // GET first; only attempt create on a true 404. Any other failure
+  // (403 — exists but not yours, 5xx — server error) should propagate
+  // rather than silently colliding via duplicate-slug INSERT.
+  const resp = await fetch(`${API}/${slug}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (resp.ok) {
+    const ws = await resp.json();
     return { id: ws.id, slug: ws.slug };
-  } catch {
-    return createWorkspace(token, name, slug);
   }
+  if (resp.status !== 404) {
+    throw new Error(`GET /${slug} failed: ${resp.status} ${await resp.text()}`);
+  }
+  return createWorkspace(token, name, slug);
 }
 
 // --- Editor Projects ---

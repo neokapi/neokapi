@@ -68,6 +68,17 @@ export const TEST_IDS = {
     termPanel: "editor-term-panel",
     termEntry: "editor-term-entry",
     contextPanel: "editor-context-panel",
+    openInDesktopButton: "editor-open-in-desktop-button",
+    desktopNotFoundMessage: "editor-desktop-not-found",
+    desktopDownloadLink: "editor-desktop-download-link",
+  },
+
+  // ── @bravo agent panel ───────────────────────────────────────────
+  bravo: {
+    trigger: "bravo-trigger",
+    panel: "bravo-panel",
+    newConversationHeader: "bravo-new-conversation-header",
+    closeButton: "bravo-close-button",
   },
 
   // ── Project view ──────────────────────────────────────────────────
@@ -91,6 +102,7 @@ export const TEST_IDS = {
   settings: {
     nav: "settings-nav",
     section: "settings-section",
+    heading: "settings-heading",
     saveButton: "settings-save-button",
   },
 } as const;

@@ -8,6 +8,7 @@
   "exports": {
     ".": "./src/index.ts",
     "./components/pulse": "./src/components/pulse/index.ts",
+    "./test-ids": "./src/test-ids.ts",
     "./*": "./src/*",
     "./package.json": "./package.json"
   },
