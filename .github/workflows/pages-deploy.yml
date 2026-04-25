@@ -1,15 +1,18 @@
 name: Pages Deploy
 
 # Combines kapi and bowrain site (and storybook) artifacts into a single
-# GitHub Pages deployment under a path-based layout:
+# deployment to the neokapi.github.io org pages repo, under a path-based
+# layout:
 #   /web/neokapi/        kapi/framework site (production)
 #   /web/bowrain/        bowrain site (production)
 #   /storybook/kapi/     kapi storybook (production)
 #   /storybook/bowrain/  bowrain storybook (production)
-#   /web/prs/{N}/...     PR previews (kept across deploys via keep_files)
+#   /web/prs/{N}/...     PR previews
+#   /storybook/prs/{N}/... PR previews
 #
-# Triggered after docs-kapi or docs-bowrain (or storybook) workflow runs;
-# downloads their artifacts and assembles a merged tree.
+# Triggered after docs-kapi, docs-bowrain, or storybook workflow runs;
+# downloads their artifacts and assembles a merged tree against a fresh
+# clone of neokapi/neokapi.github.io main branch.
 
 on:
   workflow_run:
@@ -20,16 +23,8 @@ on:
     types: [completed]
   workflow_dispatch:
 
-# Storybook artifacts (kapi-storybook, bowrain-storybook) are uploaded by
-# storybook-preview.yml in addition to its existing neokapi.github.io
-# deploy. The slot logic below picks them up from the workflow_run
-# artifacts when present. Once this path is verified, the legacy
-# neokapi.github.io deploy in storybook-preview.yml can be removed.
-
 permissions:
-  contents: write
-  pages: write
-  id-token: write
+  contents: read
   pull-requests: write
   actions: read # required by actions/download-artifact for cross-workflow runs
 
@@ -41,17 +36,30 @@ jobs:
   deploy:
     if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
     runs-on: ubuntu-latest
+    env:
+      PAGES_REPO: github.com:neokapi/neokapi.github.io.git
     steps:
-      - uses: actions/checkout@v6
-        with:
-          ref: gh-pages
-          path: gh-pages
-        continue-on-error: true
-
-      - name: Initialize gh-pages tree if missing
+      - name: Set up SSH for org pages repo
+        env:
+          SSH_DEPLOY_KEY: ${{ secrets.PAGES_DEPLOY_KEY }}
         run: |
-          mkdir -p gh-pages/web/neokapi gh-pages/web/bowrain gh-pages/web/prs
-          mkdir -p gh-pages/storybook/kapi gh-pages/storybook/bowrain gh-pages/storybook/prs
+          mkdir -p ~/.ssh
+          echo "$SSH_DEPLOY_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan github.com >> ~/.ssh/known_hosts 2>/dev/null
+          echo "GIT_SSH_COMMAND=ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no" >> "$GITHUB_ENV"
+
+      - name: Clone neokapi.github.io
+        run: |
+          git clone --depth 1 "git@${PAGES_REPO}" pages
+          cd pages
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Initialize tree skeleton if missing
+        run: |
+          mkdir -p pages/web/neokapi pages/web/bowrain pages/web/prs
+          mkdir -p pages/storybook/kapi pages/storybook/bowrain pages/storybook/prs
 
       - name: Download all artifacts from triggering run
         if: ${{ github.event_name == 'workflow_run' }}
@@ -61,7 +69,7 @@ jobs:
           github-token: ${{ github.token }}
           path: artifacts
 
-      - name: Determine target path (production vs PR preview)
+      - name: Determine target paths (production vs PR preview)
         id: target
         env:
           IS_PR: ${{ github.event.workflow_run.event == 'pull_request' }}
@@ -86,50 +94,48 @@ jobs:
             } >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Slot kapi site into gh-pages tree
+      - name: Slot kapi site
         if: ${{ hashFiles('artifacts/kapi-site/**') != '' }}
         env:
           DEST: ${{ steps.target.outputs.kapi_dest }}
         run: |
-          rm -rf "gh-pages/${DEST}"
-          mkdir -p "gh-pages/${DEST}"
-          cp -r artifacts/kapi-site/* "gh-pages/${DEST}/"
+          rm -rf "pages/${DEST}"
+          mkdir -p "pages/${DEST}"
+          cp -r artifacts/kapi-site/* "pages/${DEST}/"
 
-      - name: Slot bowrain site into gh-pages tree
+      - name: Slot bowrain site
         if: ${{ hashFiles('artifacts/bowrain-site/**') != '' }}
         env:
           DEST: ${{ steps.target.outputs.bowrain_dest }}
         run: |
-          rm -rf "gh-pages/${DEST}"
-          mkdir -p "gh-pages/${DEST}"
-          cp -r artifacts/bowrain-site/* "gh-pages/${DEST}/"
+          rm -rf "pages/${DEST}"
+          mkdir -p "pages/${DEST}"
+          cp -r artifacts/bowrain-site/* "pages/${DEST}/"
 
-      - name: Slot kapi storybook into gh-pages tree
+      - name: Slot kapi storybook
         if: ${{ hashFiles('artifacts/kapi-storybook/**') != '' }}
         env:
           DEST: ${{ steps.target.outputs.kapi_storybook_dest }}
         run: |
-          rm -rf "gh-pages/${DEST}"
-          mkdir -p "gh-pages/${DEST}"
-          cp -r artifacts/kapi-storybook/* "gh-pages/${DEST}/"
+          rm -rf "pages/${DEST}"
+          mkdir -p "pages/${DEST}"
+          cp -r artifacts/kapi-storybook/* "pages/${DEST}/"
 
-      - name: Slot bowrain storybook into gh-pages tree
+      - name: Slot bowrain storybook
         if: ${{ hashFiles('artifacts/bowrain-storybook/**') != '' }}
         env:
           DEST: ${{ steps.target.outputs.bowrain_storybook_dest }}
         run: |
-          rm -rf "gh-pages/${DEST}"
-          mkdir -p "gh-pages/${DEST}"
-          cp -r artifacts/bowrain-storybook/* "gh-pages/${DEST}/"
+          rm -rf "pages/${DEST}"
+          mkdir -p "pages/${DEST}"
+          cp -r artifacts/bowrain-storybook/* "pages/${DEST}/"
 
-      - name: Commit and push gh-pages
+      - name: Commit and push
         env:
           IS_PR: ${{ steps.target.outputs.is_pr }}
           PR_NUMBER: ${{ steps.target.outputs.pr_number }}
-        working-directory: gh-pages
+        working-directory: pages
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
           git add -A
           if git diff --cached --quiet; then
             echo "No changes to deploy"
@@ -140,21 +146,17 @@ jobs:
           else
             git commit -m "deploy: production sites"
           fi
-          git push origin HEAD:gh-pages
+          git push origin HEAD:main
 
       - name: Comment PR preview link
         if: ${{ steps.target.outputs.is_pr == 'true' }}
         env:
           GH_TOKEN: ${{ github.token }}
           PR_NUMBER: ${{ steps.target.outputs.pr_number }}
-          REPO: ${{ github.repository }}
         run: |
-          OWNER=$(echo "$REPO" | cut -d/ -f1)
-          REPO_NAME=$(echo "$REPO" | cut -d/ -f2)
-          BASE_URL="https://${OWNER}.github.io/${REPO_NAME}"
           BODY="📚 Docs preview deployed:
-          - kapi: ${BASE_URL}/web/prs/${PR_NUMBER}/neokapi/
-          - bowrain: ${BASE_URL}/web/prs/${PR_NUMBER}/bowrain/
-          - kapi storybook: ${BASE_URL}/storybook/prs/${PR_NUMBER}/kapi/
-          - bowrain storybook: ${BASE_URL}/storybook/prs/${PR_NUMBER}/bowrain/"
-          gh pr comment "$PR_NUMBER" --repo "$REPO" --body "$BODY"
+          - kapi: https://neokapi.github.io/web/prs/${PR_NUMBER}/neokapi/
+          - bowrain: https://neokapi.github.io/web/prs/${PR_NUMBER}/bowrain/
+          - kapi storybook: https://neokapi.github.io/storybook/prs/${PR_NUMBER}/kapi/
+          - bowrain storybook: https://neokapi.github.io/storybook/prs/${PR_NUMBER}/bowrain/"
+          gh pr comment "$PR_NUMBER" --repo "${GITHUB_REPOSITORY}" --body "$BODY"

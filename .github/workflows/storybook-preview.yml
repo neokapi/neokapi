@@ -1,8 +1,14 @@
 name: Storybook
 
+# Builds the kapi and bowrain Storybook static sites and uploads them as
+# artifacts. Deployment is handled by pages-deploy.yml, which slots them
+# under the org pages tree at:
+#   /storybook/{kapi,bowrain}/         (production)
+#   /storybook/prs/{N}/{kapi,bowrain}/ (PR previews)
+
 on:
   pull_request:
-    types: [opened, synchronize, reopened, closed]
+    types: [opened, synchronize, reopened]
     paths:
       - "bowrain/packages/ui/**"
       - "bowrain/storybook/**"
@@ -34,17 +40,12 @@ on:
 
 permissions:
   contents: read
-  pull-requests: write
-  packages: read
-
-env:
-  PR_NUMBER: ${{ github.event.pull_request.number }}
 
 jobs:
-  # Publish production Storybook on push to main.
-  publish:
-    if: github.event_name == 'push'
+  build:
     runs-on: ubuntu-latest
+    env:
+      PR_NUMBER: ${{ github.event.pull_request.number }}
     steps:
       - uses: actions/checkout@v6
 
@@ -54,91 +55,31 @@ jobs:
         working-directory: packages/kapi-react
         run: npm run build
 
-      - name: Build Bowrain Storybook
-        working-directory: bowrain/storybook
-        env:
-          STORYBOOK_BASE_PATH: /bowrain/storybook/
-        run: vpx storybook build -o storybook-static
-
-      - name: Build Kapi Storybook
-        working-directory: storybook
-        env:
-          STORYBOOK_BASE_PATH: /kapi/storybook/
-        run: vpx storybook build -o storybook-static
-
-      # Upload as artifacts so pages-deploy.yml can slot them under
-      # /storybook/{kapi,bowrain}/ in the merged gh-pages tree.
-      # The existing neokapi.github.io repo deploy below remains as the
-      # primary delivery path until pages-deploy is verified end-to-end.
-      - name: Upload bowrain storybook artifact
-        uses: actions/upload-artifact@v7
-        with:
-          name: bowrain-storybook
-          path: bowrain/storybook/storybook-static
-          retention-days: 7
-
-      - name: Upload kapi storybook artifact
-        uses: actions/upload-artifact@v7
-        with:
-          name: kapi-storybook
-          path: storybook/storybook-static
-          retention-days: 7
-
-      - name: Deploy to GitHub Pages
-        env:
-          SSH_DEPLOY_KEY: ${{ secrets.PAGES_DEPLOY_KEY }}
+      - name: Determine base paths
+        id: base
         run: |
-          mkdir -p ~/.ssh
-          echo "$SSH_DEPLOY_KEY" > ~/.ssh/deploy_key
-          chmod 600 ~/.ssh/deploy_key
-          ssh-keyscan github.com >> ~/.ssh/known_hosts 2>/dev/null
-          export GIT_SSH_COMMAND="ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no"
-
-          git clone --depth 1 git@github.com:neokapi/neokapi.github.io.git /tmp/pages
-
-          # Deploy Bowrain Storybook
-          BOWRAIN_DIR="bowrain/storybook"
-          find "/tmp/pages/${BOWRAIN_DIR}" -maxdepth 1 -not -name 'pr-*' -not -name storybook -delete 2>/dev/null || true
-          mkdir -p "/tmp/pages/${BOWRAIN_DIR}"
-          cp -r bowrain/storybook/storybook-static/* "/tmp/pages/${BOWRAIN_DIR}/"
-
-          # Deploy Kapi Storybook
-          KAPI_DIR="kapi/storybook"
-          find "/tmp/pages/${KAPI_DIR}" -maxdepth 1 -not -name 'pr-*' -not -name storybook -delete 2>/dev/null || true
-          mkdir -p "/tmp/pages/${KAPI_DIR}"
-          cp -r storybook/storybook-static/* "/tmp/pages/${KAPI_DIR}/"
-
-          cd /tmp/pages
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add .
-          git diff --staged --quiet && echo "No changes to deploy" && exit 0
-          git commit -m "Deploy Storybooks from main (${GITHUB_SHA::8})"
-          git push origin main
-
-  # Deploy per-PR Storybook preview.
-  deploy:
-    if: github.event_name == 'pull_request' && github.event.action != 'closed'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v6
-
-      - uses: ./.github/actions/setup-node-ui
-
-      - name: Build kapi-react (storybook-config imports from dist)
-        working-directory: packages/kapi-react
-        run: npm run build
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            {
+              echo "kapi_base=/storybook/prs/${PR_NUMBER}/kapi/"
+              echo "bowrain_base=/storybook/prs/${PR_NUMBER}/bowrain/"
+            } >> "$GITHUB_OUTPUT"
+          else
+            {
+              echo "kapi_base=/storybook/kapi/"
+              echo "bowrain_base=/storybook/bowrain/"
+            } >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Build Bowrain Storybook
         working-directory: bowrain/storybook
         env:
-          STORYBOOK_BASE_PATH: /bowrain/storybook/pr-${{ github.event.pull_request.number }}/
+          STORYBOOK_BASE_PATH: ${{ steps.base.outputs.bowrain_base }}
         run: vpx storybook build -o storybook-static
 
       - name: Build Kapi Storybook
         working-directory: storybook
         env:
-          STORYBOOK_BASE_PATH: /kapi/storybook/pr-${{ github.event.pull_request.number }}/
+          STORYBOOK_BASE_PATH: ${{ steps.base.outputs.kapi_base }}
         run: vpx storybook build -o storybook-static
 
       - name: Upload bowrain storybook artifact
@@ -154,108 +95,3 @@ jobs:
           name: kapi-storybook
           path: storybook/storybook-static
           retention-days: 7
-
-      - name: Deploy to GitHub Pages
-        env:
-          SSH_DEPLOY_KEY: ${{ secrets.PAGES_DEPLOY_KEY }}
-        run: |
-          if [ -z "$SSH_DEPLOY_KEY" ]; then
-            echo "No deploy key available (expected for Dependabot PRs), skipping"
-            exit 0
-          fi
-
-          mkdir -p ~/.ssh
-          echo "$SSH_DEPLOY_KEY" > ~/.ssh/deploy_key
-          chmod 600 ~/.ssh/deploy_key
-          ssh-keyscan github.com >> ~/.ssh/known_hosts 2>/dev/null
-          export GIT_SSH_COMMAND="ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no"
-
-          git clone --depth 1 git@github.com:neokapi/neokapi.github.io.git /tmp/pages
-
-          # Deploy Bowrain Storybook preview
-          BOWRAIN_DIR="bowrain/storybook/pr-${PR_NUMBER}"
-          rm -rf "/tmp/pages/${BOWRAIN_DIR}"
-          mkdir -p "/tmp/pages/${BOWRAIN_DIR}"
-          cp -r bowrain/storybook/storybook-static/* "/tmp/pages/${BOWRAIN_DIR}/"
-
-          # Deploy Kapi Storybook preview
-          KAPI_DIR="kapi/storybook/pr-${PR_NUMBER}"
-          rm -rf "/tmp/pages/${KAPI_DIR}"
-          mkdir -p "/tmp/pages/${KAPI_DIR}"
-          cp -r storybook/storybook-static/* "/tmp/pages/${KAPI_DIR}/"
-
-          cd /tmp/pages
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add .
-          git diff --staged --quiet && echo "No changes to deploy" && exit 0
-          git commit -m "Deploy Storybook previews for PR #${PR_NUMBER}"
-          git push origin main
-
-      - name: Comment PR with preview links
-        if: github.actor != 'dependabot[bot]'
-        uses: actions/github-script@v9
-        with:
-          script: |
-            const prNum = context.payload.pull_request.number;
-            const bowrainUrl = `https://neokapi.github.io/bowrain/storybook/pr-${prNum}/`;
-            const kapiUrl = `https://neokapi.github.io/kapi/storybook/pr-${prNum}/`;
-            const marker = '<!-- storybook-preview -->';
-            const body = `${marker}\n📖 **Storybook previews:**\n- Bowrain: ${bowrainUrl}\n- Kapi: ${kapiUrl}`;
-
-            const { data: comments } = await github.rest.issues.listComments({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: prNum,
-            });
-
-            const existing = comments.find(c => c.body.includes(marker));
-            if (existing) {
-              await github.rest.issues.updateComment({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                comment_id: existing.id,
-                body,
-              });
-            } else {
-              await github.rest.issues.createComment({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                issue_number: prNum,
-                body,
-              });
-            }
-
-  cleanup:
-    if: github.event.action == 'closed'
-    runs-on: ubuntu-latest
-    steps:
-      - name: Remove preview from GitHub Pages
-        env:
-          SSH_DEPLOY_KEY: ${{ secrets.PAGES_DEPLOY_KEY }}
-        run: |
-          if [ -z "$SSH_DEPLOY_KEY" ]; then
-            echo "No deploy key available, skipping"
-            exit 0
-          fi
-
-          mkdir -p ~/.ssh
-          echo "$SSH_DEPLOY_KEY" > ~/.ssh/deploy_key
-          chmod 600 ~/.ssh/deploy_key
-          ssh-keyscan github.com >> ~/.ssh/known_hosts 2>/dev/null
-          export GIT_SSH_COMMAND="ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no"
-
-          git clone --depth 1 git@github.com:neokapi/neokapi.github.io.git /tmp/pages
-
-          BOWRAIN_DIR="bowrain/storybook/pr-${PR_NUMBER}"
-          KAPI_DIR="kapi/storybook/pr-${PR_NUMBER}"
-
-          rm -rf "/tmp/pages/${BOWRAIN_DIR}" "/tmp/pages/${KAPI_DIR}"
-
-          cd /tmp/pages
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add .
-          git diff --staged --quiet && echo "Nothing to clean up" && exit 0
-          git commit -m "Remove Storybook previews for PR #${PR_NUMBER}"
-          git push origin main
