@@ -1,0 +1,232 @@
+{
+  "name": "Bridge HTML",
+  "description": "HTML processing via Java/Okapi bridge with gRPC boundary crossing, showing bridge-specific events",
+  "nodes": [
+    {
+      "id": "bridge-reader",
+      "type": "bridge-reader",
+      "name": "okapi-html",
+      "label": "HTML Reader",
+      "bridge": {
+        "filterClass": "net.sf.okapi.filters.html.HtmlFilter",
+        "protocol": "grpc",
+        "subprocess": "java -jar okapi-bridge.jar"
+      }
+    },
+    { "id": "pseudo", "type": "tool", "name": "pseudo-translate", "label": "Pseudo-Translate" },
+    {
+      "id": "bridge-writer",
+      "type": "bridge-writer",
+      "name": "okapi-html",
+      "label": "HTML Writer",
+      "bridge": {
+        "filterClass": "net.sf.okapi.filters.html.HtmlFilter",
+        "protocol": "grpc",
+        "subprocess": "java -jar okapi-bridge.jar"
+      }
+    }
+  ],
+  "channelSize": 64,
+  "events": [
+    { "ts": 10, "type": "pool-acquire", "nodeId": "bridge-reader", "meta": { "poolSize": 0 } },
+    {
+      "ts": 20,
+      "type": "jvm-start",
+      "nodeId": "bridge-reader",
+      "meta": { "command": "java -jar okapi-bridge.jar" }
+    },
+    { "ts": 500, "type": "jvm-ready", "nodeId": "bridge-reader", "meta": { "startupMs": 480 } },
+    { "ts": 510, "type": "grpc-open", "nodeId": "bridge-reader", "meta": { "port": 50051 } },
+    { "ts": 520, "type": "grpc-read-start", "nodeId": "bridge-reader", "partId": "layer-1" },
+    { "ts": 540, "type": "bridge-receive", "nodeId": "bridge-reader", "partId": "layer-1" },
+    { "ts": 550, "type": "bridge-deserialize", "nodeId": "bridge-reader", "partId": "layer-1" },
+    { "ts": 560, "type": "grpc-read-end", "nodeId": "bridge-reader", "partId": "layer-1" },
+    { "ts": 570, "type": "exit", "nodeId": "bridge-reader", "partId": "layer-1" },
+    { "ts": 580, "type": "grpc-read-start", "nodeId": "bridge-reader", "partId": "block-heading" },
+    { "ts": 610, "type": "bridge-receive", "nodeId": "bridge-reader", "partId": "block-heading" },
+    {
+      "ts": 620,
+      "type": "bridge-deserialize",
+      "nodeId": "bridge-reader",
+      "partId": "block-heading"
+    },
+    { "ts": 640, "type": "grpc-read-end", "nodeId": "bridge-reader", "partId": "block-heading" },
+    { "ts": 650, "type": "exit", "nodeId": "bridge-reader", "partId": "block-heading" },
+    { "ts": 660, "type": "enter", "nodeId": "pseudo", "partId": "layer-1" },
+    {
+      "ts": 670,
+      "type": "grpc-read-start",
+      "nodeId": "bridge-reader",
+      "partId": "block-paragraph"
+    },
+    { "ts": 680, "type": "exit", "nodeId": "pseudo", "partId": "layer-1" },
+    { "ts": 710, "type": "bridge-receive", "nodeId": "bridge-reader", "partId": "block-paragraph" },
+    {
+      "ts": 720,
+      "type": "bridge-deserialize",
+      "nodeId": "bridge-reader",
+      "partId": "block-paragraph"
+    },
+    { "ts": 740, "type": "grpc-read-end", "nodeId": "bridge-reader", "partId": "block-paragraph" },
+    { "ts": 750, "type": "exit", "nodeId": "bridge-reader", "partId": "block-paragraph" },
+    { "ts": 760, "type": "enter", "nodeId": "pseudo", "partId": "block-heading" },
+    { "ts": 770, "type": "grpc-read-start", "nodeId": "bridge-reader", "partId": "data-style" },
+    { "ts": 800, "type": "bridge-receive", "nodeId": "bridge-reader", "partId": "data-style" },
+    { "ts": 810, "type": "bridge-deserialize", "nodeId": "bridge-reader", "partId": "data-style" },
+    { "ts": 820, "type": "grpc-read-end", "nodeId": "bridge-reader", "partId": "data-style" },
+    { "ts": 830, "type": "exit", "nodeId": "bridge-reader", "partId": "data-style" },
+    { "ts": 840, "type": "grpc-read-start", "nodeId": "bridge-reader", "partId": "block-link" },
+    { "ts": 870, "type": "bridge-receive", "nodeId": "bridge-reader", "partId": "block-link" },
+    { "ts": 880, "type": "bridge-deserialize", "nodeId": "bridge-reader", "partId": "block-link" },
+    { "ts": 890, "type": "grpc-read-end", "nodeId": "bridge-reader", "partId": "block-link" },
+    { "ts": 900, "type": "exit", "nodeId": "bridge-reader", "partId": "block-link" },
+    { "ts": 910, "type": "grpc-read-start", "nodeId": "bridge-reader", "partId": "layer-1-end" },
+    { "ts": 920, "type": "bridge-receive", "nodeId": "bridge-reader", "partId": "layer-1-end" },
+    { "ts": 930, "type": "bridge-deserialize", "nodeId": "bridge-reader", "partId": "layer-1-end" },
+    { "ts": 940, "type": "grpc-read-end", "nodeId": "bridge-reader", "partId": "layer-1-end" },
+    { "ts": 950, "type": "exit", "nodeId": "bridge-reader", "partId": "layer-1-end" },
+    { "ts": 960, "type": "pool-release", "nodeId": "bridge-reader" },
+    { "ts": 950, "type": "exit", "nodeId": "pseudo", "partId": "block-heading" },
+    { "ts": 960, "type": "enter", "nodeId": "pseudo", "partId": "block-paragraph" },
+    { "ts": 1000, "type": "enter", "nodeId": "bridge-writer", "partId": "layer-1" },
+    { "ts": 1010, "type": "bridge-serialize", "nodeId": "bridge-writer", "partId": "layer-1" },
+    { "ts": 1020, "type": "grpc-write-start", "nodeId": "bridge-writer", "partId": "layer-1" },
+    { "ts": 1040, "type": "bridge-send", "nodeId": "bridge-writer", "partId": "layer-1" },
+    { "ts": 1050, "type": "grpc-write-end", "nodeId": "bridge-writer", "partId": "layer-1" },
+    { "ts": 1060, "type": "exit", "nodeId": "bridge-writer", "partId": "layer-1" },
+    { "ts": 1070, "type": "enter", "nodeId": "bridge-writer", "partId": "block-heading" },
+    {
+      "ts": 1080,
+      "type": "bridge-serialize",
+      "nodeId": "bridge-writer",
+      "partId": "block-heading"
+    },
+    {
+      "ts": 1090,
+      "type": "grpc-write-start",
+      "nodeId": "bridge-writer",
+      "partId": "block-heading"
+    },
+    { "ts": 1110, "type": "bridge-send", "nodeId": "bridge-writer", "partId": "block-heading" },
+    { "ts": 1120, "type": "grpc-write-end", "nodeId": "bridge-writer", "partId": "block-heading" },
+    { "ts": 1130, "type": "exit", "nodeId": "bridge-writer", "partId": "block-heading" },
+    { "ts": 1150, "type": "exit", "nodeId": "pseudo", "partId": "block-paragraph" },
+    { "ts": 1160, "type": "enter", "nodeId": "pseudo", "partId": "data-style" },
+    { "ts": 1170, "type": "exit", "nodeId": "pseudo", "partId": "data-style" },
+    { "ts": 1180, "type": "enter", "nodeId": "pseudo", "partId": "block-link" },
+    { "ts": 1190, "type": "enter", "nodeId": "bridge-writer", "partId": "block-paragraph" },
+    {
+      "ts": 1200,
+      "type": "bridge-serialize",
+      "nodeId": "bridge-writer",
+      "partId": "block-paragraph"
+    },
+    {
+      "ts": 1210,
+      "type": "grpc-write-start",
+      "nodeId": "bridge-writer",
+      "partId": "block-paragraph"
+    },
+    { "ts": 1230, "type": "bridge-send", "nodeId": "bridge-writer", "partId": "block-paragraph" },
+    {
+      "ts": 1240,
+      "type": "grpc-write-end",
+      "nodeId": "bridge-writer",
+      "partId": "block-paragraph"
+    },
+    { "ts": 1250, "type": "exit", "nodeId": "bridge-writer", "partId": "block-paragraph" },
+    { "ts": 1280, "type": "exit", "nodeId": "pseudo", "partId": "block-link" },
+    { "ts": 1290, "type": "enter", "nodeId": "pseudo", "partId": "layer-1-end" },
+    { "ts": 1300, "type": "exit", "nodeId": "pseudo", "partId": "layer-1-end" },
+    { "ts": 1310, "type": "enter", "nodeId": "bridge-writer", "partId": "data-style" },
+    { "ts": 1320, "type": "bridge-serialize", "nodeId": "bridge-writer", "partId": "data-style" },
+    { "ts": 1330, "type": "grpc-write-start", "nodeId": "bridge-writer", "partId": "data-style" },
+    { "ts": 1340, "type": "bridge-send", "nodeId": "bridge-writer", "partId": "data-style" },
+    { "ts": 1350, "type": "grpc-write-end", "nodeId": "bridge-writer", "partId": "data-style" },
+    { "ts": 1360, "type": "exit", "nodeId": "bridge-writer", "partId": "data-style" },
+    { "ts": 1370, "type": "enter", "nodeId": "bridge-writer", "partId": "block-link" },
+    { "ts": 1380, "type": "bridge-serialize", "nodeId": "bridge-writer", "partId": "block-link" },
+    { "ts": 1390, "type": "grpc-write-start", "nodeId": "bridge-writer", "partId": "block-link" },
+    { "ts": 1410, "type": "bridge-send", "nodeId": "bridge-writer", "partId": "block-link" },
+    { "ts": 1420, "type": "grpc-write-end", "nodeId": "bridge-writer", "partId": "block-link" },
+    { "ts": 1430, "type": "exit", "nodeId": "bridge-writer", "partId": "block-link" },
+    { "ts": 1440, "type": "enter", "nodeId": "bridge-writer", "partId": "layer-1-end" },
+    { "ts": 1450, "type": "bridge-serialize", "nodeId": "bridge-writer", "partId": "layer-1-end" },
+    { "ts": 1460, "type": "grpc-write-start", "nodeId": "bridge-writer", "partId": "layer-1-end" },
+    { "ts": 1470, "type": "bridge-send", "nodeId": "bridge-writer", "partId": "layer-1-end" },
+    { "ts": 1480, "type": "grpc-write-end", "nodeId": "bridge-writer", "partId": "layer-1-end" },
+    { "ts": 1490, "type": "exit", "nodeId": "bridge-writer", "partId": "layer-1-end" }
+  ],
+  "parts": {
+    "layer-1": {
+      "initial": { "id": "layer-1", "type": "LayerStart", "summary": "HTML document" }
+    },
+    "block-heading": {
+      "initial": {
+        "id": "block-heading",
+        "type": "Block",
+        "summary": "h1: Welcome to Our Site",
+        "sourceText": "Welcome to Our Site"
+      },
+      "afterNode": {
+        "pseudo": {
+          "id": "block-heading",
+          "type": "Block",
+          "summary": "h1: [\u0174\u00e9\u013c\u00e7\u00f6\u0271\u00e9 \u0163\u00f6 \u00d6\u00fb\u0155 \u015c\u00ee\u0163\u00e9]",
+          "sourceText": "Welcome to Our Site",
+          "targetText": "[\u0174\u00e9\u013c\u00e7\u00f6\u0271\u00e9 \u0163\u00f6 \u00d6\u00fb\u0155 \u015c\u00ee\u0163\u00e9]"
+        }
+      }
+    },
+    "block-paragraph": {
+      "initial": {
+        "id": "block-paragraph",
+        "type": "Block",
+        "summary": "p: Learn more about our products and services.",
+        "sourceText": "Learn more about our products and services."
+      },
+      "afterNode": {
+        "pseudo": {
+          "id": "block-paragraph",
+          "type": "Block",
+          "summary": "p: [\u013b\u00e9\u00e0\u0155\u00f1 \u0271\u00f6\u0155\u00e9 \u00e0\u0183\u00f6\u00fb\u0163 \u00f6\u00fb\u0155 \u00fe\u0155\u00f6\u00f0\u00fb\u00e7\u0163\u015d]",
+          "sourceText": "Learn more about our products and services.",
+          "targetText": "[\u013b\u00e9\u00e0\u0155\u00f1 \u0271\u00f6\u0155\u00e9 \u00e0\u0183\u00f6\u00fb\u0163 \u00f6\u00fb\u0155 \u00fe\u0155\u00f6\u00f0\u00fb\u00e7\u0163\u015d]"
+        }
+      }
+    },
+    "data-style": {
+      "initial": { "id": "data-style", "type": "Data", "summary": "CSS style block" }
+    },
+    "block-link": {
+      "initial": {
+        "id": "block-link",
+        "type": "Block",
+        "summary": "a: Contact Us",
+        "sourceText": "Contact Us"
+      },
+      "afterNode": {
+        "pseudo": {
+          "id": "block-link",
+          "type": "Block",
+          "summary": "a: [\u0108\u00f6\u00f1\u0163\u00e0\u00e7\u0163 \u00db\u015d]",
+          "sourceText": "Contact Us",
+          "targetText": "[\u0108\u00f6\u00f1\u0163\u00e0\u00e7\u0163 \u00db\u015d]"
+        }
+      }
+    },
+    "layer-1-end": {
+      "initial": { "id": "layer-1-end", "type": "LayerEnd", "summary": "HTML document end" }
+    }
+  },
+  "inputFile": {
+    "name": "index.html",
+    "format": "html",
+    "preview": "<html>\n<head><style>body { font-family: sans-serif; }</style></head>\n<body>\n  <h1>Welcome to Our Site</h1>\n  <p>Learn more about our products and services.</p>\n  <a href=\"/contact\">Contact Us</a>\n</body>\n</html>"
+  },
+  "outputFile": {
+    "name": "index_qps.html",
+    "preview": "<html>\n<head><style>body { font-family: sans-serif; }</style></head>\n<body>\n  <h1>[\u0174\u00e9\u013c\u00e7\u00f6\u0271\u00e9 \u0163\u00f6 \u00d6\u00fb\u0155 \u015c\u00ee\u0163\u00e9]</h1>\n  <p>[\u013b\u00e9\u00e0\u0155\u00f1 \u0271\u00f6\u0155\u00e9 \u00e0\u0183\u00f6\u00fb\u0163 \u00f6\u00fb\u0155 \u00fe\u0155\u00f6\u00f0\u00fb\u00e7\u0163\u015d]</p>\n  <a href=\"/contact\">[\u0108\u00f6\u00f1\u0163\u00e0\u00e7\u0163 \u00db\u015d]</a>\n</body>\n</html>"
+  },
+  "durationUs": 1490
+}
