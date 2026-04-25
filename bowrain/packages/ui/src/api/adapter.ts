@@ -72,6 +72,11 @@ import type {
   RoleTemplate,
   ProjectMembership,
   DigestSettingsDTO,
+  OnboardingStatus,
+  SlugCheckResponse,
+  EmailChangeRequestResponse,
+  EmailChangeConfirmResponse,
+  SlugReservation,
 } from "../types/api";
 import type {
   VoiceProfile,
@@ -91,6 +96,17 @@ export interface ApiAdapter {
 
   // Auth
   getCurrentUser(): Promise<User | null>;
+
+  // Account management — onboarding (handle pick), email change, slug check.
+  getOnboardingStatus(): Promise<OnboardingStatus>;
+  completeOnboarding(slug: string, displayName?: string): Promise<Workspace>;
+  checkSlug(slug: string): Promise<SlugCheckResponse>;
+  requestEmailChange(newEmail: string): Promise<EmailChangeRequestResponse>;
+  confirmEmailChange(token: string): Promise<EmailChangeConfirmResponse>;
+
+  // Admin: workspace slug-rename reservations.
+  adminListSlugReservations(): Promise<SlugReservation[]>;
+  adminReleaseSlugReservation(slug: string): Promise<void>;
 
   // Workspaces
   listWorkspaces(): Promise<Workspace[]>;

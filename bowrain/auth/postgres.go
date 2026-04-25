@@ -55,8 +55,8 @@ func (s *PostgresAuthStore) CreateUser(ctx context.Context, u *platauth.User) er
 		u.CreatedAt = time.Now().UTC()
 	}
 	_, err := s.db.ExecContext(ctx,
-		`INSERT INTO users (id, email, name, avatar_url, oidc_sub, created_at) VALUES ($1, $2, $3, $4, $5, $6)`,
-		u.ID, u.Email, u.Name, u.AvatarURL, u.OIDCSub, u.CreatedAt)
+		`INSERT INTO users (id, email, name, avatar_url, oidc_sub, onboarded_at, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+		u.ID, u.Email, u.Name, u.AvatarURL, u.OIDCSub, u.OnboardedAt, u.CreatedAt)
 	if err != nil {
 		return fmt.Errorf("insert user: %w", err)
 	}
@@ -65,26 +65,26 @@ func (s *PostgresAuthStore) CreateUser(ctx context.Context, u *platauth.User) er
 
 func (s *PostgresAuthStore) GetUser(ctx context.Context, id string) (*platauth.User, error) {
 	row := s.db.QueryRowContext(ctx,
-		`SELECT id, email, name, avatar_url, oidc_sub, created_at FROM users WHERE id = $1`, id)
+		`SELECT id, email, name, avatar_url, oidc_sub, onboarded_at, created_at FROM users WHERE id = $1`, id)
 	return scanUserPg(row)
 }
 
 func (s *PostgresAuthStore) GetUserByEmail(ctx context.Context, email string) (*platauth.User, error) {
 	row := s.db.QueryRowContext(ctx,
-		`SELECT id, email, name, avatar_url, oidc_sub, created_at FROM users WHERE email = $1`, email)
+		`SELECT id, email, name, avatar_url, oidc_sub, onboarded_at, created_at FROM users WHERE email = $1`, email)
 	return scanUserPg(row)
 }
 
 func (s *PostgresAuthStore) GetUserByOIDCSub(ctx context.Context, sub string) (*platauth.User, error) {
 	row := s.db.QueryRowContext(ctx,
-		`SELECT id, email, name, avatar_url, oidc_sub, created_at FROM users WHERE oidc_sub = $1`, sub)
+		`SELECT id, email, name, avatar_url, oidc_sub, onboarded_at, created_at FROM users WHERE oidc_sub = $1`, sub)
 	return scanUserPg(row)
 }
 
 func (s *PostgresAuthStore) SearchUsers(ctx context.Context, query string, limit int) ([]*platauth.User, error) {
 	pattern := "%" + query + "%"
 	rows, err := s.db.QueryContext(ctx,
-		`SELECT id, email, name, avatar_url, oidc_sub, created_at FROM users
+		`SELECT id, email, name, avatar_url, oidc_sub, onboarded_at, created_at FROM users
 		 WHERE email ILIKE $1 OR name ILIKE $1
 		 ORDER BY email ASC LIMIT $2`, pattern, limit)
 	if err != nil {
@@ -104,7 +104,7 @@ func (s *PostgresAuthStore) SearchUsers(ctx context.Context, query string, limit
 
 func (s *PostgresAuthStore) ListUsers(ctx context.Context, limit, offset int) ([]*platauth.User, error) {
 	rows, err := s.db.QueryContext(ctx,
-		`SELECT id, email, name, avatar_url, oidc_sub, created_at FROM users ORDER BY created_at DESC LIMIT $1 OFFSET $2`,
+		`SELECT id, email, name, avatar_url, oidc_sub, onboarded_at, created_at FROM users ORDER BY created_at DESC LIMIT $1 OFFSET $2`,
 		limit, offset)
 	if err != nil {
 		return nil, fmt.Errorf("list users: %w", err)
@@ -124,8 +124,8 @@ func (s *PostgresAuthStore) ListUsers(ctx context.Context, limit, offset int) ([
 
 func (s *PostgresAuthStore) UpdateUser(ctx context.Context, u *platauth.User) error {
 	res, err := s.db.ExecContext(ctx,
-		`UPDATE users SET email=$1, name=$2, avatar_url=$3, oidc_sub=$4 WHERE id=$5`,
-		u.Email, u.Name, u.AvatarURL, u.OIDCSub, u.ID)
+		`UPDATE users SET email=$1, name=$2, avatar_url=$3, oidc_sub=$4, onboarded_at=$5 WHERE id=$6`,
+		u.Email, u.Name, u.AvatarURL, u.OIDCSub, u.OnboardedAt, u.ID)
 	if err != nil {
 		return fmt.Errorf("update user: %w", err)
 	}
@@ -823,7 +823,7 @@ func parsePulseTermSources(raw string, dst *platauth.PulseTermSources) {
 
 func scanUserPg(row scanner) (*platauth.User, error) {
 	var u platauth.User
-	err := row.Scan(&u.ID, &u.Email, &u.Name, &u.AvatarURL, &u.OIDCSub, &u.CreatedAt)
+	err := row.Scan(&u.ID, &u.Email, &u.Name, &u.AvatarURL, &u.OIDCSub, &u.OnboardedAt, &u.CreatedAt)
 	if err != nil {
 		return nil, fmt.Errorf("scan user: %w", err)
 	}

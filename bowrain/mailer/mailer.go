@@ -305,6 +305,42 @@ func (m *Mailer) SendDigest(ctx context.Context, to, subject, htmlBody string) e
 	return m.Sender.Send(ctx, to, subject, htmlBody)
 }
 
+// EmailChangeVerifyData holds the dynamic values for the email-change verify mail.
+type EmailChangeVerifyData struct {
+	// NewEmail is the proposed new address (and the recipient).
+	NewEmail string
+	// ConfirmURL is the full link the user clicks to finalize the change.
+	ConfirmURL string
+	// ExpiresIn is a human-readable validity window (e.g. "24 hours").
+	ExpiresIn string
+}
+
+// SendEmailChangeVerify sends the verification email used to confirm an
+// email-change request. The email is delivered to the *new* address, so a
+// successful click proves ownership.
+func (m *Mailer) SendEmailChangeVerify(ctx context.Context, to string, data EmailChangeVerifyData) error {
+	body, err := m.renderEmailChangeVerify(data)
+	if err != nil {
+		return err
+	}
+	return m.Sender.Send(ctx, to, "Confirm your new Bowrain email", body)
+}
+
+// RenderEmailChangeVerify renders the email-change-verify template to an HTML
+// string (exposed for tests).
+func (m *Mailer) RenderEmailChangeVerify(data EmailChangeVerifyData) (string, error) {
+	return m.renderEmailChangeVerify(data)
+}
+
+func (m *Mailer) renderEmailChangeVerify(data EmailChangeVerifyData) (string, error) {
+	td := map[string]string{
+		"NewEmail":   html.EscapeString(data.NewEmail),
+		"ConfirmURL": escapeURL(data.ConfirmURL),
+		"ExpiresIn":  html.EscapeString(data.ExpiresIn),
+	}
+	return m.execute("email-change-verify.html", td)
+}
+
 // escapeURL encodes a URL for safe use inside an HTML attribute value.
 // It HTML-escapes & (→ &amp;) and other HTML-special characters so the
 // href="…" attribute parses correctly in all email clients.

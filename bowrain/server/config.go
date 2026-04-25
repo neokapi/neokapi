@@ -39,6 +39,20 @@ type Config struct {
 	OIDCClientSecret string
 	OIDCPublicURL    string // browser-facing OIDC URL; defaults to OIDCIssuerURL
 
+	// Keycloak Admin API — used to write through email changes initiated
+	// from the Bowrain UI. Empty values disable Bowrain-managed email change
+	// (the UI surfaces an error if the user attempts the flow).
+	//
+	// KeycloakAdminURL should point at an in-cluster URL (e.g.
+	// "http://keycloak.identity.svc.cluster.local:8080") so admin traffic
+	// stays inside the cluster and never traverses the public ingress.
+	// The token endpoint and admin endpoints both resolve from this URL —
+	// they are not the browser-facing OIDCPublicURL.
+	KeycloakAdminURL          string
+	KeycloakRealm             string // Realm name (default: "bowrain")
+	KeycloakAdminClientID     string // Service-account client ID with realm-management:manage-users
+	KeycloakAdminClientSecret string
+
 	// Email — SMTP sender.
 	// Set SMTPHost + SMTPFrom for unauthenticated relay (local dev / Mailpit).
 	// Set SMTPUsername + SMTPPassword for authenticated SMTP (production).

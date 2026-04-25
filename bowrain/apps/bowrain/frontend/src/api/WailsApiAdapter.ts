@@ -97,7 +97,36 @@ export class WailsApiAdapter implements ApiAdapter {
 
   // --- Auth (not applicable in desktop) ---
   async getCurrentUser(): Promise<User | null> {
-    return { id: "local", email: "local@bowrain", name: "Local User", avatar_url: "" };
+    return {
+      id: "local",
+      email: "local@bowrain",
+      name: "Local User",
+      avatar_url: "",
+      onboarded_at: new Date(0).toISOString(),
+    };
+  }
+
+  // --- Account management (not applicable in desktop) ---
+  async getOnboardingStatus() {
+    return { needs_onboarding: false, email: "local@bowrain" };
+  }
+  async completeOnboarding(): Promise<Workspace> {
+    throw new Error("onboarding is not available in the desktop app");
+  }
+  async checkSlug() {
+    return { available: true };
+  }
+  async requestEmailChange(): Promise<never> {
+    throw new Error("email change is not available in the desktop app");
+  }
+  async confirmEmailChange(): Promise<never> {
+    throw new Error("email change is not available in the desktop app");
+  }
+  async adminListSlugReservations() {
+    return [];
+  }
+  async adminReleaseSlugReservation(): Promise<void> {
+    throw new Error("admin actions are not available in the desktop app");
   }
 
   // --- Workspaces (single workspace in desktop) ---
