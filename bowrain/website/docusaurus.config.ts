@@ -13,7 +13,9 @@ const config: Config = {
   favicon: "img/favicon.png",
 
   url: "https://neokapi.github.io",
-  baseUrl: "/web/bowrain/",
+  // The bowrain-web Vite app sits at /web/bowrain/; this Docusaurus
+  // instance lives one level deeper at /web/bowrain/docs/.
+  baseUrl: "/web/bowrain/docs/",
 
   organizationName: "neokapi",
   projectName: "neokapi",

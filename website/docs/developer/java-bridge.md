@@ -67,4 +67,4 @@ Each plugin version includes a `*.bridge.json` descriptor:
 
 Through the Okapi bridge, neokapi can access Okapi's full filter library including DOCX, XLSX, EPUB, IDML, PDF, DITA, FrameMaker, InDesign, and many more.
 
-See [AD-007](/docs/architecture/007-plugin-system) for the complete design rationale.
+See [AD-007](/architecture/007-plugin-system) for the complete design rationale.

@@ -8,7 +8,9 @@ const config: Config = {
   favicon: "img/favicon.png",
 
   url: "https://neokapi.github.io",
-  baseUrl: "/web/neokapi/",
+  // The neokapi-web Vite app sits at /web/neokapi/; this Docusaurus
+  // instance lives one level deeper at /web/neokapi/docs/.
+  baseUrl: "/web/neokapi/docs/",
 
   organizationName: "neokapi",
   projectName: "neokapi",
@@ -41,6 +43,10 @@ const config: Config = {
       "classic",
       {
         docs: {
+          // routeBasePath "/" puts docs at the root of the Docusaurus
+          // instance, which itself is mounted at baseUrl. So URLs end up
+          // as /web/neokapi/docs/{topic}.
+          routeBasePath: "/",
           sidebarPath: "./sidebars.ts",
           editUrl: "https://github.com/neokapi/neokapi/tree/main/website/",
         },
@@ -81,15 +87,15 @@ const config: Config = {
           items: [
             {
               label: "Getting Started",
-              to: "/docs/getting-started/introduction",
+              to: "/getting-started/introduction",
             },
             {
               label: "Kapi CLI",
-              to: "/docs/kapi-cli/overview",
+              to: "/kapi-cli/overview",
             },
             {
               label: "Framework",
-              to: "/docs/developer/architecture",
+              to: "/developer/architecture",
             },
           ],
         },

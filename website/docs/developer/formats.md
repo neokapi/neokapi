@@ -641,7 +641,7 @@ func TestTranslationRoundTrip(t *testing.T) {
 }
 ```
 
-See [Testing](/docs/developer/testing) for more patterns.
+See [Testing](/developer/testing) for more patterns.
 
 ---
 
@@ -694,5 +694,5 @@ Spans:  [{name} (Placeholder), {count} (Placeholder)]
 Formats like JSON, YAML, or .properties typically don't have inline markup.
 Use `model.NewFragment(text)` to create plain text Fragments with no spans.
 If these formats contain embedded HTML or Markdown, use nested Layers
-(see [Architecture](/docs/developer/architecture)) to delegate inline
+(see [Architecture](/developer/architecture)) to delegate inline
 handling to the appropriate sub-format reader.

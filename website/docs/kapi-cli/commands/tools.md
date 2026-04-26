@@ -96,4 +96,4 @@ kapi tools
 | `span-classify`   | Reclassify markup spans into semantic types       |
 | `layer-processor` | Apply format-specific tool chains to child layers |
 
-Each tool runs as a top-level command (e.g., `kapi pseudo-translate`, `kapi qa-check`). For composed multi-tool pipelines, see [kapi run](/docs/kapi-cli/commands/flow).
+Each tool runs as a top-level command (e.g., `kapi pseudo-translate`, `kapi qa-check`). For composed multi-tool pipelines, see [kapi run](/kapi-cli/commands/flow).

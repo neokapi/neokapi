@@ -1,0 +1,93 @@
+name: Web App Deploy
+
+# Deploys the neokapi-web and bowrain-web Vite apps to neokapi.github.io
+# at /web/{neokapi,bowrain}/ (root, with the Docusaurus docs at /docs/
+# subpath beneath each).
+#
+# This workflow lives in this repo for convenience but does not own the
+# app source. It clones the sibling repos at workflow time, builds them
+# with VITE_BASE set to the deployment path, and uploads artifacts named
+# `neokapi-web` and `bowrain-web` that pages-deploy.yml slots into the
+# right place.
+
+on:
+  workflow_dispatch:
+    inputs:
+      app:
+        description: "Which app to build (both, neokapi-web, bowrain-web)"
+        required: true
+        default: "both"
+        type: choice
+        options:
+          - both
+          - neokapi-web
+          - bowrain-web
+  repository_dispatch:
+    types: [web-app-source-changed]
+
+permissions:
+  contents: read
+  actions: write
+
+jobs:
+  neokapi-web:
+    if: ${{ inputs.app == 'both' || inputs.app == 'neokapi-web' || github.event_name == 'repository_dispatch' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Clone neokapi-web sibling repo
+        uses: actions/checkout@v6
+        with:
+          repository: neokapi/neokapi-web
+          path: neokapi-web
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: neokapi-web/package-lock.json
+
+      - name: Install + build
+        working-directory: neokapi-web
+        env:
+          VITE_BASE: /web/neokapi/
+        run: |
+          npm ci --no-audit --no-fund
+          npm run build
+
+      - name: Upload neokapi-web artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: neokapi-web
+          path: neokapi-web/docs
+          retention-days: 7
+
+  bowrain-web:
+    if: ${{ inputs.app == 'both' || inputs.app == 'bowrain-web' || github.event_name == 'repository_dispatch' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Clone bowrain-web sibling repo
+        uses: actions/checkout@v6
+        with:
+          repository: neokapi/bowrain-web
+          path: bowrain-web
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: bowrain-web/package-lock.json
+
+      - name: Install + build
+        working-directory: bowrain-web
+        env:
+          VITE_BASE: /web/bowrain/
+        run: |
+          npm ci --no-audit --no-fund
+          npm run build
+
+      - name: Upload bowrain-web artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: bowrain-web
+          path: bowrain-web/docs
+          retention-days: 7

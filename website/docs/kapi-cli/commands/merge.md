@@ -8,7 +8,7 @@ title: merge
 Apply one or more bilingual files returned by a translator back onto the
 project's source locales, using the skeleton captured by
 [`kapi extract`](./extract). Introduced by [AD-017: Bilingual Format
-Interop](/docs/architecture/017-bilingual-format-interop); the full round-trip
+Interop](/architecture/017-bilingual-format-interop); the full round-trip
 is explained in the [Bilingual Workflow](../bilingual-workflow) guide.
 
 ## Synopsis
@@ -143,4 +143,4 @@ kapi merge -p /path/to/app.kapi -i return.xliff
 - [kapi extract](./extract) — produce bilingual files
 - [kapi tm audit](./tm#audit) — trace a merge's TM impact
 - [Bilingual Workflow](../bilingual-workflow) — end-to-end narrative
-- [AD-017: Bilingual Format Interop](/docs/architecture/017-bilingual-format-interop)
+- [AD-017: Bilingual Format Interop](/architecture/017-bilingual-format-interop)

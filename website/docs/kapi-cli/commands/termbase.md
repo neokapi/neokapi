@@ -111,9 +111,9 @@ kapi ai-translate -i input.html -o output.html -s en -t fr \
   --termbase project-terms
 ```
 
-See [Terminology features](/docs/features/terminology) for details.
+See [Terminology features](/features/terminology) for details.
 
 ## Use Cases
 
-- [Terminology QA](/docs/kapi-cli/use-cases/terminology-qa) — validate that translations use approved terms consistently
-- [Pre-Translation with Terminology](/docs/kapi-cli/use-cases/terminology-pretranslation) — guide AI translation with your glossary
+- [Terminology QA](/kapi-cli/use-cases/terminology-qa) — validate that translations use approved terms consistently
+- [Pre-Translation with Terminology](/kapi-cli/use-cases/terminology-pretranslation) — guide AI translation with your glossary

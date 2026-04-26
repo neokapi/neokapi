@@ -415,5 +415,5 @@ as documents and operates on the project folder.
 - [AD-006: Tool System](006-tool-system.md) — Tool and SessionTool interfaces
 - [AD-013: Kapi CLI](013-kapi-cli.md) — CLI use of projects
 - [AD-014: Kapi Desktop](014-kapi-desktop.md) — desktop app use of projects
-- [Flow Steps Format](/docs/notes-internal/flow-steps-format) — shared flow syntax
-- [.kapi Project File](/docs/notes-internal/kapi-project-file) — schema reference
+- [Flow Steps Format](/notes-internal/flow-steps-format) — shared flow syntax
+- [.kapi Project File](/notes-internal/kapi-project-file) — schema reference

@@ -69,5 +69,5 @@ QA check framework is under development. Current status:
 
 ## Next Steps
 
-- [Terminology](/docs/features/terminology)
-- [Implementing a Tool](/docs/developer/tools)
+- [Terminology](/features/terminology)
+- [Implementing a Tool](/developer/tools)

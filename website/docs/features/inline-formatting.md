@@ -17,7 +17,7 @@ The Span model carries metadata that editors can use to guide translators:
 - **Constraints**: Whether a tag is deletable, cloneable, or reorderable
 - **Equivalent text**: Plain text fallback (e.g., `\n` for line breaks)
 
-See [Vocabularies](/docs/developer/vocabularies) for the full semantic type system.
+See [Vocabularies](/developer/vocabularies) for the full semantic type system.
 
 ## Constraint Rules
 

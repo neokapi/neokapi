@@ -97,7 +97,7 @@ A ZIP archive with:
 - `documents/<slug>.klf` — one file per source file, each carrying its `Block`s.
 - Optional targets / skeleton / annotation overlays (added by translators).
 
-See [AD-008](/docs/architecture/008-project-model) for the full schema.
+See [AD-008](/architecture/008-project-model) for the full schema.
 
 ### One block per
 
@@ -157,11 +157,11 @@ Structural context (the `jsxPath`, the translator note, the inline element token
 
 ### Multiple locales in one `i18n/`
 
-A single `i18n/` tree with N target locales on each block is the default and recommended layout — simpler to version, all translations stay together. See [AD-008](/docs/architecture/008-project-model) for the project model.
+A single `i18n/` tree with N target locales on each block is the default and recommended layout — simpler to version, all translations stay together. See [AD-008](/architecture/008-project-model) for the project model.
 
 ### Project-driven flow with `.kapi`
 
-If you already use a [`.kapi` project file](/docs/architecture/008-project-model) to define your workflow, declare each archive-backed collection with an `exec` format pointing at kapi-react (or any other extractor):
+If you already use a [`.kapi` project file](/architecture/008-project-model) to define your workflow, declare each archive-backed collection with an `exec` format pointing at kapi-react (or any other extractor):
 
 ```yaml title="translation.kapi"
 version: v1

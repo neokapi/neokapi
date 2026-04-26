@@ -84,7 +84,7 @@ both `kapi run` and top-level tool commands. They are not global flags.
 
 ## Built-in Tool Commands
 
-Single-tool operations are available as top-level commands. See [tools](/docs/kapi-cli/commands/tools) for the full list.
+Single-tool operations are available as top-level commands. See [tools](/kapi-cli/commands/tools) for the full list.
 
 | Command                 | Description                                   |
 | ----------------------- | --------------------------------------------- |
@@ -97,8 +97,8 @@ Single-tool operations are available as top-level commands. See [tools](/docs/ka
 
 ## Use Cases
 
-- [Terminology QA](/docs/kapi-cli/use-cases/terminology-qa) — validate terminology compliance in translated files
-- [Pre-Translation with Terminology](/docs/kapi-cli/use-cases/terminology-pretranslation) — combine TM, AI, and terminology in a single workflow
+- [Terminology QA](/kapi-cli/use-cases/terminology-qa) — validate terminology compliance in translated files
+- [Pre-Translation with Terminology](/kapi-cli/use-cases/terminology-pretranslation) — combine TM, AI, and terminology in a single workflow
 
 ## Listing Available Tools
 

@@ -7,7 +7,7 @@ title: extract
 
 Emit bilingual XLIFF 2.x files for a translator, pre-filled from the
 project TM. Introduced by [AD-017: Bilingual Format
-Interop](/docs/architecture/017-bilingual-format-interop); the full
+Interop](/architecture/017-bilingual-format-interop); the full
 round-trip is explained in the [Bilingual Workflow](../bilingual-workflow)
 guide.
 
@@ -119,4 +119,4 @@ Aggregate TM leverage: exact=108 fuzzy=67 new=649 (total=824)
 - [kapi merge](./merge) — apply the translator's return
 - [kapi tm audit](./tm#audit) — trace a merge's TM impact
 - [Bilingual Workflow](../bilingual-workflow) — end-to-end narrative
-- [AD-017: Bilingual Format Interop](/docs/architecture/017-bilingual-format-interop)
+- [AD-017: Bilingual Format Interop](/architecture/017-bilingual-format-interop)

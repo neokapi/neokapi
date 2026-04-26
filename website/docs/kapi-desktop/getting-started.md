@@ -90,6 +90,6 @@ Go to **Plugins** to browse the plugin registry. Install the **Okapi Bridge** pl
 
 ## What's Next
 
-- [Kapi Project Files](/docs/kapi-desktop/project-file) — Full format reference
-- [Kapi CLI Commands](/docs/kapi-cli/commands/flow) — Run flows from the command line
-- [Tool Authoring](/docs/guides/tool-authoring) — Create custom tools
+- [Kapi Project Files](/kapi-desktop/project-file) — Full format reference
+- [Kapi CLI Commands](/kapi-cli/commands/flow) — Run flows from the command line
+- [Tool Authoring](/guides/tool-authoring) — Create custom tools

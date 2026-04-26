@@ -72,7 +72,7 @@ tools:
     apiKey: ${ANTHROPIC_API_KEY}
 ```
 
-See [AI translation](/docs/features/ai-translation) for the full configuration surface.
+See [AI translation](/features/ai-translation) for the full configuration surface.
 
 ### Context carries through
 
@@ -124,7 +124,7 @@ kapi ai-translate i18n/ --target-lang fr --tm-leverage
 
 Segments that match (or fuzzy-match) past translations come through pre-populated — the AI only translates what's new.
 
-See [Translation memory](/docs/features/translation-memory) for more.
+See [Translation memory](/features/translation-memory) for more.
 
 ## Terminology pre-translation
 
@@ -139,7 +139,7 @@ kapi tools terminology-pretranslation i18n/ \
 
 Then pass `i18n-pre/` to `kapi ai-translate`, which respects the pre-translated segments.
 
-See [Terminology](/docs/features/terminology).
+See [Terminology](/features/terminology).
 
 
 klf` directly:
@@ -166,7 +166,7 @@ A complete Makefile / package-scripts setup for a multi-locale app:
 
 ## Project-driven alternative
 
-If you have a [`.kapi` project file](/docs/architecture/008-project-model) with the collection's `archive:` pointing at `i18n/`, the scripts collapse to one sync call:
+If you have a [`.kapi` project file](/architecture/008-project-model) with the collection's `archive:` pointing at `i18n/`, the scripts collapse to one sync call:
 
 ```json title="package.json"
 {

@@ -12,7 +12,7 @@ The existing `tool.Tool` streaming contract is unchanged;
 `SessionTool` is additive.
 
 This note walks through when to implement it and what the wire
-conventions are. See [AD-008](/docs/architecture/008-project-model) for
+conventions are. See [AD-008](/architecture/008-project-model) for
 the design rationale.
 
 ## When to implement

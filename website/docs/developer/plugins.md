@@ -85,7 +85,7 @@ func main() {
 
 ## Writing a Bundle Plugin
 
-A bundle is typically distributed as a bridge (`.bridge.json` + JAR or other executable) but can also be a Go binary that registers multiple capabilities. Bridge-based bundles communicate with the host via gRPC. See [Bridge Protocol](/docs/notes-internal/plugin-bridge-protocol) for details.
+A bundle is typically distributed as a bridge (`.bridge.json` + JAR or other executable) but can also be a Go binary that registers multiple capabilities. Bridge-based bundles communicate with the host via gRPC. See [Bridge Protocol](/notes-internal/plugin-bridge-protocol) for details.
 
 For Go-based bundles, register multiple `format_reader`, `format_writer`, and `tool` services in the `ServeConfig.Plugins` map.
 
@@ -105,4 +105,4 @@ service ToolPlugin {
 }
 ```
 
-See [AD-007](/docs/architecture/007-plugin-system) for the full design rationale.
+See [AD-007](/architecture/007-plugin-system) for the full design rationale.

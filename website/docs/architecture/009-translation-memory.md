@@ -238,5 +238,5 @@ accumulates richer data over time.
   annotations
 - [AD-006: Tool System](006-tool-system.md) — `tm-leverage` tool
 - [AD-010: Terminology](010-terminology.md) — shares matching infrastructure
-- [TM Matching Algorithm](/docs/notes-internal/tm-matching-algorithm) — trigram
+- [TM Matching Algorithm](/notes-internal/tm-matching-algorithm) — trigram
   construction, performance table, TMX element mapping

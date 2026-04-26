@@ -61,7 +61,7 @@ kapi termbase lookup "authentication module" -s en -t fr
 
 ## Next Steps
 
-- [Kapi CLI Overview](/docs/kapi-cli/overview) — full command reference
-- [Formats](/docs/kapi-cli/commands/formats) — supported file formats
-- [Run Command](/docs/kapi-cli/commands/flow) — composed flows and tool commands
-- [Features](/docs/features/formats) — detailed feature documentation
+- [Kapi CLI Overview](/kapi-cli/overview) — full command reference
+- [Formats](/kapi-cli/commands/formats) — supported file formats
+- [Run Command](/kapi-cli/commands/flow) — composed flows and tool commands
+- [Features](/features/formats) — detailed feature documentation

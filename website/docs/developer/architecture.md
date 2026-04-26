@@ -8,7 +8,7 @@ title: Architecture
 neokapi is an open-source localization framework built in Go. It provides
 format-aware document parsing, composable processing tools, and a concurrent
 streaming pipeline for translation workflows. For the reasoning behind each
-major design choice, see the [Architecture Decisions](/docs/architecture/001-vision-and-modules).
+major design choice, see the [Architecture Decisions](/architecture/001-vision-and-modules).
 
 ## Processing Pipeline
 
@@ -52,8 +52,8 @@ graph LR
 
 The processing pipeline runs each tool in its own goroutine, connected by
 buffered channels with automatic backpressure. Context cancellation propagates
-to all stages. See [AD-001](/docs/architecture/001-vision-and-modules) and
-[AD-004](/docs/architecture/004-processing-engine).
+to all stages. See [AD-001](/architecture/001-vision-and-modules) and
+[AD-004](/architecture/004-processing-engine).
 
 ## Package Layout
 
@@ -174,7 +174,7 @@ classDiagram
 
 Embedded content (HTML inside JSON, CDATA in XML) is modeled as nested
 Layers, each with its own DataFormat. See
-[AD-002](/docs/architecture/002-content-model).
+[AD-002](/architecture/002-content-model).
 
 ### Inline Span Encoding
 

@@ -156,7 +156,7 @@ roundtrip writing. A format picks the one that fits its structure:
   during extraction; the writer reads entries sequentially to reconstruct
   the document with byte-exact fidelity. Peak memory is ~100 KB per
   document regardless of document size. Preferred for new formats. See
-  [Skeleton Store](/docs/notes-internal/skeleton-store) for the binary format and
+  [Skeleton Store](/notes-internal/skeleton-store) for the binary format and
   wiring.
 
 - **Re-parse** (JSON, YAML, PO, Plaintext). The writer re-opens the
@@ -198,8 +198,8 @@ To add a new format:
 7. If the format can host embedded content, implement `SubfilterAware`
    and accept `Subfilters []SubfilterMapping` in the config.
 
-See [Implementing Formats](/docs/notes-internal/implementing-formats) for a
-walkthrough, and [Skeleton Store](/docs/notes-internal/skeleton-store) for the
+See [Implementing Formats](/notes-internal/implementing-formats) for a
+walkthrough, and [Skeleton Store](/notes-internal/skeleton-store) for the
 preferred skeleton strategy details.
 
 ## Consequences
@@ -226,5 +226,5 @@ preferred skeleton strategy details.
 - [AD-004: Processing Engine](004-processing-engine.md) — how readers and writers plug into the pipeline
 - [AD-006: Tool System](006-tool-system.md) — the tools that sit between reader and writer
 - [AD-007: Plugin System and Okapi Bridge](007-plugin-system.md) — how plugin and bridge formats register
-- [Implementing Formats](/docs/notes-internal/implementing-formats) — implementation walkthrough
-- [Skeleton Store](/docs/notes-internal/skeleton-store) — binary skeleton format and wiring
+- [Implementing Formats](/notes-internal/implementing-formats) — implementation walkthrough
+- [Skeleton Store](/notes-internal/skeleton-store) — binary skeleton format and wiring

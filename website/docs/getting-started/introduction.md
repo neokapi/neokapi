@@ -79,5 +79,5 @@ If you're familiar with the Okapi Framework, here's how concepts map:
 
 ## Next Steps
 
-- [Installation](/docs/getting-started/installation) — install kapi CLI
-- [Quick Start](/docs/getting-started/quickstart) — process your first file
+- [Installation](/getting-started/installation) — install kapi CLI
+- [Quick Start](/getting-started/quickstart) — process your first file

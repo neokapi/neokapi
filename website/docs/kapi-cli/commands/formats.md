@@ -72,4 +72,4 @@ kapi formats schema json
 | TMX        | .tmx        | Translation Memory eXchange          |
 | TBX        | .tbx        | TermBase eXchange                    |
 
-Additional formats available via plugins (e.g., DOCX, XLSX via [Okapi bridge](/docs/kapi-cli/commands/plugins)).
+Additional formats available via plugins (e.g., DOCX, XLSX via [Okapi bridge](/kapi-cli/commands/plugins)).

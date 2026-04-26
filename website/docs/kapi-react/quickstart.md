@@ -15,7 +15,7 @@ npm install -D @neokapi/kapi-react
 
 The package ships a Vite plugin, extract + compile CLI subcommands, and the tiny runtime (~2 kB). No peer dependencies beyond React 18+.
 
-The [`kapi` CLI](/docs/kapi-cli/overview) is the translation pipeline that produces pseudo-translations from the KLF directory kapi-react extracts. Install it too:
+The [`kapi` CLI](/kapi-cli/overview) is the translation pipeline that produces pseudo-translations from the KLF directory kapi-react extracts. Install it too:
 
 ```bash
 # macOS

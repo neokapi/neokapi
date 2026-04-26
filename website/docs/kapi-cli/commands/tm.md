@@ -93,7 +93,7 @@ kapi tm stats                      # uses ./tm.db
 
 Trace every TM entry written or updated by a specific
 [`kapi merge`](./merge) batch. Introduced by [AD-017: Bilingual Format
-Interop](/docs/architecture/017-bilingual-format-interop) and the
+Interop](/architecture/017-bilingual-format-interop) and the
 [Bilingual Workflow](../bilingual-workflow).
 
 ```bash
@@ -144,4 +144,4 @@ kapi's TM uses a 6-tier matching pipeline, tried in order of reuse potential:
 | 5    | Structural Fuzzy  | Levenshtein with markup normalization                 |
 | 6    | Plain Fuzzy       | Levenshtein on raw text                               |
 
-See [Translation Memory features](/docs/features/translation-memory) for details.
+See [Translation Memory features](/features/translation-memory) for details.

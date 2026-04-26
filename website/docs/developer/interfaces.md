@@ -166,7 +166,7 @@ type Span struct {
 ```
 
 Markers in `CodedText` map to spans positionally. See
-[Implementing a Format](/docs/developer/formats#inline-code-handling) for
+[Implementing a Format](/developer/formats#inline-code-handling) for
 a complete guide to building and reconstructing inline codes.
 
 ### Data, Media, Group markers

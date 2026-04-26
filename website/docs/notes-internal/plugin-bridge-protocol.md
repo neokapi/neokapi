@@ -5,7 +5,7 @@ title: "Bridge Protocol"
 
 # Bridge Protocol
 
-This note provides implementation details for [AD-007](/docs/architecture/007-plugin-system).
+This note provides implementation details for [AD-007](/architecture/007-plugin-system).
 
 ## gRPC Bridge Protocol
 

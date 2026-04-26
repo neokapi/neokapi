@@ -226,6 +226,6 @@ AI-powered tools like `ai-translate` require API keys and are not available thro
 
 ## Related
 
-- [Kapi CLI Overview](/docs/kapi-cli/overview)
-- [Run Command](/docs/kapi-cli/commands/flow)
-- [Formats](/docs/kapi-cli/commands/formats)
+- [Kapi CLI Overview](/kapi-cli/overview)
+- [Run Command](/kapi-cli/commands/flow)
+- [Formats](/kapi-cli/commands/formats)

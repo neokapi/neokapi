@@ -16,7 +16,7 @@ shared CLI base (`github.com/neokapi/neokapi/cli`), the kapi CLI
 the interfaces described here.
 
 Tactical implementation details (SQL schemas, wire protocols, algorithm
-pseudocode) are separated into [Implementation Notes](/docs/notes-internal/index).
+pseudocode) are separated into [Implementation Notes](/notes-internal/index).
 
 ## Foundation
 

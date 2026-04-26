@@ -88,7 +88,7 @@ neokapi includes 42 built-in format readers and writers covering document, local
 
 ## Okapi Bridge Formats
 
-With the [Okapi bridge plugin](/docs/kapi-cli/commands/plugins) installed, you get access to 40+ additional Java-based format filters from the Okapi Framework. This includes formats like DITA, Versified Text, and many others not covered by the native formats above.
+With the [Okapi bridge plugin](/kapi-cli/commands/plugins) installed, you get access to 40+ additional Java-based format filters from the Okapi Framework. This includes formats like DITA, Versified Text, and many others not covered by the native formats above.
 
 ## Format Detection
 

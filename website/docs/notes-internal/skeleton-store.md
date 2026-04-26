@@ -7,7 +7,7 @@ title: Skeleton Store and Streaming HTML
 
 Implementation details for the `SkeletonStore` framework type and the
 tokenizer-based HTML reader/writer that uses it. Parent AD:
-[AD-005](/docs/architecture/005-format-system) (skeleton strategies).
+[AD-005](/architecture/005-format-system) (skeleton strategies).
 
 ## SkeletonStore (`core/format/skeleton.go`)
 

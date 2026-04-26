@@ -15,7 +15,7 @@ loop so every merge makes the next extract cheaper.
 
 This guide walks the full round-trip. For architectural context and
 design decisions see [AD-017: Bilingual Format
-Interop](/docs/architecture/017-bilingual-format-interop).
+Interop](/architecture/017-bilingual-format-interop).
 
 <video controls autoPlay loop muted width="100%" style={{ maxWidth: "900px" }}>
   <source src="/video/kapi/bilingual-workflow.webm" type="video/webm" />
@@ -240,13 +240,13 @@ sentence-level segmentation.
 
 ## Deeper reading
 
-- [AD-017: Bilingual Format Interop](/docs/architecture/017-bilingual-format-interop)
+- [AD-017: Bilingual Format Interop](/architecture/017-bilingual-format-interop)
   — full design rationale, six-boundary framing, conflict policy table
-- [AD-009: Translation Memory](/docs/architecture/009-translation-memory) —
+- [AD-009: Translation Memory](/architecture/009-translation-memory) —
   matching tiers, TM schema, `LookupSegment` for sentence-level
   leverage
-- [AD-008: Project Model](/docs/architecture/008-project-model) —
+- [AD-008: Project Model](/architecture/008-project-model) —
   `.kapi/extractions/<id>/` layout and `merge.conflict_policy` recipe
   shape
-- [AD-013: Kapi CLI](/docs/architecture/013-kapi-cli) — command tree and
+- [AD-013: Kapi CLI](/architecture/013-kapi-cli) — command tree and
   auto-discovery semantics

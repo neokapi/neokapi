@@ -49,4 +49,4 @@ For a visual interface, install Kapi alongside the CLI:
 brew install --cask neokapi/tap/kapi-desktop
 ```
 
-Or download the DMG/ZIP from [GitHub Releases](https://github.com/neokapi/neokapi/releases). See the [Kapi overview](/docs/kapi-desktop/overview) for details.
+Or download the DMG/ZIP from [GitHub Releases](https://github.com/neokapi/neokapi/releases). See the [Kapi overview](/kapi-desktop/overview) for details.

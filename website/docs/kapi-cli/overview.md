@@ -62,7 +62,7 @@ Use Kapi CLI when you:
 - **Run in CI/CD** for automated file processing
 - **Evaluate formats** — list supported formats, check file compatibility
 
-For a visual interface, use [Kapi](/docs/kapi-desktop/overview) — the GUI companion for building flows, managing plugins, and running tools with live progress.
+For a visual interface, use [Kapi](/kapi-desktop/overview) — the GUI companion for building flows, managing plugins, and running tools with live progress.
 
 
 ## Installation
@@ -89,11 +89,11 @@ kapi run translate -p myproject.kapi
 kapi run translate -p myproject.kapi --target-lang de
 ```
 
-See [Kapi Project Files](/docs/kapi-desktop/project-file) for the full format reference.
+See [Kapi Project Files](/kapi-desktop/project-file) for the full format reference.
 
 ## Kapi
 
-[Kapi](/docs/kapi-desktop/overview) is the GUI companion for kapi. It provides:
+[Kapi](/kapi-desktop/overview) is the GUI companion for kapi. It provides:
 
 - Visual flow editor for building tool pipelines
 - Live flow execution with progress visualization
@@ -109,15 +109,15 @@ brew install --cask neokapi/tap/kapi-desktop
 
 ## Next Steps
 
-- [Formats](/docs/kapi-cli/commands/formats)
-- [Run Command](/docs/kapi-cli/commands/flow)
-- [Pseudo-Translation](/docs/kapi-cli/commands/pseudo-translate)
-- [Word Count](/docs/kapi-cli/commands/word-count)
-- [Terminology](/docs/kapi-cli/commands/termbase)
-- [Translation Memory](/docs/kapi-cli/commands/tm)
-- [Plugins](/docs/kapi-cli/commands/plugins)
+- [Formats](/kapi-cli/commands/formats)
+- [Run Command](/kapi-cli/commands/flow)
+- [Pseudo-Translation](/kapi-cli/commands/pseudo-translate)
+- [Word Count](/kapi-cli/commands/word-count)
+- [Terminology](/kapi-cli/commands/termbase)
+- [Translation Memory](/kapi-cli/commands/tm)
+- [Plugins](/kapi-cli/commands/plugins)
 
 ### Use Cases
 
-- [Terminology QA](/docs/kapi-cli/use-cases/terminology-qa) — catch terminology mistakes in translated files
-- [Pre-Translation with Terminology](/docs/kapi-cli/use-cases/terminology-pretranslation) — combine TM, AI, and your glossary for consistent translations
+- [Terminology QA](/kapi-cli/use-cases/terminology-qa) — catch terminology mistakes in translated files
+- [Pre-Translation with Terminology](/kapi-cli/use-cases/terminology-pretranslation) — combine TM, AI, and your glossary for consistent translations
