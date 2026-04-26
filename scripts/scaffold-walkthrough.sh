@@ -57,9 +57,9 @@ done
 [ -n "$DESCRIPTION" ] || DESCRIPTION="$STORY"
 
 REPO_ROOT="$(git rev-parse --show-toplevel)"
-WT_DIR="$REPO_ROOT/bowrain/website/walkthroughs"
-SCENE_DIR="$REPO_ROOT/bowrain/website/scenes/$ID"
-DOC_DIR="$REPO_ROOT/bowrain/website/docs/walkthroughs"
+WT_DIR="$REPO_ROOT/bowrain/web/docs/walkthroughs"
+SCENE_DIR="$REPO_ROOT/bowrain/web/docs/scenes/$ID"
+DOC_DIR="$REPO_ROOT/bowrain/web/docs/docs/walkthroughs"
 
 mkdir -p "$WT_DIR" "$SCENE_DIR/fixtures" "$DOC_DIR"
 
@@ -99,7 +99,7 @@ cat > "$SCENE_DIR/01-$SCENE_ID.spec.ts" <<EOF
  * Walkthrough: $ID
  * Scene 1: $SCENE_ID ($KIND)
  *
- * Generated from bowrain/website/walkthroughs/$ID.md.
+ * Generated from bowrain/web/docs/walkthroughs/$ID.md.
  * Do not edit by hand — change the prompt and regenerate via /walkthrough-scenes.
  *
  * Scaffold pending real-backend validation. Run against BOWRAIN_BACKEND_URL
@@ -138,7 +138,7 @@ import { ThemedVideo } from "@neokapi/docs-shared";
 
 # $TITLE
 
-> Generated from [\`walkthroughs/$ID.md\`](https://github.com/neokapi/neokapi/blob/main/bowrain/website/walkthroughs/$ID.md). Do not edit by hand — change the prompt and regenerate.
+> Generated from [\`walkthroughs/$ID.md\`](https://github.com/neokapi/neokapi/blob/main/bowrain/web/docs/walkthroughs/$ID.md). Do not edit by hand — change the prompt and regenerate.
 >
 > **Status: scaffold.** The scene \`.spec.ts\` exists but is currently \`test.skip\`'d — full Playwright validation against the real backend is a #425 followup.
 

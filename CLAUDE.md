@@ -85,8 +85,8 @@ make frontend-build                           # Production frontend build
 **Documentation site:**
 
 ```bash
-cd website && vp run start           # Dev server with hot reload
-cd website && vp run build           # Production build → website/build/
+cd web/docs && vp run start           # Dev server with hot reload
+cd web/docs && vp run build           # Production build → web/docs/build/
 ```
 
 ## Build Conventions
@@ -222,7 +222,7 @@ neokapi/
 │
 │   ── Non-Go Assets ─────────────────────
 ├── docs/                  # Architecture decisions, implementation notes
-├── website/               # Docusaurus site
+├── web/docs/               # Docusaurus site
 ├── agentic/               # Agentic fleet configurations
 └── Makefile               # Multi-module build targets
 ```
@@ -352,10 +352,10 @@ Screenshots and video recordings serve as documentation and are embedded on the 
 
 ### Screenshot systems
 
-Screenshots are captured via Playwright and written directly to `website/static/img/`:
+Screenshots are captured via Playwright and written directly to `web/docs/static/img/`:
 
-1. **Bowrain (desktop GUI)** — 9 screenshots x 2 themes in `bowrain/apps/bowrain/frontend/e2e/screenshots.spec.ts`. Self-contained (auto-starts a Vite dev server). Output: `website/static/img/bowrain/{dark,light}/`.
-2. **Web app** — 6 test suites (multiple captures each) x 2 themes in `bowrain/apps/web/e2e/screenshots.spec.ts`. Requires a running bowrain-server with Keycloak OIDC. Output: `website/static/img/web-app/{dark,light}/`.
+1. **Bowrain (desktop GUI)** — 9 screenshots x 2 themes in `bowrain/apps/bowrain/frontend/e2e/screenshots.spec.ts`. Self-contained (auto-starts a Vite dev server). Output: `web/docs/static/img/bowrain/{dark,light}/`.
+2. **Web app** — 6 test suites (multiple captures each) x 2 themes in `bowrain/apps/web/e2e/screenshots.spec.ts`. Requires a running bowrain-server with Keycloak OIDC. Output: `web/docs/static/img/web-app/{dark,light}/`.
 
 ### Recording systems
 
@@ -363,7 +363,7 @@ There are four independent video recording pipelines:
 
 1. **Bowrain (desktop GUI)** — 13 scenarios x 2 themes (dark + light) in `bowrain/apps/bowrain/frontend/e2e/recordings.spec.ts`. Uses real bowrain-server via Wails dev mode for recordings/screenshots. Mocks (`mock-backend.ts`) are used for e2e unit tests only.
 2. **Web app** — 8 scenarios x 2 themes (dark + light) in `bowrain/apps/web/e2e/recordings.spec.ts`. Requires a running bowrain-server with Keycloak OIDC.
-3. **Kapi CLI** — VHS terminal recordings from `.tape` files in `website/tapes/` (3 standalone kapi demos). No server required.
+3. **Kapi CLI** — VHS terminal recordings from `.tape` files in `web/docs/tapes/` (3 standalone kapi demos). No server required.
 4. **Bowrain CLI** — VHS terminal recordings from `.tape` files in `bowrain/e2e/tapes/` (10 bowrain demos, some need server).
 
 ### How to regenerate
@@ -372,8 +372,8 @@ There are four independent video recording pipelines:
 
 ```bash
 # 1. Bowrain screenshots + recordings (self-contained)
-make screenshots                 # screenshots → website/static/img/bowrain/{dark,light}/
-make recordings                  # recordings → website/static/video/bowrain/{dark,light}/
+make screenshots                 # screenshots → web/docs/static/img/bowrain/{dark,light}/
+make recordings                  # recordings → web/docs/static/video/bowrain/{dark,light}/
 
 # 2. Web app screenshots + recordings (needs Keycloak + local server)
 docker compose up -d --wait   # starts Keycloak + Mailpit
@@ -386,10 +386,10 @@ THEME=light bash bowrain/apps/web/scripts/copy-recordings.sh
 docker compose down -v
 
 # 3. Kapi CLI recordings (no server needed)
-make kapi-recordings             # runs tapes + copies to website/static/video/kapi/
+make kapi-recordings             # runs tapes + copies to web/docs/static/video/kapi/
 
 # 4. Bowrain CLI recordings (needs VHS + server)
-make bowrain-cli-recordings      # runs tapes + copies to website/static/video/bowrain-cli/
+make bowrain-cli-recordings      # runs tapes + copies to web/docs/static/video/bowrain-cli/
 
 # Or generate everything at once:
 make docs-assets                 # screenshots + recordings + cli-recordings
@@ -431,8 +431,8 @@ Before committing any UI-related change:
 1. TypeScript checks pass for all 4 projects (`packages/ui`, `bowrain/apps/web`, `kapi/apps/kapi-web`, `bowrain/apps/bowrain/frontend`)
 2. All unit tests pass (`cd packages/ui && vp test`)
 3. All 3 frontend production builds succeed
-4. All screenshots regenerated to `website/static/img/`
-5. All recordings regenerated and copied to `website/static/video/`
+4. All screenshots regenerated to `web/docs/static/img/`
+5. All recordings regenerated and copied to `web/docs/static/video/`
 6. Go build succeeds (`make build build-server`)
 
 ## Architecture Decisions

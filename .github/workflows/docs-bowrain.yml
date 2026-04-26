@@ -5,12 +5,12 @@ on:
   push:
     branches: [main]
     paths:
-      - "bowrain/website/**"
+      - "bowrain/web/docs/**"
       - "packages/docs-shared/**"
       - ".github/workflows/docs-bowrain.yml"
   pull_request:
     paths:
-      - "bowrain/website/**"
+      - "bowrain/web/docs/**"
       - "packages/docs-shared/**"
       - ".github/workflows/docs-bowrain.yml"
 
@@ -48,8 +48,8 @@ jobs:
           export PATH="$PWD/bin:$PATH"
           Xvfb :99 -screen 0 1280x720x24 &
           sleep 2
-          if [ -d bowrain/website/scenes ]; then
-            for scene_dir in bowrain/website/scenes/*/; do
+          if [ -d bowrain/web/docs/scenes ]; then
+            for scene_dir in bowrain/web/docs/scenes/*/; do
               for tape in "$scene_dir"*.tape; do
                 [ -f "$tape" ] || continue
                 echo "Recording $tape"
@@ -60,11 +60,11 @@ jobs:
 
       - name: Stage recorded assets under static/video/bowrain-cli/
         run: |
-          mkdir -p bowrain/website/static/video/bowrain-cli
-          if [ -d bowrain/website/scenes ]; then
-            for webm in bowrain/website/scenes/*/*.webm; do
+          mkdir -p bowrain/web/docs/static/video/bowrain-cli
+          if [ -d bowrain/web/docs/scenes ]; then
+            for webm in bowrain/web/docs/scenes/*/*.webm; do
               [ -f "$webm" ] || continue
-              cp "$webm" "bowrain/website/static/video/bowrain-cli/$(basename "$webm")"
+              cp "$webm" "bowrain/web/docs/static/video/bowrain-cli/$(basename "$webm")"
             done
           fi
 
@@ -72,7 +72,7 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: bowrain-cli-scenes
-          path: bowrain/website/static/video/bowrain-cli
+          path: bowrain/web/docs/static/video/bowrain-cli
           retention-days: 7
 
   build:
@@ -93,7 +93,7 @@ jobs:
         uses: actions/download-artifact@v8
         with:
           name: bowrain-cli-scenes
-          path: bowrain/website/static/video/bowrain-cli
+          path: bowrain/web/docs/static/video/bowrain-cli
 
       # bowrain/website is a standalone Docusaurus app (not in the npm
       # workspace, by design — see PR #425). Install its deps locally and
@@ -101,18 +101,18 @@ jobs:
       # resolve a non-existent `bowrain-docs#build` workspace task.
       - name: Install bowrain docs site dependencies
         run: npm install --no-audit --no-fund
-        working-directory: bowrain/website
+        working-directory: bowrain/web/docs
 
       - name: Stage walkthrough scene .webm into static/video/bowrain/
-        run: bash bowrain/website/scripts/stage-scenes.sh
+        run: bash bowrain/web/docs/scripts/stage-scenes.sh
 
       - name: Build bowrain Docusaurus site
         run: npm run build
-        working-directory: bowrain/website
+        working-directory: bowrain/web/docs
 
       - name: Upload bowrain site artifact
         uses: actions/upload-artifact@v7
         with:
           name: bowrain-site
-          path: bowrain/website/build
+          path: bowrain/web/docs/build
           retention-days: 7

@@ -126,7 +126,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	outPath := "website/static/data/formats.json"
+	outPath := "web/docs/static/data/formats.json"
 	if err := os.WriteFile(outPath, data, 0644); err != nil {
 		fmt.Fprintf(os.Stderr, "error writing %s: %v\n", outPath, err)
 		os.Exit(1)

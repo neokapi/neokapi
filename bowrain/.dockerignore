@@ -22,7 +22,7 @@ platform/platform/apps/platform/frontend/dist/
 platform/apps/platform/
 
 # Website / docs
-website/
+web/docs/
 
 # OS files
 .DS_Store

@@ -148,7 +148,7 @@ neokapi/                              ── Framework Module ──
 │       └── web/                     # SaaS web UI
 │
 ├── docs/                            # Documentation, architecture decisions, notes
-└── website/                         # Docusaurus 3 documentation site
+└── web/docs/                         # Docusaurus 3 documentation site
 ```
 
 ## Content Model

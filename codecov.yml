@@ -15,7 +15,7 @@ ignore:
   - "scripts/**"
   - "bench/**"
   - "e2e/**"
-  - "website/**"
+  - "web/docs/**"
   - "examples/**"
   - "bowrain/apps/**"
   - "apps/kapi-desktop/**"

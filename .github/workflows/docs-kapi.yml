@@ -5,12 +5,12 @@ on:
   push:
     branches: [main]
     paths:
-      - "website/**"
+      - "web/docs/**"
       - "packages/docs-shared/**"
       - ".github/workflows/docs-kapi.yml"
   pull_request:
     paths:
-      - "website/**"
+      - "web/docs/**"
       - "packages/docs-shared/**"
       - ".github/workflows/docs-kapi.yml"
 
@@ -44,8 +44,8 @@ jobs:
           export PATH="$PWD/bin:$PATH"
           Xvfb :99 -screen 0 1280x720x24 &
           sleep 2
-          if [ -d website/scenes ]; then
-            for scene_dir in website/scenes/*/; do
+          if [ -d web/docs/scenes ]; then
+            for scene_dir in web/docs/scenes/*/; do
               for tape in "$scene_dir"*.tape; do
                 [ -f "$tape" ] || continue
                 echo "Recording $tape"
@@ -56,11 +56,11 @@ jobs:
 
       - name: Stage recorded assets under static/video/kapi/
         run: |
-          mkdir -p website/static/video/kapi
-          if [ -d website/scenes ]; then
-            for webm in website/scenes/*/*.webm; do
+          mkdir -p web/docs/static/video/kapi
+          if [ -d web/docs/scenes ]; then
+            for webm in web/docs/scenes/*/*.webm; do
               [ -f "$webm" ] || continue
-              cp "$webm" "website/static/video/kapi/$(basename "$webm")"
+              cp "$webm" "web/docs/static/video/kapi/$(basename "$webm")"
             done
           fi
 
@@ -68,7 +68,7 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: kapi-scenes
-          path: website/static/video/kapi
+          path: web/docs/static/video/kapi
           retention-days: 7
 
   build:
@@ -89,16 +89,16 @@ jobs:
         uses: actions/download-artifact@v8
         with:
           name: kapi-scenes
-          path: website/static/video/kapi
+          path: web/docs/static/video/kapi
 
       - name: Stub test-comparison.json
         # CI's test-comparison job uploads the real artifact; this stub keeps
         # the build green when the artifact isn't available (e.g. on PRs that
         # don't touch the bridge tests).
         run: |
-          mkdir -p website/static/data
-          if [ ! -f website/static/data/test-comparison.json ]; then
-            echo '{"generatedAt":"","okapiVersion":"","neokapiVersion":"","filters":[],"summary":{"totalFiltersOkapi":0,"totalFiltersBridge":0,"totalFiltersNative":0,"totalFiltersBoth":0,"totalTestsOkapi":0,"totalTestsBridge":0,"totalTestsNative":0,"coveragePct":0}}' > website/static/data/test-comparison.json
+          mkdir -p web/docs/static/data
+          if [ ! -f web/docs/static/data/test-comparison.json ]; then
+            echo '{"generatedAt":"","okapiVersion":"","neokapiVersion":"","filters":[],"summary":{"totalFiltersOkapi":0,"totalFiltersBridge":0,"totalFiltersNative":0,"totalFiltersBoth":0,"totalTestsOkapi":0,"totalTestsBridge":0,"totalTestsNative":0,"coveragePct":0}}' > web/docs/static/data/test-comparison.json
           fi
 
       # website/ is a standalone Docusaurus app (not in the npm workspace,
@@ -107,15 +107,15 @@ jobs:
       # non-existent `neokapi-docs#build` workspace task.
       - name: Install kapi docs site dependencies
         run: npm install --no-audit --no-fund
-        working-directory: website
+        working-directory: web/docs
 
       - name: Build kapi Docusaurus site
         run: npm run build
-        working-directory: website
+        working-directory: web/docs
 
       - name: Upload kapi site artifact
         uses: actions/upload-artifact@v7
         with:
           name: kapi-site
-          path: website/build
+          path: web/docs/build
           retention-days: 7

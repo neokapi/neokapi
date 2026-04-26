@@ -14,7 +14,7 @@ The user types `/walkthrough-doc <id>` (or asks to "regenerate the doc for X wal
 ## Inputs
 
 - **walkthrough id** (required): basename of `{site}/walkthroughs/{id}.md`. Example: `bowrain-web-settings`.
-- **site** (inferred): if the prompt lives at `bowrain/website/walkthroughs/{id}.md`, write MDX to `bowrain/website/docs/walkthroughs/{id}.mdx`. If at `website/walkthroughs/{id}.md`, write to `website/docs/walkthroughs/{id}.mdx`.
+- **site** (inferred): if the prompt lives at `bowrain/web/docs/walkthroughs/{id}.md`, write MDX to `bowrain/web/docs/docs/walkthroughs/{id}.mdx`. If at `web/docs/walkthroughs/{id}.md`, write to `web/docs/docs/walkthroughs/{id}.mdx`.
 
 ## Steps
 

@@ -15,11 +15,11 @@ name: Pages Deploy
 # Artifact names this workflow looks for:
 #   kapi-site, bowrain-site         — Docusaurus build outputs (this repo)
 #   kapi-storybook, bowrain-storybook — Storybook build outputs (this repo)
-#   neokapi-web, bowrain-web        — Vite app build outputs (sibling repos)
 #
-# The web app artifacts come from sibling repos (~/src/neokapi/neokapi-web,
-# ~/src/neokapi/bowrain-web) via repository_dispatch — see workflow_dispatch
-# at bottom for the manual entry point.
+# The neokapi-web and bowrain-web Vite apps live in their own private
+# sibling repos and deploy themselves directly to neokapi.github.io at
+# /web/{neokapi,bowrain}/ using the same PAGES_DEPLOY_KEY. They are not
+# part of this workflow's artifact graph.
 
 on:
   workflow_run:
@@ -27,7 +27,6 @@ on:
       - "Docs — kapi"
       - "Docs — bowrain"
       - "Storybook"
-      - "Web App Deploy"
     types: [completed]
   workflow_dispatch:
 
@@ -85,8 +84,6 @@ jobs:
         run: |
           if [ "$IS_PR" = "true" ] && [ -n "$PR_NUMBER" ]; then
             {
-              echo "kapi_app_dest=web/prs/${PR_NUMBER}/neokapi"
-              echo "bowrain_app_dest=web/prs/${PR_NUMBER}/bowrain"
               echo "kapi_docs_dest=web/prs/${PR_NUMBER}/neokapi/docs"
               echo "bowrain_docs_dest=web/prs/${PR_NUMBER}/bowrain/docs"
               echo "kapi_storybook_dest=storybook/prs/${PR_NUMBER}/kapi"
@@ -96,8 +93,6 @@ jobs:
             } >> "$GITHUB_OUTPUT"
           else
             {
-              echo "kapi_app_dest=web/neokapi"
-              echo "bowrain_app_dest=web/bowrain"
               echo "kapi_docs_dest=web/neokapi/docs"
               echo "bowrain_docs_dest=web/bowrain/docs"
               echo "kapi_storybook_dest=storybook/kapi"
@@ -105,26 +100,6 @@ jobs:
               echo "is_pr=false"
             } >> "$GITHUB_OUTPUT"
           fi
-
-      - name: Slot neokapi-web Vite app at /web/neokapi/ root
-        if: ${{ hashFiles('artifacts/neokapi-web/**') != '' }}
-        env:
-          DEST: ${{ steps.target.outputs.kapi_app_dest }}
-        run: |
-          # Replace only the app's own files; preserve any docs/ subdir
-          # already present from a previous Docs — kapi run.
-          mkdir -p "pages/${DEST}"
-          (cd "pages/${DEST}" && find . -mindepth 1 -maxdepth 1 ! -name docs -exec rm -rf {} +)
-          cp -r artifacts/neokapi-web/* "pages/${DEST}/"
-
-      - name: Slot bowrain-web Vite app at /web/bowrain/ root
-        if: ${{ hashFiles('artifacts/bowrain-web/**') != '' }}
-        env:
-          DEST: ${{ steps.target.outputs.bowrain_app_dest }}
-        run: |
-          mkdir -p "pages/${DEST}"
-          (cd "pages/${DEST}" && find . -mindepth 1 -maxdepth 1 ! -name docs -exec rm -rf {} +)
-          cp -r artifacts/bowrain-web/* "pages/${DEST}/"
 
       - name: Slot kapi Docusaurus at /web/neokapi/docs/
         if: ${{ hashFiles('artifacts/kapi-site/**') != '' }}

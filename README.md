@@ -103,7 +103,7 @@ Run a single test: `go test ./core/flow/ -run TestExecutorCancellation -v`
 - **[Architecture Decisions](docs/ad/)** — one AD per architectural concern
 - **[Implementation Notes](docs/notes/)** — schemas, protocols, algorithms
 - **[Testing Strategy](docs/TESTING.md)** — test pyramid, patterns, CI config
-- **[Website](website/)** — Docusaurus docs site (`cd website && npm start`)
+- **[Website](web/docs/)** — Docusaurus docs site (`cd web/docs && npm start`)
 
 ## License
 

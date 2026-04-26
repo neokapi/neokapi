@@ -14,7 +14,7 @@ The user types `/walkthrough-scenes <id>` (or asks to "regenerate scenes for X")
 ## Inputs
 
 - **walkthrough id** (required): basename of `{site}/walkthroughs/{id}.md`. Example: `bowrain-web-settings`.
-- **site** (inferred): `bowrain/website` or `website`.
+- **site** (inferred): `bowrain/web/docs` or `website`.
 
 ## Steps
 
@@ -27,7 +27,7 @@ The user types `/walkthrough-scenes <id>` (or asks to "regenerate scenes for X")
 
 ## Web scene template (`kind: web`)
 
-The bowrain web specs all share helpers from `bowrain/website/scenes/_helpers.ts`. Match this exact structure:
+The bowrain web specs all share helpers from `bowrain/web/docs/scenes/_helpers.ts`. Match this exact structure:
 
 ```typescript
 /**

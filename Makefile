@@ -422,8 +422,8 @@ bench-versions: ## Run version benchmarks
 	cd bench/pseudobench && $(GO) run . versions
 
 bench: bench-generate bench-run-all ## Run all benchmarks + copy results to website
-	cp bench/pseudobench/results/pseudobench.json website/static/data/pseudobench.json
-	@echo "Results copied to website/static/data/pseudobench.json"
+	cp bench/pseudobench/results/pseudobench.json web/docs/static/data/pseudobench.json
+	@echo "Results copied to web/docs/static/data/pseudobench.json"
 
 # ── Frontend Checks ──────────────────────────────────────────────────────────
 
@@ -437,16 +437,16 @@ pulse-build pulse-dev pulse-check:
 # ── Documentation Assets ────────────────────────────────────────────────────
 #
 # Walkthrough engine (issue #425): scenes are recorded by docs-kapi.yml /
-# docs-bowrain.yml workflows from website/scenes/ and bowrain/website/scenes/.
+# docs-bowrain.yml workflows from web/docs/scenes/ and bowrain/web/docs/scenes/.
 # The legacy screenshots/recordings/cli-recordings/docs-assets/Remotion
 # pipeline is removed — see commit history for what was here.
 
 fetch-docs-assets: ## Download legacy docs assets (transitional, until walkthrough engine fully covers)
 	@gh release download docs-assets --pattern 'docs-assets.tar.gz' --dir /tmp --clobber
-	@mkdir -p website/static
-	@tar xzf /tmp/docs-assets.tar.gz -C website/static
+	@mkdir -p web/docs/static
+	@tar xzf /tmp/docs-assets.tar.gz -C web/docs/static
 	@rm -f /tmp/docs-assets.tar.gz
-	@du -sh website/static/img website/static/video 2>/dev/null || true
+	@du -sh web/docs/static/img web/docs/static/video 2>/dev/null || true
 
 # ── Generate (scripts at root) ──────────────────────────────────────────────
 
@@ -460,14 +460,14 @@ fetch-okapi-surefire: ## Download Okapi Surefire XML reports
 	@GITHUB_TOKEN=$(GITHUB_TOKEN) bash scripts/fetch-okapi-surefire.sh
 
 generate-test-comparison: fetch-okapi-surefire test-bridge-json test-native-json ## Generate test comparison data
-	@mkdir -p website/static/data
+	@mkdir -p web/docs/static/data
 	$(GO) run ./scripts/testcompare \
 		-okapi-dir $(OKAPI_SUREFIRE_DIR) \
 		-gotest-bridge-json $(GOTEST_JSON_FILE) \
 		-gotest-native-json $(NATIVE_JSON_FILE) \
 		-bridge-src core/plugin/bridge/filters \
 		-native-src core/formats \
-		-out website/static/data/test-comparison.json
+		-out web/docs/static/data/test-comparison.json
 
 generate-format-docs: ## Generate format reference JSON for the website
 	$(GO) run ./scripts/gen-format-docs
@@ -477,10 +477,10 @@ generate-test-stubs: fetch-okapi-surefire ## Generate Go test stubs from Surefir
 
 # ── Documentation Site ──────────────────────────────────────────────────────
 
-docs-deps: ; cd website && vp install --frozen-lockfile
-docs-dev: ; cd website && vp run start
-docs-build: ; cd website && vp run build
-docs-serve: ; cd website && vp run serve
+docs-deps: ; cd web/docs && vp install --frozen-lockfile
+docs-dev: ; cd web/docs && vp run start
+docs-build: ; cd web/docs && vp run build
+docs-serve: ; cd web/docs && vp run serve
 
 # ── Tools ────────────────────────────────────────────────────────────────────
 

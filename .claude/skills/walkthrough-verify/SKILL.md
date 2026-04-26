@@ -29,7 +29,7 @@ The user types `/walkthrough-verify <id>` (or asks to "verify the X walkthrough"
    - `ffprobe -v error -show_entries format=duration -of default=nw=1:nk=1 PATH` → seconds
    - `ls -la PATH` → bytes
    Compare duration against the prompt's `duration_budget_seconds`. Warn if a scene exceeded its budget by >20%.
-6. **Stage assets.** Run `bash bowrain/website/scripts/stage-scenes.sh` (for bowrain web) so the generated `.webm` files end up at `bowrain/website/static/video/bowrain/{id}/0N-*.webm` where the MDX `<ThemedVideo>` references resolve. For the kapi site, the staging is inline in `docs-kapi.yml`'s recorder step.
+6. **Stage assets.** Run `bash bowrain/web/docs/scripts/stage-scenes.sh` (for bowrain web) so the generated `.webm` files end up at `bowrain/web/docs/static/video/bowrain/{id}/0N-*.webm` where the MDX `<ThemedVideo>` references resolve. For the kapi site, the staging is inline in `docs-kapi.yml`'s recorder step.
 7. **Build the Docusaurus site.** `cd {site} && npm run build`. Look for "Generated static files in 'build'." with no errors. If the build flags a broken video link, the MDX path doesn't match the produced asset filename — recheck step 4.
 8. **Run the smoke contract.** For each scene with `smoke_contract:` in the prompt, re-run every listed command and assert exit 0. This is what was lost in the legacy `test-cli.sh` — re-introduce it as a per-walkthrough invariant.
 

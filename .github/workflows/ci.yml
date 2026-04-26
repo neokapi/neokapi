@@ -731,7 +731,7 @@ jobs:
           GH_SHA: ${{ github.sha }}
           SUREFIRE_DIR: ${{ steps.surefire-version.outputs.dir }}
         run: |
-          mkdir -p website/static/data
+          mkdir -p web/docs/static/data
           BRIDGE_ARGS=()
           if [ -f test-results-bridge.json ]; then
             BRIDGE_ARGS=(-gotest-bridge-json ../../test-results-bridge.json)
@@ -745,14 +745,14 @@ jobs:
             -native-src ../../core/formats \
             -go-commit "$GH_SHA" \
             -okapi-tag v1.48.0 \
-            -out ../../website/static/data/test-comparison.json
+            -out ../../web/docs/static/data/test-comparison.json
 
       - name: Upload test-comparison artifact
         if: steps.fetch-surefire.outcome == 'success'
         uses: actions/upload-artifact@v7
         with:
           name: test-comparison
-          path: website/static/data/test-comparison.json
+          path: web/docs/static/data/test-comparison.json
           retention-days: 30
       # Note: previously this step uploaded to the docs-assets GH release and
       # triggered docs.yml (now deleted). The kapi site (docs-kapi.yml) still
