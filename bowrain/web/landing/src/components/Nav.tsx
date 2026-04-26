@@ -22,7 +22,7 @@ export function Nav() {
 
         <div className="hidden items-center gap-3 md:flex">
           <a
-            href="https://github.com/bowrain"
+            href="https://github.com/neokapi"
             target="_blank"
             rel="noopener"
             className="flex items-center gap-2 rounded-lg border border-neutral-700 px-3 py-1.5 text-sm text-neutral-300 transition hover:border-neutral-500 hover:text-white"

@@ -14,7 +14,7 @@ export function Footer() {
           <a href="https://neokapi.github.io" target="_blank" rel="noopener" className="transition hover:text-brand-400">
             Documentation
           </a>
-          <a href="https://neokapi.github.io/docs/getting-started/introduction" target="_blank" rel="noopener" className="transition hover:text-brand-400">
+          <a href="https://neokapi.github.io/web/neokapi/docs/getting-started/introduction" target="_blank" rel="noopener" className="transition hover:text-brand-400">
             Getting Started
           </a>
           <a href="https://github.com/neokapi/neokapi/releases" target="_blank" rel="noopener" className="transition hover:text-brand-400">

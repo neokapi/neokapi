@@ -45,7 +45,7 @@ export function CTA() {
 
       <div className="mt-8 flex flex-wrap items-center justify-center gap-4">
         <a
-          href="https://github.com/bowrain"
+          href="https://github.com/neokapi"
           target="_blank"
           rel="noopener"
           className="flex items-center gap-2 rounded-lg border border-neutral-700 px-4 py-2 text-sm text-neutral-300 transition hover:border-neutral-500 hover:text-white"

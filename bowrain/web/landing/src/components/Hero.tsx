@@ -84,7 +84,7 @@ export function Hero() {
             <code className="rounded bg-neutral-800/50 px-2 py-1 text-xs">brew install bowrain</code>
           </a>
           <span className="text-neutral-700">|</span>
-          <a href="https://github.com/bowrain" target="_blank" rel="noopener" className="transition hover:text-neutral-300">
+          <a href="https://github.com/neokapi" target="_blank" rel="noopener" className="transition hover:text-neutral-300">
             View on GitHub
           </a>
         </div>
