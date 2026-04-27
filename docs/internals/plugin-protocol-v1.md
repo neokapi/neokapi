@@ -139,8 +139,37 @@ binary matches the manifest.
 
 Schema validation does **not** cross any subprocess boundary. The
 manifest ships JSON Schema files (e.g., `schemas/server.json`); kapi
-loads them at plugin-register time and validates recipe Extras with a
-JSON Schema library at recipe parse time.
+loads them at plugin-register time and validates recipe Extras at
+recipe parse time using
+[`github.com/google/jsonschema-go`](https://pkg.go.dev/github.com/google/jsonschema-go/jsonschema)
+(Draft 2020-12 + Draft 7).
+
+Each `schema_extensions` entry binds a YAML key (at a given scope) to
+a JSON Schema file shipped in the plugin dir:
+
+```json
+{
+  "name": "server",
+  "scope": "project",
+  "group": "bowrain",
+  "json_schema": "schemas/server.json"
+}
+```
+
+At plugin-register time kapi reads `<plugin-dir>/<json_schema>`,
+unmarshals it into a `jsonschema.Schema`, and calls `Resolve` to compile
+it. The compiled schema is held in memory for the life of the kapi
+process. When `core/project.Validate` walks an Extras map, it dispatches
+to the registered decoder, which marshals the YAML node to a JSON-shaped
+Go value and runs `Resolved.Validate` against it. Failures propagate as
+`server: does not match JSON Schema for <plugin>.<key>: ...` with the
+recipe path prefix added by `validateExtras`.
+
+If the schema file cannot be read, parsed, or compiled, kapi emits a
+warning to stderr and falls back to a structural-only decoder for that
+extension. This means a broken JSON Schema in one plugin never prevents
+recipe loading entirely — only the structural shape is checked until the
+plugin author ships a fix.
 
 ## Recipe `requires:` syntax
 
@@ -212,4 +241,4 @@ KAPI_PLUGINS_DIR=$PWD/examples/plugins kapi --help
 | `formats` | Mode C | `<binary> daemon` |
 | `tools` | Mode C | `<binary> daemon` |
 | `source_connectors` | Mode C | `<binary> daemon` |
-| `schema_extensions` | n/a | validated in-process by kapi |
+| `schema_extensions` | n/a | validated in-process by kapi (JSON Schema 2020-12) |
