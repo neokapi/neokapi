@@ -18,10 +18,10 @@ const SyncCacheFilename = "sync-cache.json"
 // lives at <state-dir>/cache/sync-cache.json (always gitignored — the file
 // holds claim tokens and is regenerable from server state).
 type SyncCache struct {
-	ServerURL  string                `json:"server_url"`
-	ProjectID  string                `json:"project_id"`
-	LastSync   time.Time             `json:"last_sync"`
-	Files      map[string]*FileCache `json:"files,omitempty"`
+	ServerURL string                `json:"server_url"`
+	ProjectID string                `json:"project_id"`
+	LastSync  time.Time             `json:"last_sync"`
+	Files     map[string]*FileCache `json:"files,omitempty"`
 
 	// StreamCursors tracks per-stream sync cursors keyed by stream name.
 	StreamCursors map[string]int64 `json:"stream_cursors,omitempty"`

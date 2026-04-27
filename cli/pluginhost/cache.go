@@ -29,10 +29,10 @@ type Cache struct {
 // the last cache write. Startup compares each root's current mtime
 // against this; any newer mtime means the cache is stale.
 type CachedRoot struct {
-	Order int    `json:"order"`
-	Label string `json:"label"`
-	Path  string `json:"path"`
-	MtimeUnixNano int64 `json:"mtime_unix_nano"`
+	Order         int    `json:"order"`
+	Label         string `json:"label"`
+	Path          string `json:"path"`
+	MtimeUnixNano int64  `json:"mtime_unix_nano"`
 }
 
 // CachedPlugin is a verbatim copy of one discovered plugin's manifest

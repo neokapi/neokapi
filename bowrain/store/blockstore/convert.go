@@ -84,4 +84,3 @@ func flattenSegments(segs []*model.Segment) []model.Run {
 	}
 	return out
 }
-

@@ -11,10 +11,10 @@
 //   - Blocks are read from and written to the existing `blocks` table
 //     via the ContentStore's StoreBlocks / GetBlocks methods.
 //   - Overlays dispatch by kind prefix (#403):
-//     - `targets/<locale>`   → `translations` (text+provider+metadata
-//       columns, hot-path indexes on project+locale+updated_at)
-//     - `annotations/<name>` → `annotations`   (project+kind+updated_at)
-//     - anything else        → `overlays_ext`  (plugin catchall)
+//   - `targets/<locale>`   → `translations` (text+provider+metadata
+//     columns, hot-path indexes on project+locale+updated_at)
+//   - `annotations/<name>` → `annotations`   (project+kind+updated_at)
+//   - anything else        → `overlays_ext`  (plugin catchall)
 //   - The `blockstore.Store` interface stays polymorphic — callers
 //     only say `PutOverlay(kind, …)`; the dispatcher picks the table.
 package blockstore

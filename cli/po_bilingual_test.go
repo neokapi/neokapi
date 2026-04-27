@@ -74,12 +74,12 @@ func TestPO_WriteAndParseRoundTrip(t *testing.T) {
 
 func TestPO_UnquoteHandlesEscapes(t *testing.T) {
 	cases := map[string]string{
-		`"hello"`:            "hello",
-		`"line1\nline2"`:     "line1\nline2",
-		`"tab\there"`:        "tab\there",
-		`"quote\"inside"`:    `quote"inside`,
-		`"back\\slash"`:      `back\slash`,
-		`"empty is empty"`:   "empty is empty",
+		`"hello"`:          "hello",
+		`"line1\nline2"`:   "line1\nline2",
+		`"tab\there"`:      "tab\there",
+		`"quote\"inside"`:  `quote"inside`,
+		`"back\\slash"`:    `back\slash`,
+		`"empty is empty"`: "empty is empty",
 	}
 	for in, want := range cases {
 		t.Run(in, func(t *testing.T) {

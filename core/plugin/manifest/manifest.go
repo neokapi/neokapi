@@ -16,6 +16,7 @@ package manifest
 import (
 	_ "embed"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 )
@@ -287,7 +288,7 @@ func (m *Manifest) IsModeA() bool {
 // (JSON Schema conformance) is done by callers using SchemaJSON.
 func (m *Manifest) Validate() error {
 	if m.ManifestVersion == "" {
-		return fmt.Errorf("manifest_version is required")
+		return errors.New("manifest_version is required")
 	}
 	supported := false
 	for _, v := range SupportedVersions {
@@ -300,25 +301,25 @@ func (m *Manifest) Validate() error {
 		return fmt.Errorf("unsupported manifest_version %q (supported: %s)", m.ManifestVersion, strings.Join(SupportedVersions, ", "))
 	}
 	if m.Plugin == "" {
-		return fmt.Errorf("plugin is required")
+		return errors.New("plugin is required")
 	}
 	if !validPluginName(m.Plugin) {
 		return fmt.Errorf("invalid plugin name %q (must match [a-z0-9][a-z0-9-]*)", m.Plugin)
 	}
 	if m.Version == "" {
-		return fmt.Errorf("version is required")
+		return errors.New("version is required")
 	}
 	if m.Binary == "" {
-		return fmt.Errorf("binary is required")
+		return errors.New("binary is required")
 	}
 	if strings.ContainsRune(m.Binary, '/') || strings.ContainsRune(m.Binary, '\\') {
 		return fmt.Errorf("binary must be a bare filename (no path separators), got %q", m.Binary)
 	}
 	if m.IsModeC() && m.Daemon == nil {
-		return fmt.Errorf("daemon block is required when capabilities include formats, tools, or source_connectors")
+		return errors.New("daemon block is required when capabilities include formats, tools, or source_connectors")
 	}
 	if m.Daemon != nil && !m.IsModeC() {
-		return fmt.Errorf("daemon block is only valid when capabilities include formats, tools, or source_connectors")
+		return errors.New("daemon block is only valid when capabilities include formats, tools, or source_connectors")
 	}
 	for i, c := range m.Capabilities.Commands {
 		if c.Name == "" {

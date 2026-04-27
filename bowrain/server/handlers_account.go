@@ -330,4 +330,3 @@ func looksLikeEmail(s string) bool {
 	}
 	return true
 }
-

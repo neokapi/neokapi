@@ -5,11 +5,11 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/neokapi/neokapi/bowrain/plugin/commands/output"
 	"github.com/neokapi/neokapi/bowrain/core/project"
+	"github.com/neokapi/neokapi/bowrain/plugin/commands/output"
+	"github.com/neokapi/neokapi/cli"
 	"github.com/neokapi/neokapi/cli/config"
 	"github.com/neokapi/neokapi/core/model"
-	"github.com/neokapi/neokapi/cli"
 	"github.com/spf13/cobra"
 )
 

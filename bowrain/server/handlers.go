@@ -282,4 +282,3 @@ func (s *Server) HandleInfo(c echo.Context) error {
 		ConnectorTypes: connectorTypes,
 	})
 }
-

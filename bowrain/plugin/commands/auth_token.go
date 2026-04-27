@@ -3,9 +3,9 @@ package commands
 import (
 	"errors"
 
-	"github.com/neokapi/neokapi/bowrain/plugin/commands/output"
 	"github.com/neokapi/neokapi/bowrain/core/client"
 	"github.com/neokapi/neokapi/bowrain/core/project"
+	"github.com/neokapi/neokapi/bowrain/plugin/commands/output"
 	"github.com/spf13/cobra"
 )
 

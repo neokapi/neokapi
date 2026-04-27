@@ -2,6 +2,7 @@ package cli
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -41,7 +42,7 @@ func (a *App) newPluginListCmd() *cobra.Command {
 		Short: "List installed plugins",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if a.PluginHost == nil {
-				return fmt.Errorf("plugin host is not initialized")
+				return errors.New("plugin host is not initialized")
 			}
 			plugins := a.PluginHost.Plugins()
 			if len(plugins) == 0 {
@@ -65,7 +66,7 @@ func (a *App) newPluginInfoCmd() *cobra.Command {
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if a.PluginHost == nil {
-				return fmt.Errorf("plugin host is not initialized")
+				return errors.New("plugin host is not initialized")
 			}
 			p := a.PluginHost.Plugin(args[0])
 			if p == nil {
@@ -249,7 +250,7 @@ func (a *App) newPluginVerifyCmd() *cobra.Command {
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if a.PluginHost == nil {
-				return fmt.Errorf("plugin host not initialized")
+				return errors.New("plugin host not initialized")
 			}
 			p := a.PluginHost.Plugin(args[0])
 			if p == nil {

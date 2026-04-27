@@ -29,25 +29,25 @@ import (
 // Maps 1:1 to object keys on the tools / formats / plugins object —
 // the entry's parent object key (e.g. "ai-translate") is the owner ID.
 type Entry struct {
-	DisplayName string                     `json:"displayName,omitempty"`
-	Description string                     `json:"description,omitempty"`
-	Category    string                     `json:"category,omitempty"`
-	Extensions  []string                   `json:"extensions,omitempty"`
-	MimeTypes   []string                   `json:"mimeTypes,omitempty"`
-	Properties  map[string]PropertyEntry   `json:"properties,omitempty"`
-	Groups      map[string]GroupEntry      `json:"groups,omitempty"`
-	Options     map[string]OptionEntry     `json:"options,omitempty"` // enum options on the entry root
+	DisplayName string                       `json:"displayName,omitempty"`
+	Description string                       `json:"description,omitempty"`
+	Category    string                       `json:"category,omitempty"`
+	Extensions  []string                     `json:"extensions,omitempty"`
+	MimeTypes   []string                     `json:"mimeTypes,omitempty"`
+	Properties  map[string]PropertyEntry     `json:"properties,omitempty"`
+	Groups      map[string]GroupEntry        `json:"groups,omitempty"`
+	Options     map[string]OptionEntry       `json:"options,omitempty"` // enum options on the entry root
 	Enums       map[string]map[string]string `json:"enumDescriptions,omitempty"`
 }
 
 // PropertyEntry mirrors schema.PropertySchema's translatable subset.
 type PropertyEntry struct {
-	Title            string                 `json:"title,omitempty"`
-	Description      string                 `json:"description,omitempty"`
-	Options          map[string]OptionEntry `json:"options,omitempty"`
-	EnumDescriptions map[string]string      `json:"enumDescriptions,omitempty"`
+	Title            string                   `json:"title,omitempty"`
+	Description      string                   `json:"description,omitempty"`
+	Options          map[string]OptionEntry   `json:"options,omitempty"`
+	EnumDescriptions map[string]string        `json:"enumDescriptions,omitempty"`
 	Properties       map[string]PropertyEntry `json:"properties,omitempty"`
-	Items            *PropertyEntry         `json:"items,omitempty"`
+	Items            *PropertyEntry           `json:"items,omitempty"`
 }
 
 // GroupEntry mirrors schema.ParameterGroup's translatable subset.

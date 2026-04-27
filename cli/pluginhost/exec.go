@@ -1,6 +1,8 @@
 package pluginhost
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -66,7 +68,7 @@ func buildCobraCommand(route *CommandRoute) *cobra.Command {
 		subName := sub
 		subCmd := &cobra.Command{
 			Use:                subName,
-			Short:              fmt.Sprintf("%s subcommand", c.Name),
+			Short:              c.Name + " subcommand",
 			DisableFlagParsing: true,
 			Annotations:        map[string]string{"plugin": route.Plugin.Name()},
 			RunE: func(_ *cobra.Command, args []string) error {
@@ -95,7 +97,7 @@ func execPluginSubcommand(route *CommandRoute, subName string, args []string) er
 }
 
 func runSubprocess(p *Plugin, args []string) error {
-	cmd := exec.Command(p.BinaryPath, args...)
+	cmd := exec.CommandContext(context.Background(), p.BinaryPath, args...)
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
@@ -111,7 +113,8 @@ func runSubprocess(p *Plugin, args []string) error {
 	if err := cmd.Run(); err != nil {
 		// Propagate exit codes cleanly: cobra surfaces *exec.ExitError
 		// with the right exit code through SilenceErrors+SilenceUsage.
-		if exitErr, ok := err.(*exec.ExitError); ok {
+		var exitErr *exec.ExitError
+		if errors.As(err, &exitErr) {
 			os.Exit(exitErr.ExitCode())
 		}
 		return fmt.Errorf("plugin %q: %w", p.Name(), err)

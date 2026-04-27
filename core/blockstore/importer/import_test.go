@@ -240,12 +240,12 @@ type fakeReader struct {
 }
 
 func (r *fakeReader) Name() string                                       { return "fake" }
-func (r *fakeReader) DisplayName() string                                 { return "Fake" }
-func (r *fakeReader) Signature() format.FormatSignature                   { return format.FormatSignature{} }
-func (r *fakeReader) Open(_ context.Context, _ *model.RawDocument) error  { return nil }
-func (r *fakeReader) Close() error                                        { return nil }
-func (r *fakeReader) Config() format.DataFormatConfig                     { return nil }
-func (r *fakeReader) SetConfig(_ format.DataFormatConfig) error           { return nil }
+func (r *fakeReader) DisplayName() string                                { return "Fake" }
+func (r *fakeReader) Signature() format.FormatSignature                  { return format.FormatSignature{} }
+func (r *fakeReader) Open(_ context.Context, _ *model.RawDocument) error { return nil }
+func (r *fakeReader) Close() error                                       { return nil }
+func (r *fakeReader) Config() format.DataFormatConfig                    { return nil }
+func (r *fakeReader) SetConfig(_ format.DataFormatConfig) error          { return nil }
 
 func (r *fakeReader) Read(ctx context.Context) <-chan model.PartResult {
 	ch := make(chan model.PartResult)

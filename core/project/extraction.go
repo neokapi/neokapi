@@ -85,8 +85,8 @@ type ExtractionPair struct {
 // ExtractionFile records a single source → bilingual-output mapping
 // inside a pair.
 type ExtractionFile struct {
-	Source     string                  `yaml:"source" json:"source"`           // path relative to project root
-	SourceHash string                  `yaml:"sourceHash" json:"sourceHash"`   // sha256:hex at extract time
+	Source     string                  `yaml:"source" json:"source"`         // path relative to project root
+	SourceHash string                  `yaml:"sourceHash" json:"sourceHash"` // sha256:hex at extract time
 	Format     string                  `yaml:"format,omitempty" json:"format,omitempty"`
 	Blocks     int                     `yaml:"blocks" json:"blocks"`
 	Segments   int                     `yaml:"segments" json:"segments"`

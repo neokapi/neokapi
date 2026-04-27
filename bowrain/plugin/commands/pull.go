@@ -4,12 +4,12 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/neokapi/neokapi/bowrain/plugin/commands/output"
 	"github.com/neokapi/neokapi/bowrain/core/connector"
 	"github.com/neokapi/neokapi/bowrain/core/project"
+	"github.com/neokapi/neokapi/bowrain/plugin/commands/output"
 	bconn "github.com/neokapi/neokapi/bowrain/plugin/connector"
-	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/cli"
+	"github.com/neokapi/neokapi/core/model"
 	"github.com/spf13/cobra"
 )
 

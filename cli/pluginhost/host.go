@@ -50,9 +50,9 @@ type Host struct {
 	plugins []*Plugin
 
 	// Dispatch tables, built from plugins on construction.
-	commandDispatch map[string]*CommandRoute     // command name → owning plugin + manifest entry
-	mcpDispatch     map[string]*MCPRoute         // MCP tool name → owning plugin + manifest entry
-	formatDispatch  map[string]*FormatRoute      // format name → owning plugin + manifest entry
+	commandDispatch map[string]*CommandRoute      // command name → owning plugin + manifest entry
+	mcpDispatch     map[string]*MCPRoute          // MCP tool name → owning plugin + manifest entry
+	formatDispatch  map[string]*FormatRoute       // format name → owning plugin + manifest entry
 	schemaExt       []SchemaExtensionRegistration // recipe schema extensions surfaced from manifests
 }
 

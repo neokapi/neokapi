@@ -1,6 +1,7 @@
 package project
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 
@@ -23,12 +24,12 @@ func (r *RequiresMap) UnmarshalYAML(node *yaml.Node) error {
 		if err := node.Decode(&list); err == nil {
 			items := make([]string, len(list))
 			for i, name := range list {
-				items[i] = fmt.Sprintf("%s: \"*\"", name)
+				items[i] = name + `: "*"`
 			}
 			joined := strings.Join(items, ", ")
 			return fmt.Errorf("requires: bare-list form is no longer supported (use the map form, e.g. requires: { %s })", joined)
 		}
-		return fmt.Errorf("requires: bare-list form is no longer supported; use the map form (plugin: version-constraint)")
+		return errors.New("requires: bare-list form is no longer supported; use the map form (plugin: version-constraint)")
 	}
 	if node.Kind == yaml.MappingNode {
 		m := make(map[string]string, len(node.Content)/2)

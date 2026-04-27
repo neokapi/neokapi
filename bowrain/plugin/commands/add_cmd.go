@@ -4,10 +4,10 @@ import (
 	"fmt"
 	"path/filepath"
 
-	"github.com/neokapi/neokapi/bowrain/plugin/commands/output"
 	"github.com/neokapi/neokapi/bowrain/core/project"
-	coreproj "github.com/neokapi/neokapi/core/project"
+	"github.com/neokapi/neokapi/bowrain/plugin/commands/output"
 	"github.com/neokapi/neokapi/cli"
+	coreproj "github.com/neokapi/neokapi/core/project"
 	"github.com/spf13/cobra"
 )
 

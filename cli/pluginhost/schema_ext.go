@@ -78,7 +78,6 @@ func loadSchemaDecoder(reg SchemaExtensionRegistration) project.ExtensionDecoder
 	if schemaPath != "" {
 		if _, err := os.Stat(schemaPath); err != nil {
 			fmt.Fprintf(os.Stderr, "Warning: plugin %q schema file %q: %v\n", reg.Plugin.Name(), schemaPath, err)
-			schemaPath = ""
 		}
 	}
 

@@ -3,6 +3,7 @@ module github.com/neokapi/neokapi
 go 1.26.0
 
 require (
+	github.com/bmatcuk/doublestar/v4 v4.10.0
 	github.com/dop251/goja v0.0.0-20260311135729-065cd970411c
 	github.com/hashicorp/go-plugin v1.7.0
 	github.com/leonelquinteros/gotext v1.7.2

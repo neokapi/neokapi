@@ -8,15 +8,15 @@ import (
 	"strings"
 
 	"github.com/charmbracelet/huh"
-	"github.com/neokapi/neokapi/bowrain/plugin/commands/output"
 	"github.com/neokapi/neokapi/bowrain/core/client"
 	"github.com/neokapi/neokapi/bowrain/core/config"
 	"github.com/neokapi/neokapi/bowrain/core/project"
+	"github.com/neokapi/neokapi/bowrain/plugin/commands/output"
+	"github.com/neokapi/neokapi/cli"
 	"github.com/neokapi/neokapi/core/locale"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/preset"
 	coreproj "github.com/neokapi/neokapi/core/project"
-	"github.com/neokapi/neokapi/cli"
 	"github.com/spf13/cobra"
 	"golang.org/x/term"
 )

@@ -234,7 +234,7 @@ func extractTarGz(body []byte, target, pluginName string) error {
 			if err := os.MkdirAll(clean, 0o755); err != nil {
 				return err
 			}
-		case tar.TypeReg, tar.TypeRegA:
+		case tar.TypeReg:
 			if err := os.MkdirAll(filepath.Dir(clean), 0o755); err != nil {
 				return err
 			}

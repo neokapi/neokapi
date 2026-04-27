@@ -12,6 +12,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -32,20 +33,20 @@ type IndexV2 struct {
 
 // PluginEntry describes one plugin in the registry.
 type PluginEntry struct {
-	Description string                    `json:"description,omitempty"`
-	Homepage    string                    `json:"homepage,omitempty"`
-	Author      string                    `json:"author,omitempty"`
-	License     string                    `json:"license,omitempty"`
-	Group       string                    `json:"group,omitempty"`
-	Channels    []string                  `json:"channels,omitempty"`
-	Versions    map[string]VersionEntry   `json:"versions"`
+	Description string                  `json:"description,omitempty"`
+	Homepage    string                  `json:"homepage,omitempty"`
+	Author      string                  `json:"author,omitempty"`
+	License     string                  `json:"license,omitempty"`
+	Group       string                  `json:"group,omitempty"`
+	Channels    []string                `json:"channels,omitempty"`
+	Versions    map[string]VersionEntry `json:"versions"`
 }
 
 // VersionEntry describes one published version of a plugin.
 type VersionEntry struct {
-	Released       string                  `json:"released,omitempty"`
-	Channel        string                  `json:"channel,omitempty"`
-	MinKapiVersion string                  `json:"min_kapi_version,omitempty"`
+	Released       string                   `json:"released,omitempty"`
+	Channel        string                   `json:"channel,omitempty"`
+	MinKapiVersion string                   `json:"min_kapi_version,omitempty"`
 	Platforms      map[string]PlatformEntry `json:"platforms"`
 }
 
@@ -139,7 +140,7 @@ func (idx *IndexV2) Resolve(name, constraint, channel, kapiVersion string) (vers
 // VerifySHA256 streams data and reports whether the hash matches.
 func VerifySHA256(data []byte, expected string) error {
 	if expected == "" {
-		return fmt.Errorf("registry: missing sha256 — refusing to install (use --unsafe to override)")
+		return errors.New("registry: missing sha256 — refusing to install (use --unsafe to override)")
 	}
 	sum := sha256.Sum256(data)
 	got := hex.EncodeToString(sum[:])
