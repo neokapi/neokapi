@@ -679,7 +679,11 @@ jobs:
 
       - name: Verify kapi has no heavy deps
         run: |
-          if cd kapi && GOWORK=off go list -m all | grep -iE 'wails|echo|oidc'; then
+          # wails / labstack-echo / keycloak are bowrain-side deps that
+          # must not leak into kapi. coreos/go-oidc / aws-sdk's ssooidc
+          # transitively reach kapi via sigstore-go (used for cosign
+          # signature verification of plugin tarballs); those are legit.
+          if cd kapi && GOWORK=off go list -m all | grep -iE 'wails|labstack/echo|keycloak'; then
             exit 1
           fi
 

@@ -55,8 +55,11 @@ type InstallOptions struct {
 	// TargetDir is the install root. When empty, InstallTarget() is used.
 	TargetDir string
 
-	// Unsafe skips signature verification (sigstore/cosign). SHA-256 is
-	// always verified.
+	// Unsafe skips both SHA-256 and Sigstore/cosign signature
+	// verification. Without Unsafe, SHA-256 is mandatory and signature
+	// verification is mandatory whenever the registry entry provides
+	// signature fields. If signature fields are absent and Unsafe is
+	// false, install fails — no silent unsigned installs.
 	Unsafe bool
 
 	// LogF receives progress messages. Optional.
@@ -116,14 +119,21 @@ func InstallFromRegistry(ctx context.Context, opts InstallOptions) (*InstallResu
 			return nil, err
 		}
 		logf("✓ SHA-256 verified")
-		// Cosign signature verification is deferred to a follow-up.
-		// When `signature` and `cert_identity` are present we should
-		// invoke cosign-go to verify; for now we surface a notice.
-		if plat.Signature != "" {
-			logf("Note: cosign signature verification is not yet implemented; skipping")
+
+		// Cosign keyless signature verification ties the tarball to
+		// the GitHub Actions workflow that produced it. We require it
+		// unless --unsafe is set; the registry entry MUST carry the
+		// signature URL + cert identity + OIDC issuer.
+		if plat.Signature == "" || plat.CertIdentity == "" || plat.CertOIDCIssuer == "" {
+			return nil, fmt.Errorf("install: registry entry for %s %s on %s is missing signature/cert_identity/cert_oidc_issuer (use --unsafe to install unsigned)", opts.PluginName, version, registry.PlatformKey())
 		}
+		logf(fmt.Sprintf("Verifying cosign signature against %s (issuer: %s)...", plat.CertIdentity, plat.CertOIDCIssuer))
+		if err := registry.VerifyBundle(ctx, plat.Signature, plat.SHA256, plat.CertIdentity, plat.CertOIDCIssuer, registry.CosignVerifyOptions{}); err != nil {
+			return nil, fmt.Errorf("install: %w", err)
+		}
+		logf("✓ Signature verified")
 	} else {
-		logf("Warning: --unsafe — skipping signature checks")
+		logf("Warning: --unsafe — skipping SHA-256 and signature checks")
 	}
 
 	pluginDir := filepath.Join(target, opts.PluginName)
