@@ -1,0 +1,164 @@
+// connector.proto — Mode-C plugin daemon protocol (#438).
+//
+// Generic source-connector RPC schema used by kapi to dispatch
+// push/pull/status/list against a plugin running as a Mode-C daemon
+// (long-lived subprocess speaking gRPC over a local Unix socket).
+//
+// Lives in the framework module so cli/ and kapi/ can dial daemons
+// without depending on any specific plugin (e.g., bowrain). Each Mode-C
+// plugin implementing source connectors serves both services on its
+// daemon socket; the kapi-side DaemonPool acquires the gRPC connection
+// and a plugin-supplied dispatcher issues the RPC.
+
+syntax = "proto3";
+
+package neokapi.plugin.v1;
+
+option go_package = "github.com/neokapi/neokapi/core/plugin/proto/v1;pluginv1";
+
+// SourceConnectorService is the daemon-side gRPC service that backs
+// `kapi push`, `kapi pull`, `kapi status`, and `kapi ls` when the
+// bowrain plugin runs in Mode C.
+//
+// Every RPC carries a ProjectRef so the daemon can find (or open) the
+// right .kapi project. The daemon caches projects by their root path.
+service SourceConnectorService {
+  // Status reports synchronization state (block counts, pending push/pull,
+  // last sync). Equivalent to bowrainconn.SourceConnector.Status.
+  rpc Status(StatusRequest) returns (StatusResponse);
+
+  // ListFiles returns per-file stats (path, format, block count, dirty
+  // count). Equivalent to BowrainSourceConnector.ListFiles.
+  rpc ListFiles(ListFilesRequest) returns (ListFilesResponse);
+
+  // Push uploads local changes to the Bowrain server. Equivalent to
+  // bowrainconn.SourceConnector.Push.
+  rpc Push(PushRequest) returns (PushResponse);
+
+  // Pull downloads translated content from the Bowrain server.
+  // Equivalent to bowrainconn.SourceConnector.Pull.
+  rpc Pull(PullRequest) returns (PullResponse);
+}
+
+// DaemonControlService exposes lifecycle RPCs every Mode-C daemon must
+// implement. Used by the kapi-side DaemonPool.
+service DaemonControlService {
+  // Health is a lightweight ping. The pool uses this to verify the
+  // daemon is still alive after spawn and before reuse.
+  rpc Health(HealthRequest) returns (HealthResponse);
+
+  // Shutdown asks the daemon to exit gracefully. The daemon should
+  // finish in-flight RPCs, save state, then return and exit.
+  rpc Shutdown(ShutdownRequest) returns (ShutdownResponse);
+}
+
+// ---------------------------------------------------------------------------
+// Project reference
+// ---------------------------------------------------------------------------
+
+// ProjectRef identifies the .kapi project the daemon should operate on.
+// Currently we pass the absolute project root; the daemon discovers and
+// loads the recipe from there, just like the in-process connector did.
+message ProjectRef {
+  // Root is the absolute path to the project directory (the dir
+  // containing <name>.kapi).
+  string root = 1;
+}
+
+// ---------------------------------------------------------------------------
+// Status
+// ---------------------------------------------------------------------------
+
+message StatusRequest {
+  ProjectRef project = 1;
+}
+
+message StatusResponse {
+  string connector_id = 1;
+  // last_sync as RFC3339 string ("" when never synced).
+  string last_sync = 2;
+  int32 item_count = 3;
+  int32 file_count = 4;
+  int32 word_count = 5;
+  int32 pending_pull = 6;
+  int32 pending_push = 7;
+  repeated string errors = 8;
+}
+
+// ---------------------------------------------------------------------------
+// ListFiles
+// ---------------------------------------------------------------------------
+
+message ListFilesRequest {
+  ProjectRef project = 1;
+  // Optional path filters; empty = all tracked files.
+  repeated string paths = 2;
+}
+
+message FileEntry {
+  string path = 1;
+  string format = 2;
+  int32 block_count = 3;
+  int32 word_count = 4;
+  int32 dirty_count = 5;
+}
+
+message ListFilesResponse {
+  repeated FileEntry files = 1;
+}
+
+// ---------------------------------------------------------------------------
+// Push
+// ---------------------------------------------------------------------------
+
+message PushRequest {
+  ProjectRef project = 1;
+  repeated string paths = 2;
+  bool force = 3;
+  bool dry_run = 4;
+}
+
+message PushResponse {
+  int32 blocks_pushed = 1;
+  int32 assets_pushed = 2;
+  int32 files_scanned = 3;
+  int32 chunk_count = 4;
+  int32 word_count = 5;
+  string push_id = 6;
+}
+
+// ---------------------------------------------------------------------------
+// Pull
+// ---------------------------------------------------------------------------
+
+message PullRequest {
+  ProjectRef project = 1;
+  repeated string locales = 2;
+  bool force = 3;
+  bool dry_run = 4;
+}
+
+message PullResponse {
+  int32 blocks_pulled = 1;
+  int32 files_written = 2;
+  int32 locales_count = 3;
+}
+
+// ---------------------------------------------------------------------------
+// Daemon control
+// ---------------------------------------------------------------------------
+
+message HealthRequest {}
+
+message HealthResponse {
+  string version = 1;
+  // uptime in seconds since the daemon started.
+  int64 uptime_seconds = 2;
+}
+
+message ShutdownRequest {
+  // grace_seconds bounds how long the daemon may wait for in-flight RPCs.
+  int32 grace_seconds = 1;
+}
+
+message ShutdownResponse {}

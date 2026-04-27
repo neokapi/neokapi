@@ -85,9 +85,17 @@ func init() {
 	// their Mode-A commands here. Conflicts with built-ins or other
 	// plugins are reported on stderr and the conflicting capability
 	// is omitted from dispatch.
-	pluginhost.AttachCommands(rootCmd, app.PluginHost, func(msg string) {
-		if !app.Quiet {
-			fmt.Fprintln(os.Stderr, "Warning: "+msg)
-		}
+	//
+	// When a plugin declares a Mode-C daemon block AND a
+	// SourceConnectorDispatcher is registered for the plugin's name,
+	// matching commands route through the daemon pool instead of
+	// spawning a fresh subprocess per invocation.
+	pluginhost.AttachCommandsWithOptions(rootCmd, app.PluginHost, pluginhost.AttachOptions{
+		OnConflict: func(msg string) {
+			if !app.Quiet {
+				fmt.Fprintln(os.Stderr, "Warning: "+msg)
+			}
+		},
+		DaemonPool: app.DaemonPool(),
 	})
 }

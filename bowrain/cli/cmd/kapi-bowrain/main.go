@@ -61,6 +61,7 @@ func init() {
 
 	rootCmd.AddCommand(buildCommandSubtree())
 	rootCmd.AddCommand(buildMCPServerCmd())
+	rootCmd.AddCommand(buildDaemonCmd())
 	rootCmd.AddCommand(buildVersionCmd())
 }
 
