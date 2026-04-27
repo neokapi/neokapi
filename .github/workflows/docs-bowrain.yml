@@ -30,8 +30,8 @@ jobs:
           go-version: "1.26.0"
           cache: true
 
-      - name: Build bowrain + kapi binaries
-        run: make build build-bowrain-cli
+      - name: Build kapi + kapi-bowrain plugin
+        run: make build build-kapi-bowrain-plugin
 
       - name: Install VHS + Xvfb
         run: |

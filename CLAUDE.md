@@ -13,7 +13,7 @@ The repository is a **multi-module monorepo** with seven Go modules:
 - **Bowrain Core** (`github.com/neokapi/neokapi/bowrain/core`) — shared platform types and interfaces: project model, auth types, connector interfaces, REST client, store interfaces, event types. Depends on framework only. No CLI dependency (no Cobra, Viper).
 - **Kapi** (`github.com/neokapi/neokapi/kapi`) — primary CLI binary (Apache-2.0). Contains zero vendor-plugin code. Plugins (bowrain, okapi-bridge, …) are discovered at runtime via the unified manifest model (#438) and dispatched as subprocesses. Depends on framework + CLI only.
 - **Kapi Desktop** (`github.com/neokapi/neokapi/kapi-desktop`) — Wails v3 desktop app for visual localization workflows. Blank-imports `bowrain/plugin/schema` so it validates bowrain recipes on open. Depends on framework + CLI + bowrain/plugin/schema.
-- **Bowrain CLI** (`github.com/neokapi/neokapi/bowrain/cli`) — produces two binaries: `bowrain` (legacy standalone CLI, in `cmd/bowrain/`) and `kapi-bowrain` (the manifest-driven plugin binary, in `cmd/kapi-bowrain/`). The `kapi-bowrain` binary is what kapi dispatches to under the unified plugin model.
+- **Bowrain CLI** (`github.com/neokapi/neokapi/bowrain/cli`) — produces the `kapi-bowrain` manifest-driven plugin binary (in `cmd/kapi-bowrain/`). The plugin is dispatched to by kapi under the unified plugin model. The legacy standalone `bowrain` binary has been retired; all bowrain commands flow through `kapi <command>` once `bowrain-cli` is brew-installed.
 - **Bowrain Plugin** (`github.com/neokapi/neokapi/bowrain/plugin`) — Go packages implementing bowrain's behavior: `schema/` (recipe extension decoders, registers via `init()` against `core/project.RegisterExtension`), `commands/` (push, pull, sync, status, init, auth, …, registers via `cli.RegisterCommandFactory`), `connector/` (BowrainSourceConnector), `mcp/` (bowrain MCP tools, registers via `cli.RegisterMCPToolFactory`). These are blank-imported into the `kapi-bowrain` plugin binary; they are no longer imported by the default `kapi` binary. The `schema/` sub-package has its own go.mod so kapi-desktop can blank-import it cheaply.
 - **Bowrain Core** (`github.com/neokapi/neokapi/bowrain/core`) — shared bowrain platform types: Recipe wrapper around the framework's `KapiProject` (with type aliases re-exported from `bowrain/plugin/schema`), Project facade, sync cache helpers, REST client, auth, store interfaces, event types.
 - **Bowrain** (`github.com/neokapi/neokapi/bowrain`) — the full-stack localization platform: REST server, desktop app, web app, connectors, persistent SQLite/PostgreSQL storage. Depends on framework + bowrain/core.
@@ -179,7 +179,7 @@ neokapi/
 │   │
 │   │   ── Bowrain CLI Module ────────────
 │   ├── cli/               # module github.com/neokapi/neokapi/bowrain/cli (framework + cli + bowrain/core)
-│   │   └── cmd/bowrain/   # Bowrain CLI (project cmds + shared CLI base)
+│   │   └── cmd/kapi-bowrain/   # Manifest-driven kapi-bowrain plugin binary (Mode A/B/C)
 │   │
 │   ├── auth/              # OIDC, AuthStore, SQLite + PostgreSQL auth (server-specific)
 │   ├── connector/         # Concrete connector implementations (File, Git, etc.)
@@ -295,7 +295,7 @@ kapi run translate-and-qa -p myproject.kapi --target-lang de
 
 - **Kapi** = standalone file-processing tool, demonstrates neokapi's power as open-source toolchain
 - **Kapi** = GUI companion for kapi — visual flow editor, runner, plugin manager, credential vault
-- **Bowrain CLI** (`bowrain` binary) = project sync companion CLI, focuses on DX and project simplicity for Bowrain
+- **kapi-bowrain plugin** (manifest-driven, dispatched via `kapi`) = project sync companion CLI, focuses on DX and project simplicity for Bowrain
 - **Shared CLI base** (`cli/`) = common commands (run, flows, tools, formats, plugins, presets, termbase, version) and top-level tool commands used by both kapi and bowrain
 - **Bowrain Server** = integration platform (CMS connectors, automation, ContentStore)
 
@@ -400,7 +400,8 @@ docker compose down -v
 make kapi-recordings             # runs tapes + copies to web/docs/static/video/kapi/
 
 # 4. Bowrain CLI recordings (needs VHS + server)
-make bowrain-cli-recordings      # runs tapes + copies to web/docs/static/video/bowrain-cli/
+# bowrain-cli-recordings retired with the standalone bowrain binary; the kapi-bowrain plugin
+# is exercised via the same tapes through the kapi binary now.
 
 # Or generate everything at once:
 make docs-assets                 # screenshots + recordings + cli-recordings

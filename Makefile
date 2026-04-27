@@ -263,10 +263,10 @@ build-all: ## Build all Go binaries
 	@mkdir -p $(BIN_DIR)
 	cd kapi && $(GOBUILD) $(LDFLAGS) -o $(BIN_DIR)/kapi ./cmd/kapi
 	cd bowrain/cli && $(GOBUILD) $(LDFLAGS) -o $(BIN_DIR)/kapi-bowrain ./cmd/kapi-bowrain
-	$(MAKE) -C bowrain build-server build-worker build-bowrain-cli
+	$(MAKE) -C bowrain build-server build-worker build-kapi-bowrain-plugin
 
 # Forward bowrain build targets
-build-server build-worker build-bowrain-cli build-bowrain build-headless install-bowrain-cli:
+build-server build-worker build-kapi-bowrain-plugin build-bowrain build-headless install-kapi-bowrain-plugin:
 	$(MAKE) -C bowrain $@
 
 # ── Kapi Desktop ────────────────────────────────────────────────────────────
@@ -541,8 +541,8 @@ help: ## Show this help
         ci-test-framework ci-test-cli ci-test-kapi ci-test-platform \
         ci-test-bowrain-cli ci-test-bowrain ci-test-kapi-desktop ci-test-all \
         verify-isolation \
-        build build-all build-server build-worker build-bowrain-cli build-bowrain build-headless \
-        install install-bowrain-cli \
+        build build-all build-server build-worker build-kapi-bowrain-plugin build-bowrain-plugin build-bowrain build-headless \
+        install install-kapi-bowrain-plugin \
         frontend-check-all \
         build-kapi-desktop kapi-desktop-dev kapi-desktop-test \
         kapi-desktop-frontend-deps kapi-desktop-frontend-dev kapi-desktop-frontend-build \

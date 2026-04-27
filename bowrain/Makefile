@@ -68,7 +68,7 @@ DOCKER_WEB_IMAGE      := ghcr.io/neokapi/bowrain-web
 DOCKER_KEYCLOAK_IMAGE := ghcr.io/neokapi/bowrain-keycloak
 
 .PHONY: all help \
-        build-server build-worker build-agentic-server build-bowrain-cli build-bowrain build-headless install-bowrain-cli \
+        build-server build-worker build-agentic-server build-kapi-bowrain-plugin build-bowrain build-headless install-kapi-bowrain-plugin \
         ui-deps ui-build ui-check storybook storybook-dev storybook-build \
         frontend-deps frontend-dev frontend-build frontend-check build-ui \
         web-deps web-build web-check \
@@ -79,7 +79,7 @@ DOCKER_KEYCLOAK_IMAGE := ghcr.io/neokapi/bowrain-keycloak
         docker-server docker-web docker-keycloak docker-all \
         docker-push-server docker-push-web docker-push-keycloak docker-push \
         dev-deps dev-deps-down dev-server dev-web dev-ctrl bowrain-dev certs \
-        screenshots recordings bowrain-cli-recordings \
+        screenshots recordings \
         test test-fast test-unit test-race test-verbose test-integration \
         test-platform test-bowrain-cli test-bowrain test-e2e-bowrain test-e2e-cloud test-e2e-dev \
         cover fmt vet lint check proto deps deps-update clean
@@ -112,9 +112,9 @@ build-agentic-server: ## Build the Agentic Testing server
 	@mkdir -p $(BIN_DIR)
 	$(GOBUILD) $(LDFLAGS) -o $(BIN_DIR)/agentic-server ./agentic-testing/cmd/agentic-server
 
-build-bowrain-cli: ## Build Bowrain CLI
+build-kapi-bowrain-plugin: ## Build the kapi-bowrain plugin binary (manifest-driven)
 	@mkdir -p $(BIN_DIR)
-	cd cli && $(GOBUILD) $(LDFLAGS) -o $(BIN_DIR)/bowrain ./cmd/bowrain
+	cd cli && $(GOBUILD) $(LDFLAGS) -o $(BIN_DIR)/kapi-bowrain ./cmd/kapi-bowrain
 
 build-bowrain: frontend-build ## Build the Bowrain desktop app
 	cd apps/bowrain && wails3 build -ldflags "-X $(VERSION_PKG).Version=$(VERSION) -X $(VERSION_PKG).Commit=$(COMMIT) -X $(VERSION_PKG).BuildDate=$(BUILD_DATE)"
@@ -123,8 +123,8 @@ build-headless: frontend-build ## Build headless desktop binary (server mode, no
 	@mkdir -p $(BIN_DIR)
 	cd apps/bowrain && $(GOBUILD) -tags server $(LDFLAGS) -o $(BIN_DIR)/bowrain-headless .
 
-install-bowrain-cli: ## Install Bowrain CLI to GOPATH/bin
-	cd cli && $(GO) install $(LDFLAGS) ./cmd/bowrain
+install-kapi-bowrain-plugin: ## Install kapi-bowrain plugin binary to GOPATH/bin
+	cd cli && $(GO) install $(LDFLAGS) ./cmd/kapi-bowrain
 
 # ── Frontend (Bowrain UI) ───────────────────────────────────────────────────
 
@@ -320,9 +320,6 @@ screenshots: frontend-deps ## Generate documentation screenshots
 
 recordings: frontend-deps ## Generate Bowrain (GUI) video recordings
 	cd $(FRONTEND_DIR) && vp run recordings:all
-
-bowrain-cli-recordings: build-bowrain-cli ## Generate Bowrain CLI demo videos (VHS)
-	./e2e/tapes/generate.sh
 
 test-e2e-bowrain: ## Run Bowrain server end-to-end tests (requires Docker)
 	bash e2e/server/run.sh

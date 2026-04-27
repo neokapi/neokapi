@@ -57,25 +57,6 @@ builds:
       - -X github.com/neokapi/neokapi/core/version.Commit={{.Commit}}
       - -X github.com/neokapi/neokapi/core/version.BuildDate={{.Date}}
 
-  - id: bowrain-cli
-    dir: bowrain/cli
-    main: ./cmd/bowrain
-    binary: bowrain
-    env:
-      - CGO_ENABLED=0
-    goos:
-      - linux
-      - darwin
-      - windows
-    goarch:
-      - amd64
-      - arm64
-    ldflags:
-      - -s -w
-      - -X github.com/neokapi/neokapi/core/version.Version={{.Version}}
-      - -X github.com/neokapi/neokapi/core/version.Commit={{.Commit}}
-      - -X github.com/neokapi/neokapi/core/version.BuildDate={{.Date}}
-
 archives:
   - id: kapi
     ids:
@@ -96,14 +77,6 @@ archives:
     files:
       - src: bowrain/cli/cmd/kapi-bowrain/manifest.json
         strip_parent: true
-    format_overrides:
-      - goos: windows
-        formats: [zip]
-
-  - id: bowrain-cli
-    ids:
-      - bowrain-cli
-    name_template: "bowrain-cli_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
     format_overrides:
       - goos: windows
         formats: [zip]
@@ -156,23 +129,6 @@ brews:
       ln_sf plugin_dir, kapi_share/"bowrain"
     test: |
       system HOMEBREW_PREFIX/"share/kapi/plugins/bowrain/kapi-bowrain", "version"
-
-  # Legacy bowrain-cli-standalone — kept while we transition existing
-  # users. New installs should use `bowrain-cli` (the plugin formula).
-  - name: bowrain-cli-standalone
-    ids:
-      - bowrain-cli
-    repository:
-      owner: neokapi
-      name: homebrew-tap
-      token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
-    homepage: "https://github.com/neokapi/neokapi"
-    description: "Bowrain standalone CLI (legacy; new installs should use bowrain-cli)"
-    license: "Apache-2.0"
-    download_strategy: GitHubPrivateRepositoryReleaseDownloadStrategy
-    custom_require: "lib/private_download_strategy"
-    test: |
-      system "#{bin}/bowrain", "version"
 
 checksum:
   name_template: "checksums.txt"
