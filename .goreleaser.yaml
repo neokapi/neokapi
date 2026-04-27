@@ -37,6 +37,26 @@ builds:
       - -X github.com/neokapi/neokapi/core/version.Commit={{.Commit}}
       - -X github.com/neokapi/neokapi/core/version.BuildDate={{.Date}}
 
+  - id: kapi-bowrain
+    dir: bowrain/cli
+    main: ./cmd/kapi-bowrain
+    binary: kapi-bowrain
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w
+      - -X main.pluginVersion={{.Version}}
+      - -X github.com/neokapi/neokapi/core/version.Version={{.Version}}
+      - -X github.com/neokapi/neokapi/core/version.Commit={{.Commit}}
+      - -X github.com/neokapi/neokapi/core/version.BuildDate={{.Date}}
+
   - id: bowrain-cli
     dir: bowrain/cli
     main: ./cmd/bowrain
@@ -60,7 +80,22 @@ archives:
   - id: kapi
     ids:
       - kapi
-    name_template: "kapi-cli_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    name_template: "kapi_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    format_overrides:
+      - goos: windows
+        formats: [zip]
+
+  # kapi-bowrain plugin tarball — top-level "bowrain/" dir per the
+  # unified plugin model (#438). Manual install:
+  #   tar -xzf kapi-bowrain-*.tar.gz -C ~/.local/share/kapi/plugins/
+  - id: kapi-bowrain
+    ids:
+      - kapi-bowrain
+    name_template: "kapi-bowrain_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    wrap_in_directory: bowrain
+    files:
+      - src: bowrain/cli/cmd/kapi-bowrain/manifest.json
+        strip_parent: true
     format_overrides:
       - goos: windows
         formats: [zip]
@@ -74,7 +109,10 @@ archives:
         formats: [zip]
 
 brews:
-  - name: kapi-cli
+  # kapi (Apache-2.0) — manifest-driven plugins discovered at runtime.
+  # Default `brew install neokapi/tap/kapi` produces an Apache-clean
+  # binary with no vendor plugins compiled in.
+  - name: kapi
     ids:
       - kapi
     repository:
@@ -89,7 +127,39 @@ brews:
     test: |
       system "#{bin}/kapi", "version"
 
+  # bowrain-cli — installs kapi (via depends_on) plus the kapi-bowrain
+  # plugin into Homebrew's standard kapi plugin dir
+  # (#{HOMEBREW_PREFIX}/share/kapi/plugins/bowrain/). After install,
+  # `kapi push`, `kapi pull`, etc. dispatch to the plugin.
   - name: bowrain-cli
+    ids:
+      - kapi-bowrain
+    repository:
+      owner: neokapi
+      name: homebrew-tap
+      token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
+    homepage: "https://github.com/neokapi/neokapi"
+    description: "Bowrain plugin for kapi — sync .kapi projects with Bowrain Server"
+    license: "Apache-2.0"
+    download_strategy: GitHubPrivateRepositoryReleaseDownloadStrategy
+    custom_require: "lib/private_download_strategy"
+    dependencies:
+      - name: kapi
+    install: |
+      plugin_dir = pkgshare/"plugins/bowrain"
+      plugin_dir.mkpath
+      plugin_dir.install Dir["bowrain/*"]
+      # Symlink so HOMEBREW_PREFIX/share/kapi/plugins/bowrain/ resolves
+      # to this formula's pkgshare/plugins/bowrain/.
+      kapi_share = HOMEBREW_PREFIX/"share/kapi/plugins"
+      kapi_share.mkpath
+      ln_sf plugin_dir, kapi_share/"bowrain"
+    test: |
+      system HOMEBREW_PREFIX/"share/kapi/plugins/bowrain/kapi-bowrain", "version"
+
+  # Legacy bowrain-cli-standalone — kept while we transition existing
+  # users. New installs should use `bowrain-cli` (the plugin formula).
+  - name: bowrain-cli-standalone
     ids:
       - bowrain-cli
     repository:
@@ -97,7 +167,7 @@ brews:
       name: homebrew-tap
       token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
     homepage: "https://github.com/neokapi/neokapi"
-    description: "Bowrain CLI — manage localization projects, sync with Bowrain Server"
+    description: "Bowrain standalone CLI (legacy; new installs should use bowrain-cli)"
     license: "Apache-2.0"
     download_strategy: GitHubPrivateRepositoryReleaseDownloadStrategy
     custom_require: "lib/private_download_strategy"
@@ -131,12 +201,12 @@ release:
   header: |
     ## Installation
 
-    **Homebrew (kapi CLI):**
+    **Homebrew (kapi CLI, Apache-2.0, no plugins):**
     ```
-    brew install neokapi/tap/kapi-cli
+    brew install neokapi/tap/kapi
     ```
 
-    **Homebrew (bowrain CLI):**
+    **Homebrew (kapi + bowrain plugin):**
     ```
     brew install neokapi/tap/bowrain-cli
     ```
