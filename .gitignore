@@ -3,6 +3,11 @@ bin/
 /bowrain-server
 /actionlint
 coverage/
+# Go build outputs that land alongside their cmd dirs (not source).
+/bowrain/cli/bowrain
+/bowrain/cli/kapi-bowrain
+/bowrain/cli/cmd/kapi-bowrain/kapi-bowrain
+/gen-format-docs
 
 # IDE
 .idea/
