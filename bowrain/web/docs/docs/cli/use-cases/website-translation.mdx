@@ -26,27 +26,25 @@ bowrain init --name "Website Translation" --source en-US --targets fr-FR,de-DE,j
 # Check word count for cost estimation
 bowrain word-count content/**/*.md
 
-# Configure file mappings in .bowrain/config.yaml
-# Edit to map your local files to translation items
+# Configure content collections in my-website.kapi
+# Edit to map your local files to formats and target paths
 ```
 
-Example `.bowrain/config.yaml`:
+Example `my-website.kapi`:
 
 ```yaml
-project:
-  name: Website Translation
-  source_locale: en-US
-  target_locales:
-    - fr-FR
-    - de-DE
-    - ja-JP
+version: v1
+name: Website Translation
 
-mappings:
-  - local: content/**/*.md
-    remote: pages/{path}
+defaults:
+  source_language: en-US
+  target_languages: [fr-FR, de-DE, ja-JP]
+
+content:
+  - path: content/**/*.md
     format: markdown
-  - local: src/locales/**/*.json
-    remote: ui/{path}
+    target: i18n/{lang}/{path}/{filename}
+  - path: src/locales/**/*.json
     format: json
 ```
 
@@ -63,7 +61,7 @@ bowrain flows
 bowrain ai-translate
 
 # Or create a custom flow with QA checks
-# .bowrain/flows/translate-website.yaml:
+# .kapi/flows/translate-website.yaml:
 # name: translate-website
 # description: Translate website content with AI and QA
 # steps:
@@ -86,7 +84,7 @@ Bowrain CLI tools and flows are composable pipelines that run on your local file
 - **`bowrain qa-check`**: Rule-based quality checks (whitespace, punctuation, placeholders)
 - **`bowrain run <flow>`**: Execute a composed or custom multi-tool flow
 
-Tools and flows automatically process all files matching your `.bowrain/config.yaml` mappings.
+Tools and flows automatically process all files matching your recipe's `content:` collections.
 
 ## Step 3: Review in Bowrain (Optional)
 
@@ -117,7 +115,7 @@ Bowrain offers multiple views for different translation tasks:
 
 ### Using Terminology
 
-1. Import a termbase (TBX, CSV, JSON) into `.bowrain/termbase.tbx`
+1. Import a termbase (TBX, CSV, JSON) — it's stored at `.kapi/termbase.db`
 2. Add `term-lookup` to your flow to show terminology suggestions
 3. Add `term-enforce` to validate required terms are used correctly
 4. The Context panel in Bowrain shows matched terms per block
@@ -153,13 +151,13 @@ Bowrain CLI uses content-addressed blocks for efficient incremental sync — onl
 
 ## Tips
 
-- **Initialize projects with `bowrain init`** to set up `.bowrain/` configuration
-- **Define custom flows** in `.bowrain/flows/` for your specific translation workflow
+- **Initialize projects with `bowrain init`** to write a `<dir-name>.kapi` recipe and `.kapi/` state directory
+- **Define custom flows** in `.kapi/flows/` for your specific translation workflow
 - **Use `bowrain tm-leverage`** to auto-fill translations from translation memory
-- **Import terminology** as `.bowrain/termbase.tbx` and add `term-lookup` to your flow
+- **Import terminology** into the project termbase at `.kapi/termbase.db` and add `term-lookup` to your flow
 - **Run `bowrain pseudo-translate`** first to identify potential UI truncation issues
 - **Use pre-push hooks** to enforce quality gates before pushing to server
-- **Commit `.bowrain/config.yaml`** to git, but not `.bowrain/.sync-cache` (auto-gitignored)
+- **Commit `<dir-name>.kapi`** to git; the whole `.kapi/` state directory is gitignored by default
 - **Check `bowrain status`** before pushing to see what changed
 
 ## Related

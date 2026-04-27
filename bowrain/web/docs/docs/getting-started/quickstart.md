@@ -10,7 +10,7 @@ Get started with the Bowrain CLI in 5 minutes.
 
 ## Initialize a Project
 
-Create a `.bowrain/` project directory (like `.git` for localization):
+Create a `.kapi` project — a `<dir-name>.kapi` recipe at the project root with a sibling `.kapi/` state directory (like `.git` for localization):
 
 ```bash
 bowrain init
@@ -29,7 +29,7 @@ Or skip the wizard with flags:
 bowrain init --name "My Project" --source en-US --targets fr-FR,de-DE
 ```
 
-This creates `.bowrain/config.yaml` with project settings and flow definitions.
+This writes `<dir-name>.kapi` (the recipe) and `.kapi/` (state, including `flows/`).
 
 ## Translate Files
 
@@ -41,7 +41,7 @@ bowrain ai-translate
 
 Bowrain CLI automatically:
 
-- Reads files matching your `.bowrain/config.yaml` mappings
+- Reads files matching your recipe's `content:` collections
 - Translates from source to target locales
 - Writes results back to local files
 
@@ -67,7 +67,7 @@ bowrain status
 
 ## Create a Custom Flow
 
-Define a workflow in `.bowrain/flows/my-flow.yaml`:
+Define a workflow in `.kapi/flows/my-flow.yaml`:
 
 ```yaml
 name: my-flow

@@ -16,7 +16,7 @@ Hooks are flows that run automatically during `bowrain push` and `bowrain pull`:
 
 ## Configuration
 
-Define hooks in `.bowrain/config.yaml`:
+Define hooks at the top level of your `<dir-name>.kapi` recipe:
 
 ```yaml
 hooks:
@@ -40,7 +40,7 @@ Pre-push hooks run **before** `bowrain push` uploads content to Bowrain Server.
 
 ### Example
 
-`.bowrain/config.yaml`:
+`my-app.kapi`:
 
 ```yaml
 hooks:
@@ -73,7 +73,7 @@ Hooks can be configured to block or warn:
 
 ```yaml
 # Create a flow that fails on violations
-# .bowrain/flows/strict-qa.yaml
+# .kapi/flows/strict-qa.yaml
 name: strict-qa
 description: Strict QA checks that block push
 
@@ -108,7 +108,7 @@ Post-pull hooks run **after** `bowrain pull` fetches content from the server.
 
 ### Example
 
-`.bowrain/config.yaml`:
+`my-app.kapi`:
 
 ```yaml
 hooks:
@@ -156,7 +156,7 @@ bowrain push --force
 
 Hooks run as regular flows:
 
-1. **Read files**: Load files matching `.bowrain/config.yaml` mappings
+1. **Read files**: Load files matching the recipe's `content:` collections
 2. **Process blocks**: Run each tool in the hook sequence
 3. **Check results**: If any tool exits with error, abort operation
 4. **Write files**: Save processed content back to local files
@@ -225,25 +225,17 @@ Use different hooks per environment:
 bowrain push --no-hooks
 
 # Staging: medium
-# .bowrain/config.yaml has qa-check only
+# Recipe has qa-check only
 
 # Production: strict
 # Production branch has qa-check + term-enforce + spell-check
 ```
 
-Or use environment-specific configs:
+Or use environment-specific recipes (committed alongside the canonical one) and pass them with `-p`:
 
-```yaml
-# .bowrain/config.dev.yaml
-hooks:
-  pre-push: []
-
-# .bowrain/config.prod.yaml
-hooks:
-  pre-push:
-    - qa-check
-    - term-enforce
-    - spell-check
+```bash
+bowrain push -p my-app.dev.kapi    # lenient
+bowrain push -p my-app.prod.kapi   # strict
 ```
 
 ## Implementation Status

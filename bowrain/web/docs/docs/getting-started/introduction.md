@@ -28,7 +28,7 @@ Bowrain understands your content structure. Whether it is JSON, XLIFF, Markdown,
 
 ### 3. Composable Automation
 
-Define automation rules in `.bowrain/config.yaml` for CLI-driven workflows:
+Define automation rules at the top level of your `.kapi` recipe for CLI-driven workflows:
 
 ```yaml
 automations:
@@ -62,7 +62,7 @@ Developer (Bowrain CLI)          Translator (Web/Desktop)
      |<-----------------------------|<-----------------------------
 ```
 
-The developer initializes a `.bowrain/` project, runs `bowrain sync` to push source content and pull back translations. Translators work in the web app or desktop app with a visual editor, translation memory, and terminology support. Automation rules on the server orchestrate the processing between push and pull.
+The developer initializes a `.kapi` project, runs `bowrain sync` to push source content and pull back translations. Translators work in the web app or desktop app with a visual editor, translation memory, and terminology support. Automation rules on the server orchestrate the processing between push and pull.
 
 ## Components
 

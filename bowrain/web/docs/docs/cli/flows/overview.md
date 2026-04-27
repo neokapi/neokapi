@@ -19,7 +19,7 @@ Input Files -> [Tool 1] -> [Tool 2] -> [Tool 3] -> Output Files
 
 Flows automatically:
 
-- Read files matching `.bowrain/config.yaml` mappings
+- Read files matching the recipe's `content:` collections
 - Process through each tool in sequence
 - Write results back to local files
 
@@ -46,7 +46,7 @@ bowrain flows
 # Run a tool directly (top-level command)
 bowrain ai-translate
 
-# Standalone mode (without .bowrain/ project)
+# Standalone mode (without a .kapi project)
 bowrain ai-translate -i input.html -o output.html --source-lang en --target-lang fr
 
 # Run a composed flow
@@ -55,11 +55,11 @@ bowrain run ai-translate-qa -i input.html -o output.html --source-lang en --targ
 
 ## Custom Flows
 
-Create custom flows in `.bowrain/flows/` as YAML files.
+Create custom flows in `.kapi/flows/` as YAML files.
 
 ### Example: Translation with QA
 
-`.bowrain/flows/translate-with-qa.yaml`:
+`.kapi/flows/translate-with-qa.yaml`:
 
 ```yaml
 name: translate-with-qa
@@ -68,7 +68,7 @@ description: AI translation with quality checks and terminology enforcement
 steps:
   - tool: term-lookup
     config:
-      termbase: .bowrain/termbase.tbx
+      termbase: .kapi/termbase.db
 
   - tool: ai-translate
     config:
@@ -78,7 +78,7 @@ steps:
 
   - tool: term-enforce
     config:
-      termbase: .bowrain/termbase.tbx
+      termbase: .kapi/termbase.db
       required: true
 
   - tool: qa-check
@@ -207,7 +207,7 @@ Flows can process files in any of the 41+ supported formats:
 
 ## How Flows Work
 
-1. **File Discovery**: Bowrain CLI reads files matching `.bowrain/config.yaml` mappings
+1. **File Discovery**: Bowrain CLI reads files matching the recipe's `content:` collections
 2. **Parsing**: Each file is parsed into blocks (translatable units)
 3. **Processing**: Blocks stream through tools in sequence
 4. **Writing**: Results are written back to local files

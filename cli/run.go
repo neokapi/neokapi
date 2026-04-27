@@ -28,6 +28,18 @@ func builtinComposedFlowNames() map[string]bool {
 	return names
 }
 
+// resolveFallbackRunE returns the fallback function configured on the
+// command, or — if none was set explicitly — the App-level FallbackRunE
+// installed by plugins via RegisterAppInitializer. Read at RunE time so
+// plugin initializers (which fire during PersistentPreRun) have already
+// run.
+func (a *App) resolveFallbackRunE(opts RunCmdOptions) func(cmd *cobra.Command, flowName string, args []string) error {
+	if opts.FallbackRunE != nil {
+		return opts.FallbackRunE
+	}
+	return a.FallbackRunE
+}
+
 // NewRunCmd creates the "run" command for executing composed flows.
 //
 //	kapi run ai-translate-qa -i file.xliff --target-lang fr
@@ -56,13 +68,17 @@ Use -p to run a flow from a .kapi project file:
 				return err
 			}
 
+			fallbackRunE := a.resolveFallbackRunE(opts)
+
 			// If a project file is specified (or auto-discovered), apply its defaults.
 			if projectPath != "" {
-				return a.runFromProject(cmd, flowName, projectPath, opts)
+				return a.runFromProject(cmd, flowName, projectPath, RunCmdOptions{
+					FallbackRunE: fallbackRunE,
+				})
 			}
 
 			flowOpts := FlowCmdOptions{
-				FallbackRunE: opts.FallbackRunE,
+				FallbackRunE: fallbackRunE,
 			}
 
 			// Built-in composed flow — run directly.
@@ -71,8 +87,8 @@ Use -p to run a flow from a .kapi project file:
 			}
 
 			// Try fallback (e.g. project flows from .bowrain/flows/).
-			if opts.FallbackRunE != nil {
-				return opts.FallbackRunE(cmd, flowName, args)
+			if fallbackRunE != nil {
+				return fallbackRunE(cmd, flowName, args)
 			}
 
 			return fmt.Errorf("unknown flow: %q\nUse \"flows\" to list available flows, or run a tool directly (e.g. \"kapi %s\")", flowName, flowName)

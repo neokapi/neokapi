@@ -251,7 +251,7 @@ Channel resolution (most specific wins):
 Apply: ResolveProfile(profile, locale, channel)
 ```
 
-### CLI Config (`.bowrain/config.yaml`)
+### CLI Config (top-level on `<dir-name>.kapi`)
 
 ```yaml
 brand_voice:

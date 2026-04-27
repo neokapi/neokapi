@@ -5,13 +5,13 @@ title: Overview
 
 # Bowrain CLI
 
-Bowrain CLI is the project companion CLI for the Bowrain localization platform. It manages `.bowrain/` projects in your repository and syncs with Bowrain Server for team collaboration.
+Bowrain CLI is the project companion CLI for the Bowrain localization platform. It manages `.kapi` projects in your repository and syncs with Bowrain Server for team collaboration.
 
 ## What is Bowrain CLI?
 
 Bowrain CLI is to Bowrain Server as **git is to GitHub** — a local-first project management tool that:
 
-- Initializes and manages `.bowrain/` projects in your repository
+- Initializes and manages `.kapi` projects in your repository
 - Runs translation flows (AI, MT, TM, QA) on project files
 - Syncs changes with Bowrain Server via push/pull
 - Provides project status, diff, and configuration commands
@@ -20,11 +20,12 @@ Bowrain CLI is to Bowrain Server as **git is to GitHub** — a local-first proje
 
 ### Project Model
 
-`.bowrain/` directories (like `.git/`) contain:
+A bowrain project is a kapi project with a `server:` block on its recipe:
 
-- **config.yaml** — project settings, file mappings, locales
-- **flows/** — custom YAML flow definitions
-- **.sync-cache** — sync cache (gitignored, local only)
+- **`<dir-name>.kapi`** — the recipe (committed) — project settings, content collections, flows, server connection
+- **`.kapi/flows/`** — optional file-per-flow definitions (committed)
+- **`.kapi/cache/sync-cache.json`** — sync cache (gitignored, local only)
+- **`.kapi/cache/blocks.db`** — block store (gitignored, regenerable)
 
 ### Translation Tools and Flows
 
@@ -37,12 +38,12 @@ bowrain ai-translate
 # Run a composed multi-tool flow
 bowrain run ai-translate-qa
 
-# Create custom flows in .bowrain/flows/my-flow.yaml
+# Create custom flows in .kapi/flows/my-flow.yaml
 # Run custom flow
 bowrain run my-flow
 ```
 
-Tools and flows automatically process all files matching `.bowrain/config.yaml` mappings.
+Tools and flows automatically process all files matching the recipe's `content:` collections.
 
 ### Server Sync
 
@@ -62,8 +63,8 @@ Only changed blocks transfer (content-addressed sync).
 View or set project and global configuration values:
 
 ```bash
-bowrain config project.name              # Print project name
-bowrain config project.name "My App"     # Set project name
+bowrain config name              # Print project name
+bowrain config name "My App"     # Set project name
 bowrain config --global server.url https://bowrain.example.com  # Set global server URL
 ```
 
@@ -71,9 +72,9 @@ bowrain config --global server.url https://bowrain.example.com  # Set global ser
 
 Use Bowrain CLI when you:
 
-- **Manage localization projects** with `.bowrain/` configuration
+- **Manage localization projects** with a `.kapi` recipe
 - **Sync with Bowrain Server** for team collaboration
-- **Run project-based flows** defined in `.bowrain/flows/`
+- **Run project-based flows** defined in `.kapi/flows/` or inline on the recipe
 - **Want automation** via CI/CD pipelines
 
 Use kapi CLI when you:

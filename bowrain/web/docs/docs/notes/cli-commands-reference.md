@@ -11,10 +11,10 @@ This note provides implementation details for [AD-010](/architecture-decisions/0
 
 ```
 bowrain
-+-- init             # Initialize a new .bowrain/ project
++-- init             # Initialize a new .kapi project (recipe + state dir)
 |   +-- --name, --source, --targets, --server, --project, --anonymous, --email, --preset
 +-- config           # View or set configuration values
-|   +-- --global (use ~/.config/kapi/kapi.yaml instead of .bowrain/config.yaml)
+|   +-- --global (use ~/.config/kapi/kapi.yaml instead of <dir-name>.kapi)
 +-- ls               # List tracked files with optional stats
 |   +-- --stats/-s, --dirty/-d, [paths...]
 +-- add              # Add file patterns to track
@@ -34,7 +34,7 @@ bowrain
 |   +-- logout       # Remove stored token
 |   +-- status       # Show current user, server URL
 |   +-- claim        # Claim anonymous project
-+-- run FLOW         # Execute a composed flow from .bowrain/flows/ or built-in
++-- run FLOW         # Execute a flow (inline on recipe, .kapi/flows/, or built-in)
 +-- <tool>           # Run a tool directly (pseudo-translate, ai-translate, qa-check, etc.)
 +-- flows            # List available flows
 +-- tools            # List available tools
@@ -84,26 +84,26 @@ kapi
 
 ### Non-interactive Workflow
 
-1. Check if `.bowrain/` already exists (error if so)
-2. Create `.bowrain/config.yaml` with defaults or provided flags
-3. If `--anonymous` or `--email`: create anonymous project on server
-4. If `--project` provided: verify auth and connect to existing project
-5. If authenticated with no flags: create project in personal workspace
-6. Create `.bowrain/flows/` directory with example flows
-7. Create `.gitignore` entry for `.bowrain/.sync-cache`
+1. Check if `<dir-name>.kapi` or `.kapi/` already exists (error if so)
+2. Write `<dir-name>.kapi` recipe with defaults or provided flags
+3. If `--anonymous` or `--email`: create anonymous project on server, write `server:` block
+4. If `--project` provided: verify auth and connect to existing project, write `server:` block
+5. If authenticated with no flags: create project in personal workspace, write `server:` block
+6. Create `.kapi/flows/` directory with example flows
+7. Add `.kapi/` to `.gitignore`
 
 All paths support `--json` output for CI/CD integration.
 
 ## `bowrain pull` Algorithm
 
-1. Read `.bowrain/config.yaml` (server URL, project ID, mappings)
-2. Verify auth token
+1. Read the recipe (`server.url`, content collections)
+2. Verify auth token (keychain `bowrain-auth:<server-url>` or `BOWRAIN_AUTH_TOKEN`)
 3. Call `GET /api/v1/projects/:id/sync/pull?cursor=X&locales=...`
    - Response: changes since cursor, new cursor, has_more
    - Paginated: follow has_more until all changes consumed
 4. Write blocks to local files via FormatRegistry
 5. Run `post-pull` hooks (if configured)
-6. Update `.bowrain/.sync-cache`
+6. Update `.kapi/cache/sync-cache.json`
 
 **Conflict handling:**
 
@@ -112,18 +112,18 @@ All paths support `--json` output for CI/CD integration.
 
 ## `bowrain push` Algorithm
 
-1. Read `.bowrain/config.yaml` (mappings)
+1. Read the recipe (content collections)
 2. Run `pre-push` hooks (qa-check, term-enforce, etc.)
    - If any hook fails, abort push
 3. Read local files via FormatRegistry
 4. Compute block hashes
-5. Compare with `.bowrain/.sync-cache` -> identify changed blocks
-6. Verify auth token
+5. Compare with `.kapi/cache/sync-cache.json` -> identify changed blocks
+6. Verify auth token (keychain `bowrain-auth:<server-url>` or `BOWRAIN_AUTH_TOKEN`)
 7. Call `POST /api/v1/projects/:id/sync/push`
    - Request body: `{ blocks: [{id, text, name, type, item_name}] }`
    - Response: `{ stored: N, new_cursor: X, push_id: "..." }`
    - Batched at 1000 blocks per request (MaxBlocksPerRequest)
-8. Update `.bowrain/.sync-cache`
+8. Update `.kapi/cache/sync-cache.json`
 
 ## REST API Routes
 

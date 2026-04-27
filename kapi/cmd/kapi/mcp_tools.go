@@ -21,6 +21,10 @@ import (
 	"github.com/neokapi/neokapi/core/tool"
 )
 
+func init() {
+	cli.RegisterMCPToolFactory(registerKapiTools)
+}
+
 // registerKapiTools registers all kapi MCP tools on the given server.
 func registerKapiTools(server *mcp.Server, a *cli.App) {
 	mcp.AddTool(server, &mcp.Tool{

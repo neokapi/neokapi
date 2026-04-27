@@ -5,15 +5,15 @@ sidebar_position: 11
 
 # Automation
 
-Bowrain provides two complementary automation systems: **local automation rules** defined in `.bowrain/config.yaml` for CLI-driven workflows, and **server-side automation** configured via the web UI or REST API for event-driven processing.
+Bowrain provides two complementary automation systems: **local automation rules** declared on the project recipe (`<dir-name>.kapi`) for CLI-driven workflows, and **server-side automation** configured via the web UI or REST API for event-driven processing.
 
 ## Local Automation (CLI)
 
-Local automations run in the Bowrain CLI and are defined in your project's `.bowrain/config.yaml`. They hook into CLI commands and execute actions before or after operations like push, pull, and flow runs.
+Local automations run in the Bowrain CLI and are declared at the top level of your project's `.kapi` recipe. They hook into CLI commands and execute actions before or after operations like push, pull, and flow runs.
 
 ### Configuration
 
-Add an `automations` section to `.bowrain/config.yaml`:
+Add an `automations:` section to your `<dir-name>.kapi` recipe:
 
 ```yaml
 automations:
@@ -48,7 +48,7 @@ automations:
 
 | Action           | Description                                                               |
 | ---------------- | ------------------------------------------------------------------------- |
-| `run_flow`       | Execute a flow by name (from `.bowrain/flows/` or built-in)               |
+| `run_flow`       | Execute a flow by name (inline on the recipe, from `.kapi/flows/`, or built-in) |
 | `wait_translate` | Wait for server-side translations to complete (with configurable timeout) |
 | `pull`           | Pull translated content from the server                                   |
 | `push`           | Push local content to the server                                          |

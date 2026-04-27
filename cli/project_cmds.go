@@ -124,7 +124,7 @@ func scaffoldRecipe(name, sourceLocale string, targetLocales []string) []byte {
 # Define content collections and flows. Kapi tools read
 # authored content from the declared source globs and write
 # generated translations to the declared writer paths. Runtime
-# block state is persisted in .kapi/cache.db.
+# block state is persisted in .kapi/cache/blocks.db.
 #
 # content:
 #   - collection: ui

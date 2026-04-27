@@ -165,7 +165,7 @@ Developer                    Bowrain Server                      Translator
 
 ## Custom Flows on the Server
 
-Custom flow definitions (YAML files) can be uploaded to the server via the API or pushed as part of a project's `.bowrain/flows/` directory. Once on the server, they appear in the web UI and can be triggered by automations.
+Custom flow definitions (YAML files) can be uploaded to the server via the API or pushed as part of a project's `.kapi/flows/` directory. Once on the server, they appear in the web UI and can be triggered by automations.
 
 ```bash
 # Upload a flow definition

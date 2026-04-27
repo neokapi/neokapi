@@ -7,6 +7,12 @@ import (
 	"path/filepath"
 	"strings"
 
+	// Blank-import the lightweight bowrain schema package so the desktop
+	// app validates bowrain recipes (server, hooks, automations, assets,
+	// brand_voice, per-item collection/base/assets/asset_max_size). This
+	// pulls in extension decoders only — no heavy CLI / connector code.
+	_ "github.com/neokapi/neokapi/bowrain/plugin/schema"
+
 	"github.com/neokapi/neokapi/kapi-desktop/backend"
 	"github.com/wailsapp/wails/v3/pkg/application"
 	"github.com/wailsapp/wails/v3/pkg/events"

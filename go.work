@@ -7,5 +7,7 @@ use (
 	./apps/kapi-desktop
 	./bowrain/core
 	./bowrain/cli
+	./bowrain/plugin/schema
+	./bowrain/plugin
 	./bowrain
 )

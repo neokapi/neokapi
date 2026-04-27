@@ -286,9 +286,8 @@ func skipByPolicy(sess blockstore.Session, policy ConflictPolicy, kind, blockHas
 
 // writeTargetOverlay persists one pair as a `targets/<locale>`
 // overlay on the supplied session. Payload shape is the adapter's
-// translationPayload (`{text, provider, segments}`) — the bowrain
-// adapter's dispatcher splits that across the translations table's
-// first-class columns.
+// translationPayload (`{text, provider, segments}`); platform adapters
+// can split that across their own first-class columns at dispatch time.
 func writeTargetOverlay(sess blockstore.Session, p ImportPair, provider string) error {
 	payload := map[string]any{"text": p.Text}
 	if provider != "" {

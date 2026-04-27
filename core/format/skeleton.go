@@ -55,7 +55,7 @@ func NewSkeletonStore() (*SkeletonStore, error) {
 // NewSkeletonStoreAt creates a new skeleton store at a specific path. The
 // caller is responsible for directory creation and file cleanup; Close()
 // flushes and closes the file but does not remove it. Used by kapi
-// extract to persist per-source skeletons under .kapi/extractions/<id>/
+// extract to persist per-source skeletons under .kapi/cache/extractions/<id>/
 // for later use by kapi merge.
 func NewSkeletonStoreAt(path string) (*SkeletonStore, error) {
 	f, err := os.Create(path)

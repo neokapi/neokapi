@@ -5,8 +5,7 @@ sidebar_position: 1
 
 # bowrain init
 
-Initialize a new Bowrain project in the current directory. Creates a `.bowrain/` directory
-with configuration, flow definitions, and sync state tracking.
+Initialize a new Bowrain project in the current directory. Creates a `<dir-name>.kapi` recipe at the project root and a sibling `.kapi/` state directory for the block store, sync cache, TM, and termbase.
 
 ## Usage
 
@@ -57,12 +56,12 @@ bowrain init --server https://bowrain.example.com --project abc123
 
 ## What Happens
 
-1. Checks that `.bowrain/` does not already exist (fails fast if it does)
-2. Creates `.bowrain/` directory in the current folder
-3. Generates `config.yaml` with project settings
-4. Creates `flows/` subdirectory with an example flow definition
-5. Adds `.bowrain/.gitignore` to exclude sync state and tokens
-6. Optionally creates a project on the Bowrain Server and configures the connection
+1. Checks that no `*.kapi` recipe and no `.kapi/` state directory already exist (fails fast if they do)
+2. Writes `<dir-name>.kapi` recipe at the project root
+3. Creates `.kapi/` state directory with `flows/`, `manifest.yaml`, and an empty `cache/`
+4. Adds the example `pseudo` flow at `.kapi/flows/pseudo.yaml`
+5. Adds a `.gitignore` entry to exclude `.kapi/` from version control
+6. Optionally creates a project on the Bowrain Server and writes the `server:` block to the recipe
 
 After initialization, the directory becomes a Bowrain project. You can run `bowrain status`,
 `bowrain ai-translate`, `bowrain run <flow>`, and other commands from anywhere within the project tree.
@@ -92,7 +91,8 @@ bowrain init --anonymous --name "My App" --source en --json
 ```json
 {
   "root": "/path/to/my-app",
-  "config_dir": "/path/to/my-app/.bowrain/config.yaml",
+  "recipe": "/path/to/my-app/my-app.kapi",
+  "state_dir": "/path/to/my-app/.kapi",
   "project_id": "proj_abc123",
   "server": "https://bowrain.example.com",
   "claim_token": "clm_def456",
@@ -100,42 +100,36 @@ bowrain init --anonymous --name "My App" --source en --json
 }
 ```
 
-## Configuration File
+## Recipe File
 
-`bowrain init` creates `.bowrain/config.yaml` with this structure:
+`bowrain init` creates `<dir-name>.kapi` at the project root with this structure:
 
 ```yaml
-project:
-  name: my-app
-  source_locale: en-US
-  target_locales:
-    - fr-FR
-    - de-DE
-    - ja-JP
+version: v1
+name: my-app
 
-# Optional: connect to Bowrain Server
-server:
-  url: https://bowrain.example.com
-  project_id: abc123
-  workspace: my-team
+defaults:
+  source_language: en-US
+  target_languages: [fr-FR, de-DE, ja-JP]
 
-# File mappings: local paths <-> remote items
-mappings:
-  - local: src/locales/**/*.json
-    remote: ui/strings/{path}
+content:
+  - path: src/locales/**/*.json
     format: json
-  - local: content/*.md
-    remote: docs/{filename}
+  - path: content/*.md
     format: markdown
 
-# Hooks: tool chains to run before/after sync
+# Optional: connect to Bowrain Server (compound URL)
+server:
+  url: https://bowrain.example.com/my-team/abc123
+  stream: $auto
+
+# Hooks: flows to run at lifecycle points
 hooks:
-  pre-push:
-    - qa-check
-    - term-enforce
-  post-pull:
-    - segmentation
+  pre-push: [qa-check, term-enforce]
+  post-pull: [segmentation]
 ```
+
+See [Project Model](/cli/project-model) for the full recipe schema.
 
 ## Server URL Resolution
 
@@ -155,33 +149,36 @@ bowrain config --global server.url https://bowrain.example.com
 
 ## Project Discovery
 
-Once initialized, Bowrain CLI searches for `.bowrain/` by walking up the directory tree
+Once initialized, Bowrain CLI searches for a `*.kapi` recipe by walking up the directory tree
 (like git). You can run commands from any subdirectory:
 
 ```bash
 cd my-project/src/locales/
-bowrain status  # Finds .bowrain/ at ../../.bowrain/
+bowrain status  # finds my-project.kapi up the tree
 ```
 
 ## Version Control
 
 **Commit to git:**
 
-- `.bowrain/config.yaml` — project settings
-- `.bowrain/flows/*.yaml` — flow definitions
+- `<dir-name>.kapi` — the recipe (single source of truth)
+- `.kapi/flows/*.yaml` — flow definitions you author
 
 **Do NOT commit:**
 
-- `.bowrain/.sync-cache` — sync cache (auto-gitignored)
-- `.bowrain/.server-token` — auth token (auto-gitignored)
+- `.kapi/cache/` — block store, sync cache, extraction intermediates (auto-gitignored)
+- `.kapi/manifest.yaml` — regenerable bookkeeping
+- `.kapi/tm.db`, `.kapi/termbase.db` — local-only by default; opt in to commit when cross-clone reproducibility matters
 
-`bowrain init` automatically adds these to `.gitignore`.
+Auth tokens are never written to the project. They live in the OS keychain (keys `bowrain-auth:<server-url>` and `bowrain-refresh:<server-url>`); non-secret metadata sits at `~/.config/bowrain/auth.json`.
+
+`bowrain init` automatically adds `.kapi/` to `.gitignore`.
 
 ## Next Steps
 
 After initialization:
 
-1. **Edit mappings** in `.bowrain/config.yaml` to match your file structure
-2. **Create flows** in `.bowrain/flows/` for your translation workflows
+1. **Edit content collections** in `<dir-name>.kapi` to match your file structure
+2. **Create flows** in `.kapi/flows/` for your translation workflows
 3. **Run tools and flows**: `bowrain tools`, `bowrain flows`, `bowrain ai-translate`, `bowrain run <flow-name>`
-4. **Connect to server**: `bowrain pull` and `bowrain push` (if server configured)
+4. **Connect to server**: `bowrain pull` and `bowrain push` (if `server:` block is set)

@@ -264,7 +264,7 @@ The automation run UI mirrors GitHub Actions:
 
 ### CLI hooks complement server automation
 
-Local automation hooks in `.bowrain/config.yaml`
+Local automation hooks declared on the project's `.kapi` recipe
 ([AD-010](010-bowrain-cli-and-project-model.md)) are the *client-side*
 counterpart. They coordinate local commands around sync boundaries
 (`pre-push`, `post-pull`, `wait_translate`, …). The server engine

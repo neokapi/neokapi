@@ -276,14 +276,14 @@ GET /api/v1/projects/:id/sync/pull?cursor=X&locales=fr-FR
 ## Config Schema Additions
 
 ```yaml
-# config.yaml
+# <dir-name>.kapi recipe
 content:
   - path: docs/**/*.docx
     format: openxml
     assets: true # default: true for formats that support PartMedia
     asset_max_size: 50MB # per-asset size limit (default: 100MB)
 
-# Project-wide asset settings
+# Top-level project-wide asset settings
 assets:
   enabled: true # master toggle (default: true)
   exclude: # glob patterns for filenames to skip

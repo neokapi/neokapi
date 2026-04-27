@@ -5,128 +5,210 @@ title: Project Model
 
 # Bowrain Project Model
 
-Bowrain CLI uses a `.bowrain/` directory (like `.git`) to manage localization projects within your repository.
+A bowrain project is a [`.kapi` project](/architecture-decisions/010-bowrain-cli-and-project-model) with a `server:` block on its recipe. There is one project model shared with the open-source `kapi` CLI: a single `<dir-name>.kapi` recipe file at the project root and a sibling `.kapi/` state directory.
 
 ## Directory Structure
 
 ```
 my-app/
-├── .bowrain/
-│   ├── config.yaml       # Project configuration
-│   ├── flows/            # Custom flow definitions
+├── my-app.kapi             # the recipe (committed) — directory-named
+├── .kapi/                  # state (gitignored)
+│   ├── manifest.yaml       # bookkeeping: block counts, fingerprints
+│   ├── tm.db               # authoritative project TM
+│   ├── termbase.db         # authoritative project termbase
+│   ├── flows/              # optional file-per-flow definitions (committed)
 │   │   └── pseudo.yaml
-│   ├── .sync-cache       # Sync cache (gitignored)
-│   └── .gitignore        # Auto-generated
-├── src/
-│   └── locales/
-│       ├── en/
-│       │   └── messages.json
-│       └── fr/
-│           └── messages.json
+│   └── cache/              # all regenerable caches under one roof
+│       ├── blocks.db        # block store (SQLite)
+│       ├── sync-cache.json  # bowrain push/pull state
+│       ├── extractions/
+│       └── collections/
+└── src/
+    └── locales/
+        ├── en/
+        │   └── messages.json
+        └── fr/
+            └── messages.json
 ```
 
-## config.yaml
+Three ownership zones at the project root:
 
-The main configuration file defines the schema version, server connection, language defaults, content entries, and optional hooks:
+- **`<dir-name>.kapi`** — hand-edited, committed to git. The recipe is the single source of truth for project configuration.
+- **`.kapi/cache/`** — CLI-owned, gitignored. Contains everything that's cheaply regenerable: the block store, the bowrain sync cache, extraction intermediates, overlay layers. Safe to delete at any time.
+- **`.kapi/tm.db`, `.kapi/termbase.db`, `.kapi/manifest.yaml`** — kapi-owned, authoritative. Gitignored by default; opt in to commit the TM/termbase when cross-clone reproducibility matters.
+- **`.kapi/flows/*.yaml`** — optional file-per-flow definitions, hand-edited, committed. Bowrain reads these in addition to inline `flows:` declared on the recipe.
+
+The name pair mirrors git: `<name>.kapi` file plus `.kapi/` folder at the same root.
+
+## Recipe schema
+
+The recipe is a YAML document. Bowrain projects layer a `server:` block (and optional top-level `hooks`, `automations`, `assets`, `brand_voice`) onto the framework's `KapiProject` schema.
 
 ```yaml
 version: v1
-
-# Compound URL: encodes server, workspace, and project ID
-url: https://bowrain.example.com/my-team/abc123
-
-# Content stream (default: $auto — auto-detect from git branch / CI)
-stream: $auto
+name: My App
 
 defaults:
   source_language: en-US
-  target_languages:
-    - fr-FR
-    - de-DE
-    - ja-JP
+  target_languages: [fr-FR, de-DE, ja-JP]
   collection: ui/strings
+  exclude:
+    - "**/*.test.json"
+    - "node_modules/**"
 
-# Content entries: which files to track
 content:
   - path: src/locales/**/*.json
     format: json
-    dest: locales/{lang}/*.json
-  - path: content/*.md
+  - path: content/docs/**/*.md
     format: markdown
+    target: i18n/{lang}/docs/{path}/{filename}
+  - path: src/es/**/*.json
+    format: json
+    source_language: es      # per-entry source language override
+    collection: spanish-ui   # per-entry collection routing override
 
-# Hooks: flows that run automatically at lifecycle points
+plugins:
+  okapi-bridge: "^1.47.0"    # map form: name → version constraint
+
+flows:
+  pseudo:
+    steps:
+      - tool: pseudo-translate
+        config: { method: extended }
+
+# Optional bowrain-server connection — presence enables push/pull/sync.
+server:
+  url: https://bowrain.example.com/my-team/abc123
+  stream: $auto              # auto-detect from git branch / CI
+
+# Top-level lifecycle policy:
 hooks:
-  pre-push:
-    - qa-check
-    - term-enforce
-  post-pull:
-    - segmentation
+  pre-push: [qa-check]
+  post-pull: [update-stats]
+
+automations:
+  - name: auto-translate-on-push
+    trigger: post-push
+    actions:
+      - type: wait_translate
+        config: { timeout: 5m }
+      - type: pull
+
+# Top-level governance / asset policy:
+assets:
+  enabled: true
+  max_size: 100MB
+
+brand_voice:
+  profile: company-profile
+  channel: marketing
 ```
 
-### All config.yaml Fields
+### Top-level fields
 
-| Field            | Type   | Description                                                        |
-| ---------------- | ------ | ------------------------------------------------------------------ |
-| `version`        | string | Schema version (currently `v1`)                                    |
-| `url`            | string | Compound project URL encoding server, workspace, and project ID    |
-| `stream`         | string | Content stream name (`$auto` for auto-detection from git branch)   |
-| `defaults`       | object | Project-wide language and organization defaults                    |
-| `content`        | list   | File patterns to track (see [Content Entries](#content-entries))   |
-| `plugins`        | list   | Plugin dependencies (e.g. `["okapi@1.0.0"]`)                       |
-| `registries`     | list   | Plugin registry overrides                                          |
-| `preset`         | string | Framework preset name (e.g. `nextjs`, `react-intl`, `angular`)     |
-| `format_presets` | map    | Local format preset definitions                                    |
-| `exclude`        | list   | Glob patterns to skip during scanning                              |
-| `hooks`          | map    | Flows that run at lifecycle points (`pre-push`, `post-pull`, etc.) |
-| `flows`          | map    | Per-flow settings                                                  |
-| `automations`    | list   | Local automation rules (see [Automations](#automations))           |
+| Field          | Type           | Description                                                            |
+| -------------- | -------------- | ---------------------------------------------------------------------- |
+| `version`      | string         | Schema version (currently `v1`)                                        |
+| `name`         | string         | Project display name                                                   |
+| `defaults`     | object         | Project-wide language and execution defaults                           |
+| `content`      | list           | Content collections (see [Content Collections](#content-collections))  |
+| `plugins`      | map            | Plugin dependencies as `name: version-constraint` (e.g. map form)      |
+| `flows`        | map            | Inline flow definitions (file-per-flow under `.kapi/flows/` also work) |
+| `server`       | object         | Optional bowrain-server connection coordinates                         |
+| `hooks`        | map            | Flows that run at lifecycle points (`pre-push`, `post-pull`, ...)      |
+| `automations`  | list           | Local automation rules (see [Automations](#automations))               |
+| `assets`       | object         | Asset (image/binary) policy                                            |
+| `brand_voice`  | object         | Brand voice profile and channel                                        |
 
-### Defaults
+### `defaults` block
 
-| Field              | Type   | Description                                    |
-| ------------------ | ------ | ---------------------------------------------- |
-| `source_language`  | string | BCP-47 source language (e.g. `en-US`)          |
-| `target_languages` | list   | BCP-47 target languages                        |
-| `collection`       | string | Default collection name for organizing content |
+| Field              | Type   | Description                                              |
+| ------------------ | ------ | -------------------------------------------------------- |
+| `source_language`  | string | BCP-47 source language (e.g. `en-US`)                    |
+| `target_languages` | list   | BCP-47 target languages                                  |
+| `collection`       | string | Default collection name for organizing content           |
+| `exclude`          | list   | Glob patterns to skip during scanning                    |
+| `formats`          | map    | Per-format default presets and config overrides          |
 
-## Content Entries
+### `server` block
 
-Content entries define which files to track. Each entry maps local file patterns to formats and output destinations.
+Only the connection coordinates sit under `server:`:
+
+| Field    | Description                                                                  |
+| -------- | ---------------------------------------------------------------------------- |
+| `url`    | Compound URL: `<server>/<workspace>/<project-id>` or `<server>/projects/<id>` |
+| `stream` | Server-side stream to sync against; `$auto` auto-detects from CI / git branch |
+
+Lifecycle (`hooks`, `automations`) and content/governance (`assets`, `brand_voice`) live at the **top level** of the recipe, not under `server:` — they describe project-owned policy, not server identity.
+
+## Content Collections
+
+Each entry under `content:` is a content collection. Bare entries are single-pattern collections; named collections group multiple items together.
 
 ```yaml
 content:
-  # Track all JSON files under src/locales/
+  # Bare entry — single source pattern
   - path: src/locales/**/*.json
     format: json
-    dest: locales/{lang}/*.json
 
-  # Track Markdown docs
-  - path: content/*.md
+  # With output path template
+  - path: content/docs/**/*.md
     format: markdown
+    target: i18n/{lang}/docs/{path}/{filename}
 
-  # Override source language for a specific entry
+  # Per-entry overrides
   - path: legacy/**/*.properties
     format: java-properties
-    language: en-GB
+    source_language: en-GB
     collection: legacy
+
+  # Named collection with nested items
+  - name: ui
+    items:
+      - path: "src/**/*.tsx"
+        format:
+          name: exec
+          config:
+            command: "vp kapi-react extract --stream"
+      - path: "src/i18n/en/*.json"
+        format: json
 ```
 
-### Content Entry Fields
+### Content collection fields
 
-| Field              | Type   | Description                                                          |
-| ------------------ | ------ | -------------------------------------------------------------------- |
-| `path`             | string | Glob pattern for source files (supports `{lang}` placeholder)        |
-| `dest`             | string | Output path pattern for target files (supports `{lang}` placeholder) |
-| `format`           | string | File format ID (e.g. `json`, `html`) or `$auto` for auto-detection   |
-| `base`             | string | Path prefix to strip when reporting files                            |
-| `collection`       | string | Collection override for this entry                                   |
-| `language`         | string | Source language override for this entry                              |
-| `target_languages` | list   | Target language override for this entry                              |
-| `overrides`        | map    | Per-entry format config overrides                                    |
+| Field              | Type            | Description                                                                |
+| ------------------ | --------------- | -------------------------------------------------------------------------- |
+| `path`             | string          | Glob pattern for source files (supports `{lang}` placeholder)              |
+| `format`           | string / object | File format ID (e.g. `json`, `html`) or object with `name`/`config`/`preset` |
+| `target`           | string          | Output path pattern for target files (supports `{lang}` and `{path}`)      |
+| `base`             | string          | Path prefix to strip when reporting files                                  |
+| `collection`       | string          | Collection routing override for this entry                                 |
+| `source_language`  | string          | Source language override for this entry                                    |
+| `target_languages` | list            | Target language override for this entry                                    |
+| `assets`           | object          | Per-entry asset policy override                                            |
+| `asset_max_size`   | string          | Per-entry asset max size override                                          |
+
+### Format object form
+
+When you need to configure a format (apply a preset, pass options, run a subprocess extractor) use the object form:
+
+```yaml
+content:
+  - path: "src/**/*.tsx"
+    format:
+      name: exec
+      config:
+        command: "vp kapi-react extract --stream"
+
+  - path: "docs/**/*.html"
+    format:
+      name: html
+      preset: strict-extraction
+```
 
 ## Automations
 
-Automations define rules that run automatically at lifecycle points:
+Automations are rules that run automatically at lifecycle points, declared at the top level of the recipe:
 
 ```yaml
 automations:
@@ -144,7 +226,7 @@ automations:
       - type: pull
 ```
 
-### Automation Fields
+### Automation fields
 
 | Field     | Description                                                                                |
 | --------- | ------------------------------------------------------------------------------------------ |
@@ -153,37 +235,37 @@ automations:
 | `actions` | List of actions (`run_flow`, `wait_translate`, `pull`, `push`)                             |
 | `enabled` | Optional boolean (defaults to `true`)                                                      |
 
+For lightweight pre/post hooks that simply call existing flows, prefer the top-level `hooks:` map.
+
 ## Project Discovery
 
-Bowrain CLI searches for `.bowrain/` by walking up the directory tree (like git):
+Bowrain CLI searches for a `*.kapi` recipe by walking up the directory tree (like git):
 
 ```bash
 cd my-app/src/locales/fr/
-bowrain status  # Finds .bowrain/ at ../../../.bowrain/
+bowrain status  # finds my-app.kapi at ../../../my-app.kapi
 ```
 
-All commands work from any subdirectory within the project.
+All commands work from any subdirectory within the project. If a directory contains multiple `*.kapi` files, pass `-p <path>` explicitly.
 
 ## Version Control
 
 ### Commit to git
 
-Files to commit:
-
-- `.bowrain/config.yaml` — project settings
-- `.bowrain/flows/*.yaml` — flow definitions
+- `<dir-name>.kapi` — the recipe (single source of truth for configuration)
+- `.kapi/flows/*.yaml` — file-per-flow definitions, if you use them
 
 ### Do NOT commit
 
-Files that should NOT be committed (auto-gitignored):
+The whole `.kapi/` directory is gitignored by default by `bowrain init`:
 
-- `.bowrain/.sync-cache` — local sync cache (block hashes, stream cursors, claim token)
-
-`bowrain init` automatically creates `.bowrain/.gitignore` with these entries.
+- `.kapi/cache/` — block store, sync cache, extraction intermediates
+- `.kapi/manifest.yaml` — regenerable bookkeeping
+- `.kapi/tm.db`, `.kapi/termbase.db` — authoritative but local-only by default; opt in to commit when cross-clone reproducibility matters
 
 ## Initialization
 
-Create a new Bowrain project:
+Create a new bowrain project:
 
 ```bash
 cd my-app/
@@ -195,10 +277,10 @@ In interactive mode (default when stdin is a terminal), `bowrain init` presents 
 For non-interactive usage (e.g. CI/CD), use flags:
 
 ```bash
-# Local-only project
+# Local-only project (no server: block written)
 bowrain init --source en-US --targets fr-FR,de-DE,ja-JP
 
-# Connect to a server
+# Connect to a server (anonymous claim)
 bowrain init --server https://bowrain.example.com --anonymous
 
 # Apply a framework preset
@@ -208,7 +290,7 @@ bowrain init --preset nextjs
 bowrain init --server https://bowrain.example.com --project abc123
 ```
 
-### Init Flags
+### Init flags
 
 | Flag          | Description                                                       |
 | ------------- | ----------------------------------------------------------------- |
@@ -221,23 +303,26 @@ bowrain init --server https://bowrain.example.com --project abc123
 | `--email`     | Create a project and email a link to claim it                     |
 | `--preset`    | Apply a framework preset (e.g. `nextjs`, `react-intl`, `angular`) |
 
-This creates:
+`bowrain init` writes:
 
-1. `.bowrain/` directory
-2. `.bowrain/config.yaml` with specified settings
-3. `.bowrain/flows/pseudo.yaml` — an example flow
-4. `.bowrain/.gitignore` to exclude cache files
+1. `<dir-name>.kapi` recipe at the project root (with a `server:` block when a server was supplied)
+2. `.kapi/` state directory
+3. `.kapi/flows/pseudo.yaml` — an example flow
+4. `.gitignore` updates to exclude `.kapi/`
 
 ## Server Connection
 
-The `url` field in `config.yaml` is a compound URL that encodes the server address, workspace, and project ID:
+The `server.url` field is a compound URL that encodes the server address, workspace, and project ID:
 
 ```yaml
-# Workspace project
-url: https://bowrain.example.com/my-team/abc123
+server:
+  # Workspace project
+  url: https://bowrain.example.com/my-team/abc123
 
-# Direct project (no workspace)
-url: https://bowrain.example.com/projects/abc123
+  # Direct project (no workspace)
+  # url: https://bowrain.example.com/projects/abc123
+
+  stream: $auto
 ```
 
 Once connected, you can sync with the server:
@@ -248,9 +333,9 @@ bowrain pull    # Fetch translated blocks from server
 bowrain status  # Show sync state (pending push/pull)
 ```
 
-The server URL is resolved from (first match wins):
+The active server URL is resolved from (first match wins):
 
-1. `url` field in `.bowrain/config.yaml`
+1. `server.url` field on the recipe
 2. `--server` flag
 3. `BOWRAIN_SERVER_URL` environment variable / `server.url` in `~/.config/bowrain/bowrain.yaml`
 4. Existing auth state (from `bowrain auth login`)

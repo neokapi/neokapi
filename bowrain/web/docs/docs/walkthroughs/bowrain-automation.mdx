@@ -2,7 +2,7 @@
 id: bowrain-automation
 title: "Automate translation sync with local rules + GitHub Actions"
 sidebar_label: "Automation"
-description: "Two layers of automation: local .bowrain/config.yaml rules + GitHub Actions workflow for CI/CD."
+description: "Two layers of automation: local hooks/automations on the .kapi recipe + GitHub Actions workflow for CI/CD."
 ---
 
 import { ThemedVideo } from "@neokapi/docs-shared";
@@ -11,7 +11,7 @@ import { ThemedVideo } from "@neokapi/docs-shared";
 
 > Generated from [`walkthroughs/bowrain-automation.md`](https://github.com/neokapi/neokapi/blob/main/bowrain/web/docs/walkthroughs/bowrain-automation.md). Do not edit by hand — change the prompt and regenerate.
 
-Bowrain has two layers of automation: **local rules** in `.bowrain/config.yaml` that run on the developer machine (e.g. pre-push QA), and **GitHub Actions workflows** that run on the CI/CD side. Together they make translation sync fully automated — code lands, translations follow.
+Bowrain has two layers of automation: **local rules** declared on the `.kapi` recipe (top-level `hooks:` and `automations:`) that run on the developer machine (e.g. pre-push QA), and **GitHub Actions workflows** that run on the CI/CD side. Together they make translation sync fully automated — code lands, translations follow.
 
 ## Scene 1 — local rules
 
@@ -22,7 +22,7 @@ Bowrain has two layers of automation: **local rules** in `.bowrain/config.yaml` 
   }}
 />
 
-Inspect `.bowrain/config.yaml` for local automation rules. Run `bowrain push` and watch the pre-push QA rule fire automatically before the actual push happens.
+Inspect the project's `<dir-name>.kapi` recipe for top-level `hooks:` and `automations:` blocks. Run `bowrain push` and watch the pre-push QA hook fire automatically before the actual push happens.
 
 ## Scene 2 — GitHub Actions
 

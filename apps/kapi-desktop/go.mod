@@ -5,6 +5,7 @@ go 1.26.0
 require (
 	github.com/leonelquinteros/gotext v1.7.2
 	github.com/neokapi/neokapi v0.0.0
+	github.com/neokapi/neokapi/bowrain/plugin/schema v0.0.0
 	github.com/neokapi/neokapi/cli v0.0.0-00010101000000-000000000000
 	github.com/stretchr/testify v1.11.1
 	github.com/wailsapp/wails/v3 v3.0.0-alpha.78
@@ -17,6 +18,7 @@ require (
 	github.com/ProtonMail/go-crypto v1.4.1 // indirect
 	github.com/adrg/xdg v0.5.3 // indirect
 	github.com/bep/debounce v1.2.1 // indirect
+	github.com/bmatcuk/doublestar/v4 v4.10.0 // indirect
 	github.com/cloudflare/circl v1.6.3 // indirect
 	github.com/coder/websocket v1.8.14 // indirect
 	github.com/cyphar/filepath-securejoin v0.6.1 // indirect
@@ -75,5 +77,6 @@ require (
 
 replace (
 	github.com/neokapi/neokapi => ../../
+	github.com/neokapi/neokapi/bowrain/plugin/schema => ../../bowrain/plugin/schema
 	github.com/neokapi/neokapi/cli => ../../cli
 )

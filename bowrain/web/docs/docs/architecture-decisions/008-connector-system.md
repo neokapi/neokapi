@@ -171,14 +171,15 @@ and the `bowrain status` command.
 ### Bowrain CLI as the File Connector
 
 The bowrain CLI is the primary `SourceConnector` implementation —
-`BowrainSourceConnector`. It manages `.bowrain/` project directories and
-syncs local files with Bowrain Server.
+`BowrainSourceConnector`. It manages `.kapi` projects (a `<dir-name>.kapi`
+recipe and sibling `.kapi/` state directory) and syncs local files with
+Bowrain Server.
 
 ```
-.bowrain/ Project Directory
+.kapi project (recipe + state dir)
      │
      ▼
-  bowrain CLI (reads config.yaml, mappings)
+  bowrain CLI (reads recipe content collections)
      │
      ▼
   FormatRegistry (HTML, JSON, XLIFF, Markdown, ...)
@@ -223,7 +224,7 @@ into the same Part stream that flows through the rest of the system.
      │        │         │         │         │
      ▼        ▼         ▼         ▼         ▼
 Contentful Figma     GitHub   HubSpot    bowrain CLI
-   CMS      Design     Repo    Marketing  (.bowrain/)
+   CMS      Design     Repo    Marketing  (.kapi project)
 ```
 
 Content from any connector flows into the same ContentStore and the same

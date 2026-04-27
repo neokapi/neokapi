@@ -14,9 +14,10 @@ scenes:
 
 ## Story
 
-`bowrain init` scaffolds a `.bowrain/` project in your repo (the bowrain
-equivalent of `git init`). Single-command bootstrap of project config,
-flow folder, and sync cache.
+`bowrain init` scaffolds a `.kapi` project in your repo (the bowrain
+equivalent of `git init`): a `<dir-name>.kapi` recipe at the project
+root with a `server:` block, plus a sibling `.kapi/` state directory
+that holds the block store, sync cache, and TM/termbase.
 
 ## Scene 1 — init (terminal)
 

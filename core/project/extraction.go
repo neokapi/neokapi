@@ -14,9 +14,13 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// ExtractionsDirName is the subdirectory of .kapi/ holding per-batch
-// extraction state (AD-017).
+// ExtractionsDirName is the subdirectory of CacheDir() that holds per-batch
+// extraction state (AD-017). The full path is .kapi/cache/extractions/.
 const ExtractionsDirName = "extractions"
+
+// CollectionsDirName is the subdirectory of CacheDir() that holds overlay
+// layers per content collection. The full path is .kapi/cache/collections/.
+const CollectionsDirName = "collections"
 
 // ExtractionManifestFilename is the manifest filename inside each
 // <batch-id>/ directory.
@@ -108,9 +112,9 @@ func (s *ExtractionLeverageStats) Add(other ExtractionLeverageStats) {
 }
 
 // ExtractionsRoot returns the directory that holds every extraction batch
-// for the project (e.g. .kapi/extractions).
+// for the project (.kapi/cache/extractions/).
 func ExtractionsRoot(layout Layout) string {
-	return filepath.Join(layout.StateDir, ExtractionsDirName)
+	return layout.ExtractionsDir()
 }
 
 // ExtractionDir returns the per-batch directory for the given id.

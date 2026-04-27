@@ -118,7 +118,8 @@ on:
   pull_request:
     paths:
       - "src/locales/**"
-      - ".bowrain/**"
+      - "*.kapi"
+      - ".kapi/**"
 
 jobs:
   translate:

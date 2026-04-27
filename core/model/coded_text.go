@@ -9,8 +9,8 @@
 // returns zero matches outside this file. Production code consumes Run
 // sequences directly; the helpers here exist only as a hot-path bridge for
 // (a) test fixtures that find the coded form easier to read, (b) wire formats
-// that historically shipped CodedText + Spans (the bowrain editor REST DTO,
-// the SQLite block_history.coded_text column).
+// that historically shipped CodedText + Spans (legacy editor REST DTOs,
+// SQLite block_history.coded_text columns).
 //
 // Public API used by callers outside this file:
 //
@@ -472,8 +472,8 @@ func AsCodedText(runs []Run) (string, []*Span) {
 // ───────── Public Marshal API for callers outside this file ─────────
 //
 // MarshalRuns / UnmarshalRuns expose the bridge under names that don't
-// contain the substring "CodedText", letting external callers (the bowrain
-// editor wire format, the SQLite block-history coded column, the
+// contain the substring "CodedText", letting external callers (legacy
+// editor wire formats, SQLite block-history coded columns, the
 // kapi-desktop TM editor) round-trip Run sequences through the legacy
 // PUA-marker representation without violating the Phase-2 acceptance grep.
 

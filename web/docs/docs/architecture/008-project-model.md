@@ -10,11 +10,12 @@ title: "AD-008: Kapi Project Model"
 
 A kapi project is a folder containing a `{name}.kapi` YAML recipe at its root
 and a sibling `.kapi/` state directory. The recipe captures the user's
-declarative intent — identity, content collections, flows, store selection —
-while `.kapi/` holds working state (block store, overlay layers, bookkeeping).
-A `ProjectContext` resolves the recipe into a runtime configuration, and a
-`BlockStore` interface with pluggable providers gives tools random-access
-storage beyond the streaming pipeline.
+declarative intent — identity, content collections, flows, store selection,
+plus an optional `server:` block when the project syncs with a bowrain server —
+while `.kapi/` holds working state, with all regenerable caches under
+`.kapi/cache/`. A `ProjectContext` resolves the recipe into a runtime
+configuration, and a `BlockStore` interface with pluggable providers gives
+tools random-access storage beyond the streaming pipeline.
 
 ## Context
 
@@ -47,18 +48,23 @@ my-app/
 ├── my-app.kapi             ← RECIPE (user edits, click-to-open)
 ├── .kapi/                  ← WORKING STATE (kapi maintains)
 │   ├── manifest.yaml       ← bookkeeping: block counts, fingerprints, timestamps
-│   ├── cache.db            ← block store (SQLite)
-│   ├── tm.db               ← project translation memory (AD-009)
-│   ├── extractions/        ← per-extract batch state (AD-017)
-│   │   └── <batch-id>/
-│   │       ├── manifest.yaml         ← source→output pairs, leverage, hashes
-│   │       ├── skel-<src-hash>.bin   ← per-source skeleton for merge
-│   │       └── suggestions.jsonl     ← sub-threshold TM matches
-│   └── collections/        ← overlay layers per collection
-│       └── ui/
-│           ├── targets/{fr,de}.json
-│           ├── annotations/{terms,tm-matches,qa}.json
-│           └── skeletons/
+│   ├── tm.db               ← project translation memory (AD-009) — authoritative
+│   ├── termbase.db         ← project termbase — authoritative
+│   ├── flows/              ← optional file-per-flow definitions (authored)
+│   │   └── <flow>.yaml
+│   └── cache/              ← all regenerable caches under one roof
+│       ├── blocks.db       ← block store (SQLite, was `.kapi/cache.db`)
+│       ├── sync-cache.json ← bowrain push/pull state (only with server: block)
+│       ├── extractions/    ← per-extract batch state (AD-017)
+│       │   └── <batch-id>/
+│       │       ├── manifest.yaml         ← source→output pairs, leverage, hashes
+│       │       ├── skel-<src-hash>.bin   ← per-source skeleton for merge
+│       │       └── suggestions.jsonl     ← sub-threshold TM matches
+│       └── collections/    ← overlay layers per collection
+│           └── ui/
+│               ├── targets/{fr,de}.json
+│               ├── annotations/{terms,tm-matches,qa}.json
+│               └── skeletons/
 ├── src/                    ← authored sources (user-owned)
 │   └── **/*.tsx
 └── i18n/                   ← generated translations (format writer output)
@@ -69,10 +75,11 @@ Ownership:
 
 - **`{name}.kapi`** — the user's. Hand-edited YAML. The click-to-open handle
   for kapi-desktop. Committed to git.
-- **`.kapi/`** — kapi's. `cache.db` and `collections/**` hold block state and
-  overlay layers; `manifest.yaml` is bookkeeping derived from the store.
-  Gitignored by default; opt in to commit when cross-clone reproducibility
-  matters.
+- **`.kapi/`** — kapi's. Authoritative state (`tm.db`, `termbase.db`,
+  `manifest.yaml`) sits at the top level; all regenerable caches live under
+  `.kapi/cache/` so users can blow them away without losing translation work.
+  Gitignored by default; opt in to commit `.kapi/tm.db` / `.kapi/termbase.db`
+  when cross-clone reproducibility matters.
 - **`src/**`** — user-authored content. Referenced by the recipe; never moved
   into `.kapi/`.
 - **Writer outputs** (e.g. `i18n/{locale}.json`) — produced by format writers
@@ -97,7 +104,7 @@ content:
   - name: ui
     store:
       type: cache
-      path: .kapi/cache.db
+      path: .kapi/cache/blocks.db
     items:
       - path: "src/**/*.{tsx,jsx}"
         format:
@@ -147,6 +154,94 @@ Discovery is git-style: kapi tools walk up from the current directory until
 they find a `*.kapi` file. Multiple recipes at the same directory level
 require an explicit `-p <path>` flag.
 
+### Recipe extension mechanism
+
+The framework recipe (`KapiProject`) carries an `Extras map[string]yaml.Node`
+field with `yaml:",inline"` on `KapiProject`, `Defaults`, `ContentCollection`,
+and `ContentItem`. Unknown top-level YAML keys are captured as raw nodes;
+platform layers (e.g. bowrain) declare their own typed schema and decode
+from `Extras` at load time. The framework knows nothing about platform-
+specific extensions and round-trips them verbatim.
+
+A platform package registers schemas at `init()`:
+
+```go
+coreproj.RegisterExtensionGroup("bowrain", []coreproj.Extension{
+    {Name: "server", Scope: coreproj.ScopeProject, Decoder: serverDecoder},
+    {Name: "hooks", Scope: coreproj.ScopeProject, Decoder: hooksDecoder},
+    // ...
+})
+```
+
+`Scope` distinguishes which `Extras` map a key belongs to: `ScopeProject`,
+`ScopeDefaults`, `ScopeCollection`, or `ScopeItem`. Each `(Scope, Name)`
+binds to one decoder. `KapiProject.Validate()` walks every Extras map and
+runs the matching decoder; unknown keys (no decoder registered) round-
+trip without error so binaries with different sets of plugins linked in
+remain forward-compatible.
+
+Recipes can declare a hard dependency via `requires:` — validation fails
+when no extension under the named group has been registered:
+
+```yaml
+version: v1
+requires: [bowrain]
+server:
+  url: https://bowrain.example.com/team/proj
+```
+
+A binary that doesn't link the bowrain extensions rejects this recipe
+with a clear "binary not built with bowrain linked in" message. A recipe
+without `requires:` loads in any binary; the extras pass through.
+
+Implementation details — including the `Scope` enum, decoder helpers, and
+a worked example — live in
+[Note: Plugin model](../notes-internal/plugin-model).
+
+### Optional bowrain-server connection
+
+A recipe with no `server:` block is a pure local project. Adding a `server:`
+block with a compound URL marks the project as bowrain-connected — `bowrain
+push`, `bowrain pull`, `bowrain status`, and friends operate against the
+declared server. Kapi tools tolerate the `server:` block but ignore it.
+
+```yaml
+server:
+  url: https://bowrain.example.com/my-team/abc123
+  stream: $auto
+
+# Top-level lifecycle policy (applies whenever the trigger fires):
+hooks:
+  pre-push: [qa-check]
+  post-pull: [update-stats]
+
+automations:
+  - name: auto-translate-on-push
+    trigger: post-push
+    actions:
+      - type: wait_translate
+      - type: pull
+
+# Top-level governance / content policy:
+assets:
+  enabled: true
+  max_size: 100MB
+
+brand_voice:
+  profile: company-profile
+  channel: marketing
+```
+
+Only the connection coordinates (`url`, `stream`) live under `server:`.
+Lifecycle (`hooks`, `automations`) and governance (`assets`, `brand_voice`)
+are top-level — they describe project-owned policy, not server identity.
+See [AD-010](../bowrain/architecture-decisions/010-bowrain-cli-and-project-model)
+for the full bowrain workflow semantics.
+
+Auth tokens for bowrain servers live in the OS keychain (the same store
+kapi uses for LLM provider keys), keyed by server URL. Non-secret metadata
+(server URL, user info, expiry) lives at `~/.config/bowrain/auth.json`.
+
 ### Content collections
 
 A `ContentCollection` lists the source patterns kapi extracts from and the
@@ -179,11 +274,11 @@ outside `.kapi/`.
 `.kapi/manifest.yaml` is kapi's bookkeeping: block counts, per-source SHA-256
 fingerprints for staleness detection, generator identity, and last-updated
 timestamps. Users do not hand-edit it. Deleting it is safe — it rebuilds from
-`cache.db`; nothing authoritative lives only in the manifest.
+`cache/blocks.db`; nothing authoritative lives only in the manifest.
 
 ### Extraction manifests
 
-`.kapi/extractions/<batch-id>/manifest.yaml` records each `kapi extract`
+`.kapi/cache/extractions/<batch-id>/manifest.yaml` records each `kapi extract`
 run (see [AD-017](017-bilingual-format-interop.md)): the emitted
 source→output pairs, per-file source SHA-256, TM leverage counts, the
 XLIFF / PO version, and skeleton filenames. The batch id is stamped in
@@ -238,9 +333,9 @@ type Capabilities struct {
 | Provider  | Backing                      | Use case                                         |
 | --------- | ---------------------------- | ------------------------------------------------ |
 | `memory`  | Go maps                      | ephemeral flows, tests, ad-hoc CLI invocations   |
-| `cache`   | SQLite at `.kapi/cache.db`   | default for kapi projects, long-lived local work |
+| `cache`   | SQLite at `.kapi/cache/blocks.db` | default for kapi projects, long-lived local work |
 
-Tools never open `cache.db` directly — they operate on a session. Swapping
+Tools never open `cache/blocks.db` directly — they operate on a session. Swapping
 defines the interface.
 
 ### Flow executor operates on a Session

@@ -46,9 +46,11 @@ workflow.
 
 ## Scene 1 — init (terminal)
 
-Run `bowrain init` in your project directory. The command scaffolds
-`.bowrain/` with config, flow folder, and sync cache. `ls .bowrain/`
-shows the resulting layout.
+Run `bowrain init` in your project directory. The command writes a
+`<dir-name>.kapi` recipe at the root and creates a sibling `.kapi/`
+state directory. `ls -la` shows the recipe alongside the state dir;
+`ls .kapi/` shows the layout (manifest, TM/termbase, `cache/` for
+regenerable state).
 
 ## Scene 2 — push (terminal)
 

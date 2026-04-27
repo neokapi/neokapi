@@ -22,16 +22,17 @@ scenes:
 
 ## Story
 
-Bowrain has two layers of automation: **local rules** in `.bowrain/config.yaml`
-that run on the developer machine (e.g. pre-push QA), and **GitHub Actions
-workflows** that run on the CI/CD side. Together they make translation
-sync fully automated — code lands, translations follow.
+Bowrain has two layers of automation: **local rules** declared on the
+`.kapi` recipe (top-level `hooks:` and `automations:`) that run on the
+developer machine (e.g. pre-push QA), and **GitHub Actions workflows**
+that run on the CI/CD side. Together they make translation sync fully
+automated — code lands, translations follow.
 
 ## Scene 1 — local-rules (terminal)
 
-Inspect `.bowrain/config.yaml` for local automation rules. Run
-`bowrain push` and watch the pre-push QA rule fire automatically before
-the actual push happens.
+Inspect the project's `<dir-name>.kapi` recipe for top-level `hooks:`
+and `automations:` blocks. Run `bowrain push` and watch the pre-push
+QA hook fire automatically before the actual push happens.
 
 ## Scene 2 — gh-actions (terminal)
 

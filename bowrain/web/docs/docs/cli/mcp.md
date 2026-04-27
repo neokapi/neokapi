@@ -15,7 +15,7 @@ Start the MCP server:
 bowrain mcp
 ```
 
-This launches a JSON-RPC server on stdio. You don't run it manually — your AI tool starts it as a subprocess. The server requires a `.bowrain/` project directory (it searches upward from the working directory, like git).
+This launches a JSON-RPC server on stdio. You don't run it manually — your AI tool starts it as a subprocess. The server requires a `.kapi` project (it walks upward looking for a `*.kapi` recipe, like git).
 
 :::tip
 For ad-hoc file processing without a project, use the [Kapi MCP server](https://neokapi.github.io/web/neokapi/docs/kapi-cli/mcp) instead.
@@ -144,7 +144,7 @@ Once connected, your AI assistant can call these tools:
 
 | Tool             | What it does                                                          |
 | ---------------- | --------------------------------------------------------------------- |
-| `project_config` | Read project configuration from `.bowrain/config.yaml`                |
+| `project_config` | Read project configuration from the `.kapi` recipe                    |
 | `project_status` | Show sync status — pending push/pull counts, server connection        |
 | `project_ls`     | List tracked files with optional stats (word counts, dirty detection) |
 | `project_push`   | Upload local changes to Bowrain Server                                |
@@ -207,7 +207,7 @@ No parameters.
 
 ### project_config
 
-Read project configuration from `.bowrain/config.yaml`.
+Read project configuration from the `.kapi` recipe at the project root.
 
 No parameters.
 
@@ -243,7 +243,7 @@ Download translations from Bowrain Server.
 
 ### list_flows
 
-List available processing flows. Returns both built-in flows and project-defined flows from `.bowrain/flows/`.
+List available processing flows. Returns both built-in flows and project-defined flows (inline on the recipe and from `.kapi/flows/`).
 
 No parameters.
 

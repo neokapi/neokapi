@@ -43,14 +43,14 @@ bowrain push --force
 
 ## What Happens
 
-1. **Read local files** via FormatRegistry (using `.bowrain/config.yaml` mappings)
+1. **Read local files** via FormatRegistry (using the recipe's `content:` collections)
 2. **Extract blocks** from each file (streaming Parts -> Blocks)
 3. **Compute block hashes** using `BlockIdentity` (SHA-256)
-4. **Compare with `.bowrain/.sync-cache`** to identify changed blocks
+4. **Compare with `.kapi/cache/sync-cache.json`** to identify changed blocks
 5. **Send changed blocks** to server via `POST /api/v1/projects/:id/sync/push`
    - Batched at 1000 blocks per request
    - Server enforces batch limits and body size (50MB)
-6. **Update `.bowrain/.sync-cache`** with new hashes and sync cursor
+6. **Update `.kapi/cache/sync-cache.json`** with new hashes and sync cursor
 
 ## Content Hashing
 
@@ -65,7 +65,7 @@ where 5 changed will only transfer those 5 blocks.
 
 ## Sync Cache
 
-Push state is tracked in `.bowrain/.sync-cache` (auto-gitignored):
+Push state is tracked in `.kapi/cache/sync-cache.json` (auto-gitignored):
 
 ```json
 {

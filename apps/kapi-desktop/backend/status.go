@@ -23,7 +23,7 @@ type ProjectStatus struct {
 
 // GetProjectStatus returns the current per-collection state for a
 // project tab. Under the new model, rich coverage/block-count data
-// flows from a blockstore.Session against the project's cache.db —
+// flows from a blockstore.Session against the project's cache/blocks.db —
 // that's wired up in a follow-up. For now the status surface is
 // intentionally sparse: recipe identity + the list of declared
 // collections + their declared target languages. The frontend uses

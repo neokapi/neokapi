@@ -7,6 +7,14 @@
 //
 // The .kapi file contains no credentials (those come from the OS keychain or
 // environment variables) and no state (no sync cursors or caches).
+//
+// # Extension mechanism
+//
+// Platform layers attach their own typed schema by reading and
+// writing through the `Extras` field on KapiProject, Defaults, and ContentItem.
+// Unknown top-level YAML keys are captured as `yaml.Node` values; platforms
+// decode them into their own types and re-encode on save. The framework knows
+// nothing about platform-specific extensions and round-trips them verbatim.
 package project
 
 import (
@@ -33,6 +41,18 @@ type KapiProject struct {
 	Content  []ContentCollection        `yaml:"content,omitempty" json:"content,omitempty"`
 	Preset   string                     `yaml:"preset,omitempty" json:"preset,omitempty"`
 	Flows    map[string]*flow.StepsSpec `yaml:"flows,omitempty" json:"flows,omitempty"`
+
+	// Requires lists extension groups this recipe depends on. Validation
+	// fails if any named group has no registered extension in the loading
+	// process. A recipe with `requires: [bowrain]` will refuse to load in a
+	// binary built without the bowrain extension package linked in.
+	Requires []string `yaml:"requires,omitempty" json:"requires,omitempty"`
+
+	// Extras captures any top-level YAML keys the framework does not know
+	// about. Platform layers decode their own typed schema
+	// from here at load time and re-encode on save. Round-tripping a recipe
+	// through the framework alone preserves these keys verbatim.
+	Extras map[string]yaml.Node `yaml:",inline" json:"-"`
 }
 
 // Defaults holds project-wide processing defaults.
@@ -45,6 +65,9 @@ type Defaults struct {
 	Encoding        string                    `yaml:"encoding,omitempty" json:"encoding,omitempty"`
 	Formats         map[string]FormatDefaults `yaml:"formats,omitempty" json:"formats,omitempty"`
 
+	// Exclude is a list of glob patterns skipped during content scanning.
+	Exclude []string `yaml:"exclude,omitempty" json:"exclude,omitempty"`
+
 	// Merge governs kapi merge behavior (AD-017).
 	Merge MergeDefaults `yaml:"merge,omitempty" json:"merge,omitempty"`
 
@@ -54,6 +77,10 @@ type Defaults struct {
 	// Segmentation governs the opt-in sentence-level segmentation overlay
 	// applied on extract (AD-017).
 	Segmentation SegmentationDefaults `yaml:"segmentation,omitempty" json:"segmentation,omitempty"`
+
+	// Extras captures unknown keys under `defaults:`. Platform layers decode
+	// their own defaults from this map.
+	Extras map[string]yaml.Node `yaml:",inline" json:"-"`
 }
 
 // FormatDefaults holds project-level default settings for a specific format.
@@ -199,6 +226,11 @@ type ContentCollection struct {
 	Path   string      `yaml:"path,omitempty" json:"path,omitempty"`
 	Format *FormatSpec `yaml:"format,omitempty" json:"format,omitempty"`
 	Target string      `yaml:"target,omitempty" json:"target,omitempty"`
+
+	// Extras captures keys the framework does not know about, both for
+	// bare entries and for named-collection wrappers. Platform layers
+	// decode their per-collection / per-bare-entry extensions from here.
+	Extras map[string]yaml.Node `yaml:",inline" json:"-"`
 }
 
 // IsBareEntry reports whether this is a bare entry (has path, no items).
@@ -207,13 +239,15 @@ func (c *ContentCollection) IsBareEntry() bool {
 }
 
 // EffectiveItems returns the items for this collection. For bare entries, it
-// wraps the promoted fields as a single-item slice.
+// wraps the promoted fields as a single-item slice (carrying the bare
+// entry's Extras through, so platform-specific per-item fields survive).
 func (c *ContentCollection) EffectiveItems() []ContentItem {
 	if c.IsBareEntry() {
 		return []ContentItem{{
 			Path:   c.Path,
 			Format: c.Format,
 			Target: c.Target,
+			Extras: c.Extras,
 		}}
 	}
 	return c.Items
@@ -226,6 +260,10 @@ type ContentItem struct {
 	Target          string           `yaml:"target,omitempty" json:"target,omitempty"`
 	SourceLanguage  model.LocaleID   `yaml:"source_language,omitempty" json:"source_language,omitempty"`
 	TargetLanguages []model.LocaleID `yaml:"target_languages,omitempty" json:"target_languages,omitempty"`
+
+	// Extras captures unknown keys at the per-item level. Platform layers
+	// decode their per-item fields from here.
+	Extras map[string]yaml.Node `yaml:",inline" json:"-"`
 }
 
 // ResolvedSourceLanguage returns the source language for this item, falling
@@ -283,6 +321,41 @@ func (f *FormatSpec) UnmarshalYAML(node *yaml.Node) error {
 	}
 	*f = FormatSpec(alias)
 	return nil
+}
+
+// FindProject discovers the project layout by walking up from start and
+// loads the recipe. Returns the parsed KapiProject and its on-disk Layout.
+//
+// Pass an empty string to start from the current working directory.
+// When the start path is itself a `.kapi` recipe file, that exact recipe
+// is loaded directly.
+func FindProject(start string) (*KapiProject, Layout, error) {
+	if start == "" {
+		cwd, err := os.Getwd()
+		if err != nil {
+			return nil, Layout{}, fmt.Errorf("project: get cwd: %w", err)
+		}
+		start = cwd
+	}
+	var layout Layout
+	if info, err := os.Stat(start); err == nil && !info.IsDir() {
+		l, err := LayoutFor(start)
+		if err != nil {
+			return nil, Layout{}, err
+		}
+		layout = l
+	} else {
+		l, err := ResolveLayout(start)
+		if err != nil {
+			return nil, Layout{}, err
+		}
+		layout = l
+	}
+	proj, err := Load(layout.RecipePath)
+	if err != nil {
+		return nil, Layout{}, err
+	}
+	return proj, layout, nil
 }
 
 // Load reads a .kapi project file from the given path.
@@ -376,6 +449,29 @@ func (p *KapiProject) Validate() error {
 			}
 		}
 	}
+	for _, group := range p.Requires {
+		if !HasExtensionGroup(group) {
+			return fmt.Errorf("recipe requires extension group %q but no matching extension is registered (this binary was not built with the %q extension linked in)", group, group)
+		}
+	}
+	if err := validateExtras(ScopeProject, "", p.Extras); err != nil {
+		return err
+	}
+	if err := validateExtras(ScopeDefaults, "defaults.", p.Defaults.Extras); err != nil {
+		return err
+	}
+	for i, c := range p.Content {
+		prefix := fmt.Sprintf("content[%d].", i)
+		if err := validateExtras(ScopeCollection, prefix, c.Extras); err != nil {
+			return err
+		}
+		for j, item := range c.Items {
+			ip := fmt.Sprintf("content[%d].items[%d].", i, j)
+			if err := validateExtras(ScopeItem, ip, item.Extras); err != nil {
+				return err
+			}
+		}
+	}
 	return nil
 }
 
@@ -394,4 +490,71 @@ func (p *KapiProject) FlowNames() []string {
 		names = append(names, name)
 	}
 	return names
+}
+
+// IteratedItem pairs a ContentItem with the parent collection it came
+// from, so callers can resolve fall-through fields (source/target language,
+// collection name) without duplicating logic.
+type IteratedItem struct {
+	Collection *ContentCollection
+	Item       ContentItem
+}
+
+// IterateContent yields every ContentItem in the project, walking both bare
+// entries and named collections. The Collection pointer is non-nil for
+// items that came from a named collection so callers can read its Name.
+func (p *KapiProject) IterateContent() []IteratedItem {
+	var out []IteratedItem
+	for i := range p.Content {
+		coll := &p.Content[i]
+		if coll.IsBareEntry() {
+			out = append(out, IteratedItem{
+				Collection: coll,
+				Item: ContentItem{
+					Path:   coll.Path,
+					Format: coll.Format,
+					Target: coll.Target,
+					Extras: coll.Extras,
+				},
+			})
+			continue
+		}
+		for _, item := range coll.Items {
+			out = append(out, IteratedItem{Collection: coll, Item: item})
+		}
+	}
+	return out
+}
+
+// SetExtra encodes value as a YAML node and stores it under key in the
+// project's Extras map. Used by platform layers to persist
+// their typed extensions through Save.
+func (p *KapiProject) SetExtra(key string, value any) error {
+	if p.Extras == nil {
+		p.Extras = map[string]yaml.Node{}
+	}
+	var node yaml.Node
+	if err := node.Encode(value); err != nil {
+		return fmt.Errorf("encode extra %q: %w", key, err)
+	}
+	p.Extras[key] = node
+	return nil
+}
+
+// GetExtra decodes the value stored under key in Extras into target. Returns
+// (false, nil) if the key is not present, (true, nil) on success.
+func (p *KapiProject) GetExtra(key string, target any) (bool, error) {
+	node, ok := p.Extras[key]
+	if !ok {
+		return false, nil
+	}
+	if err := node.Decode(target); err != nil {
+		return true, fmt.Errorf("decode extra %q: %w", key, err)
+	}
+	return true, nil
+}
+
+// DeleteExtra removes a key from Extras. No-op if the key is absent.
+func (p *KapiProject) DeleteExtra(key string) {
+	delete(p.Extras, key)
 }

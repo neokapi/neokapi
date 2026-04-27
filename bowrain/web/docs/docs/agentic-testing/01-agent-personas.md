@@ -21,7 +21,7 @@ Each agent persona maps to a real role in a localization team. Agents interact w
 - Bowrain CLI (`init`, `push`, `pull`, `sync`, `status`, `add`, `config`, `stream`)
 - GitHub Actions workflow management (setup-bowrain, bowrain-action)
 - File format awareness (knows which files contain translatable content)
-- Config file editing (.bowrain/config.yaml, CI workflows)
+- Recipe file editing (`<dir-name>.kapi`, CI workflows)
 
 **Behavioral Profile:**
 

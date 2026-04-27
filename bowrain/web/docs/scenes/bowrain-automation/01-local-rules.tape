@@ -1,6 +1,6 @@
 # VHS tape — generated from bowrain/web/docs/walkthroughs/bowrain-automation.md
 # Scene 1: local-rules (terminal). Do not edit by hand.
-# Requires: WALKTHROUGH_DIR set with .bowrain/config.yaml containing automation rules.
+# Requires: WALKTHROUGH_DIR set with a .kapi recipe containing top-level hooks/automations.
 
 Output "01-local-rules.webm"
 
@@ -18,7 +18,7 @@ Type "# View local automation rules"
 Enter
 Sleep 500ms
 
-Type "cat .bowrain/config.yaml"
+Type "cat *.kapi"
 Enter
 Sleep 4s
 

@@ -122,7 +122,7 @@ FILE: src/locales/en/buttons.json <-> ui/strings/buttons
 
 `bowrain diff` compares block-level content between local files and server state:
 
-1. **Read local files** via FormatRegistry (respecting `.bowrain/config.yaml` mappings)
+1. **Read local files** via FormatRegistry (respecting the recipe's `content:` collections)
 2. **Fetch remote content** via `POST /api/v1/.../diff` server endpoint
 3. **Compute block hashes** using `BlockIdentity` (source text + metadata)
 4. **Match blocks** by ID and hash across local/remote

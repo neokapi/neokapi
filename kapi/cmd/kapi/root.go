@@ -18,6 +18,9 @@ translate with AI, and run quality checks across a wide range of file types.`,
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
 		app.Config = config.NewAppConfig()
 		app.Init()
+		// Plugins (e.g. bowrain) register App initializers at init().
+		// Apply them after Init has set up registries and config.
+		cli.ApplyAppInitializers(app)
 	},
 	PersistentPostRun: func(cmd *cobra.Command, args []string) {
 		app.Shutdown()
@@ -60,7 +63,12 @@ func init() {
 		rootCmd.AddCommand(cmd)
 	}
 
-	mcpCmd := newMCPCmd()
+	mcpCmd := app.NewMCPCmd("kapi")
 	mcpCmd.GroupID = "processing"
 	rootCmd.AddCommand(mcpCmd)
+
+	// Plugins (e.g. bowrain via blank import in main.go) register their
+	// commands at init() time; wire them in after the built-in command
+	// tree is constructed.
+	cli.ApplyCommandFactories(rootCmd, app)
 }

@@ -34,7 +34,15 @@ Type ""
 Enter
 Sleep 500ms
 
-Type "ls .bowrain/"
+Type "ls -la"
+Enter
+Sleep 2s
+
+Type ""
+Enter
+Sleep 500ms
+
+Type "ls .kapi/"
 Enter
 Sleep 2s
 

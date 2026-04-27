@@ -11,14 +11,16 @@ The repository is a **multi-module monorepo** with seven Go modules:
 - **Framework** (`github.com/neokapi/neokapi`) — the open-source localization engine: content model, format readers/writers, processing tools, pipeline executor, plugin system, SQLite-backed TM and termbase (`sievepen/`, `termbase/`), shared SQLite infrastructure (`core/storage/`), `.kapi` project file format (`core/project/`), AI providers (`providers/ai/`, package `aiprovider`), MT providers (`providers/mt/`, package `mtprovider`). Framework packages live under `core/`, `sievepen/`, `termbase/`, and `providers/`. No bowrain dependencies (no Wails, Echo, Cobra, OIDC).
 - **CLI** (`github.com/neokapi/neokapi/cli`) — shared CLI base used by both kapi and bowrain: App struct, command factories (formats, plugins, tools, flows, presets, termbase, tm, version), output formatting, Viper-based app config, OS keychain credential store (`cli/credentials/`). Uses framework's SQLite TM/termbase from `sievepen/` and `termbase/`. Depends on framework only. No bowrain dependency.
 - **Bowrain Core** (`github.com/neokapi/neokapi/bowrain/core`) — shared platform types and interfaces: project model, auth types, connector interfaces, REST client, store interfaces, event types. Depends on framework only. No CLI dependency (no Cobra, Viper).
-- **Kapi** (`github.com/neokapi/neokapi/kapi`) — standalone CLI tool for local file processing: format conversion, pseudo-translation, quality checks, etc. Supports `.kapi` project files via `-p` flag. Depends on framework + CLI. No bowrain dependency, no heavy dependencies (no Wails, Echo, OIDC, keyring). SQLite TM/termbase from the framework module.
-- **Kapi Desktop** (`github.com/neokapi/neokapi/kapi-desktop`) — Wails v3 desktop app for visual localization workflows: flow editor, flow runner with live progress, plugin manager, credential vault, `.kapi` project file management. Depends on framework + CLI. No bowrain dependency. Separate module due to Wails/keyring dependencies.
-- **Bowrain CLI** (`github.com/neokapi/neokapi/bowrain/cli`) — project sync companion CLI: manages `.bowrain/` projects, syncs with Bowrain Server (init, push, pull, auth, status). Depends on framework + CLI + bowrain/core.
-- **Bowrain** (`github.com/neokapi/neokapi/bowrain`) — the full-stack localization platform: REST server, desktop app, connectors, authentication, persistent SQLite/PostgreSQL storage. Depends on framework + bowrain/core. No CLI dependency.
+- **Kapi** (`github.com/neokapi/neokapi/kapi`) — primary CLI binary. By default links the bowrain plugin so a single `kapi` binary covers both local file processing (run, extract, merge, …) and bowrain server sync (push, pull, auth, …). Building with `-tags pure` (Makefile target `make build-pure`) skips the bowrain plugin and produces an Apache-2.0 binary. Depends on framework + CLI; default build also depends on bowrain/plugin.
+- **Kapi Desktop** (`github.com/neokapi/neokapi/kapi-desktop`) — Wails v3 desktop app for visual localization workflows. Blank-imports `bowrain/plugin/schema` so it validates bowrain recipes on open. Depends on framework + CLI + bowrain/plugin/schema.
+- **Bowrain CLI** (`github.com/neokapi/neokapi/bowrain/cli`) — branded entry point that produces the `bowrain` binary. Same code path as default `kapi` plus the bowrain plugin; just registers a different root command (`Use: "bowrain"`).
+- **Bowrain Plugin** (`github.com/neokapi/neokapi/bowrain/plugin`) — build-time plugin that adds bowrain features to a host binary. Sub-packages: `schema/` (recipe extension decoders, registers via `init()` against `core/project.RegisterExtension`), `commands/` (push, pull, sync, status, init, auth, …, registers via `cli.RegisterCommandFactory`), `connector/` (BowrainSourceConnector), `mcp/` (bowrain MCP tools, registers via `cli.RegisterMCPToolFactory`). The `schema/` sub-package has its own go.mod so kapi-desktop can blank-import it cheaply.
+- **Bowrain Core** (`github.com/neokapi/neokapi/bowrain/core`) — shared bowrain platform types: Recipe wrapper around the framework's `KapiProject` (with type aliases re-exported from `bowrain/plugin/schema`), Project facade, sync cache helpers, REST client, auth, store interfaces, event types.
+- **Bowrain** (`github.com/neokapi/neokapi/bowrain`) — the full-stack localization platform: REST server, desktop app, web app, connectors, persistent SQLite/PostgreSQL storage. Depends on framework + bowrain/core.
 
-Both **kapi** and **bowrain** CLIs share a common base in `cli/`. The shared base provides command factories for formats, plugins, tools, flows, presets, termbase, and version. Each CLI selects which commands to register and can extend them with CLI-specific behavior (e.g., bowrain adds project flow support via a `RegistryResolver` hook).
+Both **kapi** and **bowrain** binaries share a common base in `cli/`. The base provides core commands (run, extract, merge, flows, tools, formats, plugins, presets, termbase, tm, mcp, version) plus four plugin registries: `cli.RegisterCommandFactory`, `cli.RegisterAppInitializer`, `cli.RegisterMCPToolFactory` (CLI-side), and `core/project.RegisterExtension` (framework, for recipe schema). Plugins blank-imported into a binary contribute commands, MCP tools, and recipe schema via `init()` registration. See [Note: Plugin model](web/docs/docs/notes-internal/plugin-model.md).
 
-A `go.work` file at the root coordinates the seven modules for local development. CLI and bowrain/core have zero cross-dependency. Kapi and bowrain have no dependency on each other. Kapi depends on framework + CLI only (verified by isolation check).
+A `go.work` file at the root coordinates the modules for local development. The framework (`core/`) stays platform-agnostic — bowrain attaches via the extension mechanism and the CLI plugin registries, not via direct imports from `core/` to bowrain.
 
 ## Build & Test Commands
 
@@ -227,35 +229,44 @@ neokapi/
 └── Makefile               # Multi-module build targets
 ```
 
-### Bowrain Project Model (.bowrain/ Directories)
+### Bowrain Project Model (`.kapi` Recipe + State Dir)
 
-Bowrain CLI uses a git-like project model with `.bowrain/` directories ([Bowrain AD-010](bowrain/docs/architecture-decisions/010-bowrain-cli-and-project-model.md)):
+Bowrain CLI uses the framework's unified `.kapi` project model — a `<dir-name>.kapi` recipe at the project root with a `server:` block, plus a sibling `.kapi/` state directory ([Bowrain AD-010](bowrain/docs/architecture-decisions/010-bowrain-cli-and-project-model.md)):
 
 ```
 my-app/
-├── .bowrain/
-│   ├── config.yaml      # Project configuration
-│   ├── flows/           # Flow definitions (YAML)
+├── my-app.kapi             # Recipe (committed) — directory-named YAML, includes server: block
+├── .kapi/                  # State (gitignored)
+│   ├── manifest.yaml
+│   ├── tm.db               # authoritative project TM
+│   ├── termbase.db         # authoritative project termbase
+│   ├── flows/              # optional file-per-flow definitions (committed)
 │   │   └── pseudo.yaml
-│   └── .sync-cache      # Sync cache (gitignored)
+│   └── cache/              # all regenerable caches under one roof
+│       ├── blocks.db        # block store
+│       ├── sync-cache.json  # bowrain push/pull state
+│       ├── extractions/
+│       └── collections/
 ├── src/
 │   └── locales/
 │       ├── en-US.json
 │       └── fr-FR.json
 ```
 
+A bowrain project is just a kapi project whose recipe declares a `server:` block (compound URL, optional `stream`). Top-level recipe fields cover `defaults`, `content`, `plugins` (map form), `flows`, `hooks`, `automations`, `assets`, `brand_voice`. Auth tokens live in the OS keychain (`bowrain-auth:<server-url>`, `bowrain-refresh:<server-url>`); non-secret metadata sits at `~/.config/bowrain/auth.json`. `BOWRAIN_AUTH_TOKEN` env var works in CI.
+
 **Key Bowrain CLI commands:**
 
 ```bash
-bowrain init                    # Create .bowrain/ project
+bowrain init                    # Write <dir-name>.kapi + .kapi/ state dir
 bowrain status                  # Show sync state (like git status)
 bowrain pull                    # Fetch from Bowrain Server → update local files
 bowrain push                    # Send local files → update Bowrain Server
-bowrain run <flow-name>         # Execute flow from .bowrain/flows/
+bowrain run <flow-name>         # Execute flow (inline on recipe or .kapi/flows/)
 bowrain serve                   # Start local dashboard (web UI)
 ```
 
-**All `bowrain` commands require a `.bowrain/` project.** The CLI searches upward from the current directory (like git) to find the project root.
+**All `bowrain` commands require a `.kapi` project with a `server:` block.** The CLI searches upward from the current directory (like git) to find the recipe.
 
 **Key kapi CLI commands (standalone, no project needed):**
 

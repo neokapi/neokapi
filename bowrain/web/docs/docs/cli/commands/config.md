@@ -19,21 +19,21 @@ With no arguments, prints the path to the config file.
 With one argument (key), prints the current value.
 With two arguments (key value), sets the value.
 
-By default, operates on the project config file (`.bowrain/config.yaml`).
+By default, operates on the project recipe (`<dir-name>.kapi`).
 Use `--global` to read/write the global config file (`~/.config/kapi/kapi.yaml`).
 
 ## Examples
 
 ```bash
-# Show path to project config
+# Show path to the project recipe
 bowrain config
 
-# Read a project config value
-bowrain config project.name
+# Read a recipe value
+bowrain config name
 bowrain config server.url
 
-# Set a project config value
-bowrain config project.name "My Project"
+# Set a recipe value
+bowrain config name "My Project"
 
 # Read global config
 bowrain config --global server.url
@@ -50,22 +50,22 @@ bowrain config --global server.url https://bowrain.example.com
 
 ## Config Keys
 
-### Project Config (`.bowrain/config.yaml`)
+### Project Recipe (`<dir-name>.kapi`)
 
-| Key                     | Description            | Example                       |
-| ----------------------- | ---------------------- | ----------------------------- |
-| `project.name`          | Project name           | `My App`                      |
-| `project.source_locale` | Source locale (BCP 47) | `en-US`                       |
-| `server.url`            | Bowrain Server URL     | `https://bowrain.example.com` |
-| `server.project_id`     | Server project ID      | `proj_abc123`                 |
-| `server.workspace`      | Workspace slug         | `my-team`                     |
+| Key                          | Description                                                | Example                                            |
+| ---------------------------- | ---------------------------------------------------------- | -------------------------------------------------- |
+| `name`                       | Project name                                               | `My App`                                           |
+| `defaults.source_language`   | Source locale (BCP 47)                                     | `en-US`                                            |
+| `defaults.target_languages`  | Target locales (list)                                      | `[fr-FR, de-DE]`                                   |
+| `server.url`                 | Compound server URL (encodes server / workspace / project) | `https://bowrain.example.com/my-team/proj_abc123`  |
+| `server.stream`              | Server stream (`$auto` for auto-detect)                    | `$auto`                                            |
 
 ### Global Config (`~/.config/kapi/kapi.yaml`)
 
 | Key                | Description                         | Example                       |
 | ------------------ | ----------------------------------- | ----------------------------- |
 | `server.url`       | Default server URL for all projects | `https://bowrain.example.com` |
-| `plugin_directory` | Plugin directory path               | `/home/user/.bowrain/plugins` |
+| `plugin_directory` | Plugin directory path               | `/home/user/.config/kapi/plugins` |
 
 ## Global vs Project Config
 

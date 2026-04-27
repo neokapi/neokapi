@@ -6,6 +6,11 @@ import (
 	"os"
 	"strings"
 
+	// Register bowrain recipe extension decoders so the desktop app can
+	// load and validate *.kapi recipes that include bowrain-specific
+	// blocks (server, hooks, automations, assets, brand_voice).
+	_ "github.com/neokapi/neokapi/bowrain/plugin/schema"
+
 	"github.com/neokapi/neokapi/bowrain/apps/bowrain/backend"
 	"github.com/wailsapp/wails/v3/pkg/application"
 	"github.com/wailsapp/wails/v3/pkg/events"

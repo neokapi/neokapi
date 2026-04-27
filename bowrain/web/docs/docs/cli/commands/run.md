@@ -18,7 +18,7 @@ bowrain flows
 
 The `bowrain run` command executes a named multi-step processing pipeline. Documents are read, streamed through each tool in the flow, and written to the output. Multiple input files can be processed in parallel.
 
-**Project-based flows**: If a `.bowrain/` project exists, flows are loaded from `.bowrain/flows/*.yaml` files. This is the primary mode for Bowrain CLI.
+**Project-based flows**: If a `.kapi` project exists (a `*.kapi` recipe found by walking up the tree), flows are loaded from inline `flows:` on the recipe and from `.kapi/flows/*.yaml`. This is the primary mode for Bowrain CLI.
 
 **Built-in composed flows**: Multi-tool pipelines like `ai-translate-qa` are available as built-in flows.
 
@@ -79,10 +79,10 @@ specific to `bowrain run` and tool commands. They are not global flags.
 
 ## Project-Based Flows
 
-If you've initialized a Bowrain project with `bowrain init`, create custom flows in `.bowrain/flows/`:
+If you've initialized a Bowrain project with `bowrain init`, create custom flows in `.kapi/flows/`:
 
 ```yaml
-# .bowrain/flows/translate-review.yaml
+# .kapi/flows/translate-review.yaml
 name: translate-review
 description: Translate with AI then run QA checks
 
@@ -111,12 +111,12 @@ Run with:
 bowrain run translate-review
 ```
 
-Project flows automatically use file mappings and locales from `.bowrain/config.yaml`.
+Project flows automatically use the recipe's content collections and locale defaults.
 No need to specify `--input`, `--output`, `--source-lang`, or `--target-lang`.
 
 ## Built-in Composed Flows
 
-Without a `.bowrain/` project, you can use built-in composed flows with explicit flags:
+Without a `.kapi` project, you can use built-in composed flows with explicit flags:
 
 ```bash
 bowrain run ai-translate-qa -i input.html -o output.html --source-lang en --target-lang fr

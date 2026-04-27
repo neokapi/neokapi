@@ -39,7 +39,7 @@ type SourceConnector interface {
 }
 ```
 
-The primary implementation is `BowrainSourceConnector` -- the file connector that syncs `.bowrain/` projects with Bowrain Server via REST API.
+The primary implementation is `BowrainSourceConnector` -- the file connector that syncs `.kapi` projects (recipe + state dir) with Bowrain Server via REST API.
 
 ## ConnectorBase (Shared)
 

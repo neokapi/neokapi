@@ -1,15 +1,8 @@
 package main
 
 import (
-	"os"
-	"path/filepath"
-
-	"github.com/neokapi/neokapi/bowrain/cli/cmd/bowrain/output"
-	"github.com/neokapi/neokapi/bowrain/core/project"
 	"github.com/neokapi/neokapi/cli"
 	cliconfig "github.com/neokapi/neokapi/cli/config"
-	clioutput "github.com/neokapi/neokapi/cli/output"
-	"github.com/neokapi/neokapi/core/preset"
 	"github.com/spf13/cobra"
 )
 
@@ -22,25 +15,35 @@ var rootCmd = &cobra.Command{
 	SilenceErrors: true,
 	Long: `bowrain manages localization projects, syncing content with Bowrain Server.
 
-Initialize a .bowrain/ project in your repository, then push/pull translations,
+Initialize a kapi project in your repository, then push/pull translations,
 run quality checks, and manage terminology.`,
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
 		app.Config = newBowrainAppConfig()
-		app.RegistryResolver = func() []cliconfig.RegistryEntry {
-			if proj, err := project.FindProject(""); err == nil && len(proj.Config.Registries) > 0 {
-				entries := make([]cliconfig.RegistryEntry, len(proj.Config.Registries))
-				for i, r := range proj.Config.Registries {
-					entries[i] = cliconfig.RegistryEntry{Name: r.Name, URL: r.URL, Channels: r.Channels}
-				}
-				return entries
-			}
-			return nil
-		}
+		// TODO: registries are not yet represented on the framework's
+		// KapiProject recipe; once they land there, restore the
+		// recipe-level RegistryResolver hook here.
+		app.RegistryResolver = func() []cliconfig.RegistryEntry { return nil }
 		app.Init()
+		// Plugins (schema, commands, mcp) installed AppInitializers via
+		// init(); apply them after Init has set up the registries and
+		// config so they can read everything they need from app.
+		cli.ApplyAppInitializers(app)
 	},
 	PersistentPostRun: func(cmd *cobra.Command, args []string) {
 		app.Shutdown()
 	},
+}
+
+// newBowrainAppConfig creates a config reader for bowrain that layers
+// bowrain-specific config (~/.config/bowrain/bowrain.yaml) on top of the
+// shared kapi config. Bowrain-specific settings like server.url are read
+// from the bowrain config; shared settings (plugins, formats, flow) come
+// from the kapi config.
+func newBowrainAppConfig() *cliconfig.AppConfig {
+	return cliconfig.NewOverlayAppConfig("bowrain", func(cfg *cliconfig.AppConfig) {
+		cfg.Viper().SetDefault("server.url", "http://localhost:8080")
+		_ = cfg.Viper().BindEnv("server.url", "BOWRAIN_SERVER_URL")
+	})
 }
 
 func init() {
@@ -53,27 +56,26 @@ func init() {
 	app.AddPersistentFlags(rootCmd)
 	app.AddCommandGroups(rootCmd)
 
-	// Primary commands.
-	rootCmd.AddCommand(app.NewRunCmd(cli.RunCmdOptions{
-		FallbackRunE: projectFlowFallback,
-	}))
+	// Primary commands. The bowrain plugin's commands package installs
+	// app.FallbackRunE (project flows) and app.ExtraFlows (.kapi/flows/
+	// listing) via an AppInitializer; the run / flows commands read those
+	// fields at run time, so we don't need to pass them through opts here.
+	runCmd := app.NewRunCmd(cli.RunCmdOptions{})
+	runCmd.GroupID = "processing"
+	rootCmd.AddCommand(runCmd)
+	rootCmd.AddCommand(app.NewExtractCmd(cli.ExtractCmdOptions{}))
+	rootCmd.AddCommand(app.NewMergeCmd(cli.MergeCmdOptions{}))
 
 	// Management commands.
-	rootCmd.AddCommand(app.NewFlowsCmd(cli.FlowCmdOptions{
-		ExtraFlows: listProjectFlows,
-	}))
+	rootCmd.AddCommand(app.NewFlowsCmd(cli.FlowCmdOptions{}))
 	rootCmd.AddCommand(app.NewToolsCmd())
 	rootCmd.AddCommand(app.NewFormatsCmd())
 	rootCmd.AddCommand(app.NewPluginsCmd())
 	rootCmd.AddCommand(app.NewRegistryCmd())
-
-	// Shared presets command + Bowrain CLI-specific validate subcommand.
-	presetsCmd := app.NewPresetsCmd()
-	presetsCmd.AddCommand(newPresetsValidateCmd())
-	rootCmd.AddCommand(presetsCmd)
-
+	rootCmd.AddCommand(app.NewPresetsCmd())
 	rootCmd.AddCommand(app.NewTermbaseCmd())
 	rootCmd.AddCommand(app.NewTMCmd())
+	rootCmd.AddCommand(app.NewCredentialsCmd())
 	rootCmd.AddCommand(app.NewVersionCmd("bowrain"))
 	rootCmd.AddCommand(app.NewCompletionCmd())
 
@@ -81,89 +83,13 @@ func init() {
 	for _, cmd := range app.NewToolCommands() {
 		rootCmd.AddCommand(cmd)
 	}
-}
 
-// projectFlowFallback is called when a flow name doesn't match a built-in
-// flow definition. It checks for a project flow in .bowrain/flows/.
-func projectFlowFallback(cmd *cobra.Command, flowName string, args []string) error {
-	proj, err := findProject()
-	if err != nil {
-		return err
-	}
-	return runProjectFlow(cmd, proj, flowName, args)
-}
+	mcpCmd := app.NewMCPCmd("bowrain")
+	mcpCmd.GroupID = "processing"
+	rootCmd.AddCommand(mcpCmd)
 
-// listProjectFlows returns flow info entries from .bowrain/flows/.
-func listProjectFlows() []clioutput.FlowInfo {
-	proj, err := findProject()
-	if err != nil {
-		return nil
-	}
-
-	flowsDir := proj.FlowsDirPath()
-	entries, err := os.ReadDir(flowsDir)
-	if err != nil {
-		return nil
-	}
-
-	var flows []clioutput.FlowInfo
-	for _, e := range entries {
-		if e.IsDir() || filepath.Ext(e.Name()) != ".yaml" {
-			continue
-		}
-		flowPath := filepath.Join(flowsDir, e.Name())
-		def, err := loadFlowDefinition(flowPath)
-		if err != nil {
-			continue
-		}
-		name := e.Name()[:len(e.Name())-5] // strip .yaml
-		flows = append(flows, clioutput.FlowInfo{
-			Name:        name,
-			Description: def.Description,
-			Path:        flowPath,
-			Steps:       len(def.Steps),
-		})
-	}
-	return flows
-}
-
-// newPresetsValidateCmd creates the Bowrain CLI-specific "presets validate" subcommand.
-func newPresetsValidateCmd() *cobra.Command {
-	return &cobra.Command{
-		Use:   "validate",
-		Short: "Validate project preset configuration",
-		Long:  `Validate that all preset references in .bowrain/config.yaml are valid.`,
-		RunE: func(cmd *cobra.Command, args []string) error {
-			return runPresetsValidate(cmd)
-		},
-	}
-}
-
-// runPresetsValidate checks that all preset references in the project config resolve.
-func runPresetsValidate(cmd *cobra.Command) error {
-	proj, err := project.FindProject("")
-	if err != nil {
-		return err
-	}
-
-	presetReg := app.PluginLoader.Presets()
-	preset.RegisterBuiltins(presetReg)
-
-	localPresets := make(map[string]preset.LocalFormatPreset)
-	for name, lp := range proj.Config.FormatPresets {
-		localPresets[name] = preset.LocalFormatPreset{
-			Description: lp.Description,
-			Base:        lp.Base,
-			Config:      lp.Config,
-		}
-	}
-
-	resolver := preset.NewConfigResolver(presetReg, app.PluginLoader.Schemas())
-	errors := resolver.ValidateAllPresets(localPresets, "")
-
-	out := output.PresetsValidateOutput{
-		Valid:  len(errors) == 0,
-		Errors: errors,
-	}
-	return output.Print(cmd, out)
+	// Plugin commands (init, push, pull, status, ls, add, rm, sync,
+	// auth, config, diff, stream, serve, ui) get added by the bowrain
+	// plugin's commands package via cli.ApplyCommandFactories.
+	cli.ApplyCommandFactories(rootCmd, app)
 }

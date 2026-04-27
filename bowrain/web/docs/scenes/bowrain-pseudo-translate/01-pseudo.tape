@@ -1,6 +1,6 @@
 # VHS tape — generated from bowrain/web/docs/walkthroughs/bowrain-pseudo-translate.md
 # Scene 1: pseudo (terminal). Do not edit by hand.
-# Requires: WALKTHROUGH_DIR set with an initialized .bowrain/ project.
+# Requires: WALKTHROUGH_DIR set with an initialized .kapi project.
 
 Output "01-pseudo.webm"
 

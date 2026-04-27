@@ -24,11 +24,43 @@ type Layout struct {
 }
 
 // StateDirName is the hidden directory that holds kapi's working
-// state (manifest bookkeeping, blockstore cache, overlay layers).
+// state (manifest bookkeeping, TM, termbase, and the cache subdir).
 const StateDirName = ".kapi"
 
 // RecipeExt is the file extension users click to open a project.
 const RecipeExt = ".kapi"
+
+// CacheDirName is the subdirectory of StateDir that holds all regenerable
+// caches: block store, extraction intermediates, overlay layers, and any
+// platform-specific caches (e.g. sync caches added by extensions).
+// Authoritative
+// project data (TM, termbase, manifest) lives at the top level of
+// StateDir so users can blow away the cache without losing translation
+// work.
+const CacheDirName = "cache"
+
+// BlockStoreFilename is the SQLite block store cache file under CacheDir().
+const BlockStoreFilename = "blocks.db"
+
+// CacheDir returns the absolute path to the regenerable-cache subdirectory.
+func (l Layout) CacheDir() string {
+	return filepath.Join(l.StateDir, CacheDirName)
+}
+
+// BlockStorePath returns the absolute path of the SQLite block store cache.
+func (l Layout) BlockStorePath() string {
+	return filepath.Join(l.CacheDir(), BlockStoreFilename)
+}
+
+// ExtractionsDir returns the absolute path of the extractions cache root.
+func (l Layout) ExtractionsDir() string {
+	return filepath.Join(l.CacheDir(), ExtractionsDirName)
+}
+
+// CollectionsDir returns the absolute path of the overlay-layers cache root.
+func (l Layout) CollectionsDir() string {
+	return filepath.Join(l.CacheDir(), CollectionsDirName)
+}
 
 // ResolveLayout walks up from `start` looking for a kapi project.
 // The recognised shape is exactly one `*.kapi` file at a directory
@@ -91,11 +123,15 @@ func LayoutFor(recipePath string) (Layout, error) {
 	}, nil
 }
 
-// EnsureLayout creates the `.kapi/` state directory if it doesn't
-// exist. Idempotent; safe to call on an existing project.
+// EnsureLayout creates the `.kapi/` state directory and its `cache/`
+// subdirectory if they don't exist. Idempotent; safe to call on an
+// existing project.
 func EnsureLayout(layout Layout) error {
 	if err := os.MkdirAll(layout.StateDir, 0o755); err != nil {
 		return fmt.Errorf("project: create state dir: %w", err)
+	}
+	if err := os.MkdirAll(layout.CacheDir(), 0o755); err != nil {
+		return fmt.Errorf("project: create cache dir: %w", err)
 	}
 	return nil
 }

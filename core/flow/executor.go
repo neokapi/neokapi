@@ -72,7 +72,7 @@ func WithCollectors(c ...Collector) ExecutorOption {
 
 // WithBlockStore sets the BlockStore used for SessionTool dispatch.
 // Defaults to blockstore.NewMemoryStore(). Pass a persistent store
-// (e.g. NewCacheStore for a project's .kapi/cache.db) to enable
+// (e.g. NewCacheStore for a project's .kapi/cache/blocks.db) to enable
 // incremental work across runs.
 func WithBlockStore(store blockstore.Store) ExecutorOption {
 	return func(cfg *ExecutorConfig) {

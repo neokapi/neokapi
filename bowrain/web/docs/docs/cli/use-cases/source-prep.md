@@ -52,7 +52,7 @@ The `qa-check` tool validates:
 
 ### Terminology Consistency Check
 
-Create `.bowrain/flows/source-qa.yaml`:
+Create `.kapi/flows/source-qa.yaml`:
 
 ```yaml
 name: source-qa
@@ -61,7 +61,7 @@ description: Validate source content quality before translation
 steps:
   - tool: term-check
     config:
-      termbase: .bowrain/termbase.tbx
+      termbase: .kapi/termbase.db
       target_locale: en-US
 
   - tool: qa-check
@@ -127,7 +127,7 @@ steps:
 
 ### Pre-Push QA Gate
 
-Add source QA to your CI pipeline so content that fails validation never reaches the server. Use local automation rules in `.bowrain/config.yaml`:
+Add source QA to your CI pipeline so content that fails validation never reaches the server. Declare local automation rules at the top level of your `.kapi` recipe:
 
 ```yaml
 automations:

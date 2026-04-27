@@ -16,7 +16,7 @@ import (
 
 // NewCacheStore opens (or creates) a SQLite-backed block store at the
 // given path. Intended use: project-local persistence at
-// `.kapi/cache.db`, full random access, append-friendly for concurrent
+// `.kapi/cache/blocks.db`, full random access, append-friendly for concurrent
 // overlay writes.
 //
 // The database schema is internal to this package and versioned by

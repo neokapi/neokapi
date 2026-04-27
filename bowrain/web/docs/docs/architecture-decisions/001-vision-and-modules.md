@@ -72,7 +72,7 @@ Bowrain is composed of three independent Go modules, each with its own
 | Module         | Import Path                               | Directory       | Role                                                                       |
 | -------------- | ----------------------------------------- | --------------- | -------------------------------------------------------------------------- |
 | `bowrain/core` | `github.com/neokapi/neokapi/bowrain/core` | `bowrain/core/` | Shared platform types and interfaces: project model, auth, connector, store, event, client, agent |
-| `bowrain/cli`  | `github.com/neokapi/neokapi/bowrain/cli`  | `bowrain/cli/`  | Project-sync companion CLI (`bowrain` binary): `.bowrain/` init, push, pull, status, auth |
+| `bowrain/cli`  | `github.com/neokapi/neokapi/bowrain/cli`  | `bowrain/cli/`  | Project-sync companion CLI (`bowrain` binary): `.kapi` recipe init, push, pull, status, auth |
 | `bowrain`      | `github.com/neokapi/neokapi/bowrain`      | `bowrain/`      | Server, workers, desktop and web apps, storage implementations             |
 
 Dependency rules, verified in CI with `GOWORK=off` builds:
@@ -108,7 +108,7 @@ Key constraints:
 
 | Package     | Purpose                                                           |
 | ----------- | ----------------------------------------------------------------- |
-| `project/`  | `.bowrain/` project model: config schema, sync cache, URL parsing |
+| `project/`  | Workflow facade pairing the framework's `KapiProject` recipe loader with the on-disk Layout: server-block helpers, sync cache, URL parsing |
 | `auth/`     | Auth types (User, Workspace, Token), JWT handling, PKCE, device flow client |
 | `connector/` | `ConnectorBase`, `IntegrationConnector`, `SourceConnector` interfaces |
 | `client/`   | REST client for Bowrain Server                                    |
@@ -124,8 +124,8 @@ Key constraints:
 | `cmd/bowrain/`   | Root command wiring. Extends the shared CLI base with project commands (init, ls, add, rm, status, diff, pull, push, run, serve, auth, stream) |
 
 The bowrain CLI sets the shared CLI base's `RegistryResolver` hook during
-initialization to resolve plugin registries from `.bowrain/config.yaml`. The
-shared CLI module never imports `bowrain/core/project`.
+initialization to resolve plugin registries from the project's `.kapi` recipe.
+The shared CLI module never imports `bowrain/core/project`.
 
 **`bowrain/`** holds the full platform:
 

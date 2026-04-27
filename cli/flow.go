@@ -62,9 +62,15 @@ func (a *App) RunFlow(ctx context.Context, cmd *cobra.Command, flowName string, 
 		return a.runMultipleFiles(ctx, cmd, flowName, inputPaths, concurrency, outputFlag)
 	}
 
-	// No --input: try fallback (e.g. project flow).
-	if opts.FallbackRunE != nil {
-		return opts.FallbackRunE(cmd, flowName, []string{flowName})
+	// No --input: try fallback (e.g. project flow). Read at run time so
+	// plugin App initializers have already installed the App-level
+	// FallbackRunE.
+	fallback := opts.FallbackRunE
+	if fallback == nil {
+		fallback = a.FallbackRunE
+	}
+	if fallback != nil {
+		return fallback(cmd, flowName, []string{flowName})
 	}
 	return errors.New("--input (-i) is required")
 }
@@ -90,8 +96,15 @@ func (a *App) addFlowRunFlags(cmd *cobra.Command) {
 func (a *App) listFlows(cmd *cobra.Command, opts FlowCmdOptions) error {
 	flows := builtinComposedFlows()
 
-	if opts.ExtraFlows != nil {
-		flows = append(flows, opts.ExtraFlows()...)
+	// Read ExtraFlows at run time — plugins install via
+	// RegisterAppInitializer which fires during PersistentPreRun, after
+	// NewFlowsCmd has already constructed the cobra command.
+	extra := opts.ExtraFlows
+	if extra == nil {
+		extra = a.ExtraFlows
+	}
+	if extra != nil {
+		flows = append(flows, extra()...)
 	}
 
 	out := output.FlowsListOutput{
