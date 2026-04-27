@@ -61,6 +61,59 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           HOMEBREW_TAP_GITHUB_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
 
+      # Push the new kapi-bowrain plugin version into the manifest-plugins
+      # registry so `kapi plugin install bowrain` resolves to this build.
+      # Reads sha256s from goreleaser's checksums.txt.
+      - name: Update manifest plugin registry
+        env:
+          REGISTRY_TOKEN: ${{ secrets.REGISTRY_TOKEN }}
+          REF_NAME: ${{ github.ref_name }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          VERSION="${REF_NAME#v}"
+          if [ -z "${REGISTRY_TOKEN:-}" ]; then
+            echo "REGISTRY_TOKEN not set; skipping registry update"
+            exit 0
+          fi
+
+          go build -o /tmp/registry-update ./scripts/registry-update
+
+          declare -A SHAS
+          while IFS= read -r line; do
+            sum=$(echo "$line" | awk '{print $1}')
+            file=$(echo "$line" | awk '{print $2}')
+            SHAS[$file]=$sum
+          done < dist/checksums.txt
+
+          REPO_URL="https://github.com/${REPO}/releases/download/${REF_NAME}"
+          declare -a ARGS
+          for plat in darwin/arm64 darwin/amd64 linux/arm64 linux/amd64; do
+            os=${plat%/*}
+            arch=${plat#*/}
+            file="kapi-bowrain_${VERSION}_${os}_${arch}.tar.gz"
+            if [ -n "${SHAS[$file]:-}" ]; then
+              ARGS+=("--platform" "$plat" "--url" "${REPO_URL}/${file}" "--sha256" "${SHAS[$file]}")
+            fi
+          done
+
+          git clone "https://x-access-token:${REGISTRY_TOKEN}@github.com/neokapi/registry.git" /tmp/registry
+          /tmp/registry-update \
+            --registry /tmp/registry/manifest-plugins.json \
+            --plugin bowrain \
+            --version "$VERSION" \
+            --channel stable \
+            --released "$(date -u +%Y-%m-%d)" \
+            "${ARGS[@]}"
+          cd /tmp/registry
+          git config user.email "release-bot@neokapi.dev"
+          git config user.name "release-bot"
+          git add manifest-plugins.json
+          if ! git diff --staged --quiet; then
+            git commit -m "Register bowrain ${VERSION}"
+            git push
+          fi
+
   docker:
     name: Docker (${{ matrix.image }}, ${{ matrix.arch }})
     runs-on: ${{ matrix.runner }}
