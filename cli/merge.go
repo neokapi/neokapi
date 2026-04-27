@@ -63,7 +63,9 @@ func (a *App) runMerge(cmd *cobra.Command) error {
 	if err != nil {
 		return err
 	}
-	proj, err := project.Load(projectPath)
+	proj, err := a.LoadProjectInteractive(cmd.Context(), projectPath, LoadProjectInteractiveOptions{
+		AssumeYes: a.AssumeYes,
+	})
 	if err != nil {
 		return fmt.Errorf("load project: %w", err)
 	}

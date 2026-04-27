@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 
 	"github.com/neokapi/neokapi/cli/pluginhost"
@@ -28,6 +29,7 @@ func (a *App) NewPluginCmd() *cobra.Command {
 	cmd.AddCommand(a.newPluginListCmd())
 	cmd.AddCommand(a.newPluginInfoCmd())
 	cmd.AddCommand(a.newPluginInstallCmd())
+	cmd.AddCommand(a.newPluginUpdateCmd())
 	cmd.AddCommand(a.newPluginRemoveCmd())
 	cmd.AddCommand(a.newPluginSearchCmd())
 	cmd.AddCommand(a.newPluginUpdateIndexCmd())
@@ -143,6 +145,107 @@ Examples:
 	cmd.Flags().StringVar(&channel, "channel", "stable", "registry channel (e.g. stable, beta)")
 	cmd.Flags().BoolVar(&unsafe, "unsafe", false, "skip signature verification (still verifies SHA-256)")
 	cmd.Flags().StringVar(&indexURL, "index", "", "registry index URL (default: $KAPI_REGISTRY_URL or builtin)")
+	return cmd
+}
+
+// newPluginUpdateCmd implements `kapi plugin update <name>`.
+//
+// Reads <pluginDir>/installed.json to recover the channel, constraint,
+// and index URL the plugin was originally installed from. Then runs
+// the registry resolver against those same options. If the resolved
+// version equals the installed version the command reports
+// "already up to date"; otherwise it re-installs (which atomically
+// replaces the on-disk plugin dir) and prints before/after versions.
+func (a *App) newPluginUpdateCmd() *cobra.Command {
+	var channelOverride string
+	var constraintOverride string
+	var indexOverride string
+	var unsafe bool
+	cmd := &cobra.Command{
+		Use:   "update <name>",
+		Short: "Update an installed plugin to the latest matching version",
+		Long: `Update an installed plugin in place using the channel and constraint
+recorded at install time. Pass --channel or --constraint to switch
+tracks during update; --index points the update at a different
+registry index URL.
+
+Examples:
+  kapi plugin update bowrain
+  kapi plugin update bowrain --channel beta
+  kapi plugin update bowrain --constraint ^2.0`,
+		Args: cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			name := args[0]
+			pluginDir := filepath.Join(pluginhost.InstallTarget(), name)
+			if _, err := os.Stat(pluginDir); err != nil {
+				if os.IsNotExist(err) {
+					return fmt.Errorf("plugin %q is not installed under %s — install with `kapi plugin install %s`", name, pluginhost.InstallTarget(), name)
+				}
+				return err
+			}
+
+			meta, err := pluginhost.ReadInstalledMetadata(pluginDir)
+			switch {
+			case err != nil && os.IsNotExist(err):
+				// No bookkeeping file (legacy install or dev plugin).
+				// Fall back to channel/constraint/index from flags or
+				// defaults.
+				meta = &pluginhost.InstalledMetadata{}
+			case err != nil:
+				return err
+			}
+
+			channel := channelOverride
+			if channel == "" {
+				channel = meta.Channel
+			}
+			constraint := constraintOverride
+			if constraint == "" {
+				constraint = meta.Constraint
+			}
+			indexURL := indexOverride
+			if indexURL == "" {
+				indexURL = meta.IndexURL
+			}
+
+			currentVersion := meta.Version
+			if currentVersion == "" && a.PluginHost != nil {
+				if p := a.PluginHost.Plugin(name); p != nil {
+					currentVersion = p.Version()
+				}
+			}
+
+			result, err := pluginhost.InstallFromRegistry(cmd.Context(), pluginhost.InstallOptions{
+				IndexURL:    indexURL,
+				PluginName:  name,
+				Constraint:  constraint,
+				Channel:     channel,
+				KapiVersion: kapiVersion(),
+				Unsafe:      unsafe,
+				LogF: func(msg string) {
+					fmt.Fprintln(cmd.ErrOrStderr(), msg)
+				},
+			})
+			if err != nil {
+				return err
+			}
+
+			if currentVersion != "" && currentVersion == result.Version {
+				fmt.Fprintf(cmd.OutOrStdout(), "%s is already up to date (%s)\n", name, currentVersion)
+				return nil
+			}
+			if currentVersion != "" {
+				fmt.Fprintf(cmd.OutOrStdout(), "Updated %s %s → %s\n", name, currentVersion, result.Version)
+			} else {
+				fmt.Fprintf(cmd.OutOrStdout(), "Installed %s %s\n", name, result.Version)
+			}
+			return nil
+		},
+	}
+	cmd.Flags().StringVar(&channelOverride, "channel", "", "registry channel (default: channel from installed.json)")
+	cmd.Flags().StringVar(&constraintOverride, "constraint", "", "version constraint (default: constraint from installed.json)")
+	cmd.Flags().StringVar(&indexOverride, "index", "", "registry index URL (default: index_url from installed.json)")
+	cmd.Flags().BoolVar(&unsafe, "unsafe", false, "skip signature verification (still verifies SHA-256)")
 	return cmd
 }
 

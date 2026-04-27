@@ -104,7 +104,9 @@ Use -p to run a flow from a .kapi project file:
 // Project settings (source/target language, content patterns) are used as
 // defaults; CLI flags override everything.
 func (a *App) runFromProject(cmd *cobra.Command, flowName, projectPath string, opts RunCmdOptions) error {
-	proj, err := project.Load(projectPath)
+	proj, err := a.LoadProjectInteractive(cmd.Context(), projectPath, LoadProjectInteractiveOptions{
+		AssumeYes: a.AssumeYes,
+	})
 	if err != nil {
 		return fmt.Errorf("load project: %w", err)
 	}
