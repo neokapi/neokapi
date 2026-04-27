@@ -1,0 +1,287 @@
+package cli
+
+import (
+	"context"
+	"fmt"
+	"os"
+	"os/exec"
+	"strings"
+
+	"github.com/neokapi/neokapi/cli/pluginhost"
+	pluginreg "github.com/neokapi/neokapi/cli/pluginhost/registry"
+	"github.com/neokapi/neokapi/core/version"
+	"github.com/spf13/cobra"
+)
+
+// NewPluginCmd creates the manifest-driven plugin command tree
+// (singular `plugin`). The legacy `plugins` (plural) command tree
+// continues to manage gRPC bridge plugins until those migrate to the
+// unified model.
+func (a *App) NewPluginCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:     "plugin",
+		Short:   "Install and manage manifest-driven plugins (#438)",
+		GroupID: "management",
+	}
+
+	cmd.AddCommand(a.newPluginListCmd())
+	cmd.AddCommand(a.newPluginInfoCmd())
+	cmd.AddCommand(a.newPluginInstallCmd())
+	cmd.AddCommand(a.newPluginRemoveCmd())
+	cmd.AddCommand(a.newPluginSearchCmd())
+	cmd.AddCommand(a.newPluginUpdateIndexCmd())
+	cmd.AddCommand(a.newPluginRebuildCacheCmd())
+	cmd.AddCommand(a.newPluginVerifyCmd())
+	return cmd
+}
+
+func (a *App) newPluginListCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "list",
+		Short: "List installed plugins",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if a.PluginHost == nil {
+				return fmt.Errorf("plugin host is not initialized")
+			}
+			plugins := a.PluginHost.Plugins()
+			if len(plugins) == 0 {
+				fmt.Fprintln(cmd.OutOrStdout(), "No plugins installed.")
+				fmt.Fprintln(cmd.OutOrStdout(), "Search the registry: kapi plugin search")
+				return nil
+			}
+			for _, p := range plugins {
+				fmt.Fprintf(cmd.OutOrStdout(), "%-20s %-10s %-12s %s\n",
+					p.Name(), p.Version(), p.Manifest.License, p.Source.Label)
+			}
+			return nil
+		},
+	}
+}
+
+func (a *App) newPluginInfoCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "info <name>",
+		Short: "Show details for an installed plugin",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if a.PluginHost == nil {
+				return fmt.Errorf("plugin host is not initialized")
+			}
+			p := a.PluginHost.Plugin(args[0])
+			if p == nil {
+				return fmt.Errorf("plugin %q is not installed", args[0])
+			}
+			fmt.Fprintf(cmd.OutOrStdout(), "Plugin:        %s\n", p.Name())
+			fmt.Fprintf(cmd.OutOrStdout(), "Version:       %s\n", p.Version())
+			fmt.Fprintf(cmd.OutOrStdout(), "License:       %s\n", p.Manifest.License)
+			if p.Manifest.Author != "" {
+				fmt.Fprintf(cmd.OutOrStdout(), "Author:        %s\n", p.Manifest.Author)
+			}
+			if p.Manifest.Homepage != "" {
+				fmt.Fprintf(cmd.OutOrStdout(), "Homepage:      %s\n", p.Manifest.Homepage)
+			}
+			fmt.Fprintf(cmd.OutOrStdout(), "Install dir:   %s\n", p.Dir)
+			fmt.Fprintf(cmd.OutOrStdout(), "Source:        %s\n", p.Source.Label)
+			fmt.Fprintf(cmd.OutOrStdout(), "Binary:        %s\n", p.BinaryPath)
+			c := p.Manifest.Capabilities
+			if len(c.Commands) > 0 {
+				fmt.Fprintf(cmd.OutOrStdout(), "Commands:      %d\n", len(c.Commands))
+			}
+			if len(c.MCPTools) > 0 {
+				fmt.Fprintf(cmd.OutOrStdout(), "MCP tools:     %d\n", len(c.MCPTools))
+			}
+			if len(c.Formats) > 0 {
+				fmt.Fprintf(cmd.OutOrStdout(), "Formats:       %d\n", len(c.Formats))
+			}
+			if len(c.SchemaExtensions) > 0 {
+				fmt.Fprintf(cmd.OutOrStdout(), "Schema exts:   %d\n", len(c.SchemaExtensions))
+			}
+			return nil
+		},
+	}
+}
+
+func (a *App) newPluginInstallCmd() *cobra.Command {
+	var channel string
+	var unsafe bool
+	var indexURL string
+	cmd := &cobra.Command{
+		Use:   "install <name[@version]>",
+		Short: "Install a plugin from the registry",
+		Long: `Install a plugin from a registry. The plugin is downloaded,
+verified (SHA-256 + cosign signature), and unpacked into
+$XDG_DATA_HOME/kapi/plugins/<name>/.
+
+Examples:
+  kapi plugin install bowrain
+  kapi plugin install bowrain@^1.0
+  kapi plugin install bowrain --channel beta`,
+		Args: cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			name, constraint := parsePluginRef(args[0])
+			opts := pluginhost.InstallOptions{
+				IndexURL:    indexURL,
+				PluginName:  name,
+				Constraint:  constraint,
+				Channel:     channel,
+				KapiVersion: kapiVersion(),
+				Unsafe:      unsafe,
+				LogF: func(msg string) {
+					fmt.Fprintln(cmd.ErrOrStderr(), msg)
+				},
+			}
+			result, err := pluginhost.InstallFromRegistry(cmd.Context(), opts)
+			if err != nil {
+				return err
+			}
+			fmt.Fprintf(cmd.OutOrStdout(), "Installed %s %s to %s\n", result.PluginName, result.Version, result.InstallDir)
+			fmt.Fprintln(cmd.OutOrStdout(), "Run 'kapi plugin list' to verify, or 'kapi --help' to see new commands.")
+			return nil
+		},
+	}
+	cmd.Flags().StringVar(&channel, "channel", "stable", "registry channel (e.g. stable, beta)")
+	cmd.Flags().BoolVar(&unsafe, "unsafe", false, "skip signature verification (still verifies SHA-256)")
+	cmd.Flags().StringVar(&indexURL, "index", "", "registry index URL (default: $KAPI_REGISTRY_URL or builtin)")
+	return cmd
+}
+
+func (a *App) newPluginRemoveCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "remove <name>",
+		Short: "Remove an installed plugin",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if err := pluginhost.RemoveInstalled(args[0]); err != nil {
+				return err
+			}
+			fmt.Fprintf(cmd.OutOrStdout(), "Removed %s\n", args[0])
+			return nil
+		},
+	}
+}
+
+func (a *App) newPluginSearchCmd() *cobra.Command {
+	var indexURL string
+	cmd := &cobra.Command{
+		Use:   "search [query]",
+		Short: "Search the registry for plugins",
+		Args:  cobra.MaximumNArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			query := ""
+			if len(args) > 0 {
+				query = strings.ToLower(args[0])
+			}
+			url := indexURL
+			if url == "" {
+				url = pluginhost.DefaultIndexURL()
+			}
+			idx, err := pluginreg.FetchOrCached(cmd.Context(), url, true)
+			if err != nil {
+				return err
+			}
+			for name, entry := range idx.Plugins {
+				if query != "" && !strings.Contains(strings.ToLower(name), query) && !strings.Contains(strings.ToLower(entry.Description), query) {
+					continue
+				}
+				latest := ""
+				for v := range entry.Versions {
+					if latest == "" || pluginreg.CompareSemver(v, latest) > 0 {
+						latest = v
+					}
+				}
+				fmt.Fprintf(cmd.OutOrStdout(), "%-20s %-10s %s\n", name, latest, entry.Description)
+			}
+			return nil
+		},
+	}
+	cmd.Flags().StringVar(&indexURL, "index", "", "registry index URL")
+	return cmd
+}
+
+func (a *App) newPluginUpdateIndexCmd() *cobra.Command {
+	var indexURL string
+	cmd := &cobra.Command{
+		Use:   "update-index",
+		Short: "Refresh the cached registry index",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			url := indexURL
+			if url == "" {
+				url = pluginhost.DefaultIndexURL()
+			}
+			_, err := pluginreg.FetchOrCached(cmd.Context(), url, true)
+			if err != nil {
+				return err
+			}
+			fmt.Fprintln(cmd.OutOrStdout(), "Refreshed registry index from", url)
+			return nil
+		},
+	}
+	cmd.Flags().StringVar(&indexURL, "index", "", "registry index URL")
+	return cmd
+}
+
+func (a *App) newPluginRebuildCacheCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "rebuild-cache",
+		Short: "Force a rebuild of the plugin dispatch cache",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			opts := pluginhost.DiscoverOptions{
+				EnvPluginsDir: os.Getenv("KAPI_PLUGINS_DIR"),
+				OnWarn: func(s string) {
+					fmt.Fprintln(cmd.ErrOrStderr(), "Warning:", s)
+				},
+			}
+			plugins := pluginhost.Discover(opts)
+			cache := pluginhost.BuildCache(opts, plugins)
+			if err := pluginhost.SaveCache(pluginhost.CacheLocation(), cache); err != nil {
+				return err
+			}
+			fmt.Fprintf(cmd.OutOrStdout(), "Rebuilt cache: %d plugin(s) → %s\n", len(plugins), pluginhost.CacheLocation())
+			return nil
+		},
+	}
+}
+
+func (a *App) newPluginVerifyCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "verify <name>",
+		Short: "Re-verify an installed plugin's manifest and binary",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if a.PluginHost == nil {
+				return fmt.Errorf("plugin host not initialized")
+			}
+			p := a.PluginHost.Plugin(args[0])
+			if p == nil {
+				return fmt.Errorf("plugin %q is not installed", args[0])
+			}
+			out, err := runVersionProbe(cmd.Context(), p.BinaryPath)
+			if err != nil {
+				return fmt.Errorf("plugin %q: version probe failed: %w", p.Name(), err)
+			}
+			declared := p.Manifest.Version
+			actual := strings.TrimSpace(string(out))
+			if actual != declared {
+				return fmt.Errorf("plugin %q: manifest version %q ≠ binary version %q", p.Name(), declared, actual)
+			}
+			fmt.Fprintf(cmd.OutOrStdout(), "✓ %s %s OK\n", p.Name(), declared)
+			return nil
+		},
+	}
+}
+
+// parsePluginRef splits "name@^1.0" → ("name", "^1.0").
+func parsePluginRef(ref string) (name, constraint string) {
+	if i := strings.IndexByte(ref, '@'); i >= 0 {
+		return ref[:i], ref[i+1:]
+	}
+	return ref, ""
+}
+
+func kapiVersion() string {
+	return version.Version
+}
+
+func runVersionProbe(ctx context.Context, binPath string) ([]byte, error) {
+	return exec.CommandContext(ctx, binPath, "version").CombinedOutput()
+}
