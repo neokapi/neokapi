@@ -215,11 +215,30 @@ Plugin tarballs are signed with [cosign](https://sigstore.dev/) keyless
 (OIDC, GitHub Actions). `kapi plugin install` verifies:
 
 1. SHA-256 against the registry-pinned hash
-2. Cosign signature against the registry-pinned cert identity and
-   OIDC issuer
+2. Sigstore signature against the registry-pinned cert identity and
+   OIDC issuer (cosign keyless: Fulcio cert + Rekor entry)
 
-`--unsafe` skips signature verification (used for local development of
-unsigned plugins under `$KAPI_PLUGINS_DIR`).
+The publisher releases a `<artifact>.sigstore.json` bundle alongside
+the tarball. The registry entry references it via the `signature` URL
+field plus the pinned `cert_identity` (typically the GitHub Actions
+workflow URL) and `cert_oidc_issuer` (typically
+`https://token.actions.githubusercontent.com`). Verification is
+implemented with [`sigstore-go`](https://github.com/sigstore/sigstore-go)
+to keep the dependency footprint manageable; the full `cosign` CLI
+library would drag in cloud-provider SDKs we don't need.
+
+Verification mirrors `cosign verify-blob` defaults for keyless:
+
+- Signed Certificate Timestamp (SCT) threshold 1
+- Transparency log (Rekor) threshold 1
+- Observer timestamp threshold 1 (satisfied by either an integrated
+  Rekor timestamp or an RFC 3161 TSA timestamp)
+
+`--unsafe` skips both the SHA-256 and signature checks (used for local
+development of unsigned plugins under `$KAPI_PLUGINS_DIR`). Without
+`--unsafe`, registry entries that omit `signature`, `cert_identity`,
+or `cert_oidc_issuer` are rejected — there is no silent unsigned
+install path.
 
 ## Reference plugin
 

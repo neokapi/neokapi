@@ -168,6 +168,7 @@ func TestPluginUpdate_SecondInstallReplacesFirst(t *testing.T) {
 		PluginName: "demo",
 		Constraint: "1.0.0",
 		Channel:    "stable",
+		Unsafe:     true, // local httptest registry has no signatures
 	})
 	require.NoError(t, err)
 	assert.Equal(t, "1.0.0", first.Version)
@@ -184,6 +185,7 @@ func TestPluginUpdate_SecondInstallReplacesFirst(t *testing.T) {
 	stdout, stderr, err := runUpdate(t, app, "demo",
 		"--index", server.URL+"/plugins.json",
 		"--constraint", "^1.0.0",
+		"--unsafe",
 	)
 	require.NoErrorf(t, err, "update failed; stderr=%s", stderr.String())
 	assert.Contains(t, stdout.String(), "Updated demo 1.0.0 → 1.1.0")
@@ -205,12 +207,13 @@ func TestPluginUpdate_AlreadyUpToDate(t *testing.T) {
 		PluginName: "demo",
 		Constraint: "^1.0.0",
 		Channel:    "stable",
+		Unsafe:     true, // local httptest registry has no signatures
 	})
 	require.NoError(t, err)
 	require.Equal(t, "1.0.0", first.Version)
 
 	app := &App{}
-	stdout, stderr, err := runUpdate(t, app, "demo", "--index", server.URL+"/plugins.json")
+	stdout, stderr, err := runUpdate(t, app, "demo", "--index", server.URL+"/plugins.json", "--unsafe")
 	require.NoErrorf(t, err, "update failed; stderr=%s", stderr.String())
 	assert.Contains(t, stdout.String(), "demo is already up to date")
 }
