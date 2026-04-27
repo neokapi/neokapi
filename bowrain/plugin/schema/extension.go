@@ -8,7 +8,7 @@ import (
 )
 
 // Group is the extension group name for bowrain. Recipes that depend on
-// the bowrain platform should declare `requires: [bowrain]` to refuse to
+// the bowrain platform should declare `requires: { bowrain: "^1.0" }` to refuse to
 // load when no host has registered the bowrain schema.
 const Group = "bowrain"
 

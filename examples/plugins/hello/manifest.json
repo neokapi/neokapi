@@ -1,0 +1,27 @@
+{
+  "manifest_version": "1",
+  "plugin": "hello",
+  "version": "0.1.0",
+  "description": "Reference plugin demonstrating kapi plugin protocol v1 (Mode A + B)",
+  "homepage": "https://github.com/neokapi/neokapi/tree/main/examples/plugins/hello",
+  "author": "Neokapi <hello@neokapi.dev>",
+  "license": "Apache-2.0",
+  "binary": "kapi-hello",
+  "min_kapi_version": "0.0.1",
+  "capabilities": {
+    "commands": [
+      {
+        "name": "hello",
+        "short": "Say hello to someone",
+        "long": "Print a friendly greeting. Pass a name as the first argument to greet someone specific.",
+        "args": [{"name": "name", "optional": true}]
+      }
+    ],
+    "mcp_tools": [
+      {
+        "name": "say_hello",
+        "description": "Return a friendly greeting"
+      }
+    ]
+  }
+}

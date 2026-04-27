@@ -99,12 +99,12 @@ func TestValidate_RequiresMissingGroup(t *testing.T) {
 
 	p := &KapiProject{
 		Version:  CurrentVersion,
-		Requires: []string{"bowrain"},
+		Requires: RequiresMap{"bowrain": "^1.0"},
 	}
 	err := p.Validate()
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), `requires extension group "bowrain"`)
-	assert.Contains(t, err.Error(), `not built with`)
+	assert.Contains(t, err.Error(), `requires plugin "bowrain"`)
+	assert.Contains(t, err.Error(), `kapi plugin install bowrain`)
 }
 
 func TestValidate_RequiresPresentGroup(t *testing.T) {
@@ -119,9 +119,53 @@ func TestValidate_RequiresPresentGroup(t *testing.T) {
 
 	p := &KapiProject{
 		Version:  CurrentVersion,
-		Requires: []string{"bowrain"},
+		Requires: RequiresMap{"bowrain": "^1.0"},
 	}
 	require.NoError(t, p.Validate())
+}
+
+func TestValidate_RequiresInvalidConstraint(t *testing.T) {
+	ResetExtensionsForTest()
+	defer ResetExtensionsForTest()
+
+	p := &KapiProject{
+		Version:  CurrentVersion,
+		Requires: RequiresMap{"bowrain": ""},
+	}
+	err := p.Validate()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), `invalid version constraint`)
+}
+
+func TestRequiresMap_RejectsBareListForm(t *testing.T) {
+	p := &KapiProject{}
+	err := yaml.Unmarshal([]byte(`
+version: v1
+requires: [bowrain, okapi-bridge]
+`), p)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "bare-list form is no longer supported")
+	assert.Contains(t, err.Error(), `bowrain: "*"`)
+	assert.Contains(t, err.Error(), `okapi-bridge: "*"`)
+}
+
+func TestRequiresMap_AcceptsMapForm(t *testing.T) {
+	ResetExtensionsForTest()
+	defer ResetExtensionsForTest()
+
+	RegisterExtension(Extension{Name: "anything", Scope: ScopeProject, Group: "bowrain"})
+	RegisterExtension(Extension{Name: "other", Scope: ScopeProject, Group: "okapi-bridge"})
+
+	p := &KapiProject{}
+	require.NoError(t, yaml.Unmarshal([]byte(`
+version: v1
+requires:
+  bowrain: "^1.0"
+  okapi-bridge: ">=1.47.0"
+`), p))
+	require.NoError(t, p.Validate())
+	assert.Equal(t, "^1.0", p.Requires["bowrain"])
+	assert.Equal(t, ">=1.47.0", p.Requires["okapi-bridge"])
 }
 
 func TestRegisterExtensionGroup_StampsGroup(t *testing.T) {

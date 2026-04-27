@@ -225,12 +225,24 @@ brand_voice:
 
 func TestRecipeValidate_RequiresBowrainGroupPasses(t *testing.T) {
 	// The group is registered by this package's init(), so a recipe
-	// declaring `requires: [bowrain]` should validate.
+	// declaring `requires: { bowrain: "*" }` should validate.
+	src := `
+version: v1
+requires:
+  bowrain: "*"
+`
+	var p coreproj.KapiProject
+	require.NoError(t, yaml.Unmarshal([]byte(src), &p))
+	assert.NoError(t, p.Validate())
+}
+
+func TestRecipeValidate_BareListRejected(t *testing.T) {
 	src := `
 version: v1
 requires: [bowrain]
 `
 	var p coreproj.KapiProject
-	require.NoError(t, yaml.Unmarshal([]byte(src), &p))
-	assert.NoError(t, p.Validate())
+	err := yaml.Unmarshal([]byte(src), &p)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "bare-list form is no longer supported")
 }

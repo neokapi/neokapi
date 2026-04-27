@@ -1,0 +1,174 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://neokapi.dev/schemas/plugin-manifest/v1.json",
+  "title": "Kapi plugin manifest (v1)",
+  "description": "Sidecar manifest.json shipped inside every plugin directory. Declares everything the plugin provides — commands, MCP tools, format readers/writers, flow tools, source connectors, and recipe schema extensions.",
+  "type": "object",
+  "required": ["manifest_version", "plugin", "version", "binary"],
+  "properties": {
+    "manifest_version": {
+      "description": "Schema version of this manifest. Currently always \"1\".",
+      "type": "string",
+      "enum": ["1"]
+    },
+    "plugin": {
+      "description": "Plugin's unique name. Used as install dir name and dispatch key.",
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9-]*$"
+    },
+    "version": {
+      "description": "Plugin semver (e.g., \"1.4.0\").",
+      "type": "string"
+    },
+    "description": { "type": "string" },
+    "homepage": { "type": "string", "format": "uri" },
+    "author": { "type": "string" },
+    "license": { "type": "string", "description": "SPDX license identifier" },
+    "binary": {
+      "description": "Executable name within the plugin dir (no path separators).",
+      "type": "string",
+      "pattern": "^[^/\\\\]+$"
+    },
+    "min_kapi_version": { "type": "string" },
+    "group": { "type": "string" },
+    "capabilities": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "commands": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["name"],
+            "additionalProperties": false,
+            "properties": {
+              "name": { "type": "string" },
+              "short": { "type": "string" },
+              "long": { "type": "string" },
+              "args": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": ["name"],
+                  "additionalProperties": false,
+                  "properties": {
+                    "name": { "type": "string" },
+                    "optional": { "type": "boolean" },
+                    "variadic": { "type": "boolean" }
+                  }
+                }
+              },
+              "flags": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": ["name", "type"],
+                  "additionalProperties": false,
+                  "properties": {
+                    "name": { "type": "string" },
+                    "short": { "type": "string", "maxLength": 1 },
+                    "type": { "type": "string", "enum": ["bool", "string", "int", "stringSlice"] },
+                    "description": { "type": "string" },
+                    "default": {}
+                  }
+                }
+              },
+              "subcommands": { "type": "array", "items": { "type": "string" } }
+            }
+          }
+        },
+        "mcp_tools": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["name"],
+            "additionalProperties": false,
+            "properties": {
+              "name": { "type": "string" },
+              "description": { "type": "string" }
+            }
+          }
+        },
+        "formats": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["name"],
+            "additionalProperties": false,
+            "properties": {
+              "name": { "type": "string" },
+              "display_name": { "type": "string" },
+              "description": { "type": "string" },
+              "extensions": { "type": "array", "items": { "type": "string" } },
+              "mime_types": { "type": "array", "items": { "type": "string" } },
+              "capabilities": {
+                "type": "array",
+                "items": { "type": "string", "enum": ["read", "write"] }
+              },
+              "schema": { "type": "string" }
+            }
+          }
+        },
+        "tools": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["name"],
+            "additionalProperties": false,
+            "properties": {
+              "name": { "type": "string" },
+              "description": { "type": "string" },
+              "category": { "type": "string" },
+              "inputs": { "type": "array", "items": { "type": "string" } },
+              "outputs": { "type": "array", "items": { "type": "string" } },
+              "schema": { "type": "string" }
+            }
+          }
+        },
+        "source_connectors": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["id"],
+            "additionalProperties": false,
+            "properties": {
+              "id": { "type": "string" },
+              "description": { "type": "string" }
+            }
+          }
+        },
+        "schema_extensions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["name", "scope"],
+            "additionalProperties": false,
+            "properties": {
+              "name": { "type": "string" },
+              "scope": { "type": "string", "enum": ["project", "defaults", "collection", "item"] },
+              "group": { "type": "string" },
+              "json_schema": { "type": "string" }
+            }
+          }
+        }
+      }
+    },
+    "daemon": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "idle_timeout_seconds": { "type": "integer", "minimum": 1 },
+        "startup_timeout_seconds": { "type": "integer", "minimum": 1 },
+        "handshake": {
+          "type": "object",
+          "required": ["type"],
+          "additionalProperties": false,
+          "properties": {
+            "type": { "type": "string", "enum": ["stdio-handshake"] },
+            "fields": { "type": "array", "items": { "type": "string" } }
+          }
+        }
+      }
+    }
+  }
+}

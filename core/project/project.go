@@ -42,11 +42,16 @@ type KapiProject struct {
 	Preset   string                     `yaml:"preset,omitempty" json:"preset,omitempty"`
 	Flows    map[string]*flow.StepsSpec `yaml:"flows,omitempty" json:"flows,omitempty"`
 
-	// Requires lists extension groups this recipe depends on. Validation
-	// fails if any named group has no registered extension in the loading
-	// process. A recipe with `requires: [bowrain]` will refuse to load in a
-	// binary built without the bowrain extension package linked in.
-	Requires []string `yaml:"requires,omitempty" json:"requires,omitempty"`
+	// Requires lists plugin dependencies as a map of plugin name → version
+	// constraint. Validation fails if any named plugin (or extension group
+	// of the same name) has no registered extension in the loading process.
+	// A recipe with `requires: { bowrain: "^1.0" }` will refuse to load in a
+	// binary that has not registered the bowrain extension.
+	//
+	// Version constraints follow semver (`^1.0`, `>=1.47.0`, `~1.4.2`,
+	// `1.4.0` exact-match, `*` any). The map form is mandatory — a bare-list
+	// form (`requires: [bowrain]`) is rejected with an actionable error.
+	Requires RequiresMap `yaml:"requires,omitempty" json:"requires,omitempty"`
 
 	// Extras captures any top-level YAML keys the framework does not know
 	// about. Platform layers decode their own typed schema
@@ -449,9 +454,15 @@ func (p *KapiProject) Validate() error {
 			}
 		}
 	}
-	for _, group := range p.Requires {
-		if !HasExtensionGroup(group) {
-			return fmt.Errorf("recipe requires extension group %q but no matching extension is registered (this binary was not built with the %q extension linked in)", group, group)
+	for name, constraint := range p.Requires {
+		if name == "" {
+			return errors.New("requires: plugin name cannot be empty")
+		}
+		if !validVersionConstraint(constraint) {
+			return fmt.Errorf("requires.%s: invalid version constraint %q (use semver: ^1.0, >=1.4.0, 1.4.0, ~1.4.2, or *)", name, constraint)
+		}
+		if !HasExtensionGroup(name) {
+			return fmt.Errorf("recipe requires plugin %q (%s) but no matching extension is registered (install with `kapi plugin install %s`)", name, constraint, name)
 		}
 	}
 	if err := validateExtras(ScopeProject, "", p.Extras); err != nil {
