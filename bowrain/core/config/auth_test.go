@@ -90,7 +90,7 @@ func TestDeleteAuthClearsKeychainAndFile(t *testing.T) {
 	require.NoError(t, DeleteAuth("https://bowrain.example.com"))
 
 	_, err := LoadAuth()
-	assert.Error(t, err, "auth metadata should be gone")
+	require.Error(t, err, "auth metadata should be gone")
 
 	_, err = keyring.Get(keyringService, keyringAccessKey("https://bowrain.example.com"))
 	assert.ErrorIs(t, err, keyring.ErrNotFound)
