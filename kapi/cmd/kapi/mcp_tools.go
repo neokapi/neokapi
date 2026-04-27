@@ -300,7 +300,9 @@ func handleRunFlow(ctx context.Context, a *cli.App, input RunFlowInput) (*mcp.Ca
 }
 
 func handleRunFlowWithProject(ctx context.Context, a *cli.App, input RunFlowInput) (*mcp.CallToolResult, RunFlowOutput, error) {
-	proj, err := project.Load(input.Project)
+	proj, err := a.LoadProjectInteractive(ctx, input.Project, cli.LoadProjectInteractiveOptions{
+		AssumeYes: a.AssumeYes,
+	})
 	if err != nil {
 		return nil, RunFlowOutput{}, fmt.Errorf("load project: %w", err)
 	}
@@ -486,7 +488,9 @@ func openReader(ctx context.Context, a *cli.App, path, formatOverride, sourceLan
 	if fmtName == "" {
 		// Use project-scoped detection when a project file is specified.
 		if projectPath != "" {
-			proj, err := project.Load(projectPath)
+			proj, err := a.LoadProjectInteractive(ctx, projectPath, cli.LoadProjectInteractiveOptions{
+				AssumeYes: a.AssumeYes,
+			})
 			if err == nil {
 				pctx := project.NewProjectContext(proj, projectPath)
 				fmtName = pctx.DetectFormat(a.FormatReg, path)

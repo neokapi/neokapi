@@ -39,6 +39,7 @@ type App struct {
 	// Flags bound by AddPersistentFlags.
 	Verbose        bool
 	Quiet          bool
+	AssumeYes      bool // --yes / -y; auto-confirm prompts (e.g. plugin auto-install)
 	CfgFile        string
 	PluginDir      string
 	DisablePlugins string // comma-separated plugin names to skip
@@ -99,6 +100,7 @@ func (a *App) AddPersistentFlags(cmd *cobra.Command) {
 	cmd.PersistentFlags().StringVarP(&a.CfgFile, "config", "c", "", "config file path")
 	cmd.PersistentFlags().BoolVarP(&a.Verbose, "verbose", "v", false, "verbose output")
 	cmd.PersistentFlags().BoolVarP(&a.Quiet, "quiet", "q", false, "suppress output")
+	cmd.PersistentFlags().BoolVarP(&a.AssumeYes, "yes", "y", false, "assume yes for confirmation prompts (e.g. plugin auto-install)")
 	cmd.PersistentFlags().StringVar(&a.PluginDir, "plugin-dir", "", "plugin directory")
 	cmd.PersistentFlags().StringVar(&a.DisablePlugins, "disable-plugins", "", "comma-separated plugin names to skip (e.g. okapi)")
 	cmd.PersistentFlags().StringVar(&a.Lang, "lang", "", "UI locale for tool/format/plugin metadata (BCP-47, e.g. fr-FR); falls back to KAPI_LANG / LC_ALL / LANG")

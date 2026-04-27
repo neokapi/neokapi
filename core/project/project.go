@@ -22,12 +22,21 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"sort"
 
 	"github.com/neokapi/neokapi/core/flow"
 	"github.com/neokapi/neokapi/core/model"
 
 	"gopkg.in/yaml.v3"
 )
+
+// sortMissingRequires sorts a slice of MissingRequirement by plugin name
+// for deterministic output.
+func sortMissingRequires(s []MissingRequirement) {
+	sort.SliceStable(s, func(i, j int) bool {
+		return s[i].Plugin < s[j].Plugin
+	})
+}
 
 // CurrentVersion is the schema version for .kapi files.
 const CurrentVersion = "v1"
@@ -363,8 +372,36 @@ func FindProject(start string) (*KapiProject, Layout, error) {
 	return proj, layout, nil
 }
 
-// Load reads a .kapi project file from the given path.
+// LoadOptions tunes Load behavior.
+//
+// The zero value matches the historical Load semantics (full validation
+// including the requires-extension check). Setting SkipRequiresCheck lets
+// higher layers (the CLI) intercept missing-plugin failures and offer an
+// interactive auto-install before re-validating.
+type LoadOptions struct {
+	// SkipRequiresCheck disables the "every requires.<plugin> must have
+	// a registered extension" check during Validate. The rest of
+	// validation still runs (version, content shape, flow shape, extras
+	// schema, version-constraint syntax). Callers that set this should
+	// run ValidateRequires explicitly once they've taken any
+	// remediation actions (e.g. auto-installing the missing plugin).
+	SkipRequiresCheck bool
+}
+
+// Load reads a .kapi project file from the given path. It is a
+// backwards-compatible wrapper around LoadWithOptions that runs full
+// validation.
 func Load(path string) (*KapiProject, error) {
+	return LoadWithOptions(path, LoadOptions{})
+}
+
+// LoadWithOptions reads a .kapi project file with the given options.
+//
+// When opts.SkipRequiresCheck is set, missing extension groups named in
+// the recipe's requires: block do NOT fail Validate. The caller is
+// expected to call ValidateRequires once it's had a chance to install
+// missing plugins.
+func LoadWithOptions(path string, opts LoadOptions) (*KapiProject, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, fmt.Errorf("read project file: %w", err)
@@ -375,7 +412,7 @@ func Load(path string) (*KapiProject, error) {
 		return nil, fmt.Errorf("parse project file: %w", err)
 	}
 
-	if err := proj.Validate(); err != nil {
+	if err := proj.validate(opts); err != nil {
 		return nil, fmt.Errorf("invalid project file: %w", err)
 	}
 
@@ -407,8 +444,17 @@ func Save(path string, proj *KapiProject) error {
 	return nil
 }
 
-// Validate checks that the project file is well-formed.
+// Validate checks that the project file is well-formed. Equivalent to
+// validate(LoadOptions{}) — i.e. it runs the requires-extension check.
 func (p *KapiProject) Validate() error {
+	return p.validate(LoadOptions{})
+}
+
+// validate is the option-driven implementation behind Validate /
+// LoadWithOptions. When opts.SkipRequiresCheck is set, it still
+// validates the syntax of every requires constraint but does not fail
+// when an extension group is missing.
+func (p *KapiProject) validate(opts LoadOptions) error {
 	if p.Version == "" {
 		return errors.New("version is required")
 	}
@@ -454,15 +500,12 @@ func (p *KapiProject) Validate() error {
 			}
 		}
 	}
-	for name, constraint := range p.Requires {
-		if name == "" {
-			return errors.New("requires: plugin name cannot be empty")
-		}
-		if !validVersionConstraint(constraint) {
-			return fmt.Errorf("requires.%s: invalid version constraint %q (use semver: ^1.0, >=1.4.0, 1.4.0, ~1.4.2, or *)", name, constraint)
-		}
-		if !HasExtensionGroup(name) {
-			return fmt.Errorf("recipe requires plugin %q (%s) but no matching extension is registered (install with `kapi plugin install %s`)", name, constraint, name)
+	if err := p.validateRequiresSyntax(); err != nil {
+		return err
+	}
+	if !opts.SkipRequiresCheck {
+		if err := p.validateRequiresExtensionsRegistered(); err != nil {
+			return err
 		}
 	}
 	if err := validateExtras(ScopeProject, "", p.Extras); err != nil {
@@ -484,6 +527,71 @@ func (p *KapiProject) Validate() error {
 		}
 	}
 	return nil
+}
+
+// validateRequiresSyntax checks every Requires entry for non-empty
+// plugin name and well-formed version constraint. It does not check
+// whether the extension is registered with the framework.
+func (p *KapiProject) validateRequiresSyntax() error {
+	for name, constraint := range p.Requires {
+		if name == "" {
+			return errors.New("requires: plugin name cannot be empty")
+		}
+		if !validVersionConstraint(constraint) {
+			return fmt.Errorf("requires.%s: invalid version constraint %q (use semver: ^1.0, >=1.4.0, 1.4.0, ~1.4.2, or *)", name, constraint)
+		}
+	}
+	return nil
+}
+
+// validateRequiresExtensionsRegistered checks that every plugin named in
+// Requires has at least one Extension registered with the framework.
+func (p *KapiProject) validateRequiresExtensionsRegistered() error {
+	for name, constraint := range p.Requires {
+		if !HasExtensionGroup(name) {
+			return fmt.Errorf("recipe requires plugin %q (%s) but no matching extension is registered (install with `kapi plugin install %s`)", name, constraint, name)
+		}
+	}
+	return nil
+}
+
+// MissingRequires returns the subset of Requires entries for which no
+// Extension group is currently registered, in deterministic (sorted)
+// order. Higher layers can use this to drive an interactive
+// auto-install prompt.
+func (p *KapiProject) MissingRequires() []MissingRequirement {
+	var missing []MissingRequirement
+	for name, constraint := range p.Requires {
+		if !HasExtensionGroup(name) {
+			missing = append(missing, MissingRequirement{
+				Plugin:     name,
+				Constraint: constraint,
+			})
+		}
+	}
+	// Deterministic order so the prompt UI is stable.
+	sortMissingRequires(missing)
+	return missing
+}
+
+// ValidateRequires re-runs the requires-extension check on its own.
+// Useful after LoadWithOptions(SkipRequiresCheck: true) and any
+// remediation (e.g. auto-installing the missing plugin) has been
+// performed.
+func (p *KapiProject) ValidateRequires() error {
+	if err := p.validateRequiresSyntax(); err != nil {
+		return err
+	}
+	return p.validateRequiresExtensionsRegistered()
+}
+
+// MissingRequirement names one declared dependency for which no
+// matching extension group is currently registered.
+type MissingRequirement struct {
+	// Plugin is the plugin name as it appears in requires:.
+	Plugin string
+	// Constraint is the version constraint declared in requires:.
+	Constraint string
 }
 
 // GetFlow returns the StepsSpec for a named flow, or nil if not found.

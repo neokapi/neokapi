@@ -156,7 +156,7 @@ func InstallFromRegistry(ctx context.Context, opts InstallOptions) (*InstallResu
 
 	// Persist a small `installed.json` so future `update` knows which
 	// channel was selected and which registry served the plugin.
-	if err := writeInstalledMetadata(pluginDir, installedMetadata{
+	if err := writeInstalledMetadata(pluginDir, InstalledMetadata{
 		Channel:     channel,
 		Constraint:  opts.Constraint,
 		IndexURL:    opts.IndexURL,
@@ -177,8 +177,9 @@ func InstallFromRegistry(ctx context.Context, opts InstallOptions) (*InstallResu
 	}, nil
 }
 
-// installedMetadata records install-time choices for `kapi plugin update`.
-type installedMetadata struct {
+// InstalledMetadata records install-time choices for `kapi plugin update`.
+// Persisted at <pluginDir>/installed.json by InstallFromRegistry.
+type InstalledMetadata struct {
 	Channel     string `json:"channel,omitempty"`
 	Constraint  string `json:"constraint,omitempty"`
 	IndexURL    string `json:"index_url,omitempty"`
@@ -186,13 +187,30 @@ type installedMetadata struct {
 	InstalledAt string `json:"installed_at,omitempty"`
 }
 
-func writeInstalledMetadata(pluginDir string, meta installedMetadata) error {
+func writeInstalledMetadata(pluginDir string, meta InstalledMetadata) error {
 	path := filepath.Join(pluginDir, "installed.json")
 	data, err := jsonMarshalIndent(meta)
 	if err != nil {
 		return err
 	}
 	return os.WriteFile(path, data, 0o644)
+}
+
+// ReadInstalledMetadata returns the installed.json bookkeeping for
+// pluginDir. Returns os.ErrNotExist when the file is missing — that's
+// the expected case for plugins installed before installed.json
+// became part of the install layout (tests, dev plugins, etc.).
+func ReadInstalledMetadata(pluginDir string) (*InstalledMetadata, error) {
+	path := filepath.Join(pluginDir, "installed.json")
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+	var m InstalledMetadata
+	if err := jsonUnmarshal(data, &m); err != nil {
+		return nil, fmt.Errorf("parse %s: %w", path, err)
+	}
+	return &m, nil
 }
 
 // extractPluginArchive extracts a tarball or zip into target. The
