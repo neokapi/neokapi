@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 
 	"github.com/neokapi/neokapi/cli/config"
 	"github.com/neokapi/neokapi/cli/credentials"
@@ -83,6 +84,11 @@ type App struct {
 	// Never nil after Init — unresolved locales get a NoopTranslator
 	// so T() calls are always safe.
 	translator i18n.Translator
+
+	// daemonPool is the lazily-initialized Mode-C daemon pool. Built on
+	// first DaemonPool() call; torn down by Shutdown.
+	daemonPoolMu sync.Mutex
+	daemonPool   *pluginhost.DaemonPool
 }
 
 // T returns the active metadata Translator. Safe to call before Init —
@@ -183,6 +189,22 @@ func (a *App) InitPluginHost() {
 			fmt.Fprintln(os.Stderr, "Warning: "+s)
 		}
 	})
+
+	// Auto-register a generic source-connector dispatcher for every
+	// Mode-C plugin that declares source_connectors. Plugins that need
+	// custom dispatch can override this by re-registering after Init.
+	for _, p := range a.PluginHost.Plugins() {
+		if !p.Manifest.IsModeC() {
+			continue
+		}
+		if len(p.Manifest.Capabilities.SourceConnectors) == 0 {
+			continue
+		}
+		pluginhost.RegisterSourceConnectorDispatcher(
+			pluginhost.NewGenericSourceConnectorDispatcher(p.Name()),
+			pluginhost.SourceConnectorOpsClaimed...,
+		)
+	}
 }
 
 // Init finishes app initialization after flag parsing: credentials,
@@ -370,11 +392,41 @@ func (a *App) AddCommandGroups(cmd *cobra.Command) {
 	)
 }
 
-// Shutdown cleans up plugin resources (stops bridge processes, etc.).
-// Must be called before the process exits — typically from main() after
-// Execute() returns, to ensure cleanup runs even when RunE returns an error.
+// Shutdown cleans up plugin resources (stops bridge processes, Mode-C
+// daemons, etc.). Must be called before the process exits — typically
+// from main() after Execute() returns, to ensure cleanup runs even when
+// RunE returns an error.
 func (a *App) Shutdown() {
 	if a.PluginLoader != nil {
 		a.PluginLoader.Shutdown()
 	}
+	a.daemonPoolMu.Lock()
+	pool := a.daemonPool
+	a.daemonPool = nil
+	a.daemonPoolMu.Unlock()
+	if pool != nil {
+		pool.Shutdown()
+	}
+}
+
+// DaemonPool returns the lazily-constructed Mode-C daemon pool. The
+// first call creates the pool with defaults (KAPI_MAX_DAEMONS, manifest
+// timeouts). Subsequent calls return the same instance.
+//
+// Callers (typically plugin command handlers that route to a daemon)
+// hold a *DaemonPool reference for the lifetime of the App; the pool
+// is torn down by App.Shutdown.
+func (a *App) DaemonPool() *pluginhost.DaemonPool {
+	a.daemonPoolMu.Lock()
+	defer a.daemonPoolMu.Unlock()
+	if a.daemonPool == nil {
+		a.daemonPool = pluginhost.NewDaemonPool(pluginhost.DaemonPoolOptions{
+			Logger: func(format string, args ...any) {
+				if a.Verbose {
+					fmt.Fprintf(os.Stderr, "[daemon] "+format+"\n", args...)
+				}
+			},
+		})
+	}
+	return a.daemonPool
 }

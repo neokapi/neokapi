@@ -162,8 +162,16 @@ else
 	@echo "golangci-lint not installed. Run 'make tools' to install."
 endif
 
-_fw-proto:
-	@echo "No framework protos (placeholder)"
+_fw-proto: ## Generate framework Go bindings from proto definitions
+ifndef PROTOC
+	$(error "protoc not found. Install Protocol Buffers compiler.")
+endif
+ifndef PROTOC_GEN_GO
+	$(error "protoc-gen-go not found. Run 'make tools' to install.")
+endif
+	protoc --go_out=. --go_opt=paths=source_relative \
+		--go-grpc_out=. --go-grpc_opt=paths=source_relative \
+		core/plugin/proto/v1/*.proto core/plugin/proto/v2/*.proto
 
 _fw-deps:
 	$(GO) mod download && $(GO) mod tidy

@@ -48,6 +48,17 @@
       {"name": "assets",       "scope": "project", "group": "bowrain"},
       {"name": "brand_voice",  "scope": "project", "group": "bowrain"},
       {"name": "collection",   "scope": "item",    "group": "bowrain"}
+    ],
+    "source_connectors": [
+      {"id": "bowrain-source", "description": "Sync .kapi projects with a Bowrain server (push, pull, status, ls)"}
     ]
+  },
+  "daemon": {
+    "idle_timeout_seconds": 300,
+    "startup_timeout_seconds": 30,
+    "handshake": {
+      "type": "stdio-handshake",
+      "fields": ["socket", "version"]
+    }
   }
 }

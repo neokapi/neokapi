@@ -11,17 +11,43 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// AttachOptions configures how AttachCommands wires plugin commands.
+type AttachOptions struct {
+	// OnConflict is invoked when a plugin command shadows a built-in.
+	OnConflict func(msg string)
+
+	// DaemonPool, when non-nil, enables Mode-C dispatch for source-
+	// connector commands. The pool spawns daemons on demand and a
+	// per-plugin SourceConnectorDispatcher (registered via
+	// RegisterSourceConnectorDispatcher) handles the actual RPC.
+	DaemonPool *DaemonPool
+}
+
 // AttachCommands adds one cobra command to parent for each Mode-A
 // command provided by any plugin. The command's RunE execs the plugin
 // binary with stdin/stdout/stderr inherited; the plugin is responsible
 // for argument and flag parsing.
 //
+// When AttachOptions.DaemonPool is set AND the plugin declares a Mode-C
+// daemon block AND a SourceConnectorDispatcher is registered for the
+// plugin's name AND it claims this op, the command is routed via the
+// daemon instead of spawning a fresh subprocess. This makes successive
+// kapi push / kapi pull invocations reuse a single daemon process,
+// eliminating per-call startup cost.
+//
 // Conflicting commands (between plugins, or between a plugin and a
 // built-in) are reported via onConflict and not registered.
 func AttachCommands(parent *cobra.Command, host *Host, onConflict func(msg string)) {
+	AttachCommandsWithOptions(parent, host, AttachOptions{OnConflict: onConflict})
+}
+
+// AttachCommandsWithOptions is the AttachCommands variant that takes
+// AttachOptions. Prefer this in new code.
+func AttachCommandsWithOptions(parent *cobra.Command, host *Host, opts AttachOptions) {
 	if host == nil {
 		return
 	}
+	onConflict := opts.OnConflict
 	if onConflict == nil {
 		onConflict = func(string) {}
 	}
@@ -37,14 +63,20 @@ func AttachCommands(parent *cobra.Command, host *Host, onConflict func(msg strin
 			onConflict(fmt.Sprintf("command %q from plugin %q is shadowed by a built-in command", route.Command.Name, route.Plugin.Name()))
 			continue
 		}
-		parent.AddCommand(buildCobraCommand(route))
+		parent.AddCommand(buildCobraCommandWithDispatch(route, opts.DaemonPool))
 	}
 }
 
-// buildCobraCommand synthesizes a cobra.Command from one CommandRoute.
-// It uses RunE with cobra's "DisableFlagParsing" so the plugin sees
-// the raw argv — kapi only routes; the plugin parses.
-func buildCobraCommand(route *CommandRoute) *cobra.Command {
+// buildCobraCommandWithDispatch synthesizes a cobra.Command from one
+// CommandRoute. It uses RunE with cobra's "DisableFlagParsing" so the
+// plugin sees the raw argv — kapi only routes; the plugin parses.
+//
+// When pool is non-nil and the plugin declares Mode-C with a registered
+// SourceConnectorDispatcher claiming this op, the command is routed
+// over the daemon's gRPC connection instead of spawning a fresh Mode-A
+// subprocess. When pool is nil (or no dispatcher is registered), the
+// command falls through to the legacy Mode-A subprocess path.
+func buildCobraCommandWithDispatch(route *CommandRoute, pool *DaemonPool) *cobra.Command {
 	c := route.Command
 	cmd := &cobra.Command{
 		Use:                c.Name,
@@ -56,6 +88,10 @@ func buildCobraCommand(route *CommandRoute) *cobra.Command {
 			"plugin": route.Plugin.Name(),
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if pool != nil && SupportsModeCDispatch(route.Plugin.Name(), c.Name) &&
+				route.Plugin.Manifest.Daemon != nil {
+				return DispatchViaDaemon(cmd.Context(), pool, route.Plugin, c.Name, args)
+			}
 			return execPluginCommand(route, args)
 		},
 	}
