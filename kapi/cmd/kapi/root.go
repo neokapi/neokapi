@@ -1,8 +1,12 @@
 package main
 
 import (
+	"fmt"
+	"os"
+
 	"github.com/neokapi/neokapi/cli"
 	"github.com/neokapi/neokapi/cli/config"
+	"github.com/neokapi/neokapi/cli/pluginhost"
 	"github.com/spf13/cobra"
 )
 
@@ -30,9 +34,13 @@ translate with AI, and run quality checks across a wide range of file types.`,
 func init() {
 	// Populate tool + format registries up front so NewToolCommands can
 	// see every built-in tool before cobra's init runs. PersistentPreRun
-	// calls Init() later to do the flag-dependent work (plugins,
+	// calls Init() later to do the flag-dependent work (gRPC plugins,
 	// credentials, config load).
 	app.InitRegistries()
+
+	// Discover manifest-driven plugins early so their commands wire
+	// into the cobra tree before Execute parses argv.
+	app.InitPluginHost()
 
 	app.AddPersistentFlags(rootCmd)
 	app.AddCommandGroups(rootCmd)
@@ -71,4 +79,14 @@ func init() {
 	// commands at init() time; wire them in after the built-in command
 	// tree is constructed.
 	cli.ApplyCommandFactories(rootCmd, app)
+
+	// Manifest-driven plugins discovered by InitPluginHost contribute
+	// their Mode-A commands here. Conflicts with built-ins or other
+	// plugins are reported on stderr and the conflicting capability
+	// is omitted from dispatch.
+	pluginhost.AttachCommands(rootCmd, app.PluginHost, func(msg string) {
+		if !app.Quiet {
+			fmt.Fprintln(os.Stderr, "Warning: "+msg)
+		}
+	})
 }

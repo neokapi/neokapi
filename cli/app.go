@@ -12,6 +12,7 @@ import (
 	"github.com/neokapi/neokapi/cli/config"
 	"github.com/neokapi/neokapi/cli/credentials"
 	"github.com/neokapi/neokapi/cli/output"
+	"github.com/neokapi/neokapi/cli/pluginhost"
 	aitools "github.com/neokapi/neokapi/core/ai/tools"
 	neokapiconfig "github.com/neokapi/neokapi/core/config"
 	"github.com/neokapi/neokapi/core/format/schema"
@@ -32,6 +33,7 @@ type App struct {
 	ToolReg      *registry.ToolRegistry
 	SchemaReg    *schema.SchemaRegistry
 	PluginLoader *loader.PluginLoader
+	PluginHost   *pluginhost.Host
 	Config       *config.AppConfig
 
 	// Flags bound by AddPersistentFlags.
@@ -132,6 +134,55 @@ func (a *App) InitRegistries() {
 	a.ToolReg = registry.NewToolRegistry()
 	libtools.RegisterAll(a.ToolReg)
 	aitools.RegisterAll(a.ToolReg)
+}
+
+// InitPluginHost discovers plugins (manifest.json sidecar model) from
+// $KAPI_PLUGINS_DIR + $XDG_DATA_HOME/kapi/plugins + system roots and
+// builds the host-side dispatch tables. Schema extensions surfaced from
+// discovered plugins are registered with core/project so recipe
+// validation sees them.
+//
+// Idempotent: repeat calls are a no-op once the host exists. Safe to
+// call from cobra init() — the host attaches its commands before
+// rootCmd.Execute() runs.
+//
+// Cache: when a startup-time cache exists at $XDG_CACHE_HOME/kapi/plugins-cache.json
+// and every discovery root's mtime is older than the cache, the cache
+// is consumed without rescanning manifests on disk.
+func (a *App) InitPluginHost() {
+	if a.PluginHost != nil {
+		return
+	}
+	opts := pluginhost.DiscoverOptions{
+		EnvPluginsDir: os.Getenv("KAPI_PLUGINS_DIR"),
+		OnWarn: func(s string) {
+			if !a.Quiet {
+				fmt.Fprintln(os.Stderr, "Warning: "+s)
+			}
+		},
+	}
+
+	var plugins []*pluginhost.Plugin
+	if cache, err := pluginhost.LoadCache(pluginhost.CacheLocation()); err == nil && pluginhost.IsFresh(cache, opts) {
+		plugins = pluginhost.PluginsFromCache(cache)
+	} else {
+		plugins = pluginhost.Discover(opts)
+		// Best-effort cache write; ignore errors so an unwritable
+		// cache dir doesn't break startup.
+		_ = pluginhost.SaveCache(pluginhost.CacheLocation(), pluginhost.BuildCache(opts, plugins))
+	}
+
+	a.PluginHost = pluginhost.NewHost(plugins, func(s string) {
+		if !a.Quiet {
+			fmt.Fprintln(os.Stderr, "Warning: "+s)
+		}
+	})
+
+	pluginhost.RegisterSchemaExtensions(a.PluginHost, func(s string) {
+		if !a.Quiet {
+			fmt.Fprintln(os.Stderr, "Warning: "+s)
+		}
+	})
 }
 
 // Init finishes app initialization after flag parsing: credentials,
