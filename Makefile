@@ -251,17 +251,18 @@ verify-isolation: ## Verify all Go module isolation boundaries
 
 # ── Build ────────────────────────────────────────────────────────────────────
 
-build: ## Build the kapi CLI (default — links bowrain plugin, AGPL-3.0 distribution)
+build: ## Build the kapi CLI (Apache-2.0; manifest-driven plugins discovered at runtime)
 	@mkdir -p $(BIN_DIR)
 	cd kapi && $(GOBUILD) $(LDFLAGS) -o $(BIN_DIR)/kapi ./cmd/kapi
 
-build-pure: ## Build the kapi CLI without bowrain plugin (pure Apache-2.0)
+build-bowrain-plugin: ## Build the kapi-bowrain plugin binary (manifest-driven)
 	@mkdir -p $(BIN_DIR)
-	cd kapi && $(GOBUILD) -tags pure $(LDFLAGS) -o $(BIN_DIR)/kapi-pure ./cmd/kapi
+	cd bowrain/cli && $(GOBUILD) $(LDFLAGS) -o $(BIN_DIR)/kapi-bowrain ./cmd/kapi-bowrain
 
 build-all: ## Build all Go binaries
 	@mkdir -p $(BIN_DIR)
 	cd kapi && $(GOBUILD) $(LDFLAGS) -o $(BIN_DIR)/kapi ./cmd/kapi
+	cd bowrain/cli && $(GOBUILD) $(LDFLAGS) -o $(BIN_DIR)/kapi-bowrain ./cmd/kapi-bowrain
 	$(MAKE) -C bowrain build-server build-worker build-bowrain-cli
 
 # Forward bowrain build targets

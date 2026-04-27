@@ -1,0 +1,53 @@
+{
+  "manifest_version": "1",
+  "plugin": "bowrain",
+  "version": "0.0.0-dev",
+  "description": "Sync .kapi projects with Bowrain Server",
+  "homepage": "https://bowrain.cloud",
+  "author": "Neokapi <hello@neokapi.dev>",
+  "license": "Apache-2.0",
+  "binary": "kapi-bowrain",
+  "min_kapi_version": "0.1.0",
+  "group": "bowrain",
+  "capabilities": {
+    "commands": [
+      {"name": "push",   "short": "Upload local changes to the server",
+        "args": [{"name": "paths", "variadic": true, "optional": true}]},
+      {"name": "pull",   "short": "Download translations from the server"},
+      {"name": "sync",   "short": "Push local changes, wait for translations, pull",
+        "args": [{"name": "paths", "variadic": true, "optional": true}]},
+      {"name": "status", "short": "Show project sync status"},
+      {"name": "ls",     "short": "List tracked files",
+        "args": [{"name": "paths", "variadic": true, "optional": true}]},
+      {"name": "add",    "short": "Add files to the project",
+        "args": [{"name": "patterns", "variadic": true}]},
+      {"name": "rm",     "short": "Remove files from the project",
+        "args": [{"name": "patterns", "variadic": true}]},
+      {"name": "diff",   "short": "Show differences between local and remote"},
+      {"name": "config", "short": "View or change settings",
+        "args": [
+          {"name": "key", "optional": true},
+          {"name": "value", "optional": true}
+        ]},
+      {"name": "auth",   "short": "Manage authentication with the server",
+        "subcommands": ["login", "logout", "status", "claim", "token"]},
+      {"name": "stream", "short": "Manage streams",
+        "subcommands": ["list", "create", "diff", "merge", "archive", "status"]},
+      {"name": "serve",  "short": "Open a local dashboard"},
+      {"name": "ui",     "short": "Launch the Bowrain desktop app"}
+    ],
+    "mcp_tools": [
+      {"name": "project_status", "description": "Show sync status for a bowrain project"},
+      {"name": "project_pull",   "description": "Pull translations from Bowrain Server"},
+      {"name": "project_push",   "description": "Push local changes to Bowrain Server"}
+    ],
+    "schema_extensions": [
+      {"name": "server",       "scope": "project", "group": "bowrain"},
+      {"name": "hooks",        "scope": "project", "group": "bowrain"},
+      {"name": "automations",  "scope": "project", "group": "bowrain"},
+      {"name": "assets",       "scope": "project", "group": "bowrain"},
+      {"name": "brand_voice",  "scope": "project", "group": "bowrain"},
+      {"name": "collection",   "scope": "item",    "group": "bowrain"}
+    ]
+  }
+}
