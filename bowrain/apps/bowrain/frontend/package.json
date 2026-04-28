@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vp dev",
-    "build": "vpx tsc && vp build",
+    "build": "node -e \"require('typescript/bin/tsc')\" && vp build",
     "build:dev": "vp build",
     "preview": "vp preview",
     "check": "vp check",
