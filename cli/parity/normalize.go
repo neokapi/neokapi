@@ -74,10 +74,14 @@ func Canonicalize(parts []*model.Part) []CanonicalPart {
 	return out
 }
 
-// renderBlockSource concatenates segment text including span data, so
-// inline-code differences surface in the diff. Whitespace is collapsed
-// to make text comparison stable across implementations that emit
-// different whitespace tokens.
+// renderBlockSource returns a stable rendering of the block's source.
+// Text content is emitted verbatim; inline codes are emitted as
+// structural placeholders ({<id} for PcOpen, {>id} for PcClose, {ph:id}
+// for placeholders). The parity bar is "same translatable text +
+// same code structure"; how each implementation serializes inline-code
+// data is format-specific noise (Okapi emits display markers like
+// "[#$dp2]" while a Go port may emit the raw markup verbatim — both
+// are valid representations of the same paired code).
 func renderBlockSource(b *model.Block) string {
 	var buf strings.Builder
 	for i, seg := range b.Source {
@@ -85,13 +89,44 @@ func renderBlockSource(b *model.Block) string {
 			buf.WriteByte(' ')
 		}
 		if seg != nil {
-			buf.WriteString(model.RenderRunsWithData(seg.Runs))
+			renderSegmentRuns(&buf, seg.Runs)
 		}
 	}
 	return collapseWhitespace(buf.String())
 }
 
-// renderBlockTargets concatenates target locales' segment text in
+// renderSegmentRuns appends a stable plain-text + structural-marker
+// rendering of runs.
+func renderSegmentRuns(buf *strings.Builder, runs []model.Run) {
+	for _, r := range runs {
+		switch {
+		case r.Text != nil:
+			buf.WriteString(r.Text.Text)
+		case r.PcOpen != nil:
+			buf.WriteString("{<")
+			buf.WriteString(r.PcOpen.ID)
+			buf.WriteString("}")
+		case r.PcClose != nil:
+			buf.WriteString("{>")
+			buf.WriteString(r.PcClose.ID)
+			buf.WriteString("}")
+		case r.Ph != nil:
+			buf.WriteString("{ph:")
+			buf.WriteString(r.Ph.ID)
+			buf.WriteString("}")
+		case r.Sub != nil:
+			buf.WriteString("{sub:")
+			buf.WriteString(r.Sub.ID)
+			buf.WriteString("}")
+		case r.Plural != nil:
+			buf.WriteString("{plural}")
+		case r.Select != nil:
+			buf.WriteString("{select}")
+		}
+	}
+}
+
+// renderBlockTargets concatenates target locales' rendered text in
 // locale-sorted order so the field is order-independent.
 func renderBlockTargets(b *model.Block) string {
 	if len(b.Targets) == 0 {
@@ -107,7 +142,7 @@ func renderBlockTargets(b *model.Block) string {
 				buf.WriteByte(' ')
 			}
 			if seg != nil {
-				buf.WriteString(model.RenderRunsWithData(seg.Runs))
+				renderSegmentRuns(&buf, seg.Runs)
 			}
 		}
 		parts = append(parts, collapseWhitespace(buf.String()))

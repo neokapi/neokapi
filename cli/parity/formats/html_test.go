@@ -12,6 +12,12 @@ import (
 
 func TestParityHTML(t *testing.T) {
 	const filterClass = "okf_html"
+	defer parity.Report(t, parity.Outcome{
+		Kind: "format",
+		ID:   filterClass,
+		Name: t.Name(),
+		Mode: "head-to-head",
+	})
 
 	cases := []struct {
 		name  string
@@ -42,19 +48,12 @@ func TestParityHTML(t *testing.T) {
 				URI:        "test.html",
 			})
 			bridge := parity.RunBridge(t, parity.BridgeRequest{
-				FilterClass: parity.FilterFQCN(filterClass),
+				FilterClass: filterClass,
 				InputBytes:  input,
 				MimeType:    "text/html",
 			})
 
 			parity.CompareBlockText(t, native, bridge)
-
-			parity.Report(t, parity.Outcome{
-				Kind: "format",
-				ID:   filterClass,
-				Name: t.Name(),
-				Mode: "head-to-head",
-			})
 		})
 	}
 }
