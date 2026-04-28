@@ -16,6 +16,8 @@ COPY apps/kapi-desktop/go.mod apps/kapi-desktop/go.sum ./apps/kapi-desktop/
 COPY bowrain/go.mod bowrain/go.sum ./bowrain/
 COPY bowrain/core/go.mod bowrain/core/go.sum ./bowrain/core/
 COPY bowrain/cli/go.mod bowrain/cli/go.sum ./bowrain/cli/
+COPY bowrain/plugin/go.mod bowrain/plugin/go.sum ./bowrain/plugin/
+COPY bowrain/plugin/schema/go.mod bowrain/plugin/schema/go.sum ./bowrain/plugin/schema/
 RUN go mod download \
     && cd cli && go mod download \
     && cd ../kapi && go mod download \

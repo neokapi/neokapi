@@ -52,8 +52,6 @@ import type {
   CreateVoiceProfileRequest,
   UpdateVoiceProfileRequest,
   ModelUsageResponse,
-} from "@neokapi/ui";
-import type {
   TranslationDashboardStats,
   ActivityInfo,
   TaskInfo,
@@ -77,7 +75,7 @@ import type {
   BillingOverview,
   BillingUsageBreakdown,
   CreditLedgerEntry,
-} from "@neokapi/ui/types/api";
+} from "@neokapi/ui";
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore – generated .js bindings outside the TS project root

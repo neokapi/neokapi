@@ -403,6 +403,8 @@ export type {
   TaskStatus,
   TaskPriority,
   CreateTaskRequest,
+  RoleTemplate,
+  ProjectMembership,
   NotificationPreference,
   DigestSettingsDTO,
   BravoConversation,

@@ -31,8 +31,8 @@ jobs:
       - name: Build and push bravo-agent image
         uses: docker/build-push-action@v7
         with:
-          context: bowrain
-          file: bowrain/docker/bravo/Dockerfile
+          context: .
+          file: bowrain/docker/bravo-agent/Dockerfile
           push: true
           tags: |
             ghcr.io/neokapi/bravo-agent:${{ inputs.image-tag }}

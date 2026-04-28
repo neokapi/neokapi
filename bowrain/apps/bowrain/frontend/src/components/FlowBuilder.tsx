@@ -29,6 +29,7 @@ import {
   DialogTitle,
   DialogFooter,
   SchemaForm,
+  type ComponentSchema,
 } from "@neokapi/ui";
 import { useFlowDefinitions, useFlowDefinitionApi, useTools, useToolSchema } from "../hooks/useApi";
 import type { FlowDefinitionInfo, FlowNodeInfo, FlowEdgeInfo, ToolInfo } from "../types/api";
@@ -304,7 +305,7 @@ function ToolConfigPanel({
           <p className="text-xs text-muted-foreground mt-1">{schema.description}</p>
         )}
       </div>
-      <SchemaForm schema={schema} values={config} onChange={onChange} />
+      <SchemaForm schema={schema as unknown as ComponentSchema} values={config} onChange={onChange} />
     </div>
   );
 }

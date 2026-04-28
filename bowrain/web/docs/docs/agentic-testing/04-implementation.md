@@ -519,7 +519,7 @@ headers = { Authorization = "Bearer ${BRAVO_AGENT_TOKEN}" }
 tool_timeout_secs = 120
 ```
 
-This is the exact config template from `platform/docker/bravo/config.toml.template`.
+This is the exact config template from `platform/docker/bravo-agent/config.toml.template`.
 Agent tokens are workspace-scoped JWTs (30min TTL, auto-refreshed) created via
 the Bravo conversation API.
 
@@ -1031,7 +1031,7 @@ bowrain-l10n/agent-memory/
 - `git revert` — roll back bad memory (agent learned something wrong)
 - Memory diffs visible alongside SOUL.md changes during persona tuning (see `10-persona-evolution.md`)
 
-**Entrypoint wrapper** (`docker/bravo/entrypoint-with-memory.sh`):
+**Entrypoint wrapper** (`docker/bravo-agent/entrypoint-with-memory.sh`):
 
 ```bash
 #!/bin/bash

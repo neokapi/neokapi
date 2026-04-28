@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useEditorApi } from "../../hooks/useEditorApi";
 import type { BlockInfo } from "../../types/api";
 import type { PreviewContentMode } from "./visual-editor-types";

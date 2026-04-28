@@ -594,6 +594,13 @@ jobs:
           go mod tidy
           wails3 generate bindings -f "-tags production -trimpath -buildvcs=false -ldflags=\"${BUILD_LDFLAGS}\"" -clean=true
 
+      # The kapi-desktop frontend's vite.config.ts imports
+      # @neokapi/kapi-react/vite, whose entry resolves to dist/plugin/vite.js.
+      # That dist tree is built (not committed), so build kapi-react first.
+      - name: Build @neokapi/kapi-react
+        working-directory: packages/kapi-react
+        run: vp run build
+
       - name: Build Kapi Desktop frontend
         working-directory: apps/kapi-desktop/frontend
         run: vp run build:dev

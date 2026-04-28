@@ -103,7 +103,7 @@ function parseData(dataStr: string): Record<string, string> {
   }
 }
 
-function buildDetails(eventType: string, data: Record<string, string>): string {
+function buildDetails(_eventType: string, data: Record<string, string>): string {
   const parts: string[] = [];
   if (data.name) parts.push(data.name);
   if (data.item_name) parts.push(data.item_name);

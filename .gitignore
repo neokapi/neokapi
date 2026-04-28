@@ -34,7 +34,7 @@ compat-report/
 # Frontend
 node_modules/
 dist/
-!/platform/apps/bowrain/frontend/dist/.gitkeep
+!/bowrain/apps/bowrain/frontend/dist/.gitkeep
 *.tsbuildinfo
 **/public/version.json
 
