@@ -81,6 +81,26 @@ archives:
       - goos: windows
         formats: [zip]
 
+# Cosign keyless signing for the kapi-bowrain plugin tarballs.
+# kapi's plugin install verifier (sigstore-go) requires a Sigstore JSON
+# bundle pinning the signing cert to this release.yml workflow.
+signs:
+  - id: kapi-bowrain-cosign
+    cmd: cosign
+    artifacts: archive
+    ids:
+      - kapi-bowrain
+    output: true
+    args:
+      - sign-blob
+      - "--yes"
+      - "--bundle"
+      - "${artifact}.sigstore.json"
+      - "${artifact}"
+    signature: "${artifact}.sigstore.json"
+    env:
+      - COSIGN_EXPERIMENTAL=true
+
 brews:
   # kapi (Apache-2.0) — manifest-driven plugins discovered at runtime.
   # Default `brew install neokapi/tap/kapi` produces an Apache-clean

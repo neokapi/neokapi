@@ -8,6 +8,9 @@ on:
 permissions:
   contents: write
   packages: write
+  # cosign keyless requires a fresh GitHub Actions OIDC token to mint a
+  # short-lived Fulcio cert for signing the kapi-bowrain plugin tarball.
+  id-token: write
 
 jobs:
   goreleaser:
@@ -52,6 +55,9 @@ jobs:
       - name: Reset go.work.sum
         run: git checkout -- go.work.sum
 
+      - name: Install cosign (for kapi-bowrain plugin signing)
+        uses: sigstore/cosign-installer@v3
+
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@v7
         with:
@@ -63,7 +69,8 @@ jobs:
 
       # Push the new kapi-bowrain plugin version into the manifest-plugins
       # registry so `kapi plugin install bowrain` resolves to this build.
-      # Reads sha256s from goreleaser's checksums.txt.
+      # Includes cosign signature URLs + cert-identity so kapi's verifier
+      # can validate the install (signatures are mandatory unless --unsafe).
       - name: Update manifest plugin registry
         env:
           REGISTRY_TOKEN: ${{ secrets.REGISTRY_TOKEN }}
@@ -87,13 +94,19 @@ jobs:
           done < dist/checksums.txt
 
           REPO_URL="https://github.com/${REPO}/releases/download/${REF_NAME}"
+          CERT_ID="https://github.com/${REPO}/.github/workflows/release.yml@refs/tags/${REF_NAME}"
           declare -a ARGS
           for plat in darwin/arm64 darwin/amd64 linux/arm64 linux/amd64; do
             os=${plat%/*}
             arch=${plat#*/}
             file="kapi-bowrain_${VERSION}_${os}_${arch}.tar.gz"
             if [ -n "${SHAS[$file]:-}" ]; then
-              ARGS+=("--platform" "$plat" "--url" "${REPO_URL}/${file}" "--sha256" "${SHAS[$file]}")
+              ARGS+=(
+                "--platform" "$plat"
+                "--url" "${REPO_URL}/${file}"
+                "--sha256" "${SHAS[$file]}"
+                "--signature" "${REPO_URL}/${file}.sigstore.json"
+              )
             fi
           done
 
@@ -104,6 +117,8 @@ jobs:
             --version "$VERSION" \
             --channel stable \
             --released "$(date -u +%Y-%m-%d)" \
+            --cert-identity "$CERT_ID" \
+            --cert-oidc-issuer https://token.actions.githubusercontent.com \
             "${ARGS[@]}"
           cd /tmp/registry
           git config user.email "release-bot@neokapi.dev"
