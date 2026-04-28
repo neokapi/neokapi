@@ -131,3 +131,4 @@ website/videos/public/raw/
 .env.local
 platform/docker/traefik/certs
 .playwright-mcp/
+.parity/

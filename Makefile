@@ -257,6 +257,32 @@ verify-isolation: ## Verify all Go module isolation boundaries
 	@# kapi must not have heavy deps
 	@if cd kapi && GOWORK=off go list -m all 2>/dev/null | grep -iE 'wails|echo|oidc|keyring'; then echo "ERROR: kapi has heavy deps"; exit 1; fi
 
+# ── Parity (head-to-head against okapi-bridge) ──────────────────────────────
+#
+# `make parity-test` is the load-bearing safety net for issue #448:
+# it builds a sandboxed kapi + okapi-bridge install and runs every
+# parity test under cli/parity/... against that sandbox. The sandbox
+# lives under .parity/ and is reused across runs (set PARITY_FORCE=1
+# to rebuild).
+#
+# Set OKAPI_BRIDGE_REPO if your okapi-bridge clone is not at ../okapi-bridge.
+# Set OKAPI_VERSION (default 1.48.0) to test against a different release.
+
+PARITY_DIR := $(ROOT_DIR)/.parity
+PARITY_REPORT := $(PARITY_DIR)/test-comparison.json
+
+parity-sandbox: ## Build the parity sandbox (kapi + okapi-bridge plugin)
+	@$(ROOT_DIR)/scripts/parity-sandbox.sh > /dev/null
+	@echo "Parity sandbox: $(PARITY_DIR)"
+
+parity-test: parity-sandbox ## Run the full parity test suite (#448)
+	@cd cli && KAPI_PARITY_SANDBOX=$(PARITY_DIR) KAPI_PARITY_REPORT=$(PARITY_REPORT) \
+	    $(GOTEST) -tags parity -count=1 -timeout 30m ./parity/...
+	@echo "Parity report: $(PARITY_REPORT)"
+
+parity-clean: ## Remove the parity sandbox to force a fresh build next run
+	rm -rf $(PARITY_DIR)
+
 # ── Build ────────────────────────────────────────────────────────────────────
 
 build: ## Build the kapi CLI (Apache-2.0; manifest-driven plugins discovered at runtime)
@@ -501,6 +527,7 @@ help: ## Show this help
 	@echo ""
 
 .PHONY: all help $(BOTH_TARGETS) test test-fast test-unit test-race test-verbose test-integration \
+        parity-sandbox parity-test parity-clean \
         fmt vet lint check check-framework check-bowrain test-parallel \
         test-framework test-cli test-kapi test-platform test-bowrain-cli test-bowrain \
         ci-test-framework ci-test-cli ci-test-kapi ci-test-platform \
