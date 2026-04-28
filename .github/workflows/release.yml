@@ -84,7 +84,7 @@ jobs:
             exit 0
           fi
 
-          go build -o /tmp/registry-update ./scripts/registry-update
+          GOBIN=/tmp go install github.com/neokapi/registry/tools/registry-update@main
 
           declare -A SHAS
           while IFS= read -r line; do
