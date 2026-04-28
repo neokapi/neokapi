@@ -76,6 +76,9 @@ func main() {
 		platforms      stringList
 		urls           stringList
 		shas           stringList
+		sigs           stringList
+		certIdentity   string
+		certIssuer     string
 	)
 	flag.StringVar(&regFile, "registry", "", "path to manifest-plugins.json")
 	flag.StringVar(&plugin, "plugin", "", "plugin name (e.g. bowrain)")
@@ -86,6 +89,9 @@ func main() {
 	flag.Var(&platforms, "platform", "platform key (e.g. darwin/arm64); repeat per artifact")
 	flag.Var(&urls, "url", "tarball URL; repeat in same order as --platform")
 	flag.Var(&shas, "sha256", "tarball SHA-256; repeat in same order as --platform")
+	flag.Var(&sigs, "signature", "Sigstore bundle URL (.sigstore.json); repeat per --platform; use empty string for unsigned")
+	flag.StringVar(&certIdentity, "cert-identity", "", "cosign cert identity (applied to every platform)")
+	flag.StringVar(&certIssuer, "cert-oidc-issuer", "", "cosign OIDC issuer (applied to every platform)")
 	flag.Parse()
 
 	if regFile == "" || plugin == "" || version == "" {
@@ -100,10 +106,20 @@ func main() {
 		fmt.Fprintln(os.Stderr, "registry-update: --platform/--url/--sha256 lists must have the same length")
 		os.Exit(2)
 	}
+	if len(sigs) != 0 && len(sigs) != len(platforms) {
+		fmt.Fprintln(os.Stderr, "registry-update: when --signature is set it must repeat per --platform (use empty string to mark a platform unsigned)")
+		os.Exit(2)
+	}
 
 	plats := make(map[string]platformEntry, len(platforms))
 	for i, p := range platforms {
-		plats[p] = platformEntry{URL: urls[i], SHA256: shas[i]}
+		entry := platformEntry{URL: urls[i], SHA256: shas[i]}
+		if len(sigs) == len(platforms) && sigs[i] != "" {
+			entry.Signature = sigs[i]
+			entry.CertIdentity = certIdentity
+			entry.CertOIDCIssuer = certIssuer
+		}
+		plats[p] = entry
 	}
 
 	if err := mergePluginVersion(regFile, plugin, version, channel, released, minKapiVersion, plats); err != nil {
