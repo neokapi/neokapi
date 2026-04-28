@@ -1,13 +1,14 @@
-go 1.26.0
+go 1.26.2
 
 use (
 	.
+	./apps/kapi-desktop
+	./bowrain
+	./bowrain/cli
+	./bowrain/core
+	./bowrain/plugin
+	./bowrain/plugin/schema
 	./cli
 	./kapi
-	./apps/kapi-desktop
-	./bowrain/core
-	./bowrain/cli
-	./bowrain/plugin/schema
-	./bowrain/plugin
-	./bowrain
+	./scripts/testcompare
 )
