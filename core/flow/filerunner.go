@@ -10,7 +10,6 @@ import (
 
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/model"
-	"github.com/neokapi/neokapi/core/plugin/bridge"
 	"github.com/neokapi/neokapi/core/registry"
 	"github.com/neokapi/neokapi/core/tool"
 )
@@ -56,9 +55,9 @@ func NewFileRunner(cfg FileRunnerConfig) *FileRunner {
 	return &FileRunner{cfg: cfg}
 }
 
-// RunFile detects the format, creates a reader, and routes to the appropriate
-// pipeline — bridge (Java single-pass) or native (Go read→process→write).
-// Consumers don't need to know which execution model is used.
+// RunFile detects the format, creates a reader and writer, and runs the
+// standard read → process → write pipeline. Mode-C plugin formats are
+// transparently routed through their daemon by the registered factories.
 func (r *FileRunner) RunFile(ctx context.Context, flowName string, tools []tool.Tool, inputPath, outputPath, targetLang string) error {
 	reg := r.cfg.FormatReg
 
@@ -88,17 +87,6 @@ func (r *FileRunner) RunFile(ctx context.Context, flowName string, tools []tool.
 		}
 	}
 
-	// Bridge format: Java controls read/write, Go processes parts inline.
-	if bridgeReader, ok := reader.(*bridge.BridgeFormatReader); ok {
-		br := NewBridgeRunner(BridgeRunnerConfig{
-			SourceLocale: string(r.cfg.SourceLocale),
-			TargetLocale: targetLang,
-			Encoding:     r.cfg.Encoding,
-		})
-		return br.RunFile(ctx, flowName, tools, bridgeReader, inputPath, outputPath)
-	}
-
-	// Native format: Go controls full lifecycle.
 	writer, err := reg.NewWriter(fmtName)
 	if err != nil {
 		reader.Close()
@@ -167,8 +155,9 @@ func (r *FileRunner) RunFileWithReaderWriter(ctx context.Context, flowName strin
 		}
 		parts = append(parts, result.Part)
 	}
-	// Close reader immediately after reading — for bridge formats this releases
-	// the JVM back to the pool so the writer can reuse it.
+	// Close reader immediately after reading — for daemon-backed plugin
+	// formats this lets the daemon enter its idle state, freeing the
+	// stream for the subsequent writer call.
 	reader.Close()
 
 	// Build and execute tool pipeline.

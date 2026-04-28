@@ -201,6 +201,17 @@ func (a *App) InitPluginHost() {
 			pluginhost.SourceConnectorOpsClaimed...,
 		)
 	}
+
+	// Register daemon-backed format readers and writers from every
+	// Mode-C plugin that declares formats. This makes plugin-provided
+	// formats first-class participants in format detection, reader /
+	// writer construction, and `kapi formats list`. The daemon pool is
+	// constructed eagerly here so the factories close over a non-nil
+	// pool reference; daemon processes themselves stay lazy and only
+	// spawn on first format use.
+	if a.FormatReg != nil {
+		pluginhost.RegisterModeCFormats(a.PluginHost, a.DaemonPool(), a.FormatReg)
+	}
 }
 
 // Init finishes app initialization after flag parsing: credentials,

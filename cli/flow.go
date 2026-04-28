@@ -20,7 +20,6 @@ import (
 	"github.com/neokapi/neokapi/core/flow"
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/model"
-	"github.com/neokapi/neokapi/core/plugin/bridge"
 	"github.com/neokapi/neokapi/core/preset"
 	"github.com/neokapi/neokapi/core/registry"
 	"github.com/neokapi/neokapi/core/tool"
@@ -446,9 +445,9 @@ func (a *App) runMultipleFiles(ctx context.Context, cmd *cobra.Command, flowName
 // When recorder is non-nil, tools are wrapped with TracingTool for batch tracing.
 // Returns the detected format name and trace nodes (both empty when recorder is nil).
 //
-// For bridge formats, uses a single-pass pipeline via BridgeProcessor where Go
-// acts as an Okapi pipeline step — one read, inline writing, no document re-read.
-// For native formats, uses the standard read → process → write pipeline.
+// All formats — built-in and Mode-C plugin-backed — use the standard
+// read → process → write pipeline. Plugin-backed formats are routed
+// through their daemon transparently by the registered factories.
 func (a *App) processFlowFile(ctx context.Context, cmd *cobra.Command, flowName, inputPath, outputTemplate string, recorder *flow.TraceRecorder) (string, []flow.TraceNode, error) {
 	fmtName := a.FormatFlag
 	if fmtName == "" {
@@ -502,64 +501,11 @@ func (a *App) processFlowFile(ctx context.Context, cmd *cobra.Command, flowName,
 		}
 	}
 
-	// Bridge formats: single-pass pipeline via BridgeProcessor.
-	if bridgeReader, ok := reader.(*bridge.BridgeFormatReader); ok {
-		nodes, err := a.processFlowFileBridge(ctx, cmd, flowName, inputPath, outputTemplate, bridgeReader, recorder)
-		return fmtName, nodes, err
-	}
-
-	// Native formats: standard read → process → write pipeline.
+	// All formats use the standard read → process → write pipeline.
+	// Plugin-backed formats are routed through their Mode-C daemon
+	// transparently by the registered factories.
 	nodes, err := a.processFlowFileNative(ctx, cmd, flowName, inputPath, outputTemplate, registryName, reader, mergedConfig, recorder)
 	return fmtName, nodes, err
-}
-
-// processFlowFileBridge runs a single-pass Okapi pipeline where Go acts as a
-// step. Delegates the core bridge execution to flow.BridgeRunner.
-// When recorder is non-nil, tools are wrapped with TracingTool.
-func (a *App) processFlowFileBridge(ctx context.Context, cmd *cobra.Command,
-	flowName, inputPath, outputTemplate string, bridgeReader *bridge.BridgeFormatReader, recorder *flow.TraceRecorder) ([]flow.TraceNode, error) {
-
-	outputPath := a.resolveOutputPath(inputPath, outputTemplate)
-
-	flowTools, cleanup, err := a.buildFlowTools(flowName, cmd)
-	if err != nil {
-		return nil, err
-	}
-	defer cleanup()
-
-	// Auto-wrap IO-bound tools with ParallelBlockTool.
-	if n := a.resolveParallelBlocks(flowName); n > 1 {
-		for i, ft := range flowTools {
-			flowTools[i] = tool.NewParallelBlockTool(ft, n)
-		}
-	}
-
-	// Wrap tools with TracingTool if recorder is set.
-	var traceNodes []flow.TraceNode
-	if recorder != nil {
-		traceNodes = append(traceNodes, flow.TraceNode{
-			ID: "bridge-reader", Type: flow.NodeReader, Name: "bridge", Label: "bridge reader",
-		})
-		for i, t := range flowTools {
-			nodeID := fmt.Sprintf("tool-%d", i)
-			traceNodes = append(traceNodes, flow.TraceNode{
-				ID: nodeID, Type: flow.NodeTool, Name: t.Name(), Label: t.Name(),
-			})
-			flowTools[i] = flow.NewTracingTool(t, nodeID, recorder)
-		}
-		traceNodes = append(traceNodes, flow.TraceNode{
-			ID: "bridge-writer", Type: flow.NodeWriter, Name: "bridge", Label: "bridge writer",
-		})
-	}
-
-	runner := flow.NewBridgeRunner(flow.BridgeRunnerConfig{
-		SourceLocale: a.SourceLang,
-		TargetLocale: a.TargetLang,
-		Encoding:     a.Encoding,
-	})
-
-	err = runner.RunFile(ctx, flowName, flowTools, bridgeReader, inputPath, outputPath)
-	return traceNodes, err
 }
 
 // processFlowFileNative uses the standard read → process → write pipeline.
@@ -1003,30 +949,11 @@ func (a *App) toolFromStep(step flow.FlowStep, cmd *cobra.Command, rCtx *flow.Re
 		// to the zero-arg factory below.
 	}
 
-	// Fall back to zero-arg factory (bridge step tools without ConfigFactory).
+	// Fall back to zero-arg factory.
 	t, err := a.ToolReg.NewTool(toolID)
 	if err != nil {
 		return nil, fmt.Errorf("tool %q: %w", step.Tool, err)
 	}
-
-	// Apply config and resource context to bridge step tools.
-	if bst, ok := t.(*bridge.BridgeStepTool); ok {
-		config := step.Config
-		if rCtx != nil {
-			stepCtx := *rCtx
-			stepCtx.ToolName = step.Tool
-			var resolveErr error
-			config, resolveErr = flow.ResolveToolConfig(config, bst.Schema(), stepCtx)
-			if resolveErr != nil {
-				return nil, fmt.Errorf("resolve config for %q: %w", step.Tool, resolveErr)
-			}
-			bst.SetRootDirectory(rCtx.ProjectDir)
-			bst.SetInputRootDirectory(rCtx.ProjectDir)
-		}
-		bst.SetStepParams(config)
-		bst.SetLocales(a.SourceLang, a.TargetLang)
-	}
-
 	return t, nil
 }
 
