@@ -94,6 +94,7 @@ signs:
     args:
       - sign-blob
       - "--yes"
+      - "--new-bundle-format=true"
       - "--bundle"
       - "${artifact}.sigstore.json"
       - "${artifact}"
