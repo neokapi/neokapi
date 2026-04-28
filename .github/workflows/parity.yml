@@ -87,8 +87,8 @@ jobs:
       - name: Build okapi-bridge plugin tarball
         working-directory: okapi-bridge
         run: |
-          make build V=$OKAPI_VERSION
-          make plugin-v2 V=$OKAPI_VERSION
+          make build V="$OKAPI_VERSION"
+          make plugin-v2 V="$OKAPI_VERSION"
 
       - name: Run parity test suite
         working-directory: neokapi
