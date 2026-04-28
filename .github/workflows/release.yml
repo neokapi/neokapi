@@ -284,7 +284,7 @@ jobs:
           - { platform: linux/arm64, os: ubuntu-24.04-arm, arch: arm64 }
           - { platform: windows/amd64, os: windows-latest, arch: amd64 }
           - { platform: windows/arm64, os: windows-latest, arch: arm64 }
-          - { platform: darwin/universal, os: macos-latest, arch: universal }
+          - { platform: darwin/arm64, os: macos-latest, arch: arm64 }
     runs-on: ${{ matrix.build.os }}
     steps:
       - uses: actions/checkout@v6
@@ -383,20 +383,17 @@ jobs:
           go build -tags production -trimpath -buildvcs=false -ldflags="${BUILD_LDFLAGS} -H windowsgui" -o bin/Bowrain.exe
           rm -f ./*.syso
 
-      - name: Build Bowrain (macOS universal)
+      - name: Build Bowrain (macOS arm64)
         if: runner.os == 'macOS'
         working-directory: bowrain/apps/bowrain
         env:
           CGO_ENABLED: "1"
-          CGO_CFLAGS: "-mmacosx-version-min=10.15"
-          CGO_LDFLAGS: "-mmacosx-version-min=10.15"
-          MACOSX_DEPLOYMENT_TARGET: "10.15"
+          CGO_CFLAGS: "-mmacosx-version-min=11.0"
+          CGO_LDFLAGS: "-mmacosx-version-min=11.0"
+          MACOSX_DEPLOYMENT_TARGET: "11.0"
           BUILD_LDFLAGS: ${{ steps.meta.outputs.LDFLAGS }}
         run: |
-          GOOS=darwin GOARCH=arm64 go build -tags production -trimpath -buildvcs=false -ldflags="${BUILD_LDFLAGS}" -o bin/Bowrain-arm64
-          GOOS=darwin GOARCH=amd64 go build -tags production -trimpath -buildvcs=false -ldflags="${BUILD_LDFLAGS}" -o bin/Bowrain-amd64
-          lipo -create -output bin/Bowrain bin/Bowrain-amd64 bin/Bowrain-arm64
-          rm bin/Bowrain-amd64 bin/Bowrain-arm64
+          GOOS=darwin GOARCH=arm64 go build -tags production -trimpath -buildvcs=false -ldflags="${BUILD_LDFLAGS}" -o bin/Bowrain
 
       - name: Create macOS .app bundle
         if: runner.os == 'macOS'
@@ -478,7 +475,7 @@ jobs:
             -srcfolder dmg \
             -ov \
             -format UDZO \
-            "../../../bowrain-${VERSION}-macOS-universal.dmg"
+            "../../../bowrain-${VERSION}-macOS-arm64.dmg"
 
       # macOS: Sign DMG with Developer ID if available
       - name: Sign DMG
@@ -487,7 +484,7 @@ jobs:
           APPLE_SIGN_IDENTITY: ${{ secrets.APPLE_SIGN_IDENTITY }}
           VERSION: ${{ steps.version.outputs.VERSION }}
         run: |
-          DMG="bowrain-${VERSION}-macOS-universal.dmg"
+          DMG="bowrain-${VERSION}-macOS-arm64.dmg"
           if [ -n "$APPLE_SIGN_IDENTITY" ]; then
             codesign --force --sign "$APPLE_SIGN_IDENTITY" "$DMG"
           fi
@@ -505,7 +502,7 @@ jobs:
             echo "No APPLE_ID set — skipping notarization"
             exit 0
           fi
-          DMG="bowrain-${VERSION}-macOS-universal.dmg"
+          DMG="bowrain-${VERSION}-macOS-arm64.dmg"
           echo "Submitting $DMG for notarization..."
           xcrun notarytool submit "$DMG" \
             --apple-id "$APPLE_ID" \
@@ -529,7 +526,7 @@ jobs:
         if: runner.os == 'macOS'
         uses: softprops/action-gh-release@v3
         with:
-          files: "bowrain-${{ steps.version.outputs.VERSION }}-macOS-universal.dmg"
+          files: "bowrain-${{ steps.version.outputs.VERSION }}-macOS-arm64.dmg"
 
       # Windows: Create ZIP
       - name: Create ZIP
@@ -568,7 +565,7 @@ jobs:
           - { platform: linux/arm64, os: ubuntu-24.04-arm, arch: arm64 }
           - { platform: windows/amd64, os: windows-latest, arch: amd64 }
           - { platform: windows/arm64, os: windows-latest, arch: arm64 }
-          - { platform: darwin/universal, os: macos-latest, arch: universal }
+          - { platform: darwin/arm64, os: macos-latest, arch: arm64 }
     runs-on: ${{ matrix.build.os }}
     steps:
       - uses: actions/checkout@v6
@@ -665,20 +662,17 @@ jobs:
           go build -tags production -trimpath -buildvcs=false -ldflags="${BUILD_LDFLAGS} -H windowsgui" -o bin/Kapi.exe
           rm -f ./*.syso
 
-      - name: Build Kapi Desktop (macOS universal)
+      - name: Build Kapi Desktop (macOS arm64)
         if: runner.os == 'macOS'
         working-directory: apps/kapi-desktop
         env:
           CGO_ENABLED: "1"
-          CGO_CFLAGS: "-mmacosx-version-min=10.15"
-          CGO_LDFLAGS: "-mmacosx-version-min=10.15"
-          MACOSX_DEPLOYMENT_TARGET: "10.15"
+          CGO_CFLAGS: "-mmacosx-version-min=11.0"
+          CGO_LDFLAGS: "-mmacosx-version-min=11.0"
+          MACOSX_DEPLOYMENT_TARGET: "11.0"
           BUILD_LDFLAGS: ${{ steps.meta.outputs.LDFLAGS }}
         run: |
-          GOOS=darwin GOARCH=arm64 go build -tags production -trimpath -buildvcs=false -ldflags="${BUILD_LDFLAGS}" -o bin/Kapi-arm64
-          GOOS=darwin GOARCH=amd64 go build -tags production -trimpath -buildvcs=false -ldflags="${BUILD_LDFLAGS}" -o bin/Kapi-amd64
-          lipo -create -output bin/Kapi bin/Kapi-amd64 bin/Kapi-arm64
-          rm bin/Kapi-amd64 bin/Kapi-arm64
+          GOOS=darwin GOARCH=arm64 go build -tags production -trimpath -buildvcs=false -ldflags="${BUILD_LDFLAGS}" -o bin/Kapi
 
       - name: Create macOS .app bundle
         if: runner.os == 'macOS'
@@ -749,7 +743,7 @@ jobs:
             -srcfolder dmg \
             -ov \
             -format UDZO \
-            "../../../kapi-desktop-${VERSION}-macOS-universal.dmg"
+            "../../../kapi-desktop-${VERSION}-macOS-arm64.dmg"
 
       - name: Sign DMG
         if: runner.os == 'macOS'
@@ -757,7 +751,7 @@ jobs:
           APPLE_SIGN_IDENTITY: ${{ secrets.APPLE_SIGN_IDENTITY }}
           VERSION: ${{ steps.version.outputs.VERSION }}
         run: |
-          DMG="kapi-desktop-${VERSION}-macOS-universal.dmg"
+          DMG="kapi-desktop-${VERSION}-macOS-arm64.dmg"
           if [ -n "$APPLE_SIGN_IDENTITY" ]; then
             codesign --force --sign "$APPLE_SIGN_IDENTITY" "$DMG"
           fi
@@ -774,7 +768,7 @@ jobs:
             echo "No APPLE_ID set — skipping notarization"
             exit 0
           fi
-          DMG="kapi-desktop-${VERSION}-macOS-universal.dmg"
+          DMG="kapi-desktop-${VERSION}-macOS-arm64.dmg"
           echo "Submitting $DMG for notarization..."
           xcrun notarytool submit "$DMG" \
             --apple-id "$APPLE_ID" \
@@ -797,7 +791,7 @@ jobs:
         if: runner.os == 'macOS'
         uses: softprops/action-gh-release@v3
         with:
-          files: "kapi-desktop-${{ steps.version.outputs.VERSION }}-macOS-universal.dmg"
+          files: "kapi-desktop-${{ steps.version.outputs.VERSION }}-macOS-arm64.dmg"
 
       - name: Create ZIP
         if: runner.os == 'Windows'
@@ -838,15 +832,15 @@ jobs:
         run: |
           gh release download "${{ github.ref_name }}" \
             --repo "${{ github.repository }}" \
-            --pattern "*-macOS-universal.dmg"
+            --pattern "*-macOS-arm64.dmg"
 
       - name: Compute checksums
         id: checksum
         env:
           VERSION: ${{ steps.version.outputs.VERSION }}
         run: |
-          echo "BOWRAIN_DMG=$(sha256sum "bowrain-${VERSION}-macOS-universal.dmg" | awk '{print $1}')" >> "$GITHUB_OUTPUT"
-          echo "KAPI_DMG=$(sha256sum "kapi-desktop-${VERSION}-macOS-universal.dmg" | awk '{print $1}')" >> "$GITHUB_OUTPUT"
+          echo "BOWRAIN_DMG=$(sha256sum "bowrain-${VERSION}-macOS-arm64.dmg" | awk '{print $1}')" >> "$GITHUB_OUTPUT"
+          echo "KAPI_DMG=$(sha256sum "kapi-desktop-${VERSION}-macOS-arm64.dmg" | awk '{print $1}')" >> "$GITHUB_OUTPUT"
 
       - name: Checkout homebrew-tap
         uses: actions/checkout@v6
@@ -870,7 +864,7 @@ jobs:
             version "${VERSION}"
             sha256 "${SHA_BOWRAIN}"
 
-            url "https://github.com/neokapi/neokapi/releases/download/v#{version}/bowrain-#{version}-macOS-universal.dmg",
+            url "https://github.com/neokapi/neokapi/releases/download/v#{version}/bowrain-#{version}-macOS-arm64.dmg",
                 using: GitHubPrivateRepositoryReleaseDownloadStrategy
             name "Bowrain"
             desc "AI-native translation editor"
@@ -914,7 +908,7 @@ jobs:
             version "${VERSION}"
             sha256 "${SHA_KAPI}"
 
-            url "https://github.com/neokapi/neokapi/releases/download/v#{version}/kapi-desktop-#{version}-macOS-universal.dmg",
+            url "https://github.com/neokapi/neokapi/releases/download/v#{version}/kapi-desktop-#{version}-macOS-arm64.dmg",
                 using: GitHubPrivateRepositoryReleaseDownloadStrategy
             name "Kapi"
             desc "Localization toolkit - powered by neokapi"
