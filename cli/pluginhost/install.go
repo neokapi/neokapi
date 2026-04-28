@@ -34,7 +34,7 @@ func InstallTarget() string {
 
 // InstallOptions configures InstallFromRegistry.
 type InstallOptions struct {
-	// IndexURL is the registry index URL (typically registry.neokapi.dev/plugins.json).
+	// IndexURL is the registry index URL (typically https://neokapi.github.io/registry/manifest-plugins.json).
 	IndexURL string
 
 	// PluginName is the plugin to install, e.g. "bowrain".
@@ -365,5 +365,5 @@ func DefaultIndexURL() string {
 	if v := os.Getenv("KAPI_REGISTRY_URL"); v != "" {
 		return v
 	}
-	return "https://neokapi.github.io/registry/plugins.json"
+	return "https://neokapi.github.io/registry/manifest-plugins.json"
 }

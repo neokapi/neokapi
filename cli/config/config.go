@@ -33,7 +33,7 @@ func NewAppConfig() *AppConfig {
 		pluginDir = filepath.Join(configDir, "kapi", "plugins")
 	}
 	v.SetDefault("plugins.directory", pluginDir)
-	v.SetDefault("plugins.registry", "https://neokapi.github.io/registry/plugins.json")
+	v.SetDefault("plugins.registry", "https://neokapi.github.io/registry/manifest-plugins.json")
 
 	return &AppConfig{v: v}
 }
@@ -131,7 +131,7 @@ type RegistryEntry struct {
 }
 
 // DefaultRegistryURL is the official neokapi plugin registry.
-const DefaultRegistryURL = "https://neokapi.github.io/registry/plugins.json"
+const DefaultRegistryURL = "https://neokapi.github.io/registry/manifest-plugins.json"
 
 // Registries returns the configured list of plugin registries.
 // If the "registries" key is set, those entries are returned.
