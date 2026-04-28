@@ -1,0 +1,1300 @@
+{
+  "generated_at": "2026-04-28T22:45:58Z",
+  "totals": {
+    "format": {
+      "pass": 23,
+      "fail": 0,
+      "skip": 29,
+      "error": 0,
+      "total": 52
+    },
+    "step": {
+      "pass": 90,
+      "fail": 0,
+      "skip": 32,
+      "error": 0,
+      "total": 122
+    }
+  },
+  "rows": [
+    {
+      "kind": "format",
+      "id": "okf_archive",
+      "status": "skip",
+      "mode": "bridge-only",
+      "detail": "binary corpus not in repo (rely on okapi-bridge testdata/ when available)",
+      "duration_ms": 0
+    },
+    {
+      "kind": "format",
+      "id": "okf_baseplaintext",
+      "status": "pass",
+      "mode": "head-to-head",
+      "duration_ms": 0
+    },
+    {
+      "kind": "format",
+      "id": "okf_basetable",
+      "status": "skip",
+      "mode": "head-to-head",
+      "detail": "documented divergence — see #453",
+      "duration_ms": 0
+    },
+    {
+      "kind": "format",
+      "id": "okf_commaseparatedvalues",
+      "status": "skip",
+      "mode": "head-to-head",
+      "detail": "documented divergence — see #453",
+      "duration_ms": 0
+    },
+    {
+      "kind": "format",
+      "id": "okf_doxygen",
+      "status": "skip",
+      "mode": "head-to-head",
+      "detail": "documented divergence — see #453",
+      "duration_ms": 0
+    },
+    {
+      "kind": "format",
+      "id": "okf_dtd",
+      "status": "pass",
+      "mode": "head-to-head",
+      "duration_ms": 0
+    },
+    {
+      "kind": "format",
+      "id": "okf_fixedwidthcolumns",
+      "status": "skip",
+      "mode": "head-to-head",
+      "detail": "documented divergence — see #453",
+      "duration_ms": 0
+    },
+    {
+      "kind": "format",
+      "id": "okf_html",
+      "status": "pass",
+      "mode": "head-to-head",
+      "duration_ms": 0
+    },
+    {
+      "kind": "format",
+      "id": "okf_html5",
+      "status": "pass",
+      "mode": "head-to-head",
+      "duration_ms": 0
+    },
+    {
+      "kind": "format",
+      "id": "okf_icml",
+      "status": "skip",
+      "mode": "bridge-only",
+      "detail": "binary corpus not in repo (rely on okapi-bridge testdata/ when available)",
+      "duration_ms": 0
+    },
+    {
+      "kind": "format",
+      "id": "okf_idml",
+      "status": "skip",
+      "mode": "bridge-only",
+      "detail": "binary corpus not in repo (rely on okapi-bridge testdata/ when available)",
+      "duration_ms": 0
+    },
+    {
+      "kind": "format",
+      "id": "okf_json",
+      "status": "pass",
+      "mode": "head-to-head",
+      "duration_ms": 0
+    },
+    {
+      "kind": "format",
+      "id": "okf_markdown",
+      "status": "pass",
+      "mode": "head-to-head",
+      "duration_ms": 0
+    },
+    {
+      "kind": "format",
+      "id": "okf_mif",
+      "status": "skip",
+      "mode": "bridge-only",
+      "detail": "binary corpus not in repo (rely on okapi-bridge testdata/ when available)",
+      "duration_ms": 0
+    },
+    {
+      "kind": "format",
+      "id": "okf_mosestext",
+      "status": "pass",
+      "mode": "head-to-head",
+      "duration_ms": 0
+    },
+    {
+      "kind": "format",
+      "id": "okf_multiparsers",
+      "status": "pass",
+      "mode": "bridge-only",
+      "duration_ms": 0
+    },
+    {
+      "kind": "format",
+      "id": "okf_odf",
+      "status": "skip",
+      "mode": "bridge-only",
+      "detail": "binary corpus not in repo (rely on okapi-bridge testdata/ when available)",
+      "duration_ms": 0
+    },
+    {
+      "kind": "format",
+      "id": "okf_openoffice",
+      "status": "skip",
+      "mode": "bridge-only",
+      "detail": "binary corpus not in repo (rely on okapi-bridge testdata/ when available)",
+      "duration_ms": 0
+    },
+    {
+      "kind": "format",
+      "id": "okf_openxml",
+      "status": "skip",
+      "mode": "bridge-only",
+      "detail": "binary corpus not in repo (rely on okapi-bridge testdata/ when available)",
+      "duration_ms": 0
+    },
+    {
+      "kind": "format",
+      "id": "okf_paraplaintext",
+      "status": "pass",
+      "mode": "head-to-head",
+      "duration_ms": 0
+    },
+    {
+      "kind": "format",
+      "id": "okf_pdf",
+      "status": "skip",
+      "mode": "bridge-only",
+      "detail": "binary corpus not in repo (rely on okapi-bridge testdata/ when available)",
+      "duration_ms": 0
+    },
+    {
+      "kind": "format",
+      "id": "okf_pensieve",
+      "status": "skip",
+      "mode": "bridge-only",
+      "detail": "binary corpus not in repo (rely on okapi-bridge testdata/ when available)",
+      "duration_ms": 0
+    },
+    {
+      "kind": "format",
+      "id": "okf_phpcontent",
+      "status": "skip",
+      "mode": "head-to-head",
+      "detail": "documented divergence — see #453",
+      "duration_ms": 0
+    },
+    {
+      "kind": "format",
+      "id": "okf_plaintext",
+      "status": "pass",
+      "mode": "head-to-head",
+      "duration_ms": 0
+    },
+    {
+      "kind": "format",
+      "id": "okf_po",
+      "status": "pass",
+      "mode": "head-to-head",
+      "duration_ms": 0
+    },
+    {
+      "kind": "format",
+      "id": "okf_properties",
+      "status": "pass",
+      "mode": "head-to-head",
+      "duration_ms": 0
+    },
+    {
+      "kind": "format",
+      "id": "okf_rainbowkit",
+      "status": "skip",
+      "mode": "bridge-only",
+      "detail": "binary corpus not in repo (rely on okapi-bridge testdata/ when available)",
+      "duration_ms": 0
+    },
+    {
+      "kind": "format",
+      "id": "okf_regex",
+      "status": "pass",
+      "mode": "head-to-head",
+      "duration_ms": 0
+    },
+    {
+      "kind": "format",
+      "id": "okf_regexplaintext",
+      "status": "skip",
+      "mode": "head-to-head",
+      "detail": "documented divergence — see #453",
+      "duration_ms": 0
+    },
+    {
+      "kind": "format",
+      "id": "okf_rtf",
+      "status": "skip",
+      "mode": "bridge-only",
+      "detail": "binary corpus not in repo (rely on okapi-bridge testdata/ when available)",
+      "duration_ms": 0
+    },
+    {
+      "kind": "format",
+      "id": "okf_sdlpackage",
+      "status": "skip",
+      "mode": "bridge-only",
+      "detail": "binary corpus not in repo (rely on okapi-bridge testdata/ when available)",
+      "duration_ms": 0
+    },
+    {
+      "kind": "format",
+      "id": "okf_splicedlines",
+      "status": "pass",
+      "mode": "head-to-head",
+      "duration_ms": 0
+    },
+    {
+      "kind": "format",
+      "id": "okf_table",
+      "status": "skip",
+      "mode": "head-to-head",
+      "detail": "documented divergence — see #453",
+      "duration_ms": 0
+    },
+    {
+      "kind": "format",
+      "id": "okf_tabseparatedvalues",
+      "status": "skip",
+      "mode": "head-to-head",
+      "detail": "documented divergence — see #453",
+      "duration_ms": 0
+    },
+    {
+      "kind": "format",
+      "id": "okf_tex",
+      "status": "skip",
+      "mode": "head-to-head",
+      "detail": "documented divergence — see #453",
+      "duration_ms": 0
+    },
+    {
+      "kind": "format",
+      "id": "okf_tmx",
+      "status": "pass",
+      "mode": "head-to-head",
+      "duration_ms": 0
+    },
+    {
+      "kind": "format",
+      "id": "okf_transifex",
+      "status": "skip",
+      "mode": "bridge-only",
+      "detail": "binary corpus not in repo (rely on okapi-bridge testdata/ when available)",
+      "duration_ms": 0
+    },
+    {
+      "kind": "format",
+      "id": "okf_transtable",
+      "status": "skip",
+      "mode": "head-to-head",
+      "detail": "documented divergence — see #453",
+      "duration_ms": 0
+    },
+    {
+      "kind": "format",
+      "id": "okf_ts",
+      "status": "pass",
+      "mode": "head-to-head",
+      "duration_ms": 0
+    },
+    {
+      "kind": "format",
+      "id": "okf_ttml",
+      "status": "skip",
+      "mode": "head-to-head",
+      "detail": "bridge crash — see #452",
+      "duration_ms": 0
+    },
+    {
+      "kind": "format",
+      "id": "okf_ttx",
+      "status": "skip",
+      "mode": "head-to-head",
+      "detail": "documented divergence — see #453",
+      "duration_ms": 0
+    },
+    {
+      "kind": "format",
+      "id": "okf_txml",
+      "status": "skip",
+      "mode": "head-to-head",
+      "detail": "documented divergence — see #453",
+      "duration_ms": 0
+    },
+    {
+      "kind": "format",
+      "id": "okf_vignette",
+      "status": "skip",
+      "mode": "head-to-head",
+      "detail": "documented divergence — see #453",
+      "duration_ms": 0
+    },
+    {
+      "kind": "format",
+      "id": "okf_vtt",
+      "status": "pass",
+      "mode": "head-to-head",
+      "duration_ms": 0
+    },
+    {
+      "kind": "format",
+      "id": "okf_wiki",
+      "status": "pass",
+      "mode": "head-to-head",
+      "duration_ms": 0
+    },
+    {
+      "kind": "format",
+      "id": "okf_xini",
+      "status": "skip",
+      "mode": "bridge-only",
+      "detail": "binary corpus not in repo (rely on okapi-bridge testdata/ when available)",
+      "duration_ms": 0
+    },
+    {
+      "kind": "format",
+      "id": "okf_xinirainbowkit",
+      "status": "skip",
+      "mode": "bridge-only",
+      "detail": "binary corpus not in repo (rely on okapi-bridge testdata/ when available)",
+      "duration_ms": 0
+    },
+    {
+      "kind": "format",
+      "id": "okf_xliff",
+      "status": "pass",
+      "mode": "head-to-head",
+      "duration_ms": 0
+    },
+    {
+      "kind": "format",
+      "id": "okf_xliff2",
+      "status": "pass",
+      "mode": "head-to-head",
+      "duration_ms": 0
+    },
+    {
+      "kind": "format",
+      "id": "okf_xml",
+      "status": "pass",
+      "mode": "head-to-head",
+      "duration_ms": 0
+    },
+    {
+      "kind": "format",
+      "id": "okf_xmlstream",
+      "status": "pass",
+      "mode": "head-to-head",
+      "duration_ms": 0
+    },
+    {
+      "kind": "format",
+      "id": "okf_yaml",
+      "status": "pass",
+      "mode": "head-to-head",
+      "duration_ms": 0
+    },
+    {
+      "kind": "step",
+      "id": "b-o-m-conversion",
+      "status": "pass",
+      "mode": "bridge-only",
+      "duration_ms": 0
+    },
+    {
+      "kind": "step",
+      "id": "batch-tm-leveraging",
+      "status": "skip",
+      "mode": "bridge-only",
+      "detail": "step needs pipeline context not provided by ProcessStep — see #454",
+      "duration_ms": 0
+    },
+    {
+      "kind": "step",
+      "id": "batch-translation",
+      "status": "skip",
+      "mode": "bridge-only",
+      "detail": "step needs pipeline context not provided by ProcessStep — see #454",
+      "duration_ms": 0
+    },
+    {
+      "kind": "step",
+      "id": "char-listing",
+      "status": "pass",
+      "mode": "bridge-only",
+      "duration_ms": 0
+    },
+    {
+      "kind": "step",
+      "id": "character-count",
+      "status": "pass",
+      "mode": "bridge-only",
+      "duration_ms": 0
+    },
+    {
+      "kind": "step",
+      "id": "characters-checker",
+      "status": "pass",
+      "mode": "bridge-only",
+      "duration_ms": 0
+    },
+    {
+      "kind": "step",
+      "id": "cleanup",
+      "status": "pass",
+      "mode": "bridge-only",
+      "duration_ms": 0
+    },
+    {
+      "kind": "step",
+      "id": "code-simplifier",
+      "status": "pass",
+      "mode": "bridge-only",
+      "duration_ms": 0
+    },
+    {
+      "kind": "step",
+      "id": "codes-removal",
+      "status": "pass",
+      "mode": "bridge-only",
+      "duration_ms": 0
+    },
+    {
+      "kind": "step",
+      "id": "concordance-character-count",
+      "status": "pass",
+      "mode": "bridge-only",
+      "duration_ms": 0
+    },
+    {
+      "kind": "step",
+      "id": "concordance-word-count",
+      "status": "pass",
+      "mode": "bridge-only",
+      "duration_ms": 0
+    },
+    {
+      "kind": "step",
+      "id": "convert-segments-to-text-units",
+      "status": "pass",
+      "mode": "bridge-only",
+      "duration_ms": 0
+    },
+    {
+      "kind": "step",
+      "id": "copy-or-move",
+      "status": "skip",
+      "mode": "bridge-only",
+      "detail": "step needs pipeline context not provided by ProcessStep — see #454",
+      "duration_ms": 0
+    },
+    {
+      "kind": "step",
+      "id": "copy-source-on-empty-target",
+      "status": "pass",
+      "mode": "bridge-only",
+      "duration_ms": 0
+    },
+    {
+      "kind": "step",
+      "id": "create-target",
+      "status": "pass",
+      "mode": "bridge-only",
+      "duration_ms": 0
+    },
+    {
+      "kind": "step",
+      "id": "desegmentation",
+      "status": "pass",
+      "mode": "bridge-only",
+      "duration_ms": 0
+    },
+    {
+      "kind": "step",
+      "id": "diff-leverage",
+      "status": "skip",
+      "mode": "bridge-only",
+      "detail": "step needs pipeline context not provided by ProcessStep — see #454",
+      "duration_ms": 0
+    },
+    {
+      "kind": "step",
+      "id": "encoding-conversion",
+      "status": "pass",
+      "mode": "bridge-only",
+      "duration_ms": 0
+    },
+    {
+      "kind": "step",
+      "id": "enrycher",
+      "status": "skip",
+      "mode": "bridge-only",
+      "detail": "step needs required parameters — see #454",
+      "duration_ms": 0
+    },
+    {
+      "kind": "step",
+      "id": "exact-document-context-match-character-count",
+      "status": "pass",
+      "mode": "bridge-only",
+      "duration_ms": 0
+    },
+    {
+      "kind": "step",
+      "id": "exact-document-context-match-word-count",
+      "status": "pass",
+      "mode": "bridge-only",
+      "duration_ms": 0
+    },
+    {
+      "kind": "step",
+      "id": "exact-local-context-match-character-count",
+      "status": "pass",
+      "mode": "bridge-only",
+      "duration_ms": 0
+    },
+    {
+      "kind": "step",
+      "id": "exact-local-context-match-word-count",
+      "status": "pass",
+      "mode": "bridge-only",
+      "duration_ms": 0
+    },
+    {
+      "kind": "step",
+      "id": "exact-match-character-count",
+      "status": "pass",
+      "mode": "bridge-only",
+      "duration_ms": 0
+    },
+    {
+      "kind": "step",
+      "id": "exact-match-word-count",
+      "status": "pass",
+      "mode": "bridge-only",
+      "duration_ms": 0
+    },
+    {
+      "kind": "step",
+      "id": "exact-previous-version-match-character-count",
+      "status": "pass",
+      "mode": "bridge-only",
+      "duration_ms": 0
+    },
+    {
+      "kind": "step",
+      "id": "exact-previous-version-match-word-count",
+      "status": "pass",
+      "mode": "bridge-only",
+      "duration_ms": 0
+    },
+    {
+      "kind": "step",
+      "id": "exact-repaired-character-count",
+      "status": "pass",
+      "mode": "bridge-only",
+      "duration_ms": 0
+    },
+    {
+      "kind": "step",
+      "id": "exact-repaired-word-count",
+      "status": "pass",
+      "mode": "bridge-only",
+      "duration_ms": 0
+    },
+    {
+      "kind": "step",
+      "id": "exact-structural-match-character-count",
+      "status": "pass",
+      "mode": "bridge-only",
+      "duration_ms": 0
+    },
+    {
+      "kind": "step",
+      "id": "exact-structural-match-word-count",
+      "status": "pass",
+      "mode": "bridge-only",
+      "duration_ms": 0
+    },
+    {
+      "kind": "step",
+      "id": "exact-text-only-character-count",
+      "status": "pass",
+      "mode": "bridge-only",
+      "duration_ms": 0
+    },
+    {
+      "kind": "step",
+      "id": "exact-text-only-previous-version-match-character-count",
+      "status": "pass",
+      "mode": "bridge-only",
+      "duration_ms": 0
+    },
+    {
+      "kind": "step",
+      "id": "exact-text-only-previous-version-match-word-count",
+      "status": "pass",
+      "mode": "bridge-only",
+      "duration_ms": 0
+    },
+    {
+      "kind": "step",
+      "id": "exact-text-only-unique-id-match-character-count",
+      "status": "pass",
+      "mode": "bridge-only",
+      "duration_ms": 0
+    },
+    {
+      "kind": "step",
+      "id": "exact-text-only-unique-id-match-word-count",
+      "status": "pass",
+      "mode": "bridge-only",
+      "duration_ms": 0
+    },
+    {
+      "kind": "step",
+      "id": "exact-text-only-word-count",
+      "status": "pass",
+      "mode": "bridge-only",
+      "duration_ms": 0
+    },
+    {
+      "kind": "step",
+      "id": "exact-unique-id-match-character-count",
+      "status": "pass",
+      "mode": "bridge-only",
+      "duration_ms": 0
+    },
+    {
+      "kind": "step",
+      "id": "exact-unique-id-match-word-count",
+      "status": "pass",
+      "mode": "bridge-only",
+      "duration_ms": 0
+    },
+    {
+      "kind": "step",
+      "id": "external-command",
+      "status": "skip",
+      "mode": "bridge-only",
+      "detail": "step needs required parameters — see #454",
+      "duration_ms": 0
+    },
+    {
+      "kind": "step",
+      "id": "extraction",
+      "status": "skip",
+      "mode": "bridge-only",
+      "detail": "step needs pipeline context not provided by ProcessStep — see #454",
+      "duration_ms": 0
+    },
+    {
+      "kind": "step",
+      "id": "extraction-verification",
+      "status": "skip",
+      "mode": "bridge-only",
+      "detail": "step needs pipeline context not provided by ProcessStep — see #454",
+      "duration_ms": 0
+    },
+    {
+      "kind": "step",
+      "id": "filter-events-to-raw-document",
+      "status": "skip",
+      "mode": "bridge-only",
+      "detail": "step needs pipeline context not provided by ProcessStep — see #454",
+      "duration_ms": 0
+    },
+    {
+      "kind": "step",
+      "id": "filter-events-writer",
+      "status": "skip",
+      "mode": "bridge-only",
+      "detail": "step needs pipeline context not provided by ProcessStep — see #454",
+      "duration_ms": 0
+    },
+    {
+      "kind": "step",
+      "id": "format-conversion",
+      "status": "pass",
+      "mode": "bridge-only",
+      "duration_ms": 0
+    },
+    {
+      "kind": "step",
+      "id": "full-width-conversion",
+      "status": "pass",
+      "mode": "bridge-only",
+      "duration_ms": 0
+    },
+    {
+      "kind": "step",
+      "id": "fuzzy-match-character-count",
+      "status": "pass",
+      "mode": "bridge-only",
+      "duration_ms": 0
+    },
+    {
+      "kind": "step",
+      "id": "fuzzy-match-word-count",
+      "status": "pass",
+      "mode": "bridge-only",
+      "duration_ms": 0
+    },
+    {
+      "kind": "step",
+      "id": "fuzzy-previous-version-match-character-count",
+      "status": "pass",
+      "mode": "bridge-only",
+      "duration_ms": 0
+    },
+    {
+      "kind": "step",
+      "id": "fuzzy-previous-version-match-word-count",
+      "status": "pass",
+      "mode": "bridge-only",
+      "duration_ms": 0
+    },
+    {
+      "kind": "step",
+      "id": "fuzzy-repaired-character-count",
+      "status": "pass",
+      "mode": "bridge-only",
+      "duration_ms": 0
+    },
+    {
+      "kind": "step",
+      "id": "fuzzy-repaired-word-count",
+      "status": "pass",
+      "mode": "bridge-only",
+      "duration_ms": 0
+    },
+    {
+      "kind": "step",
+      "id": "fuzzy-unique-id-match-character-count",
+      "status": "pass",
+      "mode": "bridge-only",
+      "duration_ms": 0
+    },
+    {
+      "kind": "step",
+      "id": "fuzzy-unique-id-match-word-count",
+      "status": "pass",
+      "mode": "bridge-only",
+      "duration_ms": 0
+    },
+    {
+      "kind": "step",
+      "id": "g-m-x-alphanumeric-only-text-unit-character-count",
+      "status": "pass",
+      "mode": "bridge-only",
+      "duration_ms": 0
+    },
+    {
+      "kind": "step",
+      "id": "g-m-x-alphanumeric-only-text-unit-word-count",
+      "status": "pass",
+      "mode": "bridge-only",
+      "duration_ms": 0
+    },
+    {
+      "kind": "step",
+      "id": "g-m-x-exact-matched-character-count",
+      "status": "pass",
+      "mode": "bridge-only",
+      "duration_ms": 0
+    },
+    {
+      "kind": "step",
+      "id": "g-m-x-exact-matched-word-count",
+      "status": "pass",
+      "mode": "bridge-only",
+      "duration_ms": 0
+    },
+    {
+      "kind": "step",
+      "id": "g-m-x-fuzzy-match-character-count",
+      "status": "pass",
+      "mode": "bridge-only",
+      "duration_ms": 0
+    },
+    {
+      "kind": "step",
+      "id": "g-m-x-fuzzy-match-word-count",
+      "status": "pass",
+      "mode": "bridge-only",
+      "duration_ms": 0
+    },
+    {
+      "kind": "step",
+      "id": "g-m-x-leveraged-matched-character-count",
+      "status": "pass",
+      "mode": "bridge-only",
+      "duration_ms": 0
+    },
+    {
+      "kind": "step",
+      "id": "g-m-x-leveraged-matched-word-count",
+      "status": "pass",
+      "mode": "bridge-only",
+      "duration_ms": 0
+    },
+    {
+      "kind": "step",
+      "id": "g-m-x-measurement-only-text-unit-character-count",
+      "status": "pass",
+      "mode": "bridge-only",
+      "duration_ms": 0
+    },
+    {
+      "kind": "step",
+      "id": "g-m-x-measurement-only-text-unit-word-count",
+      "status": "pass",
+      "mode": "bridge-only",
+      "duration_ms": 0
+    },
+    {
+      "kind": "step",
+      "id": "g-m-x-numeric-only-text-unit-character-count",
+      "status": "pass",
+      "mode": "bridge-only",
+      "duration_ms": 0
+    },
+    {
+      "kind": "step",
+      "id": "g-m-x-numeric-only-text-unit-word-count",
+      "status": "pass",
+      "mode": "bridge-only",
+      "duration_ms": 0
+    },
+    {
+      "kind": "step",
+      "id": "g-m-x-protected-character-count",
+      "status": "pass",
+      "mode": "bridge-only",
+      "duration_ms": 0
+    },
+    {
+      "kind": "step",
+      "id": "g-m-x-protected-word-count",
+      "status": "pass",
+      "mode": "bridge-only",
+      "duration_ms": 0
+    },
+    {
+      "kind": "step",
+      "id": "g-m-x-repetition-matched-character-count",
+      "status": "pass",
+      "mode": "bridge-only",
+      "duration_ms": 0
+    },
+    {
+      "kind": "step",
+      "id": "g-m-x-repetition-matched-word-count",
+      "status": "pass",
+      "mode": "bridge-only",
+      "duration_ms": 0
+    },
+    {
+      "kind": "step",
+      "id": "general-checker",
+      "status": "pass",
+      "mode": "bridge-only",
+      "duration_ms": 0
+    },
+    {
+      "kind": "step",
+      "id": "id-based-aligner",
+      "status": "skip",
+      "mode": "bridge-only",
+      "detail": "step needs pipeline context not provided by ProcessStep — see #454",
+      "duration_ms": 0
+    },
+    {
+      "kind": "step",
+      "id": "id-based-copy",
+      "status": "skip",
+      "mode": "bridge-only",
+      "detail": "step needs pipeline context not provided by ProcessStep — see #454",
+      "duration_ms": 0
+    },
+    {
+      "kind": "step",
+      "id": "image-modification",
+      "status": "skip",
+      "mode": "bridge-only",
+      "detail": "step needs required parameters — see #454",
+      "duration_ms": 0
+    },
+    {
+      "kind": "step",
+      "id": "inconsistency-check",
+      "status": "pass",
+      "mode": "bridge-only",
+      "duration_ms": 0
+    },
+    {
+      "kind": "step",
+      "id": "inline-codes-checker",
+      "status": "pass",
+      "mode": "bridge-only",
+      "duration_ms": 0
+    },
+    {
+      "kind": "step",
+      "id": "length-checker",
+      "status": "pass",
+      "mode": "bridge-only",
+      "duration_ms": 0
+    },
+    {
+      "kind": "step",
+      "id": "leveraging",
+      "status": "skip",
+      "mode": "bridge-only",
+      "detail": "step needs pipeline context not provided by ProcessStep — see #454",
+      "duration_ms": 0
+    },
+    {
+      "kind": "step",
+      "id": "line-break-conversion",
+      "status": "pass",
+      "mode": "bridge-only",
+      "duration_ms": 0
+    },
+    {
+      "kind": "step",
+      "id": "localizable-checker",
+      "status": "pass",
+      "mode": "bridge-only",
+      "duration_ms": 0
+    },
+    {
+      "kind": "step",
+      "id": "m-s-batch-translation",
+      "status": "skip",
+      "mode": "bridge-only",
+      "detail": "step needs required parameters — see #454",
+      "duration_ms": 0
+    },
+    {
+      "kind": "step",
+      "id": "m-t-character-count",
+      "status": "pass",
+      "mode": "bridge-only",
+      "duration_ms": 0
+    },
+    {
+      "kind": "step",
+      "id": "m-t-word-count",
+      "status": "pass",
+      "mode": "bridge-only",
+      "duration_ms": 0
+    },
+    {
+      "kind": "step",
+      "id": "merging",
+      "status": "skip",
+      "mode": "bridge-only",
+      "detail": "step needs pipeline context not provided by ProcessStep — see #454",
+      "duration_ms": 0
+    },
+    {
+      "kind": "step",
+      "id": "paragraph-aligner",
+      "status": "skip",
+      "mode": "bridge-only",
+      "detail": "step needs pipeline context not provided by ProcessStep — see #454",
+      "duration_ms": 0
+    },
+    {
+      "kind": "step",
+      "id": "patterns-checker",
+      "status": "pass",
+      "mode": "bridge-only",
+      "duration_ms": 0
+    },
+    {
+      "kind": "step",
+      "id": "phrase-assembled-character-count",
+      "status": "pass",
+      "mode": "bridge-only",
+      "duration_ms": 0
+    },
+    {
+      "kind": "step",
+      "id": "phrase-assembled-word-count",
+      "status": "pass",
+      "mode": "bridge-only",
+      "duration_ms": 0
+    },
+    {
+      "kind": "step",
+      "id": "post-segmentation-code-simplifier",
+      "status": "pass",
+      "mode": "bridge-only",
+      "duration_ms": 0
+    },
+    {
+      "kind": "step",
+      "id": "quality-check",
+      "status": "pass",
+      "mode": "bridge-only",
+      "duration_ms": 0
+    },
+    {
+      "kind": "step",
+      "id": "r-t-f-conversion",
+      "status": "pass",
+      "mode": "bridge-only",
+      "duration_ms": 0
+    },
+    {
+      "kind": "step",
+      "id": "raw-document-to-filter-events",
+      "status": "skip",
+      "mode": "bridge-only",
+      "detail": "step needs pipeline context not provided by ProcessStep — see #454",
+      "duration_ms": 0
+    },
+    {
+      "kind": "step",
+      "id": "raw-document-to-output-stream",
+      "status": "skip",
+      "mode": "bridge-only",
+      "detail": "step needs pipeline context not provided by ProcessStep — see #454",
+      "duration_ms": 0
+    },
+    {
+      "kind": "step",
+      "id": "raw-document-writer",
+      "status": "skip",
+      "mode": "bridge-only",
+      "detail": "step needs pipeline context not provided by ProcessStep — see #454",
+      "duration_ms": 0
+    },
+    {
+      "kind": "step",
+      "id": "remove-target",
+      "status": "pass",
+      "mode": "bridge-only",
+      "duration_ms": 0
+    },
+    {
+      "kind": "step",
+      "id": "repetition-analysis",
+      "status": "pass",
+      "mode": "bridge-only",
+      "duration_ms": 0
+    },
+    {
+      "kind": "step",
+      "id": "resource-simplifier",
+      "status": "pass",
+      "mode": "bridge-only",
+      "duration_ms": 0
+    },
+    {
+      "kind": "step",
+      "id": "scoping-report",
+      "status": "skip",
+      "mode": "bridge-only",
+      "detail": "step needs pipeline context not provided by ProcessStep — see #454",
+      "duration_ms": 0
+    },
+    {
+      "kind": "step",
+      "id": "search-and-replace",
+      "status": "skip",
+      "mode": "bridge-only",
+      "detail": "step needs required parameters — see #454",
+      "duration_ms": 0
+    },
+    {
+      "kind": "step",
+      "id": "segmentation",
+      "status": "pass",
+      "mode": "bridge-only",
+      "duration_ms": 0
+    },
+    {
+      "kind": "step",
+      "id": "sentence-aligner",
+      "status": "skip",
+      "mode": "bridge-only",
+      "detail": "step needs pipeline context not provided by ProcessStep — see #454",
+      "duration_ms": 0
+    },
+    {
+      "kind": "step",
+      "id": "simple-word-count",
+      "status": "pass",
+      "mode": "bridge-only",
+      "duration_ms": 0
+    },
+    {
+      "kind": "step",
+      "id": "space-check",
+      "status": "pass",
+      "mode": "bridge-only",
+      "duration_ms": 0
+    },
+    {
+      "kind": "step",
+      "id": "t-m-import",
+      "status": "skip",
+      "mode": "bridge-only",
+      "detail": "step needs pipeline context not provided by ProcessStep — see #454",
+      "duration_ms": 0
+    },
+    {
+      "kind": "step",
+      "id": "t-t-x-joiner",
+      "status": "skip",
+      "mode": "bridge-only",
+      "detail": "step needs pipeline context not provided by ProcessStep — see #454",
+      "duration_ms": 0
+    },
+    {
+      "kind": "step",
+      "id": "t-t-x-splitter",
+      "status": "skip",
+      "mode": "bridge-only",
+      "detail": "step needs pipeline context not provided by ProcessStep — see #454",
+      "duration_ms": 0
+    },
+    {
+      "kind": "step",
+      "id": "term-extraction",
+      "status": "pass",
+      "mode": "bridge-only",
+      "duration_ms": 0
+    },
+    {
+      "kind": "step",
+      "id": "terminology-leveraging",
+      "status": "skip",
+      "mode": "bridge-only",
+      "detail": "step needs pipeline context not provided by ProcessStep — see #454",
+      "duration_ms": 0
+    },
+    {
+      "kind": "step",
+      "id": "text-modification",
+      "status": "pass",
+      "mode": "bridge-only",
+      "duration_ms": 0
+    },
+    {
+      "kind": "step",
+      "id": "tokenization",
+      "status": "pass",
+      "mode": "bridge-only",
+      "duration_ms": 0
+    },
+    {
+      "kind": "step",
+      "id": "translation-comparison",
+      "status": "skip",
+      "mode": "bridge-only",
+      "detail": "step needs pipeline context not provided by ProcessStep — see #454",
+      "duration_ms": 0
+    },
+    {
+      "kind": "step",
+      "id": "tu-filtering",
+      "status": "pass",
+      "mode": "bridge-only",
+      "duration_ms": 0
+    },
+    {
+      "kind": "step",
+      "id": "uri-conversion",
+      "status": "pass",
+      "mode": "bridge-only",
+      "duration_ms": 0
+    },
+    {
+      "kind": "step",
+      "id": "whitespace-correction",
+      "status": "pass",
+      "mode": "bridge-only",
+      "duration_ms": 0
+    },
+    {
+      "kind": "step",
+      "id": "word-count",
+      "status": "pass",
+      "mode": "bridge-only",
+      "duration_ms": 0
+    },
+    {
+      "kind": "step",
+      "id": "x-m-l-analysis",
+      "status": "pass",
+      "mode": "bridge-only",
+      "duration_ms": 0
+    },
+    {
+      "kind": "step",
+      "id": "x-m-l-char-fixing",
+      "status": "pass",
+      "mode": "bridge-only",
+      "duration_ms": 0
+    },
+    {
+      "kind": "step",
+      "id": "x-m-l-validation",
+      "status": "pass",
+      "mode": "bridge-only",
+      "duration_ms": 0
+    },
+    {
+      "kind": "step",
+      "id": "x-s-l-transform",
+      "status": "skip",
+      "mode": "bridge-only",
+      "detail": "step needs required parameters — see #454",
+      "duration_ms": 0
+    },
+    {
+      "kind": "step",
+      "id": "xliff-joiner",
+      "status": "skip",
+      "mode": "bridge-only",
+      "detail": "step needs pipeline context not provided by ProcessStep — see #454",
+      "duration_ms": 0
+    },
+    {
+      "kind": "step",
+      "id": "xliff-splitter",
+      "status": "skip",
+      "mode": "bridge-only",
+      "detail": "step needs pipeline context not provided by ProcessStep — see #454",
+      "duration_ms": 0
+    },
+    {
+      "kind": "step",
+      "id": "xliff-w-c-splitter",
+      "status": "skip",
+      "mode": "bridge-only",
+      "detail": "step needs pipeline context not provided by ProcessStep — see #454",
+      "duration_ms": 0
+    }
+  ]
+}

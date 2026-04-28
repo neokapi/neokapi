@@ -280,6 +280,14 @@ parity-test: parity-sandbox ## Run the full parity test suite (#448)
 	    $(GOTEST) -tags parity -count=1 -timeout 30m ./parity/...
 	@echo "Parity report: $(PARITY_REPORT)"
 
+PARITY_DASHBOARD := $(ROOT_DIR)/web/docs/static/data/parity-report.json
+
+parity-publish: parity-test ## Run the parity suite and publish dashboard JSON to the docs site
+	@cd $(ROOT_DIR) && go run ./scripts/testcompare \
+	    -in $(PARITY_REPORT) \
+	    -out $(PARITY_DASHBOARD)
+	@echo "Dashboard JSON: $(PARITY_DASHBOARD)"
+
 parity-clean: ## Remove the parity sandbox to force a fresh build next run
 	rm -rf $(PARITY_DIR)
 
@@ -527,7 +535,7 @@ help: ## Show this help
 	@echo ""
 
 .PHONY: all help $(BOTH_TARGETS) test test-fast test-unit test-race test-verbose test-integration \
-        parity-sandbox parity-test parity-clean \
+        parity-sandbox parity-test parity-publish parity-clean \
         fmt vet lint check check-framework check-bowrain test-parallel \
         test-framework test-cli test-kapi test-platform test-bowrain-cli test-bowrain \
         ci-test-framework ci-test-cli ci-test-kapi ci-test-platform \

@@ -110,9 +110,9 @@ Each parity test reports one row via `parity.Report` with `Kind`
 (`head-to-head`, `bridge-only`, or `byte`), and the test outcome.
 `parity.FlushReport` from each package's `TestMain` writes the
 accumulated rows to `$REPO/.parity/test-comparison.json`. The
-`parity.yml` CI workflow uploads that JSON as an artifact; the docs
-site parity dashboard renders it as a per-filter / per-step status
-table.
+`parity.yml` CI workflow uploads that JSON as an artifact; the
+[parity dashboard](/parity) on the docs site renders it as a
+per-filter / per-step status table.
 
 ## Consequences
 
@@ -146,17 +146,29 @@ table.
 
 ## How the dashboard is wired
 
-`scripts/testcompare/main.go` reads `.parity/test-comparison.json` and
-writes `web/docs/static/data/test-comparison.json` in the schema the
-docs page expects. The page itself
-(`web/docs/docs/parity-dashboard.mdx`) fetches that file at build time
-and renders one row per filter / step with its current status.
+`scripts/testcompare/main.go` reads `.parity/test-comparison.json` (the
+raw report written by the `cli/parity/` test packages) and emits a
+narrower per-row published shape at
+`web/docs/static/data/parity-report.json`. The
+[`/parity`](/parity) page (`web/docs/src/pages/parity/index.tsx`)
+imports that JSON at build time and renders one row per filter / step
+with its current status, mode, and skip detail. Run
+`make parity-publish` to refresh both files locally.
+
+The output path is deliberately separate from the legacy
+`/test-comparison` page's data file (`web/docs/static/data/test-comparison.json`),
+which is kept temporarily so that page's per-test-class view still
+works.
 
 ## Pre-release gate
 
-The `release.yml` workflow blocks tagging if the latest `parity.yml`
-run on `main` did not succeed. This makes parity an explicit
-v1.0.0+ constraint rather than a soft suggestion.
+The `release.yml` workflow blocks tagging if the `parity.yml` workflow
+has not concluded as `success` for the tagged commit. The `parity-gate`
+job queries the GitHub Actions API for the parity workflow's
+conclusion against `${{ github.sha }}` and fails closed on absent /
+in-progress / failed runs. `goreleaser` and `build-bowrain` (the two
+top-level independent release jobs) then `needs: parity-gate`, so the
+entire downstream release pipeline inherits the gate.
 
 ## References
 
