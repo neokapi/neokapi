@@ -470,12 +470,17 @@ jobs:
           mkdir -p dmg
           cp -R bin/Bowrain.app dmg/
           ln -s /Applications dmg/Applications
-          hdiutil create \
-            -volname "Bowrain v${VERSION}" \
-            -srcfolder dmg \
-            -ov \
-            -format UDZO \
-            "../../../bowrain-${VERSION}-macOS-arm64.dmg"
+          # hdiutil flakes with "Resource busy" on macos-latest; retry up to 3x.
+          for i in 1 2 3; do
+            hdiutil create \
+              -volname "Bowrain v${VERSION}" \
+              -srcfolder dmg \
+              -ov \
+              -format UDZO \
+              "../../../bowrain-${VERSION}-macOS-arm64.dmg" && break
+            echo "hdiutil attempt $i failed, retrying after 5s..."
+            sleep 5
+          done
 
       # macOS: Sign DMG with Developer ID if available
       - name: Sign DMG
@@ -738,12 +743,17 @@ jobs:
           mkdir -p dmg
           cp -R bin/Kapi.app dmg/
           ln -s /Applications dmg/Applications
-          hdiutil create \
-            -volname "Kapi v${VERSION}" \
-            -srcfolder dmg \
-            -ov \
-            -format UDZO \
-            "../../../kapi-desktop-${VERSION}-macOS-arm64.dmg"
+          # hdiutil flakes with "Resource busy" on macos-latest; retry up to 3x.
+          for i in 1 2 3; do
+            hdiutil create \
+              -volname "Kapi v${VERSION}" \
+              -srcfolder dmg \
+              -ov \
+              -format UDZO \
+              "../../../kapi-desktop-${VERSION}-macOS-arm64.dmg" && break
+            echo "hdiutil attempt $i failed, retrying after 5s..."
+            sleep 5
+          done
 
       - name: Sign DMG
         if: runner.os == 'macOS'
