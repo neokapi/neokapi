@@ -1,3 +1,5 @@
+//go:build !windows
+
 package storage
 
 // This file statically links the FTS5 ICU tokenizer into the Go binary.
