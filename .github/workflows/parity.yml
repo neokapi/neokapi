@@ -84,6 +84,15 @@ jobs:
       - name: Install ICU dev libraries
         run: sudo apt-get update && sudo apt-get install -y libicu-dev pkg-config
 
+      - name: Regenerate version-specific POM
+        # The okapi-releases/<V>/pom.xml committed in okapi-bridge
+        # references a stale parent version (e.g. 2.20.0-SNAPSHOT)
+        # that drifts as the root POM is bumped. Regenerate it so the
+        # parent reference matches the current root POM's version
+        # (read from neokapi:okapi-bridge-parent at HEAD).
+        working-directory: okapi-bridge
+        run: make generate-pom V="$OKAPI_VERSION"
+
       - name: Install okapi-bridge parent POM into local Maven repo
         # The version-specific module declares neokapi:okapi-bridge-parent
         # as its parent POM. `mvn package` on the version module doesn't
