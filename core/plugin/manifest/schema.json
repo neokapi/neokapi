@@ -25,9 +25,9 @@
     "author": { "type": "string" },
     "license": { "type": "string", "description": "SPDX license identifier" },
     "binary": {
-      "description": "Executable name within the plugin dir (no path separators).",
+      "description": "Executable path within the plugin dir. Forward slashes only; no leading slash; no `..` segments. Examples: \"kapi-bowrain\", \"bin/kapi-okapi-bridge\", \"Contents/MacOS/kapi-okapi-bridge\".",
       "type": "string",
-      "pattern": "^[^/\\\\]+$"
+      "pattern": "^(?!/)(?!.*\\\\)(?!.*(?:^|/)\\.\\.(?:$|/)).+$"
     },
     "min_kapi_version": { "type": "string" },
     "group": { "type": "string" },

@@ -312,8 +312,8 @@ func (m *Manifest) Validate() error {
 	if m.Binary == "" {
 		return errors.New("binary is required")
 	}
-	if strings.ContainsRune(m.Binary, '/') || strings.ContainsRune(m.Binary, '\\') {
-		return fmt.Errorf("binary must be a bare filename (no path separators), got %q", m.Binary)
+	if err := validateBinaryPath(m.Binary); err != nil {
+		return err
 	}
 	if m.IsModeC() && m.Daemon == nil {
 		return errors.New("daemon block is required when capabilities include formats, tools, or source_connectors")
@@ -354,6 +354,29 @@ func (m *Manifest) Validate() error {
 		case "project", "defaults", "collection", "item":
 		default:
 			return fmt.Errorf("capabilities.schema_extensions[%d]: invalid scope %q (want project|defaults|collection|item)", i, ext.Scope)
+		}
+	}
+	return nil
+}
+
+// validateBinaryPath enforces that `binary` is a relative path inside
+// the plugin dir. Forward slashes are allowed (jpackage produces
+// e.g. "bin/kapi-okapi-bridge" on Linux, "Contents/MacOS/..." on macOS).
+// Windows-style backslashes, absolute paths, and `..` segments are
+// rejected to keep the host from escaping the plugin dir at exec time.
+func validateBinaryPath(p string) error {
+	if strings.ContainsRune(p, '\\') {
+		return fmt.Errorf("binary %q: backslashes are not allowed; use forward slashes (kapi normalizes them per-platform at exec time)", p)
+	}
+	if strings.HasPrefix(p, "/") {
+		return fmt.Errorf("binary %q: absolute paths are not allowed", p)
+	}
+	for _, seg := range strings.Split(p, "/") {
+		if seg == "" {
+			return fmt.Errorf("binary %q: empty path segment", p)
+		}
+		if seg == ".." {
+			return fmt.Errorf("binary %q: parent-dir segments are not allowed", p)
 		}
 	}
 	return nil

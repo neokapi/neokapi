@@ -100,7 +100,9 @@ func TestValidate_RequiredFields(t *testing.T) {
 		{"invalid plugin name", `{"manifest_version": "1", "plugin": "Bad_Name", "version": "1", "binary": "x"}`, "invalid plugin name"},
 		{"missing version", `{"manifest_version": "1", "plugin": "x", "binary": "x"}`, "version is required"},
 		{"missing binary", `{"manifest_version": "1", "plugin": "x", "version": "1"}`, "binary is required"},
-		{"binary with separator", `{"manifest_version": "1", "plugin": "x", "version": "1", "binary": "bin/x"}`, "no path separators"},
+		{"binary with backslash", `{"manifest_version": "1", "plugin": "x", "version": "1", "binary": "bin\\x"}`, "backslashes are not allowed"},
+		{"binary absolute path", `{"manifest_version": "1", "plugin": "x", "version": "1", "binary": "/usr/local/bin/x"}`, "absolute paths are not allowed"},
+		{"binary parent-dir segment", `{"manifest_version": "1", "plugin": "x", "version": "1", "binary": "bin/../x"}`, "parent-dir segments are not allowed"},
 		{"daemon required for formats", `{"manifest_version": "1", "plugin": "x", "version": "1", "binary": "x", "capabilities": {"formats": [{"name": "f"}]}}`, "daemon block is required"},
 		{"daemon only with mode-c", `{"manifest_version": "1", "plugin": "x", "version": "1", "binary": "x", "daemon": {"idle_timeout_seconds": 1}}`, "daemon block is only valid"},
 		{"command needs name", `{"manifest_version": "1", "plugin": "x", "version": "1", "binary": "x", "capabilities": {"commands": [{}]}}`, "name is required"},
@@ -112,6 +114,22 @@ func TestValidate_RequiredFields(t *testing.T) {
 			require.Error(t, err)
 			assert.Contains(t, err.Error(), tc.want)
 		})
+	}
+}
+
+func TestParseAcceptsRelativeBinaryPath(t *testing.T) {
+	// jpackage-built plugins (e.g. okapi-bridge v2.42+) declare the
+	// launcher under bin/<name> on Linux, Contents/MacOS/<name> on macOS,
+	// or <name>.exe on Windows. The validator must accept all three.
+	for _, p := range []string{"bin/kapi-okapi-bridge", "Contents/MacOS/kapi-okapi-bridge", "kapi-okapi-bridge.exe"} {
+		raw := []byte(`{
+			"manifest_version": "1",
+			"plugin": "okapi-bridge",
+			"version": "2.42.0",
+			"binary": "` + p + `"
+		}`)
+		_, err := manifest.Parse(raw)
+		require.NoError(t, err, "expected binary %q to validate", p)
 	}
 }
 
