@@ -12,7 +12,7 @@ import (
 func init() {
 	// Capture the App for command bodies that still rely on the package
 	// global. This runs after Init() has populated FormatReg, ToolReg,
-	// PluginLoader, etc.
+	// PluginHost, etc.
 	cli.RegisterAppInitializer(func(a *cli.App) {
 		app = a
 		a.FallbackRunE = projectFlowFallback

@@ -18,7 +18,6 @@ import (
 	"github.com/neokapi/neokapi/core/flow"
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/model"
-	pluginreg "github.com/neokapi/neokapi/core/plugin/registry"
 	"github.com/neokapi/neokapi/core/preset"
 	"github.com/neokapi/neokapi/core/registry"
 	"github.com/neokapi/neokapi/core/tool"
@@ -198,7 +197,7 @@ func (a *App) processOneFile(ctx context.Context, cfg ToolRunConfig, filePath st
 		fmtName = string(detected)
 	}
 
-	ref := pluginreg.ParseFormatRef(fmtName)
+	ref := preset.ParseFormatRef(fmtName)
 	registryName := ref.RegistryName()
 
 	reader, err := a.FormatReg.NewReader(registry.FormatID(registryName))
@@ -213,7 +212,7 @@ func (a *App) processOneFile(ctx context.Context, cfg ToolRunConfig, filePath st
 	}
 
 	if ref.IsPreset() {
-		presetReg := a.PluginLoader.Presets()
+		presetReg := preset.NewPresetRegistry()
 		preset.RegisterBuiltins(presetReg)
 		resolver := preset.NewConfigResolver(presetReg, a.SchemaReg)
 

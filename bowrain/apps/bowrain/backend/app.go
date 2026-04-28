@@ -15,7 +15,7 @@ import (
 	"github.com/neokapi/neokapi/core/formats"
 	"github.com/neokapi/neokapi/core/locale"
 	"github.com/neokapi/neokapi/core/model"
-	"github.com/neokapi/neokapi/core/plugin/loader"
+	"github.com/neokapi/neokapi/core/plugin/manifest"
 	"github.com/neokapi/neokapi/core/registry"
 	libtools "github.com/neokapi/neokapi/core/tools"
 	"github.com/neokapi/neokapi/core/version"
@@ -34,7 +34,8 @@ type App struct {
 	tm           *sievepen.SQLiteTM       // lazily initialized
 	tb           *termbase.SQLiteTermBase // lazily initialized
 	pluginMu     sync.Mutex
-	pluginLoader *loader.PluginLoader
+	pluginDir    string             // resolved plugin directory
+	plugins      []manifestedPlugin // discovered manifest plugins (lazy)
 	connectorReg *platconn.Registry
 	eventBus     *event.ChannelEventBus
 
@@ -52,8 +53,6 @@ type App struct {
 	reconnectCancel context.CancelFunc // stops the reconnection goroutine
 	autoConnectDone bool               // true after BOWRAIN_TOKEN auto-connect attempted
 
-	// pluginSearchRegistry overrides the registry URL for testing.
-	pluginSearchRegistry string
 	// tmPath overrides the default TM database path (for testing).
 	tmPath string
 	// queuePath overrides the default offline queue database path (for testing).
@@ -114,23 +113,73 @@ func newAppWithStore(cs store.ContentStore) *App {
 	return a
 }
 
-// LoadPlugins discovers and loads plugins from the configured plugin directory.
-// This may start JVM subprocesses for Java bridge plugins and can take several
-// seconds. Safe to call from a goroutine.
+// manifestedPlugin pairs a discovered manifest with its install dir so
+// the desktop UI can list installed plugins without needing the full
+// pluginhost machinery (which lives in the cli/ module that bowrain
+// must not import).
+type manifestedPlugin struct {
+	Dir      string
+	Manifest *manifest.Manifest
+}
+
+// LoadPlugins discovers manifest-driven plugins from the configured
+// plugin directory and caches the result. Safe to call from a goroutine.
+// Errors are logged and otherwise ignored — a missing or empty plugin
+// dir is a normal state for a fresh install.
 func (a *App) LoadPlugins() {
-	pluginDir := os.Getenv("KAPI_PLUGIN_DIR")
-	if pluginDir == "" {
-		pluginDir = defaultPluginDir()
+	dir := os.Getenv("KAPI_PLUGIN_DIR")
+	if dir == "" {
+		dir = defaultPluginDir()
 	}
 
-	pl := loader.NewPluginLoader(pluginDir, nil)
-	if err := pl.LoadAll(a.formatReg, nil); err != nil {
-		slog.Info("bowrain: failed to load plugins", "error", err)
-	}
+	plugins := discoverManifestPlugins(dir)
 
 	a.pluginMu.Lock()
-	a.pluginLoader = pl
+	a.pluginDir = dir
+	a.plugins = plugins
 	a.pluginMu.Unlock()
+}
+
+// discoverManifestPlugins walks dir/<plugin>/<version>/manifest.json
+// entries (the layout `kapi plugin install` writes) and returns a flat
+// list of valid manifests. Invalid manifests are skipped silently —
+// other tooling surfaces those errors.
+func discoverManifestPlugins(dir string) []manifestedPlugin {
+	if dir == "" {
+		return nil
+	}
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return nil
+	}
+	var out []manifestedPlugin
+	for _, e := range entries {
+		if !e.IsDir() {
+			continue
+		}
+		pluginName := e.Name()
+		versionsDir := filepath.Join(dir, pluginName)
+		versions, err := os.ReadDir(versionsDir)
+		if err != nil {
+			continue
+		}
+		for _, v := range versions {
+			if !v.IsDir() {
+				continue
+			}
+			pluginDir := filepath.Join(versionsDir, v.Name())
+			data, err := os.ReadFile(filepath.Join(pluginDir, "manifest.json"))
+			if err != nil {
+				continue
+			}
+			m, err := manifest.Parse(data)
+			if err != nil || m == nil {
+				continue
+			}
+			out = append(out, manifestedPlugin{Dir: pluginDir, Manifest: m})
+		}
+	}
+	return out
 }
 
 // defaultPluginDir returns the default plugin directory.
@@ -279,36 +328,53 @@ func (a *App) ListTools() []ToolInfo {
 	return result
 }
 
-// ListPlugins returns all loaded plugins.
+// ListPlugins returns the manifest-driven plugins discovered in the
+// configured plugin directory.
 func (a *App) ListPlugins() []PluginInfo {
 	a.pluginMu.Lock()
-	pl := a.pluginLoader
+	plugins := a.plugins
 	a.pluginMu.Unlock()
-	if pl == nil {
-		return []PluginInfo{}
-	}
-	raw := pl.Plugins()
-	out := make([]PluginInfo, len(raw))
-	for i, p := range raw {
+	out := make([]PluginInfo, len(plugins))
+	for i, p := range plugins {
+		var formats []string
+		for _, f := range p.Manifest.Capabilities.Formats {
+			formats = append(formats, f.Name)
+		}
 		out[i] = PluginInfo{
-			Name:    p.Name,
-			Type:    p.Type,
-			Source:  p.Source,
-			Formats: p.Formats,
+			Name:    p.Manifest.Plugin,
+			Type:    pluginTypeFromManifest(p.Manifest),
+			Source:  p.Dir,
+			Formats: formats,
 		}
 	}
 	return out
 }
 
+// pluginTypeFromManifest classifies a manifest plugin by its dominant
+// capability so the desktop UI can group entries (matches the legacy
+// "format" / "tool" / "bundle" labels for visual continuity).
+func pluginTypeFromManifest(m *manifest.Manifest) string {
+	if m == nil {
+		return ""
+	}
+	hasFmt := len(m.Capabilities.Formats) > 0
+	hasCmd := len(m.Capabilities.Commands) > 0 || len(m.Capabilities.MCPTools) > 0
+	switch {
+	case hasFmt && hasCmd:
+		return "bundle"
+	case hasFmt:
+		return "format"
+	case hasCmd:
+		return "tool"
+	}
+	return ""
+}
+
 // PluginDir returns the configured plugin directory path.
 func (a *App) PluginDir() string {
 	a.pluginMu.Lock()
-	pl := a.pluginLoader
-	a.pluginMu.Unlock()
-	if pl == nil {
-		return ""
-	}
-	return pl.Dir()
+	defer a.pluginMu.Unlock()
+	return a.pluginDir
 }
 
 // ServiceShutdown is called by Wails v3 when the application exits.
@@ -331,12 +397,6 @@ func (a *App) ServiceShutdown() error {
 	}
 	if a.store != nil {
 		a.store.Close()
-	}
-	a.pluginMu.Lock()
-	pl := a.pluginLoader
-	a.pluginMu.Unlock()
-	if pl != nil {
-		pl.Shutdown()
 	}
 	return nil
 }

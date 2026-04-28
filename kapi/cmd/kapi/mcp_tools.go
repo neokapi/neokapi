@@ -14,7 +14,6 @@ import (
 	"github.com/neokapi/neokapi/core/flow"
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/model"
-	pluginreg "github.com/neokapi/neokapi/core/plugin/registry"
 	"github.com/neokapi/neokapi/core/preset"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/registry"
@@ -537,14 +536,14 @@ func openReader(ctx context.Context, a *cli.App, path, formatOverride, sourceLan
 
 // createReader creates a format reader, handling preset syntax.
 func createReader(a *cli.App, fmtName string) (format.DataFormatReader, error) {
-	ref := pluginreg.ParseFormatRef(fmtName)
+	ref := preset.ParseFormatRef(fmtName)
 	registryName := ref.RegistryName()
 
 	var mergedConfig map[string]any
 	if ref.IsPreset() {
-		presetReg := a.PluginLoader.Presets()
+		presetReg := preset.NewPresetRegistry()
 		preset.RegisterBuiltins(presetReg)
-		resolver := preset.NewConfigResolver(presetReg, a.PluginLoader.Schemas())
+		resolver := preset.NewConfigResolver(presetReg, a.SchemaReg)
 
 		var err error
 		mergedConfig, err = resolver.ResolveFormatConfig(ref.Name, ref.Preset, nil, nil)

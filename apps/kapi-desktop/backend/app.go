@@ -17,17 +17,15 @@ import (
 	"time"
 
 	"github.com/neokapi/neokapi/cli/credentials"
+	"github.com/neokapi/neokapi/cli/pluginhost"
 	aitools "github.com/neokapi/neokapi/core/ai/tools"
 	"github.com/neokapi/neokapi/core/flow"
 	fmtschema "github.com/neokapi/neokapi/core/format/schema"
 	"github.com/neokapi/neokapi/core/formats"
-	"github.com/leonelquinteros/gotext"
 	"github.com/neokapi/neokapi/core/i18n"
 	"github.com/neokapi/neokapi/core/id"
 	"github.com/neokapi/neokapi/core/model"
-	plugincache "github.com/neokapi/neokapi/core/plugin/cache"
-	"github.com/neokapi/neokapi/core/plugin/loader"
-	pluginreg "github.com/neokapi/neokapi/core/plugin/registry"
+	pluginmanifest "github.com/neokapi/neokapi/core/plugin/manifest"
 	"github.com/neokapi/neokapi/core/preset"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/registry"
@@ -41,11 +39,12 @@ import (
 
 // App is the Wails service that bridges Go backend to the React frontend.
 type App struct {
-	app          *application.App
-	formatReg    *registry.FormatRegistry
-	toolReg      *registry.ToolRegistry
-	schemaReg    *fmtschema.SchemaRegistry
-	pluginLoader *loader.PluginLoader
+	app        *application.App
+	formatReg  *registry.FormatRegistry
+	toolReg    *registry.ToolRegistry
+	schemaReg  *fmtschema.SchemaRegistry
+	pluginDir  string
+	pluginHost *pluginhost.Host
 
 	// i18n — localizes metadata on the way out of Wails methods so the
 	// React frontend's tool palette and schema forms render in the
@@ -60,10 +59,6 @@ type App struct {
 
 	// Flow runner
 	runState *runner
-
-	// Plugin registry (lazily initialized)
-	registryMu sync.Mutex
-	registry   *pluginreg.RemoteRegistry
 
 	// TM and Termbase handles
 	tmHandles *handleStore[*sievepen.SQLiteTM]
@@ -92,8 +87,6 @@ func NewApp() *App {
 
 	logger := log.New(os.Stderr, "[kapi-desktop] ", log.LstdFlags)
 	pluginDir := defaultPluginDir()
-	pluginLoader := loader.NewPluginLoader(pluginDir, logger)
-	pluginLoader.SetToolRegistry(toolReg)
 
 	credStore := credentials.NewStore(credentials.DefaultPath())
 
@@ -104,17 +97,17 @@ func NewApp() *App {
 	})
 
 	return &App{
-		formatReg:    formatReg,
-		toolReg:      toolReg,
-		schemaReg:    schemaReg,
-		pluginLoader: pluginLoader,
-		projects:     make(map[string]*openProject),
-		tmHandles:    newHandleStore[*sievepen.SQLiteTM](),
-		tbHandles:    newHandleStore[*termbase.SQLiteTermBase](),
-		credentials:  credStore,
-		recent:       newRecentStore(),
-		settings:     newSettingsStore(),
-		logger:       logger,
+		formatReg:   formatReg,
+		toolReg:     toolReg,
+		schemaReg:   schemaReg,
+		pluginDir:   pluginDir,
+		projects:    make(map[string]*openProject),
+		tmHandles:   newHandleStore[*sievepen.SQLiteTM](),
+		tbHandles:   newHandleStore[*termbase.SQLiteTermBase](),
+		credentials: credStore,
+		recent:      newRecentStore(),
+		settings:    newSettingsStore(),
+		logger:      logger,
 	}
 }
 
@@ -173,67 +166,38 @@ func (a *App) SetApplication(app *application.App) {
 	a.app = app
 }
 
-// LoadPlugins scans and loads plugins in the background.
+// LoadPlugins discovers manifest-driven plugins and registers their
+// schema extensions on the app's registries. Runs in the foreground —
+// callers needing async startup wrap with a goroutine.
 func (a *App) LoadPlugins() {
 	a.rescanPlugins()
 	// Prime the metadata Translator from the persisted UI language so
 	// tool/format listings come back localized on the very first
 	// ListTools/ListFormats call — before the frontend has a chance to
-	// invoke SetLocale. ScanMetadata has just run, so plugin catalogs
-	// are discoverable.
+	// invoke SetLocale.
 	a.SetLocale(a.GetUILanguage())
 	a.emitEvent("plugins-loaded", nil)
-
-	// Watch the plugin cache file for external changes (e.g., CLI install/remove).
-	go a.watchPluginCache()
 }
 
-// rescanPlugins re-reads plugin metadata and registers plugin-provided
-// formats and schemas into the app's registries.
+// rescanPlugins re-reads manifest plugins from disk and rebuilds the
+// pluginhost. Schema extensions from manifests register themselves via
+// init() against core/project, so the bridge between pluginhost
+// discoveries and the app's schema registry is implicit — no additional
+// wiring required for this code path.
 func (a *App) rescanPlugins() {
-	if err := a.pluginLoader.ScanMetadata(a.formatReg); err != nil {
-		a.logger.Printf("plugin scan: %v", err)
-		return
+	opts := pluginhost.DiscoverOptions{
+		EnvPluginsDir: a.pluginDir,
+		OnWarn: func(msg string) {
+			a.logger.Printf("plugin: %s", msg)
+		},
 	}
-	// Transfer plugin schemas to the app's schema registry so
-	// GetFormatSchema can find them (e.g., okf_html, okf_xliff).
-	for id, s := range a.pluginLoader.Schemas().AllSchemas() {
-		a.schemaReg.RegisterSchema(id, s)
-	}
-
-	// Load bridges so that bridge step tools get factory-bearing
-	// registrations and can be instantiated via NewToolWithConfig.
-	if err := a.pluginLoader.LoadBridges(a.formatReg, a.toolReg); err != nil {
-		a.logger.Printf("bridge loading: %v", err)
-	}
-}
-
-// watchPluginCache polls the plugin-cache.json file for changes and re-scans
-// when it detects an external modification (e.g., from the kapi CLI).
-func (a *App) watchPluginCache() {
-	cachePath := filepath.Join(a.pluginLoader.Dir(), "plugin-cache.json")
-	var lastMod time.Time
-
-	if info, err := os.Stat(cachePath); err == nil {
-		lastMod = info.ModTime()
-	}
-
-	ticker := time.NewTicker(2 * time.Second)
-	defer ticker.Stop()
-
-	for range ticker.C {
-		info, err := os.Stat(cachePath)
-		if err != nil {
-			continue
-		}
-		if info.ModTime().After(lastMod) {
-			lastMod = info.ModTime()
-			a.logger.Println("plugin cache changed externally, re-scanning")
-			a.rescanPlugins()
-			a.emitEvent("plugins-changed", nil)
-			a.emitEvent("registries-changed", nil)
-		}
-	}
+	plugins := pluginhost.Discover(opts)
+	a.pluginHost = pluginhost.NewHost(plugins, func(msg string) {
+		a.logger.Printf("plugin conflict: %s", msg)
+	})
+	pluginhost.RegisterSchemaExtensions(a.pluginHost, func(msg string) {
+		a.logger.Printf("plugin schema: %s", msg)
+	})
 }
 
 // --- Project operations (multi-tab) ---
@@ -611,15 +575,7 @@ type ToolInfo struct {
 // Returns the resolved locale so the frontend can confirm what took
 // effect — useful when the request was "auto" and the backend chose.
 func (a *App) SetLocale(locale string) string {
-	var cats []*gotext.Mo
-	if locale != "" && locale != "en" && a.pluginLoader != nil {
-		if c, err := a.pluginLoader.I18nCatalogs(model.LocaleID(locale)); err != nil {
-			a.logger.Printf("SetLocale: loading plugin i18n catalogs: %v", err)
-		} else {
-			cats = c
-		}
-	}
-	tr := i18n.Resolve(i18n.ResolveOptions{Flag: locale, PluginCatalogs: cats})
+	tr := i18n.Resolve(i18n.ResolveOptions{Flag: locale})
 	a.i18nMu.Lock()
 	a.translator = tr
 	a.i18nMu.Unlock()
@@ -913,61 +869,26 @@ func (a *App) GetFormatSchema(formatName string) map[string]any {
 	return result
 }
 
-// GetPluginDocs returns a summary of available documentation.
-// Returns filter/step ID lists and metadata — individual docs are fetched
-// via GetFilterDoc/GetStepDoc to avoid loading the full corpus.
+// GetPluginDocs returns a summary of available plugin-contributed
+// documentation. The manifest plugin model does not currently surface
+// docs through the host, so this always returns nil — the frontend
+// degrades to "no docs available" gracefully.
 func (a *App) GetPluginDocs() map[string]any {
-	filterIDs := a.pluginLoader.ListFilterDocs()
-	stepIDs := a.pluginLoader.ListStepDocs()
-	if len(filterIDs) == 0 && len(stepIDs) == 0 {
-		return nil
-	}
-
-	result := map[string]any{
-		"filterIDs": filterIDs,
-		"stepIDs":   stepIDs,
-	}
-
-	// Include metadata (aliases, wiki URL).
-	meta := a.pluginLoader.DocsMetadata()
-	if meta != nil {
-		var m map[string]any
-		if err := json.Unmarshal(meta, &m); err == nil {
-			for k, v := range m {
-				result[k] = v
-			}
-		}
-	}
-
-	return result
+	return nil
 }
 
-// GetFilterDoc returns documentation for a single filter by ID (e.g. "okf_json").
-// The loader handles alias resolution. Returns nil if not found.
+// GetFilterDoc returns documentation for a single filter by ID. The
+// manifest plugin model does not currently surface docs, so this
+// always returns nil.
 func (a *App) GetFilterDoc(filterID string) map[string]any {
-	raw := a.pluginLoader.FilterDoc(filterID)
-	if raw == nil {
-		return nil
-	}
-	var result map[string]any
-	if err := json.Unmarshal(raw, &result); err != nil {
-		return nil
-	}
-	return result
+	return nil
 }
 
-// GetStepDoc returns documentation for a single pipeline step by ID
-// (e.g. "batch-translation"). Returns nil if not found.
+// GetStepDoc returns documentation for a single pipeline step. The
+// manifest plugin model does not currently surface docs, so this
+// always returns nil.
 func (a *App) GetStepDoc(stepID string) map[string]any {
-	raw := a.pluginLoader.StepDoc(stepID)
-	if raw == nil {
-		return nil
-	}
-	var result map[string]any
-	if err := json.Unmarshal(raw, &result); err != nil {
-		return nil
-	}
-	return result
+	return nil
 }
 
 // --- Preset operations ---
@@ -1086,7 +1007,7 @@ func (a *App) DetectPreset(tabID string) string {
 
 // ListFormatPresets returns format presets for a specific format.
 func (a *App) ListFormatPresets(format string) []FormatPresetInfo {
-	reg := a.pluginLoader.Presets()
+	reg := preset.NewPresetRegistry()
 	preset.RegisterBuiltins(reg)
 	// Also extract presets from loaded schemas (bridge configurations).
 	a.schemaReg.ExtractPresets(reg)
@@ -1426,69 +1347,79 @@ type PluginInfo struct {
 	Capabilities     []PluginCapability `json:"capabilities,omitempty"`
 }
 
-// ListPlugins returns installed plugins with full metadata.
+// ListPlugins returns installed manifest-driven plugins with metadata.
+// Plugins are sourced from the pluginhost (populated by LoadPlugins).
 func (a *App) ListPlugins() []PluginInfo {
-	// Read the cache to get rich metadata (capabilities, descriptions).
-	// Key by name+frameworkVersion since multiple versions can coexist (e.g., okapi 1.44.0 + 1.48.0).
-	cache, _ := plugincache.Read(a.pluginLoader.Dir())
-	cacheMap := make(map[string]*plugincache.CachedPlugin)
-	if cache != nil {
-		for i := range cache.Plugins {
-			cp := &cache.Plugins[i]
-			key := cp.Name + ":" + cp.FrameworkVersion
-			cacheMap[key] = cp
-			// Also store by name-only as fallback.
-			if _, exists := cacheMap[cp.Name]; !exists {
-				cacheMap[cp.Name] = cp
-			}
-		}
+	if a.pluginHost == nil {
+		return nil
 	}
 
 	var infos []PluginInfo
-	for _, p := range a.pluginLoader.Plugins() {
-		// Build a unique ID from the directory name on disk.
-		// Source path is like ".../plugins/okapi-1.44.0/2.20.0" — parent base is the plugin ref name.
-		pluginID := p.Name
-		if p.Source != "" {
-			parent := filepath.Dir(p.Source)
-			pluginID = filepath.Base(parent)
+	for _, p := range a.pluginHost.Plugins() {
+		m := p.Manifest
+		// Derive a unique installation ID from the install dir; this
+		// matches the on-disk layout {name}/{version} so the frontend
+		// can distinguish multiple versions of the same plugin.
+		pluginID := p.Name()
+		if p.Dir != "" {
+			pluginID = filepath.Base(filepath.Dir(p.Dir)) + "/" + filepath.Base(p.Dir)
 		}
 
-		info := PluginInfo{
-			Name:             p.Name,
-			ID:               pluginID,
-			Version:          p.Version,
-			FrameworkVersion: p.FrameworkVersion,
-			Type:             p.Type,
-			Formats:          p.Formats,
+		var formats []string
+		var caps []PluginCapability
+		for _, f := range m.Capabilities.Formats {
+			formats = append(formats, f.Name)
+			caps = append(caps, PluginCapability{
+				Type:        "format",
+				Name:        f.Name,
+				DisplayName: f.DisplayName,
+				Extensions:  f.Extensions,
+			})
+		}
+		for _, c := range m.Capabilities.Commands {
+			caps = append(caps, PluginCapability{
+				Type: "command",
+				Name: c.Name,
+			})
+		}
+		for _, t := range m.Capabilities.MCPTools {
+			caps = append(caps, PluginCapability{
+				Type: "mcp_tool",
+				Name: t.Name,
+			})
 		}
 
-		// Enrich from cache — try exact match (name+fw), fall back to name-only.
-		key := p.Name + ":" + p.FrameworkVersion
-		cp := cacheMap[key]
-		if cp == nil {
-			cp = cacheMap[p.Name]
-		}
-		if cp != nil {
-			if cp.Manifest != nil {
-				info.Description = cp.Manifest.Description
-				for _, cap := range cp.Manifest.Capabilities {
-					info.Capabilities = append(info.Capabilities, PluginCapability{
-						Type:        cap.Type,
-						Name:        cap.Name,
-						DisplayName: cap.DisplayName,
-						Extensions:  cap.Extensions,
-					})
-				}
-			}
-			if cp.FrameworkVersion != "" {
-				info.FrameworkVersion = cp.FrameworkVersion
-			}
-		}
-
-		infos = append(infos, info)
+		infos = append(infos, PluginInfo{
+			Name:         m.Plugin,
+			ID:           pluginID,
+			Version:      m.Version,
+			Type:         pluginTypeFromManifest(m),
+			Description:  m.Description,
+			Formats:      formats,
+			Capabilities: caps,
+		})
 	}
 	return infos
+}
+
+// pluginTypeFromManifest classifies a manifest plugin by its dominant
+// capability so the desktop UI can group entries (matches the legacy
+// "format" / "tool" / "bundle" labels for visual continuity).
+func pluginTypeFromManifest(m *pluginmanifest.Manifest) string {
+	if m == nil {
+		return ""
+	}
+	hasFmt := len(m.Capabilities.Formats) > 0
+	hasCmd := len(m.Capabilities.Commands) > 0 || len(m.Capabilities.MCPTools) > 0
+	switch {
+	case hasFmt && hasCmd:
+		return "bundle"
+	case hasFmt:
+		return "format"
+	case hasCmd:
+		return "tool"
+	}
+	return ""
 }
 
 // --- Utility ---

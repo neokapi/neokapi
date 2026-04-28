@@ -6,7 +6,6 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/neokapi/neokapi/core/model"
-	"github.com/neokapi/neokapi/core/plugin/registry"
 	"github.com/neokapi/neokapi/core/schema"
 )
 
@@ -172,22 +171,4 @@ func TestLocalizeComponentSchema_RecursesIntoNestedPropertiesAndArrayItems(t *te
 
 func TestLocalizeComponentSchema_NilSchemaReturnsNil(t *testing.T) {
 	assert.Nil(t, LocalizeComponentSchema(nil, NoopTranslator{}))
-}
-
-func TestLocalizeCapability_TranslatesDisplayNameAndDescription(t *testing.T) {
-	tr := newStub(
-		[3]string{"plugins.okf_html.displayName", "HTML Filter", "Filtre HTML"},
-		[3]string{"plugins.okf_html.description", "Handles HTML/XHTML", "Gère HTML/XHTML"},
-	)
-	c := registry.Capability{
-		Name:        "okf_html",
-		DisplayName: "HTML Filter",
-		Description: "Handles HTML/XHTML",
-		Category:    "format",
-	}
-	out := LocalizeCapability(c, tr)
-	assert.Equal(t, "Filtre HTML", out.DisplayName)
-	assert.Equal(t, "Gère HTML/XHTML", out.Description)
-	assert.Equal(t, "format", out.Category, "non-translatable fields stay verbatim")
-	assert.Equal(t, "HTML Filter", c.DisplayName, "input must not be mutated")
 }

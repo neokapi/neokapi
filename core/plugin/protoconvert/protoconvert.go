@@ -1,4 +1,8 @@
-package shared
+// Package protoconvert provides conversions between core/model types and
+// the v2 plugin gRPC proto types defined in core/plugin/proto/v2. The
+// in-process Java bridge runner and Mode-C daemon clients use these
+// helpers to ferry parts across the wire.
+package protoconvert
 
 import (
 	"encoding/json"
@@ -6,6 +10,21 @@ import (
 	"github.com/neokapi/neokapi/core/model"
 	pb "github.com/neokapi/neokapi/core/plugin/proto/v2"
 )
+
+// jsonToMap unmarshals JSON bytes to a map[string]any, returning an empty
+// map on empty input or unmarshal failure. Used by ProtoToAnnotation as
+// a fallback when structured unmarshal fails due to wire-format type
+// mismatches with the Go model.
+func jsonToMap(data []byte) map[string]any {
+	if len(data) == 0 {
+		return make(map[string]any)
+	}
+	var m map[string]any
+	if err := json.Unmarshal(data, &m); err != nil || m == nil {
+		return make(map[string]any)
+	}
+	return m
+}
 
 // ────────────────────────────────────────────────────────────────────────────
 // Proto ↔ Model: Annotations

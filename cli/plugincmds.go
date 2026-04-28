@@ -16,9 +16,9 @@ import (
 )
 
 // NewPluginCmd creates the manifest-driven plugin command tree
-// (singular `plugin`). The legacy `plugins` (plural) command tree
-// continues to manage gRPC bridge plugins until those migrate to the
-// unified model.
+// (singular `plugin`). This is the only plugin command tree — the
+// legacy `plugins` (plural) command tree was removed in #438 phase 9
+// when the v1 gRPC plugin runtime was deleted.
 func (a *App) NewPluginCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "plugin",

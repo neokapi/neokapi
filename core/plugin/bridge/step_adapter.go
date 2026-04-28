@@ -7,7 +7,7 @@ import (
 
 	"github.com/neokapi/neokapi/core/model"
 	pb "github.com/neokapi/neokapi/core/plugin/proto/v2"
-	"github.com/neokapi/neokapi/core/plugin/shared"
+	"github.com/neokapi/neokapi/core/plugin/protoconvert"
 	"github.com/neokapi/neokapi/core/schema"
 	"github.com/neokapi/neokapi/core/tool"
 )
@@ -136,7 +136,7 @@ func (t *BridgeStepTool) processWithBridge(
 			}
 			switch r := resp.Response.(type) {
 			case *pb.StepResponse_Part:
-				part := shared.ProtoToPart(r.Part)
+				part := protoconvert.ProtoToPart(r.Part)
 				select {
 				case recvParts <- part:
 				case <-ctx.Done():
@@ -175,7 +175,7 @@ func (t *BridgeStepTool) processWithBridge(
 				}
 				goto waitDone
 			}
-			msg := shared.PartToProto(part)
+			msg := protoconvert.PartToProto(part)
 			if err := stream.Send(&pb.StepRequest{
 				Request: &pb.StepRequest_Part{Part: msg},
 			}); err != nil {

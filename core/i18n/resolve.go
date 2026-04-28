@@ -22,8 +22,10 @@ type ResolveOptions struct {
 	ConfigLanguage string
 
 	// PluginCatalogs is the set of MO catalogs contributed by installed
-	// plugins for the resolved locale. The loader populates this after
-	// ScanMetadata — see core/plugin/loader.
+	// plugins for the resolved locale. With the legacy plugin loader
+	// gone (#438 phase 9), nothing currently populates this — kept on
+	// the type so a future manifest-aware catalog merge can drop into
+	// place without a Resolve API change.
 	PluginCatalogs []*gotext.Mo
 }
 

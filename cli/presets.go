@@ -26,7 +26,7 @@ func (a *App) NewPresetsCmd() *cobra.Command {
 		Use:   "list",
 		Short: "List available presets",
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			reg := a.PluginLoader.Presets()
+			reg := preset.NewPresetRegistry()
 			preset.RegisterBuiltins(reg)
 
 			var entries []output.PresetEntry
@@ -60,7 +60,7 @@ qualified format:preset syntax (e.g. okf_xml:AndroidStrings).`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			name := args[0]
-			reg := a.PluginLoader.Presets()
+			reg := preset.NewPresetRegistry()
 			preset.RegisterBuiltins(reg)
 
 			// Parse format:preset syntax.

@@ -692,7 +692,7 @@ steps:
 }
 
 func applyFrameworkPreset(recipe *project.Recipe, presetName string) error {
-	reg := app.PluginLoader.Presets()
+	reg := preset.NewPresetRegistry()
 	preset.RegisterBuiltins(reg)
 
 	fp := reg.GetFrameworkPreset(presetName)

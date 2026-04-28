@@ -9,7 +9,7 @@
 // them; there is no name fall-through or "command not found" magic.
 //
 // This is distinct from the registry index entry in
-// core/plugin/registry — the registry index points at downloadable
+// cli/pluginhost/registry — the registry index points at downloadable
 // plugin tarballs, while a manifest.json sits inside an installed plugin.
 package manifest
 

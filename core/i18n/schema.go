@@ -5,7 +5,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/neokapi/neokapi/core/plugin/registry"
 	"github.com/neokapi/neokapi/core/schema"
 )
 
@@ -86,22 +85,6 @@ func LocalizeComponentSchema(s *schema.ComponentSchema, t Translator) *schema.Co
 	}
 
 	return &out
-}
-
-// LocalizeCapability returns a copy of c with DisplayName and Description
-// translated via t. Scope is "plugins.<c.Name>" with field suffixes.
-func LocalizeCapability(c registry.Capability, t Translator) registry.Capability {
-	if t == nil {
-		t = NoopTranslator{}
-	}
-	base := Scope("plugins." + c.Name)
-	if c.DisplayName != "" {
-		c.DisplayName = t.T(join(base, fieldDisplayName), c.DisplayName)
-	}
-	if c.Description != "" {
-		c.Description = t.T(join(base, fieldDescription), c.Description)
-	}
-	return c
 }
 
 // localizeProperty translates a single property schema's translatable leaves
