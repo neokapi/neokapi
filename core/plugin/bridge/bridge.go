@@ -16,7 +16,7 @@ import (
 
 	"github.com/neokapi/neokapi/core/model"
 	pb "github.com/neokapi/neokapi/core/plugin/proto/v2"
-	"github.com/neokapi/neokapi/core/plugin/shared"
+	"github.com/neokapi/neokapi/core/plugin/protoconvert"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/connectivity"
 	"google.golang.org/grpc/credentials/insecure"
@@ -367,7 +367,7 @@ func (b *JavaBridge) Process(ctx context.Context, params ProcessParams,
 			switch r := resp.Response.(type) {
 			case *pb.ProcessResponse_Part:
 				select {
-				case readParts <- shared.ProtoToPart(r.Part):
+				case readParts <- protoconvert.ProtoToPart(r.Part):
 				case <-ctx.Done():
 					close(readParts)
 					recvErr <- ctx.Err()
@@ -375,7 +375,7 @@ func (b *JavaBridge) Process(ctx context.Context, params ProcessParams,
 				}
 			case *pb.ProcessResponse_PartBatch:
 				for _, msg := range r.PartBatch.Parts {
-					part := shared.ProtoToPart(msg)
+					part := protoconvert.ProtoToPart(msg)
 					select {
 					case readParts <- part:
 					case <-ctx.Done():
@@ -386,7 +386,7 @@ func (b *JavaBridge) Process(ctx context.Context, params ProcessParams,
 				}
 			case *pb.ProcessResponse_ContentBatch:
 				for _, cb := range r.ContentBatch.Blocks {
-					part := shared.ContentBlockToPart(cb)
+					part := protoconvert.ContentBlockToPart(cb)
 					select {
 					case readParts <- part:
 					case <-ctx.Done():
@@ -461,7 +461,7 @@ func (b *JavaBridge) Process(ctx context.Context, params ProcessParams,
 			var batch []*pb.ContentBlock
 			for part := range processedParts {
 				if part.Type == model.PartBlock {
-					batch = append(batch, shared.PartToContentBlock(part))
+					batch = append(batch, protoconvert.PartToContentBlock(part))
 					if len(batch) >= sendBatchSize {
 						if err := sendContentBatch(stream, batch); err != nil {
 							sendErr <- err
@@ -480,7 +480,7 @@ func (b *JavaBridge) Process(ctx context.Context, params ProcessParams,
 								break
 							}
 							if p.Type == model.PartBlock {
-								batch = append(batch, shared.PartToContentBlock(p))
+								batch = append(batch, protoconvert.PartToContentBlock(p))
 								if len(batch) >= sendBatchSize {
 									if err := sendContentBatch(stream, batch); err != nil {
 										sendErr <- err
@@ -497,7 +497,7 @@ func (b *JavaBridge) Process(ctx context.Context, params ProcessParams,
 									}
 									batch = nil
 								}
-								msg := shared.PartToProto(p)
+								msg := protoconvert.PartToProto(p)
 								if err := stream.Send(&pb.ProcessRequest{
 									Request: &pb.ProcessRequest_Part{Part: msg},
 								}); err != nil {
@@ -520,7 +520,7 @@ func (b *JavaBridge) Process(ctx context.Context, params ProcessParams,
 					continue
 				}
 				// Non-block part: send immediately.
-				msg := shared.PartToProto(part)
+				msg := protoconvert.PartToProto(part)
 				if err := stream.Send(&pb.ProcessRequest{
 					Request: &pb.ProcessRequest_Part{Part: msg},
 				}); err != nil {

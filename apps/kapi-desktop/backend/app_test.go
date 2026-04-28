@@ -16,7 +16,6 @@ func TestNewApp(t *testing.T) {
 	assert.NotNil(t, app.formatReg)
 	assert.NotNil(t, app.toolReg)
 	assert.NotNil(t, app.schemaReg)
-	assert.NotNil(t, app.pluginLoader)
 	assert.Empty(t, app.projects)
 }
 

@@ -4,10 +4,8 @@ package cli
 
 import (
 	"fmt"
-	"log"
 	"os"
 	"path/filepath"
-	"strings"
 	"sync"
 
 	"github.com/neokapi/neokapi/cli/config"
@@ -19,7 +17,6 @@ import (
 	"github.com/neokapi/neokapi/core/format/schema"
 	"github.com/neokapi/neokapi/core/formats"
 	"github.com/neokapi/neokapi/core/i18n"
-	"github.com/neokapi/neokapi/core/plugin/loader"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/registry"
 	"github.com/neokapi/neokapi/core/tool"
@@ -30,21 +27,19 @@ import (
 // App holds shared CLI state that is initialized during PersistentPreRun.
 // CLI tools create an App instance and attach shared commands.
 type App struct {
-	FormatReg    *registry.FormatRegistry
-	ToolReg      *registry.ToolRegistry
-	SchemaReg    *schema.SchemaRegistry
-	PluginLoader *loader.PluginLoader
-	PluginHost   *pluginhost.Host
-	Config       *config.AppConfig
+	FormatReg  *registry.FormatRegistry
+	ToolReg    *registry.ToolRegistry
+	SchemaReg  *schema.SchemaRegistry
+	PluginHost *pluginhost.Host
+	Config     *config.AppConfig
 
 	// Flags bound by AddPersistentFlags.
-	Verbose        bool
-	Quiet          bool
-	AssumeYes      bool // --yes / -y; auto-confirm prompts (e.g. plugin auto-install)
-	CfgFile        string
-	PluginDir      string
-	DisablePlugins string // comma-separated plugin names to skip
-	Lang           string // --lang / KAPI_LANG; feeds i18n.Resolve
+	Verbose   bool
+	Quiet     bool
+	AssumeYes bool // --yes / -y; auto-confirm prompts (e.g. plugin auto-install)
+	CfgFile   string
+	PluginDir string
+	Lang      string // --lang / KAPI_LANG; feeds i18n.Resolve
 
 	// Processing flags bound by AddProcessingFlags.
 	FormatFlag string
@@ -108,7 +103,6 @@ func (a *App) AddPersistentFlags(cmd *cobra.Command) {
 	cmd.PersistentFlags().BoolVarP(&a.Quiet, "quiet", "q", false, "suppress output")
 	cmd.PersistentFlags().BoolVarP(&a.AssumeYes, "yes", "y", false, "assume yes for confirmation prompts (e.g. plugin auto-install)")
 	cmd.PersistentFlags().StringVar(&a.PluginDir, "plugin-dir", "", "plugin directory")
-	cmd.PersistentFlags().StringVar(&a.DisablePlugins, "disable-plugins", "", "comma-separated plugin names to skip (e.g. okapi)")
 	cmd.PersistentFlags().StringVar(&a.Lang, "lang", "", "UI locale for tool/format/plugin metadata (BCP-47, e.g. fr-FR); falls back to KAPI_LANG / LC_ALL / LANG")
 	output.AddPersistentFlags(cmd)
 }
@@ -210,9 +204,10 @@ func (a *App) InitPluginHost() {
 }
 
 // Init finishes app initialization after flag parsing: credentials,
-// config load, plugin scan + schema merge. Call this in PersistentPreRun.
-// InitRegistries runs first (idempotently) so Init is safe even when
-// the CLI entry point already called InitRegistries at init() time.
+// config load, format priority overrides, and metadata translator.
+// Call this in PersistentPreRun. InitRegistries runs first (idempotently)
+// so Init is safe even when the CLI entry point already called
+// InitRegistries at init() time.
 func (a *App) Init() {
 	a.InitRegistries()
 
@@ -229,102 +224,32 @@ func (a *App) Init() {
 	}
 	_ = a.Config.Load()
 
-	// Resolve plugin directory: flag > env > config.
-	dir := a.PluginDir
-	if dir == "" {
-		dir = os.Getenv("KAPI_PLUGIN_DIR")
-	}
-	if dir == "" {
-		dir = a.Config.PluginDirectory()
-	}
-
-	var logger *log.Logger
-	if a.Verbose {
-		logger = log.New(os.Stderr, "[plugin] ", log.LstdFlags)
-	}
-
-	a.PluginLoader = loader.NewPluginLoader(dir, logger)
-	a.PluginLoader.SetToolRegistry(a.ToolReg)
-
-	disabled := a.disabledPluginSet()
-	if len(disabled) > 0 {
-		a.PluginLoader.SetDisabledPlugins(disabled)
-	}
-
-	if err := a.PluginLoader.ScanMetadata(a.FormatReg); err != nil {
-		if !a.Quiet {
-			fmt.Fprintf(os.Stderr, "Warning: plugin scan: %v\n", err)
-		}
-	}
-
-	// Merge plugin schemas into the unified registry.
-	for _, id := range a.PluginLoader.Schemas().FormatIDs() {
-		if s, ok := a.PluginLoader.Schemas().GetSchema(id); ok {
-			if !a.SchemaReg.HasSchema(id) {
-				a.SchemaReg.RegisterSchema(id, s)
-			}
-		}
-	}
-
-	// Extract presets from plugin schemas.
-	a.SchemaReg.ExtractPresets(a.PluginLoader.Presets())
-
 	// Apply format priority overrides from configuration.
 	a.applyFormatPriorities(a.Config.FormatPriorities())
 
-	// Build the metadata Translator. Plugin catalogs are merged in after
-	// the locale is resolved so we only read MO files we'll actually use.
-	resolveOpts := i18n.ResolveOptions{
+	// Build the metadata Translator from --lang / KAPI_LANG / config /
+	// POSIX env vars. Manifest-driven plugin catalogs (when we add them)
+	// can be merged in by InitPluginHost later.
+	a.translator = i18n.Resolve(i18n.ResolveOptions{
 		Flag:           a.Lang,
 		ConfigLanguage: a.Config.Language(),
-	}
-	// Peek the locale first so we skip plugin catalog I/O for en/empty.
-	// i18n.Resolve does this internally too, but doing it here lets us
-	// avoid the extra file-stat loop for the common case.
-	peek := i18n.Resolve(resolveOpts)
-	if peek.Locale() != "" && peek.Locale() != "en" {
-		if cats, err := a.PluginLoader.I18nCatalogs(peek.Locale()); err == nil {
-			resolveOpts.PluginCatalogs = cats
-		} else if !a.Quiet {
-			fmt.Fprintf(os.Stderr, "Warning: loading plugin i18n catalogs: %v\n", err)
-		}
-	}
-	a.translator = i18n.Resolve(resolveOpts)
-
-	// Lazy bridge loading: bridges start only when a non-built-in
-	// format is requested for the first time.
-	a.FormatReg.SetOnMiss(func() {
-		a.EnsureBridgesLoaded()
 	})
 }
 
-// EnsureBridgesLoaded starts bridge plugin processes if not already started.
-// Call this before any file-processing command that may use plugin formats.
-func (a *App) EnsureBridgesLoaded() {
-	if a.PluginLoader == nil || a.PluginLoader.BridgesLoaded() {
-		return
-	}
-	if err := a.PluginLoader.LoadBridges(a.FormatReg, a.ToolReg); err != nil {
-		if !a.Quiet {
-			fmt.Fprintf(os.Stderr, "Warning: bridge loading: %v\n", err)
-		}
-	}
-}
-
-// InstalledPluginList returns the currently loaded plugins as project.InstalledPlugin
-// values, suitable for passing to project.CheckPlugins or project.PopulatePlugins.
+// InstalledPluginList returns the currently loaded manifest-driven plugins
+// as project.InstalledPlugin values, suitable for passing to
+// project.CheckPlugins or project.PopulatePlugins.
 func (a *App) InstalledPluginList() []project.InstalledPlugin {
-	if a.PluginLoader == nil {
+	if a.PluginHost == nil {
 		return nil
 	}
-	plugins := a.PluginLoader.Plugins()
-	result := make([]project.InstalledPlugin, len(plugins))
-	for i, p := range plugins {
-		result[i] = project.InstalledPlugin{
-			Name:             p.Name,
-			Version:          p.Version,
-			FrameworkVersion: p.FrameworkVersion,
-		}
+	plugins := a.PluginHost.Plugins()
+	result := make([]project.InstalledPlugin, 0, len(plugins))
+	for _, p := range plugins {
+		result = append(result, project.InstalledPlugin{
+			Name:    p.Name(),
+			Version: p.Manifest.Version,
+		})
 	}
 	return result
 }
@@ -356,29 +281,6 @@ func isGlobPattern(s string) bool {
 	return false
 }
 
-// disabledPluginSet returns the set of plugin names to skip.
-// Resolved from: --disable-plugins flag > KAPI_DISABLE_PLUGINS env > config.
-func (a *App) disabledPluginSet() map[string]bool {
-	raw := a.DisablePlugins
-	if raw == "" {
-		raw = os.Getenv("KAPI_DISABLE_PLUGINS")
-	}
-	if raw == "" && a.Config != nil {
-		raw = a.Config.GetString("plugins.disabled")
-	}
-	if raw == "" {
-		return nil
-	}
-	set := make(map[string]bool)
-	for _, name := range strings.Split(raw, ",") {
-		name = strings.TrimSpace(name)
-		if name != "" {
-			set[name] = true
-		}
-	}
-	return set
-}
-
 // AddCommandGroups registers Cobra command groups on the root command for
 // sectioned --help output. Group IDs match the Category field on ToolCommandDef
 // and plugin metadata.
@@ -394,14 +296,11 @@ func (a *App) AddCommandGroups(cmd *cobra.Command) {
 	)
 }
 
-// Shutdown cleans up plugin resources (stops bridge processes, Mode-C
-// daemons, etc.). Must be called before the process exits — typically
-// from main() after Execute() returns, to ensure cleanup runs even when
-// RunE returns an error.
+// Shutdown cleans up plugin resources (stops Mode-C daemons, etc.). Must
+// be called before the process exits — typically from main() after
+// Execute() returns, to ensure cleanup runs even when RunE returns an
+// error.
 func (a *App) Shutdown() {
-	if a.PluginLoader != nil {
-		a.PluginLoader.Shutdown()
-	}
 	a.daemonPoolMu.Lock()
 	pool := a.daemonPool
 	a.daemonPool = nil

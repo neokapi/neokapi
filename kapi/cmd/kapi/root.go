@@ -57,7 +57,6 @@ func init() {
 	rootCmd.AddCommand(app.NewFlowsCmd(cli.FlowCmdOptions{}))
 	rootCmd.AddCommand(app.NewToolsCmd())
 	rootCmd.AddCommand(app.NewFormatsCmd())
-	rootCmd.AddCommand(app.NewPluginsCmd())
 	rootCmd.AddCommand(app.NewPluginCmd())
 	rootCmd.AddCommand(app.NewRegistryCmd())
 	rootCmd.AddCommand(app.NewPresetsCmd())

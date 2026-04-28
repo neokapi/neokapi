@@ -59,7 +59,7 @@ type registryFile struct {
 
 type stringList []string
 
-func (s *stringList) String() string  { return fmt.Sprintf("%v", *s) }
+func (s *stringList) String() string { return fmt.Sprintf("%v", *s) }
 func (s *stringList) Set(v string) error {
 	*s = append(*s, v)
 	return nil

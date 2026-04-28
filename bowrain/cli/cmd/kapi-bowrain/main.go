@@ -105,7 +105,6 @@ func buildCommandSubtree() *cobra.Command {
 	cmd.AddCommand(app.NewFlowsCmd(cli.FlowCmdOptions{}))
 	cmd.AddCommand(app.NewToolsCmd())
 	cmd.AddCommand(app.NewFormatsCmd())
-	cmd.AddCommand(app.NewPluginsCmd())
 	cmd.AddCommand(app.NewRegistryCmd())
 	cmd.AddCommand(app.NewPresetsCmd())
 	cmd.AddCommand(app.NewTermbaseCmd())

@@ -21,7 +21,6 @@ import (
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/plugin/bridge"
-	pluginreg "github.com/neokapi/neokapi/core/plugin/registry"
 	"github.com/neokapi/neokapi/core/preset"
 	"github.com/neokapi/neokapi/core/registry"
 	"github.com/neokapi/neokapi/core/tool"
@@ -141,10 +140,10 @@ func (a *App) runSingleFile(ctx context.Context, cmd *cobra.Command, flowName, i
 	fmtName := a.FormatFlag
 	var mergedConfig map[string]any
 	if fmtName != "" {
-		ref := pluginreg.ParseFormatRef(fmtName)
+		ref := preset.ParseFormatRef(fmtName)
 		fmtName = ref.RegistryName()
 		if ref.IsPreset() {
-			presetReg := a.PluginLoader.Presets()
+			presetReg := preset.NewPresetRegistry()
 			preset.RegisterBuiltins(presetReg)
 			resolver := preset.NewConfigResolver(presetReg, a.SchemaReg)
 			var err error
@@ -327,12 +326,6 @@ func (a *App) runMultipleFiles(ctx context.Context, cmd *cobra.Command, flowName
 		}
 	}
 
-	// Pre-warm bridge JVMs so they're ready when files arrive.
-	// This amortizes the ~1.3s JVM startup cost before the errgroup starts.
-	if a.PluginLoader != nil {
-		a.PluginLoader.WarmupBridges()
-	}
-
 	// Check if batch tracing is enabled.
 	tracePath, _ := cmd.Flags().GetString("trace")
 	var batchStart time.Time
@@ -473,12 +466,12 @@ func (a *App) processFlowFile(ctx context.Context, cmd *cobra.Command, flowName,
 		}
 	}
 
-	ref := pluginreg.ParseFormatRef(fmtName)
+	ref := preset.ParseFormatRef(fmtName)
 	registryName := ref.RegistryName()
 
 	var mergedConfig map[string]any
 	if ref.IsPreset() {
-		presetReg := a.PluginLoader.Presets()
+		presetReg := preset.NewPresetRegistry()
 		preset.RegisterBuiltins(presetReg)
 		resolver := preset.NewConfigResolver(presetReg, a.SchemaReg)
 
