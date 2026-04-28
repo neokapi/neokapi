@@ -8,378 +8,295 @@ title: "AD-007: Plugin System and Okapi Bridge"
 
 ## Summary
 
-Plugins are out-of-process executables communicated with via gRPC, giving
-crash isolation and language agnosticism. Go binary plugins use HashiCorp
-`go-plugin`'s magic-cookie handshake; bridge plugins (like the Okapi
-bridge) run a long-lived gRPC server and the framework connects as a
-client. Plugins come in five kinds — Bundle, Format, Tool, Connector,
-Provider — and are discovered in two phases: `ScanMetadata` reads
-manifests and schemas from disk so `kapi formats list` never launches a
-subprocess, and `LoadBridges` starts processes lazily when a flow
-actually needs them. Multiple versions of the same plugin coexist in
-versioned directories; format references use the syntax
-`name[@version][:preset]`. Plugin registries serve installable plugin
-archives; multiple registries can be configured at project and global
-level.
+Plugins are manifest-driven, signed, out-of-process executables.
+Every plugin ships a `manifest.json` declaring everything it provides
+— commands, MCP tools, format readers/writers, flow tools, source
+connectors, and recipe schema extensions. kapi reads all manifests at
+startup and builds dispatch tables from them; there is no name
+fall-through. Plugins are discovered structurally by location
+(`$KAPI_PLUGINS_DIR` > `$XDG_DATA_HOME/kapi/plugins/` > system roots),
+not by `$PATH`. Each capability picks its transport:
+
+- **Mode A** — one-shot subprocess (commands)
+- **Mode B** — long-lived stdio subprocess (MCP tools)
+- **Mode C** — long-lived daemon over Unix socket + gRPC
+  (formats, tools, source connectors)
+
+Plugin tarballs are cosign-signed via Sigstore keyless OIDC; `kapi
+plugin install` verifies SHA-256 + Sigstore JSON bundle against a
+registry-pinned cert identity before unpacking. Bowrain, the Okapi
+bridge, and any third-party plugin all use the same model. The default
+`kapi` binary is Apache-2.0 and ships zero vendor-plugin code.
 
 ## Context
 
-Plugins enable third-party formats, tools, connectors, and providers to
-evolve independently of the framework. Key requirements:
+Plugins enable third-party formats, tools, connectors, and providers
+to evolve independently of the framework. Key requirements:
 
-- **Crash isolation** — a buggy plugin must not crash the host process.
-- **Language agnosticism** — plugins may be written in Go, Java, Python,
-  or Rust.
-- **Versioned protocol** — host and plugin negotiate capabilities
-  explicitly.
-- **Multi-version support** — different projects may need different
-  plugin versions.
-- **Simple discovery** — scan a directory for executables matching
-  naming conventions.
-
-Okapi provides 40+ production-proven format filters (DOCX, XLSX, EPUB,
-IDML, PDF, and more) that represent years of development. Rewriting them
-all in Go is not practical; they need to be accessible from Go with
-minimal overhead.
-
-Go's standard `plugin` package loads shared objects into the same
-process, offering no crash isolation and limited platform support. It is
-unsuitable.
+- **License clarity.** kapi is Apache-2.0. Bundling AGPL plugins
+  forces the binary distribution to AGPL. The plugin model must let
+  vendors ship their own binaries on their own license terms without
+  re-licensing kapi.
+- **Discoverability and consent.** A teammate's recipe declaring
+  `requires: { bowrain: "^1.0" }` should produce a clear, one-step
+  path to install — not a cryptic "extension group not registered"
+  error.
+- **Security.** Plugins run with full user privileges; signature
+  verification raises the bar against tampering and supply-chain
+  attacks.
+- **Performance for format-heavy workloads.** Okapi bridge processes
+  large IDML / TMX / Word files at high throughput. JVM startup is
+  hundreds of ms; the model must support long-lived daemons with
+  multiplexed concurrent requests so the JVM only starts once per
+  kapi session.
+- **Polyglot from day one.** kapi publishes a language-neutral
+  protocol spec; plugin authors implement against it in any language.
+  A minimal Go reference plugin ships in `examples/plugins/hello/`.
 
 ## Decision
 
-### Out-of-process plugins
+### Manifest
 
-The framework uses [HashiCorp go-plugin](https://github.com/hashicorp/go-plugin)
-for Go binary plugins and direct gRPC for bridge plugins. Go binary
-plugins communicate over stdin/stdout with a magic-cookie handshake.
-Bridge plugins run a gRPC server and the Go side connects as a client;
-protocol-buffer definitions specify the service contract.
+Every plugin's directory contains a `manifest.json` declaring its
+identity (`plugin`, `version`, `binary`, `license`, `author`,
+`homepage`, `min_kapi_version`, `group`) and the capabilities it
+provides under one or more sections:
 
-Plugins run as separate processes. A plugin crash does not affect the
-host; credentials are passed via environment variables, not shared
-memory.
-
-### Plugin types
-
-| Type          | What it adds                       | Example                      |
-| ------------- | ---------------------------------- | ---------------------------- |
-| **Bundle**    | Collection of formats and/or tools | Okapi bridge (40+ formats)   |
-| **Format**    | Reader + Writer for a file format  | `neokapi-plugin-docx`        |
-| **Tool**      | Processing step in a flow          | `neokapi-plugin-terminology` |
-| **Connector** | Bidirectional system integration   | `neokapi-plugin-contentful`  |
-| **Provider**  | AI/LLM or MT backend               | `neokapi-plugin-deepl-v2`    |
-
-Go binary plugins are discovered by scanning for executables named
-`neokapi-plugin-*` in versioned directories. Bridge plugins are
-discovered via `manifest.json` files in their version directories.
-
-A **bundle** packages multiple formats and/or tools into a single
-distributable unit. The Okapi bridge is the canonical bundle — one JAR,
-40+ format filters, several processing tools. Bundles install and version
-as a unit, but their individual capabilities register separately into the
-core registries, so callers of the FormatRegistry cannot tell that two
-formats share a JAR.
-
-### Two-phase discovery
-
-Plugin discovery avoids launching external processes until they are
-actually needed:
-
-1. **`ScanMetadata`** — walks versioned plugin directories and reads
-   `manifest.json` files and parameter schemas from disk. Format
-   metadata (names, MIME types, extensions, capabilities) is registered
-   into the format registry so that `kapi formats list` works without
-   starting any external process.
-2. **`LoadBridges`** — called lazily when a flow actually needs a bridge
-   format. Creates the shared `BridgePool` and registers reader/writer
-   factories that acquire a bridge instance on demand.
-
-Listing installed plugins and formats is instant; JVM startup cost is
-only paid when processing files.
-
-### Multi-version support
-
-Multiple versions of the same plugin install side-by-side using a
-versioned directory layout:
-
-```
-~/.config/kapi/plugins/
-  okapi/
-    1.46.0/
-      version.json
-      manifest.json
-      schemas/
-      neokapi-okapi-bridge.jar
-    1.47.0/
-      version.json
-      manifest.json
-      schemas/
-      neokapi-okapi-bridge.jar
+```json
+{
+  "manifest_version": "1",
+  "plugin": "bowrain",
+  "version": "1.4.0",
+  "binary": "kapi-bowrain",
+  "license": "Apache-2.0",
+  "min_kapi_version": "1.0.0",
+  "capabilities": {
+    "commands": [...],
+    "mcp_tools": [...],
+    "formats": [...],
+    "tools": [...],
+    "source_connectors": [...],
+    "schema_extensions": [...]
+  },
+  "daemon": {
+    "idle_timeout_seconds": 300,
+    "handshake": { "type": "stdio-handshake", "fields": ["socket", "version"] }
+  }
+}
 ```
 
-Each version directory contains:
+The `daemon` block is present only for plugins that declare any
+formats, tools, or source connectors (Mode C). The full schema is
+embedded at `core/plugin/manifest/schema.json`; canonical Go types
+live in `core/plugin/manifest/manifest.go`. The protocol is described
+in detail at [`docs/internals/plugin-protocol-v1.md`](https://github.com/neokapi/neokapi/blob/main/docs/internals/plugin-protocol-v1.md).
 
-- `version.json` — name, version, install type
-- `manifest.json` — capabilities, command configuration, plugin type
-- `schemas/` — filter parameter schemas (bridge plugins), readable without
-  starting the JVM
+### Discovery
 
-The plugin loader scans all version directories and registers capabilities
-with versioned names:
+kapi scans this fixed list of locations in precedence order:
 
-- `okapi-html@1.46.0` — specific version
-- `okapi-html` — bare alias pointing to the latest installed version
+| Order | Location | Purpose |
+|---|---|---|
+| 1 (highest) | `$KAPI_PLUGINS_DIR` (`:`-separated; `;` on Windows) | Dev / CI / sandbox |
+| 2 | `$XDG_DATA_HOME/kapi/plugins/` (default `~/.local/share/kapi/plugins/`) | `kapi plugin install` target |
+| 3 | `/opt/homebrew/share/kapi/plugins/` (macOS Homebrew) | OS package manager |
+| 3 | `/usr/local/share/kapi/plugins/` (Linux `/usr/local`) | OS package manager |
+| 3 | `/usr/share/kapi/plugins/` (distro) | OS package manager |
 
-Semver comparison determines "latest". Bare-name aliases register only if
-no explicit bare-name registration exists, preventing conflicts.
+Within each location, every direct subdirectory containing a
+`manifest.json` is a plugin. First-match-wins on plugin name.
+Conflicting capabilities between two different plugins are an error
+— kapi prints both manifests and refuses to dispatch the conflicting
+capability.
 
-### Format reference syntax
+A consolidated dispatch cache at `$XDG_CACHE_HOME/kapi/plugins-cache.json`
+holds parsed manifests + pre-compiled JSON Schema validators. The
+cache is invalidated by an mtime check on each discovery root: if
+none of the roots changed since the last write, kapi loads the cache
+and skips manifest parsing entirely.
 
-Format references use separate delimiters for version and preset:
+### Three transport modes
 
-- `@` denotes a **version pin** (`okf_html@1.46.0`)
-- `:` denotes a **preset reference** (`okf_html:wellFormed`)
-- Both combine: `okf_openxml@0.38:wellFormed`
+A plugin declares one or more capability sections in its manifest.
+kapi picks the right transport per capability type.
 
-| Reference                     | Version | Preset     |
-| ----------------------------- | ------- | ---------- |
-| `okf_openxml`                 | latest  | default    |
-| `okf_openxml@0.38`            | 0.38    | default    |
-| `okf_openxml:wellFormed`      | latest  | wellFormed |
-| `okf_openxml@0.38:wellFormed` | 0.38    | wellFormed |
+#### Mode A — one-shot subprocess
 
-### Presets as a capability
-
-A **preset** is a named parameter configuration. Presets are a capability,
-not a plugin type — existing plugin types (bundles, formats) declare
-preset capabilities via `presets.yaml` files. Three sources supply format
-presets:
-
-- **Bridge configurations** — auto-surfaced from `x-filter.configurations`
-  in composite schemas. For example, `okf_html-wellFormed` becomes preset
-  `wellFormed` for format `okf_html`.
-- **Plugin presets** — defined in `presets.yaml` within plugin version
-  directories.
-- **Local presets** — defined in project or user config under
-  `format_presets:`.
-
-Configuration resolution follows a three-layer model:
+Used for `commands`. kapi forks and execs the plugin once per
+invocation:
 
 ```
-Format defaults → Preset config → Local overrides
+<binary> command <name> [extra args/flags]
 ```
 
-Deep map merge at each layer: maps merge recursively, scalar values
-replace. Presets provide comprehensive defaults while users override
-specific values per mapping.
+stdin / stdout / stderr inherited; env block carries
+`KAPI_PLUGIN_DIR`, `KAPI_PLUGIN_NAME`, `KAPI_PLUGIN_VERSION`. Exit
+code propagated. The plugin doesn't keep state across calls.
 
-### Plugin loader
+#### Mode B — session subprocess
 
-`PluginLoader` in `core/plugin/loader/` ties discovery together:
+Used for `mcp_tools`. kapi spawns one plugin process per `kapi mcp`
+session and proxies tool calls over MCP-over-stdio:
 
-- **`ScanMetadata`** — scans versioned subdirectories, reads
-  `manifest.json` and `schemas/` from disk, extracts presets, registers
-  format metadata into registries — all without starting any external
-  process.
-- **`LoadBridges`** — starts the shared `BridgePool`, launches Go binary
-  plugins via `host.PluginManager`, and registers reader/writer factories
-  for bridge formats.
-- **`LoadAll`** — convenience method that calls `ScanMetadata` then
-  `LoadBridges`.
-- Manages the shared bridge pool and plugin lifecycle (`Shutdown`,
-  `WarmupBridges`).
+```
+<binary> mcp-server
+```
 
-### Okapi bridge
+#### Mode C — daemon over Unix socket
 
-The **Okapi bridge** is a gRPC-based subprocess that hosts Okapi
-Framework filters. The Go side launches a JVM (or any process
-implementing the `BridgeService` gRPC contract), connects as a gRPC
-client, and translates between neokapi's Part model and Okapi's Event
-model. An adapter layer wraps the bridge behind standard
-`DataFormatReader` / `DataFormatWriter` interfaces — bridge-backed
-formats are indistinguishable from native Go formats at the registry
-level.
+Used for `formats`, `tools`, `source_connectors`. kapi spawns a
+long-lived plugin process; the plugin binds a Unix-domain socket,
+prints one JSON line on stdout (the canonical handshake), then
+serves gRPC on the socket:
 
-The bridge protocol (`core/plugin/proto/v2/neokapi_bridge.proto`) defines
-a minimal unified streaming API:
+```
+<binary> daemon
+   ↓
+{"socket":"/tmp/kapi-daemon-bowrain-12345.sock","version":"1.4.0"}
+```
 
-| RPC        | Direction               | Purpose                            |
-| ---------- | ----------------------- | ---------------------------------- |
-| `Process`  | Bidirectional-streaming | Complete read→process→write cycle  |
-| `Shutdown` | Unary                   | Gracefully stop the bridge process |
+kapi opens a gRPC client to that socket and dispatches concurrent
+requests. The daemon stays alive until kapi exits or hits its
+idle timeout (per-manifest, default 5 min). Concurrent daemons are
+capped via `KAPI_MAX_DAEMONS` (default 8) with LRU eviction. Java's
+native `UnixDomainSocketAddress` (JDK 16+) makes this work on
+Windows 10+ as well as POSIX.
 
-`Process` combines the entire document lifecycle into a single
-bidirectional stream:
+### Lifecycle commands
 
-- The Java side reads events from the Okapi filter, converts subscribed
-  events to lightweight `ContentBlock` messages (no skeleton — ~10x
-  smaller than full `BlockMessage` for typical XLSX cells), batches them
-  into `ContentBlockBatch` messages (up to 1024 blocks), and streams
-  them to Go.
-- Go processes the blocks through its tool chain and sends them back
-  individually.
-- The Java side applies translations and writes output in a two-thread,
-  single-pass pipeline (one filter read, no double I/O):
-  - **Reader thread** — reads filter events, sends subscribed parts to
-    Go via gRPC, enqueues events into a bounded queue for the writer
-    thread.
-  - **Writer thread** — dequeues events, applies translations from a
-    translation queue (fed by gRPC responses from Go), writes to the
-    filter writer.
+```
+kapi plugin list                              # show installed plugins
+kapi plugin install <name>                    # download + verify + register
+kapi plugin install <name>@<version>          # pin a specific version
+kapi plugin install <name> --channel beta     # pick a channel; persists for updates
+kapi plugin update <name>                     # upgrade to latest matching constraint
+kapi plugin update-index                      # explicit registry-index refresh
+kapi plugin remove <name>                     # uninstall
+kapi plugin info <name>                       # show manifest details
+kapi plugin search <query>                    # list registry candidates
+kapi plugin verify <name>                     # re-check sha256 + signature
+kapi plugin rebuild-cache                     # force regenerate the dispatch cache
+```
 
-The `ProcessHeader.subscribe_parts` field controls which event types
-cross the gRPC boundary. Subscribing only to Block events (`[4]`) means
-structural events (Layer, Data, Group) are written directly by Java
-without gRPC round-trips — reducing message count from ~570K to ~157K on
-large XLSX files.
+### Recipe `requires:` syntax
 
-Format metadata is not discovered via gRPC — the `PluginLoader` reads it
-from `manifest.json` and schema files on disk during `ScanMetadata`,
-avoiding JVM startup for format listing.
-
-See [Plugin Bridge Protocol](/notes-internal/plugin-bridge-protocol) for the
-full gRPC service definition, wire format, protobuf messages, and
-performance tuning notes.
-
-### Bridge registry and concurrency
-
-A single process-wide `BridgeRegistry` manages bridge instances with
-semaphore-based concurrency control:
-
-- **Global semaphore** bounds total concurrent streams across all JVMs.
-- **Per-JVM semaphore** bounds concurrent streams on each JVM.
-- **Daemon mode** (`KAPI_BRIDGE_DAEMON=1`): JVMs persist across kapi
-  invocations, discovered via address files on disk.
-- **Pipeline semaphore** on the Java side rejects excess streams with
-  `RESOURCE_EXHAUSTED`.
-
-JVM count is bounded regardless of how many plugin versions are
-installed; different JARs share capacity fairly via eviction.
-
-### Plugin configuration
-
-Plugins declare their configuration parameters via JSON schema files
-shipped in the `schemas/` directory of each plugin version. Schemas
-define parameter groups, defaults, and validation rules. The
-`SchemaRegistry` loads these from disk during `ScanMetadata` — no
-external process needed. Configuration is namespaced by plugin type and
-name in the project config file, integrated with the Viper-based layered
-configuration system ([AD-001: Vision and Module Architecture](001-vision-and-modules.md)).
-On the CLI, plugin parameters become namespaced flags.
-
-### Plugin registries
-
-Plugins are distributed via **registries** — JSON endpoints listing
-available plugins with versions, capabilities, and download URLs.
-Multiple registries can be configured, letting organizations host
-internal plugins alongside the official registry.
-
-Registry configuration follows a three-level resolution:
-
-1. **Project config** — `registries:` list. When present, overrides
-   global config entirely (no merging).
-2. **Global config** (`~/.config/kapi/kapi.yaml`) — `registries:` list.
-   Managed via `kapi registry add/remove/list`.
-3. **Fallback** — `plugins.registry` single URL, or the hardcoded
-   official URL.
+A `.kapi` recipe declares plugin dependencies as a map of plugin
+name to semver constraint:
 
 ```yaml
-registries:
-  - name: official
-    url: https://neokapi.github.io/registry/plugins.json
-    channels: [default, snapshot]
-  - name: company
-    url: https://registry.example.com/plugins.json
+version: v1
+name: my-app
+requires:
+  bowrain: "^1.0"
+  okapi-bridge: ">=1.47.0"
 ```
 
-Each registry entry declares its available `channels` — named release
-tracks (e.g., `snapshot` for pre-release builds). The `channels` field
-is informational, helping teams document which channels a registry
-provides.
+Validation fails if any named plugin is not registered. On a TTY,
+kapi prompts to install the missing plugin and retries the command;
+in CI it prints an actionable error pointing at `kapi plugin install`.
+The bare-list form (`requires: [bowrain]`) is rejected with an
+actionable migration hint.
 
-Resolution behavior:
+### Registry and signing
 
-- **Install/update** — iterate registries in order; first match wins.
-- **Search/list** — merge results from all registries, deduplicating by
-  name+version.
-- `--registry <name>` pins to a specific named registry.
-- `--channel <name>` derives channel-specific URLs (orthogonal to
-  registry selection).
+A registry is a JSON index served over HTTPS. The default registry is
+`https://neokapi.github.io/registry/manifest-plugins.json`. The schema
+maps plugin name → versions → per-platform tarball URL + SHA-256 +
+cosign cert identity:
 
-### Quality tiers
+```json
+{
+  "plugins": {
+    "okapi-bridge": {
+      "versions": {
+        "1.47.0": {
+          "channel": "stable",
+          "min_kapi_version": "0.1.0",
+          "platforms": {
+            "darwin/arm64": {
+              "url": "https://github.com/.../kapi-okapi-bridge_1.47.0_darwin_arm64.tar.gz",
+              "sha256": "...",
+              "signature": "https://.../kapi-okapi-bridge_1.47.0_darwin_arm64.tar.gz.sigstore.json",
+              "cert_identity": "https://github.com/neokapi/okapi-bridge/.github/workflows/release.yml@refs/tags/v2.46.0",
+              "cert_oidc_issuer": "https://token.actions.githubusercontent.com"
+            }
+          }
+        }
+      }
+    }
+  }
+}
+```
 
-Not all plugins carry the same trust level:
+`kapi plugin install` downloads the tarball + Sigstore JSON bundle,
+verifies SHA-256 against the registry-pinned hash, then verifies the
+bundle's signing cert against the pinned identity + OIDC issuer using
+[`sigstore-go`](https://github.com/sigstore/sigstore-go). Unsigned
+plugins refuse to install unless `--unsafe` is passed.
 
-| Tier          | Source               | Trust       | Installation                             |
-| ------------- | -------------------- | ----------- | ---------------------------------------- |
-| **Built-in**  | `formats/`, `tools/` | Full        | Ships with binary                        |
-| **Official**  | neokapi org registry | High        | `kapi plugins install`                   |
-| **Community** | Third-party registry | Medium      | `kapi plugins install --registry <name>` |
-| **Local**     | User-built           | User's risk | Copy to plugin directory                 |
+The 1-hour cache at `$XDG_CACHE_HOME/kapi/registry-index.json` keeps
+auto-install prompts cheap; explicit `kapi plugin install / search /
+update-index` always fetches fresh.
 
-Formats with broad usage (HTML, XML, JSON, YAML, XLIFF, PO, Markdown,
-CSV, SRT, VTT) are built-in. Specialized or proprietary formats (DOCX,
-IDML, InDesign, MIF, DITA) are plugins. Core tools (pseudo-translate, QA
-check, word count, segmentation, TM leverage) are built-in; integration
-tools (specific TMS connectors, custom MT engines) are plugins. AI
-providers (Anthropic, OpenAI, Ollama, Gemini) are built-in because AI
-translation is a core value proposition.
+### JSON Schema validation for `schema_extensions`
 
-The test: if removing it makes neokapi feel incomplete for the common
-case, it is built-in.
+A plugin can declare recipe schema keys it owns:
 
-### Protocol stability
+```json
+{
+  "schema_extensions": [
+    { "name": "server", "scope": "project", "json_schema": "schemas/server.json" }
+  ]
+}
+```
 
-The v1 protocol (defined in `plugin/proto/v1/neokapi.proto`) is frozen.
-New fields can be added (protobuf is forward-compatible), but existing
-fields cannot change or be removed. New capabilities require a new
-protocol version (v2, v3, etc.). The host supports at least two protocol
-versions simultaneously, giving plugin authors time to migrate.
+At plugin-register time, kapi loads `<plugin-dir>/schemas/server.json`,
+compiles it via `github.com/google/jsonschema-go`, and registers an
+extension decoder with `core/project`. When a recipe is loaded, the
+decoder validates the YAML payload against the compiled schema.
+Failures render with the recipe path prefix and the JSON Schema
+constraint that failed.
 
-### Security
+### Standard plugins
 
-- **Plugins run out of process.** A plugin crash does not affect the
-  host.
-- **Credentials are passed via environment variables**, not shared
-  memory or files readable by other processes.
-- **Plugin scope is enforced by the RPC boundary** — plugins cannot
-  modify core behavior; they can only respond to framework-defined RPC
-  calls.
+Two reference plugins ship with the project:
 
-## Consequences
+- **bowrain** — cloud-server sync (push/pull/auth), the AGPL plugin
+  that proves the model. Ships as `bowrain-cli` brew formula
+  (depends on `kapi`, drops `kapi-bowrain` into
+  `share/kapi/plugins/bowrain/`).
+- **okapi-bridge** — Java bridge exposing 57+ Okapi Framework filters.
+  Built with `jpackage` (no Go shim): produces a native launcher
+  + bundled JRE per platform. Cosign-signed via GitHub Actions
+  keyless OIDC.
 
-- Plugins run out-of-process: crashes do not affect the host.
-- Any language that can implement a gRPC server works as a plugin.
-- Protocol versioning in the handshake prevents incompatible plugins from
-  loading.
-- Multiple versions of the same plugin coexist without conflict.
-- All 40+ Okapi filters are accessible without Go rewrites via the Okapi
-  bridge.
-- JVM count is bounded regardless of plugin-version count; different JARs
-  share capacity fairly.
-- Bundles package multiple formats and tools as a single installable
-  unit, simplifying distribution while allowing individual capability
-  registration.
-- Multiple registries can be configured at project or global level,
-  enabling organizations to host internal plugins alongside the official
-  registry.
-- The CLI searches both standalone plugins and bundles; `--bundle`,
-  `--format`, and `--tool` flags narrow results by plugin kind.
-- Plugin configuration integrates cleanly with the Viper config system
-  ([AD-001: Vision and Module Architecture](001-vision-and-modules.md));
-  namespaced flags prevent collisions.
-- Plugin scope is enforced by the RPC boundary — plugins cannot modify
-  core behavior.
-- The built-in vs plugin split keeps the out-of-box experience complete
-  while allowing specialization through plugins.
-- Two-phase discovery makes `kapi formats list` and `kapi plugins list`
-  instant; JVM startup cost is paid only when files are actually
-  processed.
+A minimal Go reference plugin in `examples/plugins/hello/` covers
+Mode A + B with no third-party deps.
 
-## Related
+## Status
 
-- [AD-001: Vision and Module Architecture](001-vision-and-modules.md) — config system, module layout
-- [AD-005: Format System](005-format-system.md) — how plugin formats register alongside native formats
-- [AD-006: Tool System](006-tool-system.md) — plugin tools use the same Tool interface
-- [Plugin Bridge Protocol](/notes-internal/plugin-bridge-protocol) — full gRPC service definition, wire format, and performance tuning
+Implemented and merged in #438 (phases 1-9). The legacy v1 plugin
+runtime — `core/plugin/{loader,host,server,shared,registry,cache}/`
+plus the `kapi plugins` (plural) command tree — has been deleted.
+`core/plugin/{bridge,manifest,proto}/` are kept: `bridge` for the
+in-process Java filter calls used by `core/flow/bridgerunner`,
+`manifest` for the v1 manifest types, `proto` for the gRPC service
+definitions consumed by Mode-C daemons.
+
+Native binaries ship for `linux/amd64`, `linux/arm64`,
+`darwin/arm64`, and `windows/amd64`. `darwin/amd64` (Intel Mac) is
+intentionally not in the release matrix — Apple has dropped Intel
+from new product lines and macos-13 runners on GitHub Actions are
+scarce. Intel users can run the JAR directly with their own JRE 17+
+or use Rosetta on the arm64 binary.
+
+## References
+
+- Issue [#438](https://github.com/neokapi/neokapi/issues/438) —
+  unified plugin model design + delivery
+- [`docs/internals/plugin-protocol-v1.md`](https://github.com/neokapi/neokapi/blob/main/docs/internals/plugin-protocol-v1.md) — language-neutral protocol spec
+- [`core/plugin/manifest/`](https://github.com/neokapi/neokapi/tree/main/core/plugin/manifest) — Go types and embedded JSON Schema
+- [`cli/pluginhost/`](https://github.com/neokapi/neokapi/tree/main/cli/pluginhost) — host-side runtime (discovery, dispatch, daemon pool, registry, cosign)
+- [`examples/plugins/hello/`](https://github.com/neokapi/neokapi/tree/main/examples/plugins/hello) — minimal Go reference plugin
+- [neokapi/okapi-bridge](https://github.com/neokapi/okapi-bridge) — Java filter bridge
+- [neokapi/registry](https://github.com/neokapi/registry) — published `manifest-plugins.json`
