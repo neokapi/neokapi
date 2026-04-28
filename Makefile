@@ -393,24 +393,6 @@ test-e2e-dev: ; $(MAKE) -C bowrain $@ ## Run cloud e2e tests against dev environ
 
 # ── Bridge Tests ────────────────────────────────────────────────────────────
 
-fetch-bridge-jar: ## Fetch bridge JAR for testing
-	$(GO) run ./scripts/fetch-bridge-jar
-
-fetch-bridge-testdata: ## Fetch bridge test data
-	$(GO) run ./scripts/fetch-bridge-testdata
-
-test-bridge-filters: ## Run bridge filter tests
-	$(GOTEST) ./core/plugin/bridge/filters/... -count=1
-
-test-bridge-pool: ## Run bridge pool tests
-	$(GOTEST) ./core/plugin/bridge/... -count=1 -run Pool
-
-test-bridge-json: ## Run bridge tests with JSON output
-	$(GOTEST) ./core/plugin/bridge/filters/... -count=1 -json > $(COVER_DIR)/bridge-test-results.jsonl
-
-test-native-json: ## Run native format tests with JSON output
-	$(GOTEST) ./core/formats/... -count=1 -json > $(COVER_DIR)/native-test-results.jsonl
-
 # ── Bench (composite target at root) ───────────────────────────────────────
 
 bench-build: ## Build benchmark binary
@@ -421,9 +403,6 @@ bench-generate: ## Generate benchmark data
 
 bench-run: ## Run benchmarks
 	cd bench/pseudobench && $(GO) run . run
-
-bench-run-bridge: ## Run bridge benchmarks
-	cd bench/pseudobench && $(GO) run . run --bridge
 
 bench-run-collection: ## Run collection benchmarks
 	cd bench/pseudobench && $(GO) run . run --collection
@@ -463,30 +442,8 @@ fetch-docs-assets: ## Download legacy docs assets (transitional, until walkthrou
 
 # ── Generate (scripts at root) ──────────────────────────────────────────────
 
-GITHUB_TOKEN       ?= $(shell gh auth token 2>/dev/null)
-OKAPI_VERSION      ?= 1.48.0
-OKAPI_SUREFIRE_DIR ?= okapi-surefire/$(OKAPI_VERSION)-v1
-GOTEST_JSON_FILE   := coverage/bridge-test-results.jsonl
-NATIVE_JSON_FILE   := coverage/native-test-results.jsonl
-
-fetch-okapi-surefire: ## Download Okapi Surefire XML reports
-	@GITHUB_TOKEN=$(GITHUB_TOKEN) bash scripts/fetch-okapi-surefire.sh
-
-generate-test-comparison: fetch-okapi-surefire test-bridge-json test-native-json ## Generate test comparison data
-	@mkdir -p web/docs/static/data
-	$(GO) run ./scripts/testcompare \
-		-okapi-dir $(OKAPI_SUREFIRE_DIR) \
-		-gotest-bridge-json $(GOTEST_JSON_FILE) \
-		-gotest-native-json $(NATIVE_JSON_FILE) \
-		-bridge-src core/plugin/bridge/filters \
-		-native-src core/formats \
-		-out web/docs/static/data/test-comparison.json
-
 generate-format-docs: ## Generate format reference JSON for the website
 	$(GO) run ./scripts/gen-format-docs
-
-generate-test-stubs: fetch-okapi-surefire ## Generate Go test stubs from Surefire XML
-	$(GO) run ./scripts/gen-test-stubs -surefire-dir $(OKAPI_SUREFIRE_DIR)
 
 # ── Documentation Site ──────────────────────────────────────────────────────
 
@@ -560,10 +517,9 @@ help: ## Show this help
         flow-editor-deps flow-editor-check flow-editor-test \
         kapi-storybook kapi-storybook-build bowrain-storybook bowrain-storybook-build \
         cover test-e2e test-e2e-kapi test-e2e-bowrain test-e2e-cloud test-e2e-dev \
-        fetch-bridge-jar fetch-bridge-testdata test-bridge-filters test-bridge-pool test-bridge-json test-native-json \
-        bench bench-build bench-generate bench-run bench-run-bridge bench-run-collection bench-run-all bench-versions \
+        bench bench-build bench-generate bench-run bench-run-collection bench-run-all bench-versions \
         fetch-docs-assets \
-        fetch-okapi-surefire generate-test-comparison generate-format-docs generate-test-stubs \
+        generate-format-docs \
         docs-deps docs-dev docs-build docs-serve \
         tools setup-remote gha-lint clean \
         _fw-fmt _fw-test _fw-test-fast _fw-test-unit _fw-test-race _fw-test-verbose _fw-test-integration \
