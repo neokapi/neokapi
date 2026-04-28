@@ -1,8 +1,13 @@
-// Command fakedaemon is a minimal Mode-C plugin used by daemon_test.go.
+// Command fakedaemon is a minimal Mode-C plugin used by daemon_test.go
+// and format_factory_test.go.
 //
 // It binds a Unix socket, prints a JSON handshake on stdout, and serves
-// a gRPC server that registers no service methods (the pool only needs
-// a successful TCP-level dial + RPC connection to consider it ready).
+// a gRPC server. By default no service methods are registered (the pool
+// only needs a successful TCP-level dial + RPC connection to consider it
+// ready). When FAKE_DAEMON_BRIDGE=1, the daemon registers a minimal
+// BridgeService implementation that handles the Process RPC — used by
+// format-factory tests to drive a Mode-C reader/writer end to end
+// without a real Java daemon.
 //
 // Behavior is controlled via env vars:
 //
@@ -13,11 +18,16 @@
 //	FAKE_DAEMON_CRASH_AFTER  Duration string (e.g. "200ms"); the daemon
 //	                           exits with status 1 after this delay.
 //	                           Mimics a crashed plugin.
+//	FAKE_DAEMON_BRIDGE     If "1", register the BridgeService stub. The
+//	                       stub emits one BlockMessage per Process call
+//	                       and echoes back any client-sent parts.
 package main
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
 	"net"
 	"os"
 	"os/signal"
@@ -25,6 +35,7 @@ import (
 	"syscall"
 	"time"
 
+	pb "github.com/neokapi/neokapi/core/plugin/proto/v2"
 	"google.golang.org/grpc"
 )
 
@@ -46,6 +57,9 @@ func main() {
 	}
 
 	server := grpc.NewServer()
+	if os.Getenv("FAKE_DAEMON_BRIDGE") == "1" {
+		pb.RegisterBridgeServiceServer(server, &fakeBridge{})
+	}
 	go func() {
 		if err := server.Serve(lis); err != nil {
 			fmt.Fprintf(os.Stderr, "fakedaemon: serve: %v\n", err)
@@ -101,4 +115,83 @@ func envOr(key, fallback string) string {
 		return v
 	}
 	return fallback
+}
+
+// fakeBridge is a minimal BridgeService implementation used by the
+// format-factory tests. The Process RPC accepts a header, emits one
+// BlockMessage with the filter_class as its source text, then signals
+// ReadDone. If the header sets an OutputRef, fakeBridge waits for the
+// client to stream parts back and replies with ProcessComplete carrying
+// any inline output bytes set via FAKE_DAEMON_OUTPUT.
+type fakeBridge struct {
+	pb.UnimplementedBridgeServiceServer
+}
+
+func (f *fakeBridge) Process(stream pb.BridgeService_ProcessServer) error {
+	first, err := stream.Recv()
+	if err != nil {
+		return fmt.Errorf("recv header: %w", err)
+	}
+	header, ok := first.Request.(*pb.ProcessRequest_Header)
+	if !ok {
+		return errors.New("expected header as first request")
+	}
+
+	// Emit a single BlockMessage so the Reader observes a non-empty
+	// stream. The content carries the filter_class so tests can assert
+	// on it.
+	block := &pb.BlockMessage{
+		Id:           "block-1",
+		Type:         "p",
+		MimeType:     "text/plain",
+		Translatable: true,
+		Source: []*pb.SegmentMessage{{
+			Id: "s1",
+			Runs: []*pb.RunMessage{{
+				Kind: &pb.RunMessage_Text{Text: &pb.TextRunMessage{Text: header.Header.GetFilterClass()}},
+			}},
+		}},
+	}
+	if err := stream.Send(&pb.ProcessResponse{
+		Response: &pb.ProcessResponse_Part{Part: &pb.PartMessage{
+			PartType: 5, // PartBlock
+			Block:    block,
+		}},
+	}); err != nil {
+		return fmt.Errorf("send part: %w", err)
+	}
+
+	if err := stream.Send(&pb.ProcessResponse{
+		Response: &pb.ProcessResponse_ReadDone{ReadDone: &pb.ProcessReadDone{}},
+	}); err != nil {
+		return fmt.Errorf("send read done: %w", err)
+	}
+
+	// Read-only mode: complete immediately when the client closes its
+	// send side. Read-write mode: drain client parts first so we exercise
+	// the bidirectional path.
+	hasOutput := header.Header.Output != nil
+	for {
+		req, err := stream.Recv()
+		if err != nil {
+			if errors.Is(err, io.EOF) {
+				break
+			}
+			return fmt.Errorf("recv part: %w", err)
+		}
+		_ = req // discarded; we only need to drain
+	}
+
+	output := []byte(os.Getenv("FAKE_DAEMON_OUTPUT"))
+	complete := &pb.ProcessComplete{}
+	if hasOutput {
+		complete.Output = output
+		// If the OutputRef pointed at a path, leave OutputPath empty so
+		// the client treats it as inline output. Production daemons
+		// would write the file; the fake doesn't, because tests don't
+		// assert on file contents.
+	}
+	return stream.Send(&pb.ProcessResponse{
+		Response: &pb.ProcessResponse_Complete{Complete: complete},
+	})
 }
