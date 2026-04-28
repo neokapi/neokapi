@@ -84,6 +84,15 @@ jobs:
       - name: Install ICU dev libraries
         run: sudo apt-get update && sudo apt-get install -y libicu-dev pkg-config
 
+      - name: Install okapi-bridge parent POM into local Maven repo
+        # The version-specific module declares neokapi:okapi-bridge-parent
+        # as its parent POM. `mvn package` on the version module doesn't
+        # walk up to install the parent first, so the build fails on CI
+        # where ~/.m2 starts empty. Install the parent POM (-N: this
+        # module only, no recursion) before running the version build.
+        working-directory: okapi-bridge
+        run: mvn -B install -N -DskipTests -q
+
       - name: Build okapi-bridge plugin tarball
         working-directory: okapi-bridge
         run: |
