@@ -84,9 +84,17 @@ const SKIP_DIVERGENCE_453 = "documented divergence — see #453"
 const SKIP_BRIDGE_BUG_452 = "bridge crash — see #452"
 
 // FormatInput is one named sample input.
+//
+// OkapiTest is optional. When set ("ClassName#methodName", short class
+// form like "HtmlSnippetsTest#testEscapes"), the harness reports each
+// fixture run under format-fixture parity rows keyed on the Java test
+// id. The contract-audit dashboard then joins per-test bridge/native
+// status against Surefire's own row for that test, giving true 3-way
+// per-test granularity instead of one filter-level badge.
 type FormatInput struct {
-	Name    string
-	Content []byte
+	Name      string
+	Content   []byte
+	OkapiTest string
 }
 
 // FormatSpec describes one parity test row.
@@ -151,9 +159,28 @@ var formatSpecs = []FormatSpec{
 		MimeType:  "text/html",
 		NewReader: func() format.DataFormatReader { return htmlfmt.NewReader() },
 		Inputs: []FormatInput{
-			{"minimal", ttext(`<html><body><p>Hello world.</p></body></html>`)},
-			{"inline-codes", ttext(`<html><body><p>Click <a href="/x">here</a> to continue.</p></body></html>`)},
-			{"two-paragraphs", ttext(`<html><body><p>First.</p><p>Second.</p></body></html>`)},
+			{Name: "minimal", Content: ttext(`<html><body><p>Hello world.</p></body></html>`)},
+			{Name: "inline-codes", Content: ttext(`<html><body><p>Click <a href="/x">here</a> to continue.</p></body></html>`)},
+			{Name: "two-paragraphs", Content: ttext(`<html><body><p>First.</p><p>Second.</p></body></html>`)},
+			// Hand-ported from Okapi's HtmlSnippetsTest. Each fixture
+			// mirrors the input bytes of the named @Test method; the
+			// OkapiTest pointer drives the per-test bridge column on
+			// the contract-audit dashboard.
+			{
+				Name:      "snippets-href",
+				Content:   ttext(`see <a href="http://yahoo.com">yahoo</a>`),
+				OkapiTest: "HtmlSnippetsTest#testHref",
+			},
+			{
+				Name:      "snippets-title-in-p",
+				Content:   ttext(`<p title="Text1">Text2</p>`),
+				OkapiTest: "HtmlSnippetsTest#testTitleInP",
+			},
+			{
+				Name:      "snippets-escapes",
+				Content:   ttext(`<p><b>Question</b>: When the "<code>&lt;b></code>" code was added</p>`),
+				OkapiTest: "HtmlSnippetsTest#testEscapes",
+			},
 		},
 	},
 	{
@@ -161,7 +188,7 @@ var formatSpecs = []FormatSpec{
 		MimeType:  "text/html",
 		NewReader: func() format.DataFormatReader { return htmlfmt.NewReader() },
 		Inputs: []FormatInput{
-			{"minimal", ttext(`<!DOCTYPE html><html><body><p>Hello world.</p></body></html>`)},
+			{Name: "minimal", Content: ttext(`<!DOCTYPE html><html><body><p>Hello world.</p></body></html>`)},
 		},
 	},
 	{
@@ -169,8 +196,8 @@ var formatSpecs = []FormatSpec{
 		MimeType:  "application/json",
 		NewReader: func() format.DataFormatReader { return jsonfmt.NewReader() },
 		Inputs: []FormatInput{
-			{"flat", ttext(`{"greeting":"Hello world."}`)},
-			{"nested", ttext(`{"messages":{"hello":"Hi","bye":"Bye"}}`)},
+			{Name: "flat", Content: ttext(`{"greeting":"Hello world."}`)},
+			{Name: "nested", Content: ttext(`{"messages":{"hello":"Hi","bye":"Bye"}}`)},
 		},
 	},
 	{
@@ -178,7 +205,7 @@ var formatSpecs = []FormatSpec{
 		MimeType:  "text/x-yaml",
 		NewReader: func() format.DataFormatReader { return yamlfmt.NewReader() },
 		Inputs: []FormatInput{
-			{"flat", ttext("greeting: Hello world.\nfarewell: Goodbye.\n")},
+			{Name: "flat", Content: ttext("greeting: Hello world.\nfarewell: Goodbye.\n")},
 		},
 	},
 	{
@@ -186,7 +213,7 @@ var formatSpecs = []FormatSpec{
 		MimeType:  "text/xml",
 		NewReader: func() format.DataFormatReader { return xmlfmt.NewReader() },
 		Inputs: []FormatInput{
-			{"minimal", ttext(`<?xml version="1.0"?><root><msg>Hello world.</msg></root>`)},
+			{Name: "minimal", Content: ttext(`<?xml version="1.0"?><root><msg>Hello world.</msg></root>`)},
 		},
 	},
 	{
@@ -196,7 +223,7 @@ var formatSpecs = []FormatSpec{
 		// neokapi xml reader handles both modes.
 		NewReader: func() format.DataFormatReader { return xmlfmt.NewReader() },
 		Inputs: []FormatInput{
-			{"dita-like", ttext(`<?xml version="1.0"?><topic><title>Hi</title><body>Hello.</body></topic>`)},
+			{Name: "dita-like", Content: ttext(`<?xml version="1.0"?><topic><title>Hi</title><body>Hello.</body></topic>`)},
 		},
 	},
 	{
@@ -204,7 +231,7 @@ var formatSpecs = []FormatSpec{
 		MimeType:  "application/xml+dtd",
 		NewReader: func() format.DataFormatReader { return dtdfmt.NewReader() },
 		Inputs: []FormatInput{
-			{"minimal", ttext(`<!ENTITY greeting "Hello world.">`)},
+			{Name: "minimal", Content: ttext(`<!ENTITY greeting "Hello world.">`)},
 		},
 	},
 	{
@@ -223,8 +250,8 @@ var formatSpecs = []FormatSpec{
 			"extraComments": true,
 		},
 		Inputs: []FormatInput{
-			{"flat", ttext("greeting=Hello world.\nfarewell=Goodbye.\n")},
-			{"semi-comments", ttext("# standard\n; semi-comment\ngreeting=Hello world.\n")},
+			{Name: "flat", Content: ttext("greeting=Hello world.\nfarewell=Goodbye.\n")},
+			{Name: "semi-comments", Content: ttext("# standard\n; semi-comment\ngreeting=Hello world.\n")},
 		},
 	},
 	{
@@ -244,7 +271,7 @@ var formatSpecs = []FormatSpec{
 		SkipRoundTrip: "writer fills empty target with source on bridge side; native preserves empty target",
 		SkipTikal:     "same divergence as bridge: tikal also auto-fills empty msgstr with source",
 		Inputs: []FormatInput{
-			{"single", ttext(`msgid ""
+			{Name: "single", Content: ttext(`msgid ""
 msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 
@@ -267,7 +294,7 @@ msgstr ""
 		TikalExt:    ".txt",
 		TikalConfig: "okf_plaintext",
 		Inputs: []FormatInput{
-			{"two-lines", ttext("Hello world.\nGoodbye.\n")},
+			{Name: "two-lines", Content: ttext("Hello world.\nGoodbye.\n")},
 		},
 	},
 	{
@@ -277,7 +304,7 @@ msgstr ""
 		// covers it.
 		NewReader: func() format.DataFormatReader { return plaintextfmt.NewReader() },
 		Inputs: []FormatInput{
-			{"single-line", ttext("Hello world.\n")},
+			{Name: "single-line", Content: ttext("Hello world.\n")},
 		},
 	},
 	{
@@ -285,7 +312,7 @@ msgstr ""
 		MimeType:  "text/plain",
 		NewReader: func() format.DataFormatReader { return paraplaintextfmt.NewReader() },
 		Inputs: []FormatInput{
-			{"two-paragraphs", ttext("First paragraph.\n\nSecond paragraph.\n")},
+			{Name: "two-paragraphs", Content: ttext("First paragraph.\n\nSecond paragraph.\n")},
 		},
 	},
 	{
@@ -293,7 +320,7 @@ msgstr ""
 		MimeType:  "text/plain",
 		NewReader: func() format.DataFormatReader { return splicedlinesfmt.NewReader() },
 		Inputs: []FormatInput{
-			{"two-lines", ttext("Line one.\nLine two.\n")},
+			{Name: "two-lines", Content: ttext("Line one.\nLine two.\n")},
 		},
 	},
 	{
@@ -301,7 +328,7 @@ msgstr ""
 		MimeType:  "text/x-regex",
 		NewReader: func() format.DataFormatReader { return regexfmt.NewReader() },
 		Inputs: []FormatInput{
-			{"key-value", ttext("greeting = Hello world.\nfarewell = Goodbye.\n")},
+			{Name: "key-value", Content: ttext("greeting = Hello world.\nfarewell = Goodbye.\n")},
 		},
 	},
 	{
@@ -321,7 +348,7 @@ msgstr ""
 		MimeType:  "text/markdown",
 		NewReader: func() format.DataFormatReader { return markdownfmt.NewReader() },
 		Inputs: []FormatInput{
-			{"minimal", ttext("# Hello\n\nThis is a paragraph.\n")},
+			{Name: "minimal", Content: ttext("# Hello\n\nThis is a paragraph.\n")},
 		},
 	},
 	{
@@ -329,7 +356,7 @@ msgstr ""
 		MimeType:  "text/x-wiki-txt",
 		NewReader: func() format.DataFormatReader { return wikifmt.NewReader() },
 		Inputs: []FormatInput{
-			{"minimal", ttext("== Hello ==\n\nThis is a paragraph.\n")},
+			{Name: "minimal", Content: ttext("== Hello ==\n\nThis is a paragraph.\n")},
 		},
 	},
 	{
@@ -343,7 +370,7 @@ msgstr ""
 		MimeType:  "text/x-mosestext",
 		NewReader: func() format.DataFormatReader { return mosestextfmt.NewReader() },
 		Inputs: []FormatInput{
-			{"two-lines", ttext("Hello world.\nGoodbye.\n")},
+			{Name: "two-lines", Content: ttext("Hello world.\nGoodbye.\n")},
 		},
 	},
 	{
@@ -391,7 +418,7 @@ msgstr ""
 		MimeType:  "application/x-xliff+xml",
 		NewReader: func() format.DataFormatReader { return xlifffmt.NewReader() },
 		Inputs: []FormatInput{
-			{"single-tu", ttext(`<?xml version="1.0"?>
+			{Name: "single-tu", Content: ttext(`<?xml version="1.0"?>
 <xliff version="1.2" xmlns="urn:oasis:names:tc:xliff:document:1.2">
   <file source-language="en" target-language="fr" datatype="plaintext" original="hello.txt">
     <body>
@@ -406,7 +433,7 @@ msgstr ""
 		MimeType:  "application/xliff+xml",
 		NewReader: func() format.DataFormatReader { return xliff2fmt.NewReader() },
 		Inputs: []FormatInput{
-			{"single-tu", ttext(`<?xml version="1.0"?>
+			{Name: "single-tu", Content: ttext(`<?xml version="1.0"?>
 <xliff xmlns="urn:oasis:names:tc:xliff:document:2.0" version="2.0" srcLang="en" trgLang="fr">
   <file id="f1">
     <unit id="u1">
@@ -421,7 +448,7 @@ msgstr ""
 		MimeType:  "application/x-tmx+xml",
 		NewReader: func() format.DataFormatReader { return tmxfmt.NewReader() },
 		Inputs: []FormatInput{
-			{"single-tu", ttext(`<?xml version="1.0"?>
+			{Name: "single-tu", Content: ttext(`<?xml version="1.0"?>
 <tmx version="1.4">
   <header creationtool="manual" creationtoolversion="1" segtype="sentence" o-tmf="x" adminlang="en" srclang="en" datatype="plaintext"/>
   <body>
@@ -453,7 +480,7 @@ msgstr ""
 		MimeType:  "application/x-ts",
 		NewReader: func() format.DataFormatReader { return tsfmt.NewReader() },
 		Inputs: []FormatInput{
-			{"minimal", ttext(`<?xml version="1.0"?>
+			{Name: "minimal", Content: ttext(`<?xml version="1.0"?>
 <!DOCTYPE TS>
 <TS version="2.1" language="fr">
   <context>
@@ -468,7 +495,7 @@ msgstr ""
 		MimeType:  "text/vtt",
 		NewReader: func() format.DataFormatReader { return vttfmt.NewReader() },
 		Inputs: []FormatInput{
-			{"minimal", ttext("WEBVTT\n\n00:00:01.000 --> 00:00:02.000\nHello world.\n")},
+			{Name: "minimal", Content: ttext("WEBVTT\n\n00:00:01.000 --> 00:00:02.000\nHello world.\n")},
 		},
 	},
 	{
@@ -542,7 +569,7 @@ msgstr ""
 		MimeType:  "text/csv",
 		NewReader: nil, // bridge-only
 		Inputs: []FormatInput{
-			{"minimal", ttext("hello,Hello world.\n")},
+			{Name: "minimal", Content: ttext("hello,Hello world.\n")},
 		},
 	},
 	{

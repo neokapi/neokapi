@@ -486,10 +486,16 @@ type parityRow struct {
 // parity" suite. Tikal isn't strictly the bridge — it's a third
 // reference corner — but rendering it in the same column keeps the
 // per-filter parity story in one place.
+//
+// Fixtures keys per-Java-test fixture parity rows by their
+// "ClassName#methodName" ref (in either FQN or short class form). The
+// per-row lookup against the surefire join produces true per-test
+// bridge granularity instead of one filter-level badge.
 type bridgeRows struct {
-	Read      *parityRow // Kind="format" (head-to-head reader comparison)
-	RoundTrip *parityRow // Kind="format-roundtrip" (reader+writer byte parity, native vs bridge)
-	Tikal     *parityRow // Kind="format-tikal" (native round-trip vs Okapi tikal CLI)
+	Read      *parityRow            // Kind="format" (head-to-head reader comparison)
+	RoundTrip *parityRow            // Kind="format-roundtrip" (reader+writer byte parity, native vs bridge)
+	Tikal     *parityRow            // Kind="format-tikal" (native round-trip vs Okapi tikal CLI)
+	Fixtures  map[string]*parityRow // Kind="format-fixture" keyed by JavaClass#JavaMethod (short class form)
 }
 
 // parseParityReport reads the parity JSON and returns a map keyed by
@@ -521,6 +527,29 @@ func parseParityReport(path string) (map[string]*bridgeRows, error) {
 			entry.RoundTrip = &row
 		case "format-tikal":
 			entry.Tikal = &row
+		case "format-fixture":
+			// Composite ID: "okf_<filter>::ClassName#methodName".
+			// Re-key the entry under the bare filter name and store
+			// per-test rows in Fixtures.
+			parts := strings.SplitN(r.ID, "::", 2)
+			if len(parts) != 2 {
+				continue
+			}
+			filterKey := strings.TrimPrefix(parts[0], "okf_")
+			testRef := parts[1] // ClassName#methodName
+			fxEntry, ok := out[filterKey]
+			if !ok {
+				fxEntry = &bridgeRows{}
+				out[filterKey] = fxEntry
+			}
+			if fxEntry.Fixtures == nil {
+				fxEntry.Fixtures = map[string]*parityRow{}
+			}
+			fxEntry.Fixtures[testRef] = &row
+			// The composite-key entry built above (out[key]) is now
+			// stale (its key still has the ::ref suffix). Drop it.
+			delete(out, key)
+			continue
 		}
 	}
 	return out, nil
@@ -599,17 +628,20 @@ func buildDoc(okapiByFilter, nativeByFilter map[string]*filterResult, bridgeByFi
 		if fc.Okapi != nil && fc.Native != nil {
 			sum.TotalFiltersBoth++
 		}
-		// Bridge column: synthesize a single "bridge parity" suite from the
-		// head-to-head parity row, if one exists. The dashboard renders
-		// this as one badge per filter — per-test bridge granularity is
-		// out of scope until okapi-bridge exposes per-test results.
+		// Bridge column: synthesize a single "bridge parity" suite from
+		// the per-filter outcomes (read / round-trip / tikal). Per-test
+		// bridge granularity flows separately into testCaseMatch.Bridge*
+		// fields below via fixture rows in the parity report.
+		var brEntry *bridgeRows
 		if br, ok := lookupParity(bridgeByFilter, name); ok {
+			brEntry = br
 			fc.Bridge = parityToFilterResult(br)
 			sum.TotalFiltersBridge++
 			sum.TotalTestsBridge += fc.Bridge.Total
 		}
-		// Build one row per Okapi @Test method, joined with annotations.
-		fc.TestCases = buildRows(fc.Okapi, annByOkapi, nativeStatus)
+		// Build one row per Okapi @Test method, joined with annotations
+		// and per-fixture bridge outcomes.
+		fc.TestCases = buildRows(fc.Okapi, annByOkapi, nativeStatus, brEntry)
 		fc.Coverage = computeCoverageFromRows(fc.Okapi, fc.TestCases)
 		doc.Filters = append(doc.Filters, fc)
 	}
@@ -636,8 +668,9 @@ func buildDoc(okapiByFilter, nativeByFilter map[string]*filterResult, bridgeByFi
 }
 
 // buildRows produces one TestCaseMatch per Okapi @Test method, joining
-// against annotations and native go-test status.
-func buildRows(okapi *filterResult, annByOkapi map[string]annotation, nativeStatus map[string]string) []testCaseMatch {
+// against annotations, native go-test status, and per-fixture bridge
+// outcomes from the parity report.
+func buildRows(okapi *filterResult, annByOkapi map[string]annotation, nativeStatus map[string]string, br *bridgeRows) []testCaseMatch {
 	rows := []testCaseMatch{}
 	if okapi == nil {
 		return rows
@@ -652,6 +685,18 @@ func buildRows(okapi *filterResult, annByOkapi map[string]annotation, nativeStat
 				JavaClass:   javaClass,
 				JavaMethod:  tc.Name,
 				OkapiStatus: tc.Status,
+			}
+			// Per-test bridge join. Fixtures key on short-class form
+			// (HtmlSnippetsTest#testFoo); accept either FQN or short
+			// for safety.
+			if br != nil && br.Fixtures != nil {
+				if fx, ok := br.Fixtures[shortClass(javaClass)+"#"+tc.Name]; ok {
+					row.BridgeStatus = bridgeStatusFromParity(fx.Status)
+					row.BridgeTest = fx.Name
+				} else if fx, ok := br.Fixtures[javaClass+"#"+tc.Name]; ok {
+					row.BridgeStatus = bridgeStatusFromParity(fx.Status)
+					row.BridgeTest = fx.Name
+				}
 			}
 			ann, ok := annByOkapi[javaClass+"#"+tc.Name]
 			if !ok {
@@ -834,6 +879,18 @@ func detectAnnotationDrift(annotations []annotation, okapiByFilter map[string]*f
 		return drift[i].Line < drift[j].Line
 	})
 	return drift
+}
+
+// bridgeStatusFromParity normalises parity-report statuses ("pass" /
+// "fail" / "skip") to the dashboard's status vocabulary which mirrors
+// the Go-test convention.
+func bridgeStatusFromParity(s string) string {
+	switch s {
+	case "pass", "fail", "skip":
+		return s
+	default:
+		return ""
+	}
 }
 
 // classifySkip bins a free-text skip reason into a SkipCategory the

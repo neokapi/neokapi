@@ -54,6 +54,21 @@ func runFormatSpec(t *testing.T, spec FormatSpec) {
 	for _, in := range spec.Inputs {
 		in := in
 		t.Run(in.Name, func(t *testing.T) {
+			// When the fixture is tagged with a Java test ref, also
+			// emit a per-fixture parity row so the contract-audit
+			// dashboard can populate the Bridge column for that
+			// specific Okapi @Test method (instead of a single
+			// filter-level badge). Status reflects this subtest's
+			// outcome (pass/fail/skip), so a fixture failing
+			// CompareBlockText shows red on its dashboard row only.
+			if in.OkapiTest != "" {
+				defer parity.Report(t, parity.Outcome{
+					Kind: "format-fixture",
+					ID:   spec.ID + "::" + in.OkapiTest,
+					Name: t.Name(),
+					Mode: "fixture",
+				})
+			}
 			bridge := parity.RunBridge(t, parity.BridgeRequest{
 				FilterClass:  spec.ID,
 				InputBytes:   in.Content,

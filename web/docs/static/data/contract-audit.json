@@ -1,8 +1,8 @@
 {
-  "generatedAt": "2026-04-29T22:23:44Z",
+  "generatedAt": "2026-04-29T22:55:38Z",
   "okapiVersion": "v1.4.8",
   "neokapiVersion": "main",
-  "goCommitSHA": "008394ad",
+  "goCommitSHA": "30279c68",
   "okapiTag": "v1.4.8",
   "filters": [
     {
@@ -5321,6 +5321,8 @@
           "javaClass": "net.sf.okapi.filters.html.HtmlSnippetsTest",
           "javaMethod": "testEscapes",
           "okapiStatus": "pass",
+          "bridgeTest": "TestParityFormats/html/snippets-escapes",
+          "bridgeStatus": "pass",
           "nativeTest": "TestSnippets_Escapes",
           "nativeStatus": "pass",
           "nativeFile": "snippets_test.go",
@@ -5456,6 +5458,8 @@
           "javaClass": "net.sf.okapi.filters.html.HtmlSnippetsTest",
           "javaMethod": "testTitleInP",
           "okapiStatus": "pass",
+          "bridgeTest": "TestParityFormats/html/snippets-title-in-p",
+          "bridgeStatus": "pass",
           "nativeTest": "TestSnippets_TitleInP",
           "nativeStatus": "pass",
           "nativeFile": "snippets_test.go",
@@ -5476,6 +5480,8 @@
           "javaClass": "net.sf.okapi.filters.html.HtmlSnippetsTest",
           "javaMethod": "testHref",
           "okapiStatus": "pass",
+          "bridgeTest": "TestParityFormats/html/snippets-href",
+          "bridgeStatus": "pass",
           "nativeTest": "TestSnippets_Href",
           "nativeStatus": "pass",
           "nativeFile": "snippets_test.go",
