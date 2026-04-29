@@ -481,12 +481,15 @@ type parityRow struct {
 	Duration int64  `json:"duration_ms,omitempty"`
 }
 
-// bridgeRows holds both the read-parity outcome and the optional
-// round-trip outcome for one filter, so the dashboard can render them
-// as two distinct test cases inside the synthetic "bridge parity" suite.
+// bridgeRows holds the parity outcomes for one filter so the dashboard
+// can render them as distinct test cases inside the synthetic "bridge
+// parity" suite. Tikal isn't strictly the bridge — it's a third
+// reference corner — but rendering it in the same column keeps the
+// per-filter parity story in one place.
 type bridgeRows struct {
 	Read      *parityRow // Kind="format" (head-to-head reader comparison)
-	RoundTrip *parityRow // Kind="format-roundtrip" (reader+writer byte parity)
+	RoundTrip *parityRow // Kind="format-roundtrip" (reader+writer byte parity, native vs bridge)
+	Tikal     *parityRow // Kind="format-tikal" (native round-trip vs Okapi tikal CLI)
 }
 
 // parseParityReport reads the parity JSON and returns a map keyed by
@@ -516,6 +519,8 @@ func parseParityReport(path string) (map[string]*bridgeRows, error) {
 			entry.Read = &row
 		case "format-roundtrip":
 			entry.RoundTrip = &row
+		case "format-tikal":
+			entry.Tikal = &row
 		}
 	}
 	return out, nil
@@ -751,6 +756,9 @@ func parityToFilterResult(b *bridgeRows) *filterResult {
 	}
 	if b.RoundTrip != nil {
 		appendParityCase(&suite, fr, b.RoundTrip, "round-trip")
+	}
+	if b.Tikal != nil {
+		appendParityCase(&suite, fr, b.Tikal, "tikal")
 	}
 	if suite.Total == 0 {
 		return nil

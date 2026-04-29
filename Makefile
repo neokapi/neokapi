@@ -275,8 +275,28 @@ parity-sandbox: ## Build the parity sandbox (kapi + okapi-bridge plugin)
 	@$(ROOT_DIR)/scripts/parity-sandbox.sh > /dev/null
 	@echo "Parity sandbox: $(PARITY_DIR)"
 
+# Tikal third corner: when the Okapi clone has a built tikal jar, the
+# harness invokes it via .parity/tikal/tikal.sh — wired here so each
+# parity-test run regenerates the launcher pointing at the current
+# OKAPI_REPO. Tests skip gracefully when the jar isn't present.
+TIKAL_LAUNCHER := $(PARITY_DIR)/tikal/tikal.sh
+TIKAL_JAR_GLOB := $(OKAPI_REPO)/applications/tikal/target/okapi-application-tikal-*.jar
+
 parity-test: parity-sandbox ## Run the full parity test suite (#448)
-	@cd cli && KAPI_PARITY_SANDBOX=$(PARITY_DIR) KAPI_PARITY_REPORT=$(PARITY_REPORT) \
+	@TIKAL_ENV=""; \
+	if ls $(TIKAL_JAR_GLOB) >/dev/null 2>&1; then \
+	    mkdir -p $(PARITY_DIR)/tikal; \
+	    ln -sfn $(OKAPI_REPO)/applications/tikal/target/lib $(PARITY_DIR)/tikal/lib; \
+	    printf '#!/bin/bash\nexec java -cp "%s:%s/lib/*" net.sf.okapi.applications.tikal.Main "$$@"\n' \
+	        "$$(ls $(TIKAL_JAR_GLOB) | grep -v -- '-tests\.jar' | head -1)" \
+	        "$(PARITY_DIR)/tikal" > $(TIKAL_LAUNCHER); \
+	    chmod +x $(TIKAL_LAUNCHER); \
+	    TIKAL_ENV="OKAPI_TIKAL=$(TIKAL_LAUNCHER)"; \
+	    echo "[parity] tikal third corner enabled via $(TIKAL_LAUNCHER)"; \
+	else \
+	    echo "[parity] tikal not built at $$OKAPI_REPO — third-corner comparison will skip"; \
+	fi; \
+	cd cli && env $$TIKAL_ENV KAPI_PARITY_SANDBOX=$(PARITY_DIR) KAPI_PARITY_REPORT=$(PARITY_REPORT) \
 	    $(GOTEST) -tags parity -count=1 -timeout 30m ./parity/...
 	@echo "Parity report: $(PARITY_REPORT)"
 

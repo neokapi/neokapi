@@ -86,6 +86,61 @@ func runFormatSpec(t *testing.T, spec FormatSpec) {
 	if spec.NewWriter != nil && spec.NewReader != nil {
 		runRoundTripSpec(t, spec)
 	}
+
+	// Tikal pass: third reference corner. Compares neokapi's native
+	// round-trip output against the Okapi-blessed tikal CLI output
+	// (extract → merge). Skipped automatically when tikal isn't
+	// reachable so the harness still passes on developer machines
+	// without an Okapi build.
+	if spec.NewWriter != nil && spec.NewReader != nil && spec.TikalExt != "" {
+		runTikalSpec(t, spec)
+	}
+}
+
+// runTikalSpec drives a tikal extract+merge for each input and
+// compares the merged bytes against neokapi's native round-trip
+// output. A tikal-vs-native divergence indicates the native side
+// reads or writes the format differently from the canonical Okapi
+// CLI; tikal-vs-bridge agreement (when both are populated) means the
+// bridge plumbing is faithful even if neokapi diverges.
+func runTikalSpec(t *testing.T, spec FormatSpec) {
+	t.Helper()
+	t.Run("tikal", func(t *testing.T) {
+		defer parity.Report(t, parity.Outcome{
+			Kind:   "format-tikal",
+			ID:     spec.ID,
+			Name:   t.Name(),
+			Mode:   "tikal",
+			Detail: spec.SkipTikal,
+		})
+		if spec.SkipTikal != "" {
+			t.Skip(spec.SkipTikal)
+			return
+		}
+		for _, in := range spec.Inputs {
+			in := in
+			t.Run(in.Name, func(t *testing.T) {
+				native := parity.RunNativeRoundTrip(t, parity.NativeRoundTripRequest{
+					NewReader:  spec.NewReader,
+					NewWriter:  spec.NewWriter,
+					InputBytes: in.Content,
+					MimeType:   spec.MimeType,
+					URI:        "test." + spec.ID,
+				})
+				tikal := parity.RunTikalRoundTrip(t, parity.TikalRoundTripRequest{
+					InputBytes: in.Content,
+					Filename:   "input" + spec.TikalExt,
+					ExtraArgs: func() []string {
+						if spec.TikalConfig != "" {
+							return []string{"-fc", spec.TikalConfig}
+						}
+						return nil
+					}(),
+				})
+				parity.CompareBytes(t, tikal.Output, native.Output)
+			})
+		}
+	})
 }
 
 // runRoundTripSpec drives a read → write pass on both sides for every

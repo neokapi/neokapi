@@ -101,6 +101,13 @@ type FormatInput struct {
 // SkipRoundTrip skips just the round-trip pass with the given reason,
 // while leaving read parity intact. Use it to document a known writer
 // divergence without breaking CI.
+//
+// TikalExt and TikalConfig wire the third reference corner: when a
+// tikal launcher is reachable and TikalExt is set, the harness also
+// runs `tikal -x` + `tikal -m` against the same input and compares
+// the merged bytes against the native round-trip output. Tikal
+// outcomes report under Kind="format-tikal" so a tikal-vs-native
+// divergence is visible without polluting bridge-vs-native rows.
 type FormatSpec struct {
 	ID            string
 	MimeType      string
@@ -109,6 +116,9 @@ type FormatSpec struct {
 	NewWriter     func() format.DataFormatWriter
 	Skip          string
 	SkipRoundTrip string
+	SkipTikal     string
+	TikalExt      string // file extension passed to tikal (e.g. ".properties"); empty disables tikal.
+	TikalConfig   string // optional -fc filter id (e.g. "okf_properties").
 	FilterArgs    map[string]string
 }
 
@@ -187,25 +197,32 @@ var formatSpecs = []FormatSpec{
 		},
 	},
 	{
-		ID:        "okf_properties",
-		MimeType:  "text/x-properties",
-		NewReader: func() format.DataFormatReader { return propertiesfmt.NewReader() },
-		NewWriter: func() format.DataFormatWriter { return propertiesfmt.NewWriter() },
+		ID:          "okf_properties",
+		MimeType:    "text/x-properties",
+		NewReader:   func() format.DataFormatReader { return propertiesfmt.NewReader() },
+		NewWriter:   func() format.DataFormatWriter { return propertiesfmt.NewWriter() },
+		TikalExt:    ".properties",
+		TikalConfig: "okf_properties",
 		Inputs: []FormatInput{
 			{"flat", ttext("greeting=Hello world.\nfarewell=Goodbye.\n")},
 		},
 	},
 	{
-		ID:        "okf_po",
-		MimeType:  "application/x-gettext",
-		NewReader: func() format.DataFormatReader { return pofmt.NewReader() },
-		NewWriter: func() format.DataFormatWriter { return pofmt.NewWriter() },
+		ID:          "okf_po",
+		MimeType:    "application/x-gettext",
+		NewReader:   func() format.DataFormatReader { return pofmt.NewReader() },
+		NewWriter:   func() format.DataFormatWriter { return pofmt.NewWriter() },
+		TikalExt:    ".po",
+		TikalConfig: "okf_po",
 		// Bridge writes msgstr "Hello world." (auto-fills target with
-		// source); native preserves msgstr "" (empty target). Tracked
-		// as a writer-side default-handling divergence rather than a
-		// neokapi bug — needs a recipe-level decision before either
-		// side changes.
+		// source); native preserves msgstr "" (empty target). Tikal
+		// (the canonical Okapi CLI) produces the same auto-fill output
+		// as the bridge — confirming this is an Okapi semantic, not
+		// bridge plumbing. Recorded as a documented divergence rather
+		// than a bug; needs a recipe-level decision before either side
+		// changes.
 		SkipRoundTrip: "writer fills empty target with source on bridge side; native preserves empty target",
+		SkipTikal:     "same divergence as bridge: tikal also auto-fills empty msgstr with source",
 		Inputs: []FormatInput{
 			{"single", ttext(`msgid ""
 msgstr ""
@@ -223,10 +240,12 @@ msgstr ""
 		Skip:      SKIP_DIVERGENCE_453,
 	},
 	{
-		ID:        "okf_plaintext",
-		MimeType:  "text/plain",
-		NewReader: func() format.DataFormatReader { return plaintextfmt.NewReader() },
-		NewWriter: func() format.DataFormatWriter { return plaintextfmt.NewWriter() },
+		ID:          "okf_plaintext",
+		MimeType:    "text/plain",
+		NewReader:   func() format.DataFormatReader { return plaintextfmt.NewReader() },
+		NewWriter:   func() format.DataFormatWriter { return plaintextfmt.NewWriter() },
+		TikalExt:    ".txt",
+		TikalConfig: "okf_plaintext",
 		Inputs: []FormatInput{
 			{"two-lines", ttext("Hello world.\nGoodbye.\n")},
 		},

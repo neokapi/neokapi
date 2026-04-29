@@ -1,8 +1,8 @@
 {
-  "generatedAt": "2026-04-29T21:36:46Z",
+  "generatedAt": "2026-04-29T22:01:27Z",
   "okapiVersion": "v1.4.8",
   "neokapiVersion": "main",
-  "goCommitSHA": "d09ddcb1",
+  "goCommitSHA": "99a29a5b",
   "okapiTag": "v1.4.8",
   "filters": [
     {
@@ -28797,18 +28797,23 @@
                 "name": "round-trip",
                 "status": "pass",
                 "durationMs": 0
+              },
+              {
+                "name": "tikal",
+                "status": "pass",
+                "durationMs": 0
               }
             ],
-            "total": 2,
-            "passed": 2,
+            "total": 3,
+            "passed": 3,
             "failed": 0,
             "skipped": 0,
             "errors": 0,
             "durationMs": 0
           }
         ],
-        "total": 2,
-        "passed": 2,
+        "total": 3,
+        "passed": 3,
         "failed": 0,
         "skipped": 0,
         "errors": 0
@@ -30047,20 +30052,25 @@
                 "name": "round-trip",
                 "status": "skip",
                 "durationMs": 0
+              },
+              {
+                "name": "tikal",
+                "status": "skip",
+                "durationMs": 0
               }
             ],
-            "total": 2,
+            "total": 3,
             "passed": 1,
             "failed": 0,
-            "skipped": 1,
+            "skipped": 2,
             "errors": 0,
             "durationMs": 0
           }
         ],
-        "total": 2,
+        "total": 3,
         "passed": 1,
         "failed": 0,
-        "skipped": 1,
+        "skipped": 2,
         "errors": 0
       },
       "native": {
@@ -31225,18 +31235,23 @@
                 "name": "round-trip",
                 "status": "pass",
                 "durationMs": 0
+              },
+              {
+                "name": "tikal",
+                "status": "pass",
+                "durationMs": 0
               }
             ],
-            "total": 2,
-            "passed": 2,
+            "total": 3,
+            "passed": 3,
             "failed": 0,
             "skipped": 0,
             "errors": 0,
             "durationMs": 0
           }
         ],
-        "total": 2,
-        "passed": 2,
+        "total": 3,
+        "passed": 3,
         "failed": 0,
         "skipped": 0,
         "errors": 0
@@ -53600,7 +53615,7 @@
     "totalFiltersNative": 35,
     "totalFiltersBoth": 34,
     "totalTestsOkapi": 2673,
-    "totalTestsBridge": 43,
+    "totalTestsBridge": 46,
     "totalTestsNative": 2785,
     "coveragePct": 42.1
   }
