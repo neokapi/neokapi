@@ -34,6 +34,13 @@ type NativeRequest struct {
 
 	// URI is the document URI (used by some formats for resolution).
 	URI string
+
+	// Params overrides the reader's default config via
+	// reader.Config().ApplyMap. The same map is stringified for the
+	// bridge side so both implementations run under the same
+	// configuration. Unknown keys make the test fail fast — the same
+	// behaviour as ApplyMap in production.
+	Params map[string]any
 }
 
 // RunNative drives a neokapi format reader in-process and returns its
@@ -47,6 +54,9 @@ func RunNative(t *testing.T, req NativeRequest) []*model.Part {
 	defer cancel()
 
 	reader := req.NewReader()
+	if len(req.Params) > 0 {
+		applyNativeParams(t, "RunNative", reader, req.Params)
+	}
 	doc := &model.RawDocument{
 		URI:          req.URI,
 		SourceLocale: model.LocaleID(defaultStr(req.SourceLocale, "en")),
@@ -82,6 +92,9 @@ type NativeRoundTripRequest struct {
 	Encoding     string
 	MimeType     string
 	URI          string
+	// Params overrides the reader+writer default config via
+	// ApplyMap on each side. See NativeRequest.Params.
+	Params map[string]any
 }
 
 // NativeRoundTripResult captures the parts read and the bytes the writer
@@ -105,6 +118,18 @@ func RunNativeRoundTrip(t *testing.T, req NativeRoundTripRequest) NativeRoundTri
 
 	reader := req.NewReader()
 	writer := req.NewWriter()
+	if len(req.Params) > 0 {
+		applyNativeParams(t, "RunNativeRoundTrip", reader, req.Params)
+		if cw, ok := writer.(interface {
+			Config() format.DataFormatConfig
+		}); ok {
+			if cfg := cw.Config(); cfg != nil {
+				if err := cfg.ApplyMap(req.Params); err != nil {
+					t.Fatalf("RunNativeRoundTrip: writer ApplyMap: %v", err)
+				}
+			}
+		}
+	}
 
 	store, err := format.NewSkeletonStore()
 	if err != nil {
@@ -164,4 +189,18 @@ func RunNativeRoundTrip(t *testing.T, req NativeRoundTripRequest) NativeRoundTri
 		t.Fatalf("RunNativeRoundTrip: close writer: %v", err)
 	}
 	return NativeRoundTripResult{Parts: parts, Output: buf.Bytes()}
+}
+
+// applyNativeParams overlays params on a reader's existing config via
+// ApplyMap. Readers without a Config() (very rare) fail loudly so the
+// spec author notices rather than silently running with defaults.
+func applyNativeParams(t *testing.T, where string, reader format.DataFormatReader, params map[string]any) {
+	t.Helper()
+	cfg := reader.Config()
+	if cfg == nil {
+		t.Fatalf("%s: Params set but reader has no Config()", where)
+	}
+	if err := cfg.ApplyMap(params); err != nil {
+		t.Fatalf("%s: ApplyMap: %v", where, err)
+	}
 }

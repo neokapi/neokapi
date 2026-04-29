@@ -119,7 +119,18 @@ type FormatSpec struct {
 	SkipTikal     string
 	TikalExt      string // file extension passed to tikal (e.g. ".properties"); empty disables tikal.
 	TikalConfig   string // optional -fc filter id (e.g. "okf_properties").
-	FilterArgs    map[string]string
+
+	// Params holds the configuration applied to both sides of the
+	// comparison. Native filters receive these via the existing
+	// DataFormatConfig.ApplyMap path (typed Go config stays the
+	// in-memory representation); the bridge receives the same keys
+	// stringified into FilterParams. Empty means each side runs with
+	// its own defaults.
+	//
+	// Use the flat names from the bridge schema's
+	// `x-okapi-flatten-path` annotations — they line up with the
+	// camelCase keys native ApplyMap implementations recognise.
+	Params map[string]any
 }
 
 func ttext(s string) []byte { return []byte(s) }
@@ -203,8 +214,17 @@ var formatSpecs = []FormatSpec{
 		NewWriter:   func() format.DataFormatWriter { return propertiesfmt.NewWriter() },
 		TikalExt:    ".properties",
 		TikalConfig: "okf_properties",
+		// extraComments=true exercises the typed-Params chain end-to-end:
+		// the native side receives it via DataFormatConfig.ApplyMap,
+		// the bridge receives it via StringifyParams → FilterParams.
+		// Both sides should recognise `;` and `//` as comment markers
+		// in addition to the standard `#`/`!`.
+		Params: map[string]any{
+			"extraComments": true,
+		},
 		Inputs: []FormatInput{
 			{"flat", ttext("greeting=Hello world.\nfarewell=Goodbye.\n")},
+			{"semi-comments", ttext("# standard\n; semi-comment\ngreeting=Hello world.\n")},
 		},
 	},
 	{

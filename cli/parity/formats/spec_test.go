@@ -58,7 +58,7 @@ func runFormatSpec(t *testing.T, spec FormatSpec) {
 				FilterClass:  spec.ID,
 				InputBytes:   in.Content,
 				MimeType:     spec.MimeType,
-				FilterParams: spec.FilterArgs,
+				FilterParams: parity.StringifyParams(spec.Params),
 			})
 			if len(bridge) == 0 {
 				t.Fatalf("bridge returned no parts for %s/%s", spec.ID, in.Name)
@@ -74,6 +74,7 @@ func runFormatSpec(t *testing.T, spec FormatSpec) {
 				InputBytes: in.Content,
 				MimeType:   spec.MimeType,
 				URI:        "test." + spec.ID,
+				Params:     spec.Params,
 			})
 			parity.CompareBlockText(t, native, bridge)
 		})
@@ -106,15 +107,27 @@ func runFormatSpec(t *testing.T, spec FormatSpec) {
 func runTikalSpec(t *testing.T, spec FormatSpec) {
 	t.Helper()
 	t.Run("tikal", func(t *testing.T) {
+		detail := spec.SkipTikal
+		if detail == "" && len(spec.Params) > 0 {
+			// Tikal applies non-default params via .fprm files; the
+			// harness doesn't generate those yet. Skip rather than run
+			// tikal at defaults, which would silently compare apples
+			// to oranges.
+			detail = "tikal under non-default params requires .fprm support (not yet wired)"
+		}
 		defer parity.Report(t, parity.Outcome{
 			Kind:   "format-tikal",
 			ID:     spec.ID,
 			Name:   t.Name(),
 			Mode:   "tikal",
-			Detail: spec.SkipTikal,
+			Detail: detail,
 		})
 		if spec.SkipTikal != "" {
 			t.Skip(spec.SkipTikal)
+			return
+		}
+		if len(spec.Params) > 0 {
+			t.Skip(detail)
 			return
 		}
 		for _, in := range spec.Inputs {
@@ -169,12 +182,13 @@ func runRoundTripSpec(t *testing.T, spec FormatSpec) {
 					InputBytes: in.Content,
 					MimeType:   spec.MimeType,
 					URI:        "test." + spec.ID,
+					Params:     spec.Params,
 				})
 				bridge := parity.RunBridgeRoundTrip(t, parity.BridgeRequest{
 					FilterClass:  spec.ID,
 					InputBytes:   in.Content,
 					MimeType:     spec.MimeType,
-					FilterParams: spec.FilterArgs,
+					FilterParams: parity.StringifyParams(spec.Params),
 				})
 				parity.CompareBytes(t, bridge.Output, native.Output)
 			})

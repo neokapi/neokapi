@@ -1,8 +1,8 @@
 {
-  "generatedAt": "2026-04-29T22:01:27Z",
+  "generatedAt": "2026-04-29T22:23:44Z",
   "okapiVersion": "v1.4.8",
   "neokapiVersion": "main",
-  "goCommitSHA": "99a29a5b",
+  "goCommitSHA": "008394ad",
   "okapiTag": "v1.4.8",
   "filters": [
     {
@@ -31238,22 +31238,22 @@
               },
               {
                 "name": "tikal",
-                "status": "pass",
+                "status": "skip",
                 "durationMs": 0
               }
             ],
             "total": 3,
-            "passed": 3,
+            "passed": 2,
             "failed": 0,
-            "skipped": 0,
+            "skipped": 1,
             "errors": 0,
             "durationMs": 0
           }
         ],
         "total": 3,
-        "passed": 3,
+        "passed": 2,
         "failed": 0,
-        "skipped": 0,
+        "skipped": 1,
         "errors": 0
       },
       "native": {
