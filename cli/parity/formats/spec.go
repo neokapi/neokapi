@@ -90,13 +90,26 @@ type FormatInput struct {
 }
 
 // FormatSpec describes one parity test row.
+//
+// NewWriter is optional. When set (and neither Skip nor SkipRoundTrip
+// fires), the harness drives an additional round-trip pass: input →
+// reader → writer on each side and compares the two output byte
+// streams. The round-trip outcome is reported separately under
+// Kind="format-roundtrip" so the contract-audit dashboard can surface
+// read parity and round-trip parity as distinct badges.
+//
+// SkipRoundTrip skips just the round-trip pass with the given reason,
+// while leaving read parity intact. Use it to document a known writer
+// divergence without breaking CI.
 type FormatSpec struct {
-	ID         string
-	MimeType   string
-	Inputs     []FormatInput
-	NewReader  func() format.DataFormatReader
-	Skip       string
-	FilterArgs map[string]string
+	ID            string
+	MimeType      string
+	Inputs        []FormatInput
+	NewReader     func() format.DataFormatReader
+	NewWriter     func() format.DataFormatWriter
+	Skip          string
+	SkipRoundTrip string
+	FilterArgs    map[string]string
 }
 
 func ttext(s string) []byte { return []byte(s) }
@@ -177,6 +190,7 @@ var formatSpecs = []FormatSpec{
 		ID:        "okf_properties",
 		MimeType:  "text/x-properties",
 		NewReader: func() format.DataFormatReader { return propertiesfmt.NewReader() },
+		NewWriter: func() format.DataFormatWriter { return propertiesfmt.NewWriter() },
 		Inputs: []FormatInput{
 			{"flat", ttext("greeting=Hello world.\nfarewell=Goodbye.\n")},
 		},
@@ -185,6 +199,13 @@ var formatSpecs = []FormatSpec{
 		ID:        "okf_po",
 		MimeType:  "application/x-gettext",
 		NewReader: func() format.DataFormatReader { return pofmt.NewReader() },
+		NewWriter: func() format.DataFormatWriter { return pofmt.NewWriter() },
+		// Bridge writes msgstr "Hello world." (auto-fills target with
+		// source); native preserves msgstr "" (empty target). Tracked
+		// as a writer-side default-handling divergence rather than a
+		// neokapi bug — needs a recipe-level decision before either
+		// side changes.
+		SkipRoundTrip: "writer fills empty target with source on bridge side; native preserves empty target",
 		Inputs: []FormatInput{
 			{"single", ttext(`msgid ""
 msgstr ""
@@ -205,6 +226,7 @@ msgstr ""
 		ID:        "okf_plaintext",
 		MimeType:  "text/plain",
 		NewReader: func() format.DataFormatReader { return plaintextfmt.NewReader() },
+		NewWriter: func() format.DataFormatWriter { return plaintextfmt.NewWriter() },
 		Inputs: []FormatInput{
 			{"two-lines", ttext("Hello world.\nGoodbye.\n")},
 		},

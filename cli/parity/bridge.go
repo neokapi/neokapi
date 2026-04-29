@@ -7,6 +7,8 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -127,6 +129,10 @@ func RunBridgeRoundTrip(t *testing.T, req BridgeRequest) BridgeRoundTripResult {
 	if err != nil {
 		t.Fatalf("RunBridgeRoundTrip: open Process stream: %v", err)
 	}
+	// The daemon's GenericFilterWriter expects a real path; an empty
+	// string trips a FileNotFoundException. Use a per-test temp file
+	// and read the bytes back when ProcessComplete arrives.
+	outPath := filepath.Join(t.TempDir(), "bridge-roundtrip.out")
 	target := defaultStr(req.TargetLocale, "fr")
 	header := &pb.ProcessHeader{
 		FilterClass:    req.FilterClass,
@@ -137,8 +143,7 @@ func RunBridgeRoundTrip(t *testing.T, req BridgeRequest) BridgeRoundTripResult {
 		MimeType:       req.MimeType,
 		FilterParams:   req.FilterParams,
 		SubscribeParts: req.SubscribeParts,
-		// Empty path triggers inline-bytes return in ProcessComplete.
-		Output: &pb.OutputRef{Destination: &pb.OutputRef_Path{Path: ""}},
+		Output:         &pb.OutputRef{Destination: &pb.OutputRef_Path{Path: outPath}},
 	}
 	if req.InputPath != "" {
 		header.Input = &pb.ContentRef{Location: &pb.ContentRef_Path{Path: req.InputPath}}
@@ -190,7 +195,17 @@ func RunBridgeRoundTrip(t *testing.T, req BridgeRequest) BridgeRoundTripResult {
 			if m.Complete.Error != "" {
 				t.Fatalf("RunBridgeRoundTrip: daemon error: %s", m.Complete.Error)
 			}
+			// Inline output is empty when OutputRef is used (per
+			// neokapi_bridge.proto). Fall back to reading the on-disk
+			// artifact the daemon wrote at outPath.
 			output = m.Complete.Output
+			if len(output) == 0 {
+				bytes, err := os.ReadFile(outPath)
+				if err != nil {
+					t.Fatalf("RunBridgeRoundTrip: read output %s: %v", outPath, err)
+				}
+				output = bytes
+			}
 		}
 	}
 	return BridgeRoundTripResult{Parts: parts, Output: output}

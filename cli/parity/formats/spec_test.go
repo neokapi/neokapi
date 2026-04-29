@@ -78,4 +78,51 @@ func runFormatSpec(t *testing.T, spec FormatSpec) {
 			parity.CompareBlockText(t, native, bridge)
 		})
 	}
+
+	// Round-trip pass: only when both implementations have a writer
+	// declared. Reports under Kind="format-roundtrip" so the
+	// contract-audit dashboard can show read parity and round-trip
+	// parity side-by-side without one masking the other.
+	if spec.NewWriter != nil && spec.NewReader != nil {
+		runRoundTripSpec(t, spec)
+	}
+}
+
+// runRoundTripSpec drives a read → write pass on both sides for every
+// input and compares the resulting output bytes. A divergence here
+// indicates a writer-side regression invisible to read-only parity.
+func runRoundTripSpec(t *testing.T, spec FormatSpec) {
+	t.Helper()
+	t.Run("roundtrip", func(t *testing.T) {
+		defer parity.Report(t, parity.Outcome{
+			Kind:   "format-roundtrip",
+			ID:     spec.ID,
+			Name:   t.Name(),
+			Mode:   "round-trip",
+			Detail: spec.SkipRoundTrip,
+		})
+		if spec.SkipRoundTrip != "" {
+			t.Skip(spec.SkipRoundTrip)
+			return
+		}
+		for _, in := range spec.Inputs {
+			in := in
+			t.Run(in.Name, func(t *testing.T) {
+				native := parity.RunNativeRoundTrip(t, parity.NativeRoundTripRequest{
+					NewReader:  spec.NewReader,
+					NewWriter:  spec.NewWriter,
+					InputBytes: in.Content,
+					MimeType:   spec.MimeType,
+					URI:        "test." + spec.ID,
+				})
+				bridge := parity.RunBridgeRoundTrip(t, parity.BridgeRequest{
+					FilterClass:  spec.ID,
+					InputBytes:   in.Content,
+					MimeType:     spec.MimeType,
+					FilterParams: spec.FilterArgs,
+				})
+				parity.CompareBytes(t, bridge.Output, native.Output)
+			})
+		}
+	})
 }

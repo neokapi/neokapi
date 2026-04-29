@@ -1,8 +1,8 @@
 {
-  "generatedAt": "2026-04-29T21:25:44Z",
+  "generatedAt": "2026-04-29T21:36:46Z",
   "okapiVersion": "v1.4.8",
   "neokapiVersion": "main",
-  "goCommitSHA": "3d0860c5",
+  "goCommitSHA": "d09ddcb1",
   "okapiTag": "v1.4.8",
   "filters": [
     {
@@ -761,7 +761,7 @@
             "name": "bridge parity",
             "tests": [
               {
-                "name": "bridge-only",
+                "name": "read",
                 "status": "skip",
                 "durationMs": 0
               }
@@ -1354,7 +1354,7 @@
             "name": "bridge parity",
             "tests": [
               {
-                "name": "head-to-head",
+                "name": "read",
                 "status": "skip",
                 "durationMs": 0
               }
@@ -2049,7 +2049,7 @@
             "name": "bridge parity",
             "tests": [
               {
-                "name": "head-to-head",
+                "name": "read",
                 "status": "pass",
                 "durationMs": 0
               }
@@ -3722,7 +3722,7 @@
             "name": "bridge parity",
             "tests": [
               {
-                "name": "head-to-head",
+                "name": "read",
                 "status": "pass",
                 "durationMs": 0
               }
@@ -6363,7 +6363,7 @@
             "name": "bridge parity",
             "tests": [
               {
-                "name": "bridge-only",
+                "name": "read",
                 "status": "skip",
                 "durationMs": 0
               }
@@ -7565,7 +7565,7 @@
             "name": "bridge parity",
             "tests": [
               {
-                "name": "bridge-only",
+                "name": "read",
                 "status": "skip",
                 "durationMs": 0
               }
@@ -9368,7 +9368,7 @@
             "name": "bridge parity",
             "tests": [
               {
-                "name": "head-to-head",
+                "name": "read",
                 "status": "pass",
                 "durationMs": 0
               }
@@ -11928,7 +11928,7 @@
             "name": "bridge parity",
             "tests": [
               {
-                "name": "head-to-head",
+                "name": "read",
                 "status": "pass",
                 "durationMs": 0
               }
@@ -17718,7 +17718,7 @@
             "name": "bridge parity",
             "tests": [
               {
-                "name": "bridge-only",
+                "name": "read",
                 "status": "skip",
                 "durationMs": 0
               }
@@ -18493,7 +18493,7 @@
             "name": "bridge parity",
             "tests": [
               {
-                "name": "head-to-head",
+                "name": "read",
                 "status": "pass",
                 "durationMs": 0
               }
@@ -18957,7 +18957,7 @@
             "name": "bridge parity",
             "tests": [
               {
-                "name": "bridge-only",
+                "name": "read",
                 "status": "pass",
                 "durationMs": 0
               }
@@ -19153,7 +19153,7 @@
             "name": "bridge parity",
             "tests": [
               {
-                "name": "bridge-only",
+                "name": "read",
                 "status": "skip",
                 "durationMs": 0
               }
@@ -22816,7 +22816,7 @@
             "name": "bridge parity",
             "tests": [
               {
-                "name": "bridge-only",
+                "name": "read",
                 "status": "skip",
                 "durationMs": 0
               }
@@ -26578,7 +26578,7 @@
             "name": "bridge parity",
             "tests": [
               {
-                "name": "bridge-only",
+                "name": "read",
                 "status": "skip",
                 "durationMs": 0
               }
@@ -27063,7 +27063,7 @@
             "name": "bridge parity",
             "tests": [
               {
-                "name": "head-to-head",
+                "name": "read",
                 "status": "skip",
                 "durationMs": 0
               }
@@ -28067,7 +28067,7 @@
             "name": "bridge parity",
             "tests": [
               {
-                "name": "head-to-head",
+                "name": "read",
                 "status": "skip",
                 "durationMs": 0
               }
@@ -28789,21 +28789,26 @@
             "name": "bridge parity",
             "tests": [
               {
-                "name": "head-to-head",
+                "name": "read",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "round-trip",
                 "status": "pass",
                 "durationMs": 0
               }
             ],
-            "total": 1,
-            "passed": 1,
+            "total": 2,
+            "passed": 2,
             "failed": 0,
             "skipped": 0,
             "errors": 0,
             "durationMs": 0
           }
         ],
-        "total": 1,
-        "passed": 1,
+        "total": 2,
+        "passed": 2,
         "failed": 0,
         "skipped": 0,
         "errors": 0
@@ -30034,23 +30039,28 @@
             "name": "bridge parity",
             "tests": [
               {
-                "name": "head-to-head",
+                "name": "read",
                 "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "round-trip",
+                "status": "skip",
                 "durationMs": 0
               }
             ],
-            "total": 1,
+            "total": 2,
             "passed": 1,
             "failed": 0,
-            "skipped": 0,
+            "skipped": 1,
             "errors": 0,
             "durationMs": 0
           }
         ],
-        "total": 1,
+        "total": 2,
         "passed": 1,
         "failed": 0,
-        "skipped": 0,
+        "skipped": 1,
         "errors": 0
       },
       "native": {
@@ -31207,21 +31217,26 @@
             "name": "bridge parity",
             "tests": [
               {
-                "name": "head-to-head",
+                "name": "read",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "round-trip",
                 "status": "pass",
                 "durationMs": 0
               }
             ],
-            "total": 1,
-            "passed": 1,
+            "total": 2,
+            "passed": 2,
             "failed": 0,
             "skipped": 0,
             "errors": 0,
             "durationMs": 0
           }
         ],
-        "total": 1,
-        "passed": 1,
+        "total": 2,
+        "passed": 2,
         "failed": 0,
         "skipped": 0,
         "errors": 0
@@ -31884,7 +31899,7 @@
             "name": "bridge parity",
             "tests": [
               {
-                "name": "bridge-only",
+                "name": "read",
                 "status": "skip",
                 "durationMs": 0
               }
@@ -32059,7 +32074,7 @@
             "name": "bridge parity",
             "tests": [
               {
-                "name": "head-to-head",
+                "name": "read",
                 "status": "pass",
                 "durationMs": 0
               }
@@ -32537,7 +32552,7 @@
             "name": "bridge parity",
             "tests": [
               {
-                "name": "bridge-only",
+                "name": "read",
                 "status": "skip",
                 "durationMs": 0
               }
@@ -32830,7 +32845,7 @@
             "name": "bridge parity",
             "tests": [
               {
-                "name": "bridge-only",
+                "name": "read",
                 "status": "skip",
                 "durationMs": 0
               }
@@ -33493,7 +33508,7 @@
             "name": "bridge parity",
             "tests": [
               {
-                "name": "head-to-head",
+                "name": "read",
                 "status": "skip",
                 "durationMs": 0
               }
@@ -34198,7 +34213,7 @@
             "name": "bridge parity",
             "tests": [
               {
-                "name": "head-to-head",
+                "name": "read",
                 "status": "skip",
                 "durationMs": 0
               }
@@ -35116,7 +35131,7 @@
             "name": "bridge parity",
             "tests": [
               {
-                "name": "head-to-head",
+                "name": "read",
                 "status": "pass",
                 "durationMs": 0
               }
@@ -36326,7 +36341,7 @@
             "name": "bridge parity",
             "tests": [
               {
-                "name": "head-to-head",
+                "name": "read",
                 "status": "skip",
                 "durationMs": 0
               }
@@ -36859,7 +36874,7 @@
             "name": "bridge parity",
             "tests": [
               {
-                "name": "head-to-head",
+                "name": "read",
                 "status": "pass",
                 "durationMs": 0
               }
@@ -37688,7 +37703,7 @@
             "name": "bridge parity",
             "tests": [
               {
-                "name": "head-to-head",
+                "name": "read",
                 "status": "skip",
                 "durationMs": 0
               }
@@ -38146,7 +38161,7 @@
             "name": "bridge parity",
             "tests": [
               {
-                "name": "head-to-head",
+                "name": "read",
                 "status": "skip",
                 "durationMs": 0
               }
@@ -38712,7 +38727,7 @@
             "name": "bridge parity",
             "tests": [
               {
-                "name": "head-to-head",
+                "name": "read",
                 "status": "skip",
                 "durationMs": 0
               }
@@ -39022,7 +39037,7 @@
             "name": "bridge parity",
             "tests": [
               {
-                "name": "head-to-head",
+                "name": "read",
                 "status": "skip",
                 "durationMs": 0
               }
@@ -39509,7 +39524,7 @@
             "name": "bridge parity",
             "tests": [
               {
-                "name": "head-to-head",
+                "name": "read",
                 "status": "pass",
                 "durationMs": 0
               }
@@ -40267,7 +40282,7 @@
             "name": "bridge parity",
             "tests": [
               {
-                "name": "head-to-head",
+                "name": "read",
                 "status": "pass",
                 "durationMs": 0
               }
@@ -41243,7 +41258,7 @@
             "name": "bridge parity",
             "tests": [
               {
-                "name": "bridge-only",
+                "name": "read",
                 "status": "skip",
                 "durationMs": 0
               }
@@ -43167,7 +43182,7 @@
             "name": "bridge parity",
             "tests": [
               {
-                "name": "head-to-head",
+                "name": "read",
                 "status": "pass",
                 "durationMs": 0
               }
@@ -46488,7 +46503,7 @@
             "name": "bridge parity",
             "tests": [
               {
-                "name": "head-to-head",
+                "name": "read",
                 "status": "pass",
                 "durationMs": 0
               }
@@ -47774,7 +47789,7 @@
             "name": "bridge parity",
             "tests": [
               {
-                "name": "head-to-head",
+                "name": "read",
                 "status": "pass",
                 "durationMs": 0
               }
@@ -50089,7 +50104,7 @@
             "name": "bridge parity",
             "tests": [
               {
-                "name": "head-to-head",
+                "name": "read",
                 "status": "pass",
                 "durationMs": 0
               }
@@ -52498,7 +52513,7 @@
             "name": "bridge parity",
             "tests": [
               {
-                "name": "head-to-head",
+                "name": "read",
                 "status": "pass",
                 "durationMs": 0
               }
@@ -53585,7 +53600,7 @@
     "totalFiltersNative": 35,
     "totalFiltersBoth": 34,
     "totalTestsOkapi": 2673,
-    "totalTestsBridge": 40,
+    "totalTestsBridge": 43,
     "totalTestsNative": 2785,
     "coveragePct": 42.1
   }

@@ -247,7 +247,7 @@ func main() {
 		}
 	}
 
-	var bridgeByFilter map[string]parityRow
+	var bridgeByFilter map[string]*bridgeRows
 	if *parityReport != "" {
 		bridgeByFilter, err = parseParityReport(*parityReport)
 		if err != nil {
@@ -481,10 +481,19 @@ type parityRow struct {
 	Duration int64  `json:"duration_ms,omitempty"`
 }
 
+// bridgeRows holds both the read-parity outcome and the optional
+// round-trip outcome for one filter, so the dashboard can render them
+// as two distinct test cases inside the synthetic "bridge parity" suite.
+type bridgeRows struct {
+	Read      *parityRow // Kind="format" (head-to-head reader comparison)
+	RoundTrip *parityRow // Kind="format-roundtrip" (reader+writer byte parity)
+}
+
 // parseParityReport reads the parity JSON and returns a map keyed by
 // filter id (with `okf_` stripped) so the bridge column can join
-// against the same names the rest of the generator already uses.
-func parseParityReport(path string) (map[string]parityRow, error) {
+// against the same names the rest of the generator already uses. Both
+// `format` and `format-roundtrip` rows are aggregated per filter.
+func parseParityReport(path string) (map[string]*bridgeRows, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, err
@@ -493,12 +502,21 @@ func parseParityReport(path string) (map[string]parityRow, error) {
 	if err := json.Unmarshal(data, &rows); err != nil {
 		return nil, err
 	}
-	out := map[string]parityRow{}
+	out := map[string]*bridgeRows{}
 	for _, r := range rows {
-		if r.Kind != "format" {
-			continue
+		key := strings.TrimPrefix(r.ID, "okf_")
+		entry, ok := out[key]
+		if !ok {
+			entry = &bridgeRows{}
+			out[key] = entry
 		}
-		out[strings.TrimPrefix(r.ID, "okf_")] = r
+		row := r // local copy so &row is stable per loop iteration
+		switch r.Kind {
+		case "format":
+			entry.Read = &row
+		case "format-roundtrip":
+			entry.RoundTrip = &row
+		}
 	}
 	return out, nil
 }
@@ -513,7 +531,7 @@ var bridgeFilterAliases = map[string]string{
 // buildDoc joins the per-filter Okapi and native maps with the
 // scanned annotations into a single dashboard document, deterministic
 // in iteration order.
-func buildDoc(okapiByFilter, nativeByFilter map[string]*filterResult, bridgeByFilter map[string]parityRow, annotations []annotation, okapiVersion, okapiTag, goCommit string) testComparisonData {
+func buildDoc(okapiByFilter, nativeByFilter map[string]*filterResult, bridgeByFilter map[string]*bridgeRows, annotations []annotation, okapiVersion, okapiTag, goCommit string) testComparisonData {
 	// Index annotations by Java FQN#method for O(1) joins.
 	annByOkapi := map[string]annotation{}
 	for _, a := range annotations {
@@ -693,10 +711,10 @@ func computeCoverageFromRows(okapi *filterResult, rows []testCaseMatch) *coverag
 	return c
 }
 
-// lookupParity finds the parity row for a filter, falling back to the
+// lookupParity finds the parity rows for a filter, falling back to the
 // alias map for the small set of names that diverge between the parity
 // id space (`okf_<id>`) and the surefire-derived names.
-func lookupParity(bridgeByFilter map[string]parityRow, name string) (parityRow, bool) {
+func lookupParity(bridgeByFilter map[string]*bridgeRows, name string) (*bridgeRows, bool) {
 	if r, ok := bridgeByFilter[name]; ok {
 		return r, true
 	}
@@ -714,42 +732,60 @@ func lookupParity(bridgeByFilter map[string]parityRow, name string) (parityRow, 
 			}
 		}
 	}
-	return parityRow{}, false
+	return nil, false
 }
 
-// parityToFilterResult turns one parity row into a single-suite,
-// single-case filterResult — one synthetic "bridge parity" badge that
-// the dashboard renders next to the Okapi/native columns.
-func parityToFilterResult(r parityRow) *filterResult {
-	status := "skip"
-	if r.Status == "pass" {
-		status = "pass"
+// parityToFilterResult turns the parity rows for one filter into a
+// synthetic "bridge parity" suite. Read parity (`format`) is always
+// emitted; round-trip parity (`format-roundtrip`) is appended only
+// when the harness produced a row, so the dashboard distinguishes
+// "round-trip not exercised" from "round-trip failed".
+func parityToFilterResult(b *bridgeRows) *filterResult {
+	if b == nil {
+		return nil
 	}
-	caseName := r.Mode
-	if caseName == "" {
-		caseName = "parity"
+	suite := testSuite{Name: "bridge parity"}
+	fr := &filterResult{}
+	if b.Read != nil {
+		appendParityCase(&suite, fr, b.Read, "read")
 	}
-	suite := testSuite{
-		Name: "bridge parity",
-		Tests: []testCase{{
-			Name:       caseName,
-			Status:     status,
-			DurationMS: r.Duration,
-		}},
-		Total:      1,
-		DurationMS: r.Duration,
+	if b.RoundTrip != nil {
+		appendParityCase(&suite, fr, b.RoundTrip, "round-trip")
 	}
-	fr := &filterResult{Total: 1}
-	switch status {
-	case "pass":
-		suite.Passed = 1
-		fr.Passed = 1
-	case "skip":
-		suite.Skipped = 1
-		fr.Skipped = 1
+	if suite.Total == 0 {
+		return nil
 	}
 	fr.Suites = []testSuite{suite}
 	return fr
+}
+
+func appendParityCase(suite *testSuite, fr *filterResult, r *parityRow, label string) {
+	status := "skip"
+	switch r.Status {
+	case "pass":
+		status = "pass"
+	case "fail":
+		status = "fail"
+	}
+	suite.Tests = append(suite.Tests, testCase{
+		Name:       label,
+		Status:     status,
+		DurationMS: r.Duration,
+	})
+	suite.Total++
+	suite.DurationMS += r.Duration
+	fr.Total++
+	switch status {
+	case "pass":
+		suite.Passed++
+		fr.Passed++
+	case "skip":
+		suite.Skipped++
+		fr.Skipped++
+	case "fail":
+		suite.Failed++
+		fr.Failed++
+	}
 }
 
 // ── Annotation drift detection ──────────────────────────────────────────────
