@@ -303,11 +303,15 @@ parity-clean: ## Remove the parity sandbox to force a fresh build next run
 # Set OKAPI_REPO if your Okapi clone is not at /Users/asgeirf/src/okapi/okapi-java.
 # Set CONTRACT_FILTER to scope to a single filter (default: html).
 
-CONTRACT_DIR    := $(ROOT_DIR)/.contract-audit
-CONTRACT_REPORT := $(ROOT_DIR)/web/docs/static/data/contract-audit.json
-CONTRACT_FILTER ?= html
-OKAPI_REPO      ?= /Users/asgeirf/src/okapi/okapi-java
-PARITY_REPORT   ?= $(ROOT_DIR)/.parity/test-comparison.json
+CONTRACT_DIR             := $(ROOT_DIR)/.contract-audit
+CONTRACT_REPORT          := $(ROOT_DIR)/web/docs/static/data/contract-audit.json
+CONTRACT_FILTER          ?= html
+OKAPI_REPO               ?= /Users/asgeirf/src/okapi/okapi-java
+PARITY_REPORT            ?= $(ROOT_DIR)/.parity/test-comparison.json
+# Set CONTRACT_FAIL_ON_DRIFT=1 to fail the audit when any // okapi:
+# annotation references a Java class/method not present in the pinned
+# Okapi Surefire output. CI sets this; locally it is opt-in.
+CONTRACT_FAIL_ON_DRIFT   ?=
 
 contract-audit: ## Generate the contract-audit dashboard JSON for $(CONTRACT_FILTER)
 	@mkdir -p $(CONTRACT_DIR)
@@ -322,6 +326,7 @@ contract-audit: ## Generate the contract-audit dashboard JSON for $(CONTRACT_FIL
 	    -native-gotest $(CONTRACT_DIR)/native-$(CONTRACT_FILTER).json \
 	    -native-src core/formats/$(CONTRACT_FILTER) \
 	    $(if $(wildcard $(PARITY_REPORT)),-parity-report $(PARITY_REPORT),) \
+	    $(if $(CONTRACT_FAIL_ON_DRIFT),-fail-on-drift,) \
 	    -okapi-version $$(cd $(OKAPI_REPO) && git describe --tags --abbrev=0 2>/dev/null || echo dev) \
 	    -okapi-tag $$(cd $(OKAPI_REPO) && git describe --tags --abbrev=0 2>/dev/null || echo HEAD) \
 	    -go-commit $$(git rev-parse --short HEAD) \
@@ -359,6 +364,7 @@ contract-audit-all: ## Generate the dashboard for every filter with cached Suref
 	    -native-gotest $(CONTRACT_DIR)/native-all.json \
 	    -native-src "$$native_dirs" \
 	    $(if $(wildcard $(PARITY_REPORT)),-parity-report $(PARITY_REPORT),) \
+	    $(if $(CONTRACT_FAIL_ON_DRIFT),-fail-on-drift,) \
 	    -okapi-version $$(cd $(OKAPI_REPO) && git describe --tags --abbrev=0 2>/dev/null || echo dev) \
 	    -okapi-tag $$(cd $(OKAPI_REPO) && git describe --tags --abbrev=0 2>/dev/null || echo HEAD) \
 	    -go-commit $$(git rev-parse --short HEAD) \

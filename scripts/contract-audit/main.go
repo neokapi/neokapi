@@ -205,6 +205,7 @@ func main() {
 	nativeJSON := flag.String("native-gotest", "", "go test -json output for native side (optional)")
 	nativeSrc := flag.String("native-src", "", "Comma-separated list of native test source dirs to scan for // okapi: annotations")
 	parityReport := flag.String("parity-report", "", "Path to .parity/test-comparison.json (optional). Populates the per-filter Bridge column with the head-to-head parity outcome.")
+	failOnDrift := flag.Bool("fail-on-drift", false, "Exit non-zero if any // okapi: annotation references a Java class/method not present in the pinned Okapi Surefire output.")
 	okapiVersion := flag.String("okapi-version", "1.47.0", "Pinned Okapi version, surfaced in the dashboard header")
 	okapiTag := flag.String("okapi-tag", "", "Okapi git tag for source links (e.g. v1.47.0)")
 	goCommit := flag.String("go-commit", "", "neokapi git SHA for source links")
@@ -267,6 +268,26 @@ func main() {
 		die("write %s: %v", *out, err)
 	}
 	fmt.Fprintf(os.Stderr, "contract-audit: %d filters → %s\n", len(doc.Filters), *out)
+
+	// Drift report runs only when both annotations and surefire are
+	// present — otherwise the comparison is meaningless (no annotations
+	// → no drift; no surefire → everything looks like drift).
+	if len(nativeAnnotations) > 0 && len(okapiByFilter) > 0 {
+		drift := detectAnnotationDrift(nativeAnnotations, okapiByFilter)
+		if len(drift) > 0 {
+			fmt.Fprintf(os.Stderr, "contract-audit: %d annotation(s) reference Okapi tests not present in %s:\n", len(drift), *okapiVersion)
+			for _, a := range drift {
+				marker := "okapi"
+				if a.Skip {
+					marker = "okapi-skip"
+				}
+				fmt.Fprintf(os.Stderr, "  %s:%d  // %s: %s#%s  (Go func: %s)\n", a.File, a.Line, marker, a.JavaClass, a.JavaMethod, a.GoFunc)
+			}
+			if *failOnDrift {
+				os.Exit(1)
+			}
+		}
+	}
 }
 
 // nativeFilterAliases maps an Okapi filter id to the neokapi package
@@ -729,6 +750,46 @@ func parityToFilterResult(r parityRow) *filterResult {
 	}
 	fr.Suites = []testSuite{suite}
 	return fr
+}
+
+// ── Annotation drift detection ──────────────────────────────────────────────
+
+// detectAnnotationDrift returns annotations whose JavaClass#JavaMethod
+// no longer matches any test case in the pinned Okapi Surefire output.
+// These are the annotations that quietly orphan — the dashboard would
+// otherwise lose the row entirely without telling anyone, because the
+// surefire join produces no row for a method that doesn't exist.
+//
+// Matching mirrors buildRows: the annotation matches if its key is
+// present either as FQN+method (e.g.
+// `net.sf.okapi.filters.html.HtmlSnippetsTest#testFoo`) or as
+// shortClass+method (`HtmlSnippetsTest#testFoo`). Annotations always
+// use short class form in practice, but we accept both so users have
+// the option to disambiguate.
+func detectAnnotationDrift(annotations []annotation, okapiByFilter map[string]*filterResult) []annotation {
+	valid := map[string]struct{}{}
+	for _, fr := range okapiByFilter {
+		for _, suite := range fr.Suites {
+			for _, tc := range suite.Tests {
+				valid[tc.ClassName+"#"+tc.Name] = struct{}{}
+				valid[shortClass(tc.ClassName)+"#"+tc.Name] = struct{}{}
+			}
+		}
+	}
+	var drift []annotation
+	for _, a := range annotations {
+		if _, ok := valid[a.JavaClass+"#"+a.JavaMethod]; ok {
+			continue
+		}
+		drift = append(drift, a)
+	}
+	sort.SliceStable(drift, func(i, j int) bool {
+		if drift[i].File != drift[j].File {
+			return drift[i].File < drift[j].File
+		}
+		return drift[i].Line < drift[j].Line
+	})
+	return drift
 }
 
 // classifySkip bins a free-text skip reason into a SkipCategory the

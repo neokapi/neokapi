@@ -91,11 +91,18 @@ jobs:
         working-directory: neokapi
         env:
           OKAPI_REPO: ${{ github.workspace }}/okapi-java
+          # Drift checking: a `// okapi: ClassName#methodName` annotation
+          # whose Java target no longer exists in the pinned upstream
+          # version is a contract bug — the dashboard would silently
+          # drop the row otherwise. The cron run is the correct place
+          # to enforce this because it pins to a specific Okapi tag and
+          # therefore knows what "exists" actually means.
+          CONTRACT_FAIL_ON_DRIFT: "1"
         run: |
           mkdir -p .contract-audit
           for filter in $(echo "$FILTERS" | tr ',' ' '); do
             echo "::group::contract-audit $filter"
-            make contract-audit CONTRACT_FILTER="$filter" OKAPI_REPO="$OKAPI_REPO"
+            make contract-audit CONTRACT_FILTER="$filter" OKAPI_REPO="$OKAPI_REPO" CONTRACT_FAIL_ON_DRIFT="$CONTRACT_FAIL_ON_DRIFT"
             echo "::endgroup::"
           done
 
