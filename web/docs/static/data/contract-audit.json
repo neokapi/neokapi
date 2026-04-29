@@ -1,0 +1,3697 @@
+{
+  "generatedAt": "2026-04-29T14:15:54Z",
+  "okapiVersion": "v1.4.8",
+  "neokapiVersion": "main",
+  "goCommitSHA": "96e85472",
+  "okapiTag": "v1.4.8",
+  "filters": [
+    {
+      "filterName": "html",
+      "okapi": {
+        "suites": [
+          {
+            "name": "net.sf.okapi.filters.html.HtmlConfigurationSupportTest",
+            "tests": [
+              {
+                "name": "test_GLOBAL_PRESERVE_WHITESPACE",
+                "className": "net.sf.okapi.filters.html.HtmlConfigurationSupportTest",
+                "status": "pass",
+                "durationMs": 1
+              },
+              {
+                "name": "test_EXCLUDE",
+                "className": "net.sf.okapi.filters.html.HtmlConfigurationSupportTest",
+                "status": "pass",
+                "durationMs": 3
+              },
+              {
+                "name": "test_idAttributes",
+                "className": "net.sf.okapi.filters.html.HtmlConfigurationSupportTest",
+                "status": "pass",
+                "durationMs": 2
+              },
+              {
+                "name": "quoteMode",
+                "className": "net.sf.okapi.filters.html.HtmlConfigurationSupportTest",
+                "status": "pass",
+                "durationMs": 3
+              },
+              {
+                "name": "test_translatableAttributes_with2ORConditions",
+                "className": "net.sf.okapi.filters.html.HtmlConfigurationSupportTest",
+                "status": "pass",
+                "durationMs": 4
+              },
+              {
+                "name": "test_INLINE_without_condition",
+                "className": "net.sf.okapi.filters.html.HtmlConfigurationSupportTest",
+                "status": "pass",
+                "durationMs": 4
+              },
+              {
+                "name": "test_ATTRIBUTE_WRITABLE",
+                "className": "net.sf.okapi.filters.html.HtmlConfigurationSupportTest",
+                "status": "pass",
+                "durationMs": 5
+              },
+              {
+                "name": "test_INLINE_with_negative_condition",
+                "className": "net.sf.okapi.filters.html.HtmlConfigurationSupportTest",
+                "status": "pass",
+                "durationMs": 4
+              },
+              {
+                "name": "test_PRESERVE_WHITESPACE",
+                "className": "net.sf.okapi.filters.html.HtmlConfigurationSupportTest",
+                "status": "pass",
+                "durationMs": 4
+              },
+              {
+                "name": "test_collapse_whitespace",
+                "className": "net.sf.okapi.filters.html.HtmlConfigurationSupportTest",
+                "status": "pass",
+                "durationMs": 5
+              },
+              {
+                "name": "test_EXCLUDE_with_negative_condition",
+                "className": "net.sf.okapi.filters.html.HtmlConfigurationSupportTest",
+                "status": "pass",
+                "durationMs": 3
+              },
+              {
+                "name": "test_INLINE_with_positive_condition",
+                "className": "net.sf.okapi.filters.html.HtmlConfigurationSupportTest",
+                "status": "pass",
+                "durationMs": 2
+              },
+              {
+                "name": "test_regex_ATTRIBUTE_WRITABLE",
+                "className": "net.sf.okapi.filters.html.HtmlConfigurationSupportTest",
+                "status": "pass",
+                "durationMs": 3
+              },
+              {
+                "name": "test_EXCLUDE_with_positive_condition",
+                "className": "net.sf.okapi.filters.html.HtmlConfigurationSupportTest",
+                "status": "pass",
+                "durationMs": 3
+              },
+              {
+                "name": "test_translatableAttributes_withCondition",
+                "className": "net.sf.okapi.filters.html.HtmlConfigurationSupportTest",
+                "status": "pass",
+                "durationMs": 3
+              },
+              {
+                "name": "test_onlyTheseElements",
+                "className": "net.sf.okapi.filters.html.HtmlConfigurationSupportTest",
+                "status": "pass",
+                "durationMs": 4
+              },
+              {
+                "name": "test_MATCHES",
+                "className": "net.sf.okapi.filters.html.HtmlConfigurationSupportTest",
+                "status": "pass",
+                "durationMs": 2
+              },
+              {
+                "name": "test_ATTRIBUTE_ID",
+                "className": "net.sf.okapi.filters.html.HtmlConfigurationSupportTest",
+                "status": "pass",
+                "durationMs": 3
+              },
+              {
+                "name": "test_allElementsExcept",
+                "className": "net.sf.okapi.filters.html.HtmlConfigurationSupportTest",
+                "status": "pass",
+                "durationMs": 4
+              },
+              {
+                "name": "test_INCLUDE",
+                "className": "net.sf.okapi.filters.html.HtmlConfigurationSupportTest",
+                "status": "pass",
+                "durationMs": 3
+              }
+            ],
+            "total": 20,
+            "passed": 20,
+            "failed": 0,
+            "skipped": 0,
+            "errors": 0,
+            "durationMs": 65
+          },
+          {
+            "name": "net.sf.okapi.filters.html.HtmlConfigurationTest",
+            "tests": [
+              {
+                "name": "genericCodeTypes",
+                "className": "net.sf.okapi.filters.html.HtmlConfigurationTest",
+                "status": "pass",
+                "durationMs": 44
+              },
+              {
+                "name": "testCodeFinderRules",
+                "className": "net.sf.okapi.filters.html.HtmlConfigurationTest",
+                "status": "pass",
+                "durationMs": 20
+              },
+              {
+                "name": "collapseWhitespace",
+                "className": "net.sf.okapi.filters.html.HtmlConfigurationTest",
+                "status": "pass",
+                "durationMs": 7
+              },
+              {
+                "name": "inputAttributes",
+                "className": "net.sf.okapi.filters.html.HtmlConfigurationTest",
+                "status": "pass",
+                "durationMs": 6
+              },
+              {
+                "name": "baseTag",
+                "className": "net.sf.okapi.filters.html.HtmlConfigurationTest",
+                "status": "pass",
+                "durationMs": 4
+              },
+              {
+                "name": "attributeID",
+                "className": "net.sf.okapi.filters.html.HtmlConfigurationTest",
+                "status": "pass",
+                "durationMs": 4
+              },
+              {
+                "name": "langAndXmlLang",
+                "className": "net.sf.okapi.filters.html.HtmlConfigurationTest",
+                "status": "pass",
+                "durationMs": 4
+              },
+              {
+                "name": "metaTag",
+                "className": "net.sf.okapi.filters.html.HtmlConfigurationTest",
+                "status": "pass",
+                "durationMs": 3
+              },
+              {
+                "name": "preserveWhiteSpace",
+                "className": "net.sf.okapi.filters.html.HtmlConfigurationTest",
+                "status": "pass",
+                "durationMs": 3
+              },
+              {
+                "name": "textUnitCodeTypes",
+                "className": "net.sf.okapi.filters.html.HtmlConfigurationTest",
+                "status": "pass",
+                "durationMs": 3
+              },
+              {
+                "name": "defaultConfiguration",
+                "className": "net.sf.okapi.filters.html.HtmlConfigurationTest",
+                "status": "pass",
+                "durationMs": 2
+              }
+            ],
+            "total": 11,
+            "passed": 11,
+            "failed": 0,
+            "skipped": 0,
+            "errors": 0,
+            "durationMs": 125
+          },
+          {
+            "name": "net.sf.okapi.filters.html.HtmlDetectBomTest",
+            "tests": [
+              {
+                "name": "testDetectBom",
+                "className": "net.sf.okapi.filters.html.HtmlDetectBomTest",
+                "status": "pass",
+                "durationMs": 1
+              },
+              {
+                "name": "testDetectUnicodeLittleBom",
+                "className": "net.sf.okapi.filters.html.HtmlDetectBomTest",
+                "status": "pass",
+                "durationMs": 2
+              },
+              {
+                "name": "testDetectAndRemoveBom",
+                "className": "net.sf.okapi.filters.html.HtmlDetectBomTest",
+                "status": "pass",
+                "durationMs": 2
+              }
+            ],
+            "total": 3,
+            "passed": 3,
+            "failed": 0,
+            "skipped": 0,
+            "errors": 0,
+            "durationMs": 6
+          },
+          {
+            "name": "net.sf.okapi.filters.html.HtmlEventTest",
+            "tests": [
+              {
+                "name": "testMetaTagContent",
+                "className": "net.sf.okapi.filters.html.HtmlEventTest",
+                "status": "pass",
+                "durationMs": 3
+              },
+              {
+                "name": "testPWithInlines",
+                "className": "net.sf.okapi.filters.html.HtmlEventTest",
+                "status": "pass",
+                "durationMs": 4
+              },
+              {
+                "name": "testIdOnP",
+                "className": "net.sf.okapi.filters.html.HtmlEventTest",
+                "status": "pass",
+                "durationMs": 3
+              },
+              {
+                "name": "testLang",
+                "className": "net.sf.okapi.filters.html.HtmlEventTest",
+                "status": "pass",
+                "durationMs": 3
+              },
+              {
+                "name": "testTableGroups",
+                "className": "net.sf.okapi.filters.html.HtmlEventTest",
+                "status": "pass",
+                "durationMs": 4
+              },
+              {
+                "name": "testPropertyInEmptyParagraph",
+                "className": "net.sf.okapi.filters.html.HtmlEventTest",
+                "status": "pass",
+                "durationMs": 3
+              },
+              {
+                "name": "testComplexEmptyElement",
+                "className": "net.sf.okapi.filters.html.HtmlEventTest",
+                "status": "pass",
+                "durationMs": 2
+              },
+              {
+                "name": "testMetaWithCharsetAttribute",
+                "className": "net.sf.okapi.filters.html.HtmlEventTest",
+                "status": "pass",
+                "durationMs": 7
+              },
+              {
+                "name": "baseTag",
+                "className": "net.sf.okapi.filters.html.HtmlEventTest",
+                "status": "pass",
+                "durationMs": 4
+              },
+              {
+                "name": "testMETATagWithEncoding",
+                "className": "net.sf.okapi.filters.html.HtmlEventTest",
+                "status": "pass",
+                "durationMs": 3
+              },
+              {
+                "name": "testGroupInPara",
+                "className": "net.sf.okapi.filters.html.HtmlEventTest",
+                "status": "pass",
+                "durationMs": 3
+              },
+              {
+                "name": "testPreserveWhitespace",
+                "className": "net.sf.okapi.filters.html.HtmlEventTest",
+                "status": "pass",
+                "durationMs": 3
+              },
+              {
+                "name": "testPWithInlineAnchorAndAmpersand",
+                "className": "net.sf.okapi.filters.html.HtmlEventTest",
+                "status": "pass",
+                "durationMs": 7
+              },
+              {
+                "name": "testHtmlKeywordsNotExtracted",
+                "className": "net.sf.okapi.filters.html.HtmlEventTest",
+                "status": "pass",
+                "durationMs": 4
+              },
+              {
+                "name": "testMETATagWithLanguage",
+                "className": "net.sf.okapi.filters.html.HtmlEventTest",
+                "status": "pass",
+                "durationMs": 3
+              },
+              {
+                "name": "testWithDefaultConfig",
+                "className": "net.sf.okapi.filters.html.HtmlEventTest",
+                "status": "pass",
+                "durationMs": 10
+              },
+              {
+                "name": "testPWithProcessingInstruction",
+                "className": "net.sf.okapi.filters.html.HtmlEventTest",
+                "status": "pass",
+                "durationMs": 4
+              },
+              {
+                "name": "testPWithAttributes",
+                "className": "net.sf.okapi.filters.html.HtmlEventTest",
+                "status": "pass",
+                "durationMs": 3
+              },
+              {
+                "name": "testPWithComment",
+                "className": "net.sf.okapi.filters.html.HtmlEventTest",
+                "status": "pass",
+                "durationMs": 3
+              },
+              {
+                "name": "testXmlLang",
+                "className": "net.sf.okapi.filters.html.HtmlEventTest",
+                "status": "pass",
+                "durationMs": 3
+              },
+              {
+                "name": "testPWithInlines2",
+                "className": "net.sf.okapi.filters.html.HtmlEventTest",
+                "status": "pass",
+                "durationMs": 4
+              }
+            ],
+            "total": 21,
+            "passed": 21,
+            "failed": 0,
+            "skipped": 0,
+            "errors": 0,
+            "durationMs": 83
+          },
+          {
+            "name": "net.sf.okapi.filters.html.HtmlFullFileTest",
+            "tests": [
+              {
+                "name": "testOpenTwiceWithStream",
+                "className": "net.sf.okapi.filters.html.HtmlFullFileTest",
+                "status": "pass",
+                "durationMs": 1
+              },
+              {
+                "name": "testOpenTwiceWithString",
+                "className": "net.sf.okapi.filters.html.HtmlFullFileTest",
+                "status": "pass",
+                "durationMs": 3
+              },
+              {
+                "name": "testAllExternalFiles",
+                "className": "net.sf.okapi.filters.html.HtmlFullFileTest",
+                "status": "pass",
+                "durationMs": 473
+              },
+              {
+                "name": "testSkippedScriptandStyleElements",
+                "className": "net.sf.okapi.filters.html.HtmlFullFileTest",
+                "status": "pass",
+                "durationMs": 4
+              },
+              {
+                "name": "testEncodingShouldBeFound2",
+                "className": "net.sf.okapi.filters.html.HtmlFullFileTest",
+                "status": "pass",
+                "durationMs": 3
+              },
+              {
+                "name": "testEncodingShouldBeFound",
+                "className": "net.sf.okapi.filters.html.HtmlFullFileTest",
+                "status": "pass",
+                "durationMs": 2
+              },
+              {
+                "name": "testOkapiIntro",
+                "className": "net.sf.okapi.filters.html.HtmlFullFileTest",
+                "status": "pass",
+                "durationMs": 3
+              },
+              {
+                "name": "testNonwellformed",
+                "className": "net.sf.okapi.filters.html.HtmlFullFileTest",
+                "status": "pass",
+                "durationMs": 1
+              },
+              {
+                "name": "testOpenTwiceWithURI",
+                "className": "net.sf.okapi.filters.html.HtmlFullFileTest",
+                "status": "pass",
+                "durationMs": 3
+              }
+            ],
+            "total": 9,
+            "passed": 9,
+            "failed": 0,
+            "skipped": 0,
+            "errors": 0,
+            "durationMs": 493
+          },
+          {
+            "name": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+            "tests": [
+              {
+                "name": "testInlineTranslateNo",
+                "className": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+                "status": "pass",
+                "durationMs": 160
+              },
+              {
+                "name": "testPropertyInTextUnitConvertedToDocumentPart",
+                "className": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+                "status": "pass",
+                "durationMs": 14
+              },
+              {
+                "name": "testCodeFinder",
+                "className": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+                "status": "pass",
+                "durationMs": 9
+              },
+              {
+                "name": "textWithUnquotedAttribtes",
+                "className": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+                "status": "pass",
+                "durationMs": 9
+              },
+              {
+                "name": "twoITextUnitsInARowNonWellformed",
+                "className": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+                "status": "pass",
+                "durationMs": 10
+              },
+              {
+                "name": "testOkapiMarkerInAttribute",
+                "className": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+                "status": "pass",
+                "durationMs": 9
+              },
+              {
+                "name": "testEmptyGroupAtEnd",
+                "className": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+                "status": "pass",
+                "durationMs": 7
+              },
+              {
+                "name": "testNoExtractValueInInput",
+                "className": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+                "status": "pass",
+                "durationMs": 5
+              },
+              {
+                "name": "testEscapes",
+                "className": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+                "status": "pass",
+                "durationMs": 8
+              },
+              {
+                "name": "testAddingMETAinXHTML",
+                "className": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+                "status": "pass",
+                "durationMs": 12
+              },
+              {
+                "name": "testFreeMarker",
+                "className": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+                "status": "pass",
+                "durationMs": 8
+              },
+              {
+                "name": "testLangUpdate",
+                "className": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+                "status": "pass",
+                "durationMs": 9
+              },
+              {
+                "name": "testNoPreserveCharacterEntitiesMultipleTypes",
+                "className": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+                "status": "pass",
+                "durationMs": 6
+              },
+              {
+                "name": "testCollapseWhitespaceWithoutPre",
+                "className": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+                "status": "pass",
+                "durationMs": 8
+              },
+              {
+                "name": "testPWithInlines",
+                "className": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+                "status": "pass",
+                "durationMs": 6
+              },
+              {
+                "name": "testAltInImg",
+                "className": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+                "status": "pass",
+                "durationMs": 4
+              },
+              {
+                "name": "testDivBlockWithPTranslateAttribute",
+                "className": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+                "status": "pass",
+                "durationMs": 6
+              },
+              {
+                "name": "testPWithInlineTextOnly",
+                "className": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+                "status": "pass",
+                "durationMs": 6
+              },
+              {
+                "name": "testCERinOutput",
+                "className": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+                "status": "pass",
+                "durationMs": 6
+              },
+              {
+                "name": "testASPXEmbeddedTag",
+                "className": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+                "status": "pass",
+                "durationMs": 10
+              },
+              {
+                "name": "simpleTable",
+                "className": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+                "status": "pass",
+                "durationMs": 7
+              },
+              {
+                "name": "ITextUnitsInARowWithTwoHeaders",
+                "className": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+                "status": "pass",
+                "durationMs": 7
+              },
+              {
+                "name": "testInput",
+                "className": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+                "status": "pass",
+                "durationMs": 6
+              },
+              {
+                "name": "testTitleInP",
+                "className": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+                "status": "pass",
+                "durationMs": 4
+              },
+              {
+                "name": "textUnbalancedInlineTag",
+                "className": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+                "status": "pass",
+                "durationMs": 5
+              },
+              {
+                "name": "testHref",
+                "className": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+                "status": "pass",
+                "durationMs": 3
+              },
+              {
+                "name": "testLang",
+                "className": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+                "status": "pass",
+                "durationMs": 5
+              },
+              {
+                "name": "testUlWithScriptTag",
+                "className": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+                "status": "pass",
+                "durationMs": 6
+              },
+              {
+                "name": "ITextUnitsInARow",
+                "className": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+                "status": "pass",
+                "durationMs": 5
+              },
+              {
+                "name": "minimalCompleteHtml",
+                "className": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+                "status": "pass",
+                "durationMs": 6
+              },
+              {
+                "name": "testQuoteModeDefault",
+                "className": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+                "status": "pass",
+                "durationMs": 4
+              },
+              {
+                "name": "textOverlapInlineTags",
+                "className": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+                "status": "pass",
+                "durationMs": 5
+              },
+              {
+                "name": "paraWithBreak",
+                "className": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+                "status": "pass",
+                "durationMs": 5
+              },
+              {
+                "name": "testInlineTranslateYes",
+                "className": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+                "status": "pass",
+                "durationMs": 5
+              },
+              {
+                "name": "testLabelInOption",
+                "className": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+                "status": "pass",
+                "durationMs": 3
+              },
+              {
+                "name": "testQuoteMode",
+                "className": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+                "status": "pass",
+                "durationMs": 3
+              },
+              {
+                "name": "testCollapseWhitespaceWithPre",
+                "className": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+                "status": "pass",
+                "durationMs": 4
+              },
+              {
+                "name": "testTableGroups",
+                "className": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+                "status": "pass",
+                "durationMs": 5
+              },
+              {
+                "name": "testComplexEmptyElement",
+                "className": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+                "status": "pass",
+                "durationMs": 5
+              },
+              {
+                "name": "testPlaceholderOnlySegments",
+                "className": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+                "status": "pass",
+                "durationMs": 4
+              },
+              {
+                "name": "testEscapedCodesInisdePre",
+                "className": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+                "status": "pass",
+                "durationMs": 6
+              },
+              {
+                "name": "testTagLowerCaseFix",
+                "className": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+                "status": "pass",
+                "durationMs": 4
+              },
+              {
+                "name": "testPBlockTranslateAttribute",
+                "className": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+                "status": "pass",
+                "durationMs": 7
+              },
+              {
+                "name": "ITextUnitName",
+                "className": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+                "status": "pass",
+                "durationMs": 5
+              },
+              {
+                "name": "testPreserveCharacterEntitiesWithInlineElements",
+                "className": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+                "status": "pass",
+                "durationMs": 4
+              },
+              {
+                "name": "testWithoutPreserveCharacterEntities",
+                "className": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+                "status": "pass",
+                "durationMs": 2
+              },
+              {
+                "name": "testGroupInPara",
+                "className": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+                "status": "pass",
+                "durationMs": 5
+              },
+              {
+                "name": "testOkapiMarkerInText",
+                "className": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+                "status": "pass",
+                "durationMs": 6
+              },
+              {
+                "name": "testHtmlNonWellFormedEmptyTag",
+                "className": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+                "status": "pass",
+                "durationMs": 4
+              },
+              {
+                "name": "testTranslateAttribute",
+                "className": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+                "status": "pass",
+                "durationMs": 7
+              },
+              {
+                "name": "testEscapedEntities",
+                "className": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+                "status": "pass",
+                "durationMs": 4
+              },
+              {
+                "name": "testCleanupHtmlOption",
+                "className": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+                "status": "pass",
+                "durationMs": 3
+              },
+              {
+                "name": "testExtractValueInInput",
+                "className": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+                "status": "pass",
+                "durationMs": 3
+              },
+              {
+                "name": "testTextDirectionClarification[0: \u003c!DOCTYPE html\u003e\\n\u003chtml dir=\"rtl\"\u003e\\n\u003cbody\u003e\\n\u003cp\u003eبعض الكلمات\u003c/p\u003e\\n\u003c/body\u003e\\n\u003c/html\u003e\\n, ar, \u003c!DOCTYPE html\u003e\\n\u003chtml dir=\"rtl\"\u003e\\n\u003cbody\u003e\\n\u003cp\u003eبعض الكلمات\u003c/p\u003e\\n\u003c/body\u003e\\n\u003c/html\u003e\\n]",
+                "className": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+                "status": "pass",
+                "durationMs": 6
+              },
+              {
+                "name": "testTextDirectionClarification[1: \u003c!DOCTYPE html\u003e\\n\u003chtml dir=\"ltr\"\u003e\\n\u003cbody\u003e\\n\u003cp\u003eبعض الكلمات\u003c/p\u003e\\n\u003c/body\u003e\\n\u003c/html\u003e\\n, ar, \u003c!DOCTYPE html\u003e\\n\u003chtml dir=\"rtl\"\u003e\\n\u003cbody\u003e\\n\u003cp\u003eبعض الكلمات\u003c/p\u003e\\n\u003c/body\u003e\\n\u003c/html\u003e\\n]",
+                "className": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+                "status": "pass",
+                "durationMs": 4
+              },
+              {
+                "name": "testTextDirectionClarification[2: \u003c!DOCTYPE html\u003e\\n\u003chtml\u003e\\n\u003cbody\u003e\\n\u003cp\u003eبعض الكلمات\u003c/p\u003e\\n\u003c/body\u003e\\n\u003c/html\u003e\\n, ar, \u003c!DOCTYPE html\u003e\\n\u003chtml dir=\"rtl\"\u003e\\n\u003cbody\u003e\\n\u003cp\u003eبعض الكلمات\u003c/p\u003e\\n\u003c/body\u003e\\n\u003c/html\u003e\\n]",
+                "className": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+                "status": "pass",
+                "durationMs": 5
+              },
+              {
+                "name": "testTextDirectionClarification[3: \u003c!DOCTYPE html\u003e\\n\u003chtml dir=\"rtl\"\u003e\\n\u003cbody\u003e\\n\u003cp\u003eSome text.\u003c/p\u003e\\n\u003c/body\u003e\\n\u003c/html\u003e\\n, en, \u003c!DOCTYPE html\u003e\\n\u003chtml\u003e\\n\u003cbody\u003e\\n\u003cp\u003eSome text.\u003c/p\u003e\\n\u003c/body\u003e\\n\u003c/html\u003e\\n]",
+                "className": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+                "status": "pass",
+                "durationMs": 5
+              },
+              {
+                "name": "testTextDirectionClarification[4: \u003c!DOCTYPE html\u003e\\n\u003chtml dir=\"ltr\"\u003e\\n\u003cbody\u003e\\n\u003cp\u003eSome text.\u003c/p\u003e\\n\u003c/body\u003e\\n\u003c/html\u003e\\n, en, \u003c!DOCTYPE html\u003e\\n\u003chtml\u003e\\n\u003cbody\u003e\\n\u003cp\u003eSome text.\u003c/p\u003e\\n\u003c/body\u003e\\n\u003c/html\u003e\\n]",
+                "className": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+                "status": "pass",
+                "durationMs": 5
+              },
+              {
+                "name": "testTextDirectionClarification[5: \u003c!DOCTYPE html\u003e\\n\u003chtml\u003e\\n\u003cbody\u003e\\n\u003cp\u003eSome text.\u003c/p\u003e\\n\u003c/body\u003e\\n\u003c/html\u003e\\n, en, \u003c!DOCTYPE html\u003e\\n\u003chtml\u003e\\n\u003cbody\u003e\\n\u003cp\u003eSome text.\u003c/p\u003e\\n\u003c/body\u003e\\n\u003c/html\u003e\\n]",
+                "className": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+                "status": "pass",
+                "durationMs": 4
+              },
+              {
+                "name": "testTextDirectionClarification[6: \u003c!DOCTYPE html\u003e\\n\u003chtml translate=\"no\"\u003e\\n\u003cbody\u003e\\n\u003cp\u003eبعض الكلمات\u003c/p\u003e\\n\u003c/body\u003e\\n\u003c/html\u003e\\n, ar, \u003c!DOCTYPE html\u003e\\n\u003chtml dir=\"rtl\" translate=\"no\"\u003e\\n\u003cbody\u003e\\n\u003cp\u003eبعض الكلمات\u003c/p\u003e\\n\u003c/body\u003e\\n\u003c/html\u003e\\n]",
+                "className": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+                "status": "pass",
+                "durationMs": 4
+              },
+              {
+                "name": "testCodeFinderInAttributes",
+                "className": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+                "status": "pass",
+                "durationMs": 11
+              },
+              {
+                "name": "table",
+                "className": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+                "status": "pass",
+                "durationMs": 4
+              },
+              {
+                "name": "testNormalizeNewlinesInPre",
+                "className": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+                "status": "pass",
+                "durationMs": 5
+              },
+              {
+                "name": "ITextUnitStartedWithText",
+                "className": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+                "status": "pass",
+                "durationMs": 4
+              },
+              {
+                "name": "testSupplementalSupport",
+                "className": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+                "status": "pass",
+                "durationMs": 4
+              },
+              {
+                "name": "testPAndInlineAnchorAndAmpersand",
+                "className": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+                "status": "pass",
+                "durationMs": 4
+              },
+              {
+                "name": "testASPXComment",
+                "className": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+                "status": "pass",
+                "durationMs": 4
+              },
+              {
+                "name": "areaStartTagOnlyHandledWithWellFormedConfiguration",
+                "className": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+                "status": "pass",
+                "durationMs": 3
+              },
+              {
+                "name": "testPreserveCharacterEntitiesMultipleTypes",
+                "className": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+                "status": "pass",
+                "durationMs": 4
+              },
+              {
+                "name": "imgStartTagOnlyHandledWithWellFormedConfiguration",
+                "className": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+                "status": "pass",
+                "durationMs": 2
+              },
+              {
+                "name": "testInlineCodesStorage",
+                "className": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+                "status": "pass",
+                "durationMs": 4
+              },
+              {
+                "name": "testComplexTable",
+                "className": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+                "status": "pass",
+                "durationMs": 6
+              },
+              {
+                "name": "italicBoldEtc",
+                "className": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+                "status": "pass",
+                "durationMs": 5
+              },
+              {
+                "name": "testNestedInlineTranslateAttribute1",
+                "className": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+                "status": "pass",
+                "durationMs": 4
+              },
+              {
+                "name": "testNestedInlineTranslateAttribute3",
+                "className": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+                "status": "pass",
+                "durationMs": 5
+              },
+              {
+                "name": "testNestedInlineTranslateAttribute4",
+                "className": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+                "status": "pass",
+                "durationMs": 3
+              },
+              {
+                "name": "testNestedInlineTranslateAttribute5",
+                "className": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+                "status": "pass",
+                "durationMs": 5
+              },
+              {
+                "name": "testNestedInlineTranslateAttribute6",
+                "className": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+                "status": "pass",
+                "durationMs": 4
+              },
+              {
+                "name": "testDivBlockExcludeIncludeTranslateAttribute",
+                "className": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+                "status": "pass",
+                "durationMs": 3
+              },
+              {
+                "name": "testMETATag1",
+                "className": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+                "status": "pass",
+                "durationMs": 5
+              },
+              {
+                "name": "testMETATag2",
+                "className": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+                "status": "pass",
+                "durationMs": 5
+              },
+              {
+                "name": "testAddingMETAinXML",
+                "className": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+                "status": "pass",
+                "durationMs": 3
+              },
+              {
+                "name": "doesNotCrashOnPreservingWhitespaceForClosingPre",
+                "className": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+                "status": "pass",
+                "durationMs": 4
+              },
+              {
+                "name": "testAddingMETAinHTML",
+                "className": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+                "status": "pass",
+                "durationMs": 4
+              },
+              {
+                "name": "paramStartTagOnlyHandledWithWellFormedConfiguration",
+                "className": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+                "status": "pass",
+                "durationMs": 3
+              },
+              {
+                "name": "testButton",
+                "className": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+                "status": "pass",
+                "durationMs": 12
+              },
+              {
+                "name": "testNewlineDetection",
+                "className": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+                "status": "pass",
+                "durationMs": 7
+              },
+              {
+                "name": "testMultipleMETA",
+                "className": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+                "status": "pass",
+                "durationMs": 4
+              },
+              {
+                "name": "testPreserveCharacterEntitiesSimple",
+                "className": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+                "status": "pass",
+                "durationMs": 7
+              },
+              {
+                "name": "testInlineAnchorAndAmpersand",
+                "className": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+                "status": "pass",
+                "durationMs": 4
+              },
+              {
+                "name": "testDivBlockTranslateAttribute",
+                "className": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+                "status": "pass",
+                "durationMs": 6
+              },
+              {
+                "name": "testCdataSection",
+                "className": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+                "status": "pass",
+                "durationMs": 5
+              },
+              {
+                "name": "testMETA_Issue_1098",
+                "className": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+                "status": "pass",
+                "durationMs": 7
+              },
+              {
+                "name": "testNegativeCondition",
+                "className": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+                "status": "pass",
+                "durationMs": 3
+              },
+              {
+                "name": "testMultilangUpdate",
+                "className": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+                "status": "pass",
+                "durationMs": 5
+              },
+              {
+                "name": "testPWithAttributes",
+                "className": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+                "status": "pass",
+                "durationMs": 4
+              },
+              {
+                "name": "testNestedInlineTranslateAttribute2_1",
+                "className": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+                "status": "pass",
+                "durationMs": 3
+              },
+              {
+                "name": "testNestedInlineTranslateAttribute2_2",
+                "className": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+                "status": "pass",
+                "durationMs": 4
+              },
+              {
+                "name": "testSimpleSupplementalSupport",
+                "className": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+                "status": "pass",
+                "durationMs": 4
+              },
+              {
+                "name": "testInlineCdata",
+                "className": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+                "status": "pass",
+                "durationMs": 3
+              },
+              {
+                "name": "twoITextUnitsInARowNonWellformedWithNonWellFromedConfig",
+                "className": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+                "status": "pass",
+                "durationMs": 4
+              },
+              {
+                "name": "testPWithInlines2",
+                "className": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+                "status": "pass",
+                "durationMs": 4
+              }
+            ],
+            "total": 102,
+            "passed": 102,
+            "failed": 0,
+            "skipped": 0,
+            "errors": 0,
+            "durationMs": 721
+          },
+          {
+            "name": "net.sf.okapi.filters.html.SkipEncodingDeclarationTest",
+            "tests": [
+              {
+                "name": "testExistingEncodingDeclaration",
+                "className": "net.sf.okapi.filters.html.SkipEncodingDeclarationTest",
+                "status": "pass",
+                "durationMs": 2
+              },
+              {
+                "name": "testSkipEncodingDeclarationOmitsMetaElement",
+                "className": "net.sf.okapi.filters.html.SkipEncodingDeclarationTest",
+                "status": "pass",
+                "durationMs": 2
+              },
+              {
+                "name": "testDefaultBehaviorAddsMetaElement",
+                "className": "net.sf.okapi.filters.html.SkipEncodingDeclarationTest",
+                "status": "pass",
+                "durationMs": 3
+              },
+              {
+                "name": "testXHTMLSelfClosingMetaTag",
+                "className": "net.sf.okapi.filters.html.SkipEncodingDeclarationTest",
+                "status": "pass",
+                "durationMs": 3
+              },
+              {
+                "name": "testExistingEncodingDeclarationWithSkipEnabled",
+                "className": "net.sf.okapi.filters.html.SkipEncodingDeclarationTest",
+                "status": "pass",
+                "durationMs": 3
+              }
+            ],
+            "total": 5,
+            "passed": 5,
+            "failed": 0,
+            "skipped": 0,
+            "errors": 0,
+            "durationMs": 13
+          },
+          {
+            "name": "net.sf.okapi.filters.html.integration.ExtractionComparisionTest",
+            "tests": [
+              {
+                "name": "testOpenTwice",
+                "className": "net.sf.okapi.filters.html.integration.ExtractionComparisionTest",
+                "status": "pass",
+                "durationMs": 5
+              },
+              {
+                "name": "testStartDocument",
+                "className": "net.sf.okapi.filters.html.integration.ExtractionComparisionTest",
+                "status": "pass",
+                "durationMs": 5
+              },
+              {
+                "name": "testReconstructFile",
+                "className": "net.sf.okapi.filters.html.integration.ExtractionComparisionTest",
+                "status": "pass",
+                "durationMs": 11
+              },
+              {
+                "name": "testDoubleExtraction2",
+                "className": "net.sf.okapi.filters.html.integration.ExtractionComparisionTest",
+                "status": "pass",
+                "durationMs": 7
+              },
+              {
+                "name": "testDoubleExtraction",
+                "className": "net.sf.okapi.filters.html.integration.ExtractionComparisionTest",
+                "status": "pass",
+                "durationMs": 1685
+              },
+              {
+                "name": "testDoubleExtractionSingle",
+                "className": "net.sf.okapi.filters.html.integration.ExtractionComparisionTest",
+                "status": "pass",
+                "durationMs": 6
+              }
+            ],
+            "total": 6,
+            "passed": 6,
+            "failed": 0,
+            "skipped": 0,
+            "errors": 0,
+            "durationMs": 1720
+          }
+        ],
+        "total": 177,
+        "passed": 177,
+        "failed": 0,
+        "skipped": 0,
+        "errors": 0
+      },
+      "bridge": null,
+      "native": {
+        "suites": [
+          {
+            "name": "github.com/neokapi/neokapi/core/formats/html",
+            "tests": [
+              {
+                "name": "TestApplyMapHierarchicalParser",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestBom_DetectAndRemoveBom",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestBom_DetectBom",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestBom_DetectUnicodeLittleBom",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestConfigSupport_CollapseWhitespace",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestConfig_AttributeID",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestConfig_BaseTag",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestConfig_CodeFinderRules",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestConfig_CollapseWhitespace",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestConfig_DefaultConfiguration",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestConfig_GenericCodeTypes",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestConfig_GlobalPreserveWhitespace",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestConfig_InputAttributes",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestConfig_LangAndXmlLang",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestConfig_MetaTag",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestConfig_PreserveWhiteSpace",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestConfig_PreserveWhitespacePerElement",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestConfig_TextUnitCodeTypes",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestEncoding_DefaultBehaviorAddsMetaElement",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestEncoding_ExistingEncodingDeclaration",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestEncoding_ExistingEncodingDeclarationWithSkipEnabled",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestEncoding_SkipEncodingDeclaration",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestEncoding_XHTMLSelfClosingMetaTag",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestEvents_GroupInPara",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestEvents_HtmlKeywordsNotExtracted",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestEvents_IdOnP",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestEvents_Lang",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestEvents_METATagWithEncoding",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestEvents_METATagWithLanguage",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestEvents_MetaTagContent",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestEvents_MetaWithCharsetAttribute",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestEvents_PWithAttributes",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestEvents_PWithComment",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestEvents_PWithInlineAnchorAndAmpersand",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestEvents_PWithInlines",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestEvents_PWithInlines2",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestEvents_PWithProcessingInstruction",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestEvents_PreserveWhitespace",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestEvents_PropertyInEmptyParagraph",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestEvents_TableGroups",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestEvents_WithDefaultConfig",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestEvents_WithDefaultConfig/Lang",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestEvents_WithDefaultConfig/METATagWithEncoding",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestEvents_WithDefaultConfig/MetaTagContent",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestEvents_XmlLang",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestExtraction_DoubleExtraction",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestExtraction_DoubleExtraction2",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestExtraction_DoubleExtractionSingle",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestExtraction_OpenTwice",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestExtraction_StartDocument",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestFullFile_Nonwellformed",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestFullFile_OpenTwiceWithStream",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestFullFile_OpenTwiceWithString",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestFullFile_OpenTwiceWithURI",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestFullFile_SkippedScriptAndStyleElements",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestOkapiHTMLTransform_DropsOkapiOnlyParams",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestOkapiHTMLTransform_EmptySpec",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestOkapiHTMLTransform_NonMapParser",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestOkapiHTMLTransform_ParserAllOkapiOnly",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestOkapiHTMLTransform_Registration",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestReadInlineSpans",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestReadLayerStartEnd",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestReadLinkSpan",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestReadMultipleBlocks",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestReadNilDocument",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestReadPlaceholderSpan",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestReadScriptNonTranslatable",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestReadSimpleHTML",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestReadTitle",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestReaderMetadata",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestReaderSignature",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestRoundtrip_ComplexDocument",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestRoundtrip_FallbackWithoutOriginal",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestRoundtrip_InlineElements",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestRoundtrip_MetaKeywords",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestRoundtrip_MixedInlineBlock",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestRoundtrip_NestedBlocks",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestRoundtrip_NonTranslatableUnchanged",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestRoundtrip_OutputNotEmpty",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestRoundtrip_PreserveWhitespace",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestRoundtrip_Simple",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestRoundtrip_SimpleP",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestRoundtrip_TranslatableAttributes",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestRoundtrip_TranslateAttribute",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestRoundtrip_TranslateMetaContent",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestRoundtrip_TranslateNo",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestRoundtrip_TranslateYes",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestRoundtrip_WithComments",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestRoundtrip_WithDoctype",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestRoundtrip_WithHeadMeta",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestRoundtrip_WithScriptAndStyle",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestRoundtrip_WithTranslation",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestSchemaHasGroups",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestSchemaMatchesApplyMap",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestSkeletonRoundtrip_ByteExact",
+                "status": "pass",
+                "durationMs": 10
+              },
+              {
+                "name": "TestSkeletonRoundtrip_ByteExact/attr_double_space",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestSkeletonRoundtrip_ByteExact/block_ws_indented",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestSkeletonRoundtrip_ByteExact/block_ws_newlines",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestSkeletonRoundtrip_ByteExact/charset_iso8859",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestSkeletonRoundtrip_ByteExact/comments",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestSkeletonRoundtrip_ByteExact/dl_nested",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestSkeletonRoundtrip_ByteExact/doctype",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestSkeletonRoundtrip_ByteExact/lang_preserved",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestSkeletonRoundtrip_ByteExact/meta",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestSkeletonRoundtrip_ByteExact/nested_blocks",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestSkeletonRoundtrip_ByteExact/script_style",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestSkeletonRoundtrip_ByteExact/select_nested",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestSkeletonRoundtrip_ByteExact/self_closing",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestSkeletonRoundtrip_ByteExact/simple_p",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestSkeletonRoundtrip_ByteExact/single_quotes",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestSkeletonRoundtrip_ByteExact/table_nested",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestSkeletonRoundtrip_ByteExact/ul_nested",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestSkeletonRoundtrip_ByteExact/xml_lang_preserved",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestSkeletonRoundtrip_LangPreservedWithoutTargetLocale",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestSkeletonRoundtrip_LangRewrittenToTargetLocale",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestSkeletonRoundtrip_LangUnrelatedLocalePreserved",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestSkeletonRoundtrip_LargeElementBeforeContainer",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestSkeletonRoundtrip_TranslatableAttributes",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestSkeletonRoundtrip_WithTranslation",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestSnippets_AltInImg",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestSnippets_AreaStartTagOnly",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestSnippets_Button",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestSnippets_CERinOutput",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestSnippets_CdataSection",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestSnippets_CollapseWhitespaceWithPre",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestSnippets_CollapseWhitespaceWithoutPre",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestSnippets_ComplexTable",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestSnippets_DivBlockExcludeIncludeTranslateAttribute",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestSnippets_DivBlockTranslateAttribute",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestSnippets_DivBlockWithPTranslateAttribute",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestSnippets_DoesNotCrashOnPreservingWhitespaceForClosingPre",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestSnippets_EscapedCodesInsidePre",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestSnippets_EscapedEntities",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestSnippets_Escapes",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestSnippets_ExtractValueInInput",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestSnippets_FreeMarker",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestSnippets_GroupInPara",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestSnippets_Href",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestSnippets_HtmlNonWellFormedEmptyTag",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestSnippets_ITextUnitName",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestSnippets_ITextUnitStartedWithText",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestSnippets_ITextUnitsInARow",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestSnippets_ITextUnitsInARowWithTwoHeaders",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestSnippets_ImgStartTagOnly",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestSnippets_InlineAnchorAndAmpersand",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestSnippets_InlineCodesStorage",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestSnippets_InlineTranslateNo",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestSnippets_InlineTranslateYes",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestSnippets_Input",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestSnippets_ItalicBoldEtc",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestSnippets_LabelInOption",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestSnippets_METATag1",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestSnippets_METATag2",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestSnippets_MinimalCompleteHtml",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestSnippets_MultipleMETA",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestSnippets_NegativeCondition",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestSnippets_NestedInlineTranslateAttribute1",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestSnippets_NestedInlineTranslateAttribute2_1",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestSnippets_NestedInlineTranslateAttribute2_2",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestSnippets_NestedInlineTranslateAttribute3",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestSnippets_NestedInlineTranslateAttribute4",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestSnippets_NestedInlineTranslateAttribute5",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestSnippets_NestedInlineTranslateAttribute6",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestSnippets_NewlineDetection",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestSnippets_NoExtractValueInInput",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestSnippets_NoPreserveCharacterEntitiesMultipleTypes",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestSnippets_NormalizeNewlinesInPre",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestSnippets_PAndInlineAnchorAndAmpersand",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestSnippets_PBlockTranslateAttribute",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestSnippets_PWithInlineTextOnly",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestSnippets_PWithInlines2",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestSnippets_ParaWithBreak",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestSnippets_ParamStartTagOnly",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestSnippets_PlaceholderOnlySegments",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestSnippets_PreserveCharacterEntitiesMultipleTypes",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestSnippets_PreserveCharacterEntitiesSimple",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestSnippets_PreserveCharacterEntitiesWithInlineElements",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestSnippets_QuoteModeDefault",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestSnippets_SimpleSupplementalSupport",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestSnippets_SimpleTable",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestSnippets_SupplementalSupport",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestSnippets_Table",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestSnippets_TableGroups",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestSnippets_TagLowerCaseFix",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestSnippets_TextOverlapInlineTags",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestSnippets_TextUnbalancedInlineTag",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestSnippets_TextWithUnquotedAttributes",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestSnippets_TitleInP",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestSnippets_TranslateAttribute",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestSnippets_TwoITextUnitsInARowNonWellformed",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestSnippets_TwoITextUnitsInARowNonWellformedWithConfig",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestSnippets_UlWithScriptTag",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestSnippets_WithoutPreserveCharacterEntities",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestWriteBlockWithSkeleton",
+                "status": "pass",
+                "durationMs": 0
+              }
+            ],
+            "total": 194,
+            "passed": 194,
+            "failed": 0,
+            "skipped": 0,
+            "errors": 0,
+            "durationMs": 0
+          }
+        ],
+        "total": 194,
+        "passed": 194,
+        "failed": 0,
+        "skipped": 0,
+        "errors": 0
+      },
+      "testCases": [
+        {
+          "javaClass": "net.sf.okapi.filters.html.HtmlConfigurationSupportTest",
+          "javaMethod": "test_GLOBAL_PRESERVE_WHITESPACE",
+          "okapiStatus": "pass",
+          "nativeTest": "TestConfig_GlobalPreserveWhitespace",
+          "nativeStatus": "pass",
+          "nativeFile": "snippets_test.go",
+          "nativeLine": 938,
+          "testState": "implemented"
+        },
+        {
+          "javaClass": "net.sf.okapi.filters.html.HtmlConfigurationSupportTest",
+          "javaMethod": "test_EXCLUDE",
+          "okapiStatus": "pass"
+        },
+        {
+          "javaClass": "net.sf.okapi.filters.html.HtmlConfigurationSupportTest",
+          "javaMethod": "test_idAttributes",
+          "okapiStatus": "pass"
+        },
+        {
+          "javaClass": "net.sf.okapi.filters.html.HtmlConfigurationSupportTest",
+          "javaMethod": "quoteMode",
+          "okapiStatus": "pass"
+        },
+        {
+          "javaClass": "net.sf.okapi.filters.html.HtmlConfigurationSupportTest",
+          "javaMethod": "test_translatableAttributes_with2ORConditions",
+          "okapiStatus": "pass"
+        },
+        {
+          "javaClass": "net.sf.okapi.filters.html.HtmlConfigurationSupportTest",
+          "javaMethod": "test_INLINE_without_condition",
+          "okapiStatus": "pass"
+        },
+        {
+          "javaClass": "net.sf.okapi.filters.html.HtmlConfigurationSupportTest",
+          "javaMethod": "test_ATTRIBUTE_WRITABLE",
+          "okapiStatus": "pass"
+        },
+        {
+          "javaClass": "net.sf.okapi.filters.html.HtmlConfigurationSupportTest",
+          "javaMethod": "test_INLINE_with_negative_condition",
+          "okapiStatus": "pass"
+        },
+        {
+          "javaClass": "net.sf.okapi.filters.html.HtmlConfigurationSupportTest",
+          "javaMethod": "test_PRESERVE_WHITESPACE",
+          "okapiStatus": "pass",
+          "nativeTest": "TestConfig_PreserveWhitespacePerElement",
+          "nativeStatus": "pass",
+          "nativeFile": "snippets_test.go",
+          "nativeLine": 928,
+          "testState": "implemented"
+        },
+        {
+          "javaClass": "net.sf.okapi.filters.html.HtmlConfigurationSupportTest",
+          "javaMethod": "test_collapse_whitespace",
+          "okapiStatus": "pass",
+          "nativeTest": "TestConfigSupport_CollapseWhitespace",
+          "nativeStatus": "pass",
+          "nativeFile": "snippets_test.go",
+          "nativeLine": 1541,
+          "testState": "implemented"
+        },
+        {
+          "javaClass": "net.sf.okapi.filters.html.HtmlConfigurationSupportTest",
+          "javaMethod": "test_EXCLUDE_with_negative_condition",
+          "okapiStatus": "pass"
+        },
+        {
+          "javaClass": "net.sf.okapi.filters.html.HtmlConfigurationSupportTest",
+          "javaMethod": "test_INLINE_with_positive_condition",
+          "okapiStatus": "pass"
+        },
+        {
+          "javaClass": "net.sf.okapi.filters.html.HtmlConfigurationSupportTest",
+          "javaMethod": "test_regex_ATTRIBUTE_WRITABLE",
+          "okapiStatus": "pass"
+        },
+        {
+          "javaClass": "net.sf.okapi.filters.html.HtmlConfigurationSupportTest",
+          "javaMethod": "test_EXCLUDE_with_positive_condition",
+          "okapiStatus": "pass"
+        },
+        {
+          "javaClass": "net.sf.okapi.filters.html.HtmlConfigurationSupportTest",
+          "javaMethod": "test_translatableAttributes_withCondition",
+          "okapiStatus": "pass"
+        },
+        {
+          "javaClass": "net.sf.okapi.filters.html.HtmlConfigurationSupportTest",
+          "javaMethod": "test_onlyTheseElements",
+          "okapiStatus": "pass"
+        },
+        {
+          "javaClass": "net.sf.okapi.filters.html.HtmlConfigurationSupportTest",
+          "javaMethod": "test_MATCHES",
+          "okapiStatus": "pass"
+        },
+        {
+          "javaClass": "net.sf.okapi.filters.html.HtmlConfigurationSupportTest",
+          "javaMethod": "test_ATTRIBUTE_ID",
+          "okapiStatus": "pass"
+        },
+        {
+          "javaClass": "net.sf.okapi.filters.html.HtmlConfigurationSupportTest",
+          "javaMethod": "test_allElementsExcept",
+          "okapiStatus": "pass"
+        },
+        {
+          "javaClass": "net.sf.okapi.filters.html.HtmlConfigurationSupportTest",
+          "javaMethod": "test_INCLUDE",
+          "okapiStatus": "pass"
+        },
+        {
+          "javaClass": "net.sf.okapi.filters.html.HtmlConfigurationTest",
+          "javaMethod": "genericCodeTypes",
+          "okapiStatus": "pass",
+          "nativeTest": "TestConfig_GenericCodeTypes",
+          "nativeStatus": "pass",
+          "nativeFile": "snippets_test.go",
+          "nativeLine": 855,
+          "testState": "implemented"
+        },
+        {
+          "javaClass": "net.sf.okapi.filters.html.HtmlConfigurationTest",
+          "javaMethod": "testCodeFinderRules",
+          "okapiStatus": "pass",
+          "nativeTest": "TestConfig_CodeFinderRules",
+          "nativeStatus": "pass",
+          "nativeFile": "snippets_test.go",
+          "nativeLine": 1509,
+          "testState": "implemented"
+        },
+        {
+          "javaClass": "net.sf.okapi.filters.html.HtmlConfigurationTest",
+          "javaMethod": "collapseWhitespace",
+          "okapiStatus": "pass",
+          "nativeTest": "TestConfig_CollapseWhitespace",
+          "nativeStatus": "pass",
+          "nativeFile": "snippets_test.go",
+          "nativeLine": 909,
+          "testState": "implemented"
+        },
+        {
+          "javaClass": "net.sf.okapi.filters.html.HtmlConfigurationTest",
+          "javaMethod": "inputAttributes",
+          "okapiStatus": "pass",
+          "nativeTest": "TestConfig_InputAttributes",
+          "nativeStatus": "pass",
+          "nativeFile": "snippets_test.go",
+          "nativeLine": 985,
+          "testState": "implemented"
+        },
+        {
+          "javaClass": "net.sf.okapi.filters.html.HtmlConfigurationTest",
+          "javaMethod": "baseTag",
+          "okapiStatus": "pass",
+          "nativeTest": "TestConfig_BaseTag",
+          "nativeStatus": "pass",
+          "nativeFile": "snippets_test.go",
+          "nativeLine": 1491,
+          "testState": "implemented"
+        },
+        {
+          "javaClass": "net.sf.okapi.filters.html.HtmlConfigurationTest",
+          "javaMethod": "attributeID",
+          "okapiStatus": "pass",
+          "nativeTest": "TestConfig_AttributeID",
+          "nativeStatus": "pass",
+          "nativeFile": "snippets_test.go",
+          "nativeLine": 1524,
+          "testState": "implemented"
+        },
+        {
+          "javaClass": "net.sf.okapi.filters.html.HtmlConfigurationTest",
+          "javaMethod": "langAndXmlLang",
+          "okapiStatus": "pass",
+          "nativeTest": "TestConfig_LangAndXmlLang",
+          "nativeStatus": "pass",
+          "nativeFile": "snippets_test.go",
+          "nativeLine": 968,
+          "testState": "implemented"
+        },
+        {
+          "javaClass": "net.sf.okapi.filters.html.HtmlConfigurationTest",
+          "javaMethod": "metaTag",
+          "okapiStatus": "pass",
+          "nativeTest": "TestConfig_MetaTag",
+          "nativeStatus": "pass",
+          "nativeFile": "snippets_test.go",
+          "nativeLine": 948,
+          "testState": "implemented"
+        },
+        {
+          "javaClass": "net.sf.okapi.filters.html.HtmlConfigurationTest",
+          "javaMethod": "preserveWhiteSpace",
+          "okapiStatus": "pass",
+          "nativeTest": "TestConfig_PreserveWhiteSpace",
+          "nativeStatus": "pass",
+          "nativeFile": "snippets_test.go",
+          "nativeLine": 838,
+          "testState": "implemented"
+        },
+        {
+          "javaClass": "net.sf.okapi.filters.html.HtmlConfigurationTest",
+          "javaMethod": "textUnitCodeTypes",
+          "okapiStatus": "pass",
+          "nativeTest": "TestConfig_TextUnitCodeTypes",
+          "nativeStatus": "pass",
+          "nativeFile": "snippets_test.go",
+          "nativeLine": 1499,
+          "testState": "implemented"
+        },
+        {
+          "javaClass": "net.sf.okapi.filters.html.HtmlConfigurationTest",
+          "javaMethod": "defaultConfiguration",
+          "okapiStatus": "pass",
+          "nativeTest": "TestConfig_DefaultConfiguration",
+          "nativeStatus": "pass",
+          "nativeFile": "snippets_test.go",
+          "nativeLine": 828,
+          "testState": "implemented"
+        },
+        {
+          "javaClass": "net.sf.okapi.filters.html.HtmlDetectBomTest",
+          "javaMethod": "testDetectBom",
+          "okapiStatus": "pass",
+          "nativeTest": "TestBom_DetectBom",
+          "nativeStatus": "pass",
+          "nativeFile": "snippets_test.go",
+          "nativeLine": 1675,
+          "testState": "implemented"
+        },
+        {
+          "javaClass": "net.sf.okapi.filters.html.HtmlDetectBomTest",
+          "javaMethod": "testDetectUnicodeLittleBom",
+          "okapiStatus": "pass",
+          "nativeTest": "TestBom_DetectUnicodeLittleBom",
+          "nativeStatus": "pass",
+          "nativeFile": "snippets_test.go",
+          "nativeLine": 1695,
+          "testState": "implemented"
+        },
+        {
+          "javaClass": "net.sf.okapi.filters.html.HtmlDetectBomTest",
+          "javaMethod": "testDetectAndRemoveBom",
+          "okapiStatus": "pass",
+          "nativeTest": "TestBom_DetectAndRemoveBom",
+          "nativeStatus": "pass",
+          "nativeFile": "snippets_test.go",
+          "nativeLine": 1705,
+          "testState": "implemented"
+        },
+        {
+          "javaClass": "net.sf.okapi.filters.html.HtmlEventTest",
+          "javaMethod": "testMetaTagContent",
+          "okapiStatus": "pass",
+          "nativeTest": "TestEvents_MetaTagContent",
+          "nativeStatus": "pass",
+          "nativeFile": "snippets_test.go",
+          "nativeLine": 588,
+          "testState": "implemented"
+        },
+        {
+          "javaClass": "net.sf.okapi.filters.html.HtmlEventTest",
+          "javaMethod": "testPWithInlines",
+          "okapiStatus": "pass",
+          "nativeTest": "TestEvents_PWithInlines",
+          "nativeStatus": "pass",
+          "nativeFile": "snippets_test.go",
+          "nativeLine": 678,
+          "testState": "implemented"
+        },
+        {
+          "javaClass": "net.sf.okapi.filters.html.HtmlEventTest",
+          "javaMethod": "testIdOnP",
+          "okapiStatus": "pass",
+          "nativeTest": "TestEvents_IdOnP",
+          "nativeStatus": "pass",
+          "nativeFile": "snippets_test.go",
+          "nativeLine": 620,
+          "testState": "implemented"
+        },
+        {
+          "javaClass": "net.sf.okapi.filters.html.HtmlEventTest",
+          "javaMethod": "testLang",
+          "okapiStatus": "pass",
+          "nativeTest": "TestEvents_Lang",
+          "nativeStatus": "pass",
+          "nativeFile": "snippets_test.go",
+          "nativeLine": 633,
+          "testState": "implemented"
+        },
+        {
+          "javaClass": "net.sf.okapi.filters.html.HtmlEventTest",
+          "javaMethod": "testTableGroups",
+          "okapiStatus": "pass",
+          "nativeTest": "TestEvents_TableGroups",
+          "nativeStatus": "pass",
+          "nativeFile": "snippets_test.go",
+          "nativeLine": 762,
+          "testState": "implemented"
+        },
+        {
+          "javaClass": "net.sf.okapi.filters.html.HtmlEventTest",
+          "javaMethod": "testPropertyInEmptyParagraph",
+          "okapiStatus": "pass",
+          "nativeTest": "TestEvents_PropertyInEmptyParagraph",
+          "nativeStatus": "pass",
+          "nativeFile": "snippets_test.go",
+          "nativeLine": 803,
+          "testState": "implemented"
+        },
+        {
+          "javaClass": "net.sf.okapi.filters.html.HtmlEventTest",
+          "javaMethod": "testComplexEmptyElement",
+          "okapiStatus": "pass"
+        },
+        {
+          "javaClass": "net.sf.okapi.filters.html.HtmlEventTest",
+          "javaMethod": "testMetaWithCharsetAttribute",
+          "okapiStatus": "pass",
+          "nativeTest": "TestEvents_MetaWithCharsetAttribute",
+          "nativeStatus": "pass",
+          "nativeFile": "snippets_test.go",
+          "nativeLine": 669,
+          "testState": "implemented"
+        },
+        {
+          "javaClass": "net.sf.okapi.filters.html.HtmlEventTest",
+          "javaMethod": "baseTag",
+          "okapiStatus": "pass"
+        },
+        {
+          "javaClass": "net.sf.okapi.filters.html.HtmlEventTest",
+          "javaMethod": "testMETATagWithEncoding",
+          "okapiStatus": "pass",
+          "nativeTest": "TestEvents_METATagWithEncoding",
+          "nativeStatus": "pass",
+          "nativeFile": "snippets_test.go",
+          "nativeLine": 660,
+          "testState": "implemented"
+        },
+        {
+          "javaClass": "net.sf.okapi.filters.html.HtmlEventTest",
+          "javaMethod": "testGroupInPara",
+          "okapiStatus": "pass",
+          "nativeTest": "TestEvents_GroupInPara",
+          "nativeStatus": "pass",
+          "nativeFile": "snippets_test.go",
+          "nativeLine": 774,
+          "testState": "implemented"
+        },
+        {
+          "javaClass": "net.sf.okapi.filters.html.HtmlEventTest",
+          "javaMethod": "testPreserveWhitespace",
+          "okapiStatus": "pass",
+          "nativeTest": "TestEvents_PreserveWhitespace",
+          "nativeStatus": "pass",
+          "nativeFile": "snippets_test.go",
+          "nativeLine": 811,
+          "testState": "implemented"
+        },
+        {
+          "javaClass": "net.sf.okapi.filters.html.HtmlEventTest",
+          "javaMethod": "testPWithInlineAnchorAndAmpersand",
+          "okapiStatus": "pass",
+          "nativeTest": "TestEvents_PWithInlineAnchorAndAmpersand",
+          "nativeStatus": "pass",
+          "nativeFile": "snippets_test.go",
+          "nativeLine": 1466,
+          "testState": "implemented"
+        },
+        {
+          "javaClass": "net.sf.okapi.filters.html.HtmlEventTest",
+          "javaMethod": "testHtmlKeywordsNotExtracted",
+          "okapiStatus": "pass",
+          "nativeTest": "TestEvents_HtmlKeywordsNotExtracted",
+          "nativeStatus": "pass",
+          "nativeFile": "snippets_test.go",
+          "nativeLine": 1457,
+          "testState": "implemented"
+        },
+        {
+          "javaClass": "net.sf.okapi.filters.html.HtmlEventTest",
+          "javaMethod": "testMETATagWithLanguage",
+          "okapiStatus": "pass",
+          "nativeTest": "TestEvents_METATagWithLanguage",
+          "nativeStatus": "pass",
+          "nativeFile": "snippets_test.go",
+          "nativeLine": 651,
+          "testState": "implemented"
+        },
+        {
+          "javaClass": "net.sf.okapi.filters.html.HtmlEventTest",
+          "javaMethod": "testWithDefaultConfig",
+          "okapiStatus": "pass",
+          "nativeTest": "TestEvents_WithDefaultConfig",
+          "nativeStatus": "pass",
+          "nativeFile": "snippets_test.go",
+          "nativeLine": 1431,
+          "testState": "implemented"
+        },
+        {
+          "javaClass": "net.sf.okapi.filters.html.HtmlEventTest",
+          "javaMethod": "testPWithProcessingInstruction",
+          "okapiStatus": "pass",
+          "nativeTest": "TestEvents_PWithProcessingInstruction",
+          "nativeStatus": "pass",
+          "nativeFile": "snippets_test.go",
+          "nativeLine": 1478,
+          "testState": "implemented"
+        },
+        {
+          "javaClass": "net.sf.okapi.filters.html.HtmlEventTest",
+          "javaMethod": "testPWithAttributes",
+          "okapiStatus": "pass",
+          "nativeTest": "TestEvents_PWithAttributes",
+          "nativeStatus": "pass",
+          "nativeFile": "snippets_test.go",
+          "nativeLine": 597,
+          "testState": "implemented"
+        },
+        {
+          "javaClass": "net.sf.okapi.filters.html.HtmlEventTest",
+          "javaMethod": "testPWithComment",
+          "okapiStatus": "pass",
+          "nativeTest": "TestEvents_PWithComment",
+          "nativeStatus": "pass",
+          "nativeFile": "snippets_test.go",
+          "nativeLine": 738,
+          "testState": "implemented"
+        },
+        {
+          "javaClass": "net.sf.okapi.filters.html.HtmlEventTest",
+          "javaMethod": "testXmlLang",
+          "okapiStatus": "pass",
+          "nativeTest": "TestEvents_XmlLang",
+          "nativeStatus": "pass",
+          "nativeFile": "snippets_test.go",
+          "nativeLine": 642,
+          "testState": "implemented"
+        },
+        {
+          "javaClass": "net.sf.okapi.filters.html.HtmlEventTest",
+          "javaMethod": "testPWithInlines2",
+          "okapiStatus": "pass",
+          "nativeTest": "TestEvents_PWithInlines2",
+          "nativeStatus": "pass",
+          "nativeFile": "snippets_test.go",
+          "nativeLine": 713,
+          "testState": "implemented"
+        },
+        {
+          "javaClass": "net.sf.okapi.filters.html.HtmlFullFileTest",
+          "javaMethod": "testOpenTwiceWithStream",
+          "okapiStatus": "pass",
+          "nativeTest": "TestFullFile_OpenTwiceWithStream",
+          "nativeStatus": "pass",
+          "nativeFile": "snippets_test.go",
+          "nativeLine": 1574,
+          "testState": "implemented"
+        },
+        {
+          "javaClass": "net.sf.okapi.filters.html.HtmlFullFileTest",
+          "javaMethod": "testOpenTwiceWithString",
+          "okapiStatus": "pass",
+          "nativeTest": "TestFullFile_OpenTwiceWithString",
+          "nativeStatus": "pass",
+          "nativeFile": "snippets_test.go",
+          "nativeLine": 1029,
+          "testState": "implemented"
+        },
+        {
+          "javaClass": "net.sf.okapi.filters.html.HtmlFullFileTest",
+          "javaMethod": "testAllExternalFiles",
+          "okapiStatus": "pass"
+        },
+        {
+          "javaClass": "net.sf.okapi.filters.html.HtmlFullFileTest",
+          "javaMethod": "testSkippedScriptandStyleElements",
+          "okapiStatus": "pass",
+          "nativeTest": "TestFullFile_SkippedScriptAndStyleElements",
+          "nativeStatus": "pass",
+          "nativeFile": "snippets_test.go",
+          "nativeLine": 1041,
+          "testState": "implemented"
+        },
+        {
+          "javaClass": "net.sf.okapi.filters.html.HtmlFullFileTest",
+          "javaMethod": "testEncodingShouldBeFound2",
+          "okapiStatus": "pass"
+        },
+        {
+          "javaClass": "net.sf.okapi.filters.html.HtmlFullFileTest",
+          "javaMethod": "testEncodingShouldBeFound",
+          "okapiStatus": "pass"
+        },
+        {
+          "javaClass": "net.sf.okapi.filters.html.HtmlFullFileTest",
+          "javaMethod": "testOkapiIntro",
+          "okapiStatus": "pass"
+        },
+        {
+          "javaClass": "net.sf.okapi.filters.html.HtmlFullFileTest",
+          "javaMethod": "testNonwellformed",
+          "okapiStatus": "pass",
+          "nativeTest": "TestFullFile_Nonwellformed",
+          "nativeStatus": "pass",
+          "nativeFile": "snippets_test.go",
+          "nativeLine": 1557,
+          "testState": "implemented"
+        },
+        {
+          "javaClass": "net.sf.okapi.filters.html.HtmlFullFileTest",
+          "javaMethod": "testOpenTwiceWithURI",
+          "okapiStatus": "pass",
+          "nativeTest": "TestFullFile_OpenTwiceWithURI",
+          "nativeStatus": "pass",
+          "nativeFile": "snippets_test.go",
+          "nativeLine": 1564,
+          "testState": "implemented"
+        },
+        {
+          "javaClass": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+          "javaMethod": "testInlineTranslateNo",
+          "okapiStatus": "pass",
+          "nativeTest": "TestSnippets_InlineTranslateNo",
+          "nativeStatus": "pass",
+          "nativeFile": "snippets_test.go",
+          "nativeLine": 495,
+          "testState": "implemented"
+        },
+        {
+          "javaClass": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+          "javaMethod": "testPropertyInTextUnitConvertedToDocumentPart",
+          "okapiStatus": "pass"
+        },
+        {
+          "javaClass": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+          "javaMethod": "testCodeFinder",
+          "okapiStatus": "pass"
+        },
+        {
+          "javaClass": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+          "javaMethod": "textWithUnquotedAttribtes",
+          "okapiStatus": "pass",
+          "nativeTest": "TestSnippets_TextWithUnquotedAttributes",
+          "nativeStatus": "pass",
+          "nativeFile": "snippets_test.go",
+          "nativeLine": 1204,
+          "testState": "implemented"
+        },
+        {
+          "javaClass": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+          "javaMethod": "twoITextUnitsInARowNonWellformed",
+          "okapiStatus": "pass",
+          "nativeTest": "TestSnippets_TwoITextUnitsInARowNonWellformed",
+          "nativeStatus": "pass",
+          "nativeFile": "snippets_test.go",
+          "nativeLine": 1400,
+          "testState": "implemented"
+        },
+        {
+          "javaClass": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+          "javaMethod": "testOkapiMarkerInAttribute",
+          "okapiStatus": "pass"
+        },
+        {
+          "javaClass": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+          "javaMethod": "testEmptyGroupAtEnd",
+          "okapiStatus": "pass"
+        },
+        {
+          "javaClass": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+          "javaMethod": "testNoExtractValueInInput",
+          "okapiStatus": "pass",
+          "nativeTest": "TestSnippets_NoExtractValueInInput",
+          "nativeStatus": "pass",
+          "nativeFile": "snippets_test.go",
+          "nativeLine": 258,
+          "testState": "implemented"
+        },
+        {
+          "javaClass": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+          "javaMethod": "testEscapes",
+          "okapiStatus": "pass",
+          "nativeTest": "TestSnippets_Escapes",
+          "nativeStatus": "pass",
+          "nativeFile": "snippets_test.go",
+          "nativeLine": 1128,
+          "testState": "implemented"
+        },
+        {
+          "javaClass": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+          "javaMethod": "testAddingMETAinXHTML",
+          "okapiStatus": "pass"
+        },
+        {
+          "javaClass": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+          "javaMethod": "testFreeMarker",
+          "okapiStatus": "pass",
+          "nativeTest": "TestSnippets_FreeMarker",
+          "nativeStatus": "pass",
+          "nativeFile": "snippets_test.go",
+          "nativeLine": 545,
+          "testState": "implemented"
+        },
+        {
+          "javaClass": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+          "javaMethod": "testLangUpdate",
+          "okapiStatus": "pass"
+        },
+        {
+          "javaClass": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+          "javaMethod": "testNoPreserveCharacterEntitiesMultipleTypes",
+          "okapiStatus": "pass",
+          "nativeTest": "TestSnippets_NoPreserveCharacterEntitiesMultipleTypes",
+          "nativeStatus": "pass",
+          "nativeFile": "snippets_test.go",
+          "nativeLine": 1360,
+          "testState": "implemented"
+        },
+        {
+          "javaClass": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+          "javaMethod": "testCollapseWhitespaceWithoutPre",
+          "okapiStatus": "pass",
+          "nativeTest": "TestSnippets_CollapseWhitespaceWithoutPre",
+          "nativeStatus": "pass",
+          "nativeFile": "snippets_test.go",
+          "nativeLine": 1100,
+          "testState": "implemented"
+        },
+        {
+          "javaClass": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+          "javaMethod": "testPWithInlines",
+          "okapiStatus": "pass",
+          "nativeTest": "TestReadInlineSpans",
+          "nativeStatus": "pass",
+          "nativeFile": "reader_test.go",
+          "nativeLine": 46,
+          "testState": "implemented"
+        },
+        {
+          "javaClass": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+          "javaMethod": "testAltInImg",
+          "okapiStatus": "pass",
+          "nativeTest": "TestSnippets_AltInImg",
+          "nativeStatus": "pass",
+          "nativeFile": "snippets_test.go",
+          "nativeLine": 237,
+          "testState": "implemented"
+        },
+        {
+          "javaClass": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+          "javaMethod": "testDivBlockWithPTranslateAttribute",
+          "okapiStatus": "pass",
+          "nativeTest": "TestSnippets_DivBlockWithPTranslateAttribute",
+          "nativeStatus": "pass",
+          "nativeFile": "snippets_test.go",
+          "nativeLine": 452,
+          "testState": "implemented"
+        },
+        {
+          "javaClass": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+          "javaMethod": "testPWithInlineTextOnly",
+          "okapiStatus": "pass",
+          "nativeTest": "TestSnippets_PWithInlineTextOnly",
+          "nativeStatus": "pass",
+          "nativeFile": "snippets_test.go",
+          "nativeLine": 1073,
+          "testState": "implemented"
+        },
+        {
+          "javaClass": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+          "javaMethod": "testCERinOutput",
+          "okapiStatus": "pass",
+          "nativeTest": "TestSnippets_CERinOutput",
+          "nativeStatus": "pass",
+          "nativeFile": "snippets_test.go",
+          "nativeLine": 1237,
+          "testState": "implemented"
+        },
+        {
+          "javaClass": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+          "javaMethod": "testASPXEmbeddedTag",
+          "okapiStatus": "pass"
+        },
+        {
+          "javaClass": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+          "javaMethod": "simpleTable",
+          "okapiStatus": "pass",
+          "nativeTest": "TestSnippets_SimpleTable",
+          "nativeStatus": "pass",
+          "nativeFile": "snippets_test.go",
+          "nativeLine": 366,
+          "testState": "implemented"
+        },
+        {
+          "javaClass": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+          "javaMethod": "ITextUnitsInARowWithTwoHeaders",
+          "okapiStatus": "pass",
+          "nativeTest": "TestSnippets_ITextUnitsInARowWithTwoHeaders",
+          "nativeStatus": "pass",
+          "nativeFile": "snippets_test.go",
+          "nativeLine": 338,
+          "testState": "implemented"
+        },
+        {
+          "javaClass": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+          "javaMethod": "testInput",
+          "okapiStatus": "pass",
+          "nativeTest": "TestSnippets_Input",
+          "nativeStatus": "pass",
+          "nativeFile": "snippets_test.go",
+          "nativeLine": 1081,
+          "testState": "implemented"
+        },
+        {
+          "javaClass": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+          "javaMethod": "testTitleInP",
+          "okapiStatus": "pass",
+          "nativeTest": "TestSnippets_TitleInP",
+          "nativeStatus": "pass",
+          "nativeFile": "snippets_test.go",
+          "nativeLine": 227,
+          "testState": "implemented"
+        },
+        {
+          "javaClass": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+          "javaMethod": "textUnbalancedInlineTag",
+          "okapiStatus": "pass",
+          "nativeTest": "TestSnippets_TextUnbalancedInlineTag",
+          "nativeStatus": "pass",
+          "nativeFile": "snippets_test.go",
+          "nativeLine": 1186,
+          "testState": "implemented"
+        },
+        {
+          "javaClass": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+          "javaMethod": "testHref",
+          "okapiStatus": "pass",
+          "nativeTest": "TestSnippets_Href",
+          "nativeStatus": "pass",
+          "nativeFile": "snippets_test.go",
+          "nativeLine": 180,
+          "testState": "implemented"
+        },
+        {
+          "javaClass": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+          "javaMethod": "testLang",
+          "okapiStatus": "pass"
+        },
+        {
+          "javaClass": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+          "javaMethod": "testUlWithScriptTag",
+          "okapiStatus": "pass",
+          "nativeTest": "TestSnippets_UlWithScriptTag",
+          "nativeStatus": "pass",
+          "nativeFile": "snippets_test.go",
+          "nativeLine": 554,
+          "testState": "implemented"
+        },
+        {
+          "javaClass": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+          "javaMethod": "ITextUnitsInARow",
+          "okapiStatus": "pass",
+          "nativeTest": "TestSnippets_ITextUnitsInARow",
+          "nativeStatus": "pass",
+          "nativeFile": "snippets_test.go",
+          "nativeLine": 1168,
+          "testState": "implemented"
+        },
+        {
+          "javaClass": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+          "javaMethod": "minimalCompleteHtml",
+          "okapiStatus": "pass",
+          "nativeTest": "TestSnippets_MinimalCompleteHtml",
+          "nativeStatus": "pass",
+          "nativeFile": "snippets_test.go",
+          "nativeLine": 138,
+          "testState": "implemented"
+        },
+        {
+          "javaClass": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+          "javaMethod": "testQuoteModeDefault",
+          "okapiStatus": "pass",
+          "nativeTest": "TestSnippets_QuoteModeDefault",
+          "nativeStatus": "pass",
+          "nativeFile": "snippets_test.go",
+          "nativeLine": 310,
+          "testState": "implemented"
+        },
+        {
+          "javaClass": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+          "javaMethod": "textOverlapInlineTags",
+          "okapiStatus": "pass",
+          "nativeTest": "TestSnippets_TextOverlapInlineTags",
+          "nativeStatus": "pass",
+          "nativeFile": "snippets_test.go",
+          "nativeLine": 1195,
+          "testState": "implemented"
+        },
+        {
+          "javaClass": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+          "javaMethod": "paraWithBreak",
+          "okapiStatus": "pass",
+          "nativeTest": "TestSnippets_ParaWithBreak",
+          "nativeStatus": "pass",
+          "nativeFile": "snippets_test.go",
+          "nativeLine": 378,
+          "testState": "implemented"
+        },
+        {
+          "javaClass": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+          "javaMethod": "testInlineTranslateYes",
+          "okapiStatus": "pass",
+          "nativeTest": "TestSnippets_InlineTranslateYes",
+          "nativeStatus": "pass",
+          "nativeFile": "snippets_test.go",
+          "nativeLine": 519,
+          "testState": "implemented"
+        },
+        {
+          "javaClass": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+          "javaMethod": "testLabelInOption",
+          "okapiStatus": "pass",
+          "nativeTest": "TestSnippets_LabelInOption",
+          "nativeStatus": "pass",
+          "nativeFile": "snippets_test.go",
+          "nativeLine": 275,
+          "testState": "implemented"
+        },
+        {
+          "javaClass": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+          "javaMethod": "testQuoteMode",
+          "okapiStatus": "pass"
+        },
+        {
+          "javaClass": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+          "javaMethod": "testCollapseWhitespaceWithPre",
+          "okapiStatus": "pass",
+          "nativeTest": "TestSnippets_CollapseWhitespaceWithPre",
+          "nativeStatus": "pass",
+          "nativeFile": "snippets_test.go",
+          "nativeLine": 1090,
+          "testState": "implemented"
+        },
+        {
+          "javaClass": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+          "javaMethod": "testTableGroups",
+          "okapiStatus": "pass",
+          "nativeTest": "TestSnippets_TableGroups",
+          "nativeStatus": "pass",
+          "nativeFile": "snippets_test.go",
+          "nativeLine": 400,
+          "testState": "implemented"
+        },
+        {
+          "javaClass": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+          "javaMethod": "testComplexEmptyElement",
+          "okapiStatus": "pass"
+        },
+        {
+          "javaClass": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+          "javaMethod": "testPlaceholderOnlySegments",
+          "okapiStatus": "pass",
+          "nativeTest": "TestSnippets_PlaceholderOnlySegments",
+          "nativeStatus": "pass",
+          "nativeFile": "snippets_test.go",
+          "nativeLine": 579,
+          "testState": "implemented"
+        },
+        {
+          "javaClass": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+          "javaMethod": "testEscapedCodesInisdePre",
+          "okapiStatus": "pass",
+          "nativeTest": "TestSnippets_EscapedCodesInsidePre",
+          "nativeStatus": "pass",
+          "nativeFile": "snippets_test.go",
+          "nativeLine": 1110,
+          "testState": "implemented"
+        },
+        {
+          "javaClass": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+          "javaMethod": "testTagLowerCaseFix",
+          "okapiStatus": "pass",
+          "nativeTest": "TestSnippets_TagLowerCaseFix",
+          "nativeStatus": "pass",
+          "nativeFile": "snippets_test.go",
+          "nativeLine": 536,
+          "testState": "implemented"
+        },
+        {
+          "javaClass": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+          "javaMethod": "testPBlockTranslateAttribute",
+          "okapiStatus": "pass",
+          "nativeTest": "TestSnippets_PBlockTranslateAttribute",
+          "nativeStatus": "pass",
+          "nativeFile": "snippets_test.go",
+          "nativeLine": 429,
+          "testState": "implemented"
+        },
+        {
+          "javaClass": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+          "javaMethod": "ITextUnitName",
+          "okapiStatus": "pass",
+          "nativeTest": "TestSnippets_ITextUnitName",
+          "nativeStatus": "pass",
+          "nativeFile": "snippets_test.go",
+          "nativeLine": 347,
+          "testState": "implemented"
+        },
+        {
+          "javaClass": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+          "javaMethod": "testPreserveCharacterEntitiesWithInlineElements",
+          "okapiStatus": "pass",
+          "nativeTest": "TestSnippets_PreserveCharacterEntitiesWithInlineElements",
+          "nativeStatus": "pass",
+          "nativeFile": "snippets_test.go",
+          "nativeLine": 1337,
+          "testState": "implemented"
+        },
+        {
+          "javaClass": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+          "javaMethod": "testWithoutPreserveCharacterEntities",
+          "okapiStatus": "pass",
+          "nativeTest": "TestSnippets_WithoutPreserveCharacterEntities",
+          "nativeStatus": "pass",
+          "nativeFile": "snippets_test.go",
+          "nativeLine": 570,
+          "testState": "implemented"
+        },
+        {
+          "javaClass": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+          "javaMethod": "testGroupInPara",
+          "okapiStatus": "pass",
+          "nativeTest": "TestSnippets_GroupInPara",
+          "nativeStatus": "pass",
+          "nativeFile": "snippets_test.go",
+          "nativeLine": 408,
+          "testState": "implemented"
+        },
+        {
+          "javaClass": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+          "javaMethod": "testOkapiMarkerInText",
+          "okapiStatus": "pass"
+        },
+        {
+          "javaClass": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+          "javaMethod": "testHtmlNonWellFormedEmptyTag",
+          "okapiStatus": "pass",
+          "nativeTest": "TestSnippets_HtmlNonWellFormedEmptyTag",
+          "nativeStatus": "pass",
+          "nativeFile": "snippets_test.go",
+          "nativeLine": 285,
+          "testState": "implemented"
+        },
+        {
+          "javaClass": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+          "javaMethod": "testTranslateAttribute",
+          "okapiStatus": "pass",
+          "nativeTest": "TestSnippets_TranslateAttribute",
+          "nativeStatus": "pass",
+          "nativeFile": "snippets_test.go",
+          "nativeLine": 417,
+          "testState": "implemented"
+        },
+        {
+          "javaClass": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+          "javaMethod": "testEscapedEntities",
+          "okapiStatus": "pass",
+          "nativeTest": "TestSnippets_EscapedEntities",
+          "nativeStatus": "pass",
+          "nativeFile": "snippets_test.go",
+          "nativeLine": 300,
+          "testState": "implemented"
+        },
+        {
+          "javaClass": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+          "javaMethod": "testCleanupHtmlOption",
+          "okapiStatus": "pass"
+        },
+        {
+          "javaClass": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+          "javaMethod": "testExtractValueInInput",
+          "okapiStatus": "pass",
+          "nativeTest": "TestSnippets_ExtractValueInInput",
+          "nativeStatus": "pass",
+          "nativeFile": "snippets_test.go",
+          "nativeLine": 266,
+          "testState": "implemented"
+        },
+        {
+          "javaClass": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+          "javaMethod": "testTextDirectionClarification[0: \u003c!DOCTYPE html\u003e\\n\u003chtml dir=\"rtl\"\u003e\\n\u003cbody\u003e\\n\u003cp\u003eبعض الكلمات\u003c/p\u003e\\n\u003c/body\u003e\\n\u003c/html\u003e\\n, ar, \u003c!DOCTYPE html\u003e\\n\u003chtml dir=\"rtl\"\u003e\\n\u003cbody\u003e\\n\u003cp\u003eبعض الكلمات\u003c/p\u003e\\n\u003c/body\u003e\\n\u003c/html\u003e\\n]",
+          "okapiStatus": "pass"
+        },
+        {
+          "javaClass": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+          "javaMethod": "testTextDirectionClarification[1: \u003c!DOCTYPE html\u003e\\n\u003chtml dir=\"ltr\"\u003e\\n\u003cbody\u003e\\n\u003cp\u003eبعض الكلمات\u003c/p\u003e\\n\u003c/body\u003e\\n\u003c/html\u003e\\n, ar, \u003c!DOCTYPE html\u003e\\n\u003chtml dir=\"rtl\"\u003e\\n\u003cbody\u003e\\n\u003cp\u003eبعض الكلمات\u003c/p\u003e\\n\u003c/body\u003e\\n\u003c/html\u003e\\n]",
+          "okapiStatus": "pass"
+        },
+        {
+          "javaClass": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+          "javaMethod": "testTextDirectionClarification[2: \u003c!DOCTYPE html\u003e\\n\u003chtml\u003e\\n\u003cbody\u003e\\n\u003cp\u003eبعض الكلمات\u003c/p\u003e\\n\u003c/body\u003e\\n\u003c/html\u003e\\n, ar, \u003c!DOCTYPE html\u003e\\n\u003chtml dir=\"rtl\"\u003e\\n\u003cbody\u003e\\n\u003cp\u003eبعض الكلمات\u003c/p\u003e\\n\u003c/body\u003e\\n\u003c/html\u003e\\n]",
+          "okapiStatus": "pass"
+        },
+        {
+          "javaClass": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+          "javaMethod": "testTextDirectionClarification[3: \u003c!DOCTYPE html\u003e\\n\u003chtml dir=\"rtl\"\u003e\\n\u003cbody\u003e\\n\u003cp\u003eSome text.\u003c/p\u003e\\n\u003c/body\u003e\\n\u003c/html\u003e\\n, en, \u003c!DOCTYPE html\u003e\\n\u003chtml\u003e\\n\u003cbody\u003e\\n\u003cp\u003eSome text.\u003c/p\u003e\\n\u003c/body\u003e\\n\u003c/html\u003e\\n]",
+          "okapiStatus": "pass"
+        },
+        {
+          "javaClass": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+          "javaMethod": "testTextDirectionClarification[4: \u003c!DOCTYPE html\u003e\\n\u003chtml dir=\"ltr\"\u003e\\n\u003cbody\u003e\\n\u003cp\u003eSome text.\u003c/p\u003e\\n\u003c/body\u003e\\n\u003c/html\u003e\\n, en, \u003c!DOCTYPE html\u003e\\n\u003chtml\u003e\\n\u003cbody\u003e\\n\u003cp\u003eSome text.\u003c/p\u003e\\n\u003c/body\u003e\\n\u003c/html\u003e\\n]",
+          "okapiStatus": "pass"
+        },
+        {
+          "javaClass": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+          "javaMethod": "testTextDirectionClarification[5: \u003c!DOCTYPE html\u003e\\n\u003chtml\u003e\\n\u003cbody\u003e\\n\u003cp\u003eSome text.\u003c/p\u003e\\n\u003c/body\u003e\\n\u003c/html\u003e\\n, en, \u003c!DOCTYPE html\u003e\\n\u003chtml\u003e\\n\u003cbody\u003e\\n\u003cp\u003eSome text.\u003c/p\u003e\\n\u003c/body\u003e\\n\u003c/html\u003e\\n]",
+          "okapiStatus": "pass"
+        },
+        {
+          "javaClass": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+          "javaMethod": "testTextDirectionClarification[6: \u003c!DOCTYPE html\u003e\\n\u003chtml translate=\"no\"\u003e\\n\u003cbody\u003e\\n\u003cp\u003eبعض الكلمات\u003c/p\u003e\\n\u003c/body\u003e\\n\u003c/html\u003e\\n, ar, \u003c!DOCTYPE html\u003e\\n\u003chtml dir=\"rtl\" translate=\"no\"\u003e\\n\u003cbody\u003e\\n\u003cp\u003eبعض الكلمات\u003c/p\u003e\\n\u003c/body\u003e\\n\u003c/html\u003e\\n]",
+          "okapiStatus": "pass"
+        },
+        {
+          "javaClass": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+          "javaMethod": "testCodeFinderInAttributes",
+          "okapiStatus": "pass"
+        },
+        {
+          "javaClass": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+          "javaMethod": "table",
+          "okapiStatus": "pass",
+          "nativeTest": "TestSnippets_Table",
+          "nativeStatus": "pass",
+          "nativeFile": "snippets_test.go",
+          "nativeLine": 1246,
+          "testState": "implemented"
+        },
+        {
+          "javaClass": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+          "javaMethod": "testNormalizeNewlinesInPre",
+          "okapiStatus": "pass",
+          "nativeTest": "TestSnippets_NormalizeNewlinesInPre",
+          "nativeStatus": "pass",
+          "nativeFile": "snippets_test.go",
+          "nativeLine": 1156,
+          "testState": "implemented"
+        },
+        {
+          "javaClass": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+          "javaMethod": "ITextUnitStartedWithText",
+          "okapiStatus": "pass",
+          "nativeTest": "TestSnippets_ITextUnitStartedWithText",
+          "nativeStatus": "pass",
+          "nativeFile": "snippets_test.go",
+          "nativeLine": 1177,
+          "testState": "implemented"
+        },
+        {
+          "javaClass": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+          "javaMethod": "testSupplementalSupport",
+          "okapiStatus": "pass",
+          "nativeTest": "TestSnippets_SupplementalSupport",
+          "nativeStatus": "pass",
+          "nativeFile": "snippets_test.go",
+          "nativeLine": 320,
+          "testState": "implemented"
+        },
+        {
+          "javaClass": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+          "javaMethod": "testPAndInlineAnchorAndAmpersand",
+          "okapiStatus": "pass",
+          "nativeTest": "TestSnippets_PAndInlineAnchorAndAmpersand",
+          "nativeStatus": "pass",
+          "nativeFile": "snippets_test.go",
+          "nativeLine": 1225,
+          "testState": "implemented"
+        },
+        {
+          "javaClass": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+          "javaMethod": "testASPXComment",
+          "okapiStatus": "pass"
+        },
+        {
+          "javaClass": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+          "javaMethod": "areaStartTagOnlyHandledWithWellFormedConfiguration",
+          "okapiStatus": "pass",
+          "nativeTest": "TestSnippets_AreaStartTagOnly",
+          "nativeStatus": "pass",
+          "nativeFile": "snippets_test.go",
+          "nativeLine": 1390,
+          "testState": "implemented"
+        },
+        {
+          "javaClass": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+          "javaMethod": "testPreserveCharacterEntitiesMultipleTypes",
+          "okapiStatus": "pass",
+          "nativeTest": "TestSnippets_PreserveCharacterEntitiesMultipleTypes",
+          "nativeStatus": "pass",
+          "nativeFile": "snippets_test.go",
+          "nativeLine": 1348,
+          "testState": "implemented"
+        },
+        {
+          "javaClass": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+          "javaMethod": "imgStartTagOnlyHandledWithWellFormedConfiguration",
+          "okapiStatus": "pass",
+          "nativeTest": "TestSnippets_ImgStartTagOnly",
+          "nativeStatus": "pass",
+          "nativeFile": "snippets_test.go",
+          "nativeLine": 1372,
+          "testState": "implemented"
+        },
+        {
+          "javaClass": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+          "javaMethod": "testInlineCodesStorage",
+          "okapiStatus": "pass",
+          "nativeTest": "TestSnippets_InlineCodesStorage",
+          "nativeStatus": "pass",
+          "nativeFile": "snippets_test.go",
+          "nativeLine": 207,
+          "testState": "implemented"
+        },
+        {
+          "javaClass": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+          "javaMethod": "testComplexTable",
+          "okapiStatus": "pass",
+          "nativeTest": "TestSnippets_ComplexTable",
+          "nativeStatus": "pass",
+          "nativeFile": "snippets_test.go",
+          "nativeLine": 1256,
+          "testState": "implemented"
+        },
+        {
+          "javaClass": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+          "javaMethod": "italicBoldEtc",
+          "okapiStatus": "pass",
+          "nativeTest": "TestSnippets_ItalicBoldEtc",
+          "nativeStatus": "pass",
+          "nativeFile": "snippets_test.go",
+          "nativeLine": 355,
+          "testState": "implemented"
+        },
+        {
+          "javaClass": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+          "javaMethod": "testNestedInlineTranslateAttribute1",
+          "okapiStatus": "pass",
+          "nativeTest": "TestSnippets_NestedInlineTranslateAttribute1",
+          "nativeStatus": "pass",
+          "nativeFile": "snippets_test.go",
+          "nativeLine": 468,
+          "testState": "implemented"
+        },
+        {
+          "javaClass": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+          "javaMethod": "testNestedInlineTranslateAttribute3",
+          "okapiStatus": "pass",
+          "nativeTest": "TestSnippets_NestedInlineTranslateAttribute3",
+          "nativeStatus": "pass",
+          "nativeFile": "snippets_test.go",
+          "nativeLine": 1287,
+          "testState": "implemented"
+        },
+        {
+          "javaClass": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+          "javaMethod": "testNestedInlineTranslateAttribute4",
+          "okapiStatus": "pass",
+          "nativeTest": "TestSnippets_NestedInlineTranslateAttribute4",
+          "nativeStatus": "pass",
+          "nativeFile": "snippets_test.go",
+          "nativeLine": 482,
+          "testState": "implemented"
+        },
+        {
+          "javaClass": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+          "javaMethod": "testNestedInlineTranslateAttribute5",
+          "okapiStatus": "pass",
+          "nativeTest": "TestSnippets_NestedInlineTranslateAttribute5",
+          "nativeStatus": "pass",
+          "nativeFile": "snippets_test.go",
+          "nativeLine": 1297,
+          "testState": "implemented"
+        },
+        {
+          "javaClass": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+          "javaMethod": "testNestedInlineTranslateAttribute6",
+          "okapiStatus": "pass",
+          "nativeTest": "TestSnippets_NestedInlineTranslateAttribute6",
+          "nativeStatus": "pass",
+          "nativeFile": "snippets_test.go",
+          "nativeLine": 1307,
+          "testState": "implemented"
+        },
+        {
+          "javaClass": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+          "javaMethod": "testDivBlockExcludeIncludeTranslateAttribute",
+          "okapiStatus": "pass",
+          "nativeTest": "TestSnippets_DivBlockExcludeIncludeTranslateAttribute",
+          "nativeStatus": "pass",
+          "nativeFile": "snippets_test.go",
+          "nativeLine": 459,
+          "testState": "implemented"
+        },
+        {
+          "javaClass": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+          "javaMethod": "testMETATag1",
+          "okapiStatus": "pass",
+          "nativeTest": "TestSnippets_METATag1",
+          "nativeStatus": "pass",
+          "nativeFile": "snippets_test.go",
+          "nativeLine": 1055,
+          "testState": "implemented"
+        },
+        {
+          "javaClass": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+          "javaMethod": "testMETATag2",
+          "okapiStatus": "pass",
+          "nativeTest": "TestSnippets_METATag2",
+          "nativeStatus": "pass",
+          "nativeFile": "snippets_test.go",
+          "nativeLine": 1064,
+          "testState": "implemented"
+        },
+        {
+          "javaClass": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+          "javaMethod": "testAddingMETAinXML",
+          "okapiStatus": "pass"
+        },
+        {
+          "javaClass": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+          "javaMethod": "doesNotCrashOnPreservingWhitespaceForClosingPre",
+          "okapiStatus": "pass",
+          "nativeTest": "TestSnippets_DoesNotCrashOnPreservingWhitespaceForClosingPre",
+          "nativeStatus": "pass",
+          "nativeFile": "snippets_test.go",
+          "nativeLine": 1121,
+          "testState": "implemented"
+        },
+        {
+          "javaClass": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+          "javaMethod": "testAddingMETAinHTML",
+          "okapiStatus": "pass"
+        },
+        {
+          "javaClass": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+          "javaMethod": "paramStartTagOnlyHandledWithWellFormedConfiguration",
+          "okapiStatus": "pass",
+          "nativeTest": "TestSnippets_ParamStartTagOnly",
+          "nativeStatus": "pass",
+          "nativeFile": "snippets_test.go",
+          "nativeLine": 1382,
+          "testState": "implemented"
+        },
+        {
+          "javaClass": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+          "javaMethod": "testButton",
+          "okapiStatus": "pass",
+          "nativeTest": "TestSnippets_Button",
+          "nativeStatus": "pass",
+          "nativeFile": "snippets_test.go",
+          "nativeLine": 194,
+          "testState": "implemented"
+        },
+        {
+          "javaClass": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+          "javaMethod": "testNewlineDetection",
+          "okapiStatus": "pass",
+          "nativeTest": "TestSnippets_NewlineDetection",
+          "nativeStatus": "pass",
+          "nativeFile": "snippets_test.go",
+          "nativeLine": 1140,
+          "testState": "implemented"
+        },
+        {
+          "javaClass": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+          "javaMethod": "testMultipleMETA",
+          "okapiStatus": "pass",
+          "nativeTest": "TestSnippets_MultipleMETA",
+          "nativeStatus": "pass",
+          "nativeFile": "snippets_test.go",
+          "nativeLine": 151,
+          "testState": "implemented"
+        },
+        {
+          "javaClass": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+          "javaMethod": "testPreserveCharacterEntitiesSimple",
+          "okapiStatus": "pass",
+          "nativeTest": "TestSnippets_PreserveCharacterEntitiesSimple",
+          "nativeStatus": "pass",
+          "nativeFile": "snippets_test.go",
+          "nativeLine": 1328,
+          "testState": "implemented"
+        },
+        {
+          "javaClass": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+          "javaMethod": "testInlineAnchorAndAmpersand",
+          "okapiStatus": "pass",
+          "nativeTest": "TestSnippets_InlineAnchorAndAmpersand",
+          "nativeStatus": "pass",
+          "nativeFile": "snippets_test.go",
+          "nativeLine": 1214,
+          "testState": "implemented"
+        },
+        {
+          "javaClass": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+          "javaMethod": "testDivBlockTranslateAttribute",
+          "okapiStatus": "pass",
+          "nativeTest": "TestSnippets_DivBlockTranslateAttribute",
+          "nativeStatus": "pass",
+          "nativeFile": "snippets_test.go",
+          "nativeLine": 442,
+          "testState": "implemented"
+        },
+        {
+          "javaClass": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+          "javaMethod": "testCdataSection",
+          "okapiStatus": "pass",
+          "nativeTest": "TestSnippets_CdataSection",
+          "nativeStatus": "pass",
+          "nativeFile": "snippets_test.go",
+          "nativeLine": 1420,
+          "testState": "implemented"
+        },
+        {
+          "javaClass": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+          "javaMethod": "testMETA_Issue_1098",
+          "okapiStatus": "pass"
+        },
+        {
+          "javaClass": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+          "javaMethod": "testNegativeCondition",
+          "okapiStatus": "pass",
+          "nativeTest": "TestSnippets_NegativeCondition",
+          "nativeStatus": "pass",
+          "nativeFile": "snippets_test.go",
+          "nativeLine": 1317,
+          "testState": "implemented"
+        },
+        {
+          "javaClass": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+          "javaMethod": "testMultilangUpdate",
+          "okapiStatus": "pass"
+        },
+        {
+          "javaClass": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+          "javaMethod": "testPWithAttributes",
+          "okapiStatus": "pass"
+        },
+        {
+          "javaClass": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+          "javaMethod": "testNestedInlineTranslateAttribute2_1",
+          "okapiStatus": "pass",
+          "nativeTest": "TestSnippets_NestedInlineTranslateAttribute2_1",
+          "nativeStatus": "pass",
+          "nativeFile": "snippets_test.go",
+          "nativeLine": 1267,
+          "testState": "implemented"
+        },
+        {
+          "javaClass": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+          "javaMethod": "testNestedInlineTranslateAttribute2_2",
+          "okapiStatus": "pass",
+          "nativeTest": "TestSnippets_NestedInlineTranslateAttribute2_2",
+          "nativeStatus": "pass",
+          "nativeFile": "snippets_test.go",
+          "nativeLine": 1277,
+          "testState": "implemented"
+        },
+        {
+          "javaClass": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+          "javaMethod": "testSimpleSupplementalSupport",
+          "okapiStatus": "pass",
+          "nativeTest": "TestSnippets_SimpleSupplementalSupport",
+          "nativeStatus": "pass",
+          "nativeFile": "snippets_test.go",
+          "nativeLine": 329,
+          "testState": "implemented"
+        },
+        {
+          "javaClass": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+          "javaMethod": "testInlineCdata",
+          "okapiStatus": "pass"
+        },
+        {
+          "javaClass": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+          "javaMethod": "twoITextUnitsInARowNonWellformedWithNonWellFromedConfig",
+          "okapiStatus": "pass",
+          "nativeTest": "TestSnippets_TwoITextUnitsInARowNonWellformedWithConfig",
+          "nativeStatus": "pass",
+          "nativeFile": "snippets_test.go",
+          "nativeLine": 1409,
+          "testState": "implemented"
+        },
+        {
+          "javaClass": "net.sf.okapi.filters.html.HtmlSnippetsTest",
+          "javaMethod": "testPWithInlines2",
+          "okapiStatus": "pass",
+          "nativeTest": "TestSnippets_PWithInlines2",
+          "nativeStatus": "pass",
+          "nativeFile": "snippets_test.go",
+          "nativeLine": 389,
+          "testState": "implemented"
+        },
+        {
+          "javaClass": "net.sf.okapi.filters.html.SkipEncodingDeclarationTest",
+          "javaMethod": "testExistingEncodingDeclaration",
+          "okapiStatus": "pass",
+          "nativeTest": "TestEncoding_ExistingEncodingDeclaration",
+          "nativeStatus": "pass",
+          "nativeFile": "snippets_test.go",
+          "nativeLine": 1658,
+          "testState": "implemented"
+        },
+        {
+          "javaClass": "net.sf.okapi.filters.html.SkipEncodingDeclarationTest",
+          "javaMethod": "testSkipEncodingDeclarationOmitsMetaElement",
+          "okapiStatus": "pass",
+          "nativeTest": "TestEncoding_SkipEncodingDeclaration",
+          "nativeStatus": "pass",
+          "nativeFile": "snippets_test.go",
+          "nativeLine": 1643,
+          "testState": "implemented"
+        },
+        {
+          "javaClass": "net.sf.okapi.filters.html.SkipEncodingDeclarationTest",
+          "javaMethod": "testDefaultBehaviorAddsMetaElement",
+          "okapiStatus": "pass",
+          "nativeTest": "TestEncoding_DefaultBehaviorAddsMetaElement",
+          "nativeStatus": "pass",
+          "nativeFile": "snippets_test.go",
+          "nativeLine": 1632,
+          "testState": "implemented"
+        },
+        {
+          "javaClass": "net.sf.okapi.filters.html.SkipEncodingDeclarationTest",
+          "javaMethod": "testXHTMLSelfClosingMetaTag",
+          "okapiStatus": "pass",
+          "nativeTest": "TestEncoding_XHTMLSelfClosingMetaTag",
+          "nativeStatus": "pass",
+          "nativeFile": "snippets_test.go",
+          "nativeLine": 1651,
+          "testState": "implemented"
+        },
+        {
+          "javaClass": "net.sf.okapi.filters.html.SkipEncodingDeclarationTest",
+          "javaMethod": "testExistingEncodingDeclarationWithSkipEnabled",
+          "okapiStatus": "pass",
+          "nativeTest": "TestEncoding_ExistingEncodingDeclarationWithSkipEnabled",
+          "nativeStatus": "pass",
+          "nativeFile": "snippets_test.go",
+          "nativeLine": 1666,
+          "testState": "implemented"
+        },
+        {
+          "javaClass": "net.sf.okapi.filters.html.integration.ExtractionComparisionTest",
+          "javaMethod": "testOpenTwice",
+          "okapiStatus": "pass",
+          "nativeTest": "TestExtraction_OpenTwice",
+          "nativeStatus": "pass",
+          "nativeFile": "snippets_test.go",
+          "nativeLine": 1596,
+          "testState": "implemented"
+        },
+        {
+          "javaClass": "net.sf.okapi.filters.html.integration.ExtractionComparisionTest",
+          "javaMethod": "testStartDocument",
+          "okapiStatus": "pass",
+          "nativeTest": "TestExtraction_StartDocument",
+          "nativeStatus": "pass",
+          "nativeFile": "snippets_test.go",
+          "nativeLine": 1586,
+          "testState": "implemented"
+        },
+        {
+          "javaClass": "net.sf.okapi.filters.html.integration.ExtractionComparisionTest",
+          "javaMethod": "testReconstructFile",
+          "okapiStatus": "pass"
+        },
+        {
+          "javaClass": "net.sf.okapi.filters.html.integration.ExtractionComparisionTest",
+          "javaMethod": "testDoubleExtraction2",
+          "okapiStatus": "pass",
+          "nativeTest": "TestExtraction_DoubleExtraction2",
+          "nativeStatus": "pass",
+          "nativeFile": "snippets_test.go",
+          "nativeLine": 1623,
+          "testState": "implemented"
+        },
+        {
+          "javaClass": "net.sf.okapi.filters.html.integration.ExtractionComparisionTest",
+          "javaMethod": "testDoubleExtraction",
+          "okapiStatus": "pass",
+          "nativeTest": "TestExtraction_DoubleExtraction",
+          "nativeStatus": "pass",
+          "nativeFile": "snippets_test.go",
+          "nativeLine": 1611,
+          "testState": "implemented"
+        },
+        {
+          "javaClass": "net.sf.okapi.filters.html.integration.ExtractionComparisionTest",
+          "javaMethod": "testDoubleExtractionSingle",
+          "okapiStatus": "pass",
+          "nativeTest": "TestExtraction_DoubleExtractionSingle",
+          "nativeStatus": "pass",
+          "nativeFile": "snippets_test.go",
+          "nativeLine": 1605,
+          "testState": "implemented"
+        }
+      ],
+      "coverage": {
+        "totalOkapi": 177,
+        "bridgeMapped": 0,
+        "bridgePassing": 0,
+        "nativeMapped": 126,
+        "nativePassing": 126,
+        "coveragePct": 71.2
+      }
+    }
+  ],
+  "summary": {
+    "totalFiltersOkapi": 1,
+    "totalFiltersBridge": 0,
+    "totalFiltersNative": 1,
+    "totalFiltersBoth": 1,
+    "totalTestsOkapi": 177,
+    "totalTestsBridge": 0,
+    "totalTestsNative": 194,
+    "coveragePct": 71.2
+  }
+}

@@ -10,5 +10,6 @@ use (
 	./bowrain/plugin/schema
 	./cli
 	./kapi
+	./scripts/contract-audit
 	./scripts/testcompare
 )
