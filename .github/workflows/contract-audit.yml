@@ -1,0 +1,109 @@
+name: Contract Audit
+
+# Re-runs the contract-audit pipeline (Okapi @Test methods → 4-state
+# coverage view) and uploads the dashboard JSON. The audit is the
+# evolution-tolerant counterpart to parity.yml: it pins to a chosen
+# Okapi version, runs `mvn test` against upstream Okapi to get the
+# canonical contract list, joins with native `go test -json` plus
+# `// okapi:` annotations, and renders /contract-audit on the docs
+# site.
+#
+# This job is opt-in (workflow_dispatch + scheduled). The contract
+# audit is informational, not a release gate — parity.yml remains the
+# release gate. The audit becomes a release gate later, once coverage
+# of the bowrain-critical filters reaches the agreed bar.
+
+on:
+  schedule:
+    # Weekly Monday 06:00 UTC: catches new Okapi tests within ~7 days
+    # of an upstream tag without burning CI minutes on every push.
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
+    inputs:
+      okapi_ref:
+        description: "Okapi git ref to pin (tag, branch, or SHA). Defaults to v1.47.0."
+        required: false
+        default: "v1.47.0"
+      filters:
+        description: "Comma-separated filter ids to audit (e.g. html,json,po). Defaults to html only."
+        required: false
+        default: "html"
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    name: contract-audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      # Inputs are surfaced as env vars and quoted at every shell use
+      # site so injection via the workflow_dispatch text fields is
+      # blocked even though only contributors with write access can
+      # trigger this workflow.
+      OKAPI_REF: ${{ inputs.okapi_ref || 'v1.47.0' }}
+      FILTERS: ${{ inputs.filters || 'html' }}
+    steps:
+      - name: Checkout neokapi
+        uses: actions/checkout@v6
+        with:
+          path: neokapi
+          fetch-depth: 0
+
+      - name: Checkout Okapi (upstream tests)
+        uses: actions/checkout@v6
+        with:
+          # Fetched from the GitHub mirror — adjust if the org/repo moves.
+          repository: okapi-framework/okapi
+          path: okapi-java
+          ref: ${{ env.OKAPI_REF }}
+          fetch-depth: 1
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: neokapi/go.mod
+
+      - name: Install ICU dev libraries
+        run: sudo apt-get update && sudo apt-get install -y libicu-dev pkg-config
+
+      - name: Run mvn test for selected filter modules
+        # Filter scoping keeps this lightweight — `mvn test` against
+        # the full Okapi tree pulls in the entire dependency graph.
+        # We deliberately scope per-filter and accept that this
+        # discovers fewer issues than a full upstream run.
+        working-directory: okapi-java
+        run: |
+          for filter in $(echo "$FILTERS" | tr ',' ' '); do
+            echo "::group::mvn test -pl okapi/filters/$filter"
+            mvn -B -DfailIfNoTests=false test -pl "okapi/filters/$filter" -am || true
+            echo "::endgroup::"
+          done
+
+      - name: Run native go test + contract-audit generator per filter
+        working-directory: neokapi
+        env:
+          OKAPI_REPO: ${{ github.workspace }}/okapi-java
+        run: |
+          mkdir -p .contract-audit
+          for filter in $(echo "$FILTERS" | tr ',' ' '); do
+            echo "::group::contract-audit $filter"
+            make contract-audit CONTRACT_FILTER="$filter" OKAPI_REPO="$OKAPI_REPO"
+            echo "::endgroup::"
+          done
+
+      - name: Upload contract-audit JSON
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: contract-audit
+          path: neokapi/web/docs/static/data/contract-audit.json
+          if-no-files-found: error
+          retention-days: 90

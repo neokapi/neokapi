@@ -291,6 +291,44 @@ parity-publish: parity-test ## Run the parity suite and publish dashboard JSON t
 parity-clean: ## Remove the parity sandbox to force a fresh build next run
 	rm -rf $(PARITY_DIR)
 
+# ── Contract audit (Okapi @Test methods → 4-state coverage view) ────────────
+#
+# `make contract-audit` is the evolution-tolerant counterpart to
+# `make parity-test`: it treats the upstream Okapi Java filter tests
+# as the canonical contract list, runs `mvn test` (or reuses cached
+# Surefire XMLs) plus `go test -json` on the matching native packages,
+# scans for `// okapi: ClassName#methodName` annotations next to Go
+# tests, and emits the JSON the /contract-audit dashboard renders.
+#
+# Set OKAPI_REPO if your Okapi clone is not at /Users/asgeirf/src/okapi/okapi-java.
+# Set CONTRACT_FILTER to scope to a single filter (default: html).
+
+CONTRACT_DIR    := $(ROOT_DIR)/.contract-audit
+CONTRACT_REPORT := $(ROOT_DIR)/web/docs/static/data/contract-audit.json
+CONTRACT_FILTER ?= html
+OKAPI_REPO      ?= /Users/asgeirf/src/okapi/okapi-java
+
+contract-audit: ## Generate the contract-audit dashboard JSON for $(CONTRACT_FILTER)
+	@mkdir -p $(CONTRACT_DIR)
+	@if [ ! -d $(OKAPI_REPO)/okapi/filters/$(CONTRACT_FILTER)/target/surefire-reports ]; then \
+	    echo "[contract-audit] no Surefire output for $(CONTRACT_FILTER); running mvn test..."; \
+	    cd $(OKAPI_REPO)/okapi/filters/$(CONTRACT_FILTER) && mvn -B test; \
+	fi
+	@echo "[contract-audit] running native go test for $(CONTRACT_FILTER)..."
+	@cd $(ROOT_DIR) && go test -json ./core/formats/$(CONTRACT_FILTER)/... > $(CONTRACT_DIR)/native-$(CONTRACT_FILTER).json 2>/dev/null || true
+	@cd $(ROOT_DIR) && go run ./scripts/contract-audit \
+	    -okapi-surefire $(OKAPI_REPO)/okapi/filters/$(CONTRACT_FILTER)/target/surefire-reports \
+	    -native-gotest $(CONTRACT_DIR)/native-$(CONTRACT_FILTER).json \
+	    -native-src core/formats/$(CONTRACT_FILTER) \
+	    -okapi-version $$(cd $(OKAPI_REPO) && git describe --tags --abbrev=0 2>/dev/null || echo dev) \
+	    -okapi-tag $$(cd $(OKAPI_REPO) && git describe --tags --abbrev=0 2>/dev/null || echo HEAD) \
+	    -go-commit $$(git rev-parse --short HEAD) \
+	    -out $(CONTRACT_REPORT)
+	@echo "Contract audit: $(CONTRACT_REPORT)"
+
+contract-audit-clean: ## Remove the contract-audit working directory
+	rm -rf $(CONTRACT_DIR)
+
 # ── Build ────────────────────────────────────────────────────────────────────
 
 build: ## Build the kapi CLI (Apache-2.0; manifest-driven plugins discovered at runtime)
@@ -536,6 +574,7 @@ help: ## Show this help
 
 .PHONY: all help $(BOTH_TARGETS) test test-fast test-unit test-race test-verbose test-integration \
         parity-sandbox parity-test parity-publish parity-clean \
+        contract-audit contract-audit-clean \
         fmt vet lint check check-framework check-bowrain test-parallel \
         test-framework test-cli test-kapi test-platform test-bowrain-cli test-bowrain \
         ci-test-framework ci-test-cli ci-test-kapi ci-test-platform \

@@ -132,3 +132,4 @@ website/videos/public/raw/
 platform/docker/traefik/certs
 .playwright-mcp/
 .parity/
+.contract-audit/
