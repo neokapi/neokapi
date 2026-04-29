@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/neokapi/neokapi/cli/parity"
+	"github.com/neokapi/neokapi/core/model"
 )
 
 // TestParityFormats iterates every entry in formatSpecs.
@@ -54,29 +55,52 @@ func runFormatSpec(t *testing.T, spec FormatSpec) {
 	for _, in := range spec.Inputs {
 		in := in
 		t.Run(in.Name, func(t *testing.T) {
-			// When the fixture is tagged with a Java test ref, also
-			// emit a per-fixture parity row so the contract-audit
-			// dashboard can populate the Bridge column for that
-			// specific Okapi @Test method (instead of a single
-			// filter-level badge). Status reflects this subtest's
-			// outcome (pass/fail/skip), so a fixture failing
-			// CompareBlockText shows red on its dashboard row only.
+			// When the fixture is tagged with a Java test ref, emit a
+			// per-fixture parity row so the contract-audit dashboard
+			// can populate the Bridge column for that specific Okapi
+			// @Test method. Informational fixtures use Try* variants
+			// + soft compare so daemon errors and read mismatches
+			// surface as report rows without failing the Go test.
+			fixtureStatus := "pass"
+			fixtureDetail := ""
 			if in.OkapiTest != "" {
-				defer parity.Report(t, parity.Outcome{
-					Kind: "format-fixture",
-					ID:   spec.ID + "::" + in.OkapiTest,
-					Name: t.Name(),
-					Mode: "fixture",
-				})
+				defer func() {
+					parity.Report(t, parity.Outcome{
+						Kind:   "format-fixture",
+						ID:     spec.ID + "::" + in.OkapiTest,
+						Name:   t.Name(),
+						Mode:   "fixture",
+						Status: fixtureStatus,
+						Detail: fixtureDetail,
+					})
+				}()
 			}
-			bridge := parity.RunBridge(t, parity.BridgeRequest{
+			bridgeReq := parity.BridgeRequest{
 				FilterClass:  spec.ID,
 				InputBytes:   in.Content,
 				MimeType:     spec.MimeType,
 				FilterParams: parity.StringifyParams(spec.Params),
-			})
+			}
+			var bridge []*model.Part
+			if in.Informational {
+				var err error
+				bridge, err = parity.TryRunBridge(t, bridgeReq)
+				if err != nil {
+					fixtureStatus = "fail"
+					fixtureDetail = "bridge: " + err.Error()
+					t.Logf("bridge error (informational): %v", err)
+					return
+				}
+			} else {
+				bridge = parity.RunBridge(t, bridgeReq)
+			}
 			if len(bridge) == 0 {
-				t.Fatalf("bridge returned no parts for %s/%s", spec.ID, in.Name)
+				fixtureStatus = "fail"
+				fixtureDetail = "bridge returned no parts"
+				if !in.Informational {
+					t.Fatalf("bridge returned no parts for %s/%s", spec.ID, in.Name)
+				}
+				return
 			}
 
 			if spec.NewReader == nil {
@@ -84,14 +108,36 @@ func runFormatSpec(t *testing.T, spec FormatSpec) {
 				// non-empty stream.
 				return
 			}
-			native := parity.RunNative(t, parity.NativeRequest{
+			nativeReq := parity.NativeRequest{
 				NewReader:  spec.NewReader,
 				InputBytes: in.Content,
 				MimeType:   spec.MimeType,
 				URI:        "test." + spec.ID,
 				Params:     spec.Params,
-			})
-			parity.CompareBlockText(t, native, bridge)
+			}
+			var native []*model.Part
+			if in.Informational {
+				var err error
+				native, err = parity.TryRunNative(t, nativeReq)
+				if err != nil {
+					fixtureStatus = "fail"
+					fixtureDetail = "native: " + err.Error()
+					t.Logf("native error (informational): %v", err)
+					return
+				}
+			} else {
+				native = parity.RunNative(t, nativeReq)
+			}
+			var matched bool
+			if in.Informational {
+				matched = parity.CompareBlockTextSoft(t, native, bridge)
+			} else {
+				matched = parity.CompareBlockText(t, native, bridge)
+			}
+			if !matched {
+				fixtureStatus = "fail"
+				fixtureDetail = "block-text mismatch"
+			}
 		})
 	}
 

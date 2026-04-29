@@ -52,14 +52,31 @@ type BridgeRequest struct {
 }
 
 // RunBridge drives a read-only Process RPC against the okapi-bridge
-// daemon and returns the streamed parts.
+// daemon and returns the streamed parts. Failures are fatal — the
+// caller is asserting parity. Use TryRunBridge when failures should
+// surface as errors instead (Informational fixtures).
 func RunBridge(t *testing.T, req BridgeRequest) []*model.Part {
 	t.Helper()
+	parts, err := TryRunBridge(t, req)
+	if err != nil {
+		t.Fatalf("RunBridge: %v", err)
+	}
+	return parts
+}
+
+// TryRunBridge is the non-fatal variant of RunBridge. The daemon must
+// still be acquireable (set-up failures stay fatal — every parity
+// test needs the daemon) but per-call gRPC errors come back as
+// `error` so the caller can record an outcome instead of failing the
+// test. Used by Informational fixtures so a daemon-side error on one
+// fixture doesn't break the whole CI run.
+func TryRunBridge(t *testing.T, req BridgeRequest) ([]*model.Part, error) {
+	t.Helper()
 	if req.FilterClass == "" {
-		t.Fatal("RunBridge: FilterClass is required")
+		return nil, fmt.Errorf("FilterClass is required")
 	}
 	if len(req.InputBytes) == 0 && req.InputPath == "" {
-		t.Fatal("RunBridge: InputBytes or InputPath must be set")
+		return nil, fmt.Errorf("InputBytes or InputPath must be set")
 	}
 	client := AcquireBridgeDaemon(t)
 	bridgeClient := pb.NewBridgeServiceClient(client.Conn)
@@ -69,7 +86,7 @@ func RunBridge(t *testing.T, req BridgeRequest) []*model.Part {
 
 	stream, err := bridgeClient.Process(ctx)
 	if err != nil {
-		t.Fatalf("RunBridge: open Process stream: %v", err)
+		return nil, fmt.Errorf("open Process stream: %w", err)
 	}
 
 	header := &pb.ProcessHeader{
@@ -87,17 +104,17 @@ func RunBridge(t *testing.T, req BridgeRequest) []*model.Part {
 		header.Input = &pb.ContentRef{Location: &pb.ContentRef_Inline{Inline: req.InputBytes}}
 	}
 	if err := stream.Send(&pb.ProcessRequest{Request: &pb.ProcessRequest_Header{Header: header}}); err != nil {
-		t.Fatalf("RunBridge: send header: %v", err)
+		return nil, fmt.Errorf("send header: %w", err)
 	}
 	if err := stream.CloseSend(); err != nil {
-		t.Fatalf("RunBridge: CloseSend: %v", err)
+		return nil, fmt.Errorf("CloseSend: %w", err)
 	}
 
 	parts, err := drainProcessResponses(stream)
 	if err != nil {
-		t.Fatalf("RunBridge: drain stream: %v", err)
+		return nil, fmt.Errorf("drain stream: %w", err)
 	}
-	return parts
+	return parts, nil
 }
 
 // BridgeRoundTripResult holds both the events streamed during the

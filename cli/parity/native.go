@@ -5,6 +5,7 @@ package parity
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"io"
 	"testing"
 	"time"
@@ -44,18 +45,35 @@ type NativeRequest struct {
 }
 
 // RunNative drives a neokapi format reader in-process and returns its
-// part stream.
+// part stream. Failures are fatal. Use TryRunNative when failures
+// should surface as errors instead.
 func RunNative(t *testing.T, req NativeRequest) []*model.Part {
 	t.Helper()
+	parts, err := TryRunNative(t, req)
+	if err != nil {
+		t.Fatalf("RunNative: %v", err)
+	}
+	return parts
+}
+
+// TryRunNative is the non-fatal variant of RunNative.
+func TryRunNative(t *testing.T, req NativeRequest) ([]*model.Part, error) {
+	t.Helper()
 	if req.NewReader == nil {
-		t.Fatal("RunNative: NewReader is required")
+		return nil, fmt.Errorf("NewReader is required")
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
 	reader := req.NewReader()
 	if len(req.Params) > 0 {
-		applyNativeParams(t, "RunNative", reader, req.Params)
+		if cfg := reader.Config(); cfg != nil {
+			if err := cfg.ApplyMap(req.Params); err != nil {
+				return nil, fmt.Errorf("ApplyMap: %w", err)
+			}
+		} else {
+			return nil, fmt.Errorf("Params set but reader has no Config()")
+		}
 	}
 	doc := &model.RawDocument{
 		URI:          req.URI,
@@ -66,20 +84,20 @@ func RunNative(t *testing.T, req NativeRequest) []*model.Part {
 		Reader:       io.NopCloser(bytes.NewReader(req.InputBytes)),
 	}
 	if err := reader.Open(ctx, doc); err != nil {
-		t.Fatalf("RunNative: open: %v", err)
+		return nil, fmt.Errorf("open: %w", err)
 	}
 
 	var parts []*model.Part
 	for pr := range reader.Read(ctx) {
 		if pr.Error != nil {
-			t.Fatalf("RunNative: read part: %v", pr.Error)
+			return nil, fmt.Errorf("read part: %w", pr.Error)
 		}
 		parts = append(parts, pr.Part)
 	}
 	if err := reader.Close(); err != nil {
-		t.Fatalf("RunNative: close: %v", err)
+		return nil, fmt.Errorf("close: %w", err)
 	}
-	return parts
+	return parts, nil
 }
 
 // NativeRoundTripRequest wires a reader → writer round-trip in-process.

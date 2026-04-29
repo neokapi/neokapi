@@ -91,10 +91,17 @@ const SKIP_BRIDGE_BUG_452 = "bridge crash — see #452"
 // id. The contract-audit dashboard then joins per-test bridge/native
 // status against Surefire's own row for that test, giving true 3-way
 // per-test granularity instead of one filter-level badge.
+//
+// Informational marks a fixture as exploratory: comparison failures
+// are logged and reported to the parity dashboard, but they don't
+// fail the Go test (so CI stays green on auto-generated fixtures
+// that surface known divergences). Hand-curated fixtures leave it
+// false to act as strict regression gates.
 type FormatInput struct {
-	Name      string
-	Content   []byte
-	OkapiTest string
+	Name          string
+	Content       []byte
+	OkapiTest     string
+	Informational bool
 }
 
 // FormatSpec describes one parity test row.
@@ -158,30 +165,17 @@ var formatSpecs = []FormatSpec{
 		ID:        "okf_html",
 		MimeType:  "text/html",
 		NewReader: func() format.DataFormatReader { return htmlfmt.NewReader() },
-		Inputs: []FormatInput{
+		Inputs: append([]FormatInput{
 			{Name: "minimal", Content: ttext(`<html><body><p>Hello world.</p></body></html>`)},
 			{Name: "inline-codes", Content: ttext(`<html><body><p>Click <a href="/x">here</a> to continue.</p></body></html>`)},
 			{Name: "two-paragraphs", Content: ttext(`<html><body><p>First.</p><p>Second.</p></body></html>`)},
-			// Hand-ported from Okapi's HtmlSnippetsTest. Each fixture
-			// mirrors the input bytes of the named @Test method; the
-			// OkapiTest pointer drives the per-test bridge column on
-			// the contract-audit dashboard.
-			{
-				Name:      "snippets-href",
-				Content:   ttext(`see <a href="http://yahoo.com">yahoo</a>`),
-				OkapiTest: "HtmlSnippetsTest#testHref",
-			},
-			{
-				Name:      "snippets-title-in-p",
-				Content:   ttext(`<p title="Text1">Text2</p>`),
-				OkapiTest: "HtmlSnippetsTest#testTitleInP",
-			},
-			{
-				Name:      "snippets-escapes",
-				Content:   ttext(`<p><b>Question</b>: When the "<code>&lt;b></code>" code was added</p>`),
-				OkapiTest: "HtmlSnippetsTest#testEscapes",
-			},
 		},
+			// Auto-extracted from Okapi's HtmlSnippetsTest by
+			// scripts/okapi-test-scan. The hand-curated fixtures above
+			// stay authoritative for the curated names; generated
+			// fixtures use a `gen-` prefix so they never collide.
+			GeneratedHtmlSnippetsTestInputs...,
+		),
 	},
 	{
 		ID:        "okf_html5",

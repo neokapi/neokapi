@@ -137,6 +137,23 @@ func CompareBlockText(t *testing.T, native, bridge []*model.Part) bool {
 	return false
 }
 
+// CompareBlockTextSoft is the non-failing variant of CompareBlockText.
+// It logs the mismatch but doesn't call t.Errorf, so the surrounding
+// subtest still passes as far as `go test` is concerned. Use for
+// auto-generated fixtures that explore divergence without blocking
+// CI; the boolean return drives the parity-report status so the
+// dashboard still shows the truth.
+func CompareBlockTextSoft(t *testing.T, native, bridge []*model.Part) bool {
+	t.Helper()
+	wantText := joinBlockText(native)
+	gotText := joinBlockText(bridge)
+	if wantText == gotText {
+		return true
+	}
+	t.Logf("block-text parity mismatch (informational):\n  bridge: %q\n  native: %q", gotText, wantText)
+	return false
+}
+
 // joinBlockText concatenates rendered block text in stream order.
 func joinBlockText(parts []*model.Part) string {
 	var buf strings.Builder
