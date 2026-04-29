@@ -193,6 +193,12 @@ func runTikalSpec(t *testing.T, spec FormatSpec) {
 		}
 		for _, in := range spec.Inputs {
 			in := in
+			// Tikal is a filter-level signal too; skip the
+			// Informational fixtures for the same reason as
+			// runRoundTripSpec.
+			if in.Informational {
+				continue
+			}
 			t.Run(in.Name, func(t *testing.T) {
 				native := parity.RunNativeRoundTrip(t, parity.NativeRoundTripRequest{
 					NewReader:  spec.NewReader,
@@ -236,6 +242,14 @@ func runRoundTripSpec(t *testing.T, spec FormatSpec) {
 		}
 		for _, in := range spec.Inputs {
 			in := in
+			// Round-trip is a filter-level signal, so skip the
+			// auto-generated Informational fixtures here — they exist
+			// to surface per-test read-parity divergence and would
+			// otherwise drown out the curated round-trip baseline
+			// with byte mismatches that aren't writer-relevant.
+			if in.Informational {
+				continue
+			}
 			t.Run(in.Name, func(t *testing.T) {
 				native := parity.RunNativeRoundTrip(t, parity.NativeRoundTripRequest{
 					NewReader:  spec.NewReader,

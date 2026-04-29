@@ -637,11 +637,18 @@ func buildDoc(okapiByFilter, nativeByFilter map[string]*filterResult, bridgeByFi
 			brEntry = br
 			fc.Bridge = parityToFilterResult(br)
 			sum.TotalFiltersBridge++
-			sum.TotalTestsBridge += fc.Bridge.Total
 		}
 		// Build one row per Okapi @Test method, joined with annotations
 		// and per-fixture bridge outcomes.
 		fc.TestCases = buildRows(fc.Okapi, annByOkapi, nativeStatus, brEntry)
+		// Per-test bridge coverage: count rows with a bridge status
+		// populated (i.e. a fixture flowed through the bridge for that
+		// @Test). This is the honest signal of bridge-test reach.
+		for _, r := range fc.TestCases {
+			if r.BridgeStatus != "" {
+				sum.TotalTestsBridge++
+			}
+		}
 		fc.Coverage = computeCoverageFromRows(fc.Okapi, fc.TestCases)
 		doc.Filters = append(doc.Filters, fc)
 	}

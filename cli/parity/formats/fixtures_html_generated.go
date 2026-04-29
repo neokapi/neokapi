@@ -4,6 +4,60 @@
 
 package formats
 
+// GeneratedHtmlConfigurationSupportTestInputs holds 20 auto-extracted @Test fixtures from HtmlConfigurationSupportTest.
+var GeneratedHtmlConfigurationSupportTestInputs = []FormatInput{
+	{Name: "gen-test_collapse_whitespace", Content: ttext(`<p> t1  
+t2  </p>`), OkapiTest: "HtmlConfigurationSupportTest#test_collapse_whitespace", Informational: true},
+	{Name: "gen-test_PRESERVE_WHITESPACE", Content: ttext(`<p> t1  
+t2  </p><pre> t3  
+t4  </pre>`), OkapiTest: "HtmlConfigurationSupportTest#test_PRESERVE_WHITESPACE", Informational: true},
+	{Name: "gen-test_GLOBAL_PRESERVE_WHITESPACE", Content: ttext(`<p> t1  
+t2  </p><pre> t3  
+t4  </pre>`), OkapiTest: "HtmlConfigurationSupportTest#test_GLOBAL_PRESERVE_WHITESPACE", Informational: true},
+	{Name: "gen-test_EXCLUDE", Content: ttext(`<pre>t1</pre><p>t2</p>`), OkapiTest: "HtmlConfigurationSupportTest#test_EXCLUDE", Informational: true},
+	{Name: "gen-test_INCLUDE", Content: ttext(`<pre>t1<b>t2</b>t3</pre><p>t4</p>`), OkapiTest: "HtmlConfigurationSupportTest#test_INCLUDE", Informational: true},
+	{Name: "gen-test_EXCLUDE_with_positive_condition", Content: ttext(`<pre x = "true">t1</pre><p>t2</p>`), OkapiTest: "HtmlConfigurationSupportTest#test_EXCLUDE_with_positive_condition", Informational: true},
+	{Name: "gen-test_INLINE_with_positive_condition", Content: ttext(`<p><b x="true">t2</b></p>`), OkapiTest: "HtmlConfigurationSupportTest#test_INLINE_with_positive_condition", Informational: true},
+	{Name: "gen-test_INLINE_without_condition", Content: ttext(`t2<b>test</b>`), OkapiTest: "HtmlConfigurationSupportTest#test_INLINE_without_condition", Informational: true},
+	{Name: "gen-test_INLINE_with_negative_condition", Content: ttext(`<p><b x="false">t2</b></p>`), OkapiTest: "HtmlConfigurationSupportTest#test_INLINE_with_negative_condition", Informational: true},
+	{Name: "gen-test_EXCLUDE_with_negative_condition", Content: ttext(`<pre x ="true">t1</pre><p>t2</p>`), OkapiTest: "HtmlConfigurationSupportTest#test_EXCLUDE_with_negative_condition", Informational: true},
+	{Name: "gen-test_ATTRIBUTE_ID", Content: ttext(`<p id='id1'>t1</p><pre id='id2'>t2</pre>`), OkapiTest: "HtmlConfigurationSupportTest#test_ATTRIBUTE_ID", Informational: true},
+	{Name: "gen-test_idAttributes", Content: ttext(`<p id='id1'>t1</p><p xml:id='id2'>t2</p>`), OkapiTest: "HtmlConfigurationSupportTest#test_idAttributes", Informational: true},
+	{Name: "gen-test_MATCHES", Content: ttext(`<p x='ABZ'>t1</p><p x='ZBA'>t2</p>`), OkapiTest: "HtmlConfigurationSupportTest#test_MATCHES", Informational: true},
+	{Name: "gen-test_allElementsExcept", Content: ttext(`<elem1 alt='t1'>t2</elem1><elem2 alt='t3'>t4</elem2><elem3 alt='t5'>t6</elem3>`), OkapiTest: "HtmlConfigurationSupportTest#test_allElementsExcept", Informational: true},
+	{Name: "gen-test_onlyTheseElements", Content: ttext(`<elem1 alt='t1'>t2</elem1><elem2 alt='t3'>t4</elem2><elem3 alt='t5'>t6</elem3>`), OkapiTest: "HtmlConfigurationSupportTest#test_onlyTheseElements", Informational: true},
+	{Name: "gen-test_translatableAttributes_withCondition", Content: ttext(`<p alt='t1' attr1='NOTRANS'>t2</p><p alt='t-alt' attr1='trans'>t4</p>`), OkapiTest: "HtmlConfigurationSupportTest#test_translatableAttributes_withCondition", Informational: true},
+	{Name: "gen-test_translatableAttributes_with2ORConditions", Content: ttext(`<p alt='t-alt1' attr2='yes'>t2</p><p alt='t-alt2' attr1='trans'>t4</p>`), OkapiTest: "HtmlConfigurationSupportTest#test_translatableAttributes_with2ORConditions", Informational: true},
+	{Name: "gen-test_ATTRIBUTE_WRITABLE", Content: ttext(`<p dir='rtl'>t1</p><pre dir='ltr'>t2</pre>`), OkapiTest: "HtmlConfigurationSupportTest#test_ATTRIBUTE_WRITABLE", Informational: true},
+	{Name: "gen-test_regex_ATTRIBUTE_WRITABLE", Content: ttext(`<p dir='rtl'>t1</p><pre dir='ltr'>t2</pre>`), OkapiTest: "HtmlConfigurationSupportTest#test_regex_ATTRIBUTE_WRITABLE", Informational: true},
+	{Name: "gen-quoteMode", Content: ttext(`&quot; '`), OkapiTest: "HtmlConfigurationSupportTest#quoteMode", Informational: true},
+}
+
+// GeneratedHtmlEventTestInputs holds 20 auto-extracted @Test fixtures from HtmlEventTest.
+var GeneratedHtmlEventTestInputs = []FormatInput{
+	{Name: "gen-testHtmlKeywordsNotExtracted", Content: ttext(`<meta http-equiv="keywords" content="keyword text"/>`), OkapiTest: "HtmlEventTest#testHtmlKeywordsNotExtracted", Informational: true},
+	{Name: "gen-baseTag", Content: ttext(`<base href="https://www.example.com/" target="_top">`), OkapiTest: "HtmlEventTest#baseTag", Informational: true},
+	{Name: "gen-testMetaTagContent", Content: ttext(`<meta http-equiv="keywords" content="one,two,three"/>`), OkapiTest: "HtmlEventTest#testMetaTagContent", Informational: true},
+	{Name: "gen-testPWithAttributes", Content: ttext(`<p title='my title' dir='rtl'>Text of p</p>`), OkapiTest: "HtmlEventTest#testPWithAttributes", Informational: true},
+	{Name: "gen-testLang", Content: ttext(`<dummy lang="en"/>`), OkapiTest: "HtmlEventTest#testLang", Informational: true},
+	{Name: "gen-testIdOnP", Content: ttext(`<p id="foo"/>`), OkapiTest: "HtmlEventTest#testIdOnP", Informational: true},
+	{Name: "gen-testXmlLang", Content: ttext(`<yyy xml:lang="en"/>`), OkapiTest: "HtmlEventTest#testXmlLang", Informational: true},
+	{Name: "gen-testComplexEmptyElement", Content: ttext(`<dummy write="w" readonly="ro" trans="tu1"/>`), OkapiTest: "HtmlEventTest#testComplexEmptyElement", Informational: true},
+	{Name: "gen-testPWithInlines", Content: ttext(`<p>Before <b>bold</b> <a href="there"/> after.</p>`), OkapiTest: "HtmlEventTest#testPWithInlines", Informational: true},
+	{Name: "gen-testPWithInlineAnchorAndAmpersand", Content: ttext(`<p>Before <a href="foo.cgi?chapter=1&amp;section=2&amp;copy=3&amp;lang=en"/> after.</p>`), OkapiTest: "HtmlEventTest#testPWithInlineAnchorAndAmpersand", Informational: true},
+	{Name: "gen-testPWithComment", Content: ttext(`<p>Before <!--comment--> after.</p>`), OkapiTest: "HtmlEventTest#testPWithComment", Informational: true},
+	{Name: "gen-testPWithProcessingInstruction", Content: ttext(`<p>Before <?PI?> after.</p>`), OkapiTest: "HtmlEventTest#testPWithProcessingInstruction", Informational: true},
+	{Name: "gen-testMETATagWithLanguage", Content: ttext(`<meta http-equiv="Content-Language" content="en"/>`), OkapiTest: "HtmlEventTest#testMETATagWithLanguage", Informational: true},
+	{Name: "gen-testMETATagWithEncoding", Content: ttext(`<meta http-equiv="Content-Type" content="text/html; charset=ISO-2022-JP">`), OkapiTest: "HtmlEventTest#testMETATagWithEncoding", Informational: true},
+	{Name: "gen-testMetaWithCharsetAttribute", Content: ttext(`<meta charset="ISO-2022-JP">`), OkapiTest: "HtmlEventTest#testMetaWithCharsetAttribute", Informational: true},
+	{Name: "gen-testPWithInlines2", Content: ttext(`<p>Before <b>bold</b> <img href="there" alt="text"/> after.</p>`), OkapiTest: "HtmlEventTest#testPWithInlines2", Informational: true},
+	{Name: "gen-testTableGroups", Content: ttext(`<table id="100"><tr><td>text</td></tr></table>`), OkapiTest: "HtmlEventTest#testTableGroups", Informational: true},
+	{Name: "gen-testGroupInPara", Content: ttext(`<p>Text before list:<ul><li>Text of item 1</li><li>Text of item 2</li></ul>and text after the list.</p>`), OkapiTest: "HtmlEventTest#testGroupInPara", Informational: true},
+	{Name: "gen-testPropertyInEmptyParagraph", Content: ttext(`<p dir="test"> </p>
+`), OkapiTest: "HtmlEventTest#testPropertyInEmptyParagraph", Informational: true},
+	{Name: "gen-testPreserveWhitespace", Content: ttext(`<pre>	whitespace is preserved</pre>`), OkapiTest: "HtmlEventTest#testPreserveWhitespace", Informational: true},
+}
+
 // GeneratedHtmlSnippetsTestInputs holds 93 auto-extracted @Test fixtures from HtmlSnippetsTest.
 var GeneratedHtmlSnippetsTestInputs = []FormatInput{
 	{Name: "gen-testMETA_Issue_1098", Content: ttext(`<html>
@@ -118,4 +172,13 @@ Y
 	{Name: "gen-testPreserveCharacterEntitiesMultipleTypes", Content: ttext(`<p>&lt; &amp; &gt; &nbsp;</p>`), OkapiTest: "HtmlSnippetsTest#testPreserveCharacterEntitiesMultipleTypes", Informational: true},
 	{Name: "gen-testNoPreserveCharacterEntitiesMultipleTypes", Content: ttext(`<p>&lt; &amp; &gt; &nbsp;</p>`), OkapiTest: "HtmlSnippetsTest#testNoPreserveCharacterEntitiesMultipleTypes", Informational: true},
 	{Name: "gen-testWithoutPreserveCharacterEntities", Content: ttext(`<p>& and &amp;</p>`), OkapiTest: "HtmlSnippetsTest#testWithoutPreserveCharacterEntities", Informational: true},
+}
+
+// GeneratedSkipEncodingDeclarationTestInputs holds 5 auto-extracted @Test fixtures from SkipEncodingDeclarationTest.
+var GeneratedSkipEncodingDeclarationTestInputs = []FormatInput{
+	{Name: "gen-testDefaultBehaviorAddsMetaElement", Content: ttext(`<html><head></head><body><p>test</p></body></html>`), OkapiTest: "SkipEncodingDeclarationTest#testDefaultBehaviorAddsMetaElement", Informational: true},
+	{Name: "gen-testSkipEncodingDeclarationOmitsMetaElement", Content: ttext(`<html><head></head><body><p>test</p></body></html>`), OkapiTest: "SkipEncodingDeclarationTest#testSkipEncodingDeclarationOmitsMetaElement", Informational: true},
+	{Name: "gen-testXHTMLSelfClosingMetaTag", Content: ttext(`<html xmlns="http://www.w3.org/1999/xhtml"><head></head><body><p>test</p></body></html>`), OkapiTest: "SkipEncodingDeclarationTest#testXHTMLSelfClosingMetaTag", Informational: true},
+	{Name: "gen-testExistingEncodingDeclaration", Content: ttext(`<html><head><meta http-equiv="Content-Type" content="text/html; charset=windows-1252"/></head><body><p>test</p></body></html>`), OkapiTest: "SkipEncodingDeclarationTest#testExistingEncodingDeclaration", Informational: true},
+	{Name: "gen-testExistingEncodingDeclarationWithSkipEnabled", Content: ttext(`<html><head><meta http-equiv="Content-Type" content="text/html; charset=windows-1252"/></head><body><p>test</p></body></html>`), OkapiTest: "SkipEncodingDeclarationTest#testExistingEncodingDeclarationWithSkipEnabled", Informational: true},
 }

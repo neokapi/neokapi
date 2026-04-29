@@ -150,6 +150,19 @@ type FormatSpec struct {
 
 func ttext(s string) []byte { return []byte(s) }
 
+// mergeInputs concatenates curated fixtures with one or more
+// auto-generated batches. Lets each FormatSpec list its hand-curated
+// fixtures inline and append the scanner's output without writing the
+// same `append(append(...))` chain by hand.
+func mergeInputs(curated []FormatInput, generated ...[]FormatInput) []FormatInput {
+	out := make([]FormatInput, 0, len(curated))
+	out = append(out, curated...)
+	for _, g := range generated {
+		out = append(out, g...)
+	}
+	return out
+}
+
 // formatSpecs lists every okf_* filter declared in the okapi-bridge
 // v2 manifest at framework_version 1.48.0. Pinned by intent: when a
 // future release adds, removes, or renames a filter, update this
@@ -165,16 +178,17 @@ var formatSpecs = []FormatSpec{
 		ID:        "okf_html",
 		MimeType:  "text/html",
 		NewReader: func() format.DataFormatReader { return htmlfmt.NewReader() },
-		Inputs: append([]FormatInput{
-			{Name: "minimal", Content: ttext(`<html><body><p>Hello world.</p></body></html>`)},
-			{Name: "inline-codes", Content: ttext(`<html><body><p>Click <a href="/x">here</a> to continue.</p></body></html>`)},
-			{Name: "two-paragraphs", Content: ttext(`<html><body><p>First.</p><p>Second.</p></body></html>`)},
-		},
-			// Auto-extracted from Okapi's HtmlSnippetsTest by
-			// scripts/okapi-test-scan. The hand-curated fixtures above
-			// stay authoritative for the curated names; generated
-			// fixtures use a `gen-` prefix so they never collide.
-			GeneratedHtmlSnippetsTestInputs...,
+		Inputs: mergeInputs(
+			[]FormatInput{
+				{Name: "minimal", Content: ttext(`<html><body><p>Hello world.</p></body></html>`)},
+				{Name: "inline-codes", Content: ttext(`<html><body><p>Click <a href="/x">here</a> to continue.</p></body></html>`)},
+				{Name: "two-paragraphs", Content: ttext(`<html><body><p>First.</p><p>Second.</p></body></html>`)},
+			},
+			// Auto-extracted by scripts/okapi-test-scan.
+			GeneratedHtmlSnippetsTestInputs,
+			GeneratedHtmlEventTestInputs,
+			GeneratedHtmlConfigurationSupportTestInputs,
+			GeneratedSkipEncodingDeclarationTestInputs,
 		),
 	},
 	{
@@ -189,18 +203,27 @@ var formatSpecs = []FormatSpec{
 		ID:        "okf_json",
 		MimeType:  "application/json",
 		NewReader: func() format.DataFormatReader { return jsonfmt.NewReader() },
-		Inputs: []FormatInput{
-			{Name: "flat", Content: ttext(`{"greeting":"Hello world."}`)},
-			{Name: "nested", Content: ttext(`{"messages":{"hello":"Hi","bye":"Bye"}}`)},
-		},
+		Inputs: mergeInputs(
+			[]FormatInput{
+				{Name: "flat", Content: ttext(`{"greeting":"Hello world."}`)},
+				{Name: "nested", Content: ttext(`{"messages":{"hello":"Hi","bye":"Bye"}}`)},
+			},
+			GeneratedJSONFilterTestInputs,
+			GeneratedJsonSnippetParserTestInputs,
+		),
 	},
 	{
 		ID:        "okf_yaml",
 		MimeType:  "text/x-yaml",
 		NewReader: func() format.DataFormatReader { return yamlfmt.NewReader() },
-		Inputs: []FormatInput{
-			{Name: "flat", Content: ttext("greeting: Hello world.\nfarewell: Goodbye.\n")},
-		},
+		Inputs: mergeInputs(
+			[]FormatInput{
+				{Name: "flat", Content: ttext("greeting: Hello world.\nfarewell: Goodbye.\n")},
+			},
+			GeneratedYmlFilterTestInputs,
+			GeneratedYamlFilterTestInputs,
+			GeneratedYamlParserTestInputs,
+		),
 	},
 	{
 		ID:        "okf_xml",
@@ -224,9 +247,12 @@ var formatSpecs = []FormatSpec{
 		ID:        "okf_dtd",
 		MimeType:  "application/xml+dtd",
 		NewReader: func() format.DataFormatReader { return dtdfmt.NewReader() },
-		Inputs: []FormatInput{
-			{Name: "minimal", Content: ttext(`<!ENTITY greeting "Hello world.">`)},
-		},
+		Inputs: mergeInputs(
+			[]FormatInput{
+				{Name: "minimal", Content: ttext(`<!ENTITY greeting "Hello world.">`)},
+			},
+			GeneratedDTDFilterTestInputs,
+		),
 	},
 	{
 		ID:          "okf_properties",
@@ -243,10 +269,13 @@ var formatSpecs = []FormatSpec{
 		Params: map[string]any{
 			"extraComments": true,
 		},
-		Inputs: []FormatInput{
-			{Name: "flat", Content: ttext("greeting=Hello world.\nfarewell=Goodbye.\n")},
-			{Name: "semi-comments", Content: ttext("# standard\n; semi-comment\ngreeting=Hello world.\n")},
-		},
+		Inputs: mergeInputs(
+			[]FormatInput{
+				{Name: "flat", Content: ttext("greeting=Hello world.\nfarewell=Goodbye.\n")},
+				{Name: "semi-comments", Content: ttext("# standard\n; semi-comment\ngreeting=Hello world.\n")},
+			},
+			GeneratedPropertiesFilterTestInputs,
+		),
 	},
 	{
 		ID:          "okf_po",
@@ -264,15 +293,19 @@ var formatSpecs = []FormatSpec{
 		// changes.
 		SkipRoundTrip: "writer fills empty target with source on bridge side; native preserves empty target",
 		SkipTikal:     "same divergence as bridge: tikal also auto-fills empty msgstr with source",
-		Inputs: []FormatInput{
-			{Name: "single", Content: ttext(`msgid ""
+		Inputs: mergeInputs(
+			[]FormatInput{
+				{Name: "single", Content: ttext(`msgid ""
 msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 
 msgid "Hello world."
 msgstr ""
 `)},
-		},
+			},
+			GeneratedPOFilterTestInputs,
+			GeneratedPOWriterTestInputs,
+		),
 	},
 	{
 		ID:        "okf_phpcontent",
@@ -321,9 +354,12 @@ msgstr ""
 		ID:        "okf_regex",
 		MimeType:  "text/x-regex",
 		NewReader: func() format.DataFormatReader { return regexfmt.NewReader() },
-		Inputs: []FormatInput{
-			{Name: "key-value", Content: ttext("greeting = Hello world.\nfarewell = Goodbye.\n")},
-		},
+		Inputs: mergeInputs(
+			[]FormatInput{
+				{Name: "key-value", Content: ttext("greeting = Hello world.\nfarewell = Goodbye.\n")},
+			},
+			GeneratedRegexFilterTestInputs,
+		),
 	},
 	{
 		ID:        "okf_regexplaintext",
@@ -341,17 +377,25 @@ msgstr ""
 		ID:        "okf_markdown",
 		MimeType:  "text/markdown",
 		NewReader: func() format.DataFormatReader { return markdownfmt.NewReader() },
-		Inputs: []FormatInput{
-			{Name: "minimal", Content: ttext("# Hello\n\nThis is a paragraph.\n")},
-		},
+		Inputs: mergeInputs(
+			[]FormatInput{
+				{Name: "minimal", Content: ttext("# Hello\n\nThis is a paragraph.\n")},
+			},
+			GeneratedMarkdownFilterTestInputs,
+			GeneratedMarkdownWriterTestInputs,
+		),
 	},
 	{
 		ID:        "okf_wiki",
 		MimeType:  "text/x-wiki-txt",
 		NewReader: func() format.DataFormatReader { return wikifmt.NewReader() },
-		Inputs: []FormatInput{
-			{Name: "minimal", Content: ttext("== Hello ==\n\nThis is a paragraph.\n")},
-		},
+		Inputs: mergeInputs(
+			[]FormatInput{
+				{Name: "minimal", Content: ttext("== Hello ==\n\nThis is a paragraph.\n")},
+			},
+			GeneratedWikiFilterTestInputs,
+			GeneratedWikiWriterTestInputs,
+		),
 	},
 	{
 		ID:        "okf_tex",
@@ -411,8 +455,9 @@ msgstr ""
 		ID:        "okf_xliff",
 		MimeType:  "application/x-xliff+xml",
 		NewReader: func() format.DataFormatReader { return xlifffmt.NewReader() },
-		Inputs: []FormatInput{
-			{Name: "single-tu", Content: ttext(`<?xml version="1.0"?>
+		Inputs: mergeInputs(
+			[]FormatInput{
+				{Name: "single-tu", Content: ttext(`<?xml version="1.0"?>
 <xliff version="1.2" xmlns="urn:oasis:names:tc:xliff:document:1.2">
   <file source-language="en" target-language="fr" datatype="plaintext" original="hello.txt">
     <body>
@@ -420,7 +465,10 @@ msgstr ""
     </body>
   </file>
 </xliff>`)},
-		},
+			},
+			GeneratedXLIFFFilterTestInputs,
+			GeneratedXLIFFFilterXtmPropTestInputs,
+		),
 	},
 	{
 		ID:        "okf_xliff2",
@@ -441,15 +489,18 @@ msgstr ""
 		ID:        "okf_tmx",
 		MimeType:  "application/x-tmx+xml",
 		NewReader: func() format.DataFormatReader { return tmxfmt.NewReader() },
-		Inputs: []FormatInput{
-			{Name: "single-tu", Content: ttext(`<?xml version="1.0"?>
+		Inputs: mergeInputs(
+			[]FormatInput{
+				{Name: "single-tu", Content: ttext(`<?xml version="1.0"?>
 <tmx version="1.4">
   <header creationtool="manual" creationtoolversion="1" segtype="sentence" o-tmf="x" adminlang="en" srclang="en" datatype="plaintext"/>
   <body>
     <tu><tuv xml:lang="en"><seg>Hello world.</seg></tuv></tu>
   </body>
 </tmx>`)},
-		},
+			},
+			GeneratedTmxFilterTestInputs,
+		),
 	},
 	{
 		ID:        "okf_ttx",
@@ -473,8 +524,9 @@ msgstr ""
 		ID:        "okf_ts",
 		MimeType:  "application/x-ts",
 		NewReader: func() format.DataFormatReader { return tsfmt.NewReader() },
-		Inputs: []FormatInput{
-			{Name: "minimal", Content: ttext(`<?xml version="1.0"?>
+		Inputs: mergeInputs(
+			[]FormatInput{
+				{Name: "minimal", Content: ttext(`<?xml version="1.0"?>
 <!DOCTYPE TS>
 <TS version="2.1" language="fr">
   <context>
@@ -482,7 +534,9 @@ msgstr ""
     <message><source>Hello world.</source><translation type="unfinished"></translation></message>
   </context>
 </TS>`)},
-		},
+			},
+			GeneratedTsFilterTestInputs,
+		),
 	},
 	{
 		ID:        "okf_vtt",
