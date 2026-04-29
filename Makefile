@@ -307,6 +307,7 @@ CONTRACT_DIR    := $(ROOT_DIR)/.contract-audit
 CONTRACT_REPORT := $(ROOT_DIR)/web/docs/static/data/contract-audit.json
 CONTRACT_FILTER ?= html
 OKAPI_REPO      ?= /Users/asgeirf/src/okapi/okapi-java
+PARITY_REPORT   ?= $(ROOT_DIR)/.parity/test-comparison.json
 
 contract-audit: ## Generate the contract-audit dashboard JSON for $(CONTRACT_FILTER)
 	@mkdir -p $(CONTRACT_DIR)
@@ -320,6 +321,44 @@ contract-audit: ## Generate the contract-audit dashboard JSON for $(CONTRACT_FIL
 	    -okapi-surefire $(OKAPI_REPO)/okapi/filters/$(CONTRACT_FILTER)/target/surefire-reports \
 	    -native-gotest $(CONTRACT_DIR)/native-$(CONTRACT_FILTER).json \
 	    -native-src core/formats/$(CONTRACT_FILTER) \
+	    $(if $(wildcard $(PARITY_REPORT)),-parity-report $(PARITY_REPORT),) \
+	    -okapi-version $$(cd $(OKAPI_REPO) && git describe --tags --abbrev=0 2>/dev/null || echo dev) \
+	    -okapi-tag $$(cd $(OKAPI_REPO) && git describe --tags --abbrev=0 2>/dev/null || echo HEAD) \
+	    -go-commit $$(git rev-parse --short HEAD) \
+	    -out $(CONTRACT_REPORT)
+	@echo "Contract audit: $(CONTRACT_REPORT)"
+
+# Filters whose Surefire output exists and whose neokapi side has at
+# least a config.go OR surviving // okapi: annotations. The script
+# handles missing pieces gracefully (a filter with Okapi tests but no
+# native package shows 0% / all-unmapped).
+CONTRACT_FILTERS_ALL := archive doxygen dtd epub html icml idml json markdown messageformat mif mosestext openxml \
+                        pdf plaintext po properties regex rtf tex tmx ts ttx txml transtable vignette vtt wiki xliff \
+                        xliff2 yaml php xmlstream
+
+contract-audit-all: ## Generate the dashboard for every filter with cached Surefire output
+	@mkdir -p $(CONTRACT_DIR)
+	@echo "[contract-audit] running native go test for all known filters in parallel..."
+	@for f in $(CONTRACT_FILTERS_ALL); do \
+	    native=$$(echo "$$f" | sed -e 's/^php$$/phpcontent/' -e 's/^xmlstream$$/xml/' -e 's/^table$$/csv/'); \
+	    if [ -d $(ROOT_DIR)/core/formats/$$native ]; then \
+	        ( cd $(ROOT_DIR) && go test -json ./core/formats/$$native/... > $(CONTRACT_DIR)/native-$$native.json 2>/dev/null || true ) & \
+	    fi; \
+	done; wait
+	@cat $(CONTRACT_DIR)/native-*.json > $(CONTRACT_DIR)/native-all.json
+	@echo "[contract-audit] joining surefire + native + annotations..."
+	@native_dirs=""; \
+	for f in $(CONTRACT_FILTERS_ALL); do \
+	    native=$$(echo "$$f" | sed -e 's/^php$$/phpcontent/' -e 's/^xmlstream$$/xml/' -e 's/^table$$/csv/'); \
+	    if [ -d $(ROOT_DIR)/core/formats/$$native ]; then \
+	        native_dirs="$$native_dirs,core/formats/$$native"; \
+	    fi; \
+	done; native_dirs=$$(echo $$native_dirs | sed 's/^,//'); \
+	cd $(ROOT_DIR) && go run ./scripts/contract-audit \
+	    -okapi-surefire $(OKAPI_REPO)/okapi/filters \
+	    -native-gotest $(CONTRACT_DIR)/native-all.json \
+	    -native-src "$$native_dirs" \
+	    $(if $(wildcard $(PARITY_REPORT)),-parity-report $(PARITY_REPORT),) \
 	    -okapi-version $$(cd $(OKAPI_REPO) && git describe --tags --abbrev=0 2>/dev/null || echo dev) \
 	    -okapi-tag $$(cd $(OKAPI_REPO) && git describe --tags --abbrev=0 2>/dev/null || echo HEAD) \
 	    -go-commit $$(git rev-parse --short HEAD) \
@@ -574,7 +613,7 @@ help: ## Show this help
 
 .PHONY: all help $(BOTH_TARGETS) test test-fast test-unit test-race test-verbose test-integration \
         parity-sandbox parity-test parity-publish parity-clean \
-        contract-audit contract-audit-clean \
+        contract-audit contract-audit-all contract-audit-clean \
         fmt vet lint check check-framework check-bowrain test-parallel \
         test-framework test-cli test-kapi test-platform test-bowrain-cli test-bowrain \
         ci-test-framework ci-test-cli ci-test-kapi ci-test-platform \

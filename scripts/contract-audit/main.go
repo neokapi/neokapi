@@ -204,6 +204,7 @@ func main() {
 	surefireDir := flag.String("okapi-surefire", "", "Directory containing surefire-reports/ (walked recursively)")
 	nativeJSON := flag.String("native-gotest", "", "go test -json output for native side (optional)")
 	nativeSrc := flag.String("native-src", "", "Comma-separated list of native test source dirs to scan for // okapi: annotations")
+	parityReport := flag.String("parity-report", "", "Path to .parity/test-comparison.json (optional). Populates the per-filter Bridge column with the head-to-head parity outcome.")
 	okapiVersion := flag.String("okapi-version", "1.47.0", "Pinned Okapi version, surfaced in the dashboard header")
 	okapiTag := flag.String("okapi-tag", "", "Okapi git tag for source links (e.g. v1.47.0)")
 	goCommit := flag.String("go-commit", "", "neokapi git SHA for source links")
@@ -245,7 +246,15 @@ func main() {
 		}
 	}
 
-	doc := buildDoc(okapiByFilter, nativeByFilter, nativeAnnotations, *okapiVersion, *okapiTag, *goCommit)
+	var bridgeByFilter map[string]parityRow
+	if *parityReport != "" {
+		bridgeByFilter, err = parseParityReport(*parityReport)
+		if err != nil {
+			die("parse parity report: %v", err)
+		}
+	}
+
+	doc := buildDoc(okapiByFilter, nativeByFilter, bridgeByFilter, nativeAnnotations, *okapiVersion, *okapiTag, *goCommit)
 
 	body, err := json.MarshalIndent(doc, "", "  ")
 	if err != nil {
@@ -258,6 +267,19 @@ func main() {
 		die("write %s: %v", *out, err)
 	}
 	fmt.Fprintf(os.Stderr, "contract-audit: %d filters → %s\n", len(doc.Filters), *out)
+}
+
+// nativeFilterAliases maps an Okapi filter id to the neokapi package
+// name when they differ. The dashboard then surfaces both names so a
+// reviewer can navigate either side. Only one direction is needed
+// because the generator keys all maps by Okapi filter id.
+var nativeFilterAliases = map[string]string{
+	"php":       "phpcontent",
+	"xmlstream": "xml",
+	"table":     "csv",
+	// neokapi splits Okapi's `subtitles` filter into `vtt`+`ttml`+`srt`.
+	// We keep the per-format Okapi ids and rely on the per-class join
+	// in scanAnnotations to match them.
 }
 
 // parseSurefireDir walks surefireDir and returns one filterResult per
@@ -423,10 +445,54 @@ func parseGoTestJSON(path string) (map[string]*filterResult, error) {
 	return out, nil
 }
 
+// ── Parity report (head-to-head bridge↔native) ──────────────────────────────
+
+// parityRow mirrors one entry in .parity/test-comparison.json. The
+// generator only consumes `kind: "format"` rows; step-level rows are
+// out of scope for the per-filter dashboard.
+type parityRow struct {
+	Kind     string `json:"kind"`
+	ID       string `json:"id"` // okf_<filterName>
+	Name     string `json:"name"`
+	Status   string `json:"status"` // pass | skip
+	Mode     string `json:"mode"`   // bridge-only | head-to-head
+	Detail   string `json:"detail,omitempty"`
+	Duration int64  `json:"duration_ms,omitempty"`
+}
+
+// parseParityReport reads the parity JSON and returns a map keyed by
+// filter id (with `okf_` stripped) so the bridge column can join
+// against the same names the rest of the generator already uses.
+func parseParityReport(path string) (map[string]parityRow, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+	var rows []parityRow
+	if err := json.Unmarshal(data, &rows); err != nil {
+		return nil, err
+	}
+	out := map[string]parityRow{}
+	for _, r := range rows {
+		if r.Kind != "format" {
+			continue
+		}
+		out[strings.TrimPrefix(r.ID, "okf_")] = r
+	}
+	return out, nil
+}
+
+// bridgeFilterAliases bridges naming differences between the parity
+// report's `okf_<id>` ids and the Okapi surefire-derived filter names.
+// Only divergences are listed.
+var bridgeFilterAliases = map[string]string{
+	"phpcontent": "php", // parity uses phpcontent; surefire/native use php
+}
+
 // buildDoc joins the per-filter Okapi and native maps with the
 // scanned annotations into a single dashboard document, deterministic
 // in iteration order.
-func buildDoc(okapiByFilter, nativeByFilter map[string]*filterResult, annotations []annotation, okapiVersion, okapiTag, goCommit string) testComparisonData {
+func buildDoc(okapiByFilter, nativeByFilter map[string]*filterResult, bridgeByFilter map[string]parityRow, annotations []annotation, okapiVersion, okapiTag, goCommit string) testComparisonData {
 	// Index annotations by Java FQN#method for O(1) joins.
 	annByOkapi := map[string]annotation{}
 	for _, a := range annotations {
@@ -473,13 +539,30 @@ func buildDoc(okapiByFilter, nativeByFilter map[string]*filterResult, annotation
 			sum.TotalFiltersOkapi++
 			sum.TotalTestsOkapi += r.Total
 		}
-		if r := nativeByFilter[name]; r != nil {
+		// Native lookup — try the Okapi id first, then the alias.
+		nativeName := name
+		if alias, ok := nativeFilterAliases[name]; ok {
+			if _, present := nativeByFilter[alias]; present {
+				nativeName = alias
+				fc.NativeFilterName = alias
+			}
+		}
+		if r := nativeByFilter[nativeName]; r != nil {
 			fc.Native = r
 			sum.TotalFiltersNative++
 			sum.TotalTestsNative += r.Total
 		}
 		if fc.Okapi != nil && fc.Native != nil {
 			sum.TotalFiltersBoth++
+		}
+		// Bridge column: synthesize a single "bridge parity" suite from the
+		// head-to-head parity row, if one exists. The dashboard renders
+		// this as one badge per filter — per-test bridge granularity is
+		// out of scope until okapi-bridge exposes per-test results.
+		if br, ok := lookupParity(bridgeByFilter, name); ok {
+			fc.Bridge = parityToFilterResult(br)
+			sum.TotalFiltersBridge++
+			sum.TotalTestsBridge += fc.Bridge.Total
 		}
 		// Build one row per Okapi @Test method, joined with annotations.
 		fc.TestCases = buildRows(fc.Okapi, annByOkapi, nativeStatus)
@@ -587,6 +670,65 @@ func computeCoverageFromRows(okapi *filterResult, rows []testCaseMatch) *coverag
 		c.CoveragePct = round1(float64(c.NativeMapped) / float64(c.TotalOkapi) * 100)
 	}
 	return c
+}
+
+// lookupParity finds the parity row for a filter, falling back to the
+// alias map for the small set of names that diverge between the parity
+// id space (`okf_<id>`) and the surefire-derived names.
+func lookupParity(bridgeByFilter map[string]parityRow, name string) (parityRow, bool) {
+	if r, ok := bridgeByFilter[name]; ok {
+		return r, true
+	}
+	if alias, ok := bridgeFilterAliases[name]; ok {
+		if r, ok := bridgeByFilter[alias]; ok {
+			return r, true
+		}
+	}
+	// Reverse: a few filters key by the surefire short id but the parity
+	// row uses the longer alias (e.g. surefire `php` → parity `phpcontent`).
+	for k, v := range bridgeFilterAliases {
+		if v == name {
+			if r, ok := bridgeByFilter[k]; ok {
+				return r, true
+			}
+		}
+	}
+	return parityRow{}, false
+}
+
+// parityToFilterResult turns one parity row into a single-suite,
+// single-case filterResult — one synthetic "bridge parity" badge that
+// the dashboard renders next to the Okapi/native columns.
+func parityToFilterResult(r parityRow) *filterResult {
+	status := "skip"
+	if r.Status == "pass" {
+		status = "pass"
+	}
+	caseName := r.Mode
+	if caseName == "" {
+		caseName = "parity"
+	}
+	suite := testSuite{
+		Name: "bridge parity",
+		Tests: []testCase{{
+			Name:       caseName,
+			Status:     status,
+			DurationMS: r.Duration,
+		}},
+		Total:      1,
+		DurationMS: r.Duration,
+	}
+	fr := &filterResult{Total: 1}
+	switch status {
+	case "pass":
+		suite.Passed = 1
+		fr.Passed = 1
+	case "skip":
+		suite.Skipped = 1
+		fr.Skipped = 1
+	}
+	fr.Suites = []testSuite{suite}
+	return fr
 }
 
 // classifySkip bins a free-text skip reason into a SkipCategory the
