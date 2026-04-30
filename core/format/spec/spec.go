@@ -127,6 +127,12 @@ type Example struct {
 	// (the divergence has been fixed — remove this tag).
 	ExpectedFail string `yaml:"expected_fail,omitempty"`
 
+	// ParityStrict promotes bridge↔native bytewise mismatch to a
+	// hard failure, even when both sides individually satisfy the
+	// spec assertions. Default false — divergent representations
+	// (e.g. inline-formatting markers) record as parity_warn instead.
+	ParityStrict bool `yaml:"parity_strict,omitempty"`
+
 	// Config overrides the feature's Config map for this example.
 	Config map[string]any `yaml:"config,omitempty"`
 

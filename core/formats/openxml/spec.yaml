@@ -192,11 +192,16 @@ features:
       - name: author_snippet
         variant: xlsx
         input_xml: '<comments><author>Dan Higinbotham</author></comments>'
-        # Native openxml reader requires a full .xlsx ZIP package and
-        # can't consume raw XML snippets — only the bridge can drive
-        # this example. The semantic intent (author element is metadata,
-        # not translatable) is still verified through the parity layer.
+        # Both implementations require a full .xlsx ZIP package. Okapi's
+        # internal ContentFilter (used by OpenXMLSnippetsTest in-tree)
+        # can consume raw XML, but the public OpenXMLFilter the bridge
+        # wraps can't. Re-express with a packaged .xlsx fixture later;
+        # keeps the feature documented with a clear limitation note.
         bridge_only: true
+        expected_fail: |
+          Neither bridge nor native consumes raw XML — both wrap a
+          ZIP-based reader. Tracking until we add a packaged fixture
+          that exercises the same author/comments path.
         block_count: 0
     okapi_refs:
       - OpenXMLSnippetsTest#testAuthor
