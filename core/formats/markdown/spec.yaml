@@ -7,14 +7,15 @@
 # enabled (tables, strikethrough); the upstream Java filter is built on
 # Flexmark, but the public extraction contract is the same.
 #
-# Config keys mirror the bridge composite schema's leaf names
-# (translateImageAltText, translateUrls, translateHeaderMetadata,
-# htmlSubfilter, …) so drift detection lines up. `okapi_param` carries
-# the underlying Java field name for traceability. Native ApplyMap
-# accepts both the bridge leaf names and the legacy native spellings
+# Config keys use the Okapi parameter names (translateImageAltText,
+# translateUrls, translateHeaderMetadata, htmlSubfilter, …) — the same
+# names the bridge composite schema exposes, so drift detection lines
+# up. `okapi_param` carries the underlying Java field name for full
+# traceability where it differs. Native ApplyMap accepts both the
+# Okapi parameter names and the legacy native spellings
 # (translateImageAlt, translateURLs, translateFrontMatter, subfilter)
-# — feature/example config blocks below use the bridge leaf names so
-# the spec is internally consistent.
+# — feature/example config blocks below use the Okapi names so the
+# spec is internally consistent.
 
 format: okf_markdown
 mime_type: text/markdown
@@ -248,8 +249,8 @@ features:
     description: |
       With `translateImageAltText=false` the alt text inside `![…]()`
       is dropped from the surrounding Block (the image itself remains
-      as an inline placeholder). Verifies the bridge leaf name maps
-      to the native config field.
+      as an inline placeholder). Verifies the Okapi parameter name
+      maps to the native config field.
     config:
       translateImageAltText: false
     examples:
@@ -363,8 +364,8 @@ features:
     description: |
       With `translateHeaderMetadata=true` each YAML scalar value in
       the header becomes a translatable Block (in source order),
-      followed by the body Blocks. Verifies the bridge leaf name maps
-      to the native config field.
+      followed by the body Blocks. Verifies the Okapi parameter name
+      maps to the native config field.
     config:
       translateHeaderMetadata: true
     examples:
