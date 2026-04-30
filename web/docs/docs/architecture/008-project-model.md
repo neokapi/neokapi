@@ -235,7 +235,7 @@ brand_voice:
 Only the connection coordinates (`url`, `stream`) live under `server:`.
 Lifecycle (`hooks`, `automations`) and governance (`assets`, `brand_voice`)
 are top-level — they describe project-owned policy, not server identity.
-See [AD-010](../bowrain/architecture-decisions/010-bowrain-cli-and-project-model)
+See [AD-010](https://neokapi.github.io/web/bowrain/docs/architecture-decisions/010-bowrain-cli-and-project-model)
 for the full bowrain workflow semantics.
 
 Auth tokens for bowrain servers live in the OS keychain (the same store
