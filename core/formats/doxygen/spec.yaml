@@ -1,0 +1,641 @@
+# Doxygen format specification.
+#
+# Single-variant filter for Doxygen / Javadoc / Qt-style documentation
+# comments embedded in C/C++/Java/Python/Objective-C source files. The
+# reader scans the source line-by-line, recognises the documentation
+# comment delimiters, and extracts the translatable prose while leaving
+# code commands, type annotations, and inline non-translatable commands
+# in skeleton.
+#
+# Authoring notes:
+#   - Inputs are inline source snippets via input_xml (the field is
+#     named for XML historically but holds raw text bytes for any text
+#     format). Multi-comment fixtures live under testdata/ and are
+#     referenced through input_file.
+#   - Config keys mirror the DoxygenFilter parameters in upstream Okapi
+#     (also exposed by the bridge composite schema). The Doxygen
+#     Java filter exposes a deep `doxygen_commands` / `html_commands`
+#     map plus a single top-level `preserve_whitespace` flag; the spec
+#     surfaces only the top-level flag because per-command overrides
+#     are not user-facing knobs in the native reader yet.
+#   - Inline-codes settings (useCodeFinder, codeFinderRules) live under
+#     the bridge schema's $defs/inlineCodes block and are deliberately
+#     omitted from spec.config: the contract-audit walker does not
+#     follow $ref into $defs, so listing them as flat keys would trigger
+#     a false drift report. They remain native ApplyMap aliases for
+#     callers that need pattern-based inline-code detection.
+#   - okapi_refs are pinned to the upstream class+method names. Drift
+#     detection asserts each ref still exists in Okapi 1.47.0.
+#   - This is the SEED spec — features cover the user-facing comment
+#     extraction behaviors that have native + Okapi test counterparts.
+#     Custom Doxygen command tables (e.g. project-specific commands
+#     defined under doxygen_commands) and per-command preserve_whitespace
+#     overrides are deliberately out of scope.
+
+format: okf_doxygen
+mime_type: text/x-doxygen-txt
+description: |
+  Doxygen-commented source code. Extracts the documentation prose from
+  `///`, `//!`, `/** */`, and `/*! */` comment styles plus the trailing
+  `///<` and `/*!< */` variants, while preserving the surrounding code,
+  command markers, and code/verbatim blocks as non-translatable
+  skeleton. Recognises the standard Doxygen command vocabulary so that
+  metadata commands like `\class` or `\file` are skipped and
+  description commands like `\brief`, `\param`, `\return` extract just
+  the description text.
+
+config:
+  - key: preserveWhitespace
+    type: boolean
+    default: false
+    description: |
+      Preserve original intra-comment whitespace on extraction. Off by
+      default — comment text is trimmed and normalised so translators
+      see clean prose. Turn on for code samples or pre-formatted
+      paragraphs where indentation carries meaning.
+    okapi_param: preserve_whitespace
+
+  - key: parser
+    type: string_map
+    default: {}
+    description: |
+      Container for parser configuration. Holds `preserveWhitespace`
+      plus the `doxygenCommands` / `htmlCommands` command tables the
+      Java filter consumes. Declared here as a parent group so the
+      contract-audit drift check sees the schema's top-level property;
+      individual leaves (notably the deeply-nested command definitions)
+      are not surfaced as separate spec keys.
+    okapi_param: parser
+
+  - key: inlineCodes
+    type: string_map
+    default: {}
+    description: |
+      Container for inline-code detection settings (mirrors Okapi's
+      inline-code finder, also exposed under the bridge composite
+      schema's `$defs/inlineCodes` block). Declared as a parent group
+      to keep drift detection clean; the native reader exposes the
+      effective `useCodeFinder` / `codeFinderRules` knobs through
+      Config.ApplyMap aliases.
+    okapi_param: inlineCodes
+
+features:
+  # ── Comment-style extraction ──────────────────────────────────────
+  - id: triple_slash_line_comment
+    name: Triple-slash line comment (///)
+    description: |
+      A `///` line comment yields one translatable Block whose source
+      is the trimmed comment text. Consecutive `///` lines fold into a
+      single Block whose lines join with newlines; an interrupting
+      non-comment line breaks the run.
+    examples:
+      - name: single_line
+        input_xml: "/// A simple line comment\n"
+        block_count: 1
+        first_block_text: "A simple line comment"
+      - name: consecutive_lines_merge
+        input_xml: "/// First line\n/// Second line\n/// Third line\n"
+        block_count: 1
+        has_block_with_text:
+          - "First line"
+          - "Second line"
+          - "Third line"
+      - name: interrupted_run_splits
+        input_xml: "/// First comment\nint x;\n/// Second comment\n"
+        block_count: 2
+        block_texts:
+          - "First comment"
+          - "Second comment"
+    okapi_refs:
+      - DoxygenFilterTest#testSimpleLine
+      - DoxygenFilterTest#testMultipleLines
+      - DoxygenFilterTest#testDelimiterTokenizer
+    native_refs:
+      - doxygen.TestExtract_SimpleLine
+      - doxygen.TestExtract_MultipleLines
+      - doxygen.TestExtract_DelimiterTokenizer
+
+  - id: exclamation_line_comment
+    name: Exclamation line comment (//!)
+    description: |
+      The Qt-style `//!` line comment behaves identically to `///` for
+      extraction — the comment text becomes a translatable Block.
+      Distinguishing the marker is left to the writer, which preserves
+      the original style on round-trip.
+    examples:
+      - name: single_line
+        input_xml: "//! An exclamation line comment\n"
+        block_count: 1
+        first_block_text: "An exclamation line comment"
+    okapi_refs:
+      - DoxygenFilterTest#testSimpleLine
+    native_refs:
+      - doxygen.TestExtract_ExclamationLineComment
+
+  - id: javadoc_block_comment
+    name: Javadoc-style block comment (/** */)
+    description: |
+      A `/** */` block comment extracts as one Block. Single-line
+      blocks (`/** text */`) carry the inline text; multi-line blocks
+      strip the leading ` * ` line markers and the closing `*/`,
+      joining the surviving lines with newlines.
+    examples:
+      - name: single_line_block
+        input_xml: "/** A Javadoc comment */\n"
+        block_count: 1
+        first_block_text: "A Javadoc comment"
+      - name: multi_line_block
+        input_xml: "/**\n * First line\n * Second line\n */\n"
+        block_count: 1
+        has_block_with_text:
+          - "First line"
+          - "Second line"
+    okapi_refs:
+      - DoxygenFilterTest#testJavadocLine
+      - DoxygenFilterTest#testJavadocMultiline
+    native_refs:
+      - doxygen.TestExtract_JavadocLine
+      - doxygen.TestExtract_JavadocMultiline
+
+  - id: qt_block_comment
+    name: Qt-style block comment (/*! */)
+    description: |
+      A `/*! */` block comment extracts as one Block, mirroring the
+      Javadoc shape. Multiple `/*! */` blocks separated by code emit
+      one Block each, in document order.
+    examples:
+      - name: multi_line_block
+        input_xml: "/*!\n  A Qt-style block comment.\n*/\n"
+        block_count: 1
+        first_block_text: "A Qt-style block comment."
+      - name: multiple_blocks_separated_by_code
+        input_xml: "/*! Block comment 1 */\nint x;\n/*! Block comment 2 */\n"
+        block_count: 2
+        block_texts:
+          - "Block comment 1"
+          - "Block comment 2"
+    okapi_refs:
+      - DoxygenFilterTest#testPrefixSuffixTokenizer
+    native_refs:
+      - doxygen.TestExtract_QtBlockComment
+      - doxygen.TestExtract_PrefixSuffixTokenizer
+
+  # ── Trailing comments ─────────────────────────────────────────────
+  - id: trailing_line_comment
+    name: Trailing line comment (///<)
+    description: |
+      A `///<` marker after code on the same line attaches a
+      documentation comment to the preceding declaration. The reader
+      emits the code prefix as skeleton Data and the comment text as a
+      translatable Block. An empty `///<` (no comment text) produces
+      no Block but the layer envelope is still well-formed.
+    examples:
+      - name: trailing_with_text
+        input_xml: "int x; ///< A one-liner comment\n"
+        block_count: 1
+        first_block_text: "A one-liner comment"
+      - name: blank_trailing
+        input_xml: "int x; ///<\n"
+        block_count: 0
+    okapi_refs:
+      - DoxygenFilterTest#testOneLiner
+      - DoxygenFilterTest#testBlankOneLiner
+    native_refs:
+      - doxygen.TestExtract_OneLiner
+      - doxygen.TestExtract_BlankOneLiner
+
+  - id: trailing_qt_block_comment
+    name: Trailing Qt block comment (/*!< */)
+    description: |
+      A `/*!< text */` marker after code attaches a documentation
+      comment to the preceding declaration, Qt-style. The reader
+      emits the code prefix as skeleton and the comment text as a
+      translatable Block.
+    examples:
+      - name: trailing_qt
+        input_xml: "int x; /*!< Trailing Qt comment */\n"
+        block_count: 1
+        first_block_text: "Trailing Qt comment"
+    okapi_refs:
+      - DoxygenFilterTest#testOneLiner
+    native_refs:
+      - doxygen.TestExtract_TrailingQtComment
+
+  # ── Doxygen commands ──────────────────────────────────────────────
+  - id: structural_command_skipped
+    name: Structural commands skipped (\class, \file, \author …)
+    description: |
+      Doxygen structural commands like `\class`, `\file`, `\author`,
+      `\date`, `\namespace` carry metadata about the documented entity
+      — their arguments are not translatable. The surrounding
+      description text is still extracted; only the structural
+      command's own argument is dropped.
+    examples:
+      - name: class_then_brief
+        input_xml: "/// \\class MyClass\n/// Brief description.\n"
+        block_count: 1
+        first_block_text: "Brief description."
+        no_block_with_text:
+          - "MyClass"
+      - name: class_with_header_then_brief
+        input_xml: "/*! \\class Test class.h \"inc/class.h\"\n *  \\brief This is a test class.\n *\n * Some details about the Test class\n */\n"
+        block_count: 1
+        has_block_with_text:
+          - "This is a test class."
+        no_block_with_text:
+          - "inc/class.h"
+    okapi_refs:
+      - DoxygenFilterTest#testDoxygenClassCommand1
+      - DoxygenFilterTest#testDoxygenClassCommand2
+    native_refs:
+      - doxygen.TestExtract_ClassCommand1
+      - doxygen.TestExtract_ClassCommand2
+
+  - id: brief_description_command
+    name: Brief description command (\brief)
+    description: |
+      The `\brief` (or `@brief`) command introduces a short description
+      that is translatable. The command marker itself is skeleton; only
+      the prose argument extracts as a Block.
+    examples:
+      - name: backslash_brief
+        input_xml: "/// \\brief A short description.\n"
+        block_count: 1
+        first_block_text: "A short description."
+    okapi_refs:
+      - DoxygenFilterTest#testDoxygenClassCommand2
+    native_refs:
+      - doxygen.TestExtract_ClassCommand2
+
+  - id: param_description_command
+    name: Parameter description command (\param)
+    description: |
+      `\param <name> <description>` documents a function parameter.
+      The parameter name is metadata (skipped); the description is
+      translatable. Same pattern applies to `\tparam`, `\throw`,
+      `\throws`, `\exception`, `\retval` — first argument is the
+      identifier, the rest is description.
+    examples:
+      - name: param_with_description
+        input_xml: "/// \\param name The name of the person\n"
+        block_count: 1
+        first_block_text: "The name of the person"
+        no_block_with_text:
+          - "name The name"
+    okapi_refs:
+      - DoxygenFilterTest#testDoxygenClassCommand2
+    native_refs:
+      - doxygen.TestExtract_ParamDescription
+
+  - id: return_description_command
+    name: Return description command (\return)
+    description: |
+      The `\return` / `\returns` command documents the value returned
+      by a function. The whole argument is translatable description.
+    examples:
+      - name: return_with_description
+        input_xml: "/// \\return The computed result\n"
+        block_count: 1
+        first_block_text: "The computed result"
+    okapi_refs:
+      - DoxygenFilterTest#testDoxygenClassCommand2
+    native_refs:
+      - doxygen.TestExtract_ReturnDescription
+
+  - id: section_commands
+    name: Section commands (\note, \warning, \todo …)
+    description: |
+      Section-marker commands like `\note`, `\warning`, `\todo`,
+      `\attention`, `\bug`, `\remark`, `\since`, `\pre`, `\post`
+      introduce a translatable paragraph. Each command's description
+      becomes its own Block so translators can address them
+      independently.
+    examples:
+      - name: note_then_warning
+        input_xml: "/// \\note Important note.\n/// \\warning Be careful.\n"
+        block_count: 2
+        block_texts:
+          - "Important note."
+          - "Be careful."
+    okapi_refs:
+      - DoxygenFilterTest#testDoubleExtractionSpecialCommands
+    native_refs:
+      - doxygen.TestExtract_SpecialCommandsFile
+
+  # ── Code / verbatim exclusion ─────────────────────────────────────
+  - id: code_block_excluded
+    name: Code blocks excluded (\code … \endcode)
+    description: |
+      Content inside `\code … \endcode` is not translatable — the code
+      passes through as skeleton. Surrounding prose extracts normally;
+      the code block partitions the comment so text before and after
+      become separate Blocks.
+    examples:
+      - name: code_between_prose
+        input_xml: "/// Before code\n/// \\code\n///     some_code();\n/// \\endcode\n/// After code\n"
+        block_count: 2
+        block_texts:
+          - "Before code"
+          - "After code"
+        no_block_with_text:
+          - "some_code()"
+    okapi_refs:
+      - DoxygenFilterTest#testDoxygenCodeCommand
+    native_refs:
+      - doxygen.TestExtract_CodeCommand
+
+  - id: verbatim_block_excluded
+    name: Verbatim blocks excluded (\verbatim … \endverbatim)
+    description: |
+      Content inside `\verbatim … \endverbatim` is preserved literally
+      and is NOT translatable. The same pass-through rule applies to
+      `\dot`, `\msc`, `\htmlonly`, `\latexonly`, `\xmlonly`,
+      `\manonly`, `\rtfonly`, `\docbookonly`.
+    examples:
+      - name: verbatim_between_prose
+        input_xml: "/// Before verbatim\n/// \\verbatim\n///   not translated\n/// \\endverbatim\n/// After verbatim\n"
+        block_count: 2
+        block_texts:
+          - "Before verbatim"
+          - "After verbatim"
+        no_block_with_text:
+          - "not translated"
+    okapi_refs:
+      - DoxygenFilterTest#testDoubleExtractionSpecialCommands
+    native_refs:
+      - doxygen.TestExtract_VerbatimExcluded
+
+  - id: image_command_skipped
+    name: Image command skipped (\image)
+    description: |
+      The `\image` command embeds a figure — its arguments (format,
+      filename, optional caption) are filenames or rendering hints and
+      are not translatable in this reader. Surrounding prose extracts
+      as normal Blocks.
+    examples:
+      - name: image_between_prose
+        input_xml: "/// Here is a snapshot:\n/// \\image html application.jpg\n/// End of description.\n"
+        block_count: 1
+        has_block_with_text:
+          - "Here is a snapshot:"
+          - "End of description."
+        no_block_with_text:
+          - "application.jpg"
+    okapi_refs:
+      - DoxygenFilterTest#testDoxygenImageCommand
+    native_refs:
+      - doxygen.TestExtract_ImageCommand
+
+  # ── Inline markup inside translatable text ────────────────────────
+  - id: inline_doxygen_commands
+    name: Inline Doxygen commands stripped (\e, \a, \b, \c, \p, \em)
+    description: |
+      Inline commands `\e`, `\a`, `\b`, `\c`, `\p`, `\em` mark up the
+      next word for italic / argument / bold / typewriter / parameter
+      formatting. The reader strips the command marker so the bare
+      word reaches the translator inside the surrounding prose.
+    examples:
+      - name: italic_and_argument
+        input_xml: "/// This has \\e italic and \\a arg text\n"
+        block_count: 1
+        has_block_with_text:
+          - "italic"
+          - "arg"
+    okapi_refs:
+      - DoxygenFilterTest#testDoxygenItalicCommand
+    native_refs:
+      - doxygen.TestExtract_ItalicCommand
+
+  - id: html_inline_markup_preserved
+    name: HTML inline markup preserved in extracted text
+    description: |
+      HTML inline tags like `<b>`, `<i>`, `</summary>` that appear
+      inside a Doxygen comment pass through into the extracted Block
+      text as literal characters. The reader does not strip them;
+      downstream tools (or the writer's inline-code finder) decide
+      whether to convert them into Spans.
+    examples:
+      - name: html_bold_inline
+        input_xml: "/// This has <b>bold</b> text\n"
+        block_count: 1
+        has_block_with_text:
+          - "bold"
+      - name: orphaned_end_tag
+        input_xml: "/// Some text </summary> more text\n"
+        block_count: 1
+        has_block_with_text:
+          - "Some text"
+    okapi_refs:
+      - DoxygenFilterTest#testHtmlBoldCommand
+      - DoxygenFilterTest#testOrphanedEndCommand
+    native_refs:
+      - doxygen.TestExtract_HtmlBoldCommand
+      - doxygen.TestExtract_OrphanedEndCommand
+
+  # ── Robustness ────────────────────────────────────────────────────
+  - id: float_numbers_not_command
+    name: Floats inside text are not mistaken for commands
+    description: |
+      A bare float like `1.0` or `2.5` in a sentence does not trigger
+      list / command tokenisation. The text extracts intact as a single
+      Block.
+    examples:
+      - name: float_in_sentence
+        input_xml: "/// The value is 1.0 or 2.5 here.\n"
+        block_count: 1
+        first_block_text: "The value is 1.0 or 2.5 here."
+    okapi_refs:
+      - DoxygenFilterTest#testPositiveFloatListFalsePositive
+    native_refs:
+      - doxygen.TestExtract_PositiveFloatListFalsePositive
+
+  - id: regular_comment_excluded
+    name: Regular C/C++ comments are not extracted
+    description: |
+      Plain `// …` and `/* … */` comments (without the Doxygen
+      activator characters) are NOT documentation comments and are
+      passed through as code, not extracted as Blocks. Distinguishing
+      Doxygen-flagged from plain comments is the filter's core
+      filtering job.
+    examples:
+      - name: line_comment_skipped
+        input_xml: "// This is a regular comment, not Doxygen\nint x = 0;\n"
+        block_count: 0
+    okapi_refs:
+      - DoxygenFilterTest#testSimpleLine
+    native_refs:
+      - doxygen.TestExtract_RegularCommentExcluded
+
+  - id: idempotent_double_extraction
+    name: Reading the same source twice yields identical Blocks
+    description: |
+      Re-parsing the same input produces the same Block sequence —
+      identical count, identical source text per Block. This is the
+      double-extraction contract Okapi enforces across its sample
+      corpus (sample.h, qt-style.h, javadoc-style.h, special_commands.h).
+    examples:
+      - name: simple_input_stable
+        input_xml: "/// Hello from Doxygen\n"
+        block_count: 1
+        first_block_text: "Hello from Doxygen"
+    okapi_refs:
+      - DoxygenFilterTest#testOpenTwiceWithString
+      - DoxygenFilterTest#testDoubleExtractionSample
+      - DoxygenFilterTest#testDoubleExtractionQtStyle
+      - DoxygenFilterTest#testDoubleExtractionJavadocStyle
+      - DoxygenFilterTest#testDoubleExtractionSpecialCommands
+    native_refs:
+      - doxygen.TestExtract_OpenTwiceWithString
+      - doxygen.TestDoubleExtraction_Sample
+      - doxygen.TestDoubleExtraction_QtStyle
+      - doxygen.TestDoubleExtraction_JavadocStyle
+      - doxygen.TestDoubleExtraction_SpecialCommands
+
+  # ── Sample fixture coverage ───────────────────────────────────────
+  - id: sample_file_extraction
+    name: Sample header file (mixed comment styles)
+    description: |
+      A representative `.h` source file mixing `///`, `/** */`,
+      `///<`, code blocks, and `\param` / `\return` tags. Validates
+      that the reader handles realistic source layout end-to-end and
+      that code-block content stays out of the translatable stream.
+    examples:
+      - name: sample_h
+        input_file: testdata/sample.h
+        block_count: 7
+        has_block_with_text:
+          - "Brief description of the class."
+          - "After the code block."
+          - "Constructor description."
+          - "A trailing comment"
+          - "A Javadoc method description."
+          - "The name parameter"
+          - "The result value"
+        no_block_with_text:
+          - "jimmy.crack"
+          - "Not a Doxygen comment"
+    okapi_refs:
+      - DoxygenFilterTest#testDoubleExtractionSample
+    native_refs:
+      - doxygen.TestExtract_SampleFile
+      - doxygen.TestDoubleExtraction_Sample
+
+  - id: qt_style_file_extraction
+    name: Qt-style header file (//! and /*! */ comments)
+    description: |
+      A header file using only Qt-style comment markers. Both line
+      (`//!`) and block (`/*! */`) variants extract their prose as
+      Blocks; the reader does not require a single comment style per
+      file.
+    examples:
+      - name: qt_style_h
+        input_file: testdata/qt-style.h
+        block_count: 2
+        has_block_with_text:
+          - "A test class."
+          - "A Qt-style block comment."
+    okapi_refs:
+      - DoxygenFilterTest#testDoubleExtractionQtStyle
+    native_refs:
+      - doxygen.TestExtract_QtStyleFile
+      - doxygen.TestDoubleExtraction_QtStyle
+
+  - id: javadoc_style_file_extraction
+    name: Javadoc-style header file (/** */ comments)
+    description: |
+      A header file using exclusively `/** */` Javadoc comments,
+      including class, constructor, member function, and `\param` /
+      `\return` documentation. The full set of descriptions extracts
+      as Blocks in source order.
+    examples:
+      - name: javadoc_style_h
+        input_file: testdata/javadoc-style.h
+        block_count: 5
+        has_block_with_text:
+          - "A test class."
+          - "A constructor."
+          - "A member function."
+          - "The first parameter."
+          - "The result."
+    okapi_refs:
+      - DoxygenFilterTest#testDoubleExtractionJavadocStyle
+    native_refs:
+      - doxygen.TestExtract_JavadocStyleFile
+      - doxygen.TestDoubleExtraction_JavadocStyle
+
+  - id: special_commands_file_extraction
+    name: Special-commands header file (\addtogroup, \verbatim, inline)
+    description: |
+      A header file exercising the harder-edge command vocabulary:
+      `\file` / `\author` / `\date` (skipped), `\addtogroup` (group
+      title is translatable), `\note` / `\warning` / `\todo`
+      (translatable paragraph), `\verbatim` (excluded), and inline
+      `\e` / `\b` / `\c` formatting.
+    examples:
+      - name: special_commands_h
+        input_file: testdata/special_commands.h
+        block_count: 7
+        has_block_with_text:
+          - "Additional documentation for the group."
+          - "This function does something."
+          - "Important note about this function."
+          - "Be careful with this."
+          - "Implement error handling."
+          - "After verbatim section."
+        no_block_with_text:
+          - "This text is not translated"
+    okapi_refs:
+      - DoxygenFilterTest#testDoubleExtractionSpecialCommands
+    native_refs:
+      - doxygen.TestExtract_SpecialCommandsFile
+      - doxygen.TestDoubleExtraction_SpecialCommands
+
+  # ── Layer / output contract ───────────────────────────────────────
+  - id: document_envelope
+    name: Layer envelope and MIME type metadata
+    description: |
+      Every read produces a well-formed `LayerStart` / `LayerEnd`
+      envelope around the part stream, with the layer carrying
+      `text/x-doxygen-txt` as MIME type and the document's source
+      locale (defaulting to English when the document has none).
+      The simplest possible single-comment input still produces this
+      envelope alongside the comment Block.
+    examples:
+      - name: minimal_layer
+        input_xml: "/// Hello\n"
+        block_count: 1
+        first_block_text: "Hello"
+    okapi_refs:
+      - DoxygenFilterTest#testDefaultInfo
+      - DoxygenFilterTest#testStartDocument
+    native_refs:
+      - doxygen.TestExtract_DefaultInfo
+      - doxygen.TestExtract_StartDocument
+      - doxygen.TestExtract_LayerStructure
+
+  - id: roundtrip_preserves_text
+    name: Read-write roundtrip preserves comment text
+    description: |
+      A read → write cycle preserves the extracted comment text in the
+      output stream, including the original code prefix for trailing
+      `///<` comments. Verifies the writer's contract for the simplest
+      shapes Okapi exercises (testOutputSimpleLine, testOutputOneLiner,
+      testOutputMultipleLines, testOutputJavadocMultipleLines).
+      Bytewise roundtrip is exercised by the dedicated native writer
+      tests; the spec runner only asserts the extracted Block set so
+      the same fixture validates both sides.
+    examples:
+      - name: simple_line_extracts
+        input_xml: "/// A simple line comment\n"
+        block_count: 1
+        first_block_text: "A simple line comment"
+    okapi_refs:
+      - DoxygenFilterTest#testOutputSimpleLine
+      - DoxygenFilterTest#testOutputOneLiner
+      - DoxygenFilterTest#testOutputMultipleLines
+      - DoxygenFilterTest#testOutputJavadocMultipleLines
+    native_refs:
+      - doxygen.TestOutput_SimpleLine
+      - doxygen.TestOutput_OneLiner
+      - doxygen.TestOutput_MultipleLines
+      - doxygen.TestOutput_JavadocMultipleLines
