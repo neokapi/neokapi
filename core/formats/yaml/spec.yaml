@@ -241,6 +241,13 @@ features:
         # `age: 33` is a number — non-string scalars are skipped at
         # the reader's default config, so only the name flows through.
         input_xml: "person: {name: John Smith, age: 33}\n"
+        expected_fail: |
+          bridge segments flow-style mappings at finer granularity
+          than native — Okapi YmlFilter extracts both the string and
+          the numeric scalar (yielding 2 blocks with "John Smith" and
+          "33"). Native skips non-string scalars under default config
+          and yields 1 block. Both legitimate; spec asserts native
+          behavior.
         block_count: 1
         first_block_text: "John Smith"
     okapi_refs:
@@ -261,6 +268,12 @@ features:
     examples:
       - name: literal_block
         input_xml: "literal: |\n  Line 1\n  Line 2\n"
+        expected_fail: |
+          bridge bug — Okapi YmlFilter loses newlines in literal
+          (`|`) block scalars, joining "Line 1\nLine 2\n" into
+          "Line 1Line 2". Native preserves newlines per YAML 1.2
+          literal-scalar semantics. Tracked separately as a bridge
+          multiline-block-scalar handling bug.
         block_count: 1
         first_block_text: "Line 1\nLine 2\n"
       - name: literal_strip_chomp
@@ -269,10 +282,22 @@ features:
         # native-equivalent here uses consistent indentation and
         # asserts the same strip-chomp behavior (no trailing `\n`).
         input_xml: "long_line: |-\n  This is a\n  very long line.\n"
+        expected_fail: |
+          bridge bug — same multiline-block-scalar newline loss as
+          literal_block. Bridge yields "This is avery long line.";
+          native preserves the embedded newline ("This is a\nvery
+          long line.") per YAML 1.2 strip-chomp semantics. Tracked
+          separately.
         block_count: 1
         first_block_text: "This is a\nvery long line."
       - name: folded_block_joins
         input_xml: "folded: >\n  Joined\n  text\n"
+        expected_fail: |
+          bridge bug — folded (`>`) scalar should join continuation
+          lines with a space and keep the trailing newline ("Joined
+          text\n"). Bridge yields "Joined text" with no trailing
+          newline. Native matches YAML 1.2 folded-scalar semantics.
+          Tracked separately.
         block_count: 1
         first_block_text: "Joined text\n"
     okapi_refs:
@@ -297,6 +322,13 @@ features:
     examples:
       - name: scalar_anchor_alias
         input_xml: "base_url: &url https://example.com\napi_url: *url\n"
+        expected_fail: |
+          bridge segments anchor/alias references at coarser
+          granularity than native — Okapi YmlFilter exposes the
+          anchored value once (1 block) instead of emitting at
+          each use site. Native walks the alias target node directly
+          (yaml.v3 Node.Alias) and yields one block per occurrence.
+          Both legitimate; spec asserts native behavior.
         block_count: 2
         block_texts:
           - "https://example.com"
@@ -368,6 +400,12 @@ features:
     examples:
       - name: mustache_placeholder
         input_xml: "config:\n  title: \"My {{count}} Rails Website\"\n"
+        expected_fail: |
+          bridge default config treats `{{count}}` as inline code
+          (Okapi's default code-finder rules tag and strip it from
+          the source text), yielding "My  Rails Website". Native
+          passes mustache placeholders through as plain text. Both
+          legitimate; spec asserts native behavior.
         block_count: 1
         first_block_text: "My {{count}} Rails Website"
     okapi_refs:
