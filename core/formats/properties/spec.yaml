@@ -1,0 +1,408 @@
+# Java Properties format specification.
+#
+# Single-variant filter — no variants block. Inputs are inline text
+# snippets (input_xml field carries raw bytes for any text format) or
+# upstream test files referenced as okapi:filters/properties/.../...
+# which the runner skips cleanly when the okapi-testdata corpus isn't
+# fetched.
+#
+# Config keys mirror the bridge composite schema's leaf names
+# (extractOnlyMatchingKey, useKeyCondition, keyCondition, extraComments,
+# commentsAreNotes, escapeExtendedChars, useJavaEscapes, convertLFandTab,
+# idLikeResname, useLd, localizeOutside). The native Config.ApplyMap
+# accepts each of these directly.
+#
+# Inline-code detection (useCodeFinder / codeFinderRules) is exercised
+# through the message-placeholder feature but is NOT declared as a
+# spec.config key. The bridge composite schema represents it as a
+# nested $defs block (`inlineCodes.enabled`, `inlineCodes.rules`) whose
+# leaf names (`enabled`, `rules`) are too ambiguous to stand alone in
+# the flat config surface this spec advertises.
+
+format: okf_properties
+mime_type: text/x-java-properties
+description: |
+  Java Properties files (.properties). Each logical line is an entry
+  of the form `key=value`, `key:value`, or `key value` (whitespace
+  separator). Lines starting with `#` or `!` are comments; an entry's
+  trailing comments attach as translator notes. Backslash at end of
+  line continues the value onto the next physical line. Values may
+  embed `\uXXXX`, `\n`, `\t`, `\r`, `\\` escape sequences.
+
+config:
+  # ── Extraction filtering (extraction.* in bridge schema) ──────────
+  - key: useKeyCondition
+    type: boolean
+    default: false
+    description: |
+      Enable key-based extraction filtering. When false, every entry
+      is extracted; when true, the keyCondition regex selects which
+      entries are extracted (gated by extractOnlyMatchingKey).
+    okapi_param: useKeyCondition
+
+  - key: extractOnlyMatchingKey
+    type: boolean
+    default: true
+    description: |
+      Direction of the keyCondition filter. When true (default),
+      ONLY entries whose keys match are extracted. When false,
+      matching keys are EXCLUDED. No effect unless useKeyCondition
+      is true.
+    okapi_param: extractOnlyMatchingKey
+
+  - key: keyCondition
+    type: string
+    default: ".*text.*"
+    description: |
+      Regex evaluated against each property key. Combined with
+      extractOnlyMatchingKey to include or exclude matching entries.
+    okapi_param: keyCondition
+
+  - key: extraComments
+    type: boolean
+    default: false
+    description: |
+      Recognize semicolon (`;`) and double-slash (`//`) comment
+      styles in addition to the standard `#` and `!` markers.
+    okapi_param: extraComments
+
+  # ── Comment / note handling ───────────────────────────────────────
+  - key: commentsAreNotes
+    type: boolean
+    default: true
+    description: |
+      Treat preceding comments as translator notes attached to the
+      following entry. When false, comments stay in the skeleton
+      only.
+    okapi_param: commentsAreNotes
+
+  # ── Output formatting ─────────────────────────────────────────────
+  - key: escapeExtendedChars
+    type: boolean
+    default: true
+    description: |
+      On write, encode non-ASCII characters as `\uXXXX`. Default on
+      to keep output ISO-8859-1 safe. Reader-side this flag has no
+      effect — it shapes the writer's output only.
+    okapi_param: escapeExtendedChars
+
+  - key: useJavaEscapes
+    type: boolean
+    default: false
+    description: |
+      Decode the additional Java property escape sequences
+      `\:`, `\=`, `\#`, `\!` in values. Default off — the Okapi
+      filter only enables this when explicitly configured.
+    okapi_param: useJavaEscapes
+
+features:
+  # ── Basic key/value extraction ────────────────────────────────────
+  - id: key_value_extraction
+    name: Key/value entry extraction
+    description: |
+      Each `key=value` (or `key:value`, or `key value`) line yields
+      one translatable Block. The key becomes the Block's name; the
+      value its source text.
+    examples:
+      - name: single_entry
+        input_xml: "Key1=Text1\n"
+        block_count: 1
+        first_block_text: "Text1"
+      - name: multiple_entries
+        input_xml: "Key1=Text1\n# Comment\nKey2=Text2\n"
+        block_count: 2
+        block_texts:
+          - "Text1"
+          - "Text2"
+    okapi_refs:
+      - PropertiesFilterTest#testEntry
+      - PropertiesFilterTest#testStartDocument
+      - PropertiesFilterTest#testIdGeneration_defaultConfig
+    native_refs:
+      - properties.TestReadSimple
+      - properties.TestReadMultipleEntries
+
+  # ── Separator variations (=, :, space) ────────────────────────────
+  - id: separator_variants
+    name: Multiple key/value separators
+    description: |
+      Java Properties accepts three separator forms between key and
+      value: `=`, `:`, and unescaped whitespace. All produce the same
+      Block; the chosen separator is preserved in skeleton.
+    examples:
+      - name: equals
+        input_xml: "key1=value1"
+        block_count: 1
+        first_block_text: "value1"
+      - name: colon
+        input_xml: "key2:value2"
+        block_count: 1
+        first_block_text: "value2"
+      - name: space
+        input_xml: "key3 value3"
+        block_count: 1
+        first_block_text: "value3"
+    okapi_refs:
+      - PropertiesFilterTest#testKeySpecial
+      - PropertiesFilterTest#testSpecialCharsInKey
+    native_refs:
+      - properties.TestReadColonSeparator
+      - properties.TestReadSpaceSeparator
+      - properties.TestReadMixedFormats
+
+  # ── Continuation lines ────────────────────────────────────────────
+  - id: continuation_lines
+    name: Backslash line continuation
+    description: |
+      A trailing backslash splices the next physical line into the
+      same logical entry. Leading whitespace on the continuation
+      line is stripped before joining, per the Java spec. Multiple
+      backslash continuations chain into one logical value.
+    examples:
+      - name: two_lines
+        input_xml: "Key1=Text1\nKey2=Text2 \\\nSecond line"
+        block_count: 2
+        block_texts:
+          - "Text1"
+          - "Text2 Second line"
+      - name: many_lines_indented
+        input_xml: "key8 = Text 8 \\\n  originally on \\\n\tseveral li\\\n   nes."
+        block_count: 1
+        first_block_text: "Text 8 originally on several lines."
+    okapi_refs:
+      - PropertiesFilterTest#testSplicedEntry
+    native_refs:
+      - properties.TestReadContinuationLine
+      - properties.TestReadContinuationMultipleLines
+
+  # ── Comments and notes ────────────────────────────────────────────
+  - id: comment_handling
+    name: Standard comment markers and notes
+    description: |
+      Lines starting with `#` or `!` are comments. With
+      commentsAreNotes=true (default) a comment immediately
+      preceding an entry attaches as that entry's translator note;
+      otherwise the comment lives only in the skeleton. A blank
+      line resets the pending note.
+    examples:
+      - name: hash_then_entry
+        input_xml: "# This is a comment\nkey=value\n"
+        block_count: 1
+        first_block_text: "value"
+      - name: bang_then_entry
+        input_xml: "! Also a comment\nkey=value\n"
+        block_count: 1
+        first_block_text: "value"
+    okapi_refs:
+      - PropertiesFilterTest#testEntry
+    native_refs:
+      - properties.TestReadComments
+      - properties.TestReadExclamationComment
+
+  # ── Extra comment markers (extraComments) ─────────────────────────
+  - id: extra_comment_markers
+    name: Optional `;` and `//` comment markers
+    description: |
+      With extraComments=true the reader also recognizes lines
+      starting with `;` or `//` as comments. Default off — these
+      lines parse as ordinary entries (with `;` or `/` as part of
+      the key).
+    examples:
+      - name: semicolon_off_treated_as_entry
+        input_xml: "; not a comment\nkey=value\n"
+        # extraComments=false (default): `;` is part of the key, so
+        # the line parses as an entry whose value is "not a comment".
+        block_count: 2
+        block_texts:
+          - "not a comment"
+          - "value"
+      - name: semicolon_on_skipped
+        input_xml: "; this is a comment\nkey=value\n"
+        config:
+          extraComments: true
+        block_count: 1
+        first_block_text: "value"
+    okapi_refs:
+      - PropertiesFilterTest#testEntry
+    native_refs:
+      - properties.TestReadComments
+
+  # ── Unicode \u escape decoding ────────────────────────────────────
+  - id: unicode_escape_decoding
+    name: Decode \\uXXXX escape sequences
+    description: |
+      `\uXXXX` sequences in property values decode to the actual
+      character before extraction. The Block's source text carries
+      the decoded character, not the escape sequence.
+    examples:
+      - name: a_tilde
+        input_xml: "Key1=Text with \\u00E3"
+        block_count: 1
+        first_block_text: "Text with ã"
+      - name: ascii_hello
+        input_xml: "greeting=\\u0048\\u0065\\u006C\\u006C\\u006F"
+        block_count: 1
+        first_block_text: "Hello"
+    okapi_refs:
+      - PropertiesFilterTest#testEscapes
+    native_refs:
+      - properties.TestReadUnicodeEscapes
+      - properties.TestReadJapaneseUnicodeEscapes
+
+  # ── Backslash escapes in values (\n \t \r \\) ─────────────────────
+  - id: backslash_escape_decoding
+    name: Decode \\n \\t \\r \\\\ escape sequences
+    description: |
+      Standard Java property escapes `\n`, `\t`, `\r`, `\\` in
+      values decode to their literal characters. Unknown escapes
+      (e.g. `\w`) are kept verbatim. Controlled by convertLFandTab
+      for `\n` / `\t`; the others are always decoded.
+    examples:
+      - name: mixed_escapes
+        input_xml: "Key1:Text1\\n=lf, \\t=tab, \\w=w, \\r=cr, \\\\=bs\n"
+        block_count: 1
+        first_block_text: "Text1\n=lf, \t=tab, \\w=w, \r=cr, \\=bs"
+    okapi_refs:
+      - PropertiesFilterTest#testSpecialChars
+      - PropertiesFilterTest#testSpecialCharsOutput
+    native_refs:
+      - properties.TestReadJapaneseUnicodeEscapes
+
+  # ── Java extra escapes (\: \= \# \!) ──────────────────────────────
+  - id: java_extra_escapes
+    name: "Decode Java property escapes (\\: \\= \\# \\!)"
+    description: |
+      With useJavaEscapes=true, the additional Java property escape
+      sequences `\:`, `\=`, `\#`, `\!` in values are decoded to
+      their literal characters. Default off — by default these stay
+      escaped in the extracted text.
+    examples:
+      - name: default_off_keeps_escapes
+        input_xml: "key1=Listen\\: here's the \\#1 thing to remember\\: a \\!\\= b \\\\ c"
+        block_count: 1
+        first_block_text: "Listen\\: here's the \\#1 thing to remember\\: a \\!\\= b \\ c"
+      - name: enabled_decodes_escapes
+        input_xml: "key1=Listen\\: here's the \\#1 thing to remember\\: a \\!\\= b \\\\ c"
+        config:
+          useJavaEscapes: true
+        block_count: 1
+        first_block_text: "Listen: here's the #1 thing to remember: a != b \\ c"
+    okapi_refs:
+      - PropertiesFilterTest#testJavaEscapeChars
+    native_refs:
+      - properties.TestRead_JavaEscapeChars
+
+  # ── Key-condition filtering ───────────────────────────────────────
+  - id: key_condition_filtering
+    name: Extract / exclude entries by key regex
+    description: |
+      With useKeyCondition=true, entries are filtered by a regex
+      matched against their keys. extractOnlyMatchingKey selects
+      direction: true keeps matching entries; false drops them.
+      Mirrors the upstream Test02 / Test03 fprm configurations.
+    config:
+      useKeyCondition: true
+      keyCondition: ".*text.*"
+    examples:
+      - name: extract_matching_only
+        input_xml: "text100\tText for text100\nkey101\tText for key101 (no extraction)\ntextkey102 Text for textkey102\n"
+        config:
+          extractOnlyMatchingKey: true
+        block_count: 2
+        block_texts:
+          - "Text for text100"
+          - "Text for textkey102"
+      - name: exclude_matching
+        input_xml: "text100\tText for text100 (no extraction)\nkey101\tText for key101\ntextkey102 Text for textkey102 (no extraction)\n"
+        config:
+          extractOnlyMatchingKey: false
+        block_count: 1
+        first_block_text: "Text for key101"
+    okapi_refs:
+      - PropertiesFilterTest#testDoubleExtraction
+    native_refs:
+      - properties.TestReadMultipleEntries
+
+  # ── Message placeholders pass through as text ─────────────────────
+  - id: message_placeholders
+    name: Message placeholders in values
+    description: |
+      `{n}` style message placeholders in property values are part
+      of the source text. Upstream Okapi (with default code-finder
+      rules enabled) tags them as inline codes; the native reader
+      keeps them as plain text under default config. The block's
+      source text is identical in both cases — only the inline-code
+      annotation differs.
+    examples:
+      - name: numbered_placeholders
+        input_xml: "Key1={1}Text1{2}"
+        block_count: 1
+        first_block_text: "{1}Text1{2}"
+      - name: escaped_placeholders
+        input_xml: "Key1=before \\{1\\} after"
+        block_count: 1
+        # Native reader leaves `\{` as `\{` (unknown escape) and
+        # likewise for `\}` — both round-trip verbatim in source text.
+        first_block_text: "before \\{1\\} after"
+    okapi_refs:
+      - PropertiesFilterTest#testMessagePlaceholders
+      - PropertiesFilterTest#testMessagePlaceholdersEscaped
+    native_refs:
+      - properties.TestRead_MessagePlaceholders
+      - properties.TestRead_MessagePlaceholdersEscaped
+
+  # ── Localization directives (#_skip / #_text / …) ─────────────────
+  - id: directives_localization
+    name: Localization directives in comments
+    description: |
+      Special comment markers `#_skip`, `#_text`, `#_bskip` /
+      `#_eskip`, `#_btext` / `#_etext` toggle extraction of the
+      entries that follow. The Okapi filter honors these in its
+      default-distributed fprm configurations; the native reader
+      currently ignores them and extracts every entry regardless.
+      Tracked here as a documented divergence.
+    examples:
+      - name: skip_single_entry
+        input_xml: "#_skip\nKey1:Text1\nKey2:Text2"
+        # Okapi: Key1 skipped, only Text2 extracted (block_count=1).
+        # Native: directives ignored, both extracted.
+        expected_fail: |
+          Native reader does not honour Okapi localization
+          directives. Tracked until useLd support lands; until then
+          the spec asserts the Okapi-correct outcome and the native
+          runner records expected_fail.
+        block_count: 1
+        first_block_text: "Text2"
+      - name: bskip_blocks_extraction
+        input_xml: "#_bskip\nKey1:Text1\n#_text\nKey2:Text2\nKey2:Text3"
+        expected_fail: |
+          Same divergence as skip_single_entry — directives ignored.
+        block_count: 1
+        first_block_text: "Text2"
+    okapi_refs:
+      - PropertiesFilterTest#testLocDirectives_Skip
+      - PropertiesFilterTest#testLocDirectives_Group
+
+  # ── CR-only line endings (Mac classic) ────────────────────────────
+  - id: cr_only_line_endings
+    name: Carriage-return-only line endings
+    description: |
+      Java Properties accepts `\r` alone as a line terminator. The
+      Okapi filter splits on `\r` and yields one entry per line;
+      the native reader currently treats `\r` as part of the value
+      and produces a single block containing the unsplit content.
+      Documented divergence — pinned via expected_fail until the
+      native reader handles bare CR.
+    examples:
+      - name: cr_terminated_pair
+        input_xml: "Key1=Text1\rKey2=Text2\r"
+        expected_fail: |
+          Native bufio reader splits on `\n` only, so `\r` lines
+          collapse into a single logical line. Okapi yields two
+          entries; native yields one. Tracked.
+        block_count: 2
+        block_texts:
+          - "Text1"
+          - "Text2"
+    okapi_refs:
+      - PropertiesFilterTest#testLineBreaks_CR
