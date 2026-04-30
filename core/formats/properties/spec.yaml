@@ -260,6 +260,13 @@ features:
     examples:
       - name: mixed_escapes
         input_xml: "Key1:Text1\\n=lf, \\t=tab, \\w=w, \\r=cr, \\\\=bs\n"
+        expected_fail: |
+          bridge bug — Okapi PropertiesFilter loses the literal `\r`
+          escape (returns empty in its place) and double-escapes the
+          trailing `\\`, producing "Text1\n=lf, \t=tab, \\w=w, =cr,
+          \\\\=bs". Native correctly decodes per Java property spec
+          to "Text1\n=lf, \t=tab, \\w=w, \r=cr, \\=bs". Tracked
+          separately as a bridge escape-decoding bug.
         block_count: 1
         first_block_text: "Text1\n=lf, \t=tab, \\w=w, \r=cr, \\=bs"
     okapi_refs:
@@ -279,6 +286,13 @@ features:
     examples:
       - name: default_off_keeps_escapes
         input_xml: "key1=Listen\\: here's the \\#1 thing to remember\\: a \\!\\= b \\\\ c"
+        expected_fail: |
+          bridge bug — with useJavaEscapes off, Okapi PropertiesFilter
+          keeps the `\\` doubled instead of decoding it once, yielding
+          "...a \\!\\= b \\\\ c". Native (and the Java property spec)
+          treats `\\` as always-decoded to a single backslash regardless
+          of the useJavaEscapes flag. Tracked separately as a bridge
+          escape-decoding bug.
         block_count: 1
         first_block_text: "Listen\\: here's the \\#1 thing to remember\\: a \\!\\= b \\ c"
       - name: enabled_decodes_escapes
@@ -336,6 +350,13 @@ features:
     examples:
       - name: numbered_placeholders
         input_xml: "Key1={1}Text1{2}"
+        expected_fail: |
+          bridge default config treats `{n}` placeholders as inline
+          codes (Okapi's default code-finder rules tag them and strip
+          them from the source text), yielding "Text1". Native passes
+          them through as plain text. Both legitimate; spec asserts
+          native behavior. Could also be reconciled by disabling
+          code-finder in the bridge config.
         block_count: 1
         first_block_text: "{1}Text1{2}"
       - name: escaped_placeholders
