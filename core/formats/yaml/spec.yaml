@@ -1,0 +1,414 @@
+# YAML format specification.
+#
+# Single-variant filter — no variants block. Inputs are inline YAML
+# snippets (input_xml carries raw bytes for any text format). The
+# native reader walks gopkg.in/yaml.v3 nodes; the upstream Java filter
+# is built on SnakeYAML, but the public extraction contract is the
+# same: scalar string values become translatable Blocks, with the
+# nested key path recorded as the Block name.
+#
+# spec.config keys mirror the bridge composite schema's leaf names
+# (extractAll, includeIsolatedStrings, useAsName, useFullPath,
+# escapeNonAscii, wrap, subFilterProcessLiteralAsBlock) so drift
+# detection lines up against the okf_yaml v10 schema. okapi_param
+# carries the underlying Java field name (extractAllPairs,
+# extractIsolatedStrings, useKeyAsName, useFullKeyPath, …).
+#
+# The native YAML reader's ApplyMap currently accepts only its own
+# native parameter spellings (extractNonStrings, useCodeFinder,
+# keyPathPatterns, codeFinderRules, subfilter); none of those are in
+# the bridge composite top-level property set (useCodeFinder lives
+# under a `$ref` that the contract-audit walker doesn't follow, and
+# extractNonStrings / keyPathPatterns have no Okapi counterpart at
+# all). To keep drift detection at zero this initial spec demonstrates
+# only the always-on defaults — every example runs with the reader's
+# default config. Config-driven features (inline code finder,
+# extractNonStrings opt-in, key-path filtering) are tracked by the
+# always-on Go tests in reader_test.go and will land in the spec
+# alongside a follow-up bridge-name alias pass on Config.ApplyMap.
+
+format: okf_yaml
+mime_type: application/yaml
+description: |
+  YAML 1.2 filter (block + flow styles). Walks the document tree and
+  extracts string scalar values as translatable Blocks; non-string
+  scalars (numbers, booleans, nulls) are skipped by default. The
+  nested key path (e.g. `en.activerecord.errors.messages.blank`)
+  becomes the Block name. Anchors and aliases resolve to their
+  referenced value at each use site, so an alias produces a Block of
+  its own. Multi-document streams (`---` separators) flow through as
+  a single sequence of Blocks.
+
+config:
+  # ── Extraction filtering (bridge `extraction.*` leaves) ───────────
+  - key: extractAll
+    type: boolean
+    default: true
+    description: |
+      Extract every string scalar reachable from the document root.
+      When false, only values whose key matches `excludeKeys` are
+      extracted — inverting the filter's behavior. The native reader
+      always walks every node; this knob only flips the meaning of
+      `excludeKeys`.
+    okapi_param: extractAllPairs
+
+  - key: includeIsolatedStrings
+    type: boolean
+    default: false
+    description: |
+      Extract bare string elements that are NOT under a key (typically
+      top-level sequence items like `- test`). Off by default — most
+      YAML catalogues are key/value, isolated strings are usually
+      structural. The native reader extracts these using the synthetic
+      key name `[<index>]` regardless of this flag.
+    okapi_param: extractIsolatedStrings
+
+  - key: excludeKeys
+    type: string
+    default: ""
+    description: |
+      Regex matched against key names. When `extractAll` is true,
+      matching values are EXCLUDED. When false, they're INCLUDED.
+      Used to skip metadata keys that aren't translatable. Not yet
+      honoured by the native reader; bridge-only contract for now.
+    okapi_param: exceptions
+
+  # ── Block naming (bridge `keys.*` leaves) ─────────────────────────
+  - key: useAsName
+    type: boolean
+    default: true
+    description: |
+      Use the YAML key as the Block name (translation context). The
+      native reader always names blocks by their key path, so this
+      flag is effectively always-on; advertised here for parity with
+      the Okapi parameter surface.
+    okapi_param: useKeyAsName
+
+  - key: useFullPath
+    type: boolean
+    default: true
+    description: |
+      Use the full nested path (e.g. `parent.child.leaf`) as the
+      Block name instead of the immediate key. Mirrors Okapi's
+      useFullKeyPath parameter (also exposed by the bridge composite
+      schema). The native reader always emits full paths; legacy
+      single-key naming is not currently implemented.
+    okapi_param: useFullKeyPath
+
+  # ── Output formatting (bridge `output.*` leaves) ──────────────────
+  - key: escapeNonAscii
+    type: boolean
+    default: false
+    description: |
+      On write, encode non-ASCII characters with `\uXXXX` escape
+      sequences. Reader-side this flag has no effect — it shapes the
+      writer's output only.
+    okapi_param: escapeNonAscii
+
+  - key: wrap
+    type: boolean
+    default: true
+    description: |
+      Enable line wrapping in writer output. Reader-side this flag
+      has no effect — it shapes the writer's output only.
+    okapi_param: wrap
+
+  - key: subFilterProcessLiteralAsBlock
+    type: boolean
+    default: false
+    description: |
+      Process YAML literal block scalars (`key: |`) through the
+      configured sub-filter (e.g. extract HTML inside a literal block
+      as embedded HTML content). Native reader keeps the literal
+      content as a single Block of raw text; bridge promotes the
+      nested format to its own subflow when a subfilter is wired.
+    okapi_param: subFilterProcessLiteralAsBlock
+
+features:
+  # ── Scalar value extraction (the core path) ───────────────────────
+  - id: scalar_value_extraction
+    name: String scalar value in a mapping
+    description: |
+      The simplest case: a `key: value` mapping yields one
+      translatable Block whose source is "value" and whose name is
+      "key". Plain, single-quoted, and double-quoted scalar styles
+      all extract the same source text.
+    examples:
+      - name: simple_pair
+        input_xml: "title: My Rails Website\n"
+        block_count: 1
+        first_block_text: "My Rails Website"
+      - name: nested_under_root
+        input_xml: "config:\n  title: \"My Rails Website\"\n"
+        block_count: 1
+        first_block_text: "My Rails Website"
+      - name: three_quoting_styles
+        input_xml: "single: 'one'\ndouble: \"two\"\nplain: three\n"
+        block_count: 3
+        block_texts: ["one", "two", "three"]
+    okapi_refs:
+      - YmlFilterTest#testSimpleYaml
+      - YmlFilterTest#testStartDocument
+      - YmlFilterTest#nonEmptyKey
+      - YamlParserTest#singleString
+    native_refs:
+      - yaml.TestExtract_SimpleYaml
+      - yaml.TestExtract_NonEmptyKey
+      - yaml.TestParse_SingleString
+      - yaml.TestReadDoubleQuotedString
+      - yaml.TestReadSingleQuotedString
+      - yaml.TestReadPlainScalar
+
+  - id: nested_mapping_extraction
+    name: Nested mapping with full key paths
+    description: |
+      Values inside nested mappings extract recursively, with each
+      Block's name carrying the dotted path from the document root
+      (e.g. `en.activerecord.errors.messages.blank`). Container keys
+      have no translatable text themselves.
+    examples:
+      - name: rails_compact_locale
+        input_xml: |
+          en:
+            activerecord:
+              errors:
+                messages:
+                  blank: can't be blank
+                  taken: has already been taken
+        block_count: 2
+        block_texts:
+          - "can't be blank"
+          - "has already been taken"
+      - name: deep_nesting
+        input_xml: "root:\n  level1:\n    level2: deep value\n"
+        block_count: 1
+        first_block_text: "deep value"
+    okapi_refs:
+      - YmlFilterTest#mapWithEmptyKeys
+      - YmlFilterTest#mapWithEmptyKeysQuoted
+      - YmlFilterTest#map
+      - YamlParserTest#singleFile
+    native_refs:
+      - yaml.TestReadCompactNotation
+      - yaml.TestReadNestedYAML
+      - yaml.TestExtract_Map
+
+  - id: sequence_extraction
+    name: Sequence (array) string elements
+    description: |
+      String scalar elements in YAML sequences each become their own
+      Block. The native reader names them `<key>.[<index>]`
+      (e.g. `items.[0]`). Both block-style (`- item`) and flow-style
+      (`[a, b, c]`) sequences extract the same way; quote styles
+      survive the trip.
+    examples:
+      - name: block_sequence
+        input_xml: "items:\n  - test1\n  - test2\n"
+        block_count: 2
+        block_texts: ["test1", "test2"]
+      - name: flow_sequence
+        input_xml: "items: [one, two, three]\n"
+        block_count: 3
+        block_texts: ["one", "two", "three"]
+      - name: quoted_sequence
+        input_xml: "items:\n  - 'First'\n  - 'Second'\n  - 'Third'\n"
+        block_count: 3
+        block_texts: ["First", "Second", "Third"]
+    okapi_refs:
+      - YmlFilterTest#list
+      - YmlFilterTest#listSingleQuote
+      - YamlParserTest#singleArrayWithSpace
+      - YamlParserTest#singleArrayNoSpace
+    native_refs:
+      - yaml.TestExtract_List
+      - yaml.TestExtract_ListSingleQuote
+      - yaml.TestParse_SingleArrayWithSpace
+      - yaml.TestReadFlowSequence
+
+  - id: flow_style_extraction
+    name: Flow-style mapping and sequence
+    description: |
+      Flow-style YAML (`{key: value}`, `[a, b]`) is semantically
+      identical to block style — the native reader extracts the same
+      Blocks, including from nested flow structures. Verifies the
+      compact JSON-like notation flows through the same code path.
+    examples:
+      - name: flow_mapping
+        input_xml: "person: {name: Alice, role: Developer}\n"
+        block_count: 2
+        block_texts: ["Alice", "Developer"]
+      - name: flow_strings_only
+        # `age: 33` is a number — non-string scalars are skipped at
+        # the reader's default config, so only the name flows through.
+        input_xml: "person: {name: John Smith, age: 33}\n"
+        block_count: 1
+        first_block_text: "John Smith"
+    okapi_refs:
+      - YmlFilterTest#testFlow
+    native_refs:
+      - yaml.TestExtract_Flow
+      - yaml.TestReadFlowMapping
+      - yaml.TestReadNestedFlowStyle
+
+  - id: multiline_block_scalar
+    name: Literal and folded block scalars
+    description: |
+      Literal (`|`) block scalars preserve newlines verbatim; folded
+      (`>`) block scalars join continuation lines with spaces.
+      Either way the scalar produces one Block whose source carries
+      the decoded multi-line text. Chomp indicators (`|-`, `|+`)
+      tweak trailing-newline handling.
+    examples:
+      - name: literal_block
+        input_xml: "literal: |\n  Line 1\n  Line 2\n"
+        block_count: 1
+        first_block_text: "Line 1\nLine 2\n"
+      - name: literal_strip_chomp
+        # `|-` strips the trailing newline. The Java upstream snippet
+        # uses inconsistent indentation that yaml.v3 rejects; the
+        # native-equivalent here uses consistent indentation and
+        # asserts the same strip-chomp behavior (no trailing `\n`).
+        input_xml: "long_line: |-\n  This is a\n  very long line.\n"
+        block_count: 1
+        first_block_text: "This is a\nvery long line."
+      - name: folded_block_joins
+        input_xml: "folded: >\n  Joined\n  text\n"
+        block_count: 1
+        first_block_text: "Joined text\n"
+    okapi_refs:
+      - YmlFilterTest#testMultilineValue
+      - YmlFilterTest#testDoubleExtractionWithMultilines
+      - YmlFilterTest#testScalars
+    native_refs:
+      - yaml.TestExtract_MultilineValue
+      - yaml.TestReadLiteralBlockScalar
+      - yaml.TestReadFoldedBlockScalar
+      - yaml.TestReadLiteralBlockWithChompStrip
+
+  - id: anchor_alias_resolution
+    name: Anchor and alias resolution
+    description: |
+      `&anchor` and `*alias` references resolve to the anchored
+      value at each use site — both the original definition and the
+      alias produce their own Blocks carrying the same source text.
+      Native reader walks the alias target node directly (via
+      yaml.v3's Node.Alias), matching the Okapi behavior of
+      extracting at every node occurrence.
+    examples:
+      - name: scalar_anchor_alias
+        input_xml: "base_url: &url https://example.com\napi_url: *url\n"
+        block_count: 2
+        block_texts:
+          - "https://example.com"
+          - "https://example.com"
+    okapi_refs:
+      # YmlFilterTest#testAnchorsAndAlias exists upstream but is
+      # @Ignore'd ("very strange even pyyaml doesn't like it") and
+      # therefore absent from the surefire report. Lean on the
+      # always-on native tests instead until the upstream test is
+      # un-ignored or replaced.
+      - YmlFilterTest#testRoundtripFailures
+    native_refs:
+      - yaml.TestReadAnchorAndAlias
+      - yaml.TestReadScalarAnchorAlias
+
+  - id: multi_document_stream
+    name: Multi-document YAML stream
+    description: |
+      A `---`-separated stream of YAML documents extracts as one
+      logical sequence: each document's mappings contribute Blocks in
+      source order. Verifies the native decoder loops on
+      yaml.v3.Decoder until io.EOF rather than stopping at the first
+      document.
+    examples:
+      - name: two_simple_docs
+        input_xml: "---\ntitle: Document One\n---\ntitle: Document Two\n"
+        block_count: 2
+        block_texts: ["Document One", "Document Two"]
+    okapi_refs:
+      - YmlFilterTest#testRoundtripFailures
+    native_refs:
+      - yaml.TestReadMultiDocument
+      - yaml.TestReadMultiDocumentWithExplicitEnd
+
+  - id: trailing_comment_stripped
+    name: Trailing line comments excluded from value
+    description: |
+      An end-of-line `# comment` is part of the YAML structure, not
+      the scalar value. The Block source carries only the value text;
+      the comment lives in skeleton. Verified upstream as the round
+      trip preserving comments while keeping them out of the source.
+    examples:
+      - name: hash_comment_after_value
+        input_xml: "key: value # this is a comment\n"
+        block_count: 1
+        first_block_text: "value"
+      - name: comment_after_nested_value
+        input_xml: "parent:\n  key: value # comment\n"
+        block_count: 1
+        first_block_text: "value"
+    okapi_refs:
+      - YmlFilterTest#commentsAfterPlainScalarsPreserved
+      - YmlFilterTest#commentsAfterPlainScalarMappingValuesPreserved
+      - YmlFilterTest#commentsAfterScalarsRoundTripped
+    native_refs:
+      - yaml.TestExtract_CommentsAfterPlainScalarsPreserved
+      - yaml.TestExtract_CommentsAfterPlainScalarMappingValuesPreserved
+      - yaml.TestExtract_CommentsAfterScalars
+
+  - id: simple_placeholders_passthrough
+    name: Inline placeholder text preserved in value
+    description: |
+      Mustache-style `{{name}}` placeholders inside a scalar are part
+      of the source text by default — the Block's source carries the
+      placeholder verbatim. Upstream Okapi (with default code-finder
+      rules) tags them as inline codes; the native reader keeps them
+      as plain text under default config. Source text is identical
+      either way; only the inline-code annotation differs.
+    examples:
+      - name: mustache_placeholder
+        input_xml: "config:\n  title: \"My {{count}} Rails Website\"\n"
+        block_count: 1
+        first_block_text: "My {{count}} Rails Website"
+    okapi_refs:
+      - YmlFilterTest#testSimplePlaceholders
+    native_refs:
+      - yaml.TestExtract_SimplePlaceholders
+
+  - id: subfilter_html_passthrough
+    name: HTML inside YAML extracted as raw text
+    description: |
+      A YAML scalar containing HTML (`"Visit <a>Google</a>"`) is
+      currently extracted as raw text by the native reader — the
+      tags appear inside the Block's source. Upstream Okapi can
+      delegate to the HTML subfilter (via the
+      `subFilterProcessLiteralAsBlock` config knob and the wider
+      Okapi subfilter wiring); the native reader's contract is that
+      the visible text is reachable via Block source regardless.
+      Issue556 is the canonical Okapi corpus for this behavior.
+    examples:
+      - name: link_in_value
+        input_xml: "html: \"Visit <a href=\\\"http://www.google.com\\\">Google</a>\"\n"
+        block_count: 1
+        has_block_with_text: ["Visit"]
+      - name: literal_block_html
+        input_xml: |
+          not_literal: not literal
+          literal_html: |
+            <ul>
+              <li>item 1</li>
+              <li>item 2</li>
+            </ul>
+        block_count: 2
+        has_block_with_text: ["not literal"]
+    okapi_refs:
+      - YmlFilterTest#testSubfiltering
+      - YmlFilterTest#testDoubleSubfilter
+      - YmlFilterTest#testSubFilterProcessLiteralAsBlock
+      - YmlFilterTest#testRoundTripSubFilterProcessLiteralAsBlock
+      - YmlFilterTest#issue556
+    native_refs:
+      - yaml.TestExtract_Subfiltering
+      - yaml.TestExtract_DoubleSubfilter
+      - yaml.TestExtract_SubFilterProcessLiteralAsBlock
+      - yaml.TestExtract_Issue556
