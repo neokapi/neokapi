@@ -1,0 +1,395 @@
+# XLIFF 2.x format specification.
+#
+# Single-variant filter — no variants block. Inputs are inline XLIFF 2.0
+# documents (input_xml carries raw text bytes). The reader accepts the
+# OASIS 2.0/2.1/2.2 namespaces as a compatible family; examples here
+# use 2.0 because the upstream Okapi tests do.
+#
+# Authoring notes:
+#   - Config keys mirror the XLIFF2Filter parameters in upstream Okapi
+#     (also exposed by the bridge composite schema). okapi_param values
+#     track the Java field names where they differ from the spec key.
+#   - The bridge composite schema groups options under extraction /
+#     states / output sections; the spec uses the flat leaf names.
+#   - Inline-codes settings (useCodeFinder, codeFinderRules) live under
+#     the bridge schema's $defs/inlineCodes block and are deliberately
+#     omitted here: the contract-audit walker does not follow $ref into
+#     $defs, so listing them would trigger a false drift report.
+#   - okapi_refs are pinned to the upstream class+method names. Drift
+#     detection asserts each ref still exists in Okapi 1.47.0.
+#   - This is the SEED spec — features cover the user-facing behaviors
+#     that have native + Okapi test counterparts. Code-finder and
+#     subfilter (ICU) features and XLIFF2→XLIFF1.2 cross-format conversion
+#     are deliberately out of scope (Java-bridge-only paths).
+
+format: okf_xliff2
+mime_type: application/xliff+xml
+description: |
+  OASIS XLIFF 2.x (Localization Interchange File Format) — the modern
+  XLIFF dialect with explicit unit/segment structure, file-scoped
+  notes, inline tag elements (ph/pc/sc/ec/mrk), and per-segment
+  translation states. The reader treats inline markup as raw inner XML
+  to preserve roundtrip fidelity; the writer accepts version overrides
+  across the 2.0/2.1/2.2 family.
+
+config:
+  # ── Extraction settings ───────────────────────────────────────────
+  - key: forceUniqueIds
+    type: boolean
+    default: false
+    description: |
+      Ensure inline tag IDs are unique within each unit. Off by default
+      — XLIFF 2.x already requires uniqueness inside a unit, the option
+      exists for sources that emit overlapping ids by mistake.
+    okapi_param: forceUniqueIds
+
+  - key: ignoreTagTypeMatch
+    type: boolean
+    default: false
+    description: |
+      Ignore mismatches between source and target inline tag types
+      during validation rather than rejecting the segment.
+    okapi_param: ignoreTagTypeMatch
+
+  # ── States settings ───────────────────────────────────────────────
+  - key: discardInvalidTargets
+    type: boolean
+    default: false
+    description: |
+      When a target fails validation, drop just that target instead of
+      rejecting the file. Useful for partially-corrupted XLIFF 2 files
+      that still carry usable source content.
+    okapi_param: discardInvalidTargets
+
+  # ── Output settings ───────────────────────────────────────────────
+  - key: writeOriginalData
+    type: boolean
+    default: true
+    description: |
+      Emit `<originalData>` blocks alongside placeholder references on
+      output when present. On by default — preserves the round-trip
+      ability to materialize inline codes back to their original markup.
+    okapi_param: writeOriginalData
+
+features:
+  # ── Core extraction ──────────────────────────────────────────────
+  - id: simple_unit_extraction
+    name: Translatable units extracted as Blocks
+    description: |
+      Each `<unit>` becomes one translatable Block; the `<segment>`'s
+      `<source>` text is the Block's source. Block name comes from
+      `unit/@name` when present, ID from `unit/@id`. Multi-unit files
+      yield Blocks in document order.
+    examples:
+      - name: three_units_doc_order
+        input_xml: |
+          <?xml version="1.0" encoding="UTF-8"?>
+          <xliff xmlns="urn:oasis:names:tc:xliff:document:2.0" version="2.0" srcLang="en" trgLang="fr">
+            <file id="f1">
+              <unit id="u1"><segment><source>Quetzal</source></segment></unit>
+              <unit id="u2"><segment><source>An application to manipulate and process XLIFF documents</source></segment></unit>
+              <unit id="u3"><segment><source>XLIFF Data Manager</source></segment></unit>
+            </file>
+          </xliff>
+        block_count: 3
+        block_texts:
+          - "Quetzal"
+          - "An application to manipulate and process XLIFF documents"
+          - "XLIFF Data Manager"
+    okapi_refs:
+      - XLIFF2FilterTest#testSimple
+      - XLIFF2FilterTest#testFromFile2
+    native_refs:
+      - xliff2.TestReadXLIFF2
+      - xliff2.TestRead_FromFile2
+
+  - id: target_extraction
+    name: Target text per locale
+    description: |
+      `<target>` content under a segment is captured against the
+      document's `trgLang` locale. Units without a target produce
+      Blocks with no target for that locale; downstream tools detect
+      the missing translation via `HasTarget(locale)`.
+    examples:
+      - name: mixed_translated_and_untranslated
+        input_xml: |
+          <?xml version="1.0" encoding="UTF-8"?>
+          <xliff xmlns="urn:oasis:names:tc:xliff:document:2.0" version="2.0" srcLang="en" trgLang="fr">
+            <file id="f1">
+              <unit id="u1" name="greeting">
+                <segment id="s1"><source>Hello World</source><target>Bonjour le monde</target></segment>
+              </unit>
+              <unit id="u2">
+                <segment id="s1"><source>Goodbye</source><target>Au revoir</target></segment>
+              </unit>
+              <unit id="u3">
+                <segment id="s1"><source>Welcome</source></segment>
+              </unit>
+            </file>
+          </xliff>
+        block_count: 3
+        block_texts:
+          - "Hello World"
+          - "Goodbye"
+          - "Welcome"
+    okapi_refs:
+      - XLIFF2FilterTest#testSimple
+    native_refs:
+      - xliff2.TestReadXLIFF2Targets
+
+  # ── Structural variants ──────────────────────────────────────────
+  - id: multi_segment_unit
+    name: Multiple segments in one unit
+    description: |
+      A unit can contain multiple `<segment>` siblings — the reader
+      keeps them as multiple Source segments inside the same Block
+      (one Block per unit, several segments inside). The Block's
+      joined source text concatenates segment text.
+    examples:
+      - name: two_segments_one_unit
+        input_xml: |
+          <?xml version="1.0" encoding="UTF-8"?>
+          <xliff xmlns="urn:oasis:names:tc:xliff:document:2.0" version="2.0" srcLang="en" trgLang="fr">
+            <file id="f1">
+              <unit id="tu1">
+                <segment id="s1"><source>Sample segment.</source></segment>
+                <segment id="s2"><source>Segment's content.</source></segment>
+              </unit>
+              <unit id="tu2">
+                <segment id="s1"><source>Second unit</source></segment>
+              </unit>
+            </file>
+          </xliff>
+        block_count: 2
+        has_block_with_text:
+          - "Sample segment."
+          - "Segment's content."
+          - "Second unit"
+    okapi_refs:
+      - XLIFF2FilterTest#testFromFile
+    native_refs:
+      - xliff2.TestRead_FromFile
+      - xliff2.TestRead_MultipleSegments
+
+  - id: group_handling
+    name: Groups nest units without affecting extraction
+    description: |
+      `<group>` is a structural container — it surfaces as
+      PartGroupStart/PartGroupEnd markers in the stream but does not
+      change which units extract as Blocks. Units inside a group emit
+      identically to top-level units.
+    examples:
+      - name: single_group_one_unit
+        input_xml: |
+          <?xml version="1.0" encoding="UTF-8"?>
+          <xliff xmlns="urn:oasis:names:tc:xliff:document:2.0" version="2.0" srcLang="en" trgLang="fr">
+            <file id="f1">
+              <group id="g1">
+                <unit id="u1"><segment><source>In group</source></segment></unit>
+              </group>
+            </file>
+          </xliff>
+        block_count: 1
+        first_block_text: "In group"
+    okapi_refs:
+      - XLIFF2FilterTest#testGroupHandling
+    native_refs:
+      - xliff2.TestRead_GroupHandling
+
+  - id: ignorable_segments_preserved
+    name: Ignorable segments do not block extraction
+    description: |
+      `<ignorable>` siblings inside a unit carry non-translatable
+      filler (whitespace, punctuation between segments). The reader
+      emits the surrounding translatable `<segment>` blocks normally
+      and folds the ignorable content into skeleton on roundtrip.
+    examples:
+      - name: ignorable_between_segments
+        input_xml: |
+          <?xml version="1.0" encoding="UTF-8"?>
+          <xliff xmlns="urn:oasis:names:tc:xliff:document:2.0" version="2.0" srcLang="en" trgLang="fr">
+            <file id="f1">
+              <unit id="tu1">
+                <segment id="s1"><source>Sample segment.</source></segment>
+                <ignorable><source> </source></ignorable>
+                <segment id="s2"><source>Second part.</source></segment>
+              </unit>
+            </file>
+          </xliff>
+        block_count: 1
+        has_block_with_text:
+          - "Sample segment."
+    okapi_refs:
+      - XLIFF2FilterTest#testIgnoreable
+    native_refs:
+      - xliff2.TestRead_Ignoreable
+
+  # ── Inline content ───────────────────────────────────────────────
+  - id: inline_codes_preserved
+    name: Inline code elements preserved in segment text
+    description: |
+      XLIFF 2.x inline elements — `<ph>` (placeholder), `<pc>` (paired
+      code), `<sc>`/`<ec>` (start/end codes), `<mrk>` (marker) — are
+      preserved alongside the surrounding text. The native reader
+      currently captures them as raw inner XML; richer Span modeling
+      is tracked separately. Surrounding text segments still extract
+      verbatim.
+    examples:
+      - name: ph_pc_sc_ec_three_units
+        input_xml: |
+          <?xml version="1.0" encoding="UTF-8"?>
+          <xliff xmlns="urn:oasis:names:tc:xliff:document:2.0" version="2.0" srcLang="en" trgLang="fr">
+            <file id="f1">
+              <unit id="u1"><segment><source>Line one<ph id="1" equiv="lb"/>Line two</source></segment></unit>
+              <unit id="u2"><segment><source>Hello <pc id="1">bold</pc> text</source></segment></unit>
+              <unit id="u3"><segment><source>Before <sc id="1"/>middle<ec startRef="1"/> after</source></segment></unit>
+            </file>
+          </xliff>
+        block_count: 3
+        has_block_with_text:
+          - "Line one"
+          - "Line two"
+          - "bold"
+          - "middle"
+    okapi_refs:
+      - XLIFF2FilterTest#testInline
+      - XLIFF2FilterTest#testInlineCopyOf
+      - XLIFF2FilterTest#handleInvalidCodeTypes
+    native_refs:
+      - xliff2.TestRead_Inline
+      - xliff2.TestRead_InlineCopyOf
+      - xliff2.TestRead_HandleInvalidCodeTypes
+
+  # ── Metadata on units ────────────────────────────────────────────
+  - id: unit_notes
+    name: Notes attached to units surface as Block properties
+    description: |
+      `<notes>/<note>` elements inside a unit are read as ordered
+      properties (`note-0`, `note-1`, …) on the resulting Block.
+      Translators / reviewers consume them as side-channel context;
+      they are not themselves translatable.
+    examples:
+      - name: single_review_note
+        input_xml: |
+          <?xml version="1.0" encoding="UTF-8"?>
+          <xliff xmlns="urn:oasis:names:tc:xliff:document:2.0" version="2.0" srcLang="en" trgLang="fr">
+            <file id="f1">
+              <unit id="u3">
+                <notes><note>This needs review</note></notes>
+                <segment id="s1"><source>Welcome</source></segment>
+              </unit>
+            </file>
+          </xliff>
+        block_count: 1
+        first_block_text: "Welcome"
+    okapi_refs:
+      - XLIFF2FilterTest#testSimpleMeta
+    native_refs:
+      - xliff2.TestReadXLIFF2Notes
+
+  - id: segment_state
+    name: Segment state attribute carried on Block
+    description: |
+      The `state` attribute on `<segment>` (`initial`, `translated`,
+      `reviewed`, `final`) is captured as a Block property. Downstream
+      tools use it to drive workflow gates — e.g. only push translated
+      segments back to the CMS, only run QA on reviewed ones.
+    examples:
+      - name: translated_and_initial_states
+        input_xml: |
+          <?xml version="1.0" encoding="UTF-8"?>
+          <xliff xmlns="urn:oasis:names:tc:xliff:document:2.0" version="2.0" srcLang="en" trgLang="fr">
+            <file id="f1">
+              <unit id="u1">
+                <segment id="s1" state="translated">
+                  <source>Source of segment 0.</source>
+                  <target>Translation of segment 0.</target>
+                </segment>
+              </unit>
+              <unit id="u2">
+                <segment id="s1" state="initial">
+                  <source>Source of segment 1.</source>
+                </segment>
+              </unit>
+            </file>
+          </xliff>
+        block_count: 2
+        block_texts:
+          - "Source of segment 0."
+          - "Source of segment 1."
+    okapi_refs:
+      - XLIFF2FilterTest#testStateChangeInitial
+      - XLIFF2FilterTest#testStateChangeTranslated
+    native_refs:
+      - xliff2.TestRead_StateChangeInitial
+      - xliff2.TestRead_StateChangeTranslated
+
+  - id: translate_no_attribute
+    name: translate="no" marks units non-translatable
+    description: |
+      A unit with `translate="no"` still emits a Block (so its text
+      survives roundtrip) but the Block is flagged non-translatable.
+      Translation tools and AI providers skip non-translatable Blocks
+      while preserving their text in the output stream.
+    examples:
+      - name: yes_then_no
+        input_xml: |
+          <?xml version="1.0" encoding="UTF-8"?>
+          <xliff xmlns="urn:oasis:names:tc:xliff:document:2.0" version="2.0" srcLang="en" trgLang="fr">
+            <file id="f1">
+              <unit id="1" translate="yes"><segment><source>Translate me</source></segment></unit>
+              <unit id="2" translate="no"><segment><source>Do not translate</source></segment></unit>
+            </file>
+          </xliff>
+        # BlockTexts only includes translatable blocks; one of two
+        # units carries translate="no", so a single text surfaces.
+        block_count: 1
+        first_block_text: "Translate me"
+        no_block_with_text:
+          - "Do not translate"
+    okapi_refs:
+      - XLIFF2FilterTest#testSimple
+    native_refs:
+      - xliff2.TestRead_TranslateNo
+
+  - id: roundtrip_preserves_content
+    name: Read-write roundtrip preserves source and target
+    description: |
+      A representative XLIFF 2.0 document survives an extract/merge
+      cycle: source and target text are intact and the reader can
+      re-extract the same Block set from the writer's output (double
+      extraction stable). Verifies the read+write contract Okapi
+      exercises through `roundTripTests` / `testDoubleExtraction` /
+      `updateTarget` / `testWriteOriginalDataOption`. Tested through
+      the spec runner via re-extraction assertions on the input —
+      bytewise roundtrip is exercised by the dedicated native tests.
+    examples:
+      - name: source_and_target_extracted
+        input_xml: |
+          <?xml version="1.0" encoding="UTF-8"?>
+          <xliff xmlns="urn:oasis:names:tc:xliff:document:2.0" version="2.0" srcLang="en" trgLang="fr">
+            <file id="f1">
+              <unit id="u1">
+                <segment id="s1">
+                  <source>Frodo lives</source>
+                  <target>Frodo vit</target>
+                </segment>
+              </unit>
+            </file>
+          </xliff>
+        block_count: 1
+        first_block_text: "Frodo lives"
+    okapi_refs:
+      # RoundTripXliff2IT is an integration test (not surefire-collected)
+      # so it's intentionally omitted from okapi_refs even though
+      # xliff2.TestRoundTrip_NativeFiles mirrors its scope.
+      - XLIFF2FilterTest#roundTripTests
+      - XLIFF2FilterTest#testDoubleExtraction
+      - XLIFF2FilterTest#updateTarget
+      - XLIFF2FilterTest#testWriteOriginalDataOption
+    native_refs:
+      - xliff2.TestRead_RoundTripTests
+      - xliff2.TestRoundTrip_DoubleExtraction
+      - xliff2.TestRead_UpdateTarget
+      - xliff2.TestRead_WriteOriginalDataOption
+      - xliff2.TestRoundTrip_NativeFiles
