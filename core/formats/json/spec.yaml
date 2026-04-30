@@ -1,0 +1,217 @@
+# JSON format specification.
+#
+# Single-variant filter — no variants block. Inputs are inline JSON
+# strings (input_xml is reused for any text snippet; the field is
+# named for XML historically but holds raw text bytes for any text
+# format). The reader uses the framework's text streaming primitives,
+# no ZIP container.
+#
+# Config keys mirror the JSONFilter parameters in upstream Okapi.
+# okapi_param values track the Java field names so drift detection
+# can flag schema renames.
+
+format: okf_json
+mime_type: application/json
+description: |
+  Generic JSON filter. Walks the document tree, extracts string
+  values according to the configured policy, preserves the surrounding
+  structure (keys, nesting, whitespace) as skeleton for round-trip.
+
+config:
+  - key: extractAllPairs
+    type: boolean
+    default: true
+    description: |
+      Extract every string value reachable from the root. When false,
+      only values whose path matches `exceptions` are extracted —
+      inverting the filter's behavior.
+    okapi_param: extractAllPairs
+
+  - key: extractIsolatedStrings
+    type: boolean
+    default: false
+    description: |
+      Extract bare string values (e.g. top-level "hello world" rather
+      than "key": "hello world"). Off by default — most JSON
+      catalogues are key/value, isolated strings are usually noise.
+    okapi_param: extractIsolatedStrings
+
+  - key: useKeyAsName
+    type: boolean
+    default: true
+    description: Use the JSON key as the Block name (translation context).
+    okapi_param: useKeyAsName
+
+  - key: useFullKeyPath
+    type: boolean
+    default: false
+    description: |
+      Use the full dotted key path (e.g. `parent.child`) as the Block
+      name. Combined with `useKeyAsName: true`, gives nested keys
+      unambiguous identifiers.
+    okapi_param: useFullKeyPath
+
+  - key: useLeadingSlashOnKeyPath
+    type: boolean
+    default: false
+    description: |
+      Prefix the key path with `/` (e.g. `/parent/child`). Only
+      applies when `useFullKeyPath` is true.
+    okapi_param: useLeadingSlashOnKeyPath
+
+  - key: escapeForwardSlashes
+    type: boolean
+    default: false
+    description: |
+      On write, encode `/` as `\/`. Default off — modern JSON consumers
+      handle bare `/` fine; the option exists for legacy interop.
+    okapi_param: escapeForwardSlashes
+
+  - key: exceptions
+    type: string
+    default: ""
+    description: |
+      Regex matched against key names. When `extractAllPairs` is true,
+      matching values are EXCLUDED. When false, they're INCLUDED.
+    okapi_param: exceptions
+
+features:
+  # ── Value extraction (the core path) ──────────────────────────────
+  - id: object_value_extraction
+    name: String value in an object
+    description: |
+      The simplest case: a `{"key": "value"}` document yields one
+      translatable Block whose source is "value" and whose name is
+      "key" (under default `useKeyAsName: true`).
+    examples:
+      - name: single_pair
+        input_xml: '{"key": "Text1"}'
+        block_count: 1
+        first_block_text: "Text1"
+    okapi_refs:
+      - JSONFilterTest#testValue
+    native_refs:
+      - json.TestSnippets_Value
+
+  - id: nested_object_extraction
+    name: Nested object string values
+    description: |
+      String values inside nested objects are extracted recursively.
+      Each value becomes its own Block; container keys carry no
+      translatable text themselves.
+    examples:
+      - name: two_levels
+        input_xml: '{"key": {"key2": "Text1"}}'
+        block_count: 1
+        first_block_text: "Text1"
+    okapi_refs:
+      - JSONFilterTest#testObject
+    native_refs:
+      - json.TestSnippets_Object
+
+  - id: array_string_extraction
+    name: String elements in arrays
+    description: |
+      Bare string elements in JSON arrays are NOT extracted by default
+      — they're keyless and treated as isolated strings. Setting
+      `extractIsolatedStrings: true` opts them in. Objects inside
+      arrays always get their key/value pairs extracted regardless.
+    examples:
+      - name: bare_strings_default_skipped
+        input_xml: '{"items": ["alpha", "beta", "gamma"]}'
+        # Default config: no Blocks. Bare array strings need the opt-in.
+        block_count: 0
+      - name: bare_strings_opt_in
+        input_xml: '{"items": ["alpha", "beta", "gamma"]}'
+        config:
+          extractIsolatedStrings: true
+        block_count: 3
+        block_texts: ["alpha", "beta", "gamma"]
+      - name: object_in_array_always_extracted
+        input_xml: '{"items": [{"key": "Text1"}]}'
+        block_count: 1
+        first_block_text: "Text1"
+    okapi_refs:
+      - JSONFilterTest#testList
+    native_refs:
+      - json.TestSnippets_List
+
+  # ── Key path naming (config-driven behavior) ──────────────────────
+  - id: full_key_path_naming
+    name: Full dotted key path as Block name
+    description: |
+      Nested values get their full path as the Block name when
+      `useFullKeyPath: true`. Useful for translation tools that need
+      stable identifiers across structural changes.
+    config:
+      useFullKeyPath: true
+      useKeyAsName: true
+    examples:
+      - name: parent_child
+        input_xml: '{"parent": {"child": "Text1"}}'
+        block_count: 1
+        first_block_text: "Text1"
+        # Block name assertion would be valuable here — adding to the
+        # vocabulary in a follow-up rather than expanding the seed.
+    okapi_refs:
+      - JSONFilterTest#testPath
+    native_refs:
+      - json.TestSnippets_Path
+
+  - id: leading_slash_key_path
+    name: Leading slash on key path
+    description: |
+      With `useLeadingSlashOnKeyPath: true`, paths get a `/` prefix
+      (e.g. `/parent/child`). Compatible with JSON Pointer-ish
+      conventions some consumers expect.
+    config:
+      useFullKeyPath: true
+      useKeyAsName: true
+      useLeadingSlashOnKeyPath: true
+    examples:
+      - name: parent_child_slashed
+        input_xml: '{"parent": {"child": "Text1"}}'
+        block_count: 1
+        first_block_text: "Text1"
+    okapi_refs:
+      - JSONFilterTest#testLeadingSlash
+    native_refs:
+      - json.TestSnippets_LeadingSlash
+
+  # ── Escape handling ───────────────────────────────────────────────
+  - id: unicode_escape_decoding
+    name: Decode \\uXXXX escapes
+    description: |
+      JSON's `\uXXXX` escape sequences decode to their actual
+      character before extraction. The block text carries the decoded
+      character, not the escape sequence.
+    examples:
+      - name: a_grave
+        input_xml: '{"key": "à"}'
+        block_count: 1
+        first_block_text: "à"
+    okapi_refs:
+      - JSONFilterTest#testEscape
+    native_refs:
+      - json.TestSnippets_Escape
+
+  # ── Filtering by key (extractAllPairs + exceptions) ───────────────
+  - id: extract_all_with_exception
+    name: Extract all values except matching keys
+    description: |
+      Default `extractAllPairs: true` extracts every value; the
+      `exceptions` regex EXCLUDES keys that match. Used to skip
+      structural / metadata keys that aren't translatable.
+    config:
+      extractAllPairs: true
+      exceptions: "^_internal$"
+    examples:
+      - name: skip_internal
+        input_xml: '{"hello": "Hi", "_internal": "skip me"}'
+        block_count: 1
+        first_block_text: "Hi"
+        no_block_with_text: ["skip me"]
+    okapi_refs:
+      - JSONFilterTest#testAllWithKeyAndException
+    native_refs:
+      - json.TestSnippets_AllWithKeyWithException
