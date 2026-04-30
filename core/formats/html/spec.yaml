@@ -1,0 +1,613 @@
+# HTML format specification.
+#
+# Single-variant filter — no variants block. Inputs are inline HTML
+# snippets (input_xml carries raw bytes for any text format) or small
+# files committed under testdata/ alongside this spec.
+#
+# Format id `okf_html` matches the bridge composite schema. The
+# upstream Okapi filter (HtmlFilter / HtmlSnippetsTest /
+# HtmlConfigurationTest etc.) has ~177 @Test methods; this spec groups
+# them into 14 user-facing features. Tests that exercise only Okapi
+# internals or output-side rewriting (charset META injection, dir
+# locale-aware rewrites, ASPX/Okapi-marker syntax, etc.) are
+# intentionally not represented — see the under-specified note at the
+# bottom.
+#
+# Authoring notes:
+#   - Block-text assertions reflect what the native reader actually
+#     produces under default config (HTML whitespace collapse, default
+#     translatable element vocabulary). All numbers were verified against
+#     the live reader before being written.
+#   - Config keys mirror the okf_html bridge composite schema's
+#     top-level properties (`parser`, `elements`, `attributes`); the
+#     bridge schema is generated from Okapi's Java parameters, so these
+#     are Okapi parameter names by transitivity. Inline-codes
+#     configuration (useCodeFinder / codeFinderRules) is documented as
+#     a feature but its sub-keys are NOT declared as spec.config
+#     entries to avoid spurious drift against the schema's `$defs`
+#     inline-codes block.
+#   - okapi_refs are pinned to upstream class+method names. Drift
+#     detection asserts each ref still exists in the bridge's pinned
+#     Okapi 1.47.0 surefire output.
+
+format: okf_html
+mime_type: text/html
+description: |
+  HTML / XHTML filter. Walks the parsed DOM, extracts text from block
+  elements (p, h1-h6, li, td, etc.) preserving inline runs (b, i, a,
+  span, br, img) as Spans, and pulls translatable attribute values
+  (title, alt, value, label, placeholder) as referent Blocks. META
+  elements with translatable name/http-equiv values become Blocks;
+  META elements carrying language or charset metadata become Data
+  parts. The reader uses Go's golang.org/x/net/html parser, which
+  handles malformed HTML gracefully.
+
+config:
+  - key: parser
+    type: string_map
+    default: {}
+    description: |
+      Parser-behavior settings. The only key currently honored is
+      `preserveWhitespace` (boolean, default false), which disables the
+      default HTML whitespace-collapsing rule globally. Mirrors Okapi's
+      parser group (also exposed by the bridge composite schema as the
+      `parser` object).
+    okapi_param: parser
+
+  - key: elements
+    type: string_map
+    default: {}
+    description: |
+      Per-element extraction rules — overrides the built-in element
+      vocabulary (which elements are block boundaries, which are
+      inline, which carry translatable attributes). Mirrors Okapi's
+      element-rule parameter (also exposed by the bridge composite
+      schema as the `elements` map).
+    okapi_param: elements
+
+  - key: attributes
+    type: string_map
+    default: {}
+    description: |
+      Per-attribute extraction rules — overrides the built-in
+      attribute vocabulary (which attributes are translatable, which
+      are id-bearing, scoping by element). Mirrors Okapi's
+      attribute-rule parameter (also exposed by the bridge composite
+      schema as the `attributes` map).
+    okapi_param: attributes
+
+features:
+  # ── Block-level text extraction ────────────────────────────────────
+  - id: block_extraction
+    name: Block-level element extraction
+    description: |
+      Translatable text from block elements (p, h1-h6, li, td, title,
+      etc.) is emitted as one Block per element in document order.
+      Container-only elements (html, body, table, tr, ul) carry no
+      text themselves; their textual descendants reach the output via
+      the inner block elements.
+    examples:
+      - name: simple_paragraph
+        input_xml: '<html><body><p>Hello world</p></body></html>'
+        block_count: 1
+        first_block_text: "Hello world"
+      - name: title_and_paragraph
+        input_xml: '<html><head><title>Page Title</title></head><body><p>Body text</p></body></html>'
+        block_count: 2
+        block_texts:
+          - "Page Title"
+          - "Body text"
+      - name: heading_and_paragraph
+        input_xml: '<html><body><h1>Title</h1><p>Paragraph</p></body></html>'
+        block_count: 2
+        block_texts:
+          - "Title"
+          - "Paragraph"
+    okapi_refs:
+      - HtmlSnippetsTest#minimalCompleteHtml
+      - HtmlSnippetsTest#testPWithInlineTextOnly
+      - HtmlConfigurationTest#defaultConfiguration
+      - HtmlEventTest#testIdOnP
+    native_refs:
+      - html.TestSnippets_MinimalCompleteHtml
+      - html.TestReadSimpleHTML
+      - html.TestSnippets_PWithInlineTextOnly
+
+  # ── Inline formatting (paired open/close) ──────────────────────────
+  - id: inline_formatting
+    name: Inline formatting preserved as paired Spans
+    description: |
+      Inline elements (b, strong, i, em, u, span, etc.) inside a
+      block are NOT split into separate blocks; they become paired
+      pcOpen/pcClose runs inside the surrounding block, carrying a
+      semantic type (fmt:bold, fmt:italic, …) that survives
+      translation.
+    examples:
+      - name: bold_and_link_in_p
+        input_xml: '<p>Click <b>here</b> for <a href="http://example.com">more info</a></p>'
+        block_count: 1
+        first_block_text: "Click here for more info"
+    okapi_refs:
+      - HtmlSnippetsTest#testPWithInlines
+      - HtmlSnippetsTest#testInlineCodesStorage
+      - HtmlSnippetsTest#italicBoldEtc
+      - HtmlSnippetsTest#testTagLowerCaseFix
+      - HtmlConfigurationTest#genericCodeTypes
+    native_refs:
+      - html.TestReadInlineSpans
+      - html.TestSnippets_InlineCodesStorage
+      - html.TestConfig_GenericCodeTypes
+
+  # ── Inline placeholders (self-closing / void elements) ─────────────
+  - id: inline_placeholders
+    name: Self-closing inline elements as placeholder Spans
+    description: |
+      Void / self-closing inline elements (br, hr, img, comments) are
+      preserved as placeholder (Ph) runs inside the surrounding block,
+      not as block boundaries. The block text concatenation skips the
+      placeholder content; the structural element is recoverable from
+      the run's data attribute.
+    examples:
+      - name: br_inside_paragraph
+        input_xml: '<html><body><p>Test1<br/>Test2</p></body></html>'
+        block_count: 1
+        first_block_text: "Test1Test2"
+      - name: comment_inside_paragraph
+        input_xml: '<p>Before <!--comment--> after.</p>'
+        block_count: 1
+        first_block_text: "Before after."
+    okapi_refs:
+      - HtmlSnippetsTest#paraWithBreak
+      - HtmlSnippetsTest#testHtmlNonWellFormedEmptyTag
+      - HtmlEventTest#testPWithComment
+      - HtmlEventTest#testPWithProcessingInstruction
+    native_refs:
+      - html.TestReadPlaceholderSpan
+      - html.TestSnippets_HtmlNonWellFormedEmptyTag
+      - html.TestEvents_PWithComment
+
+  # ── Hyperlinks (a element) ─────────────────────────────────────────
+  - id: hyperlink_extraction
+    name: Hyperlinks as paired link:hyperlink Spans
+    description: |
+      The <a> element is treated as inline: its text becomes part of
+      the surrounding block, and the open/close tags become paired
+      pcOpen/pcClose runs with semantic type link:hyperlink. The
+      href attribute is carried verbatim in the run's data field so
+      writers can reconstruct the original markup.
+    examples:
+      - name: anchor_in_text
+        input_xml: 'see <a href="http://yahoo.com">yahoo</a>'
+        block_count: 1
+        first_block_text: "see yahoo"
+    okapi_refs:
+      - HtmlSnippetsTest#testHref
+      - HtmlSnippetsTest#testInlineAnchorAndAmpersand
+      - HtmlSnippetsTest#testPAndInlineAnchorAndAmpersand
+    native_refs:
+      - html.TestReadLinkSpan
+      - html.TestSnippets_Href
+
+  # ── META — translatable content ────────────────────────────────────
+  - id: meta_translatable
+    name: META elements with translatable content
+    description: |
+      META elements whose name attribute matches a translatable name
+      (keywords, description, og:title, og:description, og:site_name,
+      twitter:title, twitter:description) emit a referent Block whose
+      source text is the content attribute. META elements with
+      http-equiv="keywords" follow the same path.
+    examples:
+      - name: meta_keywords_http_equiv
+        input_xml: '<meta http-equiv="keywords" content="one,two,three"/>'
+        block_count: 1
+        first_block_text: "one,two,three"
+      - name: meta_full_set
+        input_xml: '<html title="Title html"><meta name="keywords" content="Text1"/><meta name="creation_date" content="May 24, 2001"/><meta name="description" content="Text2"/><meta name="twitter:title" content="Text3"/><meta name="twitter:description" content="Text4"/><meta name="og:title" content="Text5"/><meta name="og:description" content="Text6"/><meta name="og:site_name" content="Text7"/><p>Text8</p>'
+        block_count: 9
+        has_block_with_text:
+          - "Text1"
+          - "Text2"
+          - "Text3"
+          - "Text4"
+          - "Text5"
+          - "Text6"
+          - "Text7"
+          - "Text8"
+        no_block_with_text:
+          - "May 24, 2001"
+    okapi_refs:
+      - HtmlSnippetsTest#testMultipleMETA
+      - HtmlSnippetsTest#testMETATag1
+      - HtmlSnippetsTest#testMETATag2
+      - HtmlEventTest#testMetaTagContent
+      - HtmlEventTest#testHtmlKeywordsNotExtracted
+      - HtmlConfigurationTest#metaTag
+    native_refs:
+      - html.TestSnippets_MultipleMETA
+      - html.TestSnippets_METATag1
+      - html.TestSnippets_METATag2
+      - html.TestEvents_MetaTagContent
+      - html.TestConfig_MetaTag
+
+  # ── META — language / encoding metadata (Data parts) ───────────────
+  - id: meta_metadata
+    name: META language and charset emitted as Data parts
+    description: |
+      META elements whose http-equiv is Content-Language or
+      Content-Type, or that carry a charset attribute, emit a Data
+      part with `language` / `encoding` properties rather than a
+      translatable Block. lang and xml:lang attributes on any element
+      take the same path.
+    examples:
+      - name: meta_content_language
+        input_xml: '<meta http-equiv="Content-Language" content="en"/>'
+        # No translatable Blocks — the language metadata flows out as
+        # a Data part. block_count counts translatable Blocks only.
+        block_count: 0
+      - name: meta_charset_attribute
+        input_xml: '<meta charset="ISO-2022-JP">'
+        block_count: 0
+    okapi_refs:
+      - HtmlEventTest#testMETATagWithLanguage
+      - HtmlEventTest#testMETATagWithEncoding
+      - HtmlEventTest#testMetaWithCharsetAttribute
+      - HtmlEventTest#testLang
+      - HtmlEventTest#testXmlLang
+      - HtmlConfigurationTest#langAndXmlLang
+    native_refs:
+      - html.TestEvents_METATagWithLanguage
+      - html.TestEvents_METATagWithEncoding
+      - html.TestEvents_MetaWithCharsetAttribute
+      - html.TestEvents_Lang
+      - html.TestEvents_XmlLang
+
+  # ── Translatable attributes ────────────────────────────────────────
+  - id: attribute_extraction
+    name: Translatable attributes as referent Blocks
+    description: |
+      Attributes carrying user-visible text — title, alt, value,
+      label, placeholder — emit a referent Block whose source text is
+      the attribute value and whose Type carries the attribute name.
+      The host element still contributes its own block when it has
+      text content.
+    examples:
+      - name: title_on_p
+        input_xml: '<p title="Text1">Text2</p>'
+        block_count: 2
+        has_block_with_text:
+          - "Text1"
+          - "Text2"
+      - name: alt_on_img
+        input_xml: 'Text1<img alt="Text2"/>.'
+        block_count: 2
+        has_block_with_text:
+          - "Text1."
+          - "Text2"
+      - name: label_on_option
+        input_xml: 'Text1<option label="Text2"/>.'
+        block_count: 3
+        has_block_with_text:
+          - "Text1"
+          - "Text2"
+    okapi_refs:
+      - HtmlSnippetsTest#testTitleInP
+      - HtmlSnippetsTest#testAltInImg
+      - HtmlSnippetsTest#testLabelInOption
+      - HtmlSnippetsTest#testInput
+      - HtmlEventTest#testPWithAttributes
+    native_refs:
+      - html.TestSnippets_TitleInP
+      - html.TestSnippets_AltInImg
+      - html.TestSnippets_LabelInOption
+      - html.TestEvents_PWithAttributes
+
+  # ── input value — type-aware extraction ────────────────────────────
+  - id: input_value_handling
+    name: Input value extraction by type
+    description: |
+      The value attribute on <input> is translatable when the element
+      has user-visible text (type=submit, button, reset, text, …) and
+      NOT translatable for hidden / file / radio / checkbox / image
+      types whose value is a token rather than a label. Title remains
+      translatable in either case.
+    examples:
+      - name: hidden_value_skipped
+        input_xml: '<input type="hidden" value="hidden-value" title="hidden-title">'
+        block_count: 1
+        first_block_text: "hidden-title"
+        no_block_with_text:
+          - "hidden-value"
+      - name: submit_value_extracted
+        input_xml: '<input type="submit" value="Submit Form" title="submit-title" alt="submit-alt">'
+        block_count: 3
+        has_block_with_text:
+          - "Submit Form"
+          - "submit-title"
+          - "submit-alt"
+      - name: file_value_skipped
+        input_xml: '<input type="file" value="NotText"/>.'
+        # Plain "." after the input becomes the only translatable Block;
+        # the file-type input contributes nothing.
+        block_count: 1
+        first_block_text: "."
+        no_block_with_text:
+          - "NotText"
+    okapi_refs:
+      - HtmlSnippetsTest#testNoExtractValueInInput
+      - HtmlSnippetsTest#testExtractValueInInput
+      - HtmlSnippetsTest#testInput
+      - HtmlConfigurationTest#inputAttributes
+    native_refs:
+      - html.TestSnippets_NoExtractValueInInput
+      - html.TestSnippets_ExtractValueInInput
+      - html.TestSnippets_Input
+      - html.TestConfig_InputAttributes
+
+  # ── Script / style elements skipped ────────────────────────────────
+  - id: script_style_skipped
+    name: Script and style elements are non-translatable
+    description: |
+      Content inside <script> and <style> elements is not extracted as
+      translatable text. Surrounding blocks pass through untouched;
+      the non-translatable element is preserved in the surrounding
+      content via the writer skeleton.
+    examples:
+      - name: script_and_style_between_paragraphs
+        input_xml: '<html><body><p>First Text</p><script>var x=1;</script><style>h1{color:red}</style><p>Second Text</p></body></html>'
+        block_count: 2
+        block_texts:
+          - "First Text"
+          - "Second Text"
+        no_block_with_text:
+          - "var x"
+          - "color:red"
+    okapi_refs:
+      - HtmlFullFileTest#testSkippedScriptandStyleElements
+      - HtmlSnippetsTest#testUlWithScriptTag
+    native_refs:
+      - html.TestFullFile_SkippedScriptAndStyleElements
+      - html.TestReadScriptNonTranslatable
+
+  # ── translate attribute (HTML5 hint) ───────────────────────────────
+  - id: translate_attribute
+    name: HTML5 translate=no/yes attribute
+    description: |
+      An element carrying translate="no" is excluded from extraction;
+      its content is preserved in the surrounding block as a
+      placeholder so writers round-trip it verbatim. translate="yes"
+      on a descendant re-enables extraction within an excluded
+      ancestor. A whole document marked translate="no" yields zero
+      translatable Blocks.
+    examples:
+      - name: span_translate_no_inline
+        input_xml: "<p>text with a <span translate='no'>no-translation part</span> and more.</p>"
+        block_count: 1
+        first_block_text: "text with a and more."
+        no_block_with_text:
+          - "no-translation part"
+      - name: nested_yes_inside_no
+        input_xml: "<div translate='no'>no <div translate='yes'>trans</div></div>"
+        block_count: 1
+        first_block_text: "trans"
+      - name: all_no_yields_no_blocks
+        input_xml: "<div translate=\"no\">Some intefaces</div><p translate=\"no\">can be defined</p>\n"
+        block_count: 0
+    okapi_refs:
+      - HtmlSnippetsTest#testTranslateAttribute
+      - HtmlSnippetsTest#testPBlockTranslateAttribute
+      - HtmlSnippetsTest#testDivBlockTranslateAttribute
+      - HtmlSnippetsTest#testDivBlockWithPTranslateAttribute
+      - HtmlSnippetsTest#testDivBlockExcludeIncludeTranslateAttribute
+      - HtmlSnippetsTest#testInlineTranslateNo
+      - HtmlSnippetsTest#testInlineTranslateYes
+      - HtmlSnippetsTest#testNestedInlineTranslateAttribute1
+      - HtmlSnippetsTest#testNegativeCondition
+    native_refs:
+      - html.TestSnippets_TranslateAttribute
+      - html.TestSnippets_PBlockTranslateAttribute
+      - html.TestSnippets_DivBlockExcludeIncludeTranslateAttribute
+      - html.TestSnippets_DivBlockWithPTranslateAttribute
+      - html.TestSnippets_NegativeCondition
+
+  # ── Entity / character reference decoding ──────────────────────────
+  - id: entity_decoding
+    name: HTML entities and numeric character references decoded
+    description: |
+      Named entities (&amp;, &lt;, &gt;, &nbsp;) and numeric character
+      references (&#x0033;, &#x20000;) decode to their actual Unicode
+      characters before extraction. Block text carries the decoded
+      character — including supplementary-plane code points expressed
+      via single hex references or surrogate pairs.
+    examples:
+      - name: nbsp_and_numeric
+        input_xml: "&nbsp;M&#x0033;"
+        block_count: 1
+        first_block_text: " M3"
+      - name: lt_amp_gt_nbsp
+        input_xml: "<p>&amp; &lt; &gt; &nbsp;</p>"
+        block_count: 1
+        first_block_text: "& < >  "
+      - name: supplemental_plane
+        input_xml: "<p>[&#x20000;]=U+D840,U+DC00</p>"
+        block_count: 1
+        first_block_text: "[\U00020000]=U+D840,U+DC00"
+    okapi_refs:
+      - HtmlSnippetsTest#testEscapedEntities
+      - HtmlSnippetsTest#testEscapes
+      - HtmlSnippetsTest#testQuoteModeDefault
+      - HtmlSnippetsTest#testSupplementalSupport
+      - HtmlSnippetsTest#testSimpleSupplementalSupport
+      - HtmlSnippetsTest#testPreserveCharacterEntitiesSimple
+      - HtmlSnippetsTest#testPreserveCharacterEntitiesMultipleTypes
+      - HtmlSnippetsTest#testNoPreserveCharacterEntitiesMultipleTypes
+      - HtmlSnippetsTest#testWithoutPreserveCharacterEntities
+    native_refs:
+      - html.TestSnippets_EscapedEntities
+      - html.TestSnippets_Escapes
+      - html.TestSnippets_SupplementalSupport
+      - html.TestSnippets_SimpleSupplementalSupport
+      - html.TestSnippets_PreserveCharacterEntitiesMultipleTypes
+
+  # ── Whitespace handling ────────────────────────────────────────────
+  - id: whitespace_handling
+    name: Whitespace collapse, per-element preserve, global override
+    description: |
+      Default behavior collapses runs of HTML whitespace (space, tab,
+      newline) into single spaces and trims leading/trailing whitespace
+      on each Block. The <pre> and <textarea> elements always preserve
+      whitespace (their PreserveWhitespace flag is set on the Block).
+      Setting `parser.preserveWhitespace: true` globally disables
+      collapsing for ALL elements, including <p>.
+    examples:
+      - name: default_collapse_p_preserve_pre
+        # <p> collapses, <pre> preserves intrinsically.
+        input_xml: "<p> t1  \nt2  </p><pre> t3  \nt4  </pre>"
+        block_count: 2
+        block_texts:
+          - "t1 t2"
+          - " t3  \nt4  "
+      - name: global_preserve_overrides_collapse
+        input_xml: "<p> t1  \nt2  </p><pre> t3  \nt4  </pre>"
+        config:
+          parser:
+            preserveWhitespace: true
+        block_count: 2
+        block_texts:
+          - " t1  \nt2  "
+          - " t3  \nt4  "
+      - name: pre_with_escaped_codes
+        input_xml: "<pre>&lt;html&gt;&amp;test&lt;/html&gt;</pre>"
+        block_count: 1
+        first_block_text: "<html>&test</html>"
+    okapi_refs:
+      - HtmlConfigurationTest#preserveWhiteSpace
+      - HtmlConfigurationTest#collapseWhitespace
+      - HtmlConfigurationSupportTest#test_PRESERVE_WHITESPACE
+      - HtmlConfigurationSupportTest#test_GLOBAL_PRESERVE_WHITESPACE
+      - HtmlConfigurationSupportTest#test_collapse_whitespace
+      - HtmlEventTest#testPreserveWhitespace
+      - HtmlSnippetsTest#testCollapseWhitespaceWithPre
+      - HtmlSnippetsTest#testCollapseWhitespaceWithoutPre
+      - HtmlSnippetsTest#testEscapedCodesInisdePre
+    native_refs:
+      - html.TestConfig_PreserveWhiteSpace
+      - html.TestConfig_CollapseWhitespace
+      - html.TestConfig_PreserveWhitespacePerElement
+      - html.TestConfig_GlobalPreserveWhitespace
+      - html.TestEvents_PreserveWhitespace
+      - html.TestSnippets_CollapseWhitespaceWithPre
+      - html.TestSnippets_EscapedCodesInsidePre
+
+  # ── Non-well-formed HTML ───────────────────────────────────────────
+  - id: non_well_formed_html
+    name: Non-well-formed HTML parsed gracefully
+    description: |
+      Malformed input — overlapping inline tags, unclosed paragraphs,
+      missing end tags, unquoted attribute values — is recovered by
+      Go's html.Parse implementation (HTML5 parsing algorithm) without
+      raising errors. The reader still produces translatable Blocks
+      that match the user's apparent intent.
+    examples:
+      - name: unclosed_paragraphs
+        input_xml: "<p>text1<p>text2"
+        block_count: 2
+        block_texts:
+          - "text1"
+          - "text2"
+      - name: unquoted_attribute_value
+        input_xml: "<p title=unquoted>text</p>"
+        block_count: 2
+        has_block_with_text:
+          - "unquoted"
+          - "text"
+      - name: unbalanced_inline_tags
+        input_xml: "<p>text <b>bold<p>next para</p>"
+        block_count: 2
+        has_block_with_text:
+          - "text"
+          - "next para"
+    okapi_refs:
+      - HtmlSnippetsTest#textUnbalancedInlineTag
+      - HtmlSnippetsTest#textOverlapInlineTags
+      - HtmlSnippetsTest#textWithUnquotedAttribtes
+      - HtmlSnippetsTest#twoITextUnitsInARowNonWellformed
+      - HtmlSnippetsTest#twoITextUnitsInARowNonWellformedWithNonWellFromedConfig
+      - HtmlFullFileTest#testNonwellformed
+    native_refs:
+      - html.TestSnippets_TextUnbalancedInlineTag
+      - html.TestSnippets_TextOverlapInlineTags
+      - html.TestSnippets_TextWithUnquotedAttributes
+      - html.TestSnippets_TwoITextUnitsInARowNonWellformed
+      - html.TestFullFile_Nonwellformed
+
+  # ── Block id → block name ──────────────────────────────────────────
+  - id: block_id_naming
+    name: id attribute as Block name
+    description: |
+      An id attribute on a block element supplies the Block's Name
+      (concatenated as `<id>-id`) so translation tools have a stable,
+      human-meaningful identifier for the block. The id is also
+      preserved on the Block's Properties map.
+    examples:
+      - name: id_on_paragraph
+        input_xml: '<p id="logo">para text in a table element</p>'
+        block_count: 1
+        first_block_text: "para text in a table element"
+    okapi_refs:
+      - HtmlSnippetsTest#ITextUnitName
+      - HtmlEventTest#testIdOnP
+      - HtmlConfigurationTest#attributeID
+    native_refs:
+      - html.TestSnippets_ITextUnitName
+      - html.TestEvents_IdOnP
+      - html.TestConfig_AttributeID
+
+# ── Intentionally under-specified ─────────────────────────────────────
+#
+# Inline-codes detection (useCodeFinder + codeFinderRules + the shared
+# inlineCodes $defs block) is implemented natively as a Config field but
+# is NOT declared as spec.config keys here. The bridge composite schema
+# exposes inlineCodes via a $ref into a shared $defs block whose leaf
+# property names (useCodeFinder, codeFinderRules, enabled, rules) would
+# be flagged as drift by the contract-audit's flat property walker (it
+# does not follow $ref). The native test
+# html.TestConfig_CodeFinderRules verifies the config plumbing; once
+# the audit's schema walker follows refs, this feature can be expanded
+# with config keys and a working example.
+#
+# Output-side rewriting (META charset injection on write, lang
+# attribute rewriting per target locale, dir attribute clarification
+# for RTL/LTR locales, ASPX <% %> embedded tag preservation,
+# Okapi-marker private-use-area characters) is exercised upstream by
+# HtmlSnippetsTest#testAddingMETAin* / testLangUpdate /
+# testMultilangUpdate / testTextDirectionClarification /
+# testASPXEmbeddedTag / testOkapiMarkerInText etc. These are
+# writer-side behaviors that the reader-only assertion vocabulary in
+# this spec cannot express. Native roundtrip tests
+# (html.TestRoundtrip_*) cover the reader → writer path; a future spec
+# iteration can add a roundtrip-output assertion type.
+#
+# Element / attribute rule overrides (EXCLUDE / INCLUDE / ATTRIBUTES_ONLY
+# rule types, MATCHES condition operator, allElementsExcept /
+# onlyTheseElements scoping, ATTRIBUTE_WRITABLE / ATTRIBUTE_ID /
+# ATTRIBUTE_READONLY classifications, OR conditions for translatable
+# attributes, regex-based element / attribute matchers) are exercised
+# upstream by HtmlConfigurationSupportTest's 14 test_* methods. The
+# native config exposes the same `elements` / `attributes` map shape
+# but only honors a subset of the rule semantics; documenting the
+# remaining rule types here would create features without working
+# examples. The native unmapped-test markers (`okapi-unmapped:` lines
+# at the bottom of snippets_test.go) record the gap explicitly.
+#
+# Quote mode and escape preservation (testQuoteMode, quoteMode /
+# quoteModeDefined parameters) are output-side options on the upstream
+# filter that have no native equivalent — Go's html.EscapeString uses a
+# fixed escaping policy. Captured here as an intentional gap rather
+# than as a feature with no examples.
+#
+# BOM detection (HtmlDetectBomTest) is handled at the encoding/IO
+# layer in neokapi (core/encoding) rather than inside the format
+# reader, so BOM-handling test methods do not map to format-level
+# assertions. Native html.TestBom_* tests verify that content
+# following a BOM still extracts cleanly.
