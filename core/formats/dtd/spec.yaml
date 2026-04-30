@@ -1,0 +1,192 @@
+# DTD format specification.
+#
+# Single-variant filter for XML Document Type Definition files. neokapi
+# extracts the value of every general (non-parameter) <!ENTITY> declaration
+# as one translatable Block; comments immediately preceding an entity ride
+# along as note annotations; ELEMENT/ATTLIST/processing-instruction
+# declarations and parameter / external entities are skeleton-only.
+#
+# The native reader has no configurable knobs today (Config.ApplyMap rejects
+# any input). Okapi's DTDFilter exposes inline-codes plumbing
+# (useCodeFinder, simplifierRules) that the audit tool can't safely follow,
+# so the spec doesn't enumerate config keys until the native reader grows
+# matching surface.
+#
+# Authoring notes:
+#   - input_file values resolve relative to this directory (testdata/...).
+#   - okapi_refs name the DTDFilterTest #methodName the feature derives
+#     from. Drift detection asserts each ref still exists in the pinned
+#     Okapi release (1.47.0 today).
+#   - Examples carry the assertions actually produced by the Go reader so
+#     the parity runner has a single contract to evaluate both sides
+#     against.
+
+format: okf_dtd
+mime_type: application/xml-dtd
+description: |
+  XML DTD (Document Type Definition) entities filter. Each general
+  ENTITY declaration becomes one translatable Block whose source is the
+  decoded entity value and whose name is the entity identifier. Inline
+  numeric character references and the standard XML entities
+  (&amp; &lt; &gt; &quot; &apos;) are decoded; unknown entity references
+  and parameter entity references survive as inline codes inside the
+  Block. ELEMENT, ATTLIST, processing instructions and external entity
+  declarations are preserved as skeleton, never extracted.
+
+features:
+  # ── Core extraction (the path every consumer takes) ──────────────────
+  - id: entity_value_extraction
+    name: ENTITY value extraction
+    description: |
+      Each `<!ENTITY name "value">` declaration yields one translatable
+      Block whose text is the value and whose Name is the entity
+      identifier. Multiple entities in one document extract in document
+      order.
+    examples:
+      - name: single_entity
+        description: One entity in one block.
+        input_xml: '<!ENTITY greeting "Hello world">'
+        block_count: 1
+        first_block_text: "Hello world"
+      - name: simple_dtd_file
+        description: |
+          Three sibling entities round-tripped from a real .dtd fixture.
+          Verifies file ingestion, document order, and clean
+          per-declaration block boundaries.
+        input_file: testdata/simple.dtd
+        block_count: 3
+        block_texts:
+          - "Hello world"
+          - "Goodbye"
+          - "Thank you"
+    okapi_refs:
+      - DTDFilterTest#testStartDocument
+      - DTDFilterTest#testDoubleExtraction
+    native_refs:
+      - dtd.TestSimpleEntry
+      - dtd.TestMultipleEntities
+      - dtd.TestFullFile_Simple
+
+  # ── Comment-as-note attachment ──────────────────────────────────────
+  - id: comment_attaches_as_note
+    name: Preceding comment attaches as note
+    description: |
+      A `<!-- ... -->` comment immediately before an ENTITY is captured
+      as the note annotation on the resulting Block (after trimming
+      surrounding whitespace). The comment itself never becomes a
+      translatable Block. Mirrors Okapi's NoteAnnotation behavior on
+      DTDFilterTest#testSimpleEntry.
+    examples:
+      - name: comment_then_two_entities
+        description: |
+          The comment attaches to the first entity; the second entity
+          carries no note. Both values still extract.
+        input_xml: |
+          <!--Comment-->
+          <!ENTITY entry1 "Text1"><!ENTITY test2 "text2">
+        block_count: 2
+        block_texts:
+          - "Text1"
+          - "text2"
+    okapi_refs:
+      - DTDFilterTest#testSimpleEntry
+    native_refs:
+      - dtd.TestSimpleEntry
+      - dtd.TestCommentAttachment
+
+  # ── Numeric character reference decoding ────────────────────────────
+  - id: ncr_decoding
+    name: Numeric character reference decoding
+    description: |
+      Decimal (`&#N;`) and hexadecimal (`&#xHH;` / `&#xhh;`) character
+      references decode to their actual Unicode code points before the
+      Block source is built — translators see the character, not the
+      escape.
+    examples:
+      - name: three_forms_same_char
+        description: |
+          `&#xe3;`, `&#xE3;` and `&#227;` all denote U+00E3 (LATIN SMALL
+          LETTER A WITH TILDE); the Block surfaces three identical
+          characters joined by ", ".
+        input_xml: '<!ENTITY entry1 "&#xe3;, &#xE3;, &#227;">'
+        block_count: 1
+        first_block_text: "ã, ã, ã"
+    okapi_refs:
+      - DTDFilterTest#testEntryWithNCRs
+    native_refs:
+      - dtd.TestEntryWithNCRs
+
+  # ── Unknown / parameter entity references survive ──────────────────
+  - id: entity_references_preserved
+    name: Unknown and parameter entity references preserved
+    description: |
+      References to entities the filter doesn't expand (general entities
+      like `&ent1;` and parameter entities like `%pent1;`) survive in
+      the Block's source — Okapi reifies them as inline Codes, neokapi
+      keeps the raw `&name;` / `%name;` token in the text. Either
+      representation lets a translator see and re-emit the reference.
+    examples:
+      - name: mixed_unknown_and_parameter
+        description: |
+          One entity value containing both an unknown general reference
+          and a parameter entity reference. Block count is 1; the
+          source carries both reference tokens verbatim.
+        input_xml: '<!ENTITY entry1 "&ent1;=ent1, %pent1;=pent1">'
+        block_count: 1
+        has_block_with_text:
+          - "&ent1;"
+          - "%pent1;"
+          - "=ent1"
+          - "=pent1"
+    okapi_refs:
+      - DTDFilterTest#testEntryWithEnitties
+    native_refs:
+      - dtd.TestEntryWithEntities
+
+  # ── Predefined XML entity decoding ─────────────────────────────────
+  - id: predefined_xml_entities_decoded
+    name: Predefined XML entities decoded in values
+    description: |
+      The five predefined XML entities (`&amp; &lt; &gt; &quot; &apos;`)
+      decode to their literal characters when they appear inside an
+      ENTITY value. Lets DTD authors store markup snippets that the
+      filter surfaces as plain text for translation.
+    examples:
+      - name: amp_lt_gt_in_one_value
+        description: |
+          The complex.dtd fixture's `escaped` entity is
+          `Text with &amp; ampersand and &lt;angle brackets&gt;`; the
+          extracted Block reads with literal `&` and `<...>`.
+        input_file: testdata/complex.dtd
+        has_block_with_text:
+          - "Text with & ampersand and <angle brackets>"
+    okapi_refs:
+      - DTDFilterTest#testDoubleExtraction
+    native_refs:
+      - dtd.TestEntityWithAmpEscape
+      - dtd.TestFullFile_Complex
+
+  # ── Non-entity declarations stay in skeleton ──────────────────────
+  - id: non_entity_declarations_skipped
+    name: ELEMENT / ATTLIST / PI declarations not extracted
+    description: |
+      Structural declarations (`<!ELEMENT ...>`, `<!ATTLIST ...>`,
+      processing instructions) and external / parameter entity
+      declarations are part of the document skeleton and produce no
+      translatable Blocks. A DTD that only declares structure has zero
+      extractable text.
+    examples:
+      - name: structure_only_dtd
+        description: |
+          Element + attribute-list declarations only — the file is
+          syntactically valid DTD but carries no translator-facing
+          text. Block count is zero.
+        input_xml: |
+          <!ELEMENT TS (defaultcodec?,context*)>
+          <!ATTLIST TS version CDATA #IMPLIED>
+          <!ELEMENT context (name,comment?,message*)>
+        block_count: 0
+    okapi_refs:
+      - DTDFilterTest#testDefaultInfo
+    native_refs:
+      - dtd.TestNonEntityDeclarations
