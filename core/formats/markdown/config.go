@@ -71,6 +71,13 @@ func (c *Config) TranslateBlockQuotes() bool {
 }
 
 // ApplyMap applies configuration values from a map.
+//
+// Bridge-schema leaf aliases (translateImageAltText, translateUrls,
+// translateHeaderMetadata, htmlSubfilter) are accepted alongside the
+// native names (translateImageAlt, translateURLs, translateFrontMatter,
+// subfilter) so a single spec can be consumed by both implementations
+// without bespoke key remapping. Aliases are additive — both spellings
+// continue to work.
 func (c *Config) ApplyMap(values map[string]any) error {
 	for key, val := range values {
 		switch key {
@@ -78,15 +85,15 @@ func (c *Config) ApplyMap(values map[string]any) error {
 			if v, ok := val.(bool); ok {
 				c.TranslateCodeBlocks = v
 			}
-		case "translateFrontMatter":
+		case "translateFrontMatter", "translateHeaderMetadata":
 			if v, ok := val.(bool); ok {
 				c.TranslateFrontMatter = v
 			}
-		case "translateImageAlt":
+		case "translateImageAlt", "translateImageAltText":
 			if v, ok := val.(bool); ok {
 				c.nonSkipImageAlt = !v
 			}
-		case "translateURLs":
+		case "translateURLs", "translateUrls":
 			if v, ok := val.(bool); ok {
 				c.TranslateURLs = v
 			}
@@ -102,7 +109,7 @@ func (c *Config) ApplyMap(values map[string]any) error {
 			if v, ok := val.(bool); ok {
 				c.UnescapeBackslashCharacters = v
 			}
-		case "subfilter":
+		case "subfilter", "htmlSubfilter":
 			s, ok := val.(string)
 			if !ok {
 				return fmt.Errorf("subfilter: expected string, got %T", val)

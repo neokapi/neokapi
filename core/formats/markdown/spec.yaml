@@ -1,0 +1,435 @@
+# Markdown format specification.
+#
+# Single-variant filter — no variants block. Inputs are inline
+# Markdown snippets (input_xml is reused for any text snippet; the
+# field is named for XML historically but holds raw text bytes for any
+# text format). The reader walks a goldmark AST with GFM extensions
+# enabled (tables, strikethrough); the upstream Java filter is built on
+# Flexmark, but the public extraction contract is the same.
+#
+# Config keys mirror the bridge composite schema's leaf names
+# (translateImageAltText, translateUrls, translateHeaderMetadata,
+# htmlSubfilter, …) so drift detection lines up. `okapi_param` carries
+# the underlying Java field name for traceability. Native ApplyMap
+# accepts both the bridge leaf names and the legacy native spellings
+# (translateImageAlt, translateURLs, translateFrontMatter, subfilter)
+# — feature/example config blocks below use the bridge leaf names so
+# the spec is internally consistent.
+
+format: okf_markdown
+mime_type: text/markdown
+description: |
+  Markdown filter (CommonMark + GFM). Walks the document into block
+  units (paragraphs, headings, list items, table cells, blockquotes)
+  and preserves inline formatting (bold, italic, code, links, images,
+  strikethrough, raw HTML) as Spans on each Block. Fenced and indented
+  code blocks, YAML front matter, and HTML blocks are emitted as
+  non-translatable Data by default; opt-in flags promote them to
+  translatable Blocks.
+
+config:
+  - key: translateImageAltText
+    type: boolean
+    default: true
+    description: |
+      Extract image alt text inside the surrounding Block. With
+      `false`, the alt text becomes a non-translatable inline code.
+    okapi_param: translateImageAltText
+
+  - key: translateUrls
+    type: boolean
+    default: false
+    description: |
+      Extract link and image URLs as additional translatable subflows
+      alongside the surrounding Block. Default off — URLs are usually
+      not localised.
+    okapi_param: translateUrls
+
+  - key: translateCodeBlocks
+    type: boolean
+    default: false
+    description: |
+      Promote fenced (and indented) code blocks from non-translatable
+      Data to translatable Blocks. Native default is `false` (matching
+      the typical localisation contract that code is verbatim);
+      Okapi's Java default is `true`. The spec explicitly sets the
+      key on each example so both implementations agree.
+    okapi_param: translateCodeBlocks
+
+  - key: translateHeaderMetadata
+    type: boolean
+    default: false
+    description: |
+      Promote YAML front-matter values (between `---` fences at the
+      top of the file) from a single Data block to per-key
+      translatable Blocks.
+    okapi_param: translateHeaderMetadata
+
+  - key: unescapeBackslashCharacters
+    type: boolean
+    default: false
+    description: |
+      Decode backslash-escaped punctuation (`\*`, `\_`, `\[`, …) in
+      source documents. Off by default so escapes round-trip
+      unchanged through the writer.
+    okapi_param: unescapeBackslashCharacters
+
+  - key: htmlSubfilter
+    type: string
+    default: ""
+    description: |
+      Filter configuration id used to extract HTML embedded in the
+      Markdown document (HTML blocks and inline HTML). When unset the
+      HTML is treated as opaque skeleton / inline code.
+    okapi_param: htmlSubfilter
+
+features:
+  # ── Block extraction (the core path) ──────────────────────────────
+  - id: paragraph_extraction
+    name: Paragraph block extraction
+    description: |
+      A bare paragraph yields one translatable Block per logical
+      paragraph (separated by blank lines). Soft line breaks inside a
+      paragraph collapse to a single block with a space joining the
+      runs.
+    examples:
+      - name: single_paragraph
+        input_xml: "Hello world\n"
+        block_count: 1
+        first_block_text: "Hello world"
+      - name: two_paragraphs
+        input_xml: "First paragraph\n\nSecond paragraph\n"
+        block_count: 2
+        block_texts:
+          - "First paragraph"
+          - "Second paragraph"
+      - name: emphasis_across_soft_break
+        # Soft line break inside a paragraph collapses to a space —
+        # the paragraph stays one Block.
+        input_xml: "Here comes _emphasized part of text that\nincludes a soft line break_."
+        block_count: 1
+        first_block_text: "Here comes emphasized part of text that includes a soft line break."
+    okapi_refs:
+      - MarkdownFilterTest#testEventsFromEmptyInput
+      - MarkdownFilterTest#testEmphasisAcrossLines
+    native_refs:
+      - markdown.TestReadSimpleParagraphs
+
+  - id: heading_extraction
+    name: ATX and Setext heading extraction
+    description: |
+      `#`-prefixed (ATX) and underline (Setext) headings each become
+      one Block. The heading level is recorded as a Block property;
+      the prefix marker is preserved as skeleton, not as block text.
+    examples:
+      - name: atx_levels
+        input_xml: "# H1\n\n## H2\n\n### H3\n"
+        block_count: 3
+        block_texts: ["H1", "H2", "H3"]
+      - name: heading_with_prefix
+        input_xml: "# Heading\n"
+        block_count: 1
+        first_block_text: "Heading"
+      - name: setext_underline
+        input_xml: "Heading\n=======\n\n"
+        block_count: 1
+        first_block_text: "Heading"
+    okapi_refs:
+      - MarkdownFilterTest#testHeadingPrefix
+      - MarkdownFilterTest#testHeadingUnderline
+    native_refs:
+      - markdown.TestReadHeadings
+      - markdown.TestRead_HeadingUnderline
+
+  - id: list_extraction
+    name: Bullet and ordered list items
+    description: |
+      Each list item becomes its own Block; the list marker (`*`,
+      `-`, `1.`) stays in the skeleton. Soft line breaks inside an
+      item collapse to a space, mirroring the Okapi contract that one
+      item == one TextUnit.
+    examples:
+      - name: bullet_list
+        input_xml: "* First\nelement\n\n* Second element\n\n* Third element\n\n"
+        block_count: 3
+        block_texts:
+          - "First element"
+          - "Second element"
+          - "Third element"
+      - name: ordered_list
+        input_xml: "1. First\n2. Second\n3. Third\n"
+        block_count: 3
+        block_texts: ["First", "Second", "Third"]
+    okapi_refs:
+      - MarkdownFilterTest#testBulletList
+    native_refs:
+      - markdown.TestReadLists
+      - markdown.TestRead_OrderedList
+
+  # ── Inline formatting (Spans inside a single Block) ───────────────
+  - id: inline_emphasis
+    name: Bold, italic, and strikethrough as inline codes
+    description: |
+      Emphasis (`*` / `_`), strong emphasis (`**` / `__`), and GFM
+      strikethrough (`~~`) are preserved as inline-code Spans inside
+      the surrounding Block. They never split the paragraph into
+      multiple Blocks.
+    examples:
+      - name: bold_and_emphasis
+        input_xml: "Some **strong** and *emphasized* text"
+        block_count: 1
+        first_block_text: "Some strong and emphasized text"
+      - name: strikethrough
+        input_xml: "Some ~~strikethrough~~ text"
+        block_count: 1
+        first_block_text: "Some strikethrough text"
+    okapi_refs:
+      - MarkdownFilterTest#testEmphasisAndStrong
+      - MarkdownFilterTest#testStrikethroughSubscript
+      - MarkdownFilterTest#testNeighboringMarks
+    native_refs:
+      - markdown.TestReadBoldItalicInline
+      - markdown.TestRead_StrikethroughSubscript
+
+  - id: inline_code
+    name: Inline code spans
+    description: |
+      Backtick-delimited inline code (`` `code` ``) becomes an inline
+      code Span carrying the verbatim code text. The delimiters are
+      part of the Span's open/close data, not the block text.
+    examples:
+      - name: code_in_sentence
+        input_xml: "Use the `code` function"
+        block_count: 1
+        first_block_text: "Use the code function"
+      - name: code_and_emphasis_together
+        input_xml: "Use `code` and *emphasis* here"
+        block_count: 1
+        first_block_text: "Use code and emphasis here"
+    okapi_refs:
+      - MarkdownFilterTest#testCode
+      - MarkdownFilterTest#testCodeAndEmphasis
+    native_refs:
+      - markdown.TestRead_Code
+      - markdown.TestRead_CodeAndEmphasis
+
+  - id: links_and_images
+    name: Hyperlinks, images, and autolinks
+    description: |
+      `[text](url)` links, `![alt](url)` images, and `<url>` autolinks
+      stay inside the surrounding Block as inline Spans. Default
+      behaviour: link/image text and autolink URL are translatable;
+      explicit URLs in `()` parentheses are NOT extracted unless
+      `translateUrls=true` (see the urls feature).
+    examples:
+      - name: inline_link
+        input_xml: "Click [here](https://example.com) please"
+        block_count: 1
+        first_block_text: "Click here please"
+      - name: inline_image
+        input_xml: "See ![alt text](image.png) here"
+        block_count: 1
+        first_block_text: "See alt text here"
+      - name: autolink_in_text
+        input_xml: "Visit <https://example.com> now"
+        block_count: 1
+        first_block_text: "Visit https://example.com now"
+    okapi_refs:
+      - MarkdownFilterTest#testLink
+      - MarkdownFilterTest#testImage
+      - MarkdownFilterTest#testAutoLink
+    native_refs:
+      - markdown.TestRead_Link
+      - markdown.TestRead_Image
+      - markdown.TestRead_AutoLink
+
+  - id: image_alt_opt_out
+    name: Suppress image alt text via translateImageAltText=false
+    description: |
+      With `translateImageAltText=false` the alt text inside `![…]()`
+      is dropped from the surrounding Block (the image itself remains
+      as an inline placeholder). Verifies the bridge leaf name maps
+      to the native config field.
+    config:
+      translateImageAltText: false
+    examples:
+      - name: image_alt_dropped
+        input_xml: "See ![alt text](image.png) here"
+        block_count: 1
+        # Native: alt text is dropped, Block text becomes "See  here".
+        first_block_text: "See  here"
+        no_block_with_text: ["alt text"]
+    okapi_refs:
+      - MarkdownFilterTest#testExtractImageTitleButNotAltText
+    native_refs:
+      - markdown.TestRead_ExtractImageTitleButNotAltText
+
+  # ── Code blocks (extraction policy via translateCodeBlocks) ───────
+  - id: fenced_code_block_default
+    name: Fenced code block as Data by default
+    description: |
+      `` ```...``` `` blocks are non-translatable Data by default —
+      the code text is preserved as a Data part rather than being
+      emitted as a translatable Block.
+    config:
+      translateCodeBlocks: false
+    examples:
+      - name: fenced_no_translate
+        input_xml: "```\ncode here\n```\n"
+        block_count: 0
+    okapi_refs:
+      - MarkdownFilterTest#testFencedCodeBlock
+      - MarkdownFilterTest#testDontTranslateFencedCodeBlocks
+    native_refs:
+      - markdown.TestRead_FencedCodeBlock
+
+  - id: fenced_code_block_translate
+    name: Fenced code block extraction when opted in
+    description: |
+      With `translateCodeBlocks=true` fenced code blocks become
+      translatable Blocks; the language tag (when present) is
+      preserved as a Block property.
+    config:
+      translateCodeBlocks: true
+    examples:
+      - name: fenced_translated
+        input_xml: "```\ncode here\n```\n"
+        block_count: 1
+        # Native preserves the trailing newline of the fenced content.
+        first_block_text: "code here\n"
+        has_block_with_text: ["code here"]
+    okapi_refs:
+      - MarkdownFilterTest#testTranslateFencedCodeBlocks
+    native_refs:
+      - markdown.TestRead_TranslateFencedCodeBlocks
+
+  - id: indented_code_block
+    name: Indented code block as Data
+    description: |
+      A four-space-indented block is a code block, not part of the
+      surrounding paragraph. Default `translateCodeBlocks=false` keeps
+      it as Data — verifies surrounding paragraphs still extract
+      cleanly.
+    examples:
+      - name: indented_between_paragraphs
+        input_xml: "Text\n\n    indented code\n\nMore text\n"
+        block_count: 2
+        block_texts: ["Text", "More text"]
+    okapi_refs:
+      - MarkdownFilterTest#testIndentedCodeBlock
+      - MarkdownFilterTest#testExcludeIndentedCodeBlock
+    native_refs:
+      - markdown.TestRead_ExcludeIndentedCodeBlock
+
+  # ── Blockquotes ───────────────────────────────────────────────────
+  - id: blockquote_extraction
+    name: Blockquote content extracted by default
+    description: |
+      Blockquoted paragraphs (`>`-prefixed) yield translatable Blocks
+      just like regular paragraphs; the `>` marker stays in skeleton.
+      Multi-paragraph blockquotes split into one Block per paragraph.
+    examples:
+      - name: two_quoted_paragraphs
+        input_xml: "> Quoted text\n>\n> More quoted\n"
+        block_count: 2
+        block_texts:
+          - "Quoted text"
+          - "More quoted"
+    okapi_refs:
+      - MarkdownFilterTest#testBlockQuoteEvents
+    native_refs:
+      - markdown.TestRead_BlockQuoteEvents
+
+  # ── YAML front matter (translateHeaderMetadata) ───────────────────
+  - id: front_matter_default
+    name: YAML front matter skipped by default
+    description: |
+      A `---`-fenced YAML header at the top of the document is
+      non-translatable Data by default — only the markdown body
+      yields Blocks. Verifies the default contract matches Okapi.
+    examples:
+      - name: header_with_body
+        input_xml: "---\ntitle: My Title\nauthor: John\n---\n\n# Heading\n"
+        block_count: 1
+        first_block_text: "Heading"
+        no_block_with_text: ["My Title", "John"]
+    okapi_refs:
+      - MarkdownFilterTest#testDontTranslateMetadataHeader
+    native_refs:
+      - markdown.TestRead_DontTranslateMetadataHeader
+
+  - id: front_matter_translate
+    name: YAML front matter values extracted when opted in
+    description: |
+      With `translateHeaderMetadata=true` each YAML scalar value in
+      the header becomes a translatable Block (in source order),
+      followed by the body Blocks. Verifies the bridge leaf name maps
+      to the native config field.
+    config:
+      translateHeaderMetadata: true
+    examples:
+      - name: header_translated
+        input_xml: "---\ntitle: My Title\nauthor: John\n---\n\n# Heading\n"
+        block_count: 3
+        block_texts: ["My Title", "John", "Heading"]
+    okapi_refs:
+      - MarkdownFilterTest#testTranslateMetadataHeader
+    native_refs:
+      - markdown.TestRead_TranslateMetadataHeader
+
+  # ── Tables (GFM) ──────────────────────────────────────────────────
+  - id: table_cells
+    name: GFM pipe-table cell extraction
+    description: |
+      Header and body cells in a GFM pipe table each become their own
+      translatable Block, in row-major order. The separator row
+      (`| --- |`) is non-translatable structure.
+    examples:
+      - name: simple_table
+        input_xml: "| Header 1 | Header 2 |\n| --- | --- |\n| Cell 1 | Cell 2 |\n"
+        block_count: 4
+        block_texts: ["Header 1", "Header 2", "Cell 1", "Cell 2"]
+    okapi_refs:
+      - MarkdownFilterTest#testTable1TextUnits
+      - MarkdownFilterTest#testTable2TextUnits
+    native_refs:
+      - markdown.TestRead_Table1TextUnits
+
+  # ── HTML inside Markdown ──────────────────────────────────────────
+  - id: html_block_default
+    name: HTML block as non-translatable Data by default
+    description: |
+      A standalone HTML block (`<div>…</div>` between blank lines) is
+      Data by default — the surrounding markdown paragraphs are still
+      extracted as Blocks. With no `htmlSubfilter` configured the HTML
+      stays opaque.
+    examples:
+      - name: html_block_between_paragraphs
+        input_xml: "Text before\n\n<div>HTML content</div>\n\nText after\n"
+        block_count: 2
+        block_texts: ["Text before", "Text after"]
+        no_block_with_text: ["HTML content"]
+    okapi_refs:
+      - MarkdownFilterTest#testHtmlBlockWithMarkdown
+    native_refs:
+      - markdown.TestReadHTMLBlockAsData
+
+  - id: inline_html_in_paragraph
+    name: Inline HTML preserved as inline codes
+    description: |
+      Inline HTML tags (`<span>`, `<em>`, `<b>`) inside a paragraph
+      stay in the surrounding Block as inline-code Spans; the visible
+      text between them is part of the Block source. Tag attributes
+      and tag names never leak into the translatable text.
+    examples:
+      - name: span_inside_paragraph
+        input_xml: "This contains <span>some inline</span> HTML\n"
+        block_count: 1
+        first_block_text: "This contains some inline HTML"
+        no_block_with_text: ["span"]
+    okapi_refs:
+      - MarkdownFilterTest#testHtmlInline
+      - MarkdownFilterTest#testHtmlInlineWithAttributes
+    native_refs:
+      - markdown.TestRead_HtmlInline
+      - markdown.TestRead_HtmlInlineWithAttributes
