@@ -1,0 +1,236 @@
+# Plain Text format specification.
+#
+# Single-variant filter — no variants block. Inputs are inline text
+# snippets (input_xml field carries raw bytes for any text format) or
+# small testdata fixtures committed alongside this spec.
+#
+# Format id `okf_plaintext` covers the line-based BasePlainTextFilter
+# configuration that ships as the default for the upstream filter. The
+# native reader's default mode (`segmentByLine: true`) maps to the same
+# behavior: each line of the input becomes one Block; blank lines emit
+# a Data part and are not extracted; line endings are preserved as
+# skeleton.
+#
+# The bridge composite schema for okf_plaintext (v4) only exposes
+# `simplifierRules` as a flat property — paragraph and trim variants
+# live under `okf_baseplaintext` / `okf_paraplaintext` filter ids and
+# are not routable through this spec's flat config surface. The spec
+# therefore declares no spec.config keys and scopes its features to
+# the line-based extraction path that the canonical okf_plaintext
+# configuration exercises. Paragraph mode (testParagraphs) is exercised
+# by the native reader's own test suite via `segmentByLine: false`,
+# but is not represented as a Feature here — see the under-specified
+# note at the bottom of this file.
+#
+# Authoring notes:
+#   - okapi_refs target the four upstream test classes that the plaintext
+#     surefire module exposes (PlainTextFilterTest, ParaPlainTextFilterTest,
+#     RegexPlainTextFilterTest, SplicedLinesFilterTest). Drift detection
+#     asserts each ref still exists in the bridge's pinned Okapi 1.47.0
+#     surefire output.
+#   - The native reader uses bufio.ReadString('\n'); bare CR (\r) is NOT
+#     treated as a line separator. The bridge (BasePlainTextFilter) does
+#     split on CR. The bare-CR feature below records this divergence
+#     explicitly via `expected_fail`.
+
+format: okf_plaintext
+mime_type: text/plain
+description: |
+  Generic plain-text filter. The default line-based extraction emits
+  one translatable Block per non-empty line, preserving blank lines,
+  CR/LF/CRLF line endings, and Unicode content as skeleton material so
+  the original document round-trips byte-for-byte after merge.
+
+features:
+  # ── Empty input ─────────────────────────────────────────────────────
+  - id: empty_input
+    name: Empty / whitespace-only input produces no blocks
+    description: |
+      A document containing only line terminators (no content lines)
+      yields zero translatable Blocks. The reader still emits
+      LayerStart/LayerEnd parts; the spec's BlockTexts vocabulary
+      skips non-Block parts so an "all-blank" stream has
+      block_count: 0. A truly zero-byte file is rejected by the
+      bridge transport; the smallest representable empty document
+      that flows through both implementations is a single LF.
+    examples:
+      - name: single_newline
+        input_xml: "\n"
+        block_count: 0
+      - name: two_blank_lines
+        input_xml: "\n\n"
+        block_count: 0
+    okapi_refs:
+      - PlainTextFilterTest#testEmptyInput
+      - ParaPlainTextFilterTest#testEmptyInput
+    native_refs:
+      - plaintext.TestReadEmpty
+      - plaintext.TestPara_EmptyInput
+
+  # ── Single-line content ────────────────────────────────────────────
+  - id: single_line
+    name: Single line is one Block
+    description: |
+      A document with one line of text and no trailing newline yields
+      a single translatable Block whose source text is the line's
+      content verbatim.
+    examples:
+      - name: hello_world
+        input_xml: "Hello world"
+        block_count: 1
+        first_block_text: "Hello world"
+    okapi_refs:
+      - PlainTextFilterTest#testStartDocument
+      - PlainTextFilterTest#testNameAndMimeType
+    native_refs:
+      - plaintext.TestRead_StartDocument
+      - plaintext.TestRead_UnicodeContent
+
+  # ── Multi-line LF extraction ───────────────────────────────────────
+  - id: multi_line_lf
+    name: One Block per line (LF)
+    description: |
+      The default extraction mode walks the input line-by-line.
+      Newline characters (LF) act as record separators and are kept
+      in skeleton, not in block text. Block order is document order.
+    examples:
+      - name: three_lines
+        input_xml: "First line\nSecond line\nThird line"
+        block_count: 3
+        block_texts:
+          - "First line"
+          - "Second line"
+          - "Third line"
+      - name: trailing_lf
+        # A trailing newline does NOT introduce a phantom empty block —
+        # the final record terminator is consumed as skeleton.
+        input_xml: "Line 1\nLine 2\n"
+        block_count: 2
+        block_texts:
+          - "Line 1"
+          - "Line 2"
+    okapi_refs:
+      - PlainTextFilterTest#testEvents
+      - PlainTextFilterTest#testLineNumbers
+    native_refs:
+      - plaintext.TestRead_Events
+      - plaintext.TestRead_MultipleLines
+      - plaintext.TestRead_LineNumbers
+
+  # ── Blank lines (skeleton, not extracted) ──────────────────────────
+  - id: blank_lines_skipped
+    name: Blank lines are skeleton, not extracted
+    description: |
+      Blank lines between content lines are emitted as Data parts and
+      preserved in the skeleton for round-trip fidelity, but they do
+      not produce translatable Blocks. Multiple consecutive blank
+      lines collapse to zero Blocks between the surrounding content.
+    examples:
+      - name: single_blank
+        input_xml: "Line 1\n\nLine 2"
+        block_count: 2
+        block_texts:
+          - "Line 1"
+          - "Line 2"
+      - name: triple_blank
+        input_xml: "Line 1\n\n\nLine 2"
+        block_count: 2
+        block_texts:
+          - "Line 1"
+          - "Line 2"
+    okapi_refs:
+      - PlainTextFilterTest#testSkeleton
+      - PlainTextFilterTest#testSkeleton2
+      - PlainTextFilterTest#testSkeleton3
+    native_refs:
+      - plaintext.TestRead_Skeleton
+      - plaintext.TestRead_Skeleton2
+      - plaintext.TestRead_Skeleton3
+
+  # ── Line ending variants ───────────────────────────────────────────
+  - id: line_endings
+    name: CRLF and LF line endings
+    description: |
+      The reader handles CRLF (Windows) and LF (Unix) line endings
+      uniformly: both terminate a line and are consumed as skeleton.
+      A bare CR (legacy classic-Mac) is NOT a line separator on the
+      native side — the upstream BasePlainTextFilter treats it as one,
+      so this case is recorded as an expected divergence here.
+    examples:
+      - name: crlf_three_lines
+        input_xml: "Line 1\r\nLine 2\r\nLine 3"
+        block_count: 3
+        block_texts:
+          - "Line 1"
+          - "Line 2"
+          - "Line 3"
+      - name: bare_cr_three_lines
+        input_xml: "Line 1\rLine 2\rLine 3"
+        # Native bufio.ReadString('\n') does not split on bare CR; the
+        # whole input is a single Block with embedded \r characters.
+        # The bridge splits on CR and would yield 3 Blocks. Tracked
+        # as a known divergence rather than papered over.
+        expected_fail: |
+          Native reader does not treat bare CR as a line separator;
+          upstream BasePlainTextFilter does. Roundtrip via the
+          bowrain bridge would yield 3 blocks; native yields 1.
+        block_count: 3
+        block_texts:
+          - "Line 1"
+          - "Line 2"
+          - "Line 3"
+    okapi_refs:
+      - PlainTextFilterTest#testFiles
+      - ParaPlainTextFilterTest#testFiles
+    native_refs:
+      - plaintext.TestRead_CRLFLineEndings
+      - plaintext.TestRead_CRLineEndings
+
+  # ── Unicode content ────────────────────────────────────────────────
+  - id: unicode_content
+    name: Unicode content is preserved
+    description: |
+      Multi-byte UTF-8 sequences (CJK, accented Latin, emoji) flow
+      through the line-based extractor unchanged. Block texts carry
+      the decoded characters verbatim — the reader does no
+      normalization or escape handling beyond what UTF-8 decoding
+      already implies.
+    examples:
+      - name: cjk_and_latin_mixed
+        input_file: testdata/unicode.txt
+        block_count: 3
+        block_texts:
+          - "Hello 世界"
+          - "Bonjour le monde"
+          - "こんにちは世界"
+    okapi_refs:
+      - PlainTextFilterTest#testFiles
+      - SplicedLinesFilterTest#testCombinedLines
+    native_refs:
+      - plaintext.TestReadUnicode
+      - plaintext.TestRoundTrip
+# ── Intentionally under-specified ─────────────────────────────────────
+#
+# Paragraph mode (segmentByLine=false / okf_plaintext_paragraphs) is
+# upstream-tested by ParaPlainTextFilterTest#testParagraphs and Skeleton*
+# and exercised by native plaintext.TestPara_Paragraphs etc., but it is
+# NOT represented here as a Feature: the okf_plaintext bridge composite
+# schema (v4 for Okapi 1.47.0) does not expose `extractParagraphs` as a
+# flat property — it lives in okf_paraplaintext or as a sub-config
+# routing on okf_plaintext. Adding it to spec.config would create
+# config drift against the bridge schema. The native test suite covers
+# paragraph mode; a future spec iteration can split plaintext into
+# variants once the spec model supports per-variant bridge schema
+# selection.
+#
+# Roundtrip / double-extraction (testDoubleExtraction) is verified by
+# the native plaintext.TestRoundTrip_DoubleExtraction test but is not
+# expressible through the BlockTexts assertion vocabulary this spec
+# uses — there is no roundtrip assertion type. Captured here as a known
+# coverage gap rather than as a synthetic Feature.
+#
+# Cancellation (testCancel), configuration plumbing (testConfigurations,
+# testLoadParams), synchronization (testSynchronization), and the
+# regex / spliced-lines filter variants are upstream API-shape tests
+# rather than user-observable extraction behavior, and intentionally
+# fall outside this spec's surface.
