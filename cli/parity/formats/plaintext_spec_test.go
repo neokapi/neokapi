@@ -11,12 +11,12 @@ import (
 	"github.com/neokapi/neokapi/core/formats/plaintext"
 )
 
-// TestPlaintextSpec drives the plaintext spec.yaml through bridge AND
+// TestParityPlaintextSpec drives the plaintext spec.yaml through bridge AND
 // native readers, validating both against the spec contract and
 // against each other. The same spec file drives the always-on native
 // test (core/formats/plaintext/spec_test.go) — one source of truth for
 // the format's behavior across implementations.
-func TestPlaintextSpec(t *testing.T) {
+func TestParityPlaintextSpec(t *testing.T) {
 	specPath := filepath.Join("..", "..", "..", "core", "formats", "plaintext", "spec.yaml")
 	s, err := parityspec.LoadSpec(specPath)
 	if err != nil {
