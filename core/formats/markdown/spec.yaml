@@ -108,6 +108,13 @@ features:
         # Soft line break inside a paragraph collapses to a space —
         # the paragraph stays one Block.
         input_xml: "Here comes _emphasized part of text that\nincludes a soft line break_."
+        expected_fail: |
+          bridge bug — Okapi MarkdownFilter preserves the literal `\n`
+          inside a paragraph instead of collapsing it to a space per
+          CommonMark soft-break semantics, yielding "...text that\n
+          includes a soft line break.". Native correctly collapses to
+          a single space. Tracked separately as a bridge soft-break
+          handling bug.
         block_count: 1
         first_block_text: "Here comes emphasized part of text that includes a soft line break."
     okapi_refs:
@@ -152,6 +159,12 @@ features:
     examples:
       - name: bullet_list
         input_xml: "* First\nelement\n\n* Second element\n\n* Third element\n\n"
+        expected_fail: |
+          bridge bug — same soft-break handling as emphasis_across_soft_break.
+          Inside a list item, Okapi MarkdownFilter preserves the literal `\n`
+          ("First\nelement") instead of collapsing it to a space. Native
+          collapses per CommonMark. Tracked separately as a bridge soft-break
+          handling bug.
         block_count: 3
         block_texts:
           - "First element"
@@ -233,6 +246,12 @@ features:
         first_block_text: "See alt text here"
       - name: autolink_in_text
         input_xml: "Visit <https://example.com> now"
+        expected_fail: |
+          bridge default config strips autolink URLs from the source
+          text (treats `<url>` as inline code with no translatable
+          content), yielding "Visit  now". Native keeps the URL as
+          part of the source text per CommonMark autolink semantics.
+          Both legitimate; spec asserts native behavior.
         block_count: 1
         first_block_text: "Visit https://example.com now"
     okapi_refs:
@@ -314,6 +333,13 @@ features:
     examples:
       - name: indented_between_paragraphs
         input_xml: "Text\n\n    indented code\n\nMore text\n"
+        expected_fail: |
+          bridge segments indented code blocks at finer granularity
+          than native — Okapi MarkdownFilter surfaces the indented
+          code block as a third Block (visible to the spec) rather
+          than skipping it as Data. Native skips per
+          translateCodeBlocks=false default. Both legitimate;
+          spec asserts native behavior.
         block_count: 2
         block_texts: ["Text", "More text"]
     okapi_refs:
@@ -407,6 +433,13 @@ features:
     examples:
       - name: html_block_between_paragraphs
         input_xml: "Text before\n\n<div>HTML content</div>\n\nText after\n"
+        expected_fail: |
+          bridge default config descends into HTML blocks (extracts
+          "HTML content" as a third translatable Block) instead of
+          treating them as opaque Data. Native skips HTML blocks
+          when no htmlSubfilter is configured. Both legitimate;
+          spec asserts native behavior. Could be reconciled by
+          explicitly disabling HTML extraction in the bridge config.
         block_count: 2
         block_texts: ["Text before", "Text after"]
         no_block_with_text: ["HTML content"]
