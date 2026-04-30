@@ -28,6 +28,28 @@ type Config struct {
 	// CodeFinderRules defines inline code patterns.
 	CodeFinderRules []string
 
+	// ProtectApproved mirrors the bridge `protectApproved` flag — when
+	// true, fully-translated, non-fuzzy entries are emitted as
+	// non-translatable. The native reader accepts this flag for
+	// configuration parity but does not yet act on it.
+	ProtectApproved bool
+
+	// MakeID mirrors the bridge `makeID` flag — generate stable
+	// identifiers from the source text. Accepted for parity; the
+	// native reader currently uses the msgid value as the Block name.
+	MakeID bool
+
+	// IncludeMsgContextInNote mirrors the bridge
+	// `includeMsgContextInNote` flag — append the msgctxt value to the
+	// note annotation. Accepted for parity; the native reader stores
+	// msgctxt under the block's `context` property regardless.
+	IncludeMsgContextInNote bool
+
+	// OutputGeneric mirrors the bridge `outputGeneric` flag — write
+	// the document in Okapi's generic format. Accepted for parity;
+	// the native writer always emits the canonical PO format.
+	OutputGeneric bool
+
 	// compiled regex caches
 	compiledCodeFinder []*regexp.Regexp
 }
@@ -89,6 +111,30 @@ func (c *Config) ApplyMap(values map[string]any) error {
 			}
 			c.CodeFinderRules = rules
 			c.compiledCodeFinder = nil
+		case "protectApproved":
+			b, ok := val.(bool)
+			if !ok {
+				return fmt.Errorf("protectApproved: expected bool, got %T", val)
+			}
+			c.ProtectApproved = b
+		case "makeID":
+			b, ok := val.(bool)
+			if !ok {
+				return fmt.Errorf("makeID: expected bool, got %T", val)
+			}
+			c.MakeID = b
+		case "includeMsgContextInNote":
+			b, ok := val.(bool)
+			if !ok {
+				return fmt.Errorf("includeMsgContextInNote: expected bool, got %T", val)
+			}
+			c.IncludeMsgContextInNote = b
+		case "outputGeneric":
+			b, ok := val.(bool)
+			if !ok {
+				return fmt.Errorf("outputGeneric: expected bool, got %T", val)
+			}
+			c.OutputGeneric = b
 		default:
 			return fmt.Errorf("po: unknown parameter: %s", key)
 		}

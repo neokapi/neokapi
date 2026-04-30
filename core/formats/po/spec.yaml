@@ -1,0 +1,500 @@
+# PO (gettext) format specification.
+#
+# Single-variant filter — no variants block. Inputs are inline PO
+# snippets (input_xml is reused for any text snippet; the field is
+# named for XML historically but holds raw text bytes for any text
+# format).
+#
+# Config keys mirror the bridge composite schema's flat leaf names
+# (bilingualMode, protectApproved, wrapContent, makeID,
+# includeMsgContextInNote, outputGeneric, allowEmptyOutputTarget) so
+# drift detection against the bridge schema lines up. `okapi_param`
+# carries the underlying Java field name for traceability.
+#
+# Native PO Config.ApplyMap accepts each bridge leaf name; some are
+# stored for parity but not yet acted on by the reader/writer (see
+# config.go). Those expose as features marked `expected_fail` here.
+
+format: okf_po
+mime_type: application/x-gettext
+description: |
+  GNU gettext PO and POT files. Bilingual catalogues with msgid /
+  msgstr pairs, optional msgctxt for disambiguation, plural forms via
+  msgid_plural / msgstr[N], translator and extracted comments,
+  references, and `#, fuzzy` flags. The reader extracts every
+  msgid as a translatable Block; msgstr fills the corresponding
+  target locale.
+
+config:
+  - key: bilingualMode
+    type: boolean
+    default: true
+    description: |
+      Treat msgid as the source text and msgstr as the target text.
+      When false (monolingual mode), msgid is used purely as an
+      identifier and msgstr provides the source text instead — the
+      shape used by gettext catalogues that ship message IDs rather
+      than English strings.
+    okapi_param: bilingualMode
+
+  - key: protectApproved
+    type: boolean
+    default: false
+    description: |
+      When true, fully-translated, non-fuzzy entries are emitted as
+      non-translatable so downstream tools skip them. Accepted for
+      configuration parity with the bridge; the native reader does
+      not yet honor it.
+    okapi_param: protectApproved
+
+  - key: wrapContent
+    type: boolean
+    default: true
+    description: |
+      Wrap long msgid / msgstr lines in the output. Affects the
+      writer only; the reader ignores it. The bridge default and
+      native default both wrap.
+    okapi_param: wrapContent
+
+  - key: makeID
+    type: boolean
+    default: true
+    description: |
+      Generate stable text-unit identifiers from the source text.
+      Accepted for parity; the native reader currently uses the
+      msgid value directly as the Block name.
+    okapi_param: makeID
+
+  - key: includeMsgContextInNote
+    type: boolean
+    default: false
+    description: |
+      When true, append the msgctxt value to the entry's note
+      annotation (in addition to its own context property). Accepted
+      for parity; the native reader stores msgctxt under the block's
+      `context` property regardless of this flag.
+    okapi_param: includeMsgContextInNote
+
+  - key: outputGeneric
+    type: boolean
+    default: false
+    description: |
+      Write the document in Okapi's generic intermediate format
+      rather than canonical PO. Affects the writer only; accepted
+      for parity. The native writer always emits canonical PO.
+    okapi_param: outputGeneric
+
+  - key: allowEmptyOutputTarget
+    type: boolean
+    default: false
+    description: |
+      Allow empty msgstr in output when no translation is available.
+      Affects the writer only — the reader passes empty msgstr
+      entries through as untranslated Blocks regardless.
+    okapi_param: allowEmptyOutputTarget
+
+  # Inline code finder (`useCodeFinder` / `codeFinderRules`) is reachable
+  # in the bridge schema only via the `inlineCodes` `$ref` to `$defs`,
+  # which the drift checker doesn't follow today. The native reader
+  # still supports the finder through the legacy Java field names; the
+  # `inlines_passthrough` feature below documents the default-OFF path
+  # that both implementations agree on without reaching for the
+  # currently-unreachable schema keys.
+
+features:
+  # ── Core extraction ──────────────────────────────────────────────
+  - id: bilingual_entry
+    name: Bilingual msgid / msgstr extraction
+    description: |
+      The simplest PO entry: a `msgid "..."` followed by `msgstr "..."`
+      becomes one translatable Block whose source is the msgid value
+      and whose target (for the document's target locale) is the
+      msgstr value.
+    examples:
+      - name: simple_pair
+        input_xml: |
+          msgid "Text 1"
+          msgstr "Texte 1"
+        block_count: 1
+        first_block_text: "Text 1"
+      - name: untranslated
+        description: |
+          An empty msgstr keeps the Block translatable with no target
+          assigned — entries waiting for translation, not entries to
+          skip.
+        input_xml: |
+          msgid "Hello"
+          msgstr ""
+        block_count: 1
+        first_block_text: "Hello"
+    okapi_refs:
+      - POFilterTest#testOuputSimpleEntry
+      - POFilterTest#testOuputAddTranslation
+    native_refs:
+      - po.TestReadSimple
+      - po.TestReadUntranslated
+
+  - id: multiline_strings
+    name: Multiline string continuation
+    description: |
+      A msgid or msgstr value can span multiple lines. The convention
+      is an empty leading `""` followed by one quoted continuation
+      per line; the reader concatenates them (no implicit newline)
+      into a single source/target string.
+    examples:
+      - name: continuation_lines
+        input_xml: |
+          msgid ""
+          "This is a test "
+          "msgid value."
+          msgstr ""
+          "este es un mensaje de ejemplo "
+          "."
+        block_count: 1
+        first_block_text: "This is a test msgid value."
+    okapi_refs:
+      - POFilterTest#testHtmlSubfilterBilingualMode
+      - POFilterTest#testNoQuoteOnSameLine
+      - POFilterTest#testOuputNoQuoteOnSameLine
+    native_refs:
+      - po.TestReadMultiline
+
+  - id: escape_sequences
+    name: Backslash escape decoding
+    description: |
+      Standard PO escapes (`\n`, `\t`, `\\`, `\"`) are decoded into
+      their literal characters at read time. The Block source text
+      carries the decoded characters, not the escape sequences.
+    examples:
+      - name: newline_in_msgid
+        description: |
+          `\n` inside a quoted PO string becomes a literal newline in
+          the extracted source text.
+        input_xml: |
+          msgid "Hello\nWorld"
+          msgstr "Bonjour\nMonde"
+        block_count: 1
+        first_block_text: "Hello\nWorld"
+    okapi_refs:
+      - POFilterTest#testEscapes
+      - POFilterTest#testUnescapedRead
+      - POFilterTest#testUnescapedRewrite
+    native_refs:
+      - po.TestReadEscapeSequences
+      - po.TestReadEscapedQuotes
+
+  # ── Headers and metadata ─────────────────────────────────────────
+  - id: header_entry
+    name: PO header entry
+    description: |
+      A PO file's first entry has an empty msgid and a msgstr that
+      carries the file's metadata (Content-Type, Plural-Forms,
+      Language, …). The header is NOT a translatable unit — the
+      reader emits it as a Data part named `header` and continues
+      with the actual entries.
+    examples:
+      - name: header_with_following_entry
+        input_xml: |
+          msgid ""
+          msgstr ""
+          "Project-Id-Version: PACKAGE VERSION\n"
+          "Content-Type: text/plain; charset=UTF-8\n"
+          "Plural-Forms: nplurals=2; plural=(n!=1);\n"
+
+          msgid "Text"
+          msgstr "Texte"
+        block_count: 1
+        first_block_text: "Text"
+      - name: pot_header_only
+        description: |
+          POT (template) files have ENCODING placeholders. The
+          following entry should still extract as one Block.
+        input_xml: |
+          msgid ""
+          msgstr ""
+          "Project-Id-Version: PACKAGE VERSION\n"
+          "Content-Type: text/plain; charset=ENCODING\n"
+          msgid "Text"
+          msgstr ""
+        block_count: 1
+        first_block_text: "Text"
+      - name: empty_id_entry_skipped
+        description: |
+          A non-header entry with empty msgid is treated as a header
+          (and produces no translatable unit). Mirrors Okapi's
+          behavior of dropping malformed empty-id entries.
+        input_xml: |
+          msgid ""
+          msgstr "Some stuff"
+        block_count: 0
+    okapi_refs:
+      - POFilterTest#testPOHeader
+      - POFilterTest#testPOTHeader
+      - POFilterTest#testHeaderNoNPlurals
+      - POFilterTest#testHeaderWithEmptyEntryAfter
+      - POFilterTest#testTUEmptyIDEntry
+    native_refs:
+      - po.TestReadHeader
+
+  - id: msgctxt_disambiguation
+    name: msgctxt context disambiguation
+    description: |
+      `msgctxt` lets the same msgid appear multiple times with
+      different contexts (typically UI placement: "menu" vs
+      "button"). The reader stores msgctxt on the Block's `context`
+      property and treats each msgctxt+msgid pair as its own
+      translatable unit.
+    examples:
+      - name: same_msgid_different_ctxt
+        description: |
+          Two entries share the same msgid "Text1" but different
+          msgctxt — both are extracted as distinct Blocks.
+        input_xml: |
+          msgid "Text1"
+          msgstr "Texte1"
+
+          msgctxt "abc"
+          msgid "Text1"
+          msgstr "Texte1"
+        block_count: 2
+        block_texts:
+          - "Text1"
+          - "Text1"
+      - name: ctxt_only
+        input_xml: |
+          msgctxt "menu"
+          msgid "File"
+          msgstr "Fichier"
+        block_count: 1
+        first_block_text: "File"
+    okapi_refs:
+      - POFilterTest#testIDWithContext
+      - POFilterTest#testTUContextParsing
+      - POFilterTest#testMsgCtxtAsNotes
+    native_refs:
+      - po.TestReadMsgctxt
+
+  # ── Plural forms ─────────────────────────────────────────────────
+  - id: plural_forms
+    name: Plural forms (msgid_plural / msgstr[N])
+    description: |
+      Plural entries declare a singular `msgid` and a `msgid_plural`,
+      then list translations as `msgstr[0]`, `msgstr[1]`, …
+      according to the locale's nplurals. The reader emits a
+      GroupStart wrapping one Block per plural form; English source
+      always exposes 2 forms (singular + plural).
+    examples:
+      - name: en_two_forms
+        input_xml: |
+          msgid "untranslated-singular"
+          msgid_plural "untranslated-plural"
+          msgstr[0] ""
+          msgstr[1] ""
+        block_count: 2
+        block_texts:
+          - "untranslated-singular"
+          - "untranslated-plural"
+      - name: with_translations
+        input_xml: |
+          msgid "1 file"
+          msgid_plural "%d files"
+          msgstr[0] "1 fichier"
+          msgstr[1] "%d fichiers"
+        block_count: 2
+        block_texts:
+          - "1 file"
+          - "%d files"
+      - name: russian_three_forms
+        description: |
+          Russian declares nplurals=3. The Okapi contract is to
+          surface all three msgstr targets as their own text units;
+          the native reader currently exposes only the
+          singular+plural pair (msgstr[0] and msgstr[1]) and ignores
+          msgstr[2]. Tracked here until the native reader honors
+          the source's nplurals.
+        input_xml: |
+          msgid ""
+          msgstr ""
+          "Plural-Forms: nplurals=3; plural=n%10==1 && n%100!=11 ? 0 : n%10>=2 && n%10<=4 && (n%100<10 || n%100>=20) ? 1 : 2;\n"
+
+          msgid "%d day"
+          msgid_plural "%d days"
+          msgstr[0] "день"
+          msgstr[1] "дня"
+          msgstr[2] "дней"
+        expected_fail: |
+          Native reader exposes 2 plural forms (singular + plural)
+          regardless of nplurals; Okapi's testThreePlurals expects
+          one text unit per msgstr[N]. Update reader to enumerate
+          all msgstr[N] entries, then drop this expected_fail.
+        block_count: 3
+    okapi_refs:
+      - POFilterTest#testTUPluralEntry_DefaultGroup
+      - POFilterTest#testTUPluralEntry_DefaultSingular
+      - POFilterTest#testTUPluralEntry_DefaultPlural
+      - POFilterTest#testOuputPluralEntry
+      - POFilterTest#testOnePlural
+      - POFilterTest#testThreePlurals
+    native_refs:
+      - po.TestReadPluralForms
+
+  # ── Comments, references, flags ──────────────────────────────────
+  - id: comments_and_metadata
+    name: Comments, references, and extracted notes
+    description: |
+      A complete entry can carry translator comments (`# `),
+      extracted comments (`#.`), references to source locations
+      (`#:`), and previous-msgid context (`#|`) before its msgid.
+      The reader emits these as Data parts (`comment`, `reference`,
+      `flags`) preceding the translatable Block, so downstream tools
+      can preserve them on round-trip.
+    examples:
+      - name: full_entry_with_all_metadata
+        input_xml: |
+          #, fuzzy
+          #. Comment
+          #: Reference
+          # Translator note
+          #| Context1
+          msgctxt "Context2"
+          msgid "Source"
+          msgstr "Target"
+        block_count: 1
+        first_block_text: "Source"
+      - name: trailing_skeleton
+        description: |
+          Two entries separated by a blank line, the second carrying
+          a `#, fuzzy` flag — exercises the comment / reference
+          serialization path that round-tripping depends on.
+        input_xml: |
+          #. translators: this is used in the view menu
+          #: ../src/file-manager/fm-icon-view.c:3049
+          msgid "_Icons"
+          msgstr "_Ikone"
+
+          #: ../src/file-manager/fm-icon-view.c:3050
+          #, fuzzy
+          msgid "The icon view encountered an error."
+          msgstr "Die %s-aangesig het 'n probleem ondervind terwyl dit gelaai is."
+        block_count: 2
+        block_texts:
+          - "_Icons"
+          - "The icon view encountered an error."
+    okapi_refs:
+      - POFilterTest#testTUCompleteEntry
+      - POFilterTest#testTrailingSkeleton
+    native_refs:
+      - po.TestReadTranslatorComments
+      - po.TestReadReferences
+      - po.TestReadFlags
+
+  - id: fuzzy_flag
+    name: Fuzzy flag round-trip
+    description: |
+      `#, fuzzy` marks entries whose translation needs review. The
+      reader extracts the entry as a normal translatable Block; the
+      flag is preserved as a `flags` Data part so the writer can
+      reproduce it. The Block source text is the msgid as usual.
+    examples:
+      - name: format_fuzzy
+        input_xml: |
+          #, c-format, fuzzy
+          msgid "Text 1"
+          msgstr "Texte 1"
+        block_count: 1
+        first_block_text: "Text 1"
+      - name: stuff_fuzzy_format
+        input_xml: |
+          #, x-stuff, fuzzy, c-format
+          msgid "Text 1"
+          msgstr "Text 1"
+        block_count: 1
+        first_block_text: "Text 1"
+    okapi_refs:
+      - POFilterTest#testOuputOptionLine_FormatFuzzy
+      - POFilterTest#testOuputOptionLine_FuzyFormat
+      - POFilterTest#testOuputOptionLine_StuffFuzyFormat
+      - POFilterTest#testPluralEntryFuzzy
+    native_refs:
+      - po.TestReadFlags
+
+  # ── Inline codes (printf-style placeholders) ─────────────────────
+  # The PO bridge schema exposes the inline code finder via a
+  # `$ref` to `$defs/inlineCodes`, which the drift checker doesn't
+  # walk. Verifying the inline-code path against the bridge needs
+  # either reachable flat keys or a smarter audit; tracked via the
+  # `inlines_passthrough` feature below, which asserts the literal
+  # text representation Okapi's testInlines expects when the finder
+  # is OFF — the default config the bridge ships and which both
+  # implementations agree on.
+
+  - id: inlines_passthrough
+    name: Printf-style placeholders pass through as literal text
+    description: |
+      With the inline code finder OFF (the default for the standard
+      PO configuration), printf-style placeholders like `%s`, `%d`,
+      `%f` are part of the source text and not split into
+      placeholder Spans. The reader exposes the entire msgid value
+      as a single literal Block.
+    examples:
+      - name: percent_codes_in_msgid
+        description: |
+          Three printf format specifiers in source and target —
+          all part of the literal text under the default config.
+        input_xml: |
+          msgid "Text %s and %d and %f"
+          msgstr "Texte %f et %d et %s"
+        block_count: 1
+        first_block_text: "Text %s and %d and %f"
+      - name: angle_bracket_codes_no_inlines
+        description: |
+          Without the inline code finder enabled, `<x>...</x>` and
+          `<x/>` look like markup but are extracted verbatim as
+          part of the source text — the upstream
+          testWithNoCodesLookingLikeCodes contract.
+        input_xml: |
+          msgctxt "okpCtx:tu=1"
+          msgid "EN<x>...</x><x/>"
+          msgstr "FR<x>...</x><x/>"
+        block_count: 1
+        first_block_text: "EN<x>...</x><x/>"
+    okapi_refs:
+      - POFilterTest#testInlines
+      - POFilterTest#testWithLetterCodes
+      - POFilterTest#testWithNoCodesLookingLikeCodes
+    native_refs:
+      - po.TestReadSimple
+
+  # ── Mode toggle (currently parity-stored) ────────────────────────
+  - id: monolingual_mode
+    name: Monolingual mode (msgid as identifier)
+    description: |
+      With `bilingualMode: false`, msgid is treated as an
+      identifier and the msgstr value supplies the source text —
+      the shape used by catalogues that ship message IDs rather
+      than English strings. Drives Okapi's `okf_po-monolingual`
+      configuration; the native reader stores the flag for
+      configuration parity but does not yet invert source/target.
+    config:
+      bilingualMode: false
+    examples:
+      - name: msgstr_as_source
+        description: |
+          In monolingual mode the source should be the msgstr value
+          ("Hello"), not the msgid ("key1"). The native reader
+          currently still extracts msgid as source — tracked until
+          monolingual extraction is wired through the reader.
+        input_xml: |
+          msgid "key1"
+          msgstr "Hello"
+        expected_fail: |
+          Native reader does not yet act on bilingualMode=false; it
+          continues to treat msgid as source. Okapi's monolingual
+          configuration uses msgstr as source. Update reader to
+          honor the flag, then drop this expected_fail.
+        block_count: 1
+        first_block_text: "Hello"
+    okapi_refs:
+      - POFilterTest#testDoubleExtraction
+    native_refs:
+      - po.TestReadSimple
