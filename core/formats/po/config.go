@@ -28,24 +28,24 @@ type Config struct {
 	// CodeFinderRules defines inline code patterns.
 	CodeFinderRules []string
 
-	// ProtectApproved mirrors the bridge `protectApproved` flag — when
-	// true, fully-translated, non-fuzzy entries are emitted as
+	// ProtectApproved mirrors Okapi's `protectApproved` parameter —
+	// when true, fully-translated, non-fuzzy entries are emitted as
 	// non-translatable. The native reader accepts this flag for
 	// configuration parity but does not yet act on it.
 	ProtectApproved bool
 
-	// MakeID mirrors the bridge `makeID` flag — generate stable
+	// MakeID mirrors Okapi's `makeID` parameter — generate stable
 	// identifiers from the source text. Accepted for parity; the
 	// native reader currently uses the msgid value as the Block name.
 	MakeID bool
 
-	// IncludeMsgContextInNote mirrors the bridge
-	// `includeMsgContextInNote` flag — append the msgctxt value to the
-	// note annotation. Accepted for parity; the native reader stores
-	// msgctxt under the block's `context` property regardless.
+	// IncludeMsgContextInNote mirrors Okapi's
+	// `includeMsgContextInNote` parameter — append the msgctxt value
+	// to the note annotation. Accepted for parity; the native reader
+	// stores msgctxt under the block's `context` property regardless.
 	IncludeMsgContextInNote bool
 
-	// OutputGeneric mirrors the bridge `outputGeneric` flag — write
+	// OutputGeneric mirrors Okapi's `outputGeneric` parameter — write
 	// the document in Okapi's generic format. Accepted for parity;
 	// the native writer always emits the canonical PO format.
 	OutputGeneric bool

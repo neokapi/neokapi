@@ -5,13 +5,14 @@
 # named for XML historically but holds raw text bytes for any text
 # format).
 #
-# Config keys mirror the bridge composite schema's flat leaf names
-# (bilingualMode, protectApproved, wrapContent, makeID,
-# includeMsgContextInNote, outputGeneric, allowEmptyOutputTarget) so
-# drift detection against the bridge schema lines up. `okapi_param`
-# carries the underlying Java field name for traceability.
+# Config keys mirror the Okapi parameter names (bilingualMode,
+# protectApproved, wrapContent, makeID, includeMsgContextInNote,
+# outputGeneric, allowEmptyOutputTarget) — the same names the bridge
+# composite schema exposes, so drift detection against the bridge
+# schema lines up. `okapi_param` carries the underlying Java field
+# name for full traceability where it differs.
 #
-# Native PO Config.ApplyMap accepts each bridge leaf name; some are
+# Native PO Config.ApplyMap accepts each parameter name; some are
 # stored for parity but not yet acted on by the reader/writer (see
 # config.go). Those expose as features marked `expected_fail` here.
 
