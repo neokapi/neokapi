@@ -6,11 +6,11 @@
 # which the runner skips cleanly when the okapi-testdata corpus isn't
 # fetched.
 #
-# Config keys mirror the bridge composite schema's leaf names
-# (extractOnlyMatchingKey, useKeyCondition, keyCondition, extraComments,
-# commentsAreNotes, escapeExtendedChars, useJavaEscapes, convertLFandTab,
-# idLikeResname, useLd, localizeOutside). The native Config.ApplyMap
-# accepts each of these directly.
+# Config keys use the Okapi parameter names (extractOnlyMatchingKey,
+# useKeyCondition, keyCondition, extraComments, commentsAreNotes,
+# escapeExtendedChars, useJavaEscapes, convertLFandTab, idLikeResname,
+# useLd, localizeOutside) — the same names the bridge composite schema
+# exposes. The native Config.ApplyMap accepts each of these directly.
 #
 # Inline-code detection (useCodeFinder / codeFinderRules) is exercised
 # through the message-placeholder feature but is NOT declared as a
