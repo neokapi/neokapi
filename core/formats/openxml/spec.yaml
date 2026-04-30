@@ -1,0 +1,262 @@
+# OpenXML format specification.
+#
+# One spec for the openxml filter family (docx/xlsx/pptx). Features and
+# config keys carry an applies_to list to scope to specific variants
+# where relevant; everything else applies to all three.
+#
+# Authoring notes:
+#   - input_file values resolve relative to this directory (testdata/…)
+#     unless prefixed with `okapi:` which resolves under the locally
+#     fetched okapi-testdata/ tree (skips cleanly when not present).
+#   - okapi_refs are pinned to the upstream class+method names. Drift
+#     detection asserts each ref still exists in the bridge's pinned
+#     Okapi version.
+#   - This is a SEED spec — features here are illustrative coverage of
+#     the variant model and assertion vocabulary, not a complete
+#     description of openxml. Expand iteratively, validating on real
+#     parity runs.
+
+format: okf_openxml
+mime_type: application/vnd.openxmlformats-officedocument
+description: |
+  Microsoft Office Open XML formats — Word documents (.docx),
+  Excel workbooks (.xlsx), and PowerPoint presentations (.pptx). One
+  filter handles all three because they share a common ZIP+XML
+  container; the reader auto-detects the variant from the package
+  contents.
+
+variants:
+  - id: docx
+    name: Word document
+    extension: .docx
+    mime_type: application/vnd.openxmlformats-officedocument.wordprocessingml.document
+  - id: xlsx
+    name: Excel workbook
+    extension: .xlsx
+    mime_type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet
+  - id: pptx
+    name: PowerPoint presentation
+    extension: .pptx
+    mime_type: application/vnd.openxmlformats-officedocument.presentationml.presentation
+
+config:
+  # ── Common (all variants) ─────────────────────────────────────────
+  - key: translateDocProperties
+    type: boolean
+    default: true
+    description: Extract document properties from docProps/core.xml (title, subject, keywords).
+    okapi_param: bExtractDocumentProperties
+
+  - key: translateHeadersFooters
+    type: boolean
+    default: true
+    description: Extract text from headers and footers.
+    applies_to: [docx]
+    okapi_param: bExtractHeadersFooters
+
+  - key: translateHiddenText
+    type: boolean
+    default: false
+    description: Extract text marked with the vanish run property.
+    applies_to: [docx]
+    okapi_param: bExtractHidden
+
+  - key: translateComments
+    type: boolean
+    default: false
+    description: Extract review comments.
+    applies_to: [docx, xlsx]
+    okapi_param: bExtractComments
+
+  - key: automaticallyAcceptRevisions
+    type: boolean
+    default: true
+    description: Apply pending tracked changes before extraction so output reflects accepted state.
+    applies_to: [docx]
+    okapi_param: bAutomaticallyAcceptRevisions
+
+  # ── PPTX-specific ─────────────────────────────────────────────────
+  - key: translateSlideNotes
+    type: boolean
+    default: true
+    description: Extract speaker notes alongside slide content.
+    applies_to: [pptx]
+    okapi_param: bTranslateNotes
+
+  - key: translateSlideMasters
+    type: boolean
+    default: false
+    description: Extract text from slide masters and layouts.
+    applies_to: [pptx]
+    okapi_param: bTranslatePowerpointMasters
+
+  - key: translateHiddenSlides
+    type: boolean
+    default: false
+    description: Extract text from slides flagged as hidden.
+    applies_to: [pptx]
+    okapi_param: bTranslatePowerpointHidden
+
+  # ── XLSX-specific ─────────────────────────────────────────────────
+  - key: translateSheetNames
+    type: boolean
+    default: false
+    description: Extract worksheet tab names as translatable strings.
+    applies_to: [xlsx]
+    okapi_param: bTranslateExcelSheetNames
+
+  - key: excludedSheets
+    type: string_list
+    default: []
+    description: Worksheet names to exclude from extraction.
+    applies_to: [xlsx]
+    okapi_param: tsExcludedWorksheetConfigurations
+
+features:
+  # ── DOCX features ─────────────────────────────────────────────────
+  - id: docx_paragraph_extraction
+    name: Body paragraph extraction (DOCX)
+    description: |
+      Extract text from `<w:p>` body paragraphs in document.xml,
+      preserving inline run structure. Paragraphs are emitted as
+      translatable Blocks in document order.
+    applies_to: [docx]
+    examples:
+      - name: simple
+        variant: docx
+        input_file: testdata/simple.docx
+        block_count: 3
+        block_texts:
+          - "Hello, World!"
+          - "Bold text and normal text"
+          - "Italic then bold italic"
+    okapi_refs:
+      - OpenXMLDefaultConfigRoundTripTest#testWitthDefaultConfig
+      - OpenXMLTest#testWordDocuments
+    native_refs:
+      - openxml.TestNative_SimpleDocx
+      - openxml.TestRoundtripSimple
+
+  - id: docx_inline_formatting
+    name: Inline formatting in body paragraphs (DOCX)
+    description: |
+      Bold, italic, underline, hyperlinks, and other inline runs are
+      preserved as Spans inside the surrounding Block, not split into
+      separate Blocks.
+    applies_to: [docx]
+    examples:
+      - name: formatted
+        variant: docx
+        input_file: testdata/formatted.docx
+        block_count: 7
+        first_block_text: "Simple paragraph"
+        has_block_with_text:
+          - "Bold underlined"
+          - "Click here for more."
+          - "A Heading"
+    okapi_refs:
+      - OpenXmlFormattingTest#testFormattingPreservedInRoundtrip
+    native_refs:
+      - openxml.TestNative_SimpleDocx
+
+  # ── XLSX features ─────────────────────────────────────────────────
+  - id: xlsx_cell_value_extraction
+    name: Cell value extraction (XLSX)
+    description: |
+      Extract translatable string values from worksheet cells across
+      all sheets, in row-major order per sheet. Numeric values and
+      formulas are not extracted.
+    applies_to: [xlsx]
+    examples:
+      - name: filtering_workbook
+        variant: xlsx
+        input_file: testdata/EksempelFiltrering.xlsx
+        block_count_min: 50
+        has_block_with_text:
+          - "Artist"
+          - "Tittel"
+          - "Sjanger"
+    okapi_refs:
+      - OpenXmlXlsxTest#extractsCellValues
+    native_refs:
+      - openxml.TestNative_SimpleXlsx
+
+  - id: xlsx_comments_author
+    name: Comments author handling (XLSX snippet)
+    description: |
+      The author element inside a comments part is preserved verbatim
+      through round-trip. Verifies the snippet-level path the
+      OpenXMLSnippetsTest exercises.
+    applies_to: [xlsx]
+    examples:
+      - name: author_snippet
+        variant: xlsx
+        input_xml: '<comments><author>Dan Higinbotham</author></comments>'
+        # Native openxml reader requires a full .xlsx ZIP package and
+        # can't consume raw XML snippets — only the bridge can drive
+        # this example. The semantic intent (author element is metadata,
+        # not translatable) is still verified through the parity layer.
+        bridge_only: true
+        block_count: 0
+    okapi_refs:
+      - OpenXMLSnippetsTest#testAuthor
+
+  # ── PPTX features (use upstream testdata; skipped if not fetched) ─
+  - id: pptx_hidden_slide_excluded
+    name: Hidden slides excluded by default (PPTX)
+    description: |
+      Slides marked hidden in the presentation are NOT extracted unless
+      translateHiddenSlides is enabled. Default behavior should produce
+      no blocks from a deck where every slide is hidden.
+    applies_to: [pptx]
+    examples:
+      - name: all_hidden_default
+        variant: pptx
+        input_file: okapi:okapi/filters/openxml/src/test/resources/1010-slide1-hidden-slide2-hidden.pptx
+        # Default config: hidden slides skipped → no translatable text.
+        expected_fail: |
+          neokapi extracts slide masters and speaker notes from hidden
+          slides even when translateSlideMasters=false and
+          translateHiddenSlides=false. Native defaults disagree with
+          the Okapi contract; tracked here until the reader honors the
+          flags consistently.
+        block_count_max: 0
+    okapi_refs:
+      - OpenXmlPptxTest#doesNotExtractHiddenSlides
+
+  - id: pptx_hidden_slide_included
+    name: Hidden slides included when configured (PPTX)
+    description: |
+      Setting translateHiddenSlides=true makes all slides extractable
+      regardless of their hidden flag. Same input as the previous
+      feature, different config — should now yield blocks.
+    applies_to: [pptx]
+    config:
+      translateHiddenSlides: true
+      translateSlideMasters: false
+    examples:
+      - name: all_hidden_with_flag
+        variant: pptx
+        input_file: okapi:okapi/filters/openxml/src/test/resources/1010-slide1-hidden-slide2-hidden.pptx
+        block_count_min: 1
+    okapi_refs:
+      - OpenXmlPptxTest#extractsHiddenSlides
+
+  # ── Common: doc-properties opt-out ────────────────────────────────
+  - id: doc_properties_opt_out
+    name: Document properties opt-out (all variants)
+    description: |
+      With translateDocProperties=false the reader skips title /
+      subject / keywords from docProps/core.xml. Verifies the Block
+      count drops vs the default-on baseline.
+    config:
+      translateDocProperties: false
+    examples:
+      - name: docx_default_minus_props
+        variant: docx
+        input_file: testdata/simple.docx
+        # simple.docx has no doc properties so block_count is unchanged
+        # at 3 — this is more a smoke check on the config wiring than a
+        # behavioral assertion. A future fixture with populated props
+        # will tighten the assertion.
+        block_count: 3
