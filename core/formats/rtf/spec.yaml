@@ -60,12 +60,24 @@ features:
     examples:
       - name: two_paragraphs
         input_xml: "{\\rtf1\\ansi\\deff0\n\\pard Hello world.\\par\n\\pard Second paragraph.\\par\n}"
+        expected_fail: |
+          bridge feature difference — Okapi RTFFilter is the Trados-
+          tagged RTF filter and only extracts content wrapped in
+          Trados translation tags; plain/generic RTF produces 0 blocks.
+          Native is a generic RTF reader that emits a Block per
+          \par-terminated run. Both legitimate; spec asserts native
+          (generic-RTF) behavior.
         block_count: 2
         block_texts:
           - "Hello world."
           - "Second paragraph."
       - name: simple_file
         input_file: testdata/simple.rtf
+        expected_fail: |
+          bridge feature difference — Okapi RTFFilter expects Trados-
+          tagged RTF; the plain testdata fixture yields 0 blocks.
+          Native generic RTF reader emits one Block per \par. Both
+          legitimate; spec asserts native behavior.
         block_count: 3
         block_texts:
           - "This is the first paragraph."
@@ -90,6 +102,11 @@ features:
     examples:
       - name: bold_inside_paragraph
         input_xml: "{\\rtf1\\ansi\\deff0\n\\pard Normal and \\b bold\\b0  text.\\par\n}"
+        expected_fail: |
+          bridge feature difference — Okapi RTFFilter (Trados-tagged)
+          yields 0 blocks for plain RTF input. Native generic RTF
+          reader emits one Block per paragraph with inline formatting
+          collapsed. Both legitimate; spec asserts native behavior.
         block_count: 1
         first_block_text: "Normal and bold text."
     okapi_refs:
@@ -110,6 +127,11 @@ features:
     examples:
       - name: font_table
         input_xml: "{\\rtf1\\ansi\\deff0\n{\\fonttbl{\\f0 Times New Roman;}{\\f1 Arial;}}\n\\pard Translatable text.\\par\n}"
+        expected_fail: |
+          bridge feature difference — Okapi RTFFilter (Trados-tagged)
+          yields 0 blocks for plain RTF; native generic RTF reader
+          extracts the paragraph and skips the font table. Both
+          legitimate; spec asserts native behavior.
         block_count: 1
         first_block_text: "Translatable text."
         no_block_with_text:
@@ -117,16 +139,31 @@ features:
           - "Arial"
       - name: color_table
         input_xml: "{\\rtf1\\ansi\\deff0\n{\\colortbl;\\red255\\green0\\blue0;}\n\\pard Visible text.\\par\n}"
+        expected_fail: |
+          bridge feature difference — Okapi RTFFilter (Trados-tagged)
+          yields 0 blocks for plain RTF. Native skips the color table
+          and emits the paragraph. Both legitimate; spec asserts
+          native behavior.
         block_count: 1
         first_block_text: "Visible text."
       - name: stylesheet
         input_xml: "{\\rtf1\\ansi\\deff0\n{\\stylesheet{\\s0 Normal;}}\n\\pard Body text here.\\par\n}"
+        expected_fail: |
+          bridge feature difference — Okapi RTFFilter (Trados-tagged)
+          yields 0 blocks for plain RTF. Native skips the stylesheet
+          and emits the paragraph. Both legitimate; spec asserts
+          native behavior.
         block_count: 1
         first_block_text: "Body text here."
         no_block_with_text:
           - "Normal"
       - name: info_group
         input_xml: "{\\rtf1\\ansi\\deff0\n{\\info{\\title Document Title}{\\author Yves}}\n\\pard Real body content.\\par\n}"
+        expected_fail: |
+          bridge feature difference — Okapi RTFFilter (Trados-tagged)
+          yields 0 blocks for plain RTF. Native skips the info group
+          and emits the paragraph. Both legitimate; spec asserts
+          native behavior.
         block_count: 1
         first_block_text: "Real body content."
         no_block_with_text:
@@ -155,6 +192,10 @@ features:
         # Unicode glyph but keeps the fallback in the block text per
         # the current implementation contract.
         input_xml: "{\\rtf1\\ansi\\deff0\n\\pard Caf\\u233?.\\par\n}"
+        expected_fail: |
+          bridge feature difference — Okapi RTFFilter (Trados-tagged)
+          yields 0 blocks for plain RTF. Native decodes \uN escapes
+          inline. Both legitimate; spec asserts native behavior.
         block_count: 1
         has_block_with_text:
           - "Caf"
@@ -163,11 +204,20 @@ features:
         # \'e9 is é in Windows-1252; the reader maps the byte to the
         # corresponding rune.
         input_xml: "{\\rtf1\\ansi\\deff0\n\\pard Caf\\'e9.\\par\n}"
+        expected_fail: |
+          bridge feature difference — Okapi RTFFilter (Trados-tagged)
+          yields 0 blocks for plain RTF. Native decodes \'HH escapes
+          inline. Both legitimate; spec asserts native behavior.
         block_count: 1
         has_block_with_text:
           - "Caf"
       - name: escaped_braces_and_backslash
         input_xml: "{\\rtf1\\ansi\\deff0\n\\pard Curly \\{ braces \\} and backslash \\\\.\\par\n}"
+        expected_fail: |
+          bridge feature difference — Okapi RTFFilter (Trados-tagged)
+          yields 0 blocks for plain RTF. Native decodes literal-
+          character escapes inline. Both legitimate; spec asserts
+          native behavior.
         block_count: 1
         has_block_with_text:
           - "{"
@@ -192,12 +242,22 @@ features:
     examples:
       - name: emdash_and_tab
         input_xml: "{\\rtf1\\ansi\\deff0\n\\pard Left\\emdash Right.\\par\n\\pard Tab\\tab here.\\par\n}"
+        expected_fail: |
+          bridge feature difference — Okapi RTFFilter (Trados-tagged)
+          yields 0 blocks for plain RTF. Native decodes special-char
+          control words to their Unicode equivalents inline. Both
+          legitimate; spec asserts native behavior.
         block_count: 2
         block_texts:
           - "Left—Right."
           - "Tab\there."
       - name: smart_quotes
         input_xml: "{\\rtf1\\ansi\\deff0\n\\pard \\lquote single\\rquote and \\ldblquote double\\rdblquote quotes.\\par\n}"
+        expected_fail: |
+          bridge feature difference — Okapi RTFFilter (Trados-tagged)
+          yields 0 blocks for plain RTF. Native decodes smart-quote
+          control words inline. Both legitimate; spec asserts native
+          behavior.
         block_count: 1
         first_block_text: "‘single’and “double”quotes."
     okapi_refs:
@@ -218,6 +278,12 @@ features:
     examples:
       - name: minimal_layer_wrap
         input_xml: "{\\rtf1\\ansi\\deff0\n\\pard Hello.\\par\n}"
+        expected_fail: |
+          bridge feature difference — Okapi RTFFilter (Trados-tagged)
+          yields 0 blocks for plain RTF; the LayerStart/LayerEnd
+          scaffolding still emits but no Block surfaces between
+          them. Native generic RTF reader emits one Block per \par.
+          Both legitimate; spec asserts native behavior.
         block_count: 1
         first_block_text: "Hello."
     okapi_refs:
