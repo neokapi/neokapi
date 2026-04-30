@@ -38,6 +38,11 @@ func (s *Spec) Validate() error {
 	if s.Format == "" {
 		return fmt.Errorf("format is required")
 	}
+	switch s.Kind {
+	case "", KindTopLevel, KindSubfilter:
+	default:
+		return fmt.Errorf("kind %q: must be %q or %q", s.Kind, KindTopLevel, KindSubfilter)
+	}
 	if len(s.Features) == 0 {
 		return fmt.Errorf("at least one feature is required")
 	}

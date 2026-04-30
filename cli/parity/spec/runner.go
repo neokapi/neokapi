@@ -43,6 +43,13 @@ type ParityRunner struct {
 // Run drives every Feature × Example as a parity subtest. Outcomes
 // reach the parity report under Kind="format-spec-feature" so the
 // contract-audit dashboard can render per-feature parity status.
+//
+// Subfilter specs (kind: subfilter) skip the parity bridge entirely:
+// the okapi-bridge daemon dispatches by top-level filter id, and
+// subfilters have no standalone dispatch path. Their behavior is
+// exercised through the native runner and through their parents'
+// specs. The runner emits one `subfilter` skip Outcome per example
+// so the dashboard still surfaces the feature × example coverage.
 func (r *ParityRunner) Run(t *testing.T) {
 	t.Helper()
 	if r.Spec == nil {
@@ -50,6 +57,22 @@ func (r *ParityRunner) Run(t *testing.T) {
 	}
 	if r.NewReader == nil {
 		t.Fatal("ParityRunner: NewReader is nil")
+	}
+	if r.Spec.IsSubfilter() {
+		for _, feat := range r.Spec.Features {
+			for _, ex := range feat.Examples {
+				parity.Report(t, parity.Outcome{
+					Kind:   "format-spec-feature",
+					ID:     r.Spec.Format + "::" + feat.ID + "::" + ex.Name,
+					Name:   t.Name() + "/" + feat.ID + "/" + ex.Name,
+					Mode:   "subfilter",
+					Status: "skip",
+					Detail: "subfilter — not dispatched standalone by okapi-bridge",
+				})
+			}
+		}
+		t.Skipf("subfilter spec %q — parity bridge runner skipped (no standalone dispatch path)", r.Spec.Format)
+		return
 	}
 	for _, feat := range r.Spec.Features {
 		feat := feat

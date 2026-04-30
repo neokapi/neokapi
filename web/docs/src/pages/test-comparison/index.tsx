@@ -89,6 +89,34 @@ export default function TestComparison() {
     return true;
   });
 
+  // Subfilters are filters the bridge only invokes through a parent
+  // (e.g. ICU MessageFormat inside a Properties value). Render them in
+  // their own section so they don't dilute top-level coverage stats and
+  // so reviewers see why they have no bridge column.
+  const topLevelFilters = filtered.filter((f) => f.specKind !== "subfilter");
+  const subfilterFilters = filtered.filter((f) => f.specKind === "subfilter");
+
+  const cardFor = (fc: FilterComparison) => (
+    <FilterCard
+      key={fc.filterName}
+      filter={fc}
+      goCommitSHA={data.goCommitSHA}
+      okapiTag={data.okapiTag}
+      defaultExpanded={stateFilter !== null}
+      defaultTestFilter={
+        stateFilter === "not-applicable"
+          ? "not-applicable"
+          : stateFilter === "unmapped"
+            ? "unmapped"
+            : stateFilter === "pending"
+              ? "pending"
+              : stateFilter === "implemented"
+                ? "implemented"
+                : undefined
+      }
+    />
+  );
+
   return (
     <Layout title="Test Comparison" description="Okapi vs neokapi filter test comparison">
       <main className="container margin-vert--lg">
@@ -150,28 +178,25 @@ export default function TestComparison() {
 
         <div className={styles.filterList}>
           <FilterColumnHeadings />
-          {filtered.map((fc: FilterComparison) => (
-            <FilterCard
-              key={fc.filterName}
-              filter={fc}
-              goCommitSHA={data.goCommitSHA}
-              okapiTag={data.okapiTag}
-              defaultExpanded={stateFilter !== null}
-              defaultTestFilter={
-                stateFilter === "not-applicable"
-                  ? "not-applicable"
-                  : stateFilter === "unmapped"
-                    ? "unmapped"
-                    : stateFilter === "pending"
-                      ? "pending"
-                      : stateFilter === "implemented"
-                        ? "implemented"
-                        : undefined
-              }
-            />
-          ))}
+          {topLevelFilters.map(cardFor)}
           {filtered.length === 0 && <p>No filters match your search.</p>}
         </div>
+
+        {subfilterFilters.length > 0 && (
+          <>
+            <h2 className={styles.subfilterHeading}>Layer formats (subfilters)</h2>
+            <p className={styles.subfilterNote}>
+              These filters are invoked by a parent filter when it encounters embedded content
+              (e.g. ICU MessageFormat inside a Properties value). They have no top-level bridge
+              schema and are not dispatched standalone, so the bridge column and parity runner
+              show no data — the native runner still verifies the spec.
+            </p>
+            <div className={styles.filterList}>
+              <FilterColumnHeadings />
+              {subfilterFilters.map(cardFor)}
+            </div>
+          </>
+        )}
       </main>
     </Layout>
   );

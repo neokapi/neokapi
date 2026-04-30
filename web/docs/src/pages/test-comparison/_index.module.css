@@ -839,3 +839,17 @@
   color: var(--ifm-color-content-secondary);
   margin-right: 0.4rem;
 }
+
+.subfilterHeading {
+  margin: 2.5rem 0 0.5rem 0;
+  font-size: 1.25rem;
+  border-top: 1px solid var(--ifm-color-emphasis-300);
+  padding-top: 1.5rem;
+}
+
+.subfilterNote {
+  color: var(--ifm-color-content-secondary);
+  font-size: 0.9rem;
+  margin-bottom: 1rem;
+  max-width: 60rem;
+}
