@@ -72,6 +72,8 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/neokapi/neokapi/core/format/spec"
 )
 
 // ── Surefire XML ────────────────────────────────────────────────────────────
@@ -135,14 +137,36 @@ type summary struct {
 }
 
 type filterComparison struct {
-	FilterName       string             `json:"filterName"`
-	NativeFilterName string             `json:"nativeFilterName,omitempty"`
-	Okapi            *filterResult      `json:"okapi"`
-	Bridge           *filterResult      `json:"bridge"`
-	Native           *filterResult      `json:"native"`
-	TestCases        []testCaseMatch    `json:"testCases"`
-	Coverage         *coverage          `json:"coverage"`
-	Spec             *specSummary       `json:"spec,omitempty"`
+	FilterName       string                 `json:"filterName"`
+	NativeFilterName string                 `json:"nativeFilterName,omitempty"`
+	Okapi            *filterResult          `json:"okapi"`
+	Bridge           *filterResult          `json:"bridge"`
+	Native           *filterResult          `json:"native"`
+	TestCases        []testCaseMatch        `json:"testCases"`
+	Coverage         *coverage              `json:"coverage"`
+	Spec             *specSummary           `json:"spec,omitempty"`
+	SpecDrift        []specDriftEntry       `json:"specDrift,omitempty"`
+	SpecConfigDrift  []specConfigDriftEntry `json:"specConfigDrift,omitempty"`
+}
+
+// specDriftEntry records one okapi_refs entry in spec.yaml that no
+// longer matches a test in the pinned Okapi version. The dashboard
+// surfaces these as warnings on the Spec section so spec authors know
+// to either repoint the ref or remove it.
+type specDriftEntry struct {
+	FeatureID string `json:"featureId"`
+	OkapiRef  string `json:"okapiRef"` // ClassName#methodName
+	Reason    string `json:"reason"`   // currently always "missing-from-okapi"
+}
+
+// specConfigDriftEntry records one spec.config[].key that doesn't
+// correspond to a property in the bridge composite JSON Schema for the
+// pinned Okapi version. Either the spec invented a key the bridge
+// can't accept, or the bridge schema renamed/removed the property.
+type specConfigDriftEntry struct {
+	Key        string `json:"key"`        // spec.config[].key
+	OkapiParam string `json:"okapiParam"` // spec.config[].okapi_param (Java field), if set
+	Reason     string `json:"reason"`     // "missing-from-bridge-schema"
 }
 
 // specSummary aggregates the spec runner's per-feature outcomes for
@@ -232,7 +256,9 @@ func main() {
 	nativeJSON := flag.String("native-gotest", "", "go test -json output for native side (optional)")
 	nativeSrc := flag.String("native-src", "", "Comma-separated list of native test source dirs to scan for // okapi: annotations")
 	parityReport := flag.String("parity-report", "", "Path to .parity/test-comparison.json (optional). Populates the per-filter Bridge column with the head-to-head parity outcome.")
-	failOnDrift := flag.Bool("fail-on-drift", false, "Exit non-zero if any // okapi: annotation references a Java class/method not present in the pinned Okapi Surefire output.")
+	formatsDir := flag.String("formats-dir", "core/formats", "Directory containing per-format packages (each with an optional spec.yaml). Used for spec.okapi_refs drift detection.")
+	bridgeSchemas := flag.String("bridge-schemas", "../okapi-bridge/schemas", "Path to the okapi-bridge/schemas directory (containing versions.json and filters/composite/). Used for spec.config[].key drift detection. Empty disables the check.")
+	failOnDrift := flag.Bool("fail-on-drift", false, "Exit non-zero if any // okapi: annotation or spec drift entry references a Java class/method not present in the pinned Okapi Surefire output.")
 	okapiVersion := flag.String("okapi-version", "1.47.0", "Pinned Okapi version, surfaced in the dashboard header")
 	okapiTag := flag.String("okapi-tag", "", "Okapi git tag for source links (e.g. v1.47.0)")
 	goCommit := flag.String("go-commit", "", "neokapi git SHA for source links")
@@ -282,7 +308,24 @@ func main() {
 		}
 	}
 
-	doc := buildDoc(okapiByFilter, nativeByFilter, bridgeByFilter, nativeAnnotations, *okapiVersion, *okapiTag, *goCommit)
+	var specByFilter map[string]*spec.Spec
+	if *formatsDir != "" {
+		specByFilter, err = loadSpecsForFilters(*formatsDir)
+		if err != nil {
+			die("load specs from %s: %v", *formatsDir, err)
+		}
+	}
+
+	var bridgeSchemaProps map[string]map[string]bool
+	if *bridgeSchemas != "" && len(specByFilter) > 0 {
+		bridgeSchemaProps, err = loadBridgeSchemaProps(*bridgeSchemas, *okapiVersion, specByFilter)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "contract-audit: warning: bridge schema load failed (%v); spec.config drift skipped\n", err)
+			bridgeSchemaProps = nil
+		}
+	}
+
+	doc := buildDoc(okapiByFilter, nativeByFilter, bridgeByFilter, specByFilter, bridgeSchemaProps, nativeAnnotations, *okapiVersion, *okapiTag, *goCommit)
 
 	body, err := json.MarshalIndent(doc, "", "  ")
 	if err != nil {
@@ -299,9 +342,11 @@ func main() {
 	// Drift report runs only when both annotations and surefire are
 	// present — otherwise the comparison is meaningless (no annotations
 	// → no drift; no surefire → everything looks like drift).
+	driftFound := false
 	if len(nativeAnnotations) > 0 && len(okapiByFilter) > 0 {
 		drift := detectAnnotationDrift(nativeAnnotations, okapiByFilter)
 		if len(drift) > 0 {
+			driftFound = true
 			fmt.Fprintf(os.Stderr, "contract-audit: %d annotation(s) reference Okapi tests not present in %s:\n", len(drift), *okapiVersion)
 			for _, a := range drift {
 				marker := "okapi"
@@ -310,10 +355,39 @@ func main() {
 				}
 				fmt.Fprintf(os.Stderr, "  %s:%d  // %s: %s#%s  (Go func: %s)\n", a.File, a.Line, marker, a.JavaClass, a.JavaMethod, a.GoFunc)
 			}
-			if *failOnDrift {
-				os.Exit(1)
+		}
+	}
+	// Spec ref drift: same shape as annotation drift but sourced from
+	// spec.yaml okapi_refs. Reported per-filter so the location in the
+	// spec is unambiguous.
+	if len(specByFilter) > 0 && len(okapiByFilter) > 0 {
+		var specDrift, configDrift int
+		for _, fc := range doc.Filters {
+			if len(fc.SpecDrift) > 0 {
+				specDrift += len(fc.SpecDrift)
+				fmt.Fprintf(os.Stderr, "contract-audit: %s spec.yaml has %d okapi_ref(s) not present in Okapi %s:\n", fc.FilterName, len(fc.SpecDrift), *okapiVersion)
+				for _, d := range fc.SpecDrift {
+					fmt.Fprintf(os.Stderr, "  feature %s: %s\n", d.FeatureID, d.OkapiRef)
+				}
+			}
+			if len(fc.SpecConfigDrift) > 0 {
+				configDrift += len(fc.SpecConfigDrift)
+				fmt.Fprintf(os.Stderr, "contract-audit: %s spec.yaml has %d config key(s) not in bridge schema for Okapi %s:\n", fc.FilterName, len(fc.SpecConfigDrift), *okapiVersion)
+				for _, d := range fc.SpecConfigDrift {
+					if d.OkapiParam != "" {
+						fmt.Fprintf(os.Stderr, "  key %q (okapi_param: %s)\n", d.Key, d.OkapiParam)
+					} else {
+						fmt.Fprintf(os.Stderr, "  key %q\n", d.Key)
+					}
+				}
 			}
 		}
+		if specDrift > 0 || configDrift > 0 {
+			driftFound = true
+		}
+	}
+	if driftFound && *failOnDrift {
+		os.Exit(1)
 	}
 }
 
@@ -627,7 +701,7 @@ var bridgeFilterAliases = map[string]string{
 // buildDoc joins the per-filter Okapi and native maps with the
 // scanned annotations into a single dashboard document, deterministic
 // in iteration order.
-func buildDoc(okapiByFilter, nativeByFilter map[string]*filterResult, bridgeByFilter map[string]*bridgeRows, annotations []annotation, okapiVersion, okapiTag, goCommit string) testComparisonData {
+func buildDoc(okapiByFilter, nativeByFilter map[string]*filterResult, bridgeByFilter map[string]*bridgeRows, specByFilter map[string]*spec.Spec, bridgeSchemaProps map[string]map[string]bool, annotations []annotation, okapiVersion, okapiTag, goCommit string) testComparisonData {
 	// Index annotations by Java FQN#method for O(1) joins.
 	annByOkapi := map[string]annotation{}
 	for _, a := range annotations {
@@ -716,6 +790,19 @@ func buildDoc(okapiByFilter, nativeByFilter map[string]*filterResult, bridgeByFi
 		// parity runner): group rows by feature, tally totals.
 		if brEntry != nil && len(brEntry.Spec) > 0 {
 			fc.Spec = buildSpecSummary(brEntry.Spec)
+		}
+		// Spec ref drift: each spec.yaml feature.okapi_refs entry must
+		// resolve against the pinned Okapi @Test set. Mismatches surface
+		// per-filter so reviewers can see exactly which refs went stale.
+		if s, ok := specByFilter[name]; ok {
+			fc.SpecDrift = detectSpecRefDrift(s, fc.Okapi)
+			// Spec config drift: each spec.config[].key must match a
+			// property in the bridge composite schema for the pinned
+			// Okapi version. Filters without a loaded schema are
+			// skipped (the map miss is benign).
+			if props, ok := bridgeSchemaProps[name]; ok {
+				fc.SpecConfigDrift = detectSpecConfigDrift(s, props)
+			}
 		}
 		doc.Filters = append(doc.Filters, fc)
 	}
@@ -950,6 +1037,223 @@ func appendParityCase(suite *testSuite, fr *filterResult, r *parityRow, label st
 	case "fail":
 		suite.Failed++
 		fr.Failed++
+	}
+}
+
+// ── Spec loading & drift detection ──────────────────────────────────────────
+
+// loadSpecsForFilters walks formatsDir for `<filter>/spec.yaml` files
+// and returns one Spec per filter, keyed by the filter id with any
+// `okf_` prefix stripped (so the key joins against the rest of the
+// generator's filter-name space). Directories without a spec.yaml are
+// skipped silently — the spec model is opt-in per format.
+func loadSpecsForFilters(formatsDir string) (map[string]*spec.Spec, error) {
+	out := map[string]*spec.Spec{}
+	entries, err := os.ReadDir(formatsDir)
+	if err != nil {
+		// Missing dir is not fatal — the spec model is optional.
+		if os.IsNotExist(err) {
+			return out, nil
+		}
+		return nil, fmt.Errorf("read %s: %w", formatsDir, err)
+	}
+	for _, e := range entries {
+		if !e.IsDir() {
+			continue
+		}
+		path := filepath.Join(formatsDir, e.Name(), "spec.yaml")
+		if _, err := os.Stat(path); err != nil {
+			continue
+		}
+		s, err := spec.Load(path)
+		if err != nil {
+			return nil, fmt.Errorf("load %s: %w", path, err)
+		}
+		key := strings.TrimPrefix(s.Format, "okf_")
+		if key == "" {
+			key = e.Name()
+		}
+		out[key] = s
+	}
+	return out, nil
+}
+
+// detectSpecRefDrift returns one entry per spec.okapi_refs ref that no
+// longer matches any test in the pinned Okapi surefire result for this
+// filter. Ref matching mirrors the annotation join: both FQN+method and
+// shortClass+method are accepted. Returns nil when there is no Okapi
+// data (drift would be meaningless against an empty set).
+func detectSpecRefDrift(s *spec.Spec, okapi *filterResult) []specDriftEntry {
+	if s == nil || okapi == nil {
+		return nil
+	}
+	valid := map[string]struct{}{}
+	for _, suite := range okapi.Suites {
+		for _, tc := range suite.Tests {
+			valid[tc.ClassName+"#"+tc.Name] = struct{}{}
+			valid[shortClass(tc.ClassName)+"#"+tc.Name] = struct{}{}
+		}
+	}
+	var out []specDriftEntry
+	for _, f := range s.Features {
+		for _, ref := range f.OkapiRefs {
+			if _, ok := valid[ref]; ok {
+				continue
+			}
+			out = append(out, specDriftEntry{
+				FeatureID: f.ID,
+				OkapiRef:  ref,
+				Reason:    "missing-from-okapi",
+			})
+		}
+	}
+	return out
+}
+
+// detectSpecConfigDrift returns one entry per spec.config[].key that
+// doesn't exist as a property anywhere in the bridge composite schema
+// for the pinned Okapi version. The bridge schema's nested layout
+// (general/word/excel for openxml, extraction/output for json …) is
+// flattened to a single set of property names; the spec author writes
+// flat keys, so flat membership matching is the right join.
+func detectSpecConfigDrift(s *spec.Spec, props map[string]bool) []specConfigDriftEntry {
+	if s == nil || len(props) == 0 {
+		return nil
+	}
+	var out []specConfigDriftEntry
+	for _, c := range s.Config {
+		if props[c.Key] {
+			continue
+		}
+		out = append(out, specConfigDriftEntry{
+			Key:        c.Key,
+			OkapiParam: c.OkapiParam,
+			Reason:     "missing-from-bridge-schema",
+		})
+	}
+	return out
+}
+
+// ── Bridge composite schema loading ─────────────────────────────────────────
+
+// bridgeVersionsFile mirrors the subset of okapi-bridge/schemas/versions.json
+// that the drift check needs: per filter id, a list of versions each with
+// the Okapi releases it covers.
+type bridgeVersionsFile struct {
+	Filters map[string]struct {
+		Versions []struct {
+			Version       int      `json:"version"`
+			OkapiVersions []string `json:"okapiVersions"`
+		} `json:"versions"`
+	} `json:"filters"`
+}
+
+// loadBridgeSchemaProps reads versions.json and, for every filter that
+// has a spec.yaml in specByFilter, picks the highest schema version
+// whose okapiVersions includes the pinned okapiVersion, loads its
+// composite JSON Schema, and returns the flat set of property names
+// found anywhere in the schema. The returned map is keyed by the bare
+// filter id (no okf_ prefix) so it joins against the rest of the
+// generator's filter-name space.
+//
+// Filters without a matching schema version are skipped silently —
+// the spec model is opt-in and a brand-new filter may not have a
+// bridge counterpart yet. The whole load is best-effort; partial
+// failure (one unreadable schema file) is logged but doesn't abort
+// the audit.
+func loadBridgeSchemaProps(schemasDir, okapiVersion string, specByFilter map[string]*spec.Spec) (map[string]map[string]bool, error) {
+	versionsPath := filepath.Join(schemasDir, "versions.json")
+	data, err := os.ReadFile(versionsPath)
+	if err != nil {
+		return nil, fmt.Errorf("read %s: %w", versionsPath, err)
+	}
+	var v bridgeVersionsFile
+	if err := json.Unmarshal(data, &v); err != nil {
+		return nil, fmt.Errorf("parse %s: %w", versionsPath, err)
+	}
+	out := map[string]map[string]bool{}
+	for filterKey, s := range specByFilter {
+		// versions.json keys filters by their okf_ id (e.g. okf_openxml).
+		fullID := s.Format
+		if fullID == "" {
+			fullID = "okf_" + filterKey
+		}
+		entry, ok := v.Filters[fullID]
+		if !ok {
+			continue
+		}
+		// Pick the highest version whose okapiVersions includes the
+		// pinned okapiVersion. Multiple bridge versions can target one
+		// Okapi release (the bridge schema can iterate independently);
+		// the latest is the one a fresh build would produce.
+		bestVersion := -1
+		for _, ver := range entry.Versions {
+			for _, ov := range ver.OkapiVersions {
+				if ov == okapiVersion && ver.Version > bestVersion {
+					bestVersion = ver.Version
+				}
+			}
+		}
+		if bestVersion < 0 {
+			continue
+		}
+		schemaPath := filepath.Join(schemasDir, "filters", "composite", fmt.Sprintf("%s.v%d.schema.json", fullID, bestVersion))
+		props, err := loadSchemaPropertyNames(schemaPath)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "contract-audit: warning: load %s: %v\n", schemaPath, err)
+			continue
+		}
+		out[filterKey] = props
+	}
+	return out, nil
+}
+
+// loadSchemaPropertyNames opens a JSON Schema file and returns the set
+// of every property name reachable through nested `properties` blocks
+// at any depth. Walks `properties.<key>.properties.<sub>...` recursively
+// so the openxml layout (general/word/excel groupings) collapses to a
+// single membership set the spec's flat keys can be checked against.
+func loadSchemaPropertyNames(path string) (map[string]bool, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+	var raw map[string]any
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return nil, fmt.Errorf("parse: %w", err)
+	}
+	out := map[string]bool{}
+	collectSchemaProperties(raw, out)
+	return out, nil
+}
+
+// collectSchemaProperties walks a JSON Schema fragment and adds every
+// property name it sees under any "properties" block. Handles nested
+// objects, oneOf/anyOf/allOf branches, and array `items` schemas so a
+// single pass covers the formats the bridge actually emits.
+func collectSchemaProperties(node any, out map[string]bool) {
+	m, ok := node.(map[string]any)
+	if !ok {
+		return
+	}
+	if props, ok := m["properties"].(map[string]any); ok {
+		for key, sub := range props {
+			out[key] = true
+			collectSchemaProperties(sub, out)
+		}
+	}
+	for _, k := range []string{"oneOf", "anyOf", "allOf"} {
+		if arr, ok := m[k].([]any); ok {
+			for _, sub := range arr {
+				collectSchemaProperties(sub, out)
+			}
+		}
+	}
+	if items, ok := m["items"]; ok {
+		collectSchemaProperties(items, out)
+	}
+	if ap, ok := m["additionalProperties"].(map[string]any); ok {
+		collectSchemaProperties(ap, out)
 	}
 }
 

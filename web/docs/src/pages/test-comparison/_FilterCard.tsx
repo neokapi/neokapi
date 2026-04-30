@@ -1,8 +1,18 @@
 import { useState, useMemo } from "react";
-import type { FilterComparison, FilterResult } from "./_types";
+import type { FilterComparison, FilterResult, SpecSummary } from "./_types";
 import TestCaseTable from "./_TestCaseTable";
 import SpecSection from "./_SpecSection";
 import styles from "./_index.module.css";
+
+/** Fallback summary used when a filter has spec drift but no parity-run spec results. */
+const emptySpecSummary: SpecSummary = {
+  features: [],
+  pass: 0,
+  fail: 0,
+  skip: 0,
+  parityWarn: 0,
+  expectedFail: 0,
+};
 
 interface Props {
   filter: FilterComparison;
@@ -238,7 +248,15 @@ export default function FilterCard({
       </div>
       {expanded && (
         <div className="card__body">
-          {filter.spec && <SpecSection spec={filter.spec} />}
+          {(filter.spec ||
+            (filter.specDrift && filter.specDrift.length > 0) ||
+            (filter.specConfigDrift && filter.specConfigDrift.length > 0)) && (
+            <SpecSection
+              spec={filter.spec ?? emptySpecSummary}
+              drift={filter.specDrift}
+              configDrift={filter.specConfigDrift}
+            />
+          )}
           {filter.testCases.length > 0 ? (
             <TestCaseTable
               testCases={filter.testCases}

@@ -34,8 +34,24 @@ export interface FilterComparison {
   testCases: TestCaseRow[];
   coverage: CoverageStats | null;
   spec?: SpecSummary; // present when the filter has a spec.yaml driving the parity runner
+  specDrift?: SpecDriftEntry[]; // okapi_refs in spec.yaml that don't match the pinned Okapi @Test set
+  specConfigDrift?: SpecConfigDriftEntry[]; // spec.config[].key entries not in the bridge composite schema
   // Backward compat (old JSON may have this)
   neokapi?: FilterResult | null;
+}
+
+/** One stale okapi_ref entry surfaced by contract-audit's drift check. */
+export interface SpecDriftEntry {
+  featureId: string;
+  okapiRef: string; // ClassName#methodName
+  reason: string; // currently always "missing-from-okapi"
+}
+
+/** One spec.config[] key that doesn't appear in the bridge composite JSON Schema. */
+export interface SpecConfigDriftEntry {
+  key: string;
+  okapiParam: string; // Java field name from spec, may be empty
+  reason: string; // currently always "missing-from-bridge-schema"
 }
 
 /** Per-filter feature coverage summary from the format spec runner. */
@@ -53,12 +69,7 @@ export interface SpecFeature {
   examples: SpecExample[];
 }
 
-export type SpecExampleStatus =
-  | "pass"
-  | "fail"
-  | "skip"
-  | "expected_fail"
-  | "parity_warn";
+export type SpecExampleStatus = "pass" | "fail" | "skip" | "expected_fail" | "parity_warn";
 
 export interface SpecExample {
   name: string;
@@ -250,6 +261,8 @@ export function normalizeFilter(f: FilterComparison): FilterComparison {
     testCases,
     coverage: f.coverage ?? null,
     spec: f.spec,
+    specDrift: f.specDrift,
+    specConfigDrift: f.specConfigDrift,
   };
 }
 
