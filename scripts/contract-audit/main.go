@@ -135,13 +135,40 @@ type summary struct {
 }
 
 type filterComparison struct {
-	FilterName       string          `json:"filterName"`
-	NativeFilterName string          `json:"nativeFilterName,omitempty"`
-	Okapi            *filterResult   `json:"okapi"`
-	Bridge           *filterResult   `json:"bridge"`
-	Native           *filterResult   `json:"native"`
-	TestCases        []testCaseMatch `json:"testCases"`
-	Coverage         *coverage       `json:"coverage"`
+	FilterName       string             `json:"filterName"`
+	NativeFilterName string             `json:"nativeFilterName,omitempty"`
+	Okapi            *filterResult      `json:"okapi"`
+	Bridge           *filterResult      `json:"bridge"`
+	Native           *filterResult      `json:"native"`
+	TestCases        []testCaseMatch    `json:"testCases"`
+	Coverage         *coverage          `json:"coverage"`
+	Spec             *specSummary       `json:"spec,omitempty"`
+}
+
+// specSummary aggregates the spec runner's per-feature outcomes for
+// one filter. Features list each with their examples; totals roll up
+// per status so the dashboard can render a feature-coverage badge
+// alongside the existing per-test count.
+type specSummary struct {
+	Features []specFeature `json:"features"`
+	// Status totals across all examples in all features.
+	Pass         int `json:"pass"`
+	Fail         int `json:"fail"`
+	Skip         int `json:"skip"`
+	ParityWarn   int `json:"parityWarn"`
+	ExpectedFail int `json:"expectedFail"`
+}
+
+type specFeature struct {
+	ID       string        `json:"id"`
+	Examples []specExample `json:"examples"`
+}
+
+type specExample struct {
+	Name   string `json:"name"`
+	Status string `json:"status"`
+	Mode   string `json:"mode,omitempty"`
+	Detail string `json:"detail,omitempty"`
 }
 
 type testCaseMatch struct {
@@ -496,6 +523,18 @@ type bridgeRows struct {
 	RoundTrip *parityRow            // Kind="format-roundtrip" (reader+writer byte parity, native vs bridge)
 	Tikal     *parityRow            // Kind="format-tikal" (native round-trip vs Okapi tikal CLI)
 	Fixtures  map[string]*parityRow // Kind="format-fixture" keyed by JavaClass#JavaMethod (short class form)
+	Spec      []*specRow            // Kind="format-spec-feature" — one row per feature × example
+}
+
+// specRow carries one Feature × Example outcome from the spec runner,
+// flattened from the parity Outcome. The dashboard groups these by
+// feature and shows the per-example status alongside it.
+type specRow struct {
+	FeatureID string `json:"featureId"`
+	Example   string `json:"example"`
+	Status    string `json:"status"` // pass | fail | skip | expected_fail | parity_warn
+	Mode      string `json:"mode"`   // head-to-head | bridge-only
+	Detail    string `json:"detail,omitempty"`
 }
 
 // parseParityReport reads the parity JSON and returns a map keyed by
@@ -548,6 +587,29 @@ func parseParityReport(path string) (map[string]*bridgeRows, error) {
 			fxEntry.Fixtures[testRef] = &row
 			// The composite-key entry built above (out[key]) is now
 			// stale (its key still has the ::ref suffix). Drop it.
+			delete(out, key)
+			continue
+		case "format-spec-feature":
+			// Composite ID: "okf_<filter>::<featureId>::<exampleName>".
+			parts := strings.SplitN(r.ID, "::", 3)
+			if len(parts) != 3 {
+				continue
+			}
+			filterKey := strings.TrimPrefix(parts[0], "okf_")
+			featureID := parts[1]
+			exampleName := parts[2]
+			specEntry, ok := out[filterKey]
+			if !ok {
+				specEntry = &bridgeRows{}
+				out[filterKey] = specEntry
+			}
+			specEntry.Spec = append(specEntry.Spec, &specRow{
+				FeatureID: featureID,
+				Example:   exampleName,
+				Status:    r.Status,
+				Mode:      r.Mode,
+				Detail:    r.Detail,
+			})
 			delete(out, key)
 			continue
 		}
@@ -650,6 +712,11 @@ func buildDoc(okapiByFilter, nativeByFilter map[string]*filterResult, bridgeByFi
 			}
 		}
 		fc.Coverage = computeCoverageFromRows(fc.Okapi, fc.TestCases)
+		// Spec features (when the filter has a spec.yaml driving the
+		// parity runner): group rows by feature, tally totals.
+		if brEntry != nil && len(brEntry.Spec) > 0 {
+			fc.Spec = buildSpecSummary(brEntry.Spec)
+		}
 		doc.Filters = append(doc.Filters, fc)
 	}
 	// Coverage % = implemented / totalOkapi summed across filters.
@@ -747,6 +814,44 @@ func buildRows(okapi *filterResult, annByOkapi map[string]annotation, nativeStat
 		}
 	}
 	return rows
+}
+
+// buildSpecSummary groups raw spec rows by feature (preserving the
+// order they appeared in the parity report so spec authors see their
+// declared sequence) and tallies status totals across all examples.
+func buildSpecSummary(rows []*specRow) *specSummary {
+	if len(rows) == 0 {
+		return nil
+	}
+	out := &specSummary{}
+	byFeature := map[string]int{} // feature id → index into out.Features
+	for _, r := range rows {
+		idx, ok := byFeature[r.FeatureID]
+		if !ok {
+			out.Features = append(out.Features, specFeature{ID: r.FeatureID})
+			idx = len(out.Features) - 1
+			byFeature[r.FeatureID] = idx
+		}
+		out.Features[idx].Examples = append(out.Features[idx].Examples, specExample{
+			Name:   r.Example,
+			Status: r.Status,
+			Mode:   r.Mode,
+			Detail: r.Detail,
+		})
+		switch r.Status {
+		case "pass":
+			out.Pass++
+		case "fail":
+			out.Fail++
+		case "skip":
+			out.Skip++
+		case "expected_fail":
+			out.ExpectedFail++
+		case "parity_warn":
+			out.ParityWarn++
+		}
+	}
+	return out
 }
 
 func computeCoverageFromRows(okapi *filterResult, rows []testCaseMatch) *coverage {

@@ -33,8 +33,38 @@ export interface FilterComparison {
   native: FilterResult | null;
   testCases: TestCaseRow[];
   coverage: CoverageStats | null;
+  spec?: SpecSummary; // present when the filter has a spec.yaml driving the parity runner
   // Backward compat (old JSON may have this)
   neokapi?: FilterResult | null;
+}
+
+/** Per-filter feature coverage summary from the format spec runner. */
+export interface SpecSummary {
+  features: SpecFeature[];
+  pass: number;
+  fail: number;
+  skip: number;
+  parityWarn: number;
+  expectedFail: number;
+}
+
+export interface SpecFeature {
+  id: string;
+  examples: SpecExample[];
+}
+
+export type SpecExampleStatus =
+  | "pass"
+  | "fail"
+  | "skip"
+  | "expected_fail"
+  | "parity_warn";
+
+export interface SpecExample {
+  name: string;
+  status: SpecExampleStatus;
+  mode?: string; // head-to-head | bridge-only
+  detail?: string;
 }
 
 export interface FilterResult {
@@ -219,6 +249,7 @@ export function normalizeFilter(f: FilterComparison): FilterComparison {
     native,
     testCases,
     coverage: f.coverage ?? null,
+    spec: f.spec,
   };
 }
 

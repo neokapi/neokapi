@@ -745,3 +745,70 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* ── Spec section (per-feature parity outcomes) ───────────────────── */
+
+.specSection {
+  margin-bottom: 1.5rem;
+  padding: 0.75rem;
+  background: var(--ifm-color-emphasis-100);
+  border-radius: 0.25rem;
+}
+
+.specHeading {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin: 0 0 0.5rem 0;
+  font-size: 1rem;
+}
+
+.specSummaryBadges {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+  font-weight: normal;
+}
+
+.specSummaryTotal {
+  color: var(--ifm-color-content-secondary);
+  font-size: 0.85rem;
+}
+
+.specTable {
+  width: 100%;
+  font-size: 0.9rem;
+  border-collapse: collapse;
+}
+
+.specTable th,
+.specTable td {
+  padding: 0.4rem 0.6rem;
+  text-align: left;
+  border-bottom: 1px solid var(--ifm-color-emphasis-200);
+}
+
+.specTable th {
+  font-weight: 600;
+  font-size: 0.8rem;
+  color: var(--ifm-color-content-secondary);
+}
+
+.specFeatureCell {
+  font-family: var(--ifm-font-family-monospace);
+  font-weight: 600;
+  font-size: 0.85rem;
+  white-space: nowrap;
+}
+
+.specExampleCell {
+  font-family: var(--ifm-font-family-monospace);
+  font-size: 0.85rem;
+}
+
+.specDetailCell {
+  color: var(--ifm-color-content-secondary);
+  font-size: 0.8rem;
+  max-width: 40ch;
+}

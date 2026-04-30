@@ -1,6 +1,7 @@
 import { useState, useMemo } from "react";
 import type { FilterComparison, FilterResult } from "./_types";
 import TestCaseTable from "./_TestCaseTable";
+import SpecSection from "./_SpecSection";
 import styles from "./_index.module.css";
 
 interface Props {
@@ -237,6 +238,7 @@ export default function FilterCard({
       </div>
       {expanded && (
         <div className="card__body">
+          {filter.spec && <SpecSection spec={filter.spec} />}
           {filter.testCases.length > 0 ? (
             <TestCaseTable
               testCases={filter.testCases}

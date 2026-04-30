@@ -1,8 +1,8 @@
 {
-  "generatedAt": "2026-04-29T23:16:18Z",
+  "generatedAt": "2026-04-30T15:25:50Z",
   "okapiVersion": "v1.4.8",
   "neokapiVersion": "main",
-  "goCommitSHA": "f92a806c",
+  "goCommitSHA": "1f2a9be5",
   "okapiTag": "v1.4.8",
   "filters": [
     {
@@ -10347,6 +10347,91 @@
                 "durationMs": 0
               },
               {
+                "name": "TestSpec",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestSpec/array_string_extraction",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestSpec/array_string_extraction/bare_strings_default_skipped",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestSpec/array_string_extraction/bare_strings_opt_in",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestSpec/array_string_extraction/object_in_array_always_extracted",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestSpec/extract_all_with_exception",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestSpec/extract_all_with_exception/skip_internal",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestSpec/full_key_path_naming",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestSpec/full_key_path_naming/parent_child",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestSpec/leading_slash_key_path",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestSpec/leading_slash_key_path/parent_child_slashed",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestSpec/nested_object_extraction",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestSpec/nested_object_extraction/two_levels",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestSpec/object_value_extraction",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestSpec/object_value_extraction/single_pair",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestSpec/unicode_escape_decoding",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestSpec/unicode_escape_decoding/a_grave",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
                 "name": "TestSubfilter_NoMatchPassesThrough",
                 "status": "pass",
                 "durationMs": 0
@@ -10367,16 +10452,16 @@
                 "durationMs": 0
               }
             ],
-            "total": 138,
-            "passed": 138,
+            "total": 155,
+            "passed": 155,
             "failed": 0,
             "skipped": 0,
             "errors": 0,
             "durationMs": 0
           }
         ],
-        "total": 138,
-        "passed": 138,
+        "total": 155,
+        "passed": 155,
         "failed": 0,
         "skipped": 0,
         "errors": 0
@@ -10979,6 +11064,95 @@
         "nativeMapped": 50,
         "nativePassing": 50,
         "coveragePct": 98
+      },
+      "spec": {
+        "features": [
+          {
+            "id": "array_string_extraction",
+            "examples": [
+              {
+                "name": "bare_strings_default_skipped",
+                "status": "pass",
+                "mode": "head-to-head"
+              },
+              {
+                "name": "bare_strings_opt_in",
+                "status": "pass",
+                "mode": "head-to-head"
+              },
+              {
+                "name": "object_in_array_always_extracted",
+                "status": "pass",
+                "mode": "head-to-head"
+              }
+            ]
+          },
+          {
+            "id": "extract_all_with_exception",
+            "examples": [
+              {
+                "name": "skip_internal",
+                "status": "pass",
+                "mode": "head-to-head"
+              }
+            ]
+          },
+          {
+            "id": "full_key_path_naming",
+            "examples": [
+              {
+                "name": "parent_child",
+                "status": "pass",
+                "mode": "head-to-head"
+              }
+            ]
+          },
+          {
+            "id": "leading_slash_key_path",
+            "examples": [
+              {
+                "name": "parent_child_slashed",
+                "status": "pass",
+                "mode": "head-to-head"
+              }
+            ]
+          },
+          {
+            "id": "nested_object_extraction",
+            "examples": [
+              {
+                "name": "two_levels",
+                "status": "pass",
+                "mode": "head-to-head"
+              }
+            ]
+          },
+          {
+            "id": "object_value_extraction",
+            "examples": [
+              {
+                "name": "single_pair",
+                "status": "pass",
+                "mode": "head-to-head"
+              }
+            ]
+          },
+          {
+            "id": "unicode_escape_decoding",
+            "examples": [
+              {
+                "name": "a_grave",
+                "status": "pass",
+                "mode": "head-to-head"
+              }
+            ]
+          }
+        ],
+        "pass": 9,
+        "fail": 0,
+        "skip": 0,
+        "parityWarn": 0,
+        "expectedFail": 0
       }
     },
     {
@@ -24117,6 +24291,81 @@
                 "durationMs": 0
               },
               {
+                "name": "TestSpec",
+                "status": "pass",
+                "durationMs": 10
+              },
+              {
+                "name": "TestSpec/doc_properties_opt_out",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestSpec/doc_properties_opt_out/docx_default_minus_props",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestSpec/docx_inline_formatting",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestSpec/docx_inline_formatting/formatted",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestSpec/docx_paragraph_extraction",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestSpec/docx_paragraph_extraction/simple",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestSpec/pptx_hidden_slide_excluded",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestSpec/pptx_hidden_slide_excluded/all_hidden_default",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestSpec/pptx_hidden_slide_included",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestSpec/pptx_hidden_slide_included/all_hidden_with_flag",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestSpec/xlsx_cell_value_extraction",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestSpec/xlsx_cell_value_extraction/filtering_workbook",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestSpec/xlsx_comments_author",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestSpec/xlsx_comments_author/author_snippet",
+                "status": "skip",
+                "durationMs": 0
+              },
+              {
                 "name": "TestStyleOptimization",
                 "status": "pass",
                 "durationMs": 0
@@ -24182,18 +24431,18 @@
                 "durationMs": 0
               }
             ],
-            "total": 167,
-            "passed": 99,
+            "total": 182,
+            "passed": 113,
             "failed": 0,
-            "skipped": 68,
+            "skipped": 69,
             "errors": 0,
             "durationMs": 0
           }
         ],
-        "total": 167,
-        "passed": 99,
+        "total": 182,
+        "passed": 113,
         "failed": 0,
-        "skipped": 68,
+        "skipped": 69,
         "errors": 0
       },
       "testCases": [
@@ -27030,6 +27279,89 @@
         "nativeMapped": 40,
         "nativePassing": 8,
         "coveragePct": 7.6
+      },
+      "spec": {
+        "features": [
+          {
+            "id": "doc_properties_opt_out",
+            "examples": [
+              {
+                "name": "docx_default_minus_props",
+                "status": "pass",
+                "mode": "head-to-head"
+              }
+            ]
+          },
+          {
+            "id": "docx_inline_formatting",
+            "examples": [
+              {
+                "name": "formatted",
+                "status": "pass",
+                "mode": "head-to-head"
+              }
+            ]
+          },
+          {
+            "id": "docx_paragraph_extraction",
+            "examples": [
+              {
+                "name": "simple",
+                "status": "pass",
+                "mode": "head-to-head"
+              }
+            ]
+          },
+          {
+            "id": "pptx_hidden_slide_excluded",
+            "examples": [
+              {
+                "name": "all_hidden_default",
+                "status": "expected_fail",
+                "mode": "head-to-head",
+                "detail": "neokapi extracts slide masters and speaker notes from hidden\nslides even when translateSlideMasters=false and\ntranslateHiddenSlides=false. Native defaults disagree with\nthe Okapi contract; tracked here until the reader honors the\nflags consistently.\n"
+              }
+            ]
+          },
+          {
+            "id": "pptx_hidden_slide_included",
+            "examples": [
+              {
+                "name": "all_hidden_with_flag",
+                "status": "parity_warn",
+                "mode": "head-to-head",
+                "detail": "bridge != native (bytewise) — both pass spec assertions independently"
+              }
+            ]
+          },
+          {
+            "id": "xlsx_cell_value_extraction",
+            "examples": [
+              {
+                "name": "filtering_workbook",
+                "status": "parity_warn",
+                "mode": "head-to-head",
+                "detail": "bridge != native (bytewise) — both pass spec assertions independently"
+              }
+            ]
+          },
+          {
+            "id": "xlsx_comments_author",
+            "examples": [
+              {
+                "name": "author_snippet",
+                "status": "expected_fail",
+                "mode": "bridge-only",
+                "detail": "bridge error: drain stream: daemon: Error opening zipped input file."
+              }
+            ]
+          }
+        ],
+        "pass": 3,
+        "fail": 0,
+        "skip": 0,
+        "parityWarn": 2,
+        "expectedFail": 2
       }
     },
     {
@@ -54552,7 +54884,7 @@
     "totalFiltersBoth": 34,
     "totalTestsOkapi": 2673,
     "totalTestsBridge": 468,
-    "totalTestsNative": 2785,
+    "totalTestsNative": 2817,
     "coveragePct": 42.1
   }
 }
