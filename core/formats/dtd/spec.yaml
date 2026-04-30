@@ -132,6 +132,13 @@ features:
           and a parameter entity reference. Block count is 1; the
           source carries both reference tokens verbatim.
         input_xml: '<!ENTITY entry1 "&ent1;=ent1, %pent1;=pent1">'
+        expected_fail: |
+          bridge reifies entity references as inline Codes (per Okapi
+          DTDFilter design — see feature description), so the raw
+          `&ent1;` / `%pent1;` tokens are stripped from the source
+          text and only "=ent1, =pent1" remains. Native keeps the
+          raw tokens in the source. Both legitimate; spec asserts
+          native behavior.
         block_count: 1
         has_block_with_text:
           - "&ent1;"
@@ -158,6 +165,13 @@ features:
           `Text with &amp; ampersand and &lt;angle brackets&gt;`; the
           extracted Block reads with literal `&` and `<...>`.
         input_file: testdata/complex.dtd
+        expected_fail: |
+          bridge reifies the predefined XML entities (`&amp;` `&lt;`
+          `&gt;`) as inline Codes rather than decoding them inline,
+          so the resulting source text omits `&` and `<...>`. Native
+          decodes them to literal characters per the Okapi
+          DTDFilterTest#testDoubleExtraction contract. Both
+          legitimate; spec asserts native behavior.
         has_block_with_text:
           - "Text with & ampersand and <angle brackets>"
     okapi_refs:
