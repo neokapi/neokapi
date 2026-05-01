@@ -1,0 +1,138 @@
+# Paragraph plain text format specification.
+#
+# Single-variant filter — okf_paraplaintext extracts every blank-line-
+# separated paragraph from a UTF-8 / UTF-16 / Latin-1 text file as one
+# translatable Block. Inputs are inline text snippets via `input_xml`
+# (the field is named for XML historically; it just carries raw text
+# bytes for any text format) or fixture files via `input_file`.
+#
+# The native reader has no configurable knobs today (Config.ApplyMap
+# rejects every key). Okapi's ParaPlainTextFilter exposes a richer
+# parameter surface (`extractParagraphs`, `preserveWS`, `trimLeading`,
+# `trimTrailing`, `unescapeSource`, `wrapMode`) — but those control
+# write-side normalisation and inline-code detection that the native
+# reader doesn't yet implement. The spec leaves the config block empty
+# until the native reader grows matching surface; bridge defaults agree
+# with native on the core paragraph-extraction contract exercised here.
+#
+# Authoring notes:
+#   - okapi_refs target net.sf.okapi.filters.plaintext.paragraphs.
+#     ParagraphPlainTextFilterTest, the upstream test class for this
+#     filter (Okapi 1.48.0).
+#   - The cross-platform line-ending example uses an upstream
+#     okapi-testdata fixture per #515.
+
+format: okf_paraplaintext
+kind: top_level
+mime_type: text/plain
+description: |
+  Paragraph-oriented plain text filter. Scans a text document and emits
+  one translatable Block per paragraph — paragraphs are separated by
+  one or more blank lines (LF or CRLF). Inner line breaks within a
+  paragraph are preserved verbatim in the Block's source text.
+  The blank-line runs between paragraphs are skeleton-only, never
+  translated.
+
+features:
+  - id: single_paragraph
+    name: Single paragraph extraction
+    description: |
+      A document consisting of one paragraph (no blank lines) emits
+      one Block whose source text is the entire input.
+    spec_refs:
+      - "Okapi ParaPlainTextFilter behaviour (okapi-bridge schema okf_paraplaintext.v3)"
+    examples:
+      - name: single_line
+        origin: "authored: minimal one-paragraph baseline"
+        input_xml: "Hello, world."
+        block_count: 1
+        first_block_text: "Hello, world."
+    okapi_refs:
+      - ParagraphPlainTextFilterTest#testSingleParagraph
+    native_refs:
+      - paraplaintext.TestSingleParagraph
+
+  - id: multi_paragraph_extraction
+    name: Multiple paragraphs separated by blank lines
+    description: |
+      Each blank-line-separated paragraph emits its own Block. The
+      blank lines themselves are skeleton-only. Default separator is
+      one or more empty lines (LF).
+    spec_refs:
+      - "Okapi ParaPlainTextFilter behaviour (okapi-bridge schema okf_paraplaintext.v3)"
+    examples:
+      - name: two_paragraphs
+        origin: "authored: two paragraphs separated by single blank line"
+        input_xml: "First paragraph.\n\nSecond paragraph."
+        block_count: 2
+        block_texts:
+          - "First paragraph."
+          - "Second paragraph."
+      - name: three_paragraphs
+        origin: "authored: three paragraphs each one line"
+        input_xml: "First\n\nSecond\n\nThird"
+        block_count: 3
+        block_texts:
+          - "First"
+          - "Second"
+          - "Third"
+    okapi_refs:
+      - ParagraphPlainTextFilterTest#testMultipleParagraphs
+      - ParagraphPlainTextFilterTest#testThreeParagraphs
+    native_refs:
+      - paraplaintext.TestMultipleParagraphs
+      - paraplaintext.TestThreeParagraphs
+
+  - id: multiline_paragraph_preservation
+    name: Inner line breaks preserved within paragraph
+    description: |
+      A paragraph spanning multiple lines (no blank lines between)
+      keeps its inner LF / CRLF line breaks in the Block's source
+      text — the reader does not collapse intra-paragraph newlines
+      into spaces.
+    spec_refs:
+      - "Okapi ParaPlainTextFilter behaviour (okapi-bridge schema okf_paraplaintext.v3)"
+    examples:
+      - name: three_lines_one_paragraph
+        origin: "authored: single paragraph spanning three lines"
+        input_xml: "Line one.\nLine two.\nLine three."
+        block_count: 1
+        first_block_text: "Line one.\nLine two.\nLine three."
+      - name: multiline_then_blank_then_more
+        origin: "authored: 3-line paragraph + blank + 1-line paragraph"
+        input_xml: "Line 1\nLine 2\nLine 3\n\nNext paragraph"
+        block_count: 2
+        block_texts:
+          - "Line 1\nLine 2\nLine 3"
+          - "Next paragraph"
+    okapi_refs:
+      - ParagraphPlainTextFilterTest#testMultiLineParagraph
+    native_refs:
+      - paraplaintext.TestMultiLineParagraph
+      - paraplaintext.TestPreserveNewlinesInParagraph
+
+  - id: crlf_paragraph_separator
+    name: CRLF blank-line separator (Windows line endings)
+    description: |
+      Cross-platform handling: a blank line consisting of CRLF CRLF
+      separates paragraphs the same way as LF LF. The fixture is the
+      upstream `crlfcrlf.txt` from okapi/filters/plaintext test corpus
+      and exercises the round-trip of Windows-style separators.
+    spec_refs:
+      - "Okapi ParaPlainTextFilter behaviour (okapi-bridge schema okf_paraplaintext.v3)"
+    examples:
+      - name: crlf_separated_paragraphs
+        origin: "okapi-fixture: okapi/filters/plaintext/src/test/resources/crlfcrlf.txt"
+        input_file: okapi:okapi/filters/plaintext/src/test/resources/crlfcrlf.txt
+        # crlfcrlf.txt: "Line 1\r\n\r\nLine 2\r\n\r\nLine 3\r\n\r\nLine 4"
+        # → 4 single-line paragraphs.
+        block_count: 4
+        block_texts:
+          - "Line 1"
+          - "Line 2"
+          - "Line 3"
+          - "Line 4"
+    okapi_refs:
+      - ParagraphPlainTextFilterTest#testMultipleParagraphs
+    native_refs:
+      - paraplaintext.TestMultipleParagraphs
