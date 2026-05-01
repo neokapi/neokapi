@@ -1,0 +1,544 @@
+# PHP content format specification.
+#
+# Single-variant filter — no variants block. Inputs are inline PHP
+# snippets (input_xml is reused for any text snippet; the field is
+# named for XML historically but holds raw text bytes for any text
+# format).
+#
+# The native package directory is `phpcontent/`; the bridge filter id
+# is `okf_phpcontent` (matching the okapi-bridge plugin manifest and
+# the upstream bridge schema). The contract-audit loader keys the spec
+# by Format with `okf_` stripped, so `okf_phpcontent` joins to the
+# native `phpcontent` package via `bridgeFilterAliases` (parity name
+# `phpcontent` ↔ surefire-derived name `php`).
+#
+# Config keys use the Okapi parameter names (useDirectives,
+# extractOutsideDirectives) — the same names the bridge composite
+# schema exposes (via `extraction.useDirectives` /
+# `extraction.extractOutsideDirectives` with `x-okapi-flatten-path`
+# pointing at the same flat names). The native Config.ApplyMap accepts
+# each of these directly. `okapi_param` carries the underlying Java
+# parameter name for full traceability.
+#
+# Inline-code detection (`inlineCodes.enabled` / `inlineCodes.rules`)
+# is reachable in the bridge schema only via a nested $defs-like block
+# whose leaf names are too ambiguous to stand alone in the flat config
+# surface this spec advertises — same pattern as the Properties / PO
+# specs. The native reader applies its own built-in inline-code
+# detection (HTML tags, PHP variables `$var`, escape sequences `\n`
+# etc.) without exposing it as a flat config key. Features below assert
+# the literal source text Okapi's testInlines / testEntryWithCodes
+# expect when both implementations agree.
+
+format: okf_phpcontent
+mime_type: application/x-php
+description: |
+  PHP content filter (`.php`, `.phpcnt`). Extracts translatable
+  strings from PHP source files: single-quoted, double-quoted,
+  heredoc, and nowdoc string literals; concatenated string runs join
+  into one Block; HTML tags, PHP variables (`$var`), and backslash
+  escape sequences inside double-quoted / heredoc strings become
+  inline-code Spans. Localization directives in `//`, `#`, or
+  `/* … */` comments toggle which strings are extracted. Comments and
+  PHP code outside string literals are emitted as non-translatable
+  Data so the writer can round-trip the file verbatim.
+
+  Note: this filter handles PHP source content only — files that mix
+  HTML markup with `<?php … ?>` blocks are typically processed by the
+  HTML filter (with PHP as a subfilter) instead.
+
+config:
+  - key: useDirectives
+    type: boolean
+    default: true
+    description: |
+      Honor localization directive comments (`//_skip_`, `//_bskip_`,
+      `//_eskip_`, `//_btext_`, `//_etext_`) embedded in PHP `//`,
+      `#`, or `/* … */` comments. When false, every extractable
+      string is extracted regardless of directives.
+    okapi_param: useDirectives
+
+  - key: extractOutsideDirectives
+    type: boolean
+    default: true
+    description: |
+      When `useDirectives` is true, controls whether strings OUTSIDE
+      the scope of any `_btext_` / `_etext_` region are extracted.
+      Default true — directives carve exclusions out of an extracted
+      whole. Set to false to invert: only strings explicitly inside a
+      `_btext_` region are extracted (directives carve inclusions out
+      of a skipped whole). No effect when `useDirectives` is false.
+    okapi_param: extractOutsideDirectives
+
+features:
+  # ── Single-quoted strings ─────────────────────────────────────────
+  - id: single_quoted_string
+    name: Single-quoted string extraction
+    description: |
+      A `'…'` literal yields one translatable Block. Single-quoted
+      strings have no variable interpolation or escape sequence
+      decoding (apart from `\'` and `\\`); the content is taken
+      verbatim into the Block source text.
+    spec_refs:
+      - "PHP Manual — Single quoted strings (https://www.php.net/manual/en/language.types.string.php)"
+    examples:
+      - name: simple
+        origin: "authored: minimal single-quoted assignment"
+        input_xml: "<?php $text = 'Hello world';"
+        block_count: 1
+        first_block_text: "Hello world"
+      - name: escaped_apostrophe
+        origin: "authored: \\' escape inside single-quoted string"
+        input_xml: "<?php $text = 'It\\'s a test';"
+        expected_fail: |
+          bridge bug — Okapi PHPContentFilter does not decode the
+          `\'` escape inside single-quoted strings, yielding
+          "It\'s a test" instead of "It's a test". Per the PHP
+          Manual ("Single quoted") only `\'` and `\\` are valid
+          inside single-quoted strings and both should decode to
+          their literal character. Native correctly decodes per
+          spec. Tracked as neokapi/neokapi#498.
+        block_count: 1
+        first_block_text: "It's a test"
+    okapi_refs:
+      - PHPContentFilterTest#testSingleQuotedString
+    native_refs:
+      - phpcontent.TestSingleQuotedString
+      - phpcontent.TestSingleQuotedEscapes
+
+  # ── Double-quoted strings ─────────────────────────────────────────
+  - id: double_quoted_string
+    name: Double-quoted string extraction
+    description: |
+      A `"…"` literal yields one translatable Block. Double-quoted
+      strings interpolate PHP variables (`$name`, `$obj->prop`) and
+      decode standard backslash escapes (`\n`, `\t`, `\r`, `\\`, …).
+      The native reader exposes interpolated variables and escape
+      sequences as inline-code Spans inside the Block; the literal
+      text between them is the Block source.
+    spec_refs:
+      - "PHP Manual — Double quoted strings (https://www.php.net/manual/en/language.types.string.php)"
+    examples:
+      - name: simple
+        origin: "authored: minimal double-quoted assignment"
+        input_xml: "<?php $text = \"Hello world\";"
+        block_count: 1
+        first_block_text: "Hello world"
+    okapi_refs:
+      - PHPContentFilterTest#testDoubleQuotedString
+    native_refs:
+      - phpcontent.TestDoubleQuotedString
+
+  # ── Heredoc strings ───────────────────────────────────────────────
+  - id: heredoc_string
+    name: Heredoc string extraction
+    description: |
+      A `<<<LABEL` heredoc yields one translatable Block. Heredocs
+      behave like double-quoted strings (variable interpolation,
+      escape decoding). The opening `<<<LABEL` and closing `LABEL;`
+      lines stay in the skeleton; only the body is extracted.
+    spec_refs:
+      - "PHP Manual — Heredoc syntax (https://www.php.net/manual/en/language.types.string.php)"
+    examples:
+      - name: single_line
+        origin: "authored: minimal heredoc body"
+        input_xml: "<?php $text = <<<EOT\nHello heredoc\nEOT;\n"
+        block_count: 1
+        first_block_text: "Hello heredoc"
+      - name: multiline
+        origin: "authored: multi-line heredoc body (newlines preserved)"
+        input_xml: "<?php $text = <<<EOT\nLine one\nLine two\nLine three\nEOT;\n"
+        block_count: 1
+        first_block_text: "Line one\nLine two\nLine three"
+      - name: empty_skipped
+        origin: "authored: empty heredoc body — no Block emitted"
+        description: |
+          A heredoc with no body (or only whitespace) produces no
+          translatable Block — the empty value is non-translatable
+          structure.
+        input_xml: "<?php $text = <<<EOT\nEOT;\n"
+        block_count: 0
+    okapi_refs:
+      - PHPContentFilterTest#testHeredocString
+      - PHPContentFilterTest#testQuotedHeredocString
+      - PHPContentFilterTest#testSemiColumnHeredocString
+      - PHPContentFilterTest#testMultipleLinesHeredocString
+      - PHPContentFilterTest#testEmptyHeredocStringAndOutput
+      - PHPContentFilterTest#testWhiteHeredocStringAndOutput
+    native_refs:
+      - phpcontent.TestHeredocString
+      - phpcontent.TestMultiLineHeredocString
+      - phpcontent.TestEmptyHeredocString
+
+  # ── Nowdoc strings ────────────────────────────────────────────────
+  - id: nowdoc_string
+    name: Nowdoc string extraction
+    description: |
+      A `<<<'LABEL'` nowdoc yields one translatable Block. Nowdocs
+      behave like single-quoted strings (no variable interpolation,
+      no escape decoding); a `$var` inside a nowdoc is part of the
+      literal source text, not an inline code.
+    spec_refs:
+      - "PHP Manual — Nowdoc syntax (https://www.php.net/manual/en/language.types.string.php)"
+    examples:
+      - name: simple
+        origin: "authored: minimal nowdoc body"
+        input_xml: "<?php $text = <<<'EOT'\nHello nowdoc\nEOT;\n"
+        block_count: 1
+        first_block_text: "Hello nowdoc"
+      - name: literal_dollar_var
+        origin: "authored: $var inside nowdoc stays literal (no interpolation)"
+        input_xml: "<?php $text = <<<'EOT'\nNowdoc $not_a_var\nEOT;\n"
+        block_count: 1
+        first_block_text: "Nowdoc $not_a_var"
+    okapi_refs:
+      - PHPContentFilterTest#testQuotedNowdocString
+    native_refs:
+      - phpcontent.TestNowdocString
+
+  # ── String concatenation ──────────────────────────────────────────
+  - id: concatenation
+    name: Concatenated string runs join into one Block
+    description: |
+      The PHP `.` operator joins string literals at parse time. A
+      run of `'a' . 'b' . 'c'` (or any mixture of single-quoted,
+      double-quoted, heredoc, nowdoc) yields one Block whose source
+      is the concatenated value. Variable references in the middle
+      of the run break the literal text (variables become inline
+      codes), but the surrounding string literals still merge.
+    # Concatenation is a PHP language operator; the file format spec
+    # itself doesn't define a separate convention — no spec_refs.
+    examples:
+      - name: single_quoted_pair
+        origin: "authored: 'a' . 'b' two-part single-quoted concat"
+        input_xml: "<?php $text = 'Hello ' . 'World';"
+        block_count: 1
+        first_block_text: "Hello World"
+      - name: three_parts
+        origin: "authored: three-part concat including a bare-space middle"
+        input_xml: "<?php $text = 'before' . ' ' . 'after';"
+        block_count: 1
+        first_block_text: "before after"
+      - name: mixed_quotes
+        origin: "authored: single-quoted + double-quoted concat"
+        input_xml: "<?php $text = 'Hello ' . \"World\";"
+        block_count: 1
+        first_block_text: "Hello World"
+    okapi_refs:
+      - PHPContentFilterTest#testConcatSQStrings
+      - PHPContentFilterTest#testConcatMultipleStrings
+      - PHPContentFilterTest#testConcatSGAndDQStrings
+      - PHPContentFilterTest#testConcatWithEndings
+    native_refs:
+      - phpcontent.TestConcatSingleQuotedStrings
+      - phpcontent.TestConcatMultipleStrings
+      - phpcontent.TestConcatMixedQuoteStrings
+
+  # ── Array index keys as Block IDs ─────────────────────────────────
+  - id: array_index_key
+    name: Array index used as Block ID
+    description: |
+      An assignment of the form `$arr['key'] = 'value'` (or
+      `$arr["key"] = "value"`) extracts the value as a Block whose
+      ID is the literal key. Numeric indices (`$arr[0]`) do not
+      become Block IDs — those Blocks fall back to the auto-generated
+      `tu1`, `tu2`, … sequence.
+    # Array assignment is a PHP language construct; no separate file
+    # spec — no spec_refs.
+    examples:
+      - name: single_quoted_key
+        origin: "authored: $arr['greeting'] = 'Hello' single-quoted-key form"
+        input_xml: "<?php $arr['greeting'] = 'Hello';"
+        block_count: 1
+        first_block_text: "Hello"
+      - name: double_quoted_key
+        origin: "authored: $arr[\"greeting\"] = \"Hello\" double-quoted-key form"
+        input_xml: "<?php $arr[\"greeting\"] = \"Hello\";"
+        block_count: 1
+        first_block_text: "Hello"
+    okapi_refs:
+      - PHPContentFilterTest#testSQIndex
+      - PHPContentFilterTest#testDQIndex
+      - PHPContentFilterTest#testnoStringIndex
+      - PHPContentFilterTest#testHeredocIndex
+      - PHPContentFilterTest#testNowdocIndex
+      - PHPContentFilterTest#testOutputArrayKeys
+    native_refs:
+      - phpcontent.TestSingleQuotedArrayIndex
+      - phpcontent.TestDoubleQuotedArrayIndex
+      - phpcontent.TestNoStringIndex
+
+  # ── HTML inline codes ─────────────────────────────────────────────
+  - id: html_inline_codes
+    name: HTML tags inside strings as inline codes
+    description: |
+      HTML-like tags (`<a>`, `</a>`, `<br/>`, …) inside any extracted
+      string are tagged as inline-code Spans (paired open/close for
+      `<x>…</x>`, self-closing placeholder for `<x/>`). The visible
+      text between tags is part of the Block source; the tag markup
+      itself never leaks into the translatable text.
+    # HTML in PHP strings is a usage convention, not part of the PHP
+    # file format spec — no spec_refs.
+    examples:
+      - name: anchor_with_text
+        origin: "authored: <a>…</a> tag inside double-quoted string"
+        input_xml: "<?php $text = \"Click <a href='test'>here</a> now\";"
+        block_count: 1
+        first_block_text: "Click here now"
+        no_block_with_text: ["href"]
+      - name: self_closing_br
+        origin: "authored: self-closing <br/> placeholder inside string"
+        input_xml: "<?php $text = \"Line<br/>break\";"
+        block_count: 1
+        first_block_text: "Linebreak"
+    okapi_refs:
+      - PHPContentFilterTest#testEntryWithCodes
+      - PHPContentFilterTest#testSimpleHTMLCodes
+      - PHPContentFilterTest#testParitalStartingHTMLCodes
+      - PHPContentFilterTest#testParitalClosingHTMLCodes
+      - PHPContentFilterTest#testSpecialHTMLCodes
+      - PHPContentFilterTest#testFilteringOfHtmlLikeTags
+    native_refs:
+      - phpcontent.TestEntryWithCodes
+      - phpcontent.TestSimpleHTMLCodes
+      - phpcontent.TestSpecialHTMLCodes
+      - phpcontent.TestFilteringOfHtmlLikeTags
+
+  # ── Variable interpolation as inline codes ────────────────────────
+  - id: variable_inline_codes
+    name: PHP variables in double-quoted strings as inline codes
+    description: |
+      `$var`, `$var_name`, and `$obj->prop` references inside
+      double-quoted strings (and heredocs) become inline-code Spans
+      — they're protected from translation and stripped from the
+      Block source text. Single-quoted strings and nowdocs do not
+      interpolate; `$var` stays in the literal source there (see
+      the nowdoc_string feature).
+    spec_refs:
+      - "PHP Manual — Variable parsing in strings (https://www.php.net/manual/en/language.types.string.php)"
+    examples:
+      - name: two_variables
+        origin: "authored: two $var interpolations inside double-quoted string"
+        input_xml: "<?php $text = \"Hello $name, welcome to $app\";"
+        expected_fail: |
+          bridge default config does not enable Okapi's inline-code
+          finder for the PHP filter, so `$name` / `$app` stay in the
+          literal source text ("Hello $name, welcome to $app").
+          Native applies its built-in PHP-variable detector
+          unconditionally and exposes the variables as inline codes,
+          yielding "Hello , welcome to ". Both legitimate; spec
+          asserts native behavior. Could be reconciled by enabling
+          `inlineCodes.enabled` in the bridge config (the inline
+          codes block is reachable in the bridge schema only via a
+          nested `$ref` so the spec doesn't expose it as a flat key
+          today — same situation as Properties / PO).
+        block_count: 1
+        # $name and $app become inline codes; the literal text is what remains.
+        first_block_text: "Hello , welcome to "
+        no_block_with_text: ["$name", "$app"]
+    okapi_refs:
+      - PHPContentFilterTest#testVariableCodes
+      - PHPContentFilterTest#testConcatDQStringsWithCodesAndVariable
+    native_refs:
+      - phpcontent.TestVariableCodes
+      - phpcontent.TestConcatDQStringsWithCodesAndVariable
+
+  # ── Backslash escapes as inline codes ─────────────────────────────
+  - id: escape_inline_codes
+    name: Backslash escapes in double-quoted strings as inline codes
+    description: |
+      Standard PHP escape sequences (`\n`, `\t`, `\r`, `\v`, `\\`,
+      `\$`, `\"`, `\xHH`, `\0`-`\7`) inside double-quoted strings
+      and heredocs become inline-code Spans. Single-quoted strings
+      and nowdocs do not decode escapes (apart from `\'` / `\\` in
+      single-quoted) — see the single_quoted_string feature.
+    spec_refs:
+      - "PHP Manual — Escape sequences in double-quoted strings (https://www.php.net/manual/en/language.types.string.php)"
+    examples:
+      - name: linefeed_escape
+        origin: "authored: \\n escape inside double-quoted string"
+        input_xml: "<?php $text = \"Hello\\nWorld\";"
+        block_count: 1
+        # \n becomes an inline code; the literal text is what remains.
+        first_block_text: "HelloWorld"
+    okapi_refs:
+      - PHPContentFilterTest#testEscapeCodes
+      - PHPContentFilterTest#testLinefeedCodes
+      - PHPContentFilterTest#testOutputLinefeedCodes
+    native_refs:
+      - phpcontent.TestEscapeCodes
+      - phpcontent.TestLinefeedCodes
+
+  # ── Comments are non-translatable ─────────────────────────────────
+  - id: comments_passthrough
+    name: Comments emitted as non-translatable Data
+    description: |
+      `//` line comments, `#` line comments, and `/* … */` block
+      comments are non-translatable structure: their text never
+      becomes a translatable Block. The reader emits each comment
+      as a Data part (so the writer can round-trip them verbatim)
+      and continues with the surrounding strings.
+    spec_refs:
+      - "PHP Manual — Comments (https://www.php.net/manual/en/language.basic-syntax.comments.php)"
+    examples:
+      - name: line_comment_then_string
+        origin: "authored: // line comment preceding a string assignment"
+        input_xml: "<?php\n// This is a comment\n$text = 'Hello';"
+        block_count: 1
+        first_block_text: "Hello"
+        no_block_with_text: ["This is a comment"]
+      - name: block_comment_then_string
+        origin: "authored: /* … */ block comment preceding a string"
+        input_xml: "<?php\n/* Multi\nline\ncomment */\n$text = 'Hello';"
+        block_count: 1
+        first_block_text: "Hello"
+        no_block_with_text: ["Multi"]
+    okapi_refs:
+      - PHPContentFilterTest#testCommentsSingleLine
+      - PHPContentFilterTest#testCommentsMultiline
+      - PHPContentFilterTest#testEmptyComment
+      - PHPContentFilterTest#testCommentsWithApos
+    native_refs:
+      - phpcontent.TestCommentsSingleLine
+      - phpcontent.TestCommentsMultiline
+      - phpcontent.TestCommentsWithApostrophe
+
+  # ── _skip_ directive ──────────────────────────────────────────────
+  - id: skip_directive
+    name: "Single-string skip directive (`_skip_`)"
+    description: |
+      A `//_skip_` (or `#_skip_`, or `/* _skip_ */`) directive
+      comment causes the very next string literal (including any
+      concatenation chain it participates in) to be skipped from
+      extraction. Subsequent strings continue to extract normally.
+      Requires `useDirectives=true` (the default).
+    spec_refs:
+      - "Okapi PHP Content Filter — Localization directives (https://okapiframework.org/wiki/index.php/PHP_Content_Filter)"
+    examples:
+      - name: skip_then_keep
+        origin: "okapi-fixture: PHPContentFilterTest#testSkipDirective shape"
+        input_xml: "<?php\n//_skip_\n$text = 'Skip this';\n$other = 'Keep this';"
+        block_count: 1
+        first_block_text: "Keep this"
+        no_block_with_text: ["Skip this"]
+      - name: skip_concat_chain
+        origin: "okapi-fixture: PHPContentFilterTest#testSkipDirectiveOnConcat shape"
+        input_xml: "<?php\n//_skip_\n$text = 'Skip' . ' this';\n$other = 'Keep';"
+        block_count: 1
+        first_block_text: "Keep"
+        no_block_with_text: ["Skip"]
+    okapi_refs:
+      - PHPContentFilterTest#testSkipDirective
+      - PHPContentFilterTest#testSkipDirectiveOnConcat
+    native_refs:
+      - phpcontent.TestSkipDirective
+      - phpcontent.TestSkipDirectiveOnConcat
+
+  # ── _bskip_ / _eskip_ block directive ─────────────────────────────
+  - id: bskip_eskip_block
+    name: "Block-skip directive (`_bskip_` … `_eskip_`)"
+    description: |
+      A `_bskip_` directive opens a region in which every extractable
+      string is skipped; an `_eskip_` directive closes the region.
+      Strings before `_bskip_` and after `_eskip_` extract normally.
+      Honored in `//`, `#`, and `/* … */` comment forms. Requires
+      `useDirectives=true`.
+    spec_refs:
+      - "Okapi PHP Content Filter — Localization directives (https://okapiframework.org/wiki/index.php/PHP_Content_Filter)"
+    examples:
+      - name: skip_block_in_middle
+        origin: "okapi-fixture: PHPContentFilterTest#testSkipOutsideDirective shape"
+        input_xml: "<?php\n$a = 'Before';\n//_bskip_\n$b = 'Skip';\n//_eskip_\n$c = 'After';"
+        block_count: 2
+        block_texts:
+          - "Before"
+          - "After"
+        no_block_with_text: ["Skip"]
+      - name: bskip_in_block_comment
+        origin: "okapi-fixture: PHPContentFilterTest#testDirectiveInMultilineComment shape"
+        input_xml: "<?php\n/* _bskip_ */\n$a = 'Skip';\n/* _eskip_ */\n$b = 'Keep';"
+        block_count: 1
+        first_block_text: "Keep"
+    okapi_refs:
+      - PHPContentFilterTest#testTextInBSkipDirective
+      - PHPContentFilterTest#testESkipDirective
+      - PHPContentFilterTest#testDirectiveInMultilineComment
+      - PHPContentFilterTest#testSkipOutsideDirective
+      - PHPContentFilterTest#testDirectiveScope
+    native_refs:
+      - phpcontent.TestTextInBSkipDirective
+      - phpcontent.TestESkipDirective
+      - phpcontent.TestDirectiveInMultilineComment
+      - phpcontent.TestSkipOutsideDirective
+      - phpcontent.TestDirectiveScope
+
+  # ── _btext_ / _etext_ + extractOutsideDirectives=false ────────────
+  - id: btext_only_extraction
+    name: "Inclusion-mode directives (`extractOutsideDirectives=false`)"
+    description: |
+      When `extractOutsideDirectives=false`, only strings explicitly
+      inside a `_btext_` … `_etext_` region are extracted — strings
+      outside any `_btext_` region are skipped. Inverts the default
+      `_bskip_`-carves-exclusions model into a `_btext_`-carves-
+      inclusions model. Combine with `useDirectives=true` (default).
+    spec_refs:
+      - "Okapi PHP Content Filter — Localization directives (https://okapiframework.org/wiki/index.php/PHP_Content_Filter)"
+    config:
+      extractOutsideDirectives: false
+    examples:
+      - name: only_btext_region_extracted
+        origin: "authored: extractOutsideDirectives=false isolates the _btext_ region"
+        input_xml: "<?php\n$a = 'Outside1';\n//_btext_\n$b = 'Inside';\n//_etext_\n$c = 'Outside2';"
+        block_count: 1
+        first_block_text: "Inside"
+        no_block_with_text: ["Outside1", "Outside2"]
+    okapi_refs:
+      - PHPContentFilterTest#testBTextDirective
+      - PHPContentFilterTest#testETextDirective
+    native_refs:
+      - phpcontent.TestBTextDirective
+      - phpcontent.TestETextDirective
+
+  # ── Disabling directives entirely ─────────────────────────────────
+  - id: directives_disabled
+    name: "Directives ignored with `useDirectives=false`"
+    description: |
+      With `useDirectives=false` every directive comment (`_skip_`,
+      `_bskip_`, `_btext_`, …) is treated as an ordinary comment.
+      Strings that would normally be skipped are extracted; strings
+      that would normally be inside a `_btext_`-only region extract
+      regardless of whether the region is open. Verifies the
+      parameter mapping — both implementations must agree that
+      directive recognition is off.
+    spec_refs:
+      - "Okapi PHP Content Filter — Use Localization Directives parameter (https://okapiframework.org/wiki/index.php/PHP_Content_Filter)"
+    config:
+      useDirectives: false
+    examples:
+      - name: skip_directive_ignored
+        origin: "authored: //_skip_ + string with useDirectives=false"
+        input_xml: "<?php\n//_skip_\n$a = 'Should be extracted';"
+        block_count: 1
+        first_block_text: "Should be extracted"
+    okapi_refs:
+      - PHPContentFilterTest#testDisabledDirectives
+    native_refs:
+      - phpcontent.TestDisabledDirectives
+
+  # ── No translatable strings → no Blocks ───────────────────────────
+  - id: no_strings_no_blocks
+    name: PHP without string literals yields no Blocks
+    description: |
+      A PHP file containing only numeric or boolean expressions
+      yields no translatable Blocks. The non-string code is emitted
+      as Data (so the writer round-trips it) but never produces a
+      translatable unit.
+    examples:
+      - name: numeric_assignment
+        origin: "authored: numeric assignment, no string literals"
+        input_xml: "<?php\n$x = 42;\n"
+        block_count: 0
+    okapi_refs:
+      - PHPContentFilterTest#testOutputWithNoStrings
+    native_refs:
+      - phpcontent.TestOutputWithNoStrings
