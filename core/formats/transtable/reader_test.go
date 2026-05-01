@@ -3,9 +3,12 @@ package transtable_test
 import (
 	"bytes"
 	"context"
+	"errors"
 	"os"
+	"path/filepath"
 	"testing"
 
+	"github.com/neokapi/neokapi/core/format/spec"
 	"github.com/neokapi/neokapi/core/formats/transtable"
 	"github.com/neokapi/neokapi/core/internal/testutil"
 	"github.com/neokapi/neokapi/core/model"
@@ -13,150 +16,15 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// okapi: TransTableFilterTest#testSimplePair
-func TestSimplePair(t *testing.T) {
-	ctx := t.Context()
-	reader := transtable.NewReader()
-	input := "greeting\tHello"
-	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
-	require.NoError(t, err)
-	defer reader.Close()
+const minimalHeader = "TransTableV1\ten\tfr\n"
 
-	blocks := testutil.CollectBlocks(t, reader.Read(ctx))
-
-	require.Len(t, blocks, 1)
-	assert.Equal(t, "Hello", blocks[0].SourceText())
-	assert.Equal(t, "greeting", blocks[0].Properties["key"])
-	assert.Equal(t, "greeting", blocks[0].Name)
-}
-
-// okapi: TransTableFilterTest#testMultiplePairs
-func TestMultiplePairs(t *testing.T) {
-	ctx := t.Context()
-	reader := transtable.NewReader()
-	input := "greeting\tHello\nfarewell\tGoodbye"
-	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
-	require.NoError(t, err)
-	defer reader.Close()
-
-	blocks := testutil.CollectBlocks(t, reader.Read(ctx))
-
-	require.Len(t, blocks, 2)
-	assert.Equal(t, "Hello", blocks[0].SourceText())
-	assert.Equal(t, "Goodbye", blocks[1].SourceText())
-}
-
-// okapi: TransTableFilterTest#testCommentLine
-func TestCommentLine(t *testing.T) {
-	ctx := t.Context()
-	reader := transtable.NewReader()
-	input := "# This is a comment\ngreeting\tHello"
-	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
-	require.NoError(t, err)
-	defer reader.Close()
-
-	parts := testutil.CollectParts(t, reader.Read(ctx))
-	blocks := testutil.FilterBlocks(parts)
-
-	require.Len(t, blocks, 1)
-	assert.Equal(t, "Hello", blocks[0].SourceText())
-
-	// Verify comment is Data
-	hasComment := false
-	for _, p := range parts {
-		if p.Type == model.PartData {
-			data := p.Resource.(*model.Data)
-			if data.Properties["comment"] == "# This is a comment" {
-				hasComment = true
-			}
-		}
-	}
-	assert.True(t, hasComment, "comment should be emitted as Data")
-}
-
-// okapi: TransTableFilterTest#testEmptyLine
-func TestEmptyLine(t *testing.T) {
-	ctx := t.Context()
-	reader := transtable.NewReader()
-	input := "greeting\tHello\n\nfarewell\tGoodbye"
-	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
-	require.NoError(t, err)
-	defer reader.Close()
-
-	parts := testutil.CollectParts(t, reader.Read(ctx))
-	blocks := testutil.FilterBlocks(parts)
-
-	require.Len(t, blocks, 2)
-
-	hasEmptyData := false
-	for _, p := range parts {
-		if p.Type == model.PartData {
-			data := p.Resource.(*model.Data)
-			if _, has := data.Properties["comment"]; !has {
-				hasEmptyData = true
-			}
-		}
-	}
-	assert.True(t, hasEmptyData, "empty line should be emitted as Data")
-}
-
-// okapi: TransTableFilterTest#testEmptyValue
-func TestEmptyValue(t *testing.T) {
-	ctx := t.Context()
-	reader := transtable.NewReader()
-	input := "greeting\t"
-	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
-	require.NoError(t, err)
-	defer reader.Close()
-
-	blocks := testutil.CollectBlocks(t, reader.Read(ctx))
-
-	require.Len(t, blocks, 1)
-	assert.Equal(t, "", blocks[0].SourceText())
-	assert.Equal(t, "greeting", blocks[0].Properties["key"])
-}
-
-// okapi: TransTableFilterTest#testKeyOnly
-func TestKeyOnly(t *testing.T) {
-	ctx := t.Context()
-	reader := transtable.NewReader()
-	input := "greeting"
-	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
-	require.NoError(t, err)
-	defer reader.Close()
-
-	blocks := testutil.CollectBlocks(t, reader.Read(ctx))
-
-	require.Len(t, blocks, 1)
-	assert.Equal(t, "", blocks[0].SourceText())
-	assert.Equal(t, "greeting", blocks[0].Properties["key"])
-}
-
-func TestReadEmpty(t *testing.T) {
-	ctx := t.Context()
-	reader := transtable.NewReader()
-	err := reader.Open(ctx, testutil.RawDocFromString("", model.LocaleEnglish))
-	require.NoError(t, err)
-	defer reader.Close()
-
-	parts := testutil.CollectParts(t, reader.Read(ctx))
-	blocks := testutil.FilterBlocks(parts)
-
-	assert.Empty(t, blocks)
-}
-
-func TestReadNilDocument(t *testing.T) {
-	ctx := t.Context()
-	reader := transtable.NewReader()
-	err := reader.Open(ctx, nil)
-	require.Error(t, err)
-}
-
-// okapi: TransTableFilterTest#testStartDocument — verifies LayerStart/LayerEnd wraps transtable content.
+// okapi: TransTableFilterTest#testStartDocument
+// Verifies LayerStart/LayerEnd wraps transtable content and the
+// layer's source locale is taken from the header.
 func TestReadLayerStartEnd(t *testing.T) {
 	ctx := t.Context()
 	reader := transtable.NewReader()
-	input := "greeting\tHello"
+	input := minimalHeader + "\"okpCtx:tu=1\"\t\"hello\"\n"
 	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
 	require.NoError(t, err)
 	defer reader.Close()
@@ -169,13 +37,224 @@ func TestReadLayerStartEnd(t *testing.T) {
 
 	layer := parts[0].Resource.(*model.Layer)
 	assert.Equal(t, "transtable", layer.Format)
+	assert.Equal(t, model.LocaleID("en"), layer.Locale)
+}
+
+// okapi: TransTableFilterTest#testMinimalInput
+// Single source-only data row → one block, no target.
+func TestSourceOnlyEntry(t *testing.T) {
+	ctx := t.Context()
+	reader := transtable.NewReader()
+	input := minimalHeader + "\"okpCtx:tu=1\"\t\"source\"\n"
+	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
+	require.NoError(t, err)
+	defer reader.Close()
+
+	blocks := testutil.CollectBlocks(t, reader.Read(ctx))
+
+	require.Len(t, blocks, 1)
+	assert.Equal(t, "source", blocks[0].SourceText())
+	assert.Equal(t, "1", blocks[0].Properties["tu_id"])
+	assert.False(t, blocks[0].HasTarget(model.LocaleFrench), "source-only row should leave target empty")
+}
+
+// okapi: TransTableFilterTest#testMinimalSourceTarget
+// Three-cell row → bilingual block.
+func TestBilingualPair(t *testing.T) {
+	ctx := t.Context()
+	reader := transtable.NewReader()
+	input := minimalHeader + "\"okpCtx:tu=1\"\t\"source\"\t\"target\"\n"
+	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
+	require.NoError(t, err)
+	defer reader.Close()
+
+	blocks := testutil.CollectBlocks(t, reader.Read(ctx))
+
+	require.Len(t, blocks, 1)
+	assert.Equal(t, "source", blocks[0].SourceText())
+	assert.Equal(t, "target", blocks[0].TargetText(model.LocaleFrench))
+}
+
+// okapi: TransTableFilterTest#testQuotesInput
+// Quotes around cells are optional.
+func TestUnquotedCells(t *testing.T) {
+	ctx := t.Context()
+	reader := transtable.NewReader()
+	input := "\"TransTableV1\"\t\"en\"\t\"fr\"\nokpCtx:tu=1\tsource\n"
+	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
+	require.NoError(t, err)
+	defer reader.Close()
+
+	blocks := testutil.CollectBlocks(t, reader.Read(ctx))
+
+	require.Len(t, blocks, 1)
+	assert.Equal(t, "source", blocks[0].SourceText())
+}
+
+// okapi: TransTableFilterTest#testUnSegmented
+// Distinct tu=ids each get their own text unit.
+func TestMultipleEntries(t *testing.T) {
+	ctx := t.Context()
+	reader := transtable.NewReader()
+	input := "\"TransTableV1\"\t\"en\"\t\"fr\"\n" +
+		"okpCtx:tu=1:s=0\tsource1\n" +
+		"okpCtx:tu=2\tsource2\n"
+	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
+	require.NoError(t, err)
+	defer reader.Close()
+
+	blocks := testutil.CollectBlocks(t, reader.Read(ctx))
+
+	require.Len(t, blocks, 2)
+	assert.Equal(t, "source1", blocks[0].SourceText())
+	assert.Equal(t, "source2", blocks[1].SourceText())
+	assert.Equal(t, "1", blocks[0].Properties["tu_id"])
+	assert.Equal(t, "2", blocks[1].Properties["tu_id"])
+}
+
+// okapi: TransTableFilterTest#testSegmented
+// Rows sharing tu=<id> + :s=<seg-id> merge into one segmented text unit.
+func TestSegmentedTextUnit(t *testing.T) {
+	ctx := t.Context()
+	reader := transtable.NewReader()
+	input := "\"TransTableV1\"\t\"en\"\t\"fr\"\n" +
+		"okpCtx:tu=1:s=0\tsource1\n" +
+		"okpCtx:tu=2:s=0\tsrc2-seg0\n" +
+		"okpCtx:tu=2:s=1\tsrc2-seg1\n" +
+		"okpCtx:tu=2:s=2\tsrc2-seg2\n" +
+		"okpCtx:tu=3:s=ZZZ\tsrc3-segZZZ\n" +
+		"okpCtx:tu=4\tsrc4-seg0\n"
+	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
+	require.NoError(t, err)
+	defer reader.Close()
+
+	blocks := testutil.CollectBlocks(t, reader.Read(ctx))
+
+	require.Len(t, blocks, 4)
+	assert.Equal(t, "source1", blocks[0].SourceText())
+	assert.Equal(t, "src2-seg0src2-seg1src2-seg2", blocks[1].SourceText())
+	assert.Equal(t, "src3-segZZZ", blocks[2].SourceText())
+	assert.Equal(t, "src4-seg0", blocks[3].SourceText())
+
+	// tu=2 should have three segments after grouping.
+	require.Len(t, blocks[1].Source, 3)
+	assert.Equal(t, "0", blocks[1].Source[0].ID)
+	assert.Equal(t, "1", blocks[1].Source[1].ID)
+	assert.Equal(t, "2", blocks[1].Source[2].ID)
+}
+
+// okapi: TransTableFilterTest#testSegmentedWithTarget
+// Whitespace lines do not break segment grouping.
+func TestWhitespaceLinesSkipped(t *testing.T) {
+	ctx := t.Context()
+	reader := transtable.NewReader()
+	input := "\"TransTableV1\"\t\"en\"\t\"fr\"\n" +
+		"okpCtx:tu=1:s=0\tsource1\ttarget1\n" +
+		"okpCtx:tu=2:s=0\tsrc2-seg0\n" +
+		"\n" +
+		"  \n" +
+		"\t\n" +
+		"okpCtx:tu=2:s=1\tsrc2-seg1\ttrg2-seg1\n" +
+		"okpCtx:tu=2:s=2\tsrc2-seg2\n" +
+		"okpCtx:tu=3:s=ZZZ\tsrc3-segZZZ\n" +
+		"okpCtx:tu=4\tsrc4-seg0\ttrg4-seg0\n"
+	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
+	require.NoError(t, err)
+	defer reader.Close()
+
+	parts := testutil.CollectParts(t, reader.Read(ctx))
+	blocks := testutil.FilterBlocks(parts)
+
+	require.Len(t, blocks, 4)
+	assert.Equal(t, "source1", blocks[0].SourceText())
+	assert.Equal(t, "src2-seg0src2-seg1src2-seg2", blocks[1].SourceText())
+	assert.Equal(t, "src3-segZZZ", blocks[2].SourceText())
+	assert.Equal(t, "src4-seg0", blocks[3].SourceText())
+
+	// Whitespace lines should not surface as Data parts.
+	for _, p := range parts {
+		assert.NotEqual(t, model.PartData, p.Type, "whitespace lines must be absorbed silently")
+	}
+}
+
+// okapi: TransTableFilterTest#testQuotesInput
+// Embedded \t and \n escapes are unescaped during parse.
+func TestEscapedTabAndNewlineInValue(t *testing.T) {
+	ctx := t.Context()
+	reader := transtable.NewReader()
+	input := minimalHeader + `"okpCtx:tu=1"	"line1\nline2"	"col\tA"` + "\n"
+	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
+	require.NoError(t, err)
+	defer reader.Close()
+
+	blocks := testutil.CollectBlocks(t, reader.Read(ctx))
+
+	require.Len(t, blocks, 1)
+	assert.Equal(t, "line1\nline2", blocks[0].SourceText())
+	assert.Equal(t, "col\tA", blocks[0].TargetText(model.LocaleFrench))
+}
+
+// allowSegments=false collapses :s=<id> back into per-row text units.
+func TestAllowSegmentsFalse(t *testing.T) {
+	ctx := t.Context()
+	reader := transtable.NewReader()
+	require.NoError(t, reader.Config().ApplyMap(map[string]any{"allowSegments": false}))
+	input := minimalHeader +
+		"okpCtx:tu=1:s=0\tA\n" +
+		"okpCtx:tu=1:s=1\tB\n"
+	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
+	require.NoError(t, err)
+	defer reader.Close()
+
+	blocks := testutil.CollectBlocks(t, reader.Read(ctx))
+
+	require.Len(t, blocks, 2, "with allowSegments=false each row is its own text unit")
+	assert.Equal(t, "A", blocks[0].SourceText())
+	assert.Equal(t, "B", blocks[1].SourceText())
+}
+
+// Empty input: just LayerStart/End.
+func TestReadEmpty(t *testing.T) {
+	ctx := t.Context()
+	reader := transtable.NewReader()
+	err := reader.Open(ctx, testutil.RawDocFromString("", model.LocaleEnglish))
+	require.NoError(t, err)
+	defer reader.Close()
+
+	parts := testutil.CollectParts(t, reader.Read(ctx))
+	blocks := testutil.FilterBlocks(parts)
+	assert.Empty(t, blocks)
+}
+
+// Invalid signature surfaces as an error PartResult.
+func TestInvalidSignature(t *testing.T) {
+	ctx := t.Context()
+	reader := transtable.NewReader()
+	err := reader.Open(ctx, testutil.RawDocFromString("NotATransTable\ten\tfr\n", model.LocaleEnglish))
+	require.NoError(t, err)
+	defer reader.Close()
+
+	var sawErr bool
+	for pr := range reader.Read(ctx) {
+		if pr.Error != nil {
+			sawErr = true
+			break
+		}
+	}
+	assert.True(t, sawErr, "malformed header should yield an error PartResult")
+}
+
+func TestReadNilDocument(t *testing.T) {
+	ctx := t.Context()
+	reader := transtable.NewReader()
+	err := reader.Open(ctx, nil)
+	require.Error(t, err)
 }
 
 func TestReaderSignature(t *testing.T) {
 	reader := transtable.NewReader()
 	sig := reader.Signature()
-	assert.Contains(t, sig.Extensions, ".tab")
-	assert.Contains(t, sig.Extensions, ".tsv")
+	assert.Contains(t, sig.MIMETypes, "text/x-transtable")
 }
 
 func TestReaderMetadata(t *testing.T) {
@@ -197,7 +276,7 @@ func TestConfigValidate(t *testing.T) {
 func TestConfigReset(t *testing.T) {
 	cfg := &transtable.Config{}
 	cfg.Reset()
-	require.NoError(t, cfg.Validate())
+	assert.True(t, cfg.AllowSegments, "default allowSegments should be true")
 }
 
 func TestConfigApplyMapUnknown(t *testing.T) {
@@ -206,46 +285,29 @@ func TestConfigApplyMapUnknown(t *testing.T) {
 	require.Error(t, err)
 }
 
-func TestConfigApplyMapEmpty(t *testing.T) {
+func TestConfigApplyMapAllowSegments(t *testing.T) {
 	cfg := &transtable.Config{}
-	err := cfg.ApplyMap(map[string]any{})
-	require.NoError(t, err)
+	cfg.Reset()
+	require.NoError(t, cfg.ApplyMap(map[string]any{"allowSegments": false}))
+	assert.False(t, cfg.AllowSegments)
 }
 
-func TestRoundTrip(t *testing.T) {
-	ctx := t.Context()
-
-	f, err := os.Open("testdata/simple.tab")
-	require.NoError(t, err)
-	reader := transtable.NewReader()
-	err = reader.Open(ctx, testutil.RawDocFromReader(f, "testdata/simple.tab", model.LocaleEnglish))
-	require.NoError(t, err)
-
-	parts := testutil.CollectParts(t, reader.Read(ctx))
-	reader.Close()
-
-	var buf bytes.Buffer
-	writer := transtable.NewWriter()
-	err = writer.SetOutputWriter(&buf)
-	require.NoError(t, err)
-	writer.SetLocale(model.LocaleEnglish)
-
-	ch := testutil.PartsToChannel(parts)
-	err = writer.Write(ctx, ch)
-	require.NoError(t, err)
-	writer.Close()
-
-	output := buf.String()
-	assert.Contains(t, output, "greeting\tHello")
-	assert.Contains(t, output, "farewell\tGoodbye")
-	assert.Contains(t, output, "# This is a comment")
-	assert.Contains(t, output, "welcome\tWelcome back")
+func TestConfigApplyMapAllowSegmentsBadType(t *testing.T) {
+	cfg := &transtable.Config{}
+	err := cfg.ApplyMap(map[string]any{"allowSegments": "yes"})
+	require.Error(t, err)
 }
 
+// Round-trip: read TransTable v1 input, then write it back targeting
+// the same locale and verify the rendered rows preserve the source +
+// target cells (not necessarily byte-exact — that's covered by the
+// skeleton-store tests).
 func TestRoundTripWithTargetLocale(t *testing.T) {
 	ctx := t.Context()
 
-	input := "greeting\tHello\nfarewell\tGoodbye"
+	input := "TransTableV1\ten\tfr\n" +
+		"\"okpCtx:tu=1\"\t\"Hello\"\t\"\"\n" +
+		"\"okpCtx:tu=2\"\t\"Goodbye\"\t\"\"\n"
 	reader := transtable.NewReader()
 	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
 	require.NoError(t, err)
@@ -256,9 +318,10 @@ func TestRoundTripWithTargetLocale(t *testing.T) {
 	for _, p := range parts {
 		if p.Type == model.PartBlock {
 			block := p.Resource.(*model.Block)
-			if block.SourceText() == "Hello" {
+			switch block.SourceText() {
+			case "Hello":
 				block.SetTargetText(model.LocaleFrench, "Bonjour")
-			} else if block.SourceText() == "Goodbye" {
+			case "Goodbye":
 				block.SetTargetText(model.LocaleFrench, "Au revoir")
 			}
 		}
@@ -276,10 +339,9 @@ func TestRoundTripWithTargetLocale(t *testing.T) {
 	writer.Close()
 
 	output := buf.String()
-	assert.Contains(t, output, "greeting\tBonjour")
-	assert.Contains(t, output, "farewell\tAu revoir")
-	assert.NotContains(t, output, "Hello")
-	assert.NotContains(t, output, "Goodbye")
+	assert.Contains(t, output, "TransTableV1\ten\tfr")
+	assert.Contains(t, output, `"okpCtx:tu=1"`+"\t"+`"Hello"`+"\t"+`"Bonjour"`)
+	assert.Contains(t, output, `"okpCtx:tu=2"`+"\t"+`"Goodbye"`+"\t"+`"Au revoir"`)
 }
 
 func TestContextCancellation(t *testing.T) {
@@ -287,7 +349,7 @@ func TestContextCancellation(t *testing.T) {
 	cancel() // Cancel immediately
 
 	reader := transtable.NewReader()
-	err := reader.Open(ctx, testutil.RawDocFromString("greeting\tHello\nfarewell\tGoodbye", model.LocaleEnglish))
+	err := reader.Open(ctx, testutil.RawDocFromString(minimalHeader+"okpCtx:tu=1\tHello\nokpCtx:tu=2\tGoodbye\n", model.LocaleEnglish))
 	require.NoError(t, err)
 	defer reader.Close()
 
@@ -296,96 +358,7 @@ func TestContextCancellation(t *testing.T) {
 	for range ch {
 		count++
 	}
-	// With cancelled context, we may get fewer parts
 	assert.LessOrEqual(t, count, 5)
-}
-
-// okapi: TransTableFilterTest#testTabInValue
-func TestTabInValue(t *testing.T) {
-	ctx := t.Context()
-	reader := transtable.NewReader()
-	input := "greeting\tHello\tWorld"
-	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
-	require.NoError(t, err)
-	defer reader.Close()
-
-	blocks := testutil.CollectBlocks(t, reader.Read(ctx))
-
-	require.Len(t, blocks, 1)
-	// Value includes everything after first tab
-	assert.Equal(t, "Hello\tWorld", blocks[0].SourceText())
-}
-
-// okapi: TransTableFilterTest#testWhitespaceKey
-func TestWhitespaceHandling(t *testing.T) {
-	ctx := t.Context()
-	reader := transtable.NewReader()
-	input := "  \n\t\n"
-	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
-	require.NoError(t, err)
-	defer reader.Close()
-
-	parts := testutil.CollectParts(t, reader.Read(ctx))
-	blocks := testutil.FilterBlocks(parts)
-
-	assert.Empty(t, blocks, "whitespace-only lines should be treated as empty/data")
-}
-
-func TestLineNumbers(t *testing.T) {
-	ctx := t.Context()
-	reader := transtable.NewReader()
-	input := "a\t1\nb\t2\nc\t3"
-	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
-	require.NoError(t, err)
-	defer reader.Close()
-
-	blocks := testutil.CollectBlocks(t, reader.Read(ctx))
-
-	require.Len(t, blocks, 3)
-	assert.Equal(t, "1", blocks[0].Properties["line"])
-	assert.Equal(t, "2", blocks[1].Properties["line"])
-	assert.Equal(t, "3", blocks[2].Properties["line"])
-}
-
-func TestBlockIDs(t *testing.T) {
-	ctx := t.Context()
-	reader := transtable.NewReader()
-	input := "a\t1\nb\t2"
-	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
-	require.NoError(t, err)
-	defer reader.Close()
-
-	blocks := testutil.CollectBlocks(t, reader.Read(ctx))
-
-	require.Len(t, blocks, 2)
-	// Block ID is the key
-	assert.Equal(t, "a", blocks[0].ID)
-	assert.Equal(t, "b", blocks[1].ID)
-}
-
-func TestMultipleComments(t *testing.T) {
-	ctx := t.Context()
-	reader := transtable.NewReader()
-	input := "# Comment 1\n# Comment 2\ngreeting\tHello"
-	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
-	require.NoError(t, err)
-	defer reader.Close()
-
-	parts := testutil.CollectParts(t, reader.Read(ctx))
-	blocks := testutil.FilterBlocks(parts)
-
-	require.Len(t, blocks, 1)
-
-	commentCount := 0
-	for _, p := range parts {
-		if p.Type == model.PartData {
-			data := p.Resource.(*model.Data)
-			if _, has := data.Properties["comment"]; has {
-				commentCount++
-			}
-		}
-	}
-	assert.Equal(t, 2, commentCount)
 }
 
 func TestWriterContextCancellation(t *testing.T) {
@@ -401,4 +374,45 @@ func TestWriterContextCancellation(t *testing.T) {
 
 	err = writer.Write(ctx, ch)
 	assert.ErrorIs(t, err, context.Canceled)
+}
+
+// Regression: read the upstream Okapi `test01.xml.txt` fixture from
+// okapi-testdata and verify the six text units come through with the
+// expected sources and no targets. Skips cleanly when the corpus
+// hasn't been fetched.
+func TestReadOkapiTest01Fixture(t *testing.T) {
+	ctx := t.Context()
+	root, err := spec.FindOkapiTestdataRoot()
+	if err != nil {
+		t.Skipf("okapi-testdata not available: %v", err)
+		return
+	}
+	path := filepath.Join(root, "okapi", "filters", "transtable", "src", "test", "resources", "test01.xml.txt")
+	data, err := os.ReadFile(path)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			t.Skipf("upstream fixture not present: %v", err)
+			return
+		}
+		t.Fatalf("read fixture: %v", err)
+	}
+
+	reader := transtable.NewReader()
+	require.NoError(t, reader.Open(ctx, testutil.RawDocFromReader(bytes.NewReader(data), path, model.LocaleEnglish)))
+	defer reader.Close()
+
+	blocks := testutil.CollectBlocks(t, reader.Read(ctx))
+
+	require.Len(t, blocks, 6)
+	wantSources := []string{
+		"Text of the first record",
+		"Description of the first record",
+		"  Path:",
+		"Path of the file to process",
+		"Text of the third record",
+		"Description of the first record",
+	}
+	for i, want := range wantSources {
+		assert.Equal(t, want, blocks[i].SourceText(), "block %d source", i)
+	}
 }

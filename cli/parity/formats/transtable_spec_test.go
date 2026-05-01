@@ -13,10 +13,7 @@ import (
 
 // TestParityTranstableSpec drives the TransTable spec.yaml through
 // bridge AND native readers, validating both against the spec
-// contract and against each other. The native reader implements a
-// generic key/value table rather than the upstream TransTable v1
-// format the spec describes, so every example is tagged
-// `expected_fail` per the divergence documented in #453.
+// contract and against each other.
 func TestParityTranstableSpec(t *testing.T) {
 	specPath := filepath.Join("..", "..", "..", "core", "formats", "transtable", "spec.yaml")
 	s, err := parityspec.LoadSpec(specPath)
