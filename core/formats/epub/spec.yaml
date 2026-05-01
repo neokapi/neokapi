@@ -12,6 +12,15 @@
 #   - input_file values resolve relative to this directory (testdata/…)
 #     unless prefixed with `okapi:` which resolves under the locally
 #     fetched okapi-testdata/ tree (skips cleanly when not present).
+#   - Per the binary-format fixture rule (#515 / #461), the upstream
+#     `okapi:okapi/filters/epub/src/test/resources/test1.epub` is
+#     referenced by the `package_doc_walk::upstream_test1` example.
+#     The other examples use `testdata/minimal.epub` — a hand-authored
+#     1-spine EPUB that isolates per-feature behavior the multi-feature
+#     upstream file cannot. The synth-fixture footgun (missing OPF
+#     attributes that real EPUB authoring tools always emit) does not
+#     apply here because the okapi-bridge ships no okf_epub filter at
+#     all, so parity is bridge-blocked regardless of fixture choice.
 #   - Native assertions reflect the direct-XHTML fallback path the
 #     native reader takes when no subfilter resolver is wired (the
 #     spec-level NativeRunner constructs a bare reader). The block
