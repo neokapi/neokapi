@@ -1,0 +1,567 @@
+# XLIFF 1.2 format specification.
+#
+# Single-variant filter — XLIFF 1.2 (XML Localisation Interchange File
+# Format 1.2). The XLIFF 2.0 family is a separate format with its own
+# spec (`core/formats/xliff2/`). Inputs are inline XML strings via
+# `input_xml` for snippets and a packaged file under testdata/ for the
+# default-config baseline.
+#
+# Authoring notes:
+#   - Config keys mirror the okf_xliff bridge composite schema's
+#     `x-flattenPath` leaf names (`fallbackToID`, `includeIts`,
+#     `ignoreInputSegmentation`, …) so drift detection against the
+#     bridge composite schema lines up.
+#   - `okapi_param` is the Java field name from XLIFFFilter#Parameters
+#     for traceability — usually identical to the leaf name for this
+#     filter, but recorded explicitly.
+#   - Native ApplyMap recognises the same leaf names; assertions below
+#     use them as-is.
+#   - The spec runner's BlockTexts helper SKIPS untranslatable blocks
+#     when computing block_count / first_block_text / block_texts.
+#     Examples that mark units with `translate="no"` therefore assert
+#     only the translatable subset (e.g. one block kept, one excluded).
+
+format: okf_xliff
+mime_type: application/x-xliff+xml
+description: |
+  XLIFF 1.2 — OASIS XML Localisation Interchange File Format. Bilingual
+  exchange documents organised as <file> containers grouping bodies of
+  <trans-unit> elements with <source> and optional <target> content.
+  Inline content is represented through paired (bpt/ept, g) or standalone
+  (x, ph) code elements; segmentation is expressed via <seg-source> and
+  <mrk mtype="seg"> markers.
+
+config:
+  - key: preserveSpaceByDefault
+    type: boolean
+    default: false
+    description: |
+      Treat all content as `xml:space="preserve"` regardless of explicit
+      annotation. Off by default — the reader honours per-element
+      `xml:space` only.
+    okapi_param: preserveSpaceByDefault
+
+  - key: includeExtensions
+    type: boolean
+    default: true
+    description: |
+      Carry XLIFF extension elements from non-XLIFF namespaces through
+      to the parsed model. Default on — most XLIFF in the wild includes
+      tool-specific extensions (SDL, MQ, …) the consumer wants
+      preserved on round-trip.
+    okapi_param: includeExtensions
+
+  - key: includeIts
+    type: boolean
+    default: true
+    description: |
+      Recognise ITS (Internationalization Tag Set) markup attached to
+      trans-units, sources, and targets. Default on so localisation
+      metadata (locNote, mtConfidence, lqi, provenance) survives the
+      round-trip.
+    okapi_param: includeIts
+
+  - key: ignoreInputSegmentation
+    type: boolean
+    default: false
+    description: |
+      Discard input `<seg-source>` segmentation and treat the full
+      `<source>` as a single segment. Off by default; producers of
+      pre-segmented bilingual XLIFF rely on the segmentation surviving.
+    okapi_param: ignoreInputSegmentation
+
+  - key: fallbackToID
+    type: boolean
+    default: false
+    description: |
+      When a `<trans-unit>` has no `resname`, use its `id` as the block
+      name. Off by default — neokapi already initialises the block name
+      to the id and only overrides with resname when present, so this
+      flag is reserved for upstream parity rather than additional
+      observable behavior.
+    okapi_param: fallbackToID
+
+  - key: forceUniqueIds
+    type: boolean
+    default: false
+    description: |
+      Rewrite `<trans-unit>` ids to enforce uniqueness across the file.
+      Off by default — preserves the original ids from the source XLIFF.
+    okapi_param: forceUniqueIds
+
+  - key: useTranslationTargetState
+    type: boolean
+    default: true
+    description: |
+      Update the `state` attribute on `<target>` elements when writing
+      translated XLIFF. Default on. Read-side, the reader still surfaces
+      the original `state` value via block properties.
+    okapi_param: useTranslationTargetState
+
+  - key: targetStateValue
+    type: string
+    default: needs-translation
+    description: |
+      State value the writer assigns to `<target>` elements when
+      `useTranslationTargetState` is true. Read-only spec — the reader
+      doesn't consult this.
+    okapi_param: targetStateValue
+
+  - key: addTargetLanguage
+    type: boolean
+    default: true
+    description: |
+      Add the `target-language` attribute to `<file>` elements that
+      lack one when writing. Read-only spec — the reader doesn't act
+      on this; recorded for parity with the bridge schema.
+    okapi_param: addTargetLanguage
+
+  - key: overrideTargetLanguage
+    type: boolean
+    default: false
+    description: |
+      Replace any existing `target-language` attribute on `<file>`
+      elements when writing. Recorded for bridge parity; the reader
+      doesn't act on this.
+    okapi_param: overrideTargetLanguage
+
+  - key: allowEmptyTargets
+    type: boolean
+    default: false
+    description: |
+      Allow empty `<target>` elements through write. Recorded for
+      bridge parity; the reader is unaffected (an empty target
+      simply yields no target segments on the block).
+    okapi_param: allowEmptyTargets
+
+  - key: alwaysAddTargets
+    type: boolean
+    default: false
+    description: |
+      Generate `<target>` elements for monolingual XLIFF on write.
+      Recorded for bridge parity; reader-side this is a no-op.
+    okapi_param: alwaysAddTargets
+
+  - key: editAltTrans
+    type: boolean
+    default: false
+    description: |
+      Allow modification of existing `<alt-trans>` elements on write.
+      Recorded for bridge parity; reader-side this is a no-op.
+    okapi_param: editAltTrans
+
+  - key: addAltTrans
+    type: boolean
+    default: false
+    description: |
+      Allow new `<alt-trans>` elements to be added on write. Recorded
+      for bridge parity; reader-side this is a no-op.
+    okapi_param: addAltTrans
+
+features:
+  # ── Core extraction ───────────────────────────────────────────────
+  - id: simple_trans_unit_extraction
+    name: trans-unit extraction
+    description: |
+      Each `<trans-unit>` inside `<file>/<body>` produces one Block
+      whose source text is the inner content of `<source>`. The
+      block's id and name default to the trans-unit's `id` attribute
+      until a `resname` overrides the name.
+    examples:
+      - name: single_unit
+        input_xml: |
+          <?xml version="1.0"?>
+          <xliff version="1.2" xmlns="urn:oasis:names:tc:xliff:document:1.2">
+            <file source-language="en" target-language="fr" datatype="plaintext" original="hello.txt">
+              <body>
+                <trans-unit id="1"><source>Hello World</source></trans-unit>
+              </body>
+            </file>
+          </xliff>
+        block_count: 1
+        first_block_text: "Hello World"
+      - name: simple_file
+        input_file: testdata/simple.xlf
+        block_count: 3
+        block_texts:
+          - "Hello World"
+          - "Goodbye"
+          - "Untranslated"
+    okapi_refs:
+      - XLIFFFilterTest#testSimpleTransUnit
+      - XLIFFFilterTest#testStartDocument
+    native_refs:
+      - xliff.TestReadXLIFF
+      - xliff.TestExtract_SimpleXLIFF
+
+  - id: bilingual_source_target
+    name: bilingual source + target extraction
+    description: |
+      A `<trans-unit>` with both `<source>` and `<target>` produces one
+      Block whose source text comes from `<source>` and whose target
+      segments (under the file's target-language) come from `<target>`.
+      Trans-units with no `<target>` still produce a translatable
+      Block — they're awaiting translation.
+    examples:
+      - name: with_target
+        input_xml: |
+          <?xml version="1.0"?>
+          <xliff version="1.2" xmlns="urn:oasis:names:tc:xliff:document:1.2">
+            <file source-language="en" target-language="fr" datatype="plaintext" original="hello.txt">
+              <body>
+                <trans-unit id="1"><source>Hello</source><target>Bonjour</target></trans-unit>
+              </body>
+            </file>
+          </xliff>
+        block_count: 1
+        first_block_text: "Hello"
+    okapi_refs:
+      - XLIFFFilterTest#testBilingualTransUnit
+      - XLIFFFilterTest#testNoTarget
+    native_refs:
+      - xliff.TestReadXLIFFTargets
+      - xliff.TestExtract_WithTarget
+
+  - id: resname_as_block_name
+    name: resname overrides block name
+    description: |
+      When a `<trans-unit>` carries a `resname` attribute, the Block's
+      name is set to that value (and `resname` is also recorded under
+      the block's properties). Without `resname`, the block name
+      defaults to the trans-unit `id`.
+    examples:
+      - name: resname_used
+        input_xml: |
+          <?xml version="1.0"?>
+          <xliff version="1.2" xmlns="urn:oasis:names:tc:xliff:document:1.2">
+            <file source-language="en" target-language="fr" datatype="plaintext" original="t.txt">
+              <body>
+                <trans-unit id="1" resname="greeting"><source>Hello</source></trans-unit>
+              </body>
+            </file>
+          </xliff>
+        block_count: 1
+        first_block_text: "Hello"
+    okapi_refs:
+      - XLIFFFilterTest#testSimpleTransUnit
+    native_refs:
+      - xliff.TestReadXLIFFBlockIDs
+
+  # ── Translatability flags ─────────────────────────────────────────
+  - id: translate_no_on_trans_unit
+    name: translate=no on trans-unit
+    description: |
+      A `<trans-unit translate="no">` produces a Block with
+      `Translatable=false`. The spec runner's BlockTexts helper
+      filters out non-translatable blocks, so the translatable count
+      drops by one relative to the all-translate-yes baseline.
+    examples:
+      - name: translate_no_unit
+        input_xml: |
+          <?xml version="1.0"?>
+          <xliff version="1.2" xmlns="urn:oasis:names:tc:xliff:document:1.2">
+            <file source-language="en" target-language="fr" datatype="plaintext" original="t.txt">
+              <body>
+                <trans-unit id="1"><source>Translatable</source></trans-unit>
+                <trans-unit id="2" translate="no"><source>Skip me</source></trans-unit>
+              </body>
+            </file>
+          </xliff>
+        block_count: 1
+        first_block_text: "Translatable"
+        no_block_with_text: ["Skip me"]
+    okapi_refs:
+      - XLIFFFilterTest#testTranslateOnTU
+    native_refs:
+      - xliff.TestExtract_TranslateNo
+
+  - id: translate_no_on_group
+    name: translate=no propagates from group
+    description: |
+      A `<group translate="no">` marks every contained `<trans-unit>`
+      as untranslatable, regardless of the trans-unit's own `translate`
+      attribute. Trans-units outside the group remain translatable.
+    examples:
+      - name: group_translate_no
+        input_xml: |
+          <?xml version="1.0"?>
+          <xliff version="1.2" xmlns="urn:oasis:names:tc:xliff:document:1.2">
+            <file source-language="en" target-language="fr" datatype="plaintext" original="t.txt">
+              <body>
+                <group id="g1" translate="no">
+                  <trans-unit id="1"><source>Skip in group</source></trans-unit>
+                </group>
+                <trans-unit id="2"><source>Outside group</source></trans-unit>
+              </body>
+            </file>
+          </xliff>
+        block_count: 1
+        first_block_text: "Outside group"
+        no_block_with_text: ["Skip in group"]
+    okapi_refs:
+      - XLIFFFilterTest#testTranslateOnGroup
+    native_refs:
+      - xliff.TestExtract_TranslateOnGroup
+
+  # ── Structure (groups, multi-file) ────────────────────────────────
+  - id: group_structure
+    name: group structure preserved
+    description: |
+      `<group>` elements are emitted as GroupStart / GroupEnd parts in
+      the stream, surrounding their child Blocks. Blocks inside a group
+      are still extracted normally; the group is informational
+      structure for consumers that care about hierarchy.
+    examples:
+      - name: groups_visible
+        input_xml: |
+          <?xml version="1.0"?>
+          <xliff version="1.2" xmlns="urn:oasis:names:tc:xliff:document:1.2">
+            <file source-language="en" target-language="fr" datatype="plaintext" original="t.txt">
+              <body>
+                <group id="g1">
+                  <trans-unit id="1"><source>One</source></trans-unit>
+                  <trans-unit id="2"><source>Two</source></trans-unit>
+                </group>
+              </body>
+            </file>
+          </xliff>
+        block_count: 2
+        block_texts:
+          - "One"
+          - "Two"
+    okapi_refs:
+      - XLIFFFilterTest#testGroupIds
+    native_refs:
+      - xliff.TestExtract_GroupStructure
+
+  - id: multi_file_extraction
+    name: multiple <file> elements per document
+    description: |
+      An XLIFF document may contain several `<file>` elements, each
+      with its own original/source-language/target-language. Each
+      `<file>` becomes its own Layer in the stream; trans-units across
+      files all surface as Blocks in document order.
+    examples:
+      - name: two_files
+        input_xml: |
+          <?xml version="1.0"?>
+          <xliff version="1.2" xmlns="urn:oasis:names:tc:xliff:document:1.2">
+            <file source-language="en" target-language="fr" datatype="plaintext" original="a.txt">
+              <body><trans-unit id="1"><source>From A</source></trans-unit></body>
+            </file>
+            <file source-language="en" target-language="de" datatype="plaintext" original="b.txt">
+              <body><trans-unit id="1"><source>From B</source></trans-unit></body>
+            </file>
+          </xliff>
+        block_count: 2
+        block_texts:
+          - "From A"
+          - "From B"
+    okapi_refs:
+      - XLIFFFilterTest#testStartDocument
+      - XLIFFFilterTest#testStartSubDocumentFromList
+    native_refs:
+      - xliff.TestExtract_MultipleFiles
+
+  # ── Inline codes ──────────────────────────────────────────────────
+  - id: inline_codes_g_x
+    name: paired (g) and standalone (x) inline codes
+    description: |
+      Paired inline codes — `<g id="…">…</g>` — surround translatable
+      text and become PcOpen / PcClose runs around the inner text.
+      Standalone codes — `<x id="…"/>` — become Ph (placeholder) runs.
+      Text outside the codes survives intact; the joined block text
+      contains the runs' visible text only.
+    examples:
+      - name: g_and_x_codes
+        input_xml: |
+          <?xml version="1.0"?>
+          <xliff version="1.2" xmlns="urn:oasis:names:tc:xliff:document:1.2">
+            <file source-language="en" target-language="fr" datatype="plaintext" original="t.txt">
+              <body>
+                <trans-unit id="1"><source>Click <g id="1">here</g> to <x id="2"/> continue.</source></trans-unit>
+              </body>
+            </file>
+          </xliff>
+        block_count: 1
+        first_block_text: "Click here to  continue."
+    okapi_refs:
+      - XLIFFFilterTest#testBilingualInlines
+      - XLIFFFilterCtypeTest#testKeepCtypeG
+      - XLIFFFilterCtypeTest#testKeepCtypeX
+    native_refs:
+      - xliff.TestExtract_InlineCodes
+      - xliff.TestExtract_InlineX
+
+  - id: inline_codes_bpt_ept_ph
+    name: bpt/ept/ph inline codes with native data
+    description: |
+      Legacy paired codes — `<bpt id="…">…</bpt>` opening, matching
+      `<ept id="…">…</ept>` closing — wrap text and carry the native
+      markup as inner data on the PcOpen/PcClose runs. Standalone
+      `<ph id="…">…</ph>` carries placeholder native data on a Ph run.
+      The visible text between codes is preserved; native data on
+      the codes is not joined into the block text.
+    examples:
+      - name: bpt_ept_ph
+        input_xml: |
+          <?xml version="1.0"?>
+          <xliff version="1.2" xmlns="urn:oasis:names:tc:xliff:document:1.2">
+            <file source-language="en" target-language="fr" datatype="plaintext" original="t.txt">
+              <body>
+                <trans-unit id="1"><source>Click <bpt id="1">&lt;a&gt;</bpt>here<ept id="1">&lt;/a&gt;</ept> <ph id="2">{0}</ph></source></trans-unit>
+              </body>
+            </file>
+          </xliff>
+        block_count: 1
+        first_block_text: "Click here "
+    okapi_refs:
+      - XLIFFFilterTest#testBPTTypeTransUnit
+      - XLIFFFilterTest#testBilingualInlines
+      - XLIFFFilterCtypeTest#testKeepCtypeBpt
+    native_refs:
+      - xliff.TestExtract_InlineBpt_Ept
+
+  # ── Segmentation ──────────────────────────────────────────────────
+  - id: seg_source_segmentation
+    name: seg-source / mrk segmentation
+    description: |
+      A `<trans-unit>` with `<seg-source>` containing
+      `<mrk mtype="seg" mid="…">…</mrk>` segments yields a Block whose
+      Source carries one Segment per mrk. The corresponding
+      `<target>` may carry the same mrk segmentation aligning to the
+      source segments. The spec runner concatenates segment text when
+      computing block text, so a 2-segment unit shows as one
+      concatenated block_text entry.
+    examples:
+      - name: two_segments
+        input_xml: |
+          <?xml version="1.0"?>
+          <xliff version="1.2" xmlns="urn:oasis:names:tc:xliff:document:1.2">
+            <file source-language="en" target-language="fr" datatype="plaintext" original="t.txt">
+              <body>
+                <trans-unit id="1">
+                  <source>First sentence. Second sentence.</source>
+                  <seg-source><mrk mid="0" mtype="seg">First sentence.</mrk> <mrk mid="1" mtype="seg">Second sentence.</mrk></seg-source>
+                  <target><mrk mid="0" mtype="seg">Premiere.</mrk> <mrk mid="1" mtype="seg">Deuxieme.</mrk></target>
+                </trans-unit>
+              </body>
+            </file>
+          </xliff>
+        block_count: 1
+        first_block_text: "First sentence.Second sentence."
+    okapi_refs:
+      - XLIFFFilterTest#testSegmentedSource1
+      - XLIFFFilterTest#testSegmentedTarget
+      - XLIFFFilterTest#testSegmentedContent
+    native_refs:
+      - xliff.TestReadXLIFFTargets
+
+  - id: ignore_input_segmentation
+    name: ignoreInputSegmentation config wiring
+    description: |
+      With `ignoreInputSegmentation: true`, the reader is expected to
+      discard `<seg-source>` segmentation and surface the trans-unit's
+      `<source>` as a single segment. The current assertion vocabulary
+      (block_count, block_texts) only sees concatenated block text, so
+      the divergence between with-flag and without-flag isn't visible
+      here — both modes yield one block with the joined text. This
+      example pins the config-wiring path (the flag is accepted by
+      ApplyMap and the reader still produces the expected block-level
+      output); a follow-up that introduces segment_count assertions
+      will tighten this into a true behavioural check.
+    config:
+      ignoreInputSegmentation: true
+    examples:
+      - name: flag_accepted
+        input_xml: |
+          <?xml version="1.0"?>
+          <xliff version="1.2" xmlns="urn:oasis:names:tc:xliff:document:1.2">
+            <file source-language="en" target-language="fr" datatype="plaintext" original="t.txt">
+              <body>
+                <trans-unit id="1">
+                  <source>Sentence one. Sentence two.</source>
+                  <seg-source><mrk mid="0" mtype="seg">Sentence one.</mrk> <mrk mid="1" mtype="seg">Sentence two.</mrk></seg-source>
+                </trans-unit>
+              </body>
+            </file>
+          </xliff>
+        expected_fail: |
+          bridge default config does not expose ignoreInputSegmentation
+          (Okapi XLIFFFilter rejects the property as Unknown), so the
+          bridge falls back to using <source> verbatim and yields
+          "Sentence one. Sentence two." (with the inter-segment space).
+          Native discards the segmentation and concatenates the seg-source
+          mrk contents directly to "Sentence one.Sentence two.". Both
+          legitimate; spec asserts native behavior.
+        block_count: 1
+        first_block_text: "Sentence one.Sentence two."
+    okapi_refs:
+      - XLIFFFilterTest#testIgnoredSegmentedTarget
+
+  # ── Annotations (notes, alt-trans) ────────────────────────────────
+  - id: notes_extraction
+    name: <note> stored on block
+    description: |
+      `<note>` elements inside a `<trans-unit>` are surfaced as
+      annotations on the resulting Block (a NoteAnnotation under the
+      "note" key, with `from` / `priority` / `annotates` carried
+      through). The note text doesn't enter the source text — the
+      block text remains the source content alone.
+    examples:
+      - name: developer_note
+        input_xml: |
+          <?xml version="1.0"?>
+          <xliff version="1.2" xmlns="urn:oasis:names:tc:xliff:document:1.2">
+            <file source-language="en" target-language="fr" datatype="plaintext" original="t.txt">
+              <body>
+                <trans-unit id="1">
+                  <source>Greeting</source>
+                  <note from="developer" priority="1">Used at app start</note>
+                </trans-unit>
+              </body>
+            </file>
+          </xliff>
+        block_count: 1
+        first_block_text: "Greeting"
+        no_block_with_text: ["Used at app start"]
+    okapi_refs:
+      - XLIFFFilterTest#testNotes
+      - XLIFFFilterTest#testAddXLIFFNote
+    native_refs:
+      - xliff.TestExtract_NoteAnnotation
+
+  - id: alt_trans_extraction
+    name: <alt-trans> stored as annotation
+    description: |
+      `<alt-trans>` elements (TM matches, MT suggestions, …) inside a
+      trans-unit are surfaced as AltTranslation annotations on the
+      Block. They carry `match-quality` and `origin`, plus the
+      alternative source/target text. The trans-unit's primary source
+      remains the block source — the alt-trans content does not enter
+      the block text.
+    examples:
+      - name: tm_match
+        input_xml: |
+          <?xml version="1.0"?>
+          <xliff version="1.2" xmlns="urn:oasis:names:tc:xliff:document:1.2">
+            <file source-language="en" target-language="fr" datatype="plaintext" original="t.txt">
+              <body>
+                <trans-unit id="1">
+                  <source>Hello</source>
+                  <alt-trans match-quality="100" origin="tm">
+                    <source>Hello</source>
+                    <target>Salut</target>
+                  </alt-trans>
+                </trans-unit>
+              </body>
+            </file>
+          </xliff>
+        block_count: 1
+        first_block_text: "Hello"
+        no_block_with_text: ["Salut"]
+    okapi_refs:
+      - XLIFFFilterTest#testAlTrans
+      - XLIFFFilterTest#testAltTransWithEmptyTarget
+    native_refs:
+      - xliff.TestExtract_AltTranslation
