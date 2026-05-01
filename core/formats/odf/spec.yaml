@@ -1,0 +1,344 @@
+# ODF (OpenDocument Format) format specification.
+#
+# One spec for the ODF filter family — text documents (.odt),
+# spreadsheets (.ods), presentations (.odp), and graphics (.odg). All
+# four share a common ZIP container with a top-level mimetype entry
+# and a content.xml payload (plus optional styles.xml, meta.xml, etc.);
+# the reader auto-detects the variant from the mimetype entry. Features
+# and config keys carry an applies_to list when they only apply to a
+# subset of variants; the rest applies to all.
+#
+# Bridge mapping:
+#   - Native `odf` reader handles full ODF ZIP archives.
+#   - Upstream Okapi splits ODF handling into TWO filters:
+#       okf_openoffice  — wraps the ZIP, dispatches to inner content
+#                         (the right counterpart for the native ZIP-aware reader)
+#       okf_odf         — content.xml-only inner filter (text/x-odf)
+#   - We bind to `okf_openoffice` here so the parity runner exchanges
+#     full .odt/.ods/.odp/.odg packages with the bridge, matching what
+#     the native reader consumes.
+#
+# Authoring notes:
+#   - input_file values resolve relative to this directory unless
+#     prefixed with `okapi:` which resolves under the locally fetched
+#     okapi-testdata/ tree (skips cleanly when not present).
+#   - okapi_refs are pinned to the upstream class+method names from
+#     net.sf.okapi.filters.openoffice. Drift detection asserts each
+#     ref still exists in the bridge's pinned Okapi version.
+#   - This is a SEED spec — features illustrate the variant model and
+#     assertion vocabulary against real upstream fixtures rather than
+#     enumerating every ODF construct. Expand iteratively with parity
+#     runs.
+#   - Per #515 binary formats prefer upstream `okapi:` fixtures over
+#     synthetic ZIPs: the upstream test corpus exercises real-world
+#     authoring shapes that hand-built minimal ZIPs systematically miss
+#     (notes elements, automatic page numbers, ITS metadata, footnotes,
+#     etc.). All examples here use upstream fixtures from
+#     okapi/filters/openoffice/src/test/resources/.
+
+format: okf_openoffice
+kind: top_level
+mime_type: application/x-openoffice
+description: |
+  OASIS Open Document Format — text documents (.odt), spreadsheets
+  (.ods), presentations (.odp), and graphics (.odg). One filter
+  handles all four because they share a common ZIP container with
+  a top-level `mimetype` entry, a `content.xml` payload, and an
+  optional `styles.xml` carrying master-page content. The reader
+  auto-detects the variant from the mimetype entry; the variant
+  surfaces on the root Layer's `docType` property for downstream
+  routing.
+
+variants:
+  - id: odt
+    name: OpenDocument Text
+    extension: .odt
+    mime_type: application/vnd.oasis.opendocument.text
+    description: Word-processor documents — paragraphs, headings, tables, footnotes, headers/footers.
+  - id: ods
+    name: OpenDocument Spreadsheet
+    extension: .ods
+    mime_type: application/vnd.oasis.opendocument.spreadsheet
+    description: Spreadsheets — cell text content across worksheets.
+  - id: odp
+    name: OpenDocument Presentation
+    extension: .odp
+    mime_type: application/vnd.oasis.opendocument.presentation
+    description: Slide decks — slide text, speaker notes, slide masters.
+  - id: odg
+    name: OpenDocument Graphics
+    extension: .odg
+    mime_type: application/vnd.oasis.opendocument.graphics
+    description: Drawings — text frames inside shapes and pages.
+
+config:
+  # ── Common (all variants) ─────────────────────────────────────────
+  - key: translateNotes
+    type: boolean
+    default: true
+    description: |
+      Extract notes/comments. In ODT this covers footnotes/endnotes
+      and review comments; in ODS it covers cell comments; in ODP it
+      covers speaker notes attached to each slide.
+    okapi_param: extractNotes
+
+  - key: translateHiddenContent
+    type: boolean
+    default: false
+    description: |
+      Extract content that ODF marks as hidden — hidden paragraphs in
+      ODT, hidden sheets in ODS, hidden slides in ODP. Default off
+      mirrors the typical "deliver visible content for translation"
+      use case; flip to true to recover hidden strings (e.g. for an
+      audit pass).
+
+features:
+  # ── ODT body extraction ───────────────────────────────────────────
+  - id: odt_body_paragraph_extraction
+    name: Body paragraph extraction (ODT)
+    description: |
+      Extract text from `<text:p>` body paragraphs in content.xml,
+      preserving inline run structure (`<text:span>` formatting,
+      hyperlinks, line-breaks, tabs). Paragraphs are emitted as
+      translatable Blocks in document order. Empty and
+      whitespace-only paragraphs produce no Block.
+    applies_to: [odt]
+    spec_refs:
+      - "OpenDocument-v1.3 Part 3 §6.1.1 Paragraph (text:p) — translatable text container (https://docs.oasis-open.org/office/OpenDocument/v1.3/)"
+    examples:
+      - name: testdocument01_baseline
+        origin: "okapi-fixture: okapi:okapi/filters/openoffice/src/test/resources/TestDocument01.odt — OmegaT classic ODT regression sample"
+        variant: odt
+        input_file: okapi:okapi/filters/openoffice/src/test/resources/TestDocument01.odt
+        block_count_min: 30
+        has_block_with_text:
+          - "Heading 1"
+          - "Text in English"
+          - "Paragraph with bold, italics, and both."
+      - name: testdocument06_simple
+        origin: "okapi-fixture: okapi:okapi/filters/openoffice/src/test/resources/TestDocument06.odt — minimal heading + bullet list"
+        variant: odt
+        input_file: okapi:okapi/filters/openoffice/src/test/resources/TestDocument06.odt
+        # Both sides surface the heading + 3 list items. Bridge also
+        # surfaces 2 extra anchor-text blocks ("Text before>" and
+        # "<Text after") that the native reader treats as skeleton
+        # rather than translatable content; assert presence-only so
+        # the example exercises the shared contract without colliding
+        # on the divergence (tracked separately under odf coverage
+        # follow-ups).
+        block_count_min: 4
+        has_block_with_text:
+          - "Header Text"
+          - "Item 1"
+          - "Item 2"
+          - "Item 3"
+    okapi_refs:
+      - OpenOfficeFilterTest#testFirstTextUnit
+      - OpenOfficeFilterTest#testNumberOfTextUnits
+    native_refs:
+      - odf.TestReadSimpleODT
+      - odf.TestReadODTBlockProperties
+
+  - id: odt_inline_formatting
+    name: Inline formatting and hyperlinks (ODT)
+    description: |
+      Bold, italic, hyperlinks, line-breaks, and tab characters are
+      preserved as inline runs (Spans + literal characters) inside
+      the surrounding Block, not split into separate Blocks. The
+      block's plain text concatenates the inline content verbatim.
+    applies_to: [odt]
+    spec_refs:
+      - "OpenDocument-v1.3 Part 3 §6.1.7 Span (text:span) — inline formatted text"
+      - "OpenDocument-v1.3 Part 3 §6.1.8 Hyperlink (text:a) — anchored link wrapping text"
+    examples:
+      - name: testdocument01_inline
+        origin: "okapi-fixture: TestDocument01.odt has paragraphs with bold/italic/underline and an extended-character paragraph"
+        variant: odt
+        input_file: okapi:okapi/filters/openoffice/src/test/resources/TestDocument01.odt
+        has_block_with_text:
+          - "Paragraph with bold, italics, and both."
+          - "Extended chars: ©=copyright, è=egrave, Ω=Omega."
+    okapi_refs:
+      - OpenOfficeFilterTest#testFirstTextUnit
+    native_refs:
+      - odf.TestReadInlineFormatting
+      - odf.TestReadHyperlink
+
+  - id: odt_headings_and_lists
+    name: Headings and bullet/numbered list items (ODT)
+    description: |
+      `<text:h>` headings and bullet/numbered list items
+      (`<text:list-item>` wrapping `<text:p>`) extract as separate
+      Blocks. Heading outline level is preserved on the Block's
+      `element` property (`h` vs `p`) so downstream tools can route
+      structural blocks differently.
+    applies_to: [odt]
+    spec_refs:
+      - "OpenDocument-v1.3 Part 3 §6.1.2 Heading (text:h)"
+      - "OpenDocument-v1.3 Part 3 §6.4 Lists (text:list / text:list-item)"
+    examples:
+      - name: testdocument06_heading_and_list
+        origin: "okapi-fixture: TestDocument06.odt — `Header Text` heading + 3 bullet list items"
+        variant: odt
+        input_file: okapi:okapi/filters/openoffice/src/test/resources/TestDocument06.odt
+        # presence-only: bridge surfaces extra anchor-text blocks the
+        # native reader skeletonises (see testdocument06_simple).
+        has_block_with_text:
+          - "Header Text"
+          - "Item 1"
+          - "Item 2"
+          - "Item 3"
+    okapi_refs:
+      - OpenOfficeFilterTest#testNumberOfTextUnits
+    native_refs:
+      - odf.TestReadODTHeadings
+
+  # ── ODS spreadsheet ───────────────────────────────────────────────
+  - id: ods_cell_value_extraction
+    name: Cell text extraction (ODS)
+    description: |
+      Extract text content from worksheet cells across all sheets,
+      in row-major order per sheet. Cells with text payloads
+      (`<table:table-cell>` containing `<text:p>`) emit one Block
+      per non-empty paragraph. Numeric cell values are extracted as
+      their textual representation.
+    applies_to: [ods]
+    spec_refs:
+      - "OpenDocument-v1.3 Part 3 §9.1.4 Table cell (table:table-cell) — text:p children"
+    examples:
+      - name: testspreadsheet01
+        origin: "okapi-fixture: okapi:okapi/filters/openoffice/src/test/resources/TestSpreadsheet01.ods — multi-sheet sample with text + number cells + cell notes"
+        variant: ods
+        input_file: okapi:okapi/filters/openoffice/src/test/resources/TestSpreadsheet01.ods
+        block_count_min: 10
+        has_block_with_text:
+          - "Text in cell A1"
+          - "Text in cell B1"
+          - "Text of the cell-A1 in sheet 2"
+    okapi_refs:
+      - OpenOfficeFilterTest#testFormulaResultExtraction
+    native_refs:
+      - odf.TestReadODSSpreadsheet
+
+  - id: ods_formula_results
+    name: Formula result text extraction (ODS)
+    description: |
+      Cells whose displayed value comes from a formula evaluation
+      still emit the displayed text as a Block. The formula expression
+      itself is non-translatable structure; only the evaluated text
+      result reaches the translation surface.
+    applies_to: [ods]
+    spec_refs:
+      - "OpenDocument-v1.3 Part 3 §9.1.4 Table cell — office:value-type vs displayed text:p"
+    examples:
+      - name: formula_results_workbook
+        origin: "okapi-fixture: okapi:okapi/filters/openoffice/src/test/resources/TestDocumentWithFormulaResults.ods — cells with computed displayed text"
+        variant: ods
+        input_file: okapi:okapi/filters/openoffice/src/test/resources/TestDocumentWithFormulaResults.ods
+        block_count_min: 5
+        has_block_with_text:
+          - "This is the first sentence (short one)."
+    okapi_refs:
+      - OpenOfficeFilterTest#testFormulaResultExtraction
+    native_refs:
+      - odf.TestReadODSSpreadsheet
+
+  # ── ODP presentation ──────────────────────────────────────────────
+  - id: odp_slide_text_extraction
+    name: Slide text and speaker notes (ODP)
+    description: |
+      Each slide's text frames extract as Blocks in slide order; with
+      the default `translateNotes=true`, speaker notes attached to
+      each slide also extract as additional Blocks. The root Layer's
+      `docType` property reads `odp` so downstream tools can route on
+      variant.
+    applies_to: [odp]
+    spec_refs:
+      - "OpenDocument-v1.3 Part 3 §10.4 Drawing pages and presentation pages (draw:page / presentation:notes)"
+    examples:
+      - name: testpresentation01
+        origin: "okapi-fixture: okapi:okapi/filters/openoffice/src/test/resources/TestPresentation01.odp — two slides + speaker notes on slide 1"
+        variant: odp
+        input_file: okapi:okapi/filters/openoffice/src/test/resources/TestPresentation01.odp
+        block_count_min: 5
+        has_block_with_text:
+          - "Text of title slide 1"
+          - "Title of slide 2"
+          - "Notes going with the presentation."
+    okapi_refs:
+      - OpenOfficeFilterTest#testFirstTextUnit
+    native_refs:
+      - odf.TestReadODPPresentation
+
+  # ── ODG graphics ──────────────────────────────────────────────────
+  - id: odg_text_frame_extraction
+    name: Text frame extraction (ODG)
+    description: |
+      Drawings store text inside `<draw:frame>` shapes that contain
+      `<draw:text-box>` payloads with `<text:p>` paragraphs. Each
+      paragraph extracts as a Block in document order. The native
+      reader handles ODG via the same content.xml parser used for
+      ODT/ODS/ODP — no variant-specific path.
+    applies_to: [odg]
+    spec_refs:
+      - "OpenDocument-v1.3 Part 3 §10.3 Drawing shapes — draw:frame / draw:text-box / text:p"
+    examples:
+      - name: testdrawing01
+        origin: "okapi-fixture: okapi:okapi/filters/openoffice/src/test/resources/TestDrawing01.odg — text object with two paragraphs"
+        variant: odg
+        input_file: okapi:okapi/filters/openoffice/src/test/resources/TestDrawing01.odg
+        block_count: 2
+        block_texts:
+          - "This is a text object."
+          - "With two paragraphs, and some bold."
+    okapi_refs:
+      - OpenOfficeFilterTest#testFirstTextUnit
+
+  # ── Document boundary events ──────────────────────────────────────
+  - id: document_boundary_events
+    name: Layer start / end wrap every ODF document
+    description: |
+      Reading any ODF document emits a LayerStart Part before any
+      Block and a LayerEnd Part after the last one. The root Layer
+      carries the `odf` format id and the variant on the
+      `docType` property (`odt` / `ods` / `odp` / `unknown` for ODG).
+      Verifies the document scaffolding mirrors Okapi's
+      StartDocument / EndDocument event pair.
+    examples:
+      - name: minimal_layer_wrap_odt
+        origin: "okapi-fixture: TestDocument06.odt — smallest ODT in the corpus"
+        variant: odt
+        input_file: okapi:okapi/filters/openoffice/src/test/resources/TestDocument06.odt
+        # Smoke-check the document scaffolding without colliding with
+        # the testdocument06 bridge↔native block-count divergence.
+        block_count_min: 4
+        has_block_with_text:
+          - "Header Text"
+    okapi_refs:
+      - OpenOfficeFilterTest#testStartDocument
+    native_refs:
+      - odf.TestReadSimpleODT
+
+  # ── Roundtrip / extraction repeatability ──────────────────────────
+  - id: extraction_repeatability
+    name: Repeated extraction yields identical Blocks
+    description: |
+      Extracting the same fixture twice produces the same Block
+      sequence — the reader is deterministic for a given input and
+      configuration. Mirrors the upstream double-extraction contract
+      that's a precondition for safe translation roundtripping.
+    examples:
+      - name: testdocument02_repeatable
+        origin: "okapi-fixture: TestDocument02.odt — multiple headings + page/column/section breaks; deterministic 14 Blocks"
+        variant: odt
+        input_file: okapi:okapi/filters/openoffice/src/test/resources/TestDocument02.odt
+        block_count: 14
+        has_block_with_text:
+          - "Heading 1"
+          - "Heading 2"
+          - "Heading 3"
+          - "Text body"
+    okapi_refs:
+      - OpenOfficeFilterTest#testDoubleExtraction
+    native_refs:
+      - odf.TestRoundTrip
