@@ -29,8 +29,8 @@ func (c *Config) Schema() *schema.FormatSchema {
 			"variant": schema.Prop(coreschema.PropertySchema{
 				Type:        "string",
 				Title:       "Wiki variant",
-				Default:     "mediawiki",
-				Description: "Wiki markup variant: mediawiki or dokuwiki.",
+				Default:     "dokuwiki",
+				Description: "Wiki markup variant: mediawiki or dokuwiki. Default is dokuwiki to match the okf_wiki bridge contract.",
 				Options: []coreschema.OptionItem{
 					{Value: "mediawiki", Label: "MediaWiki"},
 					{Value: "dokuwiki", Label: "DokuWiki"},
