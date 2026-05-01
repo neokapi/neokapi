@@ -35,6 +35,7 @@
 # behaviour, otherwise omitted.
 
 format: okf_messageformat
+kind: subfilter
 mime_type: text/x-messageformat
 description: |
   ICU MessageFormat filter. Treats each input line as one independent

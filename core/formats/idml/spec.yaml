@@ -107,6 +107,13 @@ features:
         input_file: testdata/helloworld.idml
         block_count: 1
         first_block_text: "Hello World!"
+        expected_fail: |
+          bridge bug — Okapi IDMLFilter throws NullPointerException
+          (StartElement.getAttributeByName returns null) when parsing the
+          designmap.xml in the IDML packages this spec uses. Native walks
+          the document via the encoding/xml streaming reader and extracts
+          cleanly. Tracked separately as a bridge IDML attribute-parsing
+          bug.
     okapi_refs:
       - ExtractionTest#testSimpleEntry
       - ExtractionTest#testStartDocument
@@ -127,6 +134,13 @@ features:
         block_texts:
           - "First paragraph"
           - "Second paragraph"
+        expected_fail: |
+          bridge bug — Okapi IDMLFilter throws NullPointerException
+          (StartElement.getAttributeByName returns null) when parsing the
+          designmap.xml in the IDML packages this spec uses. Native walks
+          the document via the encoding/xml streaming reader and extracts
+          cleanly. Tracked separately as a bridge IDML attribute-parsing
+          bug.
     okapi_refs:
       - ExtractionTest#testSimpleEntry2
     native_refs:
@@ -145,6 +159,13 @@ features:
         block_texts:
           - "Line one"
           - "Line two"
+        expected_fail: |
+          bridge bug — Okapi IDMLFilter throws NullPointerException
+          (StartElement.getAttributeByName returns null) when parsing the
+          designmap.xml in the IDML packages this spec uses. Native walks
+          the document via the encoding/xml streaming reader and extracts
+          cleanly. Tracked separately as a bridge IDML attribute-parsing
+          bug.
     okapi_refs:
       - ExtractionTest#testNewline
     native_refs:
@@ -166,6 +187,13 @@ features:
           - "Title text"
           - "Body paragraph one."
           - "Body paragraph two."
+        expected_fail: |
+          bridge bug — Okapi IDMLFilter throws NullPointerException
+          (StartElement.getAttributeByName returns null) when parsing the
+          designmap.xml in the IDML packages this spec uses. Native walks
+          the document via the encoding/xml streaming reader and extracts
+          cleanly. Tracked separately as a bridge IDML attribute-parsing
+          bug.
     okapi_refs:
       - ExtractionTest#testSimpleEntry2
     native_refs:
@@ -186,6 +214,13 @@ features:
         block_texts:
           - "Story One"
           - "Story Two"
+        expected_fail: |
+          bridge bug — Okapi IDMLFilter throws NullPointerException
+          (StartElement.getAttributeByName returns null) when parsing the
+          designmap.xml in the IDML packages this spec uses. Native walks
+          the document via the encoding/xml streaming reader and extracts
+          cleanly. Tracked separately as a bridge IDML attribute-parsing
+          bug.
     okapi_refs:
       - ExtractionTest#testDefaultInfo
     native_refs:
@@ -206,6 +241,13 @@ features:
         block_texts:
           - "Cell A1"
           - "Cell B1"
+        expected_fail: |
+          bridge bug — Okapi IDMLFilter throws NullPointerException
+          (StartElement.getAttributeByName returns null) when parsing the
+          designmap.xml in the IDML packages this spec uses. Native walks
+          the document via the encoding/xml streaming reader and extracts
+          cleanly. Tracked separately as a bridge IDML attribute-parsing
+          bug.
     okapi_refs:
       - ExtractionTest#testSimpleEntry2
     native_refs:
@@ -227,6 +269,13 @@ features:
         block_texts:
           - "Main text"
           - "Footnote text"
+        expected_fail: |
+          bridge bug — Okapi IDMLFilter throws NullPointerException
+          (StartElement.getAttributeByName returns null) when parsing the
+          designmap.xml in the IDML packages this spec uses. Native walks
+          the document via the encoding/xml streaming reader and extracts
+          cleanly. Tracked separately as a bridge IDML attribute-parsing
+          bug.
     okapi_refs:
       - ExtractionTest#endNotesExtracted
     native_refs:
@@ -247,6 +296,13 @@ features:
         first_block_text: "Main text"
         no_block_with_text:
           - "Footnote text"
+        expected_fail: |
+          bridge bug — Okapi IDMLFilter throws NullPointerException
+          (StartElement.getAttributeByName returns null) when parsing the
+          designmap.xml in the IDML packages this spec uses. Native walks
+          the document via the encoding/xml streaming reader and extracts
+          cleanly. Tracked separately as a bridge IDML attribute-parsing
+          bug.
     okapi_refs:
       - ExtractionTest#endNotesExtracted
     native_refs:
@@ -267,6 +323,13 @@ features:
         input_file: testdata/discretionary-hyphen.idml
         block_count: 1
         first_block_text: "Bindestrich"
+        expected_fail: |
+          bridge bug — Okapi IDMLFilter throws NullPointerException
+          (StartElement.getAttributeByName returns null) when parsing the
+          designmap.xml in the IDML packages this spec uses. Native walks
+          the document via the encoding/xml streaming reader and extracts
+          cleanly. Tracked separately as a bridge IDML attribute-parsing
+          bug.
     okapi_refs:
       - ExtractionTest#testSkipDiscretionaryHyphens
     native_refs:
@@ -289,6 +352,13 @@ features:
         input_file: testdata/discretionary-hyphen.idml
         block_count: 1
         first_block_text: "Binde­strich"
+        expected_fail: |
+          bridge bug — Okapi IDMLFilter throws NullPointerException
+          (StartElement.getAttributeByName returns null) when parsing the
+          designmap.xml in the IDML packages this spec uses. Native walks
+          the document via the encoding/xml streaming reader and extracts
+          cleanly. Tracked separately as a bridge IDML attribute-parsing
+          bug.
     okapi_refs:
       - ExtractionTest#testSkipDiscretionaryHyphens
     native_refs:
@@ -310,6 +380,13 @@ features:
         block_texts:
           - "Original text"
           - "New text."
+        expected_fail: |
+          bridge bug — Okapi IDMLFilter throws NullPointerException
+          (StartElement.getAttributeByName returns null) when parsing the
+          designmap.xml in the IDML packages this spec uses. Native walks
+          the document via the encoding/xml streaming reader and extracts
+          cleanly. Tracked separately as a bridge IDML attribute-parsing
+          bug.
     okapi_refs:
       - ExtractionTest#testChangeTracking
     native_refs:
