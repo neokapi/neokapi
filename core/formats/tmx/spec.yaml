@@ -1,0 +1,448 @@
+# TMX format specification.
+#
+# Single-variant filter — no variants block. Inputs are inline TMX/XML
+# strings; the InputXML field holds raw text bytes for any text-based
+# format despite its historical name.
+#
+# Config keys mirror Okapi's TMX Parameters (also exposed by the
+# bridge composite schema as a flattened set). okapi_param values
+# track the underlying Java field names where the spec key uses a
+# different label.
+#
+# The native reader honors processAllTargets and exitOnInvalid. The
+# remaining keys (segType, consolidateDpSkeleton, propValueSep, the
+# inlineCodes group, escapeGT) are documented for parity with Okapi
+# and the bridge schema; native examples that exercise them will be
+# added as the corresponding behavior lands.
+
+format: okf_tmx
+mime_type: application/x-tmx+xml
+description: |
+  Translation Memory eXchange (TMX) — XML-based bilingual / multilingual
+  TM interchange. The reader walks `<tu>` translation units, emits one
+  Block per TU with a Source segment matching the header `srclang` and
+  one Target segment per non-source `<tuv>`. Header attributes plus any
+  header-level `<note>`/`<prop>` are surfaced as a single Data part
+  ("tmx-header") preceding the blocks. TU-level `<note>` and `<prop>`
+  attach as Block properties.
+
+config:
+  # ── Extraction (consumed by the native reader) ───────────────────
+  - key: processAllTargets
+    type: boolean
+    default: true
+    description: |
+      Read every target `<tuv>` of each `<tu>`. When false, only the
+      first non-source TUV is emitted as a Target segment; remaining
+      target-language TUVs are skipped.
+    okapi_param: processAllTargets
+
+  - key: exitOnInvalid
+    type: boolean
+    default: false
+    description: |
+      Stop processing when an invalid `<tu>` is encountered. Default
+      false: invalid TUs are skipped silently and parsing continues.
+    okapi_param: exitOnInvalid
+
+  # ── Documented parity surface (output / writer-side; not yet
+  # exercised by native examples) ──────────────────────────────────
+  - key: segType
+    type: int
+    default: 2
+    description: |
+      Whether and how to emit segmentation markers on extracted TUs.
+      Mirrors Okapi's segType parameter (also exposed by the bridge
+      composite schema). Native reader carries the value through TU
+      `segtype` attributes and the header `segtype`; downstream
+      segmentation lives in the writer.
+    okapi_param: segType
+
+  - key: consolidateDpSkeleton
+    type: boolean
+    default: true
+    description: |
+      Consolidate document-part skeleton into a single resource on the
+      writer side to reduce pipeline events. Mirrors Okapi's
+      consolidateDpSkeleton parameter (also exposed by the bridge
+      composite schema).
+    okapi_param: consolidateDpSkeleton
+
+  - key: propValueSep
+    type: string
+    default: ", "
+    description: |
+      Separator string the writer inserts between values of duplicate
+      `<prop>` types. Mirrors Okapi's propValueSep parameter (also
+      exposed by the bridge composite schema). The native reader
+      currently keeps the last duplicate value rather than joining;
+      tracked as a divergence in the duplicate_properties feature.
+    okapi_param: propValueSep
+
+  - key: escapeGT
+    type: boolean
+    default: false
+    description: |
+      Escape `>` as `&gt;` on output. Mirrors Okapi's escapeGT
+      parameter (also exposed by the bridge composite schema). Off by
+      default — modern XML consumers handle bare `>` fine.
+    okapi_param: escapeGT
+
+  - key: inlineCodes
+    type: string_map
+    description: |
+      Inline-code detection group (regex patterns and toggles) the
+      bridge composite schema exposes under `inlineCodes`. Native
+      reader recognises the per-leaf flags `useCodeFinder` and
+      `codeFinderRules`; the parent `inlineCodes` map is declared
+      here so drift detection sees the grouping the bridge advertises.
+    okapi_param: inlineCodes
+
+features:
+  # ── Core extraction ──────────────────────────────────────────────
+  - id: trans_unit_extraction
+    name: Translation unit extraction
+    description: |
+      Each `<tu>` becomes one Block. The TUV whose language matches
+      the header `srclang` (with relaxed `en` ↔ `en-US` matching)
+      becomes the Source; remaining TUVs become Target segments keyed
+      by their `xml:lang`. Block ID and Name come from the `tuid`
+      attribute when present.
+    examples:
+      - name: simple_bilingual
+        input_xml: |
+          <?xml version="1.0"?>
+          <tmx version="1.4">
+            <header creationtool="x" creationtoolversion="1" segtype="sentence" o-tmf="x" adminlang="en" srclang="en" datatype="plaintext"/>
+            <body>
+              <tu tuid="tuid_1"><tuv xml:lang="en"><seg>Hello World!</seg></tuv><tuv xml:lang="fr"><seg>Bonjour le monde!</seg></tuv></tu>
+            </body>
+          </tmx>
+        block_count: 1
+        first_block_text: "Hello World!"
+      - name: file_two_tus
+        input_file: testdata/simple.tmx
+        block_count: 2
+        block_texts:
+          - "Hello World"
+          - "Goodbye"
+    okapi_refs:
+      - TmxFilterTest#testSimpleTransUnit
+      - TmxFilterTest#testInputStream
+      - TmxFilterTest#testConsolidatedStream
+    native_refs:
+      - tmx.TestSimpleTransUnit
+      - tmx.TestInputStream
+
+  - id: multilingual_targets
+    name: Multiple target languages per TU
+    description: |
+      A `<tu>` with several non-source `<tuv>` children produces one
+      Block whose Targets map carries every additional language. With
+      the default `processAllTargets: true` all targets are kept; the
+      block source is the TUV matching `srclang`.
+    examples:
+      - name: three_targets
+        # bridge bug — Okapi TmxFilter normalizes srclang="en-us" to "en"
+        # internally and then requires a <tuv> with exactly that
+        # normalized code, rejecting "en-us" with OkapiBadFilterInputException.
+        # Native reader applies relaxed en ↔ en-US matching per spec
+        # semantics. Tracked separately.
+        expected_fail: |
+          bridge bug — Okapi TmxFilter normalizes srclang="en-us" to "en"
+          and then rejects the TU because no <tuv> matches the normalized
+          source language exactly. Native applies relaxed en ↔ en-US
+          matching per spec semantics. Tracked separately.
+        input_xml: |
+          <?xml version="1.0"?>
+          <tmx version="1.4">
+            <header creationtool="x" creationtoolversion="1" segtype="sentence" o-tmf="x" adminlang="en" srclang="en-us" datatype="plaintext"/>
+            <body>
+              <tu>
+                <tuv xml:lang="en-us"><seg>Hello</seg></tuv>
+                <tuv xml:lang="fr"><seg>Bonjour</seg></tuv>
+                <tuv xml:lang="de"><seg>Hallo</seg></tuv>
+                <tuv xml:lang="it"><seg>Buongiorno</seg></tuv>
+              </tu>
+            </body>
+          </tmx>
+        block_count: 1
+        first_block_text: "Hello"
+        has_block_with_text:
+          - "Hello"
+    okapi_refs:
+      - TmxFilterTest#testMulipleTargets
+      - TmxFilterTest#testMultiTransUnitWithEmptyLocales
+
+  # ── Language attribute handling ──────────────────────────────────
+  - id: language_attributes
+    name: Language attribute handling (xml:lang, lang, TMX 1.1)
+    description: |
+      The reader understands the modern `xml:lang` attribute and the
+      legacy TMX 1.1 `lang` attribute on `<tuv>`. When both appear on
+      the same TUV, `xml:lang` wins. TMX 1.1 documents (no `xml:lang`,
+      only `lang`) parse as multilingual just like 1.4.
+    examples:
+      - name: tmx_1_1_lang_attr
+        # bridge bug — Okapi TmxFilter normalizes srclang="en-us" to "en"
+        # and then rejects TUs whose <tuv> uses "en-us" rather than the
+        # normalized "en". Native applies relaxed en ↔ en-US matching
+        # per spec semantics. Tracked separately.
+        expected_fail: |
+          bridge bug — Okapi TmxFilter normalizes srclang="en-us" to "en"
+          and rejects the TU because no <tuv lang="en"> matches exactly.
+          Native applies relaxed en ↔ en-US matching per spec semantics.
+          Tracked separately.
+        input_xml: |
+          <?xml version="1.0"?>
+          <tmx version="1.1">
+            <header creationtool="x" creationtoolversion="1" segtype="sentence" o-tmf="x" adminlang="en" srclang="en-us" datatype="plaintext"/>
+            <body>
+              <tu tuid="tuid_1"><tuv lang="en-us"><seg>Hello World!</seg></tuv><tuv lang="fr-fr"><seg>Bonjour le monde!</seg></tuv></tu>
+            </body>
+          </tmx>
+        block_count: 1
+        first_block_text: "Hello World!"
+      - name: xml_lang_wins_over_lang
+        # bridge bug — Okapi TmxFilter normalizes srclang="en-us" to "en"
+        # and rejects the TU because no <tuv xml:lang="en"> matches the
+        # normalized source. Native applies relaxed en ↔ en-US matching
+        # per spec semantics. Tracked separately.
+        expected_fail: |
+          bridge bug — Okapi TmxFilter normalizes srclang="en-us" to "en"
+          and rejects the TU because no <tuv xml:lang="en"> matches the
+          normalized source language. Native applies relaxed en ↔ en-US
+          matching per spec semantics. Tracked separately.
+        input_xml: |
+          <?xml version="1.0"?>
+          <tmx version="1.1">
+            <header creationtool="x" creationtoolversion="1" segtype="sentence" o-tmf="x" adminlang="en" srclang="en-us" datatype="plaintext"/>
+            <body>
+              <tu tuid="tuid_1"><tuv xml:lang="en-us" lang="de-de"><seg>Hello</seg></tuv><tuv lang="it-it" xml:lang="fr-fr"><seg>Bonjour</seg></tuv></tu>
+            </body>
+          </tmx>
+        block_count: 1
+        first_block_text: "Hello"
+    okapi_refs:
+      - TmxFilterTest#testLang11
+      - TmxFilterTest#testXmlLangOverLang
+
+  # ── TU-level metadata ───────────────────────────────────────────
+  - id: tu_metadata
+    name: TU-level note, prop, and attribute escaping
+    description: |
+      `<note>` text inside a `<tu>` lands on the Block's `notes`
+      property; each `<prop type="X">value</prop>` becomes a Block
+      property keyed by `X`. XML entity escapes in TU/TUV attribute
+      values (e.g. `tuid="id&amp;1"`) are decoded to their literal
+      characters before reaching the Block.
+    examples:
+      - name: prop_and_note
+        input_xml: |
+          <?xml version="1.0"?>
+          <tmx version="1.4">
+            <header creationtool="x" creationtoolversion="1" segtype="sentence" o-tmf="x" adminlang="en" srclang="en" datatype="plaintext"/>
+            <body>
+              <tu tuid="tuid_1"><note>note text</note><prop type="x-Domain">Computing</prop><tuv xml:lang="en"><seg>source</seg></tuv><tuv xml:lang="fr"><seg>cible</seg></tuv></tu>
+            </body>
+          </tmx>
+        block_count: 1
+        first_block_text: "source"
+      - name: duplicate_props_last_wins
+        # Native reader keeps the last duplicate `<prop type="X">` value;
+        # Okapi joins duplicates with `propValueSep` (default ", "). The
+        # divergence is tracked here against the upstream test so the
+        # parity dashboard shows it. expected_fail flips when the reader
+        # adopts join semantics.
+        input_xml: |
+          <?xml version="1.0"?>
+          <tmx version="1.4">
+            <header creationtool="x" creationtoolversion="1" segtype="sentence" o-tmf="x" adminlang="en" srclang="en" datatype="plaintext"/>
+            <body>
+              <tu><prop type="x-Domain">Computing</prop><prop type="x-Domain">Engineering</prop><tuv xml:lang="en"><seg>dup</seg></tuv><tuv xml:lang="fr"><seg>dup-fr</seg></tuv></tu>
+            </body>
+          </tmx>
+        block_count: 1
+        first_block_text: "dup"
+      - name: tu_attribute_escaping
+        input_xml: |
+          <?xml version="1.0"?>
+          <tmx version="1.4">
+            <header creationtool="x" creationtoolversion="1" segtype="sentence" o-tmf="x" adminlang="en" srclang="en" datatype="plaintext"/>
+            <body>
+              <tu tuid="id&amp;1"><tuv xml:lang="en"><seg>Attr escaping test</seg></tuv><tuv xml:lang="fr"><seg>Test echappement</seg></tuv></tu>
+            </body>
+          </tmx>
+        block_count: 1
+        first_block_text: "Attr escaping test"
+    okapi_refs:
+      - TmxFilterTest#testTUProperties
+      - TmxFilterTest#testTUDuplicateProperties
+      - TmxFilterTest#testTUTUVAttrEscaping
+
+  # ── Header metadata ──────────────────────────────────────────────
+  - id: header_metadata
+    name: Header attributes, note, and prop
+    description: |
+      The `<header>` element contributes one Data part named
+      "tmx-header" before any block. The Data carries the standard
+      header attributes (version, srclang, adminlang, datatype,
+      segtype, o-tmf, creationtool) plus any `<note>` (joined into a
+      `notes` property) and `<prop type="X">` (keyed `prop:X`).
+    examples:
+      - name: header_with_note_and_prop
+        # bridge bug — Okapi TmxFilter normalizes srclang="en-us" to "en"
+        # and rejects the TU because no <tuv xml:lang="en"> matches the
+        # normalized source. Native applies relaxed en ↔ en-US matching
+        # per spec semantics. Tracked separately.
+        expected_fail: |
+          bridge bug — Okapi TmxFilter normalizes srclang="en-us" to "en"
+          and rejects the TU because no <tuv xml:lang="en"> matches the
+          normalized source language. Native applies relaxed en ↔ en-US
+          matching per spec semantics. Tracked separately.
+        input_xml: |
+          <?xml version="1.0" encoding="UTF-8"?>
+          <tmx version="1.4">
+            <header creationtool="X" creationtoolversion="1.0" datatype="PlainText" segtype="sentence" adminlang="en-us" srclang="en-us" o-tmf="abc">
+              <note>A header note.</note>
+              <prop type="x-headerProp">headerPropValue</prop>
+            </header>
+            <body>
+              <tu><tuv xml:lang="en-us"><seg>Content</seg></tuv><tuv xml:lang="fr"><seg>Contenu</seg></tuv></tu>
+            </body>
+          </tmx>
+        block_count: 1
+        first_block_text: "Content"
+    okapi_refs:
+      - TmxFilterTest#testPropAndNoteInStartDocument
+
+  # ── Inline codes ─────────────────────────────────────────────────
+  - id: inline_codes
+    name: Inline codes (bpt/ept/ph/it/hi)
+    description: |
+      `<bpt>/<ept>` paired tags become open/close Span runs around the
+      enclosed text. `<ph>` becomes a placeholder span. `<it>` with
+      pos="begin"/"end" becomes an open/close span; without pos it
+      becomes a placeholder. `<hi>` produces an open span, the
+      highlighted text, and a close span. The Block source text
+      strips inline-code data and only carries the textual content.
+    examples:
+      - name: bpt_ept_pair
+        input_xml: |
+          <?xml version="1.0"?>
+          <tmx version="1.4">
+            <header creationtool="x" creationtoolversion="1" segtype="sentence" o-tmf="x" adminlang="en" srclang="en" datatype="plaintext"/>
+            <body>
+              <tu><tuv xml:lang="en"><seg>Hello <bpt i="1">&lt;b></bpt>bold<ept i="1">&lt;/b></ept> world</seg></tuv><tuv xml:lang="fr"><seg>Bonjour <bpt i="1">&lt;b></bpt>gras<ept i="1">&lt;/b></ept> monde</seg></tuv></tu>
+            </body>
+          </tmx>
+        block_count: 1
+        first_block_text: "Hello bold world"
+      - name: isolated_codes
+        # Single TUV (source-only) — no targets; the seg text strips the
+        # `<it>` and `<ph>` data leaving only the literal characters
+        # plus the surrounding spaces.
+        input_xml: |
+          <?xml version="1.0"?>
+          <tmx version="1.4">
+            <header creationtool="x" creationtoolversion="1" segtype="sentence" o-tmf="x" adminlang="en" srclang="en" datatype="plaintext"/>
+            <body>
+              <tu tuid="tu1"><tuv xml:lang="en"><seg><it pos='end'>[/i]</it> a <ph>[x/]</ph> b <it pos='begin'>[b]</it></seg></tuv></tu>
+            </body>
+          </tmx>
+        block_count: 1
+        first_block_text: " a  b "
+    okapi_refs:
+      - TmxFilterTest#testIsolatedCodes
+      - TmxFilterTest#testUtInSeg
+      - TmxFilterTest#testUtInSub
+      - TmxFilterTest#testUtInHi
+
+  # ── XML escape handling ─────────────────────────────────────────
+  - id: escape_handling
+    name: XML entity decoding in seg content
+    description: |
+      Standard XML entities inside `<seg>` (`&amp;`, `&lt;`, `&gt;`,
+      `&quot;`) are decoded to their literal characters in the
+      Block's source text. Numeric character references (decimal and
+      hex) decode to the corresponding Unicode code point.
+    examples:
+      - name: standard_entities
+        input_xml: |
+          <?xml version="1.0"?>
+          <tmx version="1.4">
+            <header creationtool="x" creationtoolversion="1" segtype="sentence" o-tmf="x" adminlang="en" srclang="en" datatype="plaintext"/>
+            <body>
+              <tu><tuv xml:lang="en"><seg>Test &amp; &lt; &gt; &quot;</seg></tuv><tuv xml:lang="fr"><seg>Test &amp; &lt; &gt; &quot;</seg></tuv></tu>
+            </body>
+          </tmx>
+        block_count: 1
+        first_block_text: "Test & < > \""
+      - name: less_than_round_trip
+        input_xml: |
+          <?xml version="1.0" encoding="UTF-8"?>
+          <tmx version="1.4">
+            <header creationtool="X" creationtoolversion="1.0.0" datatype="PlainText" segtype="sentence" adminlang="en" srclang="en" o-tmf="abc">
+            </header>
+            <body>
+              <tu><tuv xml:lang="en"><seg>a &lt; b</seg></tuv><tuv xml:lang="fr"><seg>a &lt; b</seg></tuv></tu>
+            </body>
+          </tmx>
+        block_count: 1
+        first_block_text: "a < b"
+    okapi_refs:
+      - TmxFilterTest#testEscapes
+      - TmxFilterTest#testSpecialChars
+      - TmxFilterTest#testLineBreaks
+      - TmxFilterTest#testOutputWithLT
+
+  # ── Target attributes ────────────────────────────────────────────
+  - id: target_attributes
+    name: Target TUV attributes preserved alongside content
+    description: |
+      Target `<tuv>` attributes (creationdate, creationid, changedate,
+      changeid, …) and any per-TUV `<prop>` co-exist with the segment
+      text. The Block exposes the target text under the TUV language;
+      target-side `<prop>` falls onto the Block's properties map
+      (collapsed across TUVs in the current reader).
+    examples:
+      - name: tuv_metadata
+        input_xml: |
+          <?xml version="1.0"?>
+          <tmx version="1.4">
+            <header creationtool="X" creationtoolversion="1" datatype="PlainText" segtype="sentence" adminlang="en" srclang="en" o-tmf="x"/>
+            <body>
+              <tu tuid="0001" datatype="Text" usagecount="2">
+                <tuv xml:lang="en" creationdate="19970212T153400Z" creationid="BobW"><seg>source text</seg></tuv>
+                <tuv xml:lang="fr" creationdate="19970309T021145Z" creationid="BobW" changedate="19970314T023401Z" changeid="ManonD"><prop type="Origin">MT</prop><seg>texte cible</seg></tuv>
+              </tu>
+            </body>
+          </tmx>
+        block_count: 1
+        first_block_text: "source text"
+    okapi_refs:
+      - TmxFilterTest#testTargetAttributes
+
+  # ── DTD tolerance ────────────────────────────────────────────────
+  - id: dtd_tolerance
+    name: DTD declarations tolerated
+    description: |
+      A `<!DOCTYPE tmx SYSTEM "tmx14.dtd">` declaration before the
+      root element does not block parsing — the reader runs in
+      tolerant mode (XML decoder Strict=false) so external DTDs are
+      effectively ignored.
+    examples:
+      - name: external_dtd_ref
+        input_xml: |
+          <?xml version="1.0"?>
+          <!DOCTYPE tmx SYSTEM "tmx14.dtd">
+          <tmx version="1.4">
+            <header creationtool="x" creationtoolversion="1" segtype="sentence" o-tmf="x" adminlang="en" srclang="en" datatype="plaintext"/>
+            <body>
+              <tu><tuv xml:lang="en"><seg>DTD test</seg></tuv><tuv xml:lang="fr"><seg>Test DTD</seg></tuv></tu>
+            </body>
+          </tmx>
+        block_count: 1
+        first_block_text: "DTD test"
+    okapi_refs:
+      - TmxFilterTest#testDTDHandling
