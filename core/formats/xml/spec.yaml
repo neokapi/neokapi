@@ -1,0 +1,651 @@
+# XML Stream format specification.
+#
+# Single-variant filter — the streaming XML reader. Native package is
+# `core/formats/xml/`; bridge filter id is `okf_xmlstream`. The
+# contract-audit loader keys by `format:` (stripping `okf_`), and the
+# `xmlstream → xml` alias in scripts/contract-audit/main.go bridges the
+# package-name / filter-id naming gap.
+#
+# Inputs are inline XML strings via `input_xml` for snippets and a
+# packaged file under testdata/ for the default-config baseline.
+#
+# Authoring notes:
+#   - The Okapi XmlStreamFilter is heavily rule-driven: by default it
+#     extracts every text node it encounters, and the user narrows
+#     extraction by declaring `elements` rules (TEXTUNIT / EXCLUDE /
+#     INLINE / INCLUDE / GROUP / PRESERVE_WHITESPACE / ATTRIBUTES_ONLY)
+#     and `attributes` rules (ATTRIBUTE_TRANS / ATTRIBUTE_ID /
+#     ATTRIBUTE_WRITABLE / ATTRIBUTE_PRESERVE_WHITESPACE). Native
+#     accepts the same parameter shapes (see Config.ApplyMap), so the
+#     spec exercises both sides through the same config blocks.
+#   - Config keys mirror the okf_xmlstream bridge composite schema
+#     leaf names (`parser`, `elements`, `attributes`) — the bridge
+#     schema is generated from Okapi's Java parameters, so these are
+#     Okapi parameter names by transitivity. The `okapi_param:` field
+#     records the underlying Java field name explicitly for
+#     traceability.
+#   - okapi_refs are pinned to upstream class+method names. Drift
+#     detection asserts each ref still exists in the bridge's pinned
+#     Okapi 1.47.0 surefire output.
+
+format: okf_xmlstream
+mime_type: text/xml
+description: |
+  Streaming XML filter for arbitrary XML vocabularies (DITA, generic
+  XML, custom schemas). Walks the XML element tree, extracting text
+  content from elements according to user-declared rules. Element
+  rules (TEXTUNIT, INLINE, EXCLUDE, INCLUDE, GROUP,
+  PRESERVE_WHITESPACE) classify each element's role; attribute rules
+  (ATTRIBUTE_TRANS, ATTRIBUTE_ID, ATTRIBUTE_WRITABLE) pull
+  translatable / id / locale-specific attribute values. Without rules
+  the reader treats every text node as translatable. Whitespace
+  collapsing is on by default; `preserveWhitespace` (global or
+  per-element via PRESERVE_WHITESPACE) opts in to preservation. CDATA
+  sections, comments, processing instructions, and entity references
+  are recognised per the XML 1.0 spec; namespace-prefixed elements
+  match by local name unless the rule keys include the prefix.
+
+config:
+  - key: parser
+    type: string_map
+    default: {}
+    description: |
+      Parser-behavior settings. The honored sub-key is
+      `preserveWhitespace` (boolean, default false), which disables the
+      default whitespace-collapsing rule globally. Mirrors the bridge
+      composite schema's `parser` object; Okapi's `assumeWellformed`
+      sub-key is accepted but ignored (Go's encoding/xml always
+      handles malformed input as a parse error, not by recovery).
+    okapi_param: parser
+
+  - key: preserveWhitespace
+    type: boolean
+    default: false
+    description: |
+      Top-level convenience for `parser.preserveWhitespace=true`.
+      Native ApplyMap accepts both spellings. When true, all text
+      content is preserved verbatim instead of having runs of
+      whitespace collapsed to a single space.
+    okapi_param: preserve_whitespace
+
+  - key: translatableElements
+    type: string_list
+    default: []
+    description: |
+      Shorthand for declaring a set of element names whose text
+      content is translatable. Equivalent to listing each name under
+      `elements` with `ruleTypes: [TEXTUNIT]`. When empty (the
+      default), all text reachable from the document root is treated
+      as translatable.
+    okapi_param: translatableElements
+
+  - key: translatableAttributes
+    type: string_list
+    default: []
+    description: |
+      Shorthand for declaring a set of attribute names that are
+      translatable across all elements. Equivalent to declaring each
+      name under `attributes` with `ruleTypes: [ATTRIBUTE_TRANS]`.
+    okapi_param: translatableAttributes
+
+  - key: excludeByDefault
+    type: boolean
+    default: false
+    description: |
+      Invert the default extraction policy: when true, every element
+      is excluded unless explicitly included by an element rule with
+      `ruleTypes: [INCLUDE]`. Useful for restricting extraction to a
+      tiny vocabulary inside a large XML document.
+    okapi_param: exclude_by_default
+
+  - key: inlineElements
+    type: string_list
+    default: []
+    description: |
+      Shorthand for declaring a set of element names treated as
+      inline (their content flows within the surrounding Block as a
+      Span) rather than as block boundaries.
+    okapi_param: inlineElements
+
+  - key: excludedElements
+    type: string_list
+    default: []
+    description: |
+      Shorthand for declaring a set of element names whose content is
+      skipped entirely. Equivalent to listing each under `elements`
+      with `ruleTypes: [EXCLUDE]`.
+    okapi_param: excludedElements
+
+  - key: preserveWhitespaceElements
+    type: string_list
+    default: []
+    description: |
+      Shorthand for declaring elements that preserve whitespace inside
+      their content even when the global `preserveWhitespace` is off.
+      Equivalent to `elements: { name: { ruleTypes: [PRESERVE_WHITESPACE] } }`.
+    okapi_param: preserveWhitespaceElements
+
+  - key: groupElements
+    type: string_list
+    default: []
+    description: |
+      Shorthand for declaring elements that produce GroupStart /
+      GroupEnd boundaries in the part stream (e.g. `<table>`, `<ul>`).
+      Their child Blocks still extract normally; the group is
+      informational structure for downstream consumers.
+    okapi_param: groupElements
+
+  - key: idAttributes
+    type: string_list
+    default: []
+    description: |
+      Attribute names searched, in order, when computing the Block id
+      / name for an extracted element. The reader falls back to a
+      plain `id` attribute when none of the listed names match.
+    okapi_param: idAttributes
+
+  - key: elements
+    type: string_map
+    default: {}
+    description: |
+      Per-element rule map. Each key is an element name (or a regex
+      surrounded by single quotes) and each value is a rule object
+      carrying `ruleTypes` (TEXTUNIT / INLINE / EXCLUDE / INCLUDE /
+      GROUP / PRESERVE_WHITESPACE / ATTRIBUTES_ONLY), optional
+      `conditions` (`[attr, op, value]` tuple where op is EQUALS /
+      NOT_EQUALS / MATCHES), `idAttributes`, and
+      `translatableAttributes`. Mirrors the bridge composite schema's
+      `elements` object.
+    okapi_param: elements
+
+  - key: attributes
+    type: string_map
+    default: {}
+    description: |
+      Per-attribute rule map. Each key is an attribute name (or a
+      regex) and each value carries `ruleTypes` (ATTRIBUTE_TRANS /
+      ATTRIBUTE_WRITABLE / ATTRIBUTE_ID / ATTRIBUTE_PRESERVE_WHITESPACE)
+      plus optional `allElementsExcept` / `onlyTheseElements` to scope
+      which elements the rule applies to. Mirrors the bridge
+      composite schema's `attributes` object.
+    okapi_param: attributes
+
+  - key: blockTypeMap
+    type: string_map
+    default: {}
+    description: |
+      Map of element name → block type string for semantic type
+      annotation on extracted Blocks. Lets downstream tools group or
+      filter Blocks by semantic role (e.g. heading, paragraph, label).
+    okapi_param: blockTypeMap
+
+features:
+  # ── Core extraction (the path every consumer takes) ──────────────────
+  - id: text_content_extraction
+    name: Element text content extraction
+    description: |
+      Each element carrying translatable character data yields one
+      Block whose source text is the inner text. Without explicit
+      element rules, every text node reachable from the root is
+      extracted, with one Block per leaf text-bearing element.
+    spec_refs:
+      - "W3C XML 1.0 §2.4 Character Data and Markup (https://www.w3.org/TR/REC-xml/#syntax)"
+    examples:
+      - name: single_element
+        origin: "authored: minimal one-element XML snippet"
+        input_xml: '<?xml version="1.0"?><root><message>Hello World</message></root>'
+        block_count: 1
+        first_block_text: "Hello World"
+      - name: simple_xml_file
+        origin: "authored: testdata/simple.xml — three sibling <string> elements"
+        input_file: testdata/simple.xml
+        block_count: 3
+        block_texts:
+          - "Hello World"
+          - "A simple test"
+          - "Welcome!"
+    okapi_refs:
+      - XmlSnippetsTest#testEscapes
+      - XmlStreamEventTest#testMetaTagContent
+    native_refs:
+      - xml.TestReadSimpleXML
+      - xml.TestReadMultipleElements
+
+  # ── Element rules (TEXTUNIT, EXCLUDE, INCLUDE) ───────────────────────
+  - id: translatable_elements_filter
+    name: translatableElements narrows extraction
+    description: |
+      Listing element names under `translatableElements` restricts
+      extraction to that set — text inside any other element is
+      skipped. Lets a single config focus extraction on a vocabulary
+      (e.g. `<title>` and `<description>`) without exhaustively
+      excluding everything else. The bridge does not honor this
+      shorthand and expects the equivalent long-form `elements:` map
+      with per-name `ruleTypes: [TEXTUNIT]`; native ApplyMap accepts
+      both forms.
+    spec_refs:
+      - "W3C XML 1.0 §2.4 Character Data and Markup"
+    config:
+      translatableElements:
+        - title
+        - description
+    examples:
+      - name: filter_to_title_description
+        origin: "authored: opt-in extraction of <title> + <description> only"
+        input_xml: '<?xml version="1.0"?><root><title>Hello</title><id>123</id><description>World</description></root>'
+        expected_fail: |
+          bridge does not recognise the top-level `translatableElements`
+          array — Okapi XmlStreamFilter expects the equivalent rule
+          to be declared as `elements: { title: { ruleTypes: [TEXTUNIT] }, description: { ruleTypes: [TEXTUNIT] } }`,
+          so the bridge surfaces all three text nodes (title, id,
+          description) as Blocks. Native treats the shorthand as a
+          first-class extraction filter. Both legitimate; spec
+          asserts native behavior.
+        block_count: 2
+        block_texts:
+          - "Hello"
+          - "World"
+        no_block_with_text: ["123"]
+    okapi_refs:
+      - XmlStreamConfigurationSupportTest#test_EXCLUDE
+    native_refs:
+      - xml.TestReadWithTranslatableConfig
+
+  - id: excluded_elements
+    name: EXCLUDE element rule skips content
+    description: |
+      Elements declared with `ruleTypes: [EXCLUDE]` are skipped — no
+      Blocks are emitted for them or their descendants. Surrounding
+      siblings still extract normally. Both sides accept the long-form
+      `elements: { name: { ruleTypes: [EXCLUDE] } }` rule used here;
+      native additionally accepts a top-level `excludedElements`
+      shorthand which the bridge does not recognise.
+    spec_refs:
+      - "W3C XML 1.0 §3 Logical Structures (https://www.w3.org/TR/REC-xml/#sec-logical-struct)"
+    config:
+      elements:
+        pre:
+          ruleTypes:
+            - EXCLUDE
+    examples:
+      - name: skip_pre_keep_p
+        origin: "authored: <pre> excluded via EXCLUDE rule, sibling <p> kept"
+        input_xml: '<?xml version="1.0" encoding="UTF-8"?><doc><pre>t1</pre><p>t2</p></doc>'
+        block_count: 1
+        first_block_text: "t2"
+        no_block_with_text: ["t1"]
+    okapi_refs:
+      - XmlStreamConfigurationSupportTest#test_EXCLUDE
+    native_refs:
+      - xml.TestExclude_Basic
+      - xml.TestExclude_ViaElementRule
+
+  - id: exclude_by_default_with_include
+    name: excludeByDefault + INCLUDE rule
+    description: |
+      With `excludeByDefault: true`, every element is skipped unless
+      explicitly re-enabled by an element rule whose `ruleTypes`
+      include `INCLUDE`. Conditions on the INCLUDE rule (e.g.
+      `[translate, EQUALS, y]`) further narrow the inclusion to
+      elements whose attribute values match. Native accepts the
+      `excludeByDefault` flat key; the bridge expects the equivalent
+      `exclude_by_default` underscore spelling and the long-form
+      `elements:` map.
+    spec_refs:
+      - "W3C XML 1.0 §3 Logical Structures"
+    config:
+      excludeByDefault: true
+      elements:
+        item:
+          ruleTypes:
+            - INCLUDE
+          conditions:
+            - translate
+            - EQUALS
+            - "y"
+    examples:
+      - name: include_marked_items
+        origin: "authored: opt-in extraction by translate=\"y\" attribute"
+        input_xml: |
+          <?xml version="1.0"?>
+          <root>
+            <item translate="y">extract me</item>
+            <item translate="n">skip me</item>
+            <item>also skip — no condition match</item>
+          </root>
+        expected_fail: |
+          bridge does not accept the camelCase `excludeByDefault` key
+          — it expects `exclude_by_default` (with underscores) per the
+          Okapi YAML parameter naming convention. Without the flag
+          the bridge falls back to default-include policy and
+          surfaces every <item>'s text. Native ApplyMap accepts the
+          camelCase spelling. Both legitimate; spec asserts native
+          behavior. A matching variant of this example using the
+          underscore key is left for a future authoring pass once
+          the spec runner supports per-side config aliases.
+        block_count: 1
+        first_block_text: "extract me"
+        no_block_with_text: ["skip me", "also skip"]
+    okapi_refs:
+      - XmlStreamEventTest#testExcludeByDefault
+      - XmlStreamConfigurationSupportTest#test_INCLUDE
+    native_refs:
+      - xml.TestExcludeByDefault_Basic
+
+  # ── Inline elements ──────────────────────────────────────────────────
+  - id: inline_elements
+    name: INLINE element rule keeps content inside surrounding block
+    description: |
+      Elements declared with `ruleTypes: [INLINE]` (`<b>`, `<a>`,
+      `<span>`, …) are preserved as Spans inside the surrounding
+      Block rather than starting a new Block. Their visible text is
+      part of the parent Block's source text; tag boundaries become
+      inline-code Spans. Both sides accept the long-form `elements:`
+      rule used here; native additionally accepts the
+      `inlineElements` shorthand.
+    spec_refs:
+      - "W3C XML 1.0 §3.1 Start-Tags End-Tags Empty-Element Tags (https://www.w3.org/TR/REC-xml/#sec-starttags)"
+    config:
+      elements:
+        b:
+          ruleTypes:
+            - INLINE
+        a:
+          ruleTypes:
+            - INLINE
+    examples:
+      - name: bold_anchor_in_paragraph
+        origin: "authored: <b> + <a> inline inside <p>"
+        input_xml: '<?xml version="1.0" encoding="UTF-8"?><doc><p>Before <b>bold</b> <a href="there"/> after.</p></doc>'
+        block_count: 1
+        first_block_text: "Before bold  after."
+        has_block_with_text:
+          - "Before"
+          - "bold"
+          - "after."
+    okapi_refs:
+      - XmlSnippetsTest#testPWithInlines
+      - XmlStreamEventTest#testPWithInlines
+    native_refs:
+      - xml.TestInline_BasicBoldAnchor
+      - xml.TestInline_BoldAndImg
+
+  # ── Attribute extraction ─────────────────────────────────────────────
+  - id: translatable_attributes
+    name: ATTRIBUTE_TRANS rule extracts attribute values
+    description: |
+      Attributes declared with `ruleTypes: [ATTRIBUTE_TRANS]` produce
+      a translatable Block per occurrence — the value of
+      `<p title="…">` surfaces alongside the element's text content.
+      Per-element scoping is available through `allElementsExcept` /
+      `onlyTheseElements` on the rule. Both sides accept the
+      long-form `attributes:` rule used here; native additionally
+      accepts the `translatableAttributes` shorthand list.
+    spec_refs:
+      - "W3C XML 1.0 §3.1 Start-Tags End-Tags Empty-Element Tags"
+    config:
+      attributes:
+        title:
+          ruleTypes:
+            - ATTRIBUTE_TRANS
+    examples:
+      - name: title_on_p
+        origin: "authored: <p title=\"…\"> with translatable title attribute"
+        input_xml: '<?xml version="1.0" encoding="UTF-8"?><doc><p title="my title">text</p></doc>'
+        has_block_with_text:
+          - "my title"
+          - "text"
+    okapi_refs:
+      - XmlSnippetsTest#testTitleInP
+      - XmlSnippetsTest#testAltInImg
+    native_refs:
+      - xml.TestAttributes_TitleInP
+      - xml.TestAttributes_AltInImg
+
+  - id: id_attributes
+    name: ATTRIBUTE_ID attribute rule sets Block name
+    description: |
+      Attributes declared with `ruleTypes: [ATTRIBUTE_ID]` are used
+      as the source of the Block's id / name when their owner
+      element produces a Block. The reader falls back to a plain
+      `id` attribute when no ATTRIBUTE_ID rule matches. The
+      assertion below pins the spec contract that the element's
+      text still extracts; the id metadata is recorded on the
+      Block's properties without entering the source text.
+    spec_refs:
+      - "W3C XML 1.0 §3.3.1 Attribute Types (https://www.w3.org/TR/REC-xml/#sec-attribute-types)"
+    config:
+      attributes:
+        "name":
+          ruleTypes:
+            - ATTRIBUTE_ID
+    examples:
+      - name: name_attr_used_as_id
+        origin: "authored: <string name=\"…\"> Android-resources style"
+        input_xml: '<?xml version="1.0"?><resources><string name="greeting">Hello</string></resources>'
+        block_count: 1
+        first_block_text: "Hello"
+    okapi_refs:
+      - XmlStreamConfigurationSupportTest#test_ATTRIBUTE_ID
+      - XmlStreamConfigurationSupportTest#test_idAttributes
+    native_refs:
+      - xml.TestID_FromAttribute
+      - xml.TestAttributeID_FromRule
+
+  # ── Whitespace handling ──────────────────────────────────────────────
+  - id: whitespace_collapse_default
+    name: Whitespace collapsed by default
+    description: |
+      Runs of whitespace inside extracted text collapse to a single
+      space and leading/trailing whitespace is trimmed. Mirrors the
+      Okapi default `preserve_whitespace: false` policy.
+    spec_refs:
+      - "W3C XML 1.0 §2.10 White Space Handling (https://www.w3.org/TR/REC-xml/#sec-white-space)"
+    examples:
+      - name: collapse_inner_whitespace
+        origin: "authored: multi-space and newline inside <p>"
+        input_xml: "<?xml version=\"1.0\"?><doc><p>  foo   bar\n\n  baz  </p></doc>"
+        block_count: 1
+        first_block_text: "foo bar baz"
+    okapi_refs:
+      - XmlStreamConfigurationSupportTest#test_collapse_whitespace
+      - XmlSnippetsTest#testCollapseWhitespaceWithoutPre
+    native_refs:
+      - xml.TestWhitespace_CollapseDefault
+
+  - id: preserve_whitespace_global
+    name: Global preserveWhitespace=true
+    description: |
+      Setting the global `preserveWhitespace` (or `parser.preserveWhitespace`)
+      to true keeps text content verbatim — runs of whitespace and
+      newlines are preserved exactly as they appear in the source.
+    spec_refs:
+      - "W3C XML 1.0 §2.10 White Space Handling"
+    config:
+      preserveWhitespace: true
+    examples:
+      - name: keep_inner_whitespace
+        origin: "authored: same input as collapse case but with global preserveWhitespace"
+        input_xml: "<?xml version=\"1.0\"?><doc><p>  foo   bar  </p></doc>"
+        expected_fail: |
+          bridge expects `parser.preserveWhitespace=true` (or
+          `preserve_whitespace: true` in YAML), not a top-level
+          `preserveWhitespace` boolean — the bridge composite schema
+          flattens the parser group via x-flattenPath but the daemon
+          does not synthesise the parser wrapper from the flat
+          spelling, so the bridge falls back to the default collapse
+          rule. Native ApplyMap accepts the flat spelling as a
+          convenience. Both legitimate; spec asserts native behavior.
+        block_count: 1
+        first_block_text: "  foo   bar  "
+    okapi_refs:
+      - XmlStreamConfigurationSupportTest#test_GLOBAL_PRESERVE_WHITESPACE
+    native_refs:
+      - xml.TestWhitespace_GlobalPreserve
+      - xml.TestWhitespace_ConfigPreserve
+
+  - id: preserve_whitespace_per_element
+    name: Per-element PRESERVE_WHITESPACE rule
+    description: |
+      Elements declared with `ruleTypes: [PRESERVE_WHITESPACE]` keep
+      their content verbatim, even when global whitespace handling is
+      the default collapse. Sibling elements still collapse. Both
+      sides accept the long-form `elements:` rule used here; native
+      additionally accepts the `preserveWhitespaceElements` shorthand.
+    spec_refs:
+      - "W3C XML 1.0 §2.10 White Space Handling"
+    config:
+      elements:
+        pre:
+          ruleTypes:
+            - PRESERVE_WHITESPACE
+    examples:
+      - name: pre_preserved_p_collapsed
+        origin: "authored: <pre> verbatim, neighbouring <p> collapsed"
+        input_xml: "<?xml version=\"1.0\"?><doc><pre>  foo   bar  </pre><p>  baz   qux  </p></doc>"
+        block_count: 2
+        block_texts:
+          - "  foo   bar  "
+          - "baz qux"
+    okapi_refs:
+      - XmlStreamConfigurationSupportTest#test_PRESERVE_WHITESPACE
+      - XmlSnippetsTest#testCollapseWhitespaceWithPre
+    native_refs:
+      - xml.TestWhitespace_ElementPreserve
+      - xml.TestWhitespace_PreserveOnPre
+
+  # ── XML built-ins (entities, CDATA, comments) ────────────────────────
+  - id: predefined_xml_entities
+    name: Predefined XML entities decoded inside content
+    description: |
+      The five predefined XML entities (`&amp; &lt; &gt; &quot; &apos;`)
+      decode to their literal characters when they appear inside an
+      element's character data. Translators see the character, not
+      the escape token.
+    spec_refs:
+      - "W3C XML 1.0 §4.6 Predefined Entities (https://www.w3.org/TR/REC-xml/#sec-predefined-ent)"
+    examples:
+      - name: amp_lt_gt_apos_quot
+        origin: "authored: all five predefined entities in one text node"
+        input_xml: "<?xml version=\"1.0\"?><doc><p>5 &gt; 3 &amp;&amp; X &lt; Y &apos;ok&apos; &quot;done&quot;</p></doc>"
+        block_count: 1
+        first_block_text: "5 > 3 && X < Y 'ok' \"done\""
+    okapi_refs:
+      - XmlSnippetsTest#testEscapes
+      - XmlSnippetsTest#testEscapes2
+      - XmlSnippetsTest#testEscapedEntities
+    native_refs:
+      - xml.TestEntities_Basic
+      - xml.TestEntities_Escapes2
+      - xml.TestEntities_Ampersand
+
+  - id: cdata_section
+    name: CDATA section text extracted
+    description: |
+      CDATA sections (`<![CDATA[…]]>`) carry character data that the
+      parser exposes verbatim — markup-looking content inside the
+      CDATA is treated as plain text. The reader extracts the inner
+      text as part of the surrounding Block.
+    spec_refs:
+      - "W3C XML 1.0 §2.7 CDATA Sections (https://www.w3.org/TR/REC-xml/#sec-cdata-sect)"
+    examples:
+      - name: cdata_with_markup_chars
+        origin: "authored: CDATA with chars that would otherwise need escaping"
+        input_xml: '<?xml version="1.0"?><doc><msg><![CDATA[5 < 10 & "true"]]></msg></doc>'
+        block_count: 1
+        first_block_text: '5 < 10 & "true"'
+    okapi_refs:
+      - XmlSnippetsTest#testCdataSection
+      - XmlSnippetsTest#testCdataSectionExtraction
+    native_refs:
+      - xml.TestCDATA_Basic
+
+  - id: xml_lang_recognition
+    name: xml:lang attribute recognised
+    description: |
+      The reader picks up `xml:lang` attributes per the XML 1.0
+      §2.12 contract — the value is exposed as language metadata on
+      the affected Block / document scope. The spec-level assertion
+      is content extraction; language metadata surfaces through the
+      Block's properties without entering the source text.
+    spec_refs:
+      - "W3C XML 1.0 §2.12 Language Identification (https://www.w3.org/TR/REC-xml/#sec-lang-tag)"
+    examples:
+      - name: xml_lang_on_element
+        origin: "authored: <p xml:lang=\"fr-FR\"> identifying French content"
+        input_xml: '<?xml version="1.0"?><doc><p xml:lang="fr-FR">Bonjour</p></doc>'
+        block_count: 1
+        first_block_text: "Bonjour"
+    okapi_refs:
+      - XmlStreamEventTest#testXmlLang
+      - XmlStreamEventTest#testLang
+    native_refs:
+      - xml.TestXmlLang_XmlLang
+      - xml.TestXmlLang_OnDoc
+
+  - id: comments_skipped
+    name: XML comments not extracted
+    description: |
+      `<!-- ... -->` comments are part of the document skeleton —
+      they don't yield Blocks. Surrounding elements still extract
+      normally. Mirrors W3C XML 1.0 §2.5: comments may appear
+      anywhere in the document and never carry character data.
+    spec_refs:
+      - "W3C XML 1.0 §2.5 Comments (https://www.w3.org/TR/REC-xml/#sec-comments)"
+    examples:
+      - name: comment_between_elements
+        origin: "authored: comment surrounded by translatable elements"
+        input_xml: '<?xml version="1.0"?><doc><p>before</p><!-- skip me --><p>after</p></doc>'
+        block_count: 2
+        block_texts:
+          - "before"
+          - "after"
+        no_block_with_text: ["skip me"]
+    okapi_refs:
+      - XmlStreamEventTest#testPWithComment
+    native_refs:
+      - xml.TestComment_AsPlaceholderSpan
+
+  - id: processing_instructions_skipped
+    name: Processing instructions not extracted
+    description: |
+      Processing instructions (`<?target data?>`) are skeleton — they
+      don't surface as translatable Blocks. Surrounding text still
+      extracts cleanly.
+    spec_refs:
+      - "W3C XML 1.0 §2.6 Processing Instructions (https://www.w3.org/TR/REC-xml/#sec-pi)"
+    examples:
+      - name: pi_between_elements
+        origin: "authored: PI surrounded by translatable elements"
+        input_xml: '<?xml version="1.0"?><doc><p>before</p><?xml-stylesheet href="style.css"?><p>after</p></doc>'
+        block_count: 2
+        block_texts:
+          - "before"
+          - "after"
+        no_block_with_text: ["style.css", "xml-stylesheet"]
+    okapi_refs:
+      - XmlStreamEventTest#testPWithProcessingInstruction
+    native_refs:
+      - xml.TestPI_AsPlaceholderSpan
+      - xml.TestDataParts_ProcessingInstruction
+
+  # ── Namespaces ───────────────────────────────────────────────────────
+  - id: namespaced_elements
+    name: Namespaced elements extracted by local name
+    description: |
+      Elements bound to a namespace via `xmlns="…"` or `xmlns:prefix="…"`
+      still surface their text content. The default extraction policy
+      is independent of the namespace binding; rule keys match the
+      element's local name unless they spell the prefix explicitly.
+    spec_refs:
+      - "W3C Namespaces in XML 1.0 §1 The Namespaces Mechanism (https://www.w3.org/TR/xml-names/)"
+    examples:
+      - name: default_namespace_on_root
+        origin: "authored: default xmlns binding on root element"
+        input_xml: '<?xml version="1.0"?><root xmlns="urn:example:vocab"><msg>Hello namespaced world</msg></root>'
+        block_count: 1
+        first_block_text: "Hello namespaced world"
+    okapi_refs:
+      - XmlSnippetsTest#testEscapes
+    native_refs:
+      - xml.TestReadSimpleXML
