@@ -1129,6 +1129,13 @@ func detectSpecRefDrift(s *spec.Spec, okapi *filterResult) []specDriftEntry {
 // (general/word/excel for openxml, extraction/output for json …) is
 // flattened to a single set of property names; the spec author writes
 // flat keys, so flat membership matching is the right join.
+//
+// Each leaf in the schema may carry an `x-flattenPath` annotation
+// naming the legacy Java parameter (e.g. `extractAll` carries
+// `extractAllPairs`). Both the schema leaf name and the flatten-path
+// alias are accepted as valid spec keys (#518): the bridge runtime's
+// ParameterApplier accepts the legacy names while the schema documents
+// the new leaves; either form is a real parameter and shouldn't drift.
 func detectSpecConfigDrift(s *spec.Spec, props map[string]bool) []specConfigDriftEntry {
 	if s == nil || len(props) == 0 {
 		return nil
@@ -1249,6 +1256,13 @@ func loadSchemaPropertyNames(path string) (map[string]bool, error) {
 // property name it sees under any "properties" block. Handles nested
 // objects, oneOf/anyOf/allOf branches, and array `items` schemas so a
 // single pass covers the formats the bridge actually emits.
+//
+// Also harvests `x-flattenPath` annotations: the bridge composite
+// schema marks each leaf with the legacy Java parameter name the
+// filter's runtime ParameterApplier accepts (e.g. `extractAll` carries
+// `"x-flattenPath": "extractAllPairs"`). Spec authors may use either
+// form as the spec.config[].key — both are recognized as the same
+// parameter, so both must satisfy the drift check (#518).
 func collectSchemaProperties(node any, out map[string]bool) {
 	m, ok := node.(map[string]any)
 	if !ok {
@@ -1259,6 +1273,9 @@ func collectSchemaProperties(node any, out map[string]bool) {
 			out[key] = true
 			collectSchemaProperties(sub, out)
 		}
+	}
+	if fp, ok := m["x-flattenPath"].(string); ok && fp != "" {
+		out[fp] = true
 	}
 	for _, k := range []string{"oneOf", "anyOf", "allOf"} {
 		if arr, ok := m[k].([]any); ok {
