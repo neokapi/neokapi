@@ -2,6 +2,7 @@ package vignette_test
 
 import (
 	"bytes"
+	"strings"
 	"testing"
 
 	"github.com/neokapi/neokapi/core/format"
@@ -12,6 +13,10 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// vignetteSkeletonRoundtrip reads input through the vignette reader
+// (no translation, no edits) and writes it back through the writer
+// using a SkeletonStore. Returns the writer's output for caller
+// comparison against the input.
 func vignetteSkeletonRoundtrip(t *testing.T, input string) string {
 	t.Helper()
 	ctx := t.Context()
@@ -40,68 +45,23 @@ func vignetteSkeletonRoundtrip(t *testing.T, input string) string {
 	return buf.String()
 }
 
-func TestSkeletonStore_ByteExact_PlainText(t *testing.T) {
-	input := "This is plain text."
-	output := vignetteSkeletonRoundtrip(t, input)
-	assert.Equal(t, input, output, "plain text roundtrip should be byte-exact")
+func TestSkeletonStore_ByteExact_EmptyProject(t *testing.T) {
+	output := vignetteSkeletonRoundtrip(t, minimalEmptyDoc)
+	assert.Equal(t, minimalEmptyDoc, output, "empty project roundtrip should be byte-exact")
 }
 
-func TestSkeletonStore_ByteExact_MultiLine(t *testing.T) {
-	input := "Line one.\nLine two.\nLine three."
-	output := vignetteSkeletonRoundtrip(t, input)
-	assert.Equal(t, input, output, "multi-line text roundtrip should be byte-exact")
-}
-
-func TestSkeletonStore_ByteExact_CRLF(t *testing.T) {
-	input := "Line one.\r\nLine two.\r\nLine three."
-	output := vignetteSkeletonRoundtrip(t, input)
-	assert.Equal(t, input, output, "CRLF line endings should be preserved")
-}
-
-func TestSkeletonStore_ByteExact_WithCodeChunk(t *testing.T) {
-	input := "Before code.\n```{r setup}\nlibrary(ggplot2)\n```\nAfter code."
-	output := vignetteSkeletonRoundtrip(t, input)
-	assert.Equal(t, input, output, "code chunks should be preserved byte-exact")
-}
-
-func TestSkeletonStore_ByteExact_WithYAML(t *testing.T) {
-	input := "---\ntitle: \"Test\"\nauthor: \"Author\"\n---\nHello world."
-	output := vignetteSkeletonRoundtrip(t, input)
-	assert.Equal(t, input, output, "YAML front matter should be preserved byte-exact")
-}
-
-func TestSkeletonStore_ByteExact_RnwCodeChunk(t *testing.T) {
-	input := "Before code.\n<<setup>>=\nlibrary(ggplot2)\n@\nAfter code."
-	output := vignetteSkeletonRoundtrip(t, input)
-	assert.Equal(t, input, output, "Rnw code chunks should be preserved byte-exact")
-}
-
-func TestSkeletonStore_ByteExact_MultipleCodeChunks(t *testing.T) {
-	input := "Para 1.\n```{r}\ncode1()\n```\nPara 2.\n```{r}\ncode2()\n```\nPara 3."
-	output := vignetteSkeletonRoundtrip(t, input)
-	assert.Equal(t, input, output, "multiple code chunks should be preserved byte-exact")
-}
-
-func TestSkeletonStore_ByteExact_TrailingNewline(t *testing.T) {
-	input := "Hello world.\n"
-	output := vignetteSkeletonRoundtrip(t, input)
-	assert.Equal(t, input, output, "trailing newline should be preserved")
-}
-
-func TestSkeletonStore_ByteExact_EmptyInput(t *testing.T) {
-	input := ""
-	output := vignetteSkeletonRoundtrip(t, input)
-	assert.Equal(t, input, output, "empty input should produce empty output")
-}
-
-func TestSkeletonStore_ByteExact_OnlyCode(t *testing.T) {
-	input := "```{r}\nx <- 1\n```"
-	output := vignetteSkeletonRoundtrip(t, input)
-	assert.Equal(t, input, output, "code-only content should be byte-exact")
+func TestSkeletonStore_ByteExact_PlainBilingualPair(t *testing.T) {
+	// With useCDATA=true (default) and the source-side payload "hello"
+	// being plain text, the writer re-emits `<![CDATA[hello]]>` in place
+	// of the original `hello`. The rest of the document (envelope, other
+	// instance, attribute names, locale tags) is byte-exact via skeleton.
+	output := vignetteSkeletonRoundtrip(t, plainBilingualPair)
+	assert.Contains(t, output, "<![CDATA[hello]]>")
+	assert.Contains(t, output, "bonjour", "non-extracted instance payload preserved verbatim")
+	assert.Contains(t, output, `xmlns="http://www.vignette.com/xmlschemas/importexport"`)
 }
 
 func TestSkeletonStore_WithTranslation(t *testing.T) {
-	input := "Hello world.\n```{r}\ncode()\n```\nGoodbye world."
 	ctx := t.Context()
 	locale := model.LocaleID("fr")
 
@@ -114,20 +74,18 @@ func TestSkeletonStore_WithTranslation(t *testing.T) {
 	reader.SetSkeletonStore(store)
 	writer.SetSkeletonStore(store)
 
-	err = reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
+	err = reader.Open(ctx, testutil.RawDocFromString(plainBilingualPair, model.LocaleEnglish))
 	require.NoError(t, err)
 	parts := testutil.CollectParts(t, reader.Read(ctx))
 	reader.Close()
 
 	for _, p := range parts {
-		if p.Type == model.PartBlock {
-			b := p.Resource.(*model.Block)
-			switch b.SourceText() {
-			case "Hello world.":
-				b.Targets[locale] = []*model.Segment{{ID: "s1", Runs: []model.Run{{Text: &model.TextRun{Text: "Bonjour le monde."}}}}}
-			case "Goodbye world.":
-				b.Targets[locale] = []*model.Segment{{ID: "s1", Runs: []model.Run{{Text: &model.TextRun{Text: "Au revoir le monde."}}}}}
-			}
+		if p.Type != model.PartBlock {
+			continue
+		}
+		b := p.Resource.(*model.Block)
+		if b.SourceText() == "hello" {
+			b.SetTargetText(locale, "salut")
 		}
 	}
 
@@ -139,12 +97,41 @@ func TestSkeletonStore_WithTranslation(t *testing.T) {
 	require.NoError(t, writer.Write(ctx, ch))
 	writer.Close()
 
-	expected := "Bonjour le monde.\n```{r}\ncode()\n```\nAu revoir le monde."
-	assert.Equal(t, expected, buf.String())
+	output := buf.String()
+	assert.Contains(t, output, "<![CDATA[salut]]>")
+	assert.NotContains(t, output, "<![CDATA[hello]]>", "source text should be replaced by translation")
+	// The non-extracted instance payload is still emitted verbatim
+	// because no Block reference covers it.
+	assert.Contains(t, output, "bonjour")
 }
 
-func TestSkeletonStore_ByteExact_YAMLWithCRLF(t *testing.T) {
-	input := "---\r\ntitle: \"Test\"\r\n---\r\nHello world."
-	output := vignetteSkeletonRoundtrip(t, input)
-	assert.Equal(t, input, output, "YAML with CRLF should be byte-exact")
+func TestSkeletonStore_RealisticHTMLPayloadWritesValidXML(t *testing.T) {
+	output := vignetteSkeletonRoundtrip(t, simpleBilingualPair)
+	// "ENtext" is the decoded source-side payload; write-side re-wraps
+	// it in <p> and CDATA-escapes the result for embedding in valueCLOB.
+	assert.Contains(t, output, "<![CDATA[<p>ENtext</p>]]>")
+	// The envelope is preserved.
+	assert.Contains(t, output, "<importContentInstance>")
+	assert.Contains(t, output, "</packageBody>")
+}
+
+func TestSkeletonStore_NoSkeleton_FallbackWritesPayloadsOnly(t *testing.T) {
+	ctx := t.Context()
+	reader := vignette.NewReader()
+	err := reader.Open(ctx, testutil.RawDocFromString(plainBilingualPair, model.LocaleEnglish))
+	require.NoError(t, err)
+	parts := testutil.CollectParts(t, reader.Read(ctx))
+	reader.Close()
+
+	var buf bytes.Buffer
+	writer := vignette.NewWriter()
+	require.NoError(t, writer.SetOutputWriter(&buf))
+
+	ch := testutil.PartsToChannel(parts)
+	require.NoError(t, writer.Write(ctx, ch))
+	writer.Close()
+
+	output := buf.String()
+	// Fallback mode: just block payloads, one per line.
+	assert.Equal(t, "hello", strings.TrimSpace(output))
 }

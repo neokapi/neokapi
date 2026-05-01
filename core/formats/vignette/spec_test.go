@@ -9,13 +9,16 @@ import (
 )
 
 // TestSpec drives every Feature × Example in spec.yaml through the
-// native vignette reader. Every example carries an expected_fail tag
-// because the native reader currently implements R Markdown / R Sweave
-// (.Rmd / .Rnw) rather than the Vignette CMS export XML format that
-// `okf_vignette` actually targets — see issue #453's `okf_vignette`
-// row and #501 (the native bug filed alongside this spec). The runner
-// logs those as expected failures rather than turning them into test
-// errors.
+// native vignette reader. The native reader was rewritten under #501
+// to parse Vignette CMS export/import XML (the upstream `vgnexport`
+// format).
+//
+// A few examples retain `expected_fail:` tags because the bridge
+// daemon still extracts 0 Blocks from these inputs — that gap is
+// unrelated to the native rewrite (the bridge is the divergent side
+// now). The native runner logs informational "now pass — remove the
+// expected_fail tag" messages on those examples; the parity runner
+// suppresses bridge failures via the same tag.
 //
 // Vignette is a single-variant format — variant is unused, NewReader
 // returns the package's default reader for every example.
