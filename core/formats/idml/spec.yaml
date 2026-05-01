@@ -102,8 +102,11 @@ features:
       The simplest case: a one-story IDML with a single
       ParagraphStyleRange/CharacterStyleRange/Content yields exactly
       one translatable Block whose source text is the Content body.
+    spec_refs:
+      - "Adobe IDML specification — Story / ParagraphStyleRange / CharacterStyleRange / Content"
     examples:
       - name: helloworld
+        origin: "authored: testdata/helloworld.idml — minimal one-Content fixture"
         input_file: testdata/helloworld.idml
         block_count: 1
         first_block_text: "Hello World!"
@@ -127,8 +130,11 @@ features:
       Each <Content> element under a CharacterStyleRange becomes its
       own translatable Block, in document order. Paragraphs are not
       merged when separated by sibling ParagraphStyleRange elements.
+    spec_refs:
+      - "Adobe IDML specification — sibling ParagraphStyleRange / Content elements"
     examples:
       - name: two_paragraphs
+        origin: "authored: testdata/two-paragraphs.idml — two ParagraphStyleRange siblings"
         input_file: testdata/two-paragraphs.idml
         block_count: 2
         block_texts:
@@ -152,8 +158,11 @@ features:
       A <Br/> element inside a ParagraphStyleRange forces a new
       character run; each surrounding Content element extracts as
       its own Block.
+    spec_refs:
+      - "Adobe IDML specification — Br element inside ParagraphStyleRange"
     examples:
       - name: newline
+        origin: "authored: testdata/newline.idml — single <Br/> splitting two Content runs"
         input_file: testdata/newline.idml
         block_count: 2
         block_texts:
@@ -179,8 +188,11 @@ features:
       style name. The reader propagates style context through the
       style stack so nested ParagraphStyleRange/CharacterStyleRange
       structures stay consistent.
+    spec_refs:
+      - "Adobe IDML specification — AppliedParagraphStyle attribute"
     examples:
       - name: title_and_body
+        origin: "authored: testdata/styles.idml — title style + two body paragraphs"
         input_file: testdata/styles.idml
         block_count: 3
         block_texts:
@@ -207,8 +219,11 @@ features:
       An IDML may bundle several stories under Stories/. The reader
       enumerates and sorts them by file name, emitting one child
       Layer per story and the contained Blocks in story order.
+    spec_refs:
+      - "Adobe IDML specification — Stories/ directory layout in IDML package"
     examples:
       - name: two_stories
+        origin: "authored: testdata/multi-story.idml — two Story_*.xml files"
         input_file: testdata/multi-story.idml
         block_count: 2
         block_texts:
@@ -234,8 +249,11 @@ features:
       `<Cell>` carries its own ParagraphStyleRange tree; the reader
       extracts each Content element inside the cells as a separate
       Block, in row-major order as written in the source XML.
+    spec_refs:
+      - "Adobe IDML specification — Table and Cell elements"
     examples:
       - name: two_cell_table
+        origin: "authored: testdata/table.idml — single-row two-cell table"
         input_file: testdata/table.idml
         block_count: 2
         block_texts:
@@ -262,8 +280,11 @@ features:
       Okapi's upstream default for `extractNotes` is false; the
       native default is true (documented divergence — see
       `footnote_extraction_disabled`).
+    spec_refs:
+      - "Adobe IDML specification — Footnote / Endnote / Note elements"
     examples:
       - name: footnote_present
+        origin: "authored: testdata/footnote.idml — main text + footnote, default extractNotes"
         input_file: testdata/footnote.idml
         block_count: 2
         block_texts:
@@ -287,10 +308,13 @@ features:
       With `extractNotes: false` the reader writes footnote content
       to skeleton instead of emitting it as a translatable Block.
       Only the surrounding main-text Content remains.
+    spec_refs:
+      - "Adobe IDML specification — Footnote element extraction policy"
     config:
       extractNotes: false
     examples:
       - name: footnote_skipped
+        origin: "authored: same testdata/footnote.idml + extractNotes=false config"
         input_file: testdata/footnote.idml
         block_count: 1
         first_block_text: "Main text"
@@ -316,10 +340,13 @@ features:
       U+00AD (soft hyphen) characters from extracted text. Useful
       when source text was authored with hyphenation hints that
       don't survive translation.
+    spec_refs:
+      - "Adobe IDML specification — discretionary (soft) hyphen U+00AD handling"
     config:
       skipDiscretionaryHyphens: true
     examples:
       - name: bindestrich_stripped
+        origin: "authored: testdata/discretionary-hyphen.idml + skipDiscretionaryHyphens=true"
         input_file: testdata/discretionary-hyphen.idml
         block_count: 1
         first_block_text: "Bindestrich"
@@ -345,10 +372,13 @@ features:
       because the native reader currently defaults to `true` while
       the upstream Okapi default is `false`; declaring the value
       keeps the assertion stable across implementations.
+    spec_refs:
+      - "Adobe IDML specification — discretionary (soft) hyphen U+00AD handling"
     config:
       skipDiscretionaryHyphens: false
     examples:
       - name: bindestrich_preserved
+        origin: "authored: same fixture + skipDiscretionaryHyphens=false (preserves U+00AD)"
         input_file: testdata/discretionary-hyphen.idml
         block_count: 1
         first_block_text: "Binde­strich"
@@ -373,8 +403,11 @@ features:
       extracts the inserted Content alongside the original Content,
       so reviewers see both states as translatable blocks. Deleted
       runs are similarly extracted when present.
+    spec_refs:
+      - "Adobe IDML specification — Change element with ChangeType attribute"
     examples:
       - name: insertion
+        origin: "authored: testdata/change-tracking.idml — InsertedText change-tracking marker"
         input_file: testdata/change-tracking.idml
         block_count: 2
         block_texts:

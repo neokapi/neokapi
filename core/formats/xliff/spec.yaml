@@ -167,8 +167,11 @@ features:
       whose source text is the inner content of `<source>`. The
       block's id and name default to the trans-unit's `id` attribute
       until a `resname` overrides the name.
+    spec_refs:
+      - "XLIFF 1.2 §3.2.3 trans-unit (https://docs.oasis-open.org/xliff/v1.2/os/xliff-core.html#trans-unit)"
     examples:
       - name: single_unit
+        origin: "authored: minimal XLIFF 1.2 file with one trans-unit"
         input_xml: |
           <?xml version="1.0"?>
           <xliff version="1.2" xmlns="urn:oasis:names:tc:xliff:document:1.2">
@@ -181,6 +184,7 @@ features:
         block_count: 1
         first_block_text: "Hello World"
       - name: simple_file
+        origin: "authored: testdata/simple.xlf — three-unit baseline fixture"
         input_file: testdata/simple.xlf
         block_count: 3
         block_texts:
@@ -202,8 +206,11 @@ features:
       segments (under the file's target-language) come from `<target>`.
       Trans-units with no `<target>` still produce a translatable
       Block — they're awaiting translation.
+    spec_refs:
+      - "XLIFF 1.2 §3.2.4 source / target (https://docs.oasis-open.org/xliff/v1.2/os/xliff-core.html#trans-unit)"
     examples:
       - name: with_target
+        origin: "authored: trans-unit with both <source> and <target>"
         input_xml: |
           <?xml version="1.0"?>
           <xliff version="1.2" xmlns="urn:oasis:names:tc:xliff:document:1.2">
@@ -229,8 +236,11 @@ features:
       name is set to that value (and `resname` is also recorded under
       the block's properties). Without `resname`, the block name
       defaults to the trans-unit `id`.
+    spec_refs:
+      - "XLIFF 1.2 §4.2.1 resname attribute"
     examples:
       - name: resname_used
+        origin: "authored: trans-unit with resname=\"greeting\""
         input_xml: |
           <?xml version="1.0"?>
           <xliff version="1.2" xmlns="urn:oasis:names:tc:xliff:document:1.2">
@@ -255,8 +265,11 @@ features:
       `Translatable=false`. The spec runner's BlockTexts helper
       filters out non-translatable blocks, so the translatable count
       drops by one relative to the all-translate-yes baseline.
+    spec_refs:
+      - "XLIFF 1.2 §4.2.5 translate attribute"
     examples:
       - name: translate_no_unit
+        origin: "authored: two trans-units, one with translate=\"no\""
         input_xml: |
           <?xml version="1.0"?>
           <xliff version="1.2" xmlns="urn:oasis:names:tc:xliff:document:1.2">
@@ -281,8 +294,11 @@ features:
       A `<group translate="no">` marks every contained `<trans-unit>`
       as untranslatable, regardless of the trans-unit's own `translate`
       attribute. Trans-units outside the group remain translatable.
+    spec_refs:
+      - "XLIFF 1.2 §3.2.2 group + §4.2.5 translate inheritance"
     examples:
       - name: group_translate_no
+        origin: "authored: <group translate=\"no\"> wrapping a unit"
         input_xml: |
           <?xml version="1.0"?>
           <xliff version="1.2" xmlns="urn:oasis:names:tc:xliff:document:1.2">
@@ -311,8 +327,11 @@ features:
       the stream, surrounding their child Blocks. Blocks inside a group
       are still extracted normally; the group is informational
       structure for consumers that care about hierarchy.
+    spec_refs:
+      - "XLIFF 1.2 §3.2.2 group element"
     examples:
       - name: groups_visible
+        origin: "authored: single <group> wrapping two trans-units"
         input_xml: |
           <?xml version="1.0"?>
           <xliff version="1.2" xmlns="urn:oasis:names:tc:xliff:document:1.2">
@@ -341,8 +360,11 @@ features:
       with its own original/source-language/target-language. Each
       `<file>` becomes its own Layer in the stream; trans-units across
       files all surface as Blocks in document order.
+    spec_refs:
+      - "XLIFF 1.2 §3.2.1 file element"
     examples:
       - name: two_files
+        origin: "authored: XLIFF doc with two <file> elements (different target langs)"
         input_xml: |
           <?xml version="1.0"?>
           <xliff version="1.2" xmlns="urn:oasis:names:tc:xliff:document:1.2">
@@ -372,8 +394,11 @@ features:
       Standalone codes — `<x id="…"/>` — become Ph (placeholder) runs.
       Text outside the codes survives intact; the joined block text
       contains the runs' visible text only.
+    spec_refs:
+      - "XLIFF 1.2 §3.4 g and x inline elements"
     examples:
       - name: g_and_x_codes
+        origin: "authored: trans-unit with mixed <g> and <x/> inline codes"
         input_xml: |
           <?xml version="1.0"?>
           <xliff version="1.2" xmlns="urn:oasis:names:tc:xliff:document:1.2">
@@ -402,8 +427,11 @@ features:
       `<ph id="…">…</ph>` carries placeholder native data on a Ph run.
       The visible text between codes is preserved; native data on
       the codes is not joined into the block text.
+    spec_refs:
+      - "XLIFF 1.2 §3.4 bpt / ept / ph inline elements"
     examples:
       - name: bpt_ept_ph
+        origin: "authored: trans-unit with paired <bpt>/<ept> + standalone <ph>"
         input_xml: |
           <?xml version="1.0"?>
           <xliff version="1.2" xmlns="urn:oasis:names:tc:xliff:document:1.2">
@@ -433,8 +461,11 @@ features:
       source segments. The spec runner concatenates segment text when
       computing block text, so a 2-segment unit shows as one
       concatenated block_text entry.
+    spec_refs:
+      - "XLIFF 1.2 §3.4.4 seg-source / mrk segmentation"
     examples:
       - name: two_segments
+        origin: "authored: trans-unit with two <mrk mtype=\"seg\"> source/target segments"
         input_xml: |
           <?xml version="1.0"?>
           <xliff version="1.2" xmlns="urn:oasis:names:tc:xliff:document:1.2">
@@ -474,6 +505,7 @@ features:
       ignoreInputSegmentation: true
     examples:
       - name: flag_accepted
+        origin: "authored: segmented trans-unit + ignoreInputSegmentation=true config wiring"
         input_xml: |
           <?xml version="1.0"?>
           <xliff version="1.2" xmlns="urn:oasis:names:tc:xliff:document:1.2">
@@ -508,8 +540,11 @@ features:
       "note" key, with `from` / `priority` / `annotates` carried
       through). The note text doesn't enter the source text — the
       block text remains the source content alone.
+    spec_refs:
+      - "XLIFF 1.2 §3.2.6 note element"
     examples:
       - name: developer_note
+        origin: "authored: trans-unit with <note from=\"developer\" priority=\"1\">"
         input_xml: |
           <?xml version="1.0"?>
           <xliff version="1.2" xmlns="urn:oasis:names:tc:xliff:document:1.2">
@@ -540,8 +575,11 @@ features:
       alternative source/target text. The trans-unit's primary source
       remains the block source — the alt-trans content does not enter
       the block text.
+    spec_refs:
+      - "XLIFF 1.2 §3.2.5 alt-trans element"
     examples:
       - name: tm_match
+        origin: "authored: trans-unit with <alt-trans match-quality=\"100\" origin=\"tm\">"
         input_xml: |
           <?xml version="1.0"?>
           <xliff version="1.2" xmlns="urn:oasis:names:tc:xliff:document:1.2">

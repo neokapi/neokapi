@@ -83,8 +83,11 @@ features:
       The simplest case: a `{"key": "value"}` document yields one
       translatable Block whose source is "value" and whose name is
       "key" (under default `useKeyAsName: true`).
+    spec_refs:
+      - "RFC 8259 §4 Objects (https://www.rfc-editor.org/rfc/rfc8259)"
     examples:
       - name: single_pair
+        origin: "authored: minimal RFC 8259 §4 single-pair object"
         input_xml: '{"key": "Text1"}'
         block_count: 1
         first_block_text: "Text1"
@@ -99,8 +102,11 @@ features:
       String values inside nested objects are extracted recursively.
       Each value becomes its own Block; container keys carry no
       translatable text themselves.
+    spec_refs:
+      - "RFC 8259 §4 Objects (https://www.rfc-editor.org/rfc/rfc8259)"
     examples:
       - name: two_levels
+        origin: "authored: two-level nested object per RFC 8259 §4"
         input_xml: '{"key": {"key2": "Text1"}}'
         block_count: 1
         first_block_text: "Text1"
@@ -116,18 +122,23 @@ features:
       — they're keyless and treated as isolated strings. Setting
       `extractIsolatedStrings: true` opts them in. Objects inside
       arrays always get their key/value pairs extracted regardless.
+    spec_refs:
+      - "RFC 8259 §5 Arrays (https://www.rfc-editor.org/rfc/rfc8259)"
     examples:
       - name: bare_strings_default_skipped
+        origin: "authored: array of bare strings, default extractIsolatedStrings=false"
         input_xml: '{"items": ["alpha", "beta", "gamma"]}'
         # Default config: no Blocks. Bare array strings need the opt-in.
         block_count: 0
       - name: bare_strings_opt_in
+        origin: "authored: same array with extractIsolatedStrings=true opt-in"
         input_xml: '{"items": ["alpha", "beta", "gamma"]}'
         config:
           extractIsolatedStrings: true
         block_count: 3
         block_texts: ["alpha", "beta", "gamma"]
       - name: object_in_array_always_extracted
+        origin: "authored: object inside array — keyed values always extract"
         input_xml: '{"items": [{"key": "Text1"}]}'
         block_count: 1
         first_block_text: "Text1"
@@ -148,6 +159,7 @@ features:
       useKeyAsName: true
     examples:
       - name: parent_child
+        origin: "authored: nested object with useFullKeyPath=true config"
         input_xml: '{"parent": {"child": "Text1"}}'
         block_count: 1
         first_block_text: "Text1"
@@ -170,6 +182,7 @@ features:
       useLeadingSlashOnKeyPath: true
     examples:
       - name: parent_child_slashed
+        origin: "authored: nested object with useLeadingSlashOnKeyPath=true config"
         input_xml: '{"parent": {"child": "Text1"}}'
         block_count: 1
         first_block_text: "Text1"
@@ -185,8 +198,11 @@ features:
       JSON's `\uXXXX` escape sequences decode to their actual
       character before extraction. The block text carries the decoded
       character, not the escape sequence.
+    spec_refs:
+      - "RFC 8259 §7 Strings (https://www.rfc-editor.org/rfc/rfc8259)"
     examples:
       - name: a_grave
+        origin: "authored: RFC 8259 §7 \\uXXXX escape (à precomposed shown)"
         input_xml: '{"key": "à"}'
         block_count: 1
         first_block_text: "à"
@@ -207,6 +223,7 @@ features:
       exceptions: "^_internal$"
     examples:
       - name: skip_internal
+        origin: "authored: object with `_internal` key excluded by regex"
         input_xml: '{"hello": "Hi", "_internal": "skip me"}'
         block_count: 1
         first_block_text: "Hi"

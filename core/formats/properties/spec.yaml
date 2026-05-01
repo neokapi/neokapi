@@ -103,12 +103,16 @@ features:
       Each `key=value` (or `key:value`, or `key value`) line yields
       one translatable Block. The key becomes the Block's name; the
       value its source text.
+    spec_refs:
+      - "Java SE Properties spec — Properties.load (https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/Properties.html)"
     examples:
       - name: single_entry
+        origin: "authored: minimal Java Properties key=value entry"
         input_xml: "Key1=Text1\n"
         block_count: 1
         first_block_text: "Text1"
       - name: multiple_entries
+        origin: "authored: two entries with intervening comment"
         input_xml: "Key1=Text1\n# Comment\nKey2=Text2\n"
         block_count: 2
         block_texts:
@@ -129,16 +133,21 @@ features:
       Java Properties accepts three separator forms between key and
       value: `=`, `:`, and unescaped whitespace. All produce the same
       Block; the chosen separator is preserved in skeleton.
+    spec_refs:
+      - "Java SE Properties spec — three separator forms (=, :, whitespace) (https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/Properties.html)"
     examples:
       - name: equals
+        origin: "authored: `=` separator"
         input_xml: "key1=value1"
         block_count: 1
         first_block_text: "value1"
       - name: colon
+        origin: "authored: `:` separator"
         input_xml: "key2:value2"
         block_count: 1
         first_block_text: "value2"
       - name: space
+        origin: "authored: bare-space separator"
         input_xml: "key3 value3"
         block_count: 1
         first_block_text: "value3"
@@ -158,14 +167,18 @@ features:
       same logical entry. Leading whitespace on the continuation
       line is stripped before joining, per the Java spec. Multiple
       backslash continuations chain into one logical value.
+    spec_refs:
+      - "Java SE Properties spec — backslash line continuation (https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/Properties.html)"
     examples:
       - name: two_lines
+        origin: "authored: simple two-line continuation with leading whitespace strip"
         input_xml: "Key1=Text1\nKey2=Text2 \\\nSecond line"
         block_count: 2
         block_texts:
           - "Text1"
           - "Text2 Second line"
       - name: many_lines_indented
+        origin: "authored: chained continuations across mixed-whitespace lines"
         input_xml: "key8 = Text 8 \\\n  originally on \\\n\tseveral li\\\n   nes."
         block_count: 1
         first_block_text: "Text 8 originally on several lines."
@@ -184,12 +197,16 @@ features:
       preceding an entry attaches as that entry's translator note;
       otherwise the comment lives only in the skeleton. A blank
       line resets the pending note.
+    spec_refs:
+      - "Java SE Properties spec — `#` and `!` comment markers (https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/Properties.html)"
     examples:
       - name: hash_then_entry
+        origin: "authored: # comment preceding key=value"
         input_xml: "# This is a comment\nkey=value\n"
         block_count: 1
         first_block_text: "value"
       - name: bang_then_entry
+        origin: "authored: ! comment preceding key=value"
         input_xml: "! Also a comment\nkey=value\n"
         block_count: 1
         first_block_text: "value"
@@ -207,8 +224,11 @@ features:
       starting with `;` or `//` as comments. Default off — these
       lines parse as ordinary entries (with `;` or `/` as part of
       the key).
+    # `;` / `//` markers are an Okapi-side extension; the Java spec
+    # only recognises `#` and `!` — no spec_refs.
     examples:
       - name: semicolon_off_treated_as_entry
+        origin: "authored: `;` line under default extraComments=false (parses as entry)"
         input_xml: "; not a comment\nkey=value\n"
         # extraComments=false (default): `;` is part of the key, so
         # the line parses as an entry whose value is "not a comment".
@@ -217,6 +237,7 @@ features:
           - "not a comment"
           - "value"
       - name: semicolon_on_skipped
+        origin: "authored: same `;` line with extraComments=true opt-in"
         input_xml: "; this is a comment\nkey=value\n"
         config:
           extraComments: true
@@ -234,12 +255,16 @@ features:
       `\uXXXX` sequences in property values decode to the actual
       character before extraction. The Block's source text carries
       the decoded character, not the escape sequence.
+    spec_refs:
+      - "Java SE Properties spec — \\uXXXX Unicode escapes (https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/Properties.html)"
     examples:
       - name: a_tilde
+        origin: "authored: single \\u00E3 escape decoding to ã"
         input_xml: "Key1=Text with \\u00E3"
         block_count: 1
         first_block_text: "Text with ã"
       - name: ascii_hello
+        origin: "authored: every char of \"Hello\" via \\uXXXX escapes"
         input_xml: "greeting=\\u0048\\u0065\\u006C\\u006C\\u006F"
         block_count: 1
         first_block_text: "Hello"
@@ -257,8 +282,11 @@ features:
       values decode to their literal characters. Unknown escapes
       (e.g. `\w`) are kept verbatim. Controlled by convertLFandTab
       for `\n` / `\t`; the others are always decoded.
+    spec_refs:
+      - "Java SE Properties spec — \\t \\n \\r \\\\ special escapes (https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/Properties.html)"
     examples:
       - name: mixed_escapes
+        origin: "authored: value containing every supported backslash escape"
         input_xml: "Key1:Text1\\n=lf, \\t=tab, \\w=w, \\r=cr, \\\\=bs\n"
         expected_fail: |
           bridge bug — Okapi PropertiesFilter loses the literal `\r`
@@ -283,8 +311,11 @@ features:
       sequences `\:`, `\=`, `\#`, `\!` in values are decoded to
       their literal characters. Default off — by default these stay
       escaped in the extracted text.
+    spec_refs:
+      - "Java SE Properties spec — escaped key terminators \\: \\= (https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/Properties.html)"
     examples:
       - name: default_off_keeps_escapes
+        origin: "authored: value with every \\: \\= \\# \\! escape, useJavaEscapes off"
         input_xml: "key1=Listen\\: here's the \\#1 thing to remember\\: a \\!\\= b \\\\ c"
         expected_fail: |
           bridge bug — with useJavaEscapes off, Okapi PropertiesFilter
@@ -296,6 +327,7 @@ features:
         block_count: 1
         first_block_text: "Listen\\: here's the \\#1 thing to remember\\: a \\!\\= b \\ c"
       - name: enabled_decodes_escapes
+        origin: "authored: same value with useJavaEscapes=true (escapes decoded)"
         input_xml: "key1=Listen\\: here's the \\#1 thing to remember\\: a \\!\\= b \\\\ c"
         config:
           useJavaEscapes: true
@@ -314,11 +346,14 @@ features:
       matched against their keys. extractOnlyMatchingKey selects
       direction: true keeps matching entries; false drops them.
       Mirrors the upstream Test02 / Test03 fprm configurations.
+    # Key-condition filtering is an Okapi-side extraction policy,
+    # not part of the Java Properties format spec — no spec_refs.
     config:
       useKeyCondition: true
       keyCondition: ".*text.*"
     examples:
       - name: extract_matching_only
+        origin: "okapi-fixture: PropertiesFilterTest#testDoubleExtraction (Test02 fprm shape)"
         input_xml: "text100\tText for text100\nkey101\tText for key101 (no extraction)\ntextkey102 Text for textkey102\n"
         config:
           extractOnlyMatchingKey: true
@@ -327,6 +362,7 @@ features:
           - "Text for text100"
           - "Text for textkey102"
       - name: exclude_matching
+        origin: "okapi-fixture: PropertiesFilterTest#testDoubleExtraction (Test03 fprm shape)"
         input_xml: "text100\tText for text100 (no extraction)\nkey101\tText for key101\ntextkey102 Text for textkey102 (no extraction)\n"
         config:
           extractOnlyMatchingKey: false
@@ -347,8 +383,12 @@ features:
       keeps them as plain text under default config. The block's
       source text is identical in both cases — only the inline-code
       annotation differs.
+    # `{n}` placeholders are an ICU MessageFormat convention layered
+    # on Properties values; the Java Properties spec itself has no
+    # placeholder syntax — no spec_refs.
     examples:
       - name: numbered_placeholders
+        origin: "authored: value with `{1}...{2}` MessageFormat-style placeholders"
         input_xml: "Key1={1}Text1{2}"
         expected_fail: |
           bridge default config treats `{n}` placeholders as inline
@@ -360,6 +400,7 @@ features:
         block_count: 1
         first_block_text: "{1}Text1{2}"
       - name: escaped_placeholders
+        origin: "authored: value with escaped braces `\\{...\\}` (unknown-escape passthrough)"
         input_xml: "Key1=before \\{1\\} after"
         block_count: 1
         # Native reader leaves `\{` as `\{` (unknown escape) and
@@ -382,8 +423,11 @@ features:
       default-distributed fprm configurations; the native reader
       currently ignores them and extracts every entry regardless.
       Tracked here as a documented divergence.
+    # Localization directives are an Okapi-side extraction policy
+    # using comment syntax; not part of the Java Properties spec.
     examples:
       - name: skip_single_entry
+        origin: "okapi-fixture: PropertiesFilterTest#testLocDirectives_Skip"
         input_xml: "#_skip\nKey1:Text1\nKey2:Text2"
         # Okapi: Key1 skipped, only Text2 extracted (block_count=1).
         # Native: directives ignored, both extracted.
@@ -395,6 +439,7 @@ features:
         block_count: 1
         first_block_text: "Text2"
       - name: bskip_blocks_extraction
+        origin: "okapi-fixture: PropertiesFilterTest#testLocDirectives_Group"
         input_xml: "#_bskip\nKey1:Text1\n#_text\nKey2:Text2\nKey2:Text3"
         expected_fail: |
           Same divergence as skip_single_entry — directives ignored.
@@ -414,8 +459,11 @@ features:
       and produces a single block containing the unsplit content.
       Documented divergence — pinned via expected_fail until the
       native reader handles bare CR.
+    spec_refs:
+      - "Java SE Properties spec — line terminators (LF / CR / CRLF) (https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/Properties.html)"
     examples:
       - name: cr_terminated_pair
+        origin: "authored: two key=value lines separated by bare \\r"
         input_xml: "Key1=Text1\rKey2=Text2\r"
         expected_fail: |
           Native bufio reader splits on `\n` only, so `\r` lines

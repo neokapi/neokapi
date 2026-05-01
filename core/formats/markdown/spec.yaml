@@ -93,12 +93,16 @@ features:
       paragraph (separated by blank lines). Soft line breaks inside a
       paragraph collapse to a single block with a space joining the
       runs.
+    spec_refs:
+      - "CommonMark §6.7 Soft line breaks (https://spec.commonmark.org/0.31.2/#soft-line-breaks)"
     examples:
       - name: single_paragraph
+        origin: "authored: minimal one-paragraph baseline"
         input_xml: "Hello world\n"
         block_count: 1
         first_block_text: "Hello world"
       - name: two_paragraphs
+        origin: "authored: blank-line paragraph separator"
         input_xml: "First paragraph\n\nSecond paragraph\n"
         block_count: 2
         block_texts:
@@ -107,6 +111,7 @@ features:
       - name: emphasis_across_soft_break
         # Soft line break inside a paragraph collapses to a space —
         # the paragraph stays one Block.
+        origin: "authored: CommonMark §6.7 soft-break + emphasis case"
         input_xml: "Here comes _emphasized part of text that\nincludes a soft line break_."
         expected_fail: |
           bridge bug — Okapi MarkdownFilter preserves the literal `\n`
@@ -129,16 +134,22 @@ features:
       `#`-prefixed (ATX) and underline (Setext) headings each become
       one Block. The heading level is recorded as a Block property;
       the prefix marker is preserved as skeleton, not as block text.
+    spec_refs:
+      - "CommonMark §4.2 ATX headings (https://spec.commonmark.org/0.31.2/#atx-headings)"
+      - "CommonMark §4.3 Setext headings"
     examples:
       - name: atx_levels
+        origin: "authored: CommonMark §4.2 ATX H1/H2/H3 levels"
         input_xml: "# H1\n\n## H2\n\n### H3\n"
         block_count: 3
         block_texts: ["H1", "H2", "H3"]
       - name: heading_with_prefix
+        origin: "authored: minimal ATX heading"
         input_xml: "# Heading\n"
         block_count: 1
         first_block_text: "Heading"
       - name: setext_underline
+        origin: "authored: CommonMark §4.3 Setext-underline heading"
         input_xml: "Heading\n=======\n\n"
         block_count: 1
         first_block_text: "Heading"
@@ -156,8 +167,11 @@ features:
       `-`, `1.`) stays in the skeleton. Soft line breaks inside an
       item collapse to a space, mirroring the Okapi contract that one
       item == one TextUnit.
+    spec_refs:
+      - "CommonMark §5.2 List items (https://spec.commonmark.org/0.31.2/#list-items)"
     examples:
       - name: bullet_list
+        origin: "authored: bullet list with soft-break inside item"
         input_xml: "* First\nelement\n\n* Second element\n\n* Third element\n\n"
         expected_fail: |
           bridge bug — same soft-break handling as emphasis_across_soft_break.
@@ -171,6 +185,7 @@ features:
           - "Second element"
           - "Third element"
       - name: ordered_list
+        origin: "authored: minimal ordered list"
         input_xml: "1. First\n2. Second\n3. Third\n"
         block_count: 3
         block_texts: ["First", "Second", "Third"]
@@ -188,12 +203,17 @@ features:
       strikethrough (`~~`) are preserved as inline-code Spans inside
       the surrounding Block. They never split the paragraph into
       multiple Blocks.
+    spec_refs:
+      - "CommonMark §6.2 Emphasis and strong emphasis (https://spec.commonmark.org/0.31.2/#emphasis-and-strong-emphasis)"
+      - "GFM §6.5 Strikethrough (extension) (https://github.github.com/gfm/#strikethrough-extension-)"
     examples:
       - name: bold_and_emphasis
+        origin: "authored: CommonMark §6.2 mixed strong + emphasis"
         input_xml: "Some **strong** and *emphasized* text"
         block_count: 1
         first_block_text: "Some strong and emphasized text"
       - name: strikethrough
+        origin: "authored: GFM §6.5 strikethrough"
         input_xml: "Some ~~strikethrough~~ text"
         block_count: 1
         first_block_text: "Some strikethrough text"
@@ -211,12 +231,16 @@ features:
       Backtick-delimited inline code (`` `code` ``) becomes an inline
       code Span carrying the verbatim code text. The delimiters are
       part of the Span's open/close data, not the block text.
+    spec_refs:
+      - "CommonMark §6.1 Code spans (https://spec.commonmark.org/0.31.2/#code-spans)"
     examples:
       - name: code_in_sentence
+        origin: "authored: minimal code span inside paragraph"
         input_xml: "Use the `code` function"
         block_count: 1
         first_block_text: "Use the code function"
       - name: code_and_emphasis_together
+        origin: "authored: code span + emphasis in same paragraph"
         input_xml: "Use `code` and *emphasis* here"
         block_count: 1
         first_block_text: "Use code and emphasis here"
@@ -235,16 +259,23 @@ features:
       behaviour: link/image text and autolink URL are translatable;
       explicit URLs in `()` parentheses are NOT extracted unless
       `translateUrls=true` (see the urls feature).
+    spec_refs:
+      - "CommonMark §6.3 Links (https://spec.commonmark.org/0.31.2/#links)"
+      - "CommonMark §6.4 Images (https://spec.commonmark.org/0.31.2/#images)"
+      - "CommonMark §6.5 Autolinks"
     examples:
       - name: inline_link
+        origin: "authored: CommonMark §6.3 inline link"
         input_xml: "Click [here](https://example.com) please"
         block_count: 1
         first_block_text: "Click here please"
       - name: inline_image
+        origin: "authored: CommonMark §6.4 inline image with alt text"
         input_xml: "See ![alt text](image.png) here"
         block_count: 1
         first_block_text: "See alt text here"
       - name: autolink_in_text
+        origin: "authored: CommonMark §6.5 autolink inside paragraph"
         input_xml: "Visit <https://example.com> now"
         expected_fail: |
           bridge default config strips autolink URLs from the source
@@ -270,10 +301,13 @@ features:
       is dropped from the surrounding Block (the image itself remains
       as an inline placeholder). Verifies the Okapi parameter name
       maps to the native config field.
+    spec_refs:
+      - "CommonMark §6.4 Images (https://spec.commonmark.org/0.31.2/#images)"
     config:
       translateImageAltText: false
     examples:
       - name: image_alt_dropped
+        origin: "authored: image with alt + translateImageAltText=false"
         input_xml: "See ![alt text](image.png) here"
         block_count: 1
         # Native: alt text is dropped, Block text becomes "See  here".
@@ -291,10 +325,13 @@ features:
       `` ```...``` `` blocks are non-translatable Data by default —
       the code text is preserved as a Data part rather than being
       emitted as a translatable Block.
+    spec_refs:
+      - "CommonMark §4.5 Fenced code blocks (https://spec.commonmark.org/0.31.2/#fenced-code-blocks)"
     config:
       translateCodeBlocks: false
     examples:
       - name: fenced_no_translate
+        origin: "authored: fenced code block with default translateCodeBlocks=false"
         input_xml: "```\ncode here\n```\n"
         block_count: 0
     okapi_refs:
@@ -309,10 +346,13 @@ features:
       With `translateCodeBlocks=true` fenced code blocks become
       translatable Blocks; the language tag (when present) is
       preserved as a Block property.
+    spec_refs:
+      - "CommonMark §4.5 Fenced code blocks (https://spec.commonmark.org/0.31.2/#fenced-code-blocks)"
     config:
       translateCodeBlocks: true
     examples:
       - name: fenced_translated
+        origin: "authored: fenced code block with translateCodeBlocks=true opt-in"
         input_xml: "```\ncode here\n```\n"
         block_count: 1
         # Native preserves the trailing newline of the fenced content.
@@ -330,8 +370,11 @@ features:
       surrounding paragraph. Default `translateCodeBlocks=false` keeps
       it as Data — verifies surrounding paragraphs still extract
       cleanly.
+    spec_refs:
+      - "CommonMark §4.4 Indented code blocks (https://spec.commonmark.org/0.31.2/#indented-code-blocks)"
     examples:
       - name: indented_between_paragraphs
+        origin: "authored: indented code block between two paragraphs"
         input_xml: "Text\n\n    indented code\n\nMore text\n"
         expected_fail: |
           bridge segments indented code blocks at finer granularity
@@ -355,8 +398,11 @@ features:
       Blockquoted paragraphs (`>`-prefixed) yield translatable Blocks
       just like regular paragraphs; the `>` marker stays in skeleton.
       Multi-paragraph blockquotes split into one Block per paragraph.
+    spec_refs:
+      - "CommonMark §5.1 Block quotes (https://spec.commonmark.org/0.31.2/#block-quotes)"
     examples:
       - name: two_quoted_paragraphs
+        origin: "authored: two-paragraph blockquote with separator line"
         input_xml: "> Quoted text\n>\n> More quoted\n"
         block_count: 2
         block_texts:
@@ -374,8 +420,11 @@ features:
       A `---`-fenced YAML header at the top of the document is
       non-translatable Data by default — only the markdown body
       yields Blocks. Verifies the default contract matches Okapi.
+    # YAML front matter is a community convention layered on top of
+    # CommonMark, not part of the formal CommonMark spec — no spec_refs.
     examples:
       - name: header_with_body
+        origin: "authored: YAML front matter + heading body, default config"
         input_xml: "---\ntitle: My Title\nauthor: John\n---\n\n# Heading\n"
         block_count: 1
         first_block_text: "Heading"
@@ -396,6 +445,7 @@ features:
       translateHeaderMetadata: true
     examples:
       - name: header_translated
+        origin: "authored: YAML front matter with translateHeaderMetadata=true opt-in"
         input_xml: "---\ntitle: My Title\nauthor: John\n---\n\n# Heading\n"
         block_count: 3
         block_texts: ["My Title", "John", "Heading"]
@@ -411,8 +461,11 @@ features:
       Header and body cells in a GFM pipe table each become their own
       translatable Block, in row-major order. The separator row
       (`| --- |`) is non-translatable structure.
+    spec_refs:
+      - "GFM §4.10 Tables (extension) (https://github.github.com/gfm/#tables-extension-)"
     examples:
       - name: simple_table
+        origin: "authored: minimal GFM pipe table (header + one body row)"
         input_xml: "| Header 1 | Header 2 |\n| --- | --- |\n| Cell 1 | Cell 2 |\n"
         block_count: 4
         block_texts: ["Header 1", "Header 2", "Cell 1", "Cell 2"]
@@ -430,8 +483,11 @@ features:
       Data by default — the surrounding markdown paragraphs are still
       extracted as Blocks. With no `htmlSubfilter` configured the HTML
       stays opaque.
+    spec_refs:
+      - "CommonMark §4.6 HTML blocks (https://spec.commonmark.org/0.31.2/#html-blocks)"
     examples:
       - name: html_block_between_paragraphs
+        origin: "authored: HTML block between two paragraphs, no htmlSubfilter"
         input_xml: "Text before\n\n<div>HTML content</div>\n\nText after\n"
         expected_fail: |
           bridge default config descends into HTML blocks (extracts
@@ -455,8 +511,11 @@ features:
       stay in the surrounding Block as inline-code Spans; the visible
       text between them is part of the Block source. Tag attributes
       and tag names never leak into the translatable text.
+    spec_refs:
+      - "CommonMark §6.6 Raw HTML (https://spec.commonmark.org/0.31.2/#raw-html)"
     examples:
       - name: span_inside_paragraph
+        origin: "authored: inline <span> tag inside paragraph"
         input_xml: "This contains <span>some inline</span> HTML\n"
         block_count: 1
         first_block_text: "This contains some inline HTML"

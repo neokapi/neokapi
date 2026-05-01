@@ -108,6 +108,16 @@ type Feature struct {
 	// feature, in "package.TestFuncName" form. Used by docs to link to
 	// authoritative implementations.
 	NativeRefs []string `yaml:"native_refs,omitempty"`
+
+	// SpecRefs cites the format specification(s) this feature asserts
+	// against. When the bridge diverges from native, the upstream
+	// conversation is "your filter violates <cited spec>" rather than
+	// "your filter behaves differently from ours" — much harder to push
+	// back on. Free-text lines like "CommonMark §6.7" or
+	// "YAML 1.2 §8.1.1.1" or "Java SE Properties spec (Properties.load)".
+	// Empty when the feature is a behavioral convention with no formal
+	// spec authority (e.g. plaintext line-ending handling).
+	SpecRefs []string `yaml:"spec_refs,omitempty"`
 }
 
 // Example is one concrete input + assertion pair under a Feature.
@@ -148,6 +158,21 @@ type Example struct {
 
 	// Config overrides the feature's Config map for this example.
 	Config map[string]any `yaml:"config,omitempty"`
+
+	// Origin documents where the example's input came from. Helps
+	// reviewers (and upstream maintainers when a bridge bug gets filed)
+	// trace the provenance of any failure. Three canonical forms:
+	//   - "authored: <reason>" — input crafted by the spec author to
+	//     exercise a specific spec contract (most common; pair with the
+	//     feature's SpecRefs to point at the spec section being exercised).
+	//   - "okapi-fixture: <ref>" — input copied from an Okapi @Test
+	//     fixture (cite the test class + method).
+	//   - "real-world: <source>" — input excerpted from a real-world
+	//     document (e.g. "Excalidraw locales/en.json"). Useful when
+	//     real fixtures expose subtle layout the synthetic ones miss.
+	// Free-text after the kind tag is welcome; the form is for grep
+	// not for parsing.
+	Origin string `yaml:"origin,omitempty"`
 
 	// Assertions evaluated against the read parts. Inlined so spec
 	// authors write assertion fields directly under the example.

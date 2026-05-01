@@ -111,14 +111,18 @@ features:
       becomes one translatable Block whose source is the msgid value
       and whose target (for the document's target locale) is the
       msgstr value.
+    spec_refs:
+      - "GNU gettext PO format: msgid/msgstr (https://www.gnu.org/software/gettext/manual/html_node/PO-Files.html)"
     examples:
       - name: simple_pair
+        origin: "authored: minimal bilingual msgid/msgstr pair"
         input_xml: |
           msgid "Text 1"
           msgstr "Texte 1"
         block_count: 1
         first_block_text: "Text 1"
       - name: untranslated
+        origin: "authored: msgid with empty msgstr (untranslated entry)"
         description: |
           An empty msgstr keeps the Block translatable with no target
           assigned — entries waiting for translation, not entries to
@@ -142,8 +146,11 @@ features:
       is an empty leading `""` followed by one quoted continuation
       per line; the reader concatenates them (no implicit newline)
       into a single source/target string.
+    spec_refs:
+      - "GNU gettext PO format: long strings on multiple lines (https://www.gnu.org/software/gettext/manual/html_node/PO-Files.html)"
     examples:
       - name: continuation_lines
+        origin: "authored: multi-line msgid + msgstr per gettext continuation convention"
         input_xml: |
           msgid ""
           "This is a test "
@@ -166,8 +173,11 @@ features:
       Standard PO escapes (`\n`, `\t`, `\\`, `\"`) are decoded into
       their literal characters at read time. The Block source text
       carries the decoded characters, not the escape sequences.
+    spec_refs:
+      - "GNU gettext PO format: string escape sequences (https://www.gnu.org/software/gettext/manual/html_node/PO-Files.html)"
     examples:
       - name: newline_in_msgid
+        origin: "authored: \\n escape inside quoted msgid/msgstr"
         description: |
           `\n` inside a quoted PO string becomes a literal newline in
           the extracted source text.
@@ -193,8 +203,11 @@ features:
       Language, …). The header is NOT a translatable unit — the
       reader emits it as a Data part named `header` and continues
       with the actual entries.
+    spec_refs:
+      - "GNU gettext PO format: file header / metadata entry (https://www.gnu.org/software/gettext/manual/html_node/PO-Files.html)"
     examples:
       - name: header_with_following_entry
+        origin: "authored: standard PO header (empty msgid, metadata in msgstr) + entry"
         input_xml: |
           msgid ""
           msgstr ""
@@ -207,6 +220,7 @@ features:
         block_count: 1
         first_block_text: "Text"
       - name: pot_header_only
+        origin: "authored: POT template header with ENCODING placeholder"
         description: |
           POT (template) files have ENCODING placeholders. The
           following entry should still extract as one Block.
@@ -228,6 +242,7 @@ features:
         block_count: 1
         first_block_text: "Text"
       - name: empty_id_entry_skipped
+        origin: "authored: malformed empty-msgid entry (treated as header)"
         description: |
           A non-header entry with empty msgid is treated as a header
           (and produces no translatable unit). Mirrors Okapi's
@@ -253,8 +268,11 @@ features:
       "button"). The reader stores msgctxt on the Block's `context`
       property and treats each msgctxt+msgid pair as its own
       translatable unit.
+    spec_refs:
+      - "GNU gettext PO format: msgctxt context disambiguation (https://www.gnu.org/software/gettext/manual/html_node/PO-Files.html)"
     examples:
       - name: same_msgid_different_ctxt
+        origin: "authored: identical msgid disambiguated by msgctxt"
         description: |
           Two entries share the same msgid "Text1" but different
           msgctxt — both are extracted as distinct Blocks.
@@ -270,6 +288,7 @@ features:
           - "Text1"
           - "Text1"
       - name: ctxt_only
+        origin: "authored: minimal msgctxt-tagged entry"
         input_xml: |
           msgctxt "menu"
           msgid "File"
@@ -292,8 +311,11 @@ features:
       according to the locale's nplurals. The reader emits a
       GroupStart wrapping one Block per plural form; English source
       always exposes 2 forms (singular + plural).
+    spec_refs:
+      - "GNU gettext PO format: msgid_plural / msgstr[N] plural forms (https://www.gnu.org/software/gettext/manual/html_node/PO-Files.html)"
     examples:
       - name: en_two_forms
+        origin: "authored: untranslated msgid_plural + msgstr[0]/[1]"
         input_xml: |
           msgid "untranslated-singular"
           msgid_plural "untranslated-plural"
@@ -304,6 +326,7 @@ features:
           - "untranslated-singular"
           - "untranslated-plural"
       - name: with_translations
+        origin: "authored: plural entry with %d printf placeholder + French targets"
         input_xml: |
           msgid "1 file"
           msgid_plural "%d files"
@@ -321,6 +344,7 @@ features:
           - "1 file"
           - "%d files"
       - name: russian_three_forms
+        origin: "authored: Russian nplurals=3 header + msgstr[0..2]"
         description: |
           Russian declares nplurals=3. The Okapi contract is to
           surface all three msgstr targets as their own text units;
@@ -364,8 +388,11 @@ features:
       The reader emits these as Data parts (`comment`, `reference`,
       `flags`) preceding the translatable Block, so downstream tools
       can preserve them on round-trip.
+    spec_refs:
+      - "GNU gettext PO format: comment markers (#, #., #:, #|, #,) (https://www.gnu.org/software/gettext/manual/html_node/PO-Files.html)"
     examples:
       - name: full_entry_with_all_metadata
+        origin: "authored: entry exercising every PO comment / metadata marker"
         input_xml: |
           #, fuzzy
           #. Comment
@@ -378,6 +405,7 @@ features:
         block_count: 1
         first_block_text: "Source"
       - name: trailing_skeleton
+        origin: "real-world: nautilus-style fm-icon-view PO snippet"
         description: |
           Two entries separated by a blank line, the second carrying
           a `#, fuzzy` flag — exercises the comment / reference
@@ -411,8 +439,11 @@ features:
       reader extracts the entry as a normal translatable Block; the
       flag is preserved as a `flags` Data part so the writer can
       reproduce it. The Block source text is the msgid as usual.
+    spec_refs:
+      - "GNU gettext PO format: #, fuzzy flag (https://www.gnu.org/software/gettext/manual/html_node/PO-Files.html)"
     examples:
       - name: format_fuzzy
+        origin: "authored: c-format + fuzzy combined flag line"
         input_xml: |
           #, c-format, fuzzy
           msgid "Text 1"
@@ -420,6 +451,7 @@ features:
         block_count: 1
         first_block_text: "Text 1"
       - name: stuff_fuzzy_format
+        origin: "authored: x-stuff + fuzzy + c-format flag combination"
         input_xml: |
           #, x-stuff, fuzzy, c-format
           msgid "Text 1"
@@ -452,8 +484,11 @@ features:
       `%f` are part of the source text and not split into
       placeholder Spans. The reader exposes the entire msgid value
       as a single literal Block.
+    # printf placeholders are a C-library convention layered on PO,
+    # not part of the gettext file format itself — no spec_refs.
     examples:
       - name: percent_codes_in_msgid
+        origin: "authored: msgid/msgstr with %s/%d/%f printf specifiers"
         description: |
           Three printf format specifiers in source and target —
           all part of the literal text under the default config.
@@ -469,6 +504,7 @@ features:
         block_count: 1
         first_block_text: "Text %s and %d and %f"
       - name: angle_bracket_codes_no_inlines
+        origin: "okapi-fixture: POFilterTest#testWithNoCodesLookingLikeCodes"
         description: |
           Without the inline code finder enabled, `<x>...</x>` and
           `<x/>` look like markup but are extracted verbatim as
@@ -497,10 +533,13 @@ features:
       than English strings. Drives Okapi's `okf_po-monolingual`
       configuration; the native reader stores the flag for
       configuration parity but does not yet invert source/target.
+    # Monolingual catalogues are a usage convention; the gettext PO
+    # spec itself describes only the bilingual shape — no spec_refs.
     config:
       bilingualMode: false
     examples:
       - name: msgstr_as_source
+        origin: "authored: monolingual catalogue (msgid is an ID, msgstr carries source)"
         description: |
           In monolingual mode the source should be the msgstr value
           ("Hello"), not the msgid ("key1"). The native reader

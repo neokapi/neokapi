@@ -42,13 +42,17 @@ features:
       Block whose text is the value and whose Name is the entity
       identifier. Multiple entities in one document extract in document
       order.
+    spec_refs:
+      - "W3C XML 1.0 §4.2 Entity Declarations (https://www.w3.org/TR/2008/REC-xml-20081126/#sec-entity-decl)"
     examples:
       - name: single_entity
+        origin: "authored: minimal one-entity DTD snippet"
         description: One entity in one block.
         input_xml: '<!ENTITY greeting "Hello world">'
         block_count: 1
         first_block_text: "Hello world"
       - name: simple_dtd_file
+        origin: "authored: testdata/simple.dtd — three sibling entities"
         description: |
           Three sibling entities round-tripped from a real .dtd fixture.
           Verifies file ingestion, document order, and clean
@@ -76,8 +80,11 @@ features:
       surrounding whitespace). The comment itself never becomes a
       translatable Block. Mirrors Okapi's NoteAnnotation behavior on
       DTDFilterTest#testSimpleEntry.
+    spec_refs:
+      - "W3C XML 1.0 §2.5 Comments"
     examples:
       - name: comment_then_two_entities
+        origin: "authored: comment attached to first of two sibling entities"
         description: |
           The comment attaches to the first entity; the second entity
           carries no note. Both values still extract.
@@ -102,8 +109,11 @@ features:
       references decode to their actual Unicode code points before the
       Block source is built — translators see the character, not the
       escape.
+    spec_refs:
+      - "W3C XML 1.0 §4.1 Character and Entity References"
     examples:
       - name: three_forms_same_char
+        origin: "authored: same U+00E3 expressed as &#xe3;/&#xE3;/&#227;"
         description: |
           `&#xe3;`, `&#xE3;` and `&#227;` all denote U+00E3 (LATIN SMALL
           LETTER A WITH TILDE); the Block surfaces three identical
@@ -125,8 +135,11 @@ features:
       the Block's source — Okapi reifies them as inline Codes, neokapi
       keeps the raw `&name;` / `%name;` token in the text. Either
       representation lets a translator see and re-emit the reference.
+    spec_refs:
+      - "W3C XML 1.0 §4.1 Character and Entity References"
     examples:
       - name: mixed_unknown_and_parameter
+        origin: "authored: entity value with both general (&ent1;) and parameter (%pent1;) refs"
         description: |
           One entity value containing both an unknown general reference
           and a parameter entity reference. Block count is 1; the
@@ -158,8 +171,11 @@ features:
       decode to their literal characters when they appear inside an
       ENTITY value. Lets DTD authors store markup snippets that the
       filter surfaces as plain text for translation.
+    spec_refs:
+      - "W3C XML 1.0 §4.6 Predefined Entities"
     examples:
       - name: amp_lt_gt_in_one_value
+        origin: "authored: testdata/complex.dtd — `escaped` entity exercising &amp;/&lt;/&gt;"
         description: |
           The complex.dtd fixture's `escaped` entity is
           `Text with &amp; ampersand and &lt;angle brackets&gt;`; the
@@ -189,8 +205,11 @@ features:
       declarations are part of the document skeleton and produce no
       translatable Blocks. A DTD that only declares structure has zero
       extractable text.
+    spec_refs:
+      - "W3C XML 1.0 §3.2 Element Type Declarations / §3.3 Attribute-List Declarations"
     examples:
       - name: structure_only_dtd
+        origin: "authored: minimal Qt-Linguist-style structural DTD (ELEMENT + ATTLIST only)"
         description: |
           Element + attribute-list declarations only — the file is
           syntactically valid DTD but carries no translator-facing
