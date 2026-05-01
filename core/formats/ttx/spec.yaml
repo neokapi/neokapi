@@ -1,0 +1,373 @@
+# TTX (Trados TagEditor) format specification.
+#
+# Single-variant filter — no variants block. Inputs are inline TTX/XML
+# strings; the InputXML field holds raw text bytes for any text-based
+# format despite its historical name.
+#
+# Config keys mirror Okapi's TTX Parameters (also exposed by the bridge
+# composite schema as a flattened set with `x-flattenPath`):
+# `segmentMode` (under the schema's `mode` group) and `escapeGT` (under
+# the schema's `output` group) flatten to the same Java field names the
+# native Config.ApplyMap recognises. The `inlineCodes` group is a
+# documented parity surface — present in the bridge schema but not
+# exercised by the native reader today, since TTX inline tags are
+# carried by `<ut>`/`<df>`/`<it>` rather than the regex-based code
+# finder used by plain-text formats.
+#
+# The native reader walks the XML once, collects `<Seg>` text inside
+# `<Tu>`/`<Tuv>`, and emits one Block per TU with the first TUV as
+# Source and the second as Target. This matches the shape Trados
+# Studio writes to TTX files.
+#
+# ── Documented bridge divergence ────────────────────────────────────
+# Every example in this spec is currently tagged `expected_fail:` for
+# the bridge side. Okapi TTXFilter does not recognise `<Seg>` as a
+# segment-content wrapper (it treats `<Seg>` as an opaque inline
+# placeholder and walks the XML expecting text directly inside `<Tuv>`),
+# and even with `<Seg>` stripped it merges every `<Tu>` inside one
+# `<Raw>` into a single multi-segment TextUnit rather than one
+# TextUnit per `<Tu>`. The behavior is documented in #453 (filter
+# parity) and tracked as bridge bug #486. Once either side aligns,
+# drop the `expected_fail:` blocks.
+
+format: okf_ttx
+mime_type: application/x-ttx+xml
+description: |
+  Trados TagEditor TTX — bilingual XML produced by Trados / SDL
+  TagEditor. Wraps source and target language fragments in
+  `<Tu><Tuv Lang="…"><Seg>…</Seg></Tuv></Tu>` blocks under
+  `<TRADOStag><Body><Raw>`. The reader emits one Block per `<Tu>`
+  whose Source comes from the first `<Tuv>` and whose Target (when
+  present) comes from the second `<Tuv>` keyed by its `Lang`
+  attribute. Match-quality metadata from `<Tu MatchPercent="…">` is
+  surfaced as a Block property.
+
+config:
+  - key: segmentMode
+    type: int
+    default: 0
+    description: |
+      Controls extraction behavior. Mirrors Okapi's `segmentMode`
+      parameter (Java: `Parameters.SEGMENTMODE`, also exposed by the
+      bridge composite schema via `mode.segmentMode` with
+      `x-flattenPath: segmentMode`):
+        0 = AUTO — extract `<Seg>` content when `<Tu>` elements are
+            present; otherwise extract every `<Raw>` text run.
+        1 = EXISTING ONLY — only extract `<Seg>` content from existing
+            `<Tu>` elements.
+        2 = ALL — extract both segmented `<Seg>` content and any raw
+            text outside `<Tu>` boundaries.
+    okapi_param: segmentMode
+
+  - key: escapeGT
+    type: boolean
+    default: false
+    description: |
+      Escape `>` as `&gt;` on output. Mirrors Okapi's `escapeGT`
+      parameter (Java: `XMLEncoder.ESCAPEGT`, also exposed by the
+      bridge composite schema via `output.escapeGT` with
+      `x-flattenPath: escapeGT`). Affects the writer side only;
+      modern XML consumers handle bare `>` fine so this is off by
+      default.
+    okapi_param: escapeGT
+
+  # Documented parity surface — present in the bridge composite schema
+  # but not exercised by the native reader. TTX inline codes are
+  # carried as `<ut>`/`<df>`/`<it>` elements, not the regex code-finder
+  # convention shared by plain-text formats. Listed here so drift
+  # detection sees the grouping the bridge advertises.
+  - key: inlineCodes
+    type: string_map
+    description: |
+      Inline-code detection group exposed by the bridge composite
+      schema under `inlineCodes` (with leaf `x-flattenPath`s for
+      `useCodeFinder`, `codeFinderRules`, `mergeAdjacentCodes`,
+      `moveLeadingAndTrailingCodesToSkeleton`, `simplifierRules`).
+      Not consumed by the native TTX reader — TTX inline structure
+      lives in `<ut>`/`<df>`/`<it>` element pairs rather than the
+      regex finder used elsewhere.
+    okapi_param: inlineCodes
+
+features:
+  # ── Translation unit extraction ──────────────────────────────────
+  - id: trans_unit_extraction
+    name: Translation unit extraction
+    description: |
+      Each `<Tu>` becomes one Block. The first `<Tuv>` provides the
+      Source text (read from inside `<Seg>`); the second `<Tuv>`
+      provides the Target text keyed by its `Lang` attribute. Block
+      ID and Name are auto-generated as `tu1`, `tu2`, …
+    examples:
+      - name: simple_bilingual
+        # bridge bug #486 — Okapi TTXFilter treats <Seg> as an opaque
+        # inline placeholder and extracts no text from <Tuv><Seg>...
+        # </Seg></Tuv>. Native matches the Trados Studio output shape.
+        # Tracked under #453 / #486.
+        expected_fail: |
+          bridge bug #486 — Okapi TTXFilter does not recognise <Seg>
+          as a segment-content wrapper and produces 0 translatable
+          TextUnits for the canonical Trados Studio TTX shape.
+          Native extracts one Block per <Tu>. Tracked separately
+          under #453 (parity divergence) and #486 (root-cause bug).
+        input_xml: |
+          <?xml version="1.0" encoding="UTF-8"?>
+          <TRADOStag Version="2.0"><FrontMatter>
+          <ToolSettings CreationDate="20070508T094743Z" CreationTool="TRADOS TagEditor" CreationToolVersion="7.0.0.615"></ToolSettings>
+          <UserSettings DataType="STF" O-Encoding="UTF-8" SettingsName="" SettingsPath="" SourceLanguage="EN-US" TargetLanguage="FR-FR" SourceDocumentPath="abc.rtf" SettingsRelativePath="" PlugInInfo=""></UserSettings>
+          </FrontMatter><Body><Raw><Tu MatchPercent="0"><Tuv Lang="EN-US"><Seg>Hello world</Seg></Tuv><Tuv Lang="FR-FR"><Seg>Bonjour le monde</Seg></Tuv></Tu></Raw></Body></TRADOStag>
+        block_count: 1
+        first_block_text: "Hello world"
+      - name: two_units
+        expected_fail: |
+          bridge bug #486 — Okapi TTXFilter does not recognise <Seg>
+          and additionally merges every <Tu> within one <Raw> into a
+          single multi-segment TextUnit. Native extracts one Block
+          per <Tu>. Tracked separately under #453 / #486.
+        input_xml: |
+          <?xml version="1.0" encoding="UTF-8"?>
+          <TRADOStag Version="2.0"><FrontMatter>
+          <ToolSettings CreationDate="20070508T094743Z" CreationTool="TRADOS TagEditor" CreationToolVersion="7.0.0.615"></ToolSettings>
+          <UserSettings DataType="STF" O-Encoding="UTF-8" SettingsName="" SettingsPath="" SourceLanguage="EN-US" TargetLanguage="FR-FR" SourceDocumentPath="abc.rtf" SettingsRelativePath="" PlugInInfo=""></UserSettings>
+          </FrontMatter><Body><Raw><Tu MatchPercent="0"><Tuv Lang="EN-US"><Seg>Hello world</Seg></Tuv><Tuv Lang="FR-FR"><Seg>Bonjour le monde</Seg></Tuv></Tu><Tu MatchPercent="100"><Tuv Lang="EN-US"><Seg>Goodbye</Seg></Tuv><Tuv Lang="FR-FR"><Seg>Au revoir</Seg></Tuv></Tu></Raw></Body></TRADOStag>
+        block_count: 2
+        block_texts:
+          - "Hello world"
+          - "Goodbye"
+      - name: source_only
+        # bridge bug #486 — Okapi TTXFilter does not recognise <Seg>;
+        # native handles a `<Tu>` with a single `<Tuv>` as a Block
+        # with no Target. Tracked separately under #453 / #486.
+        expected_fail: |
+          bridge bug #486 — Okapi TTXFilter does not recognise <Seg>
+          and produces 0 translatable TextUnits. Native extracts the
+          lone TUV as a source-only Block. Tracked separately under
+          #453 / #486.
+        input_xml: |
+          <?xml version="1.0" encoding="UTF-8"?>
+          <TRADOStag Version="2.0"><FrontMatter>
+          <ToolSettings CreationDate="20070508T094743Z" CreationTool="TRADOS TagEditor" CreationToolVersion="7.0.0.615"></ToolSettings>
+          <UserSettings DataType="STF" O-Encoding="UTF-8" SettingsName="" SettingsPath="" SourceLanguage="EN-US" TargetLanguage="FR-FR" SourceDocumentPath="abc.rtf" SettingsRelativePath="" PlugInInfo=""></UserSettings>
+          </FrontMatter><Body><Raw><Tu MatchPercent="0"><Tuv Lang="EN-US"><Seg>Source only text</Seg></Tuv></Tu></Raw></Body></TRADOStag>
+        block_count: 1
+        first_block_text: "Source only text"
+    okapi_refs:
+      - TTXFilterTest#testForTwoTUs
+      - TTXFilterTest#testForOneTU
+      - TTXFilterTest#testOutputSimple
+      - TTXFilterTest#testOutputTwoTU
+    native_refs:
+      - ttx.TestReadSimpleTTX
+      - ttx.TestReadSourceOnly
+
+  # ── MatchPercent metadata ────────────────────────────────────────
+  - id: match_percent
+    name: MatchPercent attribute carried as Block property
+    description: |
+      The `<Tu MatchPercent="N">` attribute records translation
+      memory match quality (0 = no match, 100 = exact match). The
+      native reader stores it on `Block.Properties["match-percent"]`
+      so downstream tools can filter or weight TUs by match score.
+      The attribute round-trips through the writer unchanged.
+    examples:
+      - name: zero_and_full_match
+        expected_fail: |
+          bridge bug #486 — Okapi TTXFilter does not recognise <Seg>
+          and merges TUs into one TextUnit. Native produces one Block
+          per <Tu> with the MatchPercent attribute on each. Tracked
+          separately under #453 / #486.
+        input_xml: |
+          <?xml version="1.0" encoding="UTF-8"?>
+          <TRADOStag Version="2.0"><FrontMatter>
+          <ToolSettings CreationDate="20070508T094743Z" CreationTool="TRADOS TagEditor" CreationToolVersion="7.0.0.615"></ToolSettings>
+          <UserSettings DataType="STF" O-Encoding="UTF-8" SettingsName="" SettingsPath="" SourceLanguage="EN-US" TargetLanguage="FR-FR" SourceDocumentPath="abc.rtf" SettingsRelativePath="" PlugInInfo=""></UserSettings>
+          </FrontMatter><Body><Raw><Tu MatchPercent="0"><Tuv Lang="EN-US"><Seg>Fresh string</Seg></Tuv><Tuv Lang="FR-FR"><Seg>Chaine fraiche</Seg></Tuv></Tu><Tu MatchPercent="100"><Tuv Lang="EN-US"><Seg>Recycled string</Seg></Tuv><Tuv Lang="FR-FR"><Seg>Chaine recyclee</Seg></Tuv></Tu></Raw></Body></TRADOStag>
+        block_count: 2
+        block_texts:
+          - "Fresh string"
+          - "Recycled string"
+    okapi_refs:
+      - TTXFilterTest#testTUInfo
+    native_refs:
+      - ttx.TestReadMatchPercent
+
+  # ── Inline tags ──────────────────────────────────────────────────
+  - id: inline_tags
+    name: Inline ut/df/it tags within Seg
+    description: |
+      `<ut>` (user tag), `<df>` (default formatting), and `<it>`
+      (isolated tag) elements inside `<Seg>` carry inline structure
+      such as bold/italic markers or HTML tags from the original
+      document. The native reader strips the tag elements and keeps
+      only the textual content of the segment, so the Block source
+      text reflects the translatable string the user sees.
+    examples:
+      - name: ut_inside_seg
+        expected_fail: |
+          bridge bug #486 — Okapi TTXFilter does not recognise <Seg>
+          and extracts no text. Native strips the inline tag elements
+          inside <Seg> and emits the joined character data. Tracked
+          separately under #453 / #486.
+        input_xml: |
+          <?xml version="1.0" encoding="UTF-8"?>
+          <TRADOStag Version="2.0"><FrontMatter>
+          <ToolSettings CreationDate="20070508T094743Z" CreationTool="TRADOS TagEditor" CreationToolVersion="7.0.0.615"></ToolSettings>
+          <UserSettings DataType="STF" O-Encoding="UTF-8" SettingsName="" SettingsPath="" SourceLanguage="EN-US" TargetLanguage="FR-FR" SourceDocumentPath="abc.rtf" SettingsRelativePath="" PlugInInfo=""></UserSettings>
+          </FrontMatter><Body><Raw><Tu MatchPercent="0"><Tuv Lang="EN-US"><Seg>Text with <ut>tag</ut> inside</Seg></Tuv><Tuv Lang="FR-FR"><Seg>Texte avec <ut>balise</ut> dedans</Seg></Tuv></Tu></Raw></Body></TRADOStag>
+        block_count: 1
+        first_block_text: "Text with tag inside"
+    okapi_refs:
+      - TTXFilterTest#testBasicWithUT
+      - TTXFilterTest#testVariousTags
+    native_refs:
+      - ttx.TestReadInlineTags
+
+  # ── XML entity decoding ─────────────────────────────────────────
+  - id: xml_entities
+    name: XML entity decoding inside Seg
+    description: |
+      Standard XML entities inside `<Seg>` (`&amp;`, `&lt;`, `&gt;`,
+      `&quot;`) decode to their literal characters in the Block's
+      source text. The text round-trips bytewise through the writer
+      because the skeleton store keeps the original entity-escaped
+      bytes whenever the user hasn't modified the segment.
+    examples:
+      - name: ampersand_and_lt
+        expected_fail: |
+          bridge bug #486 — Okapi TTXFilter does not recognise <Seg>
+          and extracts no text. Native decodes the XML entities to
+          their literal characters in the Block source. Tracked
+          separately under #453 / #486.
+        input_xml: |
+          <?xml version="1.0" encoding="UTF-8"?>
+          <TRADOStag Version="2.0"><FrontMatter>
+          <ToolSettings CreationDate="20070508T094743Z" CreationTool="TRADOS TagEditor" CreationToolVersion="7.0.0.615"></ToolSettings>
+          <UserSettings DataType="STF" O-Encoding="UTF-8" SettingsName="" SettingsPath="" SourceLanguage="EN-US" TargetLanguage="FR-FR" SourceDocumentPath="abc.rtf" SettingsRelativePath="" PlugInInfo=""></UserSettings>
+          </FrontMatter><Body><Raw><Tu MatchPercent="0"><Tuv Lang="EN-US"><Seg>A &amp; B &lt; C</Seg></Tuv><Tuv Lang="FR-FR"><Seg>A &amp; B &lt; C</Seg></Tuv></Tu></Raw></Body></TRADOStag>
+        block_count: 1
+        first_block_text: "A & B < C"
+    okapi_refs:
+      - TTXFilterTest#testBasicWithEscapes
+      - TTXFilterTest#testOutputBasicWithEscapes
+
+  # ── Segment mode ────────────────────────────────────────────────
+  - id: segment_mode_auto
+    name: Auto-detect segmentation (segmentMode=0, default)
+    description: |
+      The default `segmentMode=0` (AUTO) inspects the document for
+      `<Tu>` elements: if any are present, only their `<Seg>` content
+      is extracted; otherwise raw text outside any `<Tu>` is emitted
+      as Blocks. The example below has `<Tu>` elements, so unsegmented
+      whitespace and PIs around them are not surfaced as translatable
+      Blocks.
+    examples:
+      - name: tu_present_unsegmented_skipped
+        expected_fail: |
+          bridge bug #486 — Okapi TTXFilter does not recognise <Seg>
+          so the segmentMode AUTO branch never sees the segments
+          either. Native correctly extracts the segmented content
+          while skipping unsegmented whitespace. Tracked separately
+          under #453 / #486.
+        input_xml: |
+          <?xml version="1.0" encoding="UTF-8"?>
+          <TRADOStag Version="2.0"><FrontMatter>
+          <ToolSettings CreationDate="20070508T094743Z" CreationTool="TRADOS TagEditor" CreationToolVersion="7.0.0.615"></ToolSettings>
+          <UserSettings DataType="STF" O-Encoding="UTF-8" SettingsName="" SettingsPath="" SourceLanguage="EN-US" TargetLanguage="FR-FR" SourceDocumentPath="abc.rtf" SettingsRelativePath="" PlugInInfo=""></UserSettings>
+          </FrontMatter><Body><Raw><Tu MatchPercent="0"><Tuv Lang="EN-US"><Seg>segmented</Seg></Tuv><Tuv Lang="FR-FR"><Seg>segmente</Seg></Tuv></Tu></Raw></Body></TRADOStag>
+        block_count: 1
+        first_block_text: "segmented"
+    okapi_refs:
+      - TTXFilterTest#testForOneTU
+
+  - id: segment_mode_existing_only
+    name: Existing-only segmentation (segmentMode=1)
+    description: |
+      `segmentMode=1` (EXISTING ONLY) extracts only `<Seg>` text from
+      `<Tu>` elements; any unsegmented `<Raw>` text between or around
+      them is dropped. Useful for partially-segmented files where
+      only the pre-translated segments should reach downstream tools.
+    config:
+      segmentMode: 1
+    examples:
+      - name: only_tu_segments_emitted
+        expected_fail: |
+          bridge bug #486 — Okapi TTXFilter does not recognise <Seg>
+          and produces 0 translatable TextUnits. Native correctly
+          extracts only the segmented content under segmentMode=1.
+          The bridge's composite schema also rejects the flat
+          `segmentMode` key with "Unknown property" — the native
+          reader's flat key matches the schema's `x-flattenPath`
+          while the bridge's schema validator expects the grouped
+          `mode.segmentMode` path. Tracked separately under #453 /
+          #486.
+        input_xml: |
+          <?xml version="1.0" encoding="UTF-8"?>
+          <TRADOStag Version="2.0"><FrontMatter>
+          <ToolSettings CreationDate="20070508T094743Z" CreationTool="TRADOS TagEditor" CreationToolVersion="7.0.0.615"></ToolSettings>
+          <UserSettings DataType="STF" O-Encoding="UTF-8" SettingsName="" SettingsPath="" SourceLanguage="EN-US" TargetLanguage="FR-FR" SourceDocumentPath="abc.rtf" SettingsRelativePath="" PlugInInfo=""></UserSettings>
+          </FrontMatter><Body><Raw>untranslated leading text<Tu MatchPercent="0"><Tuv Lang="EN-US"><Seg>segmented</Seg></Tuv><Tuv Lang="FR-FR"><Seg>segmente</Seg></Tuv></Tu>untranslated trailing text</Raw></Body></TRADOStag>
+        block_count: 1
+        first_block_text: "segmented"
+    okapi_refs:
+      - TTXFilterTest#testPartiallySegmentedEntry
+
+  - id: segment_mode_all
+    name: Extract-all mode (segmentMode=2)
+    description: |
+      `segmentMode=2` (ALL) emits both `<Seg>` text inside `<Tu>` and
+      any raw character data inside `<Raw>` outside any `<Tu>`. The
+      unsegmented Blocks carry an `unsegmented=true` property so
+      downstream tools can distinguish pre-translated segments from
+      newly-discovered text.
+    config:
+      segmentMode: 2
+    examples:
+      - name: tu_and_unsegmented_emitted
+        expected_fail: |
+          bridge bug #486 — Okapi TTXFilter does not recognise <Seg>
+          inside the segmented `<Tu>` so segmentMode=2 only surfaces
+          the unsegmented runs (joined into one TextUnit). Native
+          correctly emits one Block per segmented TU plus one Block
+          per unsegmented run. Tracked separately under #453 / #486.
+        input_xml: |
+          <?xml version="1.0" encoding="UTF-8"?>
+          <TRADOStag Version="2.0"><FrontMatter>
+          <ToolSettings CreationDate="20070508T094743Z" CreationTool="TRADOS TagEditor" CreationToolVersion="7.0.0.615"></ToolSettings>
+          <UserSettings DataType="STF" O-Encoding="UTF-8" SettingsName="" SettingsPath="" SourceLanguage="EN-US" TargetLanguage="FR-FR" SourceDocumentPath="abc.rtf" SettingsRelativePath="" PlugInInfo=""></UserSettings>
+          </FrontMatter><Body><Raw>untranslated leading<Tu MatchPercent="0"><Tuv Lang="EN-US"><Seg>segmented</Seg></Tuv><Tuv Lang="FR-FR"><Seg>segmente</Seg></Tuv></Tu>untranslated trailing</Raw></Body></TRADOStag>
+        has_block_with_text:
+          - "segmented"
+          - "untranslated leading"
+          - "untranslated trailing"
+    okapi_refs:
+      - TTXFilterTest#testNotSegmentedWithDF
+      - TTXFilterTest#testBasicNoTU
+
+  # ── Document structure ──────────────────────────────────────────
+  - id: document_structure
+    name: LayerStart/LayerEnd wrap the document
+    description: |
+      Every TTX read emits a `PartLayerStart` before any Block and a
+      matching `PartLayerEnd` after the last Block. The Layer carries
+      the `ttx` format id and the `application/x-ttx+xml` MIME type
+      so downstream tools can route by format. This is verified
+      structurally by the native reader; the assertion-based spec
+      runner only checks the translatable Blocks.
+    examples:
+      - name: wraps_blocks_in_layer
+        expected_fail: |
+          bridge bug #486 — Okapi TTXFilter does not recognise <Seg>
+          and produces 0 translatable TextUnits. Native wraps the
+          extracted Block in a Layer scoped to ttx / application/
+          x-ttx+xml. Tracked separately under #453 / #486.
+        input_xml: |
+          <?xml version="1.0" encoding="UTF-8"?>
+          <TRADOStag Version="2.0"><FrontMatter>
+          <ToolSettings CreationDate="20070508T094743Z" CreationTool="TRADOS TagEditor" CreationToolVersion="7.0.0.615"></ToolSettings>
+          <UserSettings DataType="STF" O-Encoding="UTF-8" SettingsName="" SettingsPath="" SourceLanguage="EN-US" TargetLanguage="FR-FR" SourceDocumentPath="abc.rtf" SettingsRelativePath="" PlugInInfo=""></UserSettings>
+          </FrontMatter><Body><Raw><Tu MatchPercent="0"><Tuv Lang="EN-US"><Seg>Wrapped</Seg></Tuv><Tuv Lang="FR-FR"><Seg>Enveloppe</Seg></Tuv></Tu></Raw></Body></TRADOStag>
+        block_count: 1
+        first_block_text: "Wrapped"
+    okapi_refs:
+      - TTXFilterTest#testDoubleExtraction
+    native_refs:
+      - ttx.TestReadLayerStartEnd
