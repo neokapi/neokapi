@@ -1,0 +1,255 @@
+# EPUB format specification.
+#
+# Single-variant filter — no variants block. EPUB is a ZIP container
+# (OCF) packaging XHTML/SVG content documents plus a Package Document
+# (OPF) that lists the manifest and reading-order spine. The native
+# reader parses META-INF/container.xml to find the OPF, parses the OPF
+# to resolve the spine, and walks each spine item as a child Layer:
+# either via the html sub-format reader (when a SubfilterResolver is
+# wired) or via a direct XHTML token walk (the fallback path).
+#
+# Authoring notes:
+#   - input_file values resolve relative to this directory (testdata/…)
+#     unless prefixed with `okapi:` which resolves under the locally
+#     fetched okapi-testdata/ tree (skips cleanly when not present).
+#   - Native assertions reflect the direct-XHTML fallback path the
+#     native reader takes when no subfilter resolver is wired (the
+#     spec-level NativeRunner constructs a bare reader). The block
+#     vocabulary is the reader's built-in block element set: p, h1-h6,
+#     li, dt, dd, th, td, figcaption, caption, summary, blockquote,
+#     title.
+#   - Every example carries `expected_fail:` because the okapi-bridge
+#     ships no `okf_epub` filter — Okapi has an `EpubFilter` upstream
+#     (exercised by the contract-audit data via
+#     `net.sf.okapi.filters.epub.EpubFilterTests`) but the bridge does
+#     not include the filter in its v2 manifest. The parity bridge
+#     runner errors `FilterClass: okf_epub not found` on every example
+#     until the bridge is extended; native still passes the assertions
+#     and the runner records the divergence as expected. Tracked as a
+#     bridge-coverage gap (see PR description).
+
+format: okf_epub
+mime_type: application/epub+zip
+description: |
+  EPUB (Electronic Publication) e-book filter. EPUB is an Open
+  Container Format (OCF) ZIP that bundles XHTML / SVG content
+  documents, a Package Document (OPF) declaring metadata + manifest +
+  spine, and supporting CSS / image / font resources. The native
+  reader resolves the spine via `META-INF/container.xml` →
+  `<rootfile>` → OPF, then emits one child Layer per spine itemref;
+  translatable text is extracted by walking each XHTML document's
+  block elements (`<p>`, `<h1>`-`<h6>`, `<li>`, `<title>`,
+  `<blockquote>`, `<figcaption>`, table cells). Resources outside the
+  spine (CSS, images, fonts, OOB files like nav documents) are emitted
+  as non-translatable Data parts so the writer can round-trip them.
+
+config: []
+
+features:
+  # ── Spine extraction (the core path) ──────────────────────────────
+  - id: spine_extraction
+    name: Spine itemref extraction
+    description: |
+      The reader resolves `META-INF/container.xml` to the Package
+      Document (OPF), then walks `<spine><itemref idref="…"/></spine>`
+      in declared order. Each itemref resolves through the manifest's
+      `id`→`href` map (relative to the OPF directory) into a child
+      Layer. Non-spine manifest entries are NOT visited as content;
+      they fall through to the Data emission path below.
+    spec_refs:
+      - "EPUB 3.3 §5.7 The spine element (https://www.w3.org/TR/epub-33/#sec-package-doc)"
+      - "EPUB 3.3 §4 Open Container Format (OCF) — META-INF/container.xml (https://www.w3.org/TR/epub-33/#sec-ocf)"
+    examples:
+      - name: minimal_two_spine_items
+        origin: "authored: testdata/minimal.epub — two-chapter OEBPS/ layout, hand-built ZIP with mimetype-first entry"
+        input_file: testdata/minimal.epub
+        expected_fail: |
+          okapi-bridge does not ship the okf_epub filter (the bridge
+          v2 manifest omits it; Okapi has EpubFilter upstream but the
+          bridge build excludes EPUB). The bridge daemon errors
+          "FilterClass: okf_epub not found" on every dispatch.
+          Native passes the assertions; tracked until the bridge
+          adds EPUB coverage.
+        block_count: 7
+        block_texts:
+          - "Chapter One"
+          - "Welcome"
+          - "This is the first paragraph."
+          - "This is the second paragraph."
+          - "Chapter Two"
+          - "Conclusion"
+          - "Final thoughts here."
+    okapi_refs:
+      - EpubFilterTests#testSimpleReadWrite
+    native_refs:
+      - epub.TestReadEPUBContent
+      - epub.TestReadEPUBLayerStructure
+
+  # ── XHTML block extraction inside spine items ─────────────────────
+  - id: xhtml_block_extraction
+    name: XHTML block-element extraction
+    description: |
+      Inside each spine item the reader walks XHTML block elements
+      (`<p>`, `<h1>`-`<h6>`, `<li>`, `<dt>`, `<dd>`, `<th>`, `<td>`,
+      `<figcaption>`, `<caption>`, `<summary>`, `<blockquote>`,
+      `<title>`) and emits one translatable Block per element with the
+      surrounding skeleton (open + close tags, sibling whitespace)
+      preserved for round-trip. Inline runs inside a block are folded
+      into the block's source text; container-only elements
+      (`<html>`, `<body>`, `<div>`) carry no block themselves.
+    spec_refs:
+      - "EPUB 3.3 §6.1 XHTML Content Documents (https://www.w3.org/TR/epub-33/#sec-xhtml)"
+      - "HTML Living Standard §4.4 Grouping content (https://html.spec.whatwg.org/multipage/grouping-content.html)"
+    examples:
+      - name: heading_and_paragraphs
+        origin: "authored: testdata/minimal.epub — chapter1 has h1 + two p elements + title"
+        input_file: testdata/minimal.epub
+        expected_fail: |
+          Bridge has no okf_epub filter (see spine_extraction).
+          Native passes the assertions.
+        has_block_with_text:
+          - "Welcome"
+          - "This is the first paragraph."
+          - "This is the second paragraph."
+          - "Conclusion"
+        no_block_with_text:
+          # body{} CSS rule must not leak into translatable blocks —
+          # the .css file is Data, not a content document.
+          - "font-family"
+          - "serif"
+    okapi_refs:
+      - EpubFilterTests#testSimpleReadWrite
+    native_refs:
+      - epub.TestReadEPUBContent
+
+  # ── Title element extraction ──────────────────────────────────────
+  - id: title_extraction
+    name: XHTML <title> extraction
+    description: |
+      The `<title>` element inside a content document's `<head>` is
+      treated as a translatable block, not as document metadata. Each
+      spine item's title contributes one Block per chapter to the
+      stream.
+    spec_refs:
+      - "EPUB 3.3 §6.1 XHTML Content Documents — head/title (https://www.w3.org/TR/epub-33/#sec-xhtml)"
+    examples:
+      - name: per_chapter_titles
+        origin: "authored: testdata/minimal.epub — distinct titles per spine item"
+        input_file: testdata/minimal.epub
+        expected_fail: |
+          Bridge has no okf_epub filter (see spine_extraction).
+          Native passes the assertions.
+        has_block_with_text:
+          - "Chapter One"
+          - "Chapter Two"
+    okapi_refs:
+      - EpubFilterTests#testInformation
+    native_refs:
+      - epub.TestReadEPUBTitleExtraction
+
+  # ── Real-world fixture (upstream Project Gutenberg test1.epub) ────
+  - id: real_world_corpus
+    name: Real-world EPUB extraction (upstream fixture)
+    description: |
+      The upstream `okapi/filters/epub/src/test/resources/test1.epub`
+      is a Project Gutenberg edition of *The Peaceful Atom* (Bernice
+      Kohn, 1963) packaged with `<wrap0000.xhtml>` cover, two body
+      chapters, and a non-spine `toc.xhtml` navigation document. It
+      exercises the full pipeline: nested OPF directory (`OEBPS/`),
+      cover SVG with embedded `<image>`, body chapters with hundreds
+      of paragraphs, and a navigation document that is in the manifest
+      but NOT in the spine (so it must surface as Data, not a Layer).
+    spec_refs:
+      - "EPUB 3.3 §5.6 The manifest element (https://www.w3.org/TR/epub-33/#sec-package-doc)"
+    examples:
+      - name: project_gutenberg_test1
+        origin: "okapi-fixture: okapi:filters/epub/.../test1.epub (Project Gutenberg #70047, public domain)"
+        input_file: okapi:okapi/filters/epub/src/test/resources/test1.epub
+        expected_fail: |
+          Bridge has no okf_epub filter (see spine_extraction).
+          Native passes the assertions.
+        # The corpus has 285 translatable Blocks across 3 spine
+        # itemrefs (cover wrap + h-0 + h-1). Bound the count loosely
+        # so cosmetic XHTML re-flows in upstream don't break the
+        # assertion; the recognisable strings below pin the content.
+        block_count_min: 200
+        has_block_with_text:
+          - "THE PEACEFUL ATOM"
+          - "Project Gutenberg"
+          - "Bernice Kohn"
+    okapi_refs:
+      - EpubFilterTests#testSimpleReadWrite
+      - EpubFilterTests#testInformation
+    native_refs:
+      - epub.TestReadEPUBContent
+
+  # ── Non-spine resources emitted as Data ───────────────────────────
+  - id: non_content_data_emission
+    name: Non-content resources emitted as Data parts
+    description: |
+      Resources listed in the manifest but not in the spine —
+      stylesheets, images, fonts, navigation documents — pass through
+      as non-translatable Data parts (one per ZIP entry, carrying
+      `entry` + `size` properties) so the writer can copy them
+      verbatim into the output package. The structural files
+      `mimetype`, `META-INF/container.xml`, and the OPF are NOT
+      emitted as Data (the writer reconstructs them from the original
+      content). This assertion sits inside a `block_count_max: 0`
+      stub feature: the Assertions vocabulary does not yet describe
+      Data emission directly, so the regression coverage lives in
+      `epub.TestReadEPUBNonContentAsData` instead.
+    spec_refs:
+      - "EPUB 3.3 §5.6 The manifest element — Publication Resources (https://www.w3.org/TR/epub-33/#sec-package-doc)"
+    examples:
+      - name: css_emitted_as_data
+        origin: "authored: testdata/minimal.epub — style.css is a manifest item but not in spine"
+        input_file: testdata/minimal.epub
+        expected_fail: |
+          Bridge has no okf_epub filter (see spine_extraction).
+          Native passes the assertion (no .css text leaks into the
+          translatable block stream).
+        no_block_with_text:
+          - "font-family"
+          - "serif"
+          - "margin"
+    okapi_refs:
+      - EpubFilterTests#testSimpleReadWrite
+    native_refs:
+      - epub.TestReadEPUBNonContentAsData
+
+# ── Intentionally under-specified ─────────────────────────────────────
+#
+# Sub-filter wiring (HTML reader as the chapter parser): when a
+# SubfilterResolver is registered on the EPUB reader (via
+# `SetSubfilterResolver`), each spine item is parsed by the HTML
+# reader instead of the direct XHTML token walk. The resulting Block
+# stream uses the HTML reader's block vocabulary (broader element
+# set, `translate=no` honoured, attribute-as-block extraction for
+# `alt`/`title`). The spec-level NativeRunner constructs a bare reader
+# without a resolver, so the assertions above describe the fallback
+# path. Sub-filter behaviour is exercised by the
+# `epub.TestSubfilter_*` test family in `subfilter_test.go`. A future
+# spec iteration can add a `subfilter_*` feature group once the
+# runner exposes a way to attach a resolver.
+#
+# Round-trip / writer behaviour (skeleton replay, target-language
+# rewriting in OPF metadata, mimetype-first ZIP ordering, the
+# `OriginalContentSetter` interface) is reader-only-shaped here and
+# therefore not covered. Native round-trip coverage lives in
+# `epub.TestRoundTrip`, `epub.TestRoundTripWithTranslation`, and
+# `epub.TestSkeletonRoundTrip*`.
+#
+# Configuration surface: the native `epub.Config` exposes no
+# parameters today (its `ApplyMap` rejects every key). The Okapi
+# `EpubFilter` likewise documents no user-facing parameters in the
+# Okapi wiki entry. The `config:` block above is empty by design;
+# add keys when either implementation grows extraction toggles
+# (e.g. translate metadata, exclude nav).
+#
+# OPF metadata extraction (`<dc:title>`, `<dc:creator>`,
+# `<dc:description>`, …): the Okapi `EpubFilterTests#testInformation`
+# upstream test asserts that bibliographic metadata is reachable
+# through the filter API. The native reader does NOT extract OPF
+# metadata as translatable Blocks today — only XHTML content. This
+# is a coverage gap, not a divergence to assert against; reflected
+# in the absence of a `metadata_extraction` feature.
