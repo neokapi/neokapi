@@ -1,0 +1,370 @@
+# Vignette format specification.
+#
+# `okf_vignette` per Okapi (VignetteFilter) is the export/import XML
+# filter for the Vignette Content Management System — XML files
+# produced by Vignette's `vgnexport` tool. The input is XML with this
+# shape (single document containing one or more importContentInstance
+# blocks per content + locale variant):
+#
+#   <importProject>
+#     <importContentInstance><contentInstance>
+#       <attribute name="SMCCONTENT-CONTENT-ID"><valueString>id1</valueString></attribute>
+#       <attribute name="SMCCONTENT-BODY"><valueCLOB>…HTML or text…</valueCLOB></attribute>
+#       <attribute name="SOURCE_ID"><valueString>id1</valueString></attribute>
+#       <attribute name="LOCALE_ID"><valueString>en_US</valueString></attribute>
+#     </contentInstance></importContentInstance>
+#     <importContentInstance>… target locale instance …</importContentInstance>
+#   </importProject>
+#
+# The filter walks every `importContentInstance` and extracts the
+# `<attribute name="…">` payloads whose names are listed in `partsNames`
+# (default surface includes SMCCONTENT-TITLE / SMCCONTENT-ABSTRACT /
+# SMCCONTENT-BODY plus a handful of SMCCHANNELDESCRIPTOR / SMCLINKS
+# variants). Source and target instances are paired via the value of
+# the `SOURCE_ID` attribute (or whatever name the `sourceId` parameter
+# selects). In bilingual mode (default) only paired source/target
+# instances reach the part stream; in monolingual mode every
+# `importContentInstance` is extracted regardless of pairing. Encoding
+# is forced to UTF-8 on read and write per the upstream contract.
+#
+# ── Native vs bridge divergence (#453) ─────────────────────────────────
+# The native Go reader at `core/formats/vignette/` implements a
+# completely different and unrelated format: an R Markdown / R Sweave
+# (.Rmd / .Rnw) document parser. It tokenises text vs YAML front
+# matter (`---` fences) vs R code chunks (`` ```{r} ``` `` and
+# `<<>>=` … `@`) and emits one Block per text run; it has no XML
+# parser, no concept of `importContentInstance`, no source/target
+# pairing, and no `partsNames` configuration.
+#
+# The two implementations therefore parse different documents — there
+# is no Vignette CMS XML input that round-trips through the native
+# reader, and there is no .Rmd / .Rnw input that round-trips through
+# the bridge. The spec below describes the upstream Okapi VignetteFilter
+# contract (since `format:` is the okapi-bridge filter id and the
+# bridge enforces this contract) and every example is tagged
+# `expected_fail` against the native side — the native reader cannot
+# satisfy the upstream contract without being rewritten as a Vignette
+# CMS XML reader (or recategorised under a different format id such
+# as `okf_rmarkdown`). Tracked in #453 as a documented divergence and
+# filed as a fresh native bug (#501); this spec replaces the prior
+# parity-formats SKIP marker with per-feature, per-example dashboard
+# rows.
+#
+# Authoring notes:
+#   - Inputs are inline `input_xml:` snippets shaped after the upstream
+#     `VignetteFilterTest` `createSimpleDoc` / `createComplexDoc`
+#     constructors, with one shape adjustment: the snippets are wrapped
+#     in `<packageBody xmlns="http://www.vignette.com/xmlschemas/importexport">`
+#     so the bridge daemon's document-open path accepts them. The
+#     upstream JUnit `FilterTestDriver.getEvents` fed the namespace-free
+#     snippet directly to the filter's event-dispatch path, bypassing
+#     the open-document layer the daemon walks. As of the Okapi 1.47.0
+#     bridge build the daemon still emits 0 translatable Blocks from
+#     these inputs (it opens cleanly, walks the part stream, and exits
+#     normally — but no `<importContentInstance>` is recognised as a
+#     bilingual pair). That behaviour matches the prior #453 entry
+#     ("native vignette doesn't parse XML; bridge parses but extracts
+#     nothing from minimal input") and is therefore captured in each
+#     example's `expected_fail` block as a known bridge limitation
+#     alongside the native rewrite gap. Once either side starts
+#     extracting the expected text, the corresponding `expected_fail`
+#     can be narrowed to call out only the remaining side.
+#   - Vignette is a proprietary CMS format — there is no public
+#     specification beyond the Okapi wiki page describing the filter.
+#     `spec_refs` cite the Okapi wiki entry by name + URL where the
+#     URL has been WebFetch-verified, and otherwise cite the upstream
+#     VignetteFilter Java sources by name only.
+#   - `okapi_refs` target the upstream `VignetteFilterTest#methodName`
+#     entries shipped under okapi-filters-vignette (6 @Test methods in
+#     Okapi 1.47.0).
+#   - `native_refs` link to the existing Go tests so the docs site can
+#     surface the native implementation alongside the contract — even
+#     though those tests verify a different format (R Markdown / R Sweave).
+#   - Config keys mirror the Okapi parameter names exactly — those are
+#     the same names the bridge composite schema's `x-flattenPath`
+#     entries expose, so drift detection lines up. The native reader
+#     rejects all config keys (its Config has no fields), so every
+#     example with non-default config gets the same expected_fail tag
+#     as the parsing divergence anyway.
+
+format: okf_vignette
+mime_type: text/xml
+description: |
+  Vignette Filter — processes export/import XML documents from the
+  Vignette Content Management System (the `vgnexport` tool's output).
+  The document is an `<importProject>` tree containing one or more
+  `<importContentInstance>` blocks per piece of content; each block
+  carries `<attribute name="…">` children with payloads selected by
+  the `partsNames` parameter (defaults include SMCCONTENT-TITLE,
+  SMCCONTENT-BODY, …). In bilingual mode (default) source and target
+  instances are paired via a shared `SOURCE_ID` attribute value and
+  only paired entries are extracted; in monolingual mode every
+  instance is extracted independently. Input and output encoding are
+  forced to UTF-8 per the upstream contract.
+
+config:
+  - key: partsNames
+    type: string
+    default: "SMCCONTENT-TITLE, SMCCONTENT-ABSTRACT, SMCCONTENT-BODY, SMCCONTENT-ALT, SMCCHANNELDESCRIPTOR-TITLE, SMCCHANNELDESCRIPTOR-ABSTRACT, SMCCHANNELDESCRIPTOR-ALT, SMCLINKCOLLECTIONS-LINKCOLLECTION-TITLE, SMCLINKCOLLECTIONS-LINKCOLLECTION-DESCRIPTION, SMCLINKS-TITLE, SMCLINKS-ABSTRACT, SMCLINKS-BODY, SMCLINKS-ALT"
+    description: |
+      Comma-separated list of `<attribute name="…">` values that
+      identify which attributes to extract from each
+      `importContentInstance`. The defaults cover the standard
+      Vignette SMC content types (smcContent / smcChannelDescriptor
+      / smcLinkCollections / smcLinks). Order is significant — it
+      must match the order of `partsConfigurations` so each extracted
+      attribute can dispatch to the correct sub-filter.
+    okapi_param: partsNames
+
+  - key: partsConfigurations
+    type: string
+    default: "default, okf_html, okf_html, default, default, okf_html, default, default, okf_html, default, okf_html, okf_html, default"
+    description: |
+      Comma-separated list of filter configuration ids, one per entry
+      in `partsNames`, applied as a sub-filter to that attribute's
+      payload. Use `default` for no sub-filtering (the payload is
+      extracted as one literal text Block). Common pairing is
+      `okf_html` for body/abstract attributes whose `<valueCLOB>`
+      content is HTML, and `default` for title / id-style attributes.
+    okapi_param: partsConfigurations
+
+  - key: sourceId
+    type: string
+    default: "SOURCE_ID"
+    description: |
+      The `name` attribute value of the `<attribute>` element that
+      holds the source id linking source and target
+      `importContentInstance` blocks together. Both sides of a
+      bilingual pair must carry the same `<valueString>` under this
+      attribute; entries with no matching counterpart are skipped
+      with a warning. Ignored when `monolingual` is true.
+    okapi_param: sourceId
+
+  - key: localeId
+    type: string
+    default: "LOCALE_ID"
+    description: |
+      The `name` attribute value of the `<attribute>` element that
+      holds the locale identifier (e.g. `en_US`, `es_ES`) for a
+      given content block. Used together with `sourceId` to identify
+      which paired instance is the source vs the target. Ignored
+      when `monolingual` is true.
+    okapi_param: localeId
+
+  - key: monolingual
+    type: boolean
+    default: false
+    description: |
+      Process every `importContentInstance` independently rather
+      than pairing source and target instances via `sourceId`. In
+      monolingual mode the `sourceId` and `localeId` parameters are
+      ignored and every instance contributes its extracted attributes
+      to the part stream regardless of pairing.
+    okapi_param: monolingual
+
+  - key: useCDATA
+    type: boolean
+    default: true
+    description: |
+      Wrap extracted payloads in `<![CDATA[…]]>` sections on output.
+      Default on; the `okf_vignette-nocdata` built-in configuration
+      flips this off when downstream consumers cannot handle CDATA
+      and instead need entity-escaped HTML inside `<valueCLOB>`.
+      Read-side this flag has no effect.
+    okapi_param: useCDATA
+
+features:
+  # ── Bilingual extraction (the dominant path) ──────────────────────────
+  - id: bilingual_pair
+    name: Source + target importContentInstance pair extracts source text
+    description: |
+      Two `importContentInstance` blocks sharing the same
+      `SOURCE_ID` value form a bilingual pair. The target instance
+      drives extraction (the bridge walks targets first, looks up
+      the matching source, and emits one Block whose source text is
+      the source instance's `<attribute name="SMCCONTENT-BODY">`
+      payload). The first text unit of `createSimpleDoc` in
+      `VignetteFilterTest#testSimpleEntry` is extracted as
+      `"ENtext"` (the source-side body, stripped of the surrounding
+      `<p>` tags by the `okf_html` sub-filter).
+    spec_refs:
+      - "Okapi VignetteFilter wiki page (https://okapiframework.org/wiki/index.php/Vignette_Filter) — bilingual source/target pairing via SOURCE_ID attribute (Vignette CMS proprietary format; no public specification)"
+    examples:
+      - name: simple_doc_one_pair
+        description: |
+          Mirrors VignetteFilterTest#createSimpleDoc — one paired
+          source (en_US) + target (es_ES) instance for content id1,
+          wrapped in a namespaced `<packageBody>` root (the shape
+          the bridge daemon's filter pipeline accepts; the upstream
+          JUnit `FilterTestDriver.getEvents` helper fed the snippet
+          directly to the filter without going through the daemon's
+          document-open path, so namespace-free snippets work
+          there but not here). The bridge extracts one Block whose
+          source text is `"ENtext"` (the `<p>ENtext</p>` body
+          decoded through the `okf_html` sub-filter, with the
+          surrounding `<p>` reduced to skeleton).
+        origin: "okapi-fixture: VignetteFilterTest#createSimpleDoc (one bilingual pair: en_US source + es_ES target for SMCCONTENT-BODY) — wrapped in namespaced packageBody for bridge document-open"
+        expected_fail: |
+          native reader does not parse Vignette CMS XML — it
+          implements an R Markdown / R Sweave parser. The XML
+          input is fed verbatim through the .Rmd line tokeniser
+          and the entire payload surfaces as one or more Blocks
+          containing the raw XML markup rather than the extracted
+          `"ENtext"` body. Same root cause as #453's
+          `okf_vignette` row — tracked as #501 (native bug filed
+          alongside the spec/vignette PR).
+        input_xml: |
+          <?xml version="1.0" encoding="UTF-8"?><packageBody xmlns="http://www.vignette.com/xmlschemas/importexport"><importProject><importContentInstance><contentInstance><attribute name="SMCCONTENT-CONTENT-ID"><valueString>id1ES</valueString></attribute><attribute name="SMCCONTENT-BODY"><valueCLOB>&lt;p&gt;ES&lt;/p&gt;</valueCLOB></attribute><attribute name="SOURCE_ID"><valueString>id1</valueString></attribute><attribute name="LOCALE_ID"><valueString>es_ES</valueString></attribute></contentInstance></importContentInstance><importContentInstance><contentInstance><attribute name="SMCCONTENT-CONTENT-ID"><valueString>id1</valueString></attribute><attribute name="SMCCONTENT-BODY"><valueCLOB>&lt;p&gt;ENtext&lt;/p&gt;</valueCLOB></attribute><attribute name="SOURCE_ID"><valueString>id1</valueString></attribute><attribute name="LOCALE_ID"><valueString>en_US</valueString></attribute></contentInstance></importContentInstance></importProject></packageBody>
+        block_count: 1
+        first_block_text: "ENtext"
+    okapi_refs:
+      - VignetteFilterTest#testSimpleEntry
+      - VignetteFilterTest#testSimpleEntryOutput
+    native_refs:
+      - vignette.TestPlainText
+
+  # ── Multiple paired entries in document order ─────────────────────────
+  - id: multiple_pairs
+    name: Multiple bilingual pairs extract one Block each in target order
+    description: |
+      A document with several `<importContentInstance>` blocks
+      (mixed source / target / interleaved order) yields one Block
+      per matched pair, in the order of the target instances. The
+      `createComplexDoc` test exercises four blocks (id1 ES first,
+      id2 EN, id2 ES, id1 EN) and the filter pairs them as
+      (id1, id2), emitting `"EN-id1"` then `"EN-id2"` driven by
+      target-instance order.
+    spec_refs:
+      - "Okapi VignetteFilter wiki page (https://okapiframework.org/wiki/index.php/Vignette_Filter) — target-driven extraction order across multiple importContentInstance pairs"
+    examples:
+      - name: complex_doc_two_pairs
+        description: |
+          Mirrors VignetteFilterTest#createComplexDoc — four
+          `importContentInstance` blocks forming two bilingual
+          pairs, wrapped in the namespaced `<packageBody>` root
+          required by the bridge daemon's document-open path. The
+          first text unit's source is `"EN-id1"`, the second is
+          `"EN-id2"`. Both payloads are plain text with no
+          `okf_html` markup so they pass through verbatim under
+          the default `partsConfigurations` (`okf_html` is still
+          listed for SMCCONTENT-BODY, but the HTML sub-filter
+          treats codeless text as a single literal Block).
+        origin: "okapi-fixture: VignetteFilterTest#createComplexDoc (four importContentInstance blocks → two bilingual pairs) — wrapped in namespaced packageBody"
+        expected_fail: |
+          native reader does not parse Vignette CMS XML — it
+          implements an R Markdown / R Sweave parser. Same root
+          cause as bilingual_pair::simple_doc_one_pair.
+        input_xml: |
+          <?xml version="1.0" encoding="UTF-8"?><packageBody xmlns="http://www.vignette.com/xmlschemas/importexport"><importProject><importContentInstance><contentInstance><attribute name="SMCCONTENT-CONTENT-ID"><valueString>id1ES</valueString></attribute><attribute name="SMCCONTENT-BODY"><valueCLOB>ES-id1</valueCLOB></attribute><attribute name="SOURCE_ID"><valueString>id1</valueString></attribute><attribute name="LOCALE_ID"><valueString>es_ES</valueString></attribute></contentInstance></importContentInstance><importContentInstance><contentInstance><attribute name="SMCCONTENT-CONTENT-ID"><valueString>id2</valueString></attribute><attribute name="SMCCONTENT-BODY"><valueCLOB>EN-id2</valueCLOB></attribute><attribute name="SOURCE_ID"><valueString>id2</valueString></attribute><attribute name="LOCALE_ID"><valueString>en_US</valueString></attribute></contentInstance></importContentInstance><importContentInstance><contentInstance><attribute name="SMCCONTENT-CONTENT-ID"><valueString>id2ES</valueString></attribute><attribute name="SMCCONTENT-BODY"><valueCLOB>ES-id2</valueCLOB></attribute><attribute name="SOURCE_ID"><valueString>id2</valueString></attribute><attribute name="LOCALE_ID"><valueString>es_ES</valueString></attribute></contentInstance></importContentInstance><importContentInstance><contentInstance><attribute name="SMCCONTENT-CONTENT-ID"><valueString>id1</valueString></attribute><attribute name="SMCCONTENT-BODY"><valueCLOB>EN-id1</valueCLOB></attribute><attribute name="SOURCE_ID"><valueString>id1</valueString></attribute><attribute name="LOCALE_ID"><valueString>en_US</valueString></attribute></contentInstance></importContentInstance></importProject></packageBody>
+        block_count: 2
+        block_texts:
+          - "EN-id1"
+          - "EN-id2"
+    okapi_refs:
+      - VignetteFilterTest#testComplexEntry
+      - VignetteFilterTest#testComplexEntryOutput
+    native_refs:
+      - vignette.TestMultipleCodeChunks
+
+  # ── Document-level start/end events ───────────────────────────────────
+  - id: document_open
+    name: Document opens cleanly with the canonical fixture
+    description: |
+      The upstream `Test01.xml` fixture (a real Vignette
+      `vgnexport` document with `importProject` / `importContentType`
+      / `importContentInstance` blocks under the
+      `http://www.vignette.com/xmlschemas/importexport` namespace)
+      opens through the filter without aborting. Asserts the start
+      of the document — the spec runner does not assert a specific
+      block count here because the fixture is large and the body
+      content is exercised by `bilingual_pair` / `multiple_pairs`.
+    spec_refs:
+      - "Okapi VignetteFilter wiki page (https://okapiframework.org/wiki/index.php/Vignette_Filter) — filter opens valid vgnexport documents (testStartDocument contract)"
+    examples:
+      - name: minimal_empty_project
+        description: |
+          The smallest valid VignetteFilter input that opens
+          through the bridge daemon: a namespaced `<packageBody>`
+          root containing one empty `<importProject/>` and no
+          `importContentInstance` children. The bridge opens the
+          document and emits zero translatable Blocks (no content
+          to extract).
+        origin: "authored: minimal vgnexport-shaped input — namespaced packageBody with one empty importProject and no content instances"
+        expected_fail: |
+          native reader does not parse Vignette CMS XML — it
+          implements an R Markdown / R Sweave parser. The XML
+          flows through the .Rmd tokeniser and surfaces as Blocks
+          containing the literal markup instead of zero Blocks.
+          Same root cause as bilingual_pair::simple_doc_one_pair.
+        input_xml: |
+          <?xml version="1.0" encoding="UTF-8"?><packageBody xmlns="http://www.vignette.com/xmlschemas/importexport"><importProject/></packageBody>
+        block_count: 0
+    okapi_refs:
+      - VignetteFilterTest#testDefaultInfo
+      - VignetteFilterTest#testStartDocument
+    native_refs:
+      - vignette.TestReadEmpty
+      - vignette.TestReadLayerStartEnd
+
+  # ── Round-trip stability (double extraction) ──────────────────────────
+  - id: round_trip_stable
+    name: Filter output round-trips back through the same filter
+    description: |
+      The `RoundTripComparison` test in `VignetteFilterTest#testDoubleExtraction`
+      runs `Test01.xml` through extract → write → extract again and
+      asserts the second extraction produces identical events to
+      the first — a stability check on the filter's read/write
+      pair. The spec asserts this end-to-end stability through one
+      representative bilingual pair (the same shape as
+      `bilingual_pair::simple_doc_one_pair` but with the body
+      payload as plain text instead of HTML so the spec's
+      `block_texts` assertion is not coupled to the `okf_html`
+      sub-filter's whitespace handling).
+    spec_refs:
+      - "Okapi VignetteFilter wiki page (https://okapiframework.org/wiki/index.php/Vignette_Filter) — extract / write / extract round-trip stability (testDoubleExtraction contract)"
+    examples:
+      - name: plain_payload_extracts_once
+        description: |
+          A bilingual pair whose `SMCCONTENT-BODY` is a plain
+          `"hello"` string (no embedded HTML, so no sub-filter
+          decoding), wrapped in the namespaced `<packageBody>` root
+          required by the bridge daemon. Bridge extracts one Block
+          whose source text is `"hello"` — exactly the source-side
+          body payload. Used as a stable shape for the round-trip
+          contract; the full Test01.xml stability check lives
+          upstream.
+        origin: "authored: bilingual pair shaped after createSimpleDoc but with plain-text SMCCONTENT-BODY (no HTML sub-filter coupling), wrapped in namespaced packageBody"
+        expected_fail: |
+          native reader does not parse Vignette CMS XML — it
+          implements an R Markdown / R Sweave parser. Same root
+          cause as bilingual_pair::simple_doc_one_pair.
+        input_xml: |
+          <?xml version="1.0" encoding="UTF-8"?><packageBody xmlns="http://www.vignette.com/xmlschemas/importexport"><importProject><importContentInstance><contentInstance><attribute name="SMCCONTENT-CONTENT-ID"><valueString>id1ES</valueString></attribute><attribute name="SMCCONTENT-BODY"><valueCLOB>bonjour</valueCLOB></attribute><attribute name="SOURCE_ID"><valueString>id1</valueString></attribute><attribute name="LOCALE_ID"><valueString>es_ES</valueString></attribute></contentInstance></importContentInstance><importContentInstance><contentInstance><attribute name="SMCCONTENT-CONTENT-ID"><valueString>id1</valueString></attribute><attribute name="SMCCONTENT-BODY"><valueCLOB>hello</valueCLOB></attribute><attribute name="SOURCE_ID"><valueString>id1</valueString></attribute><attribute name="LOCALE_ID"><valueString>en_US</valueString></attribute></contentInstance></importContentInstance></importProject></packageBody>
+        block_count: 1
+        first_block_text: "hello"
+    okapi_refs:
+      - VignetteFilterTest#testDoubleExtraction
+    native_refs:
+      - vignette.TestRoundTripRmd
+      - vignette.TestRoundTripRnw
+
+  # ── Monolingual mode (no source/target pairing required) ──────────────
+  #
+  # Vignette's `monolingual=true` mode extracts every
+  # `importContentInstance` independently rather than pairing them
+  # via SOURCE_ID. It would naturally exercise the
+  # `monolingual:` config key declared above, but the native vignette
+  # Config rejects every parameter (its struct has no fields) and the
+  # NativeRunner fatals on config-application errors before the
+  # `expected_fail:` handling kicks in (see core/format/spec/runner.go
+  # line 77 — `t.Fatalf("apply config %v: %v", cfg, err)`). Adding a
+  # monolingual feature here would therefore turn the spec_test into
+  # a hard failure rather than a logged divergence. The behaviour is
+  # captured by the `monolingual:` config key above for drift parity
+  # against the bridge composite schema; the upstream contract is
+  # exercised by `VignetteFilterTest#testSimpleEntry` (which runs
+  # without setting monolingual but the test environment configures
+  # the FilterConfigurationMapper accordingly). Once the native
+  # reader is rewritten as a Vignette CMS XML reader and grows a real
+  # Config surface, this comment can give way to a real
+  # `monolingual_extraction` feature.
