@@ -1,0 +1,436 @@
+# Wiki format specification.
+#
+# Single-variant filter — no variants block. Inputs are inline wiki
+# snippets (input_xml carries raw bytes for any text format) or small
+# fixtures committed under testdata/ alongside this spec.
+#
+# Format id `okf_wiki` matches the bridge composite schema. The Okapi
+# WikiFilter targets DokuWiki — per the upstream filter docs ("Currently
+# the only supported markup style is Dokuwiki", see Okapi WikiFilter
+# wiki page) — and exercises a small set of features: headlines,
+# paragraphs, list items, image captions, and table cells / headers.
+# The bridge dispatches the filter standalone via MIME type
+# `text/x-wiki-txt` and extension `.txt` (note: NOT `.wiki`).
+#
+# Authoring notes:
+#   - The native reader at core/formats/wiki/reader.go ships two
+#     variants: VariantMediaWiki (the default) and VariantDokuWiki.
+#     Neither variant honours the DokuWiki `{{image|caption}}` image
+#     syntax that Okapi's filter extracts captions from — both treat
+#     such markup as plain text inside the surrounding paragraph. The
+#     wrong default variant compounds the gap: tables, soft-break
+#     collapse, and `<file>` block recognition all diverge from the
+#     bridge under default config. Tracked end-to-end under issue
+#     #496; per-feature `expected_fail:` blocks below cite it.
+#   - okapi_refs target the four upstream test classes the wiki module
+#     exposes (WikiFilterTest, WikiWriterTest, plus RoundTripWikiIT
+#     where it surfaces). Drift detection asserts each ref still exists
+#     in the bridge's pinned Okapi 1.47.0 surefire output.
+#   - Config keys carry the Okapi parameter names so the spec aligns
+#     with the bridge composite schema (snake_case `preserve_whitespace`
+#     for the bridge; the native reader accepts both spellings).
+#   - spec_refs cite the upstream Okapi WikiFilter docs and the
+#     DokuWiki syntax reference as the authoritative contract for
+#     which markup constructs the filter must extract.
+
+format: okf_wiki
+mime_type: text/x-wiki-txt
+description: |
+  DokuWiki-flavoured wiki markup filter. Emits one translatable Block
+  per headline, paragraph, list item, image caption, and table
+  cell / header. Inline DokuWiki markup (bold `**…**`, italic `//…//`,
+  monospace `''…''`, inline links, footnotes) is preserved as inline
+  Spans inside the surrounding Block. The line-based parser walks the
+  document top-to-bottom; blank lines act as paragraph separators.
+
+config:
+  - key: preserve_whitespace
+    type: boolean
+    default: false
+    description: |
+      Disable the default whitespace-collapse behavior (consecutive
+      whitespace characters collapse to a single space inside extracted
+      text). Set to true to preserve original spacing as-is. The
+      native reader accepts both `preserve_whitespace` (the bridge /
+      Okapi name) and the camelCase `preserveWhitespace` legacy
+      spelling.
+    okapi_param: preserve_whitespace
+
+features:
+  # ── Headlines (=, ==, ===, ====, =====, ====== delimited) ─────────
+  - id: headline_extraction
+    name: DokuWiki headlines as translatable Blocks
+    description: |
+      Headlines marked with two-to-six `=` signs on each side become
+      one translatable Block apiece, in document order. The `=`
+      delimiters and surrounding whitespace are skeleton; the inner
+      heading text — trimmed — is the Block's source.
+    spec_refs:
+      - "Okapi WikiFilter — Headers extraction (https://okapiframework.org/wiki/index.php/Wiki_Filter)"
+      - "DokuWiki syntax reference §Sectioning — Headlines (https://www.dokuwiki.org/wiki:syntax)"
+    examples:
+      - name: header_with_body
+        origin: "authored: minimal headline + body paragraph"
+        input_xml: "== Header ==\nBody text."
+        block_count: 2
+        block_texts:
+          - "Header"
+          - "Body text."
+      - name: multiple_levels
+        origin: "authored: H2 / H3 / H4 cascade exercising = / === / ==== delimiters"
+        input_xml: "== Level 2 ==\n=== Level 3 ===\n==== Level 4 ====\n"
+        block_count: 3
+        block_texts:
+          - "Level 2"
+          - "Level 3"
+          - "Level 4"
+      - name: header_h6_doku_top_level
+        origin: "authored: ====== H1-equivalent ====== headline (DokuWiki top-level)"
+        input_xml: "====== Title ======\nBody text."
+        block_count: 2
+        block_texts:
+          - "Title"
+          - "Body text."
+      - name: header_only_h3
+        origin: "okapi-fixture: WikiFilterTest#testHeader (`=== This is a test. ===`)"
+        input_xml: "=== This is a test. ==="
+        block_count: 1
+        first_block_text: "This is a test."
+    okapi_refs:
+      - WikiFilterTest#testHeader
+    native_refs:
+      - wiki.TestExtract_Header
+      - wiki.TestExtract_MultipleHeadingLevels
+      - wiki.TestExtract_DokuWikiHeader
+
+  # ── Paragraphs (blank-line separated) ─────────────────────────────
+  - id: paragraph_extraction
+    name: Blank-line-separated paragraphs as Blocks
+    description: |
+      Consecutive non-blank lines coalesce into a single paragraph
+      Block; one or more blank lines mark a paragraph boundary and
+      flush the current Block. Multiple consecutive blank lines collapse
+      to a single boundary — there are no phantom empty paragraphs.
+    spec_refs:
+      - "Okapi WikiFilter — Paragraph extraction (https://okapiframework.org/wiki/index.php/Wiki_Filter)"
+      - "DokuWiki syntax reference §Basic Text Formatting — Paragraphs"
+    examples:
+      - name: single_paragraph
+        origin: "authored: minimal one-paragraph baseline"
+        input_xml: "Hello world"
+        block_count: 1
+        first_block_text: "Hello world"
+      - name: trailing_lf_no_phantom_block
+        origin: "authored: trailing newline does not introduce an empty Block"
+        input_xml: "Hello world\n"
+        block_count: 1
+        first_block_text: "Hello world"
+      - name: two_paragraphs
+        origin: "authored: blank-line paragraph separator"
+        input_xml: "First paragraph.\n\nSecond paragraph.\n"
+        block_count: 2
+        block_texts:
+          - "First paragraph."
+          - "Second paragraph."
+      - name: triple_blank_collapses
+        origin: "okapi-fixture: WikiFilterTest#testComplexSeparatingWhitespace shape"
+        input_xml: "First paragraph.\n\n\nSecond paragraph."
+        block_count: 2
+        block_texts:
+          - "First paragraph."
+          - "Second paragraph."
+    okapi_refs:
+      - WikiFilterTest#testSimpleLine
+      - WikiFilterTest#testComplexSeparatingWhitespace
+    native_refs:
+      - wiki.TestExtract_SimpleLine
+      - wiki.TestExtract_ComplexSeparatingWhitespace
+
+  # ── Multi-line paragraphs (soft line breaks inside one paragraph) ─
+  - id: multi_line_paragraph
+    name: Soft line breaks inside a paragraph collapse to a single Block
+    description: |
+      Three consecutive non-blank lines belong to one paragraph and
+      yield a single Block. Per the DokuWiki contract — and the upstream
+      WikiFilter#testMultipleLines fixture — the bridge collapses the
+      embedded line breaks into a single space inside the Block source.
+      The native reader currently joins paragraph lines with literal
+      `\n` rather than collapsing whitespace; it preserves the line
+      breaks verbatim instead of normalizing them. Tracked as a native
+      whitespace-handling divergence below.
+    spec_refs:
+      - "Okapi WikiFilter — Paragraph extraction (https://okapiframework.org/wiki/index.php/Wiki_Filter)"
+      - "DokuWiki syntax reference §Basic Text Formatting — paragraphs span multiple non-blank lines"
+    examples:
+      - name: three_lines_one_paragraph
+        origin: "okapi-fixture: WikiFilterTest#testMultipleLines (`This is \\na \\ntest.`)"
+        input_xml: "This is \na \ntest."
+        # Bridge collapses to "This is a test." — one paragraph Block
+        # with a single space joining the runs. Native preserves the
+        # literal `\n` between lines, yielding "This is \na \ntest." in
+        # the source text. Both produce one Block.
+        expected_fail: |
+          native bug — wiki reader joins paragraph lines with literal
+          `\n` (preserves newlines verbatim) instead of collapsing them
+          to a single space per the DokuWiki paragraph contract that
+          the upstream WikiFilter#testMultipleLines exercises. Both
+          implementations emit one Block, but the source text differs:
+          bridge `"This is a test."`, native `"This is \na \ntest."`.
+          Tracked as a native whitespace-handling bug under #496.
+        block_count: 1
+        first_block_text: "This is a test."
+    okapi_refs:
+      - WikiFilterTest#testMultipleLines
+    native_refs:
+      - wiki.TestExtract_MultipleLines
+
+  # ── Image captions ({{image|caption}} DokuWiki syntax) ────────────
+  - id: image_caption_extraction
+    name: DokuWiki image captions extracted as Blocks
+    description: |
+      DokuWiki image syntax `{{image.ext|caption text}}` emits the
+      caption as its own translatable Block. Surrounding paragraph
+      text on the same line is extracted as a separate Block. An image
+      reference without a caption (`{{image.ext}}`) emits no caption
+      Block but does not break extraction of surrounding text.
+    spec_refs:
+      - "Okapi WikiFilter — Image caption extraction (https://okapiframework.org/wiki/index.php/Wiki_Filter)"
+      - "DokuWiki syntax reference §Images and Other Files (https://www.dokuwiki.org/wiki:syntax)"
+    examples:
+      - name: image_with_caption_in_sentence
+        origin: "okapi-fixture: WikiFilterTest#testImageCaption (`This is a test. {{image.jpg|This is a caption.}}`)"
+        input_xml: "This is a test. {{image.jpg|This is a caption.}}"
+        # Bridge extracts both the surrounding text and the caption as
+        # separate Blocks. Native yields a single Block containing the
+        # raw `{{image.jpg|...}}` markup as plain text — its parser
+        # has no DokuWiki image-syntax recognition. Tracked as a
+        # native bug below.
+        expected_fail: |
+          native bug — wiki reader does not recognise the DokuWiki
+          `{{image|caption}}` image syntax and emits the entire input
+          as a single Block whose source still contains the raw
+          `{{image.jpg|This is a caption.}}` markup. Bridge correctly
+          extracts the caption as a separate Block. Tracked under
+          native bug #496.
+        block_count: 2
+        has_block_with_text:
+          - "This is a caption."
+          - "This is a test."
+      - name: image_no_caption_with_following_text
+        origin: "okapi-fixture: WikiFilterTest#testComplexSeparatingWhitespace (`{{image.jpg}}\\n \\nThis is text.`)"
+        input_xml: "{{image.jpg}}\n \nThis is text."
+        # Bridge: 1 Block ("This is text."). Native: 2 Blocks because
+        # it surfaces the literal `{{image.jpg}}` line as a Block of
+        # its own. Tracked as the same native image-syntax bug.
+        expected_fail: |
+          native bug — wiki reader emits `{{image.jpg}}` as a literal
+          paragraph Block instead of recognising it as a non-translatable
+          image reference. Bridge produces only the text Block. Same
+          underlying bug as image_with_caption_in_sentence (#496).
+        block_count: 1
+        first_block_text: "This is text."
+        no_block_with_text:
+          - "{{image.jpg}}"
+    okapi_refs:
+      - WikiFilterTest#testImageCaption
+      - WikiFilterTest#testComplexSeparatingWhitespace
+    native_refs:
+      - wiki.TestExtract_ImageCaption
+
+  # ── Tables (^ header ^ | cell | DokuWiki syntax) ──────────────────
+  - id: table_cell_extraction
+    name: Table headers and cells as separate Blocks
+    description: |
+      DokuWiki table rows use `^` as the header-cell delimiter and `|`
+      as the data-cell delimiter; one row per line. Each non-empty
+      cell becomes its own translatable Block in row-major order. The
+      delimiter characters and inter-cell whitespace stay in the
+      skeleton. The native reader has a DokuWiki code path that
+      handles this correctly when its `Variant` config is set to
+      `dokuwiki`, but the default `Variant: mediawiki` (the wrong
+      default for `okf_wiki`) does not recognise the `^` / `|` row
+      grammar and surfaces the whole row as a single paragraph Block.
+    spec_refs:
+      - "Okapi WikiFilter — Table cell / header extraction (https://okapiframework.org/wiki/index.php/Wiki_Filter)"
+      - "DokuWiki syntax reference §Tables (https://www.dokuwiki.org/wiki:syntax)"
+    examples:
+      - name: header_then_data_row
+        origin: "authored: minimal DokuWiki header row + data row"
+        input_xml: "^ Header 1 ^ Header 2 ^\n| Cell 1 | Cell 2 |"
+        # Bridge: 4 cell Blocks. Native default Variant=mediawiki: 1
+        # Block containing the entire two-line input as a paragraph.
+        # Tracked as the native-default-variant bug (see issue link
+        # in the umbrella native bug for okf_wiki).
+        expected_fail: |
+          native bug — wiki reader's default Variant=mediawiki does
+          not recognise DokuWiki `^` / `|` table-row delimiters and
+          surfaces the entire row pair as a single paragraph Block.
+          Bridge correctly extracts 4 cell Blocks. The native
+          DokuWiki variant (wiki.TestExtract_DokuWikiTable) handles
+          this case but is not the default. Tracked as the
+          okf_wiki-defaults-to-MediaWiki native bug (#496).
+        block_count: 4
+        block_texts:
+          - "Header 1"
+          - "Header 2"
+          - "Cell 1"
+          - "Cell 2"
+      - name: mixed_delimiter_row
+        origin: "okapi-fixture: WikiFilterTest#testTable (`^ Table header 1 ^ Table header 2 |\\n| Table cell 1 | Table cell 2 |`)"
+        input_xml: "^ Table header 1 ^ Table header 2 |\n| Table cell 1 | Table cell 2 |"
+        # Same divergence as header_then_data_row.
+        expected_fail: |
+          native bug — wiki reader's default Variant=mediawiki does
+          not recognise DokuWiki `^` / `|` table-row delimiters and
+          surfaces the entire row pair as a single paragraph Block.
+          Same root cause as header_then_data_row above (#496).
+        block_count: 4
+        block_texts:
+          - "Table header 1"
+          - "Table header 2"
+          - "Table cell 1"
+          - "Table cell 2"
+    okapi_refs:
+      - WikiFilterTest#testTable
+      - WikiWriterTest#testOutputTable
+    native_refs:
+      - wiki.TestExtract_DokuWikiTable
+
+  # ── Embedded HTML-like markup (passthrough) ───────────────────────
+  - id: html_like_markup_passthrough
+    name: HTML-like tags inside paragraphs flow through as text
+    description: |
+      The Okapi WikiFilter does not extract embedded HTML — its docs
+      list "Embedded HTML, PHP, etc., is not extracted." as a
+      limitation. Tags that *look* like HTML (`<b>…</b>`, `<br/>`)
+      flow through as part of the surrounding paragraph's source text;
+      the filter does not strip the tags or treat them as inline codes
+      by default. Recognised DokuWiki tags such as `<file>` / `<code>`
+      block out their own non-translatable region — the bridge omits
+      `<file>` content from extraction even when followed by other
+      text on the same line.
+    spec_refs:
+      - "Okapi WikiFilter — Limitations: embedded HTML not extracted (https://okapiframework.org/wiki/index.php/Wiki_Filter)"
+    examples:
+      - name: bold_and_break_passthrough
+        origin: "okapi-fixture: WikiFilterTest#testSimilarHtmlTags shape (HTML-looking inline tags)"
+        input_xml: "Text with <b>bold</b> and <br/> tags."
+        block_count: 1
+        first_block_text: "Text with <b>bold</b> and <br/> tags."
+      - name: file_tag_truncates_extraction
+        origin: "okapi-fixture: WikiFilterTest#testSimilarHtmlTags (`This is <file> a test.`)"
+        input_xml: "This is <file> a test."
+        # Bridge recognises `<file>` as a DokuWiki code-block tag and
+        # treats everything from `<file>` onward as non-translatable,
+        # so only "This is" survives extraction. Native has no
+        # DokuWiki tag table and treats the entire line as plain text.
+        expected_fail: |
+          native bug — wiki reader does not honour the DokuWiki
+          `<file>` / `<code>` block tags, so it surfaces the entire
+          line `"This is <file> a test."` as a single Block. Bridge
+          correctly truncates extraction at `<file>` and emits only
+          `"This is"`. Tracked as a native bug (DokuWiki block-tag
+          recognition; tracked under #496).
+        block_count: 1
+        first_block_text: "This is"
+    okapi_refs:
+      - WikiFilterTest#testSimilarHtmlTags
+    native_refs:
+      - wiki.TestExtract_SimilarHtmlTags
+
+  # ── Empty / whitespace-only input ─────────────────────────────────
+  - id: empty_input
+    name: Empty / whitespace-only input produces no Blocks
+    description: |
+      A single line terminator yields zero translatable Blocks. The
+      reader still emits LayerStart / LayerEnd parts; the spec's
+      BlockTexts vocabulary skips non-Block parts so an "all-blank"
+      stream has block_count: 0. The bridge transport rejects a truly
+      zero-byte payload, so the smallest representable empty document
+      that flows through both implementations is a single LF.
+    examples:
+      - name: single_lf
+        origin: "authored: smallest empty document the bridge accepts"
+        input_xml: "\n"
+        block_count: 0
+    okapi_refs:
+      - WikiFilterTest#testSimpleLine
+    native_refs:
+      - wiki.TestRead_EmptyInput
+
+  # ── Upstream resource fixture ─────────────────────────────────────
+  - id: upstream_dokuwiki_fixture
+    name: Real DokuWiki document extraction
+    description: |
+      End-to-end extraction over the full DokuWiki syntax reference
+      shipped as a test resource by the upstream Okapi project. Block
+      counts vary across implementations because of the open native
+      bugs documented in the per-feature `expected_fail:` blocks
+      above; this feature only asserts that core paragraphs and
+      headers come through (no exact count).
+    spec_refs:
+      - "Okapi WikiFilter — full document extraction (https://okapiframework.org/wiki/index.php/Wiki_Filter)"
+    examples:
+      - name: dokuwiki_syntax_reference
+        origin: "okapi-fixture: okapi:okapi/filters/wiki/src/test/resources/dokuwiki.txt (upstream Okapi test resource)"
+        input_file: okapi:okapi/filters/wiki/src/test/resources/dokuwiki.txt
+        # Both implementations succeed in extracting from this file.
+        # Block counts diverge (native does not handle image captions /
+        # `<file>` blocks / soft-break collapse the way the bridge
+        # does) so the assertion is a lower bound + key landmark
+        # texts that both sides emit.
+        expected_fail: |
+          native bug — block counts diverge from the bridge across this
+          fixture because the same native handling gaps documented in
+          the per-feature features above (paragraph soft-break collapse,
+          DokuWiki image-caption recognition, `<file>` block handling)
+          all surface together when extracting the full reference
+          document. Spec asserts that both sides extract at least
+          5 Blocks and surface the canonical "Formatting Syntax"
+          headline; the per-feature gaps cover the divergent details
+          (all tracked under #496).
+        block_count_min: 5
+        has_block_with_text:
+          - "Formatting Syntax"
+    okapi_refs:
+      - WikiFilterTest#testDoubleExtraction
+    native_refs:
+      - wiki.TestRoundTrip_DokuWikiTxtFiles
+
+# ── Intentionally under-specified ─────────────────────────────────────
+#
+# Inline DokuWiki formatting (bold `**…**`, italic `//…//`, monospace
+# `''…''`, underline `__…__`, hyperlinks `[[…]]`, footnotes `((…))`,
+# subscript `<sub>…</sub>`, superscript `<sup>…</sup>`, deletion
+# `<del>…</del>`) is documented by the upstream WikiFilter as Span-level
+# inline codes preserved across translation. The Assertions vocabulary
+# in this spec (block-text / block-count) cannot express inline-code
+# fidelity directly — the assertions would all collapse to the same
+# block_text comparison. The native reader passes most of these through
+# as raw text inside the surrounding paragraph (no Span split). A future
+# spec iteration with an inline-codes assertion type can drive these
+# constructs explicitly. The native test wiki.TestRoundTrip_WikiFormatting
+# verifies a few via roundtrip.
+#
+# The native reader's MediaWiki variant (`{| |}` tables,
+# `[[File:…|…|caption]]` images, `'''bold'''` markup) is a separate
+# format from what `okf_wiki` represents — the upstream filter is
+# DokuWiki-only. The MediaWiki code path lives in the same package for
+# convenience but is exercised entirely through the native test suite
+# (wiki.TestExtract_Table, wiki.TestExtract_ImageCaption with `[[File:`
+# input). Driving it through this spec would require the spec model to
+# support per-variant filter ids — there is no `okf_mediawiki` to map
+# to.
+#
+# Custom inline codes (`customCodes` parameter) and the `path` /
+# `simplifierRules` parameters from the bridge schema are not exercised
+# by any feature here — the bridge `path` field is reserved for future
+# use, `simplifierRules` is an output-side simplifier convention shared
+# across many filters, and `customCodes` requires a YAML sub-document
+# the spec.config flat-key model can't represent. Tracked as a coverage
+# gap rather than as features without working examples.
+#
+# Roundtrip / double-extraction (testDoubleExtraction, testOpenTwiceWithString)
+# is verified through native wiki.TestExtract_DoubleExtraction +
+# wiki.TestRoundTrip_* tests but is not expressible through the spec's
+# read-side assertion vocabulary.
