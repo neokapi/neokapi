@@ -1,0 +1,425 @@
+# Fixed-Width Columns format specification.
+#
+# Single-variant filter — `okf_fixedwidthcolumns` covers tabular text
+# files where each row has the same byte/rune layout: every column
+# begins at a fixed offset and runs for a fixed width. Padding is
+# whitespace; the content of each column may or may not be
+# translatable (typed by the spec author via the `columns:` config).
+#
+# Inputs are inline text snippets via `input_xml` (the field is named
+# for XML historically; it just carries raw text bytes for any text
+# format) or upstream test fixtures via
+# `input_file: okapi:okapi/filters/table/src/test/resources/<file>`,
+# which the runner skips cleanly when the okapi-testdata corpus isn't
+# fetched.
+#
+# Authoring notes:
+#   - The native reader requires `columns: [{name, start, width,
+#     translatable}]` to do anything useful (Validate fails otherwise).
+#     The bridge filter takes the same layout via two flat strings:
+#     `columnStartPositions` (1-based, comma-separated) and
+#     `columnEndPositions` (1-based, comma-separated, inclusive) plus
+#     `numColumns` and `sourceColumns` (1-based comma-separated list of
+#     translatable column indices). The translation lives in
+#     `cli/parity/formats/fixedwidth_bridge_config.go` so spec.yaml
+#     stays neokapi-canonical.
+#   - okapi_refs target the `net.sf.okapi.filters.table.fwc.
+#     FixedWidthColumnsFilterTest` class; the v3 test suite layout in
+#     Okapi 1.48.0 keeps the assertions inside `BaseTableFilterTest`
+#     and `CommaSeparatedValuesFilterTest`, so for the fwc-only paths
+#     (e.g. `fwc_test4`) the references point at the test fixture
+#     filename used by the upstream filter test.
+#   - `trimMode` defaults differ: native `trimValues=false` (preserve
+#     pad whitespace); bridge `trimMode=2` + `trimLeading=true` /
+#     `trimTrailing=true` (trim both sides). The translator flips
+#     `trimValues=false → trimLeading=false / trimTrailing=false /
+#     trimMode=0` to converge.
+#   - `sendColumnsMode` defaults differ: native treats every column
+#     marked `translatable: true` as a Block; bridge defaults to
+#     `sendColumnsMode=2` ("send all"). The translator forces
+#     `sendColumnsMode=1` whenever any column has `translatable:
+#     false` so the bridge restricts extraction to the listed
+#     translatable indices, mirroring native semantics.
+
+format: okf_fixedwidthcolumns
+kind: top_level
+mime_type: text/csv
+description: |
+  Fixed-Width Columns filter. Reads a tabular text file where every
+  record has the same byte/rune column layout: each column begins at
+  a fixed offset and spans a fixed width, padded with whitespace to
+  fill its slot. Records are separated by line breaks; the parser
+  splits each line at the configured column boundaries and emits
+  one Block per non-empty translatable cell.
+
+  Default behaviour:
+    - the file has no header by default (`hasHeader=false`),
+    - every row contributes one Block per non-empty translatable cell,
+    - non-translatable cells are emitted as Data so the writer can
+      round-trip the original layout,
+    - LayerStart/LayerEnd wrap the document.
+
+  The native reader requires `columns: [{name, start, width,
+  translatable}]` to be set (no auto-detection); the bridge accepts
+  the same layout via the flat-string `columnStartPositions` /
+  `columnEndPositions` parameters plus `sourceColumns`. Both yield
+  the same Block stream when the column layout is supplied
+  explicitly.
+
+config:
+  # ── Column layout ────────────────────────────────────────────────
+  - key: columns
+    type: string_list
+    default: []
+    description: |
+      List of column definitions. Each entry is an object with
+      `name` (string, used for Block.Name and Data.Name), `start`
+      (0-based rune offset where the column begins), `width` (column
+      width in runes, must be positive), and `translatable` (boolean
+      — `true` extracts cells in this column as Blocks, `false`
+      emits them as Data).
+
+      The bridge filter splits this list into `columnStartPositions`
+      (1-based comma-separated string), `columnEndPositions`
+      (1-based comma-separated inclusive end), `numColumns` (count),
+      and `sourceColumns` (1-based comma-separated indices where
+      `translatable: true`). The neokapi side keeps the typed list
+      shape so authoring doesn't drift on column count.
+    okapi_param: columnStartPositions
+
+  # ── Header handling ──────────────────────────────────────────────
+  - key: hasHeader
+    type: boolean
+    default: false
+    description: |
+      When true, the first row is treated as a column-name header
+      and emitted as Data (named `header-row`); data extraction
+      starts on row 2. When false (default) every row is a data row.
+    okapi_param: columnNamesLineNum
+
+  # ── Whitespace ───────────────────────────────────────────────────
+  - key: trimValues
+    type: boolean
+    default: false
+    description: |
+      When true, leading and trailing whitespace is stripped from
+      each cell value before extraction. Default false preserves
+      the raw padded cell content verbatim (this is what makes
+      fixed-width files round-trippable byte-for-byte).
+    okapi_param: trimMode
+
+features:
+  # ── Baseline: two columns, one translatable ─────────────────────
+  - id: baseline_two_columns
+    name: One Block per translatable cell with mixed translatable / data columns
+    description: |
+      With a two-column layout — first column non-translatable
+      (e.g. an id), second column translatable text — every row
+      contributes one Block (the translatable cell) plus one Data
+      (the id cell). Header skipping is OFF by default; every row
+      is data.
+    spec_refs:
+      - "Okapi Framework — FixedWidthColumnsFilter (https://okapiframework.org/wiki/index.php?title=Filters)"
+    examples:
+      - name: simple_two_columns
+        origin: "authored: minimal id+text two-column layout"
+        # 5-char id column (non-translatable), 15-char text column
+        # (translatable). Native and bridge both yield 1 Block per
+        # row when columns + translatable flags are explicit.
+        input_xml: "id001Hello World    \nid002Goodbye World  \n"
+        config:
+          columns:
+            - {name: "id",   start: 0, width: 5,  translatable: false}
+            - {name: "text", start: 5, width: 15, translatable: true}
+        block_count: 2
+        block_texts:
+          - "Hello World    "
+          - "Goodbye World  "
+      - name: three_translatable_columns
+        origin: "authored: every column translatable, one Block per cell"
+        input_xml: "Hello     World     Goodbye   \n"
+        config:
+          columns:
+            - {name: "first",  start: 0,  width: 10, translatable: true}
+            - {name: "second", start: 10, width: 10, translatable: true}
+            - {name: "third",  start: 20, width: 10, translatable: true}
+        block_count: 3
+        block_texts:
+          - "Hello     "
+          - "World     "
+          - "Goodbye   "
+      - name: multiple_rows
+        origin: "authored: three rows, one translatable column each"
+        input_xml: "id001Hello World    \nid002Foo Bar         \nid003Baz Qux         \n"
+        config:
+          columns:
+            - {name: "id",   start: 0, width: 5,  translatable: false}
+            - {name: "text", start: 5, width: 15, translatable: true}
+        block_count: 3
+        block_texts:
+          - "Hello World    "
+          - "Foo Bar        "
+          - "Baz Qux        "
+    okapi_refs:
+      - FixedWidthColumnsFilterTest#testBasicRead
+      - FixedWidthColumnsFilterTest#testMultipleRows
+    native_refs:
+      - fixedwidth.TestFW_BasicRead
+      - fixedwidth.TestFW_MultipleRows
+      - fixedwidth.TestFW_MultipleTranslatableColumns
+
+  # ── Header row handling ──────────────────────────────────────────
+  - id: header_row
+    name: hasHeader=true emits row 1 as Data, data starts on row 2
+    description: |
+      When `hasHeader=true`, the first row is interpreted as the
+      column-name header and emitted as Data (with name
+      `header-row`); data extraction starts on row 2. Both
+      implementations yield the same Block count for the data rows.
+    spec_refs:
+      - "Okapi Framework — FixedWidthColumnsFilter (https://okapiframework.org/wiki/index.php?title=Filters)"
+    examples:
+      - name: header_then_one_data_row
+        origin: "authored: header row + one data row"
+        input_xml: "ID   Text           \nid001Hello World    \n"
+        config:
+          hasHeader: true
+          columns:
+            - {name: "id",   start: 0, width: 5,  translatable: false}
+            - {name: "text", start: 5, width: 15, translatable: true}
+        block_count: 1
+        first_block_text: "Hello World    "
+        no_block_with_text:
+          - "Text"
+    okapi_refs:
+      - FixedWidthColumnsFilterTest#testWithHeader
+    native_refs:
+      - fixedwidth.TestFW_WithHeader
+
+  # ── Whitespace trimming ──────────────────────────────────────────
+  - id: trim_values
+    name: trimValues=true strips leading/trailing whitespace from cells
+    description: |
+      When `trimValues=true`, leading and trailing whitespace is
+      removed from each cell value before extraction. Default false
+      preserves the raw padded content verbatim (which is what
+      makes fixed-width files byte-round-trippable).
+    spec_refs:
+      - "Okapi Framework — FixedWidthColumnsFilter (https://okapiframework.org/wiki/index.php?title=Filters)"
+    examples:
+      - name: trimmed_text
+        origin: "authored: trimValues=true strips padding from extracted cells"
+        input_xml: "id001Hello World    \nid002Goodbye World  \n"
+        config:
+          trimValues: true
+          columns:
+            - {name: "id",   start: 0, width: 5,  translatable: false}
+            - {name: "text", start: 5, width: 15, translatable: true}
+        block_count: 2
+        block_texts:
+          - "Hello World"
+          - "Goodbye World"
+    okapi_refs:
+      - FixedWidthColumnsFilterTest#testBasicReadTrimmed
+    native_refs:
+      - fixedwidth.TestFW_BasicReadTrimmed
+
+  # ── All translatable / all data ──────────────────────────────────
+  - id: all_translatable_or_all_data
+    name: translatable flag toggles per column
+    description: |
+      Every column with `translatable: true` contributes Blocks;
+      every column with `translatable: false` contributes Data
+      only. Used in source-only and target-only column layouts
+      (see also `upstream_fixtures`).
+    examples:
+      - name: all_translatable
+        origin: "authored: two columns, both translatable → 2 Blocks"
+        input_xml: "AAAAABBBBB\n"
+        config:
+          columns:
+            - {name: "first",  start: 0, width: 5, translatable: true}
+            - {name: "second", start: 5, width: 5, translatable: true}
+        block_count: 2
+        block_texts:
+          - "AAAAA"
+          - "BBBBB"
+      - name: all_non_translatable
+        origin: "authored: every column non-translatable → 0 Blocks"
+        input_xml: "AAAAABBBBB\n"
+        config:
+          columns:
+            - {name: "first",  start: 0, width: 5, translatable: false}
+            - {name: "second", start: 5, width: 5, translatable: false}
+        block_count: 0
+    okapi_refs:
+      - FixedWidthColumnsFilterTest#testAllTranslatable
+    native_refs:
+      - fixedwidth.TestFW_AllTranslatable
+      - fixedwidth.TestFW_AllNonTranslatable
+
+  # ── Upstream Okapi test fixtures ─────────────────────────────────
+  - id: upstream_fixtures
+    name: Real-world Okapi test fixtures (target+source / source+target)
+    description: |
+      The Okapi `okf_table` test corpus ships two fwc-shaped
+      fixtures, `fwc_test4.txt` and `fwc_test5.txt`. Both are 19
+      columns wide: a 19-character column at offset 0 and a
+      column at offset 19 of width sufficient to cover "s1"/"t1"
+      pairs. `fwc_test4` puts target text first (column 0) and
+      source text second (column 1); `fwc_test5` is the opposite.
+      We exercise both with header row enabled and the source
+      column marked translatable.
+    examples:
+      - name: fwc_test4_source_in_column_2
+        origin: "okapi-fixture: okapi:okapi/filters/table/src/test/resources/fwc_test4.txt — header + 4 data rows; source text in column 2 (positions 19-20)"
+        # Data rows are 21 characters: 19-rune target column +
+        # 2-rune source column. The Source column declared at width
+        # 4 is truncated by the actual line length, so the extracted
+        # text is "s1"/"s2"/"s3"/"s4" with no trailing pad.
+        input_file: okapi:okapi/filters/table/src/test/resources/fwc_test4.txt
+        config:
+          hasHeader: true
+          columns:
+            - {name: "Target", start: 0,  width: 19, translatable: false}
+            - {name: "Source", start: 19, width: 4,  translatable: true}
+        block_count: 4
+        block_texts:
+          - "s1"
+          - "s2"
+          - "s3"
+          - "s4"
+      - name: fwc_test5_source_in_column_1
+        origin: "okapi-fixture: okapi:okapi/filters/table/src/test/resources/fwc_test5.txt — header + 4 data rows; source text in column 1 (positions 0-18)"
+        # Data rows are 21 characters: 19-rune source column +
+        # 2-rune target column. Source captures positions 0-18
+        # which is "s1"/"s2"/… padded with 17 spaces to fill the
+        # 19-rune column.
+        input_file: okapi:okapi/filters/table/src/test/resources/fwc_test5.txt
+        config:
+          hasHeader: true
+          columns:
+            - {name: "Source", start: 0,  width: 19, translatable: true}
+            - {name: "Target", start: 19, width: 4,  translatable: false}
+        block_count: 4
+        block_texts:
+          - "s1                 "
+          - "s2                 "
+          - "s3                 "
+          - "s4                 "
+    okapi_refs:
+      - FixedWidthColumnsFilterTest#testFwcTest4
+      - FixedWidthColumnsFilterTest#testFwcTest5
+
+  # ── Short / under-specified lines ────────────────────────────────
+  - id: short_lines
+    name: Lines shorter than the column layout are tolerated
+    description: |
+      A row whose physical length is less than the right-most
+      column's `start + width` is read up to its actual end —
+      cells that fall partly or entirely beyond the line yield the
+      truncated text or nothing. Both implementations skip empty
+      cells (no Block emitted for a column that lies entirely
+      beyond the line end).
+    examples:
+      - name: line_shorter_than_column
+        origin: "authored: 5-char line + 20-char column → truncated value Block"
+        input_xml: "Short\n"
+        config:
+          columns:
+            - {name: "text", start: 0, width: 20, translatable: true}
+        block_count: 1
+        first_block_text: "Short"
+      - name: column_beyond_line_end
+        origin: "authored: column starts past line end → no Block"
+        input_xml: "Short\n"
+        config:
+          columns:
+            - {name: "text", start: 100, width: 10, translatable: true}
+        expected_fail: |
+          bridge feature difference — when the only declared column
+          starts past the actual line length, the upstream Okapi
+          FixedWidthColumnsFilter falls back to extracting the
+          whole line as a single Block ("Short"), producing 1
+          Block. Native correctly skips the column (start beyond
+          line length → no extractable text → no Block) and
+          produces 0 Blocks. Both honor the rune-level extraction
+          contract for in-range columns; they disagree on the
+          out-of-range fallback. Spec asserts native (skip the
+          column) behavior.
+        block_count: 0
+    okapi_refs:
+      - FixedWidthColumnsFilterTest#testShortLine
+    native_refs:
+      - fixedwidth.TestFW_ShortLine
+      - fixedwidth.TestFW_ColumnBeyondLineLength
+
+  # ── Unicode content ──────────────────────────────────────────────
+  - id: unicode_content
+    name: Unicode runes are preserved verbatim
+    description: |
+      Multi-byte UTF-8 sequences (CJK, Cyrillic, Latvian
+      diacritics) flow through the reader unchanged. The native
+      reader counts column widths in runes, not bytes, so a
+      10-rune column captures 10 logical characters regardless of
+      their UTF-8 byte length.
+    examples:
+      - name: latin_unicode_runes
+        origin: "authored: 10-rune column with ASCII text fills the column exactly"
+        input_xml: "Helloworld\n"
+        config:
+          columns:
+            - {name: "text", start: 0, width: 10, translatable: true}
+        block_count: 1
+        first_block_text: "Helloworld"
+    okapi_refs:
+      - FixedWidthColumnsFilterTest#testUnicodeContent
+    native_refs:
+      - fixedwidth.TestFW_UnicodeContent
+
+  # ── Document boundary events ─────────────────────────────────────
+  - id: document_boundary_events
+    name: Layer start / end wrap every document
+    description: |
+      Reading any fixed-width document emits a LayerStart Part
+      before the first row and a LayerEnd Part after the last one.
+      The Layer carries the `fixedwidth` format id and `text/plain`
+      mime type so downstream tools can route on format. Verifies
+      the document scaffolding mirrors Okapi's StartDocument /
+      EndDocument event pair.
+    # Document scaffolding is a neokapi pipeline contract, not a
+    # property of the fwc specification itself — no spec_refs.
+    examples:
+      - name: minimal_layer_wrap
+        origin: "authored: smallest non-empty document for layer-envelope smoke check"
+        input_xml: "id001Hello          \n"
+        config:
+          columns:
+            - {name: "id",   start: 0, width: 5,  translatable: false}
+            - {name: "text", start: 5, width: 15, translatable: true}
+        block_count: 1
+        first_block_text: "Hello          "
+    native_refs:
+      - fixedwidth.TestFW_LayerStartEnd
+      - fixedwidth.TestFW_NameAndFormat
+
+# ── Intentionally under-specified ────────────────────────────────────
+#
+# Roundtrip / writer behavior (TestFW_RoundTrip,
+# TestFW_RoundTripWithHeader, TestFW_RoundTripWithTranslation) is
+# exercised by the native reader's own roundtrip suite but is not
+# expressible through this spec's BlockTexts assertion vocabulary —
+# there is no roundtrip / writer-output assertion type. Captured
+# here as a known coverage gap.
+#
+# Cancellation (TestFW_ContextCancellation), config rejection
+# (TestFW_ConfigApplyMap_UnknownParam), and config validate / reset
+# (TestFW_ConfigValidate_*, TestFW_ConfigReset) are runtime
+# API-shape tests rather than user-observable extraction behavior
+# and intentionally fall outside this spec's surface.
+#
+# Block name and properties metadata (TestFW_BlockName,
+# TestFW_BlockProperties) — the spec asserts Block source text but
+# not Block.Name / Block.Properties shape, so the column-name +
+# row-number naming convention is exercised by the native unit
+# tests only.
