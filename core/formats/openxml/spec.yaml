@@ -134,8 +134,7 @@ features:
           - "Bold text and normal text"
           - "Italic then bold italic"
     okapi_refs:
-      - OpenXMLDefaultConfigRoundTripTest#testWitthDefaultConfig
-      - OpenXMLTest#testWordDocuments
+      - OpenXMLTest#defaultWordRunFormattingConditionallyOptimisedForWordDocuments
     native_refs:
       - openxml.TestNative_SimpleDocx
       - openxml.TestRoundtripSimple
@@ -161,7 +160,8 @@ features:
           - "Click here for more."
           - "A Heading"
     okapi_refs:
-      - OpenXmlFormattingTest#testFormattingPreservedInRoundtrip
+      - OpenXmlFormattingTest#extractsItalics
+      - OpenXmlFormattingTest#extractsCaps
     native_refs:
       - openxml.TestNative_SimpleDocx
 
@@ -186,7 +186,7 @@ features:
           - "Tittel"
           - "Sjanger"
     okapi_refs:
-      - OpenXmlXlsxTest#extractsCellValues
+      - OpenXmlXlsxTest#inlineStringsExtracted
     native_refs:
       - openxml.TestNative_SimpleXlsx
 
