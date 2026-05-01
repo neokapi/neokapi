@@ -9,10 +9,24 @@
 #
 # Authoring notes:
 #   - Inputs are inline `input_xml:` snippets (ICML is a single XML
-#     document, so no fixture packaging is needed) plus a packaged
-#     `testdata/Test01.wcml` baseline reused from the existing native
-#     reader tests.
-#   - input_file values resolve relative to this directory (testdata/…).
+#     document, so no fixture packaging is needed) plus four small
+#     authored fixtures under `testdata/`. Each synth fixture isolates
+#     ONE feature (paragraph segmentation, style propagation, table
+#     cells, notes). Per the binary-format fixture rule (#515 / #461),
+#     synth is acceptable when no upstream file covers a feature in
+#     isolation: the only candidate upstream file
+#     `okapi:okapi/filters/icml/src/test/resources/Test01.wcml` is a
+#     1401-line real-world ICML mixing many features at once, so it
+#     doesn't work as a per-feature oracle. The `real_world_baseline`
+#     example below also exercises the real upstream Test01.wcml as
+#     a sanity check that both the native reader and the bridge can
+#     consume authentic ICML.
+#   - input_file values resolve relative to this directory (testdata/…)
+#     unless prefixed `okapi:` (resolves under okapi-testdata/).
+#   - The synth `testdata/Test01.wcml` shares its filename with the
+#     upstream fixture for historical reasons but is a 30-line
+#     hand-authored 3-paragraph ICML, not a reduction of upstream.
+#     Treat it as `three-paragraphs.icml`.
 #   - Config keys follow Okapi's parameter naming as exposed by the
 #     bridge composite schema (`extractNotes`, `extractMasterSpreads`,
 #     `newTuOnBr`, `simplifyCodes`, `skipThreshold`, plus the
@@ -362,3 +376,24 @@ features:
       - ICMLFilterTest#open_WhenSuccessfull_ThenReturnTrue
     native_refs:
       - icml.TestPropertiesElementSkipped
+
+  # ── Real-world ICML baseline (upstream okapi-testdata) ────────────
+  - id: real_world_baseline
+    name: Real upstream ICML extracts cleanly
+    description: |
+      Smoke test against authentic InCopy-authored ICML — the upstream
+      `Test01.wcml` shipped with okapi-testdata. This is the only
+      example whose input comes from a real authoring tool (everything
+      else is per-feature synth), so it acts as a regression guard
+      against fixture drift: if the native reader silently rejects
+      attributes or character data that real ICML files carry but our
+      synth fixtures don't, this example catches it.
+    spec_refs:
+      - "Authentic InCopy ICML output — upstream okapi-testdata"
+    examples:
+      - name: upstream_test01
+        origin: "okapi-testdata: okapi/filters/icml/src/test/resources/Test01.wcml"
+        input_file: okapi:okapi/filters/icml/src/test/resources/Test01.wcml
+        block_count_min: 1
+    okapi_refs:
+      - ICMLFilterTest#open_WhenSuccessfull_ThenReturnTrue
