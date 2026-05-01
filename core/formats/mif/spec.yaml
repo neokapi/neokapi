@@ -16,6 +16,14 @@
 #     format) plus the testdata/simple.mif fixture for the round-trip
 #     baseline. MIF is plain ASCII/UTF-8 text so inline snippets are
 #     practical.
+#   - Per the binary-format fixture rule (#515 / #461), the spec also
+#     exercises the upstream `okapi:okapi/filters/mif/src/test/
+#     resources/1187_crlf.mif` baseline (see `real_world_baseline`
+#     feature) so both the native reader and the bridge are validated
+#     against authentic FrameMaker-emitted MIF. Inline snippets and
+#     the per-feature simple.mif are kept because each isolates a
+#     single behavior — none of the 51 upstream fixtures cover any
+#     one feature in isolation.
 #   - Config keys mirror the Okapi parameter names exposed by the bridge
 #     composite schema's `extraction` block (extractBodyPages,
 #     extractMasterPages, extractReferencePages, extractHiddenPages,
@@ -411,3 +419,26 @@ features:
     native_refs:
       - mif.TestReadLayerStartEnd
       - mif.TestReadMIFVersionData
+
+  # ── Real-world MIF baseline (upstream okapi-testdata) ─────────────
+  - id: real_world_baseline
+    name: Real upstream MIF extracts cleanly
+    description: |
+      Smoke test against authentic FrameMaker-emitted MIF — the
+      `1187_crlf.mif` fixture shipped with okapi-testdata. Catches
+      regression cases where the native reader silently rejects
+      MIF idioms (CRLF line endings, `<TFTag …>`, `<TFAutoConnect …>`,
+      `<FlowDir …>`, empty `<Notes>` blocks, `<Unique …>` paragraph
+      ids, `<Char HardReturn>` inside ParaLines, `<PgfNumString …>`
+      autonumber prefixes, or `<ParaLine>` blocks containing no String)
+      that real FrameMaker emits but the per-feature inline snippets
+      and synth simple.mif do not.
+    spec_refs:
+      - "Authentic FrameMaker MIF output — upstream okapi-testdata"
+    examples:
+      - name: upstream_1187_crlf
+        origin: "okapi-testdata: okapi/filters/mif/src/test/resources/1187_crlf.mif"
+        input_file: okapi:okapi/filters/mif/src/test/resources/1187_crlf.mif
+        block_count_min: 1
+    okapi_refs:
+      - ExtractionTest#testStartDocument
