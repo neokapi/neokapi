@@ -1,0 +1,115 @@
+# Spliced lines (line-continuation) format specification.
+#
+# Plain text format where a trailing backslash (`\`) at end-of-line
+# splices the next line into the current logical line. Multiple
+# consecutive splices form a single Block whose source text retains
+# the original LF characters (the splice marker is consumed).
+#
+# Authoring notes:
+#   - Inline `input_xml:` snippets carry the test data (the field is
+#     named for XML historically; just raw text bytes).
+#   - okapi_refs target net.sf.okapi.filters.plaintext.spliced.
+#     SplicedLinesFilterTest. The bridge ships the okf_splicedlines
+#     filter but with no top-level configurable knobs in the v3
+#     composite schema — defaults converge for the cases here.
+
+format: okf_splicedlines
+kind: top_level
+mime_type: text/plain
+description: |
+  Spliced-lines plain text filter. Reads a text document and emits
+  one translatable Block per logical line — adjacent physical lines
+  joined when the previous line ends with `\` (the splicer character,
+  default backslash). The splicer is consumed; the LF between spliced
+  lines is preserved in the Block source text.
+
+features:
+  - id: single_line_extraction
+    name: A single line yields one Block
+    description: |
+      The simplest case: a one-line input emits one Block whose source
+      is the line text (no trailing newline).
+    spec_refs:
+      - "Okapi SplicedLinesFilter behavior (okapi-bridge schema okf_splicedlines.v3)"
+    examples:
+      - name: hello_world
+        origin: "authored: minimal one-line baseline"
+        input_xml: "Hello world"
+        block_count: 1
+        first_block_text: "Hello world"
+    okapi_refs:
+      - SplicedLinesFilterTest#testSingleLine
+    native_refs:
+      - splicedlines.TestSingleLine
+
+  - id: continuation_line
+    name: Trailing backslash splices the next line
+    description: |
+      A line ending in `\` is joined with the following line: the
+      backslash is consumed, the LF between them is retained verbatim
+      in the Block source.
+    spec_refs:
+      - "Okapi SplicedLinesFilter behavior (okapi-bridge schema okf_splicedlines.v3)"
+    examples:
+      - name: two_line_splice
+        origin: "authored: one splice across two physical lines"
+        input_xml: "Hello \\\nworld"
+        expected_fail: |
+          bridge LF-collapse divergence (#536) — bridge consumes both
+          the splicer and the LF, emitting "Hello world"; native
+          preserves the LF, emitting "Hello \nworld". Spec asserts
+          native (LF-preserved) semantics.
+        block_count: 1
+        first_block_text: "Hello \nworld"
+    okapi_refs:
+      - SplicedLinesFilterTest#testContinuationLine
+    native_refs:
+      - splicedlines.TestContinuationLine
+
+  - id: multiple_continuations
+    name: Multiple consecutive splices form one Block
+    description: |
+      Chained splices (every physical line ends in `\` until the last)
+      collapse into a single logical line / Block. Inner LFs are kept.
+    spec_refs:
+      - "Okapi SplicedLinesFilter behavior (okapi-bridge schema okf_splicedlines.v3)"
+    examples:
+      - name: three_line_splice
+        origin: "authored: two splices across three physical lines"
+        input_xml: "Line1 \\\nLine2 \\\nLine3"
+        expected_fail: |
+          bridge LF-collapse divergence (#536) — bridge consumes both
+          the splicer and the LFs, emitting "Line1 Line2 Line3"; native
+          preserves them. Spec asserts native (LF-preserved) semantics.
+        block_count: 1
+        first_block_text: "Line1 \nLine2 \nLine3"
+    okapi_refs:
+      - SplicedLinesFilterTest#testMultipleContinuations
+    native_refs:
+      - splicedlines.TestMultipleContinuations
+
+  - id: mixed_lines
+    name: Independent and spliced lines interleave
+    description: |
+      A mix of single physical lines and spliced ones produces one
+      Block per logical line. Splices apply only where the splicer is
+      explicitly present.
+    spec_refs:
+      - "Okapi SplicedLinesFilter behavior (okapi-bridge schema okf_splicedlines.v3)"
+    examples:
+      - name: interleaved
+        origin: "authored: single + spliced + single"
+        input_xml: "Single line\nContinued \\\nline\nAnother single"
+        expected_fail: |
+          bridge LF-collapse divergence (#536) — bridge consumes the LF
+          on the spliced line, emitting "Continued line" for block 1;
+          native preserves it. Spec asserts native semantics.
+        block_count: 3
+        block_texts:
+          - "Single line"
+          - "Continued \nline"
+          - "Another single"
+    okapi_refs:
+      - SplicedLinesFilterTest#testMixedLines
+    native_refs:
+      - splicedlines.TestMixedLines
