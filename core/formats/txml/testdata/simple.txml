@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<txml locale="en" version="1.0" segtype="sentence" createdby="WF2.3.0" datatype="regexp" targetlocale="fr" file_extension="html" editedby="WF2.3.0">
+<skeleton>&lt;html&gt;&lt;body&gt;&lt;p&gt;</skeleton>
+<translatable blockId="b1" datatype="html"><segment segmentId="s1" modified="true"><source>Hello world</source><target>Bonjour le monde</target></segment><segment segmentId="s2"><source>Goodbye</source><target>Au revoir</target></segment></translatable>
+<skeleton>&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</skeleton>
+</txml>

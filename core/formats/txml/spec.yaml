@@ -1,0 +1,334 @@
+# TXML format specification.
+#
+# Single-variant filter — Wordfast Pro TXML. Inputs are inline XML
+# snippets via `input_xml`; the runner treats the field as raw text
+# bytes regardless of the historical "XML" name.
+#
+# Authoring notes:
+#   - The spec describes Wordfast Pro's real TXML schema as Okapi's
+#     TXMLFilter implements it: a top-level <txml> root with a
+#     locale="..." / targetlocale="..." attribute pair, optional
+#     <skeleton> wrappers carrying the original markup, and
+#     <translatable> blocks whose <segment> children each hold a
+#     <source>/<target> pair. The shared STARTFILE constant in every
+#     example mirrors Okapi's TXMLFilterTest STARTFILE so each
+#     example aligns 1:1 with an upstream @Test method.
+#   - One <translatable> element becomes ONE Block whose Source
+#     carries one Segment per <segment> child. The spec runner's
+#     BlockTexts helper joins segment text across the Block, so a
+#     two-segment <translatable> shows as one entry whose text is the
+#     concatenated segment sources (no separator). This matches the
+#     parity dashboard's existing block-text vocabulary used by xliff
+#     and tmx.
+#   - The native Go reader (`core/formats/txml/reader.go`) was written
+#     against a synthetic `<txml>...<body>...<segment>` shape and does
+#     not yet recognise Wordfast Pro's real `<translatable>` wrapper
+#     — tracked as issue #489 (rolled up under #453's `okf_txml`
+#     row) and tagged on every affected example as `expected_fail:`.
+#     Each example asserts the contract Okapi implements; once the
+#     native reader is taught the real schema the expected_fail tags
+#     drop and the spec re-engages as an enforced contract on both
+#     sides.
+#   - The only configurable parameter exposed by the bridge composite
+#     schema's flat properties is `allowEmptyOutputTarget` (output-side);
+#     the standard `inlineCodes` group sits under `$defs` and is
+#     declared here as a single `string_map` parent so drift detection
+#     sees the top-level grouping. None of these affect the read-side
+#     block extraction asserted below.
+#
+# Okapi pin: 1.47.0 (matches the bridge composite schema in
+# okapi-bridge/okapi-releases/1.47.0/schemas/okf_txml.schema.json).
+
+format: okf_txml
+mime_type: text/xml
+description: |
+  Wordfast Pro TXML — bilingual XML format produced by Wordfast Pro
+  4.x and consumed by Wordfast Pro / Lingobit downstream. The
+  document root is `<txml locale="..." targetlocale="...">`,
+  followed by alternating `<skeleton>` wrappers (carrying the
+  source application's markup) and `<translatable>` blocks. Each
+  `<translatable>` contains one or more `<segment>` children with
+  a `<source>` and optional `<target>`; `<ws>` siblings carry
+  whitespace between segments and `<ut>` elements wrap inline
+  formatting codes. `<!-- ... -->` comments around `<segment>`
+  children mark them as commented-out (excluded from extraction).
+
+config:
+  - key: allowEmptyOutputTarget
+    type: boolean
+    default: true
+    description: |
+      Allow empty `<target/>` elements to be written for segments
+      with no translation. When false (the `okf_txml-fillEmptyTargets`
+      built-in configuration), the writer fills the target with the
+      source content for any segment that has not been translated.
+      Read-side this flag is a no-op; recorded for parity with
+      Okapi's Parameters.ALLOWEMPTYOUTPUTTARGET and the bridge
+      composite schema's top-level `output.allowEmptyOutputTarget`
+      leaf.
+    okapi_param: allowEmptyOutputTarget
+
+  - key: inlineCodes
+    type: string_map
+    default: {}
+    description: |
+      Container for inline-code detection settings (mirrors Okapi's
+      inline-code finder, also exposed under the bridge composite
+      schema's `$defs/inlineCodes` block). Declared as a parent
+      group so the contract-audit drift check sees the schema's
+      top-level property; individual leaves (`useCodeFinder`,
+      `codeFinderRules`, `mergeAdjacentCodes`,
+      `moveLeadingAndTrailingCodesToSkeleton`) are not surfaced as
+      separate spec keys because the contract-audit walker doesn't
+      follow `$ref` into `$defs`. The TXML reader does not run the
+      code finder against segment content (inline formatting is
+      already wrapped in `<ut>` elements).
+    okapi_param: inlineCodes
+
+features:
+  # ── Core extraction ──────────────────────────────────────────────
+  - id: translatable_extraction
+    name: <translatable> wraps one Block with one Segment per <segment>
+    description: |
+      Each `<translatable>` element produces one Block. Every
+      `<segment>` child contributes one Segment to the Block's
+      Source containing the inner text of `<source>`, with the
+      matching `<target>` populating the Target keyed by the
+      `targetlocale` attribute on the `<txml>` root. Block id
+      defaults to the `blockId` attribute. The spec runner joins
+      segment text across the Block when computing BlockTexts, so
+      a two-segment `<translatable>` surfaces as ONE entry whose
+      text is the concatenated segment sources.
+    examples:
+      - name: simple_two_segments
+        description: |
+          Mirrors Okapi's TXMLFilterTest#testSimpleEntry — two
+          segments under one <translatable>, the second source-only.
+          Bridge yields one Block with concatenated text
+          "Segment one" + "segment two".
+        expected_fail: |
+          native reader does not parse Wordfast Pro's real
+          <translatable> schema (looks for <body>/<segment> instead).
+          Tracked under issue #489 (rolled up under #453's
+          okf_txml row) — the native reader needs to be retargeted
+          at the real TXML format before the expected_fail tag drops.
+        input_xml: |
+          <?xml version="1.0" encoding="UTF-8"?>
+          <txml locale="en" version="1.0" segtype="sentence" createdby="WF2.3.0" datatype="regexp" targetlocale="fr" file_extension="html" editedby="WF2.3.0">
+          <skeleton>&lt;html&gt;&lt;p&gt;</skeleton><translatable blockId="b1" datatype="html"><segment segmentId="s1" modified="true"><source>Segment one</source><target>Segment un</target></segment><segment segmentId="2"><source>segment two</source></segment></translatable></txml>
+        block_count: 1
+        first_block_text: "Segment onesegment two"
+      - name: simple_file
+        description: |
+          File-based fixture covering the full document shape with
+          surrounding `<skeleton>` wrappers and a complete two-segment
+          `<translatable>`. Both segments carry source + target.
+        expected_fail: |
+          native reader does not parse Wordfast Pro's real
+          <translatable> schema. Same root cause as
+          translatable_extraction::simple_two_segments.
+        input_file: testdata/simple.txml
+        block_count: 1
+        first_block_text: "Hello worldGoodbye"
+    okapi_refs:
+      - TXMLFilterTest#testSimpleEntry
+    native_refs:
+      - txml.TestReadSimpleTXML
+
+  # ── Inline codes ──────────────────────────────────────────────────
+  - id: ut_inline_codes
+    name: <ut> elements become inline codes inside the Segment
+    description: |
+      `<ut x="N" type="...">...</ut>` elements inside a `<source>`
+      or `<target>` represent inline formatting codes. The original
+      markup ride along as the inline code's data; segment text on
+      the Block omits the code data and surfaces only the literal
+      text between codes. Mirrors Okapi's TXMLFilterTest
+      printSegmentedContent assertion that renders a code as `<N/>`
+      while joining the segment's plain text otherwise.
+    examples:
+      - name: bold_open_close_codes
+        description: |
+          A segment whose source is `Segment <ut x='1'>...</ut>TWO<ut x='2'>...</ut>`
+          extracts as one Block with two segments. The joined block
+          text is `Segment one` (segment 1) + `Segment TWO`
+          (segment 2 — `<ut>` data dropped) → "Segment oneSegment TWO".
+        expected_fail: |
+          native reader does not parse Wordfast Pro's real
+          <translatable> schema. Same root cause as
+          translatable_extraction::simple_two_segments.
+        input_xml: |
+          <?xml version="1.0" encoding="UTF-8"?>
+          <txml locale="en" version="1.0" segtype="sentence" createdby="WF2.3.0" datatype="regexp" targetlocale="fr" file_extension="html" editedby="WF2.3.0">
+          <skeleton>&lt;html&gt;&lt;p&gt;</skeleton><translatable blockId="b1" datatype="html"><segment segmentId="s1" modified="true"><source>Segment one</source><target>Segment un</target></segment><segment segmentId="2"><source>Segment <ut x='1' type='bold'>&lt;b></ut>TWO<ut x='2' type='bold'>&lt;/b></ut></source></segment></translatable></txml>
+        block_count: 1
+        first_block_text: "Segment oneSegment TWO"
+    okapi_refs:
+      - TXMLFilterTest#testEntryWithCodes
+    native_refs:
+      - txml.TestReadInlineTags
+
+  # ── Commented-out segment handling ───────────────────────────────
+  - id: commented_segment_first_skipped
+    name: <!-- ... --> around a leading <segment> excludes it
+    description: |
+      A `<!-- ... -->` comment that wraps a `<segment>` excludes it
+      from extraction (Wordfast Pro's convention for marking a
+      segment as deleted-but-preserved). The remaining live segments
+      still extract; the resulting Block source is the joined text
+      of the surviving segments only.
+    examples:
+      - name: first_of_two_commented
+        description: |
+          Mirrors TXMLFilterTest#testEntryWithFirstOutOf2SegmentsCommentedOut —
+          the first segment is commented out, the second survives.
+          Bridge yields one Block whose text is "segment two".
+        expected_fail: |
+          native reader does not parse Wordfast Pro's real
+          <translatable> schema. Same root cause as
+          translatable_extraction::simple_two_segments.
+        input_xml: |
+          <?xml version="1.0" encoding="UTF-8"?>
+          <txml locale="en" version="1.0" segtype="sentence" createdby="WF2.3.0" datatype="regexp" targetlocale="fr" file_extension="html" editedby="WF2.3.0">
+          <skeleton>&lt;html&gt;&lt;p&gt;</skeleton><translatable blockId="b1" datatype="html"><!--<segment segmentId="s1" modified="true"><source>Segment one</source><target>Segment un</target></segment>--><segment segmentId="2"><source>segment two</source><target>segment deux</target></segment></translatable></txml>
+        block_count: 1
+        first_block_text: "segment two"
+    okapi_refs:
+      - TXMLFilterTest#testEntryWithFirstOutOf2SegmentsCommentedOut
+      - TXMLFilterTest#testEntryWithSecondOutOf2SegmentsCommentedOut
+
+  - id: commented_segment_all_skipped
+    name: All <segment> children commented yields no Block
+    description: |
+      When every `<segment>` inside a `<translatable>` is commented
+      out, no Block is emitted (the translatable contributes nothing
+      to the part stream beyond the surrounding document parts).
+      Reflects Okapi's TXMLFilterTest#testEntryWithAllSegmentsCommentedOut
+      assertion that `getTextUnit(events, 1) == null`.
+    examples:
+      - name: both_segments_commented
+        description: |
+          Two segments both wrapped in `<!-- -->` — bridge emits zero
+          translatable Blocks. The spec runner's BlockTexts helper
+          ignores empty / non-translatable parts, so block_count is 0.
+        input_xml: |
+          <?xml version="1.0" encoding="UTF-8"?>
+          <txml locale="en" version="1.0" segtype="sentence" createdby="WF2.3.0" datatype="regexp" targetlocale="fr" file_extension="html" editedby="WF2.3.0">
+          <skeleton>&lt;html&gt;&lt;p&gt;</skeleton><translatable blockId="b1" datatype="html"><!--<segment segmentId="s1" modified="true"><source>Segment one</source><target>Segment un</target></segment>--><!--<segment segmentId="2"><source>segment two</source><target>segment deux</target></segment>--></translatable></txml>
+        block_count: 0
+    okapi_refs:
+      - TXMLFilterTest#testEntryWithAllSegmentsCommentedOut
+      - TXMLFilterTest#testEntryWith1SegmentCommentedOut
+
+  - id: commented_segment_third_kept
+    name: Mixed commented + live segments preserve only the live ones
+    description: |
+      A `<translatable>` may interleave commented-out segments with
+      live ones. The Block's joined text contains only the live
+      segments' source content; commented-out segments are absent
+      from both the Source segment list and the joined text.
+    examples:
+      - name: third_segment_only
+        description: |
+          Two leading segments commented out, third live — bridge
+          produces one Block whose text is "segment three".
+          Mirrors TXMLFilterTest#testEntryWithThirdSegmentsNotCommentedOut.
+        expected_fail: |
+          native reader does not parse Wordfast Pro's real
+          <translatable> schema. Same root cause as
+          translatable_extraction::simple_two_segments.
+        input_xml: |
+          <?xml version="1.0" encoding="UTF-8"?>
+          <txml locale="en" version="1.0" segtype="sentence" createdby="WF2.3.0" datatype="regexp" targetlocale="fr" file_extension="html" editedby="WF2.3.0">
+          <skeleton>&lt;html&gt;&lt;p&gt;</skeleton><translatable blockId="b1" datatype="html"><!--<segment segmentId="s1" modified="true"><source>Segment one</source><target>Segment un</target></segment>--><!--<segment segmentId="2"><source>segment two</source><target>segment deux</target></segment>--><segment segmentId="3"><source>segment three</source><target>segment trois</target></segment></translatable></txml>
+        block_count: 1
+        first_block_text: "segment three"
+    okapi_refs:
+      - TXMLFilterTest#testEntryWithThirdSegmentsNotCommentedOut
+
+  # ── Whitespace handling ──────────────────────────────────────────
+  - id: ws_around_segments
+    name: <ws> siblings are skeleton, never part of segment text
+    description: |
+      `<ws>...</ws>` elements between or around `<segment>` children
+      carry pre/post-segment whitespace that belongs to the document
+      skeleton, not to the translatable text. The Block's joined
+      source text contains only the inner `<source>` content of each
+      live segment — `<ws>` content is excluded.
+    examples:
+      - name: leading_trailing_ws_segments
+        description: |
+          Mirrors TXMLFilterTest#testWS — two segments each surrounded
+          by `<ws>` whitespace nodes. The joined block text is the
+          concatenation of the two `<source>` payloads with no
+          intervening `<ws>` content.
+        expected_fail: |
+          native reader does not parse Wordfast Pro's real
+          <translatable> schema. Same root cause as
+          translatable_extraction::simple_two_segments.
+        input_xml: |
+          <?xml version="1.0" encoding="UTF-8"?>
+          <txml locale="en" version="1.0" segtype="sentence" createdby="WF2.3.0" datatype="regexp" targetlocale="fr" file_extension="html" editedby="WF2.3.0">
+          <skeleton>&lt;html&gt;&lt;p&gt;</skeleton><translatable blockId="b1" datatype="html"><segment segmentId="s1"><ws>  </ws><source>text S</source><target>text T</target><ws>  <ut x='1'>&lt;br/></ut> </ws></segment><segment segmentId="s2"><source>text S2</source><ws> 	</ws></segment></translatable></txml>
+        block_count: 1
+        first_block_text: "text Stext S2"
+    okapi_refs:
+      - TXMLFilterTest#testWS
+      - TXMLFilterTest#testSegments
+
+  # ── Empty source segments ────────────────────────────────────────
+  - id: empty_source_segments
+    name: Segments with empty <source> contribute no joined text
+    description: |
+      A `<segment>` whose `<source>` element is empty contributes
+      no characters to the Block's joined source text. When every
+      segment in a `<translatable>` is empty the BlockTexts helper
+      drops the Block entirely (its joined text is the empty
+      string, which the helper filters out — same behavior as the
+      tmx and xliff specs assert for empty TUs).
+    examples:
+      - name: two_empty_sources
+        description: |
+          Mirrors TXMLFilterTest#testEmptySegments — two segments
+          both with `<source></source>`. Bridge emits one TextUnit
+          but the joined source text is empty, so block_count is 0
+          under the BlockTexts helper used by the spec runner.
+        input_xml: |
+          <?xml version="1.0" encoding="UTF-8"?>
+          <txml locale="en" version="1.0" segtype="sentence" createdby="WF2.3.0" datatype="regexp" targetlocale="fr" file_extension="html" editedby="WF2.3.0">
+          <skeleton>&lt;html&gt;&lt;p&gt;</skeleton><translatable blockId="b1" datatype="html"><segment segmentId="s1"><ws>  </ws><source></source><ws>  <ut x='1'>&lt;br/></ut> </ws></segment><segment segmentId="s2"><source></source><ws> 	</ws></segment></translatable></txml>
+        block_count: 0
+    okapi_refs:
+      - TXMLFilterTest#testEmptySegments
+
+  # ── Revision metadata ────────────────────────────────────────────
+  - id: revision_metadata_ignored
+    name: <revisions> children attach as annotations, not block text
+    description: |
+      A `<segment>` may carry a `<revisions>` child documenting
+      previous translations. Revision payloads attach to the
+      Block as annotations (in Okapi's case via TXMLSegAnnotation)
+      and never enter the joined source text. The block reads as
+      if no `<revisions>` element were present.
+    examples:
+      - name: target_revision_present
+        description: |
+          Mirrors TXMLFilterTest#testRevisedEntry — segment 1 carries
+          a `<revisions>` child documenting an older target
+          translation. The current `<source>`/`<target>` pair
+          extracts unchanged; the revision text never enters the
+          block's joined source text.
+        expected_fail: |
+          native reader does not parse Wordfast Pro's real
+          <translatable> schema. Same root cause as
+          translatable_extraction::simple_two_segments.
+        input_xml: |
+          <?xml version="1.0" encoding="UTF-8"?>
+          <txml locale="en" version="1.0" segtype="sentence" createdby="WF2.3.0" datatype="regexp" targetlocale="fr" file_extension="html" editedby="WF2.3.0">
+          <skeleton>&lt;html&gt;&lt;p&gt;</skeleton><translatable blockId="b1" datatype="html"><segment segmentId="s1" modified="true"><source>Segment one</source><target>Segment un</target><revisions><revision id="1" creationid="Roberto" creationdate="20130109T162701Z" type="target"><target>previous translation</target></revision></revisions></segment><segment segmentId="2"><source>segment two</source></segment></translatable></txml>
+        block_count: 1
+        first_block_text: "Segment onesegment two"
+        no_block_with_text:
+          - "previous translation"
+    okapi_refs:
+      - TXMLFilterTest#testRevisedEntry
