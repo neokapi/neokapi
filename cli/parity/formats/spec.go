@@ -23,7 +23,6 @@ package formats
 
 import (
 	"github.com/neokapi/neokapi/core/format"
-	archivefmt "github.com/neokapi/neokapi/core/formats/archive"
 	csvfmt "github.com/neokapi/neokapi/core/formats/csv"
 	doxygenfmt "github.com/neokapi/neokapi/core/formats/doxygen"
 	dtdfmt "github.com/neokapi/neokapi/core/formats/dtd"
@@ -654,7 +653,6 @@ msgstr ""
 // their Skip strings to head-to-head with a one-line edit.
 var _ = []func() format.DataFormatReader{
 	func() format.DataFormatReader { return srtfmt.NewReader() },
-	func() format.DataFormatReader { return archivefmt.NewReader() },
 	func() format.DataFormatReader { return openxmlfmt.NewReader() },
 	func() format.DataFormatReader { return idmlfmt.NewReader() },
 	func() format.DataFormatReader { return icmlfmt.NewReader() },

@@ -8,7 +8,6 @@ import (
 	"github.com/neokapi/neokapi/core/config"
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/format/schema"
-	"github.com/neokapi/neokapi/core/formats/archive"
 	csvfmt "github.com/neokapi/neokapi/core/formats/csv"
 	"github.com/neokapi/neokapi/core/formats/doxygen"
 	dtdfmt "github.com/neokapi/neokapi/core/formats/dtd"
@@ -452,16 +451,6 @@ func RegisterAll(reg *registry.FormatRegistry, opts ...RegisterOptions) {
 			MagicBytes: [][]byte{{0x50, 0x4B, 0x03, 0x04}},
 		}, "Open Document Format")
 	reg.RegisterWriter("odf", func() format.DataFormatWriter { return odf.NewWriter() })
-
-	// Archive (ZIP)
-	reg.RegisterReader("archive",
-		func() format.DataFormatReader { return archive.NewReader() },
-		format.FormatSignature{
-			MIMETypes:  []string{"application/zip", "application/x-zip-compressed"},
-			Extensions: []string{".zip"},
-			MagicBytes: [][]byte{{0x50, 0x4B, 0x03, 0x04}},
-		}, "ZIP Archive")
-	reg.RegisterWriter("archive", func() format.DataFormatWriter { return archive.NewWriter() })
 
 	// EPUB
 	reg.RegisterReader("epub",
