@@ -1,0 +1,183 @@
+# JSX (KLF) format specification.
+#
+# JSX is the neokapi reader/writer for the Kapi Localization Format
+# (.klf), a structured JSON envelope for source-code-extracted
+# translatable strings. Each KLF document carries Blocks; each Block
+# has a structured Run sequence (text + placeholders + paired-codes
+# + plurals + selects). The reader flattens runs into Block source
+# text and stuffs the structured Run graph into a KLFAnnotation so
+# downstream tools and writers can rebuild the source.
+#
+# Native-only filter: KLF is a neokapi-specific exchange format. The
+# okapi-bridge daemon ships no okf_klf / okf_jsx counterpart. The
+# native reader carries the contract; this spec exercises the
+# always-on native runner only. No
+# `cli/parity/formats/jsx_spec_test.go` is added.
+#
+# Authoring notes:
+#   - input_xml carries inline KLF JSON (the field is named for XML
+#     historically; just raw text bytes).
+#   - The KLF wire schema is documented in core/klf/README.md.
+
+format: okf_jsx
+kind: top_level
+mime_type: application/vnd.neokapi.klf+json
+description: |
+  KLF (.klf) reader/writer. Parses a `kind: kapi-localization-format`
+  JSON envelope, walks every Document → Block, and emits one
+  translatable Block per KLF Block whose:
+    - source text = flattened run sequence (placeholders → equivs,
+      paired-codes elide their wrappers, plurals collapse to the
+      `other` branch),
+    - ID = KLF block ID (verbatim),
+    - Annotations[KLFAnnotation] carries the structured Source []Run
+      so the writer can reassemble the original document.
+
+features:
+  - id: text_run_extraction
+    name: A single text run yields one Block
+    description: |
+      The minimal KLF document: one Document, one Block, one TextRun.
+      Block.SourceText returns the run's text verbatim.
+    spec_refs:
+      - "KLF wire schema (neokapi/core/klf/README.md)"
+    examples:
+      - name: hello_world
+        origin: "authored: minimal KLF — one document / one block / one text run"
+        input_xml: |
+          {
+            "schemaVersion": "1.0",
+            "kind": "kapi-localization-format",
+            "generator": {"id": "spec-test", "version": "1.0"},
+            "project": {"id": "p1", "sourceLocale": "en"},
+            "documents": [{
+              "id": "doc1",
+              "documentType": "jsx",
+              "path": "test.tsx",
+              "blocks": [{
+                "id": "greeting",
+                "translatable": true,
+                "type": "jsx:element",
+                "source": [{"text": "Hello, world!"}]
+              }]
+            }]
+          }
+        block_count: 1
+        first_block_text: "Hello, world!"
+    native_refs:
+      - jsx.TestReaderReadsKLF
+
+  - id: multi_block_document
+    name: Multiple blocks in one document → one Block per KLF block
+    description: |
+      A KLF document may carry many Blocks. Each becomes a separate
+      translatable Block in document order. Block IDs come from KLF
+      block IDs verbatim.
+    examples:
+      - name: three_blocks
+        origin: "authored: one document with three text-only blocks"
+        input_xml: |
+          {
+            "schemaVersion": "1.0",
+            "kind": "kapi-localization-format",
+            "generator": {"id": "spec-test", "version": "1.0"},
+            "project": {"id": "p1", "sourceLocale": "en"},
+            "documents": [{
+              "id": "doc1",
+              "documentType": "jsx",
+              "path": "test.tsx",
+              "blocks": [
+                {"id": "title", "translatable": true, "type": "jsx:string", "source": [{"text": "Welcome"}]},
+                {"id": "subtitle", "translatable": true, "type": "jsx:string", "source": [{"text": "Get started below"}]},
+                {"id": "cta", "translatable": true, "type": "jsx:string", "source": [{"text": "Sign in"}]}
+              ]
+            }]
+          }
+        block_count: 3
+        block_texts:
+          - "Welcome"
+          - "Get started below"
+          - "Sign in"
+
+  - id: paired_code_flatten
+    name: Paired open/close codes are stripped from flattened text
+    description: |
+      A `pcOpen` / `pcClose` pair wraps inline content in the source
+      runs. Block.SourceText elides the wrapper markers and emits
+      only the surrounding text + interior text concatenated; the
+      structured wrapper survives in Annotations[KLFAnnotation] for
+      writers.
+    spec_refs:
+      - "KLF Run model (neokapi/core/model/run.go)"
+    examples:
+      - name: span_wrapped_text
+        origin: "authored: text containing an inline <span> paired-code wrap"
+        input_xml: |
+          {
+            "schemaVersion": "1.0",
+            "kind": "kapi-localization-format",
+            "generator": {"id": "spec-test", "version": "1.0"},
+            "project": {"id": "p1", "sourceLocale": "en"},
+            "documents": [{
+              "id": "doc1",
+              "documentType": "jsx",
+              "path": "test.tsx",
+              "blocks": [{
+                "id": "wrapped",
+                "translatable": true,
+                "type": "jsx:element",
+                "source": [
+                  {"text": "Read "},
+                  {"pcOpen": {"id": "1", "type": "jsx:element", "subType": "span", "data": "<span>", "equiv": "muted", "disp": "span"}},
+                  {"text": "the docs"},
+                  {"pcClose": {"id": "1", "type": "jsx:element", "subType": "span"}},
+                  {"text": " first"}
+                ]
+              }]
+            }]
+          }
+        block_count: 1
+        first_block_text: "Read the docs first"
+    native_refs:
+      - jsx.TestFlattenRuns
+
+  - id: placeholder_dropped_from_text
+    name: Self-closing placeholder runs are elided from flattened text
+    description: |
+      A `ph` (placeholder) run is structural, not textual: Block.SourceText()
+      concatenates only the surrounding text runs and drops the placeholder
+      entirely. The structured `ph` run survives in
+      Annotations[KLFAnnotation] so the writer can reinstate it on emit.
+      Translators that need to reference the variable should consult the
+      structured run graph, not the flattened source text.
+    spec_refs:
+      - "KLF Run model (neokapi/core/model/run.go)"
+    examples:
+      - name: count_placeholder
+        origin: "authored: text with one inline placeholder dropped from flattened source"
+        input_xml: |
+          {
+            "schemaVersion": "1.0",
+            "kind": "kapi-localization-format",
+            "generator": {"id": "spec-test", "version": "1.0"},
+            "project": {"id": "p1", "sourceLocale": "en"},
+            "documents": [{
+              "id": "doc1",
+              "documentType": "jsx",
+              "path": "test.tsx",
+              "blocks": [{
+                "id": "files-count",
+                "translatable": true,
+                "type": "jsx:element",
+                "source": [
+                  {"text": "Files ("},
+                  {"ph": {"id": "1", "type": "jsx:var", "subType": "number", "data": "{count}", "equiv": "count", "disp": "count"}},
+                  {"text": " matched)"}
+                ]
+              }]
+            }]
+          }
+        block_count: 1
+        first_block_text: "Files ( matched)"
+    native_refs:
+      - jsx.TestFlattenRuns
