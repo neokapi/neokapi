@@ -182,8 +182,10 @@ func (r *Reader) findStoryFiles(zr *zip.Reader) []string {
 //
 //	<Story>
 //	  <ParagraphStyleRange AppliedParagraphStyle="...">
+//	    <Content>direct child content</Content>     <!-- valid: bare Content -->
 //	    <CharacterStyleRange AppliedCharacterStyle="...">
 //	      <Content>translatable text</Content>
+//	      <Content>another sibling Content</Content> <!-- multiple per CSR allowed -->
 //	    </CharacterStyleRange>
 //	    <Br/> <!-- line break -->
 //	    <CharacterStyleRange>
@@ -198,14 +200,22 @@ func (r *Reader) findStoryFiles(zr *zip.Reader) []string {
 //	    </CharacterStyleRange>
 //	  </ParagraphStyleRange>
 //	</Story>
+//
+// The walker emits one Block per <Content> element, in document order,
+// regardless of whether the element is a direct child of a
+// ParagraphStyleRange or nested inside one or more CharacterStyleRange
+// elements. Real-world IDML stories (e.g. Adobe InDesign output) routinely
+// mix bare-PSR <Content> children with CSR-wrapped <Content> siblings
+// inside the same ParagraphStyleRange — see the upstream
+// 06-hello-world-14.idml test fixture for an example.
 func (r *Reader) parseStory(ctx context.Context, ch chan<- model.PartResult,
 	data []byte, storyPath string, blockCounter *int) error {
 
 	d := xml.NewDecoder(bytes.NewReader(data))
 
 	var skelBuf bytes.Buffer
-	var inContent bool
-	var noteDepth int // >0 when inside a Note/Footnote/Endnote element
+	var contentDepth int // >0 when inside a <Content> element
+	var noteDepth int    // >0 when inside a Note/Footnote/Endnote element
 	var textBuf strings.Builder
 
 	// Style tracking uses a stack so nested ParagraphStyleRange/CharacterStyleRange
@@ -240,7 +250,10 @@ func (r *Reader) parseStory(ctx context.Context, ch chan<- model.PartResult,
 				r.skelWriteStartElement(&skelBuf, t)
 
 			case "Content":
-				inContent = true
+				// IDML <Content> elements are always leaf text nodes (no
+				// nesting), but we use a depth counter rather than a
+				// boolean so a malformed input can't silently lose state.
+				contentDepth++
 				textBuf.Reset()
 
 			case "Br":
@@ -258,7 +271,7 @@ func (r *Reader) parseStory(ctx context.Context, ch chan<- model.PartResult,
 		case xml.EndElement:
 			switch t.Name.Local {
 			case "Content":
-				if inContent {
+				if contentDepth > 0 {
 					text := textBuf.String()
 					if r.cfg.SkipDiscretionaryHyphens {
 						text = strings.ReplaceAll(text, "\u00AD", "")
@@ -294,7 +307,7 @@ func (r *Reader) parseStory(ctx context.Context, ch chan<- model.PartResult,
 						}
 					}
 
-					inContent = false
+					contentDepth--
 					textBuf.Reset()
 				}
 
@@ -321,7 +334,7 @@ func (r *Reader) parseStory(ctx context.Context, ch chan<- model.PartResult,
 			}
 
 		case xml.CharData:
-			if inContent {
+			if contentDepth > 0 {
 				textBuf.Write(t)
 			} else {
 				r.skelText(&skelBuf, xmlEscape(string(t)))
