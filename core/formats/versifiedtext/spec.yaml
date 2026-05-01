@@ -1,0 +1,117 @@
+# Versified text format specification.
+#
+# A line-oriented text format used for poetry, scripture, lyrics, and
+# similar verse-numbered content. Each line opens with a verse marker
+# — either USFM-style (`\v 1` or `\v1`) or plain numeric (`1.` or `1 `).
+# The marker is consumed; the remainder becomes the Block source text.
+# The marker number lands in `block.Properties["verse"]` so writers
+# can re-emit the original numbering.
+#
+# Native-only filter: the okapi-bridge daemon does not ship a
+# dedicated okf_versifiedtext filter. Versified text is a niche
+# format primarily for Bible / scripture work; no bridge counterpart
+# exists. The native reader carries the contract; this spec exercises
+# the always-on native runner only. No
+# `cli/parity/formats/versifiedtext_spec_test.go` is added.
+
+format: okf_versifiedtext
+kind: top_level
+mime_type: text/plain
+description: |
+  Versified plain text filter. Reads a text document line-by-line and
+  emits one translatable Block per verse-marked line. Verse markers
+  are USFM-style (`\v 1` / `\v1`) or plain numeric (`1.` / `1 `).
+  Lines with no marker are still extracted but carry an empty
+  `verse` property. Stanza-break blank lines round-trip as skeleton
+  Data, never translated.
+
+features:
+  - id: usfm_marker_extraction
+    name: USFM-style \v marker → one Block, marker stripped
+    description: |
+      A line opening with `\v<N>` (no space) or `\v <N>` (with space)
+      yields one Block whose source text is the rest of the line.
+      The verse number lands in `block.Properties["verse"]` and the
+      Block.Name follows the convention `verse.<N>`.
+    spec_refs:
+      - "USFM 3.0 \\v marker (https://ubsicap.github.io/usfm/)"
+    examples:
+      - name: single_verse
+        origin: "authored: minimal one-verse USFM-style baseline"
+        input_xml: "\\v1 In the beginning was the Word."
+        block_count: 1
+        first_block_text: "In the beginning was the Word."
+      - name: spaced_marker
+        origin: "authored: USFM marker with space before number"
+        input_xml: "\\v 1 Text after spaced marker."
+        block_count: 1
+        first_block_text: "Text after spaced marker."
+    native_refs:
+      - versifiedtext.TestSingleVerse
+      - versifiedtext.TestVerseWithSpace
+
+  - id: multiple_verses
+    name: Multiple verses → one Block per verse
+    description: |
+      Each verse-marked line emits its own Block in document order.
+      Verse properties carry the per-line marker number.
+    spec_refs:
+      - "USFM 3.0 \\v marker (https://ubsicap.github.io/usfm/)"
+    examples:
+      - name: two_verses
+        origin: "authored: two USFM-marked verses on separate lines"
+        input_xml: "\\v1 First verse.\n\\v2 Second verse."
+        block_count: 2
+        block_texts:
+          - "First verse."
+          - "Second verse."
+    native_refs:
+      - versifiedtext.TestMultipleVerses
+
+  - id: numeric_marker_extraction
+    name: Plain numeric marker (1. or 1 ) recognised as verse start
+    description: |
+      A line opening with `<N>.` or `<N> ` (where `<N>` is a positive
+      integer) is treated as a verse marker — the marker is consumed,
+      the remainder becomes the Block source.
+    examples:
+      - name: dot_marker
+        origin: "authored: numeric+dot verse marker"
+        input_xml: "1. In the beginning."
+        block_count: 1
+        first_block_text: "In the beginning."
+    native_refs:
+      - versifiedtext.TestNumericVerseMarker
+
+  - id: non_verse_line_extraction
+    name: Lines without a verse marker are still extracted
+    description: |
+      A plain line without any verse marker still yields a translatable
+      Block — its `verse` property is empty so writers know it's not
+      part of the numbered sequence.
+    examples:
+      - name: bare_line
+        origin: "authored: line with no recognised verse marker"
+        input_xml: "A line without verse marker."
+        block_count: 1
+        first_block_text: "A line without verse marker."
+    native_refs:
+      - versifiedtext.TestNonVerseLine
+
+  - id: stanza_break
+    name: Blank line between verses → stanza break (skeleton)
+    description: |
+      A blank line separates stanzas: the preceding and following
+      verse Blocks survive untouched, the blank line itself is
+      preserved as skeleton Data so the writer can round-trip stanza
+      structure.
+    examples:
+      - name: stanza_separator
+        origin: "authored: two verses separated by a blank line stanza break"
+        input_xml: "\\v1 First verse.\n\n\\v2 Second verse."
+        block_count: 2
+        block_texts:
+          - "First verse."
+          - "Second verse."
+    native_refs:
+      - versifiedtext.TestStanzaBreak
