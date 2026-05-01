@@ -1,0 +1,549 @@
+# TTML (Timed Text Markup Language) format specification.
+#
+# Single-variant filter — okf_ttml covers the W3C TTML2 subtitle format
+# (.ttml, .dfxp). The native reader walks <body><div><p>...</p></div></body>,
+# emitting one Block per non-empty <p> element with timing attributes
+# (begin, end, dur) and styling attributes (region, textAlign) preserved
+# on Block Properties. Inline <span>, <br/>, and other styling markup
+# is unwrapped into the Block's source text.
+#
+# Inputs are inline XML snippets via `input_xml` or upstream test
+# fixtures via `input_file: okapi:...` (the runner skips cleanly when
+# the okapi-testdata corpus isn't fetched).
+#
+# Authoring notes:
+#   - okapi_refs target net.sf.okapi.filters.ttml.TTMLFilterTest, the
+#     single upstream test class for this filter (Okapi 1.48.0).
+#   - native vs bridge config-key divergence: neokapi uses
+#     `mergeAdjacentCaptions` / `escapeBR`; the upstream Okapi filter
+#     uses `mergeCaptions` / `escapeBrMode`. Default values also differ
+#     (native `mergeAdjacentCaptions=false`; bridge `mergeCaptions=true`).
+#     The translation is handled in cli/parity/formats/ttml_bridge_config.go,
+#     so spec.yaml stays in neokapi vocabulary. The translator also
+#     forces `mergeCaptions=false` by default so neokapi's "one Block
+#     per <p>" semantics match the bridge.
+#   - The native reader wraps every <p> as one Block. The bridge does
+#     the same for <p> with default `mergeCaptions=false`. With the
+#     bridge translator forcing `mergeCaptions=false`, default behavior
+#     converges across both implementations.
+#   - The native reader unwraps inline <span> and <br/> into plain text
+#     (with EscapeBR=true the <br/> becomes a single space). The bridge
+#     renders <br/> as an inline Code on the surrounding TextUnit; this
+#     is a representational divergence that the spec assertions
+#     (BlockTexts) tolerate as a parity warning.
+
+format: okf_ttml
+kind: top_level
+mime_type: application/ttml+xml
+description: |
+  Timed Text Markup Language (TTML) subtitle filter, per W3C TTML2.
+  Reads XML documents in the http://www.w3.org/ns/ttml namespace and
+  walks the <body>/<div>/<p> hierarchy, emitting one translatable
+  Block per non-empty <p> element. Each Block carries the captioning
+  text in its source and the timing/positioning attributes (begin,
+  end, dur, region, textAlign) on its Properties.
+
+  Default behaviour:
+    - one Block per non-empty <p> element,
+    - empty <p> elements (no text content) are skipped,
+    - <br/> elements are removed and surrounding text is joined with a
+      single space (controlled by `escapeBR`),
+    - inline <span> markup is unwrapped — text content becomes part of
+      the surrounding Block, span attributes are dropped,
+    - <metadata>, <styling>, <layout> heads are non-translatable,
+    - LayerStart/LayerEnd wrap the document.
+
+  Configuration knobs cover caption merging (`mergeAdjacentCaptions`),
+  line-break handling (`escapeBR`), and writer-time line wrapping
+  (`maxCharsPerLine`, `maxLinesPerCaption`, `cjkCharsPerLine`,
+  `splitWords`).
+
+config:
+  # ── Extraction-time knobs ─────────────────────────────────────────
+  - key: mergeAdjacentCaptions
+    type: boolean
+    default: false
+    description: |
+      When true, adjacent <p> captions whose first text ends with
+      trailing punctuation (`,` or `;`) are merged into a single
+      Block. When false (default) every non-empty <p> emits its own
+      Block. Mirrors Okapi's `mergeCaptions` parameter; the upstream
+      default is true. The bridge translator forces the bridge
+      parameter to match the neokapi default so behavior converges.
+    okapi_param: mergeCaptions
+
+  - key: escapeBR
+    type: boolean
+    default: true
+    description: |
+      When true (default), `<br/>` elements inside a <p> are removed
+      and the surrounding text is joined with a single space. When
+      false, `<br/>` is preserved as the literal string `<br/>` inside
+      the Block source. Mirrors Okapi's `escapeBrMode` parameter.
+    okapi_param: escapeBrMode
+
+  # ── Writer-time knobs (declared for schema parity) ────────────────
+  - key: maxCharsPerLine
+    type: int
+    default: 0
+    description: |
+      Maximum characters per line of caption text on write. 0 means
+      no limit. Writer-only; does not affect extraction. Mirrors
+      Okapi's `maxCharsPerLine` parameter (composite schema groups it
+      under `output`).
+    okapi_param: maxCharsPerLine
+
+  - key: maxLinesPerCaption
+    type: int
+    default: 0
+    description: |
+      Maximum text lines per caption on write. 0 means no limit.
+      Writer-only; does not affect extraction. Mirrors Okapi's
+      `maxLinesPerCaption` parameter (composite schema groups it
+      under `output`).
+    okapi_param: maxLinesPerCaption
+
+  - key: cjkCharsPerLine
+    type: int
+    default: 0
+    description: |
+      Maximum characters per line for CJK languages. 0 falls back to
+      `maxCharsPerLine`. Writer-only; does not affect extraction.
+      Mirrors Okapi's `cjkCharsPerLine` parameter (composite schema
+      groups it under `output`).
+    okapi_param: cjkCharsPerLine
+
+  - key: splitWords
+    type: boolean
+    default: false
+    description: |
+      On write, allow splitting words to enforce the character limit
+      per line. Writer-only; does not affect extraction. Mirrors
+      Okapi's `splitWords` parameter (composite schema groups it
+      under `output`).
+    okapi_param: splitWords
+
+features:
+  # ── Basic <p> caption extraction ──────────────────────────────────
+  - id: paragraph_extraction
+    name: Each <p> element is one translatable Block
+    description: |
+      Inside `<body><div>...</div></body>`, every non-empty `<p>`
+      element produces one translatable Block whose source is the
+      caption text. The Block's Name is taken from the `xml:id`
+      attribute when present (falling back to a positional
+      `subtitle.N`). Whitespace inside the text content is preserved
+      verbatim except where `<br/>` handling intervenes (see
+      `br_handling`).
+    spec_refs:
+      - "W3C TTML2 §10.2.1 The p element (https://www.w3.org/TR/ttml2/#content-vocabulary-p)"
+    examples:
+      - name: two_subtitles
+        origin: "authored: minimal two-caption baseline (one <div>, two <p> elements)"
+        input_xml: |
+          <?xml version="1.0" encoding="UTF-8"?>
+          <tt xml:lang="en" xmlns="http://www.w3.org/ns/ttml">
+            <body><div>
+              <p begin="00:00:01.000" end="00:00:04.000">Hello world</p>
+              <p begin="00:00:05.000" end="00:00:08.000">Second subtitle</p>
+            </div></body>
+          </tt>
+        block_count: 2
+        block_texts:
+          - "Hello world"
+          - "Second subtitle"
+      - name: single_subtitle_with_id
+        origin: "authored: <p xml:id=...> with timing attributes"
+        input_xml: |
+          <?xml version="1.0" encoding="UTF-8"?>
+          <tt xml:lang="en" xmlns="http://www.w3.org/ns/ttml">
+            <body><div>
+              <p xml:id="myCaption" begin="00:00:01.000" end="00:00:04.000">Hello</p>
+            </div></body>
+          </tt>
+        block_count: 1
+        first_block_text: "Hello"
+      - name: multiple_divs
+        origin: "authored: two sibling <div> elements, one <p> each"
+        input_xml: |
+          <?xml version="1.0" encoding="UTF-8"?>
+          <tt xml:lang="en" xmlns="http://www.w3.org/ns/ttml">
+            <body>
+              <div>
+                <p begin="00:00:01.000" end="00:00:04.000">First div subtitle.</p>
+              </div>
+              <div>
+                <p begin="00:00:05.000" end="00:00:08.000">Second div subtitle.</p>
+              </div>
+            </body>
+          </tt>
+        block_count: 2
+        block_texts:
+          - "First div subtitle."
+          - "Second div subtitle."
+    okapi_refs:
+      - TTMLFilterTest#testProcessTextUnit
+      - TTMLFilterTest#testReadMaxCharMaxLine
+    native_refs:
+      - ttml.TestTextUnitExtraction
+      - ttml.TestXMLIDAsBlockName
+      - ttml.TestMultipleDivs
+
+  # ── Empty <p> elements skipped ────────────────────────────────────
+  - id: empty_caption_skipped
+    name: Empty <p> elements emit no Block
+    description: |
+      A `<p>` element with no text content (zero characters between
+      its open and close tags) yields no translatable Block. Its
+      timing scaffolding remains in the skeleton so the writer can
+      round-trip the empty caption position. Subsequent non-empty
+      `<p>` elements continue to extract normally.
+    # Empty-caption tolerance is a behavioral robustness convention,
+    # not a TTML2 spec requirement.
+    examples:
+      - name: empty_then_text
+        origin: "okapi-fixture-style: TTMLFilterTest#testEmptyCaptions — empty <p> followed by non-empty <p>"
+        input_xml: |
+          <?xml version="1.0" encoding="UTF-8"?>
+          <tt xml:lang="en" xmlns="http://www.w3.org/ns/ttml" xmlns:tts="http://www.w3.org/ns/ttml#styling">
+            <body><div>
+              <p xml:id="subtitle1" begin="00:00:00.897" end="00:00:05.263" region="bottom" tts:textAlign="center"></p>
+              <p xml:id="subtitle2" begin="00:00:05.430" end="00:00:08.730" region="bottom" tts:textAlign="center">I am so excited<br/> to be with you.</p>
+            </div></body>
+          </tt>
+        block_count: 1
+        first_block_text: "I am so excited to be with you."
+      - name: only_empty_caption
+        origin: "authored: a document whose only <p> is empty produces zero Blocks"
+        input_xml: |
+          <?xml version="1.0" encoding="UTF-8"?>
+          <tt xml:lang="en" xmlns="http://www.w3.org/ns/ttml">
+            <body><div>
+              <p xml:id="subtitle1" begin="00:00:00.430" end="00:00:02.497"></p>
+            </div></body>
+          </tt>
+        block_count: 0
+    okapi_refs:
+      - TTMLFilterTest#testEmptyCaptions
+    native_refs:
+      - ttml.TestEmptyCaptions
+      - ttml.TestEmptyDocument
+
+  # ── <br/> handling (escapeBR) ─────────────────────────────────────
+  - id: br_handling
+    name: <br/> elements join surrounding text with a space (escapeBR)
+    description: |
+      With `escapeBR=true` (default), `<br/>` elements inside a `<p>`
+      are removed and the surrounding text segments are joined with a
+      single space. Adjacent whitespace from author-side line breaks
+      collapses so the resulting Block source is a single-space-joined
+      caption. With `escapeBR=false`, `<br/>` is preserved as the
+      literal string `<br/>` in the Block source.
+    spec_refs:
+      - "W3C TTML2 §10.2.7 The br element (https://www.w3.org/TR/ttml2/#content-vocabulary-br)"
+    examples:
+      - name: default_escape_br
+        origin: "okapi-fixture-style: TTMLFilterTest#testProcessTextUnit — <br/> joined with a space (default)"
+        # Both native and bridge produce the same BlockTexts surface
+        # for default escapeBR=true. Native unwraps `<br/>` to a
+        # single space; the bridge represents `<br/>` as an inline
+        # Code on the surrounding TextUnit which BlockTexts() collapses
+        # to whitespace-equivalent text. Net result: identical Block
+        # texts.
+        input_xml: |
+          <?xml version="1.0" encoding="UTF-8"?>
+          <tt xml:lang="en" xmlns="http://www.w3.org/ns/ttml" xmlns:tts="http://www.w3.org/ns/ttml#styling">
+            <body><div>
+              <p xml:id="subtitle1" begin="00:00:00.897" end="00:00:05.263" region="bottom" tts:textAlign="center">Thanks everyone <br/>for joining us today.</p>
+              <p xml:id="subtitle2" begin="00:00:05.430" end="00:00:08.730" region="bottom" tts:textAlign="center">I am so excited<br/> to be with you.</p>
+            </div></body>
+          </tt>
+        block_count: 2
+        block_texts:
+          - "Thanks everyone for joining us today."
+          - "I am so excited to be with you."
+      - name: non_escape_br_mode
+        origin: "okapi-fixture-style: TTMLFilterTest#testProcessTextUnitNonEscapeBrMode — escapeBR=false preserves literal <br/>"
+        input_xml: |
+          <?xml version="1.0" encoding="UTF-8"?>
+          <tt xml:lang="en" xmlns="http://www.w3.org/ns/ttml" xmlns:tts="http://www.w3.org/ns/ttml#styling">
+            <body><div>
+              <p xml:id="subtitle1" begin="00:00:00.897" end="00:00:05.263" region="bottom" tts:textAlign="center">Thanks everyone <br/>for joining us today.</p>
+              <p xml:id="subtitle2" begin="00:00:05.430" end="00:00:08.730" region="bottom" tts:textAlign="center">I am so excited<br/> to be with you.</p>
+            </div></body>
+          </tt>
+        config:
+          escapeBR: false
+        expected_fail: |
+          bridge feature difference — even with `escapeBrMode=false`
+          the Okapi TTMLFilter emits `<br/>` as a structured XLIFF
+          inline code (an XML/XLIFF tag like `<x id="..."/>`) rather
+          than the literal text `<br/>`. Native preserves the
+          source-side string `<br/>` verbatim inside the Block. Both
+          honor the spec contract that `<br/>` becomes part of the
+          translatable surface; they disagree on the in-Block string
+          representation. Spec asserts native (literal `<br/>` string)
+          behavior.
+        block_count: 2
+        block_texts:
+          - "Thanks everyone <br/>for joining us today."
+          - "I am so excited<br/> to be with you."
+    okapi_refs:
+      - TTMLFilterTest#testProcessTextUnit
+      - TTMLFilterTest#testProcessTextUnitNonEscapeBrMode
+    native_refs:
+      - ttml.TestBRDefaultEscapeMode
+      - ttml.TestNonEscapeBRMode
+
+  # ── Caption merging by trailing punctuation ───────────────────────
+  - id: merge_adjacent_captions
+    name: mergeAdjacentCaptions joins consecutive captions ending in `,` or `;`
+    description: |
+      With `mergeAdjacentCaptions=true`, the reader merges adjacent
+      `<p>` captions whose first text ends with trailing punctuation
+      (`,` or `;`) into a single Block. The merged Block keeps the
+      first caption's `begin` and the last caption's `end`. With
+      `mergeAdjacentCaptions=false` (default), every `<p>` emits its
+      own Block. Mirrors Okapi's `mergeCaptions` semantics, modulo
+      neokapi's narrower trailing-punctuation criterion (Okapi merges
+      on any non-sentence-terminating punctuation; neokapi only merges
+      on `,` and `;`).
+    # Caption merging is a localization-pipeline convention rather
+    # than a TTML2 spec requirement.
+    examples:
+      - name: merge_on_trailing_comma
+        origin: "okapi-fixture-style: TTMLFilterTest#testMergeCaptions — first caption ends with `,` → merge"
+        # With mergeAdjacentCaptions=true (translated to bridge
+        # mergeCaptions=true), both sides collapse the two captions to
+        # one Block. Native joins with a single space; the bridge
+        # keeps `<br/>` as inline Code which BlockTexts() collapses.
+        # The four phrase fragments are present in both surfaces.
+        input_xml: |
+          <?xml version="1.0" encoding="UTF-8"?>
+          <tt xml:lang="en" xmlns="http://www.w3.org/ns/ttml" xmlns:tts="http://www.w3.org/ns/ttml#styling">
+            <body><div>
+              <p xml:id="subtitle1" begin="00:00:00.897" end="00:00:05.263" region="bottom" tts:textAlign="center">Thanks everyone<br/>for joining us today,</p>
+              <p xml:id="subtitle2" begin="00:00:05.430" end="00:00:08.730" region="bottom" tts:textAlign="center">I am so excited<br/>to be with you.</p>
+            </div></body>
+          </tt>
+        config:
+          mergeAdjacentCaptions: true
+        block_count: 1
+        has_block_with_text:
+          - "Thanks everyone"
+          - "for joining us today,"
+          - "I am so excited"
+          - "to be with you."
+      - name: dont_merge_when_no_trailing_punctuation
+        origin: "okapi-fixture-style: TTMLFilterTest#testDontMergeCaptions — default config keeps captions separate"
+        # With mergeAdjacentCaptions=false (translated to bridge
+        # mergeCaptions=false), both sides keep the two captions
+        # separate even though the first caption ends with a trailing
+        # comma. BlockTexts surfaces match.
+        input_xml: |
+          <?xml version="1.0" encoding="UTF-8"?>
+          <tt xml:lang="en" xmlns="http://www.w3.org/ns/ttml" xmlns:tts="http://www.w3.org/ns/ttml#styling">
+            <body><div>
+              <p xml:id="subtitle1" begin="00:00:00.897" end="00:00:05.263" region="bottom" tts:textAlign="center">Thanks everyone <br/>for joining us today,</p>
+              <p xml:id="subtitle2" begin="00:00:05.430" end="00:00:08.730" region="bottom" tts:textAlign="center">I am so excited<br/> to be with you.</p>
+            </div></body>
+          </tt>
+        config:
+          mergeAdjacentCaptions: false
+        block_count: 2
+        block_texts:
+          - "Thanks everyone for joining us today,"
+          - "I am so excited to be with you."
+    okapi_refs:
+      - TTMLFilterTest#testMergeCaptions
+      - TTMLFilterTest#testDontMergeCaptions
+    native_refs:
+      - ttml.TestCaptionMerging
+      - ttml.TestDontMergeCaptions
+
+  # ── Inline <span> markup ──────────────────────────────────────────
+  - id: inline_span_unwrapping
+    name: Inline <span> styling is unwrapped, text content preserved
+    description: |
+      Inline `<span>` elements (used for inline styling — italic,
+      bold, color, language tagging) are unwrapped: the span's text
+      content joins the surrounding `<p>` Block source verbatim, and
+      the span's attributes are dropped from the extracted text.
+      Downstream tools see a single flat Block source per `<p>`.
+    spec_refs:
+      - "W3C TTML2 §10.2.2 The span element (https://www.w3.org/TR/ttml2/#content-vocabulary-span)"
+    examples:
+      - name: italic_span_unwrapped
+        origin: "authored: <span tts:fontStyle=\"italic\"> inside body paragraph"
+        # Both native and bridge produce the same BlockTexts surface
+        # for inline <span>. Native unwraps the span to plain text;
+        # the bridge represents the span as inline Codes on the
+        # surrounding TextUnit which BlockTexts() collapses to the
+        # span's text content. Net result: identical Block source.
+        input_xml: |
+          <?xml version="1.0" encoding="UTF-8"?>
+          <tt xml:lang="en" xmlns="http://www.w3.org/ns/ttml" xmlns:tts="http://www.w3.org/ns/ttml#styling">
+            <body><div>
+              <p xml:id="subtitle1" begin="00:00:00.897" end="00:00:05.263">I am so <span tts:fontStyle="italic">excited</span> to be here.</p>
+            </div></body>
+          </tt>
+        block_count: 1
+        first_block_text: "I am so excited to be here."
+    okapi_refs:
+      - TTMLFilterTest#testProcessTextUnit
+    native_refs:
+      - ttml.TestInlineSpanPassthrough
+
+  # ── Quoted / punctuated content ───────────────────────────────────
+  - id: quote_and_punctuation_handling
+    name: Surrounding quotes and punctuation pass through verbatim
+    description: |
+      Captions wrapped in single quotes (`'...'`) or carrying
+      sentence-terminating punctuation (`.`, `!`, `?`) preserve those
+      characters in the Block source. Trailing punctuation that does
+      not match the merge predicate (`,` or `;`) does not trigger
+      caption merging; each `<p>` remains its own Block.
+    # Quote/punctuation preservation is a UTF-8 round-trip property,
+    # not a TTML2 spec requirement.
+    examples:
+      - name: single_quoted_captions
+        origin: "okapi-fixture-style: TTMLFilterTest#testQuoteCaptions — single-quote-wrapped captions"
+        # Both implementations preserve the surrounding single quotes
+        # and produce identical BlockTexts surfaces (the bridge's
+        # inline `<br/>` Code collapses to whitespace-equivalent text
+        # under BlockTexts()).
+        input_xml: |
+          <?xml version="1.0" encoding="UTF-8"?>
+          <tt xml:lang="en" xmlns="http://www.w3.org/ns/ttml" xmlns:tts="http://www.w3.org/ns/ttml#styling">
+            <body><div>
+              <p xml:id="subtitle1" begin="00:00:00.897" end="00:00:05.263" region="bottom" tts:textAlign="center">'Thanks everyone <br/>for joining us today.'</p>
+              <p xml:id="subtitle2" begin="00:00:05.430" end="00:00:08.730" region="bottom" tts:textAlign="center">'I am so excited<br/> to be with you.'</p>
+            </div></body>
+          </tt>
+        block_count: 2
+        block_texts:
+          - "'Thanks everyone for joining us today.'"
+          - "'I am so excited to be with you.'"
+    okapi_refs:
+      - TTMLFilterTest#testQuoteCaptions
+    native_refs:
+      - ttml.TestQuoteCaptions
+
+  # ── Head / metadata non-translatable ──────────────────────────────
+  - id: head_metadata_non_translatable
+    name: <head>, <styling>, <layout>, <metadata> are non-translatable
+    description: |
+      The `<head>` block of a TTML document — including `<styling>`,
+      `<layout>`, `<metadata>`, and the okp: extension elements
+      (`okp:maximum_character_count`, `okp:maximum_line_count`) — is
+      structural / configuration data, not translatable copy. The
+      reader emits no Blocks for any element under `<head>`; only
+      `<p>` elements inside `<body><div>` produce Blocks.
+    spec_refs:
+      - "W3C TTML2 §6.2 Document structure — head and body (https://www.w3.org/TR/ttml2/#document-structure)"
+    examples:
+      - name: head_with_metadata_then_body
+        origin: "okapi-fixture-style: TTMLFilterTest#testReadMaxCharMaxLine — <head> with <metadata>+okp: extension elements"
+        # Both implementations skip the <head>/<metadata>/okp: block
+        # entirely (non-translatable scaffolding) and produce identical
+        # BlockTexts surfaces for the body paragraphs.
+        input_xml: |
+          <?xml version="1.0" encoding="UTF-8"?>
+          <tt xml:lang="en" xmlns="http://www.w3.org/ns/ttml" xmlns:tts="http://www.w3.org/ns/ttml#styling">
+            <head>
+              <metadata>
+                <okp:maximum_character_count>20</okp:maximum_character_count>
+                <okp:maximum_line_count>3</okp:maximum_line_count>
+              </metadata>
+            </head>
+            <body><div>
+              <p xml:id="subtitle1" begin="00:00:00.897" end="00:00:05.263" region="bottom" tts:textAlign="center">Thanks everyone <br/>for joining us today.</p>
+              <p xml:id="subtitle2" begin="00:00:05.430" end="00:00:08.730" region="bottom" tts:textAlign="center">I am so excited<br/> to be with you.</p>
+            </div></body>
+          </tt>
+        block_count: 2
+        block_texts:
+          - "Thanks everyone for joining us today."
+          - "I am so excited to be with you."
+        no_block_with_text:
+          - "maximum_character_count"
+          - "maximum_line_count"
+    okapi_refs:
+      - TTMLFilterTest#testReadMaxCharMaxLine
+    native_refs:
+      - ttml.TestMaxCharMaxLine
+
+  # ── Document boundary events ──────────────────────────────────────
+  - id: document_boundary_events
+    name: Layer start / end wrap every document
+    description: |
+      Reading any TTML document emits a LayerStart Part before the
+      first Block and a LayerEnd Part after the last one. The Layer
+      carries the `ttml` format id and `application/ttml+xml` mime
+      type so downstream tools can route on format. Verifies the
+      document scaffolding mirrors Okapi's StartDocument /
+      EndDocument event pair.
+    # Document scaffolding is a neokapi pipeline contract, not a
+    # property of the TTML2 specification itself — no spec_refs.
+    examples:
+      - name: minimal_layer_wrap
+        origin: "authored: smallest valid TTML document for layer-envelope smoke check"
+        input_xml: |
+          <?xml version="1.0" encoding="UTF-8"?>
+          <tt xml:lang="en" xmlns="http://www.w3.org/ns/ttml">
+            <body><div>
+              <p xml:id="subtitle1" begin="00:00:00.430" end="00:00:02.497">Hello.</p>
+            </div></body>
+          </tt>
+        block_count: 1
+        first_block_text: "Hello."
+    okapi_refs:
+      - TTMLFilterTest#testProcessTextUnit
+    native_refs:
+      - ttml.TestLayerStructure
+      - ttml.TestReaderSignature
+      - ttml.TestReaderMetadata
+
+# ── Intentionally under-specified ────────────────────────────────────
+#
+# Roundtrip / target-locale roundtrip (RoundTripTtmlIT#ttmlFiles,
+# ttml.TestRoundTrip / TestRoundTripWithTargetLocale / TestRoundTripWithBR /
+# TestRoundTripComplex) are exercised by the native reader's own
+# roundtrip suite but are not expressible through this spec's
+# BlockTexts assertion vocabulary — there is no roundtrip / writer-
+# output assertion type. Captured here as a known coverage gap.
+#
+# Output-side line wrapping (maxCharsPerLine, maxLinesPerCaption,
+# cjkCharsPerLine, splitWords) is a writer-time behavior that the
+# reader-only assertion vocabulary in this spec cannot express. The
+# config keys are declared above so they match the bridge composite
+# schema; native writer tests cover the read → write path with
+# default-zero limits (no wrapping). A future spec iteration can add
+# roundtrip-output assertions to cover the wrapping rules.
+#
+# Inline code finder (useCodeFinder, codeFinderRules) is a Java-side
+# regex that converts inline TTML markup into Codes. The native reader
+# unwraps inline markup to plain text instead (see inline_span_unwrapping).
+# Neither parameter is exposed by the bridge composite schema's top-
+# level properties (the schema surfaces the inlineCodes group via $defs
+# which the contract-audit walker doesn't follow yet — see #461 known-
+# issues), so they are intentionally absent from spec.config until the
+# walker handles $ref/$defs.
+#
+# Cancellation, configuration validation/reset, schema, and unknown-
+# parameter rejection (TestConfigApplyMap*, TestReadNilDocument,
+# TestReadEmpty, TestWriterMinimalTTML) are runtime API-shape tests
+# rather than user-observable extraction behavior and intentionally
+# fall outside this spec's surface.
+#
+# The upstream Okapi TTML fixture
+# (okapi-testdata/.../ttml/example1.ttml) is intentionally NOT
+# referenced here. The file ships with malformed XML — `<okp:...>`
+# elements are closed with `</lilt:...>` (a stale namespace prefix
+# from the old LILT-fork days) — which the strict Go encoding/xml
+# decoder rejects. The bridge's lenient parser tolerates the
+# mismatch, so a parity example would surface as a one-sided
+# divergence rooted in the fixture, not in either implementation.
+# The synthetic examples above cover the same shapes (empty leading
+# caption, `<br/>` line splits, head metadata) without dragging the
+# fixture's defect into the spec contract.
