@@ -1,0 +1,561 @@
+# LaTeX / TeX format specification.
+#
+# Single-variant filter — okf_tex covers the LaTeX2e document syntax
+# (preamble + body, command sequences, environments, math mode,
+# comments). Inputs are inline LaTeX snippets via `input_xml` (the
+# field is named for XML historically; it just carries raw text bytes
+# for any text format) or fixture files via `input_file`.
+#
+# The upstream Okapi TEXFilter exposes no configurable parameters
+# (composite schema okf_tex.v3 has `properties: {}`). The native
+# Config.ApplyMap rejects every key. No spec.config block.
+#
+# Authoring notes:
+#   - okapi_refs target net.sf.okapi.filters.tex.TEXFilterTest, the
+#     single upstream test class for this filter (Okapi 1.47.0).
+#   - The native reader and the bridge agree on the high-level
+#     contract — body paragraphs are translatable, comments and math
+#     are non-translatable, header text commands (\title, \author,
+#     \date) are translatable. They disagree on segmentation
+#     boundaries: native splits a paragraph around inline math
+#     ($...$, $$...$$, \[...\]) into multiple Blocks, while the
+#     bridge keeps the surrounding text contiguous and surfaces the
+#     math as a Code/inline-data span. Affected examples carry
+#     `expected_fail:` blocks calling out the divergence; spec
+#     asserts native behavior.
+
+format: okf_tex
+kind: top_level
+mime_type: text/x-tex-text
+description: |
+  LaTeX / TeX document filter. Walks the source and classifies each
+  command sequence by role:
+    - body paragraphs → translatable Blocks (one per blank-line-
+      separated paragraph),
+    - \title / \author / \date in the preamble → one translatable
+      Block each (the visible-text header commands),
+    - \section / \subsection / \chapter / \caption / \part /
+      \paragraph and friends → one translatable Block each (the
+      paragraph-level text commands),
+    - \textbf / \emph / \footnote and friends → inline text folded
+      into the surrounding paragraph Block,
+    - \label / \ref / \cite / \usepackage / \documentclass and
+      friends → non-translatable Data,
+    - %-line comments → non-translatable Data,
+    - Inline math ($...$, $$...$$, \[...\]) and math environments
+      (equation, align, gather, …) → non-translatable Data,
+    - verbatim / lstlisting environments → non-translatable Data.
+  The reader emits LayerStart/LayerEnd around every document.
+
+features:
+  # ── Body paragraph extraction ─────────────────────────────────────
+  - id: paragraph_extraction
+    name: Body paragraphs are translatable Blocks
+    description: |
+      Inside `\begin{document}` … `\end{document}`, contiguous lines
+      of body text form one translatable Block per paragraph.
+      Paragraphs are separated by one or more blank lines (the LaTeX
+      paragraph break). Single line breaks inside a paragraph collapse
+      into the same Block (LaTeX treats a soft line break as a space).
+    spec_refs:
+      - "LaTeX2e Reference §3 Document classes / paragraphs (https://latexref.xyz/Document-class-options.html)"
+      - "Wikibooks: LaTeX/Document Structure — paragraphs separated by blank lines (https://en.wikibooks.org/wiki/LaTeX/Document_Structure)"
+    examples:
+      - name: single_paragraph
+        origin: "authored: minimal one-paragraph baseline inside \\begin{document}/\\end{document}"
+        input_xml: "\\begin{document}\nHello world.\n\\end{document}"
+        block_count: 1
+        first_block_text: "Hello world."
+      - name: two_paragraphs
+        origin: "authored: blank-line paragraph separator inside body"
+        input_xml: "\\begin{document}\nFirst paragraph.\n\nSecond paragraph.\n\\end{document}"
+        block_count: 2
+        block_texts:
+          - "First paragraph."
+          - "Second paragraph."
+      - name: split_on_blank_line
+        origin: "okapi-fixture: TEXFilterTest#testSplitTUonNewlines (\\begin{document}\\nFirst text\\n\\nSecond text\\nThird text)"
+        # Both implementations yield 2 Blocks. Native preserves the
+        # soft line break inside the second paragraph as a literal
+        # `\n` ("Second text\nThird text"); the bridge collapses the
+        # soft break ("Second textThird text"). Spec asserts native
+        # (preserve the source line break) behavior; the bridge
+        # collapse is recorded as a known divergence.
+        input_xml: "\\begin{document}\nFirst text\n\nSecond text\nThird text"
+        expected_fail: |
+          bridge feature difference — Okapi TEXFilter collapses the
+          soft line break inside a paragraph, yielding "Second
+          textThird text"; native preserves it as "Second text\nThird
+          text". Both yield 2 Blocks. Both legitimate; spec asserts
+          native (preserve source line breaks inside a paragraph)
+          behavior.
+        block_count: 2
+        block_texts:
+          - "First text"
+          - "Second text\nThird text"
+    okapi_refs:
+      - TEXFilterTest#testSimpleText
+      - TEXFilterTest#testSplitTUonNewlines
+    native_refs:
+      - tex.TestSimpleText
+      - tex.TestSimpleText_MultiParagraph
+      - tex.TestLineBreaks
+      - tex.TestLineBreaks_DoubleSplits
+
+  # ── Comments are non-translatable ─────────────────────────────────
+  - id: comments_skipped
+    name: "%-line comments are non-translatable Data"
+    description: |
+      A `%` outside a verbatim environment starts a line comment that
+      runs to the end of the line. Comments never produce a
+      translatable Block; they are emitted as Data and preserved in
+      the skeleton so the writer can round-trip them. An escaped `\%`
+      is a literal percent character and stays in the surrounding
+      Block.
+    spec_refs:
+      - "LaTeX2e Reference §2.6 Reserved characters — %% comment marker (https://latexref.xyz/)"
+    examples:
+      - name: comment_between_text
+        origin: "authored: single %-line comment between two body lines"
+        input_xml: "\\begin{document}\n% A comment line\nHello after comment.\n\\end{document}"
+        block_count: 1
+        first_block_text: "Hello after comment."
+        no_block_with_text:
+          - "A comment line"
+      - name: escaped_percent_in_text
+        origin: "authored: escaped \\% literal inside body paragraph"
+        input_xml: "\\begin{document}\nPrice is 5\\% off.\n\\end{document}"
+        expected_fail: |
+          bridge feature difference — Okapi TEXFilter keeps the raw
+          `\%` escape sequence in the extracted Block ("Price is 5\%
+          off."); native decodes it to a literal `%` ("Price is 5%
+          off."). Both legitimate; spec asserts native (decode
+          backslash-percent to a literal `%`) behavior.
+        block_count: 1
+        first_block_text: "Price is 5% off."
+    okapi_refs:
+      - TEXFilterTest#testComments
+    native_refs:
+      - tex.TestComments
+      - tex.TestMultipleComments
+      - tex.TestEscapedSpecialChars
+
+  # ── Math mode: inline + display ───────────────────────────────────
+  - id: math_mode_non_translatable
+    name: Inline and display math are non-translatable Data
+    description: |
+      Math mode content — `$…$` inline math, `$$…$$` and `\[…\]`
+      display math, and the `equation` / `align` / `gather` /
+      `multline` / `eqnarray` environments (with starred variants) —
+      is non-translatable. The reader emits the math source as Data
+      so it round-trips byte-for-byte.
+    spec_refs:
+      - "LaTeX2e Reference §16 Math formulas (https://latexref.xyz/Math-formulas.html)"
+      - "Wikibooks: LaTeX/Mathematics — math environments (https://en.wikibooks.org/wiki/LaTeX/Mathematics)"
+    examples:
+      - name: inline_math_in_paragraph
+        origin: "authored: inline $...$ math splits the surrounding paragraph (native segmentation)"
+        # Native splits the paragraph at the math span into two
+        # Blocks ("Energy is" and "here.") with the math itself as
+        # Data between them. The math content (E = mc^2) never
+        # surfaces as a Block.
+        input_xml: "\\begin{document}\nEnergy is $E = mc^2$ here.\n\\end{document}"
+        expected_fail: |
+          bridge feature difference — Okapi TEXFilter keeps the
+          surrounding paragraph as one translatable TextUnit with
+          the math span collapsed into an inline Code, while native
+          flushes the paragraph at the math boundary and yields two
+          Blocks ("Energy is" and "here."). Both honor the
+          contract that the math source itself is non-translatable;
+          they disagree on whether the surrounding text is one
+          Block or two. Spec asserts native segmentation.
+        block_count: 2
+        block_texts:
+          - "Energy is"
+          - "here."
+        no_block_with_text:
+          - "E = mc^2"
+      - name: equation_environment
+        origin: "okapi-fixture: TEXFilterTest#testEquation — \\begin{equation}...\\end{equation} as DocumentPart"
+        input_xml: "\\begin{equation}\n  S_\\textup{IC} = S_{123}\n\\end{equation}"
+        block_count: 0
+        no_block_with_text:
+          - "S_"
+          - "S_{123}"
+      - name: display_math_dollar
+        origin: "authored: display $$...$$ math splits the paragraph (native segmentation)"
+        input_xml: "\\begin{document}\nPythag: $$a^2 + b^2 = c^2$$.\n\\end{document}"
+        expected_fail: |
+          bridge feature difference — same as inline_math_in_paragraph:
+          Okapi TEXFilter folds the display math into a Code on the
+          surrounding TextUnit, native flushes the paragraph at the
+          math boundary. Spec asserts native segmentation.
+        block_count: 2
+        block_texts:
+          - "Pythag:"
+          - "."
+        no_block_with_text:
+          - "a^2"
+      - name: display_math_bracket
+        origin: "authored: display \\[...\\] math splits the paragraph (native segmentation)"
+        input_xml: "\\begin{document}\nPythag: \\[a^2 + b^2 = c^2\\] here.\n\\end{document}"
+        expected_fail: |
+          bridge feature difference — Okapi TEXFilter folds the
+          display math into a Code on the surrounding TextUnit;
+          native flushes the paragraph at the math boundary and
+          yields two Blocks. Spec asserts native segmentation.
+        block_count: 2
+        block_texts:
+          - "Pythag:"
+          - "here."
+        no_block_with_text:
+          - "a^2"
+    okapi_refs:
+      - TEXFilterTest#testMathMode
+      - TEXFilterTest#testEquation
+    native_refs:
+      - tex.TestMathMode
+      - tex.TestMathMode_DisplayDollar
+      - tex.TestMathMode_DisplayBracket
+      - tex.TestEquationEnvironment
+
+  # ── Sectioning commands (paragraph-text) ──────────────────────────
+  - id: sectioning_commands
+    name: \section / \subsection / \chapter argument is its own Block
+    description: |
+      Paragraph-level text commands (\part, \chapter, \section,
+      \subsection, \subsubsection, \paragraph, \subparagraph,
+      \caption) emit one translatable Block per occurrence. The
+      command name is captured as the Block's `Name` (e.g. `section`)
+      so downstream tools can distinguish heading text from body
+      paragraphs. An optional `[short]` argument (the table-of-
+      contents short form) is preserved as skeleton; the brace
+      argument is the translatable text.
+    spec_refs:
+      - "LaTeX2e Reference §6 Sectioning (https://latexref.xyz/Sectioning.html)"
+    examples:
+      - name: section_then_paragraph
+        origin: "authored: \\section{...} followed by body paragraph"
+        input_xml: "\\begin{document}\n\\section{My Section Title}\nBody text.\n\\end{document}"
+        block_count: 2
+        block_texts:
+          - "My Section Title"
+          - "Body text."
+      - name: section_optional_short
+        origin: "authored: \\section[Short]{Long ...} — optional short form skipped, full text extracted"
+        input_xml: "\\begin{document}\n\\section[Short]{Long Section Title}\nBody text.\n\\end{document}"
+        expected_fail: |
+          bridge feature difference — Okapi TEXFilter does not extract
+          the section text when an optional [short] argument precedes
+          the brace argument: the bridge yields only the body
+          paragraph ("Body text."), dropping "Long Section Title"
+          entirely. Native correctly skips the optional argument and
+          extracts the full title. Both yield 1 Block from the
+          surrounding body; native yields 2 total Blocks (heading +
+          body), bridge yields 1. Spec asserts native behavior.
+        block_count: 2
+        block_texts:
+          - "Long Section Title"
+          - "Body text."
+        no_block_with_text:
+          - "Short"
+      - name: section_variants
+        origin: "authored: full sectioning hierarchy — section/subsection/subsubsection/chapter"
+        input_xml: "\\begin{document}\n\\section{Section}\n\\subsection{Subsection}\n\\subsubsection{Subsubsection}\n\\chapter{Chapter}\n\\end{document}"
+        expected_fail: |
+          bridge feature difference — Okapi TEXFilter's default
+          configuration extracts \section/\subsection sections but
+          omits \subsubsection and \chapter from the paragraph-text
+          command list, so the bridge yields 3 Blocks ("Section",
+          "Subsection", "Chapter") while native yields 4 ("Section",
+          "Subsection", "Subsubsection", "Chapter"). Spec asserts
+          native (full LaTeX2e sectioning hierarchy is translatable)
+          behavior.
+        block_count: 4
+        block_texts:
+          - "Section"
+          - "Subsection"
+          - "Subsubsection"
+          - "Chapter"
+    okapi_refs:
+      - TEXFilterTest#testoneArgParaTextCommands
+      - TEXFilterTest#testHierarchy
+    native_refs:
+      - tex.TestCommandClassification_ParagraphText
+      - tex.TestSectionVariants
+      - tex.TestSectionWithOptionalArg
+
+  # ── Header text commands (\title, \author, \date) ─────────────────
+  - id: header_text_commands
+    name: \title, \author, \date in preamble are translatable
+    description: |
+      Between `\documentclass{...}` and `\begin{document}` (the
+      preamble), most commands are non-translatable configuration
+      (\usepackage, \setlength, \newcommand, …). The visible-text
+      commands `\title`, `\author`, and `\date` are the exception:
+      their argument is human copy that ships with the document and
+      is extracted as one translatable Block per occurrence. The
+      Block's `Name` carries the command name (`title`, `author`,
+      `date`).
+    spec_refs:
+      - "LaTeX2e Reference §6.20 \\maketitle (the title-page commands \\title, \\author, \\date) (https://latexref.xyz/)"
+    examples:
+      - name: title_author_date
+        origin: "authored: preamble with \\title + \\author + \\date, empty body"
+        input_xml: "\\documentclass{article}\n\\title{My Title}\n\\author{John Doe}\n\\date{January 2024}\n\\begin{document}\n\\end{document}"
+        expected_fail: |
+          bridge feature difference — Okapi TEXFilter's default
+          configuration extracts \title and \author from the preamble
+          but omits \date from the header text command list, so the
+          bridge yields 2 Blocks ("My Title", "John Doe") while
+          native yields 3 (adds "January 2024"). Spec asserts native
+          (date is shippable copy alongside title and author)
+          behavior.
+        block_count: 3
+        block_texts:
+          - "My Title"
+          - "John Doe"
+          - "January 2024"
+      - name: usepackage_preamble_skipped
+        origin: "authored: \\usepackage in preamble is non-translatable; body paragraph extracts cleanly"
+        input_xml: "\\documentclass{article}\n\\usepackage{amsmath}\n\\begin{document}\nBody text.\n\\end{document}"
+        block_count: 1
+        first_block_text: "Body text."
+        no_block_with_text:
+          - "amsmath"
+    okapi_refs:
+      - TEXFilterTest#testHeaderCommands
+      - TEXFilterTest#testHeaderText
+    native_refs:
+      - tex.TestHeaderText
+      - tex.TestHeaderCommands
+      - tex.TestDateInHeader
+
+  # ── No-text commands (\label, \ref, \cite, …) ─────────────────────
+  - id: no_text_commands
+    name: \label / \ref / \cite arguments are non-translatable
+    description: |
+      A fixed list of LaTeX commands take an identifier or path-like
+      argument that must NOT be translated: \label, \ref, \pageref,
+      \eqref, \cite, \include, \input, \bibliography,
+      \bibliographystyle, \documentclass, \usepackage, \newcommand,
+      \renewcommand, \setlength, \setcounter, \addtocounter,
+      \pagestyle, \thispagestyle, \pagenumbering. The reader emits
+      these as Data so the identifier round-trips unchanged.
+    spec_refs:
+      - "LaTeX2e Reference §7 Cross references (https://latexref.xyz/Cross-references.html)"
+    examples:
+      - name: label_ref_cite
+        origin: "authored: \\label, \\ref, \\cite calls followed by translatable body text"
+        input_xml: "\\begin{document}\n\\label{sec:intro}\n\\ref{sec:intro}\n\\cite{knuth1984}\nSome text.\n\\end{document}"
+        block_count: 1
+        first_block_text: "Some text."
+        no_block_with_text:
+          - "sec:intro"
+          - "knuth1984"
+      - name: documentclass_usepackage
+        origin: "okapi-fixture-style: TEXFilterTest#testOneArgNoTextCommands — preamble-only commands as DocumentParts"
+        input_xml: "%\n\n\\documentclass[11pt, letterpaper]{article}\n\\usepackage{ijcnlp2017}\n\\usepackage{times}\n\\usepackage{placeins}\n\n% Uncomment this line for the final submission:\n\\ijcnlpfinalcopy"
+        block_count: 0
+        no_block_with_text:
+          - "article"
+          - "ijcnlp2017"
+          - "times"
+          - "placeins"
+    okapi_refs:
+      - TEXFilterTest#testOneArgNoTextCommands
+    native_refs:
+      - tex.TestCommandClassification_NoText
+      - tex.TestHeaderCommands
+
+  # ── Inline text commands (\textbf, \emph, \footnote, …) ───────────
+  - id: inline_text_commands
+    name: \textbf / \emph / \footnote folded into surrounding paragraph
+    description: |
+      Inline-text commands (\textbf, \textit, \emph, \texttt,
+      \textsf, \textrm, \textsc, \textsl, \underline, \mbox, \fbox,
+      \footnote, \footnotetext) introduce a brace argument whose
+      content is translatable but stays inside the surrounding
+      paragraph Block. The command markers themselves are skeleton
+      so the formatting round-trips; the visible text contributes to
+      the paragraph's source.
+    spec_refs:
+      - "LaTeX2e Reference §4.2 Font styles — \\textbf, \\textit, \\emph, … (https://latexref.xyz/Font-styles.html)"
+      - "LaTeX2e Reference §11.1 \\footnote (https://latexref.xyz/_005cfootnote.html)"
+    examples:
+      - name: textbf_inside_paragraph
+        origin: "authored: \\textbf{...} inside body paragraph stays in same Block"
+        input_xml: "\\begin{document}\nThis is \\textbf{bold text} here.\n\\end{document}"
+        block_count: 1
+        first_block_text: "This is bold text here."
+      - name: footnote_inline
+        origin: "okapi-fixture-style: TEXFilterTest#testHierarchy — \\footnote argument folded into surrounding paragraph"
+        # Both native and bridge fold the footnote argument inline
+        # into the surrounding paragraph and concatenate it into one
+        # Block: "Main textThis is the footnote content. continues."
+        input_xml: "\\begin{document}\nMain text\\footnote{This is the footnote content.} continues.\n\\end{document}"
+        block_count: 1
+        has_block_with_text:
+          - "Main text"
+          - "This is the footnote content."
+          - "continues."
+    okapi_refs:
+      - TEXFilterTest#testOneArgInlineTextCommands
+      - TEXFilterTest#testHierarchy
+    native_refs:
+      - tex.TestCommandClassification_InlineText
+      - tex.TestFootnotes
+      - tex.TestNestedCommands
+
+  # ── Non-translatable environments (verbatim, lstlisting, math) ────
+  - id: non_translatable_environments
+    name: verbatim / lstlisting / math environments preserved as Data
+    description: |
+      A fixed list of environments are non-translatable: verbatim,
+      lstlisting, equation, equation*, align, align*, gather, gather*,
+      multline, multline*, eqnarray, eqnarray*, math, displaymath.
+      The reader emits the entire `\begin{name}…\end{name}` block as
+      Data; surrounding paragraphs still extract as Blocks.
+    spec_refs:
+      - "LaTeX2e Reference §8 Environments (https://latexref.xyz/Environments.html)"
+    examples:
+      - name: verbatim_between_paragraphs
+        origin: "authored: verbatim environment between two body paragraphs"
+        input_xml: "\\begin{document}\nBefore.\n\\begin{verbatim}\nverbatim content here\n\\end{verbatim}\nAfter.\n\\end{document}"
+        expected_fail: |
+          bridge feature difference — Okapi TEXFilter does not skip
+          the verbatim environment in its default configuration: it
+          concatenates the verbatim content with the following
+          paragraph, yielding 2 Blocks ("Before.", "verbatim content
+          hereAfter."). Native skips the entire \begin{verbatim}…
+          \end{verbatim} as Data, yielding 2 clean Blocks ("Before.",
+          "After."). Spec asserts native (verbatim is non-translatable
+          and isolated from surrounding paragraphs) behavior.
+        block_count: 2
+        block_texts:
+          - "Before."
+          - "After."
+        no_block_with_text:
+          - "verbatim content here"
+    okapi_refs:
+      - TEXFilterTest#testTable
+      - TEXFilterTest#testEquation
+    native_refs:
+      - tex.TestEquationEnvironment
+
+  # ── Special character escapes ─────────────────────────────────────
+  - id: special_character_escapes
+    name: \$, \%, \&, \#, \_, \{, \} decode to literal characters
+    description: |
+      LaTeX's reserved characters become themselves when escaped with
+      a leading backslash. The decoded character lands inside the
+      surrounding paragraph Block. The non-breaking-space tilde (`~`)
+      decodes to a regular space in extracted text.
+    spec_refs:
+      - "LaTeX2e Reference §2.6 Reserved characters (https://latexref.xyz/)"
+    examples:
+      - name: dollar_and_percent
+        origin: "authored: \\$ and \\% escapes inside paragraph text"
+        input_xml: "\\begin{document}\nPrice is \\$10 and 5\\% off.\n\\end{document}"
+        expected_fail: |
+          bridge feature difference — Okapi TEXFilter handles backslash
+          escapes differently: it drops the `\$` sequence entirely
+          (yielding "Price is 10" — the dollar sign and the literal
+          escape both lost) and keeps `\%` as the raw escape sequence
+          ("5\% off"), giving "Price is 10 and 5\% off.". Native
+          decodes both escapes to their literal characters, giving
+          "Price is $10 and 5% off.". Spec asserts native (decode
+          backslash-escapes to literal characters) behavior.
+        block_count: 1
+        first_block_text: "Price is $10 and 5% off."
+      - name: tilde_non_breaking_space
+        origin: "authored: ~ tilde inside paragraph decodes to a space"
+        input_xml: "\\begin{document}\nWord~one is here.\n\\end{document}"
+        expected_fail: |
+          bridge feature difference — Okapi TEXFilter drops the `~`
+          (LaTeX non-breaking space) without substitution, yielding
+          "Wordone is here." (no separating space). Native substitutes
+          a regular space, yielding "Word one is here.". Spec asserts
+          native (decode ~ to a regular space in extracted text)
+          behavior.
+        block_count: 1
+        first_block_text: "Word one is here."
+    okapi_refs:
+      - TEXFilterTest#testLatvianSymbols
+      - TEXFilterTest#testLatvianSymbolsEscaping
+    native_refs:
+      - tex.TestEscapedSpecialChars
+      - tex.TestTildeNonBreakingSpace
+
+  # ── Unicode content ───────────────────────────────────────────────
+  - id: unicode_content
+    name: Unicode body text is preserved verbatim
+    description: |
+      Multi-byte UTF-8 sequences (Cyrillic, Latvian diacritics, CJK)
+      flow through the parser unchanged. Block source text carries
+      the decoded characters as-is — the reader does no normalization
+      beyond what UTF-8 decoding implies.
+    examples:
+      - name: russian_paragraph
+        origin: "okapi-fixture-style: TEXFilterTest#testRussian — Cyrillic body paragraph"
+        input_xml: "\\begin{document}\nПривет мир!\n\\end{document}"
+        block_count: 1
+        first_block_text: "Привет мир!"
+      - name: latvian_diacritics
+        origin: "okapi-fixture-style: TEXFilterTest#testLatvianSymbols — Latvian diacritics in body"
+        input_xml: "\\begin{document}\nLatvian: āčēģīķļņšūž\n\\end{document}"
+        block_count: 1
+        first_block_text: "Latvian: āčēģīķļņšūž"
+    okapi_refs:
+      - TEXFilterTest#testRussian
+      - TEXFilterTest#testLatvianSymbols
+      - TEXFilterTest#testLatvianSymbolsEscaping
+    native_refs:
+      - tex.TestRussianCyrillic
+      - tex.TestLatvianSymbols
+
+  # ── Document boundary events ──────────────────────────────────────
+  - id: document_boundary_events
+    name: Layer start / end wrap every document
+    description: |
+      Reading any TeX document emits a LayerStart Part before the
+      first Block and a LayerEnd Part after the last one. The Layer
+      carries the `tex` format id and `application/x-tex` mime type
+      so downstream tools can route on format. Verifies the document
+      scaffolding mirrors Okapi's StartDocument / EndDocument event
+      pair.
+    # Document scaffolding is a neokapi pipeline contract, not a
+    # property of the LaTeX specification itself — no spec_refs.
+    examples:
+      - name: minimal_layer_wrap
+        origin: "authored: smallest valid document for layer-envelope smoke check"
+        input_xml: "\\begin{document}\nHello.\n\\end{document}"
+        block_count: 1
+        first_block_text: "Hello."
+    okapi_refs:
+      - TEXFilterTest#testStartDocument
+      - TEXFilterTest#testDefaultInfo
+    native_refs:
+      - tex.TestLayerStructure
+      - tex.TestNameAndMimeType
+
+# ── Intentionally under-specified ────────────────────────────────────
+#
+# Roundtrip / double-extraction (RoundTripTEXIT#testFiles, testTargetLocale,
+# testDoubleExtraction) are exercised by the native reader's own
+# roundtrip suite but are not expressible through this spec's
+# BlockTexts assertion vocabulary — there is no roundtrip assertion
+# type. Captured here as a known coverage gap.
+#
+# Cancellation (TestCancel), synchronization (TestSynchronization),
+# and the unknown-parameter Config rejection (TestConfig) are runtime
+# API-shape tests rather than user-observable extraction behavior and
+# intentionally fall outside this spec's surface.
+#
+# Tabular / table environment extraction is upstream-tested by
+# TEXFilterTest#testTable / testTable2 — Okapi treats the entire
+# table as a DocumentPart. Native walks the cells and may emit some
+# of their content as Blocks. The behavior is intentionally
+# under-specified here pending a future tabular-aware extraction
+# policy; the surrounding-paragraph behavior is already exercised
+# under non_translatable_environments.
