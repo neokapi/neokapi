@@ -30,8 +30,14 @@ type Config struct {
 func (c *Config) FormatName() string { return "wiki" }
 
 // Reset restores default values.
+//
+// The default Variant is DokuWiki because the bridge filter id `okf_wiki`
+// targets DokuWiki-only — per the upstream WikiFilter docs ("Currently
+// the only supported markup style is Dokuwiki"). MediaWiki support
+// remains available by setting Variant: VariantMediaWiki explicitly.
+// See issue #496.
 func (c *Config) Reset() {
-	c.Variant = VariantMediaWiki
+	c.Variant = VariantDokuWiki
 	c.PreserveWhitespace = false
 }
 

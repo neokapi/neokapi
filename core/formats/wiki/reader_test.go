@@ -4,10 +4,12 @@ import (
 	"bytes"
 	"context"
 	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 	"testing"
 
+	"github.com/neokapi/neokapi/core/format/spec"
 	"github.com/neokapi/neokapi/core/formats/wiki"
 	"github.com/neokapi/neokapi/core/internal/testutil"
 	"github.com/neokapi/neokapi/core/model"
@@ -15,7 +17,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// helper: read a string with default (MediaWiki) config and return parts
+// helper: read a string with the supplied reader and return parts
 func readString(t *testing.T, reader *wiki.Reader, content string) []*model.Part {
 	t.Helper()
 	ctx := t.Context()
@@ -26,13 +28,15 @@ func readString(t *testing.T, reader *wiki.Reader, content string) []*model.Part
 	return parts
 }
 
-// helper: read a string with default MediaWiki reader
+// helper: read a string with the default (DokuWiki) reader. The default
+// matches the okf_wiki bridge contract — see issue #496.
 func readDefault(t *testing.T, content string) []*model.Part {
 	t.Helper()
 	return readString(t, wiki.NewReader(), content)
 }
 
-// helper: create a DokuWiki reader
+// helper: create a DokuWiki reader (now equivalent to the default).
+// Retained for symmetry with newMediaWikiReader.
 func newDokuWikiReader(t *testing.T) *wiki.Reader {
 	t.Helper()
 	reader := wiki.NewReader()
@@ -41,12 +45,30 @@ func newDokuWikiReader(t *testing.T) *wiki.Reader {
 	return reader
 }
 
-// helper: roundtrip a snippet
-func roundtrip(t *testing.T, input string) string {
+// helper: create a MediaWiki reader. The native package supports the
+// MediaWiki dialect but it is no longer the default — okf_wiki targets
+// DokuWiki only. Tests covering MediaWiki-specific markup use this
+// helper to opt in.
+func newMediaWikiReader(t *testing.T) *wiki.Reader {
+	t.Helper()
+	reader := wiki.NewReader()
+	cfg := reader.Config().(*wiki.Config)
+	cfg.Variant = wiki.VariantMediaWiki
+	return reader
+}
+
+// readMediaWiki reads a string with the explicit MediaWiki reader.
+func readMediaWiki(t *testing.T, content string) []*model.Part {
+	t.Helper()
+	return readString(t, newMediaWikiReader(t), content)
+}
+
+// roundtripWith roundtrips a snippet using the supplied reader factory.
+func roundtripWith(t *testing.T, newReader func(*testing.T) *wiki.Reader, input string) string {
 	t.Helper()
 	ctx := t.Context()
 
-	reader := wiki.NewReader()
+	reader := newReader(t)
 	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
 	require.NoError(t, err)
 	parts := testutil.CollectParts(t, reader.Read(ctx))
@@ -62,6 +84,18 @@ func roundtrip(t *testing.T, input string) string {
 	writer.Close()
 
 	return buf.String()
+}
+
+// helper: roundtrip a snippet using the default (DokuWiki) reader.
+func roundtrip(t *testing.T, input string) string {
+	t.Helper()
+	return roundtripWith(t, func(*testing.T) *wiki.Reader { return wiki.NewReader() }, input)
+}
+
+// helper: roundtrip a snippet using the explicit MediaWiki reader.
+func roundtripMediaWiki(t *testing.T, input string) string {
+	t.Helper()
+	return roundtripWith(t, newMediaWikiReader, input)
 }
 
 // ---- WikiFilterTest ----
@@ -140,9 +174,13 @@ func TestExtract_Header(t *testing.T) {
 }
 
 // okapi: WikiFilterTest#testTable
+//
+// MediaWiki-specific: `{| ... |}` table syntax is not part of DokuWiki.
+// The DokuWiki-syntax counterpart is exercised by TestExtract_DokuWikiTable.
+// Pinned to Variant=mediawiki because okf_wiki defaults to DokuWiki (#496).
 func TestExtract_Table(t *testing.T) {
 	wikiText := "{|\n|-\n| Cell 1 || Cell 2\n|-\n| Cell 3 || Cell 4\n|}"
-	parts := readDefault(t, wikiText)
+	parts := readMediaWiki(t, wikiText)
 
 	blocks := testutil.FilterBlocks(parts)
 	require.NotEmpty(t, blocks, "table should produce translatable blocks")
@@ -163,9 +201,16 @@ func TestExtract_Table(t *testing.T) {
 }
 
 // okapi: WikiFilterTest#testImageCaption
+//
+// MediaWiki-specific: `[[File:...|...|caption]]` is the MediaWiki image
+// link syntax. DokuWiki uses `{{image.ext|caption}}` which is currently
+// unrecognised by the native reader (tracked as a separate divergence
+// in spec.yaml under image_caption_extraction). Pinned to
+// Variant=mediawiki to keep MediaWiki coverage after the default flipped
+// to DokuWiki to match okf_wiki (#496).
 func TestExtract_ImageCaption(t *testing.T) {
 	wikiText := "[[File:Example.jpg|thumb|A caption for the image]]"
-	parts := readDefault(t, wikiText)
+	parts := readMediaWiki(t, wikiText)
 
 	blocks := testutil.FilterBlocks(parts)
 	require.NotEmpty(t, blocks, "image caption should produce translatable blocks")
@@ -351,12 +396,15 @@ func TestExtract_MultipleHeadingLevels(t *testing.T) {
 }
 
 // okapi: WikiFilterTest#testMultipleLines (full-file extraction: simple.wiki)
+//
+// The fixture uses MediaWiki list markers (`# ...`). Pinned to MediaWiki
+// for stability after the default flipped to DokuWiki under #496.
 func TestExtract_SimpleWikiFile(t *testing.T) {
 	ctx := t.Context()
 	f, err := os.Open("testdata/simple.wiki")
 	require.NoError(t, err)
 
-	reader := wiki.NewReader()
+	reader := newMediaWikiReader(t)
 	err = reader.Open(ctx, testutil.RawDocFromReader(f, "testdata/simple.wiki", model.LocaleEnglish))
 	require.NoError(t, err)
 	defer reader.Close()
@@ -381,12 +429,17 @@ func TestExtract_SimpleWikiFile(t *testing.T) {
 }
 
 // okapi: WikiFilterTest#testMultipleLines (full-file extraction: mediawiki.wiki)
+//
+// Pinned to Variant=mediawiki — the fixture is MediaWiki markup (`”'bold”'`,
+// `[[File:...|...]]`, `{| ... |}` tables). The native reader's MediaWiki
+// support remains available via explicit Variant config after #496 flipped
+// the default to DokuWiki.
 func TestExtract_MediawikiFile(t *testing.T) {
 	ctx := t.Context()
 	f, err := os.Open("testdata/mediawiki.wiki")
 	require.NoError(t, err)
 
-	reader := wiki.NewReader()
+	reader := newMediaWikiReader(t)
 	err = reader.Open(ctx, testutil.RawDocFromReader(f, "testdata/mediawiki.wiki", model.LocaleEnglish))
 	require.NoError(t, err)
 	defer reader.Close()
@@ -443,9 +496,12 @@ func TestWrite_Output(t *testing.T) {
 }
 
 // okapi: WikiWriterTest#testOutputTable
+//
+// MediaWiki-specific table syntax (`{| ... |}`). Pinned to MediaWiki
+// because the default switched to DokuWiki under #496.
 func TestWrite_OutputTable(t *testing.T) {
 	wikiText := "{|\n|-\n| Cell 1 || Cell 2\n|-\n| Cell 3 || Cell 4\n|}"
-	output := roundtrip(t, wikiText)
+	output := roundtripMediaWiki(t, wikiText)
 	assert.Contains(t, output, "Cell 1", "table cell 1 should survive roundtrip")
 	assert.Contains(t, output, "Cell 2", "table cell 2 should survive roundtrip")
 }
@@ -476,8 +532,10 @@ func TestRoundTrip_MultiLine(t *testing.T) {
 }
 
 // okapi: RoundTripWikiIT (table snippet)
+//
+// MediaWiki-specific table syntax. Pinned to MediaWiki under #496.
 func TestRoundTrip_Table(t *testing.T) {
-	output := roundtrip(t, "{|\n|-\n| Cell 1 || Cell 2\n|-\n| Cell 3 || Cell 4\n|}")
+	output := roundtripMediaWiki(t, "{|\n|-\n| Cell 1 || Cell 2\n|-\n| Cell 3 || Cell 4\n|}")
 	require.NotEmpty(t, output, "roundtrip should produce output")
 	assert.Contains(t, output, "Cell 1")
 }
@@ -491,12 +549,20 @@ func TestRoundTrip_Header(t *testing.T) {
 }
 
 // okapi: RoundTripWikiIT (image caption roundtrip)
+//
+// MediaWiki-specific `[[File:...|...|caption]]` image syntax. Pinned to
+// MediaWiki under #496.
 func TestRoundTrip_ImageCaption(t *testing.T) {
-	output := roundtrip(t, "[[File:Example.jpg|thumb|A caption for the image]]")
+	output := roundtripMediaWiki(t, "[[File:Example.jpg|thumb|A caption for the image]]")
 	require.NotEmpty(t, output, "roundtrip should produce output")
 }
 
 // okapi: RoundTripWikiIT (wiki markup formatting roundtrip)
+//
+// Mixes MediaWiki-specific (`”'bold”'`, `”italic”`) and shared
+// (`==` headers, `[[link|text]]`) constructs. Pinned to MediaWiki because
+// the bold/italic patterns rely on MediaWiki conventions; the default
+// flipped to DokuWiki under #496.
 func TestRoundTrip_WikiFormatting(t *testing.T) {
 	tests := []struct {
 		name  string
@@ -511,13 +577,15 @@ func TestRoundTrip_WikiFormatting(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			output := roundtrip(t, tt.input)
+			output := roundtripMediaWiki(t, tt.input)
 			require.NotEmpty(t, output, "roundtrip should produce output for %s", tt.name)
 		})
 	}
 }
 
 // okapi: RoundTripWikiIT#testWikiFiles (*.wiki files)
+//
+// `.wiki` files are MediaWiki markup. Pinned to MediaWiki under #496.
 func TestRoundTrip_WikiFiles(t *testing.T) {
 	tests := []struct {
 		name string
@@ -533,7 +601,7 @@ func TestRoundTrip_WikiFiles(t *testing.T) {
 			f, err := os.Open(tt.file)
 			require.NoError(t, err)
 
-			reader := wiki.NewReader()
+			reader := newMediaWikiReader(t)
 			err = reader.Open(ctx, testutil.RawDocFromReader(f, tt.file, model.LocaleEnglish))
 			require.NoError(t, err)
 			parts := testutil.CollectParts(t, reader.Read(ctx))
@@ -596,12 +664,14 @@ func TestRead_Configurations(t *testing.T) {
 
 	wikiCfg, ok := cfg.(*wiki.Config)
 	require.True(t, ok)
-	assert.Equal(t, wiki.VariantMediaWiki, wikiCfg.Variant)
+	// Default Variant flipped to DokuWiki under #496 to match the
+	// okf_wiki bridge contract (the upstream WikiFilter is DokuWiki-only).
+	assert.Equal(t, wiki.VariantDokuWiki, wikiCfg.Variant)
 
 	// Reset restores defaults
-	wikiCfg.Variant = wiki.VariantDokuWiki
+	wikiCfg.Variant = wiki.VariantMediaWiki
 	wikiCfg.Reset()
-	assert.Equal(t, wiki.VariantMediaWiki, wikiCfg.Variant)
+	assert.Equal(t, wiki.VariantDokuWiki, wikiCfg.Variant)
 }
 
 func TestRead_LoadParams(t *testing.T) {
@@ -775,4 +845,64 @@ func TestExtract_DokuWikiHeader(t *testing.T) {
 		}
 	}
 	assert.True(t, titleFound, "should extract DokuWiki title")
+}
+
+// TestExtract_UpstreamDokuWikiFixture exercises the default reader
+// against the upstream Okapi WikiFilter test resource
+// `okapi/filters/wiki/src/test/resources/dokuwiki.txt`. Regression for
+// #496: with the wrong default Variant (MediaWiki), the reader produced
+// systematically divergent output from the bridge on real DokuWiki
+// documents. With the default flipped to DokuWiki, the canonical
+// landmark texts in the upstream fixture are extracted as Blocks.
+//
+// Skips cleanly when okapi-testdata is not present (developers can
+// fetch via scripts/fetch-okapi-testdata.sh; CI fetches it as part of
+// the parity job).
+func TestExtract_UpstreamDokuWikiFixture(t *testing.T) {
+	root, err := spec.FindOkapiTestdataRoot()
+	if err != nil {
+		t.Skipf("okapi-testdata not available: %v", err)
+	}
+	path := filepath.Join(root, "okapi/filters/wiki/src/test/resources/dokuwiki.txt")
+	f, err := os.Open(path)
+	if err != nil {
+		t.Skipf("upstream fixture not available at %s: %v", path, err)
+	}
+	defer f.Close()
+
+	ctx := t.Context()
+	reader := wiki.NewReader() // default Variant = DokuWiki under #496
+	err = reader.Open(ctx, testutil.RawDocFromReader(f, path, model.LocaleEnglish))
+	require.NoError(t, err)
+	defer reader.Close()
+
+	parts := testutil.CollectParts(t, reader.Read(ctx))
+	blocks := testutil.FilterBlocks(parts)
+	require.NotEmpty(t, blocks, "upstream dokuwiki.txt should produce translatable blocks")
+
+	// Lower-bound block count — exact counts diverge from the bridge on
+	// known per-feature gaps tracked in spec.yaml, but the document is
+	// rich enough that any reader producing fewer than a handful of
+	// blocks is broken.
+	assert.GreaterOrEqual(t, len(blocks), 10,
+		"upstream dokuwiki.txt should produce at least 10 blocks")
+
+	// Key landmark texts the upstream document is known to contain.
+	texts := testutil.BlockTexts(blocks)
+	wantSubstrings := []string{
+		"Formatting Syntax",     // top-level H1 headline
+		"Basic Text Formatting", // H2 headline
+		"Links",                 // H2 headline
+		"DokuWiki",              // body text
+	}
+	for _, want := range wantSubstrings {
+		found := false
+		for _, txt := range texts {
+			if strings.Contains(txt, want) {
+				found = true
+				break
+			}
+		}
+		assert.True(t, found, "upstream dokuwiki.txt should surface %q in some Block", want)
+	}
 }
