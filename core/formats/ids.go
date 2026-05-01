@@ -41,7 +41,6 @@ const (
 	VersifiedText registry.FormatID = "versifiedtext"
 	Vignette      registry.FormatID = "vignette"
 	ODF           registry.FormatID = "odf"
-	Archive       registry.FormatID = "archive"
 	EPUB          registry.FormatID = "epub"
 	RTF           registry.FormatID = "rtf"
 	MIF           registry.FormatID = "mif"

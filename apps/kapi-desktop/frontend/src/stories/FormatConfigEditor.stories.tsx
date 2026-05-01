@@ -52,7 +52,6 @@ const xliffSchema = findFilter("xliff");
 const xmlSchema = findFilter("xml-stream") || findFilter("xml");
 const propertiesSchema = findFilter("properties") || findFilter("regex");
 const poSchema = findFilter("po") || findFilter("gettext");
-const archiveSchema = findFilter("archive");
 const csvSchema = findFilter("csv") || findFilter("table");
 
 export const JSONFilter: Story = {
@@ -113,14 +112,6 @@ export const POFilter: Story = {
   args: {
     schema: poSchema || { title: "PO (Gettext) Filter", type: "object", properties: {} },
     title: "PO Format Configuration",
-  },
-};
-
-export const ArchiveFilter: Story = {
-  name: "Archive Filter (nested objects)",
-  args: {
-    schema: archiveSchema || { title: "Archive Filter", type: "object", properties: {} },
-    title: "Archive Format Configuration",
   },
 };
 

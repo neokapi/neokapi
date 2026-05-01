@@ -694,16 +694,6 @@
     }
   },
   "formats": {
-    "archive": {
-      "displayName": "ZIP Archive",
-      "extensions": [
-        ".zip"
-      ],
-      "mimeTypes": [
-        "application/zip",
-        "application/x-zip-compressed"
-      ]
-    },
     "csv": {
       "displayName": "CSV",
       "extensions": [
@@ -1585,7 +1575,7 @@
         },
         "variant": {
           "title": "Wiki variant",
-          "description": "Wiki markup variant: mediawiki or dokuwiki.",
+          "description": "Wiki markup variant: mediawiki or dokuwiki. Default is dokuwiki to match the okf_wiki bridge contract.",
           "options": {
             "dokuwiki": {
               "label": "DokuWiki"
@@ -1706,7 +1696,21 @@
         },
         "version": {
           "title": "XLIFF version",
-          "description": "Target XLIFF 2.x version to emit (2.0, 2.1, or 2.2). Empty preserves the input document's version on roundtrip, otherwise defaults to 2.2."
+          "description": "Target XLIFF 2.x version to emit. Empty means: preserve the input document version on roundtrip, otherwise default to 2.2.",
+          "options": {
+            "": {
+              "label": "Auto (preserve input, default 2.2)"
+            },
+            "2.0": {
+              "label": "XLIFF 2.0"
+            },
+            "2.1": {
+              "label": "XLIFF 2.1"
+            },
+            "2.2": {
+              "label": "XLIFF 2.2"
+            }
+          }
         },
         "writeOriginalData": {
           "title": "Include original data in output",

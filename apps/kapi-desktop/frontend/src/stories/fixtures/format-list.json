@@ -1,15 +1,6 @@
 {
   "builtIn": [
     {
-      "name": "archive",
-      "display_name": "ZIP Archive",
-      "has_reader": true,
-      "has_writer": true,
-      "source": "built-in",
-      "extensions": [".zip"],
-      "mime_types": ["application/zip", "application/x-zip-compressed"]
-    },
-    {
       "name": "csv",
       "display_name": "CSV",
       "has_reader": true,
