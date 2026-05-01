@@ -1,0 +1,747 @@
+# CSV (Comma-Separated Values) format specification.
+#
+# Single-variant filter — the same `okf_commaseparatedvalues` bridge id
+# (and the same neokapi `csv` reader) covers comma- and tab-separated
+# variants; the separator is a configuration choice, not a sub-format.
+# A separate `okf_tabseparatedvalues` row exists in the parity table
+# for the bridge but reuses the same neokapi reader; this spec covers
+# both via the `delimiter_variants` feature.
+#
+# Inputs are inline text snippets via `input_xml` (the field is named
+# for XML historically; it carries raw text bytes for any text format)
+# or upstream test fixtures via `input_file: okapi:okapi/filters/table/
+# src/test/resources/<file>` which the runner skips cleanly when the
+# okapi-testdata corpus isn't fetched.
+#
+# Authoring notes:
+#   - okapi_refs target net.sf.okapi.filters.table.csv.
+#     CommaSeparatedValuesFilterTest, the single upstream test class for
+#     this filter (Okapi 1.48.0).
+#   - native vs bridge default-config divergence is structural and
+#     pervasive (#530): native skips the header row and treats every
+#     cell as one Block, while the upstream Okapi filter extracts the
+#     header AND emits one TextUnit per row (only the configured
+#     `sourceColumns` cell). Most examples in this spec carry an
+#     `expected_fail:` block pointing to #530 with the bridge's actual
+#     output recorded. Spec assertions reflect native behavior — the
+#     authoritative neokapi contract — and the divergence resolves
+#     once the config-key alias map lands.
+#   - The native reader uses neokapi-style camelCase config keys
+#     (`separator`, `hasHeader`, `translatableColumns`, `keyColumns`,
+#     `commentColumns`) while the upstream Okapi filter uses
+#     `fieldDelimiter`, `columnNamesLineNum`, `sourceColumns`, etc.
+#     The `okapi_param:` field on each ConfigKey records the upstream
+#     name for drift detection. Adding aliases to native ApplyMap is
+#     #530's chosen remedy.
+
+format: okf_commaseparatedvalues
+kind: top_level
+mime_type: text/csv
+description: |
+  Comma-Separated Values filter. Reads a tabular text file where
+  records are separated by line breaks and fields by a single
+  delimiter character (`,` by default; the same reader handles `\t`,
+  `;`, `|`, `:`, ` ` via the `separator` config key). Field values
+  may be quoted with `"` to embed the delimiter, line breaks, or
+  literal quotes (the latter doubled per RFC 4180 §2.5: `""` decodes
+  to a single `"`).
+
+  Default behaviour:
+    - the first row is the header (column names) and is non-translatable,
+    - every subsequent row contributes one translatable Block per
+      non-empty cell,
+    - empty cells are skipped (no Block emitted),
+    - LayerStart/LayerEnd wrap the document.
+
+  Configuration knobs cover header detection (`hasHeader`,
+  `columnNamesRow`, `valuesStartRow`), per-column roles
+  (`translatableColumns` for source-only extraction, `keyColumns` for
+  composite block IDs, `commentColumns` for translator-note
+  metadata), and the active delimiter / quote characters.
+
+config:
+  # ── Field delimiter / quote ───────────────────────────────────────
+  - key: separator
+    type: string
+    default: ","
+    description: |
+      Single-character field delimiter. The same reader covers all
+      delimited-text variants (`,` `\t` `;` `|` `:` ` `); the
+      separator is the only config knob distinguishing them.
+    okapi_param: fieldDelimiter
+
+  - key: textQualifier
+    type: string
+    default: "\""
+    description: |
+      Single-character text qualifier (RFC 4180 §2.5). When a field
+      starts with this character it becomes a quoted field that may
+      embed the delimiter, line breaks, or literal qualifier (the
+      latter doubled).
+    okapi_param: textQualifier
+
+  # ── Header / start-of-data ────────────────────────────────────────
+  - key: hasHeader
+    type: boolean
+    default: true
+    description: |
+      When true (default) the first non-preamble row is treated as
+      column-name header and emitted as Data; data extraction starts
+      on the next row. When false every row is a data row.
+    okapi_param: columnNamesLineNum
+
+  - key: columnNamesRow
+    type: int
+    default: 0
+    description: |
+      1-based row number that contains column names. Default 0 means
+      "auto: row 1 when hasHeader is true". Set explicitly when one
+      or more preamble rows precede the header (each preamble row is
+      emitted as Data with name `preamble-rowN`).
+    okapi_param: columnNamesLineNum
+
+  - key: valuesStartRow
+    type: int
+    default: 0
+    description: |
+      1-based row number where data values begin. Default 0 means
+      "auto: row after the header row, or row 1 when hasHeader is
+      false". Set explicitly to skip additional comment / preamble
+      rows after the header.
+    okapi_param: valuesStartLineNum
+
+  # ── Per-column roles ──────────────────────────────────────────────
+  - key: translatableColumns
+    type: string_list
+    default: []
+    description: |
+      0-based column indices to extract as translatable Blocks. Empty
+      (default) means every column is translatable. Cells in
+      non-listed columns are emitted as Data.
+    okapi_param: sourceColumns
+
+  - key: keyColumns
+    type: string_list
+    default: []
+    description: |
+      0-based column indices whose values concatenate (joined by `.`)
+      to form each row's Block ID. Cells in key columns are not
+      themselves extracted as Blocks. Empty (default) means rows are
+      ID'd by sequential `tu1`, `tu2`, … numbering.
+    okapi_param: sourceIdColumns
+
+  - key: commentColumns
+    type: string_list
+    default: []
+    description: |
+      0-based column indices whose values attach as the
+      `comment` Block property (joined by `; `). Cells in comment
+      columns are not themselves extracted as Blocks.
+    okapi_param: commentColumns
+
+  # ── Whitespace / output ───────────────────────────────────────────
+  - key: trimValues
+    type: boolean
+    default: false
+    description: |
+      When true, leading and trailing whitespace is stripped from
+      each cell value before extraction. Default false preserves the
+      raw cell content verbatim.
+    okapi_param: trimMode
+
+features:
+  # ── Baseline header + row extraction ──────────────────────────────
+  - id: baseline_extraction
+    name: Header row is Data; subsequent rows produce Blocks per cell
+    description: |
+      With default configuration (header on row 1, data starting on
+      row 2, comma delimiter), every non-empty cell in every data
+      row becomes one translatable Block. The header row contributes
+      no Blocks; column names are emitted as a Data part named
+      `header-row`.
+    spec_refs:
+      - "RFC 4180 §2 — Definition of the CSV Format (https://datatracker.ietf.org/doc/html/rfc4180#section-2)"
+    examples:
+      - name: three_columns_two_rows
+        origin: "authored: minimal three-column / two-row CSV"
+        input_xml: "name,description,value\nWidget,A useful widget,100\nGadget,A cool gadget,200\n"
+        expected_fail: |
+          bridge default-config divergence (#530) — Okapi
+          okf_commaseparatedvalues defaults to one-TextUnit-per-row,
+          extracting only column 1 (1-based, via sourceColumns="1") and
+          INCLUDING the header row. Bridge yields 3 Blocks ("name",
+          "Widget", "Gadget") instead of native's 6 Blocks (every cell
+          across both data rows). Spec asserts native (cell-per-Block,
+          skip-header) behaviour.
+        block_count: 6
+        block_texts:
+          - "Widget"
+          - "A useful widget"
+          - "100"
+          - "Gadget"
+          - "A cool gadget"
+          - "200"
+      - name: single_column
+        origin: "authored: degenerate one-column CSV — every cell still extracts"
+        input_xml: "Col1\nR1\nR2\nR3\n"
+        expected_fail: |
+          bridge default-config divergence (#530) — Okapi extracts the
+          header row in addition to data rows, yielding 4 Blocks ("Col1",
+          "R1", "R2", "R3") instead of native's 3 (header skipped). Spec
+          asserts native (skip-header) behaviour.
+        block_count: 3
+        block_texts:
+          - "R1"
+          - "R2"
+          - "R3"
+      - name: upstream_csv_test1
+        origin: "okapi-fixture: okapi:okapi/filters/table/src/test/resources/csv_test1.txt — 7-column / 3-row baseline"
+        input_file: okapi:okapi/filters/table/src/test/resources/csv_test1.txt
+        expected_fail: |
+          bridge default-config divergence (#530) — same as
+          three_columns_two_rows: Okapi yields one Block per row from
+          column 1 only (4 Blocks: header + 3 data rows). Native yields
+          one Block per cell across all 7 columns × 3 data rows = 21
+          Blocks. Spec asserts native behaviour.
+        block_count: 21
+        has_block_with_text:
+          - "Value11"
+          - "Value37"
+        no_block_with_text:
+          - "FieldName1"
+    okapi_refs:
+      - CommaSeparatedValuesFilterTest#testFileEvents
+      - CommaSeparatedValuesFilterTest#testFileEvents5
+      - CommaSeparatedValuesFilterTest#testFileEvents8
+    native_refs:
+      - csv.TestReadSimpleCSV
+      - csv.TestCSV_FileEvents
+      - csv.TestCSV_FileEvents5
+      - csv.TestCSV_FileEvents8
+
+  # ── Empty cells skipped ───────────────────────────────────────────
+  - id: empty_cells_skipped
+    name: Empty cells produce no Block
+    description: |
+      A cell that is entirely empty (zero characters between
+      delimiters, or between a delimiter and the line ending) yields
+      no translatable Block. The surrounding row layout is preserved
+      in skeleton so the writer can round-trip the empty positions.
+    spec_refs:
+      - "RFC 4180 §2.4 — empty fields between commas are valid (https://datatracker.ietf.org/doc/html/rfc4180#section-2)"
+    examples:
+      - name: empty_fields_in_row
+        origin: "authored: header + one row with two empty cells (positions 1 and 3)"
+        input_xml: "Col1,Col2,Col3\nR1C1,,R1C3\n,R2C2,\n"
+        expected_fail: |
+          bridge default-config divergence (#530) — Okapi extracts only
+          column 1 (sourceColumns default), so the empty col-1 cell in
+          row 2 yields no Block; bridge yields 2 Blocks ("Col1", "R1C1")
+          versus native's 3 ("R1C1", "R1C3", "R2C2"). Both honor the
+          empty-cell-skipped contract; they disagree on which columns
+          are translatable. Spec asserts native (all-columns) behaviour.
+        block_count: 3
+        block_texts:
+          - "R1C1"
+          - "R1C3"
+          - "R2C2"
+      - name: blank_row_between_data
+        origin: "authored: header + data + blank-row + data"
+        input_xml: "Col1,Col2\nR1C1,R1C2\n,\nR3C1,R3C2\n"
+        expected_fail: |
+          bridge default-config divergence (#530) — Okapi extracts the
+          header row and only column 1 by default, yielding 3 Blocks
+          ("Col1", "R1C1", "R3C1") versus native's 4 (every non-empty
+          cell across both data rows). Spec asserts native behaviour.
+        block_count: 4
+        block_texts:
+          - "R1C1"
+          - "R1C2"
+          - "R3C1"
+          - "R3C2"
+      - name: upstream_csv_test2
+        origin: "okapi-fixture: okapi:okapi/filters/table/src/test/resources/csv_test2.txt — single row with empty fields at positions 1, 3 and 4"
+        input_file: okapi:okapi/filters/table/src/test/resources/csv_test2.txt
+        # csv_test2.txt has no header row; default hasHeader=true treats
+        # the first (and only) row as the header → no Blocks. Native and
+        # bridge agree on this.
+        block_count: 0
+    okapi_refs:
+      - CommaSeparatedValuesFilterTest#testFileEvents2
+    native_refs:
+      - csv.TestCSV_FileEvents2
+      - csv.TestCSV_BlankCells
+      - csv.TestCSV_BlankRows
+
+  # ── RFC 4180 quoting (text qualifier) ─────────────────────────────
+  - id: quoting
+    name: Quoted fields preserve embedded delimiters and quotes
+    description: |
+      A field that starts with the text qualifier (`"` by default) is
+      a quoted field per RFC 4180 §2.5: the qualifier is consumed
+      from the extracted Block, embedded delimiters / line breaks
+      are preserved verbatim inside the value, and a doubled
+      qualifier (`""`) decodes to a single literal qualifier.
+    spec_refs:
+      - "RFC 4180 §2.5 — Each field may or may not be enclosed in double quotes (https://datatracker.ietf.org/doc/html/rfc4180#section-2)"
+      - "RFC 4180 §2.7 — A double-quote inside a quoted field is escaped by another double-quote (https://datatracker.ietf.org/doc/html/rfc4180#section-2)"
+    examples:
+      - name: quoted_field_with_comma
+        origin: "authored: quoted field embedding the comma delimiter"
+        input_xml: "Col1,Col2\n\"has,comma\",normal\n"
+        expected_fail: |
+          bridge default-config divergence (#530) — Okapi extracts the
+          header row and only column 1 by default, yielding 2 Blocks
+          ("Col1", "has,comma") versus native's 2 cells from the data
+          row ("has,comma", "normal"). Both honor the RFC 4180 §2.5
+          contract that the embedded comma is part of the value (not a
+          delimiter); they disagree on which columns are translatable.
+          Spec asserts native (all-columns) behaviour.
+        block_count: 2
+        block_texts:
+          - "has,comma"
+          - "normal"
+      - name: quoted_field_with_doubled_quote
+        origin: "authored: doubled \"\" inside quoted field decodes to single \""
+        input_xml: "Col1,Col2\n\"says \"\"hi\"\"\",normal\n"
+        expected_fail: |
+          bridge default-config divergence (#530) — Okapi yields 2
+          Blocks ("Col1", `says "hi"`) — header + column 1 of row 1
+          versus native's 2 ("says \"hi\"", "normal") — both cells of
+          row 1. Both honor the RFC 4180 §2.7 doubled-quote decoding
+          contract; they disagree on column selection. Spec asserts
+          native (all-columns, skip-header) behaviour.
+        block_count: 2
+        block_texts:
+          - "says \"hi\""
+          - "normal"
+    okapi_refs:
+      - CommaSeparatedValuesFilterTest#testFileEvents2a
+      - CommaSeparatedValuesFilterTest#testQualifiedValues
+      - CommaSeparatedValuesFilterTest#testQualifiedValues2
+    native_refs:
+      - csv.TestCSV_FileEvents2a
+      - csv.TestCSV_QualifiedValues
+      - csv.TestCSV_QualifiedValues2
+
+  # ── Embedded line breaks inside quoted fields ─────────────────────
+  - id: embedded_newlines
+    name: Quoted fields may span multiple physical lines
+    description: |
+      A line break inside a quoted field is part of the field's
+      value, not a record separator. The reader keeps reading until
+      it sees an unescaped closing qualifier.
+    spec_refs:
+      - "RFC 4180 §2.6 — Fields containing line breaks (CRLF) must be enclosed in double-quotes (https://datatracker.ietf.org/doc/html/rfc4180#section-2)"
+    examples:
+      - name: newline_inside_quoted_field
+        origin: "authored: quoted field with literal LF in value"
+        input_xml: "Col1,Col2\n\"has\nnewline\",normal\n"
+        expected_fail: |
+          bridge default-config divergence (#530) — Okapi extracts the
+          header row and only column 1 by default; bridge yields 2
+          Blocks ("Col1", "has\nnewline") versus native's 2 ("has\nnewline",
+          "normal"). Both honor the RFC 4180 §2.6 contract that the LF
+          inside the quoted field is part of the value; they disagree
+          on column selection. Spec asserts native behaviour.
+        block_count: 2
+        block_texts:
+          - "has\nnewline"
+          - "normal"
+      - name: empty_lines_inside_cell
+        # Both sides honor the embedded-newlines contract. Bridge happens
+        # to land on 2 Blocks too because column 1 of row 1 is the
+        # multiline value and column 1 of row 2 doesn't exist (single
+        # data row). Native yields 2 cells of the data row. Different
+        # provenance, same Block count + texts → no expected_fail.
+        origin: "okapi-fixture-style: CommaSeparatedValuesFilterTest#testEmptyLinesInCell — multiple LFs inside a quoted value"
+        input_xml: "Col1,Col2\n\"line one\n\nline three\",normal\n"
+        block_count: 2
+        has_block_with_text:
+          - "line one"
+          - "line three"
+    okapi_refs:
+      - CommaSeparatedValuesFilterTest#testEmptyLinesInCell
+      - CommaSeparatedValuesFilterTest#testFileEvents2a
+    native_refs:
+      - csv.TestCSV_FileEvents2a
+      - csv.TestCSV_EmptyLinesInCell
+
+  # ── Delimiter variants ────────────────────────────────────────────
+  - id: delimiter_variants
+    name: Configurable single-character field delimiter
+    description: |
+      The `separator` config key picks the field delimiter character.
+      The same reader covers `,` (CSV default), `\t` (TSV), `;` (the
+      common European convention), `|`, `:`, and ` ` (space). RFC
+      4180 §2 fixes `,` for true CSV; the rest are common
+      delimited-text variants the same parser handles.
+    spec_refs:
+      - "RFC 4180 §2.4 — Within the header and each record there may be one or more fields separated by commas (https://datatracker.ietf.org/doc/html/rfc4180#section-2)"
+    examples:
+      - name: tab_delimiter
+        origin: "authored: TSV — tab delimiter via separator config"
+        input_xml: "name\tdescription\nWidget\tA useful widget\n"
+        config:
+          separator: "\t"
+        block_count: 2
+        block_texts:
+          - "Widget"
+          - "A useful widget"
+        expected_fail: |
+          bridge config divergence — neokapi config key `separator` is
+          not recognised by the upstream Okapi filter (which expects
+          `fieldDelimiter`); the bridge therefore reads the input with
+          the default `,` delimiter, treats the entire `name\tdescription`
+          row as a single header column, and yields one Block per data
+          row instead of one Block per cell. Native correctly reads two
+          tab-delimited columns and yields 2 Blocks. Tracked under #530
+          (config-key alias rollout).
+      - name: semicolon_delimiter
+        origin: "authored: `;` European-style CSV via separator config"
+        input_xml: "Col1;Col2;Col3\nR1C1;R1C2;R1C3\n"
+        config:
+          separator: ";"
+        block_count: 3
+        block_texts:
+          - "R1C1"
+          - "R1C2"
+          - "R1C3"
+        expected_fail: |
+          bridge config divergence — same as `tab_delimiter`: the
+          neokapi `separator` key is not recognised by the upstream
+          Okapi filter (which expects `fieldDelimiter`), so the bridge
+          falls back to `,` and reads each `;`-joined row as a single
+          column. Native correctly reads three `;`-delimited columns
+          and yields 3 Blocks. Tracked under #530 (config-key alias rollout).
+    okapi_refs:
+      - CommaSeparatedValuesFilterTest#testTabDelimited2Column
+      - CommaSeparatedValuesFilterTest#testTabDelimited2ColumnRoundTrip
+    native_refs:
+      - csv.TestReadTSV
+      - csv.TestCSV_SemicolonDelimiter
+      - csv.TestCSV_PipeDelimiter
+      - csv.TestCSV_ColonDelimiter
+      - csv.TestCSV_TabDelimited2Column
+
+  # ── No header row ─────────────────────────────────────────────────
+  - id: no_header_row
+    name: hasHeader=false treats the first row as data
+    description: |
+      With `hasHeader=false` no row is reserved for column names;
+      every row contributes Blocks. Block names fall back to
+      positional `colN.rowM` form (instead of `<header>.rowM`).
+    spec_refs:
+      - "RFC 4180 §2.3 — There maybe an optional header line appearing as the first line (https://datatracker.ietf.org/doc/html/rfc4180#section-2)"
+    examples:
+      - name: two_rows_no_header
+        origin: "authored: hasHeader=false — first row is data, not header"
+        input_xml: "Widget,A useful widget\nGadget,A cool gadget\n"
+        config:
+          hasHeader: false
+        block_count: 4
+        block_texts:
+          - "Widget"
+          - "A useful widget"
+          - "Gadget"
+          - "A cool gadget"
+        expected_fail: |
+          bridge config divergence — neokapi config key `hasHeader` is
+          not recognised by the upstream Okapi filter (which uses
+          `columnNamesLineNum=0` to mean "no header"); the bridge
+          therefore keeps the default `columnNamesLineNum=1` and treats
+          row 1 (`Widget,A useful widget`) as the header row, yielding
+          only 2 Blocks (Gadget, A cool gadget). Native correctly
+          extracts all 4 cells as Blocks. Tracked under #530 (config-key alias rollout).
+    okapi_refs:
+      - CommaSeparatedValuesFilterTest#testFileEvents
+    native_refs:
+      - csv.TestReadNoHeader
+      - csv.TestCSV_BlockNamesWithoutHeaders
+
+  # ── Per-column extraction (translatableColumns) ───────────────────
+  - id: column_selection
+    name: translatableColumns restricts extraction to listed columns
+    description: |
+      When `translatableColumns` is non-empty, only cells in the
+      listed (0-based) column indices are extracted as Blocks; cells
+      in other columns are emitted as Data. Lets a single CSV file
+      carry source / target / metadata columns in arbitrary positions
+      and have only the source extracted.
+    examples:
+      - name: source_only_three_column
+        origin: "okapi-fixture: okapi:okapi/filters/table/src/test/resources/CSVTest_96.txt — 3-column source/target/data; only column 0 translatable"
+        input_file: okapi:okapi/filters/table/src/test/resources/CSVTest_96.txt
+        config:
+          translatableColumns: [0]
+        block_count: 2
+        block_texts:
+          - "Source text 1"
+          - "Source text 2"
+        no_block_with_text:
+          - "Target text 1"
+          - "third column data1"
+        expected_fail: |
+          bridge config divergence — neokapi config key
+          `translatableColumns` is not recognised by the upstream Okapi
+          filter (which uses `sourceColumns` as a comma-separated
+          string of 1-based indices); the bridge therefore extracts
+          every column, yielding 6 Blocks (Source text 1 / Target text
+          1 / third column data1 / Source text 2 / Target text 2 /
+          third column data2). Native correctly restricts extraction
+          to column 0 and yields 2 Blocks. Tracked under #530 (config-key alias rollout).
+      - name: two_source_columns
+        origin: "okapi-fixture: okapi:okapi/filters/table/src/test/resources/CSVTest_97.txt — two source/target column pairs"
+        input_file: okapi:okapi/filters/table/src/test/resources/CSVTest_97.txt
+        config:
+          translatableColumns: [0, 3]
+        block_count: 4
+        has_block_with_text:
+          - "Source text 1"
+          - "SourceB1"
+          - "Source text 2"
+          - "SourceB2"
+        no_block_with_text:
+          - "Target text 1"
+          - "TargetB1"
+        expected_fail: |
+          bridge config divergence — same as `source_only_three_column`:
+          the bridge does not recognise `translatableColumns`, falls
+          back to extracting every column, and yields 10 Blocks
+          (every source + target + data cell from both rows). Native
+          correctly extracts only columns 0 and 3 and yields 4 Blocks.
+          Tracked under #530 (config-key alias rollout).
+    okapi_refs:
+      - CommaSeparatedValuesFilterTest#testThreeColumnsSrcTrgData
+      - CommaSeparatedValuesFilterTest#testFileEvents96
+      - CommaSeparatedValuesFilterTest#testFileEvents97
+    native_refs:
+      - csv.TestReadSpecificColumns
+      - csv.TestCSV_ThreeColumnsSrcTrgData
+      - csv.TestCSV_FileEvents96
+      - csv.TestCSV_FileEvents97
+
+  # ── Per-column key (block ID composition) ─────────────────────────
+  - id: key_columns
+    name: keyColumns compose Block IDs from row data
+    description: |
+      0-based column indices listed in `keyColumns` contribute their
+      cell values (joined by `.`) as the row's Block ID; cells in
+      key columns are not themselves extracted as Blocks. Multiple
+      key columns concatenate in spec order. Lets translation memory
+      key Blocks by stable per-row identifiers (e.g. message IDs)
+      rather than positional `tu1`, `tu2`, … counters.
+    examples:
+      - name: single_key_column
+        origin: "authored: id column → Block ID; value column → Block source"
+        input_xml: "id,value\n01,one\n02,two\n03,three\n"
+        config:
+          translatableColumns: [1]
+          keyColumns: [0]
+        block_count: 3
+        block_texts:
+          - "one"
+          - "two"
+          - "three"
+        no_block_with_text:
+          - "01"
+          - "02"
+          - "03"
+        expected_fail: |
+          bridge config divergence — neokapi config keys
+          `translatableColumns` and `keyColumns` are not recognised by
+          the upstream Okapi filter (which uses `sourceColumns` and
+          `sourceIdColumns`); the bridge falls back to extracting every
+          column, so the id column values (01, 02, 03) appear as
+          Blocks alongside the value column. Native correctly restricts
+          extraction to column 1 and uses column 0 for the Block ID,
+          yielding 3 Blocks. Tracked under #530 (config-key alias rollout).
+      - name: multiple_key_columns
+        origin: "authored: two key columns concatenate with `.` separator"
+        input_xml: "group,key,text\nui,btn.save,Save\nui,btn.cancel,Cancel\n"
+        config:
+          translatableColumns: [2]
+          keyColumns: [0, 1]
+        block_count: 2
+        block_texts:
+          - "Save"
+          - "Cancel"
+        no_block_with_text:
+          - "ui"
+          - "btn.save"
+        expected_fail: |
+          bridge config divergence — same as `single_key_column`:
+          `translatableColumns` and `keyColumns` are not recognised by
+          the upstream Okapi filter, so the bridge extracts every cell.
+          Native correctly composes Block IDs from columns 0+1 and
+          extracts only column 2, yielding 2 Blocks ("Save", "Cancel").
+          Tracked under #530 (config-key alias rollout).
+    okapi_refs:
+      - CommaSeparatedValuesFilterTest#testFileEvents106
+      - CommaSeparatedValuesFilterTest#testSourceId
+      - CommaSeparatedValuesFilterTest#testRecordId
+    native_refs:
+      - csv.TestCSV_FileEvents106
+      - csv.TestCSV_SourceId
+      - csv.TestCSV_MultipleKeyColumns
+
+  # ── Comment columns ───────────────────────────────────────────────
+  - id: comment_columns
+    name: commentColumns attach metadata, not Blocks
+    description: |
+      0-based column indices listed in `commentColumns` contribute
+      their cell values (joined by `; `) as the row's Block
+      `comment` property. Like keyColumns, cells in comment columns
+      are not themselves extracted as Blocks — they're metadata
+      attached to the surrounding row's translatable Blocks.
+    examples:
+      - name: single_comment_column
+        origin: "authored: 3-column source/comment/value with comment column 1"
+        input_xml: "source,note,extra\nHello,greeting note,world\nGoodbye,farewell note,everyone\n"
+        config:
+          translatableColumns: [0, 2]
+          commentColumns: [1]
+        block_count: 4
+        block_texts:
+          - "Hello"
+          - "world"
+          - "Goodbye"
+          - "everyone"
+        no_block_with_text:
+          - "greeting note"
+          - "farewell note"
+        expected_fail: |
+          bridge config divergence — neokapi config keys
+          `translatableColumns` and `commentColumns` are not recognised
+          by the upstream Okapi filter (which uses `sourceColumns` and
+          `commentColumns` with 1-based indices and a comma-separated
+          string format); the bridge falls back to extracting every
+          column. Native correctly extracts columns 0 and 2 and
+          attaches column 1 as comment metadata, yielding 4 Blocks.
+          Tracked under #530 (config-key alias rollout).
+    okapi_refs:
+      - CommaSeparatedValuesFilterTest#testCommentColumnsAsMetadata
+    native_refs:
+      - csv.TestCSV_CommentColumnsAsMetadata
+
+  # ── Unicode content ───────────────────────────────────────────────
+  - id: unicode_content
+    name: Unicode cell text is preserved verbatim
+    description: |
+      Multi-byte UTF-8 sequences (CJK, Cyrillic, Latvian diacritics,
+      emoji) flow through the parser unchanged. Block source text
+      carries the decoded characters as-is — the reader does no
+      normalization beyond what UTF-8 decoding implies. UTF-8 BOM at
+      the start of the file is stripped and does not appear in any
+      extracted Block.
+    examples:
+      - name: cjk_in_value_column
+        origin: "authored: CJK text in value column"
+        input_xml: "key,text\ngreeting,你好世界\nfarewell,さようなら\n"
+        expected_fail: |
+          bridge default-config divergence (#530) — Okapi extracts the
+          header row + only column 1, yielding 3 Blocks ("key",
+          "greeting", "farewell"). The CJK text in column 2 never
+          surfaces. Native extracts every cell → 4 Blocks including
+          "你好世界" and "さようなら". Both honor UTF-8 verbatim
+          preservation; they disagree on column selection. Spec asserts
+          native (all-columns) behaviour.
+        block_count: 4
+        has_block_with_text:
+          - "你好世界"
+          - "さようなら"
+      - name: utf8_bom_stripped
+        origin: "authored: leading UTF-8 BOM (0xEF 0xBB 0xBF) is consumed by the reader"
+        input_xml: "﻿Col1,Col2\nR1C1,R1C2\n"
+        expected_fail: |
+          bridge default-config divergence (#530) — Okapi extracts the
+          header row + only column 1, yielding 2 Blocks ("Col1",
+          "R1C1"). Native skips the header and extracts both data cells
+          → 2 Blocks ("R1C1", "R1C2"). Both correctly strip the UTF-8
+          BOM from the first cell name; they disagree on column
+          selection / header handling. Spec asserts native behaviour.
+        block_count: 2
+        block_texts:
+          - "R1C1"
+          - "R1C2"
+    okapi_refs:
+      - CommaSeparatedValuesFilterTest#testFileEvents
+    native_refs:
+      - csv.TestCSV_Unicode
+      - csv.TestCSV_BOM
+
+  # ── Document boundary events ──────────────────────────────────────
+  - id: document_boundary_events
+    name: Layer start / end wrap every document
+    description: |
+      Reading any CSV document emits a LayerStart Part before the
+      first row and a LayerEnd Part after the last one. The Layer
+      carries the `csv` format id and `text/csv` mime type so
+      downstream tools can route on format. Verifies the document
+      scaffolding mirrors Okapi's StartDocument / EndDocument event
+      pair.
+    # Document scaffolding is a neokapi pipeline contract, not a
+    # property of the CSV specification itself — no spec_refs.
+    examples:
+      - name: minimal_layer_wrap
+        origin: "authored: smallest valid CSV for layer-envelope smoke check"
+        input_xml: "name\nWidget\n"
+        expected_fail: |
+          bridge default-config divergence (#530) — Okapi extracts the
+          header row, yielding 2 Blocks ("name", "Widget") versus
+          native's 1 ("Widget", header skipped). Both wrap the document
+          in StartDocument/EndDocument event pairs; they disagree on
+          whether the header text is translatable. Spec asserts native
+          (skip-header) behaviour.
+        block_count: 1
+        first_block_text: "Widget"
+      - name: single_cell
+        origin: "authored: smallest non-empty payload (no trailing newline) — header parsed, zero data rows, zero Blocks"
+        input_xml: "Col1"
+        expected_fail: |
+          bridge default-config divergence (#530) — Okapi extracts the
+          header row even when no data rows follow, yielding 1 Block
+          ("Col1") versus native's 0 (header skipped, no data rows). Both
+          wrap the document in document-start/end events; they disagree
+          on whether a lone header line is translatable. Spec asserts
+          native behaviour.
+        block_count: 0
+    okapi_refs:
+      - CommaSeparatedValuesFilterTest#testNameAndMimeType
+      - CommaSeparatedValuesFilterTest#testEmptyInput
+    native_refs:
+      - csv.TestCSV_NameAndMimeType
+      - csv.TestCSV_EmptyInput
+      - csv.TestReadLayerStartEnd
+
+# ── Intentionally under-specified ────────────────────────────────────
+#
+# Roundtrip / double-extraction (CommaSeparatedValuesFilterTest#
+# testDoubleExtraction, testTabDelimited2ColumnRoundTrip, the various
+# testEscapeQualifiers* / testAddTextQualifiers* tests) are exercised
+# by the native reader's own roundtrip suite (TestRoundTrip*,
+# TestCSV_AddTextQualifiers*, TestCSV_EscapeQualifiers*) but are not
+# expressible through this spec's BlockTexts assertion vocabulary —
+# there is no roundtrip / writer-output assertion type. Captured here
+# as a known coverage gap.
+#
+# Cancellation (TestCSV_ContextCancellation), parameter rejection
+# (TestConfig_ApplyMap_UnknownParam), config validate / reset
+# (TestConfig_Validate / TestConfig_Reset), and the schema test
+# (TestCSV_Schema) are runtime API-shape tests rather than
+# user-observable extraction behavior and intentionally fall outside
+# this spec's surface.
+#
+# Subfilter dispatch (TestCSV_SubfilterTuIds,
+# CommaSeparatedValuesFilterTest#testThreeColumnsExtractAllWithSubfilter)
+# requires recursive filter invocation across cell content (e.g. HTML
+# inside a cell) which neither side wires up via the spec config
+# surface; the native reader exposes the cells as plain Blocks and
+# downstream tools can re-parse them. The okf_table family's catkeys
+# / src-tab-trg sub-configurations
+# (CommaSeparatedValuesFilterTest#testCatkeys,
+# testColumnDefinedLocales / testColumnDefinedSource /
+# testColumnDefinedTarget) are upstream sub-configurations of the
+# same filter id; they exercise advanced source/target/locale column
+# wiring not yet covered by the neokapi config surface — tracked
+# under #453.
