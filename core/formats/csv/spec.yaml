@@ -262,9 +262,16 @@ features:
       - name: upstream_csv_test2
         origin: "okapi-fixture: okapi:okapi/filters/table/src/test/resources/csv_test2.txt — single row with empty fields at positions 1, 3 and 4"
         input_file: okapi:okapi/filters/table/src/test/resources/csv_test2.txt
-        # csv_test2.txt has no header row; default hasHeader=true treats
-        # the first (and only) row as the header → no Blocks. Native and
-        # bridge agree on this.
+        # csv_test2.txt is a single row with empty fields. Pinning
+        # hasHeader: true makes the first row the header → 0 data Blocks
+        # expected on both sides. Bridge has a known edge-case for
+        # header-only files: it still emits 1 block (#533).
+        config:
+          hasHeader: true
+        expected_fail: |
+          bridge edge-case (#533) — for header-only single-line files
+          the bridge emits 1 spurious Block even with sendHeaderMode=0;
+          native correctly emits 0. Spec asserts native behavior.
         block_count: 0
     okapi_refs:
       - CommaSeparatedValuesFilterTest#testFileEvents2

@@ -23,8 +23,9 @@ func TestParityCsvSpec(t *testing.T) {
 		t.Fatalf("load spec %s: %v", specPath, err)
 	}
 	r := &parityspec.ParityRunner{
-		Spec:      s,
-		NewReader: func(_ string) format.DataFormatReader { return csv.NewReader() },
+		Spec:         s,
+		NewReader:    func(_ string) format.DataFormatReader { return csv.NewReader() },
+		BridgeConfig: csvBridgeConfig,
 	}
 	r.Run(t)
 }
