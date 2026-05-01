@@ -76,8 +76,11 @@ features:
       `<TS>` element's `language` locale) comes from `<translation>`.
       Messages with empty `<translation>` are still translatable —
       they're awaiting translation.
+    spec_refs:
+      - "Qt Linguist TS File Format (https://doc.qt.io/qt-6/linguist-ts-file-format.html) — message/source/translation elements"
     examples:
       - name: bilingual_pair
+        origin: "authored: minimal Qt Linguist .ts to exercise <message> source/translation extraction"
         input_xml: |
           <?xml version="1.0" encoding="utf-8"?>
           <!DOCTYPE TS>
@@ -93,6 +96,7 @@ features:
         block_count: 1
         first_block_text: "Hello World"
       - name: simple_file
+        origin: "authored: minimal Qt Linguist .ts to exercise file-path read with one approved + one unfinished message"
         input_file: testdata/simple.ts
         block_count: 2
         block_texts:
@@ -121,8 +125,11 @@ features:
       paths look identical to the spec runner because `BlockTexts`
       skips non-translatable blocks. The spec asserts the
       observable count of translatable blocks.
+    spec_refs:
+      - "Qt Linguist TS File Format (https://doc.qt.io/qt-6/linguist-ts-file-format.html) — translation type attribute (unfinished, obsolete)"
     examples:
       - name: approved_unfinished_obsolete
+        origin: "authored: cover all three translation states (approved/unfinished/obsolete) in one document"
         input_xml: |
           <?xml version="1.0" encoding="utf-8"?>
           <!DOCTYPE TS>
@@ -166,8 +173,11 @@ features:
       and a matching GroupEnd after. Messages within a context are
       otherwise extracted normally; the group is informational
       structure for consumers that care about hierarchy.
+    spec_refs:
+      - "Qt Linguist TS File Format (https://doc.qt.io/qt-6/linguist-ts-file-format.html) — context element (name + message children)"
     examples:
       - name: single_context
+        origin: "authored: minimal single-context document"
         input_xml: |
           <?xml version="1.0" encoding="utf-8"?>
           <!DOCTYPE TS>
@@ -188,6 +198,7 @@ features:
           and one Block each — the spec asserts the translatable
           block payload, not the group framing (which is part-stream
           structure rather than text content).
+        origin: "authored: two-context document to verify Group framing per context"
         input_xml: |
           <?xml version="1.0" encoding="utf-8"?>
           <!DOCTYPE TS>
@@ -227,8 +238,11 @@ features:
       in document order. The Block ID isn't directly observable via
       block_text assertions; this feature documents the contract and
       relies on native_refs for the structural check.
+    spec_refs:
+      - "Qt Linguist TS File Format (https://doc.qt.io/qt-6/linguist-ts-file-format.html) — message id attribute"
     examples:
       - name: with_id
+        origin: "authored: <message id=\"custom_id\"> exercises explicit id attribute"
         input_xml: |
           <?xml version="1.0" encoding="utf-8"?>
           <!DOCTYPE TS>
@@ -244,6 +258,7 @@ features:
         block_count: 1
         first_block_text: "With ID"
       - name: without_id_auto_generated
+        origin: "authored: two messages without id to exercise auto-generated tu1/tu2 ids"
         input_xml: |
           <?xml version="1.0" encoding="utf-8"?>
           <!DOCTYPE TS>
@@ -281,6 +296,8 @@ features:
       placeholder run inside the Block. Both implementations produce
       one Block for the message; the Block source text contains the
       surrounding plain text without the placeholder data.
+    spec_refs:
+      - "Qt Linguist TS File Format (https://doc.qt.io/qt-6/linguist-ts-file-format.html) — byte element with hex/dec value attribute"
     examples:
       - name: byte_in_source_default
         # Native reader emits TWO TextRuns ("hello " and "world")
@@ -288,6 +305,7 @@ features:
         # only the TextRun pieces, yielding "hello world". Okapi's
         # default code-finder is OFF for the standard ts config, so the
         # bridge sees the same 3 codes (+text) split as native.
+        origin: "authored: <byte value=\"4f\"/> between text runs to verify default placeholder treatment"
         input_xml: |
           <?xml version="1.0" encoding="utf-8"?>
           <!DOCTYPE TS>
@@ -327,8 +345,11 @@ features:
       spec runner's BlockTexts collapses to translatable Block source
       text, so both implementations agree on the source text count
       (1) for each numerus message.
+    spec_refs:
+      - "Qt Linguist TS File Format (https://doc.qt.io/qt-6/linguist-ts-file-format.html) — message numerus attribute, numerusform children"
     examples:
       - name: two_forms
+        origin: "authored: minimal numerus=yes message with two numerusform children"
         input_xml: |
           <?xml version="1.0" encoding="utf-8"?>
           <!DOCTYPE TS>
@@ -361,6 +382,7 @@ features:
         block_count: 1
         first_block_text: "%n file(s)"
       - name: file_with_plurals
+        origin: "authored: minimal Qt Linguist .ts to exercise file-path read of numerus/plural-form messages"
         input_file: testdata/plurals.ts
         expected_fail: |
           Same numerus-stream divergence as `two_forms` — Okapi emits
@@ -387,8 +409,11 @@ features:
       Block's `comment`, `extracomment`, `translatorcomment`
       properties. They do NOT enter the source text — the Block
       source is the `<source>` content alone.
+    spec_refs:
+      - "Qt Linguist TS File Format (https://doc.qt.io/qt-6/linguist-ts-file-format.html) — comment, extracomment, translatorcomment elements"
     examples:
       - name: all_three_comment_types
+        origin: "authored: single message carrying all three comment kinds in one go"
         input_xml: |
           <?xml version="1.0" encoding="utf-8"?>
           <!DOCTYPE TS>
@@ -423,8 +448,11 @@ features:
       `&apos;`) inside `<source>` and `<translation>` are decoded to
       their literal characters in the Block's source text. Numeric
       character references decode to the corresponding code point.
+    spec_refs:
+      - "XML 1.0 §4.6 Predefined Entities (https://www.w3.org/TR/xml/#sec-predefined-ent)"
     examples:
       - name: amp_and_lt
+        origin: "authored: source text containing &amp; and &lt; XML entities"
         input_xml: |
           <?xml version="1.0" encoding="utf-8"?>
           <!DOCTYPE TS>
@@ -457,8 +485,11 @@ features:
       observe layer attributes directly; this feature pins the
       contract that the document-level metadata travels through and
       points at the structural native test for verification.
+    spec_refs:
+      - "Qt Linguist TS File Format (https://doc.qt.io/qt-6/linguist-ts-file-format.html) — TS root version, language, sourcelanguage attributes"
     examples:
       - name: version_2_1_with_langs
+        origin: "authored: TS root with version=2.1, language=ro_RO, sourcelanguage=en"
         input_xml: |
           <?xml version="1.0" encoding="utf-8"?>
           <!DOCTYPE TS>

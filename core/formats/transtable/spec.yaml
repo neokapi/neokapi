@@ -89,12 +89,15 @@ features:
       Quotes around cells are optional; the upstream reader strips
       them as part of unescape. A missing or malformed header aborts
       the read with `OkapiIOException("Invalid signature ...")`.
+    spec_refs:
+      - "Okapi TransTableFilter (TransTableV1 signature; format defined by upstream Java filter, no public spec)"
     examples:
       - name: bare_header_then_one_entry
         description: |
           Minimal valid input: header without quotes, one source-only
           row. The reader yields exactly one text unit whose source
           equals the unquoted source cell.
+        origin: "authored: minimal TransTableV1 header (unquoted) + one source-only data row"
         input_xml: |
           TransTableV1	en	fr
           "okpCtx:tu=1"	"source"
@@ -112,6 +115,7 @@ features:
         description: |
           Same shape with all cells quoted — quotes are part of the
           upstream unescape pass and do not change extraction.
+        origin: "authored: TransTableV1 header with all cells quoted; data crumb unquoted"
         input_xml: |
           "TransTableV1"	"en"	"fr"
           okpCtx:tu=1	source
@@ -135,8 +139,11 @@ features:
       becomes one bilingual text unit. The source cell populates the
       source locale declared in the header; the target cell populates
       the target locale.
+    spec_refs:
+      - "Okapi TransTableFilter (bilingual three-cell row; format defined by upstream Java filter, no public spec)"
     examples:
       - name: source_target_pair
+        origin: "authored: minimal bilingual data row with source + target cells"
         input_xml: |
           TransTableV1	en	fr
           "okpCtx:tu=1"	"source"	"target"
@@ -162,6 +169,7 @@ features:
       source equals the source cell.
     examples:
       - name: source_no_target
+        origin: "authored: data row with only crumb + source cells (no target)"
         input_xml: |
           TransTableV1	en	fr
           "okpCtx:tu=1"	"source"
@@ -186,6 +194,7 @@ features:
       `<id>` portion of the crumb.
     examples:
       - name: two_unsegmented
+        origin: "authored: two data rows with distinct tu=ids to verify per-row text-unit emission"
         input_xml: |
           "TransTableV1"	"en"	"fr"
           okpCtx:tu=1:s=0	source1
@@ -214,11 +223,14 @@ features:
       text is the concatenation of each segment's source cell, in
       document order. A row without a `:s=<seg-id>` suffix
       terminates the current group and starts a new text unit.
+    spec_refs:
+      - "Okapi TransTableFilter (allowSegments parameter / :s=<seg-id> suffix grouping; format defined by upstream Java filter)"
     examples:
       - name: three_segments_into_one_tu
         description: |
           tu=2 owns three segments (s=0, s=1, s=2). The merged
           source is the concatenation of each segment's source.
+        origin: "authored: tu=2 with three :s=N segments to verify intra-tu concatenation"
         input_xml: |
           "TransTableV1"	"en"	"fr"
           okpCtx:tu=1:s=0	source1
@@ -259,6 +271,7 @@ features:
           are absorbed silently, the segment group still merges into
           one text unit per the upstream `testSegmentedWithTarget`
           contract.
+        origin: "authored: segment group interrupted by blank lines to verify silent skip without breaking the group"
         input_xml: |
           "TransTableV1"	"en"	"fr"
           okpCtx:tu=1:s=0	source1	target1
