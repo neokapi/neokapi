@@ -88,12 +88,16 @@ features:
       is the trimmed comment text. Consecutive `///` lines fold into a
       single Block whose lines join with newlines; an interrupting
       non-comment line breaks the run.
+    spec_refs:
+      - "Doxygen manual — Documenting the code: /// triple-slash comment style (https://www.doxygen.nl/manual/docblocks.html)"
     examples:
       - name: single_line
+        origin: "authored: minimal one-line /// comment"
         input_xml: "/// A simple line comment\n"
         block_count: 1
         first_block_text: "A simple line comment"
       - name: consecutive_lines_merge
+        origin: "authored: three consecutive /// lines folding into one Block"
         input_xml: "/// First line\n/// Second line\n/// Third line\n"
         block_count: 1
         has_block_with_text:
@@ -101,6 +105,7 @@ features:
           - "Second line"
           - "Third line"
       - name: interrupted_run_splits
+        origin: "authored: /// run interrupted by non-comment code line"
         input_xml: "/// First comment\nint x;\n/// Second comment\n"
         block_count: 2
         block_texts:
@@ -122,8 +127,11 @@ features:
       extraction — the comment text becomes a translatable Block.
       Distinguishing the marker is left to the writer, which preserves
       the original style on round-trip.
+    spec_refs:
+      - "Doxygen manual — Documenting the code: //! exclamation line comment style"
     examples:
       - name: single_line
+        origin: "authored: minimal one-line //! comment"
         input_xml: "//! An exclamation line comment\n"
         block_count: 1
         first_block_text: "An exclamation line comment"
@@ -139,12 +147,16 @@ features:
       blocks (`/** text */`) carry the inline text; multi-line blocks
       strip the leading ` * ` line markers and the closing `*/`,
       joining the surviving lines with newlines.
+    spec_refs:
+      - "Doxygen manual — Documenting the code: /** */ Javadoc-style block comments"
     examples:
       - name: single_line_block
+        origin: "authored: minimal one-line /** ... */ block"
         input_xml: "/** A Javadoc comment */\n"
         block_count: 1
         first_block_text: "A Javadoc comment"
       - name: multi_line_block
+        origin: "authored: multi-line /** with leading * line markers */"
         input_xml: "/**\n * First line\n * Second line\n */\n"
         block_count: 1
         has_block_with_text:
@@ -163,12 +175,16 @@ features:
       A `/*! */` block comment extracts as one Block, mirroring the
       Javadoc shape. Multiple `/*! */` blocks separated by code emit
       one Block each, in document order.
+    spec_refs:
+      - "Doxygen manual — Documenting the code: /*! */ Qt-style block comments"
     examples:
       - name: multi_line_block
+        origin: "authored: multi-line /*! ... */ Qt-style block"
         input_xml: "/*!\n  A Qt-style block comment.\n*/\n"
         block_count: 1
         first_block_text: "A Qt-style block comment."
       - name: multiple_blocks_separated_by_code
+        origin: "authored: two /*! */ blocks separated by code"
         input_xml: "/*! Block comment 1 */\nint x;\n/*! Block comment 2 */\n"
         block_count: 2
         block_texts:
@@ -189,12 +205,16 @@ features:
       emits the code prefix as skeleton Data and the comment text as a
       translatable Block. An empty `///<` (no comment text) produces
       no Block but the layer envelope is still well-formed.
+    spec_refs:
+      - "Doxygen manual — Documenting the code: ///< trailing-member comment style"
     examples:
       - name: trailing_with_text
+        origin: "authored: code line + ///< trailing comment"
         input_xml: "int x; ///< A one-liner comment\n"
         block_count: 1
         first_block_text: "A one-liner comment"
       - name: blank_trailing
+        origin: "authored: code line + bare ///< marker (no comment text)"
         input_xml: "int x; ///<\n"
         block_count: 0
         expected_fail: |
@@ -218,8 +238,11 @@ features:
       comment to the preceding declaration, Qt-style. The reader
       emits the code prefix as skeleton and the comment text as a
       translatable Block.
+    spec_refs:
+      - "Doxygen manual — Documenting the code: /*!< */ trailing Qt-style block comment"
     examples:
       - name: trailing_qt
+        origin: "authored: code line + /*!< */ trailing Qt block comment"
         input_xml: "int x; /*!< Trailing Qt comment */\n"
         block_count: 1
         first_block_text: "Trailing Qt comment"
@@ -237,14 +260,18 @@ features:
       — their arguments are not translatable. The surrounding
       description text is still extracted; only the structural
       command's own argument is dropped.
+    spec_refs:
+      - "Doxygen manual — Special commands: \\class, \\file, \\author (https://www.doxygen.nl/manual/commands.html)"
     examples:
       - name: class_then_brief
+        origin: "authored: \\class structural command followed by description"
         input_xml: "/// \\class MyClass\n/// Brief description.\n"
         block_count: 1
         first_block_text: "Brief description."
         no_block_with_text:
           - "MyClass"
       - name: class_with_header_then_brief
+        origin: "authored: \\class with header path + \\brief description block"
         input_xml: "/*! \\class Test class.h \"inc/class.h\"\n *  \\brief This is a test class.\n *\n * Some details about the Test class\n */\n"
         block_count: 1
         has_block_with_text:
@@ -271,8 +298,11 @@ features:
       The `\brief` (or `@brief`) command introduces a short description
       that is translatable. The command marker itself is skeleton; only
       the prose argument extracts as a Block.
+    spec_refs:
+      - "Doxygen manual — Special commands: \\brief (https://www.doxygen.nl/manual/commands.html)"
     examples:
       - name: backslash_brief
+        origin: "authored: minimal \\brief command with single description line"
         input_xml: "/// \\brief A short description.\n"
         block_count: 1
         first_block_text: "A short description."
@@ -293,8 +323,11 @@ features:
       translatable. Same pattern applies to `\tparam`, `\throw`,
       `\throws`, `\exception`, `\retval` — first argument is the
       identifier, the rest is description.
+    spec_refs:
+      - "Doxygen manual — Special commands: \\param (https://www.doxygen.nl/manual/commands.html)"
     examples:
       - name: param_with_description
+        origin: "authored: \\param identifier + description (identifier is skeleton)"
         input_xml: "/// \\param name The name of the person\n"
         block_count: 1
         first_block_text: "The name of the person"
@@ -310,8 +343,11 @@ features:
     description: |
       The `\return` / `\returns` command documents the value returned
       by a function. The whole argument is translatable description.
+    spec_refs:
+      - "Doxygen manual — Special commands: \\return (https://www.doxygen.nl/manual/commands.html)"
     examples:
       - name: return_with_description
+        origin: "authored: \\return command + single description line"
         input_xml: "/// \\return The computed result\n"
         block_count: 1
         first_block_text: "The computed result"
@@ -332,8 +368,11 @@ features:
       introduce a translatable paragraph. Each command's description
       becomes its own Block so translators can address them
       independently.
+    spec_refs:
+      - "Doxygen manual — Special commands: \\note, \\warning, \\todo (https://www.doxygen.nl/manual/commands.html)"
     examples:
       - name: note_then_warning
+        origin: "authored: consecutive \\note and \\warning section commands"
         input_xml: "/// \\note Important note.\n/// \\warning Be careful.\n"
         block_count: 2
         block_texts:
@@ -357,8 +396,11 @@ features:
       passes through as skeleton. Surrounding prose extracts normally;
       the code block partitions the comment so text before and after
       become separate Blocks.
+    spec_refs:
+      - "Doxygen manual — Special commands: \\code / \\endcode (https://www.doxygen.nl/manual/commands.html)"
     examples:
       - name: code_between_prose
+        origin: "authored: \\code … \\endcode block sandwiched between two prose lines"
         input_xml: "/// Before code\n/// \\code\n///     some_code();\n/// \\endcode\n/// After code\n"
         block_count: 2
         block_texts:
@@ -378,8 +420,11 @@ features:
       and is NOT translatable. The same pass-through rule applies to
       `\dot`, `\msc`, `\htmlonly`, `\latexonly`, `\xmlonly`,
       `\manonly`, `\rtfonly`, `\docbookonly`.
+    spec_refs:
+      - "Doxygen manual — Special commands: \\verbatim / \\endverbatim (https://www.doxygen.nl/manual/commands.html)"
     examples:
       - name: verbatim_between_prose
+        origin: "authored: \\verbatim … \\endverbatim block between two prose lines"
         input_xml: "/// Before verbatim\n/// \\verbatim\n///   not translated\n/// \\endverbatim\n/// After verbatim\n"
         block_count: 2
         block_texts:
@@ -405,8 +450,11 @@ features:
       filename, optional caption) are filenames or rendering hints and
       are not translatable in this reader. Surrounding prose extracts
       as normal Blocks.
+    spec_refs:
+      - "Doxygen manual — Special commands: \\image (https://www.doxygen.nl/manual/commands.html)"
     examples:
       - name: image_between_prose
+        origin: "authored: \\image command between two prose lines"
         input_xml: "/// Here is a snapshot:\n/// \\image html application.jpg\n/// End of description.\n"
         block_count: 1
         has_block_with_text:
@@ -434,8 +482,11 @@ features:
       next word for italic / argument / bold / typewriter / parameter
       formatting. The reader strips the command marker so the bare
       word reaches the translator inside the surrounding prose.
+    spec_refs:
+      - "Doxygen manual — Special commands: \\e, \\a, \\b, \\c, \\p, \\em (https://www.doxygen.nl/manual/commands.html)"
     examples:
       - name: italic_and_argument
+        origin: "authored: inline \\e italic + \\a argument formatting"
         input_xml: "/// This has \\e italic and \\a arg text\n"
         block_count: 1
         has_block_with_text:
@@ -454,13 +505,18 @@ features:
       text as literal characters. The reader does not strip them;
       downstream tools (or the writer's inline-code finder) decide
       whether to convert them into Spans.
+    # Doxygen recognises HTML tags inside comments per its HTML
+    # commands reference; the manual lists supported tags but does
+    # not normatively define their presentation — left without URL.
     examples:
       - name: html_bold_inline
+        origin: "authored: <b>bold</b> inline HTML inside /// comment"
         input_xml: "/// This has <b>bold</b> text\n"
         block_count: 1
         has_block_with_text:
           - "bold"
       - name: orphaned_end_tag
+        origin: "authored: orphaned </summary> end tag inside /// comment"
         input_xml: "/// Some text </summary> more text\n"
         block_count: 1
         has_block_with_text:
@@ -485,8 +541,11 @@ features:
       A bare float like `1.0` or `2.5` in a sentence does not trigger
       list / command tokenisation. The text extracts intact as a single
       Block.
+    # Robustness against false-positive command tokenisation —
+    # behavioral, no formal spec authority.
     examples:
       - name: float_in_sentence
+        origin: "authored: prose containing `1.0` and `2.5` decimal numbers"
         input_xml: "/// The value is 1.0 or 2.5 here.\n"
         block_count: 1
         first_block_text: "The value is 1.0 or 2.5 here."
@@ -503,8 +562,11 @@ features:
       passed through as code, not extracted as Blocks. Distinguishing
       Doxygen-flagged from plain comments is the filter's core
       filtering job.
+    spec_refs:
+      - "Doxygen manual — Documenting the code: regular comments are NOT documentation"
     examples:
       - name: line_comment_skipped
+        origin: "authored: regular `// ...` comment without Doxygen activator"
         input_xml: "// This is a regular comment, not Doxygen\nint x = 0;\n"
         block_count: 0
     okapi_refs:
@@ -519,8 +581,11 @@ features:
       identical count, identical source text per Block. This is the
       double-extraction contract Okapi enforces across its sample
       corpus (sample.h, qt-style.h, javadoc-style.h, special_commands.h).
+    # Idempotent re-extraction is an Okapi-side contract, not a
+    # Doxygen-format property — no spec_refs.
     examples:
       - name: simple_input_stable
+        origin: "authored: minimal /// comment for double-extraction smoke check"
         input_xml: "/// Hello from Doxygen\n"
         block_count: 1
         first_block_text: "Hello from Doxygen"
@@ -545,8 +610,11 @@ features:
       `///<`, code blocks, and `\param` / `\return` tags. Validates
       that the reader handles realistic source layout end-to-end and
       that code-block content stays out of the translatable stream.
+    # Mixed-style sample fixture; spec authority is each style's
+    # own ref, already covered by the per-style features above.
     examples:
       - name: sample_h
+        origin: "okapi-fixture: testdata/sample.h (mirrors Okapi DoxygenFilterTest sample.h)"
         input_file: testdata/sample.h
         block_count: 7
         has_block_with_text:
@@ -581,8 +649,10 @@ features:
       (`//!`) and block (`/*! */`) variants extract their prose as
       Blocks; the reader does not require a single comment style per
       file.
+    # Per-style spec authority lives on the //! and /*! */ features above.
     examples:
       - name: qt_style_h
+        origin: "okapi-fixture: testdata/qt-style.h (mirrors Okapi DoxygenFilterTest qt-style.h)"
         input_file: testdata/qt-style.h
         block_count: 2
         has_block_with_text:
@@ -606,8 +676,10 @@ features:
       including class, constructor, member function, and `\param` /
       `\return` documentation. The full set of descriptions extracts
       as Blocks in source order.
+    # Per-style spec authority lives on the /** */ feature above.
     examples:
       - name: javadoc_style_h
+        origin: "okapi-fixture: testdata/javadoc-style.h (mirrors Okapi DoxygenFilterTest javadoc-style.h)"
         input_file: testdata/javadoc-style.h
         block_count: 5
         has_block_with_text:
@@ -630,8 +702,11 @@ features:
       title is translatable), `\note` / `\warning` / `\todo`
       (translatable paragraph), `\verbatim` (excluded), and inline
       `\e` / `\b` / `\c` formatting.
+    spec_refs:
+      - "Doxygen manual — Special commands (full reference) (https://www.doxygen.nl/manual/commands.html)"
     examples:
       - name: special_commands_h
+        origin: "okapi-fixture: testdata/special_commands.h (mirrors Okapi DoxygenFilterTest special_commands.h)"
         input_file: testdata/special_commands.h
         block_count: 7
         has_block_with_text:
@@ -667,8 +742,11 @@ features:
       locale (defaulting to English when the document has none).
       The simplest possible single-comment input still produces this
       envelope alongside the comment Block.
+    # Layer envelope is a neokapi pipeline contract, not a property
+    # of the Doxygen format itself — no spec_refs.
     examples:
       - name: minimal_layer
+        origin: "authored: smallest-possible Doxygen comment for layer-envelope smoke check"
         input_xml: "/// Hello\n"
         block_count: 1
         first_block_text: "Hello"
@@ -691,8 +769,11 @@ features:
       Bytewise roundtrip is exercised by the dedicated native writer
       tests; the spec runner only asserts the extracted Block set so
       the same fixture validates both sides.
+    # Round-trip preservation is a neokapi writer contract, not a
+    # Doxygen-format property — no spec_refs.
     examples:
       - name: simple_line_extracts
+        origin: "authored: minimal /// comment for round-trip verification"
         input_xml: "/// A simple line comment\n"
         block_count: 1
         first_block_text: "A simple line comment"

@@ -53,11 +53,14 @@ features:
       block_count: 0. A truly zero-byte file is rejected by the
       bridge transport; the smallest representable empty document
       that flows through both implementations is a single LF.
+    # No formal spec authority — plaintext is a behavioral convention.
     examples:
       - name: single_newline
+        origin: "authored: single LF, no content lines"
         input_xml: "\n"
         block_count: 0
       - name: two_blank_lines
+        origin: "authored: two consecutive LFs, no content"
         input_xml: "\n\n"
         block_count: 0
     okapi_refs:
@@ -76,6 +79,7 @@ features:
       content verbatim.
     examples:
       - name: hello_world
+        origin: "authored: minimal one-line input, no trailing newline"
         input_xml: "Hello world"
         block_count: 1
         first_block_text: "Hello world"
@@ -95,6 +99,7 @@ features:
       in skeleton, not in block text. Block order is document order.
     examples:
       - name: three_lines
+        origin: "authored: three LF-terminated lines"
         input_xml: "First line\nSecond line\nThird line"
         block_count: 3
         block_texts:
@@ -102,6 +107,7 @@ features:
           - "Second line"
           - "Third line"
       - name: trailing_lf
+        origin: "authored: two lines + trailing LF (terminator consumed as skeleton)"
         # A trailing newline does NOT introduce a phantom empty block —
         # the final record terminator is consumed as skeleton.
         input_xml: "Line 1\nLine 2\n"
@@ -127,12 +133,14 @@ features:
       lines collapse to zero Blocks between the surrounding content.
     examples:
       - name: single_blank
+        origin: "authored: single blank line between two content lines"
         input_xml: "Line 1\n\nLine 2"
         block_count: 2
         block_texts:
           - "Line 1"
           - "Line 2"
       - name: triple_blank
+        origin: "authored: three consecutive blank lines between content"
         input_xml: "Line 1\n\n\nLine 2"
         block_count: 2
         block_texts:
@@ -158,6 +166,7 @@ features:
       so this case is recorded as an expected divergence here.
     examples:
       - name: crlf_three_lines
+        origin: "authored: three CRLF-terminated lines (Windows convention)"
         input_xml: "Line 1\r\nLine 2\r\nLine 3"
         block_count: 3
         block_texts:
@@ -165,6 +174,7 @@ features:
           - "Line 2"
           - "Line 3"
       - name: bare_cr_three_lines
+        origin: "authored: three bare-CR-separated lines (classic Mac convention)"
         input_xml: "Line 1\rLine 2\rLine 3"
         # Native bufio.ReadString('\n') does not split on bare CR; the
         # whole input is a single Block with embedded \r characters.
@@ -197,6 +207,7 @@ features:
       already implies.
     examples:
       - name: cjk_and_latin_mixed
+        origin: "authored: testdata/unicode.txt — three lines mixing CJK + Latin scripts"
         input_file: testdata/unicode.txt
         block_count: 3
         block_texts:

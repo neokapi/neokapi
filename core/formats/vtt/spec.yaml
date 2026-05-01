@@ -132,12 +132,16 @@ features:
       whose source is the cue text and whose `timecode` Property
       carries the verbatim timecode line. The WEBVTT header and any
       cue identifiers flow out as Data parts and are not translatable.
+    spec_refs:
+      - "W3C WebVTT §4.1 WebVTT file structure — cue block (https://www.w3.org/TR/webvtt1/#webvtt-cue-block)"
     examples:
       - name: single_cue
+        origin: "authored: minimal WEBVTT file with one cue"
         input_xml: "WEBVTT\n\n00:00:01.000 --> 00:00:04.000\nHello world\n"
         block_count: 1
         first_block_text: "Hello world"
       - name: two_cues_in_sequence
+        origin: "authored: two cues without sentence-terminating punctuation (mergeCaptions trigger)"
         # bridge bug — Okapi VTTFilter defaults to mergeCaptions=true,
         # joining adjacent cues whose first cue does not end with
         # sentence-terminating punctuation into a single TextUnit. Native
@@ -172,8 +176,11 @@ features:
       `cue-id` Property so writers can round-trip the original
       identifier. Each cue identifier produces its own Data part
       named `cue-id.N`.
+    spec_refs:
+      - "W3C WebVTT §4.1 cue identifier (https://www.w3.org/TR/webvtt1/#cue-identifier)"
     examples:
       - name: chapter_numbers
+        origin: "authored: two numbered cues (chapter-style identifiers `1` and `2`)"
         # bridge bug — Okapi VTTFilter defaults to mergeCaptions=true,
         # collapsing the two chapter-numbered cues into a single block,
         # and additionally joins intra-cue lines with spaces rather than
@@ -192,6 +199,7 @@ features:
           - "Thanks everyone\nfor joining us today,"
           - "I am so excited\nto be with you."
       - name: named_intro_id
+        origin: "authored: cue with named identifier `intro`"
         input_xml: "WEBVTT\n\nintro\n00:00:00.000 --> 00:00:02.000\nWelcome to the show.\n"
         block_count: 1
         first_block_text: "Welcome to the show."
@@ -212,8 +220,11 @@ features:
       The native reader treats the entire timecode line as one opaque
       string — settings are preserved verbatim on the Block's
       `timecode` Property. Cue text is extracted unchanged.
+    spec_refs:
+      - "W3C WebVTT §4.1 cue settings (alignment, line, position, size, region) (https://www.w3.org/TR/webvtt1/)"
     examples:
       - name: align_and_line
+        origin: "authored: two cues with align:middle line:84% settings"
         # bridge bug — Okapi VTTFilter defaults to mergeCaptions=true and
         # joins intra-cue lines with spaces, so the two cue-settings cues
         # collapse to a single block. Native emits one Block per cue with
@@ -250,8 +261,11 @@ features:
       the lines using the original line endings so the Block's source
       text contains literal newlines between segments. This preserves
       author-intended line breaks for downstream MT and review.
+    spec_refs:
+      - "W3C WebVTT §4.1 cue payload — line breaks honored within a cue"
     examples:
       - name: three_line_cue
+        origin: "authored: single cue spanning three text lines"
         # bridge bug — Okapi VTTFilter joins intra-cue lines with single
         # spaces rather than preserving the original line endings.
         # Native reader keeps literal newlines between cue lines per
@@ -265,6 +279,7 @@ features:
         block_count: 1
         first_block_text: "Line one\nLine two\nLine three."
       - name: two_line_cues_with_punctuation
+        origin: "authored: two two-line cues, both ending with sentence punctuation"
         # bridge bug — Okapi VTTFilter joins intra-cue lines with single
         # spaces rather than preserving the original line endings. Both
         # cues end with sentence punctuation so mergeCaptions does not
@@ -303,8 +318,11 @@ features:
       attempt to parse VTT inline tags into Spans; the raw markup
       reaches translators inside the Block source so the round-trip
       writer can re-emit it unchanged.
+    spec_refs:
+      - "W3C WebVTT §4.1 cue payload — voice spans and inline markup"
     examples:
       - name: voice_spans
+        origin: "authored: two cues using <v0>...</v> and <v1>...</v> voice spans"
         # bridge bug — Okapi VTTFilter joins intra-cue lines with spaces
         # rather than preserving newlines. The voice span markup itself
         # passes through verbatim, but the literal "\n" between lines is
@@ -321,6 +339,7 @@ features:
           - "<v0>Thanks everyone\nfor joining us today.</v>"
           - "<v1>I am so excited\nto be with you.</v>"
       - name: quoted_text
+        origin: "authored: two cues with single-quoted multi-line content"
         # bridge bug — Okapi VTTFilter joins intra-cue lines with spaces
         # rather than preserving newlines. The surrounding single quotes
         # pass through verbatim, but the literal "\n" between lines is
@@ -354,8 +373,11 @@ features:
       translatable Blocks only and excludes empty-source blocks.
       Subsequent non-empty cues continue to extract normally; the
       empty cue does not break the parse.
+    # No formal spec authority — the empty-cue tolerance is a
+    # behavioral robustness convention.
     examples:
       - name: empty_then_text
+        origin: "authored: timecode-only cue followed by a normal cue"
         # bridge bug — Okapi VTTFilter joins intra-cue lines with spaces
         # rather than preserving newlines, so the surviving cue's text
         # reads "I am so excited to be with you." instead of carrying
@@ -386,16 +408,21 @@ features:
       extracted unchanged with no normalization or width adjustment.
       Output-side wrapping rules (cjkCharsPerLine, splitWords) are
       writer-only and don't affect extraction.
+    spec_refs:
+      - "W3C WebVTT — UTF-8 text encoding requirement (§4.1 file structure)"
     examples:
       - name: chinese_text
+        origin: "authored: cue containing Simplified Chinese characters"
         input_xml: "WEBVTT\n\n00:00:02.680 --> 00:00:04.720\n在本系列迄今为止的会议中\n"
         block_count: 1
         first_block_text: "在本系列迄今为止的会议中"
       - name: japanese_text
+        origin: "authored: cue containing Japanese hiragana"
         input_xml: "WEBVTT\n\n00:00:02.680 --> 00:00:04.820\nいろはにほてと いろはに\n"
         block_count: 1
         first_block_text: "いろはにほてと いろはに"
       - name: korean_text
+        origin: "authored: cue containing Korean Hangul"
         input_xml: "WEBVTT\n\n00:00:02.680 --> 00:00:04.720\n걸 환영합니다\n"
         block_count: 1
         first_block_text: "걸 환영합니다"

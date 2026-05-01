@@ -121,8 +121,11 @@ features:
       preserving inline run structure. Paragraphs are emitted as
       translatable Blocks in document order.
     applies_to: [docx]
+    spec_refs:
+      - "ECMA-376 Part 1 §17.3 WordprocessingML — paragraph (w:p) and run (w:r) (https://ecma-international.org/publications-and-standards/standards/ecma-376/)"
     examples:
       - name: simple
+        origin: "authored: testdata/simple.docx — three-paragraph baseline fixture"
         variant: docx
         input_file: testdata/simple.docx
         block_count: 3
@@ -144,8 +147,11 @@ features:
       preserved as Spans inside the surrounding Block, not split into
       separate Blocks.
     applies_to: [docx]
+    spec_refs:
+      - "ECMA-376 Part 1 §17.3.2 run properties (w:rPr) — bold, italic, underline"
     examples:
       - name: formatted
+        origin: "authored: testdata/formatted.docx — mixed inline runs + heading + hyperlink"
         variant: docx
         input_file: testdata/formatted.docx
         block_count: 7
@@ -167,8 +173,11 @@ features:
       all sheets, in row-major order per sheet. Numeric values and
       formulas are not extracted.
     applies_to: [xlsx]
+    spec_refs:
+      - "ECMA-376 Part 1 §18.3 SpreadsheetML — cell (c) and shared strings (sst)"
     examples:
       - name: filtering_workbook
+        origin: "real-world: EksempelFiltrering.xlsx (Norwegian music-catalog filtering exercise)"
         variant: xlsx
         input_file: testdata/EksempelFiltrering.xlsx
         block_count_min: 50
@@ -188,8 +197,11 @@ features:
       through round-trip. Verifies the snippet-level path the
       OpenXMLSnippetsTest exercises.
     applies_to: [xlsx]
+    spec_refs:
+      - "ECMA-376 Part 1 §18.7 SpreadsheetML comments — comments / authors elements"
     examples:
       - name: author_snippet
+        origin: "okapi-fixture: OpenXMLSnippetsTest#testAuthor (raw XML snippet)"
         variant: xlsx
         input_xml: '<comments><author>Dan Higinbotham</author></comments>'
         # Both implementations require a full .xlsx ZIP package. Okapi's
@@ -214,8 +226,11 @@ features:
       translateHiddenSlides is enabled. Default behavior should produce
       no blocks from a deck where every slide is hidden.
     applies_to: [pptx]
+    spec_refs:
+      - "ECMA-376 Part 1 §19.3 PresentationML — slide (sld) and `show` attribute"
     examples:
       - name: all_hidden_default
+        origin: "okapi-fixture: okapi:filters/openxml/.../1010-slide1-hidden-slide2-hidden.pptx"
         variant: pptx
         input_file: okapi:okapi/filters/openxml/src/test/resources/1010-slide1-hidden-slide2-hidden.pptx
         # Default config: hidden slides skipped → no translatable text.
@@ -236,11 +251,14 @@ features:
       regardless of their hidden flag. Same input as the previous
       feature, different config — should now yield blocks.
     applies_to: [pptx]
+    spec_refs:
+      - "ECMA-376 Part 1 §19.3 PresentationML — `show` attribute on sld"
     config:
       translateHiddenSlides: true
       translateSlideMasters: false
     examples:
       - name: all_hidden_with_flag
+        origin: "okapi-fixture: okapi:filters/openxml/.../1010-slide1-hidden-slide2-hidden.pptx (with translateHiddenSlides=true)"
         variant: pptx
         input_file: okapi:okapi/filters/openxml/src/test/resources/1010-slide1-hidden-slide2-hidden.pptx
         block_count_min: 1
@@ -254,10 +272,13 @@ features:
       With translateDocProperties=false the reader skips title /
       subject / keywords from docProps/core.xml. Verifies the Block
       count drops vs the default-on baseline.
+    spec_refs:
+      - "ECMA-376 Part 2 §11 Open Packaging Conventions — core properties part (docProps/core.xml)"
     config:
       translateDocProperties: false
     examples:
       - name: docx_default_minus_props
+        origin: "authored: testdata/simple.docx with translateDocProperties=false config wiring"
         variant: docx
         input_file: testdata/simple.docx
         # simple.docx has no doc properties so block_count is unchanged

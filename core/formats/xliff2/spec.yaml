@@ -80,8 +80,11 @@ features:
       `<source>` text is the Block's source. Block name comes from
       `unit/@name` when present, ID from `unit/@id`. Multi-unit files
       yield Blocks in document order.
+    spec_refs:
+      - "XLIFF 2.1 §4.2.2.5 unit (http://docs.oasis-open.org/xliff/xliff-core/v2.1/os/xliff-core-v2.1-os.html#unit)"
     examples:
       - name: three_units_doc_order
+        origin: "authored: three units in document order"
         input_xml: |
           <?xml version="1.0" encoding="UTF-8"?>
           <xliff xmlns="urn:oasis:names:tc:xliff:document:2.0" version="2.0" srcLang="en" trgLang="fr">
@@ -110,8 +113,11 @@ features:
       document's `trgLang` locale. Units without a target produce
       Blocks with no target for that locale; downstream tools detect
       the missing translation via `HasTarget(locale)`.
+    spec_refs:
+      - "XLIFF 2.1 §4.2.2.13 target (http://docs.oasis-open.org/xliff/xliff-core/v2.1/os/xliff-core-v2.1-os.html#target)"
     examples:
       - name: mixed_translated_and_untranslated
+        origin: "authored: mix of translated and untranslated units"
         input_xml: |
           <?xml version="1.0" encoding="UTF-8"?>
           <xliff xmlns="urn:oasis:names:tc:xliff:document:2.0" version="2.0" srcLang="en" trgLang="fr">
@@ -145,8 +151,11 @@ features:
       keeps them as multiple Source segments inside the same Block
       (one Block per unit, several segments inside). The Block's
       joined source text concatenates segment text.
+    spec_refs:
+      - "XLIFF 2.1 §4.2.2.6 segment (http://docs.oasis-open.org/xliff/xliff-core/v2.1/os/xliff-core-v2.1-os.html#segment)"
     examples:
       - name: two_segments_one_unit
+        origin: "authored: unit with two <segment> siblings + a single-segment unit"
         input_xml: |
           <?xml version="1.0" encoding="UTF-8"?>
           <xliff xmlns="urn:oasis:names:tc:xliff:document:2.0" version="2.0" srcLang="en" trgLang="fr">
@@ -186,8 +195,11 @@ features:
       PartGroupStart/PartGroupEnd markers in the stream but does not
       change which units extract as Blocks. Units inside a group emit
       identically to top-level units.
+    spec_refs:
+      - "XLIFF 2.1 §4.2.2.4 group"
     examples:
       - name: single_group_one_unit
+        origin: "authored: <group> containing a single unit"
         input_xml: |
           <?xml version="1.0" encoding="UTF-8"?>
           <xliff xmlns="urn:oasis:names:tc:xliff:document:2.0" version="2.0" srcLang="en" trgLang="fr">
@@ -211,8 +223,11 @@ features:
       filler (whitespace, punctuation between segments). The reader
       emits the surrounding translatable `<segment>` blocks normally
       and folds the ignorable content into skeleton on roundtrip.
+    spec_refs:
+      - "XLIFF 2.1 §4.2.2.7 ignorable"
     examples:
       - name: ignorable_between_segments
+        origin: "authored: <ignorable> sandwiched between two <segment>s in one unit"
         input_xml: |
           <?xml version="1.0" encoding="UTF-8"?>
           <xliff xmlns="urn:oasis:names:tc:xliff:document:2.0" version="2.0" srcLang="en" trgLang="fr">
@@ -242,8 +257,11 @@ features:
       currently captures them as raw inner XML; richer Span modeling
       is tracked separately. Surrounding text segments still extract
       verbatim.
+    spec_refs:
+      - "XLIFF 2.1 §4.2.3.2 ph / §4.2.3.3 pc / §4.2.3.4 sc / §4.2.3.5 ec / §4.2.3.6 mrk"
     examples:
       - name: ph_pc_sc_ec_three_units
+        origin: "authored: three units exercising <ph>, <pc>, and <sc>/<ec> inline pairs"
         input_xml: |
           <?xml version="1.0" encoding="UTF-8"?>
           <xliff xmlns="urn:oasis:names:tc:xliff:document:2.0" version="2.0" srcLang="en" trgLang="fr">
@@ -276,8 +294,11 @@ features:
       properties (`note-0`, `note-1`, …) on the resulting Block.
       Translators / reviewers consume them as side-channel context;
       they are not themselves translatable.
+    spec_refs:
+      - "XLIFF 2.1 §4.2.2.8 notes / §4.2.2.9 note"
     examples:
       - name: single_review_note
+        origin: "authored: unit with <notes><note>This needs review</note></notes>"
         input_xml: |
           <?xml version="1.0" encoding="UTF-8"?>
           <xliff xmlns="urn:oasis:names:tc:xliff:document:2.0" version="2.0" srcLang="en" trgLang="fr">
@@ -302,8 +323,11 @@ features:
       `reviewed`, `final`) is captured as a Block property. Downstream
       tools use it to drive workflow gates — e.g. only push translated
       segments back to the CMS, only run QA on reviewed ones.
+    spec_refs:
+      - "XLIFF 2.1 §4.3.1.31 state attribute"
     examples:
       - name: translated_and_initial_states
+        origin: "authored: two segments, one state=\"translated\" + one state=\"initial\""
         input_xml: |
           <?xml version="1.0" encoding="UTF-8"?>
           <xliff xmlns="urn:oasis:names:tc:xliff:document:2.0" version="2.0" srcLang="en" trgLang="fr">
@@ -339,8 +363,11 @@ features:
       survives roundtrip) but the Block is flagged non-translatable.
       Translation tools and AI providers skip non-translatable Blocks
       while preserving their text in the output stream.
+    spec_refs:
+      - "XLIFF 2.1 §4.3.1.38 translate attribute"
     examples:
       - name: yes_then_no
+        origin: "authored: two units, translate=\"yes\" + translate=\"no\""
         input_xml: |
           <?xml version="1.0" encoding="UTF-8"?>
           <xliff xmlns="urn:oasis:names:tc:xliff:document:2.0" version="2.0" srcLang="en" trgLang="fr">
@@ -378,8 +405,11 @@ features:
       `updateTarget` / `testWriteOriginalDataOption`. Tested through
       the spec runner via re-extraction assertions on the input —
       bytewise roundtrip is exercised by the dedicated native tests.
+    spec_refs:
+      - "XLIFF 2.1 §4.2.2 core elements (unit, segment, source, target)"
     examples:
       - name: source_and_target_extracted
+        origin: "authored: minimal source+target unit for double-extraction baseline"
         input_xml: |
           <?xml version="1.0" encoding="UTF-8"?>
           <xliff xmlns="urn:oasis:names:tc:xliff:document:2.0" version="2.0" srcLang="en" trgLang="fr">

@@ -86,18 +86,23 @@ features:
       Container-only elements (html, body, table, tr, ul) carry no
       text themselves; their textual descendants reach the output via
       the inner block elements.
+    spec_refs:
+      - "HTML Living Standard §4.4 Grouping content (p, h1-h6, li, etc.) (https://html.spec.whatwg.org/multipage/)"
     examples:
       - name: simple_paragraph
+        origin: "authored: minimal <p> inside <html><body>"
         input_xml: '<html><body><p>Hello world</p></body></html>'
         block_count: 1
         first_block_text: "Hello world"
       - name: title_and_paragraph
+        origin: "authored: <title> + <p> exercising head + body extraction"
         input_xml: '<html><head><title>Page Title</title></head><body><p>Body text</p></body></html>'
         block_count: 2
         block_texts:
           - "Page Title"
           - "Body text"
       - name: heading_and_paragraph
+        origin: "authored: <h1> + <p> ordering"
         input_xml: '<html><body><h1>Title</h1><p>Paragraph</p></body></html>'
         block_count: 2
         block_texts:
@@ -122,8 +127,11 @@ features:
       pcOpen/pcClose runs inside the surrounding block, carrying a
       semantic type (fmt:bold, fmt:italic, …) that survives
       translation.
+    spec_refs:
+      - "HTML Living Standard §4.5 Text-level semantics (b, strong, i, em, u, span)"
     examples:
       - name: bold_and_link_in_p
+        origin: "authored: paragraph mixing <b> emphasis and <a href=...> link"
         input_xml: '<p>Click <b>here</b> for <a href="http://example.com">more info</a></p>'
         block_count: 1
         first_block_text: "Click here for more info"
@@ -147,12 +155,16 @@ features:
       not as block boundaries. The block text concatenation skips the
       placeholder content; the structural element is recoverable from
       the run's data attribute.
+    spec_refs:
+      - "HTML Living Standard §13.1.2 Elements — void elements"
     examples:
       - name: br_inside_paragraph
+        origin: "authored: <br/> void element inside paragraph"
         input_xml: '<html><body><p>Test1<br/>Test2</p></body></html>'
         block_count: 1
         first_block_text: "Test1Test2"
       - name: comment_inside_paragraph
+        origin: "authored: HTML comment inside paragraph"
         input_xml: '<p>Before <!--comment--> after.</p>'
         expected_fail: |
           bridge preserves both whitespace runs surrounding the
@@ -181,8 +193,11 @@ features:
       pcOpen/pcClose runs with semantic type link:hyperlink. The
       href attribute is carried verbatim in the run's data field so
       writers can reconstruct the original markup.
+    spec_refs:
+      - "HTML Living Standard §4.5.1 The a element"
     examples:
       - name: anchor_in_text
+        origin: "authored: bare anchor with href in text"
         input_xml: 'see <a href="http://yahoo.com">yahoo</a>'
         block_count: 1
         first_block_text: "see yahoo"
@@ -203,12 +218,16 @@ features:
       twitter:title, twitter:description) emit a referent Block whose
       source text is the content attribute. META elements with
       http-equiv="keywords" follow the same path.
+    spec_refs:
+      - "HTML Living Standard §4.2.5 The meta element (https://html.spec.whatwg.org/multipage/semantics.html#the-meta-element)"
     examples:
       - name: meta_keywords_http_equiv
+        origin: "authored: <meta http-equiv=\"keywords\"> single-element snippet"
         input_xml: '<meta http-equiv="keywords" content="one,two,three"/>'
         block_count: 1
         first_block_text: "one,two,three"
       - name: meta_full_set
+        origin: "authored: page exercising translatable meta names (keywords, description, og:*, twitter:*)"
         input_xml: '<html title="Title html"><meta name="keywords" content="Text1"/><meta name="creation_date" content="May 24, 2001"/><meta name="description" content="Text2"/><meta name="twitter:title" content="Text3"/><meta name="twitter:description" content="Text4"/><meta name="og:title" content="Text5"/><meta name="og:description" content="Text6"/><meta name="og:site_name" content="Text7"/><p>Text8</p>'
         block_count: 9
         has_block_with_text:
@@ -245,13 +264,17 @@ features:
       part with `language` / `encoding` properties rather than a
       translatable Block. lang and xml:lang attributes on any element
       take the same path.
+    spec_refs:
+      - "HTML Living Standard §4.2.5 The meta element (charset / http-equiv) (https://html.spec.whatwg.org/multipage/semantics.html#the-meta-element)"
     examples:
       - name: meta_content_language
+        origin: "authored: <meta http-equiv=\"Content-Language\"> language metadata"
         input_xml: '<meta http-equiv="Content-Language" content="en"/>'
         # No translatable Blocks — the language metadata flows out as
         # a Data part. block_count counts translatable Blocks only.
         block_count: 0
       - name: meta_charset_attribute
+        origin: "authored: <meta charset> encoding metadata"
         input_xml: '<meta charset="ISO-2022-JP">'
         block_count: 0
     okapi_refs:
@@ -277,20 +300,25 @@ features:
       the attribute value and whose Type carries the attribute name.
       The host element still contributes its own block when it has
       text content.
+    spec_refs:
+      - "HTML Living Standard — global title attribute, img/@alt, input/@value, option/@label, input/@placeholder"
     examples:
       - name: title_on_p
+        origin: "authored: <p title=...> referent attribute"
         input_xml: '<p title="Text1">Text2</p>'
         block_count: 2
         has_block_with_text:
           - "Text1"
           - "Text2"
       - name: alt_on_img
+        origin: "authored: <img alt=...> referent attribute"
         input_xml: 'Text1<img alt="Text2"/>.'
         block_count: 2
         has_block_with_text:
           - "Text1."
           - "Text2"
       - name: label_on_option
+        origin: "authored: <option label=...> referent attribute"
         input_xml: 'Text1<option label="Text2"/>.'
         block_count: 3
         has_block_with_text:
@@ -317,14 +345,18 @@ features:
       NOT translatable for hidden / file / radio / checkbox / image
       types whose value is a token rather than a label. Title remains
       translatable in either case.
+    spec_refs:
+      - "HTML Living Standard §4.10.5 The input element — type-specific value semantics"
     examples:
       - name: hidden_value_skipped
+        origin: "authored: <input type=hidden> with non-translatable value + translatable title"
         input_xml: '<input type="hidden" value="hidden-value" title="hidden-title">'
         block_count: 1
         first_block_text: "hidden-title"
         no_block_with_text:
           - "hidden-value"
       - name: submit_value_extracted
+        origin: "authored: <input type=submit> with translatable value + title + alt"
         input_xml: '<input type="submit" value="Submit Form" title="submit-title" alt="submit-alt">'
         block_count: 3
         has_block_with_text:
@@ -332,6 +364,7 @@ features:
           - "submit-title"
           - "submit-alt"
       - name: file_value_skipped
+        origin: "authored: <input type=file> with non-translatable value"
         input_xml: '<input type="file" value="NotText"/>.'
         # Plain "." after the input becomes the only translatable Block;
         # the file-type input contributes nothing.
@@ -358,8 +391,12 @@ features:
       translatable text. Surrounding blocks pass through untouched;
       the non-translatable element is preserved in the surrounding
       content via the writer skeleton.
+    spec_refs:
+      - "HTML Living Standard §4.12.1 The script element (https://html.spec.whatwg.org/multipage/scripting.html#the-script-element)"
+      - "HTML Living Standard §4.2.6 The style element"
     examples:
       - name: script_and_style_between_paragraphs
+        origin: "authored: <p>...</p><script>...</script><style>...</style><p>...</p>"
         input_xml: '<html><body><p>First Text</p><script>var x=1;</script><style>h1{color:red}</style><p>Second Text</p></body></html>'
         block_count: 2
         block_texts:
@@ -385,8 +422,11 @@ features:
       on a descendant re-enables extraction within an excluded
       ancestor. A whole document marked translate="no" yields zero
       translatable Blocks.
+    spec_refs:
+      - "HTML Living Standard §3.2.6.3 The translate attribute (https://html.spec.whatwg.org/multipage/dom.html#the-translate-attribute)"
     examples:
       - name: span_translate_no_inline
+        origin: "authored: inline <span translate='no'> inside paragraph"
         input_xml: "<p>text with a <span translate='no'>no-translation part</span> and more.</p>"
         expected_fail: |
           bridge preserves whitespace surrounding the translate="no"
@@ -399,10 +439,12 @@ features:
         no_block_with_text:
           - "no-translation part"
       - name: nested_yes_inside_no
+        origin: "authored: nested translate='yes' inside translate='no' ancestor"
         input_xml: "<div translate='no'>no <div translate='yes'>trans</div></div>"
         block_count: 1
         first_block_text: "trans"
       - name: all_no_yields_no_blocks
+        origin: "authored: every block element marked translate='no'"
         input_xml: "<div translate=\"no\">Some intefaces</div><p translate=\"no\">can be defined</p>\n"
         block_count: 0
     okapi_refs:
@@ -431,16 +473,21 @@ features:
       characters before extraction. Block text carries the decoded
       character — including supplementary-plane code points expressed
       via single hex references or surrogate pairs.
+    spec_refs:
+      - "HTML Living Standard §13.1.4 Character references (https://html.spec.whatwg.org/multipage/syntax.html#character-references)"
     examples:
       - name: nbsp_and_numeric
+        origin: "authored: &nbsp; named ref + numeric ref in same span"
         input_xml: "&nbsp;M&#x0033;"
         block_count: 1
         first_block_text: " M3"
       - name: lt_amp_gt_nbsp
+        origin: "authored: predefined named entities (&amp;, &lt;, &gt;, &nbsp;)"
         input_xml: "<p>&amp; &lt; &gt; &nbsp;</p>"
         block_count: 1
         first_block_text: "& < >  "
       - name: supplemental_plane
+        origin: "authored: supplementary-plane numeric ref (U+20000) decoding"
         input_xml: "<p>[&#x20000;]=U+D840,U+DC00</p>"
         block_count: 1
         first_block_text: "[\U00020000]=U+D840,U+DC00"
@@ -471,8 +518,11 @@ features:
       whitespace (their PreserveWhitespace flag is set on the Block).
       Setting `parser.preserveWhitespace: true` globally disables
       collapsing for ALL elements, including <p>.
+    spec_refs:
+      - "HTML Living Standard §15.5.4 The pre and listing elements (intrinsic whitespace preservation)"
     examples:
       - name: default_collapse_p_preserve_pre
+        origin: "authored: <p> collapses + <pre> preserves intrinsic whitespace"
         # <p> collapses, <pre> preserves intrinsically.
         input_xml: "<p> t1  \nt2  </p><pre> t3  \nt4  </pre>"
         block_count: 2
@@ -480,6 +530,7 @@ features:
           - "t1 t2"
           - " t3  \nt4  "
       - name: global_preserve_overrides_collapse
+        origin: "authored: same input + parser.preserveWhitespace=true global override"
         input_xml: "<p> t1  \nt2  </p><pre> t3  \nt4  </pre>"
         config:
           parser:
@@ -489,6 +540,7 @@ features:
           - " t1  \nt2  "
           - " t3  \nt4  "
       - name: pre_with_escaped_codes
+        origin: "authored: <pre> with escaped HTML markup that decodes to literal characters"
         input_xml: "<pre>&lt;html&gt;&amp;test&lt;/html&gt;</pre>"
         block_count: 1
         first_block_text: "<html>&test</html>"
@@ -520,20 +572,25 @@ features:
       Go's html.Parse implementation (HTML5 parsing algorithm) without
       raising errors. The reader still produces translatable Blocks
       that match the user's apparent intent.
+    spec_refs:
+      - "HTML Living Standard §13.2 Parsing HTML documents (https://html.spec.whatwg.org/multipage/parsing.html)"
     examples:
       - name: unclosed_paragraphs
+        origin: "authored: HTML5 parser auto-closes <p> on next <p>"
         input_xml: "<p>text1<p>text2"
         block_count: 2
         block_texts:
           - "text1"
           - "text2"
       - name: unquoted_attribute_value
+        origin: "authored: unquoted attribute value (title=unquoted)"
         input_xml: "<p title=unquoted>text</p>"
         block_count: 2
         has_block_with_text:
           - "unquoted"
           - "text"
       - name: unbalanced_inline_tags
+        origin: "authored: <p>text <b>bold<p>next para</p> — unbalanced <b> straddling block boundary"
         input_xml: "<p>text <b>bold<p>next para</p>"
         block_count: 2
         has_block_with_text:
@@ -561,8 +618,11 @@ features:
       (concatenated as `<id>-id`) so translation tools have a stable,
       human-meaningful identifier for the block. The id is also
       preserved on the Block's Properties map.
+    spec_refs:
+      - "HTML Living Standard §3.2.6.1 The id attribute"
     examples:
       - name: id_on_paragraph
+        origin: "authored: <p id=\"logo\"> exercises id-as-block-name"
         input_xml: '<p id="logo">para text in a table element</p>'
         block_count: 1
         first_block_text: "para text in a table element"

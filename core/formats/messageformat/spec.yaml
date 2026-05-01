@@ -65,10 +65,12 @@ features:
         input_xml: "Hello world"
         block_count: 1
         first_block_text: "Hello world"
+        origin: "authored: minimal literal-text pattern with no placeholders"
       - name: longer_sentence
         input_xml: "Just plain text"
         block_count: 1
         first_block_text: "Just plain text"
+        origin: "authored: longer literal phrase, still no placeholders"
       - name: hello_name
         input_xml: "Hello, {name}!"
         # `{name}` becomes a placeholder run; BlockTexts joins the
@@ -76,6 +78,9 @@ features:
         # punctuation.
         block_count: 1
         first_block_text: "Hello, !"
+        origin: "authored: shows BlockTexts joining literal runs around a single placeholder"
+    spec_refs:
+      - "Unicode TR35 §9 MessageFormat — message body / literal text (https://www.unicode.org/reports/tr35/tr35-messageFormat.html)"
     okapi_refs:
       - MessageFormatFilterTest#testEntry
       - MessageFormatFilterTest#testLiterals
@@ -102,14 +107,19 @@ features:
         input_xml: "Hello {0} world"
         block_count: 1
         first_block_text: "Hello  world"
+        origin: "authored: minimal positional `{0}` placeholder with surrounding text"
       - name: named_placeholder
         input_xml: "Hello {name} world"
         block_count: 1
         first_block_text: "Hello  world"
+        origin: "authored: minimal named `{name}` placeholder with surrounding text"
       - name: multiple_placeholders
         input_xml: "{1}Text {foobar}"
         block_count: 1
         first_block_text: "Text "
+        origin: "authored: two placeholders on one line, mixed positional/named"
+    spec_refs:
+      - "Unicode TR35 §9 MessageFormat — placeholders / argNameOrNumber (https://www.unicode.org/reports/tr35/tr35-messageFormat.html)"
     okapi_refs:
       - MessageFormatFilterTest#testCode1
       - MessageFormatFilterTest#testCode2
@@ -133,38 +143,49 @@ features:
         input_xml: "There are {0,number,integer} files."
         block_count: 1
         first_block_text: "There are  files."
+        origin: "authored: `number,integer` style — most common typed-arg form"
       - name: date_short
         input_xml: "The date is {0,date,short}."
         block_count: 1
         first_block_text: "The date is ."
+        origin: "authored: `date,short` style"
       - name: time_default
         input_xml: "The time is {0,time}."
         block_count: 1
         first_block_text: "The time is ."
+        origin: "authored: `time` typed arg with default style (no third component)"
       - name: number_pattern
         input_xml: "Value is {0,number,#,###}."
         block_count: 1
         first_block_text: "Value is ."
+        origin: "authored: `number` with explicit ICU pattern style `#,###`"
       - name: number_currency
         input_xml: "The price is {price, number, currency}."
         block_count: 1
         first_block_text: "The price is ."
+        origin: "authored: `number,currency` style with whitespace around commas"
       - name: number_percent
         input_xml: "You saved {discount, number, percent}."
         block_count: 1
         first_block_text: "You saved ."
+        origin: "authored: `number,percent` style"
       - name: spellout
         input_xml: "You came in {place, spellout} place."
         block_count: 1
         first_block_text: "You came in  place."
+        origin: "authored: `spellout` typed arg"
       - name: duration
         input_xml: "Meeting starts in {duration, duration}"
         block_count: 1
         first_block_text: "Meeting starts in "
+        origin: "authored: `duration` typed arg"
       - name: mixed_typed_args
         input_xml: "On {0,date} at {0,time}, there was {1} on planet {2,number}."
         block_count: 1
         first_block_text: "On  at , there was  on planet ."
+        origin: "authored: four typed/untyped args mixed in one line, exercises positional reuse"
+    spec_refs:
+      - "Unicode TR35 §9 MessageFormat — typed placeholders (number / date / time / spellout / duration) (https://www.unicode.org/reports/tr35/tr35-messageFormat.html)"
     okapi_refs:
       - MessageFormatFilterTest#testCode3
       - MessageFormatFilterTest#testCode4
@@ -199,6 +220,7 @@ features:
         block_texts:
           - " item"
           - " items"
+        origin: "authored: minimal English plural pattern (one/other)"
       - name: with_zero_branch
         input_xml: "{count, plural, =0 {no files} one {# file} other {# files}}"
         block_count: 3
@@ -206,6 +228,7 @@ features:
           - "no files"
           - " file"
           - " files"
+        origin: "authored: explicit `=0` selector plus keyword branches"
       - name: many_keyword_forms
         input_xml: "{count, plural, zero {no items} one {# item} two {# items} few {# items} many {# items} other {# items}}"
         block_count: 6
@@ -216,6 +239,7 @@ features:
           - " items"
           - " items"
           - " items"
+        origin: "authored: every CLDR plural keyword present so each branch extracts as a Block"
       - name: explicit_and_keyword_forms
         input_xml: "{count, plural, =0 {no files} =1 {one file} one {# file} other {# files}}"
         block_count: 4
@@ -224,12 +248,17 @@ features:
           - "one file"
           - " file"
           - " files"
+        origin: "authored: mixes `=N` selectors with keyword selectors in one picker"
       - name: there_are_n_items
         input_xml: "{count, plural, one {one item} other {# items}}"
         block_count: 2
         block_texts:
           - "one item"
           - " items"
+        origin: "authored: branch body without `#` to verify literal-only branches still extract"
+    spec_refs:
+      - "Unicode TR35 §9 MessageFormat — plural picker / `pluralStyle` (https://www.unicode.org/reports/tr35/tr35-messageFormat.html)"
+      - "Unicode TR35 §5 Language Plural Rules — keyword vocabulary (zero/one/two/few/many/other) (https://www.unicode.org/reports/tr35/tr35-numbers.html#Language_Plural_Rules)"
     okapi_refs:
       - MessageFormatFilterTest#testPluralNames
       - MessageFormatFilterTest#testPluralNames2
@@ -269,6 +298,7 @@ features:
           - "Just "
           - " and one other"
           - " and  others"
+        origin: "authored: `offset:1` plus `=N` and keyword branches; one branch contains `{0}` arg, others use `#`"
       - name: offset_two
         input_xml: "{n, plural, offset:2 =0 {No (#) trains are available} one {# train is available} other {# trains are available}}"
         block_count: 3
@@ -276,6 +306,9 @@ features:
           - "No () trains are available"
           - " train is available"
           - " trains are available"
+        origin: "authored: `offset:2` with `#` token in literal context (parenthesised) and standalone"
+    spec_refs:
+      - "Unicode TR35 §9 MessageFormat — pluralStyle / `offset:N` and `#` substitution (https://www.unicode.org/reports/tr35/tr35-messageFormat.html)"
     okapi_refs:
       - MessageFormatFilterTest#testOffset
       - MessageFormatParserTest#testOffset
@@ -302,6 +335,7 @@ features:
           - "He likes this"
           - "She likes this"
           - "They like this"
+        origin: "authored: canonical gender select with male/female/other branches"
       - name: gender_short_branches
         input_xml: "{gender, select, male {He} female {She} other {They}}"
         block_count: 3
@@ -309,6 +343,7 @@ features:
           - "He"
           - "She"
           - "They"
+        origin: "authored: short branch bodies (one word each) to verify minimal extraction"
       - name: color_select
         input_xml: "{color, select, red {The color is red.} blue {The color is blue.} green {The color is green.} other {The color is unknown.}}"
         block_count: 4
@@ -317,6 +352,9 @@ features:
           - "The color is blue."
           - "The color is green."
           - "The color is unknown."
+        origin: "authored: arbitrary application-specific keywords (red/blue/green) — proves keyword vocabulary isn't restricted to gender"
+    spec_refs:
+      - "Unicode TR35 §9 MessageFormat — selectStyle (https://www.unicode.org/reports/tr35/tr35-messageFormat.html)"
     okapi_refs:
       - MessageFormatFilterTest#testGenderNames
       - MessageFormatParserTest#testSelectMessage
@@ -349,6 +387,7 @@ features:
           - "nd"
           - "rd"
           - "th"
+        origin: "authored: English ordinal suffixes (1st/2nd/3rd/4th) one per branch"
       - name: ordinal_with_text
         input_xml: "{count, selectordinal, one {#st place} two {#nd place} few {#rd place} other {#th place}}"
         block_count: 4
@@ -357,6 +396,10 @@ features:
           - "nd place"
           - "rd place"
           - "th place"
+        origin: "authored: ordinal suffixes plus literal trailing word in each branch"
+    spec_refs:
+      - "Unicode TR35 §9 MessageFormat — selectordinal style (https://www.unicode.org/reports/tr35/tr35-messageFormat.html)"
+      - "Unicode TR35 §5 Language Plural Rules — ordinal categories (https://www.unicode.org/reports/tr35/tr35-numbers.html#Language_Plural_Rules)"
     okapi_refs:
       - MessageFormatFilterTest#testSelectOrdinal
       - MessageFormatParserTest#testSelectOrdinalMessage
@@ -387,6 +430,7 @@ features:
           - " items"
           - " item"
           - " items"
+        origin: "authored: gender select wrapping a plural per branch — only the 6 leaf bodies extract"
       - name: two_pickers_side_by_side
         input_xml: "{gender, select, male {He} female {She} other {They}} bought {count, plural, one {# item} other {# items}}."
         block_count: 5
@@ -396,6 +440,9 @@ features:
           - "They"
           - " item"
           - " items"
+        origin: "authored: two adjacent pickers (not nested) on one line — verifies sequential extraction"
+    spec_refs:
+      - "Unicode TR35 §9 MessageFormat — pickers nest within branch bodies (https://www.unicode.org/reports/tr35/tr35-messageFormat.html)"
     okapi_refs:
       - MessageFormatFilterTest#testEmbeddedPluralNames
       - MessageFormatFilterTest#testMultipleEmbedded
@@ -431,24 +478,31 @@ features:
         input_xml: "It''s a test"
         block_count: 1
         first_block_text: "It's a test"
+        origin: "authored: doubled-apostrophe escape decodes to a single apostrophe"
       - name: deep_quoted_apostrophes
         input_xml: "It''s ''deeply'' ''nested'' text"
         block_count: 1
         first_block_text: "It's 'deeply' 'nested' text"
+        origin: "authored: multiple apostrophe escapes in one pattern"
       - name: quoted_braces
         input_xml: "Use '{' and '}' for placeholders"
         block_count: 1
         first_block_text: "Use { and } for placeholders"
+        origin: "authored: `'{'` / `'}'` quoted braces decode to literal braces, not picker syntax"
       - name: quoted_text_passage
         input_xml: "Text with 'quoted' content"
         block_count: 1
         first_block_text: "Text with quoted content"
+        origin: "authored: `'quoted'` passage decodes by stripping the surrounding apostrophes"
       - name: mixed_quoting_in_plural
         input_xml: "{count, plural, one {It''s # item} other {It''s # items}}"
         block_count: 2
         block_texts:
           - "It's  item"
           - "It's  items"
+        origin: "authored: doubled-apostrophe escape inside a plural branch body"
+    spec_refs:
+      - "Unicode TR35 §9 MessageFormat — quoting / `'` escape semantics (https://www.unicode.org/reports/tr35/tr35-messageFormat.html)"
     okapi_refs:
       - MessageFormatFilterTest#testOneQuote
       - MessageFormatFilterTest#testQuotedQuote
@@ -489,12 +543,14 @@ features:
         block_texts:
           - "Line 1"
           - "Line 2"
+        origin: "authored: two literal patterns separated by LF"
       - name: two_literal_lines_crlf
         input_xml: "Line 1\r\nLine 2\r\n"
         block_count: 2
         block_texts:
           - "Line 1"
           - "Line 2"
+        origin: "authored: two literal patterns separated by CRLF — verifies trailing `\\r` is stripped"
       - name: literal_then_plural_pattern
         input_xml: "Hello world\n{count, plural, one {# item} other {# items}}\n"
         block_count: 3
@@ -502,6 +558,10 @@ features:
           - "Hello world"
           - " item"
           - " items"
+        origin: "authored: mixes a literal-text line with a plural-picker line on the next line"
+    # Per-line splitting is a neokapi/Okapi reader contract — TR35 #9
+    # describes a single message body, not multi-line file framing — so
+    # no spec_refs here.
     okapi_refs:
       - MessageFormatFilterTest#testLineBreaks_LF
       - MessageFormatFilterTest#testineBreaks_CRLF
@@ -531,6 +591,7 @@ features:
           - " файла"
           - " файлов"
           - " файлов"
+        origin: "authored: Russian uses one/few/many/other plural categories per CLDR rules"
       - name: russian_with_zero_and_keywords
         input_xml: "{members, plural, =0 {Нет доступных членов} one {Есть один член.} few {Имеется # члена.} many {Есть # членов.} other {# члена.}}"
         block_count: 5
@@ -540,6 +601,9 @@ features:
           - "Имеется  члена."
           - "Есть  членов."
           - " члена."
+        origin: "authored: Russian message with explicit `=0` plus the four CLDR Russian plural keywords"
+    spec_refs:
+      - "Unicode TR35 §5 Language Plural Rules — per-locale keyword vocabulary (https://www.unicode.org/reports/tr35/tr35-numbers.html#Language_Plural_Rules)"
     okapi_refs:
       - MessageFormatFilterTest#testPluralNames3
       - MessageFormatParserTest#testRussian
@@ -578,12 +642,16 @@ features:
           runner notes the divergence between "no blocks" and the
           assertion's implicit "at least one block".
         block_count: 0
+        origin: "authored: Java's deprecated `choice` format must be rejected — TR35 #9 omits it from `argType`"
       - name: unterminated_picker
         input_xml: "{unterminated, plural,"
         expected_fail: |
           Syntactically broken pickers raise a parse error before any
           blocks are emitted; same pattern as choice_format_rejected.
         block_count: 0
+        origin: "authored: truncated picker has no closing brace — verifies syntactic-error path"
+    spec_refs:
+      - "Unicode TR35 §9 MessageFormat — `argType` enumeration omits `choice`; well-formedness implies parse errors on truncated patterns (https://www.unicode.org/reports/tr35/tr35-messageFormat.html)"
     okapi_refs:
       - MessageFormatFilterTest#testInvalid
       - MessageFormatParserTest#testInvalidMessageFormat

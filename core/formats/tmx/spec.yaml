@@ -108,8 +108,11 @@ features:
       becomes the Source; remaining TUVs become Target segments keyed
       by their `xml:lang`. Block ID and Name come from the `tuid`
       attribute when present.
+    spec_refs:
+      - "TMX 1.4b spec — <tu> / <tuv> / <seg> elements (LISA legacy, GALA-maintained)"
     examples:
       - name: simple_bilingual
+        origin: "authored: minimal TMX 1.4 with one bilingual <tu>"
         input_xml: |
           <?xml version="1.0"?>
           <tmx version="1.4">
@@ -121,6 +124,7 @@ features:
         block_count: 1
         first_block_text: "Hello World!"
       - name: file_two_tus
+        origin: "authored: testdata/simple.tmx — two-TU baseline fixture"
         input_file: testdata/simple.tmx
         block_count: 2
         block_texts:
@@ -141,8 +145,11 @@ features:
       Block whose Targets map carries every additional language. With
       the default `processAllTargets: true` all targets are kept; the
       block source is the TUV matching `srclang`.
+    spec_refs:
+      - "TMX 1.4b spec — multilingual <tu> with multiple <tuv> children"
     examples:
       - name: three_targets
+        origin: "authored: <tu> with en-us source + fr/de/it targets"
         # bridge bug — Okapi TmxFilter normalizes srclang="en-us" to "en"
         # internally and then requires a <tuv> with exactly that
         # normalized code, rejecting "en-us" with OkapiBadFilterInputException.
@@ -182,8 +189,11 @@ features:
       legacy TMX 1.1 `lang` attribute on `<tuv>`. When both appear on
       the same TUV, `xml:lang` wins. TMX 1.1 documents (no `xml:lang`,
       only `lang`) parse as multilingual just like 1.4.
+    spec_refs:
+      - "TMX 1.4b spec — `xml:lang` (1.4) and legacy `lang` (1.1) attributes on <tuv>"
     examples:
       - name: tmx_1_1_lang_attr
+        origin: "authored: TMX 1.1 document using legacy `lang` attribute"
         # bridge bug — Okapi TmxFilter normalizes srclang="en-us" to "en"
         # and then rejects TUs whose <tuv> uses "en-us" rather than the
         # normalized "en". Native applies relaxed en ↔ en-US matching
@@ -204,6 +214,7 @@ features:
         block_count: 1
         first_block_text: "Hello World!"
       - name: xml_lang_wins_over_lang
+        origin: "authored: <tuv> with both xml:lang and lang attributes"
         # bridge bug — Okapi TmxFilter normalizes srclang="en-us" to "en"
         # and rejects the TU because no <tuv xml:lang="en"> matches the
         # normalized source. Native applies relaxed en ↔ en-US matching
@@ -236,8 +247,11 @@ features:
       property keyed by `X`. XML entity escapes in TU/TUV attribute
       values (e.g. `tuid="id&amp;1"`) are decoded to their literal
       characters before reaching the Block.
+    spec_refs:
+      - "TMX 1.4b spec — <note> and <prop> child elements of <tu>"
     examples:
       - name: prop_and_note
+        origin: "authored: TU with <note> and <prop type=\"x-Domain\">"
         input_xml: |
           <?xml version="1.0"?>
           <tmx version="1.4">
@@ -249,6 +263,7 @@ features:
         block_count: 1
         first_block_text: "source"
       - name: duplicate_props_last_wins
+        origin: "authored: TU with two <prop type=\"x-Domain\"> entries (duplicate handling)"
         # Native reader keeps the last duplicate `<prop type="X">` value;
         # Okapi joins duplicates with `propValueSep` (default ", "). The
         # divergence is tracked here against the upstream test so the
@@ -265,6 +280,7 @@ features:
         block_count: 1
         first_block_text: "dup"
       - name: tu_attribute_escaping
+        origin: "authored: tuid=\"id&amp;1\" exercises XML entity decoding in attributes"
         input_xml: |
           <?xml version="1.0"?>
           <tmx version="1.4">
@@ -289,8 +305,11 @@ features:
       header attributes (version, srclang, adminlang, datatype,
       segtype, o-tmf, creationtool) plus any `<note>` (joined into a
       `notes` property) and `<prop type="X">` (keyed `prop:X`).
+    spec_refs:
+      - "TMX 1.4b spec — <header> element + standard attributes (srclang, adminlang, segtype, o-tmf, datatype)"
     examples:
       - name: header_with_note_and_prop
+        origin: "authored: full <header> with attributes, <note>, and <prop>"
         # bridge bug — Okapi TmxFilter normalizes srclang="en-us" to "en"
         # and rejects the TU because no <tuv xml:lang="en"> matches the
         # normalized source. Native applies relaxed en ↔ en-US matching
@@ -326,8 +345,11 @@ features:
       becomes a placeholder. `<hi>` produces an open span, the
       highlighted text, and a close span. The Block source text
       strips inline-code data and only carries the textual content.
+    spec_refs:
+      - "TMX 1.4b spec — inline elements <bpt>/<ept>, <ph>, <it>, <hi>"
     examples:
       - name: bpt_ept_pair
+        origin: "authored: paired <bpt>/<ept> wrapping bold text in source + target"
         input_xml: |
           <?xml version="1.0"?>
           <tmx version="1.4">
@@ -339,6 +361,7 @@ features:
         block_count: 1
         first_block_text: "Hello bold world"
       - name: isolated_codes
+        origin: "authored: source-only TU exercising <it pos=\"end\">/<ph>/<it pos=\"begin\">"
         # Single TUV (source-only) — no targets; the seg text strips the
         # `<it>` and `<ph>` data leaving only the literal characters
         # plus the surrounding spaces.
@@ -366,8 +389,11 @@ features:
       `&quot;`) are decoded to their literal characters in the
       Block's source text. Numeric character references (decimal and
       hex) decode to the corresponding Unicode code point.
+    spec_refs:
+      - "W3C XML 1.0 §4.6 Predefined Entities (TMX inherits XML escape rules)"
     examples:
       - name: standard_entities
+        origin: "authored: TU with all four predefined XML entities in <seg>"
         input_xml: |
           <?xml version="1.0"?>
           <tmx version="1.4">
@@ -379,6 +405,7 @@ features:
         block_count: 1
         first_block_text: "Test & < > \""
       - name: less_than_round_trip
+        origin: "authored: <seg> with `&lt;` for round-trip < verification"
         input_xml: |
           <?xml version="1.0" encoding="UTF-8"?>
           <tmx version="1.4">
@@ -405,8 +432,11 @@ features:
       text. The Block exposes the target text under the TUV language;
       target-side `<prop>` falls onto the Block's properties map
       (collapsed across TUVs in the current reader).
+    spec_refs:
+      - "TMX 1.4b spec — <tuv> attributes (creationdate, creationid, changedate, changeid)"
     examples:
       - name: tuv_metadata
+        origin: "authored: <tuv> with creationdate/creationid/changedate/changeid + per-TUV <prop>"
         input_xml: |
           <?xml version="1.0"?>
           <tmx version="1.4">
@@ -431,8 +461,11 @@ features:
       root element does not block parsing — the reader runs in
       tolerant mode (XML decoder Strict=false) so external DTDs are
       effectively ignored.
+    spec_refs:
+      - "TMX 1.4b spec — DOCTYPE / external DTD reference convention"
     examples:
       - name: external_dtd_ref
+        origin: "authored: TMX with <!DOCTYPE tmx SYSTEM \"tmx14.dtd\"> declaration"
         input_xml: |
           <?xml version="1.0"?>
           <!DOCTYPE tmx SYSTEM "tmx14.dtd">

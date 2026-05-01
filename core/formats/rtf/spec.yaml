@@ -57,8 +57,11 @@ features:
       Each \\par control word terminates a paragraph; the accumulated
       run text is emitted as one translatable Block. Multiple
       paragraphs in a document yield Blocks in document order.
+    spec_refs:
+      - "Microsoft RTF 1.9.1 specification — \\par paragraph control word"
     examples:
       - name: two_paragraphs
+        origin: "authored: minimal RTF document with two \\par-terminated paragraphs"
         input_xml: "{\\rtf1\\ansi\\deff0\n\\pard Hello world.\\par\n\\pard Second paragraph.\\par\n}"
         expected_fail: |
           bridge feature difference — Okapi RTFFilter is the Trados-
@@ -72,6 +75,7 @@ features:
           - "Hello world."
           - "Second paragraph."
       - name: simple_file
+        origin: "authored: testdata/simple.rtf — three-paragraph baseline + bold formatting"
         input_file: testdata/simple.rtf
         expected_fail: |
           bridge feature difference — Okapi RTFFilter expects Trados-
@@ -99,8 +103,11 @@ features:
       paragraph's run sequence. The text on either side of the toggle
       stays in the same Block — the formatting is a span within the
       paragraph, not a paragraph break.
+    spec_refs:
+      - "Microsoft RTF 1.9.1 specification — character formatting properties (\\b, \\i, \\ul)"
     examples:
       - name: bold_inside_paragraph
+        origin: "authored: paragraph with \\b ... \\b0 toggle around inline word"
         input_xml: "{\\rtf1\\ansi\\deff0\n\\pard Normal and \\b bold\\b0  text.\\par\n}"
         expected_fail: |
           bridge feature difference — Okapi RTFFilter (Trados-tagged)
@@ -124,8 +131,11 @@ features:
       The reader skips these destination groups so font names, color
       definitions, style names, and document properties don't leak
       into Blocks.
+    spec_refs:
+      - "Microsoft RTF 1.9.1 specification — header destinations (\\fonttbl, \\colortbl, \\stylesheet, \\info)"
     examples:
       - name: font_table
+        origin: "authored: RTF with \\fonttbl destination preceding paragraph"
         input_xml: "{\\rtf1\\ansi\\deff0\n{\\fonttbl{\\f0 Times New Roman;}{\\f1 Arial;}}\n\\pard Translatable text.\\par\n}"
         expected_fail: |
           bridge feature difference — Okapi RTFFilter (Trados-tagged)
@@ -138,6 +148,7 @@ features:
           - "Times New Roman"
           - "Arial"
       - name: color_table
+        origin: "authored: RTF with \\colortbl destination preceding paragraph"
         input_xml: "{\\rtf1\\ansi\\deff0\n{\\colortbl;\\red255\\green0\\blue0;}\n\\pard Visible text.\\par\n}"
         expected_fail: |
           bridge feature difference — Okapi RTFFilter (Trados-tagged)
@@ -147,6 +158,7 @@ features:
         block_count: 1
         first_block_text: "Visible text."
       - name: stylesheet
+        origin: "authored: RTF with \\stylesheet destination preceding paragraph"
         input_xml: "{\\rtf1\\ansi\\deff0\n{\\stylesheet{\\s0 Normal;}}\n\\pard Body text here.\\par\n}"
         expected_fail: |
           bridge feature difference — Okapi RTFFilter (Trados-tagged)
@@ -158,6 +170,7 @@ features:
         no_block_with_text:
           - "Normal"
       - name: info_group
+        origin: "authored: RTF with \\info group (title + author) preceding body"
         input_xml: "{\\rtf1\\ansi\\deff0\n{\\info{\\title Document Title}{\\author Yves}}\n\\pard Real body content.\\par\n}"
         expected_fail: |
           bridge feature difference — Okapi RTFFilter (Trados-tagged)
@@ -185,8 +198,11 @@ features:
       \\'HH decodes a single byte (Windows-1252 in the typical case);
       \\{, \\}, and \\\\ produce literal braces and backslash. All
       decoded characters land inside the surrounding paragraph Block.
+    spec_refs:
+      - "Microsoft RTF 1.9.1 specification — \\uN Unicode + \\'HH hex byte escapes"
     examples:
       - name: unicode_uN
+        origin: "authored: \\u233? Unicode escape (é) with ANSI fallback"
         # \u233 is é (U+00E9). The trailing '?' is the legacy ANSI
         # fallback character that follows \uN; the reader emits the
         # Unicode glyph but keeps the fallback in the block text per
@@ -201,6 +217,7 @@ features:
           - "Caf"
           - "é"
       - name: hex_HH
+        origin: "authored: \\'e9 Windows-1252 hex byte (decodes to é)"
         # \'e9 is é in Windows-1252; the reader maps the byte to the
         # corresponding rune.
         input_xml: "{\\rtf1\\ansi\\deff0\n\\pard Caf\\'e9.\\par\n}"
@@ -212,6 +229,7 @@ features:
         has_block_with_text:
           - "Caf"
       - name: escaped_braces_and_backslash
+        origin: "authored: literal \\{, \\}, and \\\\ escapes in paragraph text"
         input_xml: "{\\rtf1\\ansi\\deff0\n\\pard Curly \\{ braces \\} and backslash \\\\.\\par\n}"
         expected_fail: |
           bridge feature difference — Okapi RTFFilter (Trados-tagged)
@@ -239,8 +257,11 @@ features:
       \\emdash → U+2014, \\endash → U+2013, \\lquote → U+2018,
       \\rquote → U+2019, \\ldblquote → U+201C, \\rdblquote → U+201D,
       \\bullet → U+2022.
+    spec_refs:
+      - "Microsoft RTF 1.9.1 specification — special character control words (\\tab, \\emdash, \\lquote, …)"
     examples:
       - name: emdash_and_tab
+        origin: "authored: paragraphs exercising \\emdash and \\tab control words"
         input_xml: "{\\rtf1\\ansi\\deff0\n\\pard Left\\emdash Right.\\par\n\\pard Tab\\tab here.\\par\n}"
         expected_fail: |
           bridge feature difference — Okapi RTFFilter (Trados-tagged)
@@ -252,6 +273,7 @@ features:
           - "Left—Right."
           - "Tab\there."
       - name: smart_quotes
+        origin: "authored: \\lquote/\\rquote/\\ldblquote/\\rdblquote smart-quote control words"
         input_xml: "{\\rtf1\\ansi\\deff0\n\\pard \\lquote single\\rquote and \\ldblquote double\\rdblquote quotes.\\par\n}"
         expected_fail: |
           bridge feature difference — Okapi RTFFilter (Trados-tagged)
@@ -275,8 +297,11 @@ features:
       carries the rtf format id so downstream tools can route on
       format. Verifies the document scaffolding mirrors Okapi's
       StartDocument / EndDocument event pair.
+    # Document scaffolding is a neokapi pipeline contract, not a
+    # property of the RTF specification itself — no spec_refs.
     examples:
       - name: minimal_layer_wrap
+        origin: "authored: smallest valid RTF document for layer-envelope smoke check"
         input_xml: "{\\rtf1\\ansi\\deff0\n\\pard Hello.\\par\n}"
         expected_fail: |
           bridge feature difference — Okapi RTFFilter (Trados-tagged)

@@ -133,16 +133,22 @@ features:
       translatable Block whose source is "value" and whose name is
       "key". Plain, single-quoted, and double-quoted scalar styles
       all extract the same source text.
+    spec_refs:
+      - "YAML 1.2.2 §7.3 Flow Scalar Styles (https://yaml.org/spec/1.2.2/)"
+      - "YAML 1.2.2 §2.1 Collections"
     examples:
       - name: simple_pair
+        origin: "authored: minimal YAML 1.2.2 §2.1 mapping"
         input_xml: "title: My Rails Website\n"
         block_count: 1
         first_block_text: "My Rails Website"
       - name: nested_under_root
+        origin: "authored: nested mapping under a root key"
         input_xml: "config:\n  title: \"My Rails Website\"\n"
         block_count: 1
         first_block_text: "My Rails Website"
       - name: three_quoting_styles
+        origin: "authored: YAML 1.2.2 §7.3 three flow scalar styles (plain/single/double)"
         input_xml: "single: 'one'\ndouble: \"two\"\nplain: three\n"
         block_count: 3
         block_texts: ["one", "two", "three"]
@@ -166,8 +172,11 @@ features:
       Block's name carrying the dotted path from the document root
       (e.g. `en.activerecord.errors.messages.blank`). Container keys
       have no translatable text themselves.
+    spec_refs:
+      - "YAML 1.2.2 §8.2.2 Block Mappings (https://yaml.org/spec/1.2.2/)"
     examples:
       - name: rails_compact_locale
+        origin: "real-world: Rails locale file shape (en.activerecord.errors.messages.*)"
         input_xml: |
           en:
             activerecord:
@@ -180,6 +189,7 @@ features:
           - "can't be blank"
           - "has already been taken"
       - name: deep_nesting
+        origin: "authored: three-level nested mapping"
         input_xml: "root:\n  level1:\n    level2: deep value\n"
         block_count: 1
         first_block_text: "deep value"
@@ -201,16 +211,22 @@ features:
       (e.g. `items.[0]`). Both block-style (`- item`) and flow-style
       (`[a, b, c]`) sequences extract the same way; quote styles
       survive the trip.
+    spec_refs:
+      - "YAML 1.2.2 §8.2.1 Block Sequences (https://yaml.org/spec/1.2.2/)"
+      - "YAML 1.2.2 §7.4.1 Flow Sequences"
     examples:
       - name: block_sequence
+        origin: "authored: YAML 1.2.2 §8.2.1 block-style sequence"
         input_xml: "items:\n  - test1\n  - test2\n"
         block_count: 2
         block_texts: ["test1", "test2"]
       - name: flow_sequence
+        origin: "authored: YAML 1.2.2 §7.4.1 flow-style sequence"
         input_xml: "items: [one, two, three]\n"
         block_count: 3
         block_texts: ["one", "two", "three"]
       - name: quoted_sequence
+        origin: "authored: block sequence with single-quoted scalar items"
         input_xml: "items:\n  - 'First'\n  - 'Second'\n  - 'Third'\n"
         block_count: 3
         block_texts: ["First", "Second", "Third"]
@@ -232,14 +248,18 @@ features:
       identical to block style — the native reader extracts the same
       Blocks, including from nested flow structures. Verifies the
       compact JSON-like notation flows through the same code path.
+    spec_refs:
+      - "YAML 1.2.2 §7.4 Flow Collection Styles (https://yaml.org/spec/1.2.2/)"
     examples:
       - name: flow_mapping
+        origin: "authored: YAML 1.2.2 §7.4.2 flow mapping"
         input_xml: "person: {name: Alice, role: Developer}\n"
         block_count: 2
         block_texts: ["Alice", "Developer"]
       - name: flow_strings_only
         # `age: 33` is a number — non-string scalars are skipped at
         # the reader's default config, so only the name flows through.
+        origin: "authored: flow mapping with mixed string + numeric scalars"
         input_xml: "person: {name: John Smith, age: 33}\n"
         expected_fail: |
           bridge segments flow-style mappings at finer granularity
@@ -265,8 +285,12 @@ features:
       Either way the scalar produces one Block whose source carries
       the decoded multi-line text. Chomp indicators (`|-`, `|+`)
       tweak trailing-newline handling.
+    spec_refs:
+      - "YAML 1.2.2 §8.1.2 Literal Style (https://yaml.org/spec/1.2.2/)"
+      - "YAML 1.2.2 §8.1.3 Folded Style"
     examples:
       - name: literal_block
+        origin: "authored: YAML 1.2.2 §8.1.2 literal block scalar (newlines preserved)"
         input_xml: "literal: |\n  Line 1\n  Line 2\n"
         expected_fail: |
           bridge bug — Okapi YmlFilter loses newlines in literal
@@ -281,6 +305,7 @@ features:
         # uses inconsistent indentation that yaml.v3 rejects; the
         # native-equivalent here uses consistent indentation and
         # asserts the same strip-chomp behavior (no trailing `\n`).
+        origin: "authored: YAML 1.2.2 §8.1.2 literal scalar with strip-chomp (`|-`)"
         input_xml: "long_line: |-\n  This is a\n  very long line.\n"
         expected_fail: |
           bridge bug — same multiline-block-scalar newline loss as
@@ -291,6 +316,7 @@ features:
         block_count: 1
         first_block_text: "This is a\nvery long line."
       - name: folded_block_joins
+        origin: "authored: YAML 1.2.2 §8.1.3 folded block scalar (newlines → spaces)"
         input_xml: "folded: >\n  Joined\n  text\n"
         expected_fail: |
           bridge bug — folded (`>`) scalar should join continuation
@@ -319,8 +345,11 @@ features:
       Native reader walks the alias target node directly (via
       yaml.v3's Node.Alias), matching the Okapi behavior of
       extracting at every node occurrence.
+    spec_refs:
+      - "YAML 1.2.2 §3.2.2.2 Anchors and Aliases (https://yaml.org/spec/1.2.2/)"
     examples:
       - name: scalar_anchor_alias
+        origin: "authored: YAML 1.2.2 §3.2.2.2 scalar anchor + alias"
         input_xml: "base_url: &url https://example.com\napi_url: *url\n"
         expected_fail: |
           bridge segments anchor/alias references at coarser
@@ -352,8 +381,11 @@ features:
       source order. Verifies the native decoder loops on
       yaml.v3.Decoder until io.EOF rather than stopping at the first
       document.
+    spec_refs:
+      - "YAML 1.2.2 §9 Character Stream (https://yaml.org/spec/1.2.2/)"
     examples:
       - name: two_simple_docs
+        origin: "authored: YAML 1.2.2 §9 multi-document stream with `---` separators"
         input_xml: "---\ntitle: Document One\n---\ntitle: Document Two\n"
         block_count: 2
         block_texts: ["Document One", "Document Two"]
@@ -370,12 +402,16 @@ features:
       the scalar value. The Block source carries only the value text;
       the comment lives in skeleton. Verified upstream as the round
       trip preserving comments while keeping them out of the source.
+    spec_refs:
+      - "YAML 1.2.2 §6.6 Comments (https://yaml.org/spec/1.2.2/)"
     examples:
       - name: hash_comment_after_value
+        origin: "authored: YAML 1.2.2 §6.6 trailing # comment after scalar"
         input_xml: "key: value # this is a comment\n"
         block_count: 1
         first_block_text: "value"
       - name: comment_after_nested_value
+        origin: "authored: trailing # comment after nested scalar"
         input_xml: "parent:\n  key: value # comment\n"
         block_count: 1
         first_block_text: "value"
@@ -397,8 +433,11 @@ features:
       rules) tags them as inline codes; the native reader keeps them
       as plain text under default config. Source text is identical
       either way; only the inline-code annotation differs.
+    # `{{...}}` placeholders are an application-layer convention
+    # (Mustache/Handlebars), not part of the YAML spec — no spec_refs.
     examples:
       - name: mustache_placeholder
+        origin: "authored: scalar with mustache-style `{{count}}` placeholder"
         input_xml: "config:\n  title: \"My {{count}} Rails Website\"\n"
         expected_fail: |
           bridge default config treats `{{count}}` as inline code
@@ -424,12 +463,16 @@ features:
       Okapi subfilter wiring); the native reader's contract is that
       the visible text is reachable via Block source regardless.
       Issue556 is the canonical Okapi corpus for this behavior.
+    # Subfilter wiring is an Okapi-side convention layered on YAML;
+    # the YAML spec itself doesn't say anything about embedded formats.
     examples:
       - name: link_in_value
+        origin: "okapi-fixture: YmlFilterTest#testSubfiltering (HTML link in scalar)"
         input_xml: "html: \"Visit <a href=\\\"http://www.google.com\\\">Google</a>\"\n"
         block_count: 1
         has_block_with_text: ["Visit"]
       - name: literal_block_html
+        origin: "okapi-fixture: YmlFilterTest#testSubFilterProcessLiteralAsBlock"
         input_xml: |
           not_literal: not literal
           literal_html: |
