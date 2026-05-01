@@ -1,0 +1,88 @@
+# SRT (SubRip) format specification.
+#
+# SubRip is a de-facto subtitle format with no formal RFC. Each cue is:
+#   <sequence-number>
+#   HH:MM:SS,mmm --> HH:MM:SS,mmm
+#   <one-or-more-lines-of-text>
+#   <blank line>
+#
+# Native-only filter: the okapi-bridge daemon does not ship a dedicated
+# okf_subrip filter. Upstream Okapi handles SubRip via okf_regex with a
+# format-specific rule pack, so there's no apples-to-apples bridge to
+# parity-test against. The native reader carries the contract; this
+# spec exercises the always-on native runner only. No
+# `cli/parity/formats/srt_spec_test.go` is added.
+#
+# Authoring notes:
+#   - input_xml carries inline SRT snippets (the field is named for XML
+#     historically; it just holds raw text bytes for any text format).
+#   - Block.SourceText preserves intra-cue line breaks (LF) verbatim,
+#     same convention as paraplaintext (#531).
+
+format: okf_subrip
+kind: top_level
+mime_type: application/x-subrip
+description: |
+  SubRip (.srt) subtitle filter. Each cue (sequence number + timecode
+  range + text) yields one translatable Block whose source text is the
+  cue body — multi-line cue bodies retain inner LF line breaks. The
+  sequence number and timecode line are non-translatable Data
+  preserved as skeleton. The blank line between cues is skeleton-only.
+
+features:
+  - id: single_cue_extraction
+    name: Single cue → one Block
+    description: |
+      A minimal one-cue document yields one Block whose source text is
+      the cue body. The leading sequence number and `HH:MM:SS,mmm -->
+      HH:MM:SS,mmm` line are skeleton.
+    spec_refs:
+      - "SubRip format (community spec, https://en.wikipedia.org/wiki/SubRip)"
+    examples:
+      - name: hello_cue
+        origin: "authored: minimal one-cue baseline"
+        input_xml: "1\n00:00:01,000 --> 00:00:04,000\nHello, welcome to the show.\n"
+        block_count: 1
+        first_block_text: "Hello, welcome to the show."
+    native_refs:
+      - srt.TestReadSimpleSRT
+
+  - id: multi_cue_extraction
+    name: Multiple cues → one Block per cue
+    description: |
+      Each cue separated by a blank line emits its own Block in document
+      order. Cue ordering matches source document order.
+    spec_refs:
+      - "SubRip format (community spec, https://en.wikipedia.org/wiki/SubRip)"
+    examples:
+      - name: three_cues
+        origin: "authored: three sequential cues"
+        input_xml: "1\n00:00:01,000 --> 00:00:04,000\nHello, welcome to the show.\n\n2\n00:00:05,000 --> 00:00:08,000\nThis is the second subtitle.\n\n3\n00:00:09,000 --> 00:00:12,000\nAnd this is the third\nwith multiple lines.\n"
+        block_count: 3
+        block_texts:
+          - "Hello, welcome to the show."
+          - "This is the second subtitle."
+          - "And this is the third\nwith multiple lines."
+    native_refs:
+      - srt.TestReadSimpleSRT
+      - srt.TestReadMultiLineSRT
+
+  - id: multiline_cue_text
+    name: Inner line breaks in cue body preserved
+    description: |
+      A cue whose body spans multiple lines (no blank lines within)
+      keeps every intra-cue LF in the Block's source text — the reader
+      does not collapse multi-line cue bodies into spaces.
+    spec_refs:
+      - "SubRip format (community spec, https://en.wikipedia.org/wiki/SubRip)"
+    examples:
+      - name: two_line_cue
+        origin: "authored: single cue with two-line body"
+        input_xml: "1\n00:00:01,000 --> 00:00:04,000\nFirst line\nSecond line\n\n2\n00:00:05,000 --> 00:00:08,000\nAnother subtitle\n"
+        block_count: 2
+        block_texts:
+          - "First line\nSecond line"
+          - "Another subtitle"
+    native_refs:
+      - srt.TestReadMultiLineSRT
+
