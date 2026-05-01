@@ -38,6 +38,20 @@ var LoadSpec = formatspec.Load
 type ParityRunner struct {
 	Spec      *Spec
 	NewReader func(variant string) format.DataFormatReader
+
+	// BridgeConfig translates the merged spec config (neokapi-keyed)
+	// into the bridge daemon's expected key/value shape. Returns the
+	// input untouched if nil. Use this when the bridge filter expects
+	// different parameter names than the canonical neokapi ones (e.g.
+	// csv's "separator" vs Okapi's "fieldDelimiter") or when neokapi
+	// defaults need to be forced onto the bridge to make defaults
+	// converge (e.g. neokapi skips headers by default; bridge extracts
+	// them, so the translator adds "sendHeaderMode: 0").
+	//
+	// Native config receives the original neokapi-keyed map. Only the
+	// bridge dispatch goes through translation. spec.yaml stays
+	// monolingual in neokapi terms.
+	BridgeConfig func(cfg map[string]any) (map[string]any, error)
 }
 
 // Run drives every Feature × Example as a parity subtest. Outcomes
@@ -117,11 +131,21 @@ func (r *ParityRunner) runExample(t *testing.T, feat formatspec.Feature, ex form
 	}
 
 	cfg := formatspec.MergeConfig(feat.Config, ex.Config)
+	bridgeCfg := cfg
+	if r.BridgeConfig != nil {
+		translated, err := r.BridgeConfig(cfg)
+		if err != nil {
+			status = "fail"
+			detail = "bridge config translate: " + err.Error()
+			t.Fatalf("bridge config translate: %v", err)
+		}
+		bridgeCfg = translated
+	}
 	bridgeReq := parity.BridgeRequest{
 		FilterClass:  r.Spec.Format,
 		InputBytes:   input,
 		MimeType:     mimeForVariant(r.Spec, ex.Variant),
-		FilterParams: parity.StringifyParams(cfg),
+		FilterParams: parity.StringifyParams(bridgeCfg),
 	}
 
 	bridge, err := parity.TryRunBridge(t, bridgeReq)
