@@ -4,29 +4,35 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"html"
 	"io"
 
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/model"
 )
 
-// Writer implements DataFormatWriter for R Vignette files.
+// Writer implements DataFormatWriter for Vignette CMS export/import XML.
+//
+// The writer requires a SkeletonStore to round-trip the original XML
+// envelope. Without a skeleton (legacy single-pass mode) it falls back
+// to writing the extracted block payloads alone — useful for tests and
+// debugging but not a faithful CMS file.
 type Writer struct {
 	format.BaseFormatWriter
 	skeletonStore *format.SkeletonStore
-	firstPart     bool
+	useCDATA      bool
 }
 
 // Ensure Writer implements SkeletonStoreConsumer.
 var _ format.SkeletonStoreConsumer = (*Writer)(nil)
 
-// NewWriter creates a new R Vignette writer.
+// NewWriter creates a new Vignette CMS XML writer.
 func NewWriter() *Writer {
 	return &Writer{
 		BaseFormatWriter: format.BaseFormatWriter{
 			FormatName: "vignette",
 		},
-		firstPart: true,
+		useCDATA: true,
 	}
 }
 
@@ -35,47 +41,46 @@ func (w *Writer) SetSkeletonStore(store *format.SkeletonStore) {
 	w.skeletonStore = store
 }
 
-// Write consumes Parts from a channel and writes reconstructed vignette content.
+// SetUseCDATA flips CDATA wrapping on or off (default: on, mirroring
+// the upstream `useCDATA` parameter).
+func (w *Writer) SetUseCDATA(b bool) { w.useCDATA = b }
+
+// Write consumes Parts from a channel and writes reconstructed XML.
 func (w *Writer) Write(ctx context.Context, parts <-chan *model.Part) error {
 	if w.skeletonStore != nil {
 		return w.writeWithSkeleton(ctx, parts)
 	}
-
-	for {
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		case part, ok := <-parts:
-			if !ok {
-				return nil
-			}
-			if err := w.writePart(part); err != nil {
-				return err
-			}
-		}
-	}
+	return w.writeFallback(ctx, parts)
 }
 
 // writeWithSkeleton collects all blocks, then reconstructs output from skeleton entries.
 func (w *Writer) writeWithSkeleton(ctx context.Context, parts <-chan *model.Part) error {
 	blocksByID := make(map[string]*model.Block)
 
-	for {
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		case part, ok := <-parts:
-			if !ok {
-				goto done
-			}
-			if part.Type == model.PartBlock {
-				if block, ok := part.Resource.(*model.Block); ok {
-					blocksByID[block.ID] = block
+	collect := func() error {
+		for {
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			case part, ok := <-parts:
+				if !ok {
+					return nil
+				}
+				if part == nil {
+					continue
+				}
+				if part.Type == model.PartBlock {
+					if block, ok := part.Resource.(*model.Block); ok {
+						blocksByID[block.ID] = block
+					}
 				}
 			}
 		}
 	}
-done:
+	if err := collect(); err != nil {
+		return err
+	}
+
 	if err := w.skeletonStore.Flush(); err != nil {
 		return fmt.Errorf("vignette writer: flush skeleton: %w", err)
 	}
@@ -98,78 +103,98 @@ func (w *Writer) writeFromSkeleton(blocks map[string]*model.Block) error {
 				return err
 			}
 		case format.SkeletonRef:
-			if block, ok := blocks[string(entry.Data)]; ok {
-				text := block.SourceText()
-				if !w.Locale.IsEmpty() && block.HasTarget(w.Locale) {
-					text = block.TargetText(w.Locale)
-				}
-				if _, err := io.WriteString(w.Output, text); err != nil {
-					return err
-				}
+			block, ok := blocks[string(entry.Data)]
+			if !ok {
+				continue
+			}
+			payload := w.payloadFor(block)
+			if _, err := io.WriteString(w.Output, payload); err != nil {
+				return err
 			}
 		}
 	}
 	return nil
 }
 
-func (w *Writer) writePart(part *model.Part) error {
-	switch part.Type {
-	case model.PartBlock:
-		return w.writeBlock(part)
-	case model.PartData:
-		return w.writeData(part)
-	default:
-		return nil
-	}
-}
-
-func (w *Writer) writeBlock(part *model.Part) error {
-	block, ok := part.Resource.(*model.Block)
-	if !ok {
-		return errors.New("vignette writer: expected Block resource")
-	}
-
+// payloadFor returns the block's text encoded for the destination
+// `<valueString>` / `<valueCLOB>` element. The reader records the
+// element kind and sub-filter on the block's Properties; the writer
+// re-encodes accordingly:
+//
+//   - okf_html: the source text was decoded HTML; re-wrap in `<p>` if
+//     the reader stripped one (`wrappedP=true`), otherwise emit verbatim.
+//     The CLOB body is wrapped in CDATA when useCDATA is on.
+//   - default / non-CLOB: write text with XML entities escaped so the
+//     output remains well-formed.
+//
+// The CDATA wrap toggle is honored only for valueCLOB content (matching
+// the upstream `useCDATA` parameter).
+func (w *Writer) payloadFor(block *model.Block) string {
 	text := block.SourceText()
 	if !w.Locale.IsEmpty() && block.HasTarget(w.Locale) {
 		text = block.TargetText(w.Locale)
 	}
+	subFilter := block.Properties["subfilter"]
+	valueElem := block.Properties["valueElement"]
 
-	if !w.firstPart {
-		if _, err := fmt.Fprint(w.Output, "\n"); err != nil {
-			return err
+	switch subFilter {
+	case "okf_html":
+		htmlBody := text
+		if block.Properties["wrappedP"] == "true" {
+			htmlBody = "<p>" + text + "</p>"
 		}
+		if valueElem == "valueCLOB" && w.useCDATA {
+			return "<![CDATA[" + htmlBody + "]]>"
+		}
+		return xmlEscape(htmlBody)
+	default:
+		if valueElem == "valueCLOB" && w.useCDATA {
+			return "<![CDATA[" + text + "]]>"
+		}
+		return xmlEscape(text)
 	}
-	w.firstPart = false
-
-	_, err := fmt.Fprint(w.Output, text)
-	return err
 }
 
-func (w *Writer) writeData(part *model.Part) error {
-	data, ok := part.Resource.(*model.Data)
-	if !ok {
-		return nil
-	}
+// xmlEscape escapes the five XML special characters.
+func xmlEscape(s string) string {
+	// html.EscapeString covers <, >, & and quotes — fine for embedding
+	// in attribute / element character data.
+	return html.EscapeString(s)
+}
 
-	if !w.firstPart {
-		if _, err := fmt.Fprint(w.Output, "\n"); err != nil {
-			return err
+// writeFallback writes only block payloads (one per line) when no
+// skeleton is configured. This is intentionally lossy — callers that
+// need round-trip fidelity must wire a SkeletonStore.
+func (w *Writer) writeFallback(ctx context.Context, parts <-chan *model.Part) error {
+	first := true
+	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case part, ok := <-parts:
+			if !ok {
+				return nil
+			}
+			if part == nil || part.Type != model.PartBlock {
+				continue
+			}
+			block, ok := part.Resource.(*model.Block)
+			if !ok {
+				continue
+			}
+			text := block.SourceText()
+			if !w.Locale.IsEmpty() && block.HasTarget(w.Locale) {
+				text = block.TargetText(w.Locale)
+			}
+			if !first {
+				if _, err := fmt.Fprint(w.Output, "\n"); err != nil {
+					return err
+				}
+			}
+			first = false
+			if _, err := fmt.Fprint(w.Output, text); err != nil {
+				return err
+			}
 		}
-	}
-	w.firstPart = false
-
-	typ := data.Properties["type"]
-	line := data.Properties["line"]
-
-	switch typ {
-	case "yaml-frontmatter":
-		_, err := fmt.Fprint(w.Output, "---")
-		return err
-	case "yaml-content", "code", "rmd-code", "rnw-code":
-		_, err := fmt.Fprint(w.Output, line)
-		return err
-	default:
-		// Whitespace or other structural data
-		return nil
 	}
 }

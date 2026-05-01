@@ -430,13 +430,22 @@ func RegisterAll(reg *registry.FormatRegistry, opts ...RegisterOptions) {
 		}, "Versified Text")
 	reg.RegisterWriter("versifiedtext", func() format.DataFormatWriter { return versifiedtext.NewWriter() })
 
-	// R Vignette
+	// Vignette CMS export/import XML (the `vgnexport` tool's output).
+	// Detection is sniff-based because the file uses the generic .xml
+	// extension and MIME — claiming text/xml unconditionally would
+	// override the generic XML reader. The Sniff hook fires only when
+	// the document carries the Vignette importexport namespace or an
+	// importContentInstance element, leaving generic XML files routed
+	// to the xml reader.
 	reg.RegisterReader("vignette",
 		func() format.DataFormatReader { return vignette.NewReader() },
 		format.FormatSignature{
-			MIMETypes:  []string{"text/x-r-markdown"},
-			Extensions: []string{".Rmd", ".Rnw"},
-		}, "R Vignette")
+			Sniff: func(data []byte) bool {
+				s := string(data)
+				return strings.Contains(s, "vignette.com/xmlschemas/importexport") ||
+					strings.Contains(s, "<importContentInstance")
+			},
+		}, "Vignette CMS Export")
 	reg.RegisterWriter("vignette", func() format.DataFormatWriter { return vignette.NewWriter() })
 
 	// ODF (Open Document Format)
