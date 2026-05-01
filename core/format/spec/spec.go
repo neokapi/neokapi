@@ -23,6 +23,19 @@ type Spec struct {
 	// spec aligns with the bridge manifest and parity report keys.
 	Format string `yaml:"format"`
 
+	// Kind classifies the filter's role. Empty (the default) is treated
+	// as KindTopLevel — a standalone filter the bridge dispatches by
+	// MIME type or extension. KindSubfilter marks filters that are only
+	// invoked through a parent filter's content (e.g. ICU MessageFormat
+	// inside a Java Properties value, or HTML embedded in a Markdown
+	// block). Subfilters have no top-level bridge JSON Schema, so the
+	// contract-audit drift check for config keys is skipped; they are
+	// also not exercised via the parity bridge daemon (no standalone
+	// dispatch path), so the parity runner records a `subfilter` skip.
+	// The native runner still runs every example because the native Go
+	// reader can be constructed and fed inline input directly.
+	Kind Kind `yaml:"kind,omitempty"`
+
 	// MimeType is the primary mime type. Variants may override.
 	MimeType string `yaml:"mime_type"`
 
@@ -151,6 +164,30 @@ type Assertions struct {
 	BlockTexts       []string `yaml:"block_texts,omitempty"`
 	HasBlockWithText []string `yaml:"has_block_with_text,omitempty"`
 	NoBlockWithText  []string `yaml:"no_block_with_text,omitempty"`
+}
+
+// Kind classifies a Spec's dispatch role.
+type Kind string
+
+const (
+	// KindTopLevel is the default — the filter is dispatched by the
+	// bridge based on MIME type / extension, has its own composite
+	// JSON Schema, and is exercised standalone by the parity runner.
+	KindTopLevel Kind = "top_level"
+
+	// KindSubfilter marks filters that are only invoked from inside a
+	// parent filter's content (e.g. ICU MessageFormat inside a Java
+	// Properties value). Subfilters skip the parity bridge runner and
+	// the bridge schema drift check; their behavior is exercised
+	// through their parents' specs and through the native runner.
+	KindSubfilter Kind = "subfilter"
+)
+
+// IsSubfilter reports whether the spec marks a layer-only filter.
+// Treats the empty string as top-level so legacy specs without an
+// explicit kind: continue to behave as before.
+func (s *Spec) IsSubfilter() bool {
+	return s != nil && s.Kind == KindSubfilter
 }
 
 // IntPtr / StrPtr help spec authors writing examples programmatically.

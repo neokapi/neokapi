@@ -25,9 +25,15 @@ export interface Summary {
   totalTestsNeokapi?: number;
 }
 
+export type SpecKind = "top_level" | "subfilter";
+
 export interface FilterComparison {
   filterName: string;
   nativeFilterName?: string; // native Go package name if different (e.g. "csv" for "table")
+  /** Mirror of spec.yaml `kind:` — present only when the filter has a spec.yaml. Empty/missing
+   * is treated as `top_level`. `subfilter` filters render in their own dashboard section
+   * because they're invoked through a parent and have no top-level bridge schema. */
+  specKind?: SpecKind;
   okapi: FilterResult | null;
   bridge: FilterResult | null;
   native: FilterResult | null;
@@ -252,9 +258,11 @@ export function normalizeFilter(f: FilterComparison): FilterComparison {
       ? convertAnnotatedRows(rawTestCases)
       : buildRowsFromSuites(f.okapi, bridge, native);
 
+  const specKind = (f as { specKind?: string }).specKind;
   return {
     filterName: f.filterName,
     nativeFilterName: f.nativeFilterName,
+    specKind: specKind === "subfilter" ? "subfilter" : specKind === "top_level" ? "top_level" : undefined,
     okapi: f.okapi ?? null,
     bridge,
     native,

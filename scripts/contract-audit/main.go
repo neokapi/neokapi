@@ -139,6 +139,11 @@ type summary struct {
 type filterComparison struct {
 	FilterName       string                 `json:"filterName"`
 	NativeFilterName string                 `json:"nativeFilterName,omitempty"`
+	// SpecKind mirrors spec.Spec.Kind. Empty for filters with no
+	// spec.yaml; "top_level" or "subfilter" for filters that have one.
+	// The dashboard groups subfilters (layer formats) into their own
+	// section rather than counting them against top-level coverage.
+	SpecKind         string                 `json:"specKind,omitempty"`
 	Okapi            *filterResult          `json:"okapi"`
 	Bridge           *filterResult          `json:"bridge"`
 	Native           *filterResult          `json:"native"`
@@ -795,13 +800,21 @@ func buildDoc(okapiByFilter, nativeByFilter map[string]*filterResult, bridgeByFi
 		// resolve against the pinned Okapi @Test set. Mismatches surface
 		// per-filter so reviewers can see exactly which refs went stale.
 		if s, ok := specByFilter[name]; ok {
+			fc.SpecKind = string(s.Kind)
+			if fc.SpecKind == "" {
+				fc.SpecKind = string(spec.KindTopLevel)
+			}
 			fc.SpecDrift = detectSpecRefDrift(s, fc.Okapi)
 			// Spec config drift: each spec.config[].key must match a
 			// property in the bridge composite schema for the pinned
 			// Okapi version. Filters without a loaded schema are
-			// skipped (the map miss is benign).
-			if props, ok := bridgeSchemaProps[name]; ok {
-				fc.SpecConfigDrift = detectSpecConfigDrift(s, props)
+			// skipped (the map miss is benign). Subfilters have no
+			// top-level bridge JSON Schema (they're invoked through a
+			// parent), so the drift check is skipped for them.
+			if !s.IsSubfilter() {
+				if props, ok := bridgeSchemaProps[name]; ok {
+					fc.SpecConfigDrift = detectSpecConfigDrift(s, props)
+				}
 			}
 		}
 		doc.Filters = append(doc.Filters, fc)
@@ -1173,6 +1186,11 @@ func loadBridgeSchemaProps(schemasDir, okapiVersion string, specByFilter map[str
 	}
 	out := map[string]map[string]bool{}
 	for filterKey, s := range specByFilter {
+		// Subfilters have no top-level bridge JSON Schema — they're
+		// invoked through their parent filter's content path.
+		if s.IsSubfilter() {
+			continue
+		}
 		// versions.json keys filters by their okf_ id (e.g. okf_openxml).
 		fullID := s.Format
 		if fullID == "" {
