@@ -77,9 +77,11 @@ features:
       through both implementations is a single LF.
     examples:
       - name: single_newline
+        origin: "authored: minimal whitespace-only input (single LF)"
         input_xml: "\n"
         block_count: 0
       - name: two_blank_lines
+        origin: "authored: two consecutive blank lines"
         input_xml: "\n\n"
         block_count: 0
     okapi_refs:
@@ -96,13 +98,17 @@ features:
       newline) yields a single translatable Block whose source text
       is the line's content verbatim. No segmentation occurs —
       Moses InlineText has one line per text unit.
+    spec_refs:
+      - "Okapi Moses Text Filter (https://okapiframework.org/wiki/index.php/Moses_Text_Filter) — one entry per line"
     examples:
       - name: hello_world_no_lf
+        origin: "authored: single line without trailing LF"
         input_xml: "Hello world"
         block_count: 1
         first_block_text: "Hello world"
       - name: hello_world_trailing_lf
         # Trailing LF is consumed as skeleton; no phantom empty Block.
+        origin: "authored: single line with trailing LF — verifies no phantom empty Block"
         input_xml: "Hello world\n"
         block_count: 1
         first_block_text: "Hello world"
@@ -122,8 +128,11 @@ features:
       document order; the LF itself is consumed as skeleton, not
       added to the Block text. A trailing LF after the last line
       does not introduce a phantom empty Block.
+    spec_refs:
+      - "Okapi Moses Text Filter (https://okapiframework.org/wiki/index.php/Moses_Text_Filter) — line-per-entry extraction"
     examples:
       - name: three_lines_with_trailing_lf
+        origin: "authored: three LF-separated lines with trailing LF"
         input_xml: "Hello world\nSecond line\nThird line\n"
         block_count: 3
         block_texts:
@@ -131,6 +140,7 @@ features:
           - "Second line"
           - "Third line"
       - name: three_lines_no_trailing_lf
+        origin: "authored: three LF-separated lines without trailing LF"
         input_xml: "Line 1\nLine 2\nLine 3"
         block_count: 3
         block_texts:
@@ -153,8 +163,11 @@ features:
       as skeleton. Output line-break style matches the input on
       round-trip (Okapi processing-note guarantee), but the extracted
       Block text never carries the CR or LF.
+    spec_refs:
+      - "Okapi Moses Text Filter (https://okapiframework.org/wiki/index.php/Moses_Text_Filter) — output line-breaks match input"
     examples:
       - name: three_lines_crlf
+        origin: "authored: three CRLF-separated lines"
         input_xml: "Line 1\r\nLine 2\r\nLine 3"
         block_count: 3
         block_texts:
@@ -176,8 +189,11 @@ features:
       either CR or LF, and the native reader's `scanLines()` uses
       `strings.Split(line, "\r")` to match. Each line emits its own
       Block.
+    spec_refs:
+      - "Okapi Moses Text Filter (https://okapiframework.org/wiki/index.php/Moses_Text_Filter) — line-per-entry extraction (CR/LF/CRLF terminators)"
     examples:
       - name: three_lines_cr
+        origin: "authored: three bare-CR-separated lines (legacy classic-Mac)"
         input_xml: "Line 1\rLine 2\rLine 3"
         block_count: 3
         block_texts:
@@ -185,6 +201,7 @@ features:
           - "Line 2"
           - "Line 3"
       - name: trailing_cr_two_lines
+        origin: "authored: two CR-terminated lines with trailing CR"
         input_xml: "Line 1\rLine 2\r"
         block_count: 2
         block_texts:
@@ -206,12 +223,14 @@ features:
       lines collapse to zero Blocks between the surrounding content.
     examples:
       - name: single_blank
+        origin: "authored: two content lines separated by one blank line"
         input_xml: "Line 1\n\nLine 3\n"
         block_count: 2
         block_texts:
           - "Line 1"
           - "Line 3"
       - name: triple_blank
+        origin: "authored: two content lines separated by multiple consecutive blank lines"
         input_xml: "Line 1\n\n\n\nLine 5\n"
         block_count: 2
         block_texts:
@@ -233,6 +252,7 @@ features:
       and unusual punctuation pass through unchanged.
     examples:
       - name: extra_spaces
+        origin: "authored: lines containing runs of multiple internal spaces"
         input_xml: "Text 1   .\nLine with   extra   spaces"
         block_count: 2
         block_texts:
@@ -240,6 +260,7 @@ features:
           - "Line with   extra   spaces"
       - name: tab_and_punct
         # Tab and bracketed punctuation flow through verbatim.
+        origin: "authored: line containing a literal tab character and bracketed punctuation"
         input_xml: "Text with tab[\t] and more [{|/\\}]"
         block_count: 1
         first_block_text: "Text with tab[\t] and more [{|/\\}]"
@@ -261,8 +282,11 @@ features:
       note: "If the document has a BOM, it is used to determine the
       input encoding; otherwise UTF-8 is used regardless of any
       specified default encoding").
+    spec_refs:
+      - "Okapi Moses Text Filter (https://okapiframework.org/wiki/index.php/Moses_Text_Filter) — UTF-8 default with BOM-based encoding detection"
     examples:
       - name: cjk_and_latin
+        origin: "authored: CJK characters mixed with Latin to verify UTF-8 multi-byte handling"
         input_xml: "Hello 世界\nこんにちは世界\n"
         block_count: 2
         block_texts:
@@ -282,6 +306,7 @@ features:
       Block, in document order.
     examples:
       - name: simple_three_lines
+        origin: "authored: minimal Moses InlineText file (three plain LF-separated lines) to exercise file-path read"
         input_file: testdata/simple.txt
         block_count: 3
         block_texts:
@@ -313,8 +338,11 @@ features:
       parser and emits the entire `<g>…</g>` literal as part of the
       line's source text. Bridge contract is the canonical Moses
       InlineText behaviour; native is a known under-implementation.
+    spec_refs:
+      - "Okapi Moses Text Filter (https://okapiframework.org/wiki/index.php/Moses_Text_Filter) — inline codes <g id=\"N\">, <x id=\"N\"/>, <bx id=\"N\"/>, <ex id=\"N\"/>"
     examples:
       - name: paired_g_with_text
+        origin: "authored: paired <g> wrapping inline text plus a self-closing <x> placeholder"
         # native gap — bridge correctly parses `<g id="2">Text</g>` into
         # an inline Code wrapping plain "Text" per Okapi MosesTextFilter
         # testCode2. Native emits the literal markup as part of the
@@ -349,8 +377,11 @@ features:
       one TextUnit". The Okapi filter decodes `<lb/>` to a literal
       newline character in the Block source; the native reader emits
       the literal `<lb/>` markup as part of the line's source text.
+    spec_refs:
+      - "Okapi Moses Text Filter (https://okapiframework.org/wiki/index.php/Moses_Text_Filter) — <lb/> line-break decoded to literal newline"
     examples:
       - name: spans_three_lines
+        origin: "authored: single entry containing two <lb/> markers to exercise in-entry line-break decoding"
         # native gap — bridge correctly decodes `<lb/>` to "\n" per
         # Okapi MosesTextFilter testFromFile (Test02.txt third entry).
         # Native preserves the literal markup. Tracked as a
@@ -380,8 +411,11 @@ features:
       `&#xNN;`) decode to the codepoint. Native reader does no entity
       decoding — `&lt;` reaches the Block source as the literal four
       characters `&lt;`.
+    spec_refs:
+      - "XML 1.0 §4.6 Predefined Entities (https://www.w3.org/TR/xml/#sec-predefined-ent)"
     examples:
       - name: basic_entities
+        origin: "authored: line containing &lt;/&gt;/&amp; XML entities to exercise decoding"
         # native gap — bridge decodes `&lt;`/`&gt;`/`&amp;` per Okapi
         # MosesTextFilter testLiterals; native preserves them literally.
         # Tracked as a native-reader follow-up.
@@ -411,6 +445,7 @@ features:
       as one Block.
     examples:
       - name: single_mrk_in_line
+        origin: "authored: single line wrapped in <mrk mtype=\"seg\"> to exercise XLIFF-style segment annotation"
         # native gap — bridge extracts only the `<mrk>` body, dropping
         # the literal tags per Okapi MosesTextFilter testWhiteSpaces.
         # Native emits the full line literally. Tracked as a

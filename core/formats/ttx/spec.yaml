@@ -97,8 +97,11 @@ features:
       Source text (read from inside `<Seg>`); the second `<Tuv>`
       provides the Target text keyed by its `Lang` attribute. Block
       ID and Name are auto-generated as `tu1`, `tu2`, …
+    spec_refs:
+      - "Okapi TTX Filter (https://okapiframework.org/wiki/index.php/TTX_Filter) — Tu/Tuv extraction; no official public TTX specification exists"
     examples:
       - name: simple_bilingual
+        origin: "authored: minimal Trados Studio TTX shape with one bilingual Tu (en-US/fr-FR)"
         # bridge bug #486 — Okapi TTXFilter treats <Seg> as an opaque
         # inline placeholder and extracts no text from <Tuv><Seg>...
         # </Seg></Tuv>. Native matches the Trados Studio output shape.
@@ -118,6 +121,7 @@ features:
         block_count: 1
         first_block_text: "Hello world"
       - name: two_units
+        origin: "authored: two Tu elements within one Raw to verify per-Tu Block emission"
         expected_fail: |
           bridge bug #486 — Okapi TTXFilter does not recognise <Seg>
           and additionally merges every <Tu> within one <Raw> into a
@@ -134,6 +138,7 @@ features:
           - "Hello world"
           - "Goodbye"
       - name: source_only
+        origin: "authored: Tu with only a single source-language Tuv (no target)"
         # bridge bug #486 — Okapi TTXFilter does not recognise <Seg>;
         # native handles a `<Tu>` with a single `<Tuv>` as a Block
         # with no Target. Tracked separately under #453 / #486.
@@ -168,8 +173,11 @@ features:
       native reader stores it on `Block.Properties["match-percent"]`
       so downstream tools can filter or weight TUs by match score.
       The attribute round-trips through the writer unchanged.
+    spec_refs:
+      - "Okapi TTX Filter (https://okapiframework.org/wiki/index.php/TTX_Filter) — Tu MatchPercent attribute; format defined by Trados/SDL TagEditor output, no public spec"
     examples:
       - name: zero_and_full_match
+        origin: "authored: two Tu elements with MatchPercent=0 and MatchPercent=100 to verify metadata propagation"
         expected_fail: |
           bridge bug #486 — Okapi TTXFilter does not recognise <Seg>
           and merges TUs into one TextUnit. Native produces one Block
@@ -200,8 +208,11 @@ features:
       document. The native reader strips the tag elements and keeps
       only the textual content of the segment, so the Block source
       text reflects the translatable string the user sees.
+    spec_refs:
+      - "Okapi TTX Filter (https://okapiframework.org/wiki/index.php/TTX_Filter) — ut/df/it inline-tag element family; format defined by Trados/SDL TagEditor output"
     examples:
       - name: ut_inside_seg
+        origin: "authored: Seg containing inline <ut> tags around source text"
         expected_fail: |
           bridge bug #486 — Okapi TTXFilter does not recognise <Seg>
           and extracts no text. Native strips the inline tag elements
@@ -230,8 +241,11 @@ features:
       source text. The text round-trips bytewise through the writer
       because the skeleton store keeps the original entity-escaped
       bytes whenever the user hasn't modified the segment.
+    spec_refs:
+      - "XML 1.0 §4.6 Predefined Entities (https://www.w3.org/TR/xml/#sec-predefined-ent)"
     examples:
       - name: ampersand_and_lt
+        origin: "authored: Seg with &amp; and &lt; XML entities in both source and target"
         expected_fail: |
           bridge bug #486 — Okapi TTXFilter does not recognise <Seg>
           and extracts no text. Native decodes the XML entities to
@@ -259,8 +273,11 @@ features:
       as Blocks. The example below has `<Tu>` elements, so unsegmented
       whitespace and PIs around them are not surfaced as translatable
       Blocks.
+    spec_refs:
+      - "Okapi TTX Filter (https://okapiframework.org/wiki/index.php/TTX_Filter) — Auto extraction mode (segmentMode=0)"
     examples:
       - name: tu_present_unsegmented_skipped
+        origin: "authored: Tu present so AUTO mode should restrict extraction to <Seg> content"
         expected_fail: |
           bridge bug #486 — Okapi TTXFilter does not recognise <Seg>
           so the segmentMode AUTO branch never sees the segments
@@ -285,10 +302,13 @@ features:
       `<Tu>` elements; any unsegmented `<Raw>` text between or around
       them is dropped. Useful for partially-segmented files where
       only the pre-translated segments should reach downstream tools.
+    spec_refs:
+      - "Okapi TTX Filter (https://okapiframework.org/wiki/index.php/TTX_Filter) — Extract only existing segments mode (segmentMode=1)"
     config:
       segmentMode: 1
     examples:
       - name: only_tu_segments_emitted
+        origin: "authored: Tu surrounded by leading/trailing untranslated text; segmentMode=1 should drop the surround"
         expected_fail: |
           bridge bug #486 — Okapi TTXFilter does not recognise <Seg>
           and produces 0 translatable TextUnits. Native correctly
@@ -318,10 +338,13 @@ features:
       unsegmented Blocks carry an `unsegmented=true` property so
       downstream tools can distinguish pre-translated segments from
       newly-discovered text.
+    spec_refs:
+      - "Okapi TTX Filter (https://okapiframework.org/wiki/index.php/TTX_Filter) — Extract all text mode (segmentMode=2)"
     config:
       segmentMode: 2
     examples:
       - name: tu_and_unsegmented_emitted
+        origin: "authored: Tu surrounded by untranslated runs; segmentMode=2 should emit segmented + unsegmented Blocks"
         expected_fail: |
           bridge bug #486 — Okapi TTXFilter does not recognise <Seg>
           inside the segmented `<Tu>` so segmentMode=2 only surfaces
@@ -354,6 +377,7 @@ features:
       runner only checks the translatable Blocks.
     examples:
       - name: wraps_blocks_in_layer
+        origin: "authored: minimal Tu inside the standard TRADOStag/FrontMatter/Body/Raw envelope to verify Layer framing"
         expected_fail: |
           bridge bug #486 — Okapi TTXFilter does not recognise <Seg>
           and produces 0 translatable TextUnits. Native wraps the
