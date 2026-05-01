@@ -50,35 +50,34 @@ func TestConfigKind(t *testing.T) {
 	assert.Contains(t, string(kind), "Txml")
 }
 
+const sourceOnlyForConfig = `<?xml version="1.0" encoding="UTF-8"?>
+<txml locale="en" version="1.0" datatype="regexp" targetlocale="fr">
+<translatable blockId="b1" datatype="html"><segment segmentId="s1"><source>Source only text</source></segment></translatable>
+</txml>`
+
+const bilingualForConfig = `<?xml version="1.0" encoding="UTF-8"?>
+<txml locale="en" version="1.0" datatype="regexp" targetlocale="fr">
+<translatable blockId="b1" datatype="html"><segment segmentId="s1"><source>Hello</source><target>Bonjour</target></segment></translatable>
+</txml>`
+
 func TestAllowEmptyOutputTargetEnabled(t *testing.T) {
 	ctx := t.Context()
 
-	// Read a TXML with source-only segments
 	reader := txml.NewReader()
-	input := `<?xml version="1.0" encoding="utf-8"?>
-<txml locale="en-US" targetlocale="fr-FR" version="1.0" datatype="xml">
-<header/>
-<body>
-<segment segtype="block">
-<source>Source only text</source>
-</segment>
-</body>
-</txml>`
-
-	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
+	err := reader.Open(ctx, testutil.RawDocFromString(sourceOnlyForConfig, model.LocaleEnglish))
 	require.NoError(t, err)
 
 	parts := testutil.CollectParts(t, reader.Read(ctx))
 	reader.Close()
 
-	// Write with AllowEmptyOutputTarget=true (default)
+	// Write with AllowEmptyOutputTarget=true (default).
 	writer := txml.NewWriter()
 	writer.Config().AllowEmptyOutputTarget = true
 
 	var buf bytes.Buffer
 	err = writer.SetOutputWriter(&buf)
 	require.NoError(t, err)
-	writer.SetLocale(model.LocaleID("fr-FR"))
+	writer.SetLocale(model.LocaleID("fr"))
 
 	ch := testutil.PartsToChannel(parts)
 	err = writer.Write(ctx, ch)
@@ -86,7 +85,6 @@ func TestAllowEmptyOutputTargetEnabled(t *testing.T) {
 	writer.Close()
 
 	output := buf.String()
-	// Should include empty <target/> element
 	assert.Contains(t, output, "<target/>")
 }
 
@@ -94,30 +92,19 @@ func TestAllowEmptyOutputTargetDisabled(t *testing.T) {
 	ctx := t.Context()
 
 	reader := txml.NewReader()
-	input := `<?xml version="1.0" encoding="utf-8"?>
-<txml locale="en-US" targetlocale="fr-FR" version="1.0" datatype="xml">
-<header/>
-<body>
-<segment segtype="block">
-<source>Source only text</source>
-</segment>
-</body>
-</txml>`
-
-	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
+	err := reader.Open(ctx, testutil.RawDocFromString(sourceOnlyForConfig, model.LocaleEnglish))
 	require.NoError(t, err)
 
 	parts := testutil.CollectParts(t, reader.Read(ctx))
 	reader.Close()
 
-	// Write with AllowEmptyOutputTarget=false
 	writer := txml.NewWriter()
 	writer.Config().AllowEmptyOutputTarget = false
 
 	var buf bytes.Buffer
 	err = writer.SetOutputWriter(&buf)
 	require.NoError(t, err)
-	writer.SetLocale(model.LocaleID("fr-FR"))
+	writer.SetLocale(model.LocaleID("fr"))
 
 	ch := testutil.PartsToChannel(parts)
 	err = writer.Write(ctx, ch)
@@ -125,7 +112,6 @@ func TestAllowEmptyOutputTargetDisabled(t *testing.T) {
 	writer.Close()
 
 	output := buf.String()
-	// Should NOT include empty target element
 	assert.NotContains(t, output, "<target")
 }
 
@@ -133,31 +119,19 @@ func TestAllowEmptyOutputTargetWithTranslation(t *testing.T) {
 	ctx := t.Context()
 
 	reader := txml.NewReader()
-	input := `<?xml version="1.0" encoding="utf-8"?>
-<txml locale="en-US" targetlocale="fr-FR" version="1.0" datatype="xml">
-<header/>
-<body>
-<segment segtype="block">
-<source>Hello</source>
-<target>Bonjour</target>
-</segment>
-</body>
-</txml>`
-
-	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
+	err := reader.Open(ctx, testutil.RawDocFromString(bilingualForConfig, model.LocaleEnglish))
 	require.NoError(t, err)
 
 	parts := testutil.CollectParts(t, reader.Read(ctx))
 	reader.Close()
 
-	// Write with AllowEmptyOutputTarget=false - should still include non-empty target
 	writer := txml.NewWriter()
 	writer.Config().AllowEmptyOutputTarget = false
 
 	var buf bytes.Buffer
 	err = writer.SetOutputWriter(&buf)
 	require.NoError(t, err)
-	writer.SetLocale(model.LocaleID("fr-FR"))
+	writer.SetLocale(model.LocaleID("fr"))
 
 	ch := testutil.PartsToChannel(parts)
 	err = writer.Write(ctx, ch)
@@ -165,6 +139,5 @@ func TestAllowEmptyOutputTargetWithTranslation(t *testing.T) {
 	writer.Close()
 
 	output := buf.String()
-	// Should include the actual translation
 	assert.Contains(t, output, "<target>Bonjour</target>")
 }

@@ -2,6 +2,9 @@ package txml_test
 
 import (
 	"bytes"
+	"os"
+	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/neokapi/neokapi/core/formats/txml"
@@ -11,75 +14,58 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-const simpleTXML = `<?xml version="1.0" encoding="utf-8"?>
-<txml locale="en-US" targetlocale="fr-FR" version="1.0" datatype="xml">
-<header/>
-<body>
-<segment segtype="block">
-<source>Hello world</source>
-<target>Bonjour le monde</target>
-</segment>
-<segment segtype="block">
-<source>Goodbye</source>
-<target>Au revoir</target>
-</segment>
-</body>
-</txml>`
+// All test snippets follow Wordfast Pro's real TXML schema, mirroring
+// the upstream STARTFILE constant in TXMLFilterTest.
+const startFile = `<?xml version="1.0" encoding="UTF-8"?>
+<txml locale="en" version="1.0" segtype="sentence" createdby="WF2.3.0" datatype="regexp" targetlocale="fr" file_extension="html" editedby="WF2.3.0">
+<skeleton>&lt;html&gt;&lt;p&gt;</skeleton>`
 
-const sourceOnlyTXML = `<?xml version="1.0" encoding="utf-8"?>
-<txml locale="en-US" targetlocale="de-DE" version="1.0" datatype="xml">
-<header/>
-<body>
-<segment segtype="block">
-<source>Source only text</source>
-</segment>
-</body>
-</txml>`
+const simpleTwoSegmentsTXML = startFile + `<translatable blockId="b1" datatype="html"><segment segmentId="s1" modified="true"><source>Segment one</source><target>Segment un</target></segment><segment segmentId="2"><source>segment two</source></segment></translatable></txml>`
 
-const inlineTagsTXML = `<?xml version="1.0" encoding="utf-8"?>
-<txml locale="en-US" targetlocale="fr-FR" version="1.0" datatype="xml">
-<header/>
-<body>
-<segment segtype="block">
-<source>Text with <ph>placeholder</ph> inside</source>
-</segment>
-</body>
-</txml>`
+const sourceOnlyTXML = startFile + `<translatable blockId="b1" datatype="html"><segment segmentId="s1"><source>Source only text</source></segment></translatable></txml>`
 
-// okapi: TXMLFilterTest#testSimpleEntry — extracts source and target from TXML segments.
-func TestReadSimpleTXML(t *testing.T) {
+const inlineCodesTXML = startFile + `<translatable blockId="b1" datatype="html"><segment segmentId="s1" modified="true"><source>Segment one</source><target>Segment un</target></segment><segment segmentId="2"><source>Segment <ut x='1' type='bold'>&lt;b></ut>TWO<ut x='2' type='bold'>&lt;/b></ut></source></segment></translatable></txml>`
+
+// okapi: TXMLFilterTest#testSimpleEntry — extracts source and target from one
+// <translatable> with two <segment> children (second is source-only).
+func TestReadSimpleTranslatable(t *testing.T) {
 	ctx := t.Context()
 	reader := txml.NewReader()
-	err := reader.Open(ctx, testutil.RawDocFromString(simpleTXML, model.LocaleEnglish))
+	err := reader.Open(ctx, testutil.RawDocFromString(simpleTwoSegmentsTXML, model.LocaleEnglish))
 	require.NoError(t, err)
 	defer reader.Close()
 
 	blocks := testutil.CollectBlocks(t, reader.Read(ctx))
 
-	require.Len(t, blocks, 2)
-	assert.Equal(t, "Hello world", blocks[0].SourceText())
-	assert.Equal(t, "Goodbye", blocks[1].SourceText())
-	assert.True(t, blocks[0].HasTarget("fr-FR"))
-	assert.Equal(t, "Bonjour le monde", blocks[0].TargetText("fr-FR"))
-	assert.Equal(t, "Au revoir", blocks[1].TargetText("fr-FR"))
+	// One <translatable> => one Block with two segments (concatenated text).
+	require.Len(t, blocks, 1)
+	assert.Equal(t, "b1", blocks[0].ID)
+	assert.Equal(t, "Segment onesegment two", blocks[0].SourceText())
+	require.Len(t, blocks[0].Source, 2)
+	assert.Equal(t, "Segment one", blocks[0].Source[0].Text())
+	assert.Equal(t, "segment two", blocks[0].Source[1].Text())
+	assert.True(t, blocks[0].HasTarget("fr"))
+	// Target only present for the first segment.
+	require.Len(t, blocks[0].Targets[model.LocaleID("fr")], 1)
+	assert.Equal(t, "Segment un", blocks[0].Targets[model.LocaleID("fr")][0].Text())
 }
 
-// okapi: TXMLFilterTest#testSegType — segment type attribute is preserved as block property.
-func TestReadSegType(t *testing.T) {
+// okapi: TXMLFilterTest#testSimpleEntry — datatype attribute is preserved.
+func TestReadDatatypeProperty(t *testing.T) {
 	ctx := t.Context()
 	reader := txml.NewReader()
-	err := reader.Open(ctx, testutil.RawDocFromString(simpleTXML, model.LocaleEnglish))
+	err := reader.Open(ctx, testutil.RawDocFromString(simpleTwoSegmentsTXML, model.LocaleEnglish))
 	require.NoError(t, err)
 	defer reader.Close()
 
 	blocks := testutil.CollectBlocks(t, reader.Read(ctx))
-
-	require.Len(t, blocks, 2)
-	assert.Equal(t, "block", blocks[0].Properties["segtype"])
+	require.Len(t, blocks, 1)
+	assert.Equal(t, "html", blocks[0].Properties["datatype"])
 }
 
-// okapi: TXMLFilterTest#testSourceOnly — segment with only source (no target) is extracted correctly.
-func TestReadSourceOnly(t *testing.T) {
+// okapi: TXMLFilterTest#testSimpleEntry — segment with only source (no target)
+// produces a block with no target entries for the missing slot.
+func TestReadSourceOnlySegment(t *testing.T) {
 	ctx := t.Context()
 	reader := txml.NewReader()
 	err := reader.Open(ctx, testutil.RawDocFromString(sourceOnlyTXML, model.LocaleEnglish))
@@ -87,30 +73,148 @@ func TestReadSourceOnly(t *testing.T) {
 	defer reader.Close()
 
 	blocks := testutil.CollectBlocks(t, reader.Read(ctx))
-
 	require.Len(t, blocks, 1)
 	assert.Equal(t, "Source only text", blocks[0].SourceText())
+	assert.False(t, blocks[0].HasTarget("fr"))
 }
 
-// okapi: TXMLFilterTest#testInlineTags — inline <ph> placeholders are processed within text content.
-func TestReadInlineTags(t *testing.T) {
+// okapi: TXMLFilterTest#testEntryWithCodes — <ut> elements become inline
+// PlaceholderRun codes, contributing nothing to plain SourceText().
+func TestReadUTInlineCodes(t *testing.T) {
 	ctx := t.Context()
 	reader := txml.NewReader()
-	err := reader.Open(ctx, testutil.RawDocFromString(inlineTagsTXML, model.LocaleEnglish))
+	err := reader.Open(ctx, testutil.RawDocFromString(inlineCodesTXML, model.LocaleEnglish))
 	require.NoError(t, err)
 	defer reader.Close()
 
 	blocks := testutil.CollectBlocks(t, reader.Read(ctx))
-
 	require.Len(t, blocks, 1)
-	assert.Equal(t, "Text with placeholder inside", blocks[0].SourceText())
+	assert.Equal(t, "Segment oneSegment TWO", blocks[0].SourceText())
+
+	// Inspect the second segment's runs.
+	require.Len(t, blocks[0].Source, 2)
+	runs := blocks[0].Source[1].Runs
+	require.Len(t, runs, 4) // text "Segment ", ut, text "TWO", ut
+	require.NotNil(t, runs[0].Text)
+	assert.Equal(t, "Segment ", runs[0].Text.Text)
+	require.NotNil(t, runs[1].Ph)
+	assert.Equal(t, "1", runs[1].Ph.ID)
+	assert.Equal(t, "bold", runs[1].Ph.Type)
+	assert.Equal(t, "<b>", runs[1].Ph.Data)
+	require.NotNil(t, runs[2].Text)
+	assert.Equal(t, "TWO", runs[2].Text.Text)
+	require.NotNil(t, runs[3].Ph)
+	assert.Equal(t, "2", runs[3].Ph.ID)
+	assert.Equal(t, "</b>", runs[3].Ph.Data)
 }
 
-// okapi: TXMLFilterTest#testStartDocument — verifies LayerStart/LayerEnd wraps TXML content with locale info.
+// okapi: TXMLFilterTest#testEntryWithFirstOutOf2SegmentsCommentedOut —
+// XML-commented segments are excluded from extraction.
+func TestReadCommentedFirstSegment(t *testing.T) {
+	snippet := startFile + `<translatable blockId="b1" datatype="html"><!--<segment segmentId="s1" modified="true"><source>Segment one</source><target>Segment un</target></segment>--><segment segmentId="2"><source>segment two</source><target>segment deux</target></segment></translatable></txml>`
+
+	ctx := t.Context()
+	reader := txml.NewReader()
+	err := reader.Open(ctx, testutil.RawDocFromString(snippet, model.LocaleEnglish))
+	require.NoError(t, err)
+	defer reader.Close()
+
+	blocks := testutil.CollectBlocks(t, reader.Read(ctx))
+	require.Len(t, blocks, 1)
+	assert.Equal(t, "segment two", blocks[0].SourceText())
+	assert.True(t, blocks[0].HasTarget("fr"))
+	assert.Equal(t, "segment deux", blocks[0].TargetText("fr"))
+}
+
+// okapi: TXMLFilterTest#testEntryWithAllSegmentsCommentedOut — no Block emitted.
+func TestReadAllSegmentsCommented(t *testing.T) {
+	snippet := startFile + `<translatable blockId="b1" datatype="html"><!--<segment segmentId="s1"><source>Segment one</source><target>Segment un</target></segment>--><!--<segment segmentId="2"><source>segment two</source><target>segment deux</target></segment>--></translatable></txml>`
+
+	ctx := t.Context()
+	reader := txml.NewReader()
+	err := reader.Open(ctx, testutil.RawDocFromString(snippet, model.LocaleEnglish))
+	require.NoError(t, err)
+	defer reader.Close()
+
+	blocks := testutil.CollectBlocks(t, reader.Read(ctx))
+	assert.Empty(t, blocks)
+}
+
+// okapi: TXMLFilterTest#testEntryWithThirdSegmentsNotCommentedOut —
+// only the live segment survives; commented siblings are dropped.
+func TestReadThirdSegmentLive(t *testing.T) {
+	snippet := startFile + `<translatable blockId="b1" datatype="html"><!--<segment segmentId="s1"><source>Segment one</source><target>Segment un</target></segment>--><!--<segment segmentId="2"><source>segment two</source><target>segment deux</target></segment>--><segment segmentId="3"><source>segment three</source><target>segment trois</target></segment></translatable></txml>`
+
+	ctx := t.Context()
+	reader := txml.NewReader()
+	err := reader.Open(ctx, testutil.RawDocFromString(snippet, model.LocaleEnglish))
+	require.NoError(t, err)
+	defer reader.Close()
+
+	blocks := testutil.CollectBlocks(t, reader.Read(ctx))
+	require.Len(t, blocks, 1)
+	assert.Equal(t, "segment three", blocks[0].SourceText())
+}
+
+// okapi: TXMLFilterTest#testWS — <ws> siblings carry skeleton whitespace
+// and never enter the joined source text.
+func TestReadWSExcludedFromSource(t *testing.T) {
+	snippet := startFile + `<translatable blockId="b1" datatype="html"><segment segmentId="s1"><ws>  </ws><source>text S</source><target>text T</target><ws>  <ut x='1'>&lt;br/></ut> </ws></segment><segment segmentId="s2"><source>text S2</source><ws> 	</ws></segment></translatable></txml>`
+
+	ctx := t.Context()
+	reader := txml.NewReader()
+	err := reader.Open(ctx, testutil.RawDocFromString(snippet, model.LocaleEnglish))
+	require.NoError(t, err)
+	defer reader.Close()
+
+	blocks := testutil.CollectBlocks(t, reader.Read(ctx))
+	require.Len(t, blocks, 1)
+	assert.Equal(t, "text Stext S2", blocks[0].SourceText())
+}
+
+// okapi: TXMLFilterTest#testRevisedEntry — <revisions> children are
+// ignored; the live <source>/<target> text is what extracts.
+func TestReadRevisionMetadataIgnored(t *testing.T) {
+	snippet := startFile + `<translatable blockId="b1" datatype="html"><segment segmentId="s1" modified="true"><source>Segment one</source><target>Segment un</target><revisions><revision id="1" creationid="Roberto" creationdate="20130109T162701Z" type="target"><target>previous translation</target></revision></revisions></segment><segment segmentId="2"><source>segment two</source></segment></translatable></txml>`
+
+	ctx := t.Context()
+	reader := txml.NewReader()
+	err := reader.Open(ctx, testutil.RawDocFromString(snippet, model.LocaleEnglish))
+	require.NoError(t, err)
+	defer reader.Close()
+
+	blocks := testutil.CollectBlocks(t, reader.Read(ctx))
+	require.Len(t, blocks, 1)
+	assert.Equal(t, "Segment onesegment two", blocks[0].SourceText())
+	assert.NotContains(t, blocks[0].SourceText(), "previous translation")
+	// Live target is preserved; the revision target is not absorbed.
+	assert.Equal(t, "Segment un", blocks[0].TargetText("fr"))
+}
+
+// okapi: TXMLFilterTest#testEmptySegments — a segment with empty
+// <source> contributes an empty Segment (no runs); the joined text
+// for the block is empty.
+func TestReadEmptySources(t *testing.T) {
+	snippet := startFile + `<translatable blockId="b1" datatype="html"><segment segmentId="s1"><ws>  </ws><source></source><ws>  <ut x='1'>&lt;br/></ut> </ws></segment><segment segmentId="s2"><source></source><ws> 	</ws></segment></translatable></txml>`
+
+	ctx := t.Context()
+	reader := txml.NewReader()
+	err := reader.Open(ctx, testutil.RawDocFromString(snippet, model.LocaleEnglish))
+	require.NoError(t, err)
+	defer reader.Close()
+
+	blocks := testutil.CollectBlocks(t, reader.Read(ctx))
+	require.Len(t, blocks, 1)
+	assert.Equal(t, "", blocks[0].SourceText())
+	require.Len(t, blocks[0].Source, 2)
+}
+
+// okapi: TXMLFilterTest#testStartDocument — verifies LayerStart/LayerEnd
+// wraps TXML content with locale info from the <txml> root.
 func TestReadLayerStartEnd(t *testing.T) {
 	ctx := t.Context()
 	reader := txml.NewReader()
-	err := reader.Open(ctx, testutil.RawDocFromString(simpleTXML, model.LocaleEnglish))
+	err := reader.Open(ctx, testutil.RawDocFromString(simpleTwoSegmentsTXML, model.LocaleEnglish))
 	require.NoError(t, err)
 	defer reader.Close()
 
@@ -122,25 +226,25 @@ func TestReadLayerStartEnd(t *testing.T) {
 
 	layer := parts[0].Resource.(*model.Layer)
 	assert.Equal(t, "txml", layer.Format)
-	assert.Equal(t, model.LocaleID("en-US"), layer.Locale)
-	assert.Equal(t, "fr-FR", layer.Properties["target-locale"])
+	assert.Equal(t, model.LocaleID("en"), layer.Locale)
+	assert.Equal(t, "fr", layer.Properties["target-locale"])
 }
 
-// okapi: TXMLFilterTest#testDefaultInfo — verifies TXML MIME type and file signature.
+// okapi: TXMLFilterTest#testDefaultInfo — verifies TXML MIME type and signature.
 func TestReaderSignature(t *testing.T) {
 	reader := txml.NewReader()
 	sig := reader.Signature()
 	assert.Contains(t, sig.MIMETypes, "application/x-txml+xml")
 	assert.Contains(t, sig.Extensions, ".txml")
 	assert.NotNil(t, sig.Sniff)
-	assert.True(t, sig.Sniff([]byte(`<txml locale="en-US">`)))
+	assert.True(t, sig.Sniff([]byte(`<txml locale="en">`)))
 	assert.False(t, sig.Sniff([]byte(`<html>`)))
 }
 
 func TestReaderMetadata(t *testing.T) {
 	reader := txml.NewReader()
 	assert.Equal(t, "txml", reader.Name())
-	assert.Equal(t, "Trados XML", reader.DisplayName())
+	assert.Equal(t, "Wordfast Pro TXML", reader.DisplayName())
 }
 
 func TestReadNilDocument(t *testing.T) {
@@ -159,16 +263,15 @@ func TestReadEmpty(t *testing.T) {
 
 	parts := testutil.CollectParts(t, reader.Read(ctx))
 	blocks := testutil.FilterBlocks(parts)
-
 	assert.Empty(t, blocks)
 }
 
-// okapi: TXMLFilterTest#testDoubleExtraction — roundtrip read/write preserves TXML content.
+// Roundtrip via the direct (non-skeleton) writer path.
 func TestRoundTrip(t *testing.T) {
 	ctx := t.Context()
 
 	reader := txml.NewReader()
-	err := reader.Open(ctx, testutil.RawDocFromString(simpleTXML, model.LocaleEnglish))
+	err := reader.Open(ctx, testutil.RawDocFromString(simpleTwoSegmentsTXML, model.LocaleEnglish))
 	require.NoError(t, err)
 
 	parts := testutil.CollectParts(t, reader.Read(ctx))
@@ -178,7 +281,7 @@ func TestRoundTrip(t *testing.T) {
 	writer := txml.NewWriter()
 	err = writer.SetOutputWriter(&buf)
 	require.NoError(t, err)
-	writer.SetLocale("fr-FR")
+	writer.SetLocale("fr")
 
 	ch := testutil.PartsToChannel(parts)
 	err = writer.Write(ctx, ch)
@@ -186,11 +289,12 @@ func TestRoundTrip(t *testing.T) {
 	writer.Close()
 
 	output := buf.String()
-	assert.Contains(t, output, "Hello world")
-	assert.Contains(t, output, "Bonjour le monde")
+	assert.Contains(t, output, "Segment one")
+	assert.Contains(t, output, "Segment un")
 	assert.Contains(t, output, "<txml")
-	assert.Contains(t, output, "en-US")
-	assert.Contains(t, output, "fr-FR")
+	assert.Contains(t, output, "<translatable")
+	assert.Contains(t, output, `locale="en"`)
+	assert.Contains(t, output, `targetlocale="fr"`)
 }
 
 func TestRoundTripWithNewTarget(t *testing.T) {
@@ -203,11 +307,11 @@ func TestRoundTripWithNewTarget(t *testing.T) {
 	parts := testutil.CollectParts(t, reader.Read(ctx))
 	reader.Close()
 
-	// Add target translations
+	// Add target translation.
 	for _, p := range parts {
 		if p.Type == model.PartBlock {
 			block := p.Resource.(*model.Block)
-			block.SetTargetText("de-DE", "Nur Quelltext")
+			block.SetTargetText("fr", "Texte source uniquement")
 		}
 	}
 
@@ -215,7 +319,7 @@ func TestRoundTripWithNewTarget(t *testing.T) {
 	writer := txml.NewWriter()
 	err = writer.SetOutputWriter(&buf)
 	require.NoError(t, err)
-	writer.SetLocale("de-DE")
+	writer.SetLocale("fr")
 
 	ch := testutil.PartsToChannel(parts)
 	err = writer.Write(ctx, ch)
@@ -224,5 +328,74 @@ func TestRoundTripWithNewTarget(t *testing.T) {
 
 	output := buf.String()
 	assert.Contains(t, output, "Source only text")
-	assert.Contains(t, output, "Nur Quelltext")
+	assert.Contains(t, output, "Texte source uniquement")
+}
+
+// Regression: real Wordfast Pro TXML fixture from the upstream Okapi
+// test corpus must parse to one or more translatable Blocks. Skipped
+// cleanly when okapi-testdata isn't checked out.
+func TestReadOkapiTest01Fixture(t *testing.T) {
+	path := findOkapiFixture(t, "okapi/filters/txml/src/test/resources/Test01.docx.txml")
+	if path == "" {
+		t.Skip("okapi-testdata not available")
+	}
+
+	data, err := os.ReadFile(path)
+	require.NoError(t, err)
+
+	ctx := t.Context()
+	reader := txml.NewReader()
+	err = reader.Open(ctx, testutil.RawDocFromString(string(data), model.LocaleEnglish))
+	require.NoError(t, err)
+	defer reader.Close()
+
+	blocks := testutil.CollectBlocks(t, reader.Read(ctx))
+	require.NotEmpty(t, blocks, "Test01.docx.txml should yield translatable blocks")
+	require.GreaterOrEqual(t, len(blocks), 9, "Test01.docx.txml has 9 <translatable> elements")
+
+	// Spot-check a known piece of source text from the fixture.
+	hasEndNote := false
+	for _, b := range blocks {
+		if strings.Contains(b.SourceText(), "This is the text of the end note.") {
+			hasEndNote = true
+			break
+		}
+	}
+	assert.True(t, hasEndNote, "should find the end-note source segment")
+}
+
+// findOkapiFixture walks up from cwd looking for go.work, then resolves
+// rel under okapi-testdata/<latest-version>/. Returns "" when the
+// corpus isn't checked out so the caller can skip cleanly.
+func findOkapiFixture(t *testing.T, rel string) string {
+	t.Helper()
+	dir, err := os.Getwd()
+	if err != nil {
+		return ""
+	}
+	for {
+		if _, err := os.Stat(filepath.Join(dir, "go.work")); err == nil {
+			break
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			return ""
+		}
+		dir = parent
+	}
+	base := filepath.Join(dir, "okapi-testdata")
+	entries, err := os.ReadDir(base)
+	if err != nil {
+		return ""
+	}
+	var latest string
+	for _, e := range entries {
+		if e.IsDir() && e.Name() > latest {
+			latest = e.Name()
+		}
+	}
+	if latest == "" {
+		return ""
+	}
+	return filepath.Join(base, latest, rel)
 }
