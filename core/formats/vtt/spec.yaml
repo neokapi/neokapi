@@ -1,0 +1,460 @@
+# WebVTT format specification.
+#
+# Single-variant filter — no variants block. WebVTT subtitle files are
+# plain text with a "WEBVTT" header followed by cue blocks: an optional
+# cue identifier line, a timecode line ("HH:MM:SS.mmm --> HH:MM:SS.mmm"
+# with optional settings), and one or more text lines terminated by a
+# blank line. The native reader emits one Block per cue, the WEBVTT
+# header as a Data part, and each cue identifier as its own Data part.
+#
+# Format id `okf_vtt` matches the bridge composite schema. Upstream
+# Okapi 1.47.0 ships the filter under okapi/filters/subtitles/ and
+# exercises it through three test classes:
+#   - VTTFilterTest (7 @Test methods) — extraction behavior
+#   - VTTSkeletonWriterTest (21 @Test methods) — writer / line wrapping
+#   - RoundTripVttIT + VttXliffCompareIT (3 @Test methods) — IT roundtrip
+# This spec groups them into 7 user-facing features capturing what the
+# native reader actually produces. Output-side line wrapping (split
+# words, max chars per line, CJK handling) is documented as config keys
+# only — those are writer-time behaviors that the reader-only
+# assertion vocabulary in this spec cannot express.
+#
+# Authoring notes:
+#   - All assertion values were verified against the live native reader
+#     before being written. Cue text follows the native reader's "join
+#     intra-cue lines with the original line ending" convention; multi-
+#     line cues therefore carry literal "\n" between text lines.
+#   - The native reader does NOT merge captions by sentence (Okapi's
+#     mergeCaptions=true default behavior). Every cue produces its own
+#     Block. The features below reflect this divergence — each cue is
+#     a separate Block, no example asserts merged-cue text.
+#   - Config keys mirror Okapi's VTTParameters / SubtitleParameters
+#     (also exposed by the bridge composite schema's `extraction` /
+#     `output` groupings). The schema walker collapses nested groups
+#     so all leaf names resolve at the flat level the audit checks.
+#   - okapi_refs are pinned to upstream class+method names. Drift
+#     detection asserts each ref still exists in the bridge's pinned
+#     Okapi 1.47.0 surefire output.
+
+format: okf_vtt
+mime_type: text/vtt
+description: |
+  WebVTT subtitle filter. Reads .vtt files line by line, emits the
+  WEBVTT header as a Data part, then walks each cue: an optional
+  identifier line becomes its own Data part, the timecode line is
+  preserved on the Block's `timecode` property (including any cue
+  settings appended after the time range), and the cue text becomes
+  the Block's source. Multi-line cue text is preserved verbatim with
+  intra-cue line endings retained. The native reader does not merge
+  captions; each upstream cue is one Block.
+
+config:
+  - key: discardCues
+    type: boolean
+    default: false
+    description: |
+      On write, discard any cue settings (alignment, line position,
+      vertical text) appended after the timecode. Mirrors Okapi's
+      `discardCues` parameter (also exposed by the bridge composite
+      schema under `extraction`).
+    okapi_param: discardCues
+
+  - key: cueSettings
+    type: string
+    default: ""
+    description: |
+      On write, replace existing cue settings with this string. Mirrors
+      Okapi's `cueSettings` parameter (also exposed by the bridge
+      composite schema under `extraction`).
+    okapi_param: cueSettings
+
+  - key: keepTimecodes
+    type: boolean
+    default: false
+    description: |
+      Preserve original timecodes when emitting the document. Mirrors
+      Okapi's `keepTimecodes` parameter (also exposed by the bridge
+      composite schema under `output`).
+    okapi_param: keepTimecodes
+
+  - key: timeFormat
+    type: string
+    default: ""
+    description: |
+      Time format string for emitted timecodes (e.g. "HH:mm:ss.SSS").
+      Mirrors Okapi's `timeFormat` parameter (also exposed by the
+      bridge composite schema under `output`).
+    okapi_param: timeFormat
+
+  - key: maxCharsPerLine
+    type: int
+    default: 0
+    description: |
+      Maximum characters per line of subtitle text on write. 0 means
+      no limit. Mirrors Okapi's `maxCharsPerLine` parameter (also
+      exposed by the bridge composite schema under `output`).
+    okapi_param: maxCharsPerLine
+
+  - key: maxLinesPerCaption
+    type: int
+    default: 0
+    description: |
+      Maximum text lines per caption on write. 0 means no limit.
+      Mirrors Okapi's `maxLinesPerCaption` parameter (also exposed by
+      the bridge composite schema under `output`).
+    okapi_param: maxLinesPerCaption
+
+  - key: cjkCharsPerLine
+    type: int
+    default: 0
+    description: |
+      Maximum characters per line for CJK languages. 0 falls back to
+      `maxCharsPerLine`. Mirrors Okapi's `cjkCharsPerLine` parameter
+      (also exposed by the bridge composite schema under `output`).
+    okapi_param: cjkCharsPerLine
+
+  - key: splitWords
+    type: boolean
+    default: false
+    description: |
+      On write, allow splitting words to enforce the character limit
+      per line. Mirrors Okapi's `splitWords` parameter (also exposed
+      by the bridge composite schema under `output`).
+    okapi_param: splitWords
+
+features:
+  # ── Basic cue extraction ───────────────────────────────────────────
+  - id: cue_extraction
+    name: Cue text extraction with timecodes
+    description: |
+      Each WebVTT cue (timecode line followed by one or more text
+      lines, terminated by a blank line) emits one translatable Block
+      whose source is the cue text and whose `timecode` Property
+      carries the verbatim timecode line. The WEBVTT header and any
+      cue identifiers flow out as Data parts and are not translatable.
+    examples:
+      - name: single_cue
+        input_xml: "WEBVTT\n\n00:00:01.000 --> 00:00:04.000\nHello world\n"
+        block_count: 1
+        first_block_text: "Hello world"
+      - name: two_cues_in_sequence
+        # bridge bug — Okapi VTTFilter defaults to mergeCaptions=true,
+        # joining adjacent cues whose first cue does not end with
+        # sentence-terminating punctuation into a single TextUnit. Native
+        # reader emits one Block per cue unconditionally per spec
+        # semantics. Tracked separately.
+        expected_fail: |
+          bridge bug — Okapi VTTFilter defaults to mergeCaptions=true and
+          merges the two cues into a single block because the first cue
+          text lacks sentence-terminating punctuation. Native emits one
+          Block per cue per spec semantics. Tracked separately.
+        input_xml: "WEBVTT\n\n00:00:01.000 --> 00:00:04.000\nHello world\n\n00:00:05.000 --> 00:00:08.000\nSecond subtitle\n"
+        block_count: 2
+        block_texts:
+          - "Hello world"
+          - "Second subtitle"
+    okapi_refs:
+      - VTTFilterTest#testSimple
+      - VTTSkeletonWriterTest#testProcessTextUnit
+      - VTTSkeletonWriterTest#testProcessTextUnitKeepTimings
+    native_refs:
+      - vtt.TestReadSimpleVTT
+      - vtt.TestWriter_ProcessTextUnit
+      - vtt.TestWriter_ProcessTextUnitKeepTimings
+
+  # ── Cue identifiers ────────────────────────────────────────────────
+  - id: cue_identifiers
+    name: Cue identifiers preserved on Block and as Data part
+    description: |
+      An optional non-timecode line preceding the timecode is the cue
+      identifier (a chapter label, sequential number, or arbitrary
+      string). It is emitted as a Data part and stored on the Block's
+      `cue-id` Property so writers can round-trip the original
+      identifier. Each cue identifier produces its own Data part
+      named `cue-id.N`.
+    examples:
+      - name: chapter_numbers
+        # bridge bug — Okapi VTTFilter defaults to mergeCaptions=true,
+        # collapsing the two chapter-numbered cues into a single block,
+        # and additionally joins intra-cue lines with spaces rather than
+        # preserving newlines. Native emits one Block per cue with
+        # original line endings preserved per spec semantics. Tracked
+        # separately.
+        expected_fail: |
+          bridge bug — Okapi VTTFilter defaults to mergeCaptions=true and
+          joins intra-cue lines with spaces, so the two chapter cues
+          collapse to a single block whose text has spaces where newlines
+          should be. Native emits one Block per cue with line endings
+          preserved per spec semantics. Tracked separately.
+        input_xml: "WEBVTT\n\n1\n00:00:02.680 --> 00:00:04.720\nThanks everyone\nfor joining us today,\n\n2\n00:00:04.800 --> 00:00:06.960\nI am so excited\nto be with you."
+        block_count: 2
+        has_block_with_text:
+          - "Thanks everyone\nfor joining us today,"
+          - "I am so excited\nto be with you."
+      - name: named_intro_id
+        input_xml: "WEBVTT\n\nintro\n00:00:00.000 --> 00:00:02.000\nWelcome to the show.\n"
+        block_count: 1
+        first_block_text: "Welcome to the show."
+    okapi_refs:
+      - VTTFilterTest#testMergeCaptionsWithChapters
+      - VTTSkeletonWriterTest#testProcessTextUnitWithChapters
+    native_refs:
+      - vtt.TestExtract_MergeCaptionsWithChapters
+      - vtt.TestReadVTTWithCueIDs
+      - vtt.TestWriter_ProcessTextUnitWithChapters
+
+  # ── Cue settings on the timecode line ──────────────────────────────
+  - id: cue_settings
+    name: Cue settings preserved on the timecode line
+    description: |
+      WebVTT cue settings (alignment, position, line, size, region
+      identifier) appear after the time range on the timecode line.
+      The native reader treats the entire timecode line as one opaque
+      string — settings are preserved verbatim on the Block's
+      `timecode` Property. Cue text is extracted unchanged.
+    examples:
+      - name: align_and_line
+        # bridge bug — Okapi VTTFilter defaults to mergeCaptions=true and
+        # joins intra-cue lines with spaces, so the two cue-settings cues
+        # collapse to a single block. Native emits one Block per cue with
+        # line endings preserved per spec semantics. Tracked separately.
+        expected_fail: |
+          bridge bug — Okapi VTTFilter defaults to mergeCaptions=true and
+          joins intra-cue lines with spaces, so the two cues with
+          align/line settings collapse to a single block. Native emits
+          one Block per cue with line endings preserved per spec
+          semantics. Tracked separately.
+        input_xml: "WEBVTT\n\n00:00:02.680 --> 00:00:04.720 align:middle line:84%\nThanks everyone\nfor joining us today,\n\n00:00:04.800 --> 00:00:06.960 align:middle line:84%\nI am so excited\nto be with you."
+        block_count: 2
+        has_block_with_text:
+          - "Thanks everyone\nfor joining us today,"
+          - "I am so excited\nto be with you."
+    okapi_refs:
+      - VTTFilterTest#testMergeCaptionsWithCueSettings
+      - VTTSkeletonWriterTest#testProcessTextUnitWithCues
+      - VTTSkeletonWriterTest#testProcessTextUnitDiscardCues
+      - VTTSkeletonWriterTest#testProcessTextUnitOverwriteCues
+    native_refs:
+      - vtt.TestExtract_MergeCaptionsWithCueSettings
+      - vtt.TestWriter_ProcessTextUnitWithCues
+      - vtt.TestWriter_ProcessTextUnitDiscardCues
+      - vtt.TestWriter_ProcessTextUnitOverwriteCues
+      - vtt.TestRoundTripWithCueSettings
+
+  # ── Multi-line cue text ────────────────────────────────────────────
+  - id: multiline_cue_text
+    name: Multi-line cue text preserved with intra-cue line endings
+    description: |
+      A cue may span multiple text lines (each separated by a single
+      newline, terminated by a blank line). The native reader joins
+      the lines using the original line endings so the Block's source
+      text contains literal newlines between segments. This preserves
+      author-intended line breaks for downstream MT and review.
+    examples:
+      - name: three_line_cue
+        # bridge bug — Okapi VTTFilter joins intra-cue lines with single
+        # spaces rather than preserving the original line endings.
+        # Native reader keeps literal newlines between cue lines per
+        # spec semantics. Tracked separately.
+        expected_fail: |
+          bridge bug — Okapi VTTFilter joins intra-cue lines with spaces
+          ("Line one Line two Line three.") rather than preserving the
+          original newlines. Native keeps literal "\n" between lines per
+          spec semantics. Tracked separately.
+        input_xml: "WEBVTT\n\n00:00:00.000 --> 00:00:03.000\nLine one\nLine two\nLine three.\n"
+        block_count: 1
+        first_block_text: "Line one\nLine two\nLine three."
+      - name: two_line_cues_with_punctuation
+        # bridge bug — Okapi VTTFilter joins intra-cue lines with single
+        # spaces rather than preserving the original line endings. Both
+        # cues end with sentence punctuation so mergeCaptions does not
+        # collapse them, but each block's text has spaces where newlines
+        # should be. Native preserves "\n" between lines per spec
+        # semantics. Tracked separately.
+        expected_fail: |
+          bridge bug — Okapi VTTFilter joins intra-cue lines with spaces
+          rather than preserving newlines, so each block's text reads
+          "Thanks everyone for joining us today." instead of carrying
+          a literal "\n" between lines. Native preserves line endings
+          per spec semantics. Tracked separately.
+        input_xml: "WEBVTT\n\n00:00:02.680 --> 00:00:04.720\nThanks everyone\nfor joining us today.\n\n00:00:04.800 --> 00:00:06.960\nI am so excited\nto be with you.\n"
+        block_count: 2
+        block_texts:
+          - "Thanks everyone\nfor joining us today."
+          - "I am so excited\nto be with you."
+    okapi_refs:
+      - VTTFilterTest#testMergeCaptions
+      - VTTSkeletonWriterTest#testProcessTextUnitSplitLines
+      - VTTSkeletonWriterTest#testProcessTextUnitSplitCaptionsLines
+      - RoundTripVttIT#vttFiles
+    native_refs:
+      - vtt.TestExtract_MergeCaptions
+      - vtt.TestExtract_MultilineCueText
+      - vtt.TestWriter_ProcessTextUnitSplitLines
+      - vtt.TestRoundTrip_VTTFiles
+
+  # ── Inline markup preserved verbatim ───────────────────────────────
+  - id: inline_markup_preserved
+    name: Voice spans and inline markup preserved as text
+    description: |
+      WebVTT inline markup — voice spans (<v Speaker>...</v>), class
+      tags, italic / bold / underline tags, language tags — is
+      preserved verbatim in the cue text. The native reader does not
+      attempt to parse VTT inline tags into Spans; the raw markup
+      reaches translators inside the Block source so the round-trip
+      writer can re-emit it unchanged.
+    examples:
+      - name: voice_spans
+        # bridge bug — Okapi VTTFilter joins intra-cue lines with spaces
+        # rather than preserving newlines. The voice span markup itself
+        # passes through verbatim, but the literal "\n" between lines is
+        # collapsed to a space. Native preserves line endings per spec
+        # semantics. Tracked separately.
+        expected_fail: |
+          bridge bug — Okapi VTTFilter joins intra-cue lines with spaces
+          rather than preserving newlines. Markup passes through but
+          "\n" inside <v> spans collapses to a space. Native preserves
+          line endings per spec semantics. Tracked separately.
+        input_xml: "WEBVTT\n\n00:00:02.680 --> 00:00:04.720\n<v0>Thanks everyone\nfor joining us today.</v>\n\n00:00:04.800 --> 00:00:06.960\n<v1>I am so excited\nto be with you.</v>"
+        block_count: 2
+        block_texts:
+          - "<v0>Thanks everyone\nfor joining us today.</v>"
+          - "<v1>I am so excited\nto be with you.</v>"
+      - name: quoted_text
+        # bridge bug — Okapi VTTFilter joins intra-cue lines with spaces
+        # rather than preserving newlines. The surrounding single quotes
+        # pass through verbatim, but the literal "\n" between lines is
+        # collapsed to a space. Native preserves line endings per spec
+        # semantics. Tracked separately.
+        expected_fail: |
+          bridge bug — Okapi VTTFilter joins intra-cue lines with spaces
+          rather than preserving newlines, so quoted multi-line cues
+          read with a space where the original newline should be.
+          Native preserves line endings per spec semantics. Tracked
+          separately.
+        input_xml: "WEBVTT\n\n00:00:02.680 --> 00:00:04.720\n'Thanks everyone\nfor joining us today.'\n\n00:00:04.800 --> 00:00:06.960\n'I am so excited\nto be with you.'"
+        block_count: 2
+        block_texts:
+          - "'Thanks everyone\nfor joining us today.'"
+          - "'I am so excited\nto be with you.'"
+    okapi_refs:
+      - VTTFilterTest#testVoiceSpans
+      - VTTFilterTest#testQuotePunctuation
+    native_refs:
+      - vtt.TestExtract_VoiceSpans
+      - vtt.TestExtract_QuotePunctuation
+
+  # ── Empty cue handling ─────────────────────────────────────────────
+  - id: empty_cue_handling
+    name: Empty cues do not break extraction of subsequent cues
+    description: |
+      A cue with a timecode but no text lines (timecode followed
+      immediately by a blank line) is silently passed over for
+      translation purposes — the spec runner's `block_count` reflects
+      translatable Blocks only and excludes empty-source blocks.
+      Subsequent non-empty cues continue to extract normally; the
+      empty cue does not break the parse.
+    examples:
+      - name: empty_then_text
+        # bridge bug — Okapi VTTFilter joins intra-cue lines with spaces
+        # rather than preserving newlines, so the surviving cue's text
+        # reads "I am so excited to be with you." instead of carrying
+        # the literal "\n". Native preserves line endings per spec
+        # semantics. Tracked separately.
+        expected_fail: |
+          bridge bug — Okapi VTTFilter joins intra-cue lines with spaces
+          rather than preserving newlines, so the non-empty cue's text
+          reads with a space where the original "\n" should be. Native
+          preserves line endings per spec semantics. Tracked separately.
+        input_xml: "WEBVTT\n\n00:00:02.680 --> 00:00:04.720\n\n\n00:00:04.800 --> 00:00:06.960\nI am so excited\nto be with you."
+        # Empty-text block is filtered out by BlockTexts; only the
+        # non-empty cue contributes to block_count.
+        block_count: 1
+        first_block_text: "I am so excited\nto be with you."
+    okapi_refs:
+      - VTTFilterTest#testEmptyCaption
+    native_refs:
+      - vtt.TestExtract_EmptyCaption
+
+  # ── CJK / non-Latin scripts ────────────────────────────────────────
+  - id: non_latin_scripts
+    name: CJK and other non-Latin scripts pass through
+    description: |
+      The reader operates on UTF-8 text and treats CJK characters,
+      Korean Hangul, Japanese kana, and other non-Latin scripts as
+      ordinary Unicode runes. Cue text containing these characters is
+      extracted unchanged with no normalization or width adjustment.
+      Output-side wrapping rules (cjkCharsPerLine, splitWords) are
+      writer-only and don't affect extraction.
+    examples:
+      - name: chinese_text
+        input_xml: "WEBVTT\n\n00:00:02.680 --> 00:00:04.720\n在本系列迄今为止的会议中\n"
+        block_count: 1
+        first_block_text: "在本系列迄今为止的会议中"
+      - name: japanese_text
+        input_xml: "WEBVTT\n\n00:00:02.680 --> 00:00:04.820\nいろはにほてと いろはに\n"
+        block_count: 1
+        first_block_text: "いろはにほてと いろはに"
+      - name: korean_text
+        input_xml: "WEBVTT\n\n00:00:02.680 --> 00:00:04.720\n걸 환영합니다\n"
+        block_count: 1
+        first_block_text: "걸 환영합니다"
+    okapi_refs:
+      - VTTSkeletonWriterTest#testProcessTextUnitSplitCaptionsChineseNoSpaces
+      - VTTSkeletonWriterTest#testProcessTextUnitSplitCaptionsKoreanWithSpaces
+      - VTTSkeletonWriterTest#testProcessTextUnitFewWordsJapanese
+      - VTTSkeletonWriterTest#testProcessTextUnitKoreanDontSplitWords
+      - VTTSkeletonWriterTest#testProcessTextUnitJapaneseDontSplitWords
+      - VTTSkeletonWriterTest#testSplitCJK
+    native_refs:
+      - vtt.TestWriter_ChineseNoSpaces
+      - vtt.TestWriter_KoreanWithSpaces
+      - vtt.TestWriter_FewWordsJapanese
+      - vtt.TestWriter_KoreanDontSplitWords
+      - vtt.TestWriter_JapaneseDontSplitWords
+      - vtt.TestWriter_SplitCJK
+
+# ── Intentionally under-specified ─────────────────────────────────────
+#
+# Caption merging by sentence (Okapi's mergeCaptions=true default
+# behavior) is NOT implemented in the native reader. The Java filter
+# joins adjacent cues whose first cue does not end with sentence-
+# terminating punctuation into a single TextUnit; the native reader
+# emits one Block per cue unconditionally. VTTFilterTest#testMergeCaptions,
+# testMergeCaptionsWithChapters, and testMergeCaptionsWithCueSettings
+# upstream assert merged behavior; the spec maps them to features that
+# verify both cues are extracted with their original text, leaving the
+# merge step to a future native-reader iteration.
+#
+# Output-side line wrapping (maxCharsPerLine, maxLinesPerCaption,
+# cjkCharsPerLine, splitWords) is exercised upstream by 12+
+# VTTSkeletonWriterTest#testProcessTextUnit* methods. These are writer-
+# time behaviors that the reader-only assertion vocabulary in this
+# spec cannot express. The config keys are declared above so they
+# match the bridge composite schema; native writer tests
+# (vtt.TestWriter_*) cover the read → write path with default-zero
+# limits (no wrapping). A future spec iteration can add roundtrip-
+# output assertions to cover the wrapping rules here.
+#
+# Cue settings rewrite (discardCues, cueSettings) is exercised
+# upstream by VTTSkeletonWriterTest#testProcessTextUnitDiscardCues /
+# OverwriteCues. These are writer-time behaviors. The native reader
+# preserves cue settings verbatim on the Block's timecode Property,
+# which is what the cue_settings feature above asserts; the writer
+# parameter behavior cannot be expressed without roundtrip assertions.
+#
+# Inline code finder (useCodeFinder, codeFinderRules — inherited from
+# SubtitleParameters) is a Java-side regex that converts inline VTT
+# markup into Codes. The native reader preserves inline markup
+# verbatim in the Block source instead (see inline_markup_preserved).
+# Neither parameter is exposed by the bridge composite schema's
+# top-level properties (the schema only surfaces extraction +
+# output groups), so they are intentionally absent from spec.config.
+#
+# Roundtrip integration tests (RoundTripVttIT#vttFiles /
+# vttSerializedFiles, VttXliffCompareIT#vttXliffCompareFiles) exercise
+# the read → write → re-read path on bundled .vtt corpora. The
+# multiline_cue_text feature references vttFiles; serialization and
+# XLIFF round-trip are writer-side behaviors that the reader-only
+# assertion vocabulary cannot express directly. Native equivalents
+# (vtt.TestRoundTrip_*) exercise the same path.
