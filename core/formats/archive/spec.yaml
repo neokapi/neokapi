@@ -9,11 +9,12 @@
 # skeleton (the surrounding ZIP structure).
 #
 # Authoring notes:
-#   - Inputs are real `.zip` fixtures, copied byte-for-byte from
-#     Okapi's `okapi-filter-archive-1.49.0-SNAPSHOT-tests.jar`. Inline
-#     `input_xml` would not work — the filter requires a real ZIP
-#     central directory to enumerate entries. Fixtures live under
-#     `testdata/` with attribution in each example's `origin:`.
+#   - Inputs are sourced via `okapi:` from the upstream
+#     `okapi-testdata/` tree (see #515 / #461 for the binary-format
+#     fixture-sourcing rule). Inline `input_xml` would not work — the
+#     filter requires a real ZIP central directory to enumerate
+#     entries. Each example's `origin:` carries the upstream
+#     attribution.
 #   - Config keys mirror Okapi's flat parameter surface
 #     (`identification.fileNames`, `identification.configIds`,
 #     `identification.mimeType`) — these are the keys the bridge
@@ -95,7 +96,7 @@ features:
     examples:
       - name: xliff_plus_tmx
         origin: "okapi-fixture: ArchiveFilterTest test1_es.archive (renamed test1_es.zip) — XLIFF + TMX with es-ES target"
-        input_file: testdata/test1_es.zip
+        input_file: okapi:okapi/filters/archive/src/test/resources/test1_es.archive
         expected_fail: |
           native bug #504 — the native archive reader extracts ZIP
           entries line-by-line (one Block per non-empty line of raw
@@ -135,7 +136,7 @@ features:
     examples:
       - name: xliff_only
         origin: "okapi-fixture: ArchiveFilterTest test1_es.archive — narrowed to *.xlf only"
-        input_file: testdata/test1_es.zip
+        input_file: okapi:okapi/filters/archive/src/test/resources/test1_es.archive
         bridge_only: true
         block_count_min: 1
         block_count_max: 4
@@ -165,7 +166,7 @@ features:
     examples:
       - name: tmx_only
         origin: "okapi-fixture: ArchiveFilterTest test1_es.archive — narrowed to *.tmx only"
-        input_file: testdata/test1_es.zip
+        input_file: okapi:okapi/filters/archive/src/test/resources/test1_es.archive
         bridge_only: true
         block_count_min: 1
         block_count_max: 4
@@ -189,7 +190,7 @@ features:
     examples:
       - name: stuff_txt_only
         origin: "okapi-fixture: ArchiveFilterTest test2_unknownfiles.archive — single stuff.txt entry, no matching pattern"
-        input_file: testdata/test2_unknownfiles.zip
+        input_file: okapi:okapi/filters/archive/src/test/resources/test2_unknownfiles.archive
         expected_fail: |
           native bug #504 — native default `filePatterns` includes
           `*.txt`, so the reader extracts `stuff.txt` line-by-line
@@ -220,7 +221,7 @@ features:
     examples:
       - name: multi_entry_zip
         origin: "okapi-fixture: ArchiveFilterTest test3_es.archive (renamed test3_es.zip) — XLIFF + TMX, distinct from test1_es"
-        input_file: testdata/test3_es.zip
+        input_file: okapi:okapi/filters/archive/src/test/resources/test3_es.archive
         expected_fail: |
           native bug #504 — same root cause as the other examples:
           the native reader extracts entry contents line-by-line
@@ -254,7 +255,7 @@ features:
     examples:
       - name: doubleextraction_inventory
         origin: "okapi-fixture: ArchiveFilterTest test1_es.archive — same input as dispatch_default_subfilters"
-        input_file: testdata/test1_es.zip
+        input_file: okapi:okapi/filters/archive/src/test/resources/test1_es.archive
         expected_fail: |
           native bug #504 — the native reader emits ~56 raw-XML
           Blocks instead of the bridge's ~3 translatable Blocks; the
