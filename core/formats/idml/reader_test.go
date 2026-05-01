@@ -4,12 +4,16 @@ import (
 	"archive/zip"
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/neokapi/neokapi/core/format"
+	"github.com/neokapi/neokapi/core/format/spec"
 	"github.com/neokapi/neokapi/core/internal/testutil"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/stretchr/testify/assert"
@@ -874,4 +878,49 @@ func TestMultipleCharacterStyleRanges(t *testing.T) {
 func TestWriterName(t *testing.T) {
 	writer := NewWriter()
 	assert.Equal(t, "idml", writer.Name())
+}
+
+// TestUpstreamHelloWorld14 reads the upstream Okapi test fixture
+// 06-hello-world-14.idml and asserts that the reader emits one Block per
+// <Content> element across all CharacterStyleRange / ParagraphStyleRange
+// nodes in document order.
+//
+// Regression guard for #514: real-world IDML stories interleave bare
+// <Content> children of <ParagraphStyleRange> with <Content> nested
+// inside one or more <CharacterStyleRange> siblings. The synthetic
+// fixtures under testdata/ all use the simpler PSR > CSR > Content
+// shape, which masked walker bugs that surfaced only on real fixtures.
+func TestUpstreamHelloWorld14(t *testing.T) {
+	root, err := spec.FindOkapiTestdataRoot()
+	if err != nil {
+		t.Skipf("skipping upstream IDML fixture test: %v", err)
+	}
+	fixture := filepath.Join(root, "okapi", "filters", "idml", "src",
+		"test", "resources", "06-hello-world-14.idml")
+	data, err := os.ReadFile(fixture)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			t.Skipf("skipping: fixture not present at %s", fixture)
+		}
+		require.NoError(t, err)
+	}
+
+	parts := readIDMLBytes(t, data)
+	blocks := testutil.FilterBlocks(parts)
+
+	wantTexts := []string{
+		"Hello World1! ",
+		"Hello World2! ",
+		"Hello World3 in paragraph.",
+		"Hello World4! ",
+		"Hello World5!",
+		"Hello World6!",
+		"Hello World7!",
+	}
+	require.Len(t, blocks, len(wantTexts),
+		"upstream 06-hello-world-14.idml should emit one block per <Content> element")
+	for i, want := range wantTexts {
+		assert.Equal(t, want, blocks[i].SourceText(),
+			"block %d source text mismatch", i+1)
+	}
 }
