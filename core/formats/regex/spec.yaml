@@ -1,0 +1,423 @@
+# Regex-based text extraction format specification.
+#
+# Single-variant filter — no variants block. Inputs are inline text
+# snippets (input_xml field carries raw bytes for any text format) or
+# small testdata fixtures committed alongside this spec.
+#
+# Format id `okf_regex` covers Okapi's RegexFilter — a configurable
+# extractor where each translatable string is identified by a
+# user-supplied regular expression that captures the source text (and
+# optionally an id, note, etc.) into named groups. The native Go reader
+# implements the same contract: a `rules` list of `{pattern,
+# sourceGroup, idGroup, noteGroup}` records, applied left-to-right,
+# first-match-wins on overlap.
+#
+# Config-surface boundary (READ THIS BEFORE EDITING):
+# ────────────────────────────────────────────────────
+# Okapi's RegexFilter is rule-driven: with no rules configured both the
+# Java filter (Parameters.reset() leaves `rules = new ArrayList<>()`)
+# and the native reader emit no Blocks. The bridge composite schema
+# for okf_regex (v14, Okapi 1.47.0) only exposes the surrounding
+# extraction knobs (`startString`, `endString`, `regexOptions`,
+# `useBSlashEscape`, `useDoubleCharEscape`, `oneLevelGroups`, …) at
+# the top level — the `rules` array is nested inside Okapi's
+# StringParameters preset format (`ruleCount`, `rule0.expr`,
+# `rule0.groupSource`, `rule0.ruleType`, …) which is not expressible
+# through the gRPC `FilterParams` map<string,string> the parity
+# bridge runner uses. Concretely, this means:
+#
+#   * No-rules examples (the degenerate default) parity-pass: bridge
+#     and native both emit zero Blocks.
+#
+#   * Rule-driven examples are inherently bridge-incompatible through
+#     the parity transport. They are tagged with `expected_fail`
+#     explaining the surface gap; the native runner still asserts the
+#     full extraction contract.
+#
+# The spec.config surface declares the three native ApplyMap keys
+# (`rules`, `escapeType`, `escapeChar`) so feature/example config blocks
+# validate. `rules` carries no `okapi_param:` because there is no
+# corresponding flat-string bridge parameter — its provenance is the
+# Okapi `Parameters.rules` ArrayList<Rule> field, accessed
+# programmatically rather than through StringParameters serialisation.
+# `escapeType`/`escapeChar` are native-side conveniences that fold the
+# bridge's `useBSlashEscape` + `useDoubleCharEscape` booleans into a
+# single discriminator (`backslash` / `doublechar` / `none`).
+
+format: okf_regex
+mime_type: text/x-regex
+description: |
+  Regex-based text extraction. Each rule is a Go regular expression
+  with a designated source-text capture group; matches become
+  translatable Blocks, non-matching content becomes skeleton Data.
+  Optional capture groups carry the entry id (becomes Block.Name) and
+  a translator note. Rules apply left-to-right; overlapping matches
+  resolve first-match-wins. With no rules configured the entire input
+  becomes Data (no Blocks). Used as the foundation for Mac .strings,
+  INI, SymbianRLS, StringInfo, and SRT extraction recipes.
+
+config:
+  - key: rules
+    type: string_list
+    default: []
+    description: |
+      Ordered list of extraction rules. Each entry is a map with:
+      `pattern` (Go regular expression), `sourceGroup` (1-based
+      capture-group index for the translatable text — must be >= 1),
+      `idGroup` (capture group for Block.Name; 0 = auto), `noteGroup`
+      (capture group for translator note; 0 = none). Rules are tried
+      in order on the full input; once a match is taken its bytes are
+      consumed and later rules cannot re-match the same span. The
+      bridge filter expresses the same data through Okapi's nested
+      StringParameters preset format (`ruleCount`, `rule0.expr`,
+      `rule0.ruleType`, `rule0.groupSource`, …) which is not passable
+      through the gRPC FilterParams transport — see the file header.
+
+  - key: escapeType
+    type: string
+    default: "none"
+    description: |
+      Discriminator for in-source escape decoding. `none` (default)
+      emits captured text verbatim. `backslash` decodes
+      `\\n` / `\\t` / `\\r` / `\\\\` / `\\"` / `\\'` sequences; matches
+      Okapi's `useBSlashEscape: true`. `doublechar` decodes `XX` to a
+      single `X` for the configured `escapeChar`; matches Okapi's
+      `useDoubleCharEscape: true`. The bridge schema represents these
+      two mechanisms as independent booleans; the native config folds
+      them into one discriminator because they're mutually exclusive
+      in practice.
+
+  - key: escapeChar
+    type: string
+    default: "\""
+    description: |
+      Character whose doubled form is decoded when `escapeType:
+      doublechar`. Default is `"`. Ignored for other escape types.
+
+features:
+  # ── Default behavior: no rules, no extraction ────────────────────
+  - id: no_rules_default
+    name: No rules → no extraction
+    description: |
+      With no rules configured, the reader emits zero translatable
+      Blocks regardless of input. The full input is preserved as Data
+      so a writer can round-trip it byte-for-byte. This is the default
+      state of both the native reader and Okapi's RegexFilter — both
+      construct an empty rules list at reset() / NewReader() time.
+      The only feature in this spec exercised through the parity
+      bridge runner: with no rules, the bridge and native agree on
+      "no Blocks extracted".
+    spec_refs:
+      - "Okapi RegexFilter — Parameters.reset() initialises `rules = new ArrayList<>()` (https://okapiframework.org/wiki/index.php/Regex_Filter)"
+    examples:
+      - name: single_newline
+        origin: "authored: smallest non-empty input that flows through both implementations"
+        input_xml: "\n"
+        block_count: 0
+      - name: plain_text_no_rules
+        origin: "authored: arbitrary text with no rules — passes through as Data"
+        input_xml: "Some content that no rule will match\n"
+        block_count: 0
+      - name: looks_like_strings_no_rules
+        origin: "authored: input that LOOKS like Mac .strings but no rules configured"
+        input_xml: "\"key1\" = \"Hello\";\n"
+        block_count: 0
+    okapi_refs:
+      - RegexFilterTest#testStartDocument
+    native_refs:
+      - regex.TestReadEmpty
+      - regex.TestReadNoRules
+      - regex.TestLayerStartEnd
+
+  # ── Mac .strings extraction (one rule, source + id) ──────────────
+  - id: mac_strings_simple
+    name: Mac .strings key/value extraction
+    description: |
+      Apple's .strings format: `"key" = "value";`. A single rule with
+      two capture groups extracts each entry — group 1 becomes
+      Block.Name, group 2 becomes the source text. The rule pattern
+      uses Go regex syntax (RE2 grammar — no backreferences or
+      lookaround); the equivalent Okapi rule uses Java regex syntax
+      with the same capture topology. Bridge cannot accept the rule
+      list through flat FilterParams (see file header), so all
+      examples here record an expected_fail on the parity side; the
+      native runner verifies the full extraction.
+    spec_refs:
+      - "Java SE Properties spec — Pattern syntax (Java) (https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/regex/Pattern.html)"
+      - "Go regexp/syntax — RE2 grammar (https://pkg.go.dev/regexp/syntax)"
+    config:
+      rules:
+        - pattern: "\"([^\"]*?)\"\\s*=\\s*\"((?:[^\"\\\\]|\\\\.)*)\"\\s*;"
+          sourceGroup: 2
+          idGroup: 1
+    examples:
+      - name: single_entry
+        origin: "authored: minimal Mac .strings entry"
+        expected_fail: |
+          Bridge transport gap — the okf_regex rules list is not
+          expressible through gRPC FilterParams (map<string,string>),
+          so the bridge runs with its default empty rules and emits
+          zero Blocks. Native correctly extracts the entry. Tracked
+          as a transport-level limitation, not an Okapi semantic
+          divergence — see the file header.
+        input_xml: "\"key1\" = \"Hello World\";"
+        block_count: 1
+        first_block_text: "Hello World"
+      - name: three_entries
+        origin: "okapi-fixture: RegexFilterTest#testConfigurations (macStrings preset)"
+        expected_fail: |
+          Bridge transport gap — same as single_entry. Native extracts
+          three Blocks; bridge emits zero.
+        input_xml: "\"File\" = \"File\";\n\"Edit\" = \"Edit\";\n\"Help\" = \"Help\";\n"
+        block_count: 3
+        block_texts: ["File", "Edit", "Help"]
+      - name: semicolon_in_value
+        origin: "okapi-fixture: RegexFilterTest#testSemicolonInData — verifies non-greedy match honours embedded semicolon"
+        expected_fail: |
+          Bridge transport gap — same as single_entry.
+        input_xml: "\"item1\" = \"Text1;Text2\";\n\"item2\" = \"Simple\";\n"
+        block_count: 2
+        block_texts: ["Text1;Text2", "Simple"]
+    okapi_refs:
+      - RegexFilterTest#testSimpleRule
+      - RegexFilterTest#testConfigurations
+      - RegexFilterTest#testSemicolonInData
+    native_refs:
+      - regex.TestMacStringsSimple
+      - regex.TestMacStringsMultiple
+      - regex.TestMacStringsSemicolonInValue
+
+  # ── Id + text extraction (two-group capture) ─────────────────────
+  - id: id_and_text
+    name: Bracketed id + tab-separated text
+    description: |
+      Format: `[ID]<TAB>text`. A two-group capture exposes the
+      identifier (group 1 → Block.Name) and the source text (group 2).
+      Demonstrates that the source group need not be the highest-
+      numbered group; `sourceGroup` is an explicit index, not a
+      "last group" convention.
+    config:
+      rules:
+        - pattern: "\\[(\\w+)\\]\\t(.+)"
+          sourceGroup: 2
+          idGroup: 1
+    examples:
+      - name: two_entries
+        origin: "okapi-fixture: RegexFilterTest#testIDAndText"
+        expected_fail: |
+          Bridge transport gap — the rules list isn't passable through
+          flat FilterParams, so the bridge emits zero Blocks. Native
+          extracts the two entries with their ids.
+        input_xml: "[ID1]\tFirst text\n[ID2]\tSecond text\n"
+        block_count: 2
+        block_texts: ["First text", "Second text"]
+    okapi_refs:
+      - RegexFilterTest#testIDAndText
+    native_refs:
+      - regex.TestIDAndText
+
+  # ── Note (translator comment) extraction ─────────────────────────
+  - id: note_extraction
+    name: Translator note via noteGroup
+    description: |
+      A capture group designated as `noteGroup` populates the Block's
+      `note` annotation rather than its source text. Used for formats
+      that pair each entry with a comment (`/* … */` for Mac .strings,
+      `; …` for INI variants, etc.). Group order in the spec is free —
+      `noteGroup` is the first group of the rule below by design.
+    config:
+      rules:
+        - pattern: "/\\*\\s*(.*?)\\s*\\*/\\s*\\n\\s*\"([^\"]*?)\"\\s*=\\s*\"((?:[^\"\\\\]|\\\\.)*)\"\\s*;"
+          sourceGroup: 3
+          idGroup: 2
+          noteGroup: 1
+    examples:
+      - name: comment_then_entry
+        origin: "okapi-fixture: RegexFilterTest#testNoteExtraction"
+        expected_fail: |
+          Bridge transport gap — bridge emits zero Blocks without a
+          rule list. Native extracts the entry; the note is asserted
+          by the native unit test (regex.TestNoteExtraction) rather
+          than by the BlockTexts assertion vocabulary used here.
+        input_xml: "/* Menu item */\n\"File\" = \"File\";\n"
+        block_count: 1
+        first_block_text: "File"
+    okapi_refs:
+      - RegexFilterTest#testNoteExtraction
+    native_refs:
+      - regex.TestNoteExtraction
+
+  # ── INI key=value extraction ─────────────────────────────────────
+  - id: ini_key_value
+    name: INI-style key=value extraction
+    description: |
+      INI section bodies: lines of the form `key=value`, ignoring
+      `[section]` headers and `#`/`;` comments. The rule below pairs
+      with multi-line mode (`(?m)`) so `^`/`$` match per line. Section
+      headers and comments fall through as Data because no rule
+      matches them.
+    config:
+      rules:
+        - pattern: "(?m)^([^=\\[\\]#;\\s]+)\\s*=\\s*(.+)$"
+          sourceGroup: 2
+          idGroup: 1
+    examples:
+      - name: section_with_two_keys
+        origin: "okapi-fixture: RegexFilterTest#testConfigurations (INI preset)"
+        expected_fail: |
+          Bridge transport gap — bridge emits zero Blocks without a
+          rule list. Native extracts the two key=value pairs and
+          discards the section header / comments as Data.
+        input_xml: "[Section1]\nkey1=Hello World\nkey2=Goodbye\n"
+        block_count: 2
+        block_texts: ["Hello World", "Goodbye"]
+      - name: comments_skipped
+        origin: "authored: comments and blank lines should not become Blocks"
+        expected_fail: |
+          Bridge transport gap — same as section_with_two_keys.
+        input_xml: "# Comment line\nkey1=Value1\n\n# Another comment\nkey2=Value2\n"
+        block_count: 2
+        block_texts: ["Value1", "Value2"]
+    okapi_refs:
+      - RegexFilterTest#testConfigurations
+      - RegexFilterTest#testEmptyLines
+    native_refs:
+      - regex.TestINIFormat
+      - regex.TestNonMatchingContentAsData
+
+  # ── Backslash escape decoding ────────────────────────────────────
+  - id: backslash_escape
+    name: Backslash escape decoding (\\n, \\t, \\")
+    description: |
+      With `escapeType: backslash`, the reader decodes the standard
+      C-style escapes (`\\n` → LF, `\\t` → tab, `\\r` → CR, `\\\\` →
+      backslash, `\\"` → `"`, `\\'` → `'`) inside the captured source
+      text. Other backslash sequences pass through unchanged. Mirrors
+      Okapi's `useBSlashEscape: true`.
+    spec_refs:
+      - "Okapi RegexFilter — `useBSlashEscape` setting (https://okapiframework.org/wiki/index.php/Regex_Filter)"
+    config:
+      rules:
+        - pattern: "\"((?:[^\"\\\\]|\\\\.)*)\""
+          sourceGroup: 1
+      escapeType: "backslash"
+    examples:
+      - name: escaped_quotes
+        origin: "okapi-fixture: RegexFilterTest#testBackslashEscapeHandling — escaped quote inside string"
+        expected_fail: |
+          Bridge transport gap — bridge emits zero Blocks without a
+          rule list. Native decodes \\\" to a literal quote.
+        input_xml: "\"Hello \\\"World\\\"\""
+        block_count: 1
+        first_block_text: "Hello \"World\""
+      - name: escaped_newline_and_tab
+        origin: "okapi-fixture: RegexFilterTest#testBackslashEscapeHandling — \\n and \\t"
+        expected_fail: |
+          Bridge transport gap — same as escaped_quotes. Native decodes
+          \\n → LF and \\t → TAB inside captured text.
+        input_xml: "\"Line1\\nLine2\"\n\"Tab\\there\""
+        block_count: 2
+        block_texts:
+          - "Line1\nLine2"
+          - "Tab\there"
+    okapi_refs:
+      - RegexFilterTest#testBackslashEscapeHandling
+    native_refs:
+      - regex.TestBackslashEscape
+      - regex.TestBackslashEscapeNewlineTab
+
+  # ── Double-character escape decoding ─────────────────────────────
+  - id: double_char_escape
+    name: Double-character escape decoding (e.g. "" → ")
+    description: |
+      With `escapeType: doublechar` and `escapeChar: "`, a doubled
+      `""` inside captured text decodes to a single `"`. Mirrors
+      Okapi's `useDoubleCharEscape: true`. The capture pattern must
+      itself accept `""` inside the string body, which is the role of
+      the `(?:[^"]|"")*` alternation in the rule below.
+    spec_refs:
+      - "Okapi RegexFilter — `useDoubleCharEscape` setting (https://okapiframework.org/wiki/index.php/Regex_Filter)"
+    config:
+      rules:
+        - pattern: "\"((?:[^\"]|\"\")*)\""
+          sourceGroup: 1
+      escapeType: "doublechar"
+      escapeChar: "\""
+    examples:
+      - name: doubled_quotes
+        origin: "okapi-fixture: RegexFilterTest#testEscapeDoubleChar"
+        expected_fail: |
+          Bridge transport gap — bridge emits zero Blocks without a
+          rule list. Native decodes "" → ".
+        input_xml: "\"Hello \"\"World\"\"\"\n\"Simple text\"\n"
+        block_count: 2
+        block_texts:
+          - "Hello \"World\""
+          - "Simple text"
+    okapi_refs:
+      - RegexFilterTest#testEscapeDoubleChar
+      - RegexFilterTest#testEscapeDoubleCharNoEscape
+    native_refs:
+      - regex.TestDoubleCharEscape
+      - regex.TestNoEscape
+
+  # ── Multiple rules, applied in order ─────────────────────────────
+  - id: multiple_rules
+    name: Multiple rules applied left-to-right
+    description: |
+      A `rules` list with more than one entry tries each rule against
+      the full input and merges the matches in document order. When
+      two rules' matches overlap, the earlier-positioned match wins
+      (`removeOverlaps` in the native reader). When matches don't
+      overlap, both produce Blocks. Mirrors Okapi's per-rule iteration
+      with the same first-match-wins overlap policy.
+    config:
+      rules:
+        - pattern: "(?m)^(\\w+)=(.+)$"
+          sourceGroup: 2
+          idGroup: 1
+        - pattern: "LABEL\\s+\"([^\"]+)\""
+          sourceGroup: 1
+    examples:
+      - name: key_value_and_label
+        origin: "authored: mixed rule set covering both key=value and LABEL \"text\""
+        expected_fail: |
+          Bridge transport gap — bridge emits zero Blocks without rules.
+          Native picks up `title=Hello`, `LABEL "World"`, `desc=Goodbye`
+          via the two rules in order.
+        input_xml: "title=Hello\nLABEL \"World\"\ndesc=Goodbye\n"
+        block_count: 3
+        block_texts: ["Hello", "World", "Goodbye"]
+    okapi_refs:
+      - RegexFilterTest#testConfigurations
+    native_refs:
+      - regex.TestMultipleRules
+
+# ── Intentionally under-specified ─────────────────────────────────────
+#
+# Inline-code detection (Okapi's `useCodeFinder` / `codeFinderRules`)
+# tags inline placeholders (`%s`, `<b>`, …) inside extracted text as
+# Spans rather than treating them as raw text. The native reader
+# doesn't ship a code-finder pass yet (regex.Reader emits captured
+# text as a single text run); the bridge schema represents code-finder
+# at `inlineCodes.enabled` + `inlineCodes.rules`. Excluded from this
+# spec until the native side grows the corresponding pass.
+#
+# Sub-filter dispatch (`subFilter`) routes each captured Block through
+# a second filter (HTML, Markdown, …). The bridge's okf_regex schema
+# exposes it; the native reader does not implement it yet. Same
+# rationale as inline-code detection.
+#
+# Roundtrip / writer behavior (testCollapseNewline,
+# testBackslashEscapeHandling roundtrip, testSubFiltering) is verified
+# by the native package's roundtrip tests (regex.TestRoundTrip,
+# TestRoundTripWithTranslation, TestRoundTripINI,
+# TestRoundTripBackslashEscape) but is not expressible through the
+# BlockTexts assertion vocabulary this spec uses — there is no
+# roundtrip assertion type. Captured here as a known coverage gap.
+#
+# Cancellation (TestContextCancellation), config validation
+# (TestConfigValidation, TestConfigApplyMap), and reader metadata
+# (TestReaderMetadata, TestReaderSignature) are API-shape tests
+# rather than user-observable extraction behavior, and intentionally
+# fall outside this spec's surface.
