@@ -126,13 +126,32 @@ type Feature struct {
 // Variant selects the sub-format ParseType for multi-variant filters
 // (required when Spec.Variants is non-empty and the input shape is
 // ambiguous, e.g. a raw XML snippet).
+//
+// Fixture sourcing rule (binary formats — idml, archive, openxml, rtf,
+// pdf, mif, icml, epub, txml, transtable, vignette, etc.):
+//   - PREFER `input_file: okapi:okapi/filters/<name>/src/test/resources/<file>`
+//     so both the bridge and the native reader exercise real upstream
+//     test fixtures. Synthetic minimal fixtures (`gen-*-fixtures`
+//     scripts emitting `testdata/*.idml` etc.) routinely omit attributes
+//     that real authoring tools always emit; the bridge null-derefs and
+//     the divergence reads as a "bridge bug" (e.g. #482) when in fact
+//     the fixture is malformed.
+//   - Synthetic fixtures are acceptable only when no upstream file
+//     covers the feature. In that case, note the justification in the
+//     spec.yaml header comment.
+//
+// Text-based formats (json, yaml, properties, po, html, markdown, xml,
+// xliff, …) may continue to use `input_xml` / `input_bytes` inline —
+// the failure mode above doesn't apply to handwritten text snippets.
 type Example struct {
 	Name        string `yaml:"name"`
 	Description string `yaml:"description,omitempty"`
 	Variant     string `yaml:"variant,omitempty"`
 
-	// Input shape — pick one.
-	InputFile  string `yaml:"input_file,omitempty"`  // path relative to spec.yaml dir
+	// Input shape — pick one. For binary formats, prefer
+	// `input_file: okapi:...` over synthetic `testdata/*` fixtures
+	// (see Example doc comment).
+	InputFile  string `yaml:"input_file,omitempty"`  // path relative to spec.yaml dir, or `okapi:<path-under-okapi-testdata>`
 	InputXML   string `yaml:"input_xml,omitempty"`   // inline XML/text snippet
 	InputBytes []byte `yaml:"input_bytes,omitempty"` // base64-encoded in YAML
 
