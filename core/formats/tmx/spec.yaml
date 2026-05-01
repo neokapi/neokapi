@@ -143,6 +143,16 @@ features:
       block source is the TUV matching `srclang`.
     examples:
       - name: three_targets
+        # bridge bug — Okapi TmxFilter normalizes srclang="en-us" to "en"
+        # internally and then requires a <tuv> with exactly that
+        # normalized code, rejecting "en-us" with OkapiBadFilterInputException.
+        # Native reader applies relaxed en ↔ en-US matching per spec
+        # semantics. Tracked separately.
+        expected_fail: |
+          bridge bug — Okapi TmxFilter normalizes srclang="en-us" to "en"
+          and then rejects the TU because no <tuv> matches the normalized
+          source language exactly. Native applies relaxed en ↔ en-US
+          matching per spec semantics. Tracked separately.
         input_xml: |
           <?xml version="1.0"?>
           <tmx version="1.4">
@@ -174,6 +184,15 @@ features:
       only `lang`) parse as multilingual just like 1.4.
     examples:
       - name: tmx_1_1_lang_attr
+        # bridge bug — Okapi TmxFilter normalizes srclang="en-us" to "en"
+        # and then rejects TUs whose <tuv> uses "en-us" rather than the
+        # normalized "en". Native applies relaxed en ↔ en-US matching
+        # per spec semantics. Tracked separately.
+        expected_fail: |
+          bridge bug — Okapi TmxFilter normalizes srclang="en-us" to "en"
+          and rejects the TU because no <tuv lang="en"> matches exactly.
+          Native applies relaxed en ↔ en-US matching per spec semantics.
+          Tracked separately.
         input_xml: |
           <?xml version="1.0"?>
           <tmx version="1.1">
@@ -185,6 +204,15 @@ features:
         block_count: 1
         first_block_text: "Hello World!"
       - name: xml_lang_wins_over_lang
+        # bridge bug — Okapi TmxFilter normalizes srclang="en-us" to "en"
+        # and rejects the TU because no <tuv xml:lang="en"> matches the
+        # normalized source. Native applies relaxed en ↔ en-US matching
+        # per spec semantics. Tracked separately.
+        expected_fail: |
+          bridge bug — Okapi TmxFilter normalizes srclang="en-us" to "en"
+          and rejects the TU because no <tuv xml:lang="en"> matches the
+          normalized source language. Native applies relaxed en ↔ en-US
+          matching per spec semantics. Tracked separately.
         input_xml: |
           <?xml version="1.0"?>
           <tmx version="1.1">
@@ -263,6 +291,15 @@ features:
       `notes` property) and `<prop type="X">` (keyed `prop:X`).
     examples:
       - name: header_with_note_and_prop
+        # bridge bug — Okapi TmxFilter normalizes srclang="en-us" to "en"
+        # and rejects the TU because no <tuv xml:lang="en"> matches the
+        # normalized source. Native applies relaxed en ↔ en-US matching
+        # per spec semantics. Tracked separately.
+        expected_fail: |
+          bridge bug — Okapi TmxFilter normalizes srclang="en-us" to "en"
+          and rejects the TU because no <tuv xml:lang="en"> matches the
+          normalized source language. Native applies relaxed en ↔ en-US
+          matching per spec semantics. Tracked separately.
         input_xml: |
           <?xml version="1.0" encoding="UTF-8"?>
           <tmx version="1.4">
