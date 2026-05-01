@@ -1,0 +1,595 @@
+# ICU MessageFormat specification.
+#
+# Single-variant filter — no variants block. Inputs are inline ICU
+# MessageFormat patterns (input_xml is reused for any text snippet; the
+# field is named for XML historically but holds raw text bytes for any
+# text format). Each line of the input is treated as one independent
+# pattern; blank lines and trailing newlines round-trip as skeleton.
+#
+# Block-text assertions reflect what the native reader actually emits.
+# `BlockTexts` (used by both runners) joins text-only runs and drops
+# placeholders, so a pattern like `Hello {0} world` extracts as a
+# single block whose joined text is `"Hello  world"` (the empty gap
+# where `{0}` lived is preserved as adjacent spaces). Plural / select
+# bodies extract as one block per leaf branch; the surrounding
+# scaffolding ("Text … End", "He has …") is discarded by the native
+# `extractSegments` walk and is therefore not asserted on.
+#
+# Config surface is intentionally empty. Upstream Okapi exposes
+# `addPluralForms`, `normalize`, `prettyPrint`, and an `inlineCodes`
+# group, but these shape upstream output — they don't change the
+# extraction contract verified here, the native reader doesn't honour
+# them, and the bridge ships no composite schema for okf_messageformat
+# yet (versions.json carries an empty list). Declaring keys would
+# either fail native ApplyMap or fail bridge-schema drift; leaving the
+# surface empty keeps both runners green and is honest about the
+# current state.
+#
+# okapi_refs are pinned to the upstream class+method names. Drift
+# detection asserts each ref still exists in the bridge's pinned
+# Okapi 1.47.0 surefire output. The MessageFormatToFormattedTest /
+# MessageFormatPluralTest / MessageFormatNormalizerTest classes test
+# upstream-only output behaviours (toFormatted, addPluralForms,
+# normalize) that aren't part of the extraction contract — they're
+# referenced where the same input pattern exercises an extraction-side
+# behaviour, otherwise omitted.
+
+format: okf_messageformat
+mime_type: text/x-messageformat
+description: |
+  ICU MessageFormat filter. Treats each input line as one independent
+  MessageFormat pattern. Plain-text patterns extract as a single
+  translatable Block; patterns with simple placeholders (`{0}`,
+  `{name}`, `{name, type}`, `{name, type, style}`) extract as a single
+  Block whose source carries inline placeholder runs around the
+  literal text. Plural / select / selectordinal pickers split into one
+  Block per branch body so each form can be translated independently;
+  the picker scaffolding (`{count, plural, …}`, `{gender, select,
+  …}`) and any text outside the picker is preserved through the
+  skeleton, not extracted. ICU quoting (`''` for an apostrophe,
+  `'{...}'` for a literal-brace passage) is decoded before extraction.
+  Java's deprecated `choice` format is rejected with an error.
+
+features:
+  # ── Plain literal text ────────────────────────────────────────────
+  - id: literal_text
+    name: Plain literal text
+    description: |
+      A pattern with no `{…}` constructs extracts as one translatable
+      Block whose source is the literal text. Mirrors the simplest
+      Okapi case; emits a StartDocument / Block / EndDocument event
+      sequence.
+    examples:
+      - name: hello_world
+        input_xml: "Hello world"
+        block_count: 1
+        first_block_text: "Hello world"
+      - name: longer_sentence
+        input_xml: "Just plain text"
+        block_count: 1
+        first_block_text: "Just plain text"
+      - name: hello_name
+        input_xml: "Hello, {name}!"
+        # `{name}` becomes a placeholder run; BlockTexts joins the
+        # surrounding text only, so the gap shows as bare adjacent
+        # punctuation.
+        block_count: 1
+        first_block_text: "Hello, !"
+    okapi_refs:
+      - MessageFormatFilterTest#testEntry
+      - MessageFormatFilterTest#testLiterals
+      - MessageFormatFilterTest#testStartDocument
+      - MessageFormatParserTest#testWithSimpleMessage
+      - MessageFormatToFormattedTest#testWithSimpleMessage
+    native_refs:
+      - messageformat.TestExtract_Entry
+      - messageformat.TestExtract_Literals
+      - messageformat.TestParser_SimpleMessage
+
+  # ── Simple positional / named placeholders ────────────────────────
+  - id: simple_placeholders
+    name: Simple positional and named placeholders
+    description: |
+      A bare `{0}`, `{1}`, or `{name}` reference becomes one inline
+      placeholder run inside the surrounding Block. Multiple
+      placeholders in one line each get their own placeholder; the
+      surrounding literal text stays in the same Block. BlockTexts
+      assertions reflect the joined text-only runs (placeholders are
+      omitted from the joined string).
+    examples:
+      - name: positional_placeholder
+        input_xml: "Hello {0} world"
+        block_count: 1
+        first_block_text: "Hello  world"
+      - name: named_placeholder
+        input_xml: "Hello {name} world"
+        block_count: 1
+        first_block_text: "Hello  world"
+      - name: multiple_placeholders
+        input_xml: "{1}Text {foobar}"
+        block_count: 1
+        first_block_text: "Text "
+    okapi_refs:
+      - MessageFormatFilterTest#testCode1
+      - MessageFormatFilterTest#testCode2
+    native_refs:
+      - messageformat.TestExtract_Code1
+      - messageformat.TestExtract_Code2
+
+  # ── Typed placeholders: number / date / time / spellout / duration / currency / percent ─
+  - id: typed_placeholders
+    name: Typed placeholders (number / date / time / spellout / duration / currency / percent)
+    description: |
+      `{name, type}` and `{name, type, style}` references — the typed
+      argument forms — extract identically to simple placeholders for
+      the purposes of block extraction: one placeholder run per
+      reference, surrounding literal text in the same Block. The
+      `type` and `style` syntax is parsed and preserved on the
+      placeholder data so writers can round-trip it; the spec
+      assertions only check the surrounding text and block count.
+    examples:
+      - name: number_integer
+        input_xml: "There are {0,number,integer} files."
+        block_count: 1
+        first_block_text: "There are  files."
+      - name: date_short
+        input_xml: "The date is {0,date,short}."
+        block_count: 1
+        first_block_text: "The date is ."
+      - name: time_default
+        input_xml: "The time is {0,time}."
+        block_count: 1
+        first_block_text: "The time is ."
+      - name: number_pattern
+        input_xml: "Value is {0,number,#,###}."
+        block_count: 1
+        first_block_text: "Value is ."
+      - name: number_currency
+        input_xml: "The price is {price, number, currency}."
+        block_count: 1
+        first_block_text: "The price is ."
+      - name: number_percent
+        input_xml: "You saved {discount, number, percent}."
+        block_count: 1
+        first_block_text: "You saved ."
+      - name: spellout
+        input_xml: "You came in {place, spellout} place."
+        block_count: 1
+        first_block_text: "You came in  place."
+      - name: duration
+        input_xml: "Meeting starts in {duration, duration}"
+        block_count: 1
+        first_block_text: "Meeting starts in "
+      - name: mixed_typed_args
+        input_xml: "On {0,date} at {0,time}, there was {1} on planet {2,number}."
+        block_count: 1
+        first_block_text: "On  at , there was  on planet ."
+    okapi_refs:
+      - MessageFormatFilterTest#testCode3
+      - MessageFormatFilterTest#testCode4
+      - MessageFormatParserTest#testFormattedMessage
+      - MessageFormatToFormattedTest#testWithNumber
+      - MessageFormatToFormattedTest#testCurrency
+      - MessageFormatToFormattedTest#testPercent
+      - MessageFormatToFormattedTest#testSpellout
+      - MessageFormatToFormattedTest#testDuration
+    native_refs:
+      - messageformat.TestExtract_Code3
+      - messageformat.TestExtract_Code4
+      - messageformat.TestExtract_Code5
+      - messageformat.TestExtract_Code6
+      - messageformat.TestParser_FormattedMessage
+
+  # ── Plural picker ─────────────────────────────────────────────────
+  - id: plural_picker
+    name: Plural picker (cardinal forms)
+    description: |
+      A `{count, plural, <keyword> {body} …}` expression splits into
+      one Block per branch body. Both keyword forms (`zero`, `one`,
+      `two`, `few`, `many`, `other`) and explicit `=N` selectors are
+      supported. The `#` token inside a branch becomes an inline
+      placeholder run referring to the picker variable. Literal text
+      outside the picker on the same line is preserved in the
+      skeleton, not extracted.
+    examples:
+      - name: one_other
+        input_xml: "{count, plural, one {# item} other {# items}}"
+        block_count: 2
+        block_texts:
+          - " item"
+          - " items"
+      - name: with_zero_branch
+        input_xml: "{count, plural, =0 {no files} one {# file} other {# files}}"
+        block_count: 3
+        block_texts:
+          - "no files"
+          - " file"
+          - " files"
+      - name: many_keyword_forms
+        input_xml: "{count, plural, zero {no items} one {# item} two {# items} few {# items} many {# items} other {# items}}"
+        block_count: 6
+        block_texts:
+          - "no items"
+          - " item"
+          - " items"
+          - " items"
+          - " items"
+          - " items"
+      - name: explicit_and_keyword_forms
+        input_xml: "{count, plural, =0 {no files} =1 {one file} one {# file} other {# files}}"
+        block_count: 4
+        block_texts:
+          - "no files"
+          - "one file"
+          - " file"
+          - " files"
+      - name: there_are_n_items
+        input_xml: "{count, plural, one {one item} other {# items}}"
+        block_count: 2
+        block_texts:
+          - "one item"
+          - " items"
+    okapi_refs:
+      - MessageFormatFilterTest#testPluralNames
+      - MessageFormatFilterTest#testPluralNames2
+      - MessageFormatFilterTest#testPluralNames3
+      - MessageFormatFilterTest#testMany1
+      - MessageFormatParserTest#testWithPlural
+      - MessageFormatParserTest#testWithPluralMessage
+      - MessageFormatToFormattedTest#testWithPlural
+      - MessageFormatToFormattedTest#testWithPluralMessage
+      - MessageFormatToFormattedTest#testShortPluralMessage
+      - MessageFormatPluralTest#testWithPluralMessage2
+    native_refs:
+      - messageformat.TestExtract_PluralNames
+      - messageformat.TestExtract_PluralNames2
+      - messageformat.TestExtract_PluralNames3
+      - messageformat.TestExtract_Many1
+      - messageformat.TestPluralBranchExtraction
+      - messageformat.TestParser_PluralMessage
+      - messageformat.TestParser_ComplexPluralMessage
+
+  # ── Plural offset and # hash reference ────────────────────────────
+  - id: plural_offset_and_hash
+    name: Plural offset and # hash reference
+    description: |
+      The `offset:N` modifier on a plural picker is parsed and
+      preserved on the picker node. Inside any branch body, `#`
+      represents the (possibly offset-adjusted) numeric value of the
+      picker variable and is emitted as an inline placeholder run on
+      its own — distinct from literal `#` characters outside a picker
+      context, which extract as plain text.
+    examples:
+      - name: offset_one_with_inline_arg
+        input_xml: "{count, plural, offset:1 =0 {Nobody} =1 {Just {0}} one {# and one other} other {# and # others}}"
+        block_count: 4
+        block_texts:
+          - "Nobody"
+          - "Just "
+          - " and one other"
+          - " and  others"
+      - name: offset_two
+        input_xml: "{n, plural, offset:2 =0 {No (#) trains are available} one {# train is available} other {# trains are available}}"
+        block_count: 3
+        block_texts:
+          - "No () trains are available"
+          - " train is available"
+          - " trains are available"
+    okapi_refs:
+      - MessageFormatFilterTest#testOffset
+      - MessageFormatParserTest#testOffset
+      - MessageFormatToFormattedTest#testOffset
+    native_refs:
+      - messageformat.TestExtract_Offset
+      - messageformat.TestParser_Offset
+      - messageformat.TestHashAsPlaceholder
+
+  # ── Select picker ─────────────────────────────────────────────────
+  - id: select_picker
+    name: Select picker (gender / category branches)
+    description: |
+      A `{name, select, <keyword> {body} …}` expression splits into
+      one Block per branch body. Branch keywords are arbitrary
+      identifiers (typically `male` / `female` / `other` for gender,
+      but any vocabulary the application uses). Surrounding text on
+      the same line is skeleton-only.
+    examples:
+      - name: gender_three_branches
+        input_xml: "{gender, select, male {He likes this} female {She likes this} other {They like this}}"
+        block_count: 3
+        block_texts:
+          - "He likes this"
+          - "She likes this"
+          - "They like this"
+      - name: gender_short_branches
+        input_xml: "{gender, select, male {He} female {She} other {They}}"
+        block_count: 3
+        block_texts:
+          - "He"
+          - "She"
+          - "They"
+      - name: color_select
+        input_xml: "{color, select, red {The color is red.} blue {The color is blue.} green {The color is green.} other {The color is unknown.}}"
+        block_count: 4
+        block_texts:
+          - "The color is red."
+          - "The color is blue."
+          - "The color is green."
+          - "The color is unknown."
+    okapi_refs:
+      - MessageFormatFilterTest#testGenderNames
+      - MessageFormatParserTest#testSelectMessage
+      - MessageFormatParserTest#testWithComplexGenderMessage
+      - MessageFormatToFormattedTest#testSelectMessage
+      - MessageFormatToFormattedTest#testWithSelect
+      - MessageFormatToFormattedTest#testWithComplexGenderMessage
+      - MessageFormatPluralTest#testWithSelectMessage
+    native_refs:
+      - messageformat.TestExtract_GenderNames
+      - messageformat.TestSelectBranchExtraction
+      - messageformat.TestParser_SelectMessage
+      - messageformat.TestParser_ComplexGenderMessage
+
+  # ── Selectordinal picker ──────────────────────────────────────────
+  - id: selectordinal_picker
+    name: Selectordinal picker (1st / 2nd / 3rd / nth)
+    description: |
+      `{n, selectordinal, …}` mirrors `plural` but its branch
+      keywords (`one`, `two`, `few`, `other`) follow ordinal rules
+      (1st, 2nd, 3rd, nth). Native extraction treats it identically
+      to `plural`: one Block per branch body, with `#` becoming an
+      inline placeholder.
+    examples:
+      - name: ordinal_four_forms
+        input_xml: "{count, selectordinal, one {#st} two {#nd} few {#rd} other {#th}}"
+        block_count: 4
+        block_texts:
+          - "st"
+          - "nd"
+          - "rd"
+          - "th"
+      - name: ordinal_with_text
+        input_xml: "{count, selectordinal, one {#st place} two {#nd place} few {#rd place} other {#th place}}"
+        block_count: 4
+        block_texts:
+          - "st place"
+          - "nd place"
+          - "rd place"
+          - "th place"
+    okapi_refs:
+      - MessageFormatFilterTest#testSelectOrdinal
+      - MessageFormatParserTest#testSelectOrdinalMessage
+      - MessageFormatToFormattedTest#testSelectOrdinalMessage
+    native_refs:
+      - messageformat.TestExtract_SelectOrdinal
+      - messageformat.TestSelectOrdinalBranches
+      - messageformat.TestParser_SelectOrdinalMessage
+
+  # ── Nested pickers (plural inside select etc.) ────────────────────
+  - id: nested_pickers
+    name: Nested pickers (plural inside select)
+    description: |
+      Pickers nest. The native reader walks nested `select` /
+      `plural` / `selectordinal` branches recursively and emits one
+      Block per leaf-branch body. Picker scaffolding and text inside
+      a parent branch but outside its child picker (e.g. "He has " in
+      `male {He has {count, plural, one {# item} other {# items}}}`)
+      is preserved in the skeleton — only the leaf bodies extract.
+    examples:
+      - name: select_around_plural
+        input_xml: "{gender, select, male {He has {count, plural, one {# item} other {# items}}} female {She has {count, plural, one {# item} other {# items}}} other {They have {count, plural, one {# item} other {# items}}}}"
+        block_count: 6
+        block_texts:
+          - " item"
+          - " items"
+          - " item"
+          - " items"
+          - " item"
+          - " items"
+      - name: two_pickers_side_by_side
+        input_xml: "{gender, select, male {He} female {She} other {They}} bought {count, plural, one {# item} other {# items}}."
+        block_count: 5
+        block_texts:
+          - "He"
+          - "She"
+          - "They"
+          - " item"
+          - " items"
+    okapi_refs:
+      - MessageFormatFilterTest#testEmbeddedPluralNames
+      - MessageFormatFilterTest#testMultipleEmbedded
+      - MessageFormatFilterTest#testCode6
+      - MessageFormatParserTest#testWithEmbeddedPluralMessage
+      - MessageFormatParserTest#testWithComplexPluralMessage
+      - MessageFormatParserTest#testWithNestedGenderAndPluralMessage
+      - MessageFormatParserTest#testWithMixedGenderAndPluralMessage
+      - MessageFormatParserTest#testWithNestedMessage
+      - MessageFormatToFormattedTest#testWithEmbeddedPluralMessage
+      - MessageFormatToFormattedTest#testWithComplexPluralMessage
+      - MessageFormatToFormattedTest#testWithNestedGenderAndPluralMessage
+      - MessageFormatToFormattedTest#testWithMixedGenderAndPluralMessage
+      - MessageFormatToFormattedTest#testWithNestedMessage
+    native_refs:
+      - messageformat.TestExtract_EmbeddedPluralNames
+      - messageformat.TestExtract_MultipleEmbedded
+      - messageformat.TestParser_EmbeddedPluralMessage
+      - messageformat.TestNestedSelectPluralDepth
+
+  # ── ICU quoting (apostrophe and brace escapes) ────────────────────
+  - id: icu_quoting
+    name: ICU quoting (apostrophe and brace escapes)
+    description: |
+      ICU MessageFormat reserves `'` for syntactic escaping. `''`
+      becomes a literal apostrophe; `'{...}'` (or `'#'` inside a
+      plural body) carries a literal sequence whose `{`, `}`, or `#`
+      characters are NOT interpreted as picker syntax. Both forms
+      decode in the extracted source text — the writer re-encodes them
+      on the way out so round-trip is preserved.
+    examples:
+      - name: doubled_apostrophe
+        input_xml: "It''s a test"
+        block_count: 1
+        first_block_text: "It's a test"
+      - name: deep_quoted_apostrophes
+        input_xml: "It''s ''deeply'' ''nested'' text"
+        block_count: 1
+        first_block_text: "It's 'deeply' 'nested' text"
+      - name: quoted_braces
+        input_xml: "Use '{' and '}' for placeholders"
+        block_count: 1
+        first_block_text: "Use { and } for placeholders"
+      - name: quoted_text_passage
+        input_xml: "Text with 'quoted' content"
+        block_count: 1
+        first_block_text: "Text with quoted content"
+      - name: mixed_quoting_in_plural
+        input_xml: "{count, plural, one {It''s # item} other {It''s # items}}"
+        block_count: 2
+        block_texts:
+          - "It's  item"
+          - "It's  items"
+    okapi_refs:
+      - MessageFormatFilterTest#testOneQuote
+      - MessageFormatFilterTest#testQuotedQuote
+      - MessageFormatFilterTest#testDeepQuotes
+      - MessageFormatParserTest#testSkipSyntaxApostrophe
+      - MessageFormatParserTest#testSkipSyntaxQuotedText
+      - MessageFormatParserTest#testSkipSyntaxEscapedBraces
+      - MessageFormatParserTest#testSkipSyntaxComplexPattern
+      - MessageFormatParserTest#testSkipSyntaxEmbedded
+      - MessageFormatToFormattedTest#testSkipSyntaxApostrophe
+      - MessageFormatToFormattedTest#testSkipSyntaxQuotedText
+      - MessageFormatToFormattedTest#testSkipSyntaxEscapedBraces
+      - MessageFormatToFormattedTest#testSkipSyntaxComplexPattern
+      - MessageFormatToFormattedTest#testSkipSyntaxEmbedded
+    native_refs:
+      - messageformat.TestExtract_OneQuote
+      - messageformat.TestExtract_QuotedQuote
+      - messageformat.TestExtract_DeepQuotes
+      - messageformat.TestParser_SkipSyntaxApostrophe
+      - messageformat.TestParser_SkipSyntaxQuotedText
+      - messageformat.TestParser_SkipSyntaxEscapedBraces
+      - messageformat.TestParser_SkipSyntaxComplexPattern
+      - messageformat.TestParser_SkipSyntaxEmbedded
+
+  # ── Multi-line input and line-ending handling ─────────────────────
+  - id: line_handling
+    name: Multi-line input and line endings
+    description: |
+      Each line of the input is treated as one independent
+      MessageFormat pattern. `\n`, `\r\n`, and `\r` line terminators
+      all delimit pattern boundaries (the underlying scanner splits
+      on `\n`, then strips a trailing `\r`). Blank lines and trailing
+      newlines round-trip through the skeleton.
+    examples:
+      - name: two_literal_lines_lf
+        input_xml: "Line 1\nLine 2\n"
+        block_count: 2
+        block_texts:
+          - "Line 1"
+          - "Line 2"
+      - name: two_literal_lines_crlf
+        input_xml: "Line 1\r\nLine 2\r\n"
+        block_count: 2
+        block_texts:
+          - "Line 1"
+          - "Line 2"
+      - name: literal_then_plural_pattern
+        input_xml: "Hello world\n{count, plural, one {# item} other {# items}}\n"
+        block_count: 3
+        block_texts:
+          - "Hello world"
+          - " item"
+          - " items"
+    okapi_refs:
+      - MessageFormatFilterTest#testLineBreaks_LF
+      - MessageFormatFilterTest#testineBreaks_CRLF
+      - MessageFormatFilterTest#testStartDocument
+    native_refs:
+      - messageformat.TestExtract_LineBreaks_LF
+      - messageformat.TestExtract_LineBreaks_CRLF
+
+  # ── Locale-specific plural keyword vocabulary ─────────────────────
+  - id: plural_rules_locale
+    name: Locale-specific plural keyword vocabulary
+    description: |
+      ICU plural rules vary by locale: English uses `one` / `other`,
+      Russian uses `one` / `few` / `many` / `other`, Arabic uses
+      `zero` / `one` / `two` / `few` / `many` / `other`, etc. The
+      reader doesn't validate the keyword vocabulary against a
+      locale rules table — it accepts any keyword and emits one
+      Block per branch body. The PluralRulesDiffTest class in
+      upstream Okapi is the reference for which keywords are
+      legitimate per locale.
+    examples:
+      - name: russian_four_forms
+        input_xml: "{count, plural, one {# файл} few {# файла} many {# файлов} other {# файлов}}"
+        block_count: 4
+        block_texts:
+          - " файл"
+          - " файла"
+          - " файлов"
+          - " файлов"
+      - name: russian_with_zero_and_keywords
+        input_xml: "{members, plural, =0 {Нет доступных членов} one {Есть один член.} few {Имеется # члена.} many {Есть # членов.} other {# члена.}}"
+        block_count: 5
+        block_texts:
+          - "Нет доступных членов"
+          - "Есть один член."
+          - "Имеется  члена."
+          - "Есть  членов."
+          - " члена."
+    okapi_refs:
+      - MessageFormatFilterTest#testPluralNames3
+      - MessageFormatParserTest#testRussian
+      - MessageFormatToFormattedTest#testRussian
+      - PluralRulesDiffTest#testRussian
+      - PluralRulesDiffTest#testGerman
+      - PluralRulesDiffTest#testArabic
+      - PluralRulesDiffTest#testRomanian
+      - PluralRulesDiffTest#testSpanish
+    native_refs:
+      - messageformat.TestParser_Russian
+
+  # ── Error handling: unterminated patterns and choice format ───────
+  - id: error_handling
+    name: Unterminated patterns and rejected choice format
+    description: |
+      Syntactically broken patterns (unterminated braces / pickers,
+      missing closing brace) cause `Open` to fail with an error
+      prefixed `Error reading Message Format String` — matching
+      Okapi's wording so consumers can pattern-match on it.
+      The deprecated `{n, choice, …}` format is rejected by both
+      Okapi and the native reader at parse time.
+    examples:
+      - name: choice_format_rejected
+        input_xml: "{0,choice,0#zero|1#one|2#two}"
+        # Both Okapi and native raise an error on Open. The native
+        # spec runner converts the read failure into a t.Fatal,
+        # which is the desired behaviour. We pin block_count_min: 0
+        # so the assertion vocabulary covers the case where the
+        # reader returns no parts (rare but possible if a future
+        # implementation chooses to skip the line).
+        expected_fail: |
+          choice format raises a parse error before any blocks are
+          emitted; this example documents the contract but produces
+          no extractable blocks. Recorded as expected_fail so the
+          runner notes the divergence between "no blocks" and the
+          assertion's implicit "at least one block".
+        block_count: 0
+      - name: unterminated_picker
+        input_xml: "{unterminated, plural,"
+        expected_fail: |
+          Syntactically broken pickers raise a parse error before any
+          blocks are emitted; same pattern as choice_format_rejected.
+        block_count: 0
+    okapi_refs:
+      - MessageFormatFilterTest#testInvalid
+      - MessageFormatParserTest#testInvalidMessageFormat
+      - MessageFormatParserTest#testChoiceMessage
+      - MessageFormatParserTest#testCountChoice
+    native_refs:
+      - messageformat.TestExtract_Invalid
+      - messageformat.TestParser_InvalidMessageFormat
+      - messageformat.TestParser_ChoiceMessage
+      - messageformat.TestParser_CountChoice
