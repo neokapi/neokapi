@@ -1,0 +1,413 @@
+# MIF (Maker Interchange Format) format specification.
+#
+# Single-variant filter — Adobe FrameMaker's text-based MIF interchange
+# format (`okf_mif` per the okapi-bridge manifest, backed by the upstream
+# `net.sf.okapi.filters.mif.MIFFilter`). MIF is a SGML-flavoured but
+# brace-delimited markup format used for interchange between FrameMaker
+# and external tooling: a `<MIFFile 2015>` (or 8.00, 9.00, …) header line
+# followed by a tree of statements like `<Tag value>` / `<Tag … >` /
+# nested groups closed by `>`. Translatable text lives inside `<String
+# `…'>` values nested under `<Para>` paragraphs that hang off `<TextFlow>`,
+# `<Tbls>`, and `<Notes>` containers.
+#
+# Authoring notes:
+#   - Inputs are inline MIF snippets via `input_xml` (the field is named
+#     for XML historically; it just carries raw text bytes for any text
+#     format) plus the testdata/simple.mif fixture for the round-trip
+#     baseline. MIF is plain ASCII/UTF-8 text so inline snippets are
+#     practical.
+#   - Config keys mirror the Okapi parameter names exposed by the bridge
+#     composite schema's `extraction` block (extractBodyPages,
+#     extractMasterPages, extractReferencePages, extractHiddenPages,
+#     extractVariables, extractIndexMarkers, extractLinks,
+#     extractHardReturnsAsText, extractPgfNumFormatsInline,
+#     extractReferenceFormats). The native ApplyMap accepts the same
+#     names. Inline-codes settings (useCodeFinder, codeFinderRules) live
+#     under the bridge schema's `$defs/inlineCodes` block — drift
+#     detection does not follow `$ref` into `$defs`, so they are listed
+#     as native-side aliases below without an `okapi_param`.
+#   - `okapi_refs` target the upstream `MIFFilterTest` / `ExtractionTest`
+#     / `RoundTripTest` methods shipped under okapi-filters-mif. The
+#     project's existing native test file already pins these names in
+#     `// okapi:` comments — the spec keeps them aligned.
+#   - `spec_refs` cite the Adobe MIF Reference (the canonical "MIF 9.0
+#     specification" Adobe ships alongside FrameMaker — PDF only, no
+#     stable public URL) plus the Okapi MIF Filter wiki page where the
+#     URL has been WebFetch-verified.
+#   - `native_refs` link to the existing Go tests in
+#     `core/formats/mif/reader_test.go` so the docs site can surface the
+#     authoritative implementation alongside the contract.
+
+format: okf_mif
+mime_type: application/vnd.mif
+description: |
+  Adobe FrameMaker Maker Interchange Format (MIF). Walks the MIF
+  statement tree, extracts `<String `…'>` values nested under `<Para>`
+  paragraphs inside `<TextFlow>`, `<Tbls>`, and `<Notes>` containers as
+  translatable Blocks, and skips non-translatable catalog statements
+  (FontCatalog, ColorCatalog, PgfCatalog, …). Multiple `<ParaLine>`
+  children inside a paragraph fold into a single Block; `<Char Tab>`,
+  `<Char HardReturn>`, `<Char HardSpace>` and friends decode to their
+  Unicode equivalents inside the surrounding paragraph.
+
+config:
+  # ── Page-type extraction toggles (Okapi parameters) ────────────────
+  - key: extractBodyPages
+    type: boolean
+    default: true
+    description: |
+      Extract translatable text from body pages — the main content area
+      of the FrameMaker document. On by default; turn off to skip body
+      content (rare — body pages are the usual translation target).
+    okapi_param: extractBodyPages
+
+  - key: extractMasterPages
+    type: boolean
+    default: true
+    description: |
+      Extract translatable text from master pages, which define page
+      layouts, headers, and footers. On by default per Okapi's
+      MIFFilter contract.
+    okapi_param: extractMasterPages
+
+  - key: extractReferencePages
+    type: boolean
+    default: true
+    description: |
+      Extract translatable text from reference pages. On by default.
+      FrameMaker creates new documents with several reference pages
+      that already contain template text — be aware of extra content
+      surfacing in the part stream.
+    okapi_param: extractReferencePages
+
+  - key: extractHiddenPages
+    type: boolean
+    default: true
+    description: |
+      Extract translatable text from hidden pages. On by default.
+    okapi_param: extractHiddenPages
+
+  # ── Content-element toggles ────────────────────────────────────────
+  - key: extractVariables
+    type: boolean
+    default: true
+    description: |
+      Extract the definitions of FrameMaker variables (the
+      `<VariableFormats>` catalog) so the variable text is translatable.
+      On by default.
+    okapi_param: extractVariables
+
+  - key: extractIndexMarkers
+    type: boolean
+    default: true
+    description: |
+      Extract index marker text from extractable pages. Each index
+      entry is emitted as a separate text unit, placed before the text
+      unit containing the marker. On by default per Okapi's contract.
+    okapi_param: extractIndexMarkers
+
+  - key: extractLinks
+    type: boolean
+    default: false
+    description: |
+      Extract URLs from hypertext links in extractable pages. Each URL
+      is emitted as a separate text unit, placed before the text unit
+      containing the marker. Off by default — URLs are typically not
+      localised.
+    okapi_param: extractLinks
+
+  - key: extractReferenceFormats
+    type: boolean
+    default: false
+    description: |
+      Extract cross-reference format strings (the `<XRefFormats>`
+      catalog) for translation. Off by default — xref formats are
+      typically structural templates rather than translatable copy.
+    okapi_param: extractReferenceFormats
+
+  - key: extractPgfNumFormatsInline
+    type: boolean
+    default: false
+    description: |
+      Extract paragraph numbering format strings as inline codes inside
+      the surrounding paragraph rather than as separate text units. Off
+      by default.
+    okapi_param: extractPgfNumFormatsInline
+
+  - key: extractHardReturnsAsText
+    type: boolean
+    default: true
+    description: |
+      Treat `<Char HardReturn>` markers inside a paragraph as inline
+      text (newline character) rather than paragraph breaks. On by
+      default — the MIF hard-return is a forced line break inside the
+      paragraph, not a logical paragraph terminator.
+    okapi_param: extractHardReturnsAsText
+
+  # ── Inline-codes (native aliases; see authoring notes above) ───────
+  - key: useCodeFinder
+    type: boolean
+    default: true
+    description: |
+      Enable pattern-based detection of inline codes inside extracted
+      text. The default rule set matches FrameMaker building-block tags
+      like `<$daynum>`, `<$monthname>`, `<$year>`. Native-side alias
+      for the bridge schema's `inlineCodes.enabled` (`$defs/inlineCodes`)
+      property — listed here for documentation; not pinned to an
+      okapi_param because contract-audit drift detection does not
+      follow `$ref` into `$defs`.
+
+  - key: codeFinderRules
+    type: string_list
+    default: []
+    description: |
+      Regex patterns for inline code detection. Native-side alias for
+      the bridge schema's `inlineCodes.rules` (`$defs/inlineCodes`)
+      array — same reason as `useCodeFinder` above for the missing
+      okapi_param.
+
+features:
+  # ── Core paragraph extraction ─────────────────────────────────────
+  - id: paragraph_extraction
+    name: Paragraph extraction from <TextFlow>/<Para>/<String>
+    description: |
+      Each `<Para>` statement nested under a `<TextFlow>` container
+      yields one translatable Block. The Block's source text is the
+      concatenation of every `<String `…'>` value inside the paragraph's
+      `<ParaLine>` children. Paragraphs whose content is empty (or
+      whitespace-only) are skipped.
+    spec_refs:
+      - "Adobe FrameMaker MIF Reference — TextFlow / Para / ParaLine / String statements (PDF only; no public URL)"
+      - "Okapi MIF Filter wiki page (https://okapiframework.org/wiki/index.php/MIF_Filter)"
+    examples:
+      - name: two_paragraphs
+        origin: "authored: minimal MIF document with two <Para> paragraphs under one <TextFlow>"
+        input_xml: |
+          <MIFFile 2015>
+          <TextFlow
+           <Para
+            <PgfTag `Body'>
+            <ParaLine
+             <String `Hello world.'>
+            >
+           >
+           <Para
+            <PgfTag `Body'>
+            <ParaLine
+             <String `Second paragraph.'>
+            >
+           >
+          >
+        block_count: 2
+        block_texts:
+          - "Hello world."
+          - "Second paragraph."
+      - name: simple_file
+        origin: "authored: testdata/simple.mif — three-paragraph baseline used by the existing native round-trip test"
+        input_file: testdata/simple.mif
+        block_count: 3
+        block_texts:
+          - "This is the first paragraph."
+          - "This is the second paragraph."
+          - "A heading paragraph."
+    okapi_refs:
+      - ExtractionTest#testSimpleText
+      - ExtractionTest#testStartDocument
+      - RoundTripTest#roundTripsWithDifferentParameters
+    native_refs:
+      - mif.TestReadSimpleMIF
+      - mif.TestRoundTrip
+
+  - id: paragraph_tag_metadata
+    name: PgfTag captured as block property
+    description: |
+      The paragraph's `<PgfTag `…'>` value is captured on the resulting
+      Block as the `pgf_tag` property so downstream tools can route on
+      paragraph style (Body / Heading / Bullet / …) without having to
+      re-parse the MIF skeleton. The pgf-tag value is metadata, not
+      translatable content — it stays out of the source text.
+    # PgfTag-as-property is a neokapi convenience for downstream
+    # routing, not an Okapi extraction contract — no spec_refs.
+    examples:
+      - name: heading_paragraph
+        # The pgf_tag property carryover is a native-only contract
+        # (the bridge does not expose PgfTag as a TextUnit property);
+        # both sides agree on the source text "Chapter Title", which
+        # is what this example asserts. The property carryover is
+        # verified separately by the native test
+        # `mif.TestReadMIFWithPgfTag`.
+        origin: "authored: single <Para> with PgfTag=Heading"
+        input_xml: |
+          <MIFFile 2015>
+          <TextFlow
+           <Para
+            <PgfTag `Heading'>
+            <ParaLine
+             <String `Chapter Title'>
+            >
+           >
+          >
+        block_count: 1
+        first_block_text: "Chapter Title"
+    okapi_refs:
+      - ExtractionTest#testSimpleText
+    native_refs:
+      - mif.TestReadMIFWithPgfTag
+
+  - id: multiple_paralines_merge
+    name: Multiple <ParaLine> children fold into one Block
+    description: |
+      A single `<Para>` may contain multiple `<ParaLine>` children when
+      FrameMaker has soft-wrapped the paragraph across visual lines.
+      All `<String `…'>` values across every `<ParaLine>` concatenate
+      into one translatable Block — the visual line break is layout,
+      not a logical paragraph break.
+    spec_refs:
+      - "Adobe FrameMaker MIF Reference — ParaLine soft-wrap statement (PDF only)"
+    examples:
+      - name: two_paralines
+        origin: "authored: <Para> with two <ParaLine> children that should merge"
+        input_xml: |
+          <MIFFile 2015>
+          <TextFlow
+           <Para
+            <PgfTag `Body'>
+            <ParaLine
+             <String `First part '>
+            >
+            <ParaLine
+             <String `second part.'>
+            >
+           >
+          >
+        block_count: 1
+        first_block_text: "First part second part."
+    okapi_refs:
+      - ExtractionTest#testParagraphLinesProcessing
+    native_refs:
+      - mif.TestReadMIFMultipleParaLines
+
+  # ── Special-character control statements ──────────────────────────
+  - id: special_char_statements
+    name: <Char Tab> / <Char HardSpace> decode inline
+    description: |
+      MIF's `<Char …>` statement encodes inline special characters that
+      can't appear as a literal byte inside a `<String `…'>` value.
+      The reader decodes the common variants to their Unicode
+      equivalents inside the surrounding paragraph: `<Char Tab>` →
+      U+0009, `<Char HardSpace>` → U+00A0 (non-breaking space),
+      `<Char SoftHyphen>` → U+00AD, `<Char EnSpace>` → U+2002,
+      `<Char EmSpace>` → U+2003, `<Char ThinSpace>` → U+2009.
+    spec_refs:
+      - "Adobe FrameMaker MIF Reference — Char statement (Tab, HardSpace, HardReturn, SoftHyphen, EnSpace, EmSpace, ThinSpace) (PDF only)"
+    examples:
+      - name: tab_between_strings
+        origin: "authored: <String> <Char Tab> <String> sequence inside one ParaLine"
+        input_xml: |
+          <MIFFile 2015>
+          <TextFlow
+           <Para
+            <PgfTag `Body'>
+            <ParaLine
+             <String `Before tab'>
+             <Char Tab>
+             <String `after tab.'>
+            >
+           >
+          >
+        expected_fail: |
+          bridge bug (#509) — Okapi MIFFilter does not expose
+          `<Char Tab>` as a literal tab (U+0009) in the source
+          text; the two flanking `<String>` runs come through
+          joined with nothing between them. Native decodes the
+          tab inline per the Adobe MIF Reference. The text
+          flanking the tab still surfaces on both sides; the
+          missing `\t` is the divergence captured here.
+        block_count: 1
+        has_block_with_text:
+          - "Before tab"
+          - "\t"
+          - "after tab."
+    okapi_refs:
+      - ExtractionTest#testTabs
+    native_refs:
+      - mif.TestReadMIFSpecialCharacters
+
+  # ── Non-translatable catalog skip ─────────────────────────────────
+  - id: non_translatable_catalogs_skipped
+    name: Skip FontCatalog / ColorCatalog / PgfCatalog
+    description: |
+      MIF documents lead with metadata catalogs (`<FontCatalog>`,
+      `<ColorCatalog>`, `<PgfCatalog>`, `<RulingCatalog>`, …) that
+      describe styling resources, not translatable content. The reader
+      skips these statement subtrees so font / color / paragraph-style
+      tag names don't leak into the part stream.
+    spec_refs:
+      - "Adobe FrameMaker MIF Reference — Document catalogs (FontCatalog, ColorCatalog, PgfCatalog) (PDF only)"
+    examples:
+      - name: catalogs_before_textflow
+        origin: "authored: <FontCatalog> + <ColorCatalog> preceding the <TextFlow> body"
+        input_xml: |
+          <MIFFile 2015>
+          <FontCatalog
+           <Font
+            <FTag `Body'>
+           >
+          >
+          <ColorCatalog
+           <Color
+            <ColorTag `Black'>
+           >
+          >
+          <TextFlow
+           <Para
+            <PgfTag `Body'>
+            <ParaLine
+             <String `Translatable text.'>
+            >
+           >
+          >
+        block_count: 1
+        first_block_text: "Translatable text."
+        no_block_with_text:
+          - "Black"
+          - "FontCatalog"
+    okapi_refs:
+      - ExtractionTest#testNoTextEntry
+    native_refs:
+      - mif.TestReadMIFSkipsNonTranslatable
+
+  # ── Document boundary events ──────────────────────────────────────
+  - id: document_boundary_events
+    name: Layer start / end wrap MIF content
+    description: |
+      Reading a MIF document emits a LayerStart Part before the first
+      Block and a LayerEnd Part after the last one. The Layer carries
+      the `mif` format id so downstream tools can route on format. The
+      MIF version line (`<MIFFile 2015>`, `<MIFFile 8.00>`, …) surfaces
+      as a `Data` part with `tag=MIFFile` and the version captured in
+      `version`. Verifies the document scaffolding mirrors Okapi's
+      StartDocument / EndDocument event pair.
+    # Document scaffolding is a neokapi pipeline contract, not a
+    # property of the MIF specification itself — no spec_refs.
+    examples:
+      - name: minimal_layer_wrap
+        origin: "authored: smallest MIF document for layer-envelope smoke check"
+        input_xml: |
+          <MIFFile 2015>
+          <TextFlow
+           <Para
+            <PgfTag `Body'>
+            <ParaLine
+             <String `Hello.'>
+            >
+           >
+          >
+        block_count: 1
+        first_block_text: "Hello."
+    okapi_refs:
+      - ExtractionTest#testStartDocument
+      - ExtractionTest#testDefaultInfo
+    native_refs:
+      - mif.TestReadLayerStartEnd
+      - mif.TestReadMIFVersionData
