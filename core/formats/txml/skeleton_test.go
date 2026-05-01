@@ -40,16 +40,12 @@ func snippetRoundtripWithSkeleton(t *testing.T, input string) string {
 	return buf.String()
 }
 
-func TestSkeletonStore_ByteExact_SimpleTXML(t *testing.T) {
-	input := `<?xml version="1.0" encoding="utf-8"?>
-<txml locale="en-US" targetlocale="fr-FR" version="1.0" datatype="xml">
-<header/>
-<body>
-<segment segtype="block">
-<source>Hello World</source>
-<target>Bonjour le monde</target>
-</segment>
-</body>
+func TestSkeletonStore_ByteExact_SimpleTranslatable(t *testing.T) {
+	input := `<?xml version="1.0" encoding="UTF-8"?>
+<txml locale="en" version="1.0" datatype="regexp" targetlocale="fr">
+<skeleton>&lt;html&gt;&lt;p&gt;</skeleton>
+<translatable blockId="b1" datatype="html"><segment segmentId="s1"><source>Hello World</source><target>Bonjour le monde</target></segment></translatable>
+<skeleton>&lt;/p&gt;&lt;/html&gt;</skeleton>
 </txml>
 `
 	output := snippetRoundtripWithSkeleton(t, input)
@@ -57,50 +53,40 @@ func TestSkeletonStore_ByteExact_SimpleTXML(t *testing.T) {
 }
 
 func TestSkeletonStore_ByteExact_SourceOnly(t *testing.T) {
-	input := `<?xml version="1.0" encoding="utf-8"?>
-<txml locale="en-US" targetlocale="" version="1.0" datatype="xml">
-<header/>
-<body>
-<segment segtype="block">
-<source>Source only text</source>
-</segment>
-</body>
+	input := `<?xml version="1.0" encoding="UTF-8"?>
+<txml locale="en" version="1.0" datatype="regexp" targetlocale="">
+<translatable blockId="b1" datatype="html"><segment segmentId="s1"><source>Source only text</source></segment></translatable>
 </txml>
 `
 	output := snippetRoundtripWithSkeleton(t, input)
 	assert.Equal(t, input, output, "source-only TXML roundtrip should be byte-exact")
 }
 
-func TestSkeletonStore_ByteExact_MultipleSegments(t *testing.T) {
-	input := `<?xml version="1.0" encoding="utf-8"?>
-<txml locale="en-US" targetlocale="fr-FR" version="1.0" datatype="xml">
-<header/>
-<body>
-<segment segtype="block">
-<source>Hello World</source>
-<target>Bonjour le monde</target>
-</segment>
-<segment segtype="sentence">
-<source>Goodbye</source>
-<target>Au revoir</target>
-</segment>
-</body>
+func TestSkeletonStore_ByteExact_TwoSegments(t *testing.T) {
+	input := `<?xml version="1.0" encoding="UTF-8"?>
+<txml locale="en" version="1.0" datatype="regexp" targetlocale="fr">
+<translatable blockId="b1" datatype="html"><segment segmentId="s1"><source>Hello</source><target>Bonjour</target></segment><segment segmentId="s2"><source>Goodbye</source><target>Au revoir</target></segment></translatable>
 </txml>
 `
 	output := snippetRoundtripWithSkeleton(t, input)
-	assert.Equal(t, input, output, "multi-segment TXML roundtrip should be byte-exact")
+	assert.Equal(t, input, output, "two-segment TXML roundtrip should be byte-exact")
+}
+
+func TestSkeletonStore_ByteExact_MultipleTranslatables(t *testing.T) {
+	input := `<?xml version="1.0" encoding="UTF-8"?>
+<txml locale="en" version="1.0" datatype="regexp" targetlocale="fr">
+<translatable blockId="b1" datatype="html"><segment segmentId="s1"><source>First block</source><target>Premier bloc</target></segment></translatable>
+<translatable blockId="b2" datatype="html"><segment segmentId="s1"><source>Second block</source><target>Deuxieme bloc</target></segment></translatable>
+</txml>
+`
+	output := snippetRoundtripWithSkeleton(t, input)
+	assert.Equal(t, input, output, "multi-translatable TXML roundtrip should be byte-exact")
 }
 
 func TestSkeletonStore_WithTranslation(t *testing.T) {
-	input := `<?xml version="1.0" encoding="utf-8"?>
-<txml locale="en-US" targetlocale="fr-FR" version="1.0" datatype="xml">
-<header/>
-<body>
-<segment segtype="block">
-<source>Hello</source>
-<target>Bonjour</target>
-</segment>
-</body>
+	input := `<?xml version="1.0" encoding="UTF-8"?>
+<txml locale="en" version="1.0" datatype="regexp" targetlocale="fr">
+<translatable blockId="b1" datatype="html"><segment segmentId="s1"><source>Hello</source><target>Bonjour</target></segment></translatable>
 </txml>
 `
 	ctx := t.Context()
@@ -119,12 +105,12 @@ func TestSkeletonStore_WithTranslation(t *testing.T) {
 	parts := testutil.CollectParts(t, reader.Read(ctx))
 	reader.Close()
 
-	// Modify the French translation
+	// Modify the French translation.
 	for _, p := range parts {
 		if p.Type == model.PartBlock {
 			b := p.Resource.(*model.Block)
 			if b.SourceText() == "Hello" {
-				b.Targets[model.LocaleID("fr-FR")] = []*model.Segment{{ID: "s1", Runs: []model.Run{{Text: &model.TextRun{Text: "Salut"}}}}}
+				b.Targets[model.LocaleID("fr")] = []*model.Segment{{ID: "s1", Runs: []model.Run{{Text: &model.TextRun{Text: "Salut"}}}}}
 			}
 		}
 	}
@@ -136,30 +122,18 @@ func TestSkeletonStore_WithTranslation(t *testing.T) {
 	require.NoError(t, writer.Write(ctx, ch))
 	writer.Close()
 
-	expected := `<?xml version="1.0" encoding="utf-8"?>
-<txml locale="en-US" targetlocale="fr-FR" version="1.0" datatype="xml">
-<header/>
-<body>
-<segment segtype="block">
-<source>Hello</source>
-<target>Salut</target>
-</segment>
-</body>
+	expected := `<?xml version="1.0" encoding="UTF-8"?>
+<txml locale="en" version="1.0" datatype="regexp" targetlocale="fr">
+<translatable blockId="b1" datatype="html"><segment segmentId="s1"><source>Hello</source><target>Salut</target></segment></translatable>
 </txml>
 `
 	assert.Equal(t, expected, buf.String())
 }
 
 func TestSkeletonStore_WithTranslation_Escaping(t *testing.T) {
-	input := `<?xml version="1.0" encoding="utf-8"?>
-<txml locale="en-US" targetlocale="fr-FR" version="1.0" datatype="xml">
-<header/>
-<body>
-<segment segtype="block">
-<source>Hello</source>
-<target>Bonjour</target>
-</segment>
-</body>
+	input := `<?xml version="1.0" encoding="UTF-8"?>
+<txml locale="en" version="1.0" datatype="regexp" targetlocale="fr">
+<translatable blockId="b1" datatype="html"><segment segmentId="s1"><source>Hello</source><target>Bonjour</target></segment></translatable>
 </txml>
 `
 	ctx := t.Context()
@@ -178,11 +152,11 @@ func TestSkeletonStore_WithTranslation_Escaping(t *testing.T) {
 	parts := testutil.CollectParts(t, reader.Read(ctx))
 	reader.Close()
 
-	// Set a translation with XML special characters
+	// Set a translation with XML special characters.
 	for _, p := range parts {
 		if p.Type == model.PartBlock {
 			b := p.Resource.(*model.Block)
-			b.Targets[model.LocaleID("fr-FR")] = []*model.Segment{{ID: "s1", Runs: []model.Run{{Text: &model.TextRun{Text: "A & B < C"}}}}}
+			b.Targets[model.LocaleID("fr")] = []*model.Segment{{ID: "s1", Runs: []model.Run{{Text: &model.TextRun{Text: "A & B < C"}}}}}
 		}
 	}
 
@@ -197,14 +171,9 @@ func TestSkeletonStore_WithTranslation_Escaping(t *testing.T) {
 }
 
 func TestSkeletonStore_ByteExact_XmlEntities(t *testing.T) {
-	input := `<?xml version="1.0" encoding="utf-8"?>
-<txml locale="en-US" targetlocale="" version="1.0" datatype="xml">
-<header/>
-<body>
-<segment segtype="block">
-<source>A &amp; B &lt; C</source>
-</segment>
-</body>
+	input := `<?xml version="1.0" encoding="UTF-8"?>
+<txml locale="en" version="1.0" datatype="regexp" targetlocale="">
+<translatable blockId="b1" datatype="html"><segment segmentId="s1"><source>A &amp; B &lt; C</source></segment></translatable>
 </txml>
 `
 	output := snippetRoundtripWithSkeleton(t, input)

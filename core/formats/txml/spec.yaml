@@ -20,15 +20,10 @@
 #     concatenated segment sources (no separator). This matches the
 #     parity dashboard's existing block-text vocabulary used by xliff
 #     and tmx.
-#   - The native Go reader (`core/formats/txml/reader.go`) was written
-#     against a synthetic `<txml>...<body>...<segment>` shape and does
-#     not yet recognise Wordfast Pro's real `<translatable>` wrapper
-#     — tracked as issue #489 (rolled up under #453's `okf_txml`
-#     row) and tagged on every affected example as `expected_fail:`.
-#     Each example asserts the contract Okapi implements; once the
-#     native reader is taught the real schema the expected_fail tags
-#     drop and the spec re-engages as an enforced contract on both
-#     sides.
+#   - The native Go reader (`core/formats/txml/reader.go`) walks the
+#     real `<translatable>` schema (#489 was the rewrite). Every
+#     example asserts the contract Okapi implements and is enforced
+#     on both bridge and native sides.
 #   - The only configurable parameter exposed by the bridge composite
 #     schema's flat properties is `allowEmptyOutputTarget` (output-side);
 #     the standard `inlineCodes` group sits under `$defs` and is
@@ -109,31 +104,27 @@ features:
           Bridge yields one Block with concatenated text
           "Segment one" + "segment two".
         origin: "authored: minimal Wordfast Pro TXML to exercise <translatable> with two <segment> children (second source-only)"
-        expected_fail: |
-          native reader does not parse Wordfast Pro's real
-          <translatable> schema (looks for <body>/<segment> instead).
-          Tracked under issue #489 (rolled up under #453's
-          okf_txml row) — the native reader needs to be retargeted
-          at the real TXML format before the expected_fail tag drops.
         input_xml: |
           <?xml version="1.0" encoding="UTF-8"?>
           <txml locale="en" version="1.0" segtype="sentence" createdby="WF2.3.0" datatype="regexp" targetlocale="fr" file_extension="html" editedby="WF2.3.0">
           <skeleton>&lt;html&gt;&lt;p&gt;</skeleton><translatable blockId="b1" datatype="html"><segment segmentId="s1" modified="true"><source>Segment one</source><target>Segment un</target></segment><segment segmentId="2"><source>segment two</source></segment></translatable></txml>
         block_count: 1
         first_block_text: "Segment onesegment two"
-      - name: simple_file
+      - name: upstream_docx_fixture
         description: |
-          File-based fixture covering the full document shape with
-          surrounding `<skeleton>` wrappers and a complete two-segment
-          `<translatable>`. Both segments carry source + target.
-        origin: "authored: minimal Wordfast Pro TXML to exercise file-path read with full document shape (skeleton + two bilingual segments)"
-        expected_fail: |
-          native reader does not parse Wordfast Pro's real
-          <translatable> schema. Same root cause as
-          translatable_extraction::simple_two_segments.
-        input_file: testdata/simple.txml
-        block_count: 1
-        first_block_text: "Hello worldGoodbye"
+          Real Wordfast Pro TXML fixture from upstream Okapi's TXML
+          test corpus (`Test01.docx.txml`). Multi-translatable
+          document covering full document shape with surrounding
+          `<skeleton>` wrappers, `<ws>` wrappers, `<ut>` inline
+          codes, and bilingual segments. Per the binary-format
+          fixture rule (#515): exercises bridge + native against the
+          same authored-by-Wordfast-Pro file rather than a
+          handcrafted minimal one.
+        origin: "okapi-fixture: okapi/filters/txml/src/test/resources/Test01.docx.txml"
+        input_file: okapi:okapi/filters/txml/src/test/resources/Test01.docx.txml
+        block_count_min: 9
+        has_block_with_text:
+          - "This is the text of the end note."
     okapi_refs:
       - TXMLFilterTest#testSimpleEntry
     native_refs:
@@ -160,10 +151,6 @@ features:
           text is `Segment one` (segment 1) + `Segment TWO`
           (segment 2 — `<ut>` data dropped) → "Segment oneSegment TWO".
         origin: "authored: <translatable> whose second segment carries paired <ut x=N> inline-code elements"
-        expected_fail: |
-          native reader does not parse Wordfast Pro's real
-          <translatable> schema. Same root cause as
-          translatable_extraction::simple_two_segments.
         input_xml: |
           <?xml version="1.0" encoding="UTF-8"?>
           <txml locale="en" version="1.0" segtype="sentence" createdby="WF2.3.0" datatype="regexp" targetlocale="fr" file_extension="html" editedby="WF2.3.0">
@@ -193,10 +180,6 @@ features:
           the first segment is commented out, the second survives.
           Bridge yields one Block whose text is "segment two".
         origin: "authored: two-segment <translatable> with the leading <segment> wrapped in a <!-- ... --> XML comment"
-        expected_fail: |
-          native reader does not parse Wordfast Pro's real
-          <translatable> schema. Same root cause as
-          translatable_extraction::simple_two_segments.
         input_xml: |
           <?xml version="1.0" encoding="UTF-8"?>
           <txml locale="en" version="1.0" segtype="sentence" createdby="WF2.3.0" datatype="regexp" targetlocale="fr" file_extension="html" editedby="WF2.3.0">
@@ -245,10 +228,6 @@ features:
           produces one Block whose text is "segment three".
           Mirrors TXMLFilterTest#testEntryWithThirdSegmentsNotCommentedOut.
         origin: "authored: three-segment <translatable> with first two <segment> children commented out, third live"
-        expected_fail: |
-          native reader does not parse Wordfast Pro's real
-          <translatable> schema. Same root cause as
-          translatable_extraction::simple_two_segments.
         input_xml: |
           <?xml version="1.0" encoding="UTF-8"?>
           <txml locale="en" version="1.0" segtype="sentence" createdby="WF2.3.0" datatype="regexp" targetlocale="fr" file_extension="html" editedby="WF2.3.0">
@@ -277,10 +256,6 @@ features:
           concatenation of the two `<source>` payloads with no
           intervening `<ws>` content.
         origin: "authored: two segments each padded by leading/trailing <ws> whitespace siblings"
-        expected_fail: |
-          native reader does not parse Wordfast Pro's real
-          <translatable> schema. Same root cause as
-          translatable_extraction::simple_two_segments.
         input_xml: |
           <?xml version="1.0" encoding="UTF-8"?>
           <txml locale="en" version="1.0" segtype="sentence" createdby="WF2.3.0" datatype="regexp" targetlocale="fr" file_extension="html" editedby="WF2.3.0">
@@ -337,10 +312,6 @@ features:
           extracts unchanged; the revision text never enters the
           block's joined source text.
         origin: "authored: segment carrying a <revisions><revision> child to verify revision text is excluded from joined source"
-        expected_fail: |
-          native reader does not parse Wordfast Pro's real
-          <translatable> schema. Same root cause as
-          translatable_extraction::simple_two_segments.
         input_xml: |
           <?xml version="1.0" encoding="UTF-8"?>
           <txml locale="en" version="1.0" segtype="sentence" createdby="WF2.3.0" datatype="regexp" targetlocale="fr" file_extension="html" editedby="WF2.3.0">

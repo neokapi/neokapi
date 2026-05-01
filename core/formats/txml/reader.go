@@ -13,7 +13,31 @@ import (
 	"github.com/neokapi/neokapi/core/model"
 )
 
-// Reader implements DataFormatReader for Trados XML (TXML) files.
+// Reader implements DataFormatReader for Wordfast Pro TXML files.
+//
+// The TXML schema (as parsed by Okapi's TXMLFilter) is:
+//
+//	<txml locale="..." targetlocale="..." version="1.0" ...>
+//	  <skeleton>...source app markup...</skeleton>
+//	  <translatable blockId="b1" datatype="html">
+//	    <segment segmentId="s1">
+//	      <ws>...</ws>?
+//	      <source>...</source>
+//	      <target>...</target>?
+//	      <revisions>...</revisions>?
+//	      <ws>...</ws>?
+//	    </segment>
+//	    <!-- a commented-out segment is skipped -->
+//	    ...
+//	  </translatable>
+//	  <skeleton>...trailing markup...</skeleton>
+//	</txml>
+//
+// Each <translatable> becomes one Block whose Source carries one
+// Segment per <segment> child. <ut x='N' type='...'>data</ut>
+// elements inside <source>/<target> become PlaceholderRun inline
+// codes. <ws>, <skeleton>, and <revisions> elements are skeleton /
+// metadata and never contribute to extracted text.
 type Reader struct {
 	format.BaseFormatReader
 	cfg           *Config
@@ -31,7 +55,7 @@ func NewReader() *Reader {
 	return &Reader{
 		BaseFormatReader: format.BaseFormatReader{
 			FormatName:        "txml",
-			FormatDisplayName: "Trados XML",
+			FormatDisplayName: "Wordfast Pro TXML",
 			FormatMimeType:    "application/x-txml+xml",
 			FormatExtensions:  []string{".txml"},
 			Cfg:               cfg,
@@ -80,7 +104,8 @@ func (r *Reader) Read(ctx context.Context) <-chan model.PartResult {
 type elemPosition struct {
 	startOffset int    // byte offset after start tag
 	endOffset   int    // byte offset before end tag
-	segIdx      int    // which segment (0-based)
+	blockIdx    int    // which translatable block (0-based)
+	segIdx      int    // which segment within the block (0-based)
 	elemType    string // "source" or "target"
 }
 
@@ -97,12 +122,11 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 		locale = model.LocaleEnglish
 	}
 
-	// Parse root <txml> attributes for locale info
+	// First pass: parse the <txml> root element to extract locale info.
 	var sourceLocale, targetLocale string
 	decoder := xml.NewDecoder(strings.NewReader(rawText))
 	decoder.Strict = false
 
-	// Find the <txml> root element to get locale info
 	for {
 		tok, err := decoder.Token()
 		if err != nil {
@@ -118,6 +142,7 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 	if sourceLocale != "" {
 		locale = model.LocaleID(sourceLocale)
 	}
+	targetLocaleID := model.LocaleID(targetLocale)
 
 	layer := &model.Layer{
 		ID:       "doc1",
@@ -134,12 +159,11 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 		return
 	}
 
-	// Re-parse from start for segments
+	// Second pass: walk the document for <translatable> blocks.
 	decoder = xml.NewDecoder(strings.NewReader(rawText))
 	decoder.Strict = false
 
-	blockCounter := 0
-	inBody := false
+	blockIdx := 0
 	var elemPositions []elemPosition
 
 	for {
@@ -152,39 +176,41 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 			return
 		}
 
-		switch t := tok.(type) {
-		case xml.StartElement:
-			switch t.Name.Local {
-			case "body":
-				inBody = true
-			case "segment":
-				if !inBody {
-					continue
-				}
-				blockCounter++
-				segType := attrVal(t.Attr, "segtype")
-				block := r.parseSegment(decoder, locale, model.LocaleID(targetLocale), blockCounter, segType, &elemPositions)
-				if block != nil {
-					if !r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block}) {
-						return
-					}
-				}
+		start, ok := tok.(xml.StartElement)
+		if !ok {
+			continue
+		}
+		if start.Name.Local != "translatable" {
+			continue
+		}
+
+		blockID := attrVal(start.Attr, "blockId")
+		if blockID == "" {
+			blockID = fmt.Sprintf("tu%d", blockIdx+1)
+		}
+		datatype := attrVal(start.Attr, "datatype")
+
+		block, err := r.parseTranslatable(decoder, locale, targetLocaleID, blockIdx, blockID, datatype, &elemPositions)
+		if err != nil {
+			ch <- model.PartResult{Error: fmt.Errorf("txml: translatable: %w", err)}
+			return
+		}
+		if block != nil {
+			if !r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block}) {
+				return
 			}
-		case xml.EndElement:
-			if t.Name.Local == "body" {
-				inBody = false
-			}
+			blockIdx++
 		}
 	}
 
-	// Build skeleton from collected positions
+	// Build skeleton from collected positions.
 	if r.skeletonStore != nil && len(elemPositions) > 0 {
 		skelPos := 0
 		for _, ep := range elemPositions {
 			if ep.startOffset > skelPos {
 				r.skelText(rawText[skelPos:ep.startOffset])
 			}
-			refID := fmt.Sprintf("%d:%s", ep.segIdx, ep.elemType)
+			refID := fmt.Sprintf("%d:%d:%s", ep.blockIdx, ep.segIdx, ep.elemType)
 			r.skelRef(refID)
 			skelPos = ep.endOffset
 		}
@@ -197,104 +223,285 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 	r.emit(ctx, ch, &model.Part{Type: model.PartLayerEnd, Resource: layer})
 }
 
-// parseSegment parses a <segment> element.
-func (r *Reader) parseSegment(decoder *xml.Decoder, sourceLang, targetLang model.LocaleID, counter int, segType string, positions *[]elemPosition) *model.Block {
-	var sourceText string
-	var targetText string
-	segIdx := counter - 1 // 0-based
+// parseTranslatable parses a <translatable> element. Returns the
+// resulting Block, or nil if the translatable contained no live
+// (non-commented-out) segments.
+func (r *Reader) parseTranslatable(
+	decoder *xml.Decoder,
+	sourceLocale, targetLocale model.LocaleID,
+	blockIdx int,
+	blockID, datatype string,
+	positions *[]elemPosition,
+) (*model.Block, error) {
+	block := &model.Block{
+		ID:           blockID,
+		Translatable: true,
+		SourceLocale: sourceLocale,
+		Source:       nil,
+		Targets:      make(map[model.LocaleID][]*model.Segment),
+		Properties:   make(map[string]string),
+		Annotations:  make(map[string]model.Annotation),
+	}
+	if datatype != "" {
+		block.Properties["datatype"] = datatype
+	}
 
-	depth := 1
-	for depth > 0 {
+	segOrdinal := 0
+	hasTarget := false
+
+	for {
 		tok, err := decoder.Token()
+		if errors.Is(err, io.EOF) {
+			return nil, errors.New("unexpected EOF inside <translatable>")
+		}
 		if err != nil {
-			return nil
+			return nil, err
 		}
 
 		switch t := tok.(type) {
 		case xml.StartElement:
-			depth++
+			if t.Name.Local != "segment" {
+				// Anything else at the translatable level (shouldn't
+				// normally happen) — consume to its end so the cursor
+				// stays balanced.
+				if err := skipElement(decoder); err != nil {
+					return nil, err
+				}
+				continue
+			}
+			segID := attrVal(t.Attr, "segmentId")
+			if segID == "" {
+				segID = fmt.Sprintf("s%d", segOrdinal+1)
+			}
+			srcSeg, trgSeg, err := r.parseSegment(decoder, blockIdx, segOrdinal, positions)
+			if err != nil {
+				return nil, err
+			}
+			srcSeg.ID = segID
+			block.Source = append(block.Source, srcSeg)
+			if trgSeg != nil && !targetLocale.IsEmpty() {
+				trgSeg.ID = segID
+				block.Targets[targetLocale] = append(block.Targets[targetLocale], trgSeg)
+				hasTarget = true
+			}
+			segOrdinal++
+
+		case xml.EndElement:
+			if t.Name.Local == "translatable" {
+				if len(block.Source) == 0 {
+					// All segments were commented out (or there were
+					// none) — emit no block, matching Okapi's
+					// testEntryWithAllSegmentsCommentedOut behavior.
+					return nil, nil
+				}
+				if !hasTarget {
+					// Drop the empty target map entry if no real
+					// target was seen.
+					delete(block.Targets, targetLocale)
+				}
+				return block, nil
+			}
+			// Otherwise ignore (e.g. closing of a stray sibling).
+		}
+	}
+}
+
+// parseSegment parses one <segment> element. Returns the Source
+// Segment (always non-nil) and the Target Segment (nil when no
+// <target> child was present).
+func (r *Reader) parseSegment(
+	decoder *xml.Decoder,
+	blockIdx, segIdx int,
+	positions *[]elemPosition,
+) (*model.Segment, *model.Segment, error) {
+	srcSeg := &model.Segment{}
+	var trgSeg *model.Segment
+
+	for {
+		tok, err := decoder.Token()
+		if errors.Is(err, io.EOF) {
+			return nil, nil, errors.New("unexpected EOF inside <segment>")
+		}
+		if err != nil {
+			return nil, nil, err
+		}
+
+		switch t := tok.(type) {
+		case xml.StartElement:
 			switch t.Name.Local {
 			case "source":
 				startOff := decoder.InputOffset()
-				sourceText = readElementContent(decoder)
-				depth-- // readElementContent consumed end element
-
+				runs, err := r.parseInlineContent(decoder, "source")
+				if err != nil {
+					return nil, nil, err
+				}
+				srcSeg.Runs = runs
 				if r.skeletonStore != nil {
 					endOff := decoder.InputOffset()
-					endTag := "</source>"
-					endPos := int(endOff) - len(endTag)
+					endPos := int(endOff) - len("</source>")
 					if endPos < 0 {
 						endPos = 0
 					}
 					*positions = append(*positions, elemPosition{
 						startOffset: int(startOff),
 						endOffset:   endPos,
+						blockIdx:    blockIdx,
 						segIdx:      segIdx,
 						elemType:    "source",
 					})
 				}
 			case "target":
 				startOff := decoder.InputOffset()
-				targetText = readElementContent(decoder)
-				depth--
-
+				runs, err := r.parseInlineContent(decoder, "target")
+				if err != nil {
+					return nil, nil, err
+				}
+				trgSeg = &model.Segment{Runs: runs}
 				if r.skeletonStore != nil {
 					endOff := decoder.InputOffset()
-					endTag := "</target>"
-					endPos := int(endOff) - len(endTag)
+					endPos := int(endOff) - len("</target>")
 					if endPos < 0 {
 						endPos = 0
 					}
 					*positions = append(*positions, elemPosition{
 						startOffset: int(startOff),
 						endOffset:   endPos,
+						blockIdx:    blockIdx,
 						segIdx:      segIdx,
 						elemType:    "target",
 					})
 				}
+			case "ws", "revisions":
+				// Skeleton / metadata — never extracted source text.
+				if err := skipElement(decoder); err != nil {
+					return nil, nil, err
+				}
+			default:
+				// Unknown element inside a segment — skip it.
+				if err := skipElement(decoder); err != nil {
+					return nil, nil, err
+				}
 			}
+
 		case xml.EndElement:
-			depth--
+			if t.Name.Local == "segment" {
+				return srcSeg, trgSeg, nil
+			}
 		}
 	}
-
-	if sourceText == "" {
-		return nil
-	}
-
-	block := model.NewBlock(fmt.Sprintf("seg%d", counter), sourceText)
-	block.Name = fmt.Sprintf("seg%d", counter)
-	if segType != "" {
-		block.Properties["segtype"] = segType
-	}
-
-	if targetText != "" && !targetLang.IsEmpty() {
-		block.SetTargetText(targetLang, targetText)
-	}
-
-	return block
 }
 
-// readElementContent reads text content of an element, handling inline elements.
-func readElementContent(decoder *xml.Decoder) string {
+// parseInlineContent reads the inner content of a <source> or
+// <target> element, building a Run sequence. <ut> children become
+// PlaceholderRun codes carrying the original markup as Data. The
+// caller's exitName names the wrapping element so we know when to
+// stop.
+func (r *Reader) parseInlineContent(decoder *xml.Decoder, exitName string) ([]model.Run, error) {
+	var runs []model.Run
+	var textBuf strings.Builder
+
+	flushText := func() {
+		if textBuf.Len() == 0 {
+			return
+		}
+		runs = append(runs, model.Run{Text: &model.TextRun{Text: textBuf.String()}})
+		textBuf.Reset()
+	}
+
+	for {
+		tok, err := decoder.Token()
+		if errors.Is(err, io.EOF) {
+			return nil, fmt.Errorf("unexpected EOF inside <%s>", exitName)
+		}
+		if err != nil {
+			return nil, err
+		}
+
+		switch t := tok.(type) {
+		case xml.CharData:
+			textBuf.Write(t)
+
+		case xml.StartElement:
+			if t.Name.Local == "ut" {
+				flushText()
+				id := attrVal(t.Attr, "x")
+				typ := attrVal(t.Attr, "type")
+				data, err := readUTContent(decoder)
+				if err != nil {
+					return nil, err
+				}
+				runs = append(runs, model.Run{Ph: &model.PlaceholderRun{
+					ID:    id,
+					Type:  typ,
+					Data:  data,
+					Equiv: id, // <N/> placeholder rendering matches Okapi's printSegmentedContent
+				}})
+				continue
+			}
+			// Unknown nested element — skip its contents.
+			if err := skipElement(decoder); err != nil {
+				return nil, err
+			}
+
+		case xml.EndElement:
+			if t.Name.Local == exitName {
+				flushText()
+				return runs, nil
+			}
+		}
+	}
+}
+
+// readUTContent reads the textual content of a <ut> element until
+// </ut>. Inner XML elements (rare) are flattened to their textual
+// body. Returns the captured text (already entity-decoded by the
+// XML parser).
+func readUTContent(decoder *xml.Decoder) (string, error) {
 	var buf strings.Builder
 	depth := 1
 	for depth > 0 {
 		tok, err := decoder.Token()
+		if errors.Is(err, io.EOF) {
+			return "", errors.New("unexpected EOF inside <ut>")
+		}
 		if err != nil {
-			break
+			return "", err
 		}
 		switch t := tok.(type) {
-		case xml.StartElement:
-			depth++
-			// Skip inline elements like <bpt>, <ept>, <ph>, <it>
-		case xml.EndElement:
-			depth--
 		case xml.CharData:
 			buf.Write(t)
+		case xml.StartElement:
+			depth++
+		case xml.EndElement:
+			depth--
+			if depth == 0 && t.Name.Local == "ut" {
+				return buf.String(), nil
+			}
 		}
 	}
-	return buf.String()
+	return buf.String(), nil
+}
+
+// skipElement consumes tokens up to (and including) the matching end
+// element for the just-read start element.
+func skipElement(decoder *xml.Decoder) error {
+	depth := 1
+	for depth > 0 {
+		tok, err := decoder.Token()
+		if errors.Is(err, io.EOF) {
+			return nil
+		}
+		if err != nil {
+			return err
+		}
+		switch tok.(type) {
+		case xml.StartElement:
+			depth++
+		case xml.EndElement:
+			depth--
+		}
+	}
+	return nil
 }
 
 // attrVal returns the value of named attribute, or "".

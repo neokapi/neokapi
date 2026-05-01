@@ -12,7 +12,16 @@ import (
 	"github.com/neokapi/neokapi/core/model"
 )
 
-// Writer implements DataFormatWriter for Trados XML (TXML) files.
+// Writer implements DataFormatWriter for Wordfast Pro TXML files.
+//
+// Two output paths:
+//
+//   - Skeleton-store mode (when SetSkeletonStore was called): the
+//     reader recorded byte positions for every <source>/<target>
+//     content region; we splice translations back into the original
+//     bytes for byte-exact roundtrips.
+//   - Direct mode: synthesize a fresh document from the streamed
+//     parts. Used by tools that produce TXML from non-TXML inputs.
 type Writer struct {
 	format.BaseFormatWriter
 	cfg           *Config
@@ -48,7 +57,7 @@ func (w *Writer) SetSkeletonStore(store *format.SkeletonStore) {
 // Write consumes Parts from a channel and writes reconstructed TXML.
 func (w *Writer) Write(ctx context.Context, parts <-chan *model.Part) error {
 	if w.skeletonStore != nil {
-		// Collect all parts, then write from skeleton
+		// Collect all parts, then write from skeleton.
 		for {
 			select {
 			case <-ctx.Done():
@@ -67,6 +76,7 @@ func (w *Writer) Write(ctx context.Context, parts <-chan *model.Part) error {
 	}
 
 	headerWritten := false
+	translatableOpen := false
 
 	for {
 		select {
@@ -74,8 +84,14 @@ func (w *Writer) Write(ctx context.Context, parts <-chan *model.Part) error {
 			return ctx.Err()
 		case part, ok := <-parts:
 			if !ok {
+				if translatableOpen {
+					if _, err := io.WriteString(w.Output, "</translatable>\n"); err != nil {
+						return err
+					}
+					translatableOpen = false
+				}
 				if headerWritten {
-					if _, err := io.WriteString(w.Output, "</body>\n</txml>\n"); err != nil {
+					if _, err := io.WriteString(w.Output, "</txml>\n"); err != nil {
 						return err
 					}
 				}
@@ -104,14 +120,23 @@ func (w *Writer) Write(ctx context.Context, parts <-chan *model.Part) error {
 				}
 				headerWritten = true
 			}
-			if err := w.writePart(part); err != nil {
-				return err
+			if part.Type == model.PartBlock {
+				if translatableOpen {
+					if _, err := io.WriteString(w.Output, "</translatable>\n"); err != nil {
+						return err
+					}
+				}
+				if err := w.writeBlock(part); err != nil {
+					return err
+				}
+				translatableOpen = true
 			}
 		}
 	}
 }
 
 // writeFromSkeleton reads skeleton entries and fills in block content.
+// Refs are of the form "<blockIdx>:<segIdx>:<source|target>".
 func (w *Writer) writeFromSkeleton() error {
 	if err := w.skeletonStore.Flush(); err != nil {
 		return fmt.Errorf("txml writer: flush skeleton: %w", err)
@@ -132,44 +157,78 @@ func (w *Writer) writeFromSkeleton() error {
 			}
 		case format.SkeletonRef:
 			refID := string(entry.Data)
-			// Ref ID is "segIdx:elemType" where segIdx is 0-based
-			idxStr, refSuffix, ok := strings.Cut(refID, ":")
+			text, ok := w.lookupRef(refID)
 			if !ok {
 				continue
 			}
-			segIdx, err := strconv.Atoi(idxStr)
-			if err != nil || segIdx < 0 || segIdx >= len(w.blocks) {
-				continue
-			}
-			block := w.blocks[segIdx]
-			elemType := refSuffix
-
-			var text string
-			if elemType == "source" {
-				text = block.SourceText()
-			} else {
-				// target
-				targetLocale := model.LocaleID(w.targetLocale)
-				if !targetLocale.IsEmpty() && block.HasTarget(targetLocale) {
-					text = block.TargetText(targetLocale)
-				} else {
-					// Try any available target
-					text = block.SourceText() // fallback
-					for locale := range block.Targets {
-						if block.HasTarget(locale) {
-							text = block.TargetText(locale)
-							break
-						}
-					}
-				}
-			}
-
 			if _, err := io.WriteString(w.Output, xmlEscape(text)); err != nil {
 				return err
 			}
 		}
 	}
 	return nil
+}
+
+// lookupRef resolves a "blockIdx:segIdx:elemType" ref to the text
+// that should be spliced back into the document at that position.
+func (w *Writer) lookupRef(refID string) (string, bool) {
+	first, rest, ok := strings.Cut(refID, ":")
+	if !ok {
+		return "", false
+	}
+	blockIdx, err := strconv.Atoi(first)
+	if err != nil || blockIdx < 0 || blockIdx >= len(w.blocks) {
+		return "", false
+	}
+	second, elemType, ok := strings.Cut(rest, ":")
+	if !ok {
+		return "", false
+	}
+	segIdx, err := strconv.Atoi(second)
+	if err != nil || segIdx < 0 {
+		return "", false
+	}
+	block := w.blocks[blockIdx]
+
+	switch elemType {
+	case "source":
+		if segIdx >= len(block.Source) {
+			return "", false
+		}
+		seg := block.Source[segIdx]
+		return model.RenderRunsWithData(seg.Runs), true
+	case "target":
+		// Try the recorded targetlocale first; fall back to the
+		// writer's configured locale, then any available target.
+		targetLocale := model.LocaleID(w.targetLocale)
+		if !targetLocale.IsEmpty() && block.HasTarget(targetLocale) {
+			segs := block.Targets[targetLocale]
+			if segIdx < len(segs) {
+				return model.RenderRunsWithData(segs[segIdx].Runs), true
+			}
+		}
+		if !w.Locale.IsEmpty() && block.HasTarget(w.Locale) {
+			segs := block.Targets[w.Locale]
+			if segIdx < len(segs) {
+				return model.RenderRunsWithData(segs[segIdx].Runs), true
+			}
+		}
+		for locale, segs := range block.Targets {
+			if !block.HasTarget(locale) {
+				continue
+			}
+			if segIdx < len(segs) {
+				return model.RenderRunsWithData(segs[segIdx].Runs), true
+			}
+		}
+		// No target available — preserve the source as a fallback so
+		// the document stays well-formed.
+		if segIdx < len(block.Source) {
+			return model.RenderRunsWithData(block.Source[segIdx].Runs), true
+		}
+		return "", true
+	}
+	return "", false
 }
 
 func (w *Writer) writeHeader() error {
@@ -188,19 +247,7 @@ func (w *Writer) writeHeader() error {
 		xmlEscape(sourceLocale), xmlEscape(targetLocale)); err != nil {
 		return err
 	}
-	if _, err := io.WriteString(w.Output, "<header/>\n<body>\n"); err != nil {
-		return err
-	}
 	return nil
-}
-
-func (w *Writer) writePart(part *model.Part) error {
-	switch part.Type {
-	case model.PartBlock:
-		return w.writeBlock(part)
-	default:
-		return nil
-	}
 }
 
 func (w *Writer) writeBlock(part *model.Part) error {
@@ -209,37 +256,63 @@ func (w *Writer) writeBlock(part *model.Part) error {
 		return errors.New("txml writer: expected Block resource")
 	}
 
-	sourceText := block.SourceText()
-	targetText := ""
-
-	if !w.Locale.IsEmpty() && block.HasTarget(w.Locale) {
-		targetText = block.TargetText(w.Locale)
+	blockID := block.ID
+	if blockID == "" {
+		blockID = "tu1"
+	}
+	datatype := block.Properties["datatype"]
+	if datatype == "" {
+		datatype = "xml"
 	}
 
-	segType := block.Properties["segtype"]
-	if segType == "" {
-		segType = "block"
-	}
-
-	if _, err := fmt.Fprintf(w.Output, `<segment segtype="%s">`+"\n", xmlEscape(segType)); err != nil {
+	if _, err := fmt.Fprintf(w.Output, "<translatable blockId=\"%s\" datatype=\"%s\">\n",
+		xmlEscape(blockID), xmlEscape(datatype)); err != nil {
 		return err
 	}
-	if _, err := fmt.Fprintf(w.Output, "<source>%s</source>\n", xmlEscape(sourceText)); err != nil {
-		return err
+
+	targetLocale := model.LocaleID(w.targetLocale)
+	if targetLocale.IsEmpty() {
+		targetLocale = w.Locale
 	}
-	if targetText != "" {
-		if _, err := fmt.Fprintf(w.Output, "<target>%s</target>\n", xmlEscape(targetText)); err != nil {
+
+	// Walk source segments; pair each with its same-indexed target
+	// segment when one exists.
+	var targetSegs []*model.Segment
+	if !targetLocale.IsEmpty() {
+		targetSegs = block.Targets[targetLocale]
+	}
+
+	for i, srcSeg := range block.Source {
+		segID := srcSeg.ID
+		if segID == "" {
+			segID = fmt.Sprintf("s%d", i+1)
+		}
+		if _, err := fmt.Fprintf(w.Output, "<segment segmentId=\"%s\">", xmlEscape(segID)); err != nil {
 			return err
 		}
-	} else if w.cfg.AllowEmptyOutputTarget {
-		if _, err := io.WriteString(w.Output, "<target/>\n"); err != nil {
+		sourceText := model.RenderRunsWithData(srcSeg.Runs)
+		if _, err := fmt.Fprintf(w.Output, "<source>%s</source>", xmlEscape(sourceText)); err != nil {
+			return err
+		}
+		var targetText string
+		hasTarget := false
+		if i < len(targetSegs) {
+			targetText = model.RenderRunsWithData(targetSegs[i].Runs)
+			hasTarget = targetText != ""
+		}
+		if hasTarget {
+			if _, err := fmt.Fprintf(w.Output, "<target>%s</target>", xmlEscape(targetText)); err != nil {
+				return err
+			}
+		} else if w.cfg.AllowEmptyOutputTarget {
+			if _, err := io.WriteString(w.Output, "<target/>"); err != nil {
+				return err
+			}
+		}
+		if _, err := io.WriteString(w.Output, "</segment>\n"); err != nil {
 			return err
 		}
 	}
-	if _, err := io.WriteString(w.Output, "</segment>\n"); err != nil {
-		return err
-	}
-
 	return nil
 }
 
