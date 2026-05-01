@@ -1,0 +1,481 @@
+# Qt Linguist TS format specification.
+#
+# Single-variant filter — Qt Linguist Translation Source (.ts), the
+# bilingual XML format Qt's lupdate / lrelease tools use to ship UI
+# translations. Inputs are inline TS snippets via input_xml plus a
+# packaged file under testdata/ for the default-config baseline.
+#
+# Authoring notes:
+#   - Config keys mirror Okapi's TsFilter Parameters (decodeByteValues,
+#     escapeGT) plus the bridge composite schema's grouped inlineCodes
+#     leaves. okapi_param records the upstream Java field name.
+#   - The native Config struct currently exposes no knobs — its
+#     ApplyMap rejects every key. The keys below are documented for
+#     parity with Okapi and the bridge schema; examples in this spec
+#     run on the default config of both implementations.
+#   - The spec runner's BlockTexts helper SKIPS non-translatable
+#     blocks when computing block_count / first_block_text /
+#     block_texts. That matters for `<translation type="obsolete">` —
+#     Okapi drops the entry altogether ("treated as unused"); the
+#     native reader emits the Block with Translatable=false. Both
+#     paths yield the same observable count after BlockTexts filters.
+
+format: okf_ts
+mime_type: application/x-ts
+description: |
+  Qt Linguist TS — the bilingual XML format used by Qt's lupdate and
+  lrelease tools. Each `<TS>` document groups one or more `<context>`
+  blocks; each context groups `<message>` entries with `<source>` and
+  `<translation>` content. Translation state is encoded via the
+  `type` attribute on `<translation>` (none = approved, `unfinished` =
+  pending review, `obsolete` = unused). Plural messages
+  (`numerus="yes"`) carry one `<numerusform>` per locale plural form.
+  Inline non-XML bytes appear as `<byte value="hex-or-dec"/>`.
+
+config:
+  - key: decodeByteValues
+    type: boolean
+    default: false
+    description: |
+      Convert `<byte value="XX"/>` elements to their raw character
+      equivalents during read. When false (default), byte elements
+      are surfaced as inline placeholder runs so the original markup
+      survives through XLIFF / TMX exchange. Documented for parity
+      with Okapi's decodeByteValues parameter; the native reader
+      always treats `<byte>` as an inline code today.
+    okapi_param: decodeByteValues
+
+  - key: escapeGT
+    type: boolean
+    default: false
+    description: |
+      Escape `>` as `&gt;` on output. Mirrors Okapi's escapeGT
+      parameter. Affects the writer only — the reader is unaffected.
+    okapi_param: escapeGT
+
+  - key: inlineCodes
+    type: string_map
+    description: |
+      Inline-code detection group (regex patterns and toggles) the
+      bridge composite schema exposes under `inlineCodes` ($defs).
+      The grouped `enabled` / `rules` / `mergeAdjacent` /
+      `moveBoundaryCodes` leaves expose Okapi's useCodeFinder /
+      codeFinderRules / mergeAdjacentCodes /
+      moveLeadingAndTrailingCodesToSkeleton parameters. The native
+      reader does not yet honor any of them; documented here so
+      drift detection sees the grouping the bridge advertises.
+    okapi_param: inlineCodes
+
+features:
+  # ── Core extraction ──────────────────────────────────────────────
+  - id: simple_message_extraction
+    name: <message> source/translation extraction
+    description: |
+      Each `<message>` inside `<context>` produces one Block whose
+      source text comes from `<source>` and whose target (under the
+      `<TS>` element's `language` locale) comes from `<translation>`.
+      Messages with empty `<translation>` are still translatable —
+      they're awaiting translation.
+    examples:
+      - name: bilingual_pair
+        input_xml: |
+          <?xml version="1.0" encoding="utf-8"?>
+          <!DOCTYPE TS>
+          <TS version="2.1" language="fr" sourcelanguage="en">
+          <context>
+              <name>MainWindow</name>
+              <message>
+                  <source>Hello World</source>
+                  <translation>Bonjour le monde</translation>
+              </message>
+          </context>
+          </TS>
+        block_count: 1
+        first_block_text: "Hello World"
+      - name: simple_file
+        input_file: testdata/simple.ts
+        block_count: 2
+        block_texts:
+          - "Hello"
+          - "Goodbye"
+    okapi_refs:
+      - TsFilterTest#testTu
+      - TsFilterTest#testConsolidatedStream
+      - TsFilterTest#testInputStream
+    native_refs:
+      - ts.TestSnippet_Tu
+      - ts.TestReadTestdataFile_Simple
+
+  # ── Translation status ──────────────────────────────────────────
+  - id: translation_status
+    name: type attribute drives translation status
+    description: |
+      The `type` attribute on `<translation>` selects translation
+      status:
+        - no `type` = approved translation,
+        - `type="unfinished"` = translation pending review (still
+          translatable),
+        - `type="obsolete"` = entry no longer in use.
+      Per the Qt manual Okapi DOES NOT EXTRACT obsolete entries; the
+      native reader emits the Block with `Translatable=false`. Both
+      paths look identical to the spec runner because `BlockTexts`
+      skips non-translatable blocks. The spec asserts the
+      observable count of translatable blocks.
+    examples:
+      - name: approved_unfinished_obsolete
+        input_xml: |
+          <?xml version="1.0" encoding="utf-8"?>
+          <!DOCTYPE TS>
+          <TS version="2.1" language="fr" sourcelanguage="en">
+          <context>
+              <name>Test</name>
+              <message id="1">
+                  <source>Approved text</source>
+                  <translation>Texte approuve</translation>
+              </message>
+              <message id="2">
+                  <source>Unfinished text</source>
+                  <translation type="unfinished">Texte en cours</translation>
+              </message>
+              <message id="3">
+                  <source>Obsolete text</source>
+                  <translation type="obsolete">Texte obsolete</translation>
+              </message>
+          </context>
+          </TS>
+        block_count: 2
+        block_texts:
+          - "Approved text"
+          - "Unfinished text"
+        no_block_with_text: ["Obsolete text"]
+    okapi_refs:
+      - TsFilterTest#testTranslationStatus
+      - TsFilterTest#TextUnitMessageApproved_FromFile
+      - TsFilterTest#TextUnitMessageUnfinished
+      - TsFilterTest#TextUnitMessageObsolete_FromFile
+    native_refs:
+      - ts.TestSnippet_TranslationStatus
+      - ts.TestSnippet_TextUnitMessageUnfinished
+
+  # ── Context grouping ────────────────────────────────────────────
+  - id: context_grouping
+    name: <context> emits GroupStart/End around its messages
+    description: |
+      Each `<context>` element produces a GroupStart part (carrying
+      the context name from the `<name>` child) before its messages
+      and a matching GroupEnd after. Messages within a context are
+      otherwise extracted normally; the group is informational
+      structure for consumers that care about hierarchy.
+    examples:
+      - name: single_context
+        input_xml: |
+          <?xml version="1.0" encoding="utf-8"?>
+          <!DOCTYPE TS>
+          <TS version="2.1" language="fr" sourcelanguage="en">
+          <context>
+              <name>MyContext</name>
+              <message>
+                  <source>Hello</source>
+                  <translation type="unfinished"></translation>
+              </message>
+          </context>
+          </TS>
+        block_count: 1
+        first_block_text: "Hello"
+      - name: multiple_contexts
+        description: |
+          Two `<context>` elements produce two GroupStart/End pairs
+          and one Block each — the spec asserts the translatable
+          block payload, not the group framing (which is part-stream
+          structure rather than text content).
+        input_xml: |
+          <?xml version="1.0" encoding="utf-8"?>
+          <!DOCTYPE TS>
+          <TS version="2.1" language="fr" sourcelanguage="en">
+          <context>
+              <name>Context1</name>
+              <message>
+                  <source>First context text</source>
+                  <translation type="unfinished"></translation>
+              </message>
+          </context>
+          <context>
+              <name>Context2</name>
+              <message>
+                  <source>Second context text</source>
+                  <translation type="unfinished"></translation>
+              </message>
+          </context>
+          </TS>
+        block_count: 2
+        block_texts:
+          - "First context text"
+          - "Second context text"
+    okapi_refs:
+      - TsFilterTest#StartGroupContextPart
+      - TsFilterTest#StartGroupContextPart_FromFile
+    native_refs:
+      - ts.TestSnippet_StartGroupContextPart
+      - ts.TestSnippet_MultipleContexts
+
+  # ── Message id ──────────────────────────────────────────────────
+  - id: message_id
+    name: message id attribute carried through as Block ID
+    description: |
+      A `<message id="...">` attribute supplies the Block ID. When
+      absent, the reader auto-generates `tu1`, `tu2`, … per message
+      in document order. The Block ID isn't directly observable via
+      block_text assertions; this feature documents the contract and
+      relies on native_refs for the structural check.
+    examples:
+      - name: with_id
+        input_xml: |
+          <?xml version="1.0" encoding="utf-8"?>
+          <!DOCTYPE TS>
+          <TS version="2.1" language="fr" sourcelanguage="en">
+          <context>
+              <name>Test</name>
+              <message id="custom_id">
+                  <source>With ID</source>
+                  <translation type="unfinished"></translation>
+              </message>
+          </context>
+          </TS>
+        block_count: 1
+        first_block_text: "With ID"
+      - name: without_id_auto_generated
+        input_xml: |
+          <?xml version="1.0" encoding="utf-8"?>
+          <!DOCTYPE TS>
+          <TS version="2.1" language="fr" sourcelanguage="en">
+          <context>
+              <name>Test</name>
+              <message>
+                  <source>First</source>
+                  <translation type="unfinished"></translation>
+              </message>
+              <message>
+                  <source>Second</source>
+                  <translation type="unfinished"></translation>
+              </message>
+          </context>
+          </TS>
+        block_count: 2
+        block_texts:
+          - "First"
+          - "Second"
+    okapi_refs:
+      - TsFilterTest#TextUnitMessageUnfinished
+    native_refs:
+      - ts.TestSnippet_MessageWithID
+      - ts.TestSnippet_AutoGeneratedID
+
+  # ── Inline byte codes ───────────────────────────────────────────
+  - id: byte_inline_codes
+    name: <byte> elements surface as inline placeholders
+    description: |
+      `<byte value="XX"/>` elements in a `<source>` or `<translation>`
+      represent raw bytes that aren't valid XML characters in their
+      own right. Under the default config (decodeByteValues=false on
+      both sides) the reader treats each `<byte>` as an inline
+      placeholder run inside the Block. Both implementations produce
+      one Block for the message; the Block source text contains the
+      surrounding plain text without the placeholder data.
+    examples:
+      - name: byte_in_source_default
+        # Native reader emits TWO TextRuns ("hello " and "world")
+        # surrounding the placeholder Run for <byte>; BlockTexts joins
+        # only the TextRun pieces, yielding "hello world". Okapi's
+        # default code-finder is OFF for the standard ts config, so the
+        # bridge sees the same 3 codes (+text) split as native.
+        input_xml: |
+          <?xml version="1.0" encoding="utf-8"?>
+          <!DOCTYPE TS>
+          <TS version="2.1" language="fr" sourcelanguage="en">
+          <context>
+              <name>Test</name>
+              <message>
+                  <source>hello <byte value="4f"/>world</source>
+                  <translation type="unfinished"></translation>
+              </message>
+          </context>
+          </TS>
+        block_count: 1
+        has_block_with_text:
+          - "hello "
+          - "world"
+    okapi_refs:
+      - TsFilterTest#testInlineCodes
+      - TsFilterTest#TestDecodeByteFalse
+      - TsFilterTest#TestDecodeByteTrueDec
+      - TsFilterTest#TestDecodeByteTrueHex
+      - TsFilterTest#TestDecodeByteTrueHex2
+    native_refs:
+      - ts.TestSnippet_InlineCodes
+      - ts.TestSnippet_DecodeByteFalse
+
+  # ── Numerus / plural forms ──────────────────────────────────────
+  - id: numerus_forms
+    name: <message numerus="yes"> carries plural forms
+    description: |
+      A `<message numerus="yes">` packages one source against per-form
+      translations under `<numerusform>` children of `<translation>`.
+      The native reader emits one Block whose `numerus` property is
+      "yes" and whose `numerusform:N` properties record each plural
+      form. The first numerusform becomes the target text. Okapi
+      emits a GroupStart-wrapped sequence with one TU per form; the
+      spec runner's BlockTexts collapses to translatable Block source
+      text, so both implementations agree on the source text count
+      (1) for each numerus message.
+    examples:
+      - name: two_forms
+        input_xml: |
+          <?xml version="1.0" encoding="utf-8"?>
+          <!DOCTYPE TS>
+          <TS version="2.1" language="fr" sourcelanguage="en">
+          <context>
+              <name>FileDialog</name>
+              <message numerus="yes">
+                  <source>%n file(s)</source>
+                  <translation>
+                      <numerusform>%n fichier</numerusform>
+                      <numerusform>%n fichiers</numerusform>
+                  </translation>
+              </message>
+          </context>
+          </TS>
+        expected_fail: |
+          Two divergences from the spec on the bridge side:
+            1. Okapi TsFilter emits one StartGroup followed by one TU
+               per `<numerusform>` (so two translatable text units for
+               an en→fr two-form numerus message), while the native
+               reader emits a single Block carrying both forms in
+               numerusform:N properties. Both representations are
+               legitimate; the divergence is in the part-stream shape.
+            2. Okapi's default code-finder rules (regex from the
+               Default Inline Code Pattern) strip `%n` from the source
+               text yielding " file(s)" instead of "%n file(s)". The
+               native reader treats `%n` as literal text under the
+               default config. Both legitimate.
+          Spec asserts the native single-Block / literal-source view.
+        block_count: 1
+        first_block_text: "%n file(s)"
+      - name: file_with_plurals
+        input_file: testdata/plurals.ts
+        expected_fail: |
+          Same numerus-stream divergence as `two_forms` — Okapi emits
+          one TU per numerusform (2 translatable units), native emits
+          one Block. The bridge also strips `%n` from the source via
+          its default code-finder, so its first block text is " file(s)"
+          rather than "%n file(s)". Spec asserts the native view.
+        block_count: 1
+        has_block_with_text: ["file"]
+    okapi_refs:
+      - TsFilterTest#StartGroupNumerusPart_FromFile
+      - TsFilterTest#TextUnitNumerus_FromFile
+    native_refs:
+      - ts.TestSnippet_NumerusForms
+      - ts.TestReadTestdataFile_Plurals
+
+  # ── Comments / notes ────────────────────────────────────────────
+  - id: comments_and_notes
+    name: comment / extracomment / translatorcomment merge into note
+    description: |
+      `<comment>`, `<extracomment>`, and `<translatorcomment>` inside
+      a message attach as a NoteAnnotation on the resulting Block
+      (joined with newlines), and individually mirror onto the
+      Block's `comment`, `extracomment`, `translatorcomment`
+      properties. They do NOT enter the source text — the Block
+      source is the `<source>` content alone.
+    examples:
+      - name: all_three_comment_types
+        input_xml: |
+          <?xml version="1.0" encoding="utf-8"?>
+          <!DOCTYPE TS>
+          <TS version="2.1" language="fr" sourcelanguage="en">
+          <context>
+              <name>Test</name>
+              <message>
+                  <source>Commented text</source>
+                  <comment>This is a comment</comment>
+                  <extracomment>This is an extra comment</extracomment>
+                  <translatorcomment>This is a translator comment</translatorcomment>
+                  <translation type="unfinished"></translation>
+              </message>
+          </context>
+          </TS>
+        block_count: 1
+        first_block_text: "Commented text"
+        no_block_with_text:
+          - "This is a comment"
+          - "This is an extra comment"
+          - "This is a translator comment"
+    okapi_refs:
+      - TsFilterTest#testExtraComment
+    native_refs:
+      - ts.TestSnippet_ExtraComment
+
+  # ── XML entity handling ─────────────────────────────────────────
+  - id: xml_entity_decoding
+    name: standard XML entities decoded in source/target text
+    description: |
+      Standard XML entities (`&amp;`, `&lt;`, `&gt;`, `&quot;`,
+      `&apos;`) inside `<source>` and `<translation>` are decoded to
+      their literal characters in the Block's source text. Numeric
+      character references decode to the corresponding code point.
+    examples:
+      - name: amp_and_lt
+        input_xml: |
+          <?xml version="1.0" encoding="utf-8"?>
+          <!DOCTYPE TS>
+          <TS version="2.1" language="fr" sourcelanguage="en">
+          <context>
+              <name>Test</name>
+              <message>
+                  <source>Text with &amp; and &lt; chars</source>
+                  <translation type="unfinished"></translation>
+              </message>
+          </context>
+          </TS>
+        block_count: 1
+        first_block_text: "Text with & and < chars"
+    okapi_refs:
+      - TsFilterTest#TestEncodeIncludedChars
+      - TsFilterTest#TestEncodeExcludedChars
+    native_refs:
+      - ts.TestSnippet_EncodeIncludedChars
+
+  # ── TS root attributes ─────────────────────────────────────────
+  - id: ts_root_attributes
+    name: TS element version / language / sourcelanguage attributes
+    description: |
+      The `<TS>` root element carries `version`, `language` (target
+      locale for translation content), and `sourcelanguage`. These
+      surface on the layer-level Data part the reader emits before
+      the first context group and drive target-locale assignment for
+      each Block's translation. Specs at the Block level can't
+      observe layer attributes directly; this feature pins the
+      contract that the document-level metadata travels through and
+      points at the structural native test for verification.
+    examples:
+      - name: version_2_1_with_langs
+        input_xml: |
+          <?xml version="1.0" encoding="utf-8"?>
+          <!DOCTYPE TS>
+          <TS version="2.1" language="ro_RO" sourcelanguage="en">
+          <context>
+              <name>Test</name>
+              <message>
+                  <source>Hello</source>
+                  <translation>Salut</translation>
+              </message>
+          </context>
+          </TS>
+        block_count: 1
+        first_block_text: "Hello"
+    okapi_refs:
+      - TsFilterTest#StartDocument
+      - TsFilterTest#DocumentPartTsPart
+    native_refs:
+      - ts.TestSnippet_StartDocument
+      - ts.TestSnippet_LayerProperties
