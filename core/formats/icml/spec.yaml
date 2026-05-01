@@ -1,0 +1,399 @@
+# ICML format specification.
+#
+# Single-variant filter for Adobe InCopy Markup Language (.icml /
+# .wcml) — a single XML document (not a ZIP package like its IDML
+# sibling) used for InDesign / InCopy editorial workflows. The reader
+# walks the document, descending into Story → ParagraphStyleRange →
+# CharacterStyleRange → Content runs and emitting one translatable
+# Block per visible text payload.
+#
+# Authoring notes:
+#   - Inputs are inline `input_xml:` snippets (ICML is a single XML
+#     document, so no fixture packaging is needed) plus four small
+#     authored fixtures under `testdata/`. Each synth fixture isolates
+#     ONE feature (paragraph segmentation, style propagation, table
+#     cells, notes). Per the binary-format fixture rule (#515 / #461),
+#     synth is acceptable when no upstream file covers a feature in
+#     isolation: the only candidate upstream file
+#     `okapi:okapi/filters/icml/src/test/resources/Test01.wcml` is a
+#     1401-line real-world ICML mixing many features at once, so it
+#     doesn't work as a per-feature oracle. The `real_world_baseline`
+#     example below also exercises the real upstream Test01.wcml as
+#     a sanity check that both the native reader and the bridge can
+#     consume authentic ICML.
+#   - input_file values resolve relative to this directory (testdata/…)
+#     unless prefixed `okapi:` (resolves under okapi-testdata/).
+#   - The synth `testdata/Test01.wcml` shares its filename with the
+#     upstream fixture for historical reasons but is a 30-line
+#     hand-authored 3-paragraph ICML, not a reduction of upstream.
+#     Treat it as `three-paragraphs.icml`.
+#   - Config keys follow Okapi's parameter naming as exposed by the
+#     bridge composite schema (`extractNotes`, `extractMasterSpreads`,
+#     `newTuOnBr`, `simplifyCodes`, `skipThreshold`, plus the
+#     `inlineCodes` group). Parent grouping keys (`extraction`,
+#     `inlineCodes`) appear as `string_map` entries — the bridge schema
+#     groups settings under them, the native reader currently honors
+#     only `extractNotes` and `newTuOnBr` from the `extraction` group
+#     and ignores the rest.
+#   - okapi_refs are pinned to upstream `ICMLFilterTest#methodName`
+#     entries shipped under okapi-filters-icml in the master branch.
+#   - Adobe ICML / IDML specifications are PDF-only and the public
+#     URLs for them rotate frequently, so `spec_refs` cite the
+#     element / attribute by name within the Adobe IDML specification
+#     (the same XML vocabulary covers ICML; ICML is the Story-only
+#     subset used by InCopy).
+
+format: okf_icml
+mime_type: application/x-icml+xml
+description: |
+  Adobe InCopy Markup Language (ICML / WCML). A single XML document
+  whose root `<Document>` carries one or more `<Story>` elements
+  containing the translatable text. The filter walks each Story,
+  extracting visible text from `<Content>` elements inside
+  ParagraphStyleRange / CharacterStyleRange runs while preserving the
+  surrounding XML as skeleton. Notes, table cells, and inline
+  formatting runs are recognised as nested scopes; tables emit one
+  Block per cell, notes are extracted only when `extractNotes` is on.
+
+config:
+  # ── Extraction settings ───────────────────────────────────────────
+  - key: extraction
+    type: string_map
+    default: {}
+    description: |
+      Container for extraction settings (Okapi's `extraction` group,
+      also exposed as a nested object in the bridge composite schema).
+      Individual flags (`extractNotes`, `extractMasterSpreads`,
+      `newTuOnBr`, `simplifyCodes`, `skipThreshold`) are declared
+      below for the behaviors the spec exercises.
+
+  - key: extractNotes
+    type: boolean
+    default: false
+    description: |
+      Extract `<Note>` element content as translatable blocks. When
+      false (the default on both Okapi and the native reader), Note
+      content is omitted from the part stream and remains in
+      skeleton.
+    okapi_param: extractNotes
+
+  - key: extractMasterSpreads
+    type: boolean
+    default: true
+    description: |
+      Extract translatable text from master-spread stories when
+      present. ICML documents are typically Story-only and don't
+      carry master spreads, so this flag is a no-op for the native
+      reader; it is documented for parity with Okapi's IDML-shaped
+      parameter surface.
+    okapi_param: extractMasterSpreads
+
+  - key: newTuOnBr
+    type: boolean
+    default: false
+    description: |
+      Treat `<Br/>` (hard return) inside a ParagraphStyleRange as a
+      paragraph break — emit the accumulated content as one Block at
+      the `<Br/>` and start a new Block for the text that follows.
+      When false (the default), `<Br/>` is a soft line break and the
+      paragraph stays as one Block.
+    okapi_param: newTuOnBr
+
+  - key: simplifyCodes
+    type: boolean
+    default: true
+    description: |
+      Re-group adjacent inline formatting runs into a single inline
+      code where possible. ICML emits many CharacterStyleRange-only
+      formatting differences; simplifying merges adjacent codes into
+      fewer placeholders. Documented for parity with Okapi's
+      simplifyCodes flag; the native reader does not yet apply the
+      code-simplifier pass.
+    okapi_param: simplifyCodes
+
+  - key: skipThreshold
+    type: int
+    default: 1000
+    description: |
+      Skip any spread file larger than this size (in KBytes). Range
+      1–32000. Skipped spreads are silently omitted from extraction
+      — content is not checked for translatable text. Documented for
+      parity with Okapi; no-op on the native reader because ICML
+      inputs are single-document and don't have spread files.
+    okapi_param: skipThreshold
+
+  # ── Inline-code detection ─────────────────────────────────────────
+  - key: inlineCodes
+    type: string_map
+    default: {}
+    description: |
+      Container for inline-code detection settings (Okapi's
+      `inlineCodes` group, exposed via $ref in the bridge composite
+      schema). Holds `useCodeFinder`, `codeFinderRules`,
+      `mergeAdjacentCodes`, `moveLeadingAndTrailingCodesToSkeleton`,
+      and `simplifierRules`. The native reader does not apply the
+      code finder.
+
+features:
+  # ── Core extraction ───────────────────────────────────────────────
+  - id: simple_text_extraction
+    name: Single-paragraph text extraction
+    description: |
+      The simplest case: a one-Story document with a single
+      ParagraphStyleRange / CharacterStyleRange / Content yields
+      exactly one translatable Block whose source text is the Content
+      body verbatim.
+    spec_refs:
+      - "Adobe IDML specification — Story / ParagraphStyleRange / CharacterStyleRange / Content elements"
+    examples:
+      - name: hello_world
+        origin: "authored: minimal one-Content baseline mirroring testdata/minimal.icml"
+        input_xml: |
+          <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+          <?aid style="50" type="snippet" readerVersion="6.0" featureSet="513" product="8.0(370)" ?>
+          <Document DOMVersion="8.0">
+            <Story Self="story1" AppliedTOCStyle="n" TrackChanges="false" StoryTitle="$ID/" AppliedNamedGrid="n">
+              <ParagraphStyleRange AppliedParagraphStyle="ParagraphStyle/$ID/NormalParagraphStyle">
+                <CharacterStyleRange AppliedCharacterStyle="CharacterStyle/$ID/[No character style]">
+                  <Content>Hello World</Content>
+                </CharacterStyleRange>
+              </ParagraphStyleRange>
+            </Story>
+          </Document>
+        block_count: 1
+        first_block_text: "Hello World"
+    okapi_refs:
+      - ICMLFilterTest#open_WhenSuccessfull_ThenReturnTrue
+    native_refs:
+      - icml.TestSimpleExtraction
+      - icml.TestOpenDocument
+
+  # ── Multi-run aggregation within a paragraph ──────────────────────
+  - id: multi_run_paragraph
+    name: Adjacent CharacterStyleRange runs join into one Block
+    description: |
+      A ParagraphStyleRange may contain several
+      CharacterStyleRange children whose Content runs differ only in
+      formatting (e.g. plain + bold). The reader joins the adjacent
+      Content texts into a single translatable Block, preserving the
+      paragraph as the unit of translation.
+    spec_refs:
+      - "Adobe IDML specification — sibling CharacterStyleRange runs inside one ParagraphStyleRange"
+    examples:
+      - name: plain_then_bold
+        origin: "authored: mirrors first paragraph of testdata/Test01.wcml (plain + bold runs)"
+        input_xml: |
+          <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+          <Document DOMVersion="8.0">
+            <Story Self="story1">
+              <ParagraphStyleRange AppliedParagraphStyle="ParagraphStyle/Title">
+                <CharacterStyleRange AppliedCharacterStyle="CharacterStyle/$ID/[No character style]">
+                  <Content>First paragraph</Content>
+                </CharacterStyleRange>
+                <CharacterStyleRange AppliedCharacterStyle="CharacterStyle/Bold">
+                  <Content> with bold</Content>
+                </CharacterStyleRange>
+              </ParagraphStyleRange>
+            </Story>
+          </Document>
+        block_count: 1
+        first_block_text: "First paragraph with bold"
+    okapi_refs:
+      - ICMLFilterTest#toString_WhenMultipleContent_ThenExtractInTranslationUnit
+    native_refs:
+      - icml.TestMultipleContentRanges
+      - icml.TestInlineICMLContent
+
+  # ── Paragraph segmentation ────────────────────────────────────────
+  - id: paragraph_segmentation
+    name: Sibling ParagraphStyleRange elements emit separate Blocks
+    description: |
+      Each top-level `<ParagraphStyleRange>` under a Story emits its
+      own translatable Block in document order. A `<Br/>` between
+      paragraphs at Story scope is structural and does not merge them.
+    spec_refs:
+      - "Adobe IDML specification — sibling ParagraphStyleRange elements at Story scope"
+    examples:
+      - name: three_paragraphs
+        origin: "authored: testdata/Test01.wcml — three ParagraphStyleRange siblings (Title, Body, Body)"
+        input_file: testdata/Test01.wcml
+        block_count: 3
+        block_texts:
+          - "First paragraph with bold"
+          - "Second paragraph text"
+          - "Third paragraph"
+    okapi_refs:
+      - ICMLFilterTest#toString_WhenBreak_ThenTranslationUnitIsEmpty
+    native_refs:
+      - icml.TestBreakSeparation
+      - icml.TestBlockIDs
+
+  # ── Style context propagation ─────────────────────────────────────
+  - id: style_context_propagation
+    name: Paragraph style preserved on each Block
+    description: |
+      Each Block carries the `AppliedParagraphStyle` of its enclosing
+      `<ParagraphStyleRange>` as a `paragraphStyle` property, so
+      reviewers and downstream tools can distinguish title runs from
+      body runs without re-parsing the source XML.
+    spec_refs:
+      - "Adobe IDML specification — AppliedParagraphStyle attribute on ParagraphStyleRange"
+    examples:
+      - name: title_then_body
+        origin: "authored: testdata/Test01.wcml — Title style on para 1, Body style on paras 2 + 3"
+        input_file: testdata/Test01.wcml
+        block_count: 3
+        block_texts:
+          - "First paragraph with bold"
+          - "Second paragraph text"
+          - "Third paragraph"
+    okapi_refs:
+      - ICMLFilterTest#toString_WhenMultipleContent_ThenExtractInTranslationUnit
+    native_refs:
+      - icml.TestParagraphStylePreserved
+
+  # ── Table cell extraction ─────────────────────────────────────────
+  - id: table_cell_extraction
+    name: Table cells emit one Block per cell
+    description: |
+      A `<Table>` inside a CharacterStyleRange contains one or more
+      `<Cell>` elements; each Cell carries its own
+      ParagraphStyleRange tree. The reader extracts each Cell's
+      Content as a separate Block in row-major order, distinct from
+      the surrounding paragraph text.
+    spec_refs:
+      - "Adobe IDML specification — Table and Cell elements"
+    examples:
+      - name: text_then_two_cells
+        origin: "authored: testdata/table.icml — preceding paragraph + two-cell table"
+        input_file: testdata/table.icml
+        block_count: 3
+        block_texts:
+          - "Text before table"
+          - "Cell one"
+          - "Cell two"
+    okapi_refs:
+      - ICMLFilterTest#toString_WhenContentInTableCell_ThenSeparateTranslationUnit
+    native_refs:
+      - icml.TestTableCellContent
+
+  # ── Notes (extractNotes flag) ─────────────────────────────────────
+  - id: note_extraction_default
+    name: Note content omitted when extractNotes is off
+    description: |
+      With the default `extractNotes: false`, `<Note>` element content
+      is treated as editorial annotation and excluded from the part
+      stream. Surrounding Content text in the same
+      CharacterStyleRange is still extracted, joined as one Block.
+    spec_refs:
+      - "Adobe IDML specification — Note element (editorial annotation)"
+    examples:
+      - name: notes_skipped
+        origin: "authored: testdata/notes.icml — visible text wrapping a Note element"
+        input_file: testdata/notes.icml
+        block_count: 1
+        first_block_text: "Visible text continues"
+        no_block_with_text:
+          - "Note content here"
+        expected_fail: |
+          bridge bug (#506) — Okapi ICMLFilter extracts <Note> content
+          as a translatable block even when extractNotes is false (the
+          schema-documented default), and additionally splits the
+          surrounding text at the Note boundary so the trailing
+          Content run is dropped. Native correctly skips the Note
+          subtree and joins the surrounding text into one Block.
+    okapi_refs:
+      - ICMLFilterTest#getParameters_WhenNoParametersSet_ThenReturnParametersWithDefaultSettings
+    native_refs:
+      - icml.TestNotesExcludedByDefault
+
+  # ── Hard-return handling (newTuOnBr flag) ─────────────────────────
+  - id: br_inside_paragraph_default
+    name: Br inside a paragraph stays in one Block by default
+    description: |
+      With the default `newTuOnBr: false`, a `<Br/>` inside a
+      ParagraphStyleRange is a soft line break — the surrounding
+      Content runs concatenate into a single Block.
+    spec_refs:
+      - "Adobe IDML specification — Br element inside ParagraphStyleRange"
+    examples:
+      - name: soft_break
+        origin: "authored: two Content runs joined by an inline Br within one paragraph"
+        input_xml: |
+          <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+          <Document DOMVersion="8.0">
+            <Story Self="story1">
+              <ParagraphStyleRange AppliedParagraphStyle="ParagraphStyle/Body">
+                <CharacterStyleRange AppliedCharacterStyle="CharacterStyle/$ID/[No character style]">
+                  <Content>Line one</Content>
+                  <Br/>
+                  <Content>Line two</Content>
+                </CharacterStyleRange>
+              </ParagraphStyleRange>
+            </Story>
+          </Document>
+        block_count: 1
+        first_block_text: "Line oneLine two"
+    okapi_refs:
+      - ICMLFilterTest#getParameters_WhenNoParametersSet_ThenReturnParametersWithDefaultSettings
+    native_refs:
+      - icml.TestMultipleContentRanges
+
+  # ── Properties element is non-translatable ────────────────────────
+  - id: properties_skipped
+    name: Properties element content excluded from extraction
+    description: |
+      `<Properties>` (and the related path-geometry helpers
+      `<PathPointArray>`, `<PathPointType>`, `<PathGeometry>`,
+      `<GeometryPathType>`) carry layout / typography metadata that
+      is not user-visible text. The reader skips them — no Block is
+      emitted for their text content even when the element nests
+      inside a CharacterStyleRange.
+    spec_refs:
+      - "Adobe IDML specification — Properties element on CharacterStyleRange"
+    examples:
+      - name: leading_metadata_skipped
+        origin: "authored: Properties/Leading sibling of a Content run inside one CharacterStyleRange"
+        input_xml: |
+          <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+          <Document DOMVersion="8.0">
+            <Story Self="story1">
+              <ParagraphStyleRange AppliedParagraphStyle="ParagraphStyle/Body">
+                <CharacterStyleRange AppliedCharacterStyle="CharacterStyle/$ID/[No character style]">
+                  <Properties>
+                    <Leading type="unit">14</Leading>
+                  </Properties>
+                  <Content>Visible text only</Content>
+                </CharacterStyleRange>
+              </ParagraphStyleRange>
+            </Story>
+          </Document>
+        block_count: 1
+        first_block_text: "Visible text only"
+        no_block_with_text:
+          - "14"
+    okapi_refs:
+      - ICMLFilterTest#open_WhenSuccessfull_ThenReturnTrue
+    native_refs:
+      - icml.TestPropertiesElementSkipped
+
+  # ── Real-world ICML baseline (upstream okapi-testdata) ────────────
+  - id: real_world_baseline
+    name: Real upstream ICML extracts cleanly
+    description: |
+      Smoke test against authentic InCopy-authored ICML — the upstream
+      `Test01.wcml` shipped with okapi-testdata. This is the only
+      example whose input comes from a real authoring tool (everything
+      else is per-feature synth), so it acts as a regression guard
+      against fixture drift: if the native reader silently rejects
+      attributes or character data that real ICML files carry but our
+      synth fixtures don't, this example catches it.
+    spec_refs:
+      - "Authentic InCopy ICML output — upstream okapi-testdata"
+    examples:
+      - name: upstream_test01
+        origin: "okapi-testdata: okapi/filters/icml/src/test/resources/Test01.wcml"
+        input_file: okapi:okapi/filters/icml/src/test/resources/Test01.wcml
+        block_count_min: 1
+    okapi_refs:
+      - ICMLFilterTest#open_WhenSuccessfull_ThenReturnTrue
