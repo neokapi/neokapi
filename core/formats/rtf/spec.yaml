@@ -1,0 +1,292 @@
+# RTF format specification.
+#
+# Single-variant filter — Trados-tagged Rich Text Format. Inputs are
+# inline RTF snippets via `input_xml` (the field is named for XML
+# historically; it just carries raw text bytes for any text format) or
+# fixture files via `input_file`.
+#
+# The upstream Okapi RTFFilter exposes no configurable parameters
+# (composite schema okf_rtf.v2 has `properties: {}`). The bridge
+# schema is therefore empty; the few config keys declared below are
+# neokapi-side extraction toggles (header/footer, annotation,
+# bookmark scoping) that don't have an Okapi parameter to pin against.
+# Drift detection skips empty bridge schemas, so these keys don't trip
+# the audit.
+
+format: okf_rtf
+mime_type: application/rtf
+description: |
+  Trados-tagged Rich Text Format reader. Walks the RTF token stream,
+  extracts text from paragraph runs as translatable Blocks, and skips
+  non-translatable destinations (font/color/stylesheet/info tables,
+  pictures, fields). Decodes \uN unicode escapes, \'HH hex escapes,
+  and the common RTF special-character control words (\\par, \\tab,
+  \\emdash, smart quotes, …).
+
+config:
+  - key: extractHeadersFooters
+    type: boolean
+    default: false
+    description: |
+      Extract text from \\header* and \\footer* destinations as
+      translatable content. Off by default to match Okapi's behavior,
+      which treats headers and footers as part of the document
+      skeleton rather than translatable text.
+
+  - key: extractAnnotations
+    type: boolean
+    default: false
+    description: |
+      Extract text from \\annotation (review comment) destinations.
+      Off by default — annotations are typically authoring metadata
+      rather than shippable copy.
+
+  - key: extractBookmarks
+    type: boolean
+    default: false
+    description: |
+      Extract \\bkmkstart / \\bkmkend bookmark labels as translatable
+      text. Off by default — bookmarks are structural anchors, not
+      user-visible copy.
+
+features:
+  # ── Core extraction ───────────────────────────────────────────────
+  - id: paragraph_extraction
+    name: Paragraph extraction via \\par
+    description: |
+      Each \\par control word terminates a paragraph; the accumulated
+      run text is emitted as one translatable Block. Multiple
+      paragraphs in a document yield Blocks in document order.
+    examples:
+      - name: two_paragraphs
+        input_xml: "{\\rtf1\\ansi\\deff0\n\\pard Hello world.\\par\n\\pard Second paragraph.\\par\n}"
+        expected_fail: |
+          bridge feature difference — Okapi RTFFilter is the Trados-
+          tagged RTF filter and only extracts content wrapped in
+          Trados translation tags; plain/generic RTF produces 0 blocks.
+          Native is a generic RTF reader that emits a Block per
+          \par-terminated run. Both legitimate; spec asserts native
+          (generic-RTF) behavior.
+        block_count: 2
+        block_texts:
+          - "Hello world."
+          - "Second paragraph."
+      - name: simple_file
+        input_file: testdata/simple.rtf
+        expected_fail: |
+          bridge feature difference — Okapi RTFFilter expects Trados-
+          tagged RTF; the plain testdata fixture yields 0 blocks.
+          Native generic RTF reader emits one Block per \par. Both
+          legitimate; spec asserts native behavior.
+        block_count: 3
+        block_texts:
+          - "This is the first paragraph."
+          - "This is the second paragraph."
+          - "And a third paragraph with bold text."
+    okapi_refs:
+      - RTFFilterTest#testBasicProcessing
+      - RtfFullFileTest#testAllExternalFiles
+      - ExtractionComparisionTest#testDoubleExtraction
+    native_refs:
+      - rtf.TestReadSimpleRTF
+      - rtf.TestReadMultipleParagraphs
+      - rtf.TestRoundTrip
+
+  - id: inline_formatting
+    name: Inline run formatting collapses to one Block
+    description: |
+      Formatting toggles like \\b / \\b0 (bold on/off) appear inside a
+      paragraph's run sequence. The text on either side of the toggle
+      stays in the same Block — the formatting is a span within the
+      paragraph, not a paragraph break.
+    examples:
+      - name: bold_inside_paragraph
+        input_xml: "{\\rtf1\\ansi\\deff0\n\\pard Normal and \\b bold\\b0  text.\\par\n}"
+        expected_fail: |
+          bridge feature difference — Okapi RTFFilter (Trados-tagged)
+          yields 0 blocks for plain RTF input. Native generic RTF
+          reader emits one Block per paragraph with inline formatting
+          collapsed. Both legitimate; spec asserts native behavior.
+        block_count: 1
+        first_block_text: "Normal and bold text."
+    okapi_refs:
+      - RtfSnippetsTest#testBold
+      - RTFFilterTest#testSimpleTU
+    native_refs:
+      - rtf.TestReadRTFWithFormatting
+
+  # ── Non-translatable destinations ─────────────────────────────────
+  - id: non_translatable_destinations_skipped
+    name: Skip font/color/stylesheet/info destinations
+    description: |
+      RTF header tables (\\fonttbl, \\colortbl, \\stylesheet) and the
+      document \\info group carry metadata, not translatable text.
+      The reader skips these destination groups so font names, color
+      definitions, style names, and document properties don't leak
+      into Blocks.
+    examples:
+      - name: font_table
+        input_xml: "{\\rtf1\\ansi\\deff0\n{\\fonttbl{\\f0 Times New Roman;}{\\f1 Arial;}}\n\\pard Translatable text.\\par\n}"
+        expected_fail: |
+          bridge feature difference — Okapi RTFFilter (Trados-tagged)
+          yields 0 blocks for plain RTF; native generic RTF reader
+          extracts the paragraph and skips the font table. Both
+          legitimate; spec asserts native behavior.
+        block_count: 1
+        first_block_text: "Translatable text."
+        no_block_with_text:
+          - "Times New Roman"
+          - "Arial"
+      - name: color_table
+        input_xml: "{\\rtf1\\ansi\\deff0\n{\\colortbl;\\red255\\green0\\blue0;}\n\\pard Visible text.\\par\n}"
+        expected_fail: |
+          bridge feature difference — Okapi RTFFilter (Trados-tagged)
+          yields 0 blocks for plain RTF. Native skips the color table
+          and emits the paragraph. Both legitimate; spec asserts
+          native behavior.
+        block_count: 1
+        first_block_text: "Visible text."
+      - name: stylesheet
+        input_xml: "{\\rtf1\\ansi\\deff0\n{\\stylesheet{\\s0 Normal;}}\n\\pard Body text here.\\par\n}"
+        expected_fail: |
+          bridge feature difference — Okapi RTFFilter (Trados-tagged)
+          yields 0 blocks for plain RTF. Native skips the stylesheet
+          and emits the paragraph. Both legitimate; spec asserts
+          native behavior.
+        block_count: 1
+        first_block_text: "Body text here."
+        no_block_with_text:
+          - "Normal"
+      - name: info_group
+        input_xml: "{\\rtf1\\ansi\\deff0\n{\\info{\\title Document Title}{\\author Yves}}\n\\pard Real body content.\\par\n}"
+        expected_fail: |
+          bridge feature difference — Okapi RTFFilter (Trados-tagged)
+          yields 0 blocks for plain RTF. Native skips the info group
+          and emits the paragraph. Both legitimate; spec asserts
+          native behavior.
+        block_count: 1
+        first_block_text: "Real body content."
+        no_block_with_text:
+          - "Document Title"
+          - "Yves"
+    okapi_refs:
+      - RTFFilterTest#testBasicProcessing
+      - RTFFilterTest#testSimpleTU
+    native_refs:
+      - rtf.TestReadRTFSkipsFontTable
+      - rtf.TestReadRTFSkipsColorTable
+      - rtf.TestReadRTFSkipsStylesheet
+
+  # ── Character escapes ─────────────────────────────────────────────
+  - id: character_escapes
+    name: Unicode, hex, and literal-character escapes
+    description: |
+      RTF's \\uN escape decodes to the corresponding Unicode code point;
+      \\'HH decodes a single byte (Windows-1252 in the typical case);
+      \\{, \\}, and \\\\ produce literal braces and backslash. All
+      decoded characters land inside the surrounding paragraph Block.
+    examples:
+      - name: unicode_uN
+        # \u233 is é (U+00E9). The trailing '?' is the legacy ANSI
+        # fallback character that follows \uN; the reader emits the
+        # Unicode glyph but keeps the fallback in the block text per
+        # the current implementation contract.
+        input_xml: "{\\rtf1\\ansi\\deff0\n\\pard Caf\\u233?.\\par\n}"
+        expected_fail: |
+          bridge feature difference — Okapi RTFFilter (Trados-tagged)
+          yields 0 blocks for plain RTF. Native decodes \uN escapes
+          inline. Both legitimate; spec asserts native behavior.
+        block_count: 1
+        has_block_with_text:
+          - "Caf"
+          - "é"
+      - name: hex_HH
+        # \'e9 is é in Windows-1252; the reader maps the byte to the
+        # corresponding rune.
+        input_xml: "{\\rtf1\\ansi\\deff0\n\\pard Caf\\'e9.\\par\n}"
+        expected_fail: |
+          bridge feature difference — Okapi RTFFilter (Trados-tagged)
+          yields 0 blocks for plain RTF. Native decodes \'HH escapes
+          inline. Both legitimate; spec asserts native behavior.
+        block_count: 1
+        has_block_with_text:
+          - "Caf"
+      - name: escaped_braces_and_backslash
+        input_xml: "{\\rtf1\\ansi\\deff0\n\\pard Curly \\{ braces \\} and backslash \\\\.\\par\n}"
+        expected_fail: |
+          bridge feature difference — Okapi RTFFilter (Trados-tagged)
+          yields 0 blocks for plain RTF. Native decodes literal-
+          character escapes inline. Both legitimate; spec asserts
+          native behavior.
+        block_count: 1
+        has_block_with_text:
+          - "{"
+          - "}"
+          - "\\"
+    okapi_refs:
+      - RTFFilterTest#testSimpleTU
+    native_refs:
+      - rtf.TestReadRTFUnicode
+      - rtf.TestReadRTFHexCharacter
+      - rtf.TestReadRTFEscapedCharacters
+
+  # ── Special-character control words ───────────────────────────────
+  - id: special_control_characters
+    name: \\tab, \\emdash, smart quotes
+    description: |
+      Common RTF special-character control words decode to their
+      Unicode equivalents inside paragraph text: \\tab → U+0009,
+      \\emdash → U+2014, \\endash → U+2013, \\lquote → U+2018,
+      \\rquote → U+2019, \\ldblquote → U+201C, \\rdblquote → U+201D,
+      \\bullet → U+2022.
+    examples:
+      - name: emdash_and_tab
+        input_xml: "{\\rtf1\\ansi\\deff0\n\\pard Left\\emdash Right.\\par\n\\pard Tab\\tab here.\\par\n}"
+        expected_fail: |
+          bridge feature difference — Okapi RTFFilter (Trados-tagged)
+          yields 0 blocks for plain RTF. Native decodes special-char
+          control words to their Unicode equivalents inline. Both
+          legitimate; spec asserts native behavior.
+        block_count: 2
+        block_texts:
+          - "Left—Right."
+          - "Tab\there."
+      - name: smart_quotes
+        input_xml: "{\\rtf1\\ansi\\deff0\n\\pard \\lquote single\\rquote and \\ldblquote double\\rdblquote quotes.\\par\n}"
+        expected_fail: |
+          bridge feature difference — Okapi RTFFilter (Trados-tagged)
+          yields 0 blocks for plain RTF. Native decodes smart-quote
+          control words inline. Both legitimate; spec asserts native
+          behavior.
+        block_count: 1
+        first_block_text: "‘single’and “double”quotes."
+    okapi_refs:
+      - RTFFilterTest#testBasicProcessing
+      - RtfEventTest#testStartDoc
+    native_refs:
+      - rtf.TestReadRTFSpecialCharacters
+
+  # ── Document boundary events ──────────────────────────────────────
+  - id: document_boundary_events
+    name: Layer start / end wrap RTF content
+    description: |
+      Reading any RTF document emits a LayerStart Part before the
+      first Block and a LayerEnd Part after the last one. The Layer
+      carries the rtf format id so downstream tools can route on
+      format. Verifies the document scaffolding mirrors Okapi's
+      StartDocument / EndDocument event pair.
+    examples:
+      - name: minimal_layer_wrap
+        input_xml: "{\\rtf1\\ansi\\deff0\n\\pard Hello.\\par\n}"
+        expected_fail: |
+          bridge feature difference — Okapi RTFFilter (Trados-tagged)
+          yields 0 blocks for plain RTF; the LayerStart/LayerEnd
+          scaffolding still emits but no Block surfaces between
+          them. Native generic RTF reader emits one Block per \par.
+          Both legitimate; spec asserts native behavior.
+        block_count: 1
+        first_block_text: "Hello."
+    okapi_refs:
+      - RtfEventTest#testStartDoc
+    native_refs:
+      - rtf.TestReadLayerStartEnd
