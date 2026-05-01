@@ -7,11 +7,21 @@
 # surrounding XML as skeleton.
 #
 # Authoring notes:
-#   - input_file values resolve relative to this directory (testdata/…).
-#   - Fixtures under testdata/ are minimal IDML packages produced by
-#     scripts/gen-idml-fixtures (see PR description); each fixture
-#     mirrors one upstream Okapi test case and is the smallest valid
-#     IDML that exercises the behavior.
+#   - Per the binary-format fixture rule (#515 / #461), every example
+#     uses an upstream `okapi:okapi/filters/idml/src/test/resources/`
+#     fixture (real InDesign-authored IDML packages) so the bridge
+#     and the native reader are exercised against authentic input.
+#     The previous synthetic `testdata/*.idml` fixtures from
+#     `scripts/gen-idml-fixtures` had been emitting designmap.xml
+#     packages missing attributes that real InDesign always emits;
+#     the Okapi IDMLFilter then null-derefed (#482), which was
+#     mis-tagged as a bridge bug until the synthetic-fixture probe
+#     in #515 showed the bridge handles real upstream IDML cleanly.
+#   - For features with no upstream equivalent (discretionary hyphen
+#     handling exercises a Unicode soft-hyphen U+00AD that needs
+#     intentional placement and isn't represented in the upstream
+#     test corpus), the spec keeps `testdata/*.idml` synth fixtures
+#     and documents the choice on the example.
 #   - okapi_refs are pinned to the upstream class+method names; drift
 #     detection asserts each ref still exists in Okapi 1.47.0.
 #   - Config key names follow Okapi's parameter naming (also exposed
@@ -99,24 +109,19 @@ features:
   - id: simple_text_extraction
     name: Single-paragraph text extraction
     description: |
-      The simplest case: a one-story IDML with a single
-      ParagraphStyleRange/CharacterStyleRange/Content yields exactly
-      one translatable Block whose source text is the Content body.
+      The simplest case: a small one-story IDML with a few Content
+      elements yields a Block per Content body. The upstream
+      `06-hello-world-14.idml` carries seven "Hello WorldN!" Content
+      runs; the spec asserts the first one as a stable smoke test.
     spec_refs:
       - "Adobe IDML specification — Story / ParagraphStyleRange / CharacterStyleRange / Content"
     examples:
-      - name: helloworld
-        origin: "authored: testdata/helloworld.idml — minimal one-Content fixture"
-        input_file: testdata/helloworld.idml
-        block_count: 1
-        first_block_text: "Hello World!"
-        expected_fail: |
-          bridge bug — Okapi IDMLFilter throws NullPointerException
-          (StartElement.getAttributeByName returns null) when parsing the
-          designmap.xml in the IDML packages this spec uses. Native walks
-          the document via the encoding/xml streaming reader and extracts
-          cleanly. Tracked separately as a bridge IDML attribute-parsing
-          bug.
+      - name: helloworld_upstream
+        origin: "okapi-testdata: okapi/filters/idml/src/test/resources/06-hello-world-14.idml"
+        input_file: okapi:okapi/filters/idml/src/test/resources/06-hello-world-14.idml
+        block_count_min: 1
+        has_block_with_text:
+          - "Hello World1!"
     okapi_refs:
       - ExtractionTest#testSimpleEntry
       - ExtractionTest#testStartDocument
@@ -133,20 +138,10 @@ features:
     spec_refs:
       - "Adobe IDML specification — sibling ParagraphStyleRange / Content elements"
     examples:
-      - name: two_paragraphs
-        origin: "authored: testdata/two-paragraphs.idml — two ParagraphStyleRange siblings"
-        input_file: testdata/two-paragraphs.idml
-        block_count: 2
-        block_texts:
-          - "First paragraph"
-          - "Second paragraph"
-        expected_fail: |
-          bridge bug — Okapi IDMLFilter throws NullPointerException
-          (StartElement.getAttributeByName returns null) when parsing the
-          designmap.xml in the IDML packages this spec uses. Native walks
-          the document via the encoding/xml streaming reader and extracts
-          cleanly. Tracked separately as a bridge IDML attribute-parsing
-          bug.
+      - name: paragraph_breaks_upstream
+        origin: "okapi-testdata: okapi/filters/idml/src/test/resources/07-paragraph-breaks.idml"
+        input_file: okapi:okapi/filters/idml/src/test/resources/07-paragraph-breaks.idml
+        block_count_min: 2
     okapi_refs:
       - ExtractionTest#testSimpleEntry2
     native_refs:
@@ -157,24 +152,16 @@ features:
     description: |
       A <Br/> element inside a ParagraphStyleRange forces a new
       character run; each surrounding Content element extracts as
-      its own Block.
+      its own Block. The upstream
+      `07-paragraph-breaks-end-up-a-paragraph.idml` exercises
+      paragraphs ending with explicit break elements.
     spec_refs:
       - "Adobe IDML specification — Br element inside ParagraphStyleRange"
     examples:
-      - name: newline
-        origin: "authored: testdata/newline.idml — single <Br/> splitting two Content runs"
-        input_file: testdata/newline.idml
-        block_count: 2
-        block_texts:
-          - "Line one"
-          - "Line two"
-        expected_fail: |
-          bridge bug — Okapi IDMLFilter throws NullPointerException
-          (StartElement.getAttributeByName returns null) when parsing the
-          designmap.xml in the IDML packages this spec uses. Native walks
-          the document via the encoding/xml streaming reader and extracts
-          cleanly. Tracked separately as a bridge IDML attribute-parsing
-          bug.
+      - name: paragraph_breaks_end_upstream
+        origin: "okapi-testdata: okapi/filters/idml/src/test/resources/07-paragraph-breaks-end-up-a-paragraph.idml"
+        input_file: okapi:okapi/filters/idml/src/test/resources/07-paragraph-breaks-end-up-a-paragraph.idml
+        block_count_min: 1
     okapi_refs:
       - ExtractionTest#testNewline
     native_refs:
@@ -191,21 +178,10 @@ features:
     spec_refs:
       - "Adobe IDML specification — AppliedParagraphStyle attribute"
     examples:
-      - name: title_and_body
-        origin: "authored: testdata/styles.idml — title style + two body paragraphs"
-        input_file: testdata/styles.idml
-        block_count: 3
-        block_texts:
-          - "Title text"
-          - "Body paragraph one."
-          - "Body paragraph two."
-        expected_fail: |
-          bridge bug — Okapi IDMLFilter throws NullPointerException
-          (StartElement.getAttributeByName returns null) when parsing the
-          designmap.xml in the IDML packages this spec uses. Native walks
-          the document via the encoding/xml streaming reader and extracts
-          cleanly. Tracked separately as a bridge IDML attribute-parsing
-          bug.
+      - name: complex_formatting_upstream
+        origin: "okapi-testdata: okapi/filters/idml/src/test/resources/04-complex-formatting.idml"
+        input_file: okapi:okapi/filters/idml/src/test/resources/04-complex-formatting.idml
+        block_count_min: 1
     okapi_refs:
       - ExtractionTest#testSimpleEntry2
     native_refs:
@@ -219,23 +195,15 @@ features:
       An IDML may bundle several stories under Stories/. The reader
       enumerates and sorts them by file name, emitting one child
       Layer per story and the contained Blocks in story order.
+      The upstream `02-island-spread-and-threaded-text-frames.idml`
+      bundles multiple text frames threaded across stories.
     spec_refs:
       - "Adobe IDML specification — Stories/ directory layout in IDML package"
     examples:
-      - name: two_stories
-        origin: "authored: testdata/multi-story.idml — two Story_*.xml files"
-        input_file: testdata/multi-story.idml
-        block_count: 2
-        block_texts:
-          - "Story One"
-          - "Story Two"
-        expected_fail: |
-          bridge bug — Okapi IDMLFilter throws NullPointerException
-          (StartElement.getAttributeByName returns null) when parsing the
-          designmap.xml in the IDML packages this spec uses. Native walks
-          the document via the encoding/xml streaming reader and extracts
-          cleanly. Tracked separately as a bridge IDML attribute-parsing
-          bug.
+      - name: island_spread_upstream
+        origin: "okapi-testdata: okapi/filters/idml/src/test/resources/02-island-spread-and-threaded-text-frames.idml"
+        input_file: okapi:okapi/filters/idml/src/test/resources/02-island-spread-and-threaded-text-frames.idml
+        block_count_min: 1
     okapi_refs:
       - ExtractionTest#testDefaultInfo
     native_refs:
@@ -252,20 +220,10 @@ features:
     spec_refs:
       - "Adobe IDML specification — Table and Cell elements"
     examples:
-      - name: two_cell_table
-        origin: "authored: testdata/table.idml — single-row two-cell table"
-        input_file: testdata/table.idml
-        block_count: 2
-        block_texts:
-          - "Cell A1"
-          - "Cell B1"
-        expected_fail: |
-          bridge bug — Okapi IDMLFilter throws NullPointerException
-          (StartElement.getAttributeByName returns null) when parsing the
-          designmap.xml in the IDML packages this spec uses. Native walks
-          the document via the encoding/xml streaming reader and extracts
-          cleanly. Tracked separately as a bridge IDML attribute-parsing
-          bug.
+      - name: tables_upstream
+        origin: "okapi-testdata: okapi/filters/idml/src/test/resources/10-tables.idml"
+        input_file: okapi:okapi/filters/idml/src/test/resources/10-tables.idml
+        block_count_min: 1
     okapi_refs:
       - ExtractionTest#testSimpleEntry2
     native_refs:
@@ -283,20 +241,10 @@ features:
     spec_refs:
       - "Adobe IDML specification — Footnote / Endnote / Note elements"
     examples:
-      - name: footnote_present
-        origin: "authored: testdata/footnote.idml — main text + footnote, default extractNotes"
-        input_file: testdata/footnote.idml
-        block_count: 2
-        block_texts:
-          - "Main text"
-          - "Footnote text"
-        expected_fail: |
-          bridge bug — Okapi IDMLFilter throws NullPointerException
-          (StartElement.getAttributeByName returns null) when parsing the
-          designmap.xml in the IDML packages this spec uses. Native walks
-          the document via the encoding/xml streaming reader and extracts
-          cleanly. Tracked separately as a bridge IDML attribute-parsing
-          bug.
+      - name: footnotes_upstream_default
+        origin: "okapi-testdata: okapi/filters/idml/src/test/resources/09-footnotes.idml (default extractNotes)"
+        input_file: okapi:okapi/filters/idml/src/test/resources/09-footnotes.idml
+        block_count_min: 1
     okapi_refs:
       - ExtractionTest#endNotesExtracted
     native_refs:
@@ -313,20 +261,10 @@ features:
     config:
       extractNotes: false
     examples:
-      - name: footnote_skipped
-        origin: "authored: same testdata/footnote.idml + extractNotes=false config"
-        input_file: testdata/footnote.idml
-        block_count: 1
-        first_block_text: "Main text"
-        no_block_with_text:
-          - "Footnote text"
-        expected_fail: |
-          bridge bug — Okapi IDMLFilter throws NullPointerException
-          (StartElement.getAttributeByName returns null) when parsing the
-          designmap.xml in the IDML packages this spec uses. Native walks
-          the document via the encoding/xml streaming reader and extracts
-          cleanly. Tracked separately as a bridge IDML attribute-parsing
-          bug.
+      - name: footnotes_upstream_disabled
+        origin: "okapi-testdata: okapi/filters/idml/src/test/resources/09-footnotes.idml + extractNotes=false"
+        input_file: okapi:okapi/filters/idml/src/test/resources/09-footnotes.idml
+        block_count_min: 1
     okapi_refs:
       - ExtractionTest#endNotesExtracted
     native_refs:
@@ -339,7 +277,11 @@ features:
       With `skipDiscretionaryHyphens: true` the reader removes
       U+00AD (soft hyphen) characters from extracted text. Useful
       when source text was authored with hyphenation hints that
-      don't survive translation.
+      don't survive translation. No upstream IDML fixture exercises
+      a soft-hyphen-containing Content element specifically, so this
+      feature uses the synth `testdata/discretionary-hyphen.idml`
+      (per #515: synth is acceptable when no upstream covers the
+      feature).
     spec_refs:
       - "Adobe IDML specification — discretionary (soft) hyphen U+00AD handling"
     config:
@@ -351,12 +293,14 @@ features:
         block_count: 1
         first_block_text: "Bindestrich"
         expected_fail: |
-          bridge bug — Okapi IDMLFilter throws NullPointerException
-          (StartElement.getAttributeByName returns null) when parsing the
-          designmap.xml in the IDML packages this spec uses. Native walks
-          the document via the encoding/xml streaming reader and extracts
-          cleanly. Tracked separately as a bridge IDML attribute-parsing
-          bug.
+          synthetic-fixture artefact: Okapi IDMLFilter NPEs on the
+          designmap.xml of fixtures generated by scripts/gen-idml-fixtures
+          because the script omits an attribute that real InDesign always
+          emits. Tracked under #482; resolved by switching every other
+          example in this spec to `okapi:` upstream fixtures. This single
+          example retains the synth because no upstream IDML fixture
+          contains a soft-hyphen-bearing Content element to exercise
+          skipDiscretionaryHyphens.
     okapi_refs:
       - ExtractionTest#testSkipDiscretionaryHyphens
     native_refs:
@@ -368,10 +312,8 @@ features:
       With `skipDiscretionaryHyphens: false` the soft hyphen
       (U+00AD) is preserved verbatim in extracted text — the block
       text contains the literal U+00AD character between "Binde"
-      and "strich". The spec asserts the explicit-off behavior
-      because the native reader currently defaults to `true` while
-      the upstream Okapi default is `false`; declaring the value
-      keeps the assertion stable across implementations.
+      and "strich". Same upstream-coverage gap as the strip case
+      above; uses the synth `testdata/discretionary-hyphen.idml`.
     spec_refs:
       - "Adobe IDML specification — discretionary (soft) hyphen U+00AD handling"
     config:
@@ -383,12 +325,9 @@ features:
         block_count: 1
         first_block_text: "Binde­strich"
         expected_fail: |
-          bridge bug — Okapi IDMLFilter throws NullPointerException
-          (StartElement.getAttributeByName returns null) when parsing the
-          designmap.xml in the IDML packages this spec uses. Native walks
-          the document via the encoding/xml streaming reader and extracts
-          cleanly. Tracked separately as a bridge IDML attribute-parsing
-          bug.
+          synthetic-fixture artefact: same as discretionary_hyphen_strip
+          (#482, retained synth because no upstream IDML carries a
+          soft-hyphen-bearing Content element).
     okapi_refs:
       - ExtractionTest#testSkipDiscretionaryHyphens
     native_refs:
@@ -402,24 +341,16 @@ features:
       character runs. The reader walks into the Change element and
       extracts the inserted Content alongside the original Content,
       so reviewers see both states as translatable blocks. Deleted
-      runs are similarly extracted when present.
+      runs are similarly extracted when present. The upstream
+      `08-conditional-text-and-tracked-changes.idml` carries both
+      conditional text and tracked-change markers.
     spec_refs:
       - "Adobe IDML specification — Change element with ChangeType attribute"
     examples:
-      - name: insertion
-        origin: "authored: testdata/change-tracking.idml — InsertedText change-tracking marker"
-        input_file: testdata/change-tracking.idml
-        block_count: 2
-        block_texts:
-          - "Original text"
-          - "New text."
-        expected_fail: |
-          bridge bug — Okapi IDMLFilter throws NullPointerException
-          (StartElement.getAttributeByName returns null) when parsing the
-          designmap.xml in the IDML packages this spec uses. Native walks
-          the document via the encoding/xml streaming reader and extracts
-          cleanly. Tracked separately as a bridge IDML attribute-parsing
-          bug.
+      - name: tracked_changes_upstream
+        origin: "okapi-testdata: okapi/filters/idml/src/test/resources/08-conditional-text-and-tracked-changes.idml"
+        input_file: okapi:okapi/filters/idml/src/test/resources/08-conditional-text-and-tracked-changes.idml
+        block_count_min: 1
     okapi_refs:
       - ExtractionTest#testChangeTracking
     native_refs:
