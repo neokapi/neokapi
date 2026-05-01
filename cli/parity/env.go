@@ -42,15 +42,28 @@ var (
 )
 
 // LoadSandbox returns the parity sandbox or an error explaining why it
-// could not be loaded. Callers usually go through RequireSandbox, which
-// SkipNow's the test on a missing sandbox; LoadSandbox is exposed so
-// tooling and helper functions can introspect without forcing a skip.
+// could not be loaded. The lookup order is:
+//
+//  1. $KAPI_PARITY_SANDBOX (set by `make parity-test` and CI).
+//  2. Auto-discovery: walk up from cwd looking for a `.parity/` dir
+//     containing `bin/kapi`. Lets `go test -tags parity ./parity/...`
+//     work from inside any subdirectory of a repo whose sandbox is
+//     already built, with no env var.
+//
+// Callers usually go through RequireSandbox, which fails the test on a
+// missing sandbox by default — silent skips on missing sandbox have
+// caused multiple incidents where local agent runs claimed parity-test
+// passed while CI failed.
 func LoadSandbox() (*Sandbox, error) {
 	sandboxOnce.Do(func() {
 		root := os.Getenv("KAPI_PARITY_SANDBOX")
 		if root == "" {
-			sandboxErr = errors.New("KAPI_PARITY_SANDBOX is not set — run `make parity-test` from the repo root")
-			return
+			discovered, err := discoverSandbox()
+			if err != nil {
+				sandboxErr = fmt.Errorf("KAPI_PARITY_SANDBOX is not set and no `.parity/` directory was found in any parent of cwd — run `make parity-test` from the repo root: %w", err)
+				return
+			}
+			root = discovered
 		}
 		root, err := filepath.Abs(root)
 		if err != nil {
@@ -83,15 +96,57 @@ func LoadSandbox() (*Sandbox, error) {
 	return sandbox, sandboxErr
 }
 
-// RequireSandbox loads the sandbox and SkipNow's the test if it is not
-// available, with a message explaining how to populate it. Tests that
-// reach further than the sandbox check (e.g. acquire a daemon) should
-// always call this first.
+// discoverSandbox walks up from cwd looking for a `.parity/bin/kapi`,
+// returning the absolute path to the `.parity` dir. Returns an error
+// when no candidate is found before hitting the filesystem root. Lets
+// `go test -tags parity ./parity/...` find an already-built sandbox
+// without requiring callers to set $KAPI_PARITY_SANDBOX.
+func discoverSandbox() (string, error) {
+	dir, err := os.Getwd()
+	if err != nil {
+		return "", fmt.Errorf("getwd: %w", err)
+	}
+	for {
+		candidate := filepath.Join(dir, ".parity")
+		kapi := filepath.Join(candidate, "bin", "kapi")
+		if _, err := os.Stat(kapi); err == nil {
+			return candidate, nil
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			return "", errors.New("no .parity/bin/kapi in any ancestor of cwd")
+		}
+		dir = parent
+	}
+}
+
+// skipEnv lets developers opt out of the loud failure when they
+// genuinely don't have or want a sandbox locally. CI never sets this.
+const skipEnv = "KAPI_PARITY_SKIP"
+
+// RequireSandbox loads the sandbox and either returns it, fails the
+// test (default), or skips (when KAPI_PARITY_SKIP=1).
+//
+// Why fail by default: the previous skip-by-default behavior caused
+// repeated incidents where local agent runs reported parity-test green
+// while CI surfaced real divergences, because the silent skip looked
+// indistinguishable from a passing run. Failing forces a build of the
+// sandbox (`make parity-test` from the repo root) before anyone — human
+// or agent — claims parity is passing locally.
+//
+// Set KAPI_PARITY_SKIP=1 to opt out (only useful for cross-cutting test
+// runs that don't care about parity, e.g. `go test ./...` from a fresh
+// checkout before the sandbox exists).
 func RequireSandbox(t *testing.T) *Sandbox {
 	t.Helper()
 	s, err := LoadSandbox()
 	if err != nil {
-		t.Skipf("parity harness unavailable: %v", err)
+		if os.Getenv(skipEnv) == "1" {
+			t.Skipf("parity harness unavailable (KAPI_PARITY_SKIP=1): %v", err)
+		}
+		t.Fatalf("parity harness unavailable: %v\n\n"+
+			"Build the sandbox with `make parity-test` (from the repo root) before running parity tests.\n"+
+			"Set KAPI_PARITY_SKIP=1 to skip these tests instead of failing.", err)
 	}
 	return s
 }
