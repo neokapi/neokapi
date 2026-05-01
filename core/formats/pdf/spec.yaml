@@ -74,6 +74,16 @@
 #     fixtures were generated with byte-accurate xref offsets (PDFBox
 #     rejects PDFs whose xref offsets don't match the actual object
 #     positions) and committed verbatim — no runtime generation step.
+#   - Per the binary-format fixture rule (#515 / #461), the spec also
+#     exercises the upstream `okapi:okapi/filters/pdf/src/test/
+#     resources/PALC_2011_LT.pdf` baseline (see the
+#     `realworld_baseline_native_bridge_divergence` example below).
+#     The per-feature synth PDFs are kept here because the native
+#     regex reader can only consume PDFs without ToUnicode CMaps —
+#     the upstream files come from real authoring tools and use
+#     glyph-indexed strings that surface as garbage through the
+#     native reader (#510). Once #510 lands, the synth fixtures can
+#     be migrated to upstream where each feature has an equivalent.
 #   - There is no public spec for "PDF text extraction" — the relevant
 #     normative reference is ISO 32000-1:2008 (the PDF reference, also
 #     republished as Adobe PDF 1.7 Reference). The text-showing
