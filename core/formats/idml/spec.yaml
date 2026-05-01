@@ -1,0 +1,316 @@
+# IDML format specification.
+#
+# Single-variant filter for Adobe InDesign Markup Language (.idml)
+# packages — ZIP archives containing one designmap.xml and one or more
+# Stories/Story_*.xml files. The reader walks each story, extracting
+# translatable text from <Content> elements while preserving the
+# surrounding XML as skeleton.
+#
+# Authoring notes:
+#   - input_file values resolve relative to this directory (testdata/…).
+#   - Fixtures under testdata/ are minimal IDML packages produced by
+#     scripts/gen-idml-fixtures (see PR description); each fixture
+#     mirrors one upstream Okapi test case and is the smallest valid
+#     IDML that exercises the behavior.
+#   - okapi_refs are pinned to the upstream class+method names; drift
+#     detection asserts each ref still exists in Okapi 1.47.0.
+#   - Config key names follow Okapi's parameter naming (also exposed
+#     by the bridge composite schema). Parent grouping keys
+#     (`extraction`, `formatting`, `inlineCodes`) appear as
+#     string_map entries — the bridge schema groups settings under
+#     them, the native reader currently honors a subset of the
+#     `extraction.*` flags.
+
+format: okf_idml
+mime_type: application/vnd.adobe.indesign-idml-package
+description: |
+  Adobe InDesign Markup Language. IDML packages are ZIP archives
+  bundling one or more Story XML files plus design metadata. The
+  filter extracts translatable text from <Content> elements inside
+  ParagraphStyleRange/CharacterStyleRange runs, preserving paragraph
+  and character style context per block and treating notes,
+  footnotes, and tracked changes as nested translatable scopes.
+
+config:
+  # ── Extraction settings ───────────────────────────────────────────
+  - key: extraction
+    type: string_map
+    default: {}
+    description: |
+      Container for extraction settings (mirrors Okapi's `extraction`
+      group, also exposed as a nested object in the bridge composite
+      schema). Individual flags (`extractNotes`, `extractMasterSpreads`,
+      `skipDiscretionaryHyphens`, …) are declared below for the
+      behaviors the spec exercises.
+
+  - key: extractNotes
+    type: boolean
+    default: false
+    description: |
+      Extract footnote, endnote, and Note element content as
+      translatable blocks. When false, note content is written to
+      skeleton and is not exposed as Blocks.
+    okapi_param: extractNotes
+
+  - key: extractMasterSpreads
+    type: boolean
+    default: true
+    description: |
+      Extract translatable text from master-spread stories. When
+      false, master-spread content is treated as non-translatable
+      design boilerplate.
+    okapi_param: extractMasterSpreads
+
+  - key: skipDiscretionaryHyphens
+    type: boolean
+    default: false
+    description: |
+      Strip discretionary (soft) hyphens (U+00AD) from extracted
+      text. Useful when downstream tools mishandle the soft-hyphen
+      character or when source text was authored with line-break
+      hints that don't apply post-translation.
+    okapi_param: skipDiscretionaryHyphens
+
+  # ── Formatting tolerance thresholds ───────────────────────────────
+  - key: formatting
+    type: string_map
+    default: {}
+    description: |
+      Container for formatting tolerance settings (Okapi's
+      `formatting` group, also a nested object in the bridge
+      composite schema). Controls when small kerning / tracking /
+      leading / baseline-shift differences across runs are folded
+      together vs preserved as distinct inline codes. The native
+      reader does not yet implement the per-flag tolerances.
+
+  # ── Inline-code detection ─────────────────────────────────────────
+  - key: inlineCodes
+    type: string_map
+    default: {}
+    description: |
+      Container for inline-code detection settings (Okapi's
+      `inlineCodes` group, exposed via $ref in the bridge composite
+      schema). Holds `useCodeFinder`, `codeFinderRules`, merge /
+      simplifier rules. The native reader does not yet apply the
+      code finder.
+
+features:
+  # ── Core extraction ───────────────────────────────────────────────
+  - id: simple_text_extraction
+    name: Single-paragraph text extraction
+    description: |
+      The simplest case: a one-story IDML with a single
+      ParagraphStyleRange/CharacterStyleRange/Content yields exactly
+      one translatable Block whose source text is the Content body.
+    examples:
+      - name: helloworld
+        input_file: testdata/helloworld.idml
+        block_count: 1
+        first_block_text: "Hello World!"
+    okapi_refs:
+      - ExtractionTest#testSimpleEntry
+      - ExtractionTest#testStartDocument
+    native_refs:
+      - idml.TestSimple
+      - idml.TestStartDocument
+
+  - id: paragraph_segmentation
+    name: One block per Content element
+    description: |
+      Each <Content> element under a CharacterStyleRange becomes its
+      own translatable Block, in document order. Paragraphs are not
+      merged when separated by sibling ParagraphStyleRange elements.
+    examples:
+      - name: two_paragraphs
+        input_file: testdata/two-paragraphs.idml
+        block_count: 2
+        block_texts:
+          - "First paragraph"
+          - "Second paragraph"
+    okapi_refs:
+      - ExtractionTest#testSimpleEntry2
+    native_refs:
+      - idml.TestMultipleContentElements
+
+  - id: line_break_segmentation
+    name: Br within a paragraph splits Content runs
+    description: |
+      A <Br/> element inside a ParagraphStyleRange forces a new
+      character run; each surrounding Content element extracts as
+      its own Block.
+    examples:
+      - name: newline
+        input_file: testdata/newline.idml
+        block_count: 2
+        block_texts:
+          - "Line one"
+          - "Line two"
+    okapi_refs:
+      - ExtractionTest#testNewline
+    native_refs:
+      - idml.TestNewline
+
+  - id: style_context_propagation
+    name: Paragraph style preserved on each block
+    description: |
+      Sibling paragraphs with different `AppliedParagraphStyle` values
+      each emit a Block whose `paragraphStyle` property carries the
+      style name. The reader propagates style context through the
+      style stack so nested ParagraphStyleRange/CharacterStyleRange
+      structures stay consistent.
+    examples:
+      - name: title_and_body
+        input_file: testdata/styles.idml
+        block_count: 3
+        block_texts:
+          - "Title text"
+          - "Body paragraph one."
+          - "Body paragraph two."
+    okapi_refs:
+      - ExtractionTest#testSimpleEntry2
+    native_refs:
+      - idml.TestMultipleParagraphsInStory
+      - idml.TestBlockProperties
+
+  # ── Multi-story aggregation ───────────────────────────────────────
+  - id: multi_story_aggregation
+    name: Multiple Story_*.xml files extracted in sorted order
+    description: |
+      An IDML may bundle several stories under Stories/. The reader
+      enumerates and sorts them by file name, emitting one child
+      Layer per story and the contained Blocks in story order.
+    examples:
+      - name: two_stories
+        input_file: testdata/multi-story.idml
+        block_count: 2
+        block_texts:
+          - "Story One"
+          - "Story Two"
+    okapi_refs:
+      - ExtractionTest#testDefaultInfo
+    native_refs:
+      - idml.TestMultipleStories
+
+  # ── Tables (nested style stack) ───────────────────────────────────
+  - id: table_cell_extraction
+    name: Table cell content extraction
+    description: |
+      `<Table>` elements appear inside CharacterStyleRange. Each
+      `<Cell>` carries its own ParagraphStyleRange tree; the reader
+      extracts each Content element inside the cells as a separate
+      Block, in row-major order as written in the source XML.
+    examples:
+      - name: two_cell_table
+        input_file: testdata/table.idml
+        block_count: 2
+        block_texts:
+          - "Cell A1"
+          - "Cell B1"
+    okapi_refs:
+      - ExtractionTest#testSimpleEntry2
+    native_refs:
+      - idml.TestTableContent
+
+  # ── Footnotes (extractNotes flag) ─────────────────────────────────
+  - id: footnote_extraction_default
+    name: Footnote text extracted by default
+    description: |
+      The native reader's default extracts footnote / endnote / Note
+      content as translatable blocks alongside the main text. Note:
+      Okapi's upstream default for `extractNotes` is false; the
+      native default is true (documented divergence — see
+      `footnote_extraction_disabled`).
+    examples:
+      - name: footnote_present
+        input_file: testdata/footnote.idml
+        block_count: 2
+        block_texts:
+          - "Main text"
+          - "Footnote text"
+    okapi_refs:
+      - ExtractionTest#endNotesExtracted
+    native_refs:
+      - idml.TestFootnotes
+
+  - id: footnote_extraction_disabled
+    name: Footnote text omitted when extractNotes=false
+    description: |
+      With `extractNotes: false` the reader writes footnote content
+      to skeleton instead of emitting it as a translatable Block.
+      Only the surrounding main-text Content remains.
+    config:
+      extractNotes: false
+    examples:
+      - name: footnote_skipped
+        input_file: testdata/footnote.idml
+        block_count: 1
+        first_block_text: "Main text"
+        no_block_with_text:
+          - "Footnote text"
+    okapi_refs:
+      - ExtractionTest#endNotesExtracted
+    native_refs:
+      - idml.TestFootnotes
+
+  # ── Discretionary hyphen handling ─────────────────────────────────
+  - id: discretionary_hyphen_strip
+    name: Discretionary hyphens stripped when configured
+    description: |
+      With `skipDiscretionaryHyphens: true` the reader removes
+      U+00AD (soft hyphen) characters from extracted text. Useful
+      when source text was authored with hyphenation hints that
+      don't survive translation.
+    config:
+      skipDiscretionaryHyphens: true
+    examples:
+      - name: bindestrich_stripped
+        input_file: testdata/discretionary-hyphen.idml
+        block_count: 1
+        first_block_text: "Bindestrich"
+    okapi_refs:
+      - ExtractionTest#testSkipDiscretionaryHyphens
+    native_refs:
+      - idml.TestSkipDiscretionaryHyphens
+
+  - id: discretionary_hyphen_preserved
+    name: Discretionary hyphens preserved when configured
+    description: |
+      With `skipDiscretionaryHyphens: false` the soft hyphen
+      (U+00AD) is preserved verbatim in extracted text — the block
+      text contains the literal U+00AD character between "Binde"
+      and "strich". The spec asserts the explicit-off behavior
+      because the native reader currently defaults to `true` while
+      the upstream Okapi default is `false`; declaring the value
+      keeps the assertion stable across implementations.
+    config:
+      skipDiscretionaryHyphens: false
+    examples:
+      - name: bindestrich_preserved
+        input_file: testdata/discretionary-hyphen.idml
+        block_count: 1
+        first_block_text: "Binde­strich"
+    okapi_refs:
+      - ExtractionTest#testSkipDiscretionaryHyphens
+    native_refs:
+      - idml.TestSkipDiscretionaryHyphens
+
+  # ── Tracked changes ───────────────────────────────────────────────
+  - id: change_tracking_extraction
+    name: Tracked changes extracted as additional blocks
+    description: |
+      `<Change ChangeType="InsertedText">` elements wrap inserted
+      character runs. The reader walks into the Change element and
+      extracts the inserted Content alongside the original Content,
+      so reviewers see both states as translatable blocks. Deleted
+      runs are similarly extracted when present.
+    examples:
+      - name: insertion
+        input_file: testdata/change-tracking.idml
+        block_count: 2
+        block_texts:
+          - "Original text"
+          - "New text."
+    okapi_refs:
+      - ExtractionTest#testChangeTracking
+    native_refs:
+      - idml.TestChangeTracking
