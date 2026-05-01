@@ -16,40 +16,12 @@
 # unescaped on read. Whitespace-only lines are skipped. The single
 # parameter `allowSegments` toggles whether segment ids are honored.
 #
-# ── Native vs bridge divergence (#453) ─────────────────────────────────
-# The native Go reader at core/formats/transtable/ implements a
-# completely different and much simpler format: a generic key/value
-# table where each line is `<key>\t<value>`, lines starting with `#` are
-# comments, and there is no header row, no segment grouping, no locale
-# columns, and no quote handling. The native reader's blocks carry the
-# key as both ID and Name and the value as the source text — there is
-# no target column, and source/target locales are taken from the
-# RawDocument rather than from a header line.
-#
-# The two implementations therefore parse different documents. The
-# spec below describes the upstream Okapi TransTable v1 contract (since
-# `format:` is the okapi-bridge filter id and the bridge enforces this
-# contract) and every example is tagged `expected_fail` against the
-# native side — the native reader cannot satisfy the upstream contract
-# without being rewritten as a TransTable v1 reader (or recategorised
-# under a different format id). Tracked in #453 as a documented
-# divergence; this spec replaces the prior parity-formats SKIP marker
-# with per-feature, per-example dashboard rows.
-#
-# Authoring notes:
-#   - Inputs are inline `input_xml:` snippets (the field name is
-#     historical — it carries raw bytes for any text format).
-#   - okapi_refs target the upstream `TransTableFilterTest#methodName`
-#     entries that exercise each feature.
-#   - native_refs link to the existing Go tests so the docs site can
-#     surface the native implementation alongside the contract — even
-#     though those tests verify a different format.
-#   - The single config key `allowSegments` is recorded for drift
-#     parity against the bridge composite schema even though the
-#     bridge `formats/okf_transtable/schema.json` currently exposes an
-#     empty properties block (the upstream Java field
-#     Parameters.ALLOWSEGMENTS is wired but not flattened by the
-#     schemagen pass yet). The native reader rejects all config keys.
+# Fixture sourcing (per #515): bilingual examples reference the upstream
+# Okapi fixture `okapi/filters/transtable/src/test/resources/test01.xml.txt`
+# via `input_file: okapi:...`. The native runner skips cleanly when the
+# corpus isn't fetched. Inline `input_xml:` snippets are still used for
+# narrowly-scoped contract examples that the upstream fixture doesn't
+# cover (segment grouping, whitespace handling, allowSegments off).
 
 format: okf_transtable
 mime_type: text/x-transtable
@@ -71,12 +43,7 @@ config:
       Honor the `:s=<seg-id>` segment suffix on the crumb id. When
       true, lines sharing the same `tu=<id>` are merged into one
       segmented text unit. When false, every line is its own text
-      unit regardless of any `:s=<seg-id>` suffix. Recorded for
-      drift parity with the upstream Parameters class
-      (`Parameters.ALLOWSEGMENTS`); the bridge composite schema does
-      not flatten this key today, so the bridge runner uses its
-      default. The native reader does not recognise this parameter
-      (its `Config.ApplyMap` rejects every key).
+      unit regardless of any `:s=<seg-id>` suffix.
     okapi_param: allowSegments
 
 features:
@@ -103,14 +70,6 @@ features:
           "okpCtx:tu=1"	"source"
         block_count: 1
         first_block_text: "source"
-        expected_fail: |
-          Native reader treats the header line `TransTableV1\ten\tfr`
-          as a key/value entry (key=`TransTableV1`, value=`en\tfr`)
-          and the data row as another entry (key=`"okpCtx:tu=1"`,
-          value=`"source"`), yielding two blocks instead of one.
-          Native implements a generic key/value table; the upstream
-          TransTable v1 contract is not represented in the Go
-          reader — see #453.
       - name: quoted_header_quoted_id
         description: |
           Same shape with all cells quoted — quotes are part of the
@@ -121,9 +80,6 @@ features:
           okpCtx:tu=1	source
         block_count: 1
         first_block_text: "source"
-        expected_fail: |
-          Native reader does not parse the header; it emits the
-          quoted header line as a key/value entry. See #453.
     okapi_refs:
       - TransTableFilterTest#testStartDocument
       - TransTableFilterTest#testMinimalInput
@@ -149,16 +105,10 @@ features:
           "okpCtx:tu=1"	"source"	"target"
         block_count: 1
         first_block_text: "source"
-        expected_fail: |
-          Native reader ignores the header and parses the data row
-          as a single key/value entry — the key column becomes
-          block.Name (`"okpCtx:tu=1"`) and everything after the first
-          tab becomes source text (`"source"\t"target"`). The target
-          column is not promoted into the target locale. See #453.
     okapi_refs:
       - TransTableFilterTest#testMinimalSourceTarget
     native_refs:
-      - transtable.TestRoundTripWithTargetLocale
+      - transtable.TestBilingualPair
 
   # ── Source-only entry (untranslated) ──────────────────────────────────
   - id: source_only_entry
@@ -175,14 +125,28 @@ features:
           "okpCtx:tu=1"	"source"
         block_count: 1
         first_block_text: "source"
-        expected_fail: |
-          Native reader parses the data row as a key/value entry
-          and additionally emits the header as a separate entry —
-          producing two blocks instead of one. See #453.
+      - name: upstream_test01_six_records
+        description: |
+          Upstream Okapi fixture `test01.xml.txt`: header + six
+          source-only records (each with an empty third cell). The
+          reader yields six text units; the first source equals
+          `"Text of the first record"`.
+        origin: "okapi-fixture: TransTableFilterTest input file `test01.xml.txt`"
+        input_file: okapi:okapi/filters/transtable/src/test/resources/test01.xml.txt
+        block_count: 6
+        first_block_text: "Text of the first record"
+        block_texts:
+          - "Text of the first record"
+          - "Description of the first record"
+          - "  Path:"
+          - "Path of the file to process"
+          - "Text of the third record"
+          - "Description of the first record"
     okapi_refs:
       - TransTableFilterTest#testMinimalInput
     native_refs:
-      - transtable.TestSimplePair
+      - transtable.TestSourceOnlyEntry
+      - transtable.TestReadOkapiTest01Fixture
 
   # ── Multiple entries ──────────────────────────────────────────────────
   - id: multiple_entries
@@ -203,16 +167,10 @@ features:
         block_texts:
           - "source1"
           - "source2"
-        expected_fail: |
-          Native reader emits the header as a key/value entry and
-          the two data rows as two more entries (keys
-          `okpCtx:tu=1:s=0` and `okpCtx:tu=2`), yielding three
-          blocks with sources `"en\tfr"`, `source1`, and `source2`.
-          See #453.
     okapi_refs:
       - TransTableFilterTest#testUnSegmented
     native_refs:
-      - transtable.TestMultiplePairs
+      - transtable.TestMultipleEntries
 
   # ── Segment grouping ──────────────────────────────────────────────────
   - id: segmented_text_unit
@@ -245,16 +203,11 @@ features:
           - "src2-seg0src2-seg1src2-seg2"
           - "src3-segZZZ"
           - "src4-seg0"
-        expected_fail: |
-          Native reader does not honour segment crumbs; every data
-          row is its own key/value entry and the header adds a
-          fifth. The block_count and block_texts therefore disagree
-          with the upstream segment-grouping contract. See #453.
     okapi_refs:
       - TransTableFilterTest#testSegmented
       - TransTableFilterTest#testSegmentedWithTarget
     native_refs:
-      - transtable.TestMultiplePairs
+      - transtable.TestSegmentedTextUnit
 
   # ── Whitespace-only lines ─────────────────────────────────────────────
   - id: whitespace_lines_skipped
@@ -289,13 +242,7 @@ features:
           - "src2-seg0src2-seg1src2-seg2"
           - "src3-segZZZ"
           - "src4-seg0"
-        expected_fail: |
-          Native reader emits each blank/whitespace line as a Data
-          part rather than skipping it, and parses every data row
-          as its own key/value entry — diverging from the upstream
-          segment-grouping and whitespace-skip behavior. See #453.
     okapi_refs:
       - TransTableFilterTest#testSegmentedWithTarget
     native_refs:
-      - transtable.TestEmptyLine
-      - transtable.TestWhitespaceHandling
+      - transtable.TestWhitespaceLinesSkipped
