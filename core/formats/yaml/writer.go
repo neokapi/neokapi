@@ -16,7 +16,9 @@ import (
 type Writer struct {
 	format.BaseFormatWriter
 	blocks        map[string]*model.Block // key path → block
+	blockOrder    []string                // key paths in document order
 	skeletonStore *format.SkeletonStore
+	originalBytes []byte // raw original YAML, captured from LayerStart
 }
 
 // Ensure Writer implements SkeletonStoreConsumer.
@@ -49,8 +51,18 @@ func (w *Writer) Write(ctx context.Context, parts <-chan *model.Part) error {
 			if !ok {
 				goto done
 			}
-			if part.Type == model.PartBlock {
+			switch part.Type {
+			case model.PartLayerStart:
+				if layer, ok := part.Resource.(*model.Layer); ok && layer != nil {
+					if raw, ok := layer.Properties["yaml.original"]; ok && raw != "" {
+						w.originalBytes = []byte(raw)
+					}
+				}
+			case model.PartBlock:
 				if block, ok := part.Resource.(*model.Block); ok {
+					if _, exists := w.blocks[block.Name]; !exists {
+						w.blockOrder = append(w.blockOrder, block.Name)
+					}
 					w.blocks[block.Name] = block
 					blocksByID[block.ID] = block
 				}
@@ -226,19 +238,119 @@ func (w *Writer) flush() error {
 		return nil
 	}
 
-	// Build a map structure from blocks
-	result := make(map[string]any)
-	for name, block := range w.blocks {
-		text := w.blockText(block)
-		result[name] = text
+	// Preferred path: rebuild from the original YAML AST so mapping
+	// key order, nesting, and unmodified-value bytes are preserved.
+	if len(w.originalBytes) > 0 {
+		if err := w.flushFromOriginal(); err == nil {
+			return nil
+		}
+		// Fall through to flat fallback on parse / structural errors.
 	}
 
+	// Fallback: flat key→value emit. The order is the document order
+	// captured during channel consumption (w.blockOrder), so callers
+	// at least get deterministic output even when we can't reconstruct
+	// the original tree.
+	for _, name := range w.blockOrder {
+		block := w.blocks[name]
+		if block == nil {
+			continue
+		}
+		text := w.blockText(block)
+		// Encode the value using yaml.v3 for proper escaping.
+		encoded, err := yamlv3.Marshal(text)
+		if err != nil {
+			return fmt.Errorf("yaml writer: encoding %q: %w", name, err)
+		}
+		// yamlv3.Marshal of a string emits it followed by a newline.
+		// Trim that — we want "key: value\n", not "key: value\n\n".
+		encStr := strings.TrimRight(string(encoded), "\n")
+		if _, err := fmt.Fprintf(w.Output, "%s: %s\n", name, encStr); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// flushFromOriginal re-parses the original YAML bytes, walks the AST
+// substituting translated scalar values keyed by their dotted key path,
+// and re-emits the document. This preserves mapping key order, nesting,
+// and (where the value is unchanged) original byte representation.
+func (w *Writer) flushFromOriginal() error {
+	decoder := yamlv3.NewDecoder(strings.NewReader(string(w.originalBytes)))
 	encoder := yamlv3.NewEncoder(w.Output)
 	encoder.SetIndent(2)
-	if err := encoder.Encode(result); err != nil {
-		return fmt.Errorf("yaml writer: encoding: %w", err)
+
+	for {
+		var node yamlv3.Node
+		if err := decoder.Decode(&node); err != nil {
+			if errors.Is(err, io.EOF) {
+				break
+			}
+			return fmt.Errorf("yaml writer: re-parse original: %w", err)
+		}
+		w.substituteNode(&node, nil)
+		if err := encoder.Encode(&node); err != nil {
+			return fmt.Errorf("yaml writer: encode: %w", err)
+		}
 	}
 	return encoder.Close()
+}
+
+// substituteNode walks the AST and replaces translatable scalar values
+// using w.blocks[<dotted-path>]. Mirrors the reader's walkNode logic.
+func (w *Writer) substituteNode(node *yamlv3.Node, path []string) {
+	switch node.Kind {
+	case yamlv3.DocumentNode:
+		for _, child := range node.Content {
+			w.substituteNode(child, path)
+		}
+	case yamlv3.MappingNode:
+		for i := 0; i+1 < len(node.Content); i += 2 {
+			keyNode := node.Content[i]
+			valNode := node.Content[i+1]
+			newPath := append(append([]string{}, path...), keyNode.Value)
+			w.substituteNode(valNode, newPath)
+		}
+	case yamlv3.SequenceNode:
+		for i, child := range node.Content {
+			indexPath := append(append([]string{}, path...), fmt.Sprintf("[%d]", i))
+			w.substituteNode(child, indexPath)
+		}
+	case yamlv3.ScalarNode:
+		keyPath := strings.Join(path, ".")
+		if block, ok := w.blocks[keyPath]; ok {
+			text := w.blockText(block)
+			// Preserve the original scalar style so the encoder picks
+			// the same representation.
+			node.Value = text
+			// If the text contains characters that would invalidate the
+			// existing style (e.g. a newline in a plain scalar), let the
+			// encoder choose by clearing the style.
+			if needsStyleReset(text, node.Style) {
+				node.Style = 0
+			}
+		}
+	case yamlv3.AliasNode:
+		// Aliases reference an anchor; do not rewrite the alias itself.
+		// The anchored target node is reachable through its declaration
+		// and will be substituted there.
+	}
+}
+
+// needsStyleReset reports whether the existing yaml.v3 scalar style
+// can no longer represent the given text (e.g. a plain scalar can't
+// contain a newline). In those cases the encoder should pick a style.
+func needsStyleReset(text string, style yamlv3.Style) bool {
+	switch style {
+	case yamlv3.DoubleQuotedStyle, yamlv3.SingleQuotedStyle:
+		return false
+	case yamlv3.LiteralStyle, yamlv3.FoldedStyle:
+		return false
+	default:
+		// Plain or unset — newlines or leading/trailing spaces force a re-style.
+		return strings.ContainsAny(text, "\n\r")
+	}
 }
 
 func (w *Writer) blockText(block *model.Block) string {

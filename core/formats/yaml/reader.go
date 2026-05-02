@@ -103,6 +103,12 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 		locale = model.LocaleEnglish
 	}
 
+	content, err := io.ReadAll(r.Doc.Reader)
+	if err != nil {
+		ch <- model.PartResult{Error: fmt.Errorf("yaml: reading: %w", err)}
+		return
+	}
+
 	layer := &model.Layer{
 		ID:         "doc1",
 		Name:       r.Doc.URI,
@@ -112,13 +118,12 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 		MimeType:   "application/yaml",
 		Properties: make(map[string]string),
 	}
+	// Stash the original YAML bytes so a non-skeleton writer can preserve
+	// the document's mapping key order and structure during round-trip.
+	// Skeleton-backed writers ignore this property and use the
+	// SkeletonStore for byte-exact output.
+	layer.Properties["yaml.original"] = string(content)
 	if !r.emit(ctx, ch, &model.Part{Type: model.PartLayerStart, Resource: layer}) {
-		return
-	}
-
-	content, err := io.ReadAll(r.Doc.Reader)
-	if err != nil {
-		ch <- model.PartResult{Error: fmt.Errorf("yaml: reading: %w", err)}
 		return
 	}
 
