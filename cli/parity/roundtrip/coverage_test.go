@@ -271,21 +271,25 @@ func coverageScans() []formatScan {
 		{
 			// Native html writer emits a constant 197-byte stub
 			// regardless of input — the merge step doesn't write
-			// the target back into the document. Bridge: ~9 of 69
-			// fixtures pass; the rest diverge in inline-code marker
-			// emission against the in-process okapi reference.
+			// the target back into the document. Bridge passes ~9
+			// of 69 fixtures; the rest are flagged per-file via
+			// htmlBridgeSkips() in coverage_skips_test.go.
 			formatID:          "html",
 			filterClass:       "okf_html",
 			sources:           []string{"integration-tests/okapi/src/test/resources/html"},
 			extensions:        []string{".html"},
-			formatDefaultSkip: fileSkip{Engines: []string{"native", "bridge"}, Reason: "native html writer emits a fixed stub on merge; bridge inline-code marker emission diverges from okapi reference for most fixtures"},
+			formatDefaultSkip: fileSkip{Engines: []string{"native"}, Reason: "native html writer emits a fixed stub on merge"},
+			skip:              htmlBridgeSkips(),
 		},
 		{
+			// Bridge passes ~14 of 46 fixtures; the rest are
+			// flagged per-file via markdownBridgeSkips().
 			formatID:          "markdown",
 			filterClass:       "okf_markdown",
 			sources:           []string{"integration-tests/okapi/src/test/resources/markdown"},
 			extensions:        []string{".md"},
-			formatDefaultSkip: fileSkip{Engines: []string{"native", "bridge"}, Reason: "native + bridge markdown writers byte-shape diverge from okapi (paragraph/inline-code re-emission)"},
+			formatDefaultSkip: fileSkip{Engines: []string{"native"}, Reason: "native markdown writer byte-shape divergence on merge"},
+			skip:              markdownBridgeSkips(),
 		},
 		{
 			formatID:          "wiki",
@@ -301,11 +305,14 @@ func coverageScans() []formatScan {
 
 		// ── Key-value & structured data ───────────────────────────
 		{
+			// Bridge passes ~6 of 24 fixtures; the rest are flagged
+			// per-file via poBridgeSkips().
 			formatID:          "po",
 			filterClass:       "okf_po",
 			sources:           []string{"integration-tests/okapi/src/test/resources/po"},
 			extensions:        []string{".po"},
-			formatDefaultSkip: fileSkip{Engines: []string{"native", "bridge"}, Reason: "native + bridge po writers msgstr/quoting/multiline divergence from okapi"},
+			formatDefaultSkip: fileSkip{Engines: []string{"native"}, Reason: "native po writer msgstr/quoting/multiline divergence on merge"},
+			skip:              poBridgeSkips(),
 		},
 		{
 			formatID:          "properties",
@@ -365,11 +372,14 @@ func coverageScans() []formatScan {
 
 		// ── Tabular ───────────────────────────────────────────────
 		{
+			// Bridge passes ~7 of 15 fixtures; the rest are flagged
+			// per-file via csvBridgeSkips().
 			formatID:          "csv",
 			filterClass:       "okf_commaseparatedvalues",
 			sources:           []string{"integration-tests/okapi/src/test/resources/table"},
 			extensions:        []string{".csv"},
-			formatDefaultSkip: fileSkip{Engines: []string{"native", "bridge"}, Reason: "native + bridge csv writers table-semantics divergence (header/quoting/row-vs-cell) from okapi"},
+			formatDefaultSkip: fileSkip{Engines: []string{"native"}, Reason: "native csv writer table-semantics divergence (header/quoting/row-vs-cell)"},
+			skip:              csvBridgeSkips(),
 		},
 		{
 			// No integration-tests source for tsv; cherry-pick the
@@ -473,11 +483,14 @@ func coverageScans() []formatScan {
 			},
 		},
 		{
+			// Bridge passes 1 of 9 fixtures; the rest are flagged
+			// per-file via tsBridgeSkips().
 			formatID:          "ts",
 			filterClass:       "okf_ts",
 			sources:           []string{"integration-tests/okapi/src/test/resources/ts"},
 			extensions:        []string{".ts"},
-			formatDefaultSkip: fileSkip{Engines: []string{"native", "bridge"}, Reason: "native ts writer emits <!DOCTYPE TS> without empty internal subset; bridge byte-shape divergence on most fixtures"},
+			formatDefaultSkip: fileSkip{Engines: []string{"native"}, Reason: "native ts writer emits <!DOCTYPE TS> without empty internal subset"},
+			skip:              tsBridgeSkips(),
 		},
 
 		// ── Subtitle / timed-text ─────────────────────────────────
@@ -564,20 +577,16 @@ mergeCaptions.b=false
 			skip:              idmlBridgeSkips(),
 		},
 		{
-			// Several files crash upstream Okapi's icml merge —
-			// mark per-file.
+			// 5 fixtures crash upstream Okapi's icml merge; 7 more
+			// diverge in bridge's inline-rewrite path. Bridge passes
+			// 2 of 9 testable fixtures. icmlMergedSkips() returns
+			// both buckets in one map.
 			formatID:          "icml",
 			filterClass:       "okf_icml",
 			sources:           []string{"integration-tests/okapi/src/test/resources/icml"},
 			extensions:        []string{".icml", ".wcml"},
-			formatDefaultSkip: fileSkip{Engines: []string{"native", "bridge"}, Reason: "native icml writer XML-declaration shape divergence; bridge emits different inline run codes for most fixtures"},
-			skip: map[string]fileSkip{
-				"OpenofficeFootnoteTest.icml":                                {Engines: []string{"okapi"}, Reason: "upstream Okapi icml merge crashes on this fixture"},
-				"TakeItNoItsYoursReallyTheExcellentInevitabilityOfFree.icml": {Engines: []string{"okapi"}, Reason: "upstream Okapi icml merge crashes on this fixture"},
-				"TestArticle.icml":                                           {Engines: []string{"okapi"}, Reason: "upstream Okapi icml merge crashes on this fixture"},
-				"ThreeParagraphFootnoteTest.icml":                            {Engines: []string{"okapi"}, Reason: "upstream Okapi icml merge crashes on this fixture"},
-				"WordFootnoteTest.icml":                                      {Engines: []string{"okapi"}, Reason: "upstream Okapi icml merge crashes on this fixture"},
-			},
+			formatDefaultSkip: fileSkip{Engines: []string{"native"}, Reason: "native icml writer XML-declaration shape divergence"},
+			skip:              icmlMergedSkips(),
 		},
 		{
 			// 185 .docx fixtures in the upstream filter dir. Bridge
@@ -592,11 +601,14 @@ mergeCaptions.b=false
 			skip:              openxmlBridgeSkips(),
 		},
 		{
+			// Bridge passes ~2 of 41 fixtures; the rest are flagged
+			// per-file via mifBridgeSkips().
 			formatID:          "mif",
 			filterClass:       "okf_mif",
 			sources:           []string{"integration-tests/okapi/src/test/resources/mif"},
 			extensions:        []string{".mif"},
-			formatDefaultSkip: fileSkip{Engines: []string{"native", "bridge"}, Reason: "native mif writer produces output its reader can't re-extract; bridge picks up only some blocks"},
+			formatDefaultSkip: fileSkip{Engines: []string{"native"}, Reason: "native mif writer produces output its reader can't re-extract"},
+			skip:              mifBridgeSkips(),
 		},
 	}
 }

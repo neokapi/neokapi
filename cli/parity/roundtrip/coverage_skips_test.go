@@ -4,7 +4,7 @@ package roundtrip_test
 
 // idmlBridgeSkips and openxmlBridgeSkips list the upstream IDML and
 // OpenXML fixtures where bridge's pseudo-translated output diverges
-// from tikal's reference. Native is included on every entry because
+// from the okapi reference. Native is included on every entry because
 // each format already format-default-skips native; the per-file entry
 // extends that to bridge for these specific files.
 //
@@ -14,7 +14,7 @@ package roundtrip_test
 // sub-tests start asserting again.
 
 func idmlBridgeSkips() map[string]fileSkip {
-	const reason = "bridge inline-code/run-marker divergence in IDML Stories XML vs tikal"
+	const reason = "bridge inline-code/run-marker divergence in IDML Stories XML vs okapi reference"
 	return map[string]fileSkip{
 		"00-primary-text-frame-with-different-breaking-symbols.idml": {Engines: []string{"bridge", "native"}, Reason: reason},
 		"01-pages-with-text-frames-2.idml":                           {Engines: []string{"bridge", "native"}, Reason: reason},
@@ -66,7 +66,7 @@ func idmlBridgeSkips() map[string]fileSkip {
 }
 
 func openxmlBridgeSkips() map[string]fileSkip {
-	const reason = "bridge inline-run/code divergence in OpenXML document parts vs tikal"
+	const reason = "bridge inline-run/code divergence in OpenXML document parts vs okapi reference"
 	return map[string]fileSkip{
 		"1083-date-and-hyperlink-instructions.docx":                           {Engines: []string{"bridge", "native"}, Reason: reason},
 		"1083-empty-and-hyperlink-instructions.docx":                          {Engines: []string{"bridge", "native"}, Reason: reason},
@@ -193,4 +193,246 @@ func openxmlBridgeSkips() map[string]fileSkip {
 		"watermark.docx":                                                      {Engines: []string{"bridge", "native"}, Reason: reason},
 		"word art.docx":                                                       {Engines: []string{"bridge", "native"}, Reason: reason},
 	}
+}
+
+// htmlBridgeSkips, markdownBridgeSkips, poBridgeSkips, csvBridgeSkips,
+// tsBridgeSkips, mifBridgeSkips list the per-file bridge divergences
+// for formats where bridge passes some fixtures and fails others.
+// Filling these out preserves the passing-fixture assertions (vs
+// hiding everything behind a format-default bridge skip).
+//
+// The shared root cause across these formats is the bridge daemon's
+// StreamingTranslationApplier: when it merges the streamed target
+// segments back into the parsed event stream, it loses or rebuilds
+// inline codes (HTML tags, XML elements, MIF variables, PO escapes,
+// etc.) differently than upstream Okapi's in-process pipeline. The
+// passing fixtures are the ones with no inline codes at all.
+
+func htmlBridgeSkips() map[string]fileSkip {
+	const reason = "bridge inline-code divergence in HTML output vs okapi reference"
+	return map[string]fileSkip{
+		"324.html":                                              {Engines: []string{"bridge", "native"}, Reason: reason},
+		"Dachseite-Startseite.html":                             {Engines: []string{"bridge", "native"}, Reason: reason},
+		"ExcludeIncludeTest.html":                               {Engines: []string{"bridge", "native"}, Reason: reason},
+		"France_Culture_fr.html":                                {Engines: []string{"bridge", "native"}, Reason: reason},
+		"W3CHTMHLTest1.html":                                    {Engines: []string{"bridge", "native"}, Reason: reason},
+		"advanced_bold_font_color.html":                         {Engines: []string{"bridge", "native"}, Reason: reason},
+		"bad_textUnit.html":                                     {Engines: []string{"bridge", "native"}, Reason: reason},
+		"burlington_ufo_center.html":                            {Engines: []string{"bridge", "native"}, Reason: reason},
+		"form.html":                                             {Engines: []string{"bridge", "native"}, Reason: reason},
+		"form2.html":                                            {Engines: []string{"bridge", "native"}, Reason: reason},
+		"home_big.html":                                         {Engines: []string{"bridge", "native"}, Reason: reason},
+		"home_crush.html":                                       {Engines: []string{"bridge", "native"}, Reason: reason},
+		"home_links.html":                                       {Engines: []string{"bridge", "native"}, Reason: reason},
+		"home_swing.html":                                       {Engines: []string{"bridge", "native"}, Reason: reason},
+		"merged_codes.html":                                     {Engines: []string{"bridge", "native"}, Reason: reason},
+		"sanitizer.html":                                        {Engines: []string{"bridge", "native"}, Reason: reason},
+		"segmentation_test.html":                                {Engines: []string{"bridge", "native"}, Reason: reason},
+		"simple2.html":                                          {Engines: []string{"bridge", "native"}, Reason: reason},
+		"simple_bold.html":                                      {Engines: []string{"bridge", "native"}, Reason: reason},
+		"simple_bold_font_color.html":                           {Engines: []string{"bridge", "native"}, Reason: reason},
+		"simple_bold_italic_font_color.html":                    {Engines: []string{"bridge", "native"}, Reason: reason},
+		"simple_bold_italic_underline.html":                     {Engines: []string{"bridge", "native"}, Reason: reason},
+		"simple_bold_italics.html":                              {Engines: []string{"bridge", "native"}, Reason: reason},
+		"simple_bold_italics_embeded.html":                      {Engines: []string{"bridge", "native"}, Reason: reason},
+		"simple_bold_italics_separate.html":                     {Engines: []string{"bridge", "native"}, Reason: reason},
+		"simple_bold_underline.html":                            {Engines: []string{"bridge", "native"}, Reason: reason},
+		"simple_em.html":                                        {Engines: []string{"bridge", "native"}, Reason: reason},
+		"simple_em_bold.html":                                   {Engines: []string{"bridge", "native"}, Reason: reason},
+		"simple_em_font_color.html":                             {Engines: []string{"bridge", "native"}, Reason: reason},
+		"simple_font.html":                                      {Engines: []string{"bridge", "native"}, Reason: reason},
+		"simple_font_bold.html":                                 {Engines: []string{"bridge", "native"}, Reason: reason},
+		"simple_font_color.html":                                {Engines: []string{"bridge", "native"}, Reason: reason},
+		"simple_font_size.html":                                 {Engines: []string{"bridge", "native"}, Reason: reason},
+		"simple_highlight.html":                                 {Engines: []string{"bridge", "native"}, Reason: reason},
+		"simple_italic_bold.html":                               {Engines: []string{"bridge", "native"}, Reason: reason},
+		"simple_italics.html":                                   {Engines: []string{"bridge", "native"}, Reason: reason},
+		"simple_link.html":                                      {Engines: []string{"bridge", "native"}, Reason: reason},
+		"simple_many_bold.html":                                 {Engines: []string{"bridge", "native"}, Reason: reason},
+		"simple_shadow.html":                                    {Engines: []string{"bridge", "native"}, Reason: reason},
+		"simple_strike.html":                                    {Engines: []string{"bridge", "native"}, Reason: reason},
+		"simple_strike_bold_italics.html":                       {Engines: []string{"bridge", "native"}, Reason: reason},
+		"simple_strong.html":                                    {Engines: []string{"bridge", "native"}, Reason: reason},
+		"simple_styles_bold.html":                               {Engines: []string{"bridge", "native"}, Reason: reason},
+		"simple_styles_italics_bold.html":                       {Engines: []string{"bridge", "native"}, Reason: reason},
+		"simple_styles_strike_bold_italics.html":                {Engines: []string{"bridge", "native"}, Reason: reason},
+		"simple_styles_strike_bold_underline_italics.html":      {Engines: []string{"bridge", "native"}, Reason: reason},
+		"simple_subscript.html":                                 {Engines: []string{"bridge", "native"}, Reason: reason},
+		"simple_superscript.html":                               {Engines: []string{"bridge", "native"}, Reason: reason},
+		"simple_superscript_subscript.html":                     {Engines: []string{"bridge", "native"}, Reason: reason},
+		"simple_superscript_subscript_bold.html":                {Engines: []string{"bridge", "native"}, Reason: reason},
+		"simple_superscript_subscript_bold_italics.html":        {Engines: []string{"bridge", "native"}, Reason: reason},
+		"simple_superscript_subscript_italics.html":             {Engines: []string{"bridge", "native"}, Reason: reason},
+		"simple_underline.html":                                 {Engines: []string{"bridge", "native"}, Reason: reason},
+		"simple_upper_case_bold.html":                           {Engines: []string{"bridge", "native"}, Reason: reason},
+		"simple_upper_case_italic.html":                         {Engines: []string{"bridge", "native"}, Reason: reason},
+		"simple_upper_case_italic_bold.html":                    {Engines: []string{"bridge", "native"}, Reason: reason},
+		"simple_upper_case_strike.html":                         {Engines: []string{"bridge", "native"}, Reason: reason},
+		"simple_upper_case_underline.html":                      {Engines: []string{"bridge", "native"}, Reason: reason},
+		"supplementals.html":                                    {Engines: []string{"bridge", "native"}, Reason: reason},
+		"td.html":                                               {Engines: []string{"bridge", "native"}, Reason: reason},
+	}
+}
+
+func markdownBridgeSkips() map[string]fileSkip {
+	const reason = "bridge markdown inline-style emission divergence (bold/italic/code spans rebuilt differently than okapi)"
+	return map[string]fileSkip{
+		"DirectShape.md":                       {Engines: []string{"bridge", "native"}, Reason: reason},
+		"admonitions.md":                       {Engines: []string{"bridge", "native"}, Reason: reason},
+		"code_and_codeblock_tests.md":          {Engines: []string{"bridge", "native"}, Reason: reason},
+		"commonmark_changed.md":                {Engines: []string{"bridge", "native"}, Reason: reason},
+		"commonmark_original.md":               {Engines: []string{"bridge", "native"}, Reason: reason},
+		"deployconfigure-reality.md":           {Engines: []string{"bridge", "native"}, Reason: reason},
+		"direct-links-uppercased.md":           {Engines: []string{"bridge", "native"}, Reason: reason},
+		"direct-links.md":                      {Engines: []string{"bridge", "native"}, Reason: reason},
+		"example1.md":                          {Engines: []string{"bridge", "native"}, Reason: reason},
+		"example2.md":                          {Engines: []string{"bridge", "native"}, Reason: reason},
+		"example3.md":                          {Engines: []string{"bridge", "native"}, Reason: reason},
+		"example4.md":                          {Engines: []string{"bridge", "native"}, Reason: reason},
+		"example5.md":                          {Engines: []string{"bridge", "native"}, Reason: reason},
+		"html-cdata-sample-uppercased.md":      {Engines: []string{"bridge", "native"}, Reason: reason},
+		"html-cdata-sample.md":                 {Engines: []string{"bridge", "native"}, Reason: reason},
+		"html_table1_original.md":              {Engines: []string{"bridge", "native"}, Reason: reason},
+		"image-wo-alt.md":                      {Engines: []string{"bridge", "native"}, Reason: reason},
+		"img_w_alt_attr_original.md":           {Engines: []string{"bridge", "native"}, Reason: reason},
+		"link-titles.md":                       {Engines: []string{"bridge", "native"}, Reason: reason},
+		"lists_changed.md":                     {Engines: []string{"bridge", "native"}, Reason: reason},
+		"lists_original.md":                    {Engines: []string{"bridge", "native"}, Reason: reason},
+		"multiple-segments.md":                 {Engines: []string{"bridge", "native"}, Reason: reason},
+		"quoted-list.md":                       {Engines: []string{"bridge", "native"}, Reason: reason},
+		"quotes-after-html-in-table.md":        {Engines: []string{"bridge", "native"}, Reason: reason},
+		"ref-links-uppercased.md":              {Engines: []string{"bridge", "native"}, Reason: reason},
+		"ref-links.md":                         {Engines: []string{"bridge", "native"}, Reason: reason},
+		"sample_html_combo.md":                 {Engines: []string{"bridge", "native"}, Reason: reason},
+		"space-test.md":                        {Engines: []string{"bridge", "native"}, Reason: reason},
+		"table1_changed.md":                    {Engines: []string{"bridge", "native"}, Reason: reason},
+		"table1_original.md":                   {Engines: []string{"bridge", "native"}, Reason: reason},
+		"table2_changed.md":                    {Engines: []string{"bridge", "native"}, Reason: reason},
+		"table2_original.md":                   {Engines: []string{"bridge", "native"}, Reason: reason},
+	}
+}
+
+func poBridgeSkips() map[string]fileSkip {
+	const reason = "bridge PO writer escape/quote/printf-format divergence vs okapi reference"
+	return map[string]fileSkip{
+		"AllCasesTest.po":                       {Engines: []string{"bridge", "native"}, Reason: reason},
+		"Test01.po":                             {Engines: []string{"bridge", "native"}, Reason: reason},
+		"Test02.po":                             {Engines: []string{"bridge", "native"}, Reason: reason},
+		"Test03.po":                             {Engines: []string{"bridge", "native"}, Reason: reason},
+		"Test04.po":                             {Engines: []string{"bridge", "native"}, Reason: reason},
+		"Test05.po":                             {Engines: []string{"bridge", "native"}, Reason: reason},
+		"TestMonoLingual_EN.po":                 {Engines: []string{"bridge", "native"}, Reason: reason},
+		"TestMonoLingual_FR.po":                 {Engines: []string{"bridge", "native"}, Reason: reason},
+		"Test_DrupalRussianCP1251.po":           {Engines: []string{"bridge", "native"}, Reason: reason},
+		"Test_nautilus.af.po":                   {Engines: []string{"bridge", "native"}, Reason: reason},
+		"escaping.po":                           {Engines: []string{"bridge", "native"}, Reason: reason},
+		"multientry_multilinecomments.po":       {Engines: []string{"bridge", "native"}, Reason: reason},
+		"multientry_withtranslation.po":         {Engines: []string{"bridge", "native"}, Reason: reason},
+		"simple.po":                             {Engines: []string{"bridge", "native"}, Reason: reason},
+		"simple_multilinecomments.po":           {Engines: []string{"bridge", "native"}, Reason: reason},
+		"simple_multilinestringwithtranslation.po": {Engines: []string{"bridge", "native"}, Reason: reason},
+		"simple_withcontext.po":                 {Engines: []string{"bridge", "native"}, Reason: reason},
+		"simple_withpluralforms.po":             {Engines: []string{"bridge", "native"}, Reason: reason},
+	}
+}
+
+func csvBridgeSkips() map[string]fileSkip {
+	const reason = "bridge CSV writer quoting / cell-grouping divergence vs okapi reference"
+	return map[string]fileSkip{
+		"computer_science_article.csv":            {Engines: []string{"bridge", "native"}, Reason: reason},
+		"field_delimiter_comma.csv":               {Engines: []string{"bridge", "native"}, Reason: reason},
+		"some_blank_rows.csv":                     {Engines: []string{"bridge", "native"}, Reason: reason},
+		"test2cols.csv":                           {Engines: []string{"bridge", "native"}, Reason: reason},
+		"text_qualifier_double_quote.csv":         {Engines: []string{"bridge", "native"}, Reason: reason},
+		"text_qualifier_double_quote_inside.csv":  {Engines: []string{"bridge", "native"}, Reason: reason},
+		"text_qualifier_single_quote.csv":         {Engines: []string{"bridge", "native"}, Reason: reason},
+		"text_qualifier_single_quote_inside.csv":  {Engines: []string{"bridge", "native"}, Reason: reason},
+	}
+}
+
+func tsBridgeSkips() map[string]fileSkip {
+	const reason = "bridge TS writer attaches -ERR:PROP-NOT-FOUND- placeholder where okapi emits type=\"unfinished\""
+	return map[string]fileSkip{
+		"Complete_valid_utf8_bom_crlf.ts": {Engines: []string{"bridge", "native"}, Reason: reason},
+		"TSTest01.ts":                     {Engines: []string{"bridge", "native"}, Reason: reason},
+		"TestInQT.ts":                     {Engines: []string{"bridge", "native"}, Reason: reason},
+		"TestInQT_Saved.ts":               {Engines: []string{"bridge", "native"}, Reason: reason},
+		"Test_nautilus.af.ts":             {Engines: []string{"bridge", "native"}, Reason: reason},
+		"autoSample.ts":                   {Engines: []string{"bridge", "native"}, Reason: reason},
+		"issue531.ts":                     {Engines: []string{"bridge", "native"}, Reason: reason},
+		"tstest.ts":                       {Engines: []string{"bridge", "native"}, Reason: reason},
+	}
+}
+
+func mifBridgeSkips() map[string]fileSkip {
+	const reason = "bridge MIF writer drops <$lastpagenum>-style variable references inside VariableFormat blocks"
+	return map[string]fileSkip{
+		"1188_crlf.mif":                  {Engines: []string{"bridge", "native"}, Reason: reason},
+		"893.mif":                        {Engines: []string{"bridge", "native"}, Reason: reason},
+		"895.mif":                        {Engines: []string{"bridge", "native"}, Reason: reason},
+		"896-autonumber-building-blocks.mif": {Engines: []string{"bridge", "native"}, Reason: reason},
+		"896-changed.mif":                {Engines: []string{"bridge", "native"}, Reason: reason},
+		"896.mif":                        {Engines: []string{"bridge", "native"}, Reason: reason},
+		"902-1.mif":                      {Engines: []string{"bridge", "native"}, Reason: reason},
+		"902-2.mif":                      {Engines: []string{"bridge", "native"}, Reason: reason},
+		"902-3.mif":                      {Engines: []string{"bridge", "native"}, Reason: reason},
+		"904.mif":                        {Engines: []string{"bridge", "native"}, Reason: reason},
+		"909-1.mif":                      {Engines: []string{"bridge", "native"}, Reason: reason},
+		"909-2.mif":                      {Engines: []string{"bridge", "native"}, Reason: reason},
+		"909-3.mif":                      {Engines: []string{"bridge", "native"}, Reason: reason},
+		"938-1.mif":                      {Engines: []string{"bridge", "native"}, Reason: reason},
+		"938-2.mif":                      {Engines: []string{"bridge", "native"}, Reason: reason},
+		"940.mif":                        {Engines: []string{"bridge", "native"}, Reason: reason},
+		"942-1.mif":                      {Engines: []string{"bridge", "native"}, Reason: reason},
+		"942-2.mif":                      {Engines: []string{"bridge", "native"}, Reason: reason},
+		"943.mif":                        {Engines: []string{"bridge", "native"}, Reason: reason},
+		"945.mif":                        {Engines: []string{"bridge", "native"}, Reason: reason},
+		"987.mif":                        {Engines: []string{"bridge", "native"}, Reason: reason},
+		"990-marker.mif":                 {Engines: []string{"bridge", "native"}, Reason: reason},
+		"990-pgf-num-format-1.mif":       {Engines: []string{"bridge", "native"}, Reason: reason},
+		"990-pgf-num-format-2.mif":       {Engines: []string{"bridge", "native"}, Reason: reason},
+		"990-ref-format-1.mif":           {Engines: []string{"bridge", "native"}, Reason: reason},
+		"990-ref-format-2.mif":           {Engines: []string{"bridge", "native"}, Reason: reason},
+		"990-text-line.mif":              {Engines: []string{"bridge", "native"}, Reason: reason},
+		"991.mif":                        {Engines: []string{"bridge", "native"}, Reason: reason},
+		"ImportedText.mif":               {Engines: []string{"bridge", "native"}, Reason: reason},
+		"JATest.mif":                     {Engines: []string{"bridge", "native"}, Reason: reason},
+		"Test01-v8.mif":                  {Engines: []string{"bridge", "native"}, Reason: reason},
+		"Test01.mif":                     {Engines: []string{"bridge", "native"}, Reason: reason},
+		"Test02-v9.mif":                  {Engines: []string{"bridge", "native"}, Reason: reason},
+		"Test03.mif":                     {Engines: []string{"bridge", "native"}, Reason: reason},
+		"Test04.mif":                     {Engines: []string{"bridge", "native"}, Reason: reason},
+		"TestEncoding-v10.mif":           {Engines: []string{"bridge", "native"}, Reason: reason},
+		"TestEncoding-v9.mif":            {Engines: []string{"bridge", "native"}, Reason: reason},
+		"TestFootnote.mif":               {Engines: []string{"bridge", "native"}, Reason: reason},
+		"TestMarkers.mif":                {Engines: []string{"bridge", "native"}, Reason: reason},
+	}
+}
+
+// icmlMergedSkips combines two distinct kinds of per-file skips for
+// the ICML format: 5 fixtures crash upstream Okapi's merger (so the
+// okapi reference itself is unusable), and 7 more diverge in the
+// bridge's inline-code rewrite pass.
+func icmlMergedSkips() map[string]fileSkip {
+	const okapiReason = "upstream Okapi icml merge crashes on this fixture"
+	const bridgeReason = "bridge ICML CharacterStyleRange/Content rewrite divergence vs okapi reference"
+	m := map[string]fileSkip{
+		"OpenofficeFootnoteTest.icml":                                {Engines: []string{"okapi"}, Reason: okapiReason},
+		"TakeItNoItsYoursReallyTheExcellentInevitabilityOfFree.icml": {Engines: []string{"okapi"}, Reason: okapiReason},
+		"TestArticle.icml":                                           {Engines: []string{"okapi"}, Reason: okapiReason},
+		"ThreeParagraphFootnoteTest.icml":                            {Engines: []string{"okapi"}, Reason: okapiReason},
+		"WordFootnoteTest.icml":                                      {Engines: []string{"okapi"}, Reason: okapiReason},
+	}
+	for _, name := range []string{
+		"DraftForJEP.icml",
+		"NotesTowardV10.icml",
+		"ParagraphClassTest.icml",
+		"SpanClassTest.icml",
+		"XMLProductionStartWithTheWeb.icml",
+		"not_valid.icml",
+		"valid.icml",
+	} {
+		m[name] = fileSkip{Engines: []string{"bridge", "native"}, Reason: bridgeReason}
+	}
+	return m
 }

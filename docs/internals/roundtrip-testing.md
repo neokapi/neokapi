@@ -237,7 +237,7 @@ cli/parity/roundtrip/
 ├── harness.go             # RunThreeWay — runs the okapi engine as comparator
 ├── main_test.go           # TestMain — hard-requires the okapi-bridge launcher
 ├── coverage_test.go       # Per-format scans (formatScan) + discovery loop
-└── coverage_skips_test.go # idmlBridgeSkips / openxmlBridgeSkips — long per-file maps
+└── coverage_skips_test.go # Per-file bridge skip maps (idml, openxml, html, markdown, po, csv, ts, mif, icml)
 ```
 
 All files build-tagged `parity` to match the surrounding harness.
@@ -360,8 +360,8 @@ or skeleton bug.
 
 The harness mirrors upstream's `RoundTrip<X>IT.java` set: **30
 formats × ~25 files each ≈ 1100+ sub-tests** in ~9 minutes. With
-the parity sandbox built the suite is fully green (0 fail, 310
-engine assertions pass, ~1450 documented engine skips).
+the parity sandbox built the suite is fully green (0 fail, 351
+engine assertions pass, ~1400 documented engine skips).
 
 Highlights of the upstream-mirroring discovery:
 
