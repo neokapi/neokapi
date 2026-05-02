@@ -105,7 +105,9 @@ func TestReadRTFSkipsStylesheet(t *testing.T) {
 func TestReadRTFUnicode(t *testing.T) {
 	ctx := t.Context()
 	reader := rtf.NewReader()
-	// \u233 is e with acute (U+00E9)
+	// \u233 is e with acute (U+00E9). The trailing '?' is the ANSI fallback
+	// character that conformant readers must consume; it must NOT leak
+	// into the extracted text.
 	input := `{\rtf1\ansi\deff0
 \pard Caf\u233?.\par
 }`
@@ -115,8 +117,7 @@ func TestReadRTFUnicode(t *testing.T) {
 
 	blocks := testutil.CollectBlocks(t, reader.Read(ctx))
 	require.Len(t, blocks, 1)
-	assert.Contains(t, blocks[0].SourceText(), "Caf")
-	assert.Contains(t, blocks[0].SourceText(), "\u00e9")
+	assert.Equal(t, "Caf\u00e9.", blocks[0].SourceText())
 }
 
 func TestReadRTFHexCharacter(t *testing.T) {
@@ -271,6 +272,62 @@ func TestRoundTrip(t *testing.T) {
 	assert.Contains(t, output, "This is the first paragraph.")
 	assert.Contains(t, output, "This is the second paragraph.")
 	assert.Contains(t, output, "\\rtf1")
+}
+
+// TestRoundTripWrappedTarget round-trips simple.rtf with a known wrap on each
+// block target ("«source»") and re-extracts to assert the merged output reads
+// back as the wrapped form — catching the regression where the writer's
+// `\u<n>?` escape (with `?` as the ANSI fallback) produced "«?text»?" because
+// the reader wasn't consuming the spec-mandated fallback character.
+func TestRoundTripWrappedTarget(t *testing.T) {
+	ctx := t.Context()
+
+	f, err := os.Open("testdata/simple.rtf")
+	require.NoError(t, err)
+	reader := rtf.NewReader()
+	err = reader.Open(ctx, testutil.RawDocFromReader(f, "testdata/simple.rtf", model.LocaleEnglish))
+	require.NoError(t, err)
+
+	parts := testutil.CollectParts(t, reader.Read(ctx))
+	reader.Close()
+
+	var sources []string
+	for _, p := range parts {
+		if p.Type != model.PartBlock {
+			continue
+		}
+		block := p.Resource.(*model.Block)
+		src := block.SourceText()
+		sources = append(sources, src)
+		block.SetTargetText(model.LocaleFrench, "«"+src+"»")
+	}
+	require.NotEmpty(t, sources, "fixture should yield at least one block")
+
+	var buf bytes.Buffer
+	writer := rtf.NewWriter()
+	err = writer.SetOutputWriter(&buf)
+	require.NoError(t, err)
+	writer.SetLocale(model.LocaleFrench)
+
+	err = writer.Write(ctx, testutil.PartsToChannel(parts))
+	require.NoError(t, err)
+	writer.Close()
+
+	merged := buf.Bytes()
+
+	// Re-extract the merged document and verify each block reads back as the
+	// wrapped target — no stray '?' fallback bytes around the guillemets.
+	reader2 := rtf.NewReader()
+	err = reader2.Open(ctx, testutil.RawDocFromString(string(merged), model.LocaleFrench))
+	require.NoError(t, err)
+	defer reader2.Close()
+
+	got := testutil.CollectBlocks(t, reader2.Read(ctx))
+	require.Len(t, got, len(sources))
+	for i, b := range got {
+		assert.Equal(t, "«"+sources[i]+"»", b.SourceText(),
+			"block %d: extracted text must match the wrapped target exactly", i)
+	}
 }
 
 func TestRoundTripWithTargetLocale(t *testing.T) {
