@@ -57,6 +57,14 @@ type formatScan struct {
 	nativeConfig map[string]any
 	bridgeParams map[string]string
 
+	// writerOverlay is a curated map applied to the native writer's
+	// WriterConfig at parity time, used solely to align native output
+	// with okapi's defaults. These are NOT format defaults — they live
+	// here, next to the parity test, so the "we set this to mimic
+	// okapi" intent stays visible. Each entry should carry an inline
+	// comment explaining the okapi behavior it mirrors.
+	writerOverlay map[string]any
+
 	// okapiParamConfig is forwarded to OkapiEngine as raw .fprm
 	// content (e.g. "#v1\nmergeCaptions.b=false\n"). Used by VTT/TTML
 	// to disable Okapi's caption-merging on round-trip.
@@ -185,6 +193,7 @@ func runOneFixture(t *testing.T, scan formatScan, abs string) {
 	if err != nil {
 		t.Fatalf("read fixture %q: %v", abs, err)
 	}
+	companions := discoverCompanions(t, abs)
 
 	var bridge *roundtrip.BridgeEngine
 	if scan.filterClass != "" {
@@ -209,8 +218,9 @@ func runOneFixture(t *testing.T, scan formatScan, abs string) {
 		Name:     base,
 		FormatID: scan.formatID,
 		Input: roundtrip.Input{
-			Bytes:    body,
-			Filename: base,
+			Bytes:      body,
+			Filename:   base,
+			Companions: companions,
 		},
 		IsZip:           scan.isZip,
 		ExpectedSkipped: expectedSkipped,
@@ -219,12 +229,63 @@ func runOneFixture(t *testing.T, scan formatScan, abs string) {
 		MinTier:         scan.minTier,
 	},
 		&roundtrip.NativeEngine{
-			FormatID:     scan.formatID,
-			ReaderConfig: scan.nativeConfig,
+			FormatID:      scan.formatID,
+			ReaderConfig:  scan.nativeConfig,
+			WriterOverlay: scan.writerOverlay,
 		},
 		bridge,
 		okapi,
 	)
+}
+
+// discoverCompanions returns sibling files in the input's directory
+// that are likely required to parse the input correctly. The heuristic:
+// any file whose basename starts with the input's stem (the basename
+// without extension) followed by `_` or `.` qualifies. This catches
+// patterns like:
+//
+//   - okf_xml: Translate2.xml needs Translate2_LinkedRules.xml
+//   - okf_dtd: foo.dtd needs foo.ent (entity references)
+//   - any test fixture: foo.html with foo.css / foo.js companions
+//
+// Unrelated files in the same directory (e.g. Translate1.xml when the
+// input is Translate2.xml) are not picked up because their stem differs.
+// The returned map is keyed by basename so engines can re-create the
+// directory layout in their tmpDir without touching the source paths.
+func discoverCompanions(t *testing.T, inputAbs string) map[string][]byte {
+	t.Helper()
+	dir := filepath.Dir(inputAbs)
+	base := filepath.Base(inputAbs)
+	stem := strings.TrimSuffix(base, filepath.Ext(base))
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		// Directory unreadable is not fatal — the input itself was
+		// readable, so just proceed without companions and let the
+		// engine surface any "missing referenced file" error.
+		return nil
+	}
+	companions := map[string][]byte{}
+	for _, e := range entries {
+		if e.IsDir() || e.Name() == base {
+			continue
+		}
+		name := e.Name()
+		// Match `<stem>_*` or `<stem>.*` — the second covers e.g.
+		// `foo.dtd` ↔ `foo.ent`. Bare prefix (`Translate2something`)
+		// is intentionally not matched to keep the heuristic tight.
+		if !strings.HasPrefix(name, stem+"_") && !strings.HasPrefix(name, stem+".") {
+			continue
+		}
+		data, err := os.ReadFile(filepath.Join(dir, name))
+		if err != nil {
+			t.Fatalf("read companion %q: %v", name, err)
+		}
+		companions[name] = data
+	}
+	if len(companions) == 0 {
+		return nil
+	}
+	return companions
 }
 
 // coverageScans defines one scan per format. The set mirrors what the
@@ -413,8 +474,12 @@ func coverageScans() []formatScan {
 			filterClass:       "okf_xml",
 			sources:           []string{"integration-tests/okapi/src/test/resources/xml"},
 			extensions:        []string{".xml"},
-			skip: map[string]fileSkip{
-				"Translate2.xml": {Engines: []string{"okapi"}, Reason: "okf_xml needs Translate2_LinkedRules.xml in the same dir; harness copies the input file alone"},
+			writerOverlay: map[string]any{
+				// okapi always emits a `<?xml version="1.0" encoding="UTF-8"?>`
+				// prologue even when the source had none; native preserves
+				// the source's actual prologue (often nothing).
+				"emitDeclaration":     true,
+				"declarationEncoding": "UTF-8",
 			},
 		},
 		{

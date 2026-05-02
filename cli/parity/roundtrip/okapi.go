@@ -80,6 +80,11 @@ func (e *OkapiEngine) RoundTrip(t *testing.T, in Input, spec PseudoSpec) []byte 
 	if err := os.WriteFile(inputPath, in.Bytes, 0o644); err != nil {
 		t.Fatalf("OkapiEngine: write input: %v", err)
 	}
+	for name, data := range in.Companions {
+		if err := os.WriteFile(filepath.Join(tmpDir, name), data, 0o644); err != nil {
+			t.Fatalf("OkapiEngine: write companion %q: %v", name, err)
+		}
+	}
 	outputPath := filepath.Join(tmpDir, "merged-"+in.Filename)
 
 	args := []string{

@@ -61,6 +61,14 @@ type Input struct {
 	// extension drives both tikal's filter detection and the
 	// bridge's MIME inference.
 	Filename string
+	// Companions are sibling files that must be present in the same
+	// directory as the input for the format to parse correctly
+	// (e.g. okf_xml's `<?its-rules href="X.xml"?>` references). The
+	// harness writes each entry alongside the input in its tmpDir;
+	// keys are basenames, values are file bytes. Discovery is the
+	// caller's responsibility — typically same-directory siblings
+	// sharing the input's stem prefix.
+	Companions map[string][]byte
 }
 
 // Result is one engine's round-trip outcome.
