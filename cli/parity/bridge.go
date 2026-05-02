@@ -49,6 +49,13 @@ type BridgeRequest struct {
 	// SubscribeParts narrows which PartType values flow back over the
 	// RPC. Empty (the default) streams every event.
 	SubscribeParts []int32
+
+	// Transform is an optional hook that mutates each Block before
+	// it's echoed back to the daemon during a round-trip. Only used
+	// by RunBridgeRoundTrip; ignored by RunBridge (read-only). When
+	// nil the round-trip echoes parts unchanged. Non-Block parts
+	// (Layer, Data, etc.) always echo through untouched.
+	Transform func(b *model.Block)
 }
 
 // RunBridge drives a read-only Process RPC against the okapi-bridge
@@ -187,20 +194,23 @@ func RunBridgeRoundTrip(t *testing.T, req BridgeRequest) BridgeRoundTripResult {
 		switch m := resp.Response.(type) {
 		case *pb.ProcessResponse_Part:
 			parts = append(parts, protoconvert.ProtoToPart(m.Part))
-			if err := stream.Send(&pb.ProcessRequest{Request: &pb.ProcessRequest_Part{Part: m.Part}}); err != nil {
+			outPart := maybeTransformPart(m.Part, req.Transform)
+			if err := stream.Send(&pb.ProcessRequest{Request: &pb.ProcessRequest_Part{Part: outPart}}); err != nil {
 				t.Fatalf("RunBridgeRoundTrip: echo part: %v", err)
 			}
 		case *pb.ProcessResponse_PartBatch:
 			for _, p := range m.PartBatch.Parts {
 				parts = append(parts, protoconvert.ProtoToPart(p))
-				if err := stream.Send(&pb.ProcessRequest{Request: &pb.ProcessRequest_Part{Part: p}}); err != nil {
+				outPart := maybeTransformPart(p, req.Transform)
+				if err := stream.Send(&pb.ProcessRequest{Request: &pb.ProcessRequest_Part{Part: outPart}}); err != nil {
 					t.Fatalf("RunBridgeRoundTrip: echo batched part: %v", err)
 				}
 			}
 		case *pb.ProcessResponse_ContentBatch:
 			for _, cb := range m.ContentBatch.Blocks {
 				parts = append(parts, protoconvert.ContentBlockToPart(cb))
-				if err := stream.Send(&pb.ProcessRequest{Request: &pb.ProcessRequest_ContentBlock{ContentBlock: cb}}); err != nil {
+				outCb := maybeTransformContentBlock(cb, req.Transform)
+				if err := stream.Send(&pb.ProcessRequest{Request: &pb.ProcessRequest_ContentBlock{ContentBlock: outCb}}); err != nil {
 					t.Fatalf("RunBridgeRoundTrip: echo content block: %v", err)
 				}
 			}
@@ -226,6 +236,45 @@ func RunBridgeRoundTrip(t *testing.T, req BridgeRequest) BridgeRoundTripResult {
 		}
 	}
 	return BridgeRoundTripResult{Parts: parts, Output: output}
+}
+
+// maybeTransformPart applies the BridgeRequest.Transform hook to a
+// PartMessage's Block payload (if present) and returns a fresh
+// PartMessage to echo back. When transform is nil the original
+// proto is returned unchanged — the daemon-side writer thread sees
+// exactly what its reader emitted.
+func maybeTransformPart(in *pb.PartMessage, transform func(*model.Block)) *pb.PartMessage {
+	if transform == nil || in == nil || in.Block == nil {
+		return in
+	}
+	part := protoconvert.ProtoToPart(in)
+	if part == nil {
+		return in
+	}
+	block, ok := part.Resource.(*model.Block)
+	if !ok || block == nil {
+		return in
+	}
+	transform(block)
+	return protoconvert.PartToProto(part)
+}
+
+// maybeTransformContentBlock is the lightweight-encoding sibling of
+// maybeTransformPart for the bridge's ContentBlock fast path.
+func maybeTransformContentBlock(in *pb.ContentBlock, transform func(*model.Block)) *pb.ContentBlock {
+	if transform == nil || in == nil {
+		return in
+	}
+	part := protoconvert.ContentBlockToPart(in)
+	if part == nil {
+		return in
+	}
+	block, ok := part.Resource.(*model.Block)
+	if !ok || block == nil {
+		return in
+	}
+	transform(block)
+	return protoconvert.PartToContentBlock(part)
 }
 
 // StepRequest configures one ProcessStep RPC.
