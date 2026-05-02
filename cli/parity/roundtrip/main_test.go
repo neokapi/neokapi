@@ -12,21 +12,22 @@ import (
 )
 
 // TestMain enforces the parity round-trip suite's hard requirements
-// before any test runs: tikal must be locatable on PATH, in
-// $OKAPI_HOME, or at $OKAPI_TIKAL. The bridge daemon is hard-required
-// too — its acquire path inside parity.AcquireBridgeDaemon t.Fatals
-// when it can't spawn — so we don't need a separate check here.
+// before any test runs: the okapi-bridge launcher must be installed
+// in the parity sandbox (via `make parity-test`). The bridge daemon
+// is hard-required too — its acquire path inside
+// parity.AcquireBridgeDaemon t.Fatals when it can't spawn — so we
+// don't need a separate check here.
 //
 // Failing fast at TestMain means a missing dependency surfaces as a
 // single clear error instead of every subtest skipping with the same
 // message.
 func TestMain(m *testing.M) {
-	tikal := &roundtrip.TikalEngine{}
-	if err := tikal.Available(); err != nil {
+	okapi := &roundtrip.OkapiEngine{FilterClass: "okf_plaintext"}
+	if err := okapi.Available(); err != nil {
 		fmt.Fprintf(os.Stderr,
-			"parity round-trip: tikal is required and was not found.\n"+
-				"  set OKAPI_TIKAL=/path/to/tikal.sh, OKAPI_HOME=/path/to/okapi,\n"+
-				"  or place tikal on PATH. underlying error: %v\n", err)
+			"parity round-trip: okapi-bridge launcher is required and was not found.\n"+
+				"  build the parity sandbox with `make parity-test` from the repo root.\n"+
+				"  underlying error: %v\n", err)
 		os.Exit(1)
 	}
 	code := m.Run()

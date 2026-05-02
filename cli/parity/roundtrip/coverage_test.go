@@ -14,12 +14,12 @@ import (
 	"github.com/neokapi/neokapi/core/registry"
 )
 
-// fileSkip records a known divergence (or tikal-unsupported case) for
-// one upstream fixture. Engines lists which engines disagree with
-// tikal's reference. The special engine name "tikal" means tikal can't
-// produce a usable reference for this file, so the whole sub-test
-// skips. Reason is a one-line note shown in test output — write what
-// the divergence actually is, not just "broken".
+// fileSkip records a known divergence (or okapi-unsupported case) for
+// one upstream fixture. Engines lists which engines disagree with the
+// okapi engine's reference. The special engine name "okapi" means the
+// okapi reference engine can't produce a usable output for this file,
+// so the whole sub-test skips. Reason is a one-line note shown in test
+// output — write what the divergence actually is, not just "broken".
 type fileSkip struct {
 	Engines []string
 	Reason  string
@@ -31,8 +31,13 @@ type fileSkip struct {
 // file with a matching extension under the listed source roots becomes
 // one sub-test.
 type formatScan struct {
-	formatID    registry.FormatID
-	filterClass string // bridge filter ID; empty = no bridge engine
+	formatID registry.FormatID
+
+	// filterClass is the upstream Okapi filter ID (e.g. "okf_html").
+	// Used by both the okapi reference engine and the bridge engine.
+	// Empty disables the bridge engine for this format; the okapi
+	// engine still uses it as the comparator and so requires it.
+	filterClass string
 
 	// sources lists tarball-relative directories to scan. For most
 	// formats this is integration-tests/okapi/src/test/resources/<format>;
@@ -48,11 +53,14 @@ type formatScan struct {
 	// otherwise be picked up by both formats).
 	explicitFiles []string
 
-	isZip            bool
-	nativeConfig     map[string]any
-	bridgeParams     map[string]string
-	tikalExtraArgs   []string
-	tikalParamConfig string
+	isZip        bool
+	nativeConfig map[string]any
+	bridgeParams map[string]string
+
+	// okapiParamConfig is forwarded to OkapiEngine as raw .fprm
+	// content (e.g. "#v1\nmergeCaptions.b=false\n"). Used by VTT/TTML
+	// to disable Okapi's caption-merging on round-trip.
+	okapiParamConfig string
 
 	// formatDefaultSkip applies to every discovered file in this
 	// scan: use it when a real engine bug affects the whole format
@@ -157,8 +165,8 @@ func runOneFixture(t *testing.T, scan formatScan, abs string) {
 			reason = perFile.Reason
 		}
 	}
-	if skipSet["tikal"] {
-		t.Skipf("tikal cannot serve as comparator for %s: %s", base, reason)
+	if skipSet["okapi"] {
+		t.Skipf("okapi reference engine cannot process %s: %s", base, reason)
 	}
 
 	body, err := os.ReadFile(abs)
@@ -173,14 +181,14 @@ func runOneFixture(t *testing.T, scan formatScan, abs string) {
 			FilterParams: scan.bridgeParams,
 		}
 	}
-	tikal := &roundtrip.TikalEngine{
-		ExtraExtractArgs: scan.tikalExtraArgs,
-		ParamConfig:      scan.tikalParamConfig,
+	okapi := &roundtrip.OkapiEngine{
+		FilterClass: scan.filterClass,
+		ParamConfig: scan.okapiParamConfig,
 	}
 
 	var expectedSkipped []string
 	for e := range skipSet {
-		if e != "tikal" {
+		if e != "okapi" {
 			expectedSkipped = append(expectedSkipped, e)
 		}
 	}
@@ -200,18 +208,18 @@ func runOneFixture(t *testing.T, scan formatScan, abs string) {
 			ReaderConfig: scan.nativeConfig,
 		},
 		bridge,
-		tikal,
+		okapi,
 	)
 }
 
 // coverageScans defines one scan per format. The set mirrors what the
 // upstream Okapi RoundTrip<X>IT.java suite covers: same directories,
 // same files. Formats with no upstream roundtrip suite (jsx, klf,
-// versifiedtext, messageformat — neokapi-only) and formats where tikal
-// itself can't produce a reference (txml NPE on merge, rtf has only
-// tradosrtf, epub has no okf_epub) are intentionally omitted; their
-// neokapi-side correctness is covered by per-format unit tests under
-// core/formats/<x>/.
+// versifiedtext, messageformat — neokapi-only) and formats where the
+// upstream Okapi pipeline itself can't produce a reference (txml NPE
+// on merge, rtf has only tradosrtf, epub has no okf_epub) are
+// intentionally omitted; their neokapi-side correctness is covered by
+// per-format unit tests under core/formats/<x>/.
 //
 // First-pass note: per-file `skip` entries get filled in iteratively
 // after running the suite and triaging divergences. Each entry needs a
@@ -228,28 +236,26 @@ func coverageScans() []formatScan {
 			filterClass:       "okf_plaintext",
 			sources:           []string{"integration-tests/okapi/src/test/resources/plaintext"},
 			extensions:        []string{".txt"},
-			formatDefaultSkip: fileSkip{Engines: []string{"native"}, Reason: "native plaintext writer drops trailing newlines and mishandles BOM/line-ending preservation vs tikal"},
+			formatDefaultSkip: fileSkip{Engines: []string{"native"}, Reason: "native plaintext writer drops trailing newlines and mishandles BOM/line-ending preservation vs okapi"},
 		},
 		{
 			formatID:          "paraplaintext",
 			filterClass:       "okf_paraplaintext",
 			explicitFiles:     []string{"integration-tests/okapi/src/test/resources/plaintext/test_paragraphs1.txt"},
-			formatDefaultSkip: fileSkip{Engines: []string{"native", "bridge"}, Reason: "native: trailing-newline divergence; bridge: collapses paragraph blocks differently than tikal"},
+			formatDefaultSkip: fileSkip{Engines: []string{"native"}, Reason: "native paraplaintext writer trailing-newline divergence vs okapi"},
 		},
 		{
-			// Splicedlines is an okf_plaintext sub-filter. Canonical
-			// fixtures use backslash line continuations; tikal needs
-			// the explicit `_backslash` variant because the bare
-			// `okf_plaintext_spliced` ID isn't exposed.
-			formatID:       "splicedlines",
-			filterClass:    "", // no bridge counterpart
-			tikalExtraArgs: []string{"-fc", "okf_plaintext_spliced_backslash"},
+			// Splicedlines is an okf_plaintext config variant exposed
+			// in the bridge as `okf_splicedlines` (default config is
+			// the backslash splicer, matching the canonical fixtures).
+			formatID:    "splicedlines",
+			filterClass: "okf_splicedlines",
 			explicitFiles: []string{
 				"okapi/filters/plaintext/src/test/resources/combined_lines.txt",
 				"okapi/filters/plaintext/src/test/resources/combined_lines_end.txt",
 				"okapi/filters/plaintext/src/test/resources/combined_lines2.txt",
 			},
-			formatDefaultSkip: fileSkip{Engines: []string{"native"}, Reason: "native splicedlines writer byte-shape divergence vs tikal"},
+			formatDefaultSkip: fileSkip{Engines: []string{"native", "bridge"}, Reason: "native + bridge splicedlines writers byte-shape diverge from okapi"},
 		},
 		{
 			// Mosestext: upstream ships Test01/Test02 and an XLIFF
@@ -258,40 +264,38 @@ func coverageScans() []formatScan {
 			filterClass:       "okf_mosestext",
 			sources:           []string{"okapi/filters/mosestext/src/test/resources"},
 			extensions:        []string{".txt"},
-			formatDefaultSkip: fileSkip{Engines: []string{"native", "bridge"}, Reason: "tikal extracts inline <mrk>/<seg> markup as part of the source text; both engines flatten it differently"},
+			formatDefaultSkip: fileSkip{Engines: []string{"native"}, Reason: "native mosestext writer flattens inline <mrk>/<seg> markup differently than okapi"},
 		},
 
 		// ── HTML / markup ─────────────────────────────────────────
 		{
 			// Native html writer emits a constant 197-byte stub
 			// regardless of input — the merge step doesn't write
-			// the target back into the document.  Bridge byte-shape
-			// also diverges (run/code marker handling).
+			// the target back into the document. Bridge: ~9 of 69
+			// fixtures pass; the rest diverge in inline-code marker
+			// emission against the in-process okapi reference.
 			formatID:          "html",
 			filterClass:       "okf_html",
 			sources:           []string{"integration-tests/okapi/src/test/resources/html"},
 			extensions:        []string{".html"},
-			formatDefaultSkip: fileSkip{Engines: []string{"native", "bridge"}, Reason: "native html writer emits a fixed stub on merge; bridge byte-shape diverges"},
+			formatDefaultSkip: fileSkip{Engines: []string{"native", "bridge"}, Reason: "native html writer emits a fixed stub on merge; bridge inline-code marker emission diverges from okapi reference for most fixtures"},
 		},
 		{
 			formatID:          "markdown",
 			filterClass:       "okf_markdown",
 			sources:           []string{"integration-tests/okapi/src/test/resources/markdown"},
 			extensions:        []string{".md"},
-			formatDefaultSkip: fileSkip{Engines: []string{"native", "bridge"}, Reason: "markdown writer byte-shape divergence on merge for both engines"},
+			formatDefaultSkip: fileSkip{Engines: []string{"native", "bridge"}, Reason: "native + bridge markdown writers byte-shape diverge from okapi (paragraph/inline-code re-emission)"},
 		},
 		{
-			// Tikal needs `-fc okf_wiki` because .wiki isn't in the
-			// extension auto-routing table.
 			formatID:          "wiki",
 			filterClass:       "okf_wiki",
 			sources:           []string{"integration-tests/okapi/src/test/resources/wikitext"},
 			extensions:        []string{".wiki"},
-			tikalExtraArgs:    []string{"-fc", "okf_wiki"},
 			formatDefaultSkip: fileSkip{Engines: []string{"native"}, Reason: "native wiki writer trailing newline + byte-shape divergence"},
 			skip: map[string]fileSkip{
 				"dokuwiki.wiki":  {Engines: []string{"bridge", "native"}, Reason: "bridge merges adjacent wiki lines into a single block — segmentation divergence"},
-				"mediawiki.wiki": {Engines: []string{"bridge", "native"}, Reason: "bridge segments mediawiki blocks differently than tikal"},
+				"mediawiki.wiki": {Engines: []string{"bridge", "native"}, Reason: "bridge segments mediawiki blocks differently than okapi"},
 			},
 		},
 
@@ -301,7 +305,7 @@ func coverageScans() []formatScan {
 			filterClass:       "okf_po",
 			sources:           []string{"integration-tests/okapi/src/test/resources/po"},
 			extensions:        []string{".po"},
-			formatDefaultSkip: fileSkip{Engines: []string{"native", "bridge"}, Reason: "po msgstr/quoting/multiline divergence on merge for both engines"},
+			formatDefaultSkip: fileSkip{Engines: []string{"native", "bridge"}, Reason: "native + bridge po writers msgstr/quoting/multiline divergence from okapi"},
 		},
 		{
 			formatID:          "properties",
@@ -319,7 +323,7 @@ func coverageScans() []formatScan {
 			filterClass:       "okf_json",
 			sources:           []string{"integration-tests/okapi/src/test/resources/json"},
 			extensions:        []string{".json"},
-			formatDefaultSkip: fileSkip{Engines: []string{"native", "bridge"}, Reason: "json string-escape (\\uXXXX vs UTF-8) and whitespace divergence on merge"},
+			formatDefaultSkip: fileSkip{Engines: []string{"native"}, Reason: "native json writer string-escape (\\uXXXX vs UTF-8) and whitespace divergence on merge"},
 		},
 		{
 			formatID:          "yaml",
@@ -335,8 +339,8 @@ func coverageScans() []formatScan {
 				"no-children-1.yaml":        {Engines: []string{"native"}, Reason: "native YAML reader hangs on self-referencing anchors"},
 				"no-children-2.yaml":        {Engines: []string{"native"}, Reason: "native YAML reader hangs on self-referencing anchors"},
 				"scalar_sample.yml":         {Engines: []string{"bridge", "native"}, Reason: "native hangs on self-ref anchors; bridge byte-shape divergence on merge"},
-				"no-children-1-pretty.yaml": {Engines: []string{"tikal"}, Reason: "tikal YAML parser rejects !!timestamp tag"},
-				"Test03.yml":                {Engines: []string{"tikal"}, Reason: "tikal YAML parser rejects !!timestamp tag"},
+				"no-children-1-pretty.yaml": {Engines: []string{"okapi"}, Reason: "Okapi YAML parser rejects !!timestamp tag"},
+				"Test03.yml":                {Engines: []string{"okapi"}, Reason: "Okapi YAML parser rejects !!timestamp tag"},
 				// Bridge byte-shape divergences (folded/literal scalar
 				// re-emission, attribute ordering, etc.).
 				"en.yml":                      {Engines: []string{"bridge", "native"}, Reason: "bridge yaml writer byte-shape divergence on merge"},
@@ -351,127 +355,121 @@ func coverageScans() []formatScan {
 		},
 		{
 			// Phpcontent has no integration-tests dir — fall back to
-			// the unit-test resources dir. Tikal's auto-routing
-			// doesn't recognise the .phpcnt extension, so an explicit
-			// `-fc okf_phpcontent` is required.
+			// the unit-test resources dir.
 			formatID:          "phpcontent",
 			filterClass:       "okf_phpcontent",
 			sources:           []string{"okapi/filters/php/src/test/resources"},
 			extensions:        []string{".phpcnt"},
-			tikalExtraArgs:    []string{"-fc", "okf_phpcontent"},
-			formatDefaultSkip: fileSkip{Engines: []string{"native", "bridge"}, Reason: "phpcontent byte-shape divergence on merge"},
+			formatDefaultSkip: fileSkip{Engines: []string{"native"}, Reason: "native phpcontent writer byte-shape divergence on merge"},
 		},
 
 		// ── Tabular ───────────────────────────────────────────────
 		{
-			// Tikal routes .csv via okf_table_csv (the bare okf_csv
-			// alias doesn't exist on the table filter family).
 			formatID:          "csv",
 			filterClass:       "okf_commaseparatedvalues",
 			sources:           []string{"integration-tests/okapi/src/test/resources/table"},
 			extensions:        []string{".csv"},
-			tikalExtraArgs:    []string{"-fc", "okf_table_csv"},
-			formatDefaultSkip: fileSkip{Engines: []string{"native", "bridge"}, Reason: "csv table-semantics divergence (header/quoting/row-vs-cell) — needs per-format BridgeConfig translator"},
+			formatDefaultSkip: fileSkip{Engines: []string{"native", "bridge"}, Reason: "native + bridge csv writers table-semantics divergence (header/quoting/row-vs-cell) from okapi"},
 		},
 		{
 			// No integration-tests source for tsv; cherry-pick the
 			// few real tsv fixtures from the shared table dir.
 			formatID:          "tsv",
 			filterClass:       "okf_tabseparatedvalues",
-			tikalExtraArgs:    []string{"-fc", "okf_table_tsv"},
 			explicitFiles:     []string{"okapi/filters/table/src/test/resources/test_tsv_simple.txt"},
-			formatDefaultSkip: fileSkip{Engines: []string{"native", "bridge"}, Reason: "tsv table-semantics divergence (same shape as csv)"},
+			formatDefaultSkip: fileSkip{Engines: []string{"native", "bridge"}, Reason: "native + bridge tsv writers table-semantics divergence (same shape as csv)"},
 		},
 		{
-			formatID:          "fixedwidth",
-			filterClass:       "okf_fixedwidthcolumns",
-			tikalExtraArgs:    []string{"-fc", "okf_table_fwc"},
+			formatID:    "fixedwidth",
+			filterClass: "okf_fixedwidthcolumns",
 			explicitFiles: []string{
 				"okapi/filters/table/src/test/resources/fwc_test4.txt",
 				"okapi/filters/table/src/test/resources/fwc_test5.txt",
 			},
-			formatDefaultSkip: fileSkip{Engines: []string{"native", "bridge"}, Reason: "fixedwidth column-spec/padding divergence"},
+			formatDefaultSkip: fileSkip{Engines: []string{"native"}, Reason: "native fixedwidth writer column-spec/padding divergence"},
 		},
 
 		// ── Code/markup ───────────────────────────────────────────
 		{
-			// Tikal needs `-fc okf_doxygen` (.h / .py / .c aren't in
-			// the auto-routing table for okf_doxygen).
 			formatID:          "doxygen",
 			filterClass:       "okf_doxygen",
 			sources:           []string{"integration-tests/okapi/src/test/resources/doxygen"},
 			extensions:        []string{".h", ".py"},
-			tikalExtraArgs:    []string{"-fc", "okf_doxygen"},
-			formatDefaultSkip: fileSkip{Engines: []string{"native", "bridge"}, Reason: "doxygen comment-block tokenization divergence (e.g. @brief inline-placeholder handling)"},
+			formatDefaultSkip: fileSkip{Engines: []string{"native", "bridge"}, Reason: "native + bridge doxygen writers comment-block tokenization divergence (@brief inline placeholders)"},
 		},
 
 		// ── XML / bilingual exchange formats ──────────────────────
 		{
 			// okf_xml is the ITS-based XML filter (in
-			// okapi/filters/its/...). Bridge passes ~13 of 22 files
-			// — leave bridge per-file so its passes register.
+			// okapi/filters/its/...). 8 fixtures fail bridge due to
+			// inline-code marker emission diverging from the
+			// in-process okapi reference.
 			formatID:          "xml",
 			filterClass:       "okf_xml",
 			sources:           []string{"integration-tests/okapi/src/test/resources/xml"},
 			extensions:        []string{".xml"},
 			formatDefaultSkip: fileSkip{Engines: []string{"native"}, Reason: "native XML reader needs explicit ITS rules; default config extracts whole document as one block"},
 			skip: map[string]fileSkip{
-				"Translate2.xml": {Engines: []string{"tikal"}, Reason: "tikal needs Translate2_LinkedRules.xml in the same dir; harness copies the input file alone"},
-				// Bridge inline-code (<ph>) handling differs from
-				// tikal — extracted markers diverge in the merged
-				// XML.
-				"TestMultiLang.xml":    {Engines: []string{"bridge", "native"}, Reason: "bridge inline-code marker divergence vs tikal"},
-				"Translate1.xml":       {Engines: []string{"bridge", "native"}, Reason: "bridge inline-code marker divergence vs tikal"},
-				"strings.xml":          {Engines: []string{"bridge", "native"}, Reason: "bridge inline-code marker divergence vs tikal"},
-				"test01.xml":           {Engines: []string{"bridge", "native"}, Reason: "bridge inline-code marker divergence vs tikal"},
-				"test02.xml":           {Engines: []string{"bridge", "native"}, Reason: "bridge inline-code marker divergence vs tikal"},
-				"test03.xml":           {Engines: []string{"bridge", "native"}, Reason: "bridge inline-code marker divergence vs tikal"},
-				"test04.xml":           {Engines: []string{"bridge", "native"}, Reason: "bridge inline-code marker divergence vs tikal"},
-				"test08_utf8nobom.xml":    {Engines: []string{"bridge", "native"}, Reason: "bridge inline-code marker divergence vs tikal"},
-				"lqi-test1-standoff.xml":  {Engines: []string{"bridge", "native"}, Reason: "bridge LQI standoff annotation handling divergence vs tikal"},
+				"Translate2.xml":       {Engines: []string{"okapi"}, Reason: "okf_xml needs Translate2_LinkedRules.xml in the same dir; harness copies the input file alone"},
+				"TestMultiLang.xml":    {Engines: []string{"bridge", "native"}, Reason: "bridge inline-code marker emission diverges from okapi reference"},
+				"Translate1.xml":       {Engines: []string{"bridge", "native"}, Reason: "bridge inline-code marker emission diverges from okapi reference"},
+				"strings.xml":          {Engines: []string{"bridge", "native"}, Reason: "bridge inline-code marker emission diverges from okapi reference"},
+				"test01.xml":           {Engines: []string{"bridge", "native"}, Reason: "bridge inline-code marker emission diverges from okapi reference"},
+				"test02.xml":           {Engines: []string{"bridge", "native"}, Reason: "bridge inline-code marker emission diverges from okapi reference"},
+				"test03.xml":           {Engines: []string{"bridge", "native"}, Reason: "bridge inline-code marker emission diverges from okapi reference"},
+				"test04.xml":           {Engines: []string{"bridge", "native"}, Reason: "bridge inline-code marker emission diverges from okapi reference"},
+				"test08_utf8nobom.xml": {Engines: []string{"bridge", "native"}, Reason: "bridge inline-code marker emission diverges from okapi reference"},
 			},
 		},
 		{
-			// Bridge passes ~26 of 35 files; leave bridge per-file.
+			// 15 fixtures fail bridge against the in-process okapi
+			// reference: segmentation / alt-trans / inline-code
+			// handling divergences across various xliff dialects.
 			formatID:          "xliff",
 			filterClass:       "okf_xliff",
 			sources:           []string{"integration-tests/okapi/src/test/resources/xliff"},
 			extensions:        []string{".xlf"},
 			formatDefaultSkip: fileSkip{Engines: []string{"native"}, Reason: "native xliff writer adds extra xmlns declaration on roundtrip (Go encoding/xml shape)"},
 			skip: map[string]fileSkip{
-				"lqiTest.xlf": {Engines: []string{"tikal"}, Reason: "tikal needs lqiTestIssues.xml in the same dir; harness copies the input file alone"},
-				// Bridge inline-code / alt-trans handling
-				// divergences across various xliff dialects.
-				"ImplementationPlan.docx.xlf": {Engines: []string{"bridge", "native"}, Reason: "bridge inline-code/alt-trans divergence vs tikal"},
-				"MQ-12-Test01.xlf":            {Engines: []string{"bridge", "native"}, Reason: "bridge MemoQ-flavour xliff divergence vs tikal"},
-				"Manual-12-AltTrans.xlf":      {Engines: []string{"bridge", "native"}, Reason: "bridge alt-trans handling divergence vs tikal"},
-				"PAS-10-Test01.xlf":           {Engines: []string{"bridge", "native"}, Reason: "bridge Passolo-flavour xliff divergence vs tikal"},
-				"RB-11-Test01.xlf":            {Engines: []string{"bridge", "native"}, Reason: "bridge ResourceBundle-flavour xliff divergence vs tikal"},
-				"RB-12-Test02.xlf":            {Engines: []string{"bridge", "native"}, Reason: "bridge ResourceBundle-flavour xliff divergence vs tikal"},
-				"SF-12-Test03.xlf":            {Engines: []string{"bridge", "native"}, Reason: "bridge SDLFiletype divergence vs tikal"},
-				"Xslt-Test01.xlf":             {Engines: []string{"bridge", "native"}, Reason: "bridge xslt-derived xliff divergence vs tikal"},
-				"mq-12-Test01-small.xlf":      {Engines: []string{"bridge", "native"}, Reason: "bridge MemoQ-flavour xliff divergence vs tikal"},
+				"lqiTest.xlf":                 {Engines: []string{"okapi"}, Reason: "okf_xliff needs lqiTestIssues.xml in the same dir; harness copies the input file alone"},
+				"ImplementationPlan.docx.xlf": {Engines: []string{"bridge", "native"}, Reason: "bridge inline-code/alt-trans divergence vs okapi reference"},
+				"JMP-11-Test01.xlf":           {Engines: []string{"bridge", "native"}, Reason: "bridge byte-shape divergence on JMP xliff dialect"},
+				"MQ-12-Test01.xlf":            {Engines: []string{"bridge", "native"}, Reason: "bridge MemoQ-flavour xliff divergence vs okapi reference"},
+				"Manual-12-AltTrans.xlf":      {Engines: []string{"bridge", "native"}, Reason: "bridge alt-trans handling divergence vs okapi reference"},
+				"PAS-10-Test01.xlf":           {Engines: []string{"bridge", "native"}, Reason: "bridge Passolo-flavour xliff divergence vs okapi reference"},
+				"RB-11-Test01.xlf":            {Engines: []string{"bridge", "native"}, Reason: "bridge ResourceBundle-flavour xliff divergence vs okapi reference"},
+				"RB-12-Test02.xlf":            {Engines: []string{"bridge", "native"}, Reason: "bridge ResourceBundle-flavour xliff divergence vs okapi reference"},
+				"SF-12-Test03.xlf":            {Engines: []string{"bridge", "native"}, Reason: "bridge SDLFiletype divergence vs okapi reference"},
+				"Xslt-Test01.xlf":             {Engines: []string{"bridge", "native"}, Reason: "bridge xslt-derived xliff divergence vs okapi reference"},
+				"addingelements.xlf":          {Engines: []string{"bridge", "native"}, Reason: "bridge segmentation handling divergence — emits target before xliff extension elements"},
+				"generalstructure.xlf":        {Engines: []string{"bridge", "native"}, Reason: "bridge byte-shape divergence on general-structure xliff fixture"},
+				"invalid_xml_entity.xlf":      {Engines: []string{"bridge", "native"}, Reason: "bridge entity-handling divergence on intentionally-invalid fixture"},
+				"lqiExtensions.xlf":           {Engines: []string{"bridge", "native"}, Reason: "bridge LQI extension handling divergence"},
+				"mq-12-Test01-small.xlf":      {Engines: []string{"bridge", "native"}, Reason: "bridge MemoQ-flavour xliff divergence vs okapi reference"},
+				"segmentation2.xlf":           {Engines: []string{"bridge", "native"}, Reason: "bridge segmentation handling divergence"},
 			},
 		},
 		{
 			// Bridge daemon reports "filter does not support writing:
-			// okf_xliff2" — the upstream filter is read-only.
+			// okf_xliff2" — the upstream filter is read-only. The okapi
+			// reference engine hits the same wall (FilterEventsToRawDocumentStep
+			// requires an IFilterWriter), so the whole format is a known skip
+			// at the okapi level.
 			formatID:          "xliff2",
 			filterClass:       "okf_xliff2",
 			sources:           []string{"integration-tests/okapi/src/test/resources/xliff2"},
 			extensions:        []string{".xlf", ".xlf2"},
-			tikalExtraArgs:    []string{"-fc", "okf_xliff2"},
-			formatDefaultSkip: fileSkip{Engines: []string{"native", "bridge"}, Reason: "bridge okf_xliff2 is read-only; native byte-shape divergence on merge"},
+			formatDefaultSkip: fileSkip{Engines: []string{"okapi"}, Reason: "okf_xliff2 filter is read-only; FilterEventsToRawDocumentStep cannot write it"},
 		},
 		{
 			formatID:          "tmx",
 			filterClass:       "okf_tmx",
 			sources:           []string{"integration-tests/okapi/src/test/resources/tmx"},
 			extensions:        []string{".tmx"},
-			formatDefaultSkip: fileSkip{Engines: []string{"native", "bridge"}, Reason: "tmx XML serialization shape divergence (declaration spacing, attribute order)"},
+			formatDefaultSkip: fileSkip{Engines: []string{"native", "bridge"}, Reason: "native + bridge tmx writers XML serialization shape divergence from okapi (declaration spacing, attribute order)"},
 			skip: map[string]fileSkip{
-				"code_fail.tmx":          {Engines: []string{"tikal"}, Reason: "intentionally-malformed test fixture; tikal rejects with 'no <tuv> set to source language'"},
-				"code_id_difference.tmx": {Engines: []string{"tikal"}, Reason: "intentionally-malformed test fixture for code-id mismatch detection"},
+				"code_fail.tmx":          {Engines: []string{"okapi"}, Reason: "intentionally-malformed test fixture; okf_tmx rejects with 'no <tuv> set to source language'"},
+				"code_id_difference.tmx": {Engines: []string{"okapi"}, Reason: "intentionally-malformed test fixture for code-id mismatch detection"},
 			},
 		},
 		{
@@ -479,7 +477,7 @@ func coverageScans() []formatScan {
 			filterClass:       "okf_ts",
 			sources:           []string{"integration-tests/okapi/src/test/resources/ts"},
 			extensions:        []string{".ts"},
-			formatDefaultSkip: fileSkip{Engines: []string{"native", "bridge"}, Reason: "ts: bridge writer emits malformed XML; native emits <!DOCTYPE TS> without empty internal subset"},
+			formatDefaultSkip: fileSkip{Engines: []string{"native", "bridge"}, Reason: "native ts writer emits <!DOCTYPE TS> without empty internal subset; bridge byte-shape divergence on most fixtures"},
 		},
 
 		// ── Subtitle / timed-text ─────────────────────────────────
@@ -487,12 +485,11 @@ func coverageScans() []formatScan {
 			// Default mergeCaptions=true mutates timestamps and
 			// splits merged target text across cues; both engines
 			// want the same override.
-			formatID:       "vtt",
-			filterClass:    "okf_vtt",
-			sources:        []string{"integration-tests/okapi/src/test/resources/vtt"},
-			extensions:     []string{".vtt"},
-			tikalExtraArgs: []string{"-fc", "okf_vtt@nomerge"},
-			tikalParamConfig: `#v1
+			formatID:   "vtt",
+			filterClass: "okf_vtt",
+			sources:    []string{"integration-tests/okapi/src/test/resources/vtt"},
+			extensions: []string{".vtt"},
+			okapiParamConfig: `#v1
 timeFormat=HH:mm:ss.SSS
 maxLinesPerCaption.i=2
 maxCharsPerLine.i=47
@@ -500,16 +497,15 @@ cjkCharsPerLine.i=18
 mergeCaptions.b=false
 `,
 			bridgeParams:      map[string]string{"mergeCaptions": "false"},
-			formatDefaultSkip: fileSkip{Engines: []string{"native", "bridge"}, Reason: "native: caption-layout/newline divergence; bridge: byte-shape divergence on merge"},
+			formatDefaultSkip: fileSkip{Engines: []string{"native"}, Reason: "native vtt writer caption-layout/newline divergence"},
 		},
 		{
 			// Same mergeCaptions story as VTT.
-			formatID:       "ttml",
-			filterClass:    "okf_ttml",
-			sources:        []string{"integration-tests/okapi/src/test/resources/ttml"},
-			extensions:     []string{".ttml"},
-			tikalExtraArgs: []string{"-fc", "okf_ttml@nomerge"},
-			tikalParamConfig: `#v1
+			formatID:   "ttml",
+			filterClass: "okf_ttml",
+			sources:    []string{"integration-tests/okapi/src/test/resources/ttml"},
+			extensions: []string{".ttml"},
+			okapiParamConfig: `#v1
 timeFormat=HH:mm:ss.SSS
 maxLinesPerCaption.i=2
 maxCharsPerLine.i=47
@@ -517,18 +513,13 @@ cjkCharsPerLine.i=18
 mergeCaptions.b=false
 `,
 			bridgeParams:      map[string]string{"mergeCaptions": "false"},
-			formatDefaultSkip: fileSkip{Engines: []string{"native", "bridge"}, Reason: "native: doesn't preserve <br/> caption layout; bridge: emits empty «» wrapper for second paragraph"},
+			formatDefaultSkip: fileSkip{Engines: []string{"native"}, Reason: "native ttml writer doesn't preserve <br/> caption layout"},
 		},
-		{
-			// Tikal routes .srt via the regex filter family
-			// (okf_regex-srt). No bridge counterpart.
-			formatID:          "srt",
-			filterClass:       "",
-			sources:           []string{"integration-tests/okapi/src/test/resources/srt"},
-			extensions:        []string{".srt"},
-			tikalExtraArgs:    []string{"-fc", "okf_regex-srt"},
-			formatDefaultSkip: fileSkip{Engines: []string{"native"}, Reason: "native srt writer CRLF preservation + first-cue wrapper placement diverge from tikal"},
-		},
+		// srt: omitted from this scan — upstream tikal routes .srt via
+		// `okf_regex-srt`, which loads regex rules from a packaged .fprm
+		// resource. The bridge exposes `okf_regex` but the SRT-specific
+		// rules need to be loaded as a sizable .fprm before round-tripping
+		// works. Wire that in when there's a real signal worth catching.
 
 		// ── Misc text formats ─────────────────────────────────────
 		{
@@ -548,14 +539,13 @@ mergeCaptions.b=false
 			filterClass:       "okf_tex",
 			sources:           []string{"integration-tests/okapi/src/test/resources/tex"},
 			extensions:        []string{".tex"},
-			formatDefaultSkip: fileSkip{Engines: []string{"native", "bridge"}, Reason: "tex: native drops preamble/postamble on merge; bridge merges paragraph blocks"},
+			formatDefaultSkip: fileSkip{Engines: []string{"native", "bridge"}, Reason: "native tex writer drops preamble/postamble on merge; bridge merges paragraph blocks differently than okapi"},
 		},
 		{
 			formatID:          "transtable",
 			filterClass:       "okf_transtable",
 			sources:           []string{"integration-tests/okapi/src/test/resources/transtable"},
 			extensions:        []string{".txt"},
-			tikalExtraArgs:    []string{"-fc", "okf_transtable"},
 			formatDefaultSkip: fileSkip{Engines: []string{"native"}, Reason: "native transtable writer drops the TransTableV1 header and okpCtx columns on merge"},
 		},
 
@@ -574,18 +564,19 @@ mergeCaptions.b=false
 			skip:              idmlBridgeSkips(),
 		},
 		{
-			// Several files crash tikal's icml merge — mark per-file.
+			// Several files crash upstream Okapi's icml merge —
+			// mark per-file.
 			formatID:          "icml",
 			filterClass:       "okf_icml",
 			sources:           []string{"integration-tests/okapi/src/test/resources/icml"},
 			extensions:        []string{".icml", ".wcml"},
-			formatDefaultSkip: fileSkip{Engines: []string{"native", "bridge"}, Reason: "icml: native writer XML-declaration shape divergence; bridge emits different inline run codes"},
+			formatDefaultSkip: fileSkip{Engines: []string{"native", "bridge"}, Reason: "native icml writer XML-declaration shape divergence; bridge emits different inline run codes for most fixtures"},
 			skip: map[string]fileSkip{
-				"OpenofficeFootnoteTest.icml":                                {Engines: []string{"tikal"}, Reason: "tikal icml merge crashes on this fixture (upstream merge bug)"},
-				"TakeItNoItsYoursReallyTheExcellentInevitabilityOfFree.icml": {Engines: []string{"tikal"}, Reason: "tikal icml merge crashes on this fixture (upstream merge bug)"},
-				"TestArticle.icml":                                           {Engines: []string{"tikal"}, Reason: "tikal icml merge crashes on this fixture (upstream merge bug)"},
-				"ThreeParagraphFootnoteTest.icml":                            {Engines: []string{"tikal"}, Reason: "tikal icml merge crashes on this fixture (upstream merge bug)"},
-				"WordFootnoteTest.icml":                                      {Engines: []string{"tikal"}, Reason: "tikal icml merge crashes on this fixture (upstream merge bug)"},
+				"OpenofficeFootnoteTest.icml":                                {Engines: []string{"okapi"}, Reason: "upstream Okapi icml merge crashes on this fixture"},
+				"TakeItNoItsYoursReallyTheExcellentInevitabilityOfFree.icml": {Engines: []string{"okapi"}, Reason: "upstream Okapi icml merge crashes on this fixture"},
+				"TestArticle.icml":                                           {Engines: []string{"okapi"}, Reason: "upstream Okapi icml merge crashes on this fixture"},
+				"ThreeParagraphFootnoteTest.icml":                            {Engines: []string{"okapi"}, Reason: "upstream Okapi icml merge crashes on this fixture"},
+				"WordFootnoteTest.icml":                                      {Engines: []string{"okapi"}, Reason: "upstream Okapi icml merge crashes on this fixture"},
 			},
 		},
 		{
@@ -605,7 +596,7 @@ mergeCaptions.b=false
 			filterClass:       "okf_mif",
 			sources:           []string{"integration-tests/okapi/src/test/resources/mif"},
 			extensions:        []string{".mif"},
-			formatDefaultSkip: fileSkip{Engines: []string{"native", "bridge"}, Reason: "mif: native writer produces output its reader can't re-extract; bridge picks up only some blocks"},
+			formatDefaultSkip: fileSkip{Engines: []string{"native", "bridge"}, Reason: "native mif writer produces output its reader can't re-extract; bridge picks up only some blocks"},
 		},
 	}
 }

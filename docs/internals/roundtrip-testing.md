@@ -49,12 +49,6 @@ pseudo-translation goroutine into the format's registered
 external binary. This is the same plumbing as `kapi pseudo-translate`
 on the CLI.
 
-The native engine intentionally **does not** use the registered
-`PseudoTranslate` tool — that tool always applies an accent map (à →
-ã, e → é, …) which would diverge from bridge/tikal output. The
-harness needs a deterministic wrap (`«source»`) every engine
-produces identically.
-
 ### `BridgeEngine` (runs when okapi-bridge daemon is reachable)
 
 Drives the okapi-bridge daemon's `Process` RPC in **read-write mode**
@@ -66,89 +60,102 @@ modified parts back into the output document at the configured
 `OutputRef.Path`.
 
 The transform hook is engine-agnostic: it receives a `*model.Block`
-and is free to call `SetTargetText` / `SetTargetRuns`. The bridge
-engine wires it to the same `applyPseudoToBlock` helper tikal uses
-(in `cli/parity/roundtrip/pseudo.go`).
+and is free to mutate `Targets`. The bridge engine wires it to the
+same `applyPseudoToBlock` helper the native engine uses (in
+`cli/parity/roundtrip/pseudo.go`).
 
-### `TikalEngine` (the comparator — hard-required)
+### `OkapiEngine` (the comparator — hard-required)
 
-Shells out to the upstream tikal CLI from the Okapi distribution:
+Shells out to the okapi-bridge launcher's `pseudo` subcommand
+(implemented at `bridge-core/.../PseudoCommand.java`), which composes
+upstream Okapi's pipeline in-process:
 
-  1. `tikal -x doc.X -sl en -tl fr` — extract to XLIFF (emits
-     `doc.X.xlf` with empty `<target>` elements).
-  2. **Go-side XLIFF rewrite**: walk the XLIFF, populate every
-     `<target>` with `«<source-text>»`. Implementation in
-     `cli/parity/roundtrip/tikal.go::fillXLIFFTargets`. Uses regex
-     over the raw bytes rather than `encoding/xml` because Go's
-     XML encoder mangles namespace declarations on roundtrip
-     (re-emits `xmlns` on every element, rewrites `xmlns:foo` to
-     `_xmlns:foo`) — both break tikal's merger.
-  3. `tikal -m doc.X.xlf -od merged/` — merge the translated
-     XLIFF back into the document at `merged/doc.X`.
+```
+RawDocumentToFilterEventsStep → TextModificationStep → FilterEventsToRawDocumentStep
+   (input via okf_<format>)      (TYPE_EXTREPLACE,         (write via the same filter)
+                                  SCRIPT_EXT_LATIN)
+```
 
-When a fixture sets `tikalExtraArgs` (e.g. `["-fc", "okf_wiki"]`
-because tikal's extension auto-routing misses), the same flag is
-passed to both `tikal -x` and `tikal -m` — tikal needs the explicit
-filter at merge time too.
+`TextModificationStep` skips inline-code marker chars during
+substitution, so paired codes (`<bpt>`/`<ept>`), placeholders
+(`<ph>`), and arbitrary inline runs survive the round-trip
+unchanged. The Go side mirrors the same Latin-extended substitution
+rune-by-rune in `pseudo.go::applyPseudoToBlock`, leaving
+non-`Text` runs (Ph / PcOpen / PcClose / Sub / Plural / Select)
+verbatim. Same transform, three engines.
+
+When a fixture sets `okapiParamConfig` (e.g. VTT/TTML disabling
+`mergeCaptions`), the harness passes it as `--fprm <content>` to the
+launcher, where Okapi loads it via `IParameters.fromString()`.
 
 We deliberately avoid `tikal -psd` (Okapi's built-in pseudo-translate
-step). That step's accent map and pipeline ordering are tikal-specific
-and can't be replicated by the other engines.
+configured through tikal's CLI). That step has its own driver
+parameters and the tikal CLI's two-pass extract→XLIFF→merge
+architecture mishandles inline `<ph>`/`<bpt>` markers when the
+harness rewrites XLIFF targets by hand. Driving
+`TextModificationStep` directly via the bridge launcher is one
+in-process pipeline with no XLIFF round-trip in between.
 
-Tikal is the **comparator**, not a tested engine. The harness runs
-tikal once per fixture to obtain the live reference output, then
-byte-compares native and bridge against tikal's bytes. There is no
-"tikal" subtest — asserting tikal-against-itself would be circular.
+The okapi engine is the **comparator**, not a tested engine. The
+harness runs the okapi engine once per fixture to obtain the live
+reference output, then byte-compares native and bridge against its
+bytes. There is no "okapi" subtest — asserting okapi-against-itself
+would be circular.
 
 ## The pseudo-translation transform
 
 The single transform every engine applies, defined in
-`cli/parity/roundtrip/pseudo.go`:
+`cli/parity/roundtrip/pseudo.go`. For each translatable Block, the
+target is built as a copy of the source's segments where every
+`TextRun` has its text rune-substituted via the Latin-extended
+table; non-text runs (Ph / PcOpen / PcClose / Sub / Plural / Select)
+are copied as-is so inline codes survive intact.
 
-```go
-func applyPseudoToBlock(b *model.Block, spec PseudoSpec) {
-    if !b.Translatable { return }
-    src := b.SourceText()
-    if src == "" { return }
-    b.SetTargetText(spec.TgtLocale(), spec.Wrap(src))
-}
+The substitution table mirrors Okapi's `TextModificationStep`
+(`SCRIPT_EXT_LATIN`):
+
+```
+A→À a→à B→ß b→ƀ C→Ć c→ć D→Ď d→ď E→Ē e→ē F→Ƒ f→ƒ
+G→Ĝ g→ĝ H→Ĥ h→ĥ I→Ĩ i→ĩ J→ĵ j→Ĵ K→Ķ k→ķ L→Ĺ l→ĺ
+N→Ń n→ń O→Ō o→ō P→Ƥ p→ƥ Q→Ǫ q→ǫ R→Ŕ r→ŕ S→Ś s→ś
+T→Ţ t→ţ U→Ũ u→ũ W→Ŵ w→ŵ Y→Ŷ y→ŷ Z→Ź z→ź
 ```
 
-`spec.Wrap` defaults to `«…»`. The choice of guillemets is deliberate:
+(M, V, X have no entries and pass through unchanged — same quirks as
+upstream `oldChars[0]`.)
+
+The accented variants are deliberate:
 
   - Survives every text-bearing format (no XML/JSON/CSV/YAML escape
-    issues).
-  - Single-rune so byte budgets stay predictable.
-  - Visually distinguishable from skeleton text in failure dumps.
-  - Locale-agnostic — no MT, no model dependency.
-
-A test can override `PseudoSpec.Prefix` / `Suffix` to use different
-markers if a particular format conflicts with `«…»` (none have so
-far).
+    issues — every replacement codepoint is in the Latin-Extended
+    Unicode block).
+  - Visually distinct from the source so failure dumps clearly show
+    "this is the translated text".
+  - Locale-agnostic — no MT, no model dependency, deterministic
+    bytes.
 
 ## Comparison strategy
 
-For each fixture the harness runs **tikal end-to-end inline** to
-obtain the live reference output (extract → fill XLIFF targets with
-`«source»` → merge), then runs each tested engine (native, bridge)
-and byte-compares its output against tikal's. Tikal is the
-comparator; native and bridge are the engines under test. There are
-no committed golden files — tikal's behavior IS the reference,
-captured fresh every run, so there is no risk of "the golden is
-from tikal v1.47, but we're on v1.48 now" drift.
+For each fixture the harness runs the **okapi engine end-to-end
+inline** to obtain the live reference output (Okapi's pipeline:
+read → `TextModificationStep` → write), then runs each tested
+engine (native, bridge) and byte-compares its output against the
+okapi reference. The okapi engine is the comparator; native and
+bridge are the engines under test. There are no committed golden
+files — upstream Okapi's behavior IS the reference, captured fresh
+every run, so there is no risk of "the golden is from Okapi v1.47,
+but we're on v1.48 now" drift.
 
-For formats tikal can't open (no upstream filter, e.g.
-srt/jsx-klf/versifiedtext/messageformat/epub) or where tikal has a
-genuine merge bug (vtt/ttml mutate timestamps and split target text
-across cues; txml merge NPEs; idml extract NPEs; rtf only ships as
-`okf_tradosrtf` and silently extracts an empty XLIFF from plain
-RTF), the row is marked `tikalUnsupported: true` and **the whole
-case skips at run time** — no reference, no engine assertions. We
-deliberately do not fall back to the native engine here: that would
-make native judge itself, the exact circularity this whole approach
-was built to remove. These rows are placeholders documenting that
-the format exists; the case starts asserting once tikal can handle
-the input (or someone wires a hand-authored reference).
+For formats where the okapi engine itself can't produce a usable
+reference (intentionally-malformed test fixtures, files referencing
+sibling resources that aren't copied to the harness's tempdir,
+read-only filters like `okf_xliff2`), per-file `skip` entries with
+`Engines: ["okapi"]` skip the whole sub-test — no reference, no
+engine assertions. We deliberately do not fall back to the native
+engine here: that would make native judge itself, the exact
+circularity this whole approach was built to remove. These rows are
+placeholders documenting that the format exists; the case starts
+asserting once the upstream pipeline can handle the input.
 
 Compound zip formats (idml, openxml, epub) compare per-entry:
 byte-equal across uncompressed entry contents, ignoring zip
@@ -163,90 +170,105 @@ writer produced different bytes from the reference at offset 251."
 
 ## Hard requirements
 
-Both **tikal** and **okapi-bridge** are mandatory dependencies for
-this suite — there is no "skip if missing" path:
+The **parity sandbox** is the only mandatory dependency — there is
+no "skip if missing" path:
 
-  - Tikal is checked at `TestMain`. If not found via
-    `$OKAPI_TIKAL`, `$OKAPI_HOME`, or `$PATH`, the test binary
-    aborts with a single clear error.
-  - Bridge is hard-required by `parity.AcquireBridgeDaemon`, which
-    `t.Fatal`s if the daemon can't be spawned.
+  - The `okapi-bridge` launcher binary inside the sandbox is checked
+    at `TestMain` (it backs both the bridge daemon engine AND the
+    okapi reference engine via the `pseudo` subcommand).
+  - The bridge daemon process itself is acquired through
+    `parity.AcquireBridgeDaemon`, which `t.Fatal`s if it can't
+    spawn.
+
+Build the sandbox from the repo root:
+
+```bash
+make parity-test
+# or to force a rebuild including a fresh okapi-bridge plugin tarball:
+PARITY_FORCE=1 make parity-test
+```
 
 Failing fast at startup means a missing dependency surfaces as one
 loud error, not a swarm of identical "engine unavailable" skips.
 
 ## Test wiring
 
-A round-trip test looks like this (`plaintext_test.go`):
+All test invocations come from `coverage_test.go`, which scans
+upstream Okapi fixtures and constructs one `RunThreeWay` call per
+file. The shape of one call:
 
 ```go
-func TestRoundTrip_Plaintext(t *testing.T) {
-    roundtrip.RunThreeWay(t, roundtrip.Case{
-        Name:     "three_lines",
-        FormatID: "plaintext",
-        Input: roundtrip.Input{
-            Bytes:    []byte("Hello world\nAnother line\n"),
-            Filename: "doc.txt",
-        },
-    },
-        &roundtrip.NativeEngine{FormatID: "plaintext"},
-        &roundtrip.BridgeEngine{FilterClass: "okf_plaintext"},
-        &roundtrip.TikalEngine{},
-    )
-}
+roundtrip.RunThreeWay(t, roundtrip.Case{
+    Name:     base,            // file basename
+    FormatID: "plaintext",     // neokapi registry key
+    Input:    roundtrip.Input{Bytes: body, Filename: base},
+},
+    &roundtrip.NativeEngine{FormatID: "plaintext"},
+    &roundtrip.BridgeEngine{FilterClass: "okf_plaintext"},
+    &roundtrip.OkapiEngine{FilterClass: "okf_plaintext"},
+)
 ```
 
-`RunThreeWay` runs each engine in its own sub-test:
-
-  - Engines that report `Available() != nil` `t.Skip` rather than
-    failing — tikal isn't installed everywhere.
-  - Engines that run produce a Divergence on disagreement; the
-    sub-test fails but the harness keeps going so a single run
-    surfaces every disagreement at once.
+`RunThreeWay` runs each engine in its own sub-test. Engines listed
+in `c.ExpectedSkipped` are recorded as `t.Skip`; the remaining
+engines must produce output equivalent to the okapi reference. The
+harness reports every disagreement at once instead of bailing on the
+first.
 
 For formats where the bridge filter expects different parameter names
 than neokapi's canonical config, supply `BridgeEngine.FilterParams`
 in already-translated form — same approach as the spec runner's
 `BridgeConfig` hook (see `cli/parity/formats/csv_bridge_config.go`).
+For Okapi-side parameter overrides on the reference engine (e.g.
+disabling `mergeCaptions` on subtitle filters), supply
+`OkapiEngine.ParamConfig` as raw `.fprm` content.
 
 ## File layout
 
 ```
 cli/parity/roundtrip/
-├── doc.go              # Package overview
-├── engine.go           # Engine interface, Input, Result, PseudoSpec
-├── pseudo.go           # applyPseudoToBlock — shared transform
-├── native.go           # NativeEngine — in-process reader → transform → writer
+├── doc.go                 # Package overview
+├── engine.go              # Engine interface, Input, Result, PseudoSpec
+├── pseudo.go              # applyPseudoToBlock — shared Latin-extended substitution
+├── native.go              # NativeEngine — in-process reader → transform → writer
 ├── bridge.go              # BridgeEngine — gRPC read-write with Transform hook
-├── tikal.go               # TikalEngine — extract → XLIFF rewrite → merge (the comparator)
+├── okapi.go               # OkapiEngine — bridge launcher's `pseudo` subcommand (the comparator)
 ├── compare.go             # Byte / per-zip-entry comparators + Divergence
-├── harness.go             # RunThreeWay — runs tikal as comparator
-├── main_test.go           # TestMain — hard-requires tikal up front
+├── harness.go             # RunThreeWay — runs the okapi engine as comparator
+├── main_test.go           # TestMain — hard-requires the okapi-bridge launcher
 ├── coverage_test.go       # Per-format scans (formatScan) + discovery loop
 └── coverage_skips_test.go # idmlBridgeSkips / openxmlBridgeSkips — long per-file maps
 ```
 
 All files build-tagged `parity` to match the surrounding harness.
 
+The `pseudo` subcommand itself lives in okapi-bridge:
+`bridge-core/src/main/java/neokapi/bridge/PseudoCommand.java`. It's
+wired into `OkapiBridgeServer.main`'s subcommand dispatcher
+(alongside `daemon`, `version`, `--list-filters`, …).
+
 ## Build and run
 
-Tikal is a hard requirement, so set one of `$OKAPI_TIKAL`,
-`$OKAPI_HOME`, or put `tikal` on `$PATH` before running:
+Build the parity sandbox once from the repo root:
 
 ```bash
-OKAPI_HOME=/opt/okapi \
-  go test -tags parity ./cli/parity/roundtrip/ -v
+make parity-test
+# or, after editing okapi-bridge sources:
+PARITY_FORCE=1 make parity-test
+```
 
-# Or with an explicit tikal launcher path:
-OKAPI_TIKAL=/opt/okapi/tikal.sh \
+Then run the suite:
+
+```bash
+KAPI_PARITY_SANDBOX="$(pwd)/.parity" \
   go test -tags parity ./cli/parity/roundtrip/ -v
 ```
 
-Without tikal, `TestMain` aborts the binary immediately with a clear
-error — no test runs. The bridge daemon is acquired through the same
-`parity.AcquireBridgeDaemon` used by the spec runner; a single
-daemon process is shared across the whole `go test` run and torn
-down in `TestMain`.
+Without the sandbox, `TestMain` aborts the binary immediately with
+a clear error — no test runs. The bridge daemon is acquired through
+the same `parity.AcquireBridgeDaemon` used by the spec runner; a
+single daemon process is shared across the whole `go test` run and
+torn down in `TestMain`.
 
 ## Adding a new format
 
@@ -277,31 +299,26 @@ and every file with a matching extension becomes one sub-test.
    `cli/parity/formats/csv_bridge_config.go` for the translation
    pattern).
 
-3. If tikal needs an explicit `-fc` flag because the file extension
-   doesn't auto-route to the desired filter (`.wiki`, `.tsv`, etc.),
-   set `tikalExtraArgs: []string{"-fc", "okf_xxx"}`. The same flag
-   is passed to both extract and merge.
-
-4. If tikal needs non-default filter parameters (e.g. disabling
-   `mergeCaptions` on subtitle filters), set `tikalParamConfig` to
-   the `.fprm` content and use the `@variant` form in
-   `tikalExtraArgs`:
+3. If the okapi reference engine needs non-default filter
+   parameters (e.g. disabling `mergeCaptions` on subtitle filters),
+   set `okapiParamConfig` to the raw `.fprm` content:
 
    ```go
-   tikalExtraArgs: []string{"-fc", "okf_ttml@nomerge"},
-   tikalParamConfig: `#v1
+   okapiParamConfig: `#v1
    mergeCaptions.b=false
    `,
    ```
 
-   The harness writes the `.fprm` to a temp dir and appends `-pd
-   <dir>` so tikal can resolve the variant. See `okapi/filters/`
-   in the Okapi source for which fields each filter accepts.
+   The harness forwards it to the `pseudo` subcommand as
+   `--fprm <content>`, where Okapi loads it via
+   `IParameters.fromString()` against the configured filter. See
+   `okapi/filters/` in the Okapi source for which fields each
+   filter accepts.
 
-5. If the format is a zip-based compound (idml, openxml, epub, …),
+4. If the format is a zip-based compound (idml, openxml, epub, …),
    set `isZip: true` to switch the comparator to per-entry mode.
 
-6. Run the test. The first run will surface every divergence as a
+5. Run the test. The first run will surface every divergence as a
    real failure. For each one, characterize the cause and add a
    `skip` entry:
 
@@ -309,10 +326,10 @@ and every file with a matching extension becomes one sub-test.
      affects most/all files, set `formatDefaultSkip` with the
      engines + a one-line reason. Per-file overrides extend it.
    - **Per-file skip**: keyed by basename in the `skip` map. Use
-     `Engines: ["tikal"]` to mark a file where tikal can't produce
-     a usable reference (intentionally-malformed test fixture,
-     missing linked resource, upstream parser bug); the whole sub-
-     test then skips with the reason.
+     `Engines: ["okapi"]` to mark a file where the okapi reference
+     engine can't produce a usable output (intentionally-malformed
+     test fixture, missing linked resource, upstream parser bug);
+     the whole sub-test then skips with the reason.
    - For long per-file maps (idml: 46 entries, openxml: 124),
      extract them into a helper in `coverage_skips_test.go` to
      keep `coverage_test.go` readable — see `idmlBridgeSkips()`.
@@ -329,8 +346,8 @@ the round-trip harness are complementary, not redundant:
 | Aspect              | Spec runner                       | Round-trip harness                                   |
 | ------------------- | --------------------------------- | ---------------------------------------------------- |
 | Phase covered       | Read only                         | Read → modify → write → re-read                      |
-| Engines             | Native + Bridge                   | Native + Bridge (tikal is the inline comparator)     |
-| What it asserts     | Block count / text / IDs          | Engine output matches tikal's output byte-for-byte   |
+| Engines             | Native + Bridge                   | Native + Bridge (okapi engine is the inline comparator) |
+| What it asserts     | Block count / text / IDs          | Engine output matches okapi reference byte-for-byte  |
 | Driver format       | Per-format `spec.yaml` (declarative) | Per-format Go test row (programmatic)                  |
 | Failure granularity | Per-example                       | Per-engine                                           |
 | Catches             | Reader bugs, parity-of-reads      | Writer bugs, skeleton bugs, target-merge bugs        |
@@ -342,38 +359,46 @@ or skeleton bug.
 ## Coverage status
 
 The harness mirrors upstream's `RoundTrip<X>IT.java` set: **30
-formats × ~25 files each ≈ 1145 sub-tests** in ~16 minutes. With
-tikal installed and the bridge daemon up the suite is fully green
-(0 fail, 887 engine assertions pass, 1258 documented engine skips).
+formats × ~25 files each ≈ 1100+ sub-tests** in ~9 minutes. With
+the parity sandbox built the suite is fully green (0 fail, 310
+engine assertions pass, ~1450 documented engine skips).
 
 Highlights of the upstream-mirroring discovery:
 
   - **html** runs against all 69 fixtures from
     `integration-tests/okapi/src/test/resources/html/` — same set as
     upstream's `RoundTripHtmlIT`.
-  - **json** 70, **idml** 70, **openxml** 185 — same fixtures
-    upstream roundtrips with their own `RoundTrip<X>IT`.
+  - **json** 70 (all pass bridge), **idml** 70, **openxml** 185 —
+    same fixtures upstream roundtrips with their own `RoundTrip<X>IT`.
+    json got bumped from "all skipped" to "all bridge passes" as a
+    direct result of switching the comparator to the in-process
+    okapi pipeline.
   - **xml** uses the ITS-based `okf_xml` filter (it lives in
     `okapi/filters/its/.../XMLFilter.java`, not a dedicated `xml`
-    filter directory) and roundtrips the 23 files from
-    `integration-tests/okapi/src/test/resources/xml/`.
+    filter directory) and roundtrips the 22 files from
+    `integration-tests/okapi/src/test/resources/xml/`. Bridge passes
+    14 of 22, with 8 inline-code marker divergences flagged
+    per-file.
   - **paraplaintext** / **splicedlines** / **mosestext** —
     sub-filters of `okf_plaintext` with no dedicated upstream
     integration-test directory; cherry-picked via `explicitFiles`
     against the canonical fixtures referenced by their unit tests
     (`combined_lines.txt`, `test_paragraphs1.txt`, `Test01.txt`).
-  - **vtt** / **ttml** use `tikalParamConfig` to disable
+  - **vtt** / **ttml** use `okapiParamConfig` to disable
     `mergeCaptions` (matching the bridge's `mergeCaptions:false`
     knob), avoiding the upstream default that mangles cue text on
     round-trip.
 
 Formats intentionally **omitted** from coverage:
 
-  - `txml`, `rtf`, `epub` — tikal can't produce a usable reference
-    (upstream merge bugs / read-only filters / no `okf_epub` in this
-    distribution).
+  - `txml`, `rtf`, `epub` — upstream Okapi can't produce a usable
+    reference (txml NPE on merge, rtf only ships as `okf_tradosrtf`,
+    no `okf_epub` in this distribution).
   - `jsx-klf`, `versifiedtext`, `messageformat` — neokapi-only
     formats with no upstream Okapi peer to compare against.
+  - `srt` — needs SRT-specific regex rules loaded as a sizable
+    `.fprm` against the bridge's `okf_regex` filter; wire that in
+    when there's a real signal worth catching.
   - `odf` — no test fixtures committed in the framework yet.
 
 These are covered by per-format unit tests under `core/formats/<x>/`
@@ -390,33 +415,39 @@ workaround. The skip mechanism has three layers:
     skips native).
   - Per-file `skip` entries extend the format default with file-
     specific engines/reasons. Use them for outliers (a single file
-    where tikal also fails, or where bridge has a different bug).
-  - `Engines: ["tikal"]` on a per-file entry means tikal itself
-    can't produce a usable reference for that file — the whole
-    sub-test skips. Common causes: intentionally-malformed test
-    fixtures (`tmx/code_fail.tmx`), files referencing sibling
-    resources tikal can't find when invoked on a single file
-    (`xml/Translate2.xml`, `xliff/lqiTest.xlf`), upstream parser
-    rejects (`yaml/Test03.yml` `!!timestamp`).
+    where the okapi reference also fails, or where bridge has a
+    different bug).
+  - `Engines: ["okapi"]` on a per-file entry means the okapi
+    reference engine itself can't produce a usable reference for
+    that file — the whole sub-test skips. Common causes:
+    intentionally-malformed test fixtures (`tmx/code_fail.tmx`),
+    files referencing sibling resources Okapi can't find when
+    invoked on a single file (`xml/Translate2.xml`,
+    `xliff/lqiTest.xlf`), upstream parser rejects (`yaml/Test03.yml`
+    `!!timestamp`), read-only filters (`okf_xliff2`).
 
 Common bug classes the skips encode:
 
   - **Native writer byte-shape divergence** (most formats):
-    serialization choices differ from tikal — XML attribute order,
-    YAML quoting style, properties escape case, trailing newlines.
+    serialization choices differ from upstream Okapi — XML
+    attribute order, YAML quoting style, properties escape case,
+    trailing newlines.
   - **Native skips target on merge** (html, openxml): writer doesn't
     splice the translated text back into the document.
-  - **Bridge inline-code marker divergence** (xliff, xml, idml,
-    openxml): the bridge daemon emits different inline-code wrappers
-    than tikal does for the same upstream filter.
-  - **Bridge read-only filters** (xliff2): the upstream filter
-    doesn't implement merge.
+  - **Bridge inline-code marker divergence** (xml, xliff, html,
+    markdown, po, mif, …): the bridge daemon's
+    `StreamingTranslationApplier` rebuilds `TextFragment` from Go-
+    side fragments via `OkapiCodeConverter`, and the result diverges
+    from what an in-process Okapi pipeline would have written for
+    the same source — usually around inline-code id assignment,
+    paired-code restoration, or alt-trans/extension element
+    placement.
   - **Native YAML reader infinite loop** (4 files with self-
     referencing anchors): a real reader bug worth fixing.
 
 When an engine bug gets fixed, the corresponding skip entry can be
-deleted — the next run will then assert against tikal byte-for-byte,
-catching any regression.
+deleted — the next run will then assert against the okapi reference
+byte-for-byte, catching any regression.
 
 ## Formats not yet covered
 
