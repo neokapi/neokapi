@@ -3,6 +3,8 @@
 package roundtrip
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -134,15 +136,26 @@ func RunThreeWay(t *testing.T, c Case, native *NativeEngine, bridge *BridgeEngin
 			}
 			out := e.eng.RoundTrip(t, c.Input, c.Spec)
 			result := compareTiered(out, reference, c.IsZip, c.Normalizer)
+			// When PARITY_DUMP=<dir> is set, write got + reference to
+			// disk for any divergent fixture so a human can run their
+			// own diff tools (`diff`, `vimdiff`, hex editors, …).
+			// Byte-equal and canonical-equal cases are skipped — there's
+			// nothing to inspect.
+			if dir := os.Getenv("PARITY_DUMP"); dir != "" && result.Achieved == TierDivergent {
+				dumpDivergentArtifacts(dir, formatID, c.Name, e.name, out, reference)
+			}
 			recordParityResult(parityRecord{
-				Format:   formatID,
-				Fixture:  c.Name,
-				Engine:   e.name,
-				Required: required,
-				Achieved: result.Achieved,
-				Reason:   result.Reason,
-				GotSize:  result.GotSize,
-				RefSize:  result.RefSize,
+				Format:         formatID,
+				Fixture:        c.Name,
+				Engine:         e.name,
+				Required:       required,
+				Achieved:       result.Achieved,
+				Reason:         result.Reason,
+				GotSize:        result.GotSize,
+				RefSize:        result.RefSize,
+				RawDiffOffset:  result.RawDiffOffset,
+				NormDiffOffset: result.NormDiffOffset,
+				Normalizer:     result.Normalizer,
 			})
 			if result.Achieved > required {
 				reason := result.Reason
@@ -171,16 +184,41 @@ func RunThreeWay(t *testing.T, c Case, native *NativeEngine, bridge *BridgeEngin
 	}
 }
 
-// requiredTier returns the engine's required minimum tier from the
-// case's override map, falling back to TierByteEqual when not set.
+// requiredTier returns the engine's required minimum tier. Per-Case
+// overrides win; otherwise the per-engine default kicks in.
+//
+// Engine defaults reflect the current contract:
+//   - bridge → TierByteEqual (must match okapi byte-for-byte)
+//   - native → TierDivergent (observation mode — we collect tier data
+//     in the report but don't fail on stylistic gaps until a per-format
+//     normalizer or writer fix is in place)
+//   - other → TierByteEqual
+//
+// Tighten a per-format native contract by setting minTier explicitly.
 func requiredTier(min map[string]Tier, engine string) Tier {
-	if min == nil {
-		return TierByteEqual
+	if min != nil {
+		if t, ok := min[engine]; ok {
+			return t
+		}
 	}
-	if t, ok := min[engine]; ok {
-		return t
+	if engine == "native" {
+		return TierDivergent
 	}
 	return TierByteEqual
+}
+
+// dumpDivergentArtifacts writes the engine output and the reference
+// for one divergent fixture to <dir>/<format>/<fixture>.<engine>.bin
+// and <dir>/<format>/<fixture>.reference.bin. Failures are silent —
+// dumping is opt-in diagnostic plumbing, not a contract.
+func dumpDivergentArtifacts(dir, format, fixture, engine string, got, ref []byte) {
+	target := filepath.Join(dir, format)
+	if err := os.MkdirAll(target, 0o755); err != nil {
+		return
+	}
+	safe := strings.ReplaceAll(fixture, string(os.PathSeparator), "_")
+	_ = os.WriteFile(filepath.Join(target, safe+"."+engine+".bin"), got, 0o644)
+	_ = os.WriteFile(filepath.Join(target, safe+".reference.bin"), ref, 0o644)
 }
 
 // itoa is a tiny strconv.Itoa to avoid pulling in the strconv import

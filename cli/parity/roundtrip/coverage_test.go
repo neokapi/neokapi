@@ -71,6 +71,18 @@ type formatScan struct {
 	// skip records known divergences keyed by file basename. These
 	// extend formatDefaultSkip with per-file engines/reasons.
 	skip map[string]fileSkip
+
+	// normalizer, when non-nil, is forwarded to every Case so the
+	// canonical-tier comparison can declare semantically-equivalent
+	// outputs as TierCanonicalEqual (e.g. case-insensitive \uXXXX
+	// escapes, sorted XML attributes, ignored whitespace).
+	normalizer roundtrip.Normalizer
+
+	// minTier overrides the per-engine required tier. Default is
+	// TierByteEqual for every engine. Use this to grade an engine on
+	// "must reach canonical-equal" while still surfacing actual
+	// achievement in the report.
+	minTier map[string]roundtrip.Tier
 }
 
 func TestRoundTrip_Coverage(t *testing.T) {
@@ -203,6 +215,8 @@ func runOneFixture(t *testing.T, scan formatScan, abs string) {
 		IsZip:           scan.isZip,
 		ExpectedSkipped: expectedSkipped,
 		SkipReason:      reason,
+		Normalizer:      scan.normalizer,
+		MinTier:         scan.minTier,
 	},
 		&roundtrip.NativeEngine{
 			FormatID:     scan.formatID,
@@ -233,17 +247,19 @@ func coverageScans() []formatScan {
 			// Upstream RoundTripPlainTextIT loops over /plaintext/
 			// (which also contains the splicedlines and paraplaintext
 			// fixtures — they get their own scans below).
-			formatID:          "plaintext",
-			filterClass:       "okf_plaintext",
-			sources:           []string{"integration-tests/okapi/src/test/resources/plaintext"},
-			extensions:        []string{".txt"},
-			formatDefaultSkip: fileSkip{Engines: []string{"native"}, Reason: "native plaintext writer drops trailing newlines and mishandles BOM/line-ending preservation vs okapi"},
+			formatID:    "plaintext",
+			filterClass: "okf_plaintext",
+			sources:     []string{"integration-tests/okapi/src/test/resources/plaintext"},
+			extensions:  []string{".txt"},
+			normalizer:  roundtrip.LFLineEndings{},
+			minTier:     map[string]roundtrip.Tier{"native": roundtrip.TierDivergent},
 		},
 		{
-			formatID:          "paraplaintext",
-			filterClass:       "okf_paraplaintext",
-			explicitFiles:     []string{"integration-tests/okapi/src/test/resources/plaintext/test_paragraphs1.txt"},
-			formatDefaultSkip: fileSkip{Engines: []string{"native"}, Reason: "native paraplaintext writer trailing-newline divergence vs okapi"},
+			formatID:      "paraplaintext",
+			filterClass:   "okf_paraplaintext",
+			explicitFiles: []string{"integration-tests/okapi/src/test/resources/plaintext/test_paragraphs1.txt"},
+			normalizer:    roundtrip.LFLineEndings{},
+			minTier:       map[string]roundtrip.Tier{"native": roundtrip.TierDivergent},
 		},
 		{
 			// Splicedlines is an okf_plaintext config variant exposed
@@ -256,7 +272,6 @@ func coverageScans() []formatScan {
 				"okapi/filters/plaintext/src/test/resources/combined_lines_end.txt",
 				"okapi/filters/plaintext/src/test/resources/combined_lines2.txt",
 			},
-			formatDefaultSkip: fileSkip{Engines: []string{"native"}, Reason: "native splicedlines writer byte-shape diverges from okapi"},
 		},
 		{
 			// Mosestext: upstream ships Test01/Test02 and an XLIFF
@@ -265,7 +280,6 @@ func coverageScans() []formatScan {
 			filterClass:       "okf_mosestext",
 			sources:           []string{"okapi/filters/mosestext/src/test/resources"},
 			extensions:        []string{".txt"},
-			formatDefaultSkip: fileSkip{Engines: []string{"native"}, Reason: "native mosestext writer flattens inline <mrk>/<seg> markup differently than okapi"},
 		},
 
 		// ── HTML / markup ─────────────────────────────────────────
@@ -279,7 +293,6 @@ func coverageScans() []formatScan {
 			filterClass:       "okf_html",
 			sources:           []string{"integration-tests/okapi/src/test/resources/html"},
 			extensions:        []string{".html"},
-			formatDefaultSkip: fileSkip{Engines: []string{"native"}, Reason: "native html writer emits a fixed stub on merge"},
 			skip:              htmlBridgeSkips(),
 		},
 		{
@@ -289,7 +302,6 @@ func coverageScans() []formatScan {
 			filterClass:       "okf_markdown",
 			sources:           []string{"integration-tests/okapi/src/test/resources/markdown"},
 			extensions:        []string{".md"},
-			formatDefaultSkip: fileSkip{Engines: []string{"native"}, Reason: "native markdown writer byte-shape divergence on merge"},
 			skip:              markdownBridgeSkips(),
 		},
 		{
@@ -297,7 +309,6 @@ func coverageScans() []formatScan {
 			filterClass:       "okf_wiki",
 			sources:           []string{"integration-tests/okapi/src/test/resources/wikitext"},
 			extensions:        []string{".wiki"},
-			formatDefaultSkip: fileSkip{Engines: []string{"native"}, Reason: "native wiki writer trailing newline + byte-shape divergence"},
 		},
 
 		// ── Key-value & structured data ───────────────────────────
@@ -308,29 +319,35 @@ func coverageScans() []formatScan {
 			filterClass:       "okf_po",
 			sources:           []string{"integration-tests/okapi/src/test/resources/po"},
 			extensions:        []string{".po"},
-			formatDefaultSkip: fileSkip{Engines: []string{"native"}, Reason: "native po writer msgstr/quoting/multiline divergence on merge"},
 			skip:              poBridgeSkips(),
 		},
 		{
-			formatID:          "properties",
-			filterClass:       "okf_properties",
-			sources:           []string{"integration-tests/okapi/src/test/resources/property"},
-			extensions:        []string{".properties"},
-			formatDefaultSkip: fileSkip{Engines: []string{"native"}, Reason: "native properties writer emits uppercase \\uXXXX escapes; tikal uses lowercase"},
+			formatID:    "properties",
+			filterClass: "okf_properties",
+			sources:     []string{"integration-tests/okapi/src/test/resources/property"},
+			extensions:  []string{".properties"},
+			// Skip lifted into observation mode: native runs and the
+			// report shows actual achievement, but we don't fail the
+			// test until a writer fix or normalizer brings native into
+			// canonical-equal. Today the gap is wider than just style
+			// (line endings + hex case + extra extracted entries).
+			normalizer: roundtrip.Chain{Steps: []roundtrip.Normalizer{
+				roundtrip.LFLineEndings{},
+				roundtrip.LowerHexUnicodeEscape{},
+			}},
+			minTier: map[string]roundtrip.Tier{"native": roundtrip.TierDivergent},
 		},
 		{
 			formatID:          "json",
 			filterClass:       "okf_json",
 			sources:           []string{"integration-tests/okapi/src/test/resources/json"},
 			extensions:        []string{".json"},
-			formatDefaultSkip: fileSkip{Engines: []string{"native"}, Reason: "native json writer string-escape (\\uXXXX vs UTF-8) and whitespace divergence on merge"},
 		},
 		{
 			formatID:          "yaml",
 			filterClass:       "okf_yaml",
 			sources:           []string{"integration-tests/okapi/src/test/resources/yaml"},
 			extensions:        []string{".yaml", ".yml"},
-			formatDefaultSkip: fileSkip{Engines: []string{"native"}, Reason: "native yaml writer doesn't preserve quoting style or flow/block layout — many byte-shape divergences"},
 			skip: map[string]fileSkip{
 				// snakeyaml recursion fixtures: native YAML reader
 				// doesn't bound its alias resolution and loops
@@ -350,7 +367,6 @@ func coverageScans() []formatScan {
 			filterClass:       "okf_phpcontent",
 			sources:           []string{"okapi/filters/php/src/test/resources"},
 			extensions:        []string{".phpcnt"},
-			formatDefaultSkip: fileSkip{Engines: []string{"native"}, Reason: "native phpcontent writer byte-shape divergence on merge"},
 		},
 
 		// ── Tabular ───────────────────────────────────────────────
@@ -361,7 +377,6 @@ func coverageScans() []formatScan {
 			filterClass:       "okf_commaseparatedvalues",
 			sources:           []string{"integration-tests/okapi/src/test/resources/table"},
 			extensions:        []string{".csv"},
-			formatDefaultSkip: fileSkip{Engines: []string{"native"}, Reason: "native csv writer table-semantics divergence (header/quoting/row-vs-cell)"},
 			skip:              csvBridgeSkips(),
 		},
 		{
@@ -370,7 +385,6 @@ func coverageScans() []formatScan {
 			formatID:          "tsv",
 			filterClass:       "okf_tabseparatedvalues",
 			explicitFiles:     []string{"okapi/filters/table/src/test/resources/test_tsv_simple.txt"},
-			formatDefaultSkip: fileSkip{Engines: []string{"native"}, Reason: "native tsv writer table-semantics divergence (same shape as csv)"},
 		},
 		{
 			formatID:    "fixedwidth",
@@ -379,7 +393,6 @@ func coverageScans() []formatScan {
 				"okapi/filters/table/src/test/resources/fwc_test4.txt",
 				"okapi/filters/table/src/test/resources/fwc_test5.txt",
 			},
-			formatDefaultSkip: fileSkip{Engines: []string{"native"}, Reason: "native fixedwidth writer column-spec/padding divergence"},
 		},
 
 		// ── Code/markup ───────────────────────────────────────────
@@ -388,7 +401,6 @@ func coverageScans() []formatScan {
 			filterClass:       "okf_doxygen",
 			sources:           []string{"integration-tests/okapi/src/test/resources/doxygen"},
 			extensions:        []string{".h", ".py"},
-			formatDefaultSkip: fileSkip{Engines: []string{"native"}, Reason: "native doxygen writer comment-block tokenization divergence (@brief inline placeholders)"},
 		},
 
 		// ── XML / bilingual exchange formats ──────────────────────
@@ -401,7 +413,6 @@ func coverageScans() []formatScan {
 			filterClass:       "okf_xml",
 			sources:           []string{"integration-tests/okapi/src/test/resources/xml"},
 			extensions:        []string{".xml"},
-			formatDefaultSkip: fileSkip{Engines: []string{"native"}, Reason: "native XML reader needs explicit ITS rules; default config extracts whole document as one block"},
 			skip: map[string]fileSkip{
 				"Translate2.xml": {Engines: []string{"okapi"}, Reason: "okf_xml needs Translate2_LinkedRules.xml in the same dir; harness copies the input file alone"},
 			},
@@ -414,7 +425,6 @@ func coverageScans() []formatScan {
 			filterClass:       "okf_xliff",
 			sources:           []string{"integration-tests/okapi/src/test/resources/xliff"},
 			extensions:        []string{".xlf"},
-			formatDefaultSkip: fileSkip{Engines: []string{"native"}, Reason: "native xliff writer adds extra xmlns declaration on roundtrip (Go encoding/xml shape)"},
 			skip: map[string]fileSkip{
 				"lqiTest.xlf":                 {Engines: []string{"okapi"}, Reason: "okf_xliff needs lqiTestIssues.xml in the same dir; harness copies the input file alone"},
 				"ImplementationPlan.docx.xlf": {Engines: []string{"bridge", "native"}, Reason: "bridge inline-code/alt-trans divergence vs okapi reference"},
@@ -439,7 +449,6 @@ func coverageScans() []formatScan {
 			filterClass:       "okf_tmx",
 			sources:           []string{"integration-tests/okapi/src/test/resources/tmx"},
 			extensions:        []string{".tmx"},
-			formatDefaultSkip: fileSkip{Engines: []string{"native"}, Reason: "native tmx writer XML serialization shape divergence from okapi (declaration spacing, attribute order)"},
 			skip: map[string]fileSkip{
 				"code_fail.tmx":          {Engines: []string{"okapi"}, Reason: "intentionally-malformed test fixture; okf_tmx rejects with 'no <tuv> set to source language'"},
 				"code_id_difference.tmx": {Engines: []string{"okapi"}, Reason: "intentionally-malformed test fixture for code-id mismatch detection"},
@@ -455,7 +464,6 @@ func coverageScans() []formatScan {
 			filterClass:       "okf_ts",
 			sources:           []string{"integration-tests/okapi/src/test/resources/ts"},
 			extensions:        []string{".ts"},
-			formatDefaultSkip: fileSkip{Engines: []string{"native"}, Reason: "native ts writer emits <!DOCTYPE TS> without empty internal subset"},
 			skip:              tsBridgeSkips(),
 		},
 
@@ -476,7 +484,6 @@ cjkCharsPerLine.i=18
 mergeCaptions.b=false
 `,
 			bridgeParams:      map[string]string{"mergeCaptions": "false"},
-			formatDefaultSkip: fileSkip{Engines: []string{"native"}, Reason: "native vtt writer caption-layout/newline divergence"},
 		},
 		{
 			// Same mergeCaptions story as VTT.
@@ -492,7 +499,6 @@ cjkCharsPerLine.i=18
 mergeCaptions.b=false
 `,
 			bridgeParams:      map[string]string{"mergeCaptions": "false"},
-			formatDefaultSkip: fileSkip{Engines: []string{"native"}, Reason: "native ttml writer doesn't preserve <br/> caption layout"},
 		},
 		// srt: omitted from this scan — upstream tikal routes .srt via
 		// `okf_regex-srt`, which loads regex rules from a packaged .fprm
@@ -508,21 +514,18 @@ mergeCaptions.b=false
 			filterClass:       "okf_dtd",
 			sources:           []string{"okapi/filters/dtd/src/test/resources"},
 			extensions:        []string{".dtd"},
-			formatDefaultSkip: fileSkip{Engines: []string{"native"}, Reason: "native dtd writer emits an extra leading newline before the first entity"},
 		},
 		{
 			formatID:          "tex",
 			filterClass:       "okf_tex",
 			sources:           []string{"integration-tests/okapi/src/test/resources/tex"},
 			extensions:        []string{".tex"},
-			formatDefaultSkip: fileSkip{Engines: []string{"native"}, Reason: "native tex writer drops preamble/postamble on merge"},
 		},
 		{
 			formatID:          "transtable",
 			filterClass:       "okf_transtable",
 			sources:           []string{"integration-tests/okapi/src/test/resources/transtable"},
 			extensions:        []string{".txt"},
-			formatDefaultSkip: fileSkip{Engines: []string{"native"}, Reason: "native transtable writer drops the TransTableV1 header and okpCtx columns on merge"},
 		},
 
 		// ── Binary / compound formats ─────────────────────────────
@@ -536,7 +539,6 @@ mergeCaptions.b=false
 			sources:           []string{"okapi/filters/idml/src/test/resources"},
 			extensions:        []string{".idml"},
 			isZip:             true,
-			formatDefaultSkip: fileSkip{Engines: []string{"native"}, Reason: "native idml writer doesn't merge target back into the .idml XML"},
 			skip:              idmlBridgeSkips(),
 		},
 		{
@@ -548,7 +550,6 @@ mergeCaptions.b=false
 			filterClass:       "okf_icml",
 			sources:           []string{"integration-tests/okapi/src/test/resources/icml"},
 			extensions:        []string{".icml", ".wcml"},
-			formatDefaultSkip: fileSkip{Engines: []string{"native"}, Reason: "native icml writer XML-declaration shape divergence"},
 			skip:              icmlMergedSkips(),
 		},
 		{
@@ -560,7 +561,6 @@ mergeCaptions.b=false
 			sources:           []string{"okapi/filters/openxml/src/test/resources"},
 			extensions:        []string{".docx"},
 			isZip:             true,
-			formatDefaultSkip: fileSkip{Engines: []string{"native"}, Reason: "native openxml writer skips target text on merge — output keeps original English"},
 			skip:              openxmlBridgeSkips(),
 		},
 		{
@@ -570,7 +570,6 @@ mergeCaptions.b=false
 			filterClass:       "okf_mif",
 			sources:           []string{"integration-tests/okapi/src/test/resources/mif"},
 			extensions:        []string{".mif"},
-			formatDefaultSkip: fileSkip{Engines: []string{"native"}, Reason: "native mif writer produces output its reader can't re-extract"},
 			skip:              mifBridgeSkips(),
 		},
 	}
