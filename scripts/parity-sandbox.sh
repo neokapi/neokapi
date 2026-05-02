@@ -83,4 +83,27 @@ if [ ! -f "${bridge_install_dir}/manifest.json" ]; then
   exit 1
 fi
 
+# 4. Fetch + cache the upstream Okapi test resource tarball published
+# by okapi-bridge (https://github.com/neokapi/okapi-bridge/releases/
+# tag/okapi-testdata-${okapi_version}). Round-trip tests resolve
+# binary fixtures (e.g. .idml files) from this tree so neokapi
+# doesn't have to vendor upstream binaries.
+testdata_dir="${sandbox}/okapi-testdata/${okapi_version}"
+testdata_archive="${sandbox}/okapi-testdata/okapi-testdata-${okapi_version}.tar.gz"
+testdata_url="https://github.com/neokapi/okapi-bridge/releases/download/okapi-testdata-${okapi_version}/okapi-testdata.tar.gz"
+if [ -n "${PARITY_FORCE:-}" ] || [ ! -d "$testdata_dir" ]; then
+  log "fetching okapi test resources (v${okapi_version}) from $testdata_url"
+  mkdir -p "$(dirname "$testdata_archive")" "$testdata_dir"
+  if ! curl -fL --retry 3 -o "$testdata_archive" "$testdata_url" 2>&1 | sed 's/^/[parity-sandbox] /' >&2; then
+    log "WARNING: could not fetch okapi-testdata-${okapi_version} (tests that need it will fail; publish via okapi-bridge scripts/publish-okapi-testdata.sh)"
+  else
+    rm -rf "$testdata_dir"
+    mkdir -p "$testdata_dir"
+    tar -xzf "$testdata_archive" -C "$testdata_dir"
+    log "extracted okapi test resources → $testdata_dir"
+  fi
+else
+  log "okapi test resources already extracted at $testdata_dir"
+fi
+
 echo "$sandbox"

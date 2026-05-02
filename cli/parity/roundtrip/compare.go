@@ -3,139 +3,155 @@
 package roundtrip
 
 import (
+	"archive/zip"
 	"bytes"
-	"context"
 	"fmt"
 	"io"
-
-	"github.com/neokapi/neokapi/core/formats"
-	"github.com/neokapi/neokapi/core/model"
-	"github.com/neokapi/neokapi/core/registry"
+	"sort"
 )
 
-// extractedBlocks reads `output` through the registered native
-// reader for `formatID` and returns the "translated text" for each
-// translatable Block, in document order. The translated text is:
-//
-//   - block.Target[targetLocale] when bilingual formats (PO, XLIFF,
-//     TMX, …) keep the original source intact and stash the
-//     translation in a target slot, OR
-//   - block.SourceText() when monolingual formats (plaintext, HTML,
-//     properties, …) overwrite the source with the translation on
-//     merge.
-//
-// After a successful round-trip the returned text equals
-// spec.Wrap(originalSource[i]) for every block, regardless of
-// whether the format is bi- or monolingual.
-//
-// Re-extracting through the native reader is deliberate: we want
-// every engine's output evaluated against the same yardstick.
-// Differences between engines surface as differing extracted
-// streams, not as encoding noise that would dominate a byte-equal
-// comparison.
-func extractedBlocks(formatID registry.FormatID, output []byte, sourceLocale, targetLocale string, readerConfig map[string]any) ([]string, error) {
-	reg := registry.NewFormatRegistry()
-	formats.RegisterAll(reg)
-	reader, err := reg.NewReader(formatID)
-	if err != nil {
-		return nil, fmt.Errorf("re-extract: reader for %q: %w", formatID, err)
-	}
-	defer func() { _ = reader.Close() }()
-	if len(readerConfig) > 0 {
-		if cfg := reader.Config(); cfg != nil {
-			if err := cfg.ApplyMap(readerConfig); err != nil {
-				return nil, fmt.Errorf("re-extract: ApplyMap: %w", err)
-			}
-		}
-	}
-
-	doc := &model.RawDocument{
-		URI:          "roundtrip-output",
-		SourceLocale: model.LocaleID(sourceLocale),
-		TargetLocale: model.LocaleID(targetLocale),
-		Reader:       io.NopCloser(bytes.NewReader(output)),
-	}
-	ctx := context.Background()
-	if err := reader.Open(ctx, doc); err != nil {
-		return nil, fmt.Errorf("re-extract: open: %w", err)
-	}
-
-	var texts []string
-	for res := range reader.Read(ctx) {
-		if res.Error != nil {
-			return nil, fmt.Errorf("re-extract: stream: %w", res.Error)
-		}
-		if res.Part == nil || res.Part.Type != model.PartBlock {
-			continue
-		}
-		block, ok := res.Part.Resource.(*model.Block)
-		if !ok || !block.Translatable {
-			continue
-		}
-		texts = append(texts, blockTranslatedText(block, model.LocaleID(targetLocale)))
-	}
-	return texts, nil
-}
-
-// blockTranslatedText returns the block's target text for the given
-// locale, falling back to source text when the block doesn't carry
-// the target. This handles bilingual (PO, XLIFF) vs monolingual
-// (plaintext, HTML) format semantics uniformly.
-func blockTranslatedText(b *model.Block, target model.LocaleID) string {
-	if target != "" && b.HasTarget(target) {
-		if txt := b.TargetText(target); txt != "" {
-			return txt
-		}
-	}
-	return b.SourceText()
-}
-
-// expectedTargets computes the per-block strings each engine's
-// output should produce when re-extracted: spec.Wrap(originalText)
-// for every translatable block in the input. Sources are taken from
-// the input bytes via the same native reader the comparison uses, so
-// the expectation comes from the same authority that judges the
-// outputs.
-func expectedTargets(formatID registry.FormatID, input []byte, spec PseudoSpec, readerConfig map[string]any) ([]string, error) {
-	// For the input we want raw source text, not target — the input
-	// has no targets yet. Pass an empty targetLocale so
-	// extractedBlocks falls through to SourceText().
-	sources, err := extractedBlocks(formatID, input, spec.SrcLocale(), "", readerConfig)
-	if err != nil {
-		return nil, err
-	}
-	wrapped := make([]string, len(sources))
-	for i, s := range sources {
-		wrapped[i] = spec.Wrap(s)
-	}
-	return wrapped, nil
-}
-
-// Divergence captures the failure mode for one engine compared to
-// the expected output. Reported per-engine so the harness can list
-// every disagreement at once instead of bailing on the first.
+// Divergence captures one engine's failure to match the tikal
+// reference. Reported per-engine so the harness lists every
+// disagreement at once instead of bailing on the first.
 type Divergence struct {
-	Engine   string
-	Expected []string
-	Actual   []string
-	Reason   string
+	// Engine identifies which implementation diverged.
+	Engine string
+	// Reason is a human-readable summary (length mismatch, entry
+	// mismatch, byte position of first diff, …).
+	Reason string
 }
 
 // String renders a divergence for test output.
 func (d Divergence) String() string {
-	return fmt.Sprintf("%s: %s\n  expected blocks: %v\n  actual blocks:   %v",
-		d.Engine, d.Reason, d.Expected, d.Actual)
+	return fmt.Sprintf("%s: %s", d.Engine, d.Reason)
 }
 
-// reasonFor produces a short reason string for a Divergence.
-func reasonFor(expected, actual []string) string {
-	if len(expected) != len(actual) {
-		return fmt.Sprintf("block count differs: expected %d, got %d", len(expected), len(actual))
+// compareToReference returns the empty string when got matches the
+// tikal reference exactly, or a one-line diagnostic suitable for a
+// Divergence.Reason when they differ. isZip toggles per-entry zip
+// comparison: byte-equal across entries (sorted by name), ignoring
+// zip metadata like mtime and central-directory ordering that vary
+// across implementations.
+func compareToReference(got, reference []byte, isZip bool) string {
+	if isZip {
+		return compareZip(got, reference)
 	}
-	for i := range expected {
-		if expected[i] != actual[i] {
-			return fmt.Sprintf("block[%d] differs: expected %q, got %q", i, expected[i], actual[i])
+	return compareBytes(got, reference)
+}
+
+// compareBytes does a byte-equal compare and returns a short
+// diagnostic with the first differing offset and a small context
+// window when they diverge.
+func compareBytes(got, reference []byte) string {
+	if bytes.Equal(got, reference) {
+		return ""
+	}
+	if len(got) != len(reference) {
+		offset := firstDiff(got, reference)
+		return fmt.Sprintf("byte length differs: got %d, reference %d (first diff at offset %d: got %q vs %q)",
+			len(got), len(reference), offset, snippet(got, offset), snippet(reference, offset))
+	}
+	offset := firstDiff(got, reference)
+	return fmt.Sprintf("byte content differs at offset %d: got %q vs %q",
+		offset, snippet(got, offset), snippet(reference, offset))
+}
+
+// firstDiff returns the first byte index where a and b differ. When
+// one slice is a prefix of the other, it returns the shorter length.
+func firstDiff(a, b []byte) int {
+	n := len(a)
+	if len(b) < n {
+		n = len(b)
+	}
+	for i := 0; i < n; i++ {
+		if a[i] != b[i] {
+			return i
+		}
+	}
+	return n
+}
+
+// snippet returns a short human-readable window of bytes around the
+// given offset, bounded so the diagnostic line stays readable.
+func snippet(b []byte, offset int) string {
+	const window = 32
+	start := offset
+	end := offset + window
+	if end > len(b) {
+		end = len(b)
+	}
+	if start > len(b) {
+		start = len(b)
+	}
+	return string(b[start:end])
+}
+
+// compareZip compares two zip archives entry-by-entry. Entries match
+// when their names match and their uncompressed contents are
+// byte-equal. Zip metadata (mtime, central-directory order,
+// compression level) is ignored because two correct round-trippers
+// can produce different metadata for semantically identical archives.
+func compareZip(got, reference []byte) string {
+	gotEntries, err := readZipEntries(got)
+	if err != nil {
+		return fmt.Sprintf("got is not a valid zip: %v", err)
+	}
+	refEntries, err := readZipEntries(reference)
+	if err != nil {
+		return fmt.Sprintf("reference is not a valid zip: %v", err)
+	}
+	if len(gotEntries) != len(refEntries) {
+		gotNames := zipEntryNames(gotEntries)
+		refNames := zipEntryNames(refEntries)
+		return fmt.Sprintf("zip entry count differs: got %d %v, reference %d %v",
+			len(gotEntries), gotNames, len(refEntries), refNames)
+	}
+	for name, refContent := range refEntries {
+		gotContent, ok := gotEntries[name]
+		if !ok {
+			return fmt.Sprintf("zip entry %q present in reference, missing from got", name)
+		}
+		if !bytes.Equal(gotContent, refContent) {
+			offset := firstDiff(gotContent, refContent)
+			return fmt.Sprintf("zip entry %q differs at offset %d: got %q vs %q",
+				name, offset, snippet(gotContent, offset), snippet(refContent, offset))
 		}
 	}
 	return ""
+}
+
+// readZipEntries returns a map of entry name → uncompressed bytes
+// for every file in the archive (directories skipped).
+func readZipEntries(data []byte) (map[string][]byte, error) {
+	r, err := zip.NewReader(bytes.NewReader(data), int64(len(data)))
+	if err != nil {
+		return nil, err
+	}
+	out := make(map[string][]byte, len(r.File))
+	for _, f := range r.File {
+		if f.FileInfo().IsDir() {
+			continue
+		}
+		rc, err := f.Open()
+		if err != nil {
+			return nil, fmt.Errorf("open %q: %w", f.Name, err)
+		}
+		content, err := io.ReadAll(rc)
+		_ = rc.Close()
+		if err != nil {
+			return nil, fmt.Errorf("read %q: %w", f.Name, err)
+		}
+		out[f.Name] = content
+	}
+	return out, nil
+}
+
+// zipEntryNames returns sorted entry names for diagnostics.
+func zipEntryNames(entries map[string][]byte) []string {
+	names := make([]string, 0, len(entries))
+	for name := range entries {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	return names
 }

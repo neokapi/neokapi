@@ -5,655 +5,607 @@ package roundtrip_test
 import (
 	"os"
 	"path/filepath"
+	"sort"
+	"strings"
 	"testing"
 
+	"github.com/neokapi/neokapi/cli/parity"
 	"github.com/neokapi/neokapi/cli/parity/roundtrip"
 	"github.com/neokapi/neokapi/core/registry"
 )
 
-// repoFile loads a fixture from the framework testdata tree by
-// repo-relative path (e.g. "core/formats/idml/testdata/helloworld.idml").
-// Path is resolved against the package's own location so the test
-// works regardless of the caller's CWD.
-func repoFile(t *testing.T, rel string) []byte {
-	t.Helper()
-	// cli/parity/roundtrip → ../../.. is the repo root.
-	candidate := filepath.Join("..", "..", "..", rel)
-	abs, err := filepath.Abs(candidate)
-	if err != nil {
-		t.Fatalf("repoFile %q: abs: %v", rel, err)
-	}
-	data, err := os.ReadFile(abs)
-	if err != nil {
-		t.Fatalf("repoFile %q: %v", rel, err)
-	}
-	return data
+// fileSkip records a known divergence (or tikal-unsupported case) for
+// one upstream fixture. Engines lists which engines disagree with
+// tikal's reference. The special engine name "tikal" means tikal can't
+// produce a usable reference for this file, so the whole sub-test
+// skips. Reason is a one-line note shown in test output — write what
+// the divergence actually is, not just "broken".
+type fileSkip struct {
+	Engines []string
+	Reason  string
 }
 
-// fixture captures one format's round-trip case. The harness wires
-// every fixture through the available engines (native always; bridge
-// when filterClass is set; tikal when installed).
-//
-// Add a row to extend coverage. If the bridge filter expects
-// different parameter names than neokapi's spec config, fill
-// bridgeParams with the already-translated map (same approach as the
-// spec runner's BridgeConfig hook in cli/parity/formats/).
-//
-// `skip` lists engines whose divergence is genuine and tracked
-// elsewhere — same semantics as `expected_fail` in spec.yaml. Each
-// entry must be accompanied by a one-line comment explaining the
-// divergence so future readers understand whether to keep skipping
-// or revisit.
-type fixture struct {
-	name             string
-	formatID         registry.FormatID
-	filterClass      string // empty = no bridge engine
-	tikalUnsupported bool   // true = no tikal engine
-	filename         string
-	body             []byte // either body or bodyFile must be set
-	bodyFile         string // repo-relative path to load at test time
+// formatScan describes how to discover the upstream Okapi fixtures
+// for one format and how to drive each engine against them. Mirrors
+// what the corresponding upstream RoundTrip<X>IT.java exercises: every
+// file with a matching extension under the listed source roots becomes
+// one sub-test.
+type formatScan struct {
+	formatID    registry.FormatID
+	filterClass string // bridge filter ID; empty = no bridge engine
+
+	// sources lists tarball-relative directories to scan. For most
+	// formats this is integration-tests/okapi/src/test/resources/<format>;
+	// some formats whose integration-tests dir is empty fall back to
+	// okapi/filters/<filter>/src/test/resources.
+	sources    []string
+	extensions []string // case-insensitive (".json", ".xml", ...)
+	recurse    bool     // when true, walk subdirectories too
+
+	// explicitFiles overrides discovery — used when a format shares its
+	// resource directory with sibling formats and we need to cherry-pick
+	// (e.g. splicedlines fixtures live under plaintext/ and would
+	// otherwise be picked up by both formats).
+	explicitFiles []string
+
+	isZip            bool
 	nativeConfig     map[string]any
 	bridgeParams     map[string]string
-	skip             []string
+	tikalExtraArgs   []string
+	tikalParamConfig string
+
+	// formatDefaultSkip applies to every discovered file in this
+	// scan: use it when a real engine bug affects the whole format
+	// (e.g. native's CRLF preservation in srt, bridge's read-only
+	// xliff2). Per-file skip entries below extend this set.
+	formatDefaultSkip fileSkip
+
+	// skip records known divergences keyed by file basename. These
+	// extend formatDefaultSkip with per-file engines/reasons.
+	skip map[string]fileSkip
 }
 
 func TestRoundTrip_Coverage(t *testing.T) {
-	for _, c := range coverageCases() {
-		c := c
-		t.Run(c.name, func(t *testing.T) {
-			body := c.body
-			if body == nil && c.bodyFile != "" {
-				body = repoFile(t, c.bodyFile)
+	s := parity.RequireSandbox(t)
+	if s.OkapiTestDataDir == "" {
+		t.Fatal("okapi test resources tarball not present in sandbox — run `make parity-test` from repo root")
+	}
+	for _, scan := range coverageScans() {
+		scan := scan
+		t.Run(string(scan.formatID), func(t *testing.T) {
+			files := discoverFiles(t, s.OkapiTestDataDir, scan)
+			if len(files) == 0 {
+				t.Fatalf("format %q: no upstream fixtures discovered (sources=%v ext=%v) — typo or empty upstream dir?",
+					scan.formatID, scan.sources, scan.extensions)
 			}
-			if len(body) == 0 {
-				t.Fatalf("fixture %q: body or bodyFile required", c.name)
+			for _, f := range files {
+				f := f
+				t.Run(filepath.Base(f), func(t *testing.T) {
+					runOneFixture(t, scan, f)
+				})
 			}
-			var bridge *roundtrip.BridgeEngine
-			if c.filterClass != "" {
-				bridge = &roundtrip.BridgeEngine{
-					FilterClass:  c.filterClass,
-					FilterParams: c.bridgeParams,
-				}
-			}
-			var tikal *roundtrip.TikalEngine
-			if !c.tikalUnsupported {
-				tikal = &roundtrip.TikalEngine{}
-			}
-			roundtrip.RunThreeWay(t, roundtrip.Case{
-				Name:     c.name,
-				FormatID: c.formatID,
-				Input: roundtrip.Input{
-					Bytes:    body,
-					Filename: c.filename,
-				},
-				ExpectedSkipped: c.skip,
-			},
-				&roundtrip.NativeEngine{
-					FormatID:     c.formatID,
-					ReaderConfig: c.nativeConfig,
-				},
-				bridge,
-				tikal,
-			)
 		})
 	}
 }
 
-func coverageCases() []fixture {
-	return []fixture{
+// discoverFiles returns absolute paths to every upstream fixture this
+// scan should drive: explicitFiles when set, otherwise every file
+// under any source directory whose extension matches.
+func discoverFiles(t *testing.T, root string, scan formatScan) []string {
+	t.Helper()
+	if len(scan.explicitFiles) > 0 {
+		out := make([]string, 0, len(scan.explicitFiles))
+		for _, rel := range scan.explicitFiles {
+			abs := filepath.Join(root, rel)
+			if _, err := os.Stat(abs); err != nil {
+				t.Fatalf("explicit fixture %q not found: %v", rel, err)
+			}
+			out = append(out, abs)
+		}
+		sort.Strings(out)
+		return out
+	}
+	extSet := map[string]bool{}
+	for _, e := range scan.extensions {
+		extSet[strings.ToLower(e)] = true
+	}
+	var out []string
+	for _, src := range scan.sources {
+		srcAbs := filepath.Join(root, src)
+		info, err := os.Stat(srcAbs)
+		if err != nil || !info.IsDir() {
+			t.Fatalf("source dir %q missing or not a dir: %v", src, err)
+		}
+		walkErr := filepath.WalkDir(srcAbs, func(path string, d os.DirEntry, walkErr error) error {
+			if walkErr != nil {
+				return walkErr
+			}
+			if d.IsDir() {
+				if !scan.recurse && path != srcAbs {
+					return filepath.SkipDir
+				}
+				return nil
+			}
+			if extSet[strings.ToLower(filepath.Ext(path))] {
+				out = append(out, path)
+			}
+			return nil
+		})
+		if walkErr != nil {
+			t.Fatalf("walk %q: %v", src, walkErr)
+		}
+	}
+	sort.Strings(out)
+	return out
+}
+
+func runOneFixture(t *testing.T, scan formatScan, abs string) {
+	t.Helper()
+	base := filepath.Base(abs)
+	// Merge format-default + per-file skip. Per-file engines extend the
+	// default set; the per-file reason wins when set, otherwise default.
+	skipSet := map[string]bool{}
+	reason := scan.formatDefaultSkip.Reason
+	for _, e := range scan.formatDefaultSkip.Engines {
+		skipSet[e] = true
+	}
+	if perFile, ok := scan.skip[base]; ok {
+		for _, e := range perFile.Engines {
+			skipSet[e] = true
+		}
+		if perFile.Reason != "" {
+			reason = perFile.Reason
+		}
+	}
+	if skipSet["tikal"] {
+		t.Skipf("tikal cannot serve as comparator for %s: %s", base, reason)
+	}
+
+	body, err := os.ReadFile(abs)
+	if err != nil {
+		t.Fatalf("read fixture %q: %v", abs, err)
+	}
+
+	var bridge *roundtrip.BridgeEngine
+	if scan.filterClass != "" {
+		bridge = &roundtrip.BridgeEngine{
+			FilterClass:  scan.filterClass,
+			FilterParams: scan.bridgeParams,
+		}
+	}
+	tikal := &roundtrip.TikalEngine{
+		ExtraExtractArgs: scan.tikalExtraArgs,
+		ParamConfig:      scan.tikalParamConfig,
+	}
+
+	var expectedSkipped []string
+	for e := range skipSet {
+		if e != "tikal" {
+			expectedSkipped = append(expectedSkipped, e)
+		}
+	}
+
+	roundtrip.RunThreeWay(t, roundtrip.Case{
+		Name:     base,
+		FormatID: scan.formatID,
+		Input: roundtrip.Input{
+			Bytes:    body,
+			Filename: base,
+		},
+		IsZip:           scan.isZip,
+		ExpectedSkipped: expectedSkipped,
+	},
+		&roundtrip.NativeEngine{
+			FormatID:     scan.formatID,
+			ReaderConfig: scan.nativeConfig,
+		},
+		bridge,
+		tikal,
+	)
+}
+
+// coverageScans defines one scan per format. The set mirrors what the
+// upstream Okapi RoundTrip<X>IT.java suite covers: same directories,
+// same files. Formats with no upstream roundtrip suite (jsx, klf,
+// versifiedtext, messageformat — neokapi-only) and formats where tikal
+// itself can't produce a reference (txml NPE on merge, rtf has only
+// tradosrtf, epub has no okf_epub) are intentionally omitted; their
+// neokapi-side correctness is covered by per-format unit tests under
+// core/formats/<x>/.
+//
+// First-pass note: per-file `skip` entries get filled in iteratively
+// after running the suite and triaging divergences. Each entry needs a
+// one-line reason describing what actually diverges, so the next reader
+// can tell engine bug vs harness limitation.
+func coverageScans() []formatScan {
+	return []formatScan{
 		// ── Plain-text family ─────────────────────────────────────
 		{
-			name:        "plaintext_three_lines",
-			formatID:    "plaintext",
-			filterClass: "okf_plaintext",
-			filename:    "doc.txt",
-			body:        []byte("Hello world\nAnother line\nThird paragraph\n"),
+			// Upstream RoundTripPlainTextIT loops over /plaintext/
+			// (which also contains the splicedlines and paraplaintext
+			// fixtures — they get their own scans below).
+			formatID:          "plaintext",
+			filterClass:       "okf_plaintext",
+			sources:           []string{"integration-tests/okapi/src/test/resources/plaintext"},
+			extensions:        []string{".txt"},
+			formatDefaultSkip: fileSkip{Engines: []string{"native"}, Reason: "native plaintext writer drops trailing newlines and mishandles BOM/line-ending preservation vs tikal"},
 		},
 		{
-			name:        "paraplaintext_two_paragraphs",
-			formatID:    "paraplaintext",
-			filterClass: "okf_paraplaintext",
-			filename:    "doc.txt",
-			body:        []byte("First paragraph here.\n\nSecond paragraph next."),
+			formatID:          "paraplaintext",
+			filterClass:       "okf_paraplaintext",
+			explicitFiles:     []string{"integration-tests/okapi/src/test/resources/plaintext/test_paragraphs1.txt"},
+			formatDefaultSkip: fileSkip{Engines: []string{"native", "bridge"}, Reason: "native: trailing-newline divergence; bridge: collapses paragraph blocks differently than tikal"},
 		},
 		{
-			name:        "mosestext_two_lines",
-			formatID:    "mosestext",
-			filterClass: "okf_mosestext",
-			filename:    "moses.txt",
-			body:        []byte("Hello world\nGoodbye now\n"),
+			// Splicedlines is an okf_plaintext sub-filter. Canonical
+			// fixtures use backslash line continuations; tikal needs
+			// the explicit `_backslash` variant because the bare
+			// `okf_plaintext_spliced` ID isn't exposed.
+			formatID:       "splicedlines",
+			filterClass:    "", // no bridge counterpart
+			tikalExtraArgs: []string{"-fc", "okf_plaintext_spliced_backslash"},
+			explicitFiles: []string{
+				"okapi/filters/plaintext/src/test/resources/combined_lines.txt",
+				"okapi/filters/plaintext/src/test/resources/combined_lines_end.txt",
+				"okapi/filters/plaintext/src/test/resources/combined_lines2.txt",
+			},
+			formatDefaultSkip: fileSkip{Engines: []string{"native"}, Reason: "native splicedlines writer byte-shape divergence vs tikal"},
+		},
+		{
+			// Mosestext: upstream ships Test01/Test02 and an XLIFF
+			// backref pair; we round-trip the .txt source files.
+			formatID:          "mosestext",
+			filterClass:       "okf_mosestext",
+			sources:           []string{"okapi/filters/mosestext/src/test/resources"},
+			extensions:        []string{".txt"},
+			formatDefaultSkip: fileSkip{Engines: []string{"native", "bridge"}, Reason: "tikal extracts inline <mrk>/<seg> markup as part of the source text; both engines flatten it differently"},
 		},
 
 		// ── HTML / markup ─────────────────────────────────────────
 		{
-			name:        "html_paragraphs",
-			formatID:    "html",
-			filterClass: "okf_html",
-			filename:    "doc.html",
-			body: []byte(
-				"<!doctype html>\n<html><body>\n" +
-					"<p>First paragraph.</p>\n" +
-					"<p>Second one.</p>\n" +
-					"</body></html>\n"),
+			// Native html writer emits a constant 197-byte stub
+			// regardless of input — the merge step doesn't write
+			// the target back into the document.  Bridge byte-shape
+			// also diverges (run/code marker handling).
+			formatID:          "html",
+			filterClass:       "okf_html",
+			sources:           []string{"integration-tests/okapi/src/test/resources/html"},
+			extensions:        []string{".html"},
+			formatDefaultSkip: fileSkip{Engines: []string{"native", "bridge"}, Reason: "native html writer emits a fixed stub on merge; bridge byte-shape diverges"},
 		},
 		{
-			name:        "markdown_two_paragraphs",
-			formatID:    "markdown",
-			filterClass: "okf_markdown",
-			filename:    "doc.md",
-			body: []byte(
-				"# Title\n\nFirst paragraph here.\n\nSecond paragraph follows.\n"),
+			formatID:          "markdown",
+			filterClass:       "okf_markdown",
+			sources:           []string{"integration-tests/okapi/src/test/resources/markdown"},
+			extensions:        []string{".md"},
+			formatDefaultSkip: fileSkip{Engines: []string{"native", "bridge"}, Reason: "markdown writer byte-shape divergence on merge for both engines"},
 		},
 		{
-			// Bridge merges adjacent wiki lines into a single block;
-			// native treats each line as its own block. Skip bridge
-			// rather than over-fitting the fixture — wiki segmentation
-			// is a real divergence that deserves its own follow-up.
-			name:        "wiki_two_paragraphs",
-			formatID:    "wiki",
-			filterClass: "okf_wiki",
-			filename:    "doc.wiki",
-			body:        []byte("First wiki paragraph.\n\nSecond wiki paragraph.\n"),
-			skip:        []string{"bridge"},
+			// Tikal needs `-fc okf_wiki` because .wiki isn't in the
+			// extension auto-routing table.
+			formatID:          "wiki",
+			filterClass:       "okf_wiki",
+			sources:           []string{"integration-tests/okapi/src/test/resources/wikitext"},
+			extensions:        []string{".wiki"},
+			tikalExtraArgs:    []string{"-fc", "okf_wiki"},
+			formatDefaultSkip: fileSkip{Engines: []string{"native"}, Reason: "native wiki writer trailing newline + byte-shape divergence"},
+			skip: map[string]fileSkip{
+				"dokuwiki.wiki":  {Engines: []string{"bridge", "native"}, Reason: "bridge merges adjacent wiki lines into a single block — segmentation divergence"},
+				"mediawiki.wiki": {Engines: []string{"bridge", "native"}, Reason: "bridge segments mediawiki blocks differently than tikal"},
+			},
 		},
 
 		// ── Key-value & structured data ───────────────────────────
 		{
-			name:        "po_two_entries",
-			formatID:    "po",
-			filterClass: "okf_po",
-			filename:    "messages.po",
-			body: []byte(`msgid ""
-msgstr ""
-"Content-Type: text/plain; charset=UTF-8\n"
-
-msgid "Hello"
-msgstr ""
-
-msgid "Goodbye"
-msgstr ""
-`),
+			formatID:          "po",
+			filterClass:       "okf_po",
+			sources:           []string{"integration-tests/okapi/src/test/resources/po"},
+			extensions:        []string{".po"},
+			formatDefaultSkip: fileSkip{Engines: []string{"native", "bridge"}, Reason: "po msgstr/quoting/multiline divergence on merge for both engines"},
 		},
 		{
-			name:        "properties_two_keys",
-			formatID:    "properties",
-			filterClass: "okf_properties",
-			filename:    "messages.properties",
-			body: []byte(
-				"greeting=Hello world\n" +
-					"farewell=Goodbye now\n"),
+			formatID:          "properties",
+			filterClass:       "okf_properties",
+			sources:           []string{"integration-tests/okapi/src/test/resources/property"},
+			extensions:        []string{".properties"},
+			formatDefaultSkip: fileSkip{Engines: []string{"native"}, Reason: "native properties writer emits uppercase \\uXXXX escapes; tikal uses lowercase"},
+			skip: map[string]fileSkip{
+				"Test01.properties": {Engines: []string{"bridge", "native"}, Reason: "bridge byte-shape divergence in addition to native escape-case bug"},
+				"Test05.properties": {Engines: []string{"bridge", "native"}, Reason: "bridge byte-shape divergence on merge"},
+			},
 		},
 		{
-			name:        "json_two_strings",
-			formatID:    "json",
-			filterClass: "okf_json",
-			filename:    "messages.json",
-			body: []byte(`{
-  "greeting": "Hello world",
-  "farewell": "Goodbye now"
-}
-`),
+			formatID:          "json",
+			filterClass:       "okf_json",
+			sources:           []string{"integration-tests/okapi/src/test/resources/json"},
+			extensions:        []string{".json"},
+			formatDefaultSkip: fileSkip{Engines: []string{"native", "bridge"}, Reason: "json string-escape (\\uXXXX vs UTF-8) and whitespace divergence on merge"},
 		},
 		{
-			// Native YAML writer reorders mapping keys on emit, so
-			// re-extraction returns blocks in reverse order. Real
-			// native bug — skip native here.
-			name:        "yaml_two_keys",
-			formatID:    "yaml",
-			filterClass: "okf_yaml",
-			filename:    "messages.yaml",
-			body:        []byte("greeting: Hello world\nfarewell: Goodbye now\n"),
-			skip:        []string{"native"},
+			formatID:          "yaml",
+			filterClass:       "okf_yaml",
+			sources:           []string{"integration-tests/okapi/src/test/resources/yaml"},
+			extensions:        []string{".yaml", ".yml"},
+			formatDefaultSkip: fileSkip{Engines: []string{"native"}, Reason: "native yaml writer doesn't preserve quoting style or flow/block layout — many byte-shape divergences"},
+			skip: map[string]fileSkip{
+				// snakeyaml recursion fixtures: native YAML reader
+				// doesn't bound its alias resolution and loops
+				// forever — real native bug worth a fix.
+				"beanring-3.yaml":           {Engines: []string{"native"}, Reason: "native YAML reader hangs on self-referencing anchors"},
+				"no-children-1.yaml":        {Engines: []string{"native"}, Reason: "native YAML reader hangs on self-referencing anchors"},
+				"no-children-2.yaml":        {Engines: []string{"native"}, Reason: "native YAML reader hangs on self-referencing anchors"},
+				"scalar_sample.yml":         {Engines: []string{"bridge", "native"}, Reason: "native hangs on self-ref anchors; bridge byte-shape divergence on merge"},
+				"no-children-1-pretty.yaml": {Engines: []string{"tikal"}, Reason: "tikal YAML parser rejects !!timestamp tag"},
+				"Test03.yml":                {Engines: []string{"tikal"}, Reason: "tikal YAML parser rejects !!timestamp tag"},
+				// Bridge byte-shape divergences (folded/literal scalar
+				// re-emission, attribute ordering, etc.).
+				"en.yml":                      {Engines: []string{"bridge", "native"}, Reason: "bridge yaml writer byte-shape divergence on merge"},
+				"en (1).yml":                  {Engines: []string{"bridge", "native"}, Reason: "bridge yaml writer byte-shape divergence on merge"},
+				"en (2).yml":                  {Engines: []string{"bridge", "native"}, Reason: "bridge yaml writer byte-shape divergence on merge"},
+				"en (3).yml":                  {Engines: []string{"bridge", "native"}, Reason: "bridge yaml writer byte-shape divergence on merge"},
+				"en (5).yml":                  {Engines: []string{"bridge", "native"}, Reason: "bridge yaml writer byte-shape divergence on merge"},
+				"folded_indented.yml":         {Engines: []string{"bridge", "native"}, Reason: "bridge folded-scalar re-emission divergence"},
+				"folded_literal_examples.yml": {Engines: []string{"bridge", "native"}, Reason: "bridge folded/literal-scalar re-emission divergence (large gap)"},
+				"literal.yml":                 {Engines: []string{"bridge", "native"}, Reason: "bridge literal-scalar re-emission divergence"},
+			},
 		},
 		{
-			// Native phpcontent's writer produces output that the
-			// reader can't re-extract — the round-trip yields 0
-			// blocks. Bridge round-trips fine. Skip native; this is
-			// a real native bug worth a follow-up.
-			name:        "phpcontent_two_strings",
-			formatID:    "phpcontent",
-			filterClass: "okf_phpcontent",
-			filename:    "messages.php",
-			body: []byte(`<?php
-$greeting = 'Hello world';
-$farewell = 'Goodbye now';
-`),
-			skip: []string{"native"},
+			// Phpcontent has no integration-tests dir — fall back to
+			// the unit-test resources dir. Tikal's auto-routing
+			// doesn't recognise the .phpcnt extension, so an explicit
+			// `-fc okf_phpcontent` is required.
+			formatID:          "phpcontent",
+			filterClass:       "okf_phpcontent",
+			sources:           []string{"okapi/filters/php/src/test/resources"},
+			extensions:        []string{".phpcnt"},
+			tikalExtraArgs:    []string{"-fc", "okf_phpcontent"},
+			formatDefaultSkip: fileSkip{Engines: []string{"native", "bridge"}, Reason: "phpcontent byte-shape divergence on merge"},
 		},
 
 		// ── Tabular ───────────────────────────────────────────────
 		{
-			// Bridge's TSV default treats the first row as a header
-			// and skips it; native's default is cell-per-Block over
-			// every row (see feedback_parity_semantic_config). Skip
-			// bridge — fixing it requires explicit hasHeader
-			// translation in a TSV BridgeConfig hook.
-			name:        "tsv_two_rows",
-			formatID:    "tsv",
-			filterClass: "okf_tabseparatedvalues",
-			filename:    "data.tsv",
-			body:        []byte("Hello world\nGoodbye now\n"),
-			skip:        []string{"bridge"},
+			// Tikal routes .csv via okf_table_csv (the bare okf_csv
+			// alias doesn't exist on the table filter family).
+			formatID:          "csv",
+			filterClass:       "okf_commaseparatedvalues",
+			sources:           []string{"integration-tests/okapi/src/test/resources/table"},
+			extensions:        []string{".csv"},
+			tikalExtraArgs:    []string{"-fc", "okf_table_csv"},
+			formatDefaultSkip: fileSkip{Engines: []string{"native", "bridge"}, Reason: "csv table-semantics divergence (header/quoting/row-vs-cell) — needs per-format BridgeConfig translator"},
+		},
+		{
+			// No integration-tests source for tsv; cherry-pick the
+			// few real tsv fixtures from the shared table dir.
+			formatID:          "tsv",
+			filterClass:       "okf_tabseparatedvalues",
+			tikalExtraArgs:    []string{"-fc", "okf_table_tsv"},
+			explicitFiles:     []string{"okapi/filters/table/src/test/resources/test_tsv_simple.txt"},
+			formatDefaultSkip: fileSkip{Engines: []string{"native", "bridge"}, Reason: "tsv table-semantics divergence (same shape as csv)"},
+		},
+		{
+			formatID:          "fixedwidth",
+			filterClass:       "okf_fixedwidthcolumns",
+			tikalExtraArgs:    []string{"-fc", "okf_table_fwc"},
+			explicitFiles: []string{
+				"okapi/filters/table/src/test/resources/fwc_test4.txt",
+				"okapi/filters/table/src/test/resources/fwc_test5.txt",
+			},
+			formatDefaultSkip: fileSkip{Engines: []string{"native", "bridge"}, Reason: "fixedwidth column-spec/padding divergence"},
 		},
 
 		// ── Code/markup ───────────────────────────────────────────
 		{
-			// Bridge keeps the leading space after `@brief`; native
-			// trims it. Cosmetic divergence in the upstream
-			// comment-parser — skip bridge.
-			name:        "doxygen_two_briefs",
-			formatID:    "doxygen",
-			filterClass: "okf_doxygen",
-			filename:    "code.c",
-			body: []byte(`/**
- * @brief First widget description
- */
-void widget1(void);
-
-/**
- * @brief Second gadget description
- */
-void widget2(void);
-`),
-			skip: []string{"bridge"},
+			// Tikal needs `-fc okf_doxygen` (.h / .py / .c aren't in
+			// the auto-routing table for okf_doxygen).
+			formatID:          "doxygen",
+			filterClass:       "okf_doxygen",
+			sources:           []string{"integration-tests/okapi/src/test/resources/doxygen"},
+			extensions:        []string{".h", ".py"},
+			tikalExtraArgs:    []string{"-fc", "okf_doxygen"},
+			formatDefaultSkip: fileSkip{Engines: []string{"native", "bridge"}, Reason: "doxygen comment-block tokenization divergence (e.g. @brief inline-placeholder handling)"},
 		},
 
 		// ── XML / bilingual exchange formats ──────────────────────
 		{
-			// Native XML reader needs explicit ITS rules to know
-			// which elements are translatable; with default config
-			// it extracts the entire root as one Block. Skip native
-			// here — proper config would be a per-format spec.yaml
-			// concern, not the round-trip default.
-			name:        "xml_two_strings",
-			formatID:    "xml",
-			filterClass: "okf_xml",
-			filename:    "doc.xml",
-			body: []byte(`<?xml version="1.0" encoding="UTF-8"?>
-<root>
-  <text>Hello world</text>
-  <text>Goodbye now</text>
-</root>
-`),
-			skip: []string{"native"},
+			// okf_xml is the ITS-based XML filter (in
+			// okapi/filters/its/...). Bridge passes ~13 of 22 files
+			// — leave bridge per-file so its passes register.
+			formatID:          "xml",
+			filterClass:       "okf_xml",
+			sources:           []string{"integration-tests/okapi/src/test/resources/xml"},
+			extensions:        []string{".xml"},
+			formatDefaultSkip: fileSkip{Engines: []string{"native"}, Reason: "native XML reader needs explicit ITS rules; default config extracts whole document as one block"},
+			skip: map[string]fileSkip{
+				"Translate2.xml": {Engines: []string{"tikal"}, Reason: "tikal needs Translate2_LinkedRules.xml in the same dir; harness copies the input file alone"},
+				// Bridge inline-code (<ph>) handling differs from
+				// tikal — extracted markers diverge in the merged
+				// XML.
+				"TestMultiLang.xml":    {Engines: []string{"bridge", "native"}, Reason: "bridge inline-code marker divergence vs tikal"},
+				"Translate1.xml":       {Engines: []string{"bridge", "native"}, Reason: "bridge inline-code marker divergence vs tikal"},
+				"strings.xml":          {Engines: []string{"bridge", "native"}, Reason: "bridge inline-code marker divergence vs tikal"},
+				"test01.xml":           {Engines: []string{"bridge", "native"}, Reason: "bridge inline-code marker divergence vs tikal"},
+				"test02.xml":           {Engines: []string{"bridge", "native"}, Reason: "bridge inline-code marker divergence vs tikal"},
+				"test03.xml":           {Engines: []string{"bridge", "native"}, Reason: "bridge inline-code marker divergence vs tikal"},
+				"test04.xml":           {Engines: []string{"bridge", "native"}, Reason: "bridge inline-code marker divergence vs tikal"},
+				"test08_utf8nobom.xml":    {Engines: []string{"bridge", "native"}, Reason: "bridge inline-code marker divergence vs tikal"},
+				"lqi-test1-standoff.xml":  {Engines: []string{"bridge", "native"}, Reason: "bridge LQI standoff annotation handling divergence vs tikal"},
+			},
 		},
 		{
-			name:        "xliff_two_units",
-			formatID:    "xliff",
-			filterClass: "okf_xliff",
-			filename:    "doc.xlf",
-			body: []byte(`<?xml version="1.0" encoding="UTF-8"?>
-<xliff version="1.2">
-  <file source-language="en" target-language="fr" datatype="plaintext" original="src">
-    <body>
-      <trans-unit id="u1"><source>Hello world</source></trans-unit>
-      <trans-unit id="u2"><source>Goodbye now</source></trans-unit>
-    </body>
-  </file>
-</xliff>
-`),
+			// Bridge passes ~26 of 35 files; leave bridge per-file.
+			formatID:          "xliff",
+			filterClass:       "okf_xliff",
+			sources:           []string{"integration-tests/okapi/src/test/resources/xliff"},
+			extensions:        []string{".xlf"},
+			formatDefaultSkip: fileSkip{Engines: []string{"native"}, Reason: "native xliff writer adds extra xmlns declaration on roundtrip (Go encoding/xml shape)"},
+			skip: map[string]fileSkip{
+				"lqiTest.xlf": {Engines: []string{"tikal"}, Reason: "tikal needs lqiTestIssues.xml in the same dir; harness copies the input file alone"},
+				// Bridge inline-code / alt-trans handling
+				// divergences across various xliff dialects.
+				"ImplementationPlan.docx.xlf": {Engines: []string{"bridge", "native"}, Reason: "bridge inline-code/alt-trans divergence vs tikal"},
+				"MQ-12-Test01.xlf":            {Engines: []string{"bridge", "native"}, Reason: "bridge MemoQ-flavour xliff divergence vs tikal"},
+				"Manual-12-AltTrans.xlf":      {Engines: []string{"bridge", "native"}, Reason: "bridge alt-trans handling divergence vs tikal"},
+				"PAS-10-Test01.xlf":           {Engines: []string{"bridge", "native"}, Reason: "bridge Passolo-flavour xliff divergence vs tikal"},
+				"RB-11-Test01.xlf":            {Engines: []string{"bridge", "native"}, Reason: "bridge ResourceBundle-flavour xliff divergence vs tikal"},
+				"RB-12-Test02.xlf":            {Engines: []string{"bridge", "native"}, Reason: "bridge ResourceBundle-flavour xliff divergence vs tikal"},
+				"SF-12-Test03.xlf":            {Engines: []string{"bridge", "native"}, Reason: "bridge SDLFiletype divergence vs tikal"},
+				"Xslt-Test01.xlf":             {Engines: []string{"bridge", "native"}, Reason: "bridge xslt-derived xliff divergence vs tikal"},
+				"mq-12-Test01-small.xlf":      {Engines: []string{"bridge", "native"}, Reason: "bridge MemoQ-flavour xliff divergence vs tikal"},
+			},
 		},
 		{
-			// okapi-bridge's daemon reports "filter does not support
-			// writing: okf_xliff2" — the upstream filter is read-only.
-			// Native xliff2 still round-trips fine; bridge is just
-			// not a viable engine for xliff2 round-trips.
-			name:        "xliff2_two_units",
-			formatID:    "xliff2",
-			filterClass: "okf_xliff2",
-			filename:    "doc.xlf",
-			body: []byte(`<?xml version="1.0" encoding="UTF-8"?>
-<xliff xmlns="urn:oasis:names:tc:xliff:document:2.0" version="2.0" srcLang="en" trgLang="fr">
-  <file id="f1">
-    <unit id="u1"><segment><source>Hello world</source></segment></unit>
-    <unit id="u2"><segment><source>Goodbye now</source></segment></unit>
-  </file>
-</xliff>
-`),
-			skip: []string{"bridge"},
+			// Bridge daemon reports "filter does not support writing:
+			// okf_xliff2" — the upstream filter is read-only.
+			formatID:          "xliff2",
+			filterClass:       "okf_xliff2",
+			sources:           []string{"integration-tests/okapi/src/test/resources/xliff2"},
+			extensions:        []string{".xlf", ".xlf2"},
+			tikalExtraArgs:    []string{"-fc", "okf_xliff2"},
+			formatDefaultSkip: fileSkip{Engines: []string{"native", "bridge"}, Reason: "bridge okf_xliff2 is read-only; native byte-shape divergence on merge"},
 		},
 		{
-			name:        "tmx_two_units",
-			formatID:    "tmx",
-			filterClass: "okf_tmx",
-			filename:    "doc.tmx",
-			body: []byte(`<?xml version="1.0" encoding="UTF-8"?>
-<tmx version="1.4">
-  <header creationtool="test" creationtoolversion="1" segtype="sentence" o-tmf="x" adminlang="en" srclang="en" datatype="plaintext"/>
-  <body>
-    <tu><tuv xml:lang="en"><seg>Hello world</seg></tuv></tu>
-    <tu><tuv xml:lang="en"><seg>Goodbye now</seg></tuv></tu>
-  </body>
-</tmx>
-`),
+			formatID:          "tmx",
+			filterClass:       "okf_tmx",
+			sources:           []string{"integration-tests/okapi/src/test/resources/tmx"},
+			extensions:        []string{".tmx"},
+			formatDefaultSkip: fileSkip{Engines: []string{"native", "bridge"}, Reason: "tmx XML serialization shape divergence (declaration spacing, attribute order)"},
+			skip: map[string]fileSkip{
+				"code_fail.tmx":          {Engines: []string{"tikal"}, Reason: "intentionally-malformed test fixture; tikal rejects with 'no <tuv> set to source language'"},
+				"code_id_difference.tmx": {Engines: []string{"tikal"}, Reason: "intentionally-malformed test fixture for code-id mismatch detection"},
+			},
 		},
 		{
-			// Bridge's okf_ts writer emits malformed XML on merge
-			// (unexpected </translation> close). Real upstream bug.
-			name:        "ts_two_messages",
-			formatID:    "ts",
-			filterClass: "okf_ts",
-			filename:    "doc.ts",
-			body: []byte(`<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE TS>
-<TS version="2.1" language="fr">
-  <context>
-    <name>MyApp</name>
-    <message><source>Hello world</source><translation type="unfinished"></translation></message>
-    <message><source>Goodbye now</source><translation type="unfinished"></translation></message>
-  </context>
-</TS>
-`),
-			skip: []string{"bridge"},
-		},
-		{
-			// Bridge's Process RPC hangs (deadline exceeded) on TXML
-			// round-trip — daemon never emits ProcessComplete. Real
-			// bridge bug worth a follow-up issue.
-			name:        "txml_two_segments",
-			formatID:    "txml",
-			filterClass: "okf_txml",
-			filename:    "doc.txml",
-			body: []byte(`<?xml version="1.0" encoding="UTF-8"?>
-<txml version="1.0" datatype="plaintext" segtype="sentence" sourcelang="en" targetlang="fr">
-  <translatable id="1">
-    <segment segmentId="1">
-      <source>Hello world</source>
-    </segment>
-  </translatable>
-  <translatable id="2">
-    <segment segmentId="1">
-      <source>Goodbye now</source>
-    </segment>
-  </translatable>
-</txml>
-`),
-			skip: []string{"bridge"},
+			formatID:          "ts",
+			filterClass:       "okf_ts",
+			sources:           []string{"integration-tests/okapi/src/test/resources/ts"},
+			extensions:        []string{".ts"},
+			formatDefaultSkip: fileSkip{Engines: []string{"native", "bridge"}, Reason: "ts: bridge writer emits malformed XML; native emits <!DOCTYPE TS> without empty internal subset"},
 		},
 
 		// ── Subtitle / timed-text ─────────────────────────────────
 		{
-			// Bridge's WebVTT filter concatenates adjacent cues into
-			// one Block on round-trip. Real upstream segmentation
-			// divergence — skip bridge.
-			name:        "vtt_two_cues",
-			formatID:    "vtt",
-			filterClass: "okf_vtt",
-			filename:    "subs.vtt",
-			body: []byte(`WEBVTT
-
-00:00:01.000 --> 00:00:03.000
-Hello world
-
-00:00:04.000 --> 00:00:06.000
-Goodbye now
-`),
-			skip: []string{"bridge"},
+			// Default mergeCaptions=true mutates timestamps and
+			// splits merged target text across cues; both engines
+			// want the same override.
+			formatID:       "vtt",
+			filterClass:    "okf_vtt",
+			sources:        []string{"integration-tests/okapi/src/test/resources/vtt"},
+			extensions:     []string{".vtt"},
+			tikalExtraArgs: []string{"-fc", "okf_vtt@nomerge"},
+			tikalParamConfig: `#v1
+timeFormat=HH:mm:ss.SSS
+maxLinesPerCaption.i=2
+maxCharsPerLine.i=47
+cjkCharsPerLine.i=18
+mergeCaptions.b=false
+`,
+			bridgeParams:      map[string]string{"mergeCaptions": "false"},
+			formatDefaultSkip: fileSkip{Engines: []string{"native", "bridge"}, Reason: "native: caption-layout/newline divergence; bridge: byte-shape divergence on merge"},
 		},
 		{
-			// Force `mergeCaptions: false` to align bridge with
-			// native's per-paragraph segmentation. Without this the
-			// upstream TTML filter's default `mergeAdjacentCaptions`
-			// folds the two <p> elements into one Block on round-trip.
-			name:         "ttml_two_paragraphs",
-			formatID:     "ttml",
-			filterClass:  "okf_ttml",
-			filename:     "subs.ttml",
-			bridgeParams: map[string]string{"mergeCaptions": "false"},
-			body: []byte(`<?xml version="1.0" encoding="UTF-8"?>
-<tt xml:lang="en" xmlns="http://www.w3.org/ns/ttml">
-  <body>
-    <div>
-      <p begin="00:00:01.000" end="00:00:03.000">Hello world</p>
-      <p begin="00:00:04.000" end="00:00:06.000">Goodbye now</p>
-    </div>
-  </body>
-</tt>
-`),
+			// Same mergeCaptions story as VTT.
+			formatID:       "ttml",
+			filterClass:    "okf_ttml",
+			sources:        []string{"integration-tests/okapi/src/test/resources/ttml"},
+			extensions:     []string{".ttml"},
+			tikalExtraArgs: []string{"-fc", "okf_ttml@nomerge"},
+			tikalParamConfig: `#v1
+timeFormat=HH:mm:ss.SSS
+maxLinesPerCaption.i=2
+maxCharsPerLine.i=47
+cjkCharsPerLine.i=18
+mergeCaptions.b=false
+`,
+			bridgeParams:      map[string]string{"mergeCaptions": "false"},
+			formatDefaultSkip: fileSkip{Engines: []string{"native", "bridge"}, Reason: "native: doesn't preserve <br/> caption layout; bridge: emits empty «» wrapper for second paragraph"},
+		},
+		{
+			// Tikal routes .srt via the regex filter family
+			// (okf_regex-srt). No bridge counterpart.
+			formatID:          "srt",
+			filterClass:       "",
+			sources:           []string{"integration-tests/okapi/src/test/resources/srt"},
+			extensions:        []string{".srt"},
+			tikalExtraArgs:    []string{"-fc", "okf_regex-srt"},
+			formatDefaultSkip: fileSkip{Engines: []string{"native"}, Reason: "native srt writer CRLF preservation + first-cue wrapper placement diverge from tikal"},
 		},
 
 		// ── Misc text formats ─────────────────────────────────────
 		{
-			name:        "dtd_two_entities",
-			formatID:    "dtd",
-			filterClass: "okf_dtd",
-			filename:    "doc.dtd",
-			body: []byte(`<!ENTITY greeting "Hello world">
-<!ENTITY farewell "Goodbye now">
-`),
-		},
-		{
-			// Bridge's TeX filter merges paragraphs separated by a
-			// blank line into a single Block, native treats them
-			// independently. Skip bridge.
-			name:        "tex_two_paragraphs",
-			formatID:    "tex",
-			filterClass: "okf_tex",
-			filename:    "doc.tex",
-			body: []byte(`\documentclass{article}
-\begin{document}
-First paragraph here.
-
-Second paragraph follows.
-\end{document}
-`),
-			skip: []string{"bridge"},
-		},
-
-		// ── Tabular needing config ────────────────────────────────
-		{
-			// Native CSV defaults to cell-per-block (no header skip),
-			// upstream Okapi defaults to row-per-block from
-			// sourceColumns=1 and extracts the header. Aligning the
-			// two requires an explicit per-format BridgeConfig
-			// translator (see csv_bridge_config.go in the spec
-			// runner). Skip bridge here — the round-trip-CSV
-			// translator is a follow-up.
-			name:        "csv_two_rows",
-			formatID:    "csv",
-			filterClass: "okf_commaseparatedvalues",
-			filename:    "data.csv",
-			body:        []byte("Hello world\nGoodbye now\n"),
-			skip:        []string{"bridge"},
-		},
-		{
-			// Same story as csv: the fixedwidthcolumns bridge filter
-			// expects a flat string-encoded column spec (1-based,
-			// inclusive); native takes a typed `columns: [...]`
-			// list. The spec runner's fixedwidthBridgeConfig handles
-			// the translation; the round-trip harness doesn't yet
-			// invoke per-format translators. Skip bridge.
-			//
-			// trimValues:true so the writer's column-padding spaces
-			// don't count as block content during re-extraction.
-			name:        "fixedwidth_two_rows",
-			formatID:    "fixedwidth",
-			filterClass: "okf_fixedwidthcolumns",
-			filename:    "data.fwc",
-			nativeConfig: map[string]any{
-				"trimValues": true,
-				"columns": []any{
-					map[string]any{"name": "id", "start": 0, "width": 5, "translatable": false},
-					map[string]any{"name": "text", "start": 5, "width": 20, "translatable": true},
-				},
+			// /dtd/ exists in integration-tests but is empty; fall
+			// back to the unit-test resources where Test01/Test02 live.
+			formatID:          "dtd",
+			filterClass:       "okf_dtd",
+			sources:           []string{"okapi/filters/dtd/src/test/resources"},
+			extensions:        []string{".dtd"},
+			formatDefaultSkip: fileSkip{Engines: []string{"native"}, Reason: "native dtd writer emits an extra leading newline before the first entity"},
+			skip: map[string]fileSkip{
+				"Test01.dtd": {Engines: []string{"bridge", "native"}, Reason: "bridge XML-escapes placeholder markers tikal emits; native still has the leading-newline bug"},
 			},
-			body: []byte(`id001Hello world
-id002Goodbye now
-`),
-			skip: []string{"bridge"},
 		},
 		{
-			// Native splicedlines preserves LFs when joining lines;
-			// bridge collapses them to a single space (tracked under
-			// #536 in the spec runner). Skip bridge here too.
-			name:        "splicedlines_two_chunks",
-			formatID:    "splicedlines",
-			filterClass: "okf_splicedlines",
-			filename:    "doc.txt",
-			body:        []byte("Hello world\nGoodbye now\n"),
-			skip:        []string{"bridge"},
+			formatID:          "tex",
+			filterClass:       "okf_tex",
+			sources:           []string{"integration-tests/okapi/src/test/resources/tex"},
+			extensions:        []string{".tex"},
+			formatDefaultSkip: fileSkip{Engines: []string{"native", "bridge"}, Reason: "tex: native drops preamble/postamble on merge; bridge merges paragraph blocks"},
 		},
 		{
-			// Transtable's wire format requires `okpCtx:tu=<id>` as
-			// the first cell on each row. Targets are the second
-			// cell (when present) — bilingual.
-			//
-			// Bridge's okf_transtable writer drops the TransTableV1
-			// header and the `okpCtx` crumbs entirely (it concatenates
-			// just the wrapped strings). Real upstream bug — skip
-			// bridge.
-			name:        "transtable_two_pairs",
-			formatID:    "transtable",
-			filterClass: "okf_transtable",
-			filename:    "data.tsv",
-			body: []byte(`TransTableV1	en	fr
-"okpCtx:tu=1"	"Hello world"	""
-"okpCtx:tu=2"	"Goodbye now"	""
-`),
-			skip: []string{"bridge"},
+			formatID:          "transtable",
+			filterClass:       "okf_transtable",
+			sources:           []string{"integration-tests/okapi/src/test/resources/transtable"},
+			extensions:        []string{".txt"},
+			tikalExtraArgs:    []string{"-fc", "okf_transtable"},
+			formatDefaultSkip: fileSkip{Engines: []string{"native"}, Reason: "native transtable writer drops the TransTableV1 header and okpCtx columns on merge"},
 		},
 
-		// regex, vignette, ttx: not covered yet — each needs
-		// format-specific config wiring (regex rule set, vignette
-		// importContentInstance shape, ttx UTF-16 encoding) that
-		// doesn't fit the generic harness. Track these as follow-ups
-		// once the comparable spec.yaml runners settle their config
-		// translators.
-
-		// ── Native-only formats (no bridge counterpart) ───────────
+		// ── Binary / compound formats ─────────────────────────────
 		{
-			name:             "srt_two_cues",
-			formatID:         "srt",
-			filterClass:      "", // native-only, no okf_srt
-			tikalUnsupported: true,
-			filename:         "subs.srt",
-			body: []byte(`1
-00:00:01,000 --> 00:00:03,000
-Hello world
-
-2
-00:00:04,000 --> 00:00:06,000
-Goodbye now
-`),
+			// Upstream filter dir has the curated round-trip set
+			// (~70 .idml fixtures). Bridge passes ~24 of 70; the
+			// remaining 46 are skipped per-file via idmlBridgeSkips()
+			// (kept in coverage_skips_test.go to keep this file readable).
+			formatID:          "idml",
+			filterClass:       "okf_idml",
+			sources:           []string{"okapi/filters/idml/src/test/resources"},
+			extensions:        []string{".idml"},
+			isZip:             true,
+			formatDefaultSkip: fileSkip{Engines: []string{"native"}, Reason: "native idml writer doesn't merge target back into the .idml XML"},
+			skip:              idmlBridgeSkips(),
 		},
 		{
-			// JSX (KLF) — native-only, exchange-format only.
-			name:             "jsx_klf_two_blocks",
-			formatID:         "jsx",
-			filterClass:      "",
-			tikalUnsupported: true,
-			filename:         "doc.klf",
-			body: []byte(`{
-  "schemaVersion": "1.0",
-  "kind": "kapi-localization-format",
-  "generator": {"id": "test", "version": "1.0"},
-  "project": {"id": "p1", "sourceLocale": "en"},
-  "documents": [{
-    "id": "doc1",
-    "documentType": "jsx",
-    "path": "test.tsx",
-    "blocks": [
-      {"id": "b1", "translatable": true, "type": "jsx:string", "source": [{"text": "Hello world"}]},
-      {"id": "b2", "translatable": true, "type": "jsx:string", "source": [{"text": "Goodbye now"}]}
-    ]
-  }]
-}`),
+			// Several files crash tikal's icml merge — mark per-file.
+			formatID:          "icml",
+			filterClass:       "okf_icml",
+			sources:           []string{"integration-tests/okapi/src/test/resources/icml"},
+			extensions:        []string{".icml", ".wcml"},
+			formatDefaultSkip: fileSkip{Engines: []string{"native", "bridge"}, Reason: "icml: native writer XML-declaration shape divergence; bridge emits different inline run codes"},
+			skip: map[string]fileSkip{
+				"OpenofficeFootnoteTest.icml":                                {Engines: []string{"tikal"}, Reason: "tikal icml merge crashes on this fixture (upstream merge bug)"},
+				"TakeItNoItsYoursReallyTheExcellentInevitabilityOfFree.icml": {Engines: []string{"tikal"}, Reason: "tikal icml merge crashes on this fixture (upstream merge bug)"},
+				"TestArticle.icml":                                           {Engines: []string{"tikal"}, Reason: "tikal icml merge crashes on this fixture (upstream merge bug)"},
+				"ThreeParagraphFootnoteTest.icml":                            {Engines: []string{"tikal"}, Reason: "tikal icml merge crashes on this fixture (upstream merge bug)"},
+				"WordFootnoteTest.icml":                                      {Engines: []string{"tikal"}, Reason: "tikal icml merge crashes on this fixture (upstream merge bug)"},
+			},
 		},
 		{
-			name:             "versifiedtext_two_verses",
-			formatID:         "versifiedtext",
-			filterClass:      "",
-			tikalUnsupported: true,
-			filename:         "scripture.vrs",
-			body: []byte(`book.chapter.1|Hello world
-book.chapter.2|Goodbye now
-`),
+			// 185 .docx fixtures in the upstream filter dir. Bridge
+			// passes ~61 of 185; the other 124 are skipped per-file
+			// via openxmlBridgeSkips() (in coverage_skips_test.go).
+			formatID:          "openxml",
+			filterClass:       "okf_openxml",
+			sources:           []string{"okapi/filters/openxml/src/test/resources"},
+			extensions:        []string{".docx"},
+			isZip:             true,
+			formatDefaultSkip: fileSkip{Engines: []string{"native"}, Reason: "native openxml writer skips target text on merge — output keeps original English"},
+			skip:              openxmlBridgeSkips(),
 		},
 		{
-			// MessageFormat has no upstream okf_messageformat filter.
-			// Native is line-oriented — one ICU MessageFormat string
-			// per line.
-			name:             "messageformat_two_lines",
-			formatID:         "messageformat",
-			filterClass:      "",
-			tikalUnsupported: true,
-			filename:         "messages.mf",
-			body:             []byte("Hello world\nGoodbye now\n"),
-		},
-
-		// ── Binary / compound formats (load fixtures from disk) ──
-		{
-			// Native idml writer doesn't merge the pseudo-translated
-			// target back into the .idml XML — output still carries
-			// the original source. Real native bug.
-			//
-			// Bridge daemon throws an NPE on idml round-trip in the
-			// upstream filter ("Cannot invoke
-			// StartElement.getAttributeByName(...).getValue()").
-			// Real upstream bug.
-			name:        "idml_helloworld",
-			formatID:    "idml",
-			filterClass: "okf_idml",
-			filename:    "helloworld.idml",
-			bodyFile:    "core/formats/idml/testdata/helloworld.idml",
-			skip:        []string{"native", "bridge"},
-		},
-		{
-			name:        "icml_minimal",
-			formatID:    "icml",
-			filterClass: "okf_icml",
-			filename:    "minimal.icml",
-			bodyFile:    "core/formats/icml/testdata/minimal.icml",
-		},
-		{
-			// Native openxml writer skips the target text on merge —
-			// output docx contains the original English. Real native
-			// bug. Bridge passes.
-			name:        "openxml_simple_docx",
-			formatID:    "openxml",
-			filterClass: "okf_openxml",
-			filename:    "simple.docx",
-			bodyFile:    "core/formats/openxml/testdata/simple.docx",
-			skip:        []string{"native"},
-		},
-		// odf is not covered yet — the framework has no
-		// core/formats/odf/testdata/*.odt fixture committed. Add a
-		// row when an .odt/.ods/.odp/.odg lands.
-		{
-			// Native rtf writer emits "?" sentinels around target
-			// text rather than properly inserting it. Real native
-			// bug. Bridge's okf_rtf is read-only — daemon returns
-			// empty output on round-trip. Both real divergences;
-			// skip both engines (epub-style native-only would also
-			// fail since the native writer is broken).
-			name:        "rtf_simple",
-			formatID:    "rtf",
-			filterClass: "okf_rtf",
-			filename:    "simple.rtf",
-			bodyFile:    "core/formats/rtf/testdata/simple.rtf",
-			skip:        []string{"native", "bridge"},
-		},
-		{
-			// Native mif writer produces output the reader can't
-			// re-extract (0 blocks). Bridge picks up only 1 of 3
-			// blocks. Both real bugs.
-			name:        "mif_simple",
-			formatID:    "mif",
-			filterClass: "okf_mif",
-			filename:    "simple.mif",
-			bodyFile:    "core/formats/mif/testdata/simple.mif",
-			skip:        []string{"native", "bridge"},
-		},
-		{
-			// EPUB has no okf_epub bridge filter — it's handled by
-			// okf_archive on the bridge side. Native epub round-trip
-			// only.
-			name:             "epub_minimal",
-			formatID:         "epub",
-			filterClass:      "",
-			tikalUnsupported: true,
-			filename:         "minimal.epub",
-			bodyFile:         "core/formats/epub/testdata/minimal.epub",
+			formatID:          "mif",
+			filterClass:       "okf_mif",
+			sources:           []string{"integration-tests/okapi/src/test/resources/mif"},
+			extensions:        []string{".mif"},
+			formatDefaultSkip: fileSkip{Engines: []string{"native", "bridge"}, Reason: "mif: native writer produces output its reader can't re-extract; bridge picks up only some blocks"},
 		},
 	}
 }

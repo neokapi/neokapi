@@ -3,14 +3,14 @@
 package roundtrip
 
 import (
-	"bytes"
 	"context"
-	"encoding/xml"
 	"errors"
 	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
+	"strings"
 	"testing"
 	"time"
 )
@@ -32,18 +32,34 @@ import (
 // elements is engine-agnostic and exercises tikal's merge path
 // directly.
 type TikalEngine struct {
-	// ExtraExtractArgs is appended to the `tikal -x` invocation
-	// (e.g. "-fc okf_html@my-config" to pin a filter configuration).
-	// Optional.
+	// ExtraExtractArgs is appended to BOTH `tikal -x` and `tikal -m`
+	// (e.g. "-fc okf_xliff2" to pin a filter configuration when
+	// extension auto-detection misroutes). Tikal needs the same -fc
+	// at merge time it had at extract time. Optional.
 	ExtraExtractArgs []string
+
+	// ParamConfig, when non-empty, is written to a temp .fprm file
+	// and `-pd <tmpdir>` is appended to both extract and merge
+	// invocations. This lets a fixture override default filter
+	// parameters (e.g. mergeCaptions.b=false to disable VTT/TTML
+	// caption merging on round-trip).
+	//
+	// The variant name comes from the `-fc okf_xxx@<variant>` value
+	// in ExtraExtractArgs — the file written to disk is named
+	// `<full-fc-value>.fprm` so tikal's `-pd` resolution finds it.
+	// If ExtraExtractArgs has no `@<variant>` form, ParamConfig is
+	// rejected at runtime to keep the wiring explicit.
+	ParamConfig string
 }
 
 // Name returns "tikal".
 func (e *TikalEngine) Name() string { return "tikal" }
 
 // Available looks for tikal on PATH, in $OKAPI_HOME, or at the
-// $OKAPI_TIKAL override. Returns a descriptive error when missing
-// — the harness records this as Skipped.
+// $OKAPI_TIKAL override. Returns a descriptive error when missing.
+// The package's TestMain calls this once up front and aborts the
+// whole binary if tikal is not found — tikal is the comparator,
+// not an optional engine.
 func (e *TikalEngine) Available() error {
 	if _, err := tikalPath(); err != nil {
 		return err
@@ -52,12 +68,14 @@ func (e *TikalEngine) Available() error {
 }
 
 // RoundTrip extracts via tikal, fills XLIFF targets, merges, and
-// returns the merged output bytes.
+// returns the merged output bytes. Tikal is hard-required (checked
+// at TestMain), so a missing binary here means the env changed
+// mid-run — fail loudly rather than skipping.
 func (e *TikalEngine) RoundTrip(t *testing.T, in Input, spec PseudoSpec) []byte {
 	t.Helper()
 	path, err := tikalPath()
 	if err != nil {
-		t.Skipf("TikalEngine: %v", err)
+		t.Fatalf("TikalEngine: %v", err)
 	}
 
 	tmpDir := t.TempDir()
@@ -69,8 +87,20 @@ func (e *TikalEngine) RoundTrip(t *testing.T, in Input, spec PseudoSpec) []byte 
 	src := spec.SrcLocale()
 	tgt := spec.TgtLocale()
 
-	extractArgs := []string{"-x", inputPath, "-sl", src, "-tl", tgt}
-	extractArgs = append(extractArgs, e.ExtraExtractArgs...)
+	extraArgs := append([]string(nil), e.ExtraExtractArgs...)
+	if e.ParamConfig != "" {
+		variant := extractFCVariant(extraArgs)
+		if variant == "" {
+			t.Fatalf("TikalEngine: ParamConfig set but ExtraExtractArgs has no '-fc okf_xxx@<variant>' (the variant name is the .fprm filename tikal will look for)")
+		}
+		fprmPath := filepath.Join(tmpDir, variant+".fprm")
+		if err := os.WriteFile(fprmPath, []byte(e.ParamConfig), 0o644); err != nil {
+			t.Fatalf("TikalEngine: write param config: %v", err)
+		}
+		extraArgs = append(extraArgs, "-pd", tmpDir)
+	}
+
+	extractArgs := append([]string{"-x", inputPath, "-sl", src, "-tl", tgt}, extraArgs...)
 	if out, err := tikalRun(path, extractArgs, 60*time.Second); err != nil {
 		t.Fatalf("TikalEngine: tikal -x failed: %v\n%s", err, out)
 	}
@@ -93,7 +123,8 @@ func (e *TikalEngine) RoundTrip(t *testing.T, in Input, spec PseudoSpec) []byte 
 	if err := os.MkdirAll(outDir, 0o755); err != nil {
 		t.Fatalf("TikalEngine: mkdir merged: %v", err)
 	}
-	if out, err := tikalRun(path, []string{"-m", xliffPath, "-od", outDir}, 60*time.Second); err != nil {
+	mergeArgs := append([]string{"-m", xliffPath, "-od", outDir}, extraArgs...)
+	if out, err := tikalRun(path, mergeArgs, 60*time.Second); err != nil {
 		t.Fatalf("TikalEngine: tikal -m failed: %v\n%s", err, out)
 	}
 
@@ -105,136 +136,118 @@ func (e *TikalEngine) RoundTrip(t *testing.T, in Input, spec PseudoSpec) []byte 
 	return mergedData
 }
 
-// transUnit accumulates one <trans-unit>'s tokens during XLIFF
-// rewriting; flushTransUnit replays them with a fresh <target>
-// inserted after </source>.
-type transUnit struct {
-	translate string
-	sourceTxt string
-	buf       []xml.Token
-	inSource  bool
-	inTarget  bool
-}
+// xlfTransUnitRE matches one <trans-unit …>…</trans-unit> block in
+// tikal's XLIFF output. The body is captured non-greedily so adjacent
+// units don't collapse. Group 1: full attribute string of the open
+// tag. Group 2: inner content.
+var xlfTransUnitRE = regexp.MustCompile(`(?s)<trans-unit\b([^>]*)>(.*?)</trans-unit>`)
 
-// fillXLIFFTargets walks the XLIFF document, finds every
-// <trans-unit>'s <source>, and writes its wrapped form into
-// <target>. Untranslatable units (translate="no") are left alone.
+// xlfSourceRE matches the inner text of <source …>…</source>. We
+// only need the text (no nested inline-codes) for this harness's
+// pseudo-translation — tikal's XLIFF for the formats we exercise is
+// flat text. Captures the <source> attributes (group 1) and content
+// (group 2).
+var xlfSourceRE = regexp.MustCompile(`(?s)<source\b([^>]*)>(.*?)</source>`)
+
+// xlfTargetRE matches an existing <target …>…</target> element. We
+// replace its inner text with the wrapped source.
+var xlfTargetRE = regexp.MustCompile(`(?s)<target\b([^>]*)>(.*?)</target>`)
+
+// xlfTranslateNoRE detects translate="no" on the trans-unit open
+// attributes — those units are skipped (translation isn't expected).
+var xlfTranslateNoRE = regexp.MustCompile(`\btranslate\s*=\s*"no"`)
+
+// fillXLIFFTargets rewrites every <trans-unit>'s <target> in
+// tikal's XLIFF output to carry spec.Wrap(<source-text>). Operates
+// on the raw bytes via regex rather than encoding/xml because Go's
+// encoder mangles namespace declarations on roundtrip (each element
+// re-emits xmlns attributes, and xmlns:* prefix decls become
+// _xmlns:* attribute names — both break tikal's merger).
 //
-// We re-emit the XLIFF rather than doing string substitution so we
-// don't accidentally rewrite text inside unrelated nodes (alt-trans,
-// notes, etc.). Tikal's XLIFF is well-formed standard XLIFF 1.2 —
-// encoding/xml handles it without surprises.
+// Tikal's XLIFF for the formats this harness exercises is flat
+// text inside <source>/<target> with no inline-code (`<g>`, `<x>`,
+// etc.). Embedded markup would need decoding; the harness doesn't
+// need that today.
 func fillXLIFFTargets(in []byte, spec PseudoSpec) ([]byte, error) {
-	dec := xml.NewDecoder(bytes.NewReader(in))
-	var out bytes.Buffer
-	enc := xml.NewEncoder(&out)
+	out := xlfTransUnitRE.ReplaceAllFunc(in, func(unit []byte) []byte {
+		m := xlfTransUnitRE.FindSubmatch(unit)
+		if m == nil {
+			return unit
+		}
+		openAttrs, body := m[1], m[2]
+		if xlfTranslateNoRE.Match(openAttrs) {
+			return unit
+		}
+		srcMatch := xlfSourceRE.FindSubmatch(body)
+		if srcMatch == nil {
+			return unit
+		}
+		// Strip XML-escapes from the source text before wrapping —
+		// the wrap markers shouldn't double-encode entities. We
+		// re-encode below.
+		srcDecoded := xmlUnescape(string(srcMatch[2]))
+		wrapped := xmlEscape(spec.Wrap(srcDecoded))
 
-	var tu *transUnit
-	for {
-		tok, err := dec.Token()
-		if err != nil {
-			break
+		var newBody []byte
+		if xlfTargetRE.Match(body) {
+			newBody = xlfTargetRE.ReplaceAllFunc(body, func(target []byte) []byte {
+				tm := xlfTargetRE.FindSubmatch(target)
+				if tm == nil {
+					return target
+				}
+				return []byte(fmt.Sprintf("<target%s>%s</target>", tm[1], wrapped))
+			})
+		} else {
+			// Append a fresh <target> after </source>, inheriting
+			// no namespace decl (the surrounding default xmlns
+			// applies).
+			newBody = []byte(strings.Replace(string(body), "</source>", "</source>\n<target>"+wrapped+"</target>", 1))
 		}
-		switch t := tok.(type) {
-		case xml.StartElement:
-			switch t.Name.Local {
-			case "trans-unit":
-				tu = &transUnit{translate: attr(t, "translate")}
-				tu.buf = append(tu.buf, xml.CopyToken(t))
-				continue
-			case "source":
-				if tu != nil {
-					tu.inSource = true
-					tu.buf = append(tu.buf, xml.CopyToken(t))
-					continue
-				}
-			case "target":
-				if tu != nil {
-					tu.inTarget = true
-					continue
-				}
-			}
-		case xml.EndElement:
-			switch t.Name.Local {
-			case "trans-unit":
-				if tu != nil {
-					tu.buf = append(tu.buf, xml.CopyToken(t))
-					if err := flushTransUnit(enc, tu, spec); err != nil {
-						return nil, err
-					}
-					tu = nil
-					continue
-				}
-			case "source":
-				if tu != nil {
-					tu.inSource = false
-					tu.buf = append(tu.buf, xml.CopyToken(t))
-					continue
-				}
-			case "target":
-				if tu != nil {
-					tu.inTarget = false
-					continue
-				}
-			}
-		case xml.CharData:
-			if tu != nil {
-				if tu.inSource {
-					tu.sourceTxt += string(t)
-				}
-				if tu.inTarget {
-					continue
-				}
-				tu.buf = append(tu.buf, xml.CopyToken(t))
-				continue
-			}
-		}
-		if tu != nil {
-			tu.buf = append(tu.buf, xml.CopyToken(tok))
-			continue
-		}
-		if err := enc.EncodeToken(tok); err != nil {
-			return nil, err
-		}
-	}
-	if err := enc.Flush(); err != nil {
-		return nil, err
-	}
-	return out.Bytes(), nil
+		return []byte(fmt.Sprintf("<trans-unit%s>%s</trans-unit>", openAttrs, newBody))
+	})
+	return out, nil
 }
 
-// flushTransUnit writes a buffered <trans-unit> back out, injecting
-// a <target> populated with spec.Wrap(source) immediately after
-// </source>. Skips injection when translate="no" or source is empty.
-func flushTransUnit(enc *xml.Encoder, tu *transUnit, spec PseudoSpec) error {
-	wrote := false
-	for _, tok := range tu.buf {
-		if err := enc.EncodeToken(tok); err != nil {
-			return err
-		}
-		if end, ok := tok.(xml.EndElement); ok && end.Name.Local == "source" && !wrote {
-			if tu.translate != "no" && tu.sourceTxt != "" {
-				targetStart := xml.StartElement{Name: xml.Name{Local: "target"}}
-				if err := enc.EncodeToken(targetStart); err != nil {
-					return err
-				}
-				if err := enc.EncodeToken(xml.CharData(spec.Wrap(tu.sourceTxt))); err != nil {
-					return err
-				}
-				if err := enc.EncodeToken(xml.EndElement{Name: targetStart.Name}); err != nil {
-					return err
-				}
-			}
-			wrote = true
-		}
-	}
-	return nil
+// xmlEscape converts plain text into XLIFF-safe content: only the
+// five XML-mandatory escapes. `«»` and other Unicode pass through
+// — tikal's XLIFF is UTF-8, no entity-encoding needed.
+func xmlEscape(s string) string {
+	r := strings.NewReplacer(
+		"&", "&amp;",
+		"<", "&lt;",
+		">", "&gt;",
+		`"`, "&quot;",
+		"'", "&apos;",
+	)
+	return r.Replace(s)
 }
 
-func attr(e xml.StartElement, name string) string {
-	for _, a := range e.Attr {
-		if a.Name.Local == name {
-			return a.Value
+// xmlUnescape reverses the five mandatory escapes plus the common
+// numeric character references tikal might emit. Sufficient for the
+// flat text inside tikal's <source> elements for the formats this
+// harness exercises.
+func xmlUnescape(s string) string {
+	r := strings.NewReplacer(
+		"&amp;", "&",
+		"&lt;", "<",
+		"&gt;", ">",
+		"&quot;", `"`,
+		"&apos;", "'",
+	)
+	return r.Replace(s)
+}
+
+// extractFCVariant returns the full `-fc` value (e.g. "okf_ttml@nomerge")
+// from a tikal arg slice, or "" if no -fc with an @variant is present.
+// Used to derive the .fprm filename tikal will look for under -pd.
+func extractFCVariant(args []string) string {
+	for i := 0; i < len(args)-1; i++ {
+		if args[i] == "-fc" {
+			v := args[i+1]
+			if strings.Contains(v, "@") {
+				return v
+			}
+			return ""
 		}
 	}
 	return ""

@@ -33,6 +33,17 @@ type Sandbox struct {
 	// OkapiBridgeBinary is the absolute path to the daemon launcher
 	// inside OkapiBridgeDir, derived from manifest.binary.
 	OkapiBridgeBinary string
+
+	// OkapiTestDataDir is the absolute path to the unpacked Okapi
+	// test resources tarball published as the
+	// `okapi-testdata-<version>` GitHub release on
+	// neokapi/okapi-bridge (built by that repo's
+	// `scripts/publish-okapi-testdata.sh`). The tree preserves the
+	// original Okapi layout: `okapi/filters/<filter>/src/test/
+	// resources/...`. Round-trip tests resolve upstream Okapi binary
+	// fixtures from here so neokapi doesn't have to vendor them.
+	// May be empty if the fetch failed at sandbox-build time.
+	OkapiTestDataDir string
 }
 
 var (
@@ -91,6 +102,28 @@ func LoadSandbox() (*Sandbox, error) {
 			sandboxErr = fmt.Errorf("sandbox bridge binary missing at %s: %w", s.OkapiBridgeBinary, err)
 			return
 		}
+		// OkapiTestDataDir is optional — only populated when
+		// scripts/parity-sandbox.sh successfully fetched and
+		// extracted the okapi-testdata-<version> release tarball.
+		// Tests that need it should fail loudly via
+		// RequireOkapiTestData rather than silently skipping.
+		// Probe both the versioned dir and a stable "current"
+		// alias; we use the versioned path because the sandbox
+		// script extracts there.
+		entries, _ := os.ReadDir(filepath.Join(root, "okapi-testdata"))
+		for _, e := range entries {
+			if !e.IsDir() {
+				continue
+			}
+			candidate := filepath.Join(root, "okapi-testdata", e.Name())
+			// The tarball preserves the upstream "okapi/" prefix on
+			// every path (okapi/filters/..., okapi/integration-tests/...);
+			// confirm by checking for that subdir.
+			if _, err := os.Stat(filepath.Join(candidate, "okapi")); err == nil {
+				s.OkapiTestDataDir = candidate
+				break
+			}
+		}
 		sandbox = s
 	})
 	return sandbox, sandboxErr
@@ -137,6 +170,31 @@ const skipEnv = "KAPI_PARITY_SKIP"
 // Set KAPI_PARITY_SKIP=1 to opt out (only useful for cross-cutting test
 // runs that don't care about parity, e.g. `go test ./...` from a fresh
 // checkout before the sandbox exists).
+// RequireOkapiTestData returns the absolute path to a fixture
+// inside the unpacked okapi-testdata-<version> release tarball.
+// The path is in the original Okapi layout, e.g.
+// "okapi/filters/idml/src/test/resources/06-hello-world-12.idml".
+//
+// Use this for upstream Okapi binary fixtures the round-trip suite
+// needs but neokapi shouldn't vendor. The tarball is published by
+// okapi-bridge's scripts/publish-okapi-testdata.sh as the
+// `okapi-testdata-<version>` GitHub release and fetched on demand
+// by scripts/parity-sandbox.sh. This lookup is a hard fail when
+// the tree is missing — a silent skip would mask the fact that
+// nothing is being asserted.
+func RequireOkapiTestData(t *testing.T, rel string) string {
+	t.Helper()
+	s := RequireSandbox(t)
+	if s.OkapiTestDataDir == "" {
+		t.Fatalf("okapi test resources tarball not present in sandbox — scripts/parity-sandbox.sh failed to fetch it (network? GitHub release missing?). Rerun with PARITY_FORCE=1 make parity-test.")
+	}
+	abs := filepath.Join(s.OkapiTestDataDir, rel)
+	if _, err := os.Stat(abs); err != nil {
+		t.Fatalf("okapi test resource %q not found at %s: %v", rel, abs, err)
+	}
+	return abs
+}
+
 func RequireSandbox(t *testing.T) *Sandbox {
 	t.Helper()
 	s, err := LoadSandbox()

@@ -17,22 +17,14 @@
 //
 // Pseudo-translation is the canonical Okapi roundtrip vehicle (it's
 // what RoundTripIt-style integration tests have always used) because
-// it's:
+// it's deterministic, locale-agnostic, and exercises every engine's
+// real merge logic.
 //
-//   - Deterministic — same input always yields same target.
-//   - Locale-agnostic — no MT, no model dependency.
-//   - Inline-aware — each engine has the freedom to keep paired-codes
-//     and placeholders intact in the target while wrapping only the
-//     text spans, exercising real merge logic.
-//   - Comparable — every engine's output can be re-extracted with the
-//     reference reader and diffed at the Block level.
-//
-// # The three engines
+// # The engines
 //
 //   - NativeEngine wires the format's registered reader through a
-//     PseudoTranslate tool into the format's registered writer, all
-//     in-process. This is what `kapi pseudo-translate` does at the
-//     CLI layer; the engine reuses the same plumbing.
+//     pseudo transform into the format's registered writer, all
+//     in-process.
 //
 //   - BridgeEngine drives the okapi-bridge daemon's Process RPC in
 //     read-write mode. The daemon reads via the requested
@@ -43,35 +35,43 @@
 //   - TikalEngine shells out to the upstream tikal CLI: tikal -x to
 //     extract to XLIFF, a Go-side XLIFF target rewrite, then
 //     tikal -m to merge the translated XLIFF back into the original
-//     file. This is the ground truth — any divergence between
-//     bridge and tikal exposes a bug in the bridge daemon's filter
-//     wiring (since bridge is supposed to be a thin shim over the
-//     same Okapi filters tikal calls).
+//     file.
+//
+// Tikal is the comparator, not a tested engine. Asserting tikal-
+// against-itself would be circular; instead the harness runs tikal
+// inline once per fixture to obtain the live reference output, then
+// byte-compares each tested engine (native, bridge) against it.
+//
+// # Hard requirements
+//
+// Tikal AND okapi-bridge are mandatory dependencies for this suite.
+// Tikal is checked at TestMain (set OKAPI_TIKAL, OKAPI_HOME, or put
+// tikal on PATH). Bridge is required by the existing
+// parity.AcquireBridgeDaemon path. If either is missing, the test
+// binary aborts with a clear error — no silent skips.
 //
 // # Comparison strategy
 //
-// Byte-equal comparison across engines is unrealistic — each filter
-// emits subtly different whitespace, attribute ordering, and
-// XML-decl quoting. Instead the harness re-extracts each engine's
-// merged output through the native reader and compares the resulting
-// Block source-text streams. This is the same level of fidelity the
-// spec.yaml runners use, applied to the round-tripped output.
+// Each engine's merged output is compared byte-for-byte against
+// tikal's output for the same fixture, produced inline in the same
+// test run. There are no committed golden files: tikal's behavior
+// IS the reference, captured fresh every test, so there is no risk
+// of "the golden is from tikal v1.47, but we're on v1.48 now" drift.
 //
-// Engines whose tooling is unavailable on the runner (tikal not
-// installed, bridge daemon not reachable) skip with t.Skip rather
-// than fail — the harness reports which engines participated.
+// Compound zip formats (idml, openxml, epub) compare per-entry —
+// byte-equal across uncompressed entry contents, ignoring zip
+// metadata (mtime, central-directory order) that two correct
+// round-trippers can legitimately differ on. Set Case.IsZip to true.
 //
 // # Architecture
 //
 //   - engine.go declares the Engine interface and the shared
 //     PseudoSpec / Result types.
 //   - pseudo.go implements the canonical pseudo transform that all
-//     engines apply; tikal and bridge invoke it directly, native
-//     uses the equivalent built-in PseudoTranslate tool.
+//     engines apply.
 //   - native.go, bridge.go, tikal.go are one engine each.
-//   - compare.go re-extracts and diffs Block streams.
-//   - harness.go is the test entrypoint: RunThreeWay(t, cfg).
-//
-// All files are build-tagged `parity` to match the surrounding
-// cli/parity/ harness.
+//   - compare.go: byte / per-zip-entry comparators + Divergence type.
+//   - harness.go: RunThreeWay — runs tikal as the comparator and
+//     each tested engine against tikal's output.
+//   - main_test.go: TestMain hard-requires tikal up front.
 package roundtrip
