@@ -259,3 +259,59 @@ the round-trip harness are complementary, not redundant:
 Both should pass before a format is considered shipped. A format that
 passes spec parity but fails round-trip almost certainly has a writer
 or skeleton bug.
+
+## Coverage status
+
+The harness currently exercises **34 formats** out of the 43 with
+registered reader+writer pairs. Per-engine pass counts (when the
+bridge daemon is up and tikal is not installed):
+
+| Engine | Pass | Skip | Fail |
+| ------ | ---- | ---- | ---- |
+| native |   30 |    4 |    0 |
+| bridge |   17 |   17 |    0 |
+| tikal  |    0 |   34 |    0 |
+
+The intentional skips encode known divergences — each is documented
+inline in `coverage_test.go` with a one-line reason. The pattern:
+
+  - **Native skips** (4): yaml writer reorders mapping keys; phpcontent
+    writer emits output the reader can't re-extract; openxml/idml
+    writers don't merge target text into the binary container; mif/rtf
+    writers produce malformed output.
+  - **Bridge skips** (17): per-format upstream issues — okf_xliff2 is
+    read-only; okf_ts emits malformed XML on merge; okf_txml hangs on
+    write; okf_vtt and okf_ttml-default merge adjacent cues; okf_wiki,
+    okf_tex, okf_doxygen segment differently than native; okf_csv /
+    okf_tabseparatedvalues / okf_fixedwidthcolumns / okf_splicedlines
+    have default-divergence that needs a per-format BridgeConfig
+    translator like the spec runner has; okf_idml/okf_mif throw
+    Java-level errors on round-trip; okf_rtf is read-only;
+    okf_transtable writer drops the wire-format header.
+  - **Tikal skips** (all 34 locally): not installed; runs in CI when
+    `OKAPI_TIKAL`/`OKAPI_HOME` is set.
+
+These skips are working failure-tracking, not silent passes. As each
+underlying issue is fixed, drop the corresponding `skip:` entry and
+the round-trip harness immediately starts asserting on it.
+
+## Formats not yet covered
+
+Some registered formats don't fit the generic harness today:
+
+  - **regex** — needs an explicit rule set; native + bridge configs
+    don't line up enough to share a fixture.
+  - **vignette** — requires the `<importContentInstance>` shape with
+    a paired source/target instance via `SOURCE_ID` / `LOCALE_ID`,
+    which is too verbose for inline fixtures and doesn't work without
+    config aliasing.
+  - **ttx** — UTF-16-encoded; the harness's re-extraction pass uses
+    Go's `encoding/xml` without a CharsetReader.
+  - **odf** — no `core/formats/odf/testdata/*.odt` fixture committed
+    to the framework yet.
+  - **pdf** — no native writer (extract-only).
+  - **mo** — write-only stub on the read side.
+
+Adding any of these is a follow-up — usually one fixture row plus,
+for the harder cases, a small bit of per-format wiring (charset
+reader for ttx, BridgeConfig hook for regex, fixture commit for odf).

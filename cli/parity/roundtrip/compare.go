@@ -33,7 +33,7 @@ import (
 // Differences between engines surface as differing extracted
 // streams, not as encoding noise that would dominate a byte-equal
 // comparison.
-func extractedBlocks(formatID registry.FormatID, output []byte, sourceLocale, targetLocale string) ([]string, error) {
+func extractedBlocks(formatID registry.FormatID, output []byte, sourceLocale, targetLocale string, readerConfig map[string]any) ([]string, error) {
 	reg := registry.NewFormatRegistry()
 	formats.RegisterAll(reg)
 	reader, err := reg.NewReader(formatID)
@@ -41,6 +41,13 @@ func extractedBlocks(formatID registry.FormatID, output []byte, sourceLocale, ta
 		return nil, fmt.Errorf("re-extract: reader for %q: %w", formatID, err)
 	}
 	defer func() { _ = reader.Close() }()
+	if len(readerConfig) > 0 {
+		if cfg := reader.Config(); cfg != nil {
+			if err := cfg.ApplyMap(readerConfig); err != nil {
+				return nil, fmt.Errorf("re-extract: ApplyMap: %w", err)
+			}
+		}
+	}
 
 	doc := &model.RawDocument{
 		URI:          "roundtrip-output",
@@ -89,11 +96,11 @@ func blockTranslatedText(b *model.Block, target model.LocaleID) string {
 // the input bytes via the same native reader the comparison uses, so
 // the expectation comes from the same authority that judges the
 // outputs.
-func expectedTargets(formatID registry.FormatID, input []byte, spec PseudoSpec) ([]string, error) {
+func expectedTargets(formatID registry.FormatID, input []byte, spec PseudoSpec, readerConfig map[string]any) ([]string, error) {
 	// For the input we want raw source text, not target — the input
 	// has no targets yet. Pass an empty targetLocale so
 	// extractedBlocks falls through to SourceText().
-	sources, err := extractedBlocks(formatID, input, spec.SrcLocale(), "")
+	sources, err := extractedBlocks(formatID, input, spec.SrcLocale(), "", readerConfig)
 	if err != nil {
 		return nil, err
 	}

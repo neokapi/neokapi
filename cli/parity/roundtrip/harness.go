@@ -47,7 +47,11 @@ func RunThreeWay(t *testing.T, c Case, native *NativeEngine, bridge *BridgeEngin
 	if c.FormatID == "" {
 		t.Fatal("RunThreeWay: Case.FormatID is required")
 	}
-	expected, err := expectedTargets(c.FormatID, c.Input.Bytes, c.Spec)
+	var readerConfig map[string]any
+	if native != nil {
+		readerConfig = native.ReaderConfig
+	}
+	expected, err := expectedTargets(c.FormatID, c.Input.Bytes, c.Spec, readerConfig)
 	if err != nil {
 		t.Fatalf("RunThreeWay: expected targets: %v", err)
 	}
@@ -90,7 +94,7 @@ func RunThreeWay(t *testing.T, c Case, native *NativeEngine, bridge *BridgeEngin
 				t.Skipf("engine %q unavailable: %v", e.name, err)
 			}
 			out := e.eng.RoundTrip(t, c.Input, c.Spec)
-			actual, err := extractedBlocks(c.FormatID, out, c.Spec.SrcLocale(), c.Spec.TgtLocale())
+			actual, err := extractedBlocks(c.FormatID, out, c.Spec.SrcLocale(), c.Spec.TgtLocale(), readerConfig)
 			if err != nil {
 				t.Fatalf("engine %q: re-extract output: %v", e.name, err)
 			}
