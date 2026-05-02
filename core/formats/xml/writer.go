@@ -17,11 +17,14 @@ type Writer struct {
 	format.BaseFormatWriter
 	resolver      format.SubfilterResolver
 	skeletonStore *format.SkeletonStore
+	cfg           *WriterCfg
 }
 
-// Ensure Writer implements SubfilterAware and SkeletonStoreConsumer.
+// Ensure Writer implements SubfilterAware, SkeletonStoreConsumer, and
+// WriterConfigurable.
 var _ format.SubfilterAware = (*Writer)(nil)
 var _ format.SkeletonStoreConsumer = (*Writer)(nil)
+var _ format.WriterConfigurable = (*Writer)(nil)
 
 // NewWriter creates a new XML writer.
 func NewWriter() *Writer {
@@ -29,8 +32,12 @@ func NewWriter() *Writer {
 		BaseFormatWriter: format.BaseFormatWriter{
 			FormatName: "xml",
 		},
+		cfg: NewWriterCfg(),
 	}
 }
+
+// WriterConfig returns the writer's serialization config.
+func (w *Writer) WriterConfig() format.DataFormatConfig { return w.cfg }
 
 // SetSubfilterResolver sets the resolver for creating sub-format writers.
 func (w *Writer) SetSubfilterResolver(resolver format.SubfilterResolver) {
@@ -109,7 +116,13 @@ done:
 
 // writeFromSkeleton reads skeleton entries and fills in block content.
 // This produces byte-exact output — only translated text differs from the original.
+//
+// When cfg.EmitDeclaration is set and the source skeleton's leading
+// bytes don't already contain an `<?xml ?>` prologue, one is injected
+// at the start of output. Source documents that already begin with a
+// declaration pass through unchanged.
 func (w *Writer) writeFromSkeleton(blocks map[string]*model.Block) error {
+	first := true
 	for {
 		entry, err := w.skeletonStore.Next()
 		if errors.Is(err, io.EOF) {
@@ -120,10 +133,35 @@ func (w *Writer) writeFromSkeleton(blocks map[string]*model.Block) error {
 		}
 		switch entry.Type {
 		case format.SkeletonText:
-			if _, err := w.Output.Write(entry.Data); err != nil {
+			data := entry.Data
+			if first && w.cfg != nil && w.cfg.EmitDeclaration {
+				// EmitDeclaration mode rewrites the source's prologue
+				// to a fresh canonical declaration: any existing
+				// declaration is stripped, then a new one is emitted.
+				// This matches the behavior of tools that always emit
+				// a normalized prologue (e.g. upstream Okapi) where
+				// a source `<?xml version="1.0"?>` becomes
+				// `<?xml version="1.0" encoding="UTF-8"?>`.
+				bom, rest := splitLeadingBOM(data)
+				rest = stripLeadingXMLDeclaration(rest)
+				if len(bom) > 0 {
+					if _, err := w.Output.Write(bom); err != nil {
+						return err
+					}
+				}
+				decl := fmt.Sprintf("<?xml version=\"%s\" encoding=\"%s\"?>\n",
+					w.cfg.DeclarationVersion, w.cfg.DeclarationEncoding)
+				if _, err := io.WriteString(w.Output, decl); err != nil {
+					return err
+				}
+				data = rest
+			}
+			first = false
+			if _, err := w.Output.Write(data); err != nil {
 				return err
 			}
 		case format.SkeletonRef:
+			first = false
 			if block, ok := blocks[string(entry.Data)]; ok {
 				text := w.renderBlockXML(block)
 				if _, err := io.WriteString(w.Output, text); err != nil {
@@ -133,6 +171,44 @@ func (w *Writer) writeFromSkeleton(blocks map[string]*model.Block) error {
 		}
 	}
 	return nil
+}
+
+// stripLeadingXMLDeclaration returns data with any leading `<?xml ... ?>`
+// declaration removed (along with the trailing newline that typically
+// follows it). Whitespace before the declaration is preserved. If no
+// declaration is present, data is returned unchanged.
+func stripLeadingXMLDeclaration(data []byte) []byte {
+	i := 0
+	for i < len(data) && (data[i] == ' ' || data[i] == '\t' || data[i] == '\r' || data[i] == '\n') {
+		i++
+	}
+	if !bytes.HasPrefix(data[i:], []byte("<?xml")) {
+		return data
+	}
+	end := bytes.Index(data[i:], []byte("?>"))
+	if end < 0 {
+		return data
+	}
+	cut := i + end + 2
+	// Consume one trailing newline after the declaration if present
+	// — declarations conventionally sit on their own line, and the
+	// replacement we emit ends with `\n` already.
+	if cut < len(data) && data[cut] == '\n' {
+		cut++
+	} else if cut+1 < len(data) && data[cut] == '\r' && data[cut+1] == '\n' {
+		cut += 2
+	}
+	return data[cut:]
+}
+
+// splitLeadingBOM returns (bom, rest) where bom is the UTF-8 byte-order
+// mark if present at the start of data, and rest is the remainder.
+// Used to inject an XML declaration after the BOM rather than before.
+func splitLeadingBOM(data []byte) (bom, rest []byte) {
+	if bytes.HasPrefix(data, []byte("\xef\xbb\xbf")) {
+		return data[:3], data[3:]
+	}
+	return nil, data
 }
 
 // renderBlockXML renders a block's text for XML output. Text parts are XML-escaped

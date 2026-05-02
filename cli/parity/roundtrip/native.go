@@ -31,6 +31,15 @@ type NativeEngine struct {
 	// non-nil. Pass the same semantic config the spec.yaml example
 	// uses; defaults are taken otherwise.
 	ReaderConfig map[string]any
+
+	// WriterOverlay is a curated map applied to the writer's
+	// WriterConfig().ApplyMap to align the native writer's output with
+	// upstream Okapi's defaults for parity comparison. These are NOT
+	// format defaults — they exist solely so the parity test can verify
+	// "given the same semantic config, native produces the same bytes
+	// as okapi". Document the intent inline at the call site so the
+	// "why" survives.
+	WriterOverlay map[string]any
 }
 
 // Name returns "native".
@@ -68,6 +77,19 @@ func (e *NativeEngine) RoundTrip(t *testing.T, in Input, spec PseudoSpec) []byte
 	if err != nil {
 		t.Fatalf("NativeEngine: writer for %q: %v", e.FormatID, err)
 	}
+	if len(e.WriterOverlay) > 0 {
+		cfgable, ok := writer.(format.WriterConfigurable)
+		if !ok {
+			t.Fatalf("NativeEngine: WriterOverlay set but writer %q does not implement WriterConfigurable", e.FormatID)
+		}
+		cfg := cfgable.WriterConfig()
+		if cfg == nil {
+			t.Fatalf("NativeEngine: WriterOverlay set but writer %q returned nil WriterConfig", e.FormatID)
+		}
+		if err := cfg.ApplyMap(e.WriterOverlay); err != nil {
+			t.Fatalf("NativeEngine: WriterConfig.ApplyMap: %v", err)
+		}
+	}
 
 	tgt := model.LocaleID(spec.TgtLocale())
 
@@ -75,6 +97,11 @@ func (e *NativeEngine) RoundTrip(t *testing.T, in Input, spec PseudoSpec) []byte
 	inputPath := filepath.Join(tmpDir, in.Filename)
 	if err := os.WriteFile(inputPath, in.Bytes, 0o644); err != nil {
 		t.Fatalf("NativeEngine: write input: %v", err)
+	}
+	for name, data := range in.Companions {
+		if err := os.WriteFile(filepath.Join(tmpDir, name), data, 0o644); err != nil {
+			t.Fatalf("NativeEngine: write companion %q: %v", name, err)
+		}
 	}
 
 	doc := &model.RawDocument{

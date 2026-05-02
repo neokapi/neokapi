@@ -21,6 +21,20 @@ type SourcePathSetter interface {
 	SetSourcePath(path string)
 }
 
+// WriterConfigurable is implemented by writers that expose
+// serialization knobs (line endings, declaration emission, quote
+// strategy, etc.). The returned config follows the same
+// DataFormatConfig contract used by readers, so existing CLI
+// introspection (formats info / formats schema), .kapi recipe loading,
+// and ApplyMap plumbing all extend to writers without parallel
+// machinery.
+//
+// Returns nil for writers with no configurable surface — callers
+// should treat that as "no knobs available" rather than an error.
+type WriterConfigurable interface {
+	WriterConfig() DataFormatConfig
+}
+
 // DataFormatWriter reconstructs a document from Parts.
 type DataFormatWriter interface {
 	// Name returns the format name matching the reader.
