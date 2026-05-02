@@ -60,11 +60,14 @@ func snapshotParityRecords() []parityRecord {
 }
 
 // FlushParityReport writes a Markdown report of every recorded
-// fixture/engine outcome to w. The report has two sections:
+// fixture/engine outcome to w. The report has three sections:
 //
-//  1. Summary table: per (format, engine), tier histogram so we see at
+//  1. Engine totals: one row per engine with overall byte/canon/sem/div/skip
+//     counts so a single glance answers "is bridge holding parity? how much
+//     of the native gap is structural vs stylistic?".
+//  2. Per-format summary: per (format, engine) tier histogram so we see at
 //     a glance which engines reach which tiers on which formats.
-//  2. Divergent detail: per (format, engine) that has any divergent
+//  3. Divergent detail: per (format, engine) that has any divergent
 //     fixture, a table listing fixture, sizes, first-diff offset, and
 //     a sample of the diff so humans can spot patterns (line endings,
 //     whitespace, encoding, …) without re-running.
@@ -78,6 +81,18 @@ func FlushParityReport(w io.Writer) error {
 		return err
 	}
 
+	if _, err := fmt.Fprintln(w, "# Parity report"); err != nil {
+		return err
+	}
+	if _, err := fmt.Fprintln(w); err != nil {
+		return err
+	}
+	if err := writeEngineTotals(w, records); err != nil {
+		return err
+	}
+	if _, err := fmt.Fprintln(w); err != nil {
+		return err
+	}
 	if err := writeSummaryTable(w, records); err != nil {
 		return err
 	}
@@ -86,6 +101,69 @@ func FlushParityReport(w io.Writer) error {
 	}
 	if err := writeDivergentDetail(w, records); err != nil {
 		return err
+	}
+	return nil
+}
+
+// writeEngineTotals prints one row per engine with the global byte / canon
+// / sem / div / skip counts and the byte-equal percentage. This is the
+// "did anything regress vs last run?" view — the per-format table tells
+// you where the gaps are; this tells you whether they grew or shrank.
+func writeEngineTotals(w io.Writer, records []parityRecord) error {
+	type tot struct {
+		Total, Byte, Canon, Sem, Div, Skip int
+	}
+	totals := map[string]*tot{}
+	var engines []string
+	for _, r := range records {
+		v, ok := totals[r.Engine]
+		if !ok {
+			v = &tot{}
+			totals[r.Engine] = v
+			engines = append(engines, r.Engine)
+		}
+		v.Total++
+		switch {
+		case r.Skipped:
+			v.Skip++
+		case r.Achieved == TierByteEqual:
+			v.Byte++
+		case r.Achieved == TierCanonicalEqual:
+			v.Canon++
+		case r.Achieved == TierSemanticEqual:
+			v.Sem++
+		default:
+			v.Div++
+		}
+	}
+	sort.Strings(engines)
+
+	if _, err := fmt.Fprintln(w, "## Totals"); err != nil {
+		return err
+	}
+	if _, err := fmt.Fprintln(w); err != nil {
+		return err
+	}
+	if _, err := fmt.Fprintln(w, "| Engine | Total | byte | canon | sem | div | skip | byte% |"); err != nil {
+		return err
+	}
+	if _, err := fmt.Fprintln(w, "|---|---:|---:|---:|---:|---:|---:|---:|"); err != nil {
+		return err
+	}
+	for _, e := range engines {
+		v := totals[e]
+		// Percentage is byte-equal divided by asserted (total minus skipped) —
+		// skipped fixtures don't represent failures, so they shouldn't drag the
+		// percentage down.
+		asserted := v.Total - v.Skip
+		var pct float64
+		if asserted > 0 {
+			pct = 100 * float64(v.Byte) / float64(asserted)
+		}
+		if _, err := fmt.Fprintf(w, "| %s | %d | %d | %d | %d | %d | %d | %.1f%% |\n",
+			e, v.Total, v.Byte, v.Canon, v.Sem, v.Div, v.Skip, pct); err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -143,13 +221,7 @@ func aggregate(records []parityRecord) (map[aggKey]*aggVal, []aggKey) {
 
 func writeSummaryTable(w io.Writer, records []parityRecord) error {
 	aggs, keys := aggregate(records)
-	if _, err := fmt.Fprintln(w, "# Parity report"); err != nil {
-		return err
-	}
-	if _, err := fmt.Fprintln(w); err != nil {
-		return err
-	}
-	if _, err := fmt.Fprintln(w, "## Summary"); err != nil {
+	if _, err := fmt.Fprintln(w, "## Per-format summary"); err != nil {
 		return err
 	}
 	if _, err := fmt.Fprintln(w); err != nil {
