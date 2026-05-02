@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"strings"
 
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/model"
@@ -127,12 +128,67 @@ func (w *Writer) writeBlock(part *model.Part) error {
 	// Get the text to write - use target if available, otherwise source
 	text := w.blockText(block)
 
-	// Write the string value
-	if _, err := fmt.Fprint(w.Output, text); err != nil {
+	// Wrap the text in PHP string quoting so the output is a valid PHP
+	// expression that the reader can re-extract on a second pass. The
+	// reader records the original quote style on the Block; default to
+	// single-quoted when missing (e.g. blocks built by tools that didn't
+	// preserve the metadata).
+	quoted := quoteForPHP(text, block.Properties["phpQuoteType"], block.Properties["phpHeredocLabel"])
+	if _, err := fmt.Fprint(w.Output, quoted); err != nil {
 		return err
 	}
 
 	return nil
+}
+
+// quoteForPHP wraps a string value as a PHP literal of the requested
+// quote style, escaping characters as needed. Style values match those
+// recorded by the reader: "single", "double", "heredoc", "nowdoc".
+// Anything else falls back to single quotes.
+func quoteForPHP(value, style, label string) string {
+	switch style {
+	case "double":
+		return `"` + escapeDoubleQuoted(value) + `"`
+	case "heredoc":
+		if label == "" {
+			label = "EOT"
+		}
+		// Heredoc body sits between two newline-bounded label lines.
+		return "<<<" + label + "\n" + value + "\n" + label
+	case "nowdoc":
+		if label == "" {
+			label = "EOT"
+		}
+		return "<<<'" + label + "'\n" + value + "\n" + label
+	default: // "single" or unset
+		return "'" + escapeSingleQuoted(value) + "'"
+	}
+}
+
+// escapeSingleQuoted escapes a value for embedding inside a PHP
+// single-quoted string. Only \ and ' need escaping; PHP single-quoted
+// strings treat \n, $, etc. as literal characters.
+func escapeSingleQuoted(s string) string {
+	r := strings.NewReplacer(`\`, `\\`, `'`, `\'`)
+	return r.Replace(s)
+}
+
+// escapeDoubleQuoted escapes a value for embedding inside a PHP
+// double-quoted string. The reader keeps the literal escape sequences
+// (\n, \t, \\, …) and PHP variables ($foo) as inline-code Data, which
+// re-emit verbatim through RenderRunsWithData. So the value already
+// contains valid PHP escapes — we only need to escape an unescaped "
+// that survived as plain text.
+func escapeDoubleQuoted(s string) string {
+	var b strings.Builder
+	for i := range len(s) {
+		if s[i] == '"' {
+			b.WriteString(`\"`)
+			continue
+		}
+		b.WriteByte(s[i])
+	}
+	return b.String()
 }
 
 func (w *Writer) writeData(part *model.Part) error {

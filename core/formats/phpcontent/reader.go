@@ -97,6 +97,7 @@ type token struct {
 	typ       tokenType
 	value     string // raw string value (with quotes stripped for strings)
 	quoteType byte   // '"' or '\'' or 'h' (heredoc) or 'n' (nowdoc)
+	label     string // for heredoc/nowdoc: the delimiter label (e.g. "EOT")
 	arrayKey  string // for tokArrayIndex: the key
 	directive string // for skip/text directives
 	startPos  int    // start position in raw content
@@ -410,12 +411,13 @@ func (r *Reader) parseHeredoc(content string) (token, int) {
 		// Read to end of line
 		lineEnd := strings.IndexByte(content[i:], '\n')
 		var line string
+		var nextI int
 		if lineEnd < 0 {
 			line = content[i:]
-			i = len(content)
+			nextI = len(content)
 		} else {
 			line = content[i : i+lineEnd]
-			i = i + lineEnd + 1
+			nextI = i + lineEnd + 1
 		}
 
 		// Check if this line is the closing label
@@ -423,8 +425,21 @@ func (r *Reader) parseHeredoc(content string) (token, int) {
 		closingLabel := strings.TrimRight(trimmedLine, ";")
 		closingLabel = strings.TrimSpace(closingLabel)
 		if closingLabel == label {
-			// This is the closing label
-			_ = lineStart
+			// This is the closing label. Consume only up to and
+			// including the label characters; leave any trailing
+			// `;`, `\r`, `\n`, etc. for the next tokens to pick up
+			// as plain code. Doing so lets the non-skeleton writer
+			// reconstruct a parseable PHP file by emitting the label
+			// itself (which must sit on its own line) and letting
+			// the surrounding code tokens supply the trailing
+			// statement terminator.
+			labelIdx := strings.Index(line, label)
+			if labelIdx < 0 {
+				// Fallback (should not happen given the equality check above).
+				i = nextI
+			} else {
+				i = lineStart + labelIdx + len(label)
+			}
 			qtype := byte('h')
 			if isNowdoc {
 				qtype = 'n'
@@ -438,9 +453,10 @@ func (r *Reader) parseHeredoc(content string) (token, int) {
 			} else if strings.HasSuffix(val, "\n") {
 				val = val[:len(val)-1]
 			}
-			return token{typ: tokString, value: val, quoteType: qtype}, i
+			return token{typ: tokString, value: val, quoteType: qtype, label: label}, i
 		}
 
+		i = nextI
 		bodyBuf.WriteString(line)
 		if lineEnd >= 0 {
 			bodyBuf.WriteByte('\n')
@@ -452,7 +468,7 @@ func (r *Reader) parseHeredoc(content string) (token, int) {
 	if isNowdoc {
 		qtype = 'n'
 	}
-	return token{typ: tokString, value: bodyBuf.String(), quoteType: qtype}, i
+	return token{typ: tokString, value: bodyBuf.String(), quoteType: qtype, label: label}, i
 }
 
 // parseArrayIndex tries to parse ['key'] or ["key"] at content[0]=='['.
@@ -715,6 +731,28 @@ func (r *Reader) emitParts(ctx context.Context, ch chan<- model.PartResult, toke
 			}
 			if lastArrayKey != "" {
 				block.Properties["arrayKey"] = lastArrayKey
+			}
+			// Record the source string's quote style so the writer can
+			// re-emit a parseable PHP string literal when there is no
+			// skeleton. Concatenated parts collapse to a single output
+			// string in the merged form, so the first part's style
+			// drives the output.
+			firstStr := parts[0]
+			switch firstStr.quoteType {
+			case '\'':
+				block.Properties["phpQuoteType"] = "single"
+			case '"':
+				block.Properties["phpQuoteType"] = "double"
+			case 'h':
+				block.Properties["phpQuoteType"] = "heredoc"
+				if firstStr.label != "" {
+					block.Properties["phpHeredocLabel"] = firstStr.label
+				}
+			case 'n':
+				block.Properties["phpQuoteType"] = "nowdoc"
+				if firstStr.label != "" {
+					block.Properties["phpHeredocLabel"] = firstStr.label
+				}
 			}
 
 			if !r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block}) {

@@ -1091,6 +1091,84 @@ func TestFileRoundTrip(t *testing.T) {
 	assert.Contains(t, output, "My Title")
 }
 
+// TestFileRoundTrip_Reextractable verifies that the output of the
+// non-skeleton writer is itself a valid PHP file that the reader can
+// re-extract on a second pass with the same number of blocks. This
+// guards against the regression where the writer emitted bare string
+// values (e.g. `$greeting = Hello world;`) instead of properly quoted
+// PHP literals — the result still contained the source text, but the
+// reader could no longer recognise it as a string.
+func TestFileRoundTrip_Reextractable(t *testing.T) {
+	ctx := t.Context()
+
+	// First pass: read the fixture and collect blocks.
+	f, err := os.Open("testdata/simple.php")
+	require.NoError(t, err)
+	reader1 := phpcontent.NewReader()
+	err = reader1.Open(ctx, testutil.RawDocFromReader(f, "testdata/simple.php", model.LocaleEnglish))
+	require.NoError(t, err)
+	parts1 := testutil.CollectParts(t, reader1.Read(ctx))
+	reader1.Close()
+
+	blocks1 := testutil.FilterBlocks(parts1)
+	require.NotEmpty(t, blocks1, "first pass should produce at least one block")
+	sources1 := testutil.BlockTexts(blocks1)
+
+	// Merge: write parts back out without translation.
+	var buf bytes.Buffer
+	writer := phpcontent.NewWriter()
+	require.NoError(t, writer.SetOutputWriter(&buf))
+	writer.SetLocale(model.LocaleEnglish)
+	require.NoError(t, writer.Write(ctx, testutil.PartsToChannel(parts1)))
+	writer.Close()
+
+	output := buf.String()
+
+	// Second pass: re-read the writer's output. The block count and
+	// source texts must match the first pass exactly.
+	reader2 := phpcontent.NewReader()
+	err = reader2.Open(ctx, testutil.RawDocFromString(output, model.LocaleEnglish))
+	require.NoError(t, err)
+	blocks2 := testutil.CollectBlocks(t, reader2.Read(ctx))
+	reader2.Close()
+
+	assert.Equal(t, len(blocks1), len(blocks2),
+		"second pass must yield the same number of blocks as the first; output:\n%s", output)
+	assert.Equal(t, sources1, testutil.BlockTexts(blocks2),
+		"second pass must yield the same source texts as the first; output:\n%s", output)
+}
+
+// TestRoundTrip_TwoStrings_Reextractable mirrors the parity coverage
+// fixture phpcontent_two_strings: the simplest multi-string PHP file
+// used to round-trip to bare unquoted text.
+func TestRoundTrip_TwoStrings_Reextractable(t *testing.T) {
+	ctx := t.Context()
+	input := "<?php\n$greeting = 'Hello world';\n$farewell = 'Goodbye now';\n"
+
+	reader1 := phpcontent.NewReader()
+	require.NoError(t, reader1.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish)))
+	parts1 := testutil.CollectParts(t, reader1.Read(ctx))
+	reader1.Close()
+	blocks1 := testutil.FilterBlocks(parts1)
+	require.Len(t, blocks1, 2)
+
+	var buf bytes.Buffer
+	writer := phpcontent.NewWriter()
+	require.NoError(t, writer.SetOutputWriter(&buf))
+	writer.SetLocale(model.LocaleEnglish)
+	require.NoError(t, writer.Write(ctx, testutil.PartsToChannel(parts1)))
+	writer.Close()
+
+	reader2 := phpcontent.NewReader()
+	require.NoError(t, reader2.Open(ctx, testutil.RawDocFromString(buf.String(), model.LocaleEnglish)))
+	blocks2 := testutil.CollectBlocks(t, reader2.Read(ctx))
+	reader2.Close()
+
+	require.Len(t, blocks2, 2, "round-trip output should re-extract to 2 blocks; got output:\n%s", buf.String())
+	assert.Equal(t, "Hello world", blocks2[0].SourceText())
+	assert.Equal(t, "Goodbye now", blocks2[1].SourceText())
+}
+
 // --- Escape sequence handling in single-quoted strings ---
 
 func TestSingleQuotedEscapes(t *testing.T) {
