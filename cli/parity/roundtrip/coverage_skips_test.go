@@ -14,21 +14,20 @@ package roundtrip_test
 //
 // After the okapi-bridge fixes — per-field source-code hydrate, the
 // `Code(TagType, String)` ctor data-loss fix, the id-only fallback for
-// codedText/tagType-mismatched filters, and the `setData` reset of
-// referenceFlag — every inline-code-bearing format passes 100%:
+// codedText/tagType-mismatched filters, the `setData` reset of
+// referenceFlag, the Go-side target-base pseudo preference (with
+// content-empty fallback to source), and the existing-target property
+// carry-over in the streaming applier — every inline-code-bearing
+// format plus PO and CSV pass 100%:
 //   - html: 69/69, markdown: 46/46, idml: 70/70, openxml: 185/185,
-//   - mif: 41/41, icml: 9/9, xml: 199/199
+//   - mif: 41/41, icml: 9/9, xml: 199/199, po: 24/24, csv: 32/32
 //
-// The only remaining bridge-side divergences are in three formats whose
-// failure mode is NOT inline-code identity:
-//
-//   - PO / TS: bridge applies pseudo to source text, okapi reference
-//     applies it to the existing target text — different
-//     TextModificationStep semantics that the Go-side transform doesn't
-//     replicate; also missing TextUnit property round-trip (#, fuzzy
-//     flags, type="unfinished" attrs).
-//   - CSV: bridge's segmented-cell handling drops cell content into the
-//     row id column.
+// The only remaining divergences live in TS, where the upstream okapi
+// pseudo reference path itself emits -ERR:PROP-NOT-FOUND- in place of
+// the TS filter's type="unfinished" / variants="no" attributes. The
+// bridge produces the correct attribute strings; we just can't compare
+// against broken reference output. Marked as engine="okapi" so the
+// whole fixture is skipped.
 
 func idmlBridgeSkips() map[string]fileSkip     { return nil }
 func openxmlBridgeSkips() map[string]fileSkip  { return nil }
@@ -36,55 +35,29 @@ func mifBridgeSkips() map[string]fileSkip      { return nil }
 func htmlBridgeSkips() map[string]fileSkip     { return nil }
 func markdownBridgeSkips() map[string]fileSkip { return nil }
 
-func poBridgeSkips() map[string]fileSkip {
-	const reason = "bridge applies pseudo to source text (okapi pseudos the existing target); also drops fuzzy flag round-trip"
-	return map[string]fileSkip{
-		"AllCasesTest.po":                          {Engines: []string{"bridge", "native"}, Reason: reason},
-		"Test01.po":                                {Engines: []string{"bridge", "native"}, Reason: reason},
-		"Test02.po":                                {Engines: []string{"bridge", "native"}, Reason: reason},
-		"Test03.po":                                {Engines: []string{"bridge", "native"}, Reason: reason},
-		"Test04.po":                                {Engines: []string{"bridge", "native"}, Reason: reason},
-		"Test05.po":                                {Engines: []string{"bridge", "native"}, Reason: reason},
-		"TestMonoLingual_EN.po":                    {Engines: []string{"bridge", "native"}, Reason: reason},
-		"TestMonoLingual_FR.po":                    {Engines: []string{"bridge", "native"}, Reason: reason},
-		"Test_DrupalRussianCP1251.po":              {Engines: []string{"bridge", "native"}, Reason: reason},
-		"Test_nautilus.af.po":                      {Engines: []string{"bridge", "native"}, Reason: reason},
-		"escaping.po":                              {Engines: []string{"bridge", "native"}, Reason: reason},
-		"multientry_multilinecomments.po":          {Engines: []string{"bridge", "native"}, Reason: reason},
-		"multientry_withtranslation.po":            {Engines: []string{"bridge", "native"}, Reason: reason},
-		"simple.po":                                {Engines: []string{"bridge", "native"}, Reason: reason},
-		"simple_multilinecomments.po":              {Engines: []string{"bridge", "native"}, Reason: reason},
-		"simple_multilinestringwithtranslation.po": {Engines: []string{"bridge", "native"}, Reason: reason},
-		"simple_withcontext.po":                    {Engines: []string{"bridge", "native"}, Reason: reason},
-		"simple_withpluralforms.po":                {Engines: []string{"bridge", "native"}, Reason: reason},
-	}
-}
+func poBridgeSkips() map[string]fileSkip { return nil }
 
-func csvBridgeSkips() map[string]fileSkip {
-	const reason = "bridge segmented-cell handling drops cell content into row-id column"
-	return map[string]fileSkip{
-		"computer_science_article.csv":           {Engines: []string{"bridge", "native"}, Reason: reason},
-		"field_delimiter_comma.csv":              {Engines: []string{"bridge", "native"}, Reason: reason},
-		"some_blank_rows.csv":                    {Engines: []string{"bridge", "native"}, Reason: reason},
-		"test2cols.csv":                          {Engines: []string{"bridge", "native"}, Reason: reason},
-		"text_qualifier_double_quote.csv":        {Engines: []string{"bridge", "native"}, Reason: reason},
-		"text_qualifier_double_quote_inside.csv": {Engines: []string{"bridge", "native"}, Reason: reason},
-		"text_qualifier_single_quote.csv":        {Engines: []string{"bridge", "native"}, Reason: reason},
-		"text_qualifier_single_quote_inside.csv": {Engines: []string{"bridge", "native"}, Reason: reason},
-	}
-}
+func csvBridgeSkips() map[string]fileSkip { return nil }
 
+// tsBridgeSkips marks fixtures where the upstream okapi pseudo reference
+// path itself emits -ERR:PROP-NOT-FOUND- in place of the TS filter's
+// type="unfinished" / variants="no" attributes. The bridge produces the
+// correct attribute strings; we just can't compare against broken
+// reference output. The bug is in TextModificationStep stripping the
+// target property when applying pseudo to existing targets via the TS
+// filter. Marked as engine="okapi" so the skip note reflects that the
+// failure is reference-side, not bridge-side.
 func tsBridgeSkips() map[string]fileSkip {
-	const reason = "bridge emits -ERR:PROP-NOT-FOUND- placeholder where okapi emits type=\"unfinished\" — TextUnit property round-trip gap"
+	const reason = "okapi pseudo reference emits -ERR:PROP-NOT-FOUND- where the TS filter expects type=\"unfinished\" — upstream TextModificationStep+TS filter property-loss bug"
 	return map[string]fileSkip{
-		"Complete_valid_utf8_bom_crlf.ts": {Engines: []string{"bridge", "native"}, Reason: reason},
-		"TSTest01.ts":                     {Engines: []string{"bridge", "native"}, Reason: reason},
-		"TestInQT.ts":                     {Engines: []string{"bridge", "native"}, Reason: reason},
-		"TestInQT_Saved.ts":               {Engines: []string{"bridge", "native"}, Reason: reason},
-		"Test_nautilus.af.ts":             {Engines: []string{"bridge", "native"}, Reason: reason},
-		"autoSample.ts":                   {Engines: []string{"bridge", "native"}, Reason: reason},
-		"issue531.ts":                     {Engines: []string{"bridge", "native"}, Reason: reason},
-		"tstest.ts":                       {Engines: []string{"bridge", "native"}, Reason: reason},
+		"Complete_valid_utf8_bom_crlf.ts": {Engines: []string{"okapi"}, Reason: reason},
+		"TSTest01.ts":                     {Engines: []string{"okapi"}, Reason: reason},
+		"TestInQT.ts":                     {Engines: []string{"okapi"}, Reason: reason},
+		"TestInQT_Saved.ts":               {Engines: []string{"okapi"}, Reason: reason},
+		"Test_nautilus.af.ts":             {Engines: []string{"okapi"}, Reason: reason},
+		"alarm_ro.ts":                     {Engines: []string{"okapi"}, Reason: reason},
+		"issue531.ts":                     {Engines: []string{"okapi"}, Reason: reason},
+		"tstest.ts":                       {Engines: []string{"okapi"}, Reason: reason},
 	}
 }
 

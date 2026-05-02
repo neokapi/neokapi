@@ -50,25 +50,33 @@ func pseudoText(s string) string {
 
 // applyPseudoToBlock mirrors Okapi's TextModificationStep with
 // TYPE_EXTREPLACE + SCRIPT_EXT_LATIN: for each translatable Block,
-// the target is set to a copy of the source's segments where every
-// TextRun has its text rune-substituted via extLatinMap. Non-text
-// runs (Ph, PcOpen, PcClose, Sub, Plural, Select) are copied as-is
-// so inline codes survive the round-trip.
+// every TextRun has its text rune-substituted via extLatinMap.
+// Non-text runs (Ph, PcOpen, PcClose, Sub, Plural, Select) pass
+// through unchanged so inline codes survive the round-trip.
+//
+// Target preference matches TextModificationStep semantics: if the
+// Block already has a target for the locale (e.g. a PO file's
+// existing msgstr, an XLIFF target, or a TMX tuv), the substitution
+// runs against THAT target, mirroring Okapi's "modify the existing
+// translation if one exists, otherwise use the source." Without this
+// preference the bridge would always pseudo the English source while
+// the okapi reference engine pseudos the existing French
+// translation — same fixture, divergent outputs.
 //
 // The Block is shared with the native writer (NativeEngine) and
 // echoed back over gRPC for the bridge writer (BridgeEngine), so the
-// same target shape drives both engines and matches what
-// TextModificationStep would produce on the okapi-pseudo path.
+// same target shape drives both engines.
 func applyPseudoToBlock(b *model.Block, spec PseudoSpec) {
 	if !b.Translatable {
 		return
 	}
-	if len(b.Source) == 0 {
+	tgt := model.LocaleID(spec.TgtLocale())
+	base := pickPseudoBase(b, tgt)
+	if base == nil {
 		return
 	}
-	tgt := model.LocaleID(spec.TgtLocale())
-	targetSegs := make([]*model.Segment, 0, len(b.Source))
-	for _, srcSeg := range b.Source {
+	targetSegs := make([]*model.Segment, 0, len(base))
+	for _, srcSeg := range base {
 		if srcSeg == nil {
 			continue
 		}
@@ -86,4 +94,38 @@ func applyPseudoToBlock(b *model.Block, spec PseudoSpec) {
 		b.Targets = make(map[model.LocaleID][]*model.Segment)
 	}
 	b.Targets[tgt] = targetSegs
+}
+
+// pickPseudoBase returns the segments the pseudo transform should
+// operate on: the existing target for the locale when it carries any
+// text content, falling back to the source. Returns nil when neither
+// is usable (no source, no target).
+//
+// "Has text content" matters because some filters (e.g. okf_xliff for a
+// trans-unit with only alt-trans alternatives) hand back a one-segment
+// empty target placeholder. Treating that as the base would yield an
+// empty pseudo result; instead we want the source so the round-trip
+// matches Okapi's TextModificationStep with applyToBlankEntries=true.
+func pickPseudoBase(b *model.Block, tgt model.LocaleID) []*model.Segment {
+	if existing, ok := b.Targets[tgt]; ok && segmentsHaveText(existing) {
+		return existing
+	}
+	if len(b.Source) > 0 {
+		return b.Source
+	}
+	return nil
+}
+
+func segmentsHaveText(segs []*model.Segment) bool {
+	for _, s := range segs {
+		if s == nil {
+			continue
+		}
+		for _, r := range s.Runs {
+			if r.Text != nil && r.Text.Text != "" {
+				return true
+			}
+		}
+	}
+	return false
 }
