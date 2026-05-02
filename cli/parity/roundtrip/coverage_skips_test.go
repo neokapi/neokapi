@@ -12,14 +12,15 @@ package roundtrip_test
 // okapi-testdata-1.48.0 release. As bridge bugs get fixed upstream,
 // drop entries and the corresponding sub-tests start asserting again.
 //
-// After the per-field hydrate fix in OkapiCodeConverter (the bridge now
-// clones source Code metadata across the wire instead of rebuilding
-// from FragmentDTO), most code-bearing formats fully recovered:
-//   - idml, openxml, mif, icml, xml: 0 fail
-//   - html, markdown: a handful of stragglers with code-id mismatches
+// After the okapi-bridge fixes — per-field source-code hydrate, the
+// `Code(TagType, String)` ctor data-loss fix, the id-only fallback for
+// codedText/tagType-mismatched filters, and the `setData` reset of
+// referenceFlag — every inline-code-bearing format passes 100%:
+//   - html: 69/69, markdown: 46/46, idml: 70/70, openxml: 185/185,
+//   - mif: 41/41, icml: 9/9, xml: 199/199
 //
-// The remaining failures cluster around three root causes that are NOT
-// inline-code identity:
+// The only remaining bridge-side divergences are in three formats whose
+// failure mode is NOT inline-code identity:
 //
 //   - PO / TS: bridge applies pseudo to source text, okapi reference
 //     applies it to the existing target text — different
@@ -28,43 +29,12 @@ package roundtrip_test
 //     flags, type="unfinished" attrs).
 //   - CSV: bridge's segmented-cell handling drops cell content into the
 //     row id column.
-//   - HTML / Markdown: a small set of fixtures where Go reconstructs
-//     code ids differently than what the bridge expects on the way
-//     back — likely ITS-rule-introduced exclude markers or markdown
-//     reference-link close brackets.
 
 func idmlBridgeSkips() map[string]fileSkip     { return nil }
 func openxmlBridgeSkips() map[string]fileSkip  { return nil }
 func mifBridgeSkips() map[string]fileSkip      { return nil }
-
-func htmlBridgeSkips() map[string]fileSkip {
-	const reason = "bridge code-id mismatch on the way back — Go-side code reconstruction differs from bridge expectation"
-	return map[string]fileSkip{
-		"324.html":              {Engines: []string{"bridge", "native"}, Reason: reason},
-		"ExcludeIncludeTest.html": {Engines: []string{"bridge", "native"}, Reason: reason},
-		"France_Culture_fr.html":  {Engines: []string{"bridge", "native"}, Reason: reason},
-		"form2.html":              {Engines: []string{"bridge", "native"}, Reason: reason},
-		"home_big.html":           {Engines: []string{"bridge", "native"}, Reason: reason},
-		"home_links.html":         {Engines: []string{"bridge", "native"}, Reason: reason},
-		"merged_codes.html":       {Engines: []string{"bridge", "native"}, Reason: reason},
-		"sanitizer.html":          {Engines: []string{"bridge", "native"}, Reason: reason},
-		"simple_font_size.html":   {Engines: []string{"bridge", "native"}, Reason: reason},
-		"simple_subscript.html":   {Engines: []string{"bridge", "native"}, Reason: reason},
-	}
-}
-
-func markdownBridgeSkips() map[string]fileSkip {
-	const reason = "bridge drops markdown reference-link close brackets (id-mismatched paired codes)"
-	return map[string]fileSkip{
-		"example3.md":              {Engines: []string{"bridge", "native"}, Reason: reason},
-		"example4.md":              {Engines: []string{"bridge", "native"}, Reason: reason},
-		"example5.md":              {Engines: []string{"bridge", "native"}, Reason: reason},
-		"lists_changed.md":         {Engines: []string{"bridge", "native"}, Reason: reason},
-		"lists_original.md":        {Engines: []string{"bridge", "native"}, Reason: reason},
-		"ref-links-uppercased.md":  {Engines: []string{"bridge", "native"}, Reason: reason},
-		"ref-links.md":             {Engines: []string{"bridge", "native"}, Reason: reason},
-	}
-}
+func htmlBridgeSkips() map[string]fileSkip     { return nil }
+func markdownBridgeSkips() map[string]fileSkip { return nil }
 
 func poBridgeSkips() map[string]fileSkip {
 	const reason = "bridge applies pseudo to source text (okapi pseudos the existing target); also drops fuzzy flag round-trip"
