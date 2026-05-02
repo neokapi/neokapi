@@ -11,8 +11,8 @@ import (
 
 // Case is one round-trip scenario the harness drives end-to-end.
 // The okapi engine is run inline as the comparator: every other
-// engine's output is byte-compared against okapi's output for the
-// same input + pseudo-spec, on the fly. Goldens are not committed —
+// engine's output is compared against okapi's output for the same
+// input + pseudo-spec, on the fly. Goldens are not committed —
 // the okapi engine (the bridge launcher's `pseudo` subcommand) is a
 // hard requirement.
 type Case struct {
@@ -35,22 +35,43 @@ type Case struct {
 	// across zip metadata is unrealistic.
 	IsZip bool
 
-	// ExpectedSkipped engines are not asserted on. Use this for known
-	// real divergences (engine bug, semantic config gap) tracked
-	// elsewhere — same role as `expected_fail` in spec.yaml.
+	// ExpectedSkipped engines are not asserted on. Use this for cases
+	// where the engine literally cannot run on this fixture (filter
+	// missing, intentionally-malformed input, etc.). Recorded as
+	// "skipped" in the parity report.
 	ExpectedSkipped []string
+
+	// SkipReason is the human-readable note explaining why
+	// ExpectedSkipped engines were skipped. Recorded in the parity
+	// report so we can audit the skip list later.
+	SkipReason string
+
+	// Normalizer, when non-nil, is run on both engine output and
+	// reference before the canonical-tier comparison. nil = byte-only
+	// comparison (engine reaches at most TierByteEqual or TierDivergent).
+	Normalizer Normalizer
+
+	// MinTier maps engine name → required minimum tier. Engines that
+	// reach a stricter (= numerically lower) tier pass; engines that
+	// reach a looser tier fail. Engines without an entry default to
+	// TierByteEqual (the strictest contract).
+	//
+	// Use this to grade an engine on a "must reach canonical-equal"
+	// contract while still surfacing actual achievement (byte vs
+	// canonical) in the parity report.
+	MinTier map[string]Tier
 }
 
 // RunThreeWay runs the okapi engine end-to-end to obtain the live
 // reference output, then runs each tested engine and compares its
-// output byte-for-byte (or per-zip-entry) against okapi's. The
-// OkapiEngine is the comparator, not a tested engine — asserting
-// okapi-against-itself would be meaningless.
+// output against okapi's via the tier mechanic. The OkapiEngine is
+// the comparator, not a tested engine — asserting okapi-against-itself
+// would be meaningless.
 //
-// Engines listed in c.ExpectedSkipped are recorded as t.Skip; the
-// remaining engines must produce output equivalent to okapi's. The
-// harness reports every disagreement at once instead of bailing on
-// the first.
+// Engines listed in c.ExpectedSkipped are recorded as t.Skip and as
+// "skipped" in the parity report. Engines that run must reach their
+// MinTier (default TierByteEqual). The harness reports every
+// disagreement at once instead of bailing on the first.
 func RunThreeWay(t *testing.T, c Case, native *NativeEngine, bridge *BridgeEngine, okapi *OkapiEngine) {
 	t.Helper()
 	if c.FormatID == "" {
@@ -93,20 +114,47 @@ func RunThreeWay(t *testing.T, c Case, native *NativeEngine, bridge *BridgeEngin
 		t.Fatal("RunThreeWay: no engines configured")
 	}
 
+	formatID := string(c.FormatID)
+
 	var divergences []Divergence
 	for _, e := range entries {
 		e := e
 		t.Run(e.name, func(t *testing.T) {
+			required := requiredTier(c.MinTier, e.name)
 			if skipSet[e.name] {
-				t.Skipf("engine %q intentionally skipped for this case", e.name)
+				recordParityResult(parityRecord{
+					Format:   formatID,
+					Fixture:  c.Name,
+					Engine:   e.name,
+					Required: required,
+					Skipped:  true,
+					SkipMsg:  c.SkipReason,
+				})
+				t.Skipf("engine %q intentionally skipped for this case: %s", e.name, c.SkipReason)
 			}
 			out := e.eng.RoundTrip(t, c.Input, c.Spec)
-			if reason := compareToReference(out, reference, c.IsZip); reason != "" {
+			result := compareTiered(out, reference, c.IsZip, c.Normalizer)
+			recordParityResult(parityRecord{
+				Format:   formatID,
+				Fixture:  c.Name,
+				Engine:   e.name,
+				Required: required,
+				Achieved: result.Achieved,
+				Reason:   result.Reason,
+				GotSize:  result.GotSize,
+				RefSize:  result.RefSize,
+			})
+			if result.Achieved > required {
+				reason := result.Reason
+				if c.Normalizer != nil && result.NormDiffOffset >= 0 {
+					reason = result.Reason + "; normalized diff at offset " + itoa(result.NormDiffOffset)
+				}
 				divergences = append(divergences, Divergence{
 					Engine: e.name,
 					Reason: reason,
 				})
-				t.Errorf("engine %q diverged from okapi reference: %s", e.name, reason)
+				t.Errorf("engine %q reached %s, required %s: %s",
+					e.name, result.Achieved, required, reason)
 			}
 		})
 	}
@@ -121,4 +169,40 @@ func RunThreeWay(t *testing.T, c Case, native *NativeEngine, bridge *BridgeEngin
 		}
 		t.Log(sb.String())
 	}
+}
+
+// requiredTier returns the engine's required minimum tier from the
+// case's override map, falling back to TierByteEqual when not set.
+func requiredTier(min map[string]Tier, engine string) Tier {
+	if min == nil {
+		return TierByteEqual
+	}
+	if t, ok := min[engine]; ok {
+		return t
+	}
+	return TierByteEqual
+}
+
+// itoa is a tiny strconv.Itoa to avoid pulling in the strconv import
+// just for diagnostic strings.
+func itoa(n int) string {
+	if n == 0 {
+		return "0"
+	}
+	neg := n < 0
+	if neg {
+		n = -n
+	}
+	var buf [20]byte
+	i := len(buf)
+	for n > 0 {
+		i--
+		buf[i] = byte('0' + n%10)
+		n /= 10
+	}
+	if neg {
+		i--
+		buf[i] = '-'
+	}
+	return string(buf[i:])
 }

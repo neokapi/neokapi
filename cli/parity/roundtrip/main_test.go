@@ -32,5 +32,20 @@ func TestMain(m *testing.M) {
 	}
 	code := m.Run()
 	parity.ShutdownBridgeDaemon()
+
+	// Always emit the parity report to stderr so a normal `go test`
+	// run shows the per-engine tier histogram without extra plumbing.
+	// When PARITY_REPORT is set, also write a Markdown copy to the
+	// given path for committing or further analysis.
+	_ = roundtrip.FlushParityReport(os.Stderr)
+	if path := os.Getenv("PARITY_REPORT"); path != "" {
+		if f, err := os.Create(path); err == nil {
+			_ = roundtrip.FlushParityReport(f)
+			_ = f.Close()
+		} else {
+			fmt.Fprintf(os.Stderr, "parity report: could not write %s: %v\n", path, err)
+		}
+	}
+
 	os.Exit(code)
 }

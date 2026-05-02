@@ -10,14 +10,94 @@ import (
 	"sort"
 )
 
-// Divergence captures one engine's failure to match the tikal
-// reference. Reported per-engine so the harness lists every
-// disagreement at once instead of bailing on the first.
+// Tier classifies how close an engine's output got to the okapi
+// reference. Lower values are stricter; the harness reports the lowest
+// (= strictest) tier the engine reached.
+type Tier int
+
+const (
+	// TierByteEqual: outputs match byte-for-byte (or per-zip-entry for
+	// IsZip cases). The strictest tier.
+	TierByteEqual Tier = iota
+
+	// TierCanonicalEqual: outputs match after running both through the
+	// case's Normalizer (XML C14N, JSON canonicalization, line-ending
+	// normalization, …). Reaching this tier without TierByteEqual means
+	// the outputs are semantically equivalent but stylistically different.
+	TierCanonicalEqual
+
+	// TierSemanticEqual: outputs match through a domain-aware
+	// structural comparator (e.g. PO comment-tolerant diff). Reserved
+	// for cases that need parsing rather than text canonicalization.
+	TierSemanticEqual
+
+	// TierDivergent: outputs differ at every tier we can check.
+	TierDivergent
+)
+
+// String renders the tier for diagnostics.
+func (t Tier) String() string {
+	switch t {
+	case TierByteEqual:
+		return "byte-equal"
+	case TierCanonicalEqual:
+		return "canonical-equal"
+	case TierSemanticEqual:
+		return "semantic-equal"
+	case TierDivergent:
+		return "divergent"
+	default:
+		return fmt.Sprintf("tier-%d", int(t))
+	}
+}
+
+// Normalizer rewrites bytes into a canonical form so two stylistically
+// different but semantically equivalent outputs compare byte-equal.
+// Implementations should be deterministic and idempotent. Returning an
+// error means the input couldn't be parsed/canonicalized — the harness
+// records that as TierDivergent rather than treating it as a match.
+type Normalizer interface {
+	Name() string
+	Normalize(in []byte) ([]byte, error)
+}
+
+// ComparisonResult is the structured outcome of one engine's output vs
+// the reference. The harness uses Achieved against the engine's
+// required tier to decide pass/fail and records the whole struct in
+// the parity report so we can see *how close* divergent engines got.
+type ComparisonResult struct {
+	// Achieved is the strictest tier this output reached.
+	Achieved Tier
+
+	// Reason is a one-line diagnostic suitable for test output (the
+	// first-diff offset and a small context window). Empty when
+	// Achieved == TierByteEqual.
+	Reason string
+
+	// GotSize / RefSize are the raw byte sizes of engine output and
+	// okapi reference, respectively.
+	GotSize int
+	RefSize int
+
+	// RawDiffOffset is the first byte offset where got and reference
+	// differ. -1 when byte-equal. n/a (=0) for IsZip cases.
+	RawDiffOffset int
+
+	// NormDiffOffset is the first byte offset where normalize(got) and
+	// normalize(reference) differ. -1 when canonical-equal or when no
+	// normalizer was configured.
+	NormDiffOffset int
+
+	// Normalizer is the name of the normalizer that was tried (empty
+	// when no normalizer is configured for this case).
+	Normalizer string
+}
+
+// Divergence captures one engine's failure to meet its required tier.
+// Reported per-engine so the harness lists every disagreement at once
+// instead of bailing on the first.
 type Divergence struct {
-	// Engine identifies which implementation diverged.
 	Engine string
-	// Reason is a human-readable summary (length mismatch, entry
-	// mismatch, byte position of first diff, …).
 	Reason string
 }
 
@@ -26,13 +106,55 @@ func (d Divergence) String() string {
 	return fmt.Sprintf("%s: %s", d.Engine, d.Reason)
 }
 
-// compareToReference returns the empty string when got matches the
-// tikal reference exactly, or a one-line diagnostic suitable for a
-// Divergence.Reason when they differ. isZip toggles per-entry zip
-// comparison: byte-equal across entries (sorted by name), ignoring
-// zip metadata like mtime and central-directory ordering that vary
-// across implementations.
-func compareToReference(got, reference []byte, isZip bool) string {
+// compareTiered runs the byte (and, when norm != nil, canonical)
+// comparisons and returns the strictest tier reached along with the
+// diff metrics needed to populate the parity report.
+func compareTiered(got, reference []byte, isZip bool, norm Normalizer) ComparisonResult {
+	res := ComparisonResult{
+		GotSize:        len(got),
+		RefSize:        len(reference),
+		RawDiffOffset:  -1,
+		NormDiffOffset: -1,
+	}
+	if reason := compareBytesOrZip(got, reference, isZip); reason == "" {
+		res.Achieved = TierByteEqual
+		return res
+	} else {
+		res.Reason = reason
+		if !isZip {
+			res.RawDiffOffset = firstDiff(got, reference)
+		}
+	}
+
+	if norm != nil {
+		res.Normalizer = norm.Name()
+		normGot, err := norm.Normalize(got)
+		if err != nil {
+			res.Reason = fmt.Sprintf("%s; normalizer %q failed on got: %v", res.Reason, norm.Name(), err)
+			res.Achieved = TierDivergent
+			return res
+		}
+		normRef, err := norm.Normalize(reference)
+		if err != nil {
+			res.Reason = fmt.Sprintf("%s; normalizer %q failed on reference: %v", res.Reason, norm.Name(), err)
+			res.Achieved = TierDivergent
+			return res
+		}
+		if reason := compareBytesOrZip(normGot, normRef, false); reason == "" {
+			res.Achieved = TierCanonicalEqual
+			return res
+		} else {
+			res.NormDiffOffset = firstDiff(normGot, normRef)
+		}
+	}
+
+	res.Achieved = TierDivergent
+	return res
+}
+
+// compareBytesOrZip is the byte-level (or per-zip-entry) check.
+// Returns "" on match, a one-line diagnostic on divergence.
+func compareBytesOrZip(got, reference []byte, isZip bool) string {
 	if isZip {
 		return compareZip(got, reference)
 	}

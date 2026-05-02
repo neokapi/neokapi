@@ -202,6 +202,7 @@ func runOneFixture(t *testing.T, scan formatScan, abs string) {
 		},
 		IsZip:           scan.isZip,
 		ExpectedSkipped: expectedSkipped,
+		SkipReason:      reason,
 	},
 		&roundtrip.NativeEngine{
 			FormatID:     scan.formatID,
