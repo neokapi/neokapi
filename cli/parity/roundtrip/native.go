@@ -91,6 +91,23 @@ func (e *NativeEngine) RoundTrip(t *testing.T, in Input, spec PseudoSpec) []byte
 	}
 	defer reader.Close()
 
+	// Wire the skeleton store before reader.Open so the reader can
+	// stream entries while it parses. Writers that consume it produce
+	// byte-stable output by replaying skeleton text + filling block
+	// refs with translated content, instead of falling back to a
+	// best-effort no-skeleton path.
+	store, err := format.NewSkeletonStore()
+	if err != nil {
+		t.Fatalf("NativeEngine: skeleton store: %v", err)
+	}
+	t.Cleanup(func() { _ = store.Close() })
+	if emitter, ok := reader.(format.SkeletonStoreEmitter); ok {
+		emitter.SetSkeletonStore(store)
+	}
+	if consumer, ok := writer.(format.SkeletonStoreConsumer); ok {
+		consumer.SetSkeletonStore(store)
+	}
+
 	// Set skeleton from input bytes for writers that reuse it.
 	if setter, ok := writer.(format.OriginalContentSetter); ok {
 		setter.SetOriginalContent(in.Bytes)
@@ -105,57 +122,63 @@ func (e *NativeEngine) RoundTrip(t *testing.T, in Input, spec PseudoSpec) []byte
 		t.Fatalf("NativeEngine: SetOutputWriter: %v", err)
 	}
 
-	// Wire reader → pseudo transform → writer. The transform is
-	// inline (a tiny goroutine that mutates Block parts) instead of
-	// the registered PseudoTranslate tool — that tool always
-	// applies an accent map, which would diverge from bridge/tikal
-	// outputs. We want a deterministic wrap that all three engines
-	// produce identically.
-	readerCh := reader.Read(ctx)
-	writerIn := make(chan *model.Part, 16)
-
-	var wg sync.WaitGroup
-	var readErr, writeErr error
-
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		defer close(writerIn)
-		for res := range readerCh {
-			if res.Error != nil {
-				readErr = res.Error
-				return
+	// Drain the reader fully into a part slice (applying the inline
+	// pseudo transform on Block parts) before touching the writer.
+	// Sequencing read-then-write lets us detect a stub
+	// SkeletonStoreEmitter (one that registers but emits zero entries)
+	// and unwire the writer's skeleton consumer before it runs — without
+	// the unwiring, a writer that branches on skeletonStore != nil would
+	// silently produce empty output. Streaming concurrency isn't worth
+	// preserving for parity fixtures (small, in-process).
+	//
+	// The pseudo transform is inline instead of the registered
+	// PseudoTranslate tool — that tool always applies an accent map,
+	// which would diverge from bridge/tikal outputs. We want a
+	// deterministic wrap that all three engines produce identically.
+	var parts []*model.Part
+	for res := range reader.Read(ctx) {
+		if res.Error != nil {
+			if !errors.Is(res.Error, io.EOF) {
+				t.Fatalf("NativeEngine: reader stream: %v", res.Error)
 			}
-			if res.Part == nil {
-				continue
-			}
-			if res.Part.Type == model.PartBlock {
-				if b, ok := res.Part.Resource.(*model.Block); ok {
-					applyPseudoToBlock(b, spec)
-				}
-			}
-			select {
-			case writerIn <- res.Part:
-			case <-ctx.Done():
-				readErr = ctx.Err()
-				return
+			continue
+		}
+		if res.Part == nil {
+			continue
+		}
+		if res.Part.Type == model.PartBlock {
+			if b, ok := res.Part.Resource.(*model.Block); ok {
+				applyPseudoToBlock(b, spec)
 			}
 		}
-	}()
+		parts = append(parts, res.Part)
+	}
 
+	if consumer, ok := writer.(format.SkeletonStoreConsumer); ok {
+		if store.EntriesWritten() == 0 {
+			// Reader registered as a SkeletonStoreEmitter but never
+			// actually emitted (stubbed). Unwire the writer so it
+			// takes its no-skeleton path.
+			consumer.SetSkeletonStore(nil)
+		}
+	}
+
+	writerIn := make(chan *model.Part, len(parts)+1)
+	for _, p := range parts {
+		writerIn <- p
+	}
+	close(writerIn)
+
+	var writeErr error
+	var wg sync.WaitGroup
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
 		writeErr = writer.Write(ctx, writerIn)
 	}()
-
 	wg.Wait()
 	if err := writer.Close(); err != nil && writeErr == nil {
 		writeErr = err
-	}
-
-	if readErr != nil && !errors.Is(readErr, io.EOF) {
-		t.Fatalf("NativeEngine: reader stream: %v", readErr)
 	}
 	if writeErr != nil {
 		t.Fatalf("NativeEngine: writer: %v", writeErr)

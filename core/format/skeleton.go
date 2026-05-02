@@ -35,7 +35,18 @@ type SkeletonStore struct {
 	writer     *bufio.Writer
 	reader     *bufio.Reader
 	persistent bool // when true, Close() does not remove the backing file
+	entries    int  // count of entries written; lets callers detect a
+	// reader that registered for skeleton emission but never actually
+	// wrote any (a stubbed implementation) so they can fall back to
+	// the writer's no-skeleton path instead of producing empty output.
 }
+
+// EntriesWritten returns the number of skeleton entries written so far.
+// Useful for callers that wire SetSkeletonStore on both reader and writer
+// but want to avoid the writer's skeleton path when the reader produced
+// nothing — typically a partial implementation that satisfies
+// SkeletonStoreEmitter without actually emitting.
+func (s *SkeletonStore) EntriesWritten() int { return s.entries }
 
 // NewSkeletonStore creates a new skeleton store backed by a temporary file.
 // The file is removed when Close is called — use NewSkeletonStoreAt for a
@@ -107,8 +118,11 @@ func (s *SkeletonStore) writeEntry(typ SkeletonEntryType, data []byte) error {
 	if _, err := s.writer.Write(lenBuf[:]); err != nil {
 		return err
 	}
-	_, err := s.writer.Write(data)
-	return err
+	if _, err := s.writer.Write(data); err != nil {
+		return err
+	}
+	s.entries++
+	return nil
 }
 
 // Flush finishes writing and prepares the store for reading. On stores
