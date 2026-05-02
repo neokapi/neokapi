@@ -359,9 +359,20 @@ or skeleton bug.
 ## Coverage status
 
 The harness mirrors upstream's `RoundTrip<X>IT.java` set: **30
-formats × ~25 files each ≈ 1100+ sub-tests** in ~9 minutes. With
-the parity sandbox built the suite is fully green (0 fail, 351
-engine assertions pass, ~1400 documented engine skips).
+formats × ~25 files each ≈ 1100+ sub-tests** in ~10 minutes. With
+the parity sandbox built the suite is fully green (0 fail, 765
+engine assertions pass, ~990 documented engine skips).
+
+After the okapi-bridge per-field code-hydrate fix (the daemon now
+clones source `Code` metadata across the wire — `outerData`,
+`originalId`, `referenceFlag` — instead of rebuilding from the
+FragmentDTO), inline-code-bearing formats fully recovered: idml
+70/70 bridge, openxml 185/185, mif 41/41, icml 9/9, xml 199/199.
+The remaining 51 known divergences cluster in three buckets: PO/TS
+property round-trip + target-vs-source pseudo (26), CSV
+segmented-cell handling (8), HTML/markdown code-id reconstruction
+on the way back (17). See `coverage_skips_test.go` for the per-file
+list.
 
 Highlights of the upstream-mirroring discovery:
 
