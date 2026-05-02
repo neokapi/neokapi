@@ -255,7 +255,7 @@ func coverageScans() []formatScan {
 				"okapi/filters/plaintext/src/test/resources/combined_lines_end.txt",
 				"okapi/filters/plaintext/src/test/resources/combined_lines2.txt",
 			},
-			formatDefaultSkip: fileSkip{Engines: []string{"native", "bridge"}, Reason: "native + bridge splicedlines writers byte-shape diverge from okapi"},
+			formatDefaultSkip: fileSkip{Engines: []string{"native"}, Reason: "native splicedlines writer byte-shape diverges from okapi"},
 		},
 		{
 			// Mosestext: upstream ships Test01/Test02 and an XLIFF
@@ -297,10 +297,6 @@ func coverageScans() []formatScan {
 			sources:           []string{"integration-tests/okapi/src/test/resources/wikitext"},
 			extensions:        []string{".wiki"},
 			formatDefaultSkip: fileSkip{Engines: []string{"native"}, Reason: "native wiki writer trailing newline + byte-shape divergence"},
-			skip: map[string]fileSkip{
-				"dokuwiki.wiki":  {Engines: []string{"bridge", "native"}, Reason: "bridge merges adjacent wiki lines into a single block — segmentation divergence"},
-				"mediawiki.wiki": {Engines: []string{"bridge", "native"}, Reason: "bridge segments mediawiki blocks differently than okapi"},
-			},
 		},
 
 		// ── Key-value & structured data ───────────────────────────
@@ -320,10 +316,6 @@ func coverageScans() []formatScan {
 			sources:           []string{"integration-tests/okapi/src/test/resources/property"},
 			extensions:        []string{".properties"},
 			formatDefaultSkip: fileSkip{Engines: []string{"native"}, Reason: "native properties writer emits uppercase \\uXXXX escapes; tikal uses lowercase"},
-			skip: map[string]fileSkip{
-				"Test01.properties": {Engines: []string{"bridge", "native"}, Reason: "bridge byte-shape divergence in addition to native escape-case bug"},
-				"Test05.properties": {Engines: []string{"bridge", "native"}, Reason: "bridge byte-shape divergence on merge"},
-			},
 		},
 		{
 			formatID:          "json",
@@ -345,19 +337,9 @@ func coverageScans() []formatScan {
 				"beanring-3.yaml":           {Engines: []string{"native"}, Reason: "native YAML reader hangs on self-referencing anchors"},
 				"no-children-1.yaml":        {Engines: []string{"native"}, Reason: "native YAML reader hangs on self-referencing anchors"},
 				"no-children-2.yaml":        {Engines: []string{"native"}, Reason: "native YAML reader hangs on self-referencing anchors"},
-				"scalar_sample.yml":         {Engines: []string{"bridge", "native"}, Reason: "native hangs on self-ref anchors; bridge byte-shape divergence on merge"},
+				"scalar_sample.yml":         {Engines: []string{"native"}, Reason: "native YAML reader hangs on self-referencing anchors"},
 				"no-children-1-pretty.yaml": {Engines: []string{"okapi"}, Reason: "Okapi YAML parser rejects !!timestamp tag"},
 				"Test03.yml":                {Engines: []string{"okapi"}, Reason: "Okapi YAML parser rejects !!timestamp tag"},
-				// Bridge byte-shape divergences (folded/literal scalar
-				// re-emission, attribute ordering, etc.).
-				"en.yml":                      {Engines: []string{"bridge", "native"}, Reason: "bridge yaml writer byte-shape divergence on merge"},
-				"en (1).yml":                  {Engines: []string{"bridge", "native"}, Reason: "bridge yaml writer byte-shape divergence on merge"},
-				"en (2).yml":                  {Engines: []string{"bridge", "native"}, Reason: "bridge yaml writer byte-shape divergence on merge"},
-				"en (3).yml":                  {Engines: []string{"bridge", "native"}, Reason: "bridge yaml writer byte-shape divergence on merge"},
-				"en (5).yml":                  {Engines: []string{"bridge", "native"}, Reason: "bridge yaml writer byte-shape divergence on merge"},
-				"folded_indented.yml":         {Engines: []string{"bridge", "native"}, Reason: "bridge folded-scalar re-emission divergence"},
-				"folded_literal_examples.yml": {Engines: []string{"bridge", "native"}, Reason: "bridge folded/literal-scalar re-emission divergence (large gap)"},
-				"literal.yml":                 {Engines: []string{"bridge", "native"}, Reason: "bridge literal-scalar re-emission divergence"},
 			},
 		},
 		{
@@ -387,7 +369,7 @@ func coverageScans() []formatScan {
 			formatID:          "tsv",
 			filterClass:       "okf_tabseparatedvalues",
 			explicitFiles:     []string{"okapi/filters/table/src/test/resources/test_tsv_simple.txt"},
-			formatDefaultSkip: fileSkip{Engines: []string{"native", "bridge"}, Reason: "native + bridge tsv writers table-semantics divergence (same shape as csv)"},
+			formatDefaultSkip: fileSkip{Engines: []string{"native"}, Reason: "native tsv writer table-semantics divergence (same shape as csv)"},
 		},
 		{
 			formatID:    "fixedwidth",
@@ -405,7 +387,7 @@ func coverageScans() []formatScan {
 			filterClass:       "okf_doxygen",
 			sources:           []string{"integration-tests/okapi/src/test/resources/doxygen"},
 			extensions:        []string{".h", ".py"},
-			formatDefaultSkip: fileSkip{Engines: []string{"native", "bridge"}, Reason: "native + bridge doxygen writers comment-block tokenization divergence (@brief inline placeholders)"},
+			formatDefaultSkip: fileSkip{Engines: []string{"native"}, Reason: "native doxygen writer comment-block tokenization divergence (@brief inline placeholders)"},
 		},
 
 		// ── XML / bilingual exchange formats ──────────────────────
@@ -420,15 +402,7 @@ func coverageScans() []formatScan {
 			extensions:        []string{".xml"},
 			formatDefaultSkip: fileSkip{Engines: []string{"native"}, Reason: "native XML reader needs explicit ITS rules; default config extracts whole document as one block"},
 			skip: map[string]fileSkip{
-				"Translate2.xml":       {Engines: []string{"okapi"}, Reason: "okf_xml needs Translate2_LinkedRules.xml in the same dir; harness copies the input file alone"},
-				"TestMultiLang.xml":    {Engines: []string{"bridge", "native"}, Reason: "bridge inline-code marker emission diverges from okapi reference"},
-				"Translate1.xml":       {Engines: []string{"bridge", "native"}, Reason: "bridge inline-code marker emission diverges from okapi reference"},
-				"strings.xml":          {Engines: []string{"bridge", "native"}, Reason: "bridge inline-code marker emission diverges from okapi reference"},
-				"test01.xml":           {Engines: []string{"bridge", "native"}, Reason: "bridge inline-code marker emission diverges from okapi reference"},
-				"test02.xml":           {Engines: []string{"bridge", "native"}, Reason: "bridge inline-code marker emission diverges from okapi reference"},
-				"test03.xml":           {Engines: []string{"bridge", "native"}, Reason: "bridge inline-code marker emission diverges from okapi reference"},
-				"test04.xml":           {Engines: []string{"bridge", "native"}, Reason: "bridge inline-code marker emission diverges from okapi reference"},
-				"test08_utf8nobom.xml": {Engines: []string{"bridge", "native"}, Reason: "bridge inline-code marker emission diverges from okapi reference"},
+				"Translate2.xml": {Engines: []string{"okapi"}, Reason: "okf_xml needs Translate2_LinkedRules.xml in the same dir; harness copies the input file alone"},
 			},
 		},
 		{
@@ -443,19 +417,7 @@ func coverageScans() []formatScan {
 			skip: map[string]fileSkip{
 				"lqiTest.xlf":                 {Engines: []string{"okapi"}, Reason: "okf_xliff needs lqiTestIssues.xml in the same dir; harness copies the input file alone"},
 				"ImplementationPlan.docx.xlf": {Engines: []string{"bridge", "native"}, Reason: "bridge inline-code/alt-trans divergence vs okapi reference"},
-				"JMP-11-Test01.xlf":           {Engines: []string{"bridge", "native"}, Reason: "bridge byte-shape divergence on JMP xliff dialect"},
-				"MQ-12-Test01.xlf":            {Engines: []string{"bridge", "native"}, Reason: "bridge MemoQ-flavour xliff divergence vs okapi reference"},
-				"Manual-12-AltTrans.xlf":      {Engines: []string{"bridge", "native"}, Reason: "bridge alt-trans handling divergence vs okapi reference"},
-				"PAS-10-Test01.xlf":           {Engines: []string{"bridge", "native"}, Reason: "bridge Passolo-flavour xliff divergence vs okapi reference"},
-				"RB-11-Test01.xlf":            {Engines: []string{"bridge", "native"}, Reason: "bridge ResourceBundle-flavour xliff divergence vs okapi reference"},
 				"RB-12-Test02.xlf":            {Engines: []string{"bridge", "native"}, Reason: "bridge ResourceBundle-flavour xliff divergence vs okapi reference"},
-				"SF-12-Test03.xlf":            {Engines: []string{"bridge", "native"}, Reason: "bridge SDLFiletype divergence vs okapi reference"},
-				"Xslt-Test01.xlf":             {Engines: []string{"bridge", "native"}, Reason: "bridge xslt-derived xliff divergence vs okapi reference"},
-				"addingelements.xlf":          {Engines: []string{"bridge", "native"}, Reason: "bridge segmentation handling divergence — emits target before xliff extension elements"},
-				"generalstructure.xlf":        {Engines: []string{"bridge", "native"}, Reason: "bridge byte-shape divergence on general-structure xliff fixture"},
-				"invalid_xml_entity.xlf":      {Engines: []string{"bridge", "native"}, Reason: "bridge entity-handling divergence on intentionally-invalid fixture"},
-				"lqiExtensions.xlf":           {Engines: []string{"bridge", "native"}, Reason: "bridge LQI extension handling divergence"},
-				"mq-12-Test01-small.xlf":      {Engines: []string{"bridge", "native"}, Reason: "bridge MemoQ-flavour xliff divergence vs okapi reference"},
 				"segmentation2.xlf":           {Engines: []string{"bridge", "native"}, Reason: "bridge segmentation handling divergence"},
 			},
 		},
@@ -476,10 +438,13 @@ func coverageScans() []formatScan {
 			filterClass:       "okf_tmx",
 			sources:           []string{"integration-tests/okapi/src/test/resources/tmx"},
 			extensions:        []string{".tmx"},
-			formatDefaultSkip: fileSkip{Engines: []string{"native", "bridge"}, Reason: "native + bridge tmx writers XML serialization shape divergence from okapi (declaration spacing, attribute order)"},
+			formatDefaultSkip: fileSkip{Engines: []string{"native"}, Reason: "native tmx writer XML serialization shape divergence from okapi (declaration spacing, attribute order)"},
 			skip: map[string]fileSkip{
 				"code_fail.tmx":          {Engines: []string{"okapi"}, Reason: "intentionally-malformed test fixture; okf_tmx rejects with 'no <tuv> set to source language'"},
 				"code_id_difference.tmx": {Engines: []string{"okapi"}, Reason: "intentionally-malformed test fixture for code-id mismatch detection"},
+				"ImportTest2A.tmx":       {Engines: []string{"bridge", "native"}, Reason: "bridge tmx writer XML serialization divergence on this fixture"},
+				"ImportTest2B.tmx":       {Engines: []string{"bridge", "native"}, Reason: "bridge tmx writer XML serialization divergence on this fixture"},
+				"simple.tmx":             {Engines: []string{"bridge", "native"}, Reason: "bridge tmx writer XML serialization divergence on this fixture"},
 			},
 		},
 		{
@@ -543,16 +508,13 @@ mergeCaptions.b=false
 			sources:           []string{"okapi/filters/dtd/src/test/resources"},
 			extensions:        []string{".dtd"},
 			formatDefaultSkip: fileSkip{Engines: []string{"native"}, Reason: "native dtd writer emits an extra leading newline before the first entity"},
-			skip: map[string]fileSkip{
-				"Test01.dtd": {Engines: []string{"bridge", "native"}, Reason: "bridge XML-escapes placeholder markers tikal emits; native still has the leading-newline bug"},
-			},
 		},
 		{
 			formatID:          "tex",
 			filterClass:       "okf_tex",
 			sources:           []string{"integration-tests/okapi/src/test/resources/tex"},
 			extensions:        []string{".tex"},
-			formatDefaultSkip: fileSkip{Engines: []string{"native", "bridge"}, Reason: "native tex writer drops preamble/postamble on merge; bridge merges paragraph blocks differently than okapi"},
+			formatDefaultSkip: fileSkip{Engines: []string{"native"}, Reason: "native tex writer drops preamble/postamble on merge"},
 		},
 		{
 			formatID:          "transtable",
