@@ -191,28 +191,32 @@ func RunBridgeRoundTrip(t *testing.T, req BridgeRequest) BridgeRoundTripResult {
 			}
 			t.Fatalf("RunBridgeRoundTrip: recv: %v", err)
 		}
+		// EOF from Send means the daemon already half-closed the stream
+		// (it has a Complete{Error} or ReadDone in flight that we will
+		// pick up on the next Recv). Stop trying to send echoes — keep
+		// receiving so the trailing message reaches the Complete handler
+		// and surfaces the real diagnostic instead of a generic EOF.
+		sendEcho := func(req *pb.ProcessRequest) {
+			if err := stream.Send(req); err != nil && !errors.Is(err, io.EOF) {
+				t.Fatalf("RunBridgeRoundTrip: echo: %v", err)
+			}
+		}
 		switch m := resp.Response.(type) {
 		case *pb.ProcessResponse_Part:
 			parts = append(parts, protoconvert.ProtoToPart(m.Part))
 			outPart := maybeTransformPart(m.Part, req.Transform)
-			if err := stream.Send(&pb.ProcessRequest{Request: &pb.ProcessRequest_Part{Part: outPart}}); err != nil {
-				t.Fatalf("RunBridgeRoundTrip: echo part: %v", err)
-			}
+			sendEcho(&pb.ProcessRequest{Request: &pb.ProcessRequest_Part{Part: outPart}})
 		case *pb.ProcessResponse_PartBatch:
 			for _, p := range m.PartBatch.Parts {
 				parts = append(parts, protoconvert.ProtoToPart(p))
 				outPart := maybeTransformPart(p, req.Transform)
-				if err := stream.Send(&pb.ProcessRequest{Request: &pb.ProcessRequest_Part{Part: outPart}}); err != nil {
-					t.Fatalf("RunBridgeRoundTrip: echo batched part: %v", err)
-				}
+				sendEcho(&pb.ProcessRequest{Request: &pb.ProcessRequest_Part{Part: outPart}})
 			}
 		case *pb.ProcessResponse_ContentBatch:
 			for _, cb := range m.ContentBatch.Blocks {
 				parts = append(parts, protoconvert.ContentBlockToPart(cb))
 				outCb := maybeTransformContentBlock(cb, req.Transform)
-				if err := stream.Send(&pb.ProcessRequest{Request: &pb.ProcessRequest_ContentBlock{ContentBlock: outCb}}); err != nil {
-					t.Fatalf("RunBridgeRoundTrip: echo content block: %v", err)
-				}
+				sendEcho(&pb.ProcessRequest{Request: &pb.ProcessRequest_ContentBlock{ContentBlock: outCb}})
 			}
 		case *pb.ProcessResponse_ReadDone:
 			if err := stream.CloseSend(); err != nil {
