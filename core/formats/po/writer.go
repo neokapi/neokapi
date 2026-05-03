@@ -293,7 +293,7 @@ func (w *Writer) writeBlock(part *model.Part) error {
 		}
 	}
 
-	source := block.SourceText()
+	source := renderSource(block)
 
 	// Write msgid
 	if err := w.writeMultilineField("msgid", source); err != nil {
@@ -303,7 +303,7 @@ func (w *Writer) writeBlock(part *model.Part) error {
 	// Write msgstr - use target text if available
 	target := ""
 	if !w.Locale.IsEmpty() && block.HasTarget(w.Locale) {
-		target = block.TargetText(w.Locale)
+		target = renderTarget(block, w.Locale)
 	}
 	if err := w.writeMultilineField("msgstr", target); err != nil {
 		return err
@@ -333,19 +333,19 @@ func (w *Writer) writePluralGroup() error {
 	}
 
 	// Write msgid (singular)
-	if err := w.writeMultilineField("msgid", singular.SourceText()); err != nil {
+	if err := w.writeMultilineField("msgid", renderSource(singular)); err != nil {
 		return err
 	}
 
 	// Write msgid_plural
-	if err := w.writeMultilineField("msgid_plural", plural.SourceText()); err != nil {
+	if err := w.writeMultilineField("msgid_plural", renderSource(plural)); err != nil {
 		return err
 	}
 
 	// Write msgstr[0] and msgstr[1]
 	singularTarget := ""
 	if !w.Locale.IsEmpty() && singular.HasTarget(w.Locale) {
-		singularTarget = singular.TargetText(w.Locale)
+		singularTarget = renderTarget(singular, w.Locale)
 	}
 	if err := w.writeMultilineField("msgstr[0]", singularTarget); err != nil {
 		return err
@@ -353,7 +353,7 @@ func (w *Writer) writePluralGroup() error {
 
 	pluralTarget := ""
 	if !w.Locale.IsEmpty() && plural.HasTarget(w.Locale) {
-		pluralTarget = plural.TargetText(w.Locale)
+		pluralTarget = renderTarget(plural, w.Locale)
 	}
 	if err := w.writeMultilineField("msgstr[1]", pluralTarget); err != nil {
 		return err
@@ -416,9 +416,46 @@ func escapePO(s string) string {
 // blockText returns the target text if available for the writer's locale,
 // otherwise an empty string. PO is a bilingual format — untranslated
 // entries keep an empty msgstr rather than falling back to source text.
+//
+// Inline-code Ph runs (e.g. printf specifiers split out by codeFinder)
+// re-emit their original Data string, so `%s` survives a round-trip
+// through the model instead of disappearing as `seg.Text()` would.
 func (w *Writer) blockText(block *model.Block) string {
 	if !w.Locale.IsEmpty() && block.HasTarget(w.Locale) {
-		return block.TargetText(w.Locale)
+		return renderTarget(block, w.Locale)
 	}
 	return ""
+}
+
+// renderSource returns the source text with inline-code Data preserved
+// verbatim (e.g. printf specifiers `%s` extracted by the codeFinder come
+// back out as `%s`, not as their `{equiv}` placeholder form).
+func renderSource(block *model.Block) string {
+	var buf strings.Builder
+	for _, seg := range block.Source {
+		if seg == nil {
+			continue
+		}
+		buf.WriteString(model.RenderRunsWithData(seg.Runs))
+	}
+	return buf.String()
+}
+
+// renderTarget mirrors renderSource for a target locale.
+func renderTarget(block *model.Block, locale model.LocaleID) string {
+	if locale == "" {
+		return ""
+	}
+	segs, ok := block.Targets[locale]
+	if !ok {
+		return ""
+	}
+	var buf strings.Builder
+	for _, seg := range segs {
+		if seg == nil {
+			continue
+		}
+		buf.WriteString(model.RenderRunsWithData(seg.Runs))
+	}
+	return buf.String()
 }

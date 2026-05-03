@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"regexp"
 	"strings"
 
 	"github.com/neokapi/neokapi/core/format"
@@ -867,15 +868,30 @@ func (r *Reader) emit(ctx context.Context, ch chan<- model.PartResult, part *mod
 	}
 }
 
-// applyCodeFinder applies code finder patterns to a block's fragments.
+// applyCodeFinder applies code finder patterns to a block's source AND
+// target segments. Splitting the target too matters when a downstream
+// pseudo-translate or transform step prefers an existing target as its
+// base (Okapi's TextModificationStep with applyToBlankEntries=true does
+// exactly this) — without inline-code splits on the target, printf
+// specifiers like `%s` in the existing translation would be treated as
+// translatable text and corrupted.
 func (r *Reader) applyCodeFinder(block *model.Block) {
 	patterns := r.cfg.GetCodeFinderPatterns()
 	if len(patterns) == 0 {
 		return
 	}
+	applyCodeFinderToSegments(block.Source, patterns)
+	for _, segs := range block.Targets {
+		applyCodeFinderToSegments(segs, patterns)
+	}
+}
 
-	for _, seg := range block.Source {
-		if len(seg.Runs) == 0 {
+// applyCodeFinderToSegments applies the patterns to each segment's
+// TextRuns, splitting them at every match into text+placeholder runs.
+// Existing non-text runs (placeholders, paired codes) are left in place.
+func applyCodeFinderToSegments(segs []*model.Segment, patterns []*regexp.Regexp) {
+	for _, seg := range segs {
+		if seg == nil || len(seg.Runs) == 0 {
 			continue
 		}
 		text := seg.Text()

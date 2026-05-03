@@ -382,11 +382,24 @@ func coverageScans() []formatScan {
 		{
 			// Bridge passes ~6 of 24 fixtures; the rest are flagged
 			// per-file via poBridgeSkips().
-			formatID:          "po",
-			filterClass:       "okf_po",
-			sources:           []string{"integration-tests/okapi/src/test/resources/po"},
-			extensions:        []string{".po"},
-			skip:              poBridgeSkips(),
+			formatID:    "po",
+			filterClass: "okf_po",
+			sources:     []string{"integration-tests/okapi/src/test/resources/po"},
+			extensions:  []string{".po"},
+			skip:        poBridgeSkips(),
+			// okf_po defaults to useCodeFinder=true with printf-style
+			// patterns so `%s`, `%d`, `%1$s`, `{0}`, etc. are extracted
+			// as inline codes (Spans) and not pseudo-translated as text.
+			// Native po defaults to useCodeFinder=false, so `%s` becomes
+			// `%ś` after pseudo. Match okapi by enabling the same rules.
+			nativeConfig: map[string]any{
+				"useCodeFinder": true,
+				"codeFinderRules": []any{
+					`%(([-0+#]?)[-0+#]?)((\d\$)?)(\d*)(\.\d+)?[bBhHsScCdoxXeEfgGaAtTn%]`,
+					`(\\r\\n)|\\a|\\b|\\f|\\n|\\r|\\t|\\v`,
+					`\{\d.*?\}`,
+				},
+			},
 			// PO chain: many fixtures differ only in BOM presence and
 			// line-ending choice (okapi preserves source CRLF + BOM,
 			// native emits LF + no BOM). Both are valid PO; chain them
