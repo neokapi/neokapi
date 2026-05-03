@@ -126,6 +126,15 @@ func (w *Writer) writeFromSkeleton(blocks map[string]*model.Block) error {
 						return err
 					}
 				}
+				// Re-emit the trailing `\` byte for blocks that ended
+				// the file mid-continuation; the reader strips it from
+				// the block's logical text but tags the block so we can
+				// restore byte-exact output here.
+				if block.Properties["trailing-splicer"] == "true" {
+					if _, err := io.WriteString(w.Output, `\`); err != nil {
+						return err
+					}
+				}
 			}
 		}
 	}

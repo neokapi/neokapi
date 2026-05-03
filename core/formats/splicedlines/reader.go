@@ -99,6 +99,11 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 	}
 
 	var accumulated []rawLine
+	// hadTrailingSplicer is set true when the EOF-flush is dealing with
+	// an accumulator whose final raw line ended in `\` (and thus had it
+	// stripped). The writer reads the resulting block property to add
+	// the byte back on emit.
+	var hadTrailingSplicer bool
 
 	flushBlock := func() bool {
 		if len(accumulated) == 0 {
@@ -140,6 +145,9 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 		block := model.NewBlock(blockIDStr, joined)
 		block.Name = fmt.Sprintf("block%d", blockID)
 		block.Properties["continued"] = strconv.Itoa(numLines)
+		if hadTrailingSplicer {
+			block.Properties["trailing-splicer"] = "true"
+		}
 
 		// Store the continuation line endings so the writer can reconstruct
 		if numLines > 1 {
@@ -197,8 +205,15 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 		}
 	}
 
-	// Flush any remaining accumulated lines
+	// Flush any remaining accumulated lines. The accumulator can only
+	// be non-empty here if the loop exited via EOF mid-continuation
+	// (every non-continuation flushes immediately). Mark the resulting
+	// block so the writer can re-emit the trailing `\` byte that the
+	// reader stripped — Okapi's okf_splicedlines preserves it on
+	// round-trip even though the block's logical text doesn't include
+	// it (matches SplicedLinesFilterTest#testTrailingBackslash).
 	if len(accumulated) > 0 {
+		hadTrailingSplicer = true
 		if !flushBlock() {
 			return
 		}

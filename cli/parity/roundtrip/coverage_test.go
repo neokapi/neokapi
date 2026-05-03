@@ -499,9 +499,18 @@ func coverageScans() []formatScan {
 		{
 			// No integration-tests source for tsv; cherry-pick the
 			// few real tsv fixtures from the shared table dir.
-			formatID:          "tsv",
-			filterClass:       "okf_tabseparatedvalues",
-			explicitFiles:     []string{"okapi/filters/table/src/test/resources/test_tsv_simple.txt"},
+			formatID:      "tsv",
+			filterClass:   "okf_tabseparatedvalues",
+			explicitFiles: []string{"okapi/filters/table/src/test/resources/test_tsv_simple.txt"},
+			// Same column-vs-row extraction divergence as csv — okapi's
+			// okf_tabseparatedvalues defaults to "translate column 1
+			// across all rows including the first" while native tsv
+			// defaults to "header + everything in data rows". Mirror
+			// okapi for parity.
+			nativeConfig: map[string]any{
+				"hasHeader":           false,
+				"translatableColumns": []any{1},
+			},
 		},
 		{
 			formatID:    "fixedwidth",
