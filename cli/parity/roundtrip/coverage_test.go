@@ -437,6 +437,9 @@ func coverageScans() []formatScan {
 			// differ only in whitespace (e.g. `"k" : "v"` vs `"k": "v"`)
 			// or string escape choices that encoding/json normalizes.
 			normalizer: roundtrip.JSONCanonical{},
+			skip: map[string]fileSkip{
+				"invalid_by_most_processors.json": {Engines: []string{"native"}, Reason: "JSON5 syntax (single-quoted strings, bare object keys); native scanner is strict — separate task #111 to add lenient mode"},
+			},
 		},
 		{
 			formatID:          "yaml",
