@@ -630,14 +630,11 @@ func coverageScans() []formatScan {
 			},
 			skip: map[string]fileSkip{
 				"lqiTest.xlf": {Engines: []string{"okapi"}, Reason: "okf_xliff needs lqiTestIssues.xml in the same dir; harness now copies companions but okapi still rejects this fixture"},
-				// Bridge-only skips: real okapi-bridge divergences vs the
-				// in-process okapi reference. These are content-level diffs
-				// (not stylistic), so the canonical normalizer doesn't help
-				// — needs Java-side fixes in okapi-bridge. Native passes
-				// these via the TierDivergent default (observation mode).
-				"ImplementationPlan.docx.xlf": {Engines: []string{"bridge"}, Reason: "bridge emits inline-code id=\"1\" where okapi reference has id=\"3\". Same-size output but content differs. Needs okapi-bridge investigation."},
-				"RB-12-Test02.xlf":            {Engines: []string{"bridge"}, Reason: "bridge drops one segment with <mrk> wrappers (-99 bytes vs reference). ResourceBundle-flavour xliff. Needs okapi-bridge investigation."},
-				"segmentation2.xlf":           {Engines: []string{"bridge"}, Reason: "bridge writes <mrk mid=\"0\"> where okapi reference has mid=\"1\" — off-by-one in segment-id renumbering. Needs okapi-bridge investigation."},
+				// Bridge-only: 1-byte content diff at offset 22404 — bridge writes
+				// <x id=\"1\"/> where okapi reference has <x id=\"3\"/>. Same total
+				// size; placeholder code id renumbering inside a target. Separate
+				// from the segment-id renumbering bug fixed in StreamingTranslationApplier.
+				"ImplementationPlan.docx.xlf": {Engines: []string{"bridge"}, Reason: "bridge writes <x id=\"1\"/> where okapi reference has <x id=\"3\"/> at offset 22404 (1-byte content diff, output size matches). Inline placeholder code id renumbering in target. Tracked: neokapi#553."},
 			},
 		},
 		{
