@@ -409,6 +409,7 @@ func coverageScans() []formatScan {
 				roundtrip.StripBOM{},
 				roundtrip.LFLineEndings{},
 				roundtrip.IgnoreTrailingNewline{},
+				roundtrip.POCharsetCase{},
 			}},
 		},
 		{
@@ -783,6 +784,11 @@ mergeCaptions.b=false
 			filterClass:       "okf_tex",
 			sources:           []string{"integration-tests/okapi/src/test/resources/tex"},
 			extensions:        []string{".tex"},
+			// okapi normalises CRLF → LF on round-trip; native preserves
+			// source line endings. Both are valid LaTeX. The remaining
+			// content-extraction divergences (LaTeX command-name handling,
+			// preamble extraction) are real reader bugs tracked in #568.
+			normalizer: roundtrip.LFLineEndings{},
 		},
 		{
 			formatID:          "transtable",
@@ -803,6 +809,13 @@ mergeCaptions.b=false
 			extensions:        []string{".idml"},
 			isZip:             true,
 			skip:              idmlBridgeSkips(),
+			// IDML is a zip of XML. okapi emits XML decls with
+			// single-quoted attrs ('1.0' encoding='UTF-8'); native
+			// emits double-quoted ("1.0" encoding="UTF-8"). Both are
+			// valid XML. Apply XMLCanonical to each zip entry so the
+			// XML decl is dropped (its attribute quote style is
+			// stylistic, not semantic) before per-entry comparison.
+			normalizer: roundtrip.ZipEntryNormalizer{Inner: roundtrip.XMLCanonical{SortAttrs: true}},
 		},
 		{
 			// 5 fixtures crash upstream Okapi's icml merge; 7 more
@@ -830,6 +843,12 @@ mergeCaptions.b=false
 			extensions:        []string{".docx"},
 			isZip:             true,
 			skip:              openxmlBridgeSkips(),
+			// OOXML is zip-of-XML. Same pattern as IDML — different
+			// writers emit XML decls with different quote styles, line
+			// endings, attribute ordering. Apply XMLCanonical to each
+			// zip entry so per-entry comparison cancels stylistic
+			// differences.
+			normalizer: roundtrip.ZipEntryNormalizer{Inner: roundtrip.XMLCanonical{SortAttrs: true}},
 		},
 		{
 			// Bridge passes ~2 of 41 fixtures; the rest are flagged

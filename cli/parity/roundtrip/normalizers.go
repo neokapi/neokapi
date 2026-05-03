@@ -3,6 +3,7 @@
 package roundtrip
 
 import (
+	"archive/zip"
 	"bytes"
 	"encoding/json"
 	"encoding/xml"
@@ -608,4 +609,126 @@ func (c Chain) Normalize(in []byte) ([]byte, error) {
 		cur = out
 	}
 	return cur, nil
+}
+
+// ZipEntryNormalizer applies an inner Normalizer to each entry of a
+// zip archive, then re-zips with deterministic metadata. Used for
+// zip-of-XML formats (idml, openxml, …) where the per-entry content
+// would canonicalize cleanly under the inner normalizer but the
+// outer zip metadata (mtime, central-dir order, compression level)
+// differs between writers.
+//
+// The post-normalize comparison goes back through compareZip
+// (compare.go honours isZip after normalize), so this only needs to
+// produce a valid zip whose entries match the inner normalization —
+// the outer byte-stream doesn't have to be byte-identical.
+//
+// XML-only entries (.xml/.rels) and other text-XML are passed through
+// the inner normalizer; any entry that fails normalization (e.g.
+// binary content like .png inside the zip) is passed through verbatim
+// so we don't lose the entry.
+type ZipEntryNormalizer struct {
+	Inner Normalizer
+}
+
+// Name implements Normalizer.
+func (z ZipEntryNormalizer) Name() string {
+	if z.Inner == nil {
+		return "zip-entries"
+	}
+	return "zip-entries[" + z.Inner.Name() + "]"
+}
+
+// Normalize implements Normalizer.
+func (z ZipEntryNormalizer) Normalize(in []byte) ([]byte, error) {
+	r, err := zip.NewReader(bytes.NewReader(in), int64(len(in)))
+	if err != nil {
+		return nil, fmt.Errorf("zip-entries: open: %w", err)
+	}
+	var out bytes.Buffer
+	w := zip.NewWriter(&out)
+	for _, f := range r.File {
+		if f.FileInfo().IsDir() {
+			continue
+		}
+		rc, err := f.Open()
+		if err != nil {
+			return nil, fmt.Errorf("zip-entries: open %q: %w", f.Name, err)
+		}
+		raw, err := io.ReadAll(rc)
+		rc.Close()
+		if err != nil {
+			return nil, fmt.Errorf("zip-entries: read %q: %w", f.Name, err)
+		}
+		body := raw
+		if z.Inner != nil && isLikelyXML(f.Name, raw) {
+			normed, err := z.Inner.Normalize(raw)
+			if err == nil {
+				body = normed
+			}
+			// On normalize error, fall through with raw bytes — keeps
+			// the comparison meaningful for entries whose content the
+			// inner normalizer can't handle.
+		}
+		// Write with stored compression + zero mtime so metadata is
+		// stable. The compareZip ignores zip metadata anyway, so this
+		// is belt-and-braces.
+		entry, err := w.CreateHeader(&zip.FileHeader{
+			Name:   f.Name,
+			Method: zip.Store,
+		})
+		if err != nil {
+			return nil, fmt.Errorf("zip-entries: create %q: %w", f.Name, err)
+		}
+		if _, err := entry.Write(body); err != nil {
+			return nil, fmt.Errorf("zip-entries: write %q: %w", f.Name, err)
+		}
+	}
+	if err := w.Close(); err != nil {
+		return nil, fmt.Errorf("zip-entries: close: %w", err)
+	}
+	return out.Bytes(), nil
+}
+
+// isLikelyXML reports whether the given zip entry should be treated
+// as XML for normalization. We check the filename suffix and a quick
+// content sniff on the first non-whitespace bytes.
+func isLikelyXML(name string, body []byte) bool {
+	lower := strings.ToLower(name)
+	switch {
+	case strings.HasSuffix(lower, ".xml"),
+		strings.HasSuffix(lower, ".rels"),
+		strings.HasSuffix(lower, ".xhtml"):
+		return true
+	}
+	// Quick sniff: first non-whitespace bytes start with `<`.
+	for _, b := range body {
+		switch b {
+		case ' ', '\t', '\r', '\n', 0xef, 0xbb, 0xbf: // skip whitespace + UTF-8 BOM
+			continue
+		case '<':
+			return true
+		default:
+			return false
+		}
+	}
+	return false
+}
+
+// POCharsetCase folds case differences in PO `charset=...` values.
+// okapi normalises `charset=utf-8` → `charset=UTF-8` on round-trip;
+// native preserves source case. Both are valid per RFC 2046 (§2.1
+// "Character set names are case-insensitive").
+type POCharsetCase struct{}
+
+// Name implements Normalizer.
+func (POCharsetCase) Name() string { return "po-charset-case" }
+
+var poCharsetRE = regexp.MustCompile(`(?i)charset=[A-Za-z0-9_\-]+`)
+
+// Normalize implements Normalizer.
+func (POCharsetCase) Normalize(in []byte) ([]byte, error) {
+	return poCharsetRE.ReplaceAllFunc(in, func(m []byte) []byte {
+		return bytes.ToUpper(m)
+	}), nil
 }

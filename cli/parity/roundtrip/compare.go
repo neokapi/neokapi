@@ -140,11 +140,16 @@ func compareTiered(got, reference []byte, isZip bool, norm Normalizer) Compariso
 			res.Achieved = TierDivergent
 			return res
 		}
-		if reason := compareBytesOrZip(normGot, normRef, false); reason == "" {
+		if reason := compareBytesOrZip(normGot, normRef, isZip); reason == "" {
 			res.Achieved = TierCanonicalEqual
 			return res
-		} else {
+		} else if !isZip {
 			res.NormDiffOffset = firstDiff(normGot, normRef)
+		} else {
+			// For zip cases, replace the raw-comparison Reason with
+			// the post-normalize one so the report explains why
+			// canonical-equal wasn't reached.
+			res.Reason = "[after " + norm.Name() + "] " + reason
 		}
 	}
 
