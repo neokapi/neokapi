@@ -693,11 +693,16 @@ mergeCaptions.b=false
 			// diverge in bridge's inline-rewrite path. Bridge passes
 			// 2 of 9 testable fixtures. icmlMergedSkips() returns
 			// both buckets in one map.
-			formatID:          "icml",
-			filterClass:       "okf_icml",
-			sources:           []string{"integration-tests/okapi/src/test/resources/icml"},
-			extensions:        []string{".icml", ".wcml"},
-			skip:              icmlMergedSkips(),
+			formatID:    "icml",
+			filterClass: "okf_icml",
+			sources:     []string{"integration-tests/okapi/src/test/resources/icml"},
+			extensions:  []string{".icml", ".wcml"},
+			skip:        icmlMergedSkips(),
+			// ICML is Adobe InDesign XML; same canonical normalizer as
+			// other XML formats reaches canonical-equal when source and
+			// reference differ only in attribute order or non-significant
+			// whitespace.
+			normalizer: roundtrip.XMLCanonical{SortAttrs: true},
 		},
 		{
 			// 185 .docx fixtures in the upstream filter dir. Bridge
