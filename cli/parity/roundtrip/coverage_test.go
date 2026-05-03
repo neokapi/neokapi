@@ -724,6 +724,13 @@ cjkCharsPerLine.i=18
 mergeCaptions.b=false
 `,
 			bridgeParams: map[string]string{"mergeCaptions": "false"},
+			// Native default replaces <br/> with a space; okapi preserves
+			// <br/> as literal text inside the translatable unit. Override
+			// to match okapi's semantic — without this, native diverges
+			// on every fixture that contains <br/>.
+			nativeConfig: map[string]any{
+				"escapeBR": false,
+			},
 			// TTML is XML; same canonical normalizer.
 			normalizer: roundtrip.XMLCanonical{SortAttrs: true},
 		},

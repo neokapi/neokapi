@@ -599,6 +599,34 @@ func TestConfigApplyMapWrongType(t *testing.T) {
 
 // TestWriterMinimalTTML verifies that the writer can generate TTML from blocks
 // without a skeleton document.
+// TestReadSurvivesMalformedHead guards against the okapi reference
+// fixture (example1.ttml) shipping `<okp:foo>...</lilt:foo>` in the
+// head — a real namespace-prefix mismatch that fails Go's xml.Decoder.
+// Translatable content lives only in <body>, so the reader must skip
+// past head garbage rather than aborting before it ever sees a <p>.
+func TestReadSurvivesMalformedHead(t *testing.T) {
+	ctx := t.Context()
+	input := `<?xml version="1.0" encoding="UTF-8"?>
+<tt xmlns="http://www.w3.org/ns/ttml">
+  <head>
+    <metadata>
+      <okp:badprefix>val</lilt:badprefix>
+    </metadata>
+  </head>
+  <body><div>
+    <p begin="00:00:01.000" end="00:00:04.000">Hello world</p>
+  </div></body>
+</tt>`
+	reader := ttml.NewReader()
+	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
+	require.NoError(t, err)
+	defer reader.Close()
+
+	blocks := testutil.CollectBlocks(t, reader.Read(ctx))
+	require.Len(t, blocks, 1)
+	assert.Equal(t, "Hello world", blocks[0].SourceText())
+}
+
 func TestWriterMinimalTTML(t *testing.T) {
 	ctx := t.Context()
 

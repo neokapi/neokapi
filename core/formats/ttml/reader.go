@@ -207,10 +207,19 @@ type textRange struct {
 
 // findPTextRanges finds the byte ranges of text content within <p> elements.
 // It returns ranges for non-empty <p> elements only.
+//
+// Like parseCaptions, parsing is restricted to the <body> slice to
+// survive non-conformant XML in the head (see parseCaptions for the
+// full motivation).
 func (r *Reader) findPTextRanges(data []byte) []textRange {
+	body, bodyOffset := bodySlice(data)
+	if body == nil {
+		body = data
+		bodyOffset = 0
+	}
 	// We need to find the exact byte offsets of the text content between
 	// <p ...> and </p> tags. The XML decoder gives us offsets at token boundaries.
-	decoder := xml.NewDecoder(strings.NewReader(string(data)))
+	decoder := xml.NewDecoder(strings.NewReader(string(body)))
 	var ranges []textRange
 
 	for {
@@ -243,14 +252,17 @@ func (r *Reader) findPTextRanges(data []byte) []textRange {
 						// The decoder's InputOffset after reading </p> points to after it.
 						// We need the offset of the start of "</p>".
 						// Find "</p>" backwards from endOffset in the data.
-						closeTag := findCloseTag(data, contentStart, endOffset, "p")
+						closeTag := findCloseTag(body, contentStart, endOffset, "p")
 						if closeTag >= 0 {
 							text := strings.Join(textParts, "")
 							if strings.TrimSpace(text) != "" {
 								hasContent = true
 							}
 							if hasContent {
-								ranges = append(ranges, textRange{start: contentStart, end: closeTag})
+								ranges = append(ranges, textRange{
+									start: contentStart + bodyOffset,
+									end:   closeTag + bodyOffset,
+								})
 							}
 						}
 						goto nextP
@@ -319,8 +331,19 @@ func (r *Reader) emitCaptionBlocks(ctx context.Context, ch chan<- model.PartResu
 }
 
 // parseCaptions extracts <p> elements from the TTML document using encoding/xml.
+//
+// Parsing is restricted to the <body> slice so that head metadata with
+// non-conformant XML (e.g. okapi's example1.ttml ships an opening
+// <okp:foo> closed by </lilt:foo>, a real namespace-prefix mismatch
+// that fails Go's xml.Decoder before reaching the captions) doesn't
+// shut down extraction. TTML's translatable content lives only inside
+// <body>, so head garbage is never load-bearing.
 func (r *Reader) parseCaptions(data []byte) []*ttmlCaption {
-	decoder := xml.NewDecoder(strings.NewReader(string(data)))
+	body, _ := bodySlice(data)
+	if body == nil {
+		body = data
+	}
+	decoder := xml.NewDecoder(strings.NewReader(string(body)))
 	var captions []*ttmlCaption
 
 	for {
@@ -339,6 +362,27 @@ func (r *Reader) parseCaptions(data []byte) []*ttmlCaption {
 	}
 
 	return captions
+}
+
+// bodySlice returns the byte slice covering <body...>...</body> in data,
+// along with the absolute byte offset of the opening "<body" in the
+// original document. Returns (nil, 0) when no <body> element is found.
+//
+// Callers that report absolute offsets (e.g. findPTextRanges) must add
+// the returned offset to ranges produced from the slice.
+func bodySlice(data []byte) ([]byte, int) {
+	src := string(data)
+	bodyOpen := strings.Index(src, "<body")
+	if bodyOpen < 0 {
+		return nil, 0
+	}
+	bodyClose := strings.Index(src[bodyOpen:], "</body>")
+	if bodyClose < 0 {
+		// Self-closing <body/> — single token, no children.
+		return nil, 0
+	}
+	end := bodyOpen + bodyClose + len("</body>")
+	return data[bodyOpen:end], bodyOpen
 }
 
 // parseCaption parses a single <p> element and its content.
