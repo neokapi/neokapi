@@ -643,16 +643,24 @@ func coverageScans() []formatScan {
 			},
 		},
 		{
-			// Bridge daemon reports "filter does not support writing:
-			// okf_xliff2" — the upstream filter is read-only. The okapi
-			// reference engine hits the same wall (FilterEventsToRawDocumentStep
-			// requires an IFilterWriter), so the whole format is a known skip
-			// at the okapi level.
+			// Skipped at the okapi level. The XLIFF2Filter does have a
+			// writer (XLIFF2FilterWriter), but the pseudo pipeline NPEs
+			// at runtime (FilterEventsToRawDocumentStep:152 — startDoc's
+			// filterWriter is null when the step looks it up). Even if
+			// fixed, okapi's xliff2 round-trip is documented-lossy:
+			// "Skeleton not supported. Comments are lost. Original XML
+			// formatting lost. Attributes can be reordered. Attributes
+			// may be removed/added depending on XLIFF 2 Toolkit defaults."
+			// (https://okapiframework.org/wiki/index.php/XLIFF-2_Filter)
+			// So byte-equal parity isn't achievable and canonical parity
+			// would require a stronger normalizer than we currently have.
+			// xliff2 conformance is verified via a self round-trip test
+			// in core/formats/xliff2 (TestRoundTrip_AllFixtures) instead.
 			formatID:          "xliff2",
 			filterClass:       "okf_xliff2",
 			sources:           []string{"integration-tests/okapi/src/test/resources/xliff2"},
 			extensions:        []string{".xlf", ".xlf2"},
-			formatDefaultSkip: fileSkip{Engines: []string{"okapi"}, Reason: "okf_xliff2 filter is read-only; FilterEventsToRawDocumentStep cannot write it"},
+			formatDefaultSkip: fileSkip{Engines: []string{"okapi"}, Reason: "okapi pseudo pipeline NPEs on xliff2 + okapi xliff2 round-trip is documented-lossy; verified via self-roundtrip in core/formats/xliff2"},
 		},
 		{
 			formatID:          "tmx",

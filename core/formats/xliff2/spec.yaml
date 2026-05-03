@@ -1,5 +1,10 @@
 # XLIFF 2.x format specification.
 #
+# Authoritative reader/writer design: docs/internals/research/xliff2-design.md
+# (etree-based DOM, full XLIFF 2.2 spec attribute fidelity, byte-equal
+# round-trip for unmodified inputs). This file is the test-driven
+# feature spec used by the parity audit and drift detection.
+#
 # Single-variant filter — no variants block. Inputs are inline XLIFF 2.0
 # documents (input_xml carries raw text bytes). The reader accepts the
 # OASIS 2.0/2.1/2.2 namespaces as a compatible family; examples here

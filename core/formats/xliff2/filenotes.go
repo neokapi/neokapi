@@ -76,34 +76,6 @@ func FilePropertyFromLayer(layer *model.Layer, category, id string) string {
 	return layer.Properties[FileNotePropertyPrefix+category+":"+id]
 }
 
-// setFileNoteProperties copies parsed <note> elements into layer.Properties
-// under the file-note:<category>:<id> convention so downstream code
-// (notably kapi merge) can access extract-time metadata without re-parsing
-// the XML. Notes with no category and no id are ignored — they would all
-// collide on the same key with no content distinguishing them.
-func setFileNoteProperties(layer *model.Layer, notes []xliff2Note) {
-	if layer == nil {
-		return
-	}
-	if len(notes) == 0 {
-		return
-	}
-	if layer.Properties == nil {
-		layer.Properties = make(map[string]string, len(notes))
-	}
-	for _, n := range notes {
-		content := strings.TrimSpace(n.Content)
-		if content == "" {
-			continue
-		}
-		if n.Category == "" && n.ID == "" {
-			continue
-		}
-		key := FileNotePropertyPrefix + n.Category + ":" + n.ID
-		layer.Properties[key] = content
-	}
-}
-
 // mergeFileNotes combines the notes carried through from the input layer
 // (via fileNotesFromLayer) with notes stamped explicitly by the caller.
 // When both sources provide a note with the same (category, id), the

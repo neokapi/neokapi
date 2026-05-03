@@ -7,58 +7,14 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"strconv"
 	"strings"
+
+	"github.com/beevik/etree"
 
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/model"
 )
-
-// XLIFF 2.x XML structures (used for DOM-based parsing without skeleton)
-
-type xliff2Doc struct {
-	XMLName xml.Name     `xml:"xliff"`
-	Attrs   []xml.Attr   `xml:",any,attr"`
-	Version string       `xml:"version,attr"`
-	SrcLang string       `xml:"srcLang,attr"`
-	TrgLang string       `xml:"trgLang,attr"`
-	Files   []xliff2File `xml:"file"`
-}
-
-type xliff2File struct {
-	ID     string        `xml:"id,attr"`
-	Notes  []xliff2Note  `xml:"notes>note"`
-	Groups []xliff2Group `xml:"group"`
-	Units  []xliff2Unit  `xml:"unit"`
-}
-
-type xliff2Group struct {
-	ID     string        `xml:"id,attr"`
-	Name   string        `xml:"name,attr"`
-	Groups []xliff2Group `xml:"group"`
-	Units  []xliff2Unit  `xml:"unit"`
-}
-
-type xliff2Unit struct {
-	ID        string          `xml:"id,attr"`
-	Name      string          `xml:"name,attr"`
-	Translate string          `xml:"translate,attr"`
-	Notes     []xliff2Note    `xml:"notes>note"`
-	Segments  []xliff2Segment `xml:"segment"`
-	Ignorable []xliff2Segment `xml:"ignorable"`
-}
-
-type xliff2Segment struct {
-	ID     string        `xml:"id,attr"`
-	State  string        `xml:"state,attr"`
-	Source xliff2Content `xml:"source"`
-	Target xliff2Content `xml:"target"`
-}
-
-type xliff2Note struct {
-	ID       string `xml:"id,attr,omitempty"`
-	Category string `xml:"category,attr,omitempty"`
-	Content  string `xml:",chardata"`
-}
 
 // FileNotePropertyKey is the layer.Properties key used to surface a
 // file-level <note> parsed from an XLIFF 2 <file>. One key is written per
@@ -71,16 +27,19 @@ type xliff2Note struct {
 // BatchIDFromLayer.
 const FileNotePropertyPrefix = "file-note:"
 
-type xliff2Content struct {
-	InnerXML string `xml:",innerxml"`
-}
-
-// Reader implements DataFormatReader for XLIFF 2.x files.
+// Reader implements DataFormatReader for XLIFF 2.x files using a
+// DOM-based etree parse. The full source DOM is stashed on the first
+// emitted Layer via SourceDOMAnnotation so the writer's round-trip
+// mode can patch it in place for byte-equal output on unchanged units.
+//
+// Parse is lossless to neokapi's content model: every spec attribute is
+// either decoded into a typed model field or preserved on the source
+// DOM (and module/extension subtrees ride along automatically via the
+// DOM). See docs/internals/research/xliff2-design.md.
 type Reader struct {
 	format.BaseFormatReader
 	cfg           *Config
 	skeletonStore *format.SkeletonStore
-	skelBuf       bytes.Buffer // coalesces skeleton text between refs
 }
 
 // Ensure Reader implements SkeletonStoreEmitter.
@@ -104,13 +63,15 @@ func NewReader() *Reader {
 }
 
 // SetSkeletonStore sets the skeleton store for streaming skeleton output.
+// When set the reader switches to a streaming token-based parse that
+// records byte offsets for source/target placeholders. The DOM-based
+// parse is bypassed in this mode (skeleton round-trip is a separate
+// flow per the design doc).
 func (r *Reader) SetSkeletonStore(store *format.SkeletonStore) {
 	r.skeletonStore = store
 }
 
-// Signature returns detection metadata for this format. The Sniff function
-// accepts any OASIS XLIFF 2.x document (namespace …:2.0/2.1/2.2 or version
-// attribute 2.0/2.1/2.2).
+// Signature returns detection metadata for this format.
 func (r *Reader) Signature() format.FormatSignature {
 	return format.FormatSignature{
 		MIMETypes:  []string{"application/xliff+xml"},
@@ -147,66 +108,576 @@ func (r *Reader) Read(ctx context.Context) <-chan model.PartResult {
 	return ch
 }
 
-// elemPos tracks the byte position of a source or target element's inner content.
-type elemPos struct {
-	startOffset int    // byte offset after opening tag
-	endOffset   int    // byte offset before closing tag
-	blockIdx    int    // 0-based block index
-	elemType    string // "source" or "target"
-}
-
 func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 	content, err := io.ReadAll(r.Doc.Reader)
 	if err != nil {
 		ch <- model.PartResult{Error: fmt.Errorf("xliff2: reading: %w", err)}
 		return
 	}
-
 	if r.skeletonStore != nil {
 		r.readContentStreaming(ctx, ch, content)
 		return
 	}
 
-	// DOM-based parsing (no skeleton)
-	var doc xliff2Doc
-	if err := xml.Unmarshal(content, &doc); err != nil {
+	// Coerce XML 1.1 → 1.0 in the declaration. XLIFF 2.x spec mandates
+	// XML 1.0; some real-world tools (and a few okapi-testdata fixtures)
+	// emit `version="1.1"` regardless. Rewriting before parse preserves
+	// document content and lets stdlib encoding/xml accept it.
+	content = coerceXMLDeclTo10(content)
+
+	doc := etree.NewDocument()
+	if err := doc.ReadFromBytes(content); err != nil {
 		ch <- model.PartResult{Error: fmt.Errorf("xliff2: parsing: %w", err)}
 		return
 	}
 
-	srcLang := model.LocaleID(doc.SrcLang)
-	trgLang := model.LocaleID(doc.TrgLang)
-	version := doc.Version
+	root := doc.SelectElement("xliff")
+	if root == nil {
+		// etree's SelectElement is namespace-agnostic by local name.
+		// If the XLIFF root isn't found, look for any root element.
+		if rootEl := doc.Root(); rootEl != nil && rootEl.Tag == "xliff" {
+			root = rootEl
+		}
+	}
+	if root == nil {
+		ch <- model.PartResult{Error: errors.New("xliff2: no <xliff> root element found")}
+		return
+	}
 
-	for _, file := range doc.Files {
+	srcLang := attrValue(root, "srcLang")
+	trgLang := attrValue(root, "trgLang")
+	version := attrValue(root, "version")
+
+	files := root.SelectElements("file")
+	for fileIdx, file := range files {
+		fileID := attrValue(file, "id")
 		layer := &model.Layer{
-			ID:             "file-" + file.ID,
-			Name:           file.ID,
+			ID:             "file-" + fileID,
+			Name:           fileID,
 			Format:         "xliff2",
-			Locale:         srcLang,
+			Locale:         model.LocaleID(srcLang),
 			IsMultilingual: true,
 			Properties: map[string]string{
-				"target-language": string(trgLang),
+				"target-language": trgLang,
 			},
 		}
 		if version != "" {
 			layer.Properties["xliff-version"] = version
 		}
-		setExtraXliffAttrs(layer, doc.Attrs)
-		setFileNoteProperties(layer, file.Notes)
+
+		// Capture root-level extra attributes (custom namespaces,
+		// xml:lang, …) onto the first file's layer for round-trip.
+		if fileIdx == 0 {
+			setExtraXliffAttrsFromEtree(layer, root)
+		}
+
+		// File-level <notes> → file-note:<category>:<id> properties.
+		if notesEl := file.SelectElement("notes"); notesEl != nil {
+			setFileNotePropertiesFromEtree(layer, notesEl)
+		}
+
 		if !r.emit(ctx, ch, &model.Part{Type: model.PartLayerStart, Resource: layer}) {
 			return
 		}
 
-		for _, group := range file.Groups {
-			r.emitGroup(ctx, ch, group, srcLang, trgLang)
-		}
-		for _, unit := range file.Units {
-			r.emitUnit(ctx, ch, unit, srcLang, trgLang)
+		// Walk file children in order, emitting groups/units.
+		for _, child := range file.ChildElements() {
+			switch child.Tag {
+			case "group":
+				r.emitGroup(ctx, ch, child, model.LocaleID(trgLang))
+			case "unit":
+				r.emitUnit(ctx, ch, child, model.LocaleID(trgLang))
+			}
 		}
 
 		r.emit(ctx, ch, &model.Part{Type: model.PartLayerEnd, Resource: layer})
 	}
+}
+
+// emitGroup emits PartGroupStart/PartGroupEnd around the group's
+// contents, recursing into nested groups and units.
+func (r *Reader) emitGroup(ctx context.Context, ch chan<- model.PartResult, group *etree.Element, trgLang model.LocaleID) {
+	gs := &model.GroupStart{
+		ID:   attrValue(group, "id"),
+		Name: attrValue(group, "name"),
+		Type: attrValue(group, "type"),
+	}
+	if !r.emit(ctx, ch, &model.Part{Type: model.PartGroupStart, Resource: gs}) {
+		return
+	}
+	for _, child := range group.ChildElements() {
+		switch child.Tag {
+		case "group":
+			r.emitGroup(ctx, ch, child, trgLang)
+		case "unit":
+			r.emitUnit(ctx, ch, child, trgLang)
+		}
+	}
+	r.emit(ctx, ch, &model.Part{Type: model.PartGroupEnd, Resource: &model.GroupEnd{ID: gs.ID}})
+}
+
+// emitUnit builds a Block from a <unit> element and emits it.
+func (r *Reader) emitUnit(ctx context.Context, ch chan<- model.PartResult, unit *etree.Element, trgLang model.LocaleID) {
+	translatable := true
+	if strings.EqualFold(attrValue(unit, "translate"), "no") {
+		translatable = false
+	}
+
+	block := &model.Block{
+		ID:           attrValue(unit, "id"),
+		Name:         attrValue(unit, "name"),
+		Translatable: translatable,
+		Properties:   make(map[string]string),
+		Annotations:  make(map[string]model.Annotation),
+		Targets:      make(map[model.LocaleID][]*model.Segment),
+	}
+
+	// Unit-level <notes>: store as note-N properties (preserves order).
+	if notesEl := unit.SelectElement("notes"); notesEl != nil {
+		for i, n := range notesEl.SelectElements("note") {
+			block.Properties[fmt.Sprintf("note-%d", i)] = strings.TrimSpace(n.Text())
+		}
+	}
+
+	// <originalData> capture.
+	if odEl := unit.SelectElement("originalData"); odEl != nil {
+		entries := make(map[string]*Content)
+		for _, dataEl := range odEl.SelectElements("data") {
+			id := attrValue(dataEl, "id")
+			if id == "" {
+				continue
+			}
+			entries[id] = &Content{Inlines: parseInlines(dataEl)}
+		}
+		if len(entries) > 0 {
+			block.Annotations["xliff2:original-data"] = &OriginalDataAnnotation{Entries: entries}
+		}
+	}
+
+	// Walk segments and ignorables in document order.
+	srcSegs := []*model.Segment{}
+	tgtSegs := []*model.Segment{}
+
+	segIdx := 0
+	for _, child := range unit.ChildElements() {
+		if child.Tag != "segment" && child.Tag != "ignorable" {
+			continue
+		}
+		segIdx++
+		segID := attrValue(child, "id")
+		if segID == "" {
+			segID = fmt.Sprintf("s%d", segIdx)
+		}
+
+		// State on segment becomes a property (last writer wins for
+		// multi-segment units; rare to differ). subState is preserved
+		// only via the source DOM round-trip.
+		if state := attrValue(child, "state"); state != "" {
+			block.Properties["state"] = state
+		}
+
+		srcEl := child.SelectElement("source")
+		if srcEl == nil {
+			continue // spec violation but tolerate
+		}
+		srcInlines := parseInlines(srcEl)
+		srcSeg := &model.Segment{
+			ID:          segID,
+			Runs:        inlinesToRuns(srcInlines),
+			Annotations: map[string]model.Annotation{},
+		}
+		srcSeg.Annotations["xliff2:segment-inline"] = &SegmentInlineAnnotation{Content: &Content{Inlines: srcInlines}}
+		srcSegs = append(srcSegs, srcSeg)
+
+		if tgtEl := child.SelectElement("target"); tgtEl != nil {
+			tgtInlines := parseInlines(tgtEl)
+			if hasNonEmptyInline(tgtInlines) {
+				tgtSeg := &model.Segment{
+					ID:          segID,
+					Runs:        inlinesToRuns(tgtInlines),
+					Annotations: map[string]model.Annotation{},
+				}
+				tgtSeg.Annotations["xliff2:segment-inline"] = &SegmentInlineAnnotation{Content: &Content{Inlines: tgtInlines}}
+				tgtSegs = append(tgtSegs, tgtSeg)
+			}
+		}
+	}
+
+	block.Source = srcSegs
+	if len(tgtSegs) > 0 && !trgLang.IsEmpty() {
+		block.Targets[trgLang] = tgtSegs
+	}
+
+	r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block})
+}
+
+// parseInlines walks an etree.Element's children and builds the
+// xliff2 Inline IR. Text and CharData come through as Text nodes;
+// element children dispatch on local name to typed Inline variants.
+// <cp hex="X"/> is resolved to its code point and merged into the
+// preceding (or following) Text node.
+func parseInlines(parent *etree.Element) []Inline {
+	var out []Inline
+	for _, tok := range parent.Child {
+		switch t := tok.(type) {
+		case *etree.CharData:
+			s := t.Data
+			if s == "" {
+				continue
+			}
+			out = appendText(out, s)
+		case *etree.Element:
+			switch t.Tag {
+			case "cp":
+				if hex := attrValue(t, "hex"); hex != "" {
+					if n, err := strconv.ParseInt(hex, 16, 32); err == nil {
+						out = appendText(out, string(rune(n)))
+					}
+				}
+			case "ph":
+				out = append(out, Inline{Ph: &Ph{CodeAttrs: parseCodeAttrs(t)}})
+			case "pc":
+				out = append(out, Inline{Pc: &Pc{
+					CodeAttrs: parseCodeAttrs(t),
+					Children:  parseInlines(t),
+				}})
+			case "sc":
+				out = append(out, Inline{Sc: &Sc{CodeAttrs: parseCodeAttrs(t)}})
+			case "ec":
+				out = append(out, Inline{Ec: &Ec{CodeAttrs: parseCodeAttrs(t)}})
+			case "mrk":
+				out = append(out, Inline{Mrk: &Mrk{
+					MrkAttrs: parseMrkAttrs(t),
+					Children: parseInlines(t),
+				}})
+			case "sm":
+				out = append(out, Inline{Sm: &Sm{MrkAttrs: parseMrkAttrs(t)}})
+			case "em":
+				out = append(out, Inline{Em: &Em{StartRef: attrValue(t, "startRef")}})
+			default:
+				// Unknown inline element (extension namespace?) — skip
+				// silently. The source DOM still carries it for
+				// round-trip; this just means it won't surface to
+				// downstream tools that walk the IR.
+			}
+		}
+	}
+	return out
+}
+
+// appendText merges adjacent Text nodes so <cp> resolution doesn't
+// create text fragmentation. Normalizes CR (0x0D) to LF per XML 1.0
+// §2.11 — etree preserves CR literally on read but the writer emits
+// it raw, which the next reader would normalize to LF, breaking
+// idempotency. We do the spec-mandated normalization up front.
+func appendText(out []Inline, s string) []Inline {
+	s = strings.ReplaceAll(s, "\r\n", "\n")
+	s = strings.ReplaceAll(s, "\r", "\n")
+	if n := len(out); n > 0 && out[n-1].Text != nil {
+		out[n-1].Text.Content += s
+		return out
+	}
+	return append(out, Inline{Text: &Text{Content: s}})
+}
+
+// parseCodeAttrs reads all spec-defined inline-code attributes off
+// an etree.Element into a CodeAttrs struct.
+func parseCodeAttrs(el *etree.Element) CodeAttrs {
+	return CodeAttrs{
+		ID:            attrValue(el, "id"),
+		CanCopy:       attrValue(el, "canCopy"),
+		CanDelete:     attrValue(el, "canDelete"),
+		CanReorder:    attrValue(el, "canReorder"),
+		CanOverlap:    attrValue(el, "canOverlap"),
+		CopyOf:        attrValue(el, "copyOf"),
+		DataRef:       attrValue(el, "dataRef"),
+		DataRefStart:  attrValue(el, "dataRefStart"),
+		DataRefEnd:    attrValue(el, "dataRefEnd"),
+		Dir:           attrValue(el, "dir"),
+		Disp:          attrValue(el, "disp"),
+		DispStart:     attrValue(el, "dispStart"),
+		DispEnd:       attrValue(el, "dispEnd"),
+		Equiv:         attrValue(el, "equiv"),
+		EquivStart:    attrValue(el, "equivStart"),
+		EquivEnd:      attrValue(el, "equivEnd"),
+		SubFlows:      attrValue(el, "subFlows"),
+		SubFlowsStart: attrValue(el, "subFlowsStart"),
+		SubFlowsEnd:   attrValue(el, "subFlowsEnd"),
+		SubType:       attrValue(el, "subType"),
+		Type:          attrValue(el, "type"),
+		Isolated:      attrValue(el, "isolated"),
+		StartRef:      attrValue(el, "startRef"),
+	}
+}
+
+// parseMrkAttrs reads annotation-marker attributes off an etree.Element.
+func parseMrkAttrs(el *etree.Element) MrkAttrs {
+	return MrkAttrs{
+		ID:        attrValue(el, "id"),
+		Type:      attrValue(el, "type"),
+		Translate: attrValue(el, "translate"),
+		Ref:       attrValue(el, "ref"),
+		Value:     attrValue(el, "value"),
+	}
+}
+
+// inlinesToRuns downconverts the xliff2 Inline IR to the framework's
+// generic model.Run sequence. Lossy by design — Run is a simpler
+// abstraction; the lossless path is the SourceBodyAnnotation /
+// TargetBodyAnnotation IR. Downstream tools that need full attribute
+// fidelity reach for the annotation; tools that only care about text
+// and placeholder equivs use Runs.
+func inlinesToRuns(inls []Inline) []model.Run {
+	var out []model.Run
+	for _, in := range inls {
+		switch {
+		case in.Text != nil:
+			out = append(out, model.Run{Text: &model.TextRun{Text: in.Text.Content}})
+		case in.Ph != nil:
+			out = append(out, model.Run{Ph: &model.PlaceholderRun{
+				ID:      in.Ph.ID,
+				Type:    in.Ph.Type,
+				SubType: in.Ph.SubType,
+				Equiv:   in.Ph.Equiv,
+				Disp:    in.Ph.Disp,
+			}})
+		case in.Pc != nil:
+			out = append(out, model.Run{PcOpen: &model.PcOpenRun{
+				ID:      in.Pc.ID,
+				Type:    in.Pc.Type,
+				SubType: in.Pc.SubType,
+				Equiv:   in.Pc.EquivStart,
+				Disp:    in.Pc.DispStart,
+			}})
+			out = append(out, inlinesToRuns(in.Pc.Children)...)
+			out = append(out, model.Run{PcClose: &model.PcCloseRun{
+				ID:    in.Pc.ID,
+				Type:  in.Pc.Type,
+				Equiv: in.Pc.EquivEnd,
+			}})
+		case in.Sc != nil:
+			out = append(out, model.Run{Ph: &model.PlaceholderRun{
+				ID:      in.Sc.ID,
+				Type:    in.Sc.Type,
+				SubType: in.Sc.SubType,
+				Equiv:   in.Sc.Equiv,
+				Disp:    in.Sc.Disp,
+			}})
+		case in.Ec != nil:
+			out = append(out, model.Run{Ph: &model.PlaceholderRun{
+				ID:      in.Ec.ID,
+				Type:    in.Ec.Type,
+				SubType: in.Ec.SubType,
+				Equiv:   in.Ec.Equiv,
+				Disp:    in.Ec.Disp,
+			}})
+		case in.Mrk != nil:
+			// Annotation markers don't have a direct Run analogue; we
+			// fold their text content through.
+			out = append(out, inlinesToRuns(in.Mrk.Children)...)
+		case in.Sm != nil, in.Em != nil:
+			// No Run for span markers — they're metadata.
+		}
+	}
+	return out
+}
+
+// hasNonEmptyInline reports whether any inline node has actual content.
+// Used to suppress empty <target/> from emitting a Targets entry that
+// would imply an empty translation.
+func hasNonEmptyInline(inls []Inline) bool {
+	for _, in := range inls {
+		if in.Text != nil && in.Text.Content != "" {
+			return true
+		}
+		if in.Ph != nil || in.Pc != nil || in.Sc != nil || in.Ec != nil ||
+			in.Mrk != nil || in.Sm != nil || in.Em != nil {
+			return true
+		}
+	}
+	return false
+}
+
+// attrValue returns the value of a local-name attribute, ignoring
+// namespace. Returns "" when absent.
+func attrValue(el *etree.Element, local string) string {
+	for _, a := range el.Attr {
+		if a.Key == local {
+			return a.Value
+		}
+	}
+	return ""
+}
+
+// extraAttrPropKeyPrefix prefixes Layer.Properties keys that carry XLIFF
+// root attributes the reader captured but didn't interpret.
+const extraAttrPropKeyPrefix = "xliff-xattr-"
+
+// extraAttrPropKey returns the property key for the i-th captured extra attr.
+func extraAttrPropKey(i int) string {
+	return fmt.Sprintf("%s%d", extraAttrPropKeyPrefix, i)
+}
+
+// setExtraXliffAttrsFromEtree captures root-level extra attributes
+// (custom namespace declarations, xml:lang, …) into Layer.Properties
+// for round-trip via the writer's generation mode. Round-trip mode
+// reads them off the source DOM directly and ignores these keys.
+func setExtraXliffAttrsFromEtree(layer *model.Layer, root *etree.Element) {
+	n := 0
+	for _, a := range root.Attr {
+		if isXliffCoreAttr(a) {
+			continue
+		}
+		layer.Properties[extraAttrPropKey(n)] = encodeEtreeAttr(a)
+		n++
+	}
+}
+
+// isXliffCoreAttr reports whether an etree.Attr on the <xliff> root is
+// one we explicitly interpret (and therefore don't need to preserve as
+// an "extra" attribute). The default-namespace xmlns also belongs to
+// the writer's responsibility (it picks the right URI for the chosen
+// version).
+func isXliffCoreAttr(a etree.Attr) bool {
+	if a.Space == "" {
+		switch a.Key {
+		case "version", "srcLang", "trgLang", "xmlns":
+			return true
+		}
+	}
+	return false
+}
+
+// encodeEtreeAttr serializes an etree.Attr as "space|local=value".
+func encodeEtreeAttr(a etree.Attr) string {
+	return a.Space + "|" + a.Key + "=" + a.Value
+}
+
+// decodeExtraAttr inverts encodeEtreeAttr. Returns an xml.Attr because
+// the writer's generation mode currently still uses encoding/xml types
+// in some helpers (kept for compatibility).
+func decodeExtraAttr(s string) (xml.Attr, bool) {
+	bar := strings.IndexByte(s, '|')
+	if bar < 0 {
+		return xml.Attr{}, false
+	}
+	eq := strings.IndexByte(s[bar+1:], '=')
+	if eq < 0 {
+		return xml.Attr{}, false
+	}
+	space := s[:bar]
+	local := s[bar+1 : bar+1+eq]
+	value := s[bar+1+eq+1:]
+	return xml.Attr{Name: xml.Name{Space: space, Local: local}, Value: value}, true
+}
+
+// extraAttrsFromLayer reconstructs captured extra attrs from a Layer's
+// Properties, preserving source order via the numeric index.
+func extraAttrsFromLayer(layer *model.Layer) []xml.Attr {
+	if layer == nil {
+		return nil
+	}
+	var out []xml.Attr
+	for i := 0; ; i++ {
+		v, ok := layer.Properties[extraAttrPropKey(i)]
+		if !ok {
+			break
+		}
+		if a, ok := decodeExtraAttr(v); ok {
+			out = append(out, a)
+		}
+	}
+	return out
+}
+
+// setFileNotePropertiesFromEtree copies <notes><note>... contents into
+// layer.Properties under the file-note:<category>:<id> key convention.
+func setFileNotePropertiesFromEtree(layer *model.Layer, notesEl *etree.Element) {
+	if layer == nil || notesEl == nil {
+		return
+	}
+	if layer.Properties == nil {
+		layer.Properties = make(map[string]string)
+	}
+	for _, n := range notesEl.SelectElements("note") {
+		content := strings.TrimSpace(n.Text())
+		if content == "" {
+			continue
+		}
+		category := attrValue(n, "category")
+		id := attrValue(n, "id")
+		if category == "" && id == "" {
+			continue
+		}
+		layer.Properties[FileNotePropertyPrefix+category+":"+id] = content
+	}
+}
+
+// coerceXMLDeclTo10 rewrites the XML declaration to version="1.0" if
+// the input says 1.1. XLIFF 2.x mandates XML 1.0; XML 1.1 in the wild
+// is virtually always a tooling glitch and the document is otherwise
+// 1.0-compatible. Returns the input unchanged when the declaration is
+// already 1.0 or absent.
+func coerceXMLDeclTo10(in []byte) []byte {
+	const decl11 = `<?xml version="1.1"`
+	const decl10 = `<?xml version="1.0"`
+	idx := bytes.Index(in, []byte(decl11))
+	if idx < 0 {
+		return in
+	}
+	out := make([]byte, 0, len(in))
+	out = append(out, in[:idx]...)
+	out = append(out, decl10...)
+	out = append(out, in[idx+len(decl11):]...)
+	return out
+}
+
+// xmlEscapeText escapes XML special characters in text content.
+func xmlEscapeText(s string) string {
+	s = strings.ReplaceAll(s, "&", "&amp;")
+	s = strings.ReplaceAll(s, "<", "&lt;")
+	s = strings.ReplaceAll(s, ">", "&gt;")
+	return s
+}
+
+// xmlEscapeAttr escapes XML special characters in attribute values.
+func xmlEscapeAttr(s string) string {
+	s = strings.ReplaceAll(s, "&", "&amp;")
+	s = strings.ReplaceAll(s, "<", "&lt;")
+	s = strings.ReplaceAll(s, ">", "&gt;")
+	s = strings.ReplaceAll(s, `"`, "&quot;")
+	return s
+}
+
+// emit sends a Part downstream, returning false if the context is
+// canceled.
+func (r *Reader) emit(ctx context.Context, ch chan<- model.PartResult, part *model.Part) bool {
+	select {
+	case ch <- model.PartResult{Part: part}:
+		return true
+	case <-ctx.Done():
+		return false
+	}
+}
+
+// Close releases resources.
+func (r *Reader) Close() error {
+	if r.Doc != nil && r.Doc.Reader != nil {
+		return r.Doc.Reader.Close()
+	}
+	return nil
+}
+
+// =====================================================================
+// Streaming skeleton path (preserved from legacy reader)
+// =====================================================================
+
+// elemPos tracks the byte position of a source or target element's inner content.
+type elemPos struct {
+	startOffset int    // byte offset after opening tag
+	endOffset   int    // byte offset before closing tag
+	blockIdx    int    // 0-based block index
+	elemType    string // "source" or "target"
 }
 
 // xliff2StreamState holds the mutable state for streaming XLIFF 2.x parsing.
@@ -251,7 +722,48 @@ type xliff2StreamState struct {
 	states     []string
 }
 
-// handleStartElement processes an xml.StartElement in the XLIFF 2 stream.
+// readContentStreaming uses streaming XML parsing for skeleton byte-offset tracking.
+func (r *Reader) readContentStreaming(ctx context.Context, ch chan<- model.PartResult, content []byte) {
+	rawText := string(content)
+	decoder := xml.NewDecoder(strings.NewReader(rawText))
+	decoder.Strict = false
+
+	s := &xliff2StreamState{
+		reader:  r,
+		ctx:     ctx,
+		ch:      ch,
+		rawText: rawText,
+		decoder: decoder,
+	}
+
+	for {
+		tok, err := decoder.Token()
+		if errors.Is(err, io.EOF) {
+			break
+		}
+		if err != nil {
+			ch <- model.PartResult{Error: fmt.Errorf("xliff2: parsing: %w", err)}
+			return
+		}
+		switch t := tok.(type) {
+		case xml.StartElement:
+			s.handleStartElement(t)
+		case xml.EndElement:
+			s.handleEndElement(t)
+		case xml.CharData:
+			text := string(t)
+			if s.inNote {
+				s.noteBuilder.WriteString(text)
+			} else if s.inSource {
+				s.sourceInnerXML.WriteString(text)
+			} else if s.inTarget {
+				s.targetInnerXML.WriteString(text)
+			}
+		}
+	}
+	s.buildSkeleton()
+}
+
 func (s *xliff2StreamState) handleStartElement(t xml.StartElement) {
 	switch t.Name.Local {
 	case "xliff":
@@ -264,12 +776,11 @@ func (s *xliff2StreamState) handleStartElement(t xml.StartElement) {
 			case "version":
 				s.version = a.Value
 			default:
-				if isXliffExtraAttr(a) {
+				if isXliffExtraAttrLegacy(a) {
 					s.extraAttrs = append(s.extraAttrs, a)
 				}
 			}
 		}
-
 	case "file":
 		s.inFile = true
 		s.fileID = ""
@@ -292,26 +803,12 @@ func (s *xliff2StreamState) handleStartElement(t xml.StartElement) {
 			layer.Properties["xliff-version"] = s.version
 		}
 		for i, a := range s.extraAttrs {
-			layer.Properties[extraAttrPropKey(i)] = encodeExtraAttr(a)
+			layer.Properties[extraAttrPropKey(i)] = encodeXmlAttr(a)
 		}
-		if !s.reader.emit(s.ctx, s.ch, &model.Part{Type: model.PartLayerStart, Resource: layer}) {
-			return
-		}
-
+		s.reader.emit(s.ctx, s.ch, &model.Part{Type: model.PartLayerStart, Resource: layer})
 	case "group":
-		groupID := ""
-		groupName := ""
-		for _, a := range t.Attr {
-			switch a.Name.Local {
-			case "id":
-				groupID = a.Value
-			case "name":
-				groupName = a.Value
-			}
-		}
-		gs := &model.GroupStart{ID: groupID, Name: groupName}
+		gs := &model.GroupStart{ID: attrValueXml(t, "id"), Name: attrValueXml(t, "name")}
 		s.reader.emit(s.ctx, s.ch, &model.Part{Type: model.PartGroupStart, Resource: gs})
-
 	case "unit":
 		s.inUnit = true
 		s.unitID = ""
@@ -331,18 +828,15 @@ func (s *xliff2StreamState) handleStartElement(t xml.StartElement) {
 				s.unitTranslate = a.Value
 			}
 		}
-
 	case "notes":
 		if s.inUnit {
 			s.inNotes = true
 		}
-
 	case "note":
 		if s.inNotes {
 			s.inNote = true
 			s.noteBuilder.Reset()
 		}
-
 	case "segment":
 		if s.inUnit {
 			s.inSegment = true
@@ -360,7 +854,6 @@ func (s *xliff2StreamState) handleStartElement(t xml.StartElement) {
 				s.states = append(s.states, segState)
 			}
 		}
-
 	case "source":
 		if s.inSegment {
 			s.inSource = true
@@ -368,7 +861,6 @@ func (s *xliff2StreamState) handleStartElement(t xml.StartElement) {
 			s.sourceInnerXML.Reset()
 			s.elemStartOff = s.decoder.InputOffset()
 		}
-
 	case "target":
 		if s.inSegment {
 			s.inTarget = true
@@ -376,14 +868,11 @@ func (s *xliff2StreamState) handleStartElement(t xml.StartElement) {
 			s.targetInnerXML.Reset()
 			s.elemStartOff = s.decoder.InputOffset()
 		}
-
 	default:
-		// Track nested elements inside source/target for inner XML reconstruction
 		s.writeNestedStartTag(t)
 	}
 }
 
-// writeNestedStartTag writes an opening tag to the source or target inner XML accumulator.
 func (s *xliff2StreamState) writeNestedStartTag(t xml.StartElement) {
 	if s.inSource {
 		s.sourceDepth++
@@ -420,51 +909,38 @@ func (s *xliff2StreamState) writeNestedStartTag(t xml.StartElement) {
 	}
 }
 
-// handleEndElement processes an xml.EndElement in the XLIFF 2 stream.
 func (s *xliff2StreamState) handleEndElement(t xml.EndElement) {
 	switch t.Name.Local {
 	case "file":
 		if s.inFile {
-			layer := &model.Layer{
-				ID:   "file-" + s.fileID,
-				Name: s.fileID,
-			}
+			layer := &model.Layer{ID: "file-" + s.fileID, Name: s.fileID}
 			s.reader.emit(s.ctx, s.ch, &model.Part{Type: model.PartLayerEnd, Resource: layer})
 			s.inFile = false
 		}
-
 	case "group":
 		s.reader.emit(s.ctx, s.ch, &model.Part{Type: model.PartGroupEnd, Resource: &model.GroupEnd{}})
-
 	case "unit":
 		if s.inUnit {
 			s.emitUnit()
 		}
-
 	case "notes":
 		s.inNotes = false
-
 	case "note":
 		if s.inNote {
 			s.notes = append(s.notes, s.noteBuilder.String())
 			s.inNote = false
 		}
-
 	case "segment":
 		s.inSegment = false
-
 	case "source":
 		if s.inSource {
 			s.finishSource()
 		}
-
 	case "target":
 		if s.inTarget {
 			s.finishTarget()
 		}
-
 	default:
-		// Track nested end elements inside source/target
 		if s.inSource && s.sourceDepth > 0 {
 			s.sourceDepth--
 			s.sourceInnerXML.WriteString("</")
@@ -479,13 +955,11 @@ func (s *xliff2StreamState) handleEndElement(t xml.EndElement) {
 	}
 }
 
-// emitUnit constructs and emits a Block from the accumulated unit data.
 func (s *xliff2StreamState) emitUnit() {
 	translatable := true
 	if strings.EqualFold(s.unitTranslate, "no") {
 		translatable = false
 	}
-
 	block := &model.Block{
 		ID:           s.unitID,
 		Name:         s.unitName,
@@ -495,7 +969,6 @@ func (s *xliff2StreamState) emitUnit() {
 		Properties:   make(map[string]string),
 		Annotations:  make(map[string]model.Annotation),
 	}
-
 	for _, st := range s.states {
 		if st != "" {
 			block.Properties["state"] = st
@@ -504,13 +977,11 @@ func (s *xliff2StreamState) emitUnit() {
 	for i, note := range s.notes {
 		block.Properties[fmt.Sprintf("note-%d", i)] = note
 	}
-
 	s.reader.emit(s.ctx, s.ch, &model.Part{Type: model.PartBlock, Resource: block})
 	s.blockCount++
 	s.inUnit = false
 }
 
-// finishSource completes source element parsing, recording position and creating a segment.
 func (s *xliff2StreamState) finishSource() {
 	endOff := s.decoder.InputOffset()
 	closeTag := "</source>"
@@ -524,7 +995,6 @@ func (s *xliff2StreamState) finishSource() {
 		blockIdx:    s.blockCount,
 		elemType:    "source",
 	})
-
 	sid := s.segID
 	if sid == "" {
 		sid = fmt.Sprintf("s%d", len(s.sourceSegs)+1)
@@ -537,7 +1007,6 @@ func (s *xliff2StreamState) finishSource() {
 	s.inSource = false
 }
 
-// finishTarget completes target element parsing, recording position and creating a segment.
 func (s *xliff2StreamState) finishTarget() {
 	endOff := s.decoder.InputOffset()
 	closeTag := "</target>"
@@ -551,7 +1020,6 @@ func (s *xliff2StreamState) finishTarget() {
 		blockIdx:    s.blockCount,
 		elemType:    "target",
 	})
-
 	targetText := strings.TrimSpace(s.targetInnerXML.String())
 	tl := model.LocaleID(s.trgLang)
 	if targetText != "" && !tl.IsEmpty() {
@@ -567,7 +1035,6 @@ func (s *xliff2StreamState) finishTarget() {
 	s.inTarget = false
 }
 
-// buildSkeleton constructs the skeleton from collected element positions.
 func (s *xliff2StreamState) buildSkeleton() {
 	if len(s.elemPositions) == 0 {
 		return
@@ -587,266 +1054,47 @@ func (s *xliff2StreamState) buildSkeleton() {
 	s.reader.skelFlush()
 }
 
-// readContentStreaming uses streaming XML parsing for skeleton byte-offset tracking.
-func (r *Reader) readContentStreaming(ctx context.Context, ch chan<- model.PartResult, content []byte) {
-	rawText := string(content)
-	decoder := xml.NewDecoder(strings.NewReader(rawText))
-	decoder.Strict = false
+// Reader-side skeleton helpers (used only in streaming mode).
+var _ = bytes.Equal
 
-	s := &xliff2StreamState{
-		reader:  r,
-		ctx:     ctx,
-		ch:      ch,
-		rawText: rawText,
-		decoder: decoder,
+func (r *Reader) skelText(s string) {
+	if r.skeletonStore != nil && s != "" {
+		_ = r.skeletonStore.WriteText([]byte(s))
 	}
-
-	for {
-		tok, err := decoder.Token()
-		if errors.Is(err, io.EOF) {
-			break
-		}
-		if err != nil {
-			ch <- model.PartResult{Error: fmt.Errorf("xliff2: parsing: %w", err)}
-			return
-		}
-
-		switch t := tok.(type) {
-		case xml.StartElement:
-			s.handleStartElement(t)
-		case xml.EndElement:
-			s.handleEndElement(t)
-		case xml.CharData:
-			text := string(t)
-			if s.inNote {
-				s.noteBuilder.WriteString(text)
-			} else if s.inSource {
-				s.sourceInnerXML.WriteString(text)
-			} else if s.inTarget {
-				s.targetInnerXML.WriteString(text)
-			}
-		}
-	}
-
-	s.buildSkeleton()
 }
 
-func (r *Reader) emitGroup(ctx context.Context, ch chan<- model.PartResult, group xliff2Group, srcLang, trgLang model.LocaleID) {
-	gs := &model.GroupStart{
-		ID:   group.ID,
-		Name: group.Name,
+func (r *Reader) skelRef(id string) {
+	if r.skeletonStore != nil {
+		_ = r.skeletonStore.WriteRef(id)
 	}
-	if !r.emit(ctx, ch, &model.Part{Type: model.PartGroupStart, Resource: gs}) {
-		return
-	}
-
-	for _, child := range group.Groups {
-		r.emitGroup(ctx, ch, child, srcLang, trgLang)
-	}
-	for _, unit := range group.Units {
-		r.emitUnit(ctx, ch, unit, srcLang, trgLang)
-	}
-
-	r.emit(ctx, ch, &model.Part{Type: model.PartGroupEnd, Resource: gs})
 }
 
-func (r *Reader) emitUnit(ctx context.Context, ch chan<- model.PartResult, unit xliff2Unit, srcLang, trgLang model.LocaleID) {
-	// Respect translate="no" attribute
-	translatable := true
-	if strings.EqualFold(unit.Translate, "no") {
-		translatable = false
-	}
-
-	// Build source and target segments from the unit's segments
-	var sourceSegs []*model.Segment
-	targets := make(map[model.LocaleID][]*model.Segment)
-
-	for _, seg := range unit.Segments {
-		segID := seg.ID
-		if segID == "" {
-			segID = fmt.Sprintf("s%d", len(sourceSegs)+1)
-		}
-
-		sourceText := strings.TrimSpace(seg.Source.InnerXML)
-		sourceSegs = append(sourceSegs, &model.Segment{
-			ID:   segID,
-			Runs: []model.Run{{Text: &model.TextRun{Text: sourceText}}},
-		})
-
-		targetText := strings.TrimSpace(seg.Target.InnerXML)
-		if targetText != "" && !trgLang.IsEmpty() {
-			targets[trgLang] = append(targets[trgLang], &model.Segment{
-				ID:   segID,
-				Runs: []model.Run{{Text: &model.TextRun{Text: targetText}}},
-			})
-		}
-	}
-
-	block := &model.Block{
-		ID:           unit.ID,
-		Name:         unit.Name,
-		Translatable: translatable,
-		Source:       sourceSegs,
-		Targets:      targets,
-		Properties:   make(map[string]string),
-		Annotations:  make(map[string]model.Annotation),
-	}
-
-	// Store segment state if present
-	for _, seg := range unit.Segments {
-		if seg.State != "" {
-			block.Properties["state"] = seg.State
-		}
-	}
-
-	// Add notes as properties
-	for i, note := range unit.Notes {
-		block.Properties[fmt.Sprintf("note-%d", i)] = note.Content
-	}
-
-	r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block})
+func (r *Reader) skelFlush() {
+	// no-op: we no longer buffer (each text write goes straight through)
 }
 
-// extraAttrPropKeyPrefix prefixes Layer.Properties keys that carry XLIFF
-// root attributes the reader captured but didn't interpret. Kept short so
-// it doesn't visually dominate property dumps.
-const extraAttrPropKeyPrefix = "xliff-xattr-"
-
-// extraAttrPropKey returns the property key for the i-th captured extra attr.
-// Indices keep the original source order so the writer can re-emit attrs
-// in the order they appeared on the input document.
-func extraAttrPropKey(i int) string {
-	return fmt.Sprintf("%s%d", extraAttrPropKeyPrefix, i)
-}
-
-// encodeExtraAttr serializes an xml.Attr as "space|local=value". Space may
-// be empty. The delimiters ('|' and '=') are not valid in XML attribute
-// names, so round-tripping is unambiguous.
-func encodeExtraAttr(a xml.Attr) string {
-	return a.Name.Space + "|" + a.Name.Local + "=" + a.Value
-}
-
-// decodeExtraAttr inverts encodeExtraAttr.
-func decodeExtraAttr(s string) (xml.Attr, bool) {
-	bar := strings.IndexByte(s, '|')
-	if bar < 0 {
-		return xml.Attr{}, false
-	}
-	eq := strings.IndexByte(s[bar+1:], '=')
-	if eq < 0 {
-		return xml.Attr{}, false
-	}
-	space := s[:bar]
-	local := s[bar+1 : bar+1+eq]
-	value := s[bar+1+eq+1:]
-	return xml.Attr{Name: xml.Name{Space: space, Local: local}, Value: value}, true
-}
-
-// isXliffExtraAttr reports whether an attribute on the <xliff> root should
-// be preserved for round-trip. We skip attrs we interpret explicitly
-// (version, srcLang, trgLang) and the default-namespace xmlns declaration
-// (handled by the writer via the chosen version's namespace URI).
-func isXliffExtraAttr(a xml.Attr) bool {
+// isXliffExtraAttrLegacy is the legacy streaming-path equivalent of
+// isXliffCoreAttr (negated). Kept distinct because the streaming path
+// uses encoding/xml types whereas the DOM path uses etree types.
+func isXliffExtraAttrLegacy(a xml.Attr) bool {
 	if a.Name.Space == "" {
 		switch a.Name.Local {
 		case "version", "srcLang", "trgLang", "xmlns":
 			return false
 		}
 	}
-	// xmlns:xyz (namespace prefix declarations) use Space="xmlns" in Go's
-	// encoding/xml. Preserve those so custom namespace bindings survive
-	// roundtrip.
 	return true
 }
 
-// setExtraXliffAttrs copies reader-captured extra root-element attrs onto a
-// Layer's Properties map using the extraAttrPropKey() scheme.
-func setExtraXliffAttrs(layer *model.Layer, attrs []xml.Attr) {
-	n := 0
-	for _, a := range attrs {
-		if !isXliffExtraAttr(a) {
-			continue
-		}
-		layer.Properties[extraAttrPropKey(n)] = encodeExtraAttr(a)
-		n++
-	}
-}
-
-// extraAttrsFromLayer reconstructs captured extra attrs from a Layer's
-// Properties, preserving source order via the numeric index.
-func extraAttrsFromLayer(layer *model.Layer) []xml.Attr {
-	if layer == nil {
-		return nil
-	}
-	var out []xml.Attr
-	for i := 0; ; i++ {
-		v, ok := layer.Properties[extraAttrPropKey(i)]
-		if !ok {
-			break
-		}
-		if a, ok := decodeExtraAttr(v); ok {
-			out = append(out, a)
+func attrValueXml(t xml.StartElement, local string) string {
+	for _, a := range t.Attr {
+		if a.Name.Local == local {
+			return a.Value
 		}
 	}
-	return out
+	return ""
 }
 
-// xmlEscapeText escapes XML special characters in text content.
-func xmlEscapeText(s string) string {
-	s = strings.ReplaceAll(s, "&", "&amp;")
-	s = strings.ReplaceAll(s, "<", "&lt;")
-	s = strings.ReplaceAll(s, ">", "&gt;")
-	return s
-}
-
-// xmlEscapeAttr escapes XML special characters in attribute values.
-func xmlEscapeAttr(s string) string {
-	s = strings.ReplaceAll(s, "&", "&amp;")
-	s = strings.ReplaceAll(s, "<", "&lt;")
-	s = strings.ReplaceAll(s, ">", "&gt;")
-	s = strings.ReplaceAll(s, `"`, "&quot;")
-	return s
-}
-
-// skelText appends text to the skeleton buffer if active.
-func (r *Reader) skelText(s string) {
-	if r.skeletonStore != nil && s != "" {
-		r.skelBuf.WriteString(s)
-	}
-}
-
-// skelRef flushes buffered text and writes a block reference to the skeleton store.
-func (r *Reader) skelRef(id string) {
-	if r.skeletonStore != nil {
-		if r.skelBuf.Len() > 0 {
-			_ = r.skeletonStore.WriteText(r.skelBuf.Bytes())
-			r.skelBuf.Reset()
-		}
-		_ = r.skeletonStore.WriteRef(id)
-	}
-}
-
-// skelFlush writes any remaining buffered text to the skeleton store.
-func (r *Reader) skelFlush() {
-	if r.skeletonStore != nil && r.skelBuf.Len() > 0 {
-		_ = r.skeletonStore.WriteText(r.skelBuf.Bytes())
-		r.skelBuf.Reset()
-	}
-}
-
-func (r *Reader) emit(ctx context.Context, ch chan<- model.PartResult, part *model.Part) bool {
-	select {
-	case ch <- model.PartResult{Part: part}:
-		return true
-	case <-ctx.Done():
-		return false
-	}
-}
-
-// Close releases resources.
-func (r *Reader) Close() error {
-	if r.Doc != nil && r.Doc.Reader != nil {
-		return r.Doc.Reader.Close()
-	}
-	return nil
+func encodeXmlAttr(a xml.Attr) string {
+	return a.Name.Space + "|" + a.Name.Local + "=" + a.Value
 }
