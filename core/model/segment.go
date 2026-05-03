@@ -4,9 +4,10 @@ package model
 // content. Segments carry a Run sequence as the canonical inline
 // content representation defined by RFC 0001.
 type Segment struct {
-	ID         string
-	Runs       []Run
-	Properties map[string]string // Optional segment-level properties
+	ID          string
+	Runs        []Run
+	Properties  map[string]string     // Optional segment-level properties
+	Annotations map[string]Annotation // Format-specific typed metadata (e.g. xliff native IR)
 }
 
 // Text returns the plain-text flattening of the segment's runs:

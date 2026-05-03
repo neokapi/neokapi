@@ -564,8 +564,14 @@ func coverageScans() []formatScan {
 			filterClass:       "okf_xliff",
 			sources:           []string{"integration-tests/okapi/src/test/resources/xliff"},
 			extensions:        []string{".xlf"},
-			// XLIFF is XML; same canonical normalizer as xml/.
-			normalizer: roundtrip.XMLCanonical{SortAttrs: true},
+			// XLIFF is XML; sort attrs handles okapi reordering.
+			// Collapse text whitespace mirrors okapi's translatable-
+			// text normalisation (multi-line indented source becomes
+			// single-line trimmed text on round-trip). Strip ns-decls
+			// because okapi's writer redeclares the default xmlns at
+			// many element depths whereas neokapi declares once at
+			// the root — both forms are semantically identical.
+			normalizer: roundtrip.XMLCanonical{SortAttrs: true, CollapseTextWhitespace: true, StripNamespaceDecls: true},
 			skip: map[string]fileSkip{
 				"lqiTest.xlf":                 {Engines: []string{"okapi"}, Reason: "okf_xliff needs lqiTestIssues.xml in the same dir; harness now copies companions but okapi still rejects this fixture"},
 				"ImplementationPlan.docx.xlf": {Engines: []string{"bridge", "native"}, Reason: "bridge inline-code/alt-trans divergence vs okapi reference"},

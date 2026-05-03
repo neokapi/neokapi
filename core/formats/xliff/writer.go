@@ -85,11 +85,21 @@ func (w *Writer) writeFromSkeleton() error {
 		targetLang = w.Locale
 	}
 
+	// injectLang is what we write into synthesized <target xml:lang="…">
+	// and into the <file target-language="…"> patch. okapi keeps the
+	// file's existing target-language verbatim on round-trip — even when
+	// the runtime target differs — so prefer the file's target-language
+	// when present and fall back to the writer locale otherwise.
+	injectLang := w.targetLang
+	if injectLang.IsEmpty() {
+		injectLang = targetLang
+	}
+
 	// Wrap output to inject `target-language="..."` into the first
 	// `<file ...>` start tag if the source didn't have one. okapi's
 	// xliff writer emits target-language regardless of source presence,
 	// so this keeps native canonical-equal on round-trip.
-	out := newFileTagInjector(w.Output, string(targetLang))
+	out := newFileTagInjector(w.Output, string(injectLang))
 
 	for {
 		entry, err := w.skeletonStore.Next()
@@ -121,9 +131,16 @@ func (w *Writer) writeFromSkeleton() error {
 			var text string
 			switch elemType {
 			case "source":
-				text = block.SourceText()
+				text = w.sourceText(block)
 			case "target":
-				text = w.targetText(block, targetLang)
+				// elemPos for "target" now spans the FULL element
+				// (open tag + content + close tag), not just inner
+				// content. Re-emit the complete <target ...>...</target>
+				// using stored attrs so empty/self-closing targets
+				// (<target state="…" />) get a properly-nested
+				// translated body instead of having content land
+				// outside the element.
+				text = w.fullTargetElement(block, targetLang, injectLang)
 			case "target-inject":
 				// No <target> element existed in the source; synthesize
 				// a complete one. okapi's filter writes a target on
@@ -134,15 +151,24 @@ func (w *Writer) writeFromSkeleton() error {
 					continue
 				}
 				inj := w.targetText(block, targetLang)
-				text = fmt.Sprintf(`<target xml:lang="%s">%s</target>`,
-					xmlEscapeAttr(string(targetLang)), xmlEscapeText(inj))
+				// okapi emits "<target...>...</target>\n" right before
+				// </trans-unit>, so the close tag stays on its own line.
+				// The reader places this ref at the offset of `<` in
+				// </trans-unit>; appending a trailing newline matches
+				// okapi's whitespace exactly. xml:lang uses injectLang
+				// (file's target-language preferred over writer locale)
+				// to match okapi's "preserve declared target" rule.
+				text = fmt.Sprintf("<target xml:lang=\"%s\">%s</target>\n",
+					xmlEscapeAttr(string(injectLang)), inj)
 				if _, err := io.WriteString(out, text); err != nil {
 					return err
 				}
 				continue
 			}
 
-			if _, err := io.WriteString(out, xmlEscapeText(text)); err != nil {
+			// renderXliffRuns already escapes TextRun content and emits
+			// inline-code wrappers, so write `text` verbatim here.
+			if _, err := io.WriteString(out, text); err != nil {
 				return err
 			}
 		}
@@ -277,20 +303,270 @@ func injectTargetLanguage(tag []byte, targetLang string) []byte {
 	return out
 }
 
-// targetText returns the text to write for the block's <target> slot.
-// Prefers the writer's locale; falls back to any existing target (so
-// non-matching languages round-trip verbatim); falls back to source
-// text last (matches okapi for translate="no" entries).
-func (w *Writer) targetText(block *model.Block, targetLang model.LocaleID) string {
-	if block.HasTarget(targetLang) {
-		return block.TargetText(targetLang)
-	}
-	for _, segs := range block.Targets {
-		if len(segs) > 0 && len(segs[0].Runs) > 0 {
-			return model.RenderRunsWithData(segs[0].Runs)
+// sourceText renders the block's <source> content. Source is the
+// original — tools mutate the target, not the source — so the writer
+// emits the source body native IR verbatim, preserving every byte of
+// the original <source> element (inline-code attributes, attribute
+// order, inter-element whitespace).
+//
+// Falls back to per-segment concatenation when no body annotation
+// exists (synthetic blocks created by tools, for example).
+func (w *Writer) sourceText(block *model.Block) string {
+	if a, ok := block.Annotations["xliff:source-body"]; ok {
+		if sa, ok := a.(*SourceBodyNativeAnnotation); ok && sa.Content != nil {
+			return renderNativeWithRuns(sa.Content, nil)
 		}
 	}
-	return block.SourceText()
+	return concatSegments(block.Source)
+}
+
+// nativeContentOf returns the xliff-native IR attached to a segment by
+// the reader, or nil if the segment was created without one (synthetic
+// blocks from tools, etc.).
+func nativeContentOf(seg *model.Segment) *NativeContent {
+	if seg == nil {
+		return nil
+	}
+	a, ok := seg.Annotations["xliff:native"]
+	if !ok {
+		return nil
+	}
+	if na, ok := a.(*SegmentNativeAnnotation); ok && na != nil {
+		return na.Content
+	}
+	return nil
+}
+
+// renderXliffRuns serializes a Run sequence into xliff 1.2 inline
+// markup. TextRun bytes are XML-escaped; PcOpen/PcClose/Ph runs are
+// re-wrapped in <bpt>/<ept>/<ph> elements so the round-trip preserves
+// the source's inline placeholders.
+func renderXliffRuns(runs []model.Run) string {
+	var b strings.Builder
+	for _, r := range runs {
+		switch {
+		case r.Text != nil:
+			b.WriteString(xmlEscapeText(r.Text.Text))
+		case r.Ph != nil:
+			b.WriteString(`<ph id="`)
+			b.WriteString(xmlEscapeAttr(r.Ph.ID))
+			b.WriteString(`"`)
+			if r.Ph.Equiv != "" {
+				b.WriteString(` equiv-text="`)
+				b.WriteString(xmlEscapeAttr(r.Ph.Equiv))
+				b.WriteString(`"`)
+			}
+			if r.Ph.Data != "" {
+				b.WriteString(`>`)
+				b.WriteString(xmlEscapeText(r.Ph.Data))
+				b.WriteString(`</ph>`)
+			} else {
+				b.WriteString(`/>`)
+			}
+		case r.PcOpen != nil:
+			b.WriteString(`<bpt id="`)
+			b.WriteString(xmlEscapeAttr(r.PcOpen.ID))
+			b.WriteString(`"`)
+			if r.PcOpen.Equiv != "" {
+				b.WriteString(` equiv-text="`)
+				b.WriteString(xmlEscapeAttr(r.PcOpen.Equiv))
+				b.WriteString(`"`)
+			}
+			b.WriteString(`>`)
+			b.WriteString(xmlEscapeText(r.PcOpen.Data))
+			b.WriteString(`</bpt>`)
+		case r.PcClose != nil:
+			b.WriteString(`<ept id="`)
+			b.WriteString(xmlEscapeAttr(r.PcClose.ID))
+			b.WriteString(`">`)
+			b.WriteString(xmlEscapeText(r.PcClose.Data))
+			b.WriteString(`</ept>`)
+		}
+	}
+	return b.String()
+}
+
+// fullTargetElement renders the complete <target ...>...</target>
+// element, using stored source attrs (state, state-qualifier, xml:lang,
+// custom-namespace) verbatim. okapi's xliff writer always emits the
+// full element on round-trip; this matches that behaviour and
+// survives empty/self-closing source targets (where inner-content
+// injection would land outside the tag). _ = injectLang signals we
+// intentionally don't synthesise an xml:lang the source didn't have —
+// okapi preserves source's attribute set verbatim too.
+func (w *Writer) fullTargetElement(block *model.Block, targetLang, injectLang model.LocaleID) string {
+	_ = injectLang
+	inner := w.targetText(block, targetLang)
+	var b strings.Builder
+	b.WriteString("<target")
+	if a, ok := block.Annotations["xliff:target-attrs"]; ok {
+		if ta, ok := a.(*TargetAttrsAnnotation); ok {
+			for _, attr := range ta.Attrs {
+				b.WriteString(` `)
+				if attr.Space != "" {
+					b.WriteString(attr.Space)
+					b.WriteString(`:`)
+				}
+				b.WriteString(attr.Local)
+				b.WriteString(`="`)
+				b.WriteString(xmlEscapeAttr(attr.Value))
+				b.WriteString(`"`)
+			}
+		}
+	}
+	b.WriteString(`>`)
+	b.WriteString(inner)
+	b.WriteString(`</target>`)
+	return b.String()
+}
+
+// targetText returns the text to write for the block's <target> slot.
+// Prefers the writer's locale, falling back to any existing target
+// (non-matching languages round-trip verbatim) and finally to the
+// source body (matches okapi for translate="no" or untranslated
+// entries).
+//
+// When a block-level target body annotation exists, the writer walks
+// it to reconstruct mrk segmentation, between-mrk whitespace, and
+// inline-code attributes from the source file. Segments map to mrks
+// by position; each mrk's text content comes from the corresponding
+// target segment's runs.
+//
+// Falls back to per-segment rendering when no body annotation exists
+// (synthetic targets created by tools).
+func (w *Writer) targetText(block *model.Block, targetLang model.LocaleID) string {
+	tgtSegs, _ := w.pickTargetSegments(block, targetLang)
+	if len(tgtSegs) == 0 {
+		return ""
+	}
+	// Prefer the target-body native IR for the chosen locale. If the
+	// chosen segments came from a different locale (bilingual fallback),
+	// the annotation's locale won't match — still useful as the
+	// structural template since okapi mirrors source's segmentation.
+	if a, ok := block.Annotations["xliff:target-body"]; ok {
+		if ta, ok := a.(*TargetBodyNativeAnnotation); ok && ta.Content != nil {
+			return renderBodyWithSegments(ta.Content, tgtSegs)
+		}
+	}
+	// No target body — borrow source body's structure (mrks etc.) so
+	// pseudo-translated targets without an existing target element get
+	// the same segmentation shape as the source.
+	if a, ok := block.Annotations["xliff:source-body"]; ok {
+		if sa, ok := a.(*SourceBodyNativeAnnotation); ok && sa.Content != nil {
+			return renderBodyWithSegments(sa.Content, tgtSegs)
+		}
+	}
+	if blockIsSegmented(block) {
+		return wrapSegmentsAsMrk(tgtSegs, block.Source)
+	}
+	return concatSegments(tgtSegs)
+}
+
+// pickTargetSegments selects the segment slice that should drive the
+// <target> output, plus a "base" slice that supplies the structural
+// native IR when the chosen segments lack one (typical for pseudo-
+// translated targets that were synthesised from the source). Returns
+// (nil, nil) when neither an existing target nor a source-derived
+// fallback is usable.
+func (w *Writer) pickTargetSegments(block *model.Block, targetLang model.LocaleID) ([]*model.Segment, []*model.Segment) {
+	if block.HasTarget(targetLang) {
+		return block.Targets[targetLang], block.Source
+	}
+	for _, segs := range block.Targets {
+		if len(segs) > 0 {
+			return segs, block.Source
+		}
+	}
+	if len(block.Source) > 0 {
+		return block.Source, block.Source
+	}
+	return nil, nil
+}
+
+// concatSegments joins all segments' rendered content with no
+// wrappers between them. Used for <source> (always unsegmented) and
+// for <target> when the block isn't segmented.
+func concatSegments(segs []*model.Segment) string {
+	var b strings.Builder
+	for _, s := range segs {
+		b.WriteString(renderSegment(s))
+	}
+	return b.String()
+}
+
+// wrapSegmentsAsMrk emits each segment wrapped in
+// <mrk mid="…" mtype="seg">…</mrk>. Used for <target> when the source
+// carried <seg-source> — okapi's writer mirrors that segmentation
+// onto the target. base supplies the structural native IR when the
+// segment slice itself lacks one (pseudo-translated targets are
+// text-only; we re-use the source segment's inline structure so
+// inline-code attributes survive).
+func wrapSegmentsAsMrk(segs, base []*model.Segment) string {
+	var b strings.Builder
+	for i, s := range segs {
+		mid := s.ID
+		if mid == "" || mid == "s1" {
+			mid = strconv.Itoa(i)
+		}
+		b.WriteString(`<mrk mid="`)
+		b.WriteString(xmlEscapeAttr(mid))
+		b.WriteString(`" mtype="seg">`)
+		b.WriteString(renderSegmentWithBase(s, baseAt(base, i)))
+		b.WriteString(`</mrk>`)
+	}
+	return b.String()
+}
+
+// blockIsSegmented reports whether the block carries seg-source-style
+// segmentation (multiple source segments, or a single segment whose ID
+// looks like a mrk mid rather than the default "s1"). When true the
+// writer mirrors the segmentation onto <target>.
+func blockIsSegmented(block *model.Block) bool {
+	if len(block.Source) > 1 {
+		return true
+	}
+	if len(block.Source) == 1 {
+		id := block.Source[0].ID
+		if id != "" && id != "s1" {
+			return true
+		}
+	}
+	return false
+}
+
+// renderSegment renders one segment using its native IR when present,
+// falling back to renderXliffRuns or plain text.
+func renderSegment(seg *model.Segment) string {
+	return renderSegmentWithBase(seg, nil)
+}
+
+// renderSegmentWithBase renders a segment, falling back to base's
+// native IR if seg has none. This lets a pseudo-translated target
+// segment (text-only) inherit the source segment's inline structure.
+func renderSegmentWithBase(seg, base *model.Segment) string {
+	if seg == nil {
+		return ""
+	}
+	if nc := nativeContentOf(seg); nc != nil {
+		return renderNativeWithRuns(nc, seg.Runs)
+	}
+	if base != nil {
+		if nc := nativeContentOf(base); nc != nil {
+			return renderNativeWithRuns(nc, seg.Runs)
+		}
+	}
+	if len(seg.Runs) > 0 {
+		return renderXliffRuns(seg.Runs)
+	}
+	return seg.Text()
+}
+
+// baseAt returns the i-th segment from base, or nil if out of range.
+func baseAt(base []*model.Segment, i int) *model.Segment {
+	if i < 0 || i >= len(base) {
+		return nil
+	}
+	return base[i]
 }
 
 func (w *Writer) flush() error {

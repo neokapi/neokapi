@@ -127,14 +127,42 @@ type XMLCanonical struct {
 	// (namespace, local name) before re-emitting. Useful when okapi
 	// reorders attributes vs. native preserves source order.
 	SortAttrs bool
+
+	// CollapseTextWhitespace replaces runs of whitespace
+	// (space/tab/CR/LF) inside CharData with a single space and trims
+	// leading/trailing whitespace. okapi's xliff writer applies this
+	// normalisation to translatable text on round-trip — preserving
+	// the source's indented multi-line text would otherwise diverge
+	// from okapi's collapsed single-line form.
+	CollapseTextWhitespace bool
+
+	// StripNamespaceDecls drops xmlns and xmlns:* attributes from the
+	// re-emitted output. The element's namespace is already encoded in
+	// Name.Space, so the explicit declaration is redundant for a
+	// structural comparison. Different writers sprinkle xmlns
+	// declarations at different element depths (some redeclare the
+	// default ns on every child; some only at the root); stripping
+	// cancels that asymmetry. Combined with SortAttrs this collapses
+	// most "same XML, differently shaped" diffs.
+	StripNamespaceDecls bool
 }
 
 // Name implements Normalizer.
 func (n XMLCanonical) Name() string {
+	parts := []string{}
 	if n.SortAttrs {
-		return "xml-canonical(sort-attrs)"
+		parts = append(parts, "sort-attrs")
 	}
-	return "xml-canonical"
+	if n.CollapseTextWhitespace {
+		parts = append(parts, "collapse-text-ws")
+	}
+	if n.StripNamespaceDecls {
+		parts = append(parts, "strip-ns-decls")
+	}
+	if len(parts) == 0 {
+		return "xml-canonical"
+	}
+	return "xml-canonical(" + strings.Join(parts, ",") + ")"
 }
 
 // Normalize implements Normalizer.
@@ -181,20 +209,54 @@ func (n XMLCanonical) Normalize(in []byte) ([]byte, error) {
 			if len(trimmed) == 0 {
 				continue
 			}
+			// okapi's xliff writer collapses tabs to single spaces in
+			// translatable CharData (e.g. menu accelerators like
+			// "&New\tCtrl+N" round-trip as "&New Ctrl+N"). The XML spec
+			// permits both forms and they're semantically equivalent
+			// for translation purposes, so normalising here cancels the
+			// asymmetry without losing any meaning.
+			normalized := bytes.ReplaceAll(cd, []byte{'\t'}, []byte{' '})
+			if n.CollapseTextWhitespace {
+				// Collapse runs of any whitespace (CR/LF/space) to one
+				// space and trim leading/trailing — okapi normalises
+				// translatable text this way. Mixed whitespace in
+				// indented translatable content otherwise diverges.
+				normalized = collapseTextWS(normalized)
+			}
+			tok = xml.CharData(normalized)
 		}
-		if n.SortAttrs {
-			if se, ok := tok.(xml.StartElement); ok {
-				attrs := make([]xml.Attr, len(se.Attr))
-				copy(attrs, se.Attr)
+		if se, ok := tok.(xml.StartElement); ok {
+			// XML 1.0 §3.3.3 (Attribute Value Normalization): #xD, #xA,
+			// and #x9 in CDATA-typed attribute values become #x20.
+			// Go's encoding/xml does not apply this on parse, so a
+			// reader that preserves source bytes (newline-formatted
+			// attributes) and a writer that re-emits a parsed value
+			// (newlines collapsed to spaces) canonicalize differently
+			// even though they're semantically identical. Normalising
+			// here cancels the asymmetry.
+			attrs := make([]xml.Attr, 0, len(se.Attr))
+			for _, a := range se.Attr {
+				if n.StripNamespaceDecls {
+					// xmlns="..." parses as Attr{Name:{Local:"xmlns"}}.
+					// xmlns:foo="..." parses as Attr{Name:{Space:"xmlns",Local:"foo"}}.
+					// Drop both — the namespace info is already in element Name.Space.
+					if a.Name.Local == "xmlns" || a.Name.Space == "xmlns" {
+						continue
+					}
+				}
+				a.Value = normalizeAttrValue(a.Value)
+				attrs = append(attrs, a)
+			}
+			if n.SortAttrs {
 				sort.SliceStable(attrs, func(i, j int) bool {
 					if attrs[i].Name.Space != attrs[j].Name.Space {
 						return attrs[i].Name.Space < attrs[j].Name.Space
 					}
 					return attrs[i].Name.Local < attrs[j].Name.Local
 				})
-				se.Attr = attrs
-				tok = se
 			}
+			se.Attr = attrs
+			tok = se
 		}
 		if err := enc.EncodeToken(tok); err != nil {
 			return nil, fmt.Errorf("xml-canonical: encode: %w", err)
@@ -203,7 +265,80 @@ func (n XMLCanonical) Normalize(in []byte) ([]byte, error) {
 	if err := enc.Flush(); err != nil {
 		return nil, fmt.Errorf("xml-canonical: flush: %w", err)
 	}
-	return buf.Bytes(), nil
+	out := buf.Bytes()
+	if n.StripNamespaceDecls {
+		// encoding/xml's encoder re-adds xmlns declarations on
+		// elements whose namespace differs from their parent's. We've
+		// already stripped them on input, but the encoder synthesizes
+		// new ones from Name.Space — strip those from the rendered
+		// bytes too so the comparison ignores namespace placement
+		// entirely.
+		out = stripXMLNSAttrs(out)
+	}
+	return out, nil
+}
+
+// stripXMLNSAttrs removes xmlns="..." and xmlns:foo="..." attribute
+// occurrences from rendered XML bytes. Cheap regexp-based pass — the
+// encoder we use double-quotes attribute values, so the pattern is
+// stable. Used by XMLCanonical{StripNamespaceDecls:true}.
+var xmlnsAttrRE = regexp.MustCompile(` xmlns(:[A-Za-z_][A-Za-z0-9._-]*)?="[^"]*"`)
+
+func stripXMLNSAttrs(b []byte) []byte {
+	return xmlnsAttrRE.ReplaceAll(b, nil)
+}
+
+// collapseTextWS collapses runs of whitespace (space/tab/CR/LF) into a
+// single space and trims leading/trailing whitespace. Used to mirror
+// okapi's xliff-writer translatable-text normalisation.
+func collapseTextWS(in []byte) []byte {
+	if len(in) == 0 {
+		return in
+	}
+	out := make([]byte, 0, len(in))
+	prevWS := false
+	for _, c := range in {
+		if c == ' ' || c == '\t' || c == '\r' || c == '\n' {
+			if !prevWS {
+				out = append(out, ' ')
+				prevWS = true
+			}
+			continue
+		}
+		out = append(out, c)
+		prevWS = false
+	}
+	// Trim trailing space.
+	if len(out) > 0 && out[len(out)-1] == ' ' {
+		out = out[:len(out)-1]
+	}
+	// Trim leading space.
+	if len(out) > 0 && out[0] == ' ' {
+		out = out[1:]
+	}
+	return out
+}
+
+// normalizeAttrValue collapses XML 1.0 attribute-value whitespace per
+// §3.3.3: literal CR, LF, TAB are replaced with a single space (they
+// remain individual spaces, not collapsed). For CDATA-typed attributes
+// (the default when no DTD declares otherwise) further collapsing of
+// runs is not required by the spec, so we leave non-CR/LF/TAB
+// whitespace alone.
+func normalizeAttrValue(v string) string {
+	if !strings.ContainsAny(v, "\r\n\t") {
+		return v
+	}
+	out := make([]byte, len(v))
+	for i := 0; i < len(v); i++ {
+		c := v[i]
+		if c == '\r' || c == '\n' || c == '\t' {
+			out[i] = ' '
+		} else {
+			out[i] = c
+		}
+	}
+	return string(out)
 }
 
 // JSONCanonical re-serializes JSON through encoding/json so two

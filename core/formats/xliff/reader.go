@@ -12,7 +12,115 @@ import (
 
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/model"
+	"golang.org/x/text/encoding/ianaindex"
 )
+
+// xmlCharsetReader is wired into every encoding/xml.Decoder we create
+// so XLIFF files declared with non-UTF-8 encodings (windows-1252,
+// ISO-8859-1, etc.) parse without rejecting the prolog. The reader's
+// raw-byte skeleton path requires offsets that line up with the input
+// string, so we transcode the file to UTF-8 *before* feeding it to the
+// decoder (see transcodeToUTF8) — at that point the declared charset
+// is already UTF-8, but the decoder still re-reads the prolog and
+// invokes this hook. Returning the input verbatim keeps the byte
+// offsets stable.
+func xmlCharsetReader(charset string, input io.Reader) (io.Reader, error) {
+	return input, nil
+}
+
+// transcodeToUTF8 inspects the XML declaration's encoding attribute on
+// the leading bytes of the file and, if it names a non-UTF-8 charset
+// (windows-1252, ISO-8859-1, …), decodes the entire input to UTF-8.
+// The XML declaration is rewritten to encoding="UTF-8" so the parser's
+// own prolog read agrees with the bytes that follow. Returns the
+// (possibly transcoded) UTF-8 text and the original detected charset
+// (empty if the file was already UTF-8 or had no declaration).
+func transcodeToUTF8(raw []byte) (string, string, error) {
+	decl := xmlEncodingFromProlog(raw)
+	if decl == "" || strings.EqualFold(decl, "UTF-8") || strings.EqualFold(decl, "UTF8") {
+		return string(raw), decl, nil
+	}
+	enc, err := ianaindex.IANA.Encoding(decl)
+	if err != nil || enc == nil {
+		return string(raw), decl, fmt.Errorf("xliff: unsupported declared charset %q", decl)
+	}
+	decoded, err := io.ReadAll(enc.NewDecoder().Reader(bytes.NewReader(raw)))
+	if err != nil {
+		return string(raw), decl, fmt.Errorf("xliff: transcoding %q to UTF-8: %w", decl, err)
+	}
+	rewritten := rewriteXMLEncodingToUTF8(string(decoded))
+	return rewritten, decl, nil
+}
+
+// xmlEncodingFromProlog extracts the encoding name from a `<?xml … ?>`
+// declaration if present in the first ~256 bytes. Returns "" when the
+// file has no declaration or no encoding attribute.
+func xmlEncodingFromProlog(raw []byte) string {
+	limit := len(raw)
+	if limit > 256 {
+		limit = 256
+	}
+	head := string(raw[:limit])
+	start := strings.Index(head, "<?xml")
+	if start < 0 {
+		return ""
+	}
+	end := strings.Index(head[start:], "?>")
+	if end < 0 {
+		return ""
+	}
+	prolog := head[start : start+end]
+	idx := strings.Index(prolog, "encoding")
+	if idx < 0 {
+		return ""
+	}
+	rest := prolog[idx+len("encoding"):]
+	rest = strings.TrimLeft(rest, " \t=")
+	if len(rest) == 0 {
+		return ""
+	}
+	quote := rest[0]
+	if quote != '"' && quote != '\'' {
+		return ""
+	}
+	rest = rest[1:]
+	q := strings.IndexByte(rest, quote)
+	if q < 0 {
+		return ""
+	}
+	return rest[:q]
+}
+
+// rewriteXMLEncodingToUTF8 normalizes the encoding attribute in the
+// `<?xml … ?>` declaration to UTF-8 after a transcode. Leaves the rest
+// of the prolog (version, standalone, whitespace) untouched.
+func rewriteXMLEncodingToUTF8(s string) string {
+	end := strings.Index(s, "?>")
+	if end < 0 {
+		return s
+	}
+	prolog := s[:end]
+	rest := s[end:]
+	idx := strings.Index(prolog, "encoding")
+	if idx < 0 {
+		return s
+	}
+	tail := prolog[idx+len("encoding"):]
+	trimmed := strings.TrimLeft(tail, " \t=")
+	if len(trimmed) == 0 {
+		return s
+	}
+	quote := trimmed[0]
+	if quote != '"' && quote != '\'' {
+		return s
+	}
+	q := strings.IndexByte(trimmed[1:], quote)
+	if q < 0 {
+		return s
+	}
+	consumed := len(tail) - len(trimmed) + 1 + q + 1
+	return prolog[:idx] + `encoding="UTF-8"` + tail[consumed:] + rest
+}
 
 // Reader implements DataFormatReader for XLIFF 1.2 files.
 type Reader struct {
@@ -94,15 +202,25 @@ type elemPos struct {
 }
 
 func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
-	content, err := io.ReadAll(r.Doc.Reader)
+	raw, err := io.ReadAll(r.Doc.Reader)
 	if err != nil {
 		ch <- model.PartResult{Error: fmt.Errorf("xliff: reading: %w", err)}
 		return
 	}
-	rawText := string(content)
+	rawText, _, err := transcodeToUTF8(raw)
+	if err != nil {
+		ch <- model.PartResult{Error: fmt.Errorf("xliff: parsing: %w", err)}
+		return
+	}
+	// content holds the same bytes the decoder is reading from, so byte
+	// offsets reported by decoder.InputOffset() can index into it
+	// directly. After a non-UTF-8 transcode this differs from the
+	// on-disk bytes.
+	content := []byte(rawText)
 
 	decoder := xml.NewDecoder(strings.NewReader(rawText))
 	decoder.Strict = false
+	decoder.CharsetReader = xmlCharsetReader
 
 	var currentFile *fileInfo
 	var inBody bool
@@ -217,7 +335,7 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 				if !inBody || currentFile == nil {
 					continue
 				}
-				tu, tuPositions := r.parseTransUnit(decoder, t, currentFile, blockCount)
+				tu, tuPositions := r.parseTransUnit(decoder, t, currentFile, blockCount, content)
 				if tu == nil {
 					continue
 				}
@@ -320,10 +438,12 @@ type parsedTransUnit struct {
 	maxWidth     string
 	sizeUnit     string
 
-	source    string    // raw inner XML of <source>
-	target    string    // raw inner XML of <target>
-	targetLang string   // xml:lang attribute on <target> (when <file> has no target-language)
-	segSource []segment // parsed <seg-source> segments
+	source     string     // raw inner XML of <source>
+	target     string     // raw inner XML of <target>
+	targetLang string     // xml:lang attribute on <target> (when <file> has no target-language)
+	hasTarget  bool       // true when the source had a <target> element (even empty/self-closing)
+	targetAttrs []xml.Attr // <target>'s own attributes (state, xml:lang, etc.) for round-trip
+	segSource  []segment  // parsed <seg-source> segments
 
 	notes    []parsedNote
 	altTrans []parsedAltTrans
@@ -352,7 +472,13 @@ type parsedAltTrans struct {
 
 // parseTransUnit parses a <trans-unit> element and all its children.
 // It returns the parsed trans-unit and skeleton element positions (if skeleton tracking is active).
-func (r *Reader) parseTransUnit(decoder *xml.Decoder, start xml.StartElement, fi *fileInfo, blockIdx int) (*parsedTransUnit, []elemPos) {
+//
+// content is the full input file's bytes — used to slice raw inner XML
+// for <source>/<target>/<seg-source> bodies. Slicing the raw input
+// preserves namespace prefixes (encoding/xml resolves them to URIs,
+// which loses the source's prefix mapping), original entity escaping,
+// and source whitespace formatting that re-serialization would mangle.
+func (r *Reader) parseTransUnit(decoder *xml.Decoder, start xml.StartElement, fi *fileInfo, blockIdx int, content []byte) (*parsedTransUnit, []elemPos) {
 	tu := &parsedTransUnit{
 		translatable: true,
 	}
@@ -380,9 +506,13 @@ func (r *Reader) parseTransUnit(decoder *xml.Decoder, start xml.StartElement, fi
 	var positions []elemPos
 	hasTarget := false
 	sourceAfterClose := -1 // byte offset right after </source>
+	transUnitCloseOff := -1 // byte offset of `<` in `</trans-unit>`
+	nextSiblingStart := -1 // offset of `<` for first start-tag sibling after </source>
+	awaitingNextSibling := false
 
 	depth := 1
 	for depth > 0 {
+		preOff := int(decoder.InputOffset())
 		tok, err := decoder.Token()
 		if err != nil {
 			return nil, nil
@@ -390,38 +520,70 @@ func (r *Reader) parseTransUnit(decoder *xml.Decoder, start xml.StartElement, fi
 
 		switch t := tok.(type) {
 		case xml.StartElement:
+			if awaitingNextSibling && depth == 1 {
+				// First sibling-start tag at trans-unit depth after
+				// </source>. Capture the offset of its `<` before we
+				// step into it; this is where okapi inserts the
+				// synthesised <target> when one was missing.
+				nextSiblingStart = preOff
+				awaitingNextSibling = false
+			}
 			depth++
 			switch t.Name.Local {
 			case "source":
-				startOff := decoder.InputOffset()
-				inner, closeOff := readInnerXML(decoder)
-				tu.source = inner
+				startOff := int(decoder.InputOffset())
+				_, closeOff := readInnerXML(decoder)
+				// Prefer the raw byte slice over readInnerXML's
+				// reserialized string: encoding/xml resolves namespace
+				// prefixes to URIs (so cms:id becomes
+				// urn:ixiasoft:dita-cms:xliff:id, which is then invalid
+				// as XML), and reserialization changes attribute order /
+				// whitespace. Raw slicing keeps every byte the source
+				// had between the opening `>` and the closing `<`.
+				if content != nil && startOff >= 0 && closeOff >= startOff && closeOff <= len(content) {
+					tu.source = string(content[startOff:closeOff])
+				}
 				depth-- // readInnerXML consumed the end element
 				sourceAfterClose = int(decoder.InputOffset())
+				awaitingNextSibling = true
 				if r.skeletonStore != nil {
 					positions = append(positions, elemPos{
-						startOffset: int(startOff),
+						startOffset: startOff,
 						endOffset:   closeOff,
 						blockIdx:    blockIdx,
 						elemType:    "source",
 					})
 				}
 			case "target":
-				startOff := decoder.InputOffset()
+				// preOff was captured at the top of the loop before
+				// reading the StartElement; it points at the `<` of
+				// `<target`. We use that as the elemPos startOffset so
+				// the writer can replace the entire <target ...>...</target>
+				// element (including the open tag, attrs, and close
+				// tag). Replacing inner-only doesn't work for empty/
+				// self-closing targets like <target state="…" />, where
+				// inserted content lands outside the element.
+				targetTagStart := preOff
+				startOff := int(decoder.InputOffset())
 				for _, a := range t.Attr {
 					if a.Name.Local == "lang" && (a.Name.Space == "xml" || a.Name.Space == "http://www.w3.org/XML/1998/namespace") {
 						tu.targetLang = a.Value
 						break
 					}
 				}
-				inner, closeOff := readInnerXML(decoder)
-				tu.target = inner
+				tu.targetAttrs = copyTargetAttrs(t.Attr)
+				_, closeOff := readInnerXML(decoder)
+				if content != nil && startOff >= 0 && closeOff >= startOff && closeOff <= len(content) {
+					tu.target = string(content[startOff:closeOff])
+				}
 				depth--
 				hasTarget = true
+				tu.hasTarget = true
+				targetTagEnd := int(decoder.InputOffset())
 				if r.skeletonStore != nil {
 					positions = append(positions, elemPos{
-						startOffset: int(startOff),
-						endOffset:   closeOff,
+						startOffset: targetTagStart,
+						endOffset:   targetTagEnd,
 						blockIdx:    blockIdx,
 						elemType:    "target",
 					})
@@ -442,19 +604,34 @@ func (r *Reader) parseTransUnit(decoder *xml.Decoder, start xml.StartElement, fi
 			}
 		case xml.EndElement:
 			depth--
+			if depth == 0 {
+				// `</trans-unit>` close: preOff is the offset of the
+				// `<` in the close tag, which is exactly where okapi
+				// inserts a synthesised target on round-trip (after any
+				// prior whitespace, before the close tag).
+				transUnitCloseOff = preOff
+			}
 		}
 	}
 
 	// When the trans-unit has a <source> but no <target>, emit a
-	// synthetic position so the writer can inject a complete <target>
-	// element after </source>. okapi's xliff filter always writes a
-	// <target> on round-trip (translate="no" copies source verbatim,
-	// translate="yes" gets the pseudo translation); native otherwise
-	// preserves the source's missing target and diverges canonically.
+	// synthetic position so the writer can inject a complete <target>.
+	// okapi places the new target right before the next sibling
+	// element after </source> (alt-trans, note, or </trans-unit> when
+	// nothing else follows), preserving any inter-element whitespace
+	// as the target's leading indent. Mirror that placement so the
+	// surrounding skeleton bytes match byte-for-byte.
 	if r.skeletonStore != nil && !hasTarget && sourceAfterClose >= 0 {
+		injectAt := nextSiblingStart
+		if injectAt < 0 {
+			injectAt = transUnitCloseOff
+		}
+		if injectAt < 0 {
+			injectAt = sourceAfterClose
+		}
 		positions = append(positions, elemPos{
-			startOffset: sourceAfterClose,
-			endOffset:   sourceAfterClose,
+			startOffset: injectAt,
+			endOffset:   injectAt,
 			blockIdx:    blockIdx,
 			elemType:    "target-inject",
 		})
@@ -623,8 +800,11 @@ func parseSegSource(decoder *xml.Decoder) []segment {
 			}
 		case xml.CharData:
 			if currentSeg != nil {
-				// Inside a mrk segment — preserve raw text (don't escape already-decoded text)
-				buf.Write(t)
+				// CharData is already decoded (`&lt;b>` → `<b>`). The
+				// buffer is re-parsed downstream as XML, so re-escape
+				// here — otherwise text like `<b>` reads as a start tag
+				// and the inner text disappears from the native IR.
+				buf.WriteString(xmlEscapeText(string(t)))
 			}
 		}
 	}
@@ -728,6 +908,7 @@ func readInnerXMLCharData(decoder *xml.Decoder) string {
 
 // buildBlock creates a Block from parsed trans-unit data.
 func (r *Reader) buildBlock(tu *parsedTransUnit, sourceLang, targetLang model.LocaleID, translatable, preserveWS bool) *model.Block {
+	hasTargetElem := tu.hasTarget
 	block := &model.Block{
 		ID:                 tu.id,
 		Name:               tu.id,
@@ -765,11 +946,21 @@ func (r *Reader) buildBlock(tu *parsedTransUnit, sourceLang, targetLang model.Lo
 		// Use seg-source segments
 		block.Source = make([]*model.Segment, len(tu.segSource))
 		for i, seg := range tu.segSource {
-			block.Source[i] = model.NewRunsSegment(seg.mid, parseInlineContent(seg.text))
+			block.Source[i] = newSegmentWithNative(seg.mid, seg.text)
+		}
+		// Attach body-level native IR for <source>: parsed from the
+		// raw <source> body (which is unsegmented but mirrors the
+		// inline-code structure). Falls back to building it from the
+		// segments + reasonable separators when <source> wasn't present.
+		block.Annotations["xliff:source-body"] = &SourceBodyNativeAnnotation{
+			Content: parseNativeContent(tu.source),
 		}
 	} else {
 		// Use <source> content
-		block.Source = []*model.Segment{model.NewRunsSegment("s1", parseInlineContent(tu.source))}
+		block.Source = []*model.Segment{newSegmentWithNative("s1", tu.source)}
+		block.Annotations["xliff:source-body"] = &SourceBodyNativeAnnotation{
+			Content: parseNativeContent(tu.source),
+		}
 	}
 
 	// Build target segments. Prefer the file's target-language; fall
@@ -788,12 +979,26 @@ func (r *Reader) buildBlock(tu *parsedTransUnit, sourceLang, targetLang model.Lo
 		if len(targetSegs) > 0 {
 			tgtSegs := make([]*model.Segment, len(targetSegs))
 			for i, seg := range targetSegs {
-				tgtSegs[i] = model.NewRunsSegment(seg.mid, parseInlineContent(seg.text))
+				tgtSegs[i] = newSegmentWithNative(seg.mid, seg.text)
 			}
 			block.Targets[effectiveTargetLang] = tgtSegs
 		} else {
-			block.Targets[effectiveTargetLang] = []*model.Segment{model.NewRunsSegment("s1", parseInlineContent(targetContent))}
+			block.Targets[effectiveTargetLang] = []*model.Segment{newSegmentWithNative("s1", targetContent)}
 		}
+		// Attach body-level native IR for <target>. Walking this lets
+		// the writer reconstruct mrk wrappers and between-mrk
+		// whitespace exactly as the source file had them.
+		block.Annotations["xliff:target-body"] = &TargetBodyNativeAnnotation{
+			Locale:  effectiveTargetLang,
+			Content: parseNativeContent(targetContent),
+		}
+	}
+	if hasTargetElem {
+		// Whether target was populated, empty, or self-closing —
+		// preserve its attributes (state, state-qualifier, xml:lang,
+		// custom-namespace) so the writer can re-emit the complete
+		// element verbatim.
+		block.Annotations["xliff:target-attrs"] = newTargetAttrsAnnotation(tu.targetAttrs)
 	}
 
 	// Add notes
@@ -845,6 +1050,67 @@ func (r *Reader) buildBlock(tu *parsedTransUnit, sourceLang, targetLang model.Lo
 // Annotation is an alias for model.Annotation to make things cleaner.
 type Annotation = model.Annotation
 
+// copyTargetAttrs copies a <target> element's attributes into the
+// parsed-tu structure. Skips xmlns:* declarations (handled at the
+// document level) but keeps everything else (state, state-qualifier,
+// xml:lang, custom-namespace attrs) so the writer can reproduce the
+// element verbatim.
+func copyTargetAttrs(in []xml.Attr) []xml.Attr {
+	if len(in) == 0 {
+		return nil
+	}
+	out := make([]xml.Attr, 0, len(in))
+	for _, a := range in {
+		if a.Name.Space == "xmlns" || a.Name.Local == "xmlns" {
+			continue
+		}
+		out = append(out, a)
+	}
+	return out
+}
+
+// newTargetAttrsAnnotation converts an xml.Attr slice (from the
+// parser) into the wire-friendly Attr form. encoding/xml resolves
+// namespace prefixes to URIs in Name.Space, so we map the well-known
+// URIs back to their conventional prefixes (xml, xmlns) — otherwise
+// the writer would emit `http://www.w3.org/XML/1998/namespace:lang`
+// which is invalid XML.
+func newTargetAttrsAnnotation(in []xml.Attr) *TargetAttrsAnnotation {
+	out := make([]Attr, 0, len(in))
+	for _, a := range in {
+		out = append(out, Attr{Space: prefixForURI(a.Name.Space), Local: a.Name.Local, Value: a.Value})
+	}
+	return &TargetAttrsAnnotation{Attrs: out}
+}
+
+// prefixForURI maps known XML namespace URIs back to their
+// conventional prefix. Unknown URIs are returned as-is (caller can
+// decide whether to emit them, drop them, or invent a prefix).
+func prefixForURI(uri string) string {
+	switch uri {
+	case "http://www.w3.org/XML/1998/namespace":
+		return "xml"
+	case "http://www.w3.org/2000/xmlns/":
+		return "xmlns"
+	}
+	return uri
+}
+
+// newSegmentWithNative builds a Segment from raw inner XML, populating
+// both the generic Run downconversion (consumed by tools) and the
+// xliff-native IR annotation (consumed by the writer for byte-faithful
+// re-emission of inline elements with all their attributes).
+func newSegmentWithNative(id, innerXML string) *model.Segment {
+	seg := model.NewRunsSegment(id, parseInlineContent(innerXML))
+	if seg.Annotations == nil {
+		seg.Annotations = make(map[string]model.Annotation)
+	}
+	seg.Annotations["xliff:native"] = &SegmentNativeAnnotation{
+		Content: parseNativeContent(innerXML),
+	}
+	return seg
+}
+
 // parseInlineContent parses XLIFF 1.2 inline elements and returns
 // a Run sequence with text interleaved with Ph / PcOpen / PcClose /
 // Sub inline codes.
@@ -887,33 +1153,47 @@ func parseInlineContent(innerXML string) []model.Run {
 			switch t.Name.Local {
 			case "bpt":
 				id := attrVal(t.Attr, "id")
-				data := readElementText(decoder)
+				data, subTexts := readInlineCodeContent(decoder)
 				depth--
 				flushText()
 				runs = append(runs, model.Run{PcOpen: &model.PcOpenRun{
 					ID: id, Type: ctypeToSpanType(attrVal(t.Attr, "ctype")),
 					Data: data, Equiv: attrVal(t.Attr, "equiv-text"),
 				}})
+				for _, sub := range subTexts {
+					runs = append(runs, model.Run{Text: &model.TextRun{Text: sub}})
+				}
 
 			case "ept":
 				id := attrVal(t.Attr, "id")
-				data := readElementText(decoder)
+				data, subTexts := readInlineCodeContent(decoder)
 				depth--
 				flushText()
 				runs = append(runs, model.Run{PcClose: &model.PcCloseRun{
 					ID: id, Type: ctypeToSpanType(attrVal(t.Attr, "ctype")),
 					Data: data, Equiv: attrVal(t.Attr, "equiv-text"),
 				}})
+				for _, sub := range subTexts {
+					runs = append(runs, model.Run{Text: &model.TextRun{Text: sub}})
+				}
 
 			case "ph":
 				id := attrVal(t.Attr, "id")
-				data := readElementText(decoder)
+				data, subTexts := readInlineCodeContent(decoder)
 				depth--
 				flushText()
 				runs = append(runs, model.Run{Ph: &model.PlaceholderRun{
 					ID: id, Type: ctypeToSpanType(attrVal(t.Attr, "ctype")),
 					Data: data, Equiv: attrVal(t.Attr, "equiv-text"),
 				}})
+				// One text run per nested <sub> sub-flow, in tree order.
+				// The writer's IR walk re-encounters the sub during ph
+				// inner traversal and consumes these texts there — so
+				// pseudo-translate / AI-translate transformations on the
+				// run text propagate into <sub>.
+				for _, sub := range subTexts {
+					runs = append(runs, model.Run{Text: &model.TextRun{Text: sub}})
+				}
 
 			case "x":
 				id := attrVal(t.Attr, "id")
@@ -951,7 +1231,7 @@ func parseInlineContent(innerXML string) []model.Run {
 			case "it":
 				id := attrVal(t.Attr, "id")
 				pos := attrVal(t.Attr, "pos")
-				data := readElementText(decoder)
+				data, subTexts := readInlineCodeContent(decoder)
 				depth--
 				flushText()
 				typ := ctypeToSpanType(attrVal(t.Attr, "ctype"))
@@ -969,6 +1249,9 @@ func parseInlineContent(innerXML string) []model.Run {
 					runs = append(runs, model.Run{Ph: &model.PlaceholderRun{
 						ID: id, Type: typ, Data: data, Equiv: equiv,
 					}})
+				}
+				for _, sub := range subTexts {
+					runs = append(runs, model.Run{Text: &model.TextRun{Text: sub}})
 				}
 
 			case "mrk":
@@ -1043,6 +1326,83 @@ func readElementText(decoder *xml.Decoder) string {
 		}
 	}
 	return buf.String()
+}
+
+// readInlineCodeContent reads the content of an inline code element
+// (bpt/ept/ph/it) until its end tag, returning two things in parallel:
+//
+//   - data: the raw text content (the "native code" payload — e.g.
+//     "<b>" inside `<bpt>`), for use as PlaceholderRun.Data and the
+//     downconversion path consumed by tools that don't see the native
+//     IR.
+//   - subTexts: one entry per translatable text node inside nested
+//     `<sub>` sub-flow elements, in the same tree order the writer
+//     will encounter them. The IR's Sub.Children has a separate Text
+//     node for each CharData chunk between nested elements (e.g.
+//     `[nested<ph>x</ph>still in sub]` is three children: Text("[nested"),
+//     Ph, Text("still in sub]")), so we must emit one subTexts entry
+//     per such Text node — not one concatenated string per sub — for
+//     the writer's run-substitution to align.
+//
+// Text inside nested code elements (ph/bpt/ept/it) within the sub is
+// treated as opaque native code, not a translatable sub-flow text.
+func readInlineCodeContent(decoder *xml.Decoder) (data string, subTexts []string) {
+	var dataBuf strings.Builder
+	var pending strings.Builder
+	// subDepth: depth of <sub> nesting we're currently inside (0 = not in any sub).
+	// codeDepth: depth of nested code elements (ph/bpt/ept/it) inside sub.
+	// We only collect text into pending when subDepth >= 1 && codeDepth == 0.
+	subDepth, codeDepth := 0, 0
+	depth := 1
+	flushSubText := func() {
+		if pending.Len() > 0 {
+			subTexts = append(subTexts, pending.String())
+			pending.Reset()
+		}
+	}
+	for depth > 0 {
+		tok, err := decoder.Token()
+		if err != nil {
+			break
+		}
+		switch t := tok.(type) {
+		case xml.StartElement:
+			depth++
+			switch t.Name.Local {
+			case "sub":
+				if subDepth >= 1 && codeDepth == 0 {
+					flushSubText()
+				}
+				subDepth++
+			case "ph", "bpt", "ept", "it":
+				if subDepth >= 1 && codeDepth == 0 {
+					flushSubText()
+					codeDepth++
+				} else if codeDepth >= 1 {
+					codeDepth++
+				}
+			}
+		case xml.EndElement:
+			depth--
+			switch t.Name.Local {
+			case "sub":
+				if subDepth == 1 && codeDepth == 0 {
+					flushSubText()
+				}
+				subDepth--
+			case "ph", "bpt", "ept", "it":
+				if codeDepth >= 1 {
+					codeDepth--
+				}
+			}
+		case xml.CharData:
+			dataBuf.Write(t)
+			if subDepth >= 1 && codeDepth == 0 {
+				pending.Write(t)
+			}
+		}
+	}
+	return dataBuf.String(), subTexts
 }
 
 // attrVal returns the value of named attribute, or "".
@@ -1131,7 +1491,10 @@ func parseMrkSegmentsFromString(targetXML string) []segment {
 			}
 		case xml.CharData:
 			if currentSeg != nil {
-				buf.Write(t)
+				// CharData arrives decoded; the buffer is re-parsed as
+				// XML downstream, so re-escape so `<b>` doesn't read
+				// back as a start tag and lose the inline text.
+				buf.WriteString(xmlEscapeText(string(t)))
 			}
 		}
 	}
