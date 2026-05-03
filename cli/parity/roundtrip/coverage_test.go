@@ -466,11 +466,22 @@ func coverageScans() []formatScan {
 		{
 			// Bridge passes ~7 of 15 fixtures; the rest are flagged
 			// per-file via csvBridgeSkips().
-			formatID:          "csv",
-			filterClass:       "okf_commaseparatedvalues",
-			sources:           []string{"integration-tests/okapi/src/test/resources/table"},
-			extensions:        []string{".csv"},
-			skip:              csvBridgeSkips(),
+			formatID:    "csv",
+			filterClass: "okf_commaseparatedvalues",
+			sources:     []string{"integration-tests/okapi/src/test/resources/table"},
+			extensions:  []string{".csv"},
+			skip:        csvBridgeSkips(),
+			// okf_commaseparatedvalues defaults to "translate column 1
+			// across all rows including the first" (no header). Native
+			// csv defaults to "translate every cell of every data row,
+			// header is row 0". The two extraction surfaces overlap
+			// only at column 1 of row 1+, so any fixture with content
+			// outside that intersection diverges. Mirror okapi's
+			// surface for parity.
+			nativeConfig: map[string]any{
+				"hasHeader":           false,
+				"translatableColumns": []any{1},
+			},
 		},
 		{
 			// No integration-tests source for tsv; cherry-pick the
