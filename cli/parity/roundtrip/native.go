@@ -107,6 +107,7 @@ func (e *NativeEngine) RoundTrip(t *testing.T, in Input, spec PseudoSpec) []byte
 	doc := &model.RawDocument{
 		URI:          inputPath,
 		SourceLocale: model.LocaleID(spec.SrcLocale()),
+		TargetLocale: tgt,
 		Reader:       io.NopCloser(bytes.NewReader(in.Bytes)),
 	}
 
