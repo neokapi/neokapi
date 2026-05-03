@@ -134,7 +134,7 @@ func (w *Writer) writeFromSkeleton() error {
 	// output so we can rewrite it before flushing. Otherwise write
 	// straight through.
 	compat := w.okapiCompat()
-	needsPostProcess := compat.HoistAltTransNotes || compat.ReorderHeaderToolToEnd
+	needsPostProcess := compat.HoistAltTransNotes || compat.ReorderHeaderToolToEnd || compat.UnwrapSingleSegMrk
 	finalOut := w.Output
 	var postBuf *bytes.Buffer
 	if needsPostProcess {
@@ -143,6 +143,9 @@ func (w *Writer) writeFromSkeleton() error {
 		defer func() {
 			w.Output = finalOut
 			rewritten := postBuf.Bytes()
+			if compat.UnwrapSingleSegMrk {
+				rewritten = unwrapSingleSegMrkWhenSourceDiffers(rewritten)
+			}
 			if compat.HoistAltTransNotes {
 				rewritten = hoistAltTransNotes(rewritten)
 			}
@@ -512,18 +515,14 @@ func (w *Writer) targetText(block *model.Block, targetLang model.LocaleID) strin
 		EscapeNonASCII:  compat.EscapeNonASCIIAsEntities,
 		StripCREntities: compat.StripCDataCREntities,
 	}
-	// okapi only unwraps single-mrk segmentation for translate="no"
-	// trans-units. Translatable trans-units keep their mrk wrappers
-	// because the segmentation was authored intent (a translator might
-	// re-segment). For non-translatable units the mrks are noise.
-	unwrap := compat.UnwrapSingleSegMrk && !block.Translatable
-	// Prefer the target-body native IR for the chosen locale. If the
-	// chosen segments came from a different locale (bilingual fallback),
-	// the annotation's locale won't match — still useful as the
-	// structural template since okapi mirrors source's segmentation.
+	// UnwrapSingleSegMrk is now applied as a writer post-process pass
+	// (see unwrapSingleSegMrkWhenSourceDiffers) so it can compare
+	// `<source>` vs `<seg-source>` content and only unwrap when they
+	// differ — matching XLIFFFilter.java:2278. The IR-level renderer
+	// always emits the segmented form here.
 	if a, ok := block.Annotations["xliff:target-body"]; ok {
 		if ta, ok := a.(*TargetBodyNativeAnnotation); ok && ta.Content != nil {
-			return renderBodyWithSegmentsOpts(ta.Content, tgtSegs, opts, unwrap)
+			return renderBodyWithSegmentsOpts(ta.Content, tgtSegs, opts, false)
 		}
 	}
 	// No target body — borrow source body's structure (mrks etc.) so
@@ -531,7 +530,7 @@ func (w *Writer) targetText(block *model.Block, targetLang model.LocaleID) strin
 	// the same segmentation shape as the source.
 	if a, ok := block.Annotations["xliff:source-body"]; ok {
 		if sa, ok := a.(*SourceBodyNativeAnnotation); ok && sa.Content != nil {
-			return renderBodyWithSegmentsOpts(sa.Content, tgtSegs, opts, unwrap)
+			return renderBodyWithSegmentsOpts(sa.Content, tgtSegs, opts, false)
 		}
 	}
 	if blockIsSegmented(block) {

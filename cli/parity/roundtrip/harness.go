@@ -143,6 +143,14 @@ func RunThreeWay(t *testing.T, c Case, native *NativeEngine, bridge *BridgeEngin
 			// nothing to inspect.
 			if dir := os.Getenv("PARITY_DUMP"); dir != "" && result.Achieved == TierDivergent {
 				dumpDivergentArtifacts(dir, formatID, c.Name, e.name, out, reference)
+				if c.Normalizer != nil {
+					if gn, err := c.Normalizer.Normalize(out); err == nil {
+						_ = os.WriteFile(filepath.Join(dir, string(formatID), c.Name+"."+e.name+".norm.bin"), gn, 0o644)
+					}
+					if rn, err := c.Normalizer.Normalize(reference); err == nil {
+						_ = os.WriteFile(filepath.Join(dir, string(formatID), c.Name+".reference.norm.bin"), rn, 0o644)
+					}
+				}
 			}
 			recordParityResult(parityRecord{
 				Format:         formatID,

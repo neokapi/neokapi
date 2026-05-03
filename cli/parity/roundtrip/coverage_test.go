@@ -606,13 +606,11 @@ func coverageScans() []formatScan {
 					// enable it here.
 					// "stripTransUnitApprovedAttr": true,
 					//
-					// Disabled: okapi only unwraps single-mrk segmentation
-					// in narrow conditions we haven't fully characterized.
-					// Blanket-enabling regresses translate_no.xlf
-					// (translate="no" trans-units retain their mrk wrapper)
-					// and other fixtures. Tracked in
-					// docs/internals/research/xliff-okapi-compat-quirks.md.
-					// "unwrapSingleSegMrk": true,
+					// Now enabled: matches okapi's XLIFFFilter.java:2278
+					// rule — drops <seg-source> and unwraps target's mrk
+					// when source content != seg-source content.
+					// Implemented as a writer post-process pass.
+					"unwrapSingleSegMrk": true,
 					//
 					// Disabled: okapi outputs literal UTF-8 for non-ASCII
 					// text content (Manual-12-AltTrans `Ţēxţ`, RB-11
@@ -627,7 +625,6 @@ func coverageScans() []formatScan {
 				"ImplementationPlan.docx.xlf": {Engines: []string{"bridge", "native"}, Reason: "bridge inline-code/alt-trans divergence vs okapi reference"},
 				"RB-12-Test02.xlf":            {Engines: []string{"bridge", "native"}, Reason: "bridge ResourceBundle-flavour xliff divergence vs okapi reference"},
 				"segmentation2.xlf":           {Engines: []string{"bridge", "native"}, Reason: "bridge segmentation handling divergence"},
-				"invalid_xml_entity.xlf":      {Engines: []string{"native"}, Reason: "intentionally-malformed fixture: contains `&#x03;` and `&#x1F;` character references that resolve to XML-disallowed C0 control chars; okapi tolerates them, encoding/xml rejects them by spec"},
 			},
 		},
 		{

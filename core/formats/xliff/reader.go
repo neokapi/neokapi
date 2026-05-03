@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"regexp"
 	"strconv"
 	"strings"
 
@@ -79,25 +80,64 @@ func transcodeToUTF8(raw []byte) (string, string, error) {
 }
 
 // sanitizeXMLControlChars replaces C0 control characters (U+0000-U+001F
-// excluding U+0009, U+000A, U+000D) with U+FFFD. XML 1.0 §2.2 forbids
-// these in well-formed documents; the encoding/xml decoder rejects them
-// even with Strict=false. Some real-world fixtures (e.g. okapi's
-// invalid_xml_entity.xlf with a literal U+0003) expect tolerant
-// handling — replacing keeps the rest of the document parseable.
+// excluding U+0009, U+000A, U+000D) with U+FFFD, both in literal byte
+// form and as numeric character references (`&#x03;`, `&#3;`). XML 1.0
+// §2.2 forbids these in well-formed documents; the encoding/xml decoder
+// rejects them even with Strict=false. Some real-world fixtures (e.g.
+// okapi's invalid_xml_entity.xlf with literal U+0003 AND `&#x03;`
+// references) expect tolerant handling — replacing keeps the rest of
+// the document parseable, matching okapi's `XLIFFFilter` behavior.
 func sanitizeXMLControlChars(s string) string {
-	if !strings.ContainsAny(s, "\x00\x01\x02\x03\x04\x05\x06\x07\x08\x0B\x0C\x0E\x0F\x10\x11\x12\x13\x14\x15\x16\x17\x18\x19\x1A\x1B\x1C\x1D\x1E\x1F") {
-		return s
-	}
-	var b strings.Builder
-	b.Grow(len(s))
-	for _, r := range s {
-		if r < 0x20 && r != '\t' && r != '\n' && r != '\r' {
-			b.WriteRune('�')
-			continue
+	out := s
+	// Step 1: replace literal C0 control bytes.
+	if strings.ContainsAny(out, "\x00\x01\x02\x03\x04\x05\x06\x07\x08\x0B\x0C\x0E\x0F\x10\x11\x12\x13\x14\x15\x16\x17\x18\x19\x1A\x1B\x1C\x1D\x1E\x1F") {
+		var b strings.Builder
+		b.Grow(len(out))
+		for _, r := range out {
+			if r < 0x20 && r != '\t' && r != '\n' && r != '\r' {
+				b.WriteRune('�')
+				continue
+			}
+			b.WriteRune(r)
 		}
-		b.WriteRune(r)
+		out = b.String()
 	}
-	return b.String()
+	// Step 2: replace `&#x..;` and `&#..;` references that resolve to a
+	// disallowed C0 control char. Done by regex on the source bytes
+	// before the XML decoder resolves them.
+	out = c0NumericRefRE.ReplaceAllStringFunc(out, func(m string) string {
+		val, err := parseNumericRef(m)
+		if err != nil {
+			return m
+		}
+		if val < 0x20 && val != 0x09 && val != 0x0A && val != 0x0D {
+			return "&#xFFFD;"
+		}
+		return m
+	})
+	return out
+}
+
+var c0NumericRefRE = regexp.MustCompile(`&#(?:x[0-9A-Fa-f]+|[0-9]+);`)
+
+// parseNumericRef parses an `&#NNN;` or `&#xHHH;` reference into its
+// integer value. Returns an error on malformed input (the regex
+// shouldn't let any through, but stay defensive).
+func parseNumericRef(ref string) (int, error) {
+	if !strings.HasPrefix(ref, "&#") || !strings.HasSuffix(ref, ";") {
+		return 0, fmt.Errorf("not a numeric ref")
+	}
+	body := ref[2 : len(ref)-1]
+	base := 10
+	if len(body) > 0 && (body[0] == 'x' || body[0] == 'X') {
+		base = 16
+		body = body[1:]
+	}
+	v, err := strconv.ParseInt(body, base, 32)
+	if err != nil {
+		return 0, err
+	}
+	return int(v), nil
 }
 
 // xmlEncodingFromProlog extracts the encoding name from a `<?xml … ?>`
