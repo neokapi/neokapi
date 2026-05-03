@@ -855,15 +855,16 @@ func (r *Reader) buildCodedRuns(b *runBuilder, node ast.Node, source []byte, idC
 }
 
 func (r *Reader) buildEmphasisRuns(b *runBuilder, n *ast.Emphasis, source []byte, idCounter *int) {
+	delim := emphasisDelimiter(n, source)
 	var semType, subType, data string
 	if n.Level == 2 {
 		semType = "fmt:bold"
 		subType = "md:strong"
-		data = "**"
+		data = strings.Repeat(string(delim), 2)
 	} else {
 		semType = "fmt:italic"
 		subType = "md:emphasis"
-		data = "*"
+		data = string(delim)
 	}
 	*idCounter++
 	id := strconv.Itoa(*idCounter)
@@ -872,6 +873,30 @@ func (r *Reader) buildEmphasisRuns(b *runBuilder, n *ast.Emphasis, source []byte
 		info.Constraints.Deletable, info.Constraints.Cloneable, info.Constraints.Reorderable)
 	r.buildCodedRuns(b, n, source, idCounter)
 	b.AddPcClose(id, semType, subType, data, info.Equiv)
+}
+
+// emphasisDelimiter returns the byte ('*' or '_') used as the
+// emphasis marker in the source. goldmark's ast.Emphasis only carries
+// the delimiter level (1 or 2), not which character was used, so we
+// look at the source bytes immediately before the first child node.
+// Defaults to '*' when the offset can't be located (e.g. nested or
+// programmatically-built nodes).
+func emphasisDelimiter(n *ast.Emphasis, source []byte) byte {
+	first := n.FirstChild()
+	if first == nil {
+		return '*'
+	}
+	// Inline text nodes carry their source range via Segment.
+	if t, ok := first.(*ast.Text); ok {
+		start := t.Segment.Start - n.Level
+		if start >= 0 && start < len(source) {
+			c := source[start]
+			if c == '*' || c == '_' {
+				return c
+			}
+		}
+	}
+	return '*'
 }
 
 func (r *Reader) buildCodeSpanRuns(b *runBuilder, n *ast.CodeSpan, source []byte, idCounter *int) {
