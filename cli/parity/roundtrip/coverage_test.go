@@ -381,6 +381,14 @@ func coverageScans() []formatScan {
 			sources:           []string{"integration-tests/okapi/src/test/resources/po"},
 			extensions:        []string{".po"},
 			skip:              poBridgeSkips(),
+			// PO chain: many fixtures differ only in BOM presence and
+			// line-ending choice (okapi preserves source CRLF + BOM,
+			// native emits LF + no BOM). Both are valid PO; chain them
+			// to reach canonical-equal where those are the only diffs.
+			normalizer: roundtrip.Chain{Steps: []roundtrip.Normalizer{
+				roundtrip.StripBOM{},
+				roundtrip.LFLineEndings{},
+			}},
 		},
 		{
 			formatID:    "properties",

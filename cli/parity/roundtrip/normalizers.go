@@ -49,6 +49,23 @@ func (LowerHexUnicodeEscape) Normalize(in []byte) ([]byte, error) {
 	}), nil
 }
 
+// StripBOM removes a leading UTF-8 byte-order mark (`\xef\xbb\xbf`).
+// Used by formats whose source has a BOM that one engine preserves
+// and another drops — both readings are valid for UTF-8 (the BOM is
+// optional) but differ byte-for-byte.
+type StripBOM struct{}
+
+// Name implements Normalizer.
+func (StripBOM) Name() string { return "strip-bom" }
+
+// Normalize implements Normalizer.
+func (StripBOM) Normalize(in []byte) ([]byte, error) {
+	if bytes.HasPrefix(in, []byte("\xef\xbb\xbf")) {
+		return in[3:], nil
+	}
+	return in, nil
+}
+
 // LFLineEndings collapses CRLF and bare CR to LF. Used by formats
 // whose writers emit one line ending and okapi emits another — both
 // are valid "newline" but differ byte-for-byte.
