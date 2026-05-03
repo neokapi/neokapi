@@ -16,6 +16,7 @@ import (
 type Writer struct {
 	format.BaseFormatWriter
 	blocks        map[string]*model.Block // key path → block
+	blockOrder    []string                // key paths in arrival (= source document) order
 	skeletonStore *format.SkeletonStore
 }
 
@@ -51,6 +52,9 @@ func (w *Writer) Write(ctx context.Context, parts <-chan *model.Part) error {
 			}
 			if part.Type == model.PartBlock {
 				if block, ok := part.Resource.(*model.Block); ok {
+					if _, seen := w.blocks[block.Name]; !seen {
+						w.blockOrder = append(w.blockOrder, block.Name)
+					}
 					w.blocks[block.Name] = block
 					blocksByID[block.ID] = block
 				}
@@ -226,16 +230,28 @@ func (w *Writer) flush() error {
 		return nil
 	}
 
-	// Build a map structure from blocks
-	result := make(map[string]any)
-	for name, block := range w.blocks {
+	// Build a yaml.Node tree directly so that mapping key order matches
+	// the source document's order. yaml.v3 preserves the slice order of
+	// MappingNode.Content (alternating key/value pairs); the previous
+	// `map[string]any` approach lost order to Go's randomized map
+	// iteration. blockOrder holds the keys in the order they arrived
+	// from the reader, which mirrors the source document.
+	root := &yamlv3.Node{Kind: yamlv3.MappingNode, Tag: "!!map"}
+	for _, name := range w.blockOrder {
+		block, ok := w.blocks[name]
+		if !ok {
+			continue
+		}
 		text := w.blockText(block)
-		result[name] = text
+		root.Content = append(root.Content,
+			&yamlv3.Node{Kind: yamlv3.ScalarNode, Tag: "!!str", Value: name},
+			&yamlv3.Node{Kind: yamlv3.ScalarNode, Tag: "!!str", Value: text},
+		)
 	}
 
 	encoder := yamlv3.NewEncoder(w.Output)
 	encoder.SetIndent(2)
-	if err := encoder.Encode(result); err != nil {
+	if err := encoder.Encode(root); err != nil {
 		return fmt.Errorf("yaml writer: encoding: %w", err)
 	}
 	return encoder.Close()
