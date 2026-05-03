@@ -193,13 +193,19 @@ func (w *Writer) writeFromSkeleton(store *format.SkeletonStore, blocks map[strin
 		case format.SkeletonRef:
 			refID := string(entry.Data)
 			var text string
+			quote := byte('"')
 			if strings.HasPrefix(refID, "layer:") {
 				layerPath := refID[6:]
 				text = childLayerValues[layerPath]
 			} else if block, ok := blocks[refID]; ok {
 				text = w.blockText(block)
+				// JSON5 single-quoted source values round-trip with
+				// the same delimiter (set by the reader on the block).
+				if block.Properties["json.quote"] == "'" {
+					quote = '\''
+				}
 			}
-			encoded := escapeJSONString(text, w.cfg.EscapeForwardSlashes)
+			encoded := escapeJSONStringQuoted(text, w.cfg.EscapeForwardSlashes, quote)
 			if _, err := io.WriteString(w.Output, encoded); err != nil {
 				return err
 			}

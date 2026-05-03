@@ -388,6 +388,12 @@ func (r *Reader) handleStringValue(ctx context.Context, ch chan<- model.PartResu
 		block.Properties["json.keypath"] = path
 	}
 
+	// Track JSON5 single-quoted style so the writer can round-trip
+	// the same delimiter on translatable values.
+	if quoteOf(tok.raw) == '\'' {
+		block.Properties["json.quote"] = "'"
+	}
+
 	// Apply code finder if enabled
 	if r.cfg.UseCodeFinder {
 		r.applyCodeFinder(block)

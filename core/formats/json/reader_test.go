@@ -177,7 +177,10 @@ func TestReadInvalidJSON(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
 	reader := jsonfmt.NewReader()
-	err := reader.Open(ctx, testutil.RawDocFromString(`{invalid json`, model.LocaleEnglish))
+	// Unterminated string — invalid even under JSON5 lenient mode
+	// (single quotes / bare keys, which `{invalid json` would otherwise
+	// be scanned as).
+	err := reader.Open(ctx, testutil.RawDocFromString(`{"key": "unterminated`, model.LocaleEnglish))
 	require.NoError(t, err)
 	defer reader.Close()
 
@@ -196,7 +199,10 @@ func TestReadInvalidJSONError(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
 	reader := jsonfmt.NewReader()
-	err := reader.Open(ctx, testutil.RawDocFromString(`{invalid json`, model.LocaleEnglish))
+	// Unterminated string — invalid even under JSON5 lenient mode
+	// (single quotes / bare keys, which `{invalid json` would otherwise
+	// be scanned as).
+	err := reader.Open(ctx, testutil.RawDocFromString(`{"key": "unterminated`, model.LocaleEnglish))
 	require.NoError(t, err)
 	defer reader.Close()
 

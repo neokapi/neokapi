@@ -90,19 +90,80 @@ func (s *scanner) next() (token, error) {
 		s.pos++
 		return token{typ: tokenComma, raw: ",", prefix: prefix}, nil
 	case '"':
-		return s.scanString(prefix)
+		return s.scanString(prefix, '"')
+	case '\'':
+		// JSON5 single-quoted string. Okapi's okf_json accepts these;
+		// preserved as a tokenString with single-quote raw form so the
+		// writer can round-trip the same quote style.
+		return s.scanString(prefix, '\'')
 	case 't':
-		return s.scanLiteral("true", tokenTrue, prefix)
+		if s.matchLiteral("true") {
+			return s.scanLiteral("true", tokenTrue, prefix)
+		}
+		return s.scanBareIdentifier(prefix)
 	case 'f':
-		return s.scanLiteral("false", tokenFalse, prefix)
+		if s.matchLiteral("false") {
+			return s.scanLiteral("false", tokenFalse, prefix)
+		}
+		return s.scanBareIdentifier(prefix)
 	case 'n':
-		return s.scanLiteral("null", tokenNull, prefix)
+		if s.matchLiteral("null") {
+			return s.scanLiteral("null", tokenNull, prefix)
+		}
+		return s.scanBareIdentifier(prefix)
 	default:
 		if ch == '-' || (ch >= '0' && ch <= '9') {
 			return s.scanNumber(prefix)
 		}
+		// JSON5 bare identifier — accepted in object-key position by
+		// okapi's okf_json. Emit as tokenString; the parser/writer
+		// preserve the raw form so the bare identifier round-trips.
+		if isIdentStart(ch) {
+			return s.scanBareIdentifier(prefix)
+		}
 		return token{}, fmt.Errorf("json scanner: unexpected character %q at position %d", ch, s.pos)
 	}
+}
+
+// matchLiteral returns true when the literal `expected` is present at
+// s.pos and the following byte is not an identifier continuation
+// character. This disambiguates `true`/`false`/`null` from JSON5 bare
+// identifiers that happen to share a prefix (`foo` vs `false`).
+func (s *scanner) matchLiteral(expected string) bool {
+	end := s.pos + len(expected)
+	if end > len(s.input) {
+		return false
+	}
+	if string(s.input[s.pos:end]) != expected {
+		return false
+	}
+	if end < len(s.input) && isIdentCont(s.input[end]) {
+		return false
+	}
+	return true
+}
+
+// isIdentStart reports whether b can begin a JSON5 bare identifier.
+// Mirrors JS identifier rules conservatively (ASCII letters, _, $).
+func isIdentStart(b byte) bool {
+	return (b >= 'a' && b <= 'z') || (b >= 'A' && b <= 'Z') || b == '_' || b == '$'
+}
+
+// isIdentCont reports whether b can continue a JSON5 bare identifier.
+func isIdentCont(b byte) bool {
+	return isIdentStart(b) || (b >= '0' && b <= '9')
+}
+
+// scanBareIdentifier consumes a JSON5 bare identifier and emits it as
+// a tokenString with raw == value (no surrounding quotes). The writer
+// preserves the bare form by outputting tok.raw verbatim for keys.
+func (s *scanner) scanBareIdentifier(prefix string) (token, error) {
+	start := s.pos
+	for s.pos < len(s.input) && isIdentCont(s.input[s.pos]) {
+		s.pos++
+	}
+	raw := string(s.input[start:s.pos])
+	return token{typ: tokenString, raw: raw, value: raw, prefix: prefix}, nil
 }
 
 // skipWhitespaceAndComments consumes whitespace and comment blocks, returning
@@ -187,14 +248,18 @@ func (s *scanner) skipWhitespaceAndComments() string {
 }
 
 // scanString scans a JSON string token, handling all escape sequences.
-func (s *scanner) scanString(prefix string) (token, error) {
+// The `quote` byte is the opening delimiter ('"' for standard JSON,
+// '\'' for JSON5 single-quoted strings); the same character closes the
+// string. The escape `\<quote>` is always recognised regardless of
+// which quote opened the string.
+func (s *scanner) scanString(prefix string, quote byte) (token, error) {
 	start := s.pos
 	s.pos++ // skip opening quote
 	var decoded strings.Builder
 
 	for s.pos < len(s.input) {
 		ch := s.input[s.pos]
-		if ch == '"' {
+		if ch == quote {
 			s.pos++ // skip closing quote
 			raw := string(s.input[start:s.pos])
 			return token{typ: tokenString, raw: raw, value: decoded.String(), prefix: prefix}, nil
@@ -208,6 +273,8 @@ func (s *scanner) scanString(prefix string) (token, error) {
 			switch esc {
 			case '"':
 				decoded.WriteByte('"')
+			case '\'':
+				decoded.WriteByte('\'')
 			case '\\':
 				decoded.WriteByte('\\')
 			case '/':
@@ -319,16 +386,36 @@ func (s *scanner) scanLiteral(expected string, typ tokenType, prefix string) (to
 	return token{typ: typ, raw: expected, value: expected, prefix: prefix}, nil
 }
 
-// escapeJSONString escapes a string for JSON output.
+// escapeJSONString escapes a string for JSON output using double quotes.
 // If escapeSlashes is true, forward slashes are escaped as \/.
 func escapeJSONString(s string, escapeSlashes bool) string {
+	return escapeJSONStringQuoted(s, escapeSlashes, '"')
+}
+
+// escapeJSONStringQuoted escapes a string for JSON output using the
+// given delimiter. Use '\'' for JSON5 single-quoted output so that
+// translatable values inside a single-quoted source like
+// `'foo': 'bar'` round-trip with their original quote style. Inside a
+// single-quoted string the literal `"` doesn't need escaping (and
+// vice-versa), so the escape logic depends on the delimiter.
+func escapeJSONStringQuoted(s string, escapeSlashes bool, quote byte) string {
 	var b strings.Builder
 	b.Grow(len(s) + 2)
-	b.WriteByte('"')
+	b.WriteByte(quote)
 	for _, r := range s {
 		switch r {
 		case '"':
-			b.WriteString(`\"`)
+			if quote == '"' {
+				b.WriteString(`\"`)
+			} else {
+				b.WriteByte('"')
+			}
+		case '\'':
+			if quote == '\'' {
+				b.WriteString(`\'`)
+			} else {
+				b.WriteByte('\'')
+			}
 		case '\\':
 			b.WriteString(`\\`)
 		case '\n':
@@ -355,6 +442,20 @@ func escapeJSONString(s string, escapeSlashes bool) string {
 			}
 		}
 	}
-	b.WriteByte('"')
+	b.WriteByte(quote)
 	return b.String()
+}
+
+// quoteOf inspects a token's raw form and returns the delimiter byte
+// used to wrap it (or 0 for bare identifiers). Used by the writer to
+// preserve JSON5 single-quoted strings on round-trip.
+func quoteOf(raw string) byte {
+	if len(raw) == 0 {
+		return 0
+	}
+	switch raw[0] {
+	case '"', '\'':
+		return raw[0]
+	}
+	return 0
 }
