@@ -38,7 +38,16 @@ func poBridgeSkips() map[string]fileSkip { return nil }
 
 func csvBridgeSkips() map[string]fileSkip { return nil }
 
-func tsBridgeSkips() map[string]fileSkip { return nil }
+func tsBridgeSkips() map[string]fileSkip {
+	return map[string]fileSkip{
+		// okapi's pseudo round-trip emits malformed XML for this fixture
+		// (a `<translation>` element closed by `</TS>` instead of
+		// `</translation>`). Likely an okapi-side bug in this regression
+		// fixture for okapi GitHub issue #531. The native side parses
+		// fine; only the okapi reference is unusable for parity.
+		"issue531.ts": {Engines: []string{"okapi"}, Reason: "okapi pseudo round-trip emits malformed XML (unclosed <translation>); reference unusable"},
+	}
+}
 
 // icmlMergedSkips folds the 5 fixtures that crash upstream Okapi's merger
 // in with any bridge-side divergences. After the hydrate fix all bridge

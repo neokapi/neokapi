@@ -754,6 +754,14 @@ mergeCaptions.b=false
 			},
 			// TTML is XML; same canonical normalizer.
 			normalizer: roundtrip.XMLCanonical{SortAttrs: true},
+			skip: map[string]fileSkip{
+				// example1.ttml ships with malformed XML — `<okp:foo>`
+				// elements are closed with `</lilt:foo>` (a stale namespace
+				// prefix from the LILT-fork days). Okapi's lenient parser
+				// tolerates the mismatch; native's encoding/xml rejects it.
+				// Documented in core/formats/ttml/spec.yaml:539-549.
+				"example1.ttml": {Engines: []string{"native"}, Reason: "fixture ships with malformed XML (<okp:foo>...</lilt:foo>); native's strict encoding/xml rejects it"},
+			},
 		},
 		// srt: omitted from this scan — upstream tikal routes .srt via
 		// `okf_regex-srt`, which loads regex rules from a packaged .fprm
