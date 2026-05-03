@@ -17,6 +17,7 @@ import (
 // Writer implements DataFormatWriter for XLIFF 1.2 files.
 type Writer struct {
 	format.BaseFormatWriter
+	cfg           *Config
 	skeletonStore *format.SkeletonStore
 	parts         []*model.Part
 	blocks        []*model.Block
@@ -28,13 +29,44 @@ type Writer struct {
 // Ensure Writer implements SkeletonStoreConsumer.
 var _ format.SkeletonStoreConsumer = (*Writer)(nil)
 
-// NewWriter creates a new XLIFF 1.2 writer.
+// NewWriter creates a new XLIFF 1.2 writer with default config.
 func NewWriter() *Writer {
+	cfg := &Config{}
+	cfg.Reset()
 	return &Writer{
 		BaseFormatWriter: format.BaseFormatWriter{
 			FormatName: "xliff",
 		},
+		cfg: cfg,
 	}
+}
+
+// SetConfig replaces the writer's config — used to enable
+// OkapiCompatConfig flags from parity tests.
+func (w *Writer) SetConfig(cfg *Config) {
+	if cfg != nil {
+		w.cfg = cfg
+	}
+}
+
+// WriterConfig implements format.WriterConfigurable, exposing the
+// writer's xliff Config so the parity harness (and CLI introspection,
+// recipe loading) can apply OkapiCompatConfig flags via ApplyMap.
+func (w *Writer) WriterConfig() format.DataFormatConfig {
+	if w.cfg == nil {
+		w.cfg = &Config{}
+		w.cfg.Reset()
+	}
+	return w.cfg
+}
+
+// okapiCompat returns the writer's OkapiCompatConfig (zero value if
+// the writer was constructed without a config).
+func (w *Writer) okapiCompat() OkapiCompatConfig {
+	if w.cfg == nil {
+		return OkapiCompatConfig{}
+	}
+	return w.cfg.OkapiCompat
 }
 
 // SetSkeletonStore sets the skeleton store for byte-exact output.
@@ -94,6 +126,32 @@ func (w *Writer) writeFromSkeleton() error {
 	if injectLang.IsEmpty() {
 		injectLang = targetLang
 	}
+	if w.okapiCompat().LowercaseLangSubtag {
+		injectLang = model.LocaleID(canonicalBCP47(string(injectLang)))
+	}
+
+	// If any okapi-compat post-processing flag is on, buffer the whole
+	// output so we can rewrite it before flushing. Otherwise write
+	// straight through.
+	compat := w.okapiCompat()
+	needsPostProcess := compat.HoistAltTransNotes || compat.ReorderHeaderToolToEnd
+	finalOut := w.Output
+	var postBuf *bytes.Buffer
+	if needsPostProcess {
+		postBuf = &bytes.Buffer{}
+		w.Output = postBuf
+		defer func() {
+			w.Output = finalOut
+			rewritten := postBuf.Bytes()
+			if compat.HoistAltTransNotes {
+				rewritten = hoistAltTransNotes(rewritten)
+			}
+			if compat.ReorderHeaderToolToEnd {
+				rewritten = reorderHeaderToolToEnd(rewritten)
+			}
+			finalOut.Write(rewritten)
+		}()
+	}
 
 	// Wrap output to inject `target-language="..."` into the first
 	// `<file ...>` start tag if the source didn't have one. okapi's
@@ -111,7 +169,12 @@ func (w *Writer) writeFromSkeleton() error {
 		}
 		switch entry.Type {
 		case format.SkeletonText:
-			if _, err := out.Write(entry.Data); err != nil {
+			data := entry.Data
+			compat := w.okapiCompat()
+			if compat.StripTransUnitApprovedAttr || compat.StripPhaseDateAttr {
+				data = applySkeletonAttrStripping(data, compat)
+			}
+			if _, err := out.Write(data); err != nil {
 				return err
 			}
 		case format.SkeletonRef:
@@ -312,9 +375,14 @@ func injectTargetLanguage(tag []byte, targetLang string) []byte {
 // Falls back to per-segment concatenation when no body annotation
 // exists (synthetic blocks created by tools, for example).
 func (w *Writer) sourceText(block *model.Block) string {
+	compat := w.okapiCompat()
+	opts := renderOpts{
+		EscapeNonASCII:  compat.EscapeNonASCIIAsEntities,
+		StripCREntities: compat.StripCDataCREntities,
+	}
 	if a, ok := block.Annotations["xliff:source-body"]; ok {
 		if sa, ok := a.(*SourceBodyNativeAnnotation); ok && sa.Content != nil {
-			return renderNativeWithRuns(sa.Content, nil)
+			return renderNativeWithRunsOpts(sa.Content, nil, opts)
 		}
 	}
 	return concatSegments(block.Source)
@@ -439,13 +507,23 @@ func (w *Writer) targetText(block *model.Block, targetLang model.LocaleID) strin
 	if len(tgtSegs) == 0 {
 		return ""
 	}
+	compat := w.okapiCompat()
+	opts := renderOpts{
+		EscapeNonASCII:  compat.EscapeNonASCIIAsEntities,
+		StripCREntities: compat.StripCDataCREntities,
+	}
+	// okapi only unwraps single-mrk segmentation for translate="no"
+	// trans-units. Translatable trans-units keep their mrk wrappers
+	// because the segmentation was authored intent (a translator might
+	// re-segment). For non-translatable units the mrks are noise.
+	unwrap := compat.UnwrapSingleSegMrk && !block.Translatable
 	// Prefer the target-body native IR for the chosen locale. If the
 	// chosen segments came from a different locale (bilingual fallback),
 	// the annotation's locale won't match — still useful as the
 	// structural template since okapi mirrors source's segmentation.
 	if a, ok := block.Annotations["xliff:target-body"]; ok {
 		if ta, ok := a.(*TargetBodyNativeAnnotation); ok && ta.Content != nil {
-			return renderBodyWithSegments(ta.Content, tgtSegs)
+			return renderBodyWithSegmentsOpts(ta.Content, tgtSegs, opts, unwrap)
 		}
 	}
 	// No target body — borrow source body's structure (mrks etc.) so
@@ -453,7 +531,7 @@ func (w *Writer) targetText(block *model.Block, targetLang model.LocaleID) strin
 	// the same segmentation shape as the source.
 	if a, ok := block.Annotations["xliff:source-body"]; ok {
 		if sa, ok := a.(*SourceBodyNativeAnnotation); ok && sa.Content != nil {
-			return renderBodyWithSegments(sa.Content, tgtSegs)
+			return renderBodyWithSegmentsOpts(sa.Content, tgtSegs, opts, unwrap)
 		}
 	}
 	if blockIsSegmented(block) {

@@ -133,8 +133,20 @@ func segmentsHaveText(segs []*model.Segment) bool {
 			continue
 		}
 		for _, r := range s.Runs {
-			if r.Text != nil && r.Text.Text != "" {
-				return true
+			if r.Text == nil {
+				continue
+			}
+			// Treat whitespace-only text as empty so we mirror okapi's
+			// TextModificationStep, which falls back to source when the
+			// existing target carries no real translation. Some xliff
+			// fixtures (e.g. MQ-12-Test01.xlf) have placeholder
+			// `<target> </target>` tags that contain just a space —
+			// pseudo-translating the space leaves an effectively empty
+			// target, while okapi pseudos the source instead.
+			for _, ch := range r.Text.Text {
+				if ch != ' ' && ch != '\t' && ch != '\n' && ch != '\r' {
+					return true
+				}
 			}
 		}
 	}

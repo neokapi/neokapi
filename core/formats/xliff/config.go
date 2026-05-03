@@ -74,6 +74,13 @@ type Config struct {
 
 	// CodeFinderRules defines inline code patterns.
 	CodeFinderRules []string
+
+	// OkapiCompat enables opt-in writer behaviors that mimic okapi's
+	// XLIFFWriter quirks for byte-equivalent parity comparison. Default
+	// is the zero value (all flags off) — neokapi's xliff writer
+	// otherwise follows the XLIFF 1.2 spec and intuitive defaults. See
+	// OkapiCompatConfig for the full flag list and per-flag rationale.
+	OkapiCompat OkapiCompatConfig
 }
 
 // FormatName returns the format this config applies to.
@@ -204,8 +211,52 @@ func (c *Config) ApplyMap(values map[string]any) error {
 			}
 			c.CodeFinderRules = rules
 
+		case "okapiCompat":
+			m, ok := val.(map[string]any)
+			if !ok {
+				return fmt.Errorf("okapiCompat: expected map, got %T", val)
+			}
+			if err := applyOkapiCompatMap(&c.OkapiCompat, m); err != nil {
+				return fmt.Errorf("okapiCompat: %w", err)
+			}
+
 		default:
 			return fmt.Errorf("xliff: unknown parameter: %s", key)
+		}
+	}
+	return nil
+}
+
+// applyOkapiCompatMap fills an OkapiCompatConfig from a map. Each key
+// maps to one bool field; unknown keys are an error so typos surface
+// in tests instead of silently being ignored.
+func applyOkapiCompatMap(o *OkapiCompatConfig, m map[string]any) error {
+	for key, val := range m {
+		b, ok := val.(bool)
+		if !ok {
+			return fmt.Errorf("%s: expected bool, got %T", key, val)
+		}
+		switch key {
+		case "lowercaseLangSubtag":
+			o.LowercaseLangSubtag = b
+		case "unwrapSingleSegMrk":
+			o.UnwrapSingleSegMrk = b
+		case "stripTransUnitApprovedAttr":
+			o.StripTransUnitApprovedAttr = b
+		case "stripPhaseDateAttr":
+			o.StripPhaseDateAttr = b
+		case "stripCDataCREntities":
+			o.StripCDataCREntities = b
+		case "hoistAltTransNotes":
+			o.HoistAltTransNotes = b
+		case "escapeNonASCIIAsEntities":
+			o.EscapeNonASCIIAsEntities = b
+		case "simulateBrokenWindows1252Read":
+			o.SimulateBrokenWindows1252Read = b
+		case "reorderHeaderToolToEnd":
+			o.ReorderHeaderToolToEnd = b
+		default:
+			return fmt.Errorf("unknown flag: %s", key)
 		}
 	}
 	return nil

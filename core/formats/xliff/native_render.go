@@ -6,6 +6,29 @@ import (
 	"github.com/neokapi/neokapi/core/model"
 )
 
+// renderOpts controls optional escaping behaviors during IR rendering.
+// Threaded through the emit walkers so OkapiCompatConfig flags can
+// influence text emission without leaking into the IR data structures.
+type renderOpts struct {
+	// EscapeNonASCII wraps text-node escaping with
+	// escapeNonASCIIAsEntities — emit non-ASCII as &#xNNNN; entities.
+	EscapeNonASCII bool
+	// StripCREntities post-processes emitted text to drop &#xD; entity
+	// sequences (matching okapi's CR-loss behavior).
+	StripCREntities bool
+}
+
+func (o renderOpts) escapeText(s string) string {
+	out := xmlEscapeText(s)
+	if o.EscapeNonASCII {
+		out = escapeNonASCIIAsEntities(out)
+	}
+	if o.StripCREntities {
+		out = stripCDataCREntities(out)
+	}
+	return out
+}
+
 // renderNativeWithRuns serializes a NativeContent back to xliff inline
 // bytes. Inline-element bytes (bpt/ept/ph/it/g/x/bx/ex/mrk/sub) come
 // from the native IR with full attribute fidelity. Text-node bytes
@@ -18,17 +41,19 @@ import (
 // a tool collapsed multiple TextRuns into one). If runs has more
 // TextRuns, the surplus is appended at the end.
 func renderNativeWithRuns(nc *NativeContent, runs []model.Run) string {
+	return renderNativeWithRunsOpts(nc, runs, renderOpts{})
+}
+
+func renderNativeWithRunsOpts(nc *NativeContent, runs []model.Run, opts renderOpts) string {
 	if nc == nil {
 		return ""
 	}
 	texts := extractTextRuns(runs)
 	var b strings.Builder
 	idx := 0
-	emitInlines(&b, nc.Inlines, texts, &idx)
-	// Append any leftover TextRuns the tool may have appended at the
-	// end (e.g. some pseudo variants add a trailing marker).
+	emitInlinesOpts(&b, nc.Inlines, texts, &idx, true, opts)
 	for ; idx < len(texts); idx++ {
-		b.WriteString(xmlEscapeText(texts[idx]))
+		b.WriteString(opts.escapeText(texts[idx]))
 	}
 	return b.String()
 }
@@ -60,31 +85,34 @@ func collectTexts(out *[]string, runs []model.Run) {
 }
 
 func emitInlines(b *strings.Builder, inls []Inline, texts []string, idx *int) {
-	emitInlinesCtx(b, inls, texts, idx, true)
+	emitInlinesOpts(b, inls, texts, idx, true, renderOpts{})
 }
 
-// emitInlinesCtx walks an inline tree and emits XML, with a
+// emitInlinesOpts walks an inline tree and emits XML, with a
 // `translatable` flag governing whether bare text nodes consume from
 // the runs slice (true) or fall back to the native IR's verbatim text
 // (false). The flag flips false when descending into bpt/ept/ph/it
 // inner content (which is opaque native code, not translatable text)
 // and back to true when descending into a <sub> sub-flow (which IS
 // translatable — that's the whole point of <sub>).
-func emitInlinesCtx(b *strings.Builder, inls []Inline, texts []string, idx *int, translatable bool) {
+//
+// `opts` carries optional text-emission behaviors threaded down from
+// the writer's OkapiCompatConfig (e.g. non-ASCII entity escaping).
+func emitInlinesOpts(b *strings.Builder, inls []Inline, texts []string, idx *int, translatable bool, opts renderOpts) {
 	for _, in := range inls {
 		switch {
 		case in.Text != nil:
 			if translatable && *idx < len(texts) {
-				b.WriteString(xmlEscapeText(texts[*idx]))
+				b.WriteString(opts.escapeText(texts[*idx]))
 				*idx++
 			} else {
-				b.WriteString(xmlEscapeText(in.Text.Content))
+				b.WriteString(opts.escapeText(in.Text.Content))
 			}
 		case in.G != nil:
 			b.WriteString("<g")
 			writeAttrs(b, in.G.Attrs)
 			b.WriteString(">")
-			emitInlinesCtx(b, in.G.Children, texts, idx, translatable)
+			emitInlinesOpts(b, in.G.Children, texts, idx, translatable, opts)
 			b.WriteString("</g>")
 		case in.X != nil:
 			b.WriteString("<x")
@@ -102,31 +130,31 @@ func emitInlinesCtx(b *strings.Builder, inls []Inline, texts []string, idx *int,
 			b.WriteString("<bpt")
 			writeAttrs(b, in.Bpt.Attrs)
 			b.WriteString(">")
-			emitInlinesCtx(b, in.Bpt.Inner, texts, idx, false)
+			emitInlinesOpts(b, in.Bpt.Inner, texts, idx, false, opts)
 			b.WriteString("</bpt>")
 		case in.Ept != nil:
 			b.WriteString("<ept")
 			writeAttrs(b, in.Ept.Attrs)
 			b.WriteString(">")
-			emitInlinesCtx(b, in.Ept.Inner, texts, idx, false)
+			emitInlinesOpts(b, in.Ept.Inner, texts, idx, false, opts)
 			b.WriteString("</ept>")
 		case in.Ph != nil:
 			b.WriteString("<ph")
 			writeAttrs(b, in.Ph.Attrs)
 			b.WriteString(">")
-			emitInlinesCtx(b, in.Ph.Inner, texts, idx, false)
+			emitInlinesOpts(b, in.Ph.Inner, texts, idx, false, opts)
 			b.WriteString("</ph>")
 		case in.It != nil:
 			b.WriteString("<it")
 			writeAttrs(b, in.It.Attrs)
 			b.WriteString(">")
-			emitInlinesCtx(b, in.It.Inner, texts, idx, false)
+			emitInlinesOpts(b, in.It.Inner, texts, idx, false, opts)
 			b.WriteString("</it>")
 		case in.Mrk != nil:
 			b.WriteString("<mrk")
 			writeAttrs(b, in.Mrk.Attrs)
 			b.WriteString(">")
-			emitInlinesCtx(b, in.Mrk.Children, texts, idx, translatable)
+			emitInlinesOpts(b, in.Mrk.Children, texts, idx, translatable, opts)
 			b.WriteString("</mrk>")
 		case in.Sub != nil:
 			b.WriteString("<sub")
@@ -136,7 +164,7 @@ func emitInlinesCtx(b *strings.Builder, inls []Inline, texts []string, idx *int,
 			// inline code. Even though the parent ph/bpt/it set
 			// translatable=false, sub re-enables substitution for its
 			// own children — that's the whole point of <sub>.
-			emitInlinesCtx(b, in.Sub.Children, texts, idx, true)
+			emitInlinesOpts(b, in.Sub.Children, texts, idx, true, opts)
 			b.WriteString("</sub>")
 		}
 	}
@@ -171,22 +199,51 @@ func writeAttrs(b *strings.Builder, attrs []Attr) {
 // When the body contains no top-level mrks, this is equivalent to
 // renderNativeWithRuns(nc, segs[0].Runs) — flat unsegmented body.
 func renderBodyWithSegments(nc *NativeContent, segs []*model.Segment) string {
+	return renderBodyWithSegmentsOpts(nc, segs, renderOpts{}, false)
+}
+
+// renderBodyWithSegmentsOpts is the opts-aware variant. unwrapSingleMrk
+// strips a single top-level <mrk mtype="seg"> wrapper when there's
+// exactly one such mrk in the body — mimicking okapi's behavior of
+// dropping single-segment seg-source segmentation on round-trip.
+func renderBodyWithSegmentsOpts(nc *NativeContent, segs []*model.Segment, opts renderOpts, unwrapSingleMrk bool) string {
 	if nc == nil {
 		return ""
 	}
-	hasMrks := false
+	mrkCount := 0
 	for _, in := range nc.Inlines {
 		if in.Mrk != nil {
-			hasMrks = true
-			break
+			if mrkAttrIsSeg(in.Mrk) {
+				mrkCount++
+			}
 		}
 	}
-	if !hasMrks {
+	if mrkCount == 0 {
 		var runs []model.Run
 		if len(segs) > 0 && segs[0] != nil {
 			runs = segs[0].Runs
 		}
-		return renderNativeWithRuns(nc, runs)
+		return renderNativeWithRunsOpts(nc, runs, opts)
+	}
+	if unwrapSingleMrk && mrkCount == 1 {
+		// Walk the IR but render the single mrk's children inline
+		// without the wrapper. Between-mrk content (whitespace usually)
+		// is suppressed — okapi's unwrap collapses to just the inner
+		// segment text.
+		var b strings.Builder
+		var segRuns []model.Run
+		if len(segs) > 0 && segs[0] != nil {
+			segRuns = segs[0].Runs
+		}
+		texts := extractTextRuns(segRuns)
+		idx := 0
+		for _, in := range nc.Inlines {
+			if in.Mrk != nil && mrkAttrIsSeg(in.Mrk) {
+				emitInlinesOpts(&b, in.Mrk.Children, texts, &idx, true, opts)
+			}
+			// drop other inlines (whitespace between mrks, etc.)
+		}
+		return b.String()
 	}
 	var b strings.Builder
 	mrkIdx := 0
@@ -201,7 +258,7 @@ func renderBodyWithSegments(nc *NativeContent, segs []*model.Segment) string {
 			}
 			texts := extractTextRuns(segRuns)
 			idx := 0
-			emitInlines(&b, in.Mrk.Children, texts, &idx)
+			emitInlinesOpts(&b, in.Mrk.Children, texts, &idx, true, opts)
 			b.WriteString("</mrk>")
 			mrkIdx++
 			continue
@@ -210,7 +267,14 @@ func renderBodyWithSegments(nc *NativeContent, segs []*model.Segment) string {
 		// whitespace). Emit verbatim from native, no run substitution.
 		dummyTexts := []string(nil)
 		dummyIdx := 0
-		emitInlines(&b, []Inline{in}, dummyTexts, &dummyIdx)
+		emitInlinesOpts(&b, []Inline{in}, dummyTexts, &dummyIdx, true, opts)
 	}
 	return b.String()
+}
+
+// mrkAttrIsSeg reports whether a Mrk node is an mtype="seg"
+// segmentation marker (vs. some other annotation marker like
+// mtype="x-…" used for QA notes etc.).
+func mrkAttrIsSeg(m *Mrk) bool {
+	return AttrLookup(m.Attrs, "mtype") == "seg"
 }

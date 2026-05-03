@@ -572,11 +572,62 @@ func coverageScans() []formatScan {
 			// many element depths whereas neokapi declares once at
 			// the root — both forms are semantically identical.
 			normalizer: roundtrip.XMLCanonical{SortAttrs: true, CollapseTextWhitespace: true, StripNamespaceDecls: true},
+			// Reader-side okapi-compat: simulate okapi's broken
+			// windows-1252 handling so SF-12-Test03's transcoded chars
+			// match okapi's lossy U+FFFD output. See
+			// docs/internals/research/xliff-okapi-compat-quirks.md.
+			nativeConfig: map[string]any{
+				"okapiCompat": map[string]any{
+					"simulateBrokenWindows1252Read": true,
+				},
+			},
+			// Writer-side okapi-compat: enable every flag so neokapi's
+			// xliff writer reproduces okapi's quirks byte-for-byte for
+			// parity. NONE of these are on by default in production —
+			// neokapi's defaults follow the XLIFF 1.2 spec and intuitive
+			// output choices. See xliff.OkapiCompatConfig and
+			// docs/internals/research/xliff-okapi-compat-quirks.md for per-flag
+			// rationale, fixture references, and spec citations.
+			writerOverlay: map[string]any{
+				"okapiCompat": map[string]any{
+					// Always-safe flags: these align with okapi's defaults
+					// across every fixture we've inspected.
+					"lowercaseLangSubtag": true,
+					"stripPhaseDateAttr":  true,
+					"stripCDataCREntities": true,
+					"hoistAltTransNotes":  true,
+					"reorderHeaderToolToEnd": true,
+					"simulateBrokenWindows1252Read": true,
+					// Disabled: okapi PRESERVES `approved="yes"` on
+					// trans-units in every fixture inspected (Manual-12,
+					// RB-11, SF-12-Test02). Earlier conjecture that okapi
+					// strips it was based on a misread fixture. Leave the
+					// flag in OkapiCompatConfig for future use but don't
+					// enable it here.
+					// "stripTransUnitApprovedAttr": true,
+					//
+					// Disabled: okapi only unwraps single-mrk segmentation
+					// in narrow conditions we haven't fully characterized.
+					// Blanket-enabling regresses translate_no.xlf
+					// (translate="no" trans-units retain their mrk wrapper)
+					// and other fixtures. Tracked in
+					// docs/internals/research/xliff-okapi-compat-quirks.md.
+					// "unwrapSingleSegMrk": true,
+					//
+					// Disabled: okapi outputs literal UTF-8 for non-ASCII
+					// text content (Manual-12-AltTrans `Ţēxţ`, RB-11
+					// `Ƥàŕàĝŕàƥĥē`, SF-12-Test02 `Versión`). The flag
+					// remains for future use against fixtures where okapi
+					// does emit `&#xNNNN;` (still under investigation).
+					// "escapeNonASCIIAsEntities": true,
+				},
+			},
 			skip: map[string]fileSkip{
 				"lqiTest.xlf":                 {Engines: []string{"okapi"}, Reason: "okf_xliff needs lqiTestIssues.xml in the same dir; harness now copies companions but okapi still rejects this fixture"},
 				"ImplementationPlan.docx.xlf": {Engines: []string{"bridge", "native"}, Reason: "bridge inline-code/alt-trans divergence vs okapi reference"},
 				"RB-12-Test02.xlf":            {Engines: []string{"bridge", "native"}, Reason: "bridge ResourceBundle-flavour xliff divergence vs okapi reference"},
 				"segmentation2.xlf":           {Engines: []string{"bridge", "native"}, Reason: "bridge segmentation handling divergence"},
+				"invalid_xml_entity.xlf":      {Engines: []string{"native"}, Reason: "intentionally-malformed fixture: contains `&#x03;` and `&#x1F;` character references that resolve to XML-disallowed C0 control chars; okapi tolerates them, encoding/xml rejects them by spec"},
 			},
 		},
 		{

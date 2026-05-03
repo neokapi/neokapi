@@ -35,10 +35,36 @@ func xmlCharsetReader(charset string, input io.Reader) (io.Reader, error) {
 // own prolog read agrees with the bytes that follow. Returns the
 // (possibly transcoded) UTF-8 text and the original detected charset
 // (empty if the file was already UTF-8 or had no declaration).
+//
+// When no declaration is present and the bytes are not valid UTF-8,
+// fall back to Windows-1252 (a Latin-1 superset) — this matches okapi's
+// tolerant behavior for legacy XLIFF files like
+// integration-tests/.../xliff/generalstructure.xlf.
+//
+// After charset resolution, C0 control characters (other than the
+// XML-allowed \t \n \r) are replaced with U+FFFD. This keeps the
+// encoding/xml decoder happy on fixtures like invalid_xml_entity.xlf
+// that smuggle a literal \x03 into character data.
 func transcodeToUTF8(raw []byte) (string, string, error) {
 	decl := xmlEncodingFromProlog(raw)
 	if decl == "" || strings.EqualFold(decl, "UTF-8") || strings.EqualFold(decl, "UTF8") {
-		return string(raw), decl, nil
+		if utf8Valid(raw) {
+			return sanitizeXMLControlChars(string(raw)), decl, nil
+		}
+		// Fallback: undeclared file with non-UTF-8 bytes. Decode as
+		// Windows-1252 — covers ISO-8859-1 too since 0x80-0x9F differ
+		// only in unprintable region. Marks the result as if the file
+		// declared "windows-1252" so SimulateBrokenWindows1252Read can
+		// pick it up downstream.
+		enc, _ := ianaindex.IANA.Encoding("windows-1252")
+		if enc == nil {
+			return string(raw), decl, fmt.Errorf("xliff: file lacks XML declaration and bytes are not valid UTF-8")
+		}
+		decoded, err := io.ReadAll(enc.NewDecoder().Reader(bytes.NewReader(raw)))
+		if err != nil {
+			return string(raw), decl, fmt.Errorf("xliff: undeclared-charset fallback decode: %w", err)
+		}
+		return sanitizeXMLControlChars(string(decoded)), "windows-1252", nil
 	}
 	enc, err := ianaindex.IANA.Encoding(decl)
 	if err != nil || enc == nil {
@@ -49,7 +75,29 @@ func transcodeToUTF8(raw []byte) (string, string, error) {
 		return string(raw), decl, fmt.Errorf("xliff: transcoding %q to UTF-8: %w", decl, err)
 	}
 	rewritten := rewriteXMLEncodingToUTF8(string(decoded))
-	return rewritten, decl, nil
+	return sanitizeXMLControlChars(rewritten), decl, nil
+}
+
+// sanitizeXMLControlChars replaces C0 control characters (U+0000-U+001F
+// excluding U+0009, U+000A, U+000D) with U+FFFD. XML 1.0 §2.2 forbids
+// these in well-formed documents; the encoding/xml decoder rejects them
+// even with Strict=false. Some real-world fixtures (e.g. okapi's
+// invalid_xml_entity.xlf with a literal U+0003) expect tolerant
+// handling — replacing keeps the rest of the document parseable.
+func sanitizeXMLControlChars(s string) string {
+	if !strings.ContainsAny(s, "\x00\x01\x02\x03\x04\x05\x06\x07\x08\x0B\x0C\x0E\x0F\x10\x11\x12\x13\x14\x15\x16\x17\x18\x19\x1A\x1B\x1C\x1D\x1E\x1F") {
+		return s
+	}
+	var b strings.Builder
+	b.Grow(len(s))
+	for _, r := range s {
+		if r < 0x20 && r != '\t' && r != '\n' && r != '\r' {
+			b.WriteRune('�')
+			continue
+		}
+		b.WriteRune(r)
+	}
+	return b.String()
 }
 
 // xmlEncodingFromProlog extracts the encoding name from a `<?xml … ?>`
@@ -207,10 +255,19 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 		ch <- model.PartResult{Error: fmt.Errorf("xliff: reading: %w", err)}
 		return
 	}
-	rawText, _, err := transcodeToUTF8(raw)
+	rawText, srcCharset, err := transcodeToUTF8(raw)
 	if err != nil {
 		ch <- model.PartResult{Error: fmt.Errorf("xliff: parsing: %w", err)}
 		return
+	}
+	// OkapiCompatConfig.SimulateBrokenWindows1252Read: when the source
+	// declared a non-UTF-8 charset, replace every non-ASCII rune in
+	// the transcoded text with U+FFFD. This mimics okapi's xliff filter
+	// bug where windows-1252 single-byte chars for accented Latin
+	// letters end up as replacement chars in output. See OkapiCompatConfig.
+	if r.cfg != nil && r.cfg.OkapiCompat.SimulateBrokenWindows1252Read &&
+		srcCharset != "" && !strings.EqualFold(srcCharset, "UTF-8") && !strings.EqualFold(srcCharset, "UTF8") {
+		rawText = simulateBrokenWindows1252(rawText)
 	}
 	// content holds the same bytes the decoder is reading from, so byte
 	// offsets reported by decoder.InputOffset() can index into it
@@ -697,11 +754,19 @@ func readInnerXML(decoder *xml.Decoder) (string, int) {
 	return buf.String(), closeOff
 }
 
-// xmlEscapeText escapes XML special characters in text content.
+// xmlEscapeText escapes XML special characters in text content. Per
+// XML 1.0 §2.4, only `<` and `&` MUST be escaped in character data;
+// `>` only needs escaping when it follows `]]` (to avoid the `]]>`
+// CDATA-end sequence). Most writers (including okapi's XLIFFWriter)
+// emit literal `>` in text. We follow that convention for byte-stable
+// round-trips and match the spec's minimum requirement.
 func xmlEscapeText(s string) string {
 	s = strings.ReplaceAll(s, "&", "&amp;")
 	s = strings.ReplaceAll(s, "<", "&lt;")
-	s = strings.ReplaceAll(s, ">", "&gt;")
+	// Only escape `>` after `]]` to avoid the CDATA-end sequence.
+	if strings.Contains(s, "]]>") {
+		s = strings.ReplaceAll(s, "]]>", "]]&gt;")
+	}
 	return s
 }
 

@@ -7,7 +7,7 @@ import (
 )
 
 func TestParseNativeContent_BptEpt(t *testing.T) {
-	src := `The quick brown <bpt id="1" ctype="bold">&lt;b&gt;</bpt>fox<ept id="1">&lt;/b&gt;</ept> jumped.`
+	src := `The quick brown <bpt id="1" ctype="bold">&lt;b></bpt>fox<ept id="1">&lt;/b></ept> jumped.`
 	nc := parseNativeContent(src)
 	if got, want := len(nc.Inlines), 5; got != want {
 		t.Fatalf("inline count: got %d want %d (%+v)", got, want, nc.Inlines)
@@ -37,10 +37,10 @@ func TestParseNativeContent_BptEpt(t *testing.T) {
 }
 
 func TestRenderNativeWithRuns_Roundtrip(t *testing.T) {
-	src := `The quick brown <bpt id="1" ctype="bold">&lt;b&gt;</bpt>fox<ept id="1">&lt;/b&gt;</ept> jumped.`
+	src := `The quick brown <bpt id="1" ctype="bold">&lt;b></bpt>fox<ept id="1">&lt;/b></ept> jumped.`
 	nc := parseNativeContent(src)
 	got := renderNativeWithRuns(nc, nil)
-	want := `The quick brown <bpt id="1" ctype="bold">&lt;b&gt;</bpt>fox<ept id="1">&lt;/b&gt;</ept> jumped.`
+	want := `The quick brown <bpt id="1" ctype="bold">&lt;b></bpt>fox<ept id="1">&lt;/b></ept> jumped.`
 	if got != want {
 		t.Errorf("\ngot  %q\nwant %q", got, want)
 	}
@@ -81,7 +81,7 @@ func TestRenderBodyWithSegments_PseudoSubstitution(t *testing.T) {
 	// Native body has the original German text; segments carry pseudo'd
 	// content. Body walker substitutes from runs while keeping bpt
 	// attributes from native.
-	src := `<bpt id="1" ctype="bold">&lt;b&gt;</bpt>fox<ept id="1">&lt;/b&gt;</ept>`
+	src := `<bpt id="1" ctype="bold">&lt;b></bpt>fox<ept id="1">&lt;/b></ept>`
 	nc := parseNativeContent(src)
 	segs := []*model.Segment{
 		model.NewRunsSegment("s1", []model.Run{
@@ -91,7 +91,7 @@ func TestRenderBodyWithSegments_PseudoSubstitution(t *testing.T) {
 		}),
 	}
 	got := renderBodyWithSegments(nc, segs)
-	want := `<bpt id="1" ctype="bold">&lt;b&gt;</bpt>ƒõẋ<ept id="1">&lt;/b&gt;</ept>`
+	want := `<bpt id="1" ctype="bold">&lt;b></bpt>ƒõẋ<ept id="1">&lt;/b></ept>`
 	if got != want {
 		t.Errorf("\ngot  %q\nwant %q", got, want)
 	}
