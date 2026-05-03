@@ -427,6 +427,16 @@ func coverageScans() []formatScan {
 			filterClass:       "okf_yaml",
 			sources:           []string{"integration-tests/okapi/src/test/resources/yaml"},
 			extensions:        []string{".yaml", ".yml"},
+			// Okapi's okf_yaml extracts every scalar (including bool /
+			// int / null) as translatable text. Native defaults to
+			// strings-only — for parity we mirror okapi by extracting
+			// non-string scalars too. Without this, native preserves
+			// `true` as a boolean while okapi pseudo-translates it to
+			// `ţŕũē`, producing a real-looking divergence on every
+			// fixture that has booleans/numbers.
+			nativeConfig: map[string]any{
+				"extractNonStrings": true,
+			},
 			// YAML normalizer reaches canonical-equal when fixtures
 			// differ only in indentation, quote style, or block-vs-flow
 			// — both sides round-trip through gopkg.in/yaml.v3.
