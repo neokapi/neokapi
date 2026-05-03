@@ -123,28 +123,23 @@ func (w *Writer) writeFromSkeleton() error {
 			case "source":
 				text = block.SourceText()
 			case "target":
-				switch {
-				case block.HasTarget(targetLang):
-					text = block.TargetText(targetLang)
-				case len(block.Targets) > 0:
-					// File declared a target-language other than ours
-					// (e.g. xliff target-language="es" with test
-					// target "fr"). Preserve the existing target so the
-					// output matches okapi, which leaves non-matching
-					// translations untouched on round-trip.
-					for _, segs := range block.Targets {
-						if len(segs) > 0 && len(segs[0].Runs) > 0 {
-							text = model.RenderRunsWithData(segs[0].Runs)
-							break
-						}
-					}
-					if text == "" {
-						text = block.SourceText()
-					}
-				default:
-					// Fallback to original source text
-					text = block.SourceText()
+				text = w.targetText(block, targetLang)
+			case "target-inject":
+				// No <target> element existed in the source; synthesize
+				// a complete one. okapi's filter writes a target on
+				// round-trip even when the source has only <source>.
+				// Only inject when an explicit writer locale is set
+				// (translation mode); skip for pure passthrough.
+				if w.Locale.IsEmpty() {
+					continue
 				}
+				inj := w.targetText(block, targetLang)
+				text = fmt.Sprintf(`<target xml:lang="%s">%s</target>`,
+					xmlEscapeAttr(string(targetLang)), xmlEscapeText(inj))
+				if _, err := io.WriteString(out, text); err != nil {
+					return err
+				}
+				continue
 			}
 
 			if _, err := io.WriteString(out, xmlEscapeText(text)); err != nil {
@@ -280,6 +275,22 @@ func injectTargetLanguage(tag []byte, targetLang string) []byte {
 	out = append(out, insert...)
 	out = append(out, tag[closeIdx:]...)
 	return out
+}
+
+// targetText returns the text to write for the block's <target> slot.
+// Prefers the writer's locale; falls back to any existing target (so
+// non-matching languages round-trip verbatim); falls back to source
+// text last (matches okapi for translate="no" entries).
+func (w *Writer) targetText(block *model.Block, targetLang model.LocaleID) string {
+	if block.HasTarget(targetLang) {
+		return block.TargetText(targetLang)
+	}
+	for _, segs := range block.Targets {
+		if len(segs) > 0 && len(segs[0].Runs) > 0 {
+			return model.RenderRunsWithData(segs[0].Runs)
+		}
+	}
+	return block.SourceText()
 }
 
 func (w *Writer) flush() error {

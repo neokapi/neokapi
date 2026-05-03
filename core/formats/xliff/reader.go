@@ -378,6 +378,8 @@ func (r *Reader) parseTransUnit(decoder *xml.Decoder, start xml.StartElement, fi
 	}
 
 	var positions []elemPos
+	hasTarget := false
+	sourceAfterClose := -1 // byte offset right after </source>
 
 	depth := 1
 	for depth > 0 {
@@ -395,6 +397,7 @@ func (r *Reader) parseTransUnit(decoder *xml.Decoder, start xml.StartElement, fi
 				inner, closeOff := readInnerXML(decoder)
 				tu.source = inner
 				depth-- // readInnerXML consumed the end element
+				sourceAfterClose = int(decoder.InputOffset())
 				if r.skeletonStore != nil {
 					positions = append(positions, elemPos{
 						startOffset: int(startOff),
@@ -414,6 +417,7 @@ func (r *Reader) parseTransUnit(decoder *xml.Decoder, start xml.StartElement, fi
 				inner, closeOff := readInnerXML(decoder)
 				tu.target = inner
 				depth--
+				hasTarget = true
 				if r.skeletonStore != nil {
 					positions = append(positions, elemPos{
 						startOffset: int(startOff),
@@ -439,6 +443,21 @@ func (r *Reader) parseTransUnit(decoder *xml.Decoder, start xml.StartElement, fi
 		case xml.EndElement:
 			depth--
 		}
+	}
+
+	// When the trans-unit has a <source> but no <target>, emit a
+	// synthetic position so the writer can inject a complete <target>
+	// element after </source>. okapi's xliff filter always writes a
+	// <target> on round-trip (translate="no" copies source verbatim,
+	// translate="yes" gets the pseudo translation); native otherwise
+	// preserves the source's missing target and diverges canonically.
+	if r.skeletonStore != nil && !hasTarget && sourceAfterClose >= 0 {
+		positions = append(positions, elemPos{
+			startOffset: sourceAfterClose,
+			endOffset:   sourceAfterClose,
+			blockIdx:    blockIdx,
+			elemType:    "target-inject",
+		})
 	}
 
 	return tu, positions
