@@ -391,36 +391,26 @@ func (r *Reader) parseTransUnit(decoder *xml.Decoder, start xml.StartElement, fi
 			switch t.Name.Local {
 			case "source":
 				startOff := decoder.InputOffset()
-				tu.source = readInnerXML(decoder)
+				inner, closeOff := readInnerXML(decoder)
+				tu.source = inner
 				depth-- // readInnerXML consumed the end element
 				if r.skeletonStore != nil {
-					endOff := decoder.InputOffset()
-					closeTag := "</source>"
-					endPos := int(endOff) - len(closeTag)
-					if endPos < 0 {
-						endPos = 0
-					}
 					positions = append(positions, elemPos{
 						startOffset: int(startOff),
-						endOffset:   endPos,
+						endOffset:   closeOff,
 						blockIdx:    blockIdx,
 						elemType:    "source",
 					})
 				}
 			case "target":
 				startOff := decoder.InputOffset()
-				tu.target = readInnerXML(decoder)
+				inner, closeOff := readInnerXML(decoder)
+				tu.target = inner
 				depth--
 				if r.skeletonStore != nil {
-					endOff := decoder.InputOffset()
-					closeTag := "</target>"
-					endPos := int(endOff) - len(closeTag)
-					if endPos < 0 {
-						endPos = 0
-					}
 					positions = append(positions, elemPos{
 						startOffset: int(startOff),
-						endOffset:   endPos,
+						endOffset:   closeOff,
 						blockIdx:    blockIdx,
 						elemType:    "target",
 					})
@@ -447,14 +437,25 @@ func (r *Reader) parseTransUnit(decoder *xml.Decoder, start xml.StartElement, fi
 	return tu, positions
 }
 
-// readInnerXML reads all content until the matching end element, returning inner XML as a string.
-func readInnerXML(decoder *xml.Decoder) string {
+// readInnerXML reads all content until the matching end element. It
+// returns the inner XML as a string plus the byte offset (in the
+// decoder's input stream) where the matching close tag begins —
+// captured *before* consuming the EndElement token, so the caller can
+// build a skeleton-ref range that doesn't include the close tag (and
+// works for prefixed namespaces like `</x:source>` where the close-tag
+// length isn't `len("</source>")`).
+func readInnerXML(decoder *xml.Decoder) (string, int) {
 	var buf strings.Builder
 	depth := 1
+	closeOff := 0
 	for depth > 0 {
+		// Capture offset before reading the next token; if it turns out
+		// to be the matching EndElement, this is the offset of `<` in
+		// the close tag.
+		preOff := int(decoder.InputOffset())
 		tok, err := decoder.Token()
 		if err != nil {
-			return buf.String()
+			return buf.String(), closeOff
 		}
 		switch t := tok.(type) {
 		case xml.StartElement:
@@ -479,6 +480,8 @@ func readInnerXML(decoder *xml.Decoder) string {
 				buf.WriteString("</")
 				buf.WriteString(t.Name.Local)
 				buf.WriteString(">")
+			} else {
+				closeOff = preOff
 			}
 		case xml.CharData:
 			buf.WriteString(xmlEscapeText(string(t)))
@@ -488,7 +491,7 @@ func readInnerXML(decoder *xml.Decoder) string {
 			buf.WriteString("-->")
 		}
 	}
-	return buf.String()
+	return buf.String(), closeOff
 }
 
 // xmlEscapeText escapes XML special characters in text content.
