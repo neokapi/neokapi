@@ -403,6 +403,10 @@ func coverageScans() []formatScan {
 			filterClass:       "okf_json",
 			sources:           []string{"integration-tests/okapi/src/test/resources/json"},
 			extensions:        []string{".json"},
+			// JSON normalizer reaches canonical-equal when fixtures
+			// differ only in whitespace (e.g. `"k" : "v"` vs `"k": "v"`)
+			// or string escape choices that encoding/json normalizes.
+			normalizer: roundtrip.JSONCanonical{},
 		},
 		{
 			formatID:          "yaml",

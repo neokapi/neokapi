@@ -4,6 +4,7 @@ package roundtrip
 
 import (
 	"bytes"
+	"encoding/json"
 	"encoding/xml"
 	"fmt"
 	"io"
@@ -111,6 +112,33 @@ func (n XMLCanonical) Normalize(in []byte) ([]byte, error) {
 		return nil, fmt.Errorf("xml-canonical: flush: %w", err)
 	}
 	return buf.Bytes(), nil
+}
+
+// JSONCanonical re-serializes JSON through encoding/json so two
+// semantically-identical documents that differ in whitespace (e.g.
+// `"key" : "value"` vs `"key": "value"`) come out byte-equal. The
+// re-serialization uses encoding/json's compact form (no extra
+// whitespace) and HTML-escapes `<`, `>`, `&` — both got and ref get
+// the same treatment, so the difference cancels.
+//
+// Use on json fixtures whose source has unusual spacing around colons
+// or whose pretty-printer differs from okapi's.
+type JSONCanonical struct{}
+
+// Name implements Normalizer.
+func (JSONCanonical) Name() string { return "json-canonical" }
+
+// Normalize implements Normalizer.
+func (JSONCanonical) Normalize(in []byte) ([]byte, error) {
+	var v any
+	if err := json.Unmarshal(in, &v); err != nil {
+		return nil, fmt.Errorf("json-canonical: parse: %w", err)
+	}
+	out, err := json.Marshal(v)
+	if err != nil {
+		return nil, fmt.Errorf("json-canonical: re-serialize: %w", err)
+	}
+	return out, nil
 }
 
 // Chain composes multiple normalizers, applying them in sequence.
