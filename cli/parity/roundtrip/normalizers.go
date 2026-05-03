@@ -457,6 +457,9 @@ func (HTMLCanonical) Normalize(in []byte) ([]byte, error) {
 //     them otherwise; different writers indent differently)
 //   - drop transport-hint <meta> tags (charset / Content-Type) that some
 //     writers inject and others omit
+//   - collapse runs of whitespace inside text nodes to a single space
+//     (HTML §13.5 already collapses these on render; native preserves
+//     source CRLFs that okapi normalises away)
 //   - sort each element's attributes alphabetically (case-insensitive,
 //     by namespace+key) so order differences cancel
 func canonicalizeHTMLNode(n *html.Node) {
@@ -467,6 +470,22 @@ func canonicalizeHTMLNode(n *html.Node) {
 		canonicalizeHTMLNode(c)
 		if shouldDropHTMLNode(n, c) {
 			toRemove = append(toRemove, c)
+		} else if c.Type == html.TextNode && !isElementWithPreservedWhitespace(n) {
+			c.Data = collapseHTMLTextWhitespace(c.Data)
+			// Trim leading whitespace when this text is the first
+			// child of its parent (element-boundary whitespace
+			// doesn't render). Same for trailing when it's the last
+			// child. Avoids native preserving a source `\r\n` after
+			// `<body>` while okapi strips it.
+			if c.PrevSibling == nil {
+				c.Data = strings.TrimLeft(c.Data, " ")
+			}
+			if c.NextSibling == nil {
+				c.Data = strings.TrimRight(c.Data, " ")
+			}
+			if c.Data == "" {
+				toRemove = append(toRemove, c)
+			}
 		}
 	}
 	for _, c := range toRemove {
@@ -480,6 +499,32 @@ func canonicalizeHTMLNode(n *html.Node) {
 			return n.Attr[i].Key < n.Attr[j].Key
 		})
 	}
+}
+
+// collapseHTMLTextWhitespace collapses runs of ASCII whitespace
+// (space, tab, CR, LF) to a single space — matching HTML's own
+// rendering rules (§13.5.1). Pre/script/style/textarea text never
+// reaches this function (caller filters via isElementWithPreservedWhitespace).
+func collapseHTMLTextWhitespace(s string) string {
+	if s == "" {
+		return s
+	}
+	var b strings.Builder
+	b.Grow(len(s))
+	prevSpace := false
+	for _, r := range s {
+		switch r {
+		case ' ', '\t', '\r', '\n':
+			if !prevSpace {
+				b.WriteByte(' ')
+				prevSpace = true
+			}
+		default:
+			b.WriteRune(r)
+			prevSpace = false
+		}
+	}
+	return b.String()
 }
 
 // shouldDropHTMLNode reports whether c (a child of parent) should be
