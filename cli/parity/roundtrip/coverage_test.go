@@ -630,11 +630,6 @@ func coverageScans() []formatScan {
 			},
 			skip: map[string]fileSkip{
 				"lqiTest.xlf": {Engines: []string{"okapi"}, Reason: "okf_xliff needs lqiTestIssues.xml in the same dir; harness now copies companions but okapi still rejects this fixture"},
-				// Bridge-only: 1-byte content diff at offset 22404 — bridge writes
-				// <x id=\"1\"/> where okapi reference has <x id=\"3\"/>. Same total
-				// size; placeholder code id renumbering inside a target. Separate
-				// from the segment-id renumbering bug fixed in StreamingTranslationApplier.
-				"ImplementationPlan.docx.xlf": {Engines: []string{"bridge"}, Reason: "bridge writes <x id=\"1\"/> where okapi reference has <x id=\"3\"/> at offset 22404 (1-byte content diff, output size matches). Inline placeholder code id renumbering in target. Tracked: neokapi#553."},
 			},
 		},
 		{
