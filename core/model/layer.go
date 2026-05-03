@@ -14,7 +14,8 @@ type Layer struct {
 	IsMultilingual bool
 	ParentID       string // ID of the parent Layer (empty for root)
 	Properties     map[string]string
-	HasBOM         bool // Whether the document has a byte order mark
+	Annotations    map[string]Annotation // Format-specific typed metadata (parallel to Block.Annotations)
+	HasBOM         bool                  // Whether the document has a byte order mark
 }
 
 // ResourceID returns the Layer's unique identifier.

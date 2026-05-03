@@ -56,13 +56,19 @@ type OriginalDataAnnotation struct {
 // AnnotationType identifies the annotation key.
 func (a *OriginalDataAnnotation) AnnotationType() string { return "xliff2:original-data" }
 
-// SourceDOMAnnotation carries the original etree document captured by
-// the reader. The writer's round-trip mode patches this DOM in place
-// and re-serializes — yielding a byte-equal output for unmodified
-// segments and a minimal diff for modified ones. When this annotation
-// is absent the writer falls back to generation mode (fresh DOM build).
+// SourceDOMAnnotation carries the original etree document AND the raw
+// input bytes captured by the reader. The writer's round-trip mode
+// patches the DOM in place and re-serializes — yielding a minimal
+// diff for modified segments. When NO segment was patched, the writer
+// short-circuits and emits Original verbatim, achieving byte-equal
+// output that bypasses etree's own serialization quirks (multi-line
+// attribute collapse, optional-character over-escaping, etc.).
+//
+// When this annotation is absent, the writer falls back to generation
+// mode (fresh DOM build, canonical formatting).
 type SourceDOMAnnotation struct {
-	Doc *etree.Document
+	Doc      *etree.Document
+	Original []byte
 }
 
 // AnnotationType identifies the annotation key.

@@ -131,6 +131,15 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 		return
 	}
 
+	// Normalize literal CR (0x0D) to LF (0x0A) in every CharData token.
+	// XML 1.0 §2.11 mandates this on parse; etree (via encoding/xml) does
+	// honor it during decode for chars that arrived as literal bytes,
+	// but numeric character references (&#xD;) decode to literal CR
+	// and bypass the normalization. For round-trip idempotency the DOM
+	// must contain only LF (the canonical form the next reader will
+	// see) — otherwise pass-N writes CR and pass-N+1 reads it as LF.
+	normalizeCRInDOM(doc.Root())
+
 	root := doc.SelectElement("xliff")
 	if root == nil {
 		// etree's SelectElement is namespace-agnostic by local name.
@@ -160,6 +169,7 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 			Properties: map[string]string{
 				"target-language": trgLang,
 			},
+			Annotations: make(map[string]model.Annotation),
 		}
 		if version != "" {
 			layer.Properties["xliff-version"] = version
@@ -174,6 +184,20 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 		// File-level <notes> → file-note:<category>:<id> properties.
 		if notesEl := file.SelectElement("notes"); notesEl != nil {
 			setFileNotePropertiesFromEtree(layer, notesEl)
+		}
+
+		// Stash the source etree.Document AND original bytes on the
+		// first file's layer so the writer's round-trip mode can patch
+		// it in place — yielding byte-equal output for unmodified
+		// inputs (verbatim passthrough of Original) and minimal diffs
+		// for modified ones. Only on the first file (single-file XLIFF
+		// is the common case; multi-file falls back to generation mode
+		// for non-first files).
+		if fileIdx == 0 {
+			layer.Annotations["xliff2:source-dom"] = &SourceDOMAnnotation{
+				Doc:      doc,
+				Original: content,
+			}
 		}
 
 		if !r.emit(ctx, ch, &model.Part{Type: model.PartLayerStart, Resource: layer}) {
@@ -610,6 +634,26 @@ func setFileNotePropertiesFromEtree(layer *model.Layer, notesEl *etree.Element) 
 			continue
 		}
 		layer.Properties[FileNotePropertyPrefix+category+":"+id] = content
+	}
+}
+
+// normalizeCRInDOM walks the etree subtree rooted at el and replaces
+// literal CR characters in every CharData token with LF. See the call
+// site comment for why — this is the v2 round-trip's idempotency hinge.
+func normalizeCRInDOM(el *etree.Element) {
+	if el == nil {
+		return
+	}
+	for _, c := range el.Child {
+		switch t := c.(type) {
+		case *etree.CharData:
+			if strings.IndexByte(t.Data, '\r') >= 0 {
+				t.Data = strings.ReplaceAll(t.Data, "\r\n", "\n")
+				t.Data = strings.ReplaceAll(t.Data, "\r", "\n")
+			}
+		case *etree.Element:
+			normalizeCRInDOM(t)
+		}
 	}
 }
 

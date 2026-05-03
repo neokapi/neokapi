@@ -47,6 +47,18 @@ type Writer struct {
 	// items captures groups (start/end) and blocks in stream order so the
 	// writer can reconstruct the <file> nesting structure.
 	items []writerItem
+
+	// sourceDoc, when non-nil, is the etree document captured by the
+	// reader and ferried via Layer.Annotations["xliff2:source-dom"].
+	// Its presence enables round-trip patching mode (byte-equal output
+	// for unmodified inputs, minimal-diff for modified ones).
+	sourceDoc *etree.Document
+
+	// sourceBytes is the original input the reader saw. When the writer
+	// determines no segment was modified, it emits sourceBytes verbatim
+	// — bypassing etree's serialization quirks (multi-line attribute
+	// collapse, optional-character over-escaping, etc.).
+	sourceBytes []byte
 }
 
 // writerItem represents one positioned element under a <file>: a group
@@ -155,6 +167,10 @@ func (w *Writer) Write(ctx context.Context, parts <-chan *model.Part) error {
 					}
 					w.inputExtraAttr = extraAttrsFromLayer(layer)
 					w.layerFileNotes = fileNotesFromLayer(layer)
+					if a, ok := layer.Annotations["xliff2:source-dom"].(*SourceDOMAnnotation); ok && a != nil && a.Doc != nil && w.sourceDoc == nil {
+						w.sourceDoc = a.Doc
+						w.sourceBytes = a.Original
+					}
 				}
 			}
 		}
@@ -225,7 +241,10 @@ func (w *Writer) writeFromSkeleton() error {
 	return nil
 }
 
-// flush builds an etree DOM from captured items and serializes it.
+// flush serializes the captured stream to XLIFF 2.x XML. When the
+// source DOM is present (round-trip mode), it patches that DOM in
+// place so unmodified content survives byte-equal. Otherwise it
+// builds a fresh DOM from the captured items (generation mode).
 func (w *Writer) flush() error {
 	if w.Output == nil {
 		return nil
@@ -234,6 +253,10 @@ func (w *Writer) flush() error {
 	targetLang := w.targetLang
 	if !w.Locale.IsEmpty() {
 		targetLang = w.Locale
+	}
+
+	if w.sourceDoc != nil {
+		return w.flushRoundTrip(targetLang)
 	}
 
 	version := w.resolveVersion()
@@ -297,6 +320,297 @@ func (w *Writer) flush() error {
 		return fmt.Errorf("xliff2 writer: write: %w", err)
 	}
 	return nil
+}
+
+// flushRoundTrip implements byte-equal-on-untouched round-trip:
+//   - Walk every <unit>/<segment> in the source DOM. For each, compare
+//     the model's content against the DOM's; if equal, leave it alone;
+//     if different, patch just that <source>/<target> element's children.
+//   - If NO segment was patched (and no explicit file notes were
+//     stamped), short-circuit: emit the original input bytes verbatim.
+//     This bypasses etree's serialization quirks (multi-line attribute
+//     collapse, optional-character over-escaping like `>` → `&gt;` and
+//     `"` → `&quot;`) that would otherwise change bytes outside the
+//     model's reach.
+//   - Otherwise, serialize the (mutated) DOM via etree.
+func (w *Writer) flushRoundTrip(targetLang model.LocaleID) error {
+	blocksByID := make(map[string]*model.Block, len(w.items))
+	for _, it := range w.items {
+		if it.kind == itemBlock && it.block != nil {
+			blocksByID[it.block.ID] = it.block
+		}
+	}
+
+	root := w.sourceDoc.Root()
+	if root == nil {
+		// Defensive: no root means the DOM was wiped. Fall through
+		// to generation mode.
+		w.sourceDoc = nil
+		return w.flush()
+	}
+
+	// Honor an explicit version override: patch <xliff version="…"> and
+	// the matching default namespace. Without an override we leave the
+	// captured version untouched (Config.Version == "" means "auto:
+	// preserve input").
+	patchedRoot := false
+	if w.cfg != nil && w.cfg.Version != "" && IsSupportedVersion(w.cfg.Version) {
+		v := w.cfg.Version
+		if attrValue(root, "version") != v {
+			root.CreateAttr("version", v) // CreateAttr replaces existing
+			ns := NamespaceForVersion(v)
+			if attrValue(root, "xmlns") != ns {
+				root.CreateAttr("xmlns", ns)
+			}
+			patchedRoot = true
+		}
+	}
+
+	patched := patchedRoot
+	for _, fileEl := range root.SelectElements("file") {
+		if walkUnitsRoundTrip(fileEl, blocksByID, targetLang) {
+			patched = true
+		}
+	}
+
+	notesAdded := false
+	if len(w.fileNotes) > 0 {
+		if firstFile := root.SelectElement("file"); firstFile != nil {
+			applyExplicitFileNotes(firstFile, w.fileNotes)
+			notesAdded = true
+		}
+	}
+
+	// Byte-equal short-circuit: when nothing was changed, emit the
+	// original bytes the reader saw. This is the v2 contract for
+	// untouched round-trip.
+	if !patched && !notesAdded && len(w.sourceBytes) > 0 {
+		if _, err := w.Output.Write(w.sourceBytes); err != nil {
+			return fmt.Errorf("xliff2 writer: passthrough: %w", err)
+		}
+		return nil
+	}
+
+	if _, err := w.sourceDoc.WriteTo(w.Output); err != nil {
+		return fmt.Errorf("xliff2 writer: round-trip write: %w", err)
+	}
+	return nil
+}
+
+// walkUnitsRoundTrip recurses into <group>/<unit> children of parent,
+// patching each unit against the matching model.Block. Returns true if
+// any segment was patched.
+func walkUnitsRoundTrip(parent *etree.Element, blocksByID map[string]*model.Block, targetLang model.LocaleID) bool {
+	patched := false
+	for _, child := range parent.ChildElements() {
+		switch child.Tag {
+		case "group":
+			if walkUnitsRoundTrip(child, blocksByID, targetLang) {
+				patched = true
+			}
+		case "unit":
+			id := attrValue(child, "id")
+			block, ok := blocksByID[id]
+			if !ok {
+				continue // unit removed from model (rare)
+			}
+			if patchUnit(child, block, targetLang) {
+				patched = true
+			}
+		}
+	}
+	return patched
+}
+
+// patchUnit reconciles one <unit> element in the source DOM with the
+// model.Block, returning true if any segment was patched.
+func patchUnit(unitEl *etree.Element, block *model.Block, targetLang model.LocaleID) bool {
+	srcByID := make(map[string]*model.Segment, len(block.Source))
+	for _, s := range block.Source {
+		srcByID[s.ID] = s
+	}
+	var trgByID map[string]*model.Segment
+	if trgSegs, ok := block.Targets[targetLang]; ok {
+		trgByID = make(map[string]*model.Segment, len(trgSegs))
+		for _, s := range trgSegs {
+			trgByID[s.ID] = s
+		}
+	}
+
+	patched := false
+	for _, segEl := range unitEl.ChildElements() {
+		if segEl.Tag != "segment" && segEl.Tag != "ignorable" {
+			continue
+		}
+		segID := attrValue(segEl, "id")
+		modelSrc := srcByID[segID]
+		modelTgt := trgByID[segID]
+
+		if srcEl := segEl.SelectElement("source"); srcEl != nil && modelSrc != nil {
+			if !segmentMatchesDOM(srcEl, modelSrc) {
+				replaceInlineChildren(srcEl, modelSrc)
+				patched = true
+			}
+		}
+
+		tgtEl := segEl.SelectElement("target")
+		if modelTgt != nil {
+			if tgtEl == nil {
+				tgtEl = etree.NewElement("target")
+				if srcEl := segEl.SelectElement("source"); srcEl != nil {
+					srcIdx := childIndex(segEl, srcEl)
+					segEl.InsertChildAt(srcIdx+1, tgtEl)
+				} else {
+					segEl.AddChild(tgtEl)
+				}
+				replaceInlineChildren(tgtEl, modelTgt)
+				patched = true
+			} else if !segmentMatchesDOM(tgtEl, modelTgt) {
+				replaceInlineChildren(tgtEl, modelTgt)
+				patched = true
+			}
+		}
+	}
+	return patched
+}
+
+// segmentMatchesDOM reports whether the model.Segment's content
+// matches what's already in the DOM element. We compare the segment's
+// SegmentInlineAnnotation IR against a fresh re-parse of the DOM
+// element's children — equality means "untouched, keep verbatim."
+//
+// Falling back to text-only comparison when the model has no IR
+// preserves correctness without preventing fall-throughs to patching.
+func segmentMatchesDOM(domEl *etree.Element, seg *model.Segment) bool {
+	if seg == nil {
+		return true
+	}
+	if a, ok := seg.Annotations["xliff2:segment-inline"].(*SegmentInlineAnnotation); ok && a != nil && a.Content != nil {
+		// Compare the IR captured at read time against a re-parse of
+		// the DOM. If a tool modified seg.Runs without clearing the
+		// annotation we'll incorrectly skip patching — that's a
+		// known caller contract.
+		domIR := parseInlines(domEl)
+		return inlinesEqual(a.Content.Inlines, domIR)
+	}
+	// Best-effort text comparison.
+	return domElementText(domEl) == model.RenderRunsWithData(seg.Runs)
+}
+
+// inlinesEqual reports structural equality of two Inline trees.
+func inlinesEqual(a, b []Inline) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if !inlineEqual(a[i], b[i]) {
+			return false
+		}
+	}
+	return true
+}
+
+func inlineEqual(a, b Inline) bool {
+	switch {
+	case a.Text != nil && b.Text != nil:
+		return a.Text.Content == b.Text.Content
+	case a.Ph != nil && b.Ph != nil:
+		return a.Ph.CodeAttrs == b.Ph.CodeAttrs
+	case a.Pc != nil && b.Pc != nil:
+		return a.Pc.CodeAttrs == b.Pc.CodeAttrs && inlinesEqual(a.Pc.Children, b.Pc.Children)
+	case a.Sc != nil && b.Sc != nil:
+		return a.Sc.CodeAttrs == b.Sc.CodeAttrs
+	case a.Ec != nil && b.Ec != nil:
+		return a.Ec.CodeAttrs == b.Ec.CodeAttrs
+	case a.Mrk != nil && b.Mrk != nil:
+		return a.Mrk.MrkAttrs == b.Mrk.MrkAttrs && inlinesEqual(a.Mrk.Children, b.Mrk.Children)
+	case a.Sm != nil && b.Sm != nil:
+		return a.Sm.MrkAttrs == b.Sm.MrkAttrs
+	case a.Em != nil && b.Em != nil:
+		return a.Em.StartRef == b.Em.StartRef
+	}
+	return false
+}
+
+// domElementText returns the concatenated CharData content of an
+// element including descendants — used for best-effort text-only
+// comparison when the model lacks a SegmentInlineAnnotation.
+func domElementText(el *etree.Element) string {
+	var sb strings.Builder
+	collectText(&sb, el)
+	return sb.String()
+}
+
+func collectText(sb *strings.Builder, el *etree.Element) {
+	for _, c := range el.Child {
+		switch t := c.(type) {
+		case *etree.CharData:
+			sb.WriteString(t.Data)
+		case *etree.Element:
+			collectText(sb, t)
+		}
+	}
+}
+
+// replaceInlineChildren wipes the element's children and re-renders
+// them from the segment's SegmentInlineAnnotation IR (preferred) or
+// the segment's Run sequence (fallback).
+func replaceInlineChildren(el *etree.Element, seg *model.Segment) {
+	el.Child = nil
+	if a, ok := seg.Annotations["xliff2:segment-inline"].(*SegmentInlineAnnotation); ok && a != nil && a.Content != nil {
+		renderInlinesInto(el, a.Content.Inlines)
+		return
+	}
+	el.SetText(model.RenderRunsWithData(seg.Runs))
+}
+
+// childIndex returns the index of target in parent.Child, or -1.
+func childIndex(parent *etree.Element, target *etree.Element) int {
+	for i, c := range parent.Child {
+		if c == target {
+			return i
+		}
+	}
+	return -1
+}
+
+// applyExplicitFileNotes appends notes stamped via SetFileNotes /
+// AddFileNote to the file's existing <notes>, deduplicating by
+// (category, id) — explicit notes win over carried-through notes.
+func applyExplicitFileNotes(fileEl *etree.Element, explicit []FileNote) {
+	notesEl := fileEl.SelectElement("notes")
+	if notesEl == nil {
+		notesEl = etree.NewElement("notes")
+		// Insert after <skeleton> if present, otherwise at the start.
+		insertAt := 0
+		for i, c := range fileEl.Child {
+			if e, ok := c.(*etree.Element); ok && e.Tag == "skeleton" {
+				insertAt = i + 1
+			}
+		}
+		fileEl.InsertChildAt(insertAt, notesEl)
+	}
+	// Build a (category, id) → element index for dedup-overwrite.
+	existing := make(map[[2]string]*etree.Element)
+	for _, n := range notesEl.SelectElements("note") {
+		key := [2]string{attrValue(n, "category"), attrValue(n, "id")}
+		existing[key] = n
+	}
+	for _, n := range explicit {
+		key := [2]string{n.Category, n.ID}
+		if e, ok := existing[key]; ok {
+			e.SetText(n.Content)
+			continue
+		}
+		ne := notesEl.CreateElement("note")
+		if n.ID != "" {
+			ne.CreateAttr("id", n.ID)
+		}
+		if n.Category != "" {
+			ne.CreateAttr("category", n.Category)
+		}
+		ne.SetText(n.Content)
+	}
 }
 
 // setRootAttrs writes the <xliff> element's attributes in spec-canonical

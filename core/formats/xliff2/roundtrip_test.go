@@ -138,6 +138,62 @@ func readWrite(t *testing.T, in []byte) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
+// TestRoundTrip_ByteEqualUntouched is the v2 contract check: a single
+// read → write pass on an unmodified XLIFF 2 input must produce
+// byte-equal output. The writer's round-trip mode patches only segments
+// where the model.Block's content differs from the source DOM; when
+// nothing was modified, the source DOM is serialized verbatim.
+//
+// Failures here mean either the reader normalized something the writer
+// didn't preserve, or the writer's "no patch needed" detection is
+// over-eager. Test fixtures the reader-normalization wipes (e.g. CR
+// entity refs collapsed to LF) are excluded from this check via
+// notExpectedByteEqual — they still appear in TestRoundTrip_AllFixtures
+// for the idempotency contract (pass1 == pass2).
+func TestRoundTrip_ByteEqualUntouched(t *testing.T) {
+	fixtures := collectXliff2Fixtures(t)
+	if len(fixtures) == 0 {
+		t.Skip("no xliff2 fixtures found under okapi-testdata")
+	}
+	excluded := notExpectedByteEqual()
+	for _, path := range fixtures {
+		name, _ := filepath.Rel(fixtureRoot, path)
+		if _, skip := excluded[name]; skip {
+			continue
+		}
+		t.Run(name, func(t *testing.T) {
+			raw, err := os.ReadFile(path)
+			if err != nil {
+				t.Fatal(err)
+			}
+			out, err := readWrite(t, raw)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !bytes.Equal(raw, out) {
+				offset := firstByteDiff(raw, out)
+				t.Errorf("byte-equal contract broken: input=%d bytes output=%d bytes (first diff at offset %d)",
+					len(raw), len(out), offset)
+			}
+		})
+	}
+}
+
+// notExpectedByteEqual lists fixtures where one or more reader
+// normalizations make byte-equal output unattainable. Each entry has a
+// brief reason; idempotency (pass1 == pass2) is still checked for all
+// of them by TestRoundTrip_AllFixtures.
+func notExpectedByteEqual() map[string]string {
+	return map[string]string{
+		// XML 1.1 declaration coerced to 1.0 on read (XLIFF 2 mandates 1.0).
+		"integration-tests/okapi/src/test/resources/xliff2/original_en.xlf": "XML 1.1→1.0 coercion",
+		// CR entity refs (&#x000D;) decode to literal CR on parse; we
+		// normalize to LF in the DOM so subsequent reads stay stable.
+		"integration-tests/okapi/src/test/resources/xliff2/translated.xlf":          "CR entity normalized to LF",
+		"integration-tests/okapi/src/test/resources/xliff2/translated_with_mrk.xlf": "CR entity normalized to LF",
+	}
+}
+
 // fixtureRoot is the okapi-testdata subdirectory we walk for fixtures.
 // Resolved at runtime (test binary cwd is the package dir).
 var fixtureRoot string

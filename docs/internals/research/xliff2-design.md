@@ -13,12 +13,13 @@
 
 XLIFF 2.x sits at neokapi's **system boundary**: it's the format we exchange with translation tools, TMS systems, MT vendors, and human translators. It is not an internal IR. Therefore the contract is asymmetric:
 
-| Direction | Contract | v1 status |
+| Direction | Contract | Status |
 |---|---|---|
-| **Read** | Lossless to neokapi's content model — every spec attribute is either decoded into a typed model field or preserved as opaque metadata for re-emission. | ✅ implemented |
-| **Write (generation/canonical)** | Spec-conformant, well-indented output with canonical attribute ordering (id first, then alphabetical groups). XLIFF-aware indenter respects mixed-content semantics. | ✅ implemented |
-| **Idempotent** | `read → write → read → write` produces byte-equal output on the second iteration regardless of the first. Currently exercised by `TestRoundTrip_AllFixtures` against 40 okapi-testdata fixtures. | ✅ 40/40 passing |
-| **Write (modified round-trip, byte-equal where untouched)** | When reading an existing XLIFF 2 file and modifying only some segments, write a minimal-diff output (untouched bytes are bit-equal to input). Requires DOM patching — the writer holds the source etree and patches it in place. | ⏳ v2 (requires Layer.Annotations to ferry the source DOM across Parts) |
+| **Read** | Lossless to neokapi's content model — every spec attribute is either decoded into a typed model field or preserved as opaque metadata for re-emission. | ✅ |
+| **Write (generation/canonical)** | Spec-conformant, well-indented output with canonical attribute ordering (id first, then alphabetical groups). XLIFF-aware indenter respects mixed-content semantics. Used when no source DOM is available (e.g. HTML→XLIFF 2). | ✅ |
+| **Idempotent** | `read → write → read → write` produces byte-equal output on the second iteration regardless of the first. Exercised by `TestRoundTrip_AllFixtures` against 40 okapi-testdata fixtures. | ✅ 40/40 |
+| **Write (untouched round-trip)** | Read an existing XLIFF 2 file and write it back without modifying any segment → byte-equal output. The writer captures the source bytes and emits them verbatim when no patching was needed, bypassing etree's serialization quirks. Exercised by `TestRoundTrip_ByteEqualUntouched`. | ✅ 37/37 (3 fixtures excluded for documented reader normalizations: XML 1.1→1.0 coercion, CR-entity→LF normalization) |
+| **Write (modified round-trip, minimal diff)** | When some segments were modified, patch only those `<source>`/`<target>` elements in the source DOM; everything else (comments, module data, attribute order on untouched units, custom namespaces) survives verbatim through etree. | ✅ implemented; needs caller contract — tools that mutate `Segment.Runs` should also clear `SegmentInlineAnnotation` to signal the change |
 
 We deliberately **do not** inherit the Okapi XLIFF 2 toolkit's documented losses (skeleton dropped, comments dropped, formatting dropped, attributes reordered/added/removed). Okapi's losses come from collapsing XLIFF 2 down to its Java `TextFragment` IR; neokapi's content model is richer and we own the full pipeline, so we can do better.
 
@@ -151,11 +152,16 @@ Note: we use **nested Layers** (xliff root + file) rather than just one Layer-pe
 
 ### Modes
 
-1. **Round-trip mode**: writer received Parts that came from a recent reader pass on an XLIFF 2 source. The writer holds the original etree DOM; it patches the changed segments (target text, state, segmentation) and re-serializes. Produces minimal-diff output.
+1. **Round-trip mode**: writer received Parts from an XLIFF 2 reader. The reader stashed both the parsed etree DOM AND the original input bytes on the file Layer via `SourceDOMAnnotation`. The writer:
+   - Walks the DOM. For each `<unit>` and `<segment>`, compares the model's content against the DOM's content (deep `Inline`-IR equality when `SegmentInlineAnnotation` is present, fallback to text comparison).
+   - When a segment's content matches → leaves the DOM verbatim.
+   - When it differs → replaces just that `<source>` or `<target>` element's children with re-rendered IR.
+   - When NO segment was patched (and no explicit file notes were stamped via `SetFileNotes`) → emits the original input bytes verbatim, bypassing etree's serializer entirely. This is the byte-equal short-circuit.
+   - When patching occurred → serializes the mutated DOM via etree. The patched bodies use canonical formatting; everything outside them keeps the source's original bytes (modulo etree's serialization conventions).
 
 2. **Generation mode**: writer received Parts from a non-XLIFF-2 source (e.g. HTML reader → XLIFF 2 writer). The writer builds a fresh etree DOM from canonical templates and serializes. Produces clean, well-indented, namespace-minimal XLIFF 2.2 by default.
 
-The mode is selected automatically by whether `Layer.Properties["xliff2:source-dom"]` is present.
+The mode is selected automatically by whether `Layer.Annotations["xliff2:source-dom"]` is present.
 
 ### Idempotency
 
