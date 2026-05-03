@@ -585,14 +585,23 @@ func (w *Writer) targetText(block *model.Block, targetLang model.LocaleID) strin
 	// `<source>` vs `<seg-source>` content and only unwrap when they
 	// differ — matching XLIFFFilter.java:2278. The IR-level renderer
 	// always emits the segmented form here.
+	// Pick the IR that will drive structural emission. Normally this is
+	// the target body IR (preserves the existing target's inline-code
+	// shape). But when the target was originally empty/whitespace the
+	// reader stored a near-trivial IR (just text), and pseudo-translate
+	// has since populated tgtSegs from the SOURCE — so the runs now
+	// carry the source's inline-code structure (PcOpen/PcClose/Ph) that
+	// the trivial target IR can't accommodate. In that case fall back to
+	// source body IR so the bpt/ept/ph wrappers actually get emitted.
+	// MQ-12-Test01 has many such trans-units (`<target> </target>`
+	// placeholders around inline-coded source content).
 	if a, ok := block.Annotations["xliff:target-body"]; ok {
 		if ta, ok := a.(*TargetBodyNativeAnnotation); ok && ta.Content != nil {
-			return renderBodyWithSegmentsOpts(ta.Content, tgtSegs, opts, false)
+			if !irLacksInlinesNeededByRuns(ta.Content, tgtSegs) {
+				return renderBodyWithSegmentsOpts(ta.Content, tgtSegs, opts, false)
+			}
 		}
 	}
-	// No target body — borrow source body's structure (mrks etc.) so
-	// pseudo-translated targets without an existing target element get
-	// the same segmentation shape as the source.
 	if a, ok := block.Annotations["xliff:source-body"]; ok {
 		if sa, ok := a.(*SourceBodyNativeAnnotation); ok && sa.Content != nil {
 			return renderBodyWithSegmentsOpts(sa.Content, tgtSegs, opts, false)
