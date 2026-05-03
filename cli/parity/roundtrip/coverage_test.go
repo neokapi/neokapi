@@ -350,11 +350,17 @@ func coverageScans() []formatScan {
 			// the target back into the document. Bridge passes ~9
 			// of 69 fixtures; the rest are flagged per-file via
 			// htmlBridgeSkips() in coverage_skips_test.go.
-			formatID:          "html",
-			filterClass:       "okf_html",
-			sources:           []string{"integration-tests/okapi/src/test/resources/html"},
-			extensions:        []string{".html"},
-			skip:              htmlBridgeSkips(),
+			formatID:    "html",
+			filterClass: "okf_html",
+			sources:     []string{"integration-tests/okapi/src/test/resources/html"},
+			extensions:  []string{".html"},
+			skip:        htmlBridgeSkips(),
+			// HTMLCanonical reaches canonical-equal for fixtures whose
+			// semantic structure agrees but whose byte form differs in
+			// attribute quoting/order, inter-tag whitespace, or
+			// transport-meta injection (okapi adds <meta http-equiv>,
+			// native preserves source).
+			normalizer: roundtrip.HTMLCanonical{},
 		},
 		{
 			// Bridge passes ~14 of 46 fixtures; the rest are

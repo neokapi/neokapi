@@ -12,6 +12,8 @@ import (
 	"sort"
 	"strings"
 
+	"golang.org/x/net/html"
+	"golang.org/x/net/html/atom"
 	yaml "gopkg.in/yaml.v3"
 )
 
@@ -248,6 +250,133 @@ func (YAMLCanonical) Normalize(in []byte) ([]byte, error) {
 		return nil, fmt.Errorf("yaml-canonical: flush: %w", err)
 	}
 	return buf.Bytes(), nil
+}
+
+// HTMLCanonical re-serializes HTML through golang.org/x/net/html so two
+// documents whose semantic structure agrees but whose byte form differs
+// in attribute quoting (`width=300` vs `width="300"`), attribute order,
+// inter-tag whitespace, void-element close style (`<br>` vs `<br/>`),
+// or boilerplate injection (e.g. okapi's `<meta http-equiv="Content-Type">`)
+// come out byte-identical.
+//
+// Important caveats:
+//   - html.Parse normalizes the document tree: missing `<html>`, `<head>`,
+//     `<body>` elements get auto-inserted; misplaced elements get reflowed.
+//     Both engines' outputs go through the same parser, so the same
+//     reflowing happens to each — for parity it cancels.
+//   - Attributes are sorted alphabetically by namespace+name. Order
+//     differences are not semantic, so this is safe.
+//   - Inter-tag text nodes that are wholly ASCII whitespace are dropped.
+//     This matches the okapi reformatter that emits one element per
+//     line vs native preserving source's tab indentation.
+//   - `<meta http-equiv="Content-Type">` and `<meta charset>` injected by
+//     okapi's writer are dropped, since they're transport hints not
+//     content. Authored meta tags with name= or property= are kept.
+//
+// Use on html fixtures whose semantic structure matches okapi's but
+// whose byte form differs in formatting/quoting/injection.
+type HTMLCanonical struct{}
+
+// Name implements Normalizer.
+func (HTMLCanonical) Name() string { return "html-canonical" }
+
+// Normalize implements Normalizer.
+func (HTMLCanonical) Normalize(in []byte) ([]byte, error) {
+	doc, err := html.Parse(bytes.NewReader(in))
+	if err != nil {
+		return nil, fmt.Errorf("html-canonical: parse: %w", err)
+	}
+	canonicalizeHTMLNode(doc)
+	var buf bytes.Buffer
+	if err := html.Render(&buf, doc); err != nil {
+		return nil, fmt.Errorf("html-canonical: render: %w", err)
+	}
+	return buf.Bytes(), nil
+}
+
+// canonicalizeHTMLNode walks the parsed tree in place, applying:
+//   - drop inter-element whitespace-only TextNode (html.Render preserves
+//     them otherwise; different writers indent differently)
+//   - drop transport-hint <meta> tags (charset / Content-Type) that some
+//     writers inject and others omit
+//   - sort each element's attributes alphabetically (case-insensitive,
+//     by namespace+key) so order differences cancel
+func canonicalizeHTMLNode(n *html.Node) {
+	// First, recurse + collect children to drop. We can't drop while
+	// iterating with the linked-list traversal that html uses.
+	var toRemove []*html.Node
+	for c := n.FirstChild; c != nil; c = c.NextSibling {
+		canonicalizeHTMLNode(c)
+		if shouldDropHTMLNode(n, c) {
+			toRemove = append(toRemove, c)
+		}
+	}
+	for _, c := range toRemove {
+		n.RemoveChild(c)
+	}
+	if n.Type == html.ElementNode && len(n.Attr) > 1 {
+		sort.SliceStable(n.Attr, func(i, j int) bool {
+			if n.Attr[i].Namespace != n.Attr[j].Namespace {
+				return n.Attr[i].Namespace < n.Attr[j].Namespace
+			}
+			return n.Attr[i].Key < n.Attr[j].Key
+		})
+	}
+}
+
+// shouldDropHTMLNode reports whether c (a child of parent) should be
+// removed during canonicalization. Drop targets:
+//   - whitespace-only text nodes that sit between elements (their
+//     placement is presentation, not content)
+//   - <meta charset> and <meta http-equiv="Content-Type"> tags, which
+//     some writers inject for transport correctness and others omit
+func shouldDropHTMLNode(parent, c *html.Node) bool {
+	if c.Type == html.TextNode {
+		// Drop whitespace-only text inside element nodes that aren't
+		// CDATA-style content holders (script/style/pre/textarea
+		// preserve whitespace).
+		if isElementWithPreservedWhitespace(parent) {
+			return false
+		}
+		if isASCIIWhitespace(c.Data) {
+			return true
+		}
+		return false
+	}
+	if c.Type == html.ElementNode && c.DataAtom == atom.Meta {
+		for _, a := range c.Attr {
+			lk := strings.ToLower(a.Key)
+			if lk == "charset" {
+				return true
+			}
+			if lk == "http-equiv" && strings.EqualFold(a.Val, "Content-Type") {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func isElementWithPreservedWhitespace(n *html.Node) bool {
+	if n == nil || n.Type != html.ElementNode {
+		return false
+	}
+	switch n.DataAtom {
+	case atom.Script, atom.Style, atom.Pre, atom.Textarea:
+		return true
+	}
+	return false
+}
+
+func isASCIIWhitespace(s string) bool {
+	for _, r := range s {
+		switch r {
+		case ' ', '\t', '\r', '\n':
+		default:
+			return false
+		}
+	}
+	return true
 }
 
 // Chain composes multiple normalizers, applying them in sequence.
