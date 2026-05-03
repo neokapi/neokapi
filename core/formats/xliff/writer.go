@@ -123,9 +123,25 @@ func (w *Writer) writeFromSkeleton() error {
 			case "source":
 				text = block.SourceText()
 			case "target":
-				if block.HasTarget(targetLang) {
+				switch {
+				case block.HasTarget(targetLang):
 					text = block.TargetText(targetLang)
-				} else {
+				case len(block.Targets) > 0:
+					// File declared a target-language other than ours
+					// (e.g. xliff target-language="es" with test
+					// target "fr"). Preserve the existing target so the
+					// output matches okapi, which leaves non-matching
+					// translations untouched on round-trip.
+					for _, segs := range block.Targets {
+						if len(segs) > 0 && len(segs[0].Runs) > 0 {
+							text = model.RenderRunsWithData(segs[0].Runs)
+							break
+						}
+					}
+					if text == "" {
+						text = block.SourceText()
+					}
+				default:
 					// Fallback to original source text
 					text = block.SourceText()
 				}

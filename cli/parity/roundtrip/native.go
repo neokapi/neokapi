@@ -164,6 +164,14 @@ func (e *NativeEngine) RoundTrip(t *testing.T, in Input, spec PseudoSpec) []byte
 	// which would diverge from bridge/tikal outputs. We want a
 	// deterministic wrap that all three engines produce identically.
 	var parts []*model.Part
+	// fileTargetLang tracks the source's declared target-language (e.g.
+	// xliff <file target-language="es">, ts <TS language="af">). When
+	// it's set and differs from the test target, okapi's pipeline
+	// preserves the existing target instead of pseudo-translating it
+	// (TextModificationStep gates on the file's target-language). Mirror
+	// that here so bilingual fixtures with non-matching targets stay
+	// byte-equal with the okapi reference.
+	var fileTargetLang model.LocaleID
 	for res := range reader.Read(ctx) {
 		if res.Error != nil {
 			if !errors.Is(res.Error, io.EOF) {
@@ -174,9 +182,23 @@ func (e *NativeEngine) RoundTrip(t *testing.T, in Input, spec PseudoSpec) []byte
 		if res.Part == nil {
 			continue
 		}
+		if res.Part.Type == model.PartLayerStart {
+			if layer, ok := res.Part.Resource.(*model.Layer); ok {
+				if tl, ok := layer.Properties["target-language"]; ok {
+					fileTargetLang = model.LocaleID(tl)
+				}
+			}
+		}
 		if res.Part.Type == model.PartBlock {
 			if b, ok := res.Part.Resource.(*model.Block); ok {
-				applyPseudoToBlock(b, spec)
+				// When the file declares a target-language different
+				// from the test target, okapi preserves the existing
+				// target verbatim rather than transforming it
+				// (TextModificationStep gates on language match).
+				// Skip pseudo so native matches.
+				if fileTargetLang.IsEmpty() || fileTargetLang == tgt {
+					applyPseudoToBlock(b, spec)
+				}
 			}
 		}
 		parts = append(parts, res.Part)
