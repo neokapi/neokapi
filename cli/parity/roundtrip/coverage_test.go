@@ -481,6 +481,12 @@ func coverageScans() []formatScan {
 				"emitDeclaration":     true,
 				"declarationEncoding": "UTF-8",
 			},
+			// XML normalizer to reach canonical-equal when okapi and
+			// native produce semantically-identical XML that differs in
+			// attribute ordering, namespace prefix, or non-significant
+			// whitespace. Both sides go through encoding/xml round-trip
+			// so the encoder's namespace mangling cancels.
+			normalizer: roundtrip.XMLCanonical{SortAttrs: true},
 		},
 		{
 			// 15 fixtures fail bridge against the in-process okapi

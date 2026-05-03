@@ -4,7 +4,11 @@ package roundtrip
 
 import (
 	"bytes"
+	"encoding/xml"
+	"fmt"
+	"io"
 	"regexp"
+	"sort"
 	"strings"
 )
 
@@ -39,6 +43,74 @@ func (LFLineEndings) Normalize(in []byte) ([]byte, error) {
 	out := bytes.ReplaceAll(in, []byte("\r\n"), []byte("\n"))
 	out = bytes.ReplaceAll(out, []byte("\r"), []byte("\n"))
 	return out, nil
+}
+
+// XMLCanonical re-serializes XML through encoding/xml.Decoder +
+// encoding/xml.Encoder so two semantically-equivalent documents that
+// differ only in attribute ordering, namespace prefix style, or
+// non-significant whitespace come out byte-identical.
+//
+// Important caveat: encoding/xml mangles namespaces (`xmlns:its` becomes
+// `_xmlns:its` plus an extra `xmlns:_xmlns="xmlns"` attribute, prefixed
+// elements get re-emitted as default-namespace elements). This makes
+// the normalizer's output unsuitable for human reading or downstream
+// XML tools — but for parity comparison it's fine: both got and ref
+// get mangled in the same deterministic way, so the mangling cancels
+// out and we're left comparing the underlying structure.
+//
+// Use this on formats whose semantic shape matches okapi's but whose
+// byte shape never will (xml, xliff, ttml, …) — reaches
+// TierCanonicalEqual when the underlying XML structure agrees.
+type XMLCanonical struct {
+	// SortAttrs reorders each element's attributes alphabetically by
+	// (namespace, local name) before re-emitting. Useful when okapi
+	// reorders attributes vs. native preserves source order.
+	SortAttrs bool
+}
+
+// Name implements Normalizer.
+func (n XMLCanonical) Name() string {
+	if n.SortAttrs {
+		return "xml-canonical(sort-attrs)"
+	}
+	return "xml-canonical"
+}
+
+// Normalize implements Normalizer.
+func (n XMLCanonical) Normalize(in []byte) ([]byte, error) {
+	dec := xml.NewDecoder(bytes.NewReader(in))
+	var buf bytes.Buffer
+	enc := xml.NewEncoder(&buf)
+	for {
+		tok, err := dec.Token()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return nil, fmt.Errorf("xml-canonical: decode: %w", err)
+		}
+		if n.SortAttrs {
+			if se, ok := tok.(xml.StartElement); ok {
+				attrs := make([]xml.Attr, len(se.Attr))
+				copy(attrs, se.Attr)
+				sort.SliceStable(attrs, func(i, j int) bool {
+					if attrs[i].Name.Space != attrs[j].Name.Space {
+						return attrs[i].Name.Space < attrs[j].Name.Space
+					}
+					return attrs[i].Name.Local < attrs[j].Name.Local
+				})
+				se.Attr = attrs
+				tok = se
+			}
+		}
+		if err := enc.EncodeToken(tok); err != nil {
+			return nil, fmt.Errorf("xml-canonical: encode: %w", err)
+		}
+	}
+	if err := enc.Flush(); err != nil {
+		return nil, fmt.Errorf("xml-canonical: flush: %w", err)
+	}
+	return buf.Bytes(), nil
 }
 
 // Chain composes multiple normalizers, applying them in sequence.
