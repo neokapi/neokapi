@@ -24,12 +24,13 @@ See the corresponding upstream test fixtures under
 | `LowercaseLangSubtag` | yes | safe; aligns with BCP-47 §2.1.1 |
 | `StripPhaseDateAttr` | yes | safe; okapi's `Phase` model drops `date` |
 | `StripCDataCREntities` | yes | safe; okapi normalizes CR→LF in TextFragment |
-| `HoistAltTransNotes` | yes | safe; matches okapi note-bag flattening |
-| `ReorderHeaderToolToEnd` | yes | safe; matches okapi typed header bags |
+| `HoistAltTransNotes` | yes | safe; matches okapi NOTEMARKER skeleton placement |
+| `ReorderHeaderToolToEnd` | yes | safe; matches okapi's first-non-bagged-child rule |
 | `SimulateBrokenWindows1252Read` | yes | reader-side; matches okapi's `XLIFFFilter` losing chars > U+007F when the file declares (or falls back to) Windows-1252 |
-| `StripTransUnitApprovedAttr` | **no** | regresses Manual-12-AltTrans, RB-11, SF-12-Test02 — okapi PRESERVES `approved="yes"` in those fixtures |
-| `UnwrapSingleSegMrk` | **no** | regresses translate_no.xlf — okapi keeps the wrapper for translate=no trans-units; condition not yet characterized |
-| `EscapeNonASCIIAsEntities` | **no** | regresses Manual-12-AltTrans, RB-11 — okapi outputs literal UTF-8 in normal cases. SF-12-Test03 IS a fixture where okapi escapes; the trigger is unclear (Swordfish PIs? declared encoding? broken-1252 read?) |
+| `UnwrapSingleSegMrk` | yes | content-aware: drops `<seg-source>` and unwraps `<mrk mtype="seg">` in target only when source text differs from seg-source text (matches `XLIFFFilter.java:2278`) |
+| `StripApprovedWhenNoSourceTarget` | yes | drops `approved="…"` from trans-units whose source had no `<target>` element (matches `XLIFFFilter.java:2475` + `XLIFFSkeletonWriter.java:756`) |
+| `EscapeBeyondLatin1AsEntities` | yes | encoder-aware: escapes only chars the source-declared encoding cannot represent (matches `XMLEncoder.java:101-110, 191-213`); no-op for UTF-8 sources |
+| `StripTransUnitApprovedAttr` | **no** | unconditional `approved` strip — kept as dead code in case a future fixture needs it; the actual okapi rule is `StripApprovedWhenNoSourceTarget` |
 
 ## Quirk details
 
@@ -105,62 +106,82 @@ This flag is the only OkapiCompat behavior that runs **at read
 time**, so it sits in `nativeConfig` instead of `writerOverlay` in
 the parity test config.
 
-### StripTransUnitApprovedAttr (off)
+### UnwrapSingleSegMrk
 
-XLIFF 1.2 §2.4 defines `approved` as an optional yes/no attribute on
-`<trans-unit>`. We initially conjectured okapi strips `approved="no"`
-or `approved="yes"`, but on closer inspection okapi's writer PRESERVES
-the attribute exactly as authored in every fixture we've inspected
-(Manual-12-AltTrans `approved="yes"`, RB-11 `approved="yes"`,
-SF-12-Test02 `approved="yes"`, SF-12-Test03 `approved="no"`).
-
-The flag's helper (`stripAttrInTag`) and registration remain in place
-so a future fixture revealing the actual strip rule can re-enable it
-narrowly. Don't enable it across the board.
-
-### UnwrapSingleSegMrk (off)
-
-okapi's `XLIFFFilter` sometimes drops a single-segment `<mrk
-mtype="seg">` wrapper from `<seg-source>` / `<target>` on round-trip,
-producing flat text. We initially conjectured this fired for
-`translate="no"` trans-units, but `translate_no.xlf` shows okapi
-preserving the wrapper exactly there.
+okapi's `XLIFFFilter` (XLIFFFilter.java:2278) drops the `<seg-source>`
+wrapper and unwraps the corresponding `<mrk mtype="seg">…</mrk>` in
+`<target>` **only** when the source content differs from the
+seg-source content (text-only comparison after entity decoding). When
+source equals seg-source, the wrapper is preserved.
 
 Cross-fixture comparison:
 
-| Fixture | trans-unit | translate attr | xml:space | okapi unwraps? |
-|---|---|---|---|---|
-| `about_the.htm.xlf` | tu1 | `no` | `preserve` | yes |
-| `segmented.xlf` | tu1 | (default yes) | (default) | no |
-| `translate_no.xlf` | tu1 | `no` | `preserve` | no |
+| Fixture | tu | source ≡ seg-source? | okapi unwraps? |
+|---|---|---|---|
+| `about_the.htm.xlf` | tu1 | no (segmenter rewrote source) | yes |
+| `segmented.xlf` | tu1 | yes | no |
+| `translate_no.xlf` | tu1 | yes | no |
 
-The condition is not characterized by any single attribute. Possible
-factors: the presence of `<alt-trans>` siblings, MadCap-specific
-extension attributes, or whether the seg-source content equals the
-source content verbatim. Until characterized, leave the flag off.
+Implemented as a writer post-process pass (`okapi_compat_helpers.go`)
+that walks each `<trans-unit>`, compares decoded text, and rewrites
+matching segments. Safe to enable everywhere because the
+content-equality guard prevents regression.
 
-### EscapeNonASCIIAsEntities (off)
+### StripApprovedWhenNoSourceTarget
 
-In normal output, okapi emits literal UTF-8 for non-ASCII characters
-(matches the file's declared encoding). But in some Swordfish-flavour
-fixtures (`SF-12-Test03.xlf`) it emits `&#xNNNN;` numeric character
-references for every char above U+007F, including in source text that
-the file's encoding can perfectly represent.
+okapi sets the APPROVED target-property only inside its
+target-processing branch (XLIFFFilter.java:2475). When a `<trans-unit>`
+has no `<target>` in the source, that branch never runs and the
+property remains unset; the writer (XLIFFSkeletonWriter.java:756) then
+emits no `approved="…"` attribute. Trans-units that did have a
+`<target>` keep their `approved` attribute.
 
-Possible triggers:
+Implemented as a writer post-process pass that tracks trans-units by
+document-order POSITION (not by id, since XLIFF allows duplicate
+trans-unit ids) and reads a "had-target" set populated by the reader.
 
-- Presence of `<?encoding UTF-8?>` processing instruction (Swordfish
-  marker)
-- Presence of `xliff-core-1.2-transitional.xsd` schema reference
-- Some interaction with the broken-1252 read path
+Fixture: `SF-12-Test03.xlf` — 944 trans-units with `approved="no"`;
+only the first id="1" has a source target → keeps approved on
+round-trip; the other 943 drop it. Matches okapi byte-for-byte.
 
-Until the trigger is understood, leave the flag off — blanket-enabling
-regresses Manual-12-AltTrans, RB-11, and SF-12-Test02.
+This flag SUPERSEDES the unconditional `StripTransUnitApprovedAttr`
+flag, which is kept in code as dead-but-documented in case a future
+fixture surfaces a different rule.
+
+### EscapeBeyondLatin1AsEntities
+
+okapi's `XMLEncoder` (XMLEncoder.java:101-110, 191-213) only escapes
+non-ASCII chars when the output charset cannot represent them. The
+encoder is constructed only for non-UTF-8/16 outputs, and the per-char
+check `!chsEnc.canEncode(value)` decides whether to emit a numeric
+reference.
+
+Implementation uses `golang.org/x/text/encoding`'s `Encoder.canEncode`
+for an exact charset membership test. For windows-1252 this means
+chars in the "Windows extension" range (e.g. U+0152, U+0192 ƒ, U+2026
+…, U+20AC €) stay literal while Latin Extended-A/B chars beyond
+Latin-1 get escaped.
+
+The reader records the source charset in
+`layer.Properties["xliff:source-encoding"]` when the XML declaration
+named a non-UTF-8 charset. UTF-8 sources skip the path entirely so the
+flag is a no-op for the common case — it only fires on legacy
+encodings, exactly when okapi fires it.
+
+Fixture: `SF-12-Test03.xlf` (declared windows-1252, pseudo-output
+contains `Ţàĉƒ` → emits `&#x0162;à&#x0109;ƒ`, keeping ƒ literal because
+it's representable in windows-1252).
+
+The earlier `EscapeNonASCIIAsEntities` flag — which escaped
+indiscriminately above U+007F — was renamed and rewritten to use the
+encoder check. The old name no longer exists.
 
 ## Investigation tracker
 
-[neokapi#549](https://github.com/neokapi/neokapi/issues/549) tracks
-characterizing the actual triggers for `UnwrapSingleSegMrk`,
-`EscapeNonASCIIAsEntities`, and `StripTransUnitApprovedAttr` so the
-remaining 5 divergent xliff fixtures (MQ-12-Test01, SF-12-Test03,
-Test_Context_and_PH, Typo3Draft, about_the.htm) can reach canonical-equal.
+[neokapi#549](https://github.com/neokapi/neokapi/issues/549) is
+**resolved** — all 5 originally divergent xliff fixtures
+(MQ-12-Test01, SF-12-Test03, Test_Context_and_PH, Typo3Draft,
+about_the.htm) reach canonical-equal in the parity test, and each of
+the three previously uncharacterized quirks now has a documented,
+spec-traceable trigger condition (or has been superseded by a more
+precise flag).
