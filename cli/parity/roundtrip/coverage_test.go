@@ -812,10 +812,9 @@ mergeCaptions.b=false
 			// IDML is a zip of XML. okapi emits XML decls with
 			// single-quoted attrs ('1.0' encoding='UTF-8'); native
 			// emits double-quoted ("1.0" encoding="UTF-8"). Both are
-			// valid XML. Apply XMLCanonical to each zip entry so the
-			// XML decl is dropped (its attribute quote style is
-			// stylistic, not semantic) before per-entry comparison.
-			normalizer: roundtrip.ZipEntryNormalizer{Inner: roundtrip.XMLCanonical{SortAttrs: true}},
+			// valid XML. Strip the XML decl from each zip entry — the
+			// rest of each entry's content stays byte-identical.
+			normalizer: roundtrip.ZipEntryNormalizer{Inner: roundtrip.StripXMLDeclaration{}},
 		},
 		{
 			// 5 fixtures crash upstream Okapi's icml merge; 7 more
@@ -844,11 +843,9 @@ mergeCaptions.b=false
 			isZip:             true,
 			skip:              openxmlBridgeSkips(),
 			// OOXML is zip-of-XML. Same pattern as IDML — different
-			// writers emit XML decls with different quote styles, line
-			// endings, attribute ordering. Apply XMLCanonical to each
-			// zip entry so per-entry comparison cancels stylistic
-			// differences.
-			normalizer: roundtrip.ZipEntryNormalizer{Inner: roundtrip.XMLCanonical{SortAttrs: true}},
+			// writers emit XML decls with different quote styles. Strip
+			// the XML decl from each zip entry; rest stays byte-equal.
+			normalizer: roundtrip.ZipEntryNormalizer{Inner: roundtrip.StripXMLDeclaration{}},
 		},
 		{
 			// Bridge passes ~2 of 41 fixtures; the rest are flagged

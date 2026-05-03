@@ -611,6 +611,24 @@ func (c Chain) Normalize(in []byte) ([]byte, error) {
 	return cur, nil
 }
 
+// StripXMLDeclaration removes the leading `<?xml ... ?>` processing
+// instruction from the input without otherwise touching it. Useful
+// when two writers emit the same XML body but disagree on the decl
+// quote style (single vs double quotes), encoding token case
+// (utf-8 vs UTF-8), standalone attribute, or whether the decl is
+// emitted at all. Both forms are valid XML; the decl is metadata.
+type StripXMLDeclaration struct{}
+
+// Name implements Normalizer.
+func (StripXMLDeclaration) Name() string { return "strip-xml-decl" }
+
+var xmlDeclRE = regexp.MustCompile(`(?s)\A(?:\xef\xbb\xbf)?\s*<\?xml[^?]*\?>\s*`)
+
+// Normalize implements Normalizer.
+func (StripXMLDeclaration) Normalize(in []byte) ([]byte, error) {
+	return xmlDeclRE.ReplaceAll(in, nil), nil
+}
+
 // ZipEntryNormalizer applies an inner Normalizer to each entry of a
 // zip archive, then re-zips with deterministic metadata. Used for
 // zip-of-XML formats (idml, openxml, …) where the per-entry content
