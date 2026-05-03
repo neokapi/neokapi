@@ -133,6 +133,18 @@ func (n XMLCanonical) Normalize(in []byte) ([]byte, error) {
 		if pi, ok := tok.(xml.ProcInst); ok && pi.Target == "xml" {
 			continue
 		}
+		// Drop DOCTYPE directives. They're metadata about the document
+		// (which DTD applies, internal subset declarations) and a
+		// canonical structural comparison shouldn't care whether the
+		// source had `<!DOCTYPE TS>` or `<!DOCTYPE TS []>` — both
+		// validate against the same external schema. Emitters often
+		// disagree on the empty-internal-subset bracket form.
+		if d, ok := tok.(xml.Directive); ok {
+			trimmed := bytes.TrimLeft(d, " \t\r\n")
+			if bytes.HasPrefix(trimmed, []byte("DOCTYPE")) {
+				continue
+			}
+		}
 		// Drop CharData runs that consist of nothing but ASCII
 		// whitespace — different writers indent differently and the
 		// inter-element whitespace isn't significant to XML semantics
