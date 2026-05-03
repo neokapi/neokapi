@@ -4,6 +4,8 @@ package roundtrip
 
 import (
 	"errors"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/neokapi/neokapi/cli/parity"
@@ -46,11 +48,16 @@ func (e *BridgeEngine) Available() error {
 // RoundTrip drives the daemon's Process RPC and returns the merged
 // document bytes. Pseudo-translation is applied on each Block before
 // it's echoed back over the stream.
+//
+// When the input has companion files (e.g. an XML fixture that XLinks
+// to a sibling rules file), the bridge can't resolve those references
+// from the inline byte stream alone — okapi resolves them on disk.
+// Stage input + companions in a tmpDir and pass an absolute path so
+// xinclude / XLink / DTD entities resolve against real sibling files.
 func (e *BridgeEngine) RoundTrip(t *testing.T, in Input, spec PseudoSpec) []byte {
 	t.Helper()
 	req := parity.BridgeRequest{
 		FilterClass:  e.FilterClass,
-		InputBytes:   in.Bytes,
 		SourceLocale: spec.SrcLocale(),
 		TargetLocale: spec.TgtLocale(),
 		MimeType:     e.MimeType,
@@ -58,6 +65,21 @@ func (e *BridgeEngine) RoundTrip(t *testing.T, in Input, spec PseudoSpec) []byte
 		Transform: func(b *model.Block) {
 			applyPseudoToBlock(b, spec)
 		},
+	}
+	if len(in.Companions) > 0 {
+		tmpDir := t.TempDir()
+		inputPath := filepath.Join(tmpDir, in.Filename)
+		if err := os.WriteFile(inputPath, in.Bytes, 0o644); err != nil {
+			t.Fatalf("BridgeEngine: write input: %v", err)
+		}
+		for name, data := range in.Companions {
+			if err := os.WriteFile(filepath.Join(tmpDir, name), data, 0o644); err != nil {
+				t.Fatalf("BridgeEngine: write companion %q: %v", name, err)
+			}
+		}
+		req.InputPath = inputPath
+	} else {
+		req.InputBytes = in.Bytes
 	}
 	res := parity.RunBridgeRoundTrip(t, req)
 	if len(res.Output) == 0 {
