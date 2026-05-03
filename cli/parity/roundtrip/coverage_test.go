@@ -469,6 +469,13 @@ func coverageScans() []formatScan {
 			filterClass:       "okf_phpcontent",
 			sources:           []string{"okapi/filters/php/src/test/resources"},
 			extensions:        []string{".phpcnt"},
+			// okapi normalises heredoc line-endings to LF and emits a
+			// trailing newline; native preserves source CRLF and omits
+			// the trailing newline. Both are valid PHP — fold to canonical.
+			normalizer: roundtrip.Chain{Steps: []roundtrip.Normalizer{
+				roundtrip.LFLineEndings{},
+				roundtrip.IgnoreTrailingNewline{},
+			}},
 		},
 
 		// ── Tabular ───────────────────────────────────────────────
