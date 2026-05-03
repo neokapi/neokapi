@@ -96,10 +96,19 @@ func (r *Reader) Read(ctx context.Context) <-chan model.PartResult {
 
 // elementFrame tracks the state for each nested element during parsing.
 type elementFrame struct {
-	name             string
-	attrs            map[string]string
-	isInline         bool
-	isExcluded       bool
+	name       string
+	attrs      map[string]string
+	isInline   bool
+	isExcluded bool
+	// strongExclude is set when the exclusion comes from an ITS
+	// `translate="no"` attribute. Strong exclusion propagates to every
+	// descendant and drops their text on the floor regardless of
+	// whether the descendant frame is itself marked excluded — this is
+	// what makes `<its:rules its:translate="no">` correctly suppress
+	// `<its:locNote>` text inside it. Distinct from isExcluded because
+	// config-driven exclusion (ExcludeByDefault) is overridable by
+	// descendant INCLUDE rules and must NOT drop text the same way.
+	strongExclude    bool
 	preserveWS       bool
 	runs             []model.Run // nil means no content accumulator yet (inline element parent w/o text frame)
 	hasRuns          bool        // true once the frame has been initialised as a text accumulator
@@ -221,6 +230,21 @@ func (s *xmlParseState) findTextFrame() *elementFrame {
 func (s *xmlParseState) isInExcludedScope() bool {
 	for _, f := range s.stack {
 		if f.isExcluded {
+			return true
+		}
+	}
+	return false
+}
+
+// hasStrongExcludeAncestor returns true if any frame on the stack is
+// strongly excluded (via ITS `translate="no"`). Used by character-data
+// handling to drop text inside `<its:rules its:translate="no">` even
+// when the immediate text frame is unmarked — the text frame's own
+// `isExcluded=false` is correct (no INCLUDE override needed) but the
+// ancestor's strong exclusion still applies.
+func (s *xmlParseState) hasStrongExcludeAncestor() bool {
+	for _, f := range s.stack {
+		if f.strongExclude {
 			return true
 		}
 	}
@@ -379,6 +403,10 @@ func (s *xmlParseState) emitTranslatableAttrs(elem xml.StartElement, tokOffset, 
 	}
 }
 
+// itsNamespaceURI is the W3C ITS 2.0 namespace, used to recognize the
+// local `translate` attribute regardless of its declared prefix.
+const itsNamespaceURI = "http://www.w3.org/2005/11/its"
+
 // handleStartElement processes an xml.StartElement token.
 func (s *xmlParseState) handleStartElement(t xml.StartElement, tokOffset int) {
 	attrs := make(map[string]string)
@@ -416,6 +444,29 @@ func (s *xmlParseState) handleStartElement(t xml.StartElement, tokOffset int) {
 		isExcluded = false
 	}
 
+	// ITS local translate attribute (W3C Internationalization Tag Set
+	// rec): `its:translate="no"` marks the subtree as non-translatable;
+	// `its:translate="yes"` re-enables translation inside an excluded
+	// ancestor. The "no" case sets strongExclude so descendants drop
+	// their text even when their own frames look unmarked — without
+	// this LocNote-1.xml emits `<its:locNote>` text as orphan Block
+	// parts that the writer can't place back, dropping the entire
+	// `<its:rules>` subtree on merge.
+	strongExclude := false
+	if len(s.stack) > 0 && s.stack[len(s.stack)-1].strongExclude {
+		strongExclude = true
+	}
+	if v, ok := attrs[itsNamespaceURI+":translate"]; ok {
+		switch v {
+		case "no":
+			strongExclude = true
+			isExcluded = true
+		case "yes":
+			strongExclude = false
+			isExcluded = false
+		}
+	}
+
 	// Check xml:space
 	preserveWS := s.reader.cfg.shouldPreserveWhitespace(t.Name.Local)
 	if v, ok := attrs["xml:space"]; ok {
@@ -438,6 +489,7 @@ func (s *xmlParseState) handleStartElement(t xml.StartElement, tokOffset int) {
 		attrs:            attrs,
 		isInline:         isInline,
 		isExcluded:       isExcluded || inlineExcluded,
+		strongExclude:    strongExclude,
 		preserveWS:       preserveWS,
 		contentByteStart: contentStart,
 	}
@@ -525,9 +577,18 @@ func (s *xmlParseState) handleEndElement(t xml.EndElement) {
 func (s *xmlParseState) handleCharData(t xml.CharData) {
 	text := string(t)
 
-	// If in excluded scope, check what kind
+	// Strongly excluded subtree (e.g. `<its:rules its:translate="no">`)
+	// drops every descendant's text — descendants do not get an
+	// INCLUDE override, the exclusion is intentional ITS metadata.
+	if s.hasStrongExcludeAncestor() {
+		return
+	}
+
+	// If in excluded scope (config-driven, e.g. ExcludeByDefault), the
+	// existing logic stands: drop text only when the immediate text
+	// frame is itself excluded. Descendant INCLUDE overrides re-enable
+	// extraction by clearing isExcluded on the relevant frame.
 	if s.isInExcludedScope() {
-		// Check if the nearest non-inline ancestor is excluded
 		textFrame := s.findTextFrame()
 		if textFrame == nil || textFrame.isExcluded {
 			return
