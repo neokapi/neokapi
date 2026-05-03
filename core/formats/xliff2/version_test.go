@@ -16,9 +16,13 @@ import (
 
 // xliff2xFixture returns a minimal, single-unit XLIFF 2.x document using the
 // given version string and its matching OASIS document namespace.
+//
+// Per OASIS schemas, 2.0 and 2.1 share the namespace `...:document:2.0`
+// (the 2.1 spec ships `xliff_core_2.0.xsd` as its core schema, only the
+// `version` attribute distinguishes them). 2.2 uses a new namespace.
 func xliff2xFixture(version string) string {
 	return fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
-<xliff version="%s" xmlns="urn:oasis:names:tc:xliff:document:%s" srcLang="en" trgLang="fr">
+<xliff version="%s" xmlns="%s" srcLang="en" trgLang="fr">
   <file id="f1">
     <unit id="u1">
       <segment id="s1">
@@ -27,7 +31,7 @@ func xliff2xFixture(version string) string {
       </segment>
     </unit>
   </file>
-</xliff>`, version, version)
+</xliff>`, version, xliff2.NamespaceForVersion(version))
 }
 
 // TestRead_AcceptsXliff2xNamespaces verifies that the reader accepts the 2.0,
@@ -104,7 +108,7 @@ func TestRoundTrip_DomPreservesInputVersion(t *testing.T) {
 			output := buf.String()
 			assert.Contains(t, output, fmt.Sprintf(`version="%s"`, version),
 				"DOM roundtrip should preserve the input version attribute")
-			assert.Contains(t, output, "urn:oasis:names:tc:xliff:document:"+version,
+			assert.Contains(t, output, xliff2.NamespaceForVersion(version),
 				"DOM roundtrip should preserve the matching XLIFF %s namespace", version)
 		})
 	}
@@ -163,7 +167,7 @@ func TestWriter_VersionOverride(t *testing.T) {
 			output := buf.String()
 			assert.Contains(t, output, fmt.Sprintf(`version="%s"`, version),
 				"writer override should emit version=%q", version)
-			assert.Contains(t, output, "urn:oasis:names:tc:xliff:document:"+version,
+			assert.Contains(t, output, xliff2.NamespaceForVersion(version),
 				"writer override should emit matching %s namespace", version)
 		})
 	}

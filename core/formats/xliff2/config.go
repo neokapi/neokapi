@@ -53,14 +53,24 @@ const DefaultXLIFFVersion = "2.2"
 // as a compatible family and that the writer can emit.
 var SupportedXLIFFVersions = []string{"2.0", "2.1", "2.2"}
 
-// NamespaceForVersion returns the OASIS XLIFF document namespace URI for a
-// given 2.x version. Unknown versions fall back to the default namespace.
+// NamespaceForVersion returns the OASIS XLIFF document namespace URI
+// for a given 2.x version.
+//
+// Per OASIS schemas: XLIFF 2.0 and 2.1 share the namespace
+// `urn:oasis:names:tc:xliff:document:2.0` (the 2.1 spec ships
+// `xliff_core_2.0.xsd` as its core schema, only the version attribute
+// distinguishes them). XLIFF 2.2 introduces a new namespace
+// `urn:oasis:names:tc:xliff:document:2.2`.
+//
+// Unknown versions fall back to the default namespace.
 func NamespaceForVersion(version string) string {
 	switch version {
-	case "2.0", "2.1", "2.2":
-		return "urn:oasis:names:tc:xliff:document:" + version
+	case "2.0", "2.1":
+		return "urn:oasis:names:tc:xliff:document:2.0"
+	case "2.2":
+		return "urn:oasis:names:tc:xliff:document:2.2"
 	default:
-		return "urn:oasis:names:tc:xliff:document:" + DefaultXLIFFVersion
+		return NamespaceForVersion(DefaultXLIFFVersion)
 	}
 }
 
