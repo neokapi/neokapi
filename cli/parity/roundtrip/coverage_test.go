@@ -413,6 +413,10 @@ func coverageScans() []formatScan {
 			filterClass:       "okf_yaml",
 			sources:           []string{"integration-tests/okapi/src/test/resources/yaml"},
 			extensions:        []string{".yaml", ".yml"},
+			// YAML normalizer reaches canonical-equal when fixtures
+			// differ only in indentation, quote style, or block-vs-flow
+			// — both sides round-trip through gopkg.in/yaml.v3.
+			normalizer: roundtrip.YAMLCanonical{},
 			skip: map[string]fileSkip{
 				// snakeyaml recursion fixtures: native YAML reader
 				// doesn't bound its alias resolution and loops

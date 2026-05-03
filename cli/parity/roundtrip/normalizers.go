@@ -11,7 +11,25 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+
+	yaml "gopkg.in/yaml.v3"
 )
+
+// yamlDecoder is a tiny wrapper for the canonical normalizer's parse
+// step — pulled out so future tweaks (e.g. KnownFields, custom tags)
+// have a single home.
+func yamlDecoder(in []byte) *yaml.Decoder {
+	return yaml.NewDecoder(bytes.NewReader(in))
+}
+
+// yamlEncoder mirrors yamlDecoder for the re-serialize step. Indent is
+// fixed at 2 (YAML's most common default) so re-emitted output is
+// deterministic regardless of the source's indentation choice.
+func yamlEncoder(w io.Writer) *yaml.Encoder {
+	enc := yaml.NewEncoder(w)
+	enc.SetIndent(2)
+	return enc
+}
 
 // LowerHexUnicodeEscape normalizes `\uXXXX` escapes to lowercase hex.
 // Used by formats whose writers emit different-case hex escapes that
@@ -139,6 +157,48 @@ func (JSONCanonical) Normalize(in []byte) ([]byte, error) {
 		return nil, fmt.Errorf("json-canonical: re-serialize: %w", err)
 	}
 	return out, nil
+}
+
+// YAMLCanonical re-serializes YAML through gopkg.in/yaml.v3 so two
+// documents that differ in flow vs block style, indentation,
+// quote-character choice, or boolean/null spelling come out identical
+// (or close enough that surviving differences are real).
+//
+// Important caveat: YAML's "what is a string vs keyword" decisions are
+// driven by the source spelling — `true` is a boolean, `"true"` is a
+// string. If native preserves `true` while okapi pseudo-translates it
+// as `ţŕũē` (treating it as a translatable string), those are real
+// semantic differences the normalizer can't bridge — both sides will
+// re-serialize them differently. The normalizer only collapses
+// stylistic noise.
+type YAMLCanonical struct{}
+
+// Name implements Normalizer.
+func (YAMLCanonical) Name() string { return "yaml-canonical" }
+
+// Normalize implements Normalizer.
+func (YAMLCanonical) Normalize(in []byte) ([]byte, error) {
+	// Parse via yaml.Decoder so multi-document streams (separated by
+	// `---`) round-trip correctly — each doc gets its own re-emit.
+	dec := yamlDecoder(in)
+	var buf bytes.Buffer
+	enc := yamlEncoder(&buf)
+	for {
+		var v any
+		if err := dec.Decode(&v); err != nil {
+			if err == io.EOF {
+				break
+			}
+			return nil, fmt.Errorf("yaml-canonical: parse: %w", err)
+		}
+		if err := enc.Encode(v); err != nil {
+			return nil, fmt.Errorf("yaml-canonical: re-serialize: %w", err)
+		}
+	}
+	if err := enc.Close(); err != nil {
+		return nil, fmt.Errorf("yaml-canonical: flush: %w", err)
+	}
+	return buf.Bytes(), nil
 }
 
 // Chain composes multiple normalizers, applying them in sequence.
