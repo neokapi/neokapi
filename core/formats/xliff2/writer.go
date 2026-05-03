@@ -475,26 +475,75 @@ func patchUnit(unitEl *etree.Element, block *model.Block, targetLang model.Local
 }
 
 // segmentMatchesDOM reports whether the model.Segment's content
-// matches what's already in the DOM element. We compare the segment's
-// SegmentInlineAnnotation IR against a fresh re-parse of the DOM
-// element's children — equality means "untouched, keep verbatim."
-//
-// Falling back to text-only comparison when the model has no IR
-// preserves correctness without preventing fall-throughs to patching.
+// matches what's already in the DOM element. The comparison uses the
+// segment's SegmentInlineAnnotation IR when it is **fresh** (its text
+// content agrees with seg.Runs); otherwise falls back to text-only
+// comparison via seg.Runs. Self-detecting freshness removes the
+// caller-contract footgun where a tool modifies seg.Runs but leaves a
+// stale annotation behind — we'd otherwise silently skip patching.
 func segmentMatchesDOM(domEl *etree.Element, seg *model.Segment) bool {
 	if seg == nil {
 		return true
 	}
-	if a, ok := seg.Annotations["xliff2:segment-inline"].(*SegmentInlineAnnotation); ok && a != nil && a.Content != nil {
-		// Compare the IR captured at read time against a re-parse of
-		// the DOM. If a tool modified seg.Runs without clearing the
-		// annotation we'll incorrectly skip patching — that's a
-		// known caller contract.
-		domIR := parseInlines(domEl)
-		return inlinesEqual(a.Content.Inlines, domIR)
+	if ir := freshInlineIR(seg); ir != nil {
+		return inlinesEqual(ir.Inlines, parseInlines(domEl))
 	}
-	// Best-effort text comparison.
-	return domElementText(domEl) == model.RenderRunsWithData(seg.Runs)
+	return domElementText(domEl) == runsFlatText(seg.Runs)
+}
+
+// freshInlineIR returns the segment's SegmentInlineAnnotation Content
+// when it is fresh — i.e., its concatenated text equals the segment's
+// Runs' concatenated text. Returns nil when no annotation is attached
+// or when it has been invalidated by a Run-side modification.
+func freshInlineIR(seg *model.Segment) *Content {
+	if seg == nil {
+		return nil
+	}
+	a, ok := seg.Annotations["xliff2:segment-inline"].(*SegmentInlineAnnotation)
+	if !ok || a == nil || a.Content == nil {
+		return nil
+	}
+	if inlinesFlatText(a.Content.Inlines) != runsFlatText(seg.Runs) {
+		return nil
+	}
+	return a.Content
+}
+
+// inlinesFlatText returns the concatenated text content of an Inline
+// tree, recursing into pc/mrk children. Placeholder elements (ph/sc/
+// ec/sm/em) and code-point markers contribute nothing — they're
+// position-stable across modifications and don't carry comparable text.
+func inlinesFlatText(inls []Inline) string {
+	var sb strings.Builder
+	collectInlineText(&sb, inls)
+	return sb.String()
+}
+
+func collectInlineText(sb *strings.Builder, inls []Inline) {
+	for _, in := range inls {
+		switch {
+		case in.Text != nil:
+			sb.WriteString(in.Text.Content)
+		case in.Pc != nil:
+			collectInlineText(sb, in.Pc.Children)
+		case in.Mrk != nil:
+			collectInlineText(sb, in.Mrk.Children)
+		}
+	}
+}
+
+// runsFlatText returns the concatenated text content of a Run sequence,
+// counting only TextRun nodes. Used as the freshness ground truth for
+// SegmentInlineAnnotation: tools that modify text-bearing Runs change
+// this output, signaling that the annotation is stale.
+func runsFlatText(runs []model.Run) string {
+	var sb strings.Builder
+	for _, r := range runs {
+		if r.Text != nil {
+			sb.WriteString(r.Text.Text)
+		}
+	}
+	return sb.String()
 }
 
 // inlinesEqual reports structural equality of two Inline trees.
@@ -553,12 +602,14 @@ func collectText(sb *strings.Builder, el *etree.Element) {
 }
 
 // replaceInlineChildren wipes the element's children and re-renders
-// them from the segment's SegmentInlineAnnotation IR (preferred) or
-// the segment's Run sequence (fallback).
+// them from the segment's content. Prefers the fresh IR (preserves
+// inline-code attribute fidelity); falls back to the Runs' text when
+// the IR is stale or absent (loses inline attributes on the patched
+// segment but keeps text correct).
 func replaceInlineChildren(el *etree.Element, seg *model.Segment) {
 	el.Child = nil
-	if a, ok := seg.Annotations["xliff2:segment-inline"].(*SegmentInlineAnnotation); ok && a != nil && a.Content != nil {
-		renderInlinesInto(el, a.Content.Inlines)
+	if ir := freshInlineIR(seg); ir != nil {
+		renderInlinesInto(el, ir.Inlines)
 		return
 	}
 	el.SetText(model.RenderRunsWithData(seg.Runs))
@@ -721,14 +772,15 @@ func (w *Writer) appendUnit(parent *etree.Element, block *model.Block, targetLan
 }
 
 // writeSegmentInline writes the segment's body into el using the
-// per-segment Inline IR when available, falling back to the segment's
-// Run text otherwise.
+// fresh per-segment Inline IR when available, falling back to the
+// segment's Run text otherwise. See freshInlineIR for staleness
+// detection.
 func writeSegmentInline(el *etree.Element, seg *model.Segment) {
 	if seg == nil {
 		return
 	}
-	if a, ok := seg.Annotations["xliff2:segment-inline"].(*SegmentInlineAnnotation); ok && a != nil && a.Content != nil {
-		renderInlinesInto(el, a.Content.Inlines)
+	if ir := freshInlineIR(seg); ir != nil {
+		renderInlinesInto(el, ir.Inlines)
 		return
 	}
 	el.SetText(model.RenderRunsWithData(seg.Runs))

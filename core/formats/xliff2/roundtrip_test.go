@@ -194,6 +194,64 @@ func notExpectedByteEqual() map[string]string {
 	}
 }
 
+// TestRoundTrip_StaleIRDetection verifies the writer's staleness
+// auto-detection: when a tool modifies Segment.Runs without touching
+// SegmentInlineAnnotation, the writer should still see the change and
+// patch the DOM accordingly. Catches the footgun where the annotation
+// would otherwise act as a stale "shadow" of the original content.
+func TestRoundTrip_StaleIRDetection(t *testing.T) {
+	const input = `<?xml version="1.0" encoding="UTF-8"?>
+<xliff xmlns="urn:oasis:names:tc:xliff:document:2.0" version="2.0" srcLang="en" trgLang="fr">
+  <file id="f1">
+    <unit id="u1">
+      <segment id="s1">
+        <source>Hello</source>
+        <target>Bonjour</target>
+      </segment>
+    </unit>
+  </file>
+</xliff>`
+	ctx := t.Context()
+
+	reader := xliff2.NewReader()
+	if err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish)); err != nil {
+		t.Fatal(err)
+	}
+	parts := testutil.CollectParts(t, reader.Read(ctx))
+	reader.Close()
+
+	// Mutate the target's Runs to "Salut" — but DON'T touch the
+	// SegmentInlineAnnotation. The writer must detect this via
+	// freshness comparison.
+	for _, p := range parts {
+		if p.Type != model.PartBlock {
+			continue
+		}
+		block := p.Resource.(*model.Block)
+		for _, segs := range block.Targets {
+			for _, s := range segs {
+				s.Runs = []model.Run{{Text: &model.TextRun{Text: "Salut"}}}
+			}
+		}
+	}
+
+	var buf bytes.Buffer
+	writer := xliff2.NewWriter()
+	if err := writer.SetOutputWriter(&buf); err != nil {
+		t.Fatal(err)
+	}
+	if err := writer.Write(ctx, testutil.PartsToChannel(parts)); err != nil {
+		t.Fatal(err)
+	}
+	out := buf.String()
+	if !strings.Contains(out, "Salut") {
+		t.Errorf("expected output to contain modified target 'Salut', got: %s", out)
+	}
+	if strings.Contains(out, "Bonjour") {
+		t.Errorf("expected output NOT to contain stale 'Bonjour' (the writer trusted a stale annotation), got: %s", out)
+	}
+}
+
 // fixtureRoot is the okapi-testdata subdirectory we walk for fixtures.
 // Resolved at runtime (test binary cwd is the package dir).
 var fixtureRoot string
