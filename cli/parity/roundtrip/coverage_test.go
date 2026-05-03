@@ -407,6 +407,7 @@ func coverageScans() []formatScan {
 			normalizer: roundtrip.Chain{Steps: []roundtrip.Normalizer{
 				roundtrip.StripBOM{},
 				roundtrip.LFLineEndings{},
+				roundtrip.IgnoreTrailingNewline{},
 			}},
 		},
 		{
@@ -422,6 +423,7 @@ func coverageScans() []formatScan {
 			normalizer: roundtrip.Chain{Steps: []roundtrip.Normalizer{
 				roundtrip.LFLineEndings{},
 				roundtrip.LowerHexUnicodeEscape{},
+				roundtrip.IgnoreTrailingNewline{},
 			}},
 			minTier: map[string]roundtrip.Tier{"native": roundtrip.TierDivergent},
 		},

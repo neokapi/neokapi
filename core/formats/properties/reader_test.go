@@ -492,7 +492,7 @@ func TestWriteUnicodeEscapes(t *testing.T) {
 	require.NoError(t, err)
 	writer.Close()
 
-	assert.Equal(t, "key=\\u3053\\u3093\\u306B\\u3061\\u306F", buf.String())
+	assert.Equal(t, "key=\\u3053\\u3093\\u306b\\u3061\\u306f", buf.String())
 }
 
 func TestReadValueWithSpacesAroundEquals(t *testing.T) {

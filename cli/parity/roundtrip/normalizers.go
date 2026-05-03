@@ -83,6 +83,29 @@ func (LFLineEndings) Normalize(in []byte) ([]byte, error) {
 	return out, nil
 }
 
+// IgnoreTrailingNewline strips trailing `\n`, `\r\n`, and `\r` bytes
+// from the end of input. Used by formats where okapi appends a final
+// newline that the source file doesn't have (e.g. properties: okapi
+// always emits a final line terminator regardless of source).
+type IgnoreTrailingNewline struct{}
+
+// Name implements Normalizer.
+func (IgnoreTrailingNewline) Name() string { return "ignore-trailing-newline" }
+
+// Normalize implements Normalizer.
+func (IgnoreTrailingNewline) Normalize(in []byte) ([]byte, error) {
+	out := in
+	for len(out) > 0 {
+		last := out[len(out)-1]
+		if last == '\n' || last == '\r' {
+			out = out[:len(out)-1]
+			continue
+		}
+		break
+	}
+	return out, nil
+}
+
 // XMLCanonical re-serializes XML through encoding/xml.Decoder +
 // encoding/xml.Encoder so two semantically-equivalent documents that
 // differ only in attribute ordering, namespace prefix style, or

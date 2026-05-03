@@ -202,7 +202,7 @@ func encodePropertyValue(s string) string {
 		case r == '\r':
 			buf.WriteString("\\r")
 		case r > 127:
-			buf.WriteString(fmt.Sprintf("\\u%04X", r))
+			buf.WriteString(fmt.Sprintf("\\u%04x", r))
 		default:
 			buf.WriteRune(r)
 		}

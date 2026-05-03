@@ -225,7 +225,8 @@ func TestSkeletonStore_WithTranslation_UnicodeOutput(t *testing.T) {
 	writer.Close()
 
 	// Non-ASCII characters should be encoded as \uXXXX in output
-	assert.Equal(t, "key=\\u3053\\u3093\\u306B\\u3061\\u306F", buf.String())
+	// (lowercase hex matches okapi/tikal convention).
+	assert.Equal(t, "key=\\u3053\\u3093\\u306b\\u3061\\u306f", buf.String())
 }
 
 func TestSkeletonStore_WithTranslation_PreservesStructure(t *testing.T) {
