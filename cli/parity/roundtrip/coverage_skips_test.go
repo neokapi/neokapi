@@ -34,11 +34,7 @@ func mifBridgeSkips() map[string]fileSkip      { return nil }
 func htmlBridgeSkips() map[string]fileSkip     { return nil }
 func markdownBridgeSkips() map[string]fileSkip { return nil }
 
-func poBridgeSkips() map[string]fileSkip {
-	return map[string]fileSkip{
-		"Test01.po": {Engines: []string{"native"}, Reason: "UTF-16 LE encoded fixture; native po reader expects UTF-8 — see task #106 for cross-format UTF-16 support"},
-	}
-}
+func poBridgeSkips() map[string]fileSkip { return nil }
 
 func csvBridgeSkips() map[string]fileSkip { return nil }
 

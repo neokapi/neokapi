@@ -437,9 +437,6 @@ func coverageScans() []formatScan {
 			// differ only in whitespace (e.g. `"k" : "v"` vs `"k": "v"`)
 			// or string escape choices that encoding/json normalizes.
 			normalizer: roundtrip.JSONCanonical{},
-			skip: map[string]fileSkip{
-				"invalid_by_most_processors.json": {Engines: []string{"native"}, Reason: "JSON5 syntax (single-quoted strings, bare object keys); native scanner is strict — separate task #111 to add lenient mode"},
-			},
 		},
 		{
 			formatID:          "yaml",
@@ -689,8 +686,6 @@ func coverageScans() []formatScan {
 			skip: map[string]fileSkip{
 				"code_fail.tmx":          {Engines: []string{"okapi"}, Reason: "intentionally-malformed test fixture; okf_tmx rejects with 'no <tuv> set to source language'"},
 				"code_id_difference.tmx": {Engines: []string{"okapi"}, Reason: "intentionally-malformed test fixture for code-id mismatch detection"},
-				"ImportTest2A.tmx":       {Engines: []string{"native"}, Reason: "UTF-16 LE encoded fixture; native tmx reader expects UTF-8 (real bug — separate task #106)"},
-				"ImportTest2B.tmx":       {Engines: []string{"native"}, Reason: "UTF-16 LE encoded fixture; native tmx reader expects UTF-8 (real bug — separate task #106)"},
 			},
 		},
 		{

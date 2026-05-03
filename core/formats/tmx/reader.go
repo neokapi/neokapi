@@ -9,6 +9,7 @@ import (
 	"io"
 	"strings"
 
+	coreenc "github.com/neokapi/neokapi/core/encoding"
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/model"
 )
@@ -98,6 +99,15 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 		ch <- model.PartResult{Error: fmt.Errorf("tmx: reading: %w", err)}
 		return
 	}
+	// Real-world TMX (Trados, Windows-native editors) is often UTF-16
+	// LE/BE with a BOM. Transcode upfront so the XML parser and
+	// skeleton offsets all see UTF-8 bytes.
+	utf8Bytes, _, err := coreenc.ToUTF8(content)
+	if err != nil {
+		ch <- model.PartResult{Error: fmt.Errorf("tmx: transcoding to UTF-8: %w", err)}
+		return
+	}
+	content = utf8Bytes
 	rawText := string(content)
 
 	decoder := xml.NewDecoder(strings.NewReader(rawText))

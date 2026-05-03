@@ -6,9 +6,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"regexp"
 	"strings"
 
+	coreenc "github.com/neokapi/neokapi/core/encoding"
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/model"
 )
@@ -61,6 +63,20 @@ func (r *Reader) Open(ctx context.Context, doc *model.RawDocument) error {
 	if doc == nil || doc.Reader == nil {
 		return errors.New("po: nil document or reader")
 	}
+	// Buffer the input and transcode UTF-16/UTF-8-BOM up front so the
+	// line scanner sees plain UTF-8. Real-world .po files (Windows-
+	// authored, exported from Trados-style tools) are routinely UTF-16
+	// LE and the scanner would otherwise see the spaces between every
+	// other byte and emit zero entries.
+	raw, err := io.ReadAll(doc.Reader)
+	if err != nil {
+		return fmt.Errorf("po: reading: %w", err)
+	}
+	utf8Bytes, _, err := coreenc.ToUTF8(raw)
+	if err != nil {
+		return fmt.Errorf("po: transcoding to UTF-8: %w", err)
+	}
+	doc.Reader = io.NopCloser(bytes.NewReader(utf8Bytes))
 	r.Doc = doc
 	return nil
 }

@@ -116,6 +116,35 @@ func Detect(data []byte) (encodingName string, content []byte) {
 	return "utf-8", data
 }
 
+// ToUTF8 detects the input encoding via BOM and transcodes to UTF-8
+// when needed. Returns the transcoded bytes and the detected encoding
+// name. When the input is already UTF-8 (with or without BOM), the
+// BOM-stripped data is returned unchanged.
+//
+// This is a convenience wrapper around Detect + EncoderManager.Decode
+// that format readers can call in their input-ingestion path so a
+// real-world UTF-16 fixture (e.g. a TMX dumped by Trados, a Windows-
+// authored .po) doesn't sink the parser the moment it tries to read
+// the first multi-byte sequence as UTF-8.
+//
+// The function is intentionally narrow: it only handles BOM-detected
+// encodings. Callers that need prolog/header inspection (e.g. xliff's
+// `<?xml encoding="windows-1252"?>` discovery) should layer that on
+// top — see core/formats/xliff/reader.go's transcodeToUTF8 for an
+// example.
+func ToUTF8(data []byte) ([]byte, string, error) {
+	enc, stripped := Detect(data)
+	if enc == "utf-8" {
+		return stripped, enc, nil
+	}
+	em := NewEncoderManager()
+	text, err := em.Decode(stripped, enc)
+	if err != nil {
+		return nil, enc, err
+	}
+	return []byte(text), enc, nil
+}
+
 func (em *EncoderManager) registerDefaults() {
 	// Unicode
 	em.Register("utf-8", unicode.UTF8)
