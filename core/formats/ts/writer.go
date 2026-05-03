@@ -161,6 +161,17 @@ func (w *Writer) writeFromSkeleton() error {
 					if len(targetSegs) > 0 && len(targetSegs[0].Runs) > 0 {
 						text = w.runsToXML(targetSegs[0].Runs)
 					}
+				} else if len(block.Targets) > 0 {
+					// File declared a target language other than ours
+					// (e.g. <TS language="af">). Preserve the existing
+					// translation so non-matching round-trips match
+					// okapi's "leave bilingual content alone" semantics.
+					for _, segs := range block.Targets {
+						if len(segs) > 0 && len(segs[0].Runs) > 0 {
+							text = w.runsToXML(segs[0].Runs)
+							break
+						}
+					}
 				}
 			}
 
