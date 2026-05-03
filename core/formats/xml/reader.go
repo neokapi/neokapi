@@ -236,6 +236,23 @@ func (s *xmlParseState) isInExcludedScope() bool {
 	return false
 }
 
+// isWhitespaceOnly returns true when s contains only ASCII whitespace
+// (space, tab, CR, LF). Used by flushBlock to skip emitting blocks
+// for elements whose only "text" is inter-element whitespace around
+// excluded children — those bytes belong in skeleton, not in a block
+// content range.
+func isWhitespaceOnly(s string) bool {
+	for i := 0; i < len(s); i++ {
+		switch s[i] {
+		case ' ', '\t', '\r', '\n':
+			continue
+		default:
+			return false
+		}
+	}
+	return true
+}
+
 // hasStrongExcludeAncestor returns true if any frame on the stack is
 // strongly excluded (via ITS `translate="no"`). Used by character-data
 // handling to drop text inside `<its:rules its:translate="no">` even
@@ -300,6 +317,22 @@ func (s *xmlParseState) flushBlock(frame *elementFrame, path string, endTagOffse
 
 	text := model.FlattenRuns(finalRuns)
 	if text == "" && !runsHaveInlineCodes(finalRuns) {
+		return
+	}
+
+	// Whitespace-only text without inline codes isn't translatable.
+	// This case fires when an element wraps an excluded subtree
+	// (e.g. `<info>\n  <its:rules its:translate="no">...</its:rules>\n </info>`)
+	// — the only "text" left in the parent's frame is the
+	// inter-element whitespace. Emitting a block here would attach a
+	// content range covering the entire `<info>` interior, and the
+	// writer would then replace the excluded subtree's bytes with the
+	// joined whitespace on merge, dropping the structural content.
+	// Letting it fall through keeps the whole interior in skeleton
+	// text where the writer preserves it verbatim. preserveWS skips
+	// this filter — when whitespace is explicitly significant we
+	// want the block.
+	if !frame.preserveWS && !runsHaveInlineCodes(finalRuns) && isWhitespaceOnly(text) {
 		return
 	}
 

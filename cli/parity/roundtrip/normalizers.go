@@ -125,6 +125,26 @@ func (n XMLCanonical) Normalize(in []byte) ([]byte, error) {
 		if err != nil {
 			return nil, fmt.Errorf("xml-canonical: decode: %w", err)
 		}
+		// Drop the XML declaration entirely. encoding/xml refuses to
+		// encode a `<?xml ... ?>` ProcInst (it expects callers to
+		// produce it themselves at the top of the stream), and for
+		// canonical comparison we'd want to discard any declaration
+		// difference anyway — the underlying structure is what matters.
+		if pi, ok := tok.(xml.ProcInst); ok && pi.Target == "xml" {
+			continue
+		}
+		// Drop CharData runs that consist of nothing but ASCII
+		// whitespace — different writers indent differently and the
+		// inter-element whitespace isn't significant to XML semantics
+		// (excepting xml:space="preserve", which encoding/xml's
+		// tokenizer doesn't propagate to us so we conservatively
+		// always strip).
+		if cd, ok := tok.(xml.CharData); ok {
+			trimmed := bytes.TrimRight(bytes.TrimLeft(cd, " \t\r\n"), " \t\r\n")
+			if len(trimmed) == 0 {
+				continue
+			}
+		}
 		if n.SortAttrs {
 			if se, ok := tok.(xml.StartElement); ok {
 				attrs := make([]xml.Attr, len(se.Attr))
