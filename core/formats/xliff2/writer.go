@@ -366,6 +366,21 @@ func (w *Writer) flushRoundTrip(targetLang model.LocaleID) error {
 		}
 	}
 
+	// Patch root srcLang/trgLang when the writer was handed locales
+	// that differ from the source DOM. This matters when the harness or
+	// caller deliberately overrides the target locale (e.g. parity test
+	// pseudo-translating an existing bilingual fixture into a different
+	// language) — otherwise the model has the new locale's segments but
+	// the root <xliff> still advertises the old one.
+	if !w.sourceLang.IsEmpty() && attrValue(root, "srcLang") != string(w.sourceLang) {
+		root.CreateAttr("srcLang", string(w.sourceLang))
+		patchedRoot = true
+	}
+	if !targetLang.IsEmpty() && attrValue(root, "trgLang") != string(targetLang) {
+		root.CreateAttr("trgLang", string(targetLang))
+		patchedRoot = true
+	}
+
 	patched := patchedRoot
 	for _, fileEl := range root.SelectElements("file") {
 		if walkUnitsRoundTrip(fileEl, blocksByID, targetLang) {
@@ -437,7 +452,14 @@ func patchUnit(unitEl *etree.Element, block *model.Block, targetLang model.Local
 		}
 	}
 
+	// xliff2 makes segment ids optional. Match DOM <segment>/<ignorable>
+	// elements to model.Segments by DOM id first, then fall back to
+	// document-order position. The reader synthesizes collision-free ids
+	// for unkeyed elements ("s<n>" or "_xliff2_seg_<n>" when "s<n>" is
+	// already explicitly used) and assigns them to model.Segment.ID, so
+	// positional fallback recovers the correspondence the DOM lacks.
 	patched := false
+	domSegIdx := 0
 	for _, segEl := range unitEl.ChildElements() {
 		if segEl.Tag != "segment" && segEl.Tag != "ignorable" {
 			continue
@@ -445,6 +467,13 @@ func patchUnit(unitEl *etree.Element, block *model.Block, targetLang model.Local
 		segID := attrValue(segEl, "id")
 		modelSrc := srcByID[segID]
 		modelTgt := trgByID[segID]
+		if modelSrc == nil && segID == "" && domSegIdx < len(block.Source) {
+			modelSrc = block.Source[domSegIdx]
+			if modelSrc != nil && modelTgt == nil {
+				modelTgt = trgByID[modelSrc.ID]
+			}
+		}
+		domSegIdx++
 
 		if srcEl := segEl.SelectElement("source"); srcEl != nil && modelSrc != nil {
 			if !segmentMatchesDOM(srcEl, modelSrc) {

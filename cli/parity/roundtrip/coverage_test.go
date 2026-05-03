@@ -643,24 +643,31 @@ func coverageScans() []formatScan {
 			},
 		},
 		{
-			// Skipped at the okapi level. The XLIFF2Filter does have a
-			// writer (XLIFF2FilterWriter), but the pseudo pipeline NPEs
-			// at runtime (FilterEventsToRawDocumentStep:152 — startDoc's
-			// filterWriter is null when the step looks it up). Even if
-			// fixed, okapi's xliff2 round-trip is documented-lossy:
-			// "Skeleton not supported. Comments are lost. Original XML
-			// formatting lost. Attributes can be reordered. Attributes
-			// may be removed/added depending on XLIFF 2 Toolkit defaults."
-			// (https://okapiframework.org/wiki/index.php/XLIFF-2_Filter)
-			// So byte-equal parity isn't achievable and canonical parity
-			// would require a stronger normalizer than we currently have.
-			// xliff2 conformance is verified via a self round-trip test
-			// in core/formats/xliff2 (TestRoundTrip_AllFixtures) instead.
-			formatID:          "xliff2",
-			filterClass:       "okf_xliff2",
-			sources:           []string{"integration-tests/okapi/src/test/resources/xliff2"},
-			extensions:        []string{".xlf", ".xlf2"},
-			formatDefaultSkip: fileSkip{Engines: []string{"okapi"}, Reason: "okapi pseudo pipeline NPEs on xliff2 + okapi xliff2 round-trip is documented-lossy; verified via self-roundtrip in core/formats/xliff2"},
+			// okapi-bridge release 9b9521c added EnsureFilterWriterStep so
+			// XLIFF2's null-filterWriter no longer NPEs the pseudo
+			// pipeline, and resolveFilterClass now prefers the canonical
+			// `xliff2.XLIFF2Filter` over `rainbowkit.XLIFF2Filter`. Both
+			// engines now run the full xliff2 fixture set end to end, but
+			// per the okapi wiki the filter is documented-lossy on
+			// round-trip (skeleton not supported, comments lost, original
+			// XML formatting lost, attributes can be reordered, attributes
+			// may be removed/added depending on XLIFF 2 Toolkit defaults).
+			// Reaching canonical-equal requires a stronger normalizer than
+			// XMLCanonical{SortAttrs: true} — until that lands we hold
+			// xliff2 to TierDivergent on both engines so the test passes
+			// while the report still surfaces the byte-level diff per
+			// fixture. Native conformance is independently verified by
+			// core/formats/xliff2/TestRoundTrip_AllFixtures (40/40
+			// idempotent, 37/37 byte-equal-untouched).
+			formatID:    "xliff2",
+			filterClass: "okf_xliff2",
+			sources:     []string{"integration-tests/okapi/src/test/resources/xliff2"},
+			extensions:  []string{".xlf", ".xlf2"},
+			normalizer:  roundtrip.XMLCanonical{SortAttrs: true},
+			minTier: map[string]roundtrip.Tier{
+				"native": roundtrip.TierDivergent,
+				"bridge": roundtrip.TierDivergent,
+			},
 		},
 		{
 			formatID:          "tmx",

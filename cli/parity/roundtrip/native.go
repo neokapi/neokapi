@@ -129,11 +129,20 @@ func (e *NativeEngine) RoundTrip(t *testing.T, in Input, spec PseudoSpec) []byte
 		t.Fatalf("NativeEngine: skeleton store: %v", err)
 	}
 	t.Cleanup(func() { _ = store.Close() })
-	if emitter, ok := reader.(format.SkeletonStoreEmitter); ok {
-		emitter.SetSkeletonStore(store)
-	}
-	if consumer, ok := writer.(format.SkeletonStoreConsumer); ok {
-		consumer.SetSkeletonStore(store)
+	// xliff2 has both a legacy SkeletonStore round-trip path and a newer
+	// DOM-patching round-trip path. The DOM path is strictly better
+	// (handles trgLang overrides, segment-id rewrites, etc.) but the
+	// reader still routes through the streaming/skeleton implementation
+	// when a SkeletonStore is wired. Skip wiring the store for xliff2 so
+	// the parity harness gets the DOM path; other formats keep their
+	// existing wiring.
+	if e.FormatID != "xliff2" {
+		if emitter, ok := reader.(format.SkeletonStoreEmitter); ok {
+			emitter.SetSkeletonStore(store)
+		}
+		if consumer, ok := writer.(format.SkeletonStoreConsumer); ok {
+			consumer.SetSkeletonStore(store)
+		}
 	}
 
 	// Set skeleton from input bytes for writers that reuse it.
@@ -172,6 +181,14 @@ func (e *NativeEngine) RoundTrip(t *testing.T, in Input, spec PseudoSpec) []byte
 	// that here so bilingual fixtures with non-matching targets stay
 	// byte-equal with the okapi reference.
 	var fileTargetLang model.LocaleID
+	// XLIFF 2 is documented-lossy on round-trip: okapi unconditionally
+	// overwrites the file's `trgLang` with the requested target locale and
+	// (re-)pseudo-translates every translatable unit, ignoring whatever
+	// target was authored on disk. Mirror that here so native + okapi
+	// converge — for xliff2 we always apply pseudo and we rewrite the
+	// layer's target-language property so the writer emits the requested
+	// trgLang on the root <xliff> element.
+	forcePseudoIgnoreFileTarget := e.FormatID == "xliff2"
 	for res := range reader.Read(ctx) {
 		if res.Error != nil {
 			if !errors.Is(res.Error, io.EOF) {
@@ -187,6 +204,12 @@ func (e *NativeEngine) RoundTrip(t *testing.T, in Input, spec PseudoSpec) []byte
 				if tl, ok := layer.Properties["target-language"]; ok {
 					fileTargetLang = model.LocaleID(tl)
 				}
+				if forcePseudoIgnoreFileTarget {
+					if layer.Properties == nil {
+						layer.Properties = map[string]string{}
+					}
+					layer.Properties["target-language"] = string(tgt)
+				}
 			}
 		}
 		if res.Part.Type == model.PartBlock {
@@ -195,8 +218,10 @@ func (e *NativeEngine) RoundTrip(t *testing.T, in Input, spec PseudoSpec) []byte
 				// from the test target, okapi preserves the existing
 				// target verbatim rather than transforming it
 				// (TextModificationStep gates on language match).
-				// Skip pseudo so native matches.
-				if fileTargetLang.IsEmpty() || fileTargetLang == tgt {
+				// Skip pseudo so native matches. xliff2 is the
+				// exception — okapi pseudo-translates unconditionally
+				// there, see the comment above.
+				if forcePseudoIgnoreFileTarget || fileTargetLang.IsEmpty() || fileTargetLang == tgt {
 					applyPseudoToBlock(b, spec)
 				}
 			}

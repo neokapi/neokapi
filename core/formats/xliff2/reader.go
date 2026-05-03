@@ -282,6 +282,22 @@ func (r *Reader) emitUnit(ctx context.Context, ch chan<- model.PartResult, unit 
 	srcSegs := []*model.Segment{}
 	tgtSegs := []*model.Segment{}
 
+	// Collect explicit segment ids first so synthesized ids for
+	// unkeyed elements don't collide with them. xliff2 makes the id
+	// attribute optional on <segment>/<ignorable>, so a unit can have
+	// an unkeyed <ignorable> immediately followed by an explicit
+	// <segment id="s2"> — without this guard our synthesized "s2" for
+	// the ignorable would shadow the real segment in srcByID lookups.
+	explicitIds := make(map[string]bool)
+	for _, child := range unit.ChildElements() {
+		if child.Tag != "segment" && child.Tag != "ignorable" {
+			continue
+		}
+		if id := attrValue(child, "id"); id != "" {
+			explicitIds[id] = true
+		}
+	}
+
 	segIdx := 0
 	for _, child := range unit.ChildElements() {
 		if child.Tag != "segment" && child.Tag != "ignorable" {
@@ -290,7 +306,12 @@ func (r *Reader) emitUnit(ctx context.Context, ch chan<- model.PartResult, unit 
 		segIdx++
 		segID := attrValue(child, "id")
 		if segID == "" {
+			// Synthesize a non-colliding id: "s<n>" first, then
+			// "_xliff2_seg_<n>" if a real segment already claimed it.
 			segID = fmt.Sprintf("s%d", segIdx)
+			if explicitIds[segID] {
+				segID = fmt.Sprintf("_xliff2_seg_%d", segIdx)
+			}
 		}
 
 		// State on segment becomes a property (last writer wins for
