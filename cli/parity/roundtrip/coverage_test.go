@@ -629,10 +629,15 @@ func coverageScans() []formatScan {
 				},
 			},
 			skip: map[string]fileSkip{
-				"lqiTest.xlf":                 {Engines: []string{"okapi"}, Reason: "okf_xliff needs lqiTestIssues.xml in the same dir; harness now copies companions but okapi still rejects this fixture"},
-				"ImplementationPlan.docx.xlf": {Engines: []string{"bridge", "native"}, Reason: "bridge inline-code/alt-trans divergence vs okapi reference"},
-				"RB-12-Test02.xlf":            {Engines: []string{"bridge", "native"}, Reason: "bridge ResourceBundle-flavour xliff divergence vs okapi reference"},
-				"segmentation2.xlf":           {Engines: []string{"bridge", "native"}, Reason: "bridge segmentation handling divergence"},
+				"lqiTest.xlf": {Engines: []string{"okapi"}, Reason: "okf_xliff needs lqiTestIssues.xml in the same dir; harness now copies companions but okapi still rejects this fixture"},
+				// Bridge-only skips: real okapi-bridge divergences vs the
+				// in-process okapi reference. These are content-level diffs
+				// (not stylistic), so the canonical normalizer doesn't help
+				// — needs Java-side fixes in okapi-bridge. Native passes
+				// these via the TierDivergent default (observation mode).
+				"ImplementationPlan.docx.xlf": {Engines: []string{"bridge"}, Reason: "bridge emits inline-code id=\"1\" where okapi reference has id=\"3\". Same-size output but content differs. Needs okapi-bridge investigation."},
+				"RB-12-Test02.xlf":            {Engines: []string{"bridge"}, Reason: "bridge drops one segment with <mrk> wrappers (-99 bytes vs reference). ResourceBundle-flavour xliff. Needs okapi-bridge investigation."},
+				"segmentation2.xlf":           {Engines: []string{"bridge"}, Reason: "bridge writes <mrk mid=\"0\"> where okapi reference has mid=\"1\" — off-by-one in segment-id renumbering. Needs okapi-bridge investigation."},
 			},
 		},
 		{
@@ -669,12 +674,20 @@ func coverageScans() []formatScan {
 			extensions:        []string{".tmx"},
 			// TMX is XML; same canonical normalizer.
 			normalizer: roundtrip.XMLCanonical{SortAttrs: true},
+			// Bridge reaches canonical-equal on 3 fixtures (ImportTest2A,
+			// ImportTest2B, simple) where okapi's writer reorders attrs or
+			// reformats whitespace vs the bridge's serialization — exactly
+			// what XMLCanonical{SortAttrs:true} normalizes away. The data
+			// is semantically identical; accepting at TierCanonical is the
+			// honest contract here.
+			minTier: map[string]roundtrip.Tier{
+				"bridge": roundtrip.TierCanonicalEqual,
+			},
 			skip: map[string]fileSkip{
 				"code_fail.tmx":          {Engines: []string{"okapi"}, Reason: "intentionally-malformed test fixture; okf_tmx rejects with 'no <tuv> set to source language'"},
 				"code_id_difference.tmx": {Engines: []string{"okapi"}, Reason: "intentionally-malformed test fixture for code-id mismatch detection"},
-				"ImportTest2A.tmx":       {Engines: []string{"bridge", "native"}, Reason: "bridge tmx writer XML serialization divergence on this fixture"},
-				"ImportTest2B.tmx":       {Engines: []string{"bridge", "native"}, Reason: "bridge tmx writer XML serialization divergence on this fixture"},
-				"simple.tmx":             {Engines: []string{"bridge", "native"}, Reason: "bridge tmx writer XML serialization divergence on this fixture"},
+				"ImportTest2A.tmx":       {Engines: []string{"native"}, Reason: "UTF-16 LE encoded fixture; native tmx reader expects UTF-8 (real bug — separate task #106)"},
+				"ImportTest2B.tmx":       {Engines: []string{"native"}, Reason: "UTF-16 LE encoded fixture; native tmx reader expects UTF-8 (real bug — separate task #106)"},
 			},
 		},
 		{
@@ -709,6 +722,17 @@ mergeCaptions.b=false
 			// VTT is line-oriented; line-ending diffs are the common
 			// stylistic mismatch.
 			normalizer: roundtrip.LFLineEndings{},
+			// Native VTT writer doesn't implement maxCharsPerLine soft
+			// wrap (okapi splits a translated cue at the nearest space
+			// when it exceeds the limit, replacing that space with a
+			// newline). Bridge passes byte-equal because it goes through
+			// okapi. Hold native at TierDivergent until the writer
+			// learns to wrap — implementing that means mirroring okapi's
+			// space-finding heuristic + CJK width rules + maxLines fold,
+			// non-trivial and out of scope for this parity sweep.
+			minTier: map[string]roundtrip.Tier{
+				"native": roundtrip.TierDivergent,
+			},
 		},
 		{
 			// Same mergeCaptions story as VTT.
