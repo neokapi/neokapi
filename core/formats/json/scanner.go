@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"unicode"
 	"unicode/utf8"
 )
 
@@ -106,14 +107,33 @@ func (s *scanner) next() (token, error) {
 
 // skipWhitespaceAndComments consumes whitespace and comment blocks, returning
 // the consumed bytes as a string (for skeleton preservation).
+//
+// Whitespace handling is permissive: ASCII whitespace plus any Unicode
+// whitespace rune (e.g. U+00A0 NO-BREAK SPACE, often introduced by
+// indentation copy-pasted from word processors). RFC 8259 only allows
+// ASCII whitespace, but every real-world JSON parser this reader has
+// to interop with — including okapi's okf_json — accepts the broader
+// Unicode set, and several of our parity fixtures rely on it.
 func (s *scanner) skipWhitespaceAndComments() string {
 	start := s.pos
 	for s.pos < len(s.input) {
 		ch := s.input[s.pos]
-		// Standard whitespace
+		// Fast path: ASCII whitespace.
 		if ch == ' ' || ch == '\t' || ch == '\r' || ch == '\n' {
 			s.pos++
 			continue
+		}
+		// Multi-byte Unicode whitespace (NBSP, etc.) plus U+FEFF
+		// (BOM/ZWNBSP) which Unicode doesn't classify as IsSpace but
+		// every JSON parser tolerates as a leading marker. Treating it
+		// as prefix whitespace keeps the byte in the skeleton so the
+		// writer round-trips it verbatim.
+		if ch >= 0x80 {
+			r, size := utf8.DecodeRune(s.input[s.pos:])
+			if r != utf8.RuneError && (unicode.IsSpace(r) || r == 0xFEFF) {
+				s.pos += size
+				continue
+			}
 		}
 		// // line comment
 		if ch == '/' && s.pos+1 < len(s.input) && s.input[s.pos+1] == '/' {
