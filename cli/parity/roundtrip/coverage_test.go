@@ -512,8 +512,10 @@ func coverageScans() []formatScan {
 			filterClass:       "okf_xliff",
 			sources:           []string{"integration-tests/okapi/src/test/resources/xliff"},
 			extensions:        []string{".xlf"},
+			// XLIFF is XML; same canonical normalizer as xml/.
+			normalizer: roundtrip.XMLCanonical{SortAttrs: true},
 			skip: map[string]fileSkip{
-				"lqiTest.xlf":                 {Engines: []string{"okapi"}, Reason: "okf_xliff needs lqiTestIssues.xml in the same dir; harness copies the input file alone"},
+				"lqiTest.xlf":                 {Engines: []string{"okapi"}, Reason: "okf_xliff needs lqiTestIssues.xml in the same dir; harness now copies companions but okapi still rejects this fixture"},
 				"ImplementationPlan.docx.xlf": {Engines: []string{"bridge", "native"}, Reason: "bridge inline-code/alt-trans divergence vs okapi reference"},
 				"RB-12-Test02.xlf":            {Engines: []string{"bridge", "native"}, Reason: "bridge ResourceBundle-flavour xliff divergence vs okapi reference"},
 				"segmentation2.xlf":           {Engines: []string{"bridge", "native"}, Reason: "bridge segmentation handling divergence"},
@@ -536,6 +538,8 @@ func coverageScans() []formatScan {
 			filterClass:       "okf_tmx",
 			sources:           []string{"integration-tests/okapi/src/test/resources/tmx"},
 			extensions:        []string{".tmx"},
+			// TMX is XML; same canonical normalizer.
+			normalizer: roundtrip.XMLCanonical{SortAttrs: true},
 			skip: map[string]fileSkip{
 				"code_fail.tmx":          {Engines: []string{"okapi"}, Reason: "intentionally-malformed test fixture; okf_tmx rejects with 'no <tuv> set to source language'"},
 				"code_id_difference.tmx": {Engines: []string{"okapi"}, Reason: "intentionally-malformed test fixture for code-id mismatch detection"},
@@ -552,6 +556,8 @@ func coverageScans() []formatScan {
 			sources:           []string{"integration-tests/okapi/src/test/resources/ts"},
 			extensions:        []string{".ts"},
 			skip:              tsBridgeSkips(),
+			// TS is XML (Qt Linguist); same canonical normalizer.
+			normalizer: roundtrip.XMLCanonical{SortAttrs: true},
 		},
 
 		// ── Subtitle / timed-text ─────────────────────────────────
@@ -570,7 +576,10 @@ maxCharsPerLine.i=47
 cjkCharsPerLine.i=18
 mergeCaptions.b=false
 `,
-			bridgeParams:      map[string]string{"mergeCaptions": "false"},
+			bridgeParams: map[string]string{"mergeCaptions": "false"},
+			// VTT is line-oriented; line-ending diffs are the common
+			// stylistic mismatch.
+			normalizer: roundtrip.LFLineEndings{},
 		},
 		{
 			// Same mergeCaptions story as VTT.
@@ -585,7 +594,9 @@ maxCharsPerLine.i=47
 cjkCharsPerLine.i=18
 mergeCaptions.b=false
 `,
-			bridgeParams:      map[string]string{"mergeCaptions": "false"},
+			bridgeParams: map[string]string{"mergeCaptions": "false"},
+			// TTML is XML; same canonical normalizer.
+			normalizer: roundtrip.XMLCanonical{SortAttrs: true},
 		},
 		// srt: omitted from this scan — upstream tikal routes .srt via
 		// `okf_regex-srt`, which loads regex rules from a packaged .fprm
