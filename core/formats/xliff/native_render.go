@@ -3,6 +3,8 @@ package xliff
 import (
 	"strings"
 
+	"golang.org/x/text/encoding"
+
 	"github.com/neokapi/neokapi/core/model"
 )
 
@@ -10,9 +12,12 @@ import (
 // Threaded through the emit walkers so OkapiCompatConfig flags can
 // influence text emission without leaking into the IR data structures.
 type renderOpts struct {
-	// EscapeNonASCII wraps text-node escaping with
-	// escapeNonASCIIAsEntities — emit non-ASCII as &#xNNNN; entities.
-	EscapeNonASCII bool
+	// EncodableAs, when non-nil, drives encoder-aware entity escaping:
+	// runes the encoder cannot represent are emitted as `&#xNNNN;`
+	// entities. Used to mirror okapi's XMLEncoder behavior when the
+	// source declared a non-UTF-8 encoding (windows-1252, ISO-8859-1).
+	// nil = no encoding-aware escaping (UTF-8 sources or flag off).
+	EncodableAs *encoding.Encoder
 	// StripCREntities post-processes emitted text to drop &#xD; entity
 	// sequences (matching okapi's CR-loss behavior).
 	StripCREntities bool
@@ -20,8 +25,8 @@ type renderOpts struct {
 
 func (o renderOpts) escapeText(s string) string {
 	out := xmlEscapeText(s)
-	if o.EscapeNonASCII {
-		out = escapeNonASCIIAsEntities(out)
+	if o.EncodableAs != nil {
+		out = escapeUnencodableAsEntities(out, o.EncodableAs)
 	}
 	if o.StripCREntities {
 		out = stripCDataCREntities(out)

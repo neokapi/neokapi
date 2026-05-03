@@ -59,18 +59,38 @@ type OkapiCompatConfig struct {
 	UnwrapSingleSegMrk bool
 
 	// StripTransUnitApprovedAttr drops the approved="…" attribute from
-	// <trans-unit>. okapi's writer does not preserve this attribute
-	// even though the spec defines it; the assumption appears to be
-	// that the active translation workflow tracks approval state
-	// separately and re-emitting the source's value is misleading.
+	// every <trans-unit>, regardless of whether the source had a
+	// <target> element. **Rarely useful** — okapi's actual behavior is
+	// the conditional one captured by StripApprovedWhenNoSourceTarget.
+	// Kept here for completeness in case a fixture surfaces requiring
+	// blanket stripping.
 	//
 	// Spec basis: XLIFF 1.2 §2.4.7 defines approved as a valid
-	// attribute on trans-unit (yes|no). **Spec-divergent**: okapi is
-	// dropping spec-defined data. We're more spec-faithful by default;
-	// this flag exists only for parity comparison.
-	//
-	// Fixtures: SF-12-Test03.xlf (every trans-unit has approved="no").
+	// attribute on trans-unit (yes|no). **Spec-divergent**: dropping
+	// spec-defined data unconditionally is more aggressive than okapi.
 	StripTransUnitApprovedAttr bool
+
+	// StripApprovedWhenNoSourceTarget drops the approved="…" attribute
+	// from `<trans-unit>` start tags whose source did NOT contain a
+	// `<target>` element. This mirrors okapi's actual behavior:
+	// XLIFFFilter.java:2475 only sets the APPROVED target-property
+	// when the target-processing branch runs (i.e. when a `<target>`
+	// is present in the source); XLIFFSkeletonWriter.java:756 then
+	// emits no `approved="…"` when the property is absent.
+	//
+	// Trans-units that had a `<target>` in the source keep their
+	// `approved` attribute on round-trip — okapi-correct.
+	//
+	// Spec basis: XLIFF 1.2 §2.4.7 defines approved on trans-unit.
+	// okapi's "drop when no source target" rule is **spec-divergent**
+	// (the attribute is meaningful regardless of whether a target
+	// element exists), but we replicate it for parity. neokapi's
+	// default writer preserves the attribute as-is.
+	//
+	// Fixture: SF-12-Test03.xlf (944 trans-units have approved="no";
+	// only TU id="1" has both source AND target → keeps approved on
+	// round-trip; the other 943 have only source → approved stripped).
+	StripApprovedWhenNoSourceTarget bool
 
 	// StripPhaseDateAttr drops the date="…" attribute from <phase>
 	// elements inside the <header><phase-group>. okapi's writer
@@ -118,20 +138,38 @@ type OkapiCompatConfig struct {
 	// okapi emits both at trans-unit level before <alt-trans>).
 	HoistAltTransNotes bool
 
-	// EscapeNonASCIIAsEntities emits non-ASCII characters as XML
-	// numeric character references (`&#xNNNN;`) rather than as their
-	// UTF-8 byte sequences. okapi's writer does this for all chars
-	// above U+007F, regardless of the file's declared encoding.
+	// EscapeBeyondLatin1AsEntities turns on encoder-aware entity
+	// escaping in text bodies — chars the source-declared encoding
+	// cannot represent are emitted as `&#xNNNN;` numeric references,
+	// other chars stay literal. ONLY active when the source declared a
+	// non-UTF-8 encoding (windows-1252, ISO-8859-1, …). For UTF-8
+	// sources (the common case) this flag is a no-op.
+	//
+	// Mirrors okapi XMLEncoder.setOptions + _encode (XMLEncoder.java:
+	// 101-110, 191-213): the encoder is only constructed when the
+	// output encoding is non-UTF-8/16, and the per-char check
+	// `!chsEnc.canEncode(value)` decides whether to escape. We use
+	// `golang.org/x/text/encoding`'s Encoder.canEncode for an exact
+	// match — windows-1252's "Windows extension" chars in U+0152-U+2122
+	// (e.g. U+0192 ƒ, U+2026 …, U+20AC €) stay literal, while Latin
+	// Extended-A/B beyond Latin-1 gets escaped.
+	//
+	// The writer reads the source encoding from the layer's
+	// `xliff:source-encoding` property (set by the reader when the XML
+	// declaration named a non-UTF-8 charset). If that property is
+	// missing the flag is a no-op. The flag name uses "Latin1" because
+	// that's the typical practical effect, but the actual rule is
+	// encoder-driven.
 	//
 	// Spec basis: XML 1.0 §2.2 — numeric entities are equivalent to
 	// the chars they reference. Both forms are XML-valid. **Spec-
-	// tolerant**: this is purely a stylistic encoding choice. UTF-8
-	// is more readable and 4× more compact for Latin-extended.
+	// tolerant**: purely a stylistic encoding choice; UTF-8 is more
+	// readable and 4× more compact for Latin-extended chars.
 	//
-	// Fixture: SF-12-Test03.xlf (pseudo-translates source into
-	// Latin-extended chars; okapi emits `&#x015a;` etc, neokapi emits
-	// `Ś`).
-	EscapeNonASCIIAsEntities bool
+	// Fixture: SF-12-Test03.xlf (declared windows-1252; pseudo-output
+	// `Ţàĉƒ` → okapi emits `&#x0162;à&#x0109;ƒ` keeping ƒ literal because
+	// it's in windows-1252; neokapi default emits all four literal).
+	EscapeBeyondLatin1AsEntities bool
 
 	// SimulateBrokenWindows1252Read replaces non-ASCII bytes from a
 	// declared windows-1252 input file with U+FFFD (REPLACEMENT

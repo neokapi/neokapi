@@ -392,6 +392,15 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 						"target-language": string(targetLang),
 					},
 				}
+				// Record the source XML declaration's encoding so the
+				// writer can replicate okapi's encoding-conditional
+				// entity escaping (XMLEncoder skips entity escaping when
+				// encoding is UTF-8/16, otherwise escapes anything not
+				// representable in the declared charset). Empty when the
+				// source had no declaration or was already UTF-8.
+				if srcCharset != "" && !strings.EqualFold(srcCharset, "UTF-8") && !strings.EqualFold(srcCharset, "UTF8") {
+					layer.Properties["xliff:source-encoding"] = srcCharset
+				}
 				if !r.emit(ctx, ch, &model.Part{Type: model.PartLayerStart, Resource: layer}) {
 					return
 				}

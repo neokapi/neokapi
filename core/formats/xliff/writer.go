@@ -10,6 +10,8 @@ import (
 	"strconv"
 	"strings"
 
+	"golang.org/x/text/encoding"
+
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/model"
 )
@@ -67,6 +69,63 @@ func (w *Writer) okapiCompat() OkapiCompatConfig {
 		return OkapiCompatConfig{}
 	}
 	return w.cfg.OkapiCompat
+}
+
+// transUnitsWithoutSourceTarget returns a position-indexed bitmask:
+// out[i] is true when the i-th trans-unit (in document order, matching
+// w.blocks order) had no `<target>` element in the source. Indexing by
+// position rather than by ID is required because XLIFF allows duplicate
+// trans-unit ids across the document (SF-12-Test03 has two trans-units
+// with id="1"), and the strip rule must apply per-occurrence based on
+// each trans-unit's own source target presence — not on whether ANY
+// trans-unit with that id had a target.
+//
+// Used by the StripApprovedWhenNoSourceTarget post-process. The reader
+// sets the `xliff:target-attrs` annotation only when a `<target>` was
+// present; absence of the annotation signals "strip approved here".
+func (w *Writer) transUnitsWithoutSourceTarget() []bool {
+	out := make([]bool, 0, len(w.blocks))
+	for _, block := range w.blocks {
+		if block == nil {
+			out = append(out, false)
+			continue
+		}
+		if _, ok := block.Annotations["xliff:target-attrs"]; !ok {
+			out = append(out, true)
+		} else {
+			out = append(out, false)
+		}
+	}
+	return out
+}
+
+// encoderForOkapiCompat returns the `golang.org/x/text` Encoder the
+// writer should use to drive okapi-compat encoding-conditional entity
+// escaping, or nil to disable escaping. Returns non-nil when both the
+// EscapeBeyondLatin1AsEntities flag is on AND the source declared a
+// non-UTF-8 encoding (recorded by the reader in the layer's
+// `xliff:source-encoding` property).
+//
+// Mirrors okapi XMLEncoder.setOptions (XMLEncoder.java:101-110): the
+// encoder is only constructed when output encoding is non-UTF-8/16,
+// and the encoder's canEncode determines per-char whether to escape.
+func (w *Writer) encoderForOkapiCompat() *encoding.Encoder {
+	if !w.okapiCompat().EscapeBeyondLatin1AsEntities {
+		return nil
+	}
+	for _, part := range w.parts {
+		if part.Type != model.PartLayerStart {
+			continue
+		}
+		layer, ok := part.Resource.(*model.Layer)
+		if !ok || layer == nil {
+			continue
+		}
+		if name, ok := layer.Properties["xliff:source-encoding"]; ok {
+			return encoderForCharset(name)
+		}
+	}
+	return nil
 }
 
 // SetSkeletonStore sets the skeleton store for byte-exact output.
@@ -134,7 +193,10 @@ func (w *Writer) writeFromSkeleton() error {
 	// output so we can rewrite it before flushing. Otherwise write
 	// straight through.
 	compat := w.okapiCompat()
-	needsPostProcess := compat.HoistAltTransNotes || compat.ReorderHeaderToolToEnd || compat.UnwrapSingleSegMrk
+	needsPostProcess := compat.HoistAltTransNotes ||
+		compat.ReorderHeaderToolToEnd ||
+		compat.UnwrapSingleSegMrk ||
+		compat.StripApprovedWhenNoSourceTarget
 	finalOut := w.Output
 	var postBuf *bytes.Buffer
 	if needsPostProcess {
@@ -151,6 +213,9 @@ func (w *Writer) writeFromSkeleton() error {
 			}
 			if compat.ReorderHeaderToolToEnd {
 				rewritten = reorderHeaderToolToEnd(rewritten)
+			}
+			if compat.StripApprovedWhenNoSourceTarget {
+				rewritten = stripApprovedFromTransUnits(rewritten, w.transUnitsWithoutSourceTarget())
 			}
 			finalOut.Write(rewritten)
 		}()
@@ -380,7 +445,7 @@ func injectTargetLanguage(tag []byte, targetLang string) []byte {
 func (w *Writer) sourceText(block *model.Block) string {
 	compat := w.okapiCompat()
 	opts := renderOpts{
-		EscapeNonASCII:  compat.EscapeNonASCIIAsEntities,
+		EncodableAs:     w.encoderForOkapiCompat(),
 		StripCREntities: compat.StripCDataCREntities,
 	}
 	if a, ok := block.Annotations["xliff:source-body"]; ok {
@@ -512,7 +577,7 @@ func (w *Writer) targetText(block *model.Block, targetLang model.LocaleID) strin
 	}
 	compat := w.okapiCompat()
 	opts := renderOpts{
-		EscapeNonASCII:  compat.EscapeNonASCIIAsEntities,
+		EncodableAs:     w.encoderForOkapiCompat(),
 		StripCREntities: compat.StripCDataCREntities,
 	}
 	// UnwrapSingleSegMrk is now applied as a writer post-process pass

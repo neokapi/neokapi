@@ -243,14 +243,16 @@ func applyOkapiCompatMap(o *OkapiCompatConfig, m map[string]any) error {
 			o.UnwrapSingleSegMrk = b
 		case "stripTransUnitApprovedAttr":
 			o.StripTransUnitApprovedAttr = b
+		case "stripApprovedWhenNoSourceTarget":
+			o.StripApprovedWhenNoSourceTarget = b
 		case "stripPhaseDateAttr":
 			o.StripPhaseDateAttr = b
 		case "stripCDataCREntities":
 			o.StripCDataCREntities = b
 		case "hoistAltTransNotes":
 			o.HoistAltTransNotes = b
-		case "escapeNonASCIIAsEntities":
-			o.EscapeNonASCIIAsEntities = b
+		case "escapeBeyondLatin1AsEntities":
+			o.EscapeBeyondLatin1AsEntities = b
 		case "simulateBrokenWindows1252Read":
 			o.SimulateBrokenWindows1252Read = b
 		case "reorderHeaderToolToEnd":

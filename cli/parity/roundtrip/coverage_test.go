@@ -598,13 +598,23 @@ func coverageScans() []formatScan {
 					"hoistAltTransNotes":  true,
 					"reorderHeaderToolToEnd": true,
 					"simulateBrokenWindows1252Read": true,
-					// Disabled: okapi PRESERVES `approved="yes"` on
-					// trans-units in every fixture inspected (Manual-12,
-					// RB-11, SF-12-Test02). Earlier conjecture that okapi
-					// strips it was based on a misread fixture. Leave the
-					// flag in OkapiCompatConfig for future use but don't
-					// enable it here.
+					// Disabled: blanket strip is more aggressive than
+					// okapi. okapi PRESERVES `approved="yes"` whenever the
+					// source trans-unit had a `<target>` element (Manual-12,
+					// RB-11, SF-12-Test02 all have targets — okapi keeps
+					// `approved`). The conditional rule (next flag) is the
+					// faithful one.
 					// "stripTransUnitApprovedAttr": true,
+					//
+					// Mirrors okapi XLIFFFilter.java:2475 +
+					// XLIFFSkeletonWriter.java:756 — `approved` is dropped
+					// when the source trans-unit has no `<target>` element
+					// (the property only gets attached during target
+					// processing, which doesn't run when source has no
+					// target). SF-12-Test03 has 944 trans-units with
+					// approved="no"; only TU id="1" has both source and
+					// target, so it keeps approved while the other 943 lose it.
+					"stripApprovedWhenNoSourceTarget": true,
 					//
 					// Now enabled: matches okapi's XLIFFFilter.java:2278
 					// rule — drops <seg-source> and unwraps target's mrk
@@ -612,12 +622,17 @@ func coverageScans() []formatScan {
 					// Implemented as a writer post-process pass.
 					"unwrapSingleSegMrk": true,
 					//
-					// Disabled: okapi outputs literal UTF-8 for non-ASCII
-					// text content (Manual-12-AltTrans `Ţēxţ`, RB-11
-					// `Ƥàŕàĝŕàƥĥē`, SF-12-Test02 `Versión`). The flag
-					// remains for future use against fixtures where okapi
-					// does emit `&#xNNNN;` (still under investigation).
-					// "escapeNonASCIIAsEntities": true,
+					// Mirrors okapi XMLEncoder._encode (XMLEncoder.java:101-110):
+					// charset-aware entity escaping ONLY fires when the source
+					// declared a non-UTF-8 encoding. The writer reads the
+					// per-layer `xliff:source-encoding` property: when set
+					// (e.g. SF-12-Test03 declared windows-1252), chars > U+00FF
+					// are emitted as `&#xNNNN;` entities; when absent
+					// (Manual-12-AltTrans, RB-11, SF-12-Test02 — all UTF-8
+					// sources), literal UTF-8 passes through. So this flag is
+					// safe to enable globally — it's an automatic no-op for
+					// UTF-8 sources.
+					"escapeBeyondLatin1AsEntities": true,
 				},
 			},
 			skip: map[string]fileSkip{

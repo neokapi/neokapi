@@ -6,6 +6,9 @@ import (
 	"regexp"
 	"strings"
 	"unicode/utf8"
+
+	"golang.org/x/text/encoding"
+	"golang.org/x/text/encoding/ianaindex"
 )
 
 // canonicalBCP47 normalizes a BCP-47 language tag to its canonical
@@ -26,35 +29,41 @@ func canonicalBCP47(tag string) string {
 	return strings.Join(parts, "-")
 }
 
-// escapeNonASCIIAsEntities replaces every non-ASCII rune in s with its
-// XML numeric character reference `&#xNNNN;` (lowercase hex, no
-// padding above 4 digits). ASCII bytes pass through unchanged. This
-// mirrors okapi's XLIFFWriter behavior of writing all chars > U+007F
-// as numeric entities regardless of declared output encoding.
+// escapeUnencodableAsEntities replaces every rune in s that the given
+// encoder cannot represent with its XML numeric character reference
+// `&#xNNNN;` (lowercase hex, 4-digit padding for ≤0xFFFF). Encodable
+// chars (and all ASCII) pass through unchanged.
 //
-// Used by OkapiCompatConfig.EscapeNonASCIIAsEntities. Applied AFTER
-// the standard XML attribute/text escaping (it operates on the
-// rendered string, replacing UTF-8 sequences with entities). Pre-
-// existing `&...;` entities are left alone since they're already
-// ASCII-only.
-func escapeNonASCIIAsEntities(s string) string {
-	if s == "" {
+// Mirrors okapi's XMLEncoder._encode behavior (XMLEncoder.java:191-213):
+// when the source-declared encoding is non-UTF-8 (windows-1252,
+// ISO-8859-1, …), chars not representable in the declared charset are
+// emitted as numeric entities. ALL Latin-1 chars and the windows-1252
+// "Windows extension" chars in the C1 range (e.g. U+0192 ƒ, U+2026 …,
+// U+20AC €) are encodable as windows-1252 single bytes and stay literal;
+// other chars (Latin Extended-A/B, CJK, …) are escaped.
+//
+// Used by OkapiCompatConfig.EscapeBeyondLatin1AsEntities (the flag
+// name reflects the typical case but the actual rule is encoder-driven).
+// Applied AFTER standard XML attribute/text escaping; pre-existing
+// `&…;` entities are ASCII-only and stay literal.
+func escapeUnencodableAsEntities(s string, enc *encoding.Encoder) string {
+	if s == "" || enc == nil {
 		return s
 	}
-	allASCII := true
-	for i := 0; i < len(s); i++ {
-		if s[i] >= 0x80 {
-			allASCII = false
+	hasUnencodable := false
+	for _, r := range s {
+		if r >= 0x80 && !canEncode(enc, r) {
+			hasUnencodable = true
 			break
 		}
 	}
-	if allASCII {
+	if !hasUnencodable {
 		return s
 	}
 	var b strings.Builder
 	b.Grow(len(s))
 	for _, r := range s {
-		if r < 0x80 {
+		if r < 0x80 || canEncode(enc, r) {
 			b.WriteRune(r)
 			continue
 		}
@@ -65,6 +74,33 @@ func escapeNonASCIIAsEntities(s string) string {
 		}
 	}
 	return b.String()
+}
+
+// canEncode reports whether enc can represent the single rune r.
+// Encoders are not safe for concurrent use, but our writer paths each
+// build their own encoder once per write and call canEncode many times,
+// so the encoder lifetime here matches a single Write call.
+func canEncode(enc *encoding.Encoder, r rune) bool {
+	if r < 0x80 {
+		return true
+	}
+	_, err := enc.String(string(r))
+	return err == nil
+}
+
+// encoderForCharset returns an Encoder for the named IANA charset, or
+// nil when the name is empty / UTF-8 / unknown. The writer uses this
+// for the okapi-compat encoding-conditional escape: a non-nil encoder
+// means "escape chars this encoder cannot handle".
+func encoderForCharset(name string) *encoding.Encoder {
+	if name == "" || strings.EqualFold(name, "UTF-8") || strings.EqualFold(name, "UTF8") {
+		return nil
+	}
+	enc, err := ianaindex.IANA.Encoding(name)
+	if err != nil || enc == nil {
+		return nil
+	}
+	return enc.NewEncoder()
 }
 
 // stripCDataCREntities removes &#xD; (carriage return numeric refs)
@@ -639,4 +675,46 @@ var (
 // equivalent for our regex post-processing context.
 func bytesLastIndexString(b []byte, s string) int {
 	return strings.LastIndex(string(b), s)
+}
+
+// stripApprovedFromTransUnits removes the `approved="…"` attribute from
+// each `<trans-unit>` start tag whose document-order index is true in
+// noTargetByIndex. The bitmask must be in the same order the trans-units
+// appear in `b` (which is the same order the writer collected blocks).
+// Indexing by position rather than by id is required because XLIFF
+// allows duplicate trans-unit ids (e.g. SF-12-Test03 has two with
+// id="1"), and the strip rule is per-occurrence based on each unit's
+// own source target presence.
+//
+// Walks each trans-unit span via rewriteTransUnitSpans (depth-tracked)
+// and rewrites only the start tag — body content (including any
+// `approved` attribute that might appear on nested elements) is left
+// alone. Trans-units past the end of noTargetByIndex are left alone
+// (defensive — should never happen since the writer builds the mask
+// from the same w.blocks list whose trans-unit start tags appear in b).
+//
+// Used by OkapiCompatConfig.StripApprovedWhenNoSourceTarget.
+func stripApprovedFromTransUnits(b []byte, noTargetByIndex []bool) []byte {
+	if len(noTargetByIndex) == 0 {
+		return b
+	}
+	approvedAttrRE := innerAttrRE("approved")
+	idx := 0
+	return rewriteTransUnitSpans(b, func(span []byte) []byte {
+		thisIdx := idx
+		idx++
+		if thisIdx >= len(noTargetByIndex) || !noTargetByIndex[thisIdx] {
+			return span
+		}
+		end := bytes.IndexByte(span, '>')
+		if end < 0 {
+			return span
+		}
+		startTag := span[:end+1]
+		newStart := approvedAttrRE.ReplaceAll(startTag, nil)
+		out := make([]byte, 0, len(span)-len(startTag)+len(newStart))
+		out = append(out, newStart...)
+		out = append(out, span[end+1:]...)
+		return out
+	})
 }
