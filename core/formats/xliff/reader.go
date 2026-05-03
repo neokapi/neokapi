@@ -322,6 +322,7 @@ type parsedTransUnit struct {
 
 	source    string    // raw inner XML of <source>
 	target    string    // raw inner XML of <target>
+	targetLang string   // xml:lang attribute on <target> (when <file> has no target-language)
 	segSource []segment // parsed <seg-source> segments
 
 	notes    []parsedNote
@@ -404,6 +405,12 @@ func (r *Reader) parseTransUnit(decoder *xml.Decoder, start xml.StartElement, fi
 				}
 			case "target":
 				startOff := decoder.InputOffset()
+				for _, a := range t.Attr {
+					if a.Name.Local == "lang" && (a.Name.Space == "xml" || a.Name.Space == "http://www.w3.org/XML/1998/namespace") {
+						tu.targetLang = a.Value
+						break
+					}
+				}
 				inner, closeOff := readInnerXML(decoder)
 				tu.target = inner
 				depth--
@@ -746,9 +753,17 @@ func (r *Reader) buildBlock(tu *parsedTransUnit, sourceLang, targetLang model.Lo
 		block.Source = []*model.Segment{model.NewRunsSegment("s1", parseInlineContent(tu.source))}
 	}
 
-	// Build target segments
+	// Build target segments. Prefer the file's target-language; fall
+	// back to the <target xml:lang="..."> attribute when the file
+	// element didn't declare a language. okapi reads the existing
+	// target regardless of the <file> attribute, so storing it here
+	// lets pseudo-translate find an existing target as the base.
 	targetContent := tu.target
-	if targetContent != "" && !targetLang.IsEmpty() {
+	effectiveTargetLang := targetLang
+	if effectiveTargetLang.IsEmpty() && tu.targetLang != "" {
+		effectiveTargetLang = model.LocaleID(tu.targetLang)
+	}
+	if targetContent != "" && !effectiveTargetLang.IsEmpty() {
 		// Check if target has mrk segments
 		targetSegs := parseMrkSegmentsFromString(targetContent)
 		if len(targetSegs) > 0 {
@@ -756,9 +771,9 @@ func (r *Reader) buildBlock(tu *parsedTransUnit, sourceLang, targetLang model.Lo
 			for i, seg := range targetSegs {
 				tgtSegs[i] = model.NewRunsSegment(seg.mid, parseInlineContent(seg.text))
 			}
-			block.Targets[targetLang] = tgtSegs
+			block.Targets[effectiveTargetLang] = tgtSegs
 		} else {
-			block.Targets[targetLang] = []*model.Segment{model.NewRunsSegment("s1", parseInlineContent(targetContent))}
+			block.Targets[effectiveTargetLang] = []*model.Segment{model.NewRunsSegment("s1", parseInlineContent(targetContent))}
 		}
 	}
 
