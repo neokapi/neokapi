@@ -458,13 +458,6 @@ func coverageScans() []formatScan {
 			// — both sides round-trip through gopkg.in/yaml.v3.
 			normalizer: roundtrip.YAMLCanonical{},
 			skip: map[string]fileSkip{
-				// snakeyaml recursion fixtures: native YAML reader
-				// doesn't bound its alias resolution and loops
-				// forever — real native bug worth a fix.
-				"beanring-3.yaml":           {Engines: []string{"native"}, Reason: "native YAML reader hangs on self-referencing anchors"},
-				"no-children-1.yaml":        {Engines: []string{"native"}, Reason: "native YAML reader hangs on self-referencing anchors"},
-				"no-children-2.yaml":        {Engines: []string{"native"}, Reason: "native YAML reader hangs on self-referencing anchors"},
-				"scalar_sample.yml":         {Engines: []string{"native"}, Reason: "native YAML reader hangs on self-referencing anchors"},
 				"no-children-1-pretty.yaml": {Engines: []string{"okapi"}, Reason: "Okapi YAML parser rejects !!timestamp tag"},
 				"Test03.yml":                {Engines: []string{"okapi"}, Reason: "Okapi YAML parser rejects !!timestamp tag"},
 			},

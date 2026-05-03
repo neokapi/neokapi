@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+	"time"
 
 	yamlfmt "github.com/neokapi/neokapi/core/formats/yaml"
 	"github.com/neokapi/neokapi/core/internal/testutil"
@@ -1255,6 +1256,30 @@ func TestReadRecursiveStructure(t *testing.T) {
 	assert.Contains(t, texts, "value1")
 	assert.Contains(t, texts, "value2")
 	assert.Contains(t, texts, "value3")
+}
+
+// TestReadSelfReferentialAnchor guards against the snakeyaml-style fixtures
+// (beanring, no-children) where a mapping's value aliases back to its own
+// root. Without cycle detection the reader recurses forever.
+func TestReadSelfReferentialAnchor(t *testing.T) {
+	t.Parallel()
+	input := `&id001
+self: *id001
+name: leaf
+`
+	done := make(chan struct{})
+	var blocks []*model.Block
+	go func() {
+		defer close(done)
+		blocks = readYAML(t, input)
+	}()
+	select {
+	case <-done:
+	case <-time.After(5 * time.Second):
+		t.Fatal("yaml reader hung on self-referential anchor")
+	}
+	texts := blockTexts(blocks)
+	assert.Contains(t, texts, "leaf")
 }
 
 // --- Line continuation tests ---

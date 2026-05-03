@@ -142,7 +142,7 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 				ch <- model.PartResult{Error: fmt.Errorf("yaml: parsing: %w", err)}
 				return
 			}
-			r.collectScalarRanges(ctx, ch, &node, nil, &blockCounter, content, lineOffsets, &ranges)
+			r.collectScalarRanges(ctx, ch, &node, nil, &blockCounter, content, lineOffsets, &ranges, nil)
 		}
 
 		// Build skeleton from raw bytes and collected ranges.
@@ -157,7 +157,7 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 				ch <- model.PartResult{Error: fmt.Errorf("yaml: parsing: %w", err)}
 				return
 			}
-			r.walkNode(ctx, ch, &node, nil, &blockCounter)
+			r.walkNode(ctx, ch, &node, nil, &blockCounter, nil)
 		}
 	}
 
@@ -196,14 +196,20 @@ func lineColToOffset(lineOffsets []int, line, col int) int {
 // scalar byte ranges while also emitting Part events to the channel. This
 // mirrors walkNode but additionally records byte positions for skeleton
 // construction.
+//
+// `visiting` tracks alias targets currently on the recursion stack so
+// self-referential anchors (e.g. snakeyaml's beanring fixtures where a
+// mapping's value aliases back to its own root) terminate instead of
+// looping forever.
 func (r *Reader) collectScalarRanges(ctx context.Context, ch chan<- model.PartResult,
 	node *yamlv3.Node, path []string, blockCounter *int,
-	content []byte, lineOffsets []int, ranges *[]scalarRange) {
+	content []byte, lineOffsets []int, ranges *[]scalarRange,
+	visiting map[*yamlv3.Node]bool) {
 
 	switch node.Kind {
 	case yamlv3.DocumentNode:
 		for _, child := range node.Content {
-			r.collectScalarRanges(ctx, ch, child, path, blockCounter, content, lineOffsets, ranges)
+			r.collectScalarRanges(ctx, ch, child, path, blockCounter, content, lineOffsets, ranges, visiting)
 		}
 
 	case yamlv3.MappingNode:
@@ -212,22 +218,28 @@ func (r *Reader) collectScalarRanges(ctx context.Context, ch chan<- model.PartRe
 			valNode := node.Content[i+1]
 			key := keyNode.Value
 			newPath := append(append([]string{}, path...), key)
-			r.collectScalarRanges(ctx, ch, valNode, newPath, blockCounter, content, lineOffsets, ranges)
+			r.collectScalarRanges(ctx, ch, valNode, newPath, blockCounter, content, lineOffsets, ranges, visiting)
 		}
 
 	case yamlv3.SequenceNode:
 		for i, child := range node.Content {
 			indexPath := append(append([]string{}, path...), fmt.Sprintf("[%d]", i))
-			r.collectScalarRanges(ctx, ch, child, indexPath, blockCounter, content, lineOffsets, ranges)
+			r.collectScalarRanges(ctx, ch, child, indexPath, blockCounter, content, lineOffsets, ranges, visiting)
 		}
 
 	case yamlv3.ScalarNode:
 		r.collectScalarRange(ctx, ch, node, path, blockCounter, content, lineOffsets, ranges)
 
 	case yamlv3.AliasNode:
-		if node.Alias != nil {
-			r.collectScalarRanges(ctx, ch, node.Alias, path, blockCounter, content, lineOffsets, ranges)
+		if node.Alias == nil || visiting[node.Alias] {
+			return
 		}
+		if visiting == nil {
+			visiting = map[*yamlv3.Node]bool{}
+		}
+		visiting[node.Alias] = true
+		r.collectScalarRanges(ctx, ch, node.Alias, path, blockCounter, content, lineOffsets, ranges, visiting)
+		delete(visiting, node.Alias)
 	}
 }
 
@@ -538,12 +550,17 @@ func (r *Reader) buildSkeleton(content []byte, ranges []scalarRange) {
 	r.skelFlush()
 }
 
-func (r *Reader) walkNode(ctx context.Context, ch chan<- model.PartResult, node *yamlv3.Node, path []string, blockCounter *int) {
+// walkNode emits scalar Parts from the parsed YAML tree.
+//
+// `visiting` tracks alias targets currently on the recursion stack so
+// self-referential anchors terminate instead of looping forever (see
+// collectScalarRanges for the same pattern).
+func (r *Reader) walkNode(ctx context.Context, ch chan<- model.PartResult, node *yamlv3.Node, path []string, blockCounter *int, visiting map[*yamlv3.Node]bool) {
 	switch node.Kind {
 	case yamlv3.DocumentNode:
 		// Multi-document: each document node wraps content
 		for _, child := range node.Content {
-			r.walkNode(ctx, ch, child, path, blockCounter)
+			r.walkNode(ctx, ch, child, path, blockCounter, visiting)
 		}
 
 	case yamlv3.MappingNode:
@@ -552,23 +569,28 @@ func (r *Reader) walkNode(ctx context.Context, ch chan<- model.PartResult, node 
 			valNode := node.Content[i+1]
 			key := keyNode.Value
 			newPath := append(append([]string{}, path...), key)
-			r.walkNode(ctx, ch, valNode, newPath, blockCounter)
+			r.walkNode(ctx, ch, valNode, newPath, blockCounter, visiting)
 		}
 
 	case yamlv3.SequenceNode:
 		for i, child := range node.Content {
 			indexPath := append(append([]string{}, path...), fmt.Sprintf("[%d]", i))
-			r.walkNode(ctx, ch, child, indexPath, blockCounter)
+			r.walkNode(ctx, ch, child, indexPath, blockCounter, visiting)
 		}
 
 	case yamlv3.ScalarNode:
 		r.emitScalar(ctx, ch, node, path, blockCounter)
 
 	case yamlv3.AliasNode:
-		// Resolve aliases by walking the anchor target
-		if node.Alias != nil {
-			r.walkNode(ctx, ch, node.Alias, path, blockCounter)
+		if node.Alias == nil || visiting[node.Alias] {
+			return
 		}
+		if visiting == nil {
+			visiting = map[*yamlv3.Node]bool{}
+		}
+		visiting[node.Alias] = true
+		r.walkNode(ctx, ch, node.Alias, path, blockCounter, visiting)
+		delete(visiting, node.Alias)
 	}
 }
 
