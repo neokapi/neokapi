@@ -110,6 +110,17 @@ func pickPseudoBase(b *model.Block, tgt model.LocaleID) []*model.Segment {
 	if existing, ok := b.Targets[tgt]; ok && segmentsHaveText(existing) {
 		return existing
 	}
+	// Fall back to any existing target. Bilingual formats (ts, tmx,
+	// xliff with existing translation, po with existing msgstr in a
+	// non-test locale) carry an existing translation under a locale
+	// other than the test target. Okapi's TextModificationStep takes
+	// the file's target language as the base in that case, so picking
+	// any non-empty target keeps native and okapi in agreement.
+	for _, segs := range b.Targets {
+		if segmentsHaveText(segs) {
+			return segs
+		}
+	}
 	if len(b.Source) > 0 {
 		return b.Source
 	}

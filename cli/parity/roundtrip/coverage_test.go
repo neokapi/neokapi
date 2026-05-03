@@ -376,6 +376,7 @@ func coverageScans() []formatScan {
 			filterClass:       "okf_wiki",
 			sources:           []string{"integration-tests/okapi/src/test/resources/wikitext"},
 			extensions:        []string{".wiki"},
+			normalizer:        roundtrip.IgnoreTrailingNewline{},
 		},
 
 		// ── Key-value & structured data ───────────────────────────
