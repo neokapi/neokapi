@@ -72,7 +72,89 @@ var paragraphTextCommands = map[string]bool{
 	"caption":       true,
 }
 
+// accentMap maps LaTeX accent commands to their Unicode equivalent.
+// Mirrors a subset of Okapi TEXEncoder's reset() map — only the
+// entries actually exercised by the upstream fixture set are listed
+// here. Both the brace and braceless forms are recognised
+// (`\={a}` and `\=a` both → ā). Special forms `\={\i}` / `\=\i`
+// (dotless i with macron) map to ī.
+//
+// On extraction the matched bytes are replaced with the Unicode
+// character, producing the same source text Okapi emits after its
+// writer-side TEXEncoder.convertCodesToLetters pass. Without this,
+// accent commands survive into the translatable text stream and end
+// up either pseudo-translated (`\={\i}` → `\={\ĩ}` because pseudo
+// hits the bare `i`) or rendered raw, both diverging from the okapi
+// reference for fixtures that mix accent commands and translatable
+// surrounding text.
+var accentMap = map[string]string{
+	// \v{X} caron (háček) — selected entries.
+	`\v{S}`: "Š", `\v{s}`: "š",
+	`\v{C}`: "Č", `\v{c}`: "č",
+	`\v{Z}`: "Ž", `\v{z}`: "ž",
+	`\v{N}`: "Ň", `\v{n}`: "ň",
+	`\v{R}`: "Ř", `\v{r}`: "ř",
+	`\v{T}`: "Ť", `\v{t}`: "ť",
+	`\v{D}`: "Ď", `\v{d}`: "ď",
+	`\v{L}`: "Ľ", `\v{l}`: "ľ",
+	`\v{E}`: "Ě", `\v{e}`: "ě",
+	`\v S`: "Š", `\v s`: "š",
+	`\v C`: "Č", `\v c`: "č",
+	`\v Z`: "Ž", `\v z`: "ž",
+	// \={X} macron — selected entries.
+	`\={A}`: "Ā", `\={a}`: "ā",
+	`\={E}`: "Ē", `\={e}`: "ē",
+	`\={I}`: "Ī",
+	`\={O}`: "Ō", `\={o}`: "ō",
+	`\={U}`: "Ū", `\={u}`: "ū",
+	`\={\i}`: "ī",
+	`\=A`:    "Ā", `\=a`: "ā",
+	`\=E`: "Ē", `\=e`: "ē",
+	`\=I`: "Ī",
+	`\=O`: "Ō", `\=o`: "ō",
+	`\=U`: "Ū", `\=u`: "ū",
+	`\=\i`: "ī",
+}
+
+// matchAccentAt returns the Unicode replacement and the byte length
+// of the matched LaTeX accent command starting at p.source[start],
+// or ("", 0) when no entry in accentMap matches. Longest-match wins
+// — `\={\i}` is preferred over `\={\` (which doesn't exist) and
+// `\=A` over `\=` alone — so the caller can advance p.pos by the
+// returned length to consume the original bytes.
+func (p *parser) matchAccentAt(start int) (string, int) {
+	if start >= len(p.source) || p.source[start] != '\\' {
+		return "", 0
+	}
+	// Try lengths up to 8 bytes (`\={X}` is 5; `\v{X}` is 5; `\={\i}` is 6).
+	maxLen := 8
+	if start+maxLen > len(p.source) {
+		maxLen = len(p.source) - start
+	}
+	bestVal := ""
+	bestLen := 0
+	for n := 2; n <= maxLen; n++ {
+		key := p.source[start : start+n]
+		if v, ok := accentMap[key]; ok {
+			if n > bestLen {
+				bestVal = v
+				bestLen = n
+			}
+		}
+	}
+	return bestVal, bestLen
+}
+
 // nonTranslatableEnvironments that should be emitted as Data.
+//
+// table / table* / figure / figure* mirror Okapi TEXFilter's
+// processTable / processFigure: the entire `\begin{table}…\end{table}`
+// (or figure) span — including any nested `\caption`, `\label`, or
+// `\begin{tabular}` content — is captured as one document part.
+// Translatable text inside these structural environments is heuristic
+// at best (column headers, table cells, captions are often pure data),
+// and matching Okapi's "the whole table is opaque" stance keeps body
+// paragraph extraction byte-equal on shared fixtures.
 var nonTranslatableEnvironments = map[string]bool{
 	"verbatim":    true,
 	"lstlisting":  true,
@@ -88,6 +170,10 @@ var nonTranslatableEnvironments = map[string]bool{
 	"eqnarray*":   true,
 	"math":        true,
 	"displaymath": true,
+	"table":       true,
+	"table*":      true,
+	"figure":      true,
+	"figure*":     true,
 }
 
 // headerTextCommands are commands in the preamble whose arguments ARE
@@ -218,9 +304,45 @@ func (p *parser) parse(ctx context.Context, ch chan<- model.PartResult, r *Reade
 	var rawBuf strings.Builder // raw TeX for Data reconstruction
 	textStartPos := -1         // source position where text accumulation started
 
+	// bodyRuns accumulates inline-code runs (PcOpen/PcClose for \emph,
+	// \textbf, …) for the current body paragraph. textBuf accumulates
+	// plain text between code runs. When an inline-text command is
+	// encountered, the current textBuf is flushed to bodyRuns as a
+	// TextRun, then PcOpen / inner runs / PcClose runs are appended.
+	// On flushText, the final textBuf flushes to bodyRuns and a
+	// NewRunsBlock is emitted (or NewBlock when bodyRuns is empty —
+	// preserving the simple-paragraph fast path verbatim).
+	var bodyRuns []model.Run
+	pcCounter := 0
+
+	flushBodyText := func() {
+		if textBuf.Len() > 0 {
+			bodyRuns = append(bodyRuns, model.Run{Text: &model.TextRun{Text: textBuf.String()}})
+			textBuf.Reset()
+		}
+	}
+
 	flushText := func() {
 		raw := textBuf.String()
-		text := strings.TrimSpace(raw)
+		// When bodyRuns has accumulated inline codes (e.g. \emph spans),
+		// render the full sequence for trim / empty checks. Otherwise
+		// the simple-paragraph path (textBuf only) keeps the previous
+		// behavior byte-for-byte.
+		hasRuns := len(bodyRuns) > 0
+		var fullText string
+		if hasRuns {
+			var sb strings.Builder
+			for _, r := range bodyRuns {
+				if r.Text != nil {
+					sb.WriteString(r.Text.Text)
+				}
+			}
+			sb.WriteString(raw)
+			fullText = sb.String()
+		} else {
+			fullText = raw
+		}
+		text := strings.TrimSpace(fullText)
 		if text != "" {
 			// Trailing whitespace eaten by TrimSpace lives in the
 			// inter-block skeleton: the writer renders only the trimmed
@@ -228,10 +350,56 @@ func (p *parser) parse(ctx context.Context, ch chan<- model.PartResult, r *Reade
 			// that separated the text from the next data part vanish.
 			// Leading whitespace stays with the block's rawSource and
 			// is re-applied via extractLeadingWhitespace in the writer.
-			trailingWS := raw[len(strings.TrimRight(raw, " \t\n\r")):]
+			leadingWS := fullText[:len(fullText)-len(strings.TrimLeft(fullText, " \t\n\r"))]
+			trailingWS := fullText[len(strings.TrimRight(fullText, " \t\n\r")):]
 			p.blockCounter++
 			blockID := fmt.Sprintf("tu%d", p.blockCounter)
-			block := model.NewBlock(blockID, text)
+			var block *model.Block
+			if hasRuns {
+				// Build runs: bodyRuns + tail textBuf, then strip
+				// leading WS from the first text run and trailing WS
+				// from the last text run. Both go to skeleton (leading
+				// is preserved via the writer's extractLeadingWhitespace
+				// on tex.rawSource; trailing is emitted right after the
+				// block ref). Without this, the WS would survive
+				// pseudo-translation inside the run and double up
+				// against the writer's prefix/skeleton mechanisms.
+				runs := append([]model.Run(nil), bodyRuns...)
+				if textBuf.Len() > 0 {
+					tail := raw
+					if trailingWS != "" && strings.HasSuffix(tail, trailingWS) {
+						tail = tail[:len(tail)-len(trailingWS)]
+					}
+					if tail != "" {
+						runs = append(runs, model.Run{Text: &model.TextRun{Text: tail}})
+					}
+				} else if trailingWS != "" && len(runs) > 0 {
+					// Trailing WS was inside the last bodyRun text.
+					last := &runs[len(runs)-1]
+					if last.Text != nil && strings.HasSuffix(last.Text.Text, trailingWS) {
+						last.Text = &model.TextRun{Text: last.Text.Text[:len(last.Text.Text)-len(trailingWS)]}
+					}
+				}
+				if leadingWS != "" && len(runs) > 0 {
+					first := &runs[0]
+					if first.Text != nil && strings.HasPrefix(first.Text.Text, leadingWS) {
+						first.Text = &model.TextRun{Text: first.Text.Text[len(leadingWS):]}
+					}
+				}
+				// Drop any empty TextRuns that result from trim
+				// stripping all of a run's content.
+				cleaned := runs[:0]
+				for _, run := range runs {
+					if run.Text != nil && run.Text.Text == "" {
+						continue
+					}
+					cleaned = append(cleaned, run)
+				}
+				runs = cleaned
+				block = model.NewRunsBlock(blockID, runs)
+			} else {
+				block = model.NewBlock(blockID, text)
+			}
 			block.Name = fmt.Sprintf("para%d", p.blockCounter)
 			// For skeleton: the bytes between lastSkelPos and the
 			// position where translatable text actually started belong
@@ -277,6 +445,8 @@ func (p *parser) parse(ctx context.Context, ch chan<- model.PartResult, r *Reade
 		}
 		textBuf.Reset()
 		rawBuf.Reset()
+		bodyRuns = nil
+		pcCounter = 0
 		textStartPos = -1
 	}
 
@@ -356,6 +526,24 @@ func (p *parser) parse(ctx context.Context, ch chan<- model.PartResult, r *Reade
 
 		// Backslash commands
 		if ch0 == '\\' {
+			// Accent commands (\v{S}, \={\i}, \=A, …) — match against
+			// the static accentMap and substitute the Unicode char
+			// directly into the body text. Must be done BEFORE the
+			// generic command-dispatch path below: `\v{S}` would
+			// otherwise be classified as an unknown command and split
+			// the paragraph on its `\v{S}` tokens, leaving the
+			// surrounding `\=` accent fragments stranded as raw text.
+			// Mirrors Okapi TEXEncoder.convertCodesToLetters which
+			// runs on the writer side; doing it here keeps Block
+			// source text aligned with okapi's emitted text.
+			if val, n := p.matchAccentAt(p.pos); n > 0 {
+				if textStartPos < 0 {
+					textStartPos = p.pos
+				}
+				textBuf.WriteString(val)
+				p.pos += n
+				continue
+			}
 			cmd, cmdEnd := p.peekCommand()
 			if cmd != "" {
 				// Display math \[...\]
@@ -499,14 +687,53 @@ func (p *parser) parse(ctx context.Context, ch chan<- model.PartResult, r *Reade
 					continue
 				}
 
-				// Inline-text commands — argument text is part of current paragraph
+				// Inline-text commands — argument text is part of the
+				// current paragraph but with PcOpen/PcClose markers
+				// around the inner content so pseudo-translation leaves
+				// the command bytes alone (mirrors Okapi TEXFilter's
+				// processOneArgInlineText: emit `\cmd{` as opening Code,
+				// inner text as text, `}` as closing Code).
 				if inlineTextCommands[cmd] {
 					if textStartPos < 0 {
 						textStartPos = p.pos
 					}
+					cmdStart := p.pos
 					p.pos = cmdEnd
-					arg := p.readBraceArgContent(&textBuf, cmd)
-					_ = arg
+					// Look for the opening brace (skip optional inter-
+					// vening spaces — match readBraceArgContent's
+					// skipSpaces).
+					p.skipSpaces()
+					if p.pos >= len(p.source) || p.source[p.pos] != '{' {
+						// No brace argument — fall back to flattening
+						// just the command name into text.
+						textBuf.WriteString(p.source[cmdStart:p.pos])
+						continue
+					}
+					// Capture opening "\cmd{" verbatim as PcOpen Data.
+					// p.pos now points at '{'.
+					openData := p.source[cmdStart : p.pos+1]
+					p.pos++ // consume '{'
+					flushBodyText()
+					pcCounter++
+					pcID := fmt.Sprintf("c%d", pcCounter)
+					bodyRuns = append(bodyRuns, model.Run{PcOpen: &model.PcOpenRun{
+						ID:    pcID,
+						Type:  "tex:inline",
+						Data:  openData,
+						Equiv: cmd,
+					}})
+					// Read inner content into textBuf / nested runs
+					// until the matching closing brace.
+					p.readInlineCmdInner(&textBuf, &bodyRuns, &pcCounter, flushBodyText)
+					// Append PcClose with Data="}".
+					flushBodyText()
+					closeData := "}"
+					bodyRuns = append(bodyRuns, model.Run{PcClose: &model.PcCloseRun{
+						ID:    pcID,
+						Type:  "tex:inline",
+						Data:  closeData,
+						Equiv: cmd,
+					}})
 					continue
 				}
 
@@ -571,10 +798,26 @@ func (p *parser) parse(ctx context.Context, ch chan<- model.PartResult, r *Reade
 					textBuf.WriteString(`\\`)
 					p.pos += 2
 					continue
-				case '&', '%', '$', '#', '_', '{', '}': // escaped special chars
+				case '&', '%', '$', '#', '_', '{', '}':
+					// Escaped reserved characters — model as a leading
+					// `\` Ph (carrying the backslash byte verbatim)
+					// followed by the literal char in TextRun. The Ph
+					// keeps the escape out of the TextRun so it
+					// survives pseudo-translation as an opaque code,
+					// while the TextRun ensures Block.SourceText() sees
+					// the decoded literal (matches the spec contract:
+					// `\%` → `%` extracted, `\%` rendered on output).
 					if textStartPos < 0 {
 						textStartPos = p.pos
 					}
+					flushBodyText()
+					pcCounter++
+					bodyRuns = append(bodyRuns, model.Run{Ph: &model.PlaceholderRun{
+						ID:    fmt.Sprintf("c%d", pcCounter),
+						Type:  "tex:escape",
+						Data:  `\`,
+						Equiv: "",
+					}})
 					textBuf.WriteByte(next)
 					p.pos += 2
 					continue
@@ -789,6 +1032,111 @@ func (p *parser) readBraceArgRuns() []model.Run {
 	}
 	flushText()
 	return runs
+}
+
+// readInlineCmdInner reads the content of an inline-text command's
+// brace argument (e.g. the `…` in `\emph{…}`), starting just AFTER
+// the opening `{`. Plain text accumulates into textBuf; nested
+// inline-text commands emit nested PcOpen/PcClose pairs into runs;
+// unknown / no-text embedded commands emit Ph runs whose Data field
+// carries the raw TeX bytes verbatim. Advances p.pos past the
+// matching `}` (which is consumed; the caller emits its own PcClose
+// using "}" as Data).
+//
+// The flushBodyText callback is the parent paragraph's textBuf →
+// runs flush — required so nested code runs land between parent text
+// chunks in the right order.
+func (p *parser) readInlineCmdInner(textBuf *strings.Builder, runs *[]model.Run, pcCounter *int, flushBodyText func()) {
+	depth := 1
+	for p.pos < len(p.source) && depth > 0 {
+		ch := p.source[p.pos]
+		// Embedded backslash sequence — peek to classify.
+		if ch == '\\' {
+			cmd, cmdEnd := p.peekCommand()
+			if cmd == "" {
+				// Bare backslash; treat as text (e.g. `\\` line break
+				// is handled by the parent loop, but inside braces a
+				// stray '\' just becomes literal).
+				textBuf.WriteByte('\\')
+				p.pos++
+				continue
+			}
+			// Nested inline-text command: emit a paired PcOpen/PcClose
+			// around its inner content.
+			if inlineTextCommands[cmd] {
+				cmdStart := p.pos
+				p.pos = cmdEnd
+				p.skipSpaces()
+				if p.pos >= len(p.source) || p.source[p.pos] != '{' {
+					// No brace argument — flatten command name as text.
+					textBuf.WriteString(p.source[cmdStart:p.pos])
+					continue
+				}
+				openData := p.source[cmdStart : p.pos+1]
+				p.pos++ // consume '{'
+				flushBodyText()
+				*pcCounter++
+				pcID := fmt.Sprintf("c%d", *pcCounter)
+				*runs = append(*runs, model.Run{PcOpen: &model.PcOpenRun{
+					ID:    pcID,
+					Type:  "tex:inline",
+					Data:  openData,
+					Equiv: cmd,
+				}})
+				p.readInlineCmdInner(textBuf, runs, pcCounter, flushBodyText)
+				flushBodyText()
+				*runs = append(*runs, model.Run{PcClose: &model.PcCloseRun{
+					ID:    pcID,
+					Type:  "tex:inline",
+					Data:  "}",
+					Equiv: cmd,
+				}})
+				continue
+			}
+			// Unknown / no-text command — capture as a Ph run so its
+			// raw bytes (including any [opt] / {arg} sequences) splice
+			// back verbatim through RenderRunsWithData.
+			cmdStart := p.pos
+			p.pos = cmdEnd
+			p.skipOptionalArg()
+			for p.pos < len(p.source) && p.source[p.pos] == '{' {
+				p.readBraceArgRaw()
+			}
+			flushBodyText()
+			*pcCounter++
+			*runs = append(*runs, model.Run{Ph: &model.PlaceholderRun{
+				ID:    fmt.Sprintf("c%d", *pcCounter),
+				Type:  "tex:cmd",
+				Data:  p.source[cmdStart:p.pos],
+				Equiv: cmd,
+			}})
+			continue
+		}
+		switch ch {
+		case '{':
+			if p.pos == 0 || p.source[p.pos-1] != '\\' {
+				depth++
+			}
+			if depth > 1 {
+				textBuf.WriteByte(ch)
+			}
+			p.pos++
+		case '}':
+			if p.pos == 0 || p.source[p.pos-1] != '\\' {
+				depth--
+			}
+			if depth > 0 {
+				textBuf.WriteByte(ch)
+				p.pos++
+			} else {
+				// Matching closing brace — consume and exit.
+				p.pos++
+			}
+		default:
+			textBuf.WriteByte(ch)
+			p.pos++
+		}
+	}
 }
 
 // readBraceArgContent reads a brace argument and appends text to the builder,
