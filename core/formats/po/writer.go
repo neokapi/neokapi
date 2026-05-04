@@ -404,8 +404,43 @@ func quotePO(s string) string {
 	return "\"" + escapePO(s) + "\""
 }
 
-// escapePO escapes special characters for PO format.
+// escapePO escapes special characters for PO format. Regions wrapped
+// in escapeSkipStart/escapeSkipEnd sentinels are emitted verbatim — the
+// caller has already prepared them in PO escape form (Ph run Data such
+// as printf specifiers and `\r` / `\t` escape sequences).
 func escapePO(s string) string {
+	if !strings.ContainsRune(s, escapeSkipStart) {
+		return escapePOPlain(s)
+	}
+	var b strings.Builder
+	b.Grow(len(s))
+	for i := 0; i < len(s); {
+		if s[i] == escapeSkipStart {
+			end := strings.IndexByte(s[i+1:], escapeSkipEnd)
+			if end < 0 {
+				// Malformed sentinel pair — fall back to escaping the
+				// remainder so we never emit a literal control byte.
+				b.WriteString(escapePOPlain(s[i+1:]))
+				return b.String()
+			}
+			b.WriteString(s[i+1 : i+1+end])
+			i = i + 1 + end + 1
+			continue
+		}
+		// Escape the next contiguous non-sentinel run in one batch so
+		// ReplaceAll's bulk performance is preserved on long strings.
+		next := strings.IndexByte(s[i:], escapeSkipStart)
+		if next < 0 {
+			b.WriteString(escapePOPlain(s[i:]))
+			return b.String()
+		}
+		b.WriteString(escapePOPlain(s[i : i+next]))
+		i += next
+	}
+	return b.String()
+}
+
+func escapePOPlain(s string) string {
 	s = strings.ReplaceAll(s, "\\", "\\\\")
 	s = strings.ReplaceAll(s, "\"", "\\\"")
 	s = strings.ReplaceAll(s, "\n", "\\n")
@@ -428,20 +463,21 @@ func (w *Writer) blockText(block *model.Block) string {
 }
 
 // renderSource returns the source text with inline-code Data preserved
-// verbatim (e.g. printf specifiers `%s` extracted by the codeFinder come
-// back out as `%s`, not as their `{equiv}` placeholder form).
+// verbatim (e.g. printf specifiers `%s` extracted by the codeFinder
+// come back out as `%s`, not as their `{equiv}` placeholder form). Ph
+// data is wrapped in escapeSkipStart/escapeSkipEnd sentinels so
+// escapePO emits it untouched — without sentinels, escape sequences
+// like `\r` (a literal backslash + r carried by the Ph data) would
+// have their backslash double-escaped to `\\r` along with TextRun
+// backslashes.
 func renderSource(block *model.Block) string {
-	var buf strings.Builder
-	for _, seg := range block.Source {
-		if seg == nil {
-			continue
-		}
-		buf.WriteString(model.RenderRunsWithData(seg.Runs))
-	}
-	return buf.String()
+	return renderSegmentsWithSentinels(block.Source)
 }
 
-// renderTarget mirrors renderSource for a target locale.
+// renderTarget mirrors renderSource for a target locale. Returns the
+// empty string if the block has no target for the given locale (PO is
+// bilingual — untranslated entries keep an empty msgstr rather than
+// falling back to source text).
 func renderTarget(block *model.Block, locale model.LocaleID) string {
 	if locale == "" {
 		return ""
@@ -450,12 +486,40 @@ func renderTarget(block *model.Block, locale model.LocaleID) string {
 	if !ok {
 		return ""
 	}
+	return renderSegmentsWithSentinels(segs)
+}
+
+// escapeSkipStart and escapeSkipEnd bracket regions of text that
+// escapePO must emit verbatim (Ph run Data is already in PO escape
+// form). Use ASCII control bytes that never appear in PO source text.
+const (
+	escapeSkipStart = '\x01'
+	escapeSkipEnd   = '\x02'
+)
+
+// renderSegmentsWithSentinels walks a segment slice, emitting TextRun
+// content verbatim (newlines preserved so writeMultilineField can split
+// on them) and Ph Data wrapped in escape-skip sentinels. Other run
+// shapes fall back to RenderRunsWithData semantics on a single-run
+// slice so any future run types stay handled.
+func renderSegmentsWithSentinels(segs []*model.Segment) string {
 	var buf strings.Builder
 	for _, seg := range segs {
 		if seg == nil {
 			continue
 		}
-		buf.WriteString(model.RenderRunsWithData(seg.Runs))
+		for _, run := range seg.Runs {
+			switch {
+			case run.Ph != nil:
+				buf.WriteByte(escapeSkipStart)
+				buf.WriteString(run.Ph.Data)
+				buf.WriteByte(escapeSkipEnd)
+			case run.Text != nil:
+				buf.WriteString(run.Text.Text)
+			default:
+				buf.WriteString(model.RenderRunsWithData([]model.Run{run}))
+			}
+		}
 	}
 	return buf.String()
 }
