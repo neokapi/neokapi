@@ -532,6 +532,32 @@ func patchUnit(unitEl *etree.Element, block *model.Block, targetLang model.Local
 		}
 	}
 
+	// Capture pre-patch inline ids on every <target> in the unit. Okapi's
+	// Tag store remembers tags it parsed even after they're replaced (the
+	// store outlives a single Source/Target swap), so when Store.suggestId
+	// later picks a fresh ignorable id it skips not just live ids but the
+	// pre-replacement ghosts too. Without this, we synthesise ignorable
+	// ids one slot lower than okapi whenever a pseudo pass replaces a
+	// target whose inline used a higher-numbered id (icu_message: ph
+	// id="2" in the source target → ignorable id="3" in okapi vs "2" in
+	// native). See lib-xliff2 Store.suggestId/Unit.isIdUsed.
+	ghostIDs := map[string]bool{}
+	for _, segEl := range unitEl.ChildElements() {
+		if segEl.Tag != "segment" && segEl.Tag != "ignorable" {
+			continue
+		}
+		if tgtEl := segEl.SelectElement("target"); tgtEl != nil {
+			walkXliff2El(tgtEl, func(el *etree.Element) {
+				if el == tgtEl {
+					return
+				}
+				if id := attrValue(el, "id"); id != "" {
+					ghostIDs[id] = true
+				}
+			})
+		}
+	}
+
 	// xliff2 makes segment ids optional. Match DOM <segment>/<ignorable>
 	// elements to model.Segments by DOM id first, then fall back to
 	// document-order position. The reader synthesizes collision-free ids
@@ -596,7 +622,7 @@ func patchUnit(unitEl *etree.Element, block *model.Block, targetLang model.Local
 			// target when one was authored.
 			segState := attrValue(segEl, "state")
 			suppressTarget := segEl.Tag == "segment" &&
-				segmentTargetIsEmpty(modelTgt) &&
+				segmentTargetIsEmpty(modelTgt, tgtEl) &&
 				(segState == "" || segState == "initial")
 			if suppressTarget {
 				if tgtEl != nil {
@@ -631,6 +657,32 @@ func patchUnit(unitEl *etree.Element, block *model.Block, targetLang model.Local
 				}
 			}
 		}
+
+		// Drop the empty initial-state <target> from <segment> elements
+		// when the model target is also empty AND this segment was
+		// already going to be patched for some other reason. Okapi's
+		// XLIFF2 writer elides empty initial-state targets on round-
+		// trip — a missing <target> within a <segment> is the canonical
+		// "untranslated" representation (state defaults to "initial").
+		// Gating on prior-patched preserves the byte-equal-on-untouched
+		// contract: when a segment is otherwise unchanged we still emit
+		// its source <target></target> verbatim. Restricted to
+		// <segment>: <ignorable> targets carry inline whitespace/spans
+		// that may legitimately be empty-but-present.
+		if patched && segEl.Tag == "segment" && tgtEl != nil && segmentTargetIsEmpty(modelTgt, tgtEl) {
+			segEl.RemoveChild(tgtEl)
+		}
+	}
+
+	// Drop orphan <data> entries from <originalData> when no inline
+	// element references them. Okapi's xliff2 toolkit garbage-collects
+	// originalData after subfilter inlining and pseudo-translation: when
+	// a <ph dataRef="d2"/> in the source target is replaced (e.g. with
+	// the source-side <ph dataRef="d1"/>), the now-unreferenced
+	// <data id="d2"> is removed from the unit. Without this we keep the
+	// orphan and diverge by one element.
+	if patched {
+		pruneOrphanData(unitEl)
 	}
 
 	// Second pass — synthesise ids on unkeyed <ignorable> elements only
@@ -638,12 +690,15 @@ func patchUnit(unitEl *etree.Element, block *model.Block, targetLang model.Local
 	// true). This mirrors okapi's Store.suggestId(false): increment a
 	// counter starting from 1, retrying when the candidate collides
 	// with an in-use id elsewhere in the unit (segment/ignorable ids,
-	// inline element ids, originalData ids). Skipping when nothing else
-	// changed preserves the v2 byte-equal-on-untouched contract for
-	// fixtures whose source has unkeyed ignorables that the model
-	// didn't touch.
+	// inline element ids, originalData ids) OR a ghost id remembered
+	// from the pre-patch target. Skipping when nothing else changed
+	// preserves the v2 byte-equal-on-untouched contract for fixtures
+	// whose source has unkeyed ignorables that the model didn't touch.
 	if patched {
 		usedIDs := collectUsedUnitIDs(unitEl)
+		for id := range ghostIDs {
+			usedIDs[id] = true
+		}
 		ignorableIDCounter := 0
 		for _, segEl := range unitEl.ChildElements() {
 			if segEl.Tag != "ignorable" {
@@ -663,6 +718,79 @@ func patchUnit(unitEl *etree.Element, block *model.Block, targetLang model.Local
 	}
 
 	return patched
+}
+
+// segmentTargetIsEmpty reports whether tgtEl can be safely elided from a
+// <segment> because both the model target and the DOM target hold no
+// translatable content. The model side is considered empty when modelTgt
+// is nil or its Runs contain no text and no inline codes; the DOM side
+// is considered empty when the element has no element children and no
+// non-whitespace text content. Attributes (e.g. xml:space, state) on the
+// element itself are intentionally ignored — they only matter when the
+// element survives.
+func segmentTargetIsEmpty(modelTgt *model.Segment, tgtEl *etree.Element) bool {
+	if modelTgt != nil {
+		for _, r := range modelTgt.Runs {
+			if r.Text != nil && r.Text.Text != "" {
+				return false
+			}
+			if r.Text == nil {
+				// Any non-text run (Ph/PcOpen/PcClose/Sub/Plural/Select)
+				// counts as content even when the wrapping text is empty.
+				return false
+			}
+		}
+	}
+	if tgtEl == nil {
+		return true
+	}
+	if len(tgtEl.ChildElements()) > 0 {
+		return false
+	}
+	if strings.TrimSpace(domElementText(tgtEl)) != "" {
+		return false
+	}
+	return true
+}
+
+// pruneOrphanData removes <data> children of any <originalData> in the
+// unit whose id is not referenced by any inline element's dataRef /
+// dataRefStart / dataRefEnd attribute anywhere in the unit's
+// source/target trees. Mirrors okapi's xliff2 toolkit behaviour where
+// originalData entries that no longer back an inline code are dropped
+// on serialization (see lib-xliff2 Unit.checkOriginalData and the
+// XLIFF2Filter post-processing pass after pseudo-translation).
+//
+// When pruning empties an <originalData> element, the wrapper itself is
+// removed too — okapi never emits an empty <originalData/>.
+func pruneOrphanData(unitEl *etree.Element) {
+	referenced := map[string]bool{}
+	for _, child := range unitEl.ChildElements() {
+		if child.Tag == "originalData" {
+			continue
+		}
+		walkXliff2El(child, func(el *etree.Element) {
+			for _, attr := range []string{"dataRef", "dataRefStart", "dataRefEnd"} {
+				if v := attrValue(el, attr); v != "" {
+					referenced[v] = true
+				}
+			}
+		})
+	}
+	for _, odEl := range unitEl.SelectElements("originalData") {
+		var keep []*etree.Element
+		for _, dataEl := range odEl.SelectElements("data") {
+			id := attrValue(dataEl, "id")
+			if id == "" || referenced[id] {
+				keep = append(keep, dataEl)
+			} else {
+				odEl.RemoveChild(dataEl)
+			}
+		}
+		if len(keep) == 0 {
+			unitEl.RemoveChild(odEl)
+		}
+	}
 }
 
 // collectUsedUnitIDs returns the set of every id string already in use
@@ -936,41 +1064,6 @@ func walkXliff2El(el *etree.Element, f func(*etree.Element)) {
 // comparison via seg.Runs. Self-detecting freshness removes the
 // caller-contract footgun where a tool modifies seg.Runs but leaves a
 // stale annotation behind — we'd otherwise silently skip patching.
-// segmentTargetIsEmpty reports whether seg has no meaningful target
-// content — no inline IR with non-text/text content and no plain Runs
-// with any text. Used by patchUnit to decide whether to drop the
-// `<target>` element on a state-less <segment>, mirroring okapi's
-// OkpToX2Converter rule (only emit target when state != "initial" or
-// content is non-empty).
-func segmentTargetIsEmpty(seg *model.Segment) bool {
-	if seg == nil {
-		return true
-	}
-	if ir := freshInlineIR(seg); ir != nil {
-		for _, in := range ir.Inlines {
-			switch {
-			case in.Text != nil:
-				if in.Text.Content != "" {
-					return false
-				}
-			default:
-				// Any inline-code child counts as content.
-				return false
-			}
-		}
-		return true
-	}
-	for _, r := range seg.Runs {
-		if r.Text == nil {
-			return false
-		}
-		if r.Text.Text != "" {
-			return false
-		}
-	}
-	return true
-}
-
 func segmentMatchesDOM(domEl *etree.Element, seg *model.Segment) bool {
 	if seg == nil {
 		return true
