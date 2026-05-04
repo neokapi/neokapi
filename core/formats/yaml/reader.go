@@ -511,8 +511,28 @@ func scanPlainScalarEnd(content []byte, start int, value string) int {
 		}
 	}
 
-	// For single-line plain scalars, trim trailing whitespace.
-	if !strings.Contains(value, "\n") {
+	// Decide whether the scalar continues onto subsequent lines.
+	//
+	// Plain scalars in YAML may carry continuation lines whose
+	// content is folded into single spaces in the parsed value — so
+	// `strings.Contains(value, "\n")` is *not* a reliable continuation
+	// detector. Instead, check whether the next line is indented
+	// strictly deeper than the key's column. When it isn't, the
+	// scalar is single-line and we trim trailing whitespace.
+	startCol := scalarStartColumn(content, start)
+	hasContinuation := false
+	if lineEnd < len(content) && content[lineEnd] == '\n' {
+		next := lineEnd + 1
+		nextIndent := 0
+		for next < len(content) && content[next] == ' ' {
+			nextIndent++
+			next++
+		}
+		if next < len(content) && content[next] != '\n' && nextIndent > startCol {
+			hasContinuation = true
+		}
+	}
+	if !hasContinuation {
 		end := effectiveEnd
 		for end > i && content[end-1] == ' ' {
 			end--
@@ -521,12 +541,53 @@ func scanPlainScalarEnd(content []byte, start int, value string) int {
 	}
 
 	// Multi-line plain scalar: include continuation lines.
+	//
+	// Continuations come in two forms in plain YAML scalars:
+	//   1. Hard line breaks: the parsed value contains literal `\n`
+	//      between lines (rare for plain scalars, but possible).
+	//   2. Folded continuations: subsequent lines indented MORE than
+	//      the key column. yaml.v3 folds these into single spaces in
+	//      the parsed value, so `value` carries no `\n` for them —
+	//      the previous `\n`-counting heuristic under-consumed, left
+	//      continuation bytes in the skeleton, and the writer
+	//      re-emitted them AFTER the substituted translation, causing
+	//      duplicate content.
+	//
+	// Use indentation-based detection so both cases work: walk
+	// forward while subsequent lines are either blank or indented
+	// strictly deeper than the key column. Stop at the first line
+	// indented at-or-below that column.
 	i = lineEnd
 	if i < len(content) {
 		i++ // past newline
 	}
-	valueLines := strings.Count(value, "\n")
-	for line := 0; line < valueLines && i < len(content); line++ {
+	for i < len(content) {
+		lineStart := i
+		// Measure indent of this line.
+		indent := 0
+		for i < len(content) && content[i] == ' ' {
+			indent++
+			i++
+		}
+		if i >= len(content) {
+			// EOF inside trailing indent — include it.
+			i = lineStart
+			break
+		}
+		if content[i] == '\n' {
+			// Empty line — part of plain scalar continuation if the
+			// next non-empty line is indented enough; consume and
+			// keep scanning.
+			i++
+			continue
+		}
+		if indent <= startCol {
+			// Less- or equal-indented than scalar start — not a
+			// continuation. Rewind to start of this line.
+			i = lineStart
+			break
+		}
+		// Continuation line — consume to end-of-line.
 		for i < len(content) && content[i] != '\n' {
 			i++
 		}
@@ -538,6 +599,30 @@ func scanPlainScalarEnd(content []byte, start int, value string) int {
 		i--
 	}
 	return i
+}
+
+// scalarStartColumn returns the 0-based column of the FIRST
+// non-whitespace character on the line containing `start`. For plain
+// scalars this is the column of the mapping key (or list-item dash)
+// that introduces the value, not the column of the value itself.
+//
+// YAML plain-scalar continuation rule: subsequent lines are part of
+// the same scalar when their indent is strictly greater than the
+// column of the key/dash that introduces the scalar — so this is the
+// correct threshold for deciding whether a follow-on line continues
+// the scalar.
+func scalarStartColumn(content []byte, start int) int {
+	// Walk back to the start of the line.
+	lineStart := start
+	for lineStart > 0 && content[lineStart-1] != '\n' {
+		lineStart--
+	}
+	// Skip leading whitespace to find the key's column.
+	col := 0
+	for lineStart+col < len(content) && (content[lineStart+col] == ' ' || content[lineStart+col] == '\t') {
+		col++
+	}
+	return col
 }
 
 // isInFlowContext checks if a position is inside a YAML flow context (within { } or [ ]).
