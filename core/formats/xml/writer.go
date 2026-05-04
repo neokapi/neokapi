@@ -363,9 +363,12 @@ func appendSpaceTo(runs []model.Run) []model.Run {
 }
 
 // xmlEscapeAttrValue escapes the characters required inside a
-// double-quoted XML attribute value: `&`, `<`, and `"`. `>` and `'`
-// stay literal — XML doesn't require their escaping there, and okapi
-// emits them un-escaped to match.
+// double-quoted XML attribute value plus the ones okapi's XMLEncoder
+// escapes by default for ITS-flavoured XML output: `&`, `<`, `>`, and
+// `"`. `'` stays literal because okapi's ITS filter sets `quoteMode=3`
+// (DOUBLE_QUOTES_ONLY); `>` is escaped because the same filter sets
+// `escapeGT=true`, and the encoder applies that flag to both text and
+// attribute contexts.
 func xmlEscapeAttrValue(s string) string {
 	var b strings.Builder
 	b.Grow(len(s))
@@ -375,6 +378,8 @@ func xmlEscapeAttrValue(s string) string {
 			b.WriteString("&amp;")
 		case '<':
 			b.WriteString("&lt;")
+		case '>':
+			b.WriteString("&gt;")
 		case '"':
 			b.WriteString("&quot;")
 		default:

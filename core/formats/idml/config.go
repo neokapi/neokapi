@@ -19,15 +19,14 @@ func (c *Config) FormatName() string { return "idml" }
 
 // Reset restores default configuration values.
 //
-// Defaults track okapi's IDML filter defaults so out-of-the-box
-// extraction matches the reference engine. ExtractNotes=false in
-// particular avoids surfacing reviewer notes (Note/Footnote/Endnote)
-// as translatable units — okapi's filter excludes them unless the
-// caller opts in.
+// Defaults track okapi's IDML filter defaults verbatim
+// (Parameters.java::reset): ExtractMasterSpreads=true,
+// ExtractNotes=false, SkipDiscretionaryHyphens=false. Matching the
+// reference engine out of the box keeps round-trip parity stable.
 func (c *Config) Reset() {
-	c.ExtractMasterSpreads = false
+	c.ExtractMasterSpreads = true
 	c.ExtractNotes = false
-	c.SkipDiscretionaryHyphens = true
+	c.SkipDiscretionaryHyphens = false
 }
 
 // Validate checks configuration validity.
