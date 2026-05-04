@@ -509,11 +509,26 @@ func (r *Reader) readContentSkeleton(ctx context.Context, ch chan<- model.PartRe
 		}
 
 		// Write skeleton and emit parts.
-		// For header entries, everything is skeleton text.
-		if entry.msgid == "" {
-			// Header: all lines as skeleton text
-			for _, line := range re.lines {
+		// For header entries (msgid "" + non-empty msgstr): write the
+		// `msgid ""` line as skeleton text, then canonicalise the
+		// msgstr block to okapi's preferred form (`msgstr ""` start +
+		// one continuation per header field) so source files that put
+		// the first field on the msgstr line still round-trip to the
+		// canonical layout. Entries that just look header-like but have
+		// no real msgstr (e.g. obsolete-only fixtures whose entire
+		// content is `#~` lines) fall through to the verbatim path.
+		if entry.msgid == "" && entry.msgstr != "" {
+			for i, line := range re.lines {
+				if re.isMsgstr[i] {
+					continue
+				}
 				r.skelText(line + "\n")
+			}
+			r.skelText("msgstr \"\"\n")
+			for _, hdrLine := range strings.Split(strings.TrimRight(entry.msgstr, "\n"), "\n") {
+				escaped := strings.ReplaceAll(hdrLine, `\`, `\\`)
+				escaped = strings.ReplaceAll(escaped, `"`, `\"`)
+				r.skelText("\"" + escaped + "\\n\"\n")
 			}
 			dataID++
 			data := &model.Data{
@@ -525,6 +540,13 @@ func (r *Reader) readContentSkeleton(ctx context.Context, ch chan<- model.PartRe
 			}
 			if !r.emit(ctx, ch, &model.Part{Type: model.PartData, Resource: data}) {
 				return
+			}
+			continue
+		}
+		if entry.msgid == "" {
+			// msgid "" but no msgstr content: pass raw lines through.
+			for _, line := range re.lines {
+				r.skelText(line + "\n")
 			}
 			continue
 		}
