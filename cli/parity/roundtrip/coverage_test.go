@@ -525,6 +525,21 @@ func coverageScans() []formatScan {
 				// content (en-dash) — neither is "right" for parity
 				// without an explicit encoding annotation.
 				"computer_science_article.csv": {Engines: []string{"okapi"}, Reason: "fixture has Windows-1252 0x96 with no charset marker; engines disagree on invalid-byte handling"},
+				// Source rows have layout `one,,four,,seven` (empty
+				// translatable column). With sourceColumns="2"
+				// okapi falls back to writing column-1's translation
+				// into the empty column-2 slot; native correctly leaves
+				// the empty cell empty and emits no translation. Two
+				// defensible behaviours, no semantic config knob bridges
+				// them.
+				"some_blank_columns.csv": {Engines: []string{"okapi"}, Reason: "okapi writes col-1 translation into adjacent empty cell; native leaves empty cells empty"},
+				// Fixture is intentionally malformed CSV (unmatched
+				// double-quotes spanning newlines, embedded `""` inside
+				// quoted regions). Native and okapi recover from the
+				// broken quote state differently — both are defensible
+				// readings of broken input. Diff appears mid-file at
+				// row 820 onwards.
+				"test2cols.csv": {Engines: []string{"okapi"}, Reason: "fixture is malformed CSV (quotes spanning lines); engines recover from broken state differently"},
 			},
 			// okf_commaseparatedvalues defaults to "translate column 1
 			// across all rows including the first" (no header). Native
